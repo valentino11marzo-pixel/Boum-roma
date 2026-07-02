@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0A0A0B">
+<meta name="color-scheme" content="dark">
+<title>BOOM · Design Study — Brutech</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://images.unsplash.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#08080A;--concrete:#1A1B1E;--concrete2:#232428;--steel:#34363C;
+  --gold:#FFC400;--gold-light:#FFD84A;--bone:#B9B4AA;
+  --t1:#F2F1ED;--t2:rgba(242,241,237,.62);--t3:rgba(242,241,237,.36);--t4:rgba(242,241,237,.18);
+  --line:rgba(255,255,255,.09);--line2:rgba(255,255,255,.05);--line-gold:rgba(255,196,0,.22);
+  --sans:'Inter',-apple-system,sans-serif;--mono:'Space Mono',ui-monospace,monospace;
+  --ease:cubic-bezier(.16,1,.3,1);--hard:cubic-bezier(.2,0,0,1);--maxw:1180px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;scroll-behavior:smooth}
+body{font-family:var(--sans);background:var(--void);color:var(--t1);font-weight:300;line-height:1.55;overflow-x:hidden}
+img{display:block;max-width:100%}button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+.mono{font-family:var(--mono)}
+h1,h2,h3{font-weight:800;letter-spacing:-1.5px;line-height:.96}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--gold)}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}html{scroll-behavior:auto}}
+
+/* concrete bg + cursor spotlight + structural grid */
+#bg{position:fixed;inset:0;z-index:-1;background:var(--void);overflow:hidden}
+#bg .conc{position:absolute;inset:0;opacity:.5;mix-blend-mode:overlay}
+#bg .grid{position:absolute;inset:0;background-image:linear-gradient(var(--line2) 1px,transparent 1px),linear-gradient(90deg,var(--line2) 1px,transparent 1px);background-size:80px 80px}
+#bg .spot{position:absolute;inset:0;background:radial-gradient(340px 340px at var(--px,70%) var(--py,16%),rgba(255,196,0,.08),transparent 70%);transition:background .15s linear}
+
+nav{position:fixed;top:0;width:100%;z-index:100;background:rgba(8,8,10,.7);backdrop-filter:blur(18px);border-bottom:1px solid transparent;transition:.35s var(--ease)}
+nav.scr{background:rgba(8,8,10,.97);border-color:var(--line)}
+.nav-c{max-width:1320px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;padding:14px 20px}
+@media(min-width:781px){.nav-c{padding:15px 40px}}
+.logo{display:flex;align-items:center;gap:11px}.logo .wm{font-size:20px;letter-spacing:5px;font-weight:600}
+.nav-meta{font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--t3);text-transform:uppercase}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 20px}
+
+.hero{padding:148px 0 60px;position:relative}
+.hero .idx{font-family:var(--mono);font-size:12px;color:var(--gold);letter-spacing:2px;margin-bottom:18px}
+.hero h1{font-size:clamp(46px,12vw,128px);font-weight:800;letter-spacing:-4px;line-height:.86;text-transform:uppercase}
+.hero h1 em{font-style:normal;color:var(--gold);-webkit-text-stroke:1px var(--gold);color:transparent}
+.hero .lead{margin-top:28px;max-width:54ch;color:var(--t2);font-size:17px}
+.hero .cta{margin-top:32px;display:flex;gap:12px;flex-wrap:wrap}
+
+/* mechanical "stamp" button — depresses on press, hard easing */
+.btn-stamp{position:relative;background:var(--gold);color:#14110a;font-weight:600;font-size:14px;letter-spacing:.5px;padding:16px 26px;text-transform:uppercase;font-family:var(--mono);box-shadow:0 6px 0 var(--gold-dark,#8a6b00),0 12px 30px rgba(255,196,0,.2);transition:transform .07s var(--hard),box-shadow .07s var(--hard)}
+.btn-stamp:active{transform:translateY(6px);box-shadow:0 0 0 #8a6b00,0 4px 14px rgba(255,196,0,.2)}
+.btn-line{border:1px solid var(--steel);color:var(--t1);font-size:12px;letter-spacing:1.5px;padding:15px 22px;text-transform:uppercase;font-family:var(--mono);transition:.2s var(--ease)}
+.btn-line:hover{border-color:var(--gold);color:var(--gold)}
+
+.spec-strip{margin-top:50px;border-top:2px solid var(--gold);display:grid;grid-template-columns:repeat(2,1fr)}
+@media(min-width:680px){.spec-strip{grid-template-columns:repeat(4,1fr)}}
+.spec-cell{padding:20px 4px 0;border-right:1px solid var(--line2)}
+.spec-cell:last-child{border-right:0}
+.spec-cell .k{font-family:var(--mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3)}
+.spec-cell .v{font-size:clamp(30px,4.4vw,48px);font-weight:800;margin-top:8px;font-variant-numeric:tabular-nums;letter-spacing:-2px}
+
+section.block{padding:64px 0;border-top:1px solid var(--line)}
+.sec-h{display:flex;align-items:baseline;gap:16px;margin-bottom:8px}
+.sec-h .no{font-family:var(--mono);font-size:13px;color:var(--gold)}
+.sec-h h2{font-size:clamp(28px,5vw,52px);text-transform:uppercase;letter-spacing:-2px}
+.sec-sub{color:var(--t2);font-size:15px;max-width:60ch;margin-bottom:30px}
+
+.reveal{opacity:0;transform:translateY(20px);transition:opacity .6s var(--ease),transform .6s var(--ease)}
+.reveal.lit{opacity:1;transform:none}
+
+.swatches{display:grid;gap:0;grid-template-columns:repeat(2,1fr);border:1px solid var(--line)}@media(min-width:680px){.swatches{grid-template-columns:repeat(4,1fr)}}
+.sw{border-right:1px solid var(--line);cursor:pointer;transition:.2s}.sw:last-child{border-right:0}.sw:hover{background:var(--concrete)}
+.sw .chip{height:90px}
+.sw .meta{padding:12px 14px}.sw .nm{font-size:12px;text-transform:uppercase;letter-spacing:1px}.sw .hex{font-family:var(--mono);font-size:11px;color:var(--t3);display:block;margin-top:3px}
+.sw.copied .hex{color:var(--gold)}
+
+.spec-type>div{padding:18px 0;border-bottom:1px solid var(--line2)}
+.spec-type .lab{font-family:var(--mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:10px}
+.ty-display{font-weight:800;font-size:clamp(34px,7vw,70px);letter-spacing:-2.5px;text-transform:uppercase;line-height:.9}
+.ty-mono{font-family:var(--mono);font-size:clamp(15px,2.2vw,20px);letter-spacing:1px;color:var(--bone)}
+.ty-body{font-size:17px;color:var(--t2);max-width:62ch}
+
+.gal{display:grid;gap:0;grid-template-columns:1fr;border:1px solid var(--line)}@media(min-width:760px){.gal{grid-template-columns:1fr 1fr}}
+.panel{padding:26px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.panel:nth-child(2n){border-right:0}
+.panel h3{font-family:var(--mono);font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:18px}
+.ctrl-row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:18px}
+
+.field label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:8px}
+.field input{width:100%;background:var(--void);border:1px solid var(--steel);color:var(--t1);font-family:var(--mono);font-size:15px;padding:13px 14px;transition:border-color .2s}.field input:focus{outline:none;border-color:var(--gold)}
+.badges{display:flex;gap:0;flex-wrap:wrap;border:1px solid var(--line);width:fit-content}
+.bdg{font-family:var(--mono);font-size:10.5px;letter-spacing:1px;text-transform:uppercase;padding:8px 12px;border-right:1px solid var(--line)}.bdg:last-child{border-right:0}
+.bdg.g{color:var(--gold)}.bdg.b{color:var(--bone)}
+
+/* listing card — brutalist block */
+.lcard{border:1px solid var(--line);background:var(--concrete);max-width:440px}
+.lcard .ph{position:relative;aspect-ratio:16/10;overflow:hidden}.lcard .ph img{width:100%;height:100%;object-fit:cover;filter:grayscale(.2) contrast(1.05)}
+.lcard .num{position:absolute;top:0;left:0;font-weight:800;font-size:80px;line-height:.8;color:rgba(255,196,0,.9);letter-spacing:-5px;padding:6px 12px;mix-blend-mode:overlay}
+.lcard .tag{position:absolute;top:12px;right:12px;font-family:var(--mono);font-size:10px;color:#14110a;background:var(--gold);padding:5px 9px;letter-spacing:1px}
+.lcard .body{padding:18px}
+.lcard .zone{font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--gold)}
+.lcard .nm{font-weight:800;font-size:24px;text-transform:uppercase;letter-spacing:-1px;margin-top:6px;line-height:1}
+.lcard .row{display:flex;gap:0;margin-top:16px;border:1px solid var(--line)}
+.lcard .row div{flex:1;padding:10px 12px;border-right:1px solid var(--line);font-family:var(--mono);font-size:12px}.lcard .row div:last-child{border-right:0}
+.lcard .row div small{display:block;color:var(--t3);font-size:9px;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px}
+.lcard .foot{display:flex;justify-content:space-between;align-items:center;margin-top:16px}
+.lcard .price{font-weight:800;font-size:30px;letter-spacing:-1.5px;font-variant-numeric:tabular-nums}.lcard .price small{font-family:var(--mono);font-size:11px;color:var(--t3)}
+
+.note{font-family:var(--mono);font-size:11px;color:var(--t3);letter-spacing:.5px;margin-top:18px;border-left:3px solid var(--gold);padding-left:12px}
+footer{border-top:2px solid var(--gold);padding:40px 20px;margin-top:20px}
+.f-c{max-width:var(--maxw);margin:0 auto;display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px;align-items:center}
+.f-c .wm{font-size:20px;letter-spacing:5px;font-weight:600}.f-c .m{font-family:var(--mono);font-size:11px;color:var(--t3);letter-spacing:1px}
+.proto{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:120;font-family:var(--mono);font-size:10.5px;letter-spacing:1px;color:var(--t2);background:rgba(8,8,10,.85);backdrop-filter:blur(12px);border:1px solid var(--line-gold);padding:7px 15px}.proto b{color:var(--gold)}
+.dirnav{position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:99;display:flex;gap:1px;background:var(--line);border:1px solid var(--line);font-family:var(--mono);font-size:10px}
+.dirnav a{padding:6px 11px;background:var(--void);color:var(--t3);letter-spacing:1px;text-transform:uppercase}.dirnav a.on{background:var(--gold);color:#14110a;font-weight:700}.dirnav a:hover{color:var(--t1)}
+</style>
+</head>
+<body>
+<div id="bg">
+  <div class="grid"></div><div class="spot"></div>
+  <svg class="conc" preserveAspectRatio="none" aria-hidden="true"><defs><filter id="c"><feTurbulence type="fractalNoise" baseFrequency="0.012 0.016" numOctaves="4" seed="9" stitchTiles="stitch" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 .5  0 0 0 0 .5  0 0 0 0 .5  0 0 0 .5 0"/></filter></defs><rect width="100%" height="100%" filter="url(#c)"/></svg>
+</div>
+
+<nav id="nav"><div class="nav-c">
+  <a href="/" class="logo"><svg viewBox="0 0 1024 1024" width="28" height="28" aria-hidden="true" style="display:block;filter:drop-shadow(0 0 12px rgba(255,215,0,.4))"><defs>
+    <linearGradient id="bmLogoG" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFD54F"/>
+      <stop offset="100%" stop-color="#F5A623"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#bmLogoG)">
+    <path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/>
+  </g></svg><span class="wm">BOOM</span></a>
+  <span class="nav-meta">Brutech · Concrete &amp; Gold</span>
+</div></nav>
+<div class="dirnav"><a href="/preview-design-study">Deco</a><a class="on" href="/preview-design-brutech">Brutech</a><a href="/preview-design-aurum">Aurum</a><a href="/preview-design-maison">Maison</a></div>
+
+<div class="wrap">
+  <header class="hero">
+    <div class="idx">DESIGN STUDY / 02 — BRUTECH</div>
+    <h1>Rent like<br>you mean it.<br><em>Rome.</em></h1>
+    <p class="lead">Industrial brutalism with Roman weight. Raw concrete, exposed structure, gold used like a warning light — power through restraint. Nothing decorative; everything load-bearing.</p>
+    <div class="cta"><button class="btn-stamp">Apply →</button><button class="btn-line">Spec sheet</button></div>
+    <div class="spec-strip">
+      <div class="spec-cell"><div class="k">Homes</div><div class="v" data-count="248">0</div></div>
+      <div class="spec-cell"><div class="k">Reply / h</div><div class="v" data-count="2">0</div></div>
+      <div class="spec-cell"><div class="k">Move-in / h</div><div class="v" data-count="48">0</div></div>
+      <div class="spec-cell"><div class="k">Rating</div><div class="v">4.9</div></div>
+    </div>
+  </header>
+</div>
+
+<div class="wrap">
+  <section class="block reveal"><div class="sec-h"><span class="no">01</span><h2>Material</h2></div>
+    <p class="sec-sub">Concrete tones and steel structure. Gold is rationed — it marks only what matters. Bone for stone-grade metadata. Tap to copy.</p>
+    <div class="swatches">
+      <div class="sw" data-hex="#08080A"><div class="chip" style="background:#08080A"></div><div class="meta"><span class="nm">Void</span><span class="hex">#08080A</span></div></div>
+      <div class="sw" data-hex="#1A1B1E"><div class="chip" style="background:#1A1B1E"></div><div class="meta"><span class="nm">Concrete</span><span class="hex">#1A1B1E</span></div></div>
+      <div class="sw" data-hex="#FFC400"><div class="chip" style="background:#FFC400"></div><div class="meta"><span class="nm">Signal Gold</span><span class="hex">#FFC400</span></div></div>
+      <div class="sw" data-hex="#B9B4AA"><div class="chip" style="background:#B9B4AA"></div><div class="meta"><span class="nm">Bone</span><span class="hex">#B9B4AA</span></div></div>
+    </div>
+  </section>
+
+  <section class="block reveal"><div class="sec-h"><span class="no">02</span><h2>Voice</h2></div>
+    <p class="sec-sub">Heavy slab display that commands; monospace for every fact. Loud where it counts, silent everywhere else.</p>
+    <div class="spec-type">
+      <div><div class="lab">Display · Inter 800 · uppercase</div><div class="ty-display">A home in Rome</div></div>
+      <div><div class="lab">Mono · facts</div><div class="ty-mono">€1,500/MO — 65M² — TRASTEVERE — REF:BM-2049</div></div>
+      <div><div class="lab">Body · Inter 300</div><div class="ty-body">Filmed and verified in person. Legal contract, transparent fees, BOOM-managed from viewing to keys.</div></div>
+    </div>
+  </section>
+
+  <section class="block reveal"><div class="sec-h"><span class="no">03</span><h2>Instruments</h2></div>
+    <p class="sec-sub">Controls with mechanical feedback. The gold button physically depresses when you press it — hard, fast, satisfying.</p>
+    <div class="gal">
+      <div class="panel"><h3>Controls</h3>
+        <div class="ctrl-row"><button class="btn-stamp">Apply →</button><button class="btn-line">Video tour</button></div>
+        <div class="field" style="max-width:300px"><label>Move-in</label><input type="text" value="01.09.2026"></div>
+        <div class="badges" style="margin-top:18px"><span class="bdg g">▶ VIDEO</span><span class="bdg b">⌖ VERIFIED</span><span class="bdg g">48H KEYS</span></div>
+      </div>
+      <div class="panel"><h3>Cost · rolls on view</h3>
+        <div style="border:1px solid var(--line)">
+          <div style="display:flex;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line2);font-family:var(--mono);font-size:13px"><span style="color:var(--t2)">FIRST MONTH</span><b class="mono" data-count="1500" data-eur style="font-size:17px">0</b></div>
+          <div style="display:flex;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line2);font-family:var(--mono);font-size:13px"><span style="color:var(--t2)">DEPOSIT</span><b class="mono" data-count="1500" data-eur style="font-size:17px">0</b></div>
+          <div style="display:flex;justify-content:space-between;padding:14px 16px;background:rgba(255,196,0,.08);font-family:var(--mono);font-size:13px"><span style="color:var(--t1)">TO MOVE IN</span><b class="mono" data-count="3000" data-eur style="font-size:21px;color:var(--gold)">0</b></div>
+        </div>
+        <p class="note">Counts up once, hard-stops. No loops, no jank.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="block reveal"><div class="sec-h"><span class="no">04</span><h2>The listing</h2></div>
+    <p class="sec-sub">A block. Big index number, gold tag, mono spec row. Reads like a structural drawing.</p>
+    <article class="lcard">
+      <div class="ph"><img src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=900&q=72" alt="Bright attic in Trastevere" loading="lazy" onerror="this.style.opacity=0"><div class="num">01</div><div class="tag">▶ VIDEO</div></div>
+      <div class="body">
+        <div class="zone">Trastevere</div><div class="nm">Bright Attic w/ Terrace</div>
+        <div class="row"><div><small>Beds</small>2</div><div><small>Baths</small>1</div><div><small>m²</small>65</div></div>
+        <div class="foot"><div class="price" data-count="1500" data-eur>€0 <small>/mo</small></div><button class="btn-stamp" style="padding:12px 18px">View →</button></div>
+      </div>
+    </article>
+    <p class="note">Direction 02 of 4. Use the switcher (top) to compare with Deco · Aurum · Maison.</p>
+  </section>
+</div>
+
+<footer><div class="f-c"><span class="wm">BOOM</span><span class="m">BRUTECH · DESIGN STUDY · NON-PRODUCTION</span></div></footer>
+<div class="proto">DESIGN STUDY · <b>Brutech</b> · 02 / 04</div>
+
+<script>
+(function(){
+  var reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  addEventListener('scroll',function(){document.getElementById('nav').classList.toggle('scr',scrollY>16);},{passive:true});
+  var spot=document.querySelector('#bg .spot');
+  if(spot&&matchMedia('(hover:hover)').matches){addEventListener('pointermove',function(e){spot.style.setProperty('--px',(e.clientX/innerWidth*100).toFixed(1)+'%');spot.style.setProperty('--py',(e.clientY/innerHeight*100).toFixed(1)+'%');},{passive:true});}
+  var eur=function(n){return '€'+Math.round(n).toLocaleString('en-US');};
+  function countIn(scope){scope.querySelectorAll('[data-count]').forEach(function(el){if(el.dataset.done)return;el.dataset.done='1';var to=parseFloat(el.dataset.count)||0,isEur=el.hasAttribute('data-eur');var suf=el.querySelector('small')?el.querySelector('small').outerHTML:'';
+    if(reduce){el.innerHTML=(isEur?eur(to):to)+suf;return;}var t0=performance.now();(function s(t){var p=Math.min(1,(t-t0)/850);var e=1-Math.pow(1-p,3);el.innerHTML=(isEur?eur(Math.round(to*e)):Math.round(to*e))+suf;if(p<1)requestAnimationFrame(s);})(performance.now());});}
+  var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('lit');countIn(e.target);io.unobserve(e.target);}});},{threshold:.14});
+  document.querySelectorAll('.reveal').forEach(function(el){io.observe(el);});countIn(document.querySelector('.hero'));
+  document.querySelectorAll('.sw').forEach(function(sw){sw.addEventListener('click',function(){try{navigator.clipboard&&navigator.clipboard.writeText(sw.dataset.hex);}catch(e){}var hx=sw.querySelector('.hex'),o=hx.textContent;sw.classList.add('copied');hx.textContent='COPIED';setTimeout(function(){sw.classList.remove('copied');hx.textContent=o;},900);});});
+})();
+</script>
+</body>
+</html>

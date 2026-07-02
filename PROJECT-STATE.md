@@ -1,72 +1,34 @@
-# BOOM Redesign · Project State
+# BOOM redesign — project state & handoff
 
-Living tracker for the apartments-funnel redesign. Read this + `apple-tech-elevation-spec.md`
-before continuing. Update the **Status** and **Next** sections whenever you finish a batch.
+**Use this to continue in a fresh chat** (this conversation is context-heavy). Everything below is on branch
+`claude/apartment-detail-redesign` (production `main` untouched). Preview base:
+`https://boum-roma-git-claude-apartment-detail-redesign-valentino-boom.vercel.app/<file-without-.html>`
 
-- **Branch**: `claude/apartment-detail-redesign-w2ggqp`
-- **Scope**: `apartments.html` (listing grid) → `apartment-detail.html` (single-property scheda)
-- **Spec**: `apple-tech-elevation-spec.md`
-- **Constraints**: vanilla HTML/CSS/JS, no build step, dark theme + gold accents, live site (boomrome.com). Everything additive and reduced-motion aware.
+> Note: the agent **cannot open** the Vercel domain (network policy) — visual bugs must be reported by the user; code is validated with `node` parse/smoke tests.
 
-> ⚠️ **Provenance**: the previous `PROJECT-STATE.md` / `apple-tech-elevation-spec.md` were
-> written in an earlier web session whose ephemeral container was reclaimed before they were
-> committed — they were lost. Both files are now reconstructed and committed so they persist.
-> If you (the human) had additional notes in the originals, paste them back and they'll merge.
+## The two product pages (current focus)
+- **Apartment detail** → `preview-apartment-new.html` — new mobile-first identity; loads real Firestore data with `?id=<listing-id>` (`/api/listings`), sample fallback; hero carousel + lightbox; live stay/price engine; **"Secure this home"** flow (quick-check pre-approval → fair €300 hold, credited/refundable → Stripe step); **real MapLibre 3D map** ("Explore the block in 3D": colored OSM basemap + height-graded 3D buildings + gold pin + 5/10/15-min walk rings, lazy-loaded); similar/smart-match; money "decoded"; AI sheet; motion tokens; Esc/ARIA. Safari hero black-stripe fixed (aspect-ratio moved to container).
+- **Apartments discovery** → `preview-apartments-final.html` — real data (`/api/listings`)+fallback; **URL-synced filters** (deep-linkable) + persisted save/compare (localStorage); **real compare modal**; **custom calendar** (move-in, dark+gold, today-onward, mobile sheet); smart-match fit %; filter bar (gold-dot active, **Clear all** pill, edge fade); **real MapLibre map** (gold price pins, fitBounds, saved=green); keyboard/ARIA/aria-live/reduced-motion.
 
----
+Shared: background system `js/boom-bg.js` (finalists: Guilloché default + Cassettoni/Marmo/Déco + Tessellato/Acqua/Bussola; per-page Auto; switcher hidden unless `?bg=1`). Logo = `boom-mark.svg` (transparent) / inlined.
 
-## Status
+## The build roadmap (authoritative)
+`apple-tech-elevation-spec.md` — from a 32-agent workflow: the Experience Bar (B1–B12), motion/perceived-perf token system, per-surface specs (P0–P2), market-readiness checklist (conversion/perf/a11y/SEO), and a 6-batch implementation sequence. **Read this first** to continue.
 
-| Batch | Title | State |
-|---|---|---|
-| 1 | Grid FLIP + blur-up images + list→scheda continuity | ✅ **Done** (this branch) |
-| 2 | Detail-page entrance choreography | ▢ Next |
-| 3 | Gallery & lightbox elevation | ▢ Planned |
-| 4 | Cross-document View Transitions (progressive enhancement) | ▢ Planned |
-| 5 | Funnel-wide consistency (zone pages, footers, match) | ▢ Planned |
+### Done so far (from the roadmap)
+- Batch 0: motion token scale (`--d-1..6`, `--ease-out/inout/spring`) on both; CTAs de-stubbed (optimistic Apply, honest Reserve); Esc/overlay a11y.
+- Real 3D maps (both pages). Custom calendar (discovery). Filter-bar polish. Safari fix.
 
-### Batch 1 — what shipped
+### Next (recommended order)
+1. **FLIP grid reconcile** on discovery (cards physically reposition on filter; no innerHTML blink; images don't re-decode) + blur-up LQIP `srcset`.
+2. **Shared-element list→detail continuity** (View Transitions: card photo+price → hero) + scroll-restore.
+3. **Money-decoded computed ledger** on detail (registry/cedolare/TARI/condominio/utilities) + custom calendar on detail.
+4. **Compare = analytical matrix** (€/m², winner chips); budget as **min–max range**; filter sheet drag-to-dismiss + focus trap.
+5. **a11y + SEO floor** (skip-links, contrast lifts, JSON-LD/OG/SSR, flip robots), social proof, WhatsApp rail.
 
-- **New module** `js/boom-elevate.js` — dependency-free, idempotent, reduced-motion aware. Exposes `BoomElevate.{ flipCapture, scan, blurUp, captureHandoff, playArrival, reduce }`. (See spec for the API table.)
-- **`apartments.html`**
-  - Loads `boom-elevate.js` synchronously (after `neighborhoods.js`).
-  - Card `<img>` now carries `data-blur-up`.
-  - `renderGrid()` captures positions → swaps `innerHTML` → `play()` FLIP, then `scan()` for blur-up. Old whole-grid `apt-results-anim` fade kept as the fallback path.
-  - Card click + Enter/Space keydown call `captureHandoff(card photo, id)` before navigating to `/listing/<id>`.
-- **`apartment-detail.html`**
-  - Loads `boom-elevate.js` synchronously (after the Firebase compat scripts, before the inline boot script — so it's ready for the SSR-instant render).
-  - Hero (single + single-with-video) and gallery images carry `data-blur-up`.
-  - Right after the page is revealed: `playArrival(hero, id)` (morph in from the card), then `scan(#mediaSection)` (blur-up the rest). `playArrival` claims the hero so blur-up skips it.
-- **Service worker**: untouched on purpose — HTML is network-first and `/js/*.js` isn't precached, so the changes ship without a `CACHE_VERSION` bump (avoids re-fetching the 2.28 MB portal shell for all users).
+## Other previews (archive/explore)
+Backgrounds: `preview-bg-highcaliber` (generative Canvas), `preview-background-final`, `preview-gran-atelier`, `preview-contour`, `preview-monogram`. Design languages: `preview-design-study` (Roman Deco-Machine), `preview-design-brutech`, `preview-design-aurum`, `preview-design-maison`. Index hub: `preview-index`.
 
----
-
-## Next — Batch 2 (detail-page entrance choreography)
-
-Goal: replace the detail page's instant spinner→content swap with a staggered reveal of the
-above-the-fold blocks, anchored on the hero's arrival morph. See spec §"Batch 2".
-
-Entry points already mapped (file:line references, current as of Batch 1):
-
-- `apartment-detail.html`
-  - Content reveal happens at the `pageLoading→apartmentPage` toggle right after `buildMedia()`/`playArrival()` (search for `apartmentPage'); ... .classList.add('show')`).
-  - Above-the-fold DOM: `.apartment-page > .breadcrumb`, `.apt-header` (`.apt-title-block` h1/address/zone, `.apt-price-block`, `.apt-specs`), then `#mediaSection`.
-  - House easing: `cubic-bezier(.16,1,.3,1)`. Brand tokens in `:root` (~line 74).
-  - Don't disturb: 3D map (`launch3DMap`), model-viewer, money scrollytelling (`.pay-track`), lightbox.
-
----
-
-## How to continue (next session checklist)
-
-1. `git checkout claude/apartment-detail-redesign-w2ggqp` (it carries Batch 1).
-2. Read this file + `apple-tech-elevation-spec.md`.
-3. Pick the next ▢ batch; keep edits additive + reduced-motion aware.
-4. Verify against the spec's acceptance bar; commit; **update the Status/Next tables here**; push.
-
-## Manual QA (do once per batch, on a real deploy)
-
-- Filter/sort the grid → cards glide, new ones rise-fade (not a hard re-paint).
-- Slow network → card + hero photos show a blurred preview that sharpens.
-- Tap a card → the hero on the detail page morphs in from where the card was.
-- Toggle OS "reduce motion" → everything is instant, nothing hidden.
-- Hover image carousel, save/compare/share, lightbox, 3D map still work.
+## Constraints / conventions
+- Vanilla HTML/CSS/JS, no build; dark `#060607` + gold `#FFD700`; mobile-first; perf-first (transform/opacity, reduced-motion, lazy maps).
+- Validate every change: `node` parse of inline `<script>` + a smoke test; commit per slice; push to the branch.

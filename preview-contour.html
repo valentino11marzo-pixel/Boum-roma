@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#060607">
+<meta name="color-scheme" content="dark">
+<title>BOOM · Contour Atelier — the line family</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://images.unsplash.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --gold:#FFD700;--gold-light:#FFE55C;--gold-dark:#E5C200;--gold-muted:rgba(255,215,0,.14);
+  --void:#060607;--card:#0E0E10;
+  --t1:#FAFAFA;--t2:rgba(250,250,250,.72);--t3:rgba(250,250,250,.46);
+  --line:rgba(255,255,255,.08);--line-gold:rgba(255,215,0,.16);
+  --sans:'Inter',-apple-system,sans-serif;--disp:'Helvetica Neue',Helvetica,Arial,sans-serif;
+  --ease:cubic-bezier(.16,1,.3,1);--i:1;--g:1;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--void);color:var(--t1);font-weight:300;line-height:1.6;min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:var(--disp);font-weight:300;letter-spacing:-.5px;line-height:1.1}.g{color:var(--gold)}
+img{display:block;max-width:100%}button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+
+/* ===== background ===== */
+#bg{position:fixed;inset:0;z-index:-1;overflow:hidden;background:
+  radial-gradient(70vmax 50vmax at 80% -10%,rgba(255,215,0,.05),transparent 60%),
+  radial-gradient(60vmax 50vmax at 6% 106%,rgba(255,180,60,.03),transparent 62%),var(--void)}
+#svWrap{position:absolute;inset:0;opacity:var(--i);transition:opacity .4s var(--ease)}
+#sv{width:100%;height:100%}
+.l-grain{position:absolute;inset:0;opacity:calc(.3*var(--g));mix-blend-mode:overlay;pointer-events:none}
+.l-vign{position:absolute;inset:0;pointer-events:none;background:radial-gradient(130% 100% at 50% 34%,transparent 52%,rgba(0,0,0,.6) 100%)}
+
+/* ===== studio ===== */
+.atelier{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:60;width:min(96vw,880px);
+  background:rgba(8,8,10,.84);backdrop-filter:blur(20px);border:1px solid var(--line-gold);border-radius:20px;padding:13px 15px;box-shadow:0 14px 50px rgba(0,0,0,.6)}
+.row{display:flex;gap:7px;flex-wrap:wrap;justify-content:center}
+.chip{border:1px solid var(--line);border-radius:100px;padding:9px 15px;font-size:12.5px;color:var(--t2);transition:.22s var(--ease)}
+.chip:hover{border-color:var(--line-gold);color:var(--t1)}
+.chip.on{background:var(--gold);color:#1a1407;font-weight:600;border-color:var(--gold)}
+.meta{margin-top:11px;text-align:center}.meta .nm{font-family:var(--disp);font-size:15px}.meta .ds{font-size:12px;color:var(--t3);margin-top:3px;max-width:64ch;margin:3px auto 0}
+.ctrls{display:flex;gap:18px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:12px;padding-top:11px;border-top:1px solid var(--line)}
+.ctrl{display:flex;align-items:center;gap:9px;font-size:10.5px;letter-spacing:1px;text-transform:uppercase;color:var(--t3)}
+.ctrl input[type=range]{width:110px;accent-color:var(--gold)}
+.tog{display:inline-flex;gap:7px;align-items:center;font-size:10.5px;letter-spacing:1px;text-transform:uppercase;color:var(--t3);cursor:pointer}.tog input{accent-color:var(--gold)}
+
+/* ===== sample UI ===== */
+.stage{max-width:1080px;margin:0 auto;padding:196px 22px 90px}
+nav.demo{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:20px 30px;max-width:1340px;margin:0 auto}
+.logo{font-family:var(--disp);font-size:22px;letter-spacing:5px}.logo b{color:var(--gold)}.tag{font-size:10.5px;letter-spacing:3px;text-transform:uppercase;color:var(--t3)}
+.hero{max-width:760px}.eyebrow{font-size:10.5px;letter-spacing:2.8px;text-transform:uppercase;color:var(--gold);font-weight:500}
+.hero h1{font-size:clamp(34px,6.4vw,66px);font-weight:200;letter-spacing:-1.6px;margin-top:16px}
+.hero p{color:var(--t2);font-size:17px;margin-top:18px;max-width:52ch}
+.cta{margin-top:26px;display:flex;gap:10px;flex-wrap:wrap}
+.bg-gold{background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#1a1407;font-weight:600;border-radius:100px;padding:14px 26px;font-size:14px;box-shadow:0 10px 40px rgba(255,215,0,.16)}
+.bg-ghost{border:1px solid var(--line);border-radius:100px;padding:14px 24px;font-size:14px;background:rgba(14,14,16,.55);backdrop-filter:blur(8px)}
+.cards{margin-top:62px;display:grid;gap:18px;grid-template-columns:1fr}@media(min-width:680px){.cards{grid-template-columns:repeat(3,1fr)}}
+.pc{border:1px solid var(--line);border-radius:18px;overflow:hidden;background:linear-gradient(180deg,rgba(18,18,20,.6),rgba(11,11,12,.6));backdrop-filter:blur(10px);transition:.3s var(--ease)}
+.pc:hover{border-color:var(--line-gold);transform:translateY(-4px)}
+.pc .ph{aspect-ratio:5/3;overflow:hidden;background:#15151a}.pc .ph img{width:100%;height:100%;object-fit:cover;transition:transform .9s var(--ease)}.pc:hover .ph img{transform:scale(1.05)}
+.pc .b{padding:17px}.pc .z{font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--gold)}.pc .n{font-family:var(--disp);font-size:17px;margin-top:6px}.pc .m{color:var(--t3);font-size:12px;margin-top:4px}
+.pc .pr{margin-top:12px;font-family:var(--disp);font-size:20px;font-weight:200;color:var(--gold)}.pc .pr small{font-size:12px;color:var(--t3)}
+.glasspanel{margin-top:34px;border:1px solid var(--line-gold);border-radius:20px;padding:26px;background:linear-gradient(180deg,rgba(18,18,20,.5),rgba(11,11,12,.5));backdrop-filter:blur(12px)}
+.glasspanel h3{font-size:19px;font-weight:300}.glasspanel p{color:var(--t2);font-size:14px;margin-top:8px}
+</style>
+</head>
+<body>
+
+<div id="bg">
+  <div id="svWrap"><svg id="sv" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg></div>
+  <svg class="l-grain" preserveAspectRatio="none" aria-hidden="true"><defs><filter id="fGrain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="4" stitchTiles="stitch" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 1  0 0 0 0 .86  0 0 0 0 .3  0 0 0 .55 0"/></filter></defs><rect width="100%" height="100%" filter="url(#fGrain)"/></svg>
+  <div class="l-vign"></div>
+</div>
+
+<div class="atelier">
+  <div class="row" id="chips">
+    <button class="chip on" data-v="flow">Contour Flow</button>
+    <button class="chip" data-v="topo">Sette Colli</button>
+    <button class="chip" data-v="stream">Streamlines</button>
+    <button class="chip" data-v="vortex">Vortice</button>
+    <button class="chip" data-v="strata">Strata</button>
+  </div>
+  <div class="meta"><div class="nm" id="vName">Contour Flow</div><div class="ds" id="vDesc"></div></div>
+  <div class="ctrls">
+    <label class="ctrl">Intensity <input type="range" id="rngI" min="30" max="150" value="100"></label>
+    <label class="ctrl">Density <input type="range" id="rngD" min="3" max="13" value="8"></label>
+    <label class="tog"><input type="checkbox" id="togG" checked> Grain</label>
+  </div>
+</div>
+
+<nav class="demo"><div class="logo">BO<b>O</b>M</div><div class="tag">Atelier · Roma</div></nav>
+<div class="stage">
+  <section class="hero">
+    <span class="eyebrow">Verified apartments · Rome</span>
+    <h1>A home in Rome, <span class="g">for your dates.</span></h1>
+    <p>Tutta la famiglia "linee" — curve di livello, flussi, topografia dei sette colli. Hairline d'oro, statiche e leggere, mai un motivo che si ripete.</p>
+    <div class="cta"><button class="bg-gold">Browse apartments →</button><button class="bg-ghost">How BOOM works</button></div>
+  </section>
+  <div class="cards">
+    <div class="pc"><div class="ph"><img src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=700&q=72" alt="" loading="lazy" onerror="this.style.opacity=0"></div><div class="b"><div class="z">Trastevere</div><div class="n">Bright Attic with Terrace</div><div class="m">2 bed · 65 m² · video-verified</div><div class="pr">€1,500 <small>/month</small></div></div></div>
+    <div class="pc"><div class="ph"><img src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=700&q=72" alt="" loading="lazy" onerror="this.style.opacity=0"></div><div class="b"><div class="z">Monti</div><div class="n">Designer One-Bed</div><div class="m">1 bed · 52 m² · furnished</div><div class="pr">€1,350 <small>/month</small></div></div></div>
+    <div class="pc"><div class="ph"><img src="https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=700&q=72" alt="" loading="lazy" onerror="this.style.opacity=0"></div><div class="b"><div class="z">Prati</div><div class="n">Elegant Family Flat</div><div class="m">3 bed · 95 m² · elevator</div><div class="pr">€2,200 <small>/month</small></div></div></div>
+  </div>
+  <div class="glasspanel"><h3>Vetro su sfondo</h3><p>Controlla che le linee diano profondità sotto il vetro (blur + bordo oro) senza diventare rumore o disturbare la lettura.</p></div>
+</div>
+
+<script>
+const sv=document.getElementById('sv');
+const DEFS='<defs><linearGradient id="cg" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="rgba(255,221,130,0)"/><stop offset="0.5" stop-color="rgba(255,224,140,1)"/><stop offset="1" stop-color="rgba(255,221,130,0)"/></linearGradient></defs>';
+const DESC={
+  flow:["Contour Flow","Le curve di livello che ti sono piaciute, rifinite: filamenti d'oro che scorrono in orizzontale, banda focale al centro, qualche linea-indice più marcata."],
+  topo:["Sette Colli","Una vera mappa topografica: curve di livello che si annidano e si fondono attorno ai sette colli di Roma — generate con marching-squares, non disegnate. Il massimo della raffinatezza."],
+  stream:["Streamlines","Linee di flusso che seguono un campo: curvano e divergono come una mappa dei venti o una carta nautica. Tecnico, contemporaneo, 2030."],
+  vortex:["Vortice","Curve concentriche con una leggera spirale attorno a un fuoco — un'impronta digitale, una rosa dei venti incisa. Elegante e ipnotico, a istanza singola."],
+  strata:["Strata","Strati geologici / architettonici: pochi tratti orizzontali a peso variabile, come la stratificazione del travertino o le quote di un prospetto. Calmo e materico."]
+};
+
+/* ---------- marching squares (Topo + Vortice) ---------- */
+function marching(W,H,step,levels,F){
+  const cols=Math.ceil(W/step)+1,rows=Math.ceil(H/step)+1;
+  const vals=new Float32Array(cols*rows);
+  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)vals[r*cols+c]=F(c*step,r*step);
+  const out=levels.map(()=>'');
+  for(let r=0;r<rows-1;r++)for(let c=0;c<cols-1;c++){
+    const x0=c*step,y0=r*step,x1=x0+step,y1=y0+step;
+    const tl=vals[r*cols+c],tr=vals[r*cols+c+1],br=vals[(r+1)*cols+c+1],bl=vals[(r+1)*cols+c];
+    const mn=Math.min(tl,tr,br,bl),mx=Math.max(tl,tr,br,bl);
+    for(let li=0;li<levels.length;li++){
+      const L=levels[li];if(L<mn||L>mx)continue;
+      let idx=0;if(tl>=L)idx|=8;if(tr>=L)idx|=4;if(br>=L)idx|=2;if(bl>=L)idx|=1;
+      if(idx===0||idx===15)continue;
+      const it=(a,b)=>{const d=b-a;return d===0?0.5:(L-a)/d;};
+      const top=[x0+step*it(tl,tr),y0],right=[x1,y0+step*it(tr,br)],bottom=[x0+step*it(bl,br),y1],left=[x0,y0+step*it(tl,bl)];
+      const seg=(p,q)=>{out[li]+='M'+p[0].toFixed(1)+','+p[1].toFixed(1)+'L'+q[0].toFixed(1)+','+q[1].toFixed(1);};
+      switch(idx){
+        case 1:seg(left,bottom);break;case 2:seg(bottom,right);break;case 3:seg(left,right);break;
+        case 4:seg(top,right);break;case 5:seg(top,right);seg(left,bottom);break;case 6:seg(top,bottom);break;
+        case 7:seg(left,top);break;case 8:seg(top,left);break;case 9:seg(top,bottom);break;
+        case 10:seg(top,left);seg(right,bottom);break;case 11:seg(top,right);break;case 12:seg(left,right);break;
+        case 13:seg(right,bottom);break;case 14:seg(bottom,left);break;
+      }
+    }
+  }
+  return out;
+}
+function paintLevels(paths){
+  const n=paths.length;let s=DEFS;
+  paths.forEach((d,li)=>{if(!d)return;const t=n>1?li/(n-1):0;const op=(0.10+0.26*Math.sin(Math.PI*t)).toFixed(3);const w=(li%3===0?1.0:0.5);
+    s+='<path d="'+d+'" fill="none" stroke="rgba(255,223,138,1)" stroke-width="'+w+'" opacity="'+op+'"/>';});
+  return s;
+}
+function topoField(W,H){
+  const m=Math.min(W,H);
+  const P=[[.17,.30,1.00,.16],[.40,.63,.92,.20],[.62,.23,1.06,.15],[.81,.54,.96,.18],[.30,.86,.82,.16],[.71,.87,.86,.17],[.50,.42,.70,.23]]
+    .map(p=>({x:p[0]*W,y:p[1]*H,a:p[2],s:p[3]*m}));
+  return (x,y)=>{let v=0;for(const p of P){const dx=x-p.x,dy=y-p.y;v+=p.a*Math.exp(-(dx*dx+dy*dy)/(2*p.s*p.s));}return v+0.05*Math.sin(x/230)*Math.cos(y/270);};
+}
+function vortexField(W,H){
+  const m=Math.min(W,H),cx=W*0.66,cy=H*0.44,s=0.34*m;
+  const P2={x:W*0.36,y:H*0.58,a:0.42,s:0.20*m};
+  return (x,y)=>{const dx=x-cx,dy=y-cy,r=Math.hypot(dx,dy),th=Math.atan2(dy,dx);
+    let v=Math.exp(-(r*r)/(2*s*s))*(1+0.17*Math.cos(5*th+r*0.016));
+    const ex=x-P2.x,ey=y-P2.y;v+=P2.a*Math.exp(-(ex*ex+ey*ey)/(2*P2.s*P2.s));return v;};
+}
+
+/* ---------- parallel families (Flow + Strata) ---------- */
+function buildFlow(W,H,density){
+  const lines=Math.round(10+density*1.6),step=14;let s=DEFS;
+  for(let li=0;li<lines;li++){
+    const baseY=(li+0.5)/lines*H,a1=16+(li%3)*11,a2=7+(li%4)*4,a3=4,f1=0.6+(li%5)*0.06,f2=1.35,f3=2.2,ph=li*0.72;
+    let d='M0,'+baseY.toFixed(1);
+    for(let x=step;x<=W;x+=step){const t=x/W*Math.PI*2;const y=baseY+a1*Math.sin(f1*t+ph)+a2*Math.sin(f2*t+ph*1.3)+a3*Math.sin(f3*t+ph*0.6);d+=' L'+x.toFixed(1)+','+y.toFixed(1);}
+    const edge=1-Math.abs(li-(lines-1)/2)/((lines-1)/2),op=(0.09+edge*0.33).toFixed(3),w=(li%6===0?1.1:0.55);
+    s+='<path d="'+d+'" fill="none" stroke="url(#cg)" stroke-width="'+w+'" opacity="'+op+'"/>';
+  }
+  return s;
+}
+function buildStrata(W,H,density){
+  const lines=Math.round(7+density*1.1),step=18;let s=DEFS;
+  for(let li=0;li<lines;li++){
+    const baseY=(li+0.5)/lines*H,slope=(li%2?-1:1)*(6+(li%3)*5),a1=10+(li%4)*7,f1=0.5+(li%3)*0.05,ph=li*1.1;
+    let d='M0,'+baseY.toFixed(1);
+    for(let x=step;x<=W;x+=step){const t=x/W;const y=baseY+slope*t+a1*Math.sin(f1*t*Math.PI*2+ph);d+=' L'+x.toFixed(1)+','+y.toFixed(1);}
+    const idx=(li%4===0),op=(idx?0.34:0.16).toFixed(3),w=(idx?1.4:0.55);
+    s+='<path d="'+d+'" fill="none" stroke="rgba(255,223,138,1)" stroke-width="'+w+'" opacity="'+op+'"/>';
+  }
+  return s;
+}
+function buildStream(W,H,density){
+  const ang=(x,y)=>Math.sin(x/240+y/520)*1.2+Math.cos(y/300-x/700)*1.1+0.4*Math.sin((x+y)/420);
+  const step=10,steps=Math.round(Math.min(W,H)/step*0.85),gap=Math.max(30,74-density*4);let s=DEFS;
+  for(let sy=-gap;sy<=H+gap;sy+=gap)for(let sx=-gap;sx<=W+gap;sx+=gap){
+    let x=sx+(((sx*7+sy*13)%17)-8),y=sy,d='M'+x.toFixed(1)+','+y.toFixed(1);
+    for(let k=0;k<steps;k++){const a=ang(x,y);x+=Math.cos(a)*step;y+=Math.sin(a)*step;if(x<-30||x>W+30||y<-30||y>H+30)break;d+='L'+x.toFixed(1)+','+y.toFixed(1);}
+    s+='<path d="'+d+'" fill="none" stroke="rgba(255,223,138,1)" stroke-width="0.6" opacity="0.26"/>';
+  }
+  return s;
+}
+
+let CUR='flow';
+function build(){
+  const W=innerWidth,H=innerHeight;sv.setAttribute('viewBox','0 0 '+W+' '+H);
+  const dn=+document.getElementById('rngD').value;let html='';
+  if(CUR==='flow')html=buildFlow(W,H,dn);
+  else if(CUR==='strata')html=buildStrata(W,H,dn);
+  else if(CUR==='stream')html=buildStream(W,H,dn);
+  else if(CUR==='topo'){const n=8+dn,lv=[];for(let i=0;i<n;i++)lv.push(0.10+0.86*i/(n-1));html=paintLevels(marching(W,H,10,lv,topoField(W,H)));}
+  else if(CUR==='vortex'){const n=12+dn,lv=[];for(let i=0;i<n;i++)lv.push(0.06+0.92*i/(n-1));html=paintLevels(marching(W,H,9,lv,vortexField(W,H)));}
+  sv.innerHTML=html;
+}
+function setV(v){CUR=v;document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c.dataset.v===v));
+  document.getElementById('vName').textContent=DESC[v][0];document.getElementById('vDesc').textContent=DESC[v][1];build();}
+document.getElementById('chips').addEventListener('click',e=>{const b=e.target.closest('.chip');if(b)setV(b.dataset.v);});
+document.getElementById('rngI').addEventListener('input',e=>document.documentElement.style.setProperty('--i',(e.target.value/100).toFixed(2)));
+document.getElementById('rngD').addEventListener('input',build);
+document.getElementById('togG').addEventListener('change',e=>document.documentElement.style.setProperty('--g',e.target.checked?'1':'0'));
+let rt;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(build,170);},{passive:true});
+setV('flow');
+</script>
+</body>
+</html>
