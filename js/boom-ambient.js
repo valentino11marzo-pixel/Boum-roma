@@ -34,8 +34,11 @@
   var LITE = !!((navigator.connection && navigator.connection.saveData) || (navigator.deviceMemory && navigator.deviceMemory <= 2));
   var STATIC_ONLY = REDUCE || LITE;
 
-  function gold(a) { return 'rgba(217,180,91,' + a + ')'; }      // refined gold #D9B45B
-  function warm(a) { return 'rgba(242,210,124,' + a + ')'; }     // highlight #F2D27C
+  // Palette is mutable so each mount can recolor the scene library (one engine
+  // instance per page). Defaults: refined gold #D9B45B / highlight #F2D27C.
+  var PAL = { a: '217,180,91', b: '242,210,124' };
+  function gold(al) { return 'rgba(' + PAL.a + ',' + al + ')'; }
+  function warm(al) { return 'rgba(' + PAL.b + ',' + al + ')'; }
   function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
   function fract(x) { return x - Math.floor(x); }
   function hash2(x, y) { return fract(Math.sin(x * 127.1 + y * 311.7) * 43758.5453); }
@@ -270,13 +273,15 @@
   /* ── engine ──────────────────────────────────────────────────────────────── */
   function mount(opts) {
     opts = opts || {};
+    if (opts.palette) { PAL.a = opts.palette.a || PAL.a; PAL.b = opts.palette.b || PAL.b; }
+    var INKRGB = opts.inkRGB || '10,9,8';
     var wrap = document.createElement('div');
     wrap.setAttribute('data-boom-ambient', '');
     wrap.style.cssText = 'position:fixed;inset:0;z-index:' + (opts.z != null ? opts.z : -1) + ';pointer-events:none;background:' + (opts.ink || '#0A0908') + ';overflow:hidden';
     var canvas = document.createElement('canvas');
     canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block';
     var veil = document.createElement('div');
-    veil.style.cssText = 'position:absolute;inset:0;background:radial-gradient(115% 95% at 50% 40%, rgba(10,9,8,.88) 0%, rgba(10,9,8,.55) 46%, rgba(10,9,8,.16) 74%, rgba(10,9,8,0) 100%)';
+    veil.style.cssText = 'position:absolute;inset:0;background:radial-gradient(115% 95% at 50% 40%, rgba(' + INKRGB + ',.88) 0%, rgba(' + INKRGB + ',.55) 46%, rgba(' + INKRGB + ',.16) 74%, rgba(' + INKRGB + ',0) 100%)';
     wrap.appendChild(canvas); wrap.appendChild(veil);
     document.body.appendChild(wrap);
 
@@ -315,7 +320,7 @@
       // crossfade progress
       if (nxt) { mix = Math.min(1, mix + dt / 700); if (mix >= 1) { cur = nxt; curKey = nxtKey; nxt = null; nxtKey = ''; mix = 0; } }
       var anyTrails = (cur && cur.trails) || (nxt && nxt.trails);
-      if (anyTrails) { ctx.fillStyle = 'rgba(10,9,8,0.09)'; ctx.fillRect(0, 0, W, H); }
+      if (anyTrails) { ctx.fillStyle = 'rgba(' + INKRGB + ',0.09)'; ctx.fillRect(0, 0, W, H); }
       else ctx.clearRect(0, 0, W, H);
       var kBase = moodCur.presence * (opts.intensity != null ? opts.intensity : 1);
       if (cur) cur.draw(ctx, t, kBase * (nxt ? (1 - mix) : 1), dt);

@@ -31,6 +31,18 @@ Shared: background system `js/boom-bg.js` (finalists: Guilloché default + Casse
   Cosmati / Oculus / Sampietrini / Meandro / Aurum — DPR-capped, tab-hidden pause, reduced-motion→static frame, intensity dial.
 - **Roman Deco direction** (`preview-artdeco.html`): monumental Cinzel + sunburst/fluting geometry, stepped gold CTAs,
   listing-as-artefact panel, roll-up stats, cursor-light. Candidate skin alongside the four existing design-language studies.
+- **THE NEW GENERATION (current fork in the road)** — complete rework on `js/boom-ambient.js`, the NEW sectional ambient
+  engine (one canvas, 7 Rome-iconic generative scenes — oculus/cosmati/velluto/meandro/contorni/aurum/sampietrini — one per
+  `data-ambient` section, cross-faded on scroll, palette-parametric, **mood system** browse/read/focus/convert that stills the
+  ambience while the user decides; DPR-capped, saveData/reduced-motion→static):
+  - **Aurea** (`preview-flagship.html` + `preview-flagship-detail.html`) — the flagship product end-to-end: Cormorant voice,
+    refined gold #D9B45B under B3 discipline, live data, FLIP/blur-up/continuity (arrival morph verified), apply drawer =
+    convert mood, computed ledger consistent across surfaces.
+  - **Notturna** (`preview-notturna.html`) — ultra-tech noir: blue-black, platinum voice, ember gold reserved for money,
+    all-sans instrument UI, tabular numerals. Working grid + FLIP, platinum ambience.
+  - **Meridiana** (`preview-meridiana.html`) — the first LIGHT direction: travertine paper, warm ink, bronze; couture-editorial.
+    Bronze ambience on light paper. Working grid + FLIP.
+  All verified in headless Chromium: zero page errors on all four surfaces; detail hero morph claimed from a real click chain.
 
 ### Next (recommended order)
 1. **Money-decoded computed ledger** on detail (registry/cedolare/TARI/condominio/utilities) + custom calendar on detail.
