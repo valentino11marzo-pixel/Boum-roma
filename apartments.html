@@ -1026,15 +1026,23 @@
        BOOM /apartments — discovery engine v2
        State-driven · URL-synced · NL search · Lazy map · Save & compare
        ═══════════════════════════════════════════════════════════════════ */
-    firebase.initializeApp({
-        apiKey:"AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",
-        authDomain:"boom-property-dashboards.firebaseapp.com",
-        projectId:"boom-property-dashboards",
-        storageBucket:"boom-property-dashboards.firebasestorage.app",
-        messagingSenderId:"937269017440",
-        appId:"1:937269017440:web:41c1a0b1e1633c2f373c05"
-    });
-    const db = firebase.firestore();
+    // Defensive init: if the Firebase CDN is blocked/slow, db stays null and
+    // loadListings() falls straight through to the /api/listings proxy —
+    // the page must never die on a ReferenceError before its own fallbacks.
+    let db = null;
+    try {
+        if (window.firebase) {
+            firebase.initializeApp({
+                apiKey:"AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",
+                authDomain:"boom-property-dashboards.firebaseapp.com",
+                projectId:"boom-property-dashboards",
+                storageBucket:"boom-property-dashboards.firebasestorage.app",
+                messagingSenderId:"937269017440",
+                appId:"1:937269017440:web:41c1a0b1e1633c2f373c05"
+            });
+            db = firebase.firestore();
+        }
+    } catch (e) { console.warn('firebase init failed — proxy-only mode', e && e.message); }
 
     const $ = (s, r=document) => r.querySelector(s);
     const $$ = (s, r=document) => [...r.querySelectorAll(s)];
@@ -1132,8 +1140,9 @@
         LOAD_RETRY = 0; clearTimeout(LOAD_TIMER);
       };
 
-      // 1) Live read straight from Firestore — fast path.
+      // 1) Live read straight from Firestore — fast path (skipped if init failed).
       try {
+        if (!db) throw new Error('no-firebase');
         const snap = await db.collection('listings').get();
         return paint(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       } catch (err) {
@@ -2027,7 +2036,7 @@
     let inlinePlayer = null;
     // Load video ID from Firestore settings
     function loadVideoSetting() {
-        if (typeof db === 'undefined') { initVideo(boomVideoId); return; }
+        if (typeof db === 'undefined' || !db) { initVideo(boomVideoId); return; }
         db.collection('settings').doc('video').get().then(doc => {
             if (doc.exists && doc.data().youtubeId) {
                 boomVideoId = doc.data().youtubeId;

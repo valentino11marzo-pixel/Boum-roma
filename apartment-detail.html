@@ -205,7 +205,11 @@
         .map3d-go:hover small{color:rgba(0,0,0,.65)}
         .map3d-alt{position:relative;background:none;border:none;color:#666;font-size:11.5px;cursor:pointer;font-family:inherit;border-bottom:1px solid rgba(255,255,255,.15);padding:0 0 1px}
         .map3d-alt:hover{color:var(--gold)}
-        .map3d{position:relative;height:430px}
+        .map3d{position:relative;height:540px}
+        .map3d-style{position:absolute;left:12px;top:12px;z-index:4;display:flex;gap:0;border:1px solid rgba(255,255,255,.14);border-radius:10px;overflow:hidden;background:rgba(8,8,10,.72);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+        .map3d-style button{padding:8px 14px;background:none;border:0;color:#cbcbcb;font-family:inherit;font-size:11px;letter-spacing:.6px;cursor:pointer;transition:all .2s;min-height:34px}
+        .map3d-style button.on{background:var(--gold);color:#000;font-weight:600}
+        .map3d-style button:not(.on):hover{color:#fff}
         .map3d-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#777;font-size:11px;letter-spacing:2.5px;text-transform:uppercase;z-index:2;pointer-events:none}
         .map3d-legend{position:absolute;left:12px;bottom:12px;z-index:3;display:flex;flex-wrap:wrap;gap:8px 12px;max-width:calc(100% - 24px);padding:8px 12px;background:rgba(8,8,10,.72);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.1);border-radius:10px;font-size:10px;letter-spacing:.3px;color:#cbcbcb;pointer-events:none}
         .map3d-legend span{display:inline-flex;align-items:center;gap:5px}
@@ -214,7 +218,15 @@
         .boom-pin b{font-size:9px;letter-spacing:2px;color:#000;background:linear-gradient(135deg,#FFD700,#FFA500);padding:4px 10px;border-radius:100px;white-space:nowrap}
         .boom-pin i{width:13px;height:13px;border-radius:50%;background:#FFD700;box-shadow:0 0 0 5px rgba(255,215,0,.25);animation:pinP 2.2s infinite}
         @keyframes pinP{0%{box-shadow:0 0 0 0 rgba(255,215,0,.45)}70%{box-shadow:0 0 0 16px rgba(255,215,0,0)}100%{box-shadow:0 0 0 0 rgba(255,215,0,0)}}
-        @media(max-width:600px){.map3d-facade{height:300px}.map3d{height:370px}}
+        @media(max-width:600px){.map3d-facade{height:300px}.map3d{height:430px}}
+        /* Entrance choreography — the page arrives as a sequence, not a switch.
+           The media/hero block stays static: it is the anchor the card-morph lands on. */
+        @media(prefers-reduced-motion:no-preference){
+            .apartment-page.show .breadcrumb{animation:aptRise .5s cubic-bezier(.16,1,.3,1) both}
+            .apartment-page.show .apt-header{animation:aptRise .58s cubic-bezier(.16,1,.3,1) .07s both}
+            .apartment-page.show .apt-content{animation:aptRise .62s cubic-bezier(.16,1,.3,1) .16s both}
+        }
+        @keyframes aptRise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
         @media(prefers-reduced-motion:reduce){.boom-pin i{animation:none}}
         /* True 3D scan block */
         .m3d{margin-top:18px}
@@ -2270,7 +2282,7 @@
         const zc=(slug&&ZC[slug])||null;
         if(!exact&&!zc&&!d.address){classic();return}
         // 3D flyover facade — WebGL resolves only on tap (zero cost otherwise)
-        c.innerHTML=`<div class="map3d-facade"><button type="button" class="map3d-go" id="map3dGo"><span>◆ Explore the block in 3D</span><small>A cinematic flyover of the building’s surroundings</small></button><button type="button" class="map3d-alt" id="map3dAlt">or open the classic map</button></div>`;
+        c.innerHTML=`<div class="map3d-facade"><button type="button" class="map3d-go" id="map3dGo"><span>◆ Explore the block in 3D</span><small>Full-colour flyover · satellite view · real terrain · walk rings</small></button><button type="button" class="map3d-alt" id="map3dAlt">or open the classic map</button></div>`;
         document.getElementById('map3dAlt').addEventListener('click',function(e){e.stopPropagation();classic()});
         document.getElementById('map3dGo').addEventListener('click',function(){
             if(exact){launch3DMap(c,lat,lng,classic,false);return}
@@ -2296,10 +2308,23 @@
     function launch3DMap(c,lat,lng,fallback,approx){
         c.innerHTML='<div class="map3d" id="map3d"><div class="map3d-loading">Preparing the flyover…</div></div>';
         const fail=()=>{try{fallback()}catch(e){}};
+        // Geodesic circle helper — shared by rings/beam/accuracy so refine() can rebuild them all.
+        const bcircle=function(clng,clat,rM,n){n=n||72;var co=[],dLat=rM/111320,dLng=rM/(111320*Math.cos(clat*Math.PI/180));for(var i=0;i<=n;i++){var a=i/n*2*Math.PI;co.push([clng+dLng*Math.cos(a),clat+dLat*Math.sin(a)]);}return {type:'Feature',properties:{},geometry:{type:'Polygon',coordinates:[co]}};};
+        const ringFCat=function(clng,clat){var defs=[[350,'5 min'],[700,'10 min'],[1050,'15 min']];return {type:'FeatureCollection',features:defs.map(function(d){var f=bcircle(clng,clat,d[0]);f.properties={m:d[1]};return f;})};};
+        const ringLblAt=function(fc){return {type:'FeatureCollection',features:fc.features.map(function(f){var ring=f.geometry.coordinates[0];return {type:'Feature',properties:{m:'~'+f.properties.m+' walk'},geometry:{type:'Point',coordinates:ring[Math.floor(ring.length*0.12)]}};})};};
         const api={_loaded:false,_map:null,_marker:null,_label:null,refine:function(nlat,nlng){try{
             if(api._marker)api._marker.setLngLat([nlng,nlat]);
             if(api._label)api._label.textContent='THE FLAT';
-            if(api._map&&api._loaded)api._map.easeTo({center:[nlng,nlat],zoom:16.5,duration:1800});
+            const m=api._map;
+            if(m&&api._loaded){
+                // Precision: EVERYTHING recentres on the exact block — rings, spotlight,
+                // beam and the honesty disc goes away (we now know the true position).
+                try{var rf=ringFCat(nlng,nlat);m.getSource('boom-rings').setData(rf);m.getSource('boom-rings-lbl').setData(ringLblAt(rf));}catch(e){}
+                try{m.getSource('boom-flat-glow').setData(bcircle(nlng,nlat,38,48));}catch(e){}
+                try{m.getSource('boom-flat').setData(bcircle(nlng,nlat,8,30));}catch(e){}
+                try{if(m.getLayer('boom-approx-l'))m.setLayoutProperty('boom-approx-l','visibility','none');}catch(e){}
+                m.easeTo({center:[nlng,nlat],zoom:16.5,duration:1800});
+            }
         }catch(e){}}};
         const boot=()=>{try{
             const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -2312,21 +2337,34 @@
             map.addControl(new maplibregl.FullscreenControl(),'top-right');
             map.on('load',function(){
                 api._loaded=true;clearTimeout(dog);
-                try{ // grade the basemap into BOOM dark + capture a usable glyph font
+                try{ // FULL COLOUR: keep liberty's real palette (streets, parks, water,
+                    // landmarks) — clients recognise their actual neighbourhood. We only
+                    // declutter tiny POI icons (our own coloured POI layer replaces them)
+                    // and capture a usable glyph font for our labels.
                     var boomFont=['Noto Sans Regular'];
                     map.getStyle().layers.forEach(function(L){try{
                         if(L.type==='symbol'&&L.layout&&L.layout['text-font']&&!boomFont.__got){boomFont=L.layout['text-font'];boomFont.__got=true;}
                         if(L.type==='symbol'&&/poi|housenumber|airport|aeroway/.test(L.id)){map.setLayoutProperty(L.id,'visibility','none');return}
-                        if(L.type==='background')map.setPaintProperty(L.id,'background-color','#0B0B0E');
-                        else if(L.type==='fill')map.setPaintProperty(L.id,'fill-color',/water/.test(L.id)?'#10181F':/park|grass|wood|green/.test(L.id)?'#101510':'#121216');
-                        else if(L.type==='line')map.setPaintProperty(L.id,'line-color',/primary|trunk|motorway|major/.test(L.id)?'#2B2B33':'#1C1C22');
-                        else if(L.type==='symbol'){map.setPaintProperty(L.id,'text-color','#9A9AA2');map.setPaintProperty(L.id,'text-halo-color','#0B0B0E')}
                     }catch(e){}});
+                    // ULTRA-REAL: satellite imagery (Esri World Imagery) as a hybrid layer —
+                    // inserted below road/name labels so streets stay readable on top of the
+                    // photography. Hidden until the user flips the Satellite toggle.
+                    try{
+                        map.addSource('boom-sat',{type:'raster',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],tileSize:256,maxzoom:19,attribution:'Imagery © Esri, Maxar, Earthstar Geographics'});
+                        var firstSym=(map.getStyle().layers.find(function(L){return L.type==='symbol'})||{}).id;
+                        map.addLayer({id:'boom-sat-l',type:'raster',source:'boom-sat',layout:{visibility:'none'},paint:{'raster-opacity':1,'raster-fade-duration':300}},firstSym);
+                    }catch(e){console.warn('BOOM 3D: satellite layer failed',e&&e.message)}
+                    // REAL TERRAIN: AWS terrarium DEM — Rome's seven hills in actual relief.
+                    try{
+                        map.addSource('boom-dem',{type:'raster-dem',tiles:['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],encoding:'terrarium',tileSize:256,maxzoom:13});
+                        map.setTerrain({source:'boom-dem',exaggeration:1.15});
+                    }catch(e){console.warn('BOOM 3D: terrain failed',e&&e.message)}
                     const srcs=Object.keys(map.getStyle().sources||{});
                     const src=srcs.find(function(s){return /openmaptiles|vector|planet/i.test(s)})||srcs[0];
                     if(src){
-                        // Height-graded skyline: short blocks sink dark, tall ones rise into a warm stone tone → real depth instead of flat grey.
-                        map.addLayer({id:'boom-3d',type:'fill-extrusion',source:src,'source-layer':'building',minzoom:13,paint:{'fill-extrusion-color':['interpolate',['linear'],['coalesce',['get','render_height'],10],0,'#191920',14,'#24242C',32,'#30303A',60,'#3C3A40',110,'#46413E'],'fill-extrusion-height':['coalesce',['get','render_height'],14],'fill-extrusion-base':['coalesce',['get','render_min_height'],0],'fill-extrusion-opacity':1,'fill-extrusion-vertical-gradient':true}});
+                        // Height-graded skyline in real Roman stone: low blocks in shaded
+                        // travertine, tall ones catching the sun — matches the coloured map.
+                        map.addLayer({id:'boom-3d',type:'fill-extrusion',source:src,'source-layer':'building',minzoom:13,paint:{'fill-extrusion-color':['interpolate',['linear'],['coalesce',['get','render_height'],10],0,'#B8AD97',14,'#C8BDA5',32,'#D6CBB2',60,'#E2D8C0',110,'#EFE6CF'],'fill-extrusion-height':['coalesce',['get','render_height'],14],'fill-extrusion-base':['coalesce',['get','render_min_height'],0],'fill-extrusion-opacity':.92,'fill-extrusion-vertical-gradient':true}});
                         // Points of interest, coloured by category — straight from the tile data (keyless)
                         var POI=['match',['get','class'],
                             'railway','#00CED1','subway','#00CED1','bus','#00CED1','bus_stop','#00CED1','station','#00CED1',
@@ -2339,25 +2377,48 @@
                         try{ map.addLayer({id:'boom-poi',type:'circle',source:src,'source-layer':'poi',minzoom:14,filter:['<=',['coalesce',['get','rank'],99],8],paint:{'circle-radius':['interpolate',['linear'],['zoom'],14,2.4,16,4.2,18,6.6],'circle-color':POI,'circle-opacity':.92,'circle-blur':.12,'circle-stroke-width':1,'circle-stroke-color':'rgba(0,0,0,.55)'}}); }catch(e){}
                         try{ map.addLayer({id:'boom-poi-glow',type:'circle',source:src,'source-layer':'poi',minzoom:15,filter:['<=',['coalesce',['get','rank'],99],4],paint:{'circle-radius':['interpolate',['linear'],['zoom'],15,8,18,17],'circle-color':POI,'circle-opacity':.16,'circle-blur':1}},'boom-poi'); }catch(e){}
                         try{ map.addLayer({id:'boom-transit',type:'symbol',source:src,'source-layer':'poi',minzoom:14.5,filter:['match',['get','class'],['railway','subway','station'],true,false],layout:{'text-field':['coalesce',['get','name'],''],'text-font':boomFont,'text-size':10.5,'text-offset':[0,1.2],'text-anchor':'top'},paint:{'text-color':'#5FE6E8','text-halo-color':'#06080A','text-halo-width':1.5}}); }catch(e){}
-                        // Walk-distance rings (5/10/15 min on foot) + a gold light beam on the exact building — immersive & genuinely useful
+                        // Walk-distance rings (5/10/15 min on foot) + a gold light beam on the
+                        // exact building. Built from the hoisted helpers so refine() can move
+                        // every element to the true position in one call.
                         try{
-                            var bcircle=function(clng,clat,rM,n){n=n||72;var co=[],dLat=rM/111320,dLng=rM/(111320*Math.cos(clat*Math.PI/180));for(var i=0;i<=n;i++){var a=i/n*2*Math.PI;co.push([clng+dLng*Math.cos(a),clat+dLat*Math.sin(a)]);}return {type:'Feature',properties:{},geometry:{type:'Polygon',coordinates:[co]}};};
-                            var ringDefs=[[350,'5 min'],[700,'10 min'],[1050,'15 min']];
-                            var ringFC={type:'FeatureCollection',features:ringDefs.map(function(d){var f=bcircle(lng,lat,d[0]);f.properties={m:d[1]};return f;})};
+                            var ringFC=ringFCat(lng,lat);
                             map.addSource('boom-rings',{type:'geojson',data:ringFC});
-                            map.addLayer({id:'boom-rings-l',type:'line',source:'boom-rings',paint:{'line-color':'#FFD700','line-opacity':0.26,'line-width':1.4,'line-dasharray':[3,3]}});
-                            var ringLbls={type:'FeatureCollection',features:ringFC.features.map(function(f){var ring=f.geometry.coordinates[0];return {type:'Feature',properties:{m:'~'+f.properties.m+' walk'},geometry:{type:'Point',coordinates:ring[Math.floor(ring.length*0.12)]}};})};
-                            map.addSource('boom-rings-lbl',{type:'geojson',data:ringLbls});
-                            map.addLayer({id:'boom-rings-lbl-l',type:'symbol',source:'boom-rings-lbl',layout:{'text-field':['get','m'],'text-font':boomFont,'text-size':10,'text-allow-overlap':false},paint:{'text-color':'#FFD700','text-opacity':0.62,'text-halo-color':'#0B0B0E','text-halo-width':1.4}});
+                            map.addLayer({id:'boom-rings-l',type:'line',source:'boom-rings',paint:{'line-color':'#B8860B','line-opacity':0.55,'line-width':1.6,'line-dasharray':[3,3]}});
+                            map.addSource('boom-rings-lbl',{type:'geojson',data:ringLblAt(ringFC)});
+                            map.addLayer({id:'boom-rings-lbl-l',type:'symbol',source:'boom-rings-lbl',layout:{'text-field':['get','m'],'text-font':boomFont,'text-size':10.5,'text-allow-overlap':false},paint:{'text-color':'#7A5C00','text-opacity':0.9,'text-halo-color':'rgba(255,255,255,.85)','text-halo-width':1.6}});
+                            // Honesty disc: when the position is zone-approximate, show the
+                            // indicative area instead of pretending pin-point accuracy.
+                            if(approx){
+                                map.addSource('boom-approx',{type:'geojson',data:bcircle(lng,lat,300,72)});
+                                map.addLayer({id:'boom-approx-l',type:'fill',source:'boom-approx',paint:{'fill-color':'#FFD700','fill-opacity':0.07}});
+                            }
                             // Ground spotlight pooled around the exact building, then a slim gold beam rising from it — reads as "right here", elegantly.
                             map.addSource('boom-flat-glow',{type:'geojson',data:bcircle(lng,lat,38,48)});
-                            map.addLayer({id:'boom-flat-glow-l',type:'fill',source:'boom-flat-glow',paint:{'fill-color':'#FFD700','fill-opacity':0.13}});
+                            map.addLayer({id:'boom-flat-glow-l',type:'fill',source:'boom-flat-glow',paint:{'fill-color':'#FFD700','fill-opacity':0.2}});
                             map.addSource('boom-flat',{type:'geojson',data:bcircle(lng,lat,8,30)});
-                            map.addLayer({id:'boom-flat-beam',type:'fill-extrusion',source:'boom-flat',paint:{'fill-extrusion-color':'#FFE55C','fill-extrusion-height':82,'fill-extrusion-base':0,'fill-extrusion-opacity':0.42}});
+                            map.addLayer({id:'boom-flat-beam',type:'fill-extrusion',source:'boom-flat',paint:{'fill-extrusion-color':'#FFD700','fill-extrusion-height':82,'fill-extrusion-base':0,'fill-extrusion-opacity':0.5}});
                         }catch(e){console.warn('BOOM 3D: rings/beam failed',e&&e.message);}
                     }
                 }catch(e){}
-                try{ if(map.setSky)map.setSky({'sky-color':'#0a0a12','horizon-color':'#1c1208','fog-color':'#0B0B0E','sky-horizon-blend':.6,'horizon-fog-blend':.5,'fog-ground-blend':.4,'atmosphere-blend':['interpolate',['linear'],['zoom'],0,.7,13,.25]}); }catch(e){}
+                // Roman late-afternoon sky — warm horizon over the coloured city.
+                try{ if(map.setSky)map.setSky({'sky-color':'#8FB8E8','horizon-color':'#F2DEB6','fog-color':'#E8E0CE','sky-horizon-blend':.55,'horizon-fog-blend':.5,'fog-ground-blend':.35,'atmosphere-blend':['interpolate',['linear'],['zoom'],0,.7,13,.22]}); }catch(e){}
+                // Map ⇄ Satellite toggle: hybrid satellite keeps street/place names on top.
+                try{
+                    var host=document.getElementById('map3d');
+                    if(host&&map.getLayer('boom-sat-l')&&!host.querySelector('.map3d-style')){
+                        var tg=document.createElement('div');tg.className='map3d-style';
+                        tg.innerHTML='<button type="button" class="on" data-m="map">Map</button><button type="button" data-m="sat">Satellite</button>';
+                        tg.addEventListener('click',function(ev){
+                            var b=ev.target.closest('button');if(!b||b.classList.contains('on'))return;
+                            tg.querySelectorAll('button').forEach(function(x){x.classList.toggle('on',x===b)});
+                            var sat=b.dataset.m==='sat';
+                            try{map.setLayoutProperty('boom-sat-l','visibility',sat?'visible':'none');}catch(e){}
+                            try{map.setPaintProperty('boom-3d','fill-extrusion-opacity',sat?0.45:0.92);}catch(e){}
+                            if(window.gtag)try{gtag('event','map3d_style',{mode:sat?'satellite':'map'})}catch(e){}
+                        });
+                        host.appendChild(tg);
+                    }
+                }catch(e){}
                 try{
                     const el=document.createElement('div');el.className='boom-pin';
                     const b=document.createElement('b');b.textContent=approx?'THE NEIGHBOURHOOD':'THE FLAT';
