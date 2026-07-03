@@ -472,6 +472,160 @@
     };
   };
 
+  // ═════════ THE LINEA D'ORO FAMILY — engraved gold lines, traveling light ═══
+  // Siblings of Raggiera & Meandro: same grammar (thin engraved strokes, one
+  // warm pulse that travels), three more Roman icons.
+
+  // CARDO — the Roman street grid (cardo & decumanus). A fine engraved plan
+  // of insulae; two or three light-runners walk the streets and turn at
+  // crossings, like current through the city's circuit.
+  SCENES.cardo = function () {
+    var W, H, step, runners, majors;
+    function build(w, h) {
+      W = w; H = h;
+      step = Math.max(72, Math.min(110, Math.min(w, h) / 9));
+      majors = { x: Math.round(w / 2 / step) * step, y: Math.round(h / 2 / step) * step };
+      runners = [];
+      var rnd = mulberry32(1204);
+      for (var i = 0; i < 3; i++) runners.push({
+        x: Math.round(rnd() * w / step) * step,
+        y: Math.round(rnd() * h / step) * step,
+        dx: rnd() > 0.5 ? 1 : -1, dy: 0, trail: [], speed: 150 + rnd() * 70
+      });
+      runners.forEach(function (r, i2) { if (i2 % 2) { r.dy = r.dx; r.dx = 0; } });
+    }
+    return {
+      build: build,
+      draw: function (ctx, t, k, dt) {
+        // the plan
+        for (var x = 0; x <= W + 1; x += step) {
+          ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H);
+          ctx.strokeStyle = gold((x === majors.x ? 0.42 : 0.16) * k); ctx.lineWidth = x === majors.x ? 1.5 : 0.7; ctx.stroke();
+        }
+        for (var y = 0; y <= H + 1; y += step) {
+          ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y);
+          ctx.strokeStyle = gold((y === majors.y ? 0.42 : 0.16) * k); ctx.lineWidth = y === majors.y ? 1.5 : 0.7; ctx.stroke();
+        }
+        if (STATIC_ONLY) return;
+        // the runners
+        var move = (dt || 16) / 1000;
+        for (var i = 0; i < runners.length; i++) {
+          var r = runners[i];
+          r.x += r.dx * r.speed * move; r.y += r.dy * r.speed * move;
+          // at a crossing: maybe turn (deterministic-ish wobble)
+          var gx = Math.round(r.x / step) * step, gy = Math.round(r.y / step) * step;
+          if (Math.abs(r.x - gx) < 2 && Math.abs(r.y - gy) < 2 && Math.random() < 0.45) {
+            r.x = gx; r.y = gy;
+            if (r.dx !== 0) { r.dy = Math.random() < 0.5 ? 1 : -1; r.dx = 0; }
+            else { r.dx = Math.random() < 0.5 ? 1 : -1; r.dy = 0; }
+          }
+          if (r.x < -step || r.x > W + step || r.y < -step || r.y > H + step) {
+            r.x = majors.x; r.y = majors.y; r.trail = [];
+          }
+          r.trail.push([r.x, r.y]);
+          if (r.trail.length > 44) r.trail.shift();
+          for (var s = 1; s < r.trail.length; s++) {
+            var f = s / r.trail.length;
+            ctx.beginPath(); ctx.moveTo(r.trail[s - 1][0], r.trail[s - 1][1]); ctx.lineTo(r.trail[s][0], r.trail[s][1]);
+            ctx.strokeStyle = warm(0.7 * f * k); ctx.lineWidth = 2.4; ctx.lineCap = 'round'; ctx.stroke();
+          }
+          ctx.lineCap = 'butt';
+          var hg = ctx.createRadialGradient(r.x, r.y, 0, r.x, r.y, 30);
+          hg.addColorStop(0, warm(0.32 * k)); hg.addColorStop(1, warm(0));
+          ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(r.x, r.y, 34, 0, TAU); ctx.fill();
+        }
+      }
+    };
+  };
+
+  // TEVERE — the river. Seven engraved current-lines flowing across the page,
+  // and one glint drifting downstream along the heart of the current.
+  SCENES.tevere = function () {
+    var W, H, curves;
+    function pathAt(i, n) {
+      // a smooth diagonal current: baseline + two sines, offset per strand
+      var pts = [], off = (i - (n - 1) / 2) * 26;
+      for (var s = 0; s <= 120; s++) {
+        var u = s / 120, x = -60 + u * (W + 120);
+        var y = H * 0.5 + off
+              + Math.sin(u * 4.2 + i * 0.35) * H * 0.10
+              + Math.sin(u * 9.1 + i * 0.6) * H * 0.025
+              + (u - 0.5) * H * 0.22;                    // the diagonal fall
+        pts.push([x, y]);
+      }
+      return pts;
+    }
+    function build(w, h) {
+      W = w; H = h; curves = [];
+      for (var i = 0; i < 7; i++) curves.push(pathAt(i, 7));
+    }
+    return {
+      build: build,
+      draw: function (ctx, t, k) {
+        for (var i = 0; i < curves.length; i++) {
+          var c = curves[i], mid = i === 3;
+          ctx.beginPath(); ctx.moveTo(c[0][0], c[0][1]);
+          for (var s = 1; s < c.length; s++) ctx.lineTo(c[s][0], c[s][1]);
+          ctx.strokeStyle = gold((mid ? 0.30 : 0.13 + 0.02 * (3 - Math.abs(i - 3))) * k);
+          ctx.lineWidth = mid ? 1.4 : 0.7; ctx.stroke();
+        }
+        if (STATIC_ONLY) return;
+        // the glint drifts downstream on the central current
+        var c2 = curves[3], u = (t * 0.06) % 1, idx = Math.min(c2.length - 2, Math.floor(u * (c2.length - 1)));
+        var p = c2[idx], q = c2[idx + 1], f = u * (c2.length - 1) - idx;
+        var gx = p[0] + (q[0] - p[0]) * f, gy = p[1] + (q[1] - p[1]) * f;
+        ctx.beginPath(); ctx.moveTo(c2[Math.max(0, idx - 4)][0], c2[Math.max(0, idx - 4)][1]);
+        for (var s2 = Math.max(0, idx - 4); s2 <= idx + 1; s2++) ctx.lineTo(c2[s2][0], c2[s2][1]);
+        ctx.strokeStyle = warm(0.8 * k); ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.stroke(); ctx.lineCap = 'butt';
+        var hg = ctx.createRadialGradient(gx, gy, 0, gx, gy, 44);
+        hg.addColorStop(0, warm(0.30 * k)); hg.addColorStop(1, warm(0));
+        ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(gx, gy, 44, 0, TAU); ctx.fill();
+      }
+    };
+  };
+
+  // INTRECCIO — a banknote guilloché ribbon: six braided strands woven through
+  // a band of the page, engraved; one glint travels the weave end to end.
+  SCENES.intreccio = function () {
+    var W, H, strands, Y0, AMP;
+    function build(w, h) {
+      W = w; H = h; Y0 = h * 0.42; AMP = Math.min(120, h * 0.13);
+      strands = [];
+      for (var i = 0; i < 6; i++) {
+        var pts = [];
+        for (var s = 0; s <= 160; s++) {
+          var u = s / 160, x = -40 + u * (w + 80);
+          var y = Y0 + Math.sin(u * Math.PI * 6 + i * Math.PI / 3) * AMP * (0.55 + 0.45 * Math.sin(u * Math.PI));
+          pts.push([x, y]);
+        }
+        strands.push(pts);
+      }
+    }
+    return {
+      build: build,
+      draw: function (ctx, t, k) {
+        for (var i = 0; i < strands.length; i++) {
+          var c = strands[i];
+          ctx.beginPath(); ctx.moveTo(c[0][0], c[0][1]);
+          for (var s = 1; s < c.length; s++) ctx.lineTo(c[s][0], c[s][1]);
+          ctx.strokeStyle = gold((i % 2 ? 0.14 : 0.24) * k);
+          ctx.lineWidth = i % 2 ? 0.7 : 1.1; ctx.stroke();
+        }
+        if (STATIC_ONLY) return;
+        var u = (Math.sin(t * 0.14) * 0.5 + 0.5), gxp = -40 + u * (W + 80);
+        for (var i2 = 0; i2 < strands.length; i2++) {
+          var c2 = strands[i2], idx = Math.max(1, Math.min(c2.length - 1, Math.round(u * 160)));
+          ctx.beginPath(); ctx.moveTo(c2[Math.max(0, idx - 3)][0], c2[Math.max(0, idx - 3)][1]);
+          for (var s2 = Math.max(0, idx - 3); s2 <= idx; s2++) ctx.lineTo(c2[s2][0], c2[s2][1]);
+          ctx.strokeStyle = warm(0.5 * k); ctx.lineWidth = 1.8; ctx.lineCap = 'round'; ctx.stroke(); ctx.lineCap = 'butt';
+        }
+        var hg = ctx.createRadialGradient(gxp, Y0, 0, gxp, Y0, AMP * 1.5);
+        hg.addColorStop(0, warm(0.16 * k)); hg.addColorStop(1, warm(0));
+        ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(gxp, Y0, AMP * 1.5, 0, TAU); ctx.fill();
+      }
+    };
+  };
+
   /* ── moods: how alive the ambience is, by what the user is doing ────────── */
   var MOODS = {
     browse:  { tempo: 1,    presence: 1    },
