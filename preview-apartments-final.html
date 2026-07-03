@@ -99,9 +99,19 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 .facet{font-size:11.5px;color:var(--t3);border:1px solid var(--line);border-radius:100px;padding:7px 12px;cursor:pointer;transition:.2s;min-height:34px;display:inline-flex;align-items:center}.facet:hover{color:var(--gold);border-color:var(--line-gold)}.facet.on{color:var(--gold);border-color:var(--gold);background:var(--gold-faint)}.facet b{color:var(--t2)}.facet.on b{color:var(--gold)}
 .rtools{display:flex;gap:8px;align-items:center}
 .rtools select{background:var(--input);border:1px solid var(--line);border-radius:10px;color:var(--t1);font-family:inherit;font-size:13px;padding:9px 12px}
-.viewtog{display:flex;align-items:stretch;border:1px solid var(--line);border-radius:10px;overflow:hidden}
-.viewtog .skyl{display:flex;align-items:center;padding:0 14px;font-size:13px;color:var(--gold);border-left:1px solid var(--line);white-space:nowrap;transition:.2s}
-.viewtog .skyl:hover{background:var(--gold);color:#1a1407;font-weight:600}
+.viewtog{display:flex;align-items:stretch;border:1px solid rgba(255,215,0,.35);border-radius:10px;overflow:hidden;box-shadow:0 0 18px rgba(255,215,0,.08)}
+/* the embedded Skyline's chrome */
+.sky-anchor{display:flex;align-items:center;gap:6px;font-size:11px;letter-spacing:.2px;color:var(--t2);background:rgba(14,14,18,.78);backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:100px;padding:5px 10px;white-space:nowrap;opacity:.55;pointer-events:none;transition:opacity .35s,border-color .35s}
+.sky-anchor .ic{font-size:12px;line-height:1}
+.sky-anchor .d{color:var(--gold);font-weight:600;display:none}
+.sky-anchor.lit{opacity:1;border-color:rgba(255,215,0,.32)}
+.sky-anchor.lit .d{display:inline}
+.sky-anchor.lit .d::before{content:'· '}
+.map-chips{position:absolute;left:12px;top:12px;z-index:5;display:flex;border:1px solid rgba(255,255,255,.14);border-radius:10px;overflow:hidden;background:rgba(8,8,10,.75);backdrop-filter:blur(8px)}
+.map-chips .mchip{display:flex;align-items:center;padding:8px 14px;background:none;border:0;color:#cbcbcb;font-family:inherit;font-size:11.5px;letter-spacing:.5px;cursor:pointer;transition:all .2s;min-height:36px;text-decoration:none}
+.map-chips .mchip.on{background:var(--gold);color:#1a1407;font-weight:600}
+.map-chips .mchip.go{color:var(--gold);border-left:1px solid rgba(255,255,255,.14)}
+.map-chips .mchip:not(.on):hover{color:#fff}
 .viewtog button{padding:9px 12px;font-size:12px;color:var(--t3);background:var(--card)}.viewtog button.on{background:var(--gold);color:#1a1407;font-weight:600}
 
 /* grid + cards */
@@ -241,7 +251,7 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
       <div class="facets" id="facets"></div>
     </div>
     <div class="rtools">
-      <div class="viewtog" role="tablist"><button id="vList" class="on" role="tab" aria-selected="true" onclick="setView('list')">List</button><button id="vMap" role="tab" aria-selected="false" onclick="setView('map')">Map</button><a class="skyl" href="/skyline" title="Every BOOM home on a 3D map of Rome">Rome in 3D ↗</a></div>
+      <div class="viewtog" role="tablist"><button id="vList" class="on" role="tab" aria-selected="true" onclick="setView('list')">List</button><button id="vMap" role="tab" aria-selected="false" onclick="setView('map')">Skyline 3D</button></div>
       <label class="ifield" style="margin:0"><span class="eyebrow" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Sort</span><select id="sort" onchange="setSort(this.value)" aria-label="Sort"><option value="match">Recommended</option><option value="priceA">Price ↑</option><option value="priceD">Price ↓</option><option value="new">Newest</option><option value="avail">Move-in date</option></select></label>
     </div>
   </div>
@@ -449,18 +459,82 @@ function ensureML(){return _ML||(_ML=new Promise((res,rej)=>{if(window.maplibreg
 let _dmap=null,_marks=[];
 function addBuildings(map){try{var srcs=Object.keys(map.getStyle().sources||{});var src=srcs.find(function(s){return /openmaptiles|vector|planet/i.test(s);})||srcs[0];
   if(src)map.addLayer({id:'b3d',type:'fill-extrusion',source:src,'source-layer':'building',minzoom:13,paint:{'fill-extrusion-color':['interpolate',['linear'],['coalesce',['get','render_height'],10],0,'#e7dcc4',45,'#d8c49a',95,'#bd9f68'],'fill-extrusion-height':['coalesce',['get','render_height'],10],'fill-extrusion-base':['coalesce',['get','render_min_height'],0],'fill-extrusion-opacity':.9,'fill-extrusion-vertical-gradient':true}});}catch(e){}}
+/* ── SKYLINE 3D, embedded — the winning map, right inside discovery ──
+   Cinematic pitch, Rome's anchors, gold commute threads on hover, hybrid
+   satellite and real terrain. The full-screen page stays one tap away. */
+var ANCHORS=[[12.5018,41.9009,'Termini','🚇'],[12.4924,41.8902,'Colosseo','🏛'],[12.4534,41.9022,'Vaticano','⛪'],[12.4690,41.8870,'Trastevere','🍷'],[12.5135,41.9038,'Sapienza','🎓']];
+var ANCHOR_MK=[];
+function _hav(a,b){var R=6371,r=Math.PI/180,dy=(b[1]-a[1])*r,dx=(b[0]-a[0])*r,s=Math.pow(Math.sin(dy/2),2)+Math.cos(a[1]*r)*Math.cos(b[1]*r)*Math.pow(Math.sin(dx/2),2);return 2*R*Math.asin(Math.min(1,Math.sqrt(s)));}
+function _arc(a,b,bow,n){n=n||44;var pts=[],mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2,dx=b[0]-a[0],dy=b[1]-a[1],cx=mx-dy*bow,cy=my+dx*bow;
+  for(var i=0;i<=n;i++){var t=i/n,u=1-t;pts.push([u*u*a[0]+2*u*t*cx+t*t*b[0],u*u*a[1]+2*u*t*cy+t*t*b[1]]);}return pts;}
+function _dl(km){return km<2.6?Math.round(km/4.8*60)+'′ walk':(km<10?km.toFixed(1):Math.round(km))+' km';}
+function showLinks(co){
+  if(!_dmap||!_dmap.getSource('links'))return;
+  var feats=ANCHORS.map(function(A){return {type:'Feature',geometry:{type:'LineString',coordinates:_arc(co,[A[0],A[1]],0.12,44)}}});
+  ANCHORS.forEach(function(A,i){var m=ANCHOR_MK[i];if(m){m.el.classList.add('lit');m.dEl.textContent=_dl(_hav(co,[A[0],A[1]]));}});
+  _dmap.getSource('links').setData({type:'FeatureCollection',features:feats});
+}
+function clearLinks(){
+  if(_dmap&&_dmap.getSource('links'))_dmap.getSource('links').setData({type:'FeatureCollection',features:[]});
+  ANCHOR_MK.forEach(function(m){m.el.classList.remove('lit');});
+}
+function skylineDress(map){
+  try{map.getStyle().layers.forEach(function(L){try{if(L.type==='symbol'&&/poi|housenumber|aeroway|airport/.test(L.id))map.setLayoutProperty(L.id,'visibility','none');}catch(e){}});}catch(e){}
+  try{
+    map.addSource('d-sat',{type:'raster',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],tileSize:256,maxzoom:19,attribution:'Imagery © Esri, Maxar, Earthstar Geographics'});
+    var firstSym=(map.getStyle().layers.find(function(L){return L.type==='symbol'})||{}).id;
+    map.addLayer({id:'d-sat-l',type:'raster',source:'d-sat',layout:{visibility:'none'},paint:{'raster-opacity':1,'raster-fade-duration':300}},firstSym);
+  }catch(e){}
+  try{
+    map.addSource('d-dem',{type:'raster-dem',tiles:['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],encoding:'terrarium',tileSize:256,maxzoom:13});
+    map.setTerrain({source:'d-dem',exaggeration:1.15});
+  }catch(e){}
+  try{if(map.setSky)map.setSky({'sky-color':'#8FB8E8','horizon-color':'#F2DEB6','fog-color':'#E8E0CE','sky-horizon-blend':.55,'horizon-fog-blend':.5,'fog-ground-blend':.35});}catch(e){}
+  try{
+    map.addSource('links',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+    map.addLayer({id:'links-glow',type:'line',source:'links',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#FFD700','line-width':6,'line-blur':6,'line-opacity':.22}});
+    map.addLayer({id:'links-line',type:'line',source:'links',layout:{'line-cap':'round'},paint:{'line-color':'#FFE680','line-width':1.6,'line-opacity':.9,'line-dasharray':[1,1.6]}});
+    ANCHORS.forEach(function(A){
+      var el=document.createElement('div');el.className='sky-anchor';
+      var ic=document.createElement('span');ic.className='ic';ic.textContent=A[3];
+      var nm=document.createElement('span');nm.textContent=A[2];
+      var d=document.createElement('span');d.className='d';
+      el.appendChild(ic);el.appendChild(nm);el.appendChild(d);
+      ANCHOR_MK.push({el:el,dEl:d,mk:new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([A[0],A[1]]).addTo(map)});
+    });
+    map.on('click',clearLinks);
+  }catch(e){}
+  // chips: Map ⇄ Satellite + full-screen Rome, injected onto the map container
+  try{
+    var mv=document.getElementById('mapview');
+    if(mv&&!mv.querySelector('.map-chips')){
+      var wrap=document.createElement('div');wrap.className='map-chips';
+      wrap.innerHTML='<button type="button" class="mchip on" data-m="map">Map</button><button type="button" class="mchip" data-m="sat">Satellite</button><a class="mchip go" href="/skyline" title="Full-screen Rome">Full screen ↗</a>';
+      wrap.addEventListener('click',function(ev){
+        var b=ev.target.closest('button.mchip');if(!b||b.classList.contains('on'))return;
+        wrap.querySelectorAll('button.mchip').forEach(function(x){x.classList.toggle('on',x===b)});
+        var sat=b.dataset.m==='sat';
+        try{map.setLayoutProperty('d-sat-l','visibility',sat?'visible':'none');}catch(e){}
+        try{map.setPaintProperty('b3d','fill-extrusion-opacity',sat?0.45:0.9);}catch(e){}
+      });
+      mv.appendChild(wrap);
+    }
+  }catch(e){}
+}
 function plotMarks(list){_marks.forEach(m=>m.remove());_marks=[];
   var pts=list.filter(l=>l.lat&&l.lng);if(!pts.length||!_dmap)return;
   var b=new maplibregl.LngLatBounds();
   pts.forEach(function(l){var el=document.createElement('a');el.className='mpin2'+(saved.has(l.id)?' sv':'');el.href='/listing/'+encodeURIComponent(l.id);el.textContent=eur(l.price);el.setAttribute('aria-label',l.name+', '+eur(l.price)+' per month');
+    el.addEventListener('mouseenter',function(){showLinks([l.lng,l.lat])});
+    el.addEventListener('focus',function(){showLinks([l.lng,l.lat])});
     var mk=new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat([l.lng,l.lat]).addTo(_dmap);_marks.push(mk);b.extend([l.lng,l.lat]);});
-  try{_dmap.fitBounds(b,{padding:64,maxZoom:15.5,duration:600});}catch(e){}}
+  try{_dmap.fitBounds(b,{padding:70,maxZoom:15.5,duration:600,pitch:55});}catch(e){}}
 function renderMap(list){
   var mv=document.getElementById('mapview');mv.classList.add('on');
   ensureML().then(function(){
-    if(!_dmap){_dmap=new maplibregl.Map({container:'mapview',style:'https://tiles.openfreemap.org/styles/liberty',center:[12.4922,41.8902],zoom:12,cooperativeGestures:true,antialias:true,attributionControl:false});
+    if(!_dmap){_dmap=new maplibregl.Map({container:'mapview',style:'https://tiles.openfreemap.org/styles/liberty',center:[12.4922,41.8902],zoom:11.6,pitch:55,bearing:-12,cooperativeGestures:true,antialias:true,attributionControl:false});
       _dmap.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');
-      _dmap.on('load',function(){addBuildings(_dmap);plotMarks(list);});}
+      _dmap.on('load',function(){addBuildings(_dmap);skylineDress(_dmap);plotMarks(list);});}
     else{_dmap.resize();plotMarks(list);}
   }).catch(function(){mv.innerHTML='<div style="position:absolute;inset:0;display:grid;place-items:center;color:var(--t3);font-size:13px">Map unavailable — the list still works.</div>';});
 }

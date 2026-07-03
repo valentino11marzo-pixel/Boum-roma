@@ -262,6 +262,216 @@
     };
   };
 
+  // ═══════════════════════ mode: COLLI (v2 — the seven hills, done right) ══
+  // A smooth topographic field of seven gaussian hills + drifting breath.
+  // Contours are extracted ONCE with interpolated marching squares (no wobble),
+  // cached as segment lists; each frame draws them dim and lets a soft golden
+  // "altitude light" breathe up and down the levels — the hills inhale.
+  SCENES.colli = function () {
+    var W, H, LEVELS = 11, layers;   // layers[i] = [x1,y1,x2,y2, ...]
+    function field(hills, x, y) {
+      var v = 0;
+      for (var i = 0; i < hills.length; i++) {
+        var h = hills[i], dx = (x - h.x) / h.r, dy = (y - h.y) / h.r;
+        v += h.a * Math.exp(-(dx * dx + dy * dy));
+      }
+      return v + 0.08 * vnoise(x * 0.004, y * 0.004);
+    }
+    function build(w, h) {
+      W = w; H = h; layers = [];
+      var rnd = mulberry32(7771);
+      // The seven, composed — a chain across the page like Rome seen from above,
+      // each hill its own summit (smaller radii so they read as SEVEN, not one blob).
+      var hills = [], m = Math.min(w, h);
+      for (var i = 0; i < 7; i++) {
+        var fx2 = 0.08 + 0.84 * (i / 6);                       // marching across
+        var fy2 = 0.5 + 0.34 * Math.sin(i * 2.1 + 0.8)         // weaving up & down
+                 + (rnd() - 0.5) * 0.12;
+        hills.push({ x: w * fx2, y: h * fy2, r: m * (0.11 + rnd() * 0.07), a: 0.7 + rnd() * 0.5 });
+      }
+      var cell = Math.max(14, Math.round(Math.min(w, h) / 46));
+      var nx = Math.ceil(w / cell) + 1, ny = Math.ceil(h / cell) + 1;
+      var grid = new Float32Array(nx * ny);
+      for (var gy = 0; gy < ny; gy++) for (var gx = 0; gx < nx; gx++)
+        grid[gy * nx + gx] = field(hills, gx * cell, gy * cell);
+      var lo = Infinity, hi = -Infinity;
+      for (var q = 0; q < grid.length; q++) { if (grid[q] < lo) lo = grid[q]; if (grid[q] > hi) hi = grid[q]; }
+      for (var li = 0; li < LEVELS; li++) {
+        var iso = lo + (hi - lo) * (0.22 + 0.72 * li / (LEVELS - 1)), segs = [];
+        var lerp = function (a, b) { return (iso - a) / (b - a || 1e-9); };
+        for (gy = 0; gy < ny - 1; gy++) for (gx = 0; gx < nx - 1; gx++) {
+          var a = grid[gy * nx + gx], b = grid[gy * nx + gx + 1],
+              c = grid[(gy + 1) * nx + gx + 1], d = grid[(gy + 1) * nx + gx];
+          var idx = (a > iso ? 8 : 0) | (b > iso ? 4 : 0) | (c > iso ? 2 : 0) | (d > iso ? 1 : 0);
+          if (idx === 0 || idx === 15) continue;
+          var x0 = gx * cell, y0 = gy * cell;
+          var T = [x0 + cell * lerp(a, b), y0], R = [x0 + cell, y0 + cell * lerp(b, c)],
+              B = [x0 + cell * lerp(d, c), y0 + cell], L = [x0, y0 + cell * lerp(a, d)];
+          var put = function (p, q2) { segs.push(p[0], p[1], q2[0], q2[1]); };
+          switch (idx) {
+            case 1: case 14: put(L, B); break;
+            case 2: case 13: put(B, R); break;
+            case 3: case 12: put(L, R); break;
+            case 4: case 11: put(T, R); break;
+            case 6: case 9:  put(T, B); break;
+            case 7: case 8:  put(L, T); break;
+            case 5:  put(L, T); put(B, R); break;
+            case 10: put(L, B); put(T, R); break;
+          }
+        }
+        layers.push(segs);
+      }
+    }
+    function strokeLevel(ctx, segs, style, width) {
+      ctx.strokeStyle = style; ctx.lineWidth = width; ctx.beginPath();
+      for (var s = 0; s < segs.length; s += 4) { ctx.moveTo(segs[s], segs[s + 1]); ctx.lineTo(segs[s + 2], segs[s + 3]); }
+      ctx.stroke();
+    }
+    return {
+      build: build,
+      draw: function (ctx, t, k) {
+        // the altitude light breathes: a soft band sweeps up the levels and back
+        var pos = (Math.sin(t * 0.22) * 0.5 + 0.5) * (LEVELS - 1);
+        for (var li = 0; li < LEVELS; li++) {
+          var glow = Math.max(0, 1 - Math.abs(li - pos) / 2.2);
+          var major = li % 3 === 0;
+          strokeLevel(ctx, layers[li],
+            glow > 0.25 ? warm((0.18 + glow * 0.38) * k) : gold((major ? 0.28 : 0.16) * k),
+            major ? 1.3 : 0.8);
+        }
+      }
+    };
+  };
+
+  // ═══════════════════ mode: RAGGIERA (Deco, done right) ════════════════════
+  // A fine Art-Deco sunburst from a high focus: ~88 hairline rays in alternating
+  // weights, banded concentric arcs, the whole fan turning imperceptibly while
+  // a glint orbits the arcs. Crisp, legible, hypnotic — never busy.
+  SCENES.raggiera = function () {
+    // A BOUNDED Deco crown at the top of the page — not a full-screen grid.
+    // The fan is rendered once to an offscreen canvas (crisp, zero per-frame
+    // cost), then drawn each frame with an imperceptible rotation; the only
+    // live elements are a glint orbiting the crown arc and its soft ember.
+    var W, H, fx, fy, R, off, offR;
+    function build(w, h) {
+      W = w; H = h; fx = w * 0.5; fy = -h * 0.22;
+      R = Math.min(w, h) * 0.88;
+      offR = Math.ceil(R + 4);
+      off = document.createElement('canvas');
+      off.width = off.height = offR * 2;
+      var c = off.getContext('2d');
+      c.translate(offR, offR);
+      var A0 = Math.PI * 0.28, A1 = Math.PI * 0.72, N = 56;
+      for (var i = 0; i <= N; i++) {
+        var a = A0 + (A1 - A0) * i / N;
+        var major = i % 8 === 0, mid = i % 2 === 0;
+        var g = c.createLinearGradient(Math.cos(a) * R * 0.18, Math.sin(a) * R * 0.18, Math.cos(a) * R, Math.sin(a) * R);
+        g.addColorStop(0, gold((major ? 0.55 : mid ? 0.34 : 0.20)));
+        g.addColorStop(0.75, gold((major ? 0.26 : mid ? 0.13 : 0.07)));
+        g.addColorStop(1, gold(0));
+        c.beginPath();
+        c.moveTo(Math.cos(a) * R * 0.18, Math.sin(a) * R * 0.18);
+        c.lineTo(Math.cos(a) * R, Math.sin(a) * R);
+        c.strokeStyle = g; c.lineWidth = major ? 1.6 : mid ? 1 : 0.6; c.stroke();
+      }
+      // engraved bands — closer to the crown, where the eye rests
+      for (var b = 1; b <= 4; b++) {
+        var rr = R * (0.24 + b * 0.10);
+        c.beginPath(); c.arc(0, 0, rr, A0, A1);
+        c.strokeStyle = gold(b % 2 ? 0.16 : 0.30);
+        c.lineWidth = b % 2 ? 0.7 : 1.3;
+        c.setLineDash(b === 3 ? [1, 6] : []); c.stroke(); c.setLineDash([]);
+      }
+      // stepped Deco tips on the major rays
+      for (i = 0; i <= N; i += 8) {
+        var a2 = A0 + (A1 - A0) * i / N, rt = R * 0.78;
+        c.beginPath(); c.arc(Math.cos(a2) * rt, Math.sin(a2) * rt, 2.4, 0, TAU);
+        c.fillStyle = warm(0.5); c.fill();
+      }
+    }
+    return {
+      build: build,
+      draw: function (ctx, t, k) {
+        ctx.save(); ctx.globalAlpha = Math.min(1, k);
+        ctx.translate(fx, fy); ctx.rotate(Math.sin(t * 0.05) * 0.02);   // a slow, breathing sway
+        ctx.drawImage(off, -offR, -offR);
+        // the live glint orbits the third band
+        var A0 = Math.PI * 0.26, A1 = Math.PI * 0.74;
+        var ga = A0 + (Math.sin(t * 0.16) * 0.5 + 0.5) * (A1 - A0), rr = R * 0.54;
+        ctx.beginPath(); ctx.arc(0, 0, rr, ga - 0.045, ga + 0.045);
+        ctx.strokeStyle = warm(0.85 * k); ctx.lineWidth = 2.4; ctx.lineCap = 'round'; ctx.stroke(); ctx.lineCap = 'butt';
+        var gx = Math.cos(ga) * rr, gy = Math.sin(ga) * rr;
+        var hg = ctx.createRadialGradient(gx, gy, 0, gx, gy, 46);
+        hg.addColorStop(0, warm(0.28 * k)); hg.addColorStop(1, warm(0));
+        ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(gx, gy, 46, 0, TAU); ctx.fill();
+        ctx.restore(); ctx.globalAlpha = 1;
+      }
+    };
+  };
+
+  // ═══════════════════ mode: ACQUEDOTTO (the architectural meander) ═════════
+  // Two tiers of Roman aqueduct arches marching across the page in shallow
+  // perspective; a warm light travels the arcade, arch after arch — the same
+  // pulse grammar as the meander, in architecture. Iconic and readable.
+  SCENES.acquedotto = function () {
+    // ONE monument, not two floating rows: a stacked double arcade in the lower
+    // third of the page — big arches on the ground, smaller ones on the cornice
+    // above, engraved with a double stroke like stone voussoirs. A warm light
+    // walks the lower arcade, climbs, and returns along the upper one.
+    var W, H, arches, BASE, C1, C2;
+    function build(w, h) {
+      W = w; H = h; arches = [];
+      BASE = h * 0.80;                                    // the ground
+      var pitch = Math.max(110, Math.min(170, w * 0.10));
+      var h1 = Math.min(h * 0.22, pitch * 1.15);           // lower arch height
+      var h2 = h1 * 0.58;                                 // upper arch height
+      C1 = BASE - h1 - 12;                                // lower cornice
+      C2 = C1 - h2 - 10;                                  // upper cornice
+      for (var x = pitch / 2; x < w + pitch; x += pitch) {
+        arches.push({ x: x, yb: BASE, w: pitch * 0.74, h: h1, tier: 0 });
+        arches.push({ x: x + pitch / 2, yb: C1, w: pitch * 0.52, h: h2, tier: 1 });
+      }
+    }
+    function archPath(ctx, a, inset) {
+      var r = a.w / 2 - inset, top = a.yb - a.h + inset;
+      ctx.beginPath();
+      ctx.moveTo(a.x - r, a.yb);
+      ctx.lineTo(a.x - r, top + r);
+      ctx.arc(a.x, top + r, r, Math.PI, 0);
+      ctx.lineTo(a.x + r, a.yb);
+    }
+    return {
+      build: build,
+      draw: function (ctx, t, k) {
+        var span = W + 300;
+        var p = (t * 0.12) % 2;
+        var lx = p < 1 ? (p * span - 150) : (span - (p - 1) * span - 150);
+        var litTier = p < 1 ? 0 : 1;
+        for (var i = 0; i < arches.length; i++) {
+          var a = arches[i];
+          var lit = a.tier === litTier ? Math.max(0, 1 - Math.abs(a.x - lx) / 190) : 0;
+          var base = a.tier ? 0.20 : 0.30;
+          // stone: double engraved stroke
+          archPath(ctx, a, 0);
+          ctx.strokeStyle = (lit > 0.35 ? warm : gold)((base + lit * 0.45) * k);
+          ctx.lineWidth = a.tier ? 1.1 : 1.5; ctx.stroke();
+          archPath(ctx, a, 5);
+          ctx.strokeStyle = gold((base * 0.55 + lit * 0.2) * k);
+          ctx.lineWidth = 0.6; ctx.stroke();
+          if (lit > 0.45) {                               // the opening glows as the light passes through
+            archPath(ctx, a, 2); ctx.closePath();
+            ctx.fillStyle = warm(lit * 0.10 * k); ctx.fill();
+          }
+        }
+        // cornices + ground: the horizontals that make it ONE building
+        [[BASE + 2, 0.4], [C1, 0.3], [C1 + 6, 0.16], [C2, 0.26], [C2 + 5, 0.13]].forEach(function (ln) {
+          ctx.beginPath(); ctx.moveTo(0, ln[0]); ctx.lineTo(W, ln[0]);
+          ctx.strokeStyle = gold(ln[1] * k); ctx.lineWidth = ln[1] > 0.3 ? 1.4 : 0.8; ctx.stroke();
+        });
+      }
+    };
+  };
+
   /* ── moods: how alive the ambience is, by what the user is doing ────────── */
   var MOODS = {
     browse:  { tempo: 1,    presence: 1    },
