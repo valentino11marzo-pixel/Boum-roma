@@ -256,6 +256,41 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
   body.arrive .facts .fact:nth-child(5){animation-delay:.62s}
 }
 @keyframes seqIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+/* Act I extras · the receipt prints: sidebar ledger rows appear line by line */
+@media(prefers-reduced-motion:no-preference){
+  body.arrive .srow{opacity:0;animation:seqIn .45s cubic-bezier(.16,1,.3,1) both}
+  body.arrive .srow:nth-child(1){animation-delay:.55s}
+  body.arrive .srow:nth-child(2){animation-delay:.68s}
+  body.arrive .srow:nth-child(3){animation-delay:.81s}
+  body.arrive .srow:nth-child(4){animation-delay:.96s}
+  body.arrive .srow:nth-child(5){animation-delay:1.1s}
+  /* the hero breathes — barely, like a photograph taken a second ago */
+  body.seq .hero .slide img{animation:heroBreathe 18s ease-in-out infinite alternate}
+  /* Act II · chapter climaxes (one-shot, when the chapter enters the viewport) */
+  body.chapters #about .feat span{opacity:0;transform:translateY(8px)}
+  body.chapters #about.chp-in .feat span{opacity:1;transform:none;transition:opacity .5s cubic-bezier(.16,1,.3,1),transform .5s cubic-bezier(.16,1,.3,1)}
+  #about.chp-in .feat span:nth-child(2){transition-delay:.07s}
+  #about.chp-in .feat span:nth-child(3){transition-delay:.14s}
+  #about.chp-in .feat span:nth-child(4){transition-delay:.21s}
+  #about.chp-in .feat span:nth-child(5){transition-delay:.28s}
+  #about.chp-in .feat span:nth-child(n+6){transition-delay:.35s}
+  /* the walk rings of the Location block draw themselves when the chapter arrives */
+  body.chapters #place .block3d .ring{opacity:0;transform:scale(.55)}
+  body.chapters #place.chp-in .block3d .ring{opacity:1;transform:none;transition:opacity .7s cubic-bezier(.16,1,.3,1),transform .8s cubic-bezier(.16,1,.3,1)}
+  #place.chp-in .block3d .ring:nth-child(2){transition-delay:.22s}
+  #place.chp-in .block3d .ring:nth-child(3){transition-delay:.44s}
+  #place.chp-in .block3d .blip{animation:blipPing 2.6s cubic-bezier(.16,1,.3,1) .9s infinite}
+  /* Act III · Decide: a quiet gold sheen crosses the Apply button while you weigh it */
+  body.seq #applyBtn{position:relative;overflow:hidden}
+  body.seq #applyBtn::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(115deg,transparent 32%,rgba(255,255,255,.34),transparent 68%);
+    transform:translateX(-140%);animation:ctaSheen 5.6s ease-in-out 2s infinite}
+}
+.sec-h .num{transition:color .5s}
+.sec.chp-in .sec-h .num{color:var(--gold,#FFD700)}
+@keyframes heroBreathe{from{transform:scale(1)}to{transform:scale(1.045)}}
+@keyframes blipPing{0%{box-shadow:0 0 0 8px var(--gold-muted),0 0 22px 4px rgba(255,215,0,.5)}45%{box-shadow:0 0 0 20px rgba(255,215,0,.06),0 0 26px 6px rgba(255,215,0,.55)}100%{box-shadow:0 0 0 8px var(--gold-muted),0 0 22px 4px rgba(255,215,0,.5)}}
+@keyframes ctaSheen{0%,72%{transform:translateX(-140%)}88%{transform:translateX(140%)}100%{transform:translateX(140%)}}
 /* Chapter rail: the visit's script, always visible on desktop */
 .chrail{position:fixed;right:18px;top:50%;transform:translateY(-50%);z-index:120;display:none;flex-direction:column;gap:4px}
 @media(min-width:1150px){.chrail{display:flex}}
@@ -707,9 +742,21 @@ function rollNum(el,delay){ // "€1,500" rolls from 0 and lands on the exact or
       if(p<1)requestAnimationFrame(tick);})(t0);},delay||0);
 }
 function experienceArrive(){
-  document.body.classList.add('arrive');            // name → price → facts cascade (CSS)
+  document.body.classList.add('arrive');            // name → price → facts → receipt cascade (CSS)
+  document.body.classList.add('seq');               // persistent: hero breath + CTA sheen
   rollNum(document.getElementById('hPrice'),260);   // the price lands with weight
+  document.querySelectorAll('#facts .fact .v').forEach((el,i)=>rollNum(el,420+i*90)); // m², beds… roll in step
+  // the arrival window closes after the choreography — later re-renders paint plainly
+  setTimeout(()=>document.body.classList.remove('arrive'),3400);
 }
+(function(){ // chapter climaxes: each act peaks once, when it enters the viewport
+  if(REDUCE_SEQ||!('IntersectionObserver' in window))return;
+  document.body.classList.add('chapters');
+  const io=new IntersectionObserver(function(es){es.forEach(function(en){
+    if(en.isIntersecting){en.target.classList.add('chp-in');io.unobserve(en.target);}
+  })},{threshold:.3});
+  ['about','money','place'].forEach(id=>{const el=document.getElementById(id);if(el)io.observe(el);});
+})();
 (function(){ // chapter rail — the visit has a script: Photos → Home → Money → Location
   const CH=[['top','Photos'],['about','The home'],['money','The money'],['place','The location']];
   const rail=document.getElementById('chrail');if(!rail)return;
