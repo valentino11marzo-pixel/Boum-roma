@@ -763,6 +763,221 @@
     };
   };
 
+  // ═══════ ROMA MONUMENTALE — the icons themselves, in hairline and light ═══
+
+  // COLOSSEO — the elliptical arcade in elevation: three tiers of arches
+  // following the curve, the famous broken profile of the ruin on top, and a
+  // warm light walking the middle tier arch by arch. Unmistakable.
+  SCENES.colosseo = function () {
+    var W, H, cx, baseY, RX, arches, profile, courses;
+    function build(w, h) {
+      W = w; H = h; cx = w * 0.5; RX = w * 0.62; baseY = h * 0.78;
+      // the visible front arc: parameter u ∈ [-1,1] across the ellipse face;
+      // horizontal position and a perspective scale (edges recede)
+      var tiers = [
+        { y: baseY,               hh: h * 0.135, n: 26 },   // ground tier
+        { y: baseY - h * 0.15,    hh: h * 0.115, n: 26 },   // middle tier
+        { y: baseY - h * 0.278,   hh: h * 0.10,  n: 26 }    // upper tier
+      ];
+      // The drum is CONVEX toward the viewer: the centre of the facade is the
+      // nearest point (largest arches, lowest baseline); toward the ends the
+      // wall curves away — arches shrink AND lift toward the horizon. This
+      // curvature is what makes it the Colosseum and not an aqueduct.
+      var lift = function (persp) { return (1 - persp) * h * 0.075; };
+      arches = [];
+      tiers.forEach(function (tr, ti) {
+        for (var i = 0; i < tr.n; i++) {
+          var u = -1 + 2 * (i + 0.5) / tr.n;                 // -1..1 along the face
+          var x = cx + Math.sin(u * Math.PI / 2) * RX;
+          var persp = Math.cos(u * Math.PI / 2);             // 1 centre → 0 edges
+          if (persp < 0.30) continue;                        // the ends turn out of view
+          // the ruin: the upper tier survives only on the left (the icon)
+          if (ti === 2 && u > 0.12) continue;
+          arches.push({ x: x, y: tr.y - lift(persp), w: 30 * persp + 5, h: tr.hh * (0.55 + 0.45 * persp), tier: ti, u: u, p: persp });
+        }
+      });
+      // curved string courses + the broken crown, all clipped to the visible drum
+      var UMAX = Math.acos(0.30) / (Math.PI / 2);            // where persp hits the cutoff
+      var course = function (dy) {
+        var pts = [];
+        for (var s = 0; s <= 80; s++) {
+          var u = -UMAX + 2 * UMAX * s / 80;
+          var persp = Math.cos(u * Math.PI / 2);
+          pts.push([cx + Math.sin(u * Math.PI / 2) * RX, baseY - dy - lift(persp)]);
+        }
+        return pts;
+      };
+      courses = [course(0), course(h * 0.15), course(h * 0.278)];
+      profile = [];
+      for (var s2 = 0; s2 <= 100; s2++) {
+        var u2 = -UMAX + 2 * UMAX * s2 / 100, persp2 = Math.cos(u2 * Math.PI / 2);
+        var x2 = cx + Math.sin(u2 * Math.PI / 2) * RX;
+        var topY = (u2 <= 0.12) ? baseY - h * 0.278 - h * 0.10 * (0.55 + 0.45 * persp2) - lift(persp2)
+                                : baseY - h * 0.15 - h * 0.115 * (0.55 + 0.45 * persp2) - lift(persp2);
+        profile.push([x2, topY]);
+      }
+    }
+    function archPath(ctx, a) {
+      var r = a.w / 2, top = a.y - a.h;
+      ctx.beginPath();
+      ctx.moveTo(a.x - r, a.y); ctx.lineTo(a.x - r, top + r);
+      ctx.arc(a.x, top + r, r, Math.PI, 0); ctx.lineTo(a.x + r, a.y);
+    }
+    return {
+      build: build,
+      draw: function (ctx, t, k) {
+        // the curved courses that bind the drum: ground, first and second tier
+        courses.forEach(function (pts, ci) {
+          ctx.beginPath();
+          for (var s = 0; s < pts.length; s++) s === 0 ? ctx.moveTo(pts[s][0], pts[s][1]) : ctx.lineTo(pts[s][0], pts[s][1]);
+          ctx.strokeStyle = gold((ci === 0 ? 0.34 : 0.22) * k); ctx.lineWidth = ci === 0 ? 1.3 : 0.8; ctx.stroke();
+        });
+        // the broken crown profile
+        ctx.beginPath();
+        for (var s2 = 0; s2 < profile.length; s2++) s2 === 0 ? ctx.moveTo(profile[s2][0], profile[s2][1]) : ctx.lineTo(profile[s2][0], profile[s2][1]);
+        ctx.strokeStyle = gold(0.34 * k); ctx.lineWidth = 1.2; ctx.stroke();
+        // the arches — light walks the middle tier
+        var lu = STATIC_ONLY ? 0 : Math.sin(t * 0.14) * 0.95;   // -0.95..0.95 along the face
+        for (var i = 0; i < arches.length; i++) {
+          var a = arches[i];
+          var lit = a.tier === 1 ? Math.max(0, 1 - Math.abs(a.u - lu) / 0.16) : 0;
+          archPath(ctx, a);
+          ctx.strokeStyle = (lit > 0.35 ? warm : gold)(((0.14 + 0.12 * a.p) + lit * 0.5) * k);
+          ctx.lineWidth = 0.7 + 0.5 * a.p; ctx.stroke();
+          if (lit > 0.5) { archPath(ctx, a); ctx.closePath(); ctx.fillStyle = warm(lit * 0.12 * k); ctx.fill(); }
+        }
+      }
+    };
+  };
+
+  // FRONTONE — the Pantheon portico in elevation: pediment, entablature,
+  // eight columns with capitals, the steps. A band of sunlight crosses the
+  // colonnade once a minute, column after column.
+  SCENES.frontone = function () {
+    var W, H, cx, cols, baseY, colH, entY, pedTop, halfW;
+    function build(w, h) {
+      W = w; H = h; cx = w * 0.5; baseY = h * 0.82;
+      halfW = Math.min(w * 0.34, 470);
+      colH = Math.min(h * 0.34, halfW * 1.05);
+      entY = baseY - colH;                                  // entablature line
+      pedTop = entY - halfW * 0.30;                         // pediment apex
+      cols = [];
+      for (var i = 0; i < 8; i++) {
+        var x = cx - halfW + (2 * halfW) * (i + 0.5) / 8;
+        cols.push({ x: x, w: halfW * 0.052 });
+      }
+    }
+    return {
+      build: build,
+      draw: function (ctx, t, k) {
+        // steps
+        for (var s = 0; s < 3; s++) {
+          var y = baseY + 6 + s * 9, inset = s * 14;
+          ctx.beginPath(); ctx.moveTo(cx - halfW - 34 + inset, y); ctx.lineTo(cx + halfW + 34 - inset, y);
+          ctx.strokeStyle = gold((0.26 - s * 0.06) * k); ctx.lineWidth = 1.1; ctx.stroke();
+        }
+        // pediment (the triangle) — double engraved line
+        [[0, 0.36], [7, 0.20]].forEach(function (off) {
+          ctx.beginPath();
+          ctx.moveTo(cx - halfW - 26 + off[0] * 2.2, entY - off[0]);
+          ctx.lineTo(cx, pedTop + off[0] * 1.4);
+          ctx.lineTo(cx + halfW + 26 - off[0] * 2.2, entY - off[0]);
+          ctx.strokeStyle = gold(off[1] * k); ctx.lineWidth = off[0] ? 0.6 : 1.2; ctx.stroke();
+        });
+        // entablature — two lines with the inscription rhythm between (dashes as letters)
+        ctx.beginPath(); ctx.moveTo(cx - halfW - 26, entY); ctx.lineTo(cx + halfW + 26, entY);
+        ctx.strokeStyle = gold(0.34 * k); ctx.lineWidth = 1.2; ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx - halfW - 20, entY + 14); ctx.lineTo(cx + halfW + 20, entY + 14);
+        ctx.strokeStyle = gold(0.18 * k); ctx.lineWidth = 0.7; ctx.stroke();
+        ctx.setLineDash([7, 5]);
+        ctx.beginPath(); ctx.moveTo(cx - halfW * 0.72, entY + 7); ctx.lineTo(cx + halfW * 0.72, entY + 7);
+        ctx.strokeStyle = gold(0.22 * k); ctx.lineWidth = 2.4; ctx.stroke();
+        ctx.setLineDash([]);
+        // the sun crosses the colonnade
+        var lx = STATIC_ONLY ? cx : cx + Math.sin(t * 0.10) * halfW * 1.1;
+        for (var i = 0; i < cols.length; i++) {
+          var c = cols[i];
+          var lit = Math.max(0, 1 - Math.abs(c.x - lx) / (halfW * 0.22));
+          var op = (0.20 + lit * 0.5) * k, lw = 1 + lit * 0.6;
+          // shaft (two lines = the column's edges), capital, base
+          ctx.strokeStyle = (lit > 0.4 ? warm : gold)(op); ctx.lineWidth = lw;
+          ctx.beginPath(); ctx.moveTo(c.x - c.w, entY + 22); ctx.lineTo(c.x - c.w, baseY - 8); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(c.x + c.w, entY + 22); ctx.lineTo(c.x + c.w, baseY - 8); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(c.x - c.w * 1.7, entY + 20); ctx.lineTo(c.x + c.w * 1.7, entY + 20); ctx.stroke();   // capital
+          ctx.beginPath(); ctx.moveTo(c.x - c.w * 1.7, baseY - 6); ctx.lineTo(c.x + c.w * 1.7, baseY - 6); ctx.stroke();   // base
+          if (lit > 0.45) {                                  // the shaft catches the sun
+            var g = ctx.createLinearGradient(c.x, entY, c.x, baseY);
+            g.addColorStop(0, warm(0)); g.addColorStop(0.5, warm(lit * 0.10 * k)); g.addColorStop(1, warm(0));
+            ctx.fillStyle = g; ctx.fillRect(c.x - c.w, entY + 22, c.w * 2, colH - 30);
+          }
+        }
+      }
+    };
+  };
+
+  // CUPOLA — the Pantheon dome in SECTION, like the architect's plate: the
+  // concentric shells, the radial coffer lines, the oculus — and its true ray
+  // of sun sweeping the interior like the sundial the building is.
+  SCENES.cupola = function () {
+    var W, H, cx, cy, R;
+    function build(w, h) {
+      W = w; H = h; cx = w * 0.5; cy = h * 0.86;            // springing line low on the page
+      R = Math.min(w * 0.42, h * 0.72);
+    }
+    return {
+      build: build,
+      draw: function (ctx, t, k) {
+        var OC = 0.16;                                       // oculus half-angle fraction
+        // concentric shells (inner + outer + steps of the extrados)
+        [[1.0, 0.34, 1.3], [0.94, 0.20, 0.7], [0.86, 0.16, 0.7], [0.78, 0.13, 0.6]].forEach(function (sh) {
+          ctx.beginPath();
+          ctx.arc(cx, cy, R * sh[0], Math.PI + OC, TAU - OC);
+          ctx.strokeStyle = gold(sh[1] * k); ctx.lineWidth = sh[2]; ctx.stroke();
+        });
+        // radial coffer lines between inner shells
+        for (var i = 0; i <= 22; i++) {
+          var a = Math.PI + OC + (Math.PI - 2 * OC) * i / 22;
+          ctx.beginPath();
+          ctx.moveTo(cx + Math.cos(a) * R * 0.78, cy + Math.sin(a) * R * 0.78);
+          ctx.lineTo(cx + Math.cos(a) * R * 0.94, cy + Math.sin(a) * R * 0.94);
+          ctx.strokeStyle = gold((i % 2 ? 0.12 : 0.20) * k); ctx.lineWidth = i % 2 ? 0.5 : 0.9; ctx.stroke();
+        }
+        // the oculus lip
+        [[OC, 0.4], [OC * 1.35, 0.2]].forEach(function (o) {
+          ctx.beginPath(); ctx.arc(cx, cy, R, Math.PI + o[0] * 0.55, Math.PI + o[0]);
+          ctx.strokeStyle = warm(o[1] * k); ctx.lineWidth = 1.4; ctx.stroke();
+          ctx.beginPath(); ctx.arc(cx, cy, R, TAU - o[0], TAU - o[0] * 0.55);
+          ctx.strokeStyle = warm(o[1] * k); ctx.lineWidth = 1.4; ctx.stroke();
+        });
+        // springing line + floor
+        ctx.beginPath(); ctx.moveTo(cx - R * 1.12, cy); ctx.lineTo(cx + R * 1.12, cy);
+        ctx.strokeStyle = gold(0.28 * k); ctx.lineWidth = 1.1; ctx.stroke();
+        // THE RAY — from the oculus, sweeping like the real sun
+        if (k > 0.05) {
+          var sw = STATIC_ONLY ? 0.35 : Math.sin(t * 0.07);   // -1..1 across the interior
+          var a2 = Math.PI * 1.5 + sw * (Math.PI * 0.32);
+          var ox = cx, oy = cy - R;                            // the oculus
+          var fx = cx + Math.cos(a2) * R * 0.98, fy = cy + Math.sin(a2) * R * 0.98;
+          var hitX = cx + (fx - cx) * 1.0, hitY = Math.min(cy - 6, fy + (cy - fy) * 0.0);
+          // beam as a soft translucent wedge
+          var g = ctx.createLinearGradient(ox, oy, fx, cy);
+          g.addColorStop(0, warm(0.26 * k)); g.addColorStop(1, warm(0.02 * k));
+          ctx.beginPath();
+          ctx.moveTo(ox - R * 0.055, oy + 4);
+          ctx.lineTo(ox + R * 0.055, oy + 4);
+          ctx.lineTo(fx + R * 0.09, cy - 2);
+          ctx.lineTo(fx - R * 0.09, cy - 2);
+          ctx.closePath();
+          ctx.fillStyle = g; ctx.fill();
+          // the pool of light where it lands
+          var hg = ctx.createRadialGradient(fx, cy - 4, 0, fx, cy - 4, R * 0.14);
+          hg.addColorStop(0, warm(0.30 * k)); hg.addColorStop(1, warm(0));
+          ctx.fillStyle = hg; ctx.beginPath(); ctx.ellipse(fx, cy - 4, R * 0.14, R * 0.05, 0, 0, TAU); ctx.fill();
+        }
+      }
+    };
+  };
+
   /* ── moods: how alive the ambience is, by what the user is doing ────────── */
   var MOODS = {
     browse:  { tempo: 1,    presence: 1    },
