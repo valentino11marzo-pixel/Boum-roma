@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#060607">
 <meta name="color-scheme" content="dark">
-<title>BOOM · Apartment — new identity (mobile-first)</title>
+<title>Apartment in Rome · BOOM</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://images.unsplash.com" crossorigin>
@@ -286,13 +286,15 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
     background:linear-gradient(115deg,transparent 32%,rgba(255,255,255,.34),transparent 68%);
     transform:translateX(-140%);animation:ctaSheen 5.6s ease-in-out 2s infinite}
 }
+.skyline-link{display:inline-flex;align-items:center;margin-top:14px;font-size:13px;color:var(--gold);border-bottom:1px solid rgba(255,215,0,.3);padding-bottom:2px;transition:border-color .2s}
+.skyline-link:hover{border-color:var(--gold)}
 .sec-h .num{transition:color .5s}
 .sec.chp-in .sec-h .num{color:var(--gold,#FFD700)}
 @keyframes heroBreathe{from{transform:scale(1)}to{transform:scale(1.045)}}
 @keyframes blipPing{0%{box-shadow:0 0 0 8px var(--gold-muted),0 0 22px 4px rgba(255,215,0,.5)}45%{box-shadow:0 0 0 20px rgba(255,215,0,.06),0 0 26px 6px rgba(255,215,0,.55)}100%{box-shadow:0 0 0 8px var(--gold-muted),0 0 22px 4px rgba(255,215,0,.5)}}
 @keyframes ctaSheen{0%,72%{transform:translateX(-140%)}88%{transform:translateX(140%)}100%{transform:translateX(140%)}}
 /* Chapter rail: the visit's script, always visible on desktop */
-.chrail{position:fixed;right:18px;top:50%;transform:translateY(-50%);z-index:120;display:none;flex-direction:column;gap:4px}
+.chrail{position:fixed;right:18px;left:auto;top:50%;bottom:auto;width:auto;transform:translateY(-50%);z-index:120;display:none;flex-direction:column;gap:4px;background:none;backdrop-filter:none;-webkit-backdrop-filter:none;border:0;padding:0}
 @media(min-width:1150px){.chrail{display:flex}}
 .chrail a{display:flex;align-items:center;justify-content:flex-end;gap:9px;padding:7px 4px;color:var(--t3,rgba(255,255,255,.46))}
 .chrail a .cl{opacity:0;transform:translateX(4px);transition:all .25s cubic-bezier(.16,1,.3,1);font-size:10.5px;letter-spacing:1.6px;text-transform:uppercase;pointer-events:none}
@@ -342,8 +344,10 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
     <div class="hero-foot"><div class="dots" id="dots"></div><button class="counter" id="counter" onclick="openLb(curIdx)">1 / 5 · view</button></div>
   </section>
 
-  <!-- CHAPTER RAIL (desktop) — the visit has a script: Photos → Home → Money → Location -->
-  <nav class="chrail" id="chrail" aria-label="Page chapters"></nav>
+  <!-- CHAPTER RAIL (desktop) — the visit has a script: Photos → Home → Money → Location.
+       A <div>, deliberately: the page's global nav{} rule (fixed, full-width, blurred
+       scrim) must never apply here. -->
+  <div class="chrail" id="chrail" role="navigation" aria-label="Page chapters"></div>
 
   <!-- TITLE -->
   <div class="titlewrap reveal">
@@ -387,6 +391,7 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
           <button class="m3facade" onclick="boom3D(this)" aria-label="Explore the block in 3D">◆ Explore the block in 3D<small>Real map · 3D buildings · 5 / 10 / 15-min walk rings</small></button>
         </div>
         <div class="nearby" id="nearby"></div>
+        <a class="skyline-link" href="/skyline">See every BOOM home on Rome's 3D skyline ↗</a>
       </section>
 
       <section class="sec reveal" id="trust">
@@ -458,7 +463,6 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
   <div class="fbot"><span>© 2026 BOOM — All Rights Reserved</span><span class="op">Status: Operational</span></div>
 </footer>
 
-<div class="proto">NEW IDENTITY · <b>mobile-first</b> · sample data</div>
 <div class="bgswitch" id="bgswitch"><button data-m="none">Off</button><button data-m="colli">Colli</button><button data-m="maison">Maison</button><button data-m="anelli">Anelli</button></div>
 
 <div class="rail">
@@ -711,6 +715,7 @@ function paintData(){
   curIdx=0;counter.textContent='1 / '+IMGS.length+' · view';
   document.getElementById('hName').textContent=L.name;
   document.getElementById('hZone').textContent=L.zone+', Rome';
+  document.title=L.name+' — '+L.zone+' · BOOM Roma';
   document.getElementById('hPrice').textContent=eur(L.price);
   const af=L.availableFrom;
   document.getElementById('hAvail').textContent=af?('Available '+fmtS(new Date(af+'T00:00'))):'Ask availability';

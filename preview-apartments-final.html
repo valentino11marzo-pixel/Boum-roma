@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#060607">
 <meta name="color-scheme" content="dark">
-<title>BOOM · Apartments — discovery (polished preview)</title>
+<title>Apartments in Rome — verified rentals · BOOM</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://images.unsplash.com" crossorigin>
@@ -99,7 +99,9 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 .facet{font-size:11.5px;color:var(--t3);border:1px solid var(--line);border-radius:100px;padding:7px 12px;cursor:pointer;transition:.2s;min-height:34px;display:inline-flex;align-items:center}.facet:hover{color:var(--gold);border-color:var(--line-gold)}.facet.on{color:var(--gold);border-color:var(--gold);background:var(--gold-faint)}.facet b{color:var(--t2)}.facet.on b{color:var(--gold)}
 .rtools{display:flex;gap:8px;align-items:center}
 .rtools select{background:var(--input);border:1px solid var(--line);border-radius:10px;color:var(--t1);font-family:inherit;font-size:13px;padding:9px 12px}
-.viewtog{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.viewtog{display:flex;align-items:stretch;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.viewtog .skyl{display:flex;align-items:center;padding:0 14px;font-size:13px;color:var(--gold);border-left:1px solid var(--line);white-space:nowrap;transition:.2s}
+.viewtog .skyl:hover{background:var(--gold);color:#1a1407;font-weight:600}
 .viewtog button{padding:9px 12px;font-size:12px;color:var(--t3);background:var(--card)}.viewtog button.on{background:var(--gold);color:#1a1407;font-weight:600}
 
 /* grid + cards */
@@ -239,7 +241,7 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
       <div class="facets" id="facets"></div>
     </div>
     <div class="rtools">
-      <div class="viewtog" role="tablist"><button id="vList" class="on" role="tab" aria-selected="true" onclick="setView('list')">List</button><button id="vMap" role="tab" aria-selected="false" onclick="setView('map')">Map</button></div>
+      <div class="viewtog" role="tablist"><button id="vList" class="on" role="tab" aria-selected="true" onclick="setView('list')">List</button><button id="vMap" role="tab" aria-selected="false" onclick="setView('map')">Map</button><a class="skyl" href="/skyline" title="Every BOOM home on a 3D map of Rome">Rome in 3D ↗</a></div>
       <label class="ifield" style="margin:0"><span class="eyebrow" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Sort</span><select id="sort" onchange="setSort(this.value)" aria-label="Sort"><option value="match">Recommended</option><option value="priceA">Price ↑</option><option value="priceD">Price ↓</option><option value="new">Newest</option><option value="avail">Move-in date</option></select></label>
     </div>
   </div>
@@ -273,7 +275,6 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
   <div class="cal-grid" id="calGrid"></div>
   <div class="cal-f"><button class="clear" onclick="calClear()">Any date</button><button class="done" onclick="closeCal()">Done</button></div>
 </div>
-<div class="proto">DISCOVERY · <b>polished</b> · live data + fallback</div>
 <div class="cmpbar" id="cmpbar"><span class="n"><b id="cmpN">0</b> to compare</span><button class="go" onclick="openCompare()">Compare →</button><button class="clr" onclick="clearCmp()">Clear</button></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
@@ -586,7 +587,7 @@ document.getElementById('grid').innerHTML=Array.from({length:6},()=>'<div class=
 hydrate();syncControls();document.getElementById('cmpN').textContent=cmp.size;document.getElementById('cmpbar').classList.toggle('on',cmp.size>0);
 fetch('/api/listings',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{
   if(j&&j.ok&&Array.isArray(j.listings)&&j.listings.length){L=j.listings.filter(isRentable).map(mapReal);if(!L.length)L=SAMPLE;
-    document.querySelector('.proto').innerHTML='DISCOVERY · <b>live data</b> · '+L.length+' homes';}
+    var _pc=document.querySelector('.proto');if(_pc)_pc.innerHTML='DISCOVERY · <b>live data</b> · '+L.length+' homes';}
 }).catch(()=>{}).finally(function(){render();restoreScroll();});
 </script>
 </body>
