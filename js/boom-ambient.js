@@ -626,6 +626,143 @@
     };
   };
 
+  // ═════════ ULTRA-TECH QUIET LUXURY — precision instruments, almost still ═══
+
+  // ORBITA — an armillary instrument: three hairline ellipses tilted in space,
+  // fine tick marks on the outer ring, and one satellite of warm light per
+  // orbit, each moving at its own patient speed. A watch face the size of Rome.
+  SCENES.orbita = function () {
+    var W, H, cx, cy, orbits;
+    function build(w, h) {
+      W = w; H = h; cx = w * 0.62; cy = h * 0.44;
+      var R = Math.min(w, h) * 0.55;
+      orbits = [
+        { rx: R * 1.35, ry: R * 0.42, rot: -0.18, speed: 0.045, ph: 0.0 },
+        { rx: R * 0.95, ry: R * 0.60, rot: 0.42, speed: -0.065, ph: 2.1 },
+        { rx: R * 0.62, ry: R * 0.24, rot: 0.10, speed: 0.10, ph: 4.4 }
+      ];
+    }
+    function orbitPoint(o, a) {
+      var x = Math.cos(a) * o.rx, y = Math.sin(a) * o.ry;
+      var c = Math.cos(o.rot), s = Math.sin(o.rot);
+      return [cx + x * c - y * s, cy + x * s + y * c];
+    }
+    return {
+      build: build,
+      draw: function (ctx, t, k) {
+        for (var i = 0; i < orbits.length; i++) {
+          var o = orbits[i];
+          ctx.save(); ctx.translate(cx, cy); ctx.rotate(o.rot);
+          ctx.beginPath(); ctx.ellipse(0, 0, o.rx, o.ry, 0, 0, TAU);
+          ctx.strokeStyle = gold((i === 0 ? 0.26 : 0.16) * k); ctx.lineWidth = i === 0 ? 1 : 0.6; ctx.stroke();
+          if (i === 0) {                       // instrument ticks on the outer ring
+            for (var m = 0; m < 60; m++) {
+              var a2 = m / 60 * TAU, major = m % 5 === 0;
+              var x1 = Math.cos(a2) * o.rx, y1 = Math.sin(a2) * o.ry;
+              var x2 = Math.cos(a2) * (o.rx - (major ? 10 : 5)), y2 = Math.sin(a2) * (o.ry * (1 - (major ? 10 : 5) / o.rx));
+              ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+              ctx.strokeStyle = gold((major ? 0.22 : 0.10) * k); ctx.lineWidth = major ? 1 : 0.5; ctx.stroke();
+            }
+          }
+          ctx.restore();
+          // the satellite
+          var a3 = STATIC_ONLY ? o.ph : t * o.speed * TAU / 4 + o.ph;
+          var p = orbitPoint(o, a3);
+          // a short trailing arc
+          ctx.beginPath();
+          for (var s2 = 14; s2 >= 0; s2--) {
+            var q = orbitPoint(o, a3 - s2 * 0.02 * Math.sign(o.speed || 1));
+            s2 === 14 ? ctx.moveTo(q[0], q[1]) : ctx.lineTo(q[0], q[1]);
+          }
+          ctx.strokeStyle = warm(0.4 * k); ctx.lineWidth = 1.4; ctx.lineCap = 'round'; ctx.stroke(); ctx.lineCap = 'butt';
+          ctx.beginPath(); ctx.arc(p[0], p[1], 2.2, 0, TAU); ctx.fillStyle = warm(0.9 * k); ctx.fill();
+          var hg = ctx.createRadialGradient(p[0], p[1], 0, p[0], p[1], 26);
+          hg.addColorStop(0, warm(0.22 * k)); hg.addColorStop(1, warm(0));
+          ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(p[0], p[1], 26, 0, TAU); ctx.fill();
+        }
+      }
+    };
+  };
+
+  // BATTITO — one perfect hairline across the page. Most of the time: total
+  // stillness. Every few seconds a soft pulse travels the line and it settles
+  // back to flat. The city's heartbeat on an instrument, nothing else.
+  SCENES.battito = function () {
+    var W, H, Y;
+    function pulseShape(u) {           // a composed, elegant beat (not a clinical ECG)
+      if (u <= 0 || u >= 1) return 0;
+      var env = Math.pow(Math.sin(u * Math.PI), 2);
+      return env * (Math.sin(u * TAU * 3.5) * 0.55 + Math.sin(u * TAU * 1.2) * 0.45);
+    }
+    function build(w, h) { W = w; H = h; Y = h * 0.56; }
+    return {
+      build: build,
+      draw: function (ctx, t, k) {
+        var period = 7, u = (t % period) / period;          // one pass every 7s
+        var headX = -0.15 + u * 1.3;                        // travels across (with margins)
+        var AMP = Math.min(70, H * 0.08);
+        ctx.beginPath();
+        for (var x = 0; x <= W; x += 4) {
+          var ux = x / W;
+          var local = (ux - headX) / 0.16 + 0.5;            // the pulse window
+          var y = Y - (STATIC_ONLY ? 0 : pulseShape(local)) * AMP;
+          x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = gold(0.30 * k); ctx.lineWidth = 1.1; ctx.stroke();
+        // fine ruler beneath — the instrument
+        for (var m = 0; m <= 40; m++) {
+          var mx = m / 40 * W, major = m % 5 === 0;
+          ctx.beginPath(); ctx.moveTo(mx, Y + 26); ctx.lineTo(mx, Y + 26 + (major ? 9 : 4));
+          ctx.strokeStyle = gold((major ? 0.16 : 0.08) * k); ctx.lineWidth = major ? 1 : 0.5; ctx.stroke();
+        }
+        if (STATIC_ONLY) return;
+        // the head of the pulse glows faintly as it passes
+        var hx = headX * W;
+        if (hx > 0 && hx < W) {
+          var hy = Y - pulseShape(0.5) * AMP;
+          var hg = ctx.createRadialGradient(hx, hy, 0, hx, hy, 40);
+          hg.addColorStop(0, warm(0.20 * k)); hg.addColorStop(1, warm(0));
+          ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(hx, hy, 40, 0, TAU); ctx.fill();
+        }
+      }
+    };
+  };
+
+  // SCANSIONE — a vertical blade of light crossing the page in about a minute.
+  // The dark holds a lattice of points you cannot see — they exist only where
+  // the blade passes, then fade back into black. Pure instrument, pure quiet.
+  SCENES.scansione = function () {
+    var W, H, dots;
+    function build(w, h) {
+      W = w; H = h; dots = [];
+      var rnd = mulberry32(6006), step = 54;
+      for (var y = step / 2; y < h; y += step)
+        for (var x = step / 2; x < w; x += step)
+          dots.push([x + (rnd() - 0.5) * 10, y + (rnd() - 0.5) * 10, 0.5 + rnd() * 0.5]);
+    }
+    return {
+      build: build,
+      draw: function (ctx, t, k) {
+        var u = STATIC_ONLY ? 0.5 : ((t * 0.016) % 1.2) - 0.1;   // ~62s per pass
+        var bx = u * W;
+        // the lattice, alive only near the blade
+        for (var i = 0; i < dots.length; i++) {
+          var d = dots[i], dist = Math.abs(d[0] - bx);
+          if (dist > 200) continue;
+          var a = (1 - dist / 200) * 0.5 * d[2] * k;
+          ctx.beginPath(); ctx.arc(d[0], d[1], dist < 40 ? 1.6 : 1.1, 0, TAU);
+          ctx.fillStyle = (dist < 40 ? warm : gold)(a); ctx.fill();
+        }
+        // the blade
+        var g = ctx.createLinearGradient(bx - 60, 0, bx + 60, 0);
+        g.addColorStop(0, warm(0)); g.addColorStop(0.5, warm(0.10 * k)); g.addColorStop(1, warm(0));
+        ctx.fillStyle = g; ctx.fillRect(bx - 60, 0, 120, H);
+        ctx.beginPath(); ctx.moveTo(bx, 0); ctx.lineTo(bx, H);
+        ctx.strokeStyle = warm(0.42 * k); ctx.lineWidth = 1; ctx.stroke();
+      }
+    };
+  };
+
   /* ── moods: how alive the ambience is, by what the user is doing ────────── */
   var MOODS = {
     browse:  { tempo: 1,    presence: 1    },
