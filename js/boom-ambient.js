@@ -126,6 +126,10 @@
   };
 
   SCENES.meandro = function () {
+    // The Greek key as an engraved frieze — fewer, larger, calmer bands.
+    // Each band is a double stroke (main line + a fine echo 4px below, like
+    // a chiselled shadow); one warm pulse per band travels the key and
+    // carries a soft ember at its head.
     var W, H, rows;
     function keyRow(y, u, off) {
       var pts = [], x = -u * 4 + off;
@@ -135,34 +139,45 @@
       }
       return pts;
     }
+    function trace(ctx, pts, dy) {
+      ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1] + dy);
+      for (var i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1] + dy);
+      ctx.stroke();
+    }
     return {
       build: function (w, h) {
         W = w; H = h; rows = [];
-        var u = Math.max(22, Math.min(34, h * 0.032));
-        for (var y = u * 2; y < H; y += u * 4.4) rows.push(keyRow(y, u, (y * 7) % (u * 3)));
+        var u = Math.max(28, Math.min(42, h * 0.038));
+        for (var y = u * 2; y < H + u; y += u * 6) rows.push(keyRow(y, u, (y * 7) % (u * 3)));
       },
       draw: function (ctx, t, k) {
         for (var r = 0; r < rows.length; r++) {
           var pts = rows[r];
-          ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
-          for (var i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
-          ctx.strokeStyle = gold(0.11 * k); ctx.lineWidth = 0.9; ctx.stroke();
+          // engraved pair: fine echo below, main line above
+          ctx.strokeStyle = gold(0.06 * k); ctx.lineWidth = 0.5; trace(ctx, pts, 4);
+          ctx.strokeStyle = gold(0.16 * k); ctx.lineWidth = 1; trace(ctx, pts, 0);
           if (STATIC_ONLY) continue;
           var L = 0; for (var q = 1; q < pts.length; q++) L += Math.hypot(pts[q][0] - pts[q - 1][0], pts[q][1] - pts[q - 1][1]);
-          var head = ((t * 0.14 + r * 0.17) % 1) * L, tail = head - L * 0.08, acc = 0;
-          ctx.lineWidth = 2; ctx.lineCap = 'round';
+          var head = ((t * 0.11 + r * 0.23) % 1) * L, tail = head - L * 0.07, acc = 0, hx = null, hy = null;
+          ctx.lineWidth = 1.8; ctx.lineCap = 'round';
           for (var s = 1; s < pts.length; s++) {
             var seg = Math.hypot(pts[s][0] - pts[s - 1][0], pts[s][1] - pts[s - 1][1]), a = acc, b = acc + seg;
             if (b > tail && a < head) {
               var f0 = Math.max(0, (tail - a) / seg), f1 = Math.min(1, (head - a) / seg);
-              ctx.beginPath();
-              ctx.moveTo(pts[s - 1][0] + (pts[s][0] - pts[s - 1][0]) * f0, pts[s - 1][1] + (pts[s][1] - pts[s - 1][1]) * f0);
-              ctx.lineTo(pts[s - 1][0] + (pts[s][0] - pts[s - 1][0]) * f1, pts[s - 1][1] + (pts[s][1] - pts[s - 1][1]) * f1);
-              ctx.strokeStyle = warm(0.5 * k); ctx.stroke();
+              var x0 = pts[s - 1][0] + (pts[s][0] - pts[s - 1][0]) * f0, y0 = pts[s - 1][1] + (pts[s][1] - pts[s - 1][1]) * f0;
+              var x1 = pts[s - 1][0] + (pts[s][0] - pts[s - 1][0]) * f1, y1 = pts[s - 1][1] + (pts[s][1] - pts[s - 1][1]) * f1;
+              ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
+              ctx.strokeStyle = warm(0.55 * k); ctx.stroke();
+              if (head >= a && head <= b) { hx = x1; hy = y1; }
             }
             acc = b;
           }
           ctx.lineCap = 'butt';
+          if (hx !== null) {
+            var hg = ctx.createRadialGradient(hx, hy, 0, hx, hy, 26);
+            hg.addColorStop(0, warm(0.22 * k)); hg.addColorStop(1, warm(0));
+            ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(hx, hy, 26, 0, TAU); ctx.fill();
+          }
         }
       }
     };
@@ -262,86 +277,6 @@
     };
   };
 
-  // ═══════════════════════ mode: COLLI (v2 — the seven hills, done right) ══
-  // A smooth topographic field of seven gaussian hills + drifting breath.
-  // Contours are extracted ONCE with interpolated marching squares (no wobble),
-  // cached as segment lists; each frame draws them dim and lets a soft golden
-  // "altitude light" breathe up and down the levels — the hills inhale.
-  SCENES.colli = function () {
-    var W, H, LEVELS = 11, layers;   // layers[i] = [x1,y1,x2,y2, ...]
-    function field(hills, x, y) {
-      var v = 0;
-      for (var i = 0; i < hills.length; i++) {
-        var h = hills[i], dx = (x - h.x) / h.r, dy = (y - h.y) / h.r;
-        v += h.a * Math.exp(-(dx * dx + dy * dy));
-      }
-      return v + 0.08 * vnoise(x * 0.004, y * 0.004);
-    }
-    function build(w, h) {
-      W = w; H = h; layers = [];
-      var rnd = mulberry32(7771);
-      // The seven, composed — a chain across the page like Rome seen from above,
-      // each hill its own summit (smaller radii so they read as SEVEN, not one blob).
-      var hills = [], m = Math.min(w, h);
-      for (var i = 0; i < 7; i++) {
-        var fx2 = 0.08 + 0.84 * (i / 6);                       // marching across
-        var fy2 = 0.5 + 0.34 * Math.sin(i * 2.1 + 0.8)         // weaving up & down
-                 + (rnd() - 0.5) * 0.12;
-        hills.push({ x: w * fx2, y: h * fy2, r: m * (0.11 + rnd() * 0.07), a: 0.7 + rnd() * 0.5 });
-      }
-      var cell = Math.max(14, Math.round(Math.min(w, h) / 46));
-      var nx = Math.ceil(w / cell) + 1, ny = Math.ceil(h / cell) + 1;
-      var grid = new Float32Array(nx * ny);
-      for (var gy = 0; gy < ny; gy++) for (var gx = 0; gx < nx; gx++)
-        grid[gy * nx + gx] = field(hills, gx * cell, gy * cell);
-      var lo = Infinity, hi = -Infinity;
-      for (var q = 0; q < grid.length; q++) { if (grid[q] < lo) lo = grid[q]; if (grid[q] > hi) hi = grid[q]; }
-      for (var li = 0; li < LEVELS; li++) {
-        var iso = lo + (hi - lo) * (0.22 + 0.72 * li / (LEVELS - 1)), segs = [];
-        var lerp = function (a, b) { return (iso - a) / (b - a || 1e-9); };
-        for (gy = 0; gy < ny - 1; gy++) for (gx = 0; gx < nx - 1; gx++) {
-          var a = grid[gy * nx + gx], b = grid[gy * nx + gx + 1],
-              c = grid[(gy + 1) * nx + gx + 1], d = grid[(gy + 1) * nx + gx];
-          var idx = (a > iso ? 8 : 0) | (b > iso ? 4 : 0) | (c > iso ? 2 : 0) | (d > iso ? 1 : 0);
-          if (idx === 0 || idx === 15) continue;
-          var x0 = gx * cell, y0 = gy * cell;
-          var T = [x0 + cell * lerp(a, b), y0], R = [x0 + cell, y0 + cell * lerp(b, c)],
-              B = [x0 + cell * lerp(d, c), y0 + cell], L = [x0, y0 + cell * lerp(a, d)];
-          var put = function (p, q2) { segs.push(p[0], p[1], q2[0], q2[1]); };
-          switch (idx) {
-            case 1: case 14: put(L, B); break;
-            case 2: case 13: put(B, R); break;
-            case 3: case 12: put(L, R); break;
-            case 4: case 11: put(T, R); break;
-            case 6: case 9:  put(T, B); break;
-            case 7: case 8:  put(L, T); break;
-            case 5:  put(L, T); put(B, R); break;
-            case 10: put(L, B); put(T, R); break;
-          }
-        }
-        layers.push(segs);
-      }
-    }
-    function strokeLevel(ctx, segs, style, width) {
-      ctx.strokeStyle = style; ctx.lineWidth = width; ctx.beginPath();
-      for (var s = 0; s < segs.length; s += 4) { ctx.moveTo(segs[s], segs[s + 1]); ctx.lineTo(segs[s + 2], segs[s + 3]); }
-      ctx.stroke();
-    }
-    return {
-      build: build,
-      draw: function (ctx, t, k) {
-        // the altitude light breathes: a soft band sweeps up the levels and back
-        var pos = (Math.sin(t * 0.22) * 0.5 + 0.5) * (LEVELS - 1);
-        for (var li = 0; li < LEVELS; li++) {
-          var glow = Math.max(0, 1 - Math.abs(li - pos) / 2.2);
-          var major = li % 3 === 0;
-          strokeLevel(ctx, layers[li],
-            glow > 0.25 ? warm((0.18 + glow * 0.38) * k) : gold((major ? 0.28 : 0.16) * k),
-            major ? 1.3 : 0.8);
-        }
-      }
-    };
-  };
 
   // ═══════════════════ mode: RAGGIERA (Deco, done right) ════════════════════
   // A fine Art-Deco sunburst from a high focus: ~88 hairline rays in alternating
@@ -392,85 +327,33 @@
     return {
       build: build,
       draw: function (ctx, t, k) {
-        ctx.save(); ctx.globalAlpha = Math.min(1, k);
+        // the crown breathes: a ±8% swell on a slow cycle, on top of the sway
+        var kb = k * (0.92 + 0.08 * Math.sin(t * 0.13));
+        ctx.save(); ctx.globalAlpha = Math.min(1, kb);
         ctx.translate(fx, fy); ctx.rotate(Math.sin(t * 0.05) * 0.02);   // a slow, breathing sway
         ctx.drawImage(off, -offR, -offR);
-        // the live glint orbits the third band
         var A0 = Math.PI * 0.26, A1 = Math.PI * 0.74;
+        // the live glint orbits the third band
         var ga = A0 + (Math.sin(t * 0.16) * 0.5 + 0.5) * (A1 - A0), rr = R * 0.54;
         ctx.beginPath(); ctx.arc(0, 0, rr, ga - 0.045, ga + 0.045);
-        ctx.strokeStyle = warm(0.85 * k); ctx.lineWidth = 2.4; ctx.lineCap = 'round'; ctx.stroke(); ctx.lineCap = 'butt';
+        ctx.strokeStyle = warm(0.85 * kb); ctx.lineWidth = 2.4; ctx.lineCap = 'round'; ctx.stroke();
         var gx = Math.cos(ga) * rr, gy = Math.sin(ga) * rr;
         var hg = ctx.createRadialGradient(gx, gy, 0, gx, gy, 46);
-        hg.addColorStop(0, warm(0.28 * k)); hg.addColorStop(1, warm(0));
+        hg.addColorStop(0, warm(0.28 * kb)); hg.addColorStop(1, warm(0));
         ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(gx, gy, 46, 0, TAU); ctx.fill();
+        // a second, smaller glint counters it on the inner band — call and answer
+        var ga2 = A1 - (Math.sin(t * 0.16 + 1.3) * 0.5 + 0.5) * (A1 - A0), r2 = R * 0.34;
+        ctx.beginPath(); ctx.arc(0, 0, r2, ga2 - 0.035, ga2 + 0.035);
+        ctx.strokeStyle = warm(0.5 * kb); ctx.lineWidth = 1.6; ctx.stroke(); ctx.lineCap = 'butt';
+        var g2x = Math.cos(ga2) * r2, g2y = Math.sin(ga2) * r2;
+        var hg2 = ctx.createRadialGradient(g2x, g2y, 0, g2x, g2y, 24);
+        hg2.addColorStop(0, warm(0.16 * kb)); hg2.addColorStop(1, warm(0));
+        ctx.fillStyle = hg2; ctx.beginPath(); ctx.arc(g2x, g2y, 24, 0, TAU); ctx.fill();
         ctx.restore(); ctx.globalAlpha = 1;
       }
     };
   };
 
-  // ═══════════════════ mode: ACQUEDOTTO (the architectural meander) ═════════
-  // Two tiers of Roman aqueduct arches marching across the page in shallow
-  // perspective; a warm light travels the arcade, arch after arch — the same
-  // pulse grammar as the meander, in architecture. Iconic and readable.
-  SCENES.acquedotto = function () {
-    // ONE monument, not two floating rows: a stacked double arcade in the lower
-    // third of the page — big arches on the ground, smaller ones on the cornice
-    // above, engraved with a double stroke like stone voussoirs. A warm light
-    // walks the lower arcade, climbs, and returns along the upper one.
-    var W, H, arches, BASE, C1, C2;
-    function build(w, h) {
-      W = w; H = h; arches = [];
-      BASE = h * 0.80;                                    // the ground
-      var pitch = Math.max(110, Math.min(170, w * 0.10));
-      var h1 = Math.min(h * 0.22, pitch * 1.15);           // lower arch height
-      var h2 = h1 * 0.58;                                 // upper arch height
-      C1 = BASE - h1 - 12;                                // lower cornice
-      C2 = C1 - h2 - 10;                                  // upper cornice
-      for (var x = pitch / 2; x < w + pitch; x += pitch) {
-        arches.push({ x: x, yb: BASE, w: pitch * 0.74, h: h1, tier: 0 });
-        arches.push({ x: x + pitch / 2, yb: C1, w: pitch * 0.52, h: h2, tier: 1 });
-      }
-    }
-    function archPath(ctx, a, inset) {
-      var r = a.w / 2 - inset, top = a.yb - a.h + inset;
-      ctx.beginPath();
-      ctx.moveTo(a.x - r, a.yb);
-      ctx.lineTo(a.x - r, top + r);
-      ctx.arc(a.x, top + r, r, Math.PI, 0);
-      ctx.lineTo(a.x + r, a.yb);
-    }
-    return {
-      build: build,
-      draw: function (ctx, t, k) {
-        var span = W + 300;
-        var p = (t * 0.12) % 2;
-        var lx = p < 1 ? (p * span - 150) : (span - (p - 1) * span - 150);
-        var litTier = p < 1 ? 0 : 1;
-        for (var i = 0; i < arches.length; i++) {
-          var a = arches[i];
-          var lit = a.tier === litTier ? Math.max(0, 1 - Math.abs(a.x - lx) / 190) : 0;
-          var base = a.tier ? 0.20 : 0.30;
-          // stone: double engraved stroke
-          archPath(ctx, a, 0);
-          ctx.strokeStyle = (lit > 0.35 ? warm : gold)((base + lit * 0.45) * k);
-          ctx.lineWidth = a.tier ? 1.1 : 1.5; ctx.stroke();
-          archPath(ctx, a, 5);
-          ctx.strokeStyle = gold((base * 0.55 + lit * 0.2) * k);
-          ctx.lineWidth = 0.6; ctx.stroke();
-          if (lit > 0.45) {                               // the opening glows as the light passes through
-            archPath(ctx, a, 2); ctx.closePath();
-            ctx.fillStyle = warm(lit * 0.10 * k); ctx.fill();
-          }
-        }
-        // cornices + ground: the horizontals that make it ONE building
-        [[BASE + 2, 0.4], [C1, 0.3], [C1 + 6, 0.16], [C2, 0.26], [C2 + 5, 0.13]].forEach(function (ln) {
-          ctx.beginPath(); ctx.moveTo(0, ln[0]); ctx.lineTo(W, ln[0]);
-          ctx.strokeStyle = gold(ln[1] * k); ctx.lineWidth = ln[1] > 0.3 ? 1.4 : 0.8; ctx.stroke();
-        });
-      }
-    };
-  };
 
   // ═════════ THE LINEA D'ORO FAMILY — engraved gold lines, traveling light ═══
   // Siblings of Raggiera & Meandro: same grammar (thin engraved strokes, one
@@ -628,355 +511,13 @@
 
   // ═════════ ULTRA-TECH QUIET LUXURY — precision instruments, almost still ═══
 
-  // ORBITA — an armillary instrument: three hairline ellipses tilted in space,
-  // fine tick marks on the outer ring, and one satellite of warm light per
-  // orbit, each moving at its own patient speed. A watch face the size of Rome.
-  SCENES.orbita = function () {
-    var W, H, cx, cy, orbits;
-    function build(w, h) {
-      W = w; H = h; cx = w * 0.62; cy = h * 0.44;
-      var R = Math.min(w, h) * 0.55;
-      orbits = [
-        { rx: R * 1.35, ry: R * 0.42, rot: -0.18, speed: 0.045, ph: 0.0 },
-        { rx: R * 0.95, ry: R * 0.60, rot: 0.42, speed: -0.065, ph: 2.1 },
-        { rx: R * 0.62, ry: R * 0.24, rot: 0.10, speed: 0.10, ph: 4.4 }
-      ];
-    }
-    function orbitPoint(o, a) {
-      var x = Math.cos(a) * o.rx, y = Math.sin(a) * o.ry;
-      var c = Math.cos(o.rot), s = Math.sin(o.rot);
-      return [cx + x * c - y * s, cy + x * s + y * c];
-    }
-    return {
-      build: build,
-      draw: function (ctx, t, k) {
-        for (var i = 0; i < orbits.length; i++) {
-          var o = orbits[i];
-          ctx.save(); ctx.translate(cx, cy); ctx.rotate(o.rot);
-          ctx.beginPath(); ctx.ellipse(0, 0, o.rx, o.ry, 0, 0, TAU);
-          ctx.strokeStyle = gold((i === 0 ? 0.26 : 0.16) * k); ctx.lineWidth = i === 0 ? 1 : 0.6; ctx.stroke();
-          if (i === 0) {                       // instrument ticks on the outer ring
-            for (var m = 0; m < 60; m++) {
-              var a2 = m / 60 * TAU, major = m % 5 === 0;
-              var x1 = Math.cos(a2) * o.rx, y1 = Math.sin(a2) * o.ry;
-              var x2 = Math.cos(a2) * (o.rx - (major ? 10 : 5)), y2 = Math.sin(a2) * (o.ry * (1 - (major ? 10 : 5) / o.rx));
-              ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
-              ctx.strokeStyle = gold((major ? 0.22 : 0.10) * k); ctx.lineWidth = major ? 1 : 0.5; ctx.stroke();
-            }
-          }
-          ctx.restore();
-          // the satellite
-          var a3 = STATIC_ONLY ? o.ph : t * o.speed * TAU / 4 + o.ph;
-          var p = orbitPoint(o, a3);
-          // a short trailing arc
-          ctx.beginPath();
-          for (var s2 = 14; s2 >= 0; s2--) {
-            var q = orbitPoint(o, a3 - s2 * 0.02 * Math.sign(o.speed || 1));
-            s2 === 14 ? ctx.moveTo(q[0], q[1]) : ctx.lineTo(q[0], q[1]);
-          }
-          ctx.strokeStyle = warm(0.4 * k); ctx.lineWidth = 1.4; ctx.lineCap = 'round'; ctx.stroke(); ctx.lineCap = 'butt';
-          ctx.beginPath(); ctx.arc(p[0], p[1], 2.2, 0, TAU); ctx.fillStyle = warm(0.9 * k); ctx.fill();
-          var hg = ctx.createRadialGradient(p[0], p[1], 0, p[0], p[1], 26);
-          hg.addColorStop(0, warm(0.22 * k)); hg.addColorStop(1, warm(0));
-          ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(p[0], p[1], 26, 0, TAU); ctx.fill();
-        }
-      }
-    };
-  };
 
-  // BATTITO — one perfect hairline across the page. Most of the time: total
-  // stillness. Every few seconds a soft pulse travels the line and it settles
-  // back to flat. The city's heartbeat on an instrument, nothing else.
-  SCENES.battito = function () {
-    var W, H, Y;
-    function pulseShape(u) {           // a composed, elegant beat (not a clinical ECG)
-      if (u <= 0 || u >= 1) return 0;
-      var env = Math.pow(Math.sin(u * Math.PI), 2);
-      return env * (Math.sin(u * TAU * 3.5) * 0.55 + Math.sin(u * TAU * 1.2) * 0.45);
-    }
-    function build(w, h) { W = w; H = h; Y = h * 0.56; }
-    return {
-      build: build,
-      draw: function (ctx, t, k) {
-        var period = 7, u = (t % period) / period;          // one pass every 7s
-        var headX = -0.15 + u * 1.3;                        // travels across (with margins)
-        var AMP = Math.min(70, H * 0.08);
-        ctx.beginPath();
-        for (var x = 0; x <= W; x += 4) {
-          var ux = x / W;
-          var local = (ux - headX) / 0.16 + 0.5;            // the pulse window
-          var y = Y - (STATIC_ONLY ? 0 : pulseShape(local)) * AMP;
-          x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-        }
-        ctx.strokeStyle = gold(0.30 * k); ctx.lineWidth = 1.1; ctx.stroke();
-        // fine ruler beneath — the instrument
-        for (var m = 0; m <= 40; m++) {
-          var mx = m / 40 * W, major = m % 5 === 0;
-          ctx.beginPath(); ctx.moveTo(mx, Y + 26); ctx.lineTo(mx, Y + 26 + (major ? 9 : 4));
-          ctx.strokeStyle = gold((major ? 0.16 : 0.08) * k); ctx.lineWidth = major ? 1 : 0.5; ctx.stroke();
-        }
-        if (STATIC_ONLY) return;
-        // the head of the pulse glows faintly as it passes
-        var hx = headX * W;
-        if (hx > 0 && hx < W) {
-          var hy = Y - pulseShape(0.5) * AMP;
-          var hg = ctx.createRadialGradient(hx, hy, 0, hx, hy, 40);
-          hg.addColorStop(0, warm(0.20 * k)); hg.addColorStop(1, warm(0));
-          ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(hx, hy, 40, 0, TAU); ctx.fill();
-        }
-      }
-    };
-  };
 
-  // SCANSIONE — a vertical blade of light crossing the page in about a minute.
-  // The dark holds a lattice of points you cannot see — they exist only where
-  // the blade passes, then fade back into black. Pure instrument, pure quiet.
-  SCENES.scansione = function () {
-    var W, H, dots;
-    function build(w, h) {
-      W = w; H = h; dots = [];
-      var rnd = mulberry32(6006), step = 54;
-      for (var y = step / 2; y < h; y += step)
-        for (var x = step / 2; x < w; x += step)
-          dots.push([x + (rnd() - 0.5) * 10, y + (rnd() - 0.5) * 10, 0.5 + rnd() * 0.5]);
-    }
-    return {
-      build: build,
-      draw: function (ctx, t, k) {
-        var u = STATIC_ONLY ? 0.5 : ((t * 0.016) % 1.2) - 0.1;   // ~62s per pass
-        var bx = u * W;
-        // the lattice, alive only near the blade
-        for (var i = 0; i < dots.length; i++) {
-          var d = dots[i], dist = Math.abs(d[0] - bx);
-          if (dist > 200) continue;
-          var a = (1 - dist / 200) * 0.5 * d[2] * k;
-          ctx.beginPath(); ctx.arc(d[0], d[1], dist < 40 ? 1.6 : 1.1, 0, TAU);
-          ctx.fillStyle = (dist < 40 ? warm : gold)(a); ctx.fill();
-        }
-        // the blade
-        var g = ctx.createLinearGradient(bx - 60, 0, bx + 60, 0);
-        g.addColorStop(0, warm(0)); g.addColorStop(0.5, warm(0.10 * k)); g.addColorStop(1, warm(0));
-        ctx.fillStyle = g; ctx.fillRect(bx - 60, 0, 120, H);
-        ctx.beginPath(); ctx.moveTo(bx, 0); ctx.lineTo(bx, H);
-        ctx.strokeStyle = warm(0.42 * k); ctx.lineWidth = 1; ctx.stroke();
-      }
-    };
-  };
 
   // ═══════ ROMA MONUMENTALE — the icons themselves, in hairline and light ═══
 
-  // COLOSSEO — the elliptical arcade in elevation: three tiers of arches
-  // following the curve, the famous broken profile of the ruin on top, and a
-  // warm light walking the middle tier arch by arch. Unmistakable.
-  SCENES.colosseo = function () {
-    var W, H, cx, baseY, RX, arches, profile, courses;
-    function build(w, h) {
-      W = w; H = h; cx = w * 0.5; RX = w * 0.62; baseY = h * 0.78;
-      // the visible front arc: parameter u ∈ [-1,1] across the ellipse face;
-      // horizontal position and a perspective scale (edges recede)
-      var tiers = [
-        { y: baseY,               hh: h * 0.135, n: 26 },   // ground tier
-        { y: baseY - h * 0.15,    hh: h * 0.115, n: 26 },   // middle tier
-        { y: baseY - h * 0.278,   hh: h * 0.10,  n: 26 }    // upper tier
-      ];
-      // The drum is CONVEX toward the viewer: the centre of the facade is the
-      // nearest point (largest arches, lowest baseline); toward the ends the
-      // wall curves away — arches shrink AND lift toward the horizon. This
-      // curvature is what makes it the Colosseum and not an aqueduct.
-      var lift = function (persp) { return (1 - persp) * h * 0.075; };
-      arches = [];
-      tiers.forEach(function (tr, ti) {
-        for (var i = 0; i < tr.n; i++) {
-          var u = -1 + 2 * (i + 0.5) / tr.n;                 // -1..1 along the face
-          var x = cx + Math.sin(u * Math.PI / 2) * RX;
-          var persp = Math.cos(u * Math.PI / 2);             // 1 centre → 0 edges
-          if (persp < 0.30) continue;                        // the ends turn out of view
-          // the ruin: the upper tier survives only on the left (the icon)
-          if (ti === 2 && u > 0.12) continue;
-          arches.push({ x: x, y: tr.y - lift(persp), w: 30 * persp + 5, h: tr.hh * (0.55 + 0.45 * persp), tier: ti, u: u, p: persp });
-        }
-      });
-      // curved string courses + the broken crown, all clipped to the visible drum
-      var UMAX = Math.acos(0.30) / (Math.PI / 2);            // where persp hits the cutoff
-      var course = function (dy) {
-        var pts = [];
-        for (var s = 0; s <= 80; s++) {
-          var u = -UMAX + 2 * UMAX * s / 80;
-          var persp = Math.cos(u * Math.PI / 2);
-          pts.push([cx + Math.sin(u * Math.PI / 2) * RX, baseY - dy - lift(persp)]);
-        }
-        return pts;
-      };
-      courses = [course(0), course(h * 0.15), course(h * 0.278)];
-      profile = [];
-      for (var s2 = 0; s2 <= 100; s2++) {
-        var u2 = -UMAX + 2 * UMAX * s2 / 100, persp2 = Math.cos(u2 * Math.PI / 2);
-        var x2 = cx + Math.sin(u2 * Math.PI / 2) * RX;
-        var topY = (u2 <= 0.12) ? baseY - h * 0.278 - h * 0.10 * (0.55 + 0.45 * persp2) - lift(persp2)
-                                : baseY - h * 0.15 - h * 0.115 * (0.55 + 0.45 * persp2) - lift(persp2);
-        profile.push([x2, topY]);
-      }
-    }
-    function archPath(ctx, a) {
-      var r = a.w / 2, top = a.y - a.h;
-      ctx.beginPath();
-      ctx.moveTo(a.x - r, a.y); ctx.lineTo(a.x - r, top + r);
-      ctx.arc(a.x, top + r, r, Math.PI, 0); ctx.lineTo(a.x + r, a.y);
-    }
-    return {
-      build: build,
-      draw: function (ctx, t, k) {
-        // the curved courses that bind the drum: ground, first and second tier
-        courses.forEach(function (pts, ci) {
-          ctx.beginPath();
-          for (var s = 0; s < pts.length; s++) s === 0 ? ctx.moveTo(pts[s][0], pts[s][1]) : ctx.lineTo(pts[s][0], pts[s][1]);
-          ctx.strokeStyle = gold((ci === 0 ? 0.34 : 0.22) * k); ctx.lineWidth = ci === 0 ? 1.3 : 0.8; ctx.stroke();
-        });
-        // the broken crown profile
-        ctx.beginPath();
-        for (var s2 = 0; s2 < profile.length; s2++) s2 === 0 ? ctx.moveTo(profile[s2][0], profile[s2][1]) : ctx.lineTo(profile[s2][0], profile[s2][1]);
-        ctx.strokeStyle = gold(0.34 * k); ctx.lineWidth = 1.2; ctx.stroke();
-        // the arches — light walks the middle tier
-        var lu = STATIC_ONLY ? 0 : Math.sin(t * 0.14) * 0.95;   // -0.95..0.95 along the face
-        for (var i = 0; i < arches.length; i++) {
-          var a = arches[i];
-          var lit = a.tier === 1 ? Math.max(0, 1 - Math.abs(a.u - lu) / 0.16) : 0;
-          archPath(ctx, a);
-          ctx.strokeStyle = (lit > 0.35 ? warm : gold)(((0.14 + 0.12 * a.p) + lit * 0.5) * k);
-          ctx.lineWidth = 0.7 + 0.5 * a.p; ctx.stroke();
-          if (lit > 0.5) { archPath(ctx, a); ctx.closePath(); ctx.fillStyle = warm(lit * 0.12 * k); ctx.fill(); }
-        }
-      }
-    };
-  };
 
-  // FRONTONE — the Pantheon portico in elevation: pediment, entablature,
-  // eight columns with capitals, the steps. A band of sunlight crosses the
-  // colonnade once a minute, column after column.
-  SCENES.frontone = function () {
-    var W, H, cx, cols, baseY, colH, entY, pedTop, halfW;
-    function build(w, h) {
-      W = w; H = h; cx = w * 0.5; baseY = h * 0.82;
-      halfW = Math.min(w * 0.34, 470);
-      colH = Math.min(h * 0.34, halfW * 1.05);
-      entY = baseY - colH;                                  // entablature line
-      pedTop = entY - halfW * 0.30;                         // pediment apex
-      cols = [];
-      for (var i = 0; i < 8; i++) {
-        var x = cx - halfW + (2 * halfW) * (i + 0.5) / 8;
-        cols.push({ x: x, w: halfW * 0.052 });
-      }
-    }
-    return {
-      build: build,
-      draw: function (ctx, t, k) {
-        // steps
-        for (var s = 0; s < 3; s++) {
-          var y = baseY + 6 + s * 9, inset = s * 14;
-          ctx.beginPath(); ctx.moveTo(cx - halfW - 34 + inset, y); ctx.lineTo(cx + halfW + 34 - inset, y);
-          ctx.strokeStyle = gold((0.26 - s * 0.06) * k); ctx.lineWidth = 1.1; ctx.stroke();
-        }
-        // pediment (the triangle) — double engraved line
-        [[0, 0.36], [7, 0.20]].forEach(function (off) {
-          ctx.beginPath();
-          ctx.moveTo(cx - halfW - 26 + off[0] * 2.2, entY - off[0]);
-          ctx.lineTo(cx, pedTop + off[0] * 1.4);
-          ctx.lineTo(cx + halfW + 26 - off[0] * 2.2, entY - off[0]);
-          ctx.strokeStyle = gold(off[1] * k); ctx.lineWidth = off[0] ? 0.6 : 1.2; ctx.stroke();
-        });
-        // entablature — two lines with the inscription rhythm between (dashes as letters)
-        ctx.beginPath(); ctx.moveTo(cx - halfW - 26, entY); ctx.lineTo(cx + halfW + 26, entY);
-        ctx.strokeStyle = gold(0.34 * k); ctx.lineWidth = 1.2; ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(cx - halfW - 20, entY + 14); ctx.lineTo(cx + halfW + 20, entY + 14);
-        ctx.strokeStyle = gold(0.18 * k); ctx.lineWidth = 0.7; ctx.stroke();
-        ctx.setLineDash([7, 5]);
-        ctx.beginPath(); ctx.moveTo(cx - halfW * 0.72, entY + 7); ctx.lineTo(cx + halfW * 0.72, entY + 7);
-        ctx.strokeStyle = gold(0.22 * k); ctx.lineWidth = 2.4; ctx.stroke();
-        ctx.setLineDash([]);
-        // the sun crosses the colonnade
-        var lx = STATIC_ONLY ? cx : cx + Math.sin(t * 0.10) * halfW * 1.1;
-        for (var i = 0; i < cols.length; i++) {
-          var c = cols[i];
-          var lit = Math.max(0, 1 - Math.abs(c.x - lx) / (halfW * 0.22));
-          var op = (0.20 + lit * 0.5) * k, lw = 1 + lit * 0.6;
-          // shaft (two lines = the column's edges), capital, base
-          ctx.strokeStyle = (lit > 0.4 ? warm : gold)(op); ctx.lineWidth = lw;
-          ctx.beginPath(); ctx.moveTo(c.x - c.w, entY + 22); ctx.lineTo(c.x - c.w, baseY - 8); ctx.stroke();
-          ctx.beginPath(); ctx.moveTo(c.x + c.w, entY + 22); ctx.lineTo(c.x + c.w, baseY - 8); ctx.stroke();
-          ctx.beginPath(); ctx.moveTo(c.x - c.w * 1.7, entY + 20); ctx.lineTo(c.x + c.w * 1.7, entY + 20); ctx.stroke();   // capital
-          ctx.beginPath(); ctx.moveTo(c.x - c.w * 1.7, baseY - 6); ctx.lineTo(c.x + c.w * 1.7, baseY - 6); ctx.stroke();   // base
-          if (lit > 0.45) {                                  // the shaft catches the sun
-            var g = ctx.createLinearGradient(c.x, entY, c.x, baseY);
-            g.addColorStop(0, warm(0)); g.addColorStop(0.5, warm(lit * 0.10 * k)); g.addColorStop(1, warm(0));
-            ctx.fillStyle = g; ctx.fillRect(c.x - c.w, entY + 22, c.w * 2, colH - 30);
-          }
-        }
-      }
-    };
-  };
 
-  // CUPOLA — the Pantheon dome in SECTION, like the architect's plate: the
-  // concentric shells, the radial coffer lines, the oculus — and its true ray
-  // of sun sweeping the interior like the sundial the building is.
-  SCENES.cupola = function () {
-    var W, H, cx, cy, R;
-    function build(w, h) {
-      W = w; H = h; cx = w * 0.5; cy = h * 0.86;            // springing line low on the page
-      R = Math.min(w * 0.42, h * 0.72);
-    }
-    return {
-      build: build,
-      draw: function (ctx, t, k) {
-        var OC = 0.16;                                       // oculus half-angle fraction
-        // concentric shells (inner + outer + steps of the extrados)
-        [[1.0, 0.34, 1.3], [0.94, 0.20, 0.7], [0.86, 0.16, 0.7], [0.78, 0.13, 0.6]].forEach(function (sh) {
-          ctx.beginPath();
-          ctx.arc(cx, cy, R * sh[0], Math.PI + OC, TAU - OC);
-          ctx.strokeStyle = gold(sh[1] * k); ctx.lineWidth = sh[2]; ctx.stroke();
-        });
-        // radial coffer lines between inner shells
-        for (var i = 0; i <= 22; i++) {
-          var a = Math.PI + OC + (Math.PI - 2 * OC) * i / 22;
-          ctx.beginPath();
-          ctx.moveTo(cx + Math.cos(a) * R * 0.78, cy + Math.sin(a) * R * 0.78);
-          ctx.lineTo(cx + Math.cos(a) * R * 0.94, cy + Math.sin(a) * R * 0.94);
-          ctx.strokeStyle = gold((i % 2 ? 0.12 : 0.20) * k); ctx.lineWidth = i % 2 ? 0.5 : 0.9; ctx.stroke();
-        }
-        // the oculus lip
-        [[OC, 0.4], [OC * 1.35, 0.2]].forEach(function (o) {
-          ctx.beginPath(); ctx.arc(cx, cy, R, Math.PI + o[0] * 0.55, Math.PI + o[0]);
-          ctx.strokeStyle = warm(o[1] * k); ctx.lineWidth = 1.4; ctx.stroke();
-          ctx.beginPath(); ctx.arc(cx, cy, R, TAU - o[0], TAU - o[0] * 0.55);
-          ctx.strokeStyle = warm(o[1] * k); ctx.lineWidth = 1.4; ctx.stroke();
-        });
-        // springing line + floor
-        ctx.beginPath(); ctx.moveTo(cx - R * 1.12, cy); ctx.lineTo(cx + R * 1.12, cy);
-        ctx.strokeStyle = gold(0.28 * k); ctx.lineWidth = 1.1; ctx.stroke();
-        // THE RAY — from the oculus, sweeping like the real sun
-        if (k > 0.05) {
-          var sw = STATIC_ONLY ? 0.35 : Math.sin(t * 0.07);   // -1..1 across the interior
-          var a2 = Math.PI * 1.5 + sw * (Math.PI * 0.32);
-          var ox = cx, oy = cy - R;                            // the oculus
-          var fx = cx + Math.cos(a2) * R * 0.98, fy = cy + Math.sin(a2) * R * 0.98;
-          var hitX = cx + (fx - cx) * 1.0, hitY = Math.min(cy - 6, fy + (cy - fy) * 0.0);
-          // beam as a soft translucent wedge
-          var g = ctx.createLinearGradient(ox, oy, fx, cy);
-          g.addColorStop(0, warm(0.26 * k)); g.addColorStop(1, warm(0.02 * k));
-          ctx.beginPath();
-          ctx.moveTo(ox - R * 0.055, oy + 4);
-          ctx.lineTo(ox + R * 0.055, oy + 4);
-          ctx.lineTo(fx + R * 0.09, cy - 2);
-          ctx.lineTo(fx - R * 0.09, cy - 2);
-          ctx.closePath();
-          ctx.fillStyle = g; ctx.fill();
-          // the pool of light where it lands
-          var hg = ctx.createRadialGradient(fx, cy - 4, 0, fx, cy - 4, R * 0.14);
-          hg.addColorStop(0, warm(0.30 * k)); hg.addColorStop(1, warm(0));
-          ctx.fillStyle = hg; ctx.beginPath(); ctx.ellipse(fx, cy - 4, R * 0.14, R * 0.05, 0, 0, TAU); ctx.fill();
-        }
-      }
-    };
-  };
 
   /* ── moods: how alive the ambience is, by what the user is doing ────────── */
   var MOODS = {
