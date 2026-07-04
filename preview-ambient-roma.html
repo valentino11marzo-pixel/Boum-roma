@@ -59,7 +59,7 @@ input[type=range]{accent-color:var(--gold);width:90px}
 <main>
   <div class="eyebrow">Rome, in motion</div>
   <h1>The eternal city,<br><b>quietly alive.</b></h1>
-  <p class="lede">One family, one grammar — engraved gold lines with a single traveling light. The stone of Rome, the lathework braid, the Deco crown, the Greek key, the street grid, the river, the weave. Judge them behind real words, a real card, a real price.</p>
+  <p class="lede">MATERIA — not drawings, materials. Living stone, gold dust in church light, water-light on dark stone, silk catching gold, gilded leaf. Each one precious, immersive, and deferent: judge them behind real words, a real card, a real price.</p>
   <a class="cta">Browse apartments</a>
 
   <div class="card">
@@ -80,19 +80,17 @@ input[type=range]{accent-color:var(--gold);width:90px}
   </div>
 
   <p class="copy">The rule is deference: cover the gold and the page still works; switch the scene off and nothing collapses. Each ambience runs on one canvas, pauses when the tab hides, and settles to a still frame under reduced motion. The light always earns its movement — a breath by altitude, a glint on an arc, a pulse through an arcade.</p>
-  <p class="copy">Marmo · Guilloché — the materials, new. Raggiera · Meandro · Cardo · Tevere · Intreccio — the engraved family. Cosmati · Sampietrini — the floors of Rome. Pick the one that feels like BOOM.</p>
+  <p class="copy">Marmo Antico · Pulviscolo · Caustica · Seta · Foglia d'Oro — the MATERIA family, built and self-judged in the lab. Raggiera · Meandro survive from the engraved era. Pick the one that feels like BOOM.</p>
 </main>
 
 <div class="dock" id="dock">
-  <button class="pill on" data-m="marmo">Marmo</button>
-  <button class="pill" data-m="guilloche">Guilloché</button>
+  <button class="pill on" data-m="marmoantico">Marmo Antico</button>
+  <button class="pill" data-m="pulviscolo">Pulviscolo</button>
+  <button class="pill" data-m="caustica">Caustica</button>
+  <button class="pill" data-m="seta">Seta</button>
+  <button class="pill" data-m="foglia">Foglia d'Oro</button>
   <button class="pill" data-m="raggiera">Raggiera</button>
   <button class="pill" data-m="meandro">Meandro</button>
-  <button class="pill" data-m="cardo">Cardo</button>
-  <button class="pill" data-m="tevere">Tevere</button>
-  <button class="pill" data-m="intreccio">Intreccio</button>
-  <button class="pill" data-m="cosmati">Cosmati</button>
-  <button class="pill" data-m="sampietrini">Sampietrini</button>
   <button class="pill" data-m="off">Off</button>
   <span class="sep"></span>
   <label>Intensità <input id="inten" type="range" min="0.4" max="1.5" step="0.05" value="1"></label>
@@ -102,7 +100,7 @@ input[type=range]{accent-color:var(--gold);width:90px}
 <script>
 (function(){
 'use strict';
-var amb=BoomAmbient.mount({ink:'#08080A',inkRGB:'8,8,10',palette:{a:'255,215,0',b:'255,229,160'},intensity:1,sections:false,scene:'marmo'});
+var amb=BoomAmbient.mount({ink:'#08080A',inkRGB:'8,8,10',palette:{a:'255,215,0',b:'255,229,160'},intensity:1,sections:false,scene:'marmoantico'});
 var dock=document.getElementById('dock');
 dock.addEventListener('click',function(e){
   var p=e.target.closest('.pill');if(!p)return;
