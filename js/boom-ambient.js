@@ -805,5 +805,12 @@
     };
   }
 
-  window.BoomAmbient = { mount: mount, scenes: Object.keys(SCENES), moods: Object.keys(MOODS), reduce: REDUCE, lite: LITE };
+  // external scene registration — a maker receives the helper kit and returns
+  // {build,draw}; lets scenes be developed as standalone files, then inlined.
+  function register(name, maker) {
+    SCENES[name] = function () {
+      return maker({ gold: gold, warm: warm, TAU: TAU, STATIC_ONLY: STATIC_ONLY, mulberry32: mulberry32, vnoise: vnoise });
+    };
+  }
+  window.BoomAmbient = { mount: mount, register: register, scenes: Object.keys(SCENES), moods: Object.keys(MOODS), reduce: REDUCE, lite: LITE };
 })();
