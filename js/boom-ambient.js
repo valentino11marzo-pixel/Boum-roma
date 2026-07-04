@@ -16,10 +16,16 @@
        oculus      Pantheon coffers + drifting sun-shaft        (statement)
        cosmati     quiet Cosmatesque rosette field              (browse)
        velluto     breathing velvet gradient, zero geometry     (read/trust)
-       meandro     Greek-key circuit with a running light pulse (money)
+       meandro     Greek-key frieze with a running light pulse  (money)
        contorni    topographic contour lines of a hill          (zones/map)
        aurum       molten-gold flow field                       (editorial)
        sampietrini fan-laid setts with light ripples            (footer)
+       raggiera    bounded Deco crown, orbiting double glint    (statement)
+       cardo       Roman street grid walked by light-runners    (browse)
+       tevere      the river's flow in engraved lines           (editorial)
+       intreccio   banknote weave with a crossing light         (money)
+       marmo       travertine veins, gliding sheen + vein glint (discovery)
+       guilloche   lathework braids, breathing + strand glint   (site default)
 
    Engineering: single rAF; DPR≤1.75; pauses when tab hidden; honours
    prefers-reduced-motion (static frame) and saveData/low deviceMemory
@@ -509,15 +515,174 @@
     };
   };
 
-  // ═════════ ULTRA-TECH QUIET LUXURY — precision instruments, almost still ═══
+  // ═════════ MATERIA ROMANA — the stone and the engraving, almost still ═════
 
+  // MARMO — travertine, the stone Rome is built from. A dozen hairline gold
+  // veins wander one diagonal grain across the page with short branches and
+  // a scatter of pores (cached offscreen, crisp, zero per-frame cost). The
+  // living light: a slow sheen gliding along the grain — light moving over
+  // polished stone — and one glint walking the master vein.
+  SCENES.marmo = function () {
+    var W, H, off, master, masterLen, GRAIN = -0.30, DIAG;
+    function vein(rnd, x0, y0, ang, n, drift) {
+      var pts = [[x0, y0]], x = x0, y = y0, curve = 0;
+      for (var i = 0; i < n; i++) {
+        curve += (rnd() - 0.5) * drift; curve *= 0.92;
+        x += Math.cos(ang + curve) * 16; y += Math.sin(ang + curve) * 16;
+        pts.push([x, y]);
+      }
+      return pts;
+    }
+    function stroke(c, pts, w, a) {
+      c.beginPath(); c.moveTo(pts[0][0], pts[0][1]);
+      for (var i = 1; i < pts.length - 1; i++)
+        c.quadraticCurveTo(pts[i][0], pts[i][1], (pts[i][0] + pts[i + 1][0]) / 2, (pts[i][1] + pts[i + 1][1]) / 2);
+      c.strokeStyle = gold(a); c.lineWidth = w; c.stroke();
+    }
+    return {
+      build: function (w, h) {
+        W = w; H = h; DIAG = Math.hypot(w, h);
+        off = document.createElement('canvas'); off.width = w; off.height = h;
+        var c = off.getContext('2d'), rnd = mulberry32(97), n = Math.ceil((w + 240) / 14);
+        // stone depth — a few vast, whisper-faint clouds under the veins
+        for (var cl = 0; cl < 3; cl++) {
+          var cx = rnd() * w, cy = rnd() * h, cr = Math.min(w, h) * (0.4 + rnd() * 0.3);
+          var cg = c.createRadialGradient(cx, cy, 0, cx, cy, cr);
+          cg.addColorStop(0, gold(0.025)); cg.addColorStop(1, gold(0));
+          c.fillStyle = cg; c.beginPath(); c.arc(cx, cy, cr, 0, TAU); c.fill();
+        }
+        var count = 8 + Math.round(h / 240), mid = Math.floor(count / 2);
+        master = null;
+        for (var v = 0; v < count; v++) {
+          var y0 = (v + 0.5) / count * h * 1.25 - h * 0.05 + (rnd() - 0.5) * h * 0.12;
+          var pts = vein(rnd, -120, y0, GRAIN + (rnd() - 0.5) * 0.10, n, 0.48);
+          var main = v === mid, aw = main ? 1.2 : 0.6 + rnd() * 0.5, aa = main ? 0.20 : 0.07 + rnd() * 0.08;
+          stroke(c, pts, aw, aa);
+          // engraved companion — a fainter parallel line, the chisel's echo
+          if (main || rnd() < 0.4) {
+            c.save(); c.translate(0, 4); stroke(c, pts, aw * 0.6, aa * 0.45); c.restore();
+          }
+          if (main) master = pts;
+          // a short, fainter branch peeling off at a low angle
+          if (rnd() < 0.6) {
+            var at = pts[Math.floor(pts.length * (0.25 + rnd() * 0.5))];
+            stroke(c, vein(rnd, at[0], at[1], GRAIN + (rnd() < 0.5 ? -0.4 : 0.4), Math.floor(n / 4), 0.5), 0.5, 0.06);
+          }
+        }
+        // travertine pores — small grain-aligned specks
+        for (var p = 0; p < 130; p++) {
+          var px = rnd() * w, py = rnd() * h;
+          c.save(); c.translate(px, py); c.rotate(GRAIN);
+          c.fillStyle = gold(0.05 + rnd() * 0.06);
+          c.beginPath(); c.ellipse(0, 0, 1.2 + rnd() * 2.6, 0.5 + rnd() * 0.9, 0, 0, TAU); c.fill();
+          c.restore();
+        }
+        masterLen = 0;
+        for (var q = 1; q < master.length; q++) masterLen += Math.hypot(master[q][0] - master[q - 1][0], master[q][1] - master[q - 1][1]);
+      },
+      draw: function (ctx, t, k) {
+        ctx.save(); ctx.globalAlpha = Math.min(1, k);
+        ctx.drawImage(off, 0, 0);
+        ctx.restore(); ctx.globalAlpha = 1;
+        if (STATIC_ONLY) return;
+        // the sheen — a broad soft band of light gliding along the grain
+        var u = ((t * 0.016) % 1.4) - 0.2, bx = u * DIAG - DIAG / 2, bw = DIAG * 0.30;
+        ctx.save(); ctx.translate(W / 2, H / 2); ctx.rotate(GRAIN);
+        var sg = ctx.createLinearGradient(bx - bw, 0, bx + bw, 0);
+        sg.addColorStop(0, warm(0)); sg.addColorStop(0.5, warm(0.045 * k)); sg.addColorStop(1, warm(0));
+        ctx.fillStyle = sg; ctx.fillRect(-DIAG, -DIAG, DIAG * 2, DIAG * 2);
+        ctx.restore();
+        // one glint walks the master vein
+        var head = ((t * 0.05) % 1) * masterLen, tail = head - masterLen * 0.05, acc = 0, hx = null, hy = null;
+        ctx.lineWidth = 1.5; ctx.lineCap = 'round';
+        for (var s = 1; s < master.length; s++) {
+          var seg = Math.hypot(master[s][0] - master[s - 1][0], master[s][1] - master[s - 1][1]), a = acc, b = acc + seg;
+          if (b > tail && a < head) {
+            var f0 = Math.max(0, (tail - a) / seg), f1 = Math.min(1, (head - a) / seg);
+            var x1 = master[s - 1][0] + (master[s][0] - master[s - 1][0]) * f1, y1 = master[s - 1][1] + (master[s][1] - master[s - 1][1]) * f1;
+            ctx.beginPath();
+            ctx.moveTo(master[s - 1][0] + (master[s][0] - master[s - 1][0]) * f0, master[s - 1][1] + (master[s][1] - master[s - 1][1]) * f0);
+            ctx.lineTo(x1, y1);
+            ctx.strokeStyle = warm(0.42 * k); ctx.stroke();
+            if (head >= a && head <= b) { hx = x1; hy = y1; }
+          }
+          acc = b;
+        }
+        ctx.lineCap = 'butt';
+        if (hx !== null) {
+          var hg = ctx.createRadialGradient(hx, hy, 0, hx, hy, 22);
+          hg.addColorStop(0, warm(0.16 * k)); hg.addColorStop(1, warm(0));
+          ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(hx, hy, 22, 0, TAU); ctx.fill();
+        }
+      }
+    };
+  };
 
-
-
-  // ═══════ ROMA MONUMENTALE — the icons themselves, in hairline and light ═══
-
-
-
+  // GUILLOCHÉ — the old site signature, reborn. Three engraved lathework
+  // braids (banknote engine-turning: interleaved harmonics, cached offscreen);
+  // the braid breathes almost imperceptibly and a single glint rides one
+  // strand of the central band.
+  SCENES.guilloche = function () {
+    var W, H, off, path, pathLen;
+    function strandY(yc, A, u, i, M) {
+      var ph = i * TAU / M, amp = A * (0.45 + 0.55 * (i + 1) / M);
+      return yc + amp * Math.sin(u * Math.PI * 5 + ph) * (0.72 + 0.28 * Math.sin(u * Math.PI))
+                + A * 0.22 * Math.sin(u * Math.PI * 13.7 + ph * 1.7);
+    }
+    return {
+      build: function (w, h) {
+        W = w; H = h;
+        off = document.createElement('canvas'); off.width = w; off.height = h;
+        var c = off.getContext('2d'), bands = [[h * 0.20, 0.7, 0.85], [h * 0.52, 1, 1], [h * 0.84, 0.7, 0.85]];
+        path = null;
+        for (var b = 0; b < bands.length; b++) {
+          var yc = bands[b][0], A = Math.min(64, h * 0.075) * bands[b][1], em = bands[b][2], M = 9;
+          for (var i = 0; i < M; i++) {
+            var pts = [];
+            for (var s = 0; s <= 220; s++) {
+              var u = s / 220;
+              pts.push([-30 + u * (w + 60), strandY(yc, A, u, i, M)]);
+            }
+            c.beginPath(); c.moveTo(pts[0][0], pts[0][1]);
+            for (var q = 1; q < pts.length; q++) c.lineTo(pts[q][0], pts[q][1]);
+            c.strokeStyle = gold((i === 0 ? 0.20 : i % 2 ? 0.07 : 0.12) * em);
+            c.lineWidth = i === 0 ? 1 : 0.55; c.stroke();
+            if (b === 1 && i === 0) path = pts;
+          }
+        }
+        pathLen = 0;
+        for (var p = 1; p < path.length; p++) pathLen += Math.hypot(path[p][0] - path[p - 1][0], path[p][1] - path[p - 1][1]);
+      },
+      draw: function (ctx, t, k) {
+        var kb = k * (STATIC_ONLY ? 1 : 0.94 + 0.06 * Math.sin(t * 0.11));
+        ctx.save(); ctx.globalAlpha = Math.min(1, kb);
+        ctx.drawImage(off, 0, 0);
+        ctx.restore(); ctx.globalAlpha = 1;
+        if (STATIC_ONLY) return;
+        var head = ((t * 0.07) % 1) * pathLen, tail = head - pathLen * 0.06, acc = 0, hx = null, hy = null;
+        ctx.lineWidth = 1.6; ctx.lineCap = 'round';
+        for (var s = 1; s < path.length; s++) {
+          var seg = Math.hypot(path[s][0] - path[s - 1][0], path[s][1] - path[s - 1][1]), a = acc, b = acc + seg;
+          if (b > tail && a < head) {
+            var f0 = Math.max(0, (tail - a) / seg), f1 = Math.min(1, (head - a) / seg);
+            var x1 = path[s - 1][0] + (path[s][0] - path[s - 1][0]) * f1, y1 = path[s - 1][1] + (path[s][1] - path[s - 1][1]) * f1;
+            ctx.beginPath();
+            ctx.moveTo(path[s - 1][0] + (path[s][0] - path[s - 1][0]) * f0, path[s - 1][1] + (path[s][1] - path[s - 1][1]) * f0);
+            ctx.lineTo(x1, y1);
+            ctx.strokeStyle = warm(0.5 * k); ctx.stroke();
+            if (head >= a && head <= b) { hx = x1; hy = y1; }
+          }
+          acc = b;
+        }
+        ctx.lineCap = 'butt';
+        if (hx !== null) {
+          var hg = ctx.createRadialGradient(hx, hy, 0, hx, hy, 24);
+          hg.addColorStop(0, warm(0.18 * k)); hg.addColorStop(1, warm(0));
+          ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(hx, hy, 24, 0, TAU); ctx.fill();
+        }
+      }
+    };
+  };
 
   /* ── moods: how alive the ambience is, by what the user is doing ────────── */
   var MOODS = {

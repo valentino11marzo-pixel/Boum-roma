@@ -44,6 +44,23 @@ Shared: background system `js/boom-bg.js` (finalists: Guilloché default + Casse
     Bronze ambience on light paper. Working grid + FLIP.
   All verified in headless Chromium: zero page errors on all four surfaces; detail hero morph claimed from a real click chain.
 
+- ✅ **Ambient verdict rounds** (user judged): survivors = **Raggiera + Meandro** (improved: engraved echo strokes, ember
+  pulse heads, breathing crown with counter-glint) + family Cardo/Tevere/Intreccio. REJECTED & deleted from the engine:
+  colli, acquedotto, orbita, battito, scansione, colosseo, frontone, cupola. User then rejected Raggiera **on discovery**
+  and asked for Marmo → built **Marmo** (travertine veins + gliding sheen + vein glint — port of the old boom-bg favorite
+  into the ambient grammar) and **Guilloché** (three lathework braids, breathing, strand glint — the old site signature
+  reborn). Discovery now mounts **marmo @ .8**. Showcase `preview-ambient-roma.html` dock: Marmo · Guilloché · Raggiera ·
+  Meandro · Cardo · Tevere · Intreccio · Cosmati · Sampietrini · Off.
+- ✅ **Precision pass on the two base pages** (multinational QA round 2):
+  - detail mobile horizontal overflow KILLED (`1fr`→`minmax(0,1fr)` on every grid on both pages; 390/390 verified);
+  - zone propagation on detail: breadcrumb, editorial headline (feature-aware lead: terrace/balcony/space), real
+    `description`, section 05 zone — all painted from the listing; sample nearby/similar are Trastevere-true and are
+    HIDDEN for real listings in other zones (honesty rule); zone-aware AI area answer;
+  - legacy `bgswitch` dev dock removed from detail (ship-readiness B11);
+  - discovery: facet chips had collapsed whitespace (inline-flex) → gap; hero gold phrase nowrap ("Rome," / "on your
+    terms." break); demo dates re-anchored from hardcoded 2026-06-26 epoch to real today + "Available now" for past dates.
+  - Full QA green: zero JS errors on discovery/detail/showcase, zero horizontal overflow desktop+mobile on both pages.
+
 ### Next (recommended order)
 1. **Money-decoded computed ledger** on detail (registry/cedolare/TARI/condominio/utilities) + custom calendar on detail.
 2. **Compare = analytical matrix** (€/m², winner chips); budget as **min–max range**; filter sheet drag-to-dismiss + focus trap.
