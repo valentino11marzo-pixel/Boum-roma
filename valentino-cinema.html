@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Valentino Egidi — Opzione Cinema · Il prezzo vero</title>
+<meta name="description" content="Un film immobiliare senza finzione. Vendi casa a Roma al prezzo vero — Valentino Egidi, Egidi Immobiliare.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0B0A09">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   OPTION "CINEMA" — the site as a film.
+   Full-screen snapped scenes, char-by-char kinetic type, direction
+   HUD, cut flashes, closing credits. Noir · cream · oxblood.
+   ═══════════════════════════════════════════════════════════════ */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --noir:#0B0A09;--noir-2:#12100E;
+  --crema:#EFE9DF;--crema-2:rgba(239,233,223,.6);--crema-3:rgba(239,233,223,.32);
+  --ox:#A03227;--ox-2:#C5473C;--ox-glow:rgba(160,50,39,.45);
+  --gold:#D3B36A;--gold-2:#EAD397;--gold-soft:rgba(211,179,106,.15);
+  --line:rgba(239,233,223,.12);
+  --font:'Helvetica Neue','HelveticaNeue',Helvetica,Arial,sans-serif;
+  --mono:'IBM Plex Mono',monospace;
+  --e1:cubic-bezier(.16,1,.3,1);
+}
+html{scroll-snap-type:y mandatory;-webkit-font-smoothing:antialiased}
+body{font-family:var(--font);font-weight:300;background:var(--noir);color:var(--crema);line-height:1.5;overflow-x:hidden}
+::selection{background:var(--ox);color:#fff}
+a{color:inherit;text-decoration:none}
+.mono{font-family:var(--mono)}
+
+/* grain + letterbox + cut */
+.grain{position:fixed;inset:0;z-index:60;pointer-events:none;opacity:.05;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='170'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.bar{position:fixed;left:0;right:0;height:34px;background:#000;z-index:70;pointer-events:none}
+.bar.t{top:0}.bar.b{bottom:0}
+@media(max-width:760px){.bar{height:18px}}
+.cut{position:fixed;inset:0;z-index:80;background:#000;opacity:0;pointer-events:none;transition:opacity .16s}
+.cut.on{opacity:.9;transition:opacity .05s}
+
+/* direction HUD */
+.hud{position:fixed;z-index:75;font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--crema-3);pointer-events:none}
+.hud b{color:var(--ox-2);font-weight:400}
+.hud.tl{top:46px;left:34px}.hud.tr{top:46px;right:34px;text-align:right}
+.hud.bl{bottom:46px;left:34px}.hud.br{bottom:46px;right:34px;text-align:right}
+@media(max-width:760px){.hud.tr,.hud.bl{display:none}.hud.tl{top:28px;left:18px}.hud.br{bottom:28px;right:18px}}
+.rec{display:inline-flex;align-items:center;gap:7px}
+.rec i{width:8px;height:8px;border-radius:50%;background:var(--ox-2);animation:rec 1.6s infinite}
+@keyframes rec{0%,100%{opacity:1}50%{opacity:.25}}
+
+/* rail */
+.rail{position:fixed;right:26px;top:50%;transform:translateY(-50%);z-index:75;display:flex;flex-direction:column;gap:12px}
+@media(max-width:760px){.rail{right:12px}}
+.rail a{width:8px;height:8px;border:1px solid var(--crema-3);border-radius:50%;transition:.3s}
+.rail a.on{background:var(--ox-2);border-color:var(--ox-2);box-shadow:0 0 12px var(--ox-glow)}
+
+/* scenes */
+.scene{min-height:100svh;scroll-snap-align:start;scroll-snap-stop:always;position:relative;display:flex;align-items:center;overflow:hidden;padding:90px 0}
+.wrap{width:100%;max-width:1200px;margin:0 auto;padding:0 44px;position:relative;z-index:3}
+@media(max-width:640px){.wrap{padding:0 22px}}
+.ghost{position:absolute;right:-2vw;bottom:-4vh;z-index:1;font-weight:700;font-size:clamp(180px,34vw,480px);line-height:1;color:transparent;-webkit-text-stroke:1px rgba(239,233,223,.07);pointer-events:none;font-variant-numeric:tabular-nums}
+.kicker{font-family:var(--mono);font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--ox-2);display:flex;align-items:center;gap:12px;margin-bottom:26px}
+.kicker::before{content:"";width:34px;height:1px;background:var(--ox-2)}
+.stitle{font-size:clamp(40px,8.4vw,120px);font-weight:300;line-height:.96;letter-spacing:-.03em;max-width:16ch}
+.stitle .x{color:var(--ox-2)}
+.stitle .g{color:var(--gold)}
+.slead{color:var(--crema-2);font-size:clamp(15px,1.8vw,20px);max-width:52ch;margin-top:26px;font-weight:300}
+/* char split animation */
+.split .ch{display:inline-block;transform:translateY(115%) rotate(4deg);opacity:0;transition:transform .8s var(--e1),opacity .5s}
+.split .wd{display:inline-block;overflow:hidden;vertical-align:top;padding-bottom:.08em;margin-bottom:-.08em}
+.scene.on .split .ch{transform:none;opacity:1}
+.rv{opacity:0;transform:translateY(24px);transition:opacity .9s var(--e1) .3s,transform .9s var(--e1) .3s}
+.scene.on .rv{opacity:1;transform:none}
+.btn{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;padding:17px 30px;display:inline-flex;align-items:center;gap:11px;transition:.35s var(--e1);cursor:pointer;border:1px solid transparent}
+.btn-ox{background:var(--ox);color:#fff}
+.btn-ox:hover{background:var(--ox-2);transform:translateY(-2px);box-shadow:0 14px 34px -12px var(--ox-glow)}
+.btn-line{border-color:var(--line);color:var(--crema)}
+.btn-line:hover{border-color:var(--crema)}
+.btn-gold{background:linear-gradient(180deg,var(--gold-2),var(--gold));color:#241B07;font-weight:500}
+.btn-gold:hover{transform:translateY(-2px);box-shadow:0 14px 40px -12px rgba(211,179,106,.5)}
+.btn .ar{transition:transform .35s var(--e1)}.btn:hover .ar{transform:translateX(5px)}
+
+/* scena 01 — problema: strike lines */
+.lies{margin-top:40px;display:flex;flex-direction:column;gap:16px;max-width:56ch}
+.lie{font-size:clamp(17px,2.3vw,26px);color:var(--crema-3);position:relative;display:table;font-weight:300}
+.lie::after{content:"";position:absolute;left:0;top:56%;height:2px;width:0;background:var(--ox-2);transition:width .7s var(--e1)}
+.scene.on .lie::after{width:100%}
+.scene.on .lie:nth-child(2)::after{transition-delay:.25s}
+.scene.on .lie:nth-child(3)::after{transition-delay:.5s}
+.truth-line{font-size:clamp(19px,2.6vw,30px);color:var(--crema);margin-top:14px}
+.truth-line b{color:var(--ox-2);font-weight:400}
+
+/* scena 02 — protagonista */
+.duo{display:grid;grid-template-columns:1.15fr .85fr;gap:54px;align-items:center}
+@media(max-width:860px){.duo{grid-template-columns:1fr;gap:34px}}
+.folio{position:relative;aspect-ratio:4/5;max-height:62vh;overflow:hidden;border:1px solid var(--line)}
+.folio img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:grayscale(.5) contrast(1.08);transition:clip-path 1.2s var(--e1);clip-path:inset(0 0 100% 0)}
+.scene.on .folio img{clip-path:inset(0 0 0 0)}
+.folio .cap{position:absolute;left:14px;bottom:12px;font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(239,233,223,.85);z-index:2}
+.sig{font-family:'Snell Roundhand','Segoe Script',cursive;font-size:clamp(34px,4vw,52px);color:var(--ox-2);transform:rotate(-3deg);display:inline-block;margin-top:24px}
+
+/* scena 03 — storyboard */
+.board{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:46px}
+@media(max-width:900px){.board{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.board{grid-template-columns:1fr;gap:10px}}
+.frame{border:1px solid var(--line);padding:26px 22px;position:relative;background:var(--noir-2);opacity:0;transform:translateY(26px);transition:opacity .7s var(--e1),transform .7s var(--e1)}
+.scene.on .frame{opacity:1;transform:none}
+.scene.on .frame:nth-child(2){transition-delay:.12s}.scene.on .frame:nth-child(3){transition-delay:.24s}.scene.on .frame:nth-child(4){transition-delay:.36s}
+.frame .fn{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--ox-2)}
+.frame h3{font-size:19px;font-weight:400;margin:14px 0 8px;letter-spacing:-.005em}
+.frame p{color:var(--crema-2);font-size:13.5px;font-weight:300}
+.frame .clap{position:absolute;top:22px;right:20px;width:22px;height:16px;border:1px solid var(--crema-3)}
+.frame .clap::before{content:"";position:absolute;top:-6px;left:0;right:0;height:5px;background:repeating-linear-gradient(45deg,var(--crema-3) 0 4px,transparent 4px 8px)}
+
+/* scena 04 — prove */
+.proof{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:46px}
+@media(max-width:760px){.proof{grid-template-columns:1fr 1fr;gap:36px 20px}}
+.pf .v{font-size:clamp(52px,8vw,110px);font-weight:200;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums}
+.pf .v .u{font-size:.34em;color:var(--ox-2);font-family:var(--mono);letter-spacing:.04em}
+.pf .k{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--crema-3);margin-top:12px;max-width:20ch}
+
+/* scena 05 — valutazione (crema card) */
+.card{background:var(--crema);color:#1B1712;padding:46px 44px;max-width:620px;position:relative;box-shadow:0 50px 100px -40px rgba(0,0,0,.9)}
+@media(max-width:640px){.card{padding:32px 24px}}
+.card .ck{font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#8A2A20;display:flex;justify-content:space-between;margin-bottom:22px}
+.card h2{font-size:clamp(26px,3.4vw,40px);font-weight:300;letter-spacing:-.02em;line-height:1.05}
+.card h2 b{color:#A03227;font-weight:300}
+.frow{margin-top:18px}
+.frow label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:rgba(27,23,18,.55);margin-bottom:7px}
+.frow input{width:100%;background:transparent;border:none;border-bottom:1px solid rgba(27,23,18,.3);padding:10px 2px;font-family:var(--font);font-size:16px;color:#1B1712;font-weight:300;transition:border .3s}
+.frow input:focus{outline:none;border-color:#A03227}
+.frow input::placeholder{color:rgba(27,23,18,.35)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:420px){.two{grid-template-columns:1fr}}
+.card button{margin-top:28px;width:100%;background:#A03227;color:#fff;border:none;padding:18px;font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;transition:.3s}
+.card button:hover{background:#C5473C}
+.card .fine{margin-top:12px;font-family:var(--mono);font-size:10px;color:rgba(27,23,18,.5);text-align:center;letter-spacing:.04em}
+
+/* scena 06 — boom */
+.scene.boomsc{background:radial-gradient(90% 90% at 70% 20%,rgba(211,179,106,.1),transparent 60%),var(--noir)}
+.bfeat{display:flex;flex-wrap:wrap;gap:10px;margin-top:32px;max-width:60ch}
+.bfeat span{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;border:1px solid rgba(211,179,106,.35);color:var(--gold);padding:9px 14px;transition:.3s}
+.bfeat span:hover{background:var(--gold-soft)}
+
+/* scena 07 — credits */
+.credits{height:38vh;overflow:hidden;position:relative;margin-top:40px;mask-image:linear-gradient(180deg,transparent,#000 22%,#000 78%,transparent)}
+.credits ul{list-style:none;position:absolute;left:0;right:0;animation:crawl 26s linear infinite}
+@keyframes crawl{0%{transform:translateY(38vh)}100%{transform:translateY(-100%)}}
+.credits li{display:flex;justify-content:space-between;gap:20px;padding:10px 0;font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--crema-2);max-width:560px;margin:0 auto}
+.credits li b{color:var(--crema);font-weight:400}
+.credits li .gd{color:var(--gold)}
+.cmeta{display:flex;gap:28px;justify-content:center;flex-wrap:wrap;margin-top:26px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--crema-3)}
+.cmeta a{color:var(--crema);border-bottom:1px solid var(--line);padding-bottom:3px}
+.cmeta a:hover{color:var(--ox-2);border-color:var(--ox-2)}
+
+/* switcher */
+.pv{position:fixed;left:50%;bottom:44px;transform:translateX(-50%);z-index:90;display:flex;align-items:center;background:rgba(11,10,9,.8);border:1px solid var(--line);backdrop-filter:blur(14px);font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase}
+.pv b{padding:10px 14px;color:var(--crema);font-weight:500}.pv b i{color:var(--ox-2);font-style:normal}
+.pv a{padding:10px 12px;color:var(--crema-3);border-left:1px solid var(--line);transition:.25s}
+.pv a:hover{background:var(--ox);color:#fff}
+@media(max-width:760px){.pv{bottom:24px}}
+
+@media(prefers-reduced-motion:reduce){
+  html{scroll-snap-type:none}
+  *{animation:none!important}
+  .split .ch,.rv,.frame,.lie::after,.folio img{transition:none!important;transform:none!important;opacity:1!important;clip-path:none!important}
+  .lie::after{width:100%}
+  .cut{display:none}
+}
+</style>
+</head>
+<body>
+
+<div class="grain"></div>
+<div class="bar t"></div><div class="bar b"></div>
+<div class="cut" id="cut"></div>
+
+<div class="hud tl"><span id="scHud">SCENA 00 / 07 · EST. ROMA — ALBA</span></div>
+<div class="hud tr"><span class="rec"><i></i> REC</span> · <b id="clock">--:--:--</b></div>
+<div class="hud bl">EGIDI IMMOBILIARE · PRODUZIONE MMXXX</div>
+<div class="hud br">35MM · <b>NESSUNA FINZIONE</b></div>
+
+<nav class="rail" id="rail"></nav>
+
+<!-- 00 · TITOLO -->
+<section class="scene" id="s0" data-hud="SCENA 00 / 07 · EST. ROMA — ALBA">
+  <div class="ghost">00</div>
+  <div class="wrap">
+    <div class="kicker">Egidi Immobiliare presenta</div>
+    <h1 class="stitle split" data-split>Il prezzo vero.</h1>
+    <p class="slead rv">Un film immobiliare senza finzione, girato a Roma. Con un solo attore non protagonista: la verità. Regia di Valentino Egidi.</p>
+    <div class="rv" style="margin-top:36px;display:flex;gap:14px;flex-wrap:wrap">
+      <a class="btn btn-ox" href="#s5">Vai alla valutazione</a>
+      <a class="btn btn-line" href="#s1">Guarda il film <span class="ar">↓</span></a>
+    </div>
+  </div>
+</section>
+
+<!-- 01 · IL PROBLEMA -->
+<section class="scene" id="s1" data-hud="SCENA 01 / 07 · INT. AGENZIA — GIORNO">
+  <div class="ghost">01</div>
+  <div class="wrap">
+    <div class="kicker">Scena 01 · Il problema</div>
+    <h2 class="stitle split" data-split>Le agenzie <span class="x">recitano.</span></h2>
+    <div class="lies">
+      <div class="lie">«Il suo immobile vale sicuramente di più.»</div>
+      <div class="lie">«Abbiamo già dieci compratori interessati.»</div>
+      <div class="lie">«Firmi oggi, domani è tardi.»</div>
+    </div>
+    <p class="truth-line rv">Copioni. Io lavoro <b>a soggetto: i dati.</b></p>
+  </div>
+</section>
+
+<!-- 02 · IL PROTAGONISTA -->
+<section class="scene" id="s2" data-hud="SCENA 02 / 07 · INT. VIA DEI CORONARI — GIORNO">
+  <div class="ghost">02</div>
+  <div class="wrap duo">
+    <div>
+      <div class="kicker">Scena 02 · Il protagonista</div>
+      <h2 class="stitle split" data-split>Un solo nome in <span class="x">locandina.</span></h2>
+      <p class="slead rv">Niente cast di stagisti, niente controfigure. Dalla valutazione al rogito c'è una sola persona che risponde: io. La mia reputazione vale più di qualsiasi provvigione.</p>
+      <div class="sig rv">Valentino</div>
+      <div class="rv mono" style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--crema-3);margin-top:6px">Valentino Egidi · Titolare, Egidi Immobiliare S.r.l.</div>
+    </div>
+    <div class="folio rv">
+      <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1000&q=80" alt="Valentino Egidi" onerror="this.style.opacity=0">
+      <div class="cap">Via dei Coronari 181 · Roma</div>
+    </div>
+  </div>
+</section>
+
+<!-- 03 · LA SCENEGGIATURA -->
+<section class="scene" id="s3" data-hud="SCENA 03 / 07 · INT. STUDIO — NOTTE">
+  <div class="ghost">03</div>
+  <div class="wrap">
+    <div class="kicker">Scena 03 · La sceneggiatura</div>
+    <h2 class="stitle split" data-split>Quattro atti. Zero <span class="x">colpi di scena.</span></h2>
+    <div class="board">
+      <div class="frame"><div class="clap"></div><div class="fn">ATTO I</div><h3>Valutazione vera</h3><p>Comparabili del tuo palazzo, tempi, assorbimento. Non quello che vuoi sentirti dire.</p></div>
+      <div class="frame"><div class="clap"></div><div class="fn">ATTO II</div><h3>Produzione</h3><p>Foto e video editoriali, distribuzione sui canali giusti. La prima impressione decide il prezzo.</p></div>
+      <div class="frame"><div class="clap"></div><div class="fn">ATTO III</div><h3>Casting compratori</h3><p>Filtro i curiosi: in casa tua entrano solo persone qualificate con offerte reali.</p></div>
+      <div class="frame"><div class="clap"></div><div class="fn">ATTO IV</div><h3>Finale al rogito</h3><p>Notaio, fisco, tempi: gestiti fino alla firma. Zero sorprese sul prezzo finale.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 04 · LE PROVE -->
+<section class="scene" id="s4" data-hud="SCENA 04 / 07 · INT. ARCHIVIO — GIORNO">
+  <div class="ghost">04</div>
+  <div class="wrap">
+    <div class="kicker">Scena 04 · Le prove</div>
+    <h2 class="stitle split" data-split>Numeri, non <span class="x">trailer.</span></h2>
+    <div class="proof rv">
+      <div class="pf"><div class="v" data-c="0">0</div><div class="k">Aste mascherate. Mai.</div></div>
+      <div class="pf"><div class="v" data-c="100">0<span class="u">%</span></div><div class="k">Dei difetti, dichiarati prima.</div></div>
+      <div class="pf"><div class="v" data-c="48">0<span class="u">h</span></div><div class="k">Per la tua valutazione.</div></div>
+      <div class="pf"><div class="v" data-c="1">0</div><div class="k">Una sola versione dei fatti.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 05 · LA VALUTAZIONE -->
+<section class="scene" id="s5" data-hud="SCENA 05 / 07 · INT. CASA TUA — GIORNO">
+  <div class="ghost">05</div>
+  <div class="wrap">
+    <div class="card rv">
+      <div class="ck"><span>Provino · gratuito</span><span>48h</span></div>
+      <h2>Quanto vale <b>davvero</b> casa tua?</h2>
+      <form id="valForm">
+        <div class="frow"><label>Indirizzo</label><input type="text" name="addr" placeholder="Via, civico — zona di Roma" required></div>
+        <div class="two">
+          <div class="frow"><label>Superficie (m²)</label><input type="number" name="mq" placeholder="es. 95" min="1"></div>
+          <div class="frow"><label>Nome</label><input type="text" name="nome" placeholder="Il tuo nome" required></div>
+        </div>
+        <div class="frow"><label>WhatsApp o email</label><input type="text" name="contact" placeholder="Come ti ricontatto" required></div>
+        <button type="submit">Richiedi la valutazione onesta →</button>
+        <div class="fine">Apre WhatsApp col messaggio pronto · risposta in 48h, da me</div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- 06 · SECONDO TEMPO: BOOM -->
+<section class="scene boomsc" id="s6" data-hud="SCENA 06 / 07 · INT. BOOM — SERA">
+  <div class="ghost" style="-webkit-text-stroke-color:rgba(211,179,106,.1)">06</div>
+  <div class="wrap">
+    <div class="kicker" style="color:var(--gold)">Secondo tempo · La divisione affitti</div>
+    <h2 class="stitle split" data-split>Non la vendi? <span class="g">Falla recitare.</span></h2>
+    <p class="slead rv">Se vendere ora non conviene, la tua casa va in scena con <b style="color:var(--gold);font-weight:400">BOOM</b> — la nostra divisione per gli affitti medio termine. Inquilini selezionati come un casting, reddito da subito, gestione completa. Stessa produzione: Egidi Immobiliare.</p>
+    <div class="bfeat rv">
+      <span>Inquilini verificati</span><span>Contratti legali</span><span>Ingresso in 48h</span><span>Gestione completa</span><span>1–18 mesi</span>
+    </div>
+    <div class="rv" style="margin-top:34px"><a class="btn btn-gold" href="https://www.boomrome.com" target="_blank">Scopri BOOM <span class="ar">→</span></a></div>
+  </div>
+</section>
+
+<!-- 07 · TITOLI DI CODA -->
+<section class="scene" id="s7" data-hud="SCENA 07 / 07 · TITOLI DI CODA">
+  <div class="ghost">07</div>
+  <div class="wrap" style="text-align:center">
+    <div class="kicker" style="justify-content:center">Fine · Titoli di coda</div>
+    <h2 class="stitle split" data-split style="margin-inline:auto">Parliamone. <span class="x">Senza copione.</span></h2>
+    <div class="credits rv" aria-hidden="true">
+      <ul>
+        <li><span>Regia</span><b>Valentino Egidi</b></li>
+        <li><span>Sceneggiatura</span><b>I dati di mercato</b></li>
+        <li><span>Direttore della fotografia</span><b>Media editoriali</b></li>
+        <li><span>Casting compratori</span><b>Solo qualificati</b></li>
+        <li><span>Effetti speciali</span><b>Nessuno — è tutto vero</b></li>
+        <li><span>Divisione affitti</span><b class="gd">BOOM®</b></li>
+        <li><span>Produzione</span><b>Egidi Immobiliare S.r.l.</b></li>
+        <li><span>Location</span><b>Via dei Coronari 181 · Roma</b></li>
+        <li><span>P.IVA</span><b>17322991005</b></li>
+        <li><span>Anno</span><b>MMXXX</b></li>
+      </ul>
+    </div>
+    <div class="rv"><a class="btn btn-ox" href="https://wa.me/393313251961" target="_blank">Scrivimi su WhatsApp <span class="ar">→</span></a></div>
+    <div class="cmeta rv">
+      <span><a href="https://wa.me/393313251961" target="_blank">+39 331 325 1961</a></span>
+      <span><a href="https://instagram.com/r.egidi_immobiliare" target="_blank">@r.egidi_immobiliare</a></span>
+    </div>
+  </div>
+</section>
+
+<div class="pv">
+  <b>Opzione <i>Cinema</i></b>
+  <a href="/valentino-dossier">Dossier</a>
+  <a href="/valentino-atrio">Atrio</a>
+  <a href="/valentino-2030">2030</a>
+  <a href="/valentino-egidi">Attuale</a>
+</div>
+
+<script>
+(function(){
+'use strict';
+const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+const $=s=>document.querySelector(s);const $$=s=>[...document.querySelectorAll(s)];
+
+/* char split */
+$$('[data-split]').forEach(el=>{
+  const nodes=[...el.childNodes];el.innerHTML='';
+  const build=(txt,parent)=>{txt.split(' ').forEach((w,wi,arr)=>{
+    if(!w){return;}
+    const wd=document.createElement('span');wd.className='wd';
+    [...w].forEach((c,ci)=>{const ch=document.createElement('span');ch.className='ch';ch.textContent=c;
+      ch.style.transitionDelay=(ci*22+wi*60)+'ms';wd.appendChild(ch);});
+    parent.appendChild(wd);
+    if(wi<arr.length-1)parent.appendChild(document.createTextNode(' '));});};
+  nodes.forEach(n=>{
+    if(n.nodeType===3)build(n.textContent,el);
+    else{const sp=document.createElement('span');sp.className=n.className;el.appendChild(sp);build(n.textContent,sp);}
+  });
+});
+
+/* scenes: HUD + rail + cut + reveal */
+const scenes=$$('.scene'),rail=$('#rail'),hud=$('#scHud'),cut=$('#cut');
+scenes.forEach((s,i)=>{const a=document.createElement('a');a.href='#'+s.id;rail.appendChild(a);});
+const dots=$$('#rail a');
+let cur=-1;
+const io=new IntersectionObserver(es=>es.forEach(e=>{
+  if(!e.isIntersecting)return;
+  const i=scenes.indexOf(e.target);
+  e.target.classList.add('on');
+  dots.forEach((d,k)=>d.classList.toggle('on',k===i));
+  if(hud&&e.target.dataset.hud)hud.textContent=e.target.dataset.hud;
+  if(cut&&!reduce&&cur!==-1&&cur!==i){cut.classList.add('on');setTimeout(()=>cut.classList.remove('on'),70);}
+  cur=i;
+}),{threshold:.55});
+scenes.forEach(s=>io.observe(s));
+if(reduce)scenes.forEach(s=>s.classList.add('on'));
+
+/* keyboard navigation */
+addEventListener('keydown',e=>{
+  if(e.key!=='ArrowDown'&&e.key!=='ArrowUp')return;
+  if(/INPUT|TEXTAREA/.test(document.activeElement.tagName))return;
+  e.preventDefault();
+  const n=Math.max(0,Math.min(scenes.length-1,cur+(e.key==='ArrowDown'?1:-1)));
+  scenes[n].scrollIntoView({behavior:reduce?'auto':'smooth'});
+});
+
+/* counters */
+const cio=new IntersectionObserver(es=>es.forEach(e=>{if(!e.isIntersecting)return;cio.unobserve(e.target);
+  const el=e.target,t=+el.dataset.c;let s=null;
+  (function f(ts){if(!s)s=ts;const p=Math.min((ts-s)/1100,1),k=1-Math.pow(1-p,3);el.childNodes[0].nodeValue=Math.round(k*t);if(p<1)requestAnimationFrame(f);})(performance.now());
+}),{threshold:.5});
+$$('[data-c]').forEach(el=>cio.observe(el));
+
+/* clock */
+const clk=$('#clock');const t=()=>{try{clk.textContent=new Intl.DateTimeFormat('it-IT',{timeZone:'Europe/Rome',hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date());}catch(e){}};
+if(clk){t();setInterval(t,1000);}
+
+/* form → whatsapp */
+const vf=$('#valForm');
+if(vf)vf.addEventListener('submit',e=>{e.preventDefault();const d=new FormData(vf),g=k=>(d.get(k)||'').toString().trim();
+  const msg=`Ciao Valentino, vorrei una valutazione onesta.\n\nIndirizzo: ${g('addr')}\nSuperficie: ${g('mq')} m²\nNome: ${g('nome')}\nContatto: ${g('contact')}`;
+  window.open('https://wa.me/393313251961?text='+encodeURIComponent(msg),'_blank');});
+})();
+</script>
+</body>
+</html>

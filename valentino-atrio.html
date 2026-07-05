@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Valentino Egidi — Opzione Atrio · L'arte di vendere casa</title>
+<meta name="description" content="Un palazzo digitale a Roma. L'arte di vendere casa al prezzo vero — Valentino Egidi, Egidi Immobiliare.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0E0C0A">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400;1,500&family=IBM+Plex+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   OPTION "ATRIO" — the site as a palazzo in depth.
+   3D perspective camera, sections emerging from depth, didone
+   serif couture type, duotone photography. Noir · ivory · brass.
+   ═══════════════════════════════════════════════════════════════ */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --noir:#0E0C0A;--noir-2:#151210;
+  --avorio:#F0EAE0;--avorio-2:rgba(240,234,224,.62);--avorio-3:rgba(240,234,224,.34);
+  --ottone:#B98F4E;--ottone-2:#D9B97E;--ottone-soft:rgba(185,143,78,.14);
+  --line:rgba(240,234,224,.13);
+  --serif:'Playfair Display',Georgia,serif;
+  --font:'Helvetica Neue','HelveticaNeue',Helvetica,Arial,sans-serif;
+  --mono:'IBM Plex Mono',monospace;
+  --e1:cubic-bezier(.16,1,.3,1);
+}
+html{-webkit-font-smoothing:antialiased;scroll-behavior:smooth}
+body{font-family:var(--font);font-weight:300;background:var(--noir);color:var(--avorio);line-height:1.55;overflow-x:hidden}
+::selection{background:var(--ottone);color:var(--noir)}
+a{color:inherit;text-decoration:none}
+.serif{font-family:var(--serif)}
+.mono{font-family:var(--mono)}
+.wrap{max-width:1220px;margin:0 auto;padding:0 44px}
+@media(max-width:640px){.wrap{padding:0 22px}}
+.plaque{font-family:var(--mono);font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:var(--ottone);display:flex;align-items:center;gap:14px}
+.plaque::before,.plaque.ctr::after{content:"";width:30px;height:1px;background:var(--ottone)}
+.plaque.ctr{justify-content:center}
+
+/* vignette + progress */
+.vig{position:fixed;inset:0;z-index:50;pointer-events:none;background:radial-gradient(120% 100% at 50% 50%,transparent 55%,rgba(0,0,0,.5) 100%)}
+.prog{position:fixed;top:0;left:0;height:2px;width:0;background:linear-gradient(90deg,var(--ottone),var(--ottone-2));z-index:200}
+
+/* nav */
+nav{position:fixed;inset:0 0 auto 0;z-index:100;height:78px;display:flex;align-items:center;transition:background .5s,border-color .5s;border-bottom:1px solid transparent}
+nav.solid{background:rgba(14,12,10,.72);backdrop-filter:blur(16px);border-bottom-color:var(--line)}
+.nav-in{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:1220px;margin:0 auto;padding:0 44px}
+@media(max-width:640px){.nav-in{padding:0 22px}}
+.brand{font-family:var(--serif);font-size:20px;letter-spacing:.02em}
+.brand i{color:var(--ottone);font-style:italic}
+.nav-links{display:flex;gap:30px}
+.nav-links a{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--avorio-2);transition:.3s}
+.nav-links a:hover{color:var(--avorio)}
+@media(max-width:860px){.nav-links{display:none}}
+.nav-cta{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;border:1px solid var(--ottone);color:var(--ottone-2);padding:12px 22px;transition:.4s var(--e1)}
+.nav-cta:hover{background:var(--ottone);color:var(--noir)}
+
+/* ── HERO · 3D camera ─────────────────────────────────────── */
+.atrio{height:100svh;position:relative;overflow:hidden;perspective:1100px}
+.cam{position:absolute;inset:0;transform-style:preserve-3d;will-change:transform}
+.layer{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;transform-style:preserve-3d}
+.l-ghost{transform:translateZ(-420px) scale(1.42)}
+.l-ghost span{font-family:var(--serif);font-size:clamp(150px,30vw,430px);font-style:italic;color:transparent;-webkit-text-stroke:1px rgba(240,234,224,.09);white-space:nowrap}
+.l-arch{transform:translateZ(-190px) scale(1.19)}
+.arch{position:absolute;top:50%;width:min(23vw,270px);aspect-ratio:3/4.4;transform:translateY(-50%);overflow:hidden;border-radius:200px 200px 0 0;border:1px solid rgba(240,234,224,.15)}
+.arch.a1{left:5%}.arch.a2{right:5%}
+.arch img{width:100%;height:100%;object-fit:cover;filter:sepia(.32) saturate(.75) contrast(1.05) brightness(.8)}
+.arch::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 55%,rgba(14,12,10,.75))}
+@media(max-width:860px){.arch{display:none}}
+.l-title{transform:translateZ(0)}
+.l-title .in{text-align:center;padding:0 22px}
+.l-title h1{font-family:var(--serif);font-weight:400;font-size:clamp(44px,7.6vw,110px);line-height:1.04;letter-spacing:-.01em;max-width:15ch}
+.l-title h1 em{font-style:italic;color:var(--ottone-2)}
+.l-title .sub{font-size:clamp(15px,1.6vw,19px);color:var(--avorio-2);max-width:44ch;margin:24px auto 0;font-weight:300}
+.l-title .cta{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:38px}
+.l-plaque{transform:translateZ(90px)}
+.l-plaque .in{position:absolute;top:100px;left:50%;transform:translateX(-50%)}
+.btn{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;padding:17px 32px;display:inline-flex;align-items:center;gap:11px;transition:.4s var(--e1);cursor:pointer;border:1px solid transparent}
+.btn-brass{background:linear-gradient(180deg,var(--ottone-2),var(--ottone));color:var(--noir);font-weight:400}
+.btn-brass:hover{transform:translateY(-2px);box-shadow:0 18px 44px -14px rgba(185,143,78,.55)}
+.btn-line{border-color:var(--line);color:var(--avorio)}
+.btn-line:hover{border-color:var(--avorio)}
+.btn .ar{transition:transform .4s var(--e1)}.btn:hover .ar{transform:translateX(5px)}
+.hero-foot{position:absolute;bottom:30px;left:50%;transform:translateX(-50%);z-index:5;font-family:var(--mono);font-size:9.5px;letter-spacing:.3em;text-transform:uppercase;color:var(--avorio-3);display:flex;flex-direction:column;align-items:center;gap:12px}
+.hero-foot .ln{width:1px;height:40px;background:var(--line);position:relative;overflow:hidden}
+.hero-foot .ln::after{content:"";position:absolute;inset:0;background:var(--ottone);animation:drop 2.4s var(--e1) infinite}
+@keyframes drop{0%{transform:translateY(-100%)}60%,100%{transform:translateY(100%)}}
+
+/* ── DEPTH sections (emerge from z) ───────────────────────── */
+.sala{padding:130px 0;position:relative}
+@media(max-width:640px){.sala{padding:88px 0}}
+.depth{will-change:transform,opacity,filter}
+.stitle{font-family:var(--serif);font-weight:400;font-size:clamp(32px,5.6vw,72px);line-height:1.05;letter-spacing:-.01em;margin-top:20px;max-width:18ch}
+.stitle em{font-style:italic;color:var(--ottone-2)}
+.slead{color:var(--avorio-2);font-size:clamp(15px,1.6vw,18px);max-width:54ch;margin-top:20px;font-weight:300}
+
+/* manifesto verses */
+.verses{margin-top:56px;display:flex;flex-direction:column;gap:34px;max-width:760px}
+.verse{display:grid;grid-template-columns:64px 1fr;gap:22px;align-items:baseline}
+.verse .vn{font-family:var(--mono);font-size:11px;color:var(--ottone);letter-spacing:.1em}
+.verse p{font-family:var(--serif);font-size:clamp(21px,3vw,34px);line-height:1.25;font-weight:400}
+.verse p em{font-style:italic;color:var(--ottone-2)}
+@media(max-width:520px){.verse{grid-template-columns:40px 1fr;gap:14px}}
+
+/* galleria (horizontal rooms) */
+.gal-wrap{margin-top:54px;position:relative}
+.gal{display:flex;gap:20px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:18px;scrollbar-width:none}
+.gal::-webkit-scrollbar{display:none}
+.room{flex:0 0 auto;width:min(76vw,420px);scroll-snap-align:start;border:1px solid var(--line);background:var(--noir-2);transition:border-color .4s}
+.room:hover{border-color:rgba(185,143,78,.4)}
+.room .rimg{position:relative;aspect-ratio:4/2.9;overflow:hidden}
+.room .rimg img{width:100%;height:100%;object-fit:cover;filter:sepia(.3) saturate(.75) contrast(1.06) brightness(.82);transition:transform 1.2s var(--e1)}
+.room:hover .rimg img{transform:scale(1.06)}
+.room .rimg .rn{position:absolute;top:14px;left:16px;font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:rgba(240,234,224,.9);z-index:2}
+.room .rbody{padding:24px 24px 28px}
+.room h3{font-family:var(--serif);font-size:24px;font-weight:400;letter-spacing:0}
+.room h3 em{font-style:italic;color:var(--ottone-2)}
+.room p{color:var(--avorio-2);font-size:14px;margin-top:10px;font-weight:300}
+.gal-nav{display:flex;gap:10px;justify-content:flex-end;margin-top:6px}
+.gal-nav button{width:46px;height:46px;border:1px solid var(--line);background:none;color:var(--avorio);font-size:17px;cursor:pointer;transition:.3s}
+.gal-nav button:hover{border-color:var(--ottone);color:var(--ottone-2)}
+
+/* valutazione — salottino */
+.salotto{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center;margin-top:54px}
+@media(max-width:880px){.salotto{grid-template-columns:1fr;gap:36px}}
+.salotto .left p{font-family:var(--serif);font-size:clamp(20px,2.6vw,30px);line-height:1.3;font-weight:400;max-width:24ch}
+.salotto .left p em{font-style:italic;color:var(--ottone-2)}
+.salotto .left .note{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--avorio-3);margin-top:22px;line-height:2}
+.vform{border:1px solid var(--line);padding:38px 36px;background:rgba(21,18,16,.6);backdrop-filter:blur(8px)}
+@media(max-width:640px){.vform{padding:28px 22px}}
+.vform .frow{margin-bottom:20px}
+.vform label{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--avorio-3);margin-bottom:8px}
+.vform input{width:100%;background:transparent;border:none;border-bottom:1px solid var(--line);padding:10px 2px;font-family:var(--serif);font-size:18px;color:var(--avorio);font-weight:400}
+.vform input:focus{outline:none;border-color:var(--ottone)}
+.vform input::placeholder{color:var(--avorio-3);font-style:italic}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:420px){.two{grid-template-columns:1fr}}
+.vform button{margin-top:12px;width:100%;background:linear-gradient(180deg,var(--ottone-2),var(--ottone));color:var(--noir);border:none;padding:19px;font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;transition:.35s;font-weight:400}
+.vform button:hover{box-shadow:0 16px 40px -14px rgba(185,143,78,.55)}
+.vform .fine{margin-top:13px;font-family:var(--mono);font-size:9.5px;color:var(--avorio-3);text-align:center;letter-spacing:.08em}
+
+/* salone d'oro — BOOM */
+.salone{position:relative;border-top:1px solid rgba(185,143,78,.25);border-bottom:1px solid rgba(185,143,78,.25);background:
+  radial-gradient(90% 100% at 80% 0%,rgba(185,143,78,.12),transparent 55%),var(--noir-2)}
+.salone .plaque{color:var(--ottone-2)}
+.salone .bmk{font-family:var(--serif);font-style:italic;font-weight:500;font-size:clamp(54px,8vw,110px);line-height:.95;margin-top:18px;
+  background:linear-gradient(100deg,var(--ottone-2) 0%,#F4E3BC 28%,var(--ottone) 52%,#8a6b38 70%,var(--ottone-2) 100%);background-size:200% auto;
+  -webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;animation:shine 7s linear infinite}
+@keyframes shine{to{background-position:200% center}}
+.salone-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:56px;align-items:center}
+@media(max-width:880px){.salone-grid{grid-template-columns:1fr;gap:34px}}
+.salone .desc{font-size:16px;color:var(--avorio-2);max-width:46ch;margin-top:20px;font-weight:300}
+.dote{list-style:none;display:flex;flex-direction:column}
+.dote li{display:grid;grid-template-columns:56px 1fr;gap:16px;padding:15px 0;border-top:1px solid rgba(185,143,78,.18);align-items:baseline;font-weight:300;font-size:15px;color:var(--avorio-2)}
+.dote li:first-child{border-top:none}
+.dote .dn{font-family:var(--mono);font-size:10px;color:var(--ottone-2);letter-spacing:.14em}
+.dote b{color:var(--avorio);font-weight:400}
+
+/* congedo (contact) */
+.congedo{text-align:center;padding:150px 0 120px}
+.congedo h2{font-family:var(--serif);font-weight:400;font-size:clamp(36px,6.4vw,88px);line-height:1.04;letter-spacing:-.01em;max-width:15ch;margin:18px auto 0}
+.congedo h2 em{font-style:italic;color:var(--ottone-2)}
+.congedo .cl{color:var(--avorio-2);font-size:clamp(15px,1.7vw,19px);max-width:46ch;margin:22px auto 0;font-weight:300}
+.congedo .btn{margin-top:38px}
+.congedo .sig{font-family:'Snell Roundhand','Segoe Script',cursive;font-size:clamp(38px,4.6vw,58px);color:var(--ottone-2);transform:rotate(-3deg);display:inline-block;margin-top:44px}
+.congedo .who{font-family:var(--mono);font-size:9.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--avorio-3);margin-top:8px}
+.cmeta{margin-top:34px;display:flex;gap:30px;justify-content:center;flex-wrap:wrap;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--avorio-3)}
+.cmeta a{color:var(--avorio-2);border-bottom:1px solid var(--line);padding-bottom:3px;transition:.3s}
+.cmeta a:hover{color:var(--ottone-2);border-color:var(--ottone-2)}
+
+footer{border-top:1px solid var(--line);padding:28px 0 42px}
+.foot{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--avorio-3)}
+.foot .gd{color:var(--ottone-2)}
+
+/* reveals */
+.rv{opacity:0;transform:translateY(24px);transition:opacity 1s var(--e1),transform 1s var(--e1)}
+.rv.in{opacity:1;transform:none}
+
+/* switcher */
+.pv{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:210;display:flex;align-items:center;background:rgba(14,12,10,.85);border:1px solid var(--line);backdrop-filter:blur(14px);font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase}
+.pv b{padding:10px 14px;color:var(--avorio);font-weight:400}.pv b i{color:var(--ottone-2);font-style:normal}
+.pv a{padding:10px 12px;color:var(--avorio-3);border-left:1px solid var(--line);transition:.25s}
+.pv a:hover{background:var(--ottone);color:var(--noir)}
+
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}*{animation:none!important}
+  .rv{opacity:1;transform:none;transition:none}
+  .depth{transform:none!important;opacity:1!important;filter:none!important}
+  .cam{transform:none!important}
+}
+</style>
+</head>
+<body>
+<div class="vig"></div>
+<div class="prog" id="prog"></div>
+
+<nav id="nav"><div class="nav-in">
+  <a href="#top" class="brand">Valentino <i>Egidi</i></a>
+  <div class="nav-links">
+    <a href="#manifesto">Manifesto</a>
+    <a href="#galleria">La galleria</a>
+    <a href="#valuta">Valutazione</a>
+    <a href="#salone">BOOM</a>
+  </div>
+  <a href="#valuta" class="nav-cta">Valuta casa tua</a>
+</div></nav>
+
+<!-- HERO · 3D atrium -->
+<header class="atrio" id="top">
+  <div class="cam" id="cam">
+    <div class="layer l-ghost"><span>Roma</span></div>
+    <div class="layer l-arch">
+      <div class="arch a1"><img src="https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&w=900&q=75" alt="" onerror="this.style.opacity=0"></div>
+      <div class="arch a2"><img src="https://images.unsplash.com/photo-1531572753322-ad063cecc140?auto=format&fit=crop&w=900&q=75" alt="" onerror="this.style.opacity=0"></div>
+    </div>
+    <div class="layer l-plaque"><div class="in plaque ctr">Mediatore immobiliare · Roma · MMXXX</div></div>
+    <div class="layer l-title"><div class="in">
+      <h1>L'arte di vendere casa <em>al prezzo vero.</em></h1>
+      <p class="sub">Un palazzo digitale nel centro di Roma: dati al posto delle promesse, un solo nome al posto di un'agenzia. Benvenuto nell'atrio.</p>
+      <div class="cta">
+        <a class="btn btn-brass" href="#valuta">Richiedi la valutazione</a>
+        <a class="btn btn-line" href="#manifesto">Entra <span class="ar">↓</span></a>
+      </div>
+    </div></div>
+  </div>
+  <div class="hero-foot"><span>Scendi nell'atrio</span><span class="ln"></span></div>
+</header>
+
+<!-- MANIFESTO -->
+<section class="sala" id="manifesto">
+  <div class="wrap depth">
+    <div class="plaque rv">Sala I · Il manifesto</div>
+    <h2 class="stitle rv">Poche regole, <em>incise.</em></h2>
+    <div class="verses">
+      <div class="verse rv"><span class="vn">I.</span><p>I difetti prima dei pregi — <em>sempre, e per iscritto.</em></p></div>
+      <div class="verse rv"><span class="vn">II.</span><p>Un prezzo onesto vende <em>prima</em> di un prezzo gonfiato.</p></div>
+      <div class="verse rv"><span class="vn">III.</span><p>Niente aste mascherate, niente <em>finti</em> compratori.</p></div>
+      <div class="verse rv"><span class="vn">IV.</span><p>Se la casa non fa per te, <em>te lo dico</em> — anche a costo della provvigione.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- GALLERIA -->
+<section class="sala" id="galleria" style="padding-top:60px">
+  <div class="wrap depth">
+    <div class="plaque rv">Sala II · La galleria dei servizi</div>
+    <h2 class="stitle rv">Ogni stanza, <em>un mestiere.</em></h2>
+    <div class="gal-wrap rv">
+      <div class="gal" id="gal">
+        <article class="room"><div class="rimg"><span class="rn">Stanza 01</span><img src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=900&q=75" alt="" onerror="this.style.opacity=0"></div><div class="rbody"><h3>La <em>valutazione</em></h3><p>Comparabili del tuo palazzo, tempi, assorbimento. Il prezzo vero, non una sensazione.</p></div></article>
+        <article class="room"><div class="rimg"><span class="rn">Stanza 02</span><img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=75" alt="" onerror="this.style.opacity=0"></div><div class="rbody"><h3>I <em>media</em></h3><p>Foto e video da editoriale. La prima impressione decide il prezzo: la costruiamo bene.</p></div></article>
+        <article class="room"><div class="rimg"><span class="rn">Stanza 03</span><img src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=900&q=75" alt="" onerror="this.style.opacity=0"></div><div class="rbody"><h3>Il <em>salotto dei compratori</em></h3><p>Filtro i curiosi: in casa tua entrano solo persone qualificate, con offerte reali.</p></div></article>
+        <article class="room"><div class="rimg"><span class="rn">Stanza 04</span><img src="https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=900&q=75" alt="" onerror="this.style.opacity=0"></div><div class="rbody"><h3>Lo <em>studio</em></h3><p>Dashboard privata: visite, offerte, stato della vendita in tempo reale. Zero telefonate al buio.</p></div></article>
+        <article class="room"><div class="rimg"><span class="rn">Stanza 05</span><img src="https://images.unsplash.com/photo-1523217582562-09d0def993a6?auto=format&fit=crop&w=900&q=75" alt="" onerror="this.style.opacity=0"></div><div class="rbody"><h3>Il <em>rogito</em></h3><p>Notaio, fisco e tempi gestiti fino alla firma. Zero sorprese sul prezzo finale.</p></div></article>
+      </div>
+      <div class="gal-nav"><button id="gPrev" aria-label="precedente">←</button><button id="gNext" aria-label="successiva">→</button></div>
+    </div>
+  </div>
+</section>
+
+<!-- VALUTAZIONE -->
+<section class="sala" id="valuta">
+  <div class="wrap depth">
+    <div class="plaque rv">Sala III · Lo studio del padrone di casa</div>
+    <h2 class="stitle rv">Quanto vale, <em>davvero?</em></h2>
+    <div class="salotto">
+      <div class="left rv">
+        <p>«Ti scrivo il prezzo vero entro 48 ore. E se speri in una cifra irrealistica, <em>te lo dico con garbo — ma te lo dico.</em>»</p>
+        <div class="note">Gratuita · senza vincoli · risponde Valentino, non un call center</div>
+      </div>
+      <form class="vform rv" id="valForm">
+        <div class="frow"><label>Indirizzo dell'immobile</label><input type="text" name="addr" placeholder="Via, civico — zona di Roma" required></div>
+        <div class="two">
+          <div class="frow"><label>Superficie</label><input type="number" name="mq" placeholder="m²" min="1"></div>
+          <div class="frow"><label>Il tuo nome</label><input type="text" name="nome" placeholder="Nome" required></div>
+        </div>
+        <div class="frow"><label>WhatsApp o email</label><input type="text" name="contact" placeholder="Come ti ricontatto" required></div>
+        <button type="submit">Richiedi la valutazione onesta →</button>
+        <div class="fine">apre WhatsApp col messaggio già scritto</div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- SALONE D'ORO · BOOM -->
+<section class="sala salone" id="salone">
+  <div class="wrap depth">
+    <div class="salone-grid">
+      <div>
+        <div class="plaque rv">Sala IV · Il salone d'oro — divisione affitti</div>
+        <div class="bmk rv">BOOM®</div>
+        <h2 class="stitle rv" style="font-size:clamp(24px,3.2vw,40px)">Non la vendi? <em>Falla fruttare.</em></h2>
+        <p class="desc rv">Se vendere ora non conviene, la tua casa entra nel salone d'oro: BOOM, la divisione del gruppo per gli affitti medio termine. Reddito da subito, gestione totale, stessa onestà — Egidi Immobiliare.</p>
+        <div class="rv" style="margin-top:30px"><a class="btn btn-brass" href="https://www.boomrome.com" target="_blank">Scopri BOOM <span class="ar">→</span></a></div>
+      </div>
+      <ul class="dote rv">
+        <li><span class="dn">I.</span><span><b>Inquilini verificati</b> — identità, reddito, referenze.</span></li>
+        <li><span class="dn">II.</span><span><b>Contratti legali</b> — registrati, dalla cedolare al deposito.</span></li>
+        <li><span class="dn">III.</span><span><b>Ingresso in 48 ore</b> — il reddito parte subito.</span></li>
+        <li><span class="dn">IV.</span><span><b>Gestione completa</b> — annuncio, check-in, incassi.</span></li>
+        <li><span class="dn">V.</span><span><b>1–18 mesi</b> — studenti, professionisti, expat.</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- CONGEDO -->
+<section class="congedo" id="contatti">
+  <div class="wrap depth">
+    <div class="plaque ctr rv">Il congedo</div>
+    <h2 class="rv">Una conversazione onesta, <em>senza copione.</em></h2>
+    <p class="cl rv">Dimmi dov'è casa tua e com'è. In due minuti ti dico se posso aiutarti davvero — e quanto vale, sul serio.</p>
+    <a class="btn btn-brass rv" href="https://wa.me/393313251961" target="_blank">Scrivimi su WhatsApp <span class="ar">→</span></a>
+    <div class="rv"><div class="sig">Valentino</div><div class="who">Valentino Egidi · Titolare · Egidi Immobiliare S.r.l.</div></div>
+    <div class="cmeta rv">
+      <span><a href="https://wa.me/393313251961" target="_blank">+39 331 325 1961</a></span>
+      <span><a href="https://instagram.com/r.egidi_immobiliare" target="_blank">@r.egidi_immobiliare</a></span>
+      <span>Via dei Coronari 181 · Roma</span>
+    </div>
+  </div>
+</section>
+
+<footer><div class="wrap foot">
+  <span>© MMXXX · Egidi Immobiliare S.r.l. · P.IVA 17322991005</span>
+  <span><a href="https://www.boomrome.com" target="_blank"><span class="gd">BOOM®</span> — divisione affitti</a></span>
+</div></footer>
+
+<div class="pv">
+  <b>Opzione <i>Atrio</i></b>
+  <a href="/valentino-cinema">Cinema</a>
+  <a href="/valentino-dossier">Dossier</a>
+  <a href="/valentino-2030">2030</a>
+  <a href="/valentino-egidi">Attuale</a>
+</div>
+
+<script>
+(function(){
+'use strict';
+const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+const fine=matchMedia('(hover:hover) and (pointer:fine)').matches;
+const $=s=>document.querySelector(s);const $$=s=>[...document.querySelectorAll(s)];
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+
+/* nav + progress */
+const nav=$('#nav'),prog=$('#prog');let tk=false;
+addEventListener('scroll',()=>{if(tk)return;tk=true;requestAnimationFrame(()=>{
+  const h=document.documentElement.scrollHeight-innerHeight;
+  if(prog)prog.style.width=(h>0?scrollY/h*100:0)+'%';
+  if(nav)nav.classList.toggle('solid',scrollY>innerHeight*.6);
+  depthFrame();tk=false;});},{passive:true});
+
+/* 3D camera (mouse) */
+(function(){
+  const cam=$('#cam');if(!cam||!fine||reduce)return;
+  let tx=0,ty=0,x=0,y=0;
+  addEventListener('mousemove',e=>{tx=(e.clientX/innerWidth-.5)*2;ty=(e.clientY/innerHeight-.5)*2;},{passive:true});
+  (function loop(){x+=(tx-x)*.05;y+=(ty-y)*.05;
+    cam.style.transform=`rotateY(${(x*3.4).toFixed(2)}deg) rotateX(${(-y*2.6).toFixed(2)}deg)`;
+    requestAnimationFrame(loop);})();
+})();
+
+/* depth-emerge sections */
+const depths=$$('.depth');
+function depthFrame(){
+  if(reduce)return;
+  const vh=innerHeight;
+  depths.forEach(el=>{
+    const r=el.getBoundingClientRect();
+    const t=clamp(1-(r.top-vh*0.18)/(vh*0.62),0,1);
+    const e=1-Math.pow(1-t,3);
+    el.style.transform=`scale(${(0.92+e*0.08).toFixed(4)}) translateY(${((1-e)*34).toFixed(1)}px)`;
+    el.style.opacity=(0.25+e*0.75).toFixed(3);
+    el.style.filter=`blur(${((1-e)*7).toFixed(2)}px)`;
+  });
+}
+depthFrame();addEventListener('resize',depthFrame);
+
+/* reveals */
+if('IntersectionObserver'in window&&!reduce){
+  const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}}),{threshold:.16});
+  $$('.rv').forEach(el=>io.observe(el));
+}else $$('.rv').forEach(e=>e.classList.add('in'));
+
+/* gallery arrows */
+(function(){
+  const g=$('#gal');if(!g)return;
+  const step=()=>Math.min(g.clientWidth*.8,460);
+  $('#gNext').addEventListener('click',()=>g.scrollBy({left:step(),behavior:reduce?'auto':'smooth'}));
+  $('#gPrev').addEventListener('click',()=>g.scrollBy({left:-step(),behavior:reduce?'auto':'smooth'}));
+})();
+
+/* form → whatsapp */
+const vf=$('#valForm');
+if(vf)vf.addEventListener('submit',e=>{e.preventDefault();const d=new FormData(vf),g=k=>(d.get(k)||'').toString().trim();
+  const msg=`Ciao Valentino, vorrei una valutazione onesta.\n\nIndirizzo: ${g('addr')}\nSuperficie: ${g('mq')} m²\nNome: ${g('nome')}\nContatto: ${g('contact')}`;
+  window.open('https://wa.me/393313251961?text='+encodeURIComponent(msg),'_blank');});
+})();
+</script>
+</body>
+</html>
