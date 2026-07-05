@@ -22,7 +22,11 @@
 // Response 4xx: { ok:false, error }
 
 import { fsGet, fsPatch, fsList, readJson, logActivity } from '../homie/_lib.js';
-import { findContractByToken, commitWrites, setCors } from './_shared.js';
+import { findContractByToken, commitWrites, setCors, rateOk } from './_shared.js';
+
+// Canonical consent — MUST equal sign.html's CONSENT and _finalize.js's
+// MS_CONSENT: the certificate attests exactly this text.
+const MS_CONSENT_TEXT = 'I confirm my identity and accept all lease terms. This digital signature is legally valid (FES — Art. 21 CAD).';
 // finalizeContract is imported lazily at the call site (below) so a load
 // failure in the post-signature step (e.g. an unresolved pdf-lib) can NEVER
 // crash the signature write itself.
@@ -40,6 +44,7 @@ export default async function handler(req, res) {
   setCors(req, res);
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
+  if (!rateOk(req, 12)) { res.setHeader('Retry-After', '60'); return res.status(429).json({ ok: false, error: 'rate_limited' }); }
 
   let body;
   try { body = await readJson(req); }
@@ -73,11 +78,44 @@ export default async function handler(req, res) {
   const id = body.identity || {};
   const phone = body.phone || {};
   const consent = body.consent;
-  // Very old browsers without crypto.subtle send an empty hash — the server
-  // knows the consent text, so compute it here rather than store ''.
-  if (!consent.hash) {
-    try { consent.hash = (await import('node:crypto')).createHash('sha256').update(consent.text, 'utf8').digest('hex'); } catch (_) {}
+
+  // Evidence quality: derive IP/UA from the request itself; client-sent values
+  // are only a fallback (they're spoofable and were being stored verbatim).
+  const reqIP = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+    || req.headers['x-real-ip'] || req.socket?.remoteAddress || '';
+  const reqUA = String(req.headers['user-agent'] || '').slice(0, 200);
+
+  // Consent is pinned server-side: the text must be the canonical string the
+  // FES certificate attests, and the hash must match it — a tampered client
+  // cannot store a diverging consent record.
+  const crypto = await import('node:crypto');
+  const sha256 = (s) => crypto.createHash('sha256').update(String(s), 'utf8').digest('hex');
+  if (consent.text !== MS_CONSENT_TEXT) {
+    return res.status(400).json({ ok: false, error: 'invalid_consent_text' });
   }
+  const expectedHash = sha256(MS_CONSENT_TEXT);
+  if (consent.hash && consent.hash !== expectedHash) {
+    return res.status(400).json({ ok: false, error: 'invalid_consent_hash' });
+  }
+  consent.hash = expectedHash;
+
+  // Phone is "verified" ONLY when the browser presents a Firebase ID token
+  // whose account really carries a phone credential — never from a client
+  // boolean. The number recorded is the one inside the token.
+  let phoneVerified = false;
+  let phoneNumber = '';
+  if (typeof phone.idToken === 'string' && phone.idToken.length > 100) {
+    try {
+      const r = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${process.env.FIREBASE_API_KEY}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken: phone.idToken }) }
+      );
+      const data = await r.json().catch(() => ({}));
+      const u = data.users && data.users[0];
+      if (u && u.phoneNumber) { phoneVerified = true; phoneNumber = u.phoneNumber; }
+    } catch (e) { console.warn('[magic-sign/submit] phone token verify:', e.message); }
+  }
+
   const nowISO = new Date().toISOString();
 
   const upd = {};
@@ -92,16 +130,19 @@ export default async function handler(req, res) {
     upd.tenantNationality = id.nationality || '';
     upd.tenantSignature = body.signature;
     upd.tenantSignedAt = nowISO;
-    upd.tenantSignedIP = body.signerIP || '';
-    upd.tenantSignedUA = (body.signerUA || '').slice(0, 200);
+    upd.tenantSignedIP = reqIP || body.signerIP || '';
+    upd.tenantSignedUA = reqUA || (body.signerUA || '').slice(0, 200);
     upd.tenantConsentText = consent.text;
     upd.tenantConsentHash = consent.hash;
     upd.tenantConsentAt = nowISO;
     upd.tenantSignToken = null;
-    if (phone.verified) {
+    if (phoneVerified) {
       upd.tenantPhoneVerified = true;
       upd.tenantPhoneVerifiedAt = phone.verifiedAt || nowISO;
-      upd.tenantPhone = phone.number || '';
+      upd.tenantPhone = phoneNumber;
+    } else if (phone.number) {
+      upd.tenantPhone = String(phone.number).slice(0, 30);
+      upd.tenantPhoneVerified = false;
     }
   } else {
     upd.landlordCF = id.cf || '';
@@ -113,16 +154,19 @@ export default async function handler(req, res) {
     upd.landlordNationality = id.nationality || '';
     upd.landlordSignature = body.signature;
     upd.landlordSignedAt = nowISO;
-    upd.landlordSignedIP = body.signerIP || '';
-    upd.landlordSignedUA = (body.signerUA || '').slice(0, 200);
+    upd.landlordSignedIP = reqIP || body.signerIP || '';
+    upd.landlordSignedUA = reqUA || (body.signerUA || '').slice(0, 200);
     upd.landlordConsentText = consent.text;
     upd.landlordConsentHash = consent.hash;
     upd.landlordConsentAt = nowISO;
     upd.landlordSignToken = null;
-    if (phone.verified) {
+    if (phoneVerified) {
       upd.landlordPhoneVerified = true;
       upd.landlordPhoneVerifiedAt = phone.verifiedAt || nowISO;
-      upd.landlordPhone = phone.number || '';
+      upd.landlordPhone = phoneNumber;
+    } else if (phone.number) {
+      upd.landlordPhone = String(phone.number).slice(0, 30);
+      upd.landlordPhoneVerified = false;
     }
   }
 
@@ -133,7 +177,7 @@ export default async function handler(req, res) {
   if (!fresh) return res.status(404).json({ ok: false, error: 'contract_vanished' });
 
   const otherSigned = role === 'tenant' ? !!fresh.landlordSignature : !!fresh.tenantSignature;
-  const fullySigned = otherSigned;
+  let fullySigned = otherSigned;
   upd.signatureStatus = fullySigned ? 'complete' : 'partial';
   if (fullySigned) {
     upd.status = 'active';
@@ -145,6 +189,25 @@ export default async function handler(req, res) {
   catch (e) {
     console.error('[magic-sign/submit] contract write:', e.message);
     return res.status(500).json({ ok: false, error: 'contract_write_failed' });
+  }
+
+  // ── 4b. Close the double-signer race ────────────────────
+  // Both parties submitting in the same window each read the contract BEFORE
+  // the other's write landed → both compute 'partial', nobody runs the
+  // completion cascade, and the contract strands. Re-read AFTER our write:
+  // if both signatures are now present, upgrade to complete here.
+  if (!fullySigned) {
+    try {
+      const after = await fsGet('contracts/' + contractId);
+      if (after && after.tenantSignature && after.landlordSignature && after.signatureStatus !== 'complete') {
+        fullySigned = true;
+        upd.signatureStatus = 'complete';
+        await fsPatch('contracts/' + contractId, { signatureStatus: 'complete', status: 'active', fullySignedAt: nowISO });
+      } else if (after && after.signatureStatus === 'complete') {
+        // The other request won the upgrade — let it run the cascade.
+        fullySigned = false;
+      }
+    } catch (e) { console.warn('[magic-sign/submit] race re-read:', e.message); }
   }
 
   // ── 5. Sync signer profile (best-effort; do not fail the sign) ──

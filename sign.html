@@ -616,7 +616,14 @@
       function code(){ return boxes.map(function(b){return b.value;}).join(''); }
       function refresh(){ document.getElementById('o-verify').disabled = code().length!==6; }
       boxes.forEach(function(b,i){
-        b.oninput=function(){ b.value=b.value.replace(/\D/g,'').slice(0,1); if(b.value&&boxes[i+1]) boxes[i+1].focus(); refresh(); if(code().length===6) verify(); };
+        b.oninput=function(){
+          // iOS SMS QuickType inserts the whole "123456" into ONE box as an
+          // input event (not paste) — distribute it instead of truncating.
+          var v=b.value.replace(/\D/g,'');
+          if(v.length>1){ for(var k=0;k<v.length&&(i+k)<6;k++){ boxes[i+k].value=v[k]; } boxes[Math.min(i+v.length,5)].focus(); }
+          else { b.value=v; if(v&&boxes[i+1]) boxes[i+1].focus(); }
+          refresh(); if(code().length===6) verify();
+        };
         b.onkeydown=function(e){ if(e.key==='Backspace'&&!b.value&&boxes[i-1]) boxes[i-1].focus(); };
         b.onpaste=function(e){ var t=(e.clipboardData.getData('text')||'').replace(/\D/g,'').slice(0,6); if(t){ e.preventDefault(); t.split('').forEach(function(d,k){ if(boxes[k]) boxes[k].value=d; }); refresh(); if(t.length===6) verify(); } };
       });
@@ -627,15 +634,20 @@
         if(DEMO){ S.phoneVerified=true; S.id.phoneVerified=true; S.id.phoneVerifiedAt=new Date().toISOString(); renderSign(); return; }
         var c=code(); if(c.length!==6||!_otp.confirm) return;
         var btn=document.getElementById('o-verify'); btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
-        _otp.confirm.confirm(c).then(function(){
+        _otp.confirm.confirm(c).then(function(cred){
           S.phoneVerified=true; S.id.phoneVerified=true; S.id.phoneVerifiedAt=new Date().toISOString();
-          S.id.phone=esc(phone);
-          renderSign();
+          S.id.phone=phone;
+          // Server-side proof: the ID token carries the verified phone
+          // credential — /api/magic-sign/submit validates it via
+          // accounts:lookup instead of trusting a client boolean.
+          var u=(cred&&cred.user)||(S.auth&&S.auth.currentUser);
+          var tp=u?u.getIdToken().catch(function(){return '';}):Promise.resolve('');
+          tp.then(function(t){ S.id.phoneIdToken=t||''; renderSign(); });
         }).catch(function(err){
           // A correct code can still reject if the number was previously linked
           // to another account — the phone IS verified, so proceed.
           if(err && err.code==='auth/credential-already-in-use'){
-            S.phoneVerified=true; S.id.phoneVerified=true; S.id.phoneVerifiedAt=new Date().toISOString(); S.id.phone=esc(phone); renderSign(); return;
+            S.phoneVerified=true; S.id.phoneVerified=true; S.id.phoneVerifiedAt=new Date().toISOString(); S.id.phone=phone; renderSign(); return;
           }
           btn.disabled=false; btn.textContent='Verify';
           boxes.forEach(function(b){b.value='';}); boxes[0].focus();
@@ -666,7 +678,7 @@
       document.getElementById('pad-clear').onclick=function(){ pad.clear(); ready(); };
       var consent=document.getElementById('consent');
       consent.onchange=ready;
-      document.getElementById('s-back').onclick=renderPhone;
+      document.getElementById('s-back').onclick=function(){ return S.phoneVerified ? renderIdentity() : renderPhone(); };
       var signBtn=document.getElementById('s-sign');
       function ready(){ signBtn.disabled = !(pad.hasInk() && consent.checked); }
       pad.onChange=ready;
@@ -724,7 +736,7 @@
           signerName: S.id.name || signer.name || '',
           signerEmail: signer.email || '',
           identity: { cf:S.id.cf||'', address:S.id.address||'', dob:S.id.dob||'', pob:S.id.pob||'', docType:S.id.docType||'', docNum:S.id.docNum||'', nationality:S.id.nationality||'' },
-          phone: { number:S.id.phone||'', verified: !!S.id.phoneVerified, verifiedAt:S.id.phoneVerifiedAt||'' },
+          phone: { number:S.id.phone||'', verified: !!S.id.phoneVerified, verifiedAt:S.id.phoneVerifiedAt||'', idToken:S.id.phoneIdToken||'' },
           consent: { text: CONSENT, hash: arr[0], at: new Date().toISOString() }
         };
         return fetch('/api/magic-sign/submit',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
@@ -757,16 +769,20 @@
         ? ['Your contract is now active','Rent reminders are scheduled automatically','A confirmation is on its way to your email']
         : ['The other party will be notified to sign','You’ll get a confirmation once it’s fully signed'];
       FLOW.innerHTML='';
+      // Tenant activation goes through the server-issued 72h magic link that
+      // finalize emails on completion — the previous inline email+password
+      // form created an auth account with no users/{uid} doc and dead-ended
+      // at "Errore di autenticazione" in the portal.
       var accountHtml='';
       if(S.role==='tenant'){
         accountHtml=
           '<div class="summary" style="margin-top:18px;text-align:left">'+
-            '<div class="prop" style="border-color:var(--gold)"><div class="lbl">Activate your portal</div></div>'+
-            '<p style="font-size:12px;color:var(--text-3);margin:-6px 0 14px;line-height:1.5">Create a password to access your documents, payments and support.</p>'+
-            '<div class="field"><label>Email</label><input class="inp" id="ac-email" type="email" value="'+esc(email)+'" placeholder="you@email.com"></div>'+
-            '<div class="field"><label>Choose a password</label><div class="pwrap"><input class="inp" id="ac-pass" type="password" placeholder="Min. 6 characters" style="padding-right:62px"><button class="toggle" id="ac-tog" type="button">Show</button></div></div>'+
-            '<button class="btn" id="ac-create">Create my account</button>'+
-            '<button class="resend" id="ac-skip" style="margin-top:10px">Skip for now</button>'+
+            '<div class="prop" style="border-color:var(--gold)"><div class="lbl">Your portal access</div></div>'+
+            '<p style="font-size:12.5px;color:var(--text-3);margin:-6px 0 0;line-height:1.6">'+
+            (complete
+              ? 'We’ve emailed you'+(email?(' at <b style="color:var(--text-2)">'+esc(email)+'</b>'):'')+' a <b style="color:var(--gold)">one-tap activation link</b> (valid 72 hours). Open it to enter your portal — documents, payments and support in one place. You can set a password once inside.'
+              : 'As soon as the other party signs, you’ll receive a <b style="color:var(--gold)">one-tap activation link</b> by email to enter your portal.')+
+            '</p>'+
           '</div>';
       } else {
         accountHtml='<a class="btn" href="/portal.html" style="display:flex;align-items:center;justify-content:center;text-decoration:none;margin-top:18px">Open portal</a>';
@@ -785,32 +801,6 @@
           '<div class="next">'+nextItems.map(function(n){return '<div class="n">'+esc(n)+'</div>';}).join('')+'</div>'+
         '</div>'
       ));
-      if(S.role==='tenant'){
-        var tog=document.getElementById('ac-tog'), pass=document.getElementById('ac-pass');
-        tog.onclick=function(){ var sh=pass.type==='password'; pass.type=sh?'text':'password'; tog.textContent=sh?'Hide':'Show'; };
-        document.getElementById('ac-skip').onclick=function(){ centered(ICON_CHECK,'All done','You can sign in anytime from boomrome.com with the credentials we set up for you.', '<a class="btn ghost" href="/portal.html" style="display:inline-flex;width:auto;padding:0 22px;margin-top:18px;align-items:center;justify-content:center;text-decoration:none">Go to portal</a>'); };
-        document.getElementById('ac-create').onclick=createAccount;
-      }
-    }
-    function createAccount(){
-      if(DEMO){ centered(ICON_CHECK,'Demo complete','This was a preview of the BOOM signing experience. In production this step creates your portal account.', '<a class="btn ghost" href="/sign?demo=1" style="display:inline-flex;width:auto;padding:0 22px;margin-top:18px;align-items:center;justify-content:center;text-decoration:none">Replay</a>'); return; }
-      var email=(document.getElementById('ac-email').value||'').trim();
-      var pass=(document.getElementById('ac-pass').value||'');
-      if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ document.getElementById('ac-email').classList.add('bad'); return; }
-      if(pass.length<6){ document.getElementById('ac-pass').classList.add('bad'); return; }
-      var btn=document.getElementById('ac-create'); btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
-      S.auth.signOut().catch(function(){}).then(function(){
-        return S.auth.signInWithEmailAndPassword(email,pass).catch(function(err){
-          if(err&&err.code==='auth/user-not-found') return S.auth.createUserWithEmailAndPassword(email,pass);
-          throw err;
-        });
-      }).then(function(){ location.href='/portal.html'; })
-        .catch(function(err){
-          btn.disabled=false; btn.textContent='Create my account';
-          if(err&&err.code==='auth/wrong-password') flash('That email already has an account. Use your existing password, or contact BOOM.');
-          else if(err&&err.code==='auth/email-already-in-use') flash('That email is already registered. Try signing in instead.');
-          else flash('We couldn’t create the account. Please try again.');
-        });
     }
 
     // ═══════════════ TAILORED PDF (Magic Sign Custom) ═══════════════

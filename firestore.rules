@@ -116,7 +116,11 @@ service cloud.firestore {
 
     // ─── magicLinks ───────────────────────────────────────────────────
     match /magicLinks/{tId} {
-      allow read:   if isAdmin() || isAnon();
+      // get: an anon session may resolve ONE link it holds the ID of.
+      // list: admin only — read:(get+list) let any anon session ENUMERATE all
+      // pending welcome tokens (doc ID = the token) and hijack/burn them.
+      allow get:    if isAdmin() || isAnon();
+      allow list:   if isAdmin();
       allow create: if isAdmin();
       allow update: if isAnon()
                     && resource.data.used == false
