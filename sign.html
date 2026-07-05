@@ -660,6 +660,8 @@
 
     // ═══════════════ STEP 4 — SIGNATURE ═══════════════
     var CONSENT='I confirm my identity and accept all lease terms. This digital signature is legally valid (FES — Art. 21 CAD).';
+    // Tailored-PDF consent — must match api/sign/custom/submit.js MS_CONSENT_DOC.
+    var CONSENT_DOC='I confirm my identity and accept this document. This digital signature is legally valid (FES — Art. 21 CAD).';
     function renderSign(){
       setProgress(4); S.step=4;
       FLOW.innerHTML='';
@@ -850,7 +852,10 @@
         signBtn.disabled=true; signBtn.innerHTML='<span class="spin"></span>';
         if(DEMO){ setTimeout(function(){ customSuccess(false,''); }, 550); return; }
         var sig=pad.toDataURL();
-        fetch('/api/sign/custom/submit',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ req:CUSTOM.req, role:CUSTOM.role, token:CUSTOM.token, signature:sig }) })
+        // The consent record travels with the signature (same FES evidence
+        // model as the standard flow) — server pins text + verifies hash.
+        sha256Hex(CONSENT_DOC).then(function(h){
+        return fetch('/api/sign/custom/submit',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ req:CUSTOM.req, role:CUSTOM.role, token:CUSTOM.token, signature:sig, consent:{ text:CONSENT_DOC, hash:h, at:new Date().toISOString() } }) }); })
           .then(function(r){ return r.json().catch(function(){return {ok:false};}); })
           .then(function(j){
             if(!j||!j.ok){ signBtn.disabled=false; signBtn.textContent='Sign document'; return flash(j&&j.error==='rate_limited'?'Too many attempts — please wait a moment.':'We couldn’t record your signature. Please try again.'); }
