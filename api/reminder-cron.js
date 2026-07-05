@@ -218,6 +218,40 @@ export default async function handler(req, res) {
       results.paidPush = paidPush;
     } catch (e) { results.errors.push(`paid-push: ${e.message}`); }
 
+    // ── Stale partial signatures → auto re-nudge the missing party ──
+    // Contracts stuck at 'partial' for >48h get the counterparty their /sign
+    // link again (respecting the manual reminder's 24h cooldown, max 3 auto
+    // nudges). Closes the biggest signing-funnel leak with zero admin effort.
+    try {
+      const partQ = await fsQuery('contracts', token, {
+        field: { fieldPath: 'signatureStatus' }, op: 'EQUAL', value: { stringValue: 'partial' },
+      });
+      const parts = (partQ || []).filter(r => r.document).map(r => parseDoc(r.document)).filter(Boolean);
+      let nudged = 0;
+      const H48 = 48 * 3600 * 1000, H24 = 24 * 3600 * 1000;
+      for (const c of parts) {
+        const signedRole = c.tenantSignature ? 'tenant' : (c.landlordSignature ? 'landlord' : null);
+        if (!signedRole) continue;
+        const pendingToken = signedRole === 'tenant' ? c.landlordSignToken : c.tenantSignToken;
+        if (!pendingToken) continue;
+        const signedAt = signedRole === 'tenant' ? c.tenantSignedAt : c.landlordSignedAt;
+        if (!signedAt || (now.getTime() - new Date(signedAt).getTime()) < H48) continue;
+        const last = c.lastReminderAt ? new Date(c.lastReminderAt).getTime() : 0;
+        if (last && now.getTime() - last < H24) continue;
+        if ((c.autoNudgeCount || 0) >= 3) continue;
+        try {
+          const { notifyPartialSignature } = await import('./sign/_notify.js');
+          await notifyPartialSignature(c, signedRole, null, { nudgeOnly: true });
+          await fsPatch(`contracts/${c.id}`, {
+            lastReminderAt: { timestampValue: now.toISOString() },
+            autoNudgeCount: { integerValue: String((c.autoNudgeCount || 0) + 1) },
+          }, token);
+          nudged++;
+        } catch (e) { results.errors.push(`nudge ${c.id}: ${e.message}`); }
+      }
+      results.signNudged = nudged;
+    } catch (e) { results.errors.push(`sign-nudge: ${e.message}`); }
+
     return res.status(200).json({ ok: true, timestamp: now.toISOString(), ...results });
   } catch (e) {
     console.error('Cron error:', e);

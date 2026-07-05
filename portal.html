@@ -9557,6 +9557,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         ${overdueCount > 0 ? `<span class="badge red" style="font-size:9px">⚠️ ${overdueCount} pagamenti in ritardo</span>` : ''}
                         ${c.tenantPassGenerated && c.landlordPassGenerated ? `<span class="badge gold" style="font-size:9px"> Passes sent</span>` : ''}
                         ${c.signatureStatus === 'none' ? `<span class="badge orange" style="font-size:9px">○ Da firmare</span>` : (c.signatureStatus === 'partial' ? `<span class="badge gold" style="font-size:9px">◐ Firma parziale</span>` : '')}
+                        ${c.signatureStatus === 'complete' && !c.finalizedAt ? `<span class="badge red" style="font-size:9px;cursor:pointer" onclick="event.stopPropagation();refinalizeContract('${c.id}')" title="Il post-firma (adempimenti/certificato/email) non è completo — clicca per rieseguirlo">⚠ Da rifinire · Rigenera</span>` : ''}
                     </div>
                     <div class="list-subtitle" style="margin-top:4px">
                         <span>👤 ${t?.name || 'N/A'}</span>
@@ -18201,11 +18202,36 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     async function deleteSignRequest(reqId) {
-        if (!confirm('Eliminare questa richiesta di firma?')) return;
+        const req = S.signRequests.find(r => r.id === reqId);
+        const signedRoles = Object.entries(req?.signers || {}).filter(([_, s]) => s.signedAt).map(([r]) => r === 'tenant' ? 'inquilino' : 'locatore');
+        // A signed request carries legal evidence — make destroying it explicit.
+        const msg = signedRoles.length
+            ? `⚠️ ATTENZIONE: questa richiesta contiene già la firma di ${signedRoles.join(' e ')}.\nEliminandola DISTRUGGI la prova della firma.\n\nEliminare comunque?`
+            : 'Eliminare questa richiesta di firma?';
+        if (!confirm(msg)) return;
+        if (signedRoles.length && !confirm('Confermi definitivamente? L\'operazione non è reversibile.')) return;
         try {
             await db.collection('signRequests').doc(reqId).delete();
             toast('info', 'Richiesta eliminata');
         } catch (e) { toast('error', 'Errore', e.message); }
+    }
+
+    // Re-run the post-signature engine (obligations + FES certificate + magic
+    // link + welcome emails) for a fully-signed contract whose finalize failed.
+    async function refinalizeContract(contractId) {
+        if (!confirm('Rieseguire il post-firma (adempimenti, certificato, email) per questo contratto?')) return;
+        try {
+            toast('info', 'Rigenerazione in corso…');
+            const idToken = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/sign/refinalize', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Firebase-Token': idToken },
+                body: JSON.stringify({ contractId })
+            });
+            const j = await r.json().catch(() => ({}));
+            if (!r.ok || !j.ok) throw new Error(j.error || ('HTTP ' + r.status));
+            toast('success', 'Post-firma completato', j.result?.skipped ? 'Era già completo' : `Adempimenti: ${j.result?.obligations ?? '—'} · Certificato: ${j.result?.certificate ? '✓' : '✗'}`);
+        } catch (e) { toast('error', 'Rigenerazione fallita', e.message); }
     }
 
     function downloadSignedRequest(reqId) {
@@ -18236,7 +18262,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     return `<div class="dash-row" data-tone="${sm.c === 'green' ? 'gold' : sm.c === 'blue' ? 'blue' : 'orange'}">
                         <span class="dash-row-icon">📝</span>
                         <div class="dash-row-body">
-                            <div class="dash-row-primary"><strong>${esc(r.title || 'Contratto')}</strong> <span class="badge ${sm.c}" style="font-size:9px">${sm.t}</span> ${signerChips}</div>
+                            <div class="dash-row-primary"><strong>${esc(r.title || 'Contratto')}</strong> <span class="badge ${sm.c}" style="font-size:9px">${sm.t}</span> ${signerChips} ${r.signedPdfError ? `<span class="badge red" style="font-size:9px" title="${esc(r.signedPdfError)}">⚠ PDF non generato</span>` : ''}</div>
                             <div class="dash-row-secondary">${prop ? '🏠 ' + esc(prop.name) + ' · ' : ''}${(r.fields || []).length} campi</div>
                         </div>
                         <div class="dash-row-actions">

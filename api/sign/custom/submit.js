@@ -21,6 +21,8 @@ export const config = { api: { bodyParser: { sizeLimit: '6mb' } } };
 
 const ALLOWED_ORIGINS = new Set(['https://www.boomrome.com', 'https://boomrome.com']);
 const STORAGE_BUCKET = process.env.FIREBASE_STORAGE_BUCKET || 'boom-property-dashboards.firebasestorage.app';
+// Canonical document consent — must match sign.html's CONSENT_DOC.
+const MS_CONSENT_DOC = 'I confirm my identity and accept this document. This digital signature is legally valid (FES — Art. 21 CAD).';
 const RL = new Map(); const RL_MAX = 20; const RL_WINDOW = 60_000;
 function rateOk(ip){ const n=Date.now(); const e=RL.get(ip); if(!e||n-e.t>=RL_WINDOW){RL.set(ip,{c:1,t:n});return true;} e.c++; return e.c<=RL_MAX; }
 function setCors(req,res){ const o=req.headers.origin; if(o&&ALLOWED_ORIGINS.has(o)){res.setHeader('Access-Control-Allow-Origin',o);res.setHeader('Vary','Origin');} res.setHeader('Access-Control-Allow-Methods','POST, OPTIONS'); res.setHeader('Access-Control-Allow-Headers','Content-Type'); }
@@ -103,6 +105,18 @@ export default async function handler(req, res) {
   if (!reqId || !token || !(role==='tenant'||role==='landlord')) return res.status(400).json({ ok:false, error:'bad_request' });
   if (!signature || signature.length < 50 || signature.length > 3_000_000) return res.status(400).json({ ok:false, error:'bad_signature' });
 
+  // Consent record (same FES evidence model as the standard flow): pin the
+  // text to the canonical document-consent string and verify/derive its hash.
+  const nodeCrypto = await import('node:crypto');
+  const sha256 = (s) => nodeCrypto.createHash('sha256').update(String(s), 'utf8').digest('hex');
+  const consent = (body && body.consent && typeof body.consent === 'object') ? body.consent : null;
+  if (consent) {
+    if (consent.text !== MS_CONSENT_DOC) return res.status(400).json({ ok:false, error:'invalid_consent_text' });
+    const expected = sha256(MS_CONSENT_DOC);
+    if (consent.hash && consent.hash !== expected) return res.status(400).json({ ok:false, error:'invalid_consent_hash' });
+    consent.hash = expected;
+  }
+
   try {
     const doc = await fsGet(`signRequests/${reqId}`);
     if (!doc) return res.status(404).json({ ok:false, error:'not_found' });
@@ -118,6 +132,11 @@ export default async function handler(req, res) {
     mine.signedAt = now.toISOString();
     mine.signIP = ip;
     mine.signUA = String(req.headers['user-agent'] || '').slice(0, 200);
+    if (consent) {
+      mine.consentText = consent.text;
+      mine.consentHash = consent.hash;
+      mine.consentAt = consent.at || now.toISOString();
+    }
 
     // Write ONLY signers.{role} (per-field updateMask) — patching the whole
     // `signers` map would make two roles signing at the same moment a
@@ -205,6 +224,28 @@ export default async function handler(req, res) {
         }).filter(Boolean);
         await Promise.race([Promise.all(jobs), new Promise((rs) => setTimeout(rs, 12000))]);
       } catch (e) { console.warn('[custom/submit] emails:', e.message); }
+    } else {
+      // Partial: nudge the remaining signer(s) with THEIR link — same
+      // lifecycle as the standard flow's _notify. Best-effort, time-boxed.
+      try {
+        const { sendEmail } = await import('../../agent/_lib.js');
+        const safe = (s) => String(s || '').replace(/[<>&]/g, '');
+        const jobs = required.filter((r) => r !== role && freshSigners[r] && !freshSigners[r].signedAt).map((r) => {
+          const sg = freshSigners[r];
+          if (!sg.email || !sg.token) return null;
+          const link = `https://www.boomrome.com/sign?csign=${encodeURIComponent(reqId)}&role=${r}&t=${encodeURIComponent(sg.token)}`;
+          return sendEmail({
+            to: sg.email,
+            subject: `✍️ Tocca a te firmare — ${doc.title || 'BOOM Roma'}`,
+            html: '<div style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#222">'
+              + `<p>Ciao ${safe(sg.name)},</p>`
+              + `<p><b>${safe(mine.name || '')}</b> ha firmato <b>"${safe(doc.title)}"</b>. Ora manca solo la tua firma — un minuto, dal telefono.</p>`
+              + `<p><a href="${link}" style="display:inline-block;background:linear-gradient(180deg,#F6E4A6,#E9C766 46%,#B98E2E);color:#1c1503;text-decoration:none;font-weight:700;font-size:14px;padding:12px 24px;border-radius:11px">Firma il documento</a></p>`
+              + '<p style="color:#888;font-size:12px">Link personale monouso · Firma Elettronica Semplice (Art. 21 CAD) · BOOM Roma</p></div>',
+          }).catch((e) => console.warn('[custom/submit] nudge', sg.email, e.message));
+        }).filter(Boolean);
+        await Promise.race([Promise.all(jobs), new Promise((rs) => setTimeout(rs, 12000))]);
+      } catch (e) { console.warn('[custom/submit] nudge:', e.message); }
     }
 
     res.setHeader('Cache-Control','private, no-store');

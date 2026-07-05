@@ -30,7 +30,9 @@ async function gather(contract, property) {
 }
 
 // After exactly one party has signed.
-export async function notifyPartialSignature(contract, signedRole, property) {
+// opts.nudgeOnly: skip the signer's own confirmation (used by the cron
+// re-nudge, which would otherwise re-send "your signature is recorded").
+export async function notifyPartialSignature(contract, signedRole, property, opts = {}) {
   try {
     const g = await gather(contract, property);
     const signer = signedRole === 'tenant' ? g.tenant : g.landlordU;
@@ -45,7 +47,7 @@ export async function notifyPartialSignature(contract, signedRole, property) {
     const otherName   = (other && other.name) || (otherR && otherR.name) || 'there';
 
     const jobs = [];
-    if (signerEmail) {
+    if (signerEmail && !opts.nudgeOnly) {
       jobs.push(send(signerEmail, 'Your signature is recorded ✓', emailShell('Signature recorded', `
         <p style="margin:0 0 14px">Hi ${esc(signerName)},</p>
         <p style="margin:0 0 16px">Thank you — your signature for <b>${esc(g.propLabel)}</b> is <b style="color:${GOLD}">recorded</b>. We’re now waiting for the ${esc(otherRoleLabel)} to sign, and we’ll confirm the moment the contract is fully signed.</p>
