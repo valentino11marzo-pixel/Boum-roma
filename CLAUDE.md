@@ -178,6 +178,15 @@ credentials (forced under the `listings/` prefix) and returns
 `{ ok, url, path }`. Lets the bot store photos without holding Firebase admin
 creds; the bot falls back to a direct Storage upload if this is unavailable.
 
+### POST `/api/search/save`
+Public save-search endpoint for the apartments discovery page. Body
+`{ email, label?, criteria{q,budgetMax,moveIn,beds,baths,furnished,video,
+zones[],feats[]}, resultCount?, company(honeypot) }`. Validates email,
+honeypot + per-IP rate limit (same hardening as `/api/canone-lead`), writes
+to the `savedSearches` collection under admin creds (`status:'active'`,
+`lastNotified:null`) — ready for a matcher cron to email new matches.
+Returns `{ ok, id }`.
+
 ### POST `/api/magic-sign/lookup`
 Public endpoint for the Magic-Sign UI. Body: `{ token }`. Looks up the
 contract by `tenantSignToken` or `landlordSignToken`, returns sanitized

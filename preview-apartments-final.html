@@ -90,6 +90,7 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 .fpill.clearall{border-color:var(--line-gold);color:var(--gold)}.fpill.clearall:hover{background:var(--gold);color:#1a1407}
 .fbar{position:sticky}.fbar::after{content:"";position:absolute;right:0;top:10px;bottom:10px;width:34px;background:linear-gradient(90deg,transparent,rgba(6,6,7,.82));pointer-events:none}
 .fpill .cnt{font-size:11px;color:var(--gold);font-weight:600}
+.igo .cnt{font-size:11px;font-weight:700;opacity:.8;margin-left:2px}
 .fpill.filters{border-color:var(--line-gold);color:var(--gold)}
 @media(min-width:880px){.fpill.filters{display:none}}
 
@@ -201,6 +202,21 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
 .ov.show .sheet{transform:none}@media(min-width:700px){.ov{align-items:center}.sheet{border-radius:22px}}
 .sheet-h{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--surface);z-index:2}
 .sheet-h h3{font-size:16px;font-weight:300}.sheet-b{padding:20px}
+
+/* saved searches */
+.ss-sum{border:1px solid var(--line-gold);background:var(--gold-faint);border-radius:12px;padding:12px 14px;font-size:13px;color:var(--t1);margin-bottom:14px;line-height:1.5}
+.ss-l{display:block;margin-bottom:12px;font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--t3)}
+.ss-l small{text-transform:none;letter-spacing:0}
+.ss-l input{width:100%;margin-top:6px;background:var(--input);border:1px solid var(--line);border-radius:11px;color:var(--t1);font-family:inherit;font-size:14px;padding:12px 13px;transition:border-color .25s}
+.ss-l input:focus{outline:none;border-color:var(--gold)}
+.ss-err{display:none;color:var(--gold-light);font-size:12.5px;margin:-4px 0 10px}
+.ss-note{font-size:11px;color:var(--t3);text-align:center;margin-top:10px}
+.ss-it{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-top:8px}
+.ss-it .tx{min-width:0}.ss-it b{display:block;font-weight:400;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ss-it small{color:var(--t3);font-size:11px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ss-it .acts{display:flex;gap:6px;flex:none}
+.ss-it .acts button{font-size:11px;letter-spacing:.4px;padding:7px 11px;border-radius:100px;border:1px solid var(--line);color:var(--t2);transition:.2s}
+.ss-it .acts button:hover{border-color:var(--line-gold);color:var(--gold)}
 .xc{font-size:20px;color:var(--t2);width:36px;height:36px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center}
 .fgroup{margin-bottom:22px}.fgroup>label{display:block;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--t3);margin-bottom:10px}
 .seg{display:flex;gap:5px;flex-wrap:wrap}
@@ -310,6 +326,21 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
 </div></div>
 
 <!-- compare modal -->
+<div class="ov" id="ssOv"><div class="sheet" role="dialog" aria-modal="true" aria-label="Saved searches">
+  <div class="sheet-h"><h3>Saved searches</h3><button class="xc" onclick="closeOv('ssOv')" aria-label="Close">×</button></div>
+  <div class="sheet-b">
+    <div class="eyebrow" style="margin-bottom:8px">This search</div>
+    <div class="ss-sum" id="ssSum"></div>
+    <label class="ss-l">Name it <small>(optional)</small><input id="ssName" type="text" placeholder="e.g. Monti under €1,600" maxlength="80"></label>
+    <label class="ss-l">Email for alerts<input id="ssEmail" type="email" placeholder="you@example.com" autocomplete="email"></label>
+    <input id="ssHp" type="text" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
+    <p class="ss-err" id="ssErr" role="alert"></p>
+    <button class="igo" style="width:100%;justify-content:center" id="ssGo" onclick="ssSubmit()">Activate alert ★</button>
+    <p class="ss-note">New matching homes go straight to your inbox. No spam — one tap to stop.</p>
+    <div id="ssList"></div>
+  </div>
+</div></div>
+
 <div class="ov" id="cmpOv"><div class="sheet" role="dialog" aria-modal="true" aria-label="Compare apartments" style="max-width:880px">
   <div class="sheet-h"><h3>Compare</h3><button class="xc" onclick="closeOv('cmpOv')" aria-label="Close">×</button></div>
   <div class="sheet-b" id="cmpBody"></div>
@@ -647,10 +678,47 @@ function openCompare(){
   document.getElementById('cmpBody').innerHTML=h;openOv('cmpOv');
 }
 function cmpRemove(id){cmp.delete(id);persist();document.getElementById('cmpN').textContent=cmp.size;document.querySelectorAll('.iact.cmp.on').forEach(b=>{});document.querySelectorAll('.pc .iact.cmp').forEach(b=>{});render();if(cmp.size)openCompare();else{closeOv('cmpOv');document.getElementById('cmpbar').classList.remove('on');}}
+/* ---------- saved searches: local + a real alert subscription ---------- */
+function ssLoad(){try{return JSON.parse(localStorage.getItem('boom:searches')||'[]')}catch(e){return[]}}
+function ssStore(a){try{localStorage.setItem('boom:searches',JSON.stringify(a.slice(0,12)))}catch(e){}}
+function ssSummary(){const p=[];if(S.q)p.push('“'+S.q+'”');if(S.zones.length)p.push(S.zones.join(', '));if(S.budgetMax<4000)p.push('≤ €'+S.budgetMax.toLocaleString('en-US'));if(S.moveIn)p.push('by '+fmtS(S.moveIn));if(S.beds)p.push(S.beds+'+ beds');if(S.baths)p.push(S.baths+'+ baths');if(S.furnished)p.push('furnished');if(S.video)p.push('video tour');S.feats.forEach(f=>p.push(f.toLowerCase()));return p.length?p.join(' · '):'All of Rome — every verified home'}
 function saveSearchAct(){
-  try{const arr=JSON.parse(localStorage.getItem('boom:searches')||'[]');arr.unshift({s:{...S},t:Date.now()});localStorage.setItem('boom:searches',JSON.stringify(arr.slice(0,12)));}catch(e){}
-  toast('Search saved — we’ll alert you on new matches');
+  document.getElementById('ssSum').textContent=ssSummary()+' — '+currentList().length+' homes right now';
+  const prev=ssLoad().find(x=>x.email);
+  if(prev&&!document.getElementById('ssEmail').value)document.getElementById('ssEmail').value=prev.email;
+  document.getElementById('ssErr').style.display='none';
+  ssRenderList();openOv('ssOv');
 }
+function ssRenderList(){
+  const arr=ssLoad(),h=document.getElementById('ssList');
+  h.innerHTML=arr.length?'<div class="eyebrow" style="margin:20px 0 4px">Your saved searches</div>'+arr.map((x,i)=>
+    `<div class="ss-it"><div class="tx"><b>${(x.label||x.sum||'Search').replace(/</g,'&lt;')}</b><small>${(x.sum||'').replace(/</g,'&lt;')}${x.alert?' · ★ alert active':' · on this device'}</small></div><span class="acts"><button type="button" onclick="ssApply(${i})">Apply</button><button type="button" onclick="ssDel(${i})" aria-label="Delete saved search">✕</button></span></div>`).join(''):'';
+}
+function ssApply(i){const x=ssLoad()[i];if(!x)return;
+  Object.assign(S,{q:'',budgetMax:4000,moveIn:'',beds:0,baths:0,furnished:false,video:false,zones:[],feats:[],savedOnly:false},x.s||{});
+  document.getElementById('q').value=S.q||'';document.getElementById('budget').value=S.budgetMax;
+  setCalLabel();syncControls();buildSheet();render();closeOv('ssOv');toast('Search applied');}
+function ssDel(i){const a=ssLoad();a.splice(i,1);ssStore(a);ssRenderList();ssBadge();}
+async function ssSubmit(){
+  const email=document.getElementById('ssEmail').value.trim(),err=document.getElementById('ssErr');
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){err.textContent='Add a valid email — it’s where the alerts go.';err.style.display='block';return;}
+  err.style.display='none';
+  const rec={label:document.getElementById('ssName').value.trim()||null,sum:ssSummary(),email,s:{...S},t:Date.now(),alert:false};
+  const btn=document.getElementById('ssGo');btn.disabled=true;btn.textContent='Activating…';
+  try{
+    const r=await fetch('/api/search/save',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email,label:rec.label,resultCount:currentList().length,company:document.getElementById('ssHp').value,
+        criteria:{q:S.q,budgetMax:S.budgetMax,moveIn:S.moveIn,beds:S.beds,baths:S.baths,furnished:S.furnished,video:S.video,zones:S.zones,feats:S.feats}})});
+    const j=await r.json().catch(()=>null);
+    if(r.ok&&j&&j.ok){rec.alert=true;rec.id=j.id;}
+  }catch(e){}
+  const a=ssLoad();a.unshift(rec);ssStore(a);ssRenderList();ssBadge();
+  btn.disabled=false;btn.textContent='Activate alert ★';
+  toast(rec.alert?'Alert active — new matches go to your inbox':'Saved on this device — alert will activate when we’re back online');
+  if(rec.alert)setTimeout(()=>closeOv('ssOv'),700);
+}
+function ssBadge(){const n=ssLoad().length,b=document.getElementById('saveSearch');if(b)b.innerHTML=(n?'★':'☆')+' Save search'+(n?' <span class="cnt">'+n+'</span>':'');}
+ssBadge();
 
 /* ---------- sheet ---------- */
 function chips(host,items,sel,multi,cb){host.innerHTML=items.map(it=>`<button data-v="${it.v}" aria-pressed="${multi?sel.includes(it.v):(''+sel===''+it.v)}">${it.l}</button>`).join('');
