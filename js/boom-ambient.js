@@ -714,7 +714,7 @@
     // active scene A→B crossfade state
     var cur = null, curKey = '', nxt = null, nxtKey = '', mix = 0;   // mix 1 → fully nxt
     var moodName = 'browse', mood = MOODS.browse, moodCur = { tempo: 1, presence: 1 };
-    var raf = 0, running = false, last = 0, t0 = 0, sceneClock = 0;
+    var raf = 0, running = false, last = 0, t0 = 0, sceneClock = 0, tempoBoost = 0;
 
     function instantiate(key) {
       if (!SCENES[key]) return null;
@@ -737,7 +737,9 @@
       // ease mood
       moodCur.tempo += (mood.tempo - moodCur.tempo) * 0.06;
       moodCur.presence += (mood.presence - moodCur.presence) * 0.06;
-      sceneClock += dt * 0.001 * moodCur.tempo;
+      // the user's gesture stirs the material; it settles on its own
+      if (tempoBoost > 0.001) tempoBoost *= 0.94; else tempoBoost = 0;
+      sceneClock += dt * 0.001 * moodCur.tempo * (1 + tempoBoost);
       var t = sceneClock;
       // crossfade progress
       if (nxt) { mix = Math.min(1, mix + dt / 700); if (mix >= 1) { cur = nxt; curKey = nxtKey; nxt = null; nxtKey = ''; mix = 0; } }
@@ -799,6 +801,7 @@
     return {
       scene: setScene,
       mood: setMood,
+      stir: function (v) { tempoBoost = Math.min(1.6, tempoBoost + Math.max(0, +v || 0) * 0.6); },
       scenes: Object.keys(SCENES),
       moods: Object.keys(MOODS),
       destroy: function () { stop(); if (wrap.parentNode) wrap.parentNode.removeChild(wrap); }

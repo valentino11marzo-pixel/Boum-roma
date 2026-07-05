@@ -242,6 +242,10 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
 .aimsg{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:15px;font-size:13.5px;color:var(--t2);margin-bottom:10px}.aimsg b{color:var(--t1)}
 .lb{position:fixed;inset:0;z-index:160;background:rgba(3,3,3,.95);opacity:0;pointer-events:none;transition:.3s;display:grid;place-items:center;padding:24px}
 .lb.show{opacity:1;pointer-events:auto}.lb img{max-width:94vw;max-height:86vh;border-radius:12px}.lb .xc{position:absolute;top:20px;right:20px}
+.lb .arrow{display:grid}.lb .lbcount{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);font-size:11px;letter-spacing:2px;color:var(--t3);font-variant-numeric:tabular-nums}
+/* chapter rail thread — the visit is one continuous line */
+.chrail .chthread{position:absolute;width:1px;background:rgba(255,255,255,.12);pointer-events:none}
+.chrail .chthread i{position:absolute;left:0;top:0;width:1px;height:0;background:var(--gold);box-shadow:0 0 6px rgba(255,215,0,.45);transition:height .45s cubic-bezier(.16,1,.3,1);display:block}
 
 
 /* ═══ EXPERIENCE SEQUENCE — the vital facts arrive as a choreography ═══ */
@@ -471,14 +475,14 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
 <div class="ov" id="aiOv"><div class="sheet">
   <div class="sheet-h"><h3>✦ Ask this home</h3><button class="xc" onclick="closeOv('aiOv')">×</button></div>
   <div class="sheet-b">
-    <div class="chips"><button onclick="aiAsk(this)">💰 Total to move in?</button><button onclick="aiAsk(this)">🛡️ How does the deposit work?</button><button onclick="aiAsk(this)">📍 What's the area like?</button><button onclick="aiAsk(this)">⚡ How fast can I move in?</button></div>
+    <div class="chips"><button onclick="aiAsk(this)">Total to move in?</button><button onclick="aiAsk(this)">How does the deposit work?</button><button onclick="aiAsk(this)">What's the area like?</button><button onclick="aiAsk(this)">How fast can I move in?</button></div>
     <div id="aiThread"><div class="aimsg">I know this home and the reality of renting in Rome. Ask about cost, deposit, the area, the contract or timing. <span style="color:var(--t4)">(demo)</span></div></div>
   </div>
 </div></div>
 
 <div class="ov" id="applyOv"><div class="sheet" role="dialog" aria-modal="true" aria-label="Apply"><div class="sheet-h"><h3 id="applyTitle">Apply</h3><button class="xc" onclick="closeOv('applyOv')" aria-label="Close">×</button></div><div class="sheet-b" id="applyBody"></div></div></div>
 
-<div class="lb" id="lb" onclick="if(event.target.id==='lb')closeLb()"><button class="xc" onclick="closeLb()">×</button><img id="lbImg" src="" alt=""></div>
+<div class="lb" id="lb" onclick="if(event.target.id==='lb')closeLb()"><button class="xc" onclick="closeLb()" aria-label="Close">×</button><button class="arrow l" onclick="lbBy(-1)" aria-label="Previous photo">‹</button><button class="arrow r" onclick="lbBy(1)" aria-label="Next photo">›</button><div class="lbcount" id="lbCount"></div><img id="lbImg" src="" alt=""></div>
 
 <script src="/js/boom-elevate.js"></script>
 <script src="/js/boom-ambient.js"></script>
@@ -514,7 +518,10 @@ function slideBy(dir){const w=track.clientWidth;track.scrollTo({left:(curIdx+dir
 let st;track.addEventListener('scroll',()=>{clearTimeout(st);st=setTimeout(()=>{const i=Math.round(track.scrollLeft/track.clientWidth);if(i!==curIdx)setIdx(i);},80);},{passive:true});
 
 /* ---- lightbox ---- */
-function openLb(i){const im=IMGS[i]||{};document.getElementById('lbImg').src=im.full||'';document.getElementById('lbImg').alt=im.alt||'';document.getElementById('lb').classList.add('show');document.body.style.overflow='hidden';try{if(window.__amb)__amb.mood('focus')}catch(_e){}}
+let lbIdx=0;
+function lbPaint(){const im=IMGS[lbIdx]||{};const el=document.getElementById('lbImg');el.src=im.full||'';el.alt=im.alt||'';document.getElementById('lbCount').textContent=(lbIdx+1)+' / '+IMGS.length;}
+function lbBy(dir){lbIdx=(lbIdx+dir+IMGS.length)%IMGS.length;lbPaint();}
+function openLb(i){lbIdx=Math.max(0,Math.min(IMGS.length-1,i));lbPaint();document.getElementById('lb').classList.add('show');document.body.style.overflow='hidden';try{if(window.__amb)__amb.mood('focus')}catch(_e){}}
 
 /* ---- static fills ---- */
 /* data fills are done in paintData() (sample or live data) */
@@ -592,8 +599,11 @@ function openOv(i){const el=document.getElementById(i);el.classList.add('show');
 function closeOv(i){document.getElementById(i).classList.remove('show');document.body.style.overflow='';
   if(_ovPrevFocus&&_ovPrevFocus.focus){try{_ovPrevFocus.focus()}catch(_e){}_ovPrevFocus=null;}_mood('browse');}
 function closeLb(){document.getElementById('lb').classList.remove('show');document.body.style.overflow='';_mood('browse');}
-addEventListener('keydown',function(e){if(e.key!=='Escape')return;
-  var lb=document.getElementById('lb');if(lb&&lb.classList.contains('show')){closeLb();return;}
+addEventListener('keydown',function(e){
+  var lbEl=document.getElementById('lb'),lbOpen=lbEl&&lbEl.classList.contains('show');
+  if(lbOpen&&(e.key==='ArrowLeft'||e.key==='ArrowRight')){lbBy(e.key==='ArrowLeft'?-1:1);return;}
+  if(e.key!=='Escape')return;
+  var lb=lbEl;if(lbOpen){closeLb();return;}
   var ov=document.querySelector('.ov.show');if(ov){closeOv(ov.id);return;}
   var mmEl=document.getElementById('mm');if(mmEl&&mmEl.classList.contains('on')){mmEl.classList.remove('on');var hb=document.getElementById('burger')||document.querySelector('.burger');if(hb){hb.classList.remove('on');hb.setAttribute('aria-expanded','false');}document.body.style.overflow='';}
 });
@@ -632,9 +642,9 @@ function boom3D(btn){
     host.appendChild(fb);});
 }
 document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)closeOv(o.id)}));
-const AI={'💰 Total to move in?':'For your chosen dates the total is first month + refundable deposit + agency fee (€0 here). You see it live in “Your stay”.',
-'🛡️ How does the deposit work?':'Security, not a cost: held safely and returned at the end of your stay, net of any damage.',
-'⚡ How fast can I move in?':'As fast as 48 hours from approval. Set your date and we tell you instantly if it’s free.'};
+const AI={'Total to move in?':'For your chosen dates the total is first month + refundable deposit + agency fee (€0 here). You see it live in “Your stay”.',
+'How does the deposit work?':'Security, not a cost: held safely and returned at the end of your stay, net of any damage.',
+'How fast can I move in?':'As fast as 48 hours from approval. Set your date and we tell you instantly if it’s free.'};
 function aiAsk(b){const q=b.textContent;const t=document.getElementById('aiThread');
   const area=q.indexOf('area')>-1?(L.zone+': verified on foot by our team — transport, daily services and the evening feel. Tap “Explore the block in 3D” to walk it yourself.'):null;
   t.insertAdjacentHTML('beforeend',`<div class="aimsg" style="border-color:var(--line-gold)"><b>You:</b> ${q}</div><div class="aimsg">${area||AI[q]||'Demo — in production, a real answer from the AI that knows this home.'}</div>`);t.lastElementChild.scrollIntoView({behavior:'smooth',block:'nearest'});}
@@ -694,7 +704,9 @@ function renderRes(){
 }
 
 /* ---- chrome ---- */
-addEventListener('scroll',()=>{document.getElementById('nav').classList.toggle('scr',scrollY>16);const h=document.body.scrollHeight-innerHeight;document.getElementById('prog').style.width=(scrollY/Math.max(1,h)*100)+'%';},{passive:true});
+let _stirY=0;
+addEventListener('scroll',()=>{document.getElementById('nav').classList.toggle('scr',scrollY>16);const h=document.body.scrollHeight-innerHeight;document.getElementById('prog').style.width=(scrollY/Math.max(1,h)*100)+'%';
+  const dy=Math.abs(scrollY-_stirY);_stirY=scrollY;try{if(window.__amb&&dy)__amb.stir(Math.min(1,dy/250))}catch(_e){}},{passive:true});
 const burger=document.getElementById('burger'),mm=document.getElementById('mm');
 burger.addEventListener('click',()=>{burger.classList.toggle('on');mm.classList.toggle('on');const on=mm.classList.contains('on');burger.setAttribute('aria-expanded',on);document.body.style.overflow=on?'hidden':'';});
 mm.addEventListener('click',e=>{if(e.target.tagName==='A'||e.target===mm){burger.classList.remove('on');mm.classList.remove('on');burger.setAttribute('aria-expanded','false');document.body.style.overflow='';}});
@@ -799,10 +811,20 @@ function experienceArrive(){
   const CH=[['top','Photos'],['about','The home'],['money','The money'],['place','The location']];
   const rail=document.getElementById('chrail');if(!rail)return;
   rail.innerHTML=CH.map(([id,l])=>`<a href="${id==='top'?'#':'#'+id}" data-t="${id}"><span class="cl">${l}</span><i></i></a>`).join('');
-  rail.addEventListener('click',function(e){const a=e.target.closest('a');if(!a)return;e.preventDefault();
-    if(a.dataset.t==='top')scrollTo({top:0,behavior:'smooth'});
-    else{const el=document.getElementById(a.dataset.t);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});}});
-  const setOn=t=>rail.querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.t===t));
+  /* the thread: a hairline joins the dots; a gold segment grows to the active one */
+  const thread=document.createElement('span');thread.className='chthread';thread.setAttribute('aria-hidden','true');
+  const tgold=document.createElement('i');thread.appendChild(tgold);rail.appendChild(thread);
+  function layoutThread(){
+    const dots=[...rail.querySelectorAll('a i')];if(dots.length<2)return;
+    const rr=rail.getBoundingClientRect();if(!rr.height)return;
+    const c=el=>{const r=el.getBoundingClientRect();return{x:r.left+r.width/2-rr.left,y:r.top+r.height/2-rr.top};};
+    const p0=c(dots[0]),pn=c(dots[dots.length-1]);
+    thread.style.left=(p0.x-0.5)+'px';thread.style.top=p0.y+'px';thread.style.height=(pn.y-p0.y)+'px';
+  }
+  addEventListener('resize',layoutThread,{passive:true});addEventListener('load',layoutThread,{once:true});layoutThread();
+  const setOn=t=>{rail.querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.t===t));
+    const act=rail.querySelector(`a[data-t="${t}"] i`);
+    if(act){const tr=thread.getBoundingClientRect();if(tr.height){const r=act.getBoundingClientRect();tgold.style.height=Math.max(0,r.top+r.height/2-tr.top)+'px';}}};
   let tick=false;
   addEventListener('scroll',function(){if(tick)return;tick=true;requestAnimationFrame(function(){tick=false;
     const y=scrollY+innerHeight*0.38;let cur='top';

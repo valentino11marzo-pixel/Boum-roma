@@ -311,8 +311,15 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
 <script src="/js/boom-ambient.js"></script>
 <script>
 /* The page's ambience: Marmo Antico — living stone. Soft gold clouds and
-   cloudy veins drifting along one grain; the material the client chose. */
-try{ if(window.BoomAmbient) BoomAmbient.mount({ink:'#060607',inkRGB:'6,6,7',palette:{a:'255,215,0',b:'255,229,160'},intensity:.8,sections:false,scene:'marmoantico'}); }catch(_e){}
+   cloudy veins drifting along one grain; the material the client chose.
+   Scrolling stirs the stone; it settles on its own. */
+try{
+  if(window.BoomAmbient){
+    window.__amb=BoomAmbient.mount({ink:'#060607',inkRGB:'6,6,7',palette:{a:'255,215,0',b:'255,229,160'},intensity:.8,sections:false,scene:'marmoantico'});
+    var _stY=0;
+    addEventListener('scroll',function(){var dy=Math.abs(scrollY-_stY);_stY=scrollY;try{if(dy)window.__amb.stir(Math.min(1,dy/250))}catch(_e){}},{passive:true});
+  }
+}catch(_e){}
 </script>
 <script>
 /* ---------- data ---------- */
