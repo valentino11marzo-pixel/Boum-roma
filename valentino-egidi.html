@@ -56,7 +56,7 @@
   <div class="wrap hero-in">
     <div>
       <div class="eyebrow"><span class="sq"></span> <span data-it="Mediatore immobiliare · Roma · vendite" data-en="Real-estate broker · Rome · sales">Mediatore immobiliare · Roma · vendite</span></div>
-      <h1 class="kin" data-it="Vendi casa al prezzo <span class='e'>vero</span>. Seguìto da un solo nome: il mio." data-en="Sell your home at the <span class='e'>real</span> price. Handled by one name: mine.">Vendi casa al prezzo <span class="e">vero</span>. Seguìto da un solo nome: il mio.</h1>
+      <h1 class="kin" data-it="Vendi casa al prezzo <span class='wcycle' data-words='vero.|onesto.|reale.'>vero.</span> Seguìto da un solo nome: il mio." data-en="Sell your home at the <span class='wcycle' data-words='real|honest|true'>real</span> price. Handled by one name: mine.">Vendi casa al prezzo <span class="wcycle" data-words="vero.|onesto.|reale.">vero.</span> Seguìto da un solo nome: il mio.</h1>
       <p class="sub" data-it="Il mediatore più tecnologico di Roma: dati, media editoriali e una dashboard privata. La precisione di un artigiano, in un solo nome che risponde. Inizia da una valutazione onesta, gratis, in 48 ore." data-en="Rome's most technological broker: data, editorial media and a private dashboard. The precision of a craftsman, in one name that answers. Start with an honest valuation — free, in 48 hours.">Il mediatore più tecnologico di Roma: dati, media editoriali e una dashboard privata. La precisione di un artigiano, in un solo nome che risponde. Inizia da una valutazione onesta, gratis, in 48 ore.</p>
       <div class="cta">
         <a href="#valuta" class="btn btn-ink" data-cursor="Valuta" data-it="Scopri quanto vale casa tua" data-en="See what your home is worth">Scopri quanto vale casa tua</a>
@@ -78,6 +78,16 @@
   <div class="hero-foot"><span class="ln"></span> <span data-it="Scorri — la vendita, in chiaro" data-en="Scroll — selling, in the clear">Scorri — la vendita, in chiaro</span></div>
 </header>
 
+<!-- DIGEST (in 10 secondi) -->
+<section class="digest">
+  <div class="wrap digest-in" data-st>
+    <div class="dlab">// <span data-it="In 10 secondi" data-en="In 10 seconds">In 10 secondi</span></div>
+    <div class="ditem"><span class="dn">01</span><p data-it="<b>Un solo mediatore.</b> Parli sempre con me — mai un call center." data-en="<b>One broker.</b> You always talk to me — never a call centre."><b>Un solo mediatore.</b> Parli sempre con me — mai un call center.</p></div>
+    <div class="ditem"><span class="dn">02</span><p data-it="<b>Il prezzo vero.</b> Dati e comparabili, non promesse." data-en="<b>The real price.</b> Data and comparables, not promises."><b>Il prezzo vero.</b> Dati e comparabili, non promesse.</p></div>
+    <div class="ditem"><span class="dn">03</span><p data-it="<b>Difetti dichiarati prima.</b> Sempre. È il mio metodo." data-en="<b>Flaws declared first.</b> Always. It's my method."><b>Difetti dichiarati prima.</b> Sempre. È il mio metodo.</p></div>
+  </div>
+</section>
+
 <!-- POSITIONING -->
 <section class="posb">
   <div class="wrap" style="display:grid;grid-template-columns:1.3fr 1fr;gap:50px;align-items:center;padding:60px 0">
@@ -90,7 +100,7 @@
 </section>
 
 <!-- PERSONA -->
-<section class="persona blk">
+<section class="persona blk" id="chi" data-chap="Chi sono" data-chap-en="Who I am" data-dark>
   <div class="wrap"><div class="persona-grid">
     <div class="persona-fig rv">
       <figure class="ph"><img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1000&q=80" alt="Valentino Egidi" onerror="this.style.opacity=0"></figure>
@@ -108,7 +118,7 @@
 </section>
 
 <!-- STORY -->
-<section class="story" id="metodo">
+<section class="story" id="metodo" data-chap="Metodo" data-chap-en="Method" data-dark>
   <div class="story-stage">
     <div class="scene" data-scene>
       <figure class="ph" data-tint="clay"><img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=2000&q=80" alt="" onerror="this.style.opacity=0"></figure>
@@ -135,7 +145,7 @@
 </section>
 
 <!-- PILLARS -->
-<section class="blk" id="perche">
+<section class="blk" id="perche" data-chap="Perché me" data-chap-en="Why me">
   <div class="wrap">
     <div class="s-head ctr rv">
       <div class="tag"><span class="id">§01</span> <span data-it="Perché lavorare con me" data-en="Why work with me">Perché lavorare con me</span></div>
@@ -170,8 +180,13 @@
   </div>
 </section>
 
+<!-- HONESTY MARQUEE -->
+<div class="marq" aria-hidden="true"
+  data-marq-it="I difetti prima dei pregi|Zero aste mascherate|Il prezzo vero, subito|Compratori veri, offerte vere|Una sola versione dei fatti|Niente copioni, niente fuffa|Roma, via per via"
+  data-marq-en="Flaws before features|Zero fake bidding wars|The real price, upfront|Real buyers, real offers|One version of the facts|No scripts, no fluff|Rome, street by street"></div>
+
 <!-- TECH -->
-<section class="blk tech" id="tecnologia">
+<section class="blk tech" id="tecnologia" data-chap="Tecnologia" data-chap-en="Technology">
   <div class="wrap">
     <div class="s-head rv">
       <div class="tag"><span class="id">§02</span> <span data-it="La tecnologia che vende" data-en="The technology that sells">La tecnologia che vende</span></div>
@@ -238,7 +253,7 @@
 </section>
 
 <!-- VALUATION -->
-<section class="blk val" id="valuta">
+<section class="blk val" id="valuta" data-chap="Valutazione" data-chap-en="Valuation">
   <div class="wrap">
     <div class="val-grid">
       <div class="rv">
@@ -310,6 +325,58 @@
   </div>
 </section>
 
+<!-- FAQ (le domande scomode) -->
+<section class="blk" id="domande" style="padding-top:0">
+  <div class="wrap">
+    <div class="s-head rv">
+      <div class="tag"><span class="id">§</span> <span data-it="Le domande scomode" data-en="The awkward questions">Le domande scomode</span></div>
+      <h2 class="s-title" data-it="Quello che gli altri <span class='e'>sperano tu non chieda.</span>" data-en="What the others <span class='e'>hope you won't ask.</span>">Quello che gli altri <span class="e">sperano tu non chieda.</span></h2>
+    </div>
+    <div class="faq rv">
+      <div class="fq">
+        <button class="fq-q" type="button" aria-expanded="false">
+          <span class="qn">01</span>
+          <span class="qt" data-it="Quanto mi costi?" data-en="How much do you cost?">Quanto mi costi?</span>
+          <span class="qi" aria-hidden="true"></span>
+        </button>
+        <div class="fq-a"><div><p data-it="Una provvigione, dichiarata per iscritto prima dell'incarico — la cifra esatta dipende dall'immobile e te la dico al primo incontro, non al rogito. Zero costi nascosti. E se non vendo, non mi devi nulla." data-en="One commission, stated in writing before the mandate — the exact figure depends on the property and I tell you at the first meeting, not at closing. Zero hidden costs. And if I don't sell, you owe me nothing.">Una provvigione, dichiarata per iscritto prima dell'incarico — la cifra esatta dipende dall'immobile e te la dico al primo incontro, non al rogito. Zero costi nascosti. E se non vendo, non mi devi nulla.</p></div></div>
+      </div>
+      <div class="fq">
+        <button class="fq-q" type="button" aria-expanded="false">
+          <span class="qn">02</span>
+          <span class="qt" data-it="Chiedi l'esclusiva?" data-en="Do you ask for exclusivity?">Chiedi l'esclusiva?</span>
+          <span class="qi" aria-hidden="true"></span>
+        </button>
+        <div class="fq-a"><div><p data-it="Sì, e te lo dico subito. Prendo pochi incarichi e su ognuno investo dati, media editoriali e tempo: l'esclusiva è ciò che rende possibile questo livello di lavoro. Se non ti sembra giusto, meglio scoprirlo ora — è la prima conversazione onesta che facciamo." data-en="Yes, and I tell you upfront. I take few mandates and invest data, editorial media and time in each one: exclusivity is what makes this level of work possible. If that doesn't feel right, better to find out now — it's the first honest conversation we have.">Sì, e te lo dico subito. Prendo pochi incarichi e su ognuno investo dati, media editoriali e tempo: l'esclusiva è ciò che rende possibile questo livello di lavoro. Se non ti sembra giusto, meglio scoprirlo ora — è la prima conversazione onesta che facciamo.</p></div></div>
+      </div>
+      <div class="fq">
+        <button class="fq-q" type="button" aria-expanded="false">
+          <span class="qn">03</span>
+          <span class="qt" data-it="Quanto ci vuole a vendere?" data-en="How long does it take to sell?">Quanto ci vuole a vendere?</span>
+          <span class="qi" aria-hidden="true"></span>
+        </button>
+        <div class="fq-a"><div><p data-it="Al prezzo vero, nelle zone centrali: settimane, non anni. Al prezzo gonfiato: mesi di silenzio, poi i ribassi a inseguire il mercato. È esattamente il motivo per cui parto dai comparabili, non dalle speranze." data-en="At the real price, in central Rome: weeks, not years. At an inflated price: months of silence, then price cuts chasing the market. That's exactly why I start from comparables, not hopes.">Al prezzo vero, nelle zone centrali: settimane, non anni. Al prezzo gonfiato: mesi di silenzio, poi i ribassi a inseguire il mercato. È esattamente il motivo per cui parto dai comparabili, non dalle speranze.</p></div></div>
+      </div>
+      <div class="fq">
+        <button class="fq-q" type="button" aria-expanded="false">
+          <span class="qn">04</span>
+          <span class="qt" data-it="E se casa mia vale meno di quanto spero?" data-en="What if my home is worth less than I hope?">E se casa mia vale meno di quanto spero?</span>
+          <span class="qi" aria-hidden="true"></span>
+        </button>
+        <div class="fq-a"><div><p data-it="Te lo dico subito, con i numeri davanti. Poi decidi tu, senza pressioni: vendere al prezzo vero, aspettare il momento giusto — o metterla a reddito con <a href='#affitti'>BOOM</a>, mentre il mercato lavora per te." data-en="I tell you right away, numbers on the table. Then you decide, no pressure: sell at the real price, wait for the right moment — or put it to income with <a href='#affitti'>BOOM</a> while the market works for you.">Te lo dico subito, con i numeri davanti. Poi decidi tu, senza pressioni: vendere al prezzo vero, aspettare il momento giusto — o metterla a reddito con <a href="#affitti">BOOM</a>, mentre il mercato lavora per te.</p></div></div>
+      </div>
+      <div class="fq">
+        <button class="fq-q" type="button" aria-expanded="false">
+          <span class="qn">05</span>
+          <span class="qt" data-it="Perché un mediatore da solo e non una grande agenzia?" data-en="Why a solo broker instead of a big agency?">Perché un mediatore da solo e non una grande agenzia?</span>
+          <span class="qi" aria-hidden="true"></span>
+        </button>
+        <div class="fq-a"><div><p data-it="Perché la grande agenzia te la porto io: dati, media editoriali, dashboard, automazioni. Quello che non ti porto è il resto — lo stagista, il centralino, i cento incarichi dimenticati. Un solo nome che risponde: è un limite che ho scelto." data-en="Because I bring you the big agency: data, editorial media, dashboard, automation. What I don't bring is the rest — the intern, the switchboard, the hundred forgotten mandates. One name that answers: it's a limit I chose.">Perché la grande agenzia te la porto io: dati, media editoriali, dashboard, automazioni. Quello che non ti porto è il resto — lo stagista, il centralino, i cento incarichi dimenticati. Un solo nome che risponde: è un limite che ho scelto.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- CONSTELLATION (Roma in dati) -->
 <section class="blk constell">
   <div class="wrap">
@@ -327,7 +394,7 @@
 </section>
 
 <!-- ZONES -->
-<section class="zones" id="quartieri">
+<section class="zones" id="quartieri" data-chap="Quartieri" data-chap-en="Districts" data-dark>
   <div class="zones-stage">
     <div class="zones-head"><div class="eyebrow" data-it="Conosco ogni via" data-en="I know every street">Conosco ogni via</div><h2 data-it="Roma, quartiere per quartiere." data-en="Rome, neighbourhood by neighbourhood.">Roma, quartiere per quartiere.</h2></div>
     <div class="zones-track" id="zonesTrack">
@@ -342,10 +409,46 @@
   </div>
 </section>
 
-<!-- BOOM -->
-<section class="blk boom" id="affitti">
+<!-- FORK (il bivio) -->
+<section class="blk" id="bivio" data-chap="Il bivio" data-chap-en="The fork">
   <div class="wrap">
-    <div class="boom-tag"><span class="id">§</span> <span data-it="L'ecosistema · Egidi Immobiliare" data-en="The ecosystem · Egidi Immobiliare">L'ecosistema · Egidi Immobiliare</span></div>
+    <div class="s-head ctr rv">
+      <div class="tag"><span class="id">§</span> <span data-it="Il bivio" data-en="The fork">Il bivio</span></div>
+      <h2 class="s-title" data-it="Hai una casa a Roma. <span class='e'>Due strade oneste.</span>" data-en="You own a home in Rome. <span class='e'>Two honest paths.</span>">Hai una casa a Roma. <span class="e">Due strade oneste.</span></h2>
+      <p class="s-lead" data-it="Non tutte le case vanno vendute adesso. Ti dico quale strada conviene alla tua — anche se non è la mia." data-en="Not every home should be sold right now. I'll tell you which path suits yours — even if it's not mine.">Non tutte le case vanno vendute adesso. Ti dico quale strada conviene alla tua — anche se non è la mia.</p>
+    </div>
+    <div class="fork-grid rv" data-st>
+      <div class="fcard sell">
+        <div class="fnum" data-it="Strada I · Vendere" data-en="Path I · Sell">Strada I · Vendere</div>
+        <h3 data-it="Vendere al prezzo vero. Con me." data-en="Sell at the real price. With me.">Vendere al prezzo vero. Con me.</h3>
+        <p class="fsub" data-it="Quando i numeri dicono che è il momento, la vendo io — dati, media editoriali, compratori filtrati." data-en="When the numbers say it's time, I sell it — data, editorial media, filtered buyers.">Quando i numeri dicono che è il momento, la vendo io — dati, media editoriali, compratori filtrati.</p>
+        <ul>
+          <li data-it="Valutazione onesta in 48 ore" data-en="Honest valuation in 48 hours">Valutazione onesta in 48 ore</li>
+          <li data-it="Dashboard privata, tutto in chiaro" data-en="Private dashboard, everything in the clear">Dashboard privata, tutto in chiaro</li>
+          <li data-it="Zero sorprese fino al rogito" data-en="Zero surprises through closing">Zero sorprese fino al rogito</li>
+        </ul>
+        <div class="fcta"><a href="#valuta" class="btn btn-ink" data-it="Inizia dalla valutazione" data-en="Start with the valuation">Inizia dalla valutazione</a></div>
+      </div>
+      <div class="fcard rent">
+        <div class="fnum" data-it="Strada II · Rendere" data-en="Path II · Earn">Strada II · Rendere</div>
+        <h3 data-it="Metterla a reddito. <span class='g'>Con BOOM.</span>" data-en="Put it to income. <span class='g'>With BOOM.</span>">Metterla a reddito. <span class="g">Con BOOM.</span></h3>
+        <p class="fsub" data-it="Se vendere ora non conviene, la nostra divisione affitti la fa lavorare: medio termine, tutto gestito." data-en="If selling now isn't right, our rentals division puts it to work: medium-term, fully managed.">Se vendere ora non conviene, la nostra divisione affitti la fa lavorare: medio termine, tutto gestito.</p>
+        <ul>
+          <li data-it="Reddito da subito, senza svendere" data-en="Income from day one, without underselling">Reddito da subito, senza svendere</li>
+          <li data-it="Inquilini verificati, contratti legali" data-en="Verified tenants, legal contracts">Inquilini verificati, contratti legali</li>
+          <li data-it="Gestione completa: tu non pensi a nulla" data-en="Fully managed: you think about nothing">Gestione completa: tu non pensi a nulla</li>
+        </ul>
+        <div class="fcta"><a href="#affitti" class="fbtn-gold" data-it="Scopri la strada BOOM <span class='ar'>↓</span>" data-en="See the BOOM path <span class='ar'>↓</span>">Scopri la strada BOOM <span class="ar">↓</span></a></div>
+      </div>
+    </div>
+    <div class="fork-note rv" data-it="Qualunque strada scegli, resti in famiglia — <b>Egidi Immobiliare</b>." data-en="Whichever path you choose, you stay in the family — <b>Egidi Immobiliare</b>.">Qualunque strada scegli, resti in famiglia — <b>Egidi Immobiliare</b>.</div>
+  </div>
+</section>
+
+<!-- BOOM -->
+<section class="blk boom" id="affitti" data-chap="BOOM · Affitti" data-chap-en="BOOM · Rentals" data-dark>
+  <div class="wrap">
+    <div class="boom-tag"><span class="id" data-it="Strada II" data-en="Path II">Strada II</span> <span data-it="La divisione affitti · Egidi Immobiliare" data-en="The rentals division · Egidi Immobiliare">La divisione affitti · Egidi Immobiliare</span></div>
     <div class="boom-head">
       <div class="rv">
         <div class="boom-mark">BOOM<span class="reg">®</span></div>
@@ -386,7 +489,7 @@
 </section>
 
 <!-- CONTACT -->
-<section class="contact" id="contatti">
+<section class="contact" id="contatti" data-chap="Contatti" data-chap-en="Contact" data-dark>
   <figure class="ph" data-tint="ink"><img src="https://images.unsplash.com/photo-1600121848594-d8644e57abab?auto=format&fit=crop&w=2000&q=80" alt="" onerror="this.style.opacity=0"></figure>
   <div class="wrap inner">
     <div class="tag">Parliamo</div>

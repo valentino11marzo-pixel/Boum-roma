@@ -17,6 +17,7 @@ function setLang(l){
   $$('[data-it-ph]').forEach(el=>{const v=el.getAttribute('data-'+l+'-ph');if(v!=null)el.placeholder=v;});
   $$('.langtog button').forEach(b=>b.classList.toggle('on',b.dataset.lang===l));
   try{localStorage.setItem('ve_lang',l);}catch(e){}
+  document.dispatchEvent(new CustomEvent('ve:lang',{detail:l}));
 }
 function initLang(){
   let l='it';try{l=localStorage.getItem('ve_lang')||'it';}catch(e){}
@@ -307,11 +308,75 @@ function initConstellation(){
   else{running=true;requestAnimationFrame(loop);}
 }
 
+/* ── word cycle (hero rotating word) ───────────────────────── */
+function initWordCycle(){
+  if(reduce)return;
+  setInterval(()=>{$$('.wcycle').forEach(el=>{
+    const words=(el.dataset.words||'').split('|').filter(Boolean);if(words.length<2)return;
+    let ww=el.querySelector('.ww');let i=+el.dataset.i||0;
+    if(!ww){ww=document.createElement('span');ww.className='ww';ww.textContent=words[i];el.textContent='';el.appendChild(ww);}
+    ww.classList.add('out');
+    setTimeout(()=>{i=(i+1)%words.length;el.dataset.i=i;ww.textContent=words[i];
+      ww.classList.remove('out');ww.classList.add('pre');
+      requestAnimationFrame(()=>requestAnimationFrame(()=>ww.classList.remove('pre')));},460);
+  });},3200);
+}
+
+/* ── honesty marquee (bilingual, seamless loop) ────────────── */
+function initMarquee(){
+  const m=$('.marq');if(!m)return;
+  const build=()=>{const l=document.documentElement.lang||'it';
+    const items=((l==='en'?m.dataset.marqEn:m.dataset.marqIt)||m.dataset.marqIt||'').split('|').filter(Boolean);
+    if(!items.length)return;
+    const track=document.createElement('div');track.className='marq-track';
+    track.innerHTML=items.map(t=>`<span class="mi">${t}</span>`).join('').repeat(2);
+    m.innerHTML='';m.appendChild(track);};
+  document.addEventListener('ve:lang',build);build();
+}
+
+/* ── spotlight glow on cards ───────────────────────────────── */
+function initSpotlight(){
+  if(!fine)return;
+  $$('.pillar,.tcard,.bfeat,.dstat,.fcard').forEach(el=>{el.classList.add('glow');
+    el.addEventListener('mousemove',e=>{const r=el.getBoundingClientRect();
+      el.style.setProperty('--gx',((e.clientX-r.left)/r.width*100).toFixed(1)+'%');
+      el.style.setProperty('--gy',((e.clientY-r.top)/r.height*100).toFixed(1)+'%');},{passive:true});});
+}
+
+/* ── FAQ accordion (one open at a time) ────────────────────── */
+function initFaq(){
+  const faq=$('.faq');if(!faq)return;
+  faq.addEventListener('click',e=>{const q=e.target.closest('.fq-q');if(!q)return;
+    const item=q.parentElement,wasOpen=item.classList.contains('open');
+    faq.querySelectorAll('.fq.open').forEach(o=>{o.classList.remove('open');const b=o.querySelector('.fq-q');if(b)b.setAttribute('aria-expanded','false');});
+    if(!wasOpen){item.classList.add('open');q.setAttribute('aria-expanded','true');}});
+}
+
+/* ── chapter rail (roman numerals, from [data-chap]) ───────── */
+function initChapters(){
+  const secs=$$('[data-chap]');if(!secs.length)return;
+  const R=['I','II','III','IV','V','VI','VII','VIII','IX','X'];
+  const rail=document.createElement('nav');rail.className='chap';rail.setAttribute('aria-label','Capitoli');
+  secs.forEach((s,i)=>{const a=document.createElement('a');a.href='#'+s.id;
+    a.innerHTML=`<span class="tick"></span><span class="rn">${R[i]||''} · <span data-it="${s.dataset.chap}" data-en="${s.dataset.chapEn||s.dataset.chap}">${s.dataset.chap}</span></span>`;
+    rail.appendChild(a);});
+  document.body.appendChild(rail);
+  if(document.documentElement.lang==='en')rail.querySelectorAll('[data-en]').forEach(el=>{el.innerHTML=el.getAttribute('data-en');});
+  const links=[...rail.querySelectorAll('a')];let tk=false;
+  const upd=()=>{const y=scrollY+innerHeight*0.35;let idx=-1;
+    secs.forEach((s,i)=>{if(s.offsetTop<=y)idx=i;});
+    links.forEach((a,i)=>a.classList.toggle('on',i===idx));
+    const cur=idx>=0?secs[idx]:null;rail.classList.toggle('dark',!!(cur&&cur.hasAttribute('data-dark')));
+    tk=false;};
+  addEventListener('scroll',()=>{if(!tk){requestAnimationFrame(upd);tk=true;}},{passive:true});upd();
+}
+
 /* ── boot all ──────────────────────────────────────────────── */
 function init(){
   initLang();initBoot();initTransitions();initCursor();initTiltMag();
   initReveals();initScroll();initClock();initFab();initForm();initEstimator();initShader();
   initSignature();initDashboard();initDecode();initConstellation();
+  initWordCycle();initMarquee();initSpotlight();initFaq();initChapters();
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
