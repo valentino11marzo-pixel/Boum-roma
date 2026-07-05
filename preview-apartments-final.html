@@ -71,10 +71,11 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 .cal-nav{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;color:var(--t2);transition:.2s var(--ease)}.cal-nav:hover:not(:disabled){border-color:var(--line-gold);color:var(--gold)}.cal-nav:disabled{opacity:.28;cursor:not-allowed}
 .cal-wd{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;margin-bottom:4px}.cal-wd span{text-align:center;font-size:10px;letter-spacing:.5px;text-transform:uppercase;color:var(--t3);padding:4px 0}
 .cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px}
-.cal-d{aspect-ratio:1;border:none;background:none;color:var(--t1);font-family:inherit;font-size:13px;border-radius:9px;cursor:pointer;transition:.14s var(--ease);display:grid;place-items:center;font-variant-numeric:tabular-nums}
+.cal-d{height:38px;border:none;background:none;color:var(--t1);font-family:inherit;font-size:13px;border-radius:9px;cursor:pointer;transition:.14s var(--ease);display:grid;place-items:center;font-variant-numeric:tabular-nums}
 .cal-d:hover:not(:disabled){background:var(--gold-faint)}.cal-d:disabled{color:var(--t4);cursor:default}
-.cal-d.today{box-shadow:inset 0 0 0 1px var(--line-gold)}.cal-d.sel{background:var(--gold);color:#1a1407;font-weight:600}.cal-d.empty{visibility:hidden;pointer-events:none}
-.cal-f{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.cal-d.today{box-shadow:inset 0 0 0 1px var(--line-gold)}.cal-d.sel{background:var(--gold);color:#1a1407;font-weight:600}.cal-d.pad{visibility:hidden;pointer-events:none}
+.cal-f{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.cal-f .hint{flex:1;font-size:11px;color:var(--t2);line-height:1.45;min-height:14px}.cal-f .hint b{color:var(--gold);font-weight:500}
 .cal-f .clear{font-size:13px;color:var(--t2);padding:8px 10px;border-radius:9px}.cal-f .clear:hover{color:var(--gold)}
 .cal-f .done{background:var(--gold);color:#1a1407;font-weight:600;font-size:13px;padding:9px 20px;border-radius:100px}
 @media(max-width:560px){.calpop{left:12px!important;right:12px!important;top:auto!important;bottom:calc(12px + var(--safe))!important;width:auto!important}}
@@ -283,7 +284,7 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
   <div class="cal-h"><button class="cal-nav" id="calPrev" onclick="calNav(-1)" aria-label="Previous month">‹</button><div class="m" id="calMonth"></div><button class="cal-nav" onclick="calNav(1)" aria-label="Next month">›</button></div>
   <div class="cal-wd"><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span></div>
   <div class="cal-grid" id="calGrid"></div>
-  <div class="cal-f"><button class="clear" onclick="calClear()">Any date</button><button class="done" onclick="closeCal()">Done</button></div>
+  <div class="cal-f"><span class="hint" id="calHint" aria-live="polite"></span><button class="clear" onclick="calClear()">Any date</button><button class="done" onclick="closeCal()">Done</button></div>
 </div>
 <div class="cmpbar" id="cmpbar"><span class="n"><b id="cmpN">0</b> to compare</span><button class="go" onclick="openCompare()">Compare →</button><button class="clr" onclick="clearCmp()">Clear</button></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -570,7 +571,7 @@ let CAL={y:0,m:0};
 function _pad(n){return n<10?'0'+n:''+n;}
 function _ymd(y,m,d){return y+'-'+_pad(m+1)+'-'+_pad(d);}
 function setCalLabel(){const el=document.getElementById('calLbl');if(!el)return;el.textContent=S.moveIn?parseD(S.moveIn).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'Any date';const b=document.getElementById('calBtn');if(b)b.classList.toggle('set',!!S.moveIn);}
-function openCal(){const base=S.moveIn?parseD(S.moveIn):new Date();CAL={y:base.getFullYear(),m:base.getMonth()};buildCal();
+function openCal(){const base=S.moveIn?parseD(S.moveIn):new Date();CAL={y:base.getFullYear(),m:base.getMonth()};buildCal();calHintFor(S.moveIn||null);
   const p=document.getElementById('calPop'),r=document.getElementById('calBtn').getBoundingClientRect();
   p.style.left=Math.max(8,Math.min(r.left,innerWidth-330))+'px';p.style.top=(r.bottom+8)+'px';
   p.classList.add('show');setTimeout(()=>document.addEventListener('click',calOutside,true),0);}
@@ -583,14 +584,22 @@ function buildCal(){
   document.getElementById('calMonth').textContent=first.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
   document.getElementById('calPrev').disabled=(CAL.y<today.getFullYear())||(CAL.y===today.getFullYear()&&CAL.m<=today.getMonth());
   let cells='';
-  for(let i=0;i<start;i++)cells+='<button class="cal-d empty" tabindex="-1" aria-hidden="true"></button>';
+  for(let i=0;i<start;i++)cells+='<button class="cal-d pad" tabindex="-1" aria-hidden="true"></button>';
   for(let d=1;d<=dim;d++){const dt=new Date(CAL.y,CAL.m,d);const ds=_ymd(CAL.y,CAL.m,d);
     const past=dt<today,isToday=dt.getTime()===today.getTime(),sel=S.moveIn===ds;
     cells+='<button class="cal-d'+(isToday?' today':'')+(sel?' sel':'')+'"'+(past?' disabled':'')+(sel?' aria-pressed="true"':'')+' onclick="calPick(\''+ds+'\')" aria-label="'+dt.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})+'">'+d+'</button>';}
   document.getElementById('calGrid').innerHTML=cells;
 }
 function calPick(ds){S.moveIn=ds;setCalLabel();render();closeCal();}
-function calClear(){S.moveIn='';setCalLabel();render();buildCal();}
+function calClear(){S.moveIn='';setCalLabel();render();buildCal();calHintFor(null);}
+/* the calendar knows the market: hovering a day counts the homes free by then */
+function calHintFor(ds){const el=document.getElementById('calHint');if(!el)return;
+  if(!ds){el.innerHTML=S.moveIn?'':'Hover a day — we’ll count what’s free.';return;}
+  const tot=L.filter(isRentable).length;
+  const free=L.filter(l=>isRentable(l)&&parseD(l.availableFrom)<=parseD(ds)).length;
+  el.innerHTML='<b>'+free+'</b> of '+tot+' homes free by '+parseD(ds).toLocaleDateString('en-GB',{day:'numeric',month:'short'});}
+document.getElementById('calGrid').addEventListener('pointerover',e=>{const b=e.target.closest('.cal-d');if(b&&!b.classList.contains('pad')&&!b.disabled){const m=b.getAttribute('onclick').match(/'([\d-]+)'/);if(m)calHintFor(m[1]);}});
+document.getElementById('calGrid').addEventListener('pointerleave',()=>calHintFor(S.moveIn||null));
 
 /* ---------- save / compare ---------- */
 let toastT;

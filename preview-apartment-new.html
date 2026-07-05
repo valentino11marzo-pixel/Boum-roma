@@ -129,7 +129,7 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 .calbtn[aria-expanded="true"]{border-color:var(--gold)}
 .calbtn[aria-expanded="true"] .calic{transform:rotate(180deg)}
 .dcal{max-height:0;overflow:hidden;transition:max-height .45s var(--ease)}
-.dcal.open{max-height:460px}
+.dcal.open{max-height:620px}
 .dcal-in{margin-top:10px;border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:14px}
 .dcal-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
 .dcal-h b{font-weight:400;font-size:13.5px;letter-spacing:.6px}
@@ -138,7 +138,7 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 .dcal-wd{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;margin-bottom:3px}
 .dcal-wd span{text-align:center;font-size:9.5px;letter-spacing:1px;color:var(--t4);text-transform:uppercase;padding:3px 0}
 .dcal-g{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px}
-.dcal-g button{aspect-ratio:1;border-radius:9px;font-size:12.5px;color:var(--t1);display:grid;place-items:center;position:relative;transition:background .15s,color .15s;font-variant-numeric:tabular-nums}
+.dcal-g button{height:38px;border-radius:9px;font-size:12.5px;color:var(--t1);display:grid;place-items:center;position:relative;transition:background .15s,color .15s;font-variant-numeric:tabular-nums}
 .dcal-g button:hover:not(:disabled){background:rgba(255,215,0,.09)}
 .dcal-g button:disabled{color:var(--t4);cursor:default}
 .dcal-g button.gap{color:var(--t3)}
@@ -594,7 +594,10 @@ let MOVEIN='';
 function computeStay(overrideRaw){const avail=new Date(L.availableFrom+'T00:00');const raw=overrideRaw!=null?overrideRaw:MOVEIN;const req=raw?new Date(raw+'T00:00'):null;
   const start=(!req||req<avail)?avail:req;const gap=req?Math.round((avail-req)/86400000):0;const di=dim(start.getFullYear(),start.getMonth());
   const rem=di-start.getDate()+1;const prorated=Math.round(L.price*rem/di);const full=rem===di;const total=prorated+L.deposit+L.agencyFee;
-  let end=null;if(DUR>0){end=new Date(start);end.setMonth(end.getMonth()+DUR);end.setDate(end.getDate()-1);}return{avail,req,start,end,gap,di,rem,prorated,full,total,fit:!req?'none':(req>=avail?'ok':'after')};}
+  let end=null;if(DUR>0){end=new Date(start);const sd=start.getDate();end.setMonth(end.getMonth()+DUR);
+    if(end.getDate()!==sd)end.setDate(0);           // month-end move-in: term ends on the target month's last day
+    else end.setDate(end.getDate()-1);}             // otherwise: through the day before the anniversary
+  return{avail,req,start,end,gap,di,rem,prorated,full,total,fit:!req?'none':(req>=avail?'ok':'after')};}
 function countUp(el,to){const from=parseInt(el.dataset.cur||'0',10);const t0=performance.now();
   if(matchMedia('(prefers-reduced-motion:reduce)').matches){el.textContent=eur(to);el.dataset.cur=to;return;}
   (function step(t){const p=Math.min(1,(t-t0)/480);const e=1-Math.pow(1-p,3);el.textContent=eur(Math.round(from+(to-from)*e));if(p<1)requestAnimationFrame(step);else{el.dataset.cur=to;if(from!==to){el.classList.add('landed');setTimeout(()=>el.classList.remove('landed'),420);}}})(performance.now());}
@@ -655,7 +658,11 @@ document.querySelectorAll('#durs button').forEach(b=>b.setAttribute('aria-presse
 let CALM=null,calOpen=false;
 const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 function calToggle(force){calOpen=force!=null?force:!calOpen;document.getElementById('dcal').classList.toggle('open',calOpen);document.getElementById('calBtn').setAttribute('aria-expanded',calOpen);if(calOpen)calPaint();}
-function calShift(n){CALM.setMonth(CALM.getMonth()+n);calPaint();}
+document.addEventListener('click',e=>{if(calOpen&&!e.target.closest('#dcal')&&!e.target.closest('#calBtn'))calToggle(false);});
+function calShift(n){CALM.setMonth(CALM.getMonth()+n);
+  const now=new Date(),floor=new Date(now.getFullYear(),now.getMonth(),1);
+  if(CALM<floor)CALM=floor;                          // nothing to pick in the past
+  calPaint();}
 function calHint(ds){const el=document.getElementById('calHint');if(!el)return;
   if(!ds){el.innerHTML='Free from <b>'+fmtD(new Date(L.availableFrom+'T00:00'))+'</b> — hover a day for its exact cost';return;}
   const s=computeStay(ds);
@@ -718,6 +725,7 @@ addEventListener('keydown',function(e){
   var lbEl=document.getElementById('lb'),lbOpen=lbEl&&lbEl.classList.contains('show');
   if(lbOpen&&(e.key==='ArrowLeft'||e.key==='ArrowRight')){lbBy(e.key==='ArrowLeft'?-1:1);return;}
   if(e.key!=='Escape')return;
+  if(typeof calOpen!=='undefined'&&calOpen){calToggle(false);return;}
   var lb=lbEl;if(lbOpen){closeLb();return;}
   var ov=document.querySelector('.ov.show');if(ov){closeOv(ov.id);return;}
   var mmEl=document.getElementById('mm');if(mmEl&&mmEl.classList.contains('on')){mmEl.classList.remove('on');var hb=document.getElementById('burger')||document.querySelector('.burger');if(hb){hb.classList.remove('on');hb.setAttribute('aria-expanded','false');}document.body.style.overflow='';}
