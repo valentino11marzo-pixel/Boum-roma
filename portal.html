@@ -9558,6 +9558,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         ${c.tenantPassGenerated && c.landlordPassGenerated ? `<span class="badge gold" style="font-size:9px"> Passes sent</span>` : ''}
                         ${c.signatureStatus === 'none' ? `<span class="badge orange" style="font-size:9px">○ Da firmare</span>` : (c.signatureStatus === 'partial' ? `<span class="badge gold" style="font-size:9px">◐ Firma parziale</span>` : '')}
                         ${c.signatureStatus === 'complete' && !c.finalizedAt ? `<span class="badge red" style="font-size:9px;cursor:pointer" onclick="event.stopPropagation();refinalizeContract('${c.id}')" title="Il post-firma (adempimenti/certificato/email) non è completo — clicca per rieseguirlo">⚠ Da rifinire · Rigenera</span>` : ''}
+                        ${Number(c.deposit) > 0 && (c.tenantSignature || c.signatureStatus === 'complete') ? (c.depositPaid ? `<span class="badge green" style="font-size:9px">💰 Deposito ✓</span>` : `<span class="badge orange" style="font-size:9px">💰 Deposito in attesa</span>`) : ''}
                     </div>
                     <div class="list-subtitle" style="margin-top:4px">
                         <span>👤 ${t?.name || 'N/A'}</span>
