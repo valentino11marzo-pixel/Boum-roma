@@ -716,18 +716,19 @@
     var moodName = 'browse', mood = MOODS.browse, moodCur = { tempo: 1, presence: 1 };
     var raf = 0, running = false, last = 0, t0 = 0, sceneClock = 0, tempoBoost = 0;
 
+    // instances are cached per key — sectional crossfades must not re-run
+    // heavy build() (noise buffers) every time the user scrolls back and forth
+    var CACHE = {};
     function instantiate(key) {
       if (!SCENES[key]) return null;
-      var s = SCENES[key]();
-      s.build(W, H);
-      return s;
+      if (!CACHE[key]) { CACHE[key] = SCENES[key](); CACHE[key].build(W, H); }
+      return CACHE[key];
     }
     function resize() {
       W = wrap.clientWidth; H = wrap.clientHeight;
       canvas.width = Math.max(1, W * dpr); canvas.height = Math.max(1, H * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      if (cur) cur.build(W, H);
-      if (nxt) nxt.build(W, H);
+      for (var k in CACHE) CACHE[k].build(W, H);
       if (!running) renderOnce();
     }
     function frame(now) {
