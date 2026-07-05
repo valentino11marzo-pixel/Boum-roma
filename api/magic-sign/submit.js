@@ -170,6 +170,16 @@ export default async function handler(req, res) {
     }
   }
 
+  // ── 2b. Deposit-at-signature ─────────────────────────────
+  // The tenant's success screen offers Stripe checkout for the security
+  // deposit the moment they sign. The payToken is the credential for
+  // /api/sign/deposit-checkout (the sign token is nulled by this request).
+  let depositPayToken = '';
+  if (role === 'tenant' && Number(contract.deposit || 0) > 0 && !contract.depositPaid) {
+    depositPayToken = contract.depositPayToken || crypto.randomBytes(24).toString('hex');
+    upd.depositPayToken = depositPayToken;
+  }
+
   // ── 3. Re-read contract to determine combined signature status ──
   let fresh;
   try { fresh = await fsGet('contracts/' + contractId); }
@@ -416,6 +426,12 @@ export default async function handler(req, res) {
     }).catch(e => console.warn('[magic-sign/submit] notify failed:', e.message));
   } catch (e) { /* never block the response */ }
 
+  // Deposit info for the tenant's success screen (Stripe checkout CTA).
+  const depositAmt = Number(contract.deposit || 0);
+  const deposit = (role === 'tenant' && depositAmt > 0 && !fresh.depositPaid && depositPayToken)
+    ? { required: true, amountEur: depositAmt, payToken: depositPayToken }
+    : null;
+
   return res.status(200).json({
     ok: true,
     role,
@@ -423,5 +439,6 @@ export default async function handler(req, res) {
     signatureStatus: upd.signatureStatus,
     fullySigned,
     finalized,
+    deposit,
   });
 }

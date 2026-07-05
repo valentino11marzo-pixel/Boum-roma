@@ -372,6 +372,20 @@
 
     // ═══════════════ BOOT ═══════════════
     document.addEventListener('DOMContentLoaded', function(){
+      // Stripe checkout return states (deposit-at-signature).
+      var DEP = (qs.get('deposit')||'').trim();
+      if(DEP==='success'){
+        centered(ICON_CHECK,'Deposit received','Your security deposit has been received and your home is secured. A receipt is on its way to your email — see you at key handover!',
+          '<a class="btn ghost" href="/portal.html" style="display:inline-flex;width:auto;padding:0 22px;margin-top:18px;align-items:center;justify-content:center;text-decoration:none">Go to portal</a>');
+        return;
+      }
+      if(DEP==='retry'){
+        var pt=(qs.get('pt')||'').trim();
+        centered(ICON_WARN,'Payment not completed','No charge was made. You can complete your security deposit whenever you’re ready — your signature is safely recorded.',
+          (pt?'<button class="btn" id="dep-pay" style="display:inline-flex;width:auto;padding:0 22px;margin-top:18px;align-items:center;justify-content:center">Pay the deposit</button>':SUPPORT));
+        var rb=document.getElementById('dep-pay'); if(rb) rb.onclick=function(){ startDepositCheckout(pt); };
+        return;
+      }
       // Tailored-PDF flow needs no Firebase (token-gated, no OTP/account).
       if(DEMO){ startDemo(); return; }
       if(CUSTOM){ loadCustom(); return; }
@@ -757,6 +771,7 @@
         }
         // Obligations + FES certificate + tenant magic link + welcome emails are
         // produced server-side by /api/magic-sign/submit on full completion.
+        S.depositInfo = j.deposit || null;   // deposit-at-signature CTA data
         renderSuccess(!!j.fullySigned);
       })
       .catch(function(){ var b=document.getElementById('s-sign'); if(b){ b.disabled=false; b.textContent='Sign contract'; } flash('Connection lost. Please try again.'); });
@@ -771,6 +786,17 @@
         ? ['Your contract is now active','Rent reminders are scheduled automatically','A confirmation is on its way to your email']
         : ['The other party will be notified to sign','You’ll get a confirmation once it’s fully signed'];
       FLOW.innerHTML='';
+      // Deposit-at-signature: the moment of maximum commitment is right after
+      // signing — offer the Stripe checkout for the security deposit here.
+      var depositHtml='';
+      if(S.role==='tenant' && S.depositInfo && S.depositInfo.required){
+        depositHtml=
+          '<div class="summary" style="margin-top:18px;text-align:left;border-color:rgba(233,199,102,.45)">'+
+            '<div class="prop"><div class="lbl">Secure your home</div></div>'+
+            '<p style="font-size:12.5px;color:var(--text-3);margin:-6px 0 12px;line-height:1.6">One last step: pay the <b style="color:var(--gold)">security deposit</b> to lock in your lease. Card payment, instant receipt, held per contract terms.</p>'+
+            '<button class="btn" id="dep-pay">Pay deposit — €'+Number(S.depositInfo.amountEur).toLocaleString('it-IT')+'</button>'+
+          '</div>';
+      }
       // Tenant activation goes through the server-issued 72h magic link that
       // finalize emails on completion — the previous inline email+password
       // form created an auth account with no users/{uid} doc and dead-ended
@@ -799,10 +825,29 @@
             '<div class="r"><span class="k">Signed</span><span class="v">'+new Date().toLocaleString('en-GB')+'</span></div>'+
             '<div class="r"><span class="k">Role</span><span class="v">'+roleLabel+'</span></div>'+
           '</div>'+
+          depositHtml+
           accountHtml+
           '<div class="next">'+nextItems.map(function(n){return '<div class="n">'+esc(n)+'</div>';}).join('')+'</div>'+
         '</div>'
       ));
+      var payBtn=document.getElementById('dep-pay');
+      if(payBtn) payBtn.onclick=function(){ startDepositCheckout(S.depositInfo.payToken); };
+    }
+
+    // Create the Stripe Checkout session for the security deposit and hand
+    // the browser over to Stripe. Completion is confirmed by the webhook.
+    function startDepositCheckout(payToken){
+      var b=document.getElementById('dep-pay');
+      if(b){ b.disabled=true; b.innerHTML='<span class="spin"></span>'; }
+      fetch('/api/sign/deposit-checkout',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ payToken: payToken }) })
+        .then(function(r){ return r.json().catch(function(){return {};}); })
+        .then(function(j){
+          if(j && j.url){ location.href=j.url; return; }
+          if(b){ b.disabled=false; b.textContent='Pay the deposit'; }
+          if(j && j.error==='already_paid') flash('Deposit already received ✓');
+          else flash('We couldn’t start the payment. Please try again.');
+        })
+        .catch(function(){ if(b){ b.disabled=false; b.textContent='Pay the deposit'; } flash('Connection lost. Please try again.'); });
     }
 
     // ═══════════════ TAILORED PDF (Magic Sign Custom) ═══════════════

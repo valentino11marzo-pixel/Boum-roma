@@ -104,6 +104,143 @@ async function writeDoc(collection, docId, data) {
   return r.json();
 }
 
+// Read a Firestore doc (plain JS object) with the admin token.
+function fsValToJs(v) {
+  if (!v) return null;
+  if (v.stringValue !== undefined) return v.stringValue;
+  if (v.booleanValue !== undefined) return v.booleanValue;
+  if (v.integerValue !== undefined) return parseInt(v.integerValue);
+  if (v.doubleValue !== undefined) return v.doubleValue;
+  if (v.timestampValue !== undefined) return v.timestampValue;
+  return null;
+}
+async function readDoc(path) {
+  const token = await firebaseIdToken();
+  const pid = process.env.FIREBASE_PROJECT_ID;
+  const r = await fetch(`https://firestore.googleapis.com/v1/projects/${pid}/databases/(default)/documents/${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!r.ok) return null;
+  const doc = await r.json();
+  const out = { id: doc.name?.split('/').pop() };
+  for (const [k, v] of Object.entries(doc.fields || {})) out[k] = fsValToJs(v);
+  return out;
+}
+// Patch specific fields (null clears the field) with the admin token.
+async function patchDoc(path, data) {
+  const token = await firebaseIdToken();
+  const pid = process.env.FIREBASE_PROJECT_ID;
+  const fields = {};
+  for (const [k, v] of Object.entries(data)) {
+    if (v === null) fields[k] = { nullValue: null };
+    else if (typeof v === 'string') fields[k] = { stringValue: v };
+    else if (typeof v === 'number') fields[k] = Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+    else if (typeof v === 'boolean') fields[k] = { booleanValue: v };
+    else fields[k] = { stringValue: String(v) };
+  }
+  const mask = Object.keys(data).map(f => `updateMask.fieldPaths=${f}`).join('&');
+  const r = await fetch(`https://firestore.googleapis.com/v1/projects/${pid}/databases/(default)/documents/${path}?${mask}`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields }),
+  });
+  if (!r.ok) throw new Error(`Firestore patch failed: ${r.status} ${await r.text()}`);
+}
+
+// DEPOSIT — deposit-at-signature: the tenant paid the security deposit from
+// the /sign success screen. Marks the contract, records the payment, wakes the
+// operator (agentNotifications → portal feed + Telegram cron), confirms by email.
+async function handleDeposit(res, session, m) {
+  const contractId = String(m.contractId || '').trim();
+  if (!contractId) return res.status(200).json({ received: true, error: 'no_contractId' });
+  const now = new Date().toISOString();
+  const amountEur = (session.amount_total || 0) / 100;
+
+  // Idempotency: payments doc keyed dep_{contractId}; writeDoc treats 409 as done.
+  try {
+    await patchDoc(`contracts/${contractId}`, {
+      depositPaid: true,
+      depositPaidAt: now,
+      depositAmountPaidEur: amountEur,
+      depositStripeSession: session.id,
+      depositPayToken: null,
+    });
+  } catch (err) { console.error('[deposit] contract patch:', err.message); }
+
+  let c = null;
+  try { c = await readDoc(`contracts/${contractId}`); } catch (_) {}
+
+  try {
+    await writeDoc('payments', 'dep_' + contractId, {
+      type: 'deposit',
+      contractId,
+      tenantId: (c && c.tenantId) || '',
+      propertyId: (c && c.propertyId) || '',
+      amount: amountEur,
+      month: 'deposito',
+      dueDate: now.slice(0, 10),
+      status: 'paid',
+      paidAt: now,
+      stripeSessionId: session.id,
+      createdAt: now,
+    });
+  } catch (err) { console.error('[deposit] payment write:', err.message); }
+
+  try {
+    await writeDoc('agentNotifications', 'deposit-' + contractId, {
+      type: 'payment.deposit',
+      summary: `💰 Deposito incassato: €${amountEur.toLocaleString('it-IT')} · contratto ${contractId}`,
+      priority: 'high',
+      status: 'pending',
+      actor: 'stripe-webhook',
+      dedupKey: 'deposit-' + contractId,
+      createdAt: now,
+      attempts: 0,
+    });
+  } catch (err) { console.error('[deposit] notify write:', err.message); }
+
+  const email = session.customer_email || (c && c.tenantEmail) || '';
+  try {
+    if (email) await sendEmailJS({
+      to_email: email,
+      heading: 'Deposit received ✓',
+      subheading: 'Your home is secured',
+      name: 'there',
+      intro: `We've received your security deposit of €${amountEur.toLocaleString('it-IT')}. Your lease is now fully in place — here's what happens next:`,
+      card_color: '#D4AF37',
+      card_title: 'Next steps',
+      r1_icon: '✓', r1_label: 'Deposit', r1_value: `€${amountEur.toLocaleString('it-IT')} received`,
+      r2_icon: '📋', r2_label: 'Contract', r2_value: 'Registered with Agenzia delle Entrate by BOOM',
+      r3_icon: '🔑', r3_label: 'Key handover', r3_value: 'We\'ll coordinate the date with you',
+      r4_icon: '💬', r4_label: 'Questions', r4_value: 'Reply to this email anytime',
+      closing: 'Welcome home. — BOOM Rome',
+      cta_text: 'Enter your portal',
+      portal_link: 'https://www.boomrome.com/portal.html',
+    });
+  } catch (err) { console.error('[deposit] tenant email:', err.message); }
+
+  try {
+    await sendEmailJS({
+      to_email: 'valentino@boom-rome.com',
+      heading: `💰 DEPOSIT PAID — €${amountEur.toLocaleString('it-IT')}`,
+      subheading: `Contratto ${contractId}`,
+      name: 'Valentino',
+      intro: 'Il deposito cauzionale è stato pagato via Stripe al momento della firma.',
+      card_color: '#D4AF37',
+      card_title: 'Dettagli',
+      r1_icon: '📄', r1_label: 'Contratto', r1_value: contractId,
+      r2_icon: '💶', r2_label: 'Importo', r2_value: `€${amountEur.toLocaleString('it-IT')}`,
+      r3_icon: '📧', r3_label: 'Email inquilino', r3_value: email || '—',
+      r4_icon: '🧾', r4_label: 'Stripe', r4_value: session.id,
+      closing: `Registrato in payments/dep_${contractId}. Il contratto è marcato depositPaid.`,
+      cta_text: 'Apri portale',
+      portal_link: 'https://www.boomrome.com/portal.html',
+    });
+  } catch (err) { console.error('[deposit] admin email:', err.message); }
+
+  return res.status(200).json({ received: true, deposit: true, contractId });
+}
+
 // RESERVE — a tenant paid a refundable holding deposit to reserve an apartment.
 async function handleReserve(res, session, m) {
   const docId = session.id.replace(/[^a-zA-Z0-9]/g, '').substring(0, 30);
@@ -199,6 +336,10 @@ export default async function handler(req, res) {
 
   const session = event.data.object;
   const m = session.metadata || {};
+
+  if (m.service === 'DEPOSIT') {
+    return handleDeposit(res, session, m);
+  }
 
   if (m.service === 'RESERVE') {
     return handleReserve(res, session, m);

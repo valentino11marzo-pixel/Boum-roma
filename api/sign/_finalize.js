@@ -123,6 +123,11 @@ export async function finalizeContract(contract){
   const landlordEmail = (landlord && landlord.email) || contract.landlordEmail || '';
   const landlordName = (landlord && landlord.name) || contract.landlordName || 'there';
   const certLine = certUrl ? `<p style="margin:14px 0 0;font-size:13px"><a href="${esc(certUrl)}" style="color:${GOLD};text-decoration:none">⬇ Download your signing certificate (PDF)</a></p>` : '';
+  // Deposit recovery path: if the tenant closed the /sign page without paying,
+  // the welcome email carries the same Stripe checkout link.
+  const depLine = (!contract.depositPaid && contract.depositPayToken && Number(contract.deposit || 0) > 0)
+    ? `<p style="margin:16px 0 0">${btn(`${BASE}/sign?deposit=retry&pt=${encodeURIComponent(contract.depositPayToken)}`, 'Pay the deposit — €' + Number(contract.deposit).toLocaleString('it-IT'))}</p>`
+    : '';
 
   // Both emails run in parallel with a hard timeout: nodemailer has no socket
   // timeout configured, and this runs inside the signer's request — a stalled
@@ -141,6 +146,7 @@ export async function finalizeContract(contract){
           <p style="margin:0 0 14px">Hi ${esc(tenantName)},</p>
           <p style="margin:0 0 18px">Your lease for <b>${esc(propLabel || 'your new home')}</b> is now <b style="color:${GOLD}">fully signed and active</b>. One tap and you’re in your portal — documents, payments and support in one place.</p>
           ${btn(portalLink, 'Enter my portal')}
+          ${depLine}
           ${certLine}
           <p style="margin:18px 0 6px;font-size:13px;color:#666">Prefer a password? Open the portal above, then choose <b>“Set a password”</b> to make it permanent. This one‑tap link expires in 72 hours.</p>
           <div style="margin:22px 0 6px;border-top:1px solid #eee"></div>
