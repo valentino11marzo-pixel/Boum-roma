@@ -321,6 +321,39 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
 .xc{font-size:21px;color:var(--t2);width:36px;height:36px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}.chips button{border:1px solid var(--line);background:var(--card);border-radius:100px;padding:10px 13px;font-size:12.5px}.chips button:hover{border-color:var(--line-gold)}
 .aimsg{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:15px;font-size:13.5px;color:var(--t2);margin-bottom:10px}.aimsg b{color:var(--t1)}
+
+/* ── the pre-agreement: a document, issued to you ── */
+.pa{margin-top:16px;position:relative;border:1px solid var(--line-gold);border-radius:16px;background:linear-gradient(180deg,#141416,#0E0E10);box-shadow:0 10px 34px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.045);overflow:hidden}
+.pa::before{content:"";position:absolute;top:0;left:16px;right:16px;height:1px;background:linear-gradient(90deg,transparent,rgba(255,215,0,.42),transparent)}
+.pa-h{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:17px 18px 13px;border-bottom:1px solid var(--line-soft)}
+.pa-h .cap{font-size:9.5px;letter-spacing:2.6px;text-transform:uppercase;color:var(--gold);font-weight:600}
+.pa-h h4{font-family:var(--disp);font-weight:300;font-size:17px;margin-top:4px;letter-spacing:-.2px}
+.pa-seal{flex:none;color:var(--gold);opacity:.92}
+.pa-part{display:flex;align-items:center;gap:9px;padding:11px 18px;border-bottom:1px solid var(--line-soft);font-size:12.5px;color:var(--t3);flex-wrap:wrap}
+.pa-part b{color:var(--t1);font-weight:400}
+.pa-part .x{color:var(--gold);display:inline-flex;flex:none}
+.pa-rows{padding:5px 18px 7px}
+.pa-row{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:9px 0;border-bottom:1px dashed rgba(255,255,255,.07);font-size:13.5px}
+.pa-rows .pa-row:last-child{border-bottom:0}
+.pa-row .k{color:var(--t3);font-size:10.5px;letter-spacing:1px;text-transform:uppercase;flex:none}
+.pa-row .v{font-family:var(--disp);font-variant-numeric:tabular-nums;text-align:right;min-width:0}
+.pa-row .v small{color:var(--t3);font-size:11px;font-family:var(--sans);letter-spacing:.2px}
+.pa-tot{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:13px 18px;background:linear-gradient(90deg,var(--gold-muted),transparent);border-top:1px solid var(--line-gold)}
+.pa-tot .k{font-size:10.5px;letter-spacing:1.6px;text-transform:uppercase;color:var(--gold);font-weight:600}
+.pa-tot .k small{display:block;letter-spacing:.3px;text-transform:none;color:var(--t3);font-weight:300;font-size:10.5px;margin-top:3px}
+.pa-tot .v{font-family:var(--disp);font-size:22px;font-weight:200;color:var(--gold);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pa-terms{padding:11px 18px 13px;border-top:1px solid var(--line-soft)}
+.pa-term{display:flex;gap:9px;align-items:flex-start;padding:5px 0;font-size:12.5px;color:var(--t2)}
+.pa-term .c{color:var(--green);flex:none}
+.pa-ref{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line-gold);background:var(--gold-faint);border-radius:100px;padding:8px 16px;font-size:13px;letter-spacing:1.8px;color:var(--gold);font-variant-numeric:tabular-nums;font-family:var(--disp)}
+.pa-consent{display:flex;gap:11px;align-items:flex-start;margin-top:14px;padding:13px 15px;border:1px solid var(--line);border-radius:13px;background:var(--card);font-size:13px;color:var(--t2);cursor:pointer;transition:border-color .25s,color .25s}
+.pa-consent input{accent-color:var(--gold);width:18px;height:18px;flex:none;margin-top:1px;cursor:pointer}
+.pa-consent:hover{border-color:var(--line-gold)}
+.pa-consent:has(input:checked){border-color:var(--line-gold);color:var(--t1);background:var(--gold-faint)}
+.gbtn:disabled,.gbtn:disabled:hover{opacity:.38;cursor:not-allowed;transform:none;filter:grayscale(.45);box-shadow:none}
+@media(prefers-reduced-motion:no-preference){
+  .pa-print{opacity:0;animation:seqIn .45s cubic-bezier(.16,1,.3,1) both}
+}
 .lb{position:fixed;inset:0;z-index:160;background:rgba(3,3,3,.95);opacity:0;pointer-events:none;transition:.3s;display:grid;place-items:center;padding:24px}
 .lb.show{opacity:1;pointer-events:auto}.lb img{max-width:94vw;max-height:86vh;border-radius:12px}.lb .xc{position:absolute;top:20px;right:20px}
 .lb .arrow{display:grid}.lb .lbcount{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);font-size:11px;letter-spacing:2px;color:var(--t3);font-variant-numeric:tabular-nums}
@@ -593,7 +626,7 @@ try{
 }catch(_e){}
 </script>
 <script>
-let L={name:"Bright Attic in Trastevere",zone:"Trastevere",price:1500,deposit:1500,agencyFee:0,beds:2,baths:1,sqm:65,floor:3,furnished:true,availableFrom:"2026-09-01",lat:41.8867,lng:12.4692,
+let L={name:"Bright Attic in Trastevere",zone:"Trastevere",price:1500,deposit:1500,agencyFee:1800,beds:2,baths:1,sqm:65,floor:3,furnished:true,availableFrom:"2026-09-01",lat:41.8867,lng:12.4692,
   images:[["1502672260266-1c1ef2d93688","Living"],["1505691938895-1758d7feb511","Bedroom"],["1484154218962-a197022b5858","Kitchen"],["1493809842364-78817add7ffb","Terrace"],["1560448204-e02f11c3d0e2","Bathroom"]],
   features:["Furnished","Private terrace","Double aspect","Air conditioning","Washer","Fibre Wi-Fi","Elevator","Eat-in kitchen"],
   nearby:[["🚇","Trastevere station","Trains + tram","8 min"],["🎓","Sapienza University","Main campus","16 min"],["🛒","Conad supermarket","Daily groceries","4 min"],["🏛️","Piazza Navona","Historic centre","19 min"]],
@@ -645,7 +678,7 @@ function render(){const s=computeStay();let av;
   document.getElementById('srows').innerHTML=`
     <div class="srow" data-key="first"><span class="k">First month${s.full?'':` <span class="note">(pro-rata, ${s.rem}/${s.di} d)</span>`}</span><span class="v">${eur(s.prorated)}</span></div>
     <div class="srow" data-key="deposit"><span class="k">Deposit <span class="note">refundable</span></span><span class="v">${eur(L.deposit)}</span></div>
-    <div class="srow" data-key="fee"><span class="k">Agency fee</span><span class="v">${L.agencyFee?eur(L.agencyFee):'€0'}</span></div>
+    <div class="srow" data-key="fee"><span class="k">Agency fee${L.agencyFee?' <span class="note">one-off · 10% of annual rent</span>':''}</span><span class="v">${L.agencyFee?eur(L.agencyFee):'€0'}</span></div>
     <div class="srow tot" data-key="total"><span class="k">To move in${s.fit==='none'?'':` ${fmtS(s.start)}`}</span><span class="v" id="totV">${eur(s.total)}</span></div>
     ${s.end?`<div class="srow" data-key="until"><span class="k">Stay until</span><span class="v">${fmtD(s.end)}</span></div>`:''}`;
   const tv=document.getElementById('totV');if(tv)countUp(tv,s.total);
@@ -655,7 +688,7 @@ function render(){const s=computeStay();let av;
   document.getElementById('mtiles').innerHTML=[
     ['first','First month',eur(s.prorated),s.full?'full rent':'pro-rata on your date'],
     ['deposit','Deposit',eur(L.deposit),'refundable at end'],
-    ['fee','Agency fee',L.agencyFee?eur(L.agencyFee):'€0',L.agencyFee?'one-off':'none, on this home'],
+    ['fee','Agency fee',L.agencyFee?eur(L.agencyFee):'€0',L.agencyFee?'one-off · 10% of annual rent':'none, on this home'],
     ['total','To move in',eur(s.total),s.fit==='none'?'from first open day':'for your dates',true]
   ].map(([key,k,v,sub,t])=>`<div class="mt ${t?'tot':''}" data-key="${key}"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${sub}</div></div>`).join('');
   /* acknowledge each changed value with a staggered settle */
@@ -732,18 +765,21 @@ function calPaint(){
   calHint(MOVEIN||null);
 }
 
-const DEC=[['First month','The only rent to move in — you’d pay it anywhere. Mid-month, you pay only the days you live.',''],
-['The deposit','Security, not a cost: protected, returned at the end of your stay net of any damage.','refundable'],
-['Agency fee','€0 on this home. When there is one, it’s once and stated up front — never a surprise.','€0'],
-['Monthly bills','Condominio and utilities: the real monthly picture, clear before you sign.',''],
-['No envelopes','Every euro through Stripe, with a receipt. No cash, no invented “check-in fees”.','']];
-document.getElementById('dinner').innerHTML=DEC.map(([h,p,a])=>`<div class="dcd"><h4>${h}${a?` · <span class="amt">${a}</span>`:''}</h4><p>${p}</p></div>`).join('');
+function paintDecoded(){
+  const DEC=[['First month','The only rent to move in — you’d pay it anywhere. Mid-month, you pay only the days you live.',''],
+  ['The deposit','Security, not a cost: protected, returned at the end of your stay net of any damage.','refundable'],
+  ['Agency fee','Charged once, when you sign: 10% of the annual rent'+(L.agencyFee?' — '+eur(L.agencyFee)+' here':'')+'. Stated up front, on the receipt — never a surprise at the table.',L.agencyFee?eur(L.agencyFee):'€0'],
+  ['Monthly bills','Condominio and utilities: the real monthly picture, clear before you sign.',''],
+  ['No envelopes','Every euro through Stripe, with a receipt. No cash, no invented “check-in fees”.','']];
+  document.getElementById('dinner').innerHTML=DEC.map(([h,p,a])=>`<div class="dcd"><h4>${h}${a?` · <span class="amt">${a}</span>`:''}</h4><p>${p}</p></div>`).join('');
+}
+paintDecoded();
 function toggleDecode(){const d=document.getElementById('decoded');const o=d.classList.toggle('open');const b=document.getElementById('dtog');b.textContent=o?'− Hide the detail':'＋ See every euro, decoded';b.setAttribute('aria-expanded',o);}
 
 const FAQ=[['Can I move in on a different date than availability?','Yes. Set your date in “Your stay”: after availability you move in straight away; before it, we show the exact gap and can alert you or find an alternative.'],
 ['How fast can I really move in?','As fast as 48 hours from approval. We reply to every application within 2 hours and handle contract and keys.'],
 ['Is the contract legitimate?','Always: registered legal contract, ID-verified owner, protected deposit. We’re a licensed Rome agency (Egidi Immobiliare S.r.l.).'],
-['What do I actually pay to move in?','Only what you see in “Your stay”: first month + refundable deposit + any agency fee. Nothing else.'],
+['What do I actually pay to move in?','Only what you see in “Your stay”: first month + refundable deposit + the one-off agency fee (10% of the annual rent, stated up front). Nothing else.'],
 ['What happens after I move in?','Rent, documents, maintenance and your deposit are all managed in your BOOM app — the difference between us and a listings site.']];
 document.getElementById('faqList').innerHTML=FAQ.map(([q,a])=>`<div class="qa"><button class="q" onclick="this.parentNode.classList.toggle('open')"><span>${q}</span><span class="x">+</span></button><div class="a"><div>${a}</div></div></div>`).join('');
 
@@ -799,7 +835,7 @@ function boom3D(btn){
     host.appendChild(fb);});
 }
 document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)closeOv(o.id)}));
-const AI={'Total to move in?':'For your chosen dates the total is first month + refundable deposit + agency fee (€0 here). You see it live in “Your stay”.',
+const AI={'Total to move in?':'For your chosen dates the total is first month + refundable deposit + the one-off agency fee (10% of the annual rent, stated up front). You see it live in “Your stay”.',
 'How does the deposit work?':'Security, not a cost: held safely and returned at the end of your stay, net of any damage.',
 'How fast can I move in?':'As fast as 48 hours from approval. Set your date and we tell you instantly if it’s free.'};
 function aiAsk(b){const q=b.textContent;const t=document.getElementById('aiThread');
@@ -816,9 +852,11 @@ function resSubmit(){var inc=+(document.getElementById('rqInc')||{}).value||0;va
   if(!inc&&!guar){if(err){err.textContent='Tell us your income or tick the guarantor box — we can’t check otherwise.';err.style.display='block';}return;}
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){if(err){err.textContent='Add your email so we can confirm the outcome to you.';err.style.display='block';}return;}
   RES.email=em;RES.need=Math.round(L.price*2.5);RES.approved=(inc>=RES.need)||guar;RES.low=inc>0&&inc<RES.need*0.8;resStep(2);}
-function resHold(){try{navigator.vibrate&&navigator.vibrate(12)}catch(e){}/* production: redirect to Stripe Checkout (/api/reserve-checkout) */resStep(3);}
+function resHold(){var lk=document.getElementById('paLock');if(lk&&lk.disabled)return;try{navigator.vibrate&&navigator.vibrate(12)}catch(e){}/* production: redirect to Stripe Checkout (/api/reserve-checkout) */resStep(3);}
+/* the BOOM seal — hairline, currentColor, echoes the ◆ of the map facade */
+function paSealSVG(sz){return '<svg class="pa-seal" width="'+sz+'" height="'+sz+'" viewBox="0 0 48 48" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="24" cy="24" r="21.5" stroke-width="1"/><circle cx="24" cy="24" r="17" stroke-width=".7" stroke-dasharray="2.2 3.1" opacity=".6"/><circle cx="24" cy="24" r="12" stroke-width=".7" opacity=".85"/><path d="M24 17.5 29 24l-5 6.5L19 24z" fill="currentColor" stroke="none" opacity=".92"/></svg>';}
 function renderRes(){
-  var s=computeStay(),when=s.fit==='none'?'the first open date':fmtD(s.start),len=DUR?DUR+' months':'flexible',b=document.getElementById('applyBody');
+  var s=computeStay(),when=fmtD(s.start)+(s.fit==='none'?' (first open day)':''),whenDoc=fmtD(s.start)+(s.fit==='none'?' <small>· first open day</small>':''),len=DUR?DUR+' months':'flexible',b=document.getElementById('applyBody');
   var prog=function(p){return '<div style="height:3px;background:var(--line);border-radius:3px;overflow:hidden;margin-bottom:18px"><i style="display:block;height:100%;width:'+p+'%;background:linear-gradient(90deg,var(--gold),var(--gold-light));transition:width var(--d-4) var(--ease)"></i></div>';};
   var summary='<div class="aimsg" style="margin-top:16px"><div style="display:grid;gap:8px;font-size:13.5px"><div style="display:flex;justify-content:space-between"><span style="color:var(--t3)">Home</span><b>'+L.name+'</b></div><div style="display:flex;justify-content:space-between"><span style="color:var(--t3)">Move-in</span><b>'+when+'</b></div><div style="display:flex;justify-content:space-between"><span style="color:var(--t3)">Length</span><b>'+len+'</b></div><div style="display:flex;justify-content:space-between;border-top:1px solid var(--line);padding-top:8px"><span style="color:var(--t3)">To move in</span><b style="color:var(--gold)">'+eur(s.total)+'</b></div></div></div>';
   if(RES.step===1){
@@ -837,27 +875,64 @@ function renderRes(){
   } else if(RES.step===2){
     var ok=RES.approved;
     var verdict=ok
-      ? '<div style="display:flex;align-items:center;gap:9px;color:var(--green);font-weight:500;font-size:15px"><span style="width:26px;height:26px;border-radius:50%;background:var(--green-muted);display:grid;place-items:center">✓</span> Pre-approved</div><p style="color:var(--t2);font-size:13.5px;margin-top:8px">Great news — on these numbers you qualify for '+L.name+'. Lock it in before someone else does.</p>'
+      ? '<div style="display:flex;align-items:center;gap:9px;color:var(--green);font-weight:500;font-size:15px"><span style="width:26px;height:26px;border-radius:50%;background:var(--green-muted);display:grid;place-items:center">✓</span> Pre-approved</div><p style="color:var(--t2);font-size:13.5px;margin-top:8px">On these numbers, '+L.name+' can be yours. We’ve drawn up your pre-agreement — read it, accept, and lock the home.</p>'
       : '<div style="display:flex;align-items:center;gap:9px;color:var(--gold-light);font-weight:500;font-size:15px"><span style="width:26px;height:26px;border-radius:50%;background:var(--gold-muted);display:grid;place-items:center">!</span> One step to go</div><p style="color:var(--t2);font-size:13.5px;margin-top:8px">'+(RES.low?'Income is below the usual 2.5× rent (≈ '+eur(RES.need)+'/mo) on its own.':'Income is just under the usual 2.5× rent (≈ '+eur(RES.need)+'/mo).')+' A guarantor or a larger deposit usually solves it — we’ll guide you.</p>';
-    var cta;
-    if(RES.kind==='reserve'&&ok){
-      cta='<button class="gbtn" style="margin-top:16px" onclick="resHold()">Hold this home · €300 →</button>'
-        +'<div style="margin-top:12px;border:1px dashed var(--line-gold);border-radius:12px;padding:13px 15px;font-size:12.5px;color:var(--t2);line-height:1.6"><b style="color:var(--t1)">A fair hold, not a fee.</b> €300 takes '+L.name+' off the market for <b>48h</b> while we verify your documents. It’s <b>fully credited to your first month</b>, and <b>100% refunded</b> if we can’t proceed or you change your mind within 48h.</div>';
-    } else if(RES.kind==='reserve'){
-      cta='<a href="https://wa.me/393313251961" class="gbtn" style="margin-top:16px;text-decoration:none">Set up a guarantor with us →</a>';
+    if(ok){
+      var arr='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h13m0 0-3-3m3 3-3 3M20 15H7m0 0 3-3m-3 3 3 3"/></svg>';
+      var rows=[
+        ['The home',L.name+(L.zone?' <small>· '+L.zone+'</small>':'')],
+        ['Move-in',whenDoc],
+        ['Term',len],
+        ['Monthly rent',eur(L.price)+' <small>/mo</small>'],
+        ['Deposit',eur(L.deposit)+' <small>· refundable</small>'],
+        ['Agency fee',(L.agencyFee?eur(L.agencyFee):'€0')+' <small>· 10% of annual rent, once</small>']
+      ];
+      var terms=['Registered legal contract, filed with the Agenzia delle Entrate','Your deposit is protected — returned at the end of your stay','Keys in as little as 48 hours from approval','Cancel within 48 hours — your €300 comes back in full'];
+      b.innerHTML=prog(66)+verdict
+        +'<div class="pa" role="group" aria-label="Pre-agreement">'
+        +'<div class="pa-h pa-print"><div><div class="cap">Pre-agreement · Rome</div><h4>Reservation of the home</h4></div>'+paSealSVG(44)+'</div>'
+        +'<div class="pa-part pa-print"><span>Between</span> <b>BOOM · Egidi Immobiliare S.r.l.</b> <span class="x">'+arr+'</span> <b>You</b></div>'
+        +'<div class="pa-rows">'+rows.map(function(r){return '<div class="pa-row pa-print"><span class="k">'+r[0]+'</span><span class="v">'+r[1]+'</span></div>';}).join('')+'</div>'
+        +'<div class="pa-tot pa-print"><span class="k">Total to lock<small>'+eur(s.prorated)+' first month · '+eur(L.deposit)+' deposit · '+(L.agencyFee?eur(L.agencyFee):'€0')+' fee</small></span><span class="v">'+eur(s.total)+'</span></div>'
+        +'<div class="pa-terms">'+terms.map(function(t){return '<div class="pa-term pa-print"><span class="c">✓</span><span>'+t+'</span></div>';}).join('')+'</div>'
+        +'</div>'
+        +'<label class="pa-consent pa-print"><input type="checkbox" id="paConsent" onchange="document.getElementById(\'paLock\').disabled=!this.checked"><span>I’ve read and accept the pre-agreement terms</span></label>'
+        +'<button class="gbtn" id="paLock" disabled style="margin-top:14px" onclick="resHold()">Lock this home · €300 →</button>'
+        +'<p style="font-size:11px;color:var(--t3);margin-top:11px;text-align:center">€300 — credited to your first month · 100% refunded within 48h · Stripe-secured</p>'
+        +(RES.kind==='apply'?'<a href="https://wa.me/393313251961" class="obtn" style="margin-top:4px;text-decoration:none">Prefer to talk first? Message your advisor</a>':'');
     } else {
-      cta='<a href="https://wa.me/393313251961" class="gbtn" style="margin-top:16px;text-decoration:none">Continue your application →</a>'
-        +(ok?'<button class="obtn" style="margin-top:9px" onclick="RES.kind=\'reserve\';resStep(2)">Or secure it now — hold for 48h</button>':'');
+      var cta=(RES.kind==='reserve')
+        ? '<a href="https://wa.me/393313251961" class="gbtn" style="margin-top:16px;text-decoration:none">Set up a guarantor with us →</a>'
+        : '<a href="https://wa.me/393313251961" class="gbtn" style="margin-top:16px;text-decoration:none">Continue your application →</a>';
+      b.innerHTML=prog(66)+verdict+summary+cta+'<p style="font-size:11px;color:var(--t3);margin-top:12px;text-align:center">We reply within 2 hours · free, no commitment</p>';
     }
-    b.innerHTML=prog(66)+verdict+summary+cta+'<p style="font-size:11px;color:var(--t3);margin-top:12px;text-align:center">We reply within 2 hours · free, no commitment</p>';
   } else {
+    if(!RES.ref)RES.ref='BOOM-'+Date.now().toString(36).toUpperCase();
     b.innerHTML=prog(100)
-      +'<div style="text-align:center;padding:8px 0 4px"><div style="width:54px;height:54px;border-radius:50%;background:var(--green-muted);color:var(--green);display:grid;place-items:center;font-size:24px;margin:0 auto 14px">✓</div>'
-      +'<h3 style="font-family:var(--disp);font-weight:200;font-size:23px">Hold requested</h3>'
-      +'<p style="color:var(--t2);font-size:14px;margin-top:8px;max-width:36ch;margin-left:auto;margin-right:auto">'+L.name+' is set aside while we finalise. A BOOM advisor will confirm your 48-hour hold and payment link at <b style="color:var(--t1)">'+(RES.email||'your email')+'</b> within 2 hours.</p></div>'
-      +'<div class="aimsg" style="margin-top:14px;font-size:13px;color:var(--t2)"><b style="color:var(--t1)">€300 hold</b> · credited to your first month · 100% refunded if we can’t proceed, or if you change your mind within 48h.</div>'
+      +'<div style="text-align:center;padding:6px 0 2px">'
+      +'<div class="pa-print" style="display:flex;justify-content:center;color:var(--gold)">'+paSealSVG(52)+'</div>'
+      +'<div class="pa-print" style="font-size:10px;letter-spacing:2.6px;text-transform:uppercase;color:var(--gold);font-weight:600;margin-top:12px">Pre-agreement issued</div>'
+      +'<h3 class="pa-print" style="font-family:var(--disp);font-weight:200;font-size:23px;margin-top:6px">'+L.name+' is set aside.</h3>'
+      +'<p class="pa-print" style="color:var(--t2);font-size:13.5px;margin-top:8px;max-width:40ch;margin-left:auto;margin-right:auto">A BOOM advisor will confirm your 48-hour hold and payment link at <b style="color:var(--t1)">'+(RES.email||'your email')+'</b> within 2 hours.</p>'
+      +'<div class="pa-print" style="margin-top:14px"><span class="pa-ref">N° '+RES.ref+'</span></div>'
+      +'<p class="pa-print" style="font-size:11px;color:var(--t3);margin-top:9px">Quote this reference in any message — it’s your place in line.</p>'
+      +'</div>'
+      +'<div class="pa" role="group" aria-label="Issued pre-agreement">'
+      +'<div class="pa-h pa-print"><div><div class="cap">Pre-agreement · issued</div><h4>'+L.name+'</h4></div>'+paSealSVG(40)+'</div>'
+      +'<div class="pa-rows">'
+      +'<div class="pa-row pa-print"><span class="k">Reference</span><span class="v" style="color:var(--gold);letter-spacing:1.2px">'+RES.ref+'</span></div>'
+      +'<div class="pa-row pa-print"><span class="k">Move-in</span><span class="v">'+whenDoc+'</span></div>'
+      +'<div class="pa-row pa-print"><span class="k">Term</span><span class="v">'+len+'</span></div>'
+      +'<div class="pa-row pa-print"><span class="k">Hold window</span><span class="v">48 hours <small>· from confirmation</small></span></div>'
+      +'<div class="pa-row pa-print"><span class="k">Confirmation to</span><span class="v">'+(RES.email||'your email')+'</span></div>'
+      +'</div>'
+      +'<div class="pa-tot pa-print"><span class="k">Locked total<small>first month + deposit + agency fee</small></span><span class="v">'+eur(s.total)+'</span></div>'
+      +'</div>'
+      +'<div class="aimsg pa-print" style="margin-top:14px;font-size:13px;color:var(--t2)"><b style="color:var(--t1)">€300 hold</b> · credited to your first month · 100% refunded if we can’t proceed, or if you change your mind within 48h.</div>'
       +'<a href="https://wa.me/393313251961" class="gbtn" style="margin-top:14px;text-decoration:none">Talk to your advisor now →</a>';
   }
+  /* the document prints itself in — row by row, reduced-motion safe (CSS-gated) */
+  if(RES.step>1){var pp=b.querySelectorAll('.pa-print');for(var i=0;i<pp.length;i++)pp[i].style.animationDelay=(80+i*65)+'ms';}
 }
 
 /* ---- chrome ---- */
@@ -974,6 +1049,7 @@ function paintData(){
   CALM=null;if(!MOVEIN)try{document.getElementById('calLbl').textContent='Choose your date';}catch(e){}
   if(calOpen)calPaint();
   poiRows();
+  paintDecoded();
   render();
 }
 function mapReal(d){
@@ -982,7 +1058,7 @@ function mapReal(d){
   const rawAf=d.availableFrom||d.availableDate;const af=(typeof rawAf==='string'&&rawAf)?rawAf.slice(0,10):SAMPLE.availableFrom;
   const zone=d.zone||d.neighborhood||d.address||'Rome';
   const sameZone=/trastevere/i.test(zone);   // the sample nearby/similar are Trastevere-true; never show them elsewhere
-  return {name:d.name||d.title||'Apartment in Rome',zone:zone,price:+d.price||0,deposit:+d.deposit||+d.price||0,agencyFee:+d.agencyFee||0,beds:(d.beds!=null?d.beds:(d.bedrooms!=null?d.bedrooms:0)),baths:(d.bathrooms!=null?d.bathrooms:(d.baths!=null?d.baths:1)),sqm:d.sqm||d.size||0,floor:d.floor||1,furnished:(d.furnished===true)||/furnish/i.test(feat.join(' ')+' '+(d.description||'')),availableFrom:af,images:imgs.length?imgs:SAMPLE.images,features:feat.length?feat:SAMPLE.features,description:(typeof d.description==='string'&&d.description.trim())?d.description.trim():'',nearby:sameZone?SAMPLE.nearby:[],similar:sameZone?SAMPLE.similar:[],lat:+d.lat||SAMPLE.lat,lng:+d.lng||SAMPLE.lng};
+  return {name:d.name||d.title||'Apartment in Rome',zone:zone,price:+d.price||0,deposit:+d.deposit||+d.price||0,agencyFee:d.agencyFee!=null?(+d.agencyFee||0):Math.round((+d.price||0)*1.2),beds:(d.beds!=null?d.beds:(d.bedrooms!=null?d.bedrooms:0)),baths:(d.bathrooms!=null?d.bathrooms:(d.baths!=null?d.baths:1)),sqm:d.sqm||d.size||0,floor:d.floor||1,furnished:(d.furnished===true)||/furnish/i.test(feat.join(' ')+' '+(d.description||'')),availableFrom:af,images:imgs.length?imgs:SAMPLE.images,features:feat.length?feat:SAMPLE.features,description:(typeof d.description==='string'&&d.description.trim())?d.description.trim():'',nearby:sameZone?SAMPLE.nearby:[],similar:sameZone?SAMPLE.similar:[],lat:+d.lat||SAMPLE.lat,lng:+d.lng||SAMPLE.lng};
 }
 /* ═══ EXPERIENCE SEQUENCE — arrival choreography + chapter rail + money roll-up ═══ */
 const REDUCE_SEQ=matchMedia('(prefers-reduced-motion: reduce)').matches;

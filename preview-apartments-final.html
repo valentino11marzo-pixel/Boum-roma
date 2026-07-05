@@ -51,8 +51,15 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 
 /* hero + intent */
 .hero{padding:calc(var(--nav) + 26px) 0 6px}
-.hero h1{font-size:clamp(32px,6vw,56px);font-weight:200;letter-spacing:-.02em;line-height:1.06;max-width:16ch}
+.hero h1{font-size:clamp(32px,6vw,56px);font-weight:200;letter-spacing:-.02em;line-height:1.06;max-width:24ch}
 .hero p{color:var(--t2);font-size:clamp(15px,1.8vw,17px);margin-top:12px;max-width:52ch}
+/* trust pulse — live market numbers, computed once from the full inventory */
+.pulse{display:inline-flex;align-items:center;gap:9px;margin-top:14px;border:1px solid rgba(255,215,0,.18);background:rgba(255,215,0,.05);border-radius:100px;padding:8px 15px;font-size:12px;color:var(--t2);font-variant-numeric:tabular-nums;letter-spacing:.2px;max-width:100%}
+.pulse[hidden]{display:none}
+.pulse b{color:var(--gold);font-weight:600}
+.pulse #pulseTxt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pdot{flex:none;width:7px;height:7px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 0 rgba(255,215,0,.45);animation:pulsedot 2s var(--ease-inout) infinite}
+@keyframes pulsedot{0%{box-shadow:0 0 0 0 rgba(255,215,0,.45)}70%{box-shadow:0 0 0 7px rgba(255,215,0,0)}100%{box-shadow:0 0 0 7px rgba(255,215,0,0)}}
 .intent{margin-top:20px;display:grid;gap:10px;grid-template-columns:minmax(0,1fr);background:linear-gradient(180deg,rgba(18,18,20,.7),rgba(11,11,12,.7));border:1px solid var(--line-gold);border-radius:18px;padding:14px;backdrop-filter:blur(10px)}
 @media(min-width:680px){.intent{grid-template-columns:1.5fr 1fr 1fr auto;align-items:end}}
 .ifield label{display:block;font-size:9.5px;letter-spacing:1px;text-transform:uppercase;color:var(--t3);margin-bottom:6px}
@@ -96,10 +103,13 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 
 /* results header */
 .rhead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:18px 0 10px}
+.rhead>div:first-child{flex:1 1 300px;min-width:0;max-width:100%}
 .rcount{font-size:14px}.rcount b{font-family:var(--disp);font-size:19px;font-weight:200;color:var(--gold)}
-.facets{display:flex;gap:7px;flex-wrap:wrap;margin-top:6px}
-.facet{font-size:11.5px;color:var(--t3);border:1px solid var(--line);border-radius:100px;padding:7px 12px;cursor:pointer;transition:.2s;min-height:34px;display:inline-flex;align-items:center;gap:5px}.facet:hover{color:var(--gold);border-color:var(--line-gold)}.facet.on{color:var(--gold);border-color:var(--gold);background:var(--gold-faint)}.facet b{color:var(--t2)}.facet.on b{color:var(--gold)}
-.rtools{display:flex;gap:8px;align-items:center}
+/* zone strip — every zone in the market, one scrollable row, fades follow the scroll */
+.facets{display:flex;gap:7px;flex-wrap:nowrap;margin-top:8px;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:2px 1px 4px;--fadeL:0px;--fadeR:0px;-webkit-mask-image:linear-gradient(90deg,transparent,#000 var(--fadeL),#000 calc(100% - var(--fadeR)),transparent);mask-image:linear-gradient(90deg,transparent,#000 var(--fadeL),#000 calc(100% - var(--fadeR)),transparent)}
+.facets::-webkit-scrollbar{display:none}
+.facet{flex:0 0 auto;white-space:nowrap;font-size:11.5px;color:var(--t3);border:1px solid var(--line);border-radius:100px;padding:7px 12px;cursor:pointer;transition:.2s;min-height:34px;display:inline-flex;align-items:center;gap:5px}.facet:hover{color:var(--gold);border-color:var(--line-gold)}.facet.on{color:var(--gold);border-color:var(--gold);background:var(--gold-faint)}.facet b{color:var(--t2)}.facet.on b{color:var(--gold)}
+.rtools{display:flex;gap:8px;align-items:center;flex:none}
 .rtools select{background:var(--input);border:1px solid var(--line);border-radius:10px;color:var(--t1);font-family:inherit;font-size:13px;padding:9px 12px}
 .viewtog{display:flex;align-items:stretch;border:1px solid rgba(255,215,0,.35);border-radius:10px;overflow:hidden;box-shadow:0 0 18px rgba(255,215,0,.08)}
 /* the embedded Skyline's chrome */
@@ -244,8 +254,9 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
 <div class="shell">
   <header class="hero">
     <span class="eyebrow">BOOM · Verified homes in Rome</span>
-    <h1>Rome, <span class="g" style="white-space:nowrap">on your terms.</span></h1>
+    <h1>Find your home in Rome, <span class="g" style="white-space:nowrap">for your dates.</span></h1>
     <p>Every home filmed and verified in person. Every price computed to the euro. Tell us your dates — we rank the city by how well it fits your life.</p>
+    <div class="pulse" id="pulse" aria-live="polite" hidden><span class="pdot" aria-hidden="true"></span><span id="pulseTxt"></span></div>
     <div class="intent">
       <div class="ifield isearch"><label for="q">Search</label><span class="ic" aria-hidden="true">⌕</span><input id="q" type="text" placeholder="Zone, street, landmark…" autocomplete="off"></div>
       <div class="ifield"><label for="budget">Max budget /month</label><select id="budget"><option value="4000">Any</option><option value="1000">€1,000</option><option value="1500">€1,500</option><option value="2000">€2,000</option><option value="2500">€2,500</option><option value="3000">€3,000</option></select></div>
@@ -507,10 +518,14 @@ function render(){
   var _ac=activeCount();document.getElementById('fcount').textContent=_ac||'';
   document.getElementById('savedCnt').textContent=saved.size||'';
   document.getElementById('clearAll').style.display=_ac?'inline-flex':'none';document.getElementById('clearCnt').textContent=_ac;
-  /* facets from the pre-zone-filtered set so zones stay explorable */
+  /* zone strip: every zone in the data (plus the canon), counts from the
+     pre-zone-filtered set so zones stay explorable; selected first, then by count */
   const preZone=L.filter(l=>{const z=S.zones;S.zones=[];const ok=pass(l);S.zones=z;return ok;});
   const fc={};preZone.forEach(l=>fc[l.zone]=(fc[l.zone]||0)+1);
-  document.getElementById('facets').innerHTML=Object.entries(fc).sort((a,b)=>b[1]-a[1]).slice(0,7).map(([z,n])=>`<button class="facet${S.zones.includes(z)?' on':''}" aria-pressed="${S.zones.includes(z)}" onclick="quickZone('${z.replace(/'/g,"\\'")}')"><b>${n}</b> ${z}</button>`).join('');
+  const allZ=[...new Set([...L.map(l=>l.zone),...ZONES])].map(z=>[z,fc[z]||0])
+    .sort((a,b)=>{const sa=S.zones.includes(a[0]),sb=S.zones.includes(b[0]);if(sa!==sb)return sa?-1:1;return b[1]-a[1]||a[0].localeCompare(b[0]);});
+  document.getElementById('facets').innerHTML=allZ.map(([z,n])=>`<button class="facet${S.zones.includes(z)?' on':''}" aria-pressed="${S.zones.includes(z)}" onclick="quickZone('${z.replace(/'/g,"\\'")}')"><b>${n}</b> ${z}</button>`).join('');
+  facetFade();
   if(S.view==='map'){renderMap(list);grid.style.display='none';empty.style.display='none';}
   else{document.getElementById('mapview').classList.remove('on');grid.style.display='';
     if(!list.length){grid.innerHTML='';empty.style.display='';}else{empty.style.display='none';
@@ -618,7 +633,15 @@ function cycleBeds(){const i=BEDS.findIndex(b=>b[1]===S.beds);S.beds=BEDS[(i+1)%
 function toggleFurn(){S.furnished=!S.furnished;syncControls();render();}
 function toggleVideo(){S.video=!S.video;syncControls();render();}
 function toggleFeat(f){const i=S.feats.indexOf(f);if(i<0)S.feats.push(f);else S.feats.splice(i,1);syncControls();syncSheet();render();}
-function quickZone(z){const i=S.zones.indexOf(z);if(i<0)S.zones.push(z);else S.zones.splice(i,1);syncSheet();render();}
+function quickZone(z){const i=S.zones.indexOf(z),add=i<0;if(add)S.zones.push(z);else S.zones.splice(i,1);syncSheet();render();
+  if(add){const f=document.getElementById('facets');try{f.scrollTo({left:0,behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth'});}catch(e){f.scrollLeft=0;}}}
+/* edge fades follow the scroll: only fade where there is more strip to see */
+function facetFade(){const el=document.getElementById('facets');if(!el)return;
+  const max=el.scrollWidth-el.clientWidth;
+  el.style.setProperty('--fadeL',(max>4&&el.scrollLeft>4?26:0)+'px');
+  el.style.setProperty('--fadeR',(max-el.scrollLeft>4?26:0)+'px');}
+document.getElementById('facets').addEventListener('scroll',facetFade,{passive:true});
+addEventListener('resize',facetFade,{passive:true});
 function toggleSavedOnly(){S.savedOnly=!S.savedOnly;syncControls();render();}
 function setView(v){S.view=v;document.getElementById('vList').setAttribute('aria-selected',v==='list');document.getElementById('vMap').setAttribute('aria-selected',v==='map');syncControls();render();}
 
@@ -769,6 +792,21 @@ function restoreScroll(){
   }catch(_){}
 }
 
+/* ---------- trust pulse: whole-market numbers, computed once after data resolves ---------- */
+function trustPulse(){try{
+  const rent=L.filter(isRentable);if(!rent.length)return;
+  const nowN=rent.filter(l=>parseD(l.availableFrom)<=Date.now()).length;
+  const newN=rent.filter(l=>l.isNew).length;
+  const avg=Math.round(rent.reduce((s,l)=>s+(+l.price||0),0)/rent.length/50)*50;
+  const seg=[];
+  if(nowN)seg.push(`<b>${nowN}</b> available now`);
+  if(newN)seg.push(`<b>${newN}</b> new this week`);
+  if(avg)seg.push(`avg <b>${eur(avg)}</b>`);
+  if(!seg.length)return;
+  document.getElementById('pulseTxt').innerHTML=seg.join(' · ');
+  document.getElementById('pulse').hidden=false;
+}catch(e){}}
+
 /* ---------- boot ---------- */
 setCalLabel();
 document.getElementById('grid').innerHTML=Array.from({length:6},()=>'<div class="sk"><div class="ph"></div><div class="b"><div class="l" style="width:40%"></div><div class="l" style="width:80%"></div><div class="l" style="width:60%"></div></div></div>').join('');
@@ -776,7 +814,7 @@ hydrate();syncControls();document.getElementById('cmpN').textContent=cmp.size;do
 fetch('/api/listings',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{
   if(j&&j.ok&&Array.isArray(j.listings)&&j.listings.length){L=j.listings.filter(isRentable).map(mapReal);if(!L.length)L=SAMPLE;
     var _pc=document.querySelector('.proto');if(_pc)_pc.innerHTML='DISCOVERY · <b>live data</b> · '+L.length+' homes';}
-}).catch(()=>{}).finally(function(){render();restoreScroll();});
+}).catch(()=>{}).finally(function(){trustPulse();render();restoreScroll();});
 </script>
 </body>
 </html>
