@@ -129,12 +129,18 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 .pc .acts{position:absolute;top:10px;right:10px;display:flex;gap:6px}
 .iact{width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,.5);backdrop-filter:blur(8px);border:1px solid var(--line);display:grid;place-items:center;font-size:13px;transition:.2s}
 .iact:hover{border-color:var(--line-gold);color:var(--gold)}.iact.on{color:var(--gold);background:var(--gold-muted);border-color:var(--line-gold)}
-.pc .fit{position:absolute;bottom:10px;left:10px;background:var(--green-muted);color:var(--green);border-radius:100px;padding:5px 10px;font-size:11px;font-weight:600;backdrop-filter:blur(8px);cursor:help}
+.pc .fit{position:absolute;bottom:10px;left:10px;background:var(--green-muted);color:var(--green);border:none;font-family:inherit;border-radius:100px;padding:5px 10px;font-size:11px;font-weight:600;backdrop-filter:blur(8px);cursor:pointer;transition:.2s}
+.pc .fit:hover{filter:brightness(1.15)}
+.pc .fitx{position:absolute;left:10px;bottom:44px;z-index:6;min-width:170px;max-width:calc(100% - 20px);background:rgba(8,8,10,.95);border:1px solid var(--line-gold);border-radius:12px;padding:11px 13px;display:flex;flex-direction:column;gap:5px;font-size:11px;backdrop-filter:blur(12px);opacity:0;transform:translateY(5px);pointer-events:none;transition:opacity .25s var(--ease),transform .25s var(--ease)}
+.pc .fitx.show{opacity:1;transform:none;pointer-events:auto}
+.pc .fitx b{font-size:9.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:2px}
+.pc .fitx .pos{color:var(--t2)}.pc .fitx .neg{color:var(--t3)}
 .pc .b{padding:15px;display:flex;flex-direction:column;flex:1}
 .pc .z{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--gold)}
 .pc .n{font-family:var(--disp);font-size:17px;margin-top:5px;line-height:1.2}
 .pc .specs{display:flex;gap:12px;margin-top:9px;color:var(--t3);font-size:12px}.pc .specs span{display:inline-flex;align-items:center;gap:4px}
-.pc .avail{margin-top:9px;font-size:11.5px;color:var(--t2)}.pc .avail.after{color:var(--gold-light)}
+.pc .avail{margin-top:9px;font-size:11.5px;color:var(--t2)}.pc .avail.after{color:var(--gold-light)}.pc .avail.now{color:var(--green)}
+.pc .specs svg{color:var(--gold);opacity:.8}
 .pc .foot{margin-top:auto;padding-top:12px;display:flex;align-items:baseline;justify-content:space-between}
 .pc .pr{font-family:var(--disp);font-size:21px;font-weight:200;color:var(--gold)}.pc .pr small{font-size:12px;color:var(--t3)}
 .pc .pr .ov{font-size:10.5px;color:var(--amber);display:block;font-family:var(--sans)}
@@ -165,7 +171,7 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 .upsell h2{font-size:clamp(20px,3.6vw,28px);font-weight:200;margin-bottom:6px}.upsell .lead{color:var(--t2);font-size:14px;max-width:54ch;margin-bottom:18px}
 .ucards{display:grid;gap:12px;grid-template-columns:minmax(0,1fr)}@media(min-width:680px){.ucards{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .ucard{border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:18px;transition:.25s var(--ease)}.ucard:hover{border-color:var(--line-gold);transform:translateY(-3px)}
-.ucard .ico{font-size:18px}.ucard h4{font-family:var(--disp);font-weight:400;font-size:15px;margin:9px 0 5px}.ucard p{color:var(--t2);font-size:12.5px;margin-bottom:10px}.ucard a{color:var(--gold);font-size:13px}
+.ucard .ico{font-size:18px;color:var(--gold)}.ucard h4{font-family:var(--disp);font-weight:400;font-size:15px;margin:9px 0 5px}.ucard p{color:var(--t2);font-size:12.5px;margin-bottom:10px}.ucard a{color:var(--gold);font-size:13px}
 
 footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
 .fg{max-width:var(--maxw);margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:30px}@media(min-width:820px){.fg{grid-template-columns:minmax(0,1.6fr) repeat(3,minmax(0,1fr))}}
@@ -259,16 +265,17 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
 
   <div class="grid" id="grid"></div>
   <div class="mapview" id="mapview"></div>
-  <div class="empty" id="empty" style="display:none"><h3>No exact match</h3><p>Try widening the budget or dates — or <a href="#" onclick="saveSearchAct();return false">let us find it for you →</a></p></div>
+  <div class="empty" id="empty" style="display:none"><h3>No exact match</h3><p>Try widening the budget or dates — or <a href="#" onclick="saveSearchAct();return false">let us find it for you →</a></p>
+    <button type="button" class="facet" style="margin-top:16px" onclick="resetAll()">✕ Clear all filters</button></div>
 
   <section class="upsell">
     <div class="eyebrow">More than a portal</div>
     <h2>Not seeing the one? <span class="g">We’ll find it.</span></h2>
     <p class="lead">We’re an agency with a tech engine. Tell us your dates and budget and we hunt, verify and bring you the right home.</p>
     <div class="ucards">
-      <div class="ucard"><div class="ico">🎯</div><h4>Property Finding</h4><p>We search, verify and negotiate for your exact brief.</p><a href="#">Start a search →</a></div>
-      <div class="ucard"><div class="ico">🎥</div><h4>Virtual Viewing</h4><p>Can’t come to Rome? See it live on a video walk-through.</p><a href="#">Book a tour →</a></div>
-      <div class="ucard"><div class="ico">🛡️</div><h4>Deal Assistance</h4><p>Found one elsewhere? We verify the contract for you.</p><a href="#">Get protected →</a></div>
+      <div class="ucard"><div class="ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4"/></svg></div><h4>Property Finding</h4><p>We search, verify and negotiate for your exact brief.</p><a href="/property-finding">Start a search →</a></div>
+      <div class="ucard"><div class="ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="14" r="3.5"/></svg></div><h4>Virtual Viewing</h4><p>Can’t come to Rome? See it live on a video walk-through.</p><a href="https://wa.me/393313251961">Book a tour →</a></div>
+      <div class="ucard"><div class="ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.2 7.8-8 9-4.8-1.2-8-4.5-8-9V6z"/></svg></div><h4>Deal Assistance</h4><p>Found one elsewhere? We verify the contract for you.</p><a href="/deal-assistance">Get protected →</a></div>
     </div>
   </section>
 </div>
@@ -401,12 +408,12 @@ function syncControls(){
 
 /* ---------- scoring + filtering ---------- */
 function scoreParts(l){
-  let s=100, parts=[];
+  let s=86, parts=[];   // 86 baseline: bonuses have to be earned, so the numbers differentiate
   if(l.price>S.budgetMax){const pen=Math.min(45,(l.price-S.budgetMax)/S.budgetMax*120);s-=pen;parts.push('over budget −'+Math.round(pen));}
-  else if(S.budgetMax<4000){s+=6;parts.push('in budget +6');}
-  if(S.moveIn){const g=Math.round((parseD(l.availableFrom)-parseD(S.moveIn))/864e5);if(g>0){s-=Math.min(28,g*0.5);parts.push(g+'d after date');}else{s+=5;parts.push('free for your date +5');}}
-  if(S.zones.length){if(S.zones.includes(l.zone)){s+=10;parts.push('zone match +10');}else{s-=22;parts.push('other zone −22');}}
-  if(l.videoUrl){s+=4;parts.push('video +4');} if(l.features.includes('Furnished')){s+=2;} if(l.isNew){s+=3;parts.push('new +3');}
+  else if(S.budgetMax<4000){s+=4;parts.push('in budget +4');}
+  if(S.moveIn){const g=Math.round((parseD(l.availableFrom)-parseD(S.moveIn))/864e5);if(g>0){const pen=Math.min(28,g*0.5);s-=pen;parts.push(g+'d after date −'+Math.round(pen));}else{s+=4;parts.push('free for your date +4');}}
+  if(S.zones.length){if(S.zones.includes(l.zone)){s+=8;parts.push('zone match +8');}else{s-=22;parts.push('other zone −22');}}
+  if(l.videoUrl){s+=3;parts.push('video +3');} if(l.features.includes('Furnished')){s+=2;} if(l.isNew){s+=2;parts.push('new +2');}
   s-=l.createdAt*0.04;
   return {score:Math.max(35,Math.min(99,Math.round(s))),parts};
 }
@@ -426,18 +433,36 @@ function pass(l){
 function activeCount(){let n=0;if(S.beds)n++;if(S.baths)n++;if(S.furnished)n++;if(S.video)n++;n+=S.zones.length+S.feats.length;if(S.budgetMax<4000)n++;if(S.moveIn)n++;if(S.q)n++;if(S.savedOnly)n++;return n;}
 
 /* ---------- render ---------- */
+/* hairline SVG icons — currentColor, never OS emoji */
+const _svg=p=>'<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+p+'</svg>';
+const SVGI={
+  bed:_svg('<path d="M3 7v11m0-4h18v4m0-4v-3a3 3 0 0 0-3-3h-8v6"/><circle cx="6.5" cy="9.5" r="1.5"/>'),
+  bath:_svg('<path d="M4 12h16v2a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5v-2zM6 12V5a2 2 0 0 1 4 0"/>'),
+  ruler:_svg('<path d="M3 17 17 3l4 4L7 21zM8.5 15.5 10 17M11.5 12.5 13 14M14.5 9.5 16 11"/>')
+};
+/* the fit score explains itself — one tap, the ranking becomes arithmetic */
+function toggleFit(btn){
+  const x=btn.parentNode.querySelector('.fitx');if(!x)return;
+  const open=!x.classList.contains('show');
+  document.querySelectorAll('.fitx.show').forEach(e=>e.classList.remove('show'));
+  document.querySelectorAll('.fit[aria-expanded="true"]').forEach(b=>b.setAttribute('aria-expanded','false'));
+  if(open){x.classList.add('show');btn.setAttribute('aria-expanded','true');}
+}
+document.addEventListener('click',e=>{if(!e.target.closest('.fit')&&!e.target.closest('.fitx'))document.querySelectorAll('.fitx.show').forEach(x=>x.classList.remove('show'));});
 function cardHTML(l){
   const over=l.price>S.budgetMax, sp=scoreParts(l), gap=S.moveIn?Math.round((parseD(l.availableFrom)-parseD(S.moveIn))/864e5):0;
-  const av=gap>0?`<div class="avail after">Free ${fmtS(l.availableFrom)} · ${gap}d after your date</div>`:`<div class="avail">${parseD(l.availableFrom)<=Date.now()?'Available now':'Available '+fmtS(l.availableFrom)}</div>`;
-  const showFit=(S.budgetMax<4000||S.moveIn||S.zones.length);
+  const now=parseD(l.availableFrom)<=Date.now();
+  const av=gap>0?`<div class="avail after">Free ${fmtS(l.availableFrom)} · ${gap}d after your date</div>`:`<div class="avail${now?' now':''}">${now?'Available now':'Available '+fmtS(l.availableFrom)}</div>`;
+  const showFit=(S.sort==='match'||S.budgetMax<4000||S.moveIn||S.zones.length);
   const alt=(l.name+' — '+l.zone).replace(/"/g,'');
   return `<a class="pc" data-id="${l.id}" href="/listing/${encodeURIComponent(l.id)}" aria-label="${alt}, ${eur(l.price)} per month">
     <div class="ph"><img src="${l.img||''}" alt="${alt}" loading="lazy" data-blur-up onerror="this.style.opacity=0">
       <div class="badges">${l.videoUrl?'<span class="bdg video">▶ Video</span>':''}${l.isNew?'<span class="bdg new">New</span>':''}<span class="bdg avail">✓ Verified</span>${over?'<span class="bdg over">€'+Math.round(l.price-S.budgetMax)+' over</span>':''}</div>
       <div class="acts"><button class="iact${saved.has(l.id)?' on':''}" aria-pressed="${saved.has(l.id)}" onclick="event.preventDefault();event.stopPropagation();toggleSave('${l.id}',this)" aria-label="Save">♡</button><button class="iact cmp${cmp.has(l.id)?' on':''}" aria-pressed="${cmp.has(l.id)}" onclick="event.preventDefault();event.stopPropagation();toggleCmp('${l.id}',this)" aria-label="Add to compare">⇄</button></div>
-      ${showFit?`<span class="fit" title="Fit: ${sp.parts.join(' · ')||'baseline'}">${sp.score}% fit</span>`:''}</div>
+      ${showFit?`<button type="button" class="fit" aria-expanded="false" aria-label="Why ${sp.score} percent fit" onclick="event.preventDefault();event.stopPropagation();toggleFit(this)">${sp.score}% fit</button>
+      <div class="fitx" onclick="event.preventDefault();event.stopPropagation()"><b>Why this fit</b>${(sp.parts.length?sp.parts:['solid baseline']).map(p=>`<span class="${p.includes('−')?'neg':'pos'}">${p}</span>`).join('')}</div>`:''}</div>
     <div class="b"><div class="z">${l.zone}</div><div class="n">${l.name}</div>
-      <div class="specs"><span>🛏 ${l.beds||'Studio'}</span><span>🛁 ${l.baths}</span><span>📐 ${l.sqm} m²</span></div>
+      <div class="specs"><span>${SVGI.bed} ${l.beds||'Studio'}</span><span>${SVGI.bath} ${l.baths}</span><span>${SVGI.ruler} ${l.sqm} m²</span></div>
       ${av}
       <div class="foot"><div class="pr">${eur(l.price)} <small>/mo</small>${over?'<span class="ov">'+eur(l.price-S.budgetMax)+' over budget</span>':''}</div><span class="view">View →</span></div>
     </div></a>`;
