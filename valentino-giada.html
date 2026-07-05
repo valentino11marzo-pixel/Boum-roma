@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Valentino Egidi — VE/OS · Opzione 2030</title>
+<title>Valentino Egidi — VE/OS · Opzione Giada</title>
 <meta name="description" content="VE/OS — il sistema operativo immobiliare di Roma. Vendi al prezzo vero, guidato dai dati, firmato da un solo nome.">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#060708">
+<meta name="theme-color" content="#060908">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
@@ -20,7 +20,7 @@
    ═══════════════════════════════════════════════════════════════ */
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
-  --void:#060708;
+  --void:#060908;
   --glass:rgba(255,255,255,.045);
   --glass-2:rgba(255,255,255,.07);
   --gbord:rgba(255,255,255,.09);
@@ -28,10 +28,10 @@
   --tx:rgba(240,242,246,.94);
   --tx-2:rgba(240,242,246,.58);
   --tx-3:rgba(240,242,246,.32);
-  --plasma:#FF6A45;
-  --plasma-2:#FFA07F;
-  --plasma-glow:rgba(255,106,69,.5);
-  --plasma-soft:rgba(255,106,69,.12);
+  --plasma:#59E3B1;
+  --plasma-2:#A5F3D3;
+  --plasma-glow:rgba(89,227,177,.5);
+  --plasma-soft:rgba(89,227,177,.12);
   --gold:#E8C87A;
   --gold-2:#F6E3B0;
   --gold-soft:rgba(232,200,122,.14);
@@ -79,13 +79,13 @@ nav{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:100;widt
   display:flex;align-items:center;justify-content:space-between;padding:10px 10px 10px 20px;border-radius:14px;
   background:rgba(10,11,13,.55);border:1px solid var(--gbord);backdrop-filter:blur(22px) saturate(150%);-webkit-backdrop-filter:blur(22px) saturate(150%)}
 .brand{display:flex;align-items:center;gap:12px;font-size:13px;letter-spacing:.22em;text-transform:uppercase;font-weight:300}
-.brand .os{font-family:var(--mono);font-size:10px;color:var(--plasma);border:1px solid rgba(255,106,69,.35);padding:3px 8px;border-radius:5px;letter-spacing:.12em}
+.brand .os{font-family:var(--mono);font-size:10px;color:var(--plasma);border:1px solid rgba(89,227,177,.35);padding:3px 8px;border-radius:5px;letter-spacing:.12em}
 .nav-links{display:flex;gap:22px}
 .nav-links a{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--tx-2);transition:color .3s}
 .nav-links a:hover{color:var(--tx)}
 @media(max-width:900px){.nav-links{display:none}}
-.nav-cta{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#140a06;background:linear-gradient(180deg,var(--plasma-2),var(--plasma));padding:11px 18px;border-radius:9px;font-weight:500;transition:.35s var(--e1);box-shadow:0 0 24px rgba(255,106,69,.25)}
-.nav-cta:hover{transform:translateY(-1px);box-shadow:0 0 38px rgba(255,106,69,.45)}
+.nav-cta{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#04140D;background:linear-gradient(180deg,var(--plasma-2),var(--plasma));padding:11px 18px;border-radius:9px;font-weight:500;transition:.35s var(--e1);box-shadow:0 0 24px rgba(89,227,177,.25)}
+.nav-cta:hover{transform:translateY(-1px);box-shadow:0 0 38px rgba(89,227,177,.45)}
 
 /* ── SECTION SCAFFOLD ──────────────────────────────────────── */
 section{position:relative;padding:130px 0}
@@ -113,8 +113,8 @@ section{position:relative;padding:130px 0}
 .hero .sub{color:var(--tx-2);font-size:clamp(15px,1.7vw,19px);max-width:46ch;margin-top:22px}
 .hero .cta{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:36px}
 .btn{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;padding:16px 28px;border-radius:10px;transition:transform .35s var(--e1),box-shadow .35s,background .3s,border-color .3s;display:inline-flex;align-items:center;gap:10px;cursor:pointer;border:1px solid transparent}
-.btn-plasma{color:#140a06;background:linear-gradient(180deg,var(--plasma-2),var(--plasma));font-weight:500;box-shadow:0 0 30px rgba(255,106,69,.3)}
-.btn-plasma:hover{transform:translateY(-2px);box-shadow:0 8px 44px rgba(255,106,69,.5)}
+.btn-plasma{color:#04140D;background:linear-gradient(180deg,var(--plasma-2),var(--plasma));font-weight:500;box-shadow:0 0 30px rgba(89,227,177,.3)}
+.btn-plasma:hover{transform:translateY(-2px);box-shadow:0 8px 44px rgba(89,227,177,.5)}
 .btn-ghost{border-color:var(--gbord-2);color:var(--tx-2)}
 .btn-ghost:hover{color:var(--tx);border-color:rgba(255,255,255,.35)}
 .btn .ar{transition:transform .35s var(--e1)}.btn:hover .ar{transform:translateX(5px)}
@@ -140,7 +140,7 @@ section{position:relative;padding:130px 0}
   transition:transform .5s var(--e1),border-color .4s,background .4s}
 .tile:hover{transform:translateY(-5px);border-color:var(--gbord-2);background:var(--glass-2)}
 .tile::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .45s;border-radius:inherit;
-  background:radial-gradient(320px circle at var(--gx,50%) var(--gy,50%),rgba(255,106,69,.13),transparent 65%)}
+  background:radial-gradient(320px circle at var(--gx,50%) var(--gy,50%),rgba(89,227,177,.13),transparent 65%)}
 .tile:hover::before{opacity:1}
 .tile.w3{grid-column:span 3}.tile.w2{grid-column:span 2}.tile.w4{grid-column:span 4}
 @media(max-width:980px){.tile.w3,.tile.w2,.tile.w4{grid-column:span 2}}
@@ -160,7 +160,7 @@ section{position:relative;padding:130px 0}
   box-shadow:0 40px 90px -40px rgba(0,0,0,.8),inset 0 1px 0 rgba(255,255,255,.07);margin-top:52px}
 .con-bar{display:flex;align-items:center;gap:9px;padding:15px 20px;border-bottom:1px solid var(--gbord);font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--tx-3)}
 .con-bar .c{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.14)}
-.con-bar .c.r{background:rgba(255,106,69,.7)}
+.con-bar .c.r{background:rgba(89,227,177,.7)}
 .con-bar .stamp{margin-left:auto;color:var(--plasma)}
 .con-body{padding:26px 24px 30px;font-family:var(--mono);font-size:13.5px;line-height:2;min-height:230px}
 @media(max-width:640px){.con-body{font-size:12px;padding:20px 16px 24px}}
@@ -174,7 +174,7 @@ section{position:relative;padding:130px 0}
 @media(max-width:640px){.con-cmds{padding:0 16px 20px}}
 .con-cmds button{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--tx-2);background:var(--glass);border:1px solid var(--gbord);border-radius:8px;padding:9px 14px;cursor:pointer;transition:.3s var(--e1)}
 .con-cmds button:hover{color:var(--tx);border-color:var(--gbord-2)}
-.con-cmds button.on{color:#140a06;background:var(--plasma);border-color:var(--plasma);font-weight:500}
+.con-cmds button.on{color:#04140D;background:var(--plasma);border-color:var(--plasma);font-weight:500}
 .con-cta{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:0 24px 28px}
 @media(max-width:640px){.con-cta{padding:0 16px 22px}}
 .con-note{font-family:var(--mono);font-size:10.5px;color:var(--tx-3);letter-spacing:.04em}
@@ -276,7 +276,7 @@ body.cur-on{cursor:none}body.cur-on a,body.cur-on button{cursor:none}
   background:rgba(10,11,13,.7);border:1px solid var(--gbord);backdrop-filter:blur(18px);font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase}
 .pv b{padding:10px 15px;color:var(--tx);font-weight:500}.pv b .p{color:var(--plasma)}
 .pv a{padding:10px 14px;color:var(--tx-3);border-left:1px solid var(--gbord);transition:.25s}
-.pv a:hover{background:var(--plasma);color:#140a06}
+.pv a:hover{background:var(--plasma);color:#04140D}
 @media(max-width:900px){.pv{bottom:12px}}
 
 @media(prefers-reduced-motion:reduce){
@@ -328,7 +328,7 @@ body.cur-on{cursor:none}body.cur-on a,body.cur-on button{cursor:none}
   <div class="wrap">
     <div class="hero-panel rv in">
       <div class="hero-sys"><span class="dot"></span> <span class="ok">sistema attivo</span> · mediatore immobiliare · roma · MMXXX</div>
-      <h1>Il sistema operativo <span class="p">immobiliare</span> di Roma.</h1>
+      <h1>L'ecosistema <span class="p">immobiliare</span> di Roma.</h1>
       <p class="sub">Dati in tempo reale, media editoriali, automazioni — e un solo essere umano che risponde di tutto: io. Vendi casa al prezzo vero, guidato da un sistema costruito per l'onestà.</p>
       <div class="cta">
         <a href="#console" class="btn btn-plasma">Avvia la valutazione</a>
@@ -517,9 +517,9 @@ body.cur-on{cursor:none}body.cur-on a,body.cur-on button{cursor:none}
 
 <!-- option switcher -->
 <div class="pv">
-  <b>Opzione <span class="p">2030</span></b>
+  <b>Opzione <span class="p">Giada</span></b>
+  <a href="/valentino-2030">2030</a>
   <a href="/valentino-aurora">Aurora</a>
-  <a href="/valentino-giada">Giada</a>
   <a href="/valentino-lumen">Lumen</a>
   <a href="/valentino-egidi">Attuale →</a>
 </div>
@@ -536,9 +536,9 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 (function(){
   const boot=$('#boot');if(!boot)return;
   if(reduce){boot.remove();return;}
-  let seen=false;try{seen=sessionStorage.getItem('veos_boot')==='1';}catch(e){}
+  let seen=false;try{seen=sessionStorage.getItem('veos_boot_gi')==='1';}catch(e){}
   if(seen){boot.remove();return;}
-  try{sessionStorage.setItem('veos_boot','1');}catch(e){}
+  try{sessionStorage.setItem('veos_boot_gi','1');}catch(e){}
   const bar=$('#bootBar'),ln=$('#bootLn');
   const msgs=['caricamento kernel onestà…','mount /roma/centro-storico','avvio moduli dati…','0 copioni trovati','sistema pronto.'];
   let i=0;const iv=setInterval(()=>{i++;if(bar)bar.style.width=Math.min(100,i*22)+'%';
@@ -580,17 +580,17 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
   const A=[],B=[],C=[];
   for(let i=0;i<N;i++){
     const t=i/N;
-    { // A — elliptical amphitheatre, 4 tiers
-      const th=t*Math.PI*2*4+ (i%4)*.02, tier=i%4;
-      const R=250-tier*16, e=.72;
-      A.push({x:Math.cos(th)*R, y:-70+tier*46+(Math.random()-.5)*6, z:Math.sin(th)*R*e});
+    { // A — anello (torus)
+      const u=t*Math.PI*2*3, v=(i%9)/9*Math.PI*2;
+      const R=210,r=62;
+      A.push({x:(R+r*Math.cos(v))*Math.cos(u), y:r*Math.sin(v)*1.1, z:(R+r*Math.cos(v))*Math.sin(u)*.85});
     }
-    { // B — city plan lattice with a river gap
-      const cols=Math.ceil(Math.sqrt(N*1.4)), gx=i%cols, gz=Math.floor(i/cols);
-      let x=(gx-cols/2)*21, z=(gz-cols/2/1.4)*21;
-      const river=Math.sin(x*.012)*60;
-      if(Math.abs(z-river)<16)z+=38*(z>river?1:-1);
-      B.push({x, y:60-Math.random()*Math.random()*130, z});
+    { // B — i sette colli
+      const cols=Math.ceil(Math.sqrt(N*1.5)), gx=i%cols, gz=Math.floor(i/cols);
+      const x=(gx-cols/2)*23, z=(gz-cols/2/1.5)*23;
+      const H7=[[-160,-60],[-60,-120],[40,-70],[150,-110],[-110,60],[30,90],[140,40]];
+      let y=70; H7.forEach(h=>{const d2=(x-h[0])*(x-h[0])+(z-h[1])*(z-h[1]);y-=Math.exp(-d2/6500)*95;});
+      B.push({x,y,z});
     }
     { // C — nine data columns (zone prices)
       const P=[8000,6500,6200,6800,6000,6500,5200,3800,4200];
@@ -616,7 +616,7 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
   /* gold blend near BOOM section (~.78-.92 of page) */
   function accColor(t){
     const g=clamp((t-.72)/.1,0,1);
-    const r=Math.round(lerp(255,232,g)),gg=Math.round(lerp(106,200,g)),b=Math.round(lerp(69,122,g));
+    const r=Math.round(lerp(89,232,g)),gg=Math.round(lerp(227,200,g)),b=Math.round(lerp(177,122,g));
     return[r,gg,b];
   }
   let vis=true;
@@ -681,10 +681,10 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
       const W=r.width,H=r.height,X=i=>i/(data.length-1)*W,Y=v=>H-4-v*(H-8);
       const n=Math.max(2,Math.round(data.length*prog));
       ctx.beginPath();ctx.moveTo(X(0),H);for(let i=0;i<n;i++)ctx.lineTo(X(i),Y(data[i]));ctx.lineTo(X(n-1),H);ctx.closePath();
-      ctx.fillStyle='rgba(255,106,69,.12)';ctx.fill();
+      ctx.fillStyle='rgba(89,227,177,.12)';ctx.fill();
       ctx.beginPath();for(let i=0;i<n;i++){i?ctx.lineTo(X(i),Y(data[i])):ctx.moveTo(X(i),Y(data[i]));}
-      ctx.strokeStyle='#FF6A45';ctx.lineWidth=1.6;ctx.stroke();
-      ctx.beginPath();ctx.arc(X(n-1),Y(data[n-1]),2.4,0,6.283);ctx.fillStyle='#FF6A45';ctx.fill();};
+      ctx.strokeStyle='#59E3B1';ctx.lineWidth=1.6;ctx.stroke();
+      ctx.beginPath();ctx.arc(X(n-1),Y(data[n-1]),2.4,0,6.283);ctx.fillStyle='#59E3B1';ctx.fill();};
     if(reduce||!('IntersectionObserver'in window)){draw(1);return;}
     new IntersectionObserver((es,o)=>es.forEach(e=>{if(!e.isIntersecting)return;o.disconnect();
       let s=null;(function fr(t){if(!s)s=t;const p=Math.min((t-s)/1200,1);draw(1-Math.pow(1-p,3));if(p<1)requestAnimationFrame(fr);})(performance.now());
