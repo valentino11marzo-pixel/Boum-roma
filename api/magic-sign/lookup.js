@@ -14,12 +14,13 @@
 //            400 { ok:false, error:'missing_token' }
 
 import { fsGet, readJson } from '../homie/_lib.js';
-import { findContractByToken, setCors } from './_shared.js';
+import { findContractByToken, setCors, rateOk } from './_shared.js';
 
 export default async function handler(req, res) {
   setCors(req, res);
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
+  if (!rateOk(req, 30)) { res.setHeader('Retry-After', '60'); return res.status(429).json({ ok: false, error: 'rate_limited' }); }
 
   let body;
   try { body = await readJson(req); }
@@ -87,13 +88,29 @@ export default async function handler(req, res) {
     ownerId: property.ownerId || null,
   };
   const safeUser = (u) => ({ id: u.id || null, name: u.name || '', email: u.email || '' });
+  // The SIGNER's own identity is returned in full: the single-use token is the
+  // credential, and /submit already lets its holder WRITE these same fields.
+  // This powers the one-tap "Confirm your details" step. Normalized across the
+  // two user schemas in use (wizard: codiceFiscale/birthDate/…; sign: cf/dob/…).
+  // The other party stays minimal (name/email only).
+  const signerIdentity = (u) => ({
+    ...safeUser(u),
+    cf: u.cf || u.codiceFiscale || '',
+    dob: u.dob || u.birthDate || '',
+    pob: u.pob || u.birthPlace || '',
+    address: u.address || '',
+    docType: u.docType || u.idDocType || '',
+    docNum: u.docNum || u.idDocNumber || '',
+    nationality: u.nationality || '',
+    phone: u.phone || '',
+  });
 
   return res.status(200).json({
     ok: true,
     role,
     contract: sanitizedContract,
     property: sanitizedProperty,
-    signer: safeUser(signer),
+    signer: signerIdentity(signer),
     otherParty: safeUser(otherParty),
   });
 }

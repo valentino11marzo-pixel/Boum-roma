@@ -64,11 +64,27 @@ export async function commitWrites(writes) {
 
 export function setCors(req, res) {
   const origin = req.headers.origin || '';
+  // Own domains + THIS project's Vercel previews only — a bare endsWith
+  // ('.vercel.app') would whitelist anyone's Vercel deployment.
   const allowed = ['https://www.boomrome.com', 'https://boomrome.com'];
-  if (allowed.includes(origin) || origin.endsWith('.vercel.app')) {
+  const isPreview = origin.startsWith('https://boum-roma-') && origin.endsWith('.vercel.app');
+  if (allowed.includes(origin) || isPreview) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
   }
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+}
+
+// Best-effort per-IP rate limit (per warm instance) — same pattern as
+// api/sign/custom/*. Returns false when the caller is over the window cap.
+const RL = new Map();
+export function rateOk(req, max = 30, windowMs = 60_000) {
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+    || req.headers['x-real-ip'] || req.socket?.remoteAddress || 'unknown';
+  const now = Date.now();
+  const e = RL.get(ip);
+  if (!e || now - e.t >= windowMs) { RL.set(ip, { c: 1, t: now }); return true; }
+  e.c += 1;
+  return e.c <= max;
 }

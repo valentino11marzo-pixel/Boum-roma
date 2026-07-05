@@ -3771,9 +3771,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     setTimeout(() => readBoomBridge(), 800);
                 } else {
                     console.log('Creating new user document...');
+                    // Least-privilege default: NEVER admin. The deployed rules
+                    // deny non-admin users/{uid} creates anyway; the first real
+                    // admin is set manually in the Firebase console.
                     await db.collection('users').doc(u.uid).set({
                         name: u.displayName || (u.email ? u.email.split('@')[0] : 'User'),
-                        email: u.email || '', role: 'admin', phone: '',
+                        email: u.email || '', role: 'tenant', phone: '',
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
                     location.reload();
