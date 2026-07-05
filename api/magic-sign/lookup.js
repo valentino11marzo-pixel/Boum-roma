@@ -37,6 +37,15 @@ export default async function handler(req, res) {
   if (!hit) return res.status(404).json({ ok: false, error: 'invalid_or_used' });
 
   const { contract, role } = hit;
+
+  // Sequential signing (BOOM protocol): the tenant commits first; the
+  // landlord's countersignature is the acceptance. The landlord's link stays
+  // parked until the tenant has signed — the partial-signature nudge emails it
+  // again automatically at that moment. Escape hatch: signingOrder:'any'.
+  if (role === 'landlord' && !contract.tenantSignature && contract.signingOrder !== 'any') {
+    return res.status(409).json({ ok: false, error: 'awaiting_tenant' });
+  }
+
   const alreadySigned = role === 'tenant'
     ? !!contract.tenantSignature
     : !!contract.landlordSignature;

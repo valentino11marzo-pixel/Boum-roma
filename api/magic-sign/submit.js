@@ -69,6 +69,12 @@ export default async function handler(req, res) {
 
   const { contract, role } = hit;
   const contractId = contract.id;
+
+  // Sequential signing guard (mirrors lookup — API can't bypass the order).
+  if (role === 'landlord' && !contract.tenantSignature && contract.signingOrder !== 'any') {
+    return res.status(409).json({ ok: false, error: 'awaiting_tenant' });
+  }
+
   const already = role === 'tenant' ? !!contract.tenantSignature : !!contract.landlordSignature;
   // signatureStatus lets a retrying signer (e.g. after a timed-out first
   // attempt that DID record the signature) render the right success state.

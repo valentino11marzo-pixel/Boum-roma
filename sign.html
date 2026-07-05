@@ -444,6 +444,7 @@
             return centered(ICON_CHECK,'Already signed', done?'This contract is fully signed and active.':'Your signature is recorded. We’re waiting for the other party to sign.', '');
           }
           if(!j.ok){
+            if(j.error==='awaiting_tenant') return centered(ICON_LINK,'Not your turn yet','The tenant signs first. The moment their signature is in, we’ll email you and this same link will open for your countersignature — nothing to do now.', '');
             if(j.error==='invalid_or_used' || j.error==='missing_token') return centered(ICON_LINK,'Link not valid','This link is invalid or has already been used.', SUPPORT);
             return centered(ICON_WARN,'Something went wrong','We couldn’t load this contract. Please try again in a moment.', SUPPORT);
           }
