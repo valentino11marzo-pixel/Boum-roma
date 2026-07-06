@@ -845,14 +845,26 @@ function aiAsk(b){const q=b.textContent;const t=document.getElementById('aiThrea
 let RES={kind:'apply',step:1,approved:null,need:0};
 function apply(){startRes('apply');}
 function reserve(){startRes('reserve');}
-function startRes(kind){try{navigator.vibrate&&navigator.vibrate(8)}catch(e){}RES={kind:kind,step:1,approved:null,need:0,email:''};document.getElementById('applyTitle').textContent=kind==='reserve'?'Secure this home':'Apply for this home';renderRes();openOv('applyOv');_mood('convert');}
+function startRes(kind){try{navigator.vibrate&&navigator.vibrate(8)}catch(e){}RES={kind:kind,step:1,approved:null,need:0,email:RES.email||'',name:RES.name||'',phone:RES.phone||''};document.getElementById('applyTitle').textContent=kind==='reserve'?'Secure this home':'Apply for this home';renderRes();openOv('applyOv');_mood('convert');}
 function resStep(n){RES.step=n;renderRes();}
 function resSubmit(){var inc=+(document.getElementById('rqInc')||{}).value||0;var guar=!!(document.getElementById('rqGuar')||{}).checked;var em=((document.getElementById('rqEmail')||{}).value||'').trim();
+  var nm=((document.getElementById('rqName')||{}).value||'').trim();var ph=((document.getElementById('rqPhone')||{}).value||'').trim();
   var err=document.getElementById('rqErr');
+  if(nm.length<3){if(err){err.textContent='Your full name goes on the pre-agreement — add it to continue.';err.style.display='block';}return;}
   if(!inc&&!guar){if(err){err.textContent='Tell us your income or tick the guarantor box — we can’t check otherwise.';err.style.display='block';}return;}
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){if(err){err.textContent='Add your email so we can confirm the outcome to you.';err.style.display='block';}return;}
-  RES.email=em;RES.need=Math.round(L.price*2.5);RES.approved=(inc>=RES.need)||guar;RES.low=inc>0&&inc<RES.need*0.8;resStep(2);}
-function resHold(){var lk=document.getElementById('paLock');if(lk&&lk.disabled)return;try{navigator.vibrate&&navigator.vibrate(12)}catch(e){}/* production: redirect to Stripe Checkout (/api/reserve-checkout) */resStep(3);}
+  RES.name=nm;RES.phone=ph;RES.email=em;RES.need=Math.round(L.price*2.5);RES.approved=(inc>=RES.need)||guar;RES.low=inc>0&&inc<RES.need*0.8;resStep(2);}
+function resHold(){var lk=document.getElementById('paLock');if(lk&&lk.disabled)return;try{navigator.vibrate&&navigator.vibrate(12)}catch(e){}
+  /* Stripe first — the lock is real. If checkout can't be created (offline,
+     preview, missing key) fall back to the honest issued-confirmation. */
+  if(lk){lk.disabled=true;lk.textContent='Opening secure checkout…';}
+  var s=computeStay();
+  fetch('/api/reserve-checkout',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({listingId:(typeof PID!=='undefined'&&PID)||L.id||'',listingName:L.name,amount:300,
+      name:RES.name||'',email:RES.email||'',phone:RES.phone||'',move_in_date:s.start?s.start.toISOString().slice(0,10):''})})
+  .then(function(r){return r.ok?r.json():null})
+  .then(function(j){if(j&&j.url){location.href=j.url;return;}throw 0;})
+  .catch(function(){if(lk){lk.disabled=false;lk.textContent='Lock this home · €300 →';}resStep(3);});}
 /* the BOOM seal — hairline, currentColor, echoes the ◆ of the map facade */
 function paSealSVG(sz){return '<svg class="pa-seal" width="'+sz+'" height="'+sz+'" viewBox="0 0 48 48" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="24" cy="24" r="21.5" stroke-width="1"/><circle cx="24" cy="24" r="17" stroke-width=".7" stroke-dasharray="2.2 3.1" opacity=".6"/><circle cx="24" cy="24" r="12" stroke-width=".7" opacity=".85"/><path d="M24 17.5 29 24l-5 6.5L19 24z" fill="currentColor" stroke="none" opacity=".92"/></svg>';}
 function renderRes(){
@@ -865,8 +877,12 @@ function renderRes(){
       +'<h3 style="font-family:var(--disp);font-weight:200;font-size:22px;margin-bottom:6px">Let’s see if it’s yours.</h3>'
       +'<p style="color:var(--t2);font-size:13.5px;margin-bottom:18px">A soft check — no credit impact, no documents yet. So we only ever hold a home you can actually take.</p>'
       +'<div style="display:grid;gap:14px">'
+      +'<label style="display:block"><span style="display:block;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--t3);margin-bottom:6px">Your full name</span><input id="rqName" type="text" autocomplete="name" placeholder="Name and surname" value="'+(RES.name||'')+'" style="width:100%;background:var(--input);border:1px solid var(--line);border-radius:11px;color:var(--t1);font-family:inherit;font-size:15px;padding:12px 13px"></label>'
       +'<label style="display:block"><span style="display:block;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--t3);margin-bottom:6px">Your net monthly income (€)</span><input id="rqInc" type="number" inputmode="numeric" placeholder="e.g. 2800" style="width:100%;background:var(--input);border:1px solid var(--line);border-radius:11px;color:var(--t1);font-family:inherit;font-size:15px;padding:12px 13px"></label>'
+      +'<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px">'
       +'<label style="display:block"><span style="display:block;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--t3);margin-bottom:6px">Your email</span><input id="rqEmail" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com" value="'+(RES.email||'')+'" style="width:100%;background:var(--input);border:1px solid var(--line);border-radius:11px;color:var(--t1);font-family:inherit;font-size:15px;padding:12px 13px"></label>'
+      +'<label style="display:block"><span style="display:block;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--t3);margin-bottom:6px">Phone / WhatsApp</span><input id="rqPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+39 …" value="'+(RES.phone||'')+'" style="width:100%;background:var(--input);border:1px solid var(--line);border-radius:11px;color:var(--t1);font-family:inherit;font-size:15px;padding:12px 13px"></label>'
+      +'</div>'
       +'<label style="display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--t2);cursor:pointer"><input id="rqGuar" type="checkbox" style="accent-color:var(--gold);width:18px;height:18px"> I have a guarantor (or can pay a larger deposit)</label>'
       +'</div>'
       +'<p id="rqErr" style="display:none;color:var(--gold-light);font-size:12.5px;margin-top:10px"></p>'
@@ -891,7 +907,7 @@ function renderRes(){
       b.innerHTML=prog(66)+verdict
         +'<div class="pa" role="group" aria-label="Pre-agreement">'
         +'<div class="pa-h pa-print"><div><div class="cap">Pre-agreement · Rome</div><h4>Reservation of the home</h4></div>'+paSealSVG(44)+'</div>'
-        +'<div class="pa-part pa-print"><span>Between</span> <b>BOOM · Egidi Immobiliare S.r.l.</b> <span class="x">'+arr+'</span> <b>You</b></div>'
+        +'<div class="pa-part pa-print"><span>Between</span> <b>BOOM · Egidi Immobiliare S.r.l.</b> <span class="x">'+arr+'</span> <b>'+((RES.name||'You').replace(/</g,'&lt;'))+'</b></div>'
         +'<div class="pa-rows">'+rows.map(function(r){return '<div class="pa-row pa-print"><span class="k">'+r[0]+'</span><span class="v">'+r[1]+'</span></div>';}).join('')+'</div>'
         +'<div class="pa-tot pa-print"><span class="k">Total to lock<small>'+eur(s.prorated)+' first month · '+eur(L.deposit)+' deposit · '+(L.agencyFee?eur(L.agencyFee):'€0')+' fee</small></span><span class="v">'+eur(s.total)+'</span></div>'
         +'<div class="pa-terms">'+terms.map(function(t){return '<div class="pa-term pa-print"><span class="c">✓</span><span>'+t+'</span></div>';}).join('')+'</div>'
