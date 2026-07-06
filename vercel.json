@@ -392,6 +392,14 @@
     {
       "source": "/pre-agreement-admin",
       "destination": "/pre-agreement-admin.html"
+    },
+    {
+      "source": "/apartments-legacy",
+      "destination": "/apartments-legacy.html"
+    },
+    {
+      "source": "/apartment-detail-legacy",
+      "destination": "/apartment-detail-legacy.html"
     }
   ],
   "headers": [
