@@ -78,7 +78,7 @@ export default async function handler(req, res) {
   };
 
   try {
-    const id = await fsCreate('savedSearches', {
+    const { id } = await fsCreate('savedSearches', {
       email,
       label:       clip(body.label, 80),
       criteria,

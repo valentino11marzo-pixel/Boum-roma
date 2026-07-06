@@ -99,7 +99,7 @@ export default async function handler(req, res) {
   };
 
   try {
-    const id = await fsCreate('preAgreements', doc);
+    const { id } = await fsCreate('preAgreements', doc);
     logActivity('preagreement_created', 'preagreement', { id, address, rent, tenant: doc.tenant.fullName }, auth.email || 'admin')
       .catch(() => {});
     return res.status(200).json({ ok: true, id, token, url: '/pre-agreement?t=' + token });
