@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>BOOM · Flagship — the residence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* AUREA · the residence (detail) — same tokens as preview-flagship.html */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --ink:#0A0908; --card:#14110Ccc; --line:rgba(217,180,91,.16); --hair:rgba(255,255,255,.07);
+  --gold:#D9B45B; --gold-bri:#F2D27C; --green:#5BD98A; --amber:#E8A33D;
+  --t1:rgba(246,242,232,1); --t2:rgba(246,242,232,.72); --t3:rgba(246,242,232,.46); --t4:rgba(246,242,232,.26);
+  --d-1:120ms; --d-2:180ms; --d-3:240ms; --d-4:320ms; --d-5:440ms; --d-6:620ms;
+  --ease-out:cubic-bezier(.16,1,.3,1); --ease-inout:cubic-bezier(.65,0,.35,1); --ease:var(--ease-out);
+}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--ink);color:var(--t1);font-weight:300;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+.disp{font-family:'Cormorant Garamond',Georgia,serif;font-weight:300}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer;background:none;border:0;color:inherit}
+.eyebrow{font-size:10.5px;letter-spacing:2.6px;text-transform:uppercase;color:var(--gold);font-weight:500}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+section[data-ambient]{position:relative}
+nav{position:fixed;top:0;left:0;right:0;z-index:50;transition:background var(--d-3) var(--ease)}
+nav.scr{background:rgba(10,9,8,.82);backdrop-filter:blur(18px);border-bottom:1px solid var(--hair)}
+.nav-in{max-width:1080px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;padding:18px 24px}
+.brand{display:flex;align-items:center;gap:12px}
+.ring{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--gold);box-shadow:0 0 16px rgba(217,180,91,.3),inset 0 0 8px rgba(217,180,91,.2)}
+.brand b{font-weight:400;letter-spacing:6px;font-size:17px}
+.back{font-size:11px;letter-spacing:1.8px;text-transform:uppercase;color:var(--t3);transition:color var(--d-2) var(--ease)}
+.back:hover{color:var(--t1)}
+
+/* hero: identity + photo — ambience stays quiet (velluto), the home is the art */
+.top{padding:120px 0 0}
+.idrow{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap;margin-bottom:22px}
+h1{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(34px,5.4vw,62px);line-height:1.03}
+.sub{color:var(--t3);font-size:13.5px;margin-top:6px}
+.sub .ver{color:var(--green)}
+.pr-block{text-align:right}
+.pr-block .pr{font-family:'Cormorant Garamond',serif;font-weight:400;font-size:clamp(30px,4vw,46px);color:var(--gold-bri);line-height:1}
+.pr-block small{font-size:12px;color:var(--t4)}
+.hero-ph{position:relative;border-radius:22px;overflow:hidden;background:#171310;aspect-ratio:16/9;border:1px solid var(--hair)}
+.hero-ph img{width:100%;height:100%;object-fit:cover;display:block}
+.hero-ph .scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,9,8,.25),transparent 30%,transparent 70%,rgba(10,9,8,.5));pointer-events:none}
+.thumbs{display:flex;gap:10px;margin-top:12px}
+.thumbs button{flex:1;aspect-ratio:16/10;border-radius:12px;overflow:hidden;background:#171310;border:1px solid var(--hair);transition:border-color var(--d-2) var(--ease);padding:0}
+.thumbs button.on{border-color:var(--gold)}
+.thumbs img{width:100%;height:100%;object-fit:cover;display:block}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin:26px 0 0}
+.fact{padding:16px 18px;border:1px solid var(--hair);border-radius:14px;background:rgba(20,17,12,.5)}
+.fact .k{font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--t4)}
+.fact .v{font-family:'Cormorant Garamond',serif;font-weight:500;font-size:22px;margin-top:2px}
+
+/* story — ambient cosmati, read mood */
+.story{padding:110px 0}
+.story .sec-head{margin-bottom:26px}
+.sec-head h2{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(28px,4vw,44px);line-height:1.06;margin-top:12px}
+.sec-head h2 em{font-style:italic;color:var(--gold-bri)}
+.story p{color:var(--t2);font-size:16px;max-width:64ch;margin-bottom:16px}
+.feats{display:flex;gap:10px;flex-wrap:wrap;margin-top:24px}
+.feats span{padding:8px 15px;border:1px solid var(--hair);border-radius:100px;font-size:12.5px;color:var(--t3)}
+
+/* money — meandro, read mood */
+.money{padding:110px 0}
+.money-grid{display:grid;grid-template-columns:1fr 1fr;gap:52px;align-items:center}
+.ledger{border:1px solid var(--line);border-radius:20px;background:rgba(20,17,12,.72);backdrop-filter:blur(10px);padding:30px 32px}
+.ledger h3{font-size:10.5px;letter-spacing:2.6px;text-transform:uppercase;color:var(--t3);font-weight:500;margin-bottom:16px}
+.li{display:flex;justify-content:space-between;font-size:14.5px;padding:11px 0;border-bottom:1px solid var(--hair);color:var(--t2)}
+.li:last-child{border:0;padding-top:16px}
+.li b{font-family:'Cormorant Garamond',serif;font-weight:500;font-size:22px;color:var(--gold-bri)}
+.money p.big{font-size:clamp(15px,2vw,18px);color:var(--t2);margin:18px 0 26px;max-width:44ch}
+.cta{display:inline-block;padding:16px 38px;border-radius:100px;background:linear-gradient(180deg,var(--gold-bri),var(--gold));color:#141005;font-weight:600;font-size:13px;letter-spacing:1.4px;text-transform:uppercase;transition:filter var(--d-2) var(--ease),transform var(--d-1) var(--ease)}
+.cta:hover{filter:brightness(1.06)}.cta:active{transform:scale(.985)}
+@media(max-width:860px){.money-grid{grid-template-columns:1fr}}
+
+/* rione — contorni */
+.rione{padding:110px 0 140px}
+.rione p{color:var(--t2);font-size:16px;max-width:60ch;margin-top:14px}
+.rione .zl{display:inline-block;margin-top:24px;padding:13px 24px;border:1px solid var(--hair);border-radius:14px;font-size:13.5px;color:var(--t2);transition:all var(--d-2) var(--ease)}
+.rione .zl:hover{border-color:var(--gold);color:var(--gold-bri)}
+
+/* mobile action rail */
+.rail{position:fixed;left:0;right:0;bottom:0;z-index:40;display:none;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:rgba(10,9,8,.9);backdrop-filter:blur(16px);border-top:1px solid var(--hair)}
+.rail .in{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.rail .pr{font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--gold-bri)}
+.rail .pr small{font-size:11px;color:var(--t4)}
+@media(max-width:760px){.rail{display:block}}
+
+/* drawer (convert mood) — same grammar as flagship */
+.drawer{position:fixed;inset:0;z-index:90;display:none}
+.drawer.on{display:block}
+.drawer .bg{position:absolute;inset:0;background:rgba(5,4,3,.6);backdrop-filter:blur(6px);opacity:0;transition:opacity var(--d-4) var(--ease)}
+.drawer.in .bg{opacity:1}
+.panel{position:absolute;right:0;top:0;bottom:0;width:min(430px,94vw);background:#12100B;border-left:1px solid var(--line);padding:36px 34px;transform:translateX(103%);transition:transform var(--d-5) var(--ease-inout)}
+.drawer.in .panel{transform:none}
+.panel h3{font-family:'Cormorant Garamond',serif;font-weight:400;font-size:28px;margin:10px 0 6px}
+.panel .subx{color:var(--t3);font-size:13px;margin-bottom:26px}
+.panel .field{margin-bottom:16px}
+.panel label{display:block;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--t4);margin-bottom:6px}
+.panel input{width:100%;padding:13px 15px;background:rgba(255,255,255,.04);border:1px solid var(--hair);border-radius:11px;color:var(--t1);font-family:inherit;font-size:14px;outline:none;transition:border-color var(--d-2) var(--ease)}
+.panel input:focus{border-color:var(--gold)}
+.panel .cta{width:100%;text-align:center;margin-top:10px}
+.panel .x{position:absolute;top:18px;right:18px;width:40px;height:40px;border-radius:50%;border:1px solid var(--hair);color:var(--t3);font-size:16px}
+.reveal{opacity:0;transform:translateY(18px);transition:opacity var(--d-6) var(--ease),transform var(--d-6) var(--ease)}
+.reveal.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}*{scroll-behavior:auto!important}}
+.proto{position:fixed;left:16px;bottom:16px;z-index:60;font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t4);border:1px solid var(--hair);border-radius:100px;padding:8px 14px;background:rgba(10,9,8,.7);backdrop-filter:blur(8px)}
+.proto b{color:var(--gold)}
+@media(max-width:760px){.proto{display:none}}
+</style>
+</head>
+<body>
+
+<nav id="nav"><div class="nav-in">
+  <a class="brand" href="/preview-flagship"><span class="ring"></span><b>BOOM</b></a>
+  <a class="back" href="/preview-flagship#browse">← The collection</a>
+</div></nav>
+
+<!-- IDENTITY + PHOTO · ambient: velluto (the home is the art) -->
+<section class="top" data-ambient="velluto"><div class="wrap">
+  <div class="idrow">
+    <div>
+      <div class="eyebrow" id="hZone">—</div>
+      <h1 class="disp" id="hName">—</h1>
+      <div class="sub"><span class="ver">✓ Verified</span> · filmed by BOOM · <span id="hMeta">—</span></div>
+    </div>
+    <div class="pr-block"><div class="pr" id="hPrice">—</div><small>per month · zero agency fee</small></div>
+  </div>
+  <div class="hero-ph"><img id="heroImg" alt="" fetchpriority="high" decoding="async" onerror="this.style.opacity=0"><div class="scrim"></div></div>
+  <div class="thumbs" id="thumbs"></div>
+  <div class="facts" id="facts"></div>
+</div></section>
+
+<!-- STORY · ambient: cosmati -->
+<section class="story" data-ambient="cosmati"><div class="wrap">
+  <div class="sec-head reveal"><div class="eyebrow">The residence</div>
+    <h2 class="disp">Lived in, <em>loved,</em> verified.</h2></div>
+  <p class="reveal" id="hDesc">—</p>
+  <div class="feats reveal" id="hFeats"></div>
+</div></section>
+
+<!-- MONEY · ambient: meandro -->
+<section class="money" data-ambient="meandro"><div class="wrap">
+  <div class="money-grid">
+    <div class="reveal">
+      <div class="eyebrow">Money, decoded</div>
+      <h2 class="disp" style="font-size:clamp(28px,4vw,44px);line-height:1.06;margin:12px 0 0">Every euro, <em>before you ask.</em></h2>
+      <p class="big">The full move-in, computed live for this exact home. The number below is the number you pay — no fee appears twice, none appears late.</p>
+      <button class="cta" id="applyBtn">Start an application</button>
+    </div>
+    <div class="ledger reveal">
+      <h3 id="ledTitle">Move-in</h3>
+      <div class="li"><span>First month</span><span id="ledRent">—</span></div>
+      <div class="li"><span>Deposit · 2 months</span><span id="ledDep">—</span></div>
+      <div class="li"><span>Agency fee</span><span style="color:var(--green)">€0</span></div>
+      <div class="li"><span>Contract registry</span><span>€68</span></div>
+      <div class="li"><span>Due at signature</span><b id="ledTot">—</b></div>
+    </div>
+  </div>
+</div></section>
+
+<!-- RIONE · ambient: contorni -->
+<section class="rione" data-ambient="contorni"><div class="wrap">
+  <div class="reveal"><div class="eyebrow">The rione</div>
+    <h2 class="disp" style="font-size:clamp(28px,4vw,44px);line-height:1.06;margin-top:12px">Your corner of <em>Rome.</em></h2>
+    <p id="hZoneCopy">—</p>
+    <a class="zl" id="hZoneLink" href="/preview-flagship#zones">Explore the rione →</a>
+  </div>
+</div></section>
+
+<div class="rail"><div class="in">
+  <div><div class="pr" id="railPr">—<small> /mo</small></div></div>
+  <button class="cta" id="applyBtn2" style="padding:13px 26px">Apply</button>
+</div></div>
+
+<div class="drawer" id="drawer" role="dialog" aria-modal="true" aria-label="Start an application">
+  <div class="bg" id="drawerBg"></div>
+  <div class="panel">
+    <button class="x" id="drawerX" aria-label="Close">✕</button>
+    <div class="eyebrow">Application</div>
+    <h3 class="disp">Sixty seconds, no documents.</h3>
+    <div class="subx">A soft check first — nothing hits your record. We only hold a home you can actually take.</div>
+    <div class="field"><label for="fName">Full name</label><input id="fName" autocomplete="name"></div>
+    <div class="field"><label for="fMail">Email</label><input id="fMail" type="email" autocomplete="email"></div>
+    <button class="cta">Continue →</button>
+  </div>
+</div>
+
+<div class="proto">Flagship · <b>Aurea</b> · residence</div>
+
+<script src="/js/boom-elevate.js"></script>
+<script src="/js/boom-ambient.js"></script>
+<script>
+(function(){
+'use strict';
+var eur=function(n){return '€'+Number(n||0).toLocaleString('en-US')};
+
+/* ambience: quiet by default on a decision page; read mood in the lower half */
+var MOOD_BY_SCENE={velluto:'browse',cosmati:'read',meandro:'read',contorni:'read'};
+var overlayMood=null;
+var amb=BoomAmbient.mount({intensity:.85,onScene:function(k){if(!overlayMood)amb.mood(MOOD_BY_SCENE[k]||'browse')}});
+function setOverlayMood(m){overlayMood=m;amb.mood(m||'browse')}
+
+addEventListener('scroll',function(){document.getElementById('nav').classList.toggle('scr',scrollY>16)},{passive:true});
+var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{threshold:.12});
+document.querySelectorAll('.reveal').forEach(function(el){io.observe(el)});
+
+var SAMPLE={id:'sample1',name:'Bright Attic with Terrace',zone:'Trastevere',price:2400,beds:2,baths:1,sqm:78,floor:4,
+  images:['https://i.imgur.com/s2es0MN.jpeg','https://i.imgur.com/Ne0ROPe.jpeg','https://i.imgur.com/Smv5uPX.jpeg'],
+  features:['Terrace','Furnished','A/C','Lift','Dishwasher'],
+  description:'A light-filled attic on the fourth floor of a quiet palazzo, two minutes from the river. The terrace faces west — Trastevere sunsets included in the rent. Fully furnished, renovated last spring, and verified on camera by our team.'};
+var L=SAMPLE;
+function mapReal(d){
+  var imgs=(Array.isArray(d.images)&&d.images.length)?d.images:(d.image?[d.image]:[]);
+  var feat=Array.isArray(d.features)?d.features:(Array.isArray(d.amenities)?d.amenities:[]);
+  return {id:d.id,name:d.name||d.title||'Apartment in Rome',zone:d.zone||d.neighborhood||'Rome',
+    price:+d.price||0,beds:(d.beds!=null?d.beds:(d.bedrooms!=null?d.bedrooms:0)),baths:d.bathrooms||d.baths||1,
+    sqm:d.sqm||d.size||0,floor:d.floor||1,images:imgs.length?imgs:SAMPLE.images,
+    features:feat.length?feat:SAMPLE.features,description:d.description||SAMPLE.description};
+}
+
+var PID=new URLSearchParams(location.search).get('id');
+if(!PID){var m=location.pathname.match(/\/listing\/([^\/?#]+)/);if(m)PID=decodeURIComponent(m[1]);}
+
+var curThumb=0;
+function paint(){
+  document.getElementById('hZone').textContent=L.zone+' · Rome';
+  document.getElementById('hName').textContent=L.name;
+  document.getElementById('hMeta').textContent=(L.beds||'Studio')+(L.beds?' bed · ':' · ')+L.baths+' bath · '+L.sqm+' m²';
+  document.getElementById('hPrice').textContent=eur(L.price);
+  document.getElementById('railPr').innerHTML=eur(L.price)+'<small> /mo</small>';
+  var hero=document.getElementById('heroImg');
+  hero.src=L.images[0]||'';hero.alt=L.name+' — '+L.zone;
+  /* continuity: morph in from the tapped card; otherwise blur-up */
+  try{
+    if(window.BoomElevate){
+      var owned=PID?BoomElevate.playArrival(hero,PID):false;
+      if(!owned)BoomElevate.blurUp(hero);
+    }
+  }catch(_e){}
+  document.getElementById('thumbs').innerHTML=L.images.slice(0,4).map(function(src,i){
+    return '<button data-i="'+i+'"'+(i===0?' class="on"':'')+' aria-label="Photo '+(i+1)+'"><img src="'+src+'" alt="" loading="lazy" data-blur-up onerror="this.style.opacity=0"></button>';
+  }).join('');
+  if(window.BoomElevate)BoomElevate.scan(document.getElementById('thumbs'));
+  document.getElementById('facts').innerHTML=[
+    ['Bedrooms',L.beds||'Studio'],['Bathrooms',L.baths],['Size',L.sqm+' m²'],['Floor',L.floor]
+  ].map(function(f){return '<div class="fact"><div class="k">'+f[0]+'</div><div class="v disp">'+f[1]+'</div></div>'}).join('');
+  document.getElementById('hDesc').textContent=L.description;
+  document.getElementById('hFeats').innerHTML=(L.features||[]).map(function(f){return '<span>'+f+'</span>'}).join('');
+  var dep=L.price*2,tot=L.price+dep+68;
+  document.getElementById('ledTitle').textContent='Move-in · '+L.name;
+  document.getElementById('ledRent').textContent=eur(L.price);
+  document.getElementById('ledDep').textContent=eur(dep);
+  document.getElementById('ledTot').textContent=eur(tot);
+  document.getElementById('hZoneCopy').textContent=L.zone+' — cobblestones, morning markets and the kind of neighbours who remember your name. We verified this street in person.';
+}
+document.getElementById('thumbs').addEventListener('click',function(e){
+  var b=e.target.closest('button[data-i]');if(!b)return;
+  var i=+b.dataset.i;if(i===curThumb)return;curThumb=i;
+  document.querySelectorAll('#thumbs button').forEach(function(x){x.classList.toggle('on',+x.dataset.i===i)});
+  var hero=document.getElementById('heroImg');hero.__bu=0;hero.src=L.images[i];
+  if(window.BoomElevate)BoomElevate.blurUp(hero);
+});
+
+var drawer=document.getElementById('drawer');
+function openDrawer(){drawer.classList.add('on');requestAnimationFrame(function(){drawer.classList.add('in')});setOverlayMood('convert');document.body.style.overflow='hidden';document.getElementById('fName').focus()}
+function closeDrawer(){drawer.classList.remove('in');setOverlayMood(null);document.body.style.overflow='';setTimeout(function(){drawer.classList.remove('on')},450)}
+document.getElementById('applyBtn').addEventListener('click',openDrawer);
+document.getElementById('applyBtn2').addEventListener('click',openDrawer);
+document.getElementById('drawerX').addEventListener('click',closeDrawer);
+document.getElementById('drawerBg').addEventListener('click',closeDrawer);
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&drawer.classList.contains('on'))closeDrawer()});
+
+if(PID){
+  fetch('/api/listings?id='+encodeURIComponent(PID),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){
+    if(j&&j.ok&&j.listing){L=mapReal(j.listing);document.querySelector('.proto').innerHTML='Flagship · <b>Aurea</b> · live data';}
+  }).catch(function(){}).finally(paint);
+}else paint();
+})();
+</script>
+</body>
+</html>

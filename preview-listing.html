@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#060607">
+<meta name="color-scheme" content="dark">
+<title>BOOM · Listing — Production Design (A + decision sidebar)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://images.unsplash.com" crossorigin>
+<style>
+  :root{
+    --gold:#FFD700;--gold-light:#FFE55C;--gold-dark:#E5C200;--gold-muted:rgba(255,215,0,.15);--gold-faint:rgba(255,215,0,.06);
+    --green:#00FF88;--green-muted:rgba(0,255,136,.13);
+    --void:#060607;--surface:#0B0B0C;--surface-elevated:#121214;--surface-hover:#1A1A1D;--surface-card:#0E0E10;
+    --text-primary:#FAFAFA;--text-secondary:rgba(250,250,250,.72);--text-tertiary:rgba(250,250,250,.44);--text-muted:rgba(250,250,250,.24);
+    --border-subtle:rgba(255,255,255,.04);--border-default:rgba(255,255,255,.08);--border-hover:rgba(255,215,0,.25);--border-gold:rgba(255,215,0,.12);
+    --font-sans:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;--font-display:'Helvetica Neue',Helvetica,Arial,sans-serif;
+    --ease:cubic-bezier(.16,1,.3,1);--ease-io:cubic-bezier(.65,0,.35,1);
+    --shadow-card:0 4px 32px rgba(0,0,0,.5);--shadow-card-hover:0 16px 56px rgba(0,0,0,.75);--shadow-gold:0 10px 40px rgba(255,215,0,.16);
+    --maxw:1240px;--nav-h:70px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;scroll-behavior:smooth}
+  body{font-family:var(--font-sans);background:var(--void);color:var(--text-primary);font-weight:300;line-height:1.6;letter-spacing:.1px;padding-bottom:78px}
+  @media(min-width:941px){body{padding-bottom:0}}
+  img{display:block;max-width:100%}a{color:inherit;text-decoration:none}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  :focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:4px}
+  h1,h2,h3,h4{font-family:var(--font-display);font-weight:300;letter-spacing:-.5px;line-height:1.08}
+  .g{color:var(--gold)}
+  .eyebrow{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);font-weight:500;font-family:var(--font-sans)}
+  .reveal{opacity:0;transform:translateY(24px);transition:opacity .9s var(--ease),transform .9s var(--ease)}
+  .reveal.in{opacity:1;transform:none}
+  @media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
+
+  .proto{position:fixed;bottom:84px;left:50%;transform:translateX(-50%);z-index:130;background:rgba(8,8,10,.92);backdrop-filter:blur(14px);border:1px solid var(--border-gold);border-radius:100px;font-size:11px;color:var(--text-secondary);display:flex;gap:10px;align-items:center;padding:7px 15px;white-space:nowrap}
+  .proto b{color:var(--gold);font-weight:500}
+  @media(min-width:941px){.proto{bottom:18px}}
+
+  /* ===== NAV ===== */
+  nav{position:fixed;width:100%;top:0;z-index:100;padding:16px 44px;background:rgba(6,6,7,.55);backdrop-filter:blur(22px);border-bottom:1px solid transparent;transition:padding .45s var(--ease),background .45s,border-color .45s}
+  nav.scrolled{padding:10px 44px;background:rgba(6,6,7,.97);border-bottom:1px solid var(--border-gold)}
+  .nav-c{max-width:1400px;margin:0 auto;display:flex;justify-content:space-between;align-items:center}
+  .logo{display:flex;align-items:center;gap:12px;color:#fff}
+  .logo-svg{width:42px;height:42px;filter:drop-shadow(0 0 16px rgba(255,215,0,.45));transition:.45s var(--ease)}
+  nav.scrolled .logo-svg{width:35px;height:35px}.logo:hover .logo-svg{filter:drop-shadow(0 0 32px rgba(255,215,0,.85))}
+  .logo-text{font-family:var(--font-display);font-size:25px;font-weight:300;letter-spacing:4px;text-transform:uppercase}
+  .nav-links{display:flex;gap:26px;align-items:center}
+  .nav-links a{color:rgba(255,255,255,.62);font-size:12.5px;font-weight:300;text-transform:uppercase;letter-spacing:1px;transition:color .3s}
+  .nav-links a:hover{color:var(--gold)}.nav-links a.wa{color:#25D366}
+  .hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:8px}
+  .hamburger span{width:24px;height:2px;background:var(--gold);transition:.3s}
+  .hamburger.active span:nth-child(1){transform:rotate(45deg) translate(5px,5px)}.hamburger.active span:nth-child(2){opacity:0}.hamburger.active span:nth-child(3){transform:rotate(-45deg) translate(5px,-5px)}
+  .mm{display:none;position:fixed;inset:0;background:rgba(6,6,7,.98);backdrop-filter:blur(30px);z-index:150;flex-direction:column;align-items:center;justify-content:center;gap:24px}
+  .mm.active{display:flex}.mm a{color:rgba(255,255,255,.75);font-size:18px;font-weight:300;letter-spacing:2px;text-transform:uppercase}
+  @media(max-width:980px){nav,nav.scrolled{padding:13px 18px}.nav-links{display:none}.hamburger{display:flex}}
+
+  .shell{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+  .crumb{padding:calc(var(--nav-h) + 34px) 0 0;font-size:12px;color:var(--text-tertiary);letter-spacing:.4px}
+  .crumb a:hover{color:var(--gold)}
+
+  /* ===== HERO ===== */
+  .hero{margin-top:16px}
+  .gallery{display:grid;grid-template-columns:2.1fr 1fr 1fr;grid-auto-rows:148px;gap:8px;border-radius:20px;overflow:hidden}
+  .gcell{position:relative;overflow:hidden;background:linear-gradient(135deg,#1b1b20,#0c0c0e);cursor:pointer}
+  .gcell:first-child{grid-row:1/3}
+  .gcell img{width:100%;height:100%;object-fit:cover;transition:transform 1s var(--ease)}
+  .gcell:hover img{transform:scale(1.06)}
+  .gcell .more{position:absolute;right:12px;bottom:12px;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);padding:8px 14px;border-radius:100px;font-size:12px;letter-spacing:.3px}
+  .vbadge{position:absolute;left:14px;top:14px;display:inline-flex;align-items:center;gap:7px;background:rgba(0,0,0,.55);backdrop-filter:blur(10px);border:1px solid var(--green-muted);color:var(--green);padding:8px 13px;border-radius:100px;font-size:11.5px;font-weight:500;letter-spacing:.3px}
+  @media(max-width:720px){.gallery{grid-template-columns:1fr 1fr;grid-auto-rows:130px}.gcell:first-child{grid-column:1/3;grid-row:auto;aspect-ratio:auto}}
+
+  .htitle{margin-top:26px;display:flex;flex-wrap:wrap;gap:18px 28px;align-items:flex-end;justify-content:space-between}
+  .htitle h1{font-size:clamp(30px,4.6vw,50px);font-weight:200;letter-spacing:-1.2px}
+  .hloc{margin-top:12px;color:var(--text-secondary);font-size:14px;letter-spacing:.4px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .hloc .dot{color:var(--gold)}
+  .hactions{display:flex;gap:9px}
+  .icbtn{width:46px;height:46px;border:1px solid var(--border-default);border-radius:50%;display:grid;place-items:center;background:var(--surface-card);font-size:17px;transition:.25s var(--ease)}
+  .icbtn:hover{border-color:var(--border-hover);color:var(--gold);transform:translateY(-2px)}.icbtn.on{color:var(--gold);border-color:var(--border-hover);background:var(--gold-muted)}
+
+  /* ===== LAYOUT: editorial + sticky decision sidebar ===== */
+  .layout{margin-top:34px;display:grid;grid-template-columns:minmax(0,1fr) 384px;gap:48px;align-items:start}
+  @media(max-width:940px){.layout{grid-template-columns:1fr;gap:0}.col-side{order:-1;position:static!important;margin-bottom:36px}}
+
+  .col-side{position:sticky;top:calc(var(--nav-h) + 18px)}
+  .dcard{border:1px solid var(--border-gold);border-radius:22px;overflow:hidden;background:linear-gradient(180deg,rgba(18,18,20,.92),var(--surface-card));box-shadow:var(--shadow-card)}
+  .dcard-top{padding:22px 22px 18px;border-bottom:1px solid var(--border-subtle);position:relative}
+  .dcard-top::before{content:"";position:absolute;top:-40%;right:-10%;width:60%;height:150%;background:radial-gradient(closest-side,rgba(255,215,0,.10),transparent);pointer-events:none}
+  .price{font-size:34px;font-weight:200;color:var(--gold);font-family:var(--font-display);line-height:1}
+  .price small{font-size:14px;color:var(--text-secondary);font-weight:300}
+  .price-sub{font-size:12.5px;color:var(--text-tertiary);margin-top:8px}
+  .dcard-body{padding:20px 22px}
+  .stitle{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:15px;display:flex;align-items:center;gap:8px}
+  .field label{display:block;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-secondary);margin-bottom:8px}
+  .datein{width:100%;background:var(--surface-elevated);border:1px solid var(--border-default);border-radius:12px;color:var(--text-primary);font-family:inherit;font-size:15px;padding:13px 14px;transition:border-color .25s}
+  .datein:focus{outline:none;border-color:var(--gold)}
+  .seg{display:flex;gap:5px;margin-top:14px;background:var(--surface-elevated);border:1px solid var(--border-default);border-radius:100px;padding:4px}
+  .seg button{flex:1;border-radius:100px;padding:9px 6px;font-size:12.5px;color:var(--text-secondary);transition:.2s var(--ease);white-space:nowrap}
+  .seg button.on{background:var(--gold);color:#1a1407;font-weight:600}
+  .avail{display:flex;gap:10px;align-items:center;font-size:13.5px;margin:18px 0;padding:13px;border-radius:12px;background:rgba(255,255,255,.015);border:1px solid var(--border-default);transition:border-color .3s,background .3s}
+  .avail .pin{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;flex:none;font-size:14px}
+  .avail.ok{color:var(--green);border-color:var(--green-muted)}.avail.ok .pin{background:var(--green-muted)}
+  .avail.after{color:var(--gold-light);border-color:var(--border-gold)}.avail.after .pin{background:var(--gold-muted)}
+  .avail.none{color:var(--text-secondary)}.avail.none .pin{background:var(--gold-muted);color:var(--gold)}
+  .avail small{display:block;color:var(--text-tertiary);font-size:11px;margin-top:3px}
+  .srows{display:grid;gap:1px;background:var(--border-default);border-radius:12px;overflow:hidden;border:1px solid var(--border-default)}
+  .srow{display:flex;justify-content:space-between;align-items:center;background:var(--surface-card);padding:13px 15px;font-size:13.5px}
+  .srow .k{color:var(--text-secondary)}.srow .v{font-variant-numeric:tabular-nums;font-family:var(--font-display)}
+  .srow .note{font-size:10.5px;color:var(--text-tertiary)}
+  .srow.tot{background:linear-gradient(90deg,var(--gold-muted),transparent)}.srow.tot .v{color:var(--gold);font-weight:400;font-size:18px}
+  .gbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;text-align:center;background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#1a1407;font-weight:600;border-radius:100px;padding:15px;font-size:14.5px;letter-spacing:.3px;margin-top:16px;transition:.25s var(--ease);box-shadow:var(--shadow-gold)}
+  .gbtn:hover{filter:brightness(1.05);transform:translateY(-2px)}
+  .obtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;border:1px solid var(--border-default);border-radius:100px;padding:13px;font-size:13px;margin-top:9px;background:var(--surface-card);transition:.25s var(--ease)}
+  .obtn:hover{border-color:var(--border-hover);color:var(--gold)}
+  .upnudge{margin-top:14px;padding:13px 15px;border:1px dashed var(--border-gold);border-radius:13px;font-size:12.5px;color:var(--text-secondary);display:none}
+  .upnudge.show{display:block}.upnudge a{color:var(--gold);border-bottom:1px solid var(--border-gold)}
+  .trustrow{display:flex;gap:14px;flex-wrap:wrap;margin-top:16px;padding-top:16px;border-top:1px solid var(--border-subtle);font-size:11.5px;color:var(--text-tertiary)}
+  .trustrow span{display:inline-flex;align-items:center;gap:6px}.trustrow .c{color:var(--green)}
+
+  /* ===== EDITORIAL ACTS ===== */
+  .act{padding:0 0 12px;margin-top:56px}
+  .act:first-child{margin-top:8px}
+  .act-h{display:flex;align-items:baseline;gap:16px;margin-bottom:8px}
+  .act-num{font-size:12px;color:var(--text-muted);letter-spacing:2px;font-variant-numeric:tabular-nums}
+  .act-h h2{font-size:clamp(24px,3.4vw,33px);font-weight:200}
+  .act-sub{color:var(--text-secondary);font-size:15px;max-width:54ch;margin-bottom:24px}
+  .desc{color:var(--text-secondary);font-size:15.5px;line-height:1.8}
+  .feat{display:flex;flex-wrap:wrap;gap:9px;margin-top:18px}
+  .feat span{border:1px solid var(--border-default);background:var(--surface-card);border-radius:11px;padding:10px 14px;font-size:13px}
+
+  .mtiles{display:grid;grid-template-columns:repeat(2,1fr);gap:11px}
+  @media(min-width:560px){.mtiles{grid-template-columns:repeat(4,1fr)}}
+  .mt{border:1px solid var(--border-default);background:var(--surface-card);border-radius:15px;padding:18px}
+  .mt .k{font-size:10.5px;letter-spacing:1px;text-transform:uppercase;color:var(--text-tertiary)}
+  .mt .v{font-size:23px;font-weight:200;margin-top:9px;font-variant-numeric:tabular-nums;font-family:var(--font-display)}
+  .mt .s{font-size:11.5px;color:var(--text-secondary);margin-top:5px}
+  .mt.tot{border-color:var(--border-hover);background:linear-gradient(180deg,var(--gold-muted),transparent)}.mt.tot .v{color:var(--gold)}
+  .dtog{margin-top:16px;display:inline-flex;align-items:center;gap:9px;border:1px solid var(--border-default);border-radius:100px;padding:11px 18px;font-size:13px;background:var(--surface-card);transition:.25s}.dtog:hover{border-color:var(--border-hover);color:var(--gold)}
+  .decoded{max-height:0;overflow:hidden;transition:max-height .6s var(--ease)}.decoded.open{max-height:1400px}
+  .dinner{margin-top:16px;display:grid;gap:10px;grid-template-columns:1fr}@media(min-width:640px){.dinner{grid-template-columns:1fr 1fr}}
+  .dcd{border:1px solid var(--border-default);background:var(--surface);border-radius:13px;padding:18px}.dcd h4{font-weight:400;font-size:14px;margin-bottom:7px;font-family:var(--font-sans)}.dcd p{color:var(--text-secondary);font-size:13.5px}.dcd .amt{color:var(--gold)}
+
+  .proofs{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:24px}
+  .proof{display:flex;align-items:center;gap:9px;border:1px solid var(--border-default);background:var(--surface-card);border-radius:100px;padding:11px 16px;font-size:13px}.proof .c{color:var(--green)}
+  .t48{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;margin-bottom:20px}@media(max-width:560px){.t48{grid-template-columns:1fr}}
+  .t48 .s{border:1px solid var(--border-default);background:var(--surface-card);border-radius:15px;padding:18px;position:relative;overflow:hidden}
+  .t48 .s::after{content:"";position:absolute;top:0;left:0;width:3px;height:0;background:linear-gradient(var(--gold),var(--gold-dark));transition:height .7s var(--ease)}
+  .t48 .s.in::after{height:100%}
+  .t48 .n{font-size:11px;letter-spacing:2px;color:var(--gold)}.t48 .s h4{font-weight:400;font-size:14.5px;margin-top:9px;font-family:var(--font-sans)}.t48 .s p{font-size:12.5px;color:var(--text-secondary);margin-top:6px}
+  .aftercare{margin-top:6px;border:1px solid var(--border-default);background:linear-gradient(180deg,var(--gold-faint),transparent),var(--surface-card);border-radius:16px;padding:20px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+  .aftercare .ico{font-size:22px}.aftercare .tx{flex:1;min-width:200px}.aftercare h4{font-weight:400;font-size:15px;font-family:var(--font-sans)}.aftercare p{color:var(--text-secondary);font-size:13px;margin-top:4px}
+
+  .faq .qa{border-bottom:1px solid var(--border-default)}
+  .faq .q{width:100%;text-align:left;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;font-size:15.5px;font-family:var(--font-sans);font-weight:300}
+  .faq .q .x{color:var(--gold);font-size:21px;transition:.3s var(--ease);flex:none}.faq .qa.open .q .x{transform:rotate(45deg)}
+  .faq .a{max-height:0;overflow:hidden;transition:max-height .4s var(--ease);color:var(--text-secondary);font-size:14px}.faq .qa.open .a{max-height:260px}.faq .a div{padding:0 2px 18px}
+
+  .map{height:280px;border-radius:18px;border:1px solid var(--border-default);position:relative;overflow:hidden;background:radial-gradient(120% 120% at 30% 20%,#16161c,#08080a);display:grid;place-items:center}
+  .map .blip{width:14px;height:14px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 9px var(--gold-muted)}
+  .map .go{position:absolute;bottom:14px;left:14px;border:1px solid var(--border-default);background:rgba(0,0,0,.5);border-radius:100px;padding:11px 16px;font-size:12.5px;backdrop-filter:blur(6px)}
+
+  /* upsell — the tech×agency hybrid */
+  .upsell{margin-top:60px;border:1px solid var(--border-gold);border-radius:24px;padding:34px;background:radial-gradient(700px 280px at 90% -30%,var(--gold-muted),transparent 60%),var(--surface-card)}
+  .upsell h2{font-size:clamp(23px,3.2vw,32px);font-weight:200;margin-bottom:8px}
+  .upsell .lead{color:var(--text-secondary);font-size:14.5px;max-width:56ch;margin-bottom:24px}
+  .ucards{display:grid;gap:14px;grid-template-columns:1fr}@media(min-width:680px){.ucards{grid-template-columns:repeat(3,1fr)}}
+  .ucard{border:1px solid var(--border-default);background:var(--surface);border-radius:16px;padding:22px;transition:.25s var(--ease)}.ucard:hover{border-color:var(--border-hover);transform:translateY(-3px)}
+  .ucard .ico{font-size:20px}.ucard h4{font-family:var(--font-display);font-weight:400;font-size:16px;margin:12px 0 7px}.ucard p{color:var(--text-secondary);font-size:13px;margin-bottom:14px}.ucard a{color:var(--gold);font-size:13px;letter-spacing:.3px}
+
+  /* ===== FOOTER ===== */
+  footer{margin-top:90px;border-top:1px solid var(--border-default);padding:60px 24px 36px}
+  .footer-grid{max-width:var(--maxw);margin:0 auto;display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:40px}@media(max-width:820px){.footer-grid{grid-template-columns:1fr 1fr}}
+  .footer-brand h3{font-family:var(--font-display);font-size:24px;font-weight:300;letter-spacing:4px}.footer-brand p{color:var(--text-tertiary);font-size:12.5px;line-height:1.8;margin-top:14px}.footer-brand strong{color:var(--text-secondary)}
+  .footer-links h4{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:16px;font-weight:500}.footer-links ul{list-style:none}.footer-links li{margin-bottom:10px}.footer-links a{color:var(--text-tertiary);font-size:13px}.footer-links a:hover{color:var(--gold)}
+  .footer-bottom{max-width:var(--maxw);margin:44px auto 0;padding-top:22px;border-top:1px solid var(--border-subtle);display:flex;justify-content:space-between;color:var(--text-muted);font-size:12px}.footer-bottom .op{color:var(--green)}
+
+  /* ===== mobile action rail ===== */
+  .rail{position:fixed;left:0;right:0;bottom:0;z-index:95;background:rgba(6,6,7,.9);backdrop-filter:blur(20px);border-top:1px solid var(--border-default)}
+  .rail .prog{height:2px;background:var(--border-default)}.rail .prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold),var(--gold-light))}
+  .rail .in{display:flex;align-items:center;gap:12px;padding:11px 18px}
+  .rail .l{flex:1;min-width:0;font-size:12.5px;color:var(--text-secondary)}.rail .l b{color:#fff;font-weight:500;font-family:var(--font-display)}.rail .l small{display:block;color:var(--text-tertiary);font-size:11px}
+  .rail .ask{width:46px;height:46px;border-radius:50%;border:1px solid var(--border-default);display:grid;place-items:center;font-size:18px;color:var(--gold)}
+  .rail .go{background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#1a1407;font-weight:600;border-radius:100px;padding:13px 22px;font-size:14px;white-space:nowrap}
+  @media(min-width:941px){.rail{display:none}}
+
+  /* overlays */
+  .ov{position:fixed;inset:0;z-index:140;background:rgba(3,3,3,.7);backdrop-filter:blur(8px);opacity:0;pointer-events:none;transition:.3s;display:flex;align-items:flex-end;justify-content:center}
+  .ov.show{opacity:1;pointer-events:auto}
+  .sheet{background:var(--surface);border:1px solid var(--border-default);border-radius:24px 24px 0 0;width:100%;max-width:680px;max-height:88vh;overflow:auto;transform:translateY(26px);transition:.34s var(--ease)}
+  .ov.show .sheet{transform:none}@media(min-width:700px){.ov{align-items:center}.sheet{border-radius:24px}}
+  .sheet-h{display:flex;align-items:center;justify-content:space-between;padding:20px 22px;border-bottom:1px solid var(--border-default);position:sticky;top:0;background:var(--surface)}
+  .sheet-h h3{font-size:17px;font-weight:300}.sheet-b{padding:22px}
+  .xc{font-size:22px;color:var(--text-secondary);width:36px;height:36px;border-radius:50%;border:1px solid var(--border-default)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}.chips button{border:1px solid var(--border-default);background:var(--surface-card);border-radius:100px;padding:10px 14px;font-size:12.5px}.chips button:hover{border-color:var(--border-hover)}
+  .aimsg{background:var(--surface-card);border:1px solid var(--border-default);border-radius:14px;padding:16px;font-size:14px;color:var(--text-secondary);margin-bottom:11px}.aimsg b{color:var(--text-primary);font-weight:500}
+  .map3d{height:330px;border-radius:16px;border:1px solid var(--border-default);position:relative;overflow:hidden;background:radial-gradient(120% 120% at 30% 20%,#16161c,#08080a)}
+  .map3d .ring{position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);border:1px dashed rgba(255,215,0,.4);border-radius:50%}
+  .map3d .blip{position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 9px var(--gold-muted)}
+  .lb{position:fixed;inset:0;z-index:160;background:rgba(3,3,3,.94);opacity:0;pointer-events:none;transition:.3s;display:grid;place-items:center;padding:30px}
+  .lb.show{opacity:1;pointer-events:auto}.lb img{max-width:94vw;max-height:88vh;border-radius:12px}
+  .lb .xc{position:absolute;top:22px;right:22px}
+</style>
+</head>
+<body>
+
+<nav id="nav"><div class="nav-c">
+  <a href="/apartments" class="logo"><img src="/boom-mark.svg" class="logo-svg" alt="" onerror="this.style.display='none'"><span class="logo-text">BOOM</span></a>
+  <div class="nav-links"><a href="/apartments">Apartments</a><a href="#">Property Finding</a><a href="#">Deal Assistance</a><a href="#">Virtual Viewing</a><a href="#">Concierge</a><a href="#">About</a><a href="https://wa.me/393313251961" class="wa">WhatsApp</a></div>
+  <div class="hamburger" id="ham"><span></span><span></span><span></span></div>
+</div></nav>
+<div class="mm" id="mm"><a href="/apartments">Apartments</a><a href="#">Property Finding</a><a href="#">Deal Assistance</a><a href="#">Virtual Viewing</a><a href="#">Concierge</a><a href="#">About</a><a href="#">Login</a></div>
+
+<div class="shell">
+  <div class="crumb reveal"><a href="/apartments">Apartments</a> · <span id="cZone">Trastevere</span></div>
+
+  <header class="hero">
+    <div class="gallery reveal" id="gallery"></div>
+    <div class="htitle reveal">
+      <div>
+        <h1 id="hName">Bright Attic in Trastevere</h1>
+        <div class="hloc"><span id="hZone">Trastevere, Rome</span><span class="dot">·</span><span id="hMeta">2 bed · 65 m² · 3rd floor</span><span class="dot">·</span><span id="hAvail">Available Sep 1</span></div>
+      </div>
+      <div class="hactions">
+        <button class="icbtn" onclick="this.classList.toggle('on')" aria-label="Save">♡</button>
+        <button class="icbtn" aria-label="Share">↗</button>
+      </div>
+    </div>
+
+    <div class="layout">
+      <!-- EDITORIAL COLUMN -->
+      <div class="col-main">
+        <section class="act reveal" id="about">
+          <div class="act-h"><span class="act-num">01</span><div><div class="eyebrow">The home</div><h2>Light, a terrace, the <span class="g">heart of Trastevere</span>.</h2></div></div>
+          <p class="desc">A furnished attic in the pedestrian heart of Trastevere: double aspect, all-day light, and a private terrace over the rooftops. Walking distance to Sapienza, the historic centre and the rione’s evening life. Verified in person, on video, by our team — what you see is exactly what you get.</p>
+          <div class="feat" id="feat"></div>
+        </section>
+
+        <section class="act reveal" id="money">
+          <div class="act-h"><span class="act-num">02</span><div><div class="eyebrow">The money</div><h2>Exactly what you <span class="g">pay</span>. And what comes back.</h2></div></div>
+          <p class="act-sub">Everything it takes to move in — computed on the dates you choose. No “fees” invented at the table.</p>
+          <div class="mtiles" id="mtiles"></div>
+          <button class="dtog" id="dtog" onclick="toggleDecode()">＋ See every euro, decoded</button>
+          <div class="decoded" id="decoded"><div class="dinner" id="dinner"></div></div>
+        </section>
+
+        <section class="act reveal" id="trust">
+          <div class="act-h"><span class="act-num">03</span><div><div class="eyebrow">Safe &amp; fast</div><h2>Proof, not <span class="g">promises</span>.</h2></div></div>
+          <div class="proofs">
+            <div class="proof"><span class="c">✓</span> Verified in person, on video</div>
+            <div class="proof"><span class="c">✓</span> ID-checked owner</div>
+            <div class="proof"><span class="c">✓</span> Registered legal contract</div>
+            <div class="proof"><span class="c">✓</span> Deposit protected &amp; returned</div>
+          </div>
+          <div class="t48">
+            <div class="s"><div class="n">01</div><h4>Apply</h4><p>2 minutes. We reply within 2 hours.</p></div>
+            <div class="s"><div class="n">02</div><h4>Sign + register</h4><p>Legal contract, fully digital.</p></div>
+            <div class="s"><div class="n">03</div><h4>Keys</h4><p>In as little as 48 hours.</p></div>
+          </div>
+          <div class="aftercare">
+            <div class="ico">📱</div>
+            <div class="tx"><h4>And after you move in, BOOM stays</h4><p>Rent, documents, maintenance and your deposit — all handled in your BOOM app. An agency’s care, a product’s convenience.</p></div>
+          </div>
+        </section>
+
+        <section class="act reveal" id="place">
+          <div class="act-h"><span class="act-num">04</span><div><div class="eyebrow">The location</div><h2>See the <span class="g">block</span>, on foot.</h2></div></div>
+          <div class="map"><div class="blip"></div><button class="go" onclick="open3d()">◆ Explore the block in 3D — walk rings</button></div>
+        </section>
+
+        <section class="act reveal" id="faq">
+          <div class="act-h"><span class="act-num">05</span><div><div class="eyebrow">Answers</div><h2>Before you even <span class="g">ask</span>.</h2></div></div>
+          <div class="faq" id="faqList"></div>
+        </section>
+
+        <!-- UPSELL — tech × agency hybrid -->
+        <section class="upsell reveal">
+          <div class="eyebrow">More than a portal</div>
+          <h2>Not the perfect one? <span class="g">We’ll find it.</span></h2>
+          <p class="lead">We’re an agency with a tech engine, not a listings wall. If this isn’t exactly right — wrong dates, wrong zone — put us to work.</p>
+          <div class="ucards">
+            <div class="ucard"><div class="ico">🎯</div><h4>Property Finding</h4><p>Tell us your dates &amp; budget. We hunt, verify and bring you the right home.</p><a href="#">Start a search →</a></div>
+            <div class="ucard"><div class="ico">🎥</div><h4>Virtual Viewing</h4><p>Can’t come to Rome? See it live, in person, on a video walk-through.</p><a href="#">Book a tour →</a></div>
+            <div class="ucard"><div class="ico">🛡️</div><h4>Deal Assistance</h4><p>Found one elsewhere? We verify the contract and negotiate for you.</p><a href="#">Get protected →</a></div>
+          </div>
+        </section>
+      </div>
+
+      <!-- STICKY DECISION SIDEBAR (B's strength) -->
+      <aside class="col-side">
+        <div class="dcard">
+          <div class="dcard-top">
+            <div class="price" id="price">€1,500 <small>/month</small></div>
+            <div class="price-sub" id="priceSub">Available from 1 September 2026 · BOOM-managed</div>
+          </div>
+          <div class="dcard-body">
+            <div class="stitle">📅 Your stay</div>
+            <div class="field"><label for="moveIn">Your move-in date</label><input type="date" id="moveIn" class="datein"></div>
+            <div class="seg" id="durs" style="margin-top:14px"><button data-m="6">6 mo</button><button class="on" data-m="12">12 mo</button><button data-m="18">18 mo</button><button data-m="0">Flex</button></div>
+            <div id="availBadge"></div>
+            <div class="srows" id="srows"></div>
+            <button class="gbtn" id="applyBtn" onclick="apply()">Apply →</button>
+            <button class="obtn" onclick="apply()">🔒 Reserve &amp; hold · €300</button>
+            <div class="upnudge" id="upNudge"></div>
+            <div class="trustrow">
+              <span><span class="c">✓</span> Reply in 2h</span><span><span class="c">✓</span> No commitment</span><span><span class="c">✓</span> Stripe-secured</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </header>
+</div>
+
+<footer>
+  <div class="footer-grid">
+    <div class="footer-brand"><h3>BOOM</h3><p>Built in Rome, for Rome. If we can make Rome's rental market work, we can make it work anywhere.<br><br><strong>Egidi Immobiliare S.r.l.</strong><br>P.IVA 17322991005<br>REA RM - 1710623<br>Rome, Italy</p></div>
+    <div class="footer-links"><h4>Services</h4><ul><li><a href="/apartments">Apartments</a></li><li><a href="#">Property Finding</a></li><li><a href="#">Deal Assistance</a></li><li><a href="#">Virtual Viewing</a></li><li><a href="#">Concierge</a></li></ul></div>
+    <div class="footer-links"><h4>Company</h4><ul><li><a href="#">About</a></li><li><a href="#">How It Works</a></li><li><a href="#">For Universities</a></li><li><a href="#">For Owners</a></li><li><a href="#">Blog</a></li></ul></div>
+    <div class="footer-links"><h4>Legal</h4><ul><li><a href="#">Terms</a></li><li><a href="#">Privacy</a></li><li><a href="#">Login</a></li></ul></div>
+  </div>
+  <div class="footer-bottom"><span>© 2025 BOOM — All Rights Reserved</span><span class="op">Status: Operational</span></div>
+</footer>
+
+<div class="proto">PRODUCTION DESIGN · <b>A + decision sidebar</b> · sample data</div>
+
+<div class="rail">
+  <div class="prog"><i id="prog"></i></div>
+  <div class="in"><div class="l"><b id="railP">€1,500/mo</b><small id="railS">pick your dates ↑</small></div>
+    <button class="ask" onclick="openAi()" aria-label="Ask">✦</button>
+    <button class="go" onclick="apply()">Apply</button></div>
+</div>
+
+<!-- AI overlay -->
+<div class="ov" id="aiOv"><div class="sheet">
+  <div class="sheet-h"><h3>✦ Ask this home</h3><button class="xc" onclick="closeOv('aiOv')">×</button></div>
+  <div class="sheet-b">
+    <div class="chips"><button onclick="aiAsk(this)">💰 Total to move in?</button><button onclick="aiAsk(this)">🛡️ How does the deposit work?</button><button onclick="aiAsk(this)">📍 What's the area like?</button><button onclick="aiAsk(this)">⚡ How fast can I move in?</button></div>
+    <div id="aiThread"><div class="aimsg">I know this home and the reality of renting in Rome. Ask about cost, deposit, the area, the contract or timing — honest answers in seconds. <span style="color:var(--text-muted)">(demo)</span></div></div>
+  </div>
+</div></div>
+
+<!-- 3D overlay -->
+<div class="ov" id="d3Ov"><div class="sheet">
+  <div class="sheet-h"><h3>◆ The block in 3D</h3><button class="xc" onclick="closeOv('d3Ov')">×</button></div>
+  <div class="sheet-b"><div class="map3d"><div class="ring" style="width:120px;height:120px"></div><div class="ring" style="width:230px;height:230px"></div><div class="ring" style="width:340px;height:340px"></div><div class="blip"></div></div>
+    <p style="color:var(--text-secondary);font-size:13px;margin-top:14px">5 / 10 / 15-minute walk rings around the flat. In production this is the cinematic building flyover you already built.</p></div>
+</div></div>
+
+<!-- lightbox -->
+<div class="lb" id="lb" onclick="this.classList.remove('show')"><button class="xc" aria-label="Close">×</button><img id="lbImg" src="" alt=""></div>
+
+<script>
+const L={name:"Bright Attic in Trastevere",zone:"Trastevere",price:1500,deposit:1500,agencyFee:0,beds:2,baths:1,sqm:65,floor:3,furnished:true,availableFrom:"2026-09-01",
+  images:[["1502672260266-1c1ef2d93688","Living"],["1505691938895-1758d7feb511","Bedroom"],["1484154218962-a197022b5858","Kitchen"],["1493809842364-78817add7ffb","Terrace"],["1560448204-e02f11c3d0e2","Bathroom"]],
+  features:["Furnished","Private terrace","Double aspect","Air conditioning","Washer","Fibre Wi-Fi","Elevator","Eat-in kitchen"]};
+const eur=n=>'€'+Math.round(n).toLocaleString('en-US');
+const fmtD=d=>d.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+const fmtS=d=>d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+const dim=(y,m)=>new Date(y,m+1,0).getDate();
+
+/* gallery */
+document.getElementById('gallery').innerHTML=L.images.slice(0,4).map(([id,t],i)=>
+  `<div class="gcell" onclick="openLb('${id}')"><img src="https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=1200&q=72" alt="${t}" loading="${i===0?'eager':'lazy'}" onerror="this.style.display='none'">${i===0?'<span class="vbadge">✓ Video-verified</span>':''}${i===3?'<span class="more">+'+(L.images.length-4)+' photos</span>':''}</div>`).join('');
+document.getElementById('hAvail').textContent='Available '+fmtS(new Date(L.availableFrom+'T00:00'));
+document.getElementById('priceSub').textContent='Available from '+fmtD(new Date(L.availableFrom+'T00:00'))+' · BOOM-managed';
+document.getElementById('feat').innerHTML=L.features.map(f=>`<span>${f}</span>`).join('');
+
+function openLb(id){document.getElementById('lbImg').src='https://images.unsplash.com/photo-'+id+'?auto=format&fit=crop&w=1600&q=80';document.getElementById('lb').classList.add('show');}
+
+let DUR=12;
+function computeStay(){const avail=new Date(L.availableFrom+'T00:00');const raw=document.getElementById('moveIn').value;const req=raw?new Date(raw+'T00:00'):null;
+  const start=(!req||req<avail)?avail:req;const gap=req?Math.round((avail-req)/86400000):0;const di=dim(start.getFullYear(),start.getMonth());
+  const rem=di-start.getDate()+1;const prorated=Math.round(L.price*rem/di);const full=rem===di;const total=prorated+L.deposit+L.agencyFee;
+  let end=null;if(DUR>0){end=new Date(start);end.setMonth(end.getMonth()+DUR);}return{avail,req,start,end,gap,di,rem,prorated,full,total,fit:!req?'none':(req>=avail?'ok':'after')};}
+
+function countUp(el,to){const from=parseInt(el.dataset.cur||'0',10);const t0=performance.now();const dur=480;
+  if(matchMedia('(prefers-reduced-motion:reduce)').matches){el.textContent=eur(to);el.dataset.cur=to;return;}
+  function step(t){const p=Math.min(1,(t-t0)/dur);const e=1-Math.pow(1-p,3);el.textContent=eur(Math.round(from+(to-from)*e));if(p<1)requestAnimationFrame(step);else el.dataset.cur=to;}requestAnimationFrame(step);}
+
+function render(){const s=computeStay();let av;
+  if(s.fit==='none')av=`<div class="avail none"><span class="pin">📅</span><div>Pick a date for real availability &amp; the exact cost<small>Free from ${fmtD(s.avail)}</small></div></div>`;
+  else if(s.fit==='ok')av=`<div class="avail ok"><span class="pin">✓</span><div>Free for your date<small>You move in ${fmtD(s.start)}</small></div></div>`;
+  else av=`<div class="avail after"><span class="pin">!</span><div>Free from ${fmtS(s.avail)} — ${s.gap} days after you'd like<small>We can alert you if it frees sooner</small></div></div>`;
+  document.getElementById('availBadge').innerHTML=av;
+  document.getElementById('srows').innerHTML=`
+    <div class="srow"><span class="k">First month${s.full?'':` <span class="note">(pro-rata, ${s.rem}/${s.di} d)</span>`}</span><span class="v">${eur(s.prorated)}</span></div>
+    <div class="srow"><span class="k">Deposit <span class="note">refundable</span></span><span class="v">${eur(L.deposit)}</span></div>
+    <div class="srow"><span class="k">Agency fee</span><span class="v">${L.agencyFee?eur(L.agencyFee):'€0'}</span></div>
+    <div class="srow tot"><span class="k">To move in${s.fit==='none'?'':` ${fmtS(s.start)}`}</span><span class="v" id="totV">${eur(s.total)}</span></div>
+    ${s.end?`<div class="srow"><span class="k">Stay until</span><span class="v">${fmtD(s.end)}</span></div>`:''}`;
+  const tv=document.getElementById('totV');if(tv)countUp(tv,s.total);
+  document.getElementById('applyBtn').innerHTML=(s.fit==='none')?'Apply →':`Apply for ${fmtS(s.start)} →`;
+  /* honest upsell nudge when the home doesn't fit the chosen date */
+  const up=document.getElementById('upNudge');
+  if(s.fit==='after'){up.classList.add('show');up.innerHTML=`Need it by ${fmtS(s.req)}? We can <a href="#">find one for your exact dates →</a>`;}
+  else up.classList.remove('show');
+  document.getElementById('mtiles').innerHTML=[
+    ['First month',eur(s.prorated),s.full?'full rent':'pro-rata on your date'],
+    ['Deposit',eur(L.deposit),'refundable at end'],
+    ['Agency fee',L.agencyFee?eur(L.agencyFee):'€0',L.agencyFee?'one-off':'none, on this home'],
+    ['To move in',eur(s.total),s.fit==='none'?'from first open day':'for your dates',true]
+  ].map(([k,v,sub,t])=>`<div class="mt ${t?'tot':''}"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${sub}</div></div>`).join('');
+  document.getElementById('railP').textContent=(s.fit==='none')?eur(L.price)+'/mo':'To move in: '+eur(s.total);
+  document.getElementById('railS').textContent=(s.fit==='none')?'pick your dates ↑':fmtS(s.start);
+}
+document.getElementById('durs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;document.querySelectorAll('#durs button').forEach(x=>x.classList.remove('on'));b.classList.add('on');DUR=+b.dataset.m;render();});
+document.getElementById('moveIn').addEventListener('change',render);document.getElementById('moveIn').min=L.availableFrom;
+
+const DEC=[['First month','The only rent to move in — you’d pay it anywhere. Mid-month, you pay only the days you live.',''],
+['The deposit','Security, not a cost: protected, returned at the end of your stay net of any damage.','refundable'],
+['Agency fee','€0 on this home. When there is one, it’s once and stated up front — never a surprise.','€0'],
+['Monthly bills','Condominio and utilities: the real monthly picture, in the clear before you sign.',''],
+['No envelopes','Every euro through Stripe, with a receipt. No cash, no invented “check-in fees”.','']];
+document.getElementById('dinner').innerHTML=DEC.map(([h,p,a])=>`<div class="dcd"><h4>${h}${a?` · <span class="amt">${a}</span>`:''}</h4><p>${p}</p></div>`).join('');
+function toggleDecode(){const d=document.getElementById('decoded');const o=d.classList.toggle('open');document.getElementById('dtog').textContent=o?'− Hide the detail':'＋ See every euro, decoded';}
+
+const FAQ=[['Can I move in on a different date than availability?','Yes. Set your date in “Your stay”: after availability you move in straight away; before it, we show the exact gap and can alert you or find an alternative for your date.'],
+['How fast can I really move in?','As fast as 48 hours from approval. We reply to every application within 2 hours and handle the contract and keys for you.'],
+['Is the contract legitimate?','Always: registered legal contract, ID-verified owner, protected deposit. We’re a licensed Rome agency (Egidi Immobiliare S.r.l.).'],
+['What do I actually pay to move in?','Only what you see in “Your stay”: first month + refundable deposit + any agency fee. Nothing else.'],
+['What happens after I move in?','Rent, documents, maintenance and your deposit are all managed in your BOOM app — that’s the difference between us and a listings site.']];
+document.getElementById('faqList').innerHTML=FAQ.map(([q,a])=>`<div class="qa"><button class="q" onclick="this.parentNode.classList.toggle('open')"><span>${q}</span><span class="x">+</span></button><div class="a"><div>${a}</div></div></div>`).join('');
+
+function openAi(){document.getElementById('aiOv').classList.add('show')}
+function open3d(){document.getElementById('d3Ov').classList.add('show')}
+function closeOv(i){document.getElementById(i).classList.remove('show')}
+document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('show')}));
+const AI={'💰 Total to move in?':'For your chosen dates the total is first month + refundable deposit + agency fee (€0 here). You see it live in “Your stay”, right of this page.',
+'🛡️ How does the deposit work?':'Security, not a cost: held safely and returned at the end of your stay, net of any damage.',
+'📍 What\'s the area like?':'Trastevere: cobbled, pedestrian, lively at night, walking distance to Sapienza and the centre. Tap “Explore the block in 3D” for the walk rings.',
+'⚡ How fast can I move in?':'As fast as 48 hours from approval. Set your date and we tell you instantly if it’s free for that day.'};
+function aiAsk(b){const q=b.textContent;const t=document.getElementById('aiThread');t.insertAdjacentHTML('beforeend',`<div class="aimsg" style="border-color:var(--border-gold)"><b>You:</b> ${q}</div><div class="aimsg">${AI[q]||'Demo — in production, a real answer from the AI that knows this home.'}</div>`);t.lastElementChild.scrollIntoView({behavior:'smooth',block:'nearest'});}
+function apply(){const s=computeStay();const when=s.fit==='none'?'the first open date':fmtD(s.start);alert('Prototype demo — in production this opens the application PRE-FILLED with:\n\n• Move-in: '+when+'\n• Length: '+(DUR?DUR+' months':'flexible')+'\n• Total to move in: '+eur(s.total)+'\n\nand the dates flow into the lead (desiredMoveIn / duration) for matching + qualification.');}
+
+addEventListener('scroll',()=>{document.getElementById('nav').classList.toggle('scrolled',scrollY>20);const h=document.body.scrollHeight-innerHeight;document.getElementById('prog').style.width=(scrollY/Math.max(1,h)*100)+'%';},{passive:true});
+document.getElementById('ham').addEventListener('click',function(){this.classList.toggle('active');document.getElementById('mm').classList.toggle('active');});
+document.getElementById('mm').addEventListener('click',e=>{if(e.target.tagName==='A'){document.getElementById('mm').classList.remove('active');document.getElementById('ham').classList.remove('active');}});
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}}),{threshold:.12});
+document.querySelectorAll('.reveal,.t48 .s').forEach(el=>io.observe(el));
+render();
+</script>
+</body>
+</html>

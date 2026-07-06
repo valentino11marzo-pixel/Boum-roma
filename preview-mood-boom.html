@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>BOOM · Mood system — on-brand demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* BOOM identity, untouched: Helvetica Neue 300 · wide tracking · #FFD700 on #08080A. */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--gold:#FFD700;--gold2:#FFA500;--bg:#08080A;--card:#0E0E12;--hair:rgba(255,255,255,.08);
+      --t1:#fff;--t2:rgba(255,255,255,.72);--t3:rgba(255,255,255,.46);--t4:rgba(255,255,255,.26);
+      --ease:cubic-bezier(.16,1,.3,1)}
+body{font-family:'Helvetica Neue',Helvetica,'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--t1);font-weight:300;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer;background:none;border:0;color:inherit}
+.eyebrow{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--gold)}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+section[data-ambient]{position:relative}
+nav{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;justify-content:space-between;align-items:center;padding:18px 30px;background:linear-gradient(180deg,rgba(8,8,10,.8),transparent)}
+.brand{display:flex;align-items:center;gap:12px}
+.ring{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--gold);box-shadow:0 0 16px rgba(255,215,0,.35)}
+.brand b{font-weight:300;letter-spacing:5px;font-size:18px;text-transform:uppercase}
+.tag{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t4);border:1px solid var(--hair);border-radius:100px;padding:7px 13px}
+
+.hero{min-height:88vh;display:flex;align-items:center;padding-top:80px}
+h1{font-weight:200;font-size:clamp(36px,6vw,72px);line-height:1.05;letter-spacing:-.01em;margin:16px 0 18px;max-width:16ch}
+h1 b{font-weight:400;color:var(--gold)}
+.lede{color:var(--t2);font-size:clamp(15px,1.9vw,18px);max-width:56ch;margin-bottom:34px}
+.cta{display:inline-block;padding:15px 36px;border-radius:12px;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#000;font-weight:600;font-size:13px;letter-spacing:1px;text-transform:uppercase;transition:transform .12s var(--ease),box-shadow .3s var(--ease);box-shadow:0 12px 34px rgba(255,215,0,.22)}
+.cta:active{transform:scale(.985)}
+.hint{margin-top:26px;color:var(--t4);font-size:12px;letter-spacing:.5px}
+.hint b{color:var(--t3)}
+
+.demo{padding:100px 0 140px}
+.demo h2{font-weight:200;font-size:clamp(26px,4vw,44px);letter-spacing:-.01em;margin:12px 0 14px}
+.demo p{color:var(--t2);max-width:60ch;margin-bottom:14px}
+.moods{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+.moods button{padding:11px 20px;border-radius:100px;border:1px solid var(--hair);color:var(--t2);font-size:12.5px;letter-spacing:.6px;transition:all .2s var(--ease);min-height:44px}
+.moods button:hover{color:var(--t1);border-color:rgba(255,255,255,.2)}
+.moods button.on{background:var(--gold);color:#000;border-color:var(--gold);font-weight:600}
+.meter{margin-top:28px;max-width:420px}
+.meter .lbl{display:flex;justify-content:space-between;font-size:10.5px;letter-spacing:2px;text-transform:uppercase;color:var(--t4);margin-bottom:8px}
+.meter .bar{height:4px;border-radius:4px;background:rgba(255,255,255,.07);overflow:hidden}
+.meter .fill{height:100%;width:100%;border-radius:4px;background:linear-gradient(90deg,var(--gold),var(--gold2));transition:width .8s var(--ease)}
+
+.drawer{position:fixed;inset:0;z-index:90;display:none}
+.drawer.on{display:block}
+.drawer .bg{position:absolute;inset:0;background:rgba(0,0,0,.62);backdrop-filter:blur(6px);opacity:0;transition:opacity .32s var(--ease)}
+.drawer.in .bg{opacity:1}
+.panel{position:absolute;right:0;top:0;bottom:0;width:min(420px,94vw);background:#0C0C0F;border-left:1px solid rgba(255,215,0,.18);padding:36px 32px;transform:translateX(103%);transition:transform .44s cubic-bezier(.65,0,.35,1)}
+.drawer.in .panel{transform:none}
+.panel h3{font-weight:300;font-size:26px;letter-spacing:-.01em;margin:10px 0 6px}
+.panel .sub{color:var(--t3);font-size:13px;margin-bottom:24px}
+.panel label{display:block;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t4);margin:14px 0 6px}
+.panel input{width:100%;padding:13px 15px;background:rgba(255,255,255,.04);border:1px solid var(--hair);border-radius:11px;color:var(--t1);font-family:inherit;font-size:14px;outline:none;transition:border-color .2s}
+.panel input:focus{border-color:var(--gold)}
+.panel .cta{width:100%;text-align:center;margin-top:22px}
+.panel .x{position:absolute;top:16px;right:16px;width:44px;height:44px;border-radius:50%;border:1px solid var(--hair);color:var(--t3);font-size:16px}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="brand" href="/preview-index"><span class="ring"></span><b>BOOM</b></a>
+  <span class="tag">Mood system · on-brand demo</span>
+</nav>
+
+<section class="hero" data-ambient="oculus"><div class="wrap">
+  <div class="eyebrow">Ambience that knows what you're doing</div>
+  <h1>The background <b>breathes</b> while you browse.<br>And <b>holds its breath</b> while you decide.</h1>
+  <p class="lede">This is the mood system in BOOM's real identity — Helvetica, #FFD700 gold, pure dark. The Pantheon scene behind this page runs at full presence now. Open the application and watch it still itself: when money is on the table, nothing moves but your decision.</p>
+  <button class="cta" id="applyBtn">Start an application</button>
+  <div class="hint">Or try the moods by hand below · <b>Esc</b> closes the application</div>
+</div></section>
+
+<section class="demo" data-ambient="oculus"><div class="wrap">
+  <div class="eyebrow">Try it</div>
+  <h2>Four moods, one ambience.</h2>
+  <p><b style="color:var(--t1);font-weight:400">Browse</b> — full tempo while exploring. <b style="color:var(--t1);font-weight:400">Read</b> — calmer when you're taking in detail. <b style="color:var(--t1);font-weight:400">Focus</b> — dimmed under any overlay. <b style="color:var(--t1);font-weight:400">Convert</b> — near-still during payment or application.</p>
+  <div class="moods" id="moods">
+    <button data-m="browse" class="on" aria-pressed="true">Browse</button>
+    <button data-m="read" aria-pressed="false">Read</button>
+    <button data-m="focus" aria-pressed="false">Focus</button>
+    <button data-m="convert" aria-pressed="false">Convert</button>
+  </div>
+  <div class="meter"><div class="lbl"><span>Ambient presence</span><span id="mv">100%</span></div>
+    <div class="bar"><div class="fill" id="mf"></div></div></div>
+</div></section>
+
+<div class="drawer" id="drawer" role="dialog" aria-modal="true" aria-label="Application">
+  <div class="bg" id="drawerBg"></div>
+  <div class="panel">
+    <button class="x" id="drawerX" aria-label="Close">✕</button>
+    <div class="eyebrow">Application · convert mood</div>
+    <h3>The ambience just went still.</h3>
+    <div class="sub">Look behind this panel — the scene has dropped to a whisper. Close with Esc and it breathes again.</div>
+    <label for="fN">Full name</label><input id="fN" autocomplete="name">
+    <label for="fE">Email</label><input id="fE" type="email" autocomplete="email">
+    <button class="cta">Continue →</button>
+  </div>
+</div>
+
+<script src="/js/boom-ambient.js"></script>
+<script>
+(function(){
+'use strict';
+/* BOOM palette: pure brand gold on pure brand dark */
+var amb=BoomAmbient.mount({ink:'#08080A',inkRGB:'8,8,10',palette:{a:'255,215,0',b:'255,229,160'},intensity:.75,sections:true});
+var PRES={browse:100,read:60,focus:35,convert:22};
+function setMood(m,fromUI){
+  amb.mood(m);
+  document.getElementById('mv').textContent=PRES[m]+'%';
+  document.getElementById('mf').style.width=PRES[m]+'%';
+  document.querySelectorAll('#moods button').forEach(function(b){var on=b.dataset.m===m;b.classList.toggle('on',on);b.setAttribute('aria-pressed',on)});
+}
+document.getElementById('moods').addEventListener('click',function(e){var b=e.target.closest('button[data-m]');if(b)setMood(b.dataset.m,true)});
+var drawer=document.getElementById('drawer');
+function openD(){drawer.classList.add('on');requestAnimationFrame(function(){drawer.classList.add('in')});setMood('convert');document.body.style.overflow='hidden';document.getElementById('fN').focus()}
+function closeD(){drawer.classList.remove('in');setMood('browse');document.body.style.overflow='';setTimeout(function(){drawer.classList.remove('on')},420)}
+document.getElementById('applyBtn').addEventListener('click',openD);
+document.getElementById('drawerX').addEventListener('click',closeD);
+document.getElementById('drawerBg').addEventListener('click',closeD);
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&drawer.classList.contains('on'))closeD()});
+setMood('browse');
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>BOOM · Meridiana — design direction</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ═════════ MERIDIANA — Rome at noon ═════════
+   The first LIGHT direction: travertine paper, warm ink, bronze.
+   Sun instead of night; shadow instead of glow. Couture-editorial. */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --paper:#F5EFE3; --card:#FBF7EEcc; --hair:rgba(63,52,32,.1); --line:rgba(140,106,47,.28);
+  --bronze:#8C6A2F; --bronze-deep:#6E5222; --green:#2E7D4F; --amber:#B0731F;
+  --t1:rgba(42,35,23,1); --t2:rgba(42,35,23,.74); --t3:rgba(42,35,23,.5); --t4:rgba(42,35,23,.3);
+  --d-1:120ms; --d-2:180ms; --d-3:240ms; --d-4:320ms; --d-5:440ms; --d-6:620ms;
+  --ease-out:cubic-bezier(.16,1,.3,1); --ease-inout:cubic-bezier(.65,0,.35,1); --ease:var(--ease-out);
+}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--paper);color:var(--t1);font-weight:300;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+.disp{font-family:'Cormorant Garamond',Georgia,serif;font-weight:300}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer;background:none;border:0;color:inherit}
+.eyebrow{font-size:10.5px;letter-spacing:2.6px;text-transform:uppercase;color:var(--bronze);font-weight:500}
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+section[data-ambient]{position:relative}
+nav{position:fixed;top:0;left:0;right:0;z-index:50;transition:background var(--d-3) var(--ease),box-shadow var(--d-3) var(--ease)}
+nav.scr{background:rgba(245,239,227,.88);backdrop-filter:blur(18px);box-shadow:0 1px 0 var(--hair)}
+.nav-in{max-width:1180px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;padding:18px 24px}
+.brand{display:flex;align-items:center;gap:12px}
+.ring{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--bronze)}
+.brand b{font-weight:400;letter-spacing:6px;font-size:17px}
+.nlinks{display:flex;gap:26px;font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:var(--t3)}
+.nlinks a:hover{color:var(--t1)}
+@media(max-width:760px){.nlinks{display:none}}
+
+/* hero — ambient: oculus (the sun at noon) */
+.hero{min-height:92vh;display:flex;align-items:center;padding-top:90px}
+h1{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(44px,7.4vw,94px);line-height:1.02;margin:18px 0 20px;max-width:12ch}
+h1 em{font-style:italic;color:var(--bronze)}
+.lede{font-size:clamp(15px,1.9vw,19px);color:var(--t2);max-width:52ch;margin-bottom:38px}
+.intent{display:flex;max-width:740px;background:rgba(251,247,238,.85);backdrop-filter:blur(10px);border:1px solid var(--hair);border-radius:16px;overflow:hidden;box-shadow:0 16px 44px rgba(63,52,32,.09)}
+.intent .cell{flex:1;padding:14px 18px;border-right:1px solid var(--hair)}
+.intent label{display:block;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--t4);margin-bottom:3px}
+.intent input,.intent select{width:100%;background:none;border:0;color:var(--t1);font-family:inherit;font-size:14.5px;outline:none}
+.go{padding:0 30px;background:linear-gradient(180deg,var(--bronze),var(--bronze-deep));color:#F8F3E7;font-weight:600;font-size:12.5px;letter-spacing:1.4px;text-transform:uppercase;transition:filter var(--d-2) var(--ease)}
+.go:hover{filter:brightness(1.08)}
+@media(max-width:680px){.intent{flex-direction:column}.intent .cell{border-right:0;border-bottom:1px solid var(--hair)}.go{padding:15px}}
+.hero-meta{display:flex;gap:34px;margin-top:34px;color:var(--t3);font-size:12.5px}
+.hero-meta b{display:block;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:30px;color:var(--t1);line-height:1.1}
+.hero-meta .bz b{color:var(--bronze)}
+
+/* grid — ambient: cosmati (engraved on stone) */
+.browse{padding:100px 0 120px}
+.sec-head{margin-bottom:30px}
+.sec-head h2{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(28px,4.4vw,50px);line-height:1.05;margin-top:12px}
+.sec-head h2 em{font-style:italic;color:var(--bronze)}
+.browse-head{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+.count{font-size:13px;color:var(--t3)}.count b{color:var(--bronze-deep);font-weight:600}
+.tools{display:flex;gap:8px}
+.chip{padding:9px 16px;border-radius:100px;border:1px solid var(--hair);font-size:12.5px;color:var(--t2);transition:all var(--d-2) var(--ease);background:rgba(251,247,238,.6)}
+.chip.on{border-color:var(--bronze);color:var(--bronze-deep);background:rgba(140,106,47,.08)}
+select.chip{appearance:none}
+.facets{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px}
+.facet{padding:7px 13px;border-radius:9px;border:1px solid var(--hair);font-size:12px;color:var(--t3);background:rgba(251,247,238,.6);transition:all var(--d-2) var(--ease)}
+.facet b{color:var(--t2);font-weight:600;margin-right:5px}
+.facet.on{border-color:var(--bronze);color:var(--bronze-deep)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:22px}
+.pc{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--hair);border-radius:18px;overflow:hidden;backdrop-filter:blur(4px);box-shadow:0 10px 30px rgba(63,52,32,.07);transition:transform var(--d-3) var(--ease),box-shadow var(--d-3) var(--ease)}
+.pc:hover{transform:translateY(-5px);box-shadow:0 26px 60px rgba(63,52,32,.14)}
+.pc .ph{position:relative;aspect-ratio:4/3;overflow:hidden;background:#E9E1D0}
+.pc .ph img{width:100%;height:100%;object-fit:cover;display:block;transition:transform var(--d-6) var(--ease)}
+.pc:hover .ph img{transform:scale(1.05)}
+.badges{position:absolute;top:12px;left:12px;display:flex;gap:6px;z-index:2}
+.bdg{padding:4px 10px;border-radius:100px;font-size:10px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;background:rgba(251,247,238,.85);border:1px solid var(--hair);color:var(--t2)}
+.bdg.ver{color:var(--green)}
+.bdg.over{color:var(--amber)}
+.pc .b{padding:18px 20px 20px;display:flex;flex-direction:column;flex:1}
+.pc .z{font-size:10.5px;letter-spacing:2.6px;text-transform:uppercase;color:var(--bronze);margin-bottom:5px}
+.pc .n{font-family:'Cormorant Garamond',serif;font-weight:500;font-size:22px;line-height:1.15;margin-bottom:8px}
+.pc .specs{display:flex;gap:14px;font-size:12.5px;color:var(--t3);margin-bottom:14px}
+.pc .foot{display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:14px;border-top:1px solid var(--hair)}
+.pc .pr{font-family:'Cormorant Garamond',serif;font-weight:500;font-size:24px;color:var(--bronze-deep)}
+.pc .pr small{font-size:11.5px;color:var(--t4);font-family:'Inter';font-weight:300}
+.pc .view{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t4);transition:color var(--d-2) var(--ease)}
+.pc:hover .view{color:var(--bronze-deep)}
+.empty{text-align:center;padding:70px 20px;color:var(--t3);display:none}
+.sk{border-radius:18px;border:1px solid var(--hair);overflow:hidden;background:var(--card)}
+.sk .ph{aspect-ratio:4/3;background:linear-gradient(110deg,rgba(63,52,32,.04) 30%,rgba(63,52,32,.09) 50%,rgba(63,52,32,.04) 70%);background-size:200% 100%;animation:shm 1.6s infinite}
+.sk .b{padding:18px}.sk .l{height:11px;border-radius:6px;background:rgba(63,52,32,.07);margin-bottom:9px}
+@keyframes shm{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* money — ambient: meandro */
+.money{padding:110px 0}
+.money-grid{display:grid;grid-template-columns:1fr 1fr;gap:52px;align-items:center}
+.ledger{border:1px solid var(--line);border-radius:20px;background:rgba(251,247,238,.9);padding:30px 32px;box-shadow:0 18px 50px rgba(63,52,32,.1)}
+.ledger h3{font-size:10.5px;letter-spacing:2.6px;text-transform:uppercase;color:var(--t3);font-weight:600;margin-bottom:16px}
+.li{display:flex;justify-content:space-between;font-size:14.5px;padding:11px 0;border-bottom:1px solid var(--hair);color:var(--t2)}
+.li:last-child{border:0;padding-top:16px}
+.li b{font-family:'Cormorant Garamond',serif;font-weight:500;font-size:22px;color:var(--bronze-deep)}
+.money p.big{font-size:clamp(15px,2vw,18px);color:var(--t2);margin:18px 0 26px;max-width:44ch}
+.cta{display:inline-block;padding:16px 38px;border-radius:100px;background:linear-gradient(180deg,var(--bronze),var(--bronze-deep));color:#F8F3E7;font-weight:600;font-size:13px;letter-spacing:1.4px;text-transform:uppercase;transition:filter var(--d-2) var(--ease),transform var(--d-1) var(--ease)}
+.cta:hover{filter:brightness(1.08)}.cta:active{transform:scale(.985)}
+@media(max-width:860px){.money-grid{grid-template-columns:1fr}}
+
+footer{padding:110px 0 60px;text-align:center}
+footer .fin{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(28px,4.5vw,48px);line-height:1.1;margin-bottom:26px}
+footer .fin em{font-style:italic;color:var(--bronze)}
+footer .legal{margin-top:52px;color:var(--t4);font-size:11.5px;letter-spacing:1px}
+.reveal{opacity:0;transform:translateY(16px);transition:opacity var(--d-6) var(--ease),transform var(--d-6) var(--ease)}
+.reveal.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}*{scroll-behavior:auto!important}}
+.proto{position:fixed;left:16px;bottom:16px;z-index:60;font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t4);border:1px solid var(--hair);border-radius:100px;padding:8px 14px;background:rgba(251,247,238,.8);backdrop-filter:blur(8px)}
+.proto b{color:var(--bronze)}
+</style>
+</head>
+<body>
+
+<nav id="nav"><div class="nav-in">
+  <a class="brand" href="/preview-index"><span class="ring"></span><b>BOOM</b></a>
+  <div class="nlinks"><a href="#browse">Apartments</a><a href="#money">Pricing</a><a href="/preview-index">All studies</a></div>
+</div></nav>
+
+<section class="hero" data-ambient="oculus"><div class="wrap">
+  <div class="eyebrow">Meridiana · Rome at noon</div>
+  <h1 class="disp">Find home in the <em>full light</em> of day.</h1>
+  <p class="lede">Nothing hidden, because nothing needs to be. Every apartment filmed and verified in person, every price computed to the euro — a rental house that works the way the sun does: on everything, equally.</p>
+  <form class="intent" onsubmit="return false">
+    <div class="cell"><label for="q">Where</label><input id="q" placeholder="Zone, street, landmark…" autocomplete="off"></div>
+    <div class="cell"><label for="bud">Max budget</label><select id="bud"><option value="0">Any</option><option>1600</option><option selected>2200</option><option>3000</option><option>4000</option></select></div>
+    <button class="go" id="goBtn">Search</button>
+  </form>
+  <div class="hero-meta">
+    <div class="bz"><b id="mHomes">—</b>verified homes</div>
+    <div><b>22</b>rioni covered</div>
+    <div><b>€0</b>agency fee</div>
+  </div>
+</div></section>
+
+<section class="browse" id="browse" data-ambient="cosmati"><div class="wrap">
+  <div class="sec-head reveal"><div class="eyebrow">The collection</div>
+    <h2 class="disp">Chosen in <em>daylight.</em></h2></div>
+  <div class="browse-head">
+    <div class="count" aria-live="polite"><b id="count">0</b> homes<span id="ctx"></span></div>
+    <div class="tools">
+      <button class="chip" data-beds="1">1+ bed</button>
+      <button class="chip" data-beds="2">2+ beds</button>
+      <select class="chip" id="sort" aria-label="Sort"><option value="fit">Recommended</option><option value="priceA">Price ↑</option><option value="priceD">Price ↓</option></select>
+    </div>
+  </div>
+  <div class="facets" id="facets"></div>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty">No homes match — widen the budget or clear a filter.</div>
+</div></section>
+
+<section class="money" id="money" data-ambient="meandro"><div class="wrap">
+  <div class="money-grid">
+    <div class="reveal">
+      <div class="eyebrow">Money, decoded</div>
+      <h2 class="disp" style="font-size:clamp(28px,4.4vw,50px);line-height:1.05;margin:12px 0 0">Every euro, in <em>plain sight.</em></h2>
+      <p class="big">The full move-in, computed live before you ask. In daylight, a price has nowhere to hide — and ours doesn't need to.</p>
+      <a class="cta" href="#browse">Browse the collection</a>
+    </div>
+    <div class="ledger reveal">
+      <h3>Move-in · Attico sul Tevere</h3>
+      <div class="li"><span>First month</span><span>€2,400</span></div>
+      <div class="li"><span>Deposit · 2 months</span><span>€4,800</span></div>
+      <div class="li"><span>Agency fee</span><span style="color:var(--green)">€0</span></div>
+      <div class="li"><span>Contract registry</span><span>€68</span></div>
+      <div class="li"><span>Due at signature</span><b>€7,268</b></div>
+    </div>
+  </div>
+</div></section>
+
+<footer data-ambient="contorni"><div class="wrap">
+  <div class="fin disp reveal">Rome, <em>meridiana.</em><br>Clear as noon.</div>
+  <a class="cta" href="#browse">Find your home</a>
+  <div class="legal">BOOM · ROMA — Meridiana study · non-production</div>
+</div></footer>
+
+<div class="proto">Direction · <b>Meridiana</b></div>
+
+<script src="/js/boom-elevate.js"></script>
+<script src="/js/boom-ambient.js"></script>
+<script>
+(function(){
+'use strict';
+var eur=function(n){return '€'+Number(n||0).toLocaleString('en-US')};
+/* bronze lines on travertine paper — a LIGHT ambience */
+var amb=BoomAmbient.mount({
+  ink:'#F5EFE3', inkRGB:'245,239,227',
+  palette:{a:'140,106,47', b:'110,82,34'},
+  intensity:.8,
+  onScene:function(k){amb.mood(k==='meandro'||k==='contorni'?'read':'browse')}
+});
+addEventListener('scroll',function(){document.getElementById('nav').classList.toggle('scr',scrollY>16)},{passive:true});
+var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{threshold:.12});
+document.querySelectorAll('.reveal').forEach(function(el){io.observe(el)});
+
+var SAMPLE=[
+ {id:'sample1',name:'Bright Attic with Terrace',zone:'Trastevere',price:2400,beds:2,baths:1,sqm:78,img:'https://i.imgur.com/s2es0MN.jpeg',verified:true},
+ {id:'sample2',name:'Designer One-Bed',zone:'Monti',price:1850,beds:1,baths:1,sqm:55,img:'https://i.imgur.com/Ne0ROPe.jpeg',verified:true},
+ {id:'sample3',name:'Cosy Studio by the Tiber',zone:'Trastevere',price:1350,beds:0,baths:1,sqm:38,img:'https://i.imgur.com/Smv5uPX.jpeg',verified:true},
+ {id:'sample4',name:'Family Flat near the Park',zone:'Prati',price:2900,beds:3,baths:2,sqm:110,img:'https://i.imgur.com/tJnYADn.jpeg',verified:true},
+ {id:'sample5',name:'Loft with Skyline View',zone:'Ostiense',price:2100,beds:1,baths:1,sqm:64,img:'https://i.imgur.com/8LVxrhs.jpeg',verified:true},
+ {id:'sample6',name:'Classic Two-Bed',zone:'Prati',price:2300,beds:2,baths:1,sqm:85,img:'https://i.imgur.com/CI4n46J.jpeg',verified:true}
+];
+var L=SAMPLE.slice();
+function mapReal(d){var imgs=(Array.isArray(d.images)&&d.images.length)?d.images:(d.image?[d.image]:[]);
+  return {id:d.id,name:d.name||d.title||'Apartment in Rome',zone:d.zone||d.neighborhood||'Rome',price:+d.price||0,
+    beds:(d.beds!=null?d.beds:(d.bedrooms!=null?d.bedrooms:0)),baths:d.bathrooms||d.baths||1,sqm:d.sqm||d.size||0,img:imgs[0]||'',verified:true}}
+
+var S={q:'',bud:2200,beds:0,zones:[],sort:'fit'};
+function fit(l){var f=100;if(S.bud&&l.price>S.bud)f-=Math.min(40,(l.price-S.bud)/20);if(S.beds&&l.beds<S.beds)f-=30;return Math.max(5,Math.round(f))}
+function pass(l){
+  if(S.q&&!(l.name+' '+l.zone).toLowerCase().includes(S.q))return false;
+  if(S.beds&&l.beds<S.beds)return false;
+  if(S.zones.length&&S.zones.indexOf(l.zone)<0)return false;
+  if(S.bud&&l.price>S.bud*1.15)return false;
+  return true;
+}
+function cardHTML(l){
+  var over=S.bud&&l.price>S.bud, alt=(l.name+' — '+l.zone).replace(/"/g,'');
+  return '<a class="pc" data-id="'+l.id+'" href="/listing/'+encodeURIComponent(l.id)+'" aria-label="'+alt+', '+eur(l.price)+' per month">'
+    +'<div class="ph"><img src="'+(l.img||'')+'" alt="'+alt+'" loading="lazy" data-blur-up onerror="this.style.opacity=0">'
+    +'<div class="badges">'+(l.verified?'<span class="bdg ver">✓ Verified</span>':'')+(over?'<span class="bdg over">'+eur(l.price-S.bud)+' over</span>':'')+'</div></div>'
+    +'<div class="b"><div class="z">'+l.zone+'</div><div class="n disp">'+l.name+'</div>'
+    +'<div class="specs"><span>'+(l.beds||'Studio')+(l.beds?' bed'+(l.beds>1?'s':''):'')+'</span><span>'+l.baths+' bath</span><span>'+l.sqm+' m²</span></div>'
+    +'<div class="foot"><div class="pr">'+eur(l.price)+' <small>/mo</small></div><span class="view">View →</span></div></div></a>';
+}
+function render(){
+  var list=L.filter(pass);
+  list.sort({fit:function(a,b){return fit(b)-fit(a)},priceA:function(a,b){return a.price-b.price},priceD:function(a,b){return b.price-a.price}}[S.sort]);
+  document.getElementById('count').textContent=list.length;
+  document.getElementById('ctx').textContent=S.zones.length?(' · '+S.zones.join(', ')):'';
+  var fc={};L.forEach(function(l){fc[l.zone]=(fc[l.zone]||0)+1});
+  document.getElementById('facets').innerHTML=Object.entries(fc).sort(function(a,b){return b[1]-a[1]}).slice(0,7)
+    .map(function(e){return '<button class="facet'+(S.zones.indexOf(e[0])>=0?' on':'')+'" data-z="'+e[0]+'" aria-pressed="'+(S.zones.indexOf(e[0])>=0)+'"><b>'+e[1]+'</b>'+e[0]+'</button>'}).join('');
+  var grid=document.getElementById('grid');
+  document.getElementById('empty').style.display=list.length?'none':'block';
+  var flip=(window.BoomElevate&&BoomElevate.flipCapture)?BoomElevate.flipCapture(grid,'.pc'):null;
+  grid.innerHTML=list.map(cardHTML).join('');
+  if(flip)flip();
+  if(window.BoomElevate&&BoomElevate.scan)BoomElevate.scan(grid);
+}
+document.getElementById('goBtn').addEventListener('click',function(){
+  S.q=document.getElementById('q').value.trim().toLowerCase();S.bud=+document.getElementById('bud').value||0;
+  render();document.getElementById('browse').scrollIntoView({behavior:'smooth'});
+});
+document.getElementById('sort').addEventListener('change',function(e){S.sort=e.target.value;render()});
+document.querySelectorAll('.chip[data-beds]').forEach(function(c){c.addEventListener('click',function(){
+  var v=+c.dataset.beds;S.beds=(S.beds===v)?0:v;
+  document.querySelectorAll('.chip[data-beds]').forEach(function(x){x.classList.toggle('on',+x.dataset.beds===S.beds)});render();
+})});
+document.getElementById('facets').addEventListener('click',function(e){
+  var f=e.target.closest('.facet');if(!f)return;var z=f.dataset.z,i=S.zones.indexOf(z);
+  i<0?S.zones.push(z):S.zones.splice(i,1);render();
+});
+document.getElementById('grid').addEventListener('click',function(e){
+  var a=e.target.closest('a.pc[data-id]');if(!a)return;
+  try{if(window.BoomElevate)BoomElevate.captureHandoff(a.querySelector('.ph img'),a.dataset.id);sessionStorage.setItem('boom:scroll:mer',String(scrollY));}catch(_){}
+});
+
+document.getElementById('grid').innerHTML=Array.from({length:6},function(){return '<div class="sk"><div class="ph"></div><div class="b"><div class="l" style="width:40%"></div><div class="l" style="width:75%"></div></div></div>'}).join('');
+fetch('/api/listings',{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){
+  if(j&&j.ok&&Array.isArray(j.listings)&&j.listings.length){
+    var mapped=j.listings.filter(function(d){return d&&d.status!=='rented'}).map(mapReal).filter(function(l){return l.img});
+    if(mapped.length)L=mapped;
+    document.querySelector('.proto').innerHTML='Direction · <b>Meridiana</b> · live data';
+  }
+}).catch(function(){}).finally(function(){document.getElementById('mHomes').textContent=L.length;render()});
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#08080A">
+<meta name="color-scheme" content="dark">
+<title>BOOM · Apartments — Redesign (Prototype)</title>
+<style>
+  :root{
+    --bg:#08080A;--bg2:#0d0d10;--card:#121215;--elev:#17171b;
+    --gold:#D4AF37;--gold-2:#E8C766;--gold-soft:rgba(212,175,55,.14);
+    --text:#fff;--muted:#9a9aa1;--faint:#6b6b72;--line:rgba(255,255,255,.08);
+    --green:#39d98a;--amber:#E8B23A;--maxw:1180px;
+    --ff:"Helvetica Neue",Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--text);font-family:var(--ff);font-weight:300;line-height:1.5;
+    -webkit-font-smoothing:antialiased;letter-spacing:.2px}
+  img{display:block;max-width:100%}a{color:inherit;text-decoration:none}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 20px}
+  h1,h2{font-weight:300;letter-spacing:-.5px;line-height:1.1}.g{color:var(--gold)}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  .proto{position:sticky;top:0;z-index:60;background:linear-gradient(90deg,#1a1407,#0c0c0e);border-bottom:1px solid var(--line);
+    font-size:12px;color:var(--muted);display:flex;gap:14px;align-items:center;justify-content:center;padding:7px 14px}
+  .proto b{color:var(--gold);font-weight:400}.proto a{color:var(--muted);border-bottom:1px solid var(--line)}
+  .nav{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;max-width:var(--maxw);margin:0 auto}
+  .brand{font-size:17px;letter-spacing:6px}.brand b{color:var(--gold)}
+  .nav-links{display:flex;gap:22px;font-size:13px;color:var(--muted)}@media(max-width:640px){.nav-links{display:none}}
+
+  /* ── hero / intent ── */
+  .hero{max-width:var(--maxw);margin:14px auto 0;padding:0 20px}
+  .hero h1{font-size:clamp(28px,5vw,44px)}
+  .hero .sub{color:var(--muted);font-size:15px;margin-top:10px;max-width:48ch}
+  .intent{margin-top:24px;border:1px solid var(--line);background:linear-gradient(180deg,#111016,#0c0b0e);border-radius:20px;padding:20px;position:relative;overflow:hidden}
+  .intent::before{content:"";position:absolute;inset:-2px;background:radial-gradient(500px 160px at 10% -10%,var(--gold-soft),transparent 60%);pointer-events:none}
+  .intent-row{position:relative;display:grid;gap:16px}
+  .ilabel{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:9px;display:block}
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{border:1px solid var(--line);background:var(--elev);border-radius:100px;padding:9px 14px;font-size:13px;transition:.16s}
+  .chip:hover{border-color:var(--gold)}.chip.on{background:var(--gold);color:#1a1407;font-weight:500;border-color:var(--gold)}
+  .datein{background:var(--elev);border:1px solid var(--line);border-radius:11px;color:var(--text);font-family:inherit;font-size:15px;padding:11px 13px;width:100%}
+  .datein:focus{outline:none;border-color:var(--gold)}
+  @media(min-width:760px){.intent-row{grid-template-columns:1.3fr 1fr 1fr;align-items:start}}
+
+  /* ── results bar ── */
+  .resbar{max-width:var(--maxw);margin:26px auto 0;padding:0 20px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+  .rescount{font-size:14px;color:var(--muted)}.rescount b{color:var(--text);font-weight:400}
+  .sort{display:flex;gap:7px}
+  .sortb{border:1px solid var(--line);background:var(--card);border-radius:100px;padding:8px 13px;font-size:12.5px;color:var(--muted);transition:.16s}
+  .sortb.on{color:var(--gold);border-color:var(--gold)}
+
+  /* ── grid ── */
+  .grid{max-width:var(--maxw);margin:18px auto 0;padding:0 20px;display:grid;gap:16px;grid-template-columns:1fr}
+  @media(min-width:620px){.grid{grid-template-columns:1fr 1fr}}
+  @media(min-width:980px){.grid{grid-template-columns:1fr 1fr 1fr}}
+  .card{border:1px solid var(--line);background:var(--card);border-radius:18px;overflow:hidden;transition:.22s;cursor:pointer;display:flex;flex-direction:column}
+  .card:hover{border-color:rgba(212,175,55,.4);transform:translateY(-3px)}
+  .card .ph{aspect-ratio:4/3;position:relative;background:linear-gradient(135deg,#1b1b20,#0e0e11);overflow:hidden}
+  .card .ph img{width:100%;height:100%;object-fit:cover}
+  .card .fitchip{position:absolute;left:10px;top:10px;font-size:11px;letter-spacing:.3px;padding:6px 11px;border-radius:100px;backdrop-filter:blur(8px);background:rgba(0,0,0,.55)}
+  .fitchip.ok{color:var(--green)}.fitchip.after{color:var(--amber)}.fitchip.over{color:#ff7a6b}
+  .card .save{position:absolute;right:10px;top:10px;width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,.5);backdrop-filter:blur(8px);display:grid;place-items:center;font-size:15px;border:1px solid rgba(255,255,255,.1)}
+  .card .save.on{color:var(--gold);border-color:var(--gold)}
+  .card .body{padding:15px 16px 17px;display:flex;flex-direction:column;gap:8px;flex:1}
+  .card .zone{font-size:11.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold)}
+  .card .nm{font-size:16px;font-weight:300}
+  .card .specs{font-size:12.5px;color:var(--muted)}
+  .card .foot{margin-top:auto;display:flex;align-items:flex-end;justify-content:space-between;padding-top:6px}
+  .card .price{font-size:19px;color:var(--gold);font-variant-numeric:tabular-nums}.card .price small{font-size:12px;color:var(--muted)}
+  .card .view{font-size:12.5px;color:var(--muted);border-bottom:1px solid var(--line);padding-bottom:2px}
+  .card .availnote{font-size:11px;color:var(--faint)}
+
+  .empty{max-width:var(--maxw);margin:30px auto;padding:40px 20px;text-align:center;border:1px dashed var(--line);border-radius:18px}
+  .empty .i{font-size:28px;color:var(--gold)}.empty h3{font-weight:300;font-size:20px;margin:12px 0 6px}.empty p{color:var(--muted);font-size:14px}
+
+  /* ── services (slim) ── */
+  .svc{max-width:var(--maxw);margin:50px auto 0;padding:0 20px}
+  .svc .sect{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:16px}
+  .svc-grid{display:grid;gap:12px;grid-template-columns:1fr}@media(min-width:760px){.svc-grid{grid-template-columns:1fr 1fr 1fr}}
+  .svc-card{border:1px solid var(--line);background:var(--card);border-radius:16px;padding:20px}
+  .svc-card h4{font-weight:400;font-size:15px;margin-bottom:7px}.svc-card p{color:var(--muted);font-size:13px;margin-bottom:14px}
+  .svc-card a{color:var(--gold);font-size:13px;letter-spacing:.4px}
+  footer{padding:50px 20px 40px;text-align:center;color:var(--faint);font-size:12px}
+</style>
+</head>
+<body>
+<div class="proto">PROTOTIPO · <b>Apartments — discovery intent-first</b> · dati d'esempio · <a href="/preview-detail-redesign">vedi la scheda →</a></div>
+
+<nav class="nav">
+  <div class="brand">BO<b>O</b>M</div>
+  <div class="nav-links"><a>Appartamenti</a><a>Come funziona</a><a>Proprietari</a><a>Contatti</a></div>
+</nav>
+
+<header class="hero">
+  <h1>Trova casa a Roma, <span class="g">per le tue date</span>.</h1>
+  <p class="sub">Dicci budget, zona e quando vuoi entrare. Ti mostriamo solo case verificate, ognuna con la disponibilità reale per <em>te</em> — niente foto finte, niente sorprese.</p>
+
+  <div class="intent">
+    <div class="intent-row">
+      <div>
+        <span class="ilabel">Budget mensile</span>
+        <div class="chips" id="budgetChips">
+          <button class="chip" data-b="1000">≤ €1.000</button>
+          <button class="chip" data-b="1500">≤ €1.500</button>
+          <button class="chip" data-b="2000">≤ €2.000</button>
+          <button class="chip on" data-b="0">Qualsiasi</button>
+        </div>
+      </div>
+      <div>
+        <span class="ilabel">Quando entri?</span>
+        <input type="date" id="moveIn" class="datein">
+      </div>
+      <div>
+        <span class="ilabel">Zona</span>
+        <div class="chips" id="zoneChips"></div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="resbar">
+  <div class="rescount" id="resCount"></div>
+  <div class="sort" id="sort">
+    <button class="sortb on" data-s="reco">Consigliati</button>
+    <button class="sortb" data-s="price">Prezzo</button>
+    <button class="sortb" data-s="avail">Disponibilità</button>
+  </div>
+</div>
+
+<main>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" hidden>
+    <div class="i">⌕</div>
+    <h3>Nessuna casa per questi criteri — ancora</h3>
+    <p>Allarga budget o zona, oppure lascia che la cerchiamo noi per le tue date. Ti avvisiamo appena entra qualcosa.</p>
+  </div>
+
+  <section class="svc">
+    <div class="sect">Non trovi quello che cerchi?</div>
+    <div class="svc-grid">
+      <div class="svc-card"><h4>Property Finding</h4><p>La cerchiamo noi per le tue date e il tuo budget, verificata.</p><a href="#">Inizia →</a></div>
+      <div class="svc-card"><h4>Deal Assistance</h4><p>Hai trovato una casa altrove? La verifichiamo e trattiamo per te.</p><a href="#">Scopri →</a></div>
+      <div class="svc-card"><h4>Virtual Viewing</h4><p>Visita in video, di persona, prima di impegnarti.</p><a href="#">Scopri →</a></div>
+    </div>
+  </section>
+</main>
+
+<footer>BOOM Rome — prototipo di design, dati d'esempio. Nessun dato reale.</footer>
+
+<script>
+const LISTINGS=[
+  {id:'trastevere',nm:'Attico luminoso',zone:'Trastevere',price:1500,beds:2,sqm:65,avail:'2026-09-01',img:'1502672260266-1c1ef2d93688',new:true,video:true},
+  {id:'sanlorenzo',nm:'Bilocale arioso',zone:'San Lorenzo',price:950,beds:1,sqm:45,avail:'2026-07-15',img:'1505691938895-1758d7feb511',new:false,video:false},
+  {id:'prati',nm:'Trilocale signorile',zone:'Prati',price:2100,beds:3,sqm:90,avail:'2026-08-01',img:'1484154218962-a197022b5858',new:false,video:true},
+  {id:'pigneto',nm:'Monolocale di design',zone:'Pigneto',price:780,beds:1,sqm:38,avail:'2026-07-01',img:'1493809842364-78817add7ffb',new:true,video:false},
+  {id:'centro',nm:'Loft nel centro storico',zone:'Centro',price:2400,beds:2,sqm:80,avail:'2026-10-01',img:'1522708323590-d24dbb6b0267',new:false,video:true},
+  {id:'testaccio',nm:'Bilocale con terrazza',zone:'Testaccio',price:1300,beds:2,sqm:58,avail:'2026-09-15',img:'1560448204-e02f11c3d0e2',new:true,video:false}
+];
+const eur=n=>'€'+Math.round(n).toLocaleString('it-IT');
+const fmtShort=d=>d.toLocaleDateString('it-IT',{day:'numeric',month:'short'});
+let BUDGET=0,ZONE='',SORT='reco',MOVEIN='';
+const SAVED=new Set();
+
+/* zone chips */
+const zones=['Tutte',...[...new Set(LISTINGS.map(l=>l.zone))]];
+document.getElementById('zoneChips').innerHTML=zones.map((z,i)=>`<button class="chip${i===0?' on':''}" data-z="${z==='Tutte'?'':z}">${z}</button>`).join('');
+
+function fit(l){
+  const over = BUDGET && l.price>BUDGET ? l.price-BUDGET : 0;
+  let dateFit='none', gap=0;
+  if(MOVEIN){
+    const a=new Date(l.avail+'T00:00'), r=new Date(MOVEIN+'T00:00');
+    dateFit = r>=a ? 'ok' : 'after';
+    gap = Math.round((a-r)/86400000);
+  }
+  return {over,dateFit,gap,a:new Date(l.avail+'T00:00')};
+}
+function score(l){ // "consigliati": verified+video+new+in-budget+date-fit
+  const f=fit(l); let s=50;
+  if(!f.over) s+=20; else s-=Math.min(20,f.over/50);
+  if(f.dateFit==='ok') s+=20; else if(f.dateFit==='after') s+=8-Math.min(8,f.gap/10);
+  if(l.video) s+=6; if(l.new) s+=5;
+  return s;
+}
+function render(){
+  let list=LISTINGS.filter(l=>(!ZONE||l.zone===ZONE));
+  // budget is a soft filter: keep slightly-over but flag; hard-hide if >150% of budget
+  if(BUDGET) list=list.filter(l=>l.price<=BUDGET*1.5);
+  if(SORT==='price') list.sort((a,b)=>a.price-b.price);
+  else if(SORT==='avail') list.sort((a,b)=>new Date(a.avail)-new Date(b.avail));
+  else list.sort((a,b)=>score(b)-score(a));
+
+  document.getElementById('resCount').innerHTML=`<b>${list.length}</b> case verificate${ZONE?` a ${ZONE}`:''}${MOVEIN?` per il ${fmtShort(new Date(MOVEIN+'T00:00'))}`:''}`;
+  const g=document.getElementById('grid'), empty=document.getElementById('empty');
+  empty.hidden=list.length>0; g.style.display=list.length?'grid':'none';
+
+  g.innerHTML=list.map(l=>{
+    const f=fit(l);
+    let chip='';
+    if(f.over) chip=`<span class="fitchip over">+${eur(f.over)} sopra budget</span>`;
+    else if(f.dateFit==='ok') chip=`<span class="fitchip ok">✓ per le tue date</span>`;
+    else if(f.dateFit==='after') chip=`<span class="fitchip after">libero dal ${fmtShort(f.a)}</span>`;
+    else if(l.new) chip=`<span class="fitchip ok">★ nuova</span>`;
+    const availnote = (!MOVEIN)?`Disponibile dal ${fmtShort(f.a)}`:'';
+    return `<article class="card" onclick="location.href='/preview-detail-redesign'">
+      <div class="ph">
+        <img src="https://images.unsplash.com/photo-${l.img}?auto=format&fit=crop&w=800&q=70" alt="${l.nm}" loading="lazy" onerror="this.style.display='none'">
+        ${chip}
+        <button class="save${SAVED.has(l.id)?' on':''}" onclick="event.stopPropagation();toggleSave('${l.id}',this)" aria-label="Salva">♡</button>
+      </div>
+      <div class="body">
+        <div class="zone">${l.zone}</div>
+        <div class="nm">${l.nm}</div>
+        <div class="specs">${l.beds} ${l.beds>1?'camere':'camera'} · ${l.sqm} m²${l.video?' · ▶ video':''}</div>
+        <div class="foot">
+          <div><div class="price">${eur(l.price)} <small>/mese</small></div>${availnote?`<div class="availnote">${availnote}</div>`:''}</div>
+          <div class="view">Vedi →</div>
+        </div>
+      </div>
+    </article>`;
+  }).join('');
+}
+function toggleSave(id,btn){ SAVED.has(id)?SAVED.delete(id):SAVED.add(id); btn.classList.toggle('on'); }
+
+document.getElementById('budgetChips').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;
+  document.querySelectorAll('#budgetChips .chip').forEach(x=>x.classList.remove('on'));b.classList.add('on');BUDGET=+b.dataset.b;render();});
+document.getElementById('zoneChips').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;
+  document.querySelectorAll('#zoneChips .chip').forEach(x=>x.classList.remove('on'));b.classList.add('on');ZONE=b.dataset.z;render();});
+document.getElementById('sort').addEventListener('click',e=>{const b=e.target.closest('.sortb');if(!b)return;
+  document.querySelectorAll('.sortb').forEach(x=>x.classList.remove('on'));b.classList.add('on');SORT=b.dataset.s;render();});
+document.getElementById('moveIn').addEventListener('change',e=>{MOVEIN=e.target.value;render();});
+render();
+</script>
+</body>
+</html>
