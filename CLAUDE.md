@@ -187,6 +187,27 @@ to the `savedSearches` collection under admin creds (`status:'active'`,
 `lastNotified:null`) — ready for a matcher cron to email new matches.
 Returns `{ ok, id }`.
 
+### Pre-agreement suite (`/api/preagreement/*` + `pre-agreement.html` + `pre-agreement-admin.html`)
+Sendable RENTAL PROPOSAL / pre-agreement, modeled on the real BOOM document
+(parties landlord⇄tenant, transitional lease L.431/98 art.5 c.1, fee % of
+annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
+- `POST /api/preagreement/create` — admin/owner/landlord (Bearer ID token).
+  Deal fields (property, landlord, lease, money: rent/depositMonths/feePct/
+  feeVatPct/dueAtSigning) → creates `preAgreements` doc with 32-hex token →
+  `{ ok, id, token, url:'/pre-agreement?t=…' }`. Fee/deposit/endDate derived
+  server-side (month-end clamp).
+- `POST /api/preagreement/lookup` — public `{ token }` → sanitized doc;
+  audit-logs views; 410 when revoked.
+- `POST /api/preagreement/submit` — public. Tenant self-fills identity
+  (name/dob/birthplace/nationality/address/CF/ID/email/phone) + consent →
+  status `accepted`, quotable ref `BOOM-<base36>`, and when
+  `money.dueAtSigning>0` returns a Stripe Checkout URL (acceptance is never
+  voided by a failed checkout).
+- `pre-agreement.html` — the public document page (identity form lives
+  inside §1 of the document; accept & sign → Stripe; print-friendly).
+- `pre-agreement-admin.html` — generator (BoomPortal auth, listing prefill,
+  live fee math, WhatsApp share with prefilled message).
+
 ### POST `/api/magic-sign/lookup`
 Public endpoint for the Magic-Sign UI. Body: `{ token }`. Looks up the
 contract by `tenantSignToken` or `landlordSignToken`, returns sanitized
