@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Pay your rent — BOOM Rome</title>
+<style>
+  :root{
+    --gold:#D4AF37; --gold-dark:#B8960C;
+    --bg:#08080A; --bg-card:#0A0A0A; --bg-elevated:#141414;
+    --border:rgba(255,255,255,0.08);
+    --text:#FFF; --text-secondary:#999;
+    --green:#4CAF7D; --red:#E05252;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:var(--bg); color:var(--text); min-height:100vh;
+    font-family:'Helvetica Neue',Inter,-apple-system,sans-serif; font-weight:300;
+    display:flex; flex-direction:column; align-items:center;
+    padding:0 20px calc(48px + env(safe-area-inset-bottom));
+  }
+  .brand{margin:56px 0 8px; text-align:center}
+  .brand .name{font-size:26px; letter-spacing:12px; padding-left:12px; font-weight:300}
+  .brand .sub{font-size:9px; letter-spacing:5px; color:var(--gold); text-transform:uppercase; margin-top:8px}
+  .stage{width:100%; max-width:440px; margin-top:36px}
+
+  .card{
+    background:var(--bg-card); border:1px solid var(--border); border-radius:20px;
+    padding:34px 30px; position:relative; overflow:hidden;
+  }
+  .card::before{
+    content:''; position:absolute; inset:0 0 auto 0; height:1px;
+    background:linear-gradient(90deg,transparent,rgba(212,175,55,.6),transparent);
+  }
+  .eyebrow{font-size:10px; letter-spacing:4px; text-transform:uppercase; color:var(--text-secondary)}
+  .prop{font-size:17px; letter-spacing:.5px; margin-top:10px; line-height:1.4}
+  .amount{font-size:52px; font-weight:200; letter-spacing:1px; margin:26px 0 4px}
+  .amount small{font-size:18px; color:var(--text-secondary); letter-spacing:2px}
+  .due{font-size:12px; letter-spacing:2px; color:var(--text-secondary); text-transform:uppercase}
+  .chip{
+    display:inline-block; margin-top:18px; padding:6px 14px; border-radius:100px;
+    font-size:10px; letter-spacing:3px; text-transform:uppercase; border:1px solid;
+  }
+  .chip.pending{color:var(--gold); border-color:rgba(212,175,55,.4); background:rgba(212,175,55,.08)}
+  .chip.overdue{color:var(--red); border-color:rgba(224,82,82,.4); background:rgba(224,82,82,.08)}
+  .chip.paid{color:var(--green); border-color:rgba(76,175,125,.4); background:rgba(76,175,125,.08)}
+
+  .paybtn{
+    display:block; width:100%; margin-top:30px; padding:17px; border:none; border-radius:14px;
+    background:linear-gradient(180deg,#F6E4A6,#E9C766 46%,#B98E2E); color:#1c1503;
+    font-size:14px; font-weight:700; letter-spacing:2px; text-transform:uppercase; cursor:pointer;
+    transition:transform .15s ease, box-shadow .15s ease; font-family:inherit;
+  }
+  .paybtn:hover{transform:translateY(-1px); box-shadow:0 10px 30px rgba(212,175,55,.25)}
+  .paybtn:disabled{opacity:.55; cursor:wait; transform:none; box-shadow:none}
+  .secure{margin-top:14px; text-align:center; font-size:11px; letter-spacing:1px; color:var(--text-secondary)}
+
+  .check{
+    width:84px; height:84px; margin:6px auto 22px; border-radius:50%;
+    border:1px solid rgba(76,175,125,.5); display:flex; align-items:center; justify-content:center;
+    font-size:36px; color:var(--green); background:rgba(76,175,125,.06);
+    animation:pop .5s cubic-bezier(.2,1.4,.4,1);
+  }
+  @keyframes pop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+  .receipt-link{
+    display:inline-block; margin-top:20px; color:var(--gold); text-decoration:none;
+    font-size:13px; letter-spacing:1px; border-bottom:1px solid rgba(212,175,55,.35); padding-bottom:2px;
+  }
+
+  .history{margin-top:26px}
+  .history h3{font-size:10px; letter-spacing:4px; text-transform:uppercase; color:var(--text-secondary); margin-bottom:14px}
+  .h-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:11px 2px; border-bottom:1px solid var(--border); font-size:13px;
+  }
+  .h-row:last-child{border-bottom:none}
+  .h-row .m{letter-spacing:.5px}
+  .h-row .s{display:flex; align-items:center; gap:8px; color:var(--text-secondary); font-size:11px; letter-spacing:1px}
+  .dot{width:7px; height:7px; border-radius:50%}
+  .dot.paid{background:var(--green)} .dot.pending{background:var(--gold)} .dot.overdue{background:var(--red)}
+  .h-row.current{background:rgba(212,175,55,.05); margin:0 -12px; padding:11px 12px; border-radius:10px; border-bottom:none}
+
+  .spinner{
+    width:34px; height:34px; margin:30px auto; border-radius:50%;
+    border:2px solid rgba(212,175,55,.15); border-top-color:var(--gold);
+    animation:spin .8s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .msg{text-align:center; color:var(--text-secondary); font-size:14px; line-height:1.7; letter-spacing:.3px}
+  .msg b{color:var(--text); font-weight:400}
+  .hidden{display:none}
+  .footer{margin-top:auto; padding-top:44px; font-size:10px; letter-spacing:3px; color:#555; text-transform:uppercase}
+  a{color:var(--gold)}
+</style>
+</head>
+<body>
+  <div class="brand">
+    <div class="name">BOOM</div>
+    <div class="sub">Rent payment</div>
+  </div>
+
+  <div class="stage">
+    <!-- loading -->
+    <div id="loading">
+      <div class="spinner"></div>
+      <p class="msg">Loading your payment…</p>
+    </div>
+
+    <!-- invalid token -->
+    <div id="invalid" class="hidden">
+      <div class="card" style="text-align:center">
+        <p class="msg"><b>This payment link isn't valid.</b><br><br>
+        It may have been replaced by a newer one — check your latest email from BOOM, or contact us and we'll send you a fresh link.</p>
+      </div>
+    </div>
+
+    <!-- confirming (back from Stripe, webhook in flight) -->
+    <div id="confirming" class="hidden">
+      <div class="card" style="text-align:center">
+        <div class="spinner" style="margin-top:6px"></div>
+        <p class="msg"><b>Confirming your payment…</b><br>This usually takes a few seconds.</p>
+      </div>
+    </div>
+
+    <!-- main -->
+    <div id="main" class="hidden">
+      <div class="card" id="card">
+        <div id="paidBlock" class="hidden" style="text-align:center">
+          <div class="check">✓</div>
+          <div class="eyebrow">Rent · <span class="js-month"></span></div>
+          <div class="amount js-amount"></div>
+          <div class="due">Paid <span id="paidDate"></span></div>
+          <div class="chip paid">Paid</div>
+          <div><a id="receiptLink" class="receipt-link hidden" target="_blank" rel="noopener">⬇ Download receipt · quietanza (PDF)</a></div>
+        </div>
+
+        <div id="dueBlock" class="hidden">
+          <div class="eyebrow">Rent · <span class="js-month"></span></div>
+          <div class="prop" id="propLabel"></div>
+          <div class="amount js-amount"></div>
+          <div class="due">Due <span id="dueDate"></span></div>
+          <div class="chip" id="statusChip"></div>
+          <button class="paybtn" id="payBtn">Pay securely</button>
+          <div class="secure">🔒 Secure checkout by Stripe · cards, Apple&nbsp;Pay, Google&nbsp;Pay</div>
+        </div>
+      </div>
+
+      <div class="history hidden" id="history">
+        <h3>Your payment schedule</h3>
+        <div id="historyRows"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">BOOM Rome · boomrome.com</div>
+
+<script>
+(function(){
+  var qs = new URLSearchParams(location.search);
+  var token = (qs.get('t') || '').trim();
+  var justPaid = qs.get('paid') === '1';
+  var $ = function(id){ return document.getElementById(id); };
+  var show = function(id){ ['loading','invalid','confirming','main'].forEach(function(x){ $(x).classList.toggle('hidden', x !== id); }); };
+
+  if (!token) { show('invalid'); return; }
+
+  var euro = function(v){ return '€' + Number(v || 0).toLocaleString('it-IT'); };
+  var fmtDate = function(s){
+    if (!s) return '';
+    var d = new Date(s);
+    return isNaN(d) ? s : d.toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' });
+  };
+
+  function render(data){
+    var p = data.payment;
+    document.querySelectorAll('.js-month').forEach(function(el){ el.textContent = p.monthLabel || p.month; });
+    document.querySelectorAll('.js-amount').forEach(function(el){ el.textContent = euro(p.amount); });
+
+    if (p.status === 'paid') {
+      $('paidBlock').classList.remove('hidden');
+      $('dueBlock').classList.add('hidden');
+      $('paidDate').textContent = fmtDate(p.paidDate);
+      if (p.receiptUrl) { $('receiptLink').href = p.receiptUrl; $('receiptLink').classList.remove('hidden'); }
+    } else {
+      $('dueBlock').classList.remove('hidden');
+      $('paidBlock').classList.add('hidden');
+      $('propLabel').textContent = (data.property && data.property.label) || '';
+      $('dueDate').textContent = fmtDate(p.dueDate);
+      var overdue = p.status === 'overdue' || (p.dueDate && p.dueDate < new Date().toISOString().slice(0,10));
+      var chip = $('statusChip');
+      chip.className = 'chip ' + (overdue ? 'overdue' : 'pending');
+      chip.textContent = overdue ? 'Overdue' : 'Pending';
+    }
+
+    var hist = data.history || [];
+    if (hist.length > 1) {
+      $('history').classList.remove('hidden');
+      $('historyRows').innerHTML = hist.map(function(h){
+        var st = h.status === 'paid' ? 'paid' : (h.status === 'overdue' ? 'overdue' : 'pending');
+        var label = st === 'paid' ? 'Paid' : (st === 'overdue' ? 'Overdue' : 'Pending');
+        var cur = h.id === p.id ? ' current' : '';
+        return '<div class="h-row' + cur + '"><span class="m">' + (h.monthLabel || h.month) + '</span>' +
+               '<span class="s"><span class="dot ' + st + '"></span>' + label + ' · ' + euro(h.amount) + '</span></div>';
+      }).join('');
+    }
+    show('main');
+  }
+
+  function lookup(){
+    return fetch('/api/rent/lookup', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ token: token })
+    }).then(function(r){ return r.ok ? r.json() : Promise.reject(r.status); });
+  }
+
+  // Back from Stripe success: the webhook may still be in flight — poll
+  // until the payment reads paid (max ~40s), then fall back to the live
+  // state. Only a 404 means the token is actually invalid; 429/5xx/network
+  // blips are transient and retried within the same budget.
+  function confirmLoop(attempt){
+    lookup().then(function(d){
+      if (d.payment && d.payment.status === 'paid') { render(d); return; }
+      if (attempt >= 16) { render(d); return; }
+      setTimeout(function(){ confirmLoop(attempt + 1); }, 2500);
+    }).catch(function(status){
+      if (status === 404 || attempt >= 16) { show('invalid'); return; }
+      setTimeout(function(){ confirmLoop(attempt + 1); }, 2500);
+    });
+  }
+
+  function initialLoad(attempt){
+    lookup().then(render).catch(function(status){
+      if (status === 404 || attempt >= 2) { show('invalid'); return; }
+      setTimeout(function(){ initialLoad(attempt + 1); }, 1500);
+    });
+  }
+
+  if (justPaid) { show('confirming'); confirmLoop(0); }
+  else { initialLoad(0); }
+
+  var busy = false;
+  document.addEventListener('click', function(e){
+    if (e.target && e.target.id === 'payBtn' && !busy) {
+      busy = true;
+      e.target.disabled = true;
+      e.target.textContent = 'Opening secure checkout…';
+      fetch('/api/rent/checkout', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ token: token })
+      }).then(function(r){ return r.json(); }).then(function(d){
+        if (d.ok && d.url) { location.href = d.url; return; }
+        throw new Error(d.error || 'checkout_failed');
+      }).catch(function(){
+        busy = false;
+        var b = $('payBtn');
+        b.disabled = false;
+        b.textContent = 'Pay securely';
+        alert('We could not open the checkout. Please try again, or contact BOOM.');
+      });
+    }
+  });
+})();
+</script>
+</body>
+</html>

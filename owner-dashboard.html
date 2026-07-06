@@ -59,7 +59,13 @@
     
     <!-- Chart.js for beautiful analytics -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    
+
+    <!-- Firebase (compat) — real rent payments data -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    <script src="/js/firebase-config.js"></script>
+
     <style>
         * {
             margin: 0;
@@ -473,6 +479,87 @@
             font-size: 13px;
             color: var(--text-tertiary);
             margin-top: 8px;
+        }
+
+        /* Arrears / Da Incassare */
+        .arrears-card {
+            background: var(--dark-surface);
+            border: 1px solid rgba(255, 59, 59, 0.35);
+            border-radius: 20px;
+            padding: 28px;
+            margin-bottom: 40px;
+            box-shadow: 0 0 24px rgba(255, 59, 59, 0.08);
+        }
+
+        .arrears-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .arrears-title {
+            font-size: 13px;
+            color: var(--boom-red);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .arrears-total {
+            font-family: var(--font-display);
+            font-size: 28px;
+            letter-spacing: 1px;
+            color: var(--boom-red);
+        }
+
+        .arrears-rows {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .arrears-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 18px;
+            background: var(--dark-elevated);
+            border: 1px solid var(--dark-border);
+            border-left: 3px solid var(--boom-red);
+            border-radius: 12px;
+        }
+
+        .arrears-prop {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .arrears-month {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .arrears-amount {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--boom-red);
+            white-space: nowrap;
+        }
+
+        .arrears-late {
+            padding: 3px 10px;
+            background: rgba(255, 59, 59, 0.15);
+            color: var(--boom-red);
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
         }
 
         /* Search & Filter Bar */
@@ -1249,9 +1336,9 @@
                         <div class="stat-icon">💰</div>
                         <div class="stat-trend trend-up">↑ 12%</div>
                     </div>
-                    <div class="stat-label">Monthly Revenue</div>
+                    <div class="stat-label">Projected Monthly Revenue</div>
                     <div class="stat-value" id="statMonthlyRevenue">€0</div>
-                    <div class="stat-description">From occupied properties</div>
+                    <div class="stat-description">Projection from occupied properties</div>
                 </div>
 
                 <div class="stat-card">
@@ -1259,9 +1346,27 @@
                         <div class="stat-icon">📆</div>
                         <div class="stat-trend trend-up">↑ 8%</div>
                     </div>
-                    <div class="stat-label">Annual Revenue</div>
+                    <div class="stat-label">Projected Annual Revenue</div>
                     <div class="stat-value" id="statAnnualRevenue">€0</div>
                     <div class="stat-description">Projected yearly income</div>
+                </div>
+
+                <div class="stat-card" id="cardCollectedMonth" style="display: none;">
+                    <div class="stat-header">
+                        <div class="stat-icon">✅</div>
+                    </div>
+                    <div class="stat-label">Collected This Month</div>
+                    <div class="stat-value" id="statCollectedMonth">€0</div>
+                    <div class="stat-description" id="statCollectedDesc">Rent received this month</div>
+                </div>
+
+                <div class="stat-card" id="cardOutstanding" style="display: none;">
+                    <div class="stat-header">
+                        <div class="stat-icon">⏳</div>
+                    </div>
+                    <div class="stat-label">Outstanding</div>
+                    <div class="stat-value" id="statOutstanding">€0</div>
+                    <div class="stat-description" id="statOutstandingDesc">0 payments due</div>
                 </div>
 
                 <div class="stat-card">
@@ -1281,6 +1386,15 @@
                     <div class="stat-value" id="statOccupancyRate">0%</div>
                     <div class="stat-description">Current utilization</div>
                 </div>
+            </div>
+
+            <!-- Arrears / Da Incassare (overdue rent) -->
+            <div class="arrears-card" id="arrearsCard" style="display: none;">
+                <div class="arrears-header">
+                    <div class="arrears-title">⚠️ Arrears / Da Incassare</div>
+                    <div class="arrears-total" id="arrearsTotal">€0</div>
+                </div>
+                <div class="arrears-rows" id="arrearsList"></div>
             </div>
 
             <!-- Search & Filter Controls -->
@@ -1446,6 +1560,8 @@
         let properties = [];
         let currentFilter = 'all';
         let searchQuery = '';
+        let payments = [];
+        let paymentsLoaded = false;
 
         // Load data from localStorage on startup
         function initializeApp() {
@@ -1453,6 +1569,7 @@
             setupEventListeners();
             updateUI();
             checkMobileView();
+            loadPayments(); // async, non-blocking — dashboard works without it
         }
 
         // Load properties from localStorage
@@ -1537,6 +1654,10 @@
             updateStatistics();
             updateFilterCounts();
             renderProperties();
+            if (paymentsLoaded) {
+                updatePaymentStats();
+                renderArrears();
+            }
         }
 
         function updateStatistics() {
@@ -1570,6 +1691,162 @@
             document.getElementById('filterCountAll').textContent = total;
             document.getElementById('filterCountOccupied').textContent = occupied;
             document.getElementById('filterCountVacant').textContent = vacant;
+        }
+
+        // ========================================
+        // 💶 REAL RENT PAYMENTS (Firestore)
+        // ========================================
+
+        // Waits for Firebase Auth to resolve the persisted session (if any).
+        function waitForAuthUser() {
+            return new Promise((resolve) => {
+                let settled = false;
+                const finish = (user) => { if (!settled) { settled = true; resolve(user); } };
+                try {
+                    const unsub = auth.onAuthStateChanged((user) => {
+                        try { unsub(); } catch (_) {}
+                        finish(user);
+                    });
+                    setTimeout(() => finish(auth.currentUser), 4000);
+                } catch (e) {
+                    finish(null);
+                }
+            });
+        }
+
+        // Fetch real payments for the owner's properties. Chunked 'in' queries
+        // of 10 property ids — same pattern portal.html uses for landlords,
+        // so Firestore rules allow it. Fully graceful: any failure leaves the
+        // dashboard rendering exactly as before.
+        //
+        // Property ids MUST come from Firestore (`properties` where
+        // ownerId == uid): this page's own `properties` array lives in
+        // localStorage with client-minted ids that never match the Firestore
+        // doc ids the payments carry. The Firestore docs are also kept in
+        // fsPropNames so arrears rows can show the real property name.
+        let fsPropNames = {};
+        async function loadPayments() {
+            try {
+                if (typeof firebase === 'undefined' || typeof db === 'undefined' || typeof auth === 'undefined') return;
+
+                const user = await waitForAuthUser();
+                if (!user) return;
+
+                let propIds = [];
+                try {
+                    const propSnap = await db.collection('properties').where('ownerId', '==', user.uid).get();
+                    propSnap.docs.forEach(d => {
+                        propIds.push(d.id);
+                        const pd = d.data() || {};
+                        fsPropNames[d.id] = pd.name || pd.address || '';
+                    });
+                } catch (e) { console.warn('Firestore properties unavailable:', e); }
+                // Fallback for admins whose local list happens to hold real ids
+                if (propIds.length === 0) {
+                    propIds = properties.map(p => p.id).filter(Boolean);
+                }
+                propIds = Array.from(new Set(propIds));
+                if (propIds.length === 0) return;
+
+                const fetched = [];
+                for (let i = 0; i < propIds.length; i += 10) {
+                    const chunk = propIds.slice(i, i + 10);
+                    const snap = await db.collection('payments').where('propertyId', 'in', chunk).get();
+                    snap.docs.forEach(d => fetched.push({ id: d.id, ...d.data() }));
+                }
+
+                // Deposits are not rent — exclude from all rent stats.
+                payments = fetched.filter(p => p.type !== 'deposit');
+                paymentsLoaded = true;
+
+                updatePaymentStats();
+                renderArrears();
+            } catch (e) {
+                console.warn('Payments data unavailable:', e);
+            }
+        }
+
+        function paymentAmount(p) {
+            const n = parseFloat(p.amount);
+            return isNaN(n) ? 0 : n;
+        }
+
+        function formatMonthLabel(ym) {
+            if (!ym || !/^\d{4}-\d{2}/.test(ym)) return ym || '—';
+            const d = new Date(ym.slice(0, 7) + '-01T00:00:00');
+            return isNaN(d) ? ym : d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+        }
+
+        function updatePaymentStats() {
+            if (!paymentsLoaded) return;
+            const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+            const today = new Date().toISOString().slice(0, 10);       // YYYY-MM-DD
+
+            // Collected this month: paid, with paidDate (dueDate fallback) in current month
+            const collected = payments
+                .filter(p => p.status === 'paid' && String(p.paidDate || p.dueDate || '').slice(0, 7) === currentMonth)
+                .reduce((sum, p) => sum + paymentAmount(p), 0);
+
+            // Outstanding: pending/overdue already due (dueDate <= today)
+            const outstanding = payments.filter(p =>
+                (p.status === 'pending' || p.status === 'overdue') &&
+                p.dueDate && String(p.dueDate).slice(0, 10) <= today
+            );
+            const outstandingSum = outstanding.reduce((sum, p) => sum + paymentAmount(p), 0);
+
+            document.getElementById('statCollectedMonth').textContent = `€${collected.toLocaleString()}`;
+            document.getElementById('statCollectedDesc').textContent = `Rent received in ${formatMonthLabel(currentMonth)}`;
+            document.getElementById('cardCollectedMonth').style.display = '';
+
+            document.getElementById('statOutstanding').textContent = `€${outstandingSum.toLocaleString()}`;
+            document.getElementById('statOutstandingDesc').textContent =
+                `${outstanding.length} payment${outstanding.length === 1 ? '' : 's'} due (pending/overdue)`;
+            document.getElementById('cardOutstanding').style.display = '';
+        }
+
+        function renderArrears() {
+            const card = document.getElementById('arrearsCard');
+            const list = document.getElementById('arrearsList');
+            if (!card || !list) return;
+
+            const overdue = payments.filter(p => p.status === 'overdue');
+            if (overdue.length === 0) {
+                card.style.display = 'none';
+                return;
+            }
+
+            const now = new Date();
+            const rows = overdue.map(p => {
+                const prop = properties.find(pr => pr.id === p.propertyId);
+                let daysLate = 0;
+                if (p.dueDate) {
+                    const due = new Date(String(p.dueDate).slice(0, 10) + 'T00:00:00');
+                    if (!isNaN(due)) daysLate = Math.max(0, Math.floor((now - due) / 86400000));
+                }
+                return {
+                    propName: fsPropNames[p.propertyId] || (prop && prop.name) || p.propertyName || 'Property',
+                    month: formatMonthLabel(p.month),
+                    amount: paymentAmount(p),
+                    daysLate: daysLate
+                };
+            }).sort((a, b) => b.daysLate - a.daysLate);
+
+            const total = rows.reduce((sum, r) => sum + r.amount, 0);
+            document.getElementById('arrearsTotal').textContent = `€${total.toLocaleString()}`;
+
+            const escA = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+            list.innerHTML = rows.map(r => `
+                <div class="arrears-row">
+                    <div>
+                        <div class="arrears-prop">${escA(r.propName)}</div>
+                        <div class="arrears-month">${r.month}</div>
+                    </div>
+                    <div class="arrears-amount">€${r.amount.toLocaleString()}</div>
+                    <div class="arrears-late">${r.daysLate} day${r.daysLate === 1 ? '' : 's'} late</div>
+                </div>
+            `).join('');
+
+            card.style.display = '';
         }
 
         // ========================================

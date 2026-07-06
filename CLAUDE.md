@@ -245,6 +245,46 @@ admin/owner/landlord). `dryRun:true` scores a hypothetical listing against
 every active client without writing; `dryRun:false` ingests + pushes for
 real. Backs the "Aggiungi annuncio" modal in `pfs-command.html`.
 
+## Rent Collection (api/rent/*)
+
+Automated monthly rent collection on top of the `payments` collection
+(schedule docs created at signature by `api/magic-sign/submit`, id
+`pay_<contractId>_<YYYY-MM>`). Public payment surface is `/pay?t=<payToken>`
+(`pay.html`) — token-based, no login, same trust model as Magic Sign.
+Payment completion is confirmed exclusively by the signed Stripe webhook
+(`service: RENT` branch in `api/stripe-webhook.js`): marks the doc paid
+(portal conventions: `status/paidDate/stripeSessionId/stripePaymentIntent`),
+generates the quietanza PDF (`api/rent/_receipt.js` → Storage
+`receipts/<paymentId>.pdf`, link on `payment.receiptUrl`), emails the tenant
+the receipt, wakes the operator via `agentNotifications`.
+
+### POST `/api/rent/lookup`
+Public. Body `{ token }` (payment `payToken`). Returns sanitized
+`{ payment, property, history }` for the /pay page. Rate-limited + CORS
+like magic-sign.
+
+### POST `/api/rent/checkout`
+Creates the Stripe Checkout session for one rent instalment. Two auth
+paths: `{ token }` (anonymous payToken from reminder emails / /pay), or
+`{ paymentId }` + Firebase ID token in `Authorization` (tenant paying own
+rent from the portal, or admin). Metadata `{ service:'RENT', paymentId }`.
+Returns `{ ok, url }`.
+
+### GET/POST `/api/rent/collect-cron`
+Daily cron (06:30 UTC, `maxDuration` 60s). Auth via `api/pfs/_guard.js`
+(Vercel cron secret / `X-Homie-Secret` / admin ID token). Per run:
+back-fills schedules for active contracts with none (**future months
+only** — never fabricates past debt; skips `contract.rentCollection ===
+false`), issues `payToken`s, flips `pending → overdue` authoritatively,
+and walks the dunning ladder — at most ONE email per payment per run:
+pre-due (D-3), due (D0), sollecito 1 (D+5), sollecito 2 (D+15, escalates
+to operator), diffida (D+30, urgent escalation). Ladder state lives on the
+payment doc (`reminders` map, `dunningStage`, `dunningHistory`,
+`remindersSent`, `lastReminderDate` — same fields the portal's manual
+dunning cockpit uses). Blast guard: max 40 emails/run. Telegram morning
+digest when anything moved; heartbeat + failure alerts in
+`rentCollectionHealth/cron`.
+
 ## Conventions
 
 - All pages are standalone HTML with inline `<style>` and `<script>` blocks — no bundler

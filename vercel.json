@@ -49,6 +49,7 @@
   "rewrites": [
     { "source": "/listing/:id", "destination": "/api/listing" },
     { "source": "/listings-sitemap.xml", "destination": "/api/sitemap-listings" },
+    { "source": "/pay", "destination": "/pay.html" },
     { "source": "/book", "destination": "/book.html" },
     { "source": "/about", "destination": "/about.html" },
     { "source": "/contact", "destination": "/contact.html" },
@@ -115,7 +116,7 @@
       ]
     },
     {
-      "source": "/(dashboard|client-portal|owner-dashboard|tenant-registration|login|onboarding|pre-arrival|precheck|thank-you|proppass|pass-delivery|form-tenant|form-landlord)(.*)",
+      "source": "/(dashboard|client-portal|owner-dashboard|tenant-registration|login|onboarding|pre-arrival|precheck|thank-you|proppass|pass-delivery|form-tenant|form-landlord|pay|pay.html)(.*)",
       "headers": [
         { "key": "X-Robots-Tag", "value": "noindex, follow" }
       ]
@@ -175,6 +176,9 @@
     },
     "api/sign/custom/submit.js": {
       "maxDuration": 60
+    },
+    "api/rent/collect-cron.js": {
+      "maxDuration": 60
     }
   },
   "crons": [
@@ -201,6 +205,10 @@
     {
       "path": "/api/pfs/brief",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/rent/collect-cron",
+      "schedule": "30 6 * * *"
     }
   ]
 }

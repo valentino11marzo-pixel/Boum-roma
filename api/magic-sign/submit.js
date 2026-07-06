@@ -345,15 +345,18 @@ export default async function handler(req, res) {
     // (e) Payment schedule — only if none exists yet
     if (fullContract.startDate && fullContract.endDate && fullContract.rent) {
       try {
+        // limit 5 + type filter: a deposit doc (payments/dep_<id>) must not
+        // suppress the rent schedule. payDay clamped to 28 (portal
+        // convention) — 29-31 makes setMonth() skip February.
         const existing = await fsList('payments', {
           filter: { field: 'contractId', op: 'EQUAL', value: contractId },
-          limit: 1,
+          limit: 5,
         });
-        if (!existing.length) {
+        if (!existing.some(p => p.type !== 'deposit')) {
           const writes = [];
           const pStart = new Date(fullContract.startDate);
           const pEnd = new Date(fullContract.endDate);
-          const payDay = parseInt(fullContract.paymentDay, 10) || 5;
+          const payDay = Math.min(parseInt(fullContract.paymentDay, 10) || 5, 28);
           let cur = new Date(pStart.getFullYear(), pStart.getMonth(), payDay);
           if (cur < pStart) cur.setMonth(cur.getMonth() + 1);
           let safety = 0;

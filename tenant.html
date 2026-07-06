@@ -156,6 +156,29 @@
         .payment-amount { font-size: 32px; font-weight: 200; color: var(--gold); margin-bottom: 8px; }
         .payment-due { font-size: 12px; color: var(--text-secondary); margin-bottom: 20px; }
         .payment-status { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: rgba(0, 255, 136, 0.1); color: var(--green); font-size: 11px; }
+        .payment-status.overdue { background: rgba(255, 59, 59, 0.1); color: var(--red); }
+        .payment-badge.overdue { background: var(--red); color: var(--text-primary); }
+        .pay-btn { padding: 10px 18px; background: var(--gold); border: 1px solid var(--gold); color: var(--pure-black); font-family: inherit; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; cursor: pointer; transition: all 0.3s; }
+        .pay-btn:hover { background: transparent; color: var(--gold); }
+        .pay-btn:disabled { opacity: 0.5; cursor: wait; }
+        .pay-now-btn { width: 100%; margin-top: 15px; padding: 13px; }
+
+        /* Payments history */
+        .payments-list { background: var(--dark-surface); margin-bottom: 30px; }
+        .payment-row { display: flex; align-items: center; gap: 15px; padding: 16px 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+        .payment-row:last-child { border-bottom: none; }
+        .pay-status { width: 18px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        .status-dot.pending { background: var(--gold); box-shadow: 0 0 8px rgba(255, 215, 0, 0.4); }
+        .status-dot.overdue { background: var(--red); box-shadow: 0 0 8px rgba(255, 59, 59, 0.4); }
+        .payment-row-info { flex: 1; min-width: 0; }
+        .payment-row-info h4 { font-size: 13px; font-weight: 300; margin-bottom: 2px; }
+        .payment-row-info span { font-size: 10px; color: var(--text-fade); text-transform: uppercase; letter-spacing: 1px; }
+        .payment-row-info span.overdue-label { color: var(--red); }
+        .payment-row-amount { font-size: 14px; font-weight: 300; }
+        .receipt-link { font-size: 10px; color: var(--green); text-decoration: none; text-transform: uppercase; letter-spacing: 1px; transition: opacity 0.3s; }
+        .receipt-link:hover { opacity: 0.7; }
+        .payments-empty { padding: 25px 20px; font-size: 12px; color: var(--text-secondary); font-weight: 300; }
 
         /* Contact Card */
         .contact-card { background: var(--dark-surface); padding: 25px; }
@@ -327,7 +350,7 @@
                 <div class="user-role">Tenant</div>
             </div>
             <a class="nav-item active">Dashboard</a>
-            <a class="nav-item">Payments</a>
+            <a class="nav-item" onclick="scrollToPayments()">Payments</a>
             <a class="nav-item">Documents</a>
             <a class="nav-item" onclick="openMaintenanceModal()">Report Issue</a>
             <a class="nav-item" href="/" target="_blank">View Website</a>
@@ -361,8 +384,13 @@
                     <div class="quick-actions">
                         <div class="quick-action" onclick="openConcierge()"><div class="quick-action-icon">💬</div><h4>Ask Homie</h4><p>Concierge AI 24/7</p></div>
                         <div class="quick-action" onclick="openMaintenanceModal()"><div class="quick-action-icon">⚙</div><h4>Report Issue</h4><p>Maintenance request</p></div>
-                        <div class="quick-action"><div class="quick-action-icon">€</div><h4>Payments</h4><p>View history</p></div>
+                        <div class="quick-action" onclick="scrollToPayments()"><div class="quick-action-icon">€</div><h4>Payments</h4><p>View history</p></div>
                         <div class="quick-action"><div class="quick-action-icon">👤</div><h4>Profile</h4><p>Update info</p></div>
+                    </div>
+
+                    <h3 class="section-title" id="paymentsSection">Payments</h3>
+                    <div class="payments-list" id="paymentsList">
+                        <div class="payments-empty">Loading payments…</div>
                     </div>
 
                     <h3 class="section-title">Your Documents</h3>
@@ -375,10 +403,11 @@
 
                 <div class="side-column">
                     <div class="payment-card">
-                        <div class="payment-header"><h3>Next Payment</h3><span class="payment-badge">Monthly</span></div>
+                        <div class="payment-header"><h3>Next Payment</h3><span class="payment-badge" id="paymentBadge">Monthly</span></div>
                         <div class="payment-amount" id="rentAmount">€0</div>
-                        <div class="payment-due">Due <strong>1st January 2025</strong></div>
-                        <div class="payment-status"><span>✓</span> Paid for December</div>
+                        <div class="payment-due" id="paymentDue">Loading…</div>
+                        <div class="payment-status" id="paymentStatus" style="display:none"></div>
+                        <button class="pay-btn pay-now-btn" id="payNowBtn" style="display:none" onclick="payPayment(this.dataset.paymentId, this)">Pay Now</button>
                     </div>
 
                     <div class="contact-card">
@@ -465,6 +494,7 @@
             document.getElementById('welcomeName').textContent = (currentUser.name || 'Tenant').split(' ')[0];
             document.getElementById('userAvatar').textContent = (currentUser.name || 'T')[0].toUpperCase();
             await loadProperty();
+            await loadPayments();
         });
 
         async function loadProperty() {
@@ -484,6 +514,147 @@
             document.getElementById('propertySize').textContent = tenantProperty.size || '-';
             document.getElementById('rentAmount').textContent = '€' + (tenantProperty.price || 0).toLocaleString();
             if (tenantProperty.image) document.getElementById('propertyImage').src = tenantProperty.image;
+        }
+
+        // ─── Rent payments ─────────────────────────────────────────────
+        let tenantPayments = [];
+
+        function scrollToPayments() {
+            document.getElementById('paymentsSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            document.getElementById('sidebar').classList.remove('open');
+        }
+
+        function paymentAmount(p) {
+            const n = typeof p.amount === 'number' ? p.amount : parseFloat(String(p.amount || '').replace(/[^\d.,-]/g, '').replace(',', '.'));
+            return isNaN(n) ? 0 : n;
+        }
+        function formatEUR(n) {
+            try { return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n); }
+            catch (e) { return '€' + n; }
+        }
+        function monthLabel(month) {
+            if (!month || !/^\d{4}-\d{2}/.test(month)) return month || '—';
+            const d = new Date(parseInt(month.slice(0, 4), 10), parseInt(month.slice(5, 7), 10) - 1, 1);
+            return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+        }
+        function dueLabel(dueDate) {
+            if (!dueDate) return '';
+            const d = new Date(dueDate + 'T00:00:00');
+            return isNaN(d) ? dueDate : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+        }
+        function isUnpaid(p) { return p.status === 'pending' || p.status === 'overdue'; }
+        function isOverdue(p) {
+            if (p.status === 'overdue') return true;
+            if (p.status !== 'paid' && p.dueDate) return p.dueDate < new Date().toISOString().slice(0, 10);
+            return false;
+        }
+        function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+        async function loadPayments() {
+            try {
+                const snap = await db.collection('payments').where('tenantId', '==', currentUser.id).get();
+                tenantPayments = snap.docs
+                    .map(d => ({ id: d.id, ...d.data() }))
+                    .filter(p => p.type !== 'deposit')
+                    .sort((a, b) => String(a.month || '').localeCompare(String(b.month || '')));
+                renderNextPayment();
+                renderPaymentHistory();
+            } catch (e) {
+                // Never break the dashboard — fall back to the property rent figure.
+                console.warn('Payments unavailable:', e);
+                document.getElementById('paymentDue').textContent = 'Payment details unavailable right now';
+                document.getElementById('paymentsList').innerHTML = '<div class="payments-empty">Payment history is unavailable right now. Please try again later.</div>';
+            }
+        }
+
+        function renderNextPayment() {
+            const amountEl = document.getElementById('rentAmount');
+            const badgeEl  = document.getElementById('paymentBadge');
+            const dueEl    = document.getElementById('paymentDue');
+            const statusEl = document.getElementById('paymentStatus');
+            const payBtn   = document.getElementById('payNowBtn');
+
+            const next = tenantPayments.find(isUnpaid);
+            if (next) {
+                amountEl.textContent = formatEUR(paymentAmount(next));
+                badgeEl.textContent = monthLabel(next.month);
+                dueEl.innerHTML = next.dueDate ? 'Due <strong>' + esc(dueLabel(next.dueDate)) + '</strong>' : 'Due date to be confirmed';
+                if (isOverdue(next)) {
+                    badgeEl.classList.add('overdue');
+                    statusEl.className = 'payment-status overdue';
+                    statusEl.innerHTML = '<span>!</span> Overdue — please pay as soon as possible';
+                    statusEl.style.display = 'flex';
+                } else {
+                    badgeEl.classList.remove('overdue');
+                    statusEl.style.display = 'none';
+                }
+                payBtn.dataset.paymentId = next.id;
+                payBtn.style.display = 'block';
+            } else {
+                payBtn.style.display = 'none';
+                statusEl.className = 'payment-status';
+                statusEl.style.display = 'flex';
+                if (tenantPayments.length === 0) {
+                    dueEl.textContent = 'No payments scheduled';
+                    statusEl.innerHTML = '<span>✓</span> Nothing due at the moment';
+                } else {
+                    const last = tenantPayments[tenantPayments.length - 1];
+                    amountEl.textContent = formatEUR(paymentAmount(last));
+                    badgeEl.textContent = 'Paid';
+                    let nextDue = '';
+                    if (last.dueDate) {
+                        const d = new Date(last.dueDate + 'T00:00:00');
+                        if (!isNaN(d)) { d.setMonth(d.getMonth() + 1); nextDue = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); }
+                    }
+                    dueEl.textContent = nextDue ? "You're all set — next rent due " + nextDue : "You're all set";
+                    statusEl.innerHTML = '<span>✓</span> All payments up to date';
+                }
+            }
+        }
+
+        function renderPaymentHistory() {
+            const list = document.getElementById('paymentsList');
+            if (tenantPayments.length === 0) {
+                list.innerHTML = '<div class="payments-empty">No payments scheduled yet.</div>';
+                return;
+            }
+            const rows = tenantPayments.slice(-12).reverse().map(p => {
+                const overdue = isOverdue(p);
+                const mark = p.status === 'paid'
+                    ? '<span class="pay-status" style="color: var(--green)">✓</span>'
+                    : '<span class="pay-status"><span class="status-dot ' + (overdue ? 'overdue' : 'pending') + '"></span></span>';
+                const statusLabel = p.status === 'paid' ? 'Paid' : (overdue ? '<span class="overdue-label">Overdue</span>' : 'Pending');
+                const action = p.status === 'paid'
+                    ? (p.receiptUrl ? '<a class="receipt-link" href="' + esc(p.receiptUrl) + '" target="_blank" rel="noopener">Receipt</a>' : '')
+                    : '<button class="pay-btn" onclick="payPayment(\'' + esc(p.id) + '\', this)">Pay</button>';
+                return '<div class="payment-row">' + mark +
+                    '<div class="payment-row-info"><h4>' + esc(monthLabel(p.month)) + '</h4><span>' + statusLabel + (p.dueDate ? ' · due ' + esc(dueLabel(p.dueDate)) : '') + '</span></div>' +
+                    '<div class="payment-row-amount">' + esc(formatEUR(paymentAmount(p))) + '</div>' + action + '</div>';
+            });
+            list.innerHTML = rows.join('');
+        }
+
+        async function payPayment(paymentId, btn) {
+            const p = tenantPayments.find(x => x.id === paymentId);
+            if (!p) return;
+            if (p.payToken) { location.href = '/pay?t=' + encodeURIComponent(p.payToken); return; }
+            if (btn) btn.disabled = true;
+            try {
+                const idToken = await firebase.auth().currentUser.getIdToken();
+                const res = await fetch('/api/rent/checkout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+                    body: JSON.stringify({ paymentId: paymentId })
+                });
+                const data = await res.json();
+                if (data.ok && data.url) { location.href = data.url; return; }
+                if (data.error === 'already_paid') alert('This payment has already been made. Refresh the page to see the update.');
+                else alert('We could not start the payment right now. Please try again in a moment or contact BOOM.');
+            } catch (e) {
+                alert('We could not start the payment right now. Please check your connection and try again.');
+            } finally {
+                if (btn) btn.disabled = false;
+            }
         }
 
         function openMaintenanceModal() { document.getElementById('maintenanceForm').reset(); document.getElementById('maintenanceModal').classList.add('active'); }

@@ -123,6 +123,15 @@ service firebase.storage {
       allow read, write: if isAdmin();
     }
 
+    // ─── receipts/** ──────────────────────────────────────────────────
+    // Rent quietanze generated server-side (api/rent/_receipt.js via the
+    // Stripe webhook) with the admin ID token — same pattern as contracts/.
+    // Tenants download through the tokenized ?alt=media&token= URL, which
+    // bypasses rules.
+    match /receipts/{allPaths=**} {
+      allow read, write: if isAdmin();
+    }
+
     // ─── Default deny ─────────────────────────────────────────────────
     match /{allPaths=**} {
       allow read, write: if false;

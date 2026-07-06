@@ -241,6 +241,121 @@ async function handleDeposit(res, session, m) {
   return res.status(200).json({ received: true, deposit: true, contractId });
 }
 
+// RENT — a tenant paid a monthly rent instalment (checkout created by
+// /api/rent/checkout with metadata { service:'RENT', paymentId }). Marks the
+// payments doc paid (portal conventions: status/paidDate/stripeSessionId/
+// stripePaymentIntent), generates the quietanza PDF, emails the receipt,
+// wakes the operator. The mark-paid write is the only step allowed to fail
+// the webhook (5xx → Stripe retries); everything after is best-effort.
+async function handleRent(res, session, m) {
+  const paymentId = String(m.paymentId || '').trim().replace(/[^\w-]/g, '');
+  if (!paymentId) return res.status(200).json({ received: true, error: 'no_paymentId' });
+  const now = new Date().toISOString();
+  const amountEur = (session.amount_total || 0) / 100;
+
+  let p = null;
+  try { p = await readDoc(`payments/${paymentId}`); } catch (_) {}
+  if (!p) return res.status(200).json({ received: true, error: 'payment_not_found', paymentId });
+  if (p.status === 'paid') {
+    // A second Checkout session settled for an already-paid instalment
+    // (double-pay during a delayed first webhook): record it and wake the
+    // operator so they can refund — never silently swallow money.
+    const pi = typeof session.payment_intent === 'string' ? session.payment_intent : '';
+    if (pi && p.stripePaymentIntent && pi !== p.stripePaymentIntent) {
+      try { await patchDoc(`payments/${paymentId}`, { duplicateStripePaymentIntent: pi, duplicateStripeSession: session.id }); }
+      catch (err) { console.error('[rent] dup record:', err.message); }
+      try {
+        await writeDoc('agentNotifications', 'rent-dup-' + paymentId, {
+          type: 'payment.duplicate',
+          summary: `⚠️ DOPPIO pagamento affitto: payments/${paymentId} · rimborsare ${pi} (€${((session.amount_total || 0) / 100).toLocaleString('it-IT')})`,
+          priority: 'urgent',
+          status: 'pending',
+          actor: 'stripe-webhook',
+          dedupKey: 'rent-dup-' + paymentId,
+          createdAt: now,
+          attempts: 0,
+        });
+      } catch (err) { console.error('[rent] dup notify:', err.message); }
+    }
+    return res.status(200).json({ received: true, duplicate: true, paymentId });
+  }
+
+  try {
+    await patchDoc(`payments/${paymentId}`, {
+      status: 'paid',
+      paidDate: now, // portal.html convention
+      paidAt: now,   // magic-sign schema compat
+      paidVia: 'stripe',
+      amountPaidEur: amountEur,
+      stripeSessionId: session.id,
+      stripePaymentIntent: typeof session.payment_intent === 'string' ? session.payment_intent : '',
+    });
+  } catch (err) {
+    console.error('[rent] payment patch:', err.message);
+    return res.status(500).send('rent_patch_failed'); // Stripe will retry
+  }
+
+  const paid = { ...p, status: 'paid', paidDate: now, paidVia: 'stripe' };
+
+  // Context + quietanza + emails — best-effort, never fail the webhook.
+  let ctx = { propLabel: 'your BOOM Rome home', tenantFirstName: 'there', tenantEmail: session.customer_email || '', tenantName: '' };
+  try {
+    const rentLib = await import('./rent/_lib.js');
+    ctx = await rentLib.paymentContext(paid);
+
+    let receiptUrl = '';
+    try {
+      const { buildReceiptPdf, uploadReceipt } = await import('./rent/_receipt.js');
+      const bytes = await buildReceiptPdf(paid, ctx, session.id);
+      receiptUrl = await uploadReceipt(`receipts/${paymentId}.pdf`, Buffer.from(bytes));
+      await patchDoc(`payments/${paymentId}`, { receiptUrl });
+    } catch (err) { console.error('[rent] receipt:', err.message); }
+
+    if (paid.contractId) {
+      try {
+        await patchDoc(`contracts/${paid.contractId}`, {
+          lastRentPaidMonth: paid.month || '',
+          lastRentPaidAt: now,
+        });
+      } catch (err) { console.error('[rent] contract patch:', err.message); }
+    }
+
+    const email = ctx.tenantEmail || session.customer_email || '';
+    if (email) {
+      try {
+        const { sendEmail } = await import('./agent/_lib.js');
+        const { emailShell, btn, esc, monthLabel, money } = rentLib;
+        const receiptLine = receiptUrl
+          ? `<p style="margin:16px 0 0;font-size:13px"><a href="${esc(receiptUrl)}" style="color:#B8860B;text-decoration:none">⬇ Download your receipt / quietanza (PDF)</a></p>` : '';
+        await sendEmail({
+          to: email,
+          subject: `Rent paid ✓ — ${monthLabel(paid.month)}`,
+          html: emailShell('Payment received', `
+            <p style="margin:0 0 14px">Hi ${esc(ctx.tenantFirstName)},</p>
+            <p style="margin:0 0 6px">We've received your rent payment of <b>${esc(money(amountEur))}</b> for <b>${monthLabel(paid.month)}</b> — ${esc(ctx.propLabel)}. You're all set.</p>
+            ${receiptLine}
+            <p style="margin:20px 0 0">${btn('https://www.boomrome.com/portal', 'Open my portal')}</p>`),
+        });
+      } catch (err) { console.error('[rent] tenant email:', err.message); }
+    }
+  } catch (err) { console.error('[rent] context:', err.message); }
+
+  try {
+    await writeDoc('agentNotifications', 'rent-paid-' + paymentId, {
+      type: 'payment.rent',
+      summary: `💶 Affitto incassato: €${amountEur.toLocaleString('it-IT')} · ${ctx.tenantName || paid.tenantId || '?'} · ${paid.month || ''}`,
+      priority: 'high',
+      status: 'pending',
+      actor: 'stripe-webhook',
+      dedupKey: 'rent-paid-' + paymentId,
+      createdAt: now,
+      attempts: 0,
+    });
+  } catch (err) { console.error('[rent] notify write:', err.message); }
+
+  return res.status(200).json({ received: true, rent: true, paymentId });
+}
+
 // RESERVE — a tenant paid a refundable holding deposit to reserve an apartment.
 async function handleReserve(res, session, m) {
   const docId = session.id.replace(/[^a-zA-Z0-9]/g, '').substring(0, 30);
@@ -330,15 +445,51 @@ export default async function handler(req, res) {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  if (event.type !== 'checkout.session.completed') {
+  // Delayed-notification methods (SEPA DD, bank transfer): a failed/recalled
+  // debit must surface to the operator instead of vanishing.
+  if (event.type === 'checkout.session.async_payment_failed') {
+    const s = event.data.object || {};
+    const mm = s.metadata || {};
+    if (mm.service === 'RENT' && mm.paymentId) {
+      const pid = String(mm.paymentId).replace(/[^\w-]/g, '');
+      try {
+        await writeDoc('agentNotifications', 'rent-payfail-' + pid, {
+          type: 'payment.failed',
+          summary: `❌ Addebito affitto FALLITO (async): payments/${pid} · sessione ${s.id}`,
+          priority: 'urgent',
+          status: 'pending',
+          actor: 'stripe-webhook',
+          dedupKey: 'rent-payfail-' + pid,
+          createdAt: new Date().toISOString(),
+          attempts: 0,
+        });
+      } catch (err) { console.error('[rent] payfail notify:', err.message); }
+    }
+    return res.status(200).json({ received: true, asyncFailed: true });
+  }
+
+  // completed can fire with payment_status 'unpaid' for delayed methods —
+  // funds arrive later via async_payment_succeeded (same session object,
+  // routed through the same handlers; their idempotency guards make the
+  // second delivery safe).
+  const HANDLED = ['checkout.session.completed', 'checkout.session.async_payment_succeeded'];
+  if (!HANDLED.includes(event.type)) {
     return res.status(200).json({ received: true, ignored: event.type });
   }
 
   const session = event.data.object;
   const m = session.metadata || {};
 
+  if (session.payment_status !== 'paid') {
+    return res.status(200).json({ received: true, awaitingFunds: true, service: m.service || 'none' });
+  }
+
   if (m.service === 'DEPOSIT') {
     return handleDeposit(res, session, m);
+  }
+
+  if (m.service === 'RENT') {
+    return handleRent(res, session, m);
   }
 
   if (m.service === 'RESERVE') {

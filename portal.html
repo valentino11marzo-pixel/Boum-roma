@@ -1597,8 +1597,8 @@
     // STRIPE CONFIGURATION - Update these values!
     // ═══════════════════════════════════════════════════════════════════════════
     const STRIPE_CONFIG = {
-        // ⚠️ REPLACE WITH YOUR FIREBASE FUNCTION URL
-        checkoutEndpoint: 'https://us-central1-boom-property-dashboards.cloudfunctions.net/createCheckoutSession',
+        // Vercel serverless endpoint (see api/rent/checkout.js)
+        checkoutEndpoint: '/api/rent/checkout',
         // Set to true when ready to accept real payments
         enabled: true
     };
@@ -9722,6 +9722,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     ${p.status === 'pending' ? `
                         <div style="display:flex;flex-direction:column;gap:4px">
                             <button class="btn btn-xs btn-success" onclick="event.stopPropagation();markPaymentPaid('${p.id}')" title="Segna pagato">✔</button>
+                            <button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();copyPayLink('${p.id}')" title="Copia link pagamento">🔗</button>
                             ${p.proofUrl ? `<a href="${p.proofUrl}" target="_blank" class="btn btn-xs btn-secondary" onclick="event.stopPropagation()" title="Vedi ricevuta">📄</a>` : ''}
                             ${isOverdueNow ? `<button class="btn btn-xs btn-danger" onclick="event.stopPropagation();sendPaymentReminder('${p.id}')" title="Invia sollecito">📧</button>` : ''}
                         </div>
@@ -16168,8 +16169,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         e.preventDefault();
         const data = Object.fromEntries(new FormData(e.target));
         try {
+            // Denormalize tenantId/propertyId from the contract: the rules
+            // grants and the tenant/owner dashboards key off these fields —
+            // without them the payment is invisible outside the admin view.
+            const payContract = (S.contracts || []).find(c => c.id === data.contractId);
             var docRef = await db.collection('payments').add({
                 contractId: data.contractId, month: data.month || '', amount: parseInt(data.amount) || 0,
+                tenantId: (payContract && payContract.tenantId) || '',
+                propertyId: (payContract && payContract.propertyId) || '',
                 dueDate: data.dueDate || null, status: data.status || 'pending',
                 paidDate: data.status === 'paid' ? new Date().toISOString() : null,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -16177,6 +16184,36 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             logActivity('payment_created', 'payment', { id: docRef.id, amount: parseInt(data.amount) || 0, status: data.status || 'pending', contractId: data.contractId });
             await refreshOnly('payments'); closeModal(); toast('success', 'Pagamento registrato!');
         } catch (err) { toast('error', 'Errore', err.message); }
+    }
+
+    // Copy the public one-tap pay link (pay.html) for a payment; mints the
+    // payToken on the fly if the doc doesn't have one yet (admin-writable).
+    async function copyPayLink(paymentId) {
+        try {
+            const p = S.payments.find(x => x.id === paymentId);
+            if (!p) throw new Error('Pagamento non trovato');
+            let token = p.payToken;
+            if (!token) {
+                // Re-read before minting: the daily cron may have issued a
+                // token after this page loaded — overwriting it would kill
+                // every /pay link already emailed to the tenant.
+                const snap = await db.collection('payments').doc(paymentId).get();
+                token = snap.exists ? (snap.data().payToken || null) : null;
+                if (!token) {
+                    const bytes = new Uint8Array(24);
+                    crypto.getRandomValues(bytes);
+                    token = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+                    await db.collection('payments').doc(paymentId).update({ payToken: token });
+                }
+                p.payToken = token;
+            }
+            const link = 'https://www.boomrome.com/pay?t=' + token;
+            await navigator.clipboard.writeText(link);
+            toast('success', 'Link copiato', link);
+        } catch (err) {
+            console.error('[copyPayLink]', err);
+            toast('error', 'Errore', err.message);
+        }
     }
 
     async function markPaymentPaid(id) {
@@ -16278,32 +16315,32 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const payment = S.payments.find(p => p.id === paymentId);
             if (!payment) throw new Error('Pagamento non trovato');
 
-            const contract = S.contracts.find(c => c.id === payment.contractId);
-            const property = contract ? S.properties.find(p => p.id === contract.propertyId) : null;
-            const tenant = S.users.find(u => u.id === S.profile.id);
-
             toast('info', '💳 Reindirizzamento a Stripe...', 'Attendi');
 
+            const idToken = await firebase.auth().currentUser.getIdToken();
             const response = await fetch(STRIPE_CONFIG.checkoutEndpoint, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    paymentId: paymentId,
-                    amount: payment.amount,
-                    description: `Affitto ${property?.name || 'Immobile'}`,
-                    tenantEmail: tenant?.email || '',
-                    tenantName: tenant?.name || '',
-                    propertyName: property?.name || '',
-                    month: payment.month || ''
-                })
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + idToken
+                },
+                body: JSON.stringify({ paymentId: paymentId })
             });
 
-            if (!response.ok) throw new Error('Errore creazione sessione di pagamento');
+            const data = await response.json().catch(() => ({}));
 
-            const { url } = await response.json();
+            if (!data.ok || !data.url) {
+                if (data.error === 'already_paid') {
+                    toast('success', 'Già pagato', 'Questo canone risulta già saldato — aggiorno la lista');
+                    await refresh();
+                    return;
+                }
+                if (data.error === 'no_amount') throw new Error('Importo non disponibile per questo pagamento');
+                throw new Error(data.error || 'Errore creazione sessione di pagamento');
+            }
 
             // Redirect to Stripe Checkout
-            window.location.href = url;
+            window.location.href = data.url;
 
         } catch (err) {
             console.error('Stripe payment error:', err);
@@ -16562,6 +16599,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     contractId: data.contractId,
                     month: monthStr,
                     amount: amount,
+                    tenantId: contract.tenantId || '',
+                    propertyId: contract.propertyId || '',
                     dueDate: dueDate.toISOString().split('T')[0],
                     status: 'pending',
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -20268,13 +20307,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const propName = property?.name || 'l\'immobile';
         const due = fmtDate(payment.dueDate);
         const days = daysSince(payment.dueDate);
+        // One-tap payment link (public pay.html) — attached when the doc has a payToken
+        const payLink = payment.payToken ? `\n\nPaga subito con carta: https://www.boomrome.com/pay?t=${payment.payToken}` : '';
         if (level === 3) {
-            return `Gentile ${firstName}, le abbiamo inviato via email DIFFIDA AD ADEMPIERE per il canone ${amount} di ${propName} (scaduto da ${days} giorni — ${due}). Termine: 15 giorni. Per chiarimenti chiamaci. — BOOM Roma`;
+            return `Gentile ${firstName}, le abbiamo inviato via email DIFFIDA AD ADEMPIERE per il canone ${amount} di ${propName} (scaduto da ${days} giorni — ${due}). Termine: 15 giorni. Per chiarimenti chiamaci.${payLink} — BOOM Roma`;
         }
         if (level === 2) {
-            return `${firstName}, ti scriviamo perché il canone ${amount} di ${propName} (scaduto il ${due}, ${days}gg di ritardo) risulta ancora insoluto. Provvedi al pagamento e inviaci la contabile per evitare il sollecito formale con interessi di mora. — BOOM Roma`;
+            return `${firstName}, ti scriviamo perché il canone ${amount} di ${propName} (scaduto il ${due}, ${days}gg di ritardo) risulta ancora insoluto. Provvedi al pagamento e inviaci la contabile per evitare il sollecito formale con interessi di mora.${payLink} — BOOM Roma`;
         }
-        return `Ciao ${firstName}, ti ricordiamo che il canone ${amount} di ${propName} è scaduto il ${due} (${days}gg di ritardo). Se hai già pagato ignora pure! IBAN: ${COMPANY.iban}. Grazie — BOOM Roma`;
+        return `Ciao ${firstName}, ti ricordiamo che il canone ${amount} di ${propName} è scaduto il ${due} (${days}gg di ritardo). Se hai già pagato ignora pure! IBAN: ${COMPANY.iban}.${payLink} Grazie — BOOM Roma`;
     }
     
     async function sendPaymentConfirmEmail(tenant, contract, property, payment) {
