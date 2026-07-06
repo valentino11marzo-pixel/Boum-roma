@@ -7,6 +7,10 @@
 <meta name="description" content="Un film immobiliare senza finzione. Vendi casa a Roma al prezzo vero — Valentino Egidi, Egidi Immobiliare.">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#0B0A09">
+<meta property="og:title" content="Valentino Egidi — Il prezzo vero. Un film immobiliare, Roma">
+<meta property="og:description" content="Vendere casa a Roma senza finzione: valutazione onesta in 48h, un solo nome che risponde. Egidi Immobiliare · BOOM affitti.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%230B0A09'/%3E%3Crect x='24' y='34' width='52' height='38' fill='%23A03227'/%3E%3Crect x='24' y='24' width='52' height='7' fill='%23EFE9DF'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
@@ -164,20 +168,53 @@ a{color:inherit;text-decoration:none}
 .pv a:hover{background:var(--ox);color:#fff}
 @media(max-width:760px){.pv{bottom:24px}}
 
+/* leader countdown */
+.lead{position:fixed;inset:0;z-index:300;background:var(--noir);display:flex;align-items:center;justify-content:center;transition:opacity .45s,visibility .45s}
+.lead.done{opacity:0;visibility:hidden}
+.lead .disc{position:relative;width:210px;height:210px;display:flex;align-items:center;justify-content:center}
+.lead .disc::before,.lead .disc::after{content:"";position:absolute;inset:0;border-radius:50%;border:1px solid var(--line)}
+.lead .disc::after{inset:26px}
+.lead .num{font-size:110px;font-weight:200;color:var(--crema);font-variant-numeric:tabular-nums}
+.lead svg{position:absolute;inset:-2px;transform:rotate(-90deg)}
+.lead circle{fill:none;stroke:var(--ox-2);stroke-width:2;stroke-dasharray:660;stroke-dashoffset:660}
+.lead .xh{position:absolute;left:-40vw;right:-40vw;height:1px;top:50%;background:rgba(239,233,223,.12)}
+.lead .xv{position:absolute;top:-40vh;bottom:-40vh;width:1px;left:50%;background:rgba(239,233,223,.12)}
+/* scene backdrops */
+.set{position:absolute;inset:0;z-index:0;pointer-events:none}
+.set img{width:100%;height:100%;object-fit:cover;opacity:0;filter:grayscale(.55) contrast(1.1) brightness(.5);transform:scale(1.12);transition:opacity 1.2s var(--e1),transform 7s linear}
+.scene.on .set img{opacity:.2;transform:scale(1.02)}
+.set::after{content:"";position:absolute;inset:0;background:radial-gradient(90% 80% at 50% 40%,transparent 30%,var(--noir) 96%)}
+/* film scrubber */
+.scrub{position:fixed;left:50%;bottom:52px;transform:translateX(-50%);z-index:76;width:min(520px,56vw);display:flex;flex-direction:column;gap:8px}
+@media(max-width:900px){.scrub{display:none}}
+.scrub .tc{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;letter-spacing:.16em;color:var(--crema-3);text-transform:uppercase}
+.scrub .tc b{color:var(--ox-2);font-weight:400}
+.scrub .strip{position:relative;height:22px;display:flex;align-items:center;cursor:pointer}
+.scrub .strip::before{content:"";position:absolute;left:0;right:0;top:50%;height:2px;background:rgba(239,233,223,.14)}
+.scrub .fill{position:absolute;left:0;top:50%;height:2px;width:0;background:var(--ox-2);box-shadow:0 0 10px var(--ox-glow)}
+.scrub .tk{position:absolute;top:50%;width:1px;height:10px;transform:translateY(-50%);background:rgba(239,233,223,.3)}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--ox-2);outline-offset:3px}
+@media(max-width:760px){html{scroll-snap-type:none}.scene{min-height:auto;padding:84px 0}#s0{min-height:100svh}}
 @media(prefers-reduced-motion:reduce){
   html{scroll-snap-type:none}
   *{animation:none!important}
   .split .ch,.rv,.frame,.lie::after,.folio img{transition:none!important;transform:none!important;opacity:1!important;clip-path:none!important}
   .lie::after{width:100%}
   .cut{display:none}
+  .lead{display:none}
+  .set img{transition:none;opacity:.16;transform:none}
 }
 </style>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"RealEstateAgent","name":"Valentino Egidi — Egidi Immobiliare","telephone":"+39 331 325 1961","address":{"@type":"PostalAddress","streetAddress":"Via dei Coronari 181","addressLocality":"Roma","addressCountry":"IT"},"areaServed":"Roma","parentOrganization":{"@type":"Organization","name":"Egidi Immobiliare S.r.l."}}</script>
 </head>
 <body>
 
 <div class="grain"></div>
 <div class="bar t"></div><div class="bar b"></div>
 <div class="cut" id="cut"></div>
+<div class="lead" id="lead" aria-hidden="true"><div class="xh"></div><div class="xv"></div>
+  <div class="disc"><svg viewBox="0 0 212 212"><circle cx="106" cy="106" r="105"/></svg><span class="num" id="leadNum">3</span></div>
+</div>
 
 <div class="hud tl"><span id="scHud">SCENA 00 / 07 · EST. ROMA — ALBA</span></div>
 <div class="hud tr"><span class="rec"><i></i> REC</span> · <b id="clock">--:--:--</b></div>
@@ -185,10 +222,15 @@ a{color:inherit;text-decoration:none}
 <div class="hud br">35MM · <b>NESSUNA FINZIONE</b></div>
 
 <nav class="rail" id="rail"></nav>
+<div class="scrub" id="scrub" aria-hidden="true">
+  <div class="tc"><span>Pellicola 35mm</span><b id="tcode">TC 00:00:00:00</b></div>
+  <div class="strip" id="strip"><div class="fill" id="scrubFill"></div></div>
+</div>
 
 <!-- 00 · TITOLO -->
 <section class="scene" id="s0" data-hud="SCENA 00 / 07 · EST. ROMA — ALBA">
   <div class="ghost">00</div>
+  <div class="set"><img src="https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&w=1600&q=70" alt="" loading="eager" decoding="async" onerror="this.style.opacity=0"></div>
   <div class="wrap">
     <div class="kicker">Egidi Immobiliare presenta</div>
     <h1 class="stitle split" data-split>Il prezzo vero.</h1>
@@ -203,6 +245,7 @@ a{color:inherit;text-decoration:none}
 <!-- 01 · IL PROBLEMA -->
 <section class="scene" id="s1" data-hud="SCENA 01 / 07 · INT. AGENZIA — GIORNO">
   <div class="ghost">01</div>
+  <div class="set"><img src="https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1600&q=70" alt="" loading="lazy" decoding="async" onerror="this.style.opacity=0"></div>
   <div class="wrap">
     <div class="kicker">Scena 01 · Il problema</div>
     <h2 class="stitle split" data-split>Le agenzie <span class="x">recitano.</span></h2>
@@ -236,6 +279,7 @@ a{color:inherit;text-decoration:none}
 <!-- 03 · LA SCENEGGIATURA -->
 <section class="scene" id="s3" data-hud="SCENA 03 / 07 · INT. STUDIO — NOTTE">
   <div class="ghost">03</div>
+  <div class="set"><img src="https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1600&q=70" alt="" loading="lazy" decoding="async" onerror="this.style.opacity=0"></div>
   <div class="wrap">
     <div class="kicker">Scena 03 · La sceneggiatura</div>
     <h2 class="stitle split" data-split>Quattro atti. Zero <span class="x">colpi di scena.</span></h2>
@@ -251,6 +295,7 @@ a{color:inherit;text-decoration:none}
 <!-- 04 · LE PROVE -->
 <section class="scene" id="s4" data-hud="SCENA 04 / 07 · INT. ARCHIVIO — GIORNO">
   <div class="ghost">04</div>
+  <div class="set"><img src="https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=1600&q=70" alt="" loading="lazy" decoding="async" onerror="this.style.opacity=0"></div>
   <div class="wrap">
     <div class="kicker">Scena 04 · Le prove</div>
     <h2 class="stitle split" data-split>Numeri, non <span class="x">trailer.</span></h2>
@@ -287,6 +332,7 @@ a{color:inherit;text-decoration:none}
 <!-- 06 · SECONDO TEMPO: BOOM -->
 <section class="scene boomsc" id="s6" data-hud="SCENA 06 / 07 · INT. BOOM — SERA">
   <div class="ghost" style="-webkit-text-stroke-color:rgba(211,179,106,.1)">06</div>
+  <div class="set"><img src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1600&q=70" alt="" loading="lazy" decoding="async" onerror="this.style.opacity=0"></div>
   <div class="wrap">
     <div class="kicker" style="color:var(--gold)">Secondo tempo · La divisione affitti</div>
     <h2 class="stitle split" data-split>Non la vendi? <span class="g">Falla recitare.</span></h2>
@@ -329,8 +375,6 @@ a{color:inherit;text-decoration:none}
 <div class="pv">
   <b>Opzione <i>Cinema</i></b>
   <a href="/valentino-dossier">Dossier</a>
-  <a href="/valentino-atrio">Atrio</a>
-  <a href="/valentino-2030">2030</a>
   <a href="/valentino-egidi">Attuale</a>
 </div>
 
@@ -381,6 +425,36 @@ addEventListener('keydown',e=>{
   const n=Math.max(0,Math.min(scenes.length-1,cur+(e.key==='ArrowDown'?1:-1)));
   scenes[n].scrollIntoView({behavior:reduce?'auto':'smooth'});
 });
+
+/* leader countdown (first visit) */
+(function(){
+  const lead=$('#lead');if(!lead)return;
+  let seen=false;try{seen=sessionStorage.getItem('vc_lead')==='1';}catch(e){}
+  if(seen||reduce){lead.remove();return;}
+  try{sessionStorage.setItem('vc_lead','1');}catch(e){}
+  const num=$('#leadNum'),circ=lead.querySelector('circle');
+  let n=3;num.textContent=n;
+  const tickLead=()=>{circ.style.transition='none';circ.style.strokeDashoffset=660;void circ.getBoundingClientRect();
+    circ.style.transition='stroke-dashoffset .82s linear';circ.style.strokeDashoffset=0;};
+  tickLead();
+  const iv=setInterval(()=>{n--;if(n<1){clearInterval(iv);lead.classList.add('done');setTimeout(()=>lead.remove(),600);}
+    else{num.textContent=n;tickLead();}},860);
+})();
+
+/* film scrubber + timecode */
+(function(){
+  const strip=$('#strip'),fill=$('#scrubFill'),tc=$('#tcode');if(!strip)return;
+  scenes.forEach((s,i)=>{const t=document.createElement('i');t.className='tk';t.style.left=(i/(scenes.length-1)*100)+'%';strip.appendChild(t);});
+  const TOT=392;let tk2=false;
+  const upd=()=>{const h=document.documentElement.scrollHeight-innerHeight,p=h>0?scrollY/h:0;
+    if(fill)fill.style.width=(p*100)+'%';
+    if(tc){const sec=p*TOT,mm=String(Math.floor(sec/60)).padStart(2,'0'),ss=String(Math.floor(sec%60)).padStart(2,'0'),ff=String(Math.floor(sec*24%24)).padStart(2,'0');
+      tc.textContent='TC 00:'+mm+':'+ss+':'+ff;}
+    tk2=false;};
+  addEventListener('scroll',()=>{if(!tk2){requestAnimationFrame(upd);tk2=true;}},{passive:true});upd();
+  strip.addEventListener('click',e=>{const r=strip.getBoundingClientRect(),p=(e.clientX-r.left)/r.width;
+    const i=Math.round(p*(scenes.length-1));scenes[Math.max(0,Math.min(scenes.length-1,i))].scrollIntoView({behavior:reduce?'auto':'smooth'});});
+})();
 
 /* counters */
 const cio=new IntersectionObserver(es=>es.forEach(e=>{if(!e.isIntersecting)return;cio.unobserve(e.target);

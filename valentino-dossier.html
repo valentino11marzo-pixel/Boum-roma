@@ -7,6 +7,10 @@
 <meta name="description" content="Dossier VE—MMXXX. Atti di vendita immobiliare a Roma, desecretati. Valentino Egidi, Egidi Immobiliare.">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#F2EFE7">
+<meta property="og:title" content="Valentino Egidi — Dossier VE. Atti di vendita immobiliare, Roma">
+<meta property="og:description" content="Il fascicolo desecretato: prezzi veri, metodo verificabile, difetti dichiarati. Valutazione onesta in 48h. Egidi Immobiliare · BOOM affitti.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='14' fill='%23F2EFE7'/%3E%3Ccircle cx='50' cy='50' r='26' fill='none' stroke='%23C3271B' stroke-width='7'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -195,6 +199,40 @@ footer{border-top:2px solid var(--ink);padding:26px 0 40px}
 .pv a{padding:10px 12px;color:rgba(242,239,231,.5);border-left:1px solid rgba(242,239,231,.15);transition:.25s}
 .pv a:hover{background:var(--rosso);color:#fff}
 
+/* polaroid attachment */
+.mast-att{display:flex;flex-direction:column;align-items:flex-end;gap:24px}
+.pola{position:relative;width:152px;background:#fff;padding:10px 10px 8px;box-shadow:0 16px 34px -14px rgba(27,24,19,.45);transform:rotate(3deg);margin:0}
+.pola img{width:100%;height:150px;object-fit:cover;filter:saturate(.8) contrast(1.05);display:block}
+.pola .pc{position:absolute;left:50%;top:-12px;transform:translateX(-50%) rotate(-4deg);width:64px;height:20px;background:rgba(195,39,27,.28)}
+.pola figcaption{font-family:var(--mono);font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);text-align:center;margin-top:8px}
+@media(max-width:760px){.mast-att{align-items:flex-start}}
+/* desecreta tutto */
+.unred{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;border:1.5px solid var(--rosso);color:var(--rosso);background:none;padding:10px 16px;cursor:pointer;margin-bottom:22px;transition:.3s;font-weight:600}
+.unred:hover{background:var(--rosso);color:#fff}
+.unred:disabled{opacity:.5;cursor:default}
+/* verbale */
+.verb{border:1.5px solid var(--ink)}
+.vrow{border-top:1px solid var(--line);padding:24px 24px}
+.vrow:first-child{border-top:none}
+.vrow .vd{font-weight:700;font-size:clamp(16px,2vw,21px);text-transform:uppercase;letter-spacing:-.01em}
+.vrow .vd::before{content:"D. ";color:var(--rosso)}
+.vrow .vr{margin-top:10px;font-size:15px;color:var(--ink-2);font-weight:300;max-width:74ch}
+.vrow .vr::before{content:"R. ";font-family:var(--mono);color:var(--rosso);font-weight:600}
+.vrow .vr a{color:var(--rosso);border-bottom:1px solid var(--rosso)}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--rosso);outline-offset:3px}
+/* print — il fascicolo si stampa davvero */
+@media print{
+  .tb,.pv,.prev,.prog,.unred{display:none!important}
+  body::before{display:none}
+  body{background:#fff}
+  .alle{padding:40px 0;page-break-inside:avoid}
+  .alle.boom{background:#fff;color:#000}
+  .alle.boom .alle-head h2,.alle.boom .alle-lead,.clausole li,.clausole b{color:#000!important}
+  .seal{border-color:#000}.seal .in b,.seal .in span{fill:#000;color:#000}
+  .redact{background:#000!important;color:transparent!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .stamp{opacity:.92!important;scale:1!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .rv{opacity:1!important;transform:none!important}
+}
 @media(prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}*{animation:none!important}
   .rv{opacity:1;transform:none;transition:none}
@@ -205,14 +243,15 @@ footer{border-top:2px solid var(--ink);padding:26px 0 40px}
   .prev{display:none}
 }
 </style>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"RealEstateAgent","name":"Valentino Egidi — Egidi Immobiliare","telephone":"+39 331 325 1961","address":{"@type":"PostalAddress","streetAddress":"Via dei Coronari 181","addressLocality":"Roma","addressCountry":"IT"},"areaServed":"Roma","parentOrganization":{"@type":"Organization","name":"Egidi Immobiliare S.r.l."}}</script>
 </head>
 <body>
 <div class="prog" id="prog"></div>
 
 <!-- top bar -->
 <div class="tb"><div class="wrap tb-in">
-  <div class="l"><span class="fas">FASC. VE—MMXXX</span><span class="hidem">Egidi Immobiliare S.r.l.</span><span class="hidem" id="clock">--:--:--</span></div>
-  <a class="cta" href="#allegato-b">Richiedi valutazione →</a>
+  <div class="l"><span class="fas">FASC. <span id="prot">VE—MMXXX</span></span><span class="hidem">Egidi Immobiliare S.r.l.</span><span class="hidem" id="clock">--:--:--</span></div>
+  <span style="display:flex;gap:8px"><button class="cta hidem" id="printBtn" type="button" style="background:none;border:1.5px solid var(--ink);color:var(--ink);cursor:pointer;font:inherit;letter-spacing:inherit;text-transform:inherit">Stampa PDF</button><a class="cta" href="#allegato-b">Richiedi valutazione →</a></span>
 </div></div>
 
 <main>
@@ -221,7 +260,9 @@ footer{border-top:2px solid var(--ink);padding:26px 0 40px}
 <header class="mast"><div class="wrap">
   <div class="row1">
     <div class="meta">Repubblica del mercato immobiliare<br>Ufficio unico · Via dei Coronari 181, Roma</div>
-    <div class="barcode" aria-hidden="true"></div>
+    <div class="mast-att"><div class="barcode" aria-hidden="true"></div>
+      <figure class="pola"><span class="pc"></span><img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=500&q=70" alt="Valentino Egidi" loading="lazy" decoding="async" onerror="this.style.opacity=0"><figcaption>All. fotografico — il titolare</figcaption></figure>
+    </div>
   </div>
   <h1>Valentino<br>Egidi<span class="thin"> — atti di<br>vendita.</span></h1>
   <span class="stamp" data-stamp>Desecretato</span>
@@ -244,6 +285,8 @@ footer{border-top:2px solid var(--ink);padding:26px 0 40px}
     <span class="n">ALL. D</span><span class="t">I quartieri</span><span class="m">€/m² · indicativi</span></a>
   <a class="ix" href="#allegato-e" data-img="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=70">
     <span class="n">ALL. E</span><span class="t">Modulo BOOM®</span><span class="m">divisione affitti · sigillo oro</span></a>
+  <a class="ix" href="#allegato-f" data-img="https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&w=800&q=70">
+    <span class="n">ALL. F</span><span class="t">Il verbale</span><span class="m">domande scomode · a verbale</span></a>
 </div></nav>
 <div class="prev" id="prev"><img id="prevImg" src="" alt=""></div>
 
@@ -294,6 +337,7 @@ footer{border-top:2px solid var(--ink);padding:26px 0 40px}
 <section class="alle" id="allegato-c"><div class="wrap">
   <div class="alle-head rv"><h2>All. C — <i>intercettazioni</i></h2><span class="meta">l'agentese, tradotto e desecretato</span></div>
   <p class="alle-lead rv">Cosa scrivono gli annunci — e cosa intendono davvero. Passa sopra le parti annerite per desecretarle.</p>
+  <button class="unred rv" id="unredAll" type="button">☒ Desecreta tutto</button>
   <div class="wire rv">
     <div class="wr"><div class="said">Caratteristico</div><div class="tr"><span class="redact">Piccolo.</span></div></div>
     <div class="wr"><div class="said">Luminoso</div><div class="tr"><span class="redact">Ha le finestre.</span></div></div>
@@ -338,6 +382,17 @@ footer{border-top:2px solid var(--ink);padding:26px 0 40px}
   </div>
 </div></section>
 
+<!-- ALLEGATO F · verbale -->
+<section class="alle" id="allegato-f"><div class="wrap">
+  <div class="alle-head rv"><h2>All. F — <i>verbale d'interrogatorio</i></h2><span class="meta">le domande scomode · risposte a verbale</span></div>
+  <div class="verb rv">
+    <div class="vrow"><div class="vd">Quanto mi costi?</div><div class="vr">Una provvigione, dichiarata per iscritto prima dell'incarico. La cifra esatta dipende dall'immobile e la sai al primo incontro, non al rogito. Se non vendo, non mi devi nulla.</div></div>
+    <div class="vrow"><div class="vd">Chiedi l'esclusiva?</div><div class="vr">Sì, e lo dico subito. Prendo pochi incarichi e su ognuno investo dati, media editoriali e tempo: l'esclusiva è ciò che rende possibile questo livello di lavoro.</div></div>
+    <div class="vrow"><div class="vd">Quanto ci vuole a vendere?</div><div class="vr">Al prezzo vero, nelle zone centrali: settimane, non anni. Al prezzo gonfiato: mesi di silenzio, poi i ribassi. Per questo parto dai comparabili, non dalle speranze.</div></div>
+    <div class="vrow"><div class="vd">E se casa mia vale meno di quanto spero?</div><div class="vr">Te lo dico subito, coi numeri davanti. Poi decidi tu, senza pressioni: vendere al prezzo vero, aspettare — o metterla a reddito con <a href="#allegato-e">BOOM</a> mentre il mercato lavora per te.</div></div>
+  </div>
+</div></section>
+
 <!-- firma -->
 <section class="firma"><div class="wrap">
   <div class="meta rv">In fede, letto e sottoscritto</div>
@@ -359,8 +414,6 @@ footer{border-top:2px solid var(--ink);padding:26px 0 40px}
 <div class="pv">
   <b>Opzione <i>Dossier</i></b>
   <a href="/valentino-cinema">Cinema</a>
-  <a href="/valentino-atrio">Atrio</a>
-  <a href="/valentino-2030">2030</a>
   <a href="/valentino-egidi">Attuale</a>
 </div>
 
@@ -424,6 +477,18 @@ $$('.redact').forEach(r=>r.addEventListener('click',()=>r.classList.toggle('open
     zt.querySelectorAll('.zr').forEach(x=>x.classList.toggle('on',x===r));
     const lo=+r.dataset.lo,hi=+r.dataset.hi,n=r.querySelector('.zn').textContent;
     out.innerHTML=`// ${n}: <b>€${fmt(lo)} – €${fmt(hi)} /m²</b> — indicativo. Il numero vero: modulo 48h.`;});
+})();
+
+/* protocollo + stampa + desecreta */
+(function(){
+  const p=$('#prot');
+  if(p){const d=new Date(),n=String((d.getMonth()+1)*31+d.getDate()).padStart(3,'0');
+    p.textContent='VE—'+d.getFullYear()+'·'+n;}
+  const pb=$('#printBtn');if(pb)pb.addEventListener('click',()=>window.print());
+  const ua=$('#unredAll');
+  if(ua)ua.addEventListener('click',()=>{
+    $$('.redact').forEach((r,i)=>setTimeout(()=>r.classList.add('open'),reduce?0:i*120));
+    ua.textContent='☑ desecretato';ua.disabled=true;});
 })();
 
 /* form → whatsapp */
