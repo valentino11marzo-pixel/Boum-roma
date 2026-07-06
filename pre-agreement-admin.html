@@ -175,7 +175,7 @@ function fillFromListing(id){
   mathLine();
 }
 
-BoomPortal.requireAuth(['admin','owner','landlord'],{loginUrl:'/login.html'}).then(function(res){
+BoomPortal.requireAuth(['admin','owner','landlord'],{loginUrl:'/login.html?next=%2Fpre-agreement-admin'}).then(function(res){
   USER=res.user;
   $('load').style.display='none';$('app').style.display='';
   var d=new Date();d.setDate(d.getDate()+14);$('fStart').value=d.toISOString().slice(0,10);
@@ -187,7 +187,7 @@ BoomPortal.requireAuth(['admin','owner','landlord'],{loginUrl:'/login.html'}).th
       $('fList').addEventListener('change',function(){fillFromListing(this.value)});
     }).catch(function(){});
   }catch(e){}
-}).catch(function(){location.href='/login.html'});
+}).catch(function(){/* requireAuth already redirects to login with ?next= */});
 })();
 </script>
 </body>
