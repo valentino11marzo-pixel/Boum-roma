@@ -89,7 +89,7 @@ h1,h2,h3{font-family:var(--disp);font-weight:300;letter-spacing:-.4px;line-heigh
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}html{scroll-behavior:auto}}
 
 /* nav */
-nav{position:fixed;top:0;width:100%;z-index:100;background:rgba(6,6,7,.66);backdrop-filter:blur(20px);border-bottom:1px solid transparent;transition:.4s var(--ease)}
+nav{position:fixed;top:0;width:100%;z-index:100;background:rgba(6,6,7,.92);backdrop-filter:blur(20px);border-bottom:1px solid transparent;transition:.4s var(--ease)}
 nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 .nav-c{max-width:1340px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;padding:12px 18px}
 @media(min-width:880px){.nav-c{padding:13px 38px}}
@@ -117,7 +117,11 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 @keyframes pulsedot{0%{box-shadow:0 0 0 0 rgba(255,215,0,.45)}70%{box-shadow:0 0 0 7px rgba(255,215,0,0)}100%{box-shadow:0 0 0 7px rgba(255,215,0,0)}}
 /* ── the command bar: ONE segmented instrument, not four loose fields.
      Uniform height, hairline dividers, the whole segment lights on focus. ── */
-.intent{margin-top:20px;display:grid;gap:0;grid-template-columns:minmax(0,1fr);background:linear-gradient(180deg,rgba(18,18,20,.85),rgba(11,11,12,.85));border:1px solid var(--line-gold);border-radius:16px;padding:6px;backdrop-filter:blur(14px);box-shadow:0 18px 50px rgba(0,0,0,.35)}
+.intent{margin-top:20px;display:grid;gap:0;grid-template-columns:minmax(0,1fr);background:linear-gradient(180deg,rgba(18,18,20,.85),rgba(11,11,12,.85));border:1px solid var(--line-gold);border-radius:16px;padding:6px;backdrop-filter:blur(14px);box-shadow:0 18px 50px rgba(0,0,0,.35);position:relative}
+/* the bar's backdrop-filter creates a stacking context — while the zone panel
+   is open the whole bar must outrank the sticky filter bar, or the panel gets
+   sliced in half by it (the mobile chaos bug) */
+.intent:focus-within{z-index:260}
 @media(min-width:680px){.intent{grid-template-columns:1.55fr 1fr 1.1fr auto;align-items:stretch}}
 .ifield{position:relative;padding:9px 16px 10px;border-radius:11px;transition:background .25s var(--ease)}
 .ifield:hover{background:rgba(255,255,255,.025)}
@@ -153,14 +157,15 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 @media(max-width:560px){.calpop{left:12px!important;right:12px!important;top:auto!important;bottom:calc(12px + var(--safe))!important;width:auto!important}}
 
 /* filter bar */
-.fbar{position:sticky;top:var(--nav);z-index:40;margin-top:16px;padding:10px 0;background:rgba(6,6,7,.82);backdrop-filter:blur(16px)}
+/* flush under the real nav (57px — the 62px var left a 5px bleed hole) */
+.fbar{position:sticky;top:55px;z-index:40;margin-top:16px;padding:10px 0;background:rgba(6,6,7,.96);backdrop-filter:blur(16px);border-bottom:1px solid var(--line-soft)}
 .fbar-in{display:flex;gap:8px;align-items:center;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
 .fbar-in::-webkit-scrollbar{display:none}
 .fpill{flex:0 0 auto;display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--card);border-radius:100px;padding:10px 15px;font-size:13px;color:var(--t2);transition:.2s var(--ease);min-height:40px}
 .fpill:hover{border-color:var(--line-gold)}.fpill.on{border-color:var(--gold);color:var(--gold);background:var(--gold-faint)}
 .fpill.on::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--gold);flex:none}
 .fpill.clearall{border-color:var(--line-gold);color:var(--gold)}.fpill.clearall:hover{background:var(--gold);color:#1a1407}
-.fbar{position:sticky}.fbar::after{content:"";position:absolute;right:0;top:10px;bottom:10px;width:34px;background:linear-gradient(90deg,transparent,rgba(6,6,7,.82));pointer-events:none}
+.fbar{position:sticky}.fbar::after{content:"";position:absolute;right:0;top:10px;bottom:10px;width:34px;background:linear-gradient(90deg,transparent,rgba(6,6,7,.96));pointer-events:none}
 .fpill .cnt{font-size:11px;color:var(--gold);font-weight:600}
 .igo .cnt{font-size:11px;font-weight:700;opacity:.8;margin-left:2px}
 .fpill.filters{border-color:var(--line-gold);color:var(--gold)}
