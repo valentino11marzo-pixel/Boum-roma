@@ -235,7 +235,12 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 .mpin2.sv{border-color:var(--green);box-shadow:0 0 0 1px var(--green-muted),0 6px 18px rgba(0,0,0,.55)}
 .mpin2.wl{border-style:dashed}
 .mpin2.on{background:var(--gold);color:#1a1407;font-weight:600;z-index:6;transform:scale(1.08)}
-.mpin2.zn{opacity:.88}
+/* zone-level pins must read as "around here", never as a doorstep:
+   dotted ring, muted gold, ≈ prefix — a different species at a glance */
+.mpin2.zn{border-style:dotted;border-color:rgba(255,215,0,.4);color:var(--gold-light);background:rgba(12,12,15,.72);font-size:11px;padding:5px 10px}
+.mpin2.zn:hover{background:var(--gold);color:#1a1407}
+.maplegend{position:absolute;right:12px;bottom:12px;z-index:7;display:flex;gap:10px;font-size:10px;letter-spacing:.6px;color:var(--t3);background:rgba(0,0,0,.5);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:100px;padding:6px 12px;pointer-events:none}
+.maplegend b{color:var(--gold);font-weight:500}
 /* ── Explore the Block: the listing card docked on the map ── */
 .blockcard{position:absolute;left:12px;bottom:12px;z-index:8;width:min(340px,calc(100% - 24px));border:1px solid var(--line-gold);border-radius:16px;background:rgba(10,10,13,.92);backdrop-filter:blur(18px);box-shadow:0 24px 70px rgba(0,0,0,.65);overflow:hidden;opacity:0;transform:translateY(14px);pointer-events:none;transition:all .4s var(--ease)}
 .blockcard.on{opacity:1;transform:none;pointer-events:auto}
@@ -957,6 +962,7 @@ function zoneLoreD(z){z=String(z||'');for(var i=0;i<DLORE.length;i++){if(DLORE[i
 var _ovBounds=null;
 function plotMarks(list){_marks.forEach(m=>m.remove());_marks=[];closeBlock(true);
   if(!_dmap)return;
+  ensureBlockEls();
   var seen={},pts=[];
   list.forEach(function(l){
     var hasCo=(l.lat&&l.lng);
@@ -973,8 +979,9 @@ function plotMarks(list){_marks.forEach(m=>m.remove());_marks=[];closeBlock(true
     var el=document.createElement('a');
     el.className='mpin2'+(saved.has(l.id)?' sv':'')+(l.status==='waitlist'?' wl':'')+(p.exact?'':' zn');
     el.href='/listing/'+encodeURIComponent(l.id);
-    el.textContent=(l.status==='waitlist'?'◌ ':'')+eur(l.price);
-    el.setAttribute('aria-label',l.name+', '+eur(l.price)+' per month');
+    el.textContent=(p.exact?(l.status==='waitlist'?'◌ ':''):'≈ ')+eur(l.price);
+    el.setAttribute('aria-label',l.name+', '+eur(l.price)+' per month'+(p.exact?'':' — approximate zone position'));
+    el.title=p.exact?l.name:(l.name+' · in the '+l.zone+' area');
     el.addEventListener('mouseenter',function(){showLinks(p.co)});
     el.addEventListener('focus',function(){showLinks(p.co)});
     el.addEventListener('click',function(ev){ev.preventDefault();showBlock(p,el);});
@@ -993,11 +1000,13 @@ function ensureBlockEls(){
   if(!document.getElementById('blockcard')){
     var c=document.createElement('div');c.id='blockcard';c.className='blockcard';mv.appendChild(c);
     var h=document.createElement('div');h.id='orbitHint';h.className='orbit-hint';h.textContent='Exploring the block — drag to take the wheel';mv.appendChild(h);
+    var lg=document.createElement('div');lg.className='maplegend';lg.innerHTML='<span><b>€</b> exact address</span><span><b>≈</b> zone area</span>';mv.appendChild(lg);
   }
 }
 function showBlock(p,pinEl){
   ensureBlockEls();stopOrbit();
   _blockP=p;var l=p.l;
+  try{boomTrack('block_view',{item_id:l.id,exact:p.exact?1:0})}catch(e){}
   document.querySelectorAll('.mpin2.on').forEach(function(x){x.classList.remove('on')});
   if(pinEl)pinEl.classList.add('on');
   var c=document.getElementById('blockcard');
@@ -1011,13 +1020,25 @@ function showBlock(p,pinEl){
     +'<div class="pr">'+eur(l.price)+' <small>/month</small></div>'
     +(l.status==='waitlist'?'<div class="wl-line">◌ Occupied now · rents ahead — join the waitlist</div>':'')
     +'<div class="acts"><button type="button" class="ob" onclick="orbitBlock()">◉ Explore the block</button>'
-    +(p.exact?'<a class="ob" href="https://www.google.com/maps?layer=c&cbll='+p.co[1]+','+p.co[0]+'" target="_blank" rel="noopener" title="Street View">👁 Street</a>':'')
+    +(p.exact?'<a class="ob" href="https://www.google.com/maps?layer=c&cbll='+p.co[1]+','+p.co[0]+'" target="_blank" rel="noopener" title="Street View" onclick="try{boomTrack(\'street_view_open\',{item_id:\''+l.id+'\'})}catch(e){}">👁 Street</a>':'')
     +'<a class="go" href="/listing/'+encodeURIComponent(l.id)+'">View home →</a></div></div>';
   c.classList.add('on');
   try{_dmap.flyTo({center:p.co,zoom:Math.max(_dmap.getZoom(),15.2),pitch:58,duration:1100,essential:true});}catch(e){}
   showLinks(p.co);
 }
 function orbitBlock(){
+  if(!_blockP||!_dmap)return;
+  try{boomTrack('block_explore',{item_id:_blockP.l.id})}catch(e){}
+  /* photoreal 3D (Google tiles) when the key is configured — else satellite orbit */
+  if(window.__prKey&&window.BoomPhotoreal){
+    var P=_blockP;
+    BoomPhotoreal.open({lat:P.co[1],lng:P.co[0],name:P.l.name,key:__prKey})
+      .catch(function(){orbitSat();});
+    return;
+  }
+  orbitSat();
+}
+function orbitSat(){
   if(!_blockP||!_dmap)return;
   /* satellite on — the block must be the real block */
   try{_dmap.setLayoutProperty('d-sat-l','visibility','visible');
@@ -1049,6 +1070,13 @@ function closeBlock(silent){
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&_blockP)closeBlock();});
 function renderMap(list){
   var mv=document.getElementById('mapview');mv.classList.add('on');
+  /* photoreal readiness: one fetch — if a Google key is configured, arm the
+     Cesium module lazily; "Explore the block" upgrades itself automatically */
+  if(window.__prKey===undefined){window.__prKey=null;
+    fetch('/api/maps-key').then(function(r){return r.json()}).then(function(j){
+      if(j&&j.key){window.__prKey=j.key;
+        var s=document.createElement('script');s.src='/js/boom-photoreal.js';document.head.appendChild(s);}
+    }).catch(function(){});}
   ensureML().then(function(){
     if(!_dmap){_dmap=new maplibregl.Map({container:'mapview',style:'https://tiles.openfreemap.org/styles/liberty',center:[12.4922,41.8902],zoom:11.6,pitch:55,bearing:-12,cooperativeGestures:true,antialias:true,attributionControl:false});
       _dmap.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');
@@ -1078,7 +1106,8 @@ document.getElementById('facets').addEventListener('scroll',facetFade,{passive:t
 addEventListener('resize',facetFade,{passive:true});
 function toggleSavedOnly(){S.savedOnly=!S.savedOnly;syncControls();render();}
 function setView(v){S.view=v;
-  if(v==='map'){try{localStorage.setItem('boom:sky:seen','1')}catch(e){}var vm=document.getElementById('vMap');if(vm)vm.classList.remove('pulse');}
+  if(v==='map'){try{localStorage.setItem('boom:sky:seen','1')}catch(e){}var vm=document.getElementById('vMap');if(vm)vm.classList.remove('pulse');
+    try{boomTrack('skyline_open',{})}catch(e){}}
   document.getElementById('vList').setAttribute('aria-selected',v==='list');document.getElementById('vMap').setAttribute('aria-selected',v==='map');syncControls();render();}
 function skyCardHTML(){
   return '<a class="skycard" href="?view=map" onclick="event.preventDefault();skyOpen()" aria-label="Open the Skyline 3D map">'
@@ -1087,7 +1116,7 @@ function skyCardHTML(){
     +'<p>Satellite view · 3D buildings · orbit the block · one tap to Street View — with distances to Sapienza, LUISS, Termini and more.</p>'
     +'<span class="cta">◉ Open the Skyline</span></a>';
 }
-function skyOpen(){setView('map');try{document.getElementById('mapview').scrollIntoView({behavior:'smooth',block:'center'})}catch(e){}}
+function skyOpen(){try{boomTrack('skyline_teaser_click',{})}catch(e){}setView('map');try{document.getElementById('mapview').scrollIntoView({behavior:'smooth',block:'center'})}catch(e){}}
 /* first visit: the toggle breathes until the Skyline has been seen once */
 try{if(!localStorage.getItem('boom:sky:seen'))document.getElementById('vMap').classList.add('pulse');}catch(e){}
 
@@ -1108,7 +1137,7 @@ try{if(!localStorage.getItem('boom:sky:seen'))document.getElementById('vMap').cl
   q.addEventListener('focus',function(){if(q.value.trim())return;paint();box.classList.add('show');});
   q.addEventListener('input',function(){if(q.value.trim())box.classList.remove('show');else{paint();box.classList.add('show');}});
   box.addEventListener('mousedown',function(e){e.preventDefault();});  /* keep focus in the field */
-  box.addEventListener('click',function(e){var b=e.target.closest('.zc');if(!b)return;box._skip=true;quickZone(b.dataset.z);paint();});
+  box.addEventListener('click',function(e){var b=e.target.closest('.zc');if(!b)return;box._skip=true;try{boomTrack('zone_pick',{zone:b.dataset.z})}catch(_e){}quickZone(b.dataset.z);paint();});
   document.addEventListener('click',function(e){
     if(box._skip){box._skip=false;return;}   /* chip taps repaint the panel — never close on them */
     if(!box.contains(e.target)&&e.target!==q)box.classList.remove('show');});
