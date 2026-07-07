@@ -1,27 +1,52 @@
 # BOOM Rome
 
-> BOOM is a premium mid-term apartment rental platform and agency for Rome, built for international tenants — expats, international students and remote workers. It is part portal, part agency: video-verified listings plus a human team that finds, verifies, negotiates and manages the entire rental. Tenants move in within 48 hours, with transparent all-in pricing, English contracts and zero hidden fees.
+> BOOM is a premium mid-term apartment rental platform and agency for Rome, built for international tenants — expats, international students and remote workers. It is part portal, part agency: video-verified listings plus a human team that finds, verifies, negotiates and manages the entire rental. Tenants move in within 48 hours, with transparent all-in pricing, English contracts and zero hidden fees. Operated by Egidi Immobiliare S.r.l., a registered Italian agency.
 
 ## What BOOM does
-- Verified apartment listings with 360° video tours and transparent, all-inclusive pricing.
-- 48-hour move-in from approval, a 2-minute online application, and 24/7 WhatsApp support.
-- Legal contracts in English, deposit protection, and utilities set up before you arrive.
+- Verified apartment listings with video tours, building-exact map positions and transparent, all-inclusive pricing.
+- 48-hour move-in from approval, a 2-minute online eligibility check, and 24/7 WhatsApp support in English.
+- Legal contracts registered with the Agenzia delle Entrate, deposit protection, and utilities set up before arrival.
+- A fully digital rental pipeline: online pre-agreement with typed e-signature → Stripe-secured payment → registered contract signed online (Magic Sign) → tenant portal for payments and documents.
+
+## How renting with BOOM works
+1. Browse verified homes at https://www.boomrome.com/apartments — filter by zone (tap-to-select), budget and move-in date; every price is computed to the euro (rent, deposit, agency fee of 10% of annual rent).
+2. Explore each home on the Skyline 3D map: real satellite imagery of Rome, 3D buildings, an orbit around the actual block, one-tap Google Street View, and live distances to Termini, Colosseo, the Vatican and the universities.
+3. Pass the 60-second eligibility check (income or guarantor); serious applicants receive a pre-agreement they can read, sign and pay online via Stripe — a €300 refundable hold locks a home.
+4. Occupied portfolio homes can be reserved ahead via waitlist — BOOM homes often rent months in advance.
 
 ## Services
-- [Apartments](https://www.boomrome.com/apartments): Browse video-verified mid-term rentals in Rome.
+- [Apartments](https://www.boomrome.com/apartments): Browse video-verified mid-term rentals in Rome, with the Skyline 3D satellite map.
 - [How It Works](https://www.boomrome.com/how-it-works): The 7-step process from first click to keys in hand.
 - [Property Finding](https://www.boomrome.com/property-finding): We find and negotiate your apartment for €350 (deducted from the agency fee, refundable if no match), including off-market properties.
 - [Virtual Viewing](https://www.boomrome.com/virtual-viewing): Live video apartment tours with HD photos and an honest report, from €89.
 - [Deal Assistance](https://www.boomrome.com/deal-assistance): Contract review, landlord verification and price negotiation for an apartment you found yourself, €249.
 - [Concierge](https://www.boomrome.com/concierge): End-to-end relocation support.
+- [Canone Concordato calculator](https://www.boomrome.com/canone): Free calculator for Rome's regulated-rent brackets — for landlords and tenants.
+
+## Neighbourhood guides (renting in each Rome zone)
+- [Trastevere](https://www.boomrome.com/apartments-in/trastevere): cobbled lanes, evening life, John Cabot University nearby.
+- [Centro Storico](https://www.boomrome.com/apartments-in/centro-storico): Pantheon, Navona, the historic heart.
+- [Monti](https://www.boomrome.com/apartments-in/monti): artisan quarter ten minutes from the Colosseum.
+- [Prati](https://www.boomrome.com/apartments-in/prati): elegant streets by the Vatican; LUMSA nearby.
+- [Pigneto](https://www.boomrome.com/apartments-in/pigneto): Rome's creative quarter.
+- [Testaccio](https://www.boomrome.com/apartments-in/testaccio): the food quarter Romans keep for themselves.
+- [Ostiense](https://www.boomrome.com/apartments-in/ostiense): street art and Roma Tre university.
+- [San Lorenzo](https://www.boomrome.com/apartments-in/san-lorenzo): student quarter next to Sapienza.
+- [Trieste & Coppedè](https://www.boomrome.com/apartments-in/trieste-coppede): Liberty villas, calm residential streets, close to LUISS.
+- [Esquilino](https://www.boomrome.com/apartments-in/esquilino): Rome at its most international.
+
+## Universities BOOM serves (distances shown on every listing)
+LUISS Guido Carli (Viale Romania), Sapienza (San Lorenzo/Tiburtina), Roma Tre (Ostiense), John Cabot University (Trastevere), LUMSA (Prati/Borgo). The apartments map threads live distances from every home to these campuses plus Termini, Colosseo and the Vatican.
 
 ## Who it is for
-International tenants moving to Rome for the medium term (1 to 12+ months): expats, international students (e.g. LUISS, Sapienza, John Cabot, Roma Tre), remote workers and relocating professionals who cannot navigate Rome's rental market in Italian.
+International tenants moving to Rome for the medium term (1 to 12+ months): expats, international students (LUISS, Sapienza, John Cabot, Roma Tre, LUMSA), remote workers and relocating professionals who cannot navigate Rome's rental market in Italian.
 
 ## Key facts
-- Coverage: Rome, Italy.
+- Coverage: Rome, Italy — Trastevere, Centro Storico, Monti, Prati, Trieste/Coppedè, Pigneto, Testaccio, Ostiense, San Lorenzo, Esquilino, Parioli, Flaminio, Ponte Milvio, Marconi, Conca d'Oro, Tiburtina.
 - Move-in speed: as fast as 48 hours from approval.
-- Pricing: transparent, all fees included, no hidden costs.
+- Pricing: transparent — monthly rent + refundable deposit + agency fee of 10% of annual rent; no hidden costs. €300 refundable hold to lock a home.
+- Payments: Stripe-secured. Contracts: registered, English-language, signed online.
+- Reviews: 4.9/5 on Google (47 reviews).
 - Language: English-first service.
 - Company: Egidi Immobiliare S.r.l., P.IVA 17322991005, Rome, Italy.
 

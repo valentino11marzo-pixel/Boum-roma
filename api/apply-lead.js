@@ -73,6 +73,9 @@ export default async function handler(req, res) {
   const durationM  = num(body.durationMonths);
   const kind       = body.kind === 'reserve' ? 'reserve' : 'apply';
   const waitlist   = body.waitlist === true;
+  const commute    = (body.commute && typeof body.commute === 'object')
+    ? { place: clip(body.commute.place, 60), km: num(body.commute.km), label: clip(body.commute.label, 60) }
+    : null;
 
   // Human-readable qualification snapshot for the portal inbox.
   const parts = [];
@@ -83,6 +86,7 @@ export default async function handler(req, res) {
   if (household)      parts.push('moving in: ' + household);
   if (moveIn)         parts.push('move-in ' + moveIn);
   if (durationM)      parts.push(durationM + ' months');
+  if (commute && commute.place) parts.push('commute: ' + commute.place + (commute.label ? ' ' + commute.label : ''));
   const message = parts.join(' · ');
 
   const now = new Date();
@@ -112,7 +116,7 @@ export default async function handler(req, res) {
     sourceRef: null,
     raw: {
       kind, waitlist, income, guarantor, household, occupation,
-      moveIn, durationMonths: durationM, ip,
+      moveIn, durationMonths: durationM, commute, ip,
       ua: clip(req.headers['user-agent'], 300),
     },
     createdAt: now,
