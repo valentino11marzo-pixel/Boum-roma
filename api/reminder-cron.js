@@ -252,6 +252,14 @@ export default async function handler(req, res) {
       results.signNudged = nudged;
     } catch (e) { results.errors.push(`sign-nudge: ${e.message}`); }
 
+// ── Pre-agreement 24h nudge: accepted + payment due + Stripe never
+    // completed → one gentle email with a resume-payment link. Lazy import,
+    // best-effort — must never take the cron down. ──
+    try {
+      const { runPaReminders } = await import('./preagreement/_remind.js');
+      results.paReminders = await runPaReminders();
+    } catch (e) { results.errors.push(`pa-remind: ${e.message}`); }
+
     return res.status(200).json({ ok: true, timestamp: now.toISOString(), ...results });
   } catch (e) {
     console.error('Cron error:', e);

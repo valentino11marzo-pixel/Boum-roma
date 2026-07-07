@@ -1101,6 +1101,17 @@ function aiAsk(b){const q=b.textContent;const t=document.getElementById('aiThrea
 let RES={kind:'apply',step:1,approved:null,need:0};
 function apply(){startRes('apply');}
 function reserve(){startRes('reserve');}
+/* commute anchors: where our applicants actually go every morning */
+var COMMUTE=[['LUISS',41.9269,12.4917],['Sapienza',41.9038,12.5135],['Roma Tre',41.8564,12.4790],['John Cabot',41.8937,12.4664],['LUMSA',41.9032,12.4593],['Termini / centre office',41.9009,12.5018],['Vatican / Prati office',41.9022,12.4534]];
+function commuteFor(place){
+  var c=COMMUTE.filter(function(x){return x[0]===place})[0];
+  if(!c||!L.lat||!L.lng)return null;
+  var R=6371,r=Math.PI/180,dy=(c[1]-L.lat)*r,dx=(c[2]-L.lng)*r;
+  var s=Math.pow(Math.sin(dy/2),2)+Math.cos(L.lat*r)*Math.cos(c[1]*r)*Math.pow(Math.sin(dx/2),2);
+  var km=2*R*Math.asin(Math.min(1,Math.sqrt(s)))*1.3;   // street factor
+  var label=km<2.2?(Math.round(km/4.7*60)+'′ walk'):('≈'+Math.round(km*4.2+10)+'′ door-to-door');
+  return {place:place,km:Math.round(km*10)/10,label:label};
+}
 function startRes(kind){boomTrack('begin_checkout',{item_id:PID||L.id||'sample',kind:kind});try{navigator.vibrate&&navigator.vibrate(8)}catch(e){}RES={kind:kind,step:1,approved:null,need:0,email:RES.email||'',name:RES.name||'',phone:RES.phone||''};document.getElementById('applyTitle').textContent=(L.status==='waitlist')?(kind==='reserve'?'Priority hold — first in line':'Join the waitlist'):(kind==='reserve'?'Secure this home':'Apply for this home');renderRes();openOv('applyOv');_mood('convert');}
 function resStep(n){RES.step=n;renderRes();}
 function resSubmit(){var inc=+(document.getElementById('rqInc')||{}).value||0;var guar=!!(document.getElementById('rqGuar')||{}).checked;var em=((document.getElementById('rqEmail')||{}).value||'').trim();
@@ -1110,12 +1121,15 @@ function resSubmit(){var inc=+(document.getElementById('rqInc')||{}).value||0;va
   if(!inc&&!guar){if(err){err.textContent='Tell us your income or tick the guarantor box — we can’t check otherwise.';err.style.display='block';}return;}
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){if(err){err.textContent='Add your email so we can confirm the outcome to you.';err.style.display='block';}return;}
   RES.name=nm;RES.phone=ph;RES.email=em;RES.who=((document.getElementById('rqWho')||{}).value||'');RES.occ=((document.getElementById('rqOcc')||{}).value||'');
+  RES.dest=((document.getElementById('rqDest')||{}).value||'');
+  RES.commute=RES.dest&&RES.dest!=='Remote / other'?commuteFor(RES.dest):null;
   RES.need=Math.round(L.price*2.5);RES.approved=(inc>=RES.need)||guar;RES.low=inc>0&&inc<RES.need*0.8;
   /* the qualification snapshot becomes a real lead in the portal — fire and
      forget, the visitor's flow never waits on it */
   try{var _s=computeStay();fetch('/api/apply-lead',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
     name:nm,email:em,phone:ph,listingId:(typeof PID!=='undefined'&&PID)||L.id||'',listingName:L.name,listingPrice:L.price,zone:L.zone,
     kind:RES.kind,waitlist:L.status==='waitlist',income:inc||0,guarantor:guar,household:RES.who,occupation:RES.occ,
+    commute:RES.commute||undefined,
     moveIn:_s.start?_s.start.toISOString().slice(0,10):'',durationMonths:DUR,company:''})}).catch(function(){});}catch(e){}
   boomTrack('generate_lead',{item_id:(typeof PID!=='undefined'&&PID)||L.id||'sample',kind:RES.kind});
   resStep(2);}
@@ -1152,6 +1166,7 @@ function renderRes(){
       +'<label style="display:block"><span style="display:block;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--t3);margin-bottom:6px">Who’s moving in</span><select id="rqWho" style="width:100%;background:var(--input);border:1px solid var(--line);border-radius:11px;color:var(--t1);font-family:inherit;font-size:15px;padding:12px 13px;appearance:none"><option value="">Select…</option><option value="solo">Just me</option><option value="couple">A couple</option><option value="family">Family</option><option value="flatmates">Flatmates</option></select></label>'
       +'<label style="display:block"><span style="display:block;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--t3);margin-bottom:6px">You are</span><select id="rqOcc" style="width:100%;background:var(--input);border:1px solid var(--line);border-radius:11px;color:var(--t1);font-family:inherit;font-size:15px;padding:12px 13px;appearance:none"><option value="">Select…</option><option value="employed">Employed</option><option value="self-employed">Self-employed</option><option value="student">Student</option><option value="relocating">Relocating for work</option></select></label>'
       +'</div>'
+      +'<label style="display:block"><span style="display:block;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--t3);margin-bottom:6px">Where will you work / study? <span style="text-transform:none;letter-spacing:0;color:var(--t4)">(optional — we’ll check your commute)</span></span><select id="rqDest" style="width:100%;background:var(--input);border:1px solid var(--line);border-radius:11px;color:var(--t1);font-family:inherit;font-size:15px;padding:12px 13px;appearance:none"><option value="">Select…</option>'+COMMUTE.map(function(c){return '<option>'+c[0]+'</option>'}).join('')+'<option>Remote / other</option></select></label>'
       +'<label style="display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--t2);cursor:pointer"><input id="rqGuar" type="checkbox" style="accent-color:var(--gold);width:18px;height:18px"> I have a guarantor (or can pay a larger deposit)</label>'
       +'</div>'
       +'<p id="rqErr" style="display:none;color:var(--gold-light);font-size:12.5px;margin-top:10px"></p>'
@@ -1159,8 +1174,10 @@ function renderRes(){
       +'<p style="font-size:11px;color:var(--t3);margin-top:12px;text-align:center">Private · used only to qualify your application</p>';
     if(RES.who)try{document.getElementById('rqWho').value=RES.who}catch(e){}
     if(RES.occ)try{document.getElementById('rqOcc').value=RES.occ}catch(e){}
+    if(RES.dest)try{document.getElementById('rqDest').value=RES.dest}catch(e){}
   } else if(RES.step===2){
     var ok=RES.approved;
+    var cmt=RES.commute?'<div style="display:flex;align-items:center;gap:8px;margin-top:10px;padding:10px 13px;border:1px solid var(--line-gold);background:var(--gold-faint);border-radius:11px;font-size:12.5px;color:var(--gold-light)"><span>📍</span><span><b style="color:var(--gold)">'+RES.commute.label+'</b> from '+RES.commute.place+' — checked on the real map</span></div>':'';
     var verdict=ok
       ? '<div style="display:flex;align-items:center;gap:9px;color:var(--green);font-weight:500;font-size:15px"><span style="width:26px;height:26px;border-radius:50%;background:var(--green-muted);display:grid;place-items:center">✓</span> Pre-approved</div><p style="color:var(--t2);font-size:13.5px;margin-top:8px">On these numbers, '+L.name+' can be yours. We’ve drawn up your pre-agreement — read it, accept, and lock the home.</p>'
       : '<div style="display:flex;align-items:center;gap:9px;color:var(--gold-light);font-weight:500;font-size:15px"><span style="width:26px;height:26px;border-radius:50%;background:var(--gold-muted);display:grid;place-items:center">!</span> One step to go</div><p style="color:var(--t2);font-size:13.5px;margin-top:8px">'+(RES.low?'Income is below the usual 2.5× rent (≈ '+eur(RES.need)+'/mo) on its own.':'Income is just under the usual 2.5× rent (≈ '+eur(RES.need)+'/mo).')+' A guarantor or a larger deposit usually solves it — we’ll guide you.</p>';
@@ -1175,7 +1192,7 @@ function renderRes(){
         ['Agency fee',(L.agencyFee?eur(L.agencyFee):'€0')+' <small>· 10% of annual rent, once</small>']
       ];
       var terms=['Registered legal contract, filed with the Agenzia delle Entrate','Your deposit is protected — returned at the end of your stay','Keys in as little as 48 hours from approval','Cancel within 48 hours — your €300 comes back in full'];
-      b.innerHTML=prog(66)+verdict
+      b.innerHTML=prog(66)+verdict+cmt
         +'<div class="pa" role="group" aria-label="Pre-agreement">'
         +'<div class="pa-h pa-print"><div><div class="cap">Pre-agreement · Rome</div><h4>Reservation of the home</h4></div>'+paSealSVG(44)+'</div>'
         +'<div class="pa-part pa-print"><span>Between</span> <b>BOOM · Egidi Immobiliare S.r.l.</b> <span class="x">'+arr+'</span> <b>'+((RES.name||'You').replace(/</g,'&lt;'))+'</b></div>'
@@ -1194,7 +1211,7 @@ function renderRes(){
       var cta=(RES.kind==='reserve')
         ? '<a href="https://wa.me/393313251961" class="gbtn" style="margin-top:16px;text-decoration:none">Set up a guarantor with us →</a>'
         : '<a href="https://wa.me/393313251961" class="gbtn" style="margin-top:16px;text-decoration:none">Continue your application →</a>';
-      b.innerHTML=prog(66)+verdict+summary+cta+'<p style="font-size:11px;color:var(--t3);margin-top:12px;text-align:center">We reply within 2 hours · free, no commitment</p>';
+      b.innerHTML=prog(66)+verdict+cmt+summary+cta+'<p style="font-size:11px;color:var(--t3);margin-top:12px;text-align:center">We reply within 2 hours · free, no commitment</p>';
     }
   } else {
     if(!RES.ref)RES.ref='BOOM-'+Date.now().toString(36).toUpperCase();

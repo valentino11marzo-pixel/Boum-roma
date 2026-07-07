@@ -191,6 +191,9 @@ main{position:relative;z-index:5;max-width:820px;margin:0 auto;padding:100px 18p
 .issued p{color:var(--t2);font-size:14px;margin-top:10px}
 .refchip{display:inline-block;margin-top:16px;border:1px solid var(--line-gold);background:var(--gold-faint);border-radius:2px;padding:10px 20px;font-size:13px;letter-spacing:2.6px;color:var(--gold);font-variant-numeric:tabular-nums}
 .paidband{margin:0 0 18px;border:1px solid var(--green-muted);background:var(--green-muted);border-radius:3px;padding:13px 16px;font-size:13px;color:var(--green);text-align:center;letter-spacing:.4px}
+.prq{margin:18px auto 0;width:max-content;text-align:center}
+.prq img{width:92px;height:92px;border:1px solid var(--line);border-radius:8px;padding:6px;background:#fff;display:block;margin:0 auto}
+.prq small{display:block;font-size:9.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--t4);margin-top:7px}
 .obtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);border-radius:100px;padding:11px 20px;font-size:13px;margin-top:16px;background:rgba(255,255,255,.02);transition:.25s;color:var(--t1);text-decoration:none}
 .obtn:hover{border-color:var(--line-gold);color:var(--gold)}
 
@@ -267,6 +270,8 @@ main{position:relative;z-index:5;max-width:820px;margin:0 auto;padding:100px 18p
   .kv .k,.doc-h .sub,.doc-h .meta span,.conds li,.feenote,.issued p{color:#333}
   .doc-h .meta b{color:#000}
   .signature{color:#222;text-shadow:none}.signwrap{border-color:#ccc;background:#fff}.sigflr path{stroke:#8a6d00}
+  #payNowBtn{display:none!important}
+  .prq img{border-color:#ccc}.prq small{color:#666}
   main{padding:20px}
 }
 </style>
@@ -436,6 +441,12 @@ function render(){
       +'<p>'+esc(p.address)+' is set aside for '+esc(t.fullName||'you')+'.<br>A BOOM advisor will follow up at <b style="color:var(--t1)">'+esc(t.email||'your email')+'</b>.</p>'
       +(t.signature||t.fullName?'<div class="signwrap" style="max-width:360px;margin:20px auto 0;text-align:left"><div class="cap"><span>Signed</span><span>'+esc((PA.acceptedAt||'').slice(0,10))+'</span></div><div class="signature">'+esc(t.signature||t.fullName)+'</div><svg class="sigflr draw" viewBox="0 0 200 12" preserveAspectRatio="none" aria-hidden="true"><path d="M2 8 C 40 2, 92 12, 132 6 S 190 3, 198 7"/></svg><div class="who">'+esc(t.fullName||'')+'</div></div>':'')
       +(PA.ref?'<div class="refchip">N° '+esc(PA.ref)+'</div>':'')
+      /* accepted but the Stripe step never finished → resume it right here */
+      +((PA.status==='accepted'&&PA.money&&Number(PA.money.dueAtSigning)>0)
+        ?'<div style="max-width:430px;margin:20px auto 0"><button class="gbtn" id="payNowBtn" onclick="payNow()">Complete your reservation — '+eur(PA.money.dueAtSigning)+' via Stripe →</button>'
+         +'<p style="font-size:11px;color:var(--t3);margin-top:9px">Secured by Stripe · credited to your first month · refunded in full within 48h</p></div>'
+        :'')
+      +'<div class="prq" id="paQr" aria-hidden="true"></div>'
       +'<div><button class="obtn" onclick="window.print()">Print / save PDF</button> <a class="obtn" href="https://wa.me/393313251961">Talk to BOOM →</a></div>'
       +'</div>';
   }else{
@@ -464,7 +475,31 @@ function render(){
   buildThread(parts);
   wireTilt();
   if(!accepted){wireCeremony();}
-  if(accepted&&window.__amb&&__amb.mood)try{__amb.mood('convert')}catch(e){}
+  if(accepted){paintQr();try{if(window.__amb&&__amb.mood)__amb.mood('convert')}catch(e){}}
+}
+
+/* resume an abandoned Stripe checkout from the accepted document */
+window.payNow=function(){
+  var b=document.getElementById('payNowBtn');if(b){b.disabled=true;b.textContent='Opening secure checkout…';}
+  fetch('/api/preagreement/pay',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN})})
+    .then(function(r){return r.json()})
+    .then(function(j){if(j&&j.ok&&j.checkoutUrl){location.href=j.checkoutUrl;return;}throw 0;})
+    .catch(function(){if(b){b.disabled=false;b.textContent='Complete your reservation →';}});
+};
+
+/* QR on the issued document (screen + print): scan → reopen this exact act */
+function paintQr(){
+  var host=document.getElementById('paQr');if(!host||host.__done)return;host.__done=1;
+  var url=location.origin+'/pre-agreement?t='+TOKEN;
+  var go=function(){
+    try{window.QRCode.toDataURL(url,{margin:0,width:184,color:{dark:'#111111',light:'#ffffff'}},function(err,durl){
+      if(err||!durl)return;
+      host.innerHTML='<img src="'+durl+'" alt=""><small>Scan to reopen this document</small>';
+    });}catch(e){}
+  };
+  if(window.QRCode&&window.QRCode.toDataURL)return go();
+  var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js';
+  s.onload=go;document.head.appendChild(s);
 }
 
 /* ── the document's own thread: §-nodes that follow the reading ── */
