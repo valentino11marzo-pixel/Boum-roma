@@ -252,19 +252,22 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 @media(max-width:560px){.poi-row .modes{display:none}}
 
 /* ── the stay, drawn: the contract as a timeline the eye can read ── */
-.stay-tl{margin-top:14px;border:1px solid var(--line);border-radius:14px;background:var(--card);padding:15px 16px 13px}
-.stay-tl .tl-cap{font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--t3);margin-bottom:11px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.stay-tl .tl-cap b{color:var(--gold);font-weight:500;letter-spacing:.4px;text-transform:none;font-size:11px}
-.tl-track{position:relative;height:24px;border-radius:8px;background:var(--input);overflow:hidden;display:flex}
-.tl-first{background:linear-gradient(90deg,var(--gold),var(--gold-light));height:100%;transition:width .9s var(--ease)}
-.tl-rent{background:linear-gradient(90deg,rgba(255,215,0,.30),rgba(255,215,0,.10));height:100%;transition:width 1.1s var(--ease) .2s}
-.tl-rent.flex{background:linear-gradient(90deg,rgba(255,215,0,.30),transparent)}
-.tl-marks{display:flex;justify-content:space-between;font-size:10.5px;color:var(--t3);margin-top:7px;font-variant-numeric:tabular-nums}
-.tl-dep{margin-top:10px;display:flex;align-items:center;gap:9px;font-size:11.5px;color:var(--t2);opacity:1;transform:none;transition:opacity .5s var(--ease) 1s,transform .5s var(--ease) 1s}
-.tl-dep .db{width:22px;height:14px;border-radius:4px;border:1px solid var(--gold);background:var(--gold-muted);flex:none}
-.tl-dep b{color:var(--gold);font-weight:500}
-.stay-tl.tl-wait .tl-first,.stay-tl.tl-wait .tl-rent{width:0!important}
-.stay-tl.tl-wait .tl-dep{opacity:0;transform:translateY(4px)}
+/* the stay as a journey: three stations on a gold thread — every date has
+   its money attached. Narrow-card friendly, draws in when it enters view. */
+.stay-tl{margin-top:14px;border:1px solid var(--line);border-radius:14px;background:var(--card);padding:14px 16px 12px}
+.stay-tl .tl-cap{font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t3);margin-bottom:12px}
+.stj{position:relative;padding-left:20px}
+.stj::before{content:"";position:absolute;left:5px;top:6px;bottom:8px;width:1px;background:linear-gradient(180deg,var(--gold),var(--line-gold))}
+.stj .st{position:relative;padding:0 0 13px;transition:opacity .5s var(--ease),transform .5s var(--ease)}
+.stj .st:last-child{padding-bottom:2px}
+.stj .st::before{content:"";position:absolute;left:-19px;top:4px;width:9px;height:9px;border-radius:50%;background:var(--void);border:1.5px solid var(--gold)}
+.stj .st.gold::before{background:var(--gold);box-shadow:0 0 10px rgba(255,215,0,.5)}
+.stj .st:nth-child(2){transition-delay:.14s}.stj .st:nth-child(3){transition-delay:.28s}
+.stj .k{font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t3)}
+.stj .v{font-size:13.5px;color:var(--t1);margin-top:2px}
+.stj .v b{color:var(--gold);font-weight:500;font-variant-numeric:tabular-nums}
+.stj .s{font-size:11px;color:var(--t3);margin-top:2px}
+.stay-tl.tl-wait .stj .st{opacity:0;transform:translateY(6px)}
 
 /* ── verification trail: proof stamps itself in, one seal at a time ── */
 body.chapters .proofs .proof{opacity:0;transform:scale(1.14)}
@@ -402,7 +405,16 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
 .sheet-h h3{font-size:16px;font-weight:300}.sheet-b{padding:20px}
 .xc{font-size:21px;color:var(--t2);width:36px;height:36px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}.chips button{border:1px solid var(--line);background:var(--card);border-radius:100px;padding:10px 13px;font-size:12.5px}.chips button:hover{border-color:var(--line-gold)}
-.aimsg{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:15px;font-size:13.5px;color:var(--t2);margin-bottom:10px}.aimsg b{color:var(--t1)}
+.aimsg{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:15px;font-size:13.5px;color:var(--t2);margin-bottom:10px;white-space:pre-line}.aimsg b{color:var(--t1)}
+.aimsg.aiwait{display:flex;gap:5px;align-items:center;min-height:44px}
+.aimsg.aiwait span{width:6px;height:6px;border-radius:50%;background:var(--gold);opacity:.35;animation:aidot 1.1s ease-in-out infinite}
+.aimsg.aiwait span:nth-child(2){animation-delay:.18s}.aimsg.aiwait span:nth-child(3){animation-delay:.36s}
+@keyframes aidot{0%,100%{opacity:.25;transform:none}50%{opacity:1;transform:translateY(-3px)}}
+.airow{display:flex;gap:8px;margin-top:12px}
+.airow input{flex:1;background:var(--input);border:1px solid var(--line);border-radius:100px;color:var(--t1);font-family:inherit;font-size:14px;padding:12px 17px;transition:border-color .25s}
+.airow input:focus{outline:none;border-color:var(--line-gold)}
+.aigo{width:46px;height:46px;flex:none;border-radius:50%;background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#1a1407;font-size:17px;font-weight:600;display:grid;place-items:center;transition:.2s}
+.aigo:hover{transform:translateY(-1px)}
 
 /* ── the pre-agreement: a document, issued to you ── */
 .pa{margin-top:16px;position:relative;border:1px solid var(--line-gold);border-radius:16px;background:linear-gradient(180deg,#141416,#0E0E10);box-shadow:0 10px 34px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.045);overflow:hidden}
@@ -803,8 +815,8 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
           <div class="seg" id="durs"><button data-m="6">6 mo</button><button class="on" data-m="12">12 mo</button><button data-m="18">18 mo</button><button data-m="0">Flex</button></div>
           <div id="availBadge"></div>
           <div class="srows" id="srows"></div>
-          <button class="gbtn" id="applyBtn" onclick="apply()">Apply →</button>
-          <button class="obtn" onclick="reserve()"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1zM8 11V7a4 4 0 0 1 8 0v4"/></svg> <span id="holdLbl">Request to hold · €300</span></button>
+          <button class="paybtn" id="applyBtn" onclick="apply()" style="margin-top:12px"><span class="lk"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><span class="tx"><b id="applyLbl">Apply →</b><small>60-second check · no documents · free</small></span><span class="amt" id="applyAmt"></span></button>
+          <button class="obtn" onclick="reserve()"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg> <span id="holdLbl">Instant hold · €300 — one tap, 48h, refundable</span></button>
           <button class="obtn" onclick="openOv('aiOv')">✦ Ask this home</button>
           <div class="upnudge" id="upNudge"></div>
           <div class="trust"><span><span class="c">✓</span> English-speaking team</span><span><span class="c">✓</span> Registered agency · Deposit protected</span><span><span class="c">✓</span> Reply in 2h</span><a href="https://share.google/xikmVxQCRuKOdWcND" target="_blank" rel="noopener" style="color:inherit" onclick="boomTrack('reviews_view',{source_page:'listing'})"><span style="color:var(--gold)">4.9 ★</span> · 47 Google reviews</a></div>
@@ -834,8 +846,9 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
 <div class="ov" id="aiOv"><div class="sheet">
   <div class="sheet-h"><h3>✦ Ask this home</h3><button class="xc" onclick="closeOv('aiOv')">×</button></div>
   <div class="sheet-b">
-    <div class="chips"><button onclick="aiAsk(this)">Total to move in?</button><button onclick="aiAsk(this)">How does the deposit work?</button><button onclick="aiAsk(this)">What's the area like?</button><button onclick="aiAsk(this)">How fast can I move in?</button></div>
-    <div id="aiThread"><div class="aimsg">I know this home and the reality of renting in Rome. Ask about cost, deposit, the area, the contract or timing. <span style="color:var(--t4)">(demo)</span></div></div>
+    <div class="chips"><button onclick="aiSend(this.textContent)">Total to move in?</button><button onclick="aiSend(this.textContent)">How does the deposit work?</button><button onclick="aiSend(this.textContent)">What's the area like?</button><button onclick="aiSend(this.textContent)">How fast can I move in?</button></div>
+    <div id="aiThread"><div class="aimsg">I know this home — its price, terms, zone and how renting with BOOM works. Ask me anything, in any language.</div></div>
+    <div class="airow"><input id="aiQ" type="text" maxlength="600" placeholder="Ask anything about this home…" autocomplete="off"><button class="aigo" id="aiGo" onclick="aiSend()" aria-label="Send">→</button></div>
   </div>
 </div></div>
 
@@ -931,7 +944,8 @@ function render(){const s=computeStay();const wl=L.status==='waitlist';let av;
     <div class="srow tot" data-key="total"><span class="k">To move in${s.fit==='none'?'':` ${fmtS(s.start)}`}</span><span class="v" id="totV">${eur(s.total)}</span></div>
     ${s.end?`<div class="srow" data-key="until"><span class="k">Stay until</span><span class="v">${fmtD(s.end)}</span></div>`:''}`;
   const tv=document.getElementById('totV');if(tv)countUp(tv,s.total);
-  document.getElementById('applyBtn').innerHTML=wl?'Join the waitlist →':(s.fit==='none')?'Apply →':`Apply for ${fmtS(s.start)} →`;
+  var _al=document.getElementById('applyLbl');if(_al)_al.textContent=wl?'Join the waitlist →':(s.fit==='none')?'Apply →':('Apply for '+fmtS(s.start)+' →');
+  var _aa=document.getElementById('applyAmt');if(_aa)_aa.textContent=eur(s.total);
   const up=document.getElementById('upNudge');
   if(s.fit==='after'){up.classList.add('show');up.innerHTML=`Need it by ${fmtS(s.req)}? We can <a href="/property-finding">find one for your exact dates →</a>`;}else up.classList.remove('show');
   document.getElementById('mtiles').innerHTML=[
@@ -956,16 +970,21 @@ function render(){const s=computeStay();const wl=L.status==='waitlist';let av;
   paintTimeline(s);
   document.getElementById('railP').textContent=(s.fit==='none')?eur(L.price)+'/mo':'Move in: '+eur(s.total);
   document.getElementById('railS').textContent=wl?'occupied · rents ahead':(s.fit==='none')?'pick your dates ↑':fmtS(s.start);}
-/* the stay, drawn — the contract as a bar the eye reads in one pass */
+/* the stay as a journey — three stations, every date with its money */
 function paintTimeline(s){
   const el=document.getElementById('stayTl');if(!el)return;
-  const months=DUR>0?DUR:6;
-  const frac=s.full?1:s.rem/s.di;
-  const wf=Math.max(8,Math.min(60,frac/months*100));
-  el.innerHTML='<div class="tl-cap"><span>Your stay, drawn</span><b>First month '+eur(s.prorated)+(s.full?'':' · '+s.rem+' of '+s.di+' days')+'</b></div>'
-    +'<div class="tl-track"><div class="tl-first" style="width:'+wf.toFixed(1)+'%"></div><div class="tl-rent'+(DUR?'':' flex')+'" style="width:'+(DUR?(100-wf).toFixed(1):'64')+'%"></div></div>'
-    +'<div class="tl-marks"><span>'+fmtS(s.start)+' '+s.start.getFullYear()+(s.fit==='none'?' · first open day':'')+'</span><span>'+(DUR?(fmtS(s.end)+' '+s.end.getFullYear()):'flexible')+'</span></div>'
-    +'<div class="tl-dep"><span class="db" aria-hidden="true"></span><span>At the end, your deposit <b>'+eur(L.deposit)+'</b> comes back to you.</span></div>';
+  const flex=!(DUR>0);
+  el.innerHTML='<div class="tl-cap">Your stay at a glance</div>'
+    +'<div class="stj">'
+    +'<div class="st gold"><div class="k">Move in · '+fmtS(s.start)+' '+s.start.getFullYear()+(s.fit==='none'?' — first open day':'')+'</div>'
+      +'<div class="v">First month <b>'+eur(s.prorated)+'</b></div>'
+      +(s.full?'':'<div class="s">pro-rata — you only pay '+s.rem+' of '+s.di+' days</div>')+'</div>'
+    +'<div class="st"><div class="k">'+(flex?'Flexible term':'Your term · '+DUR+' months')+'</div>'
+      +'<div class="v"><b>'+eur(L.price)+'</b> /month</div></div>'
+    +'<div class="st"><div class="k">Move out'+(flex?'':' · '+fmtS(s.end)+' '+s.end.getFullYear())+'</div>'
+      +'<div class="v">Deposit <b>'+eur(L.deposit)+'</b> returns to you</div>'
+      +'<div class="s">cancel free within 48 hours of holding</div></div>'
+    +'</div>';
 }
 document.getElementById('durs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;document.querySelectorAll('#durs button').forEach(x=>{x.classList.remove('on');x.setAttribute('aria-pressed','false');});b.classList.add('on');b.setAttribute('aria-pressed','true');DUR=+b.dataset.m;render();});
 document.querySelectorAll('#durs button').forEach(b=>b.setAttribute('aria-pressed',b.classList.contains('on')));
@@ -1091,16 +1110,70 @@ function boom3D(btn){
     host.appendChild(fb);});
 }
 document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)closeOv(o.id)}));
-const AI={'Total to move in?':'For your chosen dates the total is first month + refundable deposit + the one-off agency fee (10% of the annual rent, stated up front). You see it live in “Your stay”.',
-'How does the deposit work?':'Security, not a cost: held safely and returned at the end of your stay, net of any damage.',
-'How fast can I move in?':'As fast as 48 hours from approval. Set your date and we tell you instantly if it’s free.'};
-function aiAsk(b){const q=b.textContent;const t=document.getElementById('aiThread');
-  const area=q.indexOf('area')>-1?(L.zone+': verified on foot by our team — transport, daily services and the evening feel. Tap “Explore the block in 3D” to walk it yourself.'):null;
-  t.insertAdjacentHTML('beforeend',`<div class="aimsg" style="border-color:var(--line-gold)"><b>You:</b> ${q}</div><div class="aimsg">${area||AI[q]||'Demo — in production, a real answer from the AI that knows this home.'}</div>`);t.lastElementChild.scrollIntoView({behavior:'smooth',block:'nearest'});}
+/* ── the concierge is REAL: /api/ask-listing (Claude, server-side, knows this
+     home's facts + BOOM policy). History travels with the thread; the fallback
+     is always a warm human handoff, never an error. ── */
+var AIH=[];
+function aiSend(q){
+  q=(typeof q==='string'&&q.trim())||((document.getElementById('aiQ')||{}).value||'').trim();
+  if(!q)return;
+  var inp=document.getElementById('aiQ');if(inp)inp.value='';
+  var t=document.getElementById('aiThread');
+  t.insertAdjacentHTML('beforeend','<div class="aimsg" style="border-color:var(--line-gold)"><b>You:</b> '+q.replace(/</g,'&lt;')+'</div><div class="aimsg aiwait"><span></span><span></span><span></span></div>');
+  var wait=t.lastElementChild;wait.scrollIntoView({behavior:'smooth',block:'nearest'});
+  try{boomTrack('ai_ask',{item_id:PID||L.id||'sample'})}catch(e){}
+  var lid=PID||L.id||'';
+  var done=function(a){wait.classList.remove('aiwait');wait.textContent=a;AIH.push({q:q,a:a});if(AIH.length>6)AIH.shift();wait.scrollIntoView({behavior:'smooth',block:'nearest'});};
+  if(!lid){done('This is our demo home — open any real listing and I’ll answer with its actual numbers. Or message BOOM on WhatsApp: +39 331 325 1961.');return;}
+  fetch('/api/ask-listing',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:lid,question:q,history:AIH})})
+    .then(function(r){return r.json()})
+    .then(function(j){done((j&&j.answer)||'Our team answers fastest on WhatsApp: +39 331 325 1961.');})
+    .catch(function(){done('I couldn’t reach our AI just now — message BOOM on WhatsApp (+39 331 325 1961) and a human answers fast.');});
+}
+window.aiSend=aiSend;
+(function(){var q=document.getElementById('aiQ');if(q)q.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();aiSend();}});})();
 /* ── Secure-this-home flow: quick-check pre-approval → fair €300 Stripe hold ── */
 let RES={kind:'apply',step:1,approved:null,need:0};
 function apply(){startRes('apply');}
-function reserve(){startRes('reserve');}
+/* ── INSTANT HOLD: the one-tap lane. Three fields → Stripe → 48h off-market.
+     The full application (eligibility + pre-agreement) remains one tap away. ── */
+function reserve(){
+  boomTrack('begin_checkout',{item_id:PID||L.id||'sample',kind:'hold'});
+  try{navigator.vibrate&&navigator.vibrate(8)}catch(e){}
+  RES.kind='reserve';RES.step='hold';
+  document.getElementById('applyTitle').textContent=(L.status==='waitlist')?'Priority hold — first in line':'Instant hold — 48 hours';
+  renderRes();openOv('applyOv');_mood('convert');
+}
+function holdArm(){
+  var g=function(id){var e=document.getElementById(id);return e?e.value.trim():''};
+  RES.name=g('rhName')||RES.name;RES.email=g('rhEmail')||RES.email;RES.phone=g('rhPhone')||RES.phone;
+  var ok=g('rhName').length>=3&&/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(g('rhEmail'))&&g('rhPhone').replace(/\D/g,'').length>=6;
+  var btn=document.getElementById('holdGo');if(btn)btn.disabled=!ok;
+}
+window.holdArm=holdArm;
+function holdPay(){
+  var btn=document.getElementById('holdGo');if(btn&&btn.disabled)return;
+  var g=function(id){var e=document.getElementById(id);return e?e.value.trim():''};
+  var nm=g('rhName'),em=g('rhEmail'),ph=g('rhPhone');
+  boomTrack('add_payment_info',{item_id:PID||L.id||'sample',kind:'hold'});
+  if(btn){btn.disabled=true;var t=btn.querySelector('.tx b');if(t)t.textContent='Opening secure checkout…';}
+  var s=computeStay();
+  /* the hold is also a lead — even if Stripe is abandoned, we know them */
+  try{fetch('/api/apply-lead',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    name:nm,email:em,phone:ph,listingId:(typeof PID!=='undefined'&&PID)||L.id||'',listingName:L.name,listingPrice:L.price,zone:L.zone,
+    kind:'reserve',waitlist:L.status==='waitlist',income:0,guarantor:false,household:'',occupation:'',
+    moveIn:s.start?s.start.toISOString().slice(0,10):'',durationMonths:DUR,company:''})}).catch(function(){});}catch(e){}
+  fetch('/api/reserve-checkout',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({listingId:(typeof PID!=='undefined'&&PID)||L.id||'',listingName:L.name,amount:300,
+      name:nm,email:em,phone:ph,move_in_date:s.start?s.start.toISOString().slice(0,10):''})})
+  .then(function(r){return r.ok?r.json():null})
+  .then(function(j){if(j&&j.url){location.href=j.url;return;}throw 0;})
+  .catch(function(){
+    if(btn){btn.disabled=false;var t2=btn.querySelector('.tx b');if(t2)t2.textContent='Hold this home';}
+    var er=document.getElementById('hErr');if(er){er.textContent='Checkout didn’t open — try again, or message us on WhatsApp and we’ll hold it manually.';er.style.display='block';}
+  });
+}
+window.holdPay=holdPay;
 /* commute anchors: where our applicants actually go every morning */
 var COMMUTE=[['LUISS',41.9269,12.4917],['Sapienza',41.9038,12.5135],['Roma Tre',41.8564,12.4790],['John Cabot',41.8937,12.4664],['LUMSA',41.9032,12.4593],['Termini / centre office',41.9009,12.5018],['Vatican / Prati office',41.9022,12.4534]];
 function commuteFor(place){
@@ -1150,6 +1223,27 @@ function renderRes(){
   var s=computeStay(),when=fmtD(s.start)+(s.fit==='none'?' (first open day)':''),whenDoc=fmtD(s.start)+(s.fit==='none'?' <small>· first open day</small>':''),len=DUR?DUR+' months':'flexible',b=document.getElementById('applyBody');
   var prog=function(p){return '<div style="height:3px;background:var(--line);border-radius:3px;overflow:hidden;margin-bottom:18px"><i style="display:block;height:100%;width:'+p+'%;background:linear-gradient(90deg,var(--gold),var(--gold-light));transition:width var(--d-4) var(--ease)"></i></div>';};
   var summary='<div class="aimsg" style="margin-top:16px"><div style="display:grid;gap:8px;font-size:13.5px"><div style="display:flex;justify-content:space-between"><span style="color:var(--t3)">Home</span><b>'+L.name+'</b></div><div style="display:flex;justify-content:space-between"><span style="color:var(--t3)">Move-in</span><b>'+when+'</b></div><div style="display:flex;justify-content:space-between"><span style="color:var(--t3)">Length</span><b>'+len+'</b></div><div style="display:flex;justify-content:space-between;border-top:1px solid var(--line);padding-top:8px"><span style="color:var(--t3)">To move in</span><b style="color:var(--gold)">'+eur(s.total)+'</b></div></div></div>';
+  if(RES.step==='hold'){
+    var wl2=L.status==='waitlist';
+    var fldCss='width:100%;background:var(--input);border:1px solid var(--line);border-radius:11px;color:var(--t1);font-family:inherit;font-size:15px;padding:12px 13px';
+    var lblCss='display:block;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--t3);margin-bottom:6px';
+    b.innerHTML=prog(50)
+      +'<div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--gold);margin-bottom:6px">Instant hold · Stripe</div>'
+      +'<h3 style="font-family:var(--disp);font-weight:200;font-size:22px;margin-bottom:6px">'+(wl2?'Be first in line — in one tap.':'Take it off the market. Now.')+'</h3>'
+      +'<p style="color:var(--t2);font-size:13.5px;margin-bottom:16px">€300 holds <b style="color:var(--t1)">'+L.name+'</b> for you for 48 hours'+(wl2?' at the top of the waitlist':'')+' while we fast-track your application. Credited to your first month — refunded in full if you change your mind or we can’t proceed.</p>'
+      +'<div style="display:grid;gap:12px">'
+      +'<label style="display:block"><span style="'+lblCss+'">Your full name</span><input id="rhName" type="text" autocomplete="name" value="'+(RES.name||'').replace(/"/g,'&quot;')+'" oninput="holdArm()" style="'+fldCss+'"></label>'
+      +'<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px">'
+      +'<label style="display:block"><span style="'+lblCss+'">Email</span><input id="rhEmail" type="email" autocomplete="email" value="'+(RES.email||'').replace(/"/g,'&quot;')+'" oninput="holdArm()" style="'+fldCss+'"></label>'
+      +'<label style="display:block"><span style="'+lblCss+'">Phone / WhatsApp</span><input id="rhPhone" type="tel" autocomplete="tel" value="'+(RES.phone||'').replace(/"/g,'&quot;')+'" oninput="holdArm()" style="'+fldCss+'"></label>'
+      +'</div></div>'
+      +'<p class="err" id="hErr" role="alert"></p>'
+      +'<button class="paybtn" id="holdGo" disabled onclick="holdPay()"><span class="lk"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg></span><span class="tx"><b>'+(wl2?'Hold first place in line':'Hold this home')+'</b><small>48 hours · fully refundable · Stripe</small></span><span class="amt">€300</span></button>'
+      +'<p class="paysafe"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z"/></svg><span>Secured by <b>Stripe</b> · credited to your first month, or refunded in full — even for a simple mistake. No questions.</span></p>'
+      +'<button class="obtn" style="width:100%;margin-top:8px" onclick="startRes(\'apply\')">Prefer the full application first? →</button>';
+    holdArm();
+    return;
+  }
   if(RES.step===1){
     b.innerHTML=prog(33)
       +'<div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--gold);margin-bottom:6px">Quick check · 60 seconds</div>'
