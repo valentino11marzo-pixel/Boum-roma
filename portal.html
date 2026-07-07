@@ -9736,6 +9736,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <div><h1 class="page-title">💳 Pagamenti</h1><p class="page-subtitle">${S.payments.length} totali · Tasso incasso mese: ${collectionRate}%</p></div>
                 <div class="page-actions">
                     ${overdue.length > 0 ? `<span class="badge red">${overdue.length} in ritardo</span>` : ''}
+                    <button class="btn btn-secondary btn-sm" onclick="window.open('/rent-command','_blank')">🎛 Command Center</button>
                     <button class="btn btn-secondary btn-sm" onclick="window.open('https://dashboard.stripe.com/payments','_blank')">💳 Stripe</button>
                     <button class="btn btn-secondary btn-sm" onclick="exportPaymentsCSV()">📊 Export</button>
                     <button class="btn btn-secondary" onclick="openModal('bulkPayments')">📅 Genera</button>

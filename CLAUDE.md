@@ -65,6 +65,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `tenant.html` | Tenant SPA. Realtime property + maintenance feed. |
 | `client-portal.html` | PFS client swipe app. Reads `pfsClients` collection. |
 | `pfs-command.html` | PFS Command Center (admin). Radar feed, per-client match scores, outreach tracking, source health, search management. Backed by `api/pfs/*`. |
+| `rent-command.html` | Rent Command Center (admin, `/rent-command`). Cash KPIs, 12-month cash-flow, dunning board by sollecito level (copy /pay link, WhatsApp, mark paid), cron/Stripe health chips, payment event feed, "run collection now". Backed by `payments` + `rentCollectionHealth` + `agentNotifications` and `api/rent/collect-cron`. |
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
 
 ## Brand & Design

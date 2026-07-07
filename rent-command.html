@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+<meta name="theme-color" content="#08080A">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Rent Command · BOOM</title>
+<link rel="icon" href="https://www.boomrome.com/BOOMlogogoldicon512.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="/js/firebase-config.js"></script>
+<script src="/js/boom-portal.js"></script>
+
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+    --gold: #D4AF37;
+    --gold-light: rgba(212,175,55,0.15);
+    --gold-dark: #B8960C;
+    --bg: #000;
+    --bg-card: #0A0A0A;
+    --bg-elevated: #141414;
+    --bg-input: #1A1A1A;
+    --border: rgba(255,255,255,0.08);
+    --text: #FFF;
+    --text-secondary: #999;
+    --text-muted: #555;
+    --green: #00D26A;
+    --green-light: rgba(0,210,106,0.12);
+    --amber: #F5A524;
+    --amber-light: rgba(245,165,36,0.12);
+    --red: #F31260;
+    --red-light: rgba(243,18,96,0.12);
+}
+html { background: var(--bg); }
+body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Inter', -apple-system, sans-serif; font-weight: 300;
+    min-height: 100vh; padding-bottom: 60px;
+}
+#auth-shield {
+    position: fixed; inset: 0; background: var(--bg); z-index: 99;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted); font-size: 12px; letter-spacing: 3px; text-transform: uppercase;
+}
+.wrap { max-width: 1280px; margin: 0 auto; padding: 0 18px; }
+
+header.top {
+    position: sticky; top: 0; z-index: 20;
+    background: rgba(0,0,0,0.88); backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--border);
+}
+.top-in {
+    max-width: 1280px; margin: 0 auto; padding: 14px 18px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+}
+.logo { font-size: 17px; letter-spacing: 8px; font-weight: 300; padding-left: 8px; }
+.logo b { color: var(--gold); font-weight: 500; }
+.logo-sub { font-size: 9px; letter-spacing: 3px; color: var(--text-secondary); text-transform: uppercase; margin-top: 2px; }
+.top-actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+.btn {
+    background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text);
+    font: 500 12px 'Inter', sans-serif; letter-spacing: .5px; padding: 9px 14px;
+    border-radius: 10px; cursor: pointer; transition: all .15s; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+}
+.btn:hover { border-color: rgba(212,175,55,.5); }
+.btn.gold {
+    background: linear-gradient(180deg,#F6E4A6,#E9C766 46%,#B98E2E);
+    color: #1c1503; border: none; font-weight: 700;
+}
+.btn:disabled { opacity: .5; cursor: wait; }
+
+/* health chips */
+.hstrip { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0 4px; }
+.hchip {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 100px;
+    padding: 7px 13px; font-size: 11px; color: var(--text-secondary); cursor: default;
+}
+.hdot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); flex: none; }
+.hdot.ok { background: var(--green); box-shadow: 0 0 8px rgba(0,210,106,.6); }
+.hdot.err { background: var(--red); box-shadow: 0 0 8px rgba(243,18,96,.6); }
+.hdot.stale { background: var(--amber); }
+.hchip b { color: var(--text); font-weight: 500; }
+
+/* KPI */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 16px 0; }
+.kpi {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 18px 18px 16px; position: relative; overflow: hidden;
+}
+.kpi::before { content:''; position: absolute; inset: 0 0 auto 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(212,175,55,.5), transparent); }
+.kpi .k-label { font-size: 10px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--text-secondary); }
+.kpi .k-value { font-size: 30px; font-weight: 200; margin-top: 8px; letter-spacing: .5px; }
+.kpi .k-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.kpi.green .k-value { color: var(--green); }
+.kpi.red .k-value { color: var(--red); }
+.kpi.amber .k-value { color: var(--amber); }
+
+/* sections */
+h2.sec {
+    font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: var(--text-secondary);
+    margin: 28px 0 12px; display: flex; align-items: center; gap: 10px;
+}
+h2.sec::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* cashflow chart */
+.chart-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; }
+.bars { display: flex; align-items: flex-end; gap: 8px; height: 150px; }
+.bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
+.bar-stack { width: 100%; max-width: 44px; display: flex; flex-direction: column-reverse; height: 120px; border-radius: 6px 6px 2px 2px; overflow: hidden; background: rgba(255,255,255,0.03); }
+.bar-paid { background: linear-gradient(180deg, #E9C766, #B8960C); }
+.bar-missing { background: rgba(243,18,96,.55); }
+.bar-pending { background: rgba(255,255,255,0.10); }
+.bar-lbl { font-size: 9px; letter-spacing: 1px; color: var(--text-muted); text-transform: uppercase; white-space: nowrap; }
+.bar-val { font-size: 10px; color: var(--text-secondary); }
+.legend { display: flex; gap: 16px; margin-top: 14px; font-size: 10px; color: var(--text-secondary); letter-spacing: 1px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+/* dunning board */
+.board { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; align-items: start; }
+.col { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 14px; }
+.col-h { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.col-h .t { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; }
+.col-h .n { font-size: 11px; color: var(--text-muted); background: var(--bg-elevated); padding: 2px 9px; border-radius: 100px; }
+.col.c-red { border-top: 2px solid var(--red); } .col.c-red .t { color: var(--red); }
+.col.c-amber { border-top: 2px solid var(--amber); } .col.c-amber .t { color: var(--amber); }
+.col.c-gold { border-top: 2px solid var(--gold); } .col.c-gold .t { color: var(--gold); }
+.col.c-grey { border-top: 2px solid rgba(255,255,255,.25); } .col.c-grey .t { color: var(--text-secondary); }
+.pcard {
+    background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px; margin-bottom: 10px;
+}
+.pcard .who { font-size: 13px; font-weight: 500; }
+.pcard .what { font-size: 11px; color: var(--text-secondary); margin-top: 3px; line-height: 1.5; }
+.pcard .amt { font-size: 17px; font-weight: 300; color: var(--gold); margin-top: 6px; }
+.pcard .meta { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
+.pcard .acts { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.pcard .acts .btn { padding: 6px 10px; font-size: 11px; border-radius: 8px; }
+.empty-col { font-size: 11px; color: var(--text-muted); text-align: center; padding: 14px 0 8px; }
+
+/* feed + attention */
+.twocol { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; }
+@media (max-width: 900px) { .twocol { grid-template-columns: 1fr; } }
+.panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 16px; }
+.feed-row { display: flex; gap: 10px; padding: 9px 2px; border-bottom: 1px solid var(--border); font-size: 12px; }
+.feed-row:last-child { border-bottom: none; }
+.feed-row .ico { flex: none; }
+.feed-row .tx { color: var(--text-secondary); line-height: 1.5; min-width: 0; }
+.feed-row .tm { margin-left: auto; flex: none; font-size: 10px; color: var(--text-muted); }
+.att-row { padding: 9px 2px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+.att-row:last-child { border-bottom: none; }
+.att-row b { color: var(--amber); font-weight: 500; }
+.muted { color: var(--text-muted); font-size: 11px; padding: 8px 0; }
+</style>
+</head>
+<body>
+<div id="auth-shield">Verifica accesso…</div>
+
+<div id="app" hidden>
+<header class="top">
+    <div class="top-in">
+        <div>
+            <div class="logo">BOOM <b>·</b> RENT COMMAND</div>
+            <div class="logo-sub">Centro di controllo incassi</div>
+        </div>
+        <div class="top-actions">
+            <button class="btn gold" id="run-now">▶ Esegui collection ora</button>
+            <a class="btn" href="https://dashboard.stripe.com/payments" target="_blank" rel="noopener">Stripe ↗</a>
+            <a class="btn" href="/portal.html">Portale</a>
+            <button class="btn" id="refresh">↻</button>
+        </div>
+    </div>
+</header>
+
+<div class="wrap">
+    <div class="hstrip" id="health-strip"></div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <h2 class="sec">Cash-flow · ultimi 12 mesi</h2>
+    <div class="chart-card">
+        <div class="bars" id="bars"></div>
+        <div class="legend">
+            <span><i class="sw bar-paid"></i> Incassato</span>
+            <span><i class="sw bar-missing"></i> Non incassato (scaduto)</span>
+            <span><i class="sw bar-pending"></i> Atteso (non ancora scaduto)</span>
+        </div>
+    </div>
+
+    <h2 class="sec">Board morosità &amp; scadenze</h2>
+    <div class="board" id="board"></div>
+
+    <div class="twocol" style="margin-top:28px">
+        <div>
+            <h2 class="sec" style="margin-top:0">Feed eventi</h2>
+            <div class="panel" id="feed"></div>
+        </div>
+        <div>
+            <h2 class="sec" style="margin-top:0">Da sistemare</h2>
+            <div class="panel" id="attention"></div>
+        </div>
+    </div>
+</div>
+</div>
+
+<script>
+(function () {
+'use strict';
+
+var db = firebase.firestore();
+function $(id) { return document.getElementById(id); }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+function money(v) { var n = parseFloat(v); return '€' + (isNaN(n) ? 0 : n).toLocaleString('it-IT'); }
+function toDate(v) {
+    if (!v) return null;
+    if (v.toDate) return v.toDate();
+    var d = new Date(v); return isNaN(d) ? null : d;
+}
+function relTime(v) {
+    var d = toDate(v); if (!d) return '—';
+    var s = Math.floor((Date.now() - d.getTime()) / 1000);
+    if (s < 60) return 'ora';
+    if (s < 3600) return Math.floor(s / 60) + 'm fa';
+    if (s < 86400) return Math.floor(s / 3600) + 'h fa';
+    return Math.floor(s / 86400) + 'g fa';
+}
+var MONTH_IT = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+function monthLabel(ym) {
+    var m = /^(\d{4})-(\d{2})$/.exec(String(ym || ''));
+    if (!m) return ym || '—';
+    return MONTH_IT[parseInt(m[2], 10) - 1] + ' ' + m[1].slice(2);
+}
+function todayYmd() { return new Date().toISOString().slice(0, 10); }
+function daysLate(p) {
+    if (!p.dueDate) return 0;
+    return Math.floor((Date.parse(todayYmd()) - Date.parse(String(p.dueDate).slice(0, 10))) / 86400000);
+}
+
+var state = {
+    payments: [], contracts: {}, properties: {}, users: {},
+    notifications: [], loaded: false
+};
+
+function apiPost(path, body) {
+    return firebase.auth().currentUser.getIdToken().then(function (token) {
+        return fetch(path, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify(body || {})
+        });
+    }).then(function (res) {
+        return res.json().catch(function () { return {}; }).then(function (data) {
+            if (!res.ok || data.ok === false) throw new Error(data.error || ('HTTP ' + res.status));
+            return data;
+        });
+    });
+}
+
+/* ─────────── enrichment helpers ─────────── */
+function isRent(p) { return p.type !== 'deposit' && p.month; }
+function isUnpaid(p) { return isRent(p) && p.status !== 'paid' && !p.paidDate && !p.paidAt; }
+function contractOf(p) { return state.contracts[p.contractId] || null; }
+function tenantName(p) {
+    var u = state.users[p.tenantId]; var c = contractOf(p);
+    return (u && u.name) || (c && c.tenantName) || (u && u.email) || 'Inquilino';
+}
+function tenantPhone(p) {
+    var u = state.users[p.tenantId]; var c = contractOf(p);
+    return (u && u.phone) || (c && c.tenantPhone) || '';
+}
+function propLabel(p) {
+    var pr = state.properties[p.propertyId];
+    if (pr) return pr.name || pr.address || p.propertyId;
+    var c = contractOf(p);
+    if (c && c.propertyId && state.properties[c.propertyId]) {
+        var q = state.properties[c.propertyId];
+        return q.name || q.address || c.propertyId;
+    }
+    return '—';
+}
+
+/* ─────────── health strip ─────────── */
+function renderHealth(h) {
+    var chips = [];
+    var d = h && toDate(h.lastRunAt);
+    var fresh = d && (Date.now() - d.getTime()) < 26 * 3600 * 1000;
+    var cls = !h ? 'stale' : (h.ok === false ? 'err' : (fresh ? 'ok' : 'stale'));
+    var st = h && h.stats ? h.stats : {};
+    chips.push('<span class="hchip"><span class="hdot ' + cls + '"></span>Cron incassi · <b>' +
+        (h ? relTime(h.lastRunAt) : 'mai eseguito') + '</b>' +
+        (h && h.ok === false ? ' · ⛔ ' + esc(String(h.lastError || '').slice(0, 60)) : '') + '</span>');
+    if (h) {
+        chips.push('<span class="hchip">Ultima run: <b>' + (st.emailsSent || 0) + '</b> email · <b>' +
+            (st.flippedOverdue || 0) + '</b> nuovi ritardi · <b>' + (st.backfilledPayments || 0) + '</b> rate generate</span>');
+    }
+    var lastPaid = null;
+    state.notifications.forEach(function (n) {
+        if (n.type === 'payment.rent' && (!lastPaid || String(n.createdAt) > String(lastPaid.createdAt))) lastPaid = n;
+    });
+    chips.push('<span class="hchip"><span class="hdot ' + (lastPaid ? 'ok' : 'stale') + '"></span>Ultimo incasso Stripe · <b>' +
+        (lastPaid ? relTime(lastPaid.createdAt) : '—') + '</b></span>');
+    $('health-strip').innerHTML = chips.join('');
+}
+
+/* ─────────── KPIs ─────────── */
+function renderKpis() {
+    var cm = new Date().toISOString().slice(0, 7);
+    var today = todayYmd();
+    var in7 = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+    var rent = state.payments.filter(isRent);
+
+    var collected = 0, expected = 0, lateSum = 0, lateN = 0, soonSum = 0, soonN = 0, yearCollected = 0;
+    rent.forEach(function (p) {
+        var amt = parseFloat(p.amount) || 0;
+        var paid = p.status === 'paid';
+        var pd = String(p.paidDate || p.paidAt || '').slice(0, 7);
+        if (paid && pd === cm) collected += amt;
+        if (paid && pd.slice(0, 4) === cm.slice(0, 4)) yearCollected += amt;
+        if (p.month === cm) expected += amt;
+        if (isUnpaid(p) && p.dueDate) {
+            if (p.dueDate < today) { lateSum += amt; lateN++; }
+            else if (p.dueDate <= in7) { soonSum += amt; soonN++; }
+        }
+    });
+    var rate = expected > 0 ? Math.round(100 * Math.min(collected, expected) / expected) : null;
+
+    $('kpis').innerHTML =
+        kpi('Incassato questo mese', money(collected), 'atteso ' + money(expected), collected >= expected && expected > 0 ? 'green' : '') +
+        kpi('Tasso di incasso', rate == null ? '—' : rate + '%', 'mese corrente', rate != null && rate < 70 ? 'red' : (rate != null && rate < 100 ? 'amber' : 'green')) +
+        kpi('In ritardo', money(lateSum), lateN + ' rat' + (lateN === 1 ? 'a' : 'e') + ' scadut' + (lateN === 1 ? 'a' : 'e'), lateN ? 'red' : 'green') +
+        kpi('In scadenza (7gg)', money(soonSum), soonN + ' rat' + (soonN === 1 ? 'a' : 'e'), soonN ? 'amber' : '') +
+        kpi('Incassato ' + cm.slice(0, 4), money(yearCollected), 'anno corrente', '');
+}
+function kpi(label, value, sub, cls) {
+    return '<div class="kpi ' + (cls || '') + '"><div class="k-label">' + esc(label) + '</div>' +
+        '<div class="k-value">' + esc(value) + '</div><div class="k-sub">' + esc(sub) + '</div></div>';
+}
+
+/* ─────────── cashflow bars ─────────── */
+function renderBars() {
+    var months = [];
+    var base = new Date();
+    for (var i = 11; i >= 0; i--) {
+        var d = new Date(base.getFullYear(), base.getMonth() - i, 1);
+        months.push(d.toISOString().slice(0, 7));
+    }
+    var cm = new Date().toISOString().slice(0, 7);
+    var by = {};
+    months.forEach(function (m) { by[m] = { paid: 0, missing: 0, pending: 0 }; });
+    state.payments.filter(isRent).forEach(function (p) {
+        var b = by[p.month]; if (!b) return;
+        var amt = parseFloat(p.amount) || 0;
+        if (p.status === 'paid') b.paid += amt;
+        else if (p.month < cm || (p.dueDate && p.dueDate < todayYmd())) b.missing += amt;
+        else b.pending += amt;
+    });
+    var max = 1;
+    months.forEach(function (m) { var b = by[m]; max = Math.max(max, b.paid + b.missing + b.pending); });
+    $('bars').innerHTML = months.map(function (m) {
+        var b = by[m];
+        var h = function (v) { return Math.round(118 * v / max); };
+        return '<div class="bar-col">' +
+            '<div class="bar-val">' + (b.paid ? money(b.paid) : '') + '</div>' +
+            '<div class="bar-stack">' +
+                '<div class="bar-paid" style="height:' + h(b.paid) + 'px"></div>' +
+                '<div class="bar-missing" style="height:' + h(b.missing) + 'px"></div>' +
+                '<div class="bar-pending" style="height:' + h(b.pending) + 'px"></div>' +
+            '</div>' +
+            '<div class="bar-lbl">' + monthLabel(m) + '</div></div>';
+    }).join('');
+}
+
+/* ─────────── dunning board ─────────── */
+var COLS = [
+    { key: 'diffida', title: 'Diffida (30gg+)', cls: 'c-red',   test: function (d) { return d >= 30; } },
+    { key: 'soll2',   title: '2° Sollecito (15-29)', cls: 'c-red',   test: function (d) { return d >= 15 && d < 30; } },
+    { key: 'soll1',   title: '1° Sollecito (5-14)',  cls: 'c-amber', test: function (d) { return d >= 5 && d < 15; } },
+    { key: 'fresh',   title: 'Appena scaduti (1-4)', cls: 'c-gold',  test: function (d) { return d >= 1 && d < 5; } },
+    { key: 'soon',    title: 'In scadenza (7gg)',    cls: 'c-grey',  test: function (d) { return d <= 0 && d >= -7; } }
+];
+function renderBoard() {
+    var unpaid = state.payments.filter(isUnpaid).filter(function (p) { return p.dueDate; });
+    $('board').innerHTML = COLS.map(function (col) {
+        var rows = unpaid.filter(function (p) { return col.test(daysLate(p)); })
+            .sort(function (a, b) { return daysLate(b) - daysLate(a); });
+        var sum = rows.reduce(function (s, p) { return s + (parseFloat(p.amount) || 0); }, 0);
+        var cards = rows.slice(0, 12).map(function (p) { return pcard(p); }).join('')
+            || '<div class="empty-col">— vuoto —</div>';
+        var more = rows.length > 12 ? '<div class="empty-col">… e altre ' + (rows.length - 12) + '</div>' : '';
+        return '<div class="col ' + col.cls + '"><div class="col-h"><span class="t">' + col.title +
+            '</span><span class="n">' + rows.length + ' · ' + money(sum) + '</span></div>' + cards + more + '</div>';
+    }).join('');
+}
+function pcard(p) {
+    var d = daysLate(p);
+    var last = p.lastReminderDate ? 'ult. sollecito ' + relTime(p.lastReminderDate) : 'nessun sollecito';
+    var sent = p.remindersSent ? ' · ' + p.remindersSent + ' inviati' : '';
+    return '<div class="pcard" data-pid="' + esc(p.id) + '">' +
+        '<div class="who">' + esc(tenantName(p)) + '</div>' +
+        '<div class="what">' + esc(propLabel(p)) + ' · ' + esc(monthLabel(p.month)) + '</div>' +
+        '<div class="amt">' + money(p.amount) + '</div>' +
+        '<div class="meta">' + (d > 0 ? d + 'gg di ritardo' : 'scade ' + esc(p.dueDate)) + ' · ' + esc(last) + sent + '</div>' +
+        '<div class="acts">' +
+            '<button class="btn" data-act="link" data-pid="' + esc(p.id) + '">🔗 /pay</button>' +
+            (tenantPhone(p) ? '<button class="btn" data-act="wa" data-pid="' + esc(p.id) + '">💬 WA</button>' : '') +
+            '<button class="btn" data-act="paid" data-pid="' + esc(p.id) + '">✓ Pagato</button>' +
+        '</div></div>';
+}
+
+/* ─────────── feed + attention ─────────── */
+function renderFeed() {
+    var rows = state.notifications
+        .filter(function (n) { return String(n.type || '').indexOf('payment.') === 0; })
+        .sort(function (a, b) { return String(b.createdAt).localeCompare(String(a.createdAt)); })
+        .slice(0, 20);
+    $('feed').innerHTML = rows.length ? rows.map(function (n) {
+        var ico = n.type === 'payment.rent' ? '💶' : (n.type === 'payment.duplicate' ? '⚠️' : (n.type === 'payment.failed' ? '❌' : '🔴'));
+        return '<div class="feed-row"><span class="ico">' + ico + '</span>' +
+            '<span class="tx">' + esc(n.summary || n.type) + '</span>' +
+            '<span class="tm">' + relTime(n.createdAt) + '</span></div>';
+    }).join('') : '<div class="muted">Nessun evento pagamenti ancora — il feed si popola con incassi, ritardi ed escalation.</div>';
+}
+function renderAttention() {
+    var items = [];
+    var today = todayYmd();
+    // active contracts with no rent schedule at all
+    var withSchedule = {};
+    state.payments.filter(isRent).forEach(function (p) { if (p.contractId) withSchedule[p.contractId] = true; });
+    Object.keys(state.contracts).forEach(function (cid) {
+        var c = state.contracts[cid];
+        if (c.status === 'active' && c.rent && !withSchedule[cid] && c.rentCollection !== false
+            && (!c.endDate || String(c.endDate).slice(0, 10) >= today)) {
+            items.push('<b>Contratto senza piano rate:</b> ' + esc(c.tenantName || cid) + ' — il cron lo genererà (solo mesi futuri), oppure crealo dal portale.');
+        }
+    });
+    // unpaid payments that cannot be linked to a tenant email
+    state.payments.filter(isUnpaid).forEach(function (p) {
+        var c = contractOf(p);
+        var u = state.users[p.tenantId];
+        var email = (u && u.email) || (c && c.tenantEmail) || '';
+        if (!email) items.push('<b>Rata senza email inquilino:</b> ' + esc(propLabel(p)) + ' · ' + esc(monthLabel(p.month)) + ' — i solleciti automatici non partono, usa 🔗 /pay o WhatsApp.');
+    });
+    // duplicates awaiting refund
+    state.notifications.forEach(function (n) {
+        if (n.type === 'payment.duplicate' && n.status === 'pending') {
+            items.push('<b>Doppio pagamento da rimborsare:</b> ' + esc(n.summary || ''));
+        }
+    });
+    $('attention').innerHTML = items.length
+        ? items.slice(0, 15).map(function (t) { return '<div class="att-row">' + t + '</div>'; }).join('')
+        : '<div class="muted">Tutto in ordine ✓</div>';
+}
+
+/* ─────────── actions ─────────── */
+function ensureToken(p) {
+    if (p.payToken) return Promise.resolve(p.payToken);
+    // fresh read first: the cron may have minted one after we loaded
+    return db.collection('payments').doc(p.id).get().then(function (snap) {
+        var t = snap.exists ? (snap.data().payToken || null) : null;
+        if (t) { p.payToken = t; return t; }
+        var bytes = new Uint8Array(24);
+        crypto.getRandomValues(bytes);
+        t = Array.prototype.map.call(bytes, function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+        return db.collection('payments').doc(p.id).update({ payToken: t }).then(function () {
+            p.payToken = t; return t;
+        });
+    });
+}
+function payLink(t) { return 'https://www.boomrome.com/pay?t=' + t; }
+
+document.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-act]');
+    if (!btn) return;
+    var p = state.payments.find(function (x) { return x.id === btn.getAttribute('data-pid'); });
+    if (!p) return;
+    var act = btn.getAttribute('data-act');
+
+    if (act === 'link') {
+        ensureToken(p).then(function (t) {
+            return navigator.clipboard.writeText(payLink(t));
+        }).then(function () { BoomPortal.toast('Link /pay copiato 📋'); })
+          .catch(function (err) { BoomPortal.toast('Errore: ' + err.message, { type: 'error' }); });
+    }
+    if (act === 'wa') {
+        ensureToken(p).then(function (t) {
+            var phone = tenantPhone(p).replace(/[^\d+]/g, '');
+            var d = daysLate(p);
+            var msg = 'Ciao ' + tenantName(p).split(' ')[0] + ', ti scrivo da BOOM Rome: il canone di ' +
+                monthLabel(p.month) + ' (' + money(p.amount) + ')' +
+                (d > 0 ? ' risulta scaduto da ' + d + ' giorni.' : ' è in scadenza.') +
+                ' Puoi pagarlo in un minuto qui: ' + payLink(t);
+            window.open('https://wa.me/' + phone.replace(/^\+/, '') + '?text=' + encodeURIComponent(msg), '_blank');
+        }).catch(function (err) { BoomPortal.toast('Errore: ' + err.message, { type: 'error' }); });
+    }
+    if (act === 'paid') {
+        BoomPortal.confirm('Segnare ' + monthLabel(p.month) + ' di ' + tenantName(p) + ' (' + money(p.amount) + ') come PAGATO manualmente?')
+            .then(function (ok) {
+                if (!ok) return;
+                var now = new Date().toISOString();
+                return db.collection('payments').doc(p.id).update({ status: 'paid', paidDate: now, paidVia: 'manual' })
+                    .then(function () { BoomPortal.toast('Rata segnata pagata ✓'); });
+            })
+            .catch(function (err) { BoomPortal.toast('Errore: ' + err.message, { type: 'error' }); });
+    }
+});
+
+$('run-now').addEventListener('click', function () {
+    var b = $('run-now');
+    b.disabled = true; b.textContent = '⏳ In esecuzione…';
+    apiPost('/api/rent/collect-cron', {}).then(function (r) {
+        var st = r.stats || {};
+        BoomPortal.toast('Collection eseguita: ' + (st.emailsSent || 0) + ' email · ' + (st.flippedOverdue || 0) +
+            ' nuovi ritardi · ' + (st.backfilledPayments || 0) + ' rate generate', { duration: 6000 });
+        if (st.errors && st.errors.length) BoomPortal.toast(st.errors.length + ' errori nella run', { type: 'warning' });
+        loadAll();
+    }).catch(function (err) {
+        BoomPortal.toast('Errore: ' + err.message, { type: 'error' });
+    }).finally(function () {
+        b.disabled = false; b.textContent = '▶ Esegui collection ora';
+    });
+});
+$('refresh').addEventListener('click', function () { loadAll(); });
+
+/* ─────────── data ─────────── */
+function renderAll(health) {
+    renderHealth(health);
+    renderKpis();
+    renderBars();
+    renderBoard();
+    renderFeed();
+    renderAttention();
+}
+
+function loadAll() {
+    var jobs = [
+        db.collection('payments').get().then(function (s) {
+            state.payments = s.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+        }),
+        db.collection('contracts').get().then(function (s) {
+            state.contracts = {};
+            s.docs.forEach(function (d) { state.contracts[d.id] = d.data(); });
+        }),
+        db.collection('properties').get().then(function (s) {
+            state.properties = {};
+            s.docs.forEach(function (d) { state.properties[d.id] = d.data(); });
+        }),
+        db.collection('users').get().then(function (s) {
+            state.users = {};
+            s.docs.forEach(function (d) { state.users[d.id] = d.data(); });
+        }).catch(function () { state.users = {}; }),
+        db.collection('agentNotifications').orderBy('createdAt', 'desc').limit(40).get().then(function (s) {
+            state.notifications = s.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+        }).catch(function () { state.notifications = []; })
+    ];
+    var health = null;
+    jobs.push(db.collection('rentCollectionHealth').doc('cron').get().then(function (d) {
+        health = d.exists ? d.data() : null;
+    }).catch(function () {}));
+
+    return Promise.all(jobs).then(function () {
+        state.loaded = true;
+        renderAll(health);
+    }).catch(function (err) {
+        BoomPortal.toast('Errore caricamento: ' + err.message, { type: 'error' });
+    });
+}
+
+/* ─────────── realtime: payments keep the board live ─────────── */
+function startListeners() {
+    BoomPortal.listen(db.collection('payments'), function (snap) {
+        state.payments = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+        if (state.loaded) {
+            db.collection('rentCollectionHealth').doc('cron').get()
+                .then(function (d) { renderAll(d.exists ? d.data() : null); })
+                .catch(function () { renderAll(null); });
+        }
+    });
+}
+
+/* ─────────── init ─────────── */
+(async function init() {
+    try {
+        BoomPortal.registerServiceWorker();
+        const { user, profile } = await BoomPortal.requireAuth(['admin'], { loginUrl: '/login.html' });
+        void user; void profile;
+        $('auth-shield').style.display = 'none';
+        $('app').hidden = false;
+        await loadAll();
+        startListeners();
+        setInterval(function () { if (state.loaded) renderFeed(); }, 60000);
+    } catch (e) {
+        console.warn('[Rent Command] auth gate:', e && e.message);
+    }
+})();
+
+})();
+</script>
+</body>
+</html>
