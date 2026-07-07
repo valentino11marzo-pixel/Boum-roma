@@ -376,6 +376,12 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}@media(min-width:880px){.toast{bottom:80px}}
 
 .proto{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:130;font-size:11px;color:var(--t3);background:rgba(8,8,10,.7);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:100px;padding:5px 13px}.proto b{color:var(--gold)}
+
+/* app-grade page handoff: native cross-document transition (Chrome/Safari 18+,
+   silent no-op elsewhere). Fast and quiet — the BoomElevate hero morph stays
+   the star; this only removes the white-flash "website" cut between pages. */
+@view-transition{navigation:auto}
+::view-transition-old(root),::view-transition-new(root){animation-duration:.24s}
 </style>
 <!-- BOOM_JSONLD:START -->
   <script type="application/ld+json">

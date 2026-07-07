@@ -536,6 +536,12 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
 .chrail a:hover .cl{opacity:1;transform:none}
 .chrail a.on i{background:var(--gold,#FFD700);border-color:var(--gold,#FFD700);box-shadow:0 0 10px rgba(255,215,0,.5);transform:scale(1.25)}
 .chrail a.on .cl{opacity:1;transform:none;color:var(--gold,#FFD700)}
+
+/* app-grade page handoff: native cross-document transition (Chrome/Safari 18+,
+   silent no-op elsewhere). Fast and quiet — the BoomElevate hero morph stays
+   the star; this only removes the white-flash "website" cut between pages. */
+@view-transition{navigation:auto}
+::view-transition-old(root),::view-transition-new(root){animation-duration:.24s}
 </style>
 <!-- BOOM_JSONLD:START -->
   <script type="application/ld+json">
