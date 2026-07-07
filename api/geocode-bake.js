@@ -49,7 +49,10 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
 
   const now = Date.now();
-  if (now - LAST_RUN < 10 * 60 * 1000 && LAST_SUMMARY) {
+  // progress-aware throttle: while runs are still converting listings, allow
+  // a follow-up after 90s (self-pagination); once converged (or stuck), 10min.
+  const winMs = (LAST_SUMMARY && LAST_SUMMARY.updated && LAST_SUMMARY.updated.length > 0) ? 90 * 1000 : 10 * 60 * 1000;
+  if (now - LAST_RUN < winMs && LAST_SUMMARY) {
     return res.status(200).json({ ok: true, throttled: true, lastRun: new Date(LAST_RUN).toISOString(), ...LAST_SUMMARY });
   }
   LAST_RUN = now;
