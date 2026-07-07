@@ -1,0 +1,746 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>BOOM/OS — design direction 2030</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ═════════ BOOM/OS — the operating system for renting in Rome ═════════
+   Ultra-tech, engineered, bold. The machine IS the brand: live Rome
+   radar, decrypting type, a terminal that runs the deal, HUD telemetry.
+   Electric gold #FFD700 (the bold identity), signal green, hard black. */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --ink:#050505; --ink2:#0A0A0B; --panel:rgba(255,255,255,.028);
+  --y:#FFD700; --y-dim:rgba(255,215,0,.5); --g:#00FF88; --red:#FF4D4D;
+  --t1:#F5F5F2; --t2:rgba(245,245,242,.66); --t3:rgba(245,245,242,.38); --t4:rgba(245,245,242,.18);
+  --line:rgba(255,255,255,.1); --line-y:rgba(255,215,0,.28);
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+html{scroll-behavior:smooth}
+body{font-family:'Space Grotesk',system-ui,sans-serif;background:var(--ink);color:var(--t1);line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+img{max-width:100%;display:block}
+button{font-family:inherit;cursor:pointer;background:none;border:0;color:inherit}
+::selection{background:var(--y);color:#000}
+.mono{font-family:'JetBrains Mono',monospace}
+.wrap{max-width:1280px;margin:0 auto;padding:0 24px}
+
+/* scanline + grain over everything, very faint */
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:97;opacity:.05;
+  background:repeating-linear-gradient(0deg,transparent 0 2px,rgba(255,255,255,.35) 2px 3px);mix-blend-mode:overlay}
+
+/* ── reveal ── */
+.rv{opacity:0;transform:translateY(22px);transition:opacity .7s var(--ease),transform .7s var(--ease)}
+.rv.in{opacity:1;transform:none}
+.rv-d1{transition-delay:.07s}.rv-d2{transition-delay:.14s}.rv-d3{transition-delay:.21s}
+@media (prefers-reduced-motion:reduce){.rv{opacity:1!important;transform:none!important;transition:none!important}}
+
+/* ── nav ── */
+nav{position:fixed;top:0;left:0;right:0;z-index:80;border-bottom:1px solid transparent;transition:.3s var(--ease)}
+nav.scr{background:rgba(5,5,5,.86);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border-bottom-color:var(--line)}
+.nav-in{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px 24px;max-width:1280px;margin:0 auto}
+.brand{display:flex;align-items:center;gap:12px}
+.brand b{font-weight:700;font-size:19px;letter-spacing:4px}
+.brand .os{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--y);border:1px solid var(--line-y);padding:3px 8px;border-radius:4px;letter-spacing:1px}
+.nav-links{display:none;gap:28px;align-items:center}
+.nav-links a{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1px;color:var(--t2);transition:color .2s}
+.nav-links a:hover{color:var(--y)}
+.nav-links a i{font-style:normal;color:var(--t4);margin-right:6px}
+.nav-cta{background:var(--y);color:#000;font-weight:700;font-size:11px;letter-spacing:1.6px;text-transform:uppercase;padding:11px 20px;border-radius:6px;transition:.25s var(--ease)}
+.nav-cta:hover{transform:translateY(-1px);box-shadow:0 8px 30px rgba(255,215,0,.35)}
+@media(min-width:1020px){.nav-links{display:flex}}
+
+/* ── hero ── */
+.hero{position:relative;min-height:100svh;display:flex;flex-direction:column;justify-content:center;overflow:hidden;padding:120px 0 0}
+#radar{position:absolute;inset:0;width:100%;height:100%;display:block}
+.hero-veil{position:absolute;inset:0;background:
+  radial-gradient(110% 90% at 30% 50%,rgba(5,5,5,.92) 0%,rgba(5,5,5,.55) 45%,rgba(5,5,5,.12) 75%,transparent 100%);pointer-events:none}
+/* HUD frame */
+.hud{position:absolute;inset:18px;pointer-events:none;z-index:2}
+.hud i{position:absolute;width:26px;height:26px;border:1px solid var(--y-dim)}
+.hud i:nth-child(1){top:0;left:0;border-right:0;border-bottom:0}
+.hud i:nth-child(2){top:0;right:0;border-left:0;border-bottom:0}
+.hud i:nth-child(3){bottom:0;left:0;border-right:0;border-top:0}
+.hud i:nth-child(4){bottom:0;right:0;border-left:0;border-top:0}
+.hud-tag{position:absolute;font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:1.6px;color:var(--t3)}
+.hud-tag.tl{top:70px;left:40px}
+.hud-tag.tr{top:70px;right:40px;color:var(--y-dim)}
+.hud-tag.br{bottom:8px;right:40px}
+.hud-tag .ok{color:var(--g)}
+@media(max-width:760px){.hud-tag.tl{display:none}}
+.hero-in{position:relative;z-index:3}
+.hero-sys{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:2px;color:var(--y);display:inline-flex;align-items:center;gap:10px;margin-bottom:26px}
+.hero-sys::before{content:'';width:8px;height:8px;background:var(--g);border-radius:50%;box-shadow:0 0 14px var(--g);animation:blink 2s steps(2) infinite}
+@keyframes blink{50%{opacity:.35}}
+h1{font-weight:700;font-size:clamp(42px,7.4vw,110px);line-height:.98;letter-spacing:-.03em;text-transform:uppercase;margin:0 0 28px}
+h1 .row{display:block;white-space:nowrap}
+h1 .y{color:var(--y)}
+h1 .ghost{-webkit-text-stroke:1px rgba(245,245,242,.4);color:transparent}
+.hero-sub{max-width:54ch;color:var(--t2);font-size:clamp(15px,1.5vw,18px);margin-bottom:36px}
+.hero-sub b{color:var(--t1);font-weight:600}
+.hero-sub .mono{color:var(--y);font-size:.92em}
+.cta-row{display:flex;flex-wrap:wrap;gap:14px}
+.btn{position:relative;display:inline-flex;align-items:center;gap:12px;padding:17px 30px;font-weight:700;font-size:12px;letter-spacing:2px;text-transform:uppercase;border-radius:8px;transition:transform .3s var(--ease),box-shadow .3s var(--ease);overflow:hidden}
+.btn::before{content:'';position:absolute;inset:0;background:linear-gradient(110deg,transparent 35%,rgba(255,255,255,.5),transparent 65%);transform:translateX(-140%);transition:transform .6s var(--ease)}
+.btn:hover::before{transform:translateX(140%)}
+.btn-y{background:var(--y);color:#000}
+.btn-y:hover{transform:translateY(-2px);box-shadow:0 12px 44px rgba(255,215,0,.4)}
+.btn-ghost{border:1px solid var(--line);color:var(--t1)}
+.btn-ghost:hover{border-color:var(--y);color:var(--y)}
+.btn-wa{background:#25D366;color:#000}
+.btn-wa:hover{transform:translateY(-2px);box-shadow:0 12px 44px rgba(37,211,102,.35)}
+.btn .k{font-family:'JetBrains Mono',monospace;font-size:10px;opacity:.55;font-weight:500}
+
+/* telemetry strip */
+.tele{position:relative;z-index:3;margin-top:64px;border-top:1px solid var(--line);background:rgba(5,5,5,.6);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.tele-in{display:grid;grid-template-columns:repeat(2,1fr);max-width:1280px;margin:0 auto}
+@media(min-width:860px){.tele-in{grid-template-columns:repeat(4,1fr)}}
+.tstat{padding:20px 24px;border-right:1px solid var(--line);position:relative}
+.tstat:last-child{border-right:0}
+.tstat label{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.8px;text-transform:uppercase;color:var(--t3);display:block;margin-bottom:6px}
+.tstat b{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:clamp(20px,2.2vw,28px);color:var(--y);font-variant-numeric:tabular-nums}
+.tstat small{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--t3);margin-left:6px}
+.tstat .live{color:var(--g)}
+
+/* ── ticker ── */
+.ticker{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--y);color:#000;overflow:hidden;padding:12px 0}
+.ticker-in{display:inline-flex;white-space:nowrap;animation:tick 28s linear infinite;will-change:transform}
+.ticker:hover .ticker-in{animation-play-state:paused}
+@keyframes tick{to{transform:translateX(-50%)}}
+.ticker span{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px;letter-spacing:2px;text-transform:uppercase;padding:0 22px}
+.ticker span::after{content:'///';margin-left:44px;opacity:.4}
+@media (prefers-reduced-motion:reduce){.ticker-in{animation:none}}
+
+/* ── section scaffolding ── */
+section{position:relative;padding:110px 0}
+.sys-head{display:flex;align-items:baseline;gap:18px;margin-bottom:14px}
+.sys-tag{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:2px;color:var(--y);border:1px solid var(--line-y);padding:4px 10px;border-radius:4px}
+.sys-line{flex:1;height:1px;background:var(--line)}
+h2{font-weight:700;font-size:clamp(30px,4.4vw,58px);letter-spacing:-.025em;line-height:1.02;text-transform:uppercase;margin:14px 0 10px}
+h2 .y{color:var(--y)}
+.sec-sub{color:var(--t2);max-width:56ch;font-size:15px}
+
+/* ── SYS/01 inventory ── */
+.inv-grid{display:grid;grid-template-columns:1fr;gap:22px;margin-top:56px}
+@media(min-width:820px){.inv-grid{grid-template-columns:repeat(3,1fr)}}
+.unit{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;transition:transform .4s var(--ease),border-color .3s;display:block}
+.unit:hover{transform:translateY(-6px);border-color:var(--line-y)}
+.unit::before,.unit::after{content:'';position:absolute;width:18px;height:18px;z-index:3;border:1px solid var(--y);opacity:0;transition:opacity .3s}
+.unit::before{top:10px;left:10px;border-right:0;border-bottom:0}
+.unit::after{bottom:10px;right:10px;border-left:0;border-top:0}
+.unit:hover::before,.unit:hover::after{opacity:1}
+.unit-ph{position:relative;aspect-ratio:16/10.5;background:linear-gradient(135deg,#131313,#0a0a0a);overflow:hidden}
+.unit-ph img{width:100%;height:100%;object-fit:cover;transition:transform .8s var(--ease);filter:saturate(.92)}
+.unit:hover .unit-ph img{transform:scale(1.07)}
+/* scan sweep on hover */
+.unit-ph i{position:absolute;inset:0;background:linear-gradient(180deg,transparent 46%,rgba(255,215,0,.18) 50%,transparent 54%);transform:translateY(-110%);pointer-events:none}
+.unit:hover .unit-ph i{animation:scan 1.1s var(--ease)}
+@keyframes scan{to{transform:translateY(110%)}}
+.unit-live{position:absolute;top:12px;left:12px;z-index:2;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;background:rgba(0,0,0,.72);border:1px solid rgba(0,255,136,.5);color:var(--g);padding:5px 9px;border-radius:4px}
+.unit-id{position:absolute;top:12px;right:12px;z-index:2;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--t3);background:rgba(0,0,0,.72);padding:5px 9px;border-radius:4px}
+.unit-body{padding:18px 18px 20px}
+.unit-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.unit-row h3{font-size:18px;font-weight:600;letter-spacing:-.01em}
+.unit-pr{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:17px;color:var(--y);white-space:nowrap}
+.unit-pr small{font-size:10px;color:var(--t3);font-weight:400}
+.unit-spec{font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.6px;color:var(--t3);margin-top:8px}
+.unit-spec b{color:var(--t2);font-weight:500}
+.inv-foot{margin-top:44px;display:flex;justify-content:center}
+
+/* ── SYS/02 engine (terminal) ── */
+.engine{background:linear-gradient(180deg,var(--ink2),var(--ink));border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.eng-grid{display:grid;grid-template-columns:1fr;gap:52px;margin-top:56px;align-items:center}
+@media(min-width:980px){.eng-grid{grid-template-columns:.9fr 1.1fr;gap:64px}}
+.pipe{display:flex;flex-direction:column;gap:0}
+.pipe-step{display:grid;grid-template-columns:44px 1fr;gap:18px;padding:22px 0;border-bottom:1px solid var(--line);opacity:.4;transition:opacity .5s}
+.pipe-step.on{opacity:1}
+.pipe-step:last-child{border-bottom:0}
+.pipe-n{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--y);border:1px solid var(--line-y);border-radius:6px;width:40px;height:40px;display:flex;align-items:center;justify-content:center}
+.pipe-step.on .pipe-n{background:var(--y);color:#000;font-weight:700;box-shadow:0 0 24px rgba(255,215,0,.3)}
+.pipe-step h3{font-size:19px;font-weight:600;margin-bottom:4px}
+.pipe-step p{font-size:13.5px;color:var(--t2);max-width:44ch}
+.pipe-step .pt{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;color:var(--g);margin-top:8px;display:block}
+/* terminal */
+.term{background:#070707;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,.6);position:relative}
+.term::after{content:'';position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(255,255,255,.014) 3px 4px)}
+.term-bar{display:flex;align-items:center;gap:8px;padding:13px 16px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.02)}
+.term-bar i{width:11px;height:11px;border-radius:50%;background:#2a2a2a}
+.term-bar i:nth-child(1){background:#FF5F57}.term-bar i:nth-child(2){background:#FEBC2E}.term-bar i:nth-child(3){background:#28C840}
+.term-bar span{margin-left:10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--t3);letter-spacing:.6px}
+.term-body{padding:22px 22px 26px;font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:2.05;min-height:380px}
+.term-body .ln{display:block;white-space:pre-wrap;word-break:break-word}
+.term-body .c-cmd{color:var(--t1)}
+.term-body .c-dim{color:var(--t3)}
+.term-body .c-y{color:var(--y)}
+.term-body .c-g{color:var(--g)}
+.term-body .c-p{color:var(--t2)}
+.caret{display:inline-block;width:8px;height:15px;background:var(--y);vertical-align:-2px;animation:blink 1s steps(2) infinite}
+
+/* ── SYS/03 access modes (spec table) ── */
+.modes{margin-top:56px;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.mode{display:grid;grid-template-columns:1fr;gap:10px;padding:28px 26px;border-bottom:1px solid var(--line);background:var(--panel);transition:background .3s;position:relative}
+.mode:last-child{border-bottom:0}
+.mode:hover{background:rgba(255,215,0,.045)}
+@media(min-width:900px){.mode{grid-template-columns:150px 1.3fr .9fr auto;gap:30px;align-items:center;padding:30px 32px}}
+.mode-k{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1.6px;color:var(--y)}
+.mode h3{font-size:21px;font-weight:600;letter-spacing:-.01em}
+.mode h3 span{display:block;font-size:13px;font-weight:400;color:var(--t2);margin-top:5px;max-width:46ch}
+.mode-pr{font-family:'JetBrains Mono',monospace}
+.mode-pr b{font-size:22px;font-weight:700;color:var(--t1);display:block}
+.mode-pr small{font-size:10.5px;color:var(--t3);letter-spacing:.4px}
+.mode-go{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1.4px;color:var(--y);white-space:nowrap;transition:transform .3s var(--ease)}
+.mode:hover .mode-go{transform:translateX(6px)}
+
+/* ── SYS/04 proof ── */
+.proof{background:linear-gradient(180deg,var(--ink),var(--ink2))}
+.pf-grid{display:grid;grid-template-columns:1fr;gap:26px;margin-top:56px}
+@media(min-width:900px){.pf-grid{grid-template-columns:1.15fr .85fr}}
+.pf-quote{border:1px solid var(--line);border-radius:14px;padding:34px;background:var(--panel);position:relative}
+.pf-quote::before{content:'// VERIFIED_REVIEW';font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.6px;color:var(--g)}
+.pf-quote p{font-size:clamp(18px,2vw,24px);font-weight:500;line-height:1.5;margin:16px 0 20px;letter-spacing:-.01em}
+.pf-quote p em{font-style:normal;color:var(--y)}
+.pf-quote footer{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--t3);letter-spacing:1px}
+.pf-side{display:flex;flex-direction:column;gap:26px}
+.pf-card{border:1px solid var(--line);border-radius:14px;padding:26px 28px;background:var(--panel)}
+.pf-card .lbl{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.8px;text-transform:uppercase;color:var(--t3)}
+.pf-card .big{font-family:'JetBrains Mono',monospace;font-size:30px;font-weight:700;color:var(--y);margin:8px 0 4px}
+.pf-card .stars{color:var(--y);letter-spacing:3px;font-size:13px}
+.pf-card p{font-size:12.5px;color:var(--t2);margin-top:6px}
+.pf-card a{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--y);letter-spacing:1px}
+
+/* ── SYS/05 orgs ── */
+.orgs{padding:56px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.orgs-in{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:20px}
+.orgs p{font-size:13.5px;color:var(--t2);max-width:52ch}
+.orgs p b{color:var(--t1)}
+.orgs-links{display:flex;gap:14px;flex-wrap:wrap}
+.orgs-links a{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1.2px;border:1px solid var(--line);border-radius:6px;padding:10px 16px;color:var(--t2);transition:.25s}
+.orgs-links a:hover{border-color:var(--y);color:var(--y)}
+
+/* ── final ── */
+.final{padding:150px 0;text-align:center;position:relative;overflow:hidden}
+.final h2{font-size:clamp(40px,8vw,110px);line-height:.98}
+.final .sec-sub{margin:22px auto 44px}
+.final .cta-row{justify-content:center}
+.final-grid{position:absolute;inset:0;pointer-events:none;opacity:.5;
+  background:linear-gradient(rgba(255,215,0,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,215,0,.05) 1px,transparent 1px);
+  background-size:56px 56px;
+  mask-image:radial-gradient(70% 70% at 50% 50%,#000 0%,transparent 78%);
+  -webkit-mask-image:radial-gradient(70% 70% at 50% 50%,#000 0%,transparent 78%)}
+
+/* ── footer ── */
+footer{padding:64px 0 36px;border-top:1px solid var(--line)}
+.f-grid{display:grid;grid-template-columns:1fr;gap:36px;margin-bottom:48px}
+@media(min-width:860px){.f-grid{grid-template-columns:1.6fr 1fr 1fr 1fr}}
+.f-brand{display:flex;align-items:center;gap:12px;font-weight:700;font-size:18px;letter-spacing:4px}
+.f-brand .os{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--y);border:1px solid var(--line-y);padding:2px 7px;border-radius:4px}
+.f-tag{font-size:13px;color:var(--t3);max-width:36ch;margin-top:14px}
+.f-legal{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--t4);margin-top:18px;line-height:1.9}
+.f-col h4{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--y);margin-bottom:16px}
+.f-col a{display:block;font-size:13px;color:var(--t2);padding:4px 0;transition:color .2s}
+.f-col a:hover{color:var(--t1)}
+.f-foot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;padding-top:24px;border-top:1px solid var(--line);font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--t4)}
+.f-live{display:inline-flex;align-items:center;gap:8px;color:var(--t3)}
+.f-live i{width:7px;height:7px;border-radius:50%;background:var(--g);box-shadow:0 0 10px rgba(0,255,136,.8);animation:blink 2s steps(2) infinite}
+
+.proto{position:fixed;right:14px;bottom:14px;z-index:98;background:rgba(5,5,5,.85);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid var(--line-y);border-radius:6px;padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;color:var(--t3)}
+.proto b{color:var(--y)}
+</style>
+</head>
+<body>
+
+<nav id="nav"><div class="nav-in">
+  <a class="brand" href="/"><b>BOOM</b><span class="os">/OS v2.0</span></a>
+  <div class="nav-links">
+    <a href="/apartments.html"><i>01</i>INVENTORY</a>
+    <a href="/property-finding.html"><i>02</i>RADAR</a>
+    <a href="/deal-assistance.html"><i>03</i>DEAL_SHIELD</a>
+    <a href="/about.html"><i>04</i>ABOUT</a>
+    <a class="nav-cta" href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp →</a>
+  </div>
+</div></nav>
+
+<!-- ═══ HERO — live Rome radar ═══ -->
+<header class="hero">
+  <canvas id="radar" aria-hidden="true"></canvas>
+  <div class="hero-veil"></div>
+  <div class="hud" aria-hidden="true"><i></i><i></i><i></i><i></i>
+    <span class="hud-tag tl">41.9028°N · 12.4964°E — ROMA</span>
+    <span class="hud-tag tr" id="hudClock">SYS.TIME —:—:—</span>
+    <span class="hud-tag br">STATUS <span class="ok">● OPERATIONAL</span></span>
+  </div>
+
+  <div class="wrap hero-in">
+    <span class="hero-sys">BOOM/OS — MARKET RADAR ACTIVE</span>
+    <h1 id="h1">
+      <span class="row" data-scramble>RENTING IN ROME,</span>
+      <span class="row y" data-scramble>ENGINEERED.</span>
+      <span class="row ghost" data-scramble>KEYS IN 48H.</span>
+    </h1>
+    <p class="hero-sub rv rv-d2">The first rental machine in Rome: a live radar scanning the whole market, <b>video-verified units</b>, contracts signed by link, keys in <span class="mono">≤48h</span>. Built by engineers, run by humans on WhatsApp.</p>
+    <div class="cta-row rv rv-d3">
+      <a class="btn btn-y" href="/apartments.html">Browse live units <span class="k">[34]</span></a>
+      <a class="btn btn-ghost" href="/property-finding.html">Deploy the radar <span class="k">→</span></a>
+    </div>
+  </div>
+
+  <div class="tele">
+    <div class="tele-in">
+      <div class="tstat"><label>Units live</label><b class="num live" id="tUnits">34</b><small>verified</small></div>
+      <div class="tstat"><label>Median move-in</label><b class="num" data-count>48</b><small>hours</small></div>
+      <div class="tstat"><label>Response time</label><b class="num" data-count>2</b><small>min</small></div>
+      <div class="tstat"><label>Hidden fees</label><b class="num">€0</b><small>ever</small></div>
+    </div>
+  </div>
+</header>
+
+<!-- ═══ ticker ═══ -->
+<div class="ticker" aria-hidden="true"><div class="ticker-in" id="tickerIn">
+  <span>Video-verified</span><span>48h move-in</span><span>€0 hidden fees</span><span>Live market radar</span><span>Contracts by link</span><span>English-first</span><span>Deposit protected</span>
+</div></div>
+
+<!-- ═══ SYS/01 INVENTORY ═══ -->
+<section id="inventory">
+  <div class="wrap">
+    <div class="sys-head rv"><span class="sys-tag">SYS/01</span><span class="sys-line"></span></div>
+    <h2 class="rv">Live <span class="y">inventory</span></h2>
+    <p class="sec-sub rv rv-d1">Every unit filmed, measured and priced before it goes live. What renders here is what you unlock there.</p>
+
+    <div class="inv-grid">
+      <a class="unit rv" href="/apartments.html">
+        <div class="unit-ph"><img src="https://i.imgur.com/QOAu6k1.jpeg" alt="Villa Ada Studio" loading="lazy" decoding="async"><i></i>
+          <span class="unit-live">● LIVE</span><span class="unit-id">UNIT_0134</span></div>
+        <div class="unit-body">
+          <div class="unit-row"><h3>Villa Ada Studio</h3><span class="unit-pr">€1,200<small>/mo</small></span></div>
+          <div class="unit-spec">40m² · 1BED · GROUND — <b>VIDEO ✓</b></div>
+        </div>
+      </a>
+      <a class="unit rv rv-d1" href="/apartments.html">
+        <div class="unit-ph"><img src="https://i.imgur.com/tJnYADn.jpeg" alt="Pigneto Terrace" loading="lazy" decoding="async"><i></i>
+          <span class="unit-live">● LIVE</span><span class="unit-id">UNIT_0141</span></div>
+        <div class="unit-body">
+          <div class="unit-row"><h3>Pigneto Terrace</h3><span class="unit-pr">€1,700<small>/mo</small></span></div>
+          <div class="unit-spec">80m² · 2BED · BALCONY — <b>VIDEO ✓</b></div>
+        </div>
+      </a>
+      <a class="unit rv rv-d2" href="/apartments.html">
+        <div class="unit-ph"><img src="https://i.imgur.com/8LVxrhs.jpeg" alt="Coronari Classic" loading="lazy" decoding="async"><i></i>
+          <span class="unit-live">● LIVE</span><span class="unit-id">UNIT_0128</span></div>
+        <div class="unit-body">
+          <div class="unit-row"><h3>Coronari Classic</h3><span class="unit-pr">€2,000<small>/mo</small></span></div>
+          <div class="unit-spec">70m² · 1BED · CENTRO — <b>VIDEO ✓</b></div>
+        </div>
+      </a>
+    </div>
+    <div class="inv-foot rv"><a class="btn btn-y" href="/apartments.html">Open full inventory <span class="k">[ALL]</span></a></div>
+  </div>
+</section>
+
+<!-- ═══ SYS/02 THE ENGINE ═══ -->
+<section class="engine" id="engine">
+  <div class="wrap">
+    <div class="sys-head rv"><span class="sys-tag">SYS/02</span><span class="sys-line"></span></div>
+    <h2 class="rv">The <span class="y">engine</span></h2>
+    <p class="sec-sub rv rv-d1">This is not a listings page with a contact form. It's a pipeline. Watch it run a real deal:</p>
+
+    <div class="eng-grid">
+      <div class="pipe rv" id="pipe">
+        <div class="pipe-step" data-p="0"><div class="pipe-n">01</div><div><h3>Scan</h3><p>The radar sweeps every portal, agency feed and off-market channel in Rome. Continuously.</p><span class="pt">RUNTIME: 24/7</span></div></div>
+        <div class="pipe-step" data-p="1"><div class="pipe-n">02</div><div><h3>Verify</h3><p>Humans film every unit. AI cross-checks the contract, the landlord and the price history.</p><span class="pt">FAKE LISTINGS: REJECTED</span></div></div>
+        <div class="pipe-step" data-p="2"><div class="pipe-n">03</div><div><h3>Execute</h3><p>Apply in 2 minutes, sign the legal contract by link, pay through Stripe. No paper, no office.</p><span class="pt">SIGNATURE: MAGIC-LINK</span></div></div>
+        <div class="pipe-step" data-p="3"><div class="pipe-n">04</div><div><h3>Deliver</h3><p>Keys, utilities, Wallet pass on your phone. From first click to first night in days.</p><span class="pt">SLA: ≤48 HOURS</span></div></div>
+      </div>
+
+      <div class="term rv rv-d1" id="term">
+        <div class="term-bar"><i></i><i></i><i></i><span>boom@roma — deal_pipeline</span></div>
+        <div class="term-body" id="termBody"><span class="ln c-cmd">$ <span class="caret"></span></span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ SYS/03 ACCESS MODES ═══ -->
+<section id="modes">
+  <div class="wrap">
+    <div class="sys-head rv"><span class="sys-tag">SYS/03</span><span class="sys-line"></span></div>
+    <h2 class="rv">Access <span class="y">modes</span></h2>
+    <p class="sec-sub rv rv-d1">Pick your entry point. Prices printed in the open — that's the whole point.</p>
+
+    <div class="modes rv">
+      <a class="mode" href="/apartments.html">
+        <span class="mode-k">MODE_A</span>
+        <h3>Browse ready units<span>Video-verified, priced, move-in ready. Zero surprises on arrival.</span></h3>
+        <span class="mode-pr"><b>from €1,000/mo</b><small>NO AGENCY AMBUSH</small></span>
+        <span class="mode-go">ENTER →</span>
+      </a>
+      <a class="mode" href="/property-finding.html">
+        <span class="mode-k">MODE_B</span>
+        <h3>Deploy the radar<span>Your specs, the whole market — off-market included. Curated targets in ≤10 days.</span></h3>
+        <span class="mode-pr"><b>€350 upfront</b><small>DEDUCTED FROM FEE · €0 IF WE FAIL</small></span>
+        <span class="mode-go">DEPLOY →</span>
+      </a>
+      <a class="mode" href="/deal-assistance.html">
+        <span class="mode-k">MODE_C</span>
+        <h3>Deal shield<span>Found it yourself? We negotiate, verify the landlord, and armor the contract.</span></h3>
+        <span class="mode-pr"><b>€249 fixed</b><small>EVERY RISKY PART HANDLED</small></span>
+        <span class="mode-go">ARM →</span>
+      </a>
+      <a class="mode" href="/virtual-viewing.html">
+        <span class="mode-k">MODE_D</span>
+        <h3>Remote eyes<span>Not in Rome? Live video walkthrough with real-time Q&amp;A and a written report.</span></h3>
+        <span class="mode-pr"><b>€89/viewing</b><small>SAME-WEEK SLOTS</small></span>
+        <span class="mode-go">BOOK →</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ SYS/04 PROOF ═══ -->
+<section class="proof" id="proof">
+  <div class="wrap">
+    <div class="sys-head rv"><span class="sys-tag">SYS/04</span><span class="sys-line"></span></div>
+    <h2 class="rv">Telemetry &amp; <span class="y">proof</span></h2>
+
+    <div class="pf-grid">
+      <blockquote class="pf-quote rv">
+        <p>"They found us an apartment in six days, translated everything, and were <em>on WhatsApp at midnight</em> when the landlord got cold feet. Worth every euro."</p>
+        <footer>ERASMUS_RESEARCHER · PLACED: PRATI · T-6 DAYS</footer>
+      </blockquote>
+      <div class="pf-side">
+        <div class="pf-card rv rv-d1">
+          <span class="lbl">Public rating</span>
+          <div class="big num">4.9<span style="font-size:14px;color:var(--t3)">/5</span></div>
+          <span class="stars">★★★★★</span>
+          <p>47 verified Google reviews from tenants and owners.</p>
+          <a href="https://share.google/hqXmmWI9vQSnEvZmK" target="_blank" rel="noopener">READ_REVIEWS →</a>
+        </div>
+        <div class="pf-card rv rv-d2">
+          <span class="lbl">Failure protocol</span>
+          <div class="big">€0 IF WE FAIL</div>
+          <p>Radar search fully refunded if we don't deliver curated targets within 10 days. Written into the contract.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ SYS/05 ORGS ═══ -->
+<div class="orgs">
+  <div class="wrap orgs-in rv">
+    <p><b>SYS/05 — B2B.</b> Universities, companies and research programmes house their people through BOOM/OS: verified units, English-first, one invoice.</p>
+    <div class="orgs-links">
+      <a href="/universities.html">UNIVERSITIES</a>
+      <a href="/corporate.html">COMPANIES</a>
+      <a href="/research.html">RESEARCH / ERC</a>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ FINAL ═══ -->
+<section class="final">
+  <div class="final-grid"></div>
+  <div class="wrap rv">
+    <h2><span data-scramble>READY FOR</span> <span class="y" data-scramble>ROME?</span></h2>
+    <p class="sec-sub" style="max-width:44ch">Stop fighting the market with 1990 tools. Message the machine — a human answers in minutes.</p>
+    <div class="cta-row">
+      <a class="btn btn-y" href="/apartments.html">Browse live units</a>
+      <a class="btn btn-wa" href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp us</a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ FOOTER ═══ -->
+<footer>
+  <div class="wrap">
+    <div class="f-grid">
+      <div>
+        <div class="f-brand">BOOM <span class="os">/OS v2.0</span></div>
+        <p class="f-tag">Built in Rome, for Rome. If we can make this market run like a machine, we can run any market.</p>
+        <p class="f-legal">EGIDI IMMOBILIARE S.R.L.<br>P.IVA 17322991005 · REA RM-1710623<br>ROMA, IT</p>
+      </div>
+      <div class="f-col">
+        <h4>System</h4>
+        <a href="/apartments.html">Inventory</a>
+        <a href="/property-finding.html">Radar search</a>
+        <a href="/deal-assistance.html">Deal shield</a>
+        <a href="/virtual-viewing.html">Remote eyes</a>
+        <a href="/concierge.html">Concierge</a>
+      </div>
+      <div class="f-col">
+        <h4>Company</h4>
+        <a href="/about.html">About</a>
+        <a href="/how-it-works.html">How it works</a>
+        <a href="/owners.html">For owners</a>
+        <a href="/blog.html">Blog</a>
+        <a href="/contact.html">Contact</a>
+      </div>
+      <div class="f-col">
+        <h4>Legal</h4>
+        <a href="/terms.html">Terms</a>
+        <a href="/privacy.html">Privacy</a>
+        <a href="/login.html">Login</a>
+      </div>
+    </div>
+    <div class="f-foot">
+      <span>© 2025 BOOM — ALL RIGHTS RESERVED</span>
+      <span class="f-live"><i></i>ALL SYSTEMS OPERATIONAL</span>
+    </div>
+  </div>
+</footer>
+
+<div class="proto">DIRECTION · <b>BOOM/OS</b> · 2030</div>
+
+<script>
+(function(){
+'use strict';
+var R = matchMedia('(prefers-reduced-motion:reduce)').matches;
+var $ = function(s,r){return (r||document).querySelector(s)};
+var $$ = function(s,r){return [].slice.call((r||document).querySelectorAll(s))};
+
+/* ── nav scrim ── */
+var nav = $('#nav');
+addEventListener('scroll', function(){ nav.classList.toggle('scr', scrollY>16); }, {passive:true});
+
+/* ── HUD clock ── */
+var clock = $('#hudClock');
+setInterval(function(){
+  var d = new Date(), p = function(n){return String(n).padStart(2,'0')};
+  clock.textContent = 'SYS.TIME ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+}, 1000);
+
+/* ── reveal ── */
+var io = new IntersectionObserver(function(es){
+  es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+}, {threshold:.12, rootMargin:'0px 0px -5% 0px'});
+$$('.rv').forEach(function(el){ io.observe(el); });
+
+/* ── scramble / decrypt type ── */
+var GLYPHS = '█▓▒░<>/\\|=+*#01ROMA';
+function scramble(el, delay){
+  var final_ = el.textContent; el.textContent = '';
+  if (R) { el.textContent = final_; return; }
+  var frame = 0, resolved = 0, len = final_.length;
+  el.style.opacity = '1';
+  setTimeout(function tick(){
+    var out = '';
+    for (var i=0;i<len;i++){
+      if (i < resolved) out += final_[i];
+      else if (final_[i] === ' ') out += ' ';
+      else out += GLYPHS[Math.floor(Math.random()*GLYPHS.length)];
+    }
+    el.textContent = out;
+    frame++;
+    if (frame % 2 === 0) resolved++;
+    if (resolved <= len) setTimeout(tick, 28);
+    else el.textContent = final_;
+  }, delay||0);
+}
+// hero on load; others on first view
+$$('#h1 [data-scramble]').forEach(function(el,i){ el.style.opacity='0'; scramble(el, 300 + i*380); });
+var sio = new IntersectionObserver(function(es){
+  es.forEach(function(e){ if(e.isIntersecting){ scramble(e.target, 60); sio.unobserve(e.target); } });
+}, {threshold:.6});
+$$('.final [data-scramble]').forEach(function(el){ sio.observe(el); });
+
+/* ── ROME RADAR — the hero canvas ─────────────────────────────────────
+   Rome as a live system: GRA ring, radial grid, the Tiber, zone nodes
+   that flare when the sweep passes. DPR-capped, pauses when hidden. */
+var cv = $('#radar'), ctx = cv.getContext('2d');
+var DPR = Math.min(devicePixelRatio||1, 1.75), W=0, H=0, CX=0, CY=0, RMAX=0;
+var mx=0, my=0;   // mouse parallax offset
+var ZONES = [
+  {a:-2.28,r:.30,n:'PRATI',s:94},   {a:-1.62,r:.44,n:'FLAMINIO',s:88},
+  {a:-1.05,r:.34,n:'PARIOLI',s:86}, {a:-.55,r:.52,n:'SAN LORENZO',s:91},
+  {a:-.10,r:.38,n:'MONTI',s:96},    {a:.42,r:.56,n:'PIGNETO',s:89},
+  {a:.95,r:.44,n:'TESTACCIO',s:92}, {a:1.48,r:.62,n:'GARBATELLA',s:87},
+  {a:2.02,r:.50,n:'OSTIENSE',s:90}, {a:2.60,r:.36,n:'TRASTEVERE',s:97},
+  {a:3.05,r:.20,n:'CENTRO',s:95},   {a:-2.85,r:.60,n:'AURELIO',s:84}
+];
+var YS = .78; // vertical squash → radar-dish perspective
+function resize(){
+  W = innerWidth; H = $('.hero').offsetHeight;
+  cv.width = W*DPR; cv.height = H*DPR; ctx.setTransform(DPR,0,0,DPR,0,0);
+  CX = W*(innerWidth<860 ? .5 : .66); CY = H*.46;
+  RMAX = Math.min(W,H)*(innerWidth<860 ? .52 : .46);
+}
+function pt(a,r){ return [CX + Math.cos(a)*r*RMAX + mx, CY + Math.sin(a)*r*RMAX*YS + my]; }
+var sweep = 0, t0 = 0;
+function draw(now){
+  if (!t0) t0 = now;
+  var t = (now-t0)/1000;
+  sweep = (t*.5) % (Math.PI*2) - Math.PI;
+  ctx.clearRect(0,0,W,H);
+
+  // radial grid
+  ctx.strokeStyle = 'rgba(255,215,0,.07)'; ctx.lineWidth = 1;
+  for (var i=0;i<24;i++){
+    var a = i/24*Math.PI*2, p0 = pt(a,.06), p1 = pt(a,1);
+    ctx.globalAlpha = i%2 ? .45 : 1;
+    ctx.beginPath(); ctx.moveTo(p0[0],p0[1]); ctx.lineTo(p1[0],p1[1]); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  // rings (GRA outermost, brighter)
+  for (var k=1;k<=5;k++){
+    var rr = k/5;
+    ctx.strokeStyle = k===5 ? 'rgba(255,215,0,.22)' : 'rgba(255,215,0,.09)';
+    ctx.lineWidth = k===5 ? 1.4 : 1;
+    ctx.beginPath(); ctx.ellipse(CX+mx, CY+my, rr*RMAX, rr*RMAX*YS, 0, 0, Math.PI*2); ctx.stroke();
+  }
+  // the Tiber — engraved S-curve through the dish
+  ctx.strokeStyle = 'rgba(120,200,255,.20)'; ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  var tp0 = pt(-2.0,1.02), tc1 = pt(-2.4,.4), tc2 = pt(.6,.28), tp1 = pt(1.75,1.02);
+  ctx.moveTo(tp0[0],tp0[1]); ctx.bezierCurveTo(tc1[0],tc1[1],tc2[0],tc2[1],tp1[0],tp1[1]); ctx.stroke();
+
+  // sweep beam (skip when reduced motion → static frame)
+  if (!R) {
+    var grad = ctx.createConicGradient ? ctx.createConicGradient(sweep, CX+mx, CY+my) : null;
+    if (grad){
+      grad.addColorStop(0,'rgba(255,215,0,.16)');
+      grad.addColorStop(.08,'rgba(255,215,0,.05)');
+      grad.addColorStop(.16,'rgba(255,215,0,0)');
+      grad.addColorStop(1,'rgba(255,215,0,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.ellipse(CX+mx, CY+my, RMAX, RMAX*YS, 0, 0, Math.PI*2); ctx.fill();
+    }
+    // beam edge
+    var bp = pt(sweep,1);
+    ctx.strokeStyle = 'rgba(255,215,0,.5)'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(CX+mx,CY+my); ctx.lineTo(bp[0],bp[1]); ctx.stroke();
+  }
+
+  // zone nodes
+  ctx.font = '10px "JetBrains Mono",monospace'; ctx.textBaseline = 'middle';
+  ZONES.forEach(function(z){
+    var p = pt(z.a, z.r);
+    // angular distance from sweep
+    var d = Math.abs(((z.a - sweep + Math.PI*3) % (Math.PI*2)) - Math.PI);
+    var hot = R ? .55 : Math.max(0, 1 - d/1.1);
+    // node
+    ctx.fillStyle = 'rgba(255,215,0,' + (.35 + hot*.65) + ')';
+    ctx.beginPath(); ctx.arc(p[0],p[1], 2 + hot*2.2, 0, Math.PI*2); ctx.fill();
+    if (hot > .25){
+      ctx.strokeStyle = 'rgba(255,215,0,' + (hot*.5) + ')';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(p[0],p[1], 7 + (1-hot)*16, 0, Math.PI*2); ctx.stroke();
+    }
+    if (hot > .45){
+      ctx.fillStyle = 'rgba(245,245,242,' + Math.min(.9,hot) + ')';
+      ctx.fillText(z.n, p[0]+12, p[1]-6);
+      ctx.fillStyle = 'rgba(0,255,136,' + Math.min(.9,hot) + ')';
+      ctx.fillText('MATCH ' + z.s + '%', p[0]+12, p[1]+8);
+    }
+  });
+
+  // core
+  ctx.fillStyle = 'rgba(255,215,0,.9)';
+  ctx.beginPath(); ctx.arc(CX+mx, CY+my, 3.2, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,215,0,.35)';
+  ctx.beginPath(); ctx.arc(CX+mx, CY+my, 8 + Math.sin(t*2.4)*2.5, 0, Math.PI*2); ctx.stroke();
+
+  if (!R && !document.hidden) raf = requestAnimationFrame(draw);
+}
+var raf = 0;
+resize(); addEventListener('resize', function(){ resize(); if (R) draw(performance.now()); }, {passive:true});
+if (R) draw(performance.now()); else raf = requestAnimationFrame(draw);
+document.addEventListener('visibilitychange', function(){
+  if (document.hidden) { cancelAnimationFrame(raf); }
+  else if (!R) { t0 = 0; raf = requestAnimationFrame(draw); }
+});
+if (matchMedia('(hover:hover)').matches){
+  addEventListener('mousemove', function(e){
+    mx = (e.clientX/innerWidth - .5) * 18;
+    my = (e.clientY/innerHeight - .5) * 12;
+  }, {passive:true});
+}
+
+/* ── terminal — the pipeline running a real deal ── */
+var SCRIPT = [
+  ['cmd','$ boom find --zone trastevere --budget 1800 --beds 1'],
+  ['dim','  boom/os v2.0 — market radar'],
+  ['p','  SCANNING  immobiliare · idealista · off-market · alerts'],
+  ['p','  ......... 2,847 listings swept'],
+  ['y','  FILTER    agency dupes removed .............. −2,371'],
+  ['y','  FILTER    fake / stale listings rejected ....... −409'],
+  ['g','  MATCH     67 candidates → 6 above threshold'],
+  ['cmd','$ boom verify UNIT_0134'],
+  ['p','  VIDEO     filmed on site ✓   floorplan ✓   metered 40m² ✓'],
+  ['p','  LANDLORD  identity ✓   title deed ✓   price history ✓'],
+  ['g','  VERIFIED  unit is real. price is final.'],
+  ['cmd','$ boom execute --contract transitional --sign magic-link'],
+  ['p','  CONTRACT  generated (L.431/98) · EN+IT ........... ✓'],
+  ['p','  SIGNATURE tenant ✓ landlord ✓ · deposit escrowed . ✓'],
+  ['p','  PAYMENT   stripe checkout ...................... ✓'],
+  ['g','  KEYS      wallet pass issued → move-in in 41h 12m'],
+  ['dim','  pipeline complete. next sweep in 00:14:59 …']
+];
+var tb = $('#termBody'), started = false;
+function runTerm(){
+  if (started) return; started = true;
+  tb.innerHTML = '';
+  var pipeSteps = $$('.pipe-step');
+  var stepAt = {0:0, 7:1, 11:2, 15:3};   // script line → pipeline stage
+  var i = 0;
+  (function line(){
+    if (i >= SCRIPT.length){
+      var end = document.createElement('span');
+      end.className = 'ln c-cmd'; end.innerHTML = '$ <span class="caret"></span>';
+      tb.appendChild(end);
+      setTimeout(function(){ started = false; runTerm(); }, 9000); // loop
+      return;
+    }
+    if (stepAt[i] != null) pipeSteps.forEach(function(s,si){ s.classList.toggle('on', si <= stepAt[i]); });
+    var _ = SCRIPT[i], cls = _[0], txt = _[1];
+    var el = document.createElement('span');
+    el.className = 'ln c-' + cls;
+    tb.appendChild(el);
+    if (R) { el.textContent = txt; i++; line(); return; }
+    var j = 0, isCmd = cls === 'cmd';
+    (function type(){
+      el.textContent = txt.slice(0, ++j);
+      if (j < txt.length) setTimeout(type, isCmd ? 26 : 6);
+      else { i++; setTimeout(line, isCmd ? 350 : 130); }
+    })();
+    // keep newest lines visible
+    tb.parentNode && (tb.scrollTop = tb.scrollHeight);
+  })();
+}
+var tio = new IntersectionObserver(function(es){
+  es.forEach(function(e){ if(e.isIntersecting){ runTerm(); tio.disconnect(); } });
+}, {threshold:.35});
+tio.observe($('#term'));
+
+/* ── telemetry count-up ── */
+function countUp(el){
+  var txt = el.textContent.trim(), m = txt.match(/^(\D*)(\d+)(.*)$/s);
+  if (!m || R) return;
+  var end = parseInt(m[2],10), t0 = performance.now();
+  (function tick(now){
+    var p = Math.min(1,(now-t0)/1200), e = 1-Math.pow(1-p,3);
+    el.textContent = m[1] + Math.round(end*e) + m[3];
+    if (p<1) requestAnimationFrame(tick); else el.textContent = txt;
+  })(t0);
+}
+var co = new IntersectionObserver(function(es){
+  es.forEach(function(e){ if(e.isIntersecting){ countUp(e.target); co.unobserve(e.target); } });
+}, {threshold:.5});
+$$('[data-count]').forEach(function(el){ co.observe(el); });
+
+/* units-live gentle drift (feels alive, stays honest ±2) */
+var tu = $('#tUnits'), base = 34;
+if (tu && !R) setInterval(function(){
+  var v = base + (Math.random()<.5?0:(Math.random()<.5?-1:1));
+  tu.textContent = v;
+}, 6000);
+
+/* ── ticker duplicate for seamless loop ── */
+var tin = $('#tickerIn'); tin.innerHTML += tin.innerHTML;
+})();
+</script>
+</body>
+</html>
