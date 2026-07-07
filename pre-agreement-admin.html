@@ -46,6 +46,30 @@ h1{font-weight:200;font-size:24px;margin-bottom:4px}
 .obtn.wa{border-color:rgba(37,211,102,.4);color:#25D366}
 .load{text-align:center;padding:80px 20px;color:var(--t3)}
 @media(prefers-reduced-motion:no-preference){.gbtn:active,.obtn:active{transform:scale(.98)}}
+/* ── management console: every pre-agreement, its state, its actions ── */
+.palist{margin-top:26px}
+.palist h2{font-size:10.5px;letter-spacing:2.2px;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:12px}
+.parow{border:1px solid var(--line);border-radius:14px;background:var(--card);padding:14px 15px;margin-bottom:10px}
+.parow .top{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.parow .who{font-size:14.5px;color:var(--t1)}
+.parow .addr{font-size:12.5px;color:var(--t3);width:100%;margin-top:2px}
+.parow .meta{font-size:11.5px;color:var(--t3);margin-top:7px}
+.parow .meta b{color:var(--t2);font-weight:500}
+.parow .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.pbtn{border:1px solid var(--line);border-radius:100px;padding:7px 13px;font-size:11.5px;color:var(--t2);background:none;transition:.2s;text-decoration:none;display:inline-flex;align-items:center;gap:5px}
+.pbtn:hover{border-color:var(--line-gold);color:var(--gold)}
+.pbtn.warn:hover{border-color:rgba(255,120,90,.5);color:#ff8a70}
+.chip{font-size:9.5px;letter-spacing:1.4px;text-transform:uppercase;border-radius:100px;padding:4px 10px;font-weight:600}
+.chip.sent{color:var(--t2);border:1px solid var(--line)}
+.chip.viewed{color:var(--gold-light);border:1px solid var(--line-gold)}
+.chip.accepted{color:var(--green);border:1px solid rgba(61,220,151,.35)}
+.chip.paid{color:#1a1407;background:linear-gradient(180deg,var(--gold-light),var(--gold))}
+.chip.revoked{color:var(--t4);border:1px solid var(--line);text-decoration:line-through}
+.editbar{display:none;border:1px solid var(--line-gold);background:var(--gold-faint);border-radius:12px;padding:11px 14px;margin-bottom:14px;font-size:12.5px;color:var(--gold-light)}
+.editbar b{color:var(--gold)}
+.editbar button{color:var(--t2);text-decoration:underline;font-size:12px;margin-left:10px}
+.nextstep{font-size:11px;color:var(--t3);margin-top:8px;padding-top:8px;border-top:1px solid var(--line-soft)}
+.nextstep a{color:var(--gold);text-decoration:none}
 </style>
 </head>
 <body>
@@ -54,8 +78,10 @@ h1{font-weight:200;font-size:24px;margin-bottom:4px}
 <main>
   <div class="load" id="load">Checking access…</div>
   <div id="app" style="display:none">
-    <h1>New pre-agreement</h1>
+    <h1 id="pageH">New pre-agreement</h1>
     <p class="sub">Fill the deal — the client self-completes their identity and signs from the link. Your work ends here.</p>
+
+    <div class="editbar" id="editbar">✎ Editing <b id="editRef">—</b> — saving updates the <b>same link</b> the client already has.<button onclick="cancelEdit()">Cancel</button></div>
 
     <div class="card"><h2>Property &amp; landlord</h2>
       <label class="fld"><span>Prefill from listing</span><select id="fList"><option value="">— manual —</option></select></label>
@@ -111,6 +137,11 @@ h1{font-weight:200;font-size:24px;margin-bottom:4px}
         <a class="obtn" id="rOpen" target="_blank" rel="noopener">Open preview →</a>
       </div>
     </div>
+
+    <div class="palist" id="palist" style="display:none">
+      <h2>All pre-agreements</h2>
+      <div id="paRows"></div>
+    </div>
   </div>
 </main>
 
@@ -134,37 +165,125 @@ function mathLine(){
 }
 ['fRent','fDepM','fFeePct','fVatPct','fDue'].forEach(function(id){document.addEventListener('input',function(e){if(e.target.id===id)mathLine();});});
 
+/* edit mode: EDIT_ID + EDIT_TOKEN set → saving PATCHES the same doc, so the
+   client's existing link shows the updated terms. Derivations (deposit, fee,
+   VAT, end date with month-end clamp) mirror api/preagreement/create.js. */
+var EDIT_ID=null,EDIT_TOKEN=null;
+function endDateISO(startISO,months){var d=new Date(startISO+'T00:00:00');var day=d.getDate();d.setMonth(d.getMonth()+months);if(d.getDate()!==day)d.setDate(0);else d.setDate(d.getDate()-1);return d.toISOString().slice(0,10);}
+function readForm(){
+  var rent=+$('fRent').value||0,dm=+$('fDepM').value||0,fp=+$('fFeePct').value||0,vp=+$('fVatPct').value||0;
+  var deposit=Math.round(rent*dm*100)/100,fee=Math.round(rent*12*fp)/100,feeVat=Math.round(fee*vp)/100;
+  var months=Math.max(1,Math.min(48,+$('fMonths').value||12)),start=$('fStart').value;
+  return{
+    listingId:$('fList').value||null,
+    property:{address:$('fAddress').value.trim(),floor:$('fFloor').value.trim()||null,unit:$('fUnit').value.trim()||null,condition:$('fCondition').value.trim()||'Furnished',type:'Entire Apartment',use:'Residential'},
+    landlord:{name:$('fLandlord').value.trim()},
+    tenant:{fullName:$('fTName').value.trim()||null,email:$('fTEmail').value.trim()||null,phone:$('fTPhone').value.trim()||null},
+    lease:{startDate:start,months:months,endDate:start?endDateISO(start,months):null,type:$('fType').value,lawRef:'uso transitorio · L.431/98 art.5 c.1',reason:$('fReason').value.trim()||null},
+    money:{rent:rent,depositMonths:dm,deposit:deposit,feePct:fp,feeVatPct:vp,fee:fee,feeVat:feeVat,feeTotal:Math.round((fee+feeVat)*100)/100,
+      dueAtSigning:$('fDue').value!==''?Math.max(0,+$('fDue').value||0):deposit},
+    note:$('fNote').value.trim()||null
+  };
+}
+function showLink(url,body){
+  $('rLink').textContent=url;$('rLink').href=url;$('rOpen').href=url;
+  var msg='Ciao'+(body.tenant.fullName?' '+body.tenant.fullName.split(' ')[0]:'')+'! Ecco il tuo pre-agreement BOOM per '+body.property.address+'. Leggilo e firmalo qui: '+url;
+  $('rWa').href='https://wa.me/'+(body.tenant.phone?body.tenant.phone.replace(/[^\d]/g,''):'')+'?text='+encodeURIComponent(msg);
+  $('result').style.display='block';$('result').scrollIntoView({behavior:'smooth',block:'center'});
+}
 window.createPA=async function(){
   var err=$('fErr');err.style.display='none';
-  var address=$('fAddress').value.trim(),landlord=$('fLandlord').value.trim(),start=$('fStart').value,rent=+$('fRent').value||0;
-  if(!address||!landlord||!start||rent<=0){err.textContent='Address, landlord, start date and rent are required.';err.style.display='block';return;}
-  var btn=$('goBtn');btn.disabled=true;btn.textContent='Creating…';
+  var body=readForm();
+  if(!body.property.address||!body.landlord.name||!body.lease.startDate||body.money.rent<=0){err.textContent='Address, landlord, start date and rent are required.';err.style.display='block';return;}
+  var btn=$('goBtn');btn.disabled=true;btn.textContent=EDIT_ID?'Saving…':'Creating…';
   try{
-    var tok=await USER.getIdToken();
-    var sel=$('fList').value;
-    var body={
-      listingId:sel||null,
-      property:{address:address,floor:$('fFloor').value.trim()||null,unit:$('fUnit').value.trim()||null,condition:$('fCondition').value.trim()||'Furnished'},
-      landlord:{name:landlord},
-      tenant:{fullName:$('fTName').value.trim()||null,email:$('fTEmail').value.trim()||null,phone:$('fTPhone').value.trim()||null},
-      lease:{startDate:start,months:+$('fMonths').value||12,type:$('fType').value,reason:$('fReason').value.trim()||null},
-      money:{rent:rent,depositMonths:+$('fDepM').value||0,feePct:+$('fFeePct').value||0,feeVatPct:+$('fVatPct').value||0,
-        dueAtSigning:$('fDue').value!==''?+$('fDue').value:null},
-      note:$('fNote').value.trim()||null
-    };
-    if(body.money.dueAtSigning==null)delete body.money.dueAtSigning;
-    var r=await fetch('/api/preagreement/create',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify(body)});
-    var j=await r.json();
-    if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
-    var url=location.origin+j.url;
-    $('rLink').textContent=url;$('rLink').href=url;$('rOpen').href=url;
-    var msg='Ciao'+(body.tenant.fullName?' '+body.tenant.fullName.split(' ')[0]:'')+'! Ecco il tuo pre-agreement BOOM per '+address+'. Leggilo e firmalo qui: '+url;
-    $('rWa').href='https://wa.me/'+(body.tenant.phone?body.tenant.phone.replace(/[^\d]/g,''):'')+'?text='+encodeURIComponent(msg);
-    $('result').style.display='block';$('result').scrollIntoView({behavior:'smooth',block:'center'});
-  }catch(e){err.textContent='Could not create the link — '+(e.message||'try again')+'.';err.style.display='block';}
-  btn.disabled=false;btn.textContent='Create pre-agreement link →';
+    if(EDIT_ID){
+      /* update in place — same token, same link, status back to sent */
+      await firebase.firestore().collection('preAgreements').doc(EDIT_ID).update({
+        listingId:body.listingId,property:body.property,landlord:body.landlord,tenant:body.tenant,
+        lease:body.lease,money:body.money,note:body.note,
+        status:'sent',updatedAt:new Date().toISOString(),updatedBy:USER.email||USER.uid
+      });
+      var url=location.origin+'/pre-agreement?t='+EDIT_TOKEN;
+      cancelEdit();showLink(url,body);
+    }else{
+      var tok=await USER.getIdToken();
+      var payload=JSON.parse(JSON.stringify(body));
+      delete payload.property.type;delete payload.property.use;delete payload.lease.endDate;delete payload.lease.lawRef;
+      delete payload.money.deposit;delete payload.money.fee;delete payload.money.feeVat;delete payload.money.feeTotal;
+      var r=await fetch('/api/preagreement/create',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify(payload)});
+      var j=await r.json();
+      if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
+      showLink(location.origin+j.url,body);
+    }
+  }catch(e){err.textContent='Could not save — '+(e.message||'try again')+'.';err.style.display='block';}
+  btn.disabled=false;btn.textContent=EDIT_ID?'Save changes to this link →':'Create pre-agreement link →';
 };
 window.copyLink=function(){try{navigator.clipboard.writeText($('rLink').textContent);}catch(e){}};
+
+/* ── management console ── */
+var PAS=[];
+function fillForm(d){
+  $('fAddress').value=(d.property||{}).address||'';$('fFloor').value=(d.property||{}).floor||'';
+  $('fUnit').value=(d.property||{}).unit||'';$('fCondition').value=(d.property||{}).condition||'Furnished';
+  $('fLandlord').value=(d.landlord||{}).name||'';
+  $('fStart').value=(d.lease||{}).startDate||'';$('fMonths').value=(d.lease||{}).months||12;
+  try{$('fType').value=(d.lease||{}).type||'Transitional Lease'}catch(e){}
+  $('fReason').value=(d.lease||{}).reason||'';
+  $('fRent').value=(d.money||{}).rent||'';$('fDepM').value=(d.money||{}).depositMonths!=null?(d.money||{}).depositMonths:1;
+  $('fFeePct').value=(d.money||{}).feePct!=null?(d.money||{}).feePct:12;$('fVatPct').value=(d.money||{}).feeVatPct!=null?(d.money||{}).feeVatPct:22;
+  $('fDue').value=(d.money||{}).dueAtSigning!=null?(d.money||{}).dueAtSigning:'';
+  $('fNote').value=d.note||'';
+  $('fTName').value=(d.tenant||{}).fullName||'';$('fTEmail').value=(d.tenant||{}).email||'';$('fTPhone').value=(d.tenant||{}).phone||'';
+  mathLine();window.scrollTo({top:0,behavior:'smooth'});
+}
+window.editPA=function(id){
+  var d=PAS.find(function(x){return x.id===id});if(!d)return;
+  EDIT_ID=id;EDIT_TOKEN=d.token;
+  $('editbar').style.display='block';$('editRef').textContent=d.ref||((d.tenant||{}).fullName||(d.property||{}).address||id);
+  $('pageH').textContent='Edit pre-agreement';$('goBtn').textContent='Save changes to this link →';
+  fillForm(d);
+};
+window.cancelEdit=function(){EDIT_ID=null;EDIT_TOKEN=null;$('editbar').style.display='none';$('pageH').textContent='New pre-agreement';$('goBtn').textContent='Create pre-agreement link →';};
+window.dupPA=function(id){var d=PAS.find(function(x){return x.id===id});if(!d)return;cancelEdit();fillForm(d);};
+window.revokePA=async function(id,undo){
+  try{await firebase.firestore().collection('preAgreements').doc(id).update({status:undo?'sent':'revoked',updatedAt:new Date().toISOString()});}catch(e){alert('Could not update: '+e.message);}
+};
+window.copyPaLink=function(tok){try{navigator.clipboard.writeText(location.origin+'/pre-agreement?t='+tok);}catch(e){}};
+function paRow(d){
+  var st=(d.status||'sent'),m=d.money||{},t=d.tenant||{},url=location.origin+'/pre-agreement?t='+d.token;
+  var when=(d.createdAt||'').slice(0,10);
+  var views=Array.isArray(d.views)?d.views.length:0;
+  var editable=(st==='sent'||st==='viewed'||st==='revoked');
+  var wa=t.phone?('https://wa.me/'+String(t.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent('Ciao'+(t.fullName?' '+t.fullName.split(' ')[0]:'')+'! Ecco il tuo pre-agreement BOOM: '+url)):null;
+  return '<div class="parow">'
+    +'<div class="top"><span class="chip '+st+'">'+st+(st==='paid'&&d.paidEur?' '+eur(d.paidEur):'')+'</span>'
+    +'<span class="who">'+((t.fullName||'—').replace(/</g,'&lt;'))+'</span>'
+    +(d.ref?'<span style="font-size:11px;color:var(--t3);letter-spacing:1px">'+d.ref+'</span>':'')
+    +'<div class="addr">'+(((d.property||{}).address||'').replace(/</g,'&lt;'))+'</div></div>'
+    +'<div class="meta">Rent <b>'+eur(m.rent||0)+'</b> · due at signing <b>'+eur(m.dueAtSigning||0)+'</b> · '+((d.lease||{}).months||'—')+' mo from '+(((d.lease||{}).startDate)||'—')+' · created '+when+(views?' · '+views+' view'+(views>1?'s':''):'')+'</div>'
+    +'<div class="acts">'
+    +'<button class="pbtn" onclick="copyPaLink(\''+d.token+'\')">Copy link</button>'
+    +'<a class="pbtn" href="'+url+'" target="_blank" rel="noopener">Open</a>'
+    +(wa?'<a class="pbtn" href="'+wa+'" target="_blank" rel="noopener">WhatsApp</a>':'')
+    +(editable?'<button class="pbtn" onclick="editPA(\''+d.id+'\')">✎ Edit terms</button>':'')
+    +'<button class="pbtn" onclick="dupPA(\''+d.id+'\')">Duplicate</button>'
+    +(st==='revoked'?'<button class="pbtn" onclick="revokePA(\''+d.id+'\',true)">Reactivate</button>'
+      :(st!=='paid'&&st!=='accepted'?'<button class="pbtn warn" onclick="revokePA(\''+d.id+'\')">Revoke</button>':''))
+    +'</div>'
+    +((st==='accepted'||st==='paid')?'<div class="nextstep">Next step → create the rental contract in the <a href="/portal.html" target="_blank" rel="noopener">portal</a> and send it for signature with <b>Magic Sign</b>. '+(st==='accepted'&&(m.dueAtSigning||0)>0?'<span style="color:var(--gold-light)">Payment still pending.</span>':'')+'</div>':'')
+    +'</div>';
+}
+function watchPAs(){
+  try{
+    firebase.firestore().collection('preAgreements').orderBy('createdAt','desc').limit(100)
+      .onSnapshot(function(snap){
+        PAS=[];snap.forEach(function(doc){var v=doc.data();v.id=doc.id;PAS.push(v);});
+        $('palist').style.display=PAS.length?'block':'none';
+        $('paRows').innerHTML=PAS.map(paRow).join('');
+      },function(e){console.warn('pa list',e);});
+  }catch(e){}
+}
 
 function fillFromListing(id){
   var l=LISTINGS.find(function(x){return x.id===id});if(!l)return;
@@ -178,6 +297,7 @@ function fillFromListing(id){
 BoomPortal.requireAuth(['admin','owner','landlord'],{loginUrl:'/login.html?next=%2Fpre-agreement-admin'}).then(function(res){
   USER=res.user;
   $('load').style.display='none';$('app').style.display='';
+  watchPAs();
   var d=new Date();d.setDate(d.getDate()+14);$('fStart').value=d.toISOString().slice(0,10);
   try{
     firebase.firestore().collection('listings').limit(100).get().then(function(snap){

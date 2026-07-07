@@ -11,6 +11,7 @@
 
 import Stripe from 'stripe';
 import { fsList, fsPatch, readJson, logActivity } from '../homie/_lib.js';
+import { sendPaEmails } from './_notify.js';
 
 const clip = (v, n = 200) => (v == null ? null : String(v).trim().slice(0, n) || null);
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -96,6 +97,19 @@ export default async function handler(req, res) {
         console.error('[preagreement/submit] stripe failed:', e.message);
       }
     }
+
+    // Confirmation emails (best-effort, never blocks the client):
+    // - nothing due via Stripe → client gets the document email now + admin copy
+    // - payment expected      → admin heads-up only; the client's document +
+    //                           receipt email arrives from the Stripe webhook
+    try {
+      await sendPaEmails({
+        pa: { ...data, tenant },
+        ref, url: '/pre-agreement?t=' + token,
+        event: 'accepted',
+        notifyClient: !(due > 0 && checkoutUrl),
+      });
+    } catch (e) { console.error('[preagreement/submit] emails failed:', e.message); }
 
     return res.status(200).json({ ok: true, ref, checkoutUrl });
   } catch (e) {
