@@ -155,7 +155,7 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 .titlewrap{margin-top:22px;display:flex;flex-wrap:wrap;gap:14px 24px;align-items:flex-end;justify-content:space-between}
 .titlewrap h1{font-size:clamp(27px,6vw,46px);font-weight:200;letter-spacing:-1px}
 .loc{margin-top:10px;color:var(--t2);font-size:14px;display:flex;align-items:center;gap:9px;flex-wrap:wrap}.loc .d{color:var(--gold)}
-.price-inline{text-align:right}.price-inline b{font-family:var(--disp);font-size:clamp(24px,5vw,34px);font-weight:200;color:var(--gold);display:block;line-height:1}.price-inline small{font-size:12.5px;color:var(--t3)}
+.price-inline{text-align:right}@media(max-width:640px){.titlewrap{flex-direction:column;align-items:flex-start;gap:10px}.price-inline{text-align:left;display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}.price-inline b{display:inline}.price-inline small{font-size:12px}}.price-inline b{font-family:var(--disp);font-size:clamp(24px,5vw,34px);font-weight:200;color:var(--gold);display:block;line-height:1}.price-inline small{font-size:12.5px;color:var(--t3)}
 
 /* ── FACTS strip (scroll on mobile, grid on desktop) ── */
 .facts{margin-top:20px;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(116px,1fr);gap:10px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
@@ -1232,12 +1232,12 @@ const NBICO={'🚇':'train','🎓':'cap','🛒':'cart','🏛️':'landmark','�
 function paintData(){
   IMGS=(L.images||[]).map((e,i)=>Array.isArray(e)
     ?{thumb:img(e[0],1200),full:img(e[0],1600,82),alt:e[1]}
-    :{thumb:i===0?imgSized(e,'h'):imgSized(e,'l'),full:e,alt:(L.name+' — photo '+(i+1))});
+    :{thumb:imgOpt(e,i===0?1080:640,i===0?75:72),mid:i===0?imgSized(e,'h'):imgSized(e,'l'),full:e,alt:(L.name+' — photo '+(i+1))});
   const NOPHOTO=!IMGS.length;
   if(NOPHOTO)IMGS=[{thumb:'',full:'',alt:L.name,empty:true}];
   track.innerHTML=IMGS.map((im,i)=>im.empty
     ?`<div class="slide" style="display:grid;place-items:center"><div style="text-align:center;color:var(--t3)"><div style="font-size:26px;margin-bottom:8px;color:var(--gold)">◆</div><div style="font-size:12px;letter-spacing:2px;text-transform:uppercase">Photos coming soon</div><div style="font-size:11px;margin-top:5px">Ask us for the video tour</div></div></div>`
-    :`<div class="slide"><img src="${im.thumb}" alt="${im.alt}" loading="${i===0?'eager':'lazy'}" decoding="async"${i===0?' fetchpriority="high"':' data-blur-up'} onerror="this.onerror=null;this.src='${im.full.replace(/'/g,'')}'" onclick="openLb(${i})"></div>`).join('');
+    :`<div class="slide"><img src="${im.thumb}" alt="${im.alt}" loading="${i===0?'eager':'lazy'}" decoding="async"${i===0?' fetchpriority="high"':' data-blur-up'} onerror="if(this.dataset.f1){this.onerror=null;this.src=this.dataset.f2}else{this.dataset.f1=1;this.src=this.dataset.f1s}" data-f1s="${(im.mid||im.full).replace(/"/g,'')}" data-f2="${im.full.replace(/"/g,'')}" onclick="openLb(${i})"></div>`).join('');
   /* video tour: real chip when the listing carries one */
   const vId=exYT(L.video);
   const vb=document.querySelector('.vbadge');

@@ -632,6 +632,7 @@ const persist=()=>{try{localStorage.setItem('boom:saved',JSON.stringify([...save
 const eur=n=>'€'+Math.round(n).toLocaleString('en-US');
 const parseD=s=>new Date(s+'T00:00');
 const fmtS=s=>parseD(s).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+const imgOpt=(u,w,q)=>{u=String(u||'');if(!/^https?:\/\//.test(u))return u;return '/_vercel/image?url='+encodeURIComponent(u)+'&w='+(w||640)+'&q='+(q||72);};
 const imgSized=(u,s)=>{u=String(u||'');if(!/i\.imgur\.com/.test(u))return u;return u.replace(/(\/[A-Za-z0-9]{7})(\.(?:jpe?g|png|webp))/i,'$1'+s+'$2');};
 const byId=id=>L.find(x=>x.id===id);
 
@@ -714,7 +715,7 @@ function cardHTML(l){
   const showFit=(S.sort==='match'||S.budgetMax<4000||S.moveIn||S.zones.length);
   const alt=(l.name+' — '+l.zone).replace(/"/g,'');
   return `<a class="pc" data-id="${l.id}" href="/listing/${encodeURIComponent(l.id)}" aria-label="${alt}, ${eur(l.price)} per month">
-    <div class="ph">${l.img?`<img src="${imgSized(l.img,'l')}" alt="${alt}" loading="lazy" decoding="async" data-blur-up onerror="if(this.src!=='${(l.img||'').replace(/'/g,'')}'&&'${(l.img||'').replace(/'/g,'')}'){this.src='${(l.img||'').replace(/'/g,'')}'}else{this.style.opacity=0}">`:`<div style="position:absolute;inset:0;display:grid;place-items:center;color:var(--t4)"><div style="text-align:center"><div style="color:var(--gold);font-size:22px;margin-bottom:6px">◆</div><div style="font-size:10px;letter-spacing:2px;text-transform:uppercase">Photos coming soon</div></div></div>`}
+    <div class="ph">${l.img?`<img src="${imgOpt(l.img,640)}" alt="${alt}" loading="lazy" decoding="async" data-blur-up onerror="if(!this.dataset.f1){this.dataset.f1=1;this.src=this.dataset.fs}else if(!this.dataset.f2){this.dataset.f2=1;this.src=this.dataset.fo}else{this.style.opacity=0}" data-fs="${imgSized(l.img,'l').replace(/"/g,'')}" data-fo="${(l.img||'').replace(/"/g,'')}">`:`<div style="position:absolute;inset:0;display:grid;place-items:center;color:var(--t4)"><div style="text-align:center"><div style="color:var(--gold);font-size:22px;margin-bottom:6px">◆</div><div style="font-size:10px;letter-spacing:2px;text-transform:uppercase">Photos coming soon</div></div></div>`}
       <div class="badges">${l.videoUrl?'<span class="bdg video">▶ Video</span>':''}${l.isNew?'<span class="bdg new">New</span>':''}<span class="bdg avail">✓ Verified</span>${over?'<span class="bdg over">€'+Math.round(l.price-S.budgetMax)+' over</span>':''}</div>
       <div class="acts"><button class="iact${saved.has(l.id)?' on':''}" aria-pressed="${saved.has(l.id)}" onclick="event.preventDefault();event.stopPropagation();toggleSave('${l.id}',this)" aria-label="Save">♡</button><button class="iact cmp${cmp.has(l.id)?' on':''}" aria-pressed="${cmp.has(l.id)}" onclick="event.preventDefault();event.stopPropagation();toggleCmp('${l.id}',this)" aria-label="Add to compare">⇄</button></div>
       ${showFit?`<button type="button" class="fit" aria-expanded="false" aria-label="Why ${sp.score} percent fit" onclick="event.preventDefault();event.stopPropagation();toggleFit(this)">${sp.score}% fit</button>
