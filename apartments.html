@@ -643,7 +643,7 @@ function mapReal(d,i){
     price:+d.price||0,beds:(d.beds!=null?+d.beds:(d.bedrooms!=null?+d.bedrooms:0)),baths:(d.bathrooms!=null?+d.bathrooms:(d.baths!=null?+d.baths:1)),
     sqm:+d.sqm||+d.size||0,availableFrom:af,features:feat.length?feat:(has('furnish')?['Furnished']:[]),
     status:((d.status||d.availabilityStatus||'available')+'').toLowerCase(),videoUrl:!!(d.videoUrl||d.youtubeUrl),createdAt:_cms,isNew:_cms>1e12&&(Date.now()-_cms)<14*86400,img:imgs[0]||'',
-    lat:+d.lat||0,lng:+d.lng||0};
+    lat:+d.lat||0,lng:+d.lng||0,geoZone:!!(d.geo&&d.geo.src==='zone')};
 }
 function isRentable(d){var s=((d.status||d.availabilityStatus||'')+'').toLowerCase();return !(s==='rented'||s==='affittato'||s==='off_market'||s==='draft'||s==='hidden');}
 
@@ -880,8 +880,9 @@ function plotMarks(list){_marks.forEach(m=>m.remove());_marks=[];closeBlock(true
   if(!_dmap)return;
   var seen={},pts=[];
   list.forEach(function(l){
-    var exact=(l.lat&&l.lng);
-    var co=exact?[l.lng,l.lat]:zoneCoordD(l);
+    var hasCo=(l.lat&&l.lng);
+    var exact=hasCo&&!l.geoZone;              // baked zone-centroids are NOT building-exact
+    var co=hasCo?[l.lng,l.lat]:zoneCoordD(l);
     if(!co)return;
     if(!exact){var key=co[0].toFixed(3)+','+co[1].toFixed(3),n=seen[key]||0;seen[key]=n+1;
       if(n>0){var ang=n*2.39996323,rad=0.0017*Math.sqrt(n);co=[co[0]+rad*Math.cos(ang),co[1]+rad*Math.sin(ang)];}}
