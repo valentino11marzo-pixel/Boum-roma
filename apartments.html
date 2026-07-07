@@ -284,9 +284,8 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
   @keyframes skyPing{0%,100%{box-shadow:0 0 0 0 rgba(255,215,0,.5)}50%{box-shadow:0 0 0 6px rgba(255,215,0,0)}}
 }
 /* ── zone picker: search without typing ── */
-.isearch{position:relative}
-.zpick{position:absolute;left:0;right:-120px;top:calc(100% + 8px);z-index:70;background:rgba(10,10,13,.96);backdrop-filter:blur(20px);border:1px solid var(--line-gold);border-radius:16px;padding:14px 15px;box-shadow:0 26px 70px rgba(0,0,0,.6);display:none}
-@media(max-width:720px){.zpick{right:0}}
+.isearch{position:relative;z-index:230}
+.zpick{position:absolute;left:0;right:0;top:calc(100% + 8px);z-index:240;background:rgba(10,10,13,.97);backdrop-filter:blur(20px);border:1px solid var(--line-gold);border-radius:16px;padding:14px 15px;box-shadow:0 26px 70px rgba(0,0,0,.65);display:none;max-height:46vh;overflow:auto}
 .zpick.show{display:block;animation:zpIn .3s var(--ease) both}
 @keyframes zpIn{0%{opacity:0;transform:translateY(6px)}100%{opacity:1;transform:none}}
 .zpick .zt{font-size:9.5px;letter-spacing:2.2px;text-transform:uppercase;color:var(--gold);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
@@ -1142,6 +1141,7 @@ try{if(!localStorage.getItem('boom:sky:seen'))document.getElementById('vMap').cl
     if(box._skip){box._skip=false;return;}   /* chip taps repaint the panel — never close on them */
     if(!box.contains(e.target)&&e.target!==q)box.classList.remove('show');});
   document.addEventListener('keydown',function(e){if(e.key==='Escape')box.classList.remove('show');});
+  window.closeZpick=function(){box.classList.remove('show');};
 })();
 
 /* ---------- custom calendar ---------- */
@@ -1149,7 +1149,8 @@ let CAL={y:0,m:0};
 function _pad(n){return n<10?'0'+n:''+n;}
 function _ymd(y,m,d){return y+'-'+_pad(m+1)+'-'+_pad(d);}
 function setCalLabel(){const el=document.getElementById('calLbl');if(!el)return;el.textContent=S.moveIn?parseD(S.moveIn).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'Any date';const b=document.getElementById('calBtn');if(b)b.classList.toggle('set',!!S.moveIn);}
-function openCal(){const base=S.moveIn?parseD(S.moveIn):new Date();CAL={y:base.getFullYear(),m:base.getMonth()};buildCal();calHintFor(S.moveIn||null);
+function openCal(){try{if(window.closeZpick)closeZpick()}catch(e){}
+  const base=S.moveIn?parseD(S.moveIn):new Date();CAL={y:base.getFullYear(),m:base.getMonth()};buildCal();calHintFor(S.moveIn||null);
   const p=document.getElementById('calPop'),r=document.getElementById('calBtn').getBoundingClientRect();
   p.style.left=Math.max(8,Math.min(r.left,innerWidth-330))+'px';p.style.top=(r.bottom+8)+'px';
   p.classList.add('show');setTimeout(()=>document.addEventListener('click',calOutside,true),0);}
