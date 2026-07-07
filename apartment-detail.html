@@ -151,6 +151,20 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 .arrow.l{left:14px}.arrow.r{right:14px}
 @media(min-width:760px) and (hover:hover){.arrow{display:grid}}
 
+/* ── Editorial mosaic (desktop, 3+ photos): main cell + two large tiles; "+N photos" opens the gallery ── */
+.gtiles{display:none}
+@media(min-width:921px){
+  .gwrap.tiled{display:grid;grid-template-columns:minmax(0,2.1fr) minmax(0,1fr);gap:10px;align-items:stretch}
+  .gwrap.tiled .hero{aspect-ratio:auto;height:clamp(420px,42vw,540px)}
+  .gwrap.tiled .gtiles{display:grid;grid-template-rows:repeat(2,minmax(0,1fr));gap:10px;height:clamp(420px,42vw,540px)}
+  .gt{position:relative;border:0;padding:0;border-radius:18px;overflow:hidden;background:linear-gradient(135deg,#1a1a20,#0c0c0e);cursor:pointer;box-shadow:var(--sh)}
+  .gt img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .7s var(--ease)}
+  .gt:hover img{transform:scale(1.045)}
+  .gt .more{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(6,6,7,.52);backdrop-filter:blur(3px);color:#fff;font-size:12.5px;letter-spacing:1.6px;text-transform:uppercase;transition:background .3s}
+  .gt .more b{font-weight:500;color:var(--gold);margin-right:5px}
+  .gt:hover .more{background:rgba(6,6,7,.36)}
+}
+
 /* ── TITLE ── */
 .titlewrap{margin-top:22px;display:flex;flex-wrap:wrap;gap:14px 24px;align-items:flex-end;justify-content:space-between}
 .titlewrap h1{font-size:clamp(27px,6vw,46px);font-weight:200;letter-spacing:-1px}
@@ -270,6 +284,7 @@ body.chapters .proofs.stamped .proof:nth-child(4){transition-delay:.36s}
 .avail.ok{color:var(--green);border-color:var(--green-muted)}.avail.ok .pin{background:var(--green-muted)}
 .avail.after{color:var(--gold-light);border-color:var(--line-gold)}.avail.after .pin{background:var(--gold-muted)}
 .avail.none{color:var(--t2)}.avail.none .pin{background:var(--gold-muted);color:var(--gold)}
+.avail.wl{color:var(--gold-light);border-color:var(--line-gold);background:rgba(255,215,0,.045)}.avail.wl .pin{background:var(--gold-muted);color:var(--gold)}
 .avail small{display:block;color:var(--t3);font-size:11px;margin-top:2px}
 .srows{display:grid;gap:1px;background:var(--line);border-radius:11px;overflow:hidden;border:1px solid var(--line)}
 .srow{display:flex;justify-content:space-between;align-items:center;background:var(--card);padding:12px 14px;font-size:13px}
@@ -626,8 +641,9 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
 <div class="shell">
   <div class="crumb reveal"><a href="/apartments">Apartments</a> · <span id="cZone">Trastevere</span></div>
 
-  <!-- HERO -->
-  <section class="hero reveal" data-ambient="marmoantico">
+  <!-- HERO — mobile: swipe carousel; desktop with 3+ photos: editorial mosaic (main cell + two tiles + "+N photos") -->
+  <div class="gwrap reveal" id="gwrap">
+  <section class="hero" data-ambient="marmoantico">
     <div class="track" id="track"></div>
     <div class="hero-scrim"></div>
     <div class="hero-top">
@@ -641,6 +657,8 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
     <button class="arrow r" onclick="slideBy(1)" aria-label="Next">›</button>
     <div class="hero-foot"><div class="dots" id="dots"></div><button class="counter" id="counter" onclick="openLb(curIdx)">1 / 5 · view</button></div>
   </section>
+  <div class="gtiles" id="gtiles" aria-label="More photos"></div>
+  </div>
 
   <!-- CHAPTER RAIL (desktop) — the visit has a script: Photos → Home → Money → Location.
        A <div>, deliberately: the page's global nav{} rule (fixed, full-width, blurred
@@ -755,7 +773,7 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
           <div id="availBadge"></div>
           <div class="srows" id="srows"></div>
           <button class="gbtn" id="applyBtn" onclick="apply()">Apply →</button>
-          <button class="obtn" onclick="reserve()"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1zM8 11V7a4 4 0 0 1 8 0v4"/></svg> Request to hold · €300</button>
+          <button class="obtn" onclick="reserve()"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1zM8 11V7a4 4 0 0 1 8 0v4"/></svg> <span id="holdLbl">Request to hold · €300</span></button>
           <button class="obtn" onclick="openOv('aiOv')">✦ Ask this home</button>
           <div class="upnudge" id="upNudge"></div>
           <div class="trust"><span><span class="c">✓</span> English-speaking team</span><span><span class="c">✓</span> Registered agency · Deposit protected</span><span><span class="c">✓</span> Reply in 2h</span><a href="https://share.google/xikmVxQCRuKOdWcND" target="_blank" rel="noopener" style="color:inherit" onclick="boomTrack('reviews_view',{source_page:'listing'})"><span style="color:var(--gold)">4.9 ★</span> · 47 Google reviews</a></div>
@@ -779,7 +797,7 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
   <div class="prog"><i id="prog"></i></div>
   <div class="in"><div class="l"><b id="railP">€1,500/mo</b><small id="railS">pick your dates ↑</small></div>
     <button class="ask" onclick="openOv('aiOv')" aria-label="Ask">✦</button>
-    <button class="go" onclick="apply()">Apply</button></div>
+    <button class="go" id="railGo" onclick="apply()">Apply</button></div>
 </div>
 
 <div class="ov" id="aiOv"><div class="sheet">
@@ -867,8 +885,9 @@ function computeStay(overrideRaw){const avail=new Date(L.availableFrom+'T00:00')
 function countUp(el,to){const from=parseInt(el.dataset.cur||'0',10);const t0=performance.now();
   if(matchMedia('(prefers-reduced-motion:reduce)').matches){el.textContent=eur(to);el.dataset.cur=to;return;}
   (function step(t){const p=Math.min(1,(t-t0)/480);const e=1-Math.pow(1-p,3);el.textContent=eur(Math.round(from+(to-from)*e));if(p<1)requestAnimationFrame(step);else{el.dataset.cur=to;if(from!==to){el.classList.add('landed');setTimeout(()=>el.classList.remove('landed'),420);}}})(performance.now());}
-function render(){const s=computeStay();let av;
-  if(s.fit==='none')av=`<div class="avail none"><span class="pin"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 6h14a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2zM8 3v5m8-5v5M3 11h18"/></svg></span><div>Pick a date for real availability &amp; exact cost<small>Free from ${fmtD(s.avail)}</small></div></div>`;
+function render(){const s=computeStay();const wl=L.status==='waitlist';let av;
+  if(wl)av=`<div class="avail wl"><span class="pin">◌</span><div>Occupied — waitlist open, be first in line<small>${s.avail>new Date()?('Expected free from '+fmtD(s.avail)):'Portfolio home · rents ahead, often months in advance'}</small></div></div>`;
+  else if(s.fit==='none')av=`<div class="avail none"><span class="pin"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 6h14a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2zM8 3v5m8-5v5M3 11h18"/></svg></span><div>Pick a date for real availability &amp; exact cost<small>Free from ${fmtD(s.avail)}</small></div></div>`;
   else if(s.fit==='ok')av=`<div class="avail ok"><span class="pin">✓</span><div>Free for your date<small>You move in ${fmtD(s.start)}</small></div></div>`;
   else av=`<div class="avail after"><span class="pin">!</span><div>Free from ${fmtS(s.avail)} — ${s.gap} days after you'd like<small>We can alert you if it frees sooner</small></div></div>`;
   document.getElementById('availBadge').innerHTML=av;
@@ -881,7 +900,7 @@ function render(){const s=computeStay();let av;
     <div class="srow tot" data-key="total"><span class="k">To move in${s.fit==='none'?'':` ${fmtS(s.start)}`}</span><span class="v" id="totV">${eur(s.total)}</span></div>
     ${s.end?`<div class="srow" data-key="until"><span class="k">Stay until</span><span class="v">${fmtD(s.end)}</span></div>`:''}`;
   const tv=document.getElementById('totV');if(tv)countUp(tv,s.total);
-  document.getElementById('applyBtn').innerHTML=(s.fit==='none')?'Apply →':`Apply for ${fmtS(s.start)} →`;
+  document.getElementById('applyBtn').innerHTML=wl?'Join the waitlist →':(s.fit==='none')?'Apply →':`Apply for ${fmtS(s.start)} →`;
   const up=document.getElementById('upNudge');
   if(s.fit==='after'){up.classList.add('show');up.innerHTML=`Need it by ${fmtS(s.req)}? We can <a href="/property-finding">find one for your exact dates →</a>`;}else up.classList.remove('show');
   document.getElementById('mtiles').innerHTML=[
@@ -905,7 +924,7 @@ function render(){const s=computeStay();let av;
   });
   paintTimeline(s);
   document.getElementById('railP').textContent=(s.fit==='none')?eur(L.price)+'/mo':'Move in: '+eur(s.total);
-  document.getElementById('railS').textContent=(s.fit==='none')?'pick your dates ↑':fmtS(s.start);}
+  document.getElementById('railS').textContent=wl?'occupied · rents ahead':(s.fit==='none')?'pick your dates ↑':fmtS(s.start);}
 /* the stay, drawn — the contract as a bar the eye reads in one pass */
 function paintTimeline(s){
   const el=document.getElementById('stayTl');if(!el)return;
@@ -1051,7 +1070,7 @@ function aiAsk(b){const q=b.textContent;const t=document.getElementById('aiThrea
 let RES={kind:'apply',step:1,approved:null,need:0};
 function apply(){startRes('apply');}
 function reserve(){startRes('reserve');}
-function startRes(kind){boomTrack('begin_checkout',{item_id:PID||L.id||'sample',kind:kind});try{navigator.vibrate&&navigator.vibrate(8)}catch(e){}RES={kind:kind,step:1,approved:null,need:0,email:RES.email||'',name:RES.name||'',phone:RES.phone||''};document.getElementById('applyTitle').textContent=kind==='reserve'?'Secure this home':'Apply for this home';renderRes();openOv('applyOv');_mood('convert');}
+function startRes(kind){boomTrack('begin_checkout',{item_id:PID||L.id||'sample',kind:kind});try{navigator.vibrate&&navigator.vibrate(8)}catch(e){}RES={kind:kind,step:1,approved:null,need:0,email:RES.email||'',name:RES.name||'',phone:RES.phone||''};document.getElementById('applyTitle').textContent=(L.status==='waitlist')?(kind==='reserve'?'Priority hold — first in line':'Join the waitlist'):(kind==='reserve'?'Secure this home':'Apply for this home');renderRes();openOv('applyOv');_mood('convert');}
 function resStep(n){RES.step=n;renderRes();}
 function resSubmit(){var inc=+(document.getElementById('rqInc')||{}).value||0;var guar=!!(document.getElementById('rqGuar')||{}).checked;var em=((document.getElementById('rqEmail')||{}).value||'').trim();
   var nm=((document.getElementById('rqName')||{}).value||'').trim();var ph=((document.getElementById('rqPhone')||{}).value||'').trim();
@@ -1248,6 +1267,18 @@ function paintData(){
     vchip.style.display='';
   }else if(vchip)vchip.style.display='none';
   dots.innerHTML=IMGS.map((_,i)=>`<i class="${i===0?'on':''}"></i>`).join('');
+  /* desktop editorial mosaic: photos 2–3 as large tiles, the rest behind "+N photos" */
+  try{
+    const gw=document.getElementById('gwrap'),gt=document.getElementById('gtiles');
+    const tl=NOPHOTO?[]:IMGS.slice(1,3);
+    if(gw&&gt){
+      if(tl.length===2){
+        gw.classList.add('tiled');
+        const more=IMGS.length-3;
+        gt.innerHTML=tl.map((im,k)=>`<button class="gt" type="button" onclick="openLb(${k+1})" aria-label="Open photo ${k+2} of ${IMGS.length}"><img src="${im.thumb}" alt="${(im.alt||'').replace(/"/g,'')}" loading="lazy" decoding="async" onerror="if(this.dataset.f1){this.onerror=null;this.src=this.dataset.f2}else{this.dataset.f1=1;this.src=this.dataset.f1s}" data-f1s="${(im.mid||im.full).replace(/"/g,'')}" data-f2="${(im.full||'').replace(/"/g,'')}">${k===1&&more>0?`<span class="more"><b>+${more}</b> photos</span>`:''}</button>`).join('');
+      }else{gw.classList.remove('tiled');gt.innerHTML='';}
+    }
+  }catch(_e){}
   /* continuity: hero morphs in from the tapped discovery card; else blur-up */
   try{
     if(window.BoomElevate){
@@ -1272,8 +1303,11 @@ function paintData(){
   document.getElementById('simZone').textContent=L.zone;
   document.getElementById('hPrice').textContent=eur(L.price);
   const af=L.availableFrom;
-  document.getElementById('hAvail').textContent=af?('Available '+fmtS(new Date(af+'T00:00'))):'Ask availability';
-  document.getElementById('priceSub').textContent=(af?('Available from '+fmtD(new Date(af+'T00:00'))):'Availability on request')+' · BOOM-managed';
+  const _wl=L.status==='waitlist';
+  document.getElementById('hAvail').textContent=_wl?'Occupied · waitlist open':(af?('Available '+fmtS(new Date(af+'T00:00'))):'Ask availability');
+  document.getElementById('priceSub').textContent=_wl?'Occupied now · rents ahead — join the waitlist':((af?('Available from '+fmtD(new Date(af+'T00:00'))):'Availability on request')+' · BOOM-managed');
+  const _hl=document.getElementById('holdLbl');if(_hl&&_wl)_hl.textContent='Priority hold · €300';
+  const _rg=document.getElementById('railGo');if(_rg&&_wl)_rg.textContent='Waitlist';
   document.getElementById('price').innerHTML=eur(L.price)+' <small>/month</small>';
   document.getElementById('feat').innerHTML=(L.features||[]).map(f=>`<span>${f}</span>`).join('');
   document.getElementById('facts').innerHTML=[[SVGI.bed,'Bedrooms',L.beds||'Studio'],[SVGI.bath,'Bathrooms',L.baths],[SVGI.ruler,'Size',L.sqm+' m²'],[SVGI.building,'Floor',L.floor],[SVGI.chair,'Furnished',L.furnished?'Yes':'No']].map(([i,k,v])=>`<div class="fact"><div class="i">${i}</div><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
@@ -1294,7 +1328,7 @@ function mapReal(d){
   const rawAf=d.availableFrom||d.availableDate;const _ISO=/^\d{4}-\d{2}-\d{2}/;const af=(typeof rawAf==='string'&&_ISO.test(rawAf))?rawAf.slice(0,10):new Date().toISOString().slice(0,10);
   const zone=d.zone||d.neighborhood||d.address||'Rome';
   const sameZone=/trastevere/i.test(zone);   // the sample nearby/similar are Trastevere-true; never show them elsewhere
-  return {name:d.name||d.title||'Apartment in Rome',zone:zone,price:+d.price||0,deposit:+d.deposit||+d.price||0,agencyFee:d.agencyFee!=null?(+d.agencyFee||0):Math.round((+d.price||0)*1.2),beds:(d.beds!=null?d.beds:(d.bedrooms!=null?d.bedrooms:0)),baths:(d.bathrooms!=null?d.bathrooms:(d.baths!=null?d.baths:1)),sqm:d.sqm||d.size||0,floor:d.floor||1,furnished:(d.furnished===true)||/furnish/i.test(feat.join(' ')+' '+(d.description||'')),real:true,availableFrom:af,images:imgs,features:feat,description:(typeof d.description==='string'&&d.description.trim())?d.description.trim():'',nearby:sameZone?SAMPLE.nearby:[],similar:sameZone?SAMPLE.similar:[],lat:+d.lat||SAMPLE.lat,lng:+d.lng||SAMPLE.lng,video:(d.videoUrl||d.youtubeUrl||null)};
+  return {name:d.name||d.title||'Apartment in Rome',zone:zone,price:+d.price||0,deposit:+d.deposit||+d.price||0,agencyFee:d.agencyFee!=null?(+d.agencyFee||0):Math.round((+d.price||0)*1.2),beds:(d.beds!=null?d.beds:(d.bedrooms!=null?d.bedrooms:0)),baths:(d.bathrooms!=null?d.bathrooms:(d.baths!=null?d.baths:1)),sqm:d.sqm||d.size||0,floor:d.floor||1,furnished:(d.furnished===true)||/furnish/i.test(feat.join(' ')+' '+(d.description||'')),real:true,status:((d.status||d.availabilityStatus||'available')+'').toLowerCase(),availableFrom:af,images:imgs,features:feat,description:(typeof d.description==='string'&&d.description.trim())?d.description.trim():'',nearby:sameZone?SAMPLE.nearby:[],similar:sameZone?SAMPLE.similar:[],lat:+d.lat||SAMPLE.lat,lng:+d.lng||SAMPLE.lng,video:(d.videoUrl||d.youtubeUrl||null)};
 }
 /* ═══ EXPERIENCE SEQUENCE — arrival choreography + chapter rail + money roll-up ═══ */
 const REDUCE_SEQ=matchMedia('(prefers-reduced-motion: reduce)').matches;
