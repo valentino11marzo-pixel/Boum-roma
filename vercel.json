@@ -539,6 +539,9 @@
     "api/geocode-all.js": {
       "maxDuration": 60
     },
+    "api/geocode-bake.js": {
+      "maxDuration": 60
+    },
     "api/magic-sign/submit.js": {
       "maxDuration": 60
     },
