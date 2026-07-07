@@ -217,8 +217,28 @@ annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
   voided by a failed checkout).
 - `pre-agreement.html` — the public document page (identity form lives
   inside §1 of the document; accept & sign → Stripe; print-friendly).
-- `pre-agreement-admin.html` — generator (BoomPortal auth, listing prefill,
-  live fee math, WhatsApp share with prefilled message).
+- `pre-agreement-admin.html` — generator + management console (BoomPortal
+  auth, listing prefill, live fee math, WhatsApp share). Realtime list of all
+  preAgreements with status chips (sent/viewed/accepted/paid/revoked): copy
+  link, WhatsApp, **Edit terms** (patches the SAME doc/token — the client's
+  existing link shows the new terms, status back to `sent`; only for
+  sent/viewed/revoked), Duplicate (prefills a new one), Revoke/Reactivate.
+- `api/preagreement/_notify.js` — b/w document email (modeled on the real
+  proposal) + `sendPaEmails({event:'paid'|'accepted', notifyClient})`.
+  Client gets the document + Stripe receipt link; admin
+  (valentino@boom-rome.com) gets a copy + next-step nudge. Gmail/Nodemailer.
+- `api/stripe-webhook.js` PREAGREEMENT branch — on checkout completed:
+  doc → `status:'paid'` (+paidEur/paidAt/paidSessionId, idempotent on
+  retries), fetches the Stripe receipt_url, sends both emails.
+- `submit.js` also emails at acceptance: client copy only when nothing is
+  due via Stripe (else it arrives after payment); admin always notified.
+
+**Deal pipeline (protocol)**: lead (`/api/apply-lead` or portal) →
+pre-agreement (console → tokenized link → client self-fills → accepts →
+Stripe if due>0 → confirmation emails) → rental contract in portal →
+Magic Sign (tenant+landlord tokens) → tenant portal (payments/documents).
+Terms differ per deal: edit before acceptance (same link); after
+acceptance/payment, Duplicate creates the new version.
 
 ### POST `/api/magic-sign/lookup`
 Public endpoint for the Magic-Sign UI. Body: `{ token }`. Looks up the
