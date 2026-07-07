@@ -232,6 +232,28 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 .mpin2{background:var(--card);border:1px solid var(--line-gold);border-radius:100px;padding:6px 11px;font-size:12px;font-family:var(--disp);color:var(--gold);cursor:pointer;white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,.55);transition:.18s var(--ease)}
 .mpin2:hover{background:var(--gold);color:#1a1407;font-weight:600;z-index:5}
 .mpin2.sv{border-color:var(--green);box-shadow:0 0 0 1px var(--green-muted),0 6px 18px rgba(0,0,0,.55)}
+.mpin2.wl{border-style:dashed}
+.mpin2.on{background:var(--gold);color:#1a1407;font-weight:600;z-index:6;transform:scale(1.08)}
+.mpin2.zn{opacity:.88}
+/* ── Explore the Block: the listing card docked on the map ── */
+.blockcard{position:absolute;left:12px;bottom:12px;z-index:8;width:min(340px,calc(100% - 24px));border:1px solid var(--line-gold);border-radius:16px;background:rgba(10,10,13,.92);backdrop-filter:blur(18px);box-shadow:0 24px 70px rgba(0,0,0,.65);overflow:hidden;opacity:0;transform:translateY(14px);pointer-events:none;transition:all .4s var(--ease)}
+.blockcard.on{opacity:1;transform:none;pointer-events:auto}
+.blockcard .ph{height:130px;position:relative;background:linear-gradient(135deg,#17161a,#0d0d10)}
+.blockcard .ph img{width:100%;height:100%;object-fit:cover;display:block}
+.blockcard .ph .x{position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.55);backdrop-filter:blur(8px);display:grid;place-items:center;font-size:14px;color:#fff;border:1px solid var(--line)}
+.blockcard .ph .zl{position:absolute;left:10px;bottom:8px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);background:rgba(0,0,0,.55);backdrop-filter:blur(8px);border-radius:100px;padding:4px 10px}
+.blockcard .b{padding:12px 14px 13px}
+.blockcard .n{font-size:15.5px;font-weight:400}
+.blockcard .m{font-size:12px;color:var(--t3);margin-top:2px}
+.blockcard .pr{font-family:var(--disp);font-size:17px;color:var(--gold);margin-top:6px}
+.blockcard .pr small{font-size:11px;color:var(--t3)}
+.blockcard .wl-line{font-size:11px;color:var(--gold-light);margin-top:4px}
+.blockcard .acts{display:flex;gap:7px;margin-top:11px}
+.blockcard .go{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#1a1407;font-weight:600;border-radius:100px;padding:10px 12px;font-size:12.5px;text-decoration:none}
+.blockcard .ob{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:100px;padding:10px 13px;font-size:12px;color:var(--t2);background:none;transition:.2s}
+.blockcard .ob:hover{border-color:var(--line-gold);color:var(--gold)}
+.orbit-hint{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:8;font-size:10.5px;letter-spacing:1.6px;text-transform:uppercase;color:var(--gold);background:rgba(0,0,0,.55);backdrop-filter:blur(10px);border:1px solid var(--line-gold);border-radius:100px;padding:7px 14px;opacity:0;pointer-events:none;transition:opacity .4s}
+.orbit-hint.on{opacity:1}
 .maplibregl-ctrl-group{background:rgba(8,8,10,.86)!important;border:1px solid var(--line)!important}.maplibregl-ctrl-group button+button{border-top:1px solid var(--line)!important}.maplibregl-ctrl-group button{filter:invert(1) hue-rotate(180deg)}
 
 /* upsell */
@@ -787,7 +809,9 @@ function skylineDress(map){
   try{
     map.addSource('d-sat',{type:'raster',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],tileSize:256,maxzoom:19,attribution:'Imagery © Esri, Maxar, Earthstar Geographics'});
     var firstSym=(map.getStyle().layers.find(function(L){return L.type==='symbol'})||{}).id;
-    map.addLayer({id:'d-sat-l',type:'raster',source:'d-sat',layout:{visibility:'none'},paint:{'raster-opacity':1,'raster-fade-duration':300}},firstSym);
+    /* satellite is the DEFAULT skin: ultra-real Rome, buildings as glass ghosts */
+    map.addLayer({id:'d-sat-l',type:'raster',source:'d-sat',layout:{visibility:'visible'},paint:{'raster-opacity':1,'raster-fade-duration':300}},firstSym);
+    try{map.setPaintProperty('b3d','fill-extrusion-opacity',0.45);}catch(e){}
   }catch(e){}
   try{
     map.addSource('d-dem',{type:'raster-dem',tiles:['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],encoding:'terrarium',tileSize:256,maxzoom:13});
@@ -813,7 +837,7 @@ function skylineDress(map){
     var mv=document.getElementById('mapview');
     if(mv&&!mv.querySelector('.map-chips')){
       var wrap=document.createElement('div');wrap.className='map-chips';
-      wrap.innerHTML='<button type="button" class="mchip on" data-m="map">Map</button><button type="button" class="mchip" data-m="sat">Satellite</button><a class="mchip go" href="/skyline" title="Full-screen Rome">Full screen ↗</a>';
+      wrap.innerHTML='<button type="button" class="mchip" data-m="map">Map</button><button type="button" class="mchip on" data-m="sat">Satellite</button><a class="mchip go" href="/skyline" title="Full-screen Rome">Full screen ↗</a>';
       wrap.addEventListener('click',function(ev){
         var b=ev.target.closest('button.mchip');if(!b||b.classList.contains('on'))return;
         wrap.querySelectorAll('button.mchip').forEach(function(x){x.classList.toggle('on',x===b)});
@@ -825,14 +849,118 @@ function skylineDress(map){
     }
   }catch(e){}
 }
-function plotMarks(list){_marks.forEach(m=>m.remove());_marks=[];
-  var pts=list.filter(l=>l.lat&&l.lng);if(!pts.length||!_dmap)return;
+/* every home gets a pin: building-exact when the listing carries lat/lng
+   (geocode-bake writes them), else its quartiere centre, fanned so pins
+   never stack. Honesty: zone-level pins are marked and say so in the card. */
+var DZONES=[
+  [12.4735,41.8986,'centro storico','navona','coronari','ripetta','pantheon','spagna','trevi','campo de','farnese','avignonesi','barberini','centro'],
+  [12.4692,41.8867,'trastevere','gianicolo','piscinula'],
+  [12.4924,41.8946,'monti','colosse','cavour'],
+  [12.4632,41.9100,'prati','mazzini','angelico','vatican','ottaviano','cola di rienzo','lepanto','monte zebio','montezebio'],
+  [12.5380,41.8880,'pigneto','centocelle','casilina','montecuccoli'],
+  [12.4757,41.8758,'testaccio'],
+  [12.4690,41.8560,'marconi','ostiense','garbatella','piramide','gazometro','guarducci'],
+  [12.5050,41.9230,'trieste','copped','africano','salario','nomentano','appennini','levico','endert','laghi','calabria'],
+  [12.5151,41.9000,'san lorenzo','sapienza','verano'],
+  [12.5010,41.8950,'esquilino','vittorio emanuele','manzoni'],
+  [12.4760,41.9230,'flaminio','fracassini'],
+  [12.4680,41.9380,'ponte milvio','tor di quinto','foro italico'],
+  [12.4880,41.9230,'parioli','villa ada','petrolini'],
+  [12.4900,41.9070,'veneto','ludovisi','piemonte'],
+  [12.5300,41.9430,"conca d'oro",'conca','jonio','annibaliano','capri'],
+  [12.5230,41.9120,'tiburtina','bologna','pietralata']
+];
+function zoneCoordD(l){
+  var z=(String(l.zone||'')+' '+String(l.address||'')).toLowerCase();
+  for(var i=0;i<DZONES.length;i++){var Z=DZONES[i];for(var k=2;k<Z.length;k++){if(z.indexOf(Z[k])!==-1)return [Z[0],Z[1]];}}
+  return null;
+}
+var _ovBounds=null;
+function plotMarks(list){_marks.forEach(m=>m.remove());_marks=[];closeBlock(true);
+  if(!_dmap)return;
+  var seen={},pts=[];
+  list.forEach(function(l){
+    var exact=(l.lat&&l.lng);
+    var co=exact?[l.lng,l.lat]:zoneCoordD(l);
+    if(!co)return;
+    if(!exact){var key=co[0].toFixed(3)+','+co[1].toFixed(3),n=seen[key]||0;seen[key]=n+1;
+      if(n>0){var ang=n*2.39996323,rad=0.0017*Math.sqrt(n);co=[co[0]+rad*Math.cos(ang),co[1]+rad*Math.sin(ang)];}}
+    pts.push({l:l,co:co,exact:exact});
+  });
+  if(!pts.length)return;
   var b=new maplibregl.LngLatBounds();
-  pts.forEach(function(l){var el=document.createElement('a');el.className='mpin2'+(saved.has(l.id)?' sv':'');el.href='/listing/'+encodeURIComponent(l.id);el.textContent=eur(l.price);el.setAttribute('aria-label',l.name+', '+eur(l.price)+' per month');
-    el.addEventListener('mouseenter',function(){showLinks([l.lng,l.lat])});
-    el.addEventListener('focus',function(){showLinks([l.lng,l.lat])});
-    var mk=new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat([l.lng,l.lat]).addTo(_dmap);_marks.push(mk);b.extend([l.lng,l.lat]);});
+  pts.forEach(function(p){var l=p.l;
+    var el=document.createElement('a');
+    el.className='mpin2'+(saved.has(l.id)?' sv':'')+(l.status==='waitlist'?' wl':'')+(p.exact?'':' zn');
+    el.href='/listing/'+encodeURIComponent(l.id);
+    el.textContent=(l.status==='waitlist'?'◌ ':'')+eur(l.price);
+    el.setAttribute('aria-label',l.name+', '+eur(l.price)+' per month');
+    el.addEventListener('mouseenter',function(){showLinks(p.co)});
+    el.addEventListener('focus',function(){showLinks(p.co)});
+    el.addEventListener('click',function(ev){ev.preventDefault();showBlock(p,el);});
+    var mk=new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat(p.co).addTo(_dmap);_marks.push(mk);b.extend(p.co);});
+  _ovBounds=b;
   try{_dmap.fitBounds(b,{padding:70,maxZoom:15.5,duration:600,pitch:55});}catch(e){}}
+
+/* ── Explore the Block: fly to the doorstep and let Rome turn around it ── */
+var _orbit=null,_blockP=null;
+function ensureBlockEls(){
+  var mv=document.getElementById('mapview');
+  if(!document.getElementById('blockcard')){
+    var c=document.createElement('div');c.id='blockcard';c.className='blockcard';mv.appendChild(c);
+    var h=document.createElement('div');h.id='orbitHint';h.className='orbit-hint';h.textContent='Exploring the block — drag to take the wheel';mv.appendChild(h);
+  }
+}
+function showBlock(p,pinEl){
+  ensureBlockEls();stopOrbit();
+  _blockP=p;var l=p.l;
+  document.querySelectorAll('.mpin2.on').forEach(function(x){x.classList.remove('on')});
+  if(pinEl)pinEl.classList.add('on');
+  var c=document.getElementById('blockcard');
+  var img=l.img?'<img src="'+imgOpt(l.img,480)+'" alt="" loading="lazy" onerror="this.style.display=\'none\'">':'';
+  c.innerHTML='<div class="ph">'+img
+    +'<button type="button" class="x" aria-label="Close" onclick="closeBlock()">✕</button>'
+    +'<span class="zl">'+(p.exact?l.zone:l.zone+' · zone view')+'</span></div>'
+    +'<div class="b"><div class="n">'+l.name+'</div>'
+    +'<div class="m">'+(l.beds||'Studio')+' bed · '+l.baths+' bath · '+l.sqm+' m²</div>'
+    +'<div class="pr">'+eur(l.price)+' <small>/month</small></div>'
+    +(l.status==='waitlist'?'<div class="wl-line">◌ Occupied now · rents ahead — join the waitlist</div>':'')
+    +'<div class="acts"><button type="button" class="ob" onclick="orbitBlock()">◉ Explore the block</button>'
+    +'<a class="go" href="/listing/'+encodeURIComponent(l.id)+'">View home →</a></div></div>';
+  c.classList.add('on');
+  try{_dmap.flyTo({center:p.co,zoom:Math.max(_dmap.getZoom(),15.2),pitch:58,duration:1100,essential:true});}catch(e){}
+  showLinks(p.co);
+}
+function orbitBlock(){
+  if(!_blockP||!_dmap)return;
+  /* satellite on — the block must be the real block */
+  try{_dmap.setLayoutProperty('d-sat-l','visibility','visible');
+    var chips=document.querySelectorAll('.map-chips button.mchip');
+    chips.forEach(function(x){x.classList.toggle('on',x.dataset.m==='sat')});
+    _dmap.setPaintProperty('b3d','fill-extrusion-opacity',0.45);}catch(e){}
+  try{_dmap.flyTo({center:_blockP.co,zoom:17.9,pitch:66,duration:2400,essential:true});}catch(e){}
+  var hint=document.getElementById('orbitHint');
+  var start=function(){
+    if(hint)hint.classList.add('on');
+    stopOrbit(true);
+    var fn=function(){_orbit=requestAnimationFrame(fn);try{_dmap.setBearing(_dmap.getBearing()+0.055);}catch(e){}};
+    _orbit=requestAnimationFrame(fn);
+    var stop=function(){stopOrbit();};
+    ['pointerdown','wheel','touchstart'].forEach(function(ev){_dmap.getCanvas().addEventListener(ev,stop,{once:true,passive:true})});
+  };
+  _dmap.once('moveend',start);
+}
+function stopOrbit(keepHint){
+  if(_orbit){cancelAnimationFrame(_orbit);_orbit=null;}
+  if(!keepHint){var h=document.getElementById('orbitHint');if(h)h.classList.remove('on');}
+}
+function closeBlock(silent){
+  stopOrbit();_blockP=null;
+  var c=document.getElementById('blockcard');if(c)c.classList.remove('on');
+  document.querySelectorAll('.mpin2.on').forEach(function(x){x.classList.remove('on')});
+  if(!silent){clearLinks();try{if(_ovBounds)_dmap.fitBounds(_ovBounds,{padding:70,maxZoom:15.5,duration:1300,pitch:55});}catch(e){}}
+}
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&_blockP)closeBlock();});
 function renderMap(list){
   var mv=document.getElementById('mapview');mv.classList.add('on');
   ensureML().then(function(){
