@@ -178,6 +178,18 @@ credentials (forced under the `listings/` prefix) and returns
 `{ ok, url, path }`. Lets the bot store photos without holding Firebase admin
 creds; the bot falls back to a direct Storage upload if this is unavailable.
 
+### POST `/api/apply-lead`
+Public lead-capture for the apartment-detail APPLY/RESERVE/WAITLIST flow.
+Fired (non-blocking) when a visitor passes the quick eligibility check. Body
+`{ name, email, phone, listingId, listingName, listingPrice, zone, kind,
+waitlist, income, guarantor, household(solo|couple|family|flatmates),
+occupation(employed|self-employed|student|relocating), moveIn, durationMonths,
+company(honeypot) }`. Same hardening as `/api/canone-lead` (honeypot, per-IP
+rate limit, clip/num sanitizers). Writes to `leads` in the exact portal/
+cockpit schema (`status:'new'`, `source:'web'`, `intent:apply|reserve|waitlist`,
+qualification snapshot in `message` + `raw`) so every serious applicant lands
+in the pipeline even if they never open Stripe. Returns `{ ok, id }`.
+
 ### POST `/api/search/save`
 Public save-search endpoint for the apartments discovery page. Body
 `{ email, label?, criteria{q,budgetMax,moveIn,beds,baths,furnished,video,
