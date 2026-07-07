@@ -106,9 +106,9 @@ main{position:relative;z-index:5;max-width:760px;margin:0 auto;padding:96px 16px
 <main>
   <div class="load" id="load">Preparing your document…</div>
   <div class="errbox" id="errbox" style="display:none">
-    <h2>This link isn’t valid anymore</h2>
-    <p>The pre-agreement may have been revoked or replaced.<br>Message us and we’ll send you a fresh one.</p>
-    <p style="margin-top:14px"><a href="https://wa.me/393313251961">WhatsApp BOOM →</a></p>
+    <h2 id="errH">This link isn’t valid anymore</h2>
+    <p id="errP">The pre-agreement may have been revoked or replaced.<br>Message us and we’ll send you a fresh one.</p>
+    <p style="margin-top:14px"><a id="errRetry" href="#" style="display:none" onclick="location.reload();return false">Try again →</a> <a href="https://wa.me/393313251961">WhatsApp BOOM →</a></p>
   </div>
   <div id="docHost" style="display:none"></div>
   <div class="foot">Egidi Immobiliare S.r.l. · P.IVA 17322991005 · boomrome.com</div>
@@ -128,7 +128,13 @@ var eur=function(n){var f=Math.round(n*100)%100!==0;return '€'+Number(n).toLoc
 var fmtD=function(s){try{return new Date(s+'T00:00').toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}catch(e){return s}};
 var esc=function(s){return String(s==null?'':s).replace(/[<>&"]/g,function(c){return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]})};
 
-function fail(){document.getElementById('load').style.display='none';document.getElementById('errbox').style.display='';}
+function fail(status){document.getElementById('load').style.display='none';document.getElementById('errbox').style.display='';
+  /* only 404/410 mean the LINK is dead — anything else is on us, say so honestly */
+  if(status!==400&&status!==404&&status!==410){
+    document.getElementById('errH').textContent='One second — that didn’t load';
+    document.getElementById('errP').innerHTML='Your link is fine; our side hiccuped.<br>Try again in a moment — or message us and we’ll open it with you.';
+    document.getElementById('errRetry').style.display='';
+  }}
 
 function kv(k,v,sub){return '<div class="kv"><span class="k">'+k+'</span><span class="v">'+v+(sub?' <small>· '+sub+'</small>':'')+'</span></div>';}
 function fld(id,label,val,req,ph,type){
@@ -260,9 +266,9 @@ function accept(){
 
 if(!/^[a-f0-9]{32}$/.test(TOKEN)){fail();}
 else fetch('/api/preagreement/lookup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN})})
-  .then(function(r){return r.json()})
-  .then(function(j){if(!j||!j.ok)throw 0;PA=j.pa;ID=j.id;document.title='Pre-Agreement — '+(PA.property.address||'BOOM Roma');render();})
-  .catch(fail);
+  .then(function(r){return r.json().then(function(j){return {s:r.status,j:j}}).catch(function(){return {s:r.status,j:null}})})
+  .then(function(x){if(x.j&&x.j.ok){PA=x.j.pa;ID=x.j.id;document.title='Pre-Agreement — '+(PA.property.address||'BOOM Roma');render();return;}fail(x.s);})
+  .catch(function(){fail(0)});
 })();
 </script>
 </body>
