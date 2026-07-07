@@ -927,6 +927,7 @@ function showBlock(p,pinEl){
     +'<div class="pr">'+eur(l.price)+' <small>/month</small></div>'
     +(l.status==='waitlist'?'<div class="wl-line">◌ Occupied now · rents ahead — join the waitlist</div>':'')
     +'<div class="acts"><button type="button" class="ob" onclick="orbitBlock()">◉ Explore the block</button>'
+    +(p.exact?'<a class="ob" href="https://www.google.com/maps?layer=c&cbll='+p.co[1]+','+p.co[0]+'" target="_blank" rel="noopener" title="Street View">👁 Street</a>':'')
     +'<a class="go" href="/listing/'+encodeURIComponent(l.id)+'">View home →</a></div></div>';
   c.classList.add('on');
   try{_dmap.flyTo({center:p.co,zoom:Math.max(_dmap.getZoom(),15.2),pitch:58,duration:1100,essential:true});}catch(e){}
