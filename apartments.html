@@ -596,13 +596,13 @@ let L=SAMPLE;
 function mapReal(d,i){
   const imgs=(Array.isArray(d.images)&&d.images.length)?d.images:(d.image?[d.image]:[]);
   const feat=Array.isArray(d.features)?d.features:(Array.isArray(d.amenities)?d.amenities:[]);
-  const rawAf=d.availableFrom||d.availableDate;const af=(typeof rawAf==='string'&&rawAf)?rawAf.slice(0,10):day(0);
+  const rawAf=d.availableFrom||d.availableDate;const af=(typeof rawAf==='string'&&/^\d{4}-\d{2}-\d{2}/.test(rawAf))?rawAf.slice(0,10):day(0);
   const blob=(feat.join(' ')+' '+(d.description||'')).toLowerCase();
   const has=w=>feat.some(f=>(''+f).toLowerCase().includes(w))||blob.includes(w);
   return {id:d.id||('r'+i),name:d.name||d.title||'Apartment in Rome',zone:d.zone||d.neighborhood||d.address||'Rome',
     price:+d.price||0,beds:(d.beds!=null?+d.beds:(d.bedrooms!=null?+d.bedrooms:0)),baths:(d.bathrooms!=null?+d.bathrooms:(d.baths!=null?+d.baths:1)),
     sqm:+d.sqm||+d.size||0,availableFrom:af,features:feat.length?feat:(has('furnish')?['Furnished']:[]),
-    videoUrl:!!(d.videoUrl||d.youtubeUrl),isNew:false,img:imgs[0]||'',createdAt:(d.createdAt&&d.createdAt.seconds)||(d.createdAt||(100-i)),
+    videoUrl:!!(d.videoUrl||d.youtubeUrl),isNew:!!(d.createdAt&&d.createdAt.seconds&&(Date.now()/1000-d.createdAt.seconds)<14*86400),img:imgs[0]||'',createdAt:(d.createdAt&&d.createdAt.seconds)||(d.createdAt||(100-i)),
     lat:+d.lat||0,lng:+d.lng||0};
 }
 function isRentable(d){var s=((d.status||d.availabilityStatus||'')+'').toLowerCase();return !(s==='rented'||s==='affittato'||s==='off_market');}
@@ -616,6 +616,7 @@ const persist=()=>{try{localStorage.setItem('boom:saved',JSON.stringify([...save
 const eur=n=>'€'+Math.round(n).toLocaleString('en-US');
 const parseD=s=>new Date(s+'T00:00');
 const fmtS=s=>parseD(s).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+const imgSized=(u,s)=>{u=String(u||'');if(!/i\.imgur\.com/.test(u))return u;return u.replace(/(\/[A-Za-z0-9]{7})(\.(?:jpe?g|png|webp))/i,'$1'+s+'$2');};
 const byId=id=>L.find(x=>x.id===id);
 
 /* ---------- url sync ---------- */
@@ -697,7 +698,7 @@ function cardHTML(l){
   const showFit=(S.sort==='match'||S.budgetMax<4000||S.moveIn||S.zones.length);
   const alt=(l.name+' — '+l.zone).replace(/"/g,'');
   return `<a class="pc" data-id="${l.id}" href="/listing/${encodeURIComponent(l.id)}" aria-label="${alt}, ${eur(l.price)} per month">
-    <div class="ph"><img src="${l.img||''}" alt="${alt}" loading="lazy" data-blur-up onerror="this.style.opacity=0">
+    <div class="ph"><img src="${imgSized(l.img,'l')||''}" alt="${alt}" loading="lazy" decoding="async" data-blur-up onerror="if(this.src!=='${(l.img||'').replace(/'/g,'')}'&&'${(l.img||'').replace(/'/g,'')}'){this.src='${(l.img||'').replace(/'/g,'')}'}else{this.style.opacity=0}">
       <div class="badges">${l.videoUrl?'<span class="bdg video">▶ Video</span>':''}${l.isNew?'<span class="bdg new">New</span>':''}<span class="bdg avail">✓ Verified</span>${over?'<span class="bdg over">€'+Math.round(l.price-S.budgetMax)+' over</span>':''}</div>
       <div class="acts"><button class="iact${saved.has(l.id)?' on':''}" aria-pressed="${saved.has(l.id)}" onclick="event.preventDefault();event.stopPropagation();toggleSave('${l.id}',this)" aria-label="Save">♡</button><button class="iact cmp${cmp.has(l.id)?' on':''}" aria-pressed="${cmp.has(l.id)}" onclick="event.preventDefault();event.stopPropagation();toggleCmp('${l.id}',this)" aria-label="Add to compare">⇄</button></div>
       ${showFit?`<button type="button" class="fit" aria-expanded="false" aria-label="Why ${sp.score} percent fit" onclick="event.preventDefault();event.stopPropagation();toggleFit(this)">${sp.score}% fit</button>
@@ -997,6 +998,19 @@ function restoreScroll(){
 }
 
 /* ---------- trust pulse: whole-market numbers, computed once after data resolves ---------- */
+
+/* GEO/SEO: expose the live inventory as ItemList JSON-LD (crawlers + AI engines) */
+function seoItemList(){
+  try{
+    const items=L.slice(0,12).map((l,i)=>({'@type':'ListItem',position:i+1,
+      name:l.name,url:'https://www.boomrome.com/listing/'+encodeURIComponent(l.id)}));
+    if(!items.length)return;
+    const s=document.createElement('script');s.type='application/ld+json';
+    s.textContent=JSON.stringify({'@context':'https://schema.org','@type':'ItemList',
+      name:'Verified apartments in Rome',numberOfItems:items.length,itemListElement:items}).replace(/</g,'\\u003c');
+    document.head.appendChild(s);
+  }catch(e){}
+}
 function trustPulse(){try{
   const rent=L.filter(isRentable);if(!rent.length)return;
   const nowN=rent.filter(l=>parseD(l.availableFrom)<=Date.now()).length;
@@ -1018,7 +1032,7 @@ hydrate();syncControls();document.getElementById('cmpN').textContent=cmp.size;do
 fetch('/api/listings',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{
   if(j&&j.ok&&Array.isArray(j.listings)&&j.listings.length){L=j.listings.filter(isRentable).map(mapReal);if(!L.length)L=SAMPLE;
     var _pc=document.querySelector('.proto');if(_pc)_pc.innerHTML='DISCOVERY · <b>live data</b> · '+L.length+' homes';}
-}).catch(()=>{}).finally(function(){trustPulse();render();restoreScroll();});
+}).catch(()=>{}).finally(function(){trustPulse();seoItemList();render();restoreScroll();});
 </script>
 </body>
 </html>

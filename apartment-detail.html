@@ -811,6 +811,9 @@ let L={name:"Bright Attic in Trastevere",zone:"Trastevere",price:1500,deposit:15
   similar:[["1522708323590-d24dbb6b0267","Trastevere","Cosy 1-bed by the Tiber","1 bed · 48 m²",1250,"96% fit"],["1560185007-cee345f7c8b9","Trastevere","Designer loft, San Cosimato","2 bed · 70 m²",1750,"91% fit"],["1554995207-c18c203602cb","Trastevere","Sunny studio, Viale Glorioso","Studio · 38 m²",980,"88% fit"]]};
 let IMGS=[]; const SAMPLE=L;
 const img=(id,w,q)=>'https://images.unsplash.com/photo-'+id+'?auto=format&fit=crop&w='+w+'&q='+(q||72);
+const imgSized=(u,s)=>{u=String(u||'');if(!/i\.imgur\.com/.test(u))return u;return u.replace(/(\/[A-Za-z0-9]{7})(\.(?:jpe?g|png|webp))/i,'$1'+s+'$2');};
+const imgOpt=(u,w,q)=>{u=String(u||'');if(!/^https?:\/\//.test(u))return u;return '/_vercel/image?url='+encodeURIComponent(u)+'&w='+(w||1080)+'&q='+(q||72);};
+const exYT=u=>{if(!u)return null;const m=String(u).match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/);return m?m[1]:null;};
 const eur=n=>'€'+Math.round(n).toLocaleString('en-US');
 const fmtD=d=>d.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
 const fmtS=d=>d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
@@ -825,6 +828,19 @@ function slideBy(dir){const w=track.clientWidth;track.scrollTo({left:(curIdx+dir
 let st;track.addEventListener('scroll',()=>{clearTimeout(st);st=setTimeout(()=>{const i=Math.round(track.scrollLeft/track.clientWidth);if(i!==curIdx)setIdx(i);},80);},{passive:true});
 
 /* ---- lightbox ---- */
+function openVideo(vId){
+  let ov=document.getElementById('vOv');
+  if(!ov){ov=document.createElement('div');ov.id='vOv';ov.className='lb';
+    ov.innerHTML='<button class="xc" aria-label="Close">×</button><div style="width:min(96vw,980px);aspect-ratio:16/9"><iframe src="" title="Video tour" style="width:100%;height:100%;border:0;border-radius:12px" allow="autoplay; fullscreen" allowfullscreen></iframe></div>';
+    document.body.appendChild(ov);
+    ov.querySelector('.xc').onclick=()=>closeVideo();
+    ov.addEventListener('click',e=>{if(e.target===ov)closeVideo();});}
+  ov.querySelector('iframe').src='https://www.youtube.com/embed/'+vId+'?rel=0&autoplay=1';
+  ov.classList.add('show');document.body.style.overflow='hidden';
+  try{if(window.__amb)__amb.mood('focus')}catch(_e){}
+  boomTrack('video_tour_open',{item_id:PID||L.id||''});
+}
+function closeVideo(){const ov=document.getElementById('vOv');if(!ov)return;ov.classList.remove('show');ov.querySelector('iframe').src='';document.body.style.overflow='';try{if(window.__amb)__amb.mood('browse')}catch(_e){}}
 let lbIdx=0;
 function lbPaint(){const im=IMGS[lbIdx]||{};const el=document.getElementById('lbImg');el.src=im.full||'';el.alt=im.alt||'';document.getElementById('lbCount').textContent=(lbIdx+1)+' / '+IMGS.length;}
 function lbBy(dir){lbIdx=(lbIdx+dir+IMGS.length)%IMGS.length;lbPaint();}
@@ -975,6 +991,8 @@ function closeOv(i){document.getElementById(i).classList.remove('show');document
   if(_ovPrevFocus&&_ovPrevFocus.focus){try{_ovPrevFocus.focus()}catch(_e){}_ovPrevFocus=null;}_mood('browse');}
 function closeLb(){document.getElementById('lb').classList.remove('show');document.body.style.overflow='';_mood('browse');}
 addEventListener('keydown',function(e){
+  var vOvEl=document.getElementById('vOv');
+  if(e.key==='Escape'&&vOvEl&&vOvEl.classList.contains('show')){closeVideo();return;}
   var lbEl=document.getElementById('lb'),lbOpen=lbEl&&lbEl.classList.contains('show');
   if(lbOpen&&(e.key==='ArrowLeft'||e.key==='ArrowRight')){lbBy(e.key==='ArrowLeft'?-1:1);return;}
   if(e.key!=='Escape')return;
@@ -1207,9 +1225,23 @@ const NBICO={'🚇':'train','🎓':'cap','🛒':'cart','🏛️':'landmark','�
 
 /* ---- paint (sample by default; real listing when ?id= resolves) ---- */
 function paintData(){
-  IMGS=(L.images||[]).map((e,i)=>Array.isArray(e)?{thumb:img(e[0],1200),full:img(e[0],1600,82),alt:e[1]}:{thumb:e,full:e,alt:(L.name+' — photo '+(i+1))});
-  if(!IMGS.length)IMGS=[{thumb:'',full:'',alt:L.name}];
-  track.innerHTML=IMGS.map((im,i)=>`<div class="slide"><img src="${im.thumb}" alt="${im.alt}" loading="${i===0?'eager':'lazy'}"${i===0?'':' data-blur-up'} onerror="this.style.opacity=0" onclick="openLb(${i})"></div>`).join('');
+  IMGS=(L.images||[]).map((e,i)=>Array.isArray(e)
+    ?{thumb:img(e[0],1200),full:img(e[0],1600,82),alt:e[1]}
+    :{thumb:i===0?imgSized(e,'h'):imgSized(e,'l'),full:e,alt:(L.name+' — photo '+(i+1))});
+  const NOPHOTO=!IMGS.length;
+  if(NOPHOTO)IMGS=[{thumb:'',full:'',alt:L.name,empty:true}];
+  track.innerHTML=IMGS.map((im,i)=>im.empty
+    ?`<div class="slide" style="display:grid;place-items:center"><div style="text-align:center;color:var(--t3)"><div style="font-size:26px;margin-bottom:8px;color:var(--gold)">◆</div><div style="font-size:12px;letter-spacing:2px;text-transform:uppercase">Photos coming soon</div><div style="font-size:11px;margin-top:5px">Ask us for the video tour</div></div></div>`
+    :`<div class="slide"><img src="${im.thumb}" alt="${im.alt}" loading="${i===0?'eager':'lazy'}" decoding="async"${i===0?' fetchpriority="high"':' data-blur-up'} onerror="this.onerror=null;this.src='${im.full.replace(/'/g,'')}'" onclick="openLb(${i})"></div>`).join('');
+  /* video tour: real chip when the listing carries one */
+  const vId=exYT(L.video);
+  const vb=document.querySelector('.vbadge');
+  if(vb)vb.textContent=vId?'✓ Video-verified':'✓ BOOM-verified';
+  let vchip=document.getElementById('vTour');
+  if(vId){
+    if(!vchip){vchip=document.createElement('button');vchip.id='vTour';vchip.className='vbadge';vchip.style.cssText='cursor:pointer;margin-left:8px;color:var(--gold);border-color:var(--line-gold)';vchip.innerHTML='▶ Play tour';vchip.onclick=()=>openVideo(vId);if(vb&&vb.parentNode)vb.parentNode.insertBefore(vchip,vb.nextSibling);}
+    vchip.style.display='';
+  }else if(vchip)vchip.style.display='none';
   dots.innerHTML=IMGS.map((_,i)=>`<i class="${i===0?'on':''}"></i>`).join('');
   /* continuity: hero morphs in from the tapped discovery card; else blur-up */
   try{
@@ -1231,7 +1263,7 @@ function paintData(){
   const aH=document.getElementById('aboutH');
   if(aH&&aH.firstChild&&aH.firstChild.nodeType===3)aH.firstChild.textContent=lead;
   document.getElementById('aboutZone').textContent='heart of '+L.zone;
-  if(L.description)document.getElementById('aboutDesc').textContent=L.description;
+  if(L.real)document.getElementById('aboutDesc').textContent=L.description||(L.name+' in '+L.zone+' — verified in person and on video by our team. What you see is exactly what you get; ask us anything about this home.');
   document.getElementById('simZone').textContent=L.zone;
   document.getElementById('hPrice').textContent=eur(L.price);
   const af=L.availableFrom;
@@ -1254,10 +1286,10 @@ function paintData(){
 function mapReal(d){
   const imgs=(Array.isArray(d.images)&&d.images.length)?d.images:(d.image?[d.image]:[]);
   const feat=Array.isArray(d.features)?d.features:(Array.isArray(d.amenities)?d.amenities:[]);
-  const rawAf=d.availableFrom||d.availableDate;const af=(typeof rawAf==='string'&&rawAf)?rawAf.slice(0,10):SAMPLE.availableFrom;
+  const rawAf=d.availableFrom||d.availableDate;const _ISO=/^\d{4}-\d{2}-\d{2}/;const af=(typeof rawAf==='string'&&_ISO.test(rawAf))?rawAf.slice(0,10):new Date().toISOString().slice(0,10);
   const zone=d.zone||d.neighborhood||d.address||'Rome';
   const sameZone=/trastevere/i.test(zone);   // the sample nearby/similar are Trastevere-true; never show them elsewhere
-  return {name:d.name||d.title||'Apartment in Rome',zone:zone,price:+d.price||0,deposit:+d.deposit||+d.price||0,agencyFee:d.agencyFee!=null?(+d.agencyFee||0):Math.round((+d.price||0)*1.2),beds:(d.beds!=null?d.beds:(d.bedrooms!=null?d.bedrooms:0)),baths:(d.bathrooms!=null?d.bathrooms:(d.baths!=null?d.baths:1)),sqm:d.sqm||d.size||0,floor:d.floor||1,furnished:(d.furnished===true)||/furnish/i.test(feat.join(' ')+' '+(d.description||'')),availableFrom:af,images:imgs.length?imgs:SAMPLE.images,features:feat.length?feat:SAMPLE.features,description:(typeof d.description==='string'&&d.description.trim())?d.description.trim():'',nearby:sameZone?SAMPLE.nearby:[],similar:sameZone?SAMPLE.similar:[],lat:+d.lat||SAMPLE.lat,lng:+d.lng||SAMPLE.lng};
+  return {name:d.name||d.title||'Apartment in Rome',zone:zone,price:+d.price||0,deposit:+d.deposit||+d.price||0,agencyFee:d.agencyFee!=null?(+d.agencyFee||0):Math.round((+d.price||0)*1.2),beds:(d.beds!=null?d.beds:(d.bedrooms!=null?d.bedrooms:0)),baths:(d.bathrooms!=null?d.bathrooms:(d.baths!=null?d.baths:1)),sqm:d.sqm||d.size||0,floor:d.floor||1,furnished:(d.furnished===true)||/furnish/i.test(feat.join(' ')+' '+(d.description||'')),real:true,availableFrom:af,images:imgs,features:feat,description:(typeof d.description==='string'&&d.description.trim())?d.description.trim():'',nearby:sameZone?SAMPLE.nearby:[],similar:sameZone?SAMPLE.similar:[],lat:+d.lat||SAMPLE.lat,lng:+d.lng||SAMPLE.lng,video:(d.videoUrl||d.youtubeUrl||null)};
 }
 /* ═══ EXPERIENCE SEQUENCE — arrival choreography + chapter rail + money roll-up ═══ */
 const REDUCE_SEQ=matchMedia('(prefers-reduced-motion: reduce)').matches;
