@@ -51,6 +51,7 @@ export default async function handler(req, res) {
       dob: clip(t.dob, 20), birthPlace: clip(t.birthPlace, 120),
       nationality: clip(t.nationality, 80), address: clip(t.address, 200),
       cf: clip(t.cf, 40), idDoc: clip(t.idDoc, 80),
+      signature: clip(t.signature, 120),   // typed-to-sign name from the public page
     };
     await fsPatch(`preAgreements/${id}`, {
       tenant, status: 'accepted', ref,
