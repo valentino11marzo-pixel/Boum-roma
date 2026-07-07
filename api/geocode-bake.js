@@ -60,7 +60,7 @@ export default async function handler(req, res) {
       const lat = Number(l.lat), lng = Number(l.lng);
       const addr = String(l.address || '').trim();
       return addr.length > 4 && !validCoord(lat, lng);
-    }).slice(0, 25);
+    }).slice(0, 12);   // per-run cap: stays well inside maxDuration; repeat calls continue
 
     const updated = [], failed = [];
     for (const l of todo) {
