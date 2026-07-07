@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>BOOM · Aurelia — design direction</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,300;1,9..144,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ═════════ AURELIA — Roman editorial ═════════
+   The arch is the only geometry. Antique gold (the real brand gold,
+   #D4AF37 — not neon), warm ink, cream. Serif voice in lowercase;
+   Roman numerals instead of icons; photography inside portals.
+   Half the sections, twice the conviction. */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --ink:#0C0A07; --ink-2:#141109; --card:rgba(20,17,9,.55);
+  --gold:#D4AF37; --gold-bri:#E8C96A; --gold-deep:#8C6F2A;
+  --cream:#F2EDE2;
+  --t1:rgba(242,237,226,1); --t2:rgba(242,237,226,.68); --t3:rgba(242,237,226,.42); --t4:rgba(242,237,226,.22);
+  --hair:rgba(212,175,55,.16); --hairline:rgba(242,237,226,.09);
+  --ease:cubic-bezier(.16,1,.3,1); --ease-io:cubic-bezier(.65,0,.35,1);
+  --wa:#25D366;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--ink);color:var(--t1);font-weight:300;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+img{max-width:100%;display:block}
+button{font-family:inherit;cursor:pointer;background:none;border:0;color:inherit}
+::selection{background:var(--gold);color:var(--ink)}
+.serif{font-family:'Fraunces',Georgia,serif;font-weight:300;font-variation-settings:'opsz' 100}
+.wrap{max-width:1240px;margin:0 auto;padding:0 28px}
+.eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:10.5px;letter-spacing:3.2px;text-transform:uppercase;color:var(--gold);font-weight:500}
+.eyebrow::before{content:'';width:26px;height:1px;background:var(--gold);opacity:.6}
+.num{font-variant-numeric:tabular-nums}
+
+/* ── reveal choreography ─────────────────────────────────────────── */
+.rv{opacity:0;transform:translateY(26px);transition:opacity .9s var(--ease),transform .9s var(--ease)}
+.rv.in{opacity:1;transform:none}
+.rv-d1{transition-delay:.08s}.rv-d2{transition-delay:.16s}.rv-d3{transition-delay:.24s}.rv-d4{transition-delay:.32s}
+/* headline line-mask reveal */
+.lm{display:block;overflow:hidden}
+.lm>span{display:block;transform:translateY(112%);transition:transform 1.1s var(--ease)}
+.in .lm>span{transform:none}
+.lm:nth-child(2)>span{transition-delay:.12s}
+.lm:nth-child(3)>span{transition-delay:.24s}
+@media (prefers-reduced-motion:reduce){
+  .rv,.lm>span{opacity:1!important;transform:none!important;transition:none!important}
+}
+
+/* ── nav ─────────────────────────────────────────────────────────── */
+nav{position:fixed;top:0;left:0;right:0;z-index:60;transition:background .35s var(--ease),border-color .35s var(--ease);border-bottom:1px solid transparent}
+nav.scr{background:rgba(12,10,7,.88);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border-bottom-color:var(--hairline)}
+.nav-in{display:flex;align-items:center;justify-content:space-between;padding:20px 28px;max-width:1240px;margin:0 auto}
+.brand{font-family:'Fraunces',serif;font-weight:400;font-size:21px;letter-spacing:6px;text-transform:uppercase}
+.brand i{font-style:normal;color:var(--gold)}
+.nav-links{display:none;gap:34px;align-items:center}
+.nav-links a{font-size:11px;letter-spacing:1.8px;text-transform:uppercase;color:var(--t2);transition:color .25s}
+.nav-links a:hover{color:var(--t1)}
+.nav-cta{border:1px solid var(--hair);color:var(--gold);padding:9px 20px;border-radius:100px;font-size:10.5px;letter-spacing:1.8px;text-transform:uppercase;font-weight:500;transition:.3s var(--ease)}
+.nav-cta:hover{background:var(--gold);color:var(--ink)!important;border-color:var(--gold)}
+@media(min-width:960px){.nav-links{display:flex}}
+
+/* ── hero ────────────────────────────────────────────────────────── */
+.hero{position:relative;min-height:100svh;display:flex;align-items:center;padding:130px 0 80px;overflow:hidden}
+.hero-grid{display:grid;grid-template-columns:1fr;gap:56px;align-items:center;width:100%}
+@media(min-width:960px){.hero-grid{grid-template-columns:1.05fr .95fr;gap:64px}}
+h1{font-family:'Fraunces',Georgia,serif;font-weight:300;font-size:clamp(44px,6vw,84px);line-height:1.06;letter-spacing:-.015em;margin:22px 0 26px}
+h1 em{font-style:italic;color:var(--gold);font-weight:300}
+.hero-sub{font-size:clamp(16px,1.6vw,19px);color:var(--t2);max-width:44ch;margin-bottom:38px}
+.hero-sub b{color:var(--t1);font-weight:500}
+.cta-row{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.btn{position:relative;display:inline-flex;align-items:center;gap:10px;padding:17px 34px;border-radius:100px;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;transition:transform .4s var(--ease),box-shadow .4s var(--ease),background .3s,border-color .3s;overflow:hidden;will-change:transform}
+.btn::after{content:'';position:absolute;inset:0;background:linear-gradient(115deg,transparent 32%,rgba(255,255,255,.35),transparent 68%);transform:translateX(-130%);transition:transform .7s var(--ease);pointer-events:none}
+.btn:hover::after{transform:translateX(130%)}
+.btn-gold{background:var(--gold);color:var(--ink)}
+.btn-gold:hover{transform:translateY(-2px);box-shadow:0 14px 44px rgba(212,175,55,.32)}
+.btn-line{border:1px solid var(--hairline);color:var(--t1)}
+.btn-line:hover{border-color:var(--gold);color:var(--gold-bri)}
+.btn-wa{background:var(--wa);color:#fff}
+.btn-wa:hover{transform:translateY(-2px);box-shadow:0 14px 44px rgba(37,211,102,.3)}
+.hero-stats{display:flex;gap:0;margin-top:56px;border-top:1px solid var(--hairline)}
+.hstat{flex:1;padding:22px 18px 0 0}
+.hstat+.hstat{padding-left:22px;border-left:1px solid var(--hairline)}
+.hstat b{font-family:'Fraunces',serif;font-weight:400;font-size:clamp(24px,2.6vw,34px);color:var(--gold);display:block;line-height:1.1}
+.hstat span{font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t3);display:block;margin-top:6px}
+
+/* arched portal photography */
+.portal{position:relative;border-radius:calc(50vw) calc(50vw) 18px 18px;overflow:hidden;border:1px solid var(--hair);box-shadow:0 40px 90px rgba(0,0,0,.5)}
+.portal::after{content:'';position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 1px rgba(242,237,226,.06),inset 0 -80px 120px rgba(12,10,7,.55);pointer-events:none}
+.portal img{width:100%;height:100%;object-fit:cover;transform:scale(1.06);animation:kenburns 26s var(--ease-io) infinite alternate}
+@keyframes kenburns{from{transform:scale(1.06) translateY(0)}to{transform:scale(1.13) translateY(-2.5%)}}
+@media (prefers-reduced-motion:reduce){.portal img{animation:none}}
+.hero-art{position:relative}
+.hero-portal{aspect-ratio:4/5.1;max-height:74vh;width:100%}
+.portal-chip{position:absolute;left:18px;bottom:18px;z-index:2;display:flex;align-items:center;gap:10px;background:rgba(12,10,7,.78);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid var(--hairline);border-radius:100px;padding:10px 18px;font-size:12px;color:var(--t2)}
+.portal-chip b{color:var(--t1);font-weight:500}
+.portal-chip .dot{width:7px;height:7px;border-radius:50%;background:var(--wa);box-shadow:0 0 12px rgba(37,211,102,.8);animation:pulse 2.2s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.45}}
+.portal-mini{position:absolute;right:-14px;bottom:-34px;width:34%;aspect-ratio:3/4;z-index:3;display:none}
+.portal-mini .portal{width:100%;height:100%;box-shadow:0 24px 60px rgba(0,0,0,.6)}
+@media(min-width:960px){.portal-mini{display:block}}
+
+/* self-drawing colonnade ornament */
+.colonnade{display:block;width:100%;height:auto;color:var(--gold);opacity:.5}
+.colonnade path{fill:none;stroke:currentColor;stroke-width:1;stroke-dasharray:var(--len,2400);stroke-dashoffset:var(--len,2400);transition:stroke-dashoffset 2.6s var(--ease-io)}
+.colonnade.in path{stroke-dashoffset:0}
+.hero-colonnade{position:absolute;left:0;right:0;bottom:-2px;opacity:.28;pointer-events:none;mask-image:linear-gradient(90deg,transparent,#000 18%,#000 82%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 18%,#000 82%,transparent)}
+
+/* scroll cue */
+.cue{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:9px;z-index:2;transition:opacity .5s}
+.cue.off{opacity:0}
+.cue span{font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--t3)}
+.cue i{width:1px;height:42px;background:linear-gradient(180deg,rgba(212,175,55,.6),transparent);position:relative;overflow:hidden}
+.cue i::after{content:'';position:absolute;top:-100%;left:0;width:100%;height:100%;background:linear-gradient(180deg,transparent,var(--gold-bri));animation:drop 2.4s var(--ease-io) infinite}
+@keyframes drop{to{transform:translateY(200%)}}
+@media (prefers-reduced-motion:reduce){.cue i::after{animation:none}}
+
+/* ── section scaffolding ─────────────────────────────────────────── */
+section{position:relative;padding:110px 0}
+.sec-head{max-width:760px;margin-bottom:64px}
+h2{font-family:'Fraunces',Georgia,serif;font-weight:300;font-size:clamp(34px,4.6vw,64px);line-height:1.06;letter-spacing:-.015em;margin-top:18px}
+h2 em{font-style:italic;color:var(--gold)}
+.sec-sub{color:var(--t2);font-size:16px;margin-top:18px;max-width:52ch}
+.hr{border:0;border-top:1px solid var(--hairline)}
+
+/* ── this week (inventory) ───────────────────────────────────────── */
+.week-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:52px}
+.week-live{display:inline-flex;align-items:center;gap:10px;font-size:12px;color:var(--t2)}
+.week-live .dot{width:8px;height:8px;border-radius:50%;background:var(--wa);box-shadow:0 0 14px rgba(37,211,102,.7);animation:pulse 2.2s ease-in-out infinite}
+.week-live b{color:var(--t1);font-weight:500}
+.week-grid{display:grid;grid-template-columns:1fr;gap:26px}
+@media(min-width:760px){.week-grid{grid-template-columns:repeat(3,1fr)}}
+.home-card{display:block;position:relative;transition:transform .5s var(--ease)}
+.home-card:hover{transform:translateY(-8px)}
+.home-card .portal{aspect-ratio:4/4.8}
+.home-card .portal img{animation:none;transition:transform 1.2s var(--ease)}
+.home-card:hover .portal img{transform:scale(1.12)}
+.home-badge{position:absolute;top:16px;left:50%;transform:translateX(-50%);z-index:2;background:rgba(12,10,7,.8);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px solid var(--hair);color:var(--gold-bri);border-radius:100px;padding:6px 14px;font-size:9.5px;letter-spacing:1.8px;text-transform:uppercase;font-weight:500;white-space:nowrap}
+.home-meta{display:flex;align-items:baseline;justify-content:space-between;gap:14px;padding:20px 6px 0}
+.home-meta h3{font-family:'Fraunces',serif;font-weight:400;font-size:21px;letter-spacing:-.01em}
+.home-meta .pr{font-family:'Fraunces',serif;font-size:20px;color:var(--gold);white-space:nowrap}
+.home-meta .pr small{font-family:'Inter',sans-serif;font-size:11px;color:var(--t3);letter-spacing:.4px}
+.home-sub{padding:6px 6px 0;font-size:12.5px;color:var(--t3);letter-spacing:.4px}
+.week-foot{margin-top:52px;text-align:center}
+.link-more{display:inline-flex;align-items:center;gap:10px;font-size:11.5px;letter-spacing:2.2px;text-transform:uppercase;color:var(--gold);font-weight:500;border-bottom:1px solid transparent;padding-bottom:4px;transition:border-color .3s}
+.link-more:hover{border-color:var(--gold)}
+.link-more::after{content:'→';transition:transform .3s var(--ease)}
+.link-more:hover::after{transform:translateX(5px)}
+
+/* ── three ways in ───────────────────────────────────────────────── */
+.ways{border-top:1px solid var(--hairline)}
+.way{display:grid;grid-template-columns:64px 1fr;gap:22px;padding:44px 6px;border-bottom:1px solid var(--hairline);align-items:start;position:relative;transition:background .4s}
+@media(min-width:860px){.way{grid-template-columns:110px 1.15fr 1fr auto;gap:38px;align-items:center}}
+.way:hover{background:linear-gradient(90deg,rgba(212,175,55,.05),transparent 70%)}
+.way-n{font-family:'Fraunces',serif;font-style:italic;font-weight:300;font-size:clamp(34px,4vw,52px);color:var(--gold);line-height:1;opacity:.9}
+.way h3{font-family:'Fraunces',serif;font-weight:400;font-size:clamp(22px,2.6vw,30px);letter-spacing:-.01em}
+.way h3 span{display:block;font-family:'Inter',sans-serif;font-size:13.5px;font-weight:300;color:var(--t2);letter-spacing:0;margin-top:8px;max-width:44ch}
+.way-price{font-size:13px;color:var(--t2)}
+.way-price b{font-family:'Fraunces',serif;font-weight:400;font-size:clamp(22px,2.4vw,28px);color:var(--t1);display:block;line-height:1.2}
+.way-go{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);font-weight:500;white-space:nowrap;transition:transform .3s var(--ease);grid-column:2}
+@media(min-width:860px){.way-go{grid-column:auto}}
+.way:hover .way-go{transform:translateX(6px)}
+.ways-foot{padding:26px 6px 0;font-size:13px;color:var(--t3)}
+.ways-foot a{color:var(--gold);border-bottom:1px solid var(--hair)}
+
+/* ── method (from click to keys) ─────────────────────────────────── */
+.method{background:linear-gradient(180deg,rgba(20,17,9,.5),rgba(12,10,7,0));border-top:1px solid var(--hairline);border-bottom:1px solid var(--hairline)}
+.m-track{position:relative;height:1px;background:var(--hairline);margin:60px 0 52px;display:none}
+.m-track i{position:absolute;inset:0;transform-origin:left;transform:scaleX(0);background:linear-gradient(90deg,var(--gold-deep),var(--gold));transition:transform 1.4s var(--ease-io)}
+.m-track.in i{transform:scaleX(1)}
+@media(min-width:860px){.m-track{display:block}}
+.m-grid{display:grid;grid-template-columns:1fr;gap:44px}
+@media(min-width:860px){.m-grid{grid-template-columns:repeat(4,1fr);gap:34px}}
+.m-step b{font-family:'Fraunces',serif;font-style:italic;font-weight:300;font-size:15px;color:var(--gold);letter-spacing:1px}
+.m-step h3{font-family:'Fraunces',serif;font-weight:400;font-size:21px;margin:12px 0 10px}
+.m-step p{font-size:13.5px;color:var(--t2);max-width:30ch}
+.m-step .mt{font-size:10.5px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t3);margin-top:14px;display:block}
+
+/* ── proof ───────────────────────────────────────────────────────── */
+.proof-grid{display:grid;grid-template-columns:1fr;gap:56px;align-items:center}
+@media(min-width:960px){.proof-grid{grid-template-columns:1.25fr .75fr;gap:80px}}
+.quote{font-family:'Fraunces',Georgia,serif;font-weight:300;font-size:clamp(26px,3.4vw,44px);line-height:1.25;letter-spacing:-.01em}
+.quote em{font-style:italic;color:var(--gold)}
+.quote-by{margin-top:26px;font-size:12px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t3)}
+.proof-side{display:flex;flex-direction:column;gap:22px}
+.proof-card{border:1px solid var(--hairline);border-radius:16px;padding:26px 28px;background:var(--card)}
+.stars{color:var(--gold);letter-spacing:3px;font-size:14px}
+.proof-card .big{font-family:'Fraunces',serif;font-weight:400;font-size:30px;margin:8px 0 2px}
+.proof-card p{font-size:12.5px;color:var(--t3)}
+.proof-card a{color:var(--gold);font-size:11px;letter-spacing:1.6px;text-transform:uppercase;font-weight:500}
+.guarantee{border-color:var(--hair)}
+.guarantee .big{color:var(--gold)}
+
+/* ── institutions ────────────────────────────────────────────────── */
+.inst{padding:64px 0;border-top:1px solid var(--hairline);border-bottom:1px solid var(--hairline)}
+.inst-in{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:22px}
+.inst p{font-size:13px;color:var(--t3);max-width:46ch}
+.inst p b{color:var(--t2);font-weight:500}
+.inst-links{display:flex;gap:30px;flex-wrap:wrap}
+.inst-links a{font-family:'Fraunces',serif;font-size:17px;color:var(--t2);border-bottom:1px solid transparent;transition:.3s}
+.inst-links a:hover{color:var(--gold);border-color:var(--hair)}
+
+/* ── manifesto ───────────────────────────────────────────────────── */
+.manifesto{text-align:center}
+.manifesto .colonnade{max-width:420px;margin:0 auto 44px}
+.mani-text{font-family:'Fraunces',Georgia,serif;font-weight:300;font-size:clamp(24px,3.2vw,40px);line-height:1.3;max-width:26ch;margin:24px auto 0;letter-spacing:-.01em}
+.mani-text em{font-style:italic;color:var(--gold)}
+.mani-by{margin-top:34px;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--t3)}
+.mani-by b{display:block;font-family:'Fraunces',serif;font-style:italic;font-weight:400;font-size:19px;color:var(--t1);letter-spacing:0;text-transform:none;margin-bottom:6px}
+
+/* ── final ───────────────────────────────────────────────────────── */
+.final{padding:150px 0 130px;text-align:center;position:relative;overflow:hidden}
+.final::before{content:'';position:absolute;left:50%;bottom:-42%;transform:translateX(-50%);width:min(880px,120vw);aspect-ratio:2/1;border-radius:999px 999px 0 0;border:1px solid var(--hair);opacity:.55;pointer-events:none}
+.final::after{content:'';position:absolute;left:50%;bottom:-42%;transform:translateX(-50%);width:min(640px,90vw);aspect-ratio:2/1;border-radius:999px 999px 0 0;border:1px solid var(--hairline);pointer-events:none}
+.final h2{font-size:clamp(44px,7vw,100px)}
+.final .sec-sub{margin:20px auto 44px}
+.final .cta-row{justify-content:center}
+
+/* ── footer ──────────────────────────────────────────────────────── */
+footer{padding:70px 0 40px;border-top:1px solid var(--hairline);position:relative}
+.f-grid{display:grid;grid-template-columns:1fr;gap:40px;margin-bottom:52px}
+@media(min-width:860px){.f-grid{grid-template-columns:1.6fr 1fr 1fr 1fr}}
+.f-brand{font-family:'Fraunces',serif;font-size:20px;letter-spacing:6px;text-transform:uppercase}
+.f-brand i{font-style:normal;color:var(--gold)}
+.f-tag{font-size:13px;color:var(--t3);max-width:34ch;margin-top:14px}
+.f-legal{font-size:11.5px;color:var(--t4);margin-top:20px;line-height:1.8}
+.f-col h4{font-size:10px;letter-spacing:2.2px;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:18px}
+.f-col a{display:block;font-size:13px;color:var(--t2);padding:5px 0;transition:color .25s}
+.f-col a:hover{color:var(--t1)}
+.f-foot{display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap;padding-top:26px;border-top:1px solid var(--hairline);font-size:11.5px;color:var(--t4)}
+.f-live{display:inline-flex;align-items:center;gap:8px}
+.f-live i{width:7px;height:7px;border-radius:50%;background:var(--wa);box-shadow:0 0 10px rgba(37,211,102,.7);animation:pulse 2.2s infinite}
+
+.proto{position:fixed;right:14px;bottom:14px;z-index:70;background:rgba(12,10,7,.85);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid var(--hair);border-radius:100px;padding:8px 16px;font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t3)}
+.proto b{color:var(--gold);font-weight:500}
+</style>
+</head>
+<body>
+
+<nav id="nav"><div class="nav-in">
+  <a class="brand" href="/">BO<i>O</i>M</a>
+  <div class="nav-links">
+    <a href="/apartments.html">Homes</a>
+    <a href="/property-finding.html">Finding</a>
+    <a href="/deal-assistance.html">Deal help</a>
+    <a href="/about.html">About</a>
+    <a class="nav-cta" href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a>
+  </div>
+</div></nav>
+
+<!-- ═══ HERO ═══ -->
+<header class="hero" data-ambient="velluto">
+  <div class="wrap hero-grid">
+    <div class="rv in-hero" id="heroCopy">
+      <span class="eyebrow rv rv-d1">Rome · rentals, done properly</span>
+      <h1>
+        <span class="lm"><span>A home in <em>Rome</em>,</span></span>
+        <span class="lm"><span>in <em>days</em> —</span></span>
+        <span class="lm"><span>not weeks.</span></span>
+      </h1>
+      <p class="hero-sub rv rv-d2">Every apartment <b>video-verified</b>. Every price <b>transparent</b>. Every question answered by a <b>real human</b>, in English, usually within two minutes.</p>
+      <div class="cta-row rv rv-d3">
+        <a class="btn btn-gold" href="/apartments.html">View homes</a>
+        <a class="btn btn-line" href="/how-it-works.html">How it works</a>
+      </div>
+      <div class="hero-stats rv rv-d4">
+        <div class="hstat"><b class="num" data-count>48h</b><span>to move in</span></div>
+        <div class="hstat"><b class="num" data-count>98%</b><span>success rate</span></div>
+        <div class="hstat"><b class="num" data-count>€0</b><span>hidden fees</span></div>
+      </div>
+    </div>
+    <div class="hero-art rv rv-d2" id="heroArt">
+      <div class="portal hero-portal">
+        <img src="https://i.imgur.com/8LVxrhs.jpeg" alt="Coronari Classic — living room with vaulted ceiling, historic centre of Rome" loading="eager" decoding="async">
+        <div class="portal-chip"><span class="dot"></span><span><b>Coronari Classic</b> · €2,000/mo · verified</span></div>
+      </div>
+      <div class="portal-mini"><div class="portal">
+        <img src="https://i.imgur.com/s2es0MN.jpeg" alt="Bright attic with terrace, Trastevere" loading="lazy" decoding="async">
+      </div></div>
+    </div>
+  </div>
+
+  <svg class="colonnade hero-colonnade" id="heroColonnade" viewBox="0 0 1200 150" preserveAspectRatio="xMidYMax meet" aria-hidden="true"></svg>
+
+  <div class="cue" id="cue" aria-hidden="true"><span>Scroll</span><i></i></div>
+</header>
+
+<!-- ═══ THIS WEEK ═══ -->
+<section data-ambient="marmo">
+  <div class="wrap">
+    <div class="week-head rv">
+      <div>
+        <span class="eyebrow">Available now</span>
+        <h2>Move in <em>this week</em>.</h2>
+      </div>
+      <div class="week-live"><span class="dot"></span><span><b class="num">34</b> verified homes live right now</span></div>
+    </div>
+    <div class="week-grid">
+      <a class="home-card rv" href="/apartments.html">
+        <div class="portal"><img src="https://i.imgur.com/QOAu6k1.jpeg" alt="Villa Ada Studio" loading="lazy" decoding="async"></div>
+        <span class="home-badge">Video tour</span>
+        <div class="home-meta"><h3>Villa Ada Studio</h3><span class="pr">€1,200 <small>/mo</small></span></div>
+        <div class="home-sub">40 m² · 1 bed · ground floor</div>
+      </a>
+      <a class="home-card rv rv-d1" href="/apartments.html">
+        <div class="portal"><img src="https://i.imgur.com/tJnYADn.jpeg" alt="Pigneto Terrace" loading="lazy" decoding="async"></div>
+        <span class="home-badge">Bohemian</span>
+        <div class="home-meta"><h3>Pigneto Terrace</h3><span class="pr">€1,700 <small>/mo</small></span></div>
+        <div class="home-sub">80 m² · 2 bed · balcony</div>
+      </a>
+      <a class="home-card rv rv-d2" href="/apartments.html">
+        <div class="portal"><img src="https://i.imgur.com/hxai5bz.jpeg" alt="Sunny corner apartment, San Lorenzo" loading="lazy" decoding="async"></div>
+        <span class="home-badge">Historic centre</span>
+        <div class="home-meta"><h3>Coronari Classic</h3><span class="pr">€2,000 <small>/mo</small></span></div>
+        <div class="home-sub">70 m² · 1 bed · elevator</div>
+      </a>
+    </div>
+    <div class="week-foot rv"><a class="link-more" href="/apartments.html">All apartments</a></div>
+  </div>
+</section>
+
+<!-- ═══ THREE WAYS IN ═══ -->
+<section data-ambient="cosmati">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="eyebrow">Three ways in</span>
+      <h2>However you search, <em>we finish&nbsp;it</em>.</h2>
+      <p class="sec-sub">One clear path for every situation — with the price written next to it, because that is how it should be.</p>
+    </div>
+    <div class="ways rv">
+      <a class="way" href="/apartments.html">
+        <div class="way-n">I.</div>
+        <h3>Browse ready homes<span>Video-verified listings, ready for immediate move-in. What you see is exactly what you get.</span></h3>
+        <div class="way-price"><b>from €1,000<small>/mo</small></b>no agency surprises</div>
+        <span class="way-go">View homes →</span>
+      </a>
+      <a class="way" href="/property-finding.html">
+        <div class="way-n">II.</div>
+        <h3>We hunt for you<span>Your requirements, the whole Roman market — including off-market. Curated options within 10 days.</span></h3>
+        <div class="way-price"><b>€350 upfront</b>deducted from the fee · full refund if we fail</div>
+        <span class="way-go">Start the search →</span>
+      </a>
+      <a class="way" href="/deal-assistance.html">
+        <div class="way-n">III.</div>
+        <h3>Protect a deal you found<span>We negotiate, review and translate the contract, verify the landlord, and guard your deposit.</span></h3>
+        <div class="way-price"><b>€249 fixed</b>one fee, every risky part handled</div>
+        <span class="way-go">Get protected →</span>
+      </a>
+    </div>
+    <p class="ways-foot rv">Not in Rome yet? We'll be your eyes on the ground — <a href="/virtual-viewing.html">live virtual viewing, €89</a>.</p>
+  </div>
+</section>
+
+<!-- ═══ METHOD ═══ -->
+<section class="method" data-ambient="velluto">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="eyebrow">The method</span>
+      <h2>From click to <em>keys</em>.</h2>
+    </div>
+    <div class="m-track" id="mTrack"><i></i></div>
+    <div class="m-grid">
+      <div class="m-step rv"><b>i.</b><h3>Choose</h3><p>Every home video-verified, every price final. No surprises on arrival.</p><span class="mt">Day zero</span></div>
+      <div class="m-step rv rv-d1"><b>ii.</b><h3>Apply</h3><p>Two minutes online, a real person on the other side. Answers in hours.</p><span class="mt">Day one</span></div>
+      <div class="m-step rv rv-d2"><b>iii.</b><h3>Sign</h3><p>A proper legal contract, deposit protection, secure payment.</p><span class="mt">Day one</span></div>
+      <div class="m-step rv rv-d3"><b>iv.</b><h3>Move in</h3><p>Keys in hand, utilities running. First click to first night, in days.</p><span class="mt">Within 48 hours</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ PROOF ═══ -->
+<section data-ambient="guilloche">
+  <div class="wrap proof-grid">
+    <div class="rv">
+      <p class="quote">"They found us an apartment in six days, translated everything, and were <em>on WhatsApp at midnight</em> when the landlord got cold feet. Worth every euro."</p>
+      <p class="quote-by">Erasmus researcher · placed in Prati</p>
+    </div>
+    <div class="proof-side">
+      <div class="proof-card rv rv-d1">
+        <span class="stars">★★★★★</span>
+        <div class="big num">4.9 on Google</div>
+        <p>47 verified reviews from tenants and owners.</p>
+        <a href="https://share.google/hqXmmWI9vQSnEvZmK" target="_blank" rel="noopener">Read the reviews →</a>
+      </div>
+      <div class="proof-card guarantee rv rv-d2">
+        <div class="big">€0 if we fail</div>
+        <p>Property finding is fully refunded if we don't deliver curated options within 10 days. In writing, in the contract.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ INSTITUTIONS ═══ -->
+<div class="inst" data-ambient="meandro">
+  <div class="wrap inst-in rv">
+    <p><b>For organisations.</b> Universities, companies and research programmes house their people in Rome through BOOM — verified, English-first, on one invoice.</p>
+    <div class="inst-links">
+      <a href="/universities.html">Universities</a>
+      <a href="/corporate.html">Companies</a>
+      <a href="/research.html">Research &amp; ERC</a>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MANIFESTO ═══ -->
+<section class="manifesto" data-ambient="tevere">
+  <div class="wrap rv">
+    <svg class="colonnade" id="maniColonnade" viewBox="0 0 420 110" preserveAspectRatio="xMidYMax meet" aria-hidden="true"></svg>
+    <span class="eyebrow" style="justify-content:center">Why we exist</span>
+    <p class="mani-text">Rome's rental market is notoriously difficult. We watched friends get ghosted, scammed and overcharged — <em>so we built the service we needed</em>.</p>
+    <p class="mani-by"><b>Valentino</b>Founder &amp; CEO · Egidi Immobiliare</p>
+  </div>
+</section>
+
+<!-- ═══ FINAL ═══ -->
+<section class="final" data-ambient="raggiera">
+  <div class="wrap rv">
+    <h2>Ready for <em>Rome?</em></h2>
+    <p class="sec-sub" style="max-width:36ch">Stop fighting the system. Tell us what you need — we answer in minutes, not days.</p>
+    <div class="cta-row">
+      <a class="btn btn-gold" href="/apartments.html">View homes</a>
+      <a class="btn btn-wa" href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp us</a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ FOOTER ═══ -->
+<footer data-ambient="sampietrini">
+  <div class="wrap">
+    <div class="f-grid">
+      <div>
+        <div class="f-brand">BO<i>O</i>M</div>
+        <p class="f-tag">Built in Rome, for Rome. If we can make this market work, we can make it work anywhere.</p>
+        <p class="f-legal">Egidi Immobiliare S.r.l.<br>P.IVA 17322991005 · REA RM-1710623<br>Rome, Italy</p>
+      </div>
+      <div class="f-col">
+        <h4>Services</h4>
+        <a href="/apartments.html">Apartments</a>
+        <a href="/property-finding.html">Property finding</a>
+        <a href="/deal-assistance.html">Deal assistance</a>
+        <a href="/virtual-viewing.html">Virtual viewing</a>
+        <a href="/concierge.html">Concierge</a>
+      </div>
+      <div class="f-col">
+        <h4>Company</h4>
+        <a href="/about.html">About</a>
+        <a href="/how-it-works.html">How it works</a>
+        <a href="/owners.html">For owners</a>
+        <a href="/blog.html">Blog</a>
+        <a href="/contact.html">Contact</a>
+      </div>
+      <div class="f-col">
+        <h4>Legal</h4>
+        <a href="/terms.html">Terms</a>
+        <a href="/privacy.html">Privacy</a>
+        <a href="/login.html">Login</a>
+      </div>
+    </div>
+    <div class="f-foot">
+      <span>© 2025 BOOM — all rights reserved</span>
+      <span class="f-live"><i></i>Operational</span>
+    </div>
+  </div>
+</footer>
+
+<div class="proto">Direction · <b>Aurelia</b> · Roman editorial</div>
+
+<script src="/js/boom-ambient.js"></script>
+<script>
+(function(){
+'use strict';
+var R = matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+/* ── ambience: quiet, warm, sectional ── */
+if (window.BoomAmbient) {
+  var MOODBY = { velluto:'read', tevere:'read', guilloche:'read', meandro:'read' };
+  var amb = BoomAmbient.mount({
+    ink:'#0C0A07', inkRGB:'12,10,7',
+    palette:{ a:'212,175,55', b:'232,201,106' },
+    intensity:.62,
+    onScene:function(k){ if(window.__amb) window.__amb.mood(MOODBY[k]||'browse'); }
+  });
+  window.__amb = amb;
+  var ly = scrollY;
+  addEventListener('scroll', function(){ amb.stir(Math.min(1, Math.abs(scrollY-ly)/280)); ly = scrollY; }, {passive:true});
+}
+
+/* ── nav scrim + scroll cue ── */
+var nav = document.getElementById('nav'), cue = document.getElementById('cue');
+addEventListener('scroll', function(){
+  nav.classList.toggle('scr', scrollY > 16);
+  if (cue) cue.classList.toggle('off', scrollY > 40);
+}, {passive:true});
+
+/* ── reveal on scroll (also releases the headline line-masks) ── */
+var io = new IntersectionObserver(function(es){
+  es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+}, { threshold:.12, rootMargin:'0px 0px -6% 0px' });
+document.querySelectorAll('.rv').forEach(function(el){ io.observe(el); });
+
+/* ── self-drawing colonnades ── */
+function buildColonnade(svg, w, h, arches){
+  var colW = w/arches, r = colW*0.36, base = h-1, top = h*0.36, d = '';
+  for (var i=0;i<arches;i++){
+    var x0 = i*colW + (colW-2*r)/2, x1 = x0 + 2*r;
+    d += 'M'+x0.toFixed(1)+' '+base+' L'+x0.toFixed(1)+' '+top.toFixed(1)
+       + ' A'+r.toFixed(1)+' '+r.toFixed(1)+' 0 0 1 '+x1.toFixed(1)+' '+top.toFixed(1)
+       + ' L'+x1.toFixed(1)+' '+base+' ';
+  }
+  d += 'M0 '+base+' H'+w;
+  var p = document.createElementNS('http://www.w3.org/2000/svg','path');
+  p.setAttribute('d', d);
+  svg.appendChild(p);
+  requestAnimationFrame(function(){
+    var len = Math.ceil(p.getTotalLength());
+    svg.style.setProperty('--len', len);
+    p.style.strokeDasharray = len; p.style.strokeDashoffset = len;
+    var cio = new IntersectionObserver(function(es){
+      es.forEach(function(e){ if(e.isIntersecting){ svg.classList.add('in'); cio.disconnect(); } });
+    }, { threshold:.3 });
+    cio.observe(svg);
+    if (R) { svg.classList.add('in'); p.style.transition='none'; }
+  });
+}
+buildColonnade(document.getElementById('heroColonnade'), 1200, 150, 9);
+buildColonnade(document.getElementById('maniColonnade'), 420, 110, 5);
+
+/* ── hero: play entrance, exit parallax ── */
+var heroCopy = document.getElementById('heroCopy'), heroArt = document.getElementById('heroArt');
+requestAnimationFrame(function(){ requestAnimationFrame(function(){
+  heroCopy.classList.add('in');
+  document.querySelectorAll('.in-hero .rv, .hero .rv').forEach(function(el){ el.classList.add('in'); });
+});});
+if (!R) (function par(){
+  var y = scrollY, p = Math.min(1, Math.max(0, y/innerHeight));
+  heroCopy.style.transform = 'translateY(' + (p*-46).toFixed(1) + 'px)';
+  heroCopy.style.opacity = String(1 - p*.8);
+  heroArt.style.transform = 'translateY(' + (p*34).toFixed(1) + 'px)';
+  requestAnimationFrame(par);
+})();
+
+/* ── method progress line ── */
+var mt = document.getElementById('mTrack');
+if (mt) { var mio = new IntersectionObserver(function(es){
+  es.forEach(function(e){ if(e.isIntersecting){ mt.classList.add('in'); mio.disconnect(); } });
+}, { threshold:.6 }); mio.observe(mt); }
+
+/* ── count-up (preserves prefix/suffix) ── */
+function countUp(el){
+  var txt = el.textContent.trim(), m = txt.match(/^(\D*)(\d+)(.*)$/s);
+  if (!m || R) return;
+  var pre = m[1], end = parseInt(m[2],10), suf = m[3];
+  if (!end) return;
+  el.style.fontVariantNumeric = 'tabular-nums';
+  var t0 = performance.now(), dur = 1300;
+  (function tick(now){
+    var p = Math.min(1,(now-t0)/dur), e2 = 1-Math.pow(1-p,3);
+    el.textContent = pre + Math.round(end*e2) + suf;
+    if (p<1) requestAnimationFrame(tick); else el.textContent = txt;
+  })(t0);
+}
+var co = new IntersectionObserver(function(es){
+  es.forEach(function(e){ if(e.isIntersecting){ countUp(e.target); co.unobserve(e.target); } });
+}, { threshold:.5 });
+document.querySelectorAll('[data-count]').forEach(function(el){ co.observe(el); });
+
+/* ── magnetic CTAs (desktop) ── */
+if (!R && matchMedia('(hover:hover)').matches) {
+  document.querySelectorAll('.btn').forEach(function(b){
+    b.addEventListener('mousemove', function(e){
+      var r = b.getBoundingClientRect();
+      b.style.transform = 'translate(' + ((e.clientX-r.left-r.width/2)*.18).toFixed(1) + 'px,' + ((e.clientY-r.top-r.height/2)*.28).toFixed(1) + 'px)';
+    });
+    b.addEventListener('mouseleave', function(){ b.style.transform=''; });
+  });
+}
+})();
+</script>
+</body>
+</html>
