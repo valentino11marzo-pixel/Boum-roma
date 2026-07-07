@@ -303,6 +303,9 @@ body.chapters .proofs.stamped .proof:nth-child(4){transition-delay:.36s}
 .sec-h h2{font-size:clamp(21px,4.4vw,30px);font-weight:200}
 .sub{color:var(--t2);font-size:14.5px;max-width:54ch;margin-bottom:18px}
 .desc{color:var(--t2);font-size:15px;line-height:1.8}
+/* the neighbourhood, in one human line — always present, never grandiose */
+.zsense{margin-top:14px;padding:12px 15px;border-left:2px solid var(--gold);background:rgba(255,215,0,.04);border-radius:0 12px 12px 0;color:var(--t2);font-size:13.5px;line-height:1.65}
+.zsense .zk{display:block;font-size:10px;letter-spacing:2.2px;text-transform:uppercase;color:var(--gold);margin-bottom:5px}
 .feat{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
 .feat span{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:9px 13px;font-size:13px}
 
@@ -424,6 +427,27 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
 .pa-consent input{accent-color:var(--gold);width:18px;height:18px;flex:none;margin-top:1px;cursor:pointer}
 .pa-consent:hover{border-color:var(--line-gold)}
 .pa-consent:has(input:checked){border-color:var(--line-gold);color:var(--t1);background:var(--gold-faint)}
+/* ── the lock plate: the one moment money moves — engineered to feel safe.
+     Disabled = quiet hairline; consent checked = it turns to gold and a
+     single sheen crosses it, once. ── */
+.paybtn{width:100%;margin-top:14px;display:flex;align-items:center;gap:13px;padding:15px 17px;border-radius:14px;border:1px solid var(--line);background:var(--card);color:var(--t2);font-family:inherit;cursor:pointer;transition:all .35s var(--ease);position:relative;overflow:hidden;text-align:left}
+.paybtn .lk{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;border:1px solid var(--line);color:var(--t3);flex:none;transition:inherit}
+.paybtn .tx{flex:1;min-width:0}
+.paybtn .tx b{display:block;font-size:14.5px;font-weight:500;color:var(--t2);transition:inherit}
+.paybtn .tx small{display:block;font-size:11px;color:var(--t3);margin-top:2px;transition:inherit}
+.paybtn .amt{font-family:var(--disp);font-size:20px;font-weight:300;color:var(--t3);transition:inherit;white-space:nowrap}
+.paybtn:disabled{cursor:not-allowed;opacity:.6}
+.paybtn:not(:disabled){background:linear-gradient(135deg,var(--gold),#d9b400);border-color:transparent;box-shadow:0 12px 34px rgba(255,215,0,.22)}
+.paybtn:not(:disabled) .tx b{color:#1a1407}
+.paybtn:not(:disabled) .tx small{color:rgba(26,20,7,.72)}
+.paybtn:not(:disabled) .lk{background:rgba(0,0,0,.14);border-color:rgba(0,0,0,.18);color:#1a1407}
+.paybtn:not(:disabled) .amt{color:#1a1407;font-weight:400}
+.paybtn:not(:disabled):hover{transform:translateY(-1px);box-shadow:0 16px 40px rgba(255,215,0,.3)}
+.paybtn:not(:disabled)::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.38),transparent 70%);transform:translateX(-140%);animation:payArm 1.15s var(--ease) .12s 1}
+@keyframes payArm{to{transform:translateX(140%)}}
+.paysafe{display:flex;align-items:flex-start;justify-content:center;gap:7px;margin-top:11px;font-size:11px;color:var(--t3);text-align:center;line-height:1.6}
+.paysafe svg{flex:none;margin-top:2px;color:var(--gold)}
+.paysafe b{color:var(--t2);font-weight:500}
 .gbtn:disabled,.gbtn:disabled:hover{opacity:.38;cursor:not-allowed;transform:none;filter:grayscale(.45);box-shadow:none}
 @media(prefers-reduced-motion:no-preference){
   .pa-print{opacity:0;animation:seqIn .45s cubic-bezier(.16,1,.3,1) both}
@@ -684,6 +708,7 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
       <section class="sec reveal" id="about">
         <div class="sec-h"><span class="num">01</span><div><div class="eyebrow">The home</div><h2 id="aboutH">Light, a terrace, the <span class="g" id="aboutZone">heart of Trastevere</span>.</h2></div></div>
         <p class="desc" id="aboutDesc">A furnished attic in the pedestrian heart of Trastevere: double aspect, all-day light, and a private terrace over the rooftops. Steps from Sapienza, the historic centre and the rione’s evening life. Verified in person and on video by our team — what you see is exactly what you get.</p>
+        <p class="zsense" id="zsense" hidden></p>
         <div class="feat" id="feat"></div>
       </section>
 
@@ -1078,18 +1103,27 @@ function resSubmit(){var inc=+(document.getElementById('rqInc')||{}).value||0;va
   if(nm.length<3){if(err){err.textContent='Your full name goes on the pre-agreement — add it to continue.';err.style.display='block';}return;}
   if(!inc&&!guar){if(err){err.textContent='Tell us your income or tick the guarantor box — we can’t check otherwise.';err.style.display='block';}return;}
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){if(err){err.textContent='Add your email so we can confirm the outcome to you.';err.style.display='block';}return;}
-  RES.name=nm;RES.phone=ph;RES.email=em;RES.need=Math.round(L.price*2.5);RES.approved=(inc>=RES.need)||guar;RES.low=inc>0&&inc<RES.need*0.8;resStep(2);}
+  RES.name=nm;RES.phone=ph;RES.email=em;RES.who=((document.getElementById('rqWho')||{}).value||'');RES.occ=((document.getElementById('rqOcc')||{}).value||'');
+  RES.need=Math.round(L.price*2.5);RES.approved=(inc>=RES.need)||guar;RES.low=inc>0&&inc<RES.need*0.8;
+  /* the qualification snapshot becomes a real lead in the portal — fire and
+     forget, the visitor's flow never waits on it */
+  try{var _s=computeStay();fetch('/api/apply-lead',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    name:nm,email:em,phone:ph,listingId:(typeof PID!=='undefined'&&PID)||L.id||'',listingName:L.name,listingPrice:L.price,zone:L.zone,
+    kind:RES.kind,waitlist:L.status==='waitlist',income:inc||0,guarantor:guar,household:RES.who,occupation:RES.occ,
+    moveIn:_s.start?_s.start.toISOString().slice(0,10):'',durationMonths:DUR,company:''})}).catch(function(){});}catch(e){}
+  boomTrack('generate_lead',{item_id:(typeof PID!=='undefined'&&PID)||L.id||'sample',kind:RES.kind});
+  resStep(2);}
 function resHold(){var lk=document.getElementById('paLock');if(lk&&lk.disabled)return;boomTrack('add_payment_info',{item_id:PID||L.id||'sample'});try{navigator.vibrate&&navigator.vibrate(12)}catch(e){}
   /* Stripe first — the lock is real. If checkout can't be created (offline,
      preview, missing key) fall back to the honest issued-confirmation. */
-  if(lk){lk.disabled=true;lk.textContent='Opening secure checkout…';}
+  if(lk){lk.disabled=true;var _lt=lk.querySelector('.tx b');if(_lt)_lt.textContent='Opening secure checkout…';else lk.textContent='Opening secure checkout…';}
   var s=computeStay();
   fetch('/api/reserve-checkout',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({listingId:(typeof PID!=='undefined'&&PID)||L.id||'',listingName:L.name,amount:300,
       name:RES.name||'',email:RES.email||'',phone:RES.phone||'',move_in_date:s.start?s.start.toISOString().slice(0,10):''})})
   .then(function(r){return r.ok?r.json():null})
   .then(function(j){if(j&&j.url){location.href=j.url;return;}throw 0;})
-  .catch(function(){if(lk){lk.disabled=false;lk.textContent='Lock this home · €300 →';}resStep(3);});}
+  .catch(function(){if(lk){lk.disabled=false;var _lr=lk.querySelector('.tx b');if(_lr)_lr.textContent='Lock this home';}resStep(3);});}
 /* the BOOM seal — hairline, currentColor, echoes the ◆ of the map facade */
 function paSealSVG(sz){return '<svg class="pa-seal" width="'+sz+'" height="'+sz+'" viewBox="0 0 48 48" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="24" cy="24" r="21.5" stroke-width="1"/><circle cx="24" cy="24" r="17" stroke-width=".7" stroke-dasharray="2.2 3.1" opacity=".6"/><circle cx="24" cy="24" r="12" stroke-width=".7" opacity=".85"/><path d="M24 17.5 29 24l-5 6.5L19 24z" fill="currentColor" stroke="none" opacity=".92"/></svg>';}
 function renderRes(){
@@ -1108,11 +1142,17 @@ function renderRes(){
       +'<label style="display:block"><span style="display:block;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--t3);margin-bottom:6px">Your email</span><input id="rqEmail" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com" value="'+(RES.email||'')+'" style="width:100%;background:var(--input);border:1px solid var(--line);border-radius:11px;color:var(--t1);font-family:inherit;font-size:15px;padding:12px 13px"></label>'
       +'<label style="display:block"><span style="display:block;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--t3);margin-bottom:6px">Phone / WhatsApp</span><input id="rqPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+39 …" value="'+(RES.phone||'')+'" style="width:100%;background:var(--input);border:1px solid var(--line);border-radius:11px;color:var(--t1);font-family:inherit;font-size:15px;padding:12px 13px"></label>'
       +'</div>'
+      +'<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px">'
+      +'<label style="display:block"><span style="display:block;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--t3);margin-bottom:6px">Who’s moving in</span><select id="rqWho" style="width:100%;background:var(--input);border:1px solid var(--line);border-radius:11px;color:var(--t1);font-family:inherit;font-size:15px;padding:12px 13px;appearance:none"><option value="">Select…</option><option value="solo">Just me</option><option value="couple">A couple</option><option value="family">Family</option><option value="flatmates">Flatmates</option></select></label>'
+      +'<label style="display:block"><span style="display:block;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--t3);margin-bottom:6px">You are</span><select id="rqOcc" style="width:100%;background:var(--input);border:1px solid var(--line);border-radius:11px;color:var(--t1);font-family:inherit;font-size:15px;padding:12px 13px;appearance:none"><option value="">Select…</option><option value="employed">Employed</option><option value="self-employed">Self-employed</option><option value="student">Student</option><option value="relocating">Relocating for work</option></select></label>'
+      +'</div>'
       +'<label style="display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--t2);cursor:pointer"><input id="rqGuar" type="checkbox" style="accent-color:var(--gold);width:18px;height:18px"> I have a guarantor (or can pay a larger deposit)</label>'
       +'</div>'
       +'<p id="rqErr" style="display:none;color:var(--gold-light);font-size:12.5px;margin-top:10px"></p>'
       +'<button class="gbtn" style="margin-top:18px" onclick="resSubmit()">Check eligibility →</button>'
       +'<p style="font-size:11px;color:var(--t3);margin-top:12px;text-align:center">Private · used only to qualify your application</p>';
+    if(RES.who)try{document.getElementById('rqWho').value=RES.who}catch(e){}
+    if(RES.occ)try{document.getElementById('rqOcc').value=RES.occ}catch(e){}
   } else if(RES.step===2){
     var ok=RES.approved;
     var verdict=ok
@@ -1138,8 +1178,11 @@ function renderRes(){
         +'<div class="pa-terms">'+terms.map(function(t){return '<div class="pa-term pa-print"><span class="c">✓</span><span>'+t+'</span></div>';}).join('')+'</div>'
         +'</div>'
         +'<label class="pa-consent pa-print"><input type="checkbox" id="paConsent" onchange="document.getElementById(\'paLock\').disabled=!this.checked"><span>I’ve read and accept the pre-agreement terms</span></label>'
-        +'<button class="gbtn" id="paLock" disabled style="margin-top:14px" onclick="resHold()">Lock this home · €300 →</button>'
-        +'<p style="font-size:11px;color:var(--t3);margin-top:11px;text-align:center">€300 — credited to your first month · 100% refunded within 48h · Stripe-secured</p>'
+        +'<button class="paybtn" id="paLock" disabled onclick="resHold()">'
+          +'<span class="lk"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1zM8 11V7a4 4 0 0 1 8 0v4"/></svg></span>'
+          +'<span class="tx"><b>'+(L.status==='waitlist'?'Hold first place in line':'Lock this home')+'</b><small>'+(L.status==='waitlist'?'priority hold · 100% refundable':'48-hour hold · 100% refundable')+'</small></span>'
+          +'<span class="amt">€300</span></button>'
+        +'<p class="paysafe"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z"/></svg><span>Secured by <b>Stripe</b> · credited to your first month, or refunded in full within 48h — even for a simple mistake, one tap and it comes back. No questions.</span></p>'
         +(RES.kind==='apply'?'<a href="https://wa.me/393313251961" class="obtn" style="margin-top:4px;text-decoration:none">Prefer to talk first? Message your advisor</a>':'');
     } else {
       var cta=(RES.kind==='reserve')
@@ -1247,6 +1290,35 @@ const SVGI={
 };
 const NBICO={'🚇':'train','🎓':'cap','🛒':'cart','🏛️':'landmark','🏛':'landmark'};
 
+/* ── The sense of place: one warm, human line per zone. Iconic zones may
+     say "heart of"; every other quartiere gets a real, likeable identity —
+     never grandiose where it wouldn't ring true. ── */
+const ZONE_LORE=[
+ [/trastevere/i,1,'cobbled lanes, ivy on the walls and the best evening light in Rome'],
+ [/centro storico|^centro$|navona|campo de|pantheon|barberini|coronari/i,1,'domes, fountains and streets that empty beautifully at night'],
+ [/monti/i,1,'artisan workshops and wine bars in Rome’s oldest rione, ten minutes from the Colosseum'],
+ [/prati/i,1,'elegant, ordered streets a short walk from the Vatican walls and Cola di Rienzo shopping'],
+ [/parioli/i,1,'embassies, quiet gardens and Villa Borghese as your backyard'],
+ [/testaccio/i,1,'the market, the food — the Rome that Romans keep for themselves'],
+ [/aventino/i,1,'orange gardens, cloisters and the quietest hill of the centre'],
+ [/vittorio veneto|veneto/i,1,'the Dolce Vita boulevard — grand cafés, embassies, Villa Borghese at the corner'],
+ [/flaminio/i,0,'leafy riverside blocks between the Auditorium, MAXXI and Ponte Milvio'],
+ [/ponte milvio/i,0,'Rome’s oldest bridge and one of its liveliest aperitivo quarters'],
+ [/pigneto/i,0,'the creative quarter — street art, third-wave cafés and honest trattorie'],
+ [/trieste|copped|africano/i,0,'the Liberty villas of Coppedè, morning markets and calm residential streets'],
+ [/san lorenzo/i,0,'student energy, bookshops and kitchens that stay open late, next to Sapienza'],
+ [/ostiense|garbatella/i,0,'street art on industrial walls and Garbatella’s village courtyards'],
+ [/esquilino/i,0,'Rome at its most international — Piazza Vittorio market and every cuisine on earth'],
+ [/san giovanni/i,0,'a true neighbourhood around the basilica — daily markets, metro A at the door'],
+ [/marconi/i,0,'riverside and well-connected, with real-Rome prices and Trastevere ten minutes away'],
+ [/tiburtina|bologna/i,0,'quick metro B links, Sapienza close by and honest neighbourhood life'],
+ [/conca d/i,0,'metro B1 at the door and the green calm of the Aniene park'],
+ [/nomentano/i,0,'tree-lined avenues around the villas and gardens of Villa Torlonia'],
+ [/eur\b/i,0,'rationalist architecture, lakeside runs and fast lines into the centre'],
+ [/balduina|trionfale/i,0,'panoramic, residential, and a market street Romans cross the city for'],
+];
+function zoneLore(z){z=String(z||'').trim();for(const e of ZONE_LORE){if(e[0].test(z))return{icon:!!e[1],lore:e[2]};}return null;}
+
 /* ---- paint (sample by default; real listing when ?id= resolves) ---- */
 function paintData(){
   IMGS=(L.images||[]).map((e,i)=>Array.isArray(e)
@@ -1298,8 +1370,11 @@ function paintData(){
   const lead=hasF(/terrace/i)?'Light, a terrace, the ':hasF(/balcon/i)?'Light, a balcony, the ':'Light, space, the ';
   const aH=document.getElementById('aboutH');
   if(aH&&aH.firstChild&&aH.firstChild.nodeType===3)aH.firstChild.textContent=lead;
-  document.getElementById('aboutZone').textContent='heart of '+L.zone;
-  if(L.real)document.getElementById('aboutDesc').textContent=L.description||(L.name+' in '+L.zone+' — verified in person and on video by our team. What you see is exactly what you get; ask us anything about this home.');
+  const zl=zoneLore(L.zone);
+  document.getElementById('aboutZone').textContent=(zl&&zl.icon)?('heart of '+L.zone):('real Rome of '+String(L.zone||'').trim());
+  if(L.real)document.getElementById('aboutDesc').textContent=L.description||(L.name+' in '+L.zone+' — '+((zl&&zl.lore)?zl.lore:'a genuine, well-connected Roman neighbourhood')+'. Verified in person and on video by our team — what you see is exactly what you get.');
+  const zs=document.getElementById('zsense');
+  if(zs){zs.hidden=false;zs.innerHTML='<span class="zk">The neighbourhood</span>'+String(L.zone||'Rome').trim().replace(/</g,'&lt;')+' — '+((zl&&zl.lore)?zl.lore:'a genuine Roman quartiere: well-connected, everyday cafés, fair prices')+'.';}
   document.getElementById('simZone').textContent=L.zone;
   document.getElementById('hPrice').textContent=eur(L.price);
   const af=L.availableFrom;
