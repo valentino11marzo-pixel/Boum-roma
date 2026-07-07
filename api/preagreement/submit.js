@@ -39,7 +39,7 @@ export default async function handler(req, res) {
     const rows = await fsList('preAgreements', { filter: { field: 'token', op: 'EQUAL', value: token }, limit: 1 });
     const hit = rows && rows[0];
     if (!hit) return res.status(404).json({ ok: false, error: 'not_found' });
-    const { id, data } = hit;
+    const { id, ...data } = hit;   // fsList returns flat rows: {id, ...fields}
     if (data.status === 'revoked') return res.status(410).json({ ok: false, error: 'revoked' });
     if (data.status === 'accepted') return res.status(200).json({ ok: true, ref: data.ref || null, checkoutUrl: null, already: true });
 
