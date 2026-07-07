@@ -134,9 +134,13 @@ var ANCHORS=[
   [12.4924,41.8902,'Colosseo','colosseo'],
   [12.4534,41.9022,'Vaticano','vaticano'],
   [12.4690,41.8870,'Trastevere','trastevere'],
-  [12.5135,41.9038,'Sapienza','sapienza']
+  [12.5135,41.9038,'Sapienza','sapienza'],
+  [12.4917,41.9269,'LUISS','uni'],
+  [12.4790,41.8564,'Roma Tre','uni'],
+  [12.4664,41.8937,'John Cabot','uni'],
+  [12.4593,41.9032,'LUMSA','uni']
 ];
-var ANCHOR_ICON={metro:'🚇',colosseo:'🏛',vaticano:'⛪',trastevere:'🍷',sapienza:'🎓'};
+var ANCHOR_ICON={metro:'🚇',colosseo:'🏛',vaticano:'⛪',trastevere:'🍷',sapienza:'🎓',uni:'🎓'};
 var ANCHOR_MK=[];
 function haversine(a,b){var R=6371,r=Math.PI/180,dy=(b[1]-a[1])*r,dx=(b[0]-a[0])*r,s=Math.pow(Math.sin(dy/2),2)+Math.cos(a[1]*r)*Math.cos(b[1]*r)*Math.pow(Math.sin(dx/2),2);return 2*R*Math.asin(Math.min(1,Math.sqrt(s)));}
 function arc(a,b,bow,n){ // quadratic-bezier bowed line → many coordinates (an elegant flight-path arc)
@@ -148,17 +152,21 @@ function arc(a,b,bow,n){ // quadratic-bezier bowed line → many coordinates (an
 function distLabel(km){return km<2.6 ? Math.round(km/4.8*60)+'′ walk' : (km<10?km.toFixed(1):Math.round(km))+' km';}
 function showLinks(co){
   if(!map.getSource('links'))return;
-  var feats=[];
+  /* thread only the six nearest anchors — nine lines is noise, six is a story */
+  var near=ANCHORS.map(function(A,i){return {A:A,i:i,d:haversine(co,[A[0],A[1]])}})
+    .sort(function(a,b){return a.d-b.d}).slice(0,6);
+  var nearSet={};near.forEach(function(n){nearSet[n.i]=n.d});
+  var feats=near.map(function(n){return {type:'Feature',geometry:{type:'LineString',coordinates:arc(co,[n.A[0],n.A[1]],0.12,44)}}});
   ANCHORS.forEach(function(A,i){
-    var to=[A[0],A[1]];
-    feats.push({type:'Feature',geometry:{type:'LineString',coordinates:arc(co,to,0.12,44)}});
-    var m=ANCHOR_MK[i]; if(m){m.el.classList.add('lit'); m.dEl.textContent=distLabel(haversine(co,to));}
+    var m=ANCHOR_MK[i]; if(!m)return;
+    if(i in nearSet){m.el.classList.add('lit');m.el.style.opacity='';m.dEl.textContent=distLabel(nearSet[i]);}
+    else{m.el.classList.remove('lit');m.el.style.opacity='.22';m.dEl.textContent='';}
   });
   map.getSource('links').setData({type:'FeatureCollection',features:feats});
 }
 function clearLinks(){
   if(map.getSource('links'))map.getSource('links').setData({type:'FeatureCollection',features:[]});
-  ANCHOR_MK.forEach(function(m){m.el.classList.remove('lit');});
+  ANCHOR_MK.forEach(function(m){m.el.classList.remove('lit');m.el.style.opacity='';});
 }
 function buildAnchors(){
   map.addSource('links',{type:'geojson',data:{type:'FeatureCollection',features:[]}});

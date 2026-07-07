@@ -174,6 +174,7 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 .sky-anchor.lit{opacity:1;border-color:rgba(255,215,0,.32)}
 .sky-anchor.lit .d{display:inline}
 .sky-anchor.lit .d::before{content:'· '}
+.sky-anchor.far{opacity:.22}
 .map-chips{position:absolute;left:12px;top:12px;z-index:5;display:flex;border:1px solid rgba(255,255,255,.14);border-radius:10px;overflow:hidden;background:rgba(8,8,10,.75);backdrop-filter:blur(8px)}
 .map-chips .mchip{display:flex;align-items:center;padding:8px 14px;background:none;border:0;color:#cbcbcb;font-family:inherit;font-size:11.5px;letter-spacing:.5px;cursor:pointer;transition:all .2s;min-height:36px;text-decoration:none}
 .map-chips .mchip.on{background:var(--gold);color:#1a1407;font-weight:600}
@@ -254,6 +255,43 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 .blockcard .ob:hover{border-color:var(--line-gold);color:var(--gold)}
 .orbit-hint{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:8;font-size:10.5px;letter-spacing:1.6px;text-transform:uppercase;color:var(--gold);background:rgba(0,0,0,.55);backdrop-filter:blur(10px);border:1px solid var(--line-gold);border-radius:100px;padding:7px 14px;opacity:0;pointer-events:none;transition:opacity .4s}
 .orbit-hint.on{opacity:1}
+.blockcard .lore{font-size:11.5px;color:var(--t3);font-style:italic;margin-top:5px;line-height:1.5}
+/* ── the Skyline teaser card: the map sells itself from inside the grid ── */
+.skycard{position:relative;display:flex;flex-direction:column;justify-content:flex-end;min-height:100%;border:1px solid var(--line-gold);border-radius:18px;overflow:hidden;padding:22px 20px;text-decoration:none;color:var(--t1);cursor:pointer;
+  background:
+    radial-gradient(2px 2px at 24% 30%,var(--gold) 40%,transparent 60%),
+    radial-gradient(2px 2px at 64% 22%,var(--gold) 40%,transparent 60%),
+    radial-gradient(2px 2px at 44% 52%,var(--gold) 40%,transparent 60%),
+    radial-gradient(2px 2px at 78% 44%,var(--gold-light) 40%,transparent 60%),
+    radial-gradient(2px 2px at 32% 66%,var(--gold-light) 40%,transparent 60%),
+    radial-gradient(120% 90% at 70% 10%,rgba(255,215,0,.10),transparent 55%),
+    linear-gradient(160deg,#14141c 0%,#0a0a10 55%,#07070a 100%)}
+.skycard::before{content:"";position:absolute;inset:0;background-image:repeating-linear-gradient(0deg,transparent 0 34px,rgba(255,255,255,.028) 34px 35px),repeating-linear-gradient(90deg,transparent 0 34px,rgba(255,255,255,.028) 34px 35px);pointer-events:none}
+.skycard .eye{font-size:9.5px;letter-spacing:2.6px;text-transform:uppercase;color:var(--gold)}
+.skycard h3{font-family:var(--disp);font-weight:200;font-size:21px;line-height:1.25;margin:8px 0 6px}
+.skycard p{font-size:12px;color:var(--t3);line-height:1.6}
+.skycard .cta{display:inline-flex;align-items:center;gap:7px;margin-top:14px;border:1px solid var(--line-gold);background:var(--gold-faint);border-radius:100px;padding:9px 15px;font-size:12px;color:var(--gold);width:max-content;transition:.25s}
+.skycard:hover .cta{background:var(--gold);color:#1a1407;font-weight:600}
+/* first-visit pulse on the Skyline toggle */
+@media(prefers-reduced-motion:no-preference){
+  .viewtog button.pulse{position:relative}
+  .viewtog button.pulse::after{content:"";position:absolute;top:5px;right:6px;width:6px;height:6px;border-radius:50%;background:var(--gold);animation:skyPing 2s var(--ease) infinite}
+  @keyframes skyPing{0%,100%{box-shadow:0 0 0 0 rgba(255,215,0,.5)}50%{box-shadow:0 0 0 6px rgba(255,215,0,0)}}
+}
+/* ── zone picker: search without typing ── */
+.isearch{position:relative}
+.zpick{position:absolute;left:0;right:-120px;top:calc(100% + 8px);z-index:70;background:rgba(10,10,13,.96);backdrop-filter:blur(20px);border:1px solid var(--line-gold);border-radius:16px;padding:14px 15px;box-shadow:0 26px 70px rgba(0,0,0,.6);display:none}
+@media(max-width:720px){.zpick{right:0}}
+.zpick.show{display:block;animation:zpIn .3s var(--ease) both}
+@keyframes zpIn{0%{opacity:0;transform:translateY(6px)}100%{opacity:1;transform:none}}
+.zpick .zt{font-size:9.5px;letter-spacing:2.2px;text-transform:uppercase;color:var(--gold);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+.zpick .zt small{color:var(--t4);letter-spacing:.4px;text-transform:none;font-size:10.5px}
+.zpick .zgrid{display:flex;flex-wrap:wrap;gap:7px}
+.zpick .zc{border:1px solid var(--line);border-radius:100px;padding:8px 13px;font-size:12px;color:var(--t2);background:none;transition:.2s;display:inline-flex;gap:6px;align-items:center}
+.zpick .zc b{color:var(--t3);font-weight:400;font-size:10.5px}
+.zpick .zc:hover{border-color:var(--line-gold);color:var(--gold)}
+.zpick .zc.on{background:var(--gold);color:#1a1407;border-color:var(--gold);font-weight:600}
+.zpick .zc.on b{color:rgba(26,20,7,.7)}
 .maplibregl-ctrl-group{background:rgba(8,8,10,.86)!important;border:1px solid var(--line)!important}.maplibregl-ctrl-group button+button{border-top:1px solid var(--line)!important}.maplibregl-ctrl-group button{filter:invert(1) hue-rotate(180deg)}
 
 /* upsell */
@@ -674,6 +712,7 @@ function hydrate(){const p=new URLSearchParams(location.search);
   S.beds=+(p.get('beds')||0); S.baths=+(p.get('baths')||0); S.furnished=p.get('furn')==='1'; S.video=p.get('video')==='1';
   S.zones=(p.get('zones')||'').split(',').filter(Boolean); S.feats=(p.get('feats')||'').split(',').filter(Boolean);
   S.sort=p.get('sort')||'match'; S.view=p.get('view')||'list'; S.savedOnly=p.get('saved')==='1';
+  S.focus=p.get('focus')||'';   /* one-shot: opens the Skyline on this listing's block */
 }
 const BEDS=[['Any',0],['1+',1],['2+',2],['3+',3],['4+',4]];
 function syncControls(){
@@ -773,7 +812,10 @@ function render(){
     if(!list.length){grid.innerHTML='';empty.style.display='';}else{empty.style.display='none';
       /* FLIP: persisting cards glide to their new slot; new ones rise-fade in */
       const _flip=(window.BoomElevate&&BoomElevate.flipCapture)?BoomElevate.flipCapture(grid,'.pc'):null;
-      grid.innerHTML=list.map(cardHTML).join('');
+      const _cards=list.map(cardHTML);
+      /* the Skyline sells itself from inside the grid — one teaser card */
+      if(!S.savedOnly&&_cards.length>=3)_cards.splice(Math.min(6,_cards.length),0,skyCardHTML());
+      grid.innerHTML=_cards.join('');
       if(_flip)_flip();
       if(window.BoomElevate&&BoomElevate.scan)BoomElevate.scan(grid);}}
   syncURL();
@@ -788,7 +830,19 @@ function addBuildings(map){try{var srcs=Object.keys(map.getStyle().sources||{});
 /* ── SKYLINE 3D, embedded — the winning map, right inside discovery ──
    Cinematic pitch, Rome's anchors, gold commute threads on hover, hybrid
    satellite and real terrain. The full-screen page stays one tap away. */
-var ANCHORS=[[12.5018,41.9009,'Termini','🚇'],[12.4924,41.8902,'Colosseo','🏛'],[12.4534,41.9022,'Vaticano','⛪'],[12.4690,41.8870,'Trastevere','🍷'],[12.5135,41.9038,'Sapienza','🎓']];
+/* the anchors of a life in Rome: transit, icons, and every university that
+   fills our inboxes — LUISS first. Hover a home: threads to the nearest six. */
+var ANCHORS=[
+  [12.5018,41.9009,'Termini','🚇'],
+  [12.4924,41.8902,'Colosseo','🏛'],
+  [12.4534,41.9022,'Vaticano','⛪'],
+  [12.4690,41.8870,'Trastevere','🍷'],
+  [12.5135,41.9038,'Sapienza','🎓'],
+  [12.4917,41.9269,'LUISS','🎓'],
+  [12.4790,41.8564,'Roma Tre','🎓'],
+  [12.4664,41.8937,'John Cabot','🎓'],
+  [12.4593,41.9032,'LUMSA','🎓']
+];
 var ANCHOR_MK=[];
 function _hav(a,b){var R=6371,r=Math.PI/180,dy=(b[1]-a[1])*r,dx=(b[0]-a[0])*r,s=Math.pow(Math.sin(dy/2),2)+Math.cos(a[1]*r)*Math.cos(b[1]*r)*Math.pow(Math.sin(dx/2),2);return 2*R*Math.asin(Math.min(1,Math.sqrt(s)));}
 function _arc(a,b,bow,n){n=n||44;var pts=[],mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2,dx=b[0]-a[0],dy=b[1]-a[1],cx=mx-dy*bow,cy=my+dx*bow;
@@ -796,13 +850,18 @@ function _arc(a,b,bow,n){n=n||44;var pts=[],mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2,dx
 function _dl(km){return km<2.6?Math.round(km/4.8*60)+'′ walk':(km<10?km.toFixed(1):Math.round(km))+' km';}
 function showLinks(co){
   if(!_dmap||!_dmap.getSource('links'))return;
-  var feats=ANCHORS.map(function(A){return {type:'Feature',geometry:{type:'LineString',coordinates:_arc(co,[A[0],A[1]],0.12,44)}}});
-  ANCHORS.forEach(function(A,i){var m=ANCHOR_MK[i];if(m){m.el.classList.add('lit');m.dEl.textContent=_dl(_hav(co,[A[0],A[1]]));}});
+  /* only the six nearest anchors thread up — nine lines is noise, six is a story */
+  var near=ANCHORS.map(function(A,i){return {A:A,i:i,d:_hav(co,[A[0],A[1]])}}).sort(function(a,b){return a.d-b.d}).slice(0,6);
+  var nearSet={};near.forEach(function(n){nearSet[n.i]=n.d});
+  var feats=near.map(function(n){return {type:'Feature',geometry:{type:'LineString',coordinates:_arc(co,[n.A[0],n.A[1]],0.12,44)}}});
+  ANCHORS.forEach(function(A,i){var m=ANCHOR_MK[i];if(!m)return;
+    if(i in nearSet){m.el.classList.add('lit');m.el.classList.remove('far');m.dEl.textContent=_dl(nearSet[i]);}
+    else{m.el.classList.remove('lit');m.el.classList.add('far');m.dEl.textContent='';}});
   _dmap.getSource('links').setData({type:'FeatureCollection',features:feats});
 }
 function clearLinks(){
   if(_dmap&&_dmap.getSource('links'))_dmap.getSource('links').setData({type:'FeatureCollection',features:[]});
-  ANCHOR_MK.forEach(function(m){m.el.classList.remove('lit');});
+  ANCHOR_MK.forEach(function(m){m.el.classList.remove('lit');m.el.classList.remove('far');});
 }
 function skylineDress(map){
   try{map.getStyle().layers.forEach(function(L){try{if(L.type==='symbol'&&/poi|housenumber|aeroway|airport/.test(L.id))map.setLayoutProperty(L.id,'visibility','none');}catch(e){}});}catch(e){}
@@ -875,6 +934,26 @@ function zoneCoordD(l){
   for(var i=0;i<DZONES.length;i++){var Z=DZONES[i];for(var k=2;k<Z.length;k++){if(z.indexOf(Z[k])!==-1)return [Z[0],Z[1]];}}
   return null;
 }
+/* one warm line per quartiere — the sense of place, on the map card too */
+var DLORE=[
+  [/trastevere/i,'cobbled lanes, ivy on the walls and the best evening light in Rome'],
+  [/centro|navona|coronari|ripetta|barberini/i,'domes, fountains and streets that empty beautifully at night'],
+  [/monti/i,'artisan workshops and wine bars, ten minutes from the Colosseum'],
+  [/prati|mazzini|angelico/i,'elegant ordered streets a short walk from the Vatican walls'],
+  [/parioli/i,'embassies, quiet gardens and Villa Borghese as your backyard'],
+  [/testaccio/i,'the market, the food — the Rome that Romans keep for themselves'],
+  [/veneto|piemonte/i,'the Dolce Vita boulevard — grand cafés and Villa Borghese at the corner'],
+  [/flaminio/i,'leafy riverside blocks between the Auditorium, MAXXI and Ponte Milvio'],
+  [/ponte milvio|tor di quinto/i,'Rome’s oldest bridge and one of its liveliest aperitivo quarters'],
+  [/pigneto/i,'the creative quarter — street art, third-wave cafés and honest trattorie'],
+  [/trieste|copped|africano/i,'the Liberty villas of Coppedè and calm residential streets'],
+  [/san lorenzo/i,'student energy and late kitchens, next to Sapienza'],
+  [/marconi|ostiense|garbatella/i,'riverside and well-connected, with real-Rome prices'],
+  [/esquilino/i,'Rome at its most international — Piazza Vittorio market'],
+  [/conca d|annibaliano/i,'metro B1 at the door and the green calm of the Aniene park'],
+  [/tiburtina|bologna/i,'quick metro B links, Sapienza close by, honest neighbourhood life'],
+];
+function zoneLoreD(z){z=String(z||'');for(var i=0;i<DLORE.length;i++){if(DLORE[i][0].test(z))return DLORE[i][1];}return null;}
 var _ovBounds=null;
 function plotMarks(list){_marks.forEach(m=>m.remove());_marks=[];closeBlock(true);
   if(!_dmap)return;
@@ -899,9 +978,13 @@ function plotMarks(list){_marks.forEach(m=>m.remove());_marks=[];closeBlock(true
     el.addEventListener('mouseenter',function(){showLinks(p.co)});
     el.addEventListener('focus',function(){showLinks(p.co)});
     el.addEventListener('click',function(ev){ev.preventDefault();showBlock(p,el);});
+    p.el=el;
     var mk=new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat(p.co).addTo(_dmap);_marks.push(mk);b.extend(p.co);});
   _ovBounds=b;
-  try{_dmap.fitBounds(b,{padding:70,maxZoom:15.5,duration:600,pitch:55});}catch(e){}}
+  try{_dmap.fitBounds(b,{padding:70,maxZoom:15.5,duration:600,pitch:55});}catch(e){}
+  /* deep-linked from a listing page: land straight on that home's block */
+  if(S.focus){var _t=pts.filter(function(p){return p.l.id===S.focus})[0];S.focus='';
+    if(_t)setTimeout(function(){showBlock(_t,_t.el);},900);}}
 
 /* ── Explore the Block: fly to the doorstep and let Rome turn around it ── */
 var _orbit=null,_blockP=null;
@@ -924,6 +1007,7 @@ function showBlock(p,pinEl){
     +'<span class="zl">'+(p.exact?l.zone:l.zone+' · zone view')+'</span></div>'
     +'<div class="b"><div class="n">'+l.name+'</div>'
     +'<div class="m">'+(l.beds||'Studio')+' bed · '+l.baths+' bath · '+l.sqm+' m²</div>'
+    +(function(){var lo=zoneLoreD(l.zone);return lo?'<div class="lore">'+lo+'</div>':'';})()
     +'<div class="pr">'+eur(l.price)+' <small>/month</small></div>'
     +(l.status==='waitlist'?'<div class="wl-line">◌ Occupied now · rents ahead — join the waitlist</div>':'')
     +'<div class="acts"><button type="button" class="ob" onclick="orbitBlock()">◉ Explore the block</button>'
@@ -993,7 +1077,43 @@ function facetFade(){const el=document.getElementById('facets');if(!el)return;
 document.getElementById('facets').addEventListener('scroll',facetFade,{passive:true});
 addEventListener('resize',facetFade,{passive:true});
 function toggleSavedOnly(){S.savedOnly=!S.savedOnly;syncControls();render();}
-function setView(v){S.view=v;document.getElementById('vList').setAttribute('aria-selected',v==='list');document.getElementById('vMap').setAttribute('aria-selected',v==='map');syncControls();render();}
+function setView(v){S.view=v;
+  if(v==='map'){try{localStorage.setItem('boom:sky:seen','1')}catch(e){}var vm=document.getElementById('vMap');if(vm)vm.classList.remove('pulse');}
+  document.getElementById('vList').setAttribute('aria-selected',v==='list');document.getElementById('vMap').setAttribute('aria-selected',v==='map');syncControls();render();}
+function skyCardHTML(){
+  return '<a class="skycard" href="?view=map" onclick="event.preventDefault();skyOpen()" aria-label="Open the Skyline 3D map">'
+    +'<span class="eye">Skyline 3D · Satellite</span>'
+    +'<h3>Every home on Rome’s real skyline.</h3>'
+    +'<p>Satellite view · 3D buildings · orbit the block · one tap to Street View — with distances to Sapienza, LUISS, Termini and more.</p>'
+    +'<span class="cta">◉ Open the Skyline</span></a>';
+}
+function skyOpen(){setView('map');try{document.getElementById('mapview').scrollIntoView({behavior:'smooth',block:'center'})}catch(e){}}
+/* first visit: the toggle breathes until the Skyline has been seen once */
+try{if(!localStorage.getItem('boom:sky:seen'))document.getElementById('vMap').classList.add('pulse');}catch(e){}
+
+/* ── zone picker: tap, don't type ── */
+(function(){
+  var q=document.getElementById('q');if(!q)return;
+  var box=document.createElement('div');box.className='zpick';box.id='zpick';
+  q.parentNode.appendChild(box);
+  function zcounts(){var c={};L.filter(isRentable).forEach(function(l){c[l.zone]=(c[l.zone]||0)+1});return c;}
+  function paint(){
+    var c=zcounts();
+    var zs=[...new Set([].concat(Object.keys(c),ZONES))].map(function(z){return [z,c[z]||0]})
+      .sort(function(a,b){return b[1]-a[1]||String(a[0]).localeCompare(String(b[0]))}).slice(0,14);
+    box.innerHTML='<div class="zt">Tap a zone — no typing needed<small>'+(S.zones.length?(S.zones.length+' selected'):'or just type a street')+'</small></div>'
+      +'<div class="zgrid">'+zs.map(function(zz){var on=S.zones.indexOf(zz[0])>=0;
+        return '<button type="button" class="zc'+(on?' on':'')+'" data-z="'+String(zz[0]).replace(/"/g,'&quot;')+'">'+zz[0]+(zz[1]?' <b>'+zz[1]+'</b>':'')+'</button>';}).join('')+'</div>';
+  }
+  q.addEventListener('focus',function(){if(q.value.trim())return;paint();box.classList.add('show');});
+  q.addEventListener('input',function(){if(q.value.trim())box.classList.remove('show');else{paint();box.classList.add('show');}});
+  box.addEventListener('mousedown',function(e){e.preventDefault();});  /* keep focus in the field */
+  box.addEventListener('click',function(e){var b=e.target.closest('.zc');if(!b)return;box._skip=true;quickZone(b.dataset.z);paint();});
+  document.addEventListener('click',function(e){
+    if(box._skip){box._skip=false;return;}   /* chip taps repaint the panel — never close on them */
+    if(!box.contains(e.target)&&e.target!==q)box.classList.remove('show');});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')box.classList.remove('show');});
+})();
 
 /* ---------- custom calendar ---------- */
 let CAL={y:0,m:0};
