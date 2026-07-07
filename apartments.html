@@ -191,6 +191,8 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 .pc .ph img{width:100%;height:100%;object-fit:cover;transition:transform .8s var(--ease)}.pc:hover .ph img{transform:scale(1.05)}
 .pc .badges{position:absolute;top:10px;left:10px;display:flex;gap:6px;flex-wrap:wrap}
 .bdg{display:inline-flex;align-items:center;gap:5px;background:rgba(0,0,0,.55);backdrop-filter:blur(8px);border-radius:100px;padding:5px 10px;font-size:10.5px;font-weight:500}
+.bdg.wl{color:var(--gold);border:1px solid var(--line-gold);background:rgba(255,215,0,.07)}
+.pc .avail.wl{color:var(--gold-light)}
 .bdg.video{color:var(--gold)}.bdg.new{color:#fff}.bdg.avail{color:var(--green);border:1px solid var(--green-muted)}.bdg.over{color:var(--amber);border:1px solid var(--amber-muted)}
 .pc .acts{position:absolute;top:10px;right:10px;display:flex;gap:6px}
 .iact{width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,.5);backdrop-filter:blur(8px);border:1px solid var(--line);display:grid;place-items:center;font-size:13px;transition:.2s}
@@ -605,7 +607,7 @@ const SAMPLE=[
  ['Grand Apartment, Centro','Centro Storico',2800,3,2,110,70,['Furnished','Lift','Dishwasher','Washer','Air conditioning'],0,0],
  ['Charming One-Bed, Testaccio','Testaccio',1250,1,1,48,4,['Furnished','Terrace','Wifi','Washer'],1,0],
  ['Penthouse with Roof Terrace','Prati',3200,3,3,130,90,['Furnished','Terrace','Lift','Parking','Dishwasher','Air conditioning'],0,1]
-].map((r,i)=>({id:'sample'+(i+1),name:r[0],zone:r[1],price:r[2],beds:r[3],baths:r[4],sqm:r[5],availableFrom:day(r[6]),features:r[7],videoUrl:!!r[8],isNew:!!r[9],img:uimg(UIMG[i%UIMG.length]),createdAt:100-i,lat:41.86+(i%5)*0.01-0.02,lng:12.47+(i%4)*0.012-0.018}));
+].map((r,i)=>({id:'sample'+(i+1),status:'available',name:r[0],zone:r[1],price:r[2],beds:r[3],baths:r[4],sqm:r[5],availableFrom:day(r[6]),features:r[7],videoUrl:!!r[8],isNew:!!r[9],img:uimg(UIMG[i%UIMG.length]),createdAt:100-i,lat:41.86+(i%5)*0.01-0.02,lng:12.47+(i%4)*0.012-0.018}));
 let L=SAMPLE;
 
 function mapReal(d,i){
@@ -618,7 +620,7 @@ function mapReal(d,i){
   return {id:d.id||('r'+i),name:d.name||d.title||'Apartment in Rome',zone:d.zone||d.neighborhood||d.address||'Rome',
     price:+d.price||0,beds:(d.beds!=null?+d.beds:(d.bedrooms!=null?+d.bedrooms:0)),baths:(d.bathrooms!=null?+d.bathrooms:(d.baths!=null?+d.baths:1)),
     sqm:+d.sqm||+d.size||0,availableFrom:af,features:feat.length?feat:(has('furnish')?['Furnished']:[]),
-    videoUrl:!!(d.videoUrl||d.youtubeUrl),createdAt:_cms,isNew:_cms>1e12&&(Date.now()-_cms)<14*86400,img:imgs[0]||'',
+    status:((d.status||d.availabilityStatus||'available')+'').toLowerCase(),videoUrl:!!(d.videoUrl||d.youtubeUrl),createdAt:_cms,isNew:_cms>1e12&&(Date.now()-_cms)<14*86400,img:imgs[0]||'',
     lat:+d.lat||0,lng:+d.lng||0};
 }
 function isRentable(d){var s=((d.status||d.availabilityStatus||'')+'').toLowerCase();return !(s==='rented'||s==='affittato'||s==='off_market'||s==='draft'||s==='hidden');}
@@ -711,12 +713,13 @@ document.addEventListener('click',e=>{if(!e.target.closest('.fit')&&!e.target.cl
 function cardHTML(l){
   const over=l.price>S.budgetMax, sp=scoreParts(l), gap=S.moveIn?Math.round((parseD(l.availableFrom)-parseD(S.moveIn))/864e5):0;
   const now=parseD(l.availableFrom)<=Date.now();
-  const av=gap>0?`<div class="avail after">Free ${fmtS(l.availableFrom)} · ${gap}d after your date</div>`:`<div class="avail${now?' now':''}">${now?'Available now':'Available '+fmtS(l.availableFrom)}</div>`;
+  const wl=l.status==='waitlist';
+  const av=wl?`<div class="avail wl">Occupied now · rents ahead — join the waitlist</div>`:gap>0?`<div class="avail after">Free ${fmtS(l.availableFrom)} · ${gap}d after your date</div>`:`<div class="avail${now?' now':''}">${now?'Available now':'Available '+fmtS(l.availableFrom)}</div>`;
   const showFit=(S.sort==='match'||S.budgetMax<4000||S.moveIn||S.zones.length);
   const alt=(l.name+' — '+l.zone).replace(/"/g,'');
   return `<a class="pc" data-id="${l.id}" href="/listing/${encodeURIComponent(l.id)}" aria-label="${alt}, ${eur(l.price)} per month">
     <div class="ph">${l.img?`<img src="${imgOpt(l.img,640)}" alt="${alt}" loading="lazy" decoding="async" data-blur-up onerror="if(!this.dataset.f1){this.dataset.f1=1;this.src=this.dataset.fs}else if(!this.dataset.f2){this.dataset.f2=1;this.src=this.dataset.fo}else{this.style.opacity=0}" data-fs="${imgSized(l.img,'l').replace(/"/g,'')}" data-fo="${(l.img||'').replace(/"/g,'')}">`:`<div style="position:absolute;inset:0;display:grid;place-items:center;color:var(--t4)"><div style="text-align:center"><div style="color:var(--gold);font-size:22px;margin-bottom:6px">◆</div><div style="font-size:10px;letter-spacing:2px;text-transform:uppercase">Photos coming soon</div></div></div>`}
-      <div class="badges">${l.videoUrl?'<span class="bdg video">▶ Video</span>':''}${l.isNew?'<span class="bdg new">New</span>':''}<span class="bdg avail">✓ Verified</span>${over?'<span class="bdg over">€'+Math.round(l.price-S.budgetMax)+' over</span>':''}</div>
+      <div class="badges">${wl?'<span class="bdg wl">◌ Waitlist</span>':''}${l.videoUrl?'<span class="bdg video">▶ Video</span>':''}${l.isNew?'<span class="bdg new">New</span>':''}<span class="bdg avail">✓ Verified</span>${over?'<span class="bdg over">€'+Math.round(l.price-S.budgetMax)+' over</span>':''}</div>
       <div class="acts"><button class="iact${saved.has(l.id)?' on':''}" aria-pressed="${saved.has(l.id)}" onclick="event.preventDefault();event.stopPropagation();toggleSave('${l.id}',this)" aria-label="Save">♡</button><button class="iact cmp${cmp.has(l.id)?' on':''}" aria-pressed="${cmp.has(l.id)}" onclick="event.preventDefault();event.stopPropagation();toggleCmp('${l.id}',this)" aria-label="Add to compare">⇄</button></div>
       ${showFit?`<button type="button" class="fit" aria-expanded="false" aria-label="Why ${sp.score} percent fit" onclick="event.preventDefault();event.stopPropagation();toggleFit(this)">${sp.score}% fit</button>
       <div class="fitx" onclick="event.preventDefault();event.stopPropagation()"><b>Why this fit</b>${(sp.parts.length?sp.parts:['solid baseline']).map(p=>`<span class="${p.includes('−')?'neg':'pos'}">${p}</span>`).join('')}</div>`:''}</div>
@@ -1030,11 +1033,13 @@ function seoItemList(){
 }
 function trustPulse(){try{
   const rent=L.filter(isRentable);if(!rent.length)return;
-  const nowN=rent.filter(l=>parseD(l.availableFrom)<=Date.now()).length;
+  const nowN=rent.filter(l=>l.status!=='waitlist'&&parseD(l.availableFrom)<=Date.now()).length;
+  const wlN=rent.filter(l=>l.status==='waitlist').length;
   const newN=rent.filter(l=>l.isNew).length;
   const avg=Math.round(rent.reduce((s,l)=>s+(+l.price||0),0)/rent.length/50)*50;
   const seg=[];
   if(nowN)seg.push(`<b>${nowN}</b> available now`);
+  if(wlN)seg.push(`<b>${wlN}</b> on waitlist`);
   if(newN)seg.push(`<b>${newN}</b> new this week`);
   if(avg)seg.push(`avg <b>${eur(avg)}</b>`);
   if(!seg.length)return;
