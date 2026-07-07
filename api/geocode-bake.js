@@ -32,6 +32,43 @@ function validCoord(lat, lng) {
     && lng >= ROME.lngMin && lng <= ROME.lngMax;
 }
 
+// Rome quartiere centroids — geocodes that land >2.5km from the listing's own
+// declared zone are homonym streets elsewhere in town (Via di Sant'Anna exists
+// three times); reject them rather than pin a home in the wrong quartiere.
+const ZONES = [
+  [41.8986, 12.4735, 'centro storico', 'navona', 'coronari', 'ripetta', 'pantheon', 'spagna', 'trevi', 'campo de', 'barberini', 'avignonesi', 'centro'],
+  [41.8867, 12.4692, 'trastevere', 'gianicolo', 'piscinula'],
+  [41.8946, 12.4924, 'monti', 'colosse', 'cavour'],
+  [41.9100, 12.4632, 'prati', 'mazzini', 'angelico', 'vatican', 'ottaviano', 'lepanto', 'monte zebio', 'montezebio'],
+  [41.8880, 12.5380, 'pigneto', 'centocelle', 'casilina'],
+  [41.8758, 12.4757, 'testaccio'],
+  [41.8560, 12.4690, 'marconi', 'ostiense', 'garbatella', 'piramide'],
+  [41.9230, 12.5050, 'trieste', 'copped', 'africano', 'salario', 'nomentano'],
+  [41.9000, 12.5151, 'san lorenzo', 'sapienza'],
+  [41.8950, 12.5010, 'esquilino'],
+  [41.9230, 12.4760, 'flaminio'],
+  [41.9380, 12.4680, 'ponte milvio', 'tor di quinto'],
+  [41.9230, 12.4880, 'parioli', 'petrolini'],
+  [41.9070, 12.4900, 'veneto', 'ludovisi', 'piemonte'],
+  [41.9430, 12.5300, "conca d'oro", 'conca', 'jonio', 'annibaliano', 'capri'],
+  [41.9120, 12.5230, 'tiburtina', 'bologna', 'pietralata'],
+];
+function zoneCentroid(zoneStr) {
+  const z = String(zoneStr || '').toLowerCase();
+  if (!z) return null;
+  for (const Z of ZONES) for (let k = 2; k < Z.length; k++) if (z.includes(Z[k])) return { lat: Z[0], lng: Z[1] };
+  return null;
+}
+function kmBetween(a, b) {
+  const R = 6371, r = Math.PI / 180;
+  const dy = (b.lat - a.lat) * r, dx = (b.lng - a.lng) * r;
+  const s = Math.sin(dy / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dx / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(s)));
+}
+function zoneConsistent(hit, centroid) {
+  return !centroid || kmBetween(hit, centroid) <= 2.5;
+}
+
 async function nominatim(q) {
   const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=it&q=' + encodeURIComponent(q);
   const r = await fetch(url, { headers: { 'User-Agent': UA, 'Accept-Language': 'it,en' } });
@@ -62,33 +99,41 @@ export default async function handler(req, res) {
     const todo = rows.filter(l => {
       const lat = Number(l.lat), lng = Number(l.lng);
       const addr = String(l.address || '').trim();
-      return addr.length > 4 && !validCoord(lat, lng);
+      if (addr.length <= 4) return false;
+      if (!validCoord(lat, lng)) return true;
+      // self-healing: existing coords that contradict the declared zone get
+      // re-geocoded (homonym-street hits from before validation existed)
+      const c = zoneCentroid(l.zone);
+      const src = l.geo && l.geo.src;
+      return !!(c && src !== 'zone' && !zoneConsistent({ lat, lng }, c));
     }).slice(0, 12);   // per-run cap: stays well inside maxDuration; repeat calls continue
 
     const updated = [], failed = [];
     for (const l of todo) {
       const addr = String(l.address).trim();
       const zone = String(l.zone || '').trim();
-      // full address → address without civic number → zone
+      const centroid = zoneCentroid(zone);
+      // full address → address without civic number (each zone-validated)
       const attempts = [
         /roma/i.test(addr) ? addr : addr + ', Roma',
         (addr.replace(/\b\d+[a-zA-Z]?\b/g, '').replace(/\s+/g, ' ').trim() + ', Roma'),
-        zone ? zone + ', Roma' : null,
       ].filter(Boolean);
 
       let hit = null, usedQ = null;
       for (const q of attempts) {
-        hit = await nominatim(q);
+        const h = await nominatim(q);
         await sleep(1100);
-        if (hit) { usedQ = q; break; }
+        if (h && zoneConsistent(h, centroid)) { hit = h; usedQ = q; break; }
       }
+      let src = 'nominatim';
+      if (!hit && centroid) { hit = { ...centroid }; usedQ = 'zone:' + zone; src = 'zone'; }
       if (hit) {
         try {
           await fsPatch(`listings/${l.id}`, {
             lat: hit.lat, lng: hit.lng,
-            geo: { src: 'nominatim', q: usedQ, at: new Date().toISOString() },
+            geo: { src, q: usedQ, at: new Date().toISOString() },
           });
-          updated.push({ id: l.id, q: usedQ, lat: hit.lat, lng: hit.lng });
+          updated.push({ id: l.id, q: usedQ, src, lat: hit.lat, lng: hit.lng });
         } catch (e) { failed.push({ id: l.id, error: 'store: ' + e.message }); }
       } else {
         failed.push({ id: l.id, error: 'no_geocode', address: addr });
