@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#060607">
+<meta name="color-scheme" content="dark">
+<title>BOOM · Maison Atelier — monogram & global luxury</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://images.unsplash.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&family=Cormorant+Garamond:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --gold:#FFD700;--gold-light:#FFE55C;--gold-dark:#E5C200;--gold-muted:rgba(255,215,0,.14);
+  --void:#060607;--card:#0E0E10;
+  --t1:#FAFAFA;--t2:rgba(250,250,250,.72);--t3:rgba(250,250,250,.46);
+  --line:rgba(255,255,255,.08);--line-gold:rgba(255,215,0,.16);
+  --sans:'Inter',-apple-system,sans-serif;--disp:'Helvetica Neue',Helvetica,Arial,sans-serif;--serif:'Cormorant Garamond',Georgia,serif;
+  --ease:cubic-bezier(.16,1,.3,1);--i:1;--g:1;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--void);color:var(--t1);font-weight:300;line-height:1.6;min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:var(--disp);font-weight:300;letter-spacing:-.5px;line-height:1.1}.g{color:var(--gold)}
+img{display:block;max-width:100%}button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+
+/* ===== background ===== */
+#bg{position:fixed;inset:0;z-index:-1;overflow:hidden;background:
+  radial-gradient(75vmax 52vmax at 66% -6%,rgba(255,215,0,.055),transparent 60%),
+  radial-gradient(60vmax 50vmax at 8% 108%,rgba(255,180,60,.03),transparent 62%),var(--void)}
+/* light-grazing sheen: the pattern is lit in a band and fades — reads as embossed material, not flat wallpaper */
+#svWrap{position:absolute;inset:0;opacity:var(--i);transition:opacity .4s var(--ease);
+  -webkit-mask-image:radial-gradient(125% 95% at 62% 26%,#000 10%,rgba(0,0,0,.42) 64%,transparent 100%);
+  mask-image:radial-gradient(125% 95% at 62% 26%,#000 10%,rgba(0,0,0,.42) 64%,transparent 100%)}
+#sv{width:100%;height:100%}
+.l-grain{position:absolute;inset:0;opacity:calc(.3*var(--g));mix-blend-mode:overlay;pointer-events:none}
+.l-vign{position:absolute;inset:0;pointer-events:none;background:radial-gradient(135% 100% at 50% 34%,transparent 50%,rgba(0,0,0,.62) 100%)}
+
+/* ===== studio ===== */
+.atelier{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:60;width:min(96vw,900px);background:rgba(8,8,10,.84);backdrop-filter:blur(20px);border:1px solid var(--line-gold);border-radius:20px;padding:13px 15px;box-shadow:0 14px 50px rgba(0,0,0,.6)}
+.row{display:flex;gap:7px;flex-wrap:wrap;justify-content:center}
+.chip{border:1px solid var(--line);border-radius:100px;padding:9px 15px;font-size:12.5px;color:var(--t2);transition:.22s var(--ease)}
+.chip:hover{border-color:var(--line-gold);color:var(--t1)}.chip.on{background:var(--gold);color:#1a1407;font-weight:600;border-color:var(--gold)}
+.meta{margin-top:11px;text-align:center}.meta .nm{font-family:var(--disp);font-size:15px}.meta .ds{font-size:12px;color:var(--t3);margin-top:3px;max-width:64ch;margin:3px auto 0}
+.ctrls{display:flex;gap:18px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:12px;padding-top:11px;border-top:1px solid var(--line)}
+.ctrl{display:flex;align-items:center;gap:9px;font-size:10.5px;letter-spacing:1px;text-transform:uppercase;color:var(--t3)}.ctrl input[type=range]{width:108px;accent-color:var(--gold)}
+.tog{display:inline-flex;gap:7px;align-items:center;font-size:10.5px;letter-spacing:1px;text-transform:uppercase;color:var(--t3);cursor:pointer}.tog input{accent-color:var(--gold)}
+
+/* ===== sample UI ===== */
+.stage{max-width:1080px;margin:0 auto;padding:198px 22px 90px}
+nav.demo{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:20px 30px;max-width:1340px;margin:0 auto}
+.logo{font-family:var(--disp);font-size:22px;letter-spacing:5px}.logo b{color:var(--gold)}.tag{font-size:10.5px;letter-spacing:3px;text-transform:uppercase;color:var(--t3)}
+.hero{max-width:760px}.eyebrow{font-size:10.5px;letter-spacing:2.8px;text-transform:uppercase;color:var(--gold);font-weight:500}
+.hero h1{font-size:clamp(34px,6.4vw,66px);font-weight:200;letter-spacing:-1.6px;margin-top:16px}
+.hero p{color:var(--t2);font-size:17px;margin-top:18px;max-width:52ch}
+.cta{margin-top:26px;display:flex;gap:10px;flex-wrap:wrap}
+.bg-gold{background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#1a1407;font-weight:600;border-radius:100px;padding:14px 26px;font-size:14px;box-shadow:0 10px 40px rgba(255,215,0,.16)}
+.bg-ghost{border:1px solid var(--line);border-radius:100px;padding:14px 24px;font-size:14px;background:rgba(14,14,16,.55);backdrop-filter:blur(8px)}
+.cards{margin-top:62px;display:grid;gap:18px;grid-template-columns:1fr}@media(min-width:680px){.cards{grid-template-columns:repeat(3,1fr)}}
+.pc{border:1px solid var(--line);border-radius:18px;overflow:hidden;background:linear-gradient(180deg,rgba(18,18,20,.6),rgba(11,11,12,.6));backdrop-filter:blur(10px);transition:.3s var(--ease)}
+.pc:hover{border-color:var(--line-gold);transform:translateY(-4px)}
+.pc .ph{aspect-ratio:5/3;overflow:hidden;background:#15151a}.pc .ph img{width:100%;height:100%;object-fit:cover;transition:transform .9s var(--ease)}.pc:hover .ph img{transform:scale(1.05)}
+.pc .b{padding:17px}.pc .z{font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--gold)}.pc .n{font-family:var(--disp);font-size:17px;margin-top:6px}.pc .m{color:var(--t3);font-size:12px;margin-top:4px}
+.pc .pr{margin-top:12px;font-family:var(--disp);font-size:20px;font-weight:200;color:var(--gold)}.pc .pr small{font-size:12px;color:var(--t3)}
+.glasspanel{margin-top:34px;border:1px solid var(--line-gold);border-radius:20px;padding:26px;background:linear-gradient(180deg,rgba(18,18,20,.5),rgba(11,11,12,.5));backdrop-filter:blur(12px)}
+.glasspanel h3{font-size:19px;font-weight:300}.glasspanel p{color:var(--t2);font-size:14px;margin-top:8px}
+</style>
+</head>
+<body>
+
+<div id="bg">
+  <div id="svWrap"><svg id="sv" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg></div>
+  <svg class="l-grain" preserveAspectRatio="none" aria-hidden="true"><defs><filter id="fGrain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="4" stitchTiles="stitch" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 1  0 0 0 0 .86  0 0 0 0 .3  0 0 0 .55 0"/></filter></defs><rect width="100%" height="100%" filter="url(#fGrain)"/></svg>
+  <div class="l-vign"></div>
+</div>
+
+<div class="atelier">
+  <div class="row" id="chips">
+    <button class="chip on" data-v="maison">Maison</button>
+    <button class="chip" data-v="anelli">Anelli OO</button>
+    <button class="chip" data-v="crest">Crest</button>
+    <button class="chip" data-v="deco">Déco</button>
+    <button class="chip" data-v="sartoriale">Sartoriale</button>
+    <button class="chip" data-v="moire">Moiré</button>
+  </div>
+  <div class="meta"><div class="nm" id="vName">Maison</div><div class="ds" id="vDesc"></div></div>
+  <div class="ctrls">
+    <label class="ctrl">Intensity <input type="range" id="rngI" min="30" max="150" value="100"></label>
+    <label class="ctrl">Scale <input type="range" id="rngS" min="60" max="170" value="112"></label>
+    <label class="tog"><input type="checkbox" id="togG" checked> Grain</label>
+  </div>
+</div>
+
+<nav class="demo"><div class="logo">BO<b>O</b>M</div><div class="tag">Atelier · Roma</div></nav>
+<div class="stage">
+  <section class="hero">
+    <span class="eyebrow">Verified apartments · Rome</span>
+    <h1>A home in Rome, <span class="g">for your dates.</span></h1>
+    <p>Linguaggio da maison internazionale: il monogramma BOOM (la doppia O, due anelli intrecciati) trattato come rilievo su materiale, con luce radente. Mai un wallpaper piatto.</p>
+    <div class="cta"><button class="bg-gold">Browse apartments →</button><button class="bg-ghost">How BOOM works</button></div>
+  </section>
+  <div class="cards">
+    <div class="pc"><div class="ph"><img src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=700&q=72" alt="" loading="lazy" onerror="this.style.opacity=0"></div><div class="b"><div class="z">Trastevere</div><div class="n">Bright Attic with Terrace</div><div class="m">2 bed · 65 m² · video-verified</div><div class="pr">€1,500 <small>/month</small></div></div></div>
+    <div class="pc"><div class="ph"><img src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=700&q=72" alt="" loading="lazy" onerror="this.style.opacity=0"></div><div class="b"><div class="z">Monti</div><div class="n">Designer One-Bed</div><div class="m">1 bed · 52 m² · furnished</div><div class="pr">€1,350 <small>/month</small></div></div></div>
+    <div class="pc"><div class="ph"><img src="https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=700&q=72" alt="" loading="lazy" onerror="this.style.opacity=0"></div><div class="b"><div class="z">Prati</div><div class="n">Elegant Family Flat</div><div class="m">3 bed · 95 m² · elevator</div><div class="pr">€2,200 <small>/month</small></div></div></div>
+  </div>
+  <div class="glasspanel"><h3>Vetro su monogramma</h3><p>Il marchio in rilievo deve sentirsi sotto al vetro (blur + bordo oro) come pelle goffrata di una boutique — presente ma silenzioso, mai leggibile come trama da parete.</p></div>
+</div>
+
+<script>
+const sv=document.getElementById('sv');
+const GOLD='rgba(255,221,130,1)';
+const DESC={
+  maison:["Maison","Canvas monogramma in diagonale: la doppia O di BOOM (due anelli) alternata a un accento a rombo, come la tela di una maison. Tonale, in rilievo, con luce radente."],
+  anelli:["Anelli OO","Solo i due anelli intrecciati — il monogramma puro di b·OO·m — su griglia ampia e calma. Alla Cartier/Chanel: ownable e raffinato."],
+  crest:["Crest","Un unico emblema goffrato: anelli + roundel + ‘BOOM · ROMA’ in arco, sbordante dall'angolo. Come il deboss su una scatola di lusso. Istanza singola, zero tiling."],
+  deco:["Déco","Raggi Art-Déco a ventaglio da un angolo, con archi concentrici. Linguaggio globale da hotel di lusso anni '20, geometrico e sontuoso."],
+  sartoriale:["Sartoriale","Gessato fine alla Savile Row con luce di seta che attraversa. Tailoring, understated, internazionale."],
+  moire:["Moiré","Seta marezzata: due famiglie di cerchi appena sfasate creano un'interferenza morbida. Costoso, ipnotico, immateriale."]
+};
+
+/* ---- monogram primitives ---- */
+function oo(cx,cy,r,sw,op){const o=r*0.6;
+  return '<circle cx="'+(cx-o).toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="'+r.toFixed(1)+'" fill="none" stroke="'+GOLD+'" stroke-width="'+sw+'" opacity="'+op+'"/>'
+        +'<circle cx="'+(cx+o).toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="'+r.toFixed(1)+'" fill="none" stroke="'+GOLD+'" stroke-width="'+sw+'" opacity="'+op+'"/>';}
+function diamond(cx,cy,s,op){return '<path d="M'+cx+','+(cy-s)+' L'+(cx+s)+','+cy+' L'+cx+','+(cy+s)+' L'+(cx-s)+','+cy+' Z" fill="none" stroke="'+GOLD+'" stroke-width="0.8" opacity="'+op+'"/>';}
+
+function buildMaison(W,H,T){let s='';
+  for(let y=-T;y<H+T;y+=T){const row=Math.round((y+T)/T),off=(row%2)?T/2:0;
+    for(let x=-T;x<W+T;x+=T){const cx=x+off,cy=y;
+      s+=oo(cx,cy,T*0.15,1,0.085);
+      s+=diamond(cx+T/2,cy+T/2,T*0.06,0.06);}}
+  return s;}
+function buildAnelli(W,H,T){T*=1.4;let s='';
+  for(let y=-T;y<H+T;y+=T){const row=Math.round((y+T)/T),off=(row%2)?T/2:0;
+    for(let x=-T;x<W+T;x+=T)s+=oo(x+off,y,T*0.17,1,0.075);}
+  return s;}
+function buildCrest(W,H){const cx=W*0.72,cy=H*0.40,R=Math.min(W,H)*0.42;
+  let s='<defs><path id="arcT" d="M'+(cx-R)+','+cy+' A'+R+','+R+' 0 1 1 '+(cx+R)+','+cy+'"/><path id="arcB" d="M'+(cx+R*0.86)+','+cy+' A'+(R*0.86)+','+(R*0.86)+' 0 1 1 '+(cx-R*0.86)+','+cy+'"/></defs>';
+  s+='<circle cx="'+cx+'" cy="'+cy+'" r="'+R+'" fill="none" stroke="'+GOLD+'" stroke-width="1" opacity="0.10"/>';
+  s+='<circle cx="'+cx+'" cy="'+cy+'" r="'+(R*0.86)+'" fill="none" stroke="'+GOLD+'" stroke-width="0.6" opacity="0.07"/>';
+  s+=oo(cx,cy,R*0.26,1.4,0.12);
+  s+='<text font-family="Cormorant Garamond,serif" font-size="'+(R*0.085)+'" letter-spacing="'+(R*0.03)+'" fill="rgba(255,221,130,0.42)"><textPath href="#arcT" startOffset="50%" text-anchor="middle">BOOM · ROMA · BOOM · ROMA</textPath></text>';
+  return s;}
+function buildDeco(W,H,T){const fx=W*0.94,fy=-H*0.06;let s='';
+  const rays=Math.round(60- (T-60)*0.18);
+  for(let i=0;i<rays;i++){const a=(Math.PI*0.52)+(i/rays)*(Math.PI*0.62);const len=Math.hypot(W,H)*1.2;
+    const x2=fx+Math.cos(a)*len,y2=fy+Math.sin(a)*len;
+    s+='<line x1="'+fx+'" y1="'+fy+'" x2="'+x2.toFixed(1)+'" y2="'+y2.toFixed(1)+'" stroke="'+GOLD+'" stroke-width="'+(i%4===0?1.1:0.5)+'" opacity="'+(i%4===0?0.10:0.05)+'"/>';}
+  for(let r=1;r<=7;r++)s+='<circle cx="'+fx+'" cy="'+fy+'" r="'+(r*Math.min(W,H)*0.14).toFixed(1)+'" fill="none" stroke="'+GOLD+'" stroke-width="0.6" opacity="0.05"/>';
+  return s;}
+function buildSartoriale(W,H,T){const gap=Math.max(7,T*0.075);let s='';let i=0;
+  for(let x=-gap;x<W+gap;x+=gap,i++){const thick=(i%6===0);
+    s+='<line x1="'+x.toFixed(1)+'" y1="0" x2="'+x.toFixed(1)+'" y2="'+H+'" stroke="'+GOLD+'" stroke-width="'+(thick?1.0:0.45)+'" opacity="'+(thick?0.10:0.05)+'"/>';}
+  return s;}
+function buildMoire(W,H,T){const step=Math.max(9,T*0.12);let s='';
+  const fam=(cx,cy,op)=>{let o='';for(let r=step;r<Math.hypot(W,H);r+=step)o+='<circle cx="'+cx+'" cy="'+cy+'" r="'+r.toFixed(1)+'" fill="none" stroke="'+GOLD+'" stroke-width="0.5" opacity="'+op+'"/>';return o;};
+  s+=fam(W*0.40,H*0.46,0.06);s+=fam(W*0.40+step*1.6,H*0.46+step*0.6,0.06);
+  return s;}
+
+let CUR='maison';
+function build(){const W=innerWidth,H=innerHeight;sv.setAttribute('viewBox','0 0 '+W+' '+H);
+  const T=+document.getElementById('rngS').value;let html='';
+  if(CUR==='maison')html=buildMaison(W,H,T);
+  else if(CUR==='anelli')html=buildAnelli(W,H,T);
+  else if(CUR==='crest')html=buildCrest(W,H);
+  else if(CUR==='deco')html=buildDeco(W,H,T);
+  else if(CUR==='sartoriale')html=buildSartoriale(W,H,T);
+  else if(CUR==='moire')html=buildMoire(W,H,T);
+  sv.innerHTML=html;}
+function setV(v){CUR=v;document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c.dataset.v===v));
+  document.getElementById('vName').textContent=DESC[v][0];document.getElementById('vDesc').textContent=DESC[v][1];
+  // crest ignores tile scale; soften sheen for full-field tilings handled by CSS already
+  build();}
+document.getElementById('chips').addEventListener('click',e=>{const b=e.target.closest('.chip');if(b)setV(b.dataset.v);});
+document.getElementById('rngI').addEventListener('input',e=>document.documentElement.style.setProperty('--i',(e.target.value/100).toFixed(2)));
+document.getElementById('rngS').addEventListener('input',build);
+document.getElementById('togG').addEventListener('change',e=>document.documentElement.style.setProperty('--g',e.target.checked?'1':'0'));
+let rt;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(build,170);},{passive:true});
+setV('maison');
+</script>
+</body>
+</html>

@@ -3,69 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<link rel="icon" href="/favicon.ico" sizes="any">
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-    <link rel="icon" href="/favicon-32x32.png" sizes="32x32" type="image/png">
-    <link rel="icon" href="/favicon-16x16.png" sizes="16x16" type="image/png">
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-    <link rel="manifest" href="/site.webmanifest">
-        <title>Apartment Details — Rome Verified Rental | BOOM</title>
-<!-- BOOM_SEO:START -->
-  <meta name="description" content="Verified apartment details, photos, location and amenities in Rome. Book a video viewing or apply in minutes. Legal contract, transparent fees, BOOM-managed.">
-  <meta name="keywords" content="verified apartment Rome, Rome apartment details, rent apartment Rome">
-  <meta name="robots" content="index, follow">
-  <meta name="googlebot" content="index, follow">
-  <meta name="author" content="BOOM Rome">
-  <meta name="publisher" content="BOOM Rome">
-  <meta name="theme-color" content="#08080A">
-  <meta name="color-scheme" content="dark">
-  <meta name="format-detection" content="telephone=no">
-  <meta name="application-name" content="BOOM Rome">
-  <meta name="apple-mobile-web-app-title" content="BOOM">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="msapplication-TileColor" content="#08080A">
-  <link rel="canonical" href="https://www.boomrome.com/apartment-detail">
-  <meta property="og:type" content="website">
-  <meta property="og:site_name" content="BOOM Rome">
-  <meta property="og:locale" content="en_US">
-  <meta property="og:locale:alternate" content="it_IT">
-  <meta property="og:title" content="Apartment Details — Rome Verified Rental | BOOM">
-  <meta property="og:description" content="Verified apartment details, photos, location and amenities in Rome. Book a video viewing or apply in minutes. Legal contract, transparent fees, BOOM-managed.">
-  <meta property="og:url" content="https://www.boomrome.com/apartment-detail">
-  <meta property="og:image" content="https://www.boomrome.com/BOOMsocialprofile.png">
-  <meta property="og:image:secure_url" content="https://www.boomrome.com/BOOMsocialprofile.png">
-  <meta property="og:image:type" content="image/png">
-  <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="Apartment Details — Rome Verified Rental | BOOM">
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:site" content="@boomrome">
-  <meta name="twitter:creator" content="@boomrome">
-  <meta name="twitter:title" content="Apartment Details — Rome Verified Rental | BOOM">
-  <meta name="twitter:description" content="Verified apartment details, photos, location and amenities in Rome. Book a video viewing or apply in minutes. Legal contract, transparent fees, BOOM-managed.">
-  <meta name="twitter:image" content="https://www.boomrome.com/BOOMsocialprofile.png">
-  <meta name="twitter:image:alt" content="Apartment Details — Rome Verified Rental | BOOM">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="dns-prefetch" href="https://www.googletagmanager.com">
-  <link rel="dns-prefetch" href="https://www.google-analytics.com">
-<!-- BOOM_SEO:END -->
-    <!-- Perf: early-connect to the hosts that gate the LCP photo (Firebase data + imgur images) -->
-    <link rel="preconnect" href="https://i.imgur.com" crossorigin>
-    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
-    <link rel="icon" type="image/png" href="https://www.boomrome.com/BOOMlogogoldicon512.png">
-    <link rel="apple-touch-icon" href="https://www.boomrome.com/BOOMlogogoldicon512.png">
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-EYCD59RDVJ');
-    </script>
+<meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#060607">
 <meta name="color-scheme" content="dark">
+<title>Apartment in Rome · BOOM</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://images.unsplash.com" crossorigin>
@@ -151,25 +92,11 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 .arrow.l{left:14px}.arrow.r{right:14px}
 @media(min-width:760px) and (hover:hover){.arrow{display:grid}}
 
-/* ── Editorial mosaic (desktop, 3+ photos): main cell + two large tiles; "+N photos" opens the gallery ── */
-.gtiles{display:none}
-@media(min-width:921px){
-  .gwrap.tiled{display:grid;grid-template-columns:minmax(0,2.1fr) minmax(0,1fr);gap:10px;align-items:stretch}
-  .gwrap.tiled .hero{aspect-ratio:auto;height:clamp(420px,42vw,540px)}
-  .gwrap.tiled .gtiles{display:grid;grid-template-rows:repeat(2,minmax(0,1fr));gap:10px;height:clamp(420px,42vw,540px)}
-  .gt{position:relative;border:0;padding:0;border-radius:18px;overflow:hidden;background:linear-gradient(135deg,#1a1a20,#0c0c0e);cursor:pointer;box-shadow:var(--sh)}
-  .gt img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .7s var(--ease)}
-  .gt:hover img{transform:scale(1.045)}
-  .gt .more{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(6,6,7,.52);backdrop-filter:blur(3px);color:#fff;font-size:12.5px;letter-spacing:1.6px;text-transform:uppercase;transition:background .3s}
-  .gt .more b{font-weight:500;color:var(--gold);margin-right:5px}
-  .gt:hover .more{background:rgba(6,6,7,.36)}
-}
-
 /* ── TITLE ── */
 .titlewrap{margin-top:22px;display:flex;flex-wrap:wrap;gap:14px 24px;align-items:flex-end;justify-content:space-between}
 .titlewrap h1{font-size:clamp(27px,6vw,46px);font-weight:200;letter-spacing:-1px}
 .loc{margin-top:10px;color:var(--t2);font-size:14px;display:flex;align-items:center;gap:9px;flex-wrap:wrap}.loc .d{color:var(--gold)}
-.price-inline{text-align:right}@media(max-width:640px){.titlewrap{flex-direction:column;align-items:flex-start;gap:10px}.price-inline{text-align:left;display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}.price-inline b{display:inline}.price-inline small{font-size:12px}}.price-inline b{font-family:var(--disp);font-size:clamp(24px,5vw,34px);font-weight:200;color:var(--gold);display:block;line-height:1}.price-inline small{font-size:12.5px;color:var(--t3)}
+.price-inline{text-align:right}.price-inline b{font-family:var(--disp);font-size:clamp(24px,5vw,34px);font-weight:200;color:var(--gold);display:block;line-height:1}.price-inline small{font-size:12.5px;color:var(--t3)}
 
 /* ── FACTS strip (scroll on mobile, grid on desktop) ── */
 .facts{margin-top:20px;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(116px,1fr);gap:10px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
@@ -284,7 +211,6 @@ body.chapters .proofs.stamped .proof:nth-child(4){transition-delay:.36s}
 .avail.ok{color:var(--green);border-color:var(--green-muted)}.avail.ok .pin{background:var(--green-muted)}
 .avail.after{color:var(--gold-light);border-color:var(--line-gold)}.avail.after .pin{background:var(--gold-muted)}
 .avail.none{color:var(--t2)}.avail.none .pin{background:var(--gold-muted);color:var(--gold)}
-.avail.wl{color:var(--gold-light);border-color:var(--line-gold);background:rgba(255,215,0,.045)}.avail.wl .pin{background:var(--gold-muted);color:var(--gold)}
 .avail small{display:block;color:var(--t3);font-size:11px;margin-top:2px}
 .srows{display:grid;gap:1px;background:var(--line);border-radius:11px;overflow:hidden;border:1px solid var(--line)}
 .srow{display:flex;justify-content:space-between;align-items:center;background:var(--card);padding:12px 14px;font-size:13px}
@@ -303,9 +229,6 @@ body.chapters .proofs.stamped .proof:nth-child(4){transition-delay:.36s}
 .sec-h h2{font-size:clamp(21px,4.4vw,30px);font-weight:200}
 .sub{color:var(--t2);font-size:14.5px;max-width:54ch;margin-bottom:18px}
 .desc{color:var(--t2);font-size:15px;line-height:1.8}
-/* the neighbourhood, in one human line — always present, never grandiose */
-.zsense{margin-top:14px;padding:12px 15px;border-left:2px solid var(--gold);background:rgba(255,215,0,.04);border-radius:0 12px 12px 0;color:var(--t2);font-size:13.5px;line-height:1.65}
-.zsense .zk{display:block;font-size:10px;letter-spacing:2.2px;text-transform:uppercase;color:var(--gold);margin-bottom:5px}
 .feat{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
 .feat span{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:9px 13px;font-size:13px}
 
@@ -427,27 +350,6 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
 .pa-consent input{accent-color:var(--gold);width:18px;height:18px;flex:none;margin-top:1px;cursor:pointer}
 .pa-consent:hover{border-color:var(--line-gold)}
 .pa-consent:has(input:checked){border-color:var(--line-gold);color:var(--t1);background:var(--gold-faint)}
-/* ── the lock plate: the one moment money moves — engineered to feel safe.
-     Disabled = quiet hairline; consent checked = it turns to gold and a
-     single sheen crosses it, once. ── */
-.paybtn{width:100%;margin-top:14px;display:flex;align-items:center;gap:13px;padding:15px 17px;border-radius:14px;border:1px solid var(--line);background:var(--card);color:var(--t2);font-family:inherit;cursor:pointer;transition:all .35s var(--ease);position:relative;overflow:hidden;text-align:left}
-.paybtn .lk{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;border:1px solid var(--line);color:var(--t3);flex:none;transition:inherit}
-.paybtn .tx{flex:1;min-width:0}
-.paybtn .tx b{display:block;font-size:14.5px;font-weight:500;color:var(--t2);transition:inherit}
-.paybtn .tx small{display:block;font-size:11px;color:var(--t3);margin-top:2px;transition:inherit}
-.paybtn .amt{font-family:var(--disp);font-size:20px;font-weight:300;color:var(--t3);transition:inherit;white-space:nowrap}
-.paybtn:disabled{cursor:not-allowed;opacity:.6}
-.paybtn:not(:disabled){background:linear-gradient(135deg,var(--gold),#d9b400);border-color:transparent;box-shadow:0 12px 34px rgba(255,215,0,.22)}
-.paybtn:not(:disabled) .tx b{color:#1a1407}
-.paybtn:not(:disabled) .tx small{color:rgba(26,20,7,.72)}
-.paybtn:not(:disabled) .lk{background:rgba(0,0,0,.14);border-color:rgba(0,0,0,.18);color:#1a1407}
-.paybtn:not(:disabled) .amt{color:#1a1407;font-weight:400}
-.paybtn:not(:disabled):hover{transform:translateY(-1px);box-shadow:0 16px 40px rgba(255,215,0,.3)}
-.paybtn:not(:disabled)::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.38),transparent 70%);transform:translateX(-140%);animation:payArm 1.15s var(--ease) .12s 1}
-@keyframes payArm{to{transform:translateX(140%)}}
-.paysafe{display:flex;align-items:flex-start;justify-content:center;gap:7px;margin-top:11px;font-size:11px;color:var(--t3);text-align:center;line-height:1.6}
-.paysafe svg{flex:none;margin-top:2px;color:var(--gold)}
-.paysafe b{color:var(--t2);font-weight:500}
 .gbtn:disabled,.gbtn:disabled:hover{opacity:.38;cursor:not-allowed;transform:none;filter:grayscale(.45);box-shadow:none}
 @media(prefers-reduced-motion:no-preference){
   .pa-print{opacity:0;animation:seqIn .45s cubic-bezier(.16,1,.3,1) both}
@@ -520,130 +422,6 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
 .chrail a.on i{background:var(--gold,#FFD700);border-color:var(--gold,#FFD700);box-shadow:0 0 10px rgba(255,215,0,.5);transform:scale(1.25)}
 .chrail a.on .cl{opacity:1;transform:none;color:var(--gold,#FFD700)}
 </style>
-<!-- BOOM_JSONLD:START -->
-  <script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "RealEstateAgent",
-  "@id": "https://www.boomrome.com/#organization",
-  "name": "BOOM Rome",
-  "legalName": "BOOM Rome",
-  "url": "https://www.boomrome.com",
-  "logo": {
-    "@type": "ImageObject",
-    "url": "https://www.boomrome.com/android-chrome-512x512.png",
-    "width": 512,
-    "height": 512
-  },
-  "image": "https://www.boomrome.com/BOOMsocialprofile.png",
-  "description": "Premium mid-term apartment rentals in Rome with full property management, legal contracts, and 48-hour move-in.",
-  "sameAs": [
-    "https://www.instagram.com/boomrome",
-    "https://www.linkedin.com/company/boomrome",
-    "https://wa.me/393313251961",
-    "https://share.google/xikmVxQCRuKOdWcND"
-  ],
-  "address": {
-    "@type": "PostalAddress",
-    "addressLocality": "Rome",
-    "addressRegion": "Lazio",
-    "addressCountry": "IT"
-  },
-  "areaServed": {
-    "@type": "City",
-    "name": "Rome"
-  },
-  "priceRange": "€€-€€€",
-  "aggregateRating": {
-    "@type": "AggregateRating",
-    "ratingValue": "4.9",
-    "reviewCount": "47"
-  }
-}
-  </script>
-  <script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "WebSite",
-  "@id": "https://www.boomrome.com/#website",
-  "url": "https://www.boomrome.com",
-  "name": "BOOM Rome",
-  "publisher": {
-    "@id": "https://www.boomrome.com/#organization"
-  },
-  "potentialAction": {
-    "@type": "SearchAction",
-    "target": {
-      "@type": "EntryPoint",
-      "urlTemplate": "https://www.boomrome.com/apartments?q={search_term_string}"
-    },
-    "query-input": "required name=search_term_string"
-  },
-  "inLanguage": [
-    "en",
-    "it"
-  ]
-}
-  </script>
-  <script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "BreadcrumbList",
-  "itemListElement": [
-    {
-      "@type": "ListItem",
-      "position": 1,
-      "name": "Home",
-      "item": "https://www.boomrome.com/"
-    },
-    {
-      "@type": "ListItem",
-      "position": 2,
-      "name": "Apartments",
-      "item": "https://www.boomrome.com/apartments"
-    },
-    {
-      "@type": "ListItem",
-      "position": 3,
-      "name": "Listing",
-      "item": "https://www.boomrome.com/apartment-detail"
-    }
-  ]
-}
-  </script>
-<!-- BOOM_JSONLD:END -->
-  <script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  "mainEntity": [
-    {
-      "@type": "Question",
-      "name": "How do I apply for an apartment?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Submit the 2-minute application on the page — a real person reviews it and replies within 2 hours."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Can I reserve a place before someone else takes it?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Yes. A refundable €300 hold takes it off-market while we process your application."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Is the contract legal and the deposit protected?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Yes. Every BOOM rental uses a registered legal contract with a correctly handled deposit."
-      }
-    }
-  ]
-}
-  </script>
 </head>
 <body>
 
@@ -665,9 +443,8 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
 <div class="shell">
   <div class="crumb reveal"><a href="/apartments">Apartments</a> · <span id="cZone">Trastevere</span></div>
 
-  <!-- HERO — mobile: swipe carousel; desktop with 3+ photos: editorial mosaic (main cell + two tiles + "+N photos") -->
-  <div class="gwrap reveal" id="gwrap">
-  <section class="hero" data-ambient="marmoantico">
+  <!-- HERO -->
+  <section class="hero reveal" data-ambient="marmoantico">
     <div class="track" id="track"></div>
     <div class="hero-scrim"></div>
     <div class="hero-top">
@@ -681,8 +458,6 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
     <button class="arrow r" onclick="slideBy(1)" aria-label="Next">›</button>
     <div class="hero-foot"><div class="dots" id="dots"></div><button class="counter" id="counter" onclick="openLb(curIdx)">1 / 5 · view</button></div>
   </section>
-  <div class="gtiles" id="gtiles" aria-label="More photos"></div>
-  </div>
 
   <!-- CHAPTER RAIL (desktop) — the visit has a script: Photos → Home → Money → Location.
        A <div>, deliberately: the page's global nav{} rule (fixed, full-width, blurred
@@ -708,7 +483,6 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
       <section class="sec reveal" id="about">
         <div class="sec-h"><span class="num">01</span><div><div class="eyebrow">The home</div><h2 id="aboutH">Light, a terrace, the <span class="g" id="aboutZone">heart of Trastevere</span>.</h2></div></div>
         <p class="desc" id="aboutDesc">A furnished attic in the pedestrian heart of Trastevere: double aspect, all-day light, and a private terrace over the rooftops. Steps from Sapienza, the historic centre and the rione’s evening life. Verified in person and on video by our team — what you see is exactly what you get.</p>
-        <p class="zsense" id="zsense" hidden></p>
         <div class="feat" id="feat"></div>
       </section>
 
@@ -798,10 +572,10 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
           <div id="availBadge"></div>
           <div class="srows" id="srows"></div>
           <button class="gbtn" id="applyBtn" onclick="apply()">Apply →</button>
-          <button class="obtn" onclick="reserve()"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1zM8 11V7a4 4 0 0 1 8 0v4"/></svg> <span id="holdLbl">Request to hold · €300</span></button>
+          <button class="obtn" onclick="reserve()"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1zM8 11V7a4 4 0 0 1 8 0v4"/></svg> Request to hold · €300</button>
           <button class="obtn" onclick="openOv('aiOv')">✦ Ask this home</button>
           <div class="upnudge" id="upNudge"></div>
-          <div class="trust"><span><span class="c">✓</span> English-speaking team</span><span><span class="c">✓</span> Registered agency · Deposit protected</span><span><span class="c">✓</span> Reply in 2h</span><a href="https://share.google/xikmVxQCRuKOdWcND" target="_blank" rel="noopener" style="color:inherit" onclick="boomTrack('reviews_view',{source_page:'listing'})"><span style="color:var(--gold)">4.9 ★</span> · 47 Google reviews</a></div>
+          <div class="trust"><span><span class="c">✓</span> Reply in 2h</span><span><span class="c">✓</span> No commitment</span><span><span class="c">✓</span> Stripe-secured</span></div>
         </div>
       </div>
     </aside>
@@ -822,7 +596,7 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
   <div class="prog"><i id="prog"></i></div>
   <div class="in"><div class="l"><b id="railP">€1,500/mo</b><small id="railS">pick your dates ↑</small></div>
     <button class="ask" onclick="openOv('aiOv')" aria-label="Ask">✦</button>
-    <button class="go" id="railGo" onclick="apply()">Apply</button></div>
+    <button class="go" onclick="apply()">Apply</button></div>
 </div>
 
 <div class="ov" id="aiOv"><div class="sheet">
@@ -859,9 +633,6 @@ let L={name:"Bright Attic in Trastevere",zone:"Trastevere",price:1500,deposit:15
   similar:[["1522708323590-d24dbb6b0267","Trastevere","Cosy 1-bed by the Tiber","1 bed · 48 m²",1250,"96% fit"],["1560185007-cee345f7c8b9","Trastevere","Designer loft, San Cosimato","2 bed · 70 m²",1750,"91% fit"],["1554995207-c18c203602cb","Trastevere","Sunny studio, Viale Glorioso","Studio · 38 m²",980,"88% fit"]]};
 let IMGS=[]; const SAMPLE=L;
 const img=(id,w,q)=>'https://images.unsplash.com/photo-'+id+'?auto=format&fit=crop&w='+w+'&q='+(q||72);
-const imgSized=(u,s)=>{u=String(u||'');if(!/i\.imgur\.com/.test(u))return u;return u.replace(/(\/[A-Za-z0-9]{7})(\.(?:jpe?g|png|webp))/i,'$1'+s+'$2');};
-const imgOpt=(u,w,q)=>{u=String(u||'');if(!/^https?:\/\//.test(u))return u;return '/_vercel/image?url='+encodeURIComponent(u)+'&w='+(w||1080)+'&q='+(q||72);};
-const exYT=u=>{if(!u)return null;const m=String(u).match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/);return m?m[1]:null;};
 const eur=n=>'€'+Math.round(n).toLocaleString('en-US');
 const fmtD=d=>d.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
 const fmtS=d=>d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
@@ -876,19 +647,6 @@ function slideBy(dir){const w=track.clientWidth;track.scrollTo({left:(curIdx+dir
 let st;track.addEventListener('scroll',()=>{clearTimeout(st);st=setTimeout(()=>{const i=Math.round(track.scrollLeft/track.clientWidth);if(i!==curIdx)setIdx(i);},80);},{passive:true});
 
 /* ---- lightbox ---- */
-function openVideo(vId){
-  let ov=document.getElementById('vOv');
-  if(!ov){ov=document.createElement('div');ov.id='vOv';ov.className='lb';
-    ov.innerHTML='<button class="xc" aria-label="Close">×</button><div style="width:min(96vw,980px);aspect-ratio:16/9"><iframe src="" title="Video tour" style="width:100%;height:100%;border:0;border-radius:12px" allow="autoplay; fullscreen" allowfullscreen></iframe></div>';
-    document.body.appendChild(ov);
-    ov.querySelector('.xc').onclick=()=>closeVideo();
-    ov.addEventListener('click',e=>{if(e.target===ov)closeVideo();});}
-  ov.querySelector('iframe').src='https://www.youtube.com/embed/'+vId+'?rel=0&autoplay=1';
-  ov.classList.add('show');document.body.style.overflow='hidden';
-  try{if(window.__amb)__amb.mood('focus')}catch(_e){}
-  boomTrack('video_tour_open',{item_id:PID||L.id||''});
-}
-function closeVideo(){const ov=document.getElementById('vOv');if(!ov)return;ov.classList.remove('show');ov.querySelector('iframe').src='';document.body.style.overflow='';try{if(window.__amb)__amb.mood('browse')}catch(_e){}}
 let lbIdx=0;
 function lbPaint(){const im=IMGS[lbIdx]||{};const el=document.getElementById('lbImg');el.src=im.full||'';el.alt=im.alt||'';document.getElementById('lbCount').textContent=(lbIdx+1)+' / '+IMGS.length;}
 function lbBy(dir){lbIdx=(lbIdx+dir+IMGS.length)%IMGS.length;lbPaint();}
@@ -910,9 +668,8 @@ function computeStay(overrideRaw){const avail=new Date(L.availableFrom+'T00:00')
 function countUp(el,to){const from=parseInt(el.dataset.cur||'0',10);const t0=performance.now();
   if(matchMedia('(prefers-reduced-motion:reduce)').matches){el.textContent=eur(to);el.dataset.cur=to;return;}
   (function step(t){const p=Math.min(1,(t-t0)/480);const e=1-Math.pow(1-p,3);el.textContent=eur(Math.round(from+(to-from)*e));if(p<1)requestAnimationFrame(step);else{el.dataset.cur=to;if(from!==to){el.classList.add('landed');setTimeout(()=>el.classList.remove('landed'),420);}}})(performance.now());}
-function render(){const s=computeStay();const wl=L.status==='waitlist';let av;
-  if(wl)av=`<div class="avail wl"><span class="pin">◌</span><div>Occupied — waitlist open, be first in line<small>${s.avail>new Date()?('Expected free from '+fmtD(s.avail)):'Portfolio home · rents ahead, often months in advance'}</small></div></div>`;
-  else if(s.fit==='none')av=`<div class="avail none"><span class="pin"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 6h14a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2zM8 3v5m8-5v5M3 11h18"/></svg></span><div>Pick a date for real availability &amp; exact cost<small>Free from ${fmtD(s.avail)}</small></div></div>`;
+function render(){const s=computeStay();let av;
+  if(s.fit==='none')av=`<div class="avail none"><span class="pin"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 6h14a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2zM8 3v5m8-5v5M3 11h18"/></svg></span><div>Pick a date for real availability &amp; exact cost<small>Free from ${fmtD(s.avail)}</small></div></div>`;
   else if(s.fit==='ok')av=`<div class="avail ok"><span class="pin">✓</span><div>Free for your date<small>You move in ${fmtD(s.start)}</small></div></div>`;
   else av=`<div class="avail after"><span class="pin">!</span><div>Free from ${fmtS(s.avail)} — ${s.gap} days after you'd like<small>We can alert you if it frees sooner</small></div></div>`;
   document.getElementById('availBadge').innerHTML=av;
@@ -925,7 +682,7 @@ function render(){const s=computeStay();const wl=L.status==='waitlist';let av;
     <div class="srow tot" data-key="total"><span class="k">To move in${s.fit==='none'?'':` ${fmtS(s.start)}`}</span><span class="v" id="totV">${eur(s.total)}</span></div>
     ${s.end?`<div class="srow" data-key="until"><span class="k">Stay until</span><span class="v">${fmtD(s.end)}</span></div>`:''}`;
   const tv=document.getElementById('totV');if(tv)countUp(tv,s.total);
-  document.getElementById('applyBtn').innerHTML=wl?'Join the waitlist →':(s.fit==='none')?'Apply →':`Apply for ${fmtS(s.start)} →`;
+  document.getElementById('applyBtn').innerHTML=(s.fit==='none')?'Apply →':`Apply for ${fmtS(s.start)} →`;
   const up=document.getElementById('upNudge');
   if(s.fit==='after'){up.classList.add('show');up.innerHTML=`Need it by ${fmtS(s.req)}? We can <a href="/property-finding">find one for your exact dates →</a>`;}else up.classList.remove('show');
   document.getElementById('mtiles').innerHTML=[
@@ -949,7 +706,7 @@ function render(){const s=computeStay();const wl=L.status==='waitlist';let av;
   });
   paintTimeline(s);
   document.getElementById('railP').textContent=(s.fit==='none')?eur(L.price)+'/mo':'Move in: '+eur(s.total);
-  document.getElementById('railS').textContent=wl?'occupied · rents ahead':(s.fit==='none')?'pick your dates ↑':fmtS(s.start);}
+  document.getElementById('railS').textContent=(s.fit==='none')?'pick your dates ↑':fmtS(s.start);}
 /* the stay, drawn — the contract as a bar the eye reads in one pass */
 function paintTimeline(s){
   const el=document.getElementById('stayTl');if(!el)return;
@@ -1029,19 +786,12 @@ document.getElementById('faqList').innerHTML=FAQ.map(([q,a])=>`<div class="qa"><
 /* ---- overlays / ai — scroll-locked, focus-managed, mood-aware ---- */
 let _ovPrevFocus=null;
 function _mood(m){try{if(window.__amb)__amb.mood(m)}catch(_e){}}
-function boomTrack(name,params){try{if(typeof gtag==='function')gtag('event',name,params||{});}catch(e){}}
-addEventListener('click',function(e){
-  var wa=e.target.closest('a[href*="wa.me"]');
-  if(wa){boomTrack('generate_lead',{method:'whatsapp',page_location:location.pathname});}
-},{passive:true});
 function openOv(i){const el=document.getElementById(i);el.classList.add('show');document.body.style.overflow='hidden';
   _ovPrevFocus=document.activeElement;const f=el.querySelector('.xc,button,input,[href]');if(f)setTimeout(()=>f.focus(),80);_mood('focus');}
 function closeOv(i){document.getElementById(i).classList.remove('show');document.body.style.overflow='';
   if(_ovPrevFocus&&_ovPrevFocus.focus){try{_ovPrevFocus.focus()}catch(_e){}_ovPrevFocus=null;}_mood('browse');}
 function closeLb(){document.getElementById('lb').classList.remove('show');document.body.style.overflow='';_mood('browse');}
 addEventListener('keydown',function(e){
-  var vOvEl=document.getElementById('vOv');
-  if(e.key==='Escape'&&vOvEl&&vOvEl.classList.contains('show')){closeVideo();return;}
   var lbEl=document.getElementById('lb'),lbOpen=lbEl&&lbEl.classList.contains('show');
   if(lbOpen&&(e.key==='ArrowLeft'||e.key==='ArrowRight')){lbBy(e.key==='ArrowLeft'?-1:1);return;}
   if(e.key!=='Escape')return;
@@ -1095,7 +845,7 @@ function aiAsk(b){const q=b.textContent;const t=document.getElementById('aiThrea
 let RES={kind:'apply',step:1,approved:null,need:0};
 function apply(){startRes('apply');}
 function reserve(){startRes('reserve');}
-function startRes(kind){boomTrack('begin_checkout',{item_id:PID||L.id||'sample',kind:kind});try{navigator.vibrate&&navigator.vibrate(8)}catch(e){}RES={kind:kind,step:1,approved:null,need:0,email:RES.email||'',name:RES.name||'',phone:RES.phone||''};document.getElementById('applyTitle').textContent=(L.status==='waitlist')?(kind==='reserve'?'Priority hold — first in line':'Join the waitlist'):(kind==='reserve'?'Secure this home':'Apply for this home');renderRes();openOv('applyOv');_mood('convert');}
+function startRes(kind){try{navigator.vibrate&&navigator.vibrate(8)}catch(e){}RES={kind:kind,step:1,approved:null,need:0,email:RES.email||'',name:RES.name||'',phone:RES.phone||''};document.getElementById('applyTitle').textContent=kind==='reserve'?'Secure this home':'Apply for this home';renderRes();openOv('applyOv');_mood('convert');}
 function resStep(n){RES.step=n;renderRes();}
 function resSubmit(){var inc=+(document.getElementById('rqInc')||{}).value||0;var guar=!!(document.getElementById('rqGuar')||{}).checked;var em=((document.getElementById('rqEmail')||{}).value||'').trim();
   var nm=((document.getElementById('rqName')||{}).value||'').trim();var ph=((document.getElementById('rqPhone')||{}).value||'').trim();
@@ -1103,27 +853,18 @@ function resSubmit(){var inc=+(document.getElementById('rqInc')||{}).value||0;va
   if(nm.length<3){if(err){err.textContent='Your full name goes on the pre-agreement — add it to continue.';err.style.display='block';}return;}
   if(!inc&&!guar){if(err){err.textContent='Tell us your income or tick the guarantor box — we can’t check otherwise.';err.style.display='block';}return;}
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){if(err){err.textContent='Add your email so we can confirm the outcome to you.';err.style.display='block';}return;}
-  RES.name=nm;RES.phone=ph;RES.email=em;RES.who=((document.getElementById('rqWho')||{}).value||'');RES.occ=((document.getElementById('rqOcc')||{}).value||'');
-  RES.need=Math.round(L.price*2.5);RES.approved=(inc>=RES.need)||guar;RES.low=inc>0&&inc<RES.need*0.8;
-  /* the qualification snapshot becomes a real lead in the portal — fire and
-     forget, the visitor's flow never waits on it */
-  try{var _s=computeStay();fetch('/api/apply-lead',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-    name:nm,email:em,phone:ph,listingId:(typeof PID!=='undefined'&&PID)||L.id||'',listingName:L.name,listingPrice:L.price,zone:L.zone,
-    kind:RES.kind,waitlist:L.status==='waitlist',income:inc||0,guarantor:guar,household:RES.who,occupation:RES.occ,
-    moveIn:_s.start?_s.start.toISOString().slice(0,10):'',durationMonths:DUR,company:''})}).catch(function(){});}catch(e){}
-  boomTrack('generate_lead',{item_id:(typeof PID!=='undefined'&&PID)||L.id||'sample',kind:RES.kind});
-  resStep(2);}
-function resHold(){var lk=document.getElementById('paLock');if(lk&&lk.disabled)return;boomTrack('add_payment_info',{item_id:PID||L.id||'sample'});try{navigator.vibrate&&navigator.vibrate(12)}catch(e){}
+  RES.name=nm;RES.phone=ph;RES.email=em;RES.need=Math.round(L.price*2.5);RES.approved=(inc>=RES.need)||guar;RES.low=inc>0&&inc<RES.need*0.8;resStep(2);}
+function resHold(){var lk=document.getElementById('paLock');if(lk&&lk.disabled)return;try{navigator.vibrate&&navigator.vibrate(12)}catch(e){}
   /* Stripe first — the lock is real. If checkout can't be created (offline,
      preview, missing key) fall back to the honest issued-confirmation. */
-  if(lk){lk.disabled=true;var _lt=lk.querySelector('.tx b');if(_lt)_lt.textContent='Opening secure checkout…';else lk.textContent='Opening secure checkout…';}
+  if(lk){lk.disabled=true;lk.textContent='Opening secure checkout…';}
   var s=computeStay();
   fetch('/api/reserve-checkout',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({listingId:(typeof PID!=='undefined'&&PID)||L.id||'',listingName:L.name,amount:300,
       name:RES.name||'',email:RES.email||'',phone:RES.phone||'',move_in_date:s.start?s.start.toISOString().slice(0,10):''})})
   .then(function(r){return r.ok?r.json():null})
   .then(function(j){if(j&&j.url){location.href=j.url;return;}throw 0;})
-  .catch(function(){if(lk){lk.disabled=false;var _lr=lk.querySelector('.tx b');if(_lr)_lr.textContent='Lock this home';}resStep(3);});}
+  .catch(function(){if(lk){lk.disabled=false;lk.textContent='Lock this home · €300 →';}resStep(3);});}
 /* the BOOM seal — hairline, currentColor, echoes the ◆ of the map facade */
 function paSealSVG(sz){return '<svg class="pa-seal" width="'+sz+'" height="'+sz+'" viewBox="0 0 48 48" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="24" cy="24" r="21.5" stroke-width="1"/><circle cx="24" cy="24" r="17" stroke-width=".7" stroke-dasharray="2.2 3.1" opacity=".6"/><circle cx="24" cy="24" r="12" stroke-width=".7" opacity=".85"/><path d="M24 17.5 29 24l-5 6.5L19 24z" fill="currentColor" stroke="none" opacity=".92"/></svg>';}
 function renderRes(){
@@ -1142,17 +883,11 @@ function renderRes(){
       +'<label style="display:block"><span style="display:block;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--t3);margin-bottom:6px">Your email</span><input id="rqEmail" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com" value="'+(RES.email||'')+'" style="width:100%;background:var(--input);border:1px solid var(--line);border-radius:11px;color:var(--t1);font-family:inherit;font-size:15px;padding:12px 13px"></label>'
       +'<label style="display:block"><span style="display:block;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--t3);margin-bottom:6px">Phone / WhatsApp</span><input id="rqPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+39 …" value="'+(RES.phone||'')+'" style="width:100%;background:var(--input);border:1px solid var(--line);border-radius:11px;color:var(--t1);font-family:inherit;font-size:15px;padding:12px 13px"></label>'
       +'</div>'
-      +'<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px">'
-      +'<label style="display:block"><span style="display:block;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--t3);margin-bottom:6px">Who’s moving in</span><select id="rqWho" style="width:100%;background:var(--input);border:1px solid var(--line);border-radius:11px;color:var(--t1);font-family:inherit;font-size:15px;padding:12px 13px;appearance:none"><option value="">Select…</option><option value="solo">Just me</option><option value="couple">A couple</option><option value="family">Family</option><option value="flatmates">Flatmates</option></select></label>'
-      +'<label style="display:block"><span style="display:block;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--t3);margin-bottom:6px">You are</span><select id="rqOcc" style="width:100%;background:var(--input);border:1px solid var(--line);border-radius:11px;color:var(--t1);font-family:inherit;font-size:15px;padding:12px 13px;appearance:none"><option value="">Select…</option><option value="employed">Employed</option><option value="self-employed">Self-employed</option><option value="student">Student</option><option value="relocating">Relocating for work</option></select></label>'
-      +'</div>'
       +'<label style="display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--t2);cursor:pointer"><input id="rqGuar" type="checkbox" style="accent-color:var(--gold);width:18px;height:18px"> I have a guarantor (or can pay a larger deposit)</label>'
       +'</div>'
       +'<p id="rqErr" style="display:none;color:var(--gold-light);font-size:12.5px;margin-top:10px"></p>'
       +'<button class="gbtn" style="margin-top:18px" onclick="resSubmit()">Check eligibility →</button>'
       +'<p style="font-size:11px;color:var(--t3);margin-top:12px;text-align:center">Private · used only to qualify your application</p>';
-    if(RES.who)try{document.getElementById('rqWho').value=RES.who}catch(e){}
-    if(RES.occ)try{document.getElementById('rqOcc').value=RES.occ}catch(e){}
   } else if(RES.step===2){
     var ok=RES.approved;
     var verdict=ok
@@ -1178,11 +913,8 @@ function renderRes(){
         +'<div class="pa-terms">'+terms.map(function(t){return '<div class="pa-term pa-print"><span class="c">✓</span><span>'+t+'</span></div>';}).join('')+'</div>'
         +'</div>'
         +'<label class="pa-consent pa-print"><input type="checkbox" id="paConsent" onchange="document.getElementById(\'paLock\').disabled=!this.checked"><span>I’ve read and accept the pre-agreement terms</span></label>'
-        +'<button class="paybtn" id="paLock" disabled onclick="resHold()">'
-          +'<span class="lk"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1zM8 11V7a4 4 0 0 1 8 0v4"/></svg></span>'
-          +'<span class="tx"><b>'+(L.status==='waitlist'?'Hold first place in line':'Lock this home')+'</b><small>'+(L.status==='waitlist'?'priority hold · 100% refundable':'48-hour hold · 100% refundable')+'</small></span>'
-          +'<span class="amt">€300</span></button>'
-        +'<p class="paysafe"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z"/></svg><span>Secured by <b>Stripe</b> · credited to your first month, or refunded in full within 48h — even for a simple mistake, one tap and it comes back. No questions.</span></p>'
+        +'<button class="gbtn" id="paLock" disabled style="margin-top:14px" onclick="resHold()">Lock this home · €300 →</button>'
+        +'<p style="font-size:11px;color:var(--t3);margin-top:11px;text-align:center">€300 — credited to your first month · 100% refunded within 48h · Stripe-secured</p>'
         +(RES.kind==='apply'?'<a href="https://wa.me/393313251961" class="obtn" style="margin-top:4px;text-decoration:none">Prefer to talk first? Message your advisor</a>':'');
     } else {
       var cta=(RES.kind==='reserve')
@@ -1290,67 +1022,12 @@ const SVGI={
 };
 const NBICO={'🚇':'train','🎓':'cap','🛒':'cart','🏛️':'landmark','🏛':'landmark'};
 
-/* ── The sense of place: one warm, human line per zone. Iconic zones may
-     say "heart of"; every other quartiere gets a real, likeable identity —
-     never grandiose where it wouldn't ring true. ── */
-const ZONE_LORE=[
- [/trastevere/i,1,'cobbled lanes, ivy on the walls and the best evening light in Rome'],
- [/centro storico|^centro$|navona|campo de|pantheon|barberini|coronari/i,1,'domes, fountains and streets that empty beautifully at night'],
- [/monti/i,1,'artisan workshops and wine bars in Rome’s oldest rione, ten minutes from the Colosseum'],
- [/prati/i,1,'elegant, ordered streets a short walk from the Vatican walls and Cola di Rienzo shopping'],
- [/parioli/i,1,'embassies, quiet gardens and Villa Borghese as your backyard'],
- [/testaccio/i,1,'the market, the food — the Rome that Romans keep for themselves'],
- [/aventino/i,1,'orange gardens, cloisters and the quietest hill of the centre'],
- [/vittorio veneto|veneto/i,1,'the Dolce Vita boulevard — grand cafés, embassies, Villa Borghese at the corner'],
- [/flaminio/i,0,'leafy riverside blocks between the Auditorium, MAXXI and Ponte Milvio'],
- [/ponte milvio/i,0,'Rome’s oldest bridge and one of its liveliest aperitivo quarters'],
- [/pigneto/i,0,'the creative quarter — street art, third-wave cafés and honest trattorie'],
- [/trieste|copped|africano/i,0,'the Liberty villas of Coppedè, morning markets and calm residential streets'],
- [/san lorenzo/i,0,'student energy, bookshops and kitchens that stay open late, next to Sapienza'],
- [/ostiense|garbatella/i,0,'street art on industrial walls and Garbatella’s village courtyards'],
- [/esquilino/i,0,'Rome at its most international — Piazza Vittorio market and every cuisine on earth'],
- [/san giovanni/i,0,'a true neighbourhood around the basilica — daily markets, metro A at the door'],
- [/marconi/i,0,'riverside and well-connected, with real-Rome prices and Trastevere ten minutes away'],
- [/tiburtina|bologna/i,0,'quick metro B links, Sapienza close by and honest neighbourhood life'],
- [/conca d/i,0,'metro B1 at the door and the green calm of the Aniene park'],
- [/nomentano/i,0,'tree-lined avenues around the villas and gardens of Villa Torlonia'],
- [/eur\b/i,0,'rationalist architecture, lakeside runs and fast lines into the centre'],
- [/balduina|trionfale/i,0,'panoramic, residential, and a market street Romans cross the city for'],
-];
-function zoneLore(z){z=String(z||'').trim();for(const e of ZONE_LORE){if(e[0].test(z))return{icon:!!e[1],lore:e[2]};}return null;}
-
 /* ---- paint (sample by default; real listing when ?id= resolves) ---- */
 function paintData(){
-  IMGS=(L.images||[]).map((e,i)=>Array.isArray(e)
-    ?{thumb:img(e[0],1200),full:img(e[0],1600,82),alt:e[1]}
-    :{thumb:imgOpt(e,i===0?1080:640,i===0?75:72),mid:i===0?imgSized(e,'h'):imgSized(e,'l'),full:e,alt:(L.name+' — photo '+(i+1))});
-  const NOPHOTO=!IMGS.length;
-  if(NOPHOTO)IMGS=[{thumb:'',full:'',alt:L.name,empty:true}];
-  track.innerHTML=IMGS.map((im,i)=>im.empty
-    ?`<div class="slide" style="display:grid;place-items:center"><div style="text-align:center;color:var(--t3)"><div style="font-size:26px;margin-bottom:8px;color:var(--gold)">◆</div><div style="font-size:12px;letter-spacing:2px;text-transform:uppercase">Photos coming soon</div><div style="font-size:11px;margin-top:5px">Ask us for the video tour</div></div></div>`
-    :`<div class="slide"><img src="${im.thumb}" alt="${im.alt}" loading="${i===0?'eager':'lazy'}" decoding="async"${i===0?' fetchpriority="high"':' data-blur-up'} onerror="if(this.dataset.f1){this.onerror=null;this.src=this.dataset.f2}else{this.dataset.f1=1;this.src=this.dataset.f1s}" data-f1s="${(im.mid||im.full).replace(/"/g,'')}" data-f2="${im.full.replace(/"/g,'')}" onclick="openLb(${i})"></div>`).join('');
-  /* video tour: real chip when the listing carries one */
-  const vId=exYT(L.video);
-  const vb=document.querySelector('.vbadge');
-  if(vb)vb.textContent=vId?'✓ Video-verified':'✓ BOOM-verified';
-  let vchip=document.getElementById('vTour');
-  if(vId){
-    if(!vchip){vchip=document.createElement('button');vchip.id='vTour';vchip.className='vbadge';vchip.style.cssText='cursor:pointer;margin-left:8px;color:var(--gold);border-color:var(--line-gold)';vchip.innerHTML='▶ Play tour';vchip.onclick=()=>openVideo(vId);if(vb&&vb.parentNode)vb.parentNode.insertBefore(vchip,vb.nextSibling);}
-    vchip.style.display='';
-  }else if(vchip)vchip.style.display='none';
+  IMGS=(L.images||[]).map((e,i)=>Array.isArray(e)?{thumb:img(e[0],1200),full:img(e[0],1600,82),alt:e[1]}:{thumb:e,full:e,alt:(L.name+' — photo '+(i+1))});
+  if(!IMGS.length)IMGS=[{thumb:'',full:'',alt:L.name}];
+  track.innerHTML=IMGS.map((im,i)=>`<div class="slide"><img src="${im.thumb}" alt="${im.alt}" loading="${i===0?'eager':'lazy'}"${i===0?'':' data-blur-up'} onerror="this.style.opacity=0" onclick="openLb(${i})"></div>`).join('');
   dots.innerHTML=IMGS.map((_,i)=>`<i class="${i===0?'on':''}"></i>`).join('');
-  /* desktop editorial mosaic: photos 2–3 as large tiles, the rest behind "+N photos" */
-  try{
-    const gw=document.getElementById('gwrap'),gt=document.getElementById('gtiles');
-    const tl=NOPHOTO?[]:IMGS.slice(1,3);
-    if(gw&&gt){
-      if(tl.length===2){
-        gw.classList.add('tiled');
-        const more=IMGS.length-3;
-        gt.innerHTML=tl.map((im,k)=>`<button class="gt" type="button" onclick="openLb(${k+1})" aria-label="Open photo ${k+2} of ${IMGS.length}"><img src="${im.thumb}" alt="${(im.alt||'').replace(/"/g,'')}" loading="lazy" decoding="async" onerror="if(this.dataset.f1){this.onerror=null;this.src=this.dataset.f2}else{this.dataset.f1=1;this.src=this.dataset.f1s}" data-f1s="${(im.mid||im.full).replace(/"/g,'')}" data-f2="${(im.full||'').replace(/"/g,'')}">${k===1&&more>0?`<span class="more"><b>+${more}</b> photos</span>`:''}</button>`).join('');
-      }else{gw.classList.remove('tiled');gt.innerHTML='';}
-    }
-  }catch(_e){}
   /* continuity: hero morphs in from the tapped discovery card; else blur-up */
   try{
     if(window.BoomElevate){
@@ -1370,19 +1047,13 @@ function paintData(){
   const lead=hasF(/terrace/i)?'Light, a terrace, the ':hasF(/balcon/i)?'Light, a balcony, the ':'Light, space, the ';
   const aH=document.getElementById('aboutH');
   if(aH&&aH.firstChild&&aH.firstChild.nodeType===3)aH.firstChild.textContent=lead;
-  const zl=zoneLore(L.zone);
-  document.getElementById('aboutZone').textContent=(zl&&zl.icon)?('heart of '+L.zone):('real Rome of '+String(L.zone||'').trim());
-  if(L.real)document.getElementById('aboutDesc').textContent=L.description||(L.name+' in '+L.zone+' — '+((zl&&zl.lore)?zl.lore:'a genuine, well-connected Roman neighbourhood')+'. Verified in person and on video by our team — what you see is exactly what you get.');
-  const zs=document.getElementById('zsense');
-  if(zs){zs.hidden=false;zs.innerHTML='<span class="zk">The neighbourhood</span>'+String(L.zone||'Rome').trim().replace(/</g,'&lt;')+' — '+((zl&&zl.lore)?zl.lore:'a genuine Roman quartiere: well-connected, everyday cafés, fair prices')+'.';}
+  document.getElementById('aboutZone').textContent='heart of '+L.zone;
+  if(L.description)document.getElementById('aboutDesc').textContent=L.description;
   document.getElementById('simZone').textContent=L.zone;
   document.getElementById('hPrice').textContent=eur(L.price);
   const af=L.availableFrom;
-  const _wl=L.status==='waitlist';
-  document.getElementById('hAvail').textContent=_wl?'Occupied · waitlist open':(af?('Available '+fmtS(new Date(af+'T00:00'))):'Ask availability');
-  document.getElementById('priceSub').textContent=_wl?'Occupied now · rents ahead — join the waitlist':((af?('Available from '+fmtD(new Date(af+'T00:00'))):'Availability on request')+' · BOOM-managed');
-  const _hl=document.getElementById('holdLbl');if(_hl&&_wl)_hl.textContent='Priority hold · €300';
-  const _rg=document.getElementById('railGo');if(_rg&&_wl)_rg.textContent='Waitlist';
+  document.getElementById('hAvail').textContent=af?('Available '+fmtS(new Date(af+'T00:00'))):'Ask availability';
+  document.getElementById('priceSub').textContent=(af?('Available from '+fmtD(new Date(af+'T00:00'))):'Availability on request')+' · BOOM-managed';
   document.getElementById('price').innerHTML=eur(L.price)+' <small>/month</small>';
   document.getElementById('feat').innerHTML=(L.features||[]).map(f=>`<span>${f}</span>`).join('');
   document.getElementById('facts').innerHTML=[[SVGI.bed,'Bedrooms',L.beds||'Studio'],[SVGI.bath,'Bathrooms',L.baths],[SVGI.ruler,'Size',L.sqm+' m²'],[SVGI.building,'Floor',L.floor],[SVGI.chair,'Furnished',L.furnished?'Yes':'No']].map(([i,k,v])=>`<div class="fact"><div class="i">${i}</div><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
@@ -1400,10 +1071,10 @@ function paintData(){
 function mapReal(d){
   const imgs=(Array.isArray(d.images)&&d.images.length)?d.images:(d.image?[d.image]:[]);
   const feat=Array.isArray(d.features)?d.features:(Array.isArray(d.amenities)?d.amenities:[]);
-  const rawAf=d.availableFrom||d.availableDate;const _ISO=/^\d{4}-\d{2}-\d{2}/;const af=(typeof rawAf==='string'&&_ISO.test(rawAf))?rawAf.slice(0,10):new Date().toISOString().slice(0,10);
+  const rawAf=d.availableFrom||d.availableDate;const af=(typeof rawAf==='string'&&rawAf)?rawAf.slice(0,10):SAMPLE.availableFrom;
   const zone=d.zone||d.neighborhood||d.address||'Rome';
   const sameZone=/trastevere/i.test(zone);   // the sample nearby/similar are Trastevere-true; never show them elsewhere
-  return {name:d.name||d.title||'Apartment in Rome',zone:zone,price:+d.price||0,deposit:+d.deposit||+d.price||0,agencyFee:d.agencyFee!=null?(+d.agencyFee||0):Math.round((+d.price||0)*1.2),beds:(d.beds!=null?d.beds:(d.bedrooms!=null?d.bedrooms:0)),baths:(d.bathrooms!=null?d.bathrooms:(d.baths!=null?d.baths:1)),sqm:d.sqm||d.size||0,floor:d.floor||1,furnished:(d.furnished===true)||/furnish/i.test(feat.join(' ')+' '+(d.description||'')),real:true,status:((d.status||d.availabilityStatus||'available')+'').toLowerCase(),availableFrom:af,images:imgs,features:feat,description:(typeof d.description==='string'&&d.description.trim())?d.description.trim():'',nearby:sameZone?SAMPLE.nearby:[],similar:sameZone?SAMPLE.similar:[],lat:+d.lat||SAMPLE.lat,lng:+d.lng||SAMPLE.lng,video:(d.videoUrl||d.youtubeUrl||null)};
+  return {name:d.name||d.title||'Apartment in Rome',zone:zone,price:+d.price||0,deposit:+d.deposit||+d.price||0,agencyFee:d.agencyFee!=null?(+d.agencyFee||0):Math.round((+d.price||0)*1.2),beds:(d.beds!=null?d.beds:(d.bedrooms!=null?d.bedrooms:0)),baths:(d.bathrooms!=null?d.bathrooms:(d.baths!=null?d.baths:1)),sqm:d.sqm||d.size||0,floor:d.floor||1,furnished:(d.furnished===true)||/furnish/i.test(feat.join(' ')+' '+(d.description||'')),availableFrom:af,images:imgs.length?imgs:SAMPLE.images,features:feat.length?feat:SAMPLE.features,description:(typeof d.description==='string'&&d.description.trim())?d.description.trim():'',nearby:sameZone?SAMPLE.nearby:[],similar:sameZone?SAMPLE.similar:[],lat:+d.lat||SAMPLE.lat,lng:+d.lng||SAMPLE.lng};
 }
 /* ═══ EXPERIENCE SEQUENCE — arrival choreography + chapter rail + money roll-up ═══ */
 const REDUCE_SEQ=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1480,9 +1151,8 @@ function experienceArrive(){
   })},{threshold:.5}).observe(pr);
 })();
 
-const PID=new URLSearchParams(location.search).get('id')||decodeURIComponent((location.pathname.match(/^\/listing\/([^\/]+)/)||[,''])[1])||window.__LISTING_ID||'';
-if(window.__LISTING&&(!window.__LISTING_ID||!PID||window.__LISTING_ID===PID)){try{L=mapReal(window.__LISTING);}catch(_e){}paintData();experienceArrive();}
-else if(PID){fetch('/api/listings?id='+encodeURIComponent(PID),{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{if(j&&j.ok&&j.listing){L=mapReal(j.listing);}}).catch(()=>{}).finally(function(){paintData();experienceArrive();});}
+const PID=new URLSearchParams(location.search).get('id');
+if(PID){fetch('/api/listings?id='+encodeURIComponent(PID),{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{if(j&&j.ok&&j.listing){L=mapReal(j.listing);}}).catch(()=>{}).finally(function(){paintData();experienceArrive();});}
 else{paintData();experienceArrive();}
 </script>
 </body>

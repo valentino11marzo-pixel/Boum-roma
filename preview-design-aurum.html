@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#070608">
+<meta name="color-scheme" content="dark">
+<title>BOOM · Design Study — Liquid Aurum</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://images.unsplash.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&family=Fraunces:opsz,wght@9..144,300;9..144,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#070608;--ink:#0C0A0E;--glass:rgba(28,24,32,.5);--glass2:rgba(40,34,46,.55);
+  --gold:#FFD700;--gold-light:#FFE99A;--amber:#FFA94D;--rose:#E7B27A;
+  --t1:#FBF7F2;--t2:rgba(251,247,242,.68);--t3:rgba(251,247,242,.42);--t4:rgba(251,247,242,.22);
+  --line:rgba(255,235,200,.10);--line-gold:rgba(255,215,0,.22);
+  --sans:'Inter',-apple-system,sans-serif;--serif:'Fraunces',Georgia,serif;
+  --ease:cubic-bezier(.16,1,.3,1);--maxw:1140px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;scroll-behavior:smooth}
+body{font-family:var(--sans);background:var(--void);color:var(--t1);font-weight:300;line-height:1.6;overflow-x:hidden}
+img{display:block;max-width:100%}button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+h1,h2,h3{font-family:var(--serif);font-weight:300;letter-spacing:-.5px;line-height:1.05}
+.eyebrow{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--amber)}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}html{scroll-behavior:auto}.blob{display:none}}
+
+/* aurora gold field — slow living light */
+#bg{position:fixed;inset:0;z-index:-1;background:radial-gradient(120% 90% at 50% -10%,#120c10,var(--void) 60%);overflow:hidden}
+.blob{position:absolute;border-radius:50%;filter:blur(70px);opacity:.5;will-change:transform}
+.blob.a{width:54vmax;height:54vmax;left:-14vmax;top:-16vmax;background:radial-gradient(circle,rgba(255,215,0,.16),transparent 62%);animation:f1 30s ease-in-out infinite alternate}
+.blob.b{width:46vmax;height:46vmax;right:-12vmax;top:24vmax;background:radial-gradient(circle,rgba(255,169,77,.12),transparent 62%);animation:f2 36s ease-in-out infinite alternate}
+.blob.c{width:40vmax;height:40vmax;left:30vmax;bottom:-18vmax;background:radial-gradient(circle,rgba(231,178,122,.10),transparent 62%);animation:f1 44s ease-in-out infinite alternate-reverse}
+@keyframes f1{to{transform:translate(8vmax,6vmax) scale(1.15)}}@keyframes f2{to{transform:translate(-7vmax,-5vmax) scale(1.1)}}
+#cursorglow{position:fixed;width:380px;height:380px;border-radius:50%;pointer-events:none;z-index:0;background:radial-gradient(circle,rgba(255,215,0,.07),transparent 65%);transform:translate(-50%,-50%);left:-999px;transition:opacity .4s}
+.grain{position:fixed;inset:0;z-index:-1;opacity:.16;mix-blend-mode:overlay;pointer-events:none}
+
+nav{position:fixed;top:0;width:100%;z-index:100;background:rgba(7,6,8,.5);backdrop-filter:blur(22px);border-bottom:1px solid transparent;transition:.4s var(--ease)}
+nav.scr{background:rgba(7,6,8,.9);border-color:var(--line-gold)}
+.nav-c{max-width:1300px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;padding:15px 20px}
+@media(min-width:781px){.nav-c{padding:16px 40px}}
+.logo{display:flex;align-items:center;gap:11px}.logo .wm{font-family:var(--serif);font-size:22px;letter-spacing:5px;font-weight:400}
+.nav-meta{font-size:10px;letter-spacing:2px;color:var(--t3);text-transform:uppercase}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 20px;position:relative;z-index:1}
+
+.hero{padding:150px 0 64px;text-align:center}
+.hero .eyebrow{margin-bottom:20px;display:inline-block}
+.hero h1{font-size:clamp(44px,8.5vw,96px);font-weight:300;letter-spacing:-2px;line-height:1}
+.hero h1 .it{font-style:italic;background:linear-gradient(120deg,var(--gold-light),var(--amber),var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero .lead{margin:26px auto 0;max-width:54ch;color:var(--t2);font-size:18px}
+.hero .cta{margin-top:34px;display:flex;gap:14px;flex-wrap:wrap;justify-content:center}
+
+/* liquid-fill button — gold floods up from where you enter */
+.btn-fill{position:relative;overflow:hidden;border:1px solid var(--line-gold);color:var(--t1);font-size:14px;letter-spacing:.4px;padding:16px 30px;border-radius:100px;background:var(--glass);backdrop-filter:blur(8px);transition:color .35s var(--ease),box-shadow .35s}
+.btn-fill span{position:relative;z-index:2;display:inline-flex;align-items:center;gap:9px}
+.btn-fill::before{content:'';position:absolute;z-index:1;width:0;height:0;border-radius:50%;left:var(--fx,50%);top:var(--fy,50%);transform:translate(-50%,-50%);background:radial-gradient(circle,var(--gold-light),var(--gold));transition:width .5s var(--ease),height .5s var(--ease)}
+.btn-fill:hover{color:#1a1407;box-shadow:0 14px 44px rgba(255,215,0,.28)}
+.btn-fill:hover::before{width:340px;height:340px}
+.btn-ghost{border:1px solid var(--line);color:var(--t2);font-size:14px;padding:15px 26px;border-radius:100px;background:rgba(20,18,24,.4);backdrop-filter:blur(8px);transition:.25s var(--ease)}
+.btn-ghost:hover{border-color:var(--line-gold);color:var(--gold)}
+
+.spec-strip{margin-top:54px;display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+@media(min-width:680px){.spec-strip{grid-template-columns:repeat(4,1fr)}}
+.spec-cell{border:1px solid var(--line);border-radius:16px;background:var(--glass);backdrop-filter:blur(10px);padding:20px 16px}
+.spec-cell .k{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3)}
+.spec-cell .v{font-family:var(--serif);font-size:clamp(28px,3.6vw,40px);margin-top:8px;font-variant-numeric:tabular-nums}.spec-cell .v small{font-size:14px;color:var(--amber)}
+
+section.block{padding:62px 0;border-top:1px solid var(--line)}
+.sec-h{text-align:center;margin-bottom:10px}.sec-h .no{font-size:12px;color:var(--amber);letter-spacing:2px}
+.sec-h h2{font-size:clamp(26px,4.4vw,42px);font-style:italic;margin-top:6px}
+.sec-sub{text-align:center;color:var(--t2);font-size:15px;max-width:58ch;margin:0 auto 30px}
+
+.reveal{opacity:0;transform:translateY(22px) scale(.99);transition:opacity .8s var(--ease),transform .8s var(--ease)}
+.reveal.lit{opacity:1;transform:none}
+
+.swatches{display:grid;gap:14px;grid-template-columns:repeat(2,1fr)}@media(min-width:680px){.swatches{grid-template-columns:repeat(4,1fr)}}
+.sw{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--glass);cursor:pointer;transition:.3s var(--ease)}.sw:hover{transform:translateY(-4px);border-color:var(--line-gold);box-shadow:0 16px 40px rgba(0,0,0,.4)}
+.sw .chip{height:80px}.sw .meta{padding:12px 14px;display:flex;justify-content:space-between;align-items:center}
+.sw .nm{font-size:12.5px}.sw .hex{font-size:11px;color:var(--t3);font-variant:tabular-nums}.sw.copied .hex{color:var(--amber)}
+
+.spec-type>div{padding:18px 0;border-bottom:1px solid var(--line);text-align:center}
+.spec-type .lab{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:10px}
+.ty-display{font-family:var(--serif);font-style:italic;font-size:clamp(30px,6vw,58px);letter-spacing:-1px}
+.ty-mono{font-size:clamp(15px,2.2vw,20px);letter-spacing:1px;color:var(--rose)}
+.ty-body{font-size:17px;color:var(--t2);max-width:60ch;margin:0 auto}
+
+.gal{display:grid;gap:18px;grid-template-columns:1fr}@media(min-width:760px){.gal{grid-template-columns:1fr 1fr}}
+.panel{border:1px solid var(--line);border-radius:20px;background:var(--glass);backdrop-filter:blur(14px);padding:26px;box-shadow:0 20px 50px rgba(0,0,0,.3)}
+.panel h3{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:18px}
+.ctrl-row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:18px}
+.field label{display:block;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:8px}
+.field input{width:100%;background:rgba(12,10,14,.6);border:1px solid var(--line);border-radius:12px;color:var(--t1);font-size:15px;padding:13px 14px;transition:.25s}.field input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(255,215,0,.1)}
+.badges{display:flex;gap:8px;flex-wrap:wrap}.bdg{font-size:11px;letter-spacing:.5px;padding:7px 13px;border-radius:100px;border:1px solid var(--line)}.bdg.g{color:var(--gold);border-color:var(--line-gold)}.bdg.a{color:var(--amber);border-color:rgba(255,169,77,.3)}
+
+.ledger{border:1px solid var(--line);border-radius:18px;overflow:hidden;background:var(--glass)}
+.ledger .lr{display:flex;justify-content:space-between;align-items:center;padding:15px 18px;border-bottom:1px solid var(--line)}
+.ledger .lr:last-child{border-bottom:0}.ledger .lr .k{color:var(--t2);font-size:14px}.ledger .lr .v{font-family:var(--serif);font-size:20px;font-variant-numeric:tabular-nums}
+.ledger .lr.tot{background:linear-gradient(90deg,rgba(255,215,0,.1),transparent)}.ledger .lr.tot .v{color:var(--gold);font-size:26px}
+
+.lcard{border:1px solid var(--line);border-radius:22px;overflow:hidden;background:var(--glass);backdrop-filter:blur(14px);max-width:430px;margin:0 auto;transition:transform .3s var(--ease),box-shadow .3s;will-change:transform}
+.lcard:hover{box-shadow:0 30px 70px rgba(0,0,0,.5)}
+.lcard .ph{position:relative;aspect-ratio:16/11;overflow:hidden}.lcard .ph img{width:100%;height:100%;object-fit:cover;transition:transform 1.1s var(--ease)}.lcard:hover .ph img{transform:scale(1.06)}
+.lcard .ph .scrim{position:absolute;inset:0;background:linear-gradient(180deg,transparent 45%,rgba(7,6,8,.8))}
+.lcard .head{position:absolute;left:18px;right:18px;bottom:16px}.lcard .zone{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--amber)}.lcard .nm{font-family:var(--serif);font-style:italic;font-size:24px;margin-top:5px}
+.lcard .body{padding:18px}
+.lcard .specs{display:flex;gap:18px;color:var(--t2);font-size:13px}
+.lcard .foot{display:flex;justify-content:space-between;align-items:center;margin-top:16px}
+.lcard .price{font-family:var(--serif);font-size:28px;color:var(--gold);font-variant-numeric:tabular-nums}.lcard .price small{font-size:12px;color:var(--t3)}
+
+.note{font-size:12px;color:var(--t3);text-align:center;margin-top:18px}
+footer{border-top:1px solid var(--line);padding:46px 20px;margin-top:24px;text-align:center}
+.f-c .wm{font-family:var(--serif);font-size:22px;letter-spacing:5px}.f-c .m{font-size:11px;color:var(--t3);letter-spacing:1px;margin-top:8px}
+.proto{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:120;font-size:11px;letter-spacing:.5px;color:var(--t2);background:rgba(8,7,10,.8);backdrop-filter:blur(12px);border:1px solid var(--line-gold);border-radius:100px;padding:7px 15px}.proto b{color:var(--gold)}
+.dirnav{position:fixed;top:66px;left:50%;transform:translateX(-50%);z-index:99;display:flex;gap:4px;background:rgba(8,7,10,.7);backdrop-filter:blur(12px);border:1px solid var(--line);border-radius:100px;padding:4px;font-size:10.5px}
+.dirnav a{padding:6px 12px;border-radius:100px;color:var(--t3);letter-spacing:1px;text-transform:uppercase}.dirnav a.on{background:var(--gold);color:#1a1407;font-weight:600}.dirnav a:hover{color:var(--t1)}
+</style>
+</head>
+<body>
+<div id="bg"><div class="blob a"></div><div class="blob b"></div><div class="blob c"></div></div>
+<div id="cursorglow"></div>
+<svg class="grain" preserveAspectRatio="none" aria-hidden="true"><defs><filter id="gr"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="5" stitchTiles="stitch" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 1  0 0 0 0 .88  0 0 0 0 .4  0 0 0 .5 0"/></filter></defs><rect width="100%" height="100%" filter="url(#gr)"/></svg>
+
+<nav id="nav"><div class="nav-c">
+  <a href="/" class="logo"><svg viewBox="0 0 1024 1024" width="28" height="28" aria-hidden="true" style="display:block;filter:drop-shadow(0 0 12px rgba(255,215,0,.4))"><defs>
+    <linearGradient id="bmLogoG" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFD54F"/>
+      <stop offset="100%" stop-color="#F5A623"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#bmLogoG)">
+    <path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/>
+  </g></svg><span class="wm">BOOM</span></a>
+  <span class="nav-meta">Liquid Aurum</span>
+</div></nav>
+<div class="dirnav"><a href="/preview-design-study">Deco</a><a href="/preview-design-brutech">Brutech</a><a class="on" href="/preview-design-aurum">Aurum</a><a href="/preview-design-maison">Maison</a></div>
+
+<div class="wrap">
+  <header class="hero">
+    <span class="eyebrow">Design Study / 03 — Liquid Aurum</span>
+    <h1>A home in Rome,<br><span class="it">poured in gold.</span></h1>
+    <p class="lead">Ultra-tech, sensorial, alive. Molten-gold light, layered glass, fluid response — premium you can almost feel under your fingers. Structured so it stays calm and readable.</p>
+    <div class="cta"><button class="btn-fill"><span>Browse homes →</span></button><button class="btn-ghost">How it works</button></div>
+    <div class="spec-strip">
+      <div class="spec-cell"><div class="k">Verified homes</div><div class="v" data-count="248">0</div></div>
+      <div class="spec-cell"><div class="k">Avg reply</div><div class="v" data-count="2"><small>h</small></div></div>
+      <div class="spec-cell"><div class="k">Move-in</div><div class="v" data-count="48"><small>h</small></div></div>
+      <div class="spec-cell"><div class="k">Rating</div><div class="v">4.9<small>/5</small></div></div>
+    </div>
+  </header>
+</div>
+
+<div class="wrap">
+  <section class="block reveal"><div class="sec-h"><span class="no">01</span><h2>The light</h2></div>
+    <p class="sec-sub">Void with warm golds and a sparing amber. Glass surfaces hold depth; light drifts slowly behind. Tap a chip to copy.</p>
+    <div class="swatches">
+      <div class="sw" data-hex="#070608"><div class="chip" style="background:#070608"></div><div class="meta"><span class="nm">Void</span><span class="hex">#070608</span></div></div>
+      <div class="sw" data-hex="#FFD700"><div class="chip" style="background:linear-gradient(120deg,#FFE99A,#FFD700,#FFA94D)"></div><div class="meta"><span class="nm">Molten</span><span class="hex">#FFD700</span></div></div>
+      <div class="sw" data-hex="#FFA94D"><div class="chip" style="background:#FFA94D"></div><div class="meta"><span class="nm">Amber</span><span class="hex">#FFA94D</span></div></div>
+      <div class="sw" data-hex="#E7B27A"><div class="chip" style="background:#E7B27A"></div><div class="meta"><span class="nm">Rose-gold</span><span class="hex">#E7B27A</span></div></div>
+    </div>
+  </section>
+
+  <section class="block reveal"><div class="sec-h"><span class="no">02</span><h2>The voice</h2></div>
+    <p class="sec-sub">A warm italic serif for feeling; clean sans for clarity. Softer, more human than the machine direction.</p>
+    <div class="spec-type">
+      <div><div class="lab">Display · Fraunces italic</div><div class="ty-display">Light, a terrace, the heart of Rome.</div></div>
+      <div><div class="lab">Detail · tabular</div><div class="ty-mono">€1,500 / month · 65 m² · Trastevere</div></div>
+      <div><div class="lab">Body · Inter 300</div><div class="ty-body">Every home filmed and verified in person. Legal contract, transparent fees, managed by BOOM from first viewing to the keys in your hand.</div></div>
+    </div>
+  </section>
+
+  <section class="block reveal"><div class="sec-h"><span class="no">03</span><h2>The touch</h2></div>
+    <p class="sec-sub">Buttons flood with gold from where your cursor enters. Glass panels lift. Numbers pour in. Hover the gold button.</p>
+    <div class="gal">
+      <div class="panel"><h3>Controls</h3>
+        <div class="ctrl-row"><button class="btn-fill"><span>Apply →</span></button><button class="btn-ghost">Video tour</button></div>
+        <div class="field" style="max-width:300px"><label>Move-in date</label><input type="text" value="01 Sep 2026"></div>
+        <div class="badges" style="margin-top:18px"><span class="bdg g">▶ Video</span><span class="bdg a">● Live · 3 viewing</span><span class="bdg g">⌖ Verified</span></div>
+      </div>
+      <div class="panel"><h3>Cost · pours on view</h3>
+        <div class="ledger">
+          <div class="lr"><div class="k">First month</div><div class="v" data-count="1500" data-eur>0</div></div>
+          <div class="lr"><div class="k">Deposit</div><div class="v" data-count="1500" data-eur>0</div></div>
+          <div class="lr tot"><div class="k">To move in</div><div class="v" data-count="3000" data-eur>0</div></div>
+        </div>
+        <p class="note">Counts up once on reveal — a gentle confirm.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="block reveal"><div class="sec-h"><span class="no">04</span><h2>The listing</h2></div>
+    <p class="sec-sub">Glass and gold. On desktop the card tilts to your cursor — depth you can feel.</p>
+    <article class="lcard tilt">
+      <div class="ph"><img src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=900&q=72" alt="Bright attic in Trastevere" loading="lazy" onerror="this.style.opacity=0"><div class="scrim"></div><div class="head"><div class="zone">Trastevere</div><div class="nm">Bright Attic w/ Terrace</div></div></div>
+      <div class="body"><div class="specs"><span>2 beds</span><span>1 bath</span><span>65 m²</span><span style="color:var(--amber)">▶ video</span></div>
+        <div class="foot"><div class="price" data-count="1500" data-eur>€0 <small>/mo</small></div><button class="btn-fill" style="padding:11px 20px"><span>View →</span></button></div>
+      </div>
+    </article>
+    <p class="note">Direction 03 of 4 · switch at the top to compare.</p>
+  </section>
+</div>
+
+<footer><span class="wm">BOOM</span><div class="m">LIQUID AURUM · DESIGN STUDY · NON-PRODUCTION</div></footer>
+<div class="proto">DESIGN STUDY · <b>Liquid Aurum</b> · 03 / 04</div>
+
+<script>
+(function(){
+  var reduce=matchMedia('(prefers-reduced-motion: reduce)').matches, hover=matchMedia('(hover:hover) and (pointer:fine)').matches;
+  addEventListener('scroll',function(){document.getElementById('nav').classList.toggle('scr',scrollY>16);},{passive:true});
+  var glow=document.getElementById('cursorglow');
+  if(hover&&!reduce){addEventListener('pointermove',function(e){glow.style.left=e.clientX+'px';glow.style.top=e.clientY+'px';},{passive:true});}
+  /* liquid-fill origin follows entry point */
+  document.querySelectorAll('.btn-fill').forEach(function(b){b.addEventListener('pointerenter',function(e){var r=b.getBoundingClientRect();b.style.setProperty('--fx',(e.clientX-r.left)+'px');b.style.setProperty('--fy',(e.clientY-r.top)+'px');});});
+  /* card tilt */
+  if(hover&&!reduce){document.querySelectorAll('.tilt').forEach(function(card){var raf=null,rx=0,ry=0;card.addEventListener('pointermove',function(ev){var r=card.getBoundingClientRect();ry=((ev.clientX-(r.left+r.width/2))/r.width)*5;rx=-((ev.clientY-(r.top+r.height/2))/r.height)*5;if(!raf)raf=requestAnimationFrame(ap);});card.addEventListener('pointerleave',function(){rx=0;ry=0;if(!raf)raf=requestAnimationFrame(ap);});function ap(){raf=null;card.style.transform='perspective(900px) rotateX('+rx.toFixed(2)+'deg) rotateY('+ry.toFixed(2)+'deg)';}});}
+  var eur=function(n){return '€'+Math.round(n).toLocaleString('en-US');};
+  function countIn(scope){scope.querySelectorAll('[data-count]').forEach(function(el){if(el.dataset.done)return;el.dataset.done='1';var to=parseFloat(el.dataset.count)||0,isEur=el.hasAttribute('data-eur');var suf=el.querySelector('small')?el.querySelector('small').outerHTML:'';
+    if(reduce){el.innerHTML=(isEur?eur(to):to)+suf;return;}var t0=performance.now();(function s(t){var p=Math.min(1,(t-t0)/900);var e=1-Math.pow(1-p,3);el.innerHTML=(isEur?eur(Math.round(to*e)):Math.round(to*e))+suf;if(p<1)requestAnimationFrame(s);})(performance.now());});}
+  var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('lit');countIn(e.target);io.unobserve(e.target);}});},{threshold:.14});
+  document.querySelectorAll('.reveal').forEach(function(el){io.observe(el);});countIn(document.querySelector('.hero'));
+  document.querySelectorAll('.sw').forEach(function(sw){sw.addEventListener('click',function(){try{navigator.clipboard&&navigator.clipboard.writeText(sw.dataset.hex);}catch(e){}var hx=sw.querySelector('.hex'),o=hx.textContent;sw.classList.add('copied');hx.textContent='copied';setTimeout(function(){sw.classList.remove('copied');hx.textContent=o;},900);});});
+})();
+</script>
+</body>
+</html>

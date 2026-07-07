@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#060607">
+<meta name="color-scheme" content="dark">
+<title>BOOM · Brand Background Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --gold:#FFD700;--gold-light:#FFE55C;--gold-muted:rgba(255,215,0,.15);
+    --void:#060607;--surface:#0B0B0C;--surface-card:#0E0E10;
+    --text:#FAFAFA;--text-2:rgba(250,250,250,.72);--text-3:rgba(250,250,250,.44);
+    --line:rgba(255,255,255,.08);--line-gold:rgba(255,215,0,.12);
+    --sans:'Inter',-apple-system,sans-serif;--disp:'Helvetica Neue',Helvetica,Arial,sans-serif;
+    --ease:cubic-bezier(.16,1,.3,1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--sans);background:var(--void);color:var(--text);font-weight:300;line-height:1.6;min-height:100vh;overflow-x:hidden}
+  h1,h2,h3{font-family:var(--disp);font-weight:300;letter-spacing:-.5px;line-height:1.1}
+  .g{color:var(--gold)}
+
+  /* ── the background layers ── */
+  #bgwrap{position:fixed;inset:0;z-index:-2;background:
+     radial-gradient(900px 520px at 78% -8%, rgba(255,215,0,.07), transparent 60%),
+     radial-gradient(700px 480px at 8% 102%, rgba(255,215,0,.045), transparent 60%),
+     var(--void);}
+  #bgsvg{position:fixed;inset:0;z-index:-1;width:100%;height:100%;pointer-events:none;opacity:.55;transition:opacity .5s var(--ease)}
+  #vign{position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(120% 90% at 50% 30%, transparent 55%, rgba(0,0,0,.55) 100%)}
+
+  /* ── chrome ── */
+  nav{display:flex;align-items:center;justify-content:space-between;padding:20px 32px;max-width:1240px;margin:0 auto}
+  .logo{font-family:var(--disp);font-size:24px;letter-spacing:5px;font-weight:300}.logo b{color:var(--gold)}
+  .tag{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--text-3)}
+
+  .wrap{max-width:1240px;margin:0 auto;padding:40px 32px 140px}
+  .eyebrow{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);font-weight:500}
+  .hero h1{font-size:clamp(34px,6vw,68px);font-weight:200;letter-spacing:-1.5px;margin-top:16px;max-width:14ch}
+  .hero p{color:var(--text-2);font-size:17px;margin-top:18px;max-width:52ch}
+  .hero .cta{margin-top:28px;display:inline-flex;gap:10px;flex-wrap:wrap}
+  .btn-gold{background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#1a1407;font-weight:600;border-radius:100px;padding:14px 26px;font-size:14px;box-shadow:0 10px 40px rgba(255,215,0,.16)}
+  .btn-ghost{border:1px solid var(--line);border-radius:100px;padding:14px 24px;font-size:14px;color:var(--text);background:rgba(14,14,16,.5);backdrop-filter:blur(6px)}
+
+  .showcase{margin-top:64px;display:grid;gap:20px;grid-template-columns:1fr;align-items:start}
+  @media(min-width:760px){.showcase{grid-template-columns:1.1fr .9fr}}
+  .panel{border:1px solid var(--line-gold);border-radius:22px;padding:26px;background:linear-gradient(180deg,rgba(18,18,20,.72),rgba(11,11,12,.72));backdrop-filter:blur(10px);box-shadow:0 4px 32px rgba(0,0,0,.4)}
+  .panel h3{font-size:20px;font-weight:300;margin-bottom:6px}
+  .panel .sub{color:var(--text-3);font-size:13px;margin-bottom:20px}
+  .pcard{border:1px solid var(--line);border-radius:18px;overflow:hidden;background:rgba(14,14,16,.55);backdrop-filter:blur(8px)}
+  .pcard .ph{aspect-ratio:5/3;background:linear-gradient(135deg,#15151a,#0c0c0e);display:grid;place-items:center;color:var(--gold);font-size:26px;border-bottom:1px solid var(--line)}
+  .pcard .b{padding:18px}.pcard .z{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold)}
+  .pcard .n{font-family:var(--disp);font-size:18px;margin-top:6px}.pcard .m{color:var(--text-3);font-size:12.5px;margin-top:4px}
+  .pcard .pr{color:var(--gold);font-family:var(--disp);font-size:21px;font-weight:200;margin-top:12px}
+
+  /* ── control dock ── */
+  .dock{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:30;background:rgba(8,8,10,.82);backdrop-filter:blur(18px);border:1px solid var(--line-gold);border-radius:20px;padding:14px 16px;width:min(92vw,720px);box-shadow:0 12px 48px rgba(0,0,0,.6)}
+  .dock .row1{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:12px}
+  .swatch{border:1px solid var(--line);border-radius:100px;padding:9px 14px;font-size:12.5px;color:var(--text-2);transition:.2s var(--ease);background:none;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:7px}
+  .swatch:hover{border-color:var(--line-gold)}.swatch.on{background:var(--gold);color:#1a1407;font-weight:600;border-color:var(--gold)}
+  .swatch i{width:14px;height:14px;border-radius:3px;display:inline-block}
+  .dock .row2{display:flex;gap:18px;align-items:center;justify-content:center;flex-wrap:wrap}
+  .ctrl{display:flex;align-items:center;gap:9px;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-3)}
+  .ctrl input[type=range]{width:120px;accent-color:var(--gold)}
+  .dock .name{text-align:center;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);margin-bottom:10px}
+  .proto{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:30;font-size:11px;letter-spacing:.5px;color:var(--text-3);background:rgba(8,8,10,.7);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:100px;padding:6px 14px}
+  .proto b{color:var(--gold)}
+</style>
+</head>
+<body>
+
+<div id="bgwrap"></div>
+<svg id="bgsvg" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+  <defs>
+    <!-- A · BOOM Monogram Jacquard -->
+    <pattern id="p-mono" patternUnits="userSpaceOnUse" width="150" height="150" patternTransform="rotate(0)">
+      <g fill="none" stroke="#FFD700" stroke-width="1" opacity="0.5">
+        <!-- central medallion (BOOM concentric mark) -->
+        <circle cx="75" cy="75" r="9"/><circle cx="75" cy="75" r="17"/><circle cx="75" cy="75" r="25"/>
+        <circle cx="75" cy="75" r="1.6" fill="#FFD700" stroke="none"/>
+        <!-- corner quarter-medallions (seamless tiling) -->
+        <circle cx="0" cy="0" r="9"/><circle cx="0" cy="0" r="17"/><circle cx="0" cy="0" r="25"/>
+        <circle cx="150" cy="0" r="9"/><circle cx="150" cy="0" r="17"/><circle cx="150" cy="0" r="25"/>
+        <circle cx="0" cy="150" r="9"/><circle cx="0" cy="150" r="17"/><circle cx="0" cy="150" r="25"/>
+        <circle cx="150" cy="150" r="9"/><circle cx="150" cy="150" r="17"/><circle cx="150" cy="150" r="25"/>
+        <!-- damask connective diamonds -->
+        <path d="M75 33 L117 75 L75 117 L33 75 Z" opacity="0.5"/>
+        <path d="M0 0 L75 75 M150 0 L75 75 M0 150 L75 75 M150 150 L75 75" opacity="0.28" stroke-width="0.7"/>
+        <circle cx="75" cy="75" r="33" stroke-width="0.6" opacity="0.4"/>
+      </g>
+    </pattern>
+
+    <!-- B · Roman Travertine -->
+    <filter id="f-trav" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.011 0.026" numOctaves="3" seed="7" stitchTiles="stitch" result="n"/>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 0.86  0 0 0 0 0.70  0 0 0 0 0.24  0 0 0 0.9 0"/>
+    </filter>
+
+    <!-- C · Deco Lattice (SPQR) -->
+    <pattern id="p-deco" patternUnits="userSpaceOnUse" width="64" height="64" patternTransform="rotate(0)">
+      <g fill="none" stroke="#FFD700" stroke-width="0.9" opacity="0.55">
+        <path d="M0 32 L32 0 L64 32 L32 64 Z"/>
+        <path d="M32 16 L48 32 L32 48 L16 32 Z" opacity="0.6"/>
+        <rect x="29" y="29" width="6" height="6" transform="rotate(45 32 32)" fill="#FFD700" stroke="none" opacity="0.8"/>
+        <rect x="-3" y="-3" width="6" height="6" transform="rotate(45 0 0)" fill="#FFD700" stroke="none" opacity="0.8"/>
+        <rect x="61" y="61" width="6" height="6" transform="rotate(45 64 64)" fill="#FFD700" stroke="none" opacity="0.8"/>
+      </g>
+    </pattern>
+
+    <!-- D · Aureo grain -->
+    <filter id="f-grain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" result="n"/>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 1  0 0 0 0 .85  0 0 0 0 .25  0 0 0 0.6 0"/></filter>
+  </defs>
+
+  <rect id="rect-mono"  width="100%" height="100%" fill="url(#p-mono)"/>
+  <rect id="rect-trav"  width="100%" height="100%" filter="url(#f-trav)" style="display:none"/>
+  <rect id="rect-deco"  width="100%" height="100%" fill="url(#p-deco)" style="display:none"/>
+  <rect id="rect-grain" width="100%" height="100%" filter="url(#f-grain)" style="display:none"/>
+</svg>
+<div id="vign"></div>
+
+<div class="proto">BRAND BACKGROUND STUDIO · <b>switch · regola · scegli</b></div>
+
+<nav><div class="logo">BO<b>O</b>M</div><div class="tag">Atelier · Roma</div></nav>
+
+<div class="wrap">
+  <section class="hero">
+    <span class="eyebrow">Verified apartments · Rome</span>
+    <h1>Find a home in Rome, <span class="g">for your dates.</span></h1>
+    <p>The same dark + gold, now on a couture textile. A whisper of jacquard that makes every screen feel structured, intentional — luxury you feel before you read.</p>
+    <div class="cta"><button class="btn-gold">Browse apartments →</button><button class="btn-ghost">How BOOM works</button></div>
+  </section>
+
+  <section class="showcase">
+    <div class="panel">
+      <h3>The texture in context</h3>
+      <div class="sub">Real UI sits on top — see how the pattern reads behind content, not just empty space.</div>
+      <div class="pcard">
+        <div class="ph">◆</div>
+        <div class="b"><div class="z">Trastevere</div><div class="n">Bright Attic with Terrace</div><div class="m">2 beds · 65 m² · video-verified</div><div class="pr">€1,500 <span style="font-size:13px;color:var(--text-3)">/month</span></div></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>Why it matters</h3>
+      <div class="sub">The Gucci / Aman move.</div>
+      <p style="color:var(--text-2);font-size:14px">Plain dark = tech startup. A signature, low-contrast textile = a maison. It frames the gold, adds depth on big empty areas (hero, footer, sheets), and reads as <em>intentional craft</em> — the agency-with-taste signal, not a portal.</p>
+      <p style="color:var(--text-3);font-size:13px;margin-top:14px">Built as crisp SVG (scales to any screen, ~nothing in weight), kept deliberately subtle so it never fights the content.</p>
+    </div>
+  </section>
+</div>
+
+<div class="dock">
+  <div class="name" id="patName">A · BOOM Monogram Jacquard</div>
+  <div class="row1" id="swatches">
+    <button class="swatch on" data-p="mono"><i style="background:repeating-linear-gradient(45deg,#FFD70066,#FFD70066 2px,transparent 2px,transparent 5px)"></i>Monogram</button>
+    <button class="swatch" data-p="trav"><i style="background:radial-gradient(circle,#caa84a,#5b4a1e)"></i>Travertine</button>
+    <button class="swatch" data-p="deco"><i style="background:conic-gradient(#FFD700,#3a2f0c,#FFD700)"></i>Deco SPQR</button>
+    <button class="swatch" data-p="grain"><i style="background:#1a1814"></i>Aureo grain</button>
+    <button class="swatch" data-p="none"><i style="background:#0a0a0c;border:1px solid #FFD70044"></i>None</button>
+  </div>
+  <div class="row2">
+    <label class="ctrl">Intensity <input type="range" id="opacity" min="0" max="100" value="55"></label>
+    <label class="ctrl">Scale <input type="range" id="scale" min="50" max="220" value="100"></label>
+    <label class="ctrl">Tilt <input type="range" id="tilt" min="0" max="45" value="0"></label>
+  </div>
+</div>
+
+<script>
+const RECTS={mono:'rect-mono',trav:'rect-trav',deco:'rect-deco',grain:'rect-grain'};
+const NAMES={mono:'A · BOOM Monogram Jacquard',trav:'B · Roman Travertine',deco:'C · Deco Lattice (SPQR)',grain:'D · Aureo Grain',none:'No texture (plain)'};
+const PATS={mono:'p-mono',deco:'p-deco'};
+let current='mono';
+const svg=document.getElementById('bgsvg');
+function show(p){
+  current=p;
+  Object.values(RECTS).forEach(id=>document.getElementById(id).style.display='none');
+  if(RECTS[p]) document.getElementById(RECTS[p]).style.display='block';
+  document.getElementById('patName').textContent=NAMES[p];
+  applyTransform();
+  // intensity: travertine/grain want to be much subtler than line patterns
+  const base=+document.getElementById('opacity').value/100;
+  const factor=(p==='trav'?0.5:p==='grain'?0.32:1);
+  svg.style.opacity=(p==='none')?0:(base*factor).toFixed(3);
+}
+function applyTransform(){
+  const s=+document.getElementById('scale').value/100;
+  const t=+document.getElementById('tilt').value;
+  const pid=PATS[current];
+  if(pid){ const pat=document.getElementById(pid); const w=pid==='p-mono'?150:64; pat.setAttribute('patternTransform',`rotate(${t}) scale(${s})`); }
+}
+document.getElementById('swatches').addEventListener('click',e=>{const b=e.target.closest('.swatch');if(!b)return;
+  document.querySelectorAll('.swatch').forEach(x=>x.classList.remove('on'));b.classList.add('on');show(b.dataset.p);});
+document.getElementById('opacity').addEventListener('input',()=>show(current));
+document.getElementById('scale').addEventListener('input',applyTransform);
+document.getElementById('tilt').addEventListener('input',applyTransform);
+show('mono');
+</script>
+</body>
+</html>

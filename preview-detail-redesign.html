@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#08080A">
+<meta name="color-scheme" content="dark">
+<title>BOOM · Apartment page — Redesign (Prototype A)</title>
+<style>
+  :root{
+    --bg:#08080A; --bg2:#0d0d10; --card:#121215; --elev:#17171b;
+    --gold:#D4AF37; --gold-2:#E8C766; --gold-soft:rgba(212,175,55,.14);
+    --text:#fff; --muted:#9a9aa1; --faint:#6b6b72; --line:rgba(255,255,255,.08);
+    --green:#39d98a; --amber:#E8B23A;
+    --r:18px; --maxw:1100px;
+    --ff:"Helvetica Neue",Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--text);font-family:var(--ff);font-weight:300;
+    line-height:1.5;-webkit-font-smoothing:antialiased;letter-spacing:.2px;padding-bottom:96px}
+  img{display:block;max-width:100%}
+  a{color:inherit;text-decoration:none}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 20px}
+  .label{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);font-weight:400}
+  .muted{color:var(--muted)} .faint{color:var(--faint)}
+  h1,h2,h3{font-weight:300;letter-spacing:-.5px;line-height:1.08}
+  .g{color:var(--gold)}
+  .reveal{opacity:0;transform:translateY(22px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.7,.2,1)}
+  .reveal.in{opacity:1;transform:none}
+  @media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}}
+
+  /* ── proto banner ── */
+  .proto{position:sticky;top:0;z-index:60;background:linear-gradient(90deg,#1a1407,#0c0c0e);
+    border-bottom:1px solid var(--line);font-size:12px;color:var(--muted);
+    display:flex;gap:14px;align-items:center;justify-content:center;padding:7px 14px;letter-spacing:.5px}
+  .proto b{color:var(--gold);font-weight:400}
+  .proto a{color:var(--muted);border-bottom:1px solid var(--line)}
+
+  /* ── top nav ── */
+  .nav{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;max-width:var(--maxw);margin:0 auto}
+  .brand{font-size:17px;letter-spacing:6px;font-weight:300}
+  .brand b{color:var(--gold);font-weight:400}
+  .nav-back{font-size:13px;color:var(--muted);letter-spacing:1px}
+
+  /* ════ ACT 1 — SEE IT ════ */
+  .hero{position:relative;margin-top:6px}
+  .gallery{display:grid;grid-auto-flow:column;grid-auto-columns:88%;gap:10px;overflow-x:auto;
+    scroll-snap-type:x mandatory;padding:0 20px 6px;scrollbar-width:none}
+  .gallery::-webkit-scrollbar{display:none}
+  .shot{scroll-snap-align:center;border-radius:var(--r);overflow:hidden;position:relative;aspect-ratio:4/3;
+    background:linear-gradient(135deg,#1b1b20,#0e0e11)}
+  .shot img{width:100%;height:100%;object-fit:cover}
+  .shot .tag{position:absolute;left:12px;bottom:12px;font-size:11px;letter-spacing:1.5px;
+    background:rgba(0,0,0,.55);backdrop-filter:blur(8px);padding:6px 11px;border-radius:100px}
+  .hero-meta{max-width:var(--maxw);margin:18px auto 0;padding:0 20px;
+    display:flex;flex-wrap:wrap;gap:18px;align-items:flex-end;justify-content:space-between}
+  .hero-title h1{font-size:clamp(28px,5vw,46px)}
+  .hero-zone{margin-top:8px;color:var(--muted);font-size:14px;letter-spacing:1px}
+  .hero-zone .dot{color:var(--gold);margin:0 8px}
+  .hero-actions{display:flex;gap:9px}
+  .iconbtn{width:44px;height:44px;border:1px solid var(--line);border-radius:50%;display:grid;place-items:center;
+    background:var(--card);font-size:16px;transition:.2s}
+  .iconbtn:hover{border-color:var(--gold);color:var(--gold)}
+  .iconbtn.on{color:var(--gold);border-color:var(--gold);background:var(--gold-soft)}
+  .facts{max-width:var(--maxw);margin:20px auto 0;padding:0 20px;display:flex;flex-wrap:wrap;gap:10px}
+  .fact{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--card);
+    padding:11px 15px;border-radius:12px;font-size:14px}
+  .fact b{font-weight:400} .fact .k{color:var(--faint);font-size:12px;letter-spacing:.5px}
+  .fact .price{color:var(--gold);font-size:16px}
+  .hero-cta-row{max-width:var(--maxw);margin:16px auto 0;padding:0 20px;display:flex;gap:10px;flex-wrap:wrap}
+  .ghost{border:1px solid var(--line);border-radius:100px;padding:11px 18px;font-size:13px;letter-spacing:.6px;
+    display:inline-flex;align-items:center;gap:8px;transition:.2s;background:var(--card)}
+  .ghost:hover{border-color:var(--gold);color:var(--gold)}
+
+  /* ── section frame ── */
+  section.act{padding:64px 0 8px}
+  .act-head{display:flex;align-items:baseline;gap:16px;margin-bottom:26px}
+  .act-num{font-size:13px;color:var(--faint);letter-spacing:2px;font-variant-numeric:tabular-nums}
+  .act-head h2{font-size:clamp(24px,3.6vw,34px)}
+  .act-sub{color:var(--muted);font-size:15px;margin-top:10px;max-width:46ch}
+
+  /* ════ ACT 2 — YOUR STAY (signature) ════ */
+  .stay{background:linear-gradient(180deg,#111016,#0c0b0e);border:1px solid var(--line);
+    border-radius:24px;padding:26px;position:relative;overflow:hidden}
+  .stay::before{content:"";position:absolute;inset:-2px;background:
+    radial-gradient(600px 200px at 12% -10%,var(--gold-soft),transparent 60%);pointer-events:none}
+  .stay-grid{display:grid;grid-template-columns:1fr;gap:22px;position:relative}
+  @media(min-width:820px){.stay-grid{grid-template-columns:.9fr 1.1fr;gap:34px}}
+  .stay-controls .field{margin-bottom:18px}
+  .stay-controls label{display:block;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:9px}
+  .datein{width:100%;background:var(--elev);border:1px solid var(--line);border-radius:13px;color:var(--text);
+    font-family:inherit;font-size:16px;padding:14px 15px;letter-spacing:.5px}
+  .datein:focus{outline:none;border-color:var(--gold)}
+  .durations{display:flex;flex-wrap:wrap;gap:8px}
+  .dur{border:1px solid var(--line);background:var(--elev);border-radius:100px;padding:10px 15px;font-size:13px;
+    letter-spacing:.5px;transition:.18s}
+  .dur:hover{border-color:var(--gold)}
+  .dur.on{background:var(--gold);color:#1a1407;font-weight:500;border-color:var(--gold)}
+  /* live result */
+  .stay-out{background:rgba(255,255,255,.02);border:1px solid var(--line);border-radius:16px;padding:20px;align-self:start}
+  .avail{display:flex;align-items:center;gap:11px;font-size:15px;margin-bottom:18px;letter-spacing:.3px}
+  .avail .pin{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;flex:none;font-size:14px}
+  .avail.ok .pin{background:rgba(57,217,138,.16);color:var(--green)} .avail.ok{color:var(--green)}
+  .avail.after .pin{background:rgba(232,178,58,.16);color:var(--amber)} .avail.after{color:var(--amber)}
+  .avail.none .pin{background:var(--gold-soft);color:var(--gold)} .avail.none{color:var(--muted)}
+  .avail small{display:block;color:var(--faint);font-size:12px;letter-spacing:.3px;margin-top:2px;font-weight:300}
+  .stayrows{display:grid;gap:1px;background:var(--line);border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+  .stayrow{display:flex;justify-content:space-between;align-items:center;background:var(--card);padding:13px 15px;font-size:14px}
+  .stayrow .k{color:var(--muted)} .stayrow .v{font-weight:400;font-variant-numeric:tabular-nums}
+  .stayrow.total{background:var(--gold-soft)} .stayrow.total .v{color:var(--gold);font-size:18px}
+  .stayrow .note{font-size:11px;color:var(--faint);letter-spacing:.3px}
+  .stay-cta{margin-top:16px;display:flex;gap:10px;flex-wrap:wrap}
+  .btn-gold{background:linear-gradient(180deg,var(--gold-2),var(--gold));color:#1a1407;font-weight:500;
+    border-radius:100px;padding:13px 20px;font-size:14px;letter-spacing:.5px;transition:.2s}
+  .btn-gold:hover{filter:brightness(1.06);transform:translateY(-1px)}
+
+  /* ════ ACT 3 — MONEY ════ */
+  .money-tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  @media(min-width:720px){.money-tiles{grid-template-columns:repeat(4,1fr)}}
+  .mtile{border:1px solid var(--line);background:var(--card);border-radius:14px;padding:18px}
+  .mtile .k{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--faint)}
+  .mtile .v{font-size:22px;font-weight:300;margin-top:9px;font-variant-numeric:tabular-nums}
+  .mtile .s{font-size:12px;color:var(--muted);margin-top:5px}
+  .mtile.tot{border-color:rgba(212,175,55,.4);background:linear-gradient(180deg,var(--gold-soft),transparent)}
+  .mtile.tot .v{color:var(--gold)}
+  .decode-toggle{margin-top:16px;display:inline-flex;align-items:center;gap:9px;border:1px solid var(--line);
+    border-radius:100px;padding:11px 18px;font-size:13px;letter-spacing:.5px;background:var(--card);transition:.2s}
+  .decode-toggle:hover{border-color:var(--gold);color:var(--gold)}
+  .decoded{max-height:0;overflow:hidden;transition:max-height .5s ease}
+  .decoded.open{max-height:1400px}
+  .decoded-inner{margin-top:18px;display:grid;gap:10px}
+  .dcard{border:1px solid var(--line);background:var(--bg2);border-radius:14px;padding:18px}
+  .dcard h4{font-weight:400;font-size:15px;margin-bottom:7px}
+  .dcard p{color:var(--muted);font-size:14px}
+  .dcard .amt{color:var(--gold);font-weight:400}
+
+  /* ════ ACT 4 — TRUST ════ */
+  .proofs{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:26px}
+  .proof{display:flex;align-items:center;gap:9px;border:1px solid var(--line);background:var(--card);
+    border-radius:100px;padding:10px 16px;font-size:13px;letter-spacing:.3px}
+  .proof .c{color:var(--green)}
+  .t48{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:26px}
+  .t48 .step{border:1px solid var(--line);background:var(--card);border-radius:14px;padding:16px;position:relative}
+  .t48 .n{font-size:11px;letter-spacing:2px;color:var(--gold)}
+  .t48 .step h4{font-weight:400;font-size:14px;margin-top:9px}
+  .t48 .step p{font-size:12.5px;color:var(--muted);margin-top:5px}
+  .faq .qa{border-bottom:1px solid var(--line)}
+  .faq .q{width:100%;text-align:left;display:flex;justify-content:space-between;align-items:center;gap:14px;
+    padding:17px 2px;font-size:15px;letter-spacing:.2px}
+  .faq .q .x{color:var(--gold);font-size:20px;transition:.25s;flex:none}
+  .faq .qa.open .q .x{transform:rotate(45deg)}
+  .faq .a{max-height:0;overflow:hidden;transition:max-height .35s ease;color:var(--muted);font-size:14px}
+  .faq .qa.open .a{max-height:240px}
+  .faq .a div{padding:0 2px 18px}
+
+  /* ════ ACT 5 — GET IT ════ */
+  .getit{border:1px solid rgba(212,175,55,.3);border-radius:24px;padding:30px;
+    background:radial-gradient(700px 240px at 80% -20%,var(--gold-soft),transparent 60%),var(--card)}
+  .getit h2{font-size:clamp(24px,3.6vw,32px);margin-bottom:8px}
+  .getit p{color:var(--muted);max-width:48ch;margin-bottom:22px}
+  .getit-acts{display:flex;flex-direction:column;gap:10px;max-width:420px}
+  .getit-acts .row2{display:flex;gap:10px}
+  .getit-acts .row2 .ghost{flex:1;justify-content:center}
+  .getit-big{width:100%;justify-content:center;font-size:15px;padding:16px}
+  .ai-launch{display:inline-flex;align-items:center;gap:8px;margin-top:18px;color:var(--gold);font-size:13px;letter-spacing:.5px;border-bottom:1px solid var(--gold-soft);padding-bottom:3px}
+
+  /* ── persistent action rail ── */
+  .rail{position:fixed;left:0;right:0;bottom:0;z-index:55;background:rgba(8,8,10,.86);backdrop-filter:blur(16px);
+    border-top:1px solid var(--line);transform:translateY(0);transition:transform .3s}
+  .rail .prog{height:2px;background:var(--line);position:relative}
+  .rail .prog i{position:absolute;left:0;top:0;bottom:0;width:0;background:linear-gradient(90deg,var(--gold),var(--gold-2));transition:width .15s}
+  .rail .inner{max-width:var(--maxw);margin:0 auto;display:flex;align-items:center;gap:12px;padding:11px 16px}
+  .rail .lbl{font-size:12.5px;color:var(--muted);flex:1;min-width:0}
+  .rail .lbl b{color:var(--text);font-weight:400}
+  .rail .lbl small{display:block;color:var(--faint);font-size:11px}
+  .rail .act-btn{background:linear-gradient(180deg,var(--gold-2),var(--gold));color:#1a1407;font-weight:500;
+    border-radius:100px;padding:12px 20px;font-size:14px;letter-spacing:.4px;white-space:nowrap}
+  .rail .ask-btn{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;font-size:17px}
+
+  /* ── overlays (AI + 3D) ── */
+  .ov{position:fixed;inset:0;z-index:80;background:rgba(4,4,6,.6);backdrop-filter:blur(6px);
+    opacity:0;pointer-events:none;transition:.25s;display:flex;align-items:flex-end;justify-content:center}
+  .ov.show{opacity:1;pointer-events:auto}
+  .sheet{background:var(--bg2);border:1px solid var(--line);border-radius:22px 22px 0 0;width:100%;max-width:640px;
+    max-height:86vh;overflow:auto;transform:translateY(20px);transition:.3s}
+  .ov.show .sheet{transform:none}
+  @media(min-width:680px){.ov{align-items:center}.sheet{border-radius:22px}}
+  .sheet-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg2)}
+  .sheet-head h3{font-size:16px;font-weight:400}
+  .sheet-body{padding:20px}
+  .x-close{font-size:22px;color:var(--muted);width:34px;height:34px;border-radius:50%;border:1px solid var(--line)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+  .chips button{border:1px solid var(--line);background:var(--card);border-radius:100px;padding:9px 13px;font-size:12.5px}
+  .chips button:hover{border-color:var(--gold)}
+  .ai-msg{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px;font-size:14px;color:var(--muted);margin-bottom:10px}
+  .ai-msg b{color:var(--text);font-weight:400}
+  .map3d{height:300px;border-radius:14px;border:1px solid var(--line);position:relative;overflow:hidden;
+    background:radial-gradient(120% 120% at 30% 20%,#16161c,#0a0a0c)}
+  .map3d .blip{position:absolute;width:14px;height:14px;border-radius:50%;background:var(--gold);
+    box-shadow:0 0 0 6px var(--gold-soft);left:50%;top:46%;transform:translate(-50%,-50%)}
+  .map3d .ring{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);border:1px dashed rgba(212,175,55,.4);border-radius:50%}
+  footer{padding:50px 20px 30px;text-align:center;color:var(--faint);font-size:12px;letter-spacing:.5px}
+</style>
+</head>
+<body>
+<div class="proto">PROTOTIPO A · <b>Redesign completo (5 atti)</b> · dati d'esempio · <a href="/preview-detail-clean">vedi Prototipo B →</a></div>
+
+<nav class="nav">
+  <div class="brand">BO<b>O</b>M</div>
+  <a class="nav-back" href="/apartments">← Tutti gli appartamenti</a>
+</nav>
+
+<!-- ════════ ACT 1 — SEE IT ════════ -->
+<header class="hero">
+  <div class="gallery" id="gallery"></div>
+  <div class="hero-meta reveal">
+    <div class="hero-title">
+      <h1 id="hName">Attico luminoso a Trastevere</h1>
+      <div class="hero-zone"><span id="hZone">Trastevere</span><span class="dot">·</span><span id="hAvail">Disponibile dal 1 settembre</span></div>
+    </div>
+    <div class="hero-actions">
+      <button class="iconbtn" id="btnSave" aria-label="Salva" onclick="this.classList.toggle('on')">♡</button>
+      <button class="iconbtn" aria-label="Condividi">↗</button>
+    </div>
+  </div>
+  <div class="facts reveal" id="facts"></div>
+  <div class="hero-cta-row reveal">
+    <button class="ghost" onclick="open3d()">◆ Esplora il quartiere in 3D</button>
+    <button class="ghost" onclick="openAi()">✦ Chiedi qualsiasi cosa a questa casa</button>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ════════ ACT 2 — YOUR STAY (signature) ════════ -->
+  <section class="act" id="act-stay">
+    <div class="act-head reveal"><span class="act-num">02</span>
+      <div><h2>Il tuo <span class="g">soggiorno</span></h2></div></div>
+    <p class="act-sub reveal" style="margin:-14px 0 24px">Dicci quando vorresti entrare e per quanto. La casa risponde subito: disponibilità reale, primo mese esatto, e quanto serve per entrare — per le <em>tue</em> date.</p>
+    <div class="stay reveal">
+      <div class="stay-grid">
+        <div class="stay-controls">
+          <div class="field">
+            <label for="moveIn">Quando vorresti entrare?</label>
+            <input type="date" id="moveIn" class="datein">
+          </div>
+          <div class="field">
+            <label>Per quanto?</label>
+            <div class="durations" id="durs">
+              <button class="dur" data-m="6">6 mesi</button>
+              <button class="dur on" data-m="12">12 mesi</button>
+              <button class="dur" data-m="18">18 mesi</button>
+              <button class="dur" data-m="0">Flessibile</button>
+            </div>
+          </div>
+        </div>
+        <div class="stay-out" id="stayOut"><!-- live --></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ ACT 3 — MONEY ════════ -->
+  <section class="act" id="act-money">
+    <div class="act-head reveal"><span class="act-num">03</span>
+      <div><h2>I soldi, in <span class="g">piena luce</span></h2></div></div>
+    <p class="act-sub reveal" style="margin:-14px 0 24px">Tutto quello che paghi per entrare. E tutto quello che torna. Nessuna “spesa” inventata al tavolo.</p>
+    <div class="money-tiles reveal" id="moneyTiles"></div>
+    <button class="decode-toggle reveal" id="decodeBtn" onclick="toggleDecode()">＋ Vedi ogni euro, decodificato</button>
+    <div class="decoded" id="decoded"><div class="decoded-inner" id="decodedInner"></div></div>
+  </section>
+
+  <!-- ════════ ACT 4 — SAFE & FAST ════════ -->
+  <section class="act" id="act-trust">
+    <div class="act-head reveal"><span class="act-num">04</span>
+      <div><h2>Perché è <span class="g">sicuro</span> e veloce</h2></div></div>
+    <div class="proofs reveal">
+      <div class="proof"><span class="c">✓</span> Verificato in video di persona</div>
+      <div class="proof"><span class="c">✓</span> Proprietario con ID controllato</div>
+      <div class="proof"><span class="c">✓</span> Contratto registrato a norma</div>
+      <div class="proof"><span class="c">✓</span> Deposito protetto, restituito a fine stay</div>
+    </div>
+    <div class="t48 reveal">
+      <div class="step"><div class="n">01</div><h4>Candidati</h4><p>2 minuti. Rispondiamo entro 2 ore.</p></div>
+      <div class="step"><div class="n">02</div><h4>Firma + registrazione</h4><p>Contratto legale, tutto digitale.</p></div>
+      <div class="step"><div class="n">03</div><h4>Le chiavi</h4><p>Anche in 48 ore dall'approvazione.</p></div>
+    </div>
+    <div class="faq reveal" id="faq"></div>
+  </section>
+
+  <!-- ════════ ACT 5 — GET IT ════════ -->
+  <section class="act" id="act-get">
+    <div class="getit reveal">
+      <h2>Prendila.</h2>
+      <p id="getCopy">Candidati in 2 minuti — con le date che hai scelto già pronte. Rispondiamo entro 2 ore, nessun impegno.</p>
+      <div class="getit-acts">
+        <button class="btn-gold getit-big" onclick="apply()">Candidati per <span id="getDate">la tua data</span> →</button>
+        <div class="row2">
+          <button class="ghost" onclick="apply()">🔒 Blocca &amp; trattieni · €300</button>
+          <button class="ghost" onclick="apply()">🎥 Prenota un tour live</button>
+        </div>
+      </div>
+      <button class="ai-launch" onclick="openAi()">✦ Hai una domanda? Chiedi a questa casa →</button>
+    </div>
+  </section>
+</main>
+
+<!-- ── persistent action rail ── -->
+<div class="rail">
+  <div class="prog"><i id="prog"></i></div>
+  <div class="inner">
+    <div class="lbl"><b id="railTitle">Attico a Trastevere</b><small id="railSub">€1.500/mese · seleziona le tue date ↑</small></div>
+    <button class="ask-btn" onclick="openAi()" aria-label="Chiedi">✦</button>
+    <button class="act-btn" onclick="apply()">Candidati</button>
+  </div>
+</div>
+
+<!-- ── AI overlay (mock) ── -->
+<div class="ov" id="aiOv">
+  <div class="sheet">
+    <div class="sheet-head"><h3>✦ Chiedi a questa casa</h3><button class="x-close" onclick="closeOv('aiOv')">×</button></div>
+    <div class="sheet-body">
+      <div class="chips">
+        <button onclick="aiAsk(this)">💰 Costo totale per entrare?</button>
+        <button onclick="aiAsk(this)">🛡️ Come funziona il deposito?</button>
+        <button onclick="aiAsk(this)">📍 Com'è la zona?</button>
+        <button onclick="aiAsk(this)">⚡ Quanto veloce posso entrare?</button>
+      </div>
+      <div id="aiThread"><div class="ai-msg">Conosco questa casa e la realtà degli affitti a Roma. Chiedimi di costi, deposito, zona, contratto o tempi — rispondo in secondi, in modo onesto. <span class="faint">(demo)</span></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 3D overlay (mock) ── -->
+<div class="ov" id="d3Ov">
+  <div class="sheet">
+    <div class="sheet-head"><h3>◆ Il quartiere in 3D</h3><button class="x-close" onclick="closeOv('d3Ov')">×</button></div>
+    <div class="sheet-body">
+      <div class="map3d"><div class="ring" style="width:120px;height:120px"></div><div class="ring" style="width:220px;height:220px"></div><div class="ring" style="width:320px;height:320px"></div><div class="blip"></div></div>
+      <p class="muted" style="font-size:13px;margin-top:14px">Anelli a 5 / 10 / 15 minuti a piedi attorno alla casa. Nel live diventa il flyover cinematografico del palazzo che hai già costruito.</p>
+    </div>
+  </div>
+</div>
+
+<footer>BOOM Rome — prototipo di design, dati d'esempio. Nessun dato reale, nessun pagamento.</footer>
+
+<script>
+/* ── sample listing ── */
+const L = {
+  name:"Attico luminoso a Trastevere", zone:"Trastevere",
+  price:1500, deposit:1500, agencyFee:0, beds:2, baths:1, sqm:65, floor:3, furnished:true,
+  availableFrom:"2026-09-01",
+  images:[
+    ["1502672260266-1c1ef2d93688","Soggiorno"],
+    ["1505691938895-1758d7feb511","Camera"],
+    ["1484154218962-a197022b5858","Cucina"],
+    ["1493809842364-78817add7ffb","Dettagli"]
+  ]
+};
+const eur = n => '€'+Math.round(n).toLocaleString('it-IT');
+const fmtD = d => d.toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'});
+const fmtShort = d => d.toLocaleDateString('it-IT',{day:'numeric',month:'short'});
+const dim = (y,m)=> new Date(y,m+1,0).getDate();
+
+/* ── gallery ── */
+document.getElementById('gallery').innerHTML = L.images.map(([id,t])=>
+  `<div class="shot"><img src="https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=1100&q=70" alt="${t}" loading="lazy" onerror="this.style.display='none'"><span class="tag">${t}</span></div>`).join('');
+
+/* ── facts ── */
+document.getElementById('facts').innerHTML = [
+  `<span class="price">${eur(L.price)}<span class="k"> /mese</span></span>`,
+  `<b>${L.beds}</b><span class="k">camere</span>`,
+  `<b>${L.baths}</b><span class="k">bagno</span>`,
+  `<b>${L.sqm}</b><span class="k">m²</span>`,
+  `<b>${L.floor}°</b><span class="k">piano</span>`,
+  `<b>${L.furnished?'Arredato':'Non arredato'}</b>`
+].map(h=>`<div class="fact">${h}</div>`).join('');
+document.getElementById('hAvail').textContent = 'Disponibile dal '+fmtD(new Date(L.availableFrom+'T00:00'));
+document.getElementById('hZone').textContent = L.zone;
+document.getElementById('hName').textContent = L.name;
+document.getElementById('railTitle').textContent = L.name.replace('Attico luminoso a','Attico,');
+
+/* ── core: compute stay ── */
+let DUR = 12;
+function computeStay(){
+  const avail = new Date(L.availableFrom+'T00:00');
+  const raw = document.getElementById('moveIn').value;
+  const req = raw ? new Date(raw+'T00:00') : null;
+  const start = (!req || req<avail) ? avail : req;
+  const gapDays = req ? Math.round((avail-req)/86400000) : 0;
+  const di = dim(start.getFullYear(), start.getMonth());
+  const remaining = di - start.getDate() + 1;
+  const prorated = Math.round(L.price * remaining / di);
+  const full = remaining===di;
+  const total = prorated + L.deposit + L.agencyFee;
+  let end=null; if(DUR>0){ end=new Date(start); end.setMonth(end.getMonth()+DUR); }
+  const fit = !req ? 'none' : (req>=avail ? 'ok' : 'after');
+  return {avail,req,start,end,gapDays,di,remaining,prorated,full,total,fit};
+}
+
+function render(){
+  const s = computeStay();
+  /* availability badge */
+  let av;
+  if(s.fit==='none') av = `<div class="avail none"><span class="pin">📅</span><div>Scegli una data per vedere la disponibilità e il costo per le tue date<small>Libero dal ${fmtD(s.avail)}</small></div></div>`;
+  else if(s.fit==='ok') av = `<div class="avail ok"><span class="pin">✓</span><div>Libero dalla tua data<small>Entri il ${fmtD(s.start)}</small></div></div>`;
+  else av = `<div class="avail after"><span class="pin">!</span><div>Libero dal ${fmtShort(s.avail)} — ${s.gapDays} giorni dopo la data che vorresti<small>Possiamo avvisarti se si libera prima, o cercarne uno per la tua data</small></div></div>`;
+
+  const rows = `
+    <div class="stayrow"><span class="k">Primo mese${s.full?'':` <span class="note">(pro-rata, ${s.remaining}/${s.di} gg)</span>`}</span><span class="v">${eur(s.prorated)}</span></div>
+    <div class="stayrow"><span class="k">Deposito <span class="note">rimborsabile</span></span><span class="v">${eur(L.deposit)}</span></div>
+    <div class="stayrow"><span class="k">Provvigione</span><span class="v">${L.agencyFee?eur(L.agencyFee):'€0'}</span></div>
+    <div class="stayrow total"><span class="k">Per entrare${s.fit==='none'?'':` il ${fmtShort(s.start)}`}</span><span class="v">${eur(s.total)}</span></div>
+    ${s.end?`<div class="stayrow"><span class="k">Soggiorno fino al</span><span class="v">${fmtD(s.end)}</span></div>`:''}`;
+  document.getElementById('stayOut').innerHTML = av + `<div class="stayrows">${rows}</div>
+    <div class="stay-cta"><button class="btn-gold" onclick="apply()">${s.fit==='none'?'Candidati':'Blocca queste date'} →</button></div>`;
+
+  /* money tiles mirror the stay */
+  document.getElementById('moneyTiles').innerHTML = [
+    ['Primo mese', eur(s.prorated), s.full?'canone pieno':'pro-rata sulla tua data'],
+    ['Deposito', eur(L.deposit), 'rimborsabile a fine stay'],
+    ['Provvigione', L.agencyFee?eur(L.agencyFee):'€0', L.agencyFee?'una tantum':'nessuna, su questa casa'],
+    ['Totale per entrare', eur(s.total), s.fit==='none'?'dal 1° giorno utile':'per le tue date', true]
+  ].map(([k,v,sub,tot])=>`<div class="mtile ${tot?'tot':''}"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${sub}</div></div>`).join('');
+
+  /* rail + get-it sync */
+  document.getElementById('railSub').textContent = (s.fit==='none')
+    ? `${eur(L.price)}/mese · seleziona le tue date ↑`
+    : `Per entrare il ${fmtShort(s.start)}: ${eur(s.total)}`;
+  document.getElementById('getDate').textContent = (s.fit==='none')?'la tua data':('il '+fmtShort(s.start));
+}
+
+/* durations */
+document.getElementById('durs').addEventListener('click',e=>{
+  const b=e.target.closest('.dur'); if(!b)return;
+  document.querySelectorAll('.dur').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); DUR=+b.dataset.m; render();
+});
+document.getElementById('moveIn').addEventListener('change',render);
+document.getElementById('moveIn').min = L.availableFrom;
+
+/* ── money decoded ── */
+const DEC = [
+  ['Il primo mese','È l’unico canone che paghi per entrare — lo pagheresti ovunque. Se entri a metà mese, paghi solo i giorni che vivi.', ''],
+  ['Il deposito cauzionale','Garanzia, non un costo. Resta protetto e ti torna a fine soggiorno, al netto di eventuali danni.','rimborsabile'],
+  ['La provvigione','Su questa casa è €0. Quando c’è, è una sola volta e te la diciamo prima — mai a sorpresa.','€0'],
+  ['Le spese mensili','Condominio e utenze: la realtà mensile, dichiarata in chiaro prima della firma.',''],
+  ['Zero buste','Ogni euro passa da Stripe, con ricevuta. Niente contanti, niente “spese di check-in” inventate.','']
+];
+document.getElementById('decodedInner').innerHTML = DEC.map(([h,p,a])=>
+  `<div class="dcard"><h4>${h}${a?` · <span class="amt">${a}</span>`:''}</h4><p>${p}</p></div>`).join('');
+function toggleDecode(){
+  const d=document.getElementById('decoded'); const open=d.classList.toggle('open');
+  document.getElementById('decodeBtn').textContent = open?'− Nascondi il dettaglio':'＋ Vedi ogni euro, decodificato';
+}
+
+/* ── faq ── */
+const FAQ = [
+  ['Posso entrare a una data diversa dalla disponibilità?','Sì. Imposta la tua data qui sopra: se è dopo la disponibilità entri subito, se è prima ti diciamo l’esatto scarto e possiamo avvisarti o cercarti un’alternativa per la tua data.'],
+  ['Quanto velocemente posso davvero entrare?','Anche in 48 ore dall’approvazione. Rispondiamo a ogni candidatura entro 2 ore e gestiamo contratto e chiavi per te.'],
+  ['Il contratto è regolare?','Sempre. Contratto legale registrato, proprietario con ID verificato, deposito protetto.'],
+  ['Cosa pago davvero per entrare?','Solo ciò che vedi nel modulo “Il tuo soggiorno”: primo mese + deposito rimborsabile + eventuale provvigione. Nient’altro.']
+];
+document.getElementById('faq').innerHTML = FAQ.map(([q,a])=>
+  `<div class="qa"><button class="q" onclick="this.parentNode.classList.toggle('open')"><span>${q}</span><span class="x">+</span></button><div class="a"><div>${a}</div></div></div>`).join('');
+
+/* ── overlays ── */
+function openAi(){document.getElementById('aiOv').classList.add('show')}
+function open3d(){document.getElementById('d3Ov').classList.add('show')}
+function closeOv(id){document.getElementById(id).classList.remove('show')}
+document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('show')}));
+const AI = {
+  '💰 Costo totale per entrare?':'Per le date che hai scelto, il totale per entrare è la somma di primo mese + deposito rimborsabile + provvigione (€0 su questa casa). Lo vedi in tempo reale nel modulo “Il tuo soggiorno”.',
+  '🛡️ Come funziona il deposito?':'Il deposito è una garanzia, non un costo: resta protetto e ti viene restituito a fine soggiorno, al netto di eventuali danni.',
+  '📍 Com\'è la zona?':'Trastevere: cuore pedonale, vita serale, a piedi da Sapienza e dal centro. Tocca “Esplora il quartiere in 3D” per gli anelli di distanza a piedi.',
+  '⚡ Quanto veloce posso entrare?':'Anche 48 ore dall’approvazione. Imposta la tua data sopra e ti diciamo subito se la casa è libera per quel giorno.'
+};
+function aiAsk(b){
+  const q=b.textContent;
+  const t=document.getElementById('aiThread');
+  t.insertAdjacentHTML('beforeend',`<div class="ai-msg" style="border-color:var(--gold-soft)"><b>Tu:</b> ${q}</div><div class="ai-msg">${AI[q]||'Demo: nel live, risposta reale dalla AI che conosce questa casa.'}</div>`);
+  t.lastElementChild.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function apply(){
+  const s=computeStay();
+  const when = s.fit==='none' ? 'la prima data utile' : fmtD(s.start);
+  alert('Demo prototipo — nel live questo apre la candidatura PRECOMPILATA con:\n\n• Ingresso: '+when+'\n• Durata: '+(DUR?DUR+' mesi':'flessibile')+'\n• Totale per entrare: '+eur(s.total)+'\n\nE le date finiscono nel lead (desiredMoveIn/Duration) per matching e qualifica.');
+}
+
+/* ── progress rail + reveal ── */
+const prog=document.getElementById('prog');
+addEventListener('scroll',()=>{const h=document.body.scrollHeight-innerHeight;prog.style.width=(scrollY/h*100)+'%'},{passive:true});
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+render();
+</script>
+</body>
+</html>

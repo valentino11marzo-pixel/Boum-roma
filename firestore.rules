@@ -208,6 +208,9 @@ service cloud.firestore {
     match /telegramState/{x}               { allow read, write: if isAdmin(); }
     match /heartbeat/{x}                   { allow read, write: if isAdmin(); }
     match /agentNotifications/{x}          { allow read, write: if isAdmin(); }
+    match /preAgreements/{x}               { allow read, write: if isAdmin(); }
+    match /savedSearches/{x}               { allow read, write: if isAdmin(); }
+    match /rentCollectionHealth/{x}        { allow read, write: if isAdmin(); }
 
     // ─── Default deny ─────────────────────────────────────────────────
     match /{document=**} {

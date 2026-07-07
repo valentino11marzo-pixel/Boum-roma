@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#08080A">
+<meta name="color-scheme" content="dark">
+<title>BOOM · Apartment page — Clean (Prototype B)</title>
+<style>
+  :root{
+    --bg:#08080A; --bg2:#0d0d10; --card:#121215; --elev:#17171b;
+    --gold:#D4AF37; --gold-2:#E8C766; --gold-soft:rgba(212,175,55,.14);
+    --text:#fff; --muted:#9a9aa1; --faint:#6b6b72; --line:rgba(255,255,255,.08);
+    --green:#39d98a; --amber:#E8B23A;
+    --r:16px; --maxw:1140px;
+    --ff:"Helvetica Neue",Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--text);font-family:var(--ff);font-weight:300;line-height:1.55;
+    -webkit-font-smoothing:antialiased;letter-spacing:.2px;padding-bottom:90px}
+  img{display:block;max-width:100%}
+  a{color:inherit;text-decoration:none}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 20px}
+  h1,h2,h3{font-weight:300;letter-spacing:-.4px;line-height:1.12}
+  .g{color:var(--gold)}
+  .sect-title{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
+  .reveal{opacity:0;transform:translateY(16px);transition:.6s ease}.reveal.in{opacity:1;transform:none}
+  @media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}}
+
+  .proto{position:sticky;top:0;z-index:60;background:linear-gradient(90deg,#0c0c0e,#13110a);
+    border-bottom:1px solid var(--line);font-size:12px;color:var(--muted);
+    display:flex;gap:14px;align-items:center;justify-content:center;padding:7px 14px;letter-spacing:.5px}
+  .proto b{color:var(--gold);font-weight:400}
+  .proto a{color:var(--muted);border-bottom:1px solid var(--line)}
+
+  .nav{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;max-width:var(--maxw);margin:0 auto}
+  .brand{font-size:17px;letter-spacing:6px}.brand b{color:var(--gold)}
+  .nav-back{font-size:13px;color:var(--muted)}
+
+  /* breadcrumb + title */
+  .head{max-width:var(--maxw);margin:8px auto 0;padding:0 20px}
+  .head h1{font-size:clamp(24px,4vw,36px)}
+  .head .sub{color:var(--muted);font-size:14px;margin-top:8px;letter-spacing:.5px}
+  .head .sub .dot{color:var(--gold);margin:0 8px}
+
+  /* two-column layout */
+  .grid{max-width:var(--maxw);margin:20px auto 0;padding:0 20px;display:grid;grid-template-columns:1fr;gap:26px}
+  @media(min-width:920px){.grid{grid-template-columns:1.55fr .95fr;align-items:start}}
+
+  /* gallery */
+  .gal{display:grid;grid-template-columns:2fr 1fr 1fr;grid-template-rows:1fr 1fr;gap:8px;border-radius:var(--r);overflow:hidden;aspect-ratio:16/11}
+  .gal .cell{position:relative;background:linear-gradient(135deg,#1b1b20,#0e0e11);overflow:hidden}
+  .gal .cell:first-child{grid-row:1/3}
+  .gal .cell img{width:100%;height:100%;object-fit:cover}
+  .gal .more{position:absolute;right:10px;bottom:10px;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);
+    padding:6px 12px;border-radius:100px;font-size:12px}
+
+  .block{margin-top:30px}
+  .desc{color:var(--muted);font-size:15px;line-height:1.7}
+  .feat{display:flex;flex-wrap:wrap;gap:9px;margin-top:6px}
+  .feat span{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:9px 13px;font-size:13px}
+  .map{height:240px;border-radius:var(--r);border:1px solid var(--line);margin-top:6px;position:relative;overflow:hidden;
+    background:radial-gradient(120% 120% at 30% 20%,#16161c,#0a0a0c);display:grid;place-items:center}
+  .map .blip{width:14px;height:14px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 7px var(--gold-soft)}
+  .map .go{position:absolute;bottom:12px;left:12px;border:1px solid var(--line);background:rgba(0,0,0,.5);
+    border-radius:100px;padding:9px 14px;font-size:12.5px}
+
+  /* ── sticky sidebar with PROMOTED live date module ── */
+  .side{position:sticky;top:80px;display:grid;gap:14px}
+  .price-card{border:1px solid var(--line);background:var(--card);border-radius:var(--r);padding:20px}
+  .price-card .p{font-size:30px;font-weight:300;color:var(--gold)}
+  .price-card .p small{font-size:14px;color:var(--muted)}
+  .price-card .avail-line{font-size:13px;color:var(--muted);margin-top:6px}
+
+  .stay-card{border:1px solid rgba(212,175,55,.32);background:linear-gradient(180deg,var(--gold-soft),transparent),var(--card);
+    border-radius:var(--r);padding:20px}
+  .stay-card .ttl{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:14px}
+  .stay-card label{display:block;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+  .datein{width:100%;background:var(--elev);border:1px solid var(--line);border-radius:11px;color:var(--text);
+    font-family:inherit;font-size:15px;padding:12px 13px}
+  .datein:focus{outline:none;border-color:var(--gold)}
+  .durs{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px}
+  .dur{border:1px solid var(--line);background:var(--elev);border-radius:100px;padding:8px 13px;font-size:12.5px;transition:.16s}
+  .dur:hover{border-color:var(--gold)} .dur.on{background:var(--gold);color:#1a1407;font-weight:500;border-color:var(--gold)}
+  .avail{display:flex;gap:9px;align-items:center;font-size:13.5px;margin:16px 0;padding:11px;border-radius:11px;background:rgba(255,255,255,.02);border:1px solid var(--line)}
+  .avail .pin{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;flex:none;font-size:13px}
+  .avail.ok{color:var(--green)}.avail.ok .pin{background:rgba(57,217,138,.16);color:var(--green)}
+  .avail.after{color:var(--amber)}.avail.after .pin{background:rgba(232,178,58,.16);color:var(--amber)}
+  .avail.none{color:var(--muted)}.avail.none .pin{background:var(--gold-soft);color:var(--gold)}
+  .avail small{display:block;color:var(--faint);font-size:11px;margin-top:2px}
+  .srows{display:grid;gap:1px;background:var(--line);border-radius:11px;overflow:hidden;border:1px solid var(--line)}
+  .srow{display:flex;justify-content:space-between;background:var(--card);padding:11px 13px;font-size:13.5px}
+  .srow .k{color:var(--muted)} .srow .v{font-variant-numeric:tabular-nums}
+  .srow.tot{background:var(--gold-soft)} .srow.tot .v{color:var(--gold);font-weight:400;font-size:16px}
+  .srow .note{font-size:10.5px;color:var(--faint)}
+  .btn-gold{display:block;width:100%;text-align:center;background:linear-gradient(180deg,var(--gold-2),var(--gold));
+    color:#1a1407;font-weight:500;border-radius:100px;padding:14px;font-size:14.5px;letter-spacing:.4px;margin-top:14px;transition:.2s}
+  .btn-gold:hover{filter:brightness(1.06)}
+  .btn-ghost{display:block;width:100%;text-align:center;border:1px solid var(--line);border-radius:100px;
+    padding:12px;font-size:13px;margin-top:9px;background:var(--card);transition:.2s}
+  .btn-ghost:hover{border-color:var(--gold);color:var(--gold)}
+  .micro{font-size:11.5px;color:var(--faint);text-align:center;margin-top:11px;letter-spacing:.3px}
+
+  /* ── unified money (full width) ── */
+  .fw{max-width:var(--maxw);margin:48px auto 0;padding:0 20px}
+  .money{border:1px solid var(--line);background:var(--card);border-radius:20px;padding:26px}
+  .money h2{font-size:clamp(22px,3vw,28px);margin-bottom:6px}
+  .money .lead{color:var(--muted);font-size:14px;margin-bottom:22px;max-width:52ch}
+  .mtiles{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  @media(min-width:720px){.mtiles{grid-template-columns:repeat(4,1fr)}}
+  .mt{border:1px solid var(--line);background:var(--bg2);border-radius:13px;padding:16px}
+  .mt .k{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--faint)}
+  .mt .v{font-size:21px;margin-top:8px;font-variant-numeric:tabular-nums}
+  .mt .s{font-size:11.5px;color:var(--muted);margin-top:4px}
+  .mt.tot{border-color:rgba(212,175,55,.4);background:linear-gradient(180deg,var(--gold-soft),transparent)} .mt.tot .v{color:var(--gold)}
+  .dtoggle{margin-top:16px;display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:100px;
+    padding:10px 16px;font-size:13px;background:var(--bg2);transition:.2s}
+  .dtoggle:hover{border-color:var(--gold);color:var(--gold)}
+  .decoded{max-height:0;overflow:hidden;transition:max-height .5s ease}.decoded.open{max-height:1200px}
+  .dinner{margin-top:16px;display:grid;gap:9px;grid-template-columns:1fr}
+  @media(min-width:720px){.dinner{grid-template-columns:1fr 1fr}}
+  .dcard{border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:15px}
+  .dcard h4{font-weight:400;font-size:14px;margin-bottom:5px}.dcard p{color:var(--muted);font-size:13px}
+  .dcard .amt{color:var(--gold)}
+
+  /* ── trust strip ── */
+  .proofs{display:flex;flex-wrap:wrap;gap:9px;margin-top:18px}
+  .proof{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--card);border-radius:100px;padding:9px 15px;font-size:12.5px}
+  .proof .c{color:var(--green)}
+  .t48{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:18px}
+  .t48 .s{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:14px}
+  .t48 .n{font-size:10.5px;letter-spacing:2px;color:var(--gold)}.t48 .s h4{font-weight:400;font-size:13.5px;margin-top:7px}
+  .t48 .s p{font-size:12px;color:var(--muted);margin-top:4px}
+
+  .faq{margin-top:8px}
+  .qa{border-bottom:1px solid var(--line)}
+  .q{width:100%;text-align:left;display:flex;justify-content:space-between;gap:12px;padding:16px 2px;font-size:14.5px}
+  .q .x{color:var(--gold);font-size:19px;transition:.25s;flex:none}.qa.open .q .x{transform:rotate(45deg)}
+  .a{max-height:0;overflow:hidden;transition:max-height .35s ease;color:var(--muted);font-size:13.5px}
+  .qa.open .a{max-height:220px}.a div{padding:0 2px 16px}
+
+  /* ── single sticky bar (mobile) ── */
+  .bar{position:fixed;left:0;right:0;bottom:0;z-index:55;background:rgba(8,8,10,.9);backdrop-filter:blur(16px);
+    border-top:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:11px 16px}
+  .bar .l{flex:1;min-width:0;font-size:12.5px;color:var(--muted)}.bar .l b{color:#fff;font-weight:400}.bar .l small{display:block;color:var(--faint);font-size:11px}
+  .bar .b{background:linear-gradient(180deg,var(--gold-2),var(--gold));color:#1a1407;font-weight:500;border-radius:100px;padding:12px 20px;font-size:14px;white-space:nowrap}
+  @media(min-width:920px){.bar{display:none}}
+  footer{padding:46px 20px 30px;text-align:center;color:var(--faint);font-size:12px}
+</style>
+</head>
+<body>
+<div class="proto">PROTOTIPO B · <b>Riordino dell'esistente</b> · dati d'esempio · <a href="/preview-detail-redesign">vedi Prototipo A →</a></div>
+
+<nav class="nav"><div class="brand">BO<b>O</b>M</div><a class="nav-back" href="/apartments">← Tutti gli appartamenti</a></nav>
+
+<div class="head reveal">
+  <h1 id="hName">Attico luminoso a Trastevere</h1>
+  <div class="sub"><span id="hZone">Trastevere</span><span class="dot">·</span><span id="hMeta">2 camere · 65 m² · 3° piano</span><span class="dot">·</span><span id="hAvail">Disponibile dal 1 settembre</span></div>
+</div>
+
+<div class="grid">
+  <!-- LEFT -->
+  <div>
+    <div class="gal reveal" id="gal"></div>
+
+    <div class="block reveal">
+      <div class="sect-title">L'appartamento</div>
+      <p class="desc">Attico arredato nel cuore pedonale di Trastevere: doppia esposizione, luce tutto il giorno, una terrazza affacciata sui tetti. A piedi da Sapienza, dal centro e dalla vita serale del rione. Verificato di persona in video da BOOM.</p>
+    </div>
+
+    <div class="block reveal">
+      <div class="sect-title">Caratteristiche</div>
+      <div class="feat" id="feat"></div>
+    </div>
+
+    <div class="block reveal">
+      <div class="sect-title">Posizione</div>
+      <div class="map"><div class="blip"></div><button class="go" onclick="alert('Demo — nel live apre il flyover 3D del palazzo.')">◆ Esplora il quartiere in 3D</button></div>
+    </div>
+  </div>
+
+  <!-- RIGHT — sticky sidebar, date module PROMOTED + LIVE -->
+  <aside class="side">
+    <div class="price-card reveal">
+      <div class="p" id="price">€1.500 <small>/mese</small></div>
+      <div class="avail-line" id="availLine">Disponibile dal 1 settembre 2026</div>
+    </div>
+
+    <div class="stay-card reveal">
+      <div class="ttl">📅 Il tuo soggiorno</div>
+      <label for="moveIn">Quando vorresti entrare?</label>
+      <input type="date" id="moveIn" class="datein">
+      <label style="margin-top:14px">Per quanto?</label>
+      <div class="durs" id="durs">
+        <button class="dur" data-m="6">6 mesi</button>
+        <button class="dur on" data-m="12">12 mesi</button>
+        <button class="dur" data-m="18">18 mesi</button>
+        <button class="dur" data-m="0">Flessibile</button>
+      </div>
+      <div id="availBadge"></div>
+      <div class="srows" id="srows"></div>
+      <button class="btn-gold" id="applyBtn" onclick="apply()">Candidati →</button>
+      <button class="btn-ghost" onclick="apply()">🔒 Blocca &amp; trattieni · €300</button>
+      <div class="micro">Rispondiamo entro 2 ore · nessun impegno · pagamenti via Stripe</div>
+    </div>
+  </aside>
+</div>
+
+<!-- UNIFIED MONEY -->
+<div class="fw reveal">
+  <div class="money">
+    <h2>Esattamente <span class="g">cosa paghi</span>. E cosa torna.</h2>
+    <p class="lead">Tutto quello che serve per entrare, calcolato sulle tue date. Nessuna “spesa” inventata al tavolo.</p>
+    <div class="mtiles" id="mtiles"></div>
+    <button class="dtoggle" id="dtoggle" onclick="toggleDecode()">＋ Vedi ogni euro, decodificato</button>
+    <div class="decoded" id="decoded"><div class="dinner" id="dinner"></div></div>
+  </div>
+</div>
+
+<!-- TRUST -->
+<div class="fw reveal">
+  <div class="sect-title" style="margin-top:36px">Perché è sicuro e veloce</div>
+  <div class="proofs">
+    <div class="proof"><span class="c">✓</span> Verificato in video di persona</div>
+    <div class="proof"><span class="c">✓</span> Proprietario con ID controllato</div>
+    <div class="proof"><span class="c">✓</span> Contratto registrato</div>
+    <div class="proof"><span class="c">✓</span> Deposito protetto</div>
+  </div>
+  <div class="t48">
+    <div class="s"><div class="n">01</div><h4>Candidati</h4><p>2 minuti, risposta in 2 ore.</p></div>
+    <div class="s"><div class="n">02</div><h4>Firma + registrazione</h4><p>Contratto legale, digitale.</p></div>
+    <div class="s"><div class="n">03</div><h4>Le chiavi</h4><p>Anche in 48 ore.</p></div>
+  </div>
+</div>
+
+<!-- FAQ -->
+<div class="fw reveal">
+  <div class="sect-title" style="margin-top:36px">Domande frequenti</div>
+  <div class="faq" id="faq"></div>
+</div>
+
+<footer>BOOM Rome — prototipo di design, dati d'esempio. Nessun dato reale, nessun pagamento.</footer>
+
+<div class="bar">
+  <div class="l"><b id="barP">€1.500/mese</b><small id="barS">seleziona le tue date ↑</small></div>
+  <button class="b" onclick="apply()">Candidati</button>
+</div>
+
+<script>
+const L={name:"Attico luminoso a Trastevere",zone:"Trastevere",price:1500,deposit:1500,agencyFee:0,
+  beds:2,baths:1,sqm:65,floor:3,availableFrom:"2026-09-01",
+  images:[["1502672260266-1c1ef2d93688","Soggiorno"],["1505691938895-1758d7feb511","Camera"],["1484154218962-a197022b5858","Cucina"],["1493809842364-78817add7ffb","Terrazza"]],
+  features:["Arredato","Terrazza","Doppia esposizione","Aria condizionata","Lavatrice","Wi-Fi fibra","Ascensore","Cucina abitabile"]};
+const eur=n=>'€'+Math.round(n).toLocaleString('it-IT');
+const fmtD=d=>d.toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'});
+const fmtShort=d=>d.toLocaleDateString('it-IT',{day:'numeric',month:'short'});
+const dim=(y,m)=>new Date(y,m+1,0).getDate();
+
+/* gallery (2x2 + hero) */
+document.getElementById('gal').innerHTML = L.images.slice(0,4).map((x,i)=>{
+  const [id,t]=x;
+  return `<div class="cell"><img src="https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=900&q=70" alt="${t}" loading="lazy" onerror="this.style.display='none'">${i===3?'<span class="more">+8 foto</span>':''}</div>`;
+}).join('');
+document.getElementById('feat').innerHTML = L.features.map(f=>`<span>${f}</span>`).join('');
+document.getElementById('hAvail').textContent='Disponibile dal '+fmtD(new Date(L.availableFrom+'T00:00'));
+document.getElementById('availLine').textContent='Disponibile dal '+fmtD(new Date(L.availableFrom+'T00:00'));
+document.getElementById('hMeta').textContent=`${L.beds} camere · ${L.sqm} m² · ${L.floor}° piano`;
+
+let DUR=12;
+function computeStay(){
+  const avail=new Date(L.availableFrom+'T00:00');
+  const raw=document.getElementById('moveIn').value;
+  const req=raw?new Date(raw+'T00:00'):null;
+  const start=(!req||req<avail)?avail:req;
+  const gapDays=req?Math.round((avail-req)/86400000):0;
+  const di=dim(start.getFullYear(),start.getMonth());
+  const remaining=di-start.getDate()+1;
+  const prorated=Math.round(L.price*remaining/di);
+  const full=remaining===di;
+  const total=prorated+L.deposit+L.agencyFee;
+  let end=null;if(DUR>0){end=new Date(start);end.setMonth(end.getMonth()+DUR);}
+  const fit=!req?'none':(req>=avail?'ok':'after');
+  return{avail,req,start,end,gapDays,di,remaining,prorated,full,total,fit};
+}
+function render(){
+  const s=computeStay();
+  let av;
+  if(s.fit==='none')av=`<div class="avail none"><span class="pin">📅</span><div>Scegli una data per il costo esatto<small>Libero dal ${fmtShort(s.avail)}</small></div></div>`;
+  else if(s.fit==='ok')av=`<div class="avail ok"><span class="pin">✓</span><div>Libero dalla tua data<small>Entri il ${fmtD(s.start)}</small></div></div>`;
+  else av=`<div class="avail after"><span class="pin">!</span><div>Libero dal ${fmtShort(s.avail)} — ${s.gapDays} gg dopo<small>Possiamo avvisarti se si libera prima</small></div></div>`;
+  document.getElementById('availBadge').innerHTML=av;
+  document.getElementById('srows').innerHTML=`
+    <div class="srow"><span class="k">Primo mese${s.full?'':` <span class="note">(${s.remaining}/${s.di} gg)</span>`}</span><span class="v">${eur(s.prorated)}</span></div>
+    <div class="srow"><span class="k">Deposito <span class="note">rimborsabile</span></span><span class="v">${eur(L.deposit)}</span></div>
+    <div class="srow"><span class="k">Provvigione</span><span class="v">${L.agencyFee?eur(L.agencyFee):'€0'}</span></div>
+    <div class="srow tot"><span class="k">Per entrare${s.fit==='none'?'':` ${fmtShort(s.start)}`}</span><span class="v">${eur(s.total)}</span></div>
+    ${s.end?`<div class="srow"><span class="k">Fino al</span><span class="v">${fmtShort(s.end)} ${s.end.getFullYear()}</span></div>`:''}`;
+  document.getElementById('applyBtn').innerHTML=(s.fit==='none')?'Candidati →':`Candidati per il ${fmtShort(s.start)} →`;
+  document.getElementById('mtiles').innerHTML=[
+    ['Primo mese',eur(s.prorated),s.full?'canone pieno':'pro-rata sulla tua data'],
+    ['Deposito',eur(L.deposit),'rimborsabile'],
+    ['Provvigione',L.agencyFee?eur(L.agencyFee):'€0',L.agencyFee?'una tantum':'nessuna, qui'],
+    ['Totale per entrare',eur(s.total),s.fit==='none'?'1° giorno utile':'le tue date',true]
+  ].map(([k,v,sub,t])=>`<div class="mt ${t?'tot':''}"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${sub}</div></div>`).join('');
+  document.getElementById('barP').textContent=(s.fit==='none')?eur(L.price)+'/mese':'Per entrare: '+eur(s.total);
+  document.getElementById('barS').textContent=(s.fit==='none')?'seleziona le tue date ↑':'il '+fmtShort(s.start);
+}
+document.getElementById('durs').addEventListener('click',e=>{const b=e.target.closest('.dur');if(!b)return;
+  document.querySelectorAll('.dur').forEach(x=>x.classList.remove('on'));b.classList.add('on');DUR=+b.dataset.m;render();});
+document.getElementById('moveIn').addEventListener('change',render);
+document.getElementById('moveIn').min=L.availableFrom;
+
+const DEC=[
+  ['Il primo mese','L’unico canone per entrare. A metà mese paghi solo i giorni che vivi.',''],
+  ['Il deposito','Garanzia, non costo: protetto, torna a fine soggiorno.','rimborsabile'],
+  ['La provvigione','€0 su questa casa. Quando c’è, una sola volta e dichiarata prima.','€0'],
+  ['Le spese','Condominio e utenze: la realtà mensile, in chiaro prima della firma.','']
+];
+document.getElementById('dinner').innerHTML=DEC.map(([h,p,a])=>`<div class="dcard"><h4>${h}${a?` · <span class="amt">${a}</span>`:''}</h4><p>${p}</p></div>`).join('');
+function toggleDecode(){const d=document.getElementById('decoded');const o=d.classList.toggle('open');
+  document.getElementById('dtoggle').textContent=o?'− Nascondi il dettaglio':'＋ Vedi ogni euro, decodificato';}
+
+const FAQ=[
+  ['Posso entrare a una data diversa dalla disponibilità?','Sì. Imposta la tua data nel modulo “Il tuo soggiorno”: se è dopo la disponibilità entri subito; se è prima ti diciamo lo scarto esatto e possiamo avvisarti o cercare un’alternativa.'],
+  ['Quanto velocemente posso entrare?','Anche 48 ore dall’approvazione. Risposta a ogni candidatura entro 2 ore.'],
+  ['Cosa pago davvero per entrare?','Solo primo mese + deposito rimborsabile + eventuale provvigione. Nient’altro.'],
+  ['Il contratto è regolare?','Sempre: registrato a norma, proprietario verificato, deposito protetto.']
+];
+document.getElementById('faq').innerHTML=FAQ.map(([q,a])=>`<div class="qa"><button class="q" onclick="this.parentNode.classList.toggle('open')"><span>${q}</span><span class="x">+</span></button><div class="a"><div>${a}</div></div></div>`).join('');
+
+function apply(){const s=computeStay();const when=s.fit==='none'?'la prima data utile':fmtD(s.start);
+  alert('Demo prototipo — nel live apre la candidatura PRECOMPILATA:\n\n• Ingresso: '+when+'\n• Durata: '+(DUR?DUR+' mesi':'flessibile')+'\n• Totale per entrare: '+eur(s.total)+'\n\nLe date vanno nel lead per matching e qualifica.');}
+
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.1});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+render();
+</script>
+</body>
+</html>

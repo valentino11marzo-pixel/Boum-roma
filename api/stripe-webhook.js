@@ -1,5 +1,7 @@
 import Stripe from 'stripe';
 import crypto from 'node:crypto';
+import { fsList, fsPatch } from './homie/_lib.js';
+import { sendPaEmails } from './preagreement/_notify.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -431,6 +433,55 @@ async function handleReserve(res, session, m) {
   return res.status(200).json({ received: true, reservationId: 'res_' + docId });
 }
 
+// PREAGREEMENT — the client paid what was due at signing on their proposal.
+// Marks the doc paid and sends the confirmation emails (client: document +
+// Stripe receipt; admin: copy + next-step nudge). Idempotent on webhook
+// retries via paidSessionId.
+async function handlePreagreement(res, session, m) {
+  const token = String(m.token || '');
+  if (!/^[a-f0-9]{32}$/.test(token)) return res.status(200).json({ received: true, skipped: 'bad_pa_token' });
+
+  let hit = null;
+  try {
+    const rows = await fsList('preAgreements', { filter: { field: 'token', op: 'EQUAL', value: token }, limit: 1 });
+    hit = rows && rows[0];
+  } catch (e) { console.error('[webhook/pa] lookup failed:', e.message); }
+  if (!hit) return res.status(200).json({ received: true, skipped: 'pa_not_found' });
+  const { id, ...pa } = hit;   // fsList returns flat rows: {id, ...fields}
+
+  if (pa.paidSessionId === session.id) {
+    return res.status(200).json({ received: true, duplicate: true });   // retry — emails already sent
+  }
+
+  const paidEur = (session.amount_total || 0) / 100;
+  const paidAt = new Date().toISOString();
+  try {
+    await fsPatch(`preAgreements/${id}`, {
+      status: 'paid', paidAt, paidEur,
+      paidSessionId: session.id,
+      stripePaymentIntent: String(session.payment_intent || ''),
+    });
+  } catch (e) { console.error('[webhook/pa] patch failed:', e.message); }
+
+  // Stripe receipt link (best-effort)
+  let receiptUrl = null;
+  try {
+    if (session.payment_intent) {
+      const pi = await stripe.paymentIntents.retrieve(String(session.payment_intent), { expand: ['latest_charge'] });
+      receiptUrl = (pi.latest_charge && pi.latest_charge.receipt_url) || null;
+    }
+  } catch (e) { console.error('[webhook/pa] receipt lookup failed:', e.message); }
+
+  try {
+    await sendPaEmails({
+      pa, ref: pa.ref || m.ref || '', url: '/pre-agreement?t=' + token,
+      receiptUrl, paidEur, paidAt, event: 'paid',
+    });
+  } catch (e) { console.error('[webhook/pa] emails failed:', e.message); }
+
+  return res.status(200).json({ received: true, preAgreementId: id });
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).send('Method not allowed');
 
@@ -494,6 +545,10 @@ export default async function handler(req, res) {
 
   if (m.service === 'RESERVE') {
     return handleReserve(res, session, m);
+  }
+
+  if (m.service === 'PREAGREEMENT') {
+    return handlePreagreement(res, session, m);
   }
 
   if (m.service !== 'PFS') {

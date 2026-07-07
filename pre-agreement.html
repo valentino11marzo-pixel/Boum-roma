@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Rental Proposal — BOOM Roma</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--gold:#FFD700;--gold-light:#FFE5A0;--void:#060607;--card:#0C0C0E;--surface:#111114;--input:#17171B;
+  --line:rgba(255,255,255,.09);--line-soft:rgba(255,255,255,.05);--line-gold:rgba(255,215,0,.28);
+  --gold-muted:rgba(255,215,0,.12);--gold-faint:rgba(255,215,0,.06);
+  --t1:#FFF;--t2:rgba(255,255,255,.72);--t3:rgba(255,255,255,.46);--t4:rgba(255,255,255,.26);
+  --green:#3ddc97;--green-muted:rgba(61,220,151,.14);
+  --sans:'Helvetica Neue',Helvetica,'Inter',-apple-system,sans-serif;
+  --ease:cubic-bezier(.16,1,.3,1);--safe:env(safe-area-inset-bottom,0px)}
+body{font-family:var(--sans);background:var(--void);color:var(--t1);font-weight:300;line-height:1.6;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select{font-family:inherit}
+nav{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;justify-content:space-between;align-items:center;padding:15px 22px;background:linear-gradient(180deg,rgba(6,6,7,.85),transparent)}
+.brand{display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none}
+.ring{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--gold);box-shadow:0 0 14px rgba(255,215,0,.35)}
+.brand b{font-weight:300;letter-spacing:5px;font-size:16px}
+.tag{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t4)}
+main{position:relative;z-index:5;max-width:760px;margin:0 auto;padding:96px 16px calc(90px + var(--safe))}
+.eyebrow{font-size:10.5px;letter-spacing:2.6px;text-transform:uppercase;color:var(--gold)}
+.load,.errbox{text-align:center;padding:120px 20px;color:var(--t3)}
+.errbox h2{font-weight:200;font-size:26px;color:var(--t1);margin-bottom:10px}
+.errbox a{color:var(--gold)}
+
+/* ── the document ── */
+.doc{border:1px solid var(--line-gold);border-radius:20px;background:linear-gradient(180deg,rgba(20,20,23,.92),var(--card));box-shadow:0 30px 80px rgba(0,0,0,.55);overflow:hidden}
+.doc-h{padding:26px 26px 20px;border-bottom:1px solid var(--line-soft);display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
+.doc-h h1{font-weight:200;font-size:clamp(23px,4.5vw,30px);letter-spacing:.5px;margin-top:6px}
+.doc-h .sub{color:var(--t3);font-size:12.5px;margin-top:3px}
+.seal{width:46px;height:46px;border-radius:50%;border:1px solid var(--gold);display:grid;place-items:center;flex:none;box-shadow:0 0 18px rgba(255,215,0,.22)}
+.seal i{width:30px;height:30px;border-radius:50%;border:1px solid var(--line-gold);display:grid;place-items:center;color:var(--gold);font-size:12px;font-style:normal}
+.status{display:inline-flex;align-items:center;gap:7px;margin-top:12px;border:1px solid var(--line-gold);background:var(--gold-faint);border-radius:100px;padding:6px 13px;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--gold)}
+.status.acc{border-color:var(--green-muted);background:var(--green-muted);color:var(--green)}
+.sec{padding:22px 26px;border-bottom:1px solid var(--line-soft)}
+.sec:last-child{border-bottom:0}
+.sec h2{font-size:11px;letter-spacing:2.4px;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:14px;display:flex;gap:10px;align-items:baseline}
+.sec h2 .n{color:var(--t4);letter-spacing:1px}
+.party{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin:14px 0 8px}
+.party:first-of-type{margin-top:0}
+.pname{font-size:16px;font-weight:400}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px}
+@media(max-width:560px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.fld{display:block}
+.fld span{display:block;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--t3);margin-bottom:5px}
+.fld input{width:100%;background:var(--input);border:1px solid var(--line);border-radius:10px;color:var(--t1);font-size:14.5px;padding:11px 12px;transition:border-color .25s}
+.fld input:focus{outline:none;border-color:var(--gold)}
+.fld.req span::after{content:" *";color:var(--gold)}
+.kv{display:flex;justify-content:space-between;gap:14px;padding:10px 0;border-bottom:1px solid var(--line-soft);font-size:14px}
+.kv:last-child{border-bottom:0}
+.kv .k{color:var(--t3);font-size:12.5px;letter-spacing:.4px}
+.kv .v{text-align:right;font-weight:400}
+.kv .v small{color:var(--t3);font-weight:300}
+.addr{font-size:17px;font-weight:400;margin-bottom:10px}
+.total{margin-top:12px;border:1px solid var(--line-gold);background:linear-gradient(90deg,var(--gold-muted),transparent);border-radius:12px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.total .k{font-size:11px;letter-spacing:1.8px;text-transform:uppercase;color:var(--gold);font-weight:600}
+.total .v{font-size:22px;font-weight:200;color:var(--gold);font-variant-numeric:tabular-nums}
+.feenote{margin-top:12px;border:1px dashed var(--line-gold);border-radius:11px;padding:11px 14px;font-size:12px;color:var(--t2);line-height:1.6}
+.feenote b{color:var(--t1);font-weight:500}
+.conds{list-style:none;display:grid;gap:9px}
+.conds li{display:flex;gap:10px;font-size:13px;color:var(--t2)}
+.conds .cn{color:var(--gold);font-variant-numeric:tabular-nums;flex:none;font-size:12px}
+.consent{display:flex;gap:11px;align-items:flex-start;font-size:13.5px;color:var(--t2);cursor:pointer;margin-top:4px}
+.consent input{accent-color:var(--gold);width:18px;height:18px;margin-top:2px;flex:none}
+.gbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#1a1407;font-weight:600;border-radius:100px;padding:15px;font-size:14.5px;margin-top:16px;transition:.25s var(--ease);box-shadow:0 10px 34px rgba(255,215,0,.16)}
+.gbtn:disabled{opacity:.45;cursor:default;box-shadow:none}
+.gbtn:not(:disabled):hover{filter:brightness(1.05);transform:translateY(-2px)}
+.err{display:none;color:var(--gold-light);font-size:12.5px;margin-top:10px}
+.trustline{display:flex;gap:14px;flex-wrap:wrap;margin-top:13px;font-size:11px;color:var(--t3);justify-content:center}
+.trustline span{display:inline-flex;gap:5px;align-items:center}
+.trustline .c{color:var(--green)}
+.foot{color:var(--t4);font-size:11px;text-align:center;margin-top:20px;letter-spacing:.4px}
+/* issued */
+.issued{text-align:center;padding:34px 26px}
+.issued .seal{margin:0 auto 14px;width:58px;height:58px}.issued .seal i{width:40px;height:40px;font-size:16px}
+.issued h2{font-weight:200;font-size:24px}
+.issued p{color:var(--t2);font-size:14px;margin-top:8px}
+.refchip{display:inline-block;margin-top:14px;border:1px solid var(--line-gold);background:var(--gold-faint);border-radius:100px;padding:9px 18px;font-size:13px;letter-spacing:2px;color:var(--gold);font-variant-numeric:tabular-nums}
+.paidband{margin:0 0 16px;border:1px solid var(--green-muted);background:var(--green-muted);border-radius:12px;padding:12px 16px;font-size:13px;color:var(--green);text-align:center}
+.obtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);border-radius:100px;padding:11px 20px;font-size:13px;margin-top:14px;background:var(--card);transition:.25s;color:var(--t1);text-decoration:none}
+.obtn:hover{border-color:var(--line-gold);color:var(--gold)}
+/* ── reading progress: one gold thread across the top ── */
+.rprog{position:fixed;top:0;left:0;right:0;height:2px;z-index:60;pointer-events:none}
+.rprog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold),var(--gold-light));box-shadow:0 0 8px rgba(255,215,0,.45)}
+/* ── the three steps of the ceremony ── */
+.steps{display:flex;gap:8px;margin:0 0 16px;justify-content:center;flex-wrap:wrap}
+.step{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:100px;padding:7px 13px;font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t3);transition:all .35s var(--ease)}
+.step .d{width:6px;height:6px;border-radius:50%;background:var(--t4);transition:inherit}
+.step.on{color:var(--gold);border-color:var(--line-gold);background:var(--gold-faint)}
+.step.on .d{background:var(--gold);box-shadow:0 0 8px rgba(255,215,0,.6)}
+/* ── required-details meter (§1) ── */
+.reqmeter{display:flex;align-items:center;gap:10px;font-size:11px;color:var(--t3);margin-top:14px}
+.reqmeter .bar{flex:1;height:2px;background:var(--line);border-radius:2px;overflow:hidden}
+.reqmeter .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold),var(--gold-light));transition:width .5s var(--ease)}
+.reqmeter.done{color:var(--green)}
+.fld input.ok{border-color:rgba(61,220,151,.35)}
+/* ── the signature: their name becomes calligraphy ── */
+.signwrap{margin:4px 0 16px;border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:15px 17px 11px}
+.signwrap .cap{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);display:flex;justify-content:space-between;gap:10px}
+.signature{font-family:'Great Vibes','Snell Roundhand','Segoe Script',cursive;font-size:36px;line-height:1.25;color:var(--gold-light);min-height:52px;display:flex;align-items:flex-end;padding:4px 2px 8px;border-bottom:1px solid var(--line-gold);transition:color .3s}
+.signature.empty{color:var(--t4);font-size:14px;font-family:var(--sans);letter-spacing:.4px}
+.signwrap .who{font-size:11px;color:var(--t3);margin-top:8px}
+/* ── mobile sign bar ── */
+.signbar{position:fixed;left:0;right:0;bottom:0;z-index:55;background:rgba(6,6,7,.94);backdrop-filter:blur(18px);border-top:1px solid var(--line);padding:10px 16px calc(10px + var(--safe));display:none;align-items:center;gap:12px}
+.signbar .l{flex:1;min-width:0}.signbar .l b{font-size:14px;font-weight:400}.signbar .l small{display:block;font-size:11px;color:var(--t3)}
+.signbar button{background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#1a1407;font-weight:600;border-radius:100px;padding:12px 20px;font-size:13.5px;white-space:nowrap}
+@media(prefers-reduced-motion:no-preference){
+  .gbtn:active,.obtn:active{transform:scale(.98)}
+  .doc{animation:docIn .7s var(--ease) both}
+  @keyframes docIn{0%{opacity:0;transform:translateY(14px)}100%{opacity:1;transform:none}}
+  /* the document issues itself: header, then each section, in sequence */
+  .doc .doc-h,.doc .sec{opacity:0;transform:translateY(12px);animation:secIn .65s var(--ease) forwards}
+  @keyframes secIn{to{opacity:1;transform:none}}
+  .seal{animation:sealIn 1.1s var(--ease) .15s both}
+  @keyframes sealIn{0%{transform:rotate(-16deg) scale(.55);opacity:0}55%{opacity:1}100%{transform:none;opacity:1}}
+  .status{animation:chipIn .5s var(--ease) .75s both}
+  @keyframes chipIn{0%{opacity:0;transform:translateY(6px)}100%{opacity:1;transform:none}}
+  .gbtn:not(:disabled){position:relative;overflow:hidden}
+  .gbtn:not(:disabled)::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.4),transparent 70%);transform:translateX(-140%);animation:armS 1.1s var(--ease) .1s 1}
+  @keyframes armS{to{transform:translateX(140%)}}
+  .issued .seal{animation:sealGlow 2.4s var(--ease) .2s both}
+  @keyframes sealGlow{0%{transform:scale(.6);opacity:0;box-shadow:0 0 0 rgba(255,215,0,0)}40%{opacity:1}70%{box-shadow:0 0 34px rgba(255,215,0,.5)}100%{transform:none;opacity:1;box-shadow:0 0 18px rgba(255,215,0,.22)}}
+  @media(max-width:720px){.signbar.on{display:flex;animation:barIn .5s var(--ease) both}}
+  @keyframes barIn{0%{transform:translateY(100%)}100%{transform:none}}
+}
+@media(prefers-reduced-motion:reduce){
+  @media(max-width:720px){.signbar.on{display:flex}}
+}
+@media print{
+  body{background:#fff;color:#000}
+  nav,[data-boom-ambient],.gbtn,.consent,.trustline,.obtn,.rprog,.steps,.signbar,.reqmeter{display:none!important}
+  .doc .doc-h,.doc .sec{opacity:1!important;transform:none!important;animation:none!important}
+  .signature{color:#333;border-color:#bbb}.signwrap{border-color:#ccc;background:#fff}
+  .doc{border-color:#bbb;box-shadow:none;background:#fff}
+  .sec h2,.total .k,.total .v,.status,.eyebrow,.conds .cn,.refchip{color:#8a6d00}
+  .kv .v,.pname,.addr,.doc-h h1,.issued h2{color:#000}
+  .kv .k,.doc-h .sub,.conds li,.feenote,.issued p{color:#333}
+  main{padding:20px}
+}
+</style>
+</head>
+<body>
+<nav><a class="brand" href="/"><span class="ring"></span><b>BOOM</b></a><span class="tag">Premium Apartment Rentals</span></nav>
+
+<div class="rprog" aria-hidden="true"><i id="rprogI"></i></div>
+
+<main>
+  <div class="load" id="load">Preparing your document…</div>
+  <div class="steps" id="steps" style="display:none" aria-hidden="true">
+    <span class="step" id="st1"><span class="d"></span>Read</span>
+    <span class="step" id="st2"><span class="d"></span>Your details</span>
+    <span class="step" id="st3"><span class="d"></span>Sign</span>
+  </div>
+  <div class="errbox" id="errbox" style="display:none">
+    <h2 id="errH">This link isn’t valid anymore</h2>
+    <p id="errP">The pre-agreement may have been revoked or replaced.<br>Message us and we’ll send you a fresh one.</p>
+    <p style="margin-top:14px"><a id="errRetry" href="#" style="display:none" onclick="location.reload();return false">Try again →</a> <a href="https://wa.me/393313251961">WhatsApp BOOM →</a></p>
+  </div>
+  <div id="docHost" style="display:none"></div>
+  <div class="foot">Egidi Immobiliare S.r.l. · P.IVA 17322991005 · boomrome.com</div>
+</main>
+
+<div class="signbar" id="signbar">
+  <div class="l"><b id="sbAmt">Read &amp; sign</b><small id="sbSub">Your home, set aside today</small></div>
+  <button onclick="var s=document.getElementById('sec6');if(s)s.scrollIntoView({behavior:'smooth',block:'center'})">Sign →</button>
+</div>
+
+<script src="/js/boom-ambient.js"></script>
+<script>
+try{if(window.BoomAmbient)window.__amb=BoomAmbient.mount({ink:'#060607',inkRGB:'6,6,7',palette:{a:'255,215,0',b:'255,229,160'},intensity:.5,sections:false,scene:'marmoantico',z:-3});}catch(_e){}
+</script>
+<script>
+(function(){
+'use strict';
+var TOKEN=new URLSearchParams(location.search).get('t')||'';
+var PAID=new URLSearchParams(location.search).get('paid')==='1';
+var PA=null,ID=null;
+var eur=function(n){var f=Math.round(n*100)%100!==0;return '€'+Number(n).toLocaleString('en-US',{minimumFractionDigits:f?2:0,maximumFractionDigits:2});};
+var fmtD=function(s){try{return new Date(s+'T00:00').toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}catch(e){return s}};
+var esc=function(s){return String(s==null?'':s).replace(/[<>&"]/g,function(c){return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]})};
+
+function fail(status){document.getElementById('load').style.display='none';document.getElementById('errbox').style.display='';
+  /* only 404/410 mean the LINK is dead — anything else is on us, say so honestly */
+  if(status!==400&&status!==404&&status!==410){
+    document.getElementById('errH').textContent='One second — that didn’t load';
+    document.getElementById('errP').innerHTML='Your link is fine; our side hiccuped.<br>Try again in a moment — or message us and we’ll open it with you.';
+    document.getElementById('errRetry').style.display='';
+  }}
+
+function kv(k,v,sub){return '<div class="kv"><span class="k">'+k+'</span><span class="v">'+v+(sub?' <small>· '+sub+'</small>':'')+'</span></div>';}
+function fld(id,label,val,req,ph,type){
+  return '<label class="fld'+(req?' req':'')+'"><span>'+label+'</span><input id="'+id+'" type="'+(type||'text')+'" value="'+esc(val||'')+'" placeholder="'+(ph||'')+'" autocomplete="off"></label>';
+}
+
+function render(){
+  var p=PA.property,le=PA.lease,m=PA.money,t=PA.tenant||{};
+  var accepted=PA.status==='accepted';
+  var host=document.getElementById('docHost');
+  var seal='<span class="seal"><i>◆</i></span>';
+  var html='<div class="doc">'
+    +'<div class="doc-h"><div><span class="eyebrow">BOOM · Rental Proposal</span>'
+    +'<h1>Pre-Agreement</h1><div class="sub">'+esc(le.type)+' · '+esc(le.lawRef)+'</div>'
+    +'<div class="status'+(accepted?' acc':'')+'" id="statusChip">'+(accepted?('Accepted · '+esc(PA.ref||'')):'Awaiting your acceptance')+'</div>'
+    +'</div>'+seal+'</div>';
+
+  // 1 · PARTIES
+  html+='<div class="sec"><h2><span class="n">1</span>Parties</h2>'
+    +'<div class="party">Landlord</div><div class="pname">'+esc(PA.landlord.name)+'</div>'
+    +'<div class="party">Tenant</div>';
+  if(accepted){
+    html+='<div class="pname">'+esc(t.fullName||'')+'</div><div style="height:8px"></div><div class="grid2" style="font-size:13px;color:var(--t2)">'
+      +(t.dob?'<div>Born '+esc(t.dob)+(t.birthPlace?' · '+esc(t.birthPlace):'')+'</div>':'')
+      +(t.nationality?'<div>Nationality: '+esc(t.nationality)+'</div>':'')
+      +(t.address?'<div>Address: '+esc(t.address)+'</div>':'')
+      +(t.cf?'<div>C.F.: '+esc(t.cf)+'</div>':'')
+      +(t.idDoc?'<div>ID: '+esc(t.idDoc)+'</div>':'')
+      +'<div>'+esc(t.email||'')+'</div><div>'+esc(t.phone||'')+'</div></div>';
+  }else{
+    html+='<div class="grid2">'
+      +fld('tFullName','Full name',t.fullName,true,'Name and surname')
+      +fld('tDob','Date of birth','',false,'DD/MM/YYYY')
+      +fld('tBirthPlace','Place of birth','',false,'City (Prov.)')
+      +fld('tNationality','Nationality','',false,'')
+      +fld('tAddress','Current address','',false,'Street, city')
+      +fld('tCf','Tax code (C.F.)','',false,'If you have one')
+      +fld('tIdDoc','ID / Passport no.','',false,'')
+      +fld('tEmail','Email',t.email,true,'you@example.com','email')
+      +fld('tPhone','Phone / WhatsApp',t.phone,true,'+39 …','tel')
+      +'</div>'
+      +'<div class="reqmeter" id="reqmeter"><span id="reqTxt">Required: name, email, phone</span><span class="bar"><i id="reqBar"></i></span></div>';
+  }
+  html+='</div>';
+
+  // 2 · PROPERTY
+  html+='<div class="sec"><h2><span class="n">2</span>Property</h2>'
+    +'<div class="addr">'+esc(p.address)+'</div>'
+    +kv('Type',esc(p.type))+kv('Condition',esc(p.condition))+kv('Use',esc(p.use))
+    +(p.floor?kv('Floor',esc(p.floor)):'')+(p.unit?kv('Unit',esc(p.unit)):'')
+    +'</div>';
+
+  // 3 · LEASE TERM
+  html+='<div class="sec"><h2><span class="n">3</span>Lease term</h2>'
+    +kv('Start date',fmtD(le.startDate))
+    +kv('Initial duration',le.months+' months',esc(le.lawRef))
+    +kv('End date',fmtD(le.endDate))
+    +'</div>';
+
+  // 4 · FINANCIAL TERMS
+  html+='<div class="sec"><h2><span class="n">4</span>Financial terms</h2>'
+    +kv('Monthly rent',eur(m.rent),'utilities excluded')
+    +kv('Security deposit',eur(m.deposit),m.depositMonths+' month'+(m.depositMonths===1?'':'s')+'’ rent · refundable')
+    +'<div class="total"><span class="k">Total due at signing</span><span class="v">'+eur(m.dueAtSigning)+'</span></div>'
+    +'<div class="feenote"><b>Agency fee:</b> '+m.feePct+'% of annual rent = '+eur(m.fee)
+    +(m.feeVatPct?(' + VAT '+m.feeVatPct+'% ('+eur(m.feeVat)+') = <b>'+eur(m.feeTotal)+'</b>'):'')
+    +' — due separately, not at signing.'
+    +(PA.note?('<br>'+esc(PA.note)):'')+'</div>'
+    +'</div>';
+
+  // 5 · GENERAL CONDITIONS
+  var conds=[
+    'The security deposit shall be returned at the end of the lease, subject to verification of the property’s condition and settlement of any outstanding utility balance.',
+    'The security deposit shall be fully returned if the Landlord cancels the agreement for any reason, or if the Tenant cancels with justified cause.',
+    'The Tenant shall maintain the property in good condition and promptly report any defects or issues.',
+    'Monthly rent shall be paid by the 5th of each month via bank transfer.'
+  ];
+  if(le.reason)conds.push('Transitional need: '+le.reason+'.');
+  conds.push('All utilities (electricity, gas, water, internet) are excluded from the monthly rent and are the sole responsibility of the Tenant.');
+  conds.push('Any changes to these terms must be agreed upon in writing by both parties.');
+  html+='<div class="sec"><h2><span class="n">5</span>General conditions</h2><ul class="conds">'
+    +conds.map(function(c,i){return '<li><span class="cn">5.'+(i+1)+'</span><span>'+esc(c)+'</span></li>'}).join('')
+    +'</ul></div>';
+
+  // 6 · ACCEPTANCE — the ceremony: their name becomes their signature
+  if(accepted){
+    html+='<div class="sec issued" id="sec6">'+seal
+      +'<h2>Pre-agreement accepted</h2>'
+      +'<p>'+esc(p.address)+' is set aside for '+esc(t.fullName||'you')+'.<br>A BOOM advisor will follow up at <b style="color:var(--t1)">'+esc(t.email||'your email')+'</b>.</p>'
+      +(t.signature||t.fullName?'<div class="signwrap" style="max-width:340px;margin:18px auto 0;text-align:left"><div class="cap"><span>Signed</span><span>'+esc((PA.acceptedAt||'').slice(0,10))+'</span></div><div class="signature">'+esc(t.signature||t.fullName)+'</div><div class="who">'+esc(t.fullName||'')+'</div></div>':'')
+      +(PA.ref?'<div class="refchip">N° '+esc(PA.ref)+'</div>':'')
+      +'<div><button class="obtn" onclick="window.print()">Print / save PDF</button> <a class="obtn" href="https://wa.me/393313251961">Talk to BOOM →</a></div>'
+      +'</div>';
+  }else{
+    html+='<div class="sec" id="sec6">'
+      +'<h2><span class="n">6</span>Acceptance &amp; signature</h2>'
+      +'<div class="signwrap"><div class="cap"><span>Your signature</span><span>Rome · '+new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})+'</span></div>'
+      +'<div class="signature empty" id="sigTxt">Your full name from §1 becomes your signature</div>'
+      +'<div class="who">Typed signature · legally recorded with time, IP and consent</div></div>'
+      +'<label class="consent"><input type="checkbox" id="paOk" onchange="paArm()">'
+      +'<span>I confirm my details are correct and I accept this pre-agreement, including the general conditions above.</span></label>'
+      +'<p class="err" id="paErr" role="alert"></p>'
+      +'<button class="gbtn" id="paGo" disabled>'+(m.dueAtSigning>0?('Accept &amp; sign — '+eur(m.dueAtSigning)+' due now →'):'Accept &amp; sign →')+'</button>'
+      +'<div class="trustline"><span><span class="c">✓</span> Registered legal contract</span><span><span class="c">✓</span> Deposit protected</span><span><span class="c">✓</span> Stripe-secured payment</span></div>'
+      +'</div>';
+  }
+  html+='</div>';
+  if(PAID)html='<div class="paidband">✓ Payment received — your place is locked. We’ve emailed your receipt.</div>'+html;
+  host.innerHTML=html;
+  host.style.display='';document.getElementById('load').style.display='none';
+  document.getElementById('steps').style.display=accepted?'none':'';
+  var go=document.getElementById('paGo');if(go)go.addEventListener('click',accept);
+  /* the document issues itself: header, then each section, in sequence */
+  var parts=host.querySelectorAll('.doc-h,.sec');
+  for(var i=0;i<parts.length;i++)parts[i].style.animationDelay=(0.08+i*0.12)+'s';
+  if(!accepted){wireCeremony();}
+  if(accepted&&window.__amb&&__amb.mood)try{__amb.mood('convert')}catch(e){}
+}
+
+/* ── the ceremony: draft autosave, live signature, meter, steps, roll-ups ── */
+var DKEY='boom:pa:'+TOKEN;
+function reqState(){
+  var g=function(id){var e=document.getElementById(id);return e?e.value.trim():''};
+  var okN=g('tFullName').length>=3,okE=/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(g('tEmail')),okP=g('tPhone').replace(/\D/g,'').length>=6;
+  return{okN:okN,okE:okE,okP:okP,n:(okN?1:0)+(okE?1:0)+(okP?1:0)};
+}
+function paArm(){
+  var ok=document.getElementById('paOk'),go=document.getElementById('paGo');
+  if(go&&ok)go.disabled=!ok.checked;
+  paSteps();
+}
+window.paArm=paArm;
+function paSteps(){
+  var r=reqState(),ok=document.getElementById('paOk');
+  var s1=document.getElementById('st1'),s2=document.getElementById('st2'),s3=document.getElementById('st3');
+  if(s2)s2.classList.toggle('on',r.n===3);
+  if(s3)s3.classList.toggle('on',!!(ok&&ok.checked));
+  var bar=document.getElementById('reqBar'),txt=document.getElementById('reqTxt'),mt=document.getElementById('reqmeter');
+  if(bar)bar.style.width=Math.round(r.n/3*100)+'%';
+  if(txt)txt.textContent=r.n===3?'Ready to sign ✓':('Required: '+[!r.okN?'name':null,!r.okE?'email':null,!r.okP?'phone':null].filter(Boolean).join(', '));
+  if(mt)mt.classList.toggle('done',r.n===3);
+  var sb=document.getElementById('sbAmt');
+  if(sb){var m=PA.money||{};sb.textContent=(m.dueAtSigning>0?eur(m.dueAtSigning)+' locks it':'Read & sign');}
+}
+function wireCeremony(){
+  var ids=['tFullName','tDob','tBirthPlace','tNationality','tAddress','tCf','tIdDoc','tEmail','tPhone'];
+  /* restore the draft — nobody loses their form on this page */
+  try{var d=JSON.parse(localStorage.getItem(DKEY)||'{}');ids.forEach(function(id){var e=document.getElementById(id);if(e&&!e.value&&d[id])e.value=d[id];});}catch(e){}
+  ids.forEach(function(id){var e=document.getElementById(id);if(!e)return;
+    e.addEventListener('input',function(){
+      try{var d={};ids.forEach(function(k){var x=document.getElementById(k);if(x&&x.value)d[k]=x.value;});localStorage.setItem(DKEY,JSON.stringify(d));}catch(_e){}
+      if(id==='tFullName')sigLive();
+      var r=reqState();
+      if(id==='tFullName')e.classList.toggle('ok',r.okN);
+      if(id==='tEmail')e.classList.toggle('ok',r.okE);
+      if(id==='tPhone')e.classList.toggle('ok',r.okP);
+      paSteps();
+    });});
+  sigLive();paSteps();
+  /* money rolls up once, when seen */
+  try{
+    if(!matchMedia('(prefers-reduced-motion: reduce)').matches&&'IntersectionObserver' in window){
+      var tv=document.querySelector('.total .v');
+      if(tv){var io=new IntersectionObserver(function(es){es.forEach(function(en){
+        if(!en.isIntersecting||tv.__done)return;tv.__done=1;io.disconnect();
+        var txt=tv.textContent,mm=txt.match(/([\d.,]+)/);if(!mm)return;
+        var num=parseFloat(mm[1].replace(/,/g,''));if(!isFinite(num))return;
+        var t0=performance.now();(function tick(now){var p=Math.min(1,(now-t0)/900),e2=1-Math.pow(1-p,3);
+          tv.textContent=p<1?'€'+Math.round(num*e2).toLocaleString('en-US'):txt;
+          if(p<1)requestAnimationFrame(tick);})(t0);
+      })},{threshold:.6});io.observe(tv);}
+    }
+  }catch(e){}
+  /* §6 in view → convert mood + hide the mobile bar; scroll stirs the marble */
+  try{
+    var s6=document.getElementById('sec6'),sb=document.getElementById('signbar');
+    if('IntersectionObserver' in window&&s6){
+      new IntersectionObserver(function(es){es.forEach(function(en){
+        if(sb)sb.classList.toggle('on',!en.isIntersecting);
+        if(en.isIntersecting&&window.__amb&&__amb.mood)try{__amb.mood('convert')}catch(_e){}
+      })},{threshold:.25}).observe(s6);
+    }else if(sb)sb.classList.add('on');
+  }catch(e){}
+}
+function sigLive(){
+  var e=document.getElementById('tFullName'),s=document.getElementById('sigTxt');if(!s)return;
+  var v=e?e.value.trim():'';
+  if(v.length>=2){s.textContent=v;s.classList.remove('empty');}
+  else{s.textContent='Your full name from §1 becomes your signature';s.classList.add('empty');}
+}
+/* reading progress + read-step + ambient stir */
+(function(){
+  var last=scrollY;
+  addEventListener('scroll',function(){
+    var h=document.documentElement,max=h.scrollHeight-innerHeight,p=max>0?Math.min(1,scrollY/max):0;
+    var bar=document.getElementById('rprogI');if(bar)bar.style.width=(p*100)+'%';
+    var s1=document.getElementById('st1');if(s1&&p>.12)s1.classList.add('on');
+    try{if(window.__amb&&__amb.stir)__amb.stir(Math.abs(scrollY-last)/250)}catch(e){}
+    last=scrollY;
+  },{passive:true});
+})();
+
+function accept(){
+  var err=document.getElementById('paErr');
+  var g=function(id){var e=document.getElementById(id);return e?e.value.trim():''};
+  var tenant={fullName:g('tFullName'),dob:g('tDob'),birthPlace:g('tBirthPlace'),nationality:g('tNationality'),
+    address:g('tAddress'),cf:g('tCf'),idDoc:g('tIdDoc'),email:g('tEmail'),phone:g('tPhone')};
+  tenant.signature=tenant.fullName;   // the typed calligraphy IS the signature
+  if(tenant.fullName.length<3){err.textContent='Your full name goes on the agreement — add it in section 1.';err.style.display='block';return;}
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(tenant.email)){err.textContent='Add a valid email in section 1 — it’s where your confirmation goes.';err.style.display='block';return;}
+  if(tenant.phone.length<6){err.textContent='Add your phone in section 1 so your advisor can reach you.';err.style.display='block';return;}
+  err.style.display='none';
+  var btn=document.getElementById('paGo');btn.disabled=true;btn.textContent='Signing…';
+  fetch('/api/preagreement/submit',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({token:TOKEN,tenant:tenant,accept:true})})
+  .then(function(r){return r.json()})
+  .then(function(j){
+    if(!j||!j.ok)throw 0;
+    try{localStorage.removeItem(DKEY)}catch(e){}
+    if(j.checkoutUrl){location.href=j.checkoutUrl;return;}
+    PA.status='accepted';PA.ref=j.ref;PA.tenant=tenant;render();scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
+  })
+  .catch(function(){btn.disabled=false;btn.textContent='Accept & sign →';err.textContent='Something went wrong — try again, or message us on WhatsApp.';err.style.display='block';});
+}
+
+if(!/^[a-f0-9]{32}$/.test(TOKEN)){fail();}
+else fetch('/api/preagreement/lookup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN})})
+  .then(function(r){return r.json().then(function(j){return {s:r.status,j:j}}).catch(function(){return {s:r.status,j:null}})})
+  .then(function(x){if(x.j&&x.j.ok){PA=x.j.pa;ID=x.j.id;document.title='Pre-Agreement — '+(PA.property.address||'BOOM Roma');render();return;}fail(x.s);})
+  .catch(function(){fail(0)});
+})();
+</script>
+</body>
+</html>

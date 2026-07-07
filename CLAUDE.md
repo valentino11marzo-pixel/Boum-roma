@@ -179,6 +179,68 @@ credentials (forced under the `listings/` prefix) and returns
 `{ ok, url, path }`. Lets the bot store photos without holding Firebase admin
 creds; the bot falls back to a direct Storage upload if this is unavailable.
 
+### POST `/api/apply-lead`
+Public lead-capture for the apartment-detail APPLY/RESERVE/WAITLIST flow.
+Fired (non-blocking) when a visitor passes the quick eligibility check. Body
+`{ name, email, phone, listingId, listingName, listingPrice, zone, kind,
+waitlist, income, guarantor, household(solo|couple|family|flatmates),
+occupation(employed|self-employed|student|relocating), moveIn, durationMonths,
+company(honeypot) }`. Same hardening as `/api/canone-lead` (honeypot, per-IP
+rate limit, clip/num sanitizers). Writes to `leads` in the exact portal/
+cockpit schema (`status:'new'`, `source:'web'`, `intent:apply|reserve|waitlist`,
+qualification snapshot in `message` + `raw`) so every serious applicant lands
+in the pipeline even if they never open Stripe. Returns `{ ok, id }`.
+
+### POST `/api/search/save`
+Public save-search endpoint for the apartments discovery page. Body
+`{ email, label?, criteria{q,budgetMax,moveIn,beds,baths,furnished,video,
+zones[],feats[]}, resultCount?, company(honeypot) }`. Validates email,
+honeypot + per-IP rate limit (same hardening as `/api/canone-lead`), writes
+to the `savedSearches` collection under admin creds (`status:'active'`,
+`lastNotified:null`) — ready for a matcher cron to email new matches.
+Returns `{ ok, id }`.
+
+### Pre-agreement suite (`/api/preagreement/*` + `pre-agreement.html` + `pre-agreement-admin.html`)
+Sendable RENTAL PROPOSAL / pre-agreement, modeled on the real BOOM document
+(parties landlord⇄tenant, transitional lease L.431/98 art.5 c.1, fee % of
+annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
+- `POST /api/preagreement/create` — admin/owner/landlord (Bearer ID token).
+  Deal fields (property, landlord, lease, money: rent/depositMonths/feePct/
+  feeVatPct/dueAtSigning) → creates `preAgreements` doc with 32-hex token →
+  `{ ok, id, token, url:'/pre-agreement?t=…' }`. Fee/deposit/endDate derived
+  server-side (month-end clamp).
+- `POST /api/preagreement/lookup` — public `{ token }` → sanitized doc;
+  audit-logs views; 410 when revoked.
+- `POST /api/preagreement/submit` — public. Tenant self-fills identity
+  (name/dob/birthplace/nationality/address/CF/ID/email/phone) + consent →
+  status `accepted`, quotable ref `BOOM-<base36>`, and when
+  `money.dueAtSigning>0` returns a Stripe Checkout URL (acceptance is never
+  voided by a failed checkout).
+- `pre-agreement.html` — the public document page (identity form lives
+  inside §1 of the document; accept & sign → Stripe; print-friendly).
+- `pre-agreement-admin.html` — generator + management console (BoomPortal
+  auth, listing prefill, live fee math, WhatsApp share). Realtime list of all
+  preAgreements with status chips (sent/viewed/accepted/paid/revoked): copy
+  link, WhatsApp, **Edit terms** (patches the SAME doc/token — the client's
+  existing link shows the new terms, status back to `sent`; only for
+  sent/viewed/revoked), Duplicate (prefills a new one), Revoke/Reactivate.
+- `api/preagreement/_notify.js` — b/w document email (modeled on the real
+  proposal) + `sendPaEmails({event:'paid'|'accepted', notifyClient})`.
+  Client gets the document + Stripe receipt link; admin
+  (valentino@boom-rome.com) gets a copy + next-step nudge. Gmail/Nodemailer.
+- `api/stripe-webhook.js` PREAGREEMENT branch — on checkout completed:
+  doc → `status:'paid'` (+paidEur/paidAt/paidSessionId, idempotent on
+  retries), fetches the Stripe receipt_url, sends both emails.
+- `submit.js` also emails at acceptance: client copy only when nothing is
+  due via Stripe (else it arrives after payment); admin always notified.
+
+**Deal pipeline (protocol)**: lead (`/api/apply-lead` or portal) →
+pre-agreement (console → tokenized link → client self-fills → accepts →
+Stripe if due>0 → confirmation emails) → rental contract in portal →
+Magic Sign (tenant+landlord tokens) → tenant portal (payments/documents).
+Terms differ per deal: edit before acceptance (same link); after
+acceptance/payment, Duplicate creates the new version.
+
 ### POST `/api/magic-sign/lookup`
 Public endpoint for the Magic-Sign UI. Body: `{ token }`. Looks up the
 contract by `tenantSignToken` or `landlordSignToken`, returns sanitized

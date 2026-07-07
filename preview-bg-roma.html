@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>BOOM · Roma Atelier — background study</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{--gold:#FFD700;--foil:#E7BE48;--ink:#070708;--txt:#fff;--txt2:rgba(255,255,255,.68);--txt3:rgba(255,255,255,.4)}
+  html,body{min-height:100%}
+  body{font-family:'Helvetica Neue','Inter',system-ui,-apple-system,sans-serif;background:var(--ink);color:var(--txt);font-weight:300;-webkit-font-smoothing:antialiased;line-height:1.6}
+  a{color:inherit;text-decoration:none}
+  /* nav */
+  nav{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;justify-content:space-between;align-items:center;padding:18px 30px;background:linear-gradient(180deg,rgba(7,7,8,.7),rgba(7,7,8,0));backdrop-filter:blur(6px)}
+  .brand{display:flex;align-items:center;gap:12px;font-weight:300;letter-spacing:5px;text-transform:uppercase;font-size:20px}
+  .ring{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--gold);box-shadow:0 0 18px rgba(255,215,0,.35),inset 0 0 8px rgba(255,215,0,.25)}
+  .nav-tag{font-size:11px;letter-spacing:3px;color:var(--txt3);text-transform:uppercase}
+  /* content column */
+  main{position:relative;z-index:10;max-width:820px;margin:0 auto;padding:150px 26px 220px}
+  .eyebrow{font-size:11px;letter-spacing:5px;text-transform:uppercase;color:var(--gold);margin-bottom:18px}
+  h1{font-family:'Helvetica Neue',Georgia,serif;font-weight:200;font-size:clamp(40px,7vw,78px);line-height:1.03;letter-spacing:-.01em;margin-bottom:20px}
+  h1 em{font-style:normal;color:var(--foil)}
+  .lede{font-size:clamp(16px,2.1vw,21px);color:var(--txt2);max-width:60ch;margin-bottom:44px}
+  .row{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:56px}
+  .btn{padding:14px 28px;border-radius:100px;font-size:13px;letter-spacing:1px;text-transform:uppercase}
+  .btn.primary{background:var(--gold);color:#000;font-weight:600}
+  .btn.ghost{border:1px solid rgba(255,255,255,.18);color:var(--txt2)}
+  /* listing card — CSS-only, no network */
+  .card{background:rgba(14,14,16,.72);border:1px solid rgba(255,255,255,.08);border-radius:20px;overflow:hidden;backdrop-filter:blur(3px);max-width:420px;margin-bottom:56px}
+  .card .ph{height:220px;background:
+      radial-gradient(120% 90% at 20% 10%, rgba(255,215,0,.16), transparent 60%),
+      linear-gradient(135deg,#1a1712,#0d0d10 60%),
+      repeating-linear-gradient(115deg, rgba(255,255,255,.03) 0 2px, transparent 2px 22px);position:relative}
+  .card .ph::after{content:'TRASTEVERE';position:absolute;left:16px;bottom:14px;font-size:10px;letter-spacing:3px;color:var(--gold);opacity:.85}
+  .card .body{padding:22px 24px}
+  .card .nm{font-size:20px;font-weight:400;margin-bottom:6px}
+  .card .mt{font-size:13px;color:var(--txt3);margin-bottom:16px}
+  .card .bt{display:flex;justify-content:space-between;align-items:center;border-top:1px solid rgba(255,255,255,.07);padding-top:16px}
+  .card .pr{font-size:24px;font-weight:200;color:var(--gold)}
+  .card .pr small{font-size:12px;color:var(--txt3)}
+  .card .cta{font-size:12px;letter-spacing:.5px;color:var(--txt2);text-transform:uppercase}
+  /* ledger */
+  .ledger{max-width:460px;border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:22px 24px;background:rgba(10,10,12,.6);margin-bottom:50px}
+  .ledger h3{font-size:12px;letter-spacing:3px;text-transform:uppercase;color:var(--txt3);font-weight:400;margin-bottom:14px}
+  .li{display:flex;justify-content:space-between;font-size:15px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.05);color:var(--txt2)}
+  .li:last-child{border:0;color:var(--txt);font-weight:400}
+  .li b{color:var(--foil);font-weight:500}
+  p.body-copy{color:var(--txt2);font-size:16px;max-width:64ch;margin-bottom:22px}
+  /* dock */
+  .dock{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;
+        padding:10px 12px;border-radius:100px;background:rgba(12,12,14,.82);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.1);box-shadow:0 20px 60px rgba(0,0,0,.6);max-width:94vw}
+  .pill{padding:9px 16px;border-radius:100px;font-size:12px;letter-spacing:.6px;color:var(--txt2);cursor:pointer;border:1px solid transparent;transition:all .2s;white-space:nowrap}
+  .pill:hover{color:#fff;border-color:rgba(255,255,255,.14)}
+  .pill.on{background:var(--gold);color:#000;font-weight:600}
+  .dock .sep{width:1px;height:22px;background:rgba(255,255,255,.12);margin:0 2px}
+  .dock label{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--txt3);display:flex;align-items:center;gap:8px}
+  input[type=range]{accent-color:var(--gold);width:90px}
+  .hint{position:fixed;right:16px;top:74px;z-index:20;font-size:11px;letter-spacing:1px;color:var(--txt3);text-align:right;max-width:220px}
+  @media(max-width:640px){.hint{display:none}main{padding-top:120px}}
+</style>
+</head>
+<body>
+  <nav>
+    <a class="brand"><span class="ring"></span>BOOM</a>
+    <span class="nav-tag">Roma Atelier · background study</span>
+  </nav>
+
+  <div class="hint">Judge on real content.<br>Backgrounds animate — watch the light move.</div>
+
+  <main>
+    <div class="eyebrow">Rome, engineered</div>
+    <h1>Live in the <em>eternal city</em>,<br>on your terms.</h1>
+    <p class="lede">Hand-picked apartments in Rome's most storied quarters — verified, furnished, and ready. This page exists to judge one thing only: does the background stay quiet behind the words, and come alive at the edges?</p>
+    <div class="row">
+      <a class="btn primary">Browse apartments</a>
+      <a class="btn ghost">How it works</a>
+    </div>
+
+    <div class="card">
+      <div class="ph"></div>
+      <div class="body">
+        <div class="nm">Attico sul Tevere</div>
+        <div class="mt">2 bed · 1 bath · 78 m² · available now</div>
+        <div class="bt"><div class="pr">€2,400 <small>/month</small></div><div class="cta">View →</div></div>
+      </div>
+    </div>
+
+    <div class="ledger">
+      <h3>Move-in, decoded</h3>
+      <div class="li"><span>First month</span><span>€2,400</span></div>
+      <div class="li"><span>Deposit (2 months)</span><span>€4,800</span></div>
+      <div class="li"><span>BOOM fee</span><span>€0</span></div>
+      <div class="li"><span>Registry tax</span><span>€68</span></div>
+      <div class="li"><span>Due today</span><b>€7,268</b></div>
+    </div>
+
+    <p class="body-copy">Trastevere at dusk, the sampietrini still warm underfoot. A coffered ceiling that remembers the Pantheon. The geometry of a Cosmati floor, worked in gold. These backgrounds are drawn from Rome itself — then engineered to recede, so nothing ever competes with what matters: the home, the price, the decision.</p>
+    <p class="body-copy">Every texture is generated in real time, capped to your device, and pauses when you look away. Turn on reduced motion in your OS and each one settles into a single still frame. No basic gradients. No stock noise. Just Rome, in gold.</p>
+  </main>
+
+  <div class="dock" id="dock">
+    <span class="pill" data-m="cosmati">Cosmati</span>
+    <span class="pill" data-m="oculus">Oculus</span>
+    <span class="pill" data-m="sampietrini">Sampietrini</span>
+    <span class="pill" data-m="meandro">Meandro</span>
+    <span class="pill" data-m="aurum">Aurum</span>
+    <span class="pill" data-m="none">Off</span>
+    <span class="sep"></span>
+    <label>Intensity <input id="inten" type="range" min="0.4" max="1.4" step="0.05" value="1"></label>
+  </div>
+
+  <script src="/js/boom-bg-roma.js"></script>
+  <script>
+    (function(){
+      var bg = BoomBGRoma.mount({ mode:'cosmati', intensity:1 });
+      var dock = document.getElementById('dock');
+      function select(m){ [].forEach.call(dock.querySelectorAll('.pill'), function(p){ p.classList.toggle('on', p.dataset.m===m); }); }
+      dock.addEventListener('click', function(e){ var p=e.target.closest('.pill'); if(!p)return; bg.setMode(p.dataset.m); select(p.dataset.m); });
+      document.getElementById('inten').addEventListener('input', function(e){ bg.setIntensity(parseFloat(e.target.value)); });
+      select('cosmati');
+      if (BoomBGRoma.reduce) { var h=document.querySelector('.hint'); if(h) h.innerHTML='Reduced-motion is ON — backgrounds render as a single still frame.'; }
+    })();
+  </script>
+</body>
+</html>

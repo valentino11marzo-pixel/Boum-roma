@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#060607">
+<meta name="color-scheme" content="dark">
+<title>BOOM · Background — High-Caliber (generative)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://images.unsplash.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --gold:#FFD700;--gold-light:#FFE55C;--void:#060607;--card:#0E0E10;
+  --t1:#FAFAFA;--t2:rgba(250,250,250,.72);--t3:rgba(250,250,250,.46);
+  --line:rgba(255,255,255,.08);--line-gold:rgba(255,215,0,.16);
+  --sans:'Inter',-apple-system,sans-serif;--disp:'Helvetica Neue',Helvetica,Arial,sans-serif;--ease:cubic-bezier(.16,1,.3,1);--maxw:1100px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--void);color:var(--t1);font-weight:300;line-height:1.65;overflow-x:hidden;padding-bottom:84px}
+img{display:block;max-width:100%}a{color:inherit;text-decoration:none}button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+h1,h2,h3{font-family:var(--disp);font-weight:200;letter-spacing:-.5px;line-height:1.08}.g{color:var(--gold)}
+.eyebrow{font-size:10.5px;letter-spacing:2.6px;text-transform:uppercase;color:var(--gold);font-weight:500}
+
+#bgc{position:fixed;inset:0;z-index:-2;display:block;width:100%;height:100%;opacity:var(--bgi,1);transition:opacity .4s var(--ease)}
+#bgv{position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(135% 105% at 50% 34%,transparent 52%,rgba(0,0,0,.5) 100%)}
+
+nav{position:fixed;top:0;width:100%;z-index:100;background:rgba(6,6,7,.6);backdrop-filter:blur(20px);border-bottom:1px solid var(--line)}
+.nav-c{max-width:1300px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;padding:13px 22px}
+.logo{display:flex;align-items:center;gap:10px}.logo img{filter:drop-shadow(0 0 12px rgba(255,215,0,.4))}.logo span{font-family:var(--disp);font-size:20px;letter-spacing:5px}
+.nav-meta{font-size:10px;letter-spacing:2px;color:var(--t3);text-transform:uppercase}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+.banner{margin-top:78px;border:1px dashed var(--line-gold);border-radius:14px;padding:14px 18px;font-size:13px;color:var(--t2)}.banner b{color:var(--gold)}
+.hero{padding:44px 0 10px;max-width:62ch}
+.hero h1{font-size:clamp(34px,6vw,62px);font-weight:200;letter-spacing:-1.6px}
+.hero p{color:var(--t2);font-size:16.5px;margin-top:18px}
+.hero .price{margin-top:22px;font-family:var(--disp);font-size:30px;font-weight:200;color:var(--gold)}.hero .price small{font-size:14px;color:var(--t3)}
+.cards{margin-top:48px;display:grid;gap:18px;grid-template-columns:1fr}@media(min-width:680px){.cards{grid-template-columns:repeat(3,1fr)}}
+.pc{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:linear-gradient(180deg,rgba(16,16,18,.5),rgba(11,11,12,.5));backdrop-filter:blur(7px);transition:.3s var(--ease)}
+.pc:hover{border-color:var(--line-gold);transform:translateY(-4px)}
+.pc .ph{aspect-ratio:5/3;overflow:hidden;background:#15151a}.pc .ph img{width:100%;height:100%;object-fit:cover}
+.pc .b{padding:15px}.pc .z{font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--gold)}.pc .n{font-family:var(--disp);font-size:17px;margin-top:5px}.pc .m{color:var(--t3);font-size:12.5px;margin-top:4px}
+.pc .pr{margin-top:11px;display:flex;justify-content:space-between;align-items:baseline}.pc .pr b{font-family:var(--disp);font-size:20px;font-weight:200;color:var(--gold)}.pc .pr span{font-size:11px;color:var(--t3)}
+.prose{margin-top:52px;max-width:64ch}.prose h2{font-size:clamp(22px,3.6vw,30px);margin-bottom:14px}.prose p{color:var(--t2);font-size:15.5px;margin-bottom:14px}
+.sheet{margin-top:48px;border:1px solid var(--line);border-radius:14px;overflow:hidden;max-width:520px;margin-left:auto;background:rgba(10,10,12,.5);backdrop-filter:blur(6px)}
+.sheet .r{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line)}.sheet .r:last-child{border-bottom:0}
+.sheet .r .k{color:var(--t2);font-size:14px}.sheet .r .v{font-family:var(--disp);font-size:19px;font-weight:200;font-variant-numeric:tabular-nums}
+.sheet .r.tot{background:linear-gradient(90deg,rgba(255,215,0,.08),transparent)}.sheet .r.tot .v{color:var(--gold);font-size:24px}
+footer{margin-top:60px;border-top:1px solid var(--line);padding:32px 22px;text-align:center;color:var(--t3);font-size:12px;letter-spacing:1px}
+
+.dock{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:120;background:rgba(8,8,10,.86);backdrop-filter:blur(16px);border:1px solid var(--line-gold);border-radius:16px;padding:9px 11px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;justify-content:center;max-width:94vw;box-shadow:0 12px 40px rgba(0,0,0,.55)}
+.dock .row{display:flex;gap:4px;flex-wrap:wrap;justify-content:center}
+.dock button{border:none;background:none;color:var(--t2);font-size:12px;padding:7px 11px;border-radius:9px;cursor:pointer;transition:.18s}
+.dock button:hover{color:#fff}.dock button.on{background:var(--gold);color:#1a1407;font-weight:600}
+.dock .ctl{display:flex;align-items:center;gap:8px;font-size:9.5px;letter-spacing:1px;text-transform:uppercase;color:var(--t3)}
+.dock input[type=range]{width:88px;accent-color:var(--gold)}
+</style>
+</head>
+<body>
+<canvas id="bgc"></canvas>
+<div id="bgv"></div>
+
+<nav><div class="nav-c">
+  <a href="/" class="logo"><img src="/boom-mark.svg" width="28" height="28" alt="BOOM" onerror="this.style.display='none'"><span>BOOM</span></a>
+  <span class="nav-meta">Background · High-Caliber</span>
+</div></nav>
+
+<div class="wrap">
+  <div class="banner">Sfondi <b>generativi</b> (Canvas, tier alto). Cambia in basso: <b>Aurora Aurea · Pulviscolo · Seta · Oro Fuso</b>. Performanti (DPR cap · pausa se nascosto · fallback statico reduced-motion) e pensati per restare <b>leggibili dietro al testo</b>. Guarda i prezzi e i paragrafi.</div>
+
+  <header class="hero">
+    <span class="eyebrow">Verified apartments · Rome</span>
+    <h1>A home in Rome, <span class="g">for your dates.</span></h1>
+    <p>This paragraph is the readability test. The background is alive — light, depth, motion — yet it must recede entirely behind this text. Switch directions below and watch this column stay perfectly clear while the margins feel expensive.</p>
+    <p>Every home is filmed and verified in person by our team. Legal contract, transparent fees, BOOM-managed from the first viewing to the keys in your hand.</p>
+    <div class="price">€1,500 <small>/ month · BOOM-managed</small></div>
+  </header>
+
+  <div class="cards">
+    <div class="pc"><div class="ph"><img src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=700&q=72" alt="" loading="lazy" onerror="this.style.opacity=0"></div><div class="b"><div class="z">Trastevere</div><div class="n">Bright Attic with Terrace</div><div class="m">2 bed · 65 m² · video-verified</div><div class="pr"><b>€1,500</b><span>/mo</span></div></div></div>
+    <div class="pc"><div class="ph"><img src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=700&q=72" alt="" loading="lazy" onerror="this.style.opacity=0"></div><div class="b"><div class="z">Monti</div><div class="n">Designer One-Bed</div><div class="m">1 bed · 52 m² · furnished</div><div class="pr"><b>€1,350</b><span>/mo</span></div></div></div>
+    <div class="pc"><div class="ph"><img src="https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=700&q=72" alt="" loading="lazy" onerror="this.style.opacity=0"></div><div class="b"><div class="z">Prati</div><div class="n">Elegant Family Flat</div><div class="m">3 bed · 95 m² · elevator</div><div class="pr"><b>€2,200</b><span>/mo</span></div></div></div>
+  </div>
+
+  <section class="prose">
+    <h2>Bare text on the background</h2>
+    <p>Here the copy sits directly on the page with no card — the toughest case. Trastevere: cobbled, pedestrian, alive at night, a short walk from Sapienza and the historic centre. A furnished attic with double aspect, all-day light and a private terrace over the rooftops.</p>
+    <p>Read this whole paragraph as you flip between the four. The winner for dense pages is the one that disappears here while still feeling alive and premium in the margins.</p>
+  </section>
+
+  <div class="sheet">
+    <div class="r"><div class="k">First month <span style="color:var(--t3);font-size:11px">pro-rata</span></div><div class="v">€1,500</div></div>
+    <div class="r"><div class="k">Deposit <span style="color:var(--t3);font-size:11px">refundable</span></div><div class="v">€1,500</div></div>
+    <div class="r"><div class="k">Agency fee</div><div class="v">€0</div></div>
+    <div class="r tot"><div class="k">To move in</div><div class="v">€3,000</div></div>
+  </div>
+</div>
+
+<footer>HIGH-CALIBER GENERATIVE BACKGROUNDS · CANVAS · NON-PRODUCTION</footer>
+
+<div class="dock">
+  <div class="row" id="modes">
+    <button data-m="aurora" class="on">Aurora Aurea</button>
+    <button data-m="dust">Pulviscolo</button>
+    <button data-m="seta">Seta</button>
+    <button data-m="oro">Oro Fuso</button>
+    <button data-m="off">Off</button>
+  </div>
+  <label class="ctl">Intensità <input type="range" id="inten" min="20" max="120" value="100"></label>
+</div>
+
+<script>
+(function(){
+  var cv=document.getElementById('bgc'), ctx=cv.getContext('2d');
+  var reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var W=0,H=0,DPR=1, mode='aurora', raf=null, last=0;
+  var orbs=[], dust=[], flow=[], blobs=[];
+  function rnd(a,b){return a+Math.random()*(b-a);}
+
+  function size(){
+    var cap = (mode==='oro'||mode==='seta')?1.5:2;
+    DPR=Math.min(cap, window.devicePixelRatio||1);
+    W=innerWidth; H=innerHeight;
+    cv.width=Math.round(W*DPR); cv.height=Math.round(H*DPR);
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  var area=function(){return W*H;};
+
+  /* ---- AURORA AUREA: living gold mesh-gradient (additive radials) ---- */
+  function setupAurora(){
+    var cols=['rgba(255,205,80,0.13)','rgba(255,170,70,0.11)','rgba(255,228,150,0.10)','rgba(214,150,40,0.10)','rgba(255,196,90,0.12)'];
+    orbs=[];
+    for(var i=0;i<5;i++) orbs.push({x:rnd(0,W),y:rnd(-H*0.1,H*0.7),r:rnd(0.34,0.55)*Math.max(W,H),s:rnd(0.6,1.4),p:rnd(0,6.28),amp:rnd(0.05,0.12)*Math.max(W,H),col:cols[i%cols.length]});
+  }
+  function stepAurora(t){
+    ctx.globalCompositeOperation='source-over';ctx.fillStyle='#060607';ctx.fillRect(0,0,W,H);
+    ctx.globalCompositeOperation='lighter';var tt=t*0.00007;
+    for(var i=0;i<orbs.length;i++){var o=orbs[i];
+      var x=o.x+Math.cos(tt*o.s+o.p)*o.amp, y=o.y+Math.sin(tt*o.s*0.8+o.p)*o.amp*0.7;
+      var g=ctx.createRadialGradient(x,y,0,x,y,o.r);g.addColorStop(0,o.col);g.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,o.r,0,6.2832);ctx.fill();}
+    ctx.globalCompositeOperation='source-over';
+  }
+
+  /* ---- PULVISCOLO: gold dust, 3 depth layers, drift + twinkle ---- */
+  function setupDust(){
+    dust=[];var n=Math.round(Math.min(220,area()/9000));
+    for(var i=0;i<n;i++){var z=rnd(0.3,1);dust.push({x:rnd(0,W),y:rnd(0,H),z:z,base:rnd(0.15,0.55)*z,ph:rnd(0,6.28)});}
+  }
+  function stepDust(t){
+    ctx.globalCompositeOperation='source-over';ctx.fillStyle='#060607';ctx.fillRect(0,0,W,H);
+    for(var i=0;i<dust.length;i++){var p=dust[i];
+      p.y-=p.z*0.16; p.x+=Math.sin(t*0.0002+p.ph)*0.12*p.z;
+      if(p.y<-6){p.y=H+6;p.x=rnd(0,W);}
+      var a=p.base*(0.45+0.55*Math.sin(t*0.0011+p.ph));
+      ctx.fillStyle='rgba(255,222,150,'+a.toFixed(3)+')';
+      ctx.beginPath();ctx.arc(p.x,p.y,p.z*1.7,0,6.2832);ctx.fill();}
+  }
+
+  /* ---- SETA: flow field (curl-ish noise), faint gold trails ---- */
+  function setupFlow(){
+    flow=[];var n=Math.round(Math.min(900,area()/2400));
+    for(var i=0;i<n;i++)flow.push({x:rnd(0,W),y:rnd(0,H),sp:rnd(0.6,1.3),life:rnd(60,200)});
+    ctx.globalCompositeOperation='source-over';ctx.fillStyle='#060607';ctx.fillRect(0,0,W,H);
+  }
+  function stepFlow(t){
+    ctx.globalCompositeOperation='source-over';ctx.fillStyle='rgba(6,6,7,0.055)';ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle='rgba(255,212,120,0.06)';ctx.lineWidth=1;ctx.beginPath();
+    for(var i=0;i<flow.length;i++){var p=flow[i];
+      var a=(Math.sin(p.x*0.0016+t*0.00018)+Math.cos(p.y*0.0021-t*0.00012)+0.5*Math.sin((p.x+p.y)*0.001))*Math.PI;
+      var nx=p.x+Math.cos(a)*p.sp, ny=p.y+Math.sin(a)*p.sp;
+      ctx.moveTo(p.x,p.y);ctx.lineTo(nx,ny);
+      p.x=nx;p.y=ny;p.life--;
+      if(p.x<0||p.x>W||p.y<0||p.y>H||p.life<0){p.x=rnd(0,W);p.y=rnd(0,H);p.life=rnd(60,200);}
+    }
+    ctx.stroke();
+  }
+
+  /* ---- ORO FUSO: molten liquid-gold (blurred additive blobs) ---- */
+  function setupOro(){
+    blobs=[];for(var i=0;i<5;i++)blobs.push({x:rnd(0,W),y:rnd(0,H),vx:rnd(-0.25,0.25),vy:rnd(-0.2,0.2),r:rnd(0.18,0.34)*Math.max(W,H)});
+  }
+  function stepOro(t){
+    ctx.globalCompositeOperation='source-over';ctx.fillStyle='#060607';ctx.fillRect(0,0,W,H);
+    var canBlur = (typeof ctx.filter!=='undefined');
+    if(canBlur)ctx.filter='blur(44px)';
+    ctx.globalCompositeOperation='lighter';
+    for(var i=0;i<blobs.length;i++){var b=blobs[i];
+      b.x+=b.vx;b.y+=b.vy; if(b.x<-60||b.x>W+60)b.vx*=-1; if(b.y<-60||b.y>H+60)b.vy*=-1;
+      var g=ctx.createRadialGradient(b.x,b.y,0,b.x,b.y,b.r);
+      g.addColorStop(0,'rgba(255,200,80,0.42)');g.addColorStop(1,'rgba(120,80,12,0)');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,6.2832);ctx.fill();}
+    if(canBlur)ctx.filter='none';
+    ctx.globalCompositeOperation='source-over';
+  }
+
+  var M={
+    aurora:{setup:setupAurora,step:stepAurora,fps:60},
+    dust:{setup:setupDust,step:stepDust,fps:60},
+    seta:{setup:setupFlow,step:stepFlow,fps:32},
+    oro:{setup:setupOro,step:stepOro,fps:30}
+  };
+  function clear(){ctx.globalCompositeOperation='source-over';ctx.fillStyle='#060607';ctx.fillRect(0,0,W,H);}
+  function loop(t){
+    raf=requestAnimationFrame(loop);
+    var m=M[mode]; if(!m)return;
+    var min=1000/m.fps; if(t-last<min)return; last=t;
+    m.step(t);
+  }
+  function start(){
+    cancelAnimationFrame(raf);
+    if(mode==='off'){clear();return;}
+    M[mode].setup();
+    if(reduce){M[mode].step(performance.now());return;}  /* static single frame */
+    last=0; raf=requestAnimationFrame(loop);
+  }
+  function setMode(m){mode=m;
+    document.querySelectorAll('#modes button').forEach(function(b){b.classList.toggle('on',b.dataset.m===m);});
+    size(); start();
+  }
+  document.getElementById('modes').addEventListener('click',function(e){var b=e.target.closest('button');if(b)setMode(b.dataset.m);});
+  document.getElementById('inten').addEventListener('input',function(e){document.documentElement.style.setProperty('--bgi',(e.target.value/100).toFixed(2));});
+  var rt;addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(function(){size();start();},180);},{passive:true});
+  document.addEventListener('visibilitychange',function(){if(document.hidden){cancelAnimationFrame(raf);}else if(mode!=='off'&&!reduce){last=0;raf=requestAnimationFrame(loop);}});
+  size(); setMode('aurora');
+})();
+</script>
+</body>
+</html>

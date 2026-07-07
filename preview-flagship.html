@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>BOOM · Flagship — the new product</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ═════════ AUREA — the new BOOM design language ═════════
+   Warm black + disciplined refined gold. Serif voice for the city,
+   sans precision for the product. Ambient scenes live per-section. */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --ink:#0A0908; --card:#14110Ccc; --line:rgba(217,180,91,.16); --hair:rgba(255,255,255,.07);
+  --gold:#D9B45B; --gold-bri:#F2D27C; --green:#5BD98A; --amber:#E8A33D;
+  --t1:rgba(246,242,232,1); --t2:rgba(246,242,232,.72); --t3:rgba(246,242,232,.46); --t4:rgba(246,242,232,.26);
+  --d-1:120ms; --d-2:180ms; --d-3:240ms; --d-4:320ms; --d-5:440ms; --d-6:620ms;
+  --ease-out:cubic-bezier(.16,1,.3,1); --ease-inout:cubic-bezier(.65,0,.35,1); --ease:var(--ease-out);
+}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--ink);color:var(--t1);font-weight:300;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+.disp{font-family:'Cormorant Garamond',Georgia,serif;font-weight:300}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer;background:none;border:0;color:inherit}
+.eyebrow{font-size:10.5px;letter-spacing:2.6px;text-transform:uppercase;color:var(--gold);font-weight:500}
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+section[data-ambient]{position:relative}
+
+/* ─ nav ─ */
+nav{position:fixed;top:0;left:0;right:0;z-index:50;transition:background var(--d-3) var(--ease),backdrop-filter var(--d-3) var(--ease)}
+nav.scr{background:rgba(10,9,8,.82);backdrop-filter:blur(18px);border-bottom:1px solid var(--hair)}
+.nav-in{max-width:1180px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;padding:18px 24px}
+.brand{display:flex;align-items:center;gap:12px}
+.ring{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--gold);box-shadow:0 0 16px rgba(217,180,91,.3),inset 0 0 8px rgba(217,180,91,.2)}
+.brand b{font-weight:400;letter-spacing:6px;font-size:17px}
+.nlinks{display:flex;gap:26px;font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:var(--t3)}
+.nlinks a{transition:color var(--d-2) var(--ease)}
+.nlinks a:hover{color:var(--t1)}
+@media(max-width:760px){.nlinks{display:none}}
+
+/* ─ hero (ambient: oculus) ─ */
+.hero{min-height:92vh;display:flex;align-items:center;padding-top:90px}
+h1{font-family:'Cormorant Garamond',Georgia,serif;font-weight:300;font-size:clamp(46px,7.6vw,96px);line-height:1.02;letter-spacing:-.01em;margin:18px 0 20px;max-width:11ch}
+h1 em{font-style:italic;color:var(--gold-bri)}
+.lede{font-size:clamp(15px,1.9vw,19px);color:var(--t2);max-width:52ch;margin-bottom:38px}
+/* intent bar */
+.intent{display:flex;gap:0;align-items:stretch;max-width:760px;background:rgba(20,17,12,.72);backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:18px;overflow:hidden}
+.intent .cell{flex:1;padding:14px 18px;border-right:1px solid var(--hair);min-width:0}
+.intent label{display:block;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--t4);margin-bottom:3px}
+.intent input,.intent select{width:100%;background:none;border:0;color:var(--t1);font-family:inherit;font-size:14.5px;font-weight:300;outline:none}
+.intent select option{background:#14110C}
+.go{padding:0 30px;background:linear-gradient(180deg,var(--gold-bri),var(--gold));color:#141005;font-weight:600;font-size:13px;letter-spacing:1.2px;text-transform:uppercase;transition:filter var(--d-2) var(--ease),transform var(--d-1) var(--ease)}
+.go:hover{filter:brightness(1.06)}
+.go:active{transform:scale(.985)}
+@media(max-width:680px){.intent{flex-direction:column}.intent .cell{border-right:0;border-bottom:1px solid var(--hair)}.go{padding:15px}}
+.hero-meta{display:flex;gap:34px;margin-top:34px;color:var(--t3);font-size:12.5px;letter-spacing:.4px}
+.hero-meta b{display:block;font-family:'Cormorant Garamond',serif;font-weight:400;font-size:30px;color:var(--t1);letter-spacing:0;line-height:1.1}
+.hero-meta .gold b{color:var(--gold-bri)}
+
+/* ─ featured (ambient: aurum) ─ */
+.featured{padding:110px 0}
+.sec-head{margin-bottom:38px}
+.sec-head h2{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(30px,4.4vw,52px);line-height:1.05;margin-top:12px}
+.sec-head h2 em{font-style:italic;color:var(--gold-bri)}
+.feat{display:grid;grid-template-columns:1.35fr 1fr;border:1px solid var(--line);border-radius:22px;overflow:hidden;background:var(--card);backdrop-filter:blur(8px)}
+.feat .ph{position:relative;min-height:420px;overflow:hidden;background:#171310}
+.feat .ph img{width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0}
+.feat .ph .zone-tag{position:absolute;left:20px;bottom:18px;z-index:2;font-size:10.5px;letter-spacing:2.6px;text-transform:uppercase;color:var(--gold-bri)}
+.feat .ph::after{content:"";position:absolute;inset:0;background:linear-gradient(200deg,transparent 55%,rgba(10,9,8,.72))}
+.feat .info{padding:44px 46px;display:flex;flex-direction:column;justify-content:center}
+.feat .nm{font-family:'Cormorant Garamond',serif;font-weight:400;font-size:34px;line-height:1.08;margin:10px 0 8px}
+.feat .mt{color:var(--t3);font-size:13.5px;margin-bottom:26px}
+.feat .pr{font-family:'Cormorant Garamond',serif;font-weight:400;font-size:42px;color:var(--gold-bri)}
+.feat .pr small{font-size:14px;color:var(--t4);font-family:'Inter';font-weight:300}
+.feat .hr{height:1px;background:var(--hair);margin:26px 0}
+@media(max-width:860px){.feat{grid-template-columns:1fr}.feat .ph{min-height:280px}.feat .info{padding:30px 26px}}
+
+/* ─ browse (ambient: cosmati) ─ */
+.browse{padding:96px 0 120px}
+.browse-head{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap;margin-bottom:26px}
+.count{font-size:13px;color:var(--t3)}.count b{color:var(--gold-bri);font-weight:500}
+.tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.chip{padding:9px 16px;border-radius:100px;border:1px solid var(--hair);font-size:12.5px;color:var(--t2);transition:all var(--d-2) var(--ease);position:relative}
+.chip:hover{border-color:var(--line);color:var(--t1)}
+.chip.on{border-color:var(--gold);color:var(--gold-bri)}
+.chip.on::before{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--gold);margin-right:7px;vertical-align:2px}
+select.chip{background:rgba(20,17,12,.7);appearance:none;padding-right:26px}
+.facets{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:26px}
+.facet{padding:7px 13px;border-radius:9px;border:1px solid var(--hair);font-size:12px;color:var(--t3);transition:all var(--d-2) var(--ease)}
+.facet b{color:var(--t2);font-weight:500;margin-right:5px}
+.facet:hover{border-color:var(--line);color:var(--t1)}
+.facet.on{border-color:var(--gold);color:var(--gold-bri)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:22px}
+.pc{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--hair);border-radius:18px;overflow:hidden;backdrop-filter:blur(6px);transition:transform var(--d-3) var(--ease),border-color var(--d-3) var(--ease),box-shadow var(--d-3) var(--ease)}
+.pc:hover{transform:translateY(-5px);border-color:var(--line);box-shadow:0 24px 60px rgba(0,0,0,.55)}
+.pc .ph{position:relative;aspect-ratio:4/3;overflow:hidden;background:#171310}
+.pc .ph img{width:100%;height:100%;object-fit:cover;display:block;transition:transform var(--d-6) var(--ease)}
+.pc:hover .ph img{transform:scale(1.05)}
+.badges{position:absolute;top:12px;left:12px;display:flex;gap:6px;z-index:2}
+.bdg{padding:4px 10px;border-radius:100px;font-size:10px;font-weight:500;letter-spacing:.6px;text-transform:uppercase;backdrop-filter:blur(10px);background:rgba(10,9,8,.6);border:1px solid var(--hair);color:var(--t2)}
+.bdg.ver{color:var(--green);border-color:rgba(91,217,138,.3)}
+.bdg.over{color:var(--amber);border-color:rgba(232,163,61,.3)}
+.pc .b{padding:18px 20px 20px;display:flex;flex-direction:column;flex:1}
+.pc .z{font-size:10.5px;letter-spacing:2.6px;text-transform:uppercase;color:var(--gold);margin-bottom:5px}
+.pc .n{font-family:'Cormorant Garamond',serif;font-weight:400;font-size:22px;line-height:1.15;margin-bottom:8px}
+.pc .specs{display:flex;gap:14px;font-size:12.5px;color:var(--t3);margin-bottom:14px}
+.pc .foot{display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:14px;border-top:1px solid var(--hair)}
+.pc .pr{font-family:'Cormorant Garamond',serif;font-weight:400;font-size:24px;color:var(--gold-bri)}
+.pc .pr small{font-size:11.5px;color:var(--t4);font-family:'Inter'}
+.pc .view{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t3);transition:color var(--d-2) var(--ease)}
+.pc:hover .view{color:var(--gold-bri)}
+.empty{text-align:center;padding:70px 20px;color:var(--t3);display:none}
+.sk{border-radius:18px;border:1px solid var(--hair);overflow:hidden}
+.sk .ph{aspect-ratio:4/3;background:linear-gradient(110deg,rgba(255,255,255,.02) 30%,rgba(255,255,255,.05) 50%,rgba(255,255,255,.02) 70%);background-size:200% 100%;animation:shm 1.6s infinite}
+.sk .b{padding:18px}.sk .l{height:11px;border-radius:6px;background:rgba(255,255,255,.04);margin-bottom:9px}
+@keyframes shm{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* ─ method / trust (ambient: velluto) ─ */
+.method{padding:120px 0}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:26px;margin-top:44px}
+.step{padding:30px 28px;border:1px solid var(--hair);border-radius:18px;background:rgba(20,17,12,.5)}
+.step .no{font-family:'Cormorant Garamond',serif;font-size:44px;color:var(--gold);opacity:.75;line-height:1}
+.step h3{font-weight:400;font-size:16.5px;margin:14px 0 8px}
+.step p{font-size:13.5px;color:var(--t3)}
+@media(max-width:820px){.steps{grid-template-columns:1fr}}
+
+/* ─ money (ambient: meandro) ─ */
+.money{padding:120px 0}
+.money-grid{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
+.ledger{border:1px solid var(--line);border-radius:20px;background:rgba(20,17,12,.72);backdrop-filter:blur(10px);padding:30px 32px}
+.ledger h3{font-size:10.5px;letter-spacing:2.6px;text-transform:uppercase;color:var(--t3);font-weight:500;margin-bottom:16px}
+.li{display:flex;justify-content:space-between;font-size:14.5px;padding:11px 0;border-bottom:1px solid var(--hair);color:var(--t2)}
+.li:last-child{border:0;padding-top:16px}
+.li:last-child span:first-child{color:var(--t1)}
+.li b{font-family:'Cormorant Garamond',serif;font-weight:500;font-size:22px;color:var(--gold-bri)}
+.money p.big{font-size:clamp(15px,2vw,18px);color:var(--t2);margin:18px 0 26px;max-width:46ch}
+@media(max-width:860px){.money-grid{grid-template-columns:1fr}}
+
+/* ─ zones (ambient: contorni) ─ */
+.zones{padding:120px 0}
+.zone-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:36px}
+.zl{padding:13px 22px;border:1px solid var(--hair);border-radius:14px;font-size:13.5px;color:var(--t2);transition:all var(--d-2) var(--ease);background:rgba(20,17,12,.45)}
+.zl b{font-family:'Cormorant Garamond',serif;font-weight:500;font-size:17px;color:var(--t1);margin-right:8px}
+.zl:hover{border-color:var(--gold);color:var(--gold-bri);transform:translateY(-2px)}
+
+/* ─ footer (ambient: sampietrini) ─ */
+footer{padding:110px 0 60px;text-align:center}
+footer .fin{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(28px,4.5vw,48px);line-height:1.1;margin-bottom:26px}
+footer .fin em{font-style:italic;color:var(--gold-bri)}
+.cta{display:inline-block;padding:16px 40px;border-radius:100px;background:linear-gradient(180deg,var(--gold-bri),var(--gold));color:#141005;font-weight:600;font-size:13px;letter-spacing:1.4px;text-transform:uppercase;transition:filter var(--d-2) var(--ease),transform var(--d-1) var(--ease)}
+.cta:hover{filter:brightness(1.06)}.cta:active{transform:scale(.985)}
+footer .legal{margin-top:56px;color:var(--t4);font-size:11.5px;letter-spacing:1px}
+
+/* ─ apply drawer — demonstrates the CONVERT mood ─ */
+.drawer{position:fixed;inset:0;z-index:90;display:none}
+.drawer.on{display:block}
+.drawer .bg{position:absolute;inset:0;background:rgba(5,4,3,.6);backdrop-filter:blur(6px);opacity:0;transition:opacity var(--d-4) var(--ease)}
+.drawer.in .bg{opacity:1}
+.panel{position:absolute;right:0;top:0;bottom:0;width:min(430px,94vw);background:#12100B;border-left:1px solid var(--line);padding:36px 34px;transform:translateX(103%);transition:transform var(--d-5) var(--ease-inout);display:flex;flex-direction:column}
+.drawer.in .panel{transform:none}
+.panel h3{font-family:'Cormorant Garamond',serif;font-weight:400;font-size:28px;margin:10px 0 6px}
+.panel .sub{color:var(--t3);font-size:13px;margin-bottom:26px}
+.panel .field{margin-bottom:16px}
+.panel label{display:block;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--t4);margin-bottom:6px}
+.panel input{width:100%;padding:13px 15px;background:rgba(255,255,255,.04);border:1px solid var(--hair);border-radius:11px;color:var(--t1);font-family:inherit;font-size:14px;outline:none;transition:border-color var(--d-2) var(--ease)}
+.panel input:focus{border-color:var(--gold)}
+.panel .cta{width:100%;text-align:center;margin-top:10px}
+.panel .x{position:absolute;top:18px;right:18px;width:40px;height:40px;border-radius:50%;border:1px solid var(--hair);color:var(--t3);font-size:16px;transition:all var(--d-2) var(--ease)}
+.panel .x:hover{color:var(--t1);border-color:var(--line)}
+.reveal{opacity:0;transform:translateY(18px);transition:opacity var(--d-6) var(--ease),transform var(--d-6) var(--ease)}
+.reveal.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}*{scroll-behavior:auto!important}}
+.proto{position:fixed;left:16px;bottom:16px;z-index:60;font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t4);border:1px solid var(--hair);border-radius:100px;padding:8px 14px;background:rgba(10,9,8,.7);backdrop-filter:blur(8px)}
+.proto b{color:var(--gold)}
+</style>
+</head>
+<body>
+
+<nav id="nav"><div class="nav-in">
+  <a class="brand" href="/"><span class="ring"></span><b>BOOM</b></a>
+  <div class="nlinks"><a href="#browse">Apartments</a><a href="#method">Method</a><a href="#money">Pricing</a><a href="#zones">Rioni</a><a href="/contact">Contact</a></div>
+</div></nav>
+
+<!-- ═══ HERO · ambient: oculus ═══ -->
+<section class="hero" data-ambient="oculus"><div class="wrap">
+  <div class="eyebrow">Rome · verified rentals · zero agency fee</div>
+  <h1 class="disp">The city is <em>eternal.</em><br>Finding home shouldn't take that long.</h1>
+  <p class="lede">Every apartment filmed, verified and priced transparently by our team in Rome. Tell us your budget and dates — we rank every home by how well it fits your life.</p>
+  <form class="intent" id="intent" onsubmit="return false">
+    <div class="cell"><label for="q">Where</label><input id="q" placeholder="Zone, street, landmark…" autocomplete="off"></div>
+    <div class="cell"><label for="bud">Max budget</label><select id="bud"><option value="0">Any</option><option>1200</option><option>1600</option><option selected>2200</option><option>3000</option><option>4000</option></select></div>
+    <button class="go" id="goBtn">Search</button>
+  </form>
+  <div class="hero-meta">
+    <div class="gold"><b id="mHomes">—</b>verified homes</div>
+    <div><b>22</b>rioni covered</div>
+    <div><b>€0</b>agency fee</div>
+  </div>
+</div></section>
+
+<!-- ═══ FEATURED · ambient: aurum ═══ -->
+<section class="featured" data-ambient="aurum"><div class="wrap">
+  <div class="sec-head reveal"><div class="eyebrow">This week's residence</div>
+    <h2 class="disp">One home, chosen <em>slowly.</em></h2></div>
+  <a class="feat reveal" id="feat" href="#">
+    <div class="ph"><img id="featImg" alt="" loading="lazy" data-blur-up onerror="this.style.opacity=0"><span class="zone-tag" id="featZone"></span></div>
+    <div class="info">
+      <div class="eyebrow">Featured</div>
+      <div class="nm disp" id="featName">—</div>
+      <div class="mt" id="featMeta">—</div>
+      <div class="pr" id="featPrice">— <small>/month</small></div>
+      <div class="hr"></div>
+      <span class="view" style="font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--gold-bri)">See the residence →</span>
+    </div>
+  </a>
+</div></section>
+
+<!-- ═══ BROWSE · ambient: cosmati ═══ -->
+<section class="browse" id="browse" data-ambient="cosmati"><div class="wrap">
+  <div class="sec-head reveal"><div class="eyebrow">The collection</div>
+    <h2 class="disp">Every home, <em>verified.</em></h2></div>
+  <div class="browse-head">
+    <div class="count" aria-live="polite"><b id="count">0</b> homes<span id="ctx"></span></div>
+    <div class="tools">
+      <button class="chip" data-beds="1">1+ bed</button>
+      <button class="chip" data-beds="2">2+ beds</button>
+      <select class="chip" id="sort" aria-label="Sort">
+        <option value="fit">Recommended</option><option value="priceA">Price ↑</option><option value="priceD">Price ↓</option>
+      </select>
+    </div>
+  </div>
+  <div class="facets" id="facets"></div>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty">No homes match — widen the budget or clear a filter.</div>
+</div></section>
+
+<!-- ═══ METHOD · ambient: velluto (mood: read) ═══ -->
+<section class="method" id="method" data-ambient="velluto"><div class="wrap">
+  <div class="sec-head reveal"><div class="eyebrow">The BOOM method</div>
+    <h2 class="disp">Proof, <em>not promises.</em></h2></div>
+  <div class="steps">
+    <div class="step reveal"><div class="no disp">I</div><h3>Filmed &amp; verified</h3><p>Our team walks every apartment with a camera before it's listed. What you see is what exists — floor, light, noise, neighbours.</p></div>
+    <div class="step reveal"><div class="no disp">II</div><h3>Priced transparently</h3><p>Rent, deposit, taxes, utilities — computed live, itemised, identical on every screen. No fee appears twice; none appears late.</p></div>
+    <div class="step reveal"><div class="no disp">III</div><h3>Signed digitally</h3><p>Contract, registration and keys handled in one signed flow. You land in Rome with an address, not an appointment list.</p></div>
+  </div>
+</div></section>
+
+<!-- ═══ MONEY · ambient: meandro (mood: read) ═══ -->
+<section class="money" id="money" data-ambient="meandro"><div class="wrap">
+  <div class="money-grid">
+    <div class="reveal">
+      <div class="eyebrow">Money, decoded</div>
+      <h2 class="disp" style="font-size:clamp(30px,4.4vw,52px);line-height:1.05;margin:12px 0 0">Every euro, <em>accounted for.</em></h2>
+      <p class="big">The single biggest fear of renting in Rome is the invoice you didn't see coming. So we compute the whole move-in — live, before you even ask.</p>
+      <button class="cta" id="applyBtn">Start an application</button>
+    </div>
+    <div class="ledger reveal">
+      <h3>Move-in · Attico sul Tevere</h3>
+      <div class="li"><span>First month</span><span>€2,400</span></div>
+      <div class="li"><span>Deposit · 2 months</span><span>€4,800</span></div>
+      <div class="li"><span>Agency fee</span><span style="color:var(--green)">€0</span></div>
+      <div class="li"><span>Contract registry</span><span>€68</span></div>
+      <div class="li"><span>Due at signature</span><b>€7,268</b></div>
+    </div>
+  </div>
+</div></section>
+
+<!-- ═══ ZONES · ambient: contorni ═══ -->
+<section class="zones" id="zones" data-ambient="contorni"><div class="wrap">
+  <div class="sec-head reveal"><div class="eyebrow">The rioni</div>
+    <h2 class="disp">Choose your <em>Rome.</em></h2></div>
+  <div class="zone-row reveal" id="zoneRow"></div>
+</div></section>
+
+<!-- ═══ FOOTER · ambient: sampietrini ═══ -->
+<footer data-ambient="sampietrini"><div class="wrap">
+  <div class="fin disp reveal">Arrive as a visitor.<br><em>Live as a Roman.</em></div>
+  <a class="cta" href="#browse">Browse the collection</a>
+  <div class="legal">BOOM · ROMA — flagship design study · MMXXVI · <a href="/preview-index" style="color:var(--t3)">all previews</a></div>
+</div></footer>
+
+<!-- apply drawer: demonstrates the CONVERT mood — ambience nearly stills -->
+<div class="drawer" id="drawer" role="dialog" aria-modal="true" aria-label="Start an application">
+  <div class="bg" id="drawerBg"></div>
+  <div class="panel">
+    <button class="x" id="drawerX" aria-label="Close">✕</button>
+    <div class="eyebrow">Application</div>
+    <h3 class="disp">Sixty seconds, no documents.</h3>
+    <div class="sub">A soft check first — nothing hits your record. We only hold a home you can actually take.</div>
+    <div class="field"><label for="fName">Full name</label><input id="fName" autocomplete="name"></div>
+    <div class="field"><label for="fMail">Email</label><input id="fMail" type="email" autocomplete="email"></div>
+    <div class="field"><label for="fBudget">Monthly budget</label><input id="fBudget" inputmode="numeric" placeholder="€"></div>
+    <button class="cta">Continue →</button>
+  </div>
+</div>
+
+<div class="proto">Flagship · <b>Aurea</b> · sectional ambience</div>
+
+<script src="/js/boom-elevate.js"></script>
+<script src="/js/boom-ambient.js"></script>
+<script>
+(function(){
+'use strict';
+var eur=function(n){return '€'+Number(n||0).toLocaleString('en-US')};
+
+/* ── ambience: scene per section + mood per casistica ── */
+var MOOD_BY_SCENE={velluto:'read',meandro:'read',contorni:'read'};
+var overlayMood=null;
+var amb=BoomAmbient.mount({
+  intensity:1,
+  onScene:function(k){ if(!overlayMood) amb.mood(MOOD_BY_SCENE[k]||'browse'); }
+});
+function setOverlayMood(m){ overlayMood=m; amb.mood(m||'browse'); }
+
+/* ── nav scrim ── */
+addEventListener('scroll',function(){document.getElementById('nav').classList.toggle('scr',scrollY>16)},{passive:true});
+
+/* ── reveal on scroll ── */
+var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{threshold:.12});
+document.querySelectorAll('.reveal').forEach(function(el){io.observe(el)});
+
+/* ── data: live listings with sample fallback ── */
+var SAMPLE=[
+ {id:'sample1',name:'Bright Attic with Terrace',zone:'Trastevere',price:2400,beds:2,baths:1,sqm:78,img:'https://i.imgur.com/s2es0MN.jpeg',verified:true},
+ {id:'sample2',name:'Designer One-Bed',zone:'Monti',price:1850,beds:1,baths:1,sqm:55,img:'https://i.imgur.com/Ne0ROPe.jpeg',verified:true,isNew:true},
+ {id:'sample3',name:'Cosy Studio by the Tiber',zone:'Trastevere',price:1350,beds:0,baths:1,sqm:38,img:'https://i.imgur.com/Smv5uPX.jpeg',verified:true},
+ {id:'sample4',name:'Family Flat near the Park',zone:'Prati',price:2900,beds:3,baths:2,sqm:110,img:'https://i.imgur.com/tJnYADn.jpeg',verified:true},
+ {id:'sample5',name:'Loft with Skyline View',zone:'Ostiense',price:2100,beds:1,baths:1,sqm:64,img:'https://i.imgur.com/8LVxrhs.jpeg',verified:true},
+ {id:'sample6',name:'Classic Two-Bed',zone:'Prati',price:2300,beds:2,baths:1,sqm:85,img:'https://i.imgur.com/CI4n46J.jpeg',verified:true},
+ {id:'sample7',name:'Sunny Corner Apartment',zone:'San Lorenzo',price:1600,beds:2,baths:1,sqm:70,img:'https://i.imgur.com/hxai5bz.jpeg',verified:true,isNew:true},
+ {id:'sample8',name:'Garden Ground Floor',zone:'Monti',price:1950,beds:1,baths:1,sqm:60,img:'https://i.imgur.com/s2es0MN.jpeg',verified:true}
+];
+var L=SAMPLE.slice();
+function mapReal(d){
+  var imgs=(Array.isArray(d.images)&&d.images.length)?d.images:(d.image?[d.image]:[]);
+  return {id:d.id,name:d.name||d.title||'Apartment in Rome',zone:d.zone||d.neighborhood||'Rome',
+    price:+d.price||0,beds:(d.beds!=null?d.beds:(d.bedrooms!=null?d.bedrooms:0)),baths:d.bathrooms||d.baths||1,
+    sqm:d.sqm||d.size||0,img:imgs[0]||'',verified:true,isNew:false};
+}
+
+/* ── state + render ── */
+var S={q:'',bud:2200,beds:0,zones:[],sort:'fit'};
+function fit(l){var f=100;if(S.bud&&l.price>S.bud)f-=Math.min(40,(l.price-S.bud)/20);if(S.q&&!(l.name+' '+l.zone).toLowerCase().includes(S.q))f-=25;if(S.beds&&l.beds<S.beds)f-=30;return Math.max(5,Math.round(f))}
+function pass(l){
+  if(S.q&&!(l.name+' '+l.zone).toLowerCase().includes(S.q))return false;
+  if(S.beds&&l.beds<S.beds)return false;
+  if(S.zones.length&&S.zones.indexOf(l.zone)<0)return false;
+  if(S.bud&&l.price>S.bud*1.15)return false;   /* soft budget: 15% over allowed, flagged */
+  return true;
+}
+function cardHTML(l){
+  var over=S.bud&&l.price>S.bud;
+  var alt=(l.name+' — '+l.zone).replace(/"/g,'');
+  return '<a class="pc" data-id="'+l.id+'" href="/listing/'+encodeURIComponent(l.id)+'" aria-label="'+alt+', '+eur(l.price)+' per month">'
+    +'<div class="ph"><img src="'+(l.img||'')+'" alt="'+alt+'" loading="lazy" data-blur-up onerror="this.style.opacity=0">'
+    +'<div class="badges">'+(l.verified?'<span class="bdg ver">✓ Verified</span>':'')+(l.isNew?'<span class="bdg">New</span>':'')+(over?'<span class="bdg over">'+eur(l.price-S.bud)+' over</span>':'')+'</div></div>'
+    +'<div class="b"><div class="z">'+l.zone+'</div><div class="n disp">'+l.name+'</div>'
+    +'<div class="specs"><span>'+(l.beds||'Studio')+(l.beds?' bed'+(l.beds>1?'s':''):'')+'</span><span>'+l.baths+' bath</span><span>'+l.sqm+' m²</span></div>'
+    +'<div class="foot"><div class="pr">'+eur(l.price)+' <small>/mo</small></div><span class="view">View →</span></div></div></a>';
+}
+function render(){
+  var list=L.filter(pass);
+  list.sort({fit:function(a,b){return fit(b)-fit(a)},priceA:function(a,b){return a.price-b.price},priceD:function(a,b){return b.price-a.price}}[S.sort]);
+  document.getElementById('count').textContent=list.length;
+  document.getElementById('ctx').textContent=S.zones.length?(' · '+S.zones.join(', ')):'';
+  var fc={};L.forEach(function(l){if(!S.q||(l.name+' '+l.zone).toLowerCase().includes(S.q))fc[l.zone]=(fc[l.zone]||0)+1});
+  document.getElementById('facets').innerHTML=Object.entries(fc).sort(function(a,b){return b[1]-a[1]}).slice(0,7)
+    .map(function(e){return '<button class="facet'+(S.zones.indexOf(e[0])>=0?' on':'')+'" data-z="'+e[0]+'" aria-pressed="'+(S.zones.indexOf(e[0])>=0)+'"><b>'+e[1]+'</b>'+e[0]+'</button>'}).join('');
+  var grid=document.getElementById('grid');
+  document.getElementById('empty').style.display=list.length?'none':'block';
+  var flip=(window.BoomElevate&&BoomElevate.flipCapture)?BoomElevate.flipCapture(grid,'.pc'):null;
+  grid.innerHTML=list.map(cardHTML).join('');
+  if(flip)flip();
+  if(window.BoomElevate&&BoomElevate.scan)BoomElevate.scan(grid);
+}
+
+/* ── featured = best fit ── */
+function paintFeatured(){
+  var best=L.slice().sort(function(a,b){return fit(b)-fit(a)})[0];if(!best)return;
+  document.getElementById('feat').href='/listing/'+encodeURIComponent(best.id);
+  document.getElementById('feat').dataset.id=best.id;
+  var fi=document.getElementById('featImg');fi.src=best.img||'';fi.alt=best.name+' — '+best.zone;
+  document.getElementById('featZone').textContent=best.zone+' · Rome';
+  document.getElementById('featName').textContent=best.name;
+  document.getElementById('featMeta').textContent=(best.beds||'Studio')+(best.beds?' bed · ':' · ')+best.baths+' bath · '+best.sqm+' m² · verified';
+  document.getElementById('featPrice').innerHTML=eur(best.price)+' <small>/month</small>';
+  if(window.BoomElevate)BoomElevate.scan(document.getElementById('feat'));
+}
+function paintZones(){
+  var fc={};L.forEach(function(l){fc[l.zone]=(fc[l.zone]||0)+1});
+  document.getElementById('zoneRow').innerHTML=Object.entries(fc).sort(function(a,b){return b[1]-a[1]})
+    .map(function(e){return '<button class="zl" data-z="'+e[0]+'"><b class="disp">'+e[0]+'</b>'+e[1]+' home'+(e[1]>1?'s':'')+'</button>'}).join('');
+}
+function paintMeta(){document.getElementById('mHomes').textContent=L.length}
+
+/* ── interactions ── */
+document.getElementById('goBtn').addEventListener('click',function(){
+  S.q=document.getElementById('q').value.trim().toLowerCase();
+  S.bud=+document.getElementById('bud').value||0;
+  render();document.getElementById('browse').scrollIntoView({behavior:'smooth'});
+});
+document.getElementById('sort').addEventListener('change',function(e){S.sort=e.target.value;render()});
+document.querySelectorAll('.chip[data-beds]').forEach(function(c){c.addEventListener('click',function(){
+  var v=+c.dataset.beds;S.beds=(S.beds===v)?0:v;
+  document.querySelectorAll('.chip[data-beds]').forEach(function(x){x.classList.toggle('on',+x.dataset.beds===S.beds)});
+  render();
+})});
+document.getElementById('facets').addEventListener('click',function(e){
+  var f=e.target.closest('.facet');if(!f)return;var z=f.dataset.z,i=S.zones.indexOf(z);
+  i<0?S.zones.push(z):S.zones.splice(i,1);render();
+});
+document.getElementById('zoneRow').addEventListener('click',function(e){
+  var z=e.target.closest('.zl');if(!z)return;S.zones=[z.dataset.z];render();
+  document.getElementById('browse').scrollIntoView({behavior:'smooth'});
+});
+
+/* continuity + scroll restore */
+document.getElementById('grid').addEventListener('click',function(e){
+  var a=e.target.closest('a.pc[data-id]');if(!a)return;
+  try{
+    if(window.BoomElevate)BoomElevate.captureHandoff(a.querySelector('.ph img'),a.dataset.id);
+    sessionStorage.setItem('boom:scroll:flag',String(scrollY));
+  }catch(_){}
+});
+document.getElementById('feat').addEventListener('click',function(){
+  try{if(window.BoomElevate)BoomElevate.captureHandoff(document.getElementById('featImg'),document.getElementById('feat').dataset.id)}catch(_){}
+});
+
+/* apply drawer → CONVERT mood */
+var drawer=document.getElementById('drawer');
+function openDrawer(){drawer.classList.add('on');requestAnimationFrame(function(){drawer.classList.add('in')});setOverlayMood('convert');document.body.style.overflow='hidden';document.getElementById('fName').focus()}
+function closeDrawer(){drawer.classList.remove('in');setOverlayMood(null);document.body.style.overflow='';setTimeout(function(){drawer.classList.remove('on')},450)}
+document.getElementById('applyBtn').addEventListener('click',openDrawer);
+document.getElementById('drawerX').addEventListener('click',closeDrawer);
+document.getElementById('drawerBg').addEventListener('click',closeDrawer);
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&drawer.classList.contains('on'))closeDrawer()});
+
+/* ── boot ── */
+document.getElementById('grid').innerHTML=Array.from({length:6},function(){return '<div class="sk"><div class="ph"></div><div class="b"><div class="l" style="width:40%"></div><div class="l" style="width:75%"></div><div class="l" style="width:55%"></div></div></div>'}).join('');
+fetch('/api/listings',{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){
+  if(j&&j.ok&&Array.isArray(j.listings)&&j.listings.length){
+    var mapped=j.listings.filter(function(d){return d&&d.status!=='rented'}).map(mapReal).filter(function(l){return l.img});
+    if(mapped.length)L=mapped;
+    document.querySelector('.proto').innerHTML='Flagship · <b>Aurea</b> · live data · '+L.length+' homes';
+  }
+}).catch(function(){}).finally(function(){
+  paintMeta();paintFeatured();render();paintZones();
+  try{
+    var nav=performance.getEntriesByType('navigation')[0];
+    if(nav&&nav.type==='back_forward'){var y=+sessionStorage.getItem('boom:scroll:flag')||0;if(y)requestAnimationFrame(function(){scrollTo(0,y)})}
+  }catch(_){}
+});
+})();
+</script>
+</body>
+</html>
