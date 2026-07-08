@@ -231,10 +231,6 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 .pc .view{font-size:12px;color:var(--t2);border:1px solid var(--line);border-radius:100px;padding:7px 13px;transition:.2s}.pc:hover .view{border-color:var(--line-gold);color:var(--gold)}
 
 /* skeleton */
-.sk{border:1px solid var(--line);border-radius:18px;overflow:hidden;background:var(--card)}
-.sk .ph{aspect-ratio:4/3;background:linear-gradient(100deg,#141417 30%,#1c1c20 50%,#141417 70%);background-size:200% 100%;animation:shim 1.3s linear infinite}
-.sk .b{padding:15px}.sk .l{height:11px;border-radius:6px;background:linear-gradient(100deg,#141417 30%,#1c1c20 50%,#141417 70%);background-size:200% 100%;animation:shim 1.3s linear infinite;margin-bottom:10px}
-@keyframes shim{0%{background-position:200% 0}100%{background-position:-200% 0}}
 
 .empty{text-align:center;padding:60px 20px;color:var(--t3)}.empty h3{font-size:22px;font-weight:200;color:var(--t1);margin-bottom:8px}.empty a{color:var(--gold);border-bottom:1px solid var(--line-gold)}
 
@@ -328,6 +324,14 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
 /* compare bar + modal */
 .cmpbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(70px + var(--safe));z-index:90;background:rgba(8,8,10,.92);backdrop-filter:blur(16px);border:1px solid var(--line-gold);border-radius:16px;padding:10px 14px;display:none;align-items:center;gap:12px;box-shadow:var(--sh)}
 .cmpbar.on{display:flex}@media(min-width:880px){.cmpbar{bottom:18px}}
+/* ── mobile tab bar: the app's thumb row — Search · Skyline · Saved · WhatsApp ── */
+.tabbar{position:fixed;left:0;right:0;bottom:0;top:auto;border-bottom:0;z-index:96;display:none;grid-template-columns:repeat(4,1fr);background:rgba(6,6,7,.94);backdrop-filter:blur(20px);border-top:1px solid var(--line);padding:6px 4px calc(6px + var(--safe))}
+@media(max-width:879px){.tabbar{display:grid}body{padding-bottom:calc(64px + var(--safe))}}
+.tabbar button,.tabbar a{display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 2px;font-size:9.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--t3);text-decoration:none;border-radius:12px;transition:color .25s;background:none;border:0;font-family:inherit;cursor:pointer}
+.tabbar .tic{font-size:17px;line-height:1;height:19px;display:grid;place-items:center}
+.tabbar .on{color:var(--gold)}
+.tabbar .tb-badge{position:relative}
+.tabbar .tb-badge[data-n]:not([data-n=""])::after{content:attr(data-n);position:absolute;top:2px;right:calc(50% - 18px);background:var(--gold);color:#1a1407;font-size:8.5px;font-weight:700;border-radius:100px;padding:1px 5px;letter-spacing:0}
 .cmpbar .n{font-size:13px;color:var(--t2)}.cmpbar .n b{color:var(--gold)}
 .cmpbar .go{background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#1a1407;font-weight:600;border-radius:100px;padding:9px 16px;font-size:13px}
 .cmpbar .clr{font-size:12px;color:var(--t3)}
@@ -382,6 +386,16 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
    the star; this only removes the white-flash "website" cut between pages. */
 @view-transition{navigation:auto}
 ::view-transition-old(root),::view-transition-new(root){animation-duration:.24s}
+/* skeleton cards: the grid breathes while real homes arrive */
+.skel{border:1px solid var(--line);border-radius:18px;overflow:hidden;background:var(--card)}
+.skel .ph,.skel .l1,.skel .l2,.skel .l3{background:linear-gradient(100deg,rgba(255,255,255,.03) 40%,rgba(255,255,255,.09) 50%,rgba(255,255,255,.03) 60%);background-size:200% 100%;animation:skshine 1.4s linear infinite}
+.skel .ph{aspect-ratio:4/3}
+.skel .b{padding:14px 16px 18px}
+.skel .l1{height:11px;width:38%;border-radius:6px}
+.skel .l2{height:16px;width:72%;border-radius:6px;margin-top:10px}
+.skel .l3{height:12px;width:55%;border-radius:6px;margin-top:12px}
+@keyframes skshine{to{background-position:-200% 0}}
+@media(prefers-reduced-motion:reduce){.skel .ph,.skel .l1,.skel .l2,.skel .l3{animation:none}}
 </style>
 <!-- BOOM_JSONLD:START -->
   <script type="application/ld+json">
@@ -621,6 +635,12 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
   <div class="cal-grid" id="calGrid"></div>
   <div class="cal-f"><span class="hint" id="calHint" aria-live="polite"></span><button class="clear" onclick="calClear()">Any date</button><button class="done" onclick="closeCal()">Done</button></div>
 </div>
+<nav class="tabbar" id="tabbar" aria-label="Quick navigation">
+  <button id="tbSearch" onclick="tabGo('search')"><span class="tic">⌕</span>Search</button>
+  <button id="tbSky" onclick="tabGo('sky')"><span class="tic">◉</span>Skyline</button>
+  <button id="tbSaved" class="tb-badge" data-n="" onclick="tabGo('saved')"><span class="tic">♥</span>Saved</button>
+  <a href="https://wa.me/393313251961" rel="noopener"><span class="tic">✆</span>WhatsApp</a>
+</nav>
 <div class="cmpbar" id="cmpbar"><span class="n"><b id="cmpN">0</b> to compare</span><button class="go" onclick="openCompare()">Compare →</button><button class="clr" onclick="clearCmp()">Clear</button></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
@@ -844,6 +864,7 @@ function render(){
       if(_flip)_flip();
       if(window.BoomElevate&&BoomElevate.scan)BoomElevate.scan(grid);}}
   syncURL();
+  try{tabSync()}catch(e){}
 }
 let _ML=null;
 function ensureML(){return _ML||(_ML=new Promise((res,rej)=>{if(window.maplibregl)return res();
@@ -1129,6 +1150,17 @@ function setView(v){S.view=v;
   if(v==='map'){try{localStorage.setItem('boom:sky:seen','1')}catch(e){}var vm=document.getElementById('vMap');if(vm)vm.classList.remove('pulse');
     try{boomTrack('skyline_open',{})}catch(e){}}
   document.getElementById('vList').setAttribute('aria-selected',v==='list');document.getElementById('vMap').setAttribute('aria-selected',v==='map');syncControls();render();}
+function tabGo(w){
+  if(w==='search'){setView('list');try{document.querySelector('.intent').scrollIntoView({behavior:'smooth',block:'center'})}catch(e){}setTimeout(function(){try{document.getElementById('q').focus()}catch(e){}},450);}
+  else if(w==='sky'){skyOpen();}
+  else if(w==='saved'){toggleSavedOnly();}
+  tabSync();
+}
+function tabSync(){
+  var m={tbSearch:S.view==='list'&&!S.savedOnly,tbSky:S.view==='map',tbSaved:S.savedOnly};
+  for(var id in m){var el=document.getElementById(id);if(el)el.classList.toggle('on',!!m[id]);}
+  var sv=document.getElementById('tbSaved');if(sv)sv.setAttribute('data-n',saved.size?String(saved.size):'');
+}
 function skyCardHTML(){
   return '<a class="skycard" href="?view=map" onclick="event.preventDefault();skyOpen()" aria-label="Open the Skyline 3D map">'
     +'<span class="eye">Skyline 3D · Satellite</span>'
@@ -1211,7 +1243,7 @@ addEventListener('click',function(e){
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2200);}
 function toggleSave(id,el){if(saved.has(id)){saved.delete(id);}else{saved.add(id);}persist();
   if(el){el.classList.toggle('on',saved.has(id));el.setAttribute('aria-pressed',saved.has(id));}
-  document.getElementById('savedCnt').textContent=saved.size||'';toast(saved.has(id)?'Saved ♥':'Removed from saved');if(S.savedOnly)render();}
+  document.getElementById('savedCnt').textContent=saved.size||'';try{tabSync()}catch(e){}toast(saved.has(id)?'Saved ♥':'Removed from saved');if(S.savedOnly)render();}
 function toggleCmp(id,el){if(cmp.has(id)){cmp.delete(id);if(el){el.classList.remove('on');el.setAttribute('aria-pressed','false');}}
   else if(cmp.size<4){cmp.add(id);if(el){el.classList.add('on');el.setAttribute('aria-pressed','true');}}
   else{toast('Compare up to 4');return;}
@@ -1350,8 +1382,10 @@ function trustPulse(){try{
 
 /* ---------- boot ---------- */
 setCalLabel();
-document.getElementById('grid').innerHTML=Array.from({length:6},()=>'<div class="sk"><div class="ph"></div><div class="b"><div class="l" style="width:40%"></div><div class="l" style="width:80%"></div><div class="l" style="width:60%"></div></div></div>').join('');
-hydrate();syncControls();document.getElementById('cmpN').textContent=cmp.size;document.getElementById('cmpbar').classList.toggle('on',cmp.size>0);
+hydrate();syncControls();
+/* instant skeletons — the grid never sits empty while homes load */
+try{if(S.view!=='map'){document.getElementById('grid').innerHTML=Array.from({length:6}).map(function(){return '<div class="skel"><div class="ph"></div><div class="b"><div class="l1"></div><div class="l2"></div><div class="l3"></div></div></div>'}).join('');}}catch(e){}
+document.getElementById('cmpN').textContent=cmp.size;document.getElementById('cmpbar').classList.toggle('on',cmp.size>0);
 fetch('/api/listings',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{
   if(j&&j.ok&&Array.isArray(j.listings)&&j.listings.length){L=j.listings.filter(isRentable).map(mapReal);if(!L.length)L=SAMPLE;
     var _pc=document.querySelector('.proto');if(_pc)_pc.innerHTML='DISCOVERY · <b>live data</b> · '+L.length+' homes';}
