@@ -190,6 +190,20 @@ cockpit schema (`status:'new'`, `source:'web'`, `intent:apply|reserve|waitlist`,
 qualification snapshot in `message` + `raw`) so every serious applicant lands
 in the pipeline even if they never open Stripe. Returns `{ ok, id }`.
 
+### POST `/api/service-checkout`
+Public one-tap Stripe Checkout for the productised services (Services 2.0
+pages). Server-side catalog decides price/copy — the client only names the
+kind: `virtual-viewing` (€89) or `deal-assistance` (€249). Body `{ kind,
+name, email, phone, listing?, notes?, company(honeypot) }`, same hardening
+as apply-lead. Returns `{ ok, url }` → Stripe. The webhook branch
+`service:'SERVICE'` writes a paid lead (`leads/svc_<sessionId>`) and sends
+admin + client confirmation emails. Property Finding (€350) keeps its own
+`/api/create-checkout` (PFS metadata + webhook branch); Concierge is
+WhatsApp-only. All four pages (`virtual-viewing`, `deal-assistance`,
+`property-finding`, `concierge`) are standalone Services 2.0 product pages
+(MATERIA ambient, pay-plate + checkout sheet, sticky mobile pay bar,
+JSON-LD Service+Offer+FAQ).
+
 ### POST `/api/search/save`
 Public save-search endpoint for the apartments discovery page. Body
 `{ email, label?, criteria{q,budgetMax,moveIn,beds,baths,furnished,video,

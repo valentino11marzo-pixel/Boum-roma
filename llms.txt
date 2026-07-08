@@ -18,9 +18,9 @@
 - [Apartments](https://www.boomrome.com/apartments): Browse video-verified mid-term rentals in Rome, with the Skyline 3D satellite map.
 - [How It Works](https://www.boomrome.com/how-it-works): The 7-step process from first click to keys in hand.
 - [Property Finding](https://www.boomrome.com/property-finding): We find and negotiate your apartment for €350 (deducted from the agency fee, refundable if no match), including off-market properties.
-- [Virtual Viewing](https://www.boomrome.com/virtual-viewing): Live video apartment tours with HD photos and an honest report, from €89.
-- [Deal Assistance](https://www.boomrome.com/deal-assistance): Contract review, landlord verification and price negotiation for an apartment you found yourself, €249.
-- [Concierge](https://www.boomrome.com/concierge): End-to-end relocation support.
+- [Virtual Viewing](https://www.boomrome.com/virtual-viewing): Live video apartment tours with HD photos and an honest report including red flags. €89, one-tap Stripe checkout, scheduled within 48 hours, works for any Rome listing from any portal. Credited to the agency fee if you rent through BOOM.
+- [Deal Assistance](https://www.boomrome.com/deal-assistance): Clause-by-clause contract review in English, landlord/ownership verification and price negotiation for an apartment you found yourself. €249, first review within 24 hours; the average client saves €600+ in negotiation.
+- [Concierge](https://www.boomrome.com/concierge): End-to-end relocation support — codice fiscale (remotely, before arrival), utilities, SIM, residence registration, healthcare enrollment. Quoted per move (full landing typically from €390, single tasks from €15), one dedicated human on WhatsApp for the first month.
 - [Canone Concordato calculator](https://www.boomrome.com/canone): Free calculator for Rome's regulated-rent brackets — for landlords and tenants.
 
 ## Neighbourhood guides (renting in each Rome zone)

@@ -244,6 +244,97 @@ async function handleDeposit(res, session, m) {
 }
 
 // RESERVE — a tenant paid a refundable holding deposit to reserve an apartment.
+// SERVICE — a productised service was bought one-tap (Services 2.0):
+// virtual-viewing €89 / deal-assistance €249. Lead into the pipeline +
+// admin nudge + client confirmation with the honest next steps.
+const SERVICE_META = {
+  'virtual-viewing': {
+    title: 'Virtual Viewing', emoji: '🎥',
+    next1: ['We contact the advertiser', 'Within a few hours'],
+    next2: ['Live video call from inside', 'Scheduled within 48h'],
+    next3: ['HD photos + honest report', 'Including what we did not like'],
+    next4: ['If we cannot reach the property', 'Full refund, no questions'],
+  },
+  'deal-assistance': {
+    title: 'Deal Assistance', emoji: '🛡️',
+    next1: ['Send us the contract + listing', 'Reply to this email'],
+    next2: ['Clause-by-clause review in English', 'First pass within 24h'],
+    next3: ['Landlord & property verification', 'Registry + identity checks'],
+    next4: ['We negotiate for you', 'Average saving beats the fee'],
+  },
+};
+
+async function handleService(res, session, m) {
+  const docId = session.id.replace(/[^a-zA-Z0-9]/g, '').substring(0, 30);
+  const now = new Date().toISOString();
+  const amountEur = (session.amount_total || 0) / 100;
+  const email = m.email || session.customer_email || '';
+  const meta = SERVICE_META[m.kind] || { title: m.kind || 'Service', emoji: '✓' };
+  const lead = {
+    type: 'service',
+    service: 'SERVICE',
+    kind: m.kind || '',
+    status: 'new',
+    paid: true,
+    source: 'web',
+    intent: 'service',
+    name: m.name || '',
+    email,
+    phone: m.phone || '',
+    listingName: m.listing || '',
+    message: `${meta.title} bought one-tap (€${amountEur}). ${m.listing ? 'Property: ' + m.listing + '. ' : ''}${m.notes ? 'Notes: ' + m.notes : ''}`,
+    amount_paid: session.amount_total || 0,
+    amount_eur: amountEur,
+    currency: session.currency || 'eur',
+    stripe_session_id: session.id,
+    paid_at: now,
+    createdAt: now,
+  };
+  try { await writeDoc('leads', 'svc_' + docId, lead); }
+  catch (err) { console.error('Firestore service lead write error:', err); }
+
+  const firstName = (m.name || '').split(' ')[0] || 'there';
+  try {
+    await sendEmailJS({
+      to_email: 'valentino@boom-rome.com',
+      heading: `${meta.emoji} ${meta.title.toUpperCase()} — €${amountEur} paid`,
+      subheading: m.name || 'New service purchase',
+      name: 'Valentino',
+      intro: `Someone just bought ${meta.title} with one tap. Clock is running — the page promises first contact fast.`,
+      card_color: '#D4AF37',
+      card_title: meta.title,
+      r1_icon: '👤', r1_label: 'Client', r1_value: m.name || '—',
+      r2_icon: '📧', r2_label: 'Email', r2_value: email || '—',
+      r3_icon: '📱', r3_label: 'Phone', r3_value: m.phone || '—',
+      r4_icon: '🏠', r4_label: 'Property', r4_value: m.listing || '—',
+      closing: `Paid €${amountEur}. ${m.notes ? 'Notes: ' + m.notes + '. ' : ''}Stripe: ${session.id}. Record: leads/svc_${docId}.`,
+      cta_text: 'Open portal',
+      portal_link: 'https://www.boomrome.com/portal.html#leads',
+    });
+  } catch (err) { console.error('Admin service email error:', err); }
+
+  try {
+    if (email) await sendEmailJS({
+      to_email: email,
+      heading: `Your ${meta.title} is confirmed`,
+      subheading: 'BOOM Rome — paid & scheduled',
+      name: firstName,
+      intro: `Payment received — €${amountEur}, Stripe-secured. Here's exactly what happens next:`,
+      card_color: '#D4AF37',
+      card_title: 'What happens next',
+      r1_icon: '✓', r1_label: (meta.next1 || ['We take it from here'])[0], r1_value: (meta.next1 || ['', 'Right away'])[1],
+      r2_icon: '✓', r2_label: (meta.next2 || ['—'])[0], r2_value: (meta.next2 || ['', ''])[1],
+      r3_icon: '✓', r3_label: (meta.next3 || ['—'])[0], r3_value: (meta.next3 || ['', ''])[1],
+      r4_icon: '✓', r4_label: (meta.next4 || ['—'])[0], r4_value: (meta.next4 || ['', ''])[1],
+      closing: 'Anything at all — reply to this email or message us on WhatsApp. A human answers within 2 hours.',
+      cta_text: 'Back to BOOM',
+      portal_link: 'https://www.boomrome.com/apartments.html',
+    });
+  } catch (err) { console.error('Client service email error:', err); }
+
+  return res.status(200).json({ received: true, serviceLeadId: 'svc_' + docId });
+}
+
 async function handleReserve(res, session, m) {
   const docId = session.id.replace(/[^a-zA-Z0-9]/g, '').substring(0, 30);
   const now = new Date().toISOString();
@@ -394,6 +485,10 @@ export default async function handler(req, res) {
 
   if (m.service === 'RESERVE') {
     return handleReserve(res, session, m);
+  }
+
+  if (m.service === 'SERVICE') {
+    return handleService(res, session, m);
   }
 
   if (m.service === 'PREAGREEMENT') {

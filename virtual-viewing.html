@@ -1,113 +1,38 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
     <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-EYCD59RDVJ');</script>
-    <link rel="icon" href="/favicon.ico" sizes="any">
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-    <link rel="manifest" href="/site.webmanifest">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#060607">
     <title>Virtual Apartment Viewings Rome — Live Video Tours | BOOM</title>
-    <meta name="description" content="Can't visit Rome? BOOM runs live video viewings with HD photos and honest red-flag checks, so you rent confidently from anywhere. From €89.">
-    <meta name="theme-color" content="#08080A">
-    <meta name="color-scheme" content="dark">
+    <meta name="description" content="Can't visit Rome? BOOM runs live video viewings with HD photos and honest red-flag checks, so you rent confidently from anywhere. €89, one tap.">
     <link rel="canonical" href="https://www.boomrome.com/virtual-viewing">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="BOOM Rome">
     <meta property="og:title" content="Virtual Apartment Viewings Rome — Live Video Tours | BOOM">
-    <meta property="og:description" content="Can't visit Rome? BOOM runs live video viewings with HD photos and honest red-flag checks, so you rent confidently from anywhere. From €89.">
+    <meta property="og:description" content="Can't visit Rome? BOOM runs live video viewings with HD photos and honest red-flag checks, so you rent confidently from anywhere. €89, one tap.">
     <meta property="og:url" content="https://www.boomrome.com/virtual-viewing">
     <meta property="og:image" content="https://www.boomrome.com/BOOMsocialprofile.png">
-    <meta name="twitter:card" content="summary_large_image">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="preconnect" href="https://i.imgur.com" crossorigin>
-    <link rel="stylesheet" href="/css/boom-svc.css">
-    <link rel="stylesheet" href="/css/boom-core.css">
-    <style>
-/* Virtual Viewing — live video player device */
-.vv-stage{padding:14px;background:linear-gradient(170deg,var(--surface-card),#070708)}
-.vv-video{position:relative;aspect-ratio:16/10;border-radius:12px;overflow:hidden;background:linear-gradient(135deg,#1a1a22,#0c0c11)}
-.vv-video::after{content:'';position:absolute;inset:0;z-index:1;background:radial-gradient(circle at 62% 34%,rgba(255,215,0,.12),transparent 55%),linear-gradient(180deg,rgba(0,0,0,.12),rgba(0,0,0,.40))}
-.vv-still{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;filter:brightness(.82) saturate(1.05);animation:vvKen 16s ease-in-out infinite alternate}
-@keyframes vvKen{from{transform:scale(1.04)}to{transform:scale(1.13)}}
-.vv-rec{position:absolute;top:12px;left:12px;z-index:3;font-size:10px;letter-spacing:1px;color:#fff;background:rgba(0,0,0,.55);border:1px solid rgba(0,255,136,.4);padding:4px 9px;border-radius:100px}
-.vv-rec b{color:var(--green);animation:vvBlink 1.4s infinite}
-@keyframes vvBlink{50%{opacity:.25}}
-.vv-play{position:absolute;z-index:3;top:50%;left:50%;transform:translate(-50%,-50%);width:56px;height:56px;border-radius:50%;border:none;background:rgba(255,215,0,.92);color:#000;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;animation:vvPing 2.4s infinite}
-@keyframes vvPing{0%{box-shadow:0 0 0 0 rgba(255,215,0,.45)}70%{box-shadow:0 0 0 18px rgba(255,215,0,0)}100%{box-shadow:0 0 0 0 rgba(255,215,0,0)}}
-.vv-hotspot{position:absolute;z-index:2;width:12px;height:12px;border-radius:50%;background:var(--gold);animation:vvHot 2s infinite}
-@keyframes vvHot{0%{box-shadow:0 0 0 0 rgba(255,215,0,.5)}70%{box-shadow:0 0 0 14px rgba(255,215,0,0)}100%{box-shadow:0 0 0 0 rgba(255,215,0,0)}}
-.vv-cap{position:absolute;left:12px;bottom:40px;z-index:3;font-size:12px;color:#fff;background:rgba(0,0,0,.5);backdrop-filter:blur(6px);padding:6px 11px;border-radius:8px;transition:opacity .25s;max-width:78%}
-.vv-scrub{position:absolute;left:12px;right:12px;bottom:14px;height:4px;border-radius:2px;background:rgba(255,255,255,.18);z-index:3}
-.vv-played{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--gold);border-radius:2px}
-.vv-head{position:absolute;top:50%;left:0;width:11px;height:11px;border-radius:50%;background:#fff;transform:translate(-50%,-50%);box-shadow:0 0 8px rgba(0,0,0,.6)}
-.vv-time{position:absolute;right:14px;bottom:23px;z-index:3;font-size:10.5px;color:rgba(255,255,255,.82);font-variant-numeric:tabular-nums}
-.vv-deliv{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px}
-.vv-chip{font-size:11px;color:var(--text-secondary);border:1px solid var(--border-default);background:rgba(255,255,255,.02);padding:6px 10px;border-radius:100px}
-
-    </style>
-<!-- BOOM_JSONLD:START -->
+    <link rel="manifest" href="/site.webmanifest">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+    <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon-180.png">
   <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "RealEstateAgent",
   "@id": "https://www.boomrome.com/#organization",
   "name": "BOOM Rome",
-  "legalName": "BOOM Rome",
   "url": "https://www.boomrome.com",
-  "logo": {
-    "@type": "ImageObject",
-    "url": "https://www.boomrome.com/android-chrome-512x512.png",
-    "width": 512,
-    "height": 512
-  },
+  "logo": { "@type": "ImageObject", "url": "https://www.boomrome.com/android-chrome-512x512.png", "width": 512, "height": 512 },
   "image": "https://www.boomrome.com/BOOMsocialprofile.png",
   "description": "Premium mid-term apartment rentals in Rome with full property management, legal contracts, and 48-hour move-in.",
-  "sameAs": [
-    "https://www.instagram.com/boomrome",
-    "https://www.linkedin.com/company/boomrome",
-    "https://wa.me/393313251961",
-    "https://share.google/xikmVxQCRuKOdWcND"
-  ],
-  "address": {
-    "@type": "PostalAddress",
-    "addressLocality": "Rome",
-    "addressRegion": "Lazio",
-    "addressCountry": "IT"
-  },
-  "areaServed": {
-    "@type": "City",
-    "name": "Rome"
-  },
+  "sameAs": ["https://www.instagram.com/boomrome","https://www.linkedin.com/company/boomrome","https://wa.me/393313251961","https://share.google/xikmVxQCRuKOdWcND"],
+  "address": { "@type": "PostalAddress", "addressLocality": "Rome", "addressRegion": "Lazio", "addressCountry": "IT" },
+  "areaServed": { "@type": "City", "name": "Rome" },
   "priceRange": "€€-€€€"
-}
-  </script>
-  <script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "WebSite",
-  "@id": "https://www.boomrome.com/#website",
-  "url": "https://www.boomrome.com",
-  "name": "BOOM Rome",
-  "publisher": {
-    "@id": "https://www.boomrome.com/#organization"
-  },
-  "potentialAction": {
-    "@type": "SearchAction",
-    "target": {
-      "@type": "EntryPoint",
-      "urlTemplate": "https://www.boomrome.com/apartments?q={search_term_string}"
-    },
-    "query-input": "required name=search_term_string"
-  },
-  "inLanguage": [
-    "en",
-    "it"
-  ]
 }
   </script>
   <script type="application/ld+json">
@@ -115,18 +40,8 @@
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
   "itemListElement": [
-    {
-      "@type": "ListItem",
-      "position": 1,
-      "name": "Home",
-      "item": "https://www.boomrome.com/"
-    },
-    {
-      "@type": "ListItem",
-      "position": 2,
-      "name": "Virtual Viewing",
-      "item": "https://www.boomrome.com/virtual-viewing"
-    }
+    { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.boomrome.com/" },
+    { "@type": "ListItem", "position": 2, "name": "Virtual Viewing", "item": "https://www.boomrome.com/virtual-viewing" }
   ]
 }
   </script>
@@ -134,385 +49,446 @@
 {
   "@context": "https://schema.org",
   "@type": "Service",
-  "serviceType": "PropertyManagement",
-  "name": "Virtual Apartment Viewings",
-  "description": "Live video viewings of Rome apartments with professional verification, honest feedback and live Q&A.",
+  "serviceType": "Real estate virtual viewing",
+  "name": "Virtual Apartment Viewing — live video tour",
+  "description": "Live video viewing of any Rome apartment with HD photos, an honest written report and red-flag checks, scheduled within 48 hours.",
   "url": "https://www.boomrome.com/virtual-viewing",
-  "provider": {
-    "@id": "https://www.boomrome.com/#organization"
-  },
-  "areaServed": {
-    "@type": "City",
-    "name": "Rome"
-  }
+  "provider": { "@id": "https://www.boomrome.com/#organization" },
+  "areaServed": { "@type": "City", "name": "Rome" },
+  "offers": { "@type": "Offer", "price": "89", "priceCurrency": "EUR", "availability": "https://schema.org/InStock", "url": "https://www.boomrome.com/virtual-viewing" }
 }
   </script>
   <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
-{"@type":"Question","name":"How fast can you do a viewing?","acceptedAnswer":{"@type":"Answer","text":"Usually within 24–48 hours of your request, scheduled directly with the landlord or agency."}},
-{"@type":"Question","name":"What exactly do I receive?","acceptedAnswer":{"@type":"Answer","text":"A 30-minute live tour, 20+ HD photos, a condition report, a neighbourhood check and our honest recommendation."}},
-{"@type":"Question","name":"Which platforms do you use?","acceptedAnswer":{"@type":"Answer","text":"Zoom, WhatsApp or FaceTime — whatever is easiest for you, from anywhere in the world."}},
-{"@type":"Question","name":"What if the apartment isn't good?","acceptedAnswer":{"@type":"Answer","text":"We tell you honestly, with reasons. Far better to know before you commit a deposit."}}
+ {"@type":"Question","name":"How fast can you do a viewing?","acceptedAnswer":{"@type":"Answer","text":"Usually within 24–48 hours of payment, scheduled directly with the landlord or agency."}},
+ {"@type":"Question","name":"What exactly do I receive?","acceptedAnswer":{"@type":"Answer","text":"A live video tour you direct, 24+ HD photos, a condition report, a neighbourhood check and our honest recommendation — including what we didn't like."}},
+ {"@type":"Question","name":"Does it work for apartments not listed on BOOM?","acceptedAnswer":{"@type":"Answer","text":"Yes — any apartment in Rome, from any portal or agency. Send us the link and we take it from there."}},
+ {"@type":"Question","name":"Which platforms do you use?","acceptedAnswer":{"@type":"Answer","text":"Zoom, WhatsApp or FaceTime — whatever's easiest for you, from anywhere in the world. The call is recorded and it's yours."}},
+ {"@type":"Question","name":"What if the apartment isn't good?","acceptedAnswer":{"@type":"Answer","text":"We tell you honestly, with reasons. Far better €89 spent than a bad deposit committed."}},
+ {"@type":"Question","name":"What if you can't reach the property?","acceptedAnswer":{"@type":"Answer","text":"Full refund, no questions. And if you later rent the home through BOOM, the €89 is credited to your agency fee."}}
 ]}
   </script>
-<!-- BOOM_JSONLD:END -->
+<style>
+/* ═══ SERVICES 2.0 — flagship product page. MATERIA ambience, pay-plate,
+   honest numbers, one tap to buy. Shares its language with apartments +
+   apartment-detail + L'Atto. ═══ */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--gold:#FFD700;--gold-light:#FFE5A0;--void:#060607;--card:#0C0C0E;--surface:#111114;--input:#17171B;
+  --line:rgba(255,255,255,.09);--line-soft:rgba(255,255,255,.05);--line-gold:rgba(255,215,0,.28);
+  --gold-muted:rgba(255,215,0,.12);--gold-faint:rgba(255,215,0,.06);
+  --t1:#FFF;--t2:rgba(255,255,255,.72);--t3:rgba(255,255,255,.46);--t4:rgba(255,255,255,.26);
+  --green:#3ddc97;--green-muted:rgba(61,220,151,.14);--red:#ff7a6e;
+  --sans:'Helvetica Neue',Helvetica,'Inter',-apple-system,sans-serif;
+  --ease:cubic-bezier(.16,1,.3,1);--safe:env(safe-area-inset-bottom,0px)}
+@view-transition{navigation:auto}
+::view-transition-old(root){animation-duration:.24s}
+::view-transition-new(root){animation-duration:.24s}
+html{scroll-behavior:smooth}
+body{font-family:var(--sans);background:var(--void);color:var(--t1);font-weight:300;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+a{color:inherit;text-decoration:none}
+input,textarea,select{font-family:inherit}
+.eyebrow{font-size:10.5px;letter-spacing:2.8px;text-transform:uppercase;color:var(--gold)}
+/* nav */
+nav.top{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;justify-content:space-between;align-items:center;padding:13px 20px;background:rgba(6,6,7,.92);backdrop-filter:blur(18px);border-bottom:1px solid var(--line-soft)}
+.brand{display:flex;align-items:center;gap:10px}
+.ring{width:25px;height:25px;border-radius:50%;border:1.5px solid var(--gold);box-shadow:0 0 14px rgba(255,215,0,.35)}
+.brand b{font-weight:300;letter-spacing:5px;font-size:15px}
+.nlinks{display:flex;align-items:center;gap:18px;font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t3)}
+.nlinks a:hover{color:var(--t1)}
+.nlinks .wa{color:var(--gold);border:1px solid var(--line-gold);border-radius:100px;padding:7px 14px;transition:.3s}
+.nlinks .wa:hover{background:var(--gold-muted);color:var(--gold)}
+@media(max-width:640px){.nlinks a.hide-m{display:none}}
+main{position:relative;z-index:5;max-width:1080px;margin:0 auto;padding:104px 18px calc(60px + var(--safe))}
+/* hero */
+.hero{display:grid;gap:34px;grid-template-columns:minmax(0,1fr);align-items:center}
+@media(min-width:920px){.hero{grid-template-columns:1.05fr .95fr;gap:44px}}
+.hero h1{font-weight:100;font-size:clamp(36px,7vw,62px);line-height:1.05;letter-spacing:-1px;margin-top:12px}
+.hero h1 em{font-style:normal;color:var(--gold);font-weight:300}
+.hero .sub{color:var(--t2);font-size:clamp(14.5px,2vw,16.5px);max-width:50ch;margin-top:16px}
+.hero .ctarow{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px;align-items:center}
+.cta-ghost{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:100px;padding:13px 20px;font-size:13px;color:var(--t2);transition:.3s}
+.cta-ghost:hover{border-color:var(--line-gold);color:var(--t1)}
+.proof{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px;font-size:11px;color:var(--t3)}
+.proof span{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:100px;padding:6px 12px}
+.proof .c{color:var(--green)}
+/* the device — a live viewing, happening */
+.device{border:1px solid var(--line);border-radius:18px;overflow:hidden;background:var(--card);box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.dbar{display:flex;align-items:center;gap:6px;padding:10px 14px;border-bottom:1px solid var(--line-soft)}
+.dbar i{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.14)}
+.dbar .url{margin-left:8px;font-size:10.5px;color:var(--t4);letter-spacing:.5px}
+.stage{padding:13px;background:linear-gradient(170deg,var(--surface),#070708)}
+.vid{position:relative;aspect-ratio:16/10;border-radius:12px;overflow:hidden;background:linear-gradient(135deg,#1a1a22,#0c0c11)}
+.vid::after{content:'';position:absolute;inset:0;z-index:1;background:radial-gradient(circle at 62% 34%,rgba(255,215,0,.12),transparent 55%),linear-gradient(180deg,rgba(0,0,0,.12),rgba(0,0,0,.4))}
+.still{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;filter:brightness(.82) saturate(1.05);animation:ken 16s ease-in-out infinite alternate}
+@keyframes ken{from{transform:scale(1.04)}to{transform:scale(1.13)}}
+.rec{position:absolute;top:12px;left:12px;z-index:3;font-size:10px;letter-spacing:1px;color:#fff;background:rgba(0,0,0,.55);border:1px solid rgba(61,220,151,.4);padding:4px 9px;border-radius:100px}
+.rec b{color:var(--green);animation:blink 1.4s infinite}
+@keyframes blink{50%{opacity:.25}}
+.hot{position:absolute;z-index:2;width:12px;height:12px;border-radius:50%;background:var(--gold);animation:hotp 2s infinite}
+@keyframes hotp{0%{box-shadow:0 0 0 0 rgba(255,215,0,.5)}70%{box-shadow:0 0 0 14px rgba(255,215,0,0)}100%{box-shadow:0 0 0 0 rgba(255,215,0,0)}}
+.cap{position:absolute;left:12px;bottom:38px;z-index:3;font-size:12px;color:#fff;background:rgba(0,0,0,.5);backdrop-filter:blur(6px);padding:6px 11px;border-radius:8px;transition:opacity .25s;max-width:78%}
+.scrub{position:absolute;left:12px;right:12px;bottom:13px;height:4px;border-radius:2px;background:rgba(255,255,255,.18);z-index:3}
+.played{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--gold);border-radius:2px}
+.tim{position:absolute;right:14px;bottom:22px;z-index:3;font-size:10.5px;color:rgba(255,255,255,.82);font-variant-numeric:tabular-nums}
+.deliv{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.chip{font-size:11px;color:var(--t3);border:1px solid var(--line);background:rgba(255,255,255,.02);padding:6px 10px;border-radius:100px}
+/* sections */
+section{margin-top:76px}
+.sec-h{display:flex;gap:14px;align-items:baseline;margin-bottom:10px}
+.sec-h .num{font-size:11px;color:var(--t4);letter-spacing:2px;white-space:nowrap}
+.sec-h h2{font-weight:200;font-size:clamp(24px,4.5vw,34px)}
+.sec-h h2 .g{color:var(--gold)}
+.sec-sub{color:var(--t3);font-size:13.5px;max-width:60ch}
+/* steps with a gold thread */
+.steps{margin-top:26px;position:relative;display:grid;gap:0;grid-template-columns:minmax(0,1fr)}
+@media(min-width:700px){.steps{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.step{position:relative;padding:22px 22px 22px 46px;border:1px solid var(--line);background:var(--card);border-radius:16px}
+.step+.step{margin-top:12px}
+@media(min-width:700px){.step+.step{margin-top:0;margin-left:12px}}
+.step .dot{position:absolute;left:18px;top:26px;width:11px;height:11px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 5px var(--gold-faint),0 0 18px rgba(255,215,0,.45)}
+.step .k{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--gold)}
+.step .v{font-size:15.5px;margin-top:6px;font-weight:400}
+.step .s{font-size:12.5px;color:var(--t3);margin-top:5px}
+/* honesty band */
+.truth{margin-top:26px;border:1px solid var(--line-gold);border-radius:18px;padding:26px 26px;background:radial-gradient(120% 100% at 10% 0%,rgba(255,215,0,.07),transparent 60%),var(--card)}
+.truth h3{font-weight:200;font-size:clamp(19px,3.4vw,25px)}
+.truth h3 em{font-style:normal;color:var(--gold);font-weight:300}
+.truth p{color:var(--t2);font-size:13.5px;margin-top:9px;max-width:64ch}
+.flags{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.flag{font-size:11.5px;border:1px solid var(--line);border-radius:100px;padding:7px 13px;color:var(--t3)}
+.flag b{color:var(--red);font-weight:500;margin-right:5px}
+/* what you get */
+.get{margin-top:26px;display:grid;gap:12px;grid-template-columns:minmax(0,1fr)}
+@media(min-width:640px){.get{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(min-width:920px){.get{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.g-it{border:1px solid var(--line);border-radius:15px;background:var(--card);padding:18px;transition:border-color .3s,transform .3s var(--ease)}
+.g-it:hover{border-color:var(--line-gold);transform:translateY(-2px)}
+.g-it .ic{font-size:19px}
+.g-it b{display:block;font-weight:400;font-size:14.5px;margin-top:9px}
+.g-it p{font-size:12.5px;color:var(--t3);margin-top:4px}
+/* pay */
+.paywrap{margin-top:26px;border:1px solid var(--line-gold);border-radius:22px;overflow:hidden;background:var(--card)}
+.pay{padding:26px;display:grid;gap:20px;grid-template-columns:minmax(0,1fr)}
+@media(min-width:820px){.pay{grid-template-columns:1.15fr 1fr;align-items:center}}
+.why{display:grid;gap:10px}
+.why div{display:flex;gap:10px;font-size:13.5px;color:var(--t2)}
+.why .c{color:var(--green);flex:none}
+.paybtn{position:relative;width:100%;display:flex;align-items:center;gap:13px;padding:17px 18px;border-radius:14px;background:linear-gradient(135deg,var(--gold),#d9b400);color:#1a1407;text-align:left;transition:.3s var(--ease);overflow:hidden}
+.paybtn::after{content:'';position:absolute;top:0;bottom:0;left:-70%;width:45%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.5),transparent);transform:skewX(-18deg);animation:sheen 4.2s var(--ease) infinite}
+@keyframes sheen{0%,72%{left:-70%}100%{left:130%}}
+.paybtn:hover{transform:translateY(-1px);box-shadow:0 16px 44px rgba(255,215,0,.3)}
+.paybtn .lk{width:37px;height:37px;border-radius:11px;display:grid;place-items:center;background:rgba(0,0,0,.14);flex:none;font-size:15px}
+.paybtn .tx{flex:1}
+.paybtn b{display:block;font-size:15px;font-weight:600}
+.paybtn small{display:block;font-size:11px;opacity:.75;margin-top:1px}
+.paybtn .amt{font-size:22px;font-weight:300;white-space:nowrap}
+.paysafe{display:flex;gap:7px;justify-content:center;flex-wrap:wrap;font-size:11px;color:var(--t3);margin-top:11px;text-align:center}
+.paysafe b{color:var(--t2)}
+/* guarantee trio */
+.trio{margin-top:12px;display:grid;gap:12px;grid-template-columns:minmax(0,1fr)}
+@media(min-width:700px){.trio{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.tri{border:1px dashed var(--line-gold);border-radius:15px;padding:16px 18px;background:var(--gold-faint)}
+.tri b{display:block;font-weight:400;font-size:13.5px;color:var(--gold-light)}
+.tri p{font-size:12px;color:var(--t3);margin-top:4px}
+/* faq */
+.faq{margin-top:26px;display:grid;gap:10px}
+.faq details{border:1px solid var(--line);border-radius:14px;background:var(--card);overflow:hidden}
+.faq summary{list-style:none;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:16px 18px;font-size:14px;font-weight:400;cursor:pointer}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:'+';color:var(--gold);font-size:19px;font-weight:200;transition:transform .3s var(--ease)}
+.faq details[open] summary::after{transform:rotate(45deg)}
+.faq .a{padding:0 18px 16px;font-size:13px;color:var(--t2);max-width:70ch}
+/* siblings */
+.sibs{margin-top:26px;display:grid;gap:12px;grid-template-columns:minmax(0,1fr)}
+@media(min-width:700px){.sibs{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.sib{position:relative;border:1px solid var(--line);border-radius:16px;background:var(--card);padding:20px;transition:border-color .3s,transform .3s var(--ease);overflow:hidden}
+.sib:hover{border-color:var(--line-gold);transform:translateY(-2px)}
+.sib .se{font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--t4)}
+.sib b{display:block;font-weight:300;font-size:17px;margin-top:6px}
+.sib p{font-size:12px;color:var(--t3);margin-top:5px;min-height:36px}
+.sib .pr{margin-top:12px;font-size:13px;color:var(--gold)}
+/* final band */
+.band{margin-top:76px;border:1px solid var(--line-gold);border-radius:22px;padding:34px 28px;text-align:center;background:radial-gradient(120% 130% at 50% 0%,rgba(255,215,0,.08),transparent 60%),var(--card)}
+.band h2{font-weight:100;font-size:clamp(26px,5vw,40px)}
+.band h2 em{font-style:normal;color:var(--gold);font-weight:300}
+.band p{color:var(--t3);font-size:13.5px;margin-top:10px}
+.band .paybtn{max-width:430px;margin:22px auto 0}
+/* footer */
+footer{position:relative;z-index:5;border-top:1px solid var(--line-soft);margin-top:70px;padding:34px 20px calc(70px + var(--safe));background:rgba(6,6,7,.6)}
+.fin{max-width:1080px;margin:0 auto;display:grid;gap:22px;grid-template-columns:minmax(0,1fr)}
+@media(min-width:760px){.fin{grid-template-columns:1.4fr 1fr 1fr}}
+.fbrand{display:flex;align-items:center;gap:10px}
+.fbrand b{letter-spacing:5px;font-weight:300}
+.fco{font-size:11px;color:var(--t4);margin-top:10px;line-height:1.7}
+.fcol h4{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t4);font-weight:400;margin-bottom:10px}
+.fcol a{display:block;font-size:12.5px;color:var(--t3);padding:3px 0}
+.fcol a:hover{color:var(--t1)}
+.fbot{max-width:1080px;margin:26px auto 0;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--t4);border-top:1px solid var(--line-soft);padding-top:16px}
+.fbot .ok{display:inline-flex;align-items:center;gap:6px}
+.fbot .ok i{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px rgba(61,220,151,.8)}
+/* checkout sheet */
+.ov{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);display:none;align-items:flex-end;justify-content:center}
+.ov.on{display:flex}
+@media(min-width:640px){.ov{align-items:center}}
+.sheet{width:100%;max-width:480px;max-height:88vh;overflow:auto;background:var(--surface);border:1px solid var(--line-gold);border-radius:22px 22px 0 0;padding:24px 22px calc(24px + var(--safe));animation:rise .4s var(--ease)}
+@media(min-width:640px){.sheet{border-radius:22px}}
+@keyframes rise{from{transform:translateY(30px);opacity:0}to{transform:none;opacity:1}}
+.sheet .sh{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.sheet h3{font-weight:200;font-size:21px}
+.sheet .x{color:var(--t3);font-size:22px;line-height:1;padding:4px 8px}
+.sheet .note{font-size:12px;color:var(--t3);margin-top:6px}
+.fld{margin-top:14px}
+.fld label{display:block;font-size:10px;letter-spacing:1.8px;text-transform:uppercase;color:var(--t3);margin-bottom:6px}
+.fld input,.fld textarea{width:100%;background:var(--input);border:1px solid var(--line);border-radius:12px;padding:13px 14px;font-size:15px;color:var(--t1);outline:none;transition:border-color .3s}
+.fld input:focus,.fld textarea:focus{border-color:var(--line-gold)}
+.fld textarea{resize:vertical;min-height:64px}
+.ferr{display:none;font-size:12px;color:var(--red);margin-top:10px}
+.ferr.on{display:block}
+.sheet .paybtn{margin-top:18px}
+.sheet .alt{margin-top:12px;text-align:center;font-size:12px;color:var(--t3)}
+.sheet .alt a{color:var(--gold)}
+/* sticky mobile pay bar */
+.paybar{position:fixed;left:0;right:0;bottom:0;top:auto;z-index:90;display:none;gap:12px;align-items:center;padding:10px 14px calc(10px + var(--safe));background:rgba(6,6,7,.94);backdrop-filter:blur(20px);border-top:1px solid var(--line-gold);transform:translateY(110%);transition:transform .45s var(--ease)}
+.paybar.on{transform:none}
+.paybar .pinfo{flex:1;min-width:0}
+.paybar .pinfo b{display:block;font-size:13px;font-weight:400}
+.paybar .pinfo small{font-size:10.5px;color:var(--t3)}
+.paybar .go{flex:none;background:linear-gradient(135deg,var(--gold),#d9b400);color:#1a1407;font-weight:600;border-radius:100px;padding:12px 20px;font-size:13.5px}
+@media(max-width:879px){.paybar{display:flex}}
+/* reveal */
+.rv{opacity:0;transform:translateY(16px);transition:opacity .7s var(--ease),transform .7s var(--ease)}
+.rv.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;transition:none}.still{animation:none}.paybtn::after{animation:none}}
+</style>
 </head>
 <body>
+<nav class="top">
+  <a class="brand" href="/"><span class="ring"></span><b>BOOM</b></a>
+  <div class="nlinks">
+    <a href="/apartments" class="hide-m">Apartments</a>
+    <a href="/property-finding" class="hide-m">Services</a>
+    <a class="wa" href="https://wa.me/393313251961?text=Hi!%20I'd%20like%20a%20virtual%20viewing." rel="noopener" onclick="boomTrack('generate_lead',{channel:'whatsapp',source_page:'virtual-viewing'})">WhatsApp</a>
+  </div>
+</nav>
 
-        <div class="tech-bg">
-
-            <div class="tech-orb tech-orb-1"></div>
-        <div class="tech-orb tech-orb-2"></div>
-        <div class="tech-orb tech-orb-3"></div>
-        <div class="tech-grid"></div>
+<main>
+  <header class="hero">
+    <div class="rv in">
+      <span class="eyebrow">Virtual Viewing · Most booked</span>
+      <h1>Be there, <em>without being there.</em></h1>
+      <p class="sub">You're in Berlin, the apartment is in Trastevere, and photos lie. One of us walks it for you — live, on camera, opening every closet you ask us to open.</p>
+      <div class="ctarow">
+        <button class="paybtn" style="max-width:360px" onclick="openSheet('hero')"><span class="lk">▶</span><span class="tx"><b>Book a virtual viewing</b><small>pay now · scheduled within 48h · Stripe</small></span><span class="amt">€89</span></button>
+        <a class="cta-ghost" href="https://wa.me/393313251961?text=Hi!%20A%20question%20about%20virtual%20viewings." rel="noopener" onclick="boomTrack('generate_lead',{channel:'whatsapp',source_page:'virtual-viewing'})">Questions? WhatsApp →</a>
+      </div>
+      <div class="proof"><span><span class="c">✓</span> English-speaking team</span><span><span class="c">✓</span> Registered Italian agency</span><span>★ 4.9 on Google · 47 reviews</span></div>
     </div>
-    <div class="mouse-glow" id="mouseGlow"></div>
-
-    <!-- Scroll Progress -->
-    <div class="scroll-progress" id="scrollProgress"></div>
-
-    <!-- Navigation -->
-    <nav class="nav" id="nav">
-        <div class="container nav-inner">
-            <a href="/" class="logo">
-                <svg class="logo-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-                    <defs>
-                        <linearGradient id="goldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stop-color="#FFE55C"/>
-                            <stop offset="100%" stop-color="#E5C200"/>
-                        </linearGradient>
-                    </defs>
-                    <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#goldGrad)">
-                        <path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/>
-                    </g>
-                </svg>
-                <span class="logo-text">BOOM</span>
-            </a>
-
-            <div class="nav-links">
-                <a href="/apartments.html" class="nav-link">Apartments</a>
-                <a href="/property-finding.html" class="nav-link">Property Finding</a>
-                <a href="/deal-assistance.html" class="nav-link">Deal Assistance</a>
-                <a href="/virtual-viewing.html" class="nav-link">Virtual Viewing</a>
-                <a href="/concierge.html" class="nav-link">Concierge</a>
-                <a href="/partners.html" class="nav-link">Partners</a>
-                <a href="/about.html" class="nav-link">About</a>
-                <a href="https://wa.me/393313251961" class="nav-cta" target="_blank">WhatsApp</a>
-            </div>
-
-            <button class="nav-toggle" id="navToggle" aria-label="Toggle menu">
-                <span></span>
-                <span></span>
-                <span></span>
-            </button>
+    <div class="device rv in" aria-hidden="true">
+      <div class="dbar"><i></i><i></i><i></i><span class="url">app.boomrome.com/viewing</span></div>
+      <div class="stage">
+        <div class="vid">
+          <img class="still" src="https://i.imgur.com/9CI1JnI.jpeg" alt="" loading="eager" decoding="async" onerror="this.style.display='none'">
+          <span class="rec"><b>●</b> LIVE</span>
+          <span class="hot" style="left:68%;top:38%"></span>
+          <div class="cap" id="cap">Walking through the living room…</div>
+          <span class="tim" id="tim">00:00</span>
+          <div class="scrub"><span class="played" id="played"></span></div>
         </div>
-    </nav>
-
-    <!-- Mobile Menu -->
-    <div class="mobile-menu" id="mobileMenu">
-        <div class="mobile-menu-links">
-            <a href="/" class="mobile-menu-link">Home</a>
-            <a href="/apartments.html" class="mobile-menu-link">Apartments</a>
-            <a href="/property-finding.html" class="mobile-menu-link">Property Finding</a>
-            <a href="/deal-assistance.html" class="mobile-menu-link">Deal Assistance</a>
-            <a href="/virtual-viewing.html" class="mobile-menu-link">Virtual Viewing</a>
-            <a href="/concierge.html" class="mobile-menu-link">Concierge</a>
-            <a href="/universities.html" class="mobile-menu-link">For Universities</a>
-            <a href="/corporate.html" class="mobile-menu-link">For Companies</a>
-            <a href="/research.html" class="mobile-menu-link">For Research</a>
-            <a href="/about.html" class="mobile-menu-link">About</a>
-            <a href="/login.html" class="mobile-menu-link">Login</a>
-        </div>
-        <a href="https://wa.me/393313251961" class="mobile-menu-cta" target="_blank">WhatsApp Us</a>
+        <div class="deliv"><span class="chip">📸 24+ HD photos</span><span class="chip">🔍 Condition report</span><span class="chip">⚠️ Red-flag alert</span><span class="chip">🎥 Recording is yours</span></div>
+      </div>
     </div>
+  </header>
 
-    
-    <!-- HERO -->
-    <section class="svc-hero">
-        <div class="svc-hero-copy">
-            <span class="svc-eyebrow">Virtual Viewing</span>
-            <h1>We're your<br><span class="text-gold">eyes in Rome.</span></h1>
-            <p class="sub">Can't visit before renting? We'll be there for you. Live video viewings, honest assessments and professional verification — so you can rent confidently from anywhere in the world.</p>
-            <div class="row">
-                <a href="https://buy.stripe.com/8x2eVe9NleiB06O41v5J60e" class="btn btn-primary">Book a viewing — €89</a>
-                <div class="svc-trust"><span class="stars">★★★★★</span> <b>4.9</b> · rent with confidence</div>
-            </div>
-        </div>
-        <div class="svc-device">
-            <div class="svc-bar"><i></i><i></i><i></i><span class="svc-url">app.boomrome.com/viewing</span></div>
-            <div class="vv-stage">
-                <div class="vv-video">
-                    <img class="vv-still" src="https://i.imgur.com/9CI1JnI.jpeg" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'">
-                    <span class="vv-rec"><b>●</b> LIVE</span>
-                    <span class="vv-hotspot" style="left:68%;top:38%"></span>
-                    <button class="vv-play" aria-hidden="true">▶</button>
-                    <div class="vv-cap" id="vvCap">Walking through the living room…</div>
-                    <span class="vv-time" id="vvTime">00:00</span>
-                    <div class="vv-scrub"><span class="vv-played" id="vvPlayed"></span><span class="vv-head" id="vvHead"></span></div>
-                </div>
-                <div class="vv-deliv"><span class="vv-chip">📸 24 HD photos</span><span class="vv-chip">🔍 Condition report</span><span class="vv-chip">⚠️ Red-flag alert</span></div>
-            </div>
-        </div>
-    </section>
+  <section class="rv">
+    <div class="sec-h"><span class="num">HOW IT WORKS</span><h2>Three steps. <span class="g">Forty-eight hours.</span></h2></div>
+    <div class="steps">
+      <div class="step"><span class="dot"></span><div class="k">1 · Book</div><div class="v">Pick the listing, pay €89</div><div class="s">Any apartment in Rome — ours or any portal's. Stripe, takes one minute.</div></div>
+      <div class="step"><span class="dot"></span><div class="k">2 · Walk it live</div><div class="v">Video call from inside</div><div class="s">You direct, we film. Water pressure, phone signal, that noise from the street — recorded for you.</div></div>
+      <div class="step"><span class="dot"></span><div class="k">3 · Decide armed</div><div class="v">HD photos + honest report</div><div class="s">Including what we didn't like. Then you decide — with facts, not filters.</div></div>
+    </div>
+  </section>
 
-    <!-- HOW IT WORKS -->
-    <section class="section">
-        <div class="container">
-            <div class="section-header reveal"><span class="section-eyebrow">Simple process</span><h2 class="section-title">How it works.</h2></div>
-            <div class="svc-steps s3 reveal-stagger">
-                <div class="svc-step"><div class="svc-snum">01</div><h3>Send us the listing</h3><p>Share the property URL or details. We schedule the viewing with the landlord or agency.</p></div>
-                <div class="svc-step"><div class="svc-snum">02</div><h3>Live video tour</h3><p>Join via Zoom or WhatsApp. Our expert walks through the apartment, answering your questions in real time.</p></div>
-                <div class="svc-step"><div class="svc-snum">03</div><h3>Get your report</h3><p>Within 24h: a detailed report with HD photos, red flags, neighbourhood assessment and an honest recommendation.</p></div>
-            </div>
-        </div>
-    </section>
+  <section class="rv">
+    <div class="truth">
+      <h3>We tell you what's wrong with it. <em>That's the product.</em></h3>
+      <p>Anyone can film a room. We check what listings hide — because we rent apartments for a living and know exactly where to look. If it's not worth your deposit, we say so in writing.</p>
+      <div class="flags">
+        <span class="flag"><b>⚑</b> traffic noise at 7am</span>
+        <span class="flag"><b>⚑</b> fifth floor, no lift</span>
+        <span class="flag"><b>⚑</b> damp corner behind the wardrobe</span>
+        <span class="flag"><b>⚑</b> "bright" = one dark courtyard window</span>
+        <span class="flag"><b>⚑</b> boiler from 2004</span>
+      </div>
+    </div>
+  </section>
 
-    <!-- INCLUDES -->
-    <section class="section section-dark">
-        <div class="container">
-            <div class="section-header reveal"><span class="section-eyebrow">What's included</span><h2 class="section-title">Every viewing<br><span class="text-gold">includes.</span></h2></div>
-            <div class="svc-grid c3 reveal-stagger">
-                <div class="svc-card"><span class="glow"></span><div class="svc-ico">📹</div><h3>30-min live video</h3><p>Full walkthrough via Zoom or WhatsApp. Ask questions, request close-ups, check every corner in real time.</p></div>
-                <div class="svc-card"><span class="glow"></span><div class="svc-ico">📸</div><h3>HD photo set</h3><p>20+ professional photos documenting every room, appliances, views, building entrance and surroundings.</p></div>
-                <div class="svc-card"><span class="glow"></span><div class="svc-ico">🔍</div><h3>Condition report</h3><p>Detailed assessment: walls, floors, fixtures, appliances, windows, heating/cooling, potential issues.</p></div>
-                <div class="svc-card"><span class="glow"></span><div class="svc-ico">🏘️</div><h3>Neighbourhood check</h3><p>Building condition, noise levels, nearby amenities, transport links, safety assessment, local vibe.</p></div>
-                <div class="svc-card"><span class="glow"></span><div class="svc-ico">⚠️</div><h3>Red-flags alert</h3><p>Honest assessment of any issues: mould, dampness, noise, poor maintenance, sketchy landlord behaviour.</p></div>
-                <div class="svc-card"><span class="glow"></span><div class="svc-ico">💬</div><h3>Our recommendation</h3><p>Straight talk: should you rent this place? We'll tell you honestly, with the reasons why or why not.</p></div>
-            </div>
-        </div>
-    </section>
+  <section class="rv">
+    <div class="sec-h"><span class="num">WHAT YOU GET</span><h2>Everything a visit gives you. <span class="g">And a record of it.</span></h2></div>
+    <div class="get">
+      <div class="g-it"><span class="ic">🎥</span><b>30-minute live tour</b><p>Zoom, WhatsApp or FaceTime — you direct every minute of it.</p></div>
+      <div class="g-it"><span class="ic">📸</span><b>24+ HD photos</b><p>Every room, every defect, the view from every window.</p></div>
+      <div class="g-it"><span class="ic">📋</span><b>Honest written report</b><p>Condition, light, noise — and our recommendation, with reasons.</p></div>
+      <div class="g-it"><span class="ic">⚠️</span><b>Red-flag alert</b><p>Anything that should stop you — before the deposit, not after.</p></div>
+      <div class="g-it"><span class="ic">🗺️</span><b>Neighbourhood check</b><p>The street at street level: bars below, bus stops, the nightly reality.</p></div>
+      <div class="g-it"><span class="ic">💾</span><b>The recording, forever</b><p>Rewatch it, share it with your partner, compare apartments side by side.</p></div>
+    </div>
+  </section>
 
-    <!-- WHAT WE CHECK -->
-    <section class="section">
-        <div class="container">
-            <div class="section-header reveal"><span class="section-eyebrow">No surprises</span><h2 class="section-title">What we check for.</h2></div>
-            <div class="svc-checks reveal">
-                <div class="svc-check"><span class="x">🚩</span>Mould or dampness signs</div>
-                <div class="svc-check"><span class="x">🚩</span>Plumbing issues</div>
-                <div class="svc-check"><span class="x">🚩</span>Electrical safety concerns</div>
-                <div class="svc-check"><span class="x">🚩</span>Noise from neighbours / street</div>
-                <div class="svc-check"><span class="x">🚩</span>Poor natural light</div>
-                <div class="svc-check"><span class="x">🚩</span>Security vulnerabilities</div>
-                <div class="svc-check"><span class="x">🚩</span>Misleading listing photos</div>
-                <div class="svc-check"><span class="x">🚩</span>Building maintenance issues</div>
-            </div>
-        </div>
-    </section>
+  <section class="rv" id="pay">
+    <div class="sec-h"><span class="num">BOOK IT</span><h2>One tap. <span class="g">We handle the rest.</span></h2></div>
+    <div class="paywrap"><div class="pay">
+      <div class="why">
+        <div><span class="c">✓</span> Scheduled within 48 hours of payment</div>
+        <div><span class="c">✓</span> Works for any listing in Rome — any portal, any agency</div>
+        <div><span class="c">✓</span> Credited to your agency fee if you rent the home with BOOM</div>
+        <div><span class="c">✓</span> Refunded in full if we can't reach the property</div>
+      </div>
+      <div>
+        <button class="paybtn" onclick="openSheet('pay')"><span class="lk">▶</span><span class="tx"><b>Book your viewing</b><small>next available slot · Stripe-secured</small></span><span class="amt">€89</span></button>
+        <p class="paysafe">Secured by <b>Stripe</b> · refunded in full for any mistake — no questions.</p>
+      </div>
+    </div></div>
+    <div class="trio">
+      <div class="tri"><b>⏱ Within 48 hours</b><p>Most viewings happen next-day. Rome moves fast; so do we.</p></div>
+      <div class="tri"><b>↩ €89 becomes €0</b><p>Rent the home with BOOM and the fee is credited back to you.</p></div>
+      <div class="tri"><b>🛡 Refund, no questions</b><p>Property unreachable? Full refund. Our mistake? Full refund.</p></div>
+    </div>
+  </section>
 
-    <!-- PRICING -->
-    <section class="section section-dark" id="pricing">
-        <div class="container">
-            <div class="section-header reveal"><span class="section-eyebrow">Simple pricing</span><h2 class="section-title">Choose your option.</h2></div>
-            <div class="svc-tiers t2 reveal-stagger">
-                <div class="svc-tier">
-                    <div class="svc-tname">Single viewing</div>
-                    <div class="svc-price"><span class="cur">€</span>89</div>
-                    <div class="svc-unit">per property</div>
-                    <ul class="svc-feats">
-                        <li><span class="ck">✓</span>30-min live video tour</li>
-                        <li><span class="ck">✓</span>20+ HD photos</li>
-                        <li><span class="ck">✓</span>Condition report</li>
-                        <li><span class="ck">✓</span>Neighbourhood check</li>
-                        <li><span class="ck">✓</span>Red-flags assessment</li>
-                        <li><span class="ck">✓</span>Our recommendation</li>
-                    </ul>
-                    <a href="https://buy.stripe.com/8x2eVe9NleiB06O41v5J60e" class="svc-tier-cta">Book single — €89</a>
-                </div>
-                <div class="svc-tier featured">
-                    <span class="svc-tier-badge">Save €68</span>
-                    <div class="svc-tname">3-Pack</div>
-                    <div class="svc-price"><span class="cur">€</span>199</div>
-                    <div class="svc-unit">3 viewings</div>
-                    <ul class="svc-feats">
-                        <li><span class="ck">✓</span>3 live video tours</li>
-                        <li><span class="ck">✓</span>60+ HD photos total</li>
-                        <li><span class="ck">✓</span>3 condition reports</li>
-                        <li><span class="ck">✓</span>Neighbourhood checks</li>
-                        <li><span class="ck">✓</span>Comparison summary</li>
-                        <li><span class="ck">✓</span>Priority scheduling</li>
-                    </ul>
-                    <a href="https://buy.stripe.com/5kQaEY2kTa2lcTAcy15J60f" class="svc-tier-cta">Book 3-pack — €199</a>
-                </div>
-            </div>
-        </div>
-    </section>
+  <section class="rv">
+    <div class="sec-h"><span class="num">FAQ</span><h2>Good to <span class="g">know.</span></h2></div>
+    <div class="faq">
+      <details><summary>How fast can you do a viewing?</summary><div class="a">Usually within 24–48 hours of payment, scheduled directly with the landlord or agency.</div></details>
+      <details><summary>What exactly do I receive?</summary><div class="a">A live video tour you direct, 24+ HD photos, a condition report, a neighbourhood check and our honest recommendation — including what we didn't like.</div></details>
+      <details><summary>Does it work for apartments not listed on BOOM?</summary><div class="a">Yes — any apartment in Rome, from any portal or agency. Send us the link and we take it from there.</div></details>
+      <details><summary>Which platforms do you use?</summary><div class="a">Zoom, WhatsApp or FaceTime — whatever's easiest for you, from anywhere in the world. The call is recorded and it's yours.</div></details>
+      <details><summary>What if the apartment isn't good?</summary><div class="a">We tell you honestly, with reasons. Far better €89 spent than a bad deposit committed.</div></details>
+      <details><summary>What if you can't reach the property?</summary><div class="a">Full refund, no questions. And if you later rent the home through BOOM, the €89 is credited to your agency fee.</div></details>
+    </div>
+  </section>
 
-    <!-- FORM -->
-    <section class="form-section reveal" id="form">
-        <div class="form-container">
-            <div class="form-header"><div class="form-tag">Replies within 24h</div><h2 class="form-title">Questions first?</h2><p class="form-subtitle">Send us the listing and we'll get back to you within 24 hours.</p></div>
-<form action="https://api.web3forms.com/submit" method="POST">
-                <input type="hidden" name="access_key" value="5b10beba-c7e0-4cd2-98f9-2dbb0aefe889">
-                <input type="hidden" name="subject" value="📹 NEW VVV INQUIRY - Virtual Viewing">
-                <input type="hidden" name="from_name" value="BOOM Virtual Viewing">
-                <input type="hidden" name="redirect" value="https://boom-rome.com/_thank-you.html">
-                <div class="form-row">
-                    <div class="form-group"><label class="form-label">Full Name <span class="required">*</span></label><input type="text" name="name" class="form-input" required placeholder="John Smith"></div>
-                    <div class="form-group"><label class="form-label">Email <span class="required">*</span></label><input type="email" name="email" class="form-input" required placeholder="john@email.com"></div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group"><label class="form-label">WhatsApp Number <span class="required">*</span></label><input type="tel" name="phone" class="form-input" required placeholder="+1 234 567 8900"></div>
-                    <div class="form-group"><label class="form-label">Package</label><select name="package" class="form-select"><option value="single">Single Viewing (€89)</option><option value="3pack">3-Pack (€199)</option></select></div>
-                </div>
-                <div class="form-group"><label class="form-label">Listing URL(s) <span class="required">*</span></label><textarea name="listings" class="form-textarea" required placeholder="Paste the listing URL(s) here. For 3-pack, include all listings or tell us you'll send later."></textarea></div>
-                <div class="form-row">
-                    <div class="form-group"><label class="form-label">Your Timezone</label><input type="text" name="timezone" class="form-input" placeholder="e.g., EST, PST, GMT+2"></div>
-                    <div class="form-group"><label class="form-label">Preferred Video Platform</label><select name="platform" class="form-select"><option value="zoom">Zoom</option><option value="whatsapp">WhatsApp Video</option><option value="facetime">FaceTime</option><option value="other">Other</option></select></div>
-                </div>
-                <div class="form-group"><label class="form-label">Anything specific to check?</label><textarea name="notes" class="form-textarea" placeholder="E.g., I need good WiFi for remote work, check if there's a balcony, I'm allergic to mold..."></textarea></div>
-                <button type="submit" class="form-submit">Send Inquiry</button>
-            </form>
-        </div>
-    </section>
+  <section class="rv">
+    <div class="sec-h"><span class="num">MORE</span><h2>The rest of the agency, <span class="g">on demand.</span></h2></div>
+    <div class="sibs">
+      <a class="sib" href="/property-finding"><span class="se">Full hunt</span><b>Property Finding</b><p>We hunt, verify and negotiate — on- and off-market.</p><span class="pr">€350 · refundable →</span></a>
+      <a class="sib" href="/deal-assistance"><span class="se">Found it elsewhere?</span><b>Deal Assistance</b><p>Contract review, verification, negotiation on the home you found.</p><span class="pr">€249 →</span></a>
+      <a class="sib" href="/concierge"><span class="se">White glove</span><b>Concierge</b><p>Relocation end-to-end: utilities, codice fiscale, SIM, registrations.</p><span class="pr">From €390 →</span></a>
+    </div>
+  </section>
 
-    <!-- FAQ -->
-    <section class="section"><div class="container">
-        <div class="section-header reveal"><span class="section-eyebrow">FAQ</span><h2 class="section-title">Good to <span class="text-gold">know.</span></h2></div>
-        <div class="boom-faq reveal">
-            <details><summary>How fast can you do a viewing?</summary><div class="faq-a">Usually within 24–48 hours of your request, scheduled directly with the landlord or agency.</div></details>
-            <details><summary>What exactly do I receive?</summary><div class="faq-a">A 30-minute live tour, 20+ HD photos, a condition report, a neighbourhood check and our honest recommendation.</div></details>
-            <details><summary>Which platforms do you use?</summary><div class="faq-a">Zoom, WhatsApp or FaceTime — whatever's easiest for you, from anywhere in the world.</div></details>
-            <details><summary>What if the apartment isn't good?</summary><div class="faq-a">We tell you honestly, with reasons. Far better to know before you commit a deposit.</div></details>
-        </div>
-    </div></section>
+  <div class="band rv">
+    <h2>Next slots: <em>tomorrow.</em></h2>
+    <p>One tap now, and by this time next week you'll know everything the photos didn't show.</p>
+    <button class="paybtn" onclick="openSheet('band')"><span class="lk">▶</span><span class="tx"><b>Book a virtual viewing</b><small>pay now · scheduled within 48h · Stripe</small></span><span class="amt">€89</span></button>
+  </div>
+</main>
 
-    <!-- CTA -->
-    <section class="svc-cta">
-        <div class="svc-cta-ring"></div><div class="svc-cta-ring b"></div>
-        <div class="container reveal">
-            <h2>Rent it like<br><span class="text-gold">you're standing there.</span></h2>
-            <p>A live video tour and an honest report — before you commit a single euro.</p>
-            <a href="https://buy.stripe.com/8x2eVe9NleiB06O41v5J60e" class="btn btn-primary">Book a viewing — €89</a>
-        </div>
-    </section>
+<footer>
+  <div class="fin">
+    <div>
+      <div class="fbrand"><span class="ring"></span><b>BOOM</b></div>
+      <p class="fco"><strong>Egidi Immobiliare S.r.l.</strong><br>P.IVA 17322991005 · REA RM-1710623<br>Rome, Italy</p>
+    </div>
+    <div class="fcol"><h4>Services</h4><a href="/apartments">Apartments</a><a href="/property-finding">Property Finding</a><a href="/deal-assistance">Deal Assistance</a><a href="/virtual-viewing">Virtual Viewing</a><a href="/concierge">Concierge</a></div>
+    <div class="fcol"><h4>Company</h4><a href="/about.html">About</a><a href="/how-it-works.html">How It Works</a><a href="/faq.html">FAQ</a><a href="/contact.html">Contact</a><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a></div>
+  </div>
+  <div class="fbot"><span>© 2026 BOOM — All Rights Reserved</span><span class="ok"><i></i> Operational</span></div>
+</footer>
 
-<footer class="footer">
-        <div class="container">
-            <div class="footer-grid">
-                <div>
-                    <div class="footer-brand-logo">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-                            <defs>
-                                <linearGradient id="goldGradFooter" x1="0%" y1="0%" x2="0%" y2="100%">
-                                    <stop offset="0%" stop-color="#FFE55C"/>
-                                    <stop offset="100%" stop-color="#E5C200"/>
-                                </linearGradient>
-                            </defs>
-                            <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#goldGradFooter)">
-                                <path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/>
-                            </g>
-                        </svg>
-                        <span>BOOM</span>
-                    </div>
-                    <p class="footer-tagline">
-                        Built in Rome, for Rome. If we can make Rome's rental market work, 
-                        we can make it work anywhere.
-                    </p>
-                    <div class="footer-company">
-                        <strong>Egidi Immobiliare S.r.l.</strong><br>
-                        P.IVA 17322991005<br>
-                        REA RM - 1710623<br>
-                        Rome, Italy
-                    </div>
-                </div>
+<!-- checkout sheet -->
+<div class="ov" id="ov" role="dialog" aria-modal="true" aria-label="Book your virtual viewing">
+  <div class="sheet">
+    <div class="sh"><h3>Book your viewing</h3><button class="x" onclick="closeSheet()" aria-label="Close">×</button></div>
+    <p class="note">€89 · scheduled within 48h · the recording and report are yours. Refunded in full if we can't reach the property.</p>
+    <div class="fld"><label for="sName">Your name</label><input id="sName" autocomplete="name" placeholder="Anna Schmidt"></div>
+    <div class="fld"><label for="sEmail">Email</label><input id="sEmail" type="email" autocomplete="email" placeholder="anna@email.com"></div>
+    <div class="fld"><label for="sPhone">Phone / WhatsApp</label><input id="sPhone" type="tel" autocomplete="tel" placeholder="+49 …"></div>
+    <div class="fld"><label for="sListing">Listing link or address <span style="color:var(--t4);text-transform:none;letter-spacing:0">(optional — you can send it later)</span></label><input id="sListing" placeholder="https://www.immobiliare.it/…"></div>
+    <input id="sCompany" type="text" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
+    <div class="ferr" id="sErr"></div>
+    <button class="paybtn" id="sGo" onclick="paySheet()"><span class="lk">🔒</span><span class="tx"><b>Pay €89 &amp; book</b><small>Stripe checkout · takes one minute</small></span><span class="amt">€89</span></button>
+    <p class="alt">Prefer to talk first? <a href="https://wa.me/393313251961?text=Hi!%20I'd%20like%20a%20virtual%20viewing." rel="noopener" onclick="boomTrack('generate_lead',{channel:'whatsapp',source_page:'virtual-viewing'})">WhatsApp us →</a></p>
+  </div>
+</div>
 
-                <div>
-                    <h4 class="footer-links-title">Services</h4>
-                    <ul class="footer-links-list">
-                        <li><a href="/apartments.html">Apartments</a></li>
-                        <li><a href="/property-finding.html">Property Finding</a></li>
-                        <li><a href="/deal-assistance.html">Deal Assistance</a></li>
-                        <li><a href="/contract-check.html">Free Contract Check</a></li>
-                        <li><a href="/virtual-viewing.html">Virtual Viewing</a></li>
-                        <li><a href="/concierge.html">Concierge</a></li>
-                    </ul>
-                </div>
+<!-- sticky mobile pay bar -->
+<div class="paybar" id="paybar">
+  <div class="pinfo"><b>Virtual Viewing · €89</b><small>within 48h · Stripe · refundable</small></div>
+  <button class="go" onclick="openSheet('paybar')">Book →</button>
+</div>
 
-                <div>
-                    <h4 class="footer-links-title">Company</h4>
-                    <ul class="footer-links-list">
-                        <li><a href="/about.html">About</a></li>
-                        <li><a href="/how-it-works.html">How It Works</a></li>
-                        <li><a href="/universities.html">For Universities</a></li>
-                        <li><a href="/corporate.html">For Companies</a></li>
-                        <li><a href="/research.html">For Research</a></li>
-                        <li><a href="/refer.html">Refer a Friend</a></li>
-                        <li><a href="/owners.html">For Owners</a></li>
-                        <li><a href="/blog.html">Blog</a></li>
-                        <li><a href="/faq.html">FAQ</a></li>
-                        <li><a href="/contact.html">Contact</a></li>
-                    </ul>
-                </div>
+<script src="/js/boom-ambient.js"></script>
+<script>
+function boomTrack(name,params){try{if(typeof gtag==='function')gtag('event',name,params||{});}catch(e){}}
+try{if(window.BoomAmbient)BoomAmbient.mount({ink:'#060607',inkRGB:'6,6,7',palette:{a:'255,215,0',b:'255,229,160'},intensity:.55,sections:false,scene:'marmoantico',z:-3});}catch(e){}
+boomTrack('view_item',{item_id:'svc_virtual_viewing',item_name:'Virtual Viewing',price:89,currency:'EUR'});
 
-                <div>
-                    <h4 class="footer-links-title">Legal</h4>
-                    <ul class="footer-links-list">
-                        <li><a href="/terms.html">Terms</a></li>
-                        <li><a href="/privacy.html">Privacy</a></li>
-                        <li><a href="/login.html">Login</a></li>
-                    </ul>
-                </div>
-            </div>
+/* reveal on scroll */
+(function(){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{rootMargin:'0px 0px -8% 0px'});
+document.querySelectorAll('.rv:not(.in)').forEach(function(el){io.observe(el)});})();
 
-            <div class="footer-bottom">
-                <span>© 2025 BOOM — All Rights Reserved</span>
-                <div class="footer-status">
-                    <span class="footer-status-dot"></span>
-                    <span>Operational</span>
-                </div>
-            </div>
-        </div>
-    </footer>
-    <script>
+/* the live-player vignette */
 (function(){
-  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const getY = () => (window.__boomLenis ? window.__boomLenis.scroll : window.scrollY);
-
-  const nav = document.getElementById('nav');
-  const prog = document.getElementById('scrollProgress');
-  function onScroll(){
-    const y = getY();
-    if(nav) nav.classList.toggle('scrolled', y > 30);
-    if(prog){ const h = document.documentElement.scrollHeight - innerHeight; prog.style.width = (h>0 ? y/h*100 : 0) + '%'; }
-  }
-  addEventListener('scroll', onScroll, {passive:true}); onScroll();
-
-  const navToggle = document.getElementById('navToggle'), mobileMenu = document.getElementById('mobileMenu');
-  if(navToggle && mobileMenu){
-    navToggle.addEventListener('click', ()=>{ navToggle.classList.toggle('active'); mobileMenu.classList.toggle('active'); document.body.style.overflow = mobileMenu.classList.contains('active') ? 'hidden' : ''; });
-    mobileMenu.querySelectorAll('a').forEach(a=>a.addEventListener('click', ()=>{ navToggle.classList.remove('active'); mobileMenu.classList.remove('active'); document.body.style.overflow=''; }));
-  }
-
-  const glow = document.getElementById('mouseGlow');
-  if(glow && matchMedia('(hover:hover)').matches){
-    let t; document.addEventListener('mousemove', e=>{ glow.style.left = e.clientX+'px'; glow.style.top = e.clientY+'px'; glow.classList.add('active'); clearTimeout(t); t=setTimeout(()=>glow.classList.remove('active'),300); });
-  }
-
-  const io = new IntersectionObserver((es)=>es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('active'); io.unobserve(e.target);} }), {threshold:.12, rootMargin:'0px 0px -50px 0px'});
-  document.querySelectorAll('.reveal,.reveal-stagger').forEach(el=>io.observe(el));
-
-  document.querySelectorAll('a[href^="#"]').forEach(a=>a.addEventListener('click', function(ev){
-    const t = document.querySelector(this.getAttribute('href'));
-    if(t){ ev.preventDefault(); if(window.__boomLenis) window.__boomLenis.scrollTo(t,{offset:-70}); else t.scrollIntoView({behavior:'smooth'}); }
-  }));
-
-  // VV live player
-  const played=document.getElementById('vvPlayed'), head=document.getElementById('vvHead'), time=document.getElementById('vvTime'), cap=document.getElementById('vvCap');
-  const caps=['Walking through the living room…','Checking the kitchen appliances…','Inspecting the bathroom…','Testing the natural light…','Scanning for red flags…','Checking the building & street…'];
-  if(played){
-    if(reduce){ played.style.width='36%'; head.style.left='36%'; time.textContent='10:48'; }
-    else {
-      let p=0, ci=0;
-      setInterval(()=>{ p=(p+0.5)%100; played.style.width=p+'%'; head.style.left=p+'%';
-        const total=30*60*(p/100); const mm=Math.floor(total/60), ss=Math.floor(total%60);
-        time.textContent=String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0'); }, 110);
-      setInterval(()=>{ ci=(ci+1)%caps.length; cap.style.opacity='0'; setTimeout(()=>{ cap.textContent=caps[ci]; cap.style.opacity='1'; },240); }, 3200);
-    }
-  }
+  var caps=['Walking through the living room…','Opening the wardrobe — you asked, we show','Water pressure test in the bathroom','That “bright” bedroom, at 4pm, lights off','Street noise check from the balcony','Cellar, meter box, building entrance'];
+  var i=0,t=0,cap=document.getElementById('cap'),tim=document.getElementById('tim'),pl=document.getElementById('played');
+  if(!cap)return;
+  setInterval(function(){
+    t=(t+1)%360;
+    tim.textContent=('0'+Math.floor(t/60)).slice(-2)+':'+('0'+t%60).slice(-2);
+    pl.style.width=(t/360*100)+'%';
+    if(t%60===0){i=(i+1)%caps.length;cap.style.opacity=0;setTimeout(function(){cap.textContent=caps[i];cap.style.opacity=1},250);}
+  },1000);
 })();
 
-    </script>
-    <script defer src="/js/boom-motion.js"></script>
-    <script defer src="/js/boom-track.js"></script>
+/* sticky pay bar: appears once the hero is behind you, hides at the pay section */
+(function(){
+  var bar=document.getElementById('paybar'),hero=document.querySelector('.hero'),pay=document.getElementById('pay');
+  function upd(){
+    var past=hero.getBoundingClientRect().bottom<0;
+    var atPay=pay.getBoundingClientRect().top<innerHeight&&pay.getBoundingClientRect().bottom>0;
+    bar.classList.toggle('on',past&&!atPay&&!document.getElementById('ov').classList.contains('on'));
+  }
+  addEventListener('scroll',upd,{passive:true});upd();
+})();
+
+/* checkout sheet */
+var SVC={kind:'virtual-viewing',eur:89};
+function openSheet(src){
+  document.getElementById('ov').classList.add('on');document.body.style.overflow='hidden';
+  document.getElementById('paybar').classList.remove('on');
+  boomTrack('begin_checkout',{currency:'EUR',value:SVC.eur,items:[{item_id:'svc_'+SVC.kind,item_name:'Virtual Viewing'}],source:src||''});
+  setTimeout(function(){try{document.getElementById('sName').focus()}catch(e){}},350);
+}
+function closeSheet(){document.getElementById('ov').classList.remove('on');document.body.style.overflow='';}
+document.getElementById('ov').addEventListener('click',function(e){if(e.target===this)closeSheet()});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeSheet()});
+document.querySelectorAll('#ov input').forEach(function(el){el.addEventListener('keydown',function(e){if(e.key==='Enter')paySheet()})});
+function err(m){var e=document.getElementById('sErr');e.textContent=m;e.classList.add('on');}
+function paySheet(){
+  var n=document.getElementById('sName').value.trim(),
+      em=document.getElementById('sEmail').value.trim(),
+      ph=document.getElementById('sPhone').value.trim(),
+      li=document.getElementById('sListing').value.trim();
+  document.getElementById('sErr').classList.remove('on');
+  if(n.length<2)return err('Your name, so we know who we\'re filming for.');
+  if(!/^\S+@\S+\.\S+$/.test(em))return err('A valid email — the report and recording go there.');
+  if(ph.replace(/\D/g,'').length<6)return err('A phone number — we coordinate the slot on WhatsApp.');
+  var go=document.getElementById('sGo');go.style.opacity=.6;go.style.pointerEvents='none';
+  go.querySelector('b').textContent='Opening secure checkout…';
+  boomTrack('add_payment_info',{currency:'EUR',value:SVC.eur});
+  fetch('/api/service-checkout',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({kind:SVC.kind,name:n,email:em,phone:ph,listing:li,company:document.getElementById('sCompany').value})})
+  .then(function(r){return r.json()})
+  .then(function(j){
+    if(j&&j.ok&&j.url){location.href=j.url;return;}
+    throw new Error((j&&j.error)||'failed');
+  })
+  .catch(function(){
+    go.style.opacity=1;go.style.pointerEvents='';go.querySelector('b').textContent='Pay €89 & book';
+    err('Checkout hiccuped on our side — try again, or book on WhatsApp and we\'ll send a payment link.');
+  });
+}
+</script>
 </body>
 </html>
