@@ -98,7 +98,15 @@ nav.top{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;justify-cont
 .nlinks .wa{color:var(--gold);border:1px solid var(--line-gold);border-radius:100px;padding:7px 14px;transition:.3s}
 .nlinks .wa:hover{background:var(--gold-muted);color:var(--gold)}
 @media(max-width:640px){.nlinks a.hide-m{display:none}}
-main{position:relative;z-index:5;max-width:1080px;margin:0 auto;padding:104px 18px calc(60px + var(--safe))}
+/* the family strip — one suite, four products */
+.fam{position:fixed;top:52px;left:0;right:0;z-index:49;display:flex;gap:4px;padding:8px 12px;background:rgba(6,6,7,.88);backdrop-filter:blur(14px);border-bottom:1px solid var(--line-soft);overflow-x:auto;scrollbar-width:none}
+.fam::-webkit-scrollbar{display:none}
+.fam a:first-child{margin-left:auto}.fam a:last-child{margin-right:auto}
+.fam a{flex:none;font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--t4);padding:7px 13px;border-radius:100px;border:1px solid transparent;transition:.3s;white-space:nowrap}
+.fam a:hover{color:var(--t2)}
+.fam a.on{color:var(--gold);border-color:var(--line-gold);background:var(--gold-faint)}
+.fam a b{font-weight:400;margin-left:5px;color:var(--gold)}
+main{position:relative;z-index:5;max-width:1080px;margin:0 auto;padding:140px 18px calc(60px + var(--safe))}
 /* hero */
 .hero{display:grid;gap:34px;grid-template-columns:minmax(0,1fr);align-items:center}
 @media(min-width:920px){.hero{grid-template-columns:1.05fr .95fr;gap:44px}}
@@ -217,7 +225,7 @@ section{margin-top:76px}
 /* footer */
 footer{position:relative;z-index:5;border-top:1px solid var(--line-soft);margin-top:70px;padding:34px 20px calc(70px + var(--safe));background:rgba(6,6,7,.6)}
 .fin{max-width:1080px;margin:0 auto;display:grid;gap:22px;grid-template-columns:minmax(0,1fr)}
-@media(min-width:760px){.fin{grid-template-columns:1.4fr 1fr 1fr}}
+@media(min-width:760px){.fin{grid-template-columns:1.5fr 1fr 1fr 1fr}}
 .fbrand{display:flex;align-items:center;gap:10px}
 .fbrand b{letter-spacing:5px;font-weight:300}
 .fco{font-size:11px;color:var(--t4);margin-top:10px;line-height:1.7}
@@ -271,6 +279,7 @@ footer{position:relative;z-index:5;border-top:1px solid var(--line-soft);margin-
     <a class="wa" href="https://wa.me/393313251961?text=Hi!%20I%20found%20an%20apartment%20—%20can%20you%20check%20the%20deal%3F" rel="noopener" onclick="boomTrack('generate_lead',{channel:'whatsapp',source_page:'deal-assistance'})">WhatsApp</a>
   </div>
 </nav>
+<div class="fam" aria-label="BOOM services"><a href="/virtual-viewing">Virtual Viewing<b>€89</b></a><a href="/property-finding">Property Finding<b>€350</b></a><a href="/deal-assistance" class="on">Deal Assistance<b>€249</b></a><a href="/concierge">Concierge<b>quote</b></a></div>
 
 <main>
   <header class="hero">
@@ -390,7 +399,8 @@ footer{position:relative;z-index:5;border-top:1px solid var(--line-soft);margin-
       <p class="fco"><strong>Egidi Immobiliare S.r.l.</strong><br>P.IVA 17322991005 · REA RM-1710623<br>Rome, Italy</p>
     </div>
     <div class="fcol"><h4>Services</h4><a href="/apartments">Apartments</a><a href="/property-finding">Property Finding</a><a href="/deal-assistance">Deal Assistance</a><a href="/virtual-viewing">Virtual Viewing</a><a href="/concierge">Concierge</a></div>
-    <div class="fcol"><h4>Company</h4><a href="/about.html">About</a><a href="/how-it-works.html">How It Works</a><a href="/faq.html">FAQ</a><a href="/contact.html">Contact</a><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a></div>
+    <div class="fcol"><h4>Company</h4><a href="/about.html">About</a><a href="/how-it-works.html">How It Works</a><a href="/universities.html">For Universities</a><a href="/corporate.html">For Companies</a><a href="/owners.html">For Owners</a><a href="/refer.html">Refer a Friend</a><a href="/blog.html">Blog</a></div>
+    <div class="fcol"><h4>Support</h4><a href="/faq.html">FAQ</a><a href="/contact.html">Contact</a><a href="/contract-check.html">Free Contract Check</a><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a><a href="/login.html">Login</a></div>
   </div>
   <div class="fbot"><span>© 2026 BOOM — All Rights Reserved</span><span class="ok"><i></i> Operational</span></div>
 </footer>
@@ -423,6 +433,9 @@ function boomTrack(name,params){try{if(typeof gtag==='function')gtag('event',nam
 try{if(window.BoomAmbient)BoomAmbient.mount({ink:'#060607',inkRGB:'6,6,7',palette:{a:'255,215,0',b:'255,229,160'},intensity:.55,sections:false,scene:'marmoantico',z:-3});}catch(e){}
 boomTrack('view_item',{item_id:'svc_deal_assistance',item_name:'Deal Assistance',price:249,currency:'EUR'});
 
+/* keep the active family chip in view */
+try{var _f=document.querySelector('.fam'),_o=document.querySelector('.fam .on');
+if(_f&&_o)_f.scrollLeft=Math.max(0,_o.offsetLeft-(_f.clientWidth-_o.offsetWidth)/2);}catch(e){}
 /* reveal on scroll */
 (function(){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{rootMargin:'0px 0px -8% 0px'});
 document.querySelectorAll('.rv:not(.in)').forEach(function(el){io.observe(el)});})();
