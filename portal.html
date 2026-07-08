@@ -5218,6 +5218,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <div class="nav-section"><div class="nav-label">Gestione</div>
                     <div class="nav-item ${S.page==='properties'?'active':''}" onclick="goTo('properties')"><span class="nav-icon">🏠</span> Immobili</div>
                     <div class="nav-item ${S.page==='contracts'?'active':''}" onclick="goTo('contracts')"><span class="nav-icon">📋</span> Contratti</div>
+                    <div class="nav-item" onclick="window.open('/pre-agreement-admin.html','_blank')"><span class="nav-icon">🖋️</span> Pre-agreement <span class="nav-badge gold">L'ATTO</span></div>
                     <div class="nav-item ${S.page==='payments'?'active':''}" onclick="goTo('payments')"><span class="nav-icon">💳</span> Pagamenti ${overduePayments?`<span class="nav-badge">${overduePayments}</span>`:''}</div>
                     <div class="nav-item ${S.page==='maintenance'?'active':''}" onclick="goTo('maintenance')"><span class="nav-icon">🔧</span> Manutenzione ${openMaint?`<span class="nav-badge">${openMaint}</span>`:''}</div>
                     <div class="nav-item ${S.page==='documents'?'active':''}" onclick="goTo('documents')"><span class="nav-icon">📁</span> Documenti</div>
