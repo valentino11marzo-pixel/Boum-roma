@@ -428,6 +428,13 @@
           if(p.get('reserved')){
             var amt=parseFloat(p.get('amt'))||0;
             gtag('event','purchase',{transaction_id:p.get('session_id')||('res_'+Date.now()),value:amt,currency:'EUR',items:[{item_name:'Apartment holding deposit',price:amt,quantity:1}]});
+          } else if(p.get('session_id')){
+            // Services 2.0 checkouts: ?service=<kind>&session_id=… (vv/deal) or bare
+            // ?session_id=… (Property Finding via create-checkout). Closes the GA4
+            // funnel view_item → begin_checkout → add_payment_info → purchase.
+            var SVC_EUR={'virtual-viewing':89,'deal-assistance':249,'property-finding':350};
+            var kind=p.get('service')||'property-finding';
+            gtag('event','purchase',{transaction_id:p.get('session_id'),value:SVC_EUR[kind]||0,currency:'EUR',items:[{item_id:'svc_'+kind,item_name:kind,price:SVC_EUR[kind]||0,quantity:1}]});
           }
         }
       }catch(e){}
