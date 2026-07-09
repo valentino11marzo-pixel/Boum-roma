@@ -573,6 +573,10 @@
     {
       "path": "/api/pfs/brief",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/search/matcher",
+      "schedule": "0 6,12,18 * * *"
     }
   ]
 }

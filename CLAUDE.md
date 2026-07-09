@@ -210,8 +210,16 @@ Public save-search endpoint for the apartments discovery page. Body
 zones[],feats[]}, resultCount?, company(honeypot) }`. Validates email,
 honeypot + per-IP rate limit (same hardening as `/api/canone-lead`), writes
 to the `savedSearches` collection under admin creds (`status:'active'`,
-`lastNotified:null`) — ready for a matcher cron to email new matches.
-Returns `{ ok, id }`.
+`lastNotified:null`). Returns `{ ok, id }`.
+
+### GET `/api/search/matcher` (cron 3×/day)
+The saved-search alert engine. Matches every active `savedSearches` doc
+against rentable `listings` (mirrors the discovery page's pass()); first
+run per search SEEDS silently (`notifiedIds`) so subscribers only hear
+about listings that appear AFTER saving; later runs email a digest (max 6
+homes) via Nodemailer with /listing/:id links + one-click unsubscribe
+(`/api/search/unsub?id&e` → status:'unsubscribed'). `?dry=1` reports
+without emailing. Auth: Vercel cron Bearer CRON_SECRET.
 
 ### Pre-agreement suite (`/api/preagreement/*` + `pre-agreement.html` + `pre-agreement-admin.html`)
 Sendable RENTAL PROPOSAL / pre-agreement, modeled on the real BOOM document
