@@ -756,7 +756,7 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
           <button class="m3facade" onclick="boom3D(this)" aria-label="Explore the block in 3D">◆ Explore the block in 3D<small>Real map · 3D buildings · 5 / 10 / 15-min walk rings</small></button>
         </div>
         <a class="skyjump" id="skyJump" href="/apartments?view=map">◉ See this home on Rome’s Skyline <small>satellite · 3D · Street View · distances to LUISS, Sapienza, Termini…</small><span class="arr">→</span></a>
-        <a class="skyjump" href="/virtual-viewing" onclick="try{boomTrack('select_promotion',{promotion_name:'virtual_viewing_cross',item_id:PID||''})}catch(e){}">🎥 Not in Rome? <small>We walk this home for you — live video, HD photos, honest report · within 48h</small><span style="color:var(--gold);font-size:15px;white-space:nowrap">€89 →</span></a>
+        <a class="skyjump" id="vvTour" href="https://wa.me/393313251961?text=Hi!%20I'd%20like%20a%20live%20video%20tour%20of%20an%20apartment." rel="noopener" onclick="try{boomTrack('generate_lead',{channel:'whatsapp',intent:'video_viewing_request',item_id:PID||''})}catch(e){}">📹 Not in Rome? <small>Book a free live video tour of this home — you direct, we film · usually within 24h</small><span style="color:var(--gold);font-size:15px;white-space:nowrap">Free →</span></a>
         <div class="nearby" id="nearby"></div>
         <!-- YOUR PLACES: set once, every home tells you how far it is -->
         <div class="poi" id="poi">
@@ -1508,6 +1508,7 @@ function paintData(){
   const _hl=document.getElementById('holdLbl');if(_hl&&_wl)_hl.textContent='Priority hold · €300';
   const _rg=document.getElementById('railGo');if(_rg&&_wl)_rg.textContent='Waitlist';
   const _sj=document.getElementById('skyJump');if(_sj&&(PID||L.id))_sj.href='/apartments?view=map&focus='+encodeURIComponent(PID||L.id);
+  const _vt=document.getElementById('vvTour');if(_vt&&L.name)_vt.href='https://wa.me/393313251961?text='+encodeURIComponent("Hi! I'd like a live video tour of \""+L.name+'" ('+location.origin+'/listing/'+encodeURIComponent(PID||L.id||'')+')');
   document.getElementById('price').innerHTML=eur(L.price)+' <small>/month</small>';
   document.getElementById('feat').innerHTML=(L.features||[]).map(f=>`<span>${f}</span>`).join('');
   document.getElementById('facts').innerHTML=[[SVGI.bed,'Bedrooms',L.beds||'Studio'],[SVGI.bath,'Bathrooms',L.baths],[SVGI.ruler,'Size',L.sqm+' m²'],[SVGI.building,'Floor',L.floor],[SVGI.chair,'Furnished',L.furnished?'Yes':'No']].map(([i,k,v])=>`<div class="fact"><div class="i">${i}</div><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
