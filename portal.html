@@ -7374,6 +7374,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 if (passResult && passResult.url) passUrl = passResult.url;
                 console.log('[Viewing] Pass generated on confirm:', passUrl ? 'OK' : 'no URL');
             } catch (passErr) { console.warn('[Viewing] auto-pass failed:', passErr); }
+            // Refresh any previously-installed copy of this pass (re-confirm case)
+            if (v.passSent) pushPassUpdate('viewing', id);
 
             // 4) Admin notification (structured)
             try { await sendAdminViewingNotification('confirmed', freshV); }
@@ -7473,6 +7475,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     if (passResult && passResult.url) passUrl = passResult.url;
                     console.log('[Viewing] Pass regenerated after reschedule');
                 } catch (passErr) { console.warn('[Viewing] reschedule pass regen failed:', passErr); }
+                // APNs-refresh installed passes with the new date now — the
+                // cron would only catch them at the next reminder window.
+                pushPassUpdate('viewing', id);
 
                 const addr = await resolveViewingAddress(freshV);
                 const calLinks = buildCalendarLinks(dt, durationMin, addr, freshV);
@@ -7571,6 +7576,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         }).catch(function(e){});
                         console.log('[Viewing] Voided pass generated:', result.url);
                     }
+                    // Critical: push the ANNULLATA state to installed passes now.
+                    // The reminder cron only scans confirmed viewings, so a
+                    // cancelled pass would otherwise never refresh on-device.
+                    pushPassUpdate('viewing', id);
                 } catch (voidErr) { console.warn('[Viewing] void pass failed:', voidErr); }
             }
 
@@ -19414,6 +19423,20 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         var fullMsg = passUrl ? (msg + '\n\n📲 Tap to download: ' + passUrl) : msg;
         var url = ph ? 'https://wa.me/' + ph + '?text=' + encodeURIComponent(fullMsg) : 'https://wa.me/?text=' + encodeURIComponent(fullMsg);
         window.open(url, '_blank');
+    }
+
+    // Nudge already-installed Wallet passes via APNs so they refresh now.
+    // Without this, a cancelled viewing would never refresh on the client's
+    // phone: the reminder cron only pushes passes of status=='confirmed'.
+    async function pushPassUpdate(type, entityId) {
+        try {
+            var tok = await firebase.auth().currentUser.getIdToken();
+            await fetch('/api/pass-push', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Firebase-Token': tok },
+                body: JSON.stringify({ type: type, entityId: entityId })
+            });
+        } catch (e) { console.warn('[PropPass] push update failed:', e); }
     }
 
     async function generateViewingPass(viewingId) {

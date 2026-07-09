@@ -276,7 +276,7 @@ document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{
   document.querySelectorAll('.sec').forEach(s=>s.classList.remove('active'));
   document.getElementById('s-'+activeType).classList.add('active');
   document.getElementById('formTitle').textContent=TITLES[activeType];
-  g('delivery')&&(document.getElementById('delivery').classList.remove('show'));
+  document.getElementById('delivery').classList.remove('show');
   render();
 }));
 
@@ -356,12 +356,41 @@ function qrSvg(c='rgba(255,255,255,.25)'){return `<div class="wc-qr"><svg width=
 function esc(s){return s?String(s).replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):'';}
 function fmtD(s){if(!s)return '';try{return new Date(s+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}catch(e){return s}}
 
-// Collect data per type
+// Collect data per type — mapped onto the V3 builder fields of
+// api/generate-pass.js. Manual passes carry no entity ID (random serial),
+// so they can't receive live updates: for record-linked, updatable passes
+// use /pass-studio ("Da record") instead.
 function collectData(){
-  if(activeType==='viewing') return {clientName:g('v-name'),propertyAddress:g('v-address'),zone:g('v-zone'),rent:g('v-rent'),date:g('v-date'),time:g('v-time'),rooms:g('v-rooms'),agentName:g('v-agent'),listingUrl:g('v-url'),latitude:g('v-lat'),longitude:g('v-lng')};
-  if(activeType==='tenant') return {tenantName:g('t-name'),propertyAddress:g('t-address'),startDate:g('t-start'),endDate:g('t-end'),rent:g('t-rent'),contractType:g('t-contract'),deposit:g('t-deposit'),landlordName:g('t-landlord'),iban:g('t-iban'),emergencyPhone:g('t-phone'),latitude:g('t-lat'),longitude:g('t-lng')};
-  if(activeType==='landlord') return {landlordName:g('l-name'),propertyAddress:g('l-address'),propertyCount:g('l-count'),since:g('l-since'),rentAmount:g('l-rent'),currentTenant:g('l-tenant'),contractDates:g('l-dates'),cadastral:g('l-cad'),nextPayment:g('l-next')};
-  return {referrerName:g('r-name'),referralCode:g('r-code'),discount:g('r-discount'),expirationDate:g('r-expiry'),usesLeft:g('r-uses')?g('r-uses')+' remaining':'Unlimited'};
+  const coords=(la,lo)=>(g(la)&&g(lo))?{lat:g(la),lng:g(lo)}:null;
+  if(activeType==='viewing') return {
+    clientName:g('v-name'),
+    propertyAddress:g('v-address'),
+    propertyCity:g('v-zone')||'Roma',
+    propertyCoords:coords('v-lat','v-lng'),
+    confirmedDateISO:g('v-date')?(g('v-date')+'T'+(g('v-time')||'10:00')+':00'):null,
+    durationMinutes:30,
+    // kept for the WhatsApp message only (ignored by the builder)
+    date:g('v-date'),time:g('v-time')
+  };
+  if(activeType==='tenant') return {
+    tenantName:g('t-name'),
+    propertyAddress:g('t-address'),
+    propertyCoords:coords('t-lat','t-lng'),
+    contractStart:g('t-start')||null,
+    contractEnd:g('t-end')||null,
+    monthlyRent:g('t-rent')?Number(g('t-rent')):null
+  };
+  if(activeType==='landlord') return {
+    landlordName:g('l-name'),
+    memberSince:g('l-since')||undefined,
+    propertiesCount:g('l-count')?Number(g('l-count')):0,
+    totalRevenue:g('l-rent')?Number(g('l-rent'))*12:0
+  };
+  return {
+    referrerName:g('r-name'),
+    referralCode:g('r-code')||undefined,
+    programEndDate:g('r-expiry')||null
+  };
 }
 
 // WhatsApp messages per type

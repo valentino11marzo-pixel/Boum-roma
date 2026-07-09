@@ -161,6 +161,12 @@ service cloud.firestore {
       allow read, update, delete: if isAdmin();
     }
 
+    // ─── Wallet pass telemetry ────────────────────────────────────────
+    // Written server-side only (admin REST token in api/_passkit.js);
+    // read from the browser by pass-studio.html (install counts, recents).
+    match /passMeta/{x}          { allow read: if isAdmin(); allow write: if false; }
+    match /passRegistrations/{x} { allow read: if isAdmin(); allow write: if false; }
+
     // ─── config ───────────────────────────────────────────────────────
     match /config/{x} { allow read, write: if isAdmin(); }
 

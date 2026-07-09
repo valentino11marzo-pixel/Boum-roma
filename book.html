@@ -395,6 +395,7 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
       <div class="sum-chip" style="text-align:left;margin-bottom:20px">
         <div class="sc-icon">👤</div><div><div class="sc-lbl">Agent</div><div class="sc-val">Valentino — BOOM Rome</div></div>
       </div>
+      <a id="wallet-btn" href="#" target="_blank" style="display:none;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;padding:12px;border-radius:12px;background:linear-gradient(180deg,#F5D98B,#D4AF37);color:#000;font-size:13px;font-weight:600;text-decoration:none">🎟 Add to Apple Wallet</a>
       <div class="cal-row">
         <a class="cal-btn cal-btn-g" id="cal-g" href="#" target="_blank">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -550,18 +551,33 @@ async function submitRequest(){
   }catch(e){console.error(e);btn.classList.remove('loading');toast('err','Something went wrong. Please try again.')}
 }
 
+// Reads on viewingRequests are admin-only in firestore.rules, so the public
+// page can't watch its own request via the Firestore SDK — it polls the
+// sanitized server lookup instead (which also carries the Wallet pass URL).
+async function fetchStatus(id){
+  try{
+    const r=await fetch('/api/viewings/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
+    if(!r.ok)return null;
+    return await r.json();
+  }catch(e){return null}
+}
+
 function startPolling(id){
   const iv=setInterval(async()=>{
-    try{
-      const doc=await db.collection('viewingRequests').doc(id).get();
-      const data=doc.data();
-      if(data?.status==='confirmed'&&data.confirmedDateTime){clearInterval(iv);showConfirmed(data)}
-    }catch(e){}
+    const data=await fetchStatus(id);
+    if(data?.status==='confirmed'&&data.confirmedDateTime){clearInterval(iv);showConfirmed(data,id)}
   },15000);
   setTimeout(()=>clearInterval(iv),7200000);
 }
 
-function showConfirmed(data){
+function applyPassUrl(data){
+  if(!data?.passSentUrl)return false;
+  const w=document.getElementById('wallet-btn');
+  w.href=data.passSentUrl;w.style.display='flex';
+  return true;
+}
+
+function showConfirmed(data,id){
   const dt=new Date(data.confirmedDateTime),dtStr=fmtDT(dt);
   document.getElementById('conf-prop').textContent=data.listingName+(data.listingZone?' — '+data.listingZone:'');
   document.getElementById('conf-time').textContent=dtStr;
@@ -575,6 +591,16 @@ function showConfirmed(data){
   if(chk){chk.style.animation='none';chk.offsetHeight;chk.style.animation='drawChk .5s .2s ease forwards'}
   document.getElementById('pend-body').classList.add('hidden');
   document.getElementById('conf-body').classList.remove('hidden');
+  // The Wallet pass is generated right after the admin confirms, so it may
+  // land a few seconds after the status flip — keep a short follow-up poll.
+  if(!applyPassUrl(data)&&id){
+    let n=0;
+    const pv=setInterval(async()=>{
+      n++;
+      const d=await fetchStatus(id);
+      if(applyPassUrl(d)||n>=8)clearInterval(pv);
+    },10000);
+  }
 }
 
 function fmtDT(dt){return dt.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})+' · '+dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}

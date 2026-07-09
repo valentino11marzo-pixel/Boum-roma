@@ -124,6 +124,24 @@ Ordinati lungo la pipeline: lead → visita → pre-agreement → firma → tena
 
 ---
 
-## 6. Nota di verifica
+## 6. Addendum — P0 implementati (2026-07-09)
+
+Tutti i fix P0 sono stati applicati nello stesso branch di questo audit:
+
+| Fix | Dove |
+|---|---|
+| §3.6 `PASS_AUTH_SECRET` documentata (da impostare su Vercel) | `CLAUDE.md` |
+| §3.2 `pushPassUpdate()` + push APNs su confirm (re-conferma), reschedule e cancel | `portal.html` |
+| §3.3 Link `my-pass` (tenant/silver + landlord) nelle welcome email server-side | `api/sign/_finalize.js` |
+| §3.4 Bottone "Add to Apple Wallet" nella schermata Confirmed | `book.html` |
+| **Scoperta in corso d'opera**: il polling di book.html leggeva `viewingRequests` senza auth → negato dalle rules → la schermata Confirmed non appariva mai. Creato endpoint pubblico sanificato (senza email/telefono/note) e puntato il polling lì | `api/viewings/status.js` + `book.html` |
+| §3.1 pass-delivery.html e proppass.html riallineati ai campi V3 (`confirmedDateISO`, `monthlyRent`, `contractStart/End`, coords) + entity ID (`viewingId`/`contractId`) quando disponibile | `pass-delivery.html`, `proppass.html` |
+| §3.7 Regole lettura admin per `passMeta`/`passRegistrations` (pass-studio le legge dal browser) | `firestore.rules` |
+
+Restano da fare (P1/P2): endpoint unico `api/viewings/confirm` (abilita auto-conferma), link my-pass al posto degli snapshot Storage, PFS → `viewingRequests`, pass su pre-agreement/RESERVE, programma referral, check-in QR, Google Wallet.
+
+**Azione manuale richiesta**: impostare `PASS_AUTH_SECRET` nelle env Vercel (valore lungo e casuale) e ridistribuire — farlo PRIMA di distribuire pass su larga scala. Dopo il deploy, ricordarsi anche di pubblicare le nuove `firestore.rules` (`firebase deploy --only firestore:rules`).
+
+## 7. Nota di verifica
 
 Le affermazioni chiave sono state verificate sul codice a mano (file:riga citati). Una precisazione rispetto a una lettura frettolosa possibile: il nome file random su Storage (`passes/viewing_<random>.pkpass`, portal.html:19395) **non** è il serial del pass — il serial è sempre canonico (`viewing-<id>`, `tenant-<contractId>`) perché lo scrive il builder server-side. Quindi i pass distribuiti dal portal, una volta installati, **ricevono** i push del cron. I pass davvero non aggiornabili sono quelli emessi da pass-delivery.html/proppass.html senza entity ID (§3.1).

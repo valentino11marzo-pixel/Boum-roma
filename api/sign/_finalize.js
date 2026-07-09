@@ -117,6 +117,22 @@ export async function finalizeContract(contract){
   } catch(e){ console.warn('[finalize] magicLink failed:', e.message); }
   const portalLink = magicId ? `${BASE}/portal.html?postSign=1&magicToken=${magicId}` : `${BASE}/portal.html`;
 
+  // ── Apple Wallet "Add to Wallet" links (live /api/my-pass, token-auth) ──
+  // The portal only issues passes client-side (generateContractPasses), so a
+  // tenant who signs via /sign and never opens the portal would otherwise get
+  // no pass at all. Lazy import: a passkit load failure must not block finalize.
+  let tenantWalletLine = '', landlordWalletLine = '';
+  try {
+    const { generateAuthToken } = await import('../generate-pass.js');
+    const tenantPassType = (tenant && tenant.isPremium === true) ? 'silver' : 'tenant';
+    const tWallet = `${BASE}/api/my-pass?type=${tenantPassType}&id=${encodeURIComponent(contract.id)}&t=${generateAuthToken(contract.id)}`;
+    tenantWalletLine = `<p style="margin:14px 0 0;font-size:13px"><a href="${esc(tWallet)}" style="color:${GOLD};text-decoration:none">🎟 Add your BOOM Tenant Card to Apple Wallet</a></p>`;
+    if (ownerId) {
+      const lWallet = `${BASE}/api/my-pass?type=landlord&id=${encodeURIComponent(ownerId)}&t=${generateAuthToken(ownerId)}`;
+      landlordWalletLine = `<p style="margin:14px 0 0;font-size:13px"><a href="${esc(lWallet)}" style="color:${GOLD};text-decoration:none">🎟 Add your BOOM Partner Card to Apple Wallet</a></p>`;
+    }
+  } catch(e){ console.warn('[finalize] wallet links skipped:', e.message); }
+
   // ── Welcome emails ──
   const tenantEmail = (tenant && tenant.email) || contract.tenantEmail || '';
   const tenantName = (tenant && tenant.name) || contract.tenantName || 'there';
@@ -147,6 +163,7 @@ export async function finalizeContract(contract){
           <p style="margin:0 0 18px">Your lease for <b>${esc(propLabel || 'your new home')}</b> is now <b style="color:${GOLD}">fully signed and active</b>. One tap and you’re in your portal — documents, payments and support in one place.</p>
           ${btn(portalLink, 'Enter my portal')}
           ${depLine}
+          ${tenantWalletLine}
           ${certLine}
           <p style="margin:18px 0 6px;font-size:13px;color:#666">Prefer a password? Open the portal above, then choose <b>“Set a password”</b> to make it permanent. This one‑tap link expires in 72 hours.</p>
           <div style="margin:22px 0 6px;border-top:1px solid #eee"></div>
@@ -177,6 +194,7 @@ export async function finalizeContract(contract){
           <p style="margin:0 0 8px;font-size:13px;color:#666"><b>Upcoming fiscal steps</b></p>
           <ul style="margin:0 0 14px;padding-left:18px;font-size:13px;color:#555;line-height:1.7">${fiscalLines.map(l=>'<li>'+esc(l)+'</li>').join('')}</ul>
           ${btn(BASE+'/portal.html', 'Open dashboard')}
+          ${landlordWalletLine}
           ${certLine}
         `),
       }), 15000, 'landlord_email',

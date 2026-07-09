@@ -109,6 +109,11 @@ FIREBASE_PROJECT_ID          # boom-property-dashboards
 PASS_CERT_BASE64
 PASS_KEY_BASE64
 PASS_KEY_PASSPHRASE
+PASS_AUTH_SECRET             # HMAC secret behind pass auth tokens (/api/my-pass
+                             # links + PassKit web service auth). REQUIRED in
+                             # production: without it tokens fall back to a
+                             # guessable constant. Changing it later invalidates
+                             # the auth of every already-installed pass.
 
 # Email (Nodemailer)
 GMAIL_USER

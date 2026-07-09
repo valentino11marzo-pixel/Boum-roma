@@ -497,43 +497,65 @@ if(passType === 'tenant'){
   });
 }
 
+// Map the URL params onto the V3 builder fields (api/generate-pass.js).
+// The entity ID (?id=) matters: it makes the serial canonical
+// (viewing-<id>, tenant-<contractId>, ...) so the installed pass can
+// authenticate to the PassKit web service and receive live updates.
+function buildPassData(){
+  const name = params.get('name') || '';
+  const address = params.get('address') || '';
+  const date = params.get('date') || '';
+  const time = params.get('time') || '';
+  const lat = params.get('lat') || '', lng = params.get('lng') || '';
+  const coords = (lat && lng) ? { lat: lat, lng: lng } : null;
+  if(passType === 'viewing') return {
+    viewingId: passId || undefined,
+    clientName: name,
+    propertyAddress: address,
+    propertyCity: params.get('zone') || 'Roma',
+    propertyCoords: coords,
+    confirmedDateISO: date ? (date + 'T' + (time || '10:00') + ':00') : null,
+    durationMinutes: Number(params.get('duration')) || 30,
+    meetingPoint: params.get('meet') || 'AL CITOFONO',
+  };
+  if(passType === 'tenant' || passType === 'silver') return {
+    contractId: passId || undefined,
+    tenantName: name,
+    propertyAddress: address,
+    propertyCity: params.get('zone') || 'Roma',
+    propertyCoords: coords,
+    contractStart: params.get('start') || null,
+    contractEnd: params.get('end') || null,
+    monthlyRent: Number(params.get('rent')) || null,
+  };
+  if(passType === 'landlord') return {
+    landlordId: passId || undefined,
+    landlordName: name,
+    memberSince: params.get('since') || '',
+    propertiesCount: Number(params.get('count')) || 0,
+    totalRevenue: Number(params.get('revenue')) || 0,
+    partnerId: params.get('partner') || '',
+  };
+  return {
+    referrerId: passId || undefined,
+    referrerName: name,
+    referralCode: params.get('code') || undefined,
+  };
+}
+
 // Add to Wallet action
 async function addToWallet(){
   const btn = document.getElementById('cta-btn');
   const text = document.getElementById('cta-text');
   btn.classList.add('loading');
   text.textContent = 'Generating...';
-  
+
   try {
     // Fetch the .pkpass from the API
     const res = await fetch('/api/generate-pass', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: passType,
-        data: {
-          clientName: params.get('name') || '',
-          propertyAddress: params.get('address') || '',
-          zone: params.get('zone') || '',
-          date: params.get('date') || '',
-          time: params.get('time') || '',
-          rent: params.get('rent') || '',
-          agentName: params.get('agent') || 'Valentino',
-          // Tenant fields
-          tenantName: params.get('name') || '',
-          startDate: params.get('start') || '',
-          endDate: params.get('end') || '',
-          contractType: params.get('contract') || '',
-          landlordName: params.get('landlord') || '',
-          // Referral fields
-          referrerName: params.get('name') || '',
-          referralCode: params.get('code') || '',
-          discount: params.get('discount') || '€100 off',
-          // Landlord fields
-          currentTenant: params.get('tenant') || '',
-          rentAmount: params.get('rent') || '',
-        }
-      })
+      body: JSON.stringify({ type: passType, data: buildPassData() })
     });
     
     if(!res.ok) throw new Error('Generation failed');
