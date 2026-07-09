@@ -699,7 +699,7 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
       <span class="vbadge">✓ Video-verified</span>
       <div class="hero-acts">
         <button class="icbtn" id="saveBtn" onclick="this.classList.toggle('on');this.setAttribute('aria-pressed',this.classList.contains('on'))" aria-label="Save" aria-pressed="false">♡</button>
-        <button class="icbtn" aria-label="Share" onclick="var b=this;try{(navigator.share?navigator.share({title:document.title,url:location.href}):navigator.clipboard.writeText(location.href)).catch(function(){})}catch(e){}b.classList.add('on');setTimeout(function(){b.classList.remove('on')},900)">↗</button>
+        <button class="icbtn" aria-label="Share" onclick="var b=this;try{boomTrack('share',{method:navigator.share?'native':'clipboard',item_id:(typeof PID!=='undefined'&&PID)||''})}catch(e){};try{(navigator.share?navigator.share({title:document.title,url:location.href}):navigator.clipboard.writeText(location.href)).catch(function(){})}catch(e){}b.classList.add('on');setTimeout(function(){b.classList.remove('on')},900)">↗</button>
       </div>
     </div>
     <button class="arrow l" onclick="slideBy(-1)" aria-label="Previous">‹</button>
