@@ -5519,8 +5519,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div class="card" style="margin-top:16px"><div class="card-header"><span class="card-title">Lead aperti · qualità (${openLeads.length})</span></div><div class="card-body flush">
                 ${openLeads.length ? openLeads.map(x => { const ph = x.l.phone ? String(x.l.phone).replace(/\D/g, '') : ''; return `
                     <div class="list-item clickable" onclick="openPerson('${x.l.id}','lead')"><div class="list-icon">${chip(String(x.sc.score), x.band)}</div>
-                    <div class="list-content"><div class="list-title">${x.l.name || 'Lead'} · ${x.l.grade || '—'}</div>
-                    <div class="list-subtitle">${x.l.source || '?'}${x.l.zone ? ' · ' + x.l.zone : ''}${x.l.budget ? ' · ' + eur(x.l.budget) : ''}</div></div>
+                    <div class="list-content"><div class="list-title">${esc(x.l.name || 'Lead')} · ${esc(x.l.grade || '—')}</div>
+                    <div class="list-subtitle">${esc(x.l.source || '?')}${x.l.zone ? ' · ' + esc(x.l.zone) : ''}${x.l.budget ? ' · ' + eur(x.l.budget) : ''}</div></div>
                     ${ph ? `<a class="btn btn-xs btn-secondary" onclick="event.stopPropagation()" href="https://wa.me/${ph}" target="_blank">WhatsApp</a>` : ''}</div>`; }).join('') : '<div class="empty-state" style="padding:30px"><p class="empty-text">Nessun lead aperto.</p></div>'}
             </div></div>
             <div style="font-size:11px;color:var(--text-muted);margin-top:14px">Priori di pricing (perdita attesa A ${UW.PRIORS.lossRate.A * 100}% · B ${UW.PRIORS.lossRate.B * 100}% · C ${UW.PRIORS.lossRate.C * 100}% · D ${UW.PRIORS.lossRate.D * 100}% del canone annuo) — clicca un inquilino per la scheda completa.</div>`;
@@ -5542,7 +5542,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const waMsg = (p) => encodeURIComponent('Ciao! A ' + (p.zone || 'Roma') + ' si sta liberando un appartamento a ' + eur(p.rent) + '/mese. Ti interessa una visita con BOOM?');
         const matchRow = (p, m) => { const ph = m.lead.phone ? String(m.lead.phone).replace(/\D/g, '') : ''; return `
                     <div class="list-item" style="padding-left:32px;background:var(--bg-elevated)"><div class="list-icon"><span style="font-weight:700;color:var(${m.score >= 70 ? '--green' : m.score >= 50 ? '--orange' : '--text-muted'})">${m.score}</span></div>
-                    <div class="list-content"><div class="list-title">${m.lead.name || 'Lead'}</div><div class="list-subtitle">${m.lead.zone || 'zona flessibile'}${m.lead.budget ? ' · ' + eur(m.lead.budget) : ''} · ${(m.reasons || []).slice(0, 2).join(', ')}</div></div>
+                    <div class="list-content"><div class="list-title">${esc(m.lead.name || 'Lead')}</div><div class="list-subtitle">${esc(m.lead.zone || 'zona flessibile')}${m.lead.budget ? ' · ' + eur(m.lead.budget) : ''} · ${(m.reasons || []).slice(0, 2).join(', ')}</div></div>
                     ${ph ? `<a class="btn btn-xs" href="https://wa.me/${ph}?text=${waMsg(p)}" target="_blank">WhatsApp</a>` : '<span style="font-size:11px;color:var(--text-muted)">no tel</span>'}</div>`; };
         return `
             <div class="page-header"><div><h1 class="page-title">🏘️ Zero-Vacancy</h1><p class="page-subtitle">${scan.counts.expiring} in uscita ≤90gg · ${scan.counts.uncovered} senza domanda · clicca una riga per i lead</p></div></div>

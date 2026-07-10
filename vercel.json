@@ -416,6 +416,14 @@
     {
       "source": "/apartment-detail-legacy",
       "destination": "/apartment-detail-legacy.html"
+    },
+    {
+      "source": "/stima-canone",
+      "destination": "/stima-canone.html"
+    },
+    {
+      "source": "/affitta",
+      "destination": "/affitta.html"
     }
 
   ],

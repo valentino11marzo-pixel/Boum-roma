@@ -231,6 +231,22 @@ nav{position:fixed;width:100%;top:0;z-index:100;padding:20px 50px;background:rgb
 .cta-actions{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
 @media(max-width:880px){.cta{margin:42px 20px 60px;padding:42px 24px}}
 
+/* LIVE DEMAND STRIP (data from /api/demand/zones — hidden until it loads) */
+.demand-strip{display:none;max-width:1400px;margin:0 auto;padding:0 50px 10px}
+.demand-inner{display:inline-flex;flex-wrap:wrap;align-items:baseline;gap:6px;padding:14px 22px;border:1px solid var(--border-g);border-radius:14px;background:linear-gradient(135deg,rgba(212,175,55,0.07),rgba(212,175,55,0.02));font-size:14px;color:var(--text2);line-height:1.6}
+.demand-inner b{color:var(--gold);font-weight:500}
+.demand-budget{color:var(--text3);font-size:13px}
+@media(max-width:880px){.demand-strip{padding:0 20px 10px}}
+
+/* LANDLORD CTA — "Hai un appartamento a …?" */
+.landlord{max-width:1400px;margin:0 auto;padding:56px 50px}
+.landlord-box{padding:44px 40px;border-radius:24px;background:linear-gradient(135deg,rgba(212,175,55,0.06),rgba(212,175,55,0.015));border:1px solid var(--border-g);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:26px}
+.landlord-copy{max-width:620px}
+.landlord-title{font-size:clamp(24px,3.4vw,36px);font-weight:200;letter-spacing:-.01em;margin-bottom:10px}
+.landlord-sub{font-size:14px;color:var(--text2);line-height:1.7}
+.landlord-actions{display:flex;gap:14px;flex-wrap:wrap}
+@media(max-width:880px){.landlord{padding:40px 20px}.landlord-box{padding:30px 24px}}
+
 /* FOOTER */
 footer{background:var(--bg1);border-top:1px solid var(--border);padding:60px 50px 40px}
 .foot-grid{max-width:1400px;margin:0 auto;display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:50px}
@@ -252,6 +268,7 @@ footer{background:var(--bg1);border-top:1px solid var(--border);padding:60px 50p
   .hub-card-stats{display:flex;gap:14px;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;padding-top:16px;border-top:1px solid var(--border);margin-bottom:18px}
   .hub-card-cta{font-size:12px;color:var(--gold);text-transform:uppercase;letter-spacing:2px;font-weight:500}
   </style>
+    <link rel="stylesheet" href="/css/boom-cinema.css">
 <!-- BOOM_JSONLD:START -->
   <script type="application/ld+json">
 {
@@ -414,7 +431,6 @@ footer{background:var(--bg1);border-top:1px solid var(--border);padding:60px 50p
 }
   </script>
 <!-- BOOM_JSONLD:END -->
-    <link rel="stylesheet" href="/css/boom-cinema.css">
 </head>
 <body>
 
@@ -647,12 +663,14 @@ footer{background:var(--bg1);border-top:1px solid var(--border);padding:60px 50p
         <a href="/virtual-viewing">Virtual Viewing</a>
         <a href="/deal-assistance">Deal Assistance</a>
         <a href="/concierge">Concierge</a>
+        <a href="/affitta">Affitta con BOOM</a>
       </div>
       <div class="foot-col">
         <h4>Company</h4>
         <a href="/about">About</a>
         <a href="/contact">Contact</a>
         <a href="/owners">For Owners</a>
+        <a href="/stima-canone">Stima il Canone</a>
         <a href="/privacy">Privacy</a>
         <a href="/terms">Terms</a>
       </div>

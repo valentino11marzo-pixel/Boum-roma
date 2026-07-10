@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Affitta il tuo Appartamento a Roma — Inquilini Verificati | BOOM</title>
+<meta name="description" content="Affitta il tuo appartamento a Roma con BOOM: c'è già chi lo cerca. Inquilini verificati per zona e budget, valutazione gratuita del canone, contratto con firma digitale e incassi automatici gestiti.">
+<meta name="keywords" content="affittare appartamento roma, gestione affitti roma, inquilini verificati roma, affitto sicuro roma, property management roma, affitta casa trastevere prati monti">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://www.boomrome.com/affitta">
+<meta name="theme-color" content="#08080A">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.boomrome.com/affitta">
+<meta property="og:title" content="Affitta il tuo appartamento con BOOM — c'è già chi lo cerca">
+<meta property="og:description" content="Inquilini verificati per zona e budget, valutazione gratuita del canone, firma digitale e incassi automatici gestiti.">
+<meta property="og:image" content="https://www.boomrome.com/android-chrome-512x512.png">
+<meta property="og:locale" content="it_IT">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+<!-- GA4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-EYCD59RDVJ');</script>
+
+<!-- Structured data: Service + FAQ -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "name": "Gestione affitti per proprietari a Roma — BOOM",
+  "serviceType": "Property management",
+  "url": "https://www.boomrome.com/affitta",
+  "provider": { "@type": "RealEstateAgent", "name": "BOOM Rome", "url": "https://www.boomrome.com", "areaServed": "Roma, Italia" },
+  "areaServed": "Roma, Italia",
+  "description": "BOOM affitta il tuo appartamento a Roma a inquilini verificati: valutazione gratuita del canone, selezione con verifica di documenti e reddito, contratto con firma digitale e incassi automatici gestiti."
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    { "@type": "Question", "name": "Come trovate l'inquilino per il mio appartamento?", "acceptedAnswer": { "@type": "Answer", "text": "BOOM registra ogni giorno le ricerche di inquilini verificati per zona e budget a Roma. Quando affidi a noi il tuo appartamento, lo proponiamo prima a chi lo sta già cercando, poi lo pubblichiamo sui nostri canali. Ogni candidato passa una verifica di identità, documenti e capacità di reddito prima della proposta." } },
+    { "@type": "Question", "name": "Cosa significa inquilino verificato?", "acceptedAnswer": { "@type": "Answer", "text": "Prima di proporre un candidato verifichiamo identità e documenti, situazione lavorativa e capacità di sostenere il canone, ed eventuali garanzie (garante, deposito). Solo i profili idonei arrivano alla tua approvazione." } },
+    { "@type": "Question", "name": "Come funzionano contratto e incassi?", "acceptedAnswer": { "@type": "Answer", "text": "Il contratto si firma digitalmente online (tenant e proprietario), i pagamenti mensili sono gestiti automaticamente con Stripe con ricevute e solleciti automatici, e tutti i documenti del rapporto di locazione restano archiviati e condivisibili in sicurezza, anche con il tuo commercialista." } },
+    { "@type": "Question", "name": "Quanto posso chiedere di affitto?", "acceptedAnswer": { "@type": "Answer", "text": "Puoi scoprirlo subito con la stima gratuita su boomrome.com/stima-canone: inserisci zona, metratura e caratteristiche e ottieni il canone mensile stimato su annunci reali di mercato, con la domanda di inquilini verificati nella tua zona." } }
+  ]
+}
+</script>
+
+<style>
+  :root{
+    --gold:#D4AF37; --gold-light:rgba(212,175,55,.14); --gold-dark:#B8960C;
+    --bg:#08080A; --bg-card:#0E0E11; --bg-elevated:#16161A; --bg-input:#1B1B20;
+    --border:rgba(255,255,255,.08); --border-soft:rgba(255,255,255,.05);
+    --text:#FFFFFF; --text-secondary:#9A9A9C; --text-dim:#6A6A6E;
+    --green:#46C08A; --green-dim:rgba(70,192,138,.12);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:'Helvetica Neue','Inter',-apple-system,sans-serif;
+    font-weight:300; background:var(--bg); color:var(--text);
+    line-height:1.55; -webkit-font-smoothing:antialiased; overflow-x:hidden;
+  }
+  a{color:inherit;text-decoration:none}
+  ::selection{background:var(--gold);color:#000}
+
+  /* NAV */
+  nav{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:14px;
+    padding:16px 24px;background:rgba(8,8,10,.82);backdrop-filter:blur(18px);
+    border-bottom:1px solid var(--border-soft)}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:600;letter-spacing:4px;font-size:15px}
+  .brand .dot{width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 12px var(--gold)}
+  .nav-links{display:flex;align-items:center;gap:22px;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-secondary)}
+  .nav-links a:hover{color:var(--gold)}
+  .nav-links a.here{color:var(--gold)}
+  .nav-cta{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:100px;
+    background:var(--gold);color:#000;font-weight:600;font-size:13px;letter-spacing:.5px;transition:.2s;white-space:nowrap}
+  .nav-cta:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(212,175,55,.3)}
+  @media(max-width:680px){.nav-links{display:none}}
+
+  .wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+
+  /* HERO */
+  header.hero{padding:72px 0 44px;text-align:center;position:relative}
+  header.hero::before{content:"";position:absolute;top:-80px;left:50%;transform:translateX(-50%);
+    width:620px;height:620px;max-width:92vw;
+    background:radial-gradient(circle,rgba(212,175,55,.15) 0%,transparent 62%);pointer-events:none;z-index:-1}
+  .eyebrow{display:inline-block;font-size:11px;letter-spacing:4px;text-transform:uppercase;
+    color:var(--gold);border:1px solid var(--gold-light);background:var(--gold-light);
+    padding:7px 16px;border-radius:100px;margin-bottom:24px}
+  h1{font-size:clamp(30px,5.6vw,56px);font-weight:300;letter-spacing:-1px;line-height:1.12;margin-bottom:18px}
+  h1 b{font-weight:700;color:var(--gold)}
+  .sub{max-width:660px;margin:0 auto;color:var(--text-secondary);font-size:clamp(15px,2vw,18px);font-weight:300}
+
+  .live-counter{display:inline-flex;align-items:center;gap:11px;margin-top:30px;
+    background:var(--bg-card);border:1px solid rgba(212,175,55,.3);border-radius:100px;padding:13px 24px}
+  .live-counter .pulse{width:9px;height:9px;border-radius:50%;background:var(--green);position:relative;flex:none}
+  .live-counter .pulse::after{content:"";position:absolute;inset:-4px;border-radius:50%;
+    border:1px solid var(--green);animation:pulse 1.8s ease-out infinite}
+  @keyframes pulse{0%{transform:scale(.6);opacity:1}100%{transform:scale(1.6);opacity:0}}
+  .live-counter span{font-size:14px;color:var(--text-secondary)}
+  .live-counter b{color:var(--text);font-weight:600}
+  .live-counter b em{font-style:normal;color:var(--gold);font-weight:700;font-size:17px}
+  .skeleton{display:inline-block;width:2.2em;height:1em;border-radius:5px;vertical-align:-2px;
+    background:linear-gradient(90deg,var(--bg-elevated) 25%,#232328 50%,var(--bg-elevated) 75%);
+    background-size:200% 100%;animation:shimmer 1.4s infinite}
+  @keyframes shimmer{to{background-position:-200% 0}}
+
+  .hero-ctas{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:30px}
+  .btn-gold{display:inline-flex;align-items:center;gap:8px;background:var(--gold);color:#000;border:none;border-radius:100px;
+    font-family:inherit;font-weight:700;font-size:15px;letter-spacing:.5px;padding:15px 30px;cursor:pointer;transition:.2s}
+  .btn-gold:hover{transform:translateY(-1px);box-shadow:0 10px 30px rgba(212,175,55,.35)}
+  .btn-ghost{display:inline-flex;align-items:center;gap:8px;background:transparent;border:1px solid var(--border);
+    color:var(--text-secondary);border-radius:100px;font-size:14px;padding:14px 26px;transition:.15s}
+  .btn-ghost:hover{border-color:var(--gold);color:var(--gold)}
+
+  /* SECTIONS */
+  section{padding:44px 0}
+  .sec-eyebrow{font-size:11px;letter-spacing:4px;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:12px}
+  h2{font-size:clamp(24px,3.4vw,36px);font-weight:300;letter-spacing:-.5px;margin-bottom:12px}
+  h2 b{font-weight:700;color:var(--gold)}
+  .sec-sub{color:var(--text-secondary);font-size:15px;max-width:660px;margin-bottom:30px}
+
+  /* DEMAND */
+  .demand-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+  .zone-card{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:20px 22px;transition:.2s}
+  .zone-card:hover{border-color:rgba(212,175,55,.4);transform:translateY(-2px)}
+  .zone-card .z-name{font-size:16px;font-weight:600;letter-spacing:.3px;margin-bottom:10px}
+  .zone-card .z-seek{display:flex;align-items:baseline;gap:8px}
+  .zone-card .z-seek b{font-size:26px;font-weight:700;color:var(--gold);letter-spacing:-.5px}
+  .zone-card .z-seek span{font-size:12px;color:var(--text-secondary)}
+  .zone-card .z-budget{font-size:12.5px;color:var(--text-dim);margin-top:8px;border-top:1px solid var(--border-soft);padding-top:9px}
+  .zone-card .z-budget b{color:var(--text-secondary);font-weight:600}
+  .zone-card.sk .z-name,.zone-card.sk .z-seek,.zone-card.sk .z-budget{color:transparent}
+  .zone-card.sk .z-name{width:60%;height:16px;border-radius:5px;
+    background:linear-gradient(90deg,var(--bg-elevated) 25%,#232328 50%,var(--bg-elevated) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite}
+  .zone-card.sk .z-seek{width:40%;height:26px;border-radius:5px;
+    background:linear-gradient(90deg,var(--bg-elevated) 25%,#232328 50%,var(--bg-elevated) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite}
+  .zone-card.sk .z-budget{width:75%;height:12px;border:none;border-radius:5px;
+    background:linear-gradient(90deg,var(--bg-elevated) 25%,#232328 50%,var(--bg-elevated) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite}
+  .demand-note{font-size:12px;color:var(--text-dim);margin-top:18px}
+
+  /* HOW IT WORKS */
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;counter-reset:step}
+  @media(max-width:760px){.steps{grid-template-columns:1fr}}
+  .step{background:var(--bg-card);border:1px solid var(--border);border-radius:18px;padding:26px;position:relative}
+  .step .n{width:38px;height:38px;border-radius:50%;background:var(--gold-light);border:1px solid var(--gold);
+    color:var(--gold);font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;margin-bottom:16px}
+  .step h3{font-size:17px;font-weight:600;margin-bottom:8px}
+  .step p{font-size:13.5px;color:var(--text-secondary);margin:0}
+  .step p a{color:var(--gold)}
+
+  /* WHY BOOM */
+  .why{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:760px){.why{grid-template-columns:1fr}}
+  .why-card{background:var(--bg-card);border:1px solid var(--border);border-radius:18px;padding:26px}
+  .why-card .e{font-size:26px;margin-bottom:12px}
+  .why-card h3{font-size:16.5px;font-weight:600;margin-bottom:8px}
+  .why-card p{font-size:13.5px;color:var(--text-secondary);margin:0}
+
+  /* FINAL CTA */
+  .final{background:linear-gradient(135deg,rgba(212,175,55,.12),rgba(212,175,55,.02));
+    border:1px solid var(--gold);border-radius:22px;padding:44px 30px;text-align:center;margin:20px 0 56px}
+  .final h2{margin-bottom:10px}
+  .final p{color:var(--text-secondary);font-size:15px;max-width:560px;margin:0 auto 26px}
+  .final .cta-row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .cta-wa{display:inline-flex;align-items:center;gap:9px;background:#25D366;color:#04150B;
+    font-weight:700;font-size:14.5px;border-radius:100px;padding:14px 26px;transition:.2s}
+  .cta-wa:hover{transform:translateY(-1px);box-shadow:0 10px 26px rgba(37,211,102,.3)}
+  .cta-wa svg{width:19px;height:19px;fill:#04150B}
+
+  /* FAQ */
+  .faq-item{border-bottom:1px solid var(--border-soft);padding:18px 0}
+  .faq-item h3{font-size:16px;font-weight:600;margin-bottom:7px;color:var(--text)}
+  .faq-item p{font-size:14px;color:var(--text-secondary);margin:0}
+  .faq-item p a{color:var(--gold)}
+
+  footer{border-top:1px solid var(--border-soft);padding:34px 0;text-align:center;color:var(--text-dim);font-size:12.5px}
+  footer a{color:var(--text-secondary)}
+  footer .fnav{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;margin-bottom:14px}
+
+  .wa-float{position:fixed;bottom:20px;right:20px;z-index:60;width:54px;height:54px;border-radius:50%;
+    background:#25D366;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+  .wa-float svg{width:30px;height:30px;fill:#fff}
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="brand" href="/"><span class="dot"></span>BOOM</a>
+  <div class="nav-links">
+    <a href="/apartments">Apartments</a>
+    <a href="/affitta" class="here">Proprietari</a>
+    <a href="/stima-canone">Stima</a>
+    <a href="/contact">Contact</a>
+  </div>
+  <a class="nav-cta" href="https://wa.me/393313251961?text=Ciao%20BOOM,%20vorrei%20affittare%20il%20mio%20appartamento%20a%20Roma" target="_blank" rel="noopener">WhatsApp</a>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="eyebrow">Per i proprietari · Roma</span>
+    <h1>Affitta il tuo appartamento<br>con BOOM — <b>c'è già chi lo cerca</b></h1>
+    <p class="sub">Non pubblichiamo e aspettiamo: partiamo dagli <b style="color:#fff;font-weight:600">inquilini verificati</b> che stanno già cercando casa nella tua zona, con budget dichiarato. Poi gestiamo tutto: contratto digitale, incassi, documenti.</p>
+
+    <div class="live-counter" id="liveCounter">
+      <span class="pulse"></span>
+      <span id="counterText"><b><em class="skeleton" id="counterNum"></em></b>&nbsp;inquilini verificati stanno cercando casa a Roma con BOOM adesso</span>
+    </div>
+
+    <div class="hero-ctas">
+      <a class="btn-gold" href="/stima-canone" onclick="boomTrack('cta_intent',{target:'/stima-canone',from:'hero'})">Scopri quanto rende →</a>
+      <a class="btn-ghost" href="#come-funziona">Come funziona</a>
+    </div>
+  </div>
+</header>
+
+<!-- DEMAND BY ZONE -->
+<section id="domanda">
+  <div class="wrap">
+    <div class="sec-eyebrow">Domanda in tempo reale</div>
+    <h2>Chi sta cercando casa, <b>zona per zona</b></h2>
+    <p class="sec-sub">Ricerche attive di inquilini verificati sulla piattaforma BOOM — aggregate e anonime. Se il tuo appartamento è in una di queste zone, la domanda c'è già.</p>
+    <div class="demand-grid" id="demandGrid">
+      <div class="zone-card sk"><div class="z-name">—</div><div class="z-seek">—</div><div class="z-budget">—</div></div>
+      <div class="zone-card sk"><div class="z-name">—</div><div class="z-seek">—</div><div class="z-budget">—</div></div>
+      <div class="zone-card sk"><div class="z-name">—</div><div class="z-seek">—</div><div class="z-budget">—</div></div>
+      <div class="zone-card sk"><div class="z-name">—</div><div class="z-seek">—</div><div class="z-budget">—</div></div>
+      <div class="zone-card sk"><div class="z-name">—</div><div class="z-seek">—</div><div class="z-budget">—</div></div>
+      <div class="zone-card sk"><div class="z-name">—</div><div class="z-seek">—</div><div class="z-budget">—</div></div>
+    </div>
+    <p class="demand-note" id="demandNote" style="display:none">Dati aggiornati automaticamente dalla piattaforma BOOM: ricerche salvate, clienti in ricerca attiva e richieste recenti, aggregati per zona. Ultimo aggiornamento: <span id="demandUpdated">—</span>.</p>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="come-funziona">
+  <div class="wrap">
+    <div class="sec-eyebrow">Come funziona</div>
+    <h2>Dal numero al contratto, in <b>3 passi</b></h2>
+    <div class="steps">
+      <div class="step">
+        <div class="n">1</div>
+        <h3>Valutazione gratuita</h3>
+        <p>Fai la <a href="/stima-canone">stima del canone in 60 secondi</a> su dati reali di mercato. Poi il team BOOM verifica l'immobile e ti conferma la cifra e la strategia (canone libero o concordato con cedolare al 10%).</p>
+      </div>
+      <div class="step">
+        <div class="n">2</div>
+        <h3>Inquilino verificato</h3>
+        <p>Proponiamo il tuo appartamento prima a chi lo sta già cercando. Ogni candidato passa la verifica di identità, documenti e capacità di reddito. Tu approvi, noi organizziamo tutto.</p>
+      </div>
+      <div class="step">
+        <div class="n">3</div>
+        <h3>Contratto digitale e incassi gestiti</h3>
+        <p>Firma digitale online per entrambe le parti, canoni incassati automaticamente ogni mese via Stripe con ricevute e solleciti automatici, documenti sempre archiviati e a portata di mano.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WHY BOOM -->
+<section id="perche-boom">
+  <div class="wrap">
+    <div class="sec-eyebrow">Perché BOOM</div>
+    <h2>Tutta la locazione, <b>senza pensieri</b></h2>
+    <div class="why">
+      <div class="why-card">
+        <div class="e">✍️</div>
+        <h3>Firma digitale</h3>
+        <p>Il contratto si firma online, da telefono, sia per te che per l'inquilino — con identità e consensi tracciati. Niente appuntamenti, niente carta.</p>
+      </div>
+      <div class="why-card">
+        <div class="e">💳</div>
+        <h3>Incassi automatici via Stripe</h3>
+        <p>Ogni mese il canone viene incassato con pagamento online sicuro: ricevuta (quietanza) automatica all'inquilino, promemoria e solleciti gestiti dal sistema, tutto tracciato.</p>
+      </div>
+      <div class="why-card">
+        <div class="e">🗂️</div>
+        <h3>Tutela documentale</h3>
+        <p>Contratto, registrazione, ricevute e documenti dell'immobile archiviati in un unico posto sicuro — condivisibili con un link protetto, anche con il tuo commercialista.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq">
+  <div class="wrap">
+    <div class="sec-eyebrow">Domande frequenti</div>
+    <h2>Prima di <b>iniziare</b></h2>
+    <div class="faq-item"><h3>Come trovate l'inquilino per il mio appartamento?</h3><p>BOOM registra ogni giorno le ricerche di inquilini verificati per zona e budget a Roma. Quando affidi a noi il tuo appartamento, lo proponiamo prima a chi lo sta già cercando, poi lo pubblichiamo sui nostri canali. Ogni candidato passa una verifica di identità, documenti e capacità di reddito prima della proposta.</p></div>
+    <div class="faq-item"><h3>Cosa significa "inquilino verificato"?</h3><p>Prima di proporre un candidato verifichiamo identità e documenti, situazione lavorativa e capacità di sostenere il canone, ed eventuali garanzie (garante, deposito). Solo i profili idonei arrivano alla tua approvazione.</p></div>
+    <div class="faq-item"><h3>Come funzionano contratto e incassi?</h3><p>Il contratto si firma digitalmente online (inquilino e proprietario), i pagamenti mensili sono gestiti automaticamente con Stripe con ricevute e solleciti automatici, e tutti i documenti restano archiviati e condivisibili in sicurezza.</p></div>
+    <div class="faq-item"><h3>Quanto posso chiedere di affitto?</h3><p>Scoprilo subito con la <a href="/stima-canone">stima gratuita del canone</a>: zona, metratura e caratteristiche, e ottieni il canone mensile stimato su annunci reali di mercato — con la domanda di inquilini verificati nella tua zona.</p></div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<div class="wrap">
+  <div class="final">
+    <h2>Scopri <b>quanto rende</b> il tuo appartamento</h2>
+    <p>Stima gratuita in 60 secondi, su annunci reali di mercato. Senza impegno — e se il numero ti convince, pensiamo a tutto noi.</p>
+    <div class="cta-row">
+      <a class="btn-gold" href="/stima-canone" onclick="boomTrack('cta_intent',{target:'/stima-canone',from:'final'})">Calcola la stima gratuita →</a>
+      <a class="cta-wa" href="https://wa.me/393313251961?text=Ciao%20BOOM,%20vorrei%20affittare%20il%20mio%20appartamento%20a%20Roma" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.945C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 018.413 3.488 11.824 11.824 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.51 5.26l-.999 3.648 3.768-.987z"/></svg>
+        Scrivici su WhatsApp
+      </a>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div class="fnav">
+      <a href="/">Home</a><a href="/apartments">Appartamenti</a><a href="/stima-canone">Stima canone</a>
+      <a href="/canone">Canone concordato</a><a href="/blog">Blog</a><a href="/privacy">Privacy</a>
+    </div>
+    BOOM Rome · Gestione affitti premium a Roma · <a href="https://www.boomrome.com">boomrome.com</a>
+  </div>
+</footer>
+
+<a class="wa-float" href="https://wa.me/393313251961?text=Ciao%20BOOM,%20vorrei%20affittare%20il%20mio%20appartamento%20a%20Roma" target="_blank" rel="noopener" aria-label="WhatsApp">
+  <svg viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.945C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 018.413 3.488 11.824 11.824 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.51 5.26l-.999 3.648 3.768-.987zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.71.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+</a>
+
+<script>
+function boomTrack(name,params){try{if(typeof gtag==='function')gtag('event',name,params||{});}catch(e){}}
+
+var eur = function(n){ return '€ ' + Math.round(n).toLocaleString('it-IT'); };
+function esc(s){ return String(s).replace(/[&<>"']/g, function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+}); }
+
+(async function loadDemand(){
+  var section = document.getElementById('domanda');
+  var grid = document.getElementById('demandGrid');
+  var counterText = document.getElementById('counterText');
+  try {
+    var r = await fetch('/api/demand/zones');
+    var data = await r.json();
+    if (!r.ok || !data.ok) throw new Error('demand_unavailable');
+
+    // hero live counter
+    var seekers = (data.totals && data.totals.seekers) || 0;
+    if (seekers > 0){
+      counterText.innerHTML = '<b><em>' + seekers + '</em></b>&nbsp;inquilin' + (seekers === 1 ? 'o verificato sta' : 'i verificati stanno') +
+        ' cercando casa a Roma con BOOM adesso';
+    } else {
+      // never show an invented number
+      document.getElementById('liveCounter').style.display = 'none';
+    }
+
+    // zone cards
+    var zones = data.zones || [];
+    if (!zones.length){ section.style.display = 'none'; return; }
+    var html = '';
+    for (var i=0; i<zones.length; i++){
+      var z = zones[i];
+      html += '<div class="zone-card">' +
+        '<div class="z-name">' + esc(z.label) + '</div>' +
+        '<div class="z-seek"><b>' + z.seekers + '</b><span>inquilin' + (z.seekers === 1 ? 'o' : 'i') + ' in cerca</span></div>' +
+        (z.budgetAvg ? '<div class="z-budget">budget medio <b>' + eur(z.budgetAvg) + '/mese</b></div>' : '') +
+        '</div>';
+    }
+    grid.innerHTML = html;
+
+    if (data.updatedAt){
+      var d = new Date(data.updatedAt);
+      if (!isNaN(d)){
+        document.getElementById('demandUpdated').textContent = d.toLocaleDateString('it-IT', {day:'numeric', month:'long', year:'numeric'});
+        document.getElementById('demandNote').style.display = 'block';
+      }
+    }
+  } catch (err) {
+    // API down: hide the demand section and the counter — never a fake number
+    section.style.display = 'none';
+    document.getElementById('liveCounter').style.display = 'none';
+  }
+})();
+</script>
+</body>
+</html>

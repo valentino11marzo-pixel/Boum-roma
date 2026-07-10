@@ -308,6 +308,43 @@ admin/owner/landlord). `dryRun:true` scores a hypothetical listing against
 every active client without writing; `dryRun:false` ingests + pushes for
 real. Backs the "Aggiungi annuncio" modal in `pfs-command.html`.
 
+## Growth stack (api/demand/* + api/valuation/* + landlord pages)
+
+Landlord-acquisition ecosystem, all data-backed (no invented numbers):
+
+### GET `/api/demand/zones`
+Public, aggregated + ANONYMIZED tenant demand per zone (never emails/names/
+ids). Sources merged with cross-source email dedupe: active `savedSearches`
+(criteria.zones/budgetMax), active `pfsClients` (stage/portalStage in live
+pipeline or legacy portalEnabled; preferred_areas/zone + budget in either
+shape), non-landlord `leads` from the last 90 days. Zone matching via the
+canon in `api/demand/_zones.js` (10 zones, matchTerms verbatim from
+`scripts/neighborhoods-data.js` — keep in sync). Returns
+`{ ok, totals:{seekers, zonesTracked}, zones:[{key,label,seekers,budgetAvg,
+budgetP25,budgetP75}] }`. 10-min in-module cache + s-maxage 3600.
+
+### POST `/api/valuation/estimate`
+Public rent-estimate lead magnet (honeypot + rate limit, canone-lead-style
+hardening). Comps = `pfsProperties` (radar market data, seen ≤180d) + own
+`listings`, zone-matched (structured zone fields via matchZone, free-text
+title/address via matchZoneStrict which ignores ambiguous terms like
+"centro"); median €/m² × mq with adjustments (+6% arredato, ±5/−10%
+condizione, +8% small-size), range = P25/P75; <5 zone comps → citywide
+fallback (`citywide:true`). Writes the landlord lead to `leads` (service
+'Stima Canone', leadType 'landlord') — the lead write is AWAITED before the
+response; notification is fire-and-forget.
+
+### Pages
+- `stima-canone.html` (`/stima-canone`) — Italian landlord lead magnet;
+  reads `?zona=<slug>` prefill; mq bounds 20-400 (must match the API).
+- `affitta.html` (`/affitta`) — landlord landing with live demand counter +
+  per-zone demand cards from `/api/demand/zones`.
+- `apartments-in/*.html` — the 10 SSG zone pages now carry a live demand
+  widget + landlord CTA (→ `/stima-canone?zona=<slug>` and `/affitta`).
+  Regenerate via `node scripts/neighborhoods-build.js` — WARNING: it writes
+  empty BOOM_SEO/BOOM_JSONLD sentinel blocks; re-apply with
+  `scripts/seo-update.js` (check it's in sync first — it has drifted).
+
 ## Rent Collection (api/rent/*)
 
 Automated monthly rent collection on top of the `payments` collection

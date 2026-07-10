@@ -49,11 +49,11 @@
   <link rel="dns-prefetch" href="https://www.googletagmanager.com">
   <link rel="dns-prefetch" href="https://www.google-analytics.com">
 <!-- BOOM_SEO:END -->
+  <!-- BOOM_SEO:placeholder — populated by scripts/seo-update.js -->
     <!-- Perf: early-connect to the hosts that gate the LCP photos (Firebase data + imgur images) -->
     <link rel="preconnect" href="https://i.imgur.com" crossorigin>
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
-  <!-- BOOM_SEO:placeholder — populated by scripts/seo-update.js -->
 
   <!-- Google tag -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
@@ -236,6 +236,22 @@ nav{position:fixed;width:100%;top:0;z-index:100;padding:20px 50px;background:rgb
 .cta-actions{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
 @media(max-width:880px){.cta{margin:42px 20px 60px;padding:42px 24px}}
 
+/* LIVE DEMAND STRIP (data from /api/demand/zones — hidden until it loads) */
+.demand-strip{display:none;max-width:1400px;margin:0 auto;padding:0 50px 10px}
+.demand-inner{display:inline-flex;flex-wrap:wrap;align-items:baseline;gap:6px;padding:14px 22px;border:1px solid var(--border-g);border-radius:14px;background:linear-gradient(135deg,rgba(212,175,55,0.07),rgba(212,175,55,0.02));font-size:14px;color:var(--text2);line-height:1.6}
+.demand-inner b{color:var(--gold);font-weight:500}
+.demand-budget{color:var(--text3);font-size:13px}
+@media(max-width:880px){.demand-strip{padding:0 20px 10px}}
+
+/* LANDLORD CTA — "Hai un appartamento a …?" */
+.landlord{max-width:1400px;margin:0 auto;padding:56px 50px}
+.landlord-box{padding:44px 40px;border-radius:24px;background:linear-gradient(135deg,rgba(212,175,55,0.06),rgba(212,175,55,0.015));border:1px solid var(--border-g);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:26px}
+.landlord-copy{max-width:620px}
+.landlord-title{font-size:clamp(24px,3.4vw,36px);font-weight:200;letter-spacing:-.01em;margin-bottom:10px}
+.landlord-sub{font-size:14px;color:var(--text2);line-height:1.7}
+.landlord-actions{display:flex;gap:14px;flex-wrap:wrap}
+@media(max-width:880px){.landlord{padding:40px 20px}.landlord-box{padding:30px 24px}}
+
 /* FOOTER */
 footer{background:var(--bg1);border-top:1px solid var(--border);padding:60px 50px 40px}
 .foot-grid{max-width:1400px;margin:0 auto;display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:50px}
@@ -247,6 +263,7 @@ footer{background:var(--bg1);border-top:1px solid var(--border);padding:60px 50p
 .foot-bottom{max-width:1400px;margin:46px auto 0;padding-top:24px;border-top:1px solid var(--border);text-align:center;font-size:11px;color:var(--text4);letter-spacing:1px}
 @media(max-width:880px){footer{padding:40px 20px 30px}.foot-grid{grid-template-columns:1fr 1fr;gap:30px}}
 </style>
+    <link rel="stylesheet" href="/css/boom-cinema.css">
 <!-- BOOM_JSONLD:START -->
   <script type="application/ld+json">
 {
@@ -432,7 +449,6 @@ footer{background:var(--bg1);border-top:1px solid var(--border);padding:60px 50p
 }
   </script>
 <!-- BOOM_JSONLD:END -->
-    <link rel="stylesheet" href="/css/boom-cinema.css">
 </head>
 <body>
 
@@ -492,6 +508,9 @@ footer{background:var(--bg1);border-top:1px solid var(--border);padding:60px 50p
   <div class="reading-time">2 min read · honest take from BOOM</div>
 </header>
 
+<!-- Live tenant demand for this zone — populated from /api/demand/zones, stays hidden if unavailable -->
+<section class="demand-strip" id="demandStrip" data-zone-slug="trieste-coppede" data-zone-name="Trieste &amp; Coppedè" aria-live="polite"></section>
+
 <section class="stats" aria-label="Trieste &amp; Coppedè at a glance">
   <div class="stat"><div class="stat-value">€1,200–€1,800</div><div class="stat-label">1-Bed Rent · €/mo</div></div>
   <div class="stat"><div class="stat-value">7/10</div><div class="stat-label">Walkability</div></div>
@@ -534,6 +553,21 @@ footer{background:var(--bg1);border-top:1px solid var(--border);padding:60px 50p
   <p class="section-subtitle">Live from our Firestore — verified by BOOM, ready for viewing.</p>
   <div class="listings-grid" id="listingsGrid" data-zone-match="trieste|coppedè|coppede|salario|parioli|villa ada|villa torlonia|nomentano|levico">
     <div class="listings-loading">Loading apartments…</div>
+  </div>
+</section>
+
+<!-- Landlord CTA — owners with property in this zone -->
+<section class="landlord" id="proprietari" aria-label="Per i proprietari a Trieste &amp; Coppedè">
+  <div class="landlord-box">
+    <div class="landlord-copy">
+      <span class="section-eyebrow">Per i proprietari</span>
+      <h2 class="landlord-title">Hai un appartamento a Trieste &amp; Coppedè?</h2>
+      <p class="landlord-sub">Scopri in 60 secondi quanto può rendere al mese — stima gratuita basata su annunci reali di mercato e sulla domanda di inquilini verificati BOOM in zona. Nessun impegno.</p>
+    </div>
+    <div class="landlord-actions">
+      <a href="/stima-canone?zona=trieste-coppede" class="btn btn-primary" data-track="stima_canone_click">Scopri quanto rende →</a>
+      <a href="/affitta" class="btn btn-ghost" data-track="affitta_click">Affitta con BOOM</a>
+    </div>
   </div>
 </section>
 
@@ -624,12 +658,14 @@ footer{background:var(--bg1);border-top:1px solid var(--border);padding:60px 50p
         <a href="/virtual-viewing">Virtual Viewing</a>
         <a href="/deal-assistance">Deal Assistance</a>
         <a href="/concierge">Concierge</a>
+        <a href="/affitta">Affitta con BOOM</a>
       </div>
       <div class="foot-col">
         <h4>Company</h4>
         <a href="/about">About</a>
         <a href="/contact">Contact</a>
         <a href="/owners">For Owners</a>
+        <a href="/stima-canone?zona=trieste-coppede">Stima il Canone</a>
         <a href="/privacy">Privacy</a>
         <a href="/terms">Terms</a>
       </div>
@@ -648,6 +684,36 @@ footer{background:var(--bg1);border-top:1px solid var(--border);padding:60px 50p
   h.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();t()}});
   m.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{h.classList.remove('active');m.classList.remove('active')}));
 })();
+
+// GA4 helper — no-ops if gtag is unavailable
+function boomTrack(name,params){try{if(typeof gtag==='function')gtag('event',name,params||{})}catch(e){}}
+
+// Live tenant-demand widget — /api/demand/zones (aggregated + anonymized).
+// The strip stays display:none unless the API answers AND this zone has seekers.
+(function(){
+  var el=document.getElementById('demandStrip');
+  if(!el)return;
+  var slug=el.getAttribute('data-zone-slug')||'';
+  var esc=function(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')};
+  fetch('/api/demand/zones').then(function(r){return r.ok?r.json():null}).then(function(d){
+    if(!d||!d.ok||!Array.isArray(d.zones))return;
+    var z=null;
+    for(var i=0;i<d.zones.length;i++){if(d.zones[i]&&d.zones[i].key===slug){z=d.zones[i];break}}
+    if(!z||!(Number(z.seekers)>=1))return;
+    var n=Number(z.seekers);
+    var label=z.label||el.getAttribute('data-zone-name')||'';
+    var html='🔥 <b>'+n+(n===1?' inquilino verificato':' inquilini verificati')+'</b> '+(n===1?'cerca':'cercano')+' casa a '+esc(label)+' con BOOM adesso';
+    if(z.budgetAvg&&Number(z.budgetAvg)>0){html+=' <span class="demand-budget">· budget medio €'+Math.round(Number(z.budgetAvg)).toLocaleString('it-IT')+'/mese</span>';}
+    el.innerHTML='<div class="demand-inner">'+html+'</div>';
+    el.style.display='block';
+    boomTrack('demand_widget_view',{zone:slug,seekers:n});
+  }).catch(function(){/* keep hidden */});
+})();
+
+// Landlord CTA click tracking
+document.querySelectorAll('#proprietari [data-track]').forEach(function(a){
+  a.addEventListener('click',function(){boomTrack(a.getAttribute('data-track'),{zone:'trieste-coppede',page:'apartments-in'})});
+});
 </script>
 
 <!-- Firebase + Firestore for live listings -->

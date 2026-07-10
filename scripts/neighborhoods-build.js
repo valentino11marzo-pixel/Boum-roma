@@ -207,6 +207,22 @@ nav{position:fixed;width:100%;top:0;z-index:100;padding:20px 50px;background:rgb
 .cta-actions{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
 @media(max-width:880px){.cta{margin:42px 20px 60px;padding:42px 24px}}
 
+/* LIVE DEMAND STRIP (data from /api/demand/zones — hidden until it loads) */
+.demand-strip{display:none;max-width:1400px;margin:0 auto;padding:0 50px 10px}
+.demand-inner{display:inline-flex;flex-wrap:wrap;align-items:baseline;gap:6px;padding:14px 22px;border:1px solid var(--border-g);border-radius:14px;background:linear-gradient(135deg,rgba(212,175,55,0.07),rgba(212,175,55,0.02));font-size:14px;color:var(--text2);line-height:1.6}
+.demand-inner b{color:var(--gold);font-weight:500}
+.demand-budget{color:var(--text3);font-size:13px}
+@media(max-width:880px){.demand-strip{padding:0 20px 10px}}
+
+/* LANDLORD CTA — "Hai un appartamento a …?" */
+.landlord{max-width:1400px;margin:0 auto;padding:56px 50px}
+.landlord-box{padding:44px 40px;border-radius:24px;background:linear-gradient(135deg,rgba(212,175,55,0.06),rgba(212,175,55,0.015));border:1px solid var(--border-g);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:26px}
+.landlord-copy{max-width:620px}
+.landlord-title{font-size:clamp(24px,3.4vw,36px);font-weight:200;letter-spacing:-.01em;margin-bottom:10px}
+.landlord-sub{font-size:14px;color:var(--text2);line-height:1.7}
+.landlord-actions{display:flex;gap:14px;flex-wrap:wrap}
+@media(max-width:880px){.landlord{padding:40px 20px}.landlord-box{padding:30px 24px}}
+
 /* FOOTER */
 footer{background:var(--bg1);border-top:1px solid var(--border);padding:60px 50px 40px}
 .foot-grid{max-width:1400px;margin:0 auto;display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:50px}
@@ -271,8 +287,14 @@ function navHtml(activeHref = '/apartments-in') {
   </nav>`;
 }
 
-function footerHtml() {
+function footerHtml(currentSlug = null) {
   const y = new Date().getFullYear();
+  const nbhdLinks = NEIGHBORHOODS.map((x) =>
+    x.slug === currentSlug
+      ? `<span aria-current="page" style="color:#D4AF37">${ESC(x.name)}</span>`
+      : `<a href="/apartments-in/${x.slug}">${ESC(x.name)}</a>`
+  ).join('');
+  const nbhdNav = `<nav class="foot-nbhds" aria-label="Rome neighborhoods" style="border-top:1px solid rgba(255,255,255,0.08);margin-top:8px;padding:18px 0 4px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:baseline;font-size:13px;line-height:1.8"><span style="color:#999;letter-spacing:1px;text-transform:uppercase;font-size:11px">Rome neighborhoods</span>${nbhdLinks}</nav>`;
   return `<footer>
     <div class="foot-grid">
       <div class="foot-brand">
@@ -292,16 +314,19 @@ function footerHtml() {
         <a href="/virtual-viewing">Virtual Viewing</a>
         <a href="/deal-assistance">Deal Assistance</a>
         <a href="/concierge">Concierge</a>
+        <a href="/affitta">Affitta con BOOM</a>
       </div>
       <div class="foot-col">
         <h4>Company</h4>
         <a href="/about">About</a>
         <a href="/contact">Contact</a>
         <a href="/owners">For Owners</a>
+        <a href="/stima-canone${currentSlug ? `?zona=${currentSlug}` : ''}">Stima il Canone</a>
         <a href="/privacy">Privacy</a>
         <a href="/terms">Terms</a>
       </div>
     </div>
+    ${nbhdNav}
     <div class="foot-bottom">© ${y} BOOM Rome — Premium rentals, built in Rome.</div>
   </footer>`;
 }
@@ -394,6 +419,10 @@ function pageHtml(n, allNeighborhoods) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${ESC(n.metaTitle)}</title>
   <!-- BOOM_SEO:placeholder — populated by scripts/seo-update.js -->
+    <!-- Perf: early-connect to the hosts that gate the LCP photos (Firebase data + imgur images) -->
+    <link rel="preconnect" href="https://i.imgur.com" crossorigin>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
 
   <!-- Google tag -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
@@ -404,6 +433,7 @@ function pageHtml(n, allNeighborhoods) {
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&display=swap" rel="stylesheet">
 
   <style>${SHARED_CSS}</style>
+    <link rel="stylesheet" href="/css/boom-cinema.css">
 </head>
 <body>
 
@@ -427,6 +457,9 @@ ${navHtml('/apartments-in')}
   </div>
   <div class="reading-time">${readMin} min read · honest take from BOOM</div>
 </header>
+
+<!-- Live tenant demand for this zone — populated from /api/demand/zones, stays hidden if unavailable -->
+<section class="demand-strip" id="demandStrip" data-zone-slug="${n.slug}" data-zone-name="${ESC(n.name)}" aria-live="polite"></section>
 
 <section class="stats" aria-label="${ESC(n.name)} at a glance">
   <div class="stat"><div class="stat-value">${rentRange}</div><div class="stat-label">1-Bed Rent · €/mo</div></div>
@@ -458,6 +491,21 @@ ${commuteHtml}
   <p class="section-subtitle">Live from our Firestore — verified by BOOM, ready for viewing.</p>
   <div class="listings-grid" id="listingsGrid" data-zone-match="${ESC(matchTermsAttr)}">
     <div class="listings-loading">Loading apartments…</div>
+  </div>
+</section>
+
+<!-- Landlord CTA — owners with property in this zone -->
+<section class="landlord" id="proprietari" aria-label="Per i proprietari a ${ESC(n.name)}">
+  <div class="landlord-box">
+    <div class="landlord-copy">
+      <span class="section-eyebrow">Per i proprietari</span>
+      <h2 class="landlord-title">Hai un appartamento a ${ESC(n.name)}?</h2>
+      <p class="landlord-sub">Scopri in 60 secondi quanto può rendere al mese — stima gratuita basata su annunci reali di mercato e sulla domanda di inquilini verificati BOOM in zona. Nessun impegno.</p>
+    </div>
+    <div class="landlord-actions">
+      <a href="/stima-canone?zona=${n.slug}" class="btn btn-primary" data-track="stima_canone_click">Scopri quanto rende →</a>
+      <a href="/affitta" class="btn btn-ghost" data-track="affitta_click">Affitta con BOOM</a>
+    </div>
   </div>
 </section>
 
@@ -494,10 +542,11 @@ ${relatedSection}
   <div class="cta-actions">
     <a href="/book" class="btn btn-primary">Book a Viewing</a>
     <a href="/property-finding" class="btn btn-ghost">Have BOOM Find Me One</a>
+    <a href="https://wa.me/393313251961" class="btn btn-ghost" rel="noopener">💬 WhatsApp Us</a>
   </div>
 </section>
 
-${footerHtml()}
+${footerHtml(n.slug)}
 
 <script>
 // Mobile menu
@@ -509,6 +558,36 @@ ${footerHtml()}
   h.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();t()}});
   m.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{h.classList.remove('active');m.classList.remove('active')}));
 })();
+
+// GA4 helper — no-ops if gtag is unavailable
+function boomTrack(name,params){try{if(typeof gtag==='function')gtag('event',name,params||{})}catch(e){}}
+
+// Live tenant-demand widget — /api/demand/zones (aggregated + anonymized).
+// The strip stays display:none unless the API answers AND this zone has seekers.
+(function(){
+  var el=document.getElementById('demandStrip');
+  if(!el)return;
+  var slug=el.getAttribute('data-zone-slug')||'';
+  var esc=function(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')};
+  fetch('/api/demand/zones').then(function(r){return r.ok?r.json():null}).then(function(d){
+    if(!d||!d.ok||!Array.isArray(d.zones))return;
+    var z=null;
+    for(var i=0;i<d.zones.length;i++){if(d.zones[i]&&d.zones[i].key===slug){z=d.zones[i];break}}
+    if(!z||!(Number(z.seekers)>=1))return;
+    var n=Number(z.seekers);
+    var label=z.label||el.getAttribute('data-zone-name')||'';
+    var html='🔥 <b>'+n+(n===1?' inquilino verificato':' inquilini verificati')+'</b> '+(n===1?'cerca':'cercano')+' casa a '+esc(label)+' con BOOM adesso';
+    if(z.budgetAvg&&Number(z.budgetAvg)>0){html+=' <span class="demand-budget">· budget medio €'+Math.round(Number(z.budgetAvg)).toLocaleString('it-IT')+'/mese</span>';}
+    el.innerHTML='<div class="demand-inner">'+html+'</div>';
+    el.style.display='block';
+    boomTrack('demand_widget_view',{zone:slug,seekers:n});
+  }).catch(function(){/* keep hidden */});
+})();
+
+// Landlord CTA click tracking
+document.querySelectorAll('#proprietari [data-track]').forEach(function(a){
+  a.addEventListener('click',function(){boomTrack(a.getAttribute('data-track'),{zone:'${n.slug}',page:'apartments-in'})});
+});
 </script>
 
 <!-- Firebase + Firestore for live listings -->
@@ -523,8 +602,9 @@ const db=firebase.firestore();
   const matchAttr=grid.getAttribute('data-zone-match')||'';
   const terms=matchAttr.toLowerCase().split('|').filter(Boolean);
   try{
-    const snap=await db.collection('listings').get();
-    const all=snap.docs.map(d=>({id:d.id,...d.data()}));
+    let all;
+    try{ const snap=await db.collection('listings').get(); all=snap.docs.map(d=>({id:d.id,...d.data()})); }
+    catch(_){ const r=await fetch('/api/listings',{cache:'no-store'}); const j=await r.json(); all=(j&&j.listings)||[]; }
     const matched=all.filter(l=>{
       const s=(l.status||l.availabilityStatus||'').toLowerCase();
       if(s==='rented'||s==='affittato'||s==='off_market')return false;
@@ -581,6 +661,8 @@ function injectItemListJsonLd(items){
 }
 </script>
 
+        <script defer src="/js/boom-cinema.js"></script>
+    <script defer src="/js/boom-track.js"></script>
 </body>
 </html>`;
 }
@@ -636,6 +718,7 @@ function hubHtml() {
   .hub-card-stats{display:flex;gap:14px;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;padding-top:16px;border-top:1px solid var(--border);margin-bottom:18px}
   .hub-card-cta{font-size:12px;color:var(--gold);text-transform:uppercase;letter-spacing:2px;font-weight:500}
   </style>
+    <link rel="stylesheet" href="/css/boom-cinema.css">
 </head>
 <body>
 
@@ -663,6 +746,19 @@ ${navHtml('/apartments-in')}
   </div>
 </section>
 
+<section class="section" id="hub-faq">
+  <span class="section-eyebrow">FAQ</span>
+  <h2 class="section-title">Choosing a Rome neighborhood — questions we hear most</h2>
+  <div class="faq-list">
+  <details class="faq"><summary class="faq-q">Which Rome neighborhood is best for students?</summary><div class="faq-a">San Lorenzo sits right next to Sapienza University and has the cheapest central rents and the liveliest student scene. <a href="/apartments-in/pigneto">Pigneto</a> and <a href="/apartments-in/ostiense">Ostiense</a> (next to Roma Tre) are the other student favourites — affordable, well-connected, and full of bars.</div></details>
+<details class="faq"><summary class="faq-q">Which neighborhood is best for families in Rome?</summary><div class="faq-a"><a href="/apartments-in/prati">Prati</a> is the classic family choice: elegant, safe, residential, close to the Vatican and great schools. <a href="/apartments-in/trieste-coppede">Trieste &amp; Coppedè</a> is quieter and leafier with parks like Villa Ada and Villa Torlonia. Both trade nightlife for calm.</div></details>
+<details class="faq"><summary class="faq-q">Where do most expats live in Rome?</summary><div class="faq-a">The most popular expat neighborhoods are <a href="/apartments-in/trastevere">Trastevere</a>, <a href="/apartments-in/monti">Monti</a> and <a href="/apartments-in/prati">Prati</a> — all central, walkable and international in feel. <a href="/apartments-in/centro-storico">Centro Storico</a> is the dream if your budget stretches; <a href="/apartments-in/testaccio">Testaccio</a> offers the same energy for less.</div></details>
+<details class="faq"><summary class="faq-q">What is the cheapest central area to rent in Rome?</summary><div class="faq-a">For central living on a smaller budget, look east: <a href="/apartments-in/pigneto">Pigneto</a>, <a href="/apartments-in/san-lorenzo">San Lorenzo</a>, and parts of <a href="/apartments-in/esquilino">Esquilino</a> and <a href="/apartments-in/ostiense">Ostiense</a>. You get strong tram/metro links and far more space per euro than the historic core — at the cost of postcard looks.</div></details>
+<details class="faq"><summary class="faq-q">Which areas have the best nightlife, and which are quietest?</summary><div class="faq-a">For nightlife: <a href="/apartments-in/trastevere">Trastevere</a>, <a href="/apartments-in/san-lorenzo">San Lorenzo</a>, <a href="/apartments-in/pigneto">Pigneto</a> and <a href="/apartments-in/testaccio">Testaccio</a> never sleep. For quiet: <a href="/apartments-in/prati">Prati</a> and <a href="/apartments-in/trieste-coppede">Trieste &amp; Coppedè</a>, or the residential edges of any central zone.</div></details>
+<details class="faq"><summary class="faq-q">How should I choose, and how does BOOM help?</summary><div class="faq-a">Pick by lifestyle first, price second. Open any neighborhood above to see character, commute times and live verified listings. BOOM video-verifies every apartment, handles the legal contract, and can match you to a place if you tell us your brief. Start looking 4–6 weeks before your move for mid-term rentals.</div></details>
+  </div>
+</section>
+
 <section class="cta">
   <h2 class="cta-title">Not sure which neighborhood?</h2>
   <p class="cta-sub">Tell us how you live — we'll match you to the right area and the right apartment.</p>
@@ -685,6 +781,9 @@ ${footerHtml()}
 })();
 </script>
 
+        <script defer src="/js/boom-cinema.js"></script>
+    <script defer src="/js/boom-track.js"></script>
+    <script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Which Rome neighborhood is best for students?", "acceptedAnswer": {"@type": "Answer", "text": "San Lorenzo sits right next to Sapienza University and has the cheapest central rents and the liveliest student scene. Pigneto and Ostiense (next to Roma Tre) are the other student favourites — affordable, well-connected, and full of bars."}}, {"@type": "Question", "name": "Which neighborhood is best for families in Rome?", "acceptedAnswer": {"@type": "Answer", "text": "Prati is the classic family choice: elegant, safe, residential, close to the Vatican and great schools. Trieste & Coppedè is quieter and leafier with parks like Villa Ada and Villa Torlonia. Both trade nightlife for calm."}}, {"@type": "Question", "name": "Where do most expats live in Rome?", "acceptedAnswer": {"@type": "Answer", "text": "The most popular expat neighborhoods are Trastevere, Monti and Prati — all central, walkable and international in feel. Centro Storico is the dream if your budget stretches; Testaccio offers the same energy for less."}}, {"@type": "Question", "name": "What is the cheapest central area to rent in Rome?", "acceptedAnswer": {"@type": "Answer", "text": "For central living on a smaller budget, look east: Pigneto, San Lorenzo, and parts of Esquilino and Ostiense. You get strong tram/metro links and far more space per euro than the historic core — at the cost of postcard looks."}}, {"@type": "Question", "name": "Which areas have the best nightlife, and which are quietest?", "acceptedAnswer": {"@type": "Answer", "text": "For nightlife: Trastevere, San Lorenzo, Pigneto and Testaccio never sleep. For quiet: Prati and Trieste & Coppedè, or the residential edges of any central zone."}}, {"@type": "Question", "name": "How should I choose, and how does BOOM help?", "acceptedAnswer": {"@type": "Answer", "text": "Pick by lifestyle first, price second. Open any neighborhood page to see character, commute times and live verified listings. BOOM video-verifies every apartment, handles the legal contract, and can match you to a place if you tell us your brief. Start looking 4–6 weeks before your move for mid-term rentals."}}]}</script>
 </body>
 </html>`;
 }
@@ -746,3 +845,9 @@ fs.writeFileSync(path.join(OUT_DIR, 'index.html'), hubHtml(), 'utf8');
 console.log(`[✓] /apartments-in/index.html (hub)`);
 writeZoneSlugHelper();
 console.log(`\nWrote ${count} neighborhood pages + hub + zone-slug helper.`);
+console.warn(
+  '\n[!] Pages were written with EMPTY BOOM_SEO / BOOM_JSONLD sentinel blocks.' +
+  '\n    Re-apply them before committing: node scripts/seo-update.js' +
+  '\n    (NOTE: verify seo-update.js/seo-config.js are in sync with the committed' +
+  '\n    pages first — they have drifted before, e.g. WhatsApp number and titles.)'
+);
