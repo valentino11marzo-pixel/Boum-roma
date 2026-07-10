@@ -320,4 +320,22 @@
     <changefreq>monthly</changefreq>
     <priority>0.90</priority>
   </url>
+  <url>
+    <loc>https://www.boomrome.com/moving-to-rome-from-us</loc>
+    <lastmod>2026-07-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://www.boomrome.com/moving-to-rome-from-uk</loc>
+    <lastmod>2026-07-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://www.boomrome.com/moving-to-rome-from-germany</loc>
+    <lastmod>2026-07-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
 </urlset>

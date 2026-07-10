@@ -285,7 +285,15 @@ function openSheet(src){
 }
 function closeSheet(){document.getElementById('ov').classList.remove('on');document.body.style.overflow='';}
 document.getElementById('ov').addEventListener('click',function(e){if(e.target===this)closeSheet()});
-document.addEventListener('keydown',function(e){if(e.key==='Escape')closeSheet()});
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape')closeSheet();
+  if(e.key==='Tab'&&document.getElementById('ov').classList.contains('on')){
+    var f=document.querySelectorAll('#ov input:not([tabindex=\"-1\"]),#ov button,#ov a');
+    if(!f.length)return;var first=f[0],last=f[f.length-1];
+    if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+    else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+  }
+});
 document.querySelectorAll('#ov input').forEach(function(el){el.addEventListener('keydown',function(e){if(e.key==='Enter')paySheet()})});
 function err(m){var e=document.getElementById('sErr');e.textContent=m;e.classList.add('on');}
 function paySheet(){
