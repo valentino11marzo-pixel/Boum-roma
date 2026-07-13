@@ -2527,6 +2527,455 @@
             .how-scene { transition: none; }
             .how-pass::after, .how-caret { animation: none !important; }
         }
+
+        /* ═══════════════════════════════════════════════════════════
+           ACCESSIBILITY — skip link + reduced motion
+           ═══════════════════════════════════════════════════════════ */
+        .skip-link {
+            position: fixed;
+            top: -60px;
+            left: 16px;
+            z-index: 10001;
+            padding: 12px 20px;
+            background: var(--gold);
+            color: var(--black);
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            border-radius: 8px;
+            transition: top 0.25s var(--ease-out);
+        }
+        .skip-link:focus { top: 16px; }
+
+        @media (prefers-reduced-motion: reduce) {
+            .tech-orb, .radar-ring, .radar-center,
+            .intel-radar-sweep, .intel-radar-blip, .intel-bars i,
+            .intel-doc::after, .live-badge i, .partner-marquee-content {
+                animation: none !important;
+            }
+            html { scroll-behavior: auto; }
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           HERO SMART SEARCH — deep-links into the discovery page
+           ═══════════════════════════════════════════════════════════ */
+        .hero-search {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+            max-width: 780px;
+            margin: var(--space-xl) auto 0;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-default);
+            border-radius: 20px;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            box-shadow: var(--shadow-card), var(--shadow-inner);
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        .hero-search:focus-within {
+            border-color: var(--border-hover);
+            box-shadow: var(--shadow-card), 0 0 60px rgba(255, 215, 0, 0.06);
+        }
+        .hero-search-fields {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+        }
+        .hero-search-field {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            padding: 8px 14px;
+            background: rgba(255, 255, 255, 0.025);
+            border: 1px solid transparent;
+            border-radius: 12px;
+            text-align: left;
+            transition: background 0.25s ease, border-color 0.25s ease;
+        }
+        .hero-search-field:focus-within {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--border-gold);
+        }
+        .hero-search-field label {
+            font-size: 10px;
+            font-weight: 500;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--text-tertiary);
+        }
+        .hero-search-field input,
+        .hero-search-field select {
+            appearance: none;
+            -webkit-appearance: none;
+            background: transparent;
+            border: 0;
+            outline: 0;
+            width: 100%;
+            font-family: var(--font-sans);
+            font-size: 15px;
+            font-weight: 300;
+            color: var(--text-primary);
+            padding: 2px 0;
+            color-scheme: dark;
+        }
+        .hero-search-field input::placeholder { color: var(--text-muted); }
+        .hero-search-field select option { background: var(--surface-elevated); color: var(--text-primary); }
+        .hero-search-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 16px 28px;
+            background: linear-gradient(135deg, var(--gold-light), var(--gold));
+            color: var(--black);
+            font-family: var(--font-sans);
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            border: 0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: transform 0.3s var(--ease-out), box-shadow 0.3s ease;
+        }
+        .hero-search-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 32px rgba(255, 215, 0, 0.25);
+        }
+        @media (min-width: 820px) {
+            .hero-search { flex-direction: row; align-items: stretch; border-radius: 24px; }
+            .hero-search-fields { flex: 1; grid-template-columns: 1.4fr 1fr 1fr; }
+            .hero-search-btn { border-radius: 16px; }
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           LIVE INVENTORY BADGE — featured homes come from Firestore
+           ═══════════════════════════════════════════════════════════ */
+        .live-badge {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            margin: 0 auto var(--space-md);
+            padding: 6px 14px;
+            width: fit-content;
+            background: var(--green-muted);
+            border: 1px solid rgba(0, 255, 136, 0.25);
+            border-radius: 100px;
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--green);
+        }
+        .live-badge.on { display: inline-flex; }
+        .live-badge i {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 12px var(--green);
+            animation: live-pulse 1.6s ease-in-out infinite;
+        }
+        @keyframes live-pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.75); }
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           BOOM INTELLIGENCE — the engine behind the agency (bento)
+           ═══════════════════════════════════════════════════════════ */
+        .intel { position: relative; overflow: hidden; }
+        .intel::before {
+            content: '';
+            position: absolute;
+            top: -30%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 900px;
+            height: 900px;
+            background: radial-gradient(circle, rgba(255, 215, 0, 0.05) 0%, transparent 65%);
+            pointer-events: none;
+        }
+        .intel-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: var(--space-2xl);
+        }
+        @media (min-width: 900px) {
+            .intel-grid {
+                grid-template-columns: repeat(4, 1fr);
+                grid-auto-rows: 264px;
+                gap: 16px;
+            }
+            .intel-card--radar { grid-column: span 2; grid-row: span 2; }
+            .intel-card--sign { grid-column: span 2; }
+            .intel-card--radar .intel-radar-scope { width: 230px; height: 230px; top: 26px; right: 26px; }
+            .intel-card--radar .intel-radar-scope::before { inset: 40px; }
+            .intel-card--radar .intel-radar-scope::after { inset: 80px; }
+        }
+        .intel-card {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            gap: 6px;
+            padding: 26px;
+            background: linear-gradient(180deg, var(--surface-card) 0%, var(--surface) 100%);
+            border: 1px solid var(--border-default);
+            border-radius: 22px;
+            overflow: hidden;
+            box-shadow: var(--shadow-inner);
+            transition: transform 0.5s var(--ease-out), border-color 0.5s ease, box-shadow 0.5s ease;
+        }
+        .intel-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--border-hover);
+            box-shadow: var(--shadow-card-hover), 0 0 60px rgba(255, 215, 0, 0.05);
+        }
+        .intel-tag {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--gold);
+        }
+        .intel-card h3 {
+            font-family: var(--font-display);
+            font-size: 21px;
+            font-weight: 300;
+            letter-spacing: -0.01em;
+            color: var(--text-primary);
+        }
+        .intel-card p {
+            font-size: 13.5px;
+            line-height: 1.6;
+            color: var(--text-secondary);
+        }
+        .intel-visual {
+            position: relative;
+            flex: 1;
+            min-height: 90px;
+            margin-bottom: 10px;
+            pointer-events: none;
+        }
+
+        /* Radar card — sweep + live ingestion log */
+        .intel-radar-scope {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 130px;
+            height: 130px;
+            border-radius: 50%;
+            border: 1px solid var(--border-gold);
+            overflow: hidden;
+            opacity: 0.9;
+        }
+        .intel-radar-scope::before {
+            content: '';
+            position: absolute;
+            inset: 22px;
+            border-radius: 50%;
+            border: 1px solid var(--border-gold);
+        }
+        .intel-radar-scope::after {
+            content: '';
+            position: absolute;
+            inset: 44px;
+            border-radius: 50%;
+            border: 1px solid var(--border-gold);
+        }
+        .intel-radar-sweep {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: conic-gradient(from 0deg, rgba(255, 215, 0, 0.28), transparent 70deg, transparent 360deg);
+            animation: intel-sweep 4s linear infinite;
+        }
+        @keyframes intel-sweep { to { transform: rotate(360deg); } }
+        .intel-radar-blip {
+            position: absolute;
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--gold);
+            box-shadow: 0 0 10px var(--gold);
+            animation: live-pulse 2.4s ease-in-out infinite;
+        }
+        .intel-log {
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: calc(100% - 150px);
+            min-width: 55%;
+            font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+            font-size: 11px;
+            line-height: 1.9;
+            color: var(--text-tertiary);
+        }
+        .intel-log div { animation: intel-line-in 0.5s var(--ease-out) both; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .intel-log b { color: var(--green); font-weight: 500; }
+        .intel-log em { color: var(--gold); font-style: normal; }
+        @keyframes intel-line-in {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: none; }
+        }
+
+        /* Match card — score ring */
+        .intel-ring { position: absolute; top: 0; right: 0; width: 84px; height: 84px; }
+        .intel-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+        .intel-ring circle { fill: none; stroke-width: 5; }
+        .intel-ring .bg { stroke: rgba(255, 255, 255, 0.07); }
+        .intel-ring .fg {
+            stroke: var(--gold);
+            stroke-linecap: round;
+            stroke-dasharray: 226;
+            stroke-dashoffset: 226;
+        }
+        .reveal-stagger.active .intel-ring .fg {
+            transition: stroke-dashoffset 1.6s var(--ease-out) 0.4s;
+            stroke-dashoffset: 18;
+        }
+        .intel-ring span {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-display);
+            font-size: 19px;
+            font-weight: 300;
+            color: var(--gold);
+        }
+
+        /* Wallet card — mini pass */
+        .intel-pass {
+            position: absolute;
+            top: 4px;
+            right: 0;
+            width: 118px;
+            padding: 10px 12px;
+            background: linear-gradient(135deg, #17150c, #0c0b06);
+            border: 1px solid var(--border-gold);
+            border-radius: 12px;
+            transform: rotate(4deg);
+            transition: transform 0.5s var(--ease-out);
+        }
+        .intel-card:hover .intel-pass { transform: rotate(0deg) translateY(-3px); }
+        .intel-pass i {
+            display: block;
+            font-size: 9px;
+            font-style: normal;
+            font-weight: 600;
+            letter-spacing: 0.16em;
+            color: var(--gold);
+        }
+        .intel-pass b {
+            display: block;
+            margin-top: 3px;
+            font-size: 12px;
+            font-weight: 400;
+            color: var(--text-primary);
+        }
+        .intel-pass u {
+            display: block;
+            margin-top: 8px;
+            width: 26px;
+            height: 26px;
+            text-decoration: none;
+            border-radius: 4px;
+            background:
+                repeating-linear-gradient(0deg, rgba(255,255,255,0.75) 0 2px, transparent 2px 4px),
+                repeating-linear-gradient(90deg, rgba(255,255,255,0.75) 0 2px, transparent 2px 4px);
+            opacity: 0.7;
+        }
+
+        /* Sign card — self-drawing signature */
+        .intel-sig { position: absolute; right: 0; top: 50%; transform: translateY(-58%); width: 46%; max-width: 240px; opacity: 0.9; }
+        .intel-sig path {
+            fill: none;
+            stroke: var(--gold);
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-dasharray: 620;
+            stroke-dashoffset: 620;
+        }
+        .reveal-stagger.active .intel-sig path {
+            transition: stroke-dashoffset 2.2s var(--ease-in-out) 0.5s;
+            stroke-dashoffset: 0;
+        }
+
+        /* Portal card — realtime bars */
+        .intel-bars { position: absolute; top: 8px; right: 0; display: flex; align-items: flex-end; gap: 5px; height: 54px; }
+        .intel-bars i {
+            width: 8px;
+            border-radius: 3px 3px 0 0;
+            background: linear-gradient(180deg, var(--gold), rgba(255, 215, 0, 0.2));
+            transform-origin: bottom;
+            animation: intel-bar 2.6s ease-in-out infinite;
+        }
+        .intel-bars i:nth-child(1) { height: 40%; animation-delay: 0s; }
+        .intel-bars i:nth-child(2) { height: 75%; animation-delay: 0.3s; }
+        .intel-bars i:nth-child(3) { height: 55%; animation-delay: 0.6s; }
+        .intel-bars i:nth-child(4) { height: 90%; animation-delay: 0.9s; }
+        .intel-bars i:nth-child(5) { height: 65%; animation-delay: 1.2s; }
+        @keyframes intel-bar {
+            0%, 100% { transform: scaleY(1); }
+            50% { transform: scaleY(0.55); }
+        }
+
+        /* Docs card — scanned lines */
+        .intel-doc { position: absolute; top: 6px; right: 0; width: 92px; padding: 12px 10px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-default); border-radius: 10px; overflow: hidden; }
+        .intel-doc i { display: block; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.12); margin-bottom: 6px; }
+        .intel-doc i:nth-child(2) { width: 80%; }
+        .intel-doc i:nth-child(3) { width: 90%; background: rgba(255, 215, 0, 0.45); }
+        .intel-doc i:nth-child(4) { width: 60%; }
+        .intel-doc i:nth-child(5) { width: 85%; background: rgba(0, 255, 136, 0.35); margin-bottom: 0; }
+        .intel-doc::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 0;
+            height: 14px;
+            background: linear-gradient(180deg, rgba(255, 215, 0, 0.14), transparent);
+            animation: intel-scan 3s var(--ease-in-out) infinite;
+        }
+        @keyframes intel-scan {
+            0%, 15% { transform: translateY(-14px); }
+            70%, 100% { transform: translateY(80px); }
+        }
+
+        /* Human strip — the point of all the tech */
+        .intel-human {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--space-lg);
+            text-align: center;
+            margin-top: var(--space-2xl);
+            padding: var(--space-xl) var(--space-lg);
+            border: 1px solid var(--border-gold);
+            border-radius: 22px;
+            background:
+                radial-gradient(ellipse at 50% 120%, rgba(255, 215, 0, 0.07), transparent 60%),
+                var(--surface-card);
+        }
+        .intel-human p {
+            max-width: 620px;
+            font-size: clamp(16px, 2.4vw, 20px);
+            font-weight: 300;
+            line-height: 1.6;
+            color: var(--text-primary);
+        }
+        .intel-human p strong { color: var(--gold); font-weight: 500; }
+        @media (min-width: 820px) {
+            .intel-human { flex-direction: row; justify-content: space-between; text-align: left; padding: var(--space-xl) var(--space-2xl); }
+        }
     </style>
 <!-- BOOM_JSONLD:START -->
   <script type="application/ld+json">
@@ -2693,6 +3142,7 @@
 <script defer src="/js/boom-consent.js"></script>
 </head>
 <body>
+    <a class="skip-link" href="#main">Skip to content</a>
     <!-- Tech Background -->
     <div class="tech-bg">
         <div class="tech-orb tech-orb-1"></div>
@@ -2731,7 +3181,7 @@
                 <a href="/concierge.html" class="nav-link">Concierge</a>
                 <a href="/partners.html" class="nav-link">Partners</a>
                 <a href="/about.html" class="nav-link">About</a>
-                <a href="https://wa.me/393313251961" class="nav-cta" target="_blank">WhatsApp</a>
+                <a href="https://wa.me/393313251961" class="nav-cta" target="_blank" rel="noopener">WhatsApp</a>
             </div>
 
             <button class="nav-toggle" id="navToggle" aria-label="Toggle menu">
@@ -2757,11 +3207,11 @@
             <a href="/about.html" class="mobile-menu-link">About</a>
             <a href="/login.html" class="mobile-menu-link">Login</a>
         </div>
-        <a href="https://wa.me/393313251961" class="mobile-menu-cta" target="_blank">WhatsApp Us</a>
+        <a href="https://wa.me/393313251961" class="mobile-menu-cta" target="_blank" rel="noopener">WhatsApp Us</a>
     </div>
 
     <!-- Hero -->
-    <section class="hero">
+    <section class="hero" id="main">
         <div class="hero-ambient">
             <div class="hero-glow hero-glow-1"></div>
             <div class="hero-glow hero-glow-2"></div>
@@ -2799,6 +3249,32 @@
                 <a href="/how-it-works.html" class="btn btn-secondary">How It Works</a>
             </div>
 
+            <!-- Smart search — deep-links straight into the discovery page -->
+            <form class="hero-search" id="heroSearch" action="/apartments.html" method="get" role="search" aria-label="Search apartments">
+                <div class="hero-search-fields">
+                    <div class="hero-search-field">
+                        <label for="hsQ">Where</label>
+                        <input type="text" id="hsQ" name="q" placeholder="Zone or vibe — try &ldquo;Trastevere&rdquo;" autocomplete="off">
+                    </div>
+                    <div class="hero-search-field">
+                        <label for="hsBudget">Budget</label>
+                        <select id="hsBudget" name="budget">
+                            <option value="">Any budget</option>
+                            <option value="1000">Up to €1,000</option>
+                            <option value="1500">Up to €1,500</option>
+                            <option value="2000">Up to €2,000</option>
+                            <option value="2500">Up to €2,500</option>
+                            <option value="3000">Up to €3,000</option>
+                        </select>
+                    </div>
+                    <div class="hero-search-field">
+                        <label for="hsIn">Move-in</label>
+                        <input type="date" id="hsIn" name="in">
+                    </div>
+                </div>
+                <button type="submit" class="hero-search-btn">Search Homes</button>
+            </form>
+
             <div class="hero-stats">
                 <div class="hero-stat">
                     <div class="hero-stat-value">48h</div>
@@ -2829,7 +3305,7 @@
                 <span class="trust-text"><strong>4.9</strong> from 47 reviews</span>
             </div>
             <span class="trust-divider"></span>
-            <a href="https://share.google/hqXmmWI9vQSnEvZmK" target="_blank" class="trust-link">Read Reviews →</a>
+            <a href="https://share.google/hqXmmWI9vQSnEvZmK" target="_blank" rel="noopener" class="trust-link">Read Reviews →</a>
         </div>
     </div>
 
@@ -3065,9 +3541,10 @@
                 <span class="section-eyebrow">Available Now</span>
                 <h2 class="section-title">Move in <span class="text-gold">this week</span></h2>
                 <p class="section-subtitle">All verified. All real. All ready.</p>
+                <span class="live-badge" id="liveBadge"><i></i>Live inventory</span>
             </div>
 
-            <div class="apartments-grid reveal-stagger">
+            <div class="apartments-grid reveal-stagger" id="aptGrid">
                 <a href="/apartments.html" class="apartment-card">
                     <div class="apartment-image" style="background-image: url('https://i.imgur.com/QOAu6k1.jpeg');">
                         <span class="apartment-badge">Video Tour</span>
@@ -3206,6 +3683,91 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- BOOM Intelligence — the real technology inside the agency -->
+    <section class="section section-dark intel" id="intelligence" aria-label="BOOM technology">
+        <div class="container">
+            <div class="section-header reveal">
+                <span class="section-eyebrow">BOOM Intelligence</span>
+                <h2 class="section-title">Every agency has listings.<br><span class="text-gold">We built an engine.</span></h2>
+                <p class="section-subtitle">Radar, AI matching, digital contracts, Wallet passes — every piece of technology exists for one human reason: you, home, without stress.</p>
+            </div>
+
+            <div class="intel-grid reveal-stagger">
+                <div class="intel-card intel-card--radar">
+                    <div class="intel-visual">
+                        <div class="intel-radar-scope" aria-hidden="true">
+                            <div class="intel-radar-sweep"></div>
+                            <span class="intel-radar-blip" style="top:34%;left:58%"></span>
+                            <span class="intel-radar-blip" style="top:64%;left:30%;animation-delay:.8s"></span>
+                            <span class="intel-radar-blip" style="top:48%;left:74%;animation-delay:1.5s"></span>
+                        </div>
+                        <div class="intel-log" id="intelLog" aria-hidden="true"></div>
+                    </div>
+                    <span class="intel-tag">Market Radar</span>
+                    <h3>Rome, scanned every 15 minutes</h3>
+                    <p>Portals, alert inboxes, off-market whispers — our radar ingests them all, around the clock. When your home surfaces, we know within minutes, not days.</p>
+                </div>
+
+                <div class="intel-card">
+                    <div class="intel-visual">
+                        <div class="intel-ring" aria-hidden="true">
+                            <svg viewBox="0 0 84 84"><circle class="bg" cx="42" cy="42" r="36"/><circle class="fg" cx="42" cy="42" r="36"/></svg>
+                            <span>92</span>
+                        </div>
+                    </div>
+                    <span class="intel-tag">AI Matching</span>
+                    <h3>Scored against your life</h3>
+                    <p>Budget, zone, move-in date, must-haves — every home gets a score before you ever see it.</p>
+                </div>
+
+                <div class="intel-card">
+                    <div class="intel-visual">
+                        <div class="intel-pass" aria-hidden="true">
+                            <i>● BOOM</i>
+                            <b>Tenant Pass</b>
+                            <u></u>
+                        </div>
+                    </div>
+                    <span class="intel-tag">Apple Wallet</span>
+                    <h3>Keys live in your pocket</h3>
+                    <p>Viewings, tenancy and referrals as Wallet passes — one tap at the door.</p>
+                </div>
+
+                <div class="intel-card intel-card--sign">
+                    <div class="intel-visual">
+                        <svg class="intel-sig" viewBox="0 0 240 54" aria-hidden="true"><path d="M6 40 C 26 8, 40 8, 48 34 S 72 54, 86 30 C 96 14, 110 14, 116 36 C 134 6, 150 50, 176 22 C 192 6, 214 16, 232 30"/></svg>
+                    </div>
+                    <span class="intel-tag">Magic Sign</span>
+                    <h3>Sign from anywhere</h3>
+                    <p>Real Italian contracts, signed legally from your phone — in English, in minutes, with every deadline handled for you.</p>
+                </div>
+
+                <div class="intel-card">
+                    <div class="intel-visual">
+                        <div class="intel-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+                    </div>
+                    <span class="intel-tag">Tenant Portal</span>
+                    <h3>Everything, in realtime</h3>
+                    <p>Rent, documents, maintenance — one portal that updates the moment anything happens.</p>
+                </div>
+
+                <div class="intel-card">
+                    <div class="intel-visual">
+                        <div class="intel-doc" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+                    </div>
+                    <span class="intel-tag">Document AI</span>
+                    <h3>Contracts, read by AI</h3>
+                    <p>Every clause parsed and checked before you sign. Red flags surface — in your language.</p>
+                </div>
+            </div>
+
+            <div class="intel-human reveal">
+                <p>All of this exists so the human part stays human. <strong>A real person answers your WhatsApp</strong> — usually within 2 minutes.</p>
+                <a href="https://wa.me/393313251961" class="btn btn-secondary" target="_blank" rel="noopener">Talk to a Human</a>
             </div>
         </div>
     </section>
@@ -3559,7 +4121,7 @@
             <p class="final-cta-subtitle">Stop fighting the system. Let us handle it.</p>
             <div class="final-cta-actions">
                 <a href="/apartments.html" class="btn btn-primary">View Apartments</a>
-                <a href="https://wa.me/393313251961" class="btn btn-whatsapp" target="_blank">WhatsApp Us</a>
+                <a href="https://wa.me/393313251961" class="btn btn-whatsapp" target="_blank" rel="noopener">WhatsApp Us</a>
             </div>
         </div>
     </section>
@@ -3843,6 +4405,120 @@
                 howDev.addEventListener('mouseleave', () => { howDev.style.transform = ''; });
             }
         }
+
+        // ═══════════════════════════════════════════════════════════
+        // Hero smart search — clean deep-link into /apartments.html
+        // ═══════════════════════════════════════════════════════════
+        const heroSearch = document.getElementById('heroSearch');
+        if (heroSearch) {
+            heroSearch.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const p = new URLSearchParams();
+                const q = document.getElementById('hsQ').value.trim();
+                const budget = document.getElementById('hsBudget').value;
+                const moveIn = document.getElementById('hsIn').value;
+                if (q) p.set('q', q);
+                if (budget) p.set('budget', budget);
+                if (moveIn) p.set('in', moveIn);
+                location.href = '/apartments.html' + (p.toString() ? '?' + p.toString() : '');
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // Live inventory — featured cards upgrade to real Firestore
+        // listings via /api/listings; static cards stay as fallback
+        // ═══════════════════════════════════════════════════════════
+        (function liveApartments() {
+            const grid = document.getElementById('aptGrid');
+            if (!grid) return;
+            const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+            const eur = n => '€' + Math.round(n).toLocaleString('en-US');
+            const opt = u => /^https?:\/\//.test(u) ? '/_vercel/image?url=' + encodeURIComponent(u) + '&w=640&q=72' : u;
+            const rentable = d => {
+                const s = ((d.status || d.availabilityStatus || 'available') + '').toLowerCase();
+                return !(s === 'rented' || s === 'affittato' || s === 'off_market' || s === 'draft' || s === 'hidden' || s === 'waitlist');
+            };
+            const ts = c => !c ? 0 : (c.seconds ? c.seconds * 1000 : (typeof c === 'string' ? (Date.parse(c) || 0) : (c > 1e12 ? c : c * 1000)));
+            fetch('/api/listings').then(r => r.ok ? r.json() : null).then(j => {
+                if (!j || !j.ok || !Array.isArray(j.listings)) return;
+                const homes = j.listings.filter(rentable).map(d => ({
+                    id: d.id,
+                    name: d.name || d.title || 'Apartment in Rome',
+                    zone: d.zone || d.neighborhood || 'Rome',
+                    price: +d.price || 0,
+                    beds: d.beds != null ? +d.beds : (d.bedrooms != null ? +d.bedrooms : 0),
+                    sqm: +d.sqm || +d.size || 0,
+                    video: !!(d.videoUrl || d.youtubeUrl),
+                    img: (Array.isArray(d.images) && d.images[0]) || d.image || '',
+                    createdAt: ts(d.createdAt)
+                })).filter(h => h.price && h.img);
+                if (homes.length < 3) return;
+                homes.sort((a, b) => (b.video - a.video) || (b.createdAt - a.createdAt));
+                grid.innerHTML = homes.slice(0, 3).map(h => `
+                    <a href="/listing/${encodeURIComponent(h.id)}" class="apartment-card">
+                        <div class="apartment-image" style="background-image: url('${esc(opt(h.img))}');">
+                            <span class="apartment-badge">${h.video ? 'Video Tour' : esc(h.zone)}</span>
+                        </div>
+                        <div class="apartment-info">
+                            <div class="apartment-price">
+                                <span class="apartment-price-amount">${eur(h.price)}</span>
+                                <span class="apartment-price-period">/month</span>
+                            </div>
+                            <h3 class="apartment-name">${esc(h.name)}</h3>
+                            <div class="apartment-features">
+                                ${h.sqm ? '<span>' + h.sqm + 'm²</span><span>•</span>' : ''}
+                                <span>${h.beds || 1} bed</span>
+                                <span>•</span>
+                                <span>${esc(h.zone)}</span>
+                            </div>
+                            <span class="apartment-cta">View Details →</span>
+                        </div>
+                    </a>`).join('');
+                grid.classList.add('active');
+                const badge = document.getElementById('liveBadge');
+                if (badge) badge.classList.add('on');
+            }).catch(() => {});
+        })();
+
+        // ═══════════════════════════════════════════════════════════
+        // BOOM Intelligence — radar ingestion feed
+        // ═══════════════════════════════════════════════════════════
+        (function intelFeed() {
+            const log = document.getElementById('intelLog');
+            if (!log) return;
+            const LINES = [
+                'scan <em>immobiliare.it</em> · 214 listings',
+                '<b>match 92%</b> · Trastevere · €1.650',
+                'alert inbox · 3 new this hour',
+                'scan <em>idealista.it</em> · 187 listings',
+                '<b>match 88%</b> · Monti · €1.400',
+                'off-market intake · verified ✓',
+                '<b>pushed</b> to 2 client radars',
+                'contract parsed · 0 red flags'
+            ];
+            let i = 0, timer = null;
+            const push = () => {
+                const div = document.createElement('div');
+                div.innerHTML = LINES[i % LINES.length];
+                i++;
+                log.appendChild(div);
+                while (log.children.length > 4) log.removeChild(log.firstChild);
+            };
+            if (prefersReduced) {
+                for (let k = 0; k < 4; k++) push();
+                return;
+            }
+            const io = new IntersectionObserver((entries) => {
+                entries.forEach(en => {
+                    if (en.isIntersecting) {
+                        if (!timer) { push(); timer = setInterval(push, 1700); }
+                    } else if (timer) {
+                        clearInterval(timer); timer = null;
+                    }
+                });
+            }, { threshold: 0.2 });
+            io.observe(log);
+        })();
 
         // ═══════════════════════════════════════════════════════════
         // Smooth anchor scrolling
