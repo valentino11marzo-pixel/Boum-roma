@@ -27,6 +27,8 @@
   // Paste your Meta Pixel ID here, or set window.BOOM_PIXEL_ID before this loads.
   var PIXEL_ID = window.BOOM_PIXEL_ID || '';
   if (!PIXEL_ID) return; // no ID → no-op, never breaks the page.
+  // GDPR: the pixel only ever runs with full consent (see js/boom-consent.js).
+  try { if ((localStorage.getItem('boom:consent') || '').indexOf('all') !== 0) return; } catch (e) { return; }
   if (window.__boomPixel) return;
   window.__boomPixel = true;
 
