@@ -272,6 +272,16 @@ footer{border-top:1.5px solid var(--ink);padding:26px 0 40px;background:var(--ca
 .pv a{padding:10px 12px;color:rgba(241,238,230,.5);border-left:1px solid rgba(241,238,230,.15);transition:.25s}
 .pv a:hover{background:var(--terra);color:#fff}
 
+/* zone chips (form) */
+.zchips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:18px}
+.zchips button{font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--ink-2);background:none;border:1px solid var(--line);padding:8px 12px;cursor:pointer;transition:.25s}
+.zchips button:hover{border-color:var(--ink)}
+.zchips button.on{background:var(--terra);border-color:var(--terra);color:#fff}
+/* floating whatsapp */
+.fab{position:fixed;right:22px;bottom:20px;z-index:205;font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;background:var(--ink);color:var(--carta);padding:14px 20px;transition:opacity .4s,transform .4s var(--e1);opacity:0;transform:translateY(60px);pointer-events:none;box-shadow:0 16px 36px -14px rgba(27,24,19,.5)}
+.fab.show{opacity:1;transform:none;pointer-events:auto}
+.fab:hover{background:var(--terra)}
+@media(max-width:760px){.fab{right:12px;bottom:64px}}
 @media(prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}*{animation:none!important}
   .rv{opacity:1;transform:none;transition:none}
@@ -341,6 +351,10 @@ footer{border-top:1.5px solid var(--ink);padding:26px 0 40px;background:var(--ca
   <div class="spine" aria-hidden="true"><span class="vln t"></span><div class="node"><span>EI</span></div><span class="vln b"></span></div>
 </section>
 
+<div style="text-align:center;padding:24px 0;border-bottom:1px solid var(--line);background:var(--carta)">
+  <a href="#percorsi" class="meta" style="color:var(--ink-2)">Non sai da quale ala entrare? <b style="color:var(--terra);font-weight:600">Fatti consigliare ↓</b></a>
+</div>
+
 <!-- FAMIGLIA -->
 <section class="fam" id="famiglia"><div class="wrap">
   <div class="sec-k ctr rv"><span class="sq"></span> La struttura, in chiaro</div>
@@ -397,6 +411,14 @@ footer{border-top:1.5px solid var(--ink);padding:26px 0 40px;background:var(--ca
     </div>
     <form class="vform rv" id="valForm">
       <div class="vk"><span>Richiesta di valutazione</span><span>48h</span></div>
+      <div class="zchips" id="zchips" aria-label="Zona">
+        <button type="button" data-z="Centro Storico">Centro</button>
+        <button type="button" data-z="Prati">Prati</button>
+        <button type="button" data-z="Trastevere">Trastevere</button>
+        <button type="button" data-z="Monti">Monti</button>
+        <button type="button" data-z="Parioli">Parioli</button>
+        <button type="button" data-z="Altro — Roma">Altro</button>
+      </div>
       <div class="frow"><label>Indirizzo dell'immobile</label><input type="text" name="addr" placeholder="Via, civico — zona di Roma" required></div>
       <div class="two">
         <div class="frow"><label>Superficie (m²)</label><input type="number" name="mq" placeholder="es. 95" min="1"></div>
@@ -475,8 +497,11 @@ footer{border-top:1.5px solid var(--ink);padding:26px 0 40px;background:var(--ca
   <span><span class="tv">Valentino Egidi</span> — vendite · <a href="https://www.boomrome.com" target="_blank" rel="noopener"><span class="gd">BOOM®</span> — affitti</a></span>
 </div></footer>
 
+<a class="fab" id="fab" href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp →</a>
+
 <div class="pv">
-  <b>Casa madre</b>
+  <b>Casa madre A</b>
+  <a href="/egidi-immobiliare-b">Ipotesi B ✦</a>
   <a href="/valentino-dossier">Dossier</a>
   <a href="/valentino-cinema">Cinema</a>
   <a href="/valentino-egidi">Attuale</a>
@@ -516,11 +541,21 @@ if(cio)$$('[data-c]').forEach(el=>cio.observe(el));
     panel.querySelectorAll('.pc').forEach(p=>p.classList.toggle('on',p.dataset.pc===b.dataset.p));});
 })();
 
-/* form → whatsapp */
+/* form → whatsapp (with zone) */
+let zSel='';
+const zc=$('#zchips');
+if(zc)zc.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  const on=b.classList.contains('on');
+  zc.querySelectorAll('button').forEach(x=>x.classList.remove('on'));
+  if(!on){b.classList.add('on');zSel=b.dataset.z;}else zSel='';});
 const vf=$('#valForm');
 if(vf)vf.addEventListener('submit',e=>{e.preventDefault();const d=new FormData(vf),g=k=>(d.get(k)||'').toString().trim();
-  const msg=`Ciao, scrivo dalla pagina Egidi Immobiliare: vorrei una valutazione onesta.\n\nIndirizzo: ${g('addr')}\nSuperficie: ${g('mq')} m²\nNome: ${g('nome')}\nContatto: ${g('contact')}`;
+  const msg=`Ciao, scrivo dalla pagina Egidi Immobiliare: vorrei una valutazione onesta.\n\nZona: ${zSel||'—'}\nIndirizzo: ${g('addr')}\nSuperficie: ${g('mq')} m²\nNome: ${g('nome')}\nContatto: ${g('contact')}`;
   window.open('https://wa.me/393313251961?text='+encodeURIComponent(msg),'_blank');});
+/* floating whatsapp */
+const fab=$('#fab');
+if(fab){let ft=false;addEventListener('scroll',()=>{if(ft)return;ft=true;requestAnimationFrame(()=>{
+  fab.classList.toggle('show',scrollY>innerHeight*1.1);ft=false;});},{passive:true});}
 })();
 </script>
 </body>
