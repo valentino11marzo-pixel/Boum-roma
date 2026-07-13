@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BOOM — Rome, done properly</title>
+<!-- Alternative homepage concept. Kept out of the index until adopted. -->
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="Video-verified homes, legal contracts in English, keys in 48 hours. Rome is hard — coming home shouldn't be.">
+<meta name="theme-color" content="#08080A">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Fraunces:ital,opsz,wght@1,9..144,300;1,9..144,400&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://i.imgur.com" crossorigin>
+<style>
+/* ————————————————————————————————————————————————
+   BOOM · NEXT — editorial noir
+   One idea per screen. Gold is a whisper, not a shout.
+   ———————————————————————————————————————————————— */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
+:root{
+  --bg:#08080A;
+  --bg-2:#0C0C0F;
+  --ink:#F4F1E9;            /* warm paper white */
+  --ink-2:rgba(244,241,233,0.56);
+  --ink-3:rgba(244,241,233,0.32);
+  --gold:#D4AF37;
+  --gold-soft:rgba(212,175,55,0.55);
+  --line:rgba(244,241,233,0.10);
+  --line-gold:rgba(212,175,55,0.22);
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  --serif:'Fraunces',Georgia,serif;
+  --ease:cubic-bezier(0.22,1,0.36,1);
+  --pad:clamp(20px,4vw,56px);
+}
+
+html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+body{
+  font-family:var(--sans);
+  font-weight:300;
+  background:var(--bg);
+  color:var(--ink);
+  line-height:1.6;
+  overflow-x:hidden;
+}
+::selection{background:var(--gold);color:var(--bg)}
+a{color:inherit;text-decoration:none}
+img{max-width:100%;display:block}
+em{font-family:var(--serif);font-weight:300;font-style:italic}
+:focus-visible{outline:1px solid var(--gold);outline-offset:4px;border-radius:2px}
+
+.wrap{width:100%;max-width:1280px;margin:0 auto;padding-left:var(--pad);padding-right:var(--pad)}
+
+/* micro-labels */
+.k{
+  font-size:10.5px;font-weight:500;letter-spacing:0.32em;text-transform:uppercase;
+  color:var(--gold-soft);
+}
+
+/* hairline section divider */
+.rule{border:0;border-top:1px solid var(--line)}
+
+.skip{position:fixed;top:-60px;left:16px;z-index:200;background:var(--gold);color:var(--bg);
+  padding:10px 18px;border-radius:6px;font-size:13px;font-weight:500;transition:top .25s var(--ease)}
+.skip:focus{top:16px}
+
+/* thin reading progress */
+#prog{position:fixed;top:0;left:0;height:1px;width:0;background:var(--gold);z-index:120;opacity:.8}
+
+/* ————— nav ————— */
+.nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  transition:background .4s ease,border-color .4s ease;
+  border-bottom:1px solid transparent;
+}
+.nav.on{background:rgba(8,8,10,0.82);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-color:var(--line)}
+.nav-in{display:flex;align-items:center;justify-content:space-between;height:72px}
+.brand{font-size:17px;font-weight:500;letter-spacing:0.42em;text-transform:uppercase}
+.brand b{color:var(--gold);font-weight:500}
+.nav-links{display:none;align-items:center;gap:34px}
+.nav-links a{font-size:12.5px;letter-spacing:0.08em;color:var(--ink-2);transition:color .25s}
+.nav-links a:hover{color:var(--ink)}
+.nav-wa{
+  font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);
+  border:1px solid var(--line-gold);padding:9px 18px;border-radius:100px;
+  transition:background .3s,color .3s;
+}
+.nav-wa:hover{background:var(--gold);color:var(--bg)}
+@media(min-width:960px){.nav-links{display:flex}}
+.burger{display:grid;gap:5px;background:none;border:0;padding:10px;cursor:pointer}
+.burger span{width:22px;height:1px;background:var(--ink);transition:transform .35s var(--ease),opacity .3s}
+.burger.x span:nth-child(1){transform:translateY(6px) rotate(45deg)}
+.burger.x span:nth-child(2){opacity:0}
+.burger.x span:nth-child(3){transform:translateY(-6px) rotate(-45deg)}
+@media(min-width:960px){.burger{display:none}}
+.sheet{
+  position:fixed;inset:0;z-index:90;background:var(--bg);
+  display:flex;flex-direction:column;justify-content:center;padding:0 var(--pad);
+  opacity:0;pointer-events:none;transition:opacity .4s ease;
+}
+.sheet.on{opacity:1;pointer-events:auto}
+.sheet a{font-family:var(--serif);font-style:italic;font-size:clamp(30px,8vw,44px);
+  padding:10px 0;color:var(--ink-2);transition:color .25s,padding-left .3s var(--ease)}
+.sheet a:hover{color:var(--gold);padding-left:12px}
+
+/* ————— hero ————— */
+.hero{position:relative;min-height:100svh;display:flex;flex-direction:column;justify-content:center;padding-top:110px;padding-bottom:150px}
+.hero-glow{position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(60% 42% at 50% -6%,rgba(212,175,55,0.09),transparent 70%),
+    radial-gradient(38% 30% at 82% 88%,rgba(212,175,55,0.05),transparent 70%);
+}
+.hero-eyebrow{display:flex;align-items:center;gap:14px;margin-bottom:26px}
+.hero-eyebrow::before{content:'';width:44px;height:1px;background:var(--gold-soft)}
+.hero h1{
+  font-weight:300;font-size:clamp(42px,7.4vw,96px);line-height:1.04;letter-spacing:-0.015em;
+  max-width:14ch;
+}
+.hero h1 em{color:var(--gold);letter-spacing:0}
+.hero-sub{margin-top:28px;max-width:52ch;font-size:clamp(15px,1.8vw,18px);color:var(--ink-2)}
+.hero-sub b{color:var(--ink);font-weight:400}
+
+/* search — one hairline instrument */
+.finder{
+  margin-top:44px;max-width:860px;
+  display:grid;grid-template-columns:1fr;gap:0;
+  border:1px solid var(--line);border-radius:16px;overflow:hidden;
+  background:rgba(244,241,233,0.02);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+}
+.finder>div{padding:16px 20px;border-bottom:1px solid var(--line)}
+.finder label{display:block;font-size:10px;font-weight:500;letter-spacing:0.28em;text-transform:uppercase;color:var(--ink-3);margin-bottom:4px}
+.finder input,.finder select{
+  width:100%;background:transparent;border:0;outline:0;color:var(--ink);
+  font-family:var(--sans);font-weight:300;font-size:15.5px;color-scheme:dark;appearance:none;-webkit-appearance:none;
+}
+.finder input::placeholder{color:var(--ink-3)}
+.finder select option{background:var(--bg-2);color:var(--ink)}
+.finder button{
+  border:0;cursor:pointer;background:var(--gold);color:var(--bg);
+  font-family:var(--sans);font-size:12.5px;font-weight:500;letter-spacing:0.22em;text-transform:uppercase;
+  padding:20px;transition:filter .25s ease;
+}
+.finder button:hover{filter:brightness(1.08)}
+@media(min-width:820px){
+  .finder{grid-template-columns:1.35fr 1fr 1fr auto}
+  .finder>div{border-bottom:0;border-right:1px solid var(--line)}
+  .finder button{padding:0 38px}
+}
+
+/* quiet hero facts */
+.facts{display:flex;flex-wrap:wrap;gap:14px 44px;margin-top:46px}
+.facts div{font-size:13px;color:var(--ink-2)}
+.facts b{display:block;font-size:22px;font-weight:300;color:var(--ink);letter-spacing:0.02em}
+.facts b i{font-style:normal;color:var(--gold)}
+
+/* aqueduct — thin roman arches that draw themselves */
+.aqueduct{position:absolute;left:0;right:0;bottom:0;height:150px;pointer-events:none;opacity:.5}
+.aqueduct svg{width:100%;height:100%;display:block}
+.aqueduct path{
+  fill:none;stroke:var(--gold);stroke-width:1;opacity:.55;
+  stroke-dasharray:1400;stroke-dashoffset:1400;
+  animation:draw 3.2s var(--ease) .3s forwards;
+}
+@keyframes draw{to{stroke-dashoffset:0}}
+
+/* ————— ticker ————— */
+.ticker{border-top:1px solid var(--line);border-bottom:1px solid var(--line);overflow:hidden;padding:15px 0}
+.ticker-in{display:flex;width:max-content;gap:56px;animation:tick 42s linear infinite;white-space:nowrap}
+.ticker span{font-size:12px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-3)}
+.ticker span b{color:var(--gold);font-weight:400}
+@keyframes tick{to{transform:translateX(-50%)}}
+
+/* ————— manifesto (word-by-word) ————— */
+.manifesto{padding:clamp(110px,16vh,190px) 0}
+.manifesto p{
+  font-size:clamp(24px,4vw,44px);line-height:1.42;font-weight:300;max-width:22ch;letter-spacing:-0.01em;
+}
+.manifesto .w{opacity:.14;transition:opacity .5s ease}
+.manifesto .w.on{opacity:1}
+.manifesto .w.gold.on{color:var(--gold)}
+.manifesto .sig{margin-top:44px;font-size:13px;color:var(--ink-3);letter-spacing:0.08em}
+
+/* ————— section head ————— */
+.shead{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:40px}
+.shead h2{font-weight:300;font-size:clamp(28px,4vw,46px);line-height:1.1;letter-spacing:-0.01em;margin-top:14px}
+.shead h2 em{color:var(--gold)}
+.shead .more{font-size:12.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-2);
+  border-bottom:1px solid var(--line-gold);padding-bottom:5px;white-space:nowrap;transition:color .25s}
+.shead .more:hover{color:var(--gold)}
+
+/* live pill */
+.live{display:inline-flex;align-items:center;gap:8px;font-size:10.5px;letter-spacing:0.24em;text-transform:uppercase;color:var(--ink-3)}
+.live i{width:5px;height:5px;border-radius:50%;background:var(--ink-3)}
+.live.on{color:#7ED9A7}
+.live.on i{background:#7ED9A7;box-shadow:0 0 10px #7ED9A7;animation:pulse 1.8s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35}}
+
+/* ————— homes rail ————— */
+.homes{padding:clamp(80px,12vh,140px) 0}
+.rail{
+  display:grid;grid-auto-flow:column;grid-auto-columns:min(78vw,360px);gap:18px;
+  overflow-x:auto;scroll-snap-type:x mandatory;padding:4px var(--pad) 26px;
+  margin:0 calc(var(--pad) * -1);
+  scrollbar-width:none;
+}
+.rail::-webkit-scrollbar{display:none}
+.home{scroll-snap-align:start;border:1px solid var(--line);border-radius:18px;overflow:hidden;
+  background:var(--bg-2);transition:border-color .35s ease,transform .5s var(--ease)}
+.home:hover{border-color:var(--line-gold);transform:translateY(-4px)}
+.home-ph{aspect-ratio:4/3;background:#111 center/cover no-repeat;position:relative}
+.home-ph::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 55%,rgba(8,8,10,0.55))}
+.home-tag{position:absolute;top:14px;left:14px;z-index:1;font-size:10px;font-weight:500;letter-spacing:0.18em;
+  text-transform:uppercase;color:var(--ink);background:rgba(8,8,10,0.6);backdrop-filter:blur(8px);
+  border:1px solid var(--line);padding:6px 11px;border-radius:100px}
+.home-b{padding:18px 20px 22px}
+.home-price{font-size:22px;font-weight:300}
+.home-price i{font-style:normal;font-size:13px;color:var(--ink-3)}
+.home-name{font-family:var(--serif);font-style:italic;font-size:17px;color:var(--ink-2);margin-top:2px}
+.home-meta{margin-top:10px;font-size:12.5px;color:var(--ink-3);letter-spacing:0.04em}
+.rail-nav{display:none;gap:10px}
+.rail-nav button{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:transparent;
+  color:var(--ink-2);cursor:pointer;font-size:16px;transition:border-color .25s,color .25s}
+.rail-nav button:hover{border-color:var(--gold);color:var(--gold)}
+@media(min-width:820px){.rail-nav{display:flex}}
+
+/* ————— method ————— */
+.method{padding:clamp(90px,14vh,160px) 0;background:var(--bg-2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.steps{position:relative;margin-top:30px}
+.steps::before{content:'';position:absolute;left:7px;top:0;bottom:0;width:1px;background:var(--line)}
+.steps .fill{position:absolute;left:7px;top:0;width:1px;height:0;background:var(--gold);transition:height .15s linear}
+.step{position:relative;display:grid;grid-template-columns:40px 1fr;gap:18px;padding:44px 0;border-bottom:1px solid var(--line)}
+.step:last-child{border-bottom:0}
+.step::before{content:'';position:absolute;left:3px;top:56px;width:9px;height:9px;border-radius:50%;
+  background:var(--bg-2);border:1px solid var(--ink-3);transition:background .4s,border-color .4s,box-shadow .4s}
+.step.on::before{background:var(--gold);border-color:var(--gold);box-shadow:0 0 14px rgba(212,175,55,0.5)}
+.step-n{font-family:var(--serif);font-style:italic;font-size:15px;color:var(--ink-3);padding-top:6px}
+.step h3{font-weight:300;font-size:clamp(23px,3vw,32px);letter-spacing:-0.01em}
+.step h3 em{color:var(--gold)}
+.step p{margin-top:10px;max-width:56ch;color:var(--ink-2);font-size:15px}
+.step .fine{margin-top:12px;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-3)}
+@media(min-width:820px){
+  .method-grid{display:grid;grid-template-columns:0.85fr 1.5fr;gap:70px;align-items:start}
+  .method-title{position:sticky;top:120px}
+}
+
+/* ————— engine strip ————— */
+.engine{padding:clamp(80px,12vh,140px) 0}
+.engine-list{border-top:1px solid var(--line)}
+.eng{display:grid;grid-template-columns:1fr;gap:6px 30px;padding:26px 0;border-bottom:1px solid var(--line);
+  transition:padding-left .35s var(--ease)}
+.eng:hover{padding-left:14px}
+.eng b{font-weight:400;font-size:17px;display:flex;align-items:center;gap:12px}
+.eng b i{width:4px;height:4px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold);flex:none}
+.eng span{color:var(--ink-2);font-size:14px;max-width:64ch}
+@media(min-width:820px){.eng{grid-template-columns:280px 1fr;align-items:baseline}}
+
+/* ————— zones ————— */
+.zones{padding:clamp(80px,12vh,140px) 0;position:relative}
+.zone{
+  display:flex;align-items:baseline;justify-content:space-between;gap:20px;
+  padding:22px 0;border-bottom:1px solid var(--line);
+  font-family:var(--serif);font-style:italic;font-weight:300;
+  font-size:clamp(30px,5.4vw,56px);color:var(--ink-2);
+  transition:color .3s,padding-left .4s var(--ease);
+}
+.zone:first-of-type{border-top:1px solid var(--line)}
+.zone:hover{color:var(--ink);padding-left:16px}
+.zone small{font-family:var(--sans);font-style:normal;font-size:11.5px;letter-spacing:0.22em;
+  text-transform:uppercase;color:var(--ink-3);white-space:nowrap}
+.zone:hover small{color:var(--gold)}
+.zone-peek{
+  position:fixed;z-index:60;width:250px;aspect-ratio:4/3;border-radius:14px;overflow:hidden;
+  pointer-events:none;opacity:0;transform:scale(.94) rotate(-1.5deg);
+  transition:opacity .3s ease,transform .4s var(--ease);
+  border:1px solid var(--line-gold);background:#111 center/cover;
+  box-shadow:0 24px 70px rgba(0,0,0,0.6);
+}
+.zone-peek.on{opacity:1;transform:scale(1) rotate(0deg)}
+@media(hover:none){.zone-peek{display:none}}
+
+/* ————— services ————— */
+.services{padding:clamp(80px,12vh,140px) 0;background:var(--bg-2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.svc{display:grid;grid-template-columns:1fr auto;gap:4px 24px;align-items:baseline;
+  padding:26px 0;border-bottom:1px solid var(--line);transition:padding-left .35s var(--ease)}
+.svc:hover{padding-left:14px}
+.svc:last-of-type{border-bottom:0}
+.svc h3{font-weight:400;font-size:18px}
+.svc p{grid-column:1;color:var(--ink-2);font-size:14px;max-width:60ch}
+.svc .pr{grid-row:span 2;text-align:right;font-size:15px;color:var(--ink)}
+.svc .pr small{display:block;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-3);margin-top:2px}
+.svc .pr::after{content:'→';display:block;margin-top:10px;color:var(--gold);opacity:0;transform:translateX(-6px);transition:opacity .3s,transform .3s var(--ease)}
+.svc:hover .pr::after{opacity:1;transform:none}
+
+/* ————— human ————— */
+.human{padding:clamp(100px,15vh,180px) 0}
+.human-grid{display:grid;grid-template-columns:1fr;gap:56px}
+@media(min-width:900px){.human-grid{grid-template-columns:1.25fr 1fr;gap:90px;align-items:center}}
+.human blockquote{
+  font-family:var(--serif);font-style:italic;font-weight:300;
+  font-size:clamp(27px,4.2vw,46px);line-height:1.3;letter-spacing:-0.01em;
+}
+.human blockquote em{color:var(--gold)}
+.human .who{margin-top:26px;font-size:13px;color:var(--ink-3);letter-spacing:0.1em}
+.human .who b{color:var(--ink-2);font-weight:400}
+.human-side p{color:var(--ink-2);font-size:15.5px;max-width:44ch}
+.human-side p+p{margin-top:16px}
+.wa-big{
+  display:inline-flex;align-items:center;gap:12px;margin-top:30px;
+  border:1px solid var(--line-gold);border-radius:100px;padding:16px 30px;
+  font-size:13px;font-weight:500;letter-spacing:0.18em;text-transform:uppercase;color:var(--gold);
+  transition:background .3s,color .3s;
+}
+.wa-big:hover{background:var(--gold);color:var(--bg)}
+.wa-big i{width:6px;height:6px;border-radius:50%;background:#7ED9A7;box-shadow:0 0 10px #7ED9A7;animation:pulse 1.8s infinite}
+.reply-note{display:block;margin-top:14px;font-size:12px;color:var(--ink-3)}
+
+/* ————— finale ————— */
+.finale{position:relative;padding:clamp(120px,20vh,220px) 0;text-align:center;overflow:hidden;border-top:1px solid var(--line)}
+.finale::before{content:'';position:absolute;inset:0;
+  background:radial-gradient(52% 62% at 50% 108%,rgba(212,175,55,0.13),transparent 70%)}
+.finale h2{position:relative;font-family:var(--serif);font-style:italic;font-weight:300;
+  font-size:clamp(52px,11vw,150px);line-height:1;letter-spacing:-0.02em}
+.finale h2 span{color:var(--gold)}
+.finale .sub{position:relative;margin-top:22px;color:var(--ink-2);font-size:15px;letter-spacing:0.06em}
+.finale-cta{position:relative;margin-top:44px;display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.btn-solid,.btn-ghost{
+  padding:17px 36px;border-radius:100px;font-size:12.5px;font-weight:500;
+  letter-spacing:0.2em;text-transform:uppercase;transition:transform .35s var(--ease),filter .25s,background .3s,color .3s;
+}
+.btn-solid{background:var(--gold);color:var(--bg)}
+.btn-solid:hover{filter:brightness(1.08);transform:translateY(-2px)}
+.btn-ghost{border:1px solid var(--line);color:var(--ink-2)}
+.btn-ghost:hover{border-color:var(--gold);color:var(--gold);transform:translateY(-2px)}
+
+/* ————— footer ————— */
+footer{border-top:1px solid var(--line);padding:56px 0 40px}
+.foot{display:grid;grid-template-columns:1fr;gap:40px}
+@media(min-width:820px){.foot{grid-template-columns:1.6fr 1fr 1fr}}
+.foot .brand{font-size:15px}
+.foot .co{margin-top:18px;font-size:12.5px;color:var(--ink-3);line-height:1.8}
+.foot h4{font-size:10.5px;font-weight:500;letter-spacing:0.28em;text-transform:uppercase;color:var(--ink-3);margin-bottom:16px}
+.foot ul{list-style:none}
+.foot li a{display:inline-block;padding:4px 0;font-size:13.5px;color:var(--ink-2);transition:color .25s}
+.foot li a:hover{color:var(--gold)}
+.foot-base{display:flex;flex-wrap:wrap;gap:12px 30px;justify-content:space-between;margin-top:52px;
+  padding-top:24px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-3)}
+
+/* ————— reveals ————— */
+.rv{opacity:0;transform:translateY(26px);transition:opacity .9s var(--ease),transform .9s var(--ease)}
+.rv.on{opacity:1;transform:none}
+.rv2{transition-delay:.12s}.rv3{transition-delay:.24s}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+  html{scroll-behavior:auto}
+  .aqueduct path{stroke-dashoffset:0;animation:none}
+  .rv{opacity:1;transform:none}
+  .manifesto .w{opacity:1}
+  .ticker-in{animation:none}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div id="prog" aria-hidden="true"></div>
+
+<nav class="nav" id="nav" aria-label="Main">
+  <div class="wrap nav-in">
+    <a class="brand" href="/">BOO<b>M</b></a>
+    <div class="nav-links">
+      <a href="/apartments.html">Homes</a>
+      <a href="/property-finding.html">Property Finding</a>
+      <a href="/how-it-works.html">Method</a>
+      <a href="/about.html">About</a>
+      <a class="nav-wa" href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a>
+    </div>
+    <button class="burger" id="burger" aria-label="Menu" aria-expanded="false"><span></span><span></span><span></span></button>
+  </div>
+</nav>
+
+<div class="sheet" id="sheet">
+  <a href="/apartments.html">Homes</a>
+  <a href="/property-finding.html">Property Finding</a>
+  <a href="/deal-assistance.html">Deal Assistance</a>
+  <a href="/how-it-works.html">The Method</a>
+  <a href="/about.html">About</a>
+  <a href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp us</a>
+</div>
+
+<!-- ═════════ HERO ═════════ -->
+<header class="hero" id="main">
+  <div class="hero-glow" aria-hidden="true"></div>
+  <div class="wrap">
+    <div class="hero-eyebrow"><span class="k">Egidi Immobiliare · Roma</span></div>
+    <h1>Rome is hard.<br><em>Coming home shouldn&rsquo;t&nbsp;be.</em></h1>
+    <p class="hero-sub">Video-verified homes, legal contracts in <b>English</b>, keys in <b>48 hours</b> — and a real human on WhatsApp the whole way. No ghosts, no surprises, no 2011 photos.</p>
+
+    <form class="finder" action="/apartments.html" method="get" role="search" aria-label="Find a home" id="finder">
+      <div>
+        <label for="fq">Where</label>
+        <input id="fq" name="q" type="text" placeholder="Trastevere, Monti, &ldquo;terrace&rdquo;&hellip;" autocomplete="off">
+      </div>
+      <div>
+        <label for="fb">Budget</label>
+        <select id="fb" name="budget">
+          <option value="">Any budget</option>
+          <option value="1000">Up to €1,000</option>
+          <option value="1500">Up to €1,500</option>
+          <option value="2000">Up to €2,000</option>
+          <option value="2500">Up to €2,500</option>
+          <option value="3000">Up to €3,000</option>
+        </select>
+      </div>
+      <div>
+        <label for="fi">Move-in</label>
+        <input id="fi" name="in" type="date">
+      </div>
+      <button type="submit">Find home</button>
+    </form>
+
+    <div class="facts">
+      <div><b>48<i>h</i></b>from yes to keys</div>
+      <div><b>4.9<i>★</i></b>on Google</div>
+      <div><b>500<i>+</i></b>tenants placed</div>
+      <div><b>€0</b>hidden fees</div>
+    </div>
+  </div>
+
+  <!-- roman aqueduct, drawn in one line -->
+  <div class="aqueduct" aria-hidden="true">
+    <svg viewBox="0 0 1440 150" preserveAspectRatio="xMidYMax meet">
+      <path d="M0 150 L0 60 L40 60 L40 150 M40 60 Q100 -10 160 60 M160 150 L160 60 L200 60 L200 150 M200 60 Q260 -10 320 60 M320 150 L320 60 L360 60 L360 150 M360 60 Q420 -10 480 60 M480 150 L480 60 L520 60 L520 150 M520 60 Q580 -10 640 60 M640 150 L640 60 L680 60 L680 150 M680 60 Q740 -10 800 60 M800 150 L800 60 L840 60 L840 150 M840 60 Q900 -10 960 60 M960 150 L960 60 L1000 60 L1000 150 M1000 60 Q1060 -10 1120 60 M1120 150 L1120 60 L1160 60 L1160 150 M1160 60 Q1220 -10 1280 60 M1280 150 L1280 60 L1320 60 L1320 150 M1320 60 Q1380 -10 1440 60 M1440 60 L1440 150 M0 82 L1440 82"/>
+    </svg>
+  </div>
+</header>
+
+<!-- ═════════ TICKER ═════════ -->
+<div class="ticker" aria-hidden="true">
+  <div class="ticker-in" id="tickerIn">
+    <span><b>4.9 ★</b> on Google</span><span>keys in <b>48 hours</b></span><span>video-verified <b>only</b></span><span>contracts in <b>English</b></span><span><b>500+</b> tenants placed</span><span>Egidi Immobiliare S.r.l. · Roma</span>
+    <span><b>4.9 ★</b> on Google</span><span>keys in <b>48 hours</b></span><span>video-verified <b>only</b></span><span>contracts in <b>English</b></span><span><b>500+</b> tenants placed</span><span>Egidi Immobiliare S.r.l. · Roma</span>
+  </div>
+</div>
+
+<!-- ═════════ MANIFESTO ═════════ -->
+<section class="manifesto" aria-label="Why BOOM exists">
+  <div class="wrap">
+    <span class="k">Why we exist</span>
+    <p id="mani" style="margin-top:26px">Every year thousands arrive in Rome for a job, a master&rsquo;s, a new life — and meet 45-day searches, €8,000 deposits, photos from another decade, agents who vanish. We were born here. We got tired of watching. So we built the agency we&rsquo;d want to meet at the airport.</p>
+    <div class="sig">— BOOM, Roma</div>
+  </div>
+</section>
+
+<!-- ═════════ HOMES ═════════ -->
+<section class="homes" aria-label="Available homes">
+  <div class="wrap">
+    <div class="shead rv">
+      <div>
+        <span class="live" id="liveHomes"><i></i>Inventory</span>
+        <h2>Move in <em>this week</em></h2>
+      </div>
+      <div style="display:flex;align-items:center;gap:22px">
+        <div class="rail-nav" aria-hidden="true">
+          <button type="button" id="railL" aria-label="Scroll left">←</button>
+          <button type="button" id="railR" aria-label="Scroll right">→</button>
+        </div>
+        <a class="more" href="/apartments.html">All homes</a>
+      </div>
+    </div>
+  </div>
+  <div class="wrap">
+    <div class="rail" id="rail">
+      <a class="home" href="/apartments.html">
+        <div class="home-ph" style="background-image:url('https://i.imgur.com/QOAu6k1.jpeg')"><span class="home-tag">Video tour</span></div>
+        <div class="home-b">
+          <div class="home-price">€1,200 <i>/month</i></div>
+          <div class="home-name">Villa Ada Studio</div>
+          <div class="home-meta">40m² · 1 bed · Villa Ada</div>
+        </div>
+      </a>
+      <a class="home" href="/apartments.html">
+        <div class="home-ph" style="background-image:url('https://i.imgur.com/tJnYADn.jpeg')"><span class="home-tag">Terrace</span></div>
+        <div class="home-b">
+          <div class="home-price">€1,700 <i>/month</i></div>
+          <div class="home-name">Pigneto Terrace</div>
+          <div class="home-meta">80m² · 2 bed · Pigneto</div>
+        </div>
+      </a>
+      <a class="home" href="/apartments.html">
+        <div class="home-ph" style="background-image:url('https://i.imgur.com/8LVxrhs.jpeg')"><span class="home-tag">Historic centre</span></div>
+        <div class="home-b">
+          <div class="home-price">€2,000 <i>/month</i></div>
+          <div class="home-name">Coronari Classic</div>
+          <div class="home-meta">70m² · 1 bed · Centro Storico</div>
+        </div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ METHOD ═════════ -->
+<section class="method" aria-label="How it works">
+  <div class="wrap method-grid">
+    <div class="method-title rv">
+      <span class="k">The method</span>
+      <h2 style="font-weight:300;font-size:clamp(30px,4.4vw,52px);line-height:1.08;margin-top:16px">Four steps.<br>Zero <em>fights.</em></h2>
+      <p style="margin-top:22px;color:var(--ink-2);font-size:15px;max-width:36ch">The Roman rental gauntlet, re-engineered into something you&rsquo;ll barely notice.</p>
+    </div>
+    <div class="steps" id="steps">
+      <span class="fill" id="stepsFill" aria-hidden="true"></span>
+      <div class="step">
+        <div class="step-n">I</div>
+        <div>
+          <h3>We walk it <em>before you do</em></h3>
+          <p>Every home is filmed and verified by us, in person. The light, the noise, the water pressure, the landlord. What you see is what exists.</p>
+          <div class="fine">Video-verified · no exceptions</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">II</div>
+        <div>
+          <h3>Apply in <em>two minutes</em></h3>
+          <p>One short application, one real person reading it. You get an answer in hours — not a two-week silence that ends in &ldquo;già affittato&rdquo;.</p>
+          <div class="fine">Real humans · fast answers</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">III</div>
+        <div>
+          <h3>Sign <em>from anywhere</em></h3>
+          <p>A proper Italian contract, explained in English, signed legally from your phone. Deposit protected, every deadline registered and handled for you.</p>
+          <div class="fine">Magic Sign · legal &amp; bilingual</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">IV</div>
+        <div>
+          <h3>Keys in <em>48 hours</em></h3>
+          <p>Utilities ready, pass in your Apple Wallet, our number on your phone. From first click to first night — days, not months.</p>
+          <div class="fine">48h move-in · concierge from day one</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ ENGINE ═════════ -->
+<section class="engine" aria-label="Technology">
+  <div class="wrap">
+    <div class="rv">
+      <span class="k">Under the hood</span>
+      <h2 style="font-weight:300;font-size:clamp(28px,4vw,46px);margin-top:14px">An agency built <em>like a tech company</em></h2>
+    </div>
+    <div class="engine-list rv rv2" style="margin-top:40px">
+      <div class="eng"><b><i></i>Market radar</b><span>Rome scanned every 15 minutes — portals, alert inboxes, off-market. When your home surfaces, we know within minutes.</span></div>
+      <div class="eng"><b><i></i>AI matching</b><span>Every listing scored against your budget, zone, dates and must-haves before you ever see it.</span></div>
+      <div class="eng"><b><i></i>Document intelligence</b><span>Contracts parsed by AI before you sign. Red flags surface — in your language, not in fine print.</span></div>
+      <div class="eng"><b><i></i>Digital everything</b><span>Sign from your phone, keys in your Apple Wallet, rent and documents in one realtime portal.</span></div>
+    </div>
+    <p class="rv rv3" style="margin-top:34px;font-size:14px;color:var(--ink-3);max-width:58ch">All of it exists so the human part stays human — a real person answers your WhatsApp, usually within minutes.</p>
+  </div>
+</section>
+
+<!-- ═════════ ZONES ═════════ -->
+<section class="zones" aria-label="Neighbourhoods">
+  <div class="wrap">
+    <div class="rv" style="margin-bottom:38px">
+      <span class="k">Where will you live?</span>
+      <h2 style="font-weight:300;font-size:clamp(28px,4vw,46px);margin-top:14px">Rome, <em>zone by zone</em></h2>
+    </div>
+    <a class="zone" href="/apartments.html?q=Trastevere" data-img="https://i.imgur.com/8LVxrhs.jpeg">Trastevere <small>Cobbles &amp; ivy</small></a>
+    <a class="zone" href="/apartments.html?q=Monti" data-img="https://i.imgur.com/hxai5bz.jpeg">Monti <small>The village downtown</small></a>
+    <a class="zone" href="/apartments.html?q=Prati" data-img="https://i.imgur.com/s2es0MN.jpeg">Prati <small>Elegant &amp; orderly</small></a>
+    <a class="zone" href="/apartments.html?q=Testaccio" data-img="https://i.imgur.com/QOAu6k1.jpeg">Testaccio <small>Rome&rsquo;s kitchen</small></a>
+    <a class="zone" href="/apartments.html?q=Pigneto" data-img="https://i.imgur.com/tJnYADn.jpeg">Pigneto <small>Bohemian energy</small></a>
+    <a class="zone" href="/apartments.html?q=Centro" data-img="https://i.imgur.com/8LVxrhs.jpeg">Centro Storico <small>Living in a postcard</small></a>
+  </div>
+  <div class="zone-peek" id="zonePeek" aria-hidden="true"></div>
+</section>
+
+<!-- ═════════ SERVICES ═════════ -->
+<section class="services" aria-label="Services">
+  <div class="wrap">
+    <div class="shead rv">
+      <div>
+        <span class="k">Beyond the listing</span>
+        <h2>However you search,<br><em>we&rsquo;ve got you</em></h2>
+      </div>
+    </div>
+    <a class="svc rv" href="/property-finding.html">
+      <h3>Property Finding</h3>
+      <div class="pr">€350<small>upfront, deducted</small></div>
+      <p>Tell us what you need — we hunt the whole market, off-market included, and hand you curated options within 10 days. Full refund if we don&rsquo;t deliver.</p>
+    </a>
+    <a class="svc rv" href="/deal-assistance.html">
+      <h3>Deal Assistance</h3>
+      <div class="pr">€249<small>fixed fee</small></div>
+      <p>Found a place yourself? We verify the landlord, review and translate the contract, negotiate, and protect your deposit.</p>
+    </a>
+    <a class="svc rv" href="/virtual-viewing.html">
+      <h3>Virtual Viewing</h3>
+      <div class="pr">€89<small>per viewing</small></div>
+      <p>Not in Rome yet? We go for you — live video walkthrough, honest report, neighbourhood check, real-time questions.</p>
+    </a>
+    <a class="svc rv" href="/concierge.html">
+      <h3>Concierge</h3>
+      <div class="pr">à la carte<small>from day one</small></div>
+      <p>Cleaning, airport transfer, permit paperwork, 24/7 emergencies. Life doesn&rsquo;t stop at the front door.</p>
+    </a>
+  </div>
+</section>
+
+<!-- ═════════ HUMAN ═════════ -->
+<section class="human" aria-label="Founder">
+  <div class="wrap human-grid">
+    <div class="rv">
+      <blockquote>&ldquo;If we can fix Rome&rsquo;s rental market, we can fix <em>any</em> market.&rdquo;</blockquote>
+      <div class="who"><b>Valentino</b> · Founder, BOOM · six years in these streets</div>
+    </div>
+    <div class="human-side rv rv2">
+      <p>We&rsquo;re not a faceless platform. BOOM was born from watching friends get ghosted, overcharged and scammed by a market that treats newcomers as prey.</p>
+      <p>So: verified homes, honest contracts, one number that always answers. That&rsquo;s the whole trick.</p>
+      <a class="wa-big" href="https://wa.me/393313251961" target="_blank" rel="noopener"><i></i>Talk to us on WhatsApp</a>
+      <span class="reply-note">Usually replies within minutes, in English or Italian.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ FINALE ═════════ -->
+<section class="finale" aria-label="Get started">
+  <div class="wrap">
+    <h2 class="rv">Andiamo <span>a casa.</span></h2>
+    <p class="sub rv rv2">Let&rsquo;s get you home.</p>
+    <div class="finale-cta rv rv3">
+      <a class="btn-solid" href="/apartments.html">Browse homes</a>
+      <a class="btn-ghost" href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp us</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <div>
+        <div class="brand">BOO<b>M</b></div>
+        <p class="co">Egidi Immobiliare S.r.l.<br>Via dei Coronari 181/184, 00186 Roma<br>Sede legale: Viale Liegi 42, 00198 Roma<br>P.IVA 17322991005 · REA RM-1710623</p>
+      </div>
+      <div>
+        <h4>Services</h4>
+        <ul>
+          <li><a href="/apartments.html">Apartments</a></li>
+          <li><a href="/property-finding.html">Property Finding</a></li>
+          <li><a href="/deal-assistance.html">Deal Assistance</a></li>
+          <li><a href="/virtual-viewing.html">Virtual Viewing</a></li>
+          <li><a href="/concierge.html">Concierge</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Company</h4>
+        <ul>
+          <li><a href="/about.html">About</a></li>
+          <li><a href="/how-it-works.html">How it works</a></li>
+          <li><a href="/owners.html">For owners</a></li>
+          <li><a href="/faq.html">FAQ</a></li>
+          <li><a href="/contact.html">Contact</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-base">
+      <span>© 2026 BOOM — All rights reserved</span>
+      <span><a href="/terms.html">Terms</a> &nbsp;·&nbsp; <a href="/privacy.html">Privacy</a></span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+'use strict';
+var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+var hoverable = window.matchMedia('(hover: hover)').matches;
+
+/* nav + progress */
+var nav = document.getElementById('nav'), prog = document.getElementById('prog');
+addEventListener('scroll', function(){
+  nav.classList.toggle('on', scrollY > 40);
+  var h = document.documentElement.scrollHeight - innerHeight;
+  prog.style.width = (h > 0 ? (scrollY / h * 100) : 0) + '%';
+}, {passive:true});
+
+/* mobile sheet */
+var burger = document.getElementById('burger'), sheet = document.getElementById('sheet');
+burger.addEventListener('click', function(){
+  var on = sheet.classList.toggle('on');
+  burger.classList.toggle('x', on);
+  burger.setAttribute('aria-expanded', on);
+  document.body.style.overflow = on ? 'hidden' : '';
+});
+sheet.querySelectorAll('a').forEach(function(a){
+  a.addEventListener('click', function(){
+    sheet.classList.remove('on'); burger.classList.remove('x'); document.body.style.overflow = '';
+  });
+});
+
+/* reveals */
+var io = new IntersectionObserver(function(es){
+  es.forEach(function(e){ if (e.isIntersecting){ e.target.classList.add('on'); io.unobserve(e.target); } });
+}, {threshold:0.12, rootMargin:'0px 0px -40px 0px'});
+document.querySelectorAll('.rv').forEach(function(el){ io.observe(el); });
+
+/* finder — clean URLs, no empty params */
+document.getElementById('finder').addEventListener('submit', function(e){
+  e.preventDefault();
+  var p = new URLSearchParams();
+  var q = document.getElementById('fq').value.trim();
+  var b = document.getElementById('fb').value;
+  var d = document.getElementById('fi').value;
+  if (q) p.set('q', q); if (b) p.set('budget', b); if (d) p.set('in', d);
+  location.href = '/apartments.html' + (p.toString() ? '?' + p.toString() : '');
+});
+
+/* manifesto — words surface as you scroll */
+var mani = document.getElementById('mani');
+var GOLD_WORDS = ['agency','airport.','born','here.'];
+mani.innerHTML = mani.textContent.split(/\s+/).map(function(w){
+  var g = GOLD_WORDS.indexOf(w) > -1 ? ' gold' : '';
+  return '<span class="w' + g + '">' + w + '</span>';
+}).join(' ');
+var words = mani.querySelectorAll('.w');
+function maniTick(){
+  var r = mani.getBoundingClientRect();
+  var p = (innerHeight * 0.78 - r.top) / (r.height + innerHeight * 0.28);
+  p = Math.max(0, Math.min(1, p));
+  var n = Math.floor(p * words.length);
+  for (var i = 0; i < words.length; i++) words[i].classList.toggle('on', i < n || reduced);
+}
+addEventListener('scroll', maniTick, {passive:true}); maniTick();
+
+/* method — gold line fills with scroll, dots ignite */
+var steps = document.getElementById('steps'), fill = document.getElementById('stepsFill');
+var stepEls = [].slice.call(document.querySelectorAll('.step'));
+function stepsTick(){
+  var r = steps.getBoundingClientRect();
+  var p = (innerHeight * 0.7 - r.top) / r.height;
+  p = Math.max(0, Math.min(1, p));
+  fill.style.height = (p * 100) + '%';
+  stepEls.forEach(function(s){
+    var sr = s.getBoundingClientRect();
+    s.classList.toggle('on', sr.top < innerHeight * 0.7);
+  });
+}
+addEventListener('scroll', stepsTick, {passive:true}); stepsTick();
+
+/* homes rail — arrows + live inventory */
+var rail = document.getElementById('rail');
+var slide = function(dir){ rail.scrollBy({left: dir * Math.min(rail.clientWidth * 0.8, 400), behavior: reduced ? 'auto' : 'smooth'}); };
+document.getElementById('railL').addEventListener('click', function(){ slide(-1); });
+document.getElementById('railR').addEventListener('click', function(){ slide(1); });
+
+var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
+var eur = function(n){ return '€' + Math.round(n).toLocaleString('en-US'); };
+var opt = function(u){ return /^https?:\/\//.test(u) ? '/_vercel/image?url=' + encodeURIComponent(u) + '&w=720&q=72' : u; };
+fetch('/api/listings').then(function(r){ return r.ok ? r.json() : null; }).then(function(j){
+  if (!j || !j.ok || !Array.isArray(j.listings)) return;
+  var homes = j.listings.filter(function(d){
+    var s = ((d.status || d.availabilityStatus || 'available') + '').toLowerCase();
+    return !(s === 'rented' || s === 'affittato' || s === 'off_market' || s === 'draft' || s === 'hidden' || s === 'waitlist');
+  }).map(function(d){
+    var c = d.createdAt, t = !c ? 0 : (c.seconds ? c.seconds * 1000 : (typeof c === 'string' ? (Date.parse(c) || 0) : (c > 1e12 ? c : c * 1000)));
+    return {
+      id: d.id,
+      name: d.name || d.title || 'Apartment in Rome',
+      zone: d.zone || d.neighborhood || 'Rome',
+      price: +d.price || 0,
+      beds: d.beds != null ? +d.beds : (d.bedrooms != null ? +d.bedrooms : 1),
+      sqm: +d.sqm || +d.size || 0,
+      video: !!(d.videoUrl || d.youtubeUrl),
+      img: (Array.isArray(d.images) && d.images[0]) || d.image || '',
+      t: t
+    };
+  }).filter(function(h){ return h.price && h.img; });
+  if (homes.length < 3) return;
+  homes.sort(function(a, b){ return (b.video - a.video) || (b.t - a.t); });
+  rail.innerHTML = homes.slice(0, 8).map(function(h){
+    return '<a class="home" href="/listing/' + encodeURIComponent(h.id) + '">'
+      + '<div class="home-ph" style="background-image:url(\'' + esc(opt(h.img)) + '\')">'
+      + '<span class="home-tag">' + (h.video ? 'Video tour' : esc(h.zone)) + '</span></div>'
+      + '<div class="home-b"><div class="home-price">' + eur(h.price) + ' <i>/month</i></div>'
+      + '<div class="home-name">' + esc(h.name) + '</div>'
+      + '<div class="home-meta">' + (h.sqm ? h.sqm + 'm² · ' : '') + h.beds + ' bed · ' + esc(h.zone) + '</div>'
+      + '</div></a>';
+  }).join('');
+  var lv = document.getElementById('liveHomes');
+  lv.classList.add('on');
+  lv.innerHTML = '<i></i>Live · ' + homes.length + ' homes';
+}).catch(function(){});
+
+/* zones — a photograph follows the cursor */
+if (hoverable && !reduced) {
+  var peek = document.getElementById('zonePeek');
+  var zx = 0, zy = 0, px = 0, py = 0, raf = null;
+  var loop = function(){
+    px += (zx - px) * 0.14; py += (zy - py) * 0.14;
+    peek.style.transform = 'translate(' + (px + 26) + 'px,' + (py - 90) + 'px)' + (peek.classList.contains('on') ? '' : ' scale(.94)');
+    raf = requestAnimationFrame(loop);
+  };
+  peek.style.left = '0'; peek.style.top = '0';
+  document.querySelectorAll('.zone').forEach(function(z){
+    z.addEventListener('mouseenter', function(){
+      peek.style.backgroundImage = 'url(' + z.dataset.img + ')';
+      peek.classList.add('on');
+      if (!raf) loop();
+    });
+    z.addEventListener('mousemove', function(e){ zx = e.clientX; zy = e.clientY; });
+    z.addEventListener('mouseleave', function(){
+      peek.classList.remove('on');
+      if (raf) { cancelAnimationFrame(raf); raf = null; }
+    });
+  });
+}
+})();
+</script>
+</body>
+</html>
