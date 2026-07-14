@@ -36,6 +36,8 @@ Public, returns the JSON manifest of every tool with its input/output shape and 
 | `state.snapshot` | 1 | Read-only portal state for quick answers |
 | `risk.scan` | 1 | At-risk list (expiries, unsigned, overdue, stale A-leads) |
 | `digest` | 1 | Daily briefing (leads + risks), optional email send |
+| `context.push` | 1 | Homie's daily operator observations (habits, WhatsApp rhythm, friction) → `operatorContext` |
+| `context.pack` | 1 | Compiled operator context (observations + activity rhythm + portal state) for planning sessions |
 | `ai.reply` | 1 | Claude-drafted personalized lead reply (IT/EN), draft-only |
 | `execute` | 2 | Run a previously-proposed action_queue item |
 | `heartbeat` | 0 | Keep the Cockpit's live indicator green |
@@ -144,12 +146,34 @@ The cockpit's top-bar dot reflects time-since-lastSeenAt:
 - 5–15 min → red
 - > 15 min → grey "offline"
 
+### 6. Claude ⇄ Homie context bridge
+
+Homie sees the operator's real day (WhatsApp, rhythm, friction); Claude Code
+sessions see the code. `context.push` + `context.pack` connect the two — see
+`docs/homie-claude-bridge.md` for the full setup.
+
+```
+Every evening (OpenClaw cron on the Mac):
+  POST /api/agent/context.push {
+    observations: "Giornata densa: 6 richieste nuove da Idealista, 2 viewing...",
+    whatsapp: { conversations: 41, needingReply: 6, avgResponseMin: 22,
+                topics: ['deposito', 'disponibilità settembre'] },
+    painPoints: ['risposte duplicate scritte a mano', 'foto richieste 3 volte'],
+    wins: ['pre-agreement Trastevere accettato in 2h'],
+  }
+
+At the start of any planning session (Telegram: "context pack"):
+  POST /api/agent/context.pack {}
+  → { text } — Italian grounding block, paste it into the Claude session
+```
+
 ## Idempotency rules
 
 - `execute` is fully idempotent: re-calling on an already-executed action returns the cached result.
 - `magicsign.create` is NOT idempotent — pass a stable `contextHash` via the Homie-action layer instead if you need dedup.
 - `leads.create` is NOT idempotent — use `sourceRef` when re-emitting from upstream pollers.
 - `documents.create` IS idempotent when given `externalId` — a repeat call with the same key patches the existing doc instead of creating a duplicate.
+- `context.push` IS idempotent per day — a same-day re-push patches field-by-field (a morning push and an evening push compose; last write wins per field).
 
 ## Error shape
 

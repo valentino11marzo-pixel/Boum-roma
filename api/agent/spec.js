@@ -116,6 +116,18 @@ export default async function handler(req, res) {
         output: { generatedAt: 'iso', summary: '{leadsNew,pendingNew,gradeA,risksHigh,risksMed}', text: 'string', html: 'string', sent: 'object?' },
       },
       {
+        name: 'context.push', method: 'POST', path: '/context.push',
+        tier: 1, side_effects: 'writes:operatorContext,activityLog',
+        input: { day: 'YYYY-MM-DD?', observations: 'string?', habits: 'object?', whatsapp: 'object? ({conversations,needingReply,avgResponseMin,topics[]...})', painPoints: 'string[]?', wins: 'string[]?', notes: 'string?' },
+        output: { day: 'string', saved: 'string[]' },
+      },
+      {
+        name: 'context.pack', method: 'POST', path: '/context.pack',
+        tier: 1, side_effects: 'none (read-only)',
+        input: { days: 'number? (operator-context days, default 7)', window: 'number? (rhythm lookback days, default 14)' },
+        output: { generatedAt: 'iso', operator: 'array<day-doc>', rhythm: 'object', state: 'object', homie: 'object', text: 'string (paste-able Italian grounding block)' },
+      },
+      {
         name: 'ai.reply', method: 'POST', path: '/ai.reply',
         tier: 1, side_effects: 'draft-only (calls Claude; does not send)',
         input: { leadId: 'string?', lead: 'object?', tone: 'warm|professional|concise?', language: 'it|en?', goal: 'string?' },
