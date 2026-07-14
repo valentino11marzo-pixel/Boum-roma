@@ -49,8 +49,6 @@
   <script type="application/ld+json">
 {
   "@context": "https://schema.org",
-  {
-  "@context": "https://schema.org",
   "@type": "Service",
   "serviceType": "Tenant deposit recovery assistance",
   "name": "Deposit Recovery — we get it back",
@@ -253,19 +251,6 @@ if(_f&&_o)_f.scrollLeft=Math.max(0,_o.offsetLeft-(_f.clientWidth-_o.offsetWidth)
 /* reveal on scroll */
 (function(){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{rootMargin:'0px 0px -8% 0px'});
 document.querySelectorAll('.rv:not(.in)').forEach(function(el){io.observe(el)});})();
-
-/* the live-player vignette */
-(function(){
-  var caps=['Walking through the living room…','Opening the wardrobe — you asked, we show','Water pressure test in the bathroom','That “bright” bedroom, at 4pm, lights off','Street noise check from the balcony','Cellar, meter box, building entrance'];
-  var i=0,t=0,cap=document.getElementById('cap'),tim=document.getElementById('tim'),pl=document.getElementById('played');
-  if(!cap)return;
-  setInterval(function(){
-    t=(t+1)%360;
-    tim.textContent=('0'+Math.floor(t/60)).slice(-2)+':'+('0'+t%60).slice(-2);
-    pl.style.width=(t/360*100)+'%';
-    if(t%60===0){i=(i+1)%caps.length;cap.style.opacity=0;setTimeout(function(){cap.textContent=caps[i];cap.style.opacity=1},250);}
-  },1000);
-})();
 
 /* sticky pay bar: appears once the hero is behind you, hides at the pay section */
 (function(){
