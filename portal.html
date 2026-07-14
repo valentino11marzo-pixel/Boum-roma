@@ -1298,17 +1298,10 @@
             <p class="auth-subtitle">Property Portal</p>
             <div class="auth-msg error" id="authError"></div>
             <div class="auth-msg info" id="authInfo"></div>
-            <form id="loginForm">
-                <input type="email" class="form-input" id="loginEmail" placeholder="Email" required>
-                <input type="password" class="form-input" id="loginPassword" placeholder="Password" required>
-                <button type="submit" class="btn btn-block">Accedi</button>
-            </form>
-            <form id="setupForm" class="hidden">
-                <input type="text" class="form-input" id="setupName" placeholder="Nome Completo" required>
-                <input type="email" class="form-input" id="setupEmail" placeholder="Email" required>
-                <input type="password" class="form-input" id="setupPassword" placeholder="Password (min 6 caratteri)" required minlength="6">
-                <button type="submit" class="btn btn-block">Crea Account Admin</button>
-            </form>
+            <!-- Il sign-in vive su /login (superficie unica di autenticazione).
+                 Questa card appare solo come fallback su errori/timeout. -->
+            <p style="color:var(--text-secondary);font-size:13px;font-weight:300;margin-bottom:20px">La sessione non è attiva. Accedi per entrare nel portale.</p>
+            <a class="btn btn-block" id="authLoginLink" href="/login?next=%2Fportal" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box">Accedi al Portal</a>
         </div>
     </div>
     <div id="magicSign" class="hidden" style="min-height:100vh;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px"></div>
@@ -3807,31 +3800,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 hideLoading(); 
                 showAuth(); 
             }
-        } else { 
-            console.log('No user, checking setup...');
+        } else {
+            console.log('No user — redirecting to /login');
             stopSessionCheck();
-            await checkSetup(); 
+            // Superficie di login unica: /login (con ritorno alla pagina richiesta).
+            redirectToLogin();
         }
     });
-
-    async function checkSetup() {
-        try {
-            console.log('Checking setup...');
-            const q = await db.collection('users').where('role', '==', 'admin').limit(1).get();
-            console.log('Setup check complete, admins found:', !q.empty);
-            hideLoading(); 
-            showAuth();
-            if (q.empty) {
-                document.getElementById('loginForm').classList.add('hidden');
-                document.getElementById('setupForm').classList.remove('hidden');
-                showAuthInfo('Prima configurazione: crea il tuo account amministratore');
-            }
-        } catch (e) { 
-            console.error('Setup check error:', e);
-            hideLoading(); 
-            showAuth(); 
-        }
-    }
 
     async function loadData() {
         console.log('Loading data...');
@@ -5076,34 +5051,20 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     function hideLoading() { document.getElementById('loading').classList.add('hidden'); }
-    function showAuth() { hideLoading(); document.getElementById('authScreen').classList.remove('hidden'); }
+    function loginUrlWithNext() {
+        const next = location.pathname + location.search + location.hash;
+        return '/login?next=' + encodeURIComponent(next);
+    }
+    function redirectToLogin() { window.location.replace(loginUrlWithNext()); }
+    function showAuth() {
+        hideLoading();
+        const link = document.getElementById('authLoginLink');
+        if (link) link.href = loginUrlWithNext();
+        document.getElementById('authScreen').classList.remove('hidden');
+    }
     function showApp() { hideLoading(); document.getElementById('authScreen').classList.add('hidden'); document.getElementById('app').classList.add('active'); setupApp(); }
     function showAuthError(m) { const e = document.getElementById('authError'); e.textContent = m; e.classList.add('show'); document.getElementById('authInfo').classList.remove('show'); }
     function showAuthInfo(m) { const e = document.getElementById('authInfo'); e.textContent = m; e.classList.add('show'); document.getElementById('authError').classList.remove('show'); }
-
-    document.getElementById('loginForm').addEventListener('submit', async e => {
-        e.preventDefault();
-        const btn = e.target.querySelector('button');
-        btn.disabled = true; btn.textContent = 'Accesso...';
-        try {
-            await auth.signInWithEmailAndPassword(document.getElementById('loginEmail').value, document.getElementById('loginPassword').value);
-        } catch (err) { showAuthError(authErr(err.code)); btn.disabled = false; btn.textContent = 'Accedi'; }
-    });
-
-    document.getElementById('setupForm').addEventListener('submit', async e => {
-        e.preventDefault();
-        const btn = e.target.querySelector('button');
-        btn.disabled = true; btn.textContent = 'Creazione...';
-        try {
-            const cred = await auth.createUserWithEmailAndPassword(document.getElementById('setupEmail').value, document.getElementById('setupPassword').value);
-            await db.collection('users').doc(cred.user.uid).set({
-                name: document.getElementById('setupName').value,
-                email: document.getElementById('setupEmail').value,
-                role: 'admin', phone: '',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-        } catch (err) { showAuthError(authErr(err.code)); btn.disabled = false; btn.textContent = 'Crea Account Admin'; }
-    });
 
     async function logout() {
         if (confirm('Vuoi uscire?')) {
@@ -5123,7 +5084,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             } catch (e) {
                 console.error('Logout error:', e);
             }
-            window.location.href = 'portal.html';
+            window.location.href = '/login?next=%2Fportal';
         }
     }
     
