@@ -411,7 +411,7 @@
         </form>
 
         <div class="alt">
-          <a href="/apartments.html">Browse apartments</a>
+          <a href="/apartments">Browse apartments</a>
           <span class="sep">·</span>
           <a href="https://wa.me/393313251961" target="_blank" rel="noopener noreferrer">Contact support</a>
         </div>
@@ -455,6 +455,20 @@
         }catch{ return '/portal.html'; }
       }
       const NEXT_DEST=getNextDest();
+
+      // Warm-up del portale: mentre l'utente digita, il SW mette in cache la
+      // shell di portal.html (stale-while-revalidate) così il post-login è
+      // istantaneo anche alla prima visita. Salta se l'utente ha Save-Data.
+      if('serviceWorker' in navigator && !(navigator.connection&&navigator.connection.saveData)
+         && (NEXT_DEST==='/portal.html'||NEXT_DEST==='/portal'||NEXT_DEST.startsWith('/portal.html#')||NEXT_DEST.startsWith('/portal#'))){
+        navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(()=>{});
+        const warm=()=>{ fetch('/portal.html',{credentials:'same-origin'}).catch(()=>{}); };
+        const start=()=>{
+          if(navigator.serviceWorker.controller) warm();
+          else navigator.serviceWorker.addEventListener('controllerchange',warm,{once:true});
+        };
+        (window.requestIdleCallback||function(f){setTimeout(f,1500)})(start);
+      }
 
       (async()=>{
         try{ await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); }

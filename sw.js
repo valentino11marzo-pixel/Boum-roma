@@ -3,10 +3,13 @@
 // Cache-first for static assets (icons, manifest).
 // Skips Firebase / EmailJS / 3rd-party traffic entirely.
 
-const CACHE_VERSION = 'boom-v8';
+const CACHE_VERSION = 'boom-v9';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
+// NB: portal.html NON è nel precache — il sito pubblico registra questo SW e
+// non deve scaricare 2.5MB di shell in background. Il portale entra in cache
+// a runtime (stale-while-revalidate sotto) alla prima visita autenticata,
+// oppure viene pre-scaldato dalla pagina /login mentre l'utente digita.
 const STATIC_ASSETS = [
-    '/portal.html',
     '/manifest.json',
     '/assets/icons/icon-192.png',
     '/assets/icons/icon-512.png',
