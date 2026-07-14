@@ -350,14 +350,13 @@ input[type=file] { display: none; }
 </head>
 <body>
 
-<!-- Admin auth gate. Revealed only after Firebase login + admin role verified. -->
+<!-- Admin auth gate. Il sign-in vive su /login (superficie unica): da sloggati
+     si viene reindirizzati lì; questa card resta per i soli errori di ruolo/config. -->
 <div id="authGate">
   <div class="gate-card">
     <h2>BOOM Doc Parser</h2>
-    <p>Admin access only. Sign in with your BOOM account.</p>
-    <input type="email" id="gateEmail" placeholder="Email" autocomplete="username">
-    <input type="password" id="gatePassword" placeholder="Password" autocomplete="current-password">
-    <button id="gateLoginBtn" onclick="gateLogin()">Sign in</button>
+    <p id="gateMsg">Verifica accesso in corso…</p>
+    <button id="gateLoginBtn" onclick="location.href='/login?next=%2Fboom-doc-parser'" style="display:none">Accedi</button>
     <div class="gate-error" id="gateError"></div>
   </div>
 </div>
@@ -471,22 +470,6 @@ const _auth = firebase.auth();
 const _db = firebase.firestore();
 let _parseDocsBearer = null;
 
-async function gateLogin() {
-  const btn = document.getElementById('gateLoginBtn');
-  const err = document.getElementById('gateError');
-  const email = document.getElementById('gateEmail').value.trim();
-  const password = document.getElementById('gatePassword').value;
-  err.textContent = '';
-  btn.disabled = true;
-  try {
-    await _auth.signInWithEmailAndPassword(email, password);
-    // onAuthStateChanged handles the rest
-  } catch (e) {
-    err.textContent = 'Sign-in failed. Check your credentials.';
-    btn.disabled = false;
-  }
-}
-
 _auth.onAuthStateChanged(async (user) => {
   const gate = document.getElementById('authGate');
   const app = document.getElementById('mainApp');
@@ -494,9 +477,8 @@ _auth.onAuthStateChanged(async (user) => {
   const btn = document.getElementById('gateLoginBtn');
 
   if (!user) {
-    gate.classList.remove('hidden');
-    app.classList.add('hidden');
-    if (btn) btn.disabled = false;
+    // Superficie di login unica: /login, con ritorno qui dopo il sign-in.
+    window.location.replace('/login?next=%2Fboom-doc-parser');
     return;
   }
 
@@ -504,23 +486,30 @@ _auth.onAuthStateChanged(async (user) => {
     // Verify admin role
     const userDoc = await _db.collection('users').doc(user.uid).get();
     if (!userDoc.exists || userDoc.data().role !== 'admin') {
-      err.textContent = 'This tool is admin-only.';
-      await _auth.signOut();
+      document.getElementById('gateMsg').textContent = 'Questo strumento è riservato agli amministratori.';
+      err.textContent = 'Account senza ruolo admin: ' + (user.email || '');
+      if (btn) { btn.style.display = ''; btn.textContent = 'Cambia account'; btn.onclick = async () => { await _auth.signOut(); }; }
+      gate.classList.remove('hidden');
+      app.classList.add('hidden');
       return;
     }
     // Fetch bearer for /api/parse-docs
     const secretDoc = await _db.collection('config').doc('parse_docs').get();
     if (!secretDoc.exists || !secretDoc.data().bearer) {
+      document.getElementById('gateMsg').textContent = 'Configurazione parser mancante.';
       err.textContent = 'Parser config missing. Contact admin.';
-      await _auth.signOut();
+      gate.classList.remove('hidden');
+      app.classList.add('hidden');
       return;
     }
     _parseDocsBearer = secretDoc.data().bearer;
     gate.classList.add('hidden');
     app.classList.remove('hidden');
   } catch (e) {
+    document.getElementById('gateMsg').textContent = 'Verifica autorizzazione non riuscita.';
     err.textContent = 'Authorization check failed: ' + (e?.message || 'unknown');
-    await _auth.signOut();
+    gate.classList.remove('hidden');
+    app.classList.add('hidden');
   }
 });
 // ---------- end auth gate ----------

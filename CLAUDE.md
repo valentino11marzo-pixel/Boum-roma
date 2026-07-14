@@ -354,6 +354,15 @@ loader, confirm dialog) — see `BoomPortal.*` API.
 | `tenant.html` | `tenant` | reads `properties` (own), writes `maintenance` |
 | `client-portal.html` | access code on `pfsClients` doc | reads/writes `pfsClients.portalProperties` |
 
+**Single auth surface**: `/login` (login.html) is the ONLY sign-in UI on the
+site. portal.html, boom_doc_parser.html and the `BoomPortal.requireAuth` guard
+all redirect unauthenticated users to `/login?next=<requested page>` and the
+login page returns them there after sign-in. Never add a new inline login
+form — redirect to `/login` with a `next` param instead. The login page also
+pre-warms the portal.html shell via the service worker while the user types,
+so the post-login load is instant. `sw.js` must NOT precache portal.html at
+install time (the public site registers the same SW).
+
 Auth gate pattern (use this for any new portal page):
 
 ```js
