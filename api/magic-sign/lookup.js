@@ -88,6 +88,11 @@ export default async function handler(req, res) {
     // expose only the OTHER party's signed flag (so UI can show "waiting on landlord/tenant")
     tenantSigned: !!contract.tenantSignature,
     landlordSigned: !!contract.landlordSignature,
+    // delegate protocol: the landlord side is countersigned by the agency
+    // per delega ("Valentino Egidi on behalf of …", as on the paper docs) —
+    // the sign UI shows who signs for whom
+    landlordDelegate: contract.landlordDelegate || null,
+    preAgreementRef: contract.preAgreementRef || null,
   };
   const sanitizedProperty = {
     id: property.id || null,

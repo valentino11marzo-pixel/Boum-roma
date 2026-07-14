@@ -120,6 +120,16 @@ main{position:relative;z-index:5;max-width:820px;margin:0 auto;padding:100px 18p
 .party:first-of-type{margin-top:0}
 .pname{font-size:18px;font-weight:300;letter-spacing:.2px}
 
+/* co-tenant blocks — same sheet, one perforation per party */
+.cot{border-top:1px dashed rgba(255,255,255,.09);margin-top:18px;padding-top:16px;position:relative}
+.cot .cothead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.cot .cothead b{font-size:9.5px;letter-spacing:2.2px;text-transform:uppercase;color:var(--t4);font-weight:600}
+.cot .cothead button{font-size:10.5px;letter-spacing:1px;text-transform:uppercase;color:var(--t3);transition:color .25s}
+.cot .cothead button:hover{color:var(--gold-light)}
+.addcot{display:inline-flex;align-items:center;gap:8px;margin-top:16px;border:1px dashed var(--line-gold);border-radius:100px;padding:10px 18px;font-size:12px;letter-spacing:.6px;color:var(--gold);background:var(--gold-faint);transition:.25s}
+.addcot:hover{background:var(--gold-muted)}
+.jointnote{font-size:11px;color:var(--t3);margin-top:10px;line-height:1.6}
+
 /* floating-label fields */
 .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px}
 @media(max-width:560px){.grid2{grid-template-columns:minmax(0,1fr)}}
@@ -259,8 +269,15 @@ main{position:relative;z-index:5;max-width:820px;margin:0 auto;padding:100px 18p
 
 /* ═══ print: the artifact on real paper ═══ */
 @media print{
+  /* the dark-theme custom properties would leave white-on-white text —
+     remap the whole palette to ink so every var() user prints correctly */
+  :root{--gold:#8a6d00;--gold-light:#8a6d00;--gold-deep:#8a6d00;--t1:#000;--t2:#333;--t3:#555;--t4:#777;
+    --line:rgba(0,0,0,.2);--line-soft:rgba(0,0,0,.1);--line-gold:rgba(138,109,0,.45);
+    --gold-muted:rgba(138,109,0,.08);--gold-faint:rgba(138,109,0,.04);
+    --green:#1a7a4d;--green-muted:rgba(26,122,77,.14);--input:transparent}
   body{background:#fff;color:#000}
-  nav,[data-boom-ambient],.vign,.gbtn,.consent,.trustline,.obtn,.rprog,.steps,.signbar,.reqmeter,.dthread,.stampov,.grain,.wm,.cm{display:none!important}
+  nav,[data-boom-ambient],.vign,.gbtn,.consent,.trustline,.obtn,.rprog,.steps,.signbar,.reqmeter,.dthread,.stampov,.grain,.wm,.cm,.addcot,.cot .cothead button{display:none!important}
+  .cot{border-top-color:#ddd}.jointnote{color:#555}
   .docwrap::before,.docwrap::after{display:none}
   .doc{border-color:#bbb;box-shadow:none;background:#fff;transform:none!important}
   .doc .doc-h,.doc .sec{opacity:1!important;transform:none!important;animation:none!important}
@@ -367,18 +384,24 @@ function render(){
     +'<div class="status'+(accepted?' acc':'')+'" id="statusChip">'+(accepted?('Accepted · '+esc(PA.ref||'')):'Awaiting your acceptance')+'</div>'
     +'</div><span class="seal">'+sealSVG()+'</span></div>';
 
-  // 1 · PARTIES
+  // 1 · PARTIES — primary tenant + any co-tenants (jointly & severally liable)
+  var TS=Array.isArray(PA.tenants)&&PA.tenants.length?PA.tenants:[t];
   html+='<div class="sec"><span class="ghost">01</span><h2>Parties</h2>'
     +'<div class="party">Landlord</div><div class="pname">'+esc(PA.landlord.name)+'</div>'
-    +'<div class="party">Tenant</div>';
+    +'<div class="party">Tenant'+(TS.length>1?'s':'')+'</div>';
   if(accepted){
-    html+='<div class="pname">'+esc(t.fullName||'')+'</div><div style="height:8px"></div><div class="grid2" style="font-size:13px;color:var(--t2)">'
-      +(t.dob?'<div>Born '+esc(t.dob)+(t.birthPlace?' · '+esc(t.birthPlace):'')+'</div>':'')
-      +(t.nationality?'<div>Nationality: '+esc(t.nationality)+'</div>':'')
-      +(t.address?'<div>Address: '+esc(t.address)+'</div>':'')
-      +(t.cf?'<div>C.F.: '+esc(t.cf)+'</div>':'')
-      +(t.idDoc?'<div>ID: '+esc(t.idDoc)+'</div>':'')
-      +'<div>'+esc(t.email||'')+'</div><div>'+esc(t.phone||'')+'</div></div>';
+    TS.forEach(function(tt,i){
+      html+=(i>0?'<div class="cot" style="padding-top:14px">':'')
+        +'<div class="pname">'+esc(tt.fullName||'')+'</div><div style="height:8px"></div><div class="grid2" style="font-size:13px;color:var(--t2)">'
+        +(tt.dob?'<div>Born '+esc(tt.dob)+(tt.birthPlace?' · '+esc(tt.birthPlace):'')+'</div>':'')
+        +(tt.nationality?'<div>Nationality: '+esc(tt.nationality)+'</div>':'')
+        +(tt.address?'<div>Address: '+esc(tt.address)+'</div>':'')
+        +(tt.cf?'<div>C.F.: '+esc(tt.cf)+'</div>':'')
+        +(tt.idDoc?'<div>ID: '+esc(tt.idDoc)+'</div>':'')
+        +(tt.email?'<div>'+esc(tt.email)+'</div>':'')+(tt.phone?'<div>'+esc(tt.phone)+'</div>':'')
+        +'</div>'+(i>0?'</div>':'');
+    });
+    if(TS.length>1)html+='<div class="jointnote">All co-tenants are jointly and severally liable for the full rent and the obligations under this agreement.</div>';
   }else{
     html+='<div class="grid2">'
       +fld('tFullName','Full name',t.fullName,true,'','text')
@@ -391,6 +414,9 @@ function render(){
       +fld('tEmail','Email',t.email,true,'','email')
       +fld('tPhone','Phone / WhatsApp',t.phone,true,'','tel')
       +'</div>'
+      +'<div id="coTenants"></div>'
+      +'<button type="button" class="addcot" id="addCotBtn" onclick="addCoTenant()">+ Add a co-tenant / flatmate</button>'
+      +'<div class="jointnote">Renting together? Add every person who will sign — all co-tenants are jointly and severally liable under this agreement.</div>'
       +'<div class="reqmeter" id="reqmeter"><span id="reqTxt">Required: name, email, phone</span><span class="bar"><i id="reqBar"></i></span></div>';
   }
   html+='</div>';
@@ -409,26 +435,46 @@ function render(){
     +kv('End date',fmtD(le.endDate))
     +'</div>';
 
-  // 4 · FINANCIAL TERMS
+  // 4 · FINANCIAL TERMS — mirrors the paper proposal: base rent (+ energy
+  // credit when agreed), split deposit, total due at signing, fee note with
+  // its real due-moment.
+  var ec=Number(m.energyCredit)||0;
+  var split=m.depositSplitPct!=null?Number(m.depositSplitPct):100;
+  var depM=m.depositMonths+(m.depositMonths===1?' month’s':' months’')+' base rent';
+  var depSub=depM+' · refundable';
+  if(split>0&&split<100)depSub=depM+' — '+split+'% ('+eur(m.depositAtSigning!=null?m.depositAtSigning:m.deposit*split/100)+') due at signing, '+(100-split)+'% ('+eur(m.depositAtMoveIn!=null?m.depositAtMoveIn:m.deposit*(100-split)/100)+') upon move-in';
   html+='<div class="sec"><span class="ghost">04</span><h2>Financial terms</h2>'
-    +kv('Monthly rent',eur(m.rent),'utilities excluded')
-    +kv('Security deposit',eur(m.deposit),m.depositMonths+' month'+(m.depositMonths===1?'':'s')+'’ rent · refundable')
-    +'<div class="total"><span class="k">Total due at signing</span><span class="v">'+eur(m.dueAtSigning)+'</span></div>'
-    +'<div class="feenote"><b>Agency fee:</b> '+m.feePct+'% of annual rent = '+eur(m.fee)
+    +(ec>0
+      ? kv('Monthly base rent',eur(m.rent))
+        +kv('Energy credit','+ '+eur(ec),'included · covers electricity up to '+eur(ec)+'/month')
+        +kv('Monthly total',eur(m.monthlyTotal!=null?m.monthlyTotal:m.rent+ec),'all-in as above · other utilities excluded')
+      : kv('Monthly rent',eur(m.rent),'utilities excluded'))
+    +kv('Security deposit',eur(m.deposit),depSub)
+    +'<div class="total"><span class="k">Total due at signing</span><span class="v">'+eur(m.dueAtSigning)+'</span></div>';
+  var feeAmt=(m.feeMode==='months')
+    ?(m.feeMonths||1)+((m.feeMonths||1)===1?' month’s':' months’')+' base rent = '+eur(m.fee)
+    :m.feePct+'% of annual rent = '+eur(m.fee);
+  var feeWhen=m.feeDue==='move-in'?'due upon move-in — not at pre-agreement signing.'
+    :m.feeDue==='signing'?'due at signing — included in the total above.'
+    :'due separately, not at signing.';
+  html+='<div class="feenote"><b>Agency fee:</b> '+feeAmt
     +(m.feeVatPct?(' + VAT '+m.feeVatPct+'% ('+eur(m.feeVat)+') = <b>'+eur(m.feeTotal)+'</b>'):'')
-    +' — due separately, not at signing.'
+    +' — '+feeWhen
     +(PA.note?('<br>'+esc(PA.note)):'')+'</div>'
     +'</div>';
 
-  // 5 · GENERAL CONDITIONS
+  // 5 · GENERAL CONDITIONS — clause-for-clause with the paper proposal;
+  // energy and joint-liability clauses appear only when they apply.
   var conds=[
-    'The security deposit shall be returned at the end of the lease, subject to verification of the property’s condition and settlement of any outstanding utility balance.',
+    'The security deposit shall be returned at the end of the lease (within 15 days after move-out / keys handover), subject to verification of the property’s condition and settlement of any outstanding utility balance. Normal wear and tear caused by ordinary and reasonable use of the property shall not be deemed damage and shall not be deducted from the security deposit.',
     'The security deposit shall be fully returned if the Landlord cancels the agreement for any reason, or if the Tenant cancels with justified cause.',
     'The Tenant shall maintain the property in good condition and promptly report any defects or issues.',
     'Monthly rent shall be paid by the 5th of each month via bank transfer.'
   ];
+  if(ec>0)conds.push('The monthly payment of '+eur(m.monthlyTotal!=null?m.monthlyTotal:m.rent+ec)+' consists of: (a) base rent of '+eur(m.rent)+' and (b) an energy allowance of '+eur(ec)+' included in the monthly fee. The energy allowance covers electricity consumption up to '+eur(ec)+'/month; should monthly electricity costs exceed it, the Tenant shall pay only the surplus directly to the Landlord upon presentation of the utility bill. If consumption is equal to or below the allowance, no additional charge applies.');
   if(le.reason)conds.push('Transitional need: '+le.reason+'.');
-  conds.push('All utilities (electricity, gas, water, internet) are excluded from the monthly rent and are the sole responsibility of the Tenant.');
+  conds.push((ec>0?'All other utilities (gas, water, internet)':'All utilities (electricity, gas, water, internet)')+' are excluded from the monthly rent and are the sole responsibility of the Tenant.');
+  if(TS.length>1||!accepted)conds.push('Where more than one tenant signs this agreement, all co-tenants are jointly and severally liable for the full rent and all obligations hereunder.');
   conds.push('Any changes to these terms must be agreed upon in writing by both parties.');
   html+='<div class="sec"><span class="ghost">05</span><h2>General conditions</h2><ul class="conds">'
     +conds.map(function(c,i){return '<li><span class="cn">5.'+(i+1)+'</span><span>'+esc(c)+'</span></li>'}).join('')
@@ -436,18 +482,24 @@ function render(){
 
   // 6 · ACCEPTANCE — the ceremony: their name becomes their signature
   if(accepted){
+    var whoAll=TS.map(function(x){return x.fullName}).filter(Boolean);
     html+='<div class="sec issued" id="sec6"><span class="seal">'+sealSVG()+'</span>'
       +'<h2>Pre-agreement accepted</h2>'
-      +'<p>'+esc(p.address)+' is set aside for '+esc(t.fullName||'you')+'.<br>A BOOM advisor will follow up at <b style="color:var(--t1)">'+esc(t.email||'your email')+'</b>.</p>'
-      +(t.signature||t.fullName?'<div class="signwrap" style="max-width:360px;margin:20px auto 0;text-align:left"><div class="cap"><span>Signed</span><span>'+esc((PA.acceptedAt||'').slice(0,10))+'</span></div><div class="signature">'+esc(t.signature||t.fullName)+'</div><svg class="sigflr draw" viewBox="0 0 200 12" preserveAspectRatio="none" aria-hidden="true"><path d="M2 8 C 40 2, 92 12, 132 6 S 190 3, 198 7"/></svg><div class="who">'+esc(t.fullName||'')+'</div></div>':'')
-      +(PA.ref?'<div class="refchip">N° '+esc(PA.ref)+'</div>':'')
+      +'<p>'+esc(p.address)+' is set aside for '+esc(whoAll.join(' · ')||'you')+'.<br>A BOOM advisor will follow up at <b style="color:var(--t1)">'+esc(t.email||'your email')+'</b>.</p>';
+    TS.forEach(function(tt){
+      if(!(tt.signature||tt.fullName))return;
+      html+='<div class="signwrap" style="max-width:360px;margin:20px auto 0;text-align:left"><div class="cap"><span>Signed · Roma</span><span>'+esc((PA.acceptedAt||'').slice(0,10))+'</span></div><div class="signature">'+esc(tt.signature||tt.fullName)+'</div><svg class="sigflr draw" viewBox="0 0 200 12" preserveAspectRatio="none" aria-hidden="true"><path d="M2 8 C 40 2, 92 12, 132 6 S 190 3, 198 7"/></svg><div class="who">'+esc(tt.fullName||'')+'</div></div>';
+    });
+    html+=(PA.ref?'<div class="refchip">N° '+esc(PA.ref)+'</div>':'')
       /* accepted but the Stripe step never finished → resume it right here */
       +((PA.status==='accepted'&&PA.money&&Number(PA.money.dueAtSigning)>0)
         ?'<div style="max-width:430px;margin:20px auto 0"><button class="gbtn" id="payNowBtn" onclick="payNow()">Complete your reservation — '+eur(PA.money.dueAtSigning)+' via Stripe →</button>'
          +'<p style="font-size:11px;color:var(--t3);margin-top:9px">Secured by Stripe · credited to your first month · refunded in full within 48h</p></div>'
         :'')
       +'<div class="prq" id="paQr" aria-hidden="true"></div>'
-      +'<div><button class="obtn" onclick="window.print()">Print / save PDF</button> <a class="obtn" href="https://wa.me/393313251961">Talk to BOOM →</a></div>'
+      +'<div><button class="obtn" onclick="window.print()">Print / save PDF</button> '
+      +'<a class="obtn" style="border-color:rgba(37,211,102,.4);color:#25D366" href="https://wa.me/?text='+encodeURIComponent('BOOM pre-agreement '+(PA.ref||'')+' — '+((p.address||'').split(',')[0])+'. My copy of the accepted document: '+location.origin+'/pre-agreement?t='+TOKEN)+'" target="_blank" rel="noopener">Get it on WhatsApp →</a> '
+      +'<a class="obtn" href="https://wa.me/393313251961">Talk to BOOM →</a></div>'
       +'</div>';
   }else{
     html+='<div class="sec" id="sec6"><span class="ghost">06</span>'
@@ -557,8 +609,49 @@ function wireTilt(){
   }catch(e){}
 }
 
+/* ── co-tenants: extra parties on the same sheet ── */
+var COT=0,COT_MAX=5;
+var COT_FIELDS=[['FullName','Full name','text'],['Dob','Date of birth','text'],['BirthPlace','Place of birth','text'],['Nationality','Nationality','text'],['Address','Current address','text'],['Cf','Tax code (C.F.)','text'],['IdDoc','ID / Passport no.','text'],['Email','Email','email'],['Phone','Phone / WhatsApp','tel']];
+window.addCoTenant=function(n){
+  var host=document.getElementById('coTenants');if(!host)return null;
+  if(host.querySelectorAll('.cot').length>=COT_MAX)return null;
+  n=n||(++COT);if(n>COT)COT=n;
+  var inner=COT_FIELDS.map(function(f,i){
+    return fld('c'+n+f[0],f[1],'',i===0,'',f[2]);
+  }).join('');
+  var div=document.createElement('div');
+  div.className='cot';div.setAttribute('data-n',n);
+  div.innerHTML='<div class="cothead"><b>Co-tenant</b><button type="button" onclick="removeCoTenant('+n+')">Remove ×</button></div><div class="grid2">'+inner+'</div>';
+  host.appendChild(div);
+  COT_FIELDS.forEach(function(f){
+    var e=document.getElementById('c'+n+f[0]);if(!e)return;
+    e.addEventListener('input',function(){saveDraft();if(f[0]==='FullName')sigLive();});
+  });
+  var add=document.getElementById('addCotBtn');
+  if(add&&host.querySelectorAll('.cot').length>=COT_MAX)add.style.display='none';
+  saveDraft();
+  return n;
+};
+window.removeCoTenant=function(n){
+  var host=document.getElementById('coTenants');if(!host)return;
+  var div=host.querySelector('.cot[data-n="'+n+'"]');if(div)div.remove();
+  var add=document.getElementById('addCotBtn');if(add)add.style.display='';
+  saveDraft();sigLive();
+};
+function cotNs(){
+  var host=document.getElementById('coTenants');if(!host)return[];
+  return [].slice.call(host.querySelectorAll('.cot')).map(function(d){return +d.getAttribute('data-n')});
+}
+
 /* ── the ceremony: draft autosave, live signature, meter, steps, roll-ups ── */
 var DKEY='boom:pa:'+TOKEN;
+function saveDraft(){
+  try{
+    var d={f:{},cots:cotNs()};
+    [].slice.call(document.querySelectorAll('#docHost .fld input')).forEach(function(e){if(e.id&&e.value)d.f[e.id]=e.value;});
+    localStorage.setItem(DKEY,JSON.stringify(d));
+  }catch(_e){}
+}
 function reqState(){
   var g=function(id){var e=document.getElementById(id);return e?e.value.trim():''};
   var okN=g('tFullName').length>=3,okE=/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(g('tEmail')),okP=g('tPhone').replace(/\D/g,'').length>=6;
@@ -587,11 +680,17 @@ function paSteps(){
 }
 function wireCeremony(){
   var ids=['tFullName','tDob','tBirthPlace','tNationality','tAddress','tCf','tIdDoc','tEmail','tPhone'];
-  /* restore the draft — nobody loses their form on this page */
-  try{var d=JSON.parse(localStorage.getItem(DKEY)||'{}');ids.forEach(function(id){var e=document.getElementById(id);if(e&&!e.value&&d[id])e.value=d[id];});}catch(e){}
+  /* restore the draft — nobody loses their form on this page (draft carries
+     both the flat legacy shape and the {f, cots} shape with co-tenants) */
+  try{
+    var d=JSON.parse(localStorage.getItem(DKEY)||'{}');
+    var f=d.f||d;
+    (Array.isArray(d.cots)?d.cots:[]).forEach(function(n){addCoTenant(n);});
+    Object.keys(f).forEach(function(id){var e=document.getElementById(id);if(e&&!e.value&&f[id])e.value=f[id];});
+  }catch(e){}
   ids.forEach(function(id){var e=document.getElementById(id);if(!e)return;
     e.addEventListener('input',function(){
-      try{var d={};ids.forEach(function(k){var x=document.getElementById(k);if(x&&x.value)d[k]=x.value;});localStorage.setItem(DKEY,JSON.stringify(d));}catch(_e){}
+      saveDraft();
       if(id==='tFullName')sigLive();
       var r=reqState();
       if(id==='tFullName')e.classList.toggle('ok',r.okN);
@@ -628,8 +727,10 @@ function wireCeremony(){
 }
 function sigLive(){
   var e=document.getElementById('tFullName'),s=document.getElementById('sigTxt'),f=document.getElementById('sigFlr');if(!s)return;
-  var v=e?e.value.trim():'';
-  if(v.length>=2){s.textContent=v;s.classList.remove('empty');if(f)f.classList.add('draw');}
+  var names=[e?e.value.trim():''];
+  cotNs().forEach(function(n){var x=document.getElementById('c'+n+'FullName');if(x)names.push(x.value.trim());});
+  names=names.filter(function(v){return v.length>=2});
+  if(names.length){s.textContent=names.join('  ·  ');s.classList.remove('empty');if(f)f.classList.add('draw');}
   else{s.textContent='Your full name from §1 becomes your signature';s.classList.add('empty');if(f)f.classList.remove('draw');}
 }
 /* reading progress + read-step + thread + ambient stir */
@@ -654,17 +755,30 @@ function accept(){
   if(tenant.fullName.length<3){err.textContent='Your full name goes on the agreement — add it in section 1.';err.style.display='block';return;}
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(tenant.email)){err.textContent='Add a valid email in section 1 — it’s where your confirmation goes.';err.style.display='block';return;}
   if(tenant.phone.length<6){err.textContent='Add your phone in section 1 so your advisor can reach you.';err.style.display='block';return;}
+  /* co-tenants: name is the one hard requirement; a named block left empty
+     stops the signing so nobody signs with a phantom party on the sheet */
+  var tenants=[tenant],incomplete=false;
+  cotNs().forEach(function(n){
+    var ct={fullName:g('c'+n+'FullName'),dob:g('c'+n+'Dob'),birthPlace:g('c'+n+'BirthPlace'),nationality:g('c'+n+'Nationality'),
+      address:g('c'+n+'Address'),cf:g('c'+n+'Cf'),idDoc:g('c'+n+'IdDoc'),email:g('c'+n+'Email'),phone:g('c'+n+'Phone')};
+    var any=Object.keys(ct).some(function(k){return ct[k]});
+    if(!any){removeCoTenant(n);return;}          // fully empty block → drop it
+    if(ct.fullName.length<3){incomplete=true;return;}
+    ct.signature=ct.fullName;
+    tenants.push(ct);
+  });
+  if(incomplete){err.textContent='Every co-tenant needs at least their full name — or remove the empty block.';err.style.display='block';return;}
   err.style.display='none';
   var btn=document.getElementById('paGo');btn.disabled=true;btn.textContent='Signing…';
   fetch('/api/preagreement/submit',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({token:TOKEN,tenant:tenant,accept:true})})
+    body:JSON.stringify({token:TOKEN,tenant:tenant,tenants:tenants,accept:true})})
   .then(function(r){return r.json()})
   .then(function(j){
     if(!j||!j.ok)throw 0;
     try{localStorage.removeItem(DKEY)}catch(e){}
     if(j.checkoutUrl){location.href=j.checkoutUrl;return;}
     /* the stamp lands, then the accepted document */
-    PA.status='accepted';PA.ref=j.ref;PA.tenant=tenant;
+    PA.status='accepted';PA.ref=j.ref;PA.tenant=tenant;PA.tenants=tenants;
     var ov=document.getElementById('stampov');
     var done=function(){if(ov)ov.classList.remove('on');render();scrollTo({top:document.body.scrollHeight,behavior:'smooth'});};
     if(ov&&!matchMedia('(prefers-reduced-motion: reduce)').matches){ov.classList.add('on');setTimeout(done,1500);}

@@ -36,7 +36,8 @@ export default async function handler(req, res) {
       ok: true, id,
       pa: {
         status: data.status, property: data.property, landlord: data.landlord,
-        tenant: data.tenant, lease: data.lease, money: data.money,
+        tenant: data.tenant, tenants: Array.isArray(data.tenants) ? data.tenants : null,
+        lease: data.lease, money: data.money,
         note: data.note || null, createdAt: data.createdAt,
         acceptedAt: data.acceptedAt || null, ref: data.ref || null,
       },

@@ -4,6 +4,16 @@
 // to the client on WhatsApp/email. The client self-fills their identity on
 // the public page and accepts — zero workload on the agent's side.
 //
+// Money model mirrors the real signed BOOM proposals (e.g. Montecuccoli 26):
+//   - optional monthly ENERGY CREDIT included in the monthly fee (clause à la
+//     5.5: base rent + energy allowance; surplus above the allowance is on
+//     the tenant)
+//   - deposit SPLIT: n% due at pre-agreement signing, remainder upon move-in
+//   - agency fee either % of annual rent OR n months' base rent, due at
+//     move-in / at signing / separately
+//   - co-tenants: the client can add up to 5 co-tenants on the public page;
+//     all are jointly and severally liable (condition added automatically)
+//
 // Method:   POST
 // Headers:  Authorization: Bearer <firebase-id-token>   (admin/owner/landlord)
 // Body: {
@@ -12,10 +22,13 @@
 //   landlord:  { name },
 //   tenant?:   { fullName?, email?, phone? },          // optional prefill
 //   lease:     { startDate(YYYY-MM-DD), months, type?, lawRef?, reason? },
-//   money:     { rent, depositMonths?, feePct?, feeVatPct?, dueAtSigning? },
+//   money:     { rent, energyCredit?, depositMonths?, depositSplitPct?,
+//                feeMode?('pct'|'months'), feePct?, feeMonths?, feeVatPct?,
+//                feeDue?('move-in'|'signing'|'separate'), dueAtSigning? },
 //   note?:     string
 // }
-// Derived server-side: deposit, fee, feeVat, feeTotal, endDate.
+// Derived server-side: monthlyTotal, deposit, depositAtSigning/AtMoveIn,
+// fee, feeVat, feeTotal, dueAtSigning default, endDate (month-end clamp).
 // Response: { ok, id, token, url }
 
 import crypto from 'node:crypto';
@@ -24,6 +37,7 @@ import { requireRole, setCors } from '../_auth.js';
 
 const clip = (v, n = 300) => (v == null ? null : String(v).trim().slice(0, n) || null);
 const num = (v, d = 0) => (isFinite(+v) ? +v : d);
+const r2 = (n) => Math.round(n * 100) / 100;
 
 function endDate(startISO, months) {
   const d = new Date(startISO + 'T00:00:00');
@@ -32,6 +46,44 @@ function endDate(startISO, months) {
   if (d.getDate() !== day) d.setDate(0);   // month-end clamp
   else d.setDate(d.getDate() - 1);         // through the day before anniversary
   return d.toISOString().slice(0, 10);
+}
+
+// Shared money derivation — the SAME rules the admin console mirrors client-
+// side and the edit-in-place flow relies on. Input: raw knobs. Output: the
+// full money object stored on the doc.
+export function deriveMoney(m) {
+  const rent = num(m.rent);
+  const energyCredit = Math.max(0, Math.min(1000, num(m.energyCredit, 0)));
+  const monthlyTotal = r2(rent + energyCredit);
+
+  const depositMonths = Math.max(0, Math.min(6, num(m.depositMonths, 1)));
+  const deposit = r2(rent * depositMonths);
+  const depositSplitPct = Math.max(0, Math.min(100, num(m.depositSplitPct, 100)));
+  const depositAtSigning = r2(deposit * depositSplitPct / 100);
+  const depositAtMoveIn = r2(deposit - depositAtSigning);
+
+  const feeMode = m.feeMode === 'months' ? 'months' : 'pct';
+  const feePct = Math.max(0, Math.min(30, num(m.feePct, 12)));
+  const feeMonths = Math.max(0, Math.min(3, num(m.feeMonths, 1)));
+  const fee = feeMode === 'months'
+    ? r2(rent * feeMonths)
+    : r2(rent * 12 * feePct / 100);
+  const feeVatPct = Math.max(0, Math.min(30, num(m.feeVatPct, 22)));
+  const feeVat = r2(fee * feeVatPct / 100);
+  const feeTotal = r2(fee + feeVat);
+  const feeDue = ['move-in', 'signing', 'separate'].includes(m.feeDue) ? m.feeDue : 'separate';
+
+  const dueDefault = r2(depositAtSigning + (feeDue === 'signing' ? feeTotal : 0));
+  const dueAtSigning = m.dueAtSigning != null && m.dueAtSigning !== ''
+    ? Math.max(0, num(m.dueAtSigning))
+    : dueDefault;
+
+  return {
+    rent, energyCredit, monthlyTotal,
+    depositMonths, deposit, depositSplitPct, depositAtSigning, depositAtMoveIn,
+    feeMode, feePct, feeMonths, fee, feeVatPct, feeVat, feeTotal, feeDue,
+    dueAtSigning,
+  };
 }
 
 export default async function handler(req, res) {
@@ -50,21 +102,17 @@ export default async function handler(req, res) {
   const landlordName = clip((b.landlord || {}).name, 120);
   const startDate = clip(l.startDate, 10);
   const months = Math.max(1, Math.min(48, num(l.months, 12)));
-  const rent = num(m.rent);
-  if (!address || !landlordName || !startDate || !/^\d{4}-\d{2}-\d{2}$/.test(startDate) || rent <= 0) {
+  const money = deriveMoney(m);
+  if (!address || !landlordName || !startDate || !/^\d{4}-\d{2}-\d{2}$/.test(startDate) || money.rent <= 0) {
     return res.status(400).json({ ok: false, error: 'validation' });
   }
 
-  const depositMonths = Math.max(0, Math.min(6, num(m.depositMonths, 1)));
-  const deposit = Math.round(rent * depositMonths * 100) / 100;
-  const feePct = Math.max(0, Math.min(30, num(m.feePct, 12)));
-  const feeVatPct = Math.max(0, Math.min(30, num(m.feeVatPct, 22)));
-  const fee = Math.round(rent * 12 * feePct) / 100;                 // % of annual rent
-  const feeVat = Math.round(fee * feeVatPct) / 100;
-  const feeTotal = Math.round((fee + feeVat) * 100) / 100;
-  const dueAtSigning = m.dueAtSigning != null ? Math.max(0, num(m.dueAtSigning)) : deposit;
-
   const token = crypto.randomBytes(16).toString('hex');
+  const tenant = {
+    fullName: clip((b.tenant || {}).fullName, 120),
+    email: clip((b.tenant || {}).email, 160),
+    phone: clip((b.tenant || {}).phone, 60),
+  };
   const doc = {
     token,
     status: 'sent',
@@ -78,11 +126,8 @@ export default async function handler(req, res) {
       unit: clip(p.unit, 40),
     },
     landlord: { name: landlordName },
-    tenant: {
-      fullName: clip((b.tenant || {}).fullName, 120),
-      email: clip((b.tenant || {}).email, 160),
-      phone: clip((b.tenant || {}).phone, 60),
-    },
+    tenant,                    // primary tenant (compat + prefill)
+    tenants: [tenant],         // full parties list — the page appends co-tenants
     lease: {
       startDate,
       months,
@@ -91,7 +136,7 @@ export default async function handler(req, res) {
       lawRef: clip(l.lawRef, 80) || 'uso transitorio · L.431/98 art.5 c.1',
       reason: clip(l.reason, 300),
     },
-    money: { rent, depositMonths, deposit, feePct, feeVatPct, fee, feeVat, feeTotal, dueAtSigning },
+    money,
     note: clip(b.note, 600),
     createdAt: new Date().toISOString(),
     createdBy: auth.email || auth.uid,
@@ -100,7 +145,7 @@ export default async function handler(req, res) {
 
   try {
     const { id } = await fsCreate('preAgreements', doc);
-    logActivity('preagreement_created', 'preagreement', { id, address, rent, tenant: doc.tenant.fullName }, auth.email || 'admin')
+    logActivity('preagreement_created', 'preagreement', { id, address, rent: money.rent, tenant: doc.tenant.fullName }, auth.email || 'admin')
       .catch(() => {});
     return res.status(200).json({ ok: true, id, token, url: '/pre-agreement?t=' + token });
   } catch (e) {

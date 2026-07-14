@@ -228,19 +228,34 @@ Sendable RENTAL PROPOSAL / pre-agreement, modeled on the real BOOM document
 (parties landlord⇄tenant, transitional lease L.431/98 art.5 c.1, fee % of
 annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
 - `POST /api/preagreement/create` — admin/owner/landlord (Bearer ID token).
-  Deal fields (property, landlord, lease, money: rent/depositMonths/feePct/
-  feeVatPct/dueAtSigning) → creates `preAgreements` doc with 32-hex token →
-  `{ ok, id, token, url:'/pre-agreement?t=…' }`. Fee/deposit/endDate derived
-  server-side (month-end clamp).
-- `POST /api/preagreement/lookup` — public `{ token }` → sanitized doc;
-  audit-logs views; 410 when revoked.
+  Deal fields (property, landlord, lease, money knobs: rent/energyCredit/
+  depositMonths/depositSplitPct/feeMode(pct|months)/feePct/feeMonths/
+  feeVatPct/feeDue(move-in|signing|separate)/dueAtSigning) → creates
+  `preAgreements` doc with 32-hex token → `{ ok, id, token, url }`.
+  All money derivations server-side via exported `deriveMoney()` (monthly
+  total with energy credit, deposit split at-signing/at-move-in, fee as %
+  of annual OR months of rent, endDate month-end clamp). The admin console
+  mirrors the same math client-side for edit-in-place.
+- `POST /api/preagreement/lookup` — public `{ token }` → sanitized doc
+  (incl. `tenants[]`); audit-logs views; 410 when revoked.
 - `POST /api/preagreement/submit` — public. Tenant self-fills identity
-  (name/dob/birthplace/nationality/address/CF/ID/email/phone) + consent →
-  status `accepted`, quotable ref `BOOM-<base36>`, and when
-  `money.dueAtSigning>0` returns a Stripe Checkout URL (acceptance is never
-  voided by a failed checkout).
+  (name/dob/birthplace/nationality/address/CF/ID/email/phone) + optional
+  co-tenants (`tenants[]`, ≤6, each typed name = signature, joint & several
+  liability clause auto-added) + consent → status `accepted`, quotable ref
+  `BOOM-<base36>`, and when `money.dueAtSigning>0` returns a Stripe Checkout
+  URL (acceptance is never voided by a failed checkout).
+- `POST /api/preagreement/convert` — admin/owner/landlord. One tap from the
+  console: accepted/paid PA → `contracts` doc (identity/lease/money carried
+  over, tenant `users` profile bootstrapped by email match, Magic-Sign
+  tokens minted, `signingOrder:'sequential'`). `delegate:true` (default)
+  records `landlordDelegate` — the landlord-side sign link is returned to
+  the ADMIN who countersigns per delega after the tenant signs (sign.html
+  shows "signing as X on behalf of Y"; magic-sign submit stamps
+  `landlordSignedByDelegate`). Idempotent via `pa.contractId`.
 - `pre-agreement.html` — the public document page (identity form lives
-  inside §1 of the document; accept & sign → Stripe; print-friendly).
+  inside §1 of the document; "+ Add a co-tenant" blocks; accept & sign →
+  Stripe; print-friendly; accepted view has "Get it on WhatsApp" share of
+  the document link).
 - `pre-agreement-admin.html` — generator + management console (BoomPortal
   auth, listing prefill, live fee math, WhatsApp share). Realtime list of all
   preAgreements with status chips (sent/viewed/accepted/paid/revoked): copy
@@ -258,11 +273,13 @@ annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
   due via Stripe (else it arrives after payment); admin always notified.
 
 **Deal pipeline (protocol)**: lead (`/api/apply-lead` or portal) →
-pre-agreement (console → tokenized link → client self-fills → accepts →
-Stripe if due>0 → confirmation emails) → rental contract in portal →
-Magic Sign (tenant+landlord tokens) → tenant portal (payments/documents).
-Terms differ per deal: edit before acceptance (same link); after
-acceptance/payment, Duplicate creates the new version.
+pre-agreement (console → tokenized link → client self-fills, adds
+co-tenants → accepts → Stripe if due>0 → confirmation emails + WhatsApp
+copy) → **→ Contract** in the console (`/api/preagreement/convert`: no
+re-typing, Magic-Sign links minted) → tenant signs → admin countersigns
+per delega on their own schedule → RLI registration → tenant portal
+(payments/documents). Terms differ per deal: edit before acceptance (same
+link); after acceptance/payment, Duplicate creates the new version.
 
 ### POST `/api/magic-sign/lookup`
 Public endpoint for the Magic-Sign UI. Body: `{ token }`. Looks up the

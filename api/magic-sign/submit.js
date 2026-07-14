@@ -174,6 +174,15 @@ export default async function handler(req, res) {
       upd.landlordPhone = String(phone.number).slice(0, 30);
       upd.landlordPhoneVerified = false;
     }
+    // Delegate protocol: when the contract carries landlordDelegate, this
+    // countersignature is recorded as signed per delega ("X on behalf of Y")
+    // — the audit trail and any certificate can attest who actually signed.
+    if (contract.landlordDelegate && contract.landlordDelegate.name) {
+      upd.landlordSignedByDelegate = {
+        ...contract.landlordDelegate,
+        signedAt: nowISO,
+      };
+    }
   }
 
   // ── 2b. Deposit-at-signature ─────────────────────────────

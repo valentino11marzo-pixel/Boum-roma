@@ -6,7 +6,12 @@
 //
 // Method: POST
 // Body: { token, tenant:{ fullName, dob?, birthPlace?, nationality?,
-//         address?, cf?, idDoc?, email, phone }, accept: true }
+//         address?, cf?, idDoc?, email, phone },
+//         tenants?: [tenant, ...co-tenants],   // primary first, ≤6 total
+//         accept: true }
+// The primary tenant must carry name + email + phone; co-tenants need at
+// least a full name (their typed name is their signature — all co-tenants
+// are jointly and severally liable per the document's conditions).
 // Response: { ok, ref, checkoutUrl|null }
 
 import Stripe from 'stripe';
@@ -28,10 +33,23 @@ export default async function handler(req, res) {
   if (!/^[a-f0-9]{32}$/.test(token)) return res.status(400).json({ ok: false, error: 'bad_token' });
   if (!b.accept) return res.status(400).json({ ok: false, error: 'consent_required' });
 
-  const t = b.tenant || {};
-  const fullName = clip(t.fullName, 120);
-  const email = clip(t.email, 160);
-  const phone = clip(t.phone, 60);
+  // Parties: prefer the tenants[] array (primary first); fall back to the
+  // single-tenant body for older clients. Co-tenants are optional.
+  const rawList = Array.isArray(b.tenants) && b.tenants.length
+    ? b.tenants.slice(0, 6)
+    : [b.tenant || {}];
+  const sanitizeTenant = (t) => ({
+    fullName: clip((t || {}).fullName, 120),
+    email: clip((t || {}).email, 160),
+    phone: clip((t || {}).phone, 60),
+    dob: clip((t || {}).dob, 20), birthPlace: clip((t || {}).birthPlace, 120),
+    nationality: clip((t || {}).nationality, 80), address: clip((t || {}).address, 200),
+    cf: clip((t || {}).cf, 40), idDoc: clip((t || {}).idDoc, 80),
+  });
+  const tenants = rawList.map(sanitizeTenant)
+    .filter((t, i) => i === 0 || (t.fullName && t.fullName.length >= 3));
+  const primary = tenants[0];
+  const { fullName, email, phone } = primary;
   if (!fullName || fullName.length < 3) return res.status(400).json({ ok: false, error: 'name_required' });
   if (!email || !EMAIL_RE.test(email)) return res.status(400).json({ ok: false, error: 'email_required' });
   if (!phone || phone.length < 6) return res.status(400).json({ ok: false, error: 'phone_required' });
@@ -46,19 +64,17 @@ export default async function handler(req, res) {
 
     const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
     const ref = 'BOOM-' + Date.now().toString(36).toUpperCase();
-    const tenant = {
-      fullName, email, phone,
-      dob: clip(t.dob, 20), birthPlace: clip(t.birthPlace, 120),
-      nationality: clip(t.nationality, 80), address: clip(t.address, 200),
-      cf: clip(t.cf, 40), idDoc: clip(t.idDoc, 80),
-      signature: clip(t.signature, 120),   // typed-to-sign name from the public page
-    };
+    // Each party's typed full name IS their signature (like the paper doc,
+    // where every co-tenant signs the same signature box).
+    const signed = tenants.map(t => ({ ...t, signature: t.fullName }));
+    const tenant = signed[0];   // primary alias — everything downstream (Stripe,
+                                // emails, webhook, reminders) keeps working on it
     await fsPatch(`preAgreements/${id}`, {
-      tenant, status: 'accepted', ref,
+      tenant, tenants: signed, status: 'accepted', ref,
       acceptedAt: new Date().toISOString(),
       consent: { at: new Date().toISOString(), ip, ua: String(req.headers['user-agent'] || '').slice(0, 160) },
     });
-    logActivity('preagreement_accepted', 'preagreement', { id, ref, tenant: fullName, address: (data.property || {}).address }, 'web')
+    logActivity('preagreement_accepted', 'preagreement', { id, ref, tenant: fullName, coTenants: signed.length - 1, address: (data.property || {}).address }, 'web')
       .catch(() => {});
 
     // Stripe checkout for whatever is due at signing (best-effort: acceptance
@@ -105,7 +121,7 @@ export default async function handler(req, res) {
     //                           receipt email arrives from the Stripe webhook
     try {
       await sendPaEmails({
-        pa: { ...data, tenant },
+        pa: { ...data, tenant, tenants: signed },
         ref, url: '/pre-agreement?t=' + token,
         event: 'accepted',
         notifyClient: !(due > 0 && checkoutUrl),
