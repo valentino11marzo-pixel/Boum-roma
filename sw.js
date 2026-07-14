@@ -3,7 +3,7 @@
 // Cache-first for static assets (icons, manifest).
 // Skips Firebase / EmailJS / 3rd-party traffic entirely.
 
-const CACHE_VERSION = 'boom-v9';
+const CACHE_VERSION = 'boom-v10';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 // NB: portal.html NON è nel precache — il sito pubblico registra questo SW e
 // non deve scaricare 2.5MB di shell in background. Il portale entra in cache
@@ -51,21 +51,28 @@ self.addEventListener('fetch', (event) => {
                        'cdn.jsdelivr.net', 'cdnjs.cloudflare.com'];
     if (skipHosts.some(h => url.hostname.includes(h))) return;
 
-    // portal.html (2.28 MB shell) — stale-while-revalidate. Serve from cache
-    // instantly (huge win on Safari/mobile cold-starts), then update in the
-    // background so the next load gets the fresh build. The data the user sees
-    // still comes live from Firestore listeners, so a stale shell only means a
-    // slightly-old UI layer for a few seconds on the FIRST visit after a
-    // deploy — never stale data.
+    // portal.html (2.28 MB shell) — NETWORK-FIRST, cache solo come fallback
+    // offline. Mai servire la shell dalla cache quando la rete c'è: una copia
+    // stantia della logica di auth può restare intrappolata (un redirect loop
+    // abortisce l'aggiornamento in background prima che i 2.28MB arrivino) e
+    // il browser non riceverebbe mai il codice corretto. Il costo è il
+    // download a ogni apertura del portale — lo stesso che il browser farebbe
+    // comunque (il server manda Cache-Control: no-store) — mitigato dal
+    // pre-warm della pagina /login che riempie il fallback offline.
     if (url.pathname === '/portal.html' || url.pathname === '/portal') {
         event.respondWith(
             caches.open(STATIC_CACHE).then(async (cache) => {
-                const cached = await cache.match('/portal.html');
-                const network = fetch(event.request).then((res) => {
-                    if (res && res.ok) cache.put('/portal.html', res.clone()).catch(() => null);
+                try {
+                    const res = await fetch(event.request);
+                    if (res && res.ok && !res.redirected) {
+                        cache.put('/portal.html', res.clone()).catch(() => null);
+                    }
                     return res;
-                }).catch(() => null);
-                return cached || network || fetch(event.request);
+                } catch (e) {
+                    const cached = await cache.match('/portal.html');
+                    if (cached) return cached;
+                    throw e;
+                }
             })
         );
         return;
