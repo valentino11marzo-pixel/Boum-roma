@@ -262,6 +262,20 @@ const SERVICE_META = {
     next3: ['Landlord & property verification', 'Registry + identity checks'],
     next4: ['We negotiate for you', 'Average saving beats the fee'],
   },
+  'deposit-recovery': {
+    title: 'Deposit Recovery', emoji: '💶',
+    next1: ['Send the story', 'Contract, amounts, photos, messages — reply to this email'],
+    next2: ['We assess the position', 'Within 48h: what is recoverable and how'],
+    next3: ['Formal demand goes out', 'PEC / registered letter, the proper way'],
+    next4: ['You get paid', '20% success fee only on what comes back'],
+  },
+  'contract-check-express': {
+    title: 'Contract Check Express', emoji: '🚦',
+    next1: ['Send the contract', 'Reply to this email with the draft'],
+    next2: ['We read every clause', 'The same eyes as Deal Assistance'],
+    next3: ['Verdict within 24 hours', 'Green / amber / red, in writing'],
+    next4: ['Need the full shield?', '€49 credited on Deal Assistance'],
+  },
 };
 
 async function handleService(res, session, m) {

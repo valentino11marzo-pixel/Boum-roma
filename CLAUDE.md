@@ -193,7 +193,9 @@ in the pipeline even if they never open Stripe. Returns `{ ok, id }`.
 ### POST `/api/service-checkout`
 Public one-tap Stripe Checkout for the productised services (Services 2.0
 pages). Server-side catalog decides price/copy — the client only names the
-kind: `virtual-viewing` (€89) or `deal-assistance` (€249). Body `{ kind,
+kind: `virtual-viewing` (€89), `deal-assistance` (€249),
+`deposit-recovery` (€99 + 20% success fee, art. 1590 c.c.) or
+`contract-check-express` (€49, credited on Deal Assistance). Body `{ kind,
 name, email, phone, listing?, notes?, company(honeypot) }`, same hardening
 as apply-lead. Returns `{ ok, url }` → Stripe. The webhook branch
 `service:'SERVICE'` writes a paid lead (`leads/svc_<sessionId>`) and sends

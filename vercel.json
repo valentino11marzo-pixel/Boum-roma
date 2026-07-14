@@ -114,6 +114,16 @@
       "permanent": true
     },
     {
+      "source": "/deposit-recovery.html",
+      "destination": "/deposit-recovery",
+      "permanent": true
+    },
+    {
+      "source": "/contract-check-express.html",
+      "destination": "/contract-check-express",
+      "permanent": true
+    },
+    {
       "source": "/privacy.html",
       "destination": "/privacy",
       "permanent": true
@@ -304,6 +314,14 @@
     {
       "source": "/deal-assistance",
       "destination": "/deal-assistance.html"
+    },
+    {
+      "source": "/deposit-recovery",
+      "destination": "/deposit-recovery.html"
+    },
+    {
+      "source": "/contract-check-express",
+      "destination": "/contract-check-express.html"
     },
     {
       "source": "/client-portal",
