@@ -3679,6 +3679,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     auth.onAuthStateChanged(async u => {
         if (isMagicSign || isIntakeForm) return;
         if (isPostSign) return; // postSign boot handler handles its own auth
+        if (u) cancelLoginRedirect();
         if (authProcessed && u) return;
         
         clearTimeout(authTimeout);
@@ -3801,10 +3802,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 showAuth(); 
             }
         } else {
-            console.log('No user — redirecting to /login');
+            console.log('No user — scheduling redirect to /login');
             stopSessionCheck();
             // Superficie di login unica: /login (con ritorno alla pagina richiesta).
-            redirectToLogin();
+            scheduleLoginRedirect();
         }
     });
 
@@ -5056,6 +5057,31 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         return '/login?next=' + encodeURIComponent(next);
     }
     function redirectToLogin() { window.location.replace(loginUrlWithNext()); }
+    // Safari può emettere un null spurio da onAuthStateChanged prima di
+    // risolvere la sessione persistita (IndexedDB lento). Il redirect a /login
+    // parte quindi dopo un periodo di grazia, annullato se l'utente arriva.
+    // Anti-loop: dopo 2 rimbalzi login⇄portal nella stessa tab si mostra la
+    // card di fallback (CTA manuale) invece di continuare il ping-pong.
+    let _loginRedirectTimer = null;
+    function scheduleLoginRedirect() {
+        if (_loginRedirectTimer) return;
+        _loginRedirectTimer = setTimeout(() => {
+            _loginRedirectTimer = null;
+            let bounces = 0;
+            try { bounces = parseInt(sessionStorage.getItem('boomLoginBounce') || '0', 10) || 0; } catch (e) {}
+            if (bounces >= 2) {
+                showAuthError('Sessione non rilevata. Tocca "Accedi al Portal" per entrare.');
+                showAuth();
+                return;
+            }
+            try { sessionStorage.setItem('boomLoginBounce', String(bounces + 1)); } catch (e) {}
+            redirectToLogin();
+        }, isSafari ? 3000 : 1000);
+    }
+    function cancelLoginRedirect() {
+        if (_loginRedirectTimer) { clearTimeout(_loginRedirectTimer); _loginRedirectTimer = null; }
+        try { sessionStorage.removeItem('boomLoginBounce'); } catch (e) {}
+    }
     function showAuth() {
         hideLoading();
         const link = document.getElementById('authLoginLink');
