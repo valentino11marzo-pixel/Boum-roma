@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>BOOM — Mattina Romana · Wake up in Rome</title>
+<meta name="description" content="Wake up in Rome. Video-verified homes, legal contracts explained in English, keys in 48 hours. BOOM — premium rentals for internationals in Rome.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..700,100;1,9..144,300..700,100&family=Work+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Caveat:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   MATTINA ROMANA — a Roman morning
+   sun-bleached cream · terracotta · ochre · olive · espresso
+   ============================================================ */
+:root{
+  --cream:#FAF5EC;
+  --cream-2:#F3EADA;
+  --cream-3:#EEE2CC;
+  --paper:#FFFDF7;
+  --terra:#C4633E;
+  --terra-deep:#A34A28;
+  --terra-soft:rgba(196,99,62,.14);
+  --ochre:#C9971C;
+  --ochre-deep:#9A7210;
+  --olive:#6B7F4F;
+  --olive-deep:#55663D;
+  --ink:#3A2E28;
+  --ink-soft:#6B5D52;
+  --line:rgba(58,46,40,.14);
+  --sun-shadow:18px 22px 0 rgba(196,99,62,.08);
+  --sun-shadow-lift:10px 26px 34px rgba(58,46,40,.14), 18px 22px 0 rgba(196,99,62,.10);
+  --r-sm:14px;
+  --r-md:18px;
+  --r-lg:24px;
+  --serif:'Fraunces', Georgia, serif;
+  --sans:'Work Sans', 'Helvetica Neue', Arial, sans-serif;
+  --hand:'Caveat', cursive;
+  --ease:cubic-bezier(.22,.9,.3,1);
+  --wrap:1180px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;overflow-x:clip}
+body{
+  background:var(--cream);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:17px;
+  line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+::selection{background:var(--terra);color:var(--cream)}
+img{max-width:100%;display:block}
+a{color:var(--terra-deep)}
+:focus-visible{outline:3px solid var(--terra-deep);outline-offset:3px;border-radius:4px}
+
+.skip-link{
+  position:absolute;left:-9999px;top:14px;z-index:200;
+  background:var(--ink);color:var(--cream);padding:10px 20px;
+  border-radius:99px;font-weight:600;text-decoration:none;font-size:14px;
+}
+.skip-link:focus{left:14px}
+
+.wrap{max-width:var(--wrap);margin:0 auto;padding:0 24px}
+
+/* ---------- reveal ---------- */
+.rv{opacity:0;transform:translateY(26px);transition:opacity .9s var(--ease),transform .9s var(--ease)}
+.rv.in{opacity:1;transform:none}
+.rv-d1{transition-delay:.08s}.rv-d2{transition-delay:.16s}.rv-d3{transition-delay:.24s}
+.rv-d4{transition-delay:.32s}.rv-d5{transition-delay:.4s}.rv-d6{transition-delay:.48s}
+
+/* ---------- nav ---------- */
+.nav{
+  position:sticky;top:0;z-index:100;
+  background:rgba(250,245,236,.88);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line);
+}
+.nav-in{display:flex;align-items:center;justify-content:space-between;height:72px;gap:16px}
+.brand{display:flex;align-items:baseline;gap:10px;text-decoration:none;color:var(--ink)}
+.brand b{font-family:var(--serif);font-weight:700;font-size:24px;letter-spacing:.04em}
+.brand i{font-family:var(--serif);font-style:italic;font-weight:400;font-size:16px;color:var(--terra-deep)}
+.nav-links{display:flex;align-items:center;gap:26px}
+.nav-links a{
+  color:var(--ink);text-decoration:none;font-size:15px;font-weight:500;
+  border-bottom:2px solid transparent;padding:4px 0;transition:border-color .25s var(--ease),color .25s var(--ease);
+}
+.nav-links a:hover{color:var(--terra-deep);border-color:var(--terra)}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:9px;
+  padding:14px 28px;border-radius:99px;text-decoration:none;
+  font-weight:600;font-size:15.5px;letter-spacing:.01em;border:2px solid transparent;
+  transition:transform .3s var(--ease),box-shadow .3s var(--ease),background .3s var(--ease),color .3s var(--ease);
+  cursor:pointer;
+}
+.btn-terra{background:var(--terra);color:#FFF8EE;box-shadow:6px 8px 0 rgba(196,99,62,.16)}
+.btn-terra:hover{background:var(--terra-deep);transform:translateY(-2px);box-shadow:8px 12px 0 rgba(196,99,62,.20)}
+.btn-line{background:transparent;color:var(--ink);border-color:var(--ink)}
+.btn-line:hover{background:var(--ink);color:var(--cream);transform:translateY(-2px)}
+.btn-cream{background:var(--cream);color:var(--terra-deep)}
+.btn-cream:hover{background:#fff;transform:translateY(-2px)}
+.nav .btn{padding:10px 20px;font-size:14px}
+.nav-links .only-wide{display:inline}
+@media(max-width:920px){.nav-links a.only-wide{display:none}}
+@media(max-width:560px){.nav-links{gap:14px}.brand i{display:none}}
+
+/* ---------- hero ---------- */
+.hero{position:relative;padding:64px 0 40px;overflow:hidden}
+.hero-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:56px;align-items:center}
+.eyebrow{
+  display:inline-flex;align-items:center;gap:10px;
+  font-size:13px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--terra-deep);
+}
+.eyebrow::before{content:'';width:26px;height:2px;background:var(--terra);border-radius:2px}
+.hero h1{
+  font-family:var(--serif);
+  font-variation-settings:'SOFT' 100,'opsz' 120;
+  font-weight:560;
+  font-size:clamp(46px,7.2vw,92px);
+  line-height:1.02;
+  letter-spacing:-.01em;
+  margin:18px 0 22px;
+}
+.hero h1 em{font-style:italic;font-weight:480;color:var(--terra)}
+.hero-sub{max-width:52ch;font-size:clamp(17px,1.5vw,19px);color:var(--ink-soft)}
+.hero-sub strong{color:var(--ink);font-weight:600}
+.hero-actions{display:flex;flex-wrap:wrap;gap:14px;margin-top:30px}
+
+/* morning search */
+.morning-search{
+  margin-top:30px;background:var(--paper);
+  border:1.5px solid var(--line);border-radius:var(--r-md);
+  box-shadow:var(--sun-shadow);
+  padding:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:stretch;max-width:640px;
+}
+.ms-field{flex:1 1 150px;display:flex;flex-direction:column;gap:2px;padding:8px 12px;border-radius:12px;min-width:0}
+.ms-field:hover{background:var(--cream-2)}
+.ms-field label{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--terra-deep)}
+.ms-field input,.ms-field select{
+  border:0;background:transparent;font-family:var(--sans);font-size:15.5px;color:var(--ink);
+  padding:2px 0;min-width:0;width:100%;
+}
+.ms-field input::placeholder{color:var(--ink-soft);opacity:.7}
+.ms-field input:focus,.ms-field select:focus{outline:none}
+.ms-field:focus-within{background:var(--cream-2);box-shadow:inset 0 0 0 2px var(--terra)}
+.ms-go{
+  flex:0 0 auto;align-self:stretch;border:0;background:var(--terra);color:#FFF8EE;
+  border-radius:12px;padding:0 26px;font-family:var(--sans);font-weight:600;font-size:15px;
+  cursor:pointer;transition:background .25s var(--ease),transform .25s var(--ease);
+}
+.ms-go:hover{background:var(--terra-deep);transform:translateY(-1px)}
+
+/* hero stats */
+.hero-stats{display:flex;flex-wrap:wrap;gap:0;margin-top:38px;border-top:2px dotted rgba(196,99,62,.4);max-width:640px}
+.hstat{flex:1 1 130px;padding:18px 18px 0 0}
+.hstat b{display:block;font-family:var(--serif);font-weight:600;font-size:27px;color:var(--ink)}
+.hstat b sup{font-size:14px;color:var(--ochre-deep)}
+.hstat span{display:block;font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);margin-top:2px}
+
+/* hero arch scene */
+.hero-visual{position:relative}
+.arch-card{
+  position:relative;border-radius:50% 50% var(--r-lg) var(--r-lg) / 32% 32% var(--r-lg) var(--r-lg);
+  overflow:hidden;background:#DCEEF7;
+  border:10px solid var(--paper);
+  box-shadow:var(--sun-shadow-lift);
+  aspect-ratio:4/5.1;max-width:460px;margin-left:auto;
+}
+.arch-card svg{position:absolute;inset:0;width:100%;height:100%}
+.arch-caption{
+  font-family:var(--hand);font-size:22px;color:var(--ink-soft);
+  text-align:center;max-width:460px;margin:14px auto 0;transform:rotate(-1.2deg);
+}
+/* the big rotating sun */
+.sun{
+  position:absolute;top:-70px;right:-70px;width:230px;height:230px;
+  pointer-events:none;z-index:0;opacity:.9;
+}
+.sun svg{width:100%;height:100%;animation:sunspin 90s linear infinite;transform-origin:50% 50%}
+@keyframes sunspin{to{transform:rotate(360deg)}}
+/* laundry sway inside the scene */
+.laundry{animation:sway 6s ease-in-out infinite;transform-origin:top center}
+.laundry.l2{animation-delay:-2.4s}
+.laundry.l3{animation-delay:-4.1s}
+@keyframes sway{0%,100%{transform:rotate(-2.4deg)}50%{transform:rotate(2.4deg)}}
+
+@media(max-width:960px){
+  .hero-grid{grid-template-columns:1fr;gap:40px}
+  .arch-card{margin:0 auto;max-width:420px}
+  .sun{top:-56px;right:-56px;width:170px;height:170px}
+}
+
+/* ---------- awning divider ---------- */
+.awning{position:relative;height:32px;margin-top:14px;
+  background:repeating-linear-gradient(90deg,var(--terra) 0 44px,var(--cream-2) 44px 88px);
+}
+.awning.olive{background:repeating-linear-gradient(90deg,var(--olive) 0 44px,var(--cream-2) 44px 88px)}
+.awning::after{
+  content:'';position:absolute;top:100%;left:0;right:0;height:22px;
+  background-image:
+    radial-gradient(circle 22px at 22px 0,var(--terra) 96%,transparent 100%),
+    radial-gradient(circle 22px at 66px 0,var(--cream-2) 96%,transparent 100%);
+  background-size:88px 22px;background-repeat:repeat-x;
+}
+.awning.olive::after{
+  background-image:
+    radial-gradient(circle 22px at 22px 0,var(--olive) 96%,transparent 100%),
+    radial-gradient(circle 22px at 66px 0,var(--cream-2) 96%,transparent 100%);
+}
+
+/* dotted passeggiata connector between sections */
+.path-dots{width:3px;height:74px;margin:26px auto 0;
+  background:repeating-linear-gradient(180deg,rgba(196,99,62,.55) 0 5px,transparent 5px 14px);
+  border-radius:3px;
+}
+
+/* ---------- section scaffolding ---------- */
+section{padding:84px 0 72px}
+.sec-head{max-width:680px;margin-bottom:48px}
+.sec-head.center{margin-left:auto;margin-right:auto;text-align:center}
+.sec-head.center .eyebrow{justify-content:center}
+.sec-head.center .eyebrow::before{display:none}
+h2{
+  font-family:var(--serif);font-variation-settings:'SOFT' 100,'opsz' 90;
+  font-weight:560;font-size:clamp(32px,4.4vw,52px);line-height:1.08;margin:14px 0 14px;
+}
+h2 em{font-style:italic;color:var(--terra);font-weight:480}
+.sec-sub{color:var(--ink-soft);font-size:17.5px}
+
+/* ---------- live homes / polaroids ---------- */
+.homes-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:44px}
+.live-pill{
+  display:none;align-items:center;gap:8px;
+  font-size:12.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--olive-deep);background:rgba(107,127,79,.14);
+  border:1px solid rgba(107,127,79,.35);border-radius:99px;padding:7px 16px;
+}
+.live-pill.on{display:inline-flex}
+.live-pill i{width:8px;height:8px;border-radius:50%;background:var(--olive);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.72)}}
+.homes-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:34px}
+.polaroid{
+  display:block;text-decoration:none;color:var(--ink);
+  background:var(--paper);border-radius:var(--r-sm);
+  padding:12px 12px 16px;
+  box-shadow:var(--sun-shadow);
+  border:1px solid rgba(58,46,40,.08);
+  transition:transform .45s var(--ease),box-shadow .45s var(--ease);
+}
+.homes-grid .polaroid:nth-child(odd){transform:rotate(-1deg)}
+.homes-grid .polaroid:nth-child(even){transform:rotate(1.2deg)}
+.homes-grid .polaroid:hover{transform:rotate(0) translateY(-8px);box-shadow:var(--sun-shadow-lift)}
+.pol-img{
+  position:relative;aspect-ratio:4/3.1;border-radius:10px 10px 6px 6px;overflow:hidden;background:var(--cream-3);
+}
+.pol-img img{width:100%;height:100%;object-fit:cover;transition:transform .8s var(--ease)}
+.polaroid:hover .pol-img img{transform:scale(1.045)}
+.pol-badge{
+  position:absolute;top:10px;left:10px;background:rgba(255,253,247,.94);color:var(--terra-deep);
+  font-size:11.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  border-radius:99px;padding:5px 12px;display:inline-flex;align-items:center;gap:6px;
+}
+.pol-badge svg{width:12px;height:12px}
+.pol-body{padding:14px 6px 0}
+.pol-price{display:flex;align-items:baseline;gap:6px}
+.pol-price b{font-family:var(--serif);font-weight:620;font-size:24px}
+.pol-price span{font-size:13.5px;color:var(--ink-soft)}
+.pol-name{font-family:var(--serif);font-style:italic;font-weight:480;font-size:19px;color:var(--terra-deep);margin-top:2px}
+.pol-meta{font-size:13.5px;color:var(--ink-soft);margin-top:5px;letter-spacing:.03em}
+.pol-cap{font-family:var(--hand);font-size:19px;color:var(--ink-soft);margin-top:9px;line-height:1.25}
+.homes-cta{text-align:center;margin-top:46px}
+@media(max-width:900px){.homes-grid{grid-template-columns:repeat(2,1fr);gap:26px}}
+@media(max-width:600px){.homes-grid{grid-template-columns:1fr;gap:24px;max-width:400px;margin:0 auto}}
+
+/* ---------- morning routine (how it works) ---------- */
+.routine{position:relative}
+.routine-list{position:relative;max-width:760px;margin:0 auto;padding-left:44px}
+.routine-list::before{
+  content:'';position:absolute;left:13px;top:16px;bottom:34px;width:3px;
+  background:repeating-linear-gradient(180deg,rgba(196,99,62,.55) 0 5px,transparent 5px 14px);
+  border-radius:3px;
+}
+.step{position:relative;display:grid;grid-template-columns:88px 1fr;gap:26px;padding:26px 0;align-items:start}
+.step::before{
+  content:'';position:absolute;left:-38px;top:44px;width:15px;height:15px;border-radius:50%;
+  background:var(--cream);border:3.5px solid var(--terra);
+}
+.step-icon{
+  width:88px;height:88px;border-radius:50% 50% 18px 18px;
+  background:var(--paper);border:1.5px solid var(--line);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:10px 12px 0 rgba(201,151,28,.12);
+}
+.step-icon svg{width:46px;height:46px;stroke:var(--terra-deep);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.step-time{font-family:var(--hand);font-size:21px;color:var(--ochre-deep);display:block}
+.step h3{font-family:var(--serif);font-weight:580;font-size:24px;margin:2px 0 7px}
+.step h3 em{font-style:italic;color:var(--terra);font-weight:480}
+.step p{color:var(--ink-soft);max-width:52ch}
+.step p strong{color:var(--ink);font-weight:600}
+@media(max-width:640px){
+  .routine-list{padding-left:34px}
+  .step{grid-template-columns:1fr;gap:14px}
+  .step::before{left:-28px;top:36px}
+  .step-icon{width:72px;height:72px}
+  .step-icon svg{width:38px;height:38px}
+}
+
+/* ---------- zones ---------- */
+.zones-band{background:var(--cream-2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.zones-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:26px}
+.zone{
+  position:relative;display:block;text-decoration:none;color:var(--ink);
+  background:var(--paper);border:1.5px solid var(--line);
+  border-radius:50% 50% var(--r-md) var(--r-md) / 26% 26% var(--r-md) var(--r-md);
+  padding:44px 26px 26px;text-align:center;
+  transition:transform .4s var(--ease),box-shadow .4s var(--ease),border-color .4s var(--ease);
+}
+.zone:hover{transform:translateY(-7px);box-shadow:var(--sun-shadow-lift);border-color:rgba(196,99,62,.4)}
+.zone-sky{
+  width:96px;height:112px;margin:0 auto 18px;
+  border-radius:50% 50% 12px 12px / 42% 42% 12px 12px;
+  display:flex;align-items:center;justify-content:center;
+  border:1.5px solid rgba(58,46,40,.1);
+}
+.zone-sky svg{width:52px;height:52px;stroke:var(--ink);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.z1 .zone-sky{background:linear-gradient(180deg,#FBE3C6,#F6C79A)}
+.z2 .zone-sky{background:linear-gradient(180deg,#FDEBCB,#EFD39B)}
+.z3 .zone-sky{background:linear-gradient(180deg,#DCEEF7,#F4E3C8)}
+.z4 .zone-sky{background:linear-gradient(180deg,#F8DDC4,#EDB98F)}
+.z5 .zone-sky{background:linear-gradient(180deg,#E8EDD9,#F3E3BF)}
+.z6 .zone-sky{background:linear-gradient(180deg,#F6E7CE,#E9C9A2)}
+.zone h3{font-family:var(--serif);font-weight:600;font-size:23px}
+.zone p{font-family:var(--serif);font-style:italic;font-size:16.5px;color:var(--ink-soft);margin-top:6px;line-height:1.5}
+.zone span{
+  display:inline-block;margin-top:16px;font-size:13px;font-weight:600;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--terra-deep);
+  border-bottom:2px dotted rgba(196,99,62,.5);padding-bottom:2px;
+}
+@media(max-width:900px){.zones-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.zones-grid{grid-template-columns:1fr;max-width:380px;margin:0 auto}}
+
+/* ---------- menu del giorno (services) ---------- */
+.menu-wrap{display:grid;grid-template-columns:1fr;justify-items:center}
+.menu-card{
+  width:100%;max-width:760px;background:var(--paper);
+  border:1.5px solid var(--line);border-radius:var(--r-lg);
+  box-shadow:var(--sun-shadow);
+  padding:14px;
+}
+.menu-inner{border:2px solid rgba(196,99,62,.35);border-radius:calc(var(--r-lg) - 8px);padding:46px clamp(22px,6vw,64px) 42px}
+.menu-top{text-align:center;margin-bottom:34px}
+.menu-top .menu-orn{display:flex;align-items:center;justify-content:center;gap:14px;color:var(--terra);margin-bottom:12px}
+.menu-orn::before,.menu-orn::after{content:'';height:2px;width:52px;background:repeating-linear-gradient(90deg,var(--terra) 0 5px,transparent 5px 11px)}
+.menu-orn svg{width:34px;height:34px;stroke:var(--terra-deep);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.menu-top h2{font-size:clamp(30px,4vw,42px);margin:0}
+.menu-top p{font-family:var(--serif);font-style:italic;color:var(--ink-soft);margin-top:8px;font-size:17px}
+.menu-item{display:block;text-decoration:none;color:var(--ink);padding:20px 0;border-top:1.5px dotted rgba(58,46,40,.22)}
+.menu-item:first-of-type{border-top:0}
+.mi-row{display:flex;align-items:baseline;gap:12px}
+.mi-name{font-family:var(--serif);font-weight:600;font-size:21px;white-space:nowrap;transition:color .25s var(--ease)}
+.menu-item:hover .mi-name{color:var(--terra-deep)}
+.mi-dots{flex:1;border-bottom:2.5px dotted rgba(196,99,62,.5);transform:translateY(-5px);min-width:24px}
+.mi-price{font-family:var(--serif);font-weight:620;font-size:21px;color:var(--terra-deep);white-space:nowrap}
+.mi-price small{font-size:13px;color:var(--ink-soft);font-family:var(--sans);font-weight:500}
+.mi-desc{margin-top:6px;font-size:15px;color:var(--ink-soft);max-width:58ch}
+.mi-note{font-family:var(--hand);font-size:18px;color:var(--olive-deep)}
+.menu-foot{
+  margin-top:30px;padding-top:22px;border-top:1.5px dotted rgba(58,46,40,.22);
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center;text-align:center;
+  font-family:var(--serif);font-style:italic;font-size:16px;color:var(--ink-soft);
+}
+.menu-foot b{color:var(--olive-deep);font-style:normal;font-family:var(--sans);font-size:13px;letter-spacing:.12em;text-transform:uppercase;font-weight:600}
+
+/* ---------- founder / human ---------- */
+.founder{background:var(--terra);color:#FFF3E6;position:relative;overflow:hidden}
+.founder::before{
+  content:'';position:absolute;inset:0;opacity:.35;pointer-events:none;
+  background:
+    radial-gradient(circle 400px at 88% -10%,rgba(255,220,160,.5),transparent 70%),
+    radial-gradient(circle 500px at -6% 110%,rgba(120,45,20,.5),transparent 70%);
+}
+.founder .wrap{position:relative}
+.founder-grid{display:grid;grid-template-columns:1fr auto;gap:48px;align-items:center}
+.founder blockquote{
+  font-family:var(--serif);font-variation-settings:'SOFT' 100,'opsz' 80;
+  font-weight:500;font-style:italic;font-size:clamp(26px,3.6vw,42px);line-height:1.22;
+  max-width:20ch;
+}
+.founder blockquote::before{content:'\201C';color:#FFD9A8}
+.founder blockquote::after{content:'\201D';color:#FFD9A8}
+.founder-by{margin-top:20px;font-size:15px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;color:#FFDFB8}
+.founder-side{max-width:330px}
+.founder-side p{font-size:17px;line-height:1.6;color:#FFEBD6}
+.founder-side p strong{color:#fff}
+.founder-side .btn{margin-top:22px}
+.wa-dot{width:9px;height:9px;border-radius:50%;background:#4E7A3A;box-shadow:0 0 0 4px rgba(78,122,58,.25)}
+.btn-cream .wa-dot{animation:pulse 2s ease-in-out infinite}
+@media(max-width:820px){.founder-grid{grid-template-columns:1fr;gap:34px}}
+
+/* ---------- final CTA ---------- */
+.finale{text-align:center;padding:110px 0 96px;position:relative}
+.finale h2{font-size:clamp(38px,6vw,72px)}
+.finale .sub{font-size:clamp(17px,2vw,21px);color:var(--ink-soft);max-width:46ch;margin:16px auto 0}
+.finale-actions{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:36px}
+.finale-sun{width:64px;height:64px;margin:0 auto 22px}
+.finale-sun svg{width:100%;height:100%;animation:sunspin 60s linear infinite;transform-origin:50% 50%}
+
+/* ---------- footer ---------- */
+footer{background:var(--ink);color:#D8CCC2;padding:56px 0 40px;font-size:14px}
+.foot-grid{display:flex;justify-content:space-between;gap:32px;flex-wrap:wrap;align-items:flex-start}
+.foot-brand b{font-family:var(--serif);font-size:22px;color:var(--cream);letter-spacing:.04em}
+.foot-brand p{font-family:var(--hand);font-size:20px;color:#C9971C;margin-top:4px}
+.foot-links{display:flex;gap:26px;flex-wrap:wrap}
+.foot-links a{color:#EFE6DC;text-decoration:none;border-bottom:1px dotted rgba(239,230,220,.4);padding-bottom:1px}
+.foot-links a:hover{color:#fff;border-color:#fff}
+.foot-legal{margin-top:34px;padding-top:22px;border-top:1px solid rgba(239,230,220,.14);color:#B5A79B;font-size:13px;line-height:1.8}
+
+/* ---------- reduced motion ---------- */
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  .rv{opacity:1;transform:none}
+  .homes-grid .polaroid:nth-child(odd),.homes-grid .polaroid:nth-child(even){transform:none}
+}
+</style>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<!-- ======================= NAV ======================= -->
+<nav class="nav" aria-label="Main navigation">
+  <div class="wrap nav-in">
+    <a href="/" class="brand" aria-label="BOOM Rome home">
+      <b>BOOM</b><i>mattina romana</i>
+    </a>
+    <div class="nav-links">
+      <a href="#homes" class="only-wide">This week's homes</a>
+      <a href="#routine" class="only-wide">The routine</a>
+      <a href="#menu" class="only-wide">Menu</a>
+      <a href="#zones" class="only-wide">Zones</a>
+      <a href="https://wa.me/393313251961" target="_blank" rel="noopener" class="btn btn-terra">WhatsApp us</a>
+    </div>
+  </div>
+</nav>
+
+<main id="main">
+
+<!-- ======================= HERO ======================= -->
+<section class="hero" aria-label="Wake up in Rome">
+  <div class="sun" aria-hidden="true">
+    <svg viewBox="0 0 200 200" role="presentation">
+      <g stroke="#C9971C" stroke-width="3" stroke-linecap="round" fill="none">
+        <path d="M100 8 L100 30"/><path d="M100 170 L100 192"/>
+        <path d="M8 100 L30 100"/><path d="M170 100 L192 100"/>
+        <path d="M35 35 Q42 40 46 46"/><path d="M165 35 Q158 40 154 46"/>
+        <path d="M35 165 Q42 160 46 154"/><path d="M165 165 Q158 160 154 154"/>
+        <path d="M65 14 Q68 24 71 30"/><path d="M135 14 Q132 24 129 30"/>
+        <path d="M65 186 Q68 176 71 170"/><path d="M135 186 Q132 176 129 170"/>
+        <path d="M14 65 Q24 68 30 71"/><path d="M14 135 Q24 132 30 129"/>
+        <path d="M186 65 Q176 68 170 71"/><path d="M186 135 Q176 132 170 129"/>
+      </g>
+      <circle cx="100" cy="100" r="42" fill="#E9B93B"/>
+      <circle cx="100" cy="100" r="42" fill="none" stroke="#C9971C" stroke-width="3"/>
+    </svg>
+  </div>
+
+  <div class="wrap hero-grid">
+    <div>
+      <span class="eyebrow rv">Buongiorno · Premium rentals in Rome</span>
+      <h1 class="rv rv-d1">Wake up<br>in <em>Rome.</em></h1>
+      <p class="hero-sub rv rv-d2">
+        Morning light through tall shutters. Church bells, somewhere close.
+        The bar downstairs knows your order by Friday.
+        We find you the home that comes with all of it —
+        <strong>video-verified, legal contract explained in English, keys in 48 hours.</strong>
+      </p>
+
+      <form class="morning-search rv rv-d3" action="/apartments.html" method="get" role="search" aria-label="Search homes in Rome">
+        <div class="ms-field">
+          <label for="msQ">Where</label>
+          <input type="text" id="msQ" name="q" placeholder="Trastevere, Monti…" autocomplete="off">
+        </div>
+        <div class="ms-field">
+          <label for="msBudget">Budget</label>
+          <select id="msBudget" name="budget">
+            <option value="">Any</option>
+            <option value="1200">Up to €1,200</option>
+            <option value="1600">Up to €1,600</option>
+            <option value="2000">Up to €2,000</option>
+            <option value="2600">Up to €2,600</option>
+          </select>
+        </div>
+        <div class="ms-field">
+          <label for="msIn">Move-in</label>
+          <input type="date" id="msIn" name="in">
+        </div>
+        <button type="submit" class="ms-go">Find my morning</button>
+      </form>
+
+      <div class="hero-actions rv rv-d4">
+        <a class="btn btn-line" href="/apartments.html">Browse all homes</a>
+      </div>
+
+      <div class="hero-stats rv rv-d5" role="list" aria-label="BOOM key numbers">
+        <div class="hstat" role="listitem"><b>4.9<sup>★</sup></b><span>Google · 47 reviews</span></div>
+        <div class="hstat" role="listitem"><b>500+</b><span>tenants placed</span></div>
+        <div class="hstat" role="listitem"><b>48h</b><span>to your keys</span></div>
+        <div class="hstat" role="listitem"><b>€0</b><span>hidden fees</span></div>
+      </div>
+    </div>
+
+    <div class="hero-visual rv rv-d3">
+      <div class="arch-card" role="img" aria-label="Illustration of a Roman morning: sun rising over terracotta rooftops, a bell tower, and laundry drying on a line between windows">
+        <svg viewBox="0 0 400 510" preserveAspectRatio="xMidYMax slice" role="presentation">
+          <!-- sky -->
+          <defs>
+            <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#CFE7F4"/>
+              <stop offset=".55" stop-color="#F6E3BC"/>
+              <stop offset="1" stop-color="#F3C892"/>
+            </linearGradient>
+          </defs>
+          <rect width="400" height="510" fill="url(#sky)"/>
+          <!-- low sun -->
+          <circle cx="118" cy="252" r="46" fill="#E9B93B" opacity=".95"/>
+          <circle cx="118" cy="252" r="62" fill="#E9B93B" opacity=".22"/>
+          <!-- distant dome (St Peter's silhouette shape, generic) -->
+          <g fill="#D89A6A" opacity=".55">
+            <path d="M262 262 q28 -40 56 0 l0 34 l-56 0 Z"/>
+            <rect x="284" y="236" width="12" height="18" rx="3"/>
+            <rect x="252" y="292" width="76" height="14"/>
+          </g>
+          <!-- rooftop band 1 -->
+          <g fill="#CE7B4C">
+            <path d="M0 330 L70 300 L140 330 Z"/>
+            <path d="M120 336 L210 296 L300 336 Z"/>
+            <path d="M280 332 L345 302 L410 332 Z"/>
+            <rect x="0" y="328" width="400" height="40"/>
+          </g>
+          <!-- bell tower -->
+          <g>
+            <rect x="318" y="196" width="46" height="140" fill="#E3AE7B"/>
+            <path d="M312 196 L341 172 L370 196 Z" fill="#B85B33"/>
+            <path d="M330 214 a11 11 0 0 1 22 0 l0 22 l-22 0 Z" fill="#8A4526"/>
+            <path d="M341 218 a5 5 0 0 1 5 5 l-10 0 a5 5 0 0 1 5 -5 Z" fill="#E9B93B"/>
+            <rect x="330" y="258" width="22" height="30" rx="10" fill="#8A4526" opacity=".7"/>
+          </g>
+          <!-- facade -->
+          <rect x="0" y="360" width="400" height="150" fill="#E8B784"/>
+          <rect x="0" y="360" width="400" height="8" fill="#C97A48"/>
+          <!-- windows with shutters -->
+          <g>
+            <g transform="translate(40,392)">
+              <rect x="0" y="0" width="52" height="86" rx="26" fill="#7A5A40"/>
+              <rect x="6" y="6" width="40" height="74" rx="20" fill="#FBE8C4"/>
+              <line x1="26" y1="6" x2="26" y2="80" stroke="#7A5A40" stroke-width="3"/>
+              <rect x="-14" y="8" width="12" height="72" rx="4" fill="#6B7F4F"/>
+              <rect x="54" y="8" width="12" height="72" rx="4" fill="#6B7F4F"/>
+            </g>
+            <g transform="translate(174,392)">
+              <rect x="0" y="0" width="52" height="86" rx="26" fill="#7A5A40"/>
+              <rect x="6" y="6" width="40" height="74" rx="20" fill="#FBE8C4"/>
+              <line x1="26" y1="6" x2="26" y2="80" stroke="#7A5A40" stroke-width="3"/>
+              <rect x="-14" y="8" width="12" height="72" rx="4" fill="#6B7F4F"/>
+              <rect x="54" y="8" width="12" height="72" rx="4" fill="#6B7F4F"/>
+            </g>
+            <g transform="translate(308,392)">
+              <rect x="0" y="0" width="52" height="86" rx="26" fill="#7A5A40"/>
+              <rect x="6" y="6" width="40" height="74" rx="20" fill="#FBE8C4"/>
+              <line x1="26" y1="6" x2="26" y2="80" stroke="#7A5A40" stroke-width="3"/>
+              <rect x="-14" y="8" width="12" height="72" rx="4" fill="#6B7F4F"/>
+            </g>
+          </g>
+          <!-- laundry line -->
+          <path d="M96 404 Q200 428 300 404" fill="none" stroke="#5C4636" stroke-width="2.5"/>
+          <g class="laundry"><g transform="translate(136,412)">
+            <rect x="-11" y="0" width="22" height="30" rx="5" fill="#F3F0E4"/>
+            <circle cx="0" cy="-1" r="3" fill="#5C4636"/>
+          </g></g>
+          <g class="laundry l2"><g transform="translate(198,420)">
+            <path d="M-12 0 L12 0 L8 34 L-8 34 Z" fill="#C4633E" opacity=".85"/>
+            <circle cx="0" cy="-1" r="3" fill="#5C4636"/>
+          </g></g>
+          <g class="laundry l3"><g transform="translate(258,414)">
+            <rect x="-10" y="0" width="20" height="26" rx="5" fill="#A9BC8B"/>
+            <circle cx="0" cy="-1" r="3" fill="#5C4636"/>
+          </g></g>
+          <!-- swifts -->
+          <g stroke="#6B5D52" stroke-width="2.4" fill="none" stroke-linecap="round">
+            <path d="M78 120 q7 -8 14 0 q7 -8 14 0"/>
+            <path d="M180 92 q6 -7 12 0 q6 -7 12 0"/>
+            <path d="M132 154 q5 -6 10 0 q5 -6 10 0"/>
+          </g>
+        </svg>
+      </div>
+      <p class="arch-caption">la prima mattina a casa tua — your first morning home</p>
+    </div>
+  </div>
+</section>
+
+<div class="awning" aria-hidden="true"></div>
+
+<!-- ======================= LIVE HOMES ======================= -->
+<section id="homes" aria-label="Homes available now">
+  <div class="wrap">
+    <div class="homes-head">
+      <div class="sec-head rv" style="margin-bottom:0">
+        <span class="eyebrow">Sfornate stamattina</span>
+        <h2>Fresh out <em>this morning</em></h2>
+        <p class="sec-sub">Every home filmed and verified in person by us — what you see is exactly what you unlock. Move in this week.</p>
+      </div>
+      <span class="live-pill" id="livePill"><i aria-hidden="true"></i>Live from the market</span>
+    </div>
+
+    <div class="homes-grid rv rv-d1" id="homesGrid">
+      <a class="polaroid" href="/apartments.html">
+        <div class="pol-img">
+          <img src="https://i.imgur.com/QOAu6k1.jpeg" alt="Villa Ada Studio — bright studio apartment near Villa Ada park" loading="lazy">
+          <span class="pol-badge"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Video verified</span>
+        </div>
+        <div class="pol-body">
+          <div class="pol-price"><b>€1,200</b><span>/month</span></div>
+          <div class="pol-name">Villa Ada Studio</div>
+          <div class="pol-meta">40m² · 1 bed · park at the corner</div>
+          <p class="pol-cap">quiet green mornings, coffee on the sill</p>
+        </div>
+      </a>
+      <a class="polaroid" href="/apartments.html">
+        <div class="pol-img">
+          <img src="https://i.imgur.com/tJnYADn.jpeg" alt="Pigneto Terrace — two-bedroom apartment with a private terrace in Pigneto" loading="lazy">
+          <span class="pol-badge"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Video verified</span>
+        </div>
+        <div class="pol-body">
+          <div class="pol-price"><b>€1,700</b><span>/month</span></div>
+          <div class="pol-name">Pigneto Terrace</div>
+          <div class="pol-meta">80m² · 2 bed · your own terrace</div>
+          <p class="pol-cap">breakfast outside, ten months a year</p>
+        </div>
+      </a>
+      <a class="polaroid" href="/apartments.html">
+        <div class="pol-img">
+          <img src="https://i.imgur.com/8LVxrhs.jpeg" alt="Coronari Classic — one-bedroom apartment on Via dei Coronari in the historic centre" loading="lazy">
+          <span class="pol-badge"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Video verified</span>
+        </div>
+        <div class="pol-body">
+          <div class="pol-price"><b>€2,000</b><span>/month</span></div>
+          <div class="pol-name">Coronari Classic</div>
+          <div class="pol-meta">70m² · 1 bed · historic centre</div>
+          <p class="pol-cap">cobbles gold before the crowds arrive</p>
+        </div>
+      </a>
+    </div>
+
+    <div class="homes-cta rv">
+      <a class="btn btn-terra" href="/apartments.html">See every home available now</a>
+    </div>
+  </div>
+  <div class="path-dots" aria-hidden="true"></div>
+</section>
+
+<!-- ======================= MORNING ROUTINE ======================= -->
+<section id="routine" class="routine" aria-label="How it works — your new morning routine">
+  <div class="wrap">
+    <div class="sec-head center rv">
+      <span class="eyebrow">How it works</span>
+      <h2>Renting, as easy as a <em>morning routine</em></h2>
+      <p class="sec-sub">Four small rituals between “I need a place in Rome” and “this is my place in Rome.”</p>
+    </div>
+
+    <div class="routine-list">
+      <div class="step rv">
+        <div class="step-icon" aria-hidden="true">
+          <!-- arched window, shutters open -->
+          <svg viewBox="0 0 32 32"><path d="M9 27 V13 a7 7 0 0 1 14 0 V27"/><path d="M7 27 h18"/><path d="M16 7.5 V27"/><path d="M9 16 h14"/><path d="M6.5 12 L3.5 10.5 V24"/><path d="M25.5 12 L28.5 10.5 V24"/></svg>
+        </div>
+        <div>
+          <span class="step-time">07:12 — shutters open</span>
+          <h3>We open the place <em>in person.</em></h3>
+          <p>Before a home ever reaches you, we've stood in it with a camera. <strong>Video-verified, on-site</strong> — the light, the noise, the water pressure. No surprises on arrival day.</p>
+        </div>
+      </div>
+
+      <div class="step rv">
+        <div class="step-icon" aria-hidden="true">
+          <!-- moka pot -->
+          <svg viewBox="0 0 32 32"><path d="M11 4 h10 l1.5 8 h-13 Z"/><path d="M10 20 l-1.5 8 h15 L22 20 Z"/><path d="M10.5 12 h11 l.8 4 a2.5 2.5 0 0 1 -2.5 4 h-7.6 a2.5 2.5 0 0 1 -2.5 -4 Z" fill="none"/><path d="M22.5 14 q5 0 4 6 l-3 0"/><path d="M14.5 8 h3"/></svg>
+        </div>
+        <div>
+          <span class="step-time">07:40 — while the moka gurgles</span>
+          <h3>Apply in <em>two minutes.</em></h3>
+          <p>One short form, from your phone, wherever in the world your morning is. A <strong>real human answers on WhatsApp — usually in minutes</strong>, not ticket numbers.</p>
+        </div>
+      </div>
+
+      <div class="step rv">
+        <div class="step-icon" aria-hidden="true">
+          <!-- phone with signature -->
+          <svg viewBox="0 0 32 32"><rect x="9" y="3" width="14" height="26" rx="3.5"/><path d="M12 20 q2 -4 3.4 -1.2 q1.2 2.4 2.6 -.8 q1 -2.2 2 .6"/><path d="M14 6 h4"/></svg>
+        </div>
+        <div>
+          <span class="step-time">08:05 — before the foam settles</span>
+          <h3>Sign legally, <em>from your phone.</em></h3>
+          <p>A real Italian contract — <strong>explained in plain English</strong>, clause by clause — signed from your phone with our Magic Sign flow. Registered, protected, done.</p>
+        </div>
+      </div>
+
+      <div class="step rv">
+        <div class="step-icon" aria-hidden="true">
+          <!-- key -->
+          <svg viewBox="0 0 32 32"><circle cx="11" cy="12" r="6"/><circle cx="11" cy="12" r="2"/><path d="M15.5 16.5 L27 28"/><path d="M22 23 l3.5 -3.5"/><path d="M25 26 l3 -3"/></svg>
+        </div>
+        <div>
+          <span class="step-time">two mornings later</span>
+          <h3>Keys in <em>48 hours.</em></h3>
+          <p>From yes to your own front door in two days. <strong>€0 hidden fees</strong> — the price on the listing is the price on the contract. Then the only task left is choosing your bar.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="path-dots" aria-hidden="true"></div>
+</section>
+
+<div class="awning olive" aria-hidden="true"></div>
+
+<!-- ======================= ZONES ======================= -->
+<section id="zones" class="zones-band" aria-label="Rome neighbourhoods by their mornings">
+  <div class="wrap">
+    <div class="sec-head center rv">
+      <span class="eyebrow">Pick a morning</span>
+      <h2>Every quartiere wakes up <em>differently</em></h2>
+      <p class="sec-sub">Don't choose a neighbourhood. Choose the morning you want to wake up inside.</p>
+    </div>
+
+    <div class="zones-grid">
+      <a class="zone z1 rv" href="/apartments.html?q=Trastevere">
+        <div class="zone-sky" aria-hidden="true">
+          <!-- bell -->
+          <svg viewBox="0 0 32 32"><path d="M16 5 a8 8 0 0 1 8 8 v6 l2.5 4 h-21 L8 19 v-6 a8 8 0 0 1 8 -8 Z"/><path d="M13 26 a3 3 0 0 0 6 0"/><path d="M16 3 v2"/></svg>
+        </div>
+        <h3>Trastevere</h3>
+        <p>Bells and bakery smell; ivy dripping over ochre walls before the lanes fill up.</p>
+        <span>Homes in Trastevere</span>
+      </a>
+      <a class="zone z2 rv rv-d1" href="/apartments.html?q=Monti">
+        <div class="zone-sky" aria-hidden="true">
+          <!-- espresso cup -->
+          <svg viewBox="0 0 32 32"><path d="M7 12 h16 v6 a8 8 0 0 1 -16 0 Z"/><path d="M23 13 q5 0 4 5 l-4.4 .8"/><path d="M5 28 h20"/><path d="M12 8 q-1.4 -2 0 -4 M17 8 q-1.4 -2 0 -4"/></svg>
+        </div>
+        <h3>Monti</h3>
+        <p>Vintage shutters rolling up one by one; espresso at the counter, standing, like a local.</p>
+        <span>Homes in Monti</span>
+      </a>
+      <a class="zone z3 rv rv-d2" href="/apartments.html?q=Prati">
+        <div class="zone-sky" aria-hidden="true">
+          <!-- orange-tree branch -->
+          <svg viewBox="0 0 32 32"><path d="M6 27 Q14 18 26 6"/><circle cx="13" cy="17" r="3.2"/><circle cx="21" cy="11" r="3.2"/><path d="M17 21 q4 .5 5 4 M11 12 q-4 -.5 -5 -4"/></svg>
+        </div>
+        <h3>Prati</h3>
+        <p>Orderly streets under orange trees; a cappuccino that arrives exactly right, every time.</p>
+        <span>Homes in Prati</span>
+      </a>
+      <a class="zone z4 rv rv-d3" href="/apartments.html?q=Testaccio">
+        <div class="zone-sky" aria-hidden="true">
+          <!-- market awning stall -->
+          <svg viewBox="0 0 32 32"><path d="M5 12 L27 12 L25 6 L7 6 Z"/><path d="M9.5 12 L9 6 M14.5 12 L14 6 M19.5 12 L20 6 M24.5 12 L25 6"/><path d="M6.5 12 V27 M25.5 12 V27"/><path d="M6.5 20 h19"/><circle cx="12" cy="24" r="1.6"/><circle cx="17" cy="24" r="1.6"/></svg>
+        </div>
+        <h3>Testaccio</h3>
+        <p>The market yawning open at seven; crates of tomatoes, the honest Rome of Romans.</p>
+        <span>Homes in Testaccio</span>
+      </a>
+      <a class="zone z5 rv rv-d4" href="/apartments.html?q=Pigneto">
+        <div class="zone-sky" aria-hidden="true">
+          <!-- bicycle -->
+          <svg viewBox="0 0 32 32"><circle cx="8.5" cy="21" r="5.5"/><circle cx="23.5" cy="21" r="5.5"/><path d="M8.5 21 L13 11 h7 M13 11 L16.5 21 L23.5 21 L19.5 11.5"/><path d="M18 11 h4"/><path d="M11.5 10.5 h3"/></svg>
+        </div>
+        <h3>Pigneto</h3>
+        <p>Bicycles, murals, third-wave coffee; the young Rome that stays out late and sleeps in.</p>
+        <span>Homes in Pigneto</span>
+      </a>
+      <a class="zone z6 rv rv-d5" href="/apartments.html?q=Centro%20Storico">
+        <div class="zone-sky" aria-hidden="true">
+          <!-- arched doorway -->
+          <svg viewBox="0 0 32 32"><path d="M8 28 V14 a8 8 0 0 1 16 0 V28"/><path d="M5 28 h22"/><path d="M11 28 V16 a5 5 0 0 1 10 0 V28"/><circle cx="18.5" cy="21.5" r="1.1"/></svg>
+        </div>
+        <h3>Centro Storico</h3>
+        <p>Cobblestones turning gold an hour before the crowds; two thousand years outside your door.</p>
+        <span>Homes in the Centre</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= MENU DEL GIORNO ======================= -->
+<section id="menu" aria-label="Services and prices — menu del giorno">
+  <div class="wrap menu-wrap">
+    <div class="sec-head center rv">
+      <span class="eyebrow">Services · honest prices</span>
+      <h2>Il menu <em>del giorno</em></h2>
+      <p class="sec-sub">Order what you need, skip what you don't. Prices printed on the menu — never scribbled on the bill.</p>
+    </div>
+
+    <div class="menu-card rv rv-d1">
+      <div class="menu-inner">
+        <div class="menu-top">
+          <div class="menu-orn" aria-hidden="true">
+            <svg viewBox="0 0 32 32"><path d="M11 4 h10 l1.5 8 h-13 Z"/><path d="M10 20 l-1.5 8 h15 L22 20 Z"/><path d="M10.5 12 h11 l.8 4 a2.5 2.5 0 0 1 -2.5 4 h-7.6 a2.5 2.5 0 0 1 -2.5 -4 Z"/><path d="M22.5 14 q5 0 4 6 l-3 0"/></svg>
+          </div>
+          <h2>Menu del giorno</h2>
+          <p>servito tutti i giorni — served every day, keys included</p>
+        </div>
+
+        <a class="menu-item" href="/apartments.html">
+          <div class="mi-row">
+            <span class="mi-name">Ready apartments</span>
+            <span class="mi-dots" aria-hidden="true"></span>
+            <span class="mi-price">from €1,000<small>/mo</small></span>
+          </div>
+          <p class="mi-desc">The house specialty. Video-verified homes ready to move into — pick one this morning, hold the keys in 48 hours.</p>
+        </a>
+
+        <a class="menu-item" href="/property-finding.html">
+          <div class="mi-row">
+            <span class="mi-name">Property finding</span>
+            <span class="mi-dots" aria-hidden="true"></span>
+            <span class="mi-price">€350<small> upfront</small></span>
+          </div>
+          <p class="mi-desc">We hunt the whole Rome market for your exact brief. <span class="mi-note">deducted from your first deal — refunded if we fail</span></p>
+        </a>
+
+        <a class="menu-item" href="/deal-assistance.html">
+          <div class="mi-row">
+            <span class="mi-name">Deal assistance</span>
+            <span class="mi-dots" aria-hidden="true"></span>
+            <span class="mi-price">€249<small> fixed</small></span>
+          </div>
+          <p class="mi-desc">Found a place on your own? We negotiate, check the contract, and explain every clause in English before you sign anything.</p>
+        </a>
+
+        <a class="menu-item" href="/virtual-viewing.html">
+          <div class="mi-row">
+            <span class="mi-name">Virtual viewing</span>
+            <span class="mi-dots" aria-hidden="true"></span>
+            <span class="mi-price">€89</span>
+          </div>
+          <p class="mi-desc">Still abroad? We walk the apartment live on video — honest commentary, your questions answered on the spot.</p>
+        </a>
+
+        <a class="menu-item" href="/concierge.html">
+          <div class="mi-row">
+            <span class="mi-name">Concierge</span>
+            <span class="mi-dots" aria-hidden="true"></span>
+            <span class="mi-price"><small>chiedi al banco</small></span>
+          </div>
+          <p class="mi-desc">Ask at the counter — codice fiscale, utilities, the small Italian puzzles of settling in. We handle them over WhatsApp.</p>
+        </a>
+
+        <div class="menu-foot">
+          <b>Coperto: €0</b>
+          <span>no cover charge, no hidden fees — the price you read is the price you pay.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="path-dots" aria-hidden="true"></div>
+</section>
+
+<!-- ======================= FOUNDER ======================= -->
+<section class="founder" aria-label="A word from the founder">
+  <div class="wrap">
+    <div class="founder-grid">
+      <div class="rv">
+        <blockquote>If we can fix Rome's rental market, we can fix any market.</blockquote>
+        <p class="founder-by">— Valentino, Founder</p>
+      </div>
+      <div class="founder-side rv rv-d2">
+        <p>Behind the sunny copy is a stubborn operation: our radar scans the market <strong>every 15 minutes</strong>, and a <strong>real human answers your WhatsApp — usually within minutes.</strong> Say buongiorno and test us.</p>
+        <a class="btn btn-cream" href="https://wa.me/393313251961" target="_blank" rel="noopener">
+          <span class="wa-dot" aria-hidden="true"></span>Message Valentino's team
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= FINAL CTA ======================= -->
+<section class="finale" aria-label="Start now">
+  <div class="wrap">
+    <div class="finale-sun rv" aria-hidden="true">
+      <svg viewBox="0 0 200 200" role="presentation">
+        <g stroke="#C9971C" stroke-width="6" stroke-linecap="round" fill="none">
+          <path d="M100 10 L100 34"/><path d="M100 166 L100 190"/>
+          <path d="M10 100 L34 100"/><path d="M166 100 L190 100"/>
+          <path d="M37 37 L54 54"/><path d="M163 37 L146 54"/>
+          <path d="M37 163 L54 146"/><path d="M163 163 L146 146"/>
+        </g>
+        <circle cx="100" cy="100" r="44" fill="#E9B93B" stroke="#C9971C" stroke-width="6"/>
+      </svg>
+    </div>
+    <h2 class="rv rv-d1">Il tuo buongiorno<br><em>ti aspetta.</em></h2>
+    <p class="sub rv rv-d2">Your Roman morning is waiting. Tell us when you land — we'll have the coffee side of things ready in 48 hours.</p>
+    <div class="finale-actions rv rv-d3">
+      <a class="btn btn-terra" href="/apartments.html">Find my home</a>
+      <a class="btn btn-line" href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp us now</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ======================= FOOTER ======================= -->
+<footer aria-label="Company information">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <b>BOOM</b>
+        <p>mattina romana — concept</p>
+      </div>
+      <nav class="foot-links" aria-label="Footer navigation">
+        <a href="/apartments.html">Apartments</a>
+        <a href="/property-finding.html">Property Finding</a>
+        <a href="/deal-assistance.html">Deal Assistance</a>
+        <a href="/virtual-viewing.html">Virtual Viewing</a>
+        <a href="/concierge.html">Concierge</a>
+        <a href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a>
+      </nav>
+    </div>
+    <div class="foot-legal">
+      Egidi Immobiliare S.r.l. · Via dei Coronari 181/184, 00186 Roma ·
+      Sede legale: Viale Liegi 42, 00198 Roma · P.IVA 17322991005 · REA RM-1710623<br>
+      4.9★ on Google from 47 reviews · 500+ tenants placed · €0 hidden fees.
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  'use strict';
+
+  var reduceMotion = false;
+  try{
+    reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }catch(e){}
+
+  /* ---------- escape helper (mandatory) ---------- */
+  var esc = function(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  };
+
+  /* ---------- reveal on scroll ---------- */
+  var rvEls = document.querySelectorAll('.rv');
+  if(reduceMotion || !('IntersectionObserver' in window)){
+    rvEls.forEach(function(el){ el.classList.add('in'); });
+  }else{
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(en){
+        if(en.isIntersecting){
+          en.target.classList.add('in');
+          io.unobserve(en.target);
+        }
+      });
+    }, { rootMargin:'0px 0px -8% 0px', threshold:0.08 });
+    rvEls.forEach(function(el){ io.observe(el); });
+  }
+
+  /* ---------- gentle awning parallax ---------- */
+  if(!reduceMotion){
+    var awnings = Array.prototype.slice.call(document.querySelectorAll('.awning'));
+    if(awnings.length){
+      var ticking = false;
+      var onScroll = function(){
+        if(ticking) return;
+        ticking = true;
+        window.requestAnimationFrame(function(){
+          var y = window.scrollY || window.pageYOffset || 0;
+          awnings.forEach(function(a, i){
+            var shift = ((y * 0.04) + i * 22) % 88;
+            a.style.backgroundPositionX = (-shift) + 'px';
+          });
+          ticking = false;
+        });
+      };
+      window.addEventListener('scroll', onScroll, { passive:true });
+      onScroll();
+    }
+  }
+
+  /* ---------- morning-thoughts captions for live cards ---------- */
+  var CAPS = [
+    'morning light included, no extra charge',
+    'the bar downstairs is very good',
+    'bells at eight, softly',
+    'east-facing — sun with your coffee',
+    'two minutes from a real bakery',
+    'quiet street, loud espresso machine'
+  ];
+
+  /* ---------- live homes upgrade (contract integration) ---------- */
+  var grid = document.getElementById('homesGrid');
+  var pill = document.getElementById('livePill');
+
+  fetch('/api/listings').then(function(r){ return r.ok ? r.json() : null; }).then(function(j){
+    if(!j || !j.ok || !Array.isArray(j.listings)) return;
+    var homes = j.listings.filter(function(d){
+      var s = ((d.status || d.availabilityStatus || 'available') + '').toLowerCase();
+      return !(s === 'rented' || s === 'affittato' || s === 'off_market' || s === 'draft' || s === 'hidden' || s === 'waitlist');
+    }).map(function(d){
+      var c = d.createdAt,
+          t = !c ? 0 : (c.seconds ? c.seconds * 1000 : (typeof c === 'string' ? (Date.parse(c) || 0) : (c > 1e12 ? c : c * 1000)));
+      return {
+        id: d.id,
+        name: d.name || d.title || 'Apartment in Rome',
+        zone: d.zone || d.neighborhood || 'Rome',
+        price: +d.price || 0,
+        beds: d.beds != null ? +d.beds : (d.bedrooms != null ? +d.bedrooms : 1),
+        sqm: +d.sqm || +d.size || 0,
+        video: !!(d.videoUrl || d.youtubeUrl),
+        img: (Array.isArray(d.images) && d.images[0]) || d.image || '',
+        t: t
+      };
+    }).filter(function(h){ return h.price && h.img; });
+
+    if(homes.length < 3 || !grid) return;
+    homes.sort(function(a, b){ return (b.video - a.video) || (b.t - a.t); });
+
+    var html = homes.slice(0, 6).map(function(h, i){
+      var src = /^http/.test(h.img)
+        ? '/_vercel/image?url=' + encodeURIComponent(h.img) + '&w=720&q=72'
+        : h.img;
+      var badge = h.video
+        ? '<span class="pol-badge"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Video verified</span>'
+        : '';
+      var meta = [];
+      if(h.sqm) meta.push(esc(String(h.sqm)) + 'm²');
+      meta.push(esc(String(h.beds)) + ' bed' + (h.beds === 1 ? '' : 's'));
+      meta.push(esc(h.zone));
+      return '<a class="polaroid" href="/listing/' + encodeURIComponent(h.id) + '">' +
+        '<div class="pol-img">' +
+          '<img src="' + esc(src) + '" alt="' + esc(h.name) + ' — apartment in ' + esc(h.zone) + ', Rome" loading="lazy">' +
+          badge +
+        '</div>' +
+        '<div class="pol-body">' +
+          '<div class="pol-price"><b>€' + esc(h.price.toLocaleString('en-US')) + '</b><span>/month</span></div>' +
+          '<div class="pol-name">' + esc(h.name) + '</div>' +
+          '<div class="pol-meta">' + meta.join(' · ') + '</div>' +
+          '<p class="pol-cap">' + esc(CAPS[i % CAPS.length]) + '</p>' +
+        '</div>' +
+      '</a>';
+    }).join('');
+
+    grid.innerHTML = html;
+    grid.classList.add('in');
+    if(pill) pill.classList.add('on');
+  }).catch(function(){});
+
+  /* ---------- search: drop empty fields for clean deep-links ---------- */
+  var form = document.querySelector('.morning-search');
+  if(form){
+    form.addEventListener('submit', function(){
+      Array.prototype.slice.call(form.querySelectorAll('input,select')).forEach(function(f){
+        if(!f.value) f.disabled = true;
+      });
+      window.setTimeout(function(){
+        Array.prototype.slice.call(form.querySelectorAll('input,select')).forEach(function(f){
+          f.disabled = false;
+        });
+      }, 300);
+    });
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BOOM — Homepage Concepts</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="Internal gallery of BOOM homepage concepts.">
+<meta name="theme-color" content="#08080A">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@1,9..144,300&family=Inter:wght@300;400;500&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#08080A;--ink:#F4F1E9;--ink2:rgba(244,241,233,0.55);--ink3:rgba(244,241,233,0.3);
+  --gold:#D4AF37;--line:rgba(244,241,233,0.1);--lineg:rgba(212,175,55,0.3);
+  --ease:cubic-bezier(0.22,1,0.36,1);
+}
+body{font-family:'Inter',sans-serif;font-weight:300;background:var(--bg);color:var(--ink);line-height:1.6;
+  min-height:100vh;padding:clamp(24px,5vw,72px)}
+::selection{background:var(--gold);color:var(--bg)}
+a{color:inherit;text-decoration:none}
+.k{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.3em;text-transform:uppercase;color:var(--gold)}
+header{max-width:1180px;margin:0 auto 54px}
+h1{font-weight:300;font-size:clamp(32px,5.4vw,64px);letter-spacing:-0.02em;line-height:1.05;margin-top:16px}
+h1 em{font-family:'Fraunces',serif;font-style:italic;color:var(--gold)}
+.sub{margin-top:14px;color:var(--ink2);max-width:62ch;font-size:15px}
+.grid{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:1fr;gap:16px}
+@media(min-width:760px){.grid{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:1080px){.grid{grid-template-columns:repeat(3,1fr)}}
+.card{
+  position:relative;display:flex;flex-direction:column;gap:8px;
+  border:1px solid var(--line);border-radius:18px;padding:26px;min-height:230px;
+  overflow:hidden;transition:transform .5s var(--ease),border-color .35s;
+  background:var(--tile,#0C0C0F);
+}
+.card:hover{transform:translateY(-4px);border-color:var(--lineg)}
+.card .no{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.24em;color:var(--ink3)}
+.card h2{font-size:24px;font-weight:400;letter-spacing:-0.01em;margin-top:auto}
+.card h2 span{font-family:'Fraunces',serif;font-style:italic;font-weight:300}
+.card p{font-size:13px;color:var(--ink2);max-width:40ch}
+.card .url{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--gold);margin-top:8px}
+.card .url::after{content:' →';opacity:0;transition:opacity .3s}
+.card:hover .url::after{opacity:1}
+.badge{position:absolute;top:20px;right:20px;font-family:'IBM Plex Mono',monospace;font-size:9px;
+  letter-spacing:0.2em;text-transform:uppercase;color:var(--ink3);border:1px solid var(--line);
+  border-radius:6px;padding:4px 8px}
+/* tile moods */
+.t-live{--tile:linear-gradient(160deg,#141007,#0C0C0F 60%)}
+.t-next{--tile:linear-gradient(160deg,#100D06,#08080A 55%)}
+.t-2030{--tile:radial-gradient(120% 120% at 80% 0%,rgba(232,193,90,0.12),#050506 55%)}
+.t-cinema{--tile:linear-gradient(180deg,#0A0908 30%,#141008)}
+.t-atelier{--tile:#F5F3EE;color:#111}
+.t-atelier p{color:rgba(17,17,17,0.6)}
+.t-atelier .no,.t-atelier .badge{color:rgba(17,17,17,0.45);border-color:rgba(17,17,17,0.15)}
+.t-atelier .url{color:#8a6d13}
+.t-mattina{--tile:linear-gradient(165deg,#FAF5EC,#F2E5D0);color:#3A2E28}
+.t-mattina p{color:rgba(58,46,40,0.65)}
+.t-mattina .no,.t-mattina .badge{color:rgba(58,46,40,0.5);border-color:rgba(58,46,40,0.18)}
+.t-mattina .url{color:#C4633E}
+.t-notturna{--tile:linear-gradient(180deg,#0B1026,#1B2440 75%,#3a2b17)}
+.t-dossier{--tile:linear-gradient(170deg,#EFE9DC,#E4DAC4);color:#1E1B16}
+.t-dossier p{color:rgba(30,27,22,0.65)}
+.t-dossier .no,.t-dossier .badge{color:rgba(30,27,22,0.5);border-color:rgba(30,27,22,0.18)}
+.t-dossier .url{color:#B3402A}
+footer{max-width:1180px;margin:56px auto 0;font-family:'IBM Plex Mono',monospace;font-size:10.5px;
+  letter-spacing:0.12em;color:var(--ink3)}
+footer a{color:var(--ink2);border-bottom:1px solid var(--lineg)}
+@media(prefers-reduced-motion:reduce){*{transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<header>
+  <span class="k">BOOM · Concept Lab</span>
+  <h1>One agency,<br><em>eight faces.</em></h1>
+  <p class="sub">Every card is a complete, working homepage — same brand truths, same live inventory, radically different soul. Open them, feel them, pick a winner (or steal pieces across them).</p>
+</header>
+
+<div class="grid">
+  <a class="card t-live" href="/">
+    <span class="no">00 — ENHANCED LIVE</span>
+    <span class="badge">baseline+</span>
+    <h2>The Current Site, <span>sharpened</span></h2>
+    <p>Your live homepage plus the Intelligence bento, smart search and live inventory.</p>
+    <span class="url">/</span>
+  </a>
+  <a class="card t-next" href="/next">
+    <span class="no">01 — EDITORIAL NOIR</span>
+    <span class="badge">quiet luxury</span>
+    <h2>Next — <span>the whisper</span></h2>
+    <p>Hairlines, serif italics, a self-drawing aqueduct. Luxury that doesn't raise its voice.</p>
+    <span class="url">/next</span>
+  </a>
+  <a class="card t-2030" href="/2030">
+    <span class="no">02 — BOOM OS</span>
+    <span class="badge">webgl · ⌘k</span>
+    <h2>2030 — <span>the machine</span></h2>
+    <p>WebGL gold nebula, natural-language finder, command palette, HUD telemetry.</p>
+    <span class="url">/2030</span>
+  </a>
+  <a class="card t-cinema" href="/cinema">
+    <span class="no">03 — LA GRANDE BELLEZZA</span>
+    <span class="badge">film</span>
+    <h2>Cinema — <span>the film</span></h2>
+    <p>Rome as an Italian film in chapters: letterbox scenes, subtitles, end credits.</p>
+    <span class="url">/cinema</span>
+  </a>
+  <a class="card t-atelier" href="/atelier">
+    <span class="no">04 — SWISS BRUTALIST</span>
+    <span class="badge">light · type</span>
+    <h2>Atelier — <span>the collection</span></h2>
+    <p>Fashion-house minimalism: exposed grid, variable-weight type, a price list like an order form.</p>
+    <span class="url">/atelier</span>
+  </a>
+  <a class="card t-mattina" href="/mattina">
+    <span class="no">05 — MATTINA ROMANA</span>
+    <span class="badge">warm · light</span>
+    <h2>Mattina — <span>the morning</span></h2>
+    <p>Terracotta and sunlight: wake up in Rome, espresso downstairs, laundry in the breeze.</p>
+    <span class="url">/mattina</span>
+  </a>
+  <a class="card t-notturna" href="/notturna">
+    <span class="no">06 — ROMA NOTTURNA</span>
+    <span class="badge">canvas</span>
+    <h2>Notturna — <span>the skyline</span></h2>
+    <p>A generative dusk skyline where windows light up one by one — one of them is yours.</p>
+    <span class="url">/notturna</span>
+  </a>
+  <a class="card t-dossier" href="/dossier">
+    <span class="no">07 — IL DOSSIER</span>
+    <span class="badge">print · file</span>
+    <h2>Dossier — <span>the case file</span></h2>
+    <p>The rental market investigated, stamped and solved. Redactions open as you scroll.</p>
+    <span class="url">/dossier</span>
+  </a>
+</div>
+
+<footer>
+  ALL CONCEPTS ARE NOINDEX · LIVE DATA VIA /api/listings · <a href="https://wa.me/393313251961" target="_blank" rel="noopener">HUMAN LINE</a>
+</footer>
+</body>
+</html>

@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="BOOM Atelier — Rome's rental market, cut with precision. Video-verified homes, legal contracts explained in English, keys in 48 hours.">
+<meta name="theme-color" content="#F5F3EE">
+<title>BOOM — ATELIER · Rome, Tailored</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@100..900&family=Fragment+Mono&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   BOOM — ATELIER
+   Swiss-brutalist fashion-house minimalism. Light theme.
+   The design system is the statement: exposed 12-col grid,
+   variable-weight grotesque, ink on bone, gold as a hairline.
+   ============================================================ */
+
+:root{
+  --bone:#F5F3EE;
+  --bone-2:#EFEDE6;
+  --ink:#111111;
+  --ink-70:#3E3C37;
+  --ink-60:#55524B;
+  --gold:#D4AF37;
+  --gold-dim:#8A6D12; /* text-safe gold on bone (≥4.5:1 at small sizes) */
+  --hair:rgba(17,17,17,0.10);
+  --hair-strong:rgba(17,17,17,0.22);
+  --hair-grid:rgba(17,17,17,0.055);
+  --sans:'Archivo','Inter Tight','Helvetica Neue',Helvetica,Arial,sans-serif;
+  --mono:'Fragment Mono','SF Mono',Menlo,Consolas,monospace;
+  --ease:cubic-bezier(.22,.61,.21,1);
+  --pad:clamp(20px,4vw,56px);
+  --shell:1440px;
+}
+
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+html,body{overflow-x:clip}
+body{
+  background:var(--bone);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-weight:400;
+  font-size:16px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+::selection{background:var(--ink);color:var(--bone)}
+img{display:block;max-width:100%}
+a{color:inherit;text-decoration:none}
+ul,ol{list-style:none}
+button{font:inherit;background:none;border:0;cursor:pointer;color:inherit}
+
+:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+.inverse :focus-visible,
+.inverse:focus-visible{outline-color:var(--gold)}
+
+/* ---------- skip link ---------- */
+.skip-link{
+  position:fixed;top:-60px;left:16px;z-index:200;
+  background:var(--ink);color:var(--bone);
+  font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;
+  padding:12px 18px;transition:top .2s var(--ease);
+}
+.skip-link:focus{top:12px}
+
+/* ---------- exposed grid (the signature) ---------- */
+.gridlines{
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  display:flex;justify-content:center;
+}
+.gridlines .cols{
+  width:min(var(--shell),100%);
+  padding:0 var(--pad);
+  display:grid;grid-template-columns:repeat(12,1fr);
+  height:100%;
+}
+.gridlines .cols i{border-left:1px solid var(--hair-grid)}
+.gridlines .cols i:last-child{border-right:1px solid var(--hair-grid)}
+@media (max-width:900px){
+  .gridlines .cols{grid-template-columns:repeat(4,1fr)}
+  .gridlines .cols i:nth-child(n+5){display:none}
+}
+
+/* ---------- shell ---------- */
+.shell{
+  width:min(var(--shell),100%);
+  margin-inline:auto;
+  padding-inline:var(--pad);
+  position:relative;
+}
+main,header.top,footer{position:relative;z-index:1}
+
+/* ---------- variable-weight morph (signature move) ---------- */
+.wmorph{
+  font-variation-settings:'wght' var(--w,400);
+  transition:font-variation-settings .55s var(--ease),color .3s var(--ease);
+}
+
+/* ---------- top bar ---------- */
+.top{
+  position:sticky;top:0;z-index:100;
+  background:color-mix(in srgb,var(--bone) 92%,transparent);
+  backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--hair);
+}
+@supports not (background:color-mix(in srgb,#fff 92%,transparent)){
+  .top{background:rgba(245,243,238,.94)}
+}
+.top-inner{
+  display:flex;align-items:stretch;justify-content:space-between;
+  height:64px;
+}
+.brand{
+  display:flex;align-items:baseline;gap:14px;align-self:center;
+}
+.brand-mark{
+  font-size:22px;letter-spacing:-.02em;text-transform:uppercase;line-height:1;
+  --w:900;
+}
+.brand-mark:hover{--w:200}
+.brand-sub{
+  font-family:var(--mono);font-size:10px;letter-spacing:.28em;text-transform:uppercase;
+  color:var(--ink-60);
+}
+.top-nav{display:flex;align-items:stretch}
+.top-nav a{
+  display:flex;align-items:center;
+  padding:0 clamp(10px,1.6vw,22px);
+  border-left:1px solid var(--hair);
+  font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--ink-70);
+  transition:background .25s var(--ease),color .25s var(--ease);
+}
+.top-nav a:hover{background:var(--ink);color:var(--bone)}
+.top-nav a.wa{background:var(--ink);color:var(--bone)}
+.top-nav a.wa:hover{background:var(--gold);color:var(--ink)}
+@media (max-width:860px){
+  .top-nav a:not(.wa){display:none}
+  .brand-sub{display:none}
+}
+
+/* ---------- sticky side index ---------- */
+.side-index{
+  position:fixed;right:clamp(10px,1.6vw,26px);top:50%;transform:translateY(-50%);
+  z-index:90;display:flex;flex-direction:column;gap:4px;
+}
+.side-index a{
+  font-family:var(--mono);font-size:11px;letter-spacing:.1em;
+  color:var(--ink-60);
+  padding:5px 8px;text-align:right;
+  border-right:1px solid var(--hair-strong);
+  transition:color .3s var(--ease),border-color .3s var(--ease);
+}
+.side-index a:hover{color:var(--ink)}
+.side-index a[aria-current="true"]{color:var(--gold-dim);border-right-color:var(--gold);font-weight:700}
+@media (max-width:1200px){.side-index{display:none}}
+
+/* ---------- generic section scaffolding ---------- */
+.sec{padding:clamp(84px,11vw,160px) 0;scroll-margin-top:80px}
+.sec-head{
+  display:grid;grid-template-columns:repeat(12,1fr);gap:0 24px;
+  border-top:1px solid var(--ink);
+  padding-top:18px;
+  margin-bottom:clamp(40px,6vw,88px);
+}
+.sec-no{
+  grid-column:1/span 2;
+  font-family:var(--mono);font-size:clamp(13px,1.4vw,16px);letter-spacing:.1em;
+  color:var(--gold-dim);
+}
+.sec-no::after{content:' —'}
+.sec-title{
+  grid-column:3/span 7;
+  font-size:clamp(34px,5.4vw,76px);
+  line-height:.95;letter-spacing:-.025em;text-transform:uppercase;
+  --w:200;
+}
+.sec-title b{font-weight:inherit;--w:900;font-variation-settings:'wght' var(--w)}
+.sec-title:hover{--w:300}
+.sec-note{
+  grid-column:10/span 3;
+  font-family:var(--mono);font-size:11.5px;line-height:1.8;letter-spacing:.04em;
+  color:var(--ink-60);text-transform:uppercase;
+  align-self:end;
+}
+@media (max-width:900px){
+  .sec-head{display:block}
+  .sec-no{display:block;margin-bottom:10px}
+  .sec-note{margin-top:16px}
+}
+
+/* ---------- reveal choreography ---------- */
+[data-reveal]{opacity:0;transform:translateY(26px);transition:opacity .8s var(--ease),transform .8s var(--ease)}
+[data-reveal].in{opacity:1;transform:none}
+[data-reveal="wipe"]{transform:none;opacity:1;clip-path:inset(0 100% 0 0);transition:clip-path 1s var(--ease)}
+[data-reveal="wipe"].in{clip-path:inset(0 0 0 0)}
+
+/* ============================================================
+   I — HERO
+   ============================================================ */
+.hero{
+  min-height:calc(100svh - 64px);
+  display:flex;flex-direction:column;justify-content:space-between;
+  padding-top:clamp(36px,5vw,72px);
+}
+.hero-eyebrow{
+  display:flex;flex-wrap:wrap;gap:8px 28px;justify-content:space-between;
+  font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--ink-60);
+  border-bottom:1px solid var(--hair);
+  padding-bottom:14px;
+}
+.hero-eyebrow .gd{color:var(--gold-dim)}
+.hero-title{
+  margin:clamp(28px,4.5vw,64px) 0 0;
+  text-transform:uppercase;
+  letter-spacing:-.03em;
+  line-height:.84;
+  font-size:clamp(66px,15.5vw,218px);
+}
+.hero-line{display:block;--w:150}
+.hero-line b{font-weight:inherit;--w:900;font-variation-settings:'wght' var(--w)}
+.hero-line,.hero-line b{transition:font-variation-settings .6s var(--ease)}
+.hero-line:hover{--w:900}
+.hero-line:hover b{--w:150}
+.hero-line .dot{color:var(--gold)}
+.hero-split{
+  display:grid;grid-template-columns:repeat(12,1fr);gap:24px;
+  margin-top:clamp(30px,4vw,58px);
+  align-items:end;
+}
+.hero-claim{
+  grid-column:1/span 5;
+  font-family:var(--mono);font-size:12px;line-height:2.05;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--ink-70);
+}
+.hero-claim em{font-style:normal;color:var(--gold-dim)}
+.hero-cta{
+  grid-column:8/span 5;
+  display:flex;gap:12px;flex-wrap:wrap;justify-content:flex-end;
+}
+.btn{
+  display:inline-flex;align-items:center;gap:14px;
+  padding:18px 26px;
+  font-family:var(--mono);font-size:12px;letter-spacing:.18em;text-transform:uppercase;
+  border:1px solid var(--ink);
+  border-radius:1px;
+  transition:background .3s var(--ease),color .3s var(--ease),border-color .3s var(--ease);
+}
+.btn .ar{transition:transform .3s var(--ease)}
+.btn:hover .ar{transform:translateX(5px)}
+.btn-solid{background:var(--ink);color:var(--bone)}
+.btn-solid:hover{background:var(--gold);border-color:var(--gold);color:var(--ink)}
+.btn-line{background:transparent;color:var(--ink)}
+.btn-line:hover{background:var(--ink);color:var(--bone)}
+.btn-bone{border-color:var(--bone);color:var(--bone)}
+.btn-bone:hover{background:var(--bone);color:var(--ink)}
+@media (max-width:900px){
+  .hero-split{display:block}
+  .hero-cta{margin-top:28px;justify-content:flex-start}
+}
+
+/* hero stats — oversized numerals row */
+.hero-stats{
+  margin-top:clamp(44px,6vw,84px);
+  border-top:1px solid var(--ink);
+  border-bottom:1px solid var(--hair);
+  display:grid;grid-template-columns:repeat(4,1fr);
+}
+.hstat{
+  padding:clamp(18px,2.4vw,34px) clamp(14px,1.8vw,28px) clamp(20px,2.6vw,36px);
+  border-left:1px solid var(--hair);
+  transition:background .3s var(--ease),color .3s var(--ease);
+}
+.hstat:first-child{border-left:0}
+.hstat:hover{background:var(--ink);color:var(--bone)}
+.hstat:hover .hstat-l{color:var(--bone)}
+.hstat-n{
+  font-size:clamp(38px,6vw,86px);
+  line-height:1;letter-spacing:-.03em;
+  --w:120;
+}
+.hstat:hover .hstat-n{--w:800}
+.hstat-n sup{font-size:.32em;vertical-align:super;color:var(--gold-dim)}
+.hstat:hover .hstat-n sup{color:var(--gold)}
+.hstat-l{
+  margin-top:12px;
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--ink-60);
+  transition:color .3s var(--ease);
+}
+@media (max-width:760px){
+  .hero-stats{grid-template-columns:repeat(2,1fr)}
+  .hstat:nth-child(3){border-left:0}
+  .hstat:nth-child(n+3){border-top:1px solid var(--hair)}
+}
+
+/* ============================================================
+   MARQUEE — outlined type between sections
+   ============================================================ */
+.mq{
+  overflow:hidden;
+  border-top:1px solid var(--hair);
+  border-bottom:1px solid var(--hair);
+  padding:18px 0;
+  position:relative;z-index:1;
+  background:var(--bone);
+}
+.mq-track{
+  display:flex;width:max-content;
+  animation:mq-slide 26s linear infinite;
+}
+.mq:hover .mq-track{animation-play-state:paused}
+.mq-seg{
+  white-space:nowrap;
+  font-size:clamp(30px,4.6vw,58px);
+  font-weight:800;letter-spacing:.02em;text-transform:uppercase;line-height:1;
+  color:transparent;
+  -webkit-text-stroke:1px var(--hair-strong);
+  paint-order:stroke;
+  padding-right:.6em;
+}
+.mq-seg b{font-weight:800;-webkit-text-stroke:1px var(--gold);color:transparent}
+@keyframes mq-slide{to{transform:translateX(-50%)}}
+
+/* ============================================================
+   II — THE COLLECTION (live homes as a lookbook)
+   ============================================================ */
+.live-tag{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--ink-60);
+}
+.live-tag i{
+  width:7px;height:7px;border-radius:0;background:var(--hair-strong);
+  transition:background .3s var(--ease);
+}
+.live-tag.on{color:var(--gold-dim)}
+.live-tag.on i{background:var(--gold);animation:blink 2.2s var(--ease) infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+
+.looks{
+  display:grid;grid-template-columns:repeat(12,1fr);gap:clamp(28px,3.4vw,52px) 24px;
+}
+.look{grid-column:span 4}
+.look:nth-child(3n+2){transform:translateY(clamp(20px,3vw,54px))}
+.look-link{display:block}
+.look-media{
+  position:relative;aspect-ratio:4/5;overflow:hidden;
+  background:var(--bone-2);
+  border:1px solid var(--hair);
+  border-radius:2px;
+}
+.look-media img{
+  width:100%;height:100%;object-fit:cover;
+  filter:grayscale(18%) contrast(1.02);
+  transition:transform .9s var(--ease),filter .6s var(--ease);
+}
+.look-link:hover .look-media img{transform:scale(1.045);filter:grayscale(0%) contrast(1.03)}
+.look-film{
+  position:absolute;top:10px;left:10px;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.24em;text-transform:uppercase;
+  background:var(--ink);color:var(--bone);
+  padding:6px 10px;
+}
+.look-row{
+  display:flex;justify-content:space-between;align-items:baseline;
+  margin-top:16px;padding-top:12px;
+  border-top:1px solid var(--ink);
+}
+.look-no{
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--gold-dim);
+}
+.look-price{
+  font-size:clamp(18px,1.8vw,24px);letter-spacing:-.01em;
+  font-variant-numeric:tabular-nums;
+  --w:700;
+  transition:color .3s var(--ease);
+}
+.look-link:hover .look-price{color:var(--gold-dim)}
+.look-name{
+  margin-top:8px;
+  font-size:clamp(22px,2.4vw,32px);
+  line-height:1.02;letter-spacing:-.02em;text-transform:uppercase;
+  --w:250;
+}
+.look-link:hover .look-name{--w:800}
+.look-meta{
+  margin-top:8px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-60);
+}
+.looks-foot{
+  margin-top:clamp(44px,6vw,72px);
+  display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;
+  border-top:1px solid var(--hair);
+  padding-top:22px;
+}
+.looks-foot p{
+  font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-60);
+}
+@media (max-width:960px){
+  .look{grid-column:span 6}
+  .look:nth-child(3n+2){transform:none}
+  .look:nth-child(2n){transform:translateY(clamp(16px,3vw,40px))}
+}
+@media (max-width:620px){
+  .looks{display:block}
+  .look{margin-bottom:44px}
+  .look:nth-child(2n){transform:none}
+}
+
+/* ============================================================
+   III — THE PROCESS (4 gigantic manifesto lines)
+   ============================================================ */
+.proc{border-top:1px solid var(--hair)}
+.proc-row{
+  display:grid;grid-template-columns:repeat(12,1fr);gap:12px 24px;
+  align-items:baseline;
+  padding:clamp(26px,3.6vw,48px) 0;
+  border-bottom:1px solid var(--hair);
+  transition:background .3s var(--ease);
+}
+.proc-no{
+  grid-column:1/span 2;
+  font-family:var(--mono);font-size:clamp(12px,1.3vw,15px);letter-spacing:.12em;
+  color:var(--gold-dim);
+}
+.proc-h{
+  grid-column:3/span 7;
+  font-size:clamp(34px,6.6vw,96px);
+  line-height:.92;letter-spacing:-.03em;text-transform:uppercase;
+  --w:180;
+}
+.proc-h b{font-weight:inherit;--w:900;font-variation-settings:'wght' var(--w);transition:font-variation-settings .55s var(--ease)}
+.proc-row:hover .proc-h{--w:600}
+.proc-row:hover .proc-h b{--w:250}
+.proc-d{
+  grid-column:10/span 3;
+  font-family:var(--mono);font-size:11.5px;line-height:1.8;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--ink-60);
+  align-self:end;
+}
+@media (max-width:900px){
+  .proc-row{display:block}
+  .proc-no{display:block;margin-bottom:8px}
+  .proc-d{display:block;margin-top:12px}
+}
+
+/* ============================================================
+   IV — SERVICES (price list set like an order form)
+   ============================================================ */
+.order{border-top:1px solid var(--ink)}
+.order-head{
+  display:grid;grid-template-columns:70px 1fr 1fr 190px;gap:0 24px;
+  padding:12px 0;
+  font-family:var(--mono);font-size:10px;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--ink-60);
+  border-bottom:1px solid var(--hair-strong);
+}
+.order-head span:last-child{text-align:right}
+.order-row{
+  display:grid;grid-template-columns:70px 1fr 1fr 190px;gap:0 24px;
+  align-items:baseline;
+  padding:clamp(20px,2.6vw,30px) 0;
+  border-bottom:1px solid var(--hair);
+  transition:background .28s var(--ease),color .28s var(--ease),padding .28s var(--ease);
+}
+.order-row:hover,.order-row:focus-visible{
+  background:var(--ink);color:var(--bone);
+  padding-left:16px;padding-right:16px;
+  outline:none;
+}
+.order-no{
+  font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--gold-dim);
+}
+.order-name{
+  font-size:clamp(20px,2.3vw,30px);
+  letter-spacing:-.015em;text-transform:uppercase;line-height:1.05;
+  --w:300;
+}
+.order-row:hover .order-name{--w:850}
+.order-desc{
+  font-family:var(--mono);font-size:11.5px;line-height:1.7;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--ink-60);
+  transition:color .28s var(--ease);
+  align-self:center;
+}
+.order-row:hover .order-desc,.order-row:focus-visible .order-desc{color:rgba(245,243,238,.72)}
+.order-price{
+  text-align:right;
+  font-size:clamp(17px,1.8vw,24px);
+  font-variant-numeric:tabular-nums;letter-spacing:-.01em;
+  --w:700;
+  white-space:nowrap;
+}
+.order-price small{
+  display:block;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--ink-60);margin-top:5px;
+  transition:color .28s var(--ease);
+}
+.order-row:hover .order-price{color:var(--gold)}
+.order-row:hover .order-price small{color:rgba(245,243,238,.6)}
+.order-foot{
+  padding-top:18px;
+  display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-60);
+}
+@media (max-width:860px){
+  .order-head{display:none}
+  .order-row{grid-template-columns:44px 1fr auto;grid-template-areas:'no name price' '. desc desc'}
+  .order-no{grid-area:no}
+  .order-name{grid-area:name}
+  .order-price{grid-area:price}
+  .order-desc{grid-area:desc;margin-top:10px}
+}
+
+/* ============================================================
+   V — ZONES (a pure-typography index)
+   ============================================================ */
+.zones-list{border-top:1px solid var(--ink)}
+.zone-row{
+  display:grid;grid-template-columns:70px 1fr auto;gap:0 24px;align-items:center;
+  padding:clamp(16px,2.4vw,28px) 0;
+  border-bottom:1px solid var(--hair);
+  transition:background .28s var(--ease),color .28s var(--ease),padding .28s var(--ease);
+}
+.zone-row:hover,.zone-row:focus-visible{
+  background:var(--ink);color:var(--bone);
+  padding-left:18px;padding-right:18px;
+  outline:none;
+}
+.zone-no{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--gold-dim)}
+.zone-name{
+  font-size:clamp(32px,6vw,84px);
+  line-height:1;letter-spacing:-.03em;text-transform:uppercase;
+  --w:200;
+}
+.zone-row:hover .zone-name{--w:900}
+.zone-ar{
+  font-size:clamp(22px,3vw,40px);
+  color:var(--hair-strong);
+  transition:color .28s var(--ease),transform .28s var(--ease);
+}
+.zone-row:hover .zone-ar{color:var(--gold);transform:translateX(6px)}
+.zones-note{
+  margin-top:22px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-60);
+}
+
+/* ============================================================
+   VI — FOUNDER (full-bleed ink inversion)
+   ============================================================ */
+.founder{
+  background:var(--ink);color:var(--bone);
+  padding:clamp(90px,12vw,180px) 0;
+}
+.founder .kicker{
+  display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
+  font-family:var(--mono);font-size:11px;letter-spacing:.24em;text-transform:uppercase;
+  color:rgba(245,243,238,.55);
+  border-top:1px solid var(--gold);
+  padding-top:16px;
+  margin-bottom:clamp(40px,6vw,80px);
+}
+.founder .kicker .gd{color:var(--gold)}
+.founder-quote{
+  font-size:clamp(38px,7vw,110px);
+  line-height:.94;letter-spacing:-.03em;text-transform:uppercase;
+  --w:150;
+  max-width:20ch;
+}
+.founder-quote b{font-weight:inherit;--w:900;font-variation-settings:'wght' var(--w);transition:font-variation-settings .55s var(--ease)}
+.founder-quote:hover{--w:400}
+.founder-quote:hover b{--w:600}
+.founder-quote .gd{color:var(--gold)}
+.founder-meta{
+  display:grid;grid-template-columns:repeat(12,1fr);gap:24px;
+  margin-top:clamp(44px,6vw,80px);
+  align-items:end;
+}
+.founder-sig{
+  grid-column:1/span 5;
+  font-family:var(--mono);font-size:12px;letter-spacing:.2em;text-transform:uppercase;
+  line-height:2;color:rgba(245,243,238,.6);
+}
+.founder-sig b{color:var(--bone);font-weight:400}
+.founder-cta{grid-column:8/span 5;display:flex;justify-content:flex-end;gap:12px;flex-wrap:wrap}
+@media (max-width:900px){
+  .founder-meta{display:block}
+  .founder-cta{margin-top:32px;justify-content:flex-start}
+}
+
+/* ============================================================
+   FINALE — CTA + footer
+   ============================================================ */
+.finale{padding:clamp(90px,12vw,170px) 0 0}
+.finale-h{
+  font-size:clamp(52px,11vw,168px);
+  line-height:.86;letter-spacing:-.03em;text-transform:uppercase;
+  --w:150;
+}
+.finale-h b{font-weight:inherit;--w:900;font-variation-settings:'wght' var(--w);transition:font-variation-settings .55s var(--ease)}
+.finale-h:hover{--w:500}
+.finale-h:hover b{--w:300}
+.finale-h .dot{color:var(--gold)}
+.finale-row{
+  display:flex;justify-content:space-between;align-items:flex-end;gap:28px;flex-wrap:wrap;
+  margin-top:clamp(34px,5vw,60px);
+  border-top:1px solid var(--ink);
+  padding-top:26px;
+}
+.finale-row p{
+  font-family:var(--mono);font-size:11.5px;line-height:1.9;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink-60);max-width:46ch;
+}
+.finale-row .cta{display:flex;gap:12px;flex-wrap:wrap}
+
+footer{
+  margin-top:clamp(70px,9vw,120px);
+  border-top:1px solid var(--hair-strong);
+  overflow:hidden;
+}
+.foot-grid{
+  display:grid;grid-template-columns:repeat(12,1fr);gap:28px 24px;
+  padding:clamp(36px,5vw,60px) 0 clamp(26px,4vw,44px);
+}
+.foot-col{grid-column:span 3}
+.foot-col:first-child{grid-column:span 4}
+.foot-h{
+  font-family:var(--mono);font-size:10px;letter-spacing:.26em;text-transform:uppercase;
+  color:var(--gold-dim);margin-bottom:16px;
+}
+.foot-col a,.foot-col p{
+  display:block;
+  font-family:var(--mono);font-size:11px;line-height:2.1;letter-spacing:.06em;
+  color:var(--ink-70);
+}
+.foot-col a:hover{color:var(--ink);text-decoration:underline;text-underline-offset:4px}
+.foot-legal{
+  border-top:1px solid var(--hair);
+  padding:16px 0;
+  display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-60);
+}
+.foot-boom{
+  pointer-events:none;user-select:none;
+  text-align:center;
+  font-size:clamp(120px,27vw,400px);
+  font-weight:900;
+  line-height:.7;letter-spacing:-.045em;
+  color:transparent;
+  -webkit-text-stroke:1.5px rgba(17,17,17,.55);
+  margin-bottom:-0.16em;
+  white-space:nowrap;
+}
+@media (max-width:900px){
+  .foot-col,.foot-col:first-child{grid-column:span 6}
+}
+@media (max-width:560px){
+  .foot-col,.foot-col:first-child{grid-column:span 12}
+}
+
+/* ============================================================
+   REDUCED MOTION — everything visible, nothing moves
+   ============================================================ */
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  [data-reveal],[data-reveal="wipe"]{opacity:1!important;transform:none!important;clip-path:none!important}
+  .mq-track{animation:none!important}
+  .look:nth-child(3n+2),.look:nth-child(2n){transform:none}
+}
+</style>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<!-- exposed 12-column grid — the drawing board itself -->
+<div class="gridlines" aria-hidden="true">
+  <div class="cols"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+</div>
+
+<!-- sticky side index -->
+<nav class="side-index" aria-label="Section index">
+  <a href="#main" data-spy="main">I</a>
+  <a href="#collection" data-spy="collection">II</a>
+  <a href="#process" data-spy="process">III</a>
+  <a href="#services" data-spy="services">IV</a>
+  <a href="#zones" data-spy="zones">V</a>
+  <a href="#founder" data-spy="founder">VI</a>
+</nav>
+
+<!-- top bar -->
+<header class="top">
+  <div class="shell top-inner">
+    <a href="/" class="brand" aria-label="BOOM Rome — home">
+      <span class="brand-mark wmorph">BOOM</span>
+      <span class="brand-sub">Atelier — Roma</span>
+    </a>
+    <nav class="top-nav" aria-label="Primary">
+      <a href="#collection">Collection</a>
+      <a href="#process">Process</a>
+      <a href="#services">Services</a>
+      <a href="#zones">Zones</a>
+      <a class="wa" href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ==================== I · HERO ==================== -->
+  <section class="sec hero-sec" aria-label="Introduction" data-section="main" style="padding-top:0;padding-bottom:0">
+    <div class="shell hero">
+      <div>
+        <div class="hero-eyebrow" data-reveal>
+          <span>N°01 — The Rental House of Rome</span>
+          <span class="gd">Video-verified · Legal · 48H</span>
+          <span>Est. Via dei Coronari</span>
+        </div>
+
+        <h1 class="hero-title">
+          <span class="hero-line wmorph" data-reveal>FIND</span>
+          <span class="hero-line wmorph" data-reveal style="transition-delay:.08s"><b>ROME</b></span>
+          <span class="hero-line wmorph" data-reveal style="transition-delay:.16s">FAST<span class="dot">.</span></span>
+        </h1>
+
+        <div class="hero-split">
+          <p class="hero-claim" data-reveal>
+            Video-verified homes. Legal contracts <em>explained in English</em>.
+            Keys in 48 hours. €0 hidden fees. A real human on WhatsApp —
+            <em>usually within minutes</em>.
+          </p>
+          <div class="hero-cta" data-reveal>
+            <a class="btn btn-solid" href="/apartments.html">View the collection <span class="ar" aria-hidden="true">→</span></a>
+            <a class="btn btn-line" href="https://wa.me/393313251961" target="_blank" rel="noopener">Talk to a human</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-stats" data-reveal aria-label="Key numbers">
+        <div class="hstat">
+          <div class="hstat-n wmorph">4.9<sup>★</sup></div>
+          <div class="hstat-l">Google — 47 reviews</div>
+        </div>
+        <div class="hstat">
+          <div class="hstat-n wmorph">500+</div>
+          <div class="hstat-l">Tenants placed</div>
+        </div>
+        <div class="hstat">
+          <div class="hstat-n wmorph">48H</div>
+          <div class="hstat-l">To keys in hand</div>
+        </div>
+        <div class="hstat">
+          <div class="hstat-n wmorph">2MIN</div>
+          <div class="hstat-l">WhatsApp response</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- marquee -->
+  <div class="mq" aria-hidden="true">
+    <div class="mq-track">
+      <span class="mq-seg">BOOM — <b>ROMA</b> — 48H — VERIFIED — BOOM — <b>ROMA</b> — 48H — VERIFIED — BOOM — <b>ROMA</b> — 48H — VERIFIED — </span>
+      <span class="mq-seg">BOOM — <b>ROMA</b> — 48H — VERIFIED — BOOM — <b>ROMA</b> — 48H — VERIFIED — BOOM — <b>ROMA</b> — 48H — VERIFIED — </span>
+    </div>
+  </div>
+
+  <!-- ==================== II · THE COLLECTION ==================== -->
+  <section class="sec" id="collection" aria-label="The collection — homes available now" data-section="collection">
+    <div class="shell">
+      <header class="sec-head" data-reveal>
+        <span class="sec-no">02</span>
+        <h2 class="sec-title wmorph">THE<b>COLLECTION</b></h2>
+        <p class="sec-note">
+          Every home walked, filmed and priced before it earns a number.
+          <span class="live-tag" id="liveTag"><i></i><span id="liveTagText">Static index</span></span>
+        </p>
+      </header>
+
+      <div class="looks" id="lookGrid">
+        <article class="look">
+          <a class="look-link" href="/apartments.html" aria-label="Look 01 — Villa Ada Studio, 1,200 euro per month">
+            <div class="look-media" data-reveal="wipe">
+              <img src="https://i.imgur.com/QOAu6k1.jpeg" alt="Villa Ada Studio — bright studio apartment interior" loading="lazy">
+              <span class="look-film">Film</span>
+            </div>
+            <div class="look-row"><span class="look-no">Look 01</span><span class="look-price wmorph">€1,200/MO</span></div>
+            <h3 class="look-name wmorph">Villa Ada Studio</h3>
+            <p class="look-meta">40 M² — 1 Bed — Villa Ada</p>
+          </a>
+        </article>
+
+        <article class="look">
+          <a class="look-link" href="/apartments.html" aria-label="Look 02 — Pigneto Terrace, 1,700 euro per month">
+            <div class="look-media" data-reveal="wipe">
+              <img src="https://i.imgur.com/tJnYADn.jpeg" alt="Pigneto Terrace — two-bedroom apartment with terrace" loading="lazy">
+              <span class="look-film">Film</span>
+            </div>
+            <div class="look-row"><span class="look-no">Look 02</span><span class="look-price wmorph">€1,700/MO</span></div>
+            <h3 class="look-name wmorph">Pigneto Terrace</h3>
+            <p class="look-meta">80 M² — 2 Bed — Pigneto</p>
+          </a>
+        </article>
+
+        <article class="look">
+          <a class="look-link" href="/apartments.html" aria-label="Look 03 — Coronari Classic, 2,000 euro per month">
+            <div class="look-media" data-reveal="wipe">
+              <img src="https://i.imgur.com/8LVxrhs.jpeg" alt="Coronari Classic — one-bedroom apartment in the historic centre" loading="lazy">
+              <span class="look-film">Film</span>
+            </div>
+            <div class="look-row"><span class="look-no">Look 03</span><span class="look-price wmorph">€2,000/MO</span></div>
+            <h3 class="look-name wmorph">Coronari Classic</h3>
+            <p class="look-meta">70 M² — 1 Bed — Centro Storico</p>
+          </a>
+        </article>
+      </div>
+
+      <div class="looks-foot" data-reveal>
+        <p>The market radar re-scans Rome every 15 minutes. AI scores each home. Humans verify on-site.</p>
+        <a class="btn btn-line" href="/apartments.html">Full index <span class="ar" aria-hidden="true">→</span></a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== III · THE PROCESS ==================== -->
+  <section class="sec" id="process" aria-label="The process — four steps" data-section="process">
+    <div class="shell">
+      <header class="sec-head" data-reveal>
+        <span class="sec-no">03</span>
+        <h2 class="sec-title wmorph">THE<b>PROCESS</b></h2>
+        <p class="sec-note">Four cuts. No excess seam. This is the whole method.</p>
+      </header>
+
+      <div class="proc">
+        <div class="proc-row" data-reveal>
+          <span class="proc-no">01 —</span>
+          <h3 class="proc-h wmorph">WE VERIFY <b>ON-SITE</b></h3>
+          <p class="proc-d">Every apartment walked and filmed by us. What you see is what exists.</p>
+        </div>
+        <div class="proc-row" data-reveal>
+          <span class="proc-no">02 —</span>
+          <h3 class="proc-h wmorph">YOU APPLY IN <b>2 MIN</b></h3>
+          <p class="proc-d">One short form. No document marathon, no agency theatre.</p>
+        </div>
+        <div class="proc-row" data-reveal>
+          <span class="proc-no">03 —</span>
+          <h3 class="proc-h wmorph">SIGN FROM YOUR <b>PHONE</b></h3>
+          <p class="proc-d">A fully legal Italian contract, explained in English, signed with Magic Sign.</p>
+        </div>
+        <div class="proc-row" data-reveal>
+          <span class="proc-no">04 —</span>
+          <h3 class="proc-h wmorph">KEYS IN <b>48 HOURS</b></h3>
+          <p class="proc-d">From yes to your own front door. €0 hidden fees, ever.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== IV · SERVICES ==================== -->
+  <section class="sec" id="services" aria-label="Services and prices" data-section="services">
+    <div class="shell">
+      <header class="sec-head" data-reveal>
+        <span class="sec-no">04</span>
+        <h2 class="sec-title wmorph">THE<b>ORDER FORM</b></h2>
+        <p class="sec-note">Fixed prices, printed in advance. The rarest luxury in this market.</p>
+      </header>
+
+      <div class="order" data-reveal>
+        <div class="order-head" aria-hidden="true">
+          <span>N°</span><span>Service</span><span>Detail</span><span>Price</span>
+        </div>
+
+        <a class="order-row" href="/apartments.html">
+          <span class="order-no">01</span>
+          <span class="order-name wmorph">Ready Apartments</span>
+          <span class="order-desc">Video-verified, move-in ready. Browse the live collection.</span>
+          <span class="order-price wmorph">FROM €1,000<small>per month</small></span>
+        </a>
+
+        <a class="order-row" href="/property-finding.html">
+          <span class="order-no">02</span>
+          <span class="order-name wmorph">Property Finding</span>
+          <span class="order-desc">Bespoke search across the whole market. Deducted from your deal — refunded if we fail.</span>
+          <span class="order-price wmorph">€350<small>upfront · deducted</small></span>
+        </a>
+
+        <a class="order-row" href="/deal-assistance.html">
+          <span class="order-no">03</span>
+          <span class="order-name wmorph">Deal Assistance</span>
+          <span class="order-desc">Found it yourself? We negotiate, check and close the contract on your side.</span>
+          <span class="order-price wmorph">€249<small>fixed</small></span>
+        </a>
+
+        <a class="order-row" href="/virtual-viewing.html">
+          <span class="order-no">04</span>
+          <span class="order-name wmorph">Virtual Viewing</span>
+          <span class="order-desc">A live video walk-through with honest commentary, before you commit.</span>
+          <span class="order-price wmorph">€89<small>per viewing</small></span>
+        </a>
+
+        <a class="order-row" href="/concierge.html">
+          <span class="order-no">05</span>
+          <span class="order-name wmorph">Concierge</span>
+          <span class="order-desc">Arrival, paperwork, settling in. Ask us on WhatsApp.</span>
+          <span class="order-price wmorph">ON REQUEST<small>via WhatsApp</small></span>
+        </a>
+
+        <div class="order-foot">
+          <span>€0 hidden fees — the price you read is the price you pay</span>
+          <span>Payments secured · Contracts registered</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- marquee -->
+  <div class="mq" aria-hidden="true">
+    <div class="mq-track">
+      <span class="mq-seg">BOOM — <b>ROMA</b> — 48H — VERIFIED — BOOM — <b>ROMA</b> — 48H — VERIFIED — BOOM — <b>ROMA</b> — 48H — VERIFIED — </span>
+      <span class="mq-seg">BOOM — <b>ROMA</b> — 48H — VERIFIED — BOOM — <b>ROMA</b> — 48H — VERIFIED — BOOM — <b>ROMA</b> — 48H — VERIFIED — </span>
+    </div>
+  </div>
+
+  <!-- ==================== V · ZONES ==================== -->
+  <section class="sec" id="zones" aria-label="Rome zones index" data-section="zones">
+    <div class="shell">
+      <header class="sec-head" data-reveal>
+        <span class="sec-no">05</span>
+        <h2 class="sec-title wmorph">THE<b>INDEX</b></h2>
+        <p class="sec-note">Six quarters. One line each. The rest you should feel in person.</p>
+      </header>
+
+      <div class="zones-list" data-reveal>
+        <a class="zone-row" href="/apartments.html?q=Trastevere">
+          <span class="zone-no">01</span>
+          <span class="zone-name wmorph">Trastevere</span>
+          <span class="zone-ar" aria-hidden="true">→</span>
+        </a>
+        <a class="zone-row" href="/apartments.html?q=Monti">
+          <span class="zone-no">02</span>
+          <span class="zone-name wmorph">Monti</span>
+          <span class="zone-ar" aria-hidden="true">→</span>
+        </a>
+        <a class="zone-row" href="/apartments.html?q=Prati">
+          <span class="zone-no">03</span>
+          <span class="zone-name wmorph">Prati</span>
+          <span class="zone-ar" aria-hidden="true">→</span>
+        </a>
+        <a class="zone-row" href="/apartments.html?q=Testaccio">
+          <span class="zone-no">04</span>
+          <span class="zone-name wmorph">Testaccio</span>
+          <span class="zone-ar" aria-hidden="true">→</span>
+        </a>
+        <a class="zone-row" href="/apartments.html?q=Pigneto">
+          <span class="zone-no">05</span>
+          <span class="zone-name wmorph">Pigneto</span>
+          <span class="zone-ar" aria-hidden="true">→</span>
+        </a>
+        <a class="zone-row" href="/apartments.html?q=Centro%20Storico">
+          <span class="zone-no">06</span>
+          <span class="zone-name wmorph">Centro Storico</span>
+          <span class="zone-ar" aria-hidden="true">→</span>
+        </a>
+      </div>
+      <p class="zones-note" data-reveal>Each entry opens the live collection, filtered to the quarter.</p>
+    </div>
+  </section>
+
+  <!-- ==================== VI · FOUNDER ==================== -->
+  <section class="founder inverse" id="founder" aria-label="From the founder" data-section="founder">
+    <div class="shell">
+      <div class="kicker" data-reveal>
+        <span>06 — From the founder</span>
+        <span class="gd">Atelier BOOM · Roma</span>
+      </div>
+
+      <blockquote class="founder-quote wmorph" data-reveal>
+        &ldquo;IF WE CAN FIX <b>ROME&rsquo;S</b> RENTAL MARKET, WE CAN FIX <b>ANY</b> MARKET<span class="gd">.</span>&rdquo;
+      </blockquote>
+
+      <div class="founder-meta">
+        <p class="founder-sig" data-reveal>
+          — <b>Valentino, Founder</b><br>
+          Not a chatbot. A real human on WhatsApp,<br>
+          replying in minutes, most days of the year.
+        </p>
+        <div class="founder-cta" data-reveal>
+          <a class="btn btn-bone" href="https://wa.me/393313251961" target="_blank" rel="noopener">Message Valentino <span class="ar" aria-hidden="true">→</span></a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== FINALE ==================== -->
+  <section class="finale" aria-label="Final call to action">
+    <div class="shell">
+      <h2 class="finale-h wmorph" data-reveal>
+        ROME,<br><b>TAILORED</b><span class="dot">.</span>
+      </h2>
+      <div class="finale-row" data-reveal>
+        <p>
+          Choose from the collection or have one cut to measure.
+          Either way: verified, legal, explained in English — and keys in 48 hours.
+        </p>
+        <div class="cta">
+          <a class="btn btn-solid" href="/apartments.html">View the collection <span class="ar" aria-hidden="true">→</span></a>
+          <a class="btn btn-line" href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp — 2 min</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ==================== FOOTER ==================== -->
+<footer aria-label="Footer">
+  <div class="shell">
+    <div class="foot-grid">
+      <div class="foot-col">
+        <p class="foot-h">Maison</p>
+        <p>Egidi Immobiliare S.r.l.<br>
+        Via dei Coronari 181/184, 00186 Roma<br>
+        Sede legale: Viale Liegi 42, 00198 Roma</p>
+      </div>
+      <div class="foot-col">
+        <p class="foot-h">Collection</p>
+        <a href="/apartments.html">All apartments</a>
+        <a href="/apartments.html?video=1">With video tour</a>
+        <a href="/apartments.html?q=Centro%20Storico">Centro Storico</a>
+      </div>
+      <div class="foot-col">
+        <p class="foot-h">Services</p>
+        <a href="/property-finding.html">Property Finding — €350</a>
+        <a href="/deal-assistance.html">Deal Assistance — €249</a>
+        <a href="/virtual-viewing.html">Virtual Viewing — €89</a>
+        <a href="/concierge.html">Concierge</a>
+      </div>
+      <div class="foot-col">
+        <p class="foot-h">Contact</p>
+        <a href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp — usually minutes</a>
+        <a href="/apartments.html">boomrome.com</a>
+      </div>
+    </div>
+
+    <div class="foot-legal">
+      <span>© Egidi Immobiliare S.r.l. — P.IVA 17322991005 — REA RM-1710623</span>
+      <span>Concept page · Atelier N°01 · Roma</span>
+    </div>
+  </div>
+
+  <div class="foot-boom" aria-hidden="true">BOOM</div>
+</footer>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ---------- helpers ---------- */
+  var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
+  var reduced=false;
+  try{reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){}
+
+  /* ---------- reveal choreography ---------- */
+  var io=null;
+  function observeReveals(root){
+    var nodes=(root||document).querySelectorAll('[data-reveal]:not(.in)');
+    if(reduced||!('IntersectionObserver' in window)){
+      nodes.forEach(function(n){n.classList.add('in');});
+      return;
+    }
+    if(!io){
+      io=new IntersectionObserver(function(entries){
+        entries.forEach(function(en){
+          if(en.isIntersecting){en.target.classList.add('in');io.unobserve(en.target);}
+        });
+      },{threshold:0.12,rootMargin:'0px 0px -6% 0px'});
+    }
+    nodes.forEach(function(n){io.observe(n);});
+  }
+  observeReveals(document);
+
+  /* ---------- sticky side index (scrollspy) ---------- */
+  (function(){
+    var links=document.querySelectorAll('.side-index a[data-spy]');
+    var sections=document.querySelectorAll('[data-section]');
+    if(!links.length||!sections.length||!('IntersectionObserver' in window))return;
+    var map={};
+    links.forEach(function(a){map[a.getAttribute('data-spy')]=a;});
+    var spy=new IntersectionObserver(function(entries){
+      entries.forEach(function(en){
+        if(!en.isIntersecting)return;
+        var key=en.target.getAttribute('data-section');
+        links.forEach(function(a){a.removeAttribute('aria-current');});
+        if(map[key])map[key].setAttribute('aria-current','true');
+      });
+    },{rootMargin:'-40% 0px -55% 0px',threshold:0});
+    sections.forEach(function(s){spy.observe(s);});
+  })();
+
+  /* ---------- live homes — the collection upgrades in place ---------- */
+  (function(){
+    var grid=document.getElementById('lookGrid');
+    if(!grid||typeof fetch!=='function')return;
+
+    function optimize(src){
+      return /^http/.test(src)
+        ? '/_vercel/image?url='+encodeURIComponent(src)+'&w=720&q=72'
+        : src;
+    }
+
+    function render(homes){
+      var html=homes.map(function(h,i){
+        var no=('0'+(i+1)).slice(-2);
+        var metaBits=[];
+        if(h.sqm>0)metaBits.push(esc(String(h.sqm))+' M²');
+        metaBits.push(esc(String(h.beds))+' BED'+(h.beds===1?'':'S'));
+        metaBits.push(esc(h.zone));
+        var price='€'+Number(h.price).toLocaleString('en-US')+'/MO';
+        return ''+
+        '<article class="look">'+
+          '<a class="look-link" href="/listing/'+encodeURIComponent(h.id)+'" aria-label="Look '+no+' — '+esc(h.name)+', '+esc(price)+'">'+
+            '<div class="look-media" data-reveal="wipe">'+
+              '<img src="'+esc(optimize(h.img))+'" alt="'+esc(h.name)+' — apartment in '+esc(h.zone)+'" loading="lazy">'+
+              (h.video?'<span class="look-film">Film</span>':'')+
+            '</div>'+
+            '<div class="look-row"><span class="look-no">Look '+no+'</span><span class="look-price wmorph">'+esc(price)+'</span></div>'+
+            '<h3 class="look-name wmorph">'+esc(h.name)+'</h3>'+
+            '<p class="look-meta">'+metaBits.join(' — ')+'</p>'+
+          '</a>'+
+        '</article>';
+      }).join('');
+      grid.innerHTML=html;
+      observeReveals(grid);
+      var tag=document.getElementById('liveTag');
+      var txt=document.getElementById('liveTagText');
+      if(tag)tag.classList.add('on');
+      if(txt)txt.textContent='Live — '+homes.length+' of the index';
+    }
+
+    fetch('/api/listings').then(function(r){return r.ok?r.json():null;}).then(function(j){
+      if(!j||!j.ok||!Array.isArray(j.listings))return;
+      var homes=j.listings.filter(function(d){
+        var s=((d.status||d.availabilityStatus||'available')+'').toLowerCase();
+        return !(s==='rented'||s==='affittato'||s==='off_market'||s==='draft'||s==='hidden'||s==='waitlist');
+      }).map(function(d){
+        var c=d.createdAt,t=!c?0:(c.seconds?c.seconds*1000:(typeof c==='string'?(Date.parse(c)||0):(c>1e12?c:c*1000)));
+        return{id:d.id,name:d.name||d.title||'Apartment in Rome',zone:d.zone||d.neighborhood||'Rome',
+          price:+d.price||0,beds:d.beds!=null?+d.beds:(d.bedrooms!=null?+d.bedrooms:1),
+          sqm:+d.sqm||+d.size||0,video:!!(d.videoUrl||d.youtubeUrl),
+          img:(Array.isArray(d.images)&&d.images[0])||d.image||'',t:t};
+      }).filter(function(h){return h.price&&h.img;});
+      if(homes.length<3)return;
+      homes.sort(function(a,b){return (b.video-a.video)||(b.t-a.t);});
+      render(homes.slice(0,6));
+    }).catch(function(){});
+  })();
+
+})();
+</script>
+
+</body>
+</html>
