@@ -4,6 +4,16 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
 
 **Live site**: boomrome.com
 
+## Philosophy — Il Protocollo (binding)
+
+Every system, page, process, and email follows `PROTOCOLLO-BOOM.md`:
+**ultra design quality · ultra simplicity · ultra professionalism ·
+brutally honest · warm.** Before shipping anything user-facing, run its
+7-question exit checklist (what did you remove; how many taps; does the
+client know what happens next; is it written down; who finds out when it
+fails; is anything untrue or unverified; does it sound like a person).
+Org model and scaling structure live in `STRUTTURA-BOOM.md`.
+
 ## Tech Stack
 
 - **Frontend**: Vanilla HTML/CSS/JS (no framework, no build step)
