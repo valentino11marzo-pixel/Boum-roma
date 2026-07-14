@@ -84,8 +84,9 @@ const line = (s, n = 260) => String(s == null ? '' : s)
 
 const eur = (n) => '€' + Number(n).toLocaleString('en-US');
 
-// Numeric fields arrive dirty ("1 bed", "30mq", 2) — extract the number.
-const num = (v) => { const n = Number(String(v == null ? '' : v).replace(/[^\d.]/g, '')); return n > 0 ? n : null; };
+// Numeric fields arrive dirty ("1 bed", "30mq", "1+1", 2) — take the FIRST
+// number group; stripping separators would turn "1+1" into 11.
+const num = (v) => { const m = String(v == null ? '' : v).match(/\d+(?:\.\d+)?/); const n = m ? Number(m[0]) : 0; return n > 0 ? n : null; };
 
 function availability(l, today) {
   if (String(l.status || '').toLowerCase() === 'waitlist') {

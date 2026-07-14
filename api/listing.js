@@ -57,9 +57,10 @@ function fv(v) {
 const esc = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-// Numeric fields arrive dirty from Firestore ("1 bed", "30mq", 2) — extract
-// the number or drop the field, so "1 bed bedroom" and NaN never ship.
-const num = (v) => { const n = Number(String(v == null ? '' : v).replace(/[^\d.]/g, '')); return n > 0 ? n : null; };
+// Numeric fields arrive dirty from Firestore ("1 bed", "30mq", "1+1", 2) —
+// take the FIRST number group (stripping separators would turn "1+1" into 11)
+// or drop the field, so "1 bed bedroom", "111 bedrooms" and NaN never ship.
+const num = (v) => { const m = String(v == null ? '' : v).match(/\d+(?:\.\d+)?/); const n = m ? Number(m[0]) : 0; return n > 0 ? n : null; };
 
 function injectSeo(html, d, id) {
   const name = String(d.name || 'Apartment').trim();
