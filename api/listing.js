@@ -57,11 +57,16 @@ function fv(v) {
 const esc = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+// Numeric fields arrive dirty from Firestore ("1 bed", "30mq", 2) — extract
+// the number or drop the field, so "1 bed bedroom" and NaN never ship.
+const num = (v) => { const n = Number(String(v == null ? '' : v).replace(/[^\d.]/g, '')); return n > 0 ? n : null; };
+
 function injectSeo(html, d, id) {
-  const name = d.name || 'Apartment';
-  const zone = d.zone || d.neighborhood || '';
-  const sqm = d.sqm || d.size;
-  const beds = d.beds || d.bedrooms;
+  const name = String(d.name || 'Apartment').trim();
+  const zone = String(d.zone || d.neighborhood || '').trim();
+  const sqm = num(d.sqm || d.size);
+  const beds = num(d.beds || d.bedrooms);
+  const baths = num(d.bathrooms);
   const price = d.price ? Number(d.price) : null;
   const canonical = 'https://www.boomrome.com/listing/' + encodeURIComponent(id);
 
@@ -109,9 +114,9 @@ function injectSeo(html, d, id) {
     url: canonical,
     image: images.length ? images : [ogImage],
   };
-  if (beds) ld.numberOfBedrooms = Number(beds);
-  if (d.bathrooms) ld.numberOfBathroomsTotal = Number(d.bathrooms);
-  if (sqm) ld.floorSize = { '@type': 'QuantitativeValue', value: Number(sqm), unitCode: 'MTK' };
+  if (beds) ld.numberOfBedrooms = beds;
+  if (baths) ld.numberOfBathroomsTotal = baths;
+  if (sqm) ld.floorSize = { '@type': 'QuantitativeValue', value: sqm, unitCode: 'MTK' };
   ld.address = {
     '@type': 'PostalAddress',
     streetAddress: d.address || zone || 'Rome',
@@ -125,6 +130,10 @@ function injectSeo(html, d, id) {
       priceSpecification: { '@type': 'UnitPriceSpecification', price, priceCurrency: 'EUR', unitText: 'MONTH' },
       seller: { '@id': 'https://www.boomrome.com/#organization' },
     };
+    const af = String(d.availableFrom || d.availableDate || '');
+    if (/^\d{4}-\d{2}-\d{2}/.test(af) && af.slice(0, 10) > new Date().toISOString().slice(0, 10)) {
+      ld.offers.availabilityStarts = af.slice(0, 10);
+    }
   }
   const breadcrumb = {
     '@context': 'https://schema.org', '@type': 'BreadcrumbList',
@@ -150,6 +159,36 @@ function injectSeo(html, d, id) {
     '<script type="application/ld+json" data-seo-dynamic>' + safe(ld) + '</script>\n' +
     '<script type="application/ld+json" data-seo-dynamic>' + safe(breadcrumb) + '</script>\n</head>';
   html = html.replace('</head>', scripts);
+
+  // No-JS baseline for AI crawlers (GPTBot, ClaudeBot, PerplexityBot…) and
+  // anyone with scripts off: the page body is a client-rendered shell, so
+  // without this a non-executing crawler reads an empty page. Hidden whenever
+  // JS runs — the hydrated page replaces it for humans.
+  const waitlist = String(d.status || '').toLowerCase() === 'waitlist';
+  const af2 = String(d.availableFrom || d.availableDate || '');
+  const avail = waitlist
+    ? 'Currently occupied — can be reserved ahead via waitlist.'
+    : (/^\d{4}-\d{2}-\d{2}/.test(af2) && af2.slice(0, 10) > new Date().toISOString().slice(0, 10)
+        ? 'Available from ' + af2.slice(0, 10) + '.'
+        : 'Available now.');
+  const facts = [];
+  if (price) facts.push('<li>Monthly rent (all-in): €' + price.toLocaleString('en-US') + '</li>');
+  facts.push('<li>' + esc(avail) + '</li>');
+  if (sqm) facts.push('<li>Size: ' + esc(sqm) + ' m²</li>');
+  if (beds) facts.push('<li>' + beds + (beds > 1 ? ' bedrooms' : ' bedroom') +
+    (baths ? ' · ' + baths + (baths > 1 ? ' bathrooms' : ' bathroom') : '') + '</li>');
+  if (d.videoUrl) facts.push('<li>Video tour available on this page</li>');
+  facts.push('<li>Legal contract registered with the Agenzia delle Entrate · English support · 48h move-in</li>');
+  const noscript = '<noscript><section style="max-width:720px;margin:40px auto;padding:0 20px;font-family:Helvetica,Arial,sans-serif">' +
+    '<h1>' + esc(name) + (zone ? ' — ' + esc(zone) : '') + ', Rome</h1>' +
+    (d.description ? '<p>' + esc(String(d.description).replace(/\s+/g, ' ').slice(0, 700)) + '</p>' : '') +
+    '<ul>' + facts.join('') + '</ul>' +
+    '<p>This page is interactive with JavaScript (photos, video, 3D map, online application). ' +
+    'Without it: <a href="https://wa.me/393313251961">WhatsApp BOOM (English, 24/7)</a> · ' +
+    '<a href="/apartments">all verified homes</a> · ' +
+    '<a href="/llms-listings.txt">live inventory in markdown</a>.</p>' +
+    '</section></noscript>';
+  html = html.replace('<body>', '<body>\n' + noscript);
 
   return html;
 }

@@ -220,6 +220,10 @@
       "destination": "/api/listing"
     },
     {
+      "source": "/llms-listings.txt",
+      "destination": "/api/llms-listings"
+    },
+    {
       "source": "/listings-sitemap.xml",
       "destination": "/api/sitemap-listings"
     },
