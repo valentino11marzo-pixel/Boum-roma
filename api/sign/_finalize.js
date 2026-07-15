@@ -13,6 +13,9 @@
 // api/magic-sign/submit; finalize adds everything else.
 
 import crypto from 'node:crypto';
+// pdf-lib is imported statically: a lazy `await import('pdf-lib')` is not
+// traced by Vercel's bundler and fails at runtime in production.
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { fsCreate, fsPatch, fsGet, getAdminToken } from '../homie/_lib.js';
 import { sendEmail } from '../agent/_lib.js';
 // pdf-lib is imported lazily inside buildCertificate so a load failure only
@@ -203,7 +206,6 @@ async function uploadPdf(path, bytes){
 
 // ── FES signing certificate (one A4 page, signatures + audit trail) ──
 async function buildCertificate(c, property){
-  const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
   const pdf = await PDFDocument.create();
   const page = pdf.addPage([595, 842]);
   const font = await pdf.embedFont(StandardFonts.Helvetica);

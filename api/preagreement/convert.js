@@ -169,8 +169,12 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = tru
   }
 
   // Back-link on the PA (best-effort — the contract exists either way).
+  // Sign URLs are stored here too so the console can offer 🖊 Magic Sign /
+  // WhatsApp share without extra reads (preAgreements is admin-only).
   fsPatch('preAgreements/' + paId, {
     contractId, convertedAt: new Date().toISOString(), convertedBy: actor,
+    tenantSignUrl: `${BASE}/sign?sign=${contract.tenantSignToken}`,
+    landlordSignUrl: `${BASE}/sign?sign=${contract.landlordSignToken}`,
   }).catch(() => {});
   logActivity('preagreement_converted', 'contract',
     { paId, ref: pa.ref || '', contractId, tenant: t.fullName, delegate: delegateOn, auto: actor === 'auto' }, actor)

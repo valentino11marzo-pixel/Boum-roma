@@ -340,6 +340,36 @@ window.revokePA=async function(id,undo){
 };
 window.copyPaLink=function(tok){try{navigator.clipboard.writeText(location.origin+'/pre-agreement?t='+tok);}catch(e){}};
 
+/* 🖊 Magic Sign — one tap: contract prepared (if needed) + tenant emailed.
+   The row refreshes by itself via the realtime listener (signSentAt patch). */
+window.sendSign=async function(id,btn){
+  if(btn){btn.disabled=true;btn.textContent='Invio…';}
+  try{
+    var tok=await USER.getIdToken();
+    var r=await fetch('/api/preagreement/send-sign',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({id:id})});
+    var j=await r.json();
+    if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
+    if(btn)btn.textContent=j.emailed?'✓ Inviato':'✓ Contratto pronto (email non partita)';
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent='🖊 Riprova Magic Sign';}
+    alert('Magic Sign non inviato: '+(e.message||'riprova')+(String(e.message).indexOf('no_property')>=0?' — collega prima la proprietà con → Contract.':''));
+  }
+};
+/* ✉ Reinvia copia — re-delivers the accepted/paid document email (recovery). */
+window.resendCopy=async function(id,btn){
+  if(btn){btn.disabled=true;btn.textContent='Invio…';}
+  try{
+    var tok=await USER.getIdToken();
+    var r=await fetch('/api/preagreement/notify',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({id:id})});
+    var j=await r.json();
+    if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
+    if(btn){btn.textContent=j.client?'✓ Copia inviata':'⚠ Email non partita';setTimeout(function(){btn.disabled=false;btn.textContent='✉ Reinvia copia';},4000);}
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent='✉ Reinvia copia';}
+    alert('Invio fallito: '+(e.message||'riprova'));
+  }
+};
+
 /* ── convert an accepted/paid PA into a rental contract ──
    Identity + terms carry over; Magic-Sign tokens are minted server-side.
    Delegate protocol: the landlord-side link is YOURS — countersign per
@@ -432,17 +462,29 @@ function paRow(d){
     +(wa?'<a class="pbtn" href="'+wa+'" target="_blank" rel="noopener">'+(done?'📲 Copy on WhatsApp':'WhatsApp')+'</a>':'')
     +(editable?'<button class="pbtn" onclick="editPA(\''+d.id+'\')">✎ Edit terms</button>':'')
     +'<button class="pbtn" onclick="dupPA(\''+d.id+'\')">Duplicate</button>'
-    +(done?(d.contractId
-        ?'<a class="pbtn" style="border-color:rgba(61,220,151,.35);color:var(--green)" href="/portal.html" target="_blank" rel="noopener">Contract ✓</a>'
-        :'<button class="pbtn" style="border-color:var(--line-gold);color:var(--gold)" onclick="convertPA(\''+d.id+'\')">→ Contract</button>')
-      :'')
+    +(done?(
+        /* ONE evident action per deal: 🖊 Magic Sign converts (if needed) and
+           emails the tenant their signing link — nothing goes out before you
+           press it. Property link required (from creation or the → Contract
+           modal). */
+        (d.contractId||d.propertyId
+          ?'<button class="pbtn" style="border-color:var(--gold);color:var(--gold);font-weight:600" onclick="sendSign(\''+d.id+'\',this)">'+(d.signSentAt?'🖊 Reinvia Magic Sign':'🖊 Invia Magic Sign')+'</button>'
+          :'<button class="pbtn" style="border-color:var(--line-gold);color:var(--gold)" onclick="convertPA(\''+d.id+'\')">→ Contract</button>')
+        +(d.signSentAt&&d.tenantSignUrl&&t.phone?'<a class="pbtn" href="https://wa.me/'+String(t.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent('Ciao'+(t.fullName?' '+t.fullName.split(' ')[0]:'')+'! Il tuo contratto per '+((d.property||{}).address||'')+' è pronto — firmi qui in 2 minuti: '+d.tenantSignUrl)+'" target="_blank" rel="noopener">Firma su WhatsApp</a>':'')
+        +(d.landlordSignUrl?'<button class="pbtn" onclick="navigator.clipboard.writeText(\''+d.landlordSignUrl+'\')">Copia link delega</button>':'')
+        +'<button class="pbtn" onclick="resendCopy(\''+d.id+'\',this)">✉ Reinvia copia</button>'
+      ):'')
     +(st==='revoked'?'<button class="pbtn" onclick="revokePA(\''+d.id+'\',true)">Reactivate</button>'
       :(st!=='paid'&&st!=='accepted'?'<button class="pbtn warn" onclick="revokePA(\''+d.id+'\')">Revoke</button>':''))
     +'</div>'
-    +(done?'<div class="nextstep">'+(d.contractId
-        ?'Contract created — tenant signs via Magic Sign; you countersign <b>per delega</b> whenever you choose, then handle the RLI registration.'
-        :'Next step → <b>→ Contract</b> converts this into the rental contract (identity + terms carried over, Magic-Sign links minted, you sign per delega on your own schedule).')
-      +(st==='accepted'&&(m.dueAtSigning||0)>0?' <span style="color:var(--gold-light)">Payment still pending.</span>':'')+'</div>':'')
+    +(done?'<div class="nextstep">'+(d.signSentAt
+        ?'🖊 Magic Sign inviato il <b>'+String(d.signSentAt).slice(0,10)+'</b> — dopo la firma dell’inquilino apri il <b>link delega</b> e controfirmi quando decidi tu, poi registrazione RLI.'
+        :(d.contractId
+          ?'Contratto pronto (identità + documenti già dentro) — <b>🖊 Magic Sign</b> quando vuoi far firmare l’inquilino.'
+          :(d.propertyId
+            ?'Tutto pronto — <b>🖊 Magic Sign</b> crea il contratto e manda il link di firma all’inquilino, in un tocco.'
+            :'Next step → <b>→ Contract</b> collega la proprietà e prepara il contratto (identità e termini già dentro).')))
+      +(st==='accepted'&&(m.dueAtSigning||0)>0?' <span style="color:var(--gold-light)">Pagamento ancora in sospeso.</span>':'')+'</div>':'')
     +'</div>';
 }
 function watchPAs(){

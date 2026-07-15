@@ -130,16 +130,17 @@ function btn(href, label) {
     </td></tr></table>`;
 }
 
-// "Your contract is ready to sign" — sent by the auto-convert pipeline the
-// moment the PA closes (paid, or accepted with nothing due). Client gets the
-// Magic-Sign link; admin gets a copy with the parked delegate link.
-export async function sendContractSignEmail({ pa, tenantSignUrl, landlordSignUrl, delegate }) {
+// "Your contract is ready to sign" — the tenant's Magic-Sign email.
+// notifyClient:false = admin heads-up only (the auto pipeline PREPARES the
+// contract silently; the admin decides WHEN the client receives the signing
+// link, via the console's Magic Sign button → api/preagreement/send-sign).
+export async function sendContractSignEmail({ pa, tenantSignUrl, landlordSignUrl, delegate, notifyClient = true }) {
   const t = pa.tenant || {};
   const first = String(t.fullName || '').split(' ')[0] || 'there';
   const addr = (pa.property || {}).address || 'your Rome apartment';
   const results = { client: false, admin: false };
 
-  if (t.email && tenantSignUrl) {
+  if (t.email && tenantSignUrl && notifyClient !== false) {
     try {
       await sendEmail({
         to: t.email,
@@ -164,17 +165,21 @@ export async function sendContractSignEmail({ pa, tenantSignUrl, landlordSignUrl
   try {
     await sendEmail({
       to: ADMIN_EMAIL,
-      subject: `📋 Contratto auto-creato — ${t.fullName || ''} · ${addr}`,
+      subject: notifyClient !== false
+        ? `🖊 Magic Sign inviato — ${t.fullName || ''} · ${addr}`
+        : `📋 Contratto PRONTO (non inviato) — ${t.fullName || ''} · ${addr}`,
       html: shell(
         `<p style="font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#333;line-height:1.7;margin:0 0 20px">
-          Il pre-agreement ${esc(pa.ref || '')} è chiuso e il contratto è stato <b>creato automaticamente</b>.
-          Link di firma inviato all'inquilino (${esc(t.email || '—')}).</p>
+          Il pre-agreement ${esc(pa.ref || '')} è chiuso e il contratto è stato <b>creato automaticamente</b> — identità, documenti e termini già dentro.
+          ${notifyClient !== false
+            ? `Link di firma inviato all'inquilino (${esc(t.email || '—')}).`
+            : `<b>Nessuna email al cliente</b>: decidi tu quando — un tocco su <b>🖊 Magic Sign</b> nella console e il link parte.`}</p>
         <p style="font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#333;line-height:1.8">
           ✍️ <b>Il tuo link per la controfirma per delega</b>${delegate && delegate.onBehalfOf ? ` (per conto di ${esc(delegate.onBehalfOf)})` : ''} —
           si sblocca dopo la firma dell'inquilino:<br>
           <a href="${esc(landlordSignUrl || '')}" style="color:#111;word-break:break-all">${esc(landlordSignUrl || '')}</a></p>`
         + btn('https://www.boomrome.com/pre-agreement-admin', 'Apri la console'),
-        'Contratto auto-creato — firma per delega quando vuoi'),
+        notifyClient !== false ? 'Magic Sign inviato' : 'Contratto pronto — invia Magic Sign quando vuoi'),
     });
     results.admin = true;
   } catch (e) { console.error('[pa/_notify] admin contract email failed:', e.message); }

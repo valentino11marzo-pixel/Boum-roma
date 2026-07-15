@@ -262,8 +262,20 @@ annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
   `propertyId` + `autoConvert` (set from the console's "Portal property"
   picker), the contract creates ITSELF the moment the deal closes — from
   `submit.js` (acceptance with nothing due) or the Stripe webhook (paid).
-  Tenant gets a "your contract is ready to sign" email with the Magic-Sign
-  link (`sendContractSignEmail`); admin gets the parked per-delega link.
+  ADMIN-ONLY notification: the client's Magic-Sign email is a deliberate
+  console decision, never automatic.
+- `POST /api/preagreement/send-sign` — the console's 🖊 Magic Sign button.
+  Admin auth. One tap: converts if needed (idempotent), emails the tenant
+  their Magic-Sign link, patches `pa.signSentAt` + stores both sign URLs on
+  the PA (admin-only) so the row offers WhatsApp share + delegate-link copy.
+  Re-press = resend.
+- `POST /api/preagreement/notify` — console "✉ Reinvia copia". Admin auth.
+  Re-sends the accepted/paid document email to the client (recovery path
+  for failed sends / "non l'ho ricevuta").
+- **Email transport warning**: `nodemailer` and `pdf-lib` MUST be imported
+  statically (top-level `import`). Lazy `await import('pkg')` is not traced
+  by Vercel's bundler → "Cannot find package" at runtime in production
+  (this silently killed all pre-agreement emails until 2026-07).
 - `pre-agreement.html` — the public page, an Apple-style guided 4-step
   flow: **Review** (hero tiles: monthly all-in / due today / move-in /
   term, full terms, advisor card, trust chips) → **Details** (identity +

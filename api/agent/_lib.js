@@ -12,11 +12,12 @@
 // double the env surface without any real isolation benefit — the same
 // agent runtime calls both sets of endpoints.
 
-// Note: nodemailer is dynamically imported inside getMailer() rather than at
-// the top of the file. This keeps endpoints that don't send email
-// (heartbeat, state.snapshot, risk.scan, leads.*, etc.) functional even if
-// the nodemailer dep is unavailable — the load only happens when sendEmail
-// is actually called.
+// Note: nodemailer MUST be imported statically. The previous lazy
+// `await import('nodemailer')` inside getMailer() was invisible to Vercel's
+// file tracer, so nodemailer never made it into the function bundles —
+// every sendEmail() in production failed with "Cannot find package
+// 'nodemailer'" (client + admin pre-agreement emails, silently). A static
+// import guarantees the tracer bundles it for every function using this lib.
 
 export {
   FS_BASE, getAdminToken, fsCreate, fsPatch, fsGet, fsList,
@@ -27,6 +28,7 @@ export {
 // Local binding (the line above only re-exports) so storageUpload can sign its
 // own Firebase Storage REST calls with the same admin token used everywhere.
 import { getAdminToken as _getAdminToken } from '../homie/_lib.js';
+import nodemailer from 'nodemailer';
 
 // ─── Firebase Storage upload (REST, admin token) ─────────────────────────────
 // Uploads bytes to the project bucket and returns a tokenized download URL
@@ -55,7 +57,6 @@ export async function storageUpload(path, buffer, contentType = 'application/pdf
 let _transporter = null;
 async function getMailer() {
   if (_transporter) return _transporter;
-  const nodemailer = (await import('nodemailer')).default;
   _transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASS },

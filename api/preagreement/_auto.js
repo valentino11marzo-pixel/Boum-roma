@@ -23,7 +23,10 @@ export async function maybeAutoConvert({ pa, paId }) {
       return out;
     }
     if (!out.already) {
-      try { await sendContractSignEmail({ pa, tenantSignUrl: out.tenantSignUrl, landlordSignUrl: out.landlordSignUrl, delegate: out.delegate }); }
+      // Admin heads-up ONLY. The client's Magic-Sign email is a deliberate
+      // decision — the console's 🖊 button (api/preagreement/send-sign) —
+      // so the admin can run many deals in parallel without losing control.
+      try { await sendContractSignEmail({ pa, tenantSignUrl: out.tenantSignUrl, landlordSignUrl: out.landlordSignUrl, delegate: out.delegate, notifyClient: false }); }
       catch (e) { console.error('[pa/_auto] sign email failed:', e.message); }
     }
     return out;
