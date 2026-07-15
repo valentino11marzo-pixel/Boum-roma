@@ -1,0 +1,45 @@
+name: CI
+
+# Rete di sicurezza pre-deploy: valida la sintassi di tutti gli script del
+# sito e fa girare lo smoke test del flusso di autenticazione in un browser
+# reale. Vercel deploya comunque a prescindere (advisory): se un check è
+# rosso, il commit è già live — ma lo sai subito e fai revert in un minuto.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Sintassi inline JS + js/*.js + sw.js + vercel.json
+        run: node scripts/check-pages.mjs
+      - name: Sintassi moduli ESM api/
+        run: |
+          set -e
+          for f in $(find api -name '*.js'); do
+            cp "$f" /tmp/esmcheck.mjs
+            node --check /tmp/esmcheck.mjs || { echo "FAIL $f"; exit 1; }
+          done
+          echo "api/: OK"
+
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Installa Playwright + Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install --no-save playwright >/dev/null
+          npx playwright install --with-deps chromium
+      - name: Smoke test flusso auth
+        run: node tests/smoke.mjs
