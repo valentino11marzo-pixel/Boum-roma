@@ -414,9 +414,11 @@ function render(){
     +kv('Monthly rent',eur(m.rent),'utilities excluded')
     +kv('Security deposit',eur(m.deposit),m.depositMonths+' month'+(m.depositMonths===1?'':'s')+'’ rent · refundable')
     +'<div class="total"><span class="k">Total due at signing</span><span class="v">'+eur(m.dueAtSigning)+'</span></div>'
-    +'<div class="feenote"><b>Agency fee:</b> '+m.feePct+'% of annual rent = '+eur(m.fee)
-    +(m.feeVatPct?(' + VAT '+m.feeVatPct+'% ('+eur(m.feeVat)+') = <b>'+eur(m.feeTotal)+'</b>'):'')
-    +' — due separately, not at signing.'
+    +'<div class="feenote"><b>Agency fee:</b> '
+    +(!m.feeTotal?'none for this agreement.'
+      :((m.feePct!=null?m.feePct+'% of annual rent = ':'')+eur(m.fee)
+        +(m.feeVatPct?(' + VAT '+m.feeVatPct+'% ('+eur(m.feeVat)+') = <b>'+eur(m.feeTotal)+'</b>'):'')
+        +' — due separately, not at signing.'))
     +(PA.note?('<br>'+esc(PA.note)):'')+'</div>'
     +'</div>';
 

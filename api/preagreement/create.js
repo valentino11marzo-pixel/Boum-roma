@@ -12,7 +12,8 @@
 //   landlord:  { name },
 //   tenant?:   { fullName?, email?, phone? },          // optional prefill
 //   lease:     { startDate(YYYY-MM-DD), months, type?, lawRef?, reason? },
-//   money:     { rent, depositMonths?, feePct?, feeVatPct?, dueAtSigning? },
+//   money:     { rent, depositMonths?, feePct?, feeFlat?, feeVatPct?, dueAtSigning? },
+//              (feeFlat, when present, wins over feePct: flat € agency fee)
 //   note?:     string
 // }
 // Derived server-side: deposit, fee, feeVat, feeTotal, endDate.
@@ -57,9 +58,17 @@ export default async function handler(req, res) {
 
   const depositMonths = Math.max(0, Math.min(6, num(m.depositMonths, 1)));
   const deposit = Math.round(rent * depositMonths * 100) / 100;
-  const feePct = Math.max(0, Math.min(30, num(m.feePct, 12)));
-  const feeVatPct = Math.max(0, Math.min(30, num(m.feeVatPct, 22)));
-  const fee = Math.round(rent * 12 * feePct) / 100;                 // % of annual rent
+  // Fee is fully free-form: either a % of annual rent (any value, incl. 0)
+  // or a flat euro amount (money.feeFlat) — whichever the console sends.
+  const feeVatPct = Math.max(0, Math.min(50, num(m.feeVatPct, 22)));
+  let feePct = null, feeFlat = null, fee;
+  if (m.feeFlat != null && m.feeFlat !== '') {
+    feeFlat = Math.max(0, Math.min(200000, num(m.feeFlat)));
+    fee = Math.round(feeFlat * 100) / 100;
+  } else {
+    feePct = Math.max(0, Math.min(100, num(m.feePct, 12)));
+    fee = Math.round(rent * 12 * feePct) / 100;                     // % of annual rent
+  }
   const feeVat = Math.round(fee * feeVatPct) / 100;
   const feeTotal = Math.round((fee + feeVat) * 100) / 100;
   const dueAtSigning = m.dueAtSigning != null ? Math.max(0, num(m.dueAtSigning)) : deposit;
@@ -91,7 +100,7 @@ export default async function handler(req, res) {
       lawRef: clip(l.lawRef, 80) || 'uso transitorio · L.431/98 art.5 c.1',
       reason: clip(l.reason, 300),
     },
-    money: { rent, depositMonths, deposit, feePct, feeVatPct, fee, feeVat, feeTotal, dueAtSigning },
+    money: { rent, depositMonths, deposit, feePct, feeFlat, feeVatPct, fee, feeVat, feeTotal, dueAtSigning },
     note: clip(b.note, 600),
     createdAt: new Date().toISOString(),
     createdBy: auth.email || auth.uid,
