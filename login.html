@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script defer src="/js/boom-err.js"></script>
     <link rel="icon" href="/favicon.ico" sizes="any">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="icon" href="/favicon-32x32.png" sizes="32x32" type="image/png">
@@ -462,7 +463,7 @@
       if('serviceWorker' in navigator && !(navigator.connection&&navigator.connection.saveData)
          && (NEXT_DEST==='/portal.html'||NEXT_DEST==='/portal'||NEXT_DEST.startsWith('/portal.html#')||NEXT_DEST.startsWith('/portal#'))){
         navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(()=>{});
-        const warm=()=>{ fetch('/portal.html',{credentials:'same-origin'}).catch(()=>{}); };
+        const warm=()=>{ ['/portal.html','/js/portal-app.js','/css/portal.css'].forEach(u=>{ fetch(u,{credentials:'same-origin'}).catch(()=>{}); }); };
         const start=()=>{
           if(navigator.serviceWorker.controller) warm();
           else navigator.serviceWorker.addEventListener('controllerchange',warm,{once:true});
