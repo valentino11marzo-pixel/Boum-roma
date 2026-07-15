@@ -59,7 +59,9 @@ export function paDocumentHtml(pa, opts = {}) {
     <span style="color:#8a8a8a">&nbsp;·&nbsp; on behalf of the landlord</span> <b>${esc((pa.landlord || {}).name || '')}</b>
   </div>`;
 
-  const feeNote = `${m.feePct != null ? m.feePct : 12}% of annual rent = ${eur(m.fee)} + VAT ${m.feeVatPct != null ? m.feeVatPct : 22}% (${eur(m.feeVat)}) = <b>${eur(m.feeTotal)}</b>`;
+  const feeNote = !m.feeTotal
+    ? 'none for this agreement'
+    : `${m.feeFlat != null ? '' : (m.feePct != null ? m.feePct : 12) + '% of annual rent = '}${eur(m.fee)} + VAT ${m.feeVatPct != null ? m.feeVatPct : 22}% (${eur(m.feeVat)}) = <b>${eur(m.feeTotal)}</b>`;
 
   const body = `
   <table width="100%" cellpadding="0" cellspacing="0" style="font-family:Helvetica,Arial,sans-serif;margin-top:8px">

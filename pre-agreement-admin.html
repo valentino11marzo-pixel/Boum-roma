@@ -107,7 +107,7 @@ h1{font-weight:200;font-size:24px;margin-bottom:4px}
       <div class="g3">
         <label class="fld req"><span>Monthly rent €</span><input id="fRent" type="number" inputmode="numeric" placeholder="1200"></label>
         <label class="fld"><span>Deposit (months)</span><input id="fDepM" type="number" value="1" min="0" max="6" step="0.5"></label>
-        <label class="fld"><span>Fee % of annual</span><input id="fFeePct" type="number" value="12" min="0" max="30" step="0.5"></label>
+        <label class="fld"><span>Agency fee</span><span style="display:flex;gap:6px"><input id="fFeeVal" type="number" value="12" min="0" step="0.5" style="flex:1;min-width:0"><select id="fFeeMode" style="width:118px;flex:none"><option value="percent">% of annual</option><option value="flat">€ fixed</option></select></span></label>
       </div>
       <div class="g2">
         <label class="fld"><span>VAT % on fee</span><input id="fVatPct" type="number" value="22" min="0" max="30"></label>
@@ -157,13 +157,18 @@ var USER=null,LISTINGS=[];
 var $=function(id){return document.getElementById(id)};
 var eur=function(n){var f=Math.round(n*100)%100!==0;return '€'+Number(n).toLocaleString('en-US',{minimumFractionDigits:f?2:0,maximumFractionDigits:2})};
 
-function mathLine(){
-  var rent=+$('fRent').value||0,dm=+$('fDepM').value||0,fp=+$('fFeePct').value||0,vp=+$('fVatPct').value||0;
-  if(!rent){$('mathLine').textContent='—';return;}
-  var dep=Math.round(rent*dm*100)/100,fee=Math.round(rent*12*fp)/100,vat=Math.round(fee*vp)/100;
-  $('mathLine').innerHTML='Deposit <b>'+eur(dep)+'</b> · fee <b>'+eur(fee)+'</b> + VAT '+eur(vat)+' = <b>'+eur(fee+vat)+'</b> (due separately) · due at signing default <b>'+eur(+$('fDue').value||dep)+'</b>';
+function feeCalc(rent){
+  var mode=$('fFeeMode').value,v=+$('fFeeVal').value||0;
+  return mode==='flat'?{mode:mode,val:v,fee:Math.round(v*100)/100}:{mode:mode,val:v,fee:Math.round(rent*12*v)/100};
 }
-['fRent','fDepM','fFeePct','fVatPct','fDue'].forEach(function(id){document.addEventListener('input',function(e){if(e.target.id===id)mathLine();});});
+function mathLine(){
+  var rent=+$('fRent').value||0,dm=+$('fDepM').value||0,vp=+$('fVatPct').value||0;
+  if(!rent){$('mathLine').textContent='—';return;}
+  var dep=Math.round(rent*dm*100)/100,fc=feeCalc(rent),fee=fc.fee,vat=Math.round(fee*vp)/100;
+  $('mathLine').innerHTML='Deposit <b>'+eur(dep)+'</b> · fee'+(fc.mode==='flat'?' (fixed)':'')+' <b>'+eur(fee)+'</b> + VAT '+eur(vat)+' = <b>'+eur(fee+vat)+'</b> (due separately) · due at signing default <b>'+eur(+$('fDue').value||dep)+'</b>';
+}
+['fRent','fDepM','fFeeVal','fVatPct','fDue'].forEach(function(id){document.addEventListener('input',function(e){if(e.target.id===id)mathLine();});});
+document.addEventListener('change',function(e){if(e.target.id==='fFeeMode')mathLine();});
 
 /* edit mode: EDIT_ID + EDIT_TOKEN set → saving PATCHES the same doc, so the
    client's existing link shows the updated terms. Derivations (deposit, fee,
@@ -171,8 +176,8 @@ function mathLine(){
 var EDIT_ID=null,EDIT_TOKEN=null;
 function endDateISO(startISO,months){var d=new Date(startISO+'T00:00:00');var day=d.getDate();d.setMonth(d.getMonth()+months);if(d.getDate()!==day)d.setDate(0);else d.setDate(d.getDate()-1);return d.toISOString().slice(0,10);}
 function readForm(){
-  var rent=+$('fRent').value||0,dm=+$('fDepM').value||0,fp=+$('fFeePct').value||0,vp=+$('fVatPct').value||0;
-  var deposit=Math.round(rent*dm*100)/100,fee=Math.round(rent*12*fp)/100,feeVat=Math.round(fee*vp)/100;
+  var rent=+$('fRent').value||0,dm=+$('fDepM').value||0,vp=+$('fVatPct').value||0;
+  var fc=feeCalc(rent),deposit=Math.round(rent*dm*100)/100,fee=fc.fee,feeVat=Math.round(fee*vp)/100;
   var months=Math.max(1,Math.min(48,+$('fMonths').value||12)),start=$('fStart').value;
   return{
     listingId:$('fList').value||null,
@@ -180,7 +185,7 @@ function readForm(){
     landlord:{name:$('fLandlord').value.trim()},
     tenant:{fullName:$('fTName').value.trim()||null,email:$('fTEmail').value.trim()||null,phone:$('fTPhone').value.trim()||null},
     lease:{startDate:start,months:months,endDate:start?endDateISO(start,months):null,type:$('fType').value,lawRef:'uso transitorio · L.431/98 art.5 c.1',reason:$('fReason').value.trim()||null},
-    money:{rent:rent,depositMonths:dm,deposit:deposit,feePct:fp,feeVatPct:vp,fee:fee,feeVat:feeVat,feeTotal:Math.round((fee+feeVat)*100)/100,
+    money:{rent:rent,depositMonths:dm,deposit:deposit,feePct:fc.mode==='flat'?null:fc.val,feeFlat:fc.mode==='flat'?fc.val:null,feeVatPct:vp,fee:fee,feeVat:feeVat,feeTotal:Math.round((fee+feeVat)*100)/100,
       dueAtSigning:$('fDue').value!==''?Math.max(0,+$('fDue').value||0):deposit},
     note:$('fNote').value.trim()||null
   };
@@ -231,7 +236,10 @@ function fillForm(d){
   try{$('fType').value=(d.lease||{}).type||'Transitional Lease'}catch(e){}
   $('fReason').value=(d.lease||{}).reason||'';
   $('fRent').value=(d.money||{}).rent||'';$('fDepM').value=(d.money||{}).depositMonths!=null?(d.money||{}).depositMonths:1;
-  $('fFeePct').value=(d.money||{}).feePct!=null?(d.money||{}).feePct:12;$('fVatPct').value=(d.money||{}).feeVatPct!=null?(d.money||{}).feeVatPct:22;
+  var mm=d.money||{};
+  if(mm.feeFlat!=null){$('fFeeMode').value='flat';$('fFeeVal').value=mm.feeFlat;}
+  else{$('fFeeMode').value='percent';$('fFeeVal').value=mm.feePct!=null?mm.feePct:12;}
+  $('fVatPct').value=mm.feeVatPct!=null?mm.feeVatPct:22;
   $('fDue').value=(d.money||{}).dueAtSigning!=null?(d.money||{}).dueAtSigning:'';
   $('fNote').value=d.note||'';
   $('fTName').value=(d.tenant||{}).fullName||'';$('fTEmail').value=(d.tenant||{}).email||'';$('fTPhone').value=(d.tenant||{}).phone||'';
