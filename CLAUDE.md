@@ -252,10 +252,28 @@ annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
   the ADMIN who countersigns per delega after the tenant signs (sign.html
   shows "signing as X on behalf of Y"; magic-sign submit stamps
   `landlordSignedByDelegate`). Idempotent via `pa.contractId`.
-- `pre-agreement.html` — the public document page (identity form lives
-  inside §1 of the document; "+ Add a co-tenant" blocks; accept & sign →
-  Stripe; print-friendly; accepted view has "Get it on WhatsApp" share of
-  the document link).
+- `POST /api/preagreement/upload` — public, PA-token-scoped. The Verify
+  step's ID/passport upload: base64 (client downscales photos to ~1800px
+  JPEG) → Firebase Storage `preagreements/<paId>/…` under ADMIN creds
+  (admin-only per storage.rules; tokenized URL kept on `pa.uploads[]`,
+  never returned to the public page). Convert copies these onto the
+  contract (`identityDocs`) + tenant user profile.
+- `api/preagreement/_auto.js` — `maybeAutoConvert()`: when the PA carries
+  `propertyId` + `autoConvert` (set from the console's "Portal property"
+  picker), the contract creates ITSELF the moment the deal closes — from
+  `submit.js` (acceptance with nothing due) or the Stripe webhook (paid).
+  Tenant gets a "your contract is ready to sign" email with the Magic-Sign
+  link (`sendContractSignEmail`); admin gets the parked per-delega link.
+- `pre-agreement.html` — the public page, an Apple-style guided 4-step
+  flow: **Review** (hero tiles: monthly all-in / due today / move-in /
+  term, full terms, advisor card, trust chips) → **Details** (identity +
+  "+ Add a co-tenant" blocks, draft autosaved) → **Verify** (optional ID
+  upload per signer — skippable, GDPR note) → **Sign** (the assembled
+  paper document with typed-calligraphy signatures + consent). Frosted
+  segmented stepper, single bottom action bar, stamp ceremony, accepted
+  view with "what happens next" timeline (payment → contract → sign →
+  keys), Stripe resume, QR, WhatsApp copy, print = b/w paper replica.
+  Custom `extras[]` money lines render in §4, `customClauses[]` in §5.
 - `pre-agreement-admin.html` — generator + management console (BoomPortal
   auth, listing prefill, live fee math, WhatsApp share). Realtime list of all
   preAgreements with status chips (sent/viewed/accepted/paid/revoked): copy
@@ -273,12 +291,15 @@ annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
   due via Stripe (else it arrives after payment); admin always notified.
 
 **Deal pipeline (protocol)**: lead (`/api/apply-lead` or portal) →
-pre-agreement (console → tokenized link → client self-fills, adds
-co-tenants → accepts → Stripe if due>0 → confirmation emails + WhatsApp
-copy) → **→ Contract** in the console (`/api/preagreement/convert`: no
-re-typing, Magic-Sign links minted) → tenant signs → admin countersigns
-per delega on their own schedule → RLI registration → tenant portal
-(payments/documents). Terms differ per deal: edit before acceptance (same
+pre-agreement (console, with a Portal-property link → tokenized link →
+client walks the 4-step flow: reviews, self-fills + co-tenants, uploads
+ID, signs → Stripe if due>0 → confirmation emails + WhatsApp copy) →
+contract creates AUTOMATICALLY on close (`_auto.js`; or manually via the
+console's "→ Contract" / `/api/preagreement/convert`) with identity, ID
+files and terms carried over → tenant gets the Magic-Sign link by email →
+admin countersigns per delega on their own schedule → RLI registration →
+tenant portal (payments/documents). Terms differ per deal: any money knob,
+extra line items and custom clauses per PA; edit before acceptance (same
 link); after acceptance/payment, Duplicate creates the new version.
 
 ### POST `/api/magic-sign/lookup`

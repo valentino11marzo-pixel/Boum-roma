@@ -17,6 +17,7 @@
 import Stripe from 'stripe';
 import { fsList, fsPatch, readJson, logActivity } from '../homie/_lib.js';
 import { sendPaEmails } from './_notify.js';
+import { maybeAutoConvert } from './_auto.js';
 
 const clip = (v, n = 200) => (v == null ? null : String(v).trim().slice(0, n) || null);
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -127,6 +128,13 @@ export default async function handler(req, res) {
         notifyClient: !(due > 0 && checkoutUrl),
       });
     } catch (e) { console.error('[preagreement/submit] emails failed:', e.message); }
+
+    // Deal sealed with nothing due via Stripe → the contract auto-creates
+    // NOW and the tenant's Magic-Sign link goes out while momentum is hot.
+    // (When a payment is expected, the webhook runs this after checkout.)
+    if (!(due > 0 && checkoutUrl)) {
+      await maybeAutoConvert({ pa: { ...data, tenant, tenants: signed, status: 'accepted', ref }, paId: id });
+    }
 
     return res.status(200).json({ ok: true, ref, checkoutUrl });
   } catch (e) {

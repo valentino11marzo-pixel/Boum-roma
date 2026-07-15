@@ -38,6 +38,12 @@ export default async function handler(req, res) {
         status: data.status, property: data.property, landlord: data.landlord,
         tenant: data.tenant, tenants: Array.isArray(data.tenants) ? data.tenants : null,
         lease: data.lease, money: data.money,
+        extras: Array.isArray(data.extras) ? data.extras : null,
+        customClauses: Array.isArray(data.customClauses) ? data.customClauses : null,
+        // uploads stay private (their URLs carry the read token) — the page
+        // only needs how many arrived, to restore the Verify step's state
+        uploadsCount: Array.isArray(data.uploads) ? data.uploads.length : 0,
+        contractReady: !!data.contractId,
         note: data.note || null, createdAt: data.createdAt,
         acceptedAt: data.acceptedAt || null, ref: data.ref || null,
       },

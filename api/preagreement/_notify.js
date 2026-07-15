@@ -80,6 +80,8 @@ export function paDocumentHtml(pa, opts = {}) {
 
   const coTenantRows = tenants.slice(1).map(x =>
     row('Co-tenant', `<b>${esc(x.fullName)}</b>`, [x.email, x.phone, x.cf].filter(Boolean).map(esc).join(' · '))).join('');
+  const extrasRows = (Array.isArray(pa.extras) ? pa.extras : [])
+    .map(x => row(esc(x.label), `<b>${eur(x.amount)}</b>`)).join('');
 
   const body = `
   <table width="100%" cellpadding="0" cellspacing="0" style="font-family:Helvetica,Arial,sans-serif;margin-top:8px">
@@ -87,6 +89,7 @@ export function paDocumentHtml(pa, opts = {}) {
     ${row('Lease term', `<b>${fmtD(le.startDate)} → ${fmtD(le.endDate)}</b>`, `${le.months || ''} months · ${esc(le.type || '')}${le.reason ? ' · need: ' + esc(le.reason) : ''}`)}
     ${rentRow}
     ${row('Deposit', `<b>${eur(m.deposit)}</b>`, depSub)}
+    ${extrasRows}
     ${row('Agency fee', feeNote, feeWhen)}
     ${row('Due at signing', `<b style="font-size:16px">${eur(m.dueAtSigning)}</b>`, paid ? `paid ${opts.paidAt ? fmtD(opts.paidAt) : ''} via Stripe` : null)}
     ${t.fullName ? row('Tenant', `<b>${esc(t.fullName)}</b>`, [t.email, t.phone, t.cf].filter(Boolean).map(esc).join(' · ')) : ''}
@@ -125,6 +128,58 @@ function btn(href, label) {
     <td style="background:#111;padding:13px 26px;text-align:center">
       <a href="${esc(href)}" style="font-family:Helvetica,Arial,sans-serif;font-size:13px;letter-spacing:1px;color:#ffffff;text-decoration:none">${esc(label)}</a>
     </td></tr></table>`;
+}
+
+// "Your contract is ready to sign" — sent by the auto-convert pipeline the
+// moment the PA closes (paid, or accepted with nothing due). Client gets the
+// Magic-Sign link; admin gets a copy with the parked delegate link.
+export async function sendContractSignEmail({ pa, tenantSignUrl, landlordSignUrl, delegate }) {
+  const t = pa.tenant || {};
+  const first = String(t.fullName || '').split(' ')[0] || 'there';
+  const addr = (pa.property || {}).address || 'your Rome apartment';
+  const results = { client: false, admin: false };
+
+  if (t.email && tenantSignUrl) {
+    try {
+      await sendEmail({
+        to: t.email,
+        subject: `Your rental contract is ready to sign — ${addr}`,
+        html: shell(
+          `<p style="font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#333;line-height:1.7;margin:0 0 20px">
+            Ciao ${esc(first)} — great news: your rental contract for <b>${esc(addr)}</b> has been prepared
+            from your accepted pre-agreement${pa.ref ? ` (${esc(pa.ref)})` : ''}. Everything you already
+            filled in carried over — nothing to re-type. It takes about two minutes to sign digitally:</p>`
+          + btn(tenantSignUrl, 'Review & sign your contract')
+          + `<p style="font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#777;line-height:1.7;margin:18px 0 0">
+            Your signature is a legally valid electronic signature (FES — Art. 21 CAD), recorded with a
+            signed certificate. After you sign, BOOM countersigns and files the registration with the
+            Agenzia delle Entrate. Questions? Just reply — a human answers. Or
+            <a href="https://wa.me/393313251961" style="color:#111">WhatsApp BOOM</a>.</p>`,
+          `Your contract for ${addr} is ready to sign`),
+      });
+      results.client = true;
+    } catch (e) { console.error('[pa/_notify] contract sign email failed:', e.message); }
+  }
+
+  try {
+    await sendEmail({
+      to: ADMIN_EMAIL,
+      subject: `📋 Contratto auto-creato — ${t.fullName || ''} · ${addr}`,
+      html: shell(
+        `<p style="font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#333;line-height:1.7;margin:0 0 20px">
+          Il pre-agreement ${esc(pa.ref || '')} è chiuso e il contratto è stato <b>creato automaticamente</b>.
+          Link di firma inviato all'inquilino (${esc(t.email || '—')}).</p>
+        <p style="font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#333;line-height:1.8">
+          ✍️ <b>Il tuo link per la controfirma per delega</b>${delegate && delegate.onBehalfOf ? ` (per conto di ${esc(delegate.onBehalfOf)})` : ''} —
+          si sblocca dopo la firma dell'inquilino:<br>
+          <a href="${esc(landlordSignUrl || '')}" style="color:#111;word-break:break-all">${esc(landlordSignUrl || '')}</a></p>`
+        + btn('https://www.boomrome.com/pre-agreement-admin', 'Apri la console'),
+        'Contratto auto-creato — firma per delega quando vuoi'),
+    });
+    results.admin = true;
+  } catch (e) { console.error('[pa/_notify] admin contract email failed:', e.message); }
+
+  return results;
 }
 
 // Client + admin emails. `event` is 'paid' | 'accepted'. Never throws.

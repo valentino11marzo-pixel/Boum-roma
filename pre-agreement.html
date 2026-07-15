@@ -10,228 +10,245 @@
 <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">
 <style>
 /* ═══════════════════════════════════════════════════════════════════
-   L'ATTO — the pre-agreement as a precious artifact in a dark atelier.
-   One sheet of near-black paper with a gold foil edge, resting on the
-   dossier's other sheets. The document issues itself, the client's name
-   becomes calligraphy, and acceptance lands with a stamp.
+   THE SIGNING — a guided, four-act ceremony in the Apple grammar:
+   one decision per screen, huge legible numbers, frosted chrome, and a
+   paper document that assembles itself from what the client types.
+   Review → Details → Verify → Sign. Zero friction, total clarity.
    ═══════════════════════════════════════════════════════════════════ */
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--gold:#FFD700;--gold-light:#FFE5A0;--gold-deep:#8a6d00;--void:#060607;--paper:#111115;--paper2:#0C0C0F;
-  --input:rgba(255,255,255,.025);
-  --line:rgba(255,255,255,.09);--line-soft:rgba(255,255,255,.05);--line-gold:rgba(255,215,0,.28);
-  --gold-muted:rgba(255,215,0,.12);--gold-faint:rgba(255,215,0,.06);
-  --t1:#FFF;--t2:rgba(255,255,255,.72);--t3:rgba(255,255,255,.46);--t4:rgba(255,255,255,.26);
-  --green:#3ddc97;--green-muted:rgba(61,220,151,.14);
-  --sans:'Helvetica Neue',Helvetica,'Inter',-apple-system,sans-serif;
+:root{--gold:#FFD700;--gold-light:#FFE5A0;--gold-deep:#8a6d00;--gold-text:#E9C767;
+  --void:#050506;--paper:#111115;--paper2:#0C0C0F;
+  --surface:rgba(255,255,255,.035);--surface2:rgba(255,255,255,.065);--input:rgba(255,255,255,.03);
+  --line:rgba(255,255,255,.1);--line-soft:rgba(255,255,255,.055);--line-gold:rgba(255,215,0,.28);
+  --gold-muted:rgba(255,215,0,.12);--gold-faint:rgba(255,215,0,.055);
+  --t1:#FFF;--t2:rgba(255,255,255,.74);--t3:rgba(255,255,255,.48);--t4:rgba(255,255,255,.28);
+  --green:#3ddc97;--green-muted:rgba(61,220,151,.14);--wa:#25D366;
+  --sans:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Helvetica Neue',Helvetica,'Inter',sans-serif;
   --script:'Great Vibes','Snell Roundhand','Segoe Script',cursive;
-  --ease:cubic-bezier(.16,1,.3,1);--spring:cubic-bezier(.34,1.56,.64,1);--safe:env(safe-area-inset-bottom,0px)}
-html{overflow-x:hidden}
-body{font-family:var(--sans);background:var(--void);color:var(--t1);font-weight:300;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  --ease:cubic-bezier(.32,.72,0,1);--spring:cubic-bezier(.34,1.4,.64,1);--safe:env(safe-area-inset-bottom,0px)}
+html{overflow-x:hidden;scroll-behavior:smooth}
+body{font-family:var(--sans);background:var(--void);color:var(--t1);font-weight:400;line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
 input{font-family:inherit}
 ::selection{background:rgba(255,215,0,.25)}
 
-/* stage vignette — the room is dark, the light is on the document */
-.vign{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(90% 70% at 50% 36%,transparent 40%,rgba(0,0,0,.55) 100%)}
+.vign{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(90% 70% at 50% 30%,transparent 40%,rgba(0,0,0,.5) 100%)}
 
-nav{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;justify-content:space-between;align-items:center;padding:15px 22px;background:linear-gradient(180deg,rgba(6,6,7,.85),transparent)}
+/* ── chrome: frosted nav + segmented steps + hairline progress ── */
+header{position:fixed;top:0;left:0;right:0;z-index:60;background:rgba(5,5,6,.72);backdrop-filter:blur(22px) saturate(1.7);-webkit-backdrop-filter:blur(22px) saturate(1.7);border-bottom:1px solid var(--line-soft)}
+.hprog{position:absolute;left:0;bottom:-1px;height:2px;width:0;background:linear-gradient(90deg,var(--gold),var(--gold-light));box-shadow:0 0 10px rgba(255,215,0,.5);transition:width .6s var(--ease)}
+.hrow{display:flex;justify-content:space-between;align-items:center;padding:13px 18px 10px;max-width:720px;margin:0 auto}
 .brand{display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none}
-.ring{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--gold);box-shadow:0 0 14px rgba(255,215,0,.35)}
-.brand b{font-weight:300;letter-spacing:5px;font-size:16px}
-.tag{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t4)}
+.ring{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--gold);box-shadow:0 0 12px rgba(255,215,0,.3)}
+.brand b{font-weight:400;letter-spacing:5px;font-size:15px}
+.hwa{font-size:12px;color:var(--t3);text-decoration:none;display:inline-flex;gap:6px;align-items:center;transition:color .25s}
+.hwa:hover{color:var(--wa)}
+.segs{display:flex;gap:3px;max-width:720px;margin:0 auto;padding:0 16px 11px}
+.segs button{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 2px;border-radius:100px;font-size:11px;letter-spacing:.4px;color:var(--t4);transition:all .35s var(--ease);white-space:nowrap}
+.segs button i{font-style:normal;width:16px;height:16px;border-radius:50%;border:1px solid currentColor;font-size:9.5px;display:grid;place-items:center;font-variant-numeric:tabular-nums;transition:all .35s var(--ease)}
+.segs button.on{background:var(--gold-muted);color:var(--gold-text)}
+.segs button.on i{background:var(--gold);border-color:var(--gold);color:#1a1407}
+.segs button.done{color:var(--t2)}
+.segs button.done i{background:var(--green-muted);border-color:transparent;color:var(--green)}
+.segs button:disabled{cursor:default}
+@media(max-width:420px){.segs button span{display:none}.segs button.on span{display:inline}}
 
-/* reading thread across the top */
-.rprog{position:fixed;top:0;left:0;right:0;height:2px;z-index:60;pointer-events:none}
-.rprog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold),var(--gold-light));box-shadow:0 0 8px rgba(255,215,0,.45)}
+main{position:relative;z-index:5;max-width:640px;margin:0 auto;padding:118px 18px calc(120px + var(--safe))}
+main.wide{max-width:780px}
+.eyebrow{font-size:11px;letter-spacing:2.6px;text-transform:uppercase;color:var(--gold-text);font-weight:600}
 
-main{position:relative;z-index:5;max-width:820px;margin:0 auto;padding:100px 18px calc(96px + var(--safe))}
-.eyebrow{font-size:10.5px;letter-spacing:2.6px;text-transform:uppercase;color:var(--gold)}
-
-/* ── loader: the document is being prepared, beat by beat ── */
-.load{text-align:center;padding:130px 20px;color:var(--t3)}
-.load .lseal{width:64px;height:64px;margin:0 auto 22px;position:relative}
-.load .lseal svg{display:block}
+/* ── loader / error ── */
+.load{text-align:center;padding:120px 20px;color:var(--t3)}
+.load .lseal{width:60px;height:60px;margin:0 auto 20px}
 .load .lseal circle{stroke:var(--gold);fill:none}
-.load .ll{font-size:12px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t4);margin-top:7px;opacity:0}
+.load .ll{font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:var(--t4);margin-top:7px;opacity:0}
 .errbox{text-align:center;padding:120px 20px;color:var(--t3)}
-.errbox h2{font-weight:200;font-size:26px;color:var(--t1);margin-bottom:10px}
-.errbox a{color:var(--gold)}
+.errbox h2{font-weight:300;font-size:26px;color:var(--t1);margin-bottom:10px;letter-spacing:-.4px}
+.errbox a{color:var(--gold-text)}
 
-/* ── the three acts of the ceremony ── */
-.steps{display:flex;align-items:center;gap:0;margin:0 auto 26px;max-width:430px;justify-content:space-between}
-.step{display:flex;flex-direction:column;align-items:center;gap:7px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--t4);transition:color .4s var(--ease);flex:none}
-.step .d{width:8px;height:8px;border-radius:50%;border:1px solid var(--t4);background:transparent;transition:all .4s var(--ease)}
-.step.on{color:var(--gold)}
-.step.on .d{background:var(--gold);border-color:var(--gold);box-shadow:0 0 12px rgba(255,215,0,.65)}
-.steps .ln{flex:1;height:1px;background:var(--line);margin:0 10px 18px;position:relative;overflow:hidden}
-.steps .ln i{position:absolute;inset:0;background:linear-gradient(90deg,var(--gold),var(--gold-light));transform:scaleX(0);transform-origin:left;transition:transform .6s var(--ease)}
-.steps .ln.on i{transform:none}
+/* ── panels ── */
+.panel{display:none}
+.panel.on{display:block}
+.backlk{display:flex;width:max-content;align-items:center;gap:6px;font-size:13px;color:var(--t3);margin-bottom:18px;transition:color .25s}
+.backlk:hover{color:var(--t1)}
+h1.big{font-weight:600;font-size:clamp(28px,6.4vw,40px);letter-spacing:-1.1px;line-height:1.08;margin:10px 0 6px}
+.subline{color:var(--t3);font-size:14px;letter-spacing:.1px}
+.chip{display:inline-flex;align-items:center;gap:7px;margin-top:14px;border:1px solid var(--line-gold);background:var(--gold-faint);border-radius:100px;padding:6px 14px;font-size:11px;letter-spacing:1.8px;text-transform:uppercase;color:var(--gold-text);font-weight:600}
+.chip.acc{border-color:var(--green-muted);background:var(--green-muted);color:var(--green)}
 
-/* ── the dossier: sheets under the sheet ── */
-.docwrap{position:relative}
-.docwrap::before,.docwrap::after{content:"";position:absolute;z-index:-1;background:#0A0A0D;border:1px solid rgba(255,255,255,.045);border-radius:4px}
-.docwrap::before{inset:14px -7px -9px 9px;transform:rotate(.6deg)}
-.docwrap::after{inset:22px 11px -16px -5px;transform:rotate(-.75deg);opacity:.75}
-@media(max-width:720px){
-  .docwrap::before{inset:12px -3px -7px 6px;transform:rotate(.22deg)}
-  .docwrap::after{inset:18px 8px -12px -2px;transform:rotate(-.28deg)}
-}
+/* key-figure tiles */
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:22px 0 8px}
+.tile{border:1px solid var(--line-soft);background:var(--surface);border-radius:18px;padding:16px 16px 14px}
+.tile.hero{border-color:var(--line-gold);background:linear-gradient(135deg,var(--gold-faint),var(--surface))}
+.tile .k{font-size:10.5px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t4);font-weight:600}
+.tile .v{font-size:clamp(21px,4.6vw,26px);font-weight:250;letter-spacing:-.5px;margin-top:5px;font-variant-numeric:tabular-nums}
+.tile .v small{font-size:12px;color:var(--t3);font-weight:400;letter-spacing:0}
+.tile.hero .v{color:var(--gold-text)}
 
-/* ── the paper ── */
-.doc{position:relative;border:1px solid rgba(255,215,0,.16);border-radius:4px;overflow:hidden;
-  background:
-    radial-gradient(120% 60% at 50% 0%,rgba(255,255,255,.035),transparent 55%),
-    linear-gradient(180deg,var(--paper),var(--paper2));
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 44px 110px rgba(0,0,0,.72),0 6px 22px rgba(0,0,0,.5);
-  transform-style:preserve-3d;will-change:transform}
-.doc .foil{position:absolute;top:0;left:0;right:0;height:3px;z-index:4;background:linear-gradient(90deg,transparent 2%,var(--gold-deep) 18%,var(--gold) 38%,#fff2b8 50%,var(--gold) 62%,var(--gold-deep) 82%,transparent 98%)}
-.doc .grain{position:absolute;inset:0;z-index:1;pointer-events:none;opacity:.4;mix-blend-mode:overlay;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E")}
-.doc .wm{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-14deg);z-index:0;pointer-events:none;
-  font-size:min(52vw,380px);line-height:1;font-weight:200;color:rgba(255,215,0,.028);user-select:none}
-/* printer's crop marks — this sheet is a proof */
-.cm{position:absolute;width:16px;height:16px;z-index:4;pointer-events:none;opacity:.5}
-.cm.tl{top:10px;left:10px;border-top:1px solid var(--line-gold);border-left:1px solid var(--line-gold)}
-.cm.tr{top:10px;right:10px;border-top:1px solid var(--line-gold);border-right:1px solid var(--line-gold)}
-.cm.bl{bottom:10px;left:10px;border-bottom:1px solid var(--line-gold);border-left:1px solid var(--line-gold)}
-.cm.br{bottom:10px;right:10px;border-bottom:1px solid var(--line-gold);border-right:1px solid var(--line-gold)}
+/* content cards */
+.card{border:1px solid var(--line-soft);background:var(--surface);border-radius:20px;padding:20px;margin-top:14px}
+.card h2{font-size:11px;letter-spacing:2.6px;text-transform:uppercase;color:var(--gold-text);font-weight:600;margin-bottom:14px;display:flex;gap:12px;align-items:baseline}
+.card h2::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line-gold),transparent);transform:translateY(-2px)}
+.kv{display:flex;align-items:baseline;gap:12px;padding:10px 0;font-size:14.5px}
+.kv+.kv{border-top:1px solid var(--line-soft)}
+.kv .k{color:var(--t3);font-size:11px;letter-spacing:1.4px;text-transform:uppercase;flex:none;font-weight:500}
+.kv .dots{flex:1;border-bottom:1px dotted rgba(255,255,255,.13);transform:translateY(-4px)}
+.kv .v{text-align:right;font-weight:450;font-variant-numeric:tabular-nums}
+.kv .v small{color:var(--t3);font-weight:400}
+.total{margin-top:14px;border:1px solid var(--line-gold);background:linear-gradient(90deg,var(--gold-muted),transparent 70%);border-radius:14px;padding:15px 17px;display:flex;justify-content:space-between;align-items:center;gap:12px;position:relative;overflow:hidden}
+.total::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--gold)}
+.total .k{font-size:10.5px;letter-spacing:2.2px;text-transform:uppercase;color:var(--gold-text);font-weight:600}
+.total .v{font-size:25px;font-weight:250;color:var(--gold-text);font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+.feenote{margin-top:12px;border:1px dashed var(--line-gold);border-radius:12px;padding:12px 15px;font-size:12.5px;color:var(--t2);line-height:1.65}
+.feenote b{color:var(--t1);font-weight:550}
+.conds{list-style:none;display:grid;gap:10px}
+.conds li{display:flex;gap:12px;font-size:13.5px;color:var(--t2);line-height:1.62}
+.conds .cn{color:var(--gold-text);font-variant-numeric:tabular-nums;flex:none;font-size:11.5px;padding-top:2px;font-weight:600}
 
-/* ── document head: the protocol plate ── */
-.doc-h{position:relative;z-index:2;padding:38px 38px 26px;display:flex;justify-content:space-between;gap:18px;align-items:flex-start;border-bottom:1px solid var(--line-soft)}
-.doc-h h1{font-weight:100;font-size:clamp(30px,6vw,46px);letter-spacing:-.5px;line-height:1.05;margin-top:10px}
-.doc-h h1 em{font-style:normal;color:var(--gold);font-weight:200}
-.doc-h .sub{color:var(--t3);font-size:12px;margin-top:9px;letter-spacing:.4px}
-.doc-h .meta{display:flex;gap:0 22px;flex-wrap:wrap;margin-top:16px}
-.doc-h .meta span{font-size:9.5px;letter-spacing:1.8px;text-transform:uppercase;color:var(--t4)}
-.doc-h .meta b{display:block;font-weight:400;font-size:12.5px;letter-spacing:.4px;color:var(--t2);margin-top:3px;text-transform:none}
-.seal{display:block;width:64px;height:64px;flex:none;color:var(--gold);position:relative}
-.seal svg{display:block;filter:drop-shadow(0 0 12px rgba(255,215,0,.3))}
-.status{display:inline-flex;align-items:center;gap:7px;margin-top:16px;border:1px solid var(--line-gold);background:var(--gold-faint);border-radius:2px;padding:7px 14px;font-size:10px;letter-spacing:2.2px;text-transform:uppercase;color:var(--gold)}
-.status.acc{border-color:var(--green-muted);background:var(--green-muted);color:var(--green)}
+/* trust strip + advisor */
+.trust{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.trust span{display:inline-flex;gap:7px;align-items:center;border:1px solid var(--line-soft);background:var(--surface);border-radius:100px;padding:8px 14px;font-size:11.5px;color:var(--t2)}
+.trust .c{color:var(--green)}
+.advisor{display:flex;gap:14px;align-items:center;border:1px solid var(--line-soft);background:var(--surface);border-radius:20px;padding:16px 18px;margin-top:14px}
+.advisor .av{width:44px;height:44px;border-radius:50%;border:1px solid var(--line-gold);background:var(--gold-faint);display:grid;place-items:center;font-size:16px;color:var(--gold-text);flex:none;font-weight:600}
+.advisor .who b{display:block;font-size:14.5px;font-weight:550}
+.advisor .who span{font-size:12px;color:var(--t3)}
+.advisor a{margin-left:auto;flex:none;border:1px solid rgba(37,211,102,.4);color:var(--wa);border-radius:100px;padding:9px 16px;font-size:12.5px;text-decoration:none;transition:.25s}
+.advisor a:hover{background:rgba(37,211,102,.1)}
 
-/* ── sections: ghost numerals, perforated separations ── */
-.sec{position:relative;z-index:2;padding:30px 38px 32px}
-.sec+.sec{border-top:1px dashed rgba(255,255,255,.09)}
-.sec .ghost{position:absolute;top:6px;right:22px;z-index:0;font-size:clamp(64px,12vw,104px);line-height:1;font-weight:100;
-  color:transparent;-webkit-text-stroke:1px rgba(255,255,255,.065);pointer-events:none;user-select:none;font-variant-numeric:tabular-nums}
-.sec h2{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:18px;display:flex;gap:12px;align-items:baseline}
-.sec h2::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line-gold),transparent);transform:translateY(-2px)}
-.party{font-size:9.5px;letter-spacing:2.2px;text-transform:uppercase;color:var(--t4);margin:16px 0 7px}
+/* ── forms (step 2) ── */
+.party{font-size:10px;letter-spacing:2.2px;text-transform:uppercase;color:var(--t4);margin:14px 0 8px;font-weight:600}
 .party:first-of-type{margin-top:0}
-.pname{font-size:18px;font-weight:300;letter-spacing:.2px}
-
-/* co-tenant blocks — same sheet, one perforation per party */
-.cot{border-top:1px dashed rgba(255,255,255,.09);margin-top:18px;padding-top:16px;position:relative}
-.cot .cothead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
-.cot .cothead b{font-size:9.5px;letter-spacing:2.2px;text-transform:uppercase;color:var(--t4);font-weight:600}
-.cot .cothead button{font-size:10.5px;letter-spacing:1px;text-transform:uppercase;color:var(--t3);transition:color .25s}
-.cot .cothead button:hover{color:var(--gold-light)}
-.addcot{display:inline-flex;align-items:center;gap:8px;margin-top:16px;border:1px dashed var(--line-gold);border-radius:100px;padding:10px 18px;font-size:12px;letter-spacing:.6px;color:var(--gold);background:var(--gold-faint);transition:.25s}
-.addcot:hover{background:var(--gold-muted)}
-.jointnote{font-size:11px;color:var(--t3);margin-top:10px;line-height:1.6}
-
-/* floating-label fields */
-.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px}
+.pname{font-size:17px;font-weight:450}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px 12px}
 @media(max-width:560px){.grid2{grid-template-columns:minmax(0,1fr)}}
 .fld{position:relative;display:block}
-.fld input{width:100%;background:var(--input);border:1px solid var(--line);border-radius:8px;color:var(--t1);font-size:14.5px;padding:21px 13px 8px;transition:border-color .3s,background .3s;caret-color:var(--gold)}
+.fld input{width:100%;background:var(--input);border:1px solid var(--line);border-radius:14px;color:var(--t1);font-size:16px;padding:22px 14px 8px;transition:border-color .3s,background .3s;caret-color:var(--gold)}
 .fld input:focus{outline:none;border-color:var(--line-gold);background:rgba(255,215,0,.03)}
-.fld span{position:absolute;left:13px;top:15px;font-size:13px;color:var(--t3);letter-spacing:.3px;transition:all .25s var(--ease);pointer-events:none}
-.fld input:focus~span,.fld input:not(:placeholder-shown)~span{top:6px;font-size:8.5px;letter-spacing:1.6px;text-transform:uppercase;color:var(--gold)}
+.fld span{position:absolute;left:14px;top:15px;font-size:14px;color:var(--t3);transition:all .22s var(--ease);pointer-events:none}
+.fld input:focus~span,.fld input:not(:placeholder-shown)~span{top:6px;font-size:9.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--gold-text);font-weight:600}
 .fld.req span::after{content:" *";color:var(--gold)}
 .fld input.ok{border-color:rgba(61,220,151,.4)}
-.fld .tick{position:absolute;right:12px;top:50%;transform:translateY(-50%) scale(.4);opacity:0;color:var(--green);transition:all .35s var(--spring);pointer-events:none}
+.fld .tick{position:absolute;right:13px;top:50%;transform:translateY(-50%) scale(.4);opacity:0;color:var(--green);transition:all .35s var(--spring);pointer-events:none}
 .fld input.ok~.tick{opacity:1;transform:translateY(-50%) scale(1)}
-.reqmeter{display:flex;align-items:center;gap:12px;font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--t3);margin-top:16px}
-.reqmeter .bar{flex:1;height:1px;background:var(--line);position:relative;overflow:visible}
-.reqmeter .bar i{position:absolute;left:0;top:0;bottom:0;width:0;background:linear-gradient(90deg,var(--gold),var(--gold-light));box-shadow:0 0 8px rgba(255,215,0,.5);transition:width .55s var(--ease)}
+.reqmeter{display:flex;align-items:center;gap:12px;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--t3);margin-top:16px;font-weight:500}
+.reqmeter .bar{flex:1;height:2px;border-radius:2px;background:var(--line);position:relative;overflow:hidden}
+.reqmeter .bar i{position:absolute;left:0;top:0;bottom:0;width:0;background:linear-gradient(90deg,var(--gold),var(--gold-light));transition:width .55s var(--ease)}
 .reqmeter.done{color:var(--green)}
+.cot{border-top:1px dashed var(--line);margin-top:18px;padding-top:16px}
+.cot .cothead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.cot .cothead b{font-size:10px;letter-spacing:2.2px;text-transform:uppercase;color:var(--t4);font-weight:600}
+.cot .cothead button{font-size:11px;letter-spacing:.6px;color:var(--t3);transition:color .25s}
+.cot .cothead button:hover{color:var(--gold-light)}
+.addcot{display:inline-flex;align-items:center;gap:8px;margin-top:16px;border:1px dashed var(--line-gold);border-radius:100px;padding:11px 18px;font-size:13px;color:var(--gold-text);background:var(--gold-faint);transition:.25s;font-weight:500}
+.addcot:hover{background:var(--gold-muted)}
+.jointnote{font-size:11.5px;color:var(--t3);margin-top:10px;line-height:1.6}
+.err{display:none;color:var(--gold-light);font-size:13px;margin-top:12px}
 
-/* ledger rows with dotted leaders */
-.kv{display:flex;align-items:baseline;gap:12px;padding:11px 0;font-size:14px}
-.kv+.kv{border-top:1px solid var(--line-soft)}
-.kv .k{color:var(--t3);font-size:11px;letter-spacing:1.6px;text-transform:uppercase;flex:none}
-.kv .dots{flex:1;border-bottom:1px dotted rgba(255,255,255,.14);transform:translateY(-4px)}
-.kv .v{text-align:right;font-weight:400;font-variant-numeric:tabular-nums}
-.kv .v small{color:var(--t3);font-weight:300}
-.addr{font-size:clamp(18px,3.4vw,23px);font-weight:200;letter-spacing:.2px;margin-bottom:14px}
-.total{margin-top:16px;border:1px solid var(--line-gold);background:linear-gradient(90deg,var(--gold-muted),transparent 70%);border-radius:3px;padding:16px 18px;display:flex;justify-content:space-between;align-items:center;gap:12px;position:relative;overflow:hidden}
-.total::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--gold)}
-.total .k{font-size:10px;letter-spacing:2.4px;text-transform:uppercase;color:var(--gold);font-weight:600}
-.total .v{font-size:26px;font-weight:100;color:var(--gold);font-variant-numeric:tabular-nums}
-.feenote{margin-top:14px;border:1px dashed var(--line-gold);border-radius:3px;padding:12px 15px;font-size:12px;color:var(--t2);line-height:1.65}
-.feenote b{color:var(--t1);font-weight:500}
+/* ── verify (step 3) ── */
+.upcard{border:1px solid var(--line-soft);background:var(--surface);border-radius:20px;padding:18px;margin-top:12px}
+.upcard .uphead{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.upcard .uphead b{font-size:15px;font-weight:550}
+.upcard .uphead .ubadge{margin-left:auto;font-size:11px;color:var(--green);display:none;letter-spacing:.4px}
+.upcard.done .uphead .ubadge{display:inline}
+.uptile{display:flex;align-items:center;justify-content:center;gap:10px;border:1.5px dashed var(--line-gold);border-radius:16px;padding:22px 16px;font-size:14px;color:var(--gold-text);cursor:pointer;transition:.25s;background:var(--gold-faint);font-weight:500;text-align:center}
+.uptile:hover{background:var(--gold-muted)}
+.uptile.busy{opacity:.6;pointer-events:none}
+.upchips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.upchips span{display:inline-flex;gap:7px;align-items:center;border:1px solid rgba(61,220,151,.35);background:var(--green-muted);color:var(--green);border-radius:100px;padding:7px 13px;font-size:12px}
+.upnote{font-size:12px;color:var(--t3);line-height:1.65;margin-top:14px}
+.upnote b{color:var(--t2)}
+.spin{width:15px;height:15px;border-radius:50%;border:2px solid rgba(255,215,0,.25);border-top-color:var(--gold);animation:spin .7s linear infinite;flex:none}
+@keyframes spin{to{transform:rotate(360deg)}}
 
-.conds{list-style:none;display:grid;gap:10px}
-.conds li{display:flex;gap:12px;font-size:13px;color:var(--t2);line-height:1.65}
-.conds .cn{color:var(--gold);font-variant-numeric:tabular-nums;flex:none;font-size:11.5px;padding-top:2px}
+/* ── the paper document (step 4 + accepted) ── */
+.docwrap{position:relative;margin-top:6px}
+.docwrap::before,.docwrap::after{content:"";position:absolute;z-index:-1;background:#0A0A0D;border:1px solid rgba(255,255,255,.045);border-radius:6px}
+.docwrap::before{inset:14px -7px -9px 9px;transform:rotate(.5deg)}
+.docwrap::after{inset:22px 11px -16px -5px;transform:rotate(-.6deg);opacity:.75}
+.doc{position:relative;border:1px solid rgba(255,215,0,.16);border-radius:6px;overflow:hidden;
+  background:radial-gradient(120% 60% at 50% 0%,rgba(255,255,255,.035),transparent 55%),linear-gradient(180deg,var(--paper),var(--paper2));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 44px 110px rgba(0,0,0,.72),0 6px 22px rgba(0,0,0,.5)}
+.doc .foil{position:absolute;top:0;left:0;right:0;height:3px;z-index:4;background:linear-gradient(90deg,transparent 2%,var(--gold-deep) 18%,var(--gold) 38%,#fff2b8 50%,var(--gold) 62%,var(--gold-deep) 82%,transparent 98%)}
+.doc-h{position:relative;z-index:2;padding:32px 30px 24px;display:flex;justify-content:space-between;gap:18px;align-items:flex-start;border-bottom:1px solid var(--line-soft)}
+.doc-h h1{font-weight:250;font-size:clamp(26px,5.4vw,38px);letter-spacing:-.8px;line-height:1.05;margin-top:10px}
+.doc-h h1 em{font-style:normal;color:var(--gold-text);font-weight:350}
+.doc-h .sub{color:var(--t3);font-size:12px;margin-top:8px}
+.doc-h .meta{display:flex;gap:0 22px;flex-wrap:wrap;margin-top:14px}
+.doc-h .meta span{font-size:9.5px;letter-spacing:1.8px;text-transform:uppercase;color:var(--t4);font-weight:600}
+.doc-h .meta b{display:block;font-weight:450;font-size:12.5px;color:var(--t2);margin-top:3px;text-transform:none;letter-spacing:.2px}
+.seal{display:block;width:58px;height:58px;flex:none;color:var(--gold)}
+.seal svg{display:block;filter:drop-shadow(0 0 12px rgba(255,215,0,.3))}
+.sec{position:relative;z-index:2;padding:26px 30px 28px}
+.sec+.sec{border-top:1px dashed rgba(255,255,255,.09)}
+.sec .ghost{position:absolute;top:6px;right:20px;z-index:0;font-size:clamp(58px,11vw,92px);line-height:1;font-weight:200;color:transparent;-webkit-text-stroke:1px rgba(255,255,255,.06);pointer-events:none;user-select:none;font-variant-numeric:tabular-nums}
+.sec h2{font-size:10.5px;letter-spacing:2.8px;text-transform:uppercase;color:var(--gold-text);font-weight:600;margin-bottom:16px;display:flex;gap:12px;align-items:baseline}
+.sec h2::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line-gold),transparent);transform:translateY(-2px)}
+.addr{font-size:clamp(17px,3.2vw,21px);font-weight:350;margin-bottom:12px}
+.idok{display:inline-flex;gap:6px;align-items:center;font-size:10.5px;color:var(--green);border:1px solid rgba(61,220,151,.3);border-radius:100px;padding:3px 10px;margin-left:8px;vertical-align:2px}
 
-/* ── the signature ── */
-.signwrap{margin:2px 0 18px;border:1px solid var(--line);border-radius:3px;background:rgba(255,255,255,.015);padding:17px 19px 13px;position:relative}
+/* signature ceremony */
+.signwrap{margin:2px 0 16px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.015);padding:16px 18px 13px;position:relative;overflow:hidden}
 .signwrap::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,var(--gold),transparent)}
-.signwrap .cap{font-size:9.5px;letter-spacing:2.2px;text-transform:uppercase;color:var(--t3);display:flex;justify-content:space-between;gap:10px}
-.signature{font-family:var(--script);font-size:clamp(30px,6vw,40px);line-height:1.25;color:var(--gold-light);min-height:56px;display:flex;align-items:flex-end;padding:6px 2px 6px;transition:color .3s;text-shadow:0 0 22px rgba(255,215,0,.18)}
-.signature.empty{color:var(--t4);font-size:13.5px;font-family:var(--sans);letter-spacing:.4px;text-shadow:none}
+.signwrap .cap{font-size:9.5px;letter-spacing:2.2px;text-transform:uppercase;color:var(--t3);display:flex;justify-content:space-between;gap:10px;font-weight:600}
+.signature{font-family:var(--script);font-size:clamp(28px,5.6vw,38px);line-height:1.25;color:var(--gold-light);min-height:52px;display:flex;align-items:flex-end;padding:6px 2px;text-shadow:0 0 22px rgba(255,215,0,.18);word-break:break-word}
+.signature.empty{color:var(--t4);font-size:13.5px;font-family:var(--sans);text-shadow:none}
 .sigflr{display:block;width:min(240px,70%);height:12px;margin-top:-4px}
 .sigflr path{stroke:var(--gold);stroke-width:1.1;fill:none;stroke-linecap:round;stroke-dasharray:260;stroke-dashoffset:260;transition:stroke-dashoffset 1.1s var(--ease)}
 .sigflr.draw path{stroke-dashoffset:0}
-.signwrap .who{font-size:10.5px;color:var(--t3);margin-top:9px;letter-spacing:.3px}
-
-/* consent: a drawn check */
-.consent{display:flex;gap:12px;align-items:flex-start;font-size:13.5px;color:var(--t2);cursor:pointer;margin-top:6px;line-height:1.6}
-.consent input{appearance:none;-webkit-appearance:none;width:21px;height:21px;border:1px solid var(--line-gold);border-radius:4px;background:transparent;position:relative;flex:none;margin-top:1px;cursor:pointer;transition:all .3s var(--spring)}
+.signwrap .who{font-size:10.5px;color:var(--t3);margin-top:8px}
+.consent{display:flex;gap:12px;align-items:flex-start;font-size:14px;color:var(--t2);cursor:pointer;margin-top:8px;line-height:1.6}
+.consent input{appearance:none;-webkit-appearance:none;width:22px;height:22px;border:1px solid var(--line-gold);border-radius:7px;background:transparent;position:relative;flex:none;margin-top:1px;cursor:pointer;transition:all .3s var(--spring)}
 .consent input:checked{background:linear-gradient(180deg,var(--gold-light),var(--gold));border-color:var(--gold);box-shadow:0 0 16px rgba(255,215,0,.4)}
-.consent input::after{content:"";position:absolute;left:5px;top:4px;width:9px;height:5px;border:solid #1a1407;border-width:0 0 2px 2px;transform:rotate(-45deg) scale(0);transition:transform .25s var(--spring) .05s}
+.consent input::after{content:"";position:absolute;left:5.5px;top:4.5px;width:9px;height:5px;border:solid #1a1407;border-width:0 0 2px 2px;transform:rotate(-45deg) scale(0);transition:transform .25s var(--spring) .05s}
 .consent input:checked::after{transform:rotate(-45deg) scale(1)}
 
-.gbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#1a1407;font-weight:600;border-radius:100px;padding:16px;font-size:14.5px;margin-top:18px;transition:.3s var(--ease);box-shadow:0 10px 34px rgba(255,215,0,.16);letter-spacing:.3px}
-.gbtn:disabled{opacity:.4;cursor:default;box-shadow:none;filter:grayscale(.4)}
-.gbtn:not(:disabled):hover{filter:brightness(1.06);transform:translateY(-2px);box-shadow:0 16px 44px rgba(255,215,0,.26)}
-.err{display:none;color:var(--gold-light);font-size:12.5px;margin-top:10px}
-.trustline{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px;font-size:10.5px;letter-spacing:.5px;color:var(--t3);justify-content:center}
-.trustline span{display:inline-flex;gap:5px;align-items:center}
-.trustline .c{color:var(--green)}
-.foot{color:var(--t4);font-size:10.5px;text-align:center;margin-top:24px;letter-spacing:1.2px;text-transform:uppercase}
-
-/* issued */
-.issued{text-align:center;padding:40px 30px 38px}
-.issued .seal{margin:0 auto 16px;width:76px;height:76px}
-.issued h2{font-weight:100;font-size:clamp(24px,5vw,32px);letter-spacing:.5px;display:block}
+/* ── accepted / timeline ── */
+.issued{text-align:center;padding:38px 28px 34px}
+.issued .seal{margin:0 auto 16px;width:72px;height:72px}
+.issued h2{font-weight:250;font-size:clamp(23px,5vw,30px);letter-spacing:-.4px;display:block}
 .issued h2::after{display:none}
 .issued p{color:var(--t2);font-size:14px;margin-top:10px}
-.refchip{display:inline-block;margin-top:16px;border:1px solid var(--line-gold);background:var(--gold-faint);border-radius:2px;padding:10px 20px;font-size:13px;letter-spacing:2.6px;color:var(--gold);font-variant-numeric:tabular-nums}
-.paidband{margin:0 0 18px;border:1px solid var(--green-muted);background:var(--green-muted);border-radius:3px;padding:13px 16px;font-size:13px;color:var(--green);text-align:center;letter-spacing:.4px}
+.refchip{display:inline-block;margin-top:16px;border:1px solid var(--line-gold);background:var(--gold-faint);border-radius:8px;padding:10px 20px;font-size:13px;letter-spacing:2.6px;color:var(--gold-text);font-variant-numeric:tabular-nums}
+.paidband{margin:0 0 18px;border:1px solid var(--green-muted);background:var(--green-muted);border-radius:14px;padding:13px 16px;font-size:13.5px;color:var(--green);text-align:center}
 .prq{margin:18px auto 0;width:max-content;text-align:center}
-.prq img{width:92px;height:92px;border:1px solid var(--line);border-radius:8px;padding:6px;background:#fff;display:block;margin:0 auto}
+.prq img{width:92px;height:92px;border:1px solid var(--line);border-radius:12px;padding:6px;background:#fff;display:block;margin:0 auto}
 .prq small{display:block;font-size:9.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--t4);margin-top:7px}
-.obtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);border-radius:100px;padding:11px 20px;font-size:13px;margin-top:16px;background:rgba(255,255,255,.02);transition:.25s;color:var(--t1);text-decoration:none}
-.obtn:hover{border-color:var(--line-gold);color:var(--gold)}
+.obtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);border-radius:100px;padding:12px 20px;font-size:13.5px;margin:14px 4px 0;background:rgba(255,255,255,.02);transition:.25s;color:var(--t1);text-decoration:none;font-weight:500}
+.obtn:hover{border-color:var(--line-gold);color:var(--gold-text)}
+.obtn.wa{border-color:rgba(37,211,102,.4);color:var(--wa)}
+.timeline{max-width:430px;margin:26px auto 0;text-align:left;display:grid;gap:0}
+.tstep{display:flex;gap:14px;position:relative;padding-bottom:20px}
+.tstep::before{content:"";position:absolute;left:11px;top:26px;bottom:2px;width:1px;background:var(--line)}
+.tstep:last-child{padding-bottom:0}
+.tstep:last-child::before{display:none}
+.tstep .td{width:23px;height:23px;border-radius:50%;border:1px solid var(--t4);flex:none;display:grid;place-items:center;font-size:10px;color:var(--t4);background:var(--void);font-weight:600}
+.tstep.don .td{background:var(--green-muted);border-color:transparent;color:var(--green)}
+.tstep.now .td{background:var(--gold);border-color:var(--gold);color:#1a1407;box-shadow:0 0 14px rgba(255,215,0,.5)}
+.tstep b{display:block;font-size:14px;font-weight:550;letter-spacing:-.1px}
+.tstep span{font-size:12.5px;color:var(--t3);line-height:1.55;display:block;margin-top:2px}
+.tstep.now b{color:var(--gold-text)}
 
-/* ── the document's own thread (desktop): §1..§6 nodes ── */
-.dthread{position:absolute;left:-44px;top:0;bottom:0;width:20px;display:none}
-@media(min-width:960px){.dthread{display:block}}
-.dthread .rail{position:absolute;left:9px;top:8px;bottom:8px;width:1px;background:var(--line)}
-.dthread .fill{position:absolute;left:9px;top:8px;width:1px;height:0;background:var(--gold);box-shadow:0 0 8px rgba(255,215,0,.5)}
-.dthread a{position:absolute;left:3px;width:13px;height:13px;border-radius:50%;border:1px solid var(--t4);background:var(--void);cursor:pointer;transition:all .3s var(--ease)}
-.dthread a.on{border-color:var(--gold);background:var(--gold);box-shadow:0 0 10px rgba(255,215,0,.55);transform:scale(.85)}
-.dthread a:hover{border-color:var(--gold)}
+/* ── bottom action bar ── */
+.abar{position:fixed;left:0;right:0;bottom:0;z-index:55;background:rgba(5,5,6,.8);backdrop-filter:blur(24px) saturate(1.7);-webkit-backdrop-filter:blur(24px) saturate(1.7);border-top:1px solid var(--line-soft);padding:12px 18px calc(12px + var(--safe))}
+.abar .inner{max-width:560px;margin:0 auto}
+.abar .hint{font-size:11.5px;color:var(--t3);text-align:center;margin-bottom:8px;letter-spacing:.2px}
+.abar .hint b{color:var(--t2)}
+.gbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#1a1407;font-weight:600;border-radius:100px;padding:16px;font-size:16px;transition:.3s var(--ease);box-shadow:0 10px 34px rgba(255,215,0,.16);letter-spacing:-.2px}
+.gbtn:disabled{opacity:.4;cursor:default;box-shadow:none;filter:grayscale(.4)}
+.gbtn:not(:disabled):hover{filter:brightness(1.06);transform:translateY(-1px)}
+.gbtn:not(:disabled):active{transform:scale(.98)}
+.foot{color:var(--t4);font-size:10.5px;text-align:center;margin-top:28px;letter-spacing:1.1px;text-transform:uppercase}
 
-/* ── mobile sign bar ── */
-.signbar{position:fixed;left:0;right:0;bottom:0;z-index:55;background:rgba(6,6,7,.94);backdrop-filter:blur(18px);border-top:1px solid var(--line);padding:10px 16px calc(10px + var(--safe));display:none;align-items:center;gap:12px}
-.signbar .l{flex:1;min-width:0}.signbar .l b{font-size:14px;font-weight:400}.signbar .l small{display:block;font-size:11px;color:var(--t3)}
-.signbar button{background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#1a1407;font-weight:600;border-radius:100px;padding:12px 20px;font-size:13.5px;white-space:nowrap}
-
-/* ── the stamp: acceptance lands physically ── */
+/* stamp overlay */
 .stampov{position:fixed;inset:0;z-index:200;display:none;place-items:center;background:rgba(4,4,6,.82);backdrop-filter:blur(12px)}
 .stampov.on{display:grid}
 .stamp{position:relative;color:var(--gold);text-align:center}
 .stamp .ring2{position:absolute;left:50%;top:50%;width:120px;height:120px;border-radius:50%;border:1px solid var(--gold);transform:translate(-50%,-50%);opacity:0}
 .stamp .cap{margin-top:18px;font-size:11px;letter-spacing:4px;text-transform:uppercase;color:var(--gold)}
 
-/* ═══ motion ═══ */
+/* motion */
 @media(prefers-reduced-motion:no-preference){
-  .gbtn:active,.obtn:active{transform:scale(.98)}
-  /* loader: seal draws, lines beat in */
   .load .lseal circle{stroke-dasharray:200;stroke-dashoffset:200;animation:ldraw 1.6s var(--ease) forwards}
   .load .lseal circle:nth-child(2){animation-delay:.25s}
   .load .ll{animation:lin .5s var(--ease) forwards}
@@ -239,72 +256,66 @@ main{position:relative;z-index:5;max-width:820px;margin:0 auto;padding:100px 18p
   .load .ll:nth-of-type(3){animation-delay:1.1s}
   @keyframes ldraw{to{stroke-dashoffset:0}}
   @keyframes lin{to{opacity:1}}
-  /* the document issues itself */
-  .docwrap{animation:docIn .8s var(--ease) both}
-  @keyframes docIn{0%{opacity:0;transform:translateY(18px)}100%{opacity:1;transform:none}}
-  .doc .doc-h,.doc .sec{opacity:0;transform:translateY(14px);animation:secIn .7s var(--ease) forwards}
-  @keyframes secIn{to{opacity:1;transform:none}}
-  .seal{animation:sealIn 1.2s var(--spring) .2s both}
-  @keyframes sealIn{0%{transform:rotate(-18deg) scale(.5);opacity:0}60%{opacity:1}100%{transform:none;opacity:1}}
-  .status{animation:chipIn .5s var(--ease) .85s both}
-  @keyframes chipIn{0%{opacity:0;transform:translateY(6px)}100%{opacity:1;transform:none}}
-  .gbtn:not(:disabled){position:relative;overflow:hidden}
-  .gbtn:not(:disabled)::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.4),transparent 70%);transform:translateX(-140%);animation:armS 1.1s var(--ease) .1s 1}
-  @keyframes armS{to{transform:translateX(140%)}}
-  .issued .seal{animation:sealGlow 2.4s var(--ease) .2s both}
+  .panel.on{animation:panIn .55s var(--ease) both}
+  @keyframes panIn{0%{opacity:0;transform:translateY(22px)}100%{opacity:1;transform:none}}
+  .panel.on>*{animation:panIn .55s var(--ease) both}
+  .panel.on>*:nth-child(2){animation-delay:.05s}.panel.on>*:nth-child(3){animation-delay:.1s}
+  .panel.on>*:nth-child(4){animation-delay:.15s}.panel.on>*:nth-child(5){animation-delay:.2s}
+  .panel.on>*:nth-child(6){animation-delay:.25s}.panel.on>*:nth-child(7){animation-delay:.3s}
+  .seal{animation:sealIn 1.1s var(--spring) .15s both}
+  @keyframes sealIn{0%{transform:rotate(-16deg) scale(.55);opacity:0}60%{opacity:1}100%{transform:none;opacity:1}}
+  .issued .seal{animation:sealGlow 2.2s var(--ease) .2s both}
   @keyframes sealGlow{0%{transform:scale(.6);opacity:0}40%{opacity:1}100%{transform:none;opacity:1}}
-  /* the stamp ceremony */
   .stampov.on .stamp>svg{animation:stampDown .75s var(--spring) both}
   @keyframes stampDown{0%{transform:scale(2.6) rotate(-10deg);opacity:0}55%{opacity:1}75%{transform:scale(.94) rotate(1deg)}100%{transform:scale(1) rotate(0)}}
   .stampov.on .ring2{animation:ringOut 1s var(--ease) .35s both}
   @keyframes ringOut{0%{opacity:.9;width:110px;height:110px}100%{opacity:0;width:320px;height:320px}}
   .stampov.on .cap{animation:lin .5s var(--ease) .6s both;opacity:0}
-  @media(max-width:720px){.signbar.on{display:flex;animation:barIn .5s var(--ease) both}}
-  @keyframes barIn{0%{transform:translateY(100%)}100%{transform:none}}
 }
-@media(prefers-reduced-motion:reduce){
-  .load .ll{opacity:1}
-  @media(max-width:720px){.signbar.on{display:flex}}
-}
+@media(prefers-reduced-motion:reduce){.load .ll{opacity:1}}
 
 /* ═══ print: the artifact on real paper ═══ */
 @media print{
-  /* the dark-theme custom properties would leave white-on-white text —
-     remap the whole palette to ink so every var() user prints correctly */
-  :root{--gold:#8a6d00;--gold-light:#8a6d00;--gold-deep:#8a6d00;--t1:#000;--t2:#333;--t3:#555;--t4:#777;
+  :root{--gold:#8a6d00;--gold-light:#8a6d00;--gold-deep:#8a6d00;--gold-text:#8a6d00;--t1:#000;--t2:#333;--t3:#555;--t4:#777;
     --line:rgba(0,0,0,.2);--line-soft:rgba(0,0,0,.1);--line-gold:rgba(138,109,0,.45);
     --gold-muted:rgba(138,109,0,.08);--gold-faint:rgba(138,109,0,.04);
-    --green:#1a7a4d;--green-muted:rgba(26,122,77,.14);--input:transparent}
+    --green:#1a7a4d;--green-muted:rgba(26,122,77,.14);--input:transparent;--surface:transparent;--surface2:transparent;--void:#fff;--paper:#fff;--paper2:#fff}
   body{background:#fff;color:#000}
-  nav,[data-boom-ambient],.vign,.gbtn,.consent,.trustline,.obtn,.rprog,.steps,.signbar,.reqmeter,.dthread,.stampov,.grain,.wm,.cm,.addcot,.cot .cothead button{display:none!important}
-  .cot{border-top-color:#ddd}.jointnote{color:#555}
+  header,[data-boom-ambient],.vign,.abar,.gbtn,.consent,.obtn,.stampov,.prq small,.timeline,.addcot,.cot .cothead button{display:none!important}
   .docwrap::before,.docwrap::after{display:none}
-  .doc{border-color:#bbb;box-shadow:none;background:#fff;transform:none!important}
-  .doc .doc-h,.doc .sec{opacity:1!important;transform:none!important;animation:none!important}
+  .doc{border-color:#bbb;box-shadow:none;background:#fff}
+  .panel,.panel.on>*{animation:none!important;opacity:1!important;transform:none!important}
   .sec .ghost{-webkit-text-stroke:1px #eee}
-  .sec h2,.total .k,.total .v,.status,.eyebrow,.conds .cn,.refchip,.doc-h h1 em{color:#8a6d00}
-  .kv .v,.pname,.addr,.doc-h h1,.issued h2{color:#000}
-  .kv .k,.doc-h .sub,.doc-h .meta span,.conds li,.feenote,.issued p{color:#333}
-  .doc-h .meta b{color:#000}
   .signature{color:#222;text-shadow:none}.signwrap{border-color:#ccc;background:#fff}.sigflr path{stroke:#8a6d00}
   #payNowBtn{display:none!important}
-  .prq img{border-color:#ccc}.prq small{color:#666}
-  main{padding:20px}
+  .prq img{border-color:#ccc}
+  main{padding:20px;max-width:none}
 }
 </style>
 </head>
 <body>
 <div class="vign" aria-hidden="true"></div>
-<div class="rprog" aria-hidden="true"><i id="rprogI"></i></div>
 
-<nav><a class="brand" href="/"><span class="ring"></span><b>BOOM</b></a><span class="tag">Premium Apartment Rentals</span></nav>
+<header id="hdr" style="display:none">
+  <div class="hrow">
+    <a class="brand" href="/"><span class="ring"></span><b>BOOM</b></a>
+    <a class="hwa" href="https://wa.me/393313251961" target="_blank" rel="noopener">Questions? WhatsApp us</a>
+  </div>
+  <div class="segs" id="segs" role="tablist">
+    <button data-s="1" onclick="tryStep(1)"><i>1</i><span>Review</span></button>
+    <button data-s="2" onclick="tryStep(2)"><i>2</i><span>Details</span></button>
+    <button data-s="3" onclick="tryStep(3)"><i>3</i><span>Verify</span></button>
+    <button data-s="4" onclick="tryStep(4)"><i>4</i><span>Sign</span></button>
+  </div>
+  <span class="hprog" id="hprog"></span>
+</header>
 
-<main>
+<main id="main">
   <div class="load" id="load">
-    <div class="lseal"><svg viewBox="0 0 64 64" width="64" height="64" fill="none" stroke-width="1"><circle cx="32" cy="32" r="29"/><circle cx="32" cy="32" r="22" stroke-dasharray="2 4" opacity=".6"/></svg></div>
+    <div class="lseal"><svg viewBox="0 0 64 64" width="60" height="60" fill="none" stroke-width="1"><circle cx="32" cy="32" r="29"/><circle cx="32" cy="32" r="22" stroke-dasharray="2 4" opacity=".6"/></svg></div>
     <div class="ll">Verifying your link</div>
     <div class="ll">Retrieving your terms</div>
-    <div class="ll" style="color:var(--gold)">Preparing the document</div>
+    <div class="ll" style="color:var(--gold-text)">Preparing the document</div>
   </div>
   <div class="errbox" id="errbox" style="display:none">
     <h2 id="errH">This link isn’t valid anymore</h2>
@@ -312,21 +323,20 @@ main{position:relative;z-index:5;max-width:820px;margin:0 auto;padding:100px 18p
     <p style="margin-top:14px"><a id="errRetry" href="#" style="display:none" onclick="location.reload();return false">Try again →</a> <a href="https://wa.me/393313251961">WhatsApp BOOM →</a></p>
   </div>
 
-  <div class="steps" id="steps" style="display:none" aria-hidden="true">
-    <span class="step" id="st1"><span class="d"></span>Read</span>
-    <span class="ln" id="ln1"><i></i></span>
-    <span class="step" id="st2"><span class="d"></span>Your details</span>
-    <span class="ln" id="ln2"><i></i></span>
-    <span class="step" id="st3"><span class="d"></span>Sign</span>
-  </div>
+  <section class="panel" id="p1"></section>
+  <section class="panel" id="p2"></section>
+  <section class="panel" id="p3"></section>
+  <section class="panel" id="p4"></section>
+  <section class="panel" id="pAcc"></section>
 
-  <div id="docHost" style="display:none"></div>
-  <div class="foot">Egidi Immobiliare S.r.l. · P.IVA 17322991005 · boomrome.com</div>
+  <div class="foot" id="foot" style="display:none">Egidi Immobiliare S.r.l. · P.IVA 17322991005 · boomrome.com</div>
 </main>
 
-<div class="signbar" id="signbar">
-  <div class="l"><b id="sbAmt">Read &amp; sign</b><small id="sbSub">Your home, set aside today</small></div>
-  <button onclick="var s=document.getElementById('sec6');if(s)s.scrollIntoView({behavior:'smooth',block:'center'})">Sign →</button>
+<div class="abar" id="abar" style="display:none">
+  <div class="inner">
+    <div class="hint" id="abarHint"></div>
+    <button class="gbtn" id="abarBtn"></button>
+  </div>
 </div>
 
 <div class="stampov" id="stampov" aria-hidden="true">
@@ -339,118 +349,50 @@ main{position:relative;z-index:5;max-width:820px;margin:0 auto;padding:100px 18p
 
 <script src="/js/boom-ambient.js"></script>
 <script>
-try{if(window.BoomAmbient)window.__amb=BoomAmbient.mount({ink:'#060607',inkRGB:'6,6,7',palette:{a:'255,215,0',b:'255,229,160'},intensity:.5,sections:false,scene:'marmoantico',z:-3});}catch(_e){}
+try{if(window.BoomAmbient)window.__amb=BoomAmbient.mount({ink:'#050506',inkRGB:'5,5,6',palette:{a:'255,215,0',b:'255,229,160'},intensity:.4,sections:false,scene:'marmoantico',z:-3});}catch(_e){}
 </script>
 <script>
 (function(){
 'use strict';
 var TOKEN=new URLSearchParams(location.search).get('t')||'';
 var PAID=new URLSearchParams(location.search).get('paid')==='1';
-var PA=null,ID=null;
+var PA=null,STEP=1,STEPMAX=1;
+var UP={};   // uploads done this session, keyed by tenantIndex
 var eur=function(n){var f=Math.round(n*100)%100!==0;return '€'+Number(n).toLocaleString('en-US',{minimumFractionDigits:f?2:0,maximumFractionDigits:2})};
-var fmtD=function(s){try{return new Date(s+'T00:00').toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}catch(e){return s}};
+var fmtD=function(s){try{return new Date(String(s).slice(0,10)+'T00:00').toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}catch(e){return s}};
 var esc=function(s){return String(s==null?'':s).replace(/[<>&"]/g,function(c){return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]})};
+var $=function(id){return document.getElementById(id)};
 
-function fail(status){document.getElementById('load').style.display='none';document.getElementById('errbox').style.display='';
-  /* only 400/404/410 mean the LINK is dead — anything else is on us, say so honestly */
+function fail(status){$('load').style.display='none';$('errbox').style.display='';
   if(status!==400&&status!==404&&status!==410){
-    document.getElementById('errH').textContent='One second — that didn’t load';
-    document.getElementById('errP').innerHTML='Your link is fine; our side hiccuped.<br>Try again in a moment — or message us and we’ll open it with you.';
-    document.getElementById('errRetry').style.display='';
+    $('errH').textContent='One second — that didn’t load';
+    $('errP').innerHTML='Your link is fine; our side hiccuped.<br>Try again in a moment — or message us and we’ll open it with you.';
+    $('errRetry').style.display='';
   }}
 
 function kv(k,v,sub){return '<div class="kv"><span class="k">'+k+'</span><span class="dots"></span><span class="v">'+v+(sub?' <small>· '+sub+'</small>':'')+'</span></div>';}
-function fld(id,label,val,req,ph,type){
+function fld(id,label,val,req,type){
   return '<label class="fld'+(req?' req':'')+'"><input id="'+id+'" type="'+(type||'text')+'" value="'+esc(val||'')+'" placeholder=" " autocomplete="off"><span>'+label+'</span>'
     +'<svg class="tick" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></label>';
 }
 function sealSVG(){return '<svg viewBox="0 0 48 48" width="100%" height="100%" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="24" cy="24" r="21.5" stroke-width="1"/><circle cx="24" cy="24" r="17" stroke-width=".7" stroke-dasharray="2.2 3.1" opacity=".6"/><circle cx="24" cy="24" r="12" stroke-width=".7" opacity=".85"/><path d="M24 17.5 29 24l-5 6.5L19 24z" fill="currentColor" stroke="none" opacity=".92"/></svg>';}
 
-function render(){
-  var p=PA.property,le=PA.lease,m=PA.money,t=PA.tenant||{};
-  var accepted=PA.status==='accepted'||PA.status==='paid';
-  var host=document.getElementById('docHost');
-  var issued=(PA.createdAt||'').slice(0,10);
-  var html='<div class="docwrap"><span class="dthread" id="dthread" aria-hidden="true"><span class="rail"></span><span class="fill" id="dtFill"></span></span><div class="doc" id="theDoc">'
-    +'<span class="foil"></span><span class="grain"></span><span class="wm">◆</span>'
-    +'<span class="cm tl"></span><span class="cm tr"></span><span class="cm bl"></span><span class="cm br"></span>'
-    +'<div class="doc-h"><div><span class="eyebrow">BOOM · Rental Proposal</span>'
-    +'<h1>Pre-<em>Agreement</em></h1><div class="sub">'+esc(le.type)+' · '+esc(le.lawRef)+'</div>'
-    +'<div class="meta">'
-      +(issued?'<span>Issued<b>'+fmtD(issued)+'</b></span>':'')
-      +'<span>Property<b>'+esc((p.address||'').split(',')[0])+'</b></span>'
-      +(PA.ref?'<span>Protocol<b>'+esc(PA.ref)+'</b></span>':'')
-    +'</div>'
-    +'<div class="status'+(accepted?' acc':'')+'" id="statusChip">'+(accepted?('Accepted · '+esc(PA.ref||'')):'Awaiting your acceptance')+'</div>'
-    +'</div><span class="seal">'+sealSVG()+'</span></div>';
-
-  // 1 · PARTIES — primary tenant + any co-tenants (jointly & severally liable)
-  var TS=Array.isArray(PA.tenants)&&PA.tenants.length?PA.tenants:[t];
-  html+='<div class="sec"><span class="ghost">01</span><h2>Parties</h2>'
-    +'<div class="party">Landlord</div><div class="pname">'+esc(PA.landlord.name)+'</div>'
-    +'<div class="party">Tenant'+(TS.length>1?'s':'')+'</div>';
-  if(accepted){
-    TS.forEach(function(tt,i){
-      html+=(i>0?'<div class="cot" style="padding-top:14px">':'')
-        +'<div class="pname">'+esc(tt.fullName||'')+'</div><div style="height:8px"></div><div class="grid2" style="font-size:13px;color:var(--t2)">'
-        +(tt.dob?'<div>Born '+esc(tt.dob)+(tt.birthPlace?' · '+esc(tt.birthPlace):'')+'</div>':'')
-        +(tt.nationality?'<div>Nationality: '+esc(tt.nationality)+'</div>':'')
-        +(tt.address?'<div>Address: '+esc(tt.address)+'</div>':'')
-        +(tt.cf?'<div>C.F.: '+esc(tt.cf)+'</div>':'')
-        +(tt.idDoc?'<div>ID: '+esc(tt.idDoc)+'</div>':'')
-        +(tt.email?'<div>'+esc(tt.email)+'</div>':'')+(tt.phone?'<div>'+esc(tt.phone)+'</div>':'')
-        +'</div>'+(i>0?'</div>':'');
-    });
-    if(TS.length>1)html+='<div class="jointnote">All co-tenants are jointly and severally liable for the full rent and the obligations under this agreement.</div>';
-  }else{
-    html+='<div class="grid2">'
-      +fld('tFullName','Full name',t.fullName,true,'','text')
-      +fld('tDob','Date of birth','',false,'','text')
-      +fld('tBirthPlace','Place of birth','',false,'','text')
-      +fld('tNationality','Nationality','',false,'','text')
-      +fld('tAddress','Current address','',false,'','text')
-      +fld('tCf','Tax code (C.F.)','',false,'','text')
-      +fld('tIdDoc','ID / Passport no.','',false,'','text')
-      +fld('tEmail','Email',t.email,true,'','email')
-      +fld('tPhone','Phone / WhatsApp',t.phone,true,'','tel')
-      +'</div>'
-      +'<div id="coTenants"></div>'
-      +'<button type="button" class="addcot" id="addCotBtn" onclick="addCoTenant()">+ Add a co-tenant / flatmate</button>'
-      +'<div class="jointnote">Renting together? Add every person who will sign — all co-tenants are jointly and severally liable under this agreement.</div>'
-      +'<div class="reqmeter" id="reqmeter"><span id="reqTxt">Required: name, email, phone</span><span class="bar"><i id="reqBar"></i></span></div>';
-  }
-  html+='</div>';
-
-  // 2 · PROPERTY
-  html+='<div class="sec"><span class="ghost">02</span><h2>Property</h2>'
-    +'<div class="addr">'+esc(p.address)+'</div>'
-    +kv('Type',esc(p.type))+kv('Condition',esc(p.condition))+kv('Use',esc(p.use))
-    +(p.floor?kv('Floor',esc(p.floor)):'')+(p.unit?kv('Unit',esc(p.unit)):'')
-    +'</div>';
-
-  // 3 · LEASE TERM
-  html+='<div class="sec"><span class="ghost">03</span><h2>Lease term</h2>'
-    +kv('Start date',fmtD(le.startDate))
-    +kv('Initial duration',le.months+' months',esc(le.lawRef))
-    +kv('End date',fmtD(le.endDate))
-    +'</div>';
-
-  // 4 · FINANCIAL TERMS — mirrors the paper proposal: base rent (+ energy
-  // credit when agreed), split deposit, total due at signing, fee note with
-  // its real due-moment.
+/* ═══ shared builders: money rows + conditions (used in step 1 AND the paper doc) ═══ */
+function moneyRows(){
+  var m=PA.money||{};
   var ec=Number(m.energyCredit)||0;
   var split=m.depositSplitPct!=null?Number(m.depositSplitPct):100;
   var depM=m.depositMonths+(m.depositMonths===1?' month’s':' months’')+' base rent';
   var depSub=depM+' · refundable';
   if(split>0&&split<100)depSub=depM+' — '+split+'% ('+eur(m.depositAtSigning!=null?m.depositAtSigning:m.deposit*split/100)+') due at signing, '+(100-split)+'% ('+eur(m.depositAtMoveIn!=null?m.depositAtMoveIn:m.deposit*(100-split)/100)+') upon move-in';
-  html+='<div class="sec"><span class="ghost">04</span><h2>Financial terms</h2>'
-    +(ec>0
+  var html=(ec>0
       ? kv('Monthly base rent',eur(m.rent))
         +kv('Energy credit','+ '+eur(ec),'included · covers electricity up to '+eur(ec)+'/month')
         +kv('Monthly total',eur(m.monthlyTotal!=null?m.monthlyTotal:m.rent+ec),'all-in as above · other utilities excluded')
       : kv('Monthly rent',eur(m.rent),'utilities excluded'))
-    +kv('Security deposit',eur(m.deposit),depSub)
-    +'<div class="total"><span class="k">Total due at signing</span><span class="v">'+eur(m.dueAtSigning)+'</span></div>';
+    +kv('Security deposit',eur(m.deposit),depSub);
+  (PA.extras||[]).forEach(function(x){html+=kv(esc(x.label),eur(x.amount));});
+  html+='<div class="total"><span class="k">Total due at signing</span><span class="v">'+eur(m.dueAtSigning)+'</span></div>';
   var feeAmt=(m.feeMode==='months')
     ?(m.feeMonths||1)+((m.feeMonths||1)===1?' month’s':' months’')+' base rent = '+eur(m.fee)
     :m.feePct+'% of annual rent = '+eur(m.fee);
@@ -460,11 +402,12 @@ function render(){
   html+='<div class="feenote"><b>Agency fee:</b> '+feeAmt
     +(m.feeVatPct?(' + VAT '+m.feeVatPct+'% ('+eur(m.feeVat)+') = <b>'+eur(m.feeTotal)+'</b>'):'')
     +' — '+feeWhen
-    +(PA.note?('<br>'+esc(PA.note)):'')+'</div>'
-    +'</div>';
-
-  // 5 · GENERAL CONDITIONS — clause-for-clause with the paper proposal;
-  // energy and joint-liability clauses appear only when they apply.
+    +(PA.note?('<br>'+esc(PA.note)):'')+'</div>';
+  return html;
+}
+function condList(nTenants){
+  var m=PA.money||{},le=PA.lease||{};
+  var ec=Number(m.energyCredit)||0;
   var conds=[
     'The security deposit shall be returned at the end of the lease (within 15 days after move-out / keys handover), subject to verification of the property’s condition and settlement of any outstanding utility balance. Normal wear and tear caused by ordinary and reasonable use of the property shall not be deemed damage and shall not be deducted from the security deposit.',
     'The security deposit shall be fully returned if the Landlord cancels the agreement for any reason, or if the Tenant cancels with justified cause.',
@@ -474,74 +417,345 @@ function render(){
   if(ec>0)conds.push('The monthly payment of '+eur(m.monthlyTotal!=null?m.monthlyTotal:m.rent+ec)+' consists of: (a) base rent of '+eur(m.rent)+' and (b) an energy allowance of '+eur(ec)+' included in the monthly fee. The energy allowance covers electricity consumption up to '+eur(ec)+'/month; should monthly electricity costs exceed it, the Tenant shall pay only the surplus directly to the Landlord upon presentation of the utility bill. If consumption is equal to or below the allowance, no additional charge applies.');
   if(le.reason)conds.push('Transitional need: '+le.reason+'.');
   conds.push((ec>0?'All other utilities (gas, water, internet)':'All utilities (electricity, gas, water, internet)')+' are excluded from the monthly rent and are the sole responsibility of the Tenant.');
-  if(TS.length>1||!accepted)conds.push('Where more than one tenant signs this agreement, all co-tenants are jointly and severally liable for the full rent and all obligations hereunder.');
+  if(nTenants==null||nTenants>1)conds.push('Where more than one tenant signs this agreement, all co-tenants are jointly and severally liable for the full rent and all obligations hereunder.');
+  (PA.customClauses||[]).forEach(function(c){conds.push(c);});
   conds.push('Any changes to these terms must be agreed upon in writing by both parties.');
-  html+='<div class="sec"><span class="ghost">05</span><h2>General conditions</h2><ul class="conds">'
-    +conds.map(function(c,i){return '<li><span class="cn">5.'+(i+1)+'</span><span>'+esc(c)+'</span></li>'}).join('')
-    +'</ul></div>';
-
-  // 6 · ACCEPTANCE — the ceremony: their name becomes their signature
-  if(accepted){
-    var whoAll=TS.map(function(x){return x.fullName}).filter(Boolean);
-    html+='<div class="sec issued" id="sec6"><span class="seal">'+sealSVG()+'</span>'
-      +'<h2>Pre-agreement accepted</h2>'
-      +'<p>'+esc(p.address)+' is set aside for '+esc(whoAll.join(' · ')||'you')+'.<br>A BOOM advisor will follow up at <b style="color:var(--t1)">'+esc(t.email||'your email')+'</b>.</p>';
-    TS.forEach(function(tt){
-      if(!(tt.signature||tt.fullName))return;
-      html+='<div class="signwrap" style="max-width:360px;margin:20px auto 0;text-align:left"><div class="cap"><span>Signed · Roma</span><span>'+esc((PA.acceptedAt||'').slice(0,10))+'</span></div><div class="signature">'+esc(tt.signature||tt.fullName)+'</div><svg class="sigflr draw" viewBox="0 0 200 12" preserveAspectRatio="none" aria-hidden="true"><path d="M2 8 C 40 2, 92 12, 132 6 S 190 3, 198 7"/></svg><div class="who">'+esc(tt.fullName||'')+'</div></div>';
-    });
-    html+=(PA.ref?'<div class="refchip">N° '+esc(PA.ref)+'</div>':'')
-      /* accepted but the Stripe step never finished → resume it right here */
-      +((PA.status==='accepted'&&PA.money&&Number(PA.money.dueAtSigning)>0)
-        ?'<div style="max-width:430px;margin:20px auto 0"><button class="gbtn" id="payNowBtn" onclick="payNow()">Complete your reservation — '+eur(PA.money.dueAtSigning)+' via Stripe →</button>'
-         +'<p style="font-size:11px;color:var(--t3);margin-top:9px">Secured by Stripe · credited to your first month · refunded in full within 48h</p></div>'
-        :'')
-      +'<div class="prq" id="paQr" aria-hidden="true"></div>'
-      +'<div><button class="obtn" onclick="window.print()">Print / save PDF</button> '
-      +'<a class="obtn" style="border-color:rgba(37,211,102,.4);color:#25D366" href="https://wa.me/?text='+encodeURIComponent('BOOM pre-agreement '+(PA.ref||'')+' — '+((p.address||'').split(',')[0])+'. My copy of the accepted document: '+location.origin+'/pre-agreement?t='+TOKEN)+'" target="_blank" rel="noopener">Get it on WhatsApp →</a> '
-      +'<a class="obtn" href="https://wa.me/393313251961">Talk to BOOM →</a></div>'
-      +'</div>';
-  }else{
-    html+='<div class="sec" id="sec6"><span class="ghost">06</span>'
-      +'<h2>Acceptance &amp; signature</h2>'
-      +'<div class="signwrap"><div class="cap"><span>Your signature</span><span>Rome · '+new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})+'</span></div>'
-      +'<div class="signature empty" id="sigTxt">Your full name from §1 becomes your signature</div>'
-      +'<svg class="sigflr" id="sigFlr" viewBox="0 0 200 12" preserveAspectRatio="none" aria-hidden="true"><path d="M2 8 C 40 2, 92 12, 132 6 S 190 3, 198 7"/></svg>'
-      +'<div class="who">Typed signature · legally recorded with time, IP and consent</div></div>'
-      +'<label class="consent"><input type="checkbox" id="paOk" onchange="paArm()">'
-      +'<span>I confirm my details are correct and I accept this pre-agreement, including the general conditions above.</span></label>'
-      +'<p class="err" id="paErr" role="alert"></p>'
-      +'<button class="gbtn" id="paGo" disabled>'+(m.dueAtSigning>0?('Accept &amp; sign — '+eur(m.dueAtSigning)+' due now →'):'Accept &amp; sign →')+'</button>'
-      +'<div class="trustline"><span><span class="c">✓</span> Registered legal contract</span><span><span class="c">✓</span> Deposit protected</span><span><span class="c">✓</span> Stripe-secured payment</span></div>'
-      +'</div>';
-  }
-  html+='</div></div>';
-  if(PAID)html='<div class="paidband">✓ Payment received — your place is locked. We’ve emailed your receipt.</div>'+html;
-  host.innerHTML=html;
-  host.style.display='';document.getElementById('load').style.display='none';
-  document.getElementById('steps').style.display=accepted?'none':'';
-  var go=document.getElementById('paGo');if(go)go.addEventListener('click',accept);
-  /* the document issues itself: header, then each section, in sequence */
-  var parts=host.querySelectorAll('.doc-h,.sec');
-  for(var i=0;i<parts.length;i++)parts[i].style.animationDelay=(0.1+i*0.13)+'s';
-  buildThread(parts);
-  wireTilt();
-  if(!accepted){wireCeremony();}
-  if(accepted){paintQr();try{if(window.__amb&&__amb.mood)__amb.mood('convert')}catch(e){}}
+  return '<ul class="conds">'+conds.map(function(c,i){return '<li><span class="cn">5.'+(i+1)+'</span><span>'+esc(c)+'</span></li>'}).join('')+'</ul>';
+}
+function tenantsNow(){
+  var g=function(id){var e=$(id);return e?e.value.trim():''};
+  var list=[{fullName:g('tFullName'),dob:g('tDob'),birthPlace:g('tBirthPlace'),nationality:g('tNationality'),
+    address:g('tAddress'),cf:g('tCf'),idDoc:g('tIdDoc'),email:g('tEmail'),phone:g('tPhone')}];
+  cotNs().forEach(function(n){
+    list.push({fullName:g('c'+n+'FullName'),dob:g('c'+n+'Dob'),birthPlace:g('c'+n+'BirthPlace'),nationality:g('c'+n+'Nationality'),
+      address:g('c'+n+'Address'),cf:g('c'+n+'Cf'),idDoc:g('c'+n+'IdDoc'),email:g('c'+n+'Email'),phone:g('c'+n+'Phone'),_n:n});
+  });
+  return list;
 }
 
-/* resume an abandoned Stripe checkout from the accepted document */
+/* ═══ STEP 1 — REVIEW ═══ */
+function renderStep1(){
+  var p=PA.property,le=PA.lease,m=PA.money;
+  var ec=Number(m.energyCredit)||0;
+  $('p1').innerHTML=
+    '<span class="eyebrow">Rental proposal · Pre-agreement</span>'
+    +'<h1 class="big">'+esc(p.address)+'</h1>'
+    +'<div class="subline">'+esc(le.type)+' · '+esc(le.lawRef)+(PA.ref?' · N° '+esc(PA.ref):'')+'</div>'
+    +'<div class="chip">Reserved for you — awaiting your signature</div>'
+    +'<div class="tiles">'
+      +'<div class="tile hero"><div class="k">Monthly'+(ec>0?' all-in':'')+'</div><div class="v">'+eur(m.monthlyTotal!=null?m.monthlyTotal:m.rent)+'<small> /month</small></div></div>'
+      +'<div class="tile"><div class="k">Due today to lock it</div><div class="v">'+eur(m.dueAtSigning)+'</div></div>'
+      +'<div class="tile"><div class="k">Move-in</div><div class="v" style="font-size:17px;font-weight:450">'+fmtD(le.startDate)+'</div></div>'
+      +'<div class="tile"><div class="k">Term</div><div class="v" style="font-size:17px;font-weight:450">'+le.months+' months <small>→ '+fmtD(le.endDate)+'</small></div></div>'
+    +'</div>'
+    +'<div class="card"><h2>The property</h2>'
+      +kv('Address',esc(p.address))
+      +kv('Type',esc(p.type))+kv('Condition',esc(p.condition))+kv('Use',esc(p.use))
+      +(p.floor?kv('Floor',esc(p.floor)):'')+(p.unit?kv('Unit',esc(p.unit)):'')
+    +'</div>'
+    +'<div class="card"><h2>Financial terms</h2>'+moneyRows()+'</div>'
+    +'<div class="card"><h2>General conditions</h2>'+condList(null)+'</div>'
+    +'<div class="advisor"><span class="av">V</span><div class="who"><b>Valentino · BOOM Roma</b><span>Your advisor on this deal — replies personally</span></div><a href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a></div>'
+    +'<div class="trust">'
+      +'<span><span class="c">✓</span> Legally valid e-signature (FES · Art. 21 CAD)</span>'
+      +'<span><span class="c">✓</span> Payments secured by Stripe</span>'
+      +'<span><span class="c">✓</span> Deposit protected &amp; refundable</span>'
+      +'<span><span class="c">✓</span> Registered with Agenzia delle Entrate</span>'
+    +'</div>';
+}
+
+/* ═══ STEP 2 — DETAILS ═══ */
+function renderStep2(){
+  var t=PA.tenant||{};
+  $('p2').innerHTML=
+    '<button class="backlk" onclick="tryStep(1)">← Back to the terms</button>'
+    +'<span class="eyebrow">Step 2 · Who signs</span>'
+    +'<h1 class="big" style="font-size:clamp(24px,5.4vw,32px)">Your details go on the agreement</h1>'
+    +'<div class="subline">Exactly as on your ID — this becomes §1 of the document.</div>'
+    +'<div class="card" style="margin-top:20px"><h2>Parties</h2>'
+    +'<div class="party">Landlord</div><div class="pname">'+esc(PA.landlord.name)+'</div>'
+    +'<div class="party">Tenant — you</div>'
+    +'<div class="grid2">'
+      +fld('tFullName','Full name',t.fullName,true)
+      +fld('tDob','Date of birth','',false)
+      +fld('tBirthPlace','Place of birth','',false)
+      +fld('tNationality','Nationality','',false)
+      +fld('tAddress','Current address','',false)
+      +fld('tCf','Tax code (C.F.) — if you have one','',false)
+      +fld('tIdDoc','ID / Passport no.','',false)
+      +fld('tEmail','Email',t.email,true,'email')
+      +fld('tPhone','Phone / WhatsApp',t.phone,true,'tel')
+    +'</div>'
+    +'<div id="coTenants"></div>'
+    +'<button type="button" class="addcot" id="addCotBtn" onclick="addCoTenant()">+ Add a co-tenant / flatmate</button>'
+    +'<div class="jointnote">Renting together? Add every person who will sign — all co-tenants are jointly and severally liable under this agreement.</div>'
+    +'<div class="reqmeter" id="reqmeter"><span id="reqTxt">Required: name, email, phone</span><span class="bar"><i id="reqBar"></i></span></div>'
+    +'</div>'
+    +'<p class="err" id="p2Err" role="alert"></p>';
+  wireDetails();
+}
+
+/* co-tenants */
+var COT=0,COT_MAX=5;
+var COT_FIELDS=[['FullName','Full name','text'],['Dob','Date of birth','text'],['BirthPlace','Place of birth','text'],['Nationality','Nationality','text'],['Address','Current address','text'],['Cf','Tax code (C.F.)','text'],['IdDoc','ID / Passport no.','text'],['Email','Email','email'],['Phone','Phone / WhatsApp','tel']];
+window.addCoTenant=function(n){
+  var host=$('coTenants');if(!host)return null;
+  if(host.querySelectorAll('.cot').length>=COT_MAX)return null;
+  n=n||(++COT);if(n>COT)COT=n;
+  var inner=COT_FIELDS.map(function(f,i){return fld('c'+n+f[0],f[1],'',i===0,f[2]);}).join('');
+  var div=document.createElement('div');
+  div.className='cot';div.setAttribute('data-n',n);
+  div.innerHTML='<div class="cothead"><b>Co-tenant</b><button type="button" onclick="removeCoTenant('+n+')">Remove ×</button></div><div class="grid2">'+inner+'</div>';
+  host.appendChild(div);
+  COT_FIELDS.forEach(function(f){
+    var e=$('c'+n+f[0]);if(!e)return;
+    e.addEventListener('input',function(){saveDraft();});
+  });
+  var add=$('addCotBtn');
+  if(add&&host.querySelectorAll('.cot').length>=COT_MAX)add.style.display='none';
+  saveDraft();
+  return n;
+};
+window.removeCoTenant=function(n){
+  var host=$('coTenants');if(!host)return;
+  var div=host.querySelector('.cot[data-n="'+n+'"]');if(div)div.remove();
+  var add=$('addCotBtn');if(add)add.style.display='';
+  saveDraft();
+};
+function cotNs(){
+  var host=$('coTenants');if(!host)return[];
+  return [].slice.call(host.querySelectorAll('.cot')).map(function(d){return +d.getAttribute('data-n')});
+}
+
+var DKEY='boom:pa:'+TOKEN;
+function saveDraft(){
+  try{
+    var d={f:{},cots:cotNs()};
+    [].slice.call(document.querySelectorAll('#p2 .fld input')).forEach(function(e){if(e.id&&e.value)d.f[e.id]=e.value;});
+    localStorage.setItem(DKEY,JSON.stringify(d));
+  }catch(_e){}
+}
+function reqState(){
+  var g=function(id){var e=$(id);return e?e.value.trim():''};
+  var okN=g('tFullName').length>=3,okE=/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(g('tEmail')),okP=g('tPhone').replace(/\D/g,'').length>=6;
+  return{okN:okN,okE:okE,okP:okP,n:(okN?1:0)+(okE?1:0)+(okP?1:0)};
+}
+function wireDetails(){
+  try{
+    var d=JSON.parse(localStorage.getItem(DKEY)||'{}');
+    var f=d.f||d;
+    (Array.isArray(d.cots)?d.cots:[]).forEach(function(n){addCoTenant(n);});
+    Object.keys(f).forEach(function(id){var e=$(id);if(e&&!e.value&&f[id])e.value=f[id];});
+  }catch(e){}
+  var ids=['tFullName','tDob','tBirthPlace','tNationality','tAddress','tCf','tIdDoc','tEmail','tPhone'];
+  ids.forEach(function(id){var e=$(id);if(!e)return;
+    e.addEventListener('input',function(){
+      saveDraft();
+      var r=reqState();
+      if(id==='tFullName')e.classList.toggle('ok',r.okN);
+      if(id==='tEmail')e.classList.toggle('ok',r.okE);
+      if(id==='tPhone')e.classList.toggle('ok',r.okP);
+      meter();barSync();
+    });});
+  meter();
+}
+function meter(){
+  var r=reqState();
+  var bar=$('reqBar'),txt=$('reqTxt'),mt=$('reqmeter');
+  if(bar)bar.style.width=Math.round(r.n/3*100)+'%';
+  if(txt)txt.textContent=r.n===3?'Ready — continue below ✓':('Required: '+[!r.okN?'name':null,!r.okE?'email':null,!r.okP?'phone':null].filter(Boolean).join(', '));
+  if(mt)mt.classList.toggle('done',r.n===3);
+}
+
+/* ═══ STEP 3 — VERIFY (ID upload) ═══ */
+function renderStep3(){
+  var list=tenantsNow();
+  var already=Number(PA.uploadsCount)||0;
+  var html='<button class="backlk" onclick="tryStep(2)">← Back to your details</button>'
+    +'<span class="eyebrow">Step 3 · Identity check</span>'
+    +'<h1 class="big" style="font-size:clamp(24px,5.4vw,32px)">Attach your ID — skip the paperwork later</h1>'
+    +'<div class="subline">One photo of your ID or passport is all your rental contract needs. Optional now — but it makes your contract ready the moment you sign.</div>'
+    +(already?'<div class="paidband" style="margin-top:16px">✓ '+already+' document'+(already>1?'s':'')+' already received</div>':'');
+  list.forEach(function(t,i){
+    var name=t.fullName||('Co-tenant '+(i+1));
+    if(i===0&&!t.fullName)name='You';
+    html+='<div class="upcard'+(UP[i]?' done':'')+'" id="upc'+i+'">'
+      +'<div class="uphead"><b>'+esc(name)+'</b><span class="ubadge">✓ Received</span></div>'
+      +'<div class="uptile" id="uptile'+i+'" onclick="pickDoc('+i+')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></svg><span id="uplbl'+i+'">Photograph or upload ID / passport</span></div>'
+      +'<div class="upchips" id="upchips'+i+'"></div>'
+      +'<input type="file" id="upin'+i+'" accept="image/*,application/pdf" style="display:none" onchange="onDoc('+i+',this)">'
+      +'</div>';
+  });
+  html+='<div class="upnote"><b>Encrypted &amp; private.</b> Your document travels over TLS, is stored on Google Cloud with access restricted to your BOOM advisor, and is used only to prepare your rental contract and the mandatory Agenzia delle Entrate registration (GDPR).</div>'
+    +'<p class="err" id="p3Err" role="alert"></p>';
+  $('p3').innerHTML=html;
+}
+window.pickDoc=function(i){var e=$('upin'+i);if(e)e.click();};
+window.onDoc=function(i,input){
+  var file=input.files&&input.files[0];if(!file)return;
+  var tile=$('uptile'+i),lbl=$('uplbl'+i),err=$('p3Err');
+  err.style.display='none';
+  tile.classList.add('busy');
+  lbl.innerHTML='';var sp=document.createElement('span');sp.className='spin';lbl.appendChild(sp);lbl.appendChild(document.createTextNode(' Encrypting & uploading…'));
+  shrink(file).then(function(payload){
+    return fetch('/api/preagreement/upload',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({token:TOKEN,base64:payload.base64,contentType:payload.type,name:file.name,tenantIndex:i})});
+  }).then(function(r){return r.json()}).then(function(j){
+    if(!j||!j.ok)throw 0;
+    UP[i]=(UP[i]||0)+1;
+    var card=$('upc'+i);if(card)card.classList.add('done');
+    var chips=$('upchips'+i);
+    if(chips){var s=document.createElement('span');s.textContent='✓ '+(file.name.length>26?file.name.slice(0,24)+'…':file.name);chips.appendChild(s);}
+    tile.classList.remove('busy');lbl.textContent='Add another document (e.g. back side)';
+    input.value='';
+    barSync();
+  }).catch(function(){
+    tile.classList.remove('busy');lbl.textContent='Photograph or upload ID / passport';
+    err.textContent='Upload didn’t go through — try again, or send it later on WhatsApp.';err.style.display='block';
+    input.value='';
+  });
+};
+/* client-side downscale: phone photos → ~1800px JPEG (HEIC/PDF pass through) */
+function shrink(file){
+  return new Promise(function(resolve){
+    var raw=function(){var fr=new FileReader();fr.onload=function(){resolve({base64:fr.result,type:file.type||'image/jpeg'})};fr.readAsDataURL(file);};
+    if(!/^image\/(jpeg|png|webp)$/.test(file.type))return raw();
+    var url=URL.createObjectURL(file),img=new Image();
+    img.onload=function(){
+      try{
+        var MAX=1800,w=img.width,h=img.height;
+        if(Math.max(w,h)>MAX){var k=MAX/Math.max(w,h);w=Math.round(w*k);h=Math.round(h*k);}
+        var c=document.createElement('canvas');c.width=w;c.height=h;
+        c.getContext('2d').drawImage(img,0,0,w,h);
+        URL.revokeObjectURL(url);
+        resolve({base64:c.toDataURL('image/jpeg',.82),type:'image/jpeg'});
+      }catch(e){raw();}
+    };
+    img.onerror=function(){URL.revokeObjectURL(url);raw();};
+    img.src=url;
+  });
+}
+
+/* ═══ STEP 4 — SIGN (the assembled paper document) ═══ */
+function renderStep4(){
+  var p=PA.property,le=PA.lease;
+  var TS=tenantsNow().filter(function(t,i){return i===0||t.fullName.length>=3});
+  var issued=(PA.createdAt||'').slice(0,10);
+  var html='<button class="backlk" onclick="tryStep(3)">← Back to verification</button>'
+    +'<span class="eyebrow">Step 4 · Read once more, then sign</span>'
+    +'<div class="docwrap"><div class="doc" id="theDoc"><span class="foil"></span>'
+    +'<div class="doc-h"><div><span class="eyebrow">BOOM · Rental Proposal</span>'
+    +'<h1>Pre-<em>Agreement</em></h1><div class="sub">'+esc(le.type)+' · '+esc(le.lawRef)+'</div>'
+    +'<div class="meta">'
+      +(issued?'<span>Issued<b>'+fmtD(issued)+'</b></span>':'')
+      +'<span>Property<b>'+esc((p.address||'').split(',')[0])+'</b></span>'
+      +(PA.ref?'<span>Protocol<b>'+esc(PA.ref)+'</b></span>':'')
+    +'</div></div><span class="seal">'+sealSVG()+'</span></div>';
+  // §1 parties
+  html+='<div class="sec"><span class="ghost">01</span><h2>Parties</h2>'
+    +'<div class="party">Landlord</div><div class="pname">'+esc(PA.landlord.name)+'</div>'
+    +'<div class="party">Tenant'+(TS.length>1?'s':'')+'</div>';
+  TS.forEach(function(t,i){
+    html+=(i>0?'<div class="cot" style="padding-top:12px">':'')
+      +'<div class="pname">'+esc(t.fullName||'—')+(UP[i]?'<span class="idok">✓ ID received</span>':'')+'</div>'
+      +'<div class="grid2" style="font-size:13px;color:var(--t2);margin-top:6px">'
+      +(t.dob?'<div>Born '+esc(t.dob)+(t.birthPlace?' · '+esc(t.birthPlace):'')+'</div>':'')
+      +(t.nationality?'<div>Nationality: '+esc(t.nationality)+'</div>':'')
+      +(t.address?'<div>Address: '+esc(t.address)+'</div>':'')
+      +(t.cf?'<div>C.F.: '+esc(t.cf)+'</div>':'')
+      +(t.idDoc?'<div>ID: '+esc(t.idDoc)+'</div>':'')
+      +(t.email?'<div>'+esc(t.email)+'</div>':'')+(t.phone?'<div>'+esc(t.phone)+'</div>':'')
+      +'</div>'+(i>0?'</div>':'');
+  });
+  if(TS.length>1)html+='<div class="jointnote">All co-tenants are jointly and severally liable for the full rent and the obligations under this agreement.</div>';
+  html+='</div>';
+  // §2 property · §3 lease · §4 money · §5 conditions
+  html+='<div class="sec"><span class="ghost">02</span><h2>Property</h2>'
+    +'<div class="addr">'+esc(p.address)+'</div>'
+    +kv('Type',esc(p.type))+kv('Condition',esc(p.condition))+kv('Use',esc(p.use))
+    +(p.floor?kv('Floor',esc(p.floor)):'')+(p.unit?kv('Unit',esc(p.unit)):'')+'</div>';
+  html+='<div class="sec"><span class="ghost">03</span><h2>Lease term</h2>'
+    +kv('Start date',fmtD(le.startDate))
+    +kv('Initial duration',le.months+' months',esc(le.lawRef))
+    +kv('End date',fmtD(le.endDate))+'</div>';
+  html+='<div class="sec"><span class="ghost">04</span><h2>Financial terms</h2>'+moneyRows()+'</div>';
+  html+='<div class="sec"><span class="ghost">05</span><h2>General conditions</h2>'+condList(TS.length)+'</div>';
+  // §6 signature
+  html+='<div class="sec" id="sec6"><span class="ghost">06</span><h2>Acceptance &amp; signature</h2>'
+    +'<div class="signwrap"><div class="cap"><span>Your signature'+(TS.length>1?'s':'')+'</span><span>Roma · '+new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})+'</span></div>'
+    +'<div class="signature" id="sigTxt"></div>'
+    +'<svg class="sigflr" id="sigFlr" viewBox="0 0 200 12" preserveAspectRatio="none" aria-hidden="true"><path d="M2 8 C 40 2, 92 12, 132 6 S 190 3, 198 7"/></svg>'
+    +'<div class="who">Typed signature · legally recorded with time, IP and consent (FES — Art. 21 CAD)</div></div>'
+    +'<label class="consent"><input type="checkbox" id="paOk" onchange="barSync()">'
+    +'<span>I confirm my details are correct and I accept this pre-agreement, including the general conditions above.</span></label>'
+    +'<p class="err" id="paErr" role="alert"></p>'
+    +'</div>';
+  html+='</div></div>';
+  $('p4').innerHTML=html;
+  // live signature line = every signer's typed name
+  var names=TS.map(function(t){return t.fullName}).filter(function(v){return v&&v.length>=2});
+  var s=$('sigTxt'),f=$('sigFlr');
+  if(names.length){s.textContent=names.join('  ·  ');s.classList.remove('empty');setTimeout(function(){if(f)f.classList.add('draw')},350);}
+  else{s.textContent='Your name from step 2 becomes your signature';s.classList.add('empty');}
+}
+
+/* ═══ ACCEPTED ═══ */
+function renderAccepted(){
+  var p=PA.property,m=PA.money||{},t=PA.tenant||{};
+  var TS=Array.isArray(PA.tenants)&&PA.tenants.length?PA.tenants:[t];
+  var paid=PA.status==='paid'||PAID;
+  var whoAll=TS.map(function(x){return x.fullName}).filter(Boolean);
+  var stillDue=PA.status==='accepted'&&Number(m.dueAtSigning)>0&&!PAID;
+  var html=(paid?'<div class="paidband">✓ Payment received — your place is locked. Your receipt is in your email.</div>':'')
+    +'<div class="docwrap"><div class="doc"><span class="foil"></span>'
+    +'<div class="sec issued"><span class="seal">'+sealSVG()+'</span>'
+    +'<h2>Pre-agreement accepted</h2>'
+    +'<p>'+esc(p.address)+' is set aside for '+esc(whoAll.join(' · ')||'you')+'.</p>'
+    +(PA.ref?'<div class="refchip">N° '+esc(PA.ref)+'</div>':'');
+  TS.forEach(function(tt){
+    if(!(tt.signature||tt.fullName))return;
+    html+='<div class="signwrap" style="max-width:360px;margin:20px auto 0;text-align:left"><div class="cap"><span>Signed · Roma</span><span>'+esc((PA.acceptedAt||'').slice(0,10))+'</span></div><div class="signature">'+esc(tt.signature||tt.fullName)+'</div><svg class="sigflr draw" viewBox="0 0 200 12" preserveAspectRatio="none" aria-hidden="true"><path d="M2 8 C 40 2, 92 12, 132 6 S 190 3, 198 7"/></svg><div class="who">'+esc(tt.fullName||'')+'</div></div>';
+  });
+  if(stillDue){
+    html+='<div style="max-width:430px;margin:20px auto 0"><button class="gbtn" id="payNowBtn" onclick="payNow()">Complete your reservation — '+eur(m.dueAtSigning)+' via Stripe →</button>'
+      +'<p style="font-size:11px;color:var(--t3);margin-top:9px">Secured by Stripe · credited to your first month · refunded in full within 48h</p></div>';
+  }
+  // what happens next — the client always knows where they stand
+  var contractReady=!!PA.contractReady;
+  html+='<div class="timeline">'
+    +'<div class="tstep don"><span class="td">✓</span><div><b>Pre-agreement signed</b><span>'+esc(p.address.split(',')[0])+' is reserved under your name.</span></div></div>'
+    +(Number(m.dueAtSigning)>0
+      ?'<div class="tstep '+(paid?'don':'now')+'"><span class="td">'+(paid?'✓':'2')+'</span><div><b>Reservation payment</b><span>'+(paid?eur(m.dueAtSigning)+' received via Stripe — receipt in your email.':eur(m.dueAtSigning)+' via Stripe locks the apartment completely.')+'</span></div></div>'
+      :'')
+    +'<div class="tstep '+(contractReady?'don':(paid||!Number(m.dueAtSigning)?'now':''))+'"><span class="td">'+(contractReady?'✓':'•')+'</span><div><b>Your rental contract</b><span>'+(contractReady?'Ready — check your email for the digital signing link.':'Prepared automatically from this document — the signing link arrives by email.')+'</span></div></div>'
+    +'<div class="tstep"><span class="td">•</span><div><b>Sign digitally, we register</b><span>Two minutes on your phone. BOOM countersigns and files the registration with the Agenzia delle Entrate.</span></div></div>'
+    +'<div class="tstep"><span class="td">•</span><div><b>Keys &amp; your tenant portal</b><span>Move-in day: keys, contacts and payments — all in one place.</span></div></div>'
+    +'</div>'
+    +'<div class="prq" id="paQr" aria-hidden="true"></div>'
+    +'<div><button class="obtn" onclick="window.print()">Print / save PDF</button> '
+    +'<a class="obtn wa" href="https://wa.me/?text='+encodeURIComponent('BOOM pre-agreement '+(PA.ref||'')+' — '+((p.address||'').split(',')[0])+'. My copy of the accepted document: '+location.origin+'/pre-agreement?t='+TOKEN)+'" target="_blank" rel="noopener">Get it on WhatsApp →</a> '
+    +'<a class="obtn" href="https://wa.me/393313251961" target="_blank" rel="noopener">Talk to BOOM →</a></div>'
+    +'</div></div></div>';
+  $('pAcc').innerHTML=html;
+  [].slice.call(document.querySelectorAll('.panel')).forEach(function(x){x.classList.remove('on')});
+  $('pAcc').classList.add('on');
+  $('segs').style.display='none';
+  $('hprog').style.width='100%';
+  $('abar').style.display='none';
+  $('main').classList.add('wide');
+  paintQr();
+  try{if(window.__amb&&__amb.mood)__amb.mood('convert')}catch(e){}
+}
+
 window.payNow=function(){
-  var b=document.getElementById('payNowBtn');if(b){b.disabled=true;b.textContent='Opening secure checkout…';}
+  var b=$('payNowBtn');if(b){b.disabled=true;b.textContent='Opening secure checkout…';}
   fetch('/api/preagreement/pay',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN})})
     .then(function(r){return r.json()})
     .then(function(j){if(j&&j.ok&&j.checkoutUrl){location.href=j.checkoutUrl;return;}throw 0;})
     .catch(function(){if(b){b.disabled=false;b.textContent='Complete your reservation →';}});
 };
-
-/* QR on the issued document (screen + print): scan → reopen this exact act */
 function paintQr(){
-  var host=document.getElementById('paQr');if(!host||host.__done)return;host.__done=1;
+  var host=$('paQr');if(!host||host.__done)return;host.__done=1;
   var url=location.origin+'/pre-agreement?t='+TOKEN;
   var go=function(){
     try{window.QRCode.toDataURL(url,{margin:0,width:184,color:{dark:'#111111',light:'#ffffff'}},function(err,durl){
@@ -554,243 +768,118 @@ function paintQr(){
   s.onload=go;document.head.appendChild(s);
 }
 
-/* ── the document's own thread: §-nodes that follow the reading ── */
-var THREAD={nodes:[],secs:[]};
-function buildThread(parts){
-  var th=document.getElementById('dthread');if(!th)return;
-  THREAD.nodes=[];THREAD.secs=[];
-  var secs=[].slice.call(document.querySelectorAll('.doc .sec'));
-  var doc=document.getElementById('theDoc');if(!doc||!secs.length)return;
-  secs.forEach(function(s,i){
-    var a=document.createElement('a');
-    a.setAttribute('aria-label','Section '+(i+1));
-    a.addEventListener('click',function(){s.scrollIntoView({behavior:'smooth',block:'start'})});
-    th.appendChild(a);THREAD.nodes.push(a);THREAD.secs.push(s);
-  });
-  positionThread();
-}
-function positionThread(){
-  var doc=document.getElementById('theDoc');if(!doc||!THREAD.secs.length)return;
-  var dr=doc.getBoundingClientRect();
-  THREAD.secs.forEach(function(s,i){
-    var r=s.getBoundingClientRect();
-    THREAD.nodes[i].style.top=Math.round(r.top-dr.top+18)+'px';
-  });
-}
-function threadScroll(){
-  var doc=document.getElementById('theDoc'),fill=document.getElementById('dtFill');
-  if(!doc||!fill)return;
-  var r=doc.getBoundingClientRect();
-  var read=Math.min(Math.max(innerHeight*.55-r.top,0),r.height);
-  fill.style.height=Math.round(read)+'px';
-  THREAD.secs.forEach(function(s,i){
-    var sr=s.getBoundingClientRect();
-    THREAD.nodes[i].classList.toggle('on',sr.top<innerHeight*.55);
-  });
-}
-addEventListener('resize',positionThread);
-
-/* ── the sheet leans with the pointer (desktop, fine pointers only) ── */
-function wireTilt(){
-  try{
-    if(!matchMedia('(min-width:960px) and (pointer:fine)').matches)return;
-    if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
-    var doc=document.getElementById('theDoc');if(!doc)return;
-    var raf=null;
-    doc.addEventListener('pointermove',function(e){
-      if(raf)return;
-      raf=requestAnimationFrame(function(){raf=null;
-        var r=doc.getBoundingClientRect();
-        var x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;
-        doc.style.transform='perspective(1600px) rotateY('+(x*1.1)+'deg) rotateX('+(-y*.8)+'deg)';
-      });
-    });
-    doc.addEventListener('pointerleave',function(){doc.style.transform='';});
-  }catch(e){}
-}
-
-/* ── co-tenants: extra parties on the same sheet ── */
-var COT=0,COT_MAX=5;
-var COT_FIELDS=[['FullName','Full name','text'],['Dob','Date of birth','text'],['BirthPlace','Place of birth','text'],['Nationality','Nationality','text'],['Address','Current address','text'],['Cf','Tax code (C.F.)','text'],['IdDoc','ID / Passport no.','text'],['Email','Email','email'],['Phone','Phone / WhatsApp','tel']];
-window.addCoTenant=function(n){
-  var host=document.getElementById('coTenants');if(!host)return null;
-  if(host.querySelectorAll('.cot').length>=COT_MAX)return null;
-  n=n||(++COT);if(n>COT)COT=n;
-  var inner=COT_FIELDS.map(function(f,i){
-    return fld('c'+n+f[0],f[1],'',i===0,'',f[2]);
-  }).join('');
-  var div=document.createElement('div');
-  div.className='cot';div.setAttribute('data-n',n);
-  div.innerHTML='<div class="cothead"><b>Co-tenant</b><button type="button" onclick="removeCoTenant('+n+')">Remove ×</button></div><div class="grid2">'+inner+'</div>';
-  host.appendChild(div);
-  COT_FIELDS.forEach(function(f){
-    var e=document.getElementById('c'+n+f[0]);if(!e)return;
-    e.addEventListener('input',function(){saveDraft();if(f[0]==='FullName')sigLive();});
-  });
-  var add=document.getElementById('addCotBtn');
-  if(add&&host.querySelectorAll('.cot').length>=COT_MAX)add.style.display='none';
-  saveDraft();
-  return n;
+/* ═══ step machinery ═══ */
+window.tryStep=function(n){
+  if(n===STEP)return;
+  if(n>STEPMAX+0)  {/* forward only via the bar, except revisits */ if(n>STEPMAX)return;}
+  goStep(n);
 };
-window.removeCoTenant=function(n){
-  var host=document.getElementById('coTenants');if(!host)return;
-  var div=host.querySelector('.cot[data-n="'+n+'"]');if(div)div.remove();
-  var add=document.getElementById('addCotBtn');if(add)add.style.display='';
-  saveDraft();sigLive();
-};
-function cotNs(){
-  var host=document.getElementById('coTenants');if(!host)return[];
-  return [].slice.call(host.querySelectorAll('.cot')).map(function(d){return +d.getAttribute('data-n')});
+function goStep(n){
+  if(n===2&&STEP===1){/* fine */}
+  STEP=n;STEPMAX=Math.max(STEPMAX,n);
+  if(n===2&&!$('p2').innerHTML)renderStep2();
+  if(n===3)renderStep3();
+  if(n===4)renderStep4();
+  [].slice.call(document.querySelectorAll('.panel')).forEach(function(x){x.classList.remove('on')});
+  var p=$('p'+n);p.classList.add('on');
+  [].slice.call(document.querySelectorAll('.segs button')).forEach(function(b){
+    var s=+b.getAttribute('data-s');
+    b.classList.toggle('on',s===n);
+    b.classList.toggle('done',s<n||(s<=STEPMAX&&s!==n&&s<n));
+    b.disabled=s>STEPMAX;
+    if(s<n)b.querySelector('i').textContent='✓';else b.querySelector('i').textContent=s;
+  });
+  $('hprog').style.width=(n/4*100)+'%';
+  $('main').classList.toggle('wide',n===4);
+  barSync();
+  scrollTo({top:0,behavior:'smooth'});
 }
+function barSync(){
+  var btn=$('abarBtn'),hint=$('abarHint');
+  var m=PA?(PA.money||{}):{};
+  if(STEP===1){
+    btn.disabled=false;btn.textContent='Looks right — add my details';
+    hint.innerHTML='Takes about 2 minutes · nothing is binding until you sign in step 4';
+  }else if(STEP===2){
+    var r=reqState();
+    btn.disabled=r.n<3;
+    btn.textContent=r.n<3?'Fill the required fields to continue':'Continue to verification';
+    hint.innerHTML=r.n<3?'Missing: <b>'+[!r.okN?'name':null,!r.okE?'email':null,!r.okP?'phone':null].filter(Boolean).join(', ')+'</b>':'Your data goes only on this agreement — never shared';
+  }else if(STEP===3){
+    var got=Object.keys(UP).length>0||(Number(PA.uploadsCount)||0)>0;
+    btn.disabled=false;
+    btn.textContent=got?'Continue — review & sign':'Continue — I’ll send documents later';
+    hint.innerHTML=got?'Perfect — your contract will be ready the moment you sign':'Optional now · you can also send them on WhatsApp anytime';
+  }else if(STEP===4){
+    var ok=$('paOk');
+    btn.disabled=!(ok&&ok.checked);
+    btn.textContent=Number(m.dueAtSigning)>0?('Accept & sign — '+eur(m.dueAtSigning)+' due now'):'Accept & sign';
+    hint.innerHTML=ok&&ok.checked?'Stripe-secured · deposit protected · legally recorded':'Tick the consent box above to enable signing';
+  }
+}
+window.barSync=barSync;   // inline handlers (consent checkbox) reach it globally
+$('abarBtn').addEventListener('click',function(){
+  if(STEP===1)return goStep(2);
+  if(STEP===2){
+    var r=reqState();
+    if(r.n<3){var e=$('p2Err');e.textContent='Almost there — '+[!r.okN?'your full name':null,!r.okE?'a valid email':null,!r.okP?'your phone':null].filter(Boolean).join(', ')+' still missing.';e.style.display='block';return;}
+    var e2=$('p2Err');if(e2)e2.style.display='none';
+    return goStep(3);
+  }
+  if(STEP===3)return goStep(4);
+  if(STEP===4)return accept();
+});
 
-/* ── the ceremony: draft autosave, live signature, meter, steps, roll-ups ── */
-var DKEY='boom:pa:'+TOKEN;
-function saveDraft(){
-  try{
-    var d={f:{},cots:cotNs()};
-    [].slice.call(document.querySelectorAll('#docHost .fld input')).forEach(function(e){if(e.id&&e.value)d.f[e.id]=e.value;});
-    localStorage.setItem(DKEY,JSON.stringify(d));
-  }catch(_e){}
-}
-function reqState(){
-  var g=function(id){var e=document.getElementById(id);return e?e.value.trim():''};
-  var okN=g('tFullName').length>=3,okE=/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(g('tEmail')),okP=g('tPhone').replace(/\D/g,'').length>=6;
-  return{okN:okN,okE:okE,okP:okP,n:(okN?1:0)+(okE?1:0)+(okP?1:0)};
-}
-function paArm(){
-  var ok=document.getElementById('paOk'),go=document.getElementById('paGo');
-  if(go&&ok)go.disabled=!ok.checked;
-  paSteps();
-}
-window.paArm=paArm;
-function paSteps(){
-  var r=reqState(),ok=document.getElementById('paOk');
-  var s2=document.getElementById('st2'),s3=document.getElementById('st3');
-  var l1=document.getElementById('ln1'),l2=document.getElementById('ln2');
-  if(s2)s2.classList.toggle('on',r.n===3);
-  if(l1)l1.classList.toggle('on',r.n===3);
-  if(s3)s3.classList.toggle('on',!!(ok&&ok.checked));
-  if(l2)l2.classList.toggle('on',!!(ok&&ok.checked));
-  var bar=document.getElementById('reqBar'),txt=document.getElementById('reqTxt'),mt=document.getElementById('reqmeter');
-  if(bar)bar.style.width=Math.round(r.n/3*100)+'%';
-  if(txt)txt.textContent=r.n===3?'Ready to sign ✓':('Required: '+[!r.okN?'name':null,!r.okE?'email':null,!r.okP?'phone':null].filter(Boolean).join(', '));
-  if(mt)mt.classList.toggle('done',r.n===3);
-  var sb=document.getElementById('sbAmt');
-  if(sb){var m=PA.money||{};sb.textContent=(m.dueAtSigning>0?eur(m.dueAtSigning)+' locks it':'Read & sign');}
-}
-function wireCeremony(){
-  var ids=['tFullName','tDob','tBirthPlace','tNationality','tAddress','tCf','tIdDoc','tEmail','tPhone'];
-  /* restore the draft — nobody loses their form on this page (draft carries
-     both the flat legacy shape and the {f, cots} shape with co-tenants) */
-  try{
-    var d=JSON.parse(localStorage.getItem(DKEY)||'{}');
-    var f=d.f||d;
-    (Array.isArray(d.cots)?d.cots:[]).forEach(function(n){addCoTenant(n);});
-    Object.keys(f).forEach(function(id){var e=document.getElementById(id);if(e&&!e.value&&f[id])e.value=f[id];});
-  }catch(e){}
-  ids.forEach(function(id){var e=document.getElementById(id);if(!e)return;
-    e.addEventListener('input',function(){
-      saveDraft();
-      if(id==='tFullName')sigLive();
-      var r=reqState();
-      if(id==='tFullName')e.classList.toggle('ok',r.okN);
-      if(id==='tEmail')e.classList.toggle('ok',r.okE);
-      if(id==='tPhone')e.classList.toggle('ok',r.okP);
-      paSteps();
-    });});
-  sigLive();paSteps();
-  /* money rolls up once, when seen */
-  try{
-    if(!matchMedia('(prefers-reduced-motion: reduce)').matches&&'IntersectionObserver' in window){
-      var tv=document.querySelector('.total .v');
-      if(tv){var io=new IntersectionObserver(function(es){es.forEach(function(en){
-        if(!en.isIntersecting||tv.__done)return;tv.__done=1;io.disconnect();
-        var txt=tv.textContent,mm=txt.match(/([\d.,]+)/);if(!mm)return;
-        var num=parseFloat(mm[1].replace(/,/g,''));if(!isFinite(num))return;
-        var t0=performance.now();(function tick(now){var p=Math.min(1,(now-t0)/900),e2=1-Math.pow(1-p,3);
-          tv.textContent=p<1?'€'+Math.round(num*e2).toLocaleString('en-US'):txt;
-          if(p<1)requestAnimationFrame(tick);})(t0);
-      })},{threshold:.6});io.observe(tv);}
-    }
-  }catch(e){}
-  /* §6 in view → convert mood + hide the mobile bar; scroll stirs the marble */
-  try{
-    var s6=document.getElementById('sec6'),sb=document.getElementById('signbar');
-    if('IntersectionObserver' in window&&s6){
-      new IntersectionObserver(function(es){es.forEach(function(en){
-        if(sb)sb.classList.toggle('on',!en.isIntersecting);
-        if(en.isIntersecting&&window.__amb&&__amb.mood)try{__amb.mood('convert')}catch(_e){}
-      })},{threshold:.25}).observe(s6);
-    }else if(sb)sb.classList.add('on');
-  }catch(e){}
-  setTimeout(positionThread,900);
-}
-function sigLive(){
-  var e=document.getElementById('tFullName'),s=document.getElementById('sigTxt'),f=document.getElementById('sigFlr');if(!s)return;
-  var names=[e?e.value.trim():''];
-  cotNs().forEach(function(n){var x=document.getElementById('c'+n+'FullName');if(x)names.push(x.value.trim());});
-  names=names.filter(function(v){return v.length>=2});
-  if(names.length){s.textContent=names.join('  ·  ');s.classList.remove('empty');if(f)f.classList.add('draw');}
-  else{s.textContent='Your full name from §1 becomes your signature';s.classList.add('empty');if(f)f.classList.remove('draw');}
-}
-/* reading progress + read-step + thread + ambient stir */
-(function(){
-  var last=scrollY;
-  addEventListener('scroll',function(){
-    var h=document.documentElement,max=h.scrollHeight-innerHeight,p=max>0?Math.min(1,scrollY/max):0;
-    var bar=document.getElementById('rprogI');if(bar)bar.style.width=(p*100)+'%';
-    var s1=document.getElementById('st1');if(s1&&p>.12)s1.classList.add('on');
-    threadScroll();
-    try{if(window.__amb&&__amb.stir)__amb.stir(Math.abs(scrollY-last)/250)}catch(e){}
-    last=scrollY;
-  },{passive:true});
-})();
-
+/* ═══ accept ═══ */
 function accept(){
-  var err=document.getElementById('paErr');
-  var g=function(id){var e=document.getElementById(id);return e?e.value.trim():''};
-  var tenant={fullName:g('tFullName'),dob:g('tDob'),birthPlace:g('tBirthPlace'),nationality:g('tNationality'),
-    address:g('tAddress'),cf:g('tCf'),idDoc:g('tIdDoc'),email:g('tEmail'),phone:g('tPhone')};
-  tenant.signature=tenant.fullName;   // the typed calligraphy IS the signature
-  if(tenant.fullName.length<3){err.textContent='Your full name goes on the agreement — add it in section 1.';err.style.display='block';return;}
-  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(tenant.email)){err.textContent='Add a valid email in section 1 — it’s where your confirmation goes.';err.style.display='block';return;}
-  if(tenant.phone.length<6){err.textContent='Add your phone in section 1 so your advisor can reach you.';err.style.display='block';return;}
-  /* co-tenants: name is the one hard requirement; a named block left empty
-     stops the signing so nobody signs with a phantom party on the sheet */
+  var err=$('paErr');
+  var list=tenantsNow();
+  var tenant=list[0];tenant.signature=tenant.fullName;
+  if(tenant.fullName.length<3){err.textContent='Your full name goes on the agreement — it’s missing in step 2.';err.style.display='block';return;}
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(tenant.email)){err.textContent='Add a valid email in step 2 — it’s where your confirmation goes.';err.style.display='block';return;}
+  if(tenant.phone.length<6){err.textContent='Add your phone in step 2 so your advisor can reach you.';err.style.display='block';return;}
   var tenants=[tenant],incomplete=false;
-  cotNs().forEach(function(n){
-    var ct={fullName:g('c'+n+'FullName'),dob:g('c'+n+'Dob'),birthPlace:g('c'+n+'BirthPlace'),nationality:g('c'+n+'Nationality'),
-      address:g('c'+n+'Address'),cf:g('c'+n+'Cf'),idDoc:g('c'+n+'IdDoc'),email:g('c'+n+'Email'),phone:g('c'+n+'Phone')};
-    var any=Object.keys(ct).some(function(k){return ct[k]});
-    if(!any){removeCoTenant(n);return;}          // fully empty block → drop it
+  list.slice(1).forEach(function(ct){
+    var any=Object.keys(ct).some(function(k){return k!=='_n'&&ct[k]});
+    if(!any){if(ct._n!=null)removeCoTenant(ct._n);return;}
     if(ct.fullName.length<3){incomplete=true;return;}
-    ct.signature=ct.fullName;
+    ct.signature=ct.fullName;delete ct._n;
     tenants.push(ct);
   });
-  if(incomplete){err.textContent='Every co-tenant needs at least their full name — or remove the empty block.';err.style.display='block';return;}
+  if(incomplete){err.textContent='Every co-tenant needs at least their full name — or remove the empty block in step 2.';err.style.display='block';return;}
   err.style.display='none';
-  var btn=document.getElementById('paGo');btn.disabled=true;btn.textContent='Signing…';
+  var btn=$('abarBtn');btn.disabled=true;btn.textContent='Signing…';
   fetch('/api/preagreement/submit',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({token:TOKEN,tenant:tenant,tenants:tenants,accept:true})})
   .then(function(r){return r.json()})
   .then(function(j){
     if(!j||!j.ok)throw 0;
     try{localStorage.removeItem(DKEY)}catch(e){}
-    if(j.checkoutUrl){location.href=j.checkoutUrl;return;}
-    /* the stamp lands, then the accepted document */
+    if(j.checkoutUrl){btn.textContent='Opening secure checkout…';location.href=j.checkoutUrl;return;}
     PA.status='accepted';PA.ref=j.ref;PA.tenant=tenant;PA.tenants=tenants;
-    var ov=document.getElementById('stampov');
-    var done=function(){if(ov)ov.classList.remove('on');render();scrollTo({top:document.body.scrollHeight,behavior:'smooth'});};
+    var ov=$('stampov');
+    var done=function(){if(ov)ov.classList.remove('on');renderAccepted();};
     if(ov&&!matchMedia('(prefers-reduced-motion: reduce)').matches){ov.classList.add('on');setTimeout(done,1500);}
     else done();
   })
-  .catch(function(){btn.disabled=false;btn.textContent='Accept & sign →';err.textContent='Something went wrong — try again, or message us on WhatsApp.';err.style.display='block';});
+  .catch(function(){btn.disabled=false;barSync();err.textContent='Something went wrong — try again, or message us on WhatsApp.';err.style.display='block';});
 }
 
+/* ═══ boot ═══ */
+function boot(){
+  $('load').style.display='none';
+  $('foot').style.display='';
+  document.title='Pre-Agreement — '+(PA.property.address||'BOOM Roma');
+  var accepted=PA.status==='accepted'||PA.status==='paid';
+  if(accepted){$('hdr').style.display='';$('segs').style.display='none';renderAccepted();return;}
+  $('hdr').style.display='';$('abar').style.display='';
+  renderStep1();
+  goStep(1);
+}
 if(!/^[a-f0-9]{32}$/.test(TOKEN)){fail(404);}
 else fetch('/api/preagreement/lookup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN})})
   .then(function(r){return r.json().then(function(j){return {s:r.status,j:j}}).catch(function(){return {s:r.status,j:null}})})
-  .then(function(x){if(x.j&&x.j.ok){PA=x.j.pa;ID=x.j.id;document.title='Pre-Agreement — '+(PA.property.address||'BOOM Roma');render();return;}fail(x.s);})
+  .then(function(x){if(x.j&&x.j.ok){PA=x.j.pa;boot();return;}fail(x.s);})
   .catch(function(){fail(0)});
 })();
 </script>

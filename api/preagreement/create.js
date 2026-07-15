@@ -18,6 +18,9 @@
 // Headers:  Authorization: Bearer <firebase-id-token>   (admin/owner/landlord)
 // Body: {
 //   listingId?: string,
+//   propertyId?: string,        // portal `properties` doc — set it and the
+//                               // contract auto-creates on acceptance/payment
+//   autoConvert?: boolean,      // default true when propertyId present
 //   property:  { address, type?, condition?, use?, floor?, unit? },
 //   landlord:  { name },
 //   tenant?:   { fullName?, email?, phone? },          // optional prefill
@@ -25,6 +28,8 @@
 //   money:     { rent, energyCredit?, depositMonths?, depositSplitPct?,
 //                feeMode?('pct'|'months'), feePct?, feeMonths?, feeVatPct?,
 //                feeDue?('move-in'|'signing'|'separate'), dueAtSigning? },
+//   extras?:   [{ label, amount }],   // ≤8 custom money lines shown in §4
+//   customClauses?: [string],         // ≤10 extra clauses appended to §5
 //   note?:     string
 // }
 // Derived server-side: monthlyTotal, deposit, depositAtSigning/AtMoveIn,
@@ -113,10 +118,18 @@ export default async function handler(req, res) {
     email: clip((b.tenant || {}).email, 160),
     phone: clip((b.tenant || {}).phone, 60),
   };
+  const extras = (Array.isArray(b.extras) ? b.extras : []).slice(0, 8)
+    .map(x => ({ label: clip((x || {}).label, 120), amount: num((x || {}).amount) }))
+    .filter(x => x.label);
+  const customClauses = (Array.isArray(b.customClauses) ? b.customClauses : []).slice(0, 10)
+    .map(c => clip(c, 400)).filter(Boolean);
+  const propertyId = clip(b.propertyId, 80);
   const doc = {
     token,
     status: 'sent',
     listingId: clip(b.listingId, 80),
+    propertyId,                                     // enables auto-convert
+    autoConvert: propertyId ? b.autoConvert !== false : false,
     property: {
       address,
       type: clip(p.type, 60) || 'Entire Apartment',
@@ -137,10 +150,13 @@ export default async function handler(req, res) {
       reason: clip(l.reason, 300),
     },
     money,
+    extras,
+    customClauses,
     note: clip(b.note, 600),
     createdAt: new Date().toISOString(),
     createdBy: auth.email || auth.uid,
     views: [],
+    uploads: [],
   };
 
   try {

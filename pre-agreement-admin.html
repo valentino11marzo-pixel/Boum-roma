@@ -30,8 +30,8 @@ h1{font-weight:200;font-size:24px;margin-bottom:4px}
 @media(max-width:480px){.g3{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .fld{display:block;margin-bottom:10px}
 .fld span{display:block;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--t3);margin-bottom:5px}
-.fld input,.fld select{width:100%;background:var(--input);border:1px solid var(--line);border-radius:10px;color:var(--t1);font-family:inherit;font-size:14.5px;padding:11px 12px;transition:border-color .25s}
-.fld input:focus,.fld select:focus{outline:none;border-color:var(--gold)}
+.fld input,.fld select,.fld textarea{width:100%;background:var(--input);border:1px solid var(--line);border-radius:10px;color:var(--t1);font-family:inherit;font-size:14.5px;padding:11px 12px;transition:border-color .25s;resize:vertical}
+.fld input:focus,.fld select:focus,.fld textarea:focus{outline:none;border-color:var(--gold)}
 .fld.req span::after{content:" *";color:var(--gold)}
 .hintline{font-size:11.5px;color:var(--t3);margin-top:-4px;margin-bottom:8px}
 .hintline b{color:var(--gold);font-weight:500}
@@ -103,6 +103,8 @@ h1{font-weight:200;font-size:24px;margin-bottom:4px}
         <label class="fld"><span>Condition</span><input id="fCondition" value="Furnished"></label>
       </div>
       <label class="fld req"><span>Landlord name</span><input id="fLandlord" placeholder="Mario Di Capua"></label>
+      <label class="fld"><span>Portal property — enables auto-contract</span><select id="fProp"><option value="">— none (convert manually later) —</option></select></label>
+      <p class="hintline">With a property linked, the rental contract <b>creates itself</b> the moment the client signs &amp; pays — Magic-Sign link emailed to them, delegate link to you.</p>
     </div>
 
     <div class="card"><h2>Lease</h2>
@@ -132,7 +134,12 @@ h1{font-weight:200;font-size:24px;margin-bottom:4px}
         <label class="fld"><span>Due at signing €</span><input id="fDue" type="number" inputmode="numeric" placeholder="auto"></label>
       </div>
       <p class="hintline" id="mathLine">—</p>
+      <label class="fld"><span>Extra line items — one per line: Label = amount (optional)</span><textarea id="fExtras" rows="2" placeholder="Final cleaning (at move-in) = 120&#10;Garage parking /month = 90"></textarea></label>
       <label class="fld"><span>Note on the document (optional)</span><input id="fNote" placeholder="e.g. deposito già versato il 06/07 · IBAN …"></label>
+    </div>
+
+    <div class="card"><h2>Custom clauses</h2>
+      <label class="fld"><span>Added to §5 General conditions — one clause per line (optional)</span><textarea id="fClauses" rows="3" placeholder="Pets are allowed subject to the Landlord's prior written approval.&#10;The apartment is delivered professionally cleaned; the Tenant returns it in the same state."></textarea></label>
     </div>
 
     <div class="card"><h2>Client (optional prefill)</h2>
@@ -229,17 +236,30 @@ function mathLine(){
    VAT, end date with month-end clamp) mirror api/preagreement/create.js. */
 var EDIT_ID=null,EDIT_TOKEN=null;
 function endDateISO(startISO,months){var d=new Date(startISO+'T00:00:00');var day=d.getDate();d.setMonth(d.getMonth()+months);if(d.getDate()!==day)d.setDate(0);else d.setDate(d.getDate()-1);return d.toISOString().slice(0,10);}
+function parseExtras(){
+  return $('fExtras').value.split('\n').map(function(l){
+    var m=l.match(/^(.*?)[=:]\s*€?\s*([\d.,]+)\s*$/);
+    if(!m||!m[1].trim())return null;
+    return {label:m[1].trim(),amount:parseFloat(m[2].replace(/\./g,'').replace(',','.'))||parseFloat(m[2])||0};
+  }).filter(Boolean).slice(0,8);
+}
+function parseClauses(){
+  return $('fClauses').value.split('\n').map(function(l){return l.trim()}).filter(Boolean).slice(0,10);
+}
 function readForm(){
   var months=Math.max(1,Math.min(48,+$('fMonths').value||12)),start=$('fStart').value;
   var knobs=moneyKnobs();
   return{
     listingId:$('fList').value||null,
+    propertyId:$('fProp').value||null,   // linked portal property → auto-contract on close
     property:{address:$('fAddress').value.trim(),floor:$('fFloor').value.trim()||null,unit:$('fUnit').value.trim()||null,condition:$('fCondition').value.trim()||'Furnished',type:'Entire Apartment',use:'Residential'},
     landlord:{name:$('fLandlord').value.trim()},
     tenant:{fullName:$('fTName').value.trim()||null,email:$('fTEmail').value.trim()||null,phone:$('fTPhone').value.trim()||null},
     lease:{startDate:start,months:months,endDate:start?endDateISO(start,months):null,type:$('fType').value,lawRef:'uso transitorio · L.431/98 art.5 c.1',reason:$('fReason').value.trim()||null},
     knobs:knobs,                 // raw inputs → the create API derives server-side
     money:deriveMoney(knobs),    // full derived object → edit-in-place + preview
+    extras:parseExtras(),
+    customClauses:parseClauses(),
     note:$('fNote').value.trim()||null
   };
 }
@@ -258,8 +278,10 @@ window.createPA=async function(){
     if(EDIT_ID){
       /* update in place — same token, same link, status back to sent */
       await firebase.firestore().collection('preAgreements').doc(EDIT_ID).update({
-        listingId:body.listingId,property:body.property,landlord:body.landlord,tenant:body.tenant,
-        tenants:[body.tenant],lease:body.lease,money:body.money,note:body.note,
+        listingId:body.listingId,propertyId:body.propertyId,autoConvert:!!body.propertyId,
+        property:body.property,landlord:body.landlord,tenant:body.tenant,
+        tenants:[body.tenant],lease:body.lease,money:body.money,
+        extras:body.extras,customClauses:body.customClauses,note:body.note,
         status:'sent',updatedAt:new Date().toISOString(),updatedBy:USER.email||USER.uid
       });
       var url=location.origin+'/pre-agreement?t='+EDIT_TOKEN;
@@ -297,6 +319,9 @@ function fillForm(d){
   $('fVatPct').value=mo.feeVatPct!=null?mo.feeVatPct:22;
   $('fFeeDue').value=['move-in','signing','separate'].indexOf(mo.feeDue)>=0?mo.feeDue:'separate';
   $('fDue').value=mo.dueAtSigning!=null?mo.dueAtSigning:'';
+  try{$('fProp').value=d.propertyId||''}catch(e){}
+  $('fExtras').value=(Array.isArray(d.extras)?d.extras:[]).map(function(x){return x.label+' = '+x.amount}).join('\n');
+  $('fClauses').value=(Array.isArray(d.customClauses)?d.customClauses:[]).join('\n');
   $('fNote').value=d.note||'';
   $('fTName').value=(d.tenant||{}).fullName||'';$('fTEmail').value=(d.tenant||{}).email||'';$('fTPhone').value=(d.tenant||{}).phone||'';
   mathLine();window.scrollTo({top:0,behavior:'smooth'});
@@ -336,7 +361,8 @@ window.convertPA=async function(id){
   var props=await loadProps();
   var t=d.tenant||{},addr=((d.property||{}).address||'');
   var norm=function(s){return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'')};
-  var guess=props.find(function(p){return p.address&&norm(addr).indexOf(norm(p.address).slice(0,14))===0})
+  var guess=(d.propertyId?props.find(function(p){return p.id===d.propertyId}):null)
+    ||props.find(function(p){return p.address&&norm(addr).indexOf(norm(p.address).slice(0,14))===0})
     ||props.find(function(p){return norm(p.address)&&norm(addr).indexOf(norm(p.address).slice(0,10))>=0});
   var ov=document.createElement('div');ov.className='cvov';ov.id='cvov';
   ov.innerHTML='<div class="cvbox">'
@@ -397,7 +423,9 @@ function paRow(d){
     +'<span class="who">'+((t.fullName||'—').replace(/</g,'&lt;'))+(nTen>1?' <span style="font-size:11px;color:var(--t3)">+'+(nTen-1)+' co-tenant'+(nTen>2?'s':'')+'</span>':'')+'</span>'
     +(d.ref?'<span style="font-size:11px;color:var(--t3);letter-spacing:1px">'+d.ref+'</span>':'')
     +'<div class="addr">'+(((d.property||{}).address||'').replace(/</g,'&lt;'))+'</div></div>'
-    +'<div class="meta">Rent <b>'+eur(m.rent||0)+'</b>'+(m.energyCredit?' +'+eur(m.energyCredit)+' energy':'')+' · due at signing <b>'+eur(m.dueAtSigning||0)+'</b> · '+((d.lease||{}).months||'—')+' mo from '+(((d.lease||{}).startDate)||'—')+' · created '+when+(views?' · '+views+' view'+(views>1?'s':''):'')+'</div>'
+    +'<div class="meta">Rent <b>'+eur(m.rent||0)+'</b>'+(m.energyCredit?' +'+eur(m.energyCredit)+' energy':'')+' · due at signing <b>'+eur(m.dueAtSigning||0)+'</b> · '+((d.lease||{}).months||'—')+' mo from '+(((d.lease||{}).startDate)||'—')+' · created '+when+(views?' · '+views+' view'+(views>1?'s':''):'')
+    +(d.propertyId&&!d.contractId?' · <span style="color:var(--gold-light)">auto-contract ON</span>':'')+'</div>'
+    +(Array.isArray(d.uploads)&&d.uploads.length?'<div class="meta" style="margin-top:4px">📎 '+d.uploads.map(function(u,i){return '<a href="'+u.url+'" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none">'+((u.name||'doc '+(i+1)).length>22?(u.name||'').slice(0,20)+'…':(u.name||'doc '+(i+1)))+'</a>'}).join(' · ')+'</div>':'')
     +'<div class="acts">'
     +'<button class="pbtn" onclick="copyPaLink(\''+d.token+'\')">Copy link</button>'
     +'<a class="pbtn" href="'+url+'" target="_blank" rel="noopener">Open</a>'
@@ -442,6 +470,10 @@ BoomPortal.requireAuth(['admin','owner','landlord'],{loginUrl:'/login.html?next=
   $('load').style.display='none';$('app').style.display='';
   watchPAs();
   var d=new Date();d.setDate(d.getDate()+14);$('fStart').value=d.toISOString().slice(0,10);
+  loadProps().then(function(props){
+    $('fProp').innerHTML='<option value="">— none (convert manually later) —</option>'
+      +props.map(function(p){return '<option value="'+p.id+'">'+String(p.name).replace(/</g,'&lt;')+(p.zone?' · '+p.zone:'')+'</option>'}).join('');
+  });
   try{
     firebase.firestore().collection('listings').limit(100).get().then(function(snap){
       snap.forEach(function(doc){var v=doc.data();LISTINGS.push({id:doc.id,name:v.name||v.title,zone:v.zone,price:v.price,address:v.address,floor:v.floor,ownerName:v.ownerName});});
