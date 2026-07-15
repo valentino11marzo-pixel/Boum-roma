@@ -33,10 +33,20 @@ const SAFARI_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleW
 
 const browser = await chromium.launch({ args: ['--no-sandbox'] });
 let failures = 0;
-const assert = (name, cond) => { console.log(cond ? `PASS ${name}` : `FAIL ${name}`); if (!cond) failures++; };
+const assert = (name, cond, detail) => { console.log(cond ? `PASS ${name}` : `FAIL ${name}${detail ? ' — ' + detail : ''}`); if (!cond) failures++; };
+
+// Test ermetico: niente rete esterna. Senza questo blocco il vero SDK
+// Firebase (gstatic) caricherebbe e proverebbe a sovrascrivere lo stub
+// window.firebase (non-writable) → pageerror spurio.
+async function hermetic(ctx) {
+  await ctx.route('**/*', (route) => {
+    route.request().url().startsWith(BASE) ? route.continue() : route.abort();
+  });
+}
 
 async function scenario({ ua, emissions, bounces, path = '/portal.html#contracts', wait = 6000 }) {
   const ctx = await browser.newContext(ua ? { userAgent: ua } : {});
+  await hermetic(ctx);
   await ctx.addInitScript(stub(emissions));
   if (bounces) await ctx.addInitScript((b) => { try { sessionStorage.setItem('boomLoginBounce', String(b)); } catch {} }, bounces);
   const page = await ctx.newPage();
@@ -64,6 +74,7 @@ assert('anti-loop dopo 2 rimbalzi', !r3.url.includes('/login'));
 // 4. login: form visibile, zero errori, warm-up parte
 {
   const ctx = await browser.newContext();
+  await hermetic(ctx);
   await ctx.addInitScript(stub([['NULL', 300]]));
   const page = await ctx.newPage();
   const errors = [];
@@ -73,7 +84,7 @@ assert('anti-loop dopo 2 rimbalzi', !r3.url.includes('/login'));
   await page.goto(BASE + '/login?next=%2Fportal', { waitUntil: 'load' });
   await page.waitForTimeout(4000);
   assert('login: form visibile', await page.isVisible('#loginForm'));
-  assert('login: zero errori JS', errors.length === 0);
+  assert('login: zero errori JS', errors.length === 0, errors[0]);
   assert('login: warm-up portale partito', warmed.length >= 1);
   await ctx.close();
 }
