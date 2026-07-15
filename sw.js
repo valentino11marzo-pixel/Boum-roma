@@ -3,7 +3,7 @@
 // Cache-first for static assets (icons, manifest).
 // Skips Firebase / EmailJS / 3rd-party traffic entirely.
 
-const CACHE_VERSION = 'boom-v10';
+const CACHE_VERSION = 'boom-v11';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 // NB: portal.html NON è nel precache — il sito pubblico registra questo SW e
 // non deve scaricare 2.5MB di shell in background. Il portale entra in cache
@@ -59,17 +59,20 @@ self.addEventListener('fetch', (event) => {
     // download a ogni apertura del portale — lo stesso che il browser farebbe
     // comunque (il server manda Cache-Control: no-store) — mitigato dal
     // pre-warm della pagina /login che riempie il fallback offline.
-    if (url.pathname === '/portal.html' || url.pathname === '/portal') {
+    const portalAsset = (url.pathname === '/portal.html' || url.pathname === '/portal')
+        ? '/portal.html'
+        : ((url.pathname === '/js/portal-app.js' || url.pathname === '/css/portal.css') ? url.pathname : null);
+    if (portalAsset) {
         event.respondWith(
             caches.open(STATIC_CACHE).then(async (cache) => {
                 try {
                     const res = await fetch(event.request);
                     if (res && res.ok && !res.redirected) {
-                        cache.put('/portal.html', res.clone()).catch(() => null);
+                        cache.put(portalAsset, res.clone()).catch(() => null);
                     }
                     return res;
                 } catch (e) {
-                    const cached = await cache.match('/portal.html');
+                    const cached = await cache.match(portalAsset);
                     if (cached) return cached;
                     throw e;
                 }

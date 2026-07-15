@@ -49,6 +49,21 @@
       "permanent": true
     },
     {
+      "source": "/(dashboard|dashboard.html|admin|admin.html)",
+      "destination": "/portal",
+      "permanent": false
+    },
+    {
+      "source": "/(owner|owner.html)",
+      "destination": "/owner-dashboard",
+      "permanent": false
+    },
+    {
+      "source": "/(apartments-legacy|apartments-legacy.html|apartment-detail-legacy|apartment-detail-legacy.html)",
+      "destination": "/apartments",
+      "permanent": false
+    },
+    {
       "source": "/apartments.html",
       "destination": "/apartments",
       "permanent": true
@@ -336,24 +351,12 @@
       "destination": "/property-finding.html"
     },
     {
-      "source": "/dashboard",
-      "destination": "/dashboard.html"
-    },
-    {
       "source": "/thank-you",
       "destination": "/thank-you.html"
     },
     {
-      "source": "/admin",
-      "destination": "/admin.html"
-    },
-    {
       "source": "/admin-flats",
       "destination": "/admin-flats.html"
-    },
-    {
-      "source": "/owner",
-      "destination": "/owner.html"
     },
     {
       "source": "/owner-dashboard",
@@ -422,14 +425,6 @@
     {
       "source": "/pre-agreement-admin",
       "destination": "/pre-agreement-admin.html"
-    },
-    {
-      "source": "/apartments-legacy",
-      "destination": "/apartments-legacy.html"
-    },
-    {
-      "source": "/apartment-detail-legacy",
-      "destination": "/apartment-detail-legacy.html"
     }
   ],
   "headers": [
