@@ -65,12 +65,14 @@ async function getMailer() {
 }
 
 // Send a single email. Returns { messageId }.
-export async function sendEmail({ to, subject, html, text, from }) {
+export async function sendEmail({ to, subject, html, text, from, attachments }) {
   if (!to || !subject || (!html && !text)) throw new Error('to, subject and html|text required');
   const m = await getMailer();
   const info = await m.sendMail({
     from: from || `BOOM Rome <${process.env.GMAIL_USER}>`,
     to, subject, html, text,
+    // nodemailer attachment objects: [{ filename, content(Buffer), contentType }]
+    ...(Array.isArray(attachments) && attachments.length ? { attachments } : {}),
   });
   return { messageId: info.messageId };
 }

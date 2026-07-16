@@ -13,6 +13,7 @@
 // mail error.
 
 import { sendEmail } from '../agent/_lib.js';
+import { buildPaPdf } from './_pdf.js';
 
 const ADMIN_EMAIL = 'valentino@boom-rome.com';
 
@@ -197,6 +198,15 @@ export async function sendPaEmails({ pa, ref, url, receiptUrl, paidEur, paidAt, 
   const docHtml = paDocumentHtml(pa, { ref, paidEur, paidAt });
   const results = { client: false, admin: false };
 
+  // The signed document travels WITH the email — a real PDF in the format
+  // of the paper proposal (best-effort: a PDF failure never blocks sends).
+  let attachments = [];
+  try {
+    const pdfBuf = await buildPaPdf({ ...pa, ref: ref || pa.ref, paidEur: paidEur || pa.paidEur });
+    const safeRef = String(ref || pa.ref || 'BOOM').replace(/[^A-Za-z0-9-]/g, '');
+    attachments = [{ filename: `BOOM_Pre-Agreement_${safeRef}.pdf`, content: pdfBuf, contentType: 'application/pdf' }];
+  } catch (e) { console.error('[pa/_notify] pdf build failed:', e.message); }
+
   const intro = event === 'paid'
     ? `<p style="font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#333;line-height:1.7;margin:0 0 22px">
         Ciao ${esc(first)} — your payment is confirmed and <b>${esc(addr)}</b> is reserved for you.
@@ -223,6 +233,7 @@ export async function sendPaEmails({ pa, ref, url, receiptUrl, paidEur, paidAt, 
           ? `Confirmed — your BOOM pre-agreement ${ref || ''} (receipt inside)`
           : `Accepted — your BOOM pre-agreement ${ref || ''}`,
         html: shell(intro + docHtml + links, `Your pre-agreement for ${addr} — ${event === 'paid' ? 'payment confirmed' : 'accepted'}`),
+        attachments,
       });
       results.client = true;
     } catch (e) { console.error('[pa/_notify] client email failed:', e.message); }
@@ -245,6 +256,7 @@ export async function sendPaEmails({ pa, ref, url, receiptUrl, paidEur, paidAt, 
       to: ADMIN_EMAIL,
       subject: (event === 'paid' ? `💰 PA PAGATO ${eur(paidEur)} — ` : `✍️ PA accettato — `) + (t.fullName || '') + ' · ' + addr,
       html: shell(aIntro + docHtml + btn('https://www.boomrome.com/pre-agreement-admin', 'Apri la console pre-agreement') + waBtn),
+      attachments,
     });
     results.admin = true;
   } catch (e) { console.error('[pa/_notify] admin email failed:', e.message); }
