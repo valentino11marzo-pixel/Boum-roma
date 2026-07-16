@@ -1,7 +1,7 @@
 {
   "name": "boum-roma",
   "version": "1.0.0",
-  "description": "BOOM Rome – premium rental management platform",
+  "description": "BOOM Rome \u2013 premium rental management platform",
   "scripts": {
     "dev": "vercel dev"
   },
@@ -23,6 +23,7 @@
     "nodemailer": "^6.9.13",
     "passkit-generator": "^3.5.7",
     "pdf-lib": "^1.17.1",
-    "stripe": "^22.0.2"
+    "stripe": "^22.0.2",
+    "sharp": "^0.35.3"
   }
 }
