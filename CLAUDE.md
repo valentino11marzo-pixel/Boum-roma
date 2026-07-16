@@ -134,6 +134,12 @@ PFS_IMAP_PASS                # optional — its app password (IMAP read)
 # La Squadra (api/employees/*)
 ACCOUNTING_EMAIL             # optional — recipient of the Contabile's monthly
                              # close email (falls back to GMAIL_USER)
+
+# La Banca — open banking (api/banking/*)
+GOCARDLESS_SECRET_ID         # GoCardless Bank Account Data (ex Nordigen),
+GOCARDLESS_SECRET_KEY        # free tier — bankaccountdata.gocardless.com.
+                             # Optional: without them /banca still works via
+                             # manual CSV import.
 TELEGRAM_BOT_TOKEN           # already used by api/telegram/*; pfs health alerts
 TELEGRAM_CHAT_ID
 ```
@@ -355,6 +361,31 @@ close email.
 **Console**: `team.html` (`/team`, admin-only, noindex) — status dot + last
 run per employee (the PFS radar appears as "Lo Scout" rolling up
 `pfsRadarHealth`), pending proposals, latest reports, "Esegui ora" buttons.
+
+## La Banca (open banking — api/banking/* + banca.html)
+
+PSD2 bank feed for the Contabile via **GoCardless Bank Account Data** (ex
+Nordigen, free tier, covers Italian banks; consent renews every ~90 days —
+BOOM never sees bank credentials). Collections: `bankAccounts` (linked
+accounts + consent expiry + balance snapshot), `bankTransactions` (one doc
+per movement, stable content-hash ids → every sync/import re-run is a
+no-op), `bankRequisitions` (consent audit).
+
+| Endpoint | What it does |
+|---|---|
+| `POST /api/banking/institutions` | bank picker (`{q}` search); `configured:false` when GC keys missing |
+| `POST /api/banking/connect` | creates end-user agreement (max history the bank allows, up to 540gg) + requisition → `{link}` to the bank's consent page; redirect back to `/banca?ref=<id>` |
+| `POST /api/banking/finalize` | stores authorized accounts after the redirect |
+| `POST /api/banking/sync` | **cron daily 04:15** (before the Contabile). Pulls movements (first run backfills full history), dedupes via batchGet, categorizes (prima nota rules in `_lib.js`), reconciles credits against pending `payments`: exact amount + due-date window + unique candidate + (tenant-name or month or unique-amount) → payment marked paid (`paidVia:'bank'`); weaker matches → `matchSuggestions`, confirmed by one tap in /banca. Heartbeat `teamHealth/banca`; Telegram when a consent is ≤7gg from expiry. |
+| `POST /api/banking/export` | estratto conto / prima nota CSV for the commercialista — Italian format (semicolon, DD/MM/YYYY, decimal comma, UTF-8 BOM); prima nota adds per-category period totals |
+| `POST /api/banking/import` | manual fallback: paste the home-banking CSV (column auto-detect for the common Italian exports), same dedupe+reconcile pipeline — works with zero API setup |
+| `POST /api/accounting/scadenzario` | unified deadline book derived live: company (IVA/LIPE/CCIAA/Redditi from `invoices` by quarter) + one group per property owner (registro, IMU, cedolare, ISTAT + contract renewals ≤120gg). `format:'ics'` → calendar file (stable UIDs, re-import updates). |
+
+All admin-gated via `api/pfs/_guard.js`. **Console**: `banca.html` (`/banca`,
+admin-only, noindex) — linked accounts + consent status, recent movements
+with one-tap match confirmation, CSV/ICS export, manual import. The
+Contabile's morning report includes the bank picture (riconciliati/da
+confermare/consensi scaduti).
 
 ### POST `/api/admin/match-test`
 Admin test harness + manual-ingest endpoint (Firebase ID token, role

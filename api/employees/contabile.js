@@ -27,7 +27,7 @@ import FISCAL from '../../js/fiscal-engine.js';
 import TAXPACK from '../../js/taxpack-engine.js';
 import { sendEmail } from '../agent/_lib.js';
 import {
-  requireCronOrAdmin, fsList, logActivity, tgNotify,
+  requireCronOrAdmin, fsGet, fsList, logActivity, tgNotify,
   reportEmployeeHealth, saveReport, daysUntil, euro, esc, propLabel,
 } from './_lib.js';
 
@@ -53,12 +53,14 @@ async function run({ dry, forceMonthly }) {
   const now = new Date();
   const fiscalYear = now.getFullYear();
 
-  const [properties, contracts, payments, documents, invoices] = await Promise.all([
+  const [properties, contracts, payments, documents, invoices, bankHealth, bankAccounts] = await Promise.all([
     fsList('properties', { limit: 200 }),
     fsList('contracts', { limit: 300 }),
     fsList('payments', { limit: 600 }),
     fsList('documents', { limit: 600 }).catch(() => []),
     fsList('invoices', { limit: 400 }).catch(() => []),
+    fsGet('teamHealth/banca').catch(() => null),
+    fsList('bankAccounts', { limit: 20 }).catch(() => []),
   ]);
   const propById = {};
   properties.forEach(p => { propById[p.id] = p; });
@@ -129,6 +131,15 @@ async function run({ dry, forceMonthly }) {
   }
   late.sort((a, b) => b.daysLate - a.daysLate);
 
+  // ── 4. Banca (dal sync di La Banca, corre prima di questo cron) ───────
+  const bankStats = (bankHealth && bankHealth.stats) || {};
+  const banca = {
+    accounts: bankAccounts.filter(a => a.status !== 'disabled').length,
+    consentExpired: bankAccounts.filter(a => a.status === 'consent_expired').length,
+    matchedLastRun: bankStats.matched || 0,
+    toConfirm: bankStats.suggested || 0,
+  };
+
   const counts = {
     oblOverdue: roll.counts.overdue,
     oblDueSoon: roll.counts.dueSoon,
@@ -143,11 +154,12 @@ async function run({ dry, forceMonthly }) {
     `Fisco: ${counts.oblOverdue} scadute · ${counts.oblDueSoon} ≤30gg | ` +
     `Pacchetto: ${counts.packsReady}/${counts.packsTotal} pronti | ` +
     `Incassi YTD ${euro(counts.incassatoYtd)} (da incassare ${euro(counts.outstandingYtd)}) | ` +
-    `${counts.paymentsLate} in ritardo`;
+    `${counts.paymentsLate} in ritardo` +
+    (banca.accounts ? ` | Banca: ${banca.matchedLastRun} riconciliati · ${banca.toConfirm} da confermare` : '');
 
   // ── Telegram: solo quando c'è da agire ───────────────────────────────
   const urgentSoon = dueSoon.filter(o => (o.days ?? 99) <= 7);
-  const actionable = overdue.length || urgentSoon.length || late.length;
+  const actionable = overdue.length || urgentSoon.length || late.length || banca.toConfirm || banca.consentExpired;
   let notified = false;
   if (!dry && actionable) {
     const lines = [`🧮 <b>Contabile — da fare</b>`];
@@ -155,6 +167,8 @@ async function run({ dry, forceMonthly }) {
     urgentSoon.slice(0, 6).forEach(o => lines.push(`🟠 ${esc(o.label)} — tra ${o.days}gg${o.amount ? ` · ~${euro(o.amount)}` : ''}`));
     late.slice(0, 6).forEach(l => lines.push(`💸 ${esc(l.property)} — ${euro(l.amount)} in ritardo ${l.daysLate}gg`));
     if (missingDocs.length) lines.push(`📁 ${missingDocs.length} documenti mancanti per il commercialista`);
+    if (banca.toConfirm) lines.push(`🏦 ${banca.toConfirm} bonifici da confermare come canoni: https://boomrome.com/banca`);
+    if (banca.consentExpired) lines.push(`🏦 Consenso banca scaduto su ${banca.consentExpired} cont${banca.consentExpired === 1 ? 'o' : 'i'} — rinnova da /banca`);
     lines.push(`\nConsole: https://boomrome.com/team`);
     notified = await tgNotify(lines.join('\n'));
   }
@@ -172,6 +186,7 @@ async function run({ dry, forceMonthly }) {
     obligations: { overdue, dueSoon },
     packs: packs.slice(0, 20),
     late: late.slice(0, 15),
+    banca,
     notified,
   };
   if (!dry) {

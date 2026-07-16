@@ -137,6 +137,7 @@ section > h3 { font-size: 12px; letter-spacing: 3px; color: var(--text-secondary
 
   const EMPLOYEES = [
     { key: 'contabile',   emoji: '🧮', name: 'Il Contabile',   role: 'Fisco, incassi, pacchetto commercialista', endpoint: '/api/employees/contabile' },
+    { key: 'banca',       emoji: '🏦', name: 'La Banca',       role: 'Sync conti, riconciliazione, estratti CSV', endpoint: '/api/banking/sync', link: '/banca' },
     { key: 'gestore',     emoji: '🏢', name: 'Il Gestore',     role: 'Solleciti, firme, rinnovi, burocrazia',     endpoint: '/api/employees/gestore' },
     { key: 'commerciale', emoji: '🤝', name: 'Il Commerciale', role: 'Prima risposta e follow-up ai lead',        endpoint: '/api/employees/commerciale' },
     { key: 'radar',       emoji: '📡', name: 'Lo Scout (PFS)', role: 'Radar di mercato per i clienti ricerca',    link: '/pfs-command' },
@@ -169,6 +170,7 @@ section > h3 { font-size: 12px; letter-spacing: 3px; color: var(--text-secondary
       oblOverdue: 'fisco scad.', oblDueSoon: '≤30gg', packsReady: 'pacchi pronti', docsMissing: 'doc manc.',
       paymentsLate: 'ritardi', proposals: 'proposte', digestItems: 'attenzioni',
       firstReplies: 'prime risp.', followups: 'follow-up', leadsScanned: 'lead visti',
+      txNew: 'movimenti', matched: 'riconciliati', suggested: 'da confermare', accounts: 'conti',
     };
     return Object.entries(stats)
       .filter(([k, v]) => nice[k] && (typeof v === 'number'))

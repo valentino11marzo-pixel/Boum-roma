@@ -212,6 +212,9 @@ service cloud.firestore {
     match /savedSearches/{x}               { allow read, write: if isAdmin(); }
     match /teamHealth/{x}                  { allow read, write: if isAdmin(); }
     match /teamReports/{x}                 { allow read, write: if isAdmin(); }
+    match /bankAccounts/{x}                { allow read, write: if isAdmin(); }
+    match /bankTransactions/{x}            { allow read, write: if isAdmin(); }
+    match /bankRequisitions/{x}            { allow read, write: if isAdmin(); }
 
     // ─── Default deny ─────────────────────────────────────────────────
     match /{document=**} {
