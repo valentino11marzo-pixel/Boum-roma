@@ -458,7 +458,7 @@
       ]
     },
     {
-      "source": "/(portal|admin|admin-flats|setup-firebase|seed-listings|boom-doc-parser|boom_doc_parser|cockpit-preview|portal.html|admin.html|admin-flats.html|setup-firebase.html|seed-listings.html|boom_doc_parser.html|cockpit-preview.html)(.*)",
+      "source": "/(portal|admin|admin-flats|setup-firebase|seed-listings|boom-doc-parser|boom_doc_parser|cockpit-preview|team|portal.html|admin.html|admin-flats.html|setup-firebase.html|seed-listings.html|boom_doc_parser.html|cockpit-preview.html|team.html)(.*)",
       "headers": [
         {
           "key": "X-Robots-Tag",
@@ -562,6 +562,15 @@
     "api/magic-sign/submit.js": {
       "maxDuration": 60
     },
+    "api/employees/contabile.js": {
+      "maxDuration": 60
+    },
+    "api/employees/gestore.js": {
+      "maxDuration": 60
+    },
+    "api/employees/commerciale.js": {
+      "maxDuration": 60
+    },
     "api/sign/custom/submit.js": {
       "maxDuration": 60
     }
@@ -594,6 +603,18 @@
     {
       "path": "/api/search/matcher",
       "schedule": "0 6,12,18 * * *"
+    },
+    {
+      "path": "/api/employees/contabile",
+      "schedule": "40 4 * * *"
+    },
+    {
+      "path": "/api/employees/gestore",
+      "schedule": "10 5 * * *"
+    },
+    {
+      "path": "/api/employees/commerciale",
+      "schedule": "0 6-18/2 * * *"
     }
   ]
 }

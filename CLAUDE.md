@@ -130,6 +130,10 @@ WIZARD_SECRET                # shared secret sent as X-Wizard-Secret header
 # PFS radar (api/pfs/*)
 PFS_IMAP_USER                # optional — alert mailbox if ≠ GMAIL_USER
 PFS_IMAP_PASS                # optional — its app password (IMAP read)
+
+# La Squadra (api/employees/*)
+ACCOUNTING_EMAIL             # optional — recipient of the Contabile's monthly
+                             # close email (falls back to GMAIL_USER)
 TELEGRAM_BOT_TOKEN           # already used by api/telegram/*; pfs health alerts
 TELEGRAM_CHAT_ID
 ```
@@ -324,6 +328,33 @@ see `api/pfs/_guard.js`. Every run writes a heartbeat to
 auto-ingested (e.g. no price recoverable) land in
 `pfsRadarHealth.needsAttention` — surfaced in `pfs-command.html`, never
 silently dropped.
+
+## La Squadra (AI employees — api/employees/*)
+
+Scheduled "employees" that run the back office autonomously. Same
+infrastructure as the PFS radar: heartbeat per run (`teamHealth/<employee>`,
+Telegram alert after 3 consecutive failures via `api/pfs/_health.js`), a
+compact run report (`teamReports`), and — crucially — **no new approval
+surface**: anything outbound (emails to tenants/leads) is PROPOSED into the
+existing `action_queue`, pinged to Telegram within a minute by
+`api/telegram/notify-pending.js`, and sent by `api/agent/execute.js` only
+after a human tap. Shared plumbing in `api/employees/_lib.js`
+(`proposeAction` is idempotent via `contextHash` — reruns never duplicate).
+
+| Employee (cron) | Schedule (UTC) | What it does |
+|---|---|---|
+| `/api/employees/contabile` | daily 04:40 | Fiscal picture from live data: obligations due/overdue (`js/fiscal-engine.js`, landlord + company from paid `invoices` by quarter), commercialista document checklist per contract (`js/taxpack-engine.js`), collections YTD + late payments. Telegram only when actionable. On the 1st of the month emails a "chiusura mese" recap (`ACCOUNTING_EMAIL` env, falls back to `GMAIL_USER`). |
+| `/api/employees/gestore` | daily 05:10 | Property manager: drafts payment-reminder emails (≥3gg late, re-proposes weekly via ISO-week contextHash) and signature nudges with the party's Magic-Sign link (`/sign?sign=<token>`) as approvable `action_queue` items; Telegram digest of renewals ≤90gg, compliance deadlines (`js/compliance-rules.js`), maintenance open >48h. |
+| `/api/employees/commerciale` | every 2h, 06-18 | Lead responder: any lead still `new` after a 20-min human window gets a Claude-drafted first reply (same persona as `agent/ai.reply`) proposed for approval; still `new` after 48h (grade A/B or apply/reserve) gets one templated follow-up. Caps per run; dedupe before paying for the AI call. |
+
+All three accept POST with Vercel cron secret, `X-Homie-Secret`, or an admin
+Firebase ID token (see `api/pfs/_guard.js`); `?dry=1` computes without
+writing/notifying; contabile also accepts `?monthly=1` to force the monthly
+close email.
+
+**Console**: `team.html` (`/team`, admin-only, noindex) — status dot + last
+run per employee (the PFS radar appears as "Lo Scout" rolling up
+`pfsRadarHealth`), pending proposals, latest reports, "Esegui ora" buttons.
 
 ### POST `/api/admin/match-test`
 Admin test harness + manual-ingest endpoint (Firebase ID token, role
