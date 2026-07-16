@@ -119,6 +119,7 @@ h1{font-weight:200;font-size:24px;margin-bottom:4px}
     <div class="card"><h2>Money</h2>
       <div class="g3">
         <label class="fld req"><span>Monthly base rent €</span><input id="fRent" type="number" inputmode="numeric" placeholder="1200"></label>
+        <label class="fld"><span>Utilities</span><select id="fUtil"><option value="excluded">Excluded (tenant pays)</option><option value="included">Included in rent</option></select></label>
         <label class="fld"><span>Energy credit €/mo</span><input id="fEnergy" type="number" inputmode="numeric" value="0" min="0" max="1000" title="Included in the monthly fee — covers electricity up to this amount (clause added automatically)"></label>
         <label class="fld"><span>Deposit (months)</span><input id="fDepM" type="number" value="1" min="0" max="6" step="0.5"></label>
       </div>
@@ -198,15 +199,16 @@ function deriveMoney(k){
   var vatPct=Math.max(0,Math.min(30,k.feeVatPct!=null?+k.feeVatPct:22));
   var feeVat=r2(fee*vatPct/100), feeTotal=r2(fee+feeVat);
   var feeDue=['move-in','signing','separate'].indexOf(k.feeDue)>=0?k.feeDue:'separate';
+  var utilities=k.utilities==='included'?'included':'excluded';
   var dueDefault=r2(depS+(feeDue==='signing'?feeTotal:0));
   var due=(k.dueAtSigning!=null&&k.dueAtSigning!=='')?Math.max(0,+k.dueAtSigning||0):dueDefault;
-  return {rent:rent,energyCredit:ec,monthlyTotal:r2(rent+ec),depositMonths:dm,deposit:deposit,
+  return {rent:rent,energyCredit:ec,monthlyTotal:r2(rent+ec),utilities:utilities,depositMonths:dm,deposit:deposit,
     depositSplitPct:splitPct,depositAtSigning:depS,depositAtMoveIn:depM,
     feeMode:feeMode,feePct:feePct,feeMonths:feeMonths,fee:fee,feeVatPct:vatPct,feeVat:feeVat,
     feeTotal:feeTotal,feeDue:feeDue,dueAtSigning:due};
 }
 function moneyKnobs(){
-  return {rent:+$('fRent').value||0,energyCredit:+$('fEnergy').value||0,
+  return {rent:+$('fRent').value||0,energyCredit:+$('fEnergy').value||0,utilities:$('fUtil').value,
     depositMonths:$('fDepM').value!==''?+$('fDepM').value:1,depositSplitPct:+$('fDepSplit').value,
     feeMode:$('fFeeMode').value,feePct:+$('fFeePct').value||0,feeMonths:+$('fFeeMonths').value||0,
     feeVatPct:+$('fVatPct').value||0,feeDue:$('fFeeDue').value,
@@ -312,6 +314,7 @@ function fillForm(d){
   $('fReason').value=(d.lease||{}).reason||'';
   var mo=d.money||{};
   $('fRent').value=mo.rent||'';$('fEnergy').value=mo.energyCredit!=null?mo.energyCredit:0;
+  $('fUtil').value=mo.utilities==='included'?'included':'excluded';
   $('fDepM').value=mo.depositMonths!=null?mo.depositMonths:1;
   try{$('fDepSplit').value=String(mo.depositSplitPct!=null?mo.depositSplitPct:100)}catch(e){$('fDepSplit').value='100'}
   $('fFeeMode').value=mo.feeMode==='months'?'months':'pct';

@@ -471,7 +471,8 @@ function secH(no,title){return '<h2><span class="no">§'+(no<10?'0'+no:no)+'</sp
 /* ═══ shared builders: money rows + conditions (used in step 1 AND the deed) ═══ */
 function moneyRows(){
   var m=PA.money||{};
-  var ec=Number(m.energyCredit)||0;
+  var inc=m.utilities==='included';
+  var ec=inc?0:(Number(m.energyCredit)||0);
   var split=m.depositSplitPct!=null?Number(m.depositSplitPct):100;
   var depM=m.depositMonths+(m.depositMonths===1?' month’s':' months’')+' base rent';
   var depSub=depM+' · refundable';
@@ -480,7 +481,7 @@ function moneyRows(){
       ? kv('Monthly base rent',eur(m.rent))
         +kv('Energy credit','+ '+eur(ec),'included · covers electricity up to '+eur(ec)+'/month')
         +kv('Monthly total',eur(m.monthlyTotal!=null?m.monthlyTotal:m.rent+ec),'all-in as above · other utilities excluded')
-      : kv('Monthly rent',eur(m.rent),'utilities excluded'))
+      : kv('Monthly rent',eur(m.rent),inc?'all utilities included':'utilities excluded'))
     +kv('Security deposit',eur(m.deposit),depSub);
   (PA.extras||[]).forEach(function(x){html+=kv(esc(x.label),eur(x.amount));});
   html+='<div class="total"><span class="k">Total due at signing</span><span class="v"><span data-roll="'+eur(m.dueAtSigning)+'">'+eur(m.dueAtSigning)+'</span></span></div>';
@@ -498,7 +499,8 @@ function moneyRows(){
 }
 function condList(nTenants){
   var m=PA.money||{},le=PA.lease||{};
-  var ec=Number(m.energyCredit)||0;
+  var inc=m.utilities==='included';
+  var ec=inc?0:(Number(m.energyCredit)||0);
   var conds=[
     'The security deposit shall be returned at the end of the lease (within 15 days after move-out / keys handover), subject to verification of the property’s condition and settlement of any outstanding utility balance. Normal wear and tear caused by ordinary and reasonable use of the property shall not be deemed damage and shall not be deducted from the security deposit.',
     'The security deposit shall be fully returned if the Landlord cancels the agreement for any reason, or if the Tenant cancels with justified cause.',
@@ -507,7 +509,9 @@ function condList(nTenants){
   ];
   if(ec>0)conds.push('The monthly payment of '+eur(m.monthlyTotal!=null?m.monthlyTotal:m.rent+ec)+' consists of: (a) base rent of '+eur(m.rent)+' and (b) an energy allowance of '+eur(ec)+' included in the monthly fee. The energy allowance covers electricity consumption up to '+eur(ec)+'/month; should monthly electricity costs exceed it, the Tenant shall pay only the surplus directly to the Landlord upon presentation of the utility bill. If consumption is equal to or below the allowance, no additional charge applies.');
   if(le.reason)conds.push('Transitional need: '+le.reason+'.');
-  conds.push((ec>0?'All other utilities (gas, water, internet)':'All utilities (electricity, gas, water, internet)')+' are excluded from the monthly rent and are the sole responsibility of the Tenant.');
+  conds.push(inc
+    ?'All utilities (electricity, gas, water, internet) are included in the monthly rent, within fair and ordinary use of the property.'
+    :(ec>0?'All other utilities (gas, water, internet)':'All utilities (electricity, gas, water, internet)')+' are excluded from the monthly rent and are the sole responsibility of the Tenant.');
   if(nTenants==null||nTenants>1)conds.push('Where more than one tenant signs this agreement, all co-tenants are jointly and severally liable for the full rent and all obligations hereunder.');
   (PA.customClauses||[]).forEach(function(c){conds.push(c);});
   conds.push('Any changes to these terms must be agreed upon in writing by both parties.');
@@ -551,7 +555,7 @@ function renderStep1(){
     +'<div class="subline">'+esc(le.type)+' · '+esc(le.lawRef)+'</div>'
     +'<div class="chip">Reserved for you — awaiting your signature</div>'
     +'<div class="tiles">'
-      +'<div class="tile hero"><div class="k">Monthly'+(ec>0?' all-in':'')+'</div><div class="v"><span data-roll="'+eur(m.monthlyTotal!=null?m.monthlyTotal:m.rent)+'">'+eur(m.monthlyTotal!=null?m.monthlyTotal:m.rent)+'</span><small> /month</small></div></div>'
+      +'<div class="tile hero"><div class="k">Monthly'+((ec>0||(PA.money||{}).utilities==='included')?' all-in':'')+'</div><div class="v"><span data-roll="'+eur(m.monthlyTotal!=null?m.monthlyTotal:m.rent)+'">'+eur(m.monthlyTotal!=null?m.monthlyTotal:m.rent)+'</span><small> /month</small></div></div>'
       +'<div class="tile"><div class="k">Due today to lock it</div><div class="v"><span data-roll="'+eur(m.dueAtSigning)+'">'+eur(m.dueAtSigning)+'</span></div></div>'
       +'<div class="tile"><div class="k">Move-in</div><div class="v" style="font-size:17px;font-weight:300">'+fmtD(le.startDate)+'</div></div>'
       +'<div class="tile"><div class="k">Term</div><div class="v" style="font-size:17px;font-weight:300">'+le.months+' months <small>→ '+fmtD(le.endDate)+'</small></div></div>'

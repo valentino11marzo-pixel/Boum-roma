@@ -77,6 +77,9 @@ export function deriveMoney(m) {
   const feeVat = r2(fee * feeVatPct / 100);
   const feeTotal = r2(fee + feeVat);
   const feeDue = ['move-in', 'signing', 'separate'].includes(m.feeDue) ? m.feeDue : 'separate';
+  // utilities: 'excluded' (tenant pays, default) | 'included' (in the rent).
+  // The energy-credit knob only applies when utilities are excluded.
+  const utilities = m.utilities === 'included' ? 'included' : 'excluded';
 
   const dueDefault = r2(depositAtSigning + (feeDue === 'signing' ? feeTotal : 0));
   const dueAtSigning = m.dueAtSigning != null && m.dueAtSigning !== ''
@@ -84,7 +87,7 @@ export function deriveMoney(m) {
     : dueDefault;
 
   return {
-    rent, energyCredit, monthlyTotal,
+    rent, energyCredit, monthlyTotal, utilities,
     depositMonths, deposit, depositSplitPct, depositAtSigning, depositAtMoveIn,
     feeMode, feePct, feeMonths, fee, feeVatPct, feeVat, feeTotal, feeDue,
     dueAtSigning,

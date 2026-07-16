@@ -38,7 +38,8 @@ export function paDocumentHtml(pa, opts = {}) {
   const tenants = Array.isArray(pa.tenants) && pa.tenants.length ? pa.tenants : (t.fullName ? [t] : []);
   const ref = opts.ref || pa.ref || '';
   const paid = !!opts.paidEur;
-  const ec = Number(m.energyCredit) || 0;
+  const inc = m.utilities === 'included';
+  const ec = inc ? 0 : (Number(m.energyCredit) || 0);
   const split = m.depositSplitPct != null ? Number(m.depositSplitPct) : 100;
 
   const head = `
@@ -74,7 +75,7 @@ export function paDocumentHtml(pa, opts = {}) {
   const rentRow = ec > 0
     ? row('Monthly total', `<b>${eur(m.monthlyTotal != null ? m.monthlyTotal : (Number(m.rent) || 0) + ec)}</b> /month`,
         `base rent ${eur(m.rent)} + energy credit ${eur(ec)} (covers electricity up to ${eur(ec)}/month)`)
-    : row('Monthly rent', `<b>${eur(m.rent)}</b> /month`);
+    : row('Monthly rent', `<b>${eur(m.rent)}</b> /month`, inc ? 'all utilities included' : null);
   const depSub = split > 0 && split < 100
     ? `${m.depositMonths || 1} month(s)’ base rent — ${split}% (${eur(m.depositAtSigning != null ? m.depositAtSigning : m.deposit * split / 100)}) at signing, ${100 - split}% (${eur(m.depositAtMoveIn != null ? m.depositAtMoveIn : m.deposit * (100 - split) / 100)}) upon move-in`
     : `${m.depositMonths || 1} month(s) · refundable`;
