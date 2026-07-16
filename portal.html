@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-<script defer src="/js/boom-err.js"></script>
+<script src="/js/boom-err.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="description" content="BOOM Property Management Portal - Gestione immobili, contratti e pagamenti">
@@ -110,6 +110,39 @@
     <div class="offline-banner" id="offlineBanner">⚠️ Connessione assente - Modalità offline</div>
     
     <div class="loading" id="loading"><div class="spinner"></div><div style="color:var(--text-muted);font-size:14px">Caricamento...</div></div>
+    <script>
+    // Via d'uscita: se lo script applicativo non parte (rete, cache corrotta,
+    // service worker incastrato), lo spinner non deve MAI restare infinito.
+    // Dopo 15s senza boot si mostra una card con login + reset totale.
+    (function () {
+        window.__boomReset = function () {
+            var done = function () { location.reload(); };
+            try {
+                Promise.all([
+                    navigator.serviceWorker ? navigator.serviceWorker.getRegistrations().then(function (rs) {
+                        return Promise.all(rs.map(function (r) { return r.unregister(); }));
+                    }) : Promise.resolve(),
+                    (window.caches && caches.keys) ? caches.keys().then(function (ks) {
+                        return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+                    }) : Promise.resolve()
+                ]).then(done, done);
+                setTimeout(done, 4000);
+            } catch (e) { done(); }
+        };
+        setTimeout(function () {
+            if (window.__portalAppLoaded) return;
+            var l = document.getElementById('loading');
+            if (!l || l.classList.contains('hidden')) return;
+            l.innerHTML = '<div style="max-width:340px;text-align:center;padding:24px">' +
+                '<div style="font-size:34px;margin-bottom:14px">⏳</div>' +
+                '<div style="color:#FFF;font-size:15px;margin-bottom:8px">Il portale non si è avviato</div>' +
+                '<div style="color:#999;font-size:13px;line-height:1.5;margin-bottom:20px">Può dipendere dalla connessione o da una cache vecchia del browser.</div>' +
+                '<a href="/login?next=%2Fportal" style="display:block;padding:13px;background:#D4AF37;color:#08080A;border-radius:12px;text-decoration:none;font-size:14px;margin-bottom:10px">Vai al login</a>' +
+                '<button onclick="window.__boomReset()" style="width:100%;padding:13px;background:transparent;border:1px solid rgba(255,255,255,0.2);border-radius:12px;color:#FFF;font-size:14px;cursor:pointer">Riprova da zero (svuota cache)</button>' +
+                '</div>';
+        }, 15000);
+    })();
+    </script>
     <div class="auth hidden" id="authScreen">
         <div class="auth-card">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" class="auth-logo" style="width:72px;height:72px;margin:0 auto 20px;display:block;filter:drop-shadow(0 0 30px rgba(212,175,55,0.5))">

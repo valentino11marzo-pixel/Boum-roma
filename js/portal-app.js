@@ -1,3 +1,4 @@
+window.__portalAppLoaded = true; // sentinella per la via d'uscita anti-spinner-infinito nella shell
 /* ═══════════════════════════════════════════════════════════════════════════
      ║  BOOM ROMA — PORTAL  ·  MAIN APPLICATION SCRIPT
      ║  Single-file SPA (no build step). All code shares one closure scope; inline
