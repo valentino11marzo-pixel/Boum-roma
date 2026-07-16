@@ -569,6 +569,10 @@
     },
     "api/sign/custom/submit.js": {
       "maxDuration": 60
+    },
+    "api/photos/enhance.js": {
+      "maxDuration": 60,
+      "memory": 1769
     }
   },
   "crons": [

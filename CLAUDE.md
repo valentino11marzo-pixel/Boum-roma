@@ -325,6 +325,21 @@ auto-ingested (e.g. no price recoverable) land in
 `pfsRadarHealth.needsAttention` — surfaced in `pfs-command.html`, never
 silently dropped.
 
+### POST `/api/photos/enhance`
+AI photo curation for the catalog (admin/owner/landlord, Firebase ID token).
+Body `{ listingId, mode:'audit'|'apply' }`. Claude Vision (haiku) classifies
+every photo (photo/render/floorplan/document, room, needed rotation, quality,
+coverScore, watermark) → plan: best real photo becomes cover, gallery
+reordered living→kitchen→bedrooms→bath→exterior with floorplans last, exact
+duplicates dropped. `apply` enhances via sharp (EXIF+AI rotation, contrast
+stretch, per-photo preset from the AI grade; floorplans never saturated),
+uploads to Storage `listings/enhanced/<id>/` and patches the listing (`image`,
+`images`, `photosEnhancedAt`), saving the original URL list to
+`imagesOriginal` once — reversible and re-runnable (always re-plans from the
+originals). Heuristic fallback when ANTHROPIC_API_KEY is absent. Backed by
+the `photo-lab.html` console (BoomPortal auth). sharp is a real dependency;
+function has maxDuration 60 + 1769MB in vercel.json.
+
 ### POST `/api/admin/match-test`
 Admin test harness + manual-ingest endpoint (Firebase ID token, role
 admin/owner/landlord). `dryRun:true` scores a hypothetical listing against
