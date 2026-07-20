@@ -231,7 +231,7 @@ section > h3 { font-size: 12px; letter-spacing: 3px; color: var(--text-secondary
         [!s.telegram, 'TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID mancanti — niente approvazioni e avvisi sul telefono'],
         [!s.gmail, 'GMAIL_USER / GMAIL_APP_PASS mancanti — i dipendenti non possono inviare email'],
         [!s.anthropic, 'ANTHROPIC_API_KEY mancante — il Commerciale non può scrivere le bozze AI'],
-        [!s.gocardless, 'GOCARDLESS_SECRET_ID / _KEY mancanti — collegamento banca disattivo (l\\'import CSV in /banca funziona comunque). Chiavi gratuite su bankaccountdata.gocardless.com'],
+        [!s.gocardless, 'GOCARDLESS_SECRET_ID / _KEY mancanti — collegamento banca disattivo (import CSV in /banca funziona comunque). Chiavi gratuite su bankaccountdata.gocardless.com'],
       ].filter(f => f[0]);
       if (!FIXES.length) return;
       document.getElementById('setupBanner').innerHTML =
