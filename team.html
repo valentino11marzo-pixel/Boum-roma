@@ -115,6 +115,8 @@ section > h3 { font-size: 12px; letter-spacing: 3px; color: var(--text-secondary
     <a href="/portal">← Portale</a>
   </header>
 
+  <div id="setupBanner"></div>
+
   <div class="grid" id="teamGrid"></div>
 
   <section>
@@ -214,6 +216,32 @@ section > h3 { font-size: 12px; letter-spacing: 3px; color: var(--text-secondary
       });
     });
   }
+
+  // Setup self-check: la console dice da sola cosa manca da configurare.
+  (async function setupCheck() {
+    try {
+      const token = await firebase.auth().currentUser.getIdToken();
+      const r = await fetch('/api/admin/setup-status', { method: 'POST', headers: { Authorization: 'Bearer ' + token } });
+      const j = await r.json();
+      if (!j.ok) return;
+      const s = j.status;
+      const FIXES = [
+        [!s.firebaseAdmin, 'FIREBASE_ADMIN_EMAIL / _PASS / API_KEY mancanti — i dipendenti non possono scrivere su Firestore'],
+        [!s.cron, 'CRON_SECRET mancante — i cron Vercel non si autenticano'],
+        [!s.telegram, 'TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID mancanti — niente approvazioni e avvisi sul telefono'],
+        [!s.gmail, 'GMAIL_USER / GMAIL_APP_PASS mancanti — i dipendenti non possono inviare email'],
+        [!s.anthropic, 'ANTHROPIC_API_KEY mancante — il Commerciale non può scrivere le bozze AI'],
+        [!s.gocardless, 'GOCARDLESS_SECRET_ID / _KEY mancanti — collegamento banca disattivo (l\\'import CSV in /banca funziona comunque). Chiavi gratuite su bankaccountdata.gocardless.com'],
+      ].filter(f => f[0]);
+      if (!FIXES.length) return;
+      document.getElementById('setupBanner').innerHTML =
+        `<div style="background:rgba(245,165,36,.08);border:1px solid rgba(245,165,36,.35);border-radius:13px;padding:14px 16px;margin-bottom:16px">
+          <div style="font-size:12px;font-weight:600;letter-spacing:1px;color:var(--amber);margin-bottom:8px">⚙️ CONFIGURAZIONE DA COMPLETARE (variabili d'ambiente Vercel)</div>
+          ${FIXES.map(f => `<div style="font-size:12px;color:var(--text-secondary);line-height:1.7">• ${f[1]}</div>`).join('')}
+          <div style="font-size:11px;color:var(--text-muted);margin-top:8px">Vercel → Project → Settings → Environment Variables → aggiungi → Redeploy. Questa fascia sparisce da sola quando è tutto a posto.</div>
+        </div>`;
+    } catch { /* banner best-effort */ }
+  })();
 
   // Radar PFS heartbeats live in pfsRadarHealth — roll them up into one dot.
   BoomPortal.listen(db.collection('teamHealth'), snap => {
