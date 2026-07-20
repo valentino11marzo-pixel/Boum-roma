@@ -177,11 +177,14 @@ export async function buildPaPdf(pa) {
   y -= 26;
   const feeAmt = m.feeMode === 'months'
     ? `${m.feeMonths || 1} month(s)' base rent = ${eur(m.fee)}`
+    : (m.feeMode === 'flat' || m.feeFlat != null) ? `${eur(m.fee)} (fixed)`
     : `${m.feePct != null ? m.feePct : 12}% of annual rent = ${eur(m.fee)}`;
   const feeWhen = m.feeDue === 'move-in' ? 'due upon move-in, not at pre-agreement signing'
     : m.feeDue === 'signing' ? 'due at signing (included in the total above)'
     : 'due separately, not at signing';
-  para(`Note: Agency fee: ${feeAmt}${m.feeVatPct ? ` + VAT ${m.feeVatPct}% (${eur(m.feeVat)}) = ${eur(m.feeTotal)}` : ''} - ${feeWhen}.${pa.note ? ' ' + pa.note : ''}`, italic, 8.5, SOFT);
+  para(Number(m.fee) > 0
+    ? `Note: Agency fee: ${feeAmt}${m.feeVatPct ? ` + VAT ${m.feeVatPct}% (${eur(m.feeVat)}) = ${eur(m.feeTotal)}` : ''} - ${feeWhen}.${pa.note ? ' ' + pa.note : ''}`
+    : `Note: Agency fee: none for this agreement.${pa.note ? ' ' + pa.note : ''}`, italic, 8.5, SOFT);
 
   // ── 5. general conditions ──
   secTitle(5, 'General Conditions');
