@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BOOM ATELIER — Issue N°02</title>
+<!-- Concept page: Atelier X. Kept out of the index until adopted. -->
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="BOOM Atelier, Issue N°02 — Rome, tailored in 48 hours. Video-verified homes, legal contracts in English, zero hidden fees.">
+<meta name="theme-color" content="#F5F3EE">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@100..900&family=Fragment+Mono&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://i.imgur.com" crossorigin>
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   BOOM ATELIER X — Issue N°02
+   Swiss precision, engineered to be consumed.
+   Gravity type · chip query with live count · zone stories ·
+   draggable lookbook · a shortlist that follows you into the app.
+   ═══════════════════════════════════════════════════════════════ */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
+:root{
+  --bone:#F5F3EE;
+  --bone-2:#EFECE4;
+  --ink:#101010;
+  --ink-2:rgba(16,16,16,0.62);
+  --ink-3:rgba(16,16,16,0.38);
+  --gold:#D4AF37;
+  --gold-ink:#8A6D12;           /* print-safe gold for small text on bone */
+  --rule:rgba(16,16,16,0.14);
+  --rule-soft:rgba(16,16,16,0.08);
+  --sans:'Archivo',-apple-system,sans-serif;
+  --mono:'Fragment Mono',ui-monospace,monospace;
+  --ease:cubic-bezier(0.22,1,0.36,1);
+  --snap:cubic-bezier(0.6,0,0.1,1);
+  --pad:clamp(18px,4vw,56px);
+}
+
+html{scroll-behavior:smooth;overflow-x:clip}
+body{
+  font-family:var(--sans);font-weight:340;
+  background:var(--bone);color:var(--ink);
+  line-height:1.55;overflow-x:clip;
+  font-variant-numeric:tabular-nums;
+}
+::selection{background:var(--ink);color:var(--bone)}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;background:none;border:0;cursor:pointer;color:inherit}
+:focus-visible{outline:2px solid var(--gold-ink);outline-offset:3px}
+.mono{font-family:var(--mono)}
+.wrap{max-width:1440px;margin:0 auto;padding-left:var(--pad);padding-right:var(--pad)}
+
+.skip{position:fixed;top:-60px;left:16px;z-index:500;background:var(--ink);color:var(--bone);
+  padding:10px 18px;font-size:13px;transition:top .25s}
+.skip:focus{top:16px}
+
+/* exposed grid */
+.gridlines{position:fixed;inset:0;z-index:0;pointer-events:none;display:flex;
+  max-width:1440px;margin:0 auto;padding:0 var(--pad)}
+.gridlines i{flex:1;border-left:1px solid var(--rule-soft)}
+.gridlines i:last-child{border-right:1px solid var(--rule-soft)}
+@media(max-width:900px){.gridlines i:nth-child(n+7){display:none}}
+
+/* ————— masthead ————— */
+.mast{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  background:color-mix(in srgb,var(--bone) 88%,transparent);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--ink);
+}
+.mast-in{display:flex;align-items:stretch;justify-content:space-between;height:58px}
+.mast a,.mast span,.mast button{display:flex;align-items:center}
+.mast-brand{font-weight:800;font-size:17px;letter-spacing:0.06em;padding-right:22px;
+  border-right:1px solid var(--rule)}
+.mast-brand em{font-style:normal;font-weight:200;margin-left:8px;letter-spacing:0.14em}
+.mast-issue{font-family:var(--mono);font-size:10px;letter-spacing:0.18em;color:var(--ink-3);
+  padding:0 22px;border-right:1px solid var(--rule)}
+.mast-nav{display:none;flex:1}
+.mast-nav a{flex:1;justify-content:center;font-family:var(--mono);font-size:10.5px;
+  letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-2);
+  border-right:1px solid var(--rule);transition:background .25s,color .25s}
+.mast-nav a:hover{background:var(--ink);color:var(--bone)}
+@media(min-width:1020px){.mast-nav{display:flex}}
+.mast-short{position:relative;font-family:var(--mono);font-size:10.5px;letter-spacing:0.16em;
+  padding:0 20px;border-right:1px solid var(--rule);color:var(--ink-2);transition:background .25s,color .25s}
+.mast-short:hover{background:var(--ink);color:var(--bone)}
+.mast-short b{
+  margin-left:9px;min-width:20px;height:20px;border-radius:50%;
+  background:var(--gold);color:var(--ink);font-weight:700;font-size:10px;
+  display:inline-flex;align-items:center;justify-content:center;
+  transition:transform .35s var(--snap);
+}
+.mast-short b.pop{transform:scale(1.45)}
+.mast-wa{padding:0 26px;background:var(--ink);color:var(--bone);
+  font-family:var(--mono);font-size:10.5px;letter-spacing:0.2em;text-transform:uppercase;
+  transition:background .25s,color .25s}
+.mast-wa:hover{background:var(--gold);color:var(--ink)}
+#readbar{position:fixed;top:58px;left:0;height:2px;width:0;background:var(--ink);z-index:100}
+#readbar::after{content:'';position:absolute;right:0;top:0;width:26px;height:2px;background:var(--gold)}
+
+/* ————— hero ————— */
+.hero{position:relative;z-index:2;padding-top:140px;padding-bottom:34px}
+.hero-kicker{display:flex;flex-wrap:wrap;gap:8px 0;justify-content:space-between;
+  font-family:var(--mono);font-size:10px;letter-spacing:0.2em;text-transform:uppercase;
+  color:var(--ink-3);border-bottom:1px solid var(--ink);padding-bottom:12px}
+.hero-kicker b{color:var(--gold-ink);font-weight:400}
+.hero h1{
+  font-weight:180;text-transform:uppercase;
+  font-size:clamp(56px,12.5vw,196px);
+  line-height:0.9;letter-spacing:-0.028em;
+  margin-top:26px;user-select:none;
+}
+.hero h1 .ln{display:block}
+.hero h1 .ch{display:inline-block;font-variation-settings:'wght' 180;
+  transition:font-variation-settings .12s linear;will-change:font-variation-settings}
+.hero h1 .thin .ch{font-variation-settings:'wght' 120}
+.hero h1 .gold{color:var(--gold)}
+.hero-under{display:grid;grid-template-columns:1fr;gap:26px;margin-top:30px;
+  border-top:1px solid var(--ink);padding-top:22px}
+@media(min-width:1020px){.hero-under{grid-template-columns:1.1fr 1fr;gap:60px}}
+.hero-copy{font-size:clamp(15px,1.7vw,18px);color:var(--ink-2);max-width:52ch;font-weight:380}
+.hero-copy b{color:var(--ink);font-weight:640}
+.hero-facts{display:flex;gap:34px;flex-wrap:wrap;margin-top:22px}
+.hero-facts div b{display:block;font-size:30px;font-weight:760;letter-spacing:-0.03em}
+.hero-facts div b i{font-style:normal;color:var(--gold);font-weight:760}
+.hero-facts div span{font-family:var(--mono);font-size:9px;letter-spacing:0.22em;
+  text-transform:uppercase;color:var(--ink-3)}
+
+/* ————— fitting room (chip query) ————— */
+.fit{border:1px solid var(--ink);background:var(--bone)}
+.fit-head{display:flex;justify-content:space-between;align-items:center;
+  padding:12px 18px;border-bottom:1px solid var(--ink);
+  font-family:var(--mono);font-size:10px;letter-spacing:0.22em;text-transform:uppercase}
+.fit-head b{color:var(--gold-ink);font-weight:400}
+.fit-body{padding:18px}
+.fit-lab{font-family:var(--mono);font-size:9px;letter-spacing:0.24em;text-transform:uppercase;
+  color:var(--ink-3);margin:14px 0 8px}
+.fit-lab:first-child{margin-top:0}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{
+  font-family:var(--mono);font-size:11px;letter-spacing:0.08em;
+  border:1px solid var(--rule);padding:9px 14px;
+  transition:background .18s,color .18s,border-color .18s,transform .25s var(--snap);
+}
+.chip:hover{border-color:var(--ink)}
+.chip:active{transform:scale(0.94)}
+.chip.on{background:var(--ink);color:var(--bone);border-color:var(--ink)}
+.chip.on::before{content:'× ';color:var(--gold)}
+.fit-go{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  width:100%;margin-top:18px;padding:16px 18px;
+  background:var(--ink);color:var(--bone);
+  font-family:var(--mono);font-size:11.5px;letter-spacing:0.2em;text-transform:uppercase;
+  transition:background .25s;
+}
+.fit-go:hover{background:var(--gold);color:var(--ink)}
+.fit-go b{font-weight:400}
+.fit-go .n{color:var(--gold);font-weight:700;transition:transform .3s var(--snap)}
+.fit-go:hover .n{color:var(--ink)}
+.fit-go .n.pop{transform:scale(1.4)}
+
+/* ————— marquee ————— */
+.marq{border-top:1px solid var(--ink);border-bottom:1px solid var(--ink);
+  overflow:hidden;padding:10px 0;background:var(--bone)}
+.marq-in{display:flex;width:max-content;gap:0;animation:marq 30s linear infinite;white-space:nowrap}
+.marq span{
+  font-weight:850;text-transform:uppercase;font-size:clamp(20px,3vw,34px);letter-spacing:0.02em;
+  -webkit-text-stroke:1px var(--ink);color:transparent;padding-right:34px;
+}
+.marq span b{color:var(--ink);-webkit-text-stroke:0;font-weight:850}
+.marq span i{color:var(--gold);-webkit-text-stroke:0;font-style:normal}
+@keyframes marq{to{transform:translateX(-50%)}}
+
+/* ————— section heads ————— */
+.shead{display:flex;align-items:baseline;justify-content:space-between;gap:18px;
+  border-bottom:1px solid var(--ink);padding-bottom:14px;margin-bottom:0}
+.shead h2{font-weight:820;text-transform:uppercase;letter-spacing:-0.02em;
+  font-size:clamp(26px,4.4vw,54px)}
+.shead h2 em{font-style:normal;font-weight:150}
+.shead .no{font-family:var(--mono);font-size:10px;letter-spacing:0.24em;color:var(--gold-ink)}
+.shead .aux{font-family:var(--mono);font-size:10px;letter-spacing:0.18em;
+  text-transform:uppercase;color:var(--ink-2);border-bottom:1px solid var(--gold);padding-bottom:3px;
+  white-space:nowrap;transition:color .25s}
+.shead .aux:hover{color:var(--gold-ink)}
+.sec{position:relative;z-index:2;padding-top:clamp(70px,10vh,130px);padding-bottom:clamp(70px,10vh,130px)}
+
+/* ————— stories ————— */
+.stories{display:grid;grid-template-columns:1fr;gap:0;margin-top:0;border:1px solid var(--ink);border-top:0}
+@media(min-width:900px){.stories{grid-template-columns:1.45fr 1fr}}
+.story-stage{position:relative;aspect-ratio:4/3;overflow:hidden;background:#111}
+@media(min-width:900px){.story-stage{aspect-ratio:auto;min-height:520px}}
+.story-img{position:absolute;inset:0;background:center/cover no-repeat;
+  opacity:0;transform:scale(1.06);transition:opacity .7s ease,transform 1.2s var(--ease)}
+.story-img.on{opacity:1;transform:scale(1)}
+.story-img::after{content:'';position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(0,0,0,0.12),transparent 35%,transparent 60%,rgba(0,0,0,0.55))}
+.story-cap{position:absolute;left:20px;bottom:18px;right:20px;color:#F5F3EE;z-index:2}
+.story-cap b{display:block;font-weight:820;text-transform:uppercase;font-size:clamp(24px,3.6vw,44px);
+  letter-spacing:-0.02em;line-height:1}
+.story-cap span{font-family:var(--mono);font-size:10.5px;letter-spacing:0.18em;opacity:.85}
+.story-bars{position:absolute;top:14px;left:20px;right:20px;display:flex;gap:6px;z-index:3}
+.story-bars i{flex:1;height:2px;background:rgba(245,243,238,0.32);position:relative;overflow:hidden}
+.story-bars i::after{content:'';position:absolute;inset:0;background:var(--bone);
+  transform:scaleX(var(--p,0));transform-origin:left}
+.story-tap{position:absolute;inset:0;z-index:2;display:flex}
+.story-tap button{flex:1;opacity:0}
+.story-side{display:flex;flex-direction:column;border-top:1px solid var(--ink)}
+@media(min-width:900px){.story-side{border-top:0;border-left:1px solid var(--ink)}}
+.story-row{
+  flex:1;display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:14px 18px;border-bottom:1px solid var(--rule);text-align:left;
+  font-weight:520;font-size:15px;letter-spacing:0.01em;
+  transition:background .2s,color .2s,padding-left .3s var(--ease);
+}
+.story-row:last-child{border-bottom:0}
+.story-row small{font-family:var(--mono);font-size:9px;letter-spacing:0.2em;
+  text-transform:uppercase;color:var(--ink-3)}
+.story-row:hover{padding-left:26px}
+.story-row.on{background:var(--ink);color:var(--bone)}
+.story-row.on small{color:var(--gold)}
+.story-hint{padding:10px 18px;font-family:var(--mono);font-size:9px;letter-spacing:0.18em;
+  text-transform:uppercase;color:var(--ink-3);border-top:1px solid var(--ink)}
+
+/* ————— collection (draggable) ————— */
+.rail-zone{border:1px solid var(--ink);border-top:0;overflow:hidden;position:relative}
+.rail{
+  display:flex;gap:0;overflow-x:auto;scroll-snap-type:x mandatory;
+  cursor:grab;scrollbar-width:none;-webkit-overflow-scrolling:touch;
+}
+.rail::-webkit-scrollbar{display:none}
+.rail.drag{cursor:grabbing;scroll-snap-type:none}
+.look{
+  position:relative;flex:0 0 min(84vw,380px);scroll-snap-align:start;
+  border-right:1px solid var(--ink);background:var(--bone);
+}
+.look-ph{position:relative;aspect-ratio:4/5;overflow:hidden;background:var(--bone-2)}
+.look-ph>i{position:absolute;inset:0;background:center/cover no-repeat;
+  transition:transform .8s var(--ease);display:block}
+.look:hover .look-ph>i{transform:scale(1.045)}
+.look-no{position:absolute;top:12px;left:14px;z-index:2;font-family:var(--mono);
+  font-size:10px;letter-spacing:0.2em;color:#F5F3EE;mix-blend-mode:difference}
+.look-save{
+  position:absolute;top:8px;right:8px;z-index:3;width:40px;height:40px;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--bone);border:1px solid var(--ink);
+  transition:background .2s,transform .3s var(--snap);
+}
+.look-save svg{width:16px;height:16px;fill:none;stroke:var(--ink);stroke-width:1.6}
+.look-save:hover{transform:scale(1.08)}
+.look-save:active{transform:scale(0.88)}
+.look-save.on{background:var(--gold)}
+.look-save.on svg{fill:var(--ink);stroke:var(--ink)}
+.look-b{padding:16px 18px;border-top:1px solid var(--ink)}
+.look-price{font-weight:800;font-size:22px;letter-spacing:-0.02em}
+.look-price i{font-style:normal;font-family:var(--mono);font-size:10px;color:var(--ink-3);font-weight:400}
+.look-name{font-weight:380;font-size:14.5px;color:var(--ink-2);margin-top:2px}
+.look-meta{margin-top:10px;font-family:var(--mono);font-size:9.5px;letter-spacing:0.16em;
+  text-transform:uppercase;color:var(--ink-3);display:flex;gap:12px;flex-wrap:wrap}
+.look-meta b{color:var(--gold-ink);font-weight:400}
+.rail-foot{display:flex;justify-content:space-between;align-items:center;
+  border:1px solid var(--ink);border-top:0;padding:10px 18px;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-3)}
+.rail-foot .live-dot{color:#1F7A4D}
+.rail-foot .live-dot::before{content:'●';margin-right:8px;animation:blink 1.8s infinite}
+@keyframes blink{50%{opacity:.3}}
+.rail-nav{display:flex;gap:8px}
+.rail-nav button{width:38px;height:38px;border:1px solid var(--ink);font-size:15px;
+  transition:background .2s,color .2s}
+.rail-nav button:hover{background:var(--ink);color:var(--bone)}
+
+/* ————— process (scrub weight) ————— */
+.proc{border-top:1px solid var(--ink)}
+.proc-row{
+  display:grid;grid-template-columns:64px 1fr;gap:10px 26px;align-items:baseline;
+  padding:34px 0;border-bottom:1px solid var(--rule);
+}
+@media(min-width:900px){.proc-row{grid-template-columns:110px 1fr 1fr;gap:40px}}
+.proc-no{font-family:var(--mono);font-size:11px;letter-spacing:0.2em;color:var(--gold-ink)}
+.proc-t{font-weight:200;text-transform:uppercase;letter-spacing:-0.015em;
+  font-size:clamp(26px,4.6vw,58px);line-height:1;
+  font-variation-settings:'wght' var(--w,200);
+  transition:font-variation-settings .2s linear}
+.proc-d{color:var(--ink-2);font-size:14.5px;max-width:52ch;align-self:center}
+.proc-d b{font-family:var(--mono);font-size:9.5px;letter-spacing:0.2em;text-transform:uppercase;
+  color:var(--gold-ink);display:block;margin-top:8px;font-weight:400}
+
+/* ————— tariff ————— */
+.tariff{width:100%;border-collapse:collapse;border:1px solid var(--ink)}
+.tariff tr{transition:background .18s,color .18s}
+.tariff tbody tr:hover{background:var(--ink);color:var(--bone)}
+.tariff tbody tr:hover .mono{color:var(--gold)}
+.tariff th{font-family:var(--mono);font-size:9.5px;letter-spacing:0.22em;text-transform:uppercase;
+  color:var(--ink-3);text-align:left;padding:12px 18px;border-bottom:1px solid var(--ink);font-weight:400}
+.tariff td{padding:20px 18px;border-bottom:1px solid var(--rule);vertical-align:baseline}
+.tariff tr:last-child td{border-bottom:0}
+.tariff .svc{font-weight:720;font-size:clamp(17px,2.2vw,24px);text-transform:uppercase;letter-spacing:-0.01em}
+.tariff .dsc{color:var(--ink-2);font-size:13.5px;max-width:44ch;display:none}
+@media(min-width:900px){.tariff .dsc{display:table-cell}}
+.tariff .prc{font-family:var(--mono);font-size:15px;text-align:right;white-space:nowrap}
+.tariff .prc small{display:block;font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-3)}
+.tariff tbody tr:hover .prc small{color:rgba(245,243,238,0.6)}
+
+/* ————— manifesto (black) ————— */
+.mani{background:var(--ink);color:var(--bone);padding:clamp(90px,14vh,170px) 0;position:relative;z-index:2}
+.mani .k{font-family:var(--mono);font-size:10px;letter-spacing:0.28em;text-transform:uppercase;color:var(--gold)}
+.mani blockquote{
+  margin-top:26px;font-weight:220;text-transform:uppercase;letter-spacing:-0.02em;
+  font-size:clamp(30px,5.6vw,74px);line-height:1.04;max-width:18ch;
+}
+.mani blockquote .w{opacity:.18;transition:opacity .45s ease}
+.mani blockquote .w.on{opacity:1}
+.mani blockquote .w.g{color:var(--gold)}
+.mani .who{margin-top:30px;font-family:var(--mono);font-size:10.5px;letter-spacing:0.18em;
+  text-transform:uppercase;color:rgba(245,243,238,0.5)}
+.mani .who b{color:var(--bone);font-weight:400}
+
+/* ————— finale ————— */
+.finale{padding-top:clamp(90px,14vh,180px);position:relative;z-index:2;text-align:left}
+.finale h2{font-weight:850;text-transform:uppercase;letter-spacing:-0.03em;
+  line-height:.92;font-size:clamp(52px,11vw,170px)}
+.finale h2 em{font-style:normal;color:var(--gold)}
+.finale-cta{display:flex;flex-wrap:wrap;gap:0;margin-top:40px;border:1px solid var(--ink)}
+.finale-cta a{
+  flex:1;min-width:210px;display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:22px 24px;font-family:var(--mono);font-size:11px;letter-spacing:0.2em;text-transform:uppercase;
+  border-right:1px solid var(--ink);transition:background .22s,color .22s;
+}
+.finale-cta a:last-child{border-right:0}
+.finale-cta a:hover{background:var(--ink);color:var(--bone)}
+.finale-cta a:hover i{color:var(--gold)}
+.finale-cta a i{font-style:normal;font-weight:700}
+.finale-cta a.prime{background:var(--ink);color:var(--bone)}
+.finale-cta a.prime:hover{background:var(--gold);color:var(--ink)}
+
+/* ————— footer ————— */
+footer{position:relative;z-index:2;margin-top:clamp(70px,10vh,120px);
+  border-top:1px solid var(--ink);overflow:hidden}
+.foot-legal{display:flex;flex-wrap:wrap;gap:10px 34px;justify-content:space-between;
+  padding:22px var(--pad);font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--ink-3)}
+.foot-legal a{color:var(--ink-2)}
+.foot-legal a:hover{color:var(--gold-ink)}
+.foot-boom{
+  display:block;text-align:center;font-weight:900;text-transform:uppercase;
+  font-size:clamp(120px,26vw,380px);line-height:.72;letter-spacing:-0.04em;
+  margin-bottom:-0.14em;color:transparent;-webkit-text-stroke:1.5px var(--ink);
+  user-select:none;
+}
+
+/* ————— shortlist toast ————— */
+.toast{
+  position:fixed;left:50%;bottom:26px;transform:translate(-50%,80px);z-index:300;
+  background:var(--ink);color:var(--bone);border:1px solid var(--ink);
+  font-family:var(--mono);font-size:11px;letter-spacing:0.14em;
+  padding:13px 20px;opacity:0;transition:transform .45s var(--snap),opacity .3s;
+  display:flex;gap:14px;align-items:center;white-space:nowrap;
+}
+.toast.on{transform:translate(-50%,0);opacity:1}
+.toast b{color:var(--gold);font-weight:400}
+.toast a{border-bottom:1px solid var(--gold)}
+
+/* ————— reveals ————— */
+.rv{opacity:0;transform:translateY(24px);transition:opacity .8s var(--ease),transform .8s var(--ease)}
+.rv.on{opacity:1;transform:none}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+  html{scroll-behavior:auto}
+  .rv{opacity:1;transform:none}
+  .mani blockquote .w{opacity:1}
+  .story-img{transform:none}
+  .marq-in{animation:none}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="gridlines" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+
+<header class="mast">
+  <div class="wrap mast-in">
+    <a class="mast-brand" href="/">BOOM<em>ATELIER</em></a>
+    <span class="mast-issue">ISSUE N°02 — ROMA</span>
+    <nav class="mast-nav" aria-label="Main">
+      <a href="#collection">Collection</a>
+      <a href="#stories">Stories</a>
+      <a href="#process">Process</a>
+      <a href="#tariff">Tariff</a>
+    </nav>
+    <a class="mast-short" href="/apartments.html?saved=1" id="shortBtn" aria-label="Your shortlist">
+      SHORTLIST <b id="shortN">0</b>
+    </a>
+    <a class="mast-wa" href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a>
+  </div>
+</header>
+<div id="readbar" aria-hidden="true"></div>
+
+<!-- ═════════ HERO ═════════ -->
+<section class="hero wrap" id="main">
+  <div class="hero-kicker">
+    <span>THE RENTAL HOUSE OF ROME</span>
+    <span><b>VIDEO-VERIFIED</b> · LEGAL · 48H</span>
+    <span>EST. VIA DEI CORONARI</span>
+  </div>
+  <h1 id="gravity" aria-label="Rome, tailored in 48 hours.">
+    <span class="ln">ROME,</span>
+    <span class="ln thin">TAILORED</span>
+    <span class="ln">IN <span class="gold">48H.</span></span>
+  </h1>
+  <div class="hero-under">
+    <div>
+      <p class="hero-copy">Most agencies show you photos. <b>We fit the city to you</b> — every home walked and filmed by us, every contract legal and explained in English, every key delivered in 48 hours. <b>€0 hidden fees</b>, one human on WhatsApp.</p>
+      <div class="hero-facts">
+        <div><b>48<i>H</i></b><span>yes → keys</span></div>
+        <div><b>4.9<i>★</i></b><span>google · 47</span></div>
+        <div><b>500<i>+</i></b><span>placed</span></div>
+        <div><b>€0</b><span>hidden fees</span></div>
+      </div>
+    </div>
+
+    <!-- fitting room -->
+    <div class="fit" role="search" aria-label="Build your search">
+      <div class="fit-head"><span>THE FITTING ROOM</span><b>TAP TO COMPOSE</b></div>
+      <div class="fit-body">
+        <div class="fit-lab">Zone</div>
+        <div class="chips" id="chipZone">
+          <button class="chip" data-zone="Trastevere">Trastevere</button>
+          <button class="chip" data-zone="Monti">Monti</button>
+          <button class="chip" data-zone="Prati">Prati</button>
+          <button class="chip" data-zone="Testaccio">Testaccio</button>
+          <button class="chip" data-zone="Pigneto">Pigneto</button>
+          <button class="chip" data-zone="Centro">Centro</button>
+        </div>
+        <div class="fit-lab">Budget / month</div>
+        <div class="chips" id="chipBudget">
+          <button class="chip" data-budget="1200">≤ €1,200</button>
+          <button class="chip" data-budget="1600">≤ €1,600</button>
+          <button class="chip" data-budget="2000">≤ €2,000</button>
+          <button class="chip" data-budget="2600">≤ €2,600</button>
+        </div>
+        <div class="fit-lab">Cut</div>
+        <div class="chips" id="chipCut">
+          <button class="chip" data-beds="1">1+ bed</button>
+          <button class="chip" data-beds="2">2+ bed</button>
+          <button class="chip" data-furn="1">Furnished</button>
+          <button class="chip" data-video="1">Video tour</button>
+        </div>
+        <button class="fit-go" id="fitGo">
+          <b>SEE THE MATCHES</b>
+          <span class="n" id="fitN">ALL</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ MARQUEE ═════════ -->
+<div class="marq" aria-hidden="true">
+  <div class="marq-in">
+    <span>BOOM — <b>ROMA</b> — <i>48H</i> — VERIFIED — </span><span>BOOM — <b>ROMA</b> — <i>48H</i> — VERIFIED — </span><span>BOOM — <b>ROMA</b> — <i>48H</i> — VERIFIED — </span><span>BOOM — <b>ROMA</b> — <i>48H</i> — VERIFIED — </span>
+  </div>
+</div>
+
+<!-- ═════════ STORIES ═════════ -->
+<section class="sec wrap" id="stories" aria-label="Rome in six stories">
+  <div class="shead">
+    <h2><em>N°01 —</em> SIX ROMES</h2>
+    <span class="no">AUTO·PLAYING — TAP TO SKIP</span>
+  </div>
+  <div class="stories">
+    <div class="story-stage" id="storyStage">
+      <div class="story-bars" id="storyBars" aria-hidden="true"></div>
+      <div class="story-tap" aria-hidden="true">
+        <button type="button" id="storyPrev" tabindex="-1"></button>
+        <button type="button" id="storyNext" tabindex="-1"></button>
+      </div>
+      <div class="story-cap" id="storyCap"></div>
+    </div>
+    <div class="story-side" id="storySide" role="tablist" aria-label="Zones"></div>
+  </div>
+</section>
+
+<!-- ═════════ COLLECTION ═════════ -->
+<section class="sec wrap" id="collection" aria-label="The collection">
+  <div class="shead">
+    <h2><em>N°02 —</em> THE COLLECTION</h2>
+    <a class="aux" href="/apartments.html">OPEN FULL INDEX →</a>
+  </div>
+  <div class="rail-zone">
+    <div class="rail" id="rail"></div>
+  </div>
+  <div class="rail-foot">
+    <span id="railLive">CURATED — DRAG TO BROWSE</span>
+    <span class="rail-nav">
+      <button type="button" id="railL" aria-label="Previous">←</button>
+      <button type="button" id="railR" aria-label="Next">→</button>
+    </span>
+  </div>
+</section>
+
+<!-- ═════════ PROCESS ═════════ -->
+<section class="sec wrap" id="process" aria-label="The process">
+  <div class="shead">
+    <h2><em>N°03 —</em> THE PROCESS</h2>
+    <span class="no">FOUR MOVES · ZERO FIGHTS</span>
+  </div>
+  <div class="proc">
+    <div class="proc-row">
+      <span class="proc-no">01</span>
+      <div class="proc-t">WE WALK IT FIRST</div>
+      <div class="proc-d">Every home filmed and verified in person — light, noise, water pressure, landlord.<b>VIDEO-VERIFIED · NO EXCEPTIONS</b></div>
+    </div>
+    <div class="proc-row">
+      <span class="proc-no">02</span>
+      <div class="proc-t">APPLY IN 2 MIN</div>
+      <div class="proc-d">One short application, one real person reading it. Answers in hours, not weeks.<b>REAL HUMANS · FAST ANSWERS</b></div>
+    </div>
+    <div class="proc-row">
+      <span class="proc-no">03</span>
+      <div class="proc-t">SIGN ANYWHERE</div>
+      <div class="proc-d">A legal Italian contract, explained in English, signed from your phone. Deposit protected.<b>MAGIC SIGN · LEGAL &amp; BILINGUAL</b></div>
+    </div>
+    <div class="proc-row">
+      <span class="proc-no">04</span>
+      <div class="proc-t">KEYS IN 48H</div>
+      <div class="proc-d">Utilities live, pass in your Apple Wallet, our number in your phone.<b>MOVE-IN · CONCIERGE FROM DAY ONE</b></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ TARIFF ═════════ -->
+<section class="sec wrap" id="tariff" aria-label="Tariff">
+  <div class="shead">
+    <h2><em>N°04 —</em> THE TARIFF</h2>
+    <span class="no">PRINTED IN FULL — NOTHING HIDDEN</span>
+  </div>
+  <table class="tariff">
+    <thead><tr><th>Service</th><th class="dsc" style="display:table-cell">What happens</th><th style="text-align:right">Price</th></tr></thead>
+    <tbody>
+      <tr onclick="location.href='/apartments.html'">
+        <td class="svc">Ready Homes</td>
+        <td class="dsc">Video-verified, move-in this week, what you see is what exists.</td>
+        <td class="prc mono">from €1,000<small>/month</small></td>
+      </tr>
+      <tr onclick="location.href='/property-finding.html'">
+        <td class="svc">Property Finding</td>
+        <td class="dsc">We hunt the whole market — off-market included — in 10 days. Refund if we fail.</td>
+        <td class="prc mono">€350<small>upfront · deducted</small></td>
+      </tr>
+      <tr onclick="location.href='/deal-assistance.html'">
+        <td class="svc">Deal Assistance</td>
+        <td class="dsc">Found it yourself? We verify the landlord, fix the contract, guard the deposit.</td>
+        <td class="prc mono">€249<small>fixed</small></td>
+      </tr>
+      <tr onclick="location.href='/virtual-viewing.html'">
+        <td class="svc">Virtual Viewing</td>
+        <td class="dsc">Not in Rome yet? We go — live walkthrough, honest report, real answers.</td>
+        <td class="prc mono">€89<small>per viewing</small></td>
+      </tr>
+      <tr onclick="location.href='/concierge.html'">
+        <td class="svc">Concierge</td>
+        <td class="dsc">Cleaning, transfers, permits, 24/7 emergencies. Life, handled.</td>
+        <td class="prc mono">à la carte<small>from day one</small></td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ═════════ MANIFESTO ═════════ -->
+<section class="mani" aria-label="Manifesto">
+  <div class="wrap">
+    <span class="k">THE HOUSE POSITION</span>
+    <blockquote id="maniQ">If we can fix Rome's rental market, we can fix any market.</blockquote>
+    <div class="who"><b>VALENTINO</b> — FOUNDER · SIX YEARS IN THESE STREETS</div>
+  </div>
+</section>
+
+<!-- ═════════ FINALE ═════════ -->
+<section class="finale wrap" aria-label="Start">
+  <h2>YOUR SIZE:<br><em>ROME.</em></h2>
+  <div class="finale-cta">
+    <a class="prime" href="/apartments.html">OPEN THE COLLECTION <i>→</i></a>
+    <a href="/apartments.html?saved=1" id="ctaShort">YOUR SHORTLIST <i id="ctaShortN">0</i></a>
+    <a href="https://wa.me/393313251961" target="_blank" rel="noopener">TALK TO A HUMAN <i>~2 MIN</i></a>
+  </div>
+</section>
+
+<footer>
+  <div class="foot-legal">
+    <span>© 2026 BOOM — EGIDI IMMOBILIARE S.R.L. · VIA DEI CORONARI 181/184, 00186 ROMA · SEDE LEGALE: VIALE LIEGI 42, 00198 ROMA · P.IVA 17322991005 · REA RM-1710623</span>
+    <span><a href="/terms.html">TERMS</a> · <a href="/privacy.html">PRIVACY</a> · <a href="/previews">CONCEPT LAB</a></span>
+  </div>
+  <span class="foot-boom" aria-hidden="true">BOOM</span>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+'use strict';
+var reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+var hoverable=matchMedia('(hover: hover)').matches;
+var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){
+  return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
+var eur=function(n){return '€'+Math.round(n).toLocaleString('en-US');};
+var opt=function(u){return /^https?:\/\//.test(u)?'/_vercel/image?url='+encodeURIComponent(u)+'&w=760&q=72':u;};
+
+/* ═════ read bar ═════ */
+var readbar=document.getElementById('readbar');
+addEventListener('scroll',function(){
+  var h=document.documentElement.scrollHeight-innerHeight;
+  readbar.style.width=(h>0?scrollY/h*100:0)+'%';
+},{passive:true});
+
+/* ═════ gravity type — weight follows the cursor ═════ */
+(function(){
+  var h1=document.getElementById('gravity');if(!h1)return;
+  h1.querySelectorAll('.ln').forEach(function(ln){
+    var base=ln.classList.contains('thin')?120:180;
+    var out='';
+    ln.textContent.split('').forEach(function(ch){
+      out+=ch===' '?' ':'<span class="ch" data-b="'+base+'">'+esc(ch)+'</span>';
+    });
+    // keep the gold 48H. span styling by re-wrapping
+    ln.innerHTML=out;
+  });
+  // re-apply gold to the tail of line 3 (chars after "IN ")
+  var lines=h1.querySelectorAll('.ln');
+  if(lines[2]){
+    var chs=lines[2].querySelectorAll('.ch');
+    for(var i=2;i<chs.length;i++)chs[i].style.color='var(--gold)';
+  }
+  if(!hoverable||reduced)return;
+  var chars=[].slice.call(h1.querySelectorAll('.ch'));
+  var mx=-9999,my=-9999,raf=null;
+  function paint(){
+    raf=null;
+    for(var i=0;i<chars.length;i++){
+      var c=chars[i],r=c.getBoundingClientRect();
+      var dx=(r.left+r.width/2)-mx,dy=(r.top+r.height/2)-my;
+      var d=Math.sqrt(dx*dx+dy*dy);
+      var b=+c.dataset.b;
+      var w=d<260?Math.round(b+(900-b)*Math.pow(1-d/260,1.7)):b;
+      c.style.fontVariationSettings="'wght' "+w;
+    }
+  }
+  h1.addEventListener('pointermove',function(e){mx=e.clientX;my=e.clientY;if(!raf)raf=requestAnimationFrame(paint);},{passive:true});
+  h1.addEventListener('pointerleave',function(){mx=-9999;my=-9999;if(!raf)raf=requestAnimationFrame(paint);});
+})();
+
+/* ═════ shared shortlist (same key the discovery app reads) ═════ */
+var saved=new Set();
+try{saved=new Set(JSON.parse(localStorage.getItem('boom:saved')||'[]'));}catch(e){}
+function persistSaved(){try{localStorage.setItem('boom:saved',JSON.stringify([...saved]));}catch(e){}}
+var shortN=document.getElementById('shortN'),ctaShortN=document.getElementById('ctaShortN');
+function syncShort(pop){
+  if(shortN){shortN.textContent=saved.size;
+    if(pop){shortN.classList.add('pop');setTimeout(function(){shortN.classList.remove('pop');},350);}}
+  if(ctaShortN)ctaShortN.textContent=saved.size;
+}
+syncShort(false);
+var toast=document.getElementById('toast'),toastT=null;
+function showToast(html){
+  if(!toast)return;
+  toast.innerHTML=html;toast.classList.add('on');
+  clearTimeout(toastT);toastT=setTimeout(function(){toast.classList.remove('on');},2600);
+}
+
+/* ═════ the collection — data, render, drag, save ═════ */
+var FALLBACK=[
+ {id:'sample1',name:'Villa Ada Studio',zone:'Villa Ada',price:1200,beds:1,sqm:40,video:true,img:'https://i.imgur.com/QOAu6k1.jpeg'},
+ {id:'sample2',name:'Pigneto Terrace',zone:'Pigneto',price:1700,beds:2,sqm:80,video:false,img:'https://i.imgur.com/tJnYADn.jpeg'},
+ {id:'sample3',name:'Coronari Classic',zone:'Centro Storico',price:2000,beds:1,sqm:70,video:true,img:'https://i.imgur.com/8LVxrhs.jpeg'},
+ {id:'sample4',name:'Monti Loft',zone:'Monti',price:1850,beds:1,sqm:55,video:true,img:'https://i.imgur.com/hxai5bz.jpeg'},
+ {id:'sample5',name:'Prati Grand',zone:'Prati',price:2300,beds:2,sqm:95,video:false,img:'https://i.imgur.com/s2es0MN.jpeg'}
+];
+var HOMES=FALLBACK.slice(),isLive=false;
+var rail=document.getElementById('rail');
+function renderRail(){
+  if(!rail)return;
+  rail.innerHTML=HOMES.slice(0,10).map(function(h,i){
+    var on=saved.has(h.id);
+    return '<article class="look">'
+      +'<a href="'+(isLive?'/listing/'+encodeURIComponent(h.id):'/apartments.html')+'" aria-label="'+esc(h.name)+'">'
+      +'<div class="look-ph"><i style="background-image:url(\''+esc(opt(h.img))+'\')"></i>'
+      +'<span class="look-no">LOOK '+String(i+1).padStart(2,'0')+(h.video?' — FILM':'')+'</span></div>'
+      +'<div class="look-b"><div class="look-price">'+eur(h.price)+' <i>/MO</i></div>'
+      +'<div class="look-name">'+esc(h.name)+'</div>'
+      +'<div class="look-meta">'+(h.sqm?'<b>'+h.sqm+'M²</b>':'')+'<span>'+h.beds+' BED</span><span>'+esc(h.zone).toUpperCase()+'</span></div>'
+      +'</div></a>'
+      +'<button class="look-save'+(on?' on':'')+'" data-id="'+esc(h.id)+'" aria-label="'+(on?'Remove from':'Add to')+' shortlist" aria-pressed="'+on+'">'
+      +'<svg viewBox="0 0 24 24"><path d="M12 20s-7-4.5-9.2-8.6C1.2 8.4 3 5 6.4 5c2 0 3.4 1.1 4.1 2.3h3c.7-1.2 2.1-2.3 4.1-2.3 3.4 0 5.2 3.4 3.6 6.4C19 15.5 12 20 12 20z" transform="scale(0.92) translate(1,0)"/></svg>'
+      +'</button></article>';
+  }).join('');
+}
+renderRail();
+rail.addEventListener('click',function(e){
+  var btn=e.target.closest('.look-save');if(!btn)return;
+  e.preventDefault();
+  var id=btn.dataset.id;
+  if(saved.has(id)){saved.delete(id);btn.classList.remove('on');btn.setAttribute('aria-pressed','false');
+    showToast('REMOVED FROM SHORTLIST — <b>'+saved.size+'</b> KEPT');}
+  else{saved.add(id);btn.classList.add('on');btn.setAttribute('aria-pressed','true');
+    showToast('KEPT — <b>'+saved.size+'</b> IN YOUR SHORTLIST · <a href="/apartments.html?saved=1">VIEW</a>');}
+  persistSaved();syncShort(true);
+});
+/* drag to browse */
+(function(){
+  var down=false,startX=0,startL=0,moved=false;
+  rail.addEventListener('pointerdown',function(e){
+    if(e.pointerType!=='mouse')return;
+    down=true;moved=false;startX=e.clientX;startL=rail.scrollLeft;rail.classList.add('drag');
+  });
+  addEventListener('pointermove',function(e){
+    if(!down)return;
+    var dx=e.clientX-startX;
+    if(Math.abs(dx)>6)moved=true;
+    rail.scrollLeft=startL-dx;
+  },{passive:true});
+  addEventListener('pointerup',function(){down=false;rail.classList.remove('drag');});
+  rail.addEventListener('click',function(e){if(moved){e.preventDefault();moved=false;}},true);
+})();
+var slide=function(dir){rail.scrollBy({left:dir*Math.min(rail.clientWidth*0.85,420),behavior:reduced?'auto':'smooth'});};
+var rl=document.getElementById('railL'),rr=document.getElementById('railR');
+if(rl)rl.addEventListener('click',function(){slide(-1);});
+if(rr)rr.addEventListener('click',function(){slide(1);});
+
+/* live upgrade */
+fetch('/api/listings').then(function(r){return r.ok?r.json():null;}).then(function(j){
+  if(!j||!j.ok||!Array.isArray(j.listings))return;
+  var homes=j.listings.filter(function(d){
+    var s=((d.status||d.availabilityStatus||'available')+'').toLowerCase();
+    return !(s==='rented'||s==='affittato'||s==='off_market'||s==='draft'||s==='hidden'||s==='waitlist');
+  }).map(function(d){
+    var c=d.createdAt,t=!c?0:(c.seconds?c.seconds*1000:(typeof c==='string'?(Date.parse(c)||0):(c>1e12?c:c*1000)));
+    var feats=Array.isArray(d.features)?d.features:[];
+    return{id:d.id,name:d.name||d.title||'Apartment in Rome',zone:d.zone||d.neighborhood||'Rome',
+      price:+d.price||0,beds:d.beds!=null?+d.beds:(d.bedrooms!=null?+d.bedrooms:1),
+      sqm:+d.sqm||+d.size||0,video:!!(d.videoUrl||d.youtubeUrl),
+      furnished:feats.some(function(f){return /furnish/i.test(f);}),
+      img:(Array.isArray(d.images)&&d.images[0])||d.image||'',t:t};
+  }).filter(function(h){return h.price&&h.img;});
+  if(homes.length<3)return;
+  homes.sort(function(a,b){return (b.video-a.video)||(b.t-a.t);});
+  HOMES=homes;isLive=true;renderRail();
+  var lv=document.getElementById('railLive');
+  if(lv)lv.innerHTML='<span class="live-dot">LIVE INDEX — '+homes.length+' HOMES</span>';
+  fitCount(true);
+}).catch(function(){});
+
+/* ═════ fitting room — chips + live match count ═════ */
+var fitState={zone:null,budget:null,beds:0,furn:false,video:false};
+function chipsBind(id,fn){
+  var box=document.getElementById(id);if(!box)return;
+  box.addEventListener('click',function(e){
+    var c=e.target.closest('.chip');if(!c)return;
+    fn(c,box);fitCount(true);
+  });
+}
+function radio(c,box,key,val){
+  var was=c.classList.contains('on');
+  box.querySelectorAll('.chip').forEach(function(x){x.classList.remove('on');});
+  if(!was){c.classList.add('on');fitState[key]=val;}else{fitState[key]=null;}
+}
+chipsBind('chipZone',function(c,box){radio(c,box,'zone',c.dataset.zone);});
+chipsBind('chipBudget',function(c,box){radio(c,box,'budget',+c.dataset.budget);});
+chipsBind('chipCut',function(c){
+  c.classList.toggle('on');var on=c.classList.contains('on');
+  if(c.dataset.beds)fitState.beds=on?+c.dataset.beds:0;
+  if(c.dataset.furn)fitState.furn=on;
+  if(c.dataset.video)fitState.video=on;
+});
+var fitN=document.getElementById('fitN');
+function fitMatches(){
+  return HOMES.filter(function(h){
+    if(fitState.zone&&(h.zone||'').toLowerCase().indexOf(fitState.zone.toLowerCase())===-1)return false;
+    if(fitState.budget&&h.price>fitState.budget)return false;
+    if(fitState.beds&&h.beds<fitState.beds)return false;
+    if(fitState.video&&!h.video)return false;
+    if(fitState.furn&&isLive&&!h.furnished)return false;
+    return true;
+  }).length;
+}
+function fitCount(pop){
+  if(!fitN)return;
+  var any=fitState.zone||fitState.budget||fitState.beds||fitState.furn||fitState.video;
+  fitN.textContent=any?(fitMatches()+(isLive?'':'+')+' →'):'ALL →';
+  if(pop&&!reduced){fitN.classList.add('pop');setTimeout(function(){fitN.classList.remove('pop');},300);}
+}
+fitCount(false);
+document.getElementById('fitGo').addEventListener('click',function(){
+  var p=new URLSearchParams();
+  if(fitState.zone)p.set('q',fitState.zone);
+  if(fitState.budget)p.set('budget',fitState.budget);
+  if(fitState.beds)p.set('beds',fitState.beds);
+  if(fitState.furn)p.set('furn','1');
+  if(fitState.video)p.set('video','1');
+  location.href='/apartments.html'+(p.toString()?'?'+p.toString():'');
+});
+
+/* ═════ zone stories ═════ */
+var STORIES=[
+ {z:'Trastevere',cap:'Cobbles, ivy, bells at eight.',img:'https://i.imgur.com/8LVxrhs.jpeg'},
+ {z:'Monti',cap:'The village hiding downtown.',img:'https://i.imgur.com/hxai5bz.jpeg'},
+ {z:'Prati',cap:'Order, elegance, the dome next door.',img:'https://i.imgur.com/s2es0MN.jpeg'},
+ {z:'Testaccio',cap:'Rome’s kitchen since forever.',img:'https://i.imgur.com/QOAu6k1.jpeg'},
+ {z:'Pigneto',cap:'Bohemian, loud, alive at midnight.',img:'https://i.imgur.com/tJnYADn.jpeg'},
+ {z:'Centro Storico',cap:'You live inside the postcard.',img:'https://i.imgur.com/8LVxrhs.jpeg'}
+];
+(function(){
+  var stage=document.getElementById('storyStage'),bars=document.getElementById('storyBars'),
+      cap=document.getElementById('storyCap'),side=document.getElementById('storySide');
+  if(!stage||!bars||!cap||!side)return;
+  var DUR=4200,cur=0,t0=performance.now(),paused=false,raf=null;
+  STORIES.forEach(function(s,i){
+    var im=document.createElement('div');im.className='story-img';im.style.backgroundImage='url('+s.img+')';
+    im.setAttribute('role','img');im.setAttribute('aria-label',s.z);
+    stage.insertBefore(im,bars);
+    var bar=document.createElement('i');bars.appendChild(bar);
+    var row=document.createElement('button');row.type='button';row.className='story-row';
+    row.setAttribute('role','tab');
+    row.innerHTML='<span>'+esc(s.z)+'</span><small>0'+(i+1)+' — VIEW HOMES</small>';
+    row.addEventListener('click',function(){go(i,true);});
+    row.addEventListener('dblclick',function(){location.href='/apartments.html?q='+encodeURIComponent(s.z);});
+    side.appendChild(row);
+  });
+  var hint=document.createElement('div');hint.className='story-hint';
+  hint.textContent='TAP A ZONE TO JUMP — DOUBLE-TAP TO OPEN ITS HOMES';
+  side.appendChild(hint);
+  var imgs=stage.querySelectorAll('.story-img'),rows=side.querySelectorAll('.story-row'),
+      barEls=bars.querySelectorAll('i');
+  function paintBars(p){
+    barEls.forEach(function(b,i){
+      b.style.setProperty('--p',i<cur?1:(i===cur?p:0));
+    });
+  }
+  function go(i,user){
+    cur=(i+STORIES.length)%STORIES.length;t0=performance.now();
+    imgs.forEach(function(im,k){im.classList.toggle('on',k===cur);});
+    rows.forEach(function(r,k){r.classList.toggle('on',k===cur);r.setAttribute('aria-selected',k===cur);});
+    cap.innerHTML='<span>0'+(cur+1)+' / 0'+STORIES.length+' — '+esc(STORIES[cur].z).toUpperCase()+'</span>'
+      +'<b>'+esc(STORIES[cur].cap)+'</b>';
+    paintBars(0);
+  }
+  go(0,false);
+  document.getElementById('storyNext').addEventListener('click',function(){go(cur+1,true);});
+  document.getElementById('storyPrev').addEventListener('click',function(){go(cur-1,true);});
+  stage.addEventListener('pointerdown',function(){paused=true;});
+  addEventListener('pointerup',function(){if(paused){paused=false;t0=performance.now()-progress()*DUR;}});
+  var io=new IntersectionObserver(function(es){es.forEach(function(e){
+    if(e.isIntersecting){if(!raf&&!reduced)raf=requestAnimationFrame(tick);}
+    else if(raf){cancelAnimationFrame(raf);raf=null;}
+  });},{threshold:0.25});
+  io.observe(stage);
+  function progress(){return Math.min(1,(performance.now()-t0)/DUR);}
+  function tick(){
+    if(!paused){
+      var p=progress();
+      paintBars(p);
+      if(p>=1)go(cur+1,false);
+    }
+    raf=requestAnimationFrame(tick);
+  }
+  if(reduced)paintBars(1);
+})();
+
+/* ═════ process — weight scrubs with scroll ═════ */
+(function(){
+  var rows=[].slice.call(document.querySelectorAll('.proc-t'));
+  if(!rows.length||reduced)return;
+  function tick(){
+    var vh=innerHeight;
+    rows.forEach(function(el){
+      var r=el.getBoundingClientRect();
+      var c=(r.top+r.height/2)/vh;           /* 0 top → 1 bottom */
+      var d=Math.abs(c-0.48);
+      var w=Math.round(200+700*Math.max(0,1-d*2.4));
+      el.style.setProperty('--w',Math.min(900,Math.max(200,w)));
+    });
+  }
+  addEventListener('scroll',tick,{passive:true});tick();
+})();
+
+/* ═════ manifesto — word reveal ═════ */
+(function(){
+  var q=document.getElementById('maniQ');if(!q)return;
+  var GOLD=['fix','any'];
+  q.innerHTML=q.textContent.split(/\s+/).map(function(w){
+    var g=GOLD.indexOf(w.replace(/[^a-z]/gi,'').toLowerCase())>-1?' g':'';
+    return '<span class="w'+g+'">'+esc(w)+'</span>';
+  }).join(' ');
+  var words=q.querySelectorAll('.w');
+  function tick(){
+    var r=q.getBoundingClientRect();
+    var p=(innerHeight*0.85-r.top)/(r.height+innerHeight*0.4);
+    p=Math.max(0,Math.min(1,p));
+    var n=Math.ceil(p*words.length);
+    words.forEach(function(w,i){w.classList.toggle('on',i<n||reduced);});
+  }
+  addEventListener('scroll',tick,{passive:true});tick();
+})();
+
+/* ═════ reveals ═════ */
+var io2=new IntersectionObserver(function(es){es.forEach(function(e){
+  if(e.isIntersecting){e.target.classList.add('on');io2.unobserve(e.target);}
+});},{threshold:0.12,rootMargin:'0px 0px -30px 0px'});
+document.querySelectorAll('.rv').forEach(function(el){io2.observe(el);});
+})();
+</script>
+</body>
+</html>
