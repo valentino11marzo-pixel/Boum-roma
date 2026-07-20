@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BOOM POP — Rome, but louder</title>
+<!-- Concept page: POP / behavioral edition. Kept out of the index until adopted. -->
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="BOOM POP — vibrant, ultra-tech, engineered on consumption science. Video-verified Rome homes, keys in 48 hours.">
+<meta name="theme-color" content="#0B0B12">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800;900&family=Space+Grotesk:wght@300;400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://i.imgur.com" crossorigin>
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   BOOM POP — vibrant · ultra-tech · behavioral by design
+   Every block is wired to a consumption principle; flip SCIENCE: ON
+   and the page annotates itself.
+   ═══════════════════════════════════════════════════════════════ */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
+:root{
+  --void:#0B0B12;
+  --void-2:#12121C;
+  --cream:#F6F5EF;
+  --cream-2:rgba(246,245,239,0.62);
+  --cream-3:rgba(246,245,239,0.34);
+  --lime:#D6FF3F;
+  --violet:#8B5CF6;
+  --coral:#FF5D73;
+  --cyan:#2EE6D6;
+  --gold:#FFD84D;
+  --line:rgba(246,245,239,0.14);
+  --disp:'Unbounded',sans-serif;
+  --sans:'Space Grotesk',-apple-system,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --ease:cubic-bezier(0.22,1,0.36,1);
+  --snap:cubic-bezier(0.5,1.6,0.4,1);
+  --pad:clamp(18px,4vw,56px);
+}
+
+html{scroll-behavior:smooth;overflow-x:clip}
+body{
+  font-family:var(--sans);font-weight:400;
+  background:var(--void);color:var(--cream);
+  line-height:1.55;overflow-x:clip;
+}
+::selection{background:var(--lime);color:var(--void)}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;background:none;border:0;cursor:pointer;color:inherit}
+:focus-visible{outline:2px solid var(--lime);outline-offset:3px;border-radius:4px}
+.mono{font-family:var(--mono)}
+.wrap{max-width:1340px;margin:0 auto;padding-left:var(--pad);padding-right:var(--pad)}
+
+.skip{position:fixed;top:-60px;left:16px;z-index:500;background:var(--lime);color:var(--void);
+  padding:10px 18px;font-size:13px;font-weight:700;border-radius:8px;transition:top .25s}
+.skip:focus{top:16px}
+
+/* mesh blobs */
+.mesh{position:fixed;inset:0;z-index:0;pointer-events:none;filter:blur(70px);opacity:.5}
+.mesh i{position:absolute;border-radius:50%;mix-blend-mode:screen}
+.mesh i:nth-child(1){width:52vw;height:52vw;background:radial-gradient(circle,rgba(139,92,246,.5),transparent 65%);
+  top:-18vw;right:-12vw;animation:drift 26s ease-in-out infinite}
+.mesh i:nth-child(2){width:38vw;height:38vw;background:radial-gradient(circle,rgba(46,230,214,.30),transparent 65%);
+  bottom:-10vw;left:-10vw;animation:drift 30s ease-in-out -8s infinite reverse}
+.mesh i:nth-child(3){width:30vw;height:30vw;background:radial-gradient(circle,rgba(255,93,115,.25),transparent 65%);
+  top:38%;left:44%;animation:drift 22s ease-in-out -14s infinite}
+@keyframes drift{
+  0%,100%{transform:translate(0,0) scale(1)}
+  33%{transform:translate(4vw,-3vw) scale(1.08)}
+  66%{transform:translate(-3vw,3vw) scale(.94)}
+}
+
+/* ————— header ————— */
+.top{position:fixed;top:0;left:0;right:0;z-index:120;
+  background:color-mix(in srgb,var(--void) 82%,transparent);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line)}
+.top-in{display:flex;align-items:center;gap:14px;height:66px}
+.logo{font-family:var(--disp);font-weight:900;font-size:19px;letter-spacing:0.02em}
+.logo i{font-style:normal;color:var(--lime)}
+/* goal gradient meter */
+.meter{flex:1;display:flex;align-items:center;gap:12px;min-width:0}
+.meter .lab{font-family:var(--mono);font-size:9px;letter-spacing:0.18em;color:var(--cream-3);white-space:nowrap}
+.meter .bar{flex:1;height:10px;border-radius:99px;border:1px solid var(--line);overflow:hidden;min-width:60px}
+.meter .bar i{display:block;height:100%;width:12%;border-radius:99px;
+  background:linear-gradient(90deg,var(--violet),var(--cyan),var(--lime));
+  transition:width .5s var(--ease)}
+.meter .pct{font-family:var(--mono);font-size:11px;color:var(--lime);min-width:42px;text-align:right}
+.sci-tog{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;
+  letter-spacing:0.14em;color:var(--cream-2);border:1px solid var(--line);border-radius:99px;
+  padding:8px 14px;transition:border-color .25s,color .25s}
+.sci-tog b{font-weight:500;color:var(--cream-3)}
+.sci-tog.on{border-color:var(--lime);color:var(--lime)}
+.sci-tog.on b{color:var(--lime)}
+.top-wa{font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;font-weight:500;
+  background:var(--lime);color:var(--void);border-radius:99px;padding:11px 18px;
+  transition:transform .3s var(--snap),background .25s;white-space:nowrap}
+.top-wa:hover{transform:scale(1.05) rotate(-1deg);background:var(--gold)}
+@media(max-width:760px){.meter .lab{display:none}.sci-tog span{display:none}}
+
+/* science tags */
+.sci-tag{
+  position:absolute;z-index:60;top:-13px;left:14px;
+  font-family:var(--mono);font-size:9px;letter-spacing:0.1em;
+  background:var(--void);color:var(--lime);border:1px solid var(--lime);
+  border-radius:6px;padding:4px 9px;
+  opacity:0;transform:translateY(6px) rotate(-1deg);pointer-events:none;
+  transition:opacity .35s,transform .4s var(--snap);
+  max-width:min(86vw,340px);white-space:normal;line-height:1.45;
+}
+body.science .sci-tag{opacity:1;transform:none}
+.sci-host{position:relative}
+
+/* ————— hero ————— */
+.hero{position:relative;z-index:2;padding-top:130px;padding-bottom:40px;overflow:clip}
+.hero-kick{display:inline-flex;align-items:center;gap:10px;font-family:var(--mono);
+  font-size:10px;letter-spacing:0.22em;color:var(--cream-2);
+  border:1px solid var(--line);border-radius:99px;padding:8px 16px}
+.hero-kick i{width:7px;height:7px;border-radius:50%;background:var(--lime);
+  box-shadow:0 0 12px var(--lime);animation:blip 1.6s infinite}
+@keyframes blip{50%{opacity:.35}}
+.hero h1{
+  font-family:var(--disp);font-weight:900;text-transform:uppercase;
+  font-size:clamp(38px,7.8vw,108px);line-height:1.02;letter-spacing:-0.01em;
+  margin-top:26px;max-width:14ch;
+}
+.hero h1 .l1{color:var(--cream)}
+.hero h1 .flip{color:var(--lime);display:inline-block;min-width:6ch}
+.hero h1 .flip span{display:inline-block;animation:flipin .5s var(--snap)}
+@keyframes flipin{from{transform:translateY(60%) rotate(3deg);opacity:0}to{transform:none;opacity:1}}
+.hero-sub{margin-top:24px;font-size:clamp(15px,1.8vw,19px);color:var(--cream-2);max-width:54ch}
+.hero-sub b{color:var(--cream);font-weight:700}
+.hero-cta{display:flex;flex-wrap:wrap;gap:14px;margin-top:32px}
+.big-btn{
+  font-family:var(--disp);font-weight:800;font-size:clamp(14px,1.6vw,18px);
+  background:var(--lime);color:var(--void);border-radius:18px;
+  padding:20px 34px;border:2px solid var(--lime);
+  box-shadow:6px 6px 0 var(--violet);
+  transition:transform .25s var(--snap),box-shadow .25s;
+  display:inline-flex;align-items:center;gap:12px;
+}
+.big-btn:hover{transform:translate(-2px,-2px) rotate(-0.5deg);box-shadow:10px 10px 0 var(--violet)}
+.big-btn:active{transform:translate(3px,3px);box-shadow:2px 2px 0 var(--violet)}
+.ghost-btn{
+  font-family:var(--mono);font-size:12px;letter-spacing:0.14em;
+  border:2px solid var(--line);border-radius:18px;padding:20px 28px;color:var(--cream-2);
+  transition:border-color .25s,color .25s,transform .25s var(--snap);
+  display:inline-flex;align-items:center;
+}
+.ghost-btn:hover{border-color:var(--cyan);color:var(--cyan);transform:translateY(-2px)}
+/* stickers */
+.stickers{position:absolute;right:var(--pad);top:120px;display:none;flex-direction:column;gap:18px;z-index:3}
+@media(min-width:1080px){.stickers{display:flex}}
+.stick{
+  font-family:var(--disp);font-weight:800;text-align:center;
+  border:2px solid var(--void);border-radius:22px;padding:18px 22px;
+  transform:rotate(var(--r,3deg));box-shadow:5px 6px 0 rgba(0,0,0,0.45);
+  animation:bob 5s ease-in-out infinite;
+}
+.stick small{display:block;font-family:var(--mono);font-weight:400;font-size:9px;letter-spacing:0.16em;margin-top:4px}
+.stick.s1{background:var(--lime);color:var(--void);--r:4deg}
+.stick.s2{background:var(--violet);color:var(--cream);--r:-3deg;animation-delay:-1.6s}
+.stick.s3{background:var(--coral);color:var(--void);--r:2deg;animation-delay:-3.1s}
+@keyframes bob{0%,100%{transform:rotate(var(--r)) translateY(0)}50%{transform:rotate(calc(var(--r) * -0.6)) translateY(-8px)}}
+
+/* ————— mission (Zeigarnik) ————— */
+.sec{position:relative;z-index:2;padding-top:clamp(64px,9vh,110px);padding-bottom:clamp(64px,9vh,110px)}
+.headline{display:flex;flex-wrap:wrap;align-items:baseline;gap:12px 22px;margin-bottom:30px}
+.headline h2{font-family:var(--disp);font-weight:800;text-transform:uppercase;
+  font-size:clamp(24px,4vw,46px);letter-spacing:-0.01em}
+.headline h2 i{font-style:normal;color:var(--lime)}
+.headline .aux{font-family:var(--mono);font-size:10px;letter-spacing:0.2em;color:var(--cream-3);text-transform:uppercase}
+.mission{
+  border:2px solid var(--cream);border-radius:26px;background:var(--void-2);
+  box-shadow:8px 8px 0 var(--violet);overflow:clip;
+}
+.mission-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;
+  padding:18px 24px;border-bottom:2px solid var(--cream)}
+.mission-head b{font-family:var(--disp);font-weight:800;font-size:17px;text-transform:uppercase}
+.mission-head .ring{display:flex;align-items:center;gap:12px;font-family:var(--mono);font-size:11px;color:var(--cream-2)}
+.mission-head .ring b{font-family:var(--mono);font-weight:500;font-size:13px;color:var(--lime)}
+.mission-list{display:grid;grid-template-columns:1fr}
+@media(min-width:900px){.mission-list{grid-template-columns:1fr 1fr}}
+.mstep{
+  display:flex;align-items:center;gap:16px;padding:18px 24px;
+  border-bottom:1px solid var(--line);text-align:left;
+  transition:background .2s;
+}
+.mstep:hover{background:rgba(214,255,63,0.05)}
+.mstep .box{
+  flex:none;width:28px;height:28px;border-radius:9px;border:2px solid var(--cream-3);
+  display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:var(--void);
+  transition:background .25s,border-color .25s,transform .3s var(--snap);
+}
+.mstep.done .box{background:var(--lime);border-color:var(--lime);transform:rotate(-6deg)}
+.mstep .tx{flex:1}
+.mstep .tx b{display:block;font-weight:700;font-size:15px}
+.mstep.done .tx b{text-decoration:line-through;text-decoration-color:var(--lime);color:var(--cream-2)}
+.mstep .tx span{font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--cream-3)}
+.mstep .go{font-family:var(--mono);font-size:10px;color:var(--cyan);white-space:nowrap}
+.mission-foot{padding:14px 24px;font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--cream-3)}
+.mission-foot b{color:var(--coral);font-weight:500}
+
+/* ————— lucky dip (variable reward) ————— */
+.dip-grid{display:grid;grid-template-columns:1fr;gap:22px}
+@media(min-width:980px){.dip-grid{grid-template-columns:1.05fr 1fr;align-items:stretch}}
+.dip{
+  position:relative;border:2px solid var(--cream);border-radius:26px;overflow:clip;
+  background:var(--void-2);box-shadow:8px 8px 0 var(--coral);
+  display:flex;flex-direction:column;min-height:430px;
+}
+.dip-ph{position:relative;flex:1;min-height:250px;background:#191925 center/cover no-repeat;
+  transition:opacity .18s}
+.dip.spin .dip-ph{opacity:.2}
+.dip-ph::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 55%,rgba(11,11,18,0.8))}
+.dip-tag{position:absolute;top:14px;left:14px;font-family:var(--mono);font-size:9.5px;letter-spacing:0.16em;
+  background:var(--void);border:1px solid var(--cyan);color:var(--cyan);border-radius:8px;padding:6px 10px}
+.dip-b{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 16px;
+  padding:18px 22px;border-top:2px solid var(--cream)}
+.dip-b .pr{font-family:var(--disp);font-weight:800;font-size:24px}
+.dip-b .pr i{font-style:normal;font-family:var(--mono);font-weight:400;font-size:10px;color:var(--cream-3)}
+.dip-b .nm{width:100%;color:var(--cream-2);font-size:15px}
+.dip-b .mt{font-family:var(--mono);font-size:10px;letter-spacing:0.14em;color:var(--cream-3);text-transform:uppercase}
+.dip-actions{display:flex;gap:12px;padding:0 22px 22px}
+.dip-again{
+  flex:1;font-family:var(--disp);font-weight:800;font-size:15px;
+  background:var(--coral);color:var(--void);border:2px solid var(--coral);border-radius:14px;
+  padding:15px 18px;box-shadow:4px 4px 0 rgba(0,0,0,0.4);
+  transition:transform .22s var(--snap),box-shadow .22s;
+}
+.dip-again:hover{transform:translate(-1px,-1px) rotate(-0.6deg);box-shadow:7px 7px 0 rgba(0,0,0,0.4)}
+.dip-again:active{transform:translate(2px,2px);box-shadow:1px 1px 0 rgba(0,0,0,0.4)}
+.dip-open{
+  font-family:var(--mono);font-size:11px;letter-spacing:0.12em;
+  border:2px solid var(--line);border-radius:14px;padding:15px 18px;color:var(--cream-2);
+  display:inline-flex;align-items:center;transition:border-color .2s,color .2s;
+}
+.dip-open:hover{border-color:var(--lime);color:var(--lime)}
+.dip-count{position:absolute;bottom:14px;right:16px;z-index:2;font-family:var(--mono);
+  font-size:9.5px;letter-spacing:0.14em;color:var(--cream-3)}
+/* grid of homes */
+.pool{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.pool .cell{
+  position:relative;border:2px solid var(--line);border-radius:20px;overflow:clip;
+  background:#191925 center/cover no-repeat;aspect-ratio:4/3.4;
+  transition:border-color .25s,transform .3s var(--snap);
+}
+.pool .cell:hover{border-color:var(--cyan);transform:translateY(-3px) rotate(-0.4deg)}
+.pool .cell::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,rgba(11,11,18,0.85))}
+.pool .cap{position:absolute;left:12px;bottom:10px;right:44px;z-index:2}
+.pool .cap b{font-family:var(--disp);font-weight:800;font-size:15px;display:block}
+.pool .cap span{font-family:var(--mono);font-size:9px;letter-spacing:0.12em;color:var(--cream-2);text-transform:uppercase}
+.savebtn{
+  position:absolute;right:8px;bottom:8px;z-index:3;width:36px;height:36px;border-radius:12px;
+  background:var(--void);border:2px solid var(--line);
+  display:flex;align-items:center;justify-content:center;
+  transition:transform .25s var(--snap),background .2s,border-color .2s;
+}
+.savebtn svg{width:15px;height:15px;fill:none;stroke:var(--cream);stroke-width:2}
+.savebtn:hover{transform:scale(1.12)}
+.savebtn:active{transform:scale(.85)}
+.savebtn.on{background:var(--lime);border-color:var(--lime)}
+.savebtn.on svg{fill:var(--void);stroke:var(--void)}
+.pool-foot{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;
+  font-family:var(--mono);font-size:10px;letter-spacing:0.16em;color:var(--cream-3);text-transform:uppercase}
+.pool-foot a{color:var(--cyan)}
+.pool-foot .lv{color:#69E8A4}
+.pool-foot .lv::before{content:'●';margin-right:7px;animation:blip 1.8s infinite}
+
+/* ————— machine ————— */
+.mach{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(min-width:980px){.mach{grid-template-columns:repeat(4,1fr)}}
+.gauge{
+  border:2px solid var(--cream);border-radius:22px;padding:20px;
+  background:var(--void-2);
+  transition:transform .3s var(--snap),box-shadow .3s;
+  box-shadow:0 0 0 var(--g,var(--cyan));
+}
+.gauge:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 var(--g,var(--cyan))}
+.gauge .n{font-family:var(--disp);font-weight:900;font-size:clamp(28px,4vw,44px);line-height:1;color:var(--g,var(--cyan))}
+.gauge .n small{font-size:0.5em}
+.gauge b{display:block;font-weight:700;font-size:14px;margin-top:8px;text-transform:uppercase}
+.gauge span{display:block;font-size:12.5px;color:var(--cream-2);margin-top:4px}
+.gauge.g1{--g:var(--cyan)}.gauge.g2{--g:var(--lime)}.gauge.g3{--g:var(--violet)}.gauge.g4{--g:var(--coral)}
+
+/* ————— services ————— */
+.svc-grid{display:grid;grid-template-columns:1fr;gap:16px}
+@media(min-width:760px){.svc-grid{grid-template-columns:1fr 1fr}}
+@media(min-width:1100px){.svc-grid{grid-template-columns:repeat(4,1fr)}}
+.svc{
+  position:relative;border:2px solid var(--cream);border-radius:24px;padding:24px;
+  background:var(--void-2);display:flex;flex-direction:column;gap:8px;
+  transition:transform .3s var(--snap),box-shadow .3s;box-shadow:0 0 0 var(--c,var(--lime));
+}
+.svc:hover{transform:translate(-3px,-3px) rotate(-0.4deg);box-shadow:8px 8px 0 var(--c,var(--lime))}
+.svc.c1{--c:var(--lime)}.svc.c2{--c:var(--cyan)}.svc.c3{--c:var(--violet)}.svc.c4{--c:var(--coral)}
+.svc .pr{font-family:var(--disp);font-weight:900;font-size:30px;color:var(--c)}
+.svc .pr small{font-family:var(--mono);font-weight:400;font-size:10px;color:var(--cream-3);letter-spacing:0.1em}
+.svc b{font-size:17px;font-weight:700;text-transform:uppercase}
+.svc p{font-size:13.5px;color:var(--cream-2);flex:1}
+.svc .go{font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;color:var(--c)}
+
+/* ————— zones ————— */
+.zrows{display:flex;flex-direction:column;gap:12px}
+.zrow{display:flex;gap:12px;overflow:hidden}
+.zrow-in{display:flex;gap:12px;animation:zslide var(--d,26s) linear infinite;width:max-content}
+.zrow:nth-child(2) .zrow-in{animation-direction:reverse}
+@keyframes zslide{to{transform:translateX(-50%)}}
+.zpill{
+  font-family:var(--disp);font-weight:800;font-size:clamp(16px,2.4vw,26px);text-transform:uppercase;
+  border:2px solid var(--line);border-radius:99px;padding:14px 26px;white-space:nowrap;
+  transition:background .2s,color .2s,border-color .2s;
+}
+.zpill i{font-style:normal;font-family:var(--mono);font-weight:400;font-size:10px;letter-spacing:0.14em;
+  color:var(--cream-3);margin-left:10px}
+.zpill:hover{background:var(--lime);color:var(--void);border-color:var(--lime)}
+.zpill:hover i{color:var(--void)}
+
+/* ————— finale ————— */
+.finale{position:relative;z-index:2;text-align:center;padding-top:clamp(90px,13vh,160px);padding-bottom:clamp(90px,13vh,160px);overflow:clip}
+.finale h2{font-family:var(--disp);font-weight:900;text-transform:uppercase;
+  font-size:clamp(40px,9vw,124px);line-height:.98;letter-spacing:-0.01em}
+.finale h2 i{font-style:normal;color:var(--lime)}
+.finale .done-lab{font-family:var(--mono);font-size:11px;letter-spacing:0.26em;color:var(--cream-3);
+  text-transform:uppercase;margin-top:20px}
+.finale .done-lab b{color:var(--lime);font-weight:500}
+.finale-cta{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;margin-top:38px}
+#confetti{position:absolute;inset:0;pointer-events:none;z-index:1}
+
+/* ————— footer ————— */
+footer{position:relative;z-index:2;border-top:1px solid var(--line);
+  padding:30px var(--pad);display:flex;flex-wrap:wrap;gap:12px 34px;justify-content:space-between;
+  font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--cream-3)}
+footer a{color:var(--cream-2)}
+footer a:hover{color:var(--lime)}
+
+/* ————— toast ————— */
+.toast{
+  position:fixed;left:50%;bottom:24px;transform:translate(-50%,90px);z-index:300;
+  background:var(--lime);color:var(--void);border-radius:14px;
+  font-family:var(--mono);font-size:11px;letter-spacing:0.1em;font-weight:500;
+  padding:14px 20px;opacity:0;transition:transform .45s var(--snap),opacity .3s;
+  display:flex;gap:14px;align-items:center;white-space:nowrap;
+  box-shadow:5px 5px 0 var(--violet);
+}
+.toast.on{transform:translate(-50%,0);opacity:1}
+.toast a{text-decoration:underline;font-weight:700}
+
+/* ————— reveals ————— */
+.rv{opacity:0;transform:translateY(26px);transition:opacity .8s var(--ease),transform .8s var(--ease)}
+.rv.on{opacity:1;transform:none}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+  html{scroll-behavior:auto}
+  .rv{opacity:1;transform:none}
+  .mesh{display:none}
+  .zrow-in{animation:none}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="mesh" aria-hidden="true"><i></i><i></i><i></i></div>
+
+<header class="top">
+  <div class="wrap top-in">
+    <a class="logo" href="/">BOOM<i>POP</i></a>
+    <div class="meter sci-host" aria-label="Your journey to keys">
+      <span class="sci-tag">GOAL-GRADIENT — visible progress accelerates completion; it starts pre-filled (endowed progress)</span>
+      <span class="lab">YOU → KEYS</span>
+      <span class="bar"><i id="meterBar"></i></span>
+      <span class="pct" id="meterPct">12%</span>
+    </div>
+    <button class="sci-tog" id="sciTog" aria-pressed="false">
+      <span>SCIENCE:</span><b id="sciLab">OFF</b>
+    </button>
+    <a class="top-wa" href="https://wa.me/393313251961" target="_blank" rel="noopener">WHATSAPP</a>
+  </div>
+</header>
+
+<!-- ═════════ HERO ═════════ -->
+<section class="hero wrap" id="main">
+  <div class="stickers" aria-hidden="true">
+    <div class="stick s1">48H<small>TO KEYS</small></div>
+    <div class="stick s2">4.9★<small>GOOGLE · 47</small></div>
+    <div class="stick s3">€0<small>HIDDEN FEES</small></div>
+  </div>
+  <span class="hero-kick"><i></i>ROME · LIVE INVENTORY · HUMANS ON CALL</span>
+  <h1 class="sci-host">
+    <span class="sci-tag">PATTERN INTERRUPT — a rotating promise resets attention every 2s</span>
+    <span class="l1">YOUR ROME,</span><br>
+    <span class="flip" id="flip"><span>IN 48H.</span></span>
+  </h1>
+  <p class="hero-sub">The rental market here eats newcomers. We flipped it: <b>video-verified homes</b>, contracts <b>legal &amp; in English</b>, keys in <b>48 hours</b> — and a real human answering on WhatsApp in ~2 minutes.</p>
+  <div class="hero-cta sci-host">
+    <span class="sci-tag">FITTS'S LAW — the primary action is huge, close, and impossible to miss</span>
+    <a class="big-btn" href="/apartments.html">BROWSE HOMES →</a>
+    <a class="ghost-btn" href="#mission">START THE MISSION</a>
+  </div>
+</section>
+
+<!-- ═════════ MISSION ═════════ -->
+<section class="sec wrap" id="mission" aria-label="Your mission">
+  <div class="headline">
+    <h2>MISSION: <i>ROME</i></h2>
+    <span class="aux">AN OPEN LOOP YOUR BRAIN WANTS TO CLOSE</span>
+  </div>
+  <div class="mission sci-host">
+    <span class="sci-tag">ZEIGARNIK EFFECT — unfinished checklists pull you back; progress persists on this device</span>
+    <div class="mission-head">
+      <b>YOUR MOVE, IN 7 STEPS</b>
+      <span class="ring"><b id="mDone">2/7</b> DONE — <span id="mLeft">5 TO GO</span></span>
+    </div>
+    <div class="mission-list" id="missionList"></div>
+    <div class="mission-foot">STEPS 1–2 ARE ON US — <b>YOU'RE ALREADY MOVING.</b> TAP A STEP TO OPEN IT, TAP THE BOX TO MARK IT.</div>
+  </div>
+</section>
+
+<!-- ═════════ LUCKY DIP + POOL ═════════ -->
+<section class="sec wrap" id="homes" aria-label="Homes">
+  <div class="headline">
+    <h2>PULL A <i>HOME</i></h2>
+    <span class="aux">CAN'T DECIDE? LET THE MACHINE DEAL</span>
+  </div>
+  <div class="dip-grid">
+    <div class="dip sci-host" id="dip">
+      <span class="sci-tag">VARIABLE REWARD — the "another one" pull is the strongest engagement loop known; here it deals real homes</span>
+      <div class="dip-ph" id="dipPh"></div>
+      <span class="dip-tag" id="dipTag">DEALT FOR YOU</span>
+      <span class="dip-count" id="dipCount"></span>
+      <div class="dip-b">
+        <span class="pr" id="dipPr"></span>
+        <span class="mt" id="dipMt"></span>
+        <span class="nm" id="dipNm"></span>
+      </div>
+      <div class="dip-actions">
+        <button class="dip-again" id="dipAgain" type="button">ANOTHER ONE ↻</button>
+        <a class="dip-open" id="dipOpen" href="/apartments.html">OPEN THIS →</a>
+      </div>
+    </div>
+    <div class="pool sci-host" id="pool">
+      <span class="sci-tag">ENDOWMENT — hearts build a shortlist you own; it follows you into the app</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ MACHINE ═════════ -->
+<section class="sec wrap" aria-label="The machine">
+  <div class="headline">
+    <h2>THE <i>MACHINE</i> BEHIND</h2>
+    <span class="aux">REAL SYSTEMS · RUNNING NOW</span>
+  </div>
+  <div class="mach sci-host">
+    <span class="sci-tag">CREDIBILITY — specific, checkable numbers beat adjectives</span>
+    <div class="gauge g1"><div class="n">15<small>MIN</small></div><b>Market Radar</b><span>Rome rescanned every 15 minutes — portals, alerts, off-market.</span></div>
+    <div class="gauge g2"><div class="n">92<small>%</small></div><b>AI Matching</b><span>Every home scored against your budget, zone and dates.</span></div>
+    <div class="gauge g3"><div class="n">4<small>MIN</small></div><b>Magic Sign</b><span>Legal Italian contracts signed from your phone, in English.</span></div>
+    <div class="gauge g4"><div class="n">48<small>H</small></div><b>Arrival</b><span>Wallet pass, live utilities, one realtime tenant portal.</span></div>
+  </div>
+</section>
+
+<!-- ═════════ SERVICES ═════════ -->
+<section class="sec wrap" aria-label="Services">
+  <div class="headline">
+    <h2>PICK YOUR <i>POWER-UP</i></h2>
+    <span class="aux">FLAT PRICES · PRINTED IN FULL</span>
+  </div>
+  <div class="svc-grid">
+    <a class="svc c1" href="/apartments.html">
+      <span class="pr">€1,000<small> /MO FROM</small></span><b>Ready Homes</b>
+      <p>Video-verified, move-in this week. What you see is what exists.</p>
+      <span class="go">BROWSE →</span>
+    </a>
+    <a class="svc c2" href="/property-finding.html">
+      <span class="pr">€350<small> UPFRONT · DEDUCTED</small></span><b>Property Finding</b>
+      <p>We hunt the whole market in 10 days — refund if we fail.</p>
+      <span class="go">START THE HUNT →</span>
+    </a>
+    <a class="svc c3" href="/deal-assistance.html">
+      <span class="pr">€249<small> FIXED</small></span><b>Deal Assistance</b>
+      <p>Found it yourself? We verify, negotiate and guard your deposit.</p>
+      <span class="go">COVER ME →</span>
+    </a>
+    <a class="svc c4" href="/virtual-viewing.html">
+      <span class="pr">€89<small> PER VIEWING</small></span><b>Virtual Viewing</b>
+      <p>Not here yet? We go live on video and report honestly.</p>
+      <span class="go">SEND A SCOUT →</span>
+    </a>
+  </div>
+</section>
+
+<!-- ═════════ ZONES ═════════ -->
+<section class="sec" aria-label="Zones">
+  <div class="wrap headline">
+    <h2>CHOOSE YOUR <i>ARENA</i></h2>
+    <span class="aux">SIX ZONES · TAP TO ENTER</span>
+  </div>
+  <div class="zrows">
+    <div class="zrow"><div class="zrow-in" id="zr1"></div></div>
+    <div class="zrow"><div class="zrow-in" id="zr2"></div></div>
+  </div>
+</section>
+
+<!-- ═════════ FINALE ═════════ -->
+<section class="finale wrap sci-host" id="finale" aria-label="Finish">
+  <span class="sci-tag" style="left:50%;transform:translateX(-50%) translateY(6px)">PEAK-END RULE — journeys are remembered by their peak and their ending; this is both</span>
+  <canvas id="confetti" aria-hidden="true"></canvas>
+  <h2>MISSION<br><i>READY.</i></h2>
+  <p class="done-lab">JOURNEY METER: <b id="finalePct">—</b> — FINISH IT WITH KEYS IN YOUR HAND</p>
+  <div class="finale-cta">
+    <a class="big-btn" href="/apartments.html">OPEN THE HOMES →</a>
+    <a class="ghost-btn" href="https://wa.me/393313251961" target="_blank" rel="noopener">TALK TO A HUMAN — ~2 MIN</a>
+  </div>
+</section>
+
+<footer>
+  <span>© 2026 BOOM — EGIDI IMMOBILIARE S.R.L. · VIA DEI CORONARI 181/184, 00186 ROMA · P.IVA 17322991005 · REA RM-1710623</span>
+  <span><a href="/terms.html">TERMS</a> · <a href="/privacy.html">PRIVACY</a> · <a href="/previews">CONCEPT LAB</a></span>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+'use strict';
+var reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){
+  return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
+var eur=function(n){return '€'+Math.round(n).toLocaleString('en-US');};
+var opt=function(u){return /^https?:\/\//.test(u)?'/_vercel/image?url='+encodeURIComponent(u)+'&w=760&q=72':u;};
+
+/* ═════ science toggle ═════ */
+var sciTog=document.getElementById('sciTog'),sciLab=document.getElementById('sciLab');
+var sciOn=false;
+try{sciOn=localStorage.getItem('boom:sci')==='1';}catch(e){}
+function sciApply(){
+  document.body.classList.toggle('science',sciOn);
+  sciLab.textContent=sciOn?'ON':'OFF';
+  sciTog.classList.toggle('on',sciOn);
+  sciTog.setAttribute('aria-pressed',sciOn);
+}
+sciApply();
+sciTog.addEventListener('click',function(){
+  sciOn=!sciOn;sciApply();
+  try{localStorage.setItem('boom:sci',sciOn?'1':'0');}catch(e){}
+});
+
+/* ═════ goal-gradient meter ═════
+   endowed 12% + scroll depth (→58%) + mission steps (→24%) + saves (→6%) */
+var meterBar=document.getElementById('meterBar'),meterPct=document.getElementById('meterPct'),
+    finalePct=document.getElementById('finalePct');
+var scrollShare=0,missionShare=0,saveShare=0;
+function meter(){
+  var p=Math.min(100,Math.round(12+scrollShare*58+missionShare*24+saveShare*6));
+  meterBar.style.width=p+'%';
+  meterPct.textContent=p+'%';
+  if(finalePct)finalePct.textContent=p+'%';
+  return p;
+}
+addEventListener('scroll',function(){
+  var h=document.documentElement.scrollHeight-innerHeight;
+  scrollShare=h>0?Math.min(1,scrollY/h):0;
+  meter();
+},{passive:true});
+
+/* ═════ hero flip words ═════ */
+var FLIPS=['IN 48H.','IN ENGLISH.','VERIFIED.','NO SCAMS.','ON WHATSAPP.'];
+var flip=document.getElementById('flip'),fi=0;
+if(flip&&!reduced)setInterval(function(){
+  fi=(fi+1)%FLIPS.length;
+  flip.innerHTML='<span>'+esc(FLIPS[fi])+'</span>';
+},2100);
+
+/* ═════ mission (Zeigarnik) ═════ */
+var MISSION=[
+ {t:'Land on BOOM',s:'DONE THE MOMENT YOU ARRIVED',href:null,auto:true},
+ {t:'See how it works',s:'THE MACHINE BEHIND — 30 SEC',href:'#homes',auto:true},
+ {t:'Browse verified homes',s:'LIVE INVENTORY',href:'/apartments.html'},
+ {t:'Heart your favourites',s:'BUILD YOUR SHORTLIST BELOW',href:'#homes'},
+ {t:'Check your dates & budget',s:'2-MIN APPLICATION',href:'/apartments.html'},
+ {t:'Say hi to a human',s:'WHATSAPP · ~2 MIN REPLY',href:'https://wa.me/393313251961'},
+ {t:'Get keys in 48h',s:'THE PART WE DO',href:'/how-it-works.html'}
+];
+var mDone=document.getElementById('mDone'),mLeft=document.getElementById('mLeft'),
+    list=document.getElementById('missionList');
+var done=new Set([0,1]);
+try{
+  var st=JSON.parse(localStorage.getItem('boom:mission')||'[]');
+  if(Array.isArray(st)&&st.length)done=new Set(st);
+  done.add(0);done.add(1);
+}catch(e){}
+function missionRender(){
+  list.innerHTML=MISSION.map(function(m,i){
+    var d=done.has(i);
+    return '<div class="mstep'+(d?' done':'')+'" data-i="'+i+'">'
+      +'<button class="box" type="button" aria-label="'+(d?'Un-mark':'Mark')+' step '+(i+1)+'" aria-pressed="'+d+'">'+(d?'✓':'')+'</button>'
+      +'<span class="tx"><b>'+esc(m.t)+'</b><span>'+esc(m.s)+'</span></span>'
+      +(m.href?'<a class="go" href="'+esc(m.href)+'"'+(/^https?:/.test(m.href)?' target="_blank" rel="noopener"':'')+'>OPEN →</a>':'')
+      +'</div>';
+  }).join('');
+  mDone.textContent=done.size+'/7';
+  mLeft.textContent=(7-done.size)===0?'ALL CLEAR — GO GET KEYS':(7-done.size)+' TO GO';
+  missionShare=done.size/7;
+  meter();
+}
+missionRender();
+list.addEventListener('click',function(e){
+  var box=e.target.closest('.box');if(!box)return;
+  var i=+box.closest('.mstep').dataset.i;
+  if(i<2)return; /* the endowed two stay done */
+  if(done.has(i))done.delete(i);else done.add(i);
+  try{localStorage.setItem('boom:mission',JSON.stringify([...done]));}catch(e2){}
+  missionRender();
+});
+
+/* ═════ shared shortlist ═════ */
+var saved=new Set();
+try{saved=new Set(JSON.parse(localStorage.getItem('boom:saved')||'[]'));}catch(e){}
+function persistSaved(){try{localStorage.setItem('boom:saved',JSON.stringify([...saved]));}catch(e){}}
+var toast=document.getElementById('toast'),toastT=null;
+function showToast(html){
+  toast.innerHTML=html;toast.classList.add('on');
+  clearTimeout(toastT);toastT=setTimeout(function(){toast.classList.remove('on');},2600);
+}
+
+/* ═════ homes: pool + lucky dip ═════ */
+var FALLBACK=[
+ {id:'sample1',name:'Villa Ada Studio',zone:'Villa Ada',price:1200,beds:1,sqm:40,video:true,img:'https://i.imgur.com/QOAu6k1.jpeg'},
+ {id:'sample2',name:'Pigneto Terrace',zone:'Pigneto',price:1700,beds:2,sqm:80,video:false,img:'https://i.imgur.com/tJnYADn.jpeg'},
+ {id:'sample3',name:'Coronari Classic',zone:'Centro Storico',price:2000,beds:1,sqm:70,video:true,img:'https://i.imgur.com/8LVxrhs.jpeg'},
+ {id:'sample4',name:'Monti Loft',zone:'Monti',price:1850,beds:1,sqm:55,video:true,img:'https://i.imgur.com/hxai5bz.jpeg'}
+];
+var HOMES=FALLBACK.slice(),isLive=false;
+var pool=document.getElementById('pool');
+function homeUrl(h){return isLive?'/listing/'+encodeURIComponent(h.id):'/apartments.html';}
+function renderPool(){
+  var cells=HOMES.slice(0,4).map(function(h){
+    var on=saved.has(h.id);
+    return '<a class="cell" href="'+homeUrl(h)+'" style="background-image:url(\''+esc(opt(h.img))+'\')" aria-label="'+esc(h.name)+'">'
+      +'<span class="cap"><b>'+eur(h.price)+'</b><span>'+esc(h.zone)+' · '+h.beds+' BED</span></span>'
+      +'<button class="savebtn'+(on?' on':'')+'" data-id="'+esc(h.id)+'" aria-pressed="'+on+'" aria-label="Save '+esc(h.name)+'">'
+      +'<svg viewBox="0 0 24 24"><path d="M12 20s-7-4.5-9.2-8.6C1.2 8.4 3 5 6.4 5c2 0 3.4 1.1 4.1 2.3h3c.7-1.2 2.1-2.3 4.1-2.3 3.4 0 5.2 3.4 3.6 6.4C19 15.5 12 20 12 20z"/></svg>'
+      +'</button></a>';
+  }).join('');
+  var tag=pool.querySelector('.sci-tag').outerHTML;
+  pool.innerHTML=tag+cells
+    +'<div class="pool-foot"><span class="lv" id="poolLive">'+(isLive?'LIVE — '+HOMES.length+' HOMES':'CURATED SET')+'</span>'
+    +'<a href="/apartments.html?saved=1">SHORTLIST ('+saved.size+') →</a></div>';
+}
+renderPool();
+pool.addEventListener('click',function(e){
+  var btn=e.target.closest('.savebtn');if(!btn)return;
+  e.preventDefault();
+  var id=btn.dataset.id;
+  if(saved.has(id)){saved.delete(id);}else{saved.add(id);
+    showToast('SAVED · <a href="/apartments.html?saved=1">SHORTLIST ('+(saved.size)+')</a>');}
+  persistSaved();saveShare=Math.min(1,saved.size/3);renderPool();meter();
+});
+
+/* lucky dip */
+var dip=document.getElementById('dip'),dipPh=document.getElementById('dipPh'),
+    dipPr=document.getElementById('dipPr'),dipNm=document.getElementById('dipNm'),
+    dipMt=document.getElementById('dipMt'),dipOpen=document.getElementById('dipOpen'),
+    dipTag=document.getElementById('dipTag'),dipCount=document.getElementById('dipCount');
+var dipI=-1,pulls=0;
+function deal(first){
+  if(!HOMES.length)return;
+  var i;
+  do{i=Math.floor(Math.random()*HOMES.length);}while(HOMES.length>1&&i===dipI);
+  dipI=i;
+  var h=HOMES[i];
+  var apply=function(){
+    dipPh.style.backgroundImage='url('+opt(h.img)+')';
+    dipPr.innerHTML=eur(h.price)+' <i>/MO</i>';
+    dipNm.textContent=h.name;
+    dipMt.textContent=(h.sqm?h.sqm+'M² · ':'')+h.beds+' BED · '+h.zone.toUpperCase();
+    dipOpen.href=homeUrl(h);
+    dipTag.textContent=h.video?'VIDEO-VERIFIED':'DEALT FOR YOU';
+    dip.classList.remove('spin');
+  };
+  if(first||reduced){apply();}
+  else{dip.classList.add('spin');setTimeout(apply,180);}
+  if(!first){
+    pulls++;
+    dipCount.textContent='PULL N°'+pulls+' — '+HOMES.length+' IN THE DECK';
+  }
+}
+deal(true);
+document.getElementById('dipAgain').addEventListener('click',function(){deal(false);});
+
+/* live upgrade */
+fetch('/api/listings').then(function(r){return r.ok?r.json():null;}).then(function(j){
+  if(!j||!j.ok||!Array.isArray(j.listings))return;
+  var homes=j.listings.filter(function(d){
+    var s=((d.status||d.availabilityStatus||'available')+'').toLowerCase();
+    return !(s==='rented'||s==='affittato'||s==='off_market'||s==='draft'||s==='hidden'||s==='waitlist');
+  }).map(function(d){
+    var c=d.createdAt,t=!c?0:(c.seconds?c.seconds*1000:(typeof c==='string'?(Date.parse(c)||0):(c>1e12?c:c*1000)));
+    return{id:d.id,name:d.name||d.title||'Apartment in Rome',zone:d.zone||d.neighborhood||'Rome',
+      price:+d.price||0,beds:d.beds!=null?+d.beds:(d.bedrooms!=null?+d.bedrooms:1),
+      sqm:+d.sqm||+d.size||0,video:!!(d.videoUrl||d.youtubeUrl),
+      img:(Array.isArray(d.images)&&d.images[0])||d.image||'',t:t};
+  }).filter(function(h){return h.price&&h.img;});
+  if(homes.length<3)return;
+  homes.sort(function(a,b){return (b.video-a.video)||(b.t-a.t);});
+  HOMES=homes;isLive=true;dipI=-1;
+  renderPool();deal(true);
+}).catch(function(){});
+
+/* ═════ zones marquee pills ═════ */
+var ZONES=[['Trastevere','COBBLES & IVY'],['Monti','THE VILLAGE'],['Prati','ELEGANT'],
+  ['Testaccio','ROME’S KITCHEN'],['Pigneto','BOHEMIAN'],['Centro','THE POSTCARD']];
+function zoneHTML(arr){
+  return arr.map(function(z){
+    return '<a class="zpill" href="/apartments.html?q='+encodeURIComponent(z[0])+'">'+esc(z[0])+'<i>'+esc(z[1])+'</i></a>';
+  }).join('');
+}
+var zr1=document.getElementById('zr1'),zr2=document.getElementById('zr2');
+if(zr1)zr1.innerHTML=zoneHTML(ZONES)+zoneHTML(ZONES);
+if(zr2)zr2.innerHTML=zoneHTML(ZONES.slice().reverse())+zoneHTML(ZONES.slice().reverse());
+
+/* ═════ finale confetti (peak-end) — once, cheap ═════ */
+(function(){
+  if(reduced)return;
+  var cv=document.getElementById('confetti');if(!cv)return;
+  var fired=false;
+  var io=new IntersectionObserver(function(es){
+    es.forEach(function(e){
+      if(!e.isIntersecting||fired)return;
+      fired=true;io.disconnect();
+      var ctx=cv.getContext('2d');if(!ctx)return;
+      var fin=document.getElementById('finale');
+      var w=cv.width=(fin?fin.clientWidth:innerWidth),h=cv.height=(fin?fin.clientHeight:600);
+      var C=['#D6FF3F','#8B5CF6','#FF5D73','#2EE6D6','#FFD84D'];
+      var ps=[];for(var i=0;i<90;i++){
+        ps.push({x:w/2+(Math.random()-0.5)*w*0.3,y:h*0.45,
+          vx:(Math.random()-0.5)*9,vy:-4-Math.random()*7,
+          s:4+Math.random()*5,c:C[i%C.length],r:Math.random()*Math.PI,vr:(Math.random()-0.5)*0.3,life:1});
+      }
+      var t0=performance.now();
+      (function tick(now){
+        var dt=Math.min(32,now-t0);t0=now;
+        ctx.clearRect(0,0,w,h);
+        var alive=false;
+        ps.forEach(function(p){
+          p.vy+=0.18;p.x+=p.vx;p.y+=p.vy;p.r+=p.vr;p.life-=0.006;
+          if(p.life<=0||p.y>h+20)return;
+          alive=true;
+          ctx.save();ctx.globalAlpha=Math.max(0,p.life);
+          ctx.translate(p.x,p.y);ctx.rotate(p.r);
+          ctx.fillStyle=p.c;ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s*0.6);
+          ctx.restore();
+        });
+        if(alive)requestAnimationFrame(tick);else ctx.clearRect(0,0,w,h);
+      })(t0);
+    });
+  },{threshold:0.5});
+  io.observe(document.getElementById('finale'));
+})();
+
+/* ═════ reveals ═════ */
+var io2=new IntersectionObserver(function(es){es.forEach(function(e){
+  if(e.isIntersecting){e.target.classList.add('on');io2.unobserve(e.target);}
+});},{threshold:0.12,rootMargin:'0px 0px -30px 0px'});
+document.querySelectorAll('.rv').forEach(function(el){io2.observe(el);});
+meter();
+})();
+</script>
+</body>
+</html>
