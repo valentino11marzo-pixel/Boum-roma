@@ -119,6 +119,11 @@
       "permanent": true
     },
     {
+      "source": "/pfs.html",
+      "destination": "/pfs",
+      "permanent": true
+    },
+    {
       "source": "/virtual-viewing.html",
       "destination": "/virtual-viewing",
       "permanent": true
@@ -349,6 +354,10 @@
     {
       "source": "/property-finding",
       "destination": "/property-finding.html"
+    },
+    {
+      "source": "/pfs",
+      "destination": "/pfs.html"
     },
     {
       "source": "/thank-you",
