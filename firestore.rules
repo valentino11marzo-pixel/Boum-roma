@@ -216,6 +216,7 @@ service cloud.firestore {
     match /bankTransactions/{x}            { allow read, write: if isAdmin(); }
     match /bankRequisitions/{x}            { allow read, write: if isAdmin(); }
     match /bankImports/{x}                 { allow read, write: if isAdmin(); }
+    match /docImports/{x}                  { allow read, write: if isAdmin(); }
 
     // ─── Default deny ─────────────────────────────────────────────────
     match /{document=**} {

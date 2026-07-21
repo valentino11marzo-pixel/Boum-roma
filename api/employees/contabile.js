@@ -131,6 +131,9 @@ async function run({ dry, forceMonthly }) {
   }
   late.sort((a, b) => b.daysLate - a.daysLate);
 
+  // ── 3b. Documenti "da smistare" (Smistatore senza immobile certo) ─────
+  const daSmistare = documents.filter(d => d.needsFiling === true).length;
+
   // ── 4. Banca (dal sync di La Banca, corre prima di questo cron) ───────
   const bankStats = (bankHealth && bankHealth.stats) || {};
   const banca = {
@@ -146,6 +149,7 @@ async function run({ dry, forceMonthly }) {
     packsReady: packs.filter(k => k.ready).length,
     packsTotal: packs.length,
     docsMissing: missingDocs.length,
+    daSmistare,
     paymentsLate: late.length,
     incassatoYtd: Math.round(incassatoYtd),
     outstandingYtd: Math.round(attesoYtd - incassatoYtd),
@@ -168,6 +172,7 @@ async function run({ dry, forceMonthly }) {
     late.slice(0, 6).forEach(l => lines.push(`💸 ${esc(l.property)} — ${euro(l.amount)} in ritardo ${l.daysLate}gg`));
     if (missingDocs.length) lines.push(`📁 ${missingDocs.length} documenti mancanti per il commercialista`);
     if (banca.toConfirm) lines.push(`🏦 ${banca.toConfirm} bonifici da confermare come canoni: https://boomrome.com/banca`);
+    if (daSmistare) lines.push(`📥 ${daSmistare} documenti archiviati ma senza immobile — assegnali dal portale`);
     if (banca.consentExpired) lines.push(`🏦 Consenso banca scaduto su ${banca.consentExpired} cont${banca.consentExpired === 1 ? 'o' : 'i'} — rinnova da /banca`);
     lines.push(`\nConsole: https://boomrome.com/team`);
     notified = await tgNotify(lines.join('\n'));

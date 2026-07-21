@@ -144,6 +144,12 @@ GOCARDLESS_SECRET_KEY        # NOTE: GC closed NEW signups (2026) — only
 BANK_MAIL_FROM               # optional — extra sender filters for the bank
                              # statement email scanner (comma-separated,
                              # e.g. "intesasanpaolo.com,fineco.it")
+
+# Lo Smistatore (api/documents/_smista.js + scan-inbox)
+DOC_MAIL_FROM                # optional — extra TRUSTED senders whose email
+                             # attachments get auto-filed (comma-separated,
+                             # e.g. "commercialista@studiorossi.it"). The
+                             # operator's own addresses are always trusted.
 TELEGRAM_BOT_TOKEN           # already used by api/telegram/*; pfs health alerts
 TELEGRAM_CHAT_ID
 ```
@@ -365,6 +371,26 @@ close email.
 **Console**: `team.html` (`/team`, admin-only, noindex) — status dot + last
 run per employee (the PFS radar appears as "Lo Scout" rolling up
 `pfsRadarHealth`), pending proposals, latest reports, "Esegui ora" buttons.
+
+## Lo Smistatore (document intake — api/documents/_smista.js)
+
+"Mando qualsiasi cosa per il commercialista e si archivia da sola." One
+shared pipeline (`smistaDocument`): Claude haiku classifies the file
+(PDF/image) against the REAL property list, picks fiscal year + contract,
+uploads to Storage and files it in `documents` with keyword-rich categories
+that `taxpack-engine.docMatchesRequirement` already matches — so filing an
+F24 IMU automatically ticks the pacchetto-commercialista checklist. Docs
+with no confident property match get `needsFiling:true` (folder
+99_DaSmistare), surfaced by the Contabile's morning report.
+
+Two intakes:
+- **Telegram** (`api/telegram/webhook.js`): send ANY photo/PDF to the bot
+  (caption = optional hint, e.g. "F24 IMU via Cavour"); replies with what
+  it understood and where it filed it. Authorized chat only.
+- **Email** (`api/documents/scan-inbox.js`, cron daily 03:50): forward an
+  email with attachments to the BOOM mailbox — processed ONLY from trusted
+  senders (operator's own addresses + `DOC_MAIL_FROM`). Processed emails
+  remembered in `docImports`; per-run AI budget; Telegram recap.
 
 ## La Banca (open banking — api/banking/* + banca.html)
 
