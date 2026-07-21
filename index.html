@@ -164,112 +164,21 @@
             background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
         }
 
-        /* Tech Background Container */
-        .tech-bg {
+        /* ═══════════════════════════════════════════════════════════
+           RADARSCAPE — the background IS the instrument
+           One canvas (js/boom-radarscape.js) replaces the old orbs +
+           grid + mouse-glow stack: a precision radar scanning Rome,
+           with the central pulse kept as the heart of the scene.
+           ═══════════════════════════════════════════════════════════ */
+        #radarScape {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
+            inset: 0;
             z-index: 0;
-            overflow: hidden;
-        }
-
-        /* Animated gradient orbs */
-        .tech-orb {
-            position: absolute;
-            border-radius: 50%;
-            filter: blur(80px);
-            opacity: 0.04;
-            animation: orb-float 20s ease-in-out infinite;
-        }
-
-        .tech-orb-1 {
-            width: 600px;
-            height: 600px;
-            background: radial-gradient(circle, var(--gold) 0%, transparent 70%);
-            top: -200px;
-            right: -100px;
-            animation-delay: 0s;
-        }
-
-        .tech-orb-2 {
-            width: 500px;
-            height: 500px;
-            background: radial-gradient(circle, #635BFF 0%, transparent 70%);
-            bottom: -150px;
-            left: -100px;
-            animation-delay: -7s;
-            opacity: 0.025;
-        }
-
-        .tech-orb-3 {
-            width: 400px;
-            height: 400px;
-            background: radial-gradient(circle, var(--gold-light) 0%, transparent 70%);
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            animation-delay: -14s;
-            opacity: 0.02;
-        }
-
-        @keyframes orb-float {
-            0%, 100% {
-                transform: translate(0, 0) scale(1);
-            }
-            25% {
-                transform: translate(30px, -20px) scale(1.05);
-            }
-            50% {
-                transform: translate(-20px, 30px) scale(0.95);
-            }
-            75% {
-                transform: translate(-30px, -10px) scale(1.02);
-            }
-        }
-
-        /* Subtle grid overlay */
-        .tech-grid {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: 
-                linear-gradient(rgba(255, 215, 0, 0.015) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255, 215, 0, 0.015) 1px, transparent 1px);
-            background-size: 80px 80px;
-            mask-image: radial-gradient(ellipse at center, black 0%, transparent 70%);
-            -webkit-mask-image: radial-gradient(ellipse at center, black 0%, transparent 70%);
-        }
-
-        /* Interactive mouse glow - activated by JS */
-        .mouse-glow {
-            position: fixed;
-            width: 400px;
-            height: 400px;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(255, 215, 0, 0.06) 0%, transparent 60%);
             pointer-events: none;
-            z-index: 1;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            transform: translate(-50%, -50%);
         }
 
-        .mouse-glow.active {
-            opacity: 1;
-        }
-
-        @media (max-width: 768px) {
-            .tech-orb-1 { width: 300px; height: 300px; }
-            .tech-orb-2 { width: 250px; height: 250px; }
-            .tech-orb-3 { display: none; }
-            .tech-grid { background-size: 50px 50px; }
-            .mouse-glow { display: none; }
-        }
+        /* When the canvas scene is live, the CSS radar fallback rests */
+        body.radar-live .radar-container { display: none; }
 
         ::selection {
             background: var(--gold);
@@ -550,53 +459,14 @@
             overflow: hidden;
         }
 
-        /* Ambient Background */
+        /* Ambient Background — kept as an (empty) anchor: its presence
+           tells boom-cinema.js the page has its own ambient layer, so the
+           shared engine doesn't inject .cine-ambient on top of RadarScape */
         .hero-ambient {
             position: absolute;
             inset: 0;
             overflow: hidden;
             pointer-events: none;
-        }
-
-        .hero-glow {
-            position: absolute;
-            width: 800px;
-            height: 800px;
-            border-radius: 50%;
-            filter: blur(120px);
-            opacity: 0.12;
-        }
-
-        .hero-glow-1 {
-            background: var(--gold);
-            top: -300px;
-            right: -200px;
-            animation: float-slow 20s ease-in-out infinite;
-        }
-
-        .hero-glow-2 {
-            background: var(--gold);
-            bottom: -400px;
-            left: -300px;
-            animation: float-slow 25s ease-in-out infinite reverse;
-            opacity: 0.08;
-        }
-
-        @keyframes float-slow {
-            0%, 100% { transform: translate(0, 0); }
-            50% { transform: translate(30px, -30px); }
-        }
-
-        /* Grid Pattern */
-        .hero-grid {
-            position: absolute;
-            inset: 0;
-            background-image: 
-                linear-gradient(rgba(255, 215, 0, 0.02) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255, 215, 0, 0.02) 1px, transparent 1px);
-            background-size: 60px 60px;
-            mask-image: radial-gradient(ellipse at center, black 0%, transparent 70%);
-            -webkit-mask-image: radial-gradient(ellipse at center, black 0%, transparent 70%);
         }
 
         /* Radar Animation */
@@ -2693,14 +2563,8 @@
 <script defer src="/js/boom-consent.js"></script>
 </head>
 <body>
-    <!-- Tech Background -->
-    <div class="tech-bg">
-        <div class="tech-orb tech-orb-1"></div>
-        <div class="tech-orb tech-orb-2"></div>
-        <div class="tech-orb tech-orb-3"></div>
-        <div class="tech-grid"></div>
-    </div>
-    <div class="mouse-glow" id="mouseGlow"></div>
+    <!-- RadarScape background — the BOOM radar scanning Rome (js/boom-radarscape.js) -->
+    <canvas id="radarScape" aria-hidden="true"></canvas>
 
     <!-- Scroll Progress -->
     <div class="scroll-progress" id="scrollProgress"></div>
@@ -2762,13 +2626,10 @@
 
     <!-- Hero -->
     <section class="hero">
-        <div class="hero-ambient">
-            <div class="hero-glow hero-glow-1"></div>
-            <div class="hero-glow hero-glow-2"></div>
-            <div class="hero-grid"></div>
-        </div>
+        <!-- Empty on purpose: suppresses boom-cinema's injected ambient (RadarScape owns the background) -->
+        <div class="hero-ambient"></div>
 
-        <!-- Radar Animation -->
+        <!-- Radar Animation — CSS fallback, hidden while the RadarScape canvas is live -->
         <div class="radar-container">
             <div class="radar-ring"></div>
             <div class="radar-ring"></div>
@@ -3644,27 +3505,6 @@
     <script src="https://unpkg.com/lenis@1.1.13/dist/lenis.min.js"></script>
     <script>
         // ═══════════════════════════════════════════════════════════
-        // Interactive Mouse Glow
-        // ═══════════════════════════════════════════════════════════
-        const mouseGlow = document.getElementById('mouseGlow');
-        let mouseTimeout;
-
-        document.addEventListener('mousemove', (e) => {
-            mouseGlow.style.left = e.clientX + 'px';
-            mouseGlow.style.top = e.clientY + 'px';
-            mouseGlow.classList.add('active');
-            
-            clearTimeout(mouseTimeout);
-            mouseTimeout = setTimeout(() => {
-                mouseGlow.classList.remove('active');
-            }, 1500);
-        });
-
-        document.addEventListener('mouseleave', () => {
-            mouseGlow.classList.remove('active');
-        });
-
-        // ═══════════════════════════════════════════════════════════
         // Navigation
         // ═══════════════════════════════════════════════════════════
         const nav = document.getElementById('nav');
@@ -3863,6 +3703,7 @@
             navigator.serviceWorker.register('/sw.js', { scope: '/' });
         }
     </script>
+        <script defer src="/js/boom-radarscape.js"></script>
         <script defer src="/js/boom-cinema.js"></script>
     <script defer src="/js/boom-track.js"></script>
     <script defer src="/js/boom-bg.js"></script>
