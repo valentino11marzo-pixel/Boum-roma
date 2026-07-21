@@ -35,14 +35,32 @@ import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import { parseBankCsv, ingestBankTransactions, fsGet, fsPatch } from './_lib.js';
 import { requireCronOrAdmin, reportEmployeeHealth, saveReport, tgNotify } from '../employees/_lib.js';
-import { extractJson } from '../agent/_claude.js';
+import { callClaude, extractJson } from '../agent/_claude.js';
 
 const EMPLOYEE = 'banca-mail';
 const LOOKBACK_DAYS = 7;
-const MAX_MESSAGES = 10;
+const MAX_MESSAGES = 25;
 const MAX_PDF_BYTES = 8 * 1024 * 1024;
 const OCR_MODEL = 'claude-haiku-4-5-20251001';
-const SUBJECTS = ['estratto conto', 'lista movimenti', 'movimenti conto', 'rendiconto', 'account statement', 'estratto di conto'];
+// Statement emails (attachments) + per-movement ALERT emails ("Hai ricevuto
+// un bonifico di €1.200,00 da…") whose amounts live in the email BODY — the
+// path that works even when the bank only links the statement behind login.
+const SUBJECTS = [
+  'estratto conto', 'lista movimenti', 'movimenti conto', 'rendiconto',
+  'account statement', 'estratto di conto',
+  'bonifico', 'accredito', 'addebito', 'pagamento ricevuto',
+];
+// Body parsing is restricted to real bank senders (plus BANK_MAIL_FROM) so a
+// tenant writing "ti ho fatto il bonifico" never becomes a transaction.
+const KNOWN_BANK_DOMAINS = [
+  'intesasanpaolo.com', 'isybank.com', 'unicredit.it', 'unicredit.eu',
+  'fineco.it', 'finecobank.com', 'bper.it', 'bnl.it', 'bnlmail.com',
+  'mps.it', 'credem.it', 'n26.com', 'revolut.com', 'poste.it',
+  'sella.it', 'ing.com', 'ing.it', 'bancomediolanum.it', 'mediolanum.it',
+  'credit-agricole.it', 'ca-italia.it', 'widiba.it', 'illimity.com',
+  'hype.it', 'buddybank.com', 'chebanca.it', 'mediobanca.com',
+];
+const MAX_BODY_AI_CALLS = 8; // per-run budget for body extraction
 
 export default async function handler(req, res) {
   const actor = await requireCronOrAdmin(req, res);
@@ -66,8 +84,16 @@ async function run({ dry }) {
   if (!user || !pass) throw new Error('IMAP credentials missing (GMAIL_USER/GMAIL_APP_PASS)');
 
   const since = new Date(Date.now() - LOOKBACK_DAYS * 86400000);
-  const counts = { emails: 0, attachments: 0, imported: 0, skippedTx: 0, matched: 0, suggested: 0, alreadyProcessed: 0, pdfOcr: 0 };
+  const counts = { emails: 0, attachments: 0, imported: 0, skippedTx: 0, matched: 0, suggested: 0, alreadyProcessed: 0, pdfOcr: 0, bodyParsed: 0 };
   const details = [];
+  let bodyAiBudget = MAX_BODY_AI_CALLS;
+
+  const extraSenders = String(process.env.BANK_MAIL_FROM || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+  const isBankSender = (addr) => {
+    const domain = String(addr || '').toLowerCase().split('@').pop() || '';
+    return KNOWN_BANK_DOMAINS.some(d => domain === d || domain.endsWith('.' + d))
+      || extraSenders.some(d => domain.includes(d));
+  };
 
   const client = new ImapFlow({
     host: process.env.PFS_IMAP_HOST || 'imap.gmail.com',
@@ -86,8 +112,7 @@ async function run({ dry }) {
         try { for (const u of (await client.search({ since, subject }, { uid: true })) || []) uidSet.add(u); }
         catch { /* single search failing is fine */ }
       }
-      const senders = String(process.env.BANK_MAIL_FROM || '').split(',').map(s => s.trim()).filter(Boolean);
-      for (const from of senders) {
+      for (const from of extraSenders) {
         try { for (const u of (await client.search({ since, from }, { uid: true })) || []) uidSet.add(u); }
         catch { /* ignore */ }
       }
@@ -140,6 +165,43 @@ async function run({ dry }) {
           results.push({ file: name, ok: true, how, ...out });
         }
 
+        // ── Avvisi movimento nel CORPO dell'email (nessun allegato) ─────
+        // Molte banche non allegano nulla: l'estratto sta dietro login, ma
+        // gli avvisi operazione ("Hai ricevuto un bonifico di €1.200,00 da
+        // MARIO ROSSI") portano l'importo nel testo. Solo da mittenti
+        // bancari riconosciuti, con budget AI per run.
+        const fromAddr = mail.from?.value?.[0]?.address || '';
+        if (!results.some(r => r.ok) && isBankSender(fromAddr) && bodyAiBudget > 0) {
+          const bodyText = String(mail.text || '').replace(/\s+/g, ' ').trim().slice(0, 4000);
+          if (bodyText && /\d/.test(bodyText) && /(€|eur|importo|bonifico|accredito|addebito|pagamento)/i.test(bodyText)) {
+            bodyAiBudget--;
+            const rawTxs = await bodyToMovements(mail.subject, bodyText, mail.date).catch(e => {
+              console.warn('[banking/scan-inbox] body parse failed:', e.message);
+              return null;
+            });
+            if (rawTxs && rawTxs.length) {
+              counts.bodyParsed++;
+              if (dry) {
+                results.push({ body: true, ok: true, how: 'body-ai', movements: rawTxs.length, dry: true });
+                counts.imported += rawTxs.length;
+              } else {
+                const out = await ingestBankTransactions(rawTxs, {
+                  accountId: 'mail-alert:' + (fromAddr.split('@').pop() || 'banca'),
+                  source: 'email-alert',
+                  actor: 'banca-mail',
+                });
+                counts.imported += out.imported; counts.skippedTx += out.skipped;
+                counts.matched += out.matched; counts.suggested += out.suggested;
+                results.push({ body: true, ok: true, how: 'body-ai', ...out });
+              }
+            } else {
+              // Nothing extractable (e.g. "il tuo estratto è disponibile"):
+              // record it so we never re-pay the AI call for this email.
+              results.push({ body: true, ok: false });
+            }
+          }
+        }
+
         if (!dry && results.length) {
           await fsPatch('bankImports/' + mailKey, {
             subject: String(mail.subject || '').slice(0, 200),
@@ -169,6 +231,29 @@ async function run({ dry }) {
     );
   }
   return { counts, summary, details };
+}
+
+// Avviso movimento (testo email) → movimenti via Claude haiku (text-only).
+// Un'email di avviso porta di norma UN movimento; il prompt vieta di
+// inventare e ammette la lista vuota (email "estratto disponibile" → []).
+async function bodyToMovements(subject, bodyText, mailDate) {
+  const fallbackDate = mailDate ? new Date(mailDate).toISOString().slice(0, 10) : null;
+  const { text } = await callClaude({
+    model: OCR_MODEL,
+    maxTokens: 1000,
+    system: 'Estrai movimenti bancari da email di avviso operazione di banche italiane. Rispondi SOLO con JSON valido: {"movements":[{"date":"YYYY-MM-DD","amount":-123.45,"description":"...","counterparty":"..."}]}. amount negativo per addebiti/uscite, positivo per accrediti/entrate. Non inventare nulla: se l\'email non riporta un\'operazione con importo (es. è solo un avviso "estratto conto disponibile" o marketing), rispondi {"movements":[]}.',
+    user: `Oggetto: ${subject || ''}\nData email: ${fallbackDate || 'sconosciuta'}\n\nTesto:\n${bodyText}\n\nSe la data dell'operazione non è nel testo usa la data email.`,
+  });
+  const parsed = extractJson(text);
+  const movements = Array.isArray(parsed?.movements) ? parsed.movements : [];
+  return movements
+    .filter(m => m && /^\d{4}-\d{2}-\d{2}$/.test(m.date || '') && Number(m.amount))
+    .map(m => ({
+      bookingDate: m.date,
+      amount: Number(m.amount),
+      description: String(m.description || subject || '').slice(0, 400),
+      counterparty: String(m.counterparty || '').slice(0, 120),
+    }));
 }
 
 // PDF statement → movements via Claude (document block, haiku). Returns

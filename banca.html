@@ -140,7 +140,11 @@ input:focus, textarea:focus { border-color: rgba(212,175,55,.4); }
     <h3>Estratto conto via email — automatico</h3>
     <div class="card">
       <div class="hint" style="margin-top:0">
-        📬 <b style="color:var(--text)">Il modo più semplice, zero configurazione:</b> nel tuo home banking attiva l'<b style="color:var(--text)">invio periodico dell'estratto conto</b> (CSV o PDF) alla casella Gmail di BOOM — oppure inoltra l'email quando ti arriva. Ogni notte la casella viene letta: i movimenti si importano da soli (i PDF vengono letti dall'AI), i bonifici vengono riconciliati con i canoni attesi e ricevi il riepilogo su Telegram. Funziona con qualsiasi banca.
+        📬 <b style="color:var(--text)">La casella Gmail di BOOM viene letta ogni notte.</b> Tre cose vengono capite da sole:<br>
+        <b style="color:var(--text)">1. Avvisi movimento</b> — attiva nell'home banking gli avvisi email per bonifici/accrediti ("Hai ricevuto un bonifico di €1.200 da…"): l'importo è nel testo, l'AI lo estrae e riconcilia il canone <b style="color:var(--text)">in giornata</b>, senza che tu scarichi nulla.<br>
+        <b style="color:var(--text)">2. Estratti allegati</b> — se la tua banca invia l'estratto conto come allegato (CSV o PDF), viene importato per intero (i PDF li legge l'AI).<br>
+        <b style="color:var(--text)">3. Email inoltrate</b> — qualsiasi estratto o avviso che inoltri tu alla casella viene trattato allo stesso modo.<br>
+        Se la banca manda solo il link "estratto disponibile" (dietro login), quella email viene ignorata senza errori: in quel caso scarichi il CSV una volta al mese e lo carichi qui sotto — 2 minuti, il resto lo fa la riconciliazione.
       </div>
       <div class="row-controls" style="margin-top:10px">
         <button class="ghost" id="btnScanMail">LEGGI CASELLA ORA</button>
