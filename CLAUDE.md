@@ -136,10 +136,14 @@ ACCOUNTING_EMAIL             # optional — recipient of the Contabile's monthly
                              # close email (falls back to GMAIL_USER)
 
 # La Banca — open banking (api/banking/*)
-GOCARDLESS_SECRET_ID         # GoCardless Bank Account Data (ex Nordigen),
-GOCARDLESS_SECRET_KEY        # free tier — bankaccountdata.gocardless.com.
-                             # Optional: without them /banca still works via
-                             # manual CSV import.
+GOCARDLESS_SECRET_ID         # GoCardless Bank Account Data (ex Nordigen).
+GOCARDLESS_SECRET_KEY        # NOTE: GC closed NEW signups (2026) — only
+                             # usable with a pre-existing account. Without
+                             # them /banca works via the email statement
+                             # scanner (scan-inbox) + manual CSV import.
+BANK_MAIL_FROM               # optional — extra sender filters for the bank
+                             # statement email scanner (comma-separated,
+                             # e.g. "intesasanpaolo.com,fineco.it")
 TELEGRAM_BOT_TOKEN           # already used by api/telegram/*; pfs health alerts
 TELEGRAM_CHAT_ID
 ```
@@ -378,6 +382,7 @@ no-op), `bankRequisitions` (consent audit).
 | `POST /api/banking/finalize` | stores authorized accounts after the redirect |
 | `POST /api/banking/sync` | **cron daily 04:15** (before the Contabile). Pulls movements (first run backfills full history), dedupes via batchGet, categorizes (prima nota rules in `_lib.js`), reconciles credits against pending `payments`: exact amount + due-date window + unique candidate + (tenant-name or month or unique-amount) → payment marked paid (`paidVia:'bank'`); weaker matches → `matchSuggestions`, confirmed by one tap in /banca. Heartbeat `teamHealth/banca`; Telegram when a consent is ≤7gg from expiry. |
 | `POST /api/banking/export` | estratto conto / prima nota CSV for the commercialista — Italian format (semicolon, DD/MM/YYYY, decimal comma, UTF-8 BOM); prima nota adds per-category period totals |
+| `POST /api/banking/scan-inbox` | **cron daily 04:05 — the primary feed now that GoCardless is closed to new signups.** Reads the Gmail mailbox over IMAP (same infra as pfs/scan-inbox), finds bank-statement emails (subject keywords + optional `BANK_MAIL_FROM` senders), ingests CSV attachments directly and PDF statements via Claude haiku (document block → movements JSON). Processed emails remembered in `bankImports` (PDFs never re-OCR'd); tx-level dedupe makes re-runs no-ops. Telegram recap when something lands. Heartbeat `teamHealth/banca-mail`. One-time setup: attiva nell'home banking l'invio periodico dell'estratto conto alla casella Gmail (o inoltra l'email). |
 | `POST /api/banking/import` | manual fallback: paste the home-banking CSV (column auto-detect for the common Italian exports), same dedupe+reconcile pipeline — works with zero API setup |
 | `POST /api/accounting/scadenzario` | unified deadline book derived live: company (IVA/LIPE/CCIAA/Redditi from `invoices` by quarter) + one group per property owner (registro, IMU, cedolare, ISTAT + contract renewals ≤120gg). `format:'ics'` → calendar file (stable UIDs, re-import updates). |
 

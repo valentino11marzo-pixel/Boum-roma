@@ -568,6 +568,9 @@
     "api/banking/sync.js": {
       "maxDuration": 60
     },
+    "api/banking/scan-inbox.js": {
+      "maxDuration": 60
+    },
     "api/banking/import.js": {
       "maxDuration": 60
     },
@@ -612,6 +615,10 @@
     {
       "path": "/api/search/matcher",
       "schedule": "0 6,12,18 * * *"
+    },
+    {
+      "path": "/api/banking/scan-inbox",
+      "schedule": "5 4 * * *"
     },
     {
       "path": "/api/banking/sync",

@@ -137,6 +137,18 @@ input:focus, textarea:focus { border-color: rgba(212,175,55,.4); }
   </section>
 
   <section>
+    <h3>Estratto conto via email — automatico</h3>
+    <div class="card">
+      <div class="hint" style="margin-top:0">
+        📬 <b style="color:var(--text)">Il modo più semplice, zero configurazione:</b> nel tuo home banking attiva l'<b style="color:var(--text)">invio periodico dell'estratto conto</b> (CSV o PDF) alla casella Gmail di BOOM — oppure inoltra l'email quando ti arriva. Ogni notte la casella viene letta: i movimenti si importano da soli (i PDF vengono letti dall'AI), i bonifici vengono riconciliati con i canoni attesi e ricevi il riepilogo su Telegram. Funziona con qualsiasi banca.
+      </div>
+      <div class="row-controls" style="margin-top:10px">
+        <button class="ghost" id="btnScanMail">LEGGI CASELLA ORA</button>
+      </div>
+    </div>
+  </section>
+
+  <section>
     <h3>Import manuale estratto conto</h3>
     <div class="card">
       <div class="row-controls">
@@ -144,7 +156,7 @@ input:focus, textarea:focus { border-color: rgba(212,175,55,.4); }
         <input type="text" id="csvLabel" placeholder="Etichetta conto (es. Intesa aziendale)" style="flex:1;min-width:180px">
         <button id="btnImport">IMPORTA</button>
       </div>
-      <div class="hint">Fallback senza API: esporta il CSV dal tuo home banking (Intesa, Unicredit, Fineco, N26, Revolut…) e caricalo qui. Colonne riconosciute automaticamente; i movimenti già presenti vengono saltati; i bonifici vengono riconciliati con i canoni attesi.</div>
+      <div class="hint">In alternativa: esporta il CSV dal tuo home banking (Intesa, Unicredit, Fineco, N26, Revolut…) e caricalo qui. Colonne riconosciute automaticamente; i movimenti già presenti vengono saltati; i bonifici vengono riconciliati con i canoni attesi.</div>
     </div>
   </section>
 </div>
@@ -233,7 +245,7 @@ input:focus, textarea:focus { border-color: rgba(212,175,55,.4); }
       if (!j.configured) {
         list.innerHTML = '';
         document.getElementById('bankHint').innerHTML =
-          'Chiavi API non ancora configurate. Crea un account gratuito su <code>bankaccountdata.gocardless.com</code>, genera i "user secrets" e aggiungi <code>GOCARDLESS_SECRET_ID</code> e <code>GOCARDLESS_SECRET_KEY</code> alle variabili d\'ambiente Vercel. Nel frattempo funziona l\'import CSV manuale.';
+          'Il collegamento API diretto (GoCardless Bank Account Data) al momento <b>non accetta nuove iscrizioni</b>, quindi questa strada è disponibile solo se hai già un account (in quel caso: user secrets → <code>GOCARDLESS_SECRET_ID</code> / <code>GOCARDLESS_SECRET_KEY</code> su Vercel). Nessun problema: usa l\'<b>estratto conto via email</b> (automatico, qui sotto) o l\'import CSV manuale — stessa riconciliazione, stessi export.';
         return;
       }
       list.innerHTML = j.institutions.length ? j.institutions.map(b =>
@@ -330,6 +342,14 @@ input:focus, textarea:focus { border-color: rgba(212,175,55,.4); }
     } catch (e) { box.innerHTML = `<div class="empty">Errore scadenzario: ${esc(e.message)}</div>`; }
   }
   loadScadenzario();
+
+  // ── Scan casella email ───────────────────────────────────────────────
+  document.getElementById('btnScanMail').addEventListener('click', async e => {
+    const b = e.target; b.disabled = true; b.textContent = 'LEGGO…';
+    try { const j = await api('/api/banking/scan-inbox'); toast(j.summary || 'Casella letta', 'success'); }
+    catch (err) { toast('Lettura fallita: ' + err.message, 'error'); }
+    b.disabled = false; b.textContent = 'LEGGI CASELLA ORA';
+  });
 
   // ── Import manuale ───────────────────────────────────────────────────
   document.getElementById('btnImport').addEventListener('click', async e => {
