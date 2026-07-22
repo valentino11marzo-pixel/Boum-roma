@@ -463,11 +463,13 @@
       var otherLabel = S.role==='tenant' ? 'Landlord' : 'Tenant';
       var otherName = (S.data.otherParty && S.data.otherParty.name) || '—';
       var pdf = (S.data.contract && S.data.contract.generatedPDF) || '';
+      var dele=(S.role==='landlord'&&c.landlordDelegate&&c.landlordDelegate.name)?c.landlordDelegate:null;
       FLOW.innerHTML='';
       FLOW.appendChild(el(
         '<div class="step">'+
           '<h1 class="t">Review your contract</h1>'+
           '<p class="sub">Welcome'+(signer.name?(', '+esc(signer.name)):'')+'. Please review the terms before signing.</p>'+
+          (dele?'<p class="sub" style="border:1px dashed rgba(212,175,55,.4);border-radius:10px;padding:10px 14px">✍️ You are countersigning as <b>'+esc(dele.name)+'</b> on behalf of <b>'+esc(dele.onBehalfOf||'the landlord')+'</b>'+(dele.basis?(' — '+esc(dele.basis)):'')+'. The signature will be recorded as a delegate signature.</p>':'')+
           '<div class="summary">'+
             '<div class="prop"><div class="lbl">Property</div><div class="name">'+esc(p.name||p.title||'Apartment')+'</div><div class="addr">'+esc(p.address||'')+'</div></div>'+
             '<div class="grid2">'+

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#060607">
+<title>Tour foto & video — checklist operativa · BOOM</title>
+<link rel="stylesheet" href="/css/boom-2026.css">
+<style>
+main{max-width:760px}
+.hd{margin-top:-30px}
+.hd h1{font-weight:100;font-size:clamp(28px,6vw,44px);line-height:1.08}
+.hd h1 em{font-style:normal;color:var(--gold);font-weight:300}
+.hd p{color:var(--t3);font-size:13px;margin-top:8px}
+.prog{margin-top:18px;border:1px solid var(--line-gold);border-radius:14px;padding:14px 18px;background:var(--gold-faint);display:flex;gap:16px;align-items:baseline}
+.prog b{font-size:26px;font-weight:300;color:var(--gold)}
+.prog span{font-size:12px;color:var(--t3)}
+.zone-h{margin:30px 0 4px;font-size:10px;letter-spacing:2.4px;text-transform:uppercase;color:var(--gold)}
+.apt{border:1px solid var(--line);border-radius:16px;background:var(--card);padding:16px 18px;margin-top:10px}
+.apt.done{border-color:rgba(61,220,151,.4);opacity:.65}
+.apt .top{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+.apt .top b{font-weight:400;font-size:16px}
+.apt .st{font-size:9px;letter-spacing:1.6px;text-transform:uppercase;padding:3px 9px;border-radius:100px;border:1px solid var(--line)}
+.apt .st.wl{color:var(--gold);border-color:var(--line-gold)}
+.apt .st.av{color:var(--green);border-color:rgba(61,220,151,.35)}
+.gaps{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.gap{font-size:11px;border:1px solid rgba(255,122,110,.35);color:#ff9c92;border-radius:100px;padding:5px 11px;background:rgba(255,122,110,.05)}
+.gap.ok{border-color:rgba(61,220,151,.3);color:var(--green);background:rgba(61,220,151,.05);text-decoration:line-through;opacity:.6}
+.todo{display:grid;gap:7px;margin-top:12px}
+.todo label{display:flex;gap:10px;align-items:center;font-size:13.5px;color:var(--t2);cursor:pointer;padding:9px 12px;border:1px solid var(--line-soft);border-radius:11px}
+.todo input{width:19px;height:19px;accent-color:#D4AF37;flex:none}
+.todo label.c{opacity:.55;text-decoration:line-through}
+.note{margin-top:10px}
+.note input{width:100%;background:var(--input);border:1px solid var(--line);border-radius:11px;padding:11px 13px;font-size:14px;color:var(--t1);outline:none;font-family:inherit}
+.note input:focus{border-color:var(--line-gold)}
+.note .lbl{font-size:9.5px;letter-spacing:1.8px;text-transform:uppercase;color:var(--t4);margin-bottom:5px}
+.err{margin-top:30px;color:var(--t3);font-size:13px;text-align:center}
+@media print{body{background:#fff;color:#000}.prog,.note input{border-color:#ccc}}
+</style>
+</head>
+<body>
+<main>
+  <div class="hd">
+    <span class="eyebrow">Strumento interno · dati live dal database</span>
+    <h1>Il tour. <em>Casa per casa.</em></h1>
+    <p>Ogni casa mostra cosa le manca <b style="color:var(--t2);font-weight:400">adesso</b> (calcolato dai dati veri). Spunta sul posto — resta salvato su questo telefono — e annota la disponibilità precisa che poi carichi nel portal.</p>
+  </div>
+  <div class="prog"><b id="pgN">—</b><span id="pgT">caricamento…</span></div>
+  <div id="list"></div>
+  <p class="err" id="err" hidden>Non riesco a leggere gli annunci — controlla la connessione e ricarica.</p>
+</main>
+<script>
+var LS='boom:tour:';
+function load(k,d){try{return localStorage.getItem(LS+k)||d}catch(e){return d}}
+function save(k,v){try{localStorage.setItem(LS+k,v)}catch(e){}}
+function gaps(l){
+  var g=[], imgs=Array.isArray(l.images)?l.images.length:0;
+  if(imgs===0&&l.image)imgs=1;
+  g.push({id:'photos',bad:imgs<5,txt:imgs<5?('📸 gallery: solo '+imgs+' foto — servono 8+'):'📸 gallery ok ('+imgs+')'});
+  g.push({id:'video',bad:!l.videoUrl,txt:l.videoUrl?'🎥 video ok':'🎥 manca il VIDEO (la promessa del brand)'});
+  var d=(l.description||'').length;
+  g.push({id:'desc',bad:d<120,txt:d<120?('✍️ descrizione: '+d+' caratteri — troppo corta'):'✍️ descrizione ok'});
+  var af=l.availableFrom||l.availableDate||'';
+  var badDate=!af||!/^\d{4}-\d{2}-\d{2}/.test(String(af))||(String(af)<new Date().toISOString().slice(0,10)&&String(l.status||'available')==='available');
+  g.push({id:'date',bad:badDate,txt:badDate?('📅 disponibilità da sistemare'+(af?' (ora: "'+af+'")':' (vuota)')):'📅 data ok ('+String(af).slice(0,10)+')'});
+  if(!l.sqm)g.push({id:'sqm',bad:true,txt:'📐 mancano i mq'});
+  return g;
+}
+var TASKS=[['shot','Foto nuove scattate (tutte le stanze + finestre + esterno)'],['vid','Video girato (walkthrough continuo, 60–120s)'],['avail','Disponibilità precisa confermata col proprietario']];
+fetch('/api/listings',{cache:'no-store'}).then(function(r){return r.json()}).then(function(j){
+  if(!j||!j.ok||!Array.isArray(j.listings))throw 0;
+  var L=j.listings.filter(function(l){var s=String(l.status||'available').toLowerCase();return s==='available'||s==='waitlist'});
+  L.sort(function(a,b){return String(a.zone||'').localeCompare(String(b.zone||''))||String(a.name||'').localeCompare(String(b.name||''))});
+  var byZone={};L.forEach(function(l){(byZone[l.zone||'Altre']=byZone[l.zone||'Altre']||[]).push(l)});
+  var html='';
+  Object.keys(byZone).sort().forEach(function(z){
+    html+='<div class="zone-h">'+z+'</div>';
+    byZone[z].forEach(function(l){
+      var id=l.id||l.name, gl=gaps(l);
+      html+='<div class="apt" data-id="'+id+'"><div class="top"><b>'+(l.name||id)+'</b>'
+        +'<span class="st '+(l.status==='waitlist'?'wl':'av')+'">'+(l.status||'available')+'</span>'
+        +'<span style="font-size:11px;color:var(--t4)">€'+(l.price||'—')+'/mese · <a href="/listing/'+encodeURIComponent(id)+'" style="color:var(--gold)" target="_blank">apri →</a></span></div>'
+        +'<div class="gaps">'+gl.map(function(g){return '<span class="gap'+(g.bad?'':' ok')+'">'+g.txt+'</span>'}).join('')+'</div>'
+        +'<div class="todo">'+TASKS.map(function(t){var k=id+':'+t[0],c=load(k,'')==='1';
+          return '<label class="'+(c?'c':'')+'"><input type="checkbox" data-k="'+k+'"'+(c?' checked':'')+'>'+t[1]+'</label>'}).join('')+'</div>'
+        +'<div class="note"><div class="lbl">Disponibilità precisa (poi la carichi nel portal)</div>'
+        +'<input placeholder="es. libero dal 2026-09-01 · o: occupato fino al 2027-02-28" data-n="'+id+'" value="'+String(load('n:'+id,'')).replace(/"/g,'&quot;')+'"></div></div>';
+    });
+  });
+  document.getElementById('list').innerHTML=html;
+  function prog(){
+    var boxes=document.querySelectorAll('.todo input'),done=0;
+    boxes.forEach(function(b){if(b.checked)done++});
+    document.getElementById('pgN').textContent=done+'/'+boxes.length;
+    document.getElementById('pgT').textContent='attività completate su '+L.length+' case · si salva da solo su questo dispositivo';
+    document.querySelectorAll('.apt').forEach(function(a){
+      var all=[].every.call(a.querySelectorAll('.todo input'),function(b){return b.checked});
+      a.classList.toggle('done',all);
+    });
+  }
+  document.getElementById('list').addEventListener('change',function(e){
+    if(e.target.matches('.todo input')){save(e.target.dataset.k,e.target.checked?'1':'');e.target.closest('label').classList.toggle('c',e.target.checked);prog();}
+  });
+  document.getElementById('list').addEventListener('input',function(e){
+    if(e.target.matches('.note input'))save('n:'+e.target.dataset.n,e.target.value);
+  });
+  prog();
+}).catch(function(){document.getElementById('err').hidden=false;document.getElementById('pgT').textContent='errore';});
+</script>
+</body>
+</html>

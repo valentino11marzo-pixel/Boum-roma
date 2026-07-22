@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script defer src="/js/boom-err.js"></script>
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', 'G-EYCD59RDVJ');
+      gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied',wait_for_update:500});gtag('config','G-EYCD59RDVJ');
     </script>
     
     <link rel="icon" href="/favicon.ico" sizes="any">
@@ -249,6 +250,8 @@
   ],
   "address": {
     "@type": "PostalAddress",
+    "streetAddress": "Via dei Coronari 181/184",
+    "postalCode": "00186",
     "addressLocality": "Rome",
     "addressRegion": "Lazio",
     "addressCountry": "IT"
@@ -305,6 +308,7 @@
 }
   </script>
 <!-- BOOM_JSONLD:END -->
+<script defer src="/js/boom-consent.js"></script>
 </head>
 <body>
     <div class="mobile-header">
@@ -332,7 +336,7 @@
             <a class="nav-item" onclick="openMaintenanceModal()">Report Issue</a>
             <a class="nav-item" href="/" target="_blank">View Website</a>
             <div class="sidebar-footer">
-                <button class="logout-btn" onclick="auth.signOut().then(() => location.href='login.html')">Logout</button>
+                <button class="logout-btn" onclick="auth.signOut().then(() => location.href='/login')">Logout</button>
             </div>
         </aside>
 
@@ -456,9 +460,9 @@
         let tenantProperty = null;
 
         auth.onAuthStateChanged(async (user) => {
-            if (!user) { window.location.href = 'login.html'; return; }
+            if (!user) { window.location.href = '/login?next=' + encodeURIComponent(location.pathname + location.hash); return; }
             const doc = await db.collection('users').doc(user.uid).get();
-            if (!doc.exists || doc.data().role !== 'tenant') { window.location.href = 'login.html'; return; }
+            if (!doc.exists || doc.data().role !== 'tenant') { window.location.href = '/login'; return; }
 
             currentUser = { id: user.uid, ...doc.data() };
             document.getElementById('userName').textContent = currentUser.name || 'Tenant';

@@ -49,6 +49,21 @@
       "permanent": true
     },
     {
+      "source": "/(dashboard|dashboard.html|admin|admin.html)",
+      "destination": "/portal",
+      "permanent": false
+    },
+    {
+      "source": "/(owner|owner.html)",
+      "destination": "/owner-dashboard",
+      "permanent": false
+    },
+    {
+      "source": "/(apartments-legacy|apartments-legacy.html|apartment-detail-legacy|apartment-detail-legacy.html)",
+      "destination": "/apartments",
+      "permanent": false
+    },
+    {
       "source": "/apartments.html",
       "destination": "/apartments",
       "permanent": true
@@ -111,6 +126,16 @@
     {
       "source": "/deal-assistance.html",
       "destination": "/deal-assistance",
+      "permanent": true
+    },
+    {
+      "source": "/deposit-recovery.html",
+      "destination": "/deposit-recovery",
+      "permanent": true
+    },
+    {
+      "source": "/contract-check-express.html",
+      "destination": "/contract-check-express",
       "permanent": true
     },
     {
@@ -210,6 +235,10 @@
       "destination": "/api/listing"
     },
     {
+      "source": "/llms-listings.txt",
+      "destination": "/api/llms-listings"
+    },
+    {
       "source": "/listings-sitemap.xml",
       "destination": "/api/sitemap-listings"
     },
@@ -306,6 +335,14 @@
       "destination": "/deal-assistance.html"
     },
     {
+      "source": "/deposit-recovery",
+      "destination": "/deposit-recovery.html"
+    },
+    {
+      "source": "/contract-check-express",
+      "destination": "/contract-check-express.html"
+    },
+    {
       "source": "/client-portal",
       "destination": "/client-portal.html"
     },
@@ -314,24 +351,12 @@
       "destination": "/property-finding.html"
     },
     {
-      "source": "/dashboard",
-      "destination": "/dashboard.html"
-    },
-    {
       "source": "/thank-you",
       "destination": "/thank-you.html"
     },
     {
-      "source": "/admin",
-      "destination": "/admin.html"
-    },
-    {
       "source": "/admin-flats",
       "destination": "/admin-flats.html"
-    },
-    {
-      "source": "/owner",
-      "destination": "/owner.html"
     },
     {
       "source": "/owner-dashboard",
@@ -400,14 +425,6 @@
     {
       "source": "/pre-agreement-admin",
       "destination": "/pre-agreement-admin.html"
-    },
-    {
-      "source": "/apartments-legacy",
-      "destination": "/apartments-legacy.html"
-    },
-    {
-      "source": "/apartment-detail-legacy",
-      "destination": "/apartment-detail-legacy.html"
     }
   ],
   "headers": [
@@ -441,7 +458,7 @@
       ]
     },
     {
-      "source": "/(portal|admin|admin-flats|setup-firebase|seed-listings|boom-doc-parser|boom_doc_parser|cockpit-preview|portal.html|admin.html|admin-flats.html|setup-firebase.html|seed-listings.html|boom_doc_parser.html|cockpit-preview.html)(.*)",
+      "source": "/(portal|admin|admin-flats|setup-firebase|seed-listings|boom-doc-parser|boom_doc_parser|cockpit-preview|team|banca|portal.html|admin.html|admin-flats.html|setup-firebase.html|seed-listings.html|boom_doc_parser.html|cockpit-preview.html|team.html|banca.html)(.*)",
       "headers": [
         {
           "key": "X-Robots-Tag",
@@ -545,8 +562,39 @@
     "api/magic-sign/submit.js": {
       "maxDuration": 60
     },
+    "api/employees/contabile.js": {
+      "maxDuration": 60
+    },
+    "api/banking/sync.js": {
+      "maxDuration": 60
+    },
+    "api/banking/scan-inbox.js": {
+      "maxDuration": 60
+    },
+    "api/documents/scan-inbox.js": {
+      "maxDuration": 60
+    },
+    "api/telegram/webhook.js": {
+      "maxDuration": 60
+    },
+    "api/banking/import.js": {
+      "maxDuration": 60
+    },
+    "api/banking/export.js": {
+      "maxDuration": 60
+    },
+    "api/employees/gestore.js": {
+      "maxDuration": 60
+    },
+    "api/employees/commerciale.js": {
+      "maxDuration": 60
+    },
     "api/sign/custom/submit.js": {
       "maxDuration": 60
+    },
+    "api/photos/enhance.js": {
+      "maxDuration": 60,
+      "memory": 1769
     }
   },
   "crons": [
@@ -581,6 +629,31 @@
     {
       "path": "/api/wizard/health",
       "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/documents/scan-inbox",
+      "schedule": "50 3 * * *"
+    },
+    {
+      "path": "/api/banking/scan-inbox",
+      "schedule": "5 4 * * *"
+    },
+    {
+      "path": "/api/banking/sync",
+      "schedule": "15 4 * * *"
+    },
+    {
+      "path": "/api/employees/contabile",
+      "schedule": "40 4 * * *"
+    },
+    {
+      "path": "/api/employees/gestore",
+      "schedule": "10 5 * * *"
+    },
+    {
+      "path": "/api/employees/commerciale",
+      "schedule": "0 6-18/2 * * *"
+
     }
   ]
 }

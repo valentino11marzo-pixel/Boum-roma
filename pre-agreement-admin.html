@@ -30,8 +30,8 @@ h1{font-weight:200;font-size:24px;margin-bottom:4px}
 @media(max-width:480px){.g3{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .fld{display:block;margin-bottom:10px}
 .fld span{display:block;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--t3);margin-bottom:5px}
-.fld input,.fld select{width:100%;background:var(--input);border:1px solid var(--line);border-radius:10px;color:var(--t1);font-family:inherit;font-size:14.5px;padding:11px 12px;transition:border-color .25s}
-.fld input:focus,.fld select:focus{outline:none;border-color:var(--gold)}
+.fld input,.fld select,.fld textarea{width:100%;background:var(--input);border:1px solid var(--line);border-radius:10px;color:var(--t1);font-family:inherit;font-size:14.5px;padding:11px 12px;transition:border-color .25s;resize:vertical}
+.fld input:focus,.fld select:focus,.fld textarea:focus{outline:none;border-color:var(--gold)}
 .fld.req span::after{content:" *";color:var(--gold)}
 .hintline{font-size:11.5px;color:var(--t3);margin-top:-4px;margin-bottom:8px}
 .hintline b{color:var(--gold);font-weight:500}
@@ -70,6 +70,17 @@ h1{font-weight:200;font-size:24px;margin-bottom:4px}
 .editbar button{color:var(--t2);text-decoration:underline;font-size:12px;margin-left:10px}
 .nextstep{font-size:11px;color:var(--t3);margin-top:8px;padding-top:8px;border-top:1px solid var(--line-soft)}
 .nextstep a{color:var(--gold);text-decoration:none}
+/* ── convert-to-contract sheet ── */
+.cvov{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:rgba(4,4,6,.78);backdrop-filter:blur(10px);padding:18px}
+.cvbox{width:min(480px,100%);border:1px solid var(--line-gold);border-radius:18px;background:var(--card);padding:20px;max-height:88vh;overflow-y:auto}
+.cvbox h3{font-weight:300;font-size:18px;margin-bottom:4px}
+.cvbox .sub2{font-size:12px;color:var(--t3);margin-bottom:14px;line-height:1.6}
+.cvbox .dele{display:flex;gap:10px;align-items:flex-start;font-size:12.5px;color:var(--t2);cursor:pointer;margin:12px 0;line-height:1.55}
+.cvbox .dele input{width:18px;height:18px;margin-top:1px;flex:none;accent-color:#FFD700}
+.cvlink{border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-top:10px;font-size:12px}
+.cvlink b{display:block;font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:var(--gold);margin-bottom:5px;font-weight:600}
+.cvlink .u{word-break:break-all;color:var(--t2)}
+.cvlink .row2{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
 </style>
 </head>
 <body>
@@ -92,6 +103,8 @@ h1{font-weight:200;font-size:24px;margin-bottom:4px}
         <label class="fld"><span>Condition</span><input id="fCondition" value="Furnished"></label>
       </div>
       <label class="fld req"><span>Landlord name</span><input id="fLandlord" placeholder="Mario Di Capua"></label>
+      <label class="fld"><span>Portal property — enables auto-contract</span><select id="fProp"><option value="">— none (convert manually later) —</option></select></label>
+      <p class="hintline">With a property linked, the rental contract <b>creates itself</b> the moment the client signs &amp; pays — Magic-Sign link emailed to them, delegate link to you.</p>
     </div>
 
     <div class="card"><h2>Lease</h2>
@@ -105,16 +118,30 @@ h1{font-weight:200;font-size:24px;margin-bottom:4px}
 
     <div class="card"><h2>Money</h2>
       <div class="g3">
-        <label class="fld req"><span>Monthly rent €</span><input id="fRent" type="number" inputmode="numeric" placeholder="1200"></label>
+        <label class="fld req"><span>Monthly base rent €</span><input id="fRent" type="number" inputmode="numeric" placeholder="1200"></label>
+        <label class="fld"><span>Utilities</span><select id="fUtil"><option value="excluded">Excluded (tenant pays)</option><option value="included">Included in rent</option></select></label>
+        <label class="fld"><span>Energy credit €/mo</span><input id="fEnergy" type="number" inputmode="numeric" value="0" min="0" max="1000" title="Included in the monthly fee — covers electricity up to this amount (clause added automatically)"></label>
         <label class="fld"><span>Deposit (months)</span><input id="fDepM" type="number" value="1" min="0" max="6" step="0.5"></label>
-        <label class="fld"><span>Fee % of annual</span><input id="fFeePct" type="number" value="12" min="0" max="30" step="0.5"></label>
       </div>
-      <div class="g2">
+      <div class="g3">
+        <label class="fld"><span>Deposit at signing</span><select id="fDepSplit"><option value="100">100% at signing</option><option value="50">50% now · 50% move-in</option><option value="0">All upon move-in</option></select></label>
+        <label class="fld"><span>Fee basis</span><select id="fFeeMode"><option value="pct">% of annual rent</option><option value="months">Months of base rent</option><option value="flat">€ fixed amount</option></select></label>
+        <label class="fld" id="wrapFeePct"><span>Fee % of annual</span><input id="fFeePct" type="number" value="12" min="0" max="30" step="0.5"></label>
+        <label class="fld" id="wrapFeeMonths" style="display:none"><span>Fee (months of rent)</span><input id="fFeeMonths" type="number" value="1" min="0" max="3" step="0.5"></label>
+        <label class="fld" id="wrapFeeFlat" style="display:none"><span>Fee € (fixed)</span><input id="fFeeFlat" type="number" inputmode="numeric" value="" min="0" placeholder="800"></label>
+      </div>
+      <div class="g3">
         <label class="fld"><span>VAT % on fee</span><input id="fVatPct" type="number" value="22" min="0" max="30"></label>
-        <label class="fld"><span>Due at signing €</span><input id="fDue" type="number" inputmode="numeric" placeholder="auto = deposit"></label>
+        <label class="fld"><span>Fee due</span><select id="fFeeDue"><option value="move-in">Upon move-in</option><option value="separate">Separately</option><option value="signing">At signing</option></select></label>
+        <label class="fld"><span>Due at signing €</span><input id="fDue" type="number" inputmode="numeric" placeholder="auto"></label>
       </div>
       <p class="hintline" id="mathLine">—</p>
+      <label class="fld"><span>Extra line items — one per line: Label = amount (optional)</span><textarea id="fExtras" rows="2" placeholder="Final cleaning (at move-in) = 120&#10;Garage parking /month = 90"></textarea></label>
       <label class="fld"><span>Note on the document (optional)</span><input id="fNote" placeholder="e.g. deposito già versato il 06/07 · IBAN …"></label>
+    </div>
+
+    <div class="card"><h2>Custom clauses</h2>
+      <label class="fld"><span>Added to §5 General conditions — one clause per line (optional)</span><textarea id="fClauses" rows="3" placeholder="Pets are allowed subject to the Landlord's prior written approval.&#10;The apartment is delivered professionally cleaned; the Tenant returns it in the same state."></textarea></label>
     </div>
 
     <div class="card"><h2>Client (optional prefill)</h2>
@@ -157,31 +184,87 @@ var USER=null,LISTINGS=[];
 var $=function(id){return document.getElementById(id)};
 var eur=function(n){var f=Math.round(n*100)%100!==0;return '€'+Number(n).toLocaleString('en-US',{minimumFractionDigits:f?2:0,maximumFractionDigits:2})};
 
-function mathLine(){
-  var rent=+$('fRent').value||0,dm=+$('fDepM').value||0,fp=+$('fFeePct').value||0,vp=+$('fVatPct').value||0;
-  if(!rent){$('mathLine').textContent='—';return;}
-  var dep=Math.round(rent*dm*100)/100,fee=Math.round(rent*12*fp)/100,vat=Math.round(fee*vp)/100;
-  $('mathLine').innerHTML='Deposit <b>'+eur(dep)+'</b> · fee <b>'+eur(fee)+'</b> + VAT '+eur(vat)+' = <b>'+eur(fee+vat)+'</b> (due separately) · due at signing default <b>'+eur(+$('fDue').value||dep)+'</b>';
+/* Client-side mirror of api/preagreement/create.js deriveMoney() — the edit-
+   in-place flow writes these derived fields directly, so the math MUST match. */
+function deriveMoney(k){
+  var r2=function(n){return Math.round(n*100)/100};
+  var rent=+k.rent||0, ec=Math.max(0,Math.min(1000,+k.energyCredit||0));
+  var dm=Math.max(0,Math.min(6,k.depositMonths!=null?+k.depositMonths:1));
+  var deposit=r2(rent*dm);
+  var splitPct=Math.max(0,Math.min(100,k.depositSplitPct!=null?+k.depositSplitPct:100));
+  var depS=r2(deposit*splitPct/100), depM=r2(deposit-depS);
+  var feeMode=k.feeMode==='months'?'months':(k.feeMode==='flat'||(k.feeFlat!=null&&k.feeFlat!==''))?'flat':'pct';
+  var feePct=Math.max(0,Math.min(100,k.feePct!=null?+k.feePct:12));
+  var feeMonths=Math.max(0,Math.min(3,k.feeMonths!=null?+k.feeMonths:1));
+  var feeFlat=feeMode==='flat'?Math.max(0,Math.min(200000,+k.feeFlat||0)):null;
+  var fee=feeMode==='flat'?r2(feeFlat):feeMode==='months'?r2(rent*feeMonths):r2(rent*12*feePct/100);
+  var vatPct=Math.max(0,Math.min(50,k.feeVatPct!=null?+k.feeVatPct:22));
+  var feeVat=r2(fee*vatPct/100), feeTotal=r2(fee+feeVat);
+  var feeDue=['move-in','signing','separate'].indexOf(k.feeDue)>=0?k.feeDue:'separate';
+  var utilities=k.utilities==='included'?'included':'excluded';
+  var dueDefault=r2(depS+(feeDue==='signing'?feeTotal:0));
+  var due=(k.dueAtSigning!=null&&k.dueAtSigning!=='')?Math.max(0,+k.dueAtSigning||0):dueDefault;
+  return {rent:rent,energyCredit:ec,monthlyTotal:r2(rent+ec),utilities:utilities,depositMonths:dm,deposit:deposit,
+    depositSplitPct:splitPct,depositAtSigning:depS,depositAtMoveIn:depM,
+    feeMode:feeMode,feePct:feePct,feeMonths:feeMonths,feeFlat:feeFlat,fee:fee,feeVatPct:vatPct,feeVat:feeVat,
+    feeTotal:feeTotal,feeDue:feeDue,dueAtSigning:due};
 }
-['fRent','fDepM','fFeePct','fVatPct','fDue'].forEach(function(id){document.addEventListener('input',function(e){if(e.target.id===id)mathLine();});});
+function moneyKnobs(){
+  return {rent:+$('fRent').value||0,energyCredit:+$('fEnergy').value||0,utilities:$('fUtil').value,
+    depositMonths:$('fDepM').value!==''?+$('fDepM').value:1,depositSplitPct:+$('fDepSplit').value,
+    feeMode:$('fFeeMode').value,feePct:+$('fFeePct').value||0,feeMonths:+$('fFeeMonths').value||0,feeFlat:$('fFeeFlat').value!==''?+$('fFeeFlat').value:null,
+    feeVatPct:+$('fVatPct').value||0,feeDue:$('fFeeDue').value,
+    dueAtSigning:$('fDue').value!==''?Math.max(0,+$('fDue').value||0):null};
+}
+function feeModeUi(){
+  var v=$('fFeeMode').value;
+  $('wrapFeePct').style.display=v==='pct'?'':'none';
+  $('wrapFeeMonths').style.display=v==='months'?'':'none';
+  $('wrapFeeFlat').style.display=v==='flat'?'':'none';
+}
+function mathLine(){
+  feeModeUi();
+  var mm=deriveMoney(moneyKnobs());
+  if(!mm.rent){$('mathLine').textContent='—';return;}
+  $('mathLine').innerHTML=(mm.energyCredit?'Monthly total <b>'+eur(mm.monthlyTotal)+'</b> (rent + energy) · ':'')
+    +'Deposit <b>'+eur(mm.deposit)+'</b>'+(mm.depositSplitPct<100?' ('+eur(mm.depositAtSigning)+' at signing · '+eur(mm.depositAtMoveIn)+' move-in)':'')
+    +' · fee <b>'+eur(mm.fee)+'</b>'+(mm.feeMode==='flat'?' (fixed)':'')+' + VAT '+eur(mm.feeVat)+' = <b>'+eur(mm.feeTotal)+'</b> ('+(mm.feeDue==='move-in'?'upon move-in':mm.feeDue==='signing'?'at signing':'separately')+')'
+    +' · due at signing <b>'+eur(mm.dueAtSigning)+'</b>';
+}
+['fRent','fEnergy','fDepM','fDepSplit','fFeeMode','fFeePct','fFeeMonths','fFeeFlat','fVatPct','fFeeDue','fDue'].forEach(function(id){
+  document.addEventListener('input',function(e){if(e.target.id===id)mathLine();});
+  document.addEventListener('change',function(e){if(e.target.id===id)mathLine();});
+});
 
 /* edit mode: EDIT_ID + EDIT_TOKEN set → saving PATCHES the same doc, so the
    client's existing link shows the updated terms. Derivations (deposit, fee,
    VAT, end date with month-end clamp) mirror api/preagreement/create.js. */
 var EDIT_ID=null,EDIT_TOKEN=null;
 function endDateISO(startISO,months){var d=new Date(startISO+'T00:00:00');var day=d.getDate();d.setMonth(d.getMonth()+months);if(d.getDate()!==day)d.setDate(0);else d.setDate(d.getDate()-1);return d.toISOString().slice(0,10);}
+function parseExtras(){
+  return $('fExtras').value.split('\n').map(function(l){
+    var m=l.match(/^(.*?)[=:]\s*€?\s*([\d.,]+)\s*$/);
+    if(!m||!m[1].trim())return null;
+    return {label:m[1].trim(),amount:parseFloat(m[2].replace(/\./g,'').replace(',','.'))||parseFloat(m[2])||0};
+  }).filter(Boolean).slice(0,8);
+}
+function parseClauses(){
+  return $('fClauses').value.split('\n').map(function(l){return l.trim()}).filter(Boolean).slice(0,10);
+}
 function readForm(){
-  var rent=+$('fRent').value||0,dm=+$('fDepM').value||0,fp=+$('fFeePct').value||0,vp=+$('fVatPct').value||0;
-  var deposit=Math.round(rent*dm*100)/100,fee=Math.round(rent*12*fp)/100,feeVat=Math.round(fee*vp)/100;
   var months=Math.max(1,Math.min(48,+$('fMonths').value||12)),start=$('fStart').value;
+  var knobs=moneyKnobs();
   return{
     listingId:$('fList').value||null,
+    propertyId:$('fProp').value||null,   // linked portal property → auto-contract on close
     property:{address:$('fAddress').value.trim(),floor:$('fFloor').value.trim()||null,unit:$('fUnit').value.trim()||null,condition:$('fCondition').value.trim()||'Furnished',type:'Entire Apartment',use:'Residential'},
     landlord:{name:$('fLandlord').value.trim()},
     tenant:{fullName:$('fTName').value.trim()||null,email:$('fTEmail').value.trim()||null,phone:$('fTPhone').value.trim()||null},
     lease:{startDate:start,months:months,endDate:start?endDateISO(start,months):null,type:$('fType').value,lawRef:'uso transitorio · L.431/98 art.5 c.1',reason:$('fReason').value.trim()||null},
-    money:{rent:rent,depositMonths:dm,deposit:deposit,feePct:fp,feeVatPct:vp,fee:fee,feeVat:feeVat,feeTotal:Math.round((fee+feeVat)*100)/100,
-      dueAtSigning:$('fDue').value!==''?Math.max(0,+$('fDue').value||0):deposit},
+    knobs:knobs,                 // raw inputs → the create API derives server-side
+    money:deriveMoney(knobs),    // full derived object → edit-in-place + preview
+    extras:parseExtras(),
+    customClauses:parseClauses(),
     note:$('fNote').value.trim()||null
   };
 }
@@ -200,8 +283,10 @@ window.createPA=async function(){
     if(EDIT_ID){
       /* update in place — same token, same link, status back to sent */
       await firebase.firestore().collection('preAgreements').doc(EDIT_ID).update({
-        listingId:body.listingId,property:body.property,landlord:body.landlord,tenant:body.tenant,
-        lease:body.lease,money:body.money,note:body.note,
+        listingId:body.listingId,propertyId:body.propertyId,autoConvert:!!body.propertyId,
+        property:body.property,landlord:body.landlord,tenant:body.tenant,
+        tenants:[body.tenant],lease:body.lease,money:body.money,
+        extras:body.extras,customClauses:body.customClauses,note:body.note,
         status:'sent',updatedAt:new Date().toISOString(),updatedBy:USER.email||USER.uid
       });
       var url=location.origin+'/pre-agreement?t='+EDIT_TOKEN;
@@ -210,7 +295,7 @@ window.createPA=async function(){
       var tok=await USER.getIdToken();
       var payload=JSON.parse(JSON.stringify(body));
       delete payload.property.type;delete payload.property.use;delete payload.lease.endDate;delete payload.lease.lawRef;
-      delete payload.money.deposit;delete payload.money.fee;delete payload.money.feeVat;delete payload.money.feeTotal;
+      payload.money=payload.knobs;delete payload.knobs;   // server derives the rest
       var r=await fetch('/api/preagreement/create',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify(payload)});
       var j=await r.json();
       if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
@@ -230,9 +315,20 @@ function fillForm(d){
   $('fStart').value=(d.lease||{}).startDate||'';$('fMonths').value=(d.lease||{}).months||12;
   try{$('fType').value=(d.lease||{}).type||'Transitional Lease'}catch(e){}
   $('fReason').value=(d.lease||{}).reason||'';
-  $('fRent').value=(d.money||{}).rent||'';$('fDepM').value=(d.money||{}).depositMonths!=null?(d.money||{}).depositMonths:1;
-  $('fFeePct').value=(d.money||{}).feePct!=null?(d.money||{}).feePct:12;$('fVatPct').value=(d.money||{}).feeVatPct!=null?(d.money||{}).feeVatPct:22;
-  $('fDue').value=(d.money||{}).dueAtSigning!=null?(d.money||{}).dueAtSigning:'';
+  var mo=d.money||{};
+  $('fRent').value=mo.rent||'';$('fEnergy').value=mo.energyCredit!=null?mo.energyCredit:0;
+  $('fUtil').value=mo.utilities==='included'?'included':'excluded';
+  $('fDepM').value=mo.depositMonths!=null?mo.depositMonths:1;
+  try{$('fDepSplit').value=String(mo.depositSplitPct!=null?mo.depositSplitPct:100)}catch(e){$('fDepSplit').value='100'}
+  $('fFeeMode').value=mo.feeMode==='months'?'months':(mo.feeMode==='flat'||mo.feeFlat!=null)?'flat':'pct';
+  $('fFeePct').value=mo.feePct!=null?mo.feePct:12;$('fFeeMonths').value=mo.feeMonths!=null?mo.feeMonths:1;
+  $('fFeeFlat').value=mo.feeFlat!=null?mo.feeFlat:'';
+  $('fVatPct').value=mo.feeVatPct!=null?mo.feeVatPct:22;
+  $('fFeeDue').value=['move-in','signing','separate'].indexOf(mo.feeDue)>=0?mo.feeDue:'separate';
+  $('fDue').value=mo.dueAtSigning!=null?mo.dueAtSigning:'';
+  try{$('fProp').value=d.propertyId||''}catch(e){}
+  $('fExtras').value=(Array.isArray(d.extras)?d.extras:[]).map(function(x){return x.label+' = '+x.amount}).join('\n');
+  $('fClauses').value=(Array.isArray(d.customClauses)?d.customClauses:[]).join('\n');
   $('fNote').value=d.note||'';
   $('fTName').value=(d.tenant||{}).fullName||'';$('fTEmail').value=(d.tenant||{}).email||'';$('fTPhone').value=(d.tenant||{}).phone||'';
   mathLine();window.scrollTo({top:0,behavior:'smooth'});
@@ -250,28 +346,152 @@ window.revokePA=async function(id,undo){
   try{await firebase.firestore().collection('preAgreements').doc(id).update({status:undo?'sent':'revoked',updatedAt:new Date().toISOString()});}catch(e){alert('Could not update: '+e.message);}
 };
 window.copyPaLink=function(tok){try{navigator.clipboard.writeText(location.origin+'/pre-agreement?t='+tok);}catch(e){}};
+
+/* 🖊 Magic Sign — one tap: contract prepared (if needed) + tenant emailed.
+   The row refreshes by itself via the realtime listener (signSentAt patch). */
+window.sendSign=async function(id,btn){
+  if(btn){btn.disabled=true;btn.textContent='Invio…';}
+  try{
+    var tok=await USER.getIdToken();
+    var r=await fetch('/api/preagreement/send-sign',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({id:id})});
+    var j=await r.json();
+    if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
+    if(btn)btn.textContent=j.emailed?'✓ Inviato':'✓ Contratto pronto (email non partita)';
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent='🖊 Riprova Magic Sign';}
+    alert('Magic Sign non inviato: '+(e.message||'riprova')+(String(e.message).indexOf('no_property')>=0?' — collega prima la proprietà con → Contract.':''));
+  }
+};
+/* ✉ Reinvia copia — re-delivers the accepted/paid document email (recovery). */
+window.resendCopy=async function(id,btn){
+  if(btn){btn.disabled=true;btn.textContent='Invio…';}
+  try{
+    var tok=await USER.getIdToken();
+    var r=await fetch('/api/preagreement/notify',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({id:id})});
+    var j=await r.json();
+    if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
+    if(btn){btn.textContent=j.client?'✓ Copia inviata':'⚠ Email non partita';setTimeout(function(){btn.disabled=false;btn.textContent='✉ Reinvia copia';},4000);}
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent='✉ Reinvia copia';}
+    alert('Invio fallito: '+(e.message||'riprova'));
+  }
+};
+
+/* ── convert an accepted/paid PA into a rental contract ──
+   Identity + terms carry over; Magic-Sign tokens are minted server-side.
+   Delegate protocol: the landlord-side link is YOURS — countersign per
+   delega after the tenant signs, on your own schedule. */
+var PROPS=null;
+async function loadProps(){
+  if(PROPS)return PROPS;
+  PROPS=[];
+  try{
+    var snap=await firebase.firestore().collection('properties').limit(200).get();
+    snap.forEach(function(doc){var v=doc.data();PROPS.push({id:doc.id,name:v.name||v.title||doc.id,address:v.address||'',zone:v.zone||''});});
+    PROPS.sort(function(a,b){return String(a.name).localeCompare(String(b.name))});
+  }catch(e){console.warn('properties load',e);}
+  return PROPS;
+}
+window.closeConvert=function(){var o=document.getElementById('cvov');if(o)o.remove();};
+window.convertPA=async function(id){
+  var d=PAS.find(function(x){return x.id===id});if(!d)return;
+  var props=await loadProps();
+  var t=d.tenant||{},addr=((d.property||{}).address||'');
+  var norm=function(s){return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'')};
+  var guess=(d.propertyId?props.find(function(p){return p.id===d.propertyId}):null)
+    ||props.find(function(p){return p.address&&norm(addr).indexOf(norm(p.address).slice(0,14))===0})
+    ||props.find(function(p){return norm(p.address)&&norm(addr).indexOf(norm(p.address).slice(0,10))>=0});
+  var ov=document.createElement('div');ov.className='cvov';ov.id='cvov';
+  ov.innerHTML='<div class="cvbox">'
+    +'<h3>Convert to contract</h3>'
+    +'<div class="sub2"><b style="color:var(--t1)">'+(t.fullName||'—').replace(/</g,'&lt;')+'</b> · '+addr.replace(/</g,'&lt;')
+    +'<br>Identity, lease and money terms carry over from the signed pre-agreement — nothing to re-type.</div>'
+    +'<label class="fld"><span>Portal property *</span><select id="cvProp"><option value="">Select the property…</option>'
+    +props.map(function(p){return '<option value="'+p.id+'"'+(guess&&guess.id===p.id?' selected':'')+'>'+String(p.name).replace(/</g,'&lt;')+(p.zone?' · '+p.zone:'')+'</option>'}).join('')
+    +'</select></label>'
+    +'<label class="dele"><input type="checkbox" id="cvDelegate" checked><span><b>Io firmo per delega del proprietario.</b> Il link di firma lato proprietario resta a te: controfirmi quando decidi tu, dopo la firma dell’inquilino, e gestisci tu la registrazione (RLI).</span></label>'
+    +'<button class="gbtn" id="cvGo">Create contract + Magic-Sign links →</button>'
+    +'<p class="err" id="cvErr"></p>'
+    +'<div id="cvResult"></div>'
+    +'<div style="text-align:center;margin-top:12px"><button class="pbtn" onclick="closeConvert()">Close</button></div>'
+    +'</div>';
+  ov.addEventListener('click',function(e){if(e.target===ov)closeConvert();});
+  document.body.appendChild(ov);
+  document.getElementById('cvGo').onclick=async function(){
+    var err=document.getElementById('cvErr');err.style.display='none';
+    var propertyId=document.getElementById('cvProp').value;
+    if(!propertyId){err.textContent='Pick the portal property this contract belongs to.';err.style.display='block';return;}
+    var btn=this;btn.disabled=true;btn.textContent='Creating contract…';
+    try{
+      var tok=await USER.getIdToken();
+      var r=await fetch('/api/preagreement/convert',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
+        body:JSON.stringify({id:id,propertyId:propertyId,delegate:document.getElementById('cvDelegate').checked})});
+      var j=await r.json();
+      if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
+      var waT=t.phone?('https://wa.me/'+String(t.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent('Ciao'+(t.fullName?' '+t.fullName.split(' ')[0]:'')+'! Il tuo contratto per '+addr+' è pronto per la firma digitale. Firmi qui in 2 minuti: '+j.tenantSignUrl)):null;
+      document.getElementById('cvResult').innerHTML=
+        (j.already?'<div class="sub2" style="color:var(--gold-light);margin-top:12px">Already converted — here are the existing links.</div>':'')
+        +'<div class="cvlink"><b>Tenant signs first</b><span class="u">'+j.tenantSignUrl+'</span>'
+        +'<div class="row2"><button class="pbtn" onclick="navigator.clipboard.writeText(\''+j.tenantSignUrl+'\')">Copy</button>'
+        +(waT?'<a class="pbtn" href="'+waT+'" target="_blank" rel="noopener">Send on WhatsApp</a>':'')+'</div></div>'
+        +'<div class="cvlink"><b>'+(j.delegate?'Your delegate countersignature — keep this link':'Landlord signature link')+'</b><span class="u">'+j.landlordSignUrl+'</span>'
+        +'<div class="row2"><button class="pbtn" onclick="navigator.clipboard.writeText(\''+j.landlordSignUrl+'\')">Copy</button>'
+        +'<a class="pbtn" href="'+j.landlordSignUrl+'" target="_blank" rel="noopener">Open to sign</a></div>'
+        +(j.delegate?'<div style="font-size:11px;color:var(--t3);margin-top:7px">Si sblocca dopo la firma dell’inquilino (firma sequenziale) — firmi “'+(j.delegate.name||'')+' per conto di '+(j.delegate.onBehalfOf||'')+'”.</div>':'')
+        +'</div>';
+      btn.style.display='none';
+    }catch(e){err.textContent='Could not convert — '+(e.message||'try again')+'.';err.style.display='block';btn.disabled=false;btn.textContent='Create contract + Magic-Sign links →';}
+  };
+};
 function paRow(d){
   var st=(d.status||'sent'),m=d.money||{},t=d.tenant||{},url=location.origin+'/pre-agreement?t='+d.token;
   var when=(d.createdAt||'').slice(0,10);
   var views=Array.isArray(d.views)?d.views.length:0;
+  var nTen=Array.isArray(d.tenants)?d.tenants.length:1;
   var editable=(st==='sent'||st==='viewed'||st==='revoked');
-  var wa=t.phone?('https://wa.me/'+String(t.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent('Ciao'+(t.fullName?' '+t.fullName.split(' ')[0]:'')+'! Ecco il tuo pre-agreement BOOM: '+url)):null;
+  var done=(st==='accepted'||st==='paid');
+  /* WhatsApp message follows the deal's moment: invite to sign vs. the signed copy */
+  var waMsg=done
+    ?('Ciao'+(t.fullName?' '+t.fullName.split(' ')[0]:'')+'! Ecco la copia del tuo pre-agreement BOOM'+(d.ref?' '+d.ref:'')+' per '+((d.property||{}).address||'')+'. La puoi aprire, salvare e stampare qui: '+url)
+    :('Ciao'+(t.fullName?' '+t.fullName.split(' ')[0]:'')+'! Ecco il tuo pre-agreement BOOM per '+((d.property||{}).address||'')+'. Leggilo e firmalo qui: '+url);
+  var wa=t.phone?('https://wa.me/'+String(t.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent(waMsg)):null;
   return '<div class="parow">'
     +'<div class="top"><span class="chip '+st+'">'+st+(st==='paid'&&d.paidEur?' '+eur(d.paidEur):'')+'</span>'
-    +'<span class="who">'+((t.fullName||'—').replace(/</g,'&lt;'))+'</span>'
+    +'<span class="who">'+((t.fullName||'—').replace(/</g,'&lt;'))+(nTen>1?' <span style="font-size:11px;color:var(--t3)">+'+(nTen-1)+' co-tenant'+(nTen>2?'s':'')+'</span>':'')+'</span>'
     +(d.ref?'<span style="font-size:11px;color:var(--t3);letter-spacing:1px">'+d.ref+'</span>':'')
     +'<div class="addr">'+(((d.property||{}).address||'').replace(/</g,'&lt;'))+'</div></div>'
-    +'<div class="meta">Rent <b>'+eur(m.rent||0)+'</b> · due at signing <b>'+eur(m.dueAtSigning||0)+'</b> · '+((d.lease||{}).months||'—')+' mo from '+(((d.lease||{}).startDate)||'—')+' · created '+when+(views?' · '+views+' view'+(views>1?'s':''):'')+'</div>'
+    +'<div class="meta">Rent <b>'+eur(m.rent||0)+'</b>'+(m.energyCredit?' +'+eur(m.energyCredit)+' energy':'')+' · due at signing <b>'+eur(m.dueAtSigning||0)+'</b> · '+((d.lease||{}).months||'—')+' mo from '+(((d.lease||{}).startDate)||'—')+' · created '+when+(views?' · '+views+' view'+(views>1?'s':''):'')
+    +(d.propertyId&&!d.contractId?' · <span style="color:var(--gold-light)">auto-contract ON</span>':'')+'</div>'
+    +(Array.isArray(d.uploads)&&d.uploads.length?'<div class="meta" style="margin-top:4px">📎 '+d.uploads.map(function(u,i){return '<a href="'+u.url+'" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none">'+((u.name||'doc '+(i+1)).length>22?(u.name||'').slice(0,20)+'…':(u.name||'doc '+(i+1)))+'</a>'}).join(' · ')+'</div>':'')
     +'<div class="acts">'
     +'<button class="pbtn" onclick="copyPaLink(\''+d.token+'\')">Copy link</button>'
     +'<a class="pbtn" href="'+url+'" target="_blank" rel="noopener">Open</a>'
-    +(wa?'<a class="pbtn" href="'+wa+'" target="_blank" rel="noopener">WhatsApp</a>':'')
+    +(wa?'<a class="pbtn" href="'+wa+'" target="_blank" rel="noopener">'+(done?'📲 Copy on WhatsApp':'WhatsApp')+'</a>':'')
     +(editable?'<button class="pbtn" onclick="editPA(\''+d.id+'\')">✎ Edit terms</button>':'')
     +'<button class="pbtn" onclick="dupPA(\''+d.id+'\')">Duplicate</button>'
+    +(done?(
+        /* ONE evident action per deal: 🖊 Magic Sign converts (if needed) and
+           emails the tenant their signing link — nothing goes out before you
+           press it. Property link required (from creation or the → Contract
+           modal). */
+        (d.contractId||d.propertyId
+          ?'<button class="pbtn" style="border-color:var(--gold);color:var(--gold);font-weight:600" onclick="sendSign(\''+d.id+'\',this)">'+(d.signSentAt?'🖊 Reinvia Magic Sign':'🖊 Invia Magic Sign')+'</button>'
+          :'<button class="pbtn" style="border-color:var(--line-gold);color:var(--gold)" onclick="convertPA(\''+d.id+'\')">→ Contract</button>')
+        +(d.signSentAt&&d.tenantSignUrl&&t.phone?'<a class="pbtn" href="https://wa.me/'+String(t.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent('Ciao'+(t.fullName?' '+t.fullName.split(' ')[0]:'')+'! Il tuo contratto per '+((d.property||{}).address||'')+' è pronto — firmi qui in 2 minuti: '+d.tenantSignUrl)+'" target="_blank" rel="noopener">Firma su WhatsApp</a>':'')
+        +(d.landlordSignUrl?'<button class="pbtn" onclick="navigator.clipboard.writeText(\''+d.landlordSignUrl+'\')">Copia link delega</button>':'')
+        +'<button class="pbtn" onclick="resendCopy(\''+d.id+'\',this)">✉ Reinvia copia</button>'
+      ):'')
     +(st==='revoked'?'<button class="pbtn" onclick="revokePA(\''+d.id+'\',true)">Reactivate</button>'
       :(st!=='paid'&&st!=='accepted'?'<button class="pbtn warn" onclick="revokePA(\''+d.id+'\')">Revoke</button>':''))
     +'</div>'
-    +((st==='accepted'||st==='paid')?'<div class="nextstep">Next step → create the rental contract in the <a href="/portal.html" target="_blank" rel="noopener">portal</a> and send it for signature with <b>Magic Sign</b>. '+(st==='accepted'&&(m.dueAtSigning||0)>0?'<span style="color:var(--gold-light)">Payment still pending.</span>':'')+'</div>':'')
+    +(done?'<div class="nextstep">'+(d.signSentAt
+        ?'🖊 Magic Sign inviato il <b>'+String(d.signSentAt).slice(0,10)+'</b> — dopo la firma dell’inquilino apri il <b>link delega</b> e controfirmi quando decidi tu, poi registrazione RLI.'
+        :(d.contractId
+          ?'Contratto pronto (identità + documenti già dentro) — <b>🖊 Magic Sign</b> quando vuoi far firmare l’inquilino.'
+          :(d.propertyId
+            ?'Tutto pronto — <b>🖊 Magic Sign</b> crea il contratto e manda il link di firma all’inquilino, in un tocco.'
+            :'Next step → <b>→ Contract</b> collega la proprietà e prepara il contratto (identità e termini già dentro).')))
+      +(st==='accepted'&&(m.dueAtSigning||0)>0?' <span style="color:var(--gold-light)">Pagamento ancora in sospeso.</span>':'')+'</div>':'')
     +'</div>';
 }
 function watchPAs(){
@@ -299,6 +519,10 @@ BoomPortal.requireAuth(['admin','owner','landlord'],{loginUrl:'/login.html?next=
   $('load').style.display='none';$('app').style.display='';
   watchPAs();
   var d=new Date();d.setDate(d.getDate()+14);$('fStart').value=d.toISOString().slice(0,10);
+  loadProps().then(function(props){
+    $('fProp').innerHTML='<option value="">— none (convert manually later) —</option>'
+      +props.map(function(p){return '<option value="'+p.id+'">'+String(p.name).replace(/</g,'&lt;')+(p.zone?' · '+p.zone:'')+'</option>'}).join('');
+  });
   try{
     firebase.firestore().collection('listings').limit(100).get().then(function(snap){
       snap.forEach(function(doc){var v=doc.data();LISTINGS.push({id:doc.id,name:v.name||v.title,zone:v.zone,price:v.price,address:v.address,floor:v.floor,ownerName:v.ownerName});});

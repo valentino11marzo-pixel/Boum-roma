@@ -8,7 +8,7 @@
   </url>
   <url>
     <loc>https://www.boomrome.com/apartments</loc>
-    <lastmod>2026-05-17</lastmod>
+    <lastmod>2026-07-09</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.95</priority>
   </url>
@@ -250,9 +250,21 @@
   </url>
   <url>
     <loc>https://www.boomrome.com/deal-assistance</loc>
-    <lastmod>2026-05-17</lastmod>
+    <lastmod>2026-07-09</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
+  </url>
+  <url>
+    <loc>https://www.boomrome.com/deposit-recovery</loc>
+    <lastmod>2026-07-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.70</priority>
+  </url>
+  <url>
+    <loc>https://www.boomrome.com/contract-check-express</loc>
+    <lastmod>2026-07-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.70</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/apartment-detail</loc>
@@ -268,19 +280,19 @@
   </url>
   <url>
     <loc>https://www.boomrome.com/contact</loc>
-    <lastmod>2026-05-17</lastmod>
+    <lastmod>2026-07-09</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.70</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/concierge</loc>
-    <lastmod>2026-05-17</lastmod>
+    <lastmod>2026-07-09</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.70</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/virtual-viewing</loc>
-    <lastmod>2026-05-17</lastmod>
+    <lastmod>2026-07-09</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.70</priority>
   </url>
@@ -298,14 +310,44 @@
   </url>
   <url>
     <loc>https://www.boomrome.com/privacy</loc>
-    <lastmod>2026-05-17</lastmod>
+    <lastmod>2026-07-09</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.30</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/terms</loc>
-    <lastmod>2026-05-17</lastmod>
+    <lastmod>2026-07-09</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.30</priority>
+  </url>
+  <url>
+    <loc>https://www.boomrome.com/skyline</loc>
+    <lastmod>2026-07-09</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://www.boomrome.com/moving-to-rome</loc>
+    <lastmod>2026-07-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.90</priority>
+  </url>
+  <url>
+    <loc>https://www.boomrome.com/moving-to-rome-from-us</loc>
+    <lastmod>2026-07-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://www.boomrome.com/moving-to-rome-from-uk</loc>
+    <lastmod>2026-07-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://www.boomrome.com/moving-to-rome-from-germany</loc>
+    <lastmod>2026-07-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
   </url>
 </urlset>

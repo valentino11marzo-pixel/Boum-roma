@@ -2,6 +2,7 @@ import Stripe from 'stripe';
 import crypto from 'node:crypto';
 import { fsList, fsPatch } from './homie/_lib.js';
 import { sendPaEmails } from './preagreement/_notify.js';
+import { maybeAutoConvert } from './preagreement/_auto.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -262,6 +263,20 @@ const SERVICE_META = {
     next3: ['Landlord & property verification', 'Registry + identity checks'],
     next4: ['We negotiate for you', 'Average saving beats the fee'],
   },
+  'deposit-recovery': {
+    title: 'Deposit Recovery', emoji: '💶',
+    next1: ['Send the story', 'Contract, amounts, photos, messages — reply to this email'],
+    next2: ['We assess the position', 'Within 48h: what is recoverable and how'],
+    next3: ['Formal demand goes out', 'PEC / registered letter, the proper way'],
+    next4: ['You get paid', '20% success fee only on what comes back'],
+  },
+  'contract-check-express': {
+    title: 'Contract Check Express', emoji: '🚦',
+    next1: ['Send the contract', 'Reply to this email with the draft'],
+    next2: ['We read every clause', 'The same eyes as Deal Assistance'],
+    next3: ['Verdict within 24 hours', 'Green / amber / red, in writing'],
+    next4: ['Need the full shield?', '€49 credited on Deal Assistance'],
+  },
 };
 
 async function handleService(res, session, m) {
@@ -455,7 +470,11 @@ async function handlePreagreement(res, session, m) {
     });
   } catch (e) { console.error('[webhook/pa] emails failed:', e.message); }
 
-  return res.status(200).json({ received: true, preAgreementId: id });
+  // Payment confirmed = deal sealed → auto-create the contract and send the
+  // tenant their Magic-Sign link (PA must carry propertyId + autoConvert).
+  const converted = await maybeAutoConvert({ pa: { ...pa, status: 'paid', paidAt, paidEur }, paId: id });
+
+  return res.status(200).json({ received: true, preAgreementId: id, contractId: (converted && converted.contractId) || null });
 }
 
 export default async function handler(req, res) {

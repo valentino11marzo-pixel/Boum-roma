@@ -62,7 +62,7 @@
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', 'G-EYCD59RDVJ');
+      gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied',wait_for_update:500});gtag('config','G-EYCD59RDVJ');
     </script>
 <meta name="theme-color" content="#060607">
 <meta name="color-scheme" content="dark">
@@ -157,7 +157,7 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 .icbtn{width:42px;height:42px;border:1px solid var(--line);border-radius:50%;display:grid;place-items:center;background:rgba(0,0,0,.4);backdrop-filter:blur(10px);font-size:16px;transition:.25s var(--ease)}
 .icbtn:hover{border-color:var(--line-gold);color:var(--gold)}.icbtn.on{color:var(--gold);border-color:var(--line-gold);background:var(--gold-muted)}
 .hero-foot{position:absolute;left:14px;right:14px;bottom:12px;z-index:3;display:flex;align-items:flex-end;justify-content:space-between;gap:12px;pointer-events:none}
-.dots{display:flex;gap:6px}.dots i{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.4);transition:.3s}.dots i.on{background:var(--gold);width:18px;border-radius:100px}
+.dots{display:flex;gap:6px;align-items:center}.dots i{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.4);transition:.3s}.dots i.on{background:var(--gold);width:18px;border-radius:100px}.dots i.mini{width:4px;height:4px;opacity:.55}
 .counter{pointer-events:auto;background:rgba(0,0,0,.5);backdrop-filter:blur(8px);border-radius:100px;padding:6px 12px;font-size:12px;font-variant-numeric:tabular-nums}
 .arrow{position:absolute;top:50%;transform:translateY(-50%);z-index:3;width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.45);backdrop-filter:blur(8px);border:1px solid var(--line);display:none;place-items:center;font-size:18px;transition:.25s}
 .arrow:hover{background:rgba(0,0,0,.75);border-color:var(--line-gold);color:var(--gold)}
@@ -581,6 +581,8 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
   ],
   "address": {
     "@type": "PostalAddress",
+    "streetAddress": "Via dei Coronari 181/184",
+    "postalCode": "00186",
     "addressLocality": "Rome",
     "addressRegion": "Lazio",
     "addressCountry": "IT"
@@ -680,6 +682,7 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
   ]
 }
   </script>
+<script defer src="/js/boom-consent.js"></script>
 </head>
 <body>
 
@@ -710,7 +713,7 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
       <span class="vbadge">✓ Video-verified</span>
       <div class="hero-acts">
         <button class="icbtn" id="saveBtn" onclick="this.classList.toggle('on');this.setAttribute('aria-pressed',this.classList.contains('on'))" aria-label="Save" aria-pressed="false">♡</button>
-        <button class="icbtn" aria-label="Share" onclick="var b=this;try{(navigator.share?navigator.share({title:document.title,url:location.href}):navigator.clipboard.writeText(location.href)).catch(function(){})}catch(e){}b.classList.add('on');setTimeout(function(){b.classList.remove('on')},900)">↗</button>
+        <button class="icbtn" aria-label="Share" onclick="var b=this;try{boomTrack('share',{method:navigator.share?'native':'clipboard',item_id:(typeof PID!=='undefined'&&PID)||''})}catch(e){};try{(navigator.share?navigator.share({title:document.title,url:location.href}):navigator.clipboard.writeText(location.href)).catch(function(){})}catch(e){}b.classList.add('on');setTimeout(function(){b.classList.remove('on')},900)">↗</button>
       </div>
     </div>
     <button class="arrow l" onclick="slideBy(-1)" aria-label="Previous">‹</button>
@@ -859,8 +862,8 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
 
 <footer>
   <div class="fg">
-    <div class="fb"><h3>BOOM</h3><p>Built in Rome, for Rome. If we can make Rome's rental market work, we can make it work anywhere.<br><br><strong>Egidi Immobiliare S.r.l.</strong><br>P.IVA 17322991005 · REA RM-1710623<br>Rome, Italy</p></div>
-    <div class="fl"><h4>Services</h4><ul><li><a href="/apartments">Apartments</a></li><li><a href="/property-finding">Property Finding</a></li><li><a href="/deal-assistance">Deal Assistance</a></li><li><a href="/how-it-works">Virtual Viewing</a></li></ul></div>
+    <div class="fb"><h3>BOOM</h3><p>Built in Rome, for Rome. If we can make Rome's rental market work, we can make it work anywhere.<br><br><strong>Egidi Immobiliare S.r.l.</strong><br>Via dei Coronari 181/184, 00186 Roma<br>Sede legale: Viale Liegi 42, 00198 Roma<br>P.IVA 17322991005 · REA RM-1710623</p></div>
+    <div class="fl"><h4>Services</h4><ul><li><a href="/apartments">Apartments</a></li><li><a href="/property-finding">Property Finding</a></li><li><a href="/deal-assistance">Deal Assistance</a></li><li><a href="/virtual-viewing">Virtual Viewing</a></li><li><a href="/deposit-recovery">Deposit Recovery</a></li><li><a href="/contract-check-express">Contract Check</a></li><li><a href="/concierge">Concierge</a></li></ul></div>
     <div class="fl"><h4>Company</h4><ul><li><a href="/about">About</a></li><li><a href="/how-it-works">How It Works</a></li><li><a href="/owners">For Owners</a></li><li><a href="/blog">Blog</a></li></ul></div>
     <div class="fl"><h4>Legal</h4><ul><li><a href="/terms">Terms</a></li><li><a href="/privacy">Privacy</a></li><li><a href="/login">Login</a></li></ul></div>
   </div>
@@ -921,7 +924,14 @@ const dim=(y,m)=>new Date(y,m+1,0).getDate();
 const track=document.getElementById('track'),dots=document.getElementById('dots'),counter=document.getElementById('counter');
 let curIdx=0;
 /* carousel + dots are painted by paintData() (sample or live data) */
-function setIdx(i){curIdx=Math.max(0,Math.min(IMGS.length-1,i));[...dots.children].forEach((d,k)=>d.classList.toggle('on',k===curIdx));counter.textContent=(curIdx+1)+' / '+IMGS.length+' · view';}
+/* dots: full row up to 9 photos, iOS-style sliding window beyond (31 dots is noise) */
+function paintDots(){const n=IMGS.length,MAX=9;
+  if(n<=MAX){dots.innerHTML=IMGS.map((_,i)=>`<i class="${i===curIdx?'on':''}"></i>`).join('');return;}
+  const s=Math.max(0,Math.min(curIdx-Math.floor(MAX/2),n-MAX));
+  dots.innerHTML=Array.from({length:MAX},(_,k)=>{const i=s+k;
+    const mini=(k===0&&s>0)||(k===MAX-1&&s+MAX<n);
+    return `<i class="${i===curIdx?'on':''}${mini?' mini':''}"></i>`;}).join('');}
+function setIdx(i){curIdx=Math.max(0,Math.min(IMGS.length-1,i));paintDots();counter.textContent=(curIdx+1)+' / '+IMGS.length+' · view';}
 function slideBy(dir){const w=track.clientWidth;track.scrollTo({left:(curIdx+dir)*w,behavior:'smooth'});setIdx(curIdx+dir);}
 let st;track.addEventListener('scroll',()=>{clearTimeout(st);st=setTimeout(()=>{const i=Math.round(track.scrollLeft/track.clientWidth);if(i!==curIdx)setIdx(i);},80);},{passive:true});
 
@@ -1504,7 +1514,7 @@ function paintData(){
     if(vchip)vchip.style.display='none';
     if(vtour&&!vtour.querySelector('iframe'))vtour.hidden=true;
   }
-  dots.innerHTML=IMGS.map((_,i)=>`<i class="${i===0?'on':''}"></i>`).join('');
+  paintDots();
   /* desktop editorial mosaic: photos 2–3 as large tiles, the rest behind "+N photos" */
   try{
     const gw=document.getElementById('gwrap'),gt=document.getElementById('gtiles');
@@ -1545,8 +1555,9 @@ function paintData(){
   document.getElementById('hPrice').textContent=eur(L.price);
   const af=L.availableFrom;
   const _wl=L.status==='waitlist';
-  document.getElementById('hAvail').textContent=_wl?'Occupied · waitlist open':(af?('Available '+fmtS(new Date(af+'T00:00'))):'Ask availability');
-  document.getElementById('priceSub').textContent=_wl?'Occupied now · rents ahead — join the waitlist':((af?('Available from '+fmtD(new Date(af+'T00:00'))):'Availability on request')+' · BOOM-managed');
+  const _now=af&&af<=new Date().toISOString().slice(0,10);
+  document.getElementById('hAvail').textContent=_wl?'Occupied · waitlist open':(_now?'Available now':(af?('Available '+fmtS(new Date(af+'T00:00'))):'Ask availability'));
+  document.getElementById('priceSub').textContent=_wl?'Occupied now · rents ahead — join the waitlist':((_now?'Available now':(af?('Available from '+fmtD(new Date(af+'T00:00'))):'Availability on request'))+' · BOOM-managed');
   const _hl=document.getElementById('holdLbl');if(_hl&&_wl)_hl.textContent='Priority hold · €300';
   const _rg=document.getElementById('railGo');if(_rg&&_wl)_rg.textContent='Waitlist';
   const _sj=document.getElementById('skyJump');if(_sj&&(PID||L.id))_sj.href='/apartments?view=map&focus='+encodeURIComponent(PID||L.id);
