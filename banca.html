@@ -178,8 +178,30 @@ input:focus, textarea:focus { border-color: rgba(212,175,55,.4); }
 
 <script>
 (async function () {
-  await BoomPortal.requireAuth(['admin'], { loginUrl: '/login.html' });
-  document.getElementById('shield').style.display = 'none';
+  // Shield auto-diagnostico (come /team): mai un "ACCESSO…" infinito muto.
+  const shield = document.getElementById('shield');
+  const shieldFail = (msg) => {
+    shield.innerHTML = '<div style="text-align:center;max-width:340px;line-height:1.8;letter-spacing:.5px">'
+      + '⚠️ ' + msg
+      + '<br><br><a href="/login.html?next=%2Fbanca" style="color:#D4AF37">Vai al login</a>'
+      + ' · <a href="/portal" style="color:#999">Apri il portale</a></div>';
+  };
+  const watchdog = setTimeout(() => shieldFail('L\'accesso sta impiegando troppo — connessione o SDK Firebase bloccato.'), 15000);
+  try {
+    await BoomPortal.requireAuth(['admin'], { loginUrl: '/login.html' });
+  } catch (e) {
+    clearTimeout(watchdog);
+    const m = String(e && e.message || e);
+    if (m === 'not_authenticated') return; // redirect al login già in corso
+    shieldFail(
+      m === 'wrong_role' ? 'Questa console è solo per il ruolo ADMIN.'
+      : m === 'profile_missing' ? 'Profilo utente non trovato in Firestore.'
+      : 'Accesso fallito: ' + m
+    );
+    return;
+  }
+  clearTimeout(watchdog);
+  shield.style.display = 'none';
   document.getElementById('app').style.display = '';
   const db = firebase.firestore();
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
