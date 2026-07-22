@@ -57,7 +57,8 @@ export function isUnsupportedImage(buf) {
 }
 
 export async function enhanceBuffer(buf, { rotateDeg = 0, preset }) {
-  let p = sharp(buf).rotate();                      // EXIF first
+  // failOn none: a truncated-but-decodable JPEG gets enhanced, not rejected
+  let p = sharp(buf, { failOn: 'none' }).rotate();  // EXIF first
   if (rotateDeg) p = p.rotate(rotateDeg);           // then AI-detected
   p = p.resize({ width: 1920, height: 1920, fit: 'inside', withoutEnlargement: true });
   if (!preset.gray) p = p.normalise({ lower: 1, upper: 99.5 });
@@ -92,7 +93,7 @@ async function classify(photos) {
   const content = [];
   for (const p of photos) {
     let small;
-    try { small = await sharp(p.buf).rotate().resize({ width: 560, fit: 'inside' }).jpeg({ quality: 70 }).toBuffer(); }
+    try { small = await sharp(p.buf, { failOn: 'none' }).rotate().resize({ width: 560, fit: 'inside' }).jpeg({ quality: 70 }).toBuffer(); }
     catch { p.action = 'skip-undecodable'; continue; }
     content.push({ type: 'text', text: `PHOTO ${p.i}:` });
     content.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: small.toString('base64') } });
@@ -134,7 +135,7 @@ async function classifyHeuristic(photos) {
   for (const p of photos) {
     let lum = 120;
     try {
-      const st = await sharp(p.buf).stats();
+      const st = await sharp(p.buf, { failOn: 'none' }).stats();
       lum = st.channels.slice(0, 3).reduce((s, c) => s + c.mean, 0) / 3;
     } catch { p.action = 'skip-undecodable'; continue; }
     p.kind = 'photo'; p.room = 'other'; p.rotateDeg = 0;
@@ -178,17 +179,18 @@ export default async function handler(req, res) {
     const urls = [...new Set(source)].slice(0, MAX_PHOTOS);
     if (!urls.length) return res.status(200).json({ ok: true, plan: null, note: 'no_photos' });
 
-    const photos = [];
-    for (let i = 0; i < urls.length; i++) {
+    // parallel download with a hard per-photo timeout: a hanging CDN costs
+    // 8s, not the function's whole 60s budget
+    const photos = await Promise.all(urls.map(async (url, i) => {
       try {
-        const r = await fetch(urls[i]);
-        if (!r.ok) { photos.push({ i, url: urls[i], action: 'skip-unfetchable' }); continue; }
+        const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+        if (!r.ok) return { i, url, action: 'skip-unfetchable' };
         const buf = Buffer.from(await r.arrayBuffer());
-        if (buf.length > 10 * 1024 * 1024) { photos.push({ i, url: urls[i], action: 'skip-too-large' }); continue; }
-        if (isUnsupportedImage(buf)) { photos.push({ i, url: urls[i], action: 'skip-unsupported-format' }); continue; }
-        photos.push({ i, url: urls[i], buf, sha1: crypto.createHash('sha1').update(buf).digest('hex') });
-      } catch { photos.push({ i, url: urls[i], action: 'skip-unfetchable' }); }
-    }
+        if (buf.length > 10 * 1024 * 1024) return { i, url, action: 'skip-too-large' };
+        if (isUnsupportedImage(buf)) return { i, url, action: 'skip-unsupported-format' };
+        return { i, url, buf, sha1: crypto.createHash('sha1').update(buf).digest('hex') };
+      } catch { return { i, url, action: 'skip-unfetchable' }; }
+    }));
     let fetchable = photos.filter(p => p.buf);
     if (!fetchable.length) return res.status(200).json({ ok: true, plan: null, note: 'no_fetchable_photos' });
 
@@ -224,7 +226,11 @@ export default async function handler(req, res) {
         report.skipped.push({ i: p.i, url: p.url, reason: 'enhance-failed-kept-original' });
         newUrls.push(p.url);
       }
+      p.buf = null; // release: up to 40×10MB would otherwise sit in memory
     }
+    // valid-but-oversized photos stay in the gallery untouched (only truly
+    // unfetchable/undecodable ones are excluded — browsers can't show HEIC)
+    for (const p of photos) if (p.action === 'skip-too-large') newUrls.push(p.url);
     const patch = { image: newUrls[0], images: newUrls, photosEnhancedAt: new Date().toISOString(), photosEnhancedBy: auth.email || auth.uid };
     if (!Array.isArray(js.imagesOriginal) || !js.imagesOriginal.length) patch.imagesOriginal = urls;
     await fsPatch(`listings/${id}`, patch);
