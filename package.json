@@ -1,6 +1,6 @@
 {
   "name": "boum-roma",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "BOOM Rome \u2013 premium rental management platform",
   "scripts": {
     "dev": "vercel dev"
