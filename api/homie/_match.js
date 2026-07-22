@@ -150,6 +150,13 @@ export function scoreMatch(property, client) {
     } else {
       reasons.push('Beds ✗ ' + haveBeds + ' (wanted ' + wantBeds + ')');
     }
+  } else if (wantBeds != null) {
+    // Property beds unknown (alert emails often carry price only, and
+    // detail-page enrichment 403s from datacenter IPs). Half credit: an
+    // unknown must stay NEUTRAL — zero here made well-specified clients
+    // receive FEWER matches than clients with no criteria at all.
+    score += 15;
+    reasons.push('Beds · unknown (property) — neutral');
   }
 
   // Areas (0–20) — stripe intake writes preferred_areas, portal form writes zone
@@ -157,15 +164,22 @@ export function scoreMatch(property, client) {
   const propertyText = normalizeForMatch(
     [property.address, property.zone, property.title].filter(Boolean).join(' ')
   );
-  if (wantedAreas.length && propertyText) {
-    const matchedArea = wantedAreas.find(a => propertyText.includes(a));
+  // A title alone ("Bilocale luminoso") says nothing about WHERE the home
+  // is — only count a non-match as a real ✗ when address/zone are known.
+  const zoneKnown = !!(property.address || property.zone);
+  if (wantedAreas.length) {
+    const matchedArea = propertyText ? wantedAreas.find(a => propertyText.includes(a)) : null;
     if (matchedArea) {
       score += 20;
       reasons.push('Area ✓ ' + matchedArea);
-    } else {
+    } else if (zoneKnown) {
       reasons.push('Area ✗ none of [' + wantedAreas.join(', ') + ']');
+    } else {
+      // Zone unknown — neutral half credit, same rationale as beds above.
+      score += 10;
+      reasons.push('Area · unknown (property) — neutral');
     }
-  } else if (wantedAreas.length === 0) {
+  } else {
     // No preference recorded — give a small neutral bump so areas don't tank the score
     score += 10;
     reasons.push('Area · no preference');

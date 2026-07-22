@@ -165,7 +165,15 @@ export default async function handler(req, res) {
   }
 
   await reportNeedsAttention('inbox', needsAttention);
-  await reportHealth('inbox', { ok: true, stats });
 
-  return res.status(200).json({ ok: true, actor, stats, pushed: results, needsAttention });
+  // "Green but dead" guard: alert emails ARRIVED yet not one listing URL
+  // came out — the portals changed their email template and the parser is
+  // silently blind. That is a failure, not a success: report it as one so
+  // the 3-strike Telegram alarm fires (this is the load-bearing source).
+  const parsedNothing = stats.alerts > 0 && stats.listingsFound === 0;
+  await reportHealth('inbox', parsedNothing
+    ? { ok: false, error: `${stats.alerts} alert email(s) parsed to ZERO listings — email template changed? (_alertparse.js)`, stats }
+    : { ok: true, stats });
+
+  return res.status(200).json({ ok: true, actor, stats, pushed: results, needsAttention, parsedNothing });
 }

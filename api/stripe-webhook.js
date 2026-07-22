@@ -497,6 +497,77 @@ async function handleReserve(res, session, m) {
   return res.status(200).json({ received: true, reservationId: 'res_' + docId });
 }
 
+// RENT — a tenant paid a monthly rent installment from the portal
+// (api/rent-checkout.js). Marks the payments doc paid, wakes the operator,
+// confirms to the tenant. Idempotent: a redelivery sees status 'paid'.
+async function handleRent(res, session, m) {
+  const paymentId = String(m.paymentId || '').trim();
+  if (!paymentId) return res.status(200).json({ received: true, skipped: 'no_paymentId' });
+  const now = new Date().toISOString();
+  const amountEur = (session.amount_total || 0) / 100;
+
+  let payment = null;
+  try { payment = await readDoc(`payments/${paymentId}`); } catch (_) {}
+  if (!payment) {
+    await tgNotify(`🚨 <b>Stripe: affitto €${amountEur} INCASSATO ma payments/${paymentId} non trovato</b>\nSession ${session.id} — verifica a mano.`);
+    return res.status(500).json({ received: false, error: 'payment_not_found' });
+  }
+  if (payment.status === 'paid') {
+    return res.status(200).json({ received: true, duplicate: true, paymentId });
+  }
+
+  try {
+    await patchDoc(`payments/${paymentId}`, {
+      status: 'paid',
+      paidAt: now,
+      paidDate: now.slice(0, 10),
+      paidVia: 'stripe',
+      stripeSessionId: session.id,
+    });
+  } catch (err) {
+    console.error('[rent] payment patch:', err.message);
+    await tgNotify(`🚨 <b>Stripe: affitto €${amountEur} INCASSATO ma NON registrato</b>\npayments/${paymentId} · session ${session.id}\nErrore: ${String(err.message).slice(0, 200)}\nRiprovo automaticamente (retry Stripe).`);
+    return res.status(500).json({ received: false, error: 'payment_patch_failed' });
+  }
+
+  try {
+    await writeDoc('agentNotifications', 'rent-' + paymentId, {
+      type: 'payment.rent',
+      summary: `💰 Affitto incassato via Stripe: €${amountEur.toLocaleString('it-IT')} · ${m.month || ''} · payments/${paymentId}`,
+      priority: 'normal',
+      status: 'pending',
+      actor: 'stripe-webhook',
+      dedupKey: 'rent-' + paymentId,
+      createdAt: now,
+      attempts: 0,
+    });
+  } catch (err) { console.error('[rent] notify write:', err.message); }
+
+  const email = session.customer_email || '';
+  try {
+    if (email) await sendEmailJS({
+      to_email: email,
+      heading: 'Rent received ✓',
+      subheading: m.month ? `Month: ${m.month}` : 'Payment confirmed',
+      name: 'there',
+      intro: `We've received your rent payment of €${amountEur.toLocaleString('it-IT')} via Stripe. Nothing else to do — this email is your confirmation.`,
+      card_color: '#D4AF37',
+      card_title: 'Details',
+      r1_icon: '✓', r1_label: 'Amount', r1_value: `€${amountEur.toLocaleString('it-IT')}`,
+      r2_icon: '📅', r2_label: 'Month', r2_value: m.month || '—',
+      r3_icon: '🧾', r3_label: 'Receipt', r3_value: 'Available in your portal',
+      r4_icon: '💬', r4_label: 'Questions', r4_value: 'Reply to this email anytime',
+      closing: 'Thank you — BOOM Rome',
+      cta_text: 'Open your portal',
+      portal_link: 'https://www.boomrome.com/portal.html',
+    });
+  } catch (err) { console.error('[rent] tenant email:', err.message); }
+
+  await tgNotify(`💰 Affitto incassato via Stripe: €${amountEur.toLocaleString('it-IT')} · ${m.month || ''} · payments/${paymentId}`);
+
+  return res.status(200).json({ received: true, rent: true, paymentId });
+}
+
 // PREAGREEMENT — the client paid what was due at signing on their proposal.
 // Marks the doc paid and sends the confirmation emails (client: document +
 // Stripe receipt; admin: copy + next-step nudge). Idempotent on webhook
@@ -646,6 +717,10 @@ export default async function handler(req, res) {
 
   if (m.service === 'PREAGREEMENT') {
     return handlePreagreement(res, session, m);
+  }
+
+  if (m.service === 'RENT') {
+    return handleRent(res, session, m);
   }
 
   if (m.service !== 'PFS') {

@@ -98,12 +98,17 @@ service firebase.storage {
 
     // ─── passes/** ────────────────────────────────────────────────────
     // Generated .pkpass files delivered via tokenized download URL. Public
-    // read (URL carries an unguessable token); any signed-in user may write
-    // (admin generating tenant/landlord/viewing passes; landlord generating
-    // their own Partner pass). 5 MB ceiling.
+    // read (URL carries an unguessable token). Write requires a REAL role
+    // and the pkpass content type: `isSignedIn()` alone also matched
+    // anonymous-auth users (live on the public sign page), which made this
+    // an open, unauthenticated file-hosting channel on BOOM's bucket.
+    // Writers today: the portal pass generator (admin/landlord) and the
+    // server-side pass endpoints (admin credentials).
     match /passes/{allPaths=**} {
       allow read:  if true;
-      allow write: if isSignedIn() && request.resource.size < 5 * 1024 * 1024;
+      allow write: if (isAdmin() || isLandlord() || role() == 'owner')
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType == 'application/vnd.apple.pkpass';
       allow delete: if isAdmin();
     }
 

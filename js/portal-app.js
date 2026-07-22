@@ -219,9 +219,10 @@ window.__portalAppLoaded = true; // sentinella per la via d'uscita anti-spinner-
     // STRIPE CONFIGURATION - Update these values!
     // ═══════════════════════════════════════════════════════════════════════════
     const STRIPE_CONFIG = {
-        // ⚠️ REPLACE WITH YOUR FIREBASE FUNCTION URL
-        checkoutEndpoint: 'https://us-central1-boom-property-dashboards.cloudfunctions.net/createCheckoutSession',
-        // Set to true when ready to accept real payments
+        // Real Vercel endpoint (api/rent-checkout.js). The previous value
+        // pointed at a Firebase Cloud Function that never existed in this
+        // project — the tenant's Paga button was a dead end.
+        checkoutEndpoint: '/api/rent-checkout',
         enabled: true
     };
 
@@ -14897,29 +14898,24 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const payment = S.payments.find(p => p.id === paymentId);
             if (!payment) throw new Error('Pagamento non trovato');
 
-            const contract = S.contracts.find(c => c.id === payment.contractId);
-            const property = contract ? S.properties.find(p => p.id === contract.propertyId) : null;
-            const tenant = S.users.find(u => u.id === S.profile.id);
-
             toast('info', '💳 Reindirizzamento a Stripe...', 'Attendi');
 
+            // Amount and ownership are resolved SERVER-SIDE from the
+            // payments doc — the endpoint only needs the id + the ID token.
+            const idToken = await firebase.auth().currentUser.getIdToken();
             const response = await fetch(STRIPE_CONFIG.checkoutEndpoint, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    paymentId: paymentId,
-                    amount: payment.amount,
-                    description: `Affitto ${property?.name || 'Immobile'}`,
-                    tenantEmail: tenant?.email || '',
-                    tenantName: tenant?.name || '',
-                    propertyName: property?.name || '',
-                    month: payment.month || ''
-                })
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + idToken
+                },
+                body: JSON.stringify({ paymentId: paymentId })
             });
 
-            if (!response.ok) throw new Error('Errore creazione sessione di pagamento');
+            const data = await response.json();
+            if (!response.ok || !data.ok) throw new Error(data.error === 'already_paid' ? 'Risulta già pagato — aggiorna la pagina' : 'Errore creazione sessione di pagamento');
 
-            const { url } = await response.json();
+            const url = data.url;
 
             // Redirect to Stripe Checkout
             window.location.href = url;

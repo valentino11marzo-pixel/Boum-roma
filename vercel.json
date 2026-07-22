@@ -54,8 +54,8 @@
       "permanent": false
     },
     {
-      "source": "/(owner|owner.html)",
-      "destination": "/owner-dashboard",
+      "source": "/(owner|owner-dashboard|owner-dashboard.html)",
+      "destination": "/owner.html",
       "permanent": false
     },
     {
@@ -357,10 +357,6 @@
     {
       "source": "/admin-flats",
       "destination": "/admin-flats.html"
-    },
-    {
-      "source": "/owner-dashboard",
-      "destination": "/owner-dashboard.html"
     },
     {
       "source": "/form-tenant",
