@@ -516,6 +516,16 @@ real. Backs the "Aggiungi annuncio" modal in `pfs-command.html`.
 
 ## Conventions
 
+- **Serverless deps live in `api/package.json`** (the manifest the Vercel
+  builder actually installs from — root `package.json` alone is NOT enough).
+  When a new npm package is imported by any `api/**` file, add it to BOTH
+  `api/package.json` and root `package.json` (kept mirrored) and regenerate
+  `package-lock.json`. Getting this wrong ships functions without their
+  dependencies: every endpoint importing a package 500s at module load
+  (`ERR_MODULE_NOT_FOUND`) — this took the whole API down for ~2h on
+  2026-07-22. `VERCEL_FORCE_NO_BUILD_CACHE=1` is set in the project env
+  (build takes ~20s; a poisoned build cache can never recur).
+
 - All pages are standalone HTML with inline `<style>` and `<script>` blocks — no bundler
 - Firebase is loaded via CDN `<script>` tags, initialized per-page
 - New pages should follow the dark theme with gold accents pattern
