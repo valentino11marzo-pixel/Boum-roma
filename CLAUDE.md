@@ -170,6 +170,15 @@ returns `{ ok, en, it }` — a polished bilingual description from Claude
 bot can't call Claude directly. Bot falls back to a template if this is
 unavailable.
 
+### GET/POST `/api/wizard/health` (cron */10 min)
+Watchdog for the Telegram listing wizard bot. The bot (via
+`bot/wizard_heartbeat.py`, the launchd entry point on the Mac mini) writes
+`heartbeat/listing-wizard` every 60s; this cron alerts the admin Telegram
+chat when the heartbeat is >5 min stale (re-alert every 6h, one recovery
+message when it returns; missing doc = wrapper not deployed → silent). Auth
+like the PFS crons: Vercel cron Bearer `CRON_SECRET`, `X-Homie-Secret`, or
+admin Firebase ID token.
+
 ### POST `/api/wizard/upload`
 Photo-upload bridge for the Telegram wizard bot. Auth via `X-Wizard-Secret`
 (same secret as `/api/wizard/publish`). Body `{ base64, path?, contentType? }`

@@ -76,10 +76,31 @@ launchctl unload ~/Library/LaunchAgents/com.boom.listing-wizard.plist   # stop
 launchctl load   ~/Library/LaunchAgents/com.boom.listing-wizard.plist   # start
 ```
 
+## Heartbeat wrapper (watchdog)
+
+launchd launches `wizard_heartbeat.py`, NOT the bot directly. The wrapper
+imports `boom_listing_wizard`, starts a daemon thread that writes
+`heartbeat/listing-wizard` to Firestore every 60s, then runs the bot's own
+`main()`. Because the thread shares the bot's process, the heartbeat stops
+exactly when the bot stops — and `/api/wizard/health` (Vercel cron) alerts
+the admin Telegram chat after 5 minutes of silence.
+
+Installing/upgrading the wrapper on the Mac mini:
+
+```bash
+# copy wizard_heartbeat.py next to boom_listing_wizard.py, then point launchd
+# at it (one-time; new installs just use this repo's plist as-is):
+sed -i '' 's|boom_listing_wizard.py|wizard_heartbeat.py|' \
+    ~/Library/LaunchAgents/com.boom.listing-wizard.plist
+launchctl unload ~/Library/LaunchAgents/com.boom.listing-wizard.plist
+launchctl load   ~/Library/LaunchAgents/com.boom.listing-wizard.plist
+```
+
 ## Updating the bot
 
-When this mirror changes, copy the new `boom_listing_wizard.py` onto the Mac
-mini (keeping the local `.env`), then restart via the unload/load above.
+When this mirror changes, copy the new `boom_listing_wizard.py` (and/or
+`wizard_heartbeat.py`) onto the Mac mini (keeping the local `.env`), then
+restart via the unload/load above.
 
 ## Deploying an update to the Mac mini
 
@@ -107,5 +128,9 @@ Rollback = copy `.bak` back and restart.
       and the listing through `POST /api/wizard/publish`, each falling back to a
       direct Storage/Firestore write, so a rule/role change can't break the
       publish flow again.
-- [ ] **Health heartbeat + alert** — bot writes `heartbeat/listing-wizard`; a
-      cron pings Telegram if it goes stale.
+- [x] **Health heartbeat + alert** — `wizard_heartbeat.py` (the launchd entry
+      point) writes `heartbeat/listing-wizard` every 60s from inside the bot
+      process; the `/api/wizard/health` cron on Vercel (every 10 min) sends a
+      Telegram alert when the heartbeat is >5 min stale (re-alert every 6h,
+      recovery message when it comes back). Missing doc = wrapper not deployed
+      yet → the cron stays silent.

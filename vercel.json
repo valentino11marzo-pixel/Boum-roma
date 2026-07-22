@@ -577,6 +577,10 @@
     {
       "path": "/api/search/matcher",
       "schedule": "0 6,12,18 * * *"
+    },
+    {
+      "path": "/api/wizard/health",
+      "schedule": "*/10 * * * *"
     }
   ]
 }
