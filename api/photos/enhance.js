@@ -42,6 +42,20 @@ export function presetFor(kind, quality) {
   return { gamma: 1.1, sat: 1.18, bright: 1.05, sharpen: 1.1 };
 }
 
+// Formats the prebuilt sharp/libvips CANNOT decode (HEIC/HEIF from iPhones —
+// HEVC-compressed, patent-encumbered, not in the prebuilt binaries). One such
+// photo used to 500 the whole run ("Input buffer has corrupt header: heif:
+// ... security limits", prod 2026-07-22). Detect by magic bytes and skip.
+const HEIF_BRANDS = ['heic', 'heix', 'hevc', 'hevx', 'heim', 'heis', 'hevm', 'hevs', 'mif1', 'msf1'];
+export function isUnsupportedImage(buf) {
+  if (!buf || buf.length < 12) return true;
+  if (buf.slice(4, 8).toString('ascii') === 'ftyp') {
+    const brand = buf.slice(8, 12).toString('ascii').toLowerCase();
+    if (HEIF_BRANDS.includes(brand)) return true;
+  }
+  return false;
+}
+
 export async function enhanceBuffer(buf, { rotateDeg = 0, preset }) {
   let p = sharp(buf).rotate();                      // EXIF first
   if (rotateDeg) p = p.rotate(rotateDeg);           // then AI-detected
@@ -73,13 +87,17 @@ export function buildPlan(photos) {
 }
 
 async function classify(photos) {
-  // downscale for the vision call; grade what the tenant would actually see
+  // downscale for the vision call; grade what the tenant would actually see.
+  // A photo sharp can't decode must not kill the batch: mark and move on.
   const content = [];
   for (const p of photos) {
-    const small = await sharp(p.buf).rotate().resize({ width: 560, fit: 'inside' }).jpeg({ quality: 70 }).toBuffer();
+    let small;
+    try { small = await sharp(p.buf).rotate().resize({ width: 560, fit: 'inside' }).jpeg({ quality: 70 }).toBuffer(); }
+    catch { p.action = 'skip-undecodable'; continue; }
     content.push({ type: 'text', text: `PHOTO ${p.i}:` });
     content.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: small.toString('base64') } });
   }
+  if (!content.length) throw new Error('no_decodable_photos');
   content.push({ type: 'text', text:
 `You are auditing the photo set of a Rome rental listing. For EVERY photo above answer as a JSON array (same order, one object per photo), no prose:
 [{"i":<n>,"kind":"photo|render|floorplan|document|other","room":"living|kitchen|bedroom|bathroom|balcony|exterior|view|other","rotateDeg":0|90|180|270,"quality":1-10,"coverScore":0-100,"watermark":true|false}]
@@ -109,11 +127,16 @@ async function classify(photos) {
   }
 }
 
-// no-AI fallback: everything is a photo, grade by brightness stats
+// no-AI fallback: everything is a photo, grade by brightness stats.
+// stats() throws on undecodable buffers — that must skip the photo, not
+// the run (this exact path took the endpoint down on a HEIC upload).
 async function classifyHeuristic(photos) {
   for (const p of photos) {
-    const st = await sharp(p.buf).stats();
-    const lum = st.channels.slice(0, 3).reduce((s, c) => s + c.mean, 0) / 3;
+    let lum = 120;
+    try {
+      const st = await sharp(p.buf).stats();
+      lum = st.channels.slice(0, 3).reduce((s, c) => s + c.mean, 0) / 3;
+    } catch { p.action = 'skip-undecodable'; continue; }
     p.kind = 'photo'; p.room = 'other'; p.rotateDeg = 0;
     p.quality = lum > 150 ? 8 : lum > 100 ? 6 : 4;
     p.coverScore = Math.round(Math.min(100, lum / 2.2));
@@ -162,15 +185,19 @@ export default async function handler(req, res) {
         if (!r.ok) { photos.push({ i, url: urls[i], action: 'skip-unfetchable' }); continue; }
         const buf = Buffer.from(await r.arrayBuffer());
         if (buf.length > 10 * 1024 * 1024) { photos.push({ i, url: urls[i], action: 'skip-too-large' }); continue; }
+        if (isUnsupportedImage(buf)) { photos.push({ i, url: urls[i], action: 'skip-unsupported-format' }); continue; }
         photos.push({ i, url: urls[i], buf, sha1: crypto.createHash('sha1').update(buf).digest('hex') });
       } catch { photos.push({ i, url: urls[i], action: 'skip-unfetchable' }); }
     }
-    const fetchable = photos.filter(p => p.buf);
+    let fetchable = photos.filter(p => p.buf);
     if (!fetchable.length) return res.status(200).json({ ok: true, plan: null, note: 'no_fetchable_photos' });
 
     let ai = true;
     if (ANTHROPIC_KEY) { try { await classify(fetchable); } catch (e) { ai = false; await classifyHeuristic(fetchable); } }
     else { ai = false; await classifyHeuristic(fetchable); }
+    // photos neither pipeline could decode are skipped, never fatal
+    fetchable = fetchable.filter(p => !p.action);
+    if (!fetchable.length) return res.status(200).json({ ok: true, plan: null, note: 'no_decodable_photos' });
 
     const plan = buildPlan(fetchable);
     const report = {
@@ -182,14 +209,21 @@ export default async function handler(req, res) {
     };
     if (mode === 'audit') return res.status(200).json({ ok: true, plan: report });
 
-    // APPLY: enhance + upload + update the doc
+    // APPLY: enhance + upload + update the doc. One photo failing here keeps
+    // its ORIGINAL url in the gallery instead of killing the whole run.
     const stamp = Date.now().toString(36);
     const newUrls = [];
     for (let k = 0; k < plan.ordered.length; k++) {
       const p = plan.ordered[k];
-      const out = await enhanceBuffer(p.buf, { rotateDeg: p.rotateDeg, preset: presetFor(p.kind, p.quality) });
-      const path = `listings/enhanced/${id}/${stamp}_${String(k).padStart(2, '0')}_${p.sha1.slice(0, 8)}.jpg`;
-      newUrls.push(await uploadJpeg(token, path, out));
+      try {
+        const out = await enhanceBuffer(p.buf, { rotateDeg: p.rotateDeg, preset: presetFor(p.kind, p.quality) });
+        const path = `listings/enhanced/${id}/${stamp}_${String(k).padStart(2, '0')}_${p.sha1.slice(0, 8)}.jpg`;
+        newUrls.push(await uploadJpeg(token, path, out));
+      } catch (e) {
+        console.error('[photos/enhance] photo', p.i, 'kept original:', e.message);
+        report.skipped.push({ i: p.i, url: p.url, reason: 'enhance-failed-kept-original' });
+        newUrls.push(p.url);
+      }
     }
     const patch = { image: newUrls[0], images: newUrls, photosEnhancedAt: new Date().toISOString(), photosEnhancedBy: auth.email || auth.uid };
     if (!Array.isArray(js.imagesOriginal) || !js.imagesOriginal.length) patch.imagesOriginal = urls;
