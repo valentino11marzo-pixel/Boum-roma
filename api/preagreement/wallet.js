@@ -24,7 +24,12 @@ export default async function handler(req, res) {
     if (!hit) return res.status(404).json({ ok: false, error: 'not_found' });
     const { id, ...pa } = hit;
     if (pa.status === 'revoked') return res.status(410).json({ ok: false, error: 'revoked' });
-    if (pa.status !== 'accepted' && pa.status !== 'paid') return res.status(409).json({ ok: false, error: 'not_signed_yet' });
+    // A signed document IS the truth: if signatures are on it, serve the
+    // artefact even if a status write lagged (never block a signed client).
+    const signedEvidence = !!((pa.tenant || {}).signature || (Array.isArray(pa.tenants) && pa.tenants[0] && pa.tenants[0].signature));
+    if (pa.status !== 'accepted' && pa.status !== 'paid' && !signedEvidence) {
+      return res.status(409).json({ ok: false, error: 'not_signed_yet', status: pa.status || null });
+    }
 
     const m = pa.money || {}, le = pa.lease || {}, t = pa.tenant || {};
     const docUrl = 'https://www.boomrome.com/pre-agreement?t=' + token;
