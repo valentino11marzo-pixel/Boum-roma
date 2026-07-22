@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+<meta name="theme-color" content="#08080A">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Banca & Fisco · BOOM</title>
+<link rel="icon" href="https://www.boomrome.com/BOOMlogogoldicon512.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="/js/firebase-config.js"></script>
+<script src="/js/boom-portal.js"></script>
+
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --gold: #D4AF37; --gold-light: rgba(212,175,55,0.15); --gold-dark: #B8960C;
+  --bg: #000; --bg-card: #0A0A0A; --bg-elevated: #141414; --bg-input: #1A1A1A;
+  --border: rgba(255,255,255,0.08); --text: #FFF; --text-secondary: #999; --text-muted: #555;
+  --green: #00D26A; --amber: #F5A524; --red: #F31260;
+}
+body { font-family: 'Inter','Helvetica Neue',sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 24px 18px 90px; }
+header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 22px; flex-wrap: wrap; gap: 8px; }
+header h1 { font-size: 20px; font-weight: 300; letter-spacing: 4px; }
+header h1 b { color: var(--gold); font-weight: 600; }
+header .sub { color: var(--text-secondary); font-size: 12px; }
+header nav a { color: var(--text-secondary); font-size: 12px; text-decoration: none; margin-left: 14px; }
+header nav a:hover { color: var(--gold); }
+section { margin-top: 30px; }
+section > h3 { font-size: 12px; letter-spacing: 3px; color: var(--text-secondary); font-weight: 500; margin-bottom: 12px; text-transform: uppercase; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 13px; padding: 16px; }
+.card h4 { font-size: 14px; font-weight: 600; letter-spacing: .5px; display: flex; align-items: center; gap: 8px; }
+.card .meta { font-size: 11.5px; color: var(--text-secondary); line-height: 1.7; margin-top: 6px; }
+.card .meta b { color: var(--text); font-weight: 500; }
+.balance { font-size: 22px; font-weight: 300; color: var(--gold); margin-top: 4px; letter-spacing: 1px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; }
+.dot.ok { background: var(--green); } .dot.warn { background: var(--amber); } .dot.err { background: var(--red); }
+button, .btn {
+  background: var(--gold-light); color: var(--gold); border: 1px solid rgba(212,175,55,.35);
+  border-radius: 9px; padding: 9px 16px; font-size: 12px; font-weight: 600; letter-spacing: 1px;
+  cursor: pointer; font-family: inherit; transition: .15s; text-decoration: none; display: inline-block;
+}
+button:hover { background: rgba(212,175,55,.28); }
+button:disabled { opacity: .45; cursor: wait; }
+button.ghost { background: var(--bg-elevated); color: var(--text-secondary); border-color: var(--border); }
+button.ghost:hover { color: var(--gold); border-color: rgba(212,175,55,.35); }
+input, select, textarea {
+  background: var(--bg-input); border: 1px solid var(--border); color: var(--text);
+  border-radius: 9px; padding: 9px 12px; font-size: 13px; font-family: inherit; outline: none;
+}
+input:focus, textarea:focus { border-color: rgba(212,175,55,.4); }
+.row-controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.list { display: flex; flex-direction: column; gap: 7px; }
+.tx { background: var(--bg-card); border: 1px solid var(--border); border-radius: 11px; padding: 11px 14px; display: flex; gap: 12px; align-items: center; font-size: 12.5px; flex-wrap: wrap; }
+.tx .date { color: var(--text-muted); font-size: 11px; min-width: 72px; }
+.tx .desc { flex: 1; min-width: 180px; color: var(--text-secondary); line-height: 1.4; }
+.tx .desc b { color: var(--text); font-weight: 500; display: block; font-size: 12px; }
+.tx .amt { font-weight: 600; font-size: 13.5px; min-width: 90px; text-align: right; }
+.tx .amt.in { color: var(--green); } .tx .amt.out { color: var(--text); }
+.badge { font-size: 10px; padding: 3px 9px; border-radius: 20px; border: 1px solid var(--border); color: var(--text-secondary); background: var(--bg-elevated); letter-spacing: .5px; white-space: nowrap; }
+.badge.matched { color: var(--green); border-color: rgba(0,210,106,.3); }
+.badge.suggest { color: var(--amber); border-color: rgba(245,165,36,.35); cursor: pointer; }
+.empty { color: var(--text-muted); font-size: 12px; padding: 16px; text-align: center; border: 1px dashed var(--border); border-radius: 11px; }
+.due { display: flex; gap: 10px; align-items: baseline; padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 12.5px; }
+.due:last-child { border-bottom: none; }
+.due .d { min-width: 86px; color: var(--text-muted); font-size: 11px; }
+.due .lbl { flex: 1; color: var(--text-secondary); }
+.due .amt { color: var(--gold); font-size: 12px; }
+.due.overdue .d, .due.overdue .lbl { color: var(--red); }
+.due.soon .d { color: var(--amber); }
+.group { background: var(--bg-card); border: 1px solid var(--border); border-radius: 13px; margin-bottom: 10px; overflow: hidden; }
+.group > .head { padding: 13px 16px; font-size: 13px; font-weight: 600; letter-spacing: .5px; cursor: pointer; display: flex; justify-content: space-between; }
+.group > .head .n { color: var(--text-secondary); font-weight: 400; font-size: 11.5px; }
+#bankModal { position: fixed; inset: 0; background: rgba(0,0,0,.82); display: none; align-items: flex-start; justify-content: center; z-index: 60; padding: 40px 16px; overflow-y: auto; }
+#bankModal .inner { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 16px; max-width: 460px; width: 100%; padding: 20px; }
+#bankModal h4 { font-size: 14px; letter-spacing: 1px; margin-bottom: 12px; }
+.bank-item { display: flex; align-items: center; gap: 12px; padding: 10px 8px; border-radius: 10px; cursor: pointer; font-size: 13px; }
+.bank-item:hover { background: var(--gold-light); }
+.bank-item img { width: 26px; height: 26px; border-radius: 6px; background: #fff; object-fit: contain; }
+.hint { font-size: 11.5px; color: var(--text-muted); line-height: 1.6; margin-top: 8px; }
+.hint code { color: var(--gold-dark); }
+#shield { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 50; color: var(--text-secondary); font-size: 12px; letter-spacing: 2px; }
+</style>
+</head>
+<body>
+<div id="shield">ACCESSO…</div>
+
+<div class="wrap" style="display:none" id="app">
+  <header>
+    <div>
+      <h1><b>BOOM</b> · BANCA & FISCO</h1>
+      <div class="sub">Conti, riconciliazione canoni, export per la commercialista, scadenzario</div>
+    </div>
+    <nav><a href="/team">La Squadra</a><a href="/portal">Portale</a></nav>
+  </header>
+
+  <section>
+    <h3>Conti collegati
+      <button id="btnLink">+ COLLEGA BANCA</button>
+      <button class="ghost" id="btnSync">SINCRONIZZA ORA</button>
+    </h3>
+    <div class="grid" id="accGrid"><div class="empty">Nessun conto collegato — collega la tua banca (2 minuti, consenso PSD2 dalla tua app) o importa un CSV qui sotto.</div></div>
+  </section>
+
+  <section>
+    <h3>Movimenti recenti <span id="txCount" style="color:var(--text-muted);letter-spacing:0;text-transform:none"></span></h3>
+    <div class="list" id="txList"><div class="empty">Ancora nessun movimento.</div></div>
+  </section>
+
+  <section>
+    <h3>Export per la commercialista</h3>
+    <div class="card">
+      <div class="row-controls">
+        <label style="font-size:11px;color:var(--text-secondary)">Dal <input type="date" id="expFrom"></label>
+        <label style="font-size:11px;color:var(--text-secondary)">Al <input type="date" id="expTo"></label>
+        <button id="btnEstratto">ESTRATTO CONTO CSV</button>
+        <button id="btnPrimanota">PRIMA NOTA CSV</button>
+        <button class="ghost" id="btnIcs">SCADENZARIO .ICS</button>
+      </div>
+      <div class="hint">CSV in formato italiano (punto e virgola, date GG/MM/AAAA, decimali con virgola) — si apre in Excel senza conversioni. La prima nota è categorizzata (canoni, tasse, utenze…) con riepilogo totali per periodo. Il file .ics si importa in Google/Apple Calendar.</div>
+    </div>
+  </section>
+
+  <section>
+    <h3>Scadenzario
+      <select id="scadYear" style="background:var(--bg-input);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:5px 9px;font-size:12px;font-family:inherit"></select>
+      <span id="scadCounts" style="color:var(--text-muted);letter-spacing:0;text-transform:none"></span>
+    </h3>
+    <div id="scadenzario"><div class="empty">Caricamento…</div></div>
+  </section>
+
+  <section>
+    <h3>Estratto conto via email — automatico</h3>
+    <div class="card">
+      <div class="hint" style="margin-top:0">
+        📬 <b style="color:var(--text)">La casella Gmail di BOOM viene letta ogni notte.</b> Tre cose vengono capite da sole:<br>
+        <b style="color:var(--text)">1. Avvisi movimento</b> — attiva nell'home banking gli avvisi email per bonifici/accrediti ("Hai ricevuto un bonifico di €1.200 da…"): l'importo è nel testo, l'AI lo estrae e riconcilia il canone <b style="color:var(--text)">in giornata</b>, senza che tu scarichi nulla.<br>
+        <b style="color:var(--text)">2. Estratti allegati</b> — se la tua banca invia l'estratto conto come allegato (CSV o PDF), viene importato per intero (i PDF li legge l'AI).<br>
+        <b style="color:var(--text)">3. Email inoltrate</b> — qualsiasi estratto o avviso che inoltri tu alla casella viene trattato allo stesso modo.<br>
+        Se la banca manda solo il link "estratto disponibile" (dietro login), quella email viene ignorata senza errori: in quel caso scarichi il CSV una volta al mese e lo carichi qui sotto — 2 minuti, il resto lo fa la riconciliazione.
+      </div>
+      <div class="row-controls" style="margin-top:10px">
+        <button class="ghost" id="btnScanMail">LEGGI CASELLA ORA</button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h3>Import manuale estratto conto</h3>
+    <div class="card">
+      <div class="row-controls">
+        <input type="file" id="csvFile" accept=".csv,text/csv" style="font-size:12px">
+        <input type="text" id="csvLabel" placeholder="Etichetta conto (es. Intesa aziendale)" style="flex:1;min-width:180px">
+        <button id="btnImport">IMPORTA</button>
+      </div>
+      <div class="hint">In alternativa: esporta il CSV dal tuo home banking (Intesa, Unicredit, Fineco, N26, Revolut…) e caricalo qui. Colonne riconosciute automaticamente; i movimenti già presenti vengono saltati; i bonifici vengono riconciliati con i canoni attesi.</div>
+    </div>
+  </section>
+</div>
+
+<div id="bankModal"><div class="inner">
+  <h4>COLLEGA LA TUA BANCA</h4>
+  <input type="text" id="bankSearch" placeholder="Cerca la banca (es. Intesa, Fineco, N26…)" style="width:100%">
+  <div id="bankList" style="margin-top:10px;max-height:340px;overflow-y:auto"><div class="empty">Scrivi per cercare…</div></div>
+  <div class="hint" id="bankHint"></div>
+  <div style="text-align:right;margin-top:12px"><button class="ghost" onclick="document.getElementById('bankModal').style.display='none'">CHIUDI</button></div>
+</div></div>
+
+<script>
+(async function () {
+  await BoomPortal.requireAuth(['admin'], { loginUrl: '/login.html' });
+  document.getElementById('shield').style.display = 'none';
+  document.getElementById('app').style.display = '';
+  const db = firebase.firestore();
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const euro = n => '€' + (Number(n) || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const toast = (m, t) => BoomPortal.toast(m, { type: t || 'info' });
+
+  async function api(path, body, raw) {
+    const token = await firebase.auth().currentUser.getIdToken();
+    const r = await fetch(path, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body || {}),
+    });
+    if (raw) return r;
+    const j = await r.json().catch(() => ({ ok: false, error: 'risposta non valida' }));
+    if (!j.ok && j.error) throw new Error(j.error);
+    return j;
+  }
+  async function download(path, body) {
+    const r = await api(path, body, true);
+    if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || ('HTTP ' + r.status)); }
+    const blob = await r.blob();
+    const cd = r.headers.get('Content-Disposition') || '';
+    const name = (cd.match(/filename="([^"]+)"/) || [])[1] || 'export.csv';
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  }
+
+  // ── Conti collegati ──────────────────────────────────────────────────
+  BoomPortal.listen(db.collection('bankAccounts'), snap => {
+    const grid = document.getElementById('accGrid');
+    const accs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (!accs.length) return;
+    grid.innerHTML = accs.map(a => {
+      const exp = a.consentExpiresAt && a.consentExpiresAt.toDate ? a.consentExpiresAt.toDate() : null;
+      const dLeft = exp ? Math.round((exp - Date.now()) / 86400000) : null;
+      const st = a.status === 'consent_expired' ? 'err' : (dLeft != null && dLeft < 8 ? 'warn' : 'ok');
+      return `<div class="card">
+        <h4><span class="dot ${st}"></span>${esc(a.name || a.institutionId || 'Conto')}</h4>
+        ${a.balance != null ? `<div class="balance">${euro(a.balance)}</div>` : ''}
+        <div class="meta">
+          ${a.iban ? `IBAN <b>${esc(a.iban)}</b><br>` : ''}
+          Ultimo sync: <b>${a.lastSyncAt && a.lastSyncAt.toDate ? a.lastSyncAt.toDate().toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'mai'}</b><br>
+          ${a.status === 'consent_expired' ? '<span style="color:var(--red)">Consenso scaduto — ricollega la banca</span>' : (dLeft != null ? `Consenso: altri <b>${dLeft}gg</b>` : '')}
+        </div>
+      </div>`;
+    }).join('');
+  });
+
+  document.getElementById('btnSync').addEventListener('click', async e => {
+    const b = e.target; b.disabled = true; b.textContent = 'SINCRONIZZO…';
+    try { const j = await api('/api/banking/sync'); toast(j.summary || 'Sync completato', 'success'); loadScadenzario(); }
+    catch (err) { toast('Sync fallito: ' + err.message, 'error'); }
+    b.disabled = false; b.textContent = 'SINCRONIZZA ORA';
+  });
+
+  // ── Collega banca (institutions picker → consenso) ───────────────────
+  const modal = document.getElementById('bankModal');
+  document.getElementById('btnLink').addEventListener('click', () => { modal.style.display = 'flex'; searchBanks(''); });
+  let searchTimer = null;
+  document.getElementById('bankSearch').addEventListener('input', e => {
+    clearTimeout(searchTimer); searchTimer = setTimeout(() => searchBanks(e.target.value), 300);
+  });
+  async function searchBanks(q) {
+    const list = document.getElementById('bankList');
+    list.innerHTML = '<div class="empty">Cerco…</div>';
+    try {
+      const j = await api('/api/banking/institutions', { q });
+      if (!j.configured) {
+        list.innerHTML = '';
+        document.getElementById('bankHint').innerHTML =
+          'Il collegamento API diretto (GoCardless Bank Account Data) al momento <b>non accetta nuove iscrizioni</b>, quindi questa strada è disponibile solo se hai già un account (in quel caso: user secrets → <code>GOCARDLESS_SECRET_ID</code> / <code>GOCARDLESS_SECRET_KEY</code> su Vercel). Nessun problema: usa l\'<b>estratto conto via email</b> (automatico, qui sotto) o l\'import CSV manuale — stessa riconciliazione, stessi export.';
+        return;
+      }
+      list.innerHTML = j.institutions.length ? j.institutions.map(b =>
+        `<div class="bank-item" data-id="${esc(b.id)}"><img src="${esc(b.logo)}" alt=""><span>${esc(b.name)}</span><span style="margin-left:auto;color:var(--text-muted);font-size:10.5px">${b.days}gg storico</span></div>`
+      ).join('') : '<div class="empty">Nessuna banca trovata.</div>';
+      list.querySelectorAll('.bank-item').forEach(el => el.addEventListener('click', () => connectBank(el.dataset.id)));
+    } catch (e) { list.innerHTML = `<div class="empty">Errore: ${esc(e.message)}</div>`; }
+  }
+  async function connectBank(institutionId) {
+    try {
+      toast('Preparo il consenso…');
+      const j = await api('/api/banking/connect', { institutionId });
+      localStorage.setItem('boomBankReq', j.requisitionId);
+      window.location.href = j.link;
+    } catch (e) { toast('Errore: ' + e.message, 'error'); }
+  }
+  // Ritorno dal consenso: ?ref=<requisitionId> (o quello salvato prima del redirect)
+  (async function handleReturn() {
+    const ref = new URLSearchParams(location.search).get('ref') || null;
+    const saved = localStorage.getItem('boomBankReq');
+    const reqId = ref || saved;
+    if (!reqId) return;
+    localStorage.removeItem('boomBankReq');
+    history.replaceState(null, '', '/banca');
+    try {
+      const j = await api('/api/banking/finalize', { requisitionId: reqId });
+      if (j.ok) {
+        toast(`Banca collegata: ${j.accounts.length} cont${j.accounts.length === 1 ? 'o' : 'i'} ✅ — avvio il primo sync (storico completo)…`, 'success');
+        api('/api/banking/sync').then(s => toast(s.summary || 'Storico importato', 'success')).catch(() => {});
+      } else toast(j.error || 'Consenso non completato', 'warning');
+    } catch (e) { toast('Collegamento non riuscito: ' + e.message, 'error'); }
+  })();
+
+  // ── Movimenti + conferma suggerimenti ────────────────────────────────
+  BoomPortal.listen(db.collection('bankTransactions').orderBy('bookingDate', 'desc').limit(40), snap => {
+    const el = document.getElementById('txList');
+    const txs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    document.getElementById('txCount').textContent = txs.length ? `· ultimi ${txs.length}` : '';
+    if (!txs.length) { el.innerHTML = '<div class="empty">Ancora nessun movimento — collega la banca o importa un CSV.</div>'; return; }
+    el.innerHTML = txs.map(t => {
+      const badge = t.matchedPaymentId
+        ? '<span class="badge matched">✓ canone riconciliato</span>'
+        : (t.matchSuggestions && t.matchSuggestions.length
+          ? `<span class="badge suggest" data-tx="${t.id}" data-pay="${esc(t.matchSuggestions[0])}">? conferma canone</span>`
+          : `<span class="badge">${esc(t.category || '')}</span>`);
+      return `<div class="tx">
+        <span class="date">${esc((t.bookingDate || '').split('-').reverse().join('/'))}</span>
+        <span class="desc"><b>${esc(t.counterparty || '—')}</b>${esc(t.description || '')}</span>
+        ${badge}
+        <span class="amt ${t.side}">${t.amount > 0 ? '+' : ''}${euro(t.amount)}</span>
+      </div>`;
+    }).join('');
+    el.querySelectorAll('.badge.suggest').forEach(b => b.addEventListener('click', async () => {
+      if (!confirm('Confermi che questo bonifico paga il canone suggerito? Il pagamento verrà segnato come incassato.')) return;
+      try {
+        const tx = txs.find(x => x.id === b.dataset.tx);
+        await db.collection('payments').doc(b.dataset.pay).update({ status: 'paid', paidDate: tx.bookingDate, paidVia: 'bank', bankTxId: b.dataset.tx });
+        await db.collection('bankTransactions').doc(b.dataset.tx).update({ matchedPaymentId: b.dataset.pay, matchConfidence: 'manual', matchedAt: new Date(), matchedBy: 'operator', matchSuggestions: null });
+        toast('Canone riconciliato ✅', 'success');
+      } catch (e) { toast('Errore: ' + e.message, 'error'); }
+    }));
+  });
+
+  // ── Export ───────────────────────────────────────────────────────────
+  const today = new Date();
+  const qs = new Date(Date.UTC(today.getUTCFullYear(), Math.floor(today.getUTCMonth() / 3) * 3, 1));
+  document.getElementById('expFrom').value = qs.toISOString().slice(0, 10);
+  document.getElementById('expTo').value = today.toISOString().slice(0, 10);
+  const period = () => ({ from: document.getElementById('expFrom').value, to: document.getElementById('expTo').value });
+  document.getElementById('btnEstratto').addEventListener('click', () => download('/api/banking/export', { ...period(), type: 'estratto' }).catch(e => toast(e.message, 'error')));
+  document.getElementById('btnPrimanota').addEventListener('click', () => download('/api/banking/export', { ...period(), type: 'primanota' }).catch(e => toast(e.message, 'error')));
+  document.getElementById('btnIcs').addEventListener('click', () => download('/api/accounting/scadenzario', { format: 'ics', fiscalYear: Number(document.getElementById('scadYear').value) || undefined }).catch(e => toast(e.message, 'error')));
+
+  // ── Scadenzario (anno selezionabile: rimettere a posto anche il 2025) ─
+  const scadYearSel = document.getElementById('scadYear');
+  const thisYear = new Date().getFullYear();
+  [thisYear, thisYear - 1].forEach(y => {
+    const o = document.createElement('option'); o.value = y; o.textContent = y; scadYearSel.appendChild(o);
+  });
+  scadYearSel.addEventListener('change', () => loadScadenzario());
+  async function loadScadenzario() {
+    const box = document.getElementById('scadenzario');
+    try {
+      const j = await api('/api/accounting/scadenzario', { format: 'json', fiscalYear: Number(scadYearSel.value) || thisYear });
+      document.getElementById('scadCounts').textContent = `· ${j.counts.overdue} scadute · ${j.counts.dueSoon} entro 30gg · ${j.counts.clients} clienti`;
+      const dueRow = o => `<div class="due ${o.days < 0 ? 'overdue' : (o.days <= 30 ? 'soon' : '')}">
+        <span class="d">${esc(o.dueDate.split('-').reverse().join('/'))}</span>
+        <span class="lbl">${esc(o.label)}${o.note ? ` <span style="color:var(--text-muted)">· ${esc(o.note)}</span>` : ''}</span>
+        ${o.amount ? `<span class="amt">~${euro(o.amount)}</span>` : ''}
+      </div>`;
+      const group = (title, items, open) => `<div class="group">
+        <div class="head" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'':'none'">
+          <span>${esc(title)}</span><span class="n">${items.length} scadenze</span>
+        </div>
+        <div style="${open ? '' : 'display:none'}">${items.map(dueRow).join('')}</div>
+      </div>`;
+      let html = group('🏛️ Società (Egidi / BOOM)', j.company, true);
+      for (const [client, items] of Object.entries(j.byClient)) html += group('👤 ' + client, items, false);
+      box.innerHTML = html || '<div class="empty">Nessuna scadenza nel periodo.</div>';
+    } catch (e) { box.innerHTML = `<div class="empty">Errore scadenzario: ${esc(e.message)}</div>`; }
+  }
+  loadScadenzario();
+
+  // ── Scan casella email ───────────────────────────────────────────────
+  document.getElementById('btnScanMail').addEventListener('click', async e => {
+    const b = e.target; b.disabled = true; b.textContent = 'LEGGO…';
+    try { const j = await api('/api/banking/scan-inbox'); toast(j.summary || 'Casella letta', 'success'); }
+    catch (err) { toast('Lettura fallita: ' + err.message, 'error'); }
+    b.disabled = false; b.textContent = 'LEGGI CASELLA ORA';
+  });
+
+  // ── Import manuale ───────────────────────────────────────────────────
+  document.getElementById('btnImport').addEventListener('click', async e => {
+    const f = document.getElementById('csvFile').files[0];
+    if (!f) return toast('Seleziona il file CSV esportato dal tuo home banking', 'warning');
+    const b = e.target; b.disabled = true; b.textContent = 'IMPORTO…';
+    try {
+      const csv = await f.text();
+      const j = await api('/api/banking/import', { csv, accountLabel: document.getElementById('csvLabel').value || f.name });
+      toast(`Importati ${j.imported} movimenti (${j.skipped} già presenti) · ${j.matched} canoni riconciliati`, 'success');
+    } catch (err) { toast('Import fallito: ' + err.message, 'error'); }
+    b.disabled = false; b.textContent = 'IMPORTA';
+  });
+})();
+</script>
+</body>
+</html>

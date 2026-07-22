@@ -132,6 +132,15 @@ service firebase.storage {
       allow read, write: if isAdmin();
     }
 
+    // ─── smistatore/{fiscalYear}/** ───────────────────────────────────
+    // Lo Smistatore's filed documents (api/documents/_smista.js): photos/PDFs
+    // sent via Telegram or forwarded email, uploaded server-side with the
+    // admin ID token. Admin-only; the portal opens them via the tokenized
+    // ?alt=media&token= URL stored on the `documents` doc.
+    match /smistatore/{fiscalYear}/{allPaths=**} {
+      allow read, write: if isAdmin();
+    }
+
     // ─── Default deny ─────────────────────────────────────────────────
     match /{allPaths=**} {
       allow read, write: if false;

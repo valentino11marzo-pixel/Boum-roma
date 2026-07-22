@@ -14,6 +14,7 @@ import os
 import json
 import base64
 import logging
+import re
 import time
 import urllib.parse
 import requests as http_requests
@@ -264,7 +265,8 @@ def summary_text(data):
         f"🛏 {data.get('beds', '?')} letti · 🚿 {data.get('bathrooms', '?')} bagni\n🏷 {data.get('type', '?').title()}\n"
         f"🪑 {furn_map.get(data.get('furnished'), '?')}\n📅 Disponibile: {data.get('availableDate', 'Subito')}\n"
         f"📜 Concordato: {conc_map.get(data.get('concordato'), '?')}\n\n✨ *Features:* {features}\n\n"
-        f"📝 _{data.get('description', 'Nessuna descrizione')}_\n\n📸 *{photos_count} foto* caricate\n\n━━━━━━━━━━━━━━━━━━━━━━")
+        f"📝 _{data.get('description', 'Nessuna descrizione')}_\n\n📸 *{photos_count} foto* caricate\n"
+        f"📹 Video: {'✅ ' + data.get('videoUrl') if data.get('videoUrl') else '—'}\n\n━━━━━━━━━━━━━━━━━━━━━━")
 
 # ─── Conversation Flow ────────────────────────────────────────────────────────
 async def cmd_newlisting(update, context):
@@ -445,10 +447,10 @@ async def confirm_cb(update, context):
             image_urls.append(url); logger.info(f"Uploaded {i+1}/{len(photo_ids)}")
         except Exception as e: logger.error(f"Photo upload error: {e}")
     now = datetime.now(timezone.utc).isoformat() + 'Z'
-    listing = {'name': d.get('name',''), 'address': d.get('address',''), 'zone': d.get('zone',''), 'price': d.get('price',0), 'type': d.get('type',''), 'status': 'available', 'beds': d.get('beds',0), 'bedrooms': d.get('beds',0), 'sqm': d.get('sqm',0), 'size': d.get('sqm',0), 'floor': str(d.get('floor','')), 'bathrooms': d.get('bathrooms',0), 'furnished': d.get('furnished','no'), 'availableDate': d.get('availableDate','Subito'), 'concordato': d.get('concordato','tbd'), 'description': d.get('description',''), 'descriptionIt': d.get('descriptionIt',''), 'features': d.get('features',[]), 'tags': [t for t in [d.get('zone','').lower(), d.get('type','').lower(), 'concordato' if d.get('concordato') is True else '', 'furnished' if d.get('furnished') == 'yes' else ''] if t], 'image': image_urls[0] if image_urls else '', 'images': image_urls, 'videoUrl': '', 'createdAt': now, 'updatedAt': now, 'createdBy': 'homie'}
+    listing = {'name': d.get('name',''), 'address': d.get('address',''), 'zone': d.get('zone',''), 'price': d.get('price',0), 'type': d.get('type',''), 'status': 'available', 'beds': d.get('beds',0), 'bedrooms': d.get('beds',0), 'sqm': d.get('sqm',0), 'size': d.get('sqm',0), 'floor': str(d.get('floor','')), 'bathrooms': d.get('bathrooms',0), 'furnished': d.get('furnished','no'), 'availableDate': d.get('availableDate','Subito'), 'concordato': d.get('concordato','tbd'), 'description': d.get('description',''), 'descriptionIt': d.get('descriptionIt',''), 'features': d.get('features',[]), 'tags': [t for t in [d.get('zone','').lower(), d.get('type','').lower(), 'concordato' if d.get('concordato') is True else '', 'furnished' if d.get('furnished') == 'yes' else ''] if t], 'image': image_urls[0] if image_urls else '', 'images': image_urls, 'videoUrl': d.get('videoUrl', ''), 'createdAt': now, 'updatedAt': now, 'createdBy': 'homie'}
     try:
         doc_id = publish_listing(listing); detail_url = f"{SITE_URL}/apartment-detail?id={doc_id}"
-        await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=f"━━━━━━━━━━━━━━━━━━━━━━\n✅ *LISTING PUBBLICATO!*\n━━━━━━━━━━━━━━━━━━━━━━\n\n🏠 *{listing['name']}*\n📍 {listing['address']}, {listing['zone']}\n💶 €{listing['price']:,}/mese\n📐 {listing['sqm']}mq · Piano {listing['floor']}\n📸 {len(image_urls)} foto\n\n🔗 *Link per il cliente:*\n`{detail_url}`\n\n☝️ Tocca per copiare", parse_mode='Markdown')
+        await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=f"━━━━━━━━━━━━━━━━━━━━━━\n✅ *LISTING PUBBLICATO!*\n━━━━━━━━━━━━━━━━━━━━━━\n\n🏠 *{listing['name']}*\n📍 {listing['address']}, {listing['zone']}\n💶 €{listing['price']:,}/mese\n📐 {listing['sqm']}mq · Piano {listing['floor']}\n📸 {len(image_urls)} foto\n\n🔗 *Link per il cliente:*\n`{detail_url}`\n\n☝️ Tocca per copiare\n\n✏️ Ritocchi: /prezzo /deposito /video /modifica `{doc_id}`", parse_mode='Markdown')
         logger.info(f"Listing created: {doc_id}")
     except Exception as e:
         logger.error(f"Firestore error: {e}"); await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=f"❌ Errore: {e}")
@@ -486,8 +488,194 @@ async def cmd_delete(update, context):
     try: fs_delete('listings', context.args[0]); await update.message.reply_text(f"🗑 `{context.args[0]}` eliminato", parse_mode='Markdown')
     except Exception as e: await update.message.reply_text(f"❌ {e}")
 
+# ─── Edit commands (post-publish tuning, straight from Telegram) ──────────────
+def fs_get_doc(collection, doc_id):
+    r = http_requests.get(f'{fs_base()}/{collection}/{doc_id}', headers=fs_headers())
+    r.raise_for_status()
+    return {k: firestore_to_python(v) for k, v in r.json().get('fields', {}).items()}
+
+def _parse_money(s):
+    return int(str(s).replace('€', '').replace('.', '').replace(',', '').strip())
+
+# /modifica <id> <campo> <valore> — whitelist so a typo can never invent fields.
+# tuple: (firestore field, coercion, also-write twin field or None)
+EDIT_FIELDS = {
+    'nome': ('name', str, None), 'indirizzo': ('address', str, None),
+    'zona': ('zone', str, None), 'prezzo': ('price', 'money', None),
+    'mq': ('sqm', 'int', 'size'), 'piano': ('floor', str, None),
+    'letti': ('beds', 'int', 'bedrooms'), 'bagni': ('bathrooms', 'int', None),
+    'arredato': ('furnished', 'furn', None), 'disponibile': ('availableDate', str, None),
+    'descrizione': ('description', str, None), 'video': ('videoUrl', str, None),
+    'commissione': ('agencyFee', 'money', None), 'stato': ('status', 'status', None),
+}
+_FURN = {'si': 'yes', 'sì': 'yes', 'yes': 'yes', 'parziale': 'partial', 'partial': 'partial', 'no': 'no'}
+_STATUS = {'disponibile': 'available', 'available': 'available', 'affittato': 'rented', 'rented': 'rented', 'waitlist': 'waitlist'}
+
+def _coerce(kind, raw):
+    if kind == 'money': return _parse_money(raw)
+    if kind == 'int': return int(str(raw).replace('mq', '').strip())
+    if kind == 'furn':
+        v = _FURN.get(str(raw).lower().strip())
+        if not v: raise ValueError('usa: si / parziale / no')
+        return v
+    if kind == 'status':
+        v = _STATUS.get(str(raw).lower().strip())
+        if not v: raise ValueError('usa: disponibile / affittato / waitlist')
+        return v
+    return str(raw).strip()
+
+def _edit_listing(doc_id, updates):
+    updates['updatedAt'] = datetime.now(timezone.utc).isoformat() + 'Z'
+    fs_update('listings', doc_id, updates)
+
+async def cmd_video(update, context):
+    if not is_admin(update): return
+    if len(context.args) < 2: await update.message.reply_text("Uso: `/video LISTING_ID link-youtube`", parse_mode='Markdown'); return
+    doc_id, url = context.args[0], context.args[1]
+    try:
+        _edit_listing(doc_id, {'videoUrl': url})
+        await update.message.reply_text(f"🎥 Video aggiornato!\n`{SITE_URL}/listing/{doc_id}`", parse_mode='Markdown')
+    except Exception as e: await update.message.reply_text(f"❌ {e}")
+
+async def cmd_prezzo(update, context):
+    if not is_admin(update): return
+    if len(context.args) < 2: await update.message.reply_text("Uso: `/prezzo LISTING_ID 1300`", parse_mode='Markdown'); return
+    doc_id = context.args[0]
+    try:
+        price = _parse_money(context.args[1])
+        updates = {'price': price}
+        # keep a months-based deposit coherent with the new rent
+        d = fs_get_doc('listings', doc_id)
+        months = d.get('depositMonths')
+        if isinstance(months, (int, float)) and months > 0:
+            updates['deposit'] = round(months * price)
+        _edit_listing(doc_id, updates)
+        extra = f" · deposito ricalcolato €{updates['deposit']:,}" if 'deposit' in updates else ''
+        await update.message.reply_text(f"💶 Prezzo → *€{price:,}/mese*{extra}\n`{SITE_URL}/listing/{doc_id}`", parse_mode='Markdown')
+    except Exception as e: await update.message.reply_text(f"❌ {e}")
+
+async def cmd_deposito(update, context):
+    if not is_admin(update): return
+    if len(context.args) < 2: await update.message.reply_text("Uso: `/deposito LISTING_ID 3`  _(mesi di deposito)_", parse_mode='Markdown'); return
+    doc_id = context.args[0]
+    try:
+        months = float(context.args[1].replace(',', '.'))
+        if not (0 < months <= 6): raise ValueError('mesi tra 1 e 6')
+        d = fs_get_doc('listings', doc_id)
+        price = int(d.get('price') or 0)
+        if price <= 0: raise ValueError('il listing non ha un prezzo — imposta prima /prezzo')
+        deposit = round(months * price)
+        _edit_listing(doc_id, {'depositMonths': months, 'deposit': deposit})
+        m = int(months) if months == int(months) else months
+        await update.message.reply_text(f"🔐 Deposito → *{m} mesi* = *€{deposit:,}*\n`{SITE_URL}/listing/{doc_id}`", parse_mode='Markdown')
+    except Exception as e: await update.message.reply_text(f"❌ {e}")
+
+async def cmd_modifica(update, context):
+    if not is_admin(update): return
+    if len(context.args) < 3:
+        campi = ' '.join(f"`{k}`" for k in EDIT_FIELDS)
+        await update.message.reply_text(f"Uso: `/modifica LISTING_ID campo valore`\n\nCampi: {campi}\n\nEs: `/modifica abc123 zona Trastevere`", parse_mode='Markdown'); return
+    doc_id, campo = context.args[0], context.args[1].lower()
+    raw = ' '.join(context.args[2:])
+    spec = EDIT_FIELDS.get(campo)
+    if not spec:
+        await update.message.reply_text(f"❌ Campo `{campo}` non riconosciuto. Campi: {', '.join(EDIT_FIELDS)}", parse_mode='Markdown'); return
+    field, kind, twin = spec
+    try:
+        val = _coerce(kind, raw)
+        updates = {field: val}
+        if twin: updates[twin] = val
+        _edit_listing(doc_id, updates)
+        await update.message.reply_text(f"✏️ *{campo}* → {val}\n`{SITE_URL}/listing/{doc_id}`", parse_mode='Markdown')
+    except Exception as e: await update.message.reply_text(f"❌ {e}")
+
 async def cmd_help(update, context):
-    await update.message.reply_text("━━━━━━━━━━━━━━━━━━━━━━\n🏠 *BOOM Listing Commands*\n━━━━━━━━━━━━━━━━━━━━━━\n\n/nuovoflat — Crea nuovo listing\n/listings — Mostra attivi con link\n/rent `ID` — Segna affittato\n/reactivate `ID` — Rimetti disponibile\n/delete `ID` — Elimina listing\n/cancel — Annulla wizard\n/help — Questo messaggio", parse_mode='Markdown')
+    await update.message.reply_text("━━━━━━━━━━━━━━━━━━━━━━\n🏠 *BOOM Listing Commands*\n━━━━━━━━━━━━━━━━━━━━━━\n\n/nuovoflat — Crea nuovo listing\n/listings — Mostra attivi con link\n\n💬 *Oppure scrivimi in italiano:*\n_\"metti il deposito a 2 mesi per Pigneto\"_\n_\"aumenta il prezzo di Levico di 100€\"_\nTi mostro la modifica e confermi con un tap.\n\n✏️ *Comandi diretti*\n/prezzo `ID 1300` — Cambia il canone\n/deposito `ID 3` — Deposito in mesi\n/video `ID link` — Aggiungi/cambia video\n/modifica `ID campo valore` — Ogni altro campo\n\n/rent `ID` — Segna affittato\n/reactivate `ID` — Rimetti disponibile\n/delete `ID` — Elimina listing\n/cancel — Annulla wizard\n/help — Questo messaggio", parse_mode='Markdown')
+
+# ─── Natural language edits ("metti il deposito a 2 mesi per Pigneto") ────────
+# AI-first via /api/wizard/interpret (Claude reads the real catalog, returns a
+# sanitized update plan); local regex parser as fallback so the feature works
+# even if the endpoint/secret is unavailable. NOTHING is written until the
+# operator taps ✅ Conferma.
+PENDING_NL = {}
+NUM_WORDS = {'un': 1, 'uno': 1, 'una': 1, 'due': 2, 'tre': 3, 'quattro': 4, 'cinque': 5, 'sei': 6}
+
+def _local_interpret(text):
+    t = text.lower()
+    try: listings = fs_query_available('listings')
+    except Exception: return None
+    cands = []
+    for doc_id, d in listings:
+        hay = f"{d.get('name','')} {d.get('zone','')} {d.get('address','')}".lower()
+        toks = set(re.findall(r'[a-zà-ù]{4,}', hay))
+        if doc_id.lower() in t or any(w in t for w in toks):
+            cands.append((doc_id, d))
+    if not cands:
+        return {'ok': True, 'action': 'none', 'note': "Di quale annuncio parli? Dimmi il nome o l'ID (vedi /listings)."}
+    if len(cands) > 1:
+        return {'ok': True, 'action': 'none', 'note': 'Più annunci corrispondono: ' + ', '.join(d.get('name', '?') for _, d in cands) + '. Quale?'}
+    doc_id, d = cands[0]
+    price = int(d.get('price') or 0)
+    updates, summary = {}, []
+    m = re.search(r'(\d+(?:[.,]5)?|un[oa]?|due|tre|quattro|cinque|sei)\s*mes', t)
+    if m and re.search(r'deposit|cauzion', t):
+        raw = m.group(1)
+        months = NUM_WORDS.get(raw) or float(raw.replace(',', '.'))
+        dep = round(months * price)
+        updates.update({'depositMonths': months, 'deposit': dep})
+        summary.append(f"Deposito: {months:g} mesi = €{dep:,}")
+    m = re.search(r'(aument|alza|rincar|abbass|riduc|scont|diminu)\w*\D*?di\s*€?\s*(\d[\d.]*)', t)
+    if m and price:
+        delta = _parse_money(m.group(2))
+        new_price = price + delta if m.group(1) in ('aument', 'alza', 'rincar') else price - delta
+        updates['price'] = new_price
+        summary.append(f"Prezzo: €{price:,} → €{new_price:,}")
+    else:
+        m = re.search(r'(?:prezzo|canone|affitto)\D*?a\s*€?\s*(\d[\d.]*)', t)
+        if m:
+            updates['price'] = _parse_money(m.group(1))
+            summary.append(f"Prezzo: €{price:,} → €{updates['price']:,}")
+    if 'price' in updates:
+        months = d.get('depositMonths') or updates.get('depositMonths')
+        if isinstance(months, (int, float)) and months > 0 and 'deposit' not in updates:
+            updates['deposit'] = round(months * updates['price'])
+            summary.append(f"Deposito ricalcolato: €{updates['deposit']:,}")
+    m = re.search(r'(https?://\S*youtu\S*)', text)
+    if m:
+        updates['videoUrl'] = m.group(1)
+        summary.append('Video tour aggiornato')
+    if re.search(r'affittat', t):
+        updates['status'] = 'rented'; summary.append('Stato: affittato')
+    elif re.search(r'riattiv|di nuovo disponibile|rimetti disponibile', t):
+        updates['status'] = 'available'; summary.append('Stato: disponibile')
+    if not updates:
+        return {'ok': True, 'action': 'none', 'note': f"Ho capito l'annuncio ({d.get('name','?')}) ma non la modifica. Prova: 'deposito a 2 mesi', 'prezzo a 1300', o incolla un link video."}
+    return {'ok': True, 'action': 'update', 'id': doc_id, 'name': d.get('name') or doc_id, 'updates': updates, 'summary': summary}
+
+async def nl_message(update, context):
+    if not is_admin(update): return
+    text = (update.message.text or '').strip()
+    if not text: return
+    plan = wizard_post('/api/wizard/interpret', {'text': text}, timeout=30) or _local_interpret(text)
+    if not plan or plan.get('action') != 'update' or not plan.get('id') or not plan.get('updates'):
+        note = (plan or {}).get('note') or "Non ho capito 🤔 Prova: \"metti il deposito a 2 mesi per Pigneto\" — oppure /help"
+        await update.message.reply_text(f"💬 {note}")
+        return
+    PENDING_NL[update.effective_chat.id] = plan
+    lines = '\n'.join('• ' + s for s in (plan.get('summary') or [f"{k} → {v}" for k, v in plan['updates'].items()]))
+    kb = InlineKeyboardMarkup([[InlineKeyboardButton('✅ Conferma', callback_data='nl_ok'), InlineKeyboardButton('✖️ Annulla', callback_data='nl_no')]])
+    await update.message.reply_text(f"🏠 *{plan.get('name', plan['id'])}*\n{lines}\n\nConfermo?", parse_mode='Markdown', reply_markup=kb)
+
+async def nl_confirm_cb(update, context):
+    q = update.callback_query; await q.answer()
+    plan = PENDING_NL.pop(q.message.chat.id, None)
+    if q.data != 'nl_ok' or not plan:
+        await q.edit_message_text('✖️ Annullato.'); return
+    try:
+        _edit_listing(plan['id'], dict(plan['updates']))
+        await q.edit_message_text(f"✅ Fatto!\n{SITE_URL}/listing/{plan['id']}")
+    except Exception as e:
+        await q.edit_message_text(f"❌ {e}")
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 def main():
@@ -519,7 +707,14 @@ def main():
     app.add_handler(CommandHandler('rent', cmd_rent))
     app.add_handler(CommandHandler('reactivate', cmd_reactivate))
     app.add_handler(CommandHandler('delete', cmd_delete))
+    app.add_handler(CommandHandler('video', cmd_video))
+    app.add_handler(CommandHandler('prezzo', cmd_prezzo))
+    app.add_handler(CommandHandler('deposito', cmd_deposito))
+    app.add_handler(CommandHandler('modifica', cmd_modifica))
     app.add_handler(CommandHandler('help', cmd_help))
+    app.add_handler(CallbackQueryHandler(nl_confirm_cb, pattern='^nl_'))
+    # last: free-text messages outside the wizard flow → natural-language edits
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, nl_message))
     logger.info("🚀 BOOM Listing Wizard avviato!")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 

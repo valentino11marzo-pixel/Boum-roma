@@ -136,6 +136,27 @@ function injectSeo(html, d, id) {
       ld.offers.availabilityStarts = af.slice(0, 10);
     }
   }
+  // Video tour → VideoObject JSON-LD (video badge in search results). Same
+  // YouTube-id extraction as the client's exYT().
+  const ytm = String(d.videoUrl || d.youtubeUrl || '')
+    .match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/);
+  let videoLd = null;
+  if (ytm) {
+    videoLd = {
+      '@context': 'https://schema.org', '@type': 'VideoObject',
+      name: name + ' — video tour',
+      description: 'Video tour of ' + name + (zone ? ' in ' + zone : '') + ', Rome — verified by BOOM.',
+      thumbnailUrl: [
+        'https://i.ytimg.com/vi/' + ytm[1] + '/maxresdefault.jpg',
+        'https://i.ytimg.com/vi/' + ytm[1] + '/hqdefault.jpg',
+      ],
+      contentUrl: 'https://www.youtube.com/watch?v=' + ytm[1],
+      embedUrl: 'https://www.youtube-nocookie.com/embed/' + ytm[1],
+    };
+    const up = String(d.createdAt || '').match(/^\d{4}-\d{2}-\d{2}/);
+    if (up) videoLd.uploadDate = up[0];
+  }
+
   const breadcrumb = {
     '@context': 'https://schema.org', '@type': 'BreadcrumbList',
     itemListElement: [
@@ -158,7 +179,9 @@ function injectSeo(html, d, id) {
   const dataScript = '<script>window.__LISTING=' + safe(d) + ';window.__LISTING_ID=' + JSON.stringify(id) + ';</script>\n';
   const scripts = preload + dataScript +
     '<script type="application/ld+json" data-seo-dynamic>' + safe(ld) + '</script>\n' +
-    '<script type="application/ld+json" data-seo-dynamic>' + safe(breadcrumb) + '</script>\n</head>';
+    '<script type="application/ld+json" data-seo-dynamic>' + safe(breadcrumb) + '</script>\n' +
+    (videoLd ? '<script type="application/ld+json" data-seo-dynamic>' + safe(videoLd) + '</script>\n' : '') +
+    '</head>';
   html = html.replace('</head>', scripts);
 
   // No-JS baseline for AI crawlers (GPTBot, ClaudeBot, PerplexityBot…) and
