@@ -252,7 +252,36 @@ export default async function handler(req, res) {
       results.signNudged = nudged;
     } catch (e) { results.errors.push(`sign-nudge: ${e.message}`); }
 
-// ── Pre-agreement 24h nudge: accepted + payment due + Stripe never
+// ── Expired €300 holds: a paid "instant hold" reserves the listing for
+    // 48h (stripe-webhook sets status:'reserved' + reservedUntil). When the
+    // window closes, put the home back on market and wake the operator —
+    // the decision (refund vs proceed to contract) is theirs, but the
+    // listing must never stay stuck off-market. ──
+    try {
+      const rq = await fsQuery('listings', token, {
+        field: { fieldPath: 'status' }, op: 'EQUAL', value: { stringValue: 'reserved' },
+      });
+      const held = (rq || []).filter(r => r.document).map(r => parseDoc(r.document)).filter(Boolean);
+      let reverted = 0;
+      for (const l of held) {
+        if (!l.reservedUntil || new Date(l.reservedUntil) > now) continue;
+        await fsPatch(`listings/${l.id}`, {
+          status: { stringValue: l.statusBeforeReserve || 'available' },
+          reservedUntil: { nullValue: null },
+          reservedBy: { nullValue: null },
+          reservedByName: { nullValue: null },
+          statusBeforeReserve: { nullValue: null },
+        }, token);
+        reverted++;
+        try {
+          const { tgNotify } = await import('./pfs/_health.js');
+          await tgNotify(`⏰ <b>Hold 48h scaduto</b> — ${l.name || l.title || l.id}\nPrenotato da ${l.reservedByName || '?'} (lead ${l.reservedBy || '—'}). L'annuncio è TORNATO sul mercato.\nDecidi: rimborso del deposito o avanti col contratto.`);
+        } catch (e) { console.error('hold-sweep notify:', e.message); }
+      }
+      results.holdsReverted = reverted;
+    } catch (e) { results.errors.push(`hold-sweep: ${e.message}`); }
+
+    // ── Pre-agreement 24h nudge: accepted + payment due + Stripe never
     // completed → one gentle email with a resume-payment link. Lazy import,
     // best-effort — must never take the cron down. ──
     try {

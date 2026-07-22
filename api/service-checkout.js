@@ -15,6 +15,7 @@
 // The webhook (service:'SERVICE') writes the paid lead + sends both emails.
 
 import Stripe from 'stripe';
+import { fsPatch } from './homie/_lib.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -109,6 +110,28 @@ export default async function handler(req, res) {
       success_url: 'https://www.boomrome.com/thank-you.html?service=' + encodeURIComponent(body.kind) + '&session_id={CHECKOUT_SESSION_ID}',
       cancel_url: 'https://www.boomrome.com' + svc.cancel,
     });
+
+    // Capture the lead BEFORE Stripe: the person typed name/email/phone with
+    // buying intent — if checkout is abandoned they must still exist in the
+    // pipeline. Same doc the webhook upgrades to paid (svc_<sessionId>), so
+    // completion never duplicates. Best-effort: never blocks the checkout.
+    const docId = session.id.replace(/[^a-zA-Z0-9]/g, '').substring(0, 30);
+    await fsPatch('leads/svc_' + docId, {
+      type: 'service',
+      service: 'SERVICE',
+      kind: clip(body.kind, 40),
+      status: 'checkout_started',
+      paid: false,
+      source: 'web',
+      intent: 'service',
+      name, email, phone,
+      listingName: clip(body.listing, 400),
+      message: `${svc.label} — checkout started (€${svc.eur}). ${body.notes ? 'Notes: ' + clip(body.notes, 400) : ''}`,
+      amount_eur: svc.eur,
+      stripe_session_id: session.id,
+      createdAt: new Date().toISOString(),
+    }).catch(err => console.error('[service-checkout] lead capture failed:', err.message));
+
     return res.status(200).json({ ok: true, url: session.url });
   } catch (err) {
     console.error('Service checkout error:', err);

@@ -13,9 +13,30 @@
 // mail error.
 
 import { sendEmail } from '../agent/_lib.js';
+import { sendEmailJS } from '../_emailjs.js';
+import { tgNotify } from '../pfs/_health.js';
 import { buildPaPdf } from './_pdf.js';
 
 const ADMIN_EMAIL = 'valentino@boom-rome.com';
+
+// Deliver one email with a two-transport strategy: Gmail/Nodemailer first
+// (full document HTML + PDF attachment), then EmailJS (the transport every
+// other Stripe branch delivers with) carrying the same message via the
+// boom_notification template. Returns { sent, via, errors[] } — never throws.
+async function deliver({ to, subject, html, attachments, fallback }) {
+  const errors = [];
+  try {
+    await sendEmail({ to, subject, html, attachments });
+    return { sent: true, via: 'gmail', errors };
+  } catch (e) { errors.push('gmail: ' + e.message); }
+  if (fallback) {
+    try {
+      await sendEmailJS({ to_email: to, card_color: '#D4AF37', ...fallback });
+      return { sent: true, via: 'emailjs', errors };
+    } catch (e) { errors.push('emailjs: ' + e.message); }
+  }
+  return { sent: false, via: null, errors };
+}
 
 const esc = s => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
 const eur = n => '€' + Number(n || 0).toLocaleString('en-US', {
@@ -146,29 +167,46 @@ export async function sendContractSignEmail({ pa, tenantSignUrl, landlordSignUrl
   const results = { client: false, admin: false };
 
   if (t.email && tenantSignUrl && notifyClient !== false) {
-    try {
-      await sendEmail({
-        to: t.email,
-        subject: `Your rental contract is ready to sign — ${addr}`,
-        html: shell(
-          `<p style="font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#333;line-height:1.7;margin:0 0 20px">
-            Ciao ${esc(first)} — great news: your rental contract for <b>${esc(addr)}</b> has been prepared
-            from your accepted pre-agreement${pa.ref ? ` (${esc(pa.ref)})` : ''}. Everything you already
-            filled in carried over — nothing to re-type. It takes about two minutes to sign digitally:</p>`
-          + btn(tenantSignUrl, 'Review & sign your contract')
-          + `<p style="font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#777;line-height:1.7;margin:18px 0 0">
-            Your signature is a legally valid electronic signature (FES — Art. 21 CAD), recorded with a
-            signed certificate. After you sign, BOOM countersigns and files the registration with the
-            Agenzia delle Entrate. Questions? Just reply — a human answers. Or
-            <a href="https://wa.me/393313251961" style="color:#111">WhatsApp BOOM</a>.</p>`,
-          `Your contract for ${addr} is ready to sign`),
-      });
-      results.client = true;
-    } catch (e) { console.error('[pa/_notify] contract sign email failed:', e.message); }
+    const d = await deliver({
+      to: t.email,
+      subject: `Your rental contract is ready to sign — ${addr}`,
+      html: shell(
+        `<p style="font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#333;line-height:1.7;margin:0 0 20px">
+          Ciao ${esc(first)} — great news: your rental contract for <b>${esc(addr)}</b> has been prepared
+          from your accepted pre-agreement${pa.ref ? ` (${esc(pa.ref)})` : ''}. Everything you already
+          filled in carried over — nothing to re-type. It takes about two minutes to sign digitally:</p>`
+        + btn(tenantSignUrl, 'Review & sign your contract')
+        + `<p style="font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#777;line-height:1.7;margin:18px 0 0">
+          Your signature is a legally valid electronic signature (FES — Art. 21 CAD), recorded with a
+          signed certificate. After you sign, BOOM countersigns and files the registration with the
+          Agenzia delle Entrate. Questions? Just reply — a human answers. Or
+          <a href="https://wa.me/393313251961" style="color:#111">WhatsApp BOOM</a>.</p>`,
+        `Your contract for ${addr} is ready to sign`),
+      fallback: {
+        heading: 'Your contract is ready to sign',
+        subheading: addr,
+        name: first,
+        intro: `Your rental contract for ${addr} has been prepared from your accepted pre-agreement${pa.ref ? ` (${pa.ref})` : ''}. Everything you filled in carried over — signing takes about two minutes.`,
+        card_title: 'How it works',
+        r1_icon: '✍️', r1_label: 'Review & sign', r1_value: 'Tap the button below',
+        r2_icon: '🔏', r2_label: 'Legally valid', r2_value: 'FES — Art. 21 CAD',
+        r3_icon: '🏛', r3_label: 'Registration', r3_value: 'Filed by BOOM with Agenzia delle Entrate',
+        r4_icon: '💬', r4_label: 'Questions', r4_value: 'Reply to this email anytime',
+        closing: 'A human answers within 2 hours. — BOOM Rome',
+        cta_text: 'Review & sign your contract',
+        portal_link: tenantSignUrl,
+      },
+    });
+    results.client = d.sent;
+    results.clientVia = d.via;
+    if (!d.sent) {
+      console.error('[pa/_notify] contract sign email failed:', d.errors.join(' | '));
+      await tgNotify(`🚨 <b>Magic-Sign email NON consegnata</b>\n${t.fullName || ''} · ${addr} · ${pa.ref || ''}\nEntrambi i trasporti falliti:\n${d.errors.join('\n')}\nLink firma (mandalo tu su WhatsApp): ${tenantSignUrl}`);
+    }
   }
 
-  try {
-    await sendEmail({
+  {
+    const d = await deliver({
       to: ADMIN_EMAIL,
       subject: notifyClient !== false
         ? `🖊 Magic Sign inviato — ${t.fullName || ''} · ${addr}`
@@ -185,9 +223,24 @@ export async function sendContractSignEmail({ pa, tenantSignUrl, landlordSignUrl
           <a href="${esc(landlordSignUrl || '')}" style="color:#111;word-break:break-all">${esc(landlordSignUrl || '')}</a></p>`
         + btn('https://www.boomrome.com/pre-agreement-admin', 'Apri la console'),
         notifyClient !== false ? 'Magic Sign inviato' : 'Contratto pronto — invia Magic Sign quando vuoi'),
+      fallback: {
+        heading: notifyClient !== false ? '🖊 Magic Sign inviato' : '📋 Contratto pronto (non inviato)',
+        subheading: `${t.fullName || ''} · ${addr}`,
+        name: 'Valentino',
+        intro: `Pre-agreement ${pa.ref || ''} chiuso, contratto creato automaticamente. ${notifyClient !== false ? `Link di firma inviato a ${t.email || '—'}.` : 'Nessuna email al cliente: parte quando premi 🖊 Magic Sign in console.'}`,
+        card_title: 'Controfirma per delega',
+        r1_icon: '✍️', r1_label: 'Il tuo link', r1_value: 'Si sblocca dopo la firma inquilino',
+        r2_icon: '🔗', r2_label: 'URL', r2_value: landlordSignUrl || '—',
+        r3_icon: '👤', r3_label: 'Inquilino', r3_value: t.email || '—',
+        r4_icon: '📄', r4_label: 'Rif', r4_value: pa.ref || '—',
+        closing: 'Inviato via EmailJS: Gmail/Nodemailer non ha risposto — controlla GMAIL_APP_PASS.',
+        cta_text: 'Apri la console',
+        portal_link: 'https://www.boomrome.com/pre-agreement-admin',
+      },
     });
-    results.admin = true;
-  } catch (e) { console.error('[pa/_notify] admin contract email failed:', e.message); }
+    results.admin = d.sent;
+    if (!d.sent) console.error('[pa/_notify] admin contract email failed:', d.errors.join(' | '));
+  }
 
   return results;
 }
@@ -230,17 +283,37 @@ export async function sendPaEmails({ pa, ref, url, receiptUrl, paidEur, paidAt, 
       Questions? Reply to this email or <a href="https://wa.me/393313251961" style="color:#111">WhatsApp BOOM</a>.</p>`;
 
   if (t.email && notifyClient !== false) {
-    try {
-      await sendEmail({
-        to: t.email,
-        subject: event === 'paid'
-          ? `Confirmed — your BOOM pre-agreement ${ref || ''} (receipt inside)`
-          : `Accepted — your BOOM pre-agreement ${ref || ''}`,
-        html: shell(intro + docHtml + links, `Your pre-agreement for ${addr} — ${event === 'paid' ? 'payment confirmed' : 'accepted'}`),
-        attachments,
-      });
-      results.client = true;
-    } catch (e) { console.error('[pa/_notify] client email failed:', e.message); }
+    const docUrl = 'https://www.boomrome.com' + url;
+    const d = await deliver({
+      to: t.email,
+      subject: event === 'paid'
+        ? `Confirmed — your BOOM pre-agreement ${ref || ''} (receipt inside)`
+        : `Accepted — your BOOM pre-agreement ${ref || ''}`,
+      html: shell(intro + docHtml + links, `Your pre-agreement for ${addr} — ${event === 'paid' ? 'payment confirmed' : 'accepted'}`),
+      attachments,
+      fallback: {
+        heading: event === 'paid' ? 'Payment confirmed ✓' : 'Acceptance recorded ✓',
+        subheading: addr,
+        name: first,
+        intro: event === 'paid'
+          ? `Your payment is confirmed and ${addr} is reserved for you${paidEur ? ` — €${paidEur} received via Stripe` : ''}. Your full pre-agreement document (printable, with every term) is one tap away:`
+          : `Your acceptance is recorded and ${addr} is reserved under the agreed terms. Your full pre-agreement document (printable, with every term) is one tap away:`,
+        card_title: 'Your record',
+        r1_icon: '📄', r1_label: 'Reference', r1_value: ref || '—',
+        r2_icon: '🏠', r2_label: 'Property', r2_value: addr,
+        r3_icon: event === 'paid' ? '💶' : '✍️', r3_label: event === 'paid' ? 'Paid' : 'Status', r3_value: event === 'paid' ? `€${paidEur || ''} via Stripe` : 'Accepted',
+        r4_icon: '💬', r4_label: 'Questions', r4_value: 'Reply to this email anytime',
+        closing: 'Keep this email — your BOOM advisor will follow up with the next steps toward the rental contract.',
+        cta_text: 'View & print your document',
+        portal_link: docUrl,
+      },
+    });
+    results.client = d.sent;
+    results.clientVia = d.via;
+    if (!d.sent) {
+      console.error('[pa/_notify] client email failed:', d.errors.join(' | '));
+      await tgNotify(`🚨 <b>Email pre-agreement al cliente NON consegnata</b>\n${event === 'paid' ? `💰 PAGATO €${paidEur || '?'}` : '✍️ accettato'} · ${t.fullName || ''} (${t.email}) · ${addr} · ${ref || ''}\nEntrambi i trasporti falliti:\n${d.errors.join('\n')}\nCopia del documento (mandala tu su WhatsApp): https://www.boomrome.com${url}`);
+    }
   }
 
   try {
@@ -256,13 +329,28 @@ export async function sendPaEmails({ pa, ref, url, receiptUrl, paidEur, paidAt, 
       <td style="background:#25D366;padding:13px 26px;text-align:center">
         <a href="https://wa.me/${waPhone}?text=${encodeURIComponent(waMsg)}" style="font-family:Helvetica,Arial,sans-serif;font-size:13px;letter-spacing:1px;color:#ffffff;text-decoration:none">📲 Invia la copia al cliente su WhatsApp</a>
       </td></tr></table>` : '';
-    await sendEmail({
+    const d = await deliver({
       to: ADMIN_EMAIL,
       subject: (event === 'paid' ? `💰 PA PAGATO ${eur(paidEur)} — ` : `✍️ PA accettato — `) + (t.fullName || '') + ' · ' + addr,
       html: shell(aIntro + docHtml + btn('https://www.boomrome.com/pre-agreement-admin', 'Apri la console pre-agreement') + waBtn),
       attachments,
+      fallback: {
+        heading: event === 'paid' ? `💰 PA PAGATO ${eur(paidEur)}` : '✍️ PA accettato',
+        subheading: `${t.fullName || 'cliente'} · ${addr}`,
+        name: 'Valentino',
+        intro: `${event === 'paid' ? `Pagato ${eur(paidEur)} via Stripe` : 'Accettato (niente dovuto via Stripe)'} — rif ${ref || '—'}. Documento completo: https://www.boomrome.com${url}`,
+        card_title: 'Dettagli',
+        r1_icon: '👤', r1_label: 'Cliente', r1_value: `${t.fullName || '—'} (${t.email || '—'})`,
+        r2_icon: '📱', r2_label: 'Telefono', r2_value: t.phone || '—',
+        r3_icon: '🏠', r3_label: 'Immobile', r3_value: addr,
+        r4_icon: '📄', r4_label: 'Rif', r4_value: ref || '—',
+        closing: 'Inviato via EmailJS: Gmail/Nodemailer non ha risposto — controlla GMAIL_APP_PASS.',
+        cta_text: 'Apri la console pre-agreement',
+        portal_link: 'https://www.boomrome.com/pre-agreement-admin',
+      },
     });
-    results.admin = true;
+    results.admin = d.sent;
+    if (!d.sent) console.error('[pa/_notify] admin email failed:', d.errors.join(' | '));
   } catch (e) { console.error('[pa/_notify] admin email failed:', e.message); }
 
   return results;

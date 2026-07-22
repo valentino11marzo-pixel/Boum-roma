@@ -946,8 +946,9 @@ function computeStay(overrideRaw){const avail=new Date(L.availableFrom+'T00:00')
 function countUp(el,to){const from=parseInt(el.dataset.cur||'0',10);const t0=performance.now();
   if(matchMedia('(prefers-reduced-motion:reduce)').matches){el.textContent=eur(to);el.dataset.cur=to;return;}
   (function step(t){const p=Math.min(1,(t-t0)/480);const e=1-Math.pow(1-p,3);el.textContent=eur(Math.round(from+(to-from)*e));if(p<1)requestAnimationFrame(step);else{el.dataset.cur=to;if(from!==to){el.classList.add('landed');setTimeout(()=>el.classList.remove('landed'),420);}}})(performance.now());}
-function render(){const s=computeStay();const wl=L.status==='waitlist';let av;
-  if(wl)av=`<div class="avail wl"><span class="pin">◌</span><div>Occupied — waitlist open, be first in line<small>${s.avail>new Date()?('Expected free from '+fmtD(s.avail)):'Portfolio home · rents ahead, often months in advance'}</small></div></div>`;
+function render(){const s=computeStay();const wl=L.status==='waitlist';const rsv=L.status==='reserved';let av;
+  if(rsv)av=`<div class="avail wl"><span class="pin">◌</span><div>Currently on hold for another applicant<small>The 48-hour hold window is running — check back soon or apply to be next in line</small></div></div>`;
+  else if(wl)av=`<div class="avail wl"><span class="pin">◌</span><div>Occupied — waitlist open, be first in line<small>${s.avail>new Date()?('Expected free from '+fmtD(s.avail)):'Portfolio home · rents ahead, often months in advance'}</small></div></div>`;
   else if(s.fit==='none')av=`<div class="avail none"><span class="pin"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 6h14a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2zM8 3v5m8-5v5M3 11h18"/></svg></span><div>Pick a date for real availability &amp; exact cost<small>Free from ${fmtD(s.avail)}</small></div></div>`;
   else if(s.fit==='ok')av=`<div class="avail ok"><span class="pin">✓</span><div>Free for your date<small>You move in ${fmtD(s.start)}</small></div></div>`;
   else av=`<div class="avail after"><span class="pin">!</span><div>Free from ${fmtS(s.avail)} — ${s.gap} days after you'd like<small>We can alert you if it frees sooner</small></div></div>`;
@@ -1513,9 +1514,10 @@ function paintData(){
   document.getElementById('hPrice').textContent=eur(L.price);
   const af=L.availableFrom;
   const _wl=L.status==='waitlist';
+  const _rsv=L.status==='reserved';
   const _now=af&&af<=new Date().toISOString().slice(0,10);
-  document.getElementById('hAvail').textContent=_wl?'Occupied · waitlist open':(_now?'Available now':(af?('Available '+fmtS(new Date(af+'T00:00'))):'Ask availability'));
-  document.getElementById('priceSub').textContent=_wl?'Occupied now · rents ahead — join the waitlist':((_now?'Available now':(af?('Available from '+fmtD(new Date(af+'T00:00'))):'Availability on request'))+' · BOOM-managed');
+  document.getElementById('hAvail').textContent=_rsv?'On hold · 48h window':_wl?'Occupied · waitlist open':(_now?'Available now':(af?('Available '+fmtS(new Date(af+'T00:00'))):'Ask availability'));
+  document.getElementById('priceSub').textContent=_rsv?'On hold for another applicant · apply to be next in line':_wl?'Occupied now · rents ahead — join the waitlist':((_now?'Available now':(af?('Available from '+fmtD(new Date(af+'T00:00'))):'Availability on request'))+' · BOOM-managed');
   const _hl=document.getElementById('holdLbl');if(_hl&&_wl)_hl.textContent='Priority hold · €300';
   const _rg=document.getElementById('railGo');if(_rg&&_wl)_rg.textContent='Waitlist';
   const _sj=document.getElementById('skyJump');if(_sj&&(PID||L.id))_sj.href='/apartments?view=map&focus='+encodeURIComponent(PID||L.id);
@@ -1568,7 +1570,7 @@ function realSimilar(){
     var myZ=String(L.zone||'').toLowerCase().replace(/[^a-zà-ü ]/g,' ').split(/\s+/).filter(Boolean);
     var picks=j.listings.filter(function(d){
       var s=((d.status||'')+'').toLowerCase();
-      if(s==='rented'||s==='affittato'||s==='off_market'||s==='draft'||s==='hidden')return false;
+      if(s==='rented'||s==='affittato'||s==='off_market'||s==='draft'||s==='hidden'||s==='reserved')return false;
       return String(d.id||'').toLowerCase()!==me;
     }).map(function(d){
       var z=String(d.zone||'').toLowerCase();

@@ -740,7 +740,7 @@ function mapReal(d,i){
     status:((d.status||d.availabilityStatus||'available')+'').toLowerCase(),videoUrl:!!(d.videoUrl||d.youtubeUrl),createdAt:_cms,isNew:_cms>1e12&&(Date.now()-_cms)<14*86400,img:imgs[0]||'',
     lat:+d.lat||0,lng:+d.lng||0,geoZone:!!(d.geo&&d.geo.src==='zone')};
 }
-function isRentable(d){var s=((d.status||d.availabilityStatus||'')+'').toLowerCase();return !(s==='rented'||s==='affittato'||s==='off_market'||s==='draft'||s==='hidden');}
+function isRentable(d){var s=((d.status||d.availabilityStatus||'')+'').toLowerCase();return !(s==='rented'||s==='affittato'||s==='off_market'||s==='draft'||s==='hidden'||s==='reserved');}
 
 /* ---------- state ---------- */
 const S={q:'',budgetMax:4000,moveIn:'',beds:0,baths:0,furnished:false,video:false,zones:[],feats:[],sort:'match',view:'list',savedOnly:false};

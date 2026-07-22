@@ -3,6 +3,8 @@ import crypto from 'node:crypto';
 import { fsList, fsPatch } from './homie/_lib.js';
 import { sendPaEmails } from './preagreement/_notify.js';
 import { maybeAutoConvert } from './preagreement/_auto.js';
+import { sendEmailJS } from './_emailjs.js';
+import { tgNotify } from './pfs/_health.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -64,30 +66,13 @@ async function writePfsClient(docId, data) {
     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ fields: toFirestoreFields(data) }),
   });
-  if (!r.ok) throw new Error(`Firestore write failed: ${r.status} ${await r.text()}`);
-  return r.json();
-}
-
-async function sendEmailJS(templateParams) {
-  const body = {
-    service_id: 'service_74n80th',
-    template_id: 'boom_notification',
-    user_id: 'dnMxbtS2qDm_o7SHE',
-    accessToken: process.env.EMAILJS_PRIVATE_KEY,
-    template_params: templateParams,
-  };
-
-  const r = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-
   if (!r.ok) {
-    const txt = await r.text();
-    throw new Error(`EmailJS ${r.status}: ${txt}`);
+    // 409 = Stripe redelivery (docId is deterministic from session.id).
+    // The caller must REUSE the stored portal code, not mint a new one.
+    if (r.status === 409) return { exists: true };
+    throw new Error(`Firestore write failed: ${r.status} ${await r.text()}`);
   }
-  return r.text();
+  return r.json();
 }
 
 // Generic Firestore write (idempotent on docId; 409 = already written, ignore)
@@ -168,13 +153,21 @@ async function handleDeposit(res, session, m) {
       depositStripeSession: session.id,
       depositPayToken: null,
     });
-  } catch (err) { console.error('[deposit] contract patch:', err.message); }
+  } catch (err) {
+    // Money received but the contract shows depositPaid:false — never let
+    // that pass silently. 500 → Stripe redelivers (patch is idempotent, and
+    // nothing else has run yet, so the retry is clean).
+    console.error('[deposit] contract patch:', err.message);
+    await tgNotify(`🚨 <b>Stripe: deposito €${amountEur} INCASSATO ma contratto NON aggiornato</b>\nContratto ${contractId} · session ${session.id}\nErrore: ${String(err.message).slice(0, 200)}\nRiprovo automaticamente (retry Stripe).`);
+    return res.status(500).json({ received: false, error: 'contract_patch_failed' });
+  }
 
   let c = null;
   try { c = await readDoc(`contracts/${contractId}`); } catch (_) {}
 
+  let depositAlreadyRecorded = false;
   try {
-    await writeDoc('payments', 'dep_' + contractId, {
+    const w = await writeDoc('payments', 'dep_' + contractId, {
       type: 'deposit',
       contractId,
       tenantId: (c && c.tenantId) || '',
@@ -187,7 +180,13 @@ async function handleDeposit(res, session, m) {
       stripeSessionId: session.id,
       createdAt: now,
     });
+    depositAlreadyRecorded = !!(w && w.exists);
   } catch (err) { console.error('[deposit] payment write:', err.message); }
+
+  // Redelivery: everything below (notification + emails) already ran once.
+  if (depositAlreadyRecorded) {
+    return res.status(200).json({ received: true, deposit: true, duplicate: true, contractId });
+  }
 
   try {
     await writeDoc('agentNotifications', 'deposit-' + contractId, {
@@ -305,8 +304,25 @@ async function handleService(res, session, m) {
     paid_at: now,
     createdAt: now,
   };
-  try { await writeDoc('leads', 'svc_' + docId, lead); }
-  catch (err) { console.error('Firestore service lead write error:', err); }
+  try {
+    const w = await writeDoc('leads', 'svc_' + docId, lead);
+    if (w && w.exists) {
+      // Doc already there: either the checkout-start capture (upgrade it to
+      // paid and continue to the emails) or a true Stripe redelivery after
+      // a fully processed payment (stop — emails already went out).
+      const existing = await readDoc(`leads/svc_${docId}`);
+      if (existing && existing.paid === true) {
+        return res.status(200).json({ received: true, duplicate: true, serviceLeadId: 'svc_' + docId });
+      }
+      await patchDoc(`leads/svc_${docId}`, lead);
+    }
+  } catch (err) {
+    // A paying customer must never vanish from the pipeline. 500 → Stripe
+    // redelivers; the write is idempotent on the session-derived docId.
+    console.error('Firestore service lead write error:', err);
+    await tgNotify(`🚨 <b>Stripe: ${meta.title} €${amountEur} PAGATO ma lead NON scritto</b>\n${m.name || ''} · ${email || '—'} · session ${session.id}\nErrore: ${String(err.message || err).slice(0, 200)}\nRiprovo automaticamente (retry Stripe).`);
+    return res.status(500).json({ received: false, error: 'lead_write_failed' });
+  }
 
   const firstName = (m.name || '').split(' ')[0] || 'there';
   try {
@@ -326,7 +342,10 @@ async function handleService(res, session, m) {
       cta_text: 'Open portal',
       portal_link: 'https://www.boomrome.com/portal.html#leads',
     });
-  } catch (err) { console.error('Admin service email error:', err); }
+  } catch (err) {
+    console.error('Admin service email error:', err);
+    await tgNotify(`⚠️ Stripe ${meta.title} €${amountEur}: email admin non partita — lead salvato in leads/svc_${docId}. ${m.name || ''} · ${email || '—'}`);
+  }
 
   try {
     if (email) await sendEmailJS({
@@ -345,7 +364,10 @@ async function handleService(res, session, m) {
       cta_text: 'Back to BOOM',
       portal_link: 'https://www.boomrome.com/apartments.html',
     });
-  } catch (err) { console.error('Client service email error:', err); }
+  } catch (err) {
+    console.error('Client service email error:', err);
+    await tgNotify(`⚠️ Stripe ${meta.title} €${amountEur}: conferma al CLIENTE non partita — contattalo tu: ${m.name || ''} · ${email || '—'} · ${m.phone || '—'}`);
+  }
 
   return res.status(200).json({ received: true, serviceLeadId: 'svc_' + docId });
 }
@@ -376,8 +398,53 @@ async function handleReserve(res, session, m) {
   };
 
   // Surface it in the existing lead pipeline (cockpit/portal read `leads`)
-  try { await writeDoc('leads', 'res_' + docId, lead); }
-  catch (err) { console.error('Firestore reservation write error:', err); }
+  try {
+    const w = await writeDoc('leads', 'res_' + docId, lead);
+    if (w && w.exists) {
+      // Checkout-start capture → upgrade to paid and continue; true
+      // redelivery of a processed payment → stop (hold + emails done).
+      const existing = await readDoc(`leads/res_${docId}`);
+      if (existing && existing.paid === true) {
+        return res.status(200).json({ received: true, duplicate: true, reservationId: 'res_' + docId });
+      }
+      await patchDoc(`leads/res_${docId}`, lead);
+    }
+  } catch (err) {
+    console.error('Firestore reservation write error:', err);
+    await tgNotify(`🚨 <b>Stripe: hold €${amountEur} PAGATO ma lead NON scritto</b>\n${m.listingName || ''} · ${m.name || ''} · ${email || '—'} · session ${session.id}\nErrore: ${String(err.message || err).slice(0, 200)}\nRiprovo automaticamente (retry Stripe).`);
+    return res.status(500).json({ received: false, error: 'lead_write_failed' });
+  }
+
+  // Enforce the product promise: the page sells "€300 holds this home for
+  // 48 hours, off the market" — so actually take it off the market. The
+  // previous status is kept so the expiry sweep (reminder-cron) can revert.
+  const holdHours = 48;
+  const reservedUntil = new Date(Date.now() + holdHours * 3600 * 1000).toISOString();
+  if (m.listingId) {
+    try {
+      const listing = await readDoc(`listings/${m.listingId}`);
+      const prevStatus = String((listing && listing.status) || 'available').toLowerCase();
+      if (listing && prevStatus === 'reserved') {
+        // Double-hold: someone else already paid for this home. Do NOT
+        // clobber their hold — wake the operator, a refund is due.
+        await tgNotify(`🚨 <b>DOPPIO HOLD sullo stesso immobile</b>\n${m.listingName || m.listingId} — già in hold (${listing.reservedBy || '?'}), ora ha pagato anche ${m.name || ''} (${email || '—'}, €${amountEur}).\nUno dei due va rimborsato: leads/res_${docId}.`);
+      } else if (listing && prevStatus !== 'rented' && prevStatus !== 'affittato' && prevStatus !== 'off_market') {
+        await patchDoc(`listings/${m.listingId}`, {
+          status: 'reserved',
+          reservedUntil,
+          reservedBy: 'res_' + docId,
+          reservedByName: m.name || '',
+          reservedAt: now,
+          statusBeforeReserve: prevStatus,
+        });
+      }
+    } catch (err) {
+      console.error('[reserve] listing hold failed:', err.message);
+      await tgNotify(`⚠️ Hold pagato ma il listing ${m.listingId} NON risulta riservato (errore: ${String(err.message).slice(0, 150)}) — toglilo dal mercato a mano.`);
+    }
+  } else {
+    await tgNotify(`⚠️ Hold €${amountEur} pagato senza listingId (${m.listingName || '—'}) — verifica e togli dal mercato a mano. leads/res_${docId}.`);
+  }
 
   const firstName = (m.name || '').split(' ')[0] || 'there';
 
@@ -399,7 +466,10 @@ async function handleReserve(res, session, m) {
       cta_text: 'Open portal',
       portal_link: 'https://www.boomrome.com/portal.html#leads',
     });
-  } catch (err) { console.error('Admin reservation email error:', err); }
+  } catch (err) {
+    console.error('Admin reservation email error:', err);
+    await tgNotify(`⚠️ Hold €${amountEur} su ${m.listingName || '—'}: email admin non partita — lead in leads/res_${docId}.`);
+  }
 
   // Client confirmation
   try {
@@ -419,7 +489,10 @@ async function handleReserve(res, session, m) {
       cta_text: 'Back to BOOM',
       portal_link: 'https://www.boomrome.com/apartments.html',
     });
-  } catch (err) { console.error('Client reservation email error:', err); }
+  } catch (err) {
+    console.error('Client reservation email error:', err);
+    await tgNotify(`⚠️ Hold €${amountEur} su ${m.listingName || '—'}: conferma al CLIENTE non partita — contattalo tu: ${m.name || ''} · ${email || '—'} · ${lead.phone || '—'}`);
+  }
 
   return res.status(200).json({ received: true, reservationId: 'res_' + docId });
 }
@@ -427,7 +500,10 @@ async function handleReserve(res, session, m) {
 // PREAGREEMENT — the client paid what was due at signing on their proposal.
 // Marks the doc paid and sends the confirmation emails (client: document +
 // Stripe receipt; admin: copy + next-step nudge). Idempotent on webhook
-// retries via paidSessionId.
+// retries via paidSessionId — but email delivery is tracked SEPARATELY
+// (paidEmailsSentAt): a redelivery re-attempts unsent emails instead of
+// short-circuiting, and a client-email failure returns 500 so Stripe keeps
+// redelivering until the confirmation actually goes out.
 async function handlePreagreement(res, session, m) {
   const token = String(m.token || '');
   if (!/^[a-f0-9]{32}$/.test(token)) return res.status(200).json({ received: true, skipped: 'bad_pa_token' });
@@ -437,22 +513,30 @@ async function handlePreagreement(res, session, m) {
     const rows = await fsList('preAgreements', { filter: { field: 'token', op: 'EQUAL', value: token }, limit: 1 });
     hit = rows && rows[0];
   } catch (e) { console.error('[webhook/pa] lookup failed:', e.message); }
-  if (!hit) return res.status(200).json({ received: true, skipped: 'pa_not_found' });
+  if (!hit) {
+    // Money arrived but the PA can't be found — the one state that must
+    // never pass silently. Wake the operator, then 500 so Stripe retries.
+    await tgNotify(`🚨 <b>Stripe: pagamento pre-agreement SENZA documento</b>\nSession ${session.id} · ${m.ref || 'senza rif'} · ${m.email || '—'}\nIl webhook non trova il preAgreement per il token — controlla subito.`);
+    return res.status(500).json({ received: false, error: 'pa_not_found' });
+  }
   const { id, ...pa } = hit;   // fsList returns flat rows: {id, ...fields}
 
-  if (pa.paidSessionId === session.id) {
-    return res.status(200).json({ received: true, duplicate: true });   // retry — emails already sent
+  const isRetry = pa.paidSessionId === session.id;
+  if (isRetry && pa.paidEmailsSentAt) {
+    return res.status(200).json({ received: true, duplicate: true });   // fully processed
   }
 
-  const paidEur = (session.amount_total || 0) / 100;
-  const paidAt = new Date().toISOString();
-  try {
-    await fsPatch(`preAgreements/${id}`, {
-      status: 'paid', paidAt, paidEur,
-      paidSessionId: session.id,
-      stripePaymentIntent: String(session.payment_intent || ''),
-    });
-  } catch (e) { console.error('[webhook/pa] patch failed:', e.message); }
+  const paidEur = isRetry ? (pa.paidEur || (session.amount_total || 0) / 100) : (session.amount_total || 0) / 100;
+  const paidAt = isRetry ? (pa.paidAt || new Date().toISOString()) : new Date().toISOString();
+  if (!isRetry) {
+    try {
+      await fsPatch(`preAgreements/${id}`, {
+        status: 'paid', paidAt, paidEur,
+        paidSessionId: session.id,
+        stripePaymentIntent: String(session.payment_intent || ''),
+      });
+    } catch (e) { console.error('[webhook/pa] patch failed:', e.message); }
+  }
 
   // Stripe receipt link (best-effort)
   let receiptUrl = null;
@@ -463,16 +547,34 @@ async function handlePreagreement(res, session, m) {
     }
   } catch (e) { console.error('[webhook/pa] receipt lookup failed:', e.message); }
 
+  let emails = { client: false, admin: false };
   try {
-    await sendPaEmails({
+    emails = await sendPaEmails({
       pa, ref: pa.ref || m.ref || '', url: '/pre-agreement?t=' + token,
       receiptUrl, paidEur, paidAt, event: 'paid',
     });
   } catch (e) { console.error('[webhook/pa] emails failed:', e.message); }
 
+  const clientEmailExpected = !!((pa.tenant || {}).email);
+  const clientOk = emails.client || !clientEmailExpected;
+  if (clientOk) {
+    try { await fsPatch(`preAgreements/${id}`, { paidEmailsSentAt: new Date().toISOString() }); }
+    catch (e) { console.error('[webhook/pa] sent-stamp failed:', e.message); }
+  }
+
   // Payment confirmed = deal sealed → auto-create the contract and send the
   // tenant their Magic-Sign link (PA must carry propertyId + autoConvert).
+  // Runs BEFORE the email-failure 500 below: convert is idempotent, and the
+  // contract must exist even while the confirmation email is being retried.
   const converted = await maybeAutoConvert({ pa: { ...pa, status: 'paid', paidAt, paidEur }, paId: id });
+
+  if (!clientOk) {
+    // Client paid but got no confirmation on either transport. 500 → Stripe
+    // redelivers (backoff, up to ~3 days) and the retry re-attempts ONLY the
+    // emails (doc already patched, convert idempotent). sendPaEmails already
+    // pinged Telegram with the details.
+    return res.status(500).json({ received: false, error: 'client_email_failed', preAgreementId: id });
+  }
 
   return res.status(200).json({ received: true, preAgreementId: id, contractId: (converted && converted.contractId) || null });
 }
@@ -489,6 +591,38 @@ export default async function handler(req, res) {
   } catch (err) {
     console.error('Webhook signature failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // Abandoned checkout (Stripe expires unfinished sessions after ~24h):
+  // flip the checkout-start lead to 'abandoned' and nudge the operator —
+  // a typed name+email+phone with buying intent is a recovery call, not a
+  // vanished record.
+  if (event.type === 'checkout.session.expired') {
+    const s = event.data.object;
+    const md = s.metadata || {};
+    const prefix = { SERVICE: 'svc_', RESERVE: 'res_', PFS: 'pfs_' }[md.service];
+    // PREAGREEMENT has its own resume flow (pay.js + 24h reminder) — skip.
+    if (!prefix) return res.status(200).json({ received: true, ignored: event.type });
+    const docId = s.id.replace(/[^a-zA-Z0-9]/g, '').substring(0, 30);
+    try {
+      // Upsert: sessions started before the checkout-start capture shipped
+      // have no lead doc yet — carry the contacts so the record stands alone.
+      await patchDoc(`leads/${prefix}${docId}`, {
+        service: md.service,
+        status: 'abandoned',
+        paid: false,
+        source: 'web',
+        name: md.name || '',
+        email: md.email || s.customer_email || '',
+        phone: md.phone || '',
+        listingName: md.listingName || md.listing || '',
+        stripe_session_id: s.id,
+        abandonedAt: new Date().toISOString(),
+      });
+    } catch (err) { console.error('[expired] lead patch failed:', err.message); }
+    const eurExp = (s.amount_total || 0) / 100;
+    await tgNotify(`🛒 <b>Checkout abbandonato — €${eurExp}</b>\n${md.kind || md.service} · ${md.name || '—'} · ${md.email || s.customer_email || '—'} · ${md.phone || '—'}${md.listingName || md.listing ? `\n🏠 ${md.listingName || md.listing}` : ''}\nRichiamalo: il lead è in leads/${prefix}${docId}.`);
+    return res.status(200).json({ received: true, abandoned: `${prefix}${docId}` });
   }
 
   if (event.type !== 'checkout.session.completed') {
@@ -519,8 +653,8 @@ export default async function handler(req, res) {
   }
 
   const docId = session.id.replace(/[^a-zA-Z0-9]/g, '').substring(0, 30);
-  const portalToken = crypto.randomBytes(24).toString('hex');
-  const portalCode = genPortalCode();
+  let portalToken = crypto.randomBytes(24).toString('hex');
+  let portalCode = genPortalCode();
   const now = new Date().toISOString();
 
   const doc = {
@@ -554,14 +688,39 @@ export default async function handler(req, res) {
     created_at: now,
   };
 
-  try { await writePfsClient(docId, doc); }
-  catch (err) { console.error('Firestore error:', err); }
+  try {
+    const w = await writePfsClient(docId, doc);
+    if (w && w.exists) {
+      // Stripe redelivery. The FIRST delivery stored the codes — reuse them:
+      // minting fresh ones here would email the client an access code that
+      // was never saved (a €350 client locked out of their portal).
+      const existing = await readDoc(`pfsClients/${docId}`);
+      if (existing) {
+        if (existing.welcomeEmailsSentAt) {
+          return res.status(200).json({ received: true, duplicate: true, pfsClientId: docId });
+        }
+        portalCode = existing.portalAccessCode || portalCode;
+        portalToken = existing.portal_token || portalToken;
+      }
+    }
+  } catch (err) {
+    // €350 received and no client record: 500 → Stripe redelivers (the
+    // write is idempotent on the session-derived docId).
+    console.error('Firestore error:', err);
+    await tgNotify(`🚨 <b>Stripe: PFS €350 PAGATO ma cliente NON scritto</b>\n${m.name || ''} · ${m.email || session.customer_email || '—'} · session ${session.id}\nErrore: ${String(err.message || err).slice(0, 200)}\nRiprovo automaticamente (retry Stripe).`);
+    return res.status(500).json({ received: false, error: 'pfs_write_failed' });
+  }
+
+  // Close the funnel trace left by create-checkout (best-effort).
+  try { await patchDoc(`leads/pfs_${docId}`, { status: 'converted', paid: true, paid_at: now }); }
+  catch (err) { console.error('[pfs] funnel lead patch failed:', err.message); }
 
   const firstName = (m.name || '').split(' ')[0] || 'there';
   const portalLink = `https://www.boomrome.com/portal.html?pfs=${portalToken}`; // admin deep-link
   const clientPortalLink = `https://www.boomrome.com/client-portal?code=${portalCode}`;
 
   // === EMAIL 1 — CLIENT CONFIRMATION ===
+  let clientEmailed = false;
   try {
     await sendEmailJS({
       to_email: doc.email,
@@ -587,6 +746,7 @@ export default async function handler(req, res) {
       cta_text: 'Enter your portal',
       portal_link: clientPortalLink,
     });
+    clientEmailed = true;
   } catch (err) { console.error('Client EmailJS error:', err); }
 
   // === EMAIL 2 — ADMIN NOTIFICATION ===
@@ -615,7 +775,21 @@ export default async function handler(req, res) {
       cta_text: 'Open portal',
       portal_link: portalLink,
     });
-  } catch (err) { console.error('Admin EmailJS error:', err); }
+  } catch (err) {
+    console.error('Admin EmailJS error:', err);
+    await tgNotify(`⚠️ PFS €350: email admin non partita — cliente in pfsClients/${docId} · codice ${portalCode} · ${m.name || ''} (${doc.email || '—'}).`);
+  }
+
+  if (clientEmailed) {
+    try { await patchDoc(`pfsClients/${docId}`, { welcomeEmailsSentAt: new Date().toISOString() }); }
+    catch (err) { console.error('[pfs] sent-stamp failed:', err.message); }
+  } else {
+    // The welcome email carries the portal access code — a €350 client
+    // without it is locked out. Telegram now; 500 → Stripe redelivers and
+    // the retry re-attempts ONLY the emails (record + codes are stored).
+    await tgNotify(`🚨 <b>PFS €350: benvenuto al CLIENTE non partito</b>\n${m.name || ''} · ${doc.email || '—'} · codice portale ${portalCode}\nMandaglielo tu (WhatsApp: ${m.phone || '—'}) o attendi il retry automatico.`);
+    return res.status(500).json({ received: false, error: 'client_email_failed', pfsClientId: docId });
+  }
 
   return res.status(200).json({ received: true, pfsClientId: docId });
 }

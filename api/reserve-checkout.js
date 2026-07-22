@@ -1,4 +1,5 @@
 import Stripe from 'stripe';
+import { fsPatch, fsGet } from './homie/_lib.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -31,6 +32,17 @@ export default async function handler(req, res) {
     const clip = (v) => String(v || '').substring(0, 500);
     const apt = clip(listingName) || 'Apartment';
 
+    // A home already on hold (or gone) cannot be held again — otherwise two
+    // people pay €300 for the same apartment and one gets a refund fight.
+    if (listingId) {
+      try {
+        const listing = await fsGet(`listings/${clip(listingId)}`);
+        const s = String((listing && listing.status) || '').toLowerCase();
+        if (s === 'reserved') return res.status(409).json({ error: 'This home is currently on hold for another applicant. Check back in 48 hours or apply to be next in line.' });
+        if (s === 'rented' || s === 'affittato' || s === 'off_market') return res.status(409).json({ error: 'This home is no longer available.' });
+      } catch (e) { console.error('[reserve-checkout] listing check failed:', e.message); }
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
@@ -59,6 +71,25 @@ export default async function handler(req, res) {
       success_url: 'https://www.boomrome.com/thank-you.html?reserved=1&amt=' + eur + '&session_id={CHECKOUT_SESSION_ID}',
       cancel_url: 'https://www.boomrome.com/apartment-detail?id=' + encodeURIComponent(clip(listingId)),
     });
+
+    // Lead trace BEFORE Stripe (same doc the webhook upgrades on payment) —
+    // an abandoned hold attempt stays visible and contactable in the
+    // pipeline. Best-effort: never blocks the checkout.
+    const docId = session.id.replace(/[^a-zA-Z0-9]/g, '').substring(0, 30);
+    await fsPatch('leads/res_' + docId, {
+      type: 'reservation',
+      service: 'RESERVE',
+      status: 'checkout_started',
+      paid: false,
+      source: 'reserve-deposit',
+      name: clip(name), email: clip(email), phone: clip(phone),
+      moveIn: clip(move_in_date),
+      listingId: clip(listingId),
+      listingName: apt,
+      amount_eur: eur,
+      stripe_session_id: session.id,
+      createdAt: new Date().toISOString(),
+    }).catch(err => console.error('[reserve-checkout] lead capture failed:', err.message));
 
     return res.status(200).json({ url: session.url });
   } catch (err) {
