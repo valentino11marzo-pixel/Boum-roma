@@ -2,6 +2,7 @@
   "version": 2,
   "cleanUrls": true,
   "trailingSlash": false,
+  "installCommand": "npm ci",
   "images": {
     "remotePatterns": [
       {
