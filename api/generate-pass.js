@@ -368,12 +368,71 @@ function buildReferralPass({
   return pass;
 }
 
+
+// ── RESERVATION — the pre-agreement moment, in the client's Wallet ─────────
+// eventTicket so Wallet surfaces it on the lock screen on move-in day
+// (relevantDate). QR reopens the signed document. Issued by
+// api/preagreement/wallet.js the moment the deal is accepted/paid.
+function buildReservationPass({
+  paId, ref = "", address = "", city = "Roma", tenantName = "",
+  startDate, endDate, months, monthlyTotal, paidEur, status = "accepted",
+  docUrl = "https://www.boomrome.com",
+}) {
+  const shortAddr = String(address).split(",")[0];
+  const pass = {
+    formatVersion: 1,
+    passTypeIdentifier: PASS_TYPE_ID,
+    teamIdentifier: TEAM_ID,
+    organizationName: "BOOM Rome",
+    description: `BOOM Reservation — ${shortAddr}`,
+    serialNumber: `resv-${paId || crypto.randomUUID()}`,
+    backgroundColor: "rgb(8,8,10)",
+    foregroundColor: "rgb(245,245,240)",
+    labelColor: "rgb(212,175,55)",
+    logoText: "BOOM",
+    webServiceURL: WEB_SERVICE_URL,
+    authenticationToken: generateAuthToken(paId || ref),
+    sharingProhibited: true,
+    eventTicket: {
+      headerFields: clean([
+        fText("state", "STATO", status === "paid" ? "PAID ✓" : "RESERVED ✓", { textAlignment: R, changeMessage: "Stato prenotazione: %@" }),
+      ]),
+      primaryFields: clean([
+        fText("addr", "LA TUA CASA", shortAddr),
+      ]),
+      secondaryFields: clean([
+        fDate("movein", "MOVE-IN", startDate, { changeMessage: "Move-in: %@" }),
+        fCurrency("monthly", "MENSILE", monthlyTotal, { textAlignment: R }),
+      ]),
+      auxiliaryFields: clean([
+        fText("ref", "PROTOCOLLO", ref),
+        fText("term", "DURATA", months ? `${months} mesi` : null, { textAlignment: R }),
+      ]),
+      backFields: clean([
+        fText("full", "Immobile", [address, city].filter(Boolean).join(", ")),
+        fText("holder", "Intestatario", tenantName),
+        fText("periodo", "Periodo", formatDateRange(startDate, endDate)),
+        fCurrency("paid_b", "Versato alla firma", paidEur),
+        fLink("doc", "Il tuo pre-agreement", docUrl, "Apri il documento →"),
+        fText("next", "Prossimi passi", "1. Contratto digitale via email  2. Firma in 2 minuti  3. Chiavi al move-in"),
+        { key: "sup", label: "Il tuo advisor", value: "Valentino · BOOM Roma", attributedValue: SUPPORT_LINKS },
+      ]),
+    },
+    barcodes: [{ format: "PKBarcodeFormatQR", message: docUrl, messageEncoding: "iso-8859-1", altText: ref || "BOOM" }],
+    userInfo: { paId, type: "reservation", ref },
+  };
+  const rel = safeDate(startDate);
+  if (rel) pass.relevantDate = rel.toISOString();
+  return pass;
+}
+
 const BUILDERS = {
   tenant: buildTenantPass,
   silver: buildSilverPass,
   landlord: buildLandlordPass,
   viewing: buildViewingPass,
   referral: buildReferralPass,
+  reservation: buildReservationPass,
 };
 
 // Export builders + signer for the studio (pass-issue) and web service (pass-update)

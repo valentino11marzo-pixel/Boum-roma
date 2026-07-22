@@ -220,8 +220,16 @@ export async function sendPaEmails({ pa, ref, url, receiptUrl, paidEur, paidAt, 
         Ciao ${esc(first)} — your acceptance is recorded and <b>${esc(addr)}</b> is reserved under the terms below.
         Keep this email — it is your record. Your BOOM advisor will follow up with the next steps.</p>`;
 
+  const walletBtn = event === 'paid' || event === 'accepted'
+    ? `<table cellpadding="0" cellspacing="0" style="margin:14px auto 0"><tr>
+        <td style="background:#000;border-radius:10px;padding:11px 22px;text-align:center">
+          <a href="https://www.boomrome.com/api/preagreement/wallet?t=${esc(String(url).split('t=')[1] || '')}" style="font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#ffffff;text-decoration:none">&#63743; Add to Apple Wallet</a>
+        </td></tr></table>
+      <p style="font-family:Helvetica,Arial,sans-serif;font-size:10.5px;color:#999;text-align:center;margin:6px 0 0">La tua prenotazione sempre con te — appare sulla lock screen il giorno del move-in.</p>`
+    : '';
   const links = `
     ${btn('https://www.boomrome.com' + url, 'View & print your document')}
+    ${walletBtn}
     ${receiptUrl ? `<p style="font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#777;text-align:center;margin:14px 0 0">
       Your Stripe receipt: <a href="${esc(receiptUrl)}" style="color:#111">open receipt →</a></p>` : ''}
     <p style="font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#777;text-align:center;margin:10px 0 0">
