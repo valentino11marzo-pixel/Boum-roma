@@ -629,6 +629,8 @@ def _enhance_summary(rep):
     if cover: parts.append(f"copertina: {ROOM_IT.get(cover, cover)}")
     dropped = len(plan.get('dropped') or [])
     if dropped: parts.append(f"{dropped} duplicat{'o rimosso' if dropped == 1 else 'i rimossi'}")
+    skipped = len(plan.get('skipped') or [])
+    if skipped: parts.append(f"{skipped} salta{'ta' if skipped == 1 else 'te'} (formato non gestibile, es. HEIC iPhone)")
     if not plan.get('ai'): parts.append('(AI foto non disponibile: ordinamento base)')
     return ' · '.join(parts)
 
