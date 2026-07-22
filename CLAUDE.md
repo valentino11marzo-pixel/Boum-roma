@@ -493,20 +493,34 @@ admin-only, noindex) — linked accounts + consent status, recent movements
 with one-tap match confirmation, CSV/ICS export, manual import. The
 Contabile's morning report includes the bank picture (riconciliati/da
 confermare/consensi scaduti).
-### POST `/api/photos/enhance`
-AI photo curation for the catalog (admin/owner/landlord, Firebase ID token).
-Body `{ listingId, mode:'audit'|'apply' }`. Claude Vision (haiku) classifies
-every photo (photo/render/floorplan/document, room, needed rotation, quality,
-coverScore, watermark) → plan: best real photo becomes cover, gallery
-reordered living→kitchen→bedrooms→bath→exterior with floorplans last, exact
-duplicates dropped. `apply` enhances via sharp (EXIF+AI rotation, contrast
-stretch, per-photo preset from the AI grade; floorplans never saturated),
-uploads to Storage `listings/enhanced/<id>/` and patches the listing (`image`,
-`images`, `photosEnhancedAt`), saving the original URL list to
-`imagesOriginal` once — reversible and re-runnable (always re-plans from the
-originals). Heuristic fallback when ANTHROPIC_API_KEY is absent. Backed by
-the `photo-lab.html` console (BoomPortal auth). sharp is a real dependency;
-function has maxDuration 60 + 1769MB in vercel.json.
+### `/api/photos/enhance` — the unified photo brain
+One pipeline, three doors:
+1. **Console** (`photo-lab.html`, renders the catalog unauthenticated; auth on
+   action): `POST { listingId, mode:'audit'|'apply' }` with a Firebase ID
+   token (role admin/owner/landlord).
+2. **Telegram wizard bot** (`bot/boom_listing_wizard.py` → `photos_enhance()`):
+   same POST with `X-Wizard-Secret` (or `X-Homie-Secret`) — the SAME shared
+   secret as every other wizard→server call; no Firebase login needed. The
+   bot auto-applies after publish (≥2 photos), plus `/fotolab <ID>` and the
+   NL "migliora le foto" intent.
+3. **Nightly sweep cron** (03:20 UTC, `GET ?mode=sweep&limit=N` with Bearer
+   CRON_SECRET): finds listings never curated OR whose curation was clobbered
+   (a wizard re-publish replaces the whole `images` array) and re-applies, up
+   to 3 per run, time-boxed — nothing stays raw forever.
+
+`audit` = Claude Vision (haiku) classifies every photo (photo/render/
+floorplan/document, room, needed rotation, quality, coverScore, watermark) →
+plan: best real photo as cover, gallery reordered living→kitchen→bedrooms→
+bath→exterior with floorplans last, exact duplicates dropped. Zero writes.
+`apply` = sharp enhancement (EXIF+AI rotation, contrast stretch, per-photo
+preset; floorplans never saturated), uploads to `listings/enhanced/<id>/`,
+patches `image`/`images`/`photosEnhancedAt`/`photosEnhancedBy`.
+**Re-publish healing**: the plan source is always `imagesOriginal` ∪ {current
+photos that are neither enhanced outputs nor already tracked} — new raw
+photos join additively, our own outputs never re-enter, and `imagesOriginal`
+is updated to that union. Reversible; originals never deleted. Heuristic
+fallback when ANTHROPIC_API_KEY is absent. sharp is a real dependency
+(api/package.json); function has maxDuration 60 + 1769MB in vercel.json.
 
 ### POST `/api/admin/match-test`
 Admin test harness + manual-ingest endpoint (Firebase ID token, role
