@@ -165,20 +165,86 @@
         }
 
         /* ═══════════════════════════════════════════════════════════
-           RADARSCAPE — the background IS the instrument
-           One canvas (js/boom-radarscape.js) replaces the old orbs +
-           grid + mouse-glow stack: a precision radar scanning Rome,
-           with the central pulse kept as the heart of the scene.
+           IL CAMPO — quiet light field (js/boom-campo.js)
+           Atelier system: the voice of the home is the Solari
+           typography (js/boom-solari.js); the background is only an
+           atmosphere — sunlight through an off-stage colonnade,
+           alpha budget ≤ 0.05. One canvas, nothing else.
            ═══════════════════════════════════════════════════════════ */
-        #radarScape {
+        #boomCampo {
             position: fixed;
             inset: 0;
             z-index: 0;
             pointer-events: none;
         }
 
-        /* When the canvas scene is live, the CSS radar fallback rests */
+        /* When the canvas field is live, the CSS radar fallback rests */
         body.radar-live .radar-container { display: none; }
+
+        /* ═══════════════════════════════════════════════════════════
+           SOLARI — split-flap cells (driven by js/boom-solari.js).
+           Two static half-cells + two 3D leaves; the hinge line at the
+           center. The board is built from EXISTING text: the "DAYS" in
+           the title (#flapWord) and the four stats ([data-flap]).
+           ═══════════════════════════════════════════════════════════ */
+        .fc {
+            --ch: 1.14em;
+            position: relative;
+            display: inline-block;
+            width: 0.76em;
+            height: var(--ch);
+            margin-right: 0.055em;
+            vertical-align: -0.135em;
+            border-radius: 0.075em;
+            background: #0A0A0A;
+            box-shadow:
+                inset 0 0 0 1px rgba(255, 255, 255, 0.055),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05),
+                0 5px 14px rgba(0, 0, 0, 0.5);
+            perspective: 3.2em;
+            color: var(--gold);
+            font-weight: 300;
+        }
+        .fc::after {
+            content: '';
+            position: absolute; left: 0; right: 0; top: 50%;
+            height: 1px; margin-top: -0.5px;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 5;
+        }
+        .fc i {
+            position: absolute; left: 1px; right: 1px;
+            height: calc(50% - 1px);
+            overflow: hidden;
+            font-style: normal;
+        }
+        .fc i b {
+            position: absolute; left: 0; right: 0;
+            display: block;
+            height: var(--ch);
+            line-height: var(--ch);
+            text-align: center;
+            font-weight: 300;
+        }
+        .fc .st { top: 1px; border-radius: 0.07em 0.07em 0 0; background: linear-gradient(180deg, #161616, #0E0E0E); z-index: 1; }
+        .fc .sb { bottom: 1px; border-radius: 0 0 0.07em 0.07em; background: linear-gradient(180deg, #0B0B0B, #121212); z-index: 1; }
+        .fc .st b { top: 0; }
+        .fc .sb b { bottom: 0; }
+        .fc .lt { top: 1px; border-radius: 0.07em 0.07em 0 0; background: linear-gradient(180deg, #161616, #0E0E0E); transform-origin: center bottom; z-index: 4; display: none; }
+        .fc .lt b { top: 0; }
+        .fc .lb { bottom: 1px; border-radius: 0 0 0.07em 0.07em; background: linear-gradient(180deg, #0B0B0B, #121212); transform-origin: center top; transform: rotateX(88deg); z-index: 3; display: none; }
+        .fc .lb b { bottom: 0; }
+        @keyframes flTop {
+            0%   { transform: rotateX(0);      filter: brightness(1); }
+            100% { transform: rotateX(-88deg); filter: brightness(0.45); }
+        }
+        @keyframes flBot {
+            0%   { transform: rotateX(88deg);  filter: brightness(0.5); }
+            55%  { filter: brightness(1.15); }
+            100% { transform: rotateX(0);      filter: brightness(1); }
+        }
+        .flap-scale { font-size: 0.94em; letter-spacing: 0; }
+        .hero-stat-value.flap-scale { font-size: clamp(26px, 5.2vw, 31px); }
 
         ::selection {
             background: var(--gold);
@@ -2563,8 +2629,8 @@
 <script defer src="/js/boom-consent.js"></script>
 </head>
 <body>
-    <!-- RadarScape background — the BOOM radar scanning Rome (js/boom-radarscape.js) -->
-    <canvas id="radarScape" aria-hidden="true"></canvas>
+    <!-- Il Campo — quiet colonnade-light field behind the hero (js/boom-campo.js) -->
+    <canvas id="boomCampo" aria-hidden="true"></canvas>
 
     <!-- Scroll Progress -->
     <div class="scroll-progress" id="scrollProgress"></div>
@@ -2648,7 +2714,7 @@
 
             <h1 class="hero-title">
                 GET YOUR <span class="highlight">ROME</span> APARTMENT<br>
-                IN <span class="highlight">DAYS</span>, NOT WEEKS.
+                IN <span class="highlight" id="flapWord">DAYS</span>, NOT WEEKS.
             </h1>
 
             <p class="hero-subtitle">
@@ -2662,19 +2728,19 @@
 
             <div class="hero-stats">
                 <div class="hero-stat">
-                    <div class="hero-stat-value">48h</div>
+                    <div class="hero-stat-value" data-flap="48H">48h</div>
                     <div class="hero-stat-label">Move-in Time</div>
                 </div>
                 <div class="hero-stat">
-                    <div class="hero-stat-value">98%</div>
+                    <div class="hero-stat-value" data-flap="98%">98%</div>
                     <div class="hero-stat-label">Success Rate</div>
                 </div>
                 <div class="hero-stat">
-                    <div class="hero-stat-value">2min</div>
+                    <div class="hero-stat-value" data-flap="2MIN">2min</div>
                     <div class="hero-stat-label">Response Time</div>
                 </div>
                 <div class="hero-stat">
-                    <div class="hero-stat-value">€0</div>
+                    <div class="hero-stat-value" data-flap="€0">€0</div>
                     <div class="hero-stat-label">Hidden Fees</div>
                 </div>
             </div>
@@ -3703,7 +3769,8 @@
             navigator.serviceWorker.register('/sw.js', { scope: '/' });
         }
     </script>
-        <script defer src="/js/boom-radarscape.js"></script>
+        <script defer src="/js/boom-campo.js"></script>
+        <script defer src="/js/boom-solari.js"></script>
         <script defer src="/js/boom-cinema.js"></script>
     <script defer src="/js/boom-track.js"></script>
     <script defer src="/js/boom-bg.js"></script>
