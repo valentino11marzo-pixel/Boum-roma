@@ -631,6 +631,10 @@
       "schedule": "*/10 * * * *"
     },
     {
+      "path": "/api/wizard/video-radar",
+      "schedule": "0 7 * * 1"
+    },
+    {
       "path": "/api/documents/scan-inbox",
       "schedule": "50 3 * * *"
     },

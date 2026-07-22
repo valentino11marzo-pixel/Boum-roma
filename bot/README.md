@@ -1,7 +1,12 @@
 # BOOM Listing Wizard — Telegram bot
 
-Telegram bot that publishes apartments to the public `listings` catalog (and
-manages them: `/rent`, `/reactivate`, `/delete`, `/listings`). Runs on the
+Telegram bot that publishes apartments to the public `listings` catalog and
+manages them entirely from chat: `/rent`, `/reactivate`, `/delete`,
+`/listings`, plus post-publish edit commands — `/prezzo ID 1300`,
+`/deposito ID 3` (months → also writes the € `deposit` the money section
+reads), `/video ID link`, `/modifica ID campo valore` (whitelisted fields:
+nome indirizzo zona prezzo mq piano letti bagni arredato disponibile
+descrizione video commissione stato). Runs on the
 **Mac mini** (`boomserver@Mac-mini-di-BOOM`), polling Telegram. Writes to
 Firestore + Storage via the Firebase REST API using the admin account
 `valentino@boomrome.com` (same email/password pattern as `api/reminder-cron.js`).
