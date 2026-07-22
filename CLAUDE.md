@@ -199,6 +199,18 @@ message when it returns; missing doc = wrapper not deployed → silent). Auth
 like the PFS crons: Vercel cron Bearer `CRON_SECRET`, `X-Homie-Secret`, or
 admin Firebase ID token.
 
+### POST `/api/wizard/interpret`
+Natural-language listing edits for the wizard bot. Auth `X-Wizard-Secret`.
+Body `{ text }` (operator message in Italian, e.g. "metti il deposito a due
+mesi per Pigneto"). Reads the real catalog, asks Claude haiku for an update
+plan, sanitizes against a field whitelist (an hallucinated field/id can never
+pass), derives money fields (`depositMonths` → EUR `deposit`, price change →
+deposit recompute, twins size/bedrooms) and returns
+`{ action:'update', id, name, updates, summary[] }` or
+`{ action:'none', note }`. Never writes — the bot shows the summary with a
+✅ Conferma button and applies on tap. The bot falls back to a local regex
+parser (deposito/prezzo/video/stato) when this endpoint is unavailable.
+
 ### GET/POST `/api/wizard/video-radar` (cron Monday 07:00 UTC)
 Weekly video-coverage nudge. Lists AVAILABLE listings without `videoUrl`
 and messages the admin Telegram chat with the `/video <id> <link>` command
