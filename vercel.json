@@ -627,6 +627,10 @@
       "schedule": "0 6,12,18 * * *"
     },
     {
+      "path": "/api/wizard/health",
+      "schedule": "*/10 * * * *"
+    },
+    {
       "path": "/api/documents/scan-inbox",
       "schedule": "50 3 * * *"
     },
@@ -649,6 +653,7 @@
     {
       "path": "/api/employees/commerciale",
       "schedule": "0 6-18/2 * * *"
+
     }
   ]
 }
