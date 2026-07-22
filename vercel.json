@@ -657,7 +657,7 @@
     {
       "path": "/api/employees/commerciale",
       "schedule": "0 6-18/2 * * *"
-
     }
-  ]
+  ],
+  "installCommand": "npm ci"
 }
