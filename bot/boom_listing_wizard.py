@@ -14,6 +14,7 @@ import os
 import json
 import base64
 import logging
+import re
 import time
 import urllib.parse
 import requests as http_requests
@@ -589,7 +590,92 @@ async def cmd_modifica(update, context):
     except Exception as e: await update.message.reply_text(f"❌ {e}")
 
 async def cmd_help(update, context):
-    await update.message.reply_text("━━━━━━━━━━━━━━━━━━━━━━\n🏠 *BOOM Listing Commands*\n━━━━━━━━━━━━━━━━━━━━━━\n\n/nuovoflat — Crea nuovo listing\n/listings — Mostra attivi con link\n\n✏️ *Modifiche* (senza rifare l'annuncio)\n/prezzo `ID 1300` — Cambia il canone\n/deposito `ID 3` — Deposito in mesi\n/video `ID link` — Aggiungi/cambia video\n/modifica `ID campo valore` — Ogni altro campo\n\n/rent `ID` — Segna affittato\n/reactivate `ID` — Rimetti disponibile\n/delete `ID` — Elimina listing\n/cancel — Annulla wizard\n/help — Questo messaggio", parse_mode='Markdown')
+    await update.message.reply_text("━━━━━━━━━━━━━━━━━━━━━━\n🏠 *BOOM Listing Commands*\n━━━━━━━━━━━━━━━━━━━━━━\n\n/nuovoflat — Crea nuovo listing\n/listings — Mostra attivi con link\n\n💬 *Oppure scrivimi in italiano:*\n_\"metti il deposito a 2 mesi per Pigneto\"_\n_\"aumenta il prezzo di Levico di 100€\"_\nTi mostro la modifica e confermi con un tap.\n\n✏️ *Comandi diretti*\n/prezzo `ID 1300` — Cambia il canone\n/deposito `ID 3` — Deposito in mesi\n/video `ID link` — Aggiungi/cambia video\n/modifica `ID campo valore` — Ogni altro campo\n\n/rent `ID` — Segna affittato\n/reactivate `ID` — Rimetti disponibile\n/delete `ID` — Elimina listing\n/cancel — Annulla wizard\n/help — Questo messaggio", parse_mode='Markdown')
+
+# ─── Natural language edits ("metti il deposito a 2 mesi per Pigneto") ────────
+# AI-first via /api/wizard/interpret (Claude reads the real catalog, returns a
+# sanitized update plan); local regex parser as fallback so the feature works
+# even if the endpoint/secret is unavailable. NOTHING is written until the
+# operator taps ✅ Conferma.
+PENDING_NL = {}
+NUM_WORDS = {'un': 1, 'uno': 1, 'una': 1, 'due': 2, 'tre': 3, 'quattro': 4, 'cinque': 5, 'sei': 6}
+
+def _local_interpret(text):
+    t = text.lower()
+    try: listings = fs_query_available('listings')
+    except Exception: return None
+    cands = []
+    for doc_id, d in listings:
+        hay = f"{d.get('name','')} {d.get('zone','')} {d.get('address','')}".lower()
+        toks = set(re.findall(r'[a-zà-ù]{4,}', hay))
+        if doc_id.lower() in t or any(w in t for w in toks):
+            cands.append((doc_id, d))
+    if not cands:
+        return {'ok': True, 'action': 'none', 'note': "Di quale annuncio parli? Dimmi il nome o l'ID (vedi /listings)."}
+    if len(cands) > 1:
+        return {'ok': True, 'action': 'none', 'note': 'Più annunci corrispondono: ' + ', '.join(d.get('name', '?') for _, d in cands) + '. Quale?'}
+    doc_id, d = cands[0]
+    price = int(d.get('price') or 0)
+    updates, summary = {}, []
+    m = re.search(r'(\d+(?:[.,]5)?|un[oa]?|due|tre|quattro|cinque|sei)\s*mes', t)
+    if m and re.search(r'deposit|cauzion', t):
+        raw = m.group(1)
+        months = NUM_WORDS.get(raw) or float(raw.replace(',', '.'))
+        dep = round(months * price)
+        updates.update({'depositMonths': months, 'deposit': dep})
+        summary.append(f"Deposito: {months:g} mesi = €{dep:,}")
+    m = re.search(r'(aument|alza|rincar|abbass|riduc|scont|diminu)\w*\D*?di\s*€?\s*(\d[\d.]*)', t)
+    if m and price:
+        delta = _parse_money(m.group(2))
+        new_price = price + delta if m.group(1) in ('aument', 'alza', 'rincar') else price - delta
+        updates['price'] = new_price
+        summary.append(f"Prezzo: €{price:,} → €{new_price:,}")
+    else:
+        m = re.search(r'(?:prezzo|canone|affitto)\D*?a\s*€?\s*(\d[\d.]*)', t)
+        if m:
+            updates['price'] = _parse_money(m.group(1))
+            summary.append(f"Prezzo: €{price:,} → €{updates['price']:,}")
+    if 'price' in updates:
+        months = d.get('depositMonths') or updates.get('depositMonths')
+        if isinstance(months, (int, float)) and months > 0 and 'deposit' not in updates:
+            updates['deposit'] = round(months * updates['price'])
+            summary.append(f"Deposito ricalcolato: €{updates['deposit']:,}")
+    m = re.search(r'(https?://\S*youtu\S*)', text)
+    if m:
+        updates['videoUrl'] = m.group(1)
+        summary.append('Video tour aggiornato')
+    if re.search(r'affittat', t):
+        updates['status'] = 'rented'; summary.append('Stato: affittato')
+    elif re.search(r'riattiv|di nuovo disponibile|rimetti disponibile', t):
+        updates['status'] = 'available'; summary.append('Stato: disponibile')
+    if not updates:
+        return {'ok': True, 'action': 'none', 'note': f"Ho capito l'annuncio ({d.get('name','?')}) ma non la modifica. Prova: 'deposito a 2 mesi', 'prezzo a 1300', o incolla un link video."}
+    return {'ok': True, 'action': 'update', 'id': doc_id, 'name': d.get('name') or doc_id, 'updates': updates, 'summary': summary}
+
+async def nl_message(update, context):
+    if not is_admin(update): return
+    text = (update.message.text or '').strip()
+    if not text: return
+    plan = wizard_post('/api/wizard/interpret', {'text': text}, timeout=30) or _local_interpret(text)
+    if not plan or plan.get('action') != 'update' or not plan.get('id') or not plan.get('updates'):
+        note = (plan or {}).get('note') or "Non ho capito 🤔 Prova: \"metti il deposito a 2 mesi per Pigneto\" — oppure /help"
+        await update.message.reply_text(f"💬 {note}")
+        return
+    PENDING_NL[update.effective_chat.id] = plan
+    lines = '\n'.join('• ' + s for s in (plan.get('summary') or [f"{k} → {v}" for k, v in plan['updates'].items()]))
+    kb = InlineKeyboardMarkup([[InlineKeyboardButton('✅ Conferma', callback_data='nl_ok'), InlineKeyboardButton('✖️ Annulla', callback_data='nl_no')]])
+    await update.message.reply_text(f"🏠 *{plan.get('name', plan['id'])}*\n{lines}\n\nConfermo?", parse_mode='Markdown', reply_markup=kb)
+
+async def nl_confirm_cb(update, context):
+    q = update.callback_query; await q.answer()
+    plan = PENDING_NL.pop(q.message.chat.id, None)
+    if q.data != 'nl_ok' or not plan:
+        await q.edit_message_text('✖️ Annullato.'); return
+    try:
+        _edit_listing(plan['id'], dict(plan['updates']))
+        await q.edit_message_text(f"✅ Fatto!\n{SITE_URL}/listing/{plan['id']}")
+    except Exception as e:
+        await q.edit_message_text(f"❌ {e}")
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 def main():
@@ -626,6 +712,9 @@ def main():
     app.add_handler(CommandHandler('deposito', cmd_deposito))
     app.add_handler(CommandHandler('modifica', cmd_modifica))
     app.add_handler(CommandHandler('help', cmd_help))
+    app.add_handler(CallbackQueryHandler(nl_confirm_cb, pattern='^nl_'))
+    # last: free-text messages outside the wizard flow → natural-language edits
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, nl_message))
     logger.info("🚀 BOOM Listing Wizard avviato!")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 

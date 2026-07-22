@@ -6,7 +6,11 @@ manages them entirely from chat: `/rent`, `/reactivate`, `/delete`,
 `/deposito ID 3` (months → also writes the € `deposit` the money section
 reads), `/video ID link`, `/modifica ID campo valore` (whitelisted fields:
 nome indirizzo zona prezzo mq piano letti bagni arredato disponibile
-descrizione video commissione stato). Runs on the
+descrizione video commissione stato). The bot also understands plain
+Italian: write "metti il deposito a due mesi per Pigneto" or "aumenta il
+prezzo di Levico di 100€" — it builds the edit via `/api/wizard/interpret`
+(Claude against the real catalog; local regex fallback if the endpoint is
+unavailable) and applies it only after the ✅ Conferma tap. Runs on the
 **Mac mini** (`boomserver@Mac-mini-di-BOOM`), polling Telegram. Writes to
 Firestore + Storage via the Firebase REST API using the admin account
 `valentino@boomrome.com` (same email/password pattern as `api/reminder-cron.js`).
