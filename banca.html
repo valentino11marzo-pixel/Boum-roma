@@ -132,7 +132,10 @@ input:focus, textarea:focus { border-color: rgba(212,175,55,.4); }
   </section>
 
   <section>
-    <h3>Scadenzario <span id="scadCounts" style="color:var(--text-muted);letter-spacing:0;text-transform:none"></span></h3>
+    <h3>Scadenzario
+      <select id="scadYear" style="background:var(--bg-input);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:5px 9px;font-size:12px;font-family:inherit"></select>
+      <span id="scadCounts" style="color:var(--text-muted);letter-spacing:0;text-transform:none"></span>
+    </h3>
     <div id="scadenzario"><div class="empty">Caricamento…</div></div>
   </section>
 
@@ -321,13 +324,19 @@ input:focus, textarea:focus { border-color: rgba(212,175,55,.4); }
   const period = () => ({ from: document.getElementById('expFrom').value, to: document.getElementById('expTo').value });
   document.getElementById('btnEstratto').addEventListener('click', () => download('/api/banking/export', { ...period(), type: 'estratto' }).catch(e => toast(e.message, 'error')));
   document.getElementById('btnPrimanota').addEventListener('click', () => download('/api/banking/export', { ...period(), type: 'primanota' }).catch(e => toast(e.message, 'error')));
-  document.getElementById('btnIcs').addEventListener('click', () => download('/api/accounting/scadenzario', { format: 'ics' }).catch(e => toast(e.message, 'error')));
+  document.getElementById('btnIcs').addEventListener('click', () => download('/api/accounting/scadenzario', { format: 'ics', fiscalYear: Number(document.getElementById('scadYear').value) || undefined }).catch(e => toast(e.message, 'error')));
 
-  // ── Scadenzario ──────────────────────────────────────────────────────
+  // ── Scadenzario (anno selezionabile: rimettere a posto anche il 2025) ─
+  const scadYearSel = document.getElementById('scadYear');
+  const thisYear = new Date().getFullYear();
+  [thisYear, thisYear - 1].forEach(y => {
+    const o = document.createElement('option'); o.value = y; o.textContent = y; scadYearSel.appendChild(o);
+  });
+  scadYearSel.addEventListener('change', () => loadScadenzario());
   async function loadScadenzario() {
     const box = document.getElementById('scadenzario');
     try {
-      const j = await api('/api/accounting/scadenzario', { format: 'json' });
+      const j = await api('/api/accounting/scadenzario', { format: 'json', fiscalYear: Number(scadYearSel.value) || thisYear });
       document.getElementById('scadCounts').textContent = `· ${j.counts.overdue} scadute · ${j.counts.dueSoon} entro 30gg · ${j.counts.clients} clienti`;
       const dueRow = o => `<div class="due ${o.days < 0 ? 'overdue' : (o.days <= 30 ? 'soon' : '')}">
         <span class="d">${esc(o.dueDate.split('-').reverse().join('/'))}</span>

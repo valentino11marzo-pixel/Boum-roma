@@ -39,7 +39,13 @@ export default async function handler(req, res) {
   const dry = req.query?.dry === '1';
 
   try {
-    const out = await run({ dry, forceMonthly: req.query?.monthly === '1' });
+    // ?year=2025 → fiscal picture for a PAST year (recupero/chiusura anno):
+    // obligations, taxpack checklist and incassi computed on that year.
+    const out = await run({
+      dry,
+      forceMonthly: req.query?.monthly === '1',
+      yearOverride: Number(req.query?.year) || null,
+    });
     if (!dry) await reportEmployeeHealth(EMPLOYEE, { ok: true, stats: out.counts });
     return res.status(200).json({ ok: true, actor, dry, ...out });
   } catch (e) {
@@ -49,9 +55,9 @@ export default async function handler(req, res) {
   }
 }
 
-async function run({ dry, forceMonthly }) {
+async function run({ dry, forceMonthly, yearOverride }) {
   const now = new Date();
-  const fiscalYear = now.getFullYear();
+  const fiscalYear = yearOverride || now.getFullYear();
 
   const [properties, contracts, payments, documents, invoices, bankHealth, bankAccounts] = await Promise.all([
     fsList('properties', { limit: 200 }),
