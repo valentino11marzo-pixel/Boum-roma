@@ -605,8 +605,13 @@ async def cmd_help(update, context):
 
 # ─── Photo Lab bridge (api/photos/enhance — AI curation + enhancement) ────────
 def photos_enhance(listing_id, mode='apply'):
-    """Run the Photo Lab pipeline on a listing (admin ID token auth).
+    """Run the Photo Lab pipeline on a listing. Auth: the SAME X-Wizard-Secret
+    used by every other wizard→server call (the unified endpoint accepts it);
+    the admin ID-token path is kept as fallback for older server deployments.
     Reversible: originals are kept in imagesOriginal server-side."""
+    rep = wizard_post('/api/photos/enhance', {'listingId': listing_id, 'mode': mode}, timeout=90)
+    if rep is not None:
+        return rep
     r = http_requests.post(
         f'{WIZARD_API_BASE}/api/photos/enhance',
         headers={'Authorization': f'Bearer {get_firebase_token()}', 'Content-Type': 'application/json'},
