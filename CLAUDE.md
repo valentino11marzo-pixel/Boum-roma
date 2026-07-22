@@ -130,6 +130,26 @@ WIZARD_SECRET                # shared secret sent as X-Wizard-Secret header
 # PFS radar (api/pfs/*)
 PFS_IMAP_USER                # optional — alert mailbox if ≠ GMAIL_USER
 PFS_IMAP_PASS                # optional — its app password (IMAP read)
+
+# La Squadra (api/employees/*)
+ACCOUNTING_EMAIL             # optional — recipient of the Contabile's monthly
+                             # close email (falls back to GMAIL_USER)
+
+# La Banca — open banking (api/banking/*)
+GOCARDLESS_SECRET_ID         # GoCardless Bank Account Data (ex Nordigen).
+GOCARDLESS_SECRET_KEY        # NOTE: GC closed NEW signups (2026) — only
+                             # usable with a pre-existing account. Without
+                             # them /banca works via the email statement
+                             # scanner (scan-inbox) + manual CSV import.
+BANK_MAIL_FROM               # optional — extra sender filters for the bank
+                             # statement email scanner (comma-separated,
+                             # e.g. "intesasanpaolo.com,fineco.it")
+
+# Lo Smistatore (api/documents/_smista.js + scan-inbox)
+DOC_MAIL_FROM                # optional — extra TRUSTED senders whose email
+                             # attachments get auto-filed (comma-separated,
+                             # e.g. "commercialista@studiorossi.it"). The
+                             # operator's own addresses are always trusted.
 TELEGRAM_BOT_TOKEN           # already used by api/telegram/*; pfs health alerts
 TELEGRAM_CHAT_ID
 ```
@@ -375,6 +395,78 @@ auto-ingested (e.g. no price recoverable) land in
 `pfsRadarHealth.needsAttention` — surfaced in `pfs-command.html`, never
 silently dropped.
 
+## La Squadra (AI employees — api/employees/*)
+
+Scheduled "employees" that run the back office autonomously. Same
+infrastructure as the PFS radar: heartbeat per run (`teamHealth/<employee>`,
+Telegram alert after 3 consecutive failures via `api/pfs/_health.js`), a
+compact run report (`teamReports`), and — crucially — **no new approval
+surface**: anything outbound (emails to tenants/leads) is PROPOSED into the
+existing `action_queue`, pinged to Telegram within a minute by
+`api/telegram/notify-pending.js`, and sent by `api/agent/execute.js` only
+after a human tap. Shared plumbing in `api/employees/_lib.js`
+(`proposeAction` is idempotent via `contextHash` — reruns never duplicate).
+
+| Employee (cron) | Schedule (UTC) | What it does |
+|---|---|---|
+| `/api/employees/contabile` | daily 04:40 | Fiscal picture from live data: obligations due/overdue (`js/fiscal-engine.js`, landlord + company from paid `invoices` by quarter), commercialista document checklist per contract (`js/taxpack-engine.js`), collections YTD + late payments. Telegram only when actionable. On the 1st of the month emails a "chiusura mese" recap (`ACCOUNTING_EMAIL` env, falls back to `GMAIL_USER`). |
+| `/api/employees/gestore` | daily 05:10 | Property manager: drafts payment-reminder emails (≥3gg late, re-proposes weekly via ISO-week contextHash) and signature nudges with the party's Magic-Sign link (`/sign?sign=<token>`) as approvable `action_queue` items; Telegram digest of renewals ≤90gg, compliance deadlines (`js/compliance-rules.js`), maintenance open >48h. |
+| `/api/employees/commerciale` | every 2h, 06-18 | Lead responder: any lead still `new` after a 20-min human window gets a Claude-drafted first reply (same persona as `agent/ai.reply`) proposed for approval; still `new` after 48h (grade A/B or apply/reserve) gets one templated follow-up. Caps per run; dedupe before paying for the AI call. |
+
+All three accept POST with Vercel cron secret, `X-Homie-Secret`, or an admin
+Firebase ID token (see `api/pfs/_guard.js`); `?dry=1` computes without
+writing/notifying; contabile also accepts `?monthly=1` to force the monthly
+close email.
+
+**Console**: `team.html` (`/team`, admin-only, noindex) — status dot + last
+run per employee (the PFS radar appears as "Lo Scout" rolling up
+`pfsRadarHealth`), pending proposals, latest reports, "Esegui ora" buttons.
+
+## Lo Smistatore (document intake — api/documents/_smista.js)
+
+"Mando qualsiasi cosa per il commercialista e si archivia da sola." One
+shared pipeline (`smistaDocument`): Claude haiku classifies the file
+(PDF/image) against the REAL property list, picks fiscal year + contract,
+uploads to Storage and files it in `documents` with keyword-rich categories
+that `taxpack-engine.docMatchesRequirement` already matches — so filing an
+F24 IMU automatically ticks the pacchetto-commercialista checklist. Docs
+with no confident property match get `needsFiling:true` (folder
+99_DaSmistare), surfaced by the Contabile's morning report.
+
+Two intakes:
+- **Telegram** (`api/telegram/webhook.js`): send ANY photo/PDF to the bot
+  (caption = optional hint, e.g. "F24 IMU via Cavour"); replies with what
+  it understood and where it filed it. Authorized chat only.
+- **Email** (`api/documents/scan-inbox.js`, cron daily 03:50): forward an
+  email with attachments to the BOOM mailbox — processed ONLY from trusted
+  senders (operator's own addresses + `DOC_MAIL_FROM`). Processed emails
+  remembered in `docImports`; per-run AI budget; Telegram recap.
+
+## La Banca (open banking — api/banking/* + banca.html)
+
+PSD2 bank feed for the Contabile via **GoCardless Bank Account Data** (ex
+Nordigen, free tier, covers Italian banks; consent renews every ~90 days —
+BOOM never sees bank credentials). Collections: `bankAccounts` (linked
+accounts + consent expiry + balance snapshot), `bankTransactions` (one doc
+per movement, stable content-hash ids → every sync/import re-run is a
+no-op), `bankRequisitions` (consent audit).
+
+| Endpoint | What it does |
+|---|---|
+| `POST /api/banking/institutions` | bank picker (`{q}` search); `configured:false` when GC keys missing |
+| `POST /api/banking/connect` | creates end-user agreement (max history the bank allows, up to 540gg) + requisition → `{link}` to the bank's consent page; redirect back to `/banca?ref=<id>` |
+| `POST /api/banking/finalize` | stores authorized accounts after the redirect |
+| `POST /api/banking/sync` | **cron daily 04:15** (before the Contabile). Pulls movements (first run backfills full history), dedupes via batchGet, categorizes (prima nota rules in `_lib.js`), reconciles credits against pending `payments`: exact amount + due-date window + unique candidate + (tenant-name or month or unique-amount) → payment marked paid (`paidVia:'bank'`); weaker matches → `matchSuggestions`, confirmed by one tap in /banca. Heartbeat `teamHealth/banca`; Telegram when a consent is ≤7gg from expiry. |
+| `POST /api/banking/export` | estratto conto / prima nota CSV for the commercialista — Italian format (semicolon, DD/MM/YYYY, decimal comma, UTF-8 BOM); prima nota adds per-category period totals |
+| `POST /api/banking/scan-inbox` | **cron daily 04:05 — the primary feed now that GoCardless is closed to new signups.** Reads the Gmail mailbox over IMAP (same infra as pfs/scan-inbox). Three tiers: (1) **movement-alert emails** ("Hai ricevuto un bonifico di €1.200 da…") — amounts live in the BODY, extracted via Claude haiku, but ONLY from recognized bank sender domains (`KNOWN_BANK_DOMAINS` + `BANK_MAIL_FROM`) so a tenant writing "ti ho fatto il bonifico" never becomes a transaction; (2) **statement attachments** — CSV parsed directly, PDF via Claude document block; (3) forwarded emails, same handling. "Statement available behind login" emails yield an empty extraction and are remembered so the AI call is never repeated. Processed emails → `bankImports`; tx-level dedupe makes re-runs no-ops; per-run AI budget. Telegram recap when something lands. Heartbeat `teamHealth/banca-mail`. Setup: attiva nell'home banking gli avvisi email di movimento (e, se disponibile, l'invio dell'estratto come allegato). |
+| `POST /api/banking/import` | manual fallback: paste the home-banking CSV (column auto-detect for the common Italian exports), same dedupe+reconcile pipeline — works with zero API setup |
+| `POST /api/accounting/scadenzario` | unified deadline book derived live: company (IVA/LIPE/CCIAA/Redditi from `invoices` by quarter) + one group per property owner (registro, IMU, cedolare, ISTAT + contract renewals ≤120gg). `format:'ics'` → calendar file (stable UIDs, re-import updates). |
+
+All admin-gated via `api/pfs/_guard.js`. **Console**: `banca.html` (`/banca`,
+admin-only, noindex) — linked accounts + consent status, recent movements
+with one-tap match confirmation, CSV/ICS export, manual import. The
+Contabile's morning report includes the bank picture (riconciliati/da
+confermare/consensi scaduti).
 ### POST `/api/photos/enhance`
 AI photo curation for the catalog (admin/owner/landlord, Firebase ID token).
 Body `{ listingId, mode:'audit'|'apply' }`. Claude Vision (haiku) classifies

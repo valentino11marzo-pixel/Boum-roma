@@ -158,6 +158,15 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: true });
       }
 
+      // ── Documenti in ingresso (foto o file) → Lo Smistatore ────────────
+      // Manda al bot QUALSIASI documento per il commercialista (foto di un
+      // F24, PDF di una fattura, ricevuta…): viene classificato dall'AI,
+      // agganciato all'immobile giusto e archiviato nella cartella del
+      // pacchetto — la checklist del Contabile si aggiorna da sola.
+      if (msg.document || (msg.photo && msg.photo.length)) {
+        return await handleIncomingDoc(chatId, msg, res);
+      }
+
       // /start, /help, /queue, /snapshot, /cancel, /edit <id> <text>
       if (text === '/start' || text === '/help') {
         const help = [
@@ -170,6 +179,11 @@ export default async function handler(req, res) {
           '• /snapshot — stato portal',
           '• /edit <code>&lt;id&gt; &lt;testo&gt;</code> — modifica la bozza',
           '• /cancel — annulla un edit in corso',
+          '',
+          '📁 <b>Archivio</b>: mandami QUALSIASI documento (foto o PDF — F24,',
+          'fatture, ricevute, contratti…): lo classifico, lo aggancio',
+          'all\'immobile e lo archivio per il commercialista. Scrivi una',
+          'didascalia se vuoi darmi un indizio (es. "F24 IMU via Cavour").',
         ].join('\n');
         await tgSend(chatId, help);
         return res.status(200).json({ ok: true });
@@ -265,4 +279,67 @@ async function applyEdit(chatId, actionId, newDraft, res) {
   await fsPatch(`action_queue/${actionId}`, { payload: newPayload, editedAt: new Date(), editedBy: 'telegram:' + chatId });
   await tgSend(chatId, `✓ Bozza aggiornata.\n\n${fmtAction({ ...action, payload: newPayload })}`);
   return res.status(200).json({ ok: true });
+}
+
+// ── Lo Smistatore via Telegram ───────────────────────────────────────────
+// Scarica il file dal bot (getFile → file download), lo passa alla pipeline
+// condivisa (_smista.js) e risponde con cosa ha capito e dove l'ha messo.
+async function handleIncomingDoc(chatId, msg, res) {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  try {
+    let fileId, fileName, mimeType, fileSize;
+    if (msg.document) {
+      fileId = msg.document.file_id;
+      fileName = msg.document.file_name || 'documento';
+      mimeType = msg.document.mime_type || 'application/octet-stream';
+      fileSize = msg.document.file_size || 0;
+    } else {
+      const best = msg.photo[msg.photo.length - 1]; // largest rendition
+      fileId = best.file_id;
+      fileName = 'foto.jpg';
+      mimeType = 'image/jpeg';
+      fileSize = best.file_size || 0;
+    }
+
+    const ACCEPTED = /^(application\/pdf|image\/(jpeg|png|webp|gif))$/;
+    if (!ACCEPTED.test(mimeType)) {
+      await tgSend(chatId, `⚠️ Formato non supportato (<code>${mimeType}</code>) — mandami un PDF o una foto.`);
+      return res.status(200).json({ ok: true });
+    }
+    if (fileSize > 8 * 1024 * 1024) {
+      await tgSend(chatId, '⚠️ File oltre 8MB — caricalo dal portale (Archivio) oppure mandami una versione più leggera.');
+      return res.status(200).json({ ok: true });
+    }
+
+    await tgSend(chatId, '📥 Ricevuto — lo smisto…');
+
+    const info = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${encodeURIComponent(fileId)}`).then(r => r.json());
+    const filePath = info?.result?.file_path;
+    if (!filePath) throw new Error('download non disponibile da Telegram');
+    const bin = await fetch(`https://api.telegram.org/file/bot${token}/${filePath}`);
+    if (!bin.ok) throw new Error('download fallito (' + bin.status + ')');
+    const base64 = Buffer.from(await bin.arrayBuffer()).toString('base64');
+
+    const { smistaDocument } = await import('../documents/_smista.js');
+    const out = await smistaDocument({
+      base64, mediaType: mimeType, fileName,
+      hint: msg.caption || null,
+      origin: 'telegram',
+    });
+
+    const lines = [
+      `📁 <b>Archiviato: ${out.label}</b>`,
+      out.propertyLabel ? `🏠 ${out.propertyLabel}` : '🤔 Immobile non riconosciuto — è in <b>99_DaSmistare</b> (assegnalo dal portale, o rimandamelo con una didascalia tipo "via Cavour")',
+      `📅 Anno fiscale ${out.fiscalYear} · cartella <code>${out.folder}</code>`,
+      out.summary ? `<i>${out.summary}</i>` : null,
+      '',
+      'La checklist del commercialista si è aggiornata da sola. Archivio: https://www.boomrome.com/portal',
+    ].filter(Boolean);
+    await tgSend(chatId, lines.join('\n'));
+    return res.status(200).json({ ok: true });
+  } catch (e) {
+    console.error('[telegram/webhook] smistatore:', e);
+    await tgSend(chatId, '⚠️ Non sono riuscito ad archiviarlo: ' + e.message + '\nRiprova, o caricalo dal portale.');
+    return res.status(200).json({ ok: true });
+  }
 }
