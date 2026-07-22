@@ -19,7 +19,7 @@
 
 import { secretEqual, readJson, fsList } from '../homie/_lib.js';
 
-const MODEL = 'claude-haiku-4-5-20251001';
+const MODEL = 'claude-sonnet-5';
 
 const ALLOWED = {
   price: 'num', depositMonths: 'num', videoUrl: 'str', name: 'str',
@@ -51,6 +51,7 @@ export default async function handler(req, res) {
   let body;
   try { body = await readJson(req); } catch { return res.status(400).json({ ok: false, error: 'invalid_json' }); }
   const text = String((body && body.text) || '').trim().slice(0, 600);
+  const context = String((body && body.context) || '').trim().slice(0, 600);
   if (!text) return res.status(400).json({ ok: false, error: 'no_text' });
 
   let listings;
@@ -59,22 +60,32 @@ export default async function handler(req, res) {
   const byId = new Map(listings.map(l => [l.id, l]));
 
   const catalog = listings.map(l =>
-    `${l.id} | ${l.name || '?'} | ${l.zone || '?'} | ${eur(l.price || 0)}/mese | stato:${l.status || 'available'}` +
-    ` | depositoMesi:${l.depositMonths || 1} | video:${(l.videoUrl || l.youtubeUrl) ? 'sì' : 'no'}`
+    `${l.id} | ${l.name || '?'} | ${l.zone || '?'} | ${l.address || ''} | ${eur(l.price || 0)}/mese | stato:${l.status || 'available'}` +
+    ` | depositoMesi:${l.depositMonths || 1} | video:${(l.videoUrl || l.youtubeUrl) ? 'sì' : 'no'}` +
+    ` | creato:${String(l.createdAt || '').slice(0, 10) || '?'}`
   ).join('\n');
 
-  const SYSTEM = `Sei l'interprete comandi del gestionale immobiliare BOOM Roma. L'operatore scrive in italiano colloquiale una modifica a un annuncio. Hai il catalogo reale (una riga per annuncio: id | nome | zona | prezzo | stato | depositoMesi | video).
+  const SYSTEM = `Sei l'interprete comandi del gestionale immobiliare BOOM Roma. L'operatore scrive in italiano colloquiale (a volte sgrammaticato, dettato a voce, con refusi). Hai il catalogo reale (una riga per annuncio: id | nome | zona | indirizzo | prezzo | stato | depositoMesi | video | creato).
 
-Rispondi SOLO con JSON: {"action":"update","id":"<id dal catalogo>","updates":{...},"note":"<max 1 frase>"} oppure {"action":"none","note":"<domanda o spiegazione in italiano, max 2 frasi>"}.
+Rispondi SOLO con JSON, uno di:
+- {"action":"update","id":"<id dal catalogo>","updates":{...},"note":"<max 1 frase>"}
+- {"action":"photos","id":"<id dal catalogo>","note":"<max 1 frase>"}  ← quando chiede di migliorare/riordinare/sistemare le FOTO di un annuncio
+- {"action":"none","note":"<domanda o spiegazione in italiano, max 2 frasi>"}
 
 Campi ammessi in updates: price, depositMonths, videoUrl, name, address, zone, sqm, floor, beds, bathrooms, furnished(yes|partial|no), availableDate, description, agencyFee, status(available|rented|waitlist).
 
-Regole:
-- Matcha l'annuncio in modo tollerante (refusi tipo "Levigo"→Levico, nome parziale, zona). L'id DEVE venire dal catalogo, mai inventato.
-- Modifiche relative ("aumenta di 100", "sconta 50") → calcola il valore assoluto dal prezzo attuale.
-- Deposito espresso in mesi → depositMonths (numero). "due mesi" = 2.
-- "affittato/affittata" → status rented; "rimetti disponibile/riattiva" → status available.
-- Più annunci plausibili o nessuno → action none con la domanda giusta.
+Regole di matching (sii MOLTO tollerante):
+- Nome parziale, refusi ("Levigo"→Levico, "Pinieto"→Pigneto), zona, via, pezzi di indirizzo: tutto vale. L'id DEVE venire dal catalogo, mai inventato.
+- "l'ultimo", "quello appena pubblicato" → il più recente per data creato.
+- Se il catalogo ha UN SOLO annuncio in stato available e il messaggio non nomina nulla, usa quello.
+- Se l'operatore risponde a una tua domanda precedente (te la passo come SCAMBIO PRECEDENTE), combina i due messaggi: la risposta "quello di Pigneto" scioglie l'ambiguità della richiesta precedente.
+- Più annunci plausibili → action none elencando i candidati per nome; nessuno → action none chiedendo il nome.
+
+Regole sui valori:
+- Modifiche relative ("aumenta di 100", "sconta 50") → calcola il valore assoluto dal prezzo attuale del catalogo.
+- Deposito in mesi → depositMonths (numero). "due mesi" = 2. Deposito in euro secchi ("deposito 2000") → NON usare depositMonths: action none chiedendo se intende mesi (il sistema ragiona in mesi).
+- "affittato/affittata/è andato" → status rented; "riattiva/rimetti disponibile/è tornato libero" → status available.
+- Più modifiche nella stessa frase → tutte in updates.
 - Richiesta fuori dai campi ammessi → action none spiegando cosa sai fare.`;
 
   let plan;
@@ -84,7 +95,12 @@ Regole:
       headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
         model: MODEL, max_tokens: 400, system: SYSTEM,
-        messages: [{ role: 'user', content: `CATALOGO:\n${catalog}\n\nMESSAGGIO OPERATORE:\n${text}` }],
+        messages: [{
+          role: 'user',
+          content: `CATALOGO:\n${catalog}\n` +
+            (context ? `\nSCAMBIO PRECEDENTE (non risolto):\n${context}\n` : '') +
+            `\nMESSAGGIO OPERATORE:\n${text}`,
+        }],
       }),
     });
     if (!upstream.ok) {
@@ -100,6 +116,10 @@ Regole:
     return res.status(502).json({ ok: false, error: 'ai_failed' });
   }
 
+  if (plan && plan.action === 'photos' && byId.has(plan.id)) {
+    const cur = byId.get(plan.id);
+    return res.status(200).json({ ok: true, action: 'photos', id: plan.id, name: cur.name || plan.id, note: String(plan.note || '').slice(0, 200) });
+  }
   if (!plan || plan.action !== 'update' || !byId.has(plan.id)) {
     return res.status(200).json({ ok: true, action: 'none', note: String((plan && plan.note) || 'Non ho trovato l\'annuncio — dimmi il nome o l\'ID (/listings).').slice(0, 300) });
   }
