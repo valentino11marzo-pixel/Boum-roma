@@ -132,8 +132,33 @@ section > h3 { font-size: 12px; letter-spacing: 3px; color: var(--text-secondary
 
 <script>
 (async function () {
-  const { user } = await BoomPortal.requireAuth(['admin'], { loginUrl: '/login.html' });
-  document.getElementById('shield').style.display = 'none';
+  // Shield auto-diagnostico: se l'accesso fallisce o si blocca, la pagina
+  // DICE cosa non va invece di restare su "ACCESSO…" per sempre.
+  const shield = document.getElementById('shield');
+  const shieldFail = (msg) => {
+    shield.innerHTML = '<div style="text-align:center;max-width:340px;line-height:1.8;letter-spacing:.5px">'
+      + '⚠️ ' + msg
+      + '<br><br><a href="/login.html?next=%2Fteam" style="color:#D4AF37">Vai al login</a>'
+      + ' · <a href="/portal" style="color:#999">Apri il portale</a>'
+      + '<br><span style="color:#555;font-size:11px">Se hai appena aggiornato le regole Firestore, riprova tra un minuto con un refresh forzato.</span></div>';
+  };
+  const watchdog = setTimeout(() => shieldFail('L\'accesso sta impiegando troppo — connessione o SDK Firebase bloccato.'), 15000);
+  let auth;
+  try {
+    auth = await BoomPortal.requireAuth(['admin'], { loginUrl: '/login.html' });
+  } catch (e) {
+    clearTimeout(watchdog);
+    const m = String(e && e.message || e);
+    if (m === 'not_authenticated') return; // requireAuth sta già reindirizzando al login
+    shieldFail(
+      m === 'wrong_role' ? 'Questa console è solo per il ruolo ADMIN — il tuo utente ha un ruolo diverso.'
+      : m === 'profile_missing' ? 'Profilo utente non trovato in Firestore (collection users).'
+      : 'Accesso fallito: ' + m
+    );
+    return;
+  }
+  clearTimeout(watchdog);
+  shield.style.display = 'none';
   document.getElementById('app').style.display = '';
   const db = firebase.firestore();
 
