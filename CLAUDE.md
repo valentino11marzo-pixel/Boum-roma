@@ -199,6 +199,11 @@ message when it returns; missing doc = wrapper not deployed → silent). Auth
 like the PFS crons: Vercel cron Bearer `CRON_SECRET`, `X-Homie-Secret`, or
 admin Firebase ID token.
 
+### GET/POST `/api/wizard/video-radar` (cron Monday 07:00 UTC)
+Weekly video-coverage nudge. Lists AVAILABLE listings without `videoUrl`
+and messages the admin Telegram chat with the `/video <id> <link>` command
+for each. Silent at 100% coverage. Auth like `/api/wizard/health`.
+
 ### POST `/api/wizard/upload`
 Photo-upload bridge for the Telegram wizard bot. Auth via `X-Wizard-Secret`
 (same secret as `/api/wizard/publish`). Body `{ base64, path?, contentType? }`
