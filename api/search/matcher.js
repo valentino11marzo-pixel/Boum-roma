@@ -17,34 +17,66 @@
 
 import { fsList, fsPatch } from '../homie/_lib.js';
 import { sendEmail } from '../agent/_lib.js';
+import { requireCronOrAdmin } from '../pfs/_guard.js';
 
 const SITE = 'https://www.boomrome.com';
 
 const norm = s => String(s || '').toLowerCase().trim();
 
+// Mirrors apartments.html mapReal() for every field the filter touches.
+// The portal, the Telegram wizard and the bots write DIFFERENT names for
+// the same thing (beds/bedrooms, videoUrl/youtubeUrl, furnished true /
+// 'partial' / only a "furnished"/"arredato" word in the features text) —
+// matching on the raw doc silently starved subscribers whose filters used
+// those fields, while the site itself displayed the homes as matching.
+export function normListing(d) {
+  const feats = Array.isArray(d.features) ? d.features : (Array.isArray(d.amenities) ? d.amenities : []);
+  const blob = (feats.join(' ') + ' ' + (d.description || '') + ' ' + String(d.furnished || '')).toLowerCase();
+  return {
+    id: d.id,
+    name: d.name || d.title || 'Apartment in Rome',
+    zone: d.zone || d.neighborhood || d.address || 'Rome',
+    price: +d.price || 0,
+    beds: d.beds != null ? +d.beds : (d.bedrooms != null ? +d.bedrooms : 0),
+    baths: d.bathrooms != null ? +d.bathrooms : (d.baths != null ? +d.baths : 1),
+    sqm: +d.sqm || +d.size || 0,
+    furnished: d.furnished === true
+      || (typeof d.furnished === 'string' && d.furnished.trim() !== ''
+          && !['no', 'false', 'unfurnished', '0', 'non arredato'].includes(d.furnished.trim().toLowerCase()))
+      || blob.includes('furnish') || blob.includes('arredat'),
+    videoUrl: !!(d.videoUrl || d.youtubeUrl),
+    features: feats,
+    description: d.description || '',
+    status: ((d.status || d.availabilityStatus || 'available') + '').toLowerCase(),
+  };
+}
+
+// Same blocklist as the site's isRentable() (+ 'reserved', the 48h hold).
 function isRentable(l) {
-  const st = norm(l.status || 'available');
-  return st === 'available' || st === 'waitlist';
+  const st = l.status;
+  return !(st === 'rented' || st === 'affittato' || st === 'off_market' || st === 'draft' || st === 'hidden' || st === 'reserved');
 }
 
 // Mirrors the discovery page's pass() closely enough to keep promises honest.
+// Expects a listing already run through normListing().
 export function matches(criteria, l) {
   const c = criteria || {};
-  if (c.budgetMax && Number(l.price) > Number(c.budgetMax)) return false;
+  // Same 1.15× tolerance the discovery page applies to the budget slider.
+  if (c.budgetMax && Number(l.price) > Number(c.budgetMax) * 1.15) return false;
   if (c.beds  && Number(l.beds  || 0) < Number(c.beds))  return false;
-  if (c.baths && Number(l.bathrooms || l.baths || 0) < Number(c.baths)) return false;
-  if (c.furnished && !(l.furnished === true || norm(l.furnished) === 'yes' || norm(l.furnished) === 'furnished')) return false;
+  if (c.baths && Number(l.baths || 0) < Number(c.baths)) return false;
+  if (c.furnished && !l.furnished) return false;
   if (c.video && !l.videoUrl) return false;
   if (Array.isArray(c.zones) && c.zones.length) {
     const z = norm(l.zone);
     if (!c.zones.some(x => z === norm(x) || z.includes(norm(x)))) return false;
   }
   if (Array.isArray(c.feats) && c.feats.length) {
-    const feats = (Array.isArray(l.features) ? l.features : []).map(norm);
+    const feats = l.features.map(norm);
     if (!c.feats.every(f => feats.some(x => x.includes(norm(f))))) return false;
   }
   if (c.q) {
-    const hay = norm((l.name || '') + ' ' + (l.zone || '') + ' ' + (l.description || ''));
+    const hay = norm(l.name + ' ' + l.zone + ' ' + l.description);
     if (!hay.includes(norm(c.q))) return false;
   }
   return true;
@@ -82,9 +114,12 @@ function digestHtml(search, hits) {
 }
 
 export default async function handler(req, res) {
-  const isVercelCron = req.headers['authorization'] === `Bearer ${process.env.CRON_SECRET}`;
+  // ?dry=1 used to SKIP auth entirely — free 600-doc Firestore reads for
+  // anyone who found the URL. Dry stays available, but only to the cron
+  // secret, the Homie secret or an admin ID token (same guard as pfs/*).
+  const actor = await requireCronOrAdmin(req, res);
+  if (!actor) return;
   const dry = req.query?.dry === '1';
-  if (!isVercelCron && !dry) return res.status(401).json({ ok: false, error: 'unauthorized' });
 
   const report = { searches: 0, seeded: 0, emailed: 0, matchesFound: 0, errors: [] };
   try {
@@ -92,7 +127,7 @@ export default async function handler(req, res) {
       fsList('savedSearches', { limit: 300 }),
       fsList('listings', { limit: 300 }),
     ]);
-    const catalog = listings.filter(isRentable);
+    const catalog = listings.map(normListing).filter(isRentable);
     let emailsSent = 0;
 
     for (const s of searches) {
@@ -138,9 +173,25 @@ export default async function handler(req, res) {
         report.emailed++; // would have
       }
     }
+    // Heartbeat (real runs only — a dry test must not overwrite cron state).
+    if (!dry) {
+      try {
+        const { reportEmployeeHealth } = await import('../employees/_lib.js');
+        await reportEmployeeHealth('search-matcher', {
+          ok: report.errors.length === 0,
+          error: report.errors.length ? report.errors.slice(0, 3).join(' | ') : null,
+          stats: { searches: report.searches, seeded: report.seeded, emailed: report.emailed, matchesFound: report.matchesFound },
+        });
+      } catch (e) { console.error('[matcher] heartbeat failed:', e.message); }
+    }
+
     return res.status(200).json({ ok: true, dry, ...report });
   } catch (e) {
     console.error('[matcher]', e);
+    try {
+      const { reportEmployeeHealth } = await import('../employees/_lib.js');
+      await reportEmployeeHealth('search-matcher', { ok: false, error: e.message });
+    } catch (e2) { console.error('[matcher] heartbeat failed:', e2.message); }
     return res.status(500).json({ ok: false, error: e.message, ...report });
   }
 }

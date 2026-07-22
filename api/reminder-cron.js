@@ -289,9 +289,25 @@ export default async function handler(req, res) {
       results.paReminders = await runPaReminders();
     } catch (e) { results.errors.push(`pa-remind: ${e.message}`); }
 
+    // Heartbeat: this cron already had one documented multi-day silent
+    // outage (see the pushPass note above). teamHealth carries the 3-strike
+    // Telegram alarm, so a broken run buzzes the phone instead of rotting.
+    try {
+      const { reportEmployeeHealth } = await import('./employees/_lib.js');
+      await reportEmployeeHealth('reminder-cron', {
+        ok: results.errors.length === 0,
+        error: results.errors.length ? results.errors.slice(0, 3).join(' | ') : null,
+        stats: { ...results, errors: results.errors.length },
+      });
+    } catch (e) { console.error('heartbeat failed:', e.message); }
+
     return res.status(200).json({ ok: true, timestamp: now.toISOString(), ...results });
   } catch (e) {
     console.error('Cron error:', e);
+    try {
+      const { reportEmployeeHealth } = await import('./employees/_lib.js');
+      await reportEmployeeHealth('reminder-cron', { ok: false, error: e.message });
+    } catch (e2) { console.error('heartbeat failed:', e2.message); }
     return res.status(500).json({ error: e.message });
   }
 }

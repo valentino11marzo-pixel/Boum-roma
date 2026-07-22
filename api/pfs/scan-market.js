@@ -129,15 +129,19 @@ export default async function handler(req, res) {
     results.push({ id: search.id, ok: true, found: urls.length, new: newHere });
   }
 
-  // Health: the run is "ok" if at least one page was reachable. All pages
-  // blocked = the portals are refusing this IP — that's a real outage of
-  // this source and should count toward the Telegram alert.
+  // Health: anti-bot 403s are the EXPECTED state of this best-effort
+  // source (the portals block datacenter IPs at will — documented at the
+  // top of this file). Counting them as failures fired a "fonte ferma"
+  // Telegram every 6 hours forever, training the operator to ignore the
+  // one channel the real alarms (inbox, webhook) depend on. All-blocked is
+  // recorded visibly in stats for the command center, but the run itself
+  // is healthy — the pipeline worked, the portals said no.
   const ok = pagesOk > 0;
+  const allBlocked = pagesFailed > 0 && pagesOk === 0;
   await reportNeedsAttention('market', needsAttention);
   await reportHealth('market', {
-    ok,
-    error: ok ? null : `all ${pagesFailed} search pages unreachable (anti-bot?)`,
-    stats: { searches: searches.length, pagesOk, pagesFailed, ingested, droppedAgency, pushedTotal },
+    ok: true,
+    stats: { searches: searches.length, pagesOk, pagesFailed, allBlocked, ingested, droppedAgency, pushedTotal },
   });
 
   return res.status(200).json({

@@ -8,7 +8,7 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
 
 - **Frontend**: Vanilla HTML/CSS/JS (no framework, no build step)
 - **Database & Auth**: Firebase (Firestore + Firebase Auth)
-- **Backend**: Vercel Serverless Functions (Node.js, CommonJS)
+- **Backend**: Vercel Serverless Functions (Node.js, **ESM** — `api/package.json` sets `"type": "module"`; use `import`, never `require`)
 - **Hosting**: Vercel — static HTML served directly, no build pipeline
 - **Apple Wallet**: passkit-generator v3.5.7
 - **Email**: Nodemailer (Gmail) for backend, EmailJS for client-side
@@ -51,7 +51,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 
 | File | Purpose |
 |---|---|
-| `portal.html` | Main admin/user app (~21K lines). Single-page app with all CRUD, dashboards, analytics. **Read first.** |
+| `portal.html` | Main admin/user app SHELL (~650 lines). The actual SPA logic lives in `js/portal-app.js` (~27K lines — all CRUD, dashboards, analytics). **Read `js/portal-app.js` first.** |
 | `proppass.html` | Apple Wallet pass generator UI. Four pass types: viewing, tenant, referral, landlord. |
 | `pass-delivery.html` | Pass display page with animated gold-ring background and QR code. |
 | `index.html` | Landing page / homepage. |
@@ -61,7 +61,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `vercel.json` | Deployment config, rewrites, cron schedule. |
 | `js/firebase-config.js` | Firebase project config (`boom-property-dashboards`). |
 | `js/boom-portal.js` | Shared portal lib — `window.BoomPortal` API. |
-| `owner-dashboard.html` | Landlord/owner SPA. Firestore-backed, filtered by `ownerId`. |
+| `owner.html` | Owner portal (role `owner`) served at `/owner`. Firestore-backed, filtered by `ownerId`, auth via `/login`. (`owner-dashboard.html` is a RETIRED localStorage demo — `/owner-dashboard` redirects here; do not route users to it.) |
 | `tenant.html` | Tenant SPA. Realtime property + maintenance feed. |
 | `client-portal.html` | PFS client swipe app. Reads `pfsClients` collection. |
 | `pfs-command.html` | PFS Command Center (admin). Radar feed, per-client match scores, outreach tracking, source health, search management. Backed by `api/pfs/*`. |
@@ -116,6 +116,15 @@ GMAIL_APP_PASS
 
 # AI document parsing
 ANTHROPIC_API_KEY
+
+# Stripe (checkout endpoints + api/stripe-webhook.js)
+STRIPE_SECRET_KEY
+STRIPE_WEBHOOK_SECRET        # signing secret of the webhook endpoint —
+                             # subscribe it to checkout.session.completed
+                             # AND checkout.session.expired (abandoned-cart)
+
+# EmailJS (webhook confirmations + fallback transport for PA emails)
+EMAILJS_PRIVATE_KEY
 
 # Cron auth
 CRON_SECRET
@@ -226,6 +235,26 @@ WhatsApp-only. All four pages (`virtual-viewing`, `deal-assistance`,
 (MATERIA ambient, pay-plate + checkout sheet, sticky mobile pay bar,
 JSON-LD Service+Offer+FAQ).
 
+**Checkout-funnel invariants (all Stripe products)**: every checkout
+endpoint (`service-checkout`, `create-checkout`, `reserve-checkout`) writes
+the lead BEFORE redirecting to Stripe (`leads/{svc|pfs|res}_<sessionId>`,
+`status:'checkout_started'`); the webhook upgrades the same doc on
+`checkout.session.completed` and flips it to `'abandoned'` (+ Telegram
+nudge) on `checkout.session.expired`. Critical webhook writes that fail
+return **500 so Stripe redelivers** (all branches idempotent); swallowed
+errors alert via Telegram. The €300 instant hold really holds: the webhook
+patches the listing to `status:'reserved'` + `reservedUntil` (48h),
+`reserve-checkout` rejects a second hold, the public pages hide/label
+reserved homes, and `reminder-cron` reverts expired holds (+ Telegram).
+
+### POST `/api/rent-checkout`
+Tenant rent payment from the portal (the "💳 Paga" button in
+`js/portal-app.js`). Auth: Firebase ID token (role tenant/admin). Body
+`{ paymentId }` — amount and ownership resolved SERVER-side from the
+`payments` doc. Webhook branch `service:'RENT'` marks the doc paid
+(`paidVia:'stripe'`), notifies via agentNotifications + Telegram and emails
+the receipt confirmation.
+
 ### POST `/api/search/save`
 Public save-search endpoint for the apartments discovery page. Body
 `{ email, label?, criteria{q,budgetMax,moveIn,beds,baths,furnished,video,
@@ -296,6 +325,13 @@ annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
   statically (top-level `import`). Lazy `await import('pkg')` is not traced
   by Vercel's bundler → "Cannot find package" at runtime in production
   (this silently killed all pre-agreement emails until 2026-07).
+- **Email delivery is dual-transport + retried**: every PA email
+  (paid/accepted document, Magic-Sign link) tries Gmail/Nodemailer first,
+  then falls back to EmailJS (`api/_emailjs.js`, needs
+  `EMAILJS_PRIVATE_KEY`); if BOTH fail, a Telegram alert fires with the
+  document link to forward manually. The webhook tracks delivery separately
+  from payment (`paidEmailsSentAt`): a failed client email returns 500 so
+  Stripe redelivers and ONLY the emails are re-attempted.
 - `pre-agreement.html` — the public page, an Apple-style guided 4-step
   flow: **Review** (hero tiles: monthly all-in / due today / move-in /
   term, full terms, advisor card, trust chips) → **Details** (identity +
@@ -507,7 +543,7 @@ loader, confirm dialog) — see `BoomPortal.*` API.
 
 | Portal | Role(s) accepted | Collections read/written |
 |---|---|---|
-| `owner-dashboard.html` | `owner`, `landlord`, `admin` | reads/writes `properties` filtered by `ownerId` |
+| `owner.html` (`/owner`) | `owner` | reads `properties` filtered by `ownerId` |
 | `tenant.html` | `tenant` | reads `properties` (own), writes `maintenance` |
 | `client-portal.html` | access code on `pfsClients` doc | reads/writes `pfsClients.portalProperties` |
 

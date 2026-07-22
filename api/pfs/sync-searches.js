@@ -15,6 +15,7 @@ import { fsGet, fsPatch, fsList, logActivity } from '../homie/_lib.js';
 import { requireCronOrAdmin } from './_guard.js';
 import { listActiveClients } from './_ingest.js';
 import { buildSearchUrls } from './_searchurls.js';
+import { reportHealth } from './_health.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET' && req.method !== 'POST') {
@@ -31,7 +32,10 @@ export default async function handler(req, res) {
 
   let clients;
   try { clients = await listActiveClients(); }
-  catch (e) { return res.status(500).json({ ok: false, error: 'client_list_failed', detail: e.message }); }
+  catch (e) {
+    await reportHealth('sync', { ok: false, error: 'client_list_failed: ' + e.message });
+    return res.status(500).json({ ok: false, error: 'client_list_failed', detail: e.message });
+  }
 
   const activeIds = new Set(clients.map(c => c.id));
 
@@ -83,6 +87,12 @@ export default async function handler(req, res) {
     disabled: disabled.length,
     errors: errors.length,
   }, actor);
+
+  await reportHealth('sync', {
+    ok: errors.length === 0,
+    error: errors.length ? `${errors.length} error(s), first: ${JSON.stringify(errors[0]).slice(0, 200)}` : null,
+    stats: { activeClients: clients.length, created: created.length, updated: updated.length, disabled: disabled.length },
+  });
 
   return res.status(200).json({
     ok: errors.length === 0,
