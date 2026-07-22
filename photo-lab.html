@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#060607">
+<title>Photo Lab — curatela AI del catalogo · BOOM</title>
+<link rel="stylesheet" href="/css/boom-2026.css">
+<style>
+main{max-width:860px;padding-top:60px}
+.hd h1{font-weight:100;font-size:clamp(28px,6vw,44px);line-height:1.08}
+.hd h1 em{font-style:normal;color:var(--gold);font-weight:300}
+.hd p{color:var(--t3);font-size:13px;margin-top:8px;max-width:60ch}
+.apt{border:1px solid var(--line);border-radius:16px;background:var(--card);padding:16px 18px;margin-top:12px}
+.apt .top{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.apt .top b{font-weight:400;font-size:16px}
+.apt .top small{color:var(--t4)}
+.apt .top .done{font-size:9px;letter-spacing:1.6px;text-transform:uppercase;color:var(--green);border:1px solid rgba(61,220,151,.35);border-radius:100px;padding:3px 9px}
+.btns{margin-left:auto;display:flex;gap:8px}
+button.b{border:1px solid var(--line-gold);background:var(--gold-faint);color:var(--gold);border-radius:10px;padding:9px 14px;font-size:12.5px;letter-spacing:.5px;cursor:pointer;font-family:inherit}
+button.b.solid{background:var(--gold);color:#111;font-weight:600;border-color:var(--gold)}
+button.b:disabled{opacity:.45;cursor:default}
+.plan{margin-top:12px;display:none}
+.plan.on{display:block}
+.gridp{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin-top:10px}
+.ph{position:relative;border:1px solid var(--line-soft);border-radius:10px;overflow:hidden;aspect-ratio:4/3;background:#101013}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ph .tag{position:absolute;left:4px;bottom:4px;right:4px;font-size:8.5px;letter-spacing:.6px;text-transform:uppercase;color:#fff;background:rgba(0,0,0,.62);border-radius:6px;padding:2px 5px;text-align:center}
+.ph.cover{outline:2px solid var(--gold)}
+.ph.drop{opacity:.35}
+.ph.drop::after{content:'DUPLICATO';position:absolute;inset:0;display:grid;place-items:center;font-size:9px;letter-spacing:2px;color:#ff9c92;background:rgba(0,0,0,.5)}
+.note{font-size:12px;color:var(--t3);margin-top:10px}
+.note b{color:var(--t2);font-weight:500}
+.err{color:#ff9c92;font-size:12.5px;margin-top:8px}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid var(--gold);border-top-color:transparent;border-radius:50%;animation:sp 0.8s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.legend{margin-top:16px;font-size:11.5px;color:var(--t4);line-height:1.8}
+</style>
+</head>
+<body>
+<main>
+  <div class="hd">
+    <span class="eyebrow">Strumento interno · Claude Vision + enhancement</span>
+    <h1>Photo Lab. <em>Il catalogo si cura da solo.</em></h1>
+    <p>Per ogni casa: <b style="color:var(--t2)">Audit</b> fa guardare ogni foto all'AI (vera/planimetria/render, stanza, rotazione, qualità) e propone copertina, ordine e scarti — senza toccare nulla. <b style="color:var(--t2)">Applica</b> esegue: migliora le foto (luce, contrasto, nitidezza — planimetrie raddrizzate, mai saturate), le carica su Storage e aggiorna l'annuncio. Gli originali restano salvati in <code style="color:var(--gold)">imagesOriginal</code>: sempre reversibile, ri-applicabile.</p>
+  </div>
+  <div id="list"><p class="note"><span class="spin"></span>Carico il catalogo…</p></div>
+  <p class="legend">⭐ copertina proposta · l'ordine mostrato è l'ordine che avrà la gallery (planimetrie in coda) · badge = tipo/stanza/qualità · rotazioni applicate automaticamente</p>
+</main>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="/js/firebase-config.js"></script>
+<script src="/js/boom-portal.js"></script>
+<script>
+(function(){
+'use strict';
+var USER=null;
+var $=function(id){return document.getElementById(id)};
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+
+var authOk=false;
+BoomPortal.requireAuth(['admin','owner','landlord'],{loginUrl:'/login.html?next=%2Fphoto-lab'}).then(function(res){
+  authOk=true;USER=res.user;load();
+}).catch(function(){
+  $('list').innerHTML='<p class="err">Serve l\'accesso admin. <a style="color:var(--gold)" href="/login?next=%2Fphoto-lab">Vai al login →</a></p>';
+});
+setTimeout(function(){
+  if(!authOk&&!USER){$('list').innerHTML='<p class="err">Il login non risponde — <a style="color:var(--gold)" href="/login?next=%2Fphoto-lab">accedi qui</a> e torna su questa pagina.</p>';}
+},9000);
+
+function load(){
+  fetch('/api/listings',{cache:'no-store'}).then(function(r){return r.json()}).then(function(j){
+    if(!j||!j.ok)throw 0;
+    var L=j.listings.filter(function(l){var s=String(l.status||'available').toLowerCase();return s==='available'||s==='waitlist'});
+    L.sort(function(a,b){return String(a.zone||'').localeCompare(String(b.zone||''))||String(a.name||'').localeCompare(String(b.name||''))});
+    $('list').innerHTML=L.map(function(l){
+      var n=(Array.isArray(l.images)?l.images.length:0)||(l.image?1:0);
+      return '<div class="apt" data-id="'+esc(l.id)+'"><div class="top"><b>'+esc(l.name||l.id)+'</b>'
+        +'<small>'+esc(l.zone||'')+' · '+n+' foto</small>'
+        +(l.photosEnhancedAt?'<span class="done">✓ curato '+esc(String(l.photosEnhancedAt).slice(0,10))+'</span>':'')
+        +'<span class="btns"><button class="b" onclick="runA(\''+esc(l.id)+'\',\'audit\')">Audit</button>'
+        +'<button class="b solid" onclick="runA(\''+esc(l.id)+'\',\'apply\')">Applica</button></span></div>'
+        +'<div class="plan" id="plan-'+esc(l.id)+'"></div></div>';
+    }).join('')||'<p class="note">Nessun annuncio.</p>';
+  }).catch(function(){$('list').innerHTML='<p class="err">Non riesco a leggere il catalogo — ricarica.</p>'});
+}
+
+window.runA=function(id,mode){
+  var box=$('plan-'+id);box.classList.add('on');
+  if(mode==='apply'&&!confirm('Applico la curatela AI a questo annuncio?\nGli originali restano salvati (reversibile).'))return;
+  box.innerHTML='<p class="note"><span class="spin"></span>'+(mode==='apply'?'Miglioro, carico e aggiorno — può volerci fino a un minuto…':'L\'AI sta guardando ogni foto…')+'</p>';
+  USER.getIdToken().then(function(tok){
+    return fetch('/api/photos/enhance',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
+      body:JSON.stringify({listingId:id,mode:mode})});
+  }).then(function(r){return r.json()}).then(function(j){
+    if(!j||!j.ok)throw new Error((j&&(j.detail||j.error))||'failed');
+    if(!j.plan){box.innerHTML='<p class="note">Nessuna foto su questo annuncio.</p>';return;}
+    var p=j.plan;
+    var html='<p class="note">'+(p.ai?'🤖 Verdetto AI':'⚙️ Fallback euristico (senza AI)')+' su <b>'+p.count+' foto</b>'
+      +(p.dropped.length?' · <b>'+p.dropped.length+' duplicati eliminati</b>':'')
+      +(p.skipped.length?' · '+p.skipped.length+' non raggiungibili':'')
+      +(j.applied?' · <b style="color:var(--green)">APPLICATO ✓</b> — controlla <a style="color:var(--gold)" target="_blank" href="/listing/'+encodeURIComponent(id)+'">la pagina live →</a>':'')+'</p>';
+    html+='<div class="gridp">'+p.order.map(function(f,k){
+      var src=j.applied?j.applied.images[k]:f.url;
+      return '<div class="ph'+(f.isCover?' cover':'')+'"><img src="'+esc(src)+'" loading="lazy">'
+        +'<span class="tag">'+(f.isCover?'⭐ ':'')+esc(f.kind)+(f.kind==='photo'?' · '+esc(f.room):'')+' · q'+f.quality
+        +(f.rotateDeg?' · ↻'+f.rotateDeg+'°':'')+(f.watermark?' · wm':'')+'</span></div>';
+    }).join('')
+    +p.dropped.map(function(f){return '<div class="ph drop"><img src="'+esc(f.url)+'" loading="lazy"></div>'}).join('')+'</div>';
+    box.innerHTML=html;
+  }).catch(function(e){box.innerHTML='<p class="err">Errore: '+esc(e.message)+' — riprova.</p>'});
+};
+})();
+</script>
+</body>
+</html>

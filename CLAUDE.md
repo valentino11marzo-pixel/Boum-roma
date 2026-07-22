@@ -248,19 +248,64 @@ Sendable RENTAL PROPOSAL / pre-agreement, modeled on the real BOOM document
 (parties landlord⇄tenant, transitional lease L.431/98 art.5 c.1, fee % of
 annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
 - `POST /api/preagreement/create` — admin/owner/landlord (Bearer ID token).
-  Deal fields (property, landlord, lease, money: rent/depositMonths/feePct/
-  feeVatPct/dueAtSigning) → creates `preAgreements` doc with 32-hex token →
-  `{ ok, id, token, url:'/pre-agreement?t=…' }`. Fee/deposit/endDate derived
-  server-side (month-end clamp).
-- `POST /api/preagreement/lookup` — public `{ token }` → sanitized doc;
-  audit-logs views; 410 when revoked.
+  Deal fields (property, landlord, lease, money knobs: rent/energyCredit/
+  depositMonths/depositSplitPct/feeMode(pct|months)/feePct/feeMonths/
+  feeVatPct/feeDue(move-in|signing|separate)/dueAtSigning) → creates
+  `preAgreements` doc with 32-hex token → `{ ok, id, token, url }`.
+  All money derivations server-side via exported `deriveMoney()` (monthly
+  total with energy credit, deposit split at-signing/at-move-in, fee as %
+  of annual OR months of rent, endDate month-end clamp). The admin console
+  mirrors the same math client-side for edit-in-place.
+- `POST /api/preagreement/lookup` — public `{ token }` → sanitized doc
+  (incl. `tenants[]`); audit-logs views; 410 when revoked.
 - `POST /api/preagreement/submit` — public. Tenant self-fills identity
-  (name/dob/birthplace/nationality/address/CF/ID/email/phone) + consent →
-  status `accepted`, quotable ref `BOOM-<base36>`, and when
-  `money.dueAtSigning>0` returns a Stripe Checkout URL (acceptance is never
-  voided by a failed checkout).
-- `pre-agreement.html` — the public document page (identity form lives
-  inside §1 of the document; accept & sign → Stripe; print-friendly).
+  (name/dob/birthplace/nationality/address/CF/ID/email/phone) + optional
+  co-tenants (`tenants[]`, ≤6, each typed name = signature, joint & several
+  liability clause auto-added) + consent → status `accepted`, quotable ref
+  `BOOM-<base36>`, and when `money.dueAtSigning>0` returns a Stripe Checkout
+  URL (acceptance is never voided by a failed checkout).
+- `POST /api/preagreement/convert` — admin/owner/landlord. One tap from the
+  console: accepted/paid PA → `contracts` doc (identity/lease/money carried
+  over, tenant `users` profile bootstrapped by email match, Magic-Sign
+  tokens minted, `signingOrder:'sequential'`). `delegate:true` (default)
+  records `landlordDelegate` — the landlord-side sign link is returned to
+  the ADMIN who countersigns per delega after the tenant signs (sign.html
+  shows "signing as X on behalf of Y"; magic-sign submit stamps
+  `landlordSignedByDelegate`). Idempotent via `pa.contractId`.
+- `POST /api/preagreement/upload` — public, PA-token-scoped. The Verify
+  step's ID/passport upload: base64 (client downscales photos to ~1800px
+  JPEG) → Firebase Storage `preagreements/<paId>/…` under ADMIN creds
+  (admin-only per storage.rules; tokenized URL kept on `pa.uploads[]`,
+  never returned to the public page). Convert copies these onto the
+  contract (`identityDocs`) + tenant user profile.
+- `api/preagreement/_auto.js` — `maybeAutoConvert()`: when the PA carries
+  `propertyId` + `autoConvert` (set from the console's "Portal property"
+  picker), the contract creates ITSELF the moment the deal closes — from
+  `submit.js` (acceptance with nothing due) or the Stripe webhook (paid).
+  ADMIN-ONLY notification: the client's Magic-Sign email is a deliberate
+  console decision, never automatic.
+- `POST /api/preagreement/send-sign` — the console's 🖊 Magic Sign button.
+  Admin auth. One tap: converts if needed (idempotent), emails the tenant
+  their Magic-Sign link, patches `pa.signSentAt` + stores both sign URLs on
+  the PA (admin-only) so the row offers WhatsApp share + delegate-link copy.
+  Re-press = resend.
+- `POST /api/preagreement/notify` — console "✉ Reinvia copia". Admin auth.
+  Re-sends the accepted/paid document email to the client (recovery path
+  for failed sends / "non l'ho ricevuta").
+- **Email transport warning**: `nodemailer` and `pdf-lib` MUST be imported
+  statically (top-level `import`). Lazy `await import('pkg')` is not traced
+  by Vercel's bundler → "Cannot find package" at runtime in production
+  (this silently killed all pre-agreement emails until 2026-07).
+- `pre-agreement.html` — the public page, an Apple-style guided 4-step
+  flow: **Review** (hero tiles: monthly all-in / due today / move-in /
+  term, full terms, advisor card, trust chips) → **Details** (identity +
+  "+ Add a co-tenant" blocks, draft autosaved) → **Verify** (optional ID
+  upload per signer — skippable, GDPR note) → **Sign** (the assembled
+  paper document with typed-calligraphy signatures + consent). Frosted
+  segmented stepper, single bottom action bar, stamp ceremony, accepted
+  view with "what happens next" timeline (payment → contract → sign →
+  keys), Stripe resume, QR, WhatsApp copy, print = b/w paper replica.
+  Custom `extras[]` money lines render in §4, `customClauses[]` in §5.
 - `pre-agreement-admin.html` — generator + management console (BoomPortal
   auth, listing prefill, live fee math, WhatsApp share). Realtime list of all
   preAgreements with status chips (sent/viewed/accepted/paid/revoked): copy
@@ -278,11 +323,16 @@ annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
   due via Stripe (else it arrives after payment); admin always notified.
 
 **Deal pipeline (protocol)**: lead (`/api/apply-lead` or portal) →
-pre-agreement (console → tokenized link → client self-fills → accepts →
-Stripe if due>0 → confirmation emails) → rental contract in portal →
-Magic Sign (tenant+landlord tokens) → tenant portal (payments/documents).
-Terms differ per deal: edit before acceptance (same link); after
-acceptance/payment, Duplicate creates the new version.
+pre-agreement (console, with a Portal-property link → tokenized link →
+client walks the 4-step flow: reviews, self-fills + co-tenants, uploads
+ID, signs → Stripe if due>0 → confirmation emails + WhatsApp copy) →
+contract creates AUTOMATICALLY on close (`_auto.js`; or manually via the
+console's "→ Contract" / `/api/preagreement/convert`) with identity, ID
+files and terms carried over → tenant gets the Magic-Sign link by email →
+admin countersigns per delega on their own schedule → RLI registration →
+tenant portal (payments/documents). Terms differ per deal: any money knob,
+extra line items and custom clauses per PA; edit before acceptance (same
+link); after acceptance/payment, Duplicate creates the new version.
 
 ### POST `/api/magic-sign/lookup`
 Public endpoint for the Magic-Sign UI. Body: `{ token }`. Looks up the
@@ -417,6 +467,20 @@ admin-only, noindex) — linked accounts + consent status, recent movements
 with one-tap match confirmation, CSV/ICS export, manual import. The
 Contabile's morning report includes the bank picture (riconciliati/da
 confermare/consensi scaduti).
+### POST `/api/photos/enhance`
+AI photo curation for the catalog (admin/owner/landlord, Firebase ID token).
+Body `{ listingId, mode:'audit'|'apply' }`. Claude Vision (haiku) classifies
+every photo (photo/render/floorplan/document, room, needed rotation, quality,
+coverScore, watermark) → plan: best real photo becomes cover, gallery
+reordered living→kitchen→bedrooms→bath→exterior with floorplans last, exact
+duplicates dropped. `apply` enhances via sharp (EXIF+AI rotation, contrast
+stretch, per-photo preset from the AI grade; floorplans never saturated),
+uploads to Storage `listings/enhanced/<id>/` and patches the listing (`image`,
+`images`, `photosEnhancedAt`), saving the original URL list to
+`imagesOriginal` once — reversible and re-runnable (always re-plans from the
+originals). Heuristic fallback when ANTHROPIC_API_KEY is absent. Backed by
+the `photo-lab.html` console (BoomPortal auth). sharp is a real dependency;
+function has maxDuration 60 + 1769MB in vercel.json.
 
 ### POST `/api/admin/match-test`
 Admin test harness + manual-ingest endpoint (Firebase ID token, role

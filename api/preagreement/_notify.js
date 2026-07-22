@@ -13,6 +13,7 @@
 // mail error.
 
 import { sendEmail } from '../agent/_lib.js';
+import { buildPaPdf } from './_pdf.js';
 
 const ADMIN_EMAIL = 'valentino@boom-rome.com';
 
@@ -34,8 +35,12 @@ function row(k, v, sub) {
 // The pre-agreement, as a black-and-white paper document (email-safe HTML).
 export function paDocumentHtml(pa, opts = {}) {
   const p = pa.property || {}, le = pa.lease || {}, m = pa.money || {}, t = pa.tenant || {};
+  const tenants = Array.isArray(pa.tenants) && pa.tenants.length ? pa.tenants : (t.fullName ? [t] : []);
   const ref = opts.ref || pa.ref || '';
   const paid = !!opts.paidEur;
+  const inc = m.utilities === 'included';
+  const ec = inc ? 0 : (Number(m.energyCredit) || 0);
+  const split = m.depositSplitPct != null ? Number(m.depositSplitPct) : 100;
 
   const head = `
   <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom:2px solid #111;padding-bottom:14px;margin-bottom:4px">
@@ -52,33 +57,56 @@ export function paDocumentHtml(pa, opts = {}) {
     </tr>
   </table>`;
 
+  const namesLine = tenants.map(x => esc(x.fullName)).filter(Boolean).join(' · ') || 'The Tenant';
   const parties = `
   <div style="margin:18px 0 6px;font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#111">
     <span style="color:#8a8a8a">Between</span> <b>BOOM · Egidi Immobiliare S.r.l.</b>
-    <span style="color:#8a8a8a">&nbsp;⇄&nbsp;</span> <b>${esc(t.fullName || 'The Tenant')}</b>
+    <span style="color:#8a8a8a">&nbsp;⇄&nbsp;</span> <b>${namesLine}</b>
     <span style="color:#8a8a8a">&nbsp;·&nbsp; on behalf of the landlord</span> <b>${esc((pa.landlord || {}).name || '')}</b>
   </div>`;
 
-  const feeNote = !m.feeTotal
-    ? 'none for this agreement'
-    : `${m.feeFlat != null ? '' : (m.feePct != null ? m.feePct : 12) + '% of annual rent = '}${eur(m.fee)} + VAT ${m.feeVatPct != null ? m.feeVatPct : 22}% (${eur(m.feeVat)}) = <b>${eur(m.feeTotal)}</b>`;
+  const feeAmt = m.feeMode === 'months'
+    ? `${m.feeMonths || 1} month${(m.feeMonths || 1) === 1 ? '’s' : 's’'} base rent = ${eur(m.fee)}`
+    : (m.feeMode === 'flat' || m.feeFlat != null) ? `${eur(m.fee)} (fixed)`
+    : `${m.feePct != null ? m.feePct : 12}% of annual rent = ${eur(m.fee)}`;
+  const feeNote = Number(m.fee) > 0
+    ? `${feeAmt} + VAT ${m.feeVatPct != null ? m.feeVatPct : 22}% (${eur(m.feeVat)}) = <b>${eur(m.feeTotal)}</b>`
+    : 'none for this agreement';
+  const feeWhen = m.feeDue === 'move-in' ? 'due upon move-in — not at pre-agreement signing'
+    : m.feeDue === 'signing' ? 'due at signing — included in the total due at signing'
+    : 'due separately — not at signing';
+  const rentRow = ec > 0
+    ? row('Monthly total', `<b>${eur(m.monthlyTotal != null ? m.monthlyTotal : (Number(m.rent) || 0) + ec)}</b> /month`,
+        `base rent ${eur(m.rent)} + energy credit ${eur(ec)} (covers electricity up to ${eur(ec)}/month)`)
+    : row('Monthly rent', `<b>${eur(m.rent)}</b> /month`, inc ? 'all utilities included' : null);
+  const depSub = split > 0 && split < 100
+    ? `${m.depositMonths || 1} month(s)’ base rent — ${split}% (${eur(m.depositAtSigning != null ? m.depositAtSigning : m.deposit * split / 100)}) at signing, ${100 - split}% (${eur(m.depositAtMoveIn != null ? m.depositAtMoveIn : m.deposit * (100 - split) / 100)}) upon move-in`
+    : `${m.depositMonths || 1} month(s) · refundable`;
+
+  const coTenantRows = tenants.slice(1).map(x =>
+    row('Co-tenant', `<b>${esc(x.fullName)}</b>`, [x.email, x.phone, x.cf].filter(Boolean).map(esc).join(' · '))).join('');
+  const extrasRows = (Array.isArray(pa.extras) ? pa.extras : [])
+    .map(x => row(esc(x.label), `<b>${eur(x.amount)}</b>`)).join('');
 
   const body = `
   <table width="100%" cellpadding="0" cellspacing="0" style="font-family:Helvetica,Arial,sans-serif;margin-top:8px">
     ${row('The property', `<b>${esc(p.address || '')}</b>`, [p.type, p.floor, p.condition].filter(Boolean).map(esc).join(' · '))}
     ${row('Lease term', `<b>${fmtD(le.startDate)} → ${fmtD(le.endDate)}</b>`, `${le.months || ''} months · ${esc(le.type || '')}${le.reason ? ' · need: ' + esc(le.reason) : ''}`)}
-    ${row('Monthly rent', `<b>${eur(m.rent)}</b> /month`)}
-    ${row('Deposit', `<b>${eur(m.deposit)}</b>`, `${m.depositMonths || 1} month(s) · refundable`)}
-    ${row('Agency fee', feeNote, 'due separately — not at signing')}
+    ${rentRow}
+    ${row('Deposit', `<b>${eur(m.deposit)}</b>`, depSub)}
+    ${extrasRows}
+    ${row('Agency fee', feeNote, feeWhen)}
     ${row('Due at signing', `<b style="font-size:16px">${eur(m.dueAtSigning)}</b>`, paid ? `paid ${opts.paidAt ? fmtD(opts.paidAt) : ''} via Stripe` : null)}
-    ${t.fullName ? row('Tenant', `<b>${esc(t.fullName)}</b>`, [t.email, t.phone].filter(Boolean).map(esc).join(' · ')) : ''}
+    ${t.fullName ? row('Tenant', `<b>${esc(t.fullName)}</b>`, [t.email, t.phone, t.cf].filter(Boolean).map(esc).join(' · ')) : ''}
+    ${coTenantRows}
     ${pa.note ? row('Note', esc(pa.note)) : ''}
   </table>`;
 
   const conditions = `
   <div style="margin-top:18px;padding:13px 15px;background:#f6f6f6;font-family:Helvetica,Arial,sans-serif;font-size:11.5px;color:#555;line-height:1.7">
     Registered legal contract, filed with the Agenzia delle Entrate · deposit protected and returned at the end of the stay ·
-    agency fee due separately per the agreement · this document confirms the reservation of the property under the accepted terms (conditions 5.1–5.7 of the proposal).
+    agency fee ${feeWhen} ·${tenants.length > 1 ? ' all co-tenants jointly and severally liable ·' : ''}
+    this document confirms the reservation of the property under the accepted terms (general conditions of the proposal).
   </div>`;
 
   return head + parties + body + conditions;
@@ -107,6 +135,63 @@ function btn(href, label) {
     </td></tr></table>`;
 }
 
+// "Your contract is ready to sign" — the tenant's Magic-Sign email.
+// notifyClient:false = admin heads-up only (the auto pipeline PREPARES the
+// contract silently; the admin decides WHEN the client receives the signing
+// link, via the console's Magic Sign button → api/preagreement/send-sign).
+export async function sendContractSignEmail({ pa, tenantSignUrl, landlordSignUrl, delegate, notifyClient = true }) {
+  const t = pa.tenant || {};
+  const first = String(t.fullName || '').split(' ')[0] || 'there';
+  const addr = (pa.property || {}).address || 'your Rome apartment';
+  const results = { client: false, admin: false };
+
+  if (t.email && tenantSignUrl && notifyClient !== false) {
+    try {
+      await sendEmail({
+        to: t.email,
+        subject: `Your rental contract is ready to sign — ${addr}`,
+        html: shell(
+          `<p style="font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#333;line-height:1.7;margin:0 0 20px">
+            Ciao ${esc(first)} — great news: your rental contract for <b>${esc(addr)}</b> has been prepared
+            from your accepted pre-agreement${pa.ref ? ` (${esc(pa.ref)})` : ''}. Everything you already
+            filled in carried over — nothing to re-type. It takes about two minutes to sign digitally:</p>`
+          + btn(tenantSignUrl, 'Review & sign your contract')
+          + `<p style="font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#777;line-height:1.7;margin:18px 0 0">
+            Your signature is a legally valid electronic signature (FES — Art. 21 CAD), recorded with a
+            signed certificate. After you sign, BOOM countersigns and files the registration with the
+            Agenzia delle Entrate. Questions? Just reply — a human answers. Or
+            <a href="https://wa.me/393313251961" style="color:#111">WhatsApp BOOM</a>.</p>`,
+          `Your contract for ${addr} is ready to sign`),
+      });
+      results.client = true;
+    } catch (e) { console.error('[pa/_notify] contract sign email failed:', e.message); }
+  }
+
+  try {
+    await sendEmail({
+      to: ADMIN_EMAIL,
+      subject: notifyClient !== false
+        ? `🖊 Magic Sign inviato — ${t.fullName || ''} · ${addr}`
+        : `📋 Contratto PRONTO (non inviato) — ${t.fullName || ''} · ${addr}`,
+      html: shell(
+        `<p style="font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#333;line-height:1.7;margin:0 0 20px">
+          Il pre-agreement ${esc(pa.ref || '')} è chiuso e il contratto è stato <b>creato automaticamente</b> — identità, documenti e termini già dentro.
+          ${notifyClient !== false
+            ? `Link di firma inviato all'inquilino (${esc(t.email || '—')}).`
+            : `<b>Nessuna email al cliente</b>: decidi tu quando — un tocco su <b>🖊 Magic Sign</b> nella console e il link parte.`}</p>
+        <p style="font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#333;line-height:1.8">
+          ✍️ <b>Il tuo link per la controfirma per delega</b>${delegate && delegate.onBehalfOf ? ` (per conto di ${esc(delegate.onBehalfOf)})` : ''} —
+          si sblocca dopo la firma dell'inquilino:<br>
+          <a href="${esc(landlordSignUrl || '')}" style="color:#111;word-break:break-all">${esc(landlordSignUrl || '')}</a></p>`
+        + btn('https://www.boomrome.com/pre-agreement-admin', 'Apri la console'),
+        notifyClient !== false ? 'Magic Sign inviato' : 'Contratto pronto — invia Magic Sign quando vuoi'),
+    });
+    results.admin = true;
+  } catch (e) { console.error('[pa/_notify] admin contract email failed:', e.message); }
+
+  return results;
+}
+
 // Client + admin emails. `event` is 'paid' | 'accepted'. Never throws.
 // notifyClient:false sends only the admin copy (used at acceptance when a
 // Stripe payment is still expected — the client gets theirs after paying).
@@ -116,6 +201,15 @@ export async function sendPaEmails({ pa, ref, url, receiptUrl, paidEur, paidAt, 
   const addr = (pa.property || {}).address || 'your Rome apartment';
   const docHtml = paDocumentHtml(pa, { ref, paidEur, paidAt });
   const results = { client: false, admin: false };
+
+  // The signed document travels WITH the email — a real PDF in the format
+  // of the paper proposal (best-effort: a PDF failure never blocks sends).
+  let attachments = [];
+  try {
+    const pdfBuf = await buildPaPdf({ ...pa, ref: ref || pa.ref, paidEur: paidEur || pa.paidEur });
+    const safeRef = String(ref || pa.ref || 'BOOM').replace(/[^A-Za-z0-9-]/g, '');
+    attachments = [{ filename: `BOOM_Pre-Agreement_${safeRef}.pdf`, content: pdfBuf, contentType: 'application/pdf' }];
+  } catch (e) { console.error('[pa/_notify] pdf build failed:', e.message); }
 
   const intro = event === 'paid'
     ? `<p style="font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#333;line-height:1.7;margin:0 0 22px">
@@ -131,6 +225,8 @@ export async function sendPaEmails({ pa, ref, url, receiptUrl, paidEur, paidAt, 
     ${receiptUrl ? `<p style="font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#777;text-align:center;margin:14px 0 0">
       Your Stripe receipt: <a href="${esc(receiptUrl)}" style="color:#111">open receipt →</a></p>` : ''}
     <p style="font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#777;text-align:center;margin:10px 0 0">
+      Want it on WhatsApp too? <a href="https://wa.me/?text=${encodeURIComponent(`BOOM pre-agreement${ref ? ' ' + ref : ''} — ${addr}. My copy: https://www.boomrome.com${url}`)}" style="color:#111">tap here to save it to a chat →</a></p>
+    <p style="font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#777;text-align:center;margin:10px 0 0">
       Questions? Reply to this email or <a href="https://wa.me/393313251961" style="color:#111">WhatsApp BOOM</a>.</p>`;
 
   if (t.email && notifyClient !== false) {
@@ -141,20 +237,30 @@ export async function sendPaEmails({ pa, ref, url, receiptUrl, paidEur, paidAt, 
           ? `Confirmed — your BOOM pre-agreement ${ref || ''} (receipt inside)`
           : `Accepted — your BOOM pre-agreement ${ref || ''}`,
         html: shell(intro + docHtml + links, `Your pre-agreement for ${addr} — ${event === 'paid' ? 'payment confirmed' : 'accepted'}`),
+        attachments,
       });
       results.client = true;
     } catch (e) { console.error('[pa/_notify] client email failed:', e.message); }
   }
 
   try {
+    const nTen = Array.isArray(pa.tenants) ? pa.tenants.length : 1;
     const aIntro = `<p style="font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#333;line-height:1.7;margin:0 0 22px">
       ${event === 'paid' ? `💰 <b>PAGATO ${eur(paidEur)}</b> via Stripe` : '✍️ <b>ACCETTATO</b> (nessun importo dovuto via Stripe)'} —
-      ${esc(t.fullName || 'cliente')} · ${esc(addr)} · rif <b>${esc(ref || '—')}</b>.
-      ${event === 'paid' ? 'Prossimo passo: prepara il contratto nel portal e mandalo in firma con Magic Sign.' : 'Se era previsto un pagamento alla firma, il checkout non è stato completato — controlla.'}</p>`;
+      ${esc(t.fullName || 'cliente')}${nTen > 1 ? ` (+${nTen - 1} co-tenant)` : ''} · ${esc(addr)} · rif <b>${esc(ref || '—')}</b>.
+      ${event === 'paid' ? 'Prossimo passo: dalla console pre-agreement, “→ Contratto” lo converte in contratto con Magic Sign (tu firmi per delega quando vuoi).' : 'Se era previsto un pagamento alla firma, il checkout non è stato completato — controlla.'}</p>`;
+    // One-tap: send the client their copy on WhatsApp (deep link, prefilled).
+    const waPhone = String(t.phone || '').replace(/[^\d]/g, '');
+    const waMsg = `Ciao ${first}! Ecco la copia del tuo pre-agreement BOOM${ref ? ' ' + ref : ''} per ${addr} — la puoi aprire, salvare e stampare qui: https://www.boomrome.com${url}`;
+    const waBtn = waPhone ? `<table cellpadding="0" cellspacing="0" style="margin:10px auto 0"><tr>
+      <td style="background:#25D366;padding:13px 26px;text-align:center">
+        <a href="https://wa.me/${waPhone}?text=${encodeURIComponent(waMsg)}" style="font-family:Helvetica,Arial,sans-serif;font-size:13px;letter-spacing:1px;color:#ffffff;text-decoration:none">📲 Invia la copia al cliente su WhatsApp</a>
+      </td></tr></table>` : '';
     await sendEmail({
       to: ADMIN_EMAIL,
       subject: (event === 'paid' ? `💰 PA PAGATO ${eur(paidEur)} — ` : `✍️ PA accettato — `) + (t.fullName || '') + ' · ' + addr,
-      html: shell(aIntro + docHtml + btn('https://www.boomrome.com/pre-agreement-admin', 'Apri la console pre-agreement')),
+      html: shell(aIntro + docHtml + btn('https://www.boomrome.com/pre-agreement-admin', 'Apri la console pre-agreement') + waBtn),
+      attachments,
     });
     results.admin = true;
   } catch (e) { console.error('[pa/_notify] admin email failed:', e.message); }

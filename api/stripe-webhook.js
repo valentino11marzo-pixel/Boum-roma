@@ -2,6 +2,7 @@ import Stripe from 'stripe';
 import crypto from 'node:crypto';
 import { fsList, fsPatch } from './homie/_lib.js';
 import { sendPaEmails } from './preagreement/_notify.js';
+import { maybeAutoConvert } from './preagreement/_auto.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -469,7 +470,11 @@ async function handlePreagreement(res, session, m) {
     });
   } catch (e) { console.error('[webhook/pa] emails failed:', e.message); }
 
-  return res.status(200).json({ received: true, preAgreementId: id });
+  // Payment confirmed = deal sealed → auto-create the contract and send the
+  // tenant their Magic-Sign link (PA must carry propertyId + autoConvert).
+  const converted = await maybeAutoConvert({ pa: { ...pa, status: 'paid', paidAt, paidEur }, paId: id });
+
+  return res.status(200).json({ received: true, preAgreementId: id, contractId: (converted && converted.contractId) || null });
 }
 
 export default async function handler(req, res) {

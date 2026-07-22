@@ -116,6 +116,15 @@ service firebase.storage {
       allow read, write: if isAdmin();
     }
 
+    // ─── preagreements/{paId}/** ──────────────────────────────────────
+    // Tenant ID documents uploaded from the public pre-agreement page via
+    // api/preagreement/upload.js (admin credentials server-side). Admin-only
+    // here; the tokenized ?alt=media&token= URL stored on the PA doc is the
+    // read credential for the console/contract views.
+    match /preagreements/{paId}/{allPaths=**} {
+      allow read, write: if isAdmin();
+    }
+
     // ─── signRequests/{reqId}/** ──────────────────────────────────────
     // Signed tailored-PDF outputs (api/sign/custom/submit.js), uploaded with
     // the same admin ID token. Same tokenized-URL delivery for signers.
