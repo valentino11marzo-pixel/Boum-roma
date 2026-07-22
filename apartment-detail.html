@@ -140,6 +140,19 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 .hero-scrim{position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.34) 0%,transparent 26%,transparent 52%,rgba(6,6,7,.86) 100%)}
 .hero-top{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;z-index:3}
 .vbadge{display:inline-flex;align-items:center;gap:7px;background:rgba(0,0,0,.5);backdrop-filter:blur(10px);border:1px solid var(--green-muted);color:var(--green);padding:7px 12px;border-radius:100px;font-size:11.5px;font-weight:500}
+/* ---- video tour (inline cinema, section 01) ---- */
+.vtour{margin:18px 0 0;position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;border:1px solid var(--line-gold);background:#000}
+.vtour .vt-face{position:absolute;inset:0;width:100%;height:100%;padding:0;border:0;background:#000;cursor:pointer;display:block}
+.vtour img{width:100%;height:100%;object-fit:cover;opacity:.85;transition:transform .6s var(--ease),opacity .3s}
+.vtour .vt-face:hover img{transform:scale(1.03);opacity:1}
+.vtour .vt-veil{position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,rgba(0,0,0,.68));pointer-events:none}
+.vtour .vt-ring{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:72px;height:72px;border-radius:50%;display:grid;place-items:center;color:#000;background:var(--gold);box-shadow:0 0 0 0 rgba(212,175,55,.45);animation:vtpulse 2.4s ease-out infinite;transition:transform .25s var(--ease)}
+.vtour .vt-face:hover .vt-ring{transform:translate(-50%,-50%) scale(1.08)}
+.vtour .vt-ring svg{margin-left:3px}
+@keyframes vtpulse{0%{box-shadow:0 0 0 0 rgba(212,175,55,.45)}70%{box-shadow:0 0 0 22px rgba(212,175,55,0)}100%{box-shadow:0 0 0 0 rgba(212,175,55,0)}}
+.vtour .vt-cap{position:absolute;left:16px;bottom:14px;text-align:left;color:#fff;font-size:12.5px;letter-spacing:2.5px;text-transform:uppercase;display:grid;gap:3px}
+.vtour .vt-cap small{color:var(--t3);font-size:11px;letter-spacing:.3px;text-transform:none}
+@media (prefers-reduced-motion:reduce){.vtour .vt-ring{animation:none}.vtour img{transition:none}}
 .hero-acts{display:flex;gap:8px}
 .icbtn{width:42px;height:42px;border:1px solid var(--line);border-radius:50%;display:grid;place-items:center;background:rgba(0,0,0,.4);backdrop-filter:blur(10px);font-size:16px;transition:.25s var(--ease)}
 .icbtn:hover{border-color:var(--line-gold);color:var(--gold)}.icbtn.on{color:var(--gold);border-color:var(--line-gold);background:var(--gold-muted)}
@@ -732,6 +745,17 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
         <div class="sec-h"><span class="num">01</span><div><div class="eyebrow">The home</div><h2 id="aboutH">Light, a terrace, the <span class="g" id="aboutZone">heart of Trastevere</span>.</h2></div></div>
         <p class="desc" id="aboutDesc">A furnished attic in the pedestrian heart of Trastevere: double aspect, all-day light, and a private terrace over the rooftops. Steps from Sapienza, the historic centre and the rione’s evening life. Verified in person and on video by our team — what you see is exactly what you get.</p>
         <p class="zsense" id="zsense" hidden></p>
+        <!-- VIDEO TOUR: unhidden by paintData() when the listing carries a videoUrl.
+             Facade pattern: only the YouTube poster loads with the page; the player
+             iframe is injected on first tap (vtPlay) — zero page-weight until then. -->
+        <figure class="vtour" id="vtour" hidden>
+          <button class="vt-face" type="button" onclick="vtPlay()" aria-label="Play the video tour">
+            <img id="vtPoster" alt="" loading="lazy" decoding="async">
+            <span class="vt-veil" aria-hidden="true"></span>
+            <span class="vt-ring" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg></span>
+            <span class="vt-cap">Video tour<small>Filmed inside this exact home — press play</small></span>
+          </button>
+        </figure>
         <div class="feat" id="feat"></div>
       </section>
 
@@ -915,6 +939,15 @@ function openVideo(vId){
   boomTrack('video_tour_open',{item_id:PID||L.id||''});
 }
 function closeVideo(){const ov=document.getElementById('vOv');if(!ov)return;ov.classList.remove('show');ov.querySelector('iframe').src='';document.body.style.overflow='';try{if(window.__amb)__amb.mood('browse')}catch(_e){}}
+/* ---- inline video tour (facade → player on first tap) ---- */
+function vtPlay(){
+  const vId=exYT(L.video);const box=document.getElementById('vtour');
+  if(!vId||!box||box.querySelector('iframe'))return;
+  box.innerHTML='<iframe src="https://www.youtube-nocookie.com/embed/'+vId+'?rel=0&autoplay=1&playsinline=1" title="Video tour" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>';
+  try{if(window.__amb)__amb.mood('focus')}catch(_e){}
+  boomTrack('video_tour_open',{item_id:PID||L.id||''});
+}
+function vtJump(){const box=document.getElementById('vtour');if(!box||box.hidden)return;box.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(vtPlay,450);}
 let lbIdx=0;
 function lbPaint(){const im=IMGS[lbIdx]||{};const el=document.getElementById('lbImg');el.src=im.full||'';el.alt=im.alt||'';document.getElementById('lbCount').textContent=(lbIdx+1)+' / '+IMGS.length;}
 function lbBy(dir){lbIdx=(lbIdx+dir+IMGS.length)%IMGS.length;lbPaint();}
@@ -1453,15 +1486,24 @@ function paintData(){
   track.innerHTML=IMGS.map((im,i)=>im.empty
     ?`<div class="slide" style="display:grid;place-items:center"><div style="text-align:center;color:var(--t3)"><div style="font-size:26px;margin-bottom:8px;color:var(--gold)">◆</div><div style="font-size:12px;letter-spacing:2px;text-transform:uppercase">Photos coming soon</div><div style="font-size:11px;margin-top:5px">Ask us for the video tour</div></div></div>`
     :`<div class="slide"><img src="${im.thumb}" alt="${im.alt}" loading="${i===0?'eager':'lazy'}" decoding="async"${i===0?' fetchpriority="high"':' data-blur-up'} onerror="if(this.dataset.f1){this.onerror=null;this.src=this.dataset.f2}else{this.dataset.f1=1;this.src=this.dataset.f1s}" data-f1s="${(im.mid||im.full).replace(/"/g,'')}" data-f2="${im.full.replace(/"/g,'')}" onclick="openLb(${i})"></div>`).join('');
-  /* video tour: real chip when the listing carries one */
+  /* video tour: inline cinema in section 01 + "Play tour" chip on the gallery */
   const vId=exYT(L.video);
   const vb=document.querySelector('.vbadge');
   if(vb)vb.textContent=vId?'✓ Video-verified':'✓ BOOM-verified';
   let vchip=document.getElementById('vTour');
+  const vtour=document.getElementById('vtour');
   if(vId){
-    if(!vchip){vchip=document.createElement('button');vchip.id='vTour';vchip.className='vbadge';vchip.style.cssText='cursor:pointer;margin-left:8px;color:var(--gold);border-color:var(--line-gold)';vchip.innerHTML='▶ Play tour';vchip.onclick=()=>openVideo(vId);if(vb&&vb.parentNode)vb.parentNode.insertBefore(vchip,vb.nextSibling);}
+    if(vtour&&!vtour.querySelector('iframe')){
+      vtour.hidden=false;
+      const vp=document.getElementById('vtPoster');
+      if(vp&&!vp.src){vp.onerror=function(){this.onerror=null;this.src='https://i.ytimg.com/vi/'+vId+'/hqdefault.jpg'};vp.src='https://i.ytimg.com/vi/'+vId+'/maxresdefault.jpg';vp.alt=L.name+' — video tour';}
+    }
+    if(!vchip){vchip=document.createElement('button');vchip.id='vTour';vchip.className='vbadge';vchip.style.cssText='cursor:pointer;margin-left:8px;color:var(--gold);border-color:var(--line-gold)';vchip.innerHTML='▶ Play tour';vchip.onclick=vtJump;if(vb&&vb.parentNode)vb.parentNode.insertBefore(vchip,vb.nextSibling);}
     vchip.style.display='';
-  }else if(vchip)vchip.style.display='none';
+  }else{
+    if(vchip)vchip.style.display='none';
+    if(vtour&&!vtour.querySelector('iframe'))vtour.hidden=true;
+  }
   dots.innerHTML=IMGS.map((_,i)=>`<i class="${i===0?'on':''}"></i>`).join('');
   /* desktop editorial mosaic: photos 2–3 as large tiles, the rest behind "+N photos" */
   try{
