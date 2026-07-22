@@ -167,7 +167,13 @@
     // OR null (no role check). Otherwise redirects to loginUrl.
     BP.requireAuth = function (allowedRoles, opts) {
         opts = opts || {};
-        var loginUrl = opts.loginUrl || '/login.html';
+        var loginUrl = opts.loginUrl || '/login';
+        // Round-trip: dopo il login si torna alla pagina richiesta (path+hash).
+        // Usato solo per not_authenticated; su wrong_role/profile_missing si va
+        // al login "pulito" (che porta a /portal, il quale si adatta al ruolo)
+        // per non creare loop di redirect sulla pagina negata.
+        var loginWithNext = loginUrl + (loginUrl.indexOf('?') >= 0 ? '&' : '?')
+            + 'next=' + encodeURIComponent(location.pathname + location.search + location.hash);
         var rolesArray = allowedRoles == null
             ? null
             : (Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles]);
@@ -182,7 +188,7 @@
             var unsub = auth.onAuthStateChanged(async function (user) {
                 unsub();
                 if (!user) {
-                    if (opts.silentRedirect !== false) window.location.href = loginUrl;
+                    if (opts.silentRedirect !== false) window.location.href = loginWithNext;
                     reject(new Error('not_authenticated'));
                     return;
                 }
