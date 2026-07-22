@@ -10,6 +10,7 @@ alongside it (secrets — never committed). This file is the version-controlled
 mirror. See bot/README.md.
 """
 
+import asyncio
 import os
 import json
 import base64
@@ -452,6 +453,16 @@ async def confirm_cb(update, context):
         doc_id = publish_listing(listing); detail_url = f"{SITE_URL}/apartment-detail?id={doc_id}"
         await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=f"━━━━━━━━━━━━━━━━━━━━━━\n✅ *LISTING PUBBLICATO!*\n━━━━━━━━━━━━━━━━━━━━━━\n\n🏠 *{listing['name']}*\n📍 {listing['address']}, {listing['zone']}\n💶 €{listing['price']:,}/mese\n📐 {listing['sqm']}mq · Piano {listing['floor']}\n📸 {len(image_urls)} foto\n\n🔗 *Link per il cliente:*\n`{detail_url}`\n\n☝️ Tocca per copiare\n\n✏️ Ritocchi: /prezzo /deposito /video /modifica `{doc_id}`", parse_mode='Markdown')
         logger.info(f"Listing created: {doc_id}")
+        # Photo Lab: auto-curate the gallery right after publishing (reversible;
+        # the listing is already live with the raw photos, this only upgrades it)
+        if len(image_urls) >= 2:
+            note = await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text='✨ Miglioro e riordino le foto con l\'AI… (1-2 min)')
+            try:
+                rep = await asyncio.to_thread(photos_enhance, doc_id, 'apply')
+                await note.edit_text(_enhance_summary(rep))
+            except Exception as e:
+                logger.warning(f'photo enhance: {e}')
+                await note.edit_text(f'✨ Foto: miglioramento non riuscito ({e}) — le foto originali restano online. Riprova con /fotolab {doc_id}')
     except Exception as e:
         logger.error(f"Firestore error: {e}"); await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=f"❌ Errore: {e}")
     context.user_data.clear(); return ConversationHandler.END
@@ -590,31 +601,101 @@ async def cmd_modifica(update, context):
     except Exception as e: await update.message.reply_text(f"❌ {e}")
 
 async def cmd_help(update, context):
-    await update.message.reply_text("━━━━━━━━━━━━━━━━━━━━━━\n🏠 *BOOM Listing Commands*\n━━━━━━━━━━━━━━━━━━━━━━\n\n/nuovoflat — Crea nuovo listing\n/listings — Mostra attivi con link\n\n💬 *Oppure scrivimi in italiano:*\n_\"metti il deposito a 2 mesi per Pigneto\"_\n_\"aumenta il prezzo di Levico di 100€\"_\nTi mostro la modifica e confermi con un tap.\n\n✏️ *Comandi diretti*\n/prezzo `ID 1300` — Cambia il canone\n/deposito `ID 3` — Deposito in mesi\n/video `ID link` — Aggiungi/cambia video\n/modifica `ID campo valore` — Ogni altro campo\n\n/rent `ID` — Segna affittato\n/reactivate `ID` — Rimetti disponibile\n/delete `ID` — Elimina listing\n/cancel — Annulla wizard\n/help — Questo messaggio", parse_mode='Markdown')
+    await update.message.reply_text("━━━━━━━━━━━━━━━━━━━━━━\n🏠 *BOOM Listing Commands*\n━━━━━━━━━━━━━━━━━━━━━━\n\n/nuovoflat — Crea nuovo listing\n/listings — Mostra attivi con link\n\n💬 *Oppure scrivimi in italiano:*\n_\"metti il deposito a 2 mesi per Pigneto\"_\n_\"aumenta il prezzo di Levico di 100€\"_\nTi mostro la modifica e confermi con un tap.\n\n✏️ *Comandi diretti*\n/prezzo `ID 1300` — Cambia il canone\n/deposito `ID 3` — Deposito in mesi\n/video `ID link` — Aggiungi/cambia video\n/modifica `ID campo valore` — Ogni altro campo\n/fotolab `ID` — AI migliora e riordina le foto\n\n/rent `ID` — Segna affittato\n/reactivate `ID` — Rimetti disponibile\n/delete `ID` — Elimina listing\n/cancel — Annulla wizard\n/help — Questo messaggio", parse_mode='Markdown')
+
+# ─── Photo Lab bridge (api/photos/enhance — AI curation + enhancement) ────────
+def photos_enhance(listing_id, mode='apply'):
+    """Run the Photo Lab pipeline on a listing (admin ID token auth).
+    Reversible: originals are kept in imagesOriginal server-side."""
+    r = http_requests.post(
+        f'{WIZARD_API_BASE}/api/photos/enhance',
+        headers={'Authorization': f'Bearer {get_firebase_token()}', 'Content-Type': 'application/json'},
+        json={'listingId': listing_id, 'mode': mode}, timeout=90,
+    )
+    r.raise_for_status()
+    return r.json()
+
+ROOM_IT = {'living': 'soggiorno', 'kitchen': 'cucina', 'bedroom': 'camera', 'bathroom': 'bagno',
+           'balcony': 'balcone', 'exterior': 'esterno', 'view': 'vista'}
+
+def _enhance_summary(rep):
+    plan = (rep or {}).get('plan') or {}
+    applied = (rep or {}).get('applied') or {}
+    if not applied.get('images'):
+        note = (rep or {}).get('note') or (rep or {}).get('error') or 'nessuna modifica'
+        return f"✨ Foto: {note}"
+    parts = [f"✨ Foto sistemate: {len(applied['images'])} pubblicate in ordine di visita"]
+    cover = (plan.get('cover') or {}).get('room')
+    if cover: parts.append(f"copertina: {ROOM_IT.get(cover, cover)}")
+    dropped = len(plan.get('dropped') or [])
+    if dropped: parts.append(f"{dropped} duplicat{'o rimosso' if dropped == 1 else 'i rimossi'}")
+    if not plan.get('ai'): parts.append('(AI foto non disponibile: ordinamento base)')
+    return ' · '.join(parts)
+
+async def cmd_fotolab(update, context):
+    if not is_admin(update): return
+    if not context.args: await update.message.reply_text("Uso: `/fotolab LISTING_ID`", parse_mode='Markdown'); return
+    doc_id = context.args[0]
+    msg = await update.message.reply_text('⏳ Analizzo, miglioro e riordino le foto… (1-2 min)')
+    try:
+        rep = await asyncio.to_thread(photos_enhance, doc_id, 'apply')
+        await msg.edit_text(f"{_enhance_summary(rep)}\n{SITE_URL}/listing/{doc_id}")
+    except Exception as e:
+        await msg.edit_text(f"❌ {e}")
 
 # ─── Natural language edits ("metti il deposito a 2 mesi per Pigneto") ────────
 # AI-first via /api/wizard/interpret (Claude reads the real catalog, returns a
 # sanitized update plan); local regex parser as fallback so the feature works
 # even if the endpoint/secret is unavailable. NOTHING is written until the
-# operator taps ✅ Conferma.
+# operator taps ✅ Conferma. NL_CTX remembers the last unresolved message per
+# chat so a follow-up answer ("quello di Pigneto") completes the request.
 PENDING_NL = {}
+NL_CTX = {}
 NUM_WORDS = {'un': 1, 'uno': 1, 'una': 1, 'due': 2, 'tre': 3, 'quattro': 4, 'cinque': 5, 'sei': 6}
+# generic words that appear in half the catalog — never listing evidence
+NL_STOPWORDS = {'bilocale', 'trilocale', 'monolocale', 'quadrilocale', 'appartamento', 'apartment',
+                'casa', 'roma', 'rome', 'flat', 'luminoso', 'luminosa', 'ristrutturato', 'ristrutturata',
+                'piano', 'zona', 'annuncio', 'listing'}
 
-def _local_interpret(text):
-    t = text.lower()
+def _match_listing(t, listings):
+    """Score-based fuzzy match: exact id wins; else count distinctive tokens
+    (name/zone/address minus stopwords) found in the text. Returns
+    (doc_id, data) | ('AMBIG', [names]) | None."""
+    scored = []
+    for doc_id, d in listings:
+        if doc_id.lower() in t:
+            return doc_id, d
+        hay = f"{d.get('name','')} {d.get('zone','')} {d.get('address','')}".lower()
+        toks = set(re.findall(r'[a-zà-ù]{4,}', hay)) - NL_STOPWORDS
+        score = sum(1 for w in toks if w in t)
+        if score: scored.append((score, doc_id, d))
+    if not scored:
+        # weak second pass: type words ("il bilocale") narrow the field even
+        # though they are stopwords for scoring
+        for tw in ('bilocale', 'trilocale', 'monolocale', 'quadrilocale'):
+            if tw in t:
+                hits = [(i, d) for i, d in listings if tw in f"{d.get('name','')} {d.get('type','')}".lower()]
+                if len(hits) == 1: return hits[0]
+                if hits: return 'AMBIG', [d.get('name', '?') for _, d in hits]
+        return (listings[0][0], listings[0][1]) if len(listings) == 1 else None
+    scored.sort(key=lambda x: -x[0])
+    winners = [s for s in scored if s[0] == scored[0][0]]
+    if len(winners) == 1:
+        return winners[0][1], winners[0][2]
+    return 'AMBIG', [d.get('name', '?') for _, _, d in winners]
+
+def _local_interpret(text, prev=''):
+    t = ((prev + ' ' if prev else '') + text).lower()
     try: listings = fs_query_available('listings')
     except Exception: return None
-    cands = []
-    for doc_id, d in listings:
-        hay = f"{d.get('name','')} {d.get('zone','')} {d.get('address','')}".lower()
-        toks = set(re.findall(r'[a-zà-ù]{4,}', hay))
-        if doc_id.lower() in t or any(w in t for w in toks):
-            cands.append((doc_id, d))
-    if not cands:
+    m = _match_listing(t, listings)
+    if m is None:
         return {'ok': True, 'action': 'none', 'note': "Di quale annuncio parli? Dimmi il nome o l'ID (vedi /listings)."}
-    if len(cands) > 1:
-        return {'ok': True, 'action': 'none', 'note': 'Più annunci corrispondono: ' + ', '.join(d.get('name', '?') for _, d in cands) + '. Quale?'}
-    doc_id, d = cands[0]
+    if m[0] == 'AMBIG':
+        return {'ok': True, 'action': 'none', 'note': 'Più annunci corrispondono: ' + ', '.join(m[1]) + '. Quale?'}
+    doc_id, d = m
+    if re.search(r'foto', t) and re.search(r'miglior|riordin|sistem|ottimizz|enhance', t):
+        return {'ok': True, 'action': 'photos', 'id': doc_id, 'name': d.get('name') or doc_id}
     price = int(d.get('price') or 0)
     updates, summary = {}, []
     m = re.search(r'(\d+(?:[.,]5)?|un[oa]?|due|tre|quattro|cinque|sei)\s*mes', t)
@@ -656,14 +737,26 @@ async def nl_message(update, context):
     if not is_admin(update): return
     text = (update.message.text or '').strip()
     if not text: return
-    plan = wizard_post('/api/wizard/interpret', {'text': text}, timeout=30) or _local_interpret(text)
+    chat_id = update.effective_chat.id
+    prev = NL_CTX.get(chat_id, '')
+    payload = {'text': text}
+    if prev: payload['context'] = prev
+    plan = wizard_post('/api/wizard/interpret', payload, timeout=45) or _local_interpret(text, prev)
+    kb = InlineKeyboardMarkup([[InlineKeyboardButton('✅ Conferma', callback_data='nl_ok'), InlineKeyboardButton('✖️ Annulla', callback_data='nl_no')]])
+    if plan and plan.get('action') == 'photos' and plan.get('id'):
+        NL_CTX.pop(chat_id, None)
+        PENDING_NL[chat_id] = plan
+        await update.message.reply_text(f"✨ Migliorare e riordinare le foto di *{plan.get('name', plan['id'])}* con l'AI?\n_(reversibile — gli originali restano salvati)_", parse_mode='Markdown', reply_markup=kb)
+        return
     if not plan or plan.get('action') != 'update' or not plan.get('id') or not plan.get('updates'):
+        # remember this exchange: the next message can answer the question
+        NL_CTX[chat_id] = (prev + ' | ' if prev else '') + text
         note = (plan or {}).get('note') or "Non ho capito 🤔 Prova: \"metti il deposito a 2 mesi per Pigneto\" — oppure /help"
         await update.message.reply_text(f"💬 {note}")
         return
-    PENDING_NL[update.effective_chat.id] = plan
+    NL_CTX.pop(chat_id, None)
+    PENDING_NL[chat_id] = plan
     lines = '\n'.join('• ' + s for s in (plan.get('summary') or [f"{k} → {v}" for k, v in plan['updates'].items()]))
-    kb = InlineKeyboardMarkup([[InlineKeyboardButton('✅ Conferma', callback_data='nl_ok'), InlineKeyboardButton('✖️ Annulla', callback_data='nl_no')]])
     await update.message.reply_text(f"🏠 *{plan.get('name', plan['id'])}*\n{lines}\n\nConfermo?", parse_mode='Markdown', reply_markup=kb)
 
 async def nl_confirm_cb(update, context):
@@ -671,14 +764,54 @@ async def nl_confirm_cb(update, context):
     plan = PENDING_NL.pop(q.message.chat.id, None)
     if q.data != 'nl_ok' or not plan:
         await q.edit_message_text('✖️ Annullato.'); return
+    if plan.get('action') == 'photos':
+        await q.edit_message_text('⏳ Foto in lavorazione… (1-2 min)')
+        try:
+            rep = await asyncio.to_thread(photos_enhance, plan['id'], 'apply')
+            await q.edit_message_text(f"{_enhance_summary(rep)}\n{SITE_URL}/listing/{plan['id']}")
+        except Exception as e:
+            await q.edit_message_text(f"❌ {e}")
+        return
     try:
         _edit_listing(plan['id'], dict(plan['updates']))
         await q.edit_message_text(f"✅ Fatto!\n{SITE_URL}/listing/{plan['id']}")
     except Exception as e:
         await q.edit_message_text(f"❌ {e}")
 
+# ─── Startup secret probe ─────────────────────────────────────────────────────
+# The AI features (interpret, describe) silently fall back when the shared
+# secret is wrong — which once hid a dead secret for weeks. Probe at startup
+# (POST upload with an empty body: 401 = bad secret, 400 = secret OK; zero AI
+# cost, zero writes) and TELL the admin instead of degrading quietly.
+def _tg_notify_sync(text):
+    try:
+        http_requests.post(f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage',
+                           json={'chat_id': ADMIN_CHAT_ID, 'text': text}, timeout=10)
+    except Exception:
+        pass
+
+def _secret_probe():
+    if not WIZARD_SECRET:
+        _tg_notify_sync('⚠️ Wizard: WIZARD_SECRET assente dal .env — modalità AI SPENTA '
+                        '(capisco solo frasi semplici, niente descrizioni AI né comprensione completa). '
+                        'Aggiungi WIZARD_SECRET al .env con il valore di Vercel e riavviami.')
+        return
+    try:
+        r = http_requests.post(f'{WIZARD_API_BASE}/api/wizard/upload',
+                               headers={'Content-Type': 'application/json', 'X-Wizard-Secret': WIZARD_SECRET},
+                               json={}, timeout=15)
+        if r.status_code == 401:
+            _tg_notify_sync('⚠️ Wizard: il WIZARD_SECRET nel .env NON combacia con Vercel — modalità AI SPENTA '
+                            '(parser locale). Copia il valore giusto da Vercel → Settings → Environment Variables '
+                            'nel .env e riavviami per sbloccare la comprensione completa.')
+        else:
+            logger.info('secret probe OK — AI mode on')
+    except Exception as e:
+        logger.warning(f'secret probe failed: {e}')
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 def main():
+    _secret_probe()
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     wizard = ConversationHandler(
         entry_points=[CommandHandler('nuovoflat', cmd_newlisting)],
@@ -711,6 +844,7 @@ def main():
     app.add_handler(CommandHandler('prezzo', cmd_prezzo))
     app.add_handler(CommandHandler('deposito', cmd_deposito))
     app.add_handler(CommandHandler('modifica', cmd_modifica))
+    app.add_handler(CommandHandler('fotolab', cmd_fotolab))
     app.add_handler(CommandHandler('help', cmd_help))
     app.add_handler(CallbackQueryHandler(nl_confirm_cb, pattern='^nl_'))
     # last: free-text messages outside the wizard flow → natural-language edits
