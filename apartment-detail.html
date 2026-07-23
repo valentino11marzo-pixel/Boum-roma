@@ -989,7 +989,7 @@ function render(){const s=computeStay();const wl=L.status==='waitlist';let av;
   const prevVals={};document.querySelectorAll('#srows .srow[data-key] .v, #mtiles .mt[data-key] .v').forEach(el=>{prevVals[el.parentNode.dataset.key+(el.parentNode.classList.contains('mt')?':t':':r')]=el.textContent;});
   document.getElementById('srows').innerHTML=`
     <div class="srow" data-key="first"><span class="k">First month${s.full?'':` <span class="note">(pro-rata, ${s.rem}/${s.di} d)</span>`}</span><span class="v">${eur(s.prorated)}</span></div>
-    <div class="srow" data-key="deposit"><span class="k">Deposit <span class="note">refundable</span></span><span class="v">${eur(L.deposit)}</span></div>
+    <div class="srow" data-key="deposit"><span class="k">Deposit <span class="note">${L.depositMonths?L.depositMonths+' month'+(L.depositMonths>1?'s':'')+' · ':''}refundable</span></span><span class="v">${eur(L.deposit)}</span></div>
     <div class="srow" data-key="fee"><span class="k">Agency fee${L.agencyFee?' <span class="note">one-off · 10% of annual rent</span>':''}</span><span class="v">${L.agencyFee?eur(L.agencyFee):'€0'}</span></div>
     <div class="srow tot" data-key="total"><span class="k">To move in${s.fit==='none'?'':` ${fmtS(s.start)}`}</span><span class="v" id="totV">${eur(s.total)}</span></div>
     ${s.end?`<div class="srow" data-key="until"><span class="k">Stay until</span><span class="v">${fmtD(s.end)}</span></div>`:''}`;
@@ -1000,7 +1000,7 @@ function render(){const s=computeStay();const wl=L.status==='waitlist';let av;
   if(s.fit==='after'){up.classList.add('show');up.innerHTML=`Need it by ${fmtS(s.req)}? We can <a href="/property-finding">find one for your exact dates →</a>`;}else up.classList.remove('show');
   document.getElementById('mtiles').innerHTML=[
     ['first','First month',eur(s.prorated),s.full?'full rent':'pro-rata on your date'],
-    ['deposit','Deposit',eur(L.deposit),'refundable at end'],
+    ['deposit','Deposit',eur(L.deposit),(L.depositMonths?L.depositMonths+' month'+(L.depositMonths>1?'s':'')+' of rent · ':'')+'refundable at end'],
     ['fee','Agency fee',L.agencyFee?eur(L.agencyFee):'€0',L.agencyFee?'one-off · 10% of annual rent':'none, on this home'],
     ['total','To move in',eur(s.total),s.fit==='none'?'from first open day':'for your dates',true]
   ].map(([key,k,v,sub,t])=>`<div class="mt ${t?'tot':''}" data-key="${key}"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${sub}</div></div>`).join('');
@@ -1584,7 +1584,7 @@ function mapReal(d){
   const zone=d.zone||d.neighborhood||d.address||'Rome';
   /* real listings NEVER borrow the sample's nearby/similar — both are
      computed from real data after paint (coords → anchors, catalog → picks) */
-  return {id:d.id||PID||'',name:d.name||d.title||'Apartment in Rome',zone:zone,price:+d.price||0,deposit:+d.deposit||+d.price||0,agencyFee:d.agencyFee!=null?(+d.agencyFee||0):Math.round((+d.price||0)*1.2),beds:(d.beds!=null?d.beds:(d.bedrooms!=null?d.bedrooms:0)),baths:(d.bathrooms!=null?d.bathrooms:(d.baths!=null?d.baths:1)),sqm:d.sqm||d.size||0,floor:d.floor||1,furnished:(d.furnished===true)||/furnish/i.test(feat.join(' ')+' '+(d.description||'')),real:true,status:((d.status||d.availabilityStatus||'available')+'').toLowerCase(),availableFrom:af,images:imgs,features:feat,description:(typeof d.description==='string'&&d.description.trim())?d.description.trim():'',nearby:[],similar:[],lat:+d.lat||0,lng:+d.lng||0,video:(d.videoUrl||d.youtubeUrl||null)};
+  return {id:d.id||PID||'',name:d.name||d.title||'Apartment in Rome',zone:zone,price:+d.price||0,deposit:+d.deposit||+d.price||0,depositMonths:+d.depositMonths||0,agencyFee:d.agencyFee!=null?(+d.agencyFee||0):Math.round((+d.price||0)*1.2),beds:(d.beds!=null?d.beds:(d.bedrooms!=null?d.bedrooms:0)),baths:(d.bathrooms!=null?d.bathrooms:(d.baths!=null?d.baths:1)),sqm:d.sqm||d.size||0,floor:d.floor||1,furnished:(d.furnished===true)||/furnish/i.test(feat.join(' ')+' '+(d.description||'')),real:true,status:((d.status||d.availabilityStatus||'available')+'').toLowerCase(),availableFrom:af,images:imgs,features:feat,description:(typeof d.description==='string'&&d.description.trim())?d.description.trim():'',nearby:[],similar:[],lat:+d.lat||0,lng:+d.lng||0,video:(d.videoUrl||d.youtubeUrl||null)};
 }
 /* ── REAL recommendations: the catalog itself decides what's similar ── */
 function realNearby(){
@@ -1707,7 +1707,12 @@ function experienceArrive(){
 })();
 
 const PID=new URLSearchParams(location.search).get('id')||decodeURIComponent((location.pathname.match(/^\/listing\/([^\/]+)/)||[,''])[1])||window.__LISTING_ID||'';
-if(window.__LISTING&&(!window.__LISTING_ID||!PID||window.__LISTING_ID===PID)){try{L=mapReal(window.__LISTING);}catch(_e){}paintData();experienceArrive();}
+if(window.__LISTING&&(!window.__LISTING_ID||!PID||window.__LISTING_ID===PID)){try{L=mapReal(window.__LISTING);}catch(_e){}paintData();experienceArrive();
+  /* the SSR snapshot can be CDN-stale (s-maxage + SWR): always converge to
+     live data so an edit (deposit, price, video…) shows up on next load */
+  if(PID)fetch('/api/listings?id='+encodeURIComponent(PID),{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{
+    if(j&&j.ok&&j.listing){const fresh=mapReal(j.listing);if(JSON.stringify(fresh)!==JSON.stringify(L)){L=fresh;paintData();try{render()}catch(_e){}}}
+  }).catch(()=>{});}
 else if(PID){fetch('/api/listings?id='+encodeURIComponent(PID),{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{if(j&&j.ok&&j.listing){L=mapReal(j.listing);}}).catch(()=>{}).finally(function(){paintData();experienceArrive();});}
 else{paintData();experienceArrive();}
 </script>

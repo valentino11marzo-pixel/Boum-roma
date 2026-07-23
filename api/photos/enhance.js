@@ -220,20 +220,44 @@ async function processListing(token, id, mode, actor) {
   const urls = sourceUrls(js);
   if (!urls.length) return { ok: true, plan: null, note: 'no_photos' };
 
-  // parallel download with a hard per-photo timeout: a hanging CDN costs
-  // 8s, not the function's whole 60s budget
-  const photos = await Promise.all(urls.map(async (url, i) => {
-    try {
-      const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
-      if (!r.ok) return { i, url, action: 'skip-unfetchable' };
-      const buf = Buffer.from(await r.arrayBuffer());
-      if (buf.length > 10 * 1024 * 1024) return { i, url, action: 'skip-too-large' };
-      if (isUnsupportedImage(buf)) return { i, url, action: 'skip-unsupported-format' };
-      return { i, url, buf, sha1: crypto.createHash('sha1').update(buf).digest('hex') };
-    } catch { return { i, url, action: 'skip-unfetchable' }; }
-  }));
+  // Download in small parallel chunks with a guarded per-photo timeout.
+  // AbortSignal.timeout is used only when the runtime's fetch supports it —
+  // never assume: an instrumented fetch that chokes on the signal would turn
+  // EVERY photo into 'unfetchable'. And when a download fails, LOG WHY and
+  // carry the reason into the response: no more blind 'no_fetchable_photos'.
+  const canSignal = typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function';
+  const photos = [];
+  const CHUNK = 6;
+  for (let s = 0; s < urls.length; s += CHUNK) {
+    const part = await Promise.all(urls.slice(s, s + CHUNK).map(async (url, k) => {
+      const i = s + k;
+      try {
+        let r;
+        try {
+          r = canSignal ? await fetch(url, { signal: AbortSignal.timeout(8000) }) : await fetch(url);
+        } catch (e) {
+          // retry once WITHOUT the signal: rules out signal-related failures
+          r = await fetch(url);
+        }
+        if (!r.ok) return { i, url, action: 'skip-unfetchable', err: 'http_' + r.status };
+        const buf = Buffer.from(await r.arrayBuffer());
+        if (buf.length > 10 * 1024 * 1024) return { i, url, action: 'skip-too-large' };
+        if (isUnsupportedImage(buf)) return { i, url, action: 'skip-unsupported-format' };
+        return { i, url, buf, sha1: crypto.createHash('sha1').update(buf).digest('hex') };
+      } catch (e) {
+        const err = String((e && e.message) || e).slice(0, 100);
+        console.error('[photos/enhance] fetch fail', i, err);
+        return { i, url, action: 'skip-unfetchable', err };
+      }
+    }));
+    photos.push(...part);
+  }
   let fetchable = photos.filter(p => p.buf && !p.action);
-  if (!fetchable.length) return { ok: true, plan: null, note: 'no_fetchable_photos' };
+  if (!fetchable.length) {
+    const reasons = photos.slice(0, 8).map(p => `#${p.i} ${p.action}${p.err ? ' (' + p.err + ')' : ''}`);
+    console.error('[photos/enhance]', id, 'no fetchable photos:', reasons.join(' | '));
+    return { ok: true, plan: null, note: 'no_fetchable_photos: ' + reasons.join(' · ') };
+  }
 
   let ai = true;
   if (ANTHROPIC_KEY) { try { await classify(fetchable); } catch { ai = false; await classifyHeuristic(fetchable); } }
