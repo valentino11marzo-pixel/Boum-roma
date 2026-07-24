@@ -75,9 +75,15 @@ export function toFsFields(obj) {
 }
 
 // Create a new doc in a collection — Firestore auto-IDs it. Returns { id }.
-export async function fsCreate(collection, data) {
+export async function fsCreate(collection, data, docId) {
+  // docId opzionale = create idempotente: Firestore risponde 409 se il doc
+  // esiste già; l'errore lanciato porta err.exists=true così il chiamante
+  // può distinguere "già creato" da un vero fallimento.
   const token = await getAdminToken();
-  const res = await fetch(`${FS_BASE}/${collection}`, {
+  const url = docId
+    ? `${FS_BASE}/${collection}?documentId=${encodeURIComponent(docId)}`
+    : `${FS_BASE}/${collection}`;
+  const res = await fetch(url, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -87,7 +93,9 @@ export async function fsCreate(collection, data) {
   });
   if (!res.ok) {
     const txt = await res.text();
-    throw new Error(`Firestore create failed (${res.status}): ${txt}`);
+    const err = new Error(`Firestore create failed (${res.status}): ${txt}`);
+    if (res.status === 409) err.exists = true;
+    throw err;
   }
   const body = await res.json();
   // body.name = "projects/.../databases/(default)/documents/<collection>/<docId>"

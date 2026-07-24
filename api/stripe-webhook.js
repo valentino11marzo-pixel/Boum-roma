@@ -173,8 +173,9 @@ async function handleDeposit(res, session, m) {
   let c = null;
   try { c = await readDoc(`contracts/${contractId}`); } catch (_) {}
 
+  let depW = null;
   try {
-    await writeDoc('payments', 'dep_' + contractId, {
+    depW = await writeDoc('payments', 'dep_' + contractId, {
       type: 'deposit',
       contractId,
       tenantId: (c && c.tenantId) || '',
@@ -188,6 +189,11 @@ async function handleDeposit(res, session, m) {
       createdAt: now,
     });
   } catch (err) { console.error('[deposit] payment write:', err.message); }
+
+  if (depW && depW.exists) {
+    // Retry di Stripe: pagamento già registrato, notifiche ed email già partite.
+    return res.status(200).json({ received: true, duplicate: true, contractId });
+  }
 
   try {
     await writeDoc('agentNotifications', 'deposit-' + contractId, {
@@ -305,8 +311,17 @@ async function handleService(res, session, m) {
     paid_at: now,
     createdAt: now,
   };
-  try { await writeDoc('leads', 'svc_' + docId, lead); }
-  catch (err) { console.error('Firestore service lead write error:', err); }
+  let w = null;
+  try { w = await writeDoc('leads', 'svc_' + docId, lead); }
+  catch (err) {
+    // Soldi incassati ma lead non persistito → 500 così Stripe ritenta.
+    console.error('Firestore service lead write error:', err);
+    return res.status(500).json({ error: 'lead_write_failed' });
+  }
+  if (w && w.exists) {
+    // Retry di Stripe su una sessione già processata: email già inviate.
+    return res.status(200).json({ received: true, duplicate: true, serviceLeadId: 'svc_' + docId });
+  }
 
   const firstName = (m.name || '').split(' ')[0] || 'there';
   try {
@@ -376,8 +391,15 @@ async function handleReserve(res, session, m) {
   };
 
   // Surface it in the existing lead pipeline (cockpit/portal read `leads`)
-  try { await writeDoc('leads', 'res_' + docId, lead); }
-  catch (err) { console.error('Firestore reservation write error:', err); }
+  let w = null;
+  try { w = await writeDoc('leads', 'res_' + docId, lead); }
+  catch (err) {
+    console.error('Firestore reservation write error:', err);
+    return res.status(500).json({ error: 'reservation_write_failed' });
+  }
+  if (w && w.exists) {
+    return res.status(200).json({ received: true, duplicate: true, reservationId: 'res_' + docId });
+  }
 
   const firstName = (m.name || '').split(' ')[0] || 'there';
 
@@ -441,7 +463,14 @@ async function handlePreagreement(res, session, m) {
   const { id, ...pa } = hit;   // fsList returns flat rows: {id, ...fields}
 
   if (pa.paidSessionId === session.id) {
-    return res.status(200).json({ received: true, duplicate: true });   // retry — emails already sent
+    // Retry — email già inviate. MA se la conversione in contratto era fallita
+    // al primo giro (paid senza contractId), questo retry è l'occasione per
+    // riprovarla invece di scartarla per sempre.
+    if (!pa.contractId) {
+      const reconverted = await maybeAutoConvert({ pa: { ...pa }, paId: id });
+      return res.status(200).json({ received: true, duplicate: true, contractId: (reconverted && reconverted.contractId) || null });
+    }
+    return res.status(200).json({ received: true, duplicate: true });
   }
 
   const paidEur = (session.amount_total || 0) / 100;
@@ -555,7 +584,18 @@ export default async function handler(req, res) {
   };
 
   try { await writePfsClient(docId, doc); }
-  catch (err) { console.error('Firestore error:', err); }
+  catch (err) {
+    if (String(err.message || '').includes(' 409')) {
+      // Retry di Stripe: cliente già creato al primo giro con il SUO codice
+      // portale (quello nelle email già inviate). Non rigenerare nulla,
+      // non rimandare email.
+      return res.status(200).json({ received: true, duplicate: true, pfsClientId: docId });
+    }
+    // Scrittura fallita: niente email con un codice mai persistito.
+    // 500 → Stripe ritenta e il prossimo giro scrive davvero.
+    console.error('Firestore error:', err);
+    return res.status(500).json({ error: 'pfs_client_write_failed' });
+  }
 
   const firstName = (m.name || '').split(' ')[0] || 'there';
   const portalLink = `https://www.boomrome.com/portal.html?pfs=${portalToken}`; // admin deep-link
