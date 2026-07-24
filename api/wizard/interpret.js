@@ -70,9 +70,17 @@ export default async function handler(req, res) {
 Rispondi SOLO con JSON, uno di:
 - {"action":"update","id":"<id dal catalogo>","updates":{...},"note":"<max 1 frase>"}
 - {"action":"photos","id":"<id dal catalogo>","note":"<max 1 frase>"}  ← quando chiede di migliorare/riordinare/sistemare le FOTO di un annuncio
+- {"action":"create","fields":{...},"note":"<max 1 frase>"}  ← quando il messaggio DESCRIVE UN NUOVO APPARTAMENTO da pubblicare (tipologia+zona+dati+prezzo in un'unica descrizione, spesso dettata: "trilocale a Pigneto, via del Pigneto 3, 95mq, terzo piano, due bagni, arredato, 1350 euro, libero dal primo settembre")
 - {"action":"none","note":"<domanda o spiegazione in italiano, max 2 frasi>"}
 
 Campi ammessi in updates: price, depositMonths, videoUrl, name, address, zone, sqm, floor, beds, bathrooms, furnished(yes|partial|no), availableDate, description, agencyFee, status(available|rented|waitlist).
+
+Campi ammessi in fields (create): type(monolocale|bilocale|trilocale|quadrilocale+), zone, address, sqm, floor, beds, bathrooms, price, furnished(yes|partial|no), availableDate(YYYY-MM-DD o "Subito"), depositMonths, videoUrl, features(array tra: ac, elevator, balcony, terrace, washing_machine, dishwasher, parking, storage, pets_allowed, wifi, double_glazing, doorman), concordato(true|false).
+Regole per create:
+- Distingui bene: se il messaggio nomina un annuncio ESISTENTE del catalogo per modificarlo → update; se descrive una casa NUOVA → create. Nel dubbio con dati completi da casa nuova → create.
+- "camere/stanze" → beds; deduci type dai vani se non detto (1 camera→bilocale, 2→trilocale...). "posto letto" non è beds.
+- Estrai solo ciò che c'è: niente invenzioni. Se mancano zona O prezzo → action none chiedendo SOLO ciò che manca.
+- Date italiane → ISO: "primo settembre"→2026-09-01, "subito/da subito"→"Subito".
 
 Regole di matching (sii MOLTO tollerante):
 - Nome parziale, refusi ("Levigo"→Levico, "Pinieto"→Pigneto), zona, via, pezzi di indirizzo: tutto vale. L'id DEVE venire dal catalogo, mai inventato.
@@ -119,6 +127,38 @@ Regole sui valori:
   if (plan && plan.action === 'photos' && byId.has(plan.id)) {
     const cur = byId.get(plan.id);
     return res.status(200).json({ ok: true, action: 'photos', id: plan.id, name: cur.name || plan.id, note: String(plan.note || '').slice(0, 200) });
+  }
+
+  // CREATE: a new listing described in one message. Sanitize with the same
+  // whitelist discipline as updates — the model proposes, the code disposes.
+  if (plan && plan.action === 'create' && plan.fields && typeof plan.fields === 'object') {
+    const TYPES = new Set(['monolocale', 'bilocale', 'trilocale', 'quadrilocale+']);
+    const FEATS = new Set(['ac', 'elevator', 'balcony', 'terrace', 'washing_machine', 'dishwasher', 'parking', 'storage', 'pets_allowed', 'wifi', 'double_glazing', 'doorman']);
+    const F = plan.fields;
+    const out = {};
+    const num = v => { const n = Number(String(v).replace(',', '.')); return Number.isFinite(n) && n > 0 ? n : null; };
+    if (TYPES.has(String(F.type || '').toLowerCase())) out.type = String(F.type).toLowerCase();
+    for (const k of ['zone', 'address']) if (F[k]) out[k] = String(F[k]).trim().slice(0, 120);
+    for (const k of ['sqm', 'beds', 'bathrooms', 'price']) { const n = num(F[k]); if (n != null) out[k] = Math.round(n); }
+    if (F.floor != null && String(F.floor).trim() !== '') out.floor = String(F.floor).trim().slice(0, 12);
+    if (FURN.has(F.furnished)) out.furnished = F.furnished;
+    if (F.availableDate) out.availableDate = String(F.availableDate).trim().slice(0, 20);
+    const dm = num(F.depositMonths); if (dm != null && dm <= 6) out.depositMonths = dm;
+    if (F.videoUrl && /youtu/.test(String(F.videoUrl))) out.videoUrl = String(F.videoUrl).trim();
+    if (Array.isArray(F.features)) out.features = F.features.filter(x => FEATS.has(x));
+    if (F.concordato === true || F.concordato === false) out.concordato = F.concordato;
+    if (!out.zone || !out.price) {
+      const miss = [!out.zone && 'la zona', !out.price && 'il prezzo'].filter(Boolean).join(' e ');
+      return res.status(200).json({ ok: true, action: 'none', note: `Per pubblicare mi manca ${miss}. Dimmelo e procedo.` });
+    }
+    if (out.depositMonths) out.deposit = Math.round(out.depositMonths * out.price);
+    const summary = [
+      `${(out.type || 'appartamento')} — ${out.zone}${out.address ? ', ' + out.address : ''}`,
+      `€${out.price.toLocaleString('it-IT')}/mese${out.depositMonths ? ` · deposito ${out.depositMonths} mes${out.depositMonths === 1 ? 'e' : 'i'} (€${out.deposit.toLocaleString('it-IT')})` : ''}`,
+      [out.sqm && out.sqm + 'mq', out.floor != null && 'piano ' + out.floor, out.beds && out.beds + ' camere', out.bathrooms && out.bathrooms + ' bagni'].filter(Boolean).join(' · '),
+      [out.furnished === 'yes' ? 'arredato' : out.furnished === 'partial' ? 'parz. arredato' : out.furnished === 'no' ? 'non arredato' : null, out.availableDate && 'da ' + out.availableDate, (out.features || []).length ? (out.features.length + ' feature') : null].filter(Boolean).join(' · '),
+    ].filter(s => s && s.trim());
+    return res.status(200).json({ ok: true, action: 'create', fields: out, summary, note: String(plan.note || '').slice(0, 200) });
   }
   if (!plan || plan.action !== 'update' || !byId.has(plan.id)) {
     return res.status(200).json({ ok: true, action: 'none', note: String((plan && plan.note) || 'Non ho trovato l\'annuncio — dimmi il nome o l\'ID (/listings).').slice(0, 300) });

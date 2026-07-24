@@ -1,5 +1,18 @@
 # BOOM Listing Wizard — Telegram bot
 
+**v3 — the wizard disappears**: send photos in bulk, then describe the home
+in ONE message ("trilocale a Pigneto, via del Pigneto 3, 95mq, terzo piano,
+due bagni, arredato, 1350€, libero dal 1 settembre") — or a VOICE NOTE
+(Whisper via `/api/wizard/transcribe`, needs `OPENAI_API_KEY` on Vercel) —
+and the bot extracts every field (`/api/wizard/interpret` action `create`),
+shows the card, and on ✅ publishes with AI bilingual description, Photo Lab
+curation and a ready-to-share WhatsApp/Instagram caption. `/status` (uptime,
+AI mode, catalog), `/stats [ID]` (leads, days on market), `/svuota` (clear
+photo buffer), HEIC warning when a photo arrives as a file. The
+`wizard_heartbeat.py` wrapper SELF-UPDATES both bot files from GitHub main
+on every restart (compile-checked, .bak kept, local copy wins on any
+failure) — merge to main, restart the bot, done.
+
 Telegram bot that publishes apartments to the public `listings` catalog and
 manages them entirely from chat: `/rent`, `/reactivate`, `/delete`,
 `/listings`, plus post-publish edit commands — `/prezzo ID 1300`,
