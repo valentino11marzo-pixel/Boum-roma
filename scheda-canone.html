@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>BOOM · Scheda Canone — Accordo Roma 25/07/2023</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#08080A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BOOM Canone">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="/canone-manifest.json">
+<style>
+  :root{--nero:#08080A;--oro:#D4AF37;--oro2:#C9A96E;--carta:#F7F5F0;--gr:#8A8A8E;--ln:#26262B;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--nero);color:var(--carta);font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-weight:300;padding-bottom:90px;padding-top:env(safe-area-inset-top,0)}
+  .wrap{max-width:900px;margin:0 auto;padding:0 22px}
+  header{padding:40px 0 24px;border-bottom:1px solid var(--ln);margin-bottom:26px;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px}
+  h1{font-weight:300;font-size:24px;letter-spacing:.28em}
+  .tag{color:var(--oro);font-size:10px;letter-spacing:.22em;text-transform:uppercase}
+  .modi{display:flex;gap:0;border:1px solid var(--ln)}
+  .modi button{background:transparent;border:none;color:var(--gr);font:inherit;font-size:10px;letter-spacing:.18em;text-transform:uppercase;padding:9px 16px;cursor:pointer}
+  .modi button.att{background:var(--oro);color:var(--nero)}
+  h2{font-weight:300;font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--oro);margin:30px 0 14px}
+  .card{border:1px solid var(--ln);padding:20px;margin-bottom:16px}
+  label{display:block;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--gr);margin-bottom:5px}
+  input,select{width:100%;background:transparent;border:none;border-bottom:1px solid var(--ln);color:var(--carta);font:inherit;font-size:14px;padding:5px 2px;outline:none}
+  input:focus,select:focus{border-bottom-color:var(--oro)}select option{background:var(--nero)}
+  .g{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px}
+  .chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:7px;margin-top:6px}
+  .chip{display:flex;align-items:center;gap:9px;border:1px solid var(--ln);padding:8px 11px;cursor:pointer;font-size:12.5px;user-select:none}
+  .chip input{width:auto;accent-color:var(--oro)}.chip.on{border-color:var(--oro2)}
+  .magg{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:7px}
+  .verd{margin:24px 0;border:1px solid var(--ln);position:relative}
+  .verd .banda{padding:24px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+  .verd .st{font-size:12px;letter-spacing:.3em;text-transform:uppercase}
+  .verd.in .st{color:var(--oro)}.verd.out .st{color:#E08573}
+  .verd .rng{font-size:24px}.verd .rng small{font-size:11px;color:var(--gr)}
+  .det{font-size:12px;color:var(--gr);padding:0 20px 16px;line-height:1.75}.det b{color:var(--carta);font-weight:400}
+  .filo{position:absolute;left:0;right:0;bottom:0;height:2px;background:linear-gradient(90deg,transparent,var(--oro),transparent)}
+  .verd.out .filo{background:linear-gradient(90deg,transparent,#A33B2E,transparent)}
+  button.b{background:transparent;border:1px solid var(--oro);color:var(--oro);font:inherit;font-size:10px;letter-spacing:.2em;text-transform:uppercase;padding:9px 18px;cursor:pointer;transition:.25s}
+  button.b:hover{background:var(--oro);color:var(--nero)}
+  button.gh{border-color:var(--ln);color:var(--gr)}button.gh:hover{background:transparent;border-color:var(--gr);color:var(--carta)}
+  .barra{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--gr);font-weight:300;text-align:left;padding:7px 5px;border-bottom:1px solid var(--ln)}
+  td{padding:6px 5px;border-bottom:1px solid var(--ln)}td input{border-bottom:none;font-size:12.5px;padding:2px}
+  .del{color:var(--gr);cursor:pointer}.del:hover{color:#E08573}
+  details{margin-bottom:16px}summary{cursor:pointer;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gr);padding:9px 0}summary:hover{color:var(--carta)}
+  .riep{white-space:pre-wrap;font-size:12px;line-height:1.8;border:1px solid var(--ln);background:rgba(255,255,255,.02);padding:16px;margin-top:12px;display:none}
+  .avv{border:1px solid #6b5b23;background:rgba(212,175,55,.05);padding:11px 15px;font-size:11.5px;color:var(--oro2);line-height:1.6;margin-bottom:16px}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--oro);color:var(--nero);padding:9px 20px;font-size:11px;letter-spacing:.12em;opacity:0;transition:.3s;pointer-events:none}
+  .toast.show{opacity:1}
+  /* wizard */
+  #wiz .card{min-height:170px;display:flex;flex-direction:column;justify-content:center}
+  #wiz .q{font-size:17px;margin-bottom:16px;line-height:1.5}
+  #wiz .prog{font-size:9px;letter-spacing:.2em;color:var(--gr);text-transform:uppercase;margin-bottom:10px}
+  .salv tr:hover td{color:var(--oro2);cursor:pointer}
+  @media print{body{background:#fff;color:#000}header .modi,.barra,details,.avv,.salv-sec{display:none!important}.card,.verd{border-color:#000}.verd .st{color:#000!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div><h1>BOOM</h1><div class="tag" id="tagAccordo">Scheda Canone · Accordo Roma 25/07/2023</div></div>
+    <div class="modi"><button id="mForm" class="att" onclick="modo('form')">Scheda</button><button id="mWiz" onclick="modo('wiz')">Guidata</button><button id="mChat" onclick="modo('chat')">Chat</button></div>
+  </header>
+
+  <div class="avv" id="avv">Valori zona integrati dalla tabella dell’Accordo 25/07/2023 (agg. 2026, fonte secondaria dellevittorie.it – 76 zone Pregio/Centrali/Semicentrali; le periferiche si aggiungono in Configurazione). Regole: normale = 4 requisiti; Fascia B da 3 parametri, C da 7; gli aumenti non superano il massimo di fascia. Confermare sempre la zona esatta con ARPE: i perimetri OMI non coincidono con i quartieri.</div>
+
+  <details>
+    <summary>Configurazione accordo — zone €/mq, soglie subfascia, accordi multipli</summary>
+    <div class="card">
+      <div class="g" style="margin-bottom:14px">
+        <div><label>Accordo attivo</label><select id="selAccordo" onchange="cambiaAccordo()"></select></div>
+        <div style="display:flex;align-items:flex-end;gap:8px"><button class="b gh" onclick="nuovoAccordo()">+ Nuovo accordo</button></div>
+      </div>
+      <h2 style="margin-top:0">Zone — fascia di oscillazione (€/mq/mese)</h2>
+      <table id="tz"><thead><tr><th>Zona</th><th>A min</th><th>A max</th><th>B min</th><th>B max</th><th>C min</th><th>C max</th><th></th></tr></thead><tbody></tbody></table>
+      <div class="barra"><button class="b gh" onclick="addZona()">+ Zona</button></div>
+      <h2>Soglie subfascia (n. parametri su 20)</h2>
+      <div class="g">
+        <div><label>Parametri minimi → FASCIA B</label><input type="number" id="sMed"></div>
+        <div><label>Parametri minimi → FASCIA C</label><input type="number" id="sMax"></div>
+        <div><label>Maggiorazione ammobiliato % (accordo)</label><input type="number" id="pArr"></div>
+        <div><label>Maggiorazione durata % (se applicabile)</label><input type="number" id="pDur"></div>
+      </div>
+      <div class="barra"><button class="b" onclick="salvaCfg()">Salva configurazione</button></div>
+    </div>
+  </details>
+
+  <!-- ============ MODALITÀ SCHEDA ============ -->
+  <div id="form">
+    <h2>Immobile e superficie</h2>
+    <div class="card">
+      <div class="g">
+        <div style="grid-column:1/-1"><label>Indirizzo / pratica</label><input id="ind" placeholder="Via ..., int. ..."></div>
+        <div><label>Zona accordo</label><select id="zona"></select></div>
+        <div><label>Tipo contratto</label><select id="tipo"><option value="stud">Studenti universitari</option><option value="trans">Transitorio (+10%)</option><option value="32">3+2</option></select></div>
+        <div><label>Alloggio “normale”? (acqua, gas/induzione, fognatura, riscaldamento)</label><select id="normale"><option value="s">Sì – tutti e 4 i requisiti</option><option value="n">No → Fascia A</option></select></div><div><label>Mq calpestabili</label><input type="number" id="mq" step="0.5"></div>
+        <div><label>Mq box/posto auto esclusivo</label><input type="number" id="mqBox" value="0" step="0.5"></div>
+        <div><label>Box in zona pregiata?</label><select id="boxPre"><option value="n">No (×0,50)</option><option value="s">Sì (×0,80)</option></select></div>
+        <div><label>Mq posto auto comune (×0,20)</label><input type="number" id="mqPC" value="0" step="0.5"></div>
+        <div><label>Mq balconi/terrazze/cantine (×0,25)</label><input type="number" id="mqBal" value="0" step="0.5"></div>
+        <div><label>Mq scoperta esclusiva (×0,15)</label><input type="number" id="mqSc" value="0" step="0.5"></div>
+        <div><label>Mq verde condominiale/quota (×0,10)</label><input type="number" id="mqVe" value="0" step="0.5"></div>
+        <div><label>Canone proposto €/mese</label><input type="number" id="prop" step="10"></div>
+      </div>
+    </div>
+    <h2>Parametri descrittivi (20 ufficiali)</h2>
+    <div class="card"><div class="chips" id="par"></div></div>
+    <h2>Maggiorazioni / riduzioni</h2>
+    <div class="card"><div class="magg" id="mag"></div></div>
+  </div>
+
+  <!-- ============ MODALITÀ GUIDATA ============ -->
+  <div id="wiz" style="display:none">
+    <div class="card">
+      <div class="prog" id="wProg"></div>
+      <div class="q" id="wQ"></div>
+      <div id="wBody"></div>
+      <div class="barra"><button class="b gh" onclick="wPrev()">← Indietro</button><button class="b" id="wNext" onclick="wAvanti()">Avanti →</button></div>
+    </div>
+  </div>
+
+
+  <!-- ============ MODALITÀ CHAT (AI + motore deterministico) ============ -->
+  <div id="chat" style="display:none">
+    <div class="card" style="padding:0">
+      <div id="chLog" style="max-height:420px;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:10px"></div>
+      <div style="display:flex;border-top:1px solid var(--ln)">
+        <input id="chIn" placeholder="Es: attico 85 mq a Trieste, arredato con ascensore e balcone 8mq, vorrei chiedere 1900" style="border:none;padding:14px 16px" onkeydown="if(event.key==='Enter')chSend()">
+        <button class="b" style="border:none;border-left:1px solid var(--ln)" onclick="chSend()">Invia</button>
+      </div>
+    </div>
+    <div style="font-size:10px;color:var(--gr);letter-spacing:.06em;line-height:1.6">La chat estrae i dati e li passa al motore di calcolo ufficiale — i numeri non li inventa mai. Richiede il deploy su Vercel con api/canone-bot.js attivo; senza endpoint, usa la modalità Guidata.</div>
+  </div>
+
+  <div class="verd" id="verd" style="display:none">
+    <div class="banda">
+      <div><div class="st" id="vSt">—</div><div style="font-size:10px;color:var(--gr);margin-top:6px;letter-spacing:.1em" id="vSub"></div></div>
+      <div class="rng" id="vRng"></div>
+    </div>
+    <div class="det" id="vDet"></div><div class="filo"></div>
+  </div>
+
+  <div class="barra">
+    <button class="b" onclick="calc(true)">Calcola</button>
+    <button class="b gh" onclick="copia()">Copia riepilogo ARPE</button>
+    <button class="b gh" onclick="window.print()">Stampa</button>
+    <button class="b gh" onclick="salvaPr()">Salva pratica</button>
+  </div>
+  <div class="riep" id="riep"></div>
+
+  <div class="salv-sec"><h2>Pratiche salvate</h2>
+    <div class="card"><table class="salv" id="tp"><thead><tr><th>Pratica</th><th>Zona</th><th>Max €</th><th>Proposto</th><th>Esito</th><th></th></tr></thead><tbody></tbody></table></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// Persistenza browser: stessa API window.storage del tool originale, stesse
+// chiavi ('boom-canone-v2-cfg' / 'boom-canone-v2-pr'), backend localStorage.
+if(!window.storage){window.storage={
+  async get(k){const v=localStorage.getItem(k);return v==null?null:{value:v};},
+  async set(k,v){localStorage.setItem(k,v);}
+};}
+// ====== PARAMETRI UFFICIALI (scheda ARPE 25/07/2023) ======
+const PARAMETRI = ["Posto auto","Cortile d'uso comune / area verde / impianto sportivo","Cantina","Terrazzo o balcone","Area verde di pertinenza","Aria condizionata","Stabile con ascensore","Bagno con finestra o doppi servizi","Porta blindata","Doppi vetri","Stabile con servizio di portierato","Stabile o U.I. ultimati o completamente ristrutturati","Sistema di sicurezza o allarme","Cucina abitabile con finestra","Videocitofono o videosorveglianza","Antenna centralizzata o satellitare","Riscaldamento autonomo","Stabile non superiore a 4 piani","Superamento barriere architettoniche","Terrazzo o locale condominiale ad uso comune"];
+const MAGG = [
+  {id:"arr", n:"A — Ammobiliato", p:"cfg", tip:"+"},
+  {id:"sem", n:"B — Seminterrato", p:-10},
+  {id:"asc", n:"C — Senza ascensore", p:-10},
+  {id:"att", n:"D — Attico", p:10},
+  {id:"clA", n:"E — Classe energetica A/B/C", p:10},
+  {id:"eco", n:"F — Interventi Eco Bonus", p:5},
+  {id:"sis", n:"G — Interventi Sisma Bonus", p:10},
+  {id:"clD", n:"H — Classe energetica D/E/F", p:5},
+  {id:"vin", n:"Immobile vincolato / Cat. A1–A8", p:0, custom:true},
+];
+// ====== STATO ======
+let CFG = { accordi:[{nome:"Roma 25/07/2023 (tab. agg. 2026)", zone:[{"cod": "B1", "nome": "TESTACCIO", "aMin": 10.5, "aMax": 13.2, "bMin": 13.2, "bMax": 15.3, "cMin": 15.3, "cMax": 17.6}, {"cod": "B2", "nome": "SAN SABA", "aMin": 10.5, "aMax": 13.2, "bMin": 13.2, "bMax": 18.9, "cMin": 18.9, "cMax": 22.6}, {"cod": "B3", "nome": "CELIO", "aMin": 10.5, "aMax": 13.2, "bMin": 13.2, "bMax": 18.9, "cMin": 18.9, "cMax": 22.6}, {"cod": "B4", "nome": "MONTI", "aMin": 10.5, "aMax": 13.2, "bMin": 13.2, "bMax": 18.9, "cMin": 18.9, "cMax": 22.6}, {"cod": "B12", "nome": "AVENTINO", "aMin": 12.6, "aMax": 15.4, "bMin": 15.4, "bMax": 22.0, "cMin": 22.0, "cMax": 26.4}, {"cod": "B13", "nome": "SANT'ANGELO-CAMPITELLI", "aMin": 12.6, "aMax": 15.4, "bMin": 15.4, "bMax": 22.0, "cMin": 22.0, "cMax": 26.4}, {"cod": "B14", "nome": "TRASTEVERE", "aMin": 12.6, "aMax": 15.4, "bMin": 15.4, "bMax": 22.0, "cMin": 22.0, "cMax": 26.4}, {"cod": "B15", "nome": "BORGO", "aMin": 12.6, "aMax": 15.4, "bMin": 15.4, "bMax": 22.0, "cMin": 22.0, "cMax": 26.4}, {"cod": "B17", "nome": "SALLUSTIANO-CASTRO PRETORIO", "aMin": 12.6, "aMax": 15.4, "bMin": 15.4, "bMax": 22.0, "cMin": 22.0, "cMax": 26.4}, {"cod": "B18", "nome": "ESQUILINO", "aMin": 7.0, "aMax": 9.2, "bMin": 9.2, "bMax": 13.1, "cMin": 13.1, "cMax": 15.7}, {"cod": "B25", "nome": "LUDOVISI", "aMin": 12.6, "aMax": 15.4, "bMin": 15.4, "bMax": 22.0, "cMin": 22.0, "cMax": 26.4}, {"cod": "B29", "nome": "VIMINALE", "aMin": 10.5, "aMax": 13.2, "bMin": 13.2, "bMax": 18.9, "cMin": 18.9, "cMax": 22.6}, {"cod": "B31", "nome": "TRIDENTE", "aMin": 12.6, "aMax": 18.3, "bMin": 18.3, "bMax": 26.2, "cMin": 26.2, "cMax": 31.5}, {"cod": "B32", "nome": "CORSO VITTORIO", "aMin": 12.6, "aMax": 16.9, "bMin": 16.9, "bMax": 24.1, "cMin": 24.1, "cMax": 28.9}, {"cod": "C1", "nome": "PARIOLI", "aMin": 10.5, "aMax": 13.8, "bMin": 13.8, "bMax": 19.8, "cMin": 19.8, "cMax": 23.8}, {"cod": "C2", "nome": "SALARIO (Via Nizza)", "aMin": 10.5, "aMax": 13.8, "bMin": 13.8, "bMax": 19.8, "cMin": 19.8, "cMax": 23.8}, {"cod": "C3", "nome": "PINCIANO", "aMin": 10.5, "aMax": 13.8, "bMin": 13.8, "bMax": 19.8, "cMin": 19.8, "cMax": 23.8}, {"cod": "C4", "nome": "NOMENTANO TORLONIA", "aMin": 10.5, "aMax": 13.8, "bMin": 13.8, "bMax": 19.8, "cMin": 19.8, "cMax": 23.8}, {"cod": "C40", "nome": "PRATI", "aMin": 10.5, "aMax": 12.8, "bMin": 12.8, "bMax": 18.4, "cMin": 18.4, "cMax": 22.0}, {"cod": "C41", "nome": "DELLA VITTORIA (Cavalier d'Arpino)", "aMin": 10.5, "aMax": 12.8, "bMin": 12.8, "bMax": 18.4, "cMin": 18.4, "cMax": 22.0}, {"cod": "C46", "nome": "SALARIO TRIESTE (Via dei Laghi/Corsica)", "aMin": 10.5, "aMax": 13.9, "bMin": 13.9, "bMax": 19.9, "cMin": 19.9, "cMax": 23.9}, {"cod": "C49", "nome": "FLAMINIO", "aMin": 10.5, "aMax": 12.8, "bMin": 12.8, "bMax": 18.4, "cMin": 18.4, "cMax": 22.0}, {"cod": "C50", "nome": "FLAMINIO PORTA DEL POPOLO", "aMin": 10.5, "aMax": 13.0, "bMin": 13.0, "bMax": 18.6, "cMin": 18.6, "cMax": 22.4}, {"cod": "C5", "nome": "SAN LORENZO", "aMin": 4.4, "aMax": 8.1, "bMin": 8.1, "bMax": 11.6, "cMin": 11.6, "cMax": 13.6}, {"cod": "C7", "nome": "APPIO VILLA FIORELLI", "aMin": 6.1, "aMax": 7.9, "bMin": 7.9, "bMax": 11.3, "cMin": 11.3, "cMax": 14.1}, {"cod": "C8", "nome": "APPIO NOCERA UMBRA", "aMin": 6.1, "aMax": 7.9, "bMin": 7.9, "bMax": 11.3, "cMin": 11.3, "cMax": 14.1}, {"cod": "C9", "nome": "APPIO METRONIO", "aMin": 6.1, "aMax": 8.6, "bMin": 8.6, "bMax": 12.3, "cMin": 12.3, "cMax": 15.5}, {"cod": "C10", "nome": "GARBATELLA", "aMin": 6.1, "aMax": 8.2, "bMin": 8.2, "bMax": 11.8, "cMin": 11.8, "cMax": 13.5}, {"cod": "C11", "nome": "MARCONI", "aMin": 6.1, "aMax": 8.2, "bMin": 8.2, "bMax": 11.8, "cMin": 11.8, "cMax": 13.5}, {"cod": "C12", "nome": "MONTEVERDE VECCHIO", "aMin": 6.1, "aMax": 9.8, "bMin": 9.8, "bMax": 14.0, "cMin": 14.0, "cMax": 16.0}, {"cod": "C13", "nome": "MONTEVERDE NUOVO", "aMin": 6.1, "aMax": 8.2, "bMin": 8.2, "bMax": 11.8, "cMin": 11.8, "cMax": 12.8}, {"cod": "C14", "nome": "AURELIO MONTE DI CRETA", "aMin": 4.7, "aMax": 8.1, "bMin": 8.1, "bMax": 11.6, "cMin": 11.6, "cMax": 12.8}, {"cod": "C15", "nome": "AURELIO GREGORIO VII", "aMin": 6.1, "aMax": 8.4, "bMin": 8.4, "bMax": 12.0, "cMin": 12.0, "cMax": 15.5}, {"cod": "C16", "nome": "CAVALLEGGERI", "aMin": 6.1, "aMax": 8.4, "bMin": 8.4, "bMax": 12.0, "cMin": 12.0, "cMax": 14.5}, {"cod": "C17", "nome": "BALDUINA GIOVENALE", "aMin": 6.1, "aMax": 8.2, "bMin": 8.2, "bMax": 11.8, "cMin": 11.8, "cMax": 12.8}, {"cod": "C18", "nome": "CIPRO", "aMin": 6.3, "aMax": 8.4, "bMin": 8.4, "bMax": 12.0, "cMin": 12.0, "cMax": 13.5}, {"cod": "C19", "nome": "PONTE MILVIO FARNESINA", "aMin": 8.8, "aMax": 11.4, "bMin": 11.4, "bMax": 16.3, "cMin": 16.3, "cMax": 17.9}, {"cod": "C21", "nome": "SALARIO AFRICANO (V.le Libia)", "aMin": 6.1, "aMax": 9.8, "bMin": 9.8, "bMax": 14.0, "cMin": 14.0, "cMax": 15.5}, {"cod": "C22", "nome": "BATTERIA NOMENTANA LANCIANI", "aMin": 6.1, "aMax": 9.5, "bMin": 9.5, "bMax": 13.6, "cMin": 13.6, "cMax": 14.5}, {"cod": "C24", "nome": "BOLOGNA", "aMin": 6.5, "aMax": 9.7, "bMin": 9.7, "bMax": 13.8, "cMin": 13.8, "cMax": 15.0}, {"cod": "C26", "nome": "VILLAGGIO OLIMPICO", "aMin": 6.1, "aMax": 9.0, "bMin": 9.0, "bMax": 12.9, "cMin": 12.9, "cMax": 14.0}, {"cod": "C27", "nome": "PORTA PORTESE", "aMin": 8.8, "aMax": 10.1, "bMin": 10.1, "bMax": 14.5, "cMin": 14.5, "cMax": 16.0}, {"cod": "C29", "nome": "CASAL BERTONE", "aMin": 4.2, "aMax": 6.4, "bMin": 6.4, "bMax": 9.1, "cMin": 9.1, "cMax": 12.4}, {"cod": "C30", "nome": "PIGNETO", "aMin": 4.4, "aMax": 7.3, "bMin": 7.3, "bMax": 10.5, "cMin": 10.5, "cMax": 13.1}, {"cod": "C31", "nome": "MARCO POLO", "aMin": 6.1, "aMax": 8.2, "bMin": 8.2, "bMax": 11.8, "cMin": 11.8, "cMax": 15.0}, {"cod": "C32", "nome": "OSTIENSE", "aMin": 6.1, "aMax": 7.7, "bMin": 7.7, "bMax": 11.0, "cMin": 11.0, "cMax": 12.5}, {"cod": "C35", "nome": "AURELIO MADONNA DEL RIPOSO", "aMin": 6.1, "aMax": 8.2, "bMin": 8.2, "bMax": 11.8, "cMin": 11.8, "cMax": 12.8}, {"cod": "C38", "nome": "CASILINO MARRANELLA", "aMin": 4.1, "aMax": 6.4, "bMin": 6.4, "bMax": 9.1, "cMin": 9.1, "cMax": 11.9}, {"cod": "C42", "nome": "VIGNA CLARA", "aMin": 8.8, "aMax": 9.8, "bMin": 9.8, "bMax": 14.0, "cMin": 14.0, "cMax": 15.5}, {"cod": "C43", "nome": "TRIONFALE IGEA", "aMin": 8.8, "aMax": 10.5, "bMin": 10.5, "bMax": 15.0, "cMin": 15.0, "cMax": 16.5}, {"cod": "C44", "nome": "CAMILLUCCIA", "aMin": 8.8, "aMax": 11.1, "bMin": 11.1, "bMax": 15.8, "cMin": 15.8, "cMax": 18.1}, {"cod": "C45", "nome": "NOCETTA", "aMin": 4.4, "aMax": 6.5, "bMin": 6.5, "bMax": 9.3, "cMin": 9.3, "cMax": 12.6}, {"cod": "C47", "nome": "BALDUINA BELSITO", "aMin": 6.3, "aMax": 8.3, "bMin": 8.3, "bMax": 11.9, "cMin": 11.9, "cMax": 14.3}, {"cod": "C48", "nome": "TOR MARANCIA NAVIGATORI", "aMin": 6.1, "aMax": 8.2, "bMin": 8.2, "bMax": 11.8, "cMin": 11.8, "cMax": 13.5}, {"cod": "C51", "nome": "APPIO LATINO", "aMin": 6.1, "aMax": 8.2, "bMin": 8.2, "bMax": 11.8, "cMin": 11.8, "cMax": 13.3}, {"cod": "C52", "nome": "COLLINA FLEMING", "aMin": 8.8, "aMax": 9.8, "bMin": 9.8, "bMax": 14.0, "cMin": 14.0, "cMax": 15.5}, {"cod": "D5", "nome": "SAN PAOLO", "aMin": 5.3, "aMax": 7.5, "bMin": 7.5, "bMax": 10.7, "cMin": 10.7, "cMax": 12.6}, {"cod": "D7", "nome": "PORTUENSE", "aMin": 6.1, "aMax": 8.3, "bMin": 8.3, "bMax": 11.0, "cMin": 11.0, "cMax": 12.8}, {"cod": "D9", "nome": "COLLI PORTUENSI", "aMin": 6.1, "aMax": 8.3, "bMin": 8.4, "bMax": 12.0, "cMin": 12.0, "cMax": 12.6}, {"cod": "D11", "nome": "MONTESACRO", "aMin": 5.3, "aMax": 8.0, "bMin": 8.0, "bMax": 11.5, "cMin": 11.5, "cMax": 13.0}, {"cod": "D15", "nome": "ARDEATINO OTTAVO COLLE", "aMin": 7.0, "aMax": 9.7, "bMin": 9.7, "bMax": 13.8, "cMin": 13.8, "cMax": 15.9}, {"cod": "D27", "nome": "TALENTI", "aMin": 5.9, "aMax": 8.3, "bMin": 8.3, "bMax": 11.9, "cMin": 11.9, "cMax": 13.7}, {"cod": "D29", "nome": "EUR", "aMin": 7.0, "aMax": 10.5, "bMin": 10.5, "bMax": 15.1, "cMin": 15.1, "cMax": 16.2}, {"cod": "D31", "nome": "CASSIA DUE PONTI", "aMin": 8.8, "aMax": 9.2, "bMin": 9.2, "bMax": 13.1, "cMin": 13.1, "cMax": 14.5}, {"cod": "D32", "nome": "FONTE MERAVIGLIOSA", "aMin": 6.1, "aMax": 9.8, "bMin": 9.8, "bMax": 14.0, "cMin": 14.0, "cMax": 16.5}, {"cod": "D34", "nome": "MONTAGNOLA", "aMin": 6.4, "aMax": 9.2, "bMin": 9.2, "bMax": 13.2, "cMin": 13.2, "cMax": 15.0}, {"cod": "D36", "nome": "GROTTAPERFETTA ROMA 70", "aMin": 7.0, "aMax": 9.7, "bMin": 9.7, "bMax": 13.8, "cMin": 13.8, "cMax": 16.0}, {"cod": "D37", "nome": "APPIA ANTICA", "aMin": 6.7, "aMax": 9.7, "bMin": 9.7, "bMax": 13.8, "cMin": 13.8, "cMax": 15.5}, {"cod": "D38", "nome": "TINTORETTO", "aMin": 7.0, "aMax": 9.7, "bMin": 9.7, "bMax": 13.8, "cMin": 13.8, "cMax": 16.0}, {"cod": "D46", "nome": "CONCA D'ORO", "aMin": 5.3, "aMax": 7.9, "bMin": 7.9, "bMax": 11.3, "cMin": 11.3, "cMax": 13.0}, {"cod": "D47", "nome": "SACCO PASTORE", "aMin": 5.3, "aMax": 7.9, "bMin": 7.9, "bMax": 11.3, "cMin": 11.3, "cMax": 13.0}, {"cod": "D68", "nome": "CORTINA D'AMPEZZO", "aMin": 8.8, "aMax": 11.0, "bMin": 11.0, "bMax": 14.0, "cMin": 14.0, "cMax": 15.0}, {"cod": "D69", "nome": "MONTE MARIO ALTO", "aMin": 8.8, "aMax": 11.0, "bMin": 11.0, "bMax": 15.0, "cMin": 15.0, "cMax": 16.4}, {"cod": "D71", "nome": "NUOVO SALARIO PRATI FISCALI", "aMin": 5.0, "aMax": 8.2, "bMin": 8.2, "bMax": 11.7, "cMin": 11.7, "cMax": 13.4}, {"cod": "D78", "nome": "FERRATELLA", "aMin": 7.0, "aMax": 9.4, "bMin": 9.4, "bMax": 13.5, "cMin": 13.5, "cMax": 15.0}]}], attivo:0, sMed:3, sMax:7, pArr:0, pDur:0, calibrato:true };
+let pratiche=[], ultimo=null;
+
+async function load(){
+  try{const r=await window.storage.get('boom-canone-v2-cfg'); if(r&&r.value) CFG=JSON.parse(r.value);}catch(e){}
+  try{const r=await window.storage.get('boom-canone-v2-pr'); if(r&&r.value) pratiche=JSON.parse(r.value);}catch(e){}
+  renderCfg(); renderPar(); renderMag(); renderZone(); renderPr();
+  document.getElementById('avv').style.display=CFG.calibrato?'none':'block';
+  document.getElementById('tagAccordo').textContent='Scheda Canone · Accordo '+CFG.accordi[CFG.attivo].nome;
+}
+async function pcfg(){try{await window.storage.set('boom-canone-v2-cfg',JSON.stringify(CFG));}catch(e){toast('Storage KO — in memoria');}}
+async function ppr(){try{await window.storage.set('boom-canone-v2-pr',JSON.stringify(pratiche));}catch(e){}}
+
+function renderCfg(){
+  const s=selAccordo; s.innerHTML=''; CFG.accordi.forEach((a,i)=>{const o=document.createElement('option');o.value=i;o.textContent=a.nome;s.appendChild(o);}); s.value=CFG.attivo;
+  const tb=document.querySelector('#tz tbody'); tb.innerHTML='';
+  CFG.accordi[CFG.attivo].zone.forEach((z,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td><input value="${(z.cod?z.cod+' ':'')+z.nome}" onchange="CFG.accordi[CFG.attivo].zone[${i}].nome=this.value"></td>`+
+      ['aMin','aMax','bMin','bMax','cMin','cMax'].map(k=>`<td><input type="number" step="0.01" value="${z[k]}" onchange="CFG.accordi[CFG.attivo].zone[${i}].${k}=+this.value"></td>`).join('')+
+      `<td><span class="del" onclick="CFG.accordi[CFG.attivo].zone.splice(${i},1);renderCfg();renderZone()">×</span></td>`;
+    tb.appendChild(tr);
+  });
+  sMed.value=CFG.sMed; sMax.value=CFG.sMax; pArr.value=CFG.pArr; pDur.value=CFG.pDur;
+}
+function addZona(){CFG.accordi[CFG.attivo].zone.push({cod:"",nome:"Nuova zona",aMin:0,aMax:0,bMin:0,bMax:0,cMin:0,cMax:0});renderCfg();renderZone();}
+function nuovoAccordo(){const n=prompt("Nome nuovo accordo (es. Roma 09/2026):"); if(!n)return; CFG.accordi.push({nome:n,zone:JSON.parse(JSON.stringify(CFG.accordi[CFG.attivo].zone))}); CFG.attivo=CFG.accordi.length-1; renderCfg(); renderZone(); toast('Accordo creato — zone copiate, aggiorna i valori');}
+function cambiaAccordo(){CFG.attivo=+selAccordo.value; renderCfg(); renderZone(); document.getElementById('tagAccordo').textContent='Scheda Canone · Accordo '+CFG.accordi[CFG.attivo].nome;}
+async function salvaCfg(){CFG.sMed=+sMed.value;CFG.sMax=+sMax.value;CFG.pArr=+pArr.value;CFG.pDur=+pDur.value;CFG.calibrato=true;await pcfg();document.getElementById('avv').style.display='none';toast('Configurazione salvata');}
+function renderZone(){const s=zona;const c=s.value;s.innerHTML='';CFG.accordi[CFG.attivo].zone.forEach((z,i)=>{const o=document.createElement('option');o.value=i;o.textContent=(z.cod?z.cod+' · ':'')+z.nome+` (B ${z.bMin}–${z.bMax})`;s.appendChild(o);});if(c)s.value=c;}
+function renderPar(){const b=par;b.innerHTML='';PARAMETRI.forEach((p,i)=>{const l=document.createElement('label');l.className='chip';l.innerHTML=`<input type="checkbox" data-p="${i}" onchange="this.parentElement.classList.toggle('on',this.checked)"> ${i+1}. ${p}`;b.appendChild(l);});}
+function renderMag(){const b=mag;b.innerHTML='';MAGG.forEach(m=>{const l=document.createElement('label');l.className='chip';const pct=m.p==='cfg'?`+${CFG.pArr}%`:(m.custom?'+__%':(m.p>0?'+':'')+m.p+'%');l.innerHTML=`<input type="checkbox" id="mg_${m.id}" onchange="this.parentElement.classList.toggle('on',this.checked)"> ${m.n} <span style="color:var(--gr)">${pct}</span>`;b.appendChild(l);});}
+
+// ====== MOTORE (coefficienti ufficiali) ======
+function supConv(mq,box,boxPre,pc,bal,sc,ve){
+  let base;
+  if(mq<46) base=Math.min(mq*1.30,52.90);
+  else if(mq<=70) base=Math.min(mq*1.15,70.00);
+  else base=mq; // 70–120 ×1; >120: eventuale riduzione fino a −15% da concordare
+  return base + box*(boxPre?0.80:0.50) + pc*0.20 + bal*0.25 + sc*0.15 + ve*0.10;
+}
+function calc(show){
+  const A=CFG.accordi[CFG.attivo]; const z=A.zone[+zona.value];
+  if(!z||!(z.aMax>0&&z.bMax>0&&z.cMax>0)){ if(show)toast('Configura la zona (€/mq min/max)'); return null; }
+  const mqv=+mq.value||0; if(mqv<=0){if(show)toast('Mq calpestabili mancanti');return null;}
+  const sc_=supConv(mqv,+mqBox.value||0,boxPre.value==='s',+mqPC.value||0,+mqBal.value||0,+mqSc.value||0,+mqVe.value||0);
+  const nP=document.querySelectorAll('#par input:checked').length;
+  const normale = document.getElementById('normale').value==='s';
+  const fascia = !normale ? 'A' : nP>=CFG.sMax ? 'C' : nP>=CFG.sMed ? 'B' : 'A';
+  const fMin = z[fascia.toLowerCase()+'Min'], fMax = z[fascia.toLowerCase()+'Max'];
+  const sub = fascia;
+  const eur = fMax; // riferimento prudenziale: massimo della fascia applicabile
+  let pct=0, note=[];
+  const on=id=>document.getElementById('mg_'+id).checked;
+  if(tipo.value==='trans'){pct+=10;note.push('transitorio +10%');}
+  if(CFG.pDur&&tipo.value==='32'){pct+=CFG.pDur;note.push('durata +'+CFG.pDur+'%');}
+  if(on('arr')){pct+=CFG.pArr;note.push('ammobiliato +'+CFG.pArr+'%');}
+  if(on('sem')){pct-=10;note.push('seminterrato −10%');}
+  if(on('asc')){pct-=10;note.push('senza ascensore −10%');}
+  if(on('att')){pct+=10;note.push('attico +10%');}
+  if(on('clA')){pct+=10;note.push('classe A/B/C +10%');}
+  if(on('eco')){pct+=5;note.push('Eco Bonus +5%');}
+  if(on('sis')){pct+=10;note.push('Sisma Bonus +10%');}
+  if(on('clD')){pct+=5;note.push('classe D/E/F +5%');}
+  const f=1+pct/100;
+  // Regola accordo: gli incrementi NON possono superare il massimo di fascia; le riduzioni sì.
+  const capMese = fMax*sc_;
+  const cMin = Math.max(0, fMin*sc_*Math.min(f,1));
+  const cMax = Math.min(fMax*sc_*f, pct>0 ? capMese : fMax*sc_*f);
+  const cApp = cMax;
+  const p=+prop.value||0; const inF = p>0 ? p<=cMax+0.005 : null;
+  ultimo={ind:ind.value,zona:z.nome,tipo:tipo.value,mq:mqv,sc:sc_,nP,sub,eur,pct,note,cMin,cApp,cMax,p,inF};
+  const v=verd; v.style.display='block'; v.className='verd '+(inF===false?'out':inF?'in':'');
+  vSt.textContent=inF===null?'CANONE MASSIMO CALCOLATO':inF?'IN FASCIA — ASSEVERABILE':'FUORI FASCIA';
+  vSub.textContent=`${nP} parametri · FASCIA ${fascia} (${fMin}–${fMax} €/mq) · sup. conv. ${fmt(sc_)} mq${pct?` · magg. ${pct>0?'+':''}${pct}% (cap al max di fascia)`:''}`;
+  vRng.innerHTML=`max € ${fmt(cMax)} <small>/mese</small>`;
+  let d=`Fascia applicabile ${fascia}: € ${fmt(fMin*sc_)} – <b>€ ${fmt(cMax)}</b>/mese (annuo max € ${fmt(cMax*12)}). Gli aumenti non possono superare il massimo di fascia.`;
+  if(note.length)d+=` Applicati: ${note.join(', ')}.`;
+  if(p>0)d+= inF?` Proposto <b>€ ${fmt(p)}</b>: sotto il massimo di € ${fmt(cMax-p)}.`:` Proposto <b>€ ${fmt(p)}</b>: SFORA il massimo di <b>€ ${fmt(p-cMax)}</b> — riportare a € ${fmt(cMax)} o rivedere parametri/maggiorazioni.`;
+  if(!CFG.calibrato)d+=' <span style="color:var(--oro2)">⚠ €/mq zona e soglie subfascia non ancora calibrati.</span>';
+  vDet.innerHTML=d; return ultimo;
+}
+function fmt(n){return n.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2});}
+
+// ====== WIZARD ======
+const wSteps=[
+ {q:"Indirizzo della pratica?",tipo:'txt',id:'ind'},
+ {q:"Zona dell'accordo?",tipo:'sel'},
+ {q:"Tipo di contratto?",tipo:'tipo'},
+ {q:"Metri quadri calpestabili?",tipo:'num',id:'mq'},
+ {q:"Pertinenze — mq balconi/terrazze/cantine (0 se nessuna)",tipo:'num',id:'mqBal'},
+ {q:"Mq box o posto auto esclusivo (0 se nessuno)",tipo:'num',id:'mqBox'},
+ {q:"Spunta i parametri presenti (dei 20 ufficiali)",tipo:'par'},
+ {q:"Maggiorazioni applicabili?",tipo:'mag'},
+ {q:"Canone che vuoi proporre €/mese?",tipo:'num',id:'prop'},
+];
+let wI=0;
+function modo(m){['form','wiz','chat'].forEach(x=>document.getElementById(x).style.display=x===m?'block':'none');mForm.classList.toggle('att',m==='form');mWiz.classList.toggle('att',m==='wiz');mChat.classList.toggle('att',m==='chat');if(m==='wiz'){wI=0;wRender();}if(m==='chat'&&!chStarted){chStarted=true;chAdd('bot','Dimmi l\'immobile: zona, mq, dotazioni e canone che vuoi chiedere. Puoi dettare tutto in una frase.');}}
+function wRender(){
+  const s=wSteps[wI]; wProg.textContent=`Domanda ${wI+1} di ${wSteps.length}`; wQ.textContent=s.q; const b=wBody; b.innerHTML='';
+  if(s.tipo==='txt'||s.tipo==='num'){const i=document.createElement('input');i.type=s.tipo==='num'?'number':'text';i.value=document.getElementById(s.id).value;i.oninput=()=>document.getElementById(s.id).value=i.value;b.appendChild(i);i.focus();}
+  if(s.tipo==='sel'){const c=zona.cloneNode(true);c.value=zona.value;c.onchange=()=>zona.value=c.value;b.appendChild(c);}
+  if(s.tipo==='tipo'){const c=tipo.cloneNode(true);c.value=tipo.value;c.onchange=()=>tipo.value=c.value;b.appendChild(c);}
+  if(s.tipo==='par'){b.appendChild(par.parentElement===b?par:par);} // move chips in
+  if(s.tipo==='mag'){b.appendChild(mag);}
+  wNext.textContent = wI===wSteps.length-1 ? 'Calcola ✓' : 'Avanti →';
+}
+function wAvanti(){ if(wI===wSteps.length-1){ modo('form'); riportaChips(); calc(true); window.scrollTo({top:document.getElementById('verd').offsetTop-80,behavior:'smooth'}); return;} wI++; wRender(); }
+function wPrev(){ if(wI>0){wI--; wRender();} }
+function riportaChips(){ // restituisce par/mag alle card originali
+  const c1=document.querySelectorAll('#form .card')[1]; if(par.parentElement!==c1.querySelector('.chips')&&!c1.contains(par))c1.appendChild(par);
+  const c2=document.querySelectorAll('#form .card')[2]; if(!c2.contains(mag))c2.appendChild(mag);
+}
+
+// ====== OUTPUT ======
+function copia(){
+  const c=ultimo||calc(true); if(!c)return;
+  const t=`SCHEDA CANONE (pre-verifica) — ${c.ind||'immobile'}
+Accordo: ${CFG.accordi[CFG.attivo].nome} — Zona: ${c.zona}
+Contratto: ${c.tipo==='stud'?'Studenti universitari':c.tipo==='trans'?'Transitorio':'3+2'}
+Mq calpestabili: ${c.mq} → Superficie convenzionale: ${fmt(c.sc)} mq
+Parametri: ${c.nP}/20 → FASCIA ${c.sub}
+Maggiorazioni: ${c.note.length?c.note.join(', '):'nessuna'} (${c.pct>0?'+':''}${c.pct}%)
+CANONE MASSIMO: € ${fmt(c.cMax)}/mese (€ ${fmt(c.cMax*12)}/anno)
+Canone proposto: € ${fmt(c.p)} → ${c.inF===null?'—':c.inF?'IN FASCIA':'FUORI FASCIA di € '+fmt(c.p-c.cMax)}
+${CFG.calibrato?'':'[parametri zona non calibrati]'}
+— BOOM · pre-verifica interna, non sostituisce l'attestazione ARPE`;
+  riep.textContent=t; riep.style.display='block';
+  navigator.clipboard&&navigator.clipboard.writeText(t).then(()=>toast('Copiato'),()=>toast('Copia manuale'));
+}
+async function salvaPr(){const c=ultimo||calc(true);if(!c)return;pratiche.unshift({...c,data:new Date().toLocaleDateString('it-IT')});pratiche=pratiche.slice(0,60);await ppr();renderPr();toast('Pratica salvata');}
+function renderPr(){const tb=document.querySelector('#tp tbody');tb.innerHTML='';if(!pratiche.length){tb.innerHTML='<tr><td colspan="6" style="color:var(--gr)">Nessuna pratica salvata.</td></tr>';return;}
+ pratiche.forEach((p,i)=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${p.ind||'—'}</td><td>${p.zona}</td><td>€ ${fmt(p.cMax)}</td><td>€ ${fmt(p.p)}</td><td style="color:${p.inF?'var(--oro)':p.inF===false?'#E08573':'var(--gr)'}">${p.inF===null?'—':p.inF?'IN':'FUORI'}</td><td><span class="del" onclick="pratiche.splice(${i},1);ppr();renderPr()">×</span></td>`;tb.appendChild(tr);});}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2100);}
+
+// ====== CHAT (parser AI -> motore deterministico) ======
+let chMsgs=[], chStarted=false;
+function chAdd(who,txt){const d=document.createElement('div');d.style.cssText='max-width:85%;padding:10px 14px;font-size:13px;line-height:1.6;'+(who==='io'?'align-self:flex-end;border:1px solid var(--oro2);color:var(--carta)':'align-self:flex-start;border:1px solid var(--ln);color:var(--carta)');d.textContent=txt;chLog.appendChild(d);chLog.scrollTop=chLog.scrollHeight;}
+function campiNoti(){const o={};if(ind.value)o.indirizzo=ind.value;if(+mq.value)o.mq=+mq.value;if(+prop.value)o.prop=+prop.value;o.zona=CFG.accordi[CFG.attivo].zone[+zona.value]?.nome;o.tipo=tipo.value;return o;}
+async function chSend(){
+  const v=chIn.value.trim(); if(!v)return; chIn.value=''; chAdd('io',v);
+  chMsgs.push({role:'user',content:v});
+  try{
+    const zoneNomi=CFG.accordi[CFG.attivo].zone.map(z=>z.nome);
+    const r=await fetch('/api/canone-bot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:chMsgs,campiNoti:campiNoti(),zone:zoneNomi})});
+    if(!r.ok){ let code=''; try{code=(await r.json()).error||'';}catch(_){} throw new Error(code||'http-'+r.status); }
+    const j=await r.json();
+    chMsgs.push({role:'assistant',content:JSON.stringify(j)});
+    applica(j.campi||{});
+    if(j.completo){ const c=calc(false); if(c){ chAdd('bot',`Fascia ${c.sub} (${c.nP} parametri). Canone massimo € ${fmt(c.cMax)}/mese. Il tuo € ${fmt(c.p)} è ${c.inF?'IN FASCIA ✓':'FUORI FASCIA di € '+fmt(c.p-c.cMax)+' — massimo asseverabile € '+fmt(c.cMax)}.`); verd.scrollIntoView({behavior:'smooth'});} else chAdd('bot','Mi manca la configurazione della zona (€/mq). Aprila in Configurazione.'); }
+    else chAdd('bot',j.domanda||'Dimmi di più.');
+  }catch(e){
+    const m=String(e&&e.message||'');
+    if(m==='no-key') chAdd('bot','⚙️ Chat AI non configurata: manca ANTHROPIC_API_KEY nelle Environment Variables di Vercel (Settings → Environment Variables, poi redeploy). Nel frattempo le modalità Scheda e Guidata funzionano al 100% — usano lo stesso motore di calcolo, la chat serve solo a raccogliere i dati.');
+    else if(m==='http-404') chAdd('bot','⚙️ Endpoint /api/canone-bot non trovato sul server: il file api/canone-bot.js non risulta deployato. Usa la modalità Guidata: stesso risultato, zero dipendenze.');
+    else chAdd('bot','📡 La chat AI non risponde in questo momento'+(m&&m!=='Failed to fetch'?' ('+m+')':'')+'. Riprova tra poco, oppure usa la modalità Guidata: stesso motore, stesso risultato.');
+  }
+}
+function applica(c){
+  if(c.indirizzo)ind.value=c.indirizzo;
+  if(c.mq)mq.value=c.mq; if(c.mqBal!==undefined)mqBal.value=c.mqBal; if(c.mqBox!==undefined)mqBox.value=c.mqBox;
+  if(c.prop)prop.value=c.prop; if(c.tipo)tipo.value=c.tipo;
+  if(c.zona){const zs=CFG.accordi[CFG.attivo].zone;const i=zs.findIndex(z=>z.nome.toLowerCase().includes(String(c.zona).toLowerCase()));if(i>=0)zona.value=i;}
+  if(Array.isArray(c.parametri)){document.querySelectorAll('#par input').forEach(x=>{const n=+x.dataset.p+1;x.checked=c.parametri.includes(n);x.parentElement.classList.toggle('on',x.checked);});}
+  if(Array.isArray(c.maggiorazioni)){['arr','sem','asc','att','clA','eco','sis','clD'].forEach(id=>{const el=document.getElementById('mg_'+id);if(el){el.checked=c.maggiorazioni.includes(id);el.parentElement.classList.toggle('on',el.checked);}});}
+}
+
+load();
+</script>
+</body>
+</html>
