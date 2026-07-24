@@ -28,6 +28,29 @@ jobs:
             node --check /tmp/esmcheck.mjs || { echo "FAIL $f"; exit 1; }
           done
           echo "api/: OK"
+      - name: Test percorsi soldi (checkout + webhook + convert, tutto mockato)
+        run: node tests/money/run.mjs
+      - name: Test motori puri (fiscal + taxpack)
+        run: |
+          node tests/fiscal/test.mjs
+          node tests/taxpack/test.mjs
+
+  firestore-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Installa firebase-tools + deps test
+        run: |
+          npm install --no-save firebase-tools >/dev/null
+          cd tests/rules && npm install >/dev/null
+      - name: Test firestore.rules contro emulatore
+        run: |
+          cd tests/rules
+          cp ../../firestore.rules ./firestore.rules
+          npx firebase emulators:exec --only firestore --project demo-boom-rules 'node runner.mjs'
 
   smoke:
     runs-on: ubuntu-latest

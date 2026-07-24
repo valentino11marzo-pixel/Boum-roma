@@ -159,11 +159,27 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = tru
     createdBy: 'preagreement_convert:' + actor,
   };
 
-  let contractId;
+  // ID deterministico dal PA: due conversioni concorrenti (double-submit,
+  // retry del webhook con back-link stantio) collassano sullo stesso doc —
+  // la seconda riceve 409 e restituisce il contratto della prima, con i
+  // token firma originali intatti.
+  const contractId = 'pa_' + paId;
   try {
-    const { id } = await fsCreate('contracts', contract);
-    contractId = id;
+    await fsCreate('contracts', contract, contractId);
   } catch (e) {
+    if (e.exists) {
+      try {
+        const c = await fsGet('contracts/' + contractId);
+        if (c) {
+          return {
+            ok: true, already: true, contractId, tenantId: c.tenantId || null,
+            tenantSignUrl: c.tenantSignToken ? `${BASE}/sign?sign=${c.tenantSignToken}` : null,
+            landlordSignUrl: c.landlordSignToken ? `${BASE}/sign?sign=${c.landlordSignToken}` : null,
+            delegate: c.landlordDelegate || null,
+          };
+        }
+      } catch (_) { /* cade nel ramo errore sotto */ }
+    }
     console.error('[preagreement/convert] contract create failed:', e.message);
     return { ok: false, error: 'contract_create_failed' };
   }
