@@ -89,6 +89,21 @@
   .arpe-hint{max-width:860px;margin:8px auto 0;font-size:10px;color:var(--gr);letter-spacing:.05em;text-align:right}
   @media(max-width:640px){.paper{padding:26px 20px}.paper .rg,.paper .rg3{grid-template-columns:1fr}.paper .el{columns:1}}
 
+  /* ====== ALLEGATO 2/B (replica fedele del modulo dell'Accordo) ====== */
+  .paper.a2b{font-family:"Times New Roman",Times,Georgia,serif;font-size:12px;line-height:1.42;padding:34px 40px}
+  .paper.a2b .alleg{text-align:right;font-size:11px;margin-bottom:6px}
+  .paper.a2b .tit{text-align:center;font-weight:700;font-size:13px;line-height:1.4;margin-bottom:12px}
+  .paper.a2b table{margin:4px 0;font-size:11.5px}
+  .paper.a2b th,.paper.a2b td{border:1px solid #111;padding:3px 6px;color:#111}
+  .paper.a2b .nb td{border:none;padding:2px 4px}
+  .paper.a2b .sez{font-weight:700;margin:10px 0 3px;font-size:11.5px}
+  .paper.a2b .cbx{font-family:"Times New Roman",serif}
+  .paper.a2b .riga{margin:4px 0}
+  .paper.a2b .firmeA{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:30px}
+  .paper.a2b .firmeA div{border-top:1px solid #111;padding-top:4px;text-align:center;font-size:11px}
+  .paper.a2b .footdm{margin-top:26px;text-align:center;font-size:9.5px;letter-spacing:.04em;color:#333;border:none}
+  body.print-arpe .paper.a2b{font-size:10.5pt}
+
   /* ====== PREVENTIVO BOOM (variante brandizzata) ====== */
   .paper.boom{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;color:#161616}
   .paper.boom .bhead{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #B8960C;padding-bottom:14px;margin-bottom:18px}
@@ -470,106 +485,99 @@ function fld(v,w){return v?esc(v):'<span style="letter-spacing:2px">'+'_'.repeat
 function tipoLabel(t){return t==='stud'?'Contratto per studenti universitari (art. 5, c. 2-3, L. 431/98)':t==='trans'?'Contratto transitorio (art. 5, c. 1, L. 431/98)':'Contratto agevolato 3+2 (art. 2, c. 3, L. 431/98)';}
 function durataLabel(t,mesi){ if(mesi>0)return mesi+' mesi'; return t==='stud'?'da 6 a 36 mesi':t==='trans'?'da 1 a 18 mesi':'3 anni + 2 di rinnovo'; }
 function dataIT(iso){ if(!iso)return ''; const d=new Date(iso+'T00:00:00'); return isNaN(d)?'':d.toLocaleDateString('it-IT'); }
+// Testi ESATTI dell'Allegato 2/B (Accordo Roma 25/07/2023) per il documento
+const DOC_PARAMETRI=["Posto auto","Cortile d’uso comune, area verde o impianto sportivo","Cantina","Terrazzo o balcone","Area verde di pertinenza","Aria condizionata","Stabile con ascensore","Bagno con finestra o doppi servizi","Porta blindata","Doppi vetri","Stabile con servizio di portierato","Stabile o UI ultimati o completamente ristrutturati negli ultimi 10 anni","Sistema di sicurezza o sistema di allarme","Cucina abitabile con finestra","Videocitofono o videosorveglianza","Antenna centralizzata o impianto satellitare","Riscaldamento autonomo","Stabile non superiore a 4 piani","Strutture di superamento di barriere architettoniche","Terrazzo o locale condominiale ad uso comune"];
 function apriArpe(){
   const c=ultimo||calc(true); if(!c){toast('Completa prima il calcolo');return;}
   const g=id=>{const el=document.getElementById(id);return el?el.value.trim():''};
-  const A=CFG.accordi[CFG.attivo];
-  const parRows=PARAMETRI.map((p,i)=>`<div>${c.parIdx.includes(i)?'☑':'☐'} ${i+1}. ${esc(p)}</div>`).join('');
-  const supRows=c.parts.map(r=>`<tr><td>${esc(r.n)}</td><td class="n">${fmt(r.mq)}</td><td>${esc(r.c)}</td><td class="n">${fmt(r.v)}</td></tr>`).join('');
-  const magRows=c.note.length?c.note.map(n=>`<tr><td colspan="3">${esc(n.charAt(0).toUpperCase()+n.slice(1))}</td></tr>`).join(''):'<tr><td colspan="3">Nessuna maggiorazione / riduzione applicata</td></tr>';
+  const X=b=>b?'☒':'☐';
   const oggi=new Date().toLocaleDateString('it-IT');
-  arpePaper.className='paper';
-  const esito = c.inF===null
-    ? `CANONE MASSIMO APPLICABILE: <b>€ ${fmt(c.cMax)}/mese</b> (€ ${fmt(c.cMax*12)}/anno)`
-    : c.inF
-      ? `Canone pattuito € ${fmt(c.p)}/mese (€ ${fmt(c.p*12)}/anno) — <b>ENTRO il canone massimo</b> di € ${fmt(c.cMax)}/mese`
-      : `Canone pattuito € ${fmt(c.p)}/mese — <b>SUPERA il canone massimo</b> di € ${fmt(c.cMax)}/mese (eccedenza € ${fmt(c.p-c.cMax)})`;
+  const nome=(a,b)=>[a,b?'C.F. '+b.toUpperCase():''].filter(Boolean).join(' — ');
+  // superficie: fascia dimensionale della base + pertinenze dai campi reali
+  const br = c.mq<46?0:c.mq<=70?1:c.mq<=120?2:3;
+  const baseV = c.parts[0].v;
+  const BASI=['&lt;46 (x 1,30 fino a 52,90 mq.)','46-70 (x 1,15 fino a 70,00 mq.)','70-120 (x 1,00)','&gt;120 (possibilità di diminuzione fino a –15%)'];
+  const baseRows=BASI.map((lbl,i)=>`<tr><td>${i===0?'Superficie calpestabile appartamento':''}</td><td class="n">${i===br?'mq '+fmt(c.mq):''}</td><td>${lbl}</td><td class="n">${i===br?'mq '+fmt(baseV):''}</td></tr>`).join('');
+  const bx=+g('mqBox')||0, pre=document.getElementById('boxPre').value==='s', pc=+g('mqPC')||0, bal=+g('mqBal')||0, scE=+g('mqSc')||0, ve=+g('mqVe')||0;
+  const pertRow=(lbl,mq,coef,mult,attivo)=>`<tr><td>${lbl}</td><td class="n">${attivo?'mq '+fmt(mq):''}</td><td>${coef}</td><td class="n">${attivo?'mq '+fmt(mq*mult):''}</td></tr>`;
+  const supRows=baseRows
+    +pertRow('Autorimessa e/o posto auto esclusivo Zona Pregio',bx,'x 0,80',0.80,bx>0&&pre)
+    +pertRow('Autorimessa e/o posto auto esclusivo',bx,'x 0,50',0.50,bx>0&&!pre)
+    +pertRow('Posto auto in autorimessa comune',pc,'x 0,20',0.20,pc>0)
+    +pertRow('Balconi, terrazze, cantine e simili',bal,'x 0,25',0.25,bal>0)
+    +pertRow('Superficie scoperta in godimento esclusivo',scE,'x 0,15',0.15,scE>0)
+    +pertRow('Sup. verde condominiale (Sup. tot. cond / MM. Tab A)',ve,'x 0,10',0.10,ve>0);
+  const parCell=i=>`<td style="width:5%" class="n">${i+1}</td><td style="width:6%;text-align:center">${X(c.parIdx.includes(i))}</td><td style="width:39%">${esc(DOC_PARAMETRI[i])}</td>`;
+  let parRows=''; for(let i=0;i<10;i++) parRows+=`<tr>${parCell(i)}${parCell(i+10)}</tr>`;
+  const has=id=>{const el=document.getElementById('mg_'+id);return !!(el&&el.checked);};
+  const mg=(lbl,idOn)=>`<td style="width:27%">${lbl}</td><td style="width:6%;text-align:center">${X(idOn)}</td>`;
+  const magRows=
+    `<tr>${mg('A – Ammobiliato + '+(CFG.pArr||'____')+'%',has('arr'))}${mg('B – Seminterrato –10%',has('sem'))}${mg('C – Senza ascensore –10%',has('asc'))}</tr>`+
+    `<tr>${mg('D – Attico + 10%',has('att'))}${mg('E – Classe energetica A/B/C + 10%',has('clA'))}${mg('F – Interventi Eco Bonus + 5%',has('eco'))}</tr>`+
+    `<tr>${mg('G – Interventi Sisma Bonus + 10%',has('sis'))}${mg('H – Classe energetica D/E/F + 5%',has('clD'))}<td></td><td></td></tr>`;
+  const subLbl=c.sub==='A'?'inferiore':c.sub==='B'?'media':'massima';
+  const durataPct=(CFG.pDur&&c.tipo==='32')?CFG.pDur:0;
+  arpePaper.className='paper a2b';
   arpePaper.innerHTML=`
-  <div class="doc-h">
-    <div class="t1">SCHEDA PER LA DETERMINAZIONE DEL CANONE DI LOCAZIONE</div>
-    <div class="t2">Contratti di locazione a canone concordato — L. 9/12/1998 n. 431 · D.M. 16/01/2017<br>
-    Accordo Territoriale per il Comune di Roma Capitale depositato il 25/07/2023<br>
-    <i>Allegata all'istanza per il rilascio dell'attestazione di rispondenza (art. 1, c. 8, D.M. 16/01/2017)</i></div>
-  </div>
+  <div class="alleg">Allegato 2/B</div>
+  <div class="tit">SCHEDA DI CALCOLO DEL CANONE<br>DELL’ACCORDO TERRITORIALE DEL COMUNE DI ROMA DEL 25/07/2023 E DM 16 GENNAIO 2017</div>
 
-  <h3>1 · Parti</h3>
-  <div class="rg">
-    <div class="f"><b>Locatore:</b> ${fld(g('locNome'),22)}</div>
-    <div class="f"><b>C.F.:</b> ${fld(g('locCF').toUpperCase(),16)}</div>
-    <div class="f"><b>Conduttore:</b> ${fld(g('conNome'),22)}</div>
-    <div class="f"><b>C.F.:</b> ${fld(g('conCF').toUpperCase(),16)}</div>
-  </div>
+  <table><tbody><tr>
+    <td style="width:34%">Contratto:&nbsp;&nbsp;${X(c.tipo==='32')} 3+2</td>
+    <td style="width:33%">${X(c.tipo==='stud')} Studenti universitari</td>
+    <td style="width:33%">${X(c.tipo==='trans')} Transitorio</td>
+  </tr></tbody></table>
 
-  <h3>2 · Immobile</h3>
-  <div class="f"><b>Ubicazione:</b> ${fld(c.ind,40)} — Comune di Roma${g('piano')?` · Piano ${esc(g('piano'))}`:''}${g('interno')?` · Int. ${esc(g('interno'))}`:''}</div>
-  <div class="rg3" style="margin-top:3px">
-    <div class="f"><b>Foglio:</b> ${fld(g('catFoglio'),8)}</div>
-    <div class="f"><b>Particella:</b> ${fld(g('catPart'),8)}</div>
-    <div class="f"><b>Subalterno:</b> ${fld(g('catSub'),8)}</div>
-    <div class="f"><b>Categoria:</b> ${fld(g('catCat'),8)}</div>
-    <div class="f"><b>Classe energetica (APE):</b> ${fld(g('apeClasse'),6)}</div>
-    <div class="f"><b>Zona Accordo:</b> ${esc((c.zonaCod?c.zonaCod+' · ':'')+c.zona)}</div>
-  </div>
+  <table><tbody>
+    <tr><td style="width:18%"><b>LOCATORE:</b></td><td>${fld(nome(g('locNome'),g('locCF')),34)}</td></tr>
+    <tr><td><b>CONDUTTORE:</b></td><td>${fld(nome(g('conNome'),g('conCF')),34)}</td></tr>
+  </tbody></table>
 
-  <h3>3 · Contratto</h3>
-  <div class="rg">
-    <div class="f"><b>Tipologia:</b> ${tipoLabel(c.tipo)}</div>
-    <div class="f"><b>Durata:</b> ${durataLabel(c.tipo,+g('durataMesi'))}</div>
-    <div class="f"><b>Decorrenza:</b> ${fld(dataIT(g('decorrenza')),12)}</div>
-    <div class="f"><b>Ammobiliato:</b> ${c.note.some(n=>n.startsWith('ammobiliato'))?'SÌ':'NO'}</div>
-  </div>
+  <table><tbody><tr>
+    <td style="width:14%">Città: <b>ROMA</b></td>
+    <td style="width:36%">${/^(via|viale|piazza|piazzale|largo|corso|vicolo|lungotevere|circonvallazione)\b/i.test(c.ind||'')?fld(c.ind,26):'Via '+fld(c.ind,22)}</td>
+    <td style="width:20%">COD. ZONA <b>${esc(c.zonaCod||'____')}</b></td>
+    <td style="width:30%">Id. catastale: F ${fld(g('catFoglio'),4)} &nbsp;P ${fld(g('catPart'),4)} &nbsp;S ${fld(g('catSub'),4)}</td>
+  </tr></tbody></table>
 
-  <h3>4 · Superficie convenzionale</h3>
-  <table>
-    <thead><tr><th>Componente</th><th style="text-align:right">Mq reali</th><th>Coefficiente</th><th style="text-align:right">Mq convenzionali</th></tr></thead>
-    <tbody>${supRows}
-    <tr class="tot"><td colspan="3">SUPERFICIE CONVENZIONALE TOTALE</td><td class="n">${fmt(c.sc)} mq</td></tr></tbody>
-  </table>
+  <div class="riga" style="font-size:11px">Tutte le informazioni necessarie per determinare il calcolo del canone sono state fornite dalle parti.</div>
 
-  <h3>5 · Elementi / parametri dell'immobile (${c.nP} su 20)</h3>
-  <div class="f" style="font-size:11px">Alloggio con i 4 requisiti di normalità (acqua, gas/induzione, fognatura, riscaldamento): <b>${c.normale?'SÌ':'NO — fascia A obbligatoria'}</b></div>
-  <div class="el">${parRows}</div>
+  <div class="sez">CALCOLO DELLA SUPERFICIE CONVENZIONALE</div>
+  <table><tbody>${supRows}
+    <tr><td colspan="3"><b>TOTALE SUPERFICIE CONVENZIONALE</b></td><td class="n"><b>Mq. ${fmt(c.sc)}</b></td></tr>
+  </tbody></table>
 
-  <h3>6 · Fascia di oscillazione e canone</h3>
-  <table>
-    <tbody>
-    <tr><td>Fascia di oscillazione della zona (A / B / C)</td><td class="n">A ${fmt2(zonaVal(c,'a'))} · B ${fmt2(zonaVal(c,'b'))} · C ${fmt2(zonaVal(c,'c'))} €/mq/mese</td></tr>
-    <tr><td>Subfascia applicabile (${c.nP} parametri; soglie: B ≥ ${CFG.sMed}, C ≥ ${CFG.sMax})</td><td class="n"><b>FASCIA ${c.sub}</b> (${fmt(c.fMin)} – ${fmt(c.fMax)} €/mq/mese)</td></tr>
-    <tr><td>Canone base di subfascia (min – max × ${fmt(c.sc)} mq)</td><td class="n">€ ${fmt(c.fMin*c.sc)} – € ${fmt(c.fMax*c.sc)} /mese</td></tr>
-    </tbody>
-  </table>
-  <table>
-    <thead><tr><th colspan="3">Maggiorazioni / riduzioni applicate (complessivo ${c.pct>0?'+':''}${c.pct}%; gli aumenti non superano il massimo di subfascia)</th></tr></thead>
-    <tbody>${magRows}</tbody>
-  </table>
-  <table>
-    <tbody>
-    <tr class="tot"><td>CANONE MASSIMO APPLICABILE</td><td class="n">€ ${fmt(c.cMax)} /mese</td><td class="n">€ ${fmt(c.cMax*12)} /anno</td></tr>
-    ${c.p>0?`<tr><td>Canone pattuito</td><td class="n">€ ${fmt(c.p)} /mese</td><td class="n">€ ${fmt(c.p*12)} /anno</td></tr>`:''}
-    </tbody>
-  </table>
-  <div class="esito">${esito}</div>
+  <div class="sez">CARATTERISTICHE:</div>
+  <table><tbody><tr>
+    <td>Allaccio rete idrica</td><td style="text-align:center">${X(c.normale)}</td>
+    <td>Allaccio rete fognante</td><td style="text-align:center">${X(c.normale)}</td>
+    <td>Erogazione GAS o induzione</td><td style="text-align:center">${X(c.normale)}</td>
+    <td>Impianto riscaldamento</td><td style="text-align:center">${X(c.normale)}</td>
+  </tr></tbody></table>
+  <div class="riga">Appartamento normale&nbsp;&nbsp;&nbsp;SI ${X(c.normale)}&nbsp;&nbsp;&nbsp;NO ${X(!c.normale)}</div>
 
-  <h3>7 · Allegati all'istanza</h3>
-  <div class="el" style="columns:2">
-    <div>☐ Copia del contratto di locazione sottoscritto</div>
-    <div>☐ Visura catastale (e/o planimetria)</div>
-    <div>☐ Attestato di prestazione energetica (APE)</div>
-    <div>☐ Documenti d'identità e codici fiscali delle parti</div>
-    <div>☐ Delega / mandato (se presentata da intermediario)</div>
-    <div>☐ Altro: ______________________</div>
-  </div>
+  <div class="sez">PARAMETRI</div>
+  <table><tbody>${parRows}</tbody></table>
+  <div class="riga"><b>NUMERO PARAMETRI DESCRITTIVI DELL’ALLOGGIO&nbsp;&nbsp;${c.nP}</b></div>
 
-  <div class="f" style="margin-top:14px;font-size:11px">I sottoscritti dichiarano, sotto la propria responsabilità, che i dati riportati nella presente scheda corrispondono allo stato di fatto e di diritto dell'immobile e del contratto.</div>
-  <div class="firma">
-    <div>Il Locatore</div>
-    <div>Il Conduttore</div>
-  </div>
-  <div class="f" style="margin-top:16px">Roma, lì ${oggi}</div>
+  <div class="sez">Maggiorazioni/Riduzioni applicabili:</div>
+  <table><tbody>${magRows}</tbody></table>
 
-  <div class="note">Scheda di calcolo predisposta ai fini della richiesta di attestazione di rispondenza di cui all'art. 1, c. 8, D.M. 16/01/2017, da presentare a una organizzazione della proprietà edilizia o dei conduttori firmataria dell'Accordo (ARPE, ecc.) unitamente a: copia del contratto, visura catastale, APE e documenti d'identità/codici fiscali delle parti. Valori €/mq della zona secondo ${esc(A.nome)}. La presente scheda non sostituisce l'attestazione di rispondenza.</div>`;
+  <div class="riga" style="margin-top:10px">ZONA <b>${esc((c.zonaCod?c.zonaCod+' ':'')+c.zona)}</b>&nbsp;&nbsp;&nbsp;&nbsp;FASCIA DI OSCILLAZIONE MIN <b>€ ${fmt(c.fMin)}</b> / MAX <b>€ ${fmt(c.fMax)}</b> €/mq/mese</div>
+  <div class="riga">PARAMETRI n. <b>${c.nP}</b>&nbsp;&nbsp;&nbsp;SUBFASCIA: <b>${subLbl}</b> (${['inferiore','media','massima'].map(s=>s===subLbl?'<u>'+s+'</u>':s).join('/')})&nbsp;&nbsp;/&nbsp;&nbsp;Valore applicato <b>€ ${fmt(c.fMax)}</b></div>
+  <div class="riga">CALCOLO DEL CANONE: € MQ/MESE <b>${fmt(c.fMax)}</b> x mq. <b>${fmt(c.sc)}</b> = <b>€ ${fmt(c.fMax*c.sc)}</b></div>
+  ${durataPct?`<div class="riga">Durata + ${durataPct}% = € ${fmt(c.fMax*c.sc*(1+durataPct/100))}</div>`:'<div class="riga">Durata + ____% = € ____________</div>'}
+  <div class="riga">Transitorio + 10% ${X(c.tipo==='trans')}</div>
+  <div class="riga">Immobile Vincolato oppure Cat. A1-A8 + ____% ${X(has('vin'))}</div>
+  ${c.pct?`<div class="riga">Maggiorazioni/riduzioni complessive: <b>${c.pct>0?'+':''}${c.pct}%</b> (gli aumenti non superano il massimo di subfascia)</div>`:''}
+  <div class="riga" style="margin-top:8px"><b>Importo massimo canone mensile: € ${fmt(c.cMax)}</b>;&nbsp;&nbsp;&nbsp;Importo canone mensile pattuito: <b>€ ${c.p>0?fmt(c.p):'________'}</b>;</div>
+
+  <div class="firmeA"><div>Il locatore</div><div>Il conduttore</div></div>
+  <div class="riga" style="margin-top:14px">Roma, lì ${oggi}</div>
+  <div class="footdm">SCHEDA NON VALIDA AI FINI DELL’ATTESTAZIONE DI RISPONDENZA EX DM 16 GENNAIO 2017</div>`;
   arpeWrap.classList.add('open'); document.body.classList.add('print-arpe'); arpeWrap.scrollTop=0;
 }
+
 function zonaVal(c,f){const z=CFG.accordi[CFG.attivo].zone[+zona.value]||{};return [z[f+'Min'],z[f+'Max']];}
 function fmt2(r){return (r[0]!==undefined&&r[1]!==undefined)?fmt(r[0])+'–'+fmt(r[1]):'—';}
 function stampaArpe(){window.print();}
