@@ -89,6 +89,26 @@
   .arpe-hint{max-width:860px;margin:8px auto 0;font-size:10px;color:var(--gr);letter-spacing:.05em;text-align:right}
   @media(max-width:640px){.paper{padding:26px 20px}.paper .rg,.paper .rg3{grid-template-columns:1fr}.paper .el{columns:1}}
 
+  /* ====== PREVENTIVO BOOM (variante brandizzata) ====== */
+  .paper.boom{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;color:#161616}
+  .paper.boom .bhead{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #B8960C;padding-bottom:14px;margin-bottom:18px}
+  .paper.boom .bhead .bl{display:flex;align-items:center;gap:14px}
+  .paper.boom .bhead .bname{font-size:24px;font-weight:300;letter-spacing:.3em}
+  .paper.boom .bhead .bsub{font-size:9px;letter-spacing:.24em;text-transform:uppercase;color:#B8960C;margin-top:4px}
+  .paper.boom .bhead .bdoc{text-align:right;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#666}
+  .paper.boom h3{border-bottom:1px solid #B8960C;color:#8a6d00;font-weight:400;letter-spacing:.18em}
+  .paper.boom .hero{border:2px solid #B8960C;padding:18px 22px;margin:16px 0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+  .paper.boom .hero .hl{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#8a6d00}
+  .paper.boom .hero .hv{font-size:30px;font-weight:300}
+  .paper.boom .hero .hv small{font-size:12px;color:#666}
+  .paper.boom table{font-size:12px}
+  .paper.boom th{background:#faf6ea;border-color:#B8960C;color:#161616}
+  .paper.boom td{border-color:#cbb87a}
+  .paper.boom .tot td{background:#faf6ea}
+  .paper.boom .risp{background:#faf6ea;border:1px solid #B8960C;padding:12px 16px;margin-top:10px;font-size:12.5px;line-height:1.7}
+  .paper.boom .note{border-top-color:#B8960C}
+
+  @page{size:A4;margin:14mm}
   @media print{
     body{background:#fff;color:#000;padding:0}
     body:not(.print-arpe) header .modi,body:not(.print-arpe) .barra,body:not(.print-arpe) details,body:not(.print-arpe) .avv,body:not(.print-arpe) .salv-sec{display:none!important}
@@ -97,7 +117,9 @@
     body.print-arpe #appRoot{display:none!important}
     body.print-arpe #arpeWrap{display:block;position:static;background:#fff;padding:0;overflow:visible}
     body.print-arpe .arpe-bar,body.print-arpe .arpe-hint{display:none!important}
-    body.print-arpe .paper{max-width:none;padding:0;font-size:11.5px}
+    body.print-arpe .paper{max-width:none;padding:0;font-size:10pt;line-height:1.5}
+    body.print-arpe .paper h3{page-break-after:avoid}
+    body.print-arpe .paper table,body.print-arpe .paper .esito,body.print-arpe .paper .firma{page-break-inside:avoid}
   }
 </style>
 </head>
@@ -212,6 +234,7 @@
   <div class="barra">
     <button class="b" onclick="calc(true)">Calcola</button>
     <button class="b" onclick="apriArpe()">📄 Scheda ARPE</button>
+    <button class="b" onclick="apriPreventivo()">✨ Preventivo BOOM</button>
     <button class="b gh" onclick="copia()">Copia riepilogo</button>
     <button class="b gh" onclick="salvaPr()">Salva pratica</button>
     <button class="b gh" onclick="nuovaPratica()">Nuova pratica</button>
@@ -455,6 +478,7 @@ function apriArpe(){
   const supRows=c.parts.map(r=>`<tr><td>${esc(r.n)}</td><td class="n">${fmt(r.mq)}</td><td>${esc(r.c)}</td><td class="n">${fmt(r.v)}</td></tr>`).join('');
   const magRows=c.note.length?c.note.map(n=>`<tr><td colspan="3">${esc(n.charAt(0).toUpperCase()+n.slice(1))}</td></tr>`).join(''):'<tr><td colspan="3">Nessuna maggiorazione / riduzione applicata</td></tr>';
   const oggi=new Date().toLocaleDateString('it-IT');
+  arpePaper.className='paper';
   const esito = c.inF===null
     ? `CANONE MASSIMO APPLICABILE: <b>€ ${fmt(c.cMax)}/mese</b> (€ ${fmt(c.cMax*12)}/anno)`
     : c.inF
@@ -462,9 +486,10 @@ function apriArpe(){
       : `Canone pattuito € ${fmt(c.p)}/mese — <b>SUPERA il canone massimo</b> di € ${fmt(c.cMax)}/mese (eccedenza € ${fmt(c.p-c.cMax)})`;
   arpePaper.innerHTML=`
   <div class="doc-h">
-    <div class="t1">SCHEDA DI DETERMINAZIONE DEL CANONE</div>
+    <div class="t1">SCHEDA PER LA DETERMINAZIONE DEL CANONE DI LOCAZIONE</div>
     <div class="t2">Contratti di locazione a canone concordato — L. 9/12/1998 n. 431 · D.M. 16/01/2017<br>
-    Accordo Territoriale per il Comune di Roma Capitale depositato il 25/07/2023</div>
+    Accordo Territoriale per il Comune di Roma Capitale depositato il 25/07/2023<br>
+    <i>Allegata all'istanza per il rilascio dell'attestazione di rispondenza (art. 1, c. 8, D.M. 16/01/2017)</i></div>
   </div>
 
   <h3>1 · Parti</h3>
@@ -525,6 +550,17 @@ function apriArpe(){
   </table>
   <div class="esito">${esito}</div>
 
+  <h3>7 · Allegati all'istanza</h3>
+  <div class="el" style="columns:2">
+    <div>☐ Copia del contratto di locazione sottoscritto</div>
+    <div>☐ Visura catastale (e/o planimetria)</div>
+    <div>☐ Attestato di prestazione energetica (APE)</div>
+    <div>☐ Documenti d'identità e codici fiscali delle parti</div>
+    <div>☐ Delega / mandato (se presentata da intermediario)</div>
+    <div>☐ Altro: ______________________</div>
+  </div>
+
+  <div class="f" style="margin-top:14px;font-size:11px">I sottoscritti dichiarano, sotto la propria responsabilità, che i dati riportati nella presente scheda corrispondono allo stato di fatto e di diritto dell'immobile e del contratto.</div>
   <div class="firma">
     <div>Il Locatore</div>
     <div>Il Conduttore</div>
@@ -537,6 +573,58 @@ function apriArpe(){
 function zonaVal(c,f){const z=CFG.accordi[CFG.attivo].zone[+zona.value]||{};return [z[f+'Min'],z[f+'Max']];}
 function fmt2(r){return (r[0]!==undefined&&r[1]!==undefined)?fmt(r[0])+'–'+fmt(r[1]):'—';}
 function stampaArpe(){window.print();}
+
+// ====== PREVENTIVO BOOM (documento brandizzato per il proprietario) ======
+const BOOM_LOGO='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" style="width:46px;height:46px"><g transform="translate(0,1024) scale(0.1,-0.1)" fill="#B8960C"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/></g></svg>';
+function apriPreventivo(){
+  const c=ultimo||calc(true); if(!c){toast('Completa prima il calcolo');return;}
+  const g=id=>{const el=document.getElementById(id);return el?el.value.trim():''};
+  const oggi=new Date().toLocaleDateString('it-IT');
+  // canone di riferimento del preventivo: il pattuito se valido e in fascia, altrimenti il massimo asseverabile
+  const rif=(c.p>0&&c.inF)?c.p:c.cMax; const rifLbl=(c.p>0&&c.inF)?'Canone pattuito':'Canone massimo asseverabile';
+  const annuo=rif*12, ced10=annuo*0.10, ced21=annuo*0.21, risparmio=ced21-ced10;
+  const supRows=c.parts.map(r=>`<tr><td>${esc(r.n)}</td><td class="n">${fmt(r.mq)}</td><td>${esc(r.c)}</td><td class="n">${fmt(r.v)}</td></tr>`).join('');
+  arpePaper.className='paper boom';
+  arpePaper.innerHTML=`
+  <div class="bhead">
+    <div class="bl">${BOOM_LOGO}<div><div class="bname">BOOM</div><div class="bsub">Premium Rentals · Roma</div></div></div>
+    <div class="bdoc">Preventivo canone concordato<br>${oggi}</div>
+  </div>
+
+  <div class="f" style="font-size:13px"><b>Immobile:</b> ${esc(c.ind||'—')} · Zona ${esc((c.zonaCod?c.zonaCod+' · ':'')+c.zona)}${g('piano')?` · Piano ${esc(g('piano'))}`:''} — ${tipoLabel(c.tipo)}</div>
+
+  <div class="hero">
+    <div><div class="hl">${rifLbl}</div><div class="hv">€ ${fmt(rif)} <small>/mese</small></div></div>
+    <div><div class="hl">Canone annuo</div><div class="hv">€ ${fmt(annuo)} <small>/anno</small></div></div>
+  </div>
+
+  <h3>Come si arriva al canone</h3>
+  <table>
+    <thead><tr><th>Componente</th><th style="text-align:right">Mq reali</th><th>Coefficiente</th><th style="text-align:right">Mq convenzionali</th></tr></thead>
+    <tbody>${supRows}<tr class="tot"><td colspan="3">Superficie convenzionale</td><td class="n">${fmt(c.sc)} mq</td></tr></tbody>
+  </table>
+  <table><tbody>
+    <tr><td>Subfascia applicabile (${c.nP} elementi su 20)</td><td class="n"><b>FASCIA ${c.sub}</b> · ${fmt(c.fMin)}–${fmt(c.fMax)} €/mq/mese</td></tr>
+    ${c.note.length?`<tr><td>Maggiorazioni / riduzioni</td><td class="n">${esc(c.note.join(', '))} (${c.pct>0?'+':''}${c.pct}%)</td></tr>`:''}
+    <tr class="tot"><td>Canone massimo asseverabile</td><td class="n">€ ${fmt(c.cMax)}/mese · € ${fmt(c.cMax*12)}/anno</td></tr>
+  </tbody></table>
+
+  <h3>Il vantaggio fiscale del concordato</h3>
+  <table>
+    <thead><tr><th></th><th style="text-align:right">Cedolare 21% (libero)</th><th style="text-align:right">Cedolare 10% (concordato)</th></tr></thead>
+    <tbody>
+      <tr><td>Imposta annua sul canone di € ${fmt(annuo)}</td><td class="n">€ ${fmt(ced21)}</td><td class="n">€ ${fmt(ced10)}</td></tr>
+      <tr class="tot"><td>RISPARMIO D'IMPOSTA</td><td class="n" colspan="2">€ ${fmt(risparmio)} / anno</td></tr>
+    </tbody>
+  </table>
+  <div class="risp">In più: <b>IMU ridotta del 25%</b> (se dovuta, per i contratti concordati a Roma), niente imposta di registro e bollo con la cedolare, e canone certificato dall'attestazione di rispondenza — requisito per tutte le agevolazioni.</div>
+
+  <h3>Cosa fa BOOM per te</h3>
+  <div class="f" style="line-height:1.8">Predisposizione del contratto a canone concordato · scheda di calcolo e pratica di attestazione di rispondenza con l'organizzazione firmataria · registrazione del contratto · gestione completa dell'affitto.</div>
+
+  <div class="note">Preventivo indicativo elaborato con i valori dell'Accordo Territoriale di Roma depositato il 25/07/2023 sui dati dichiarati dal proprietario; non costituisce consulenza fiscale. Aliquote cedolare: art. 3 D.Lgs. 23/2011. Il canone definitivo è certificato dall'attestazione di rispondenza. <b>BOOM</b> · boomrome.com · Roma</div>`;
+  arpeWrap.classList.add('open'); document.body.classList.add('print-arpe'); arpeWrap.scrollTop=0;
+}
 function chiudiArpe(){arpeWrap.classList.remove('open');document.body.classList.remove('print-arpe');}
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&arpeWrap.classList.contains('open'))chiudiArpe();});
 
