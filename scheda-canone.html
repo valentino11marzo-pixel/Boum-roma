@@ -53,17 +53,56 @@
   details{margin-bottom:16px}summary{cursor:pointer;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gr);padding:9px 0}summary:hover{color:var(--carta)}
   .riep{white-space:pre-wrap;font-size:12px;line-height:1.8;border:1px solid var(--ln);background:rgba(255,255,255,.02);padding:16px;margin-top:12px;display:none}
   .avv{border:1px solid #6b5b23;background:rgba(212,175,55,.05);padding:11px 15px;font-size:11.5px;color:var(--oro2);line-height:1.6;margin-bottom:16px}
-  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--oro);color:var(--nero);padding:9px 20px;font-size:11px;letter-spacing:.12em;opacity:0;transition:.3s;pointer-events:none}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--oro);color:var(--nero);padding:9px 20px;font-size:11px;letter-spacing:.12em;opacity:0;transition:.3s;pointer-events:none;z-index:60}
   .toast.show{opacity:1}
   /* wizard */
   #wiz .card{min-height:170px;display:flex;flex-direction:column;justify-content:center}
   #wiz .q{font-size:17px;margin-bottom:16px;line-height:1.5}
   #wiz .prog{font-size:9px;letter-spacing:.2em;color:var(--gr);text-transform:uppercase;margin-bottom:10px}
   .salv tr:hover td{color:var(--oro2);cursor:pointer}
-  @media print{body{background:#fff;color:#000}header .modi,.barra,details,.avv,.salv-sec{display:none!important}.card,.verd{border-color:#000}.verd .st{color:#000!important}}
+
+  /* ====== SCHEDA ARPE (documento stampabile) ====== */
+  #arpeWrap{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:50;overflow-y:auto;padding:26px 12px}
+  #arpeWrap.open{display:block}
+  .paper{max-width:860px;margin:0 auto;background:#fff;color:#111;padding:46px 52px;font-family:Georgia,"Times New Roman",serif;font-size:12.5px;line-height:1.55}
+  .paper .doc-h{text-align:center;border-bottom:2px solid #111;padding-bottom:12px;margin-bottom:6px}
+  .paper .doc-h .t1{font-size:16px;font-weight:700;letter-spacing:.06em}
+  .paper .doc-h .t2{font-size:11px;margin-top:5px}
+  .paper h3{font-size:11px;letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid #111;margin:20px 0 8px;padding-bottom:3px;font-weight:700}
+  .paper .rg{display:grid;grid-template-columns:repeat(2,1fr);gap:3px 26px}
+  .paper .rg3{display:grid;grid-template-columns:repeat(3,1fr);gap:3px 22px}
+  .paper .f{padding:2.5px 0}
+  .paper .f b{font-weight:700}
+  .paper table{width:100%;border-collapse:collapse;font-size:12px;margin:6px 0}
+  .paper th{border:1px solid #111;background:#eee;color:#111;font-weight:700;font-size:10.5px;letter-spacing:.03em;text-transform:none;padding:5px 7px;text-align:left}
+  .paper td{border:1px solid #111;padding:4.5px 7px;color:#111}
+  .paper td.n{text-align:right;font-variant-numeric:tabular-nums}
+  .paper .tot td{font-weight:700;background:#f4f4f4}
+  .paper .el{columns:2;column-gap:30px;font-size:11.5px;margin:6px 0}
+  .paper .el div{break-inside:avoid;padding:1.5px 0}
+  .paper .esito{border:2px solid #111;padding:12px 16px;margin-top:14px;text-align:center;font-size:13px}
+  .paper .esito b{font-size:15px}
+  .paper .firma{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:34px}
+  .paper .firma div{border-top:1px solid #111;padding-top:5px;text-align:center;font-size:11px}
+  .paper .note{font-size:10px;color:#444;margin-top:22px;border-top:1px solid #999;padding-top:8px;line-height:1.5}
+  .arpe-bar{max-width:860px;margin:0 auto 12px;display:flex;gap:9px;justify-content:flex-end;flex-wrap:wrap}
+  .arpe-hint{max-width:860px;margin:8px auto 0;font-size:10px;color:var(--gr);letter-spacing:.05em;text-align:right}
+  @media(max-width:640px){.paper{padding:26px 20px}.paper .rg,.paper .rg3{grid-template-columns:1fr}.paper .el{columns:1}}
+
+  @media print{
+    body{background:#fff;color:#000;padding:0}
+    body:not(.print-arpe) header .modi,body:not(.print-arpe) .barra,body:not(.print-arpe) details,body:not(.print-arpe) .avv,body:not(.print-arpe) .salv-sec{display:none!important}
+    body:not(.print-arpe) .card,body:not(.print-arpe) .verd{border-color:#000}
+    body:not(.print-arpe) .verd .st{color:#000!important}
+    body.print-arpe #appRoot{display:none!important}
+    body.print-arpe #arpeWrap{display:block;position:static;background:#fff;padding:0;overflow:visible}
+    body.print-arpe .arpe-bar,body.print-arpe .arpe-hint{display:none!important}
+    body.print-arpe .paper{max-width:none;padding:0;font-size:11.5px}
+  }
 </style>
 </head>
 <body>
+<div id="appRoot">
 <div class="wrap">
   <header>
     <div><h1>BOOM</h1><div class="tag" id="tagAccordo">Scheda Canone · Accordo Roma 25/07/2023</div></div>
@@ -111,10 +150,32 @@
         <div><label>Canone proposto €/mese</label><input type="number" id="prop" step="10"></div>
       </div>
     </div>
+
+    <details id="datiDoc">
+      <summary>Dati per la scheda ARPE — parti, catasto, contratto (facoltativi per il calcolo)</summary>
+      <div class="card">
+        <div class="g">
+          <div><label>Locatore (nome e cognome)</label><input id="locNome"></div>
+          <div><label>C.F. locatore</label><input id="locCF" style="text-transform:uppercase"></div>
+          <div><label>Conduttore (nome e cognome)</label><input id="conNome"></div>
+          <div><label>C.F. conduttore</label><input id="conCF" style="text-transform:uppercase"></div>
+          <div><label>Foglio</label><input id="catFoglio"></div>
+          <div><label>Particella</label><input id="catPart"></div>
+          <div><label>Subalterno</label><input id="catSub"></div>
+          <div><label>Categoria catastale</label><input id="catCat" placeholder="es. A/2"></div>
+          <div><label>Piano</label><input id="piano"></div>
+          <div><label>Interno</label><input id="interno"></div>
+          <div><label>Classe energetica (APE)</label><select id="apeClasse"><option value="">—</option><option>A4</option><option>A3</option><option>A2</option><option>A1</option><option>B</option><option>C</option><option>D</option><option>E</option><option>F</option><option>G</option></select></div>
+          <div><label>Decorrenza contratto</label><input type="date" id="decorrenza"></div>
+          <div><label>Durata (mesi — vuoto = da tipologia)</label><input type="number" id="durataMesi" min="1" max="72"></div>
+        </div>
+      </div>
+    </details>
+
     <h2>Parametri descrittivi (20 ufficiali)</h2>
-    <div class="card"><div class="chips" id="par"></div></div>
+    <div class="card" id="parCard"><div class="chips" id="par"></div></div>
     <h2>Maggiorazioni / riduzioni</h2>
-    <div class="card"><div class="magg" id="mag"></div></div>
+    <div class="card" id="magCard"><div class="magg" id="mag"></div></div>
   </div>
 
   <!-- ============ MODALITÀ GUIDATA ============ -->
@@ -150,16 +211,29 @@
 
   <div class="barra">
     <button class="b" onclick="calc(true)">Calcola</button>
-    <button class="b gh" onclick="copia()">Copia riepilogo ARPE</button>
-    <button class="b gh" onclick="window.print()">Stampa</button>
+    <button class="b" onclick="apriArpe()">📄 Scheda ARPE</button>
+    <button class="b gh" onclick="copia()">Copia riepilogo</button>
     <button class="b gh" onclick="salvaPr()">Salva pratica</button>
+    <button class="b gh" onclick="nuovaPratica()">Nuova pratica</button>
   </div>
   <div class="riep" id="riep"></div>
 
-  <div class="salv-sec"><h2>Pratiche salvate</h2>
+  <div class="salv-sec"><h2>Pratiche salvate <span style="color:var(--gr);text-transform:none;letter-spacing:.05em">— tocca una riga per ricaricarla</span></h2>
     <div class="card"><table class="salv" id="tp"><thead><tr><th>Pratica</th><th>Zona</th><th>Max €</th><th>Proposto</th><th>Esito</th><th></th></tr></thead><tbody></tbody></table></div>
   </div>
 </div>
+</div><!-- /appRoot -->
+
+<!-- ============ DOCUMENTO: SCHEDA DI DETERMINAZIONE DEL CANONE ============ -->
+<div id="arpeWrap">
+  <div class="arpe-bar">
+    <button class="b" onclick="stampaArpe()">Stampa / Salva PDF</button>
+    <button class="b gh" onclick="chiudiArpe()">Chiudi</button>
+  </div>
+  <div class="paper" id="arpePaper"></div>
+  <div class="arpe-hint">Su iPhone: Stampa → Condividi per salvare in PDF. Se la stampa non parte dall’app installata, apri la pagina in Safari.</div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -186,15 +260,46 @@ const MAGG = [
 let CFG = { accordi:[{nome:"Roma 25/07/2023 (tab. agg. 2026)", zone:[{"cod": "B1", "nome": "TESTACCIO", "aMin": 10.5, "aMax": 13.2, "bMin": 13.2, "bMax": 15.3, "cMin": 15.3, "cMax": 17.6}, {"cod": "B2", "nome": "SAN SABA", "aMin": 10.5, "aMax": 13.2, "bMin": 13.2, "bMax": 18.9, "cMin": 18.9, "cMax": 22.6}, {"cod": "B3", "nome": "CELIO", "aMin": 10.5, "aMax": 13.2, "bMin": 13.2, "bMax": 18.9, "cMin": 18.9, "cMax": 22.6}, {"cod": "B4", "nome": "MONTI", "aMin": 10.5, "aMax": 13.2, "bMin": 13.2, "bMax": 18.9, "cMin": 18.9, "cMax": 22.6}, {"cod": "B12", "nome": "AVENTINO", "aMin": 12.6, "aMax": 15.4, "bMin": 15.4, "bMax": 22.0, "cMin": 22.0, "cMax": 26.4}, {"cod": "B13", "nome": "SANT'ANGELO-CAMPITELLI", "aMin": 12.6, "aMax": 15.4, "bMin": 15.4, "bMax": 22.0, "cMin": 22.0, "cMax": 26.4}, {"cod": "B14", "nome": "TRASTEVERE", "aMin": 12.6, "aMax": 15.4, "bMin": 15.4, "bMax": 22.0, "cMin": 22.0, "cMax": 26.4}, {"cod": "B15", "nome": "BORGO", "aMin": 12.6, "aMax": 15.4, "bMin": 15.4, "bMax": 22.0, "cMin": 22.0, "cMax": 26.4}, {"cod": "B17", "nome": "SALLUSTIANO-CASTRO PRETORIO", "aMin": 12.6, "aMax": 15.4, "bMin": 15.4, "bMax": 22.0, "cMin": 22.0, "cMax": 26.4}, {"cod": "B18", "nome": "ESQUILINO", "aMin": 7.0, "aMax": 9.2, "bMin": 9.2, "bMax": 13.1, "cMin": 13.1, "cMax": 15.7}, {"cod": "B25", "nome": "LUDOVISI", "aMin": 12.6, "aMax": 15.4, "bMin": 15.4, "bMax": 22.0, "cMin": 22.0, "cMax": 26.4}, {"cod": "B29", "nome": "VIMINALE", "aMin": 10.5, "aMax": 13.2, "bMin": 13.2, "bMax": 18.9, "cMin": 18.9, "cMax": 22.6}, {"cod": "B31", "nome": "TRIDENTE", "aMin": 12.6, "aMax": 18.3, "bMin": 18.3, "bMax": 26.2, "cMin": 26.2, "cMax": 31.5}, {"cod": "B32", "nome": "CORSO VITTORIO", "aMin": 12.6, "aMax": 16.9, "bMin": 16.9, "bMax": 24.1, "cMin": 24.1, "cMax": 28.9}, {"cod": "C1", "nome": "PARIOLI", "aMin": 10.5, "aMax": 13.8, "bMin": 13.8, "bMax": 19.8, "cMin": 19.8, "cMax": 23.8}, {"cod": "C2", "nome": "SALARIO (Via Nizza)", "aMin": 10.5, "aMax": 13.8, "bMin": 13.8, "bMax": 19.8, "cMin": 19.8, "cMax": 23.8}, {"cod": "C3", "nome": "PINCIANO", "aMin": 10.5, "aMax": 13.8, "bMin": 13.8, "bMax": 19.8, "cMin": 19.8, "cMax": 23.8}, {"cod": "C4", "nome": "NOMENTANO TORLONIA", "aMin": 10.5, "aMax": 13.8, "bMin": 13.8, "bMax": 19.8, "cMin": 19.8, "cMax": 23.8}, {"cod": "C40", "nome": "PRATI", "aMin": 10.5, "aMax": 12.8, "bMin": 12.8, "bMax": 18.4, "cMin": 18.4, "cMax": 22.0}, {"cod": "C41", "nome": "DELLA VITTORIA (Cavalier d'Arpino)", "aMin": 10.5, "aMax": 12.8, "bMin": 12.8, "bMax": 18.4, "cMin": 18.4, "cMax": 22.0}, {"cod": "C46", "nome": "SALARIO TRIESTE (Via dei Laghi/Corsica)", "aMin": 10.5, "aMax": 13.9, "bMin": 13.9, "bMax": 19.9, "cMin": 19.9, "cMax": 23.9}, {"cod": "C49", "nome": "FLAMINIO", "aMin": 10.5, "aMax": 12.8, "bMin": 12.8, "bMax": 18.4, "cMin": 18.4, "cMax": 22.0}, {"cod": "C50", "nome": "FLAMINIO PORTA DEL POPOLO", "aMin": 10.5, "aMax": 13.0, "bMin": 13.0, "bMax": 18.6, "cMin": 18.6, "cMax": 22.4}, {"cod": "C5", "nome": "SAN LORENZO", "aMin": 4.4, "aMax": 8.1, "bMin": 8.1, "bMax": 11.6, "cMin": 11.6, "cMax": 13.6}, {"cod": "C7", "nome": "APPIO VILLA FIORELLI", "aMin": 6.1, "aMax": 7.9, "bMin": 7.9, "bMax": 11.3, "cMin": 11.3, "cMax": 14.1}, {"cod": "C8", "nome": "APPIO NOCERA UMBRA", "aMin": 6.1, "aMax": 7.9, "bMin": 7.9, "bMax": 11.3, "cMin": 11.3, "cMax": 14.1}, {"cod": "C9", "nome": "APPIO METRONIO", "aMin": 6.1, "aMax": 8.6, "bMin": 8.6, "bMax": 12.3, "cMin": 12.3, "cMax": 15.5}, {"cod": "C10", "nome": "GARBATELLA", "aMin": 6.1, "aMax": 8.2, "bMin": 8.2, "bMax": 11.8, "cMin": 11.8, "cMax": 13.5}, {"cod": "C11", "nome": "MARCONI", "aMin": 6.1, "aMax": 8.2, "bMin": 8.2, "bMax": 11.8, "cMin": 11.8, "cMax": 13.5}, {"cod": "C12", "nome": "MONTEVERDE VECCHIO", "aMin": 6.1, "aMax": 9.8, "bMin": 9.8, "bMax": 14.0, "cMin": 14.0, "cMax": 16.0}, {"cod": "C13", "nome": "MONTEVERDE NUOVO", "aMin": 6.1, "aMax": 8.2, "bMin": 8.2, "bMax": 11.8, "cMin": 11.8, "cMax": 12.8}, {"cod": "C14", "nome": "AURELIO MONTE DI CRETA", "aMin": 4.7, "aMax": 8.1, "bMin": 8.1, "bMax": 11.6, "cMin": 11.6, "cMax": 12.8}, {"cod": "C15", "nome": "AURELIO GREGORIO VII", "aMin": 6.1, "aMax": 8.4, "bMin": 8.4, "bMax": 12.0, "cMin": 12.0, "cMax": 15.5}, {"cod": "C16", "nome": "CAVALLEGGERI", "aMin": 6.1, "aMax": 8.4, "bMin": 8.4, "bMax": 12.0, "cMin": 12.0, "cMax": 14.5}, {"cod": "C17", "nome": "BALDUINA GIOVENALE", "aMin": 6.1, "aMax": 8.2, "bMin": 8.2, "bMax": 11.8, "cMin": 11.8, "cMax": 12.8}, {"cod": "C18", "nome": "CIPRO", "aMin": 6.3, "aMax": 8.4, "bMin": 8.4, "bMax": 12.0, "cMin": 12.0, "cMax": 13.5}, {"cod": "C19", "nome": "PONTE MILVIO FARNESINA", "aMin": 8.8, "aMax": 11.4, "bMin": 11.4, "bMax": 16.3, "cMin": 16.3, "cMax": 17.9}, {"cod": "C21", "nome": "SALARIO AFRICANO (V.le Libia)", "aMin": 6.1, "aMax": 9.8, "bMin": 9.8, "bMax": 14.0, "cMin": 14.0, "cMax": 15.5}, {"cod": "C22", "nome": "BATTERIA NOMENTANA LANCIANI", "aMin": 6.1, "aMax": 9.5, "bMin": 9.5, "bMax": 13.6, "cMin": 13.6, "cMax": 14.5}, {"cod": "C24", "nome": "BOLOGNA", "aMin": 6.5, "aMax": 9.7, "bMin": 9.7, "bMax": 13.8, "cMin": 13.8, "cMax": 15.0}, {"cod": "C26", "nome": "VILLAGGIO OLIMPICO", "aMin": 6.1, "aMax": 9.0, "bMin": 9.0, "bMax": 12.9, "cMin": 12.9, "cMax": 14.0}, {"cod": "C27", "nome": "PORTA PORTESE", "aMin": 8.8, "aMax": 10.1, "bMin": 10.1, "bMax": 14.5, "cMin": 14.5, "cMax": 16.0}, {"cod": "C29", "nome": "CASAL BERTONE", "aMin": 4.2, "aMax": 6.4, "bMin": 6.4, "bMax": 9.1, "cMin": 9.1, "cMax": 12.4}, {"cod": "C30", "nome": "PIGNETO", "aMin": 4.4, "aMax": 7.3, "bMin": 7.3, "bMax": 10.5, "cMin": 10.5, "cMax": 13.1}, {"cod": "C31", "nome": "MARCO POLO", "aMin": 6.1, "aMax": 8.2, "bMin": 8.2, "bMax": 11.8, "cMin": 11.8, "cMax": 15.0}, {"cod": "C32", "nome": "OSTIENSE", "aMin": 6.1, "aMax": 7.7, "bMin": 7.7, "bMax": 11.0, "cMin": 11.0, "cMax": 12.5}, {"cod": "C35", "nome": "AURELIO MADONNA DEL RIPOSO", "aMin": 6.1, "aMax": 8.2, "bMin": 8.2, "bMax": 11.8, "cMin": 11.8, "cMax": 12.8}, {"cod": "C38", "nome": "CASILINO MARRANELLA", "aMin": 4.1, "aMax": 6.4, "bMin": 6.4, "bMax": 9.1, "cMin": 9.1, "cMax": 11.9}, {"cod": "C42", "nome": "VIGNA CLARA", "aMin": 8.8, "aMax": 9.8, "bMin": 9.8, "bMax": 14.0, "cMin": 14.0, "cMax": 15.5}, {"cod": "C43", "nome": "TRIONFALE IGEA", "aMin": 8.8, "aMax": 10.5, "bMin": 10.5, "bMax": 15.0, "cMin": 15.0, "cMax": 16.5}, {"cod": "C44", "nome": "CAMILLUCCIA", "aMin": 8.8, "aMax": 11.1, "bMin": 11.1, "bMax": 15.8, "cMin": 15.8, "cMax": 18.1}, {"cod": "C45", "nome": "NOCETTA", "aMin": 4.4, "aMax": 6.5, "bMin": 6.5, "bMax": 9.3, "cMin": 9.3, "cMax": 12.6}, {"cod": "C47", "nome": "BALDUINA BELSITO", "aMin": 6.3, "aMax": 8.3, "bMin": 8.3, "bMax": 11.9, "cMin": 11.9, "cMax": 14.3}, {"cod": "C48", "nome": "TOR MARANCIA NAVIGATORI", "aMin": 6.1, "aMax": 8.2, "bMin": 8.2, "bMax": 11.8, "cMin": 11.8, "cMax": 13.5}, {"cod": "C51", "nome": "APPIO LATINO", "aMin": 6.1, "aMax": 8.2, "bMin": 8.2, "bMax": 11.8, "cMin": 11.8, "cMax": 13.3}, {"cod": "C52", "nome": "COLLINA FLEMING", "aMin": 8.8, "aMax": 9.8, "bMin": 9.8, "bMax": 14.0, "cMin": 14.0, "cMax": 15.5}, {"cod": "D5", "nome": "SAN PAOLO", "aMin": 5.3, "aMax": 7.5, "bMin": 7.5, "bMax": 10.7, "cMin": 10.7, "cMax": 12.6}, {"cod": "D7", "nome": "PORTUENSE", "aMin": 6.1, "aMax": 8.3, "bMin": 8.3, "bMax": 11.0, "cMin": 11.0, "cMax": 12.8}, {"cod": "D9", "nome": "COLLI PORTUENSI", "aMin": 6.1, "aMax": 8.3, "bMin": 8.4, "bMax": 12.0, "cMin": 12.0, "cMax": 12.6}, {"cod": "D11", "nome": "MONTESACRO", "aMin": 5.3, "aMax": 8.0, "bMin": 8.0, "bMax": 11.5, "cMin": 11.5, "cMax": 13.0}, {"cod": "D15", "nome": "ARDEATINO OTTAVO COLLE", "aMin": 7.0, "aMax": 9.7, "bMin": 9.7, "bMax": 13.8, "cMin": 13.8, "cMax": 15.9}, {"cod": "D27", "nome": "TALENTI", "aMin": 5.9, "aMax": 8.3, "bMin": 8.3, "bMax": 11.9, "cMin": 11.9, "cMax": 13.7}, {"cod": "D29", "nome": "EUR", "aMin": 7.0, "aMax": 10.5, "bMin": 10.5, "bMax": 15.1, "cMin": 15.1, "cMax": 16.2}, {"cod": "D31", "nome": "CASSIA DUE PONTI", "aMin": 8.8, "aMax": 9.2, "bMin": 9.2, "bMax": 13.1, "cMin": 13.1, "cMax": 14.5}, {"cod": "D32", "nome": "FONTE MERAVIGLIOSA", "aMin": 6.1, "aMax": 9.8, "bMin": 9.8, "bMax": 14.0, "cMin": 14.0, "cMax": 16.5}, {"cod": "D34", "nome": "MONTAGNOLA", "aMin": 6.4, "aMax": 9.2, "bMin": 9.2, "bMax": 13.2, "cMin": 13.2, "cMax": 15.0}, {"cod": "D36", "nome": "GROTTAPERFETTA ROMA 70", "aMin": 7.0, "aMax": 9.7, "bMin": 9.7, "bMax": 13.8, "cMin": 13.8, "cMax": 16.0}, {"cod": "D37", "nome": "APPIA ANTICA", "aMin": 6.7, "aMax": 9.7, "bMin": 9.7, "bMax": 13.8, "cMin": 13.8, "cMax": 15.5}, {"cod": "D38", "nome": "TINTORETTO", "aMin": 7.0, "aMax": 9.7, "bMin": 9.7, "bMax": 13.8, "cMin": 13.8, "cMax": 16.0}, {"cod": "D46", "nome": "CONCA D'ORO", "aMin": 5.3, "aMax": 7.9, "bMin": 7.9, "bMax": 11.3, "cMin": 11.3, "cMax": 13.0}, {"cod": "D47", "nome": "SACCO PASTORE", "aMin": 5.3, "aMax": 7.9, "bMin": 7.9, "bMax": 11.3, "cMin": 11.3, "cMax": 13.0}, {"cod": "D68", "nome": "CORTINA D'AMPEZZO", "aMin": 8.8, "aMax": 11.0, "bMin": 11.0, "bMax": 14.0, "cMin": 14.0, "cMax": 15.0}, {"cod": "D69", "nome": "MONTE MARIO ALTO", "aMin": 8.8, "aMax": 11.0, "bMin": 11.0, "bMax": 15.0, "cMin": 15.0, "cMax": 16.4}, {"cod": "D71", "nome": "NUOVO SALARIO PRATI FISCALI", "aMin": 5.0, "aMax": 8.2, "bMin": 8.2, "bMax": 11.7, "cMin": 11.7, "cMax": 13.4}, {"cod": "D78", "nome": "FERRATELLA", "aMin": 7.0, "aMax": 9.4, "bMin": 9.4, "bMax": 13.5, "cMin": 13.5, "cMax": 15.0}]}], attivo:0, sMed:3, sMax:7, pArr:0, pDur:0, calibrato:true };
 let pratiche=[], ultimo=null;
 
+// Campi della pratica (bozza autosalvata + snapshot nelle pratiche salvate)
+const CAMPI_IDS=['ind','zona','tipo','normale','mq','mqBox','boxPre','mqPC','mqBal','mqSc','mqVe','prop','locNome','locCF','conNome','conCF','catFoglio','catPart','catSub','catCat','piano','interno','apeClasse','decorrenza','durataMesi'];
+const DRAFT_KEY='boom-canone-v2-draft';
+
 async function load(){
   try{const r=await window.storage.get('boom-canone-v2-cfg'); if(r&&r.value) CFG=JSON.parse(r.value);}catch(e){}
   try{const r=await window.storage.get('boom-canone-v2-pr'); if(r&&r.value) pratiche=JSON.parse(r.value);}catch(e){}
   renderCfg(); renderPar(); renderMag(); renderZone(); renderPr();
+  try{const r=await window.storage.get(DRAFT_KEY); if(r&&r.value) applicaSnapshot(JSON.parse(r.value));}catch(e){}
   document.getElementById('avv').style.display=CFG.calibrato?'none':'block';
   document.getElementById('tagAccordo').textContent='Scheda Canone · Accordo '+CFG.accordi[CFG.attivo].nome;
 }
 async function pcfg(){try{await window.storage.set('boom-canone-v2-cfg',JSON.stringify(CFG));}catch(e){toast('Storage KO — in memoria');}}
-async function ppr(){try{await window.storage.set('boom-canone-v2-pr',JSON.stringify(pratiche));}catch(e){}}
+async function ppr(){try{await window.storage.set('boom-canone-v2-pr',JSON.stringify(pratiche));}catch(e){toast('Storage KO — pratica non persistita');}}
+
+// ====== BOZZA (autosave di tutti i campi, chips comprese) ======
+function snapshotForm(){
+  const s={v:{},par:[],mag:[]};
+  CAMPI_IDS.forEach(id=>{const el=document.getElementById(id); if(el&&el.value!=='')s.v[id]=el.value;});
+  document.querySelectorAll('#par input:checked').forEach(x=>s.par.push(+x.dataset.p));
+  MAGG.forEach(m=>{const el=document.getElementById('mg_'+m.id); if(el&&el.checked)s.mag.push(m.id);});
+  return s;
+}
+function applicaSnapshot(s){
+  if(!s)return;
+  CAMPI_IDS.forEach(id=>{const el=document.getElementById(id); if(el&&s.v&&s.v[id]!==undefined)el.value=s.v[id];});
+  document.querySelectorAll('#par input').forEach(x=>{x.checked=(s.par||[]).includes(+x.dataset.p);x.parentElement.classList.toggle('on',x.checked);});
+  MAGG.forEach(m=>{const el=document.getElementById('mg_'+m.id); if(el){el.checked=(s.mag||[]).includes(m.id);el.parentElement.classList.toggle('on',el.checked);}});
+}
+let draftT=null;
+function salvaBozza(){clearTimeout(draftT);draftT=setTimeout(async()=>{try{await window.storage.set(DRAFT_KEY,JSON.stringify(snapshotForm()));}catch(e){}},400);}
+document.addEventListener('input',e=>{if(e.target.closest('#form,#wBody'))salvaBozza();});
+document.addEventListener('change',e=>{if(e.target.closest('#form,#wBody'))salvaBozza();});
+async function nuovaPratica(){
+  CAMPI_IDS.forEach(id=>{const el=document.getElementById(id); if(!el)return; if(el.tagName==='SELECT')el.selectedIndex=0; else el.value=(['mqBox','mqPC','mqBal','mqSc','mqVe'].includes(id)?'0':'');});
+  document.querySelectorAll('#par input,#mag input').forEach(x=>{x.checked=false;x.parentElement.classList.remove('on');});
+  ultimo=null; verd.style.display='none'; riep.style.display='none';
+  try{await window.storage.set(DRAFT_KEY,'null');}catch(e){}
+  toast('Nuova pratica'); window.scrollTo({top:0,behavior:'smooth'});
+}
 
 function renderCfg(){
   const s=selAccordo; s.innerHTML=''; CFG.accordi.forEach((a,i)=>{const o=document.createElement('option');o.value=i;o.textContent=a.nome;s.appendChild(o);}); s.value=CFG.attivo;
@@ -217,11 +322,18 @@ function renderPar(){const b=par;b.innerHTML='';PARAMETRI.forEach((p,i)=>{const 
 function renderMag(){const b=mag;b.innerHTML='';MAGG.forEach(m=>{const l=document.createElement('label');l.className='chip';const pct=m.p==='cfg'?`+${CFG.pArr}%`:(m.custom?'+__%':(m.p>0?'+':'')+m.p+'%');l.innerHTML=`<input type="checkbox" id="mg_${m.id}" onchange="this.parentElement.classList.toggle('on',this.checked)"> ${m.n} <span style="color:var(--gr)">${pct}</span>`;b.appendChild(l);});}
 
 // ====== MOTORE (coefficienti ufficiali) ======
+let SUP_PARTS=[]; // dettaglio superficie convenzionale per il documento (stessa aritmetica di supConv)
 function supConv(mq,box,boxPre,pc,bal,sc,ve){
-  let base;
-  if(mq<46) base=Math.min(mq*1.30,52.90);
-  else if(mq<=70) base=Math.min(mq*1.15,70.00);
-  else base=mq; // 70–120 ×1; >120: eventuale riduzione fino a −15% da concordare
+  let base, regola;
+  if(mq<46){ base=Math.min(mq*1.30,52.90); regola='×1,30 (max 52,90)'; }
+  else if(mq<=70){ base=Math.min(mq*1.15,70.00); regola='×1,15 (max 70,00)'; }
+  else { base=mq; regola='×1,00'; } // 70–120 ×1; >120: eventuale riduzione fino a −15% da concordare
+  SUP_PARTS=[{n:'Superficie utile calpestabile',mq:mq,c:regola,v:base}];
+  if(box>0)SUP_PARTS.push({n:'Box / posto auto esclusivo'+(boxPre?' (zona pregiata)':''),mq:box,c:boxPre?'×0,80':'×0,50',v:box*(boxPre?0.80:0.50)});
+  if(pc>0)SUP_PARTS.push({n:'Posto auto comune',mq:pc,c:'×0,20',v:pc*0.20});
+  if(bal>0)SUP_PARTS.push({n:'Balconi / terrazze / cantine',mq:bal,c:'×0,25',v:bal*0.25});
+  if(sc>0)SUP_PARTS.push({n:'Superficie scoperta esclusiva',mq:sc,c:'×0,15',v:sc*0.15});
+  if(ve>0)SUP_PARTS.push({n:'Verde condominiale (quota)',mq:ve,c:'×0,10',v:ve*0.10});
   return base + box*(boxPre?0.80:0.50) + pc*0.20 + bal*0.25 + sc*0.15 + ve*0.10;
 }
 function calc(show){
@@ -254,7 +366,9 @@ function calc(show){
   const cMax = Math.min(fMax*sc_*f, pct>0 ? capMese : fMax*sc_*f);
   const cApp = cMax;
   const p=+prop.value||0; const inF = p>0 ? p<=cMax+0.005 : null;
-  ultimo={ind:ind.value,zona:z.nome,tipo:tipo.value,mq:mqv,sc:sc_,nP,sub,eur,pct,note,cMin,cApp,cMax,p,inF};
+  const parIdx=[...document.querySelectorAll('#par input:checked')].map(x=>+x.dataset.p);
+  ultimo={ind:ind.value,zona:z.nome,zonaCod:z.cod||'',tipo:tipo.value,mq:mqv,sc:sc_,nP,sub,eur,pct,note,cMin,cApp,cMax,p,inF,
+    fMin,fMax,normale,parIdx,parts:SUP_PARTS.slice(),snap:snapshotForm()};
   const v=verd; v.style.display='block'; v.className='verd '+(inF===false?'out':inF?'in':'');
   vSt.textContent=inF===null?'CANONE MASSIMO CALCOLATO':inF?'IN FASCIA — ASSEVERABILE':'FUORI FASCIA';
   vSub.textContent=`${nP} parametri · FASCIA ${fascia} (${fMin}–${fMax} €/mq) · sup. conv. ${fmt(sc_)} mq${pct?` · magg. ${pct>0?'+':''}${pct}% (cap al max di fascia)`:''}`;
@@ -263,7 +377,9 @@ function calc(show){
   if(note.length)d+=` Applicati: ${note.join(', ')}.`;
   if(p>0)d+= inF?` Proposto <b>€ ${fmt(p)}</b>: sotto il massimo di € ${fmt(cMax-p)}.`:` Proposto <b>€ ${fmt(p)}</b>: SFORA il massimo di <b>€ ${fmt(p-cMax)}</b> — riportare a € ${fmt(cMax)} o rivedere parametri/maggiorazioni.`;
   if(!CFG.calibrato)d+=' <span style="color:var(--oro2)">⚠ €/mq zona e soglie subfascia non ancora calibrati.</span>';
-  vDet.innerHTML=d; return ultimo;
+  vDet.innerHTML=d;
+  if(show)setTimeout(()=>{try{verd.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){}},60);
+  return ultimo;
 }
 function fmt(n){return n.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2});}
 
@@ -280,21 +396,23 @@ const wSteps=[
  {q:"Canone che vuoi proporre €/mese?",tipo:'num',id:'prop'},
 ];
 let wI=0;
-function modo(m){['form','wiz','chat'].forEach(x=>document.getElementById(x).style.display=x===m?'block':'none');mForm.classList.toggle('att',m==='form');mWiz.classList.toggle('att',m==='wiz');mChat.classList.toggle('att',m==='chat');if(m==='wiz'){wI=0;wRender();}if(m==='chat'&&!chStarted){chStarted=true;chAdd('bot','Dimmi l\'immobile: zona, mq, dotazioni e canone che vuoi chiedere. Puoi dettare tutto in una frase.');}}
+function modo(m){riportaChips();['form','wiz','chat'].forEach(x=>document.getElementById(x).style.display=x===m?'block':'none');mForm.classList.toggle('att',m==='form');mWiz.classList.toggle('att',m==='wiz');mChat.classList.toggle('att',m==='chat');if(m==='wiz'){wI=0;wRender();}if(m==='chat'&&!chStarted){chStarted=true;chAdd('bot','Dimmi l\'immobile: zona, mq, dotazioni e canone che vuoi chiedere. Puoi dettare tutto in una frase.');}}
 function wRender(){
+  riportaChips(); // le chips tornano SEMPRE alla loro card prima di svuotare il corpo del wizard
   const s=wSteps[wI]; wProg.textContent=`Domanda ${wI+1} di ${wSteps.length}`; wQ.textContent=s.q; const b=wBody; b.innerHTML='';
   if(s.tipo==='txt'||s.tipo==='num'){const i=document.createElement('input');i.type=s.tipo==='num'?'number':'text';i.value=document.getElementById(s.id).value;i.oninput=()=>document.getElementById(s.id).value=i.value;b.appendChild(i);i.focus();}
-  if(s.tipo==='sel'){const c=zona.cloneNode(true);c.value=zona.value;c.onchange=()=>zona.value=c.value;b.appendChild(c);}
-  if(s.tipo==='tipo'){const c=tipo.cloneNode(true);c.value=tipo.value;c.onchange=()=>tipo.value=c.value;b.appendChild(c);}
-  if(s.tipo==='par'){b.appendChild(par.parentElement===b?par:par);} // move chips in
+  if(s.tipo==='sel'){const o=document.getElementById('zona');const c=o.cloneNode(true);c.removeAttribute('id');c.value=o.value;c.onchange=()=>{o.value=c.value;};b.appendChild(c);}
+  if(s.tipo==='tipo'){const o=document.getElementById('tipo');const c=o.cloneNode(true);c.removeAttribute('id');c.value=o.value;c.onchange=()=>{o.value=c.value;};b.appendChild(c);}
+  if(s.tipo==='par'){b.appendChild(par);}
   if(s.tipo==='mag'){b.appendChild(mag);}
   wNext.textContent = wI===wSteps.length-1 ? 'Calcola ✓' : 'Avanti →';
 }
-function wAvanti(){ if(wI===wSteps.length-1){ modo('form'); riportaChips(); calc(true); window.scrollTo({top:document.getElementById('verd').offsetTop-80,behavior:'smooth'}); return;} wI++; wRender(); }
+function wAvanti(){ if(wI===wSteps.length-1){ modo('form'); calc(true); return;} wI++; wRender(); }
 function wPrev(){ if(wI>0){wI--; wRender();} }
-function riportaChips(){ // restituisce par/mag alle card originali
-  const c1=document.querySelectorAll('#form .card')[1]; if(par.parentElement!==c1.querySelector('.chips')&&!c1.contains(par))c1.appendChild(par);
-  const c2=document.querySelectorAll('#form .card')[2]; if(!c2.contains(mag))c2.appendChild(mag);
+function riportaChips(){ // restituisce par/mag alle card originali (ancore fisse, mai distrutte)
+  const pc=document.getElementById('parCard'), mc=document.getElementById('magCard');
+  if(pc&&!pc.contains(par))pc.appendChild(par);
+  if(mc&&!mc.contains(mag))mc.appendChild(mag);
 }
 
 // ====== OUTPUT ======
@@ -313,10 +431,114 @@ ${CFG.calibrato?'':'[parametri zona non calibrati]'}
   riep.textContent=t; riep.style.display='block';
   navigator.clipboard&&navigator.clipboard.writeText(t).then(()=>toast('Copiato'),()=>toast('Copia manuale'));
 }
-async function salvaPr(){const c=ultimo||calc(true);if(!c)return;pratiche.unshift({...c,data:new Date().toLocaleDateString('it-IT')});pratiche=pratiche.slice(0,60);await ppr();renderPr();toast('Pratica salvata');}
+async function salvaPr(){const c=ultimo||calc(true);if(!c)return;pratiche.unshift({...c,data:new Date().toLocaleDateString('it-IT')});pratiche=pratiche.slice(0,60);await ppr();renderPr();toast('Pratica salvata ✓');}
 function renderPr(){const tb=document.querySelector('#tp tbody');tb.innerHTML='';if(!pratiche.length){tb.innerHTML='<tr><td colspan="6" style="color:var(--gr)">Nessuna pratica salvata.</td></tr>';return;}
- pratiche.forEach((p,i)=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${p.ind||'—'}</td><td>${p.zona}</td><td>€ ${fmt(p.cMax)}</td><td>€ ${fmt(p.p)}</td><td style="color:${p.inF?'var(--oro)':p.inF===false?'#E08573':'var(--gr)'}">${p.inF===null?'—':p.inF?'IN':'FUORI'}</td><td><span class="del" onclick="pratiche.splice(${i},1);ppr();renderPr()">×</span></td>`;tb.appendChild(tr);});}
+ pratiche.forEach((p,i)=>{const tr=document.createElement('tr');tr.onclick=()=>caricaPr(i);tr.innerHTML=`<td>${p.ind||'—'}</td><td>${p.zona}</td><td>€ ${fmt(p.cMax)}</td><td>€ ${fmt(p.p)}</td><td style="color:${p.inF?'var(--oro)':p.inF===false?'#E08573':'var(--gr)'}">${p.inF===null?'—':p.inF?'IN':'FUORI'}</td><td><span class="del" onclick="event.stopPropagation();pratiche.splice(${i},1);ppr();renderPr()">×</span></td>`;tb.appendChild(tr);});}
+function caricaPr(i){
+  const p=pratiche[i]; if(!p)return;
+  if(!p.snap){toast('Pratica salvata con la versione precedente — ricompilare');return;}
+  modo('form'); applicaSnapshot(p.snap); salvaBozza(); calc(true); toast('Pratica ricaricata');
+}
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2100);}
+
+// ====== DOCUMENTO ARPE (scheda di determinazione del canone) ======
+function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function fld(v,w){return v?esc(v):'<span style="letter-spacing:2px">'+'_'.repeat(w||14)+'</span>';}
+function tipoLabel(t){return t==='stud'?'Contratto per studenti universitari (art. 5, c. 2-3, L. 431/98)':t==='trans'?'Contratto transitorio (art. 5, c. 1, L. 431/98)':'Contratto agevolato 3+2 (art. 2, c. 3, L. 431/98)';}
+function durataLabel(t,mesi){ if(mesi>0)return mesi+' mesi'; return t==='stud'?'da 6 a 36 mesi':t==='trans'?'da 1 a 18 mesi':'3 anni + 2 di rinnovo'; }
+function dataIT(iso){ if(!iso)return ''; const d=new Date(iso+'T00:00:00'); return isNaN(d)?'':d.toLocaleDateString('it-IT'); }
+function apriArpe(){
+  const c=ultimo||calc(true); if(!c){toast('Completa prima il calcolo');return;}
+  const g=id=>{const el=document.getElementById(id);return el?el.value.trim():''};
+  const A=CFG.accordi[CFG.attivo];
+  const parRows=PARAMETRI.map((p,i)=>`<div>${c.parIdx.includes(i)?'☑':'☐'} ${i+1}. ${esc(p)}</div>`).join('');
+  const supRows=c.parts.map(r=>`<tr><td>${esc(r.n)}</td><td class="n">${fmt(r.mq)}</td><td>${esc(r.c)}</td><td class="n">${fmt(r.v)}</td></tr>`).join('');
+  const magRows=c.note.length?c.note.map(n=>`<tr><td colspan="3">${esc(n.charAt(0).toUpperCase()+n.slice(1))}</td></tr>`).join(''):'<tr><td colspan="3">Nessuna maggiorazione / riduzione applicata</td></tr>';
+  const oggi=new Date().toLocaleDateString('it-IT');
+  const esito = c.inF===null
+    ? `CANONE MASSIMO APPLICABILE: <b>€ ${fmt(c.cMax)}/mese</b> (€ ${fmt(c.cMax*12)}/anno)`
+    : c.inF
+      ? `Canone pattuito € ${fmt(c.p)}/mese (€ ${fmt(c.p*12)}/anno) — <b>ENTRO il canone massimo</b> di € ${fmt(c.cMax)}/mese`
+      : `Canone pattuito € ${fmt(c.p)}/mese — <b>SUPERA il canone massimo</b> di € ${fmt(c.cMax)}/mese (eccedenza € ${fmt(c.p-c.cMax)})`;
+  arpePaper.innerHTML=`
+  <div class="doc-h">
+    <div class="t1">SCHEDA DI DETERMINAZIONE DEL CANONE</div>
+    <div class="t2">Contratti di locazione a canone concordato — L. 9/12/1998 n. 431 · D.M. 16/01/2017<br>
+    Accordo Territoriale per il Comune di Roma Capitale depositato il 25/07/2023</div>
+  </div>
+
+  <h3>1 · Parti</h3>
+  <div class="rg">
+    <div class="f"><b>Locatore:</b> ${fld(g('locNome'),22)}</div>
+    <div class="f"><b>C.F.:</b> ${fld(g('locCF').toUpperCase(),16)}</div>
+    <div class="f"><b>Conduttore:</b> ${fld(g('conNome'),22)}</div>
+    <div class="f"><b>C.F.:</b> ${fld(g('conCF').toUpperCase(),16)}</div>
+  </div>
+
+  <h3>2 · Immobile</h3>
+  <div class="f"><b>Ubicazione:</b> ${fld(c.ind,40)} — Comune di Roma${g('piano')?` · Piano ${esc(g('piano'))}`:''}${g('interno')?` · Int. ${esc(g('interno'))}`:''}</div>
+  <div class="rg3" style="margin-top:3px">
+    <div class="f"><b>Foglio:</b> ${fld(g('catFoglio'),8)}</div>
+    <div class="f"><b>Particella:</b> ${fld(g('catPart'),8)}</div>
+    <div class="f"><b>Subalterno:</b> ${fld(g('catSub'),8)}</div>
+    <div class="f"><b>Categoria:</b> ${fld(g('catCat'),8)}</div>
+    <div class="f"><b>Classe energetica (APE):</b> ${fld(g('apeClasse'),6)}</div>
+    <div class="f"><b>Zona Accordo:</b> ${esc((c.zonaCod?c.zonaCod+' · ':'')+c.zona)}</div>
+  </div>
+
+  <h3>3 · Contratto</h3>
+  <div class="rg">
+    <div class="f"><b>Tipologia:</b> ${tipoLabel(c.tipo)}</div>
+    <div class="f"><b>Durata:</b> ${durataLabel(c.tipo,+g('durataMesi'))}</div>
+    <div class="f"><b>Decorrenza:</b> ${fld(dataIT(g('decorrenza')),12)}</div>
+    <div class="f"><b>Ammobiliato:</b> ${c.note.some(n=>n.startsWith('ammobiliato'))?'SÌ':'NO'}</div>
+  </div>
+
+  <h3>4 · Superficie convenzionale</h3>
+  <table>
+    <thead><tr><th>Componente</th><th style="text-align:right">Mq reali</th><th>Coefficiente</th><th style="text-align:right">Mq convenzionali</th></tr></thead>
+    <tbody>${supRows}
+    <tr class="tot"><td colspan="3">SUPERFICIE CONVENZIONALE TOTALE</td><td class="n">${fmt(c.sc)} mq</td></tr></tbody>
+  </table>
+
+  <h3>5 · Elementi / parametri dell'immobile (${c.nP} su 20)</h3>
+  <div class="f" style="font-size:11px">Alloggio con i 4 requisiti di normalità (acqua, gas/induzione, fognatura, riscaldamento): <b>${c.normale?'SÌ':'NO — fascia A obbligatoria'}</b></div>
+  <div class="el">${parRows}</div>
+
+  <h3>6 · Fascia di oscillazione e canone</h3>
+  <table>
+    <tbody>
+    <tr><td>Fascia di oscillazione della zona (A / B / C)</td><td class="n">A ${fmt2(zonaVal(c,'a'))} · B ${fmt2(zonaVal(c,'b'))} · C ${fmt2(zonaVal(c,'c'))} €/mq/mese</td></tr>
+    <tr><td>Subfascia applicabile (${c.nP} parametri; soglie: B ≥ ${CFG.sMed}, C ≥ ${CFG.sMax})</td><td class="n"><b>FASCIA ${c.sub}</b> (${fmt(c.fMin)} – ${fmt(c.fMax)} €/mq/mese)</td></tr>
+    <tr><td>Canone base di subfascia (min – max × ${fmt(c.sc)} mq)</td><td class="n">€ ${fmt(c.fMin*c.sc)} – € ${fmt(c.fMax*c.sc)} /mese</td></tr>
+    </tbody>
+  </table>
+  <table>
+    <thead><tr><th colspan="3">Maggiorazioni / riduzioni applicate (complessivo ${c.pct>0?'+':''}${c.pct}%; gli aumenti non superano il massimo di subfascia)</th></tr></thead>
+    <tbody>${magRows}</tbody>
+  </table>
+  <table>
+    <tbody>
+    <tr class="tot"><td>CANONE MASSIMO APPLICABILE</td><td class="n">€ ${fmt(c.cMax)} /mese</td><td class="n">€ ${fmt(c.cMax*12)} /anno</td></tr>
+    ${c.p>0?`<tr><td>Canone pattuito</td><td class="n">€ ${fmt(c.p)} /mese</td><td class="n">€ ${fmt(c.p*12)} /anno</td></tr>`:''}
+    </tbody>
+  </table>
+  <div class="esito">${esito}</div>
+
+  <div class="firma">
+    <div>Il Locatore</div>
+    <div>Il Conduttore</div>
+  </div>
+  <div class="f" style="margin-top:16px">Roma, lì ${oggi}</div>
+
+  <div class="note">Scheda di calcolo predisposta ai fini della richiesta di attestazione di rispondenza di cui all'art. 1, c. 8, D.M. 16/01/2017, da presentare a una organizzazione della proprietà edilizia o dei conduttori firmataria dell'Accordo (ARPE, ecc.) unitamente a: copia del contratto, visura catastale, APE e documenti d'identità/codici fiscali delle parti. Valori €/mq della zona secondo ${esc(A.nome)}. La presente scheda non sostituisce l'attestazione di rispondenza.</div>`;
+  arpeWrap.classList.add('open'); document.body.classList.add('print-arpe'); arpeWrap.scrollTop=0;
+}
+function zonaVal(c,f){const z=CFG.accordi[CFG.attivo].zone[+zona.value]||{};return [z[f+'Min'],z[f+'Max']];}
+function fmt2(r){return (r[0]!==undefined&&r[1]!==undefined)?fmt(r[0])+'–'+fmt(r[1]):'—';}
+function stampaArpe(){window.print();}
+function chiudiArpe(){arpeWrap.classList.remove('open');document.body.classList.remove('print-arpe');}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&arpeWrap.classList.contains('open'))chiudiArpe();});
 
 // ====== CHAT (parser AI -> motore deterministico) ======
 let chMsgs=[], chStarted=false;
@@ -348,6 +570,7 @@ function applica(c){
   if(c.zona){const zs=CFG.accordi[CFG.attivo].zone;const i=zs.findIndex(z=>z.nome.toLowerCase().includes(String(c.zona).toLowerCase()));if(i>=0)zona.value=i;}
   if(Array.isArray(c.parametri)){document.querySelectorAll('#par input').forEach(x=>{const n=+x.dataset.p+1;x.checked=c.parametri.includes(n);x.parentElement.classList.toggle('on',x.checked);});}
   if(Array.isArray(c.maggiorazioni)){['arr','sem','asc','att','clA','eco','sis','clD'].forEach(id=>{const el=document.getElementById('mg_'+id);if(el){el.checked=c.maggiorazioni.includes(id);el.parentElement.classList.toggle('on',el.checked);}});}
+  salvaBozza();
 }
 
 load();
