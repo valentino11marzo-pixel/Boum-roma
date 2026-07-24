@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<script src="/js/boom-err.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Salute Sistema · BOOM</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="/js/firebase-config.js"></script>
+<script src="/js/boom-portal.js"></script>
+
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --gold: #D4AF37; --gold-light: rgba(212,175,55,0.15);
+  --bg: #000; --bg-card: #0A0A0A; --bg-elevated: #141414;
+  --border: rgba(255,255,255,0.08); --text: #FFF; --text-secondary: #999; --text-muted: #555;
+  --green: #00D26A; --amber: #F5A524; --red: #F31260;
+}
+body { font-family: 'Inter','Helvetica Neue',sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 24px 18px 90px; }
+header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 8px; }
+header h1 { font-size: 20px; font-weight: 300; letter-spacing: 4px; }
+header h1 b { color: var(--gold); font-weight: 600; }
+header a { color: var(--text-secondary); font-size: 12px; text-decoration: none; }
+header a:hover { color: var(--gold); }
+.sub { color: var(--text-muted); font-size: 12px; margin-bottom: 22px; }
+h2 { font-size: 12px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--text-secondary); margin: 26px 0 10px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; }
+.card .name { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.ok .dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
+.warn .dot { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+.down .dot { background: var(--red); box-shadow: 0 0 8px var(--red); }
+.unknown .dot { background: var(--text-muted); }
+.card .meta { color: var(--text-secondary); font-size: 11.5px; margin-top: 6px; line-height: 1.5; }
+.card .meta b { color: var(--text); font-weight: 500; }
+.err { background: var(--bg-card); border: 1px solid var(--border); border-left: 3px solid var(--red); border-radius: 10px; padding: 10px 14px; margin-bottom: 8px; font-size: 12px; }
+.err .msg { color: var(--text); word-break: break-word; }
+.err .ctx { color: var(--text-muted); font-size: 11px; margin-top: 4px; }
+.empty { color: var(--text-muted); font-size: 12.5px; padding: 14px 4px; }
+.pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10px; background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-secondary); margin-left: 6px; }
+#loading { color: var(--text-muted); font-size: 13px; padding: 40px 0; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><b>BOOM</b> · SALUTE SISTEMA</h1>
+    <nav><a href="/portal">← Portal</a> &nbsp;·&nbsp; <a href="/team">Squadra</a> &nbsp;·&nbsp; <a href="/banca">Banca</a> &nbsp;·&nbsp; <a href="/pfs-command">PFS</a></nav>
+  </header>
+  <p class="sub">Heartbeat di cron e dipendenti AI, salute delle fonti radar, ultimi errori dal browser dei clienti. Aggiornato live.</p>
+
+  <div id="loading">Caricamento…</div>
+  <div id="content" style="display:none">
+    <h2>Squadra & pipeline (teamHealth)</h2>
+    <div class="grid" id="team"></div>
+
+    <h2>Fonti radar PFS (pfsRadarHealth)</h2>
+    <div class="grid" id="radar"></div>
+
+    <h2>Errori client — ultimi 7 giorni <span class="pill" id="errCount"></span></h2>
+    <div id="errors"></div>
+  </div>
+</div>
+
+<script>
+(async () => {
+  await BoomPortal.requireAuth(['admin'], { loginUrl: '/login' });
+  const db = firebase.firestore();
+
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const toDate = (v) => { try { return v && v.toDate ? v.toDate() : (v ? new Date(v) : null); } catch { return null; } };
+  const ago = (v) => {
+    const d = toDate(v);
+    if (!d || isNaN(d)) return 'mai';
+    const m = Math.round((Date.now() - d.getTime()) / 60000);
+    if (m < 1) return 'adesso';
+    if (m < 60) return m + ' min fa';
+    if (m < 48 * 60) return Math.round(m / 60) + ' h fa';
+    return Math.round(m / 1440) + ' g fa';
+  };
+  // Verde se l'ultimo battito è recente rispetto alla cadenza attesa,
+  // ambra se in ritardo, rosso se fermo da molto o in errore dichiarato.
+  const stateFor = (lastAt, failures, staleMin) => {
+    if ((failures || 0) >= 3) return 'down';
+    const d = toDate(lastAt);
+    if (!d || isNaN(d)) return 'unknown';
+    const m = (Date.now() - d.getTime()) / 60000;
+    if (m <= staleMin) return 'ok';
+    if (m <= staleMin * 3) return 'warn';
+    return 'down';
+  };
+  const card = (name, state, lines) =>
+    '<div class="card ' + state + '"><div class="name"><span class="dot"></span>' + esc(name) + '</div><div class="meta">' + lines.map(esc).join('<br>') + '</div></div>';
+
+  // ── teamHealth: un doc per dipendente/pipeline (cadenze per lo più giornaliere) ──
+  try {
+    const snap = await db.collection('teamHealth').get();
+    const html = snap.docs.map((d) => {
+      const h = d.data();
+      const last = h.lastRunAt || h.lastOkAt || h.updatedAt || h.at;
+      const st = stateFor(last, h.consecutiveFailures, 26 * 60);
+      const lines = ['ultimo run: ' + ago(last)];
+      if (h.lastStatus) lines.push('esito: ' + h.lastStatus);
+      if (h.consecutiveFailures) lines.push('fallimenti consecutivi: ' + h.consecutiveFailures);
+      if (h.note || h.lastError) lines.push(String(h.note || h.lastError).slice(0, 90));
+      return card(d.id, st, lines);
+    }).join('');
+    document.getElementById('team').innerHTML = html || '<div class="empty">Nessun heartbeat ancora registrato.</div>';
+  } catch (e) { document.getElementById('team').innerHTML = '<div class="empty">Lettura teamHealth non riuscita: ' + esc(e.message) + '</div>'; }
+
+  // ── pfsRadarHealth: fonti dello scanner (cadenza 15-30 min) ──
+  try {
+    const snap = await db.collection('pfsRadarHealth').get();
+    const html = snap.docs.filter((d) => d.id !== 'needsAttention').map((d) => {
+      const h = d.data();
+      const last = h.lastRunAt || h.lastOkAt || h.updatedAt;
+      const st = stateFor(last, h.consecutiveFailures, 60);
+      const lines = ['ultimo run: ' + ago(last)];
+      if (h.lastResult) lines.push(String(h.lastResult).slice(0, 90));
+      if (h.consecutiveFailures) lines.push('fallimenti consecutivi: ' + h.consecutiveFailures);
+      return card(d.id, st, lines);
+    }).join('');
+    document.getElementById('radar').innerHTML = html || '<div class="empty">Nessuna fonte radar registrata.</div>';
+  } catch (e) { document.getElementById('radar').innerHTML = '<div class="empty">Lettura pfsRadarHealth non riuscita: ' + esc(e.message) + '</div>'; }
+
+  // ── clientErrors: telemetria browser degli ultimi 7 giorni ──
+  try {
+    const cutoff = new Date(Date.now() - 7 * 24 * 3600e3).toISOString();
+    const snap = await db.collection('clientErrors').where('ts', '>=', cutoff).orderBy('ts', 'desc').limit(50).get();
+    document.getElementById('errCount').textContent = snap.size + (snap.size === 50 ? '+' : '');
+    const html = snap.docs.map((d) => {
+      const e = d.data();
+      return '<div class="err"><div class="msg">' + esc(e.message) + '</div><div class="ctx">' +
+        esc(e.page || '?') + ' · ' + esc((e.ua || '').slice(0, 60)) + ' · ' + ago(e.ts) + '</div></div>';
+    }).join('');
+    document.getElementById('errors').innerHTML = html || '<div class="empty">Nessun errore client negli ultimi 7 giorni. 🎉</div>';
+  } catch (e) {
+    // L'indice composito (ts + orderBy) potrebbe mancare al primo uso: fallback senza filtro.
+    try {
+      const snap = await db.collection('clientErrors').orderBy('ts', 'desc').limit(30).get();
+      document.getElementById('errCount').textContent = snap.size;
+      document.getElementById('errors').innerHTML = snap.docs.map((d) => {
+        const er = d.data();
+        return '<div class="err"><div class="msg">' + esc(er.message) + '</div><div class="ctx">' + esc(er.page || '?') + ' · ' + ago(er.ts) + '</div></div>';
+      }).join('') || '<div class="empty">Nessun errore client registrato. 🎉</div>';
+    } catch (e2) { document.getElementById('errors').innerHTML = '<div class="empty">Lettura clientErrors non riuscita: ' + esc(e2.message) + '</div>'; }
+  }
+
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('content').style.display = '';
+})();
+</script>
+</body>
+</html>

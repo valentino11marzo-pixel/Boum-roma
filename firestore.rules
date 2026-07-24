@@ -111,7 +111,11 @@ service cloud.firestore {
     // ─── notifications ────────────────────────────────────────────────
     match /notifications/{nId} {
       allow read, update, delete: if isAdmin() || resource.data.userId == uid();
-      allow create: if isSignedIn();
+      // Le sessioni anonime (magic-link/intake) non hanno motivo di creare
+      // notifiche: senza questo vincolo potevano fabbricarne verso qualsiasi
+      // utente. I ruoli veri (admin/landlord/tenant) restano liberi perché il
+      // portale crea notifiche cross-utente legittimamente.
+      allow create: if isSignedIn() && !isAnon();
     }
 
     // ─── magicLinks ───────────────────────────────────────────────────
@@ -167,9 +171,34 @@ service cloud.firestore {
     // ─── activityLog ──────────────────────────────────────────────────
     match /activityLog/{x} {
       allow read:   if isAdmin();
-      allow create: if isSignedIn();
+      // Append-only, ma non per gli anonimi: evita l'avvelenamento dell'audit
+      // log da sessioni magic-link/intake. I server (admin creds) bypassano.
+      allow create: if isSignedIn() && !isAnon();
       allow update, delete: if false;
     }
+
+    // ─── registrations (form onboarding pubblico) ─────────────────────
+    // Come viewingRequests: il visitatore compila senza login. Solo create;
+    // lettura e gestione riservate all'admin.
+    match /registrations/{x} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // ─── deals (console deals.html, admin) ────────────────────────────
+    match /deals/{x} { allow read, write: if isAdmin(); }
+
+    // ─── clientErrors (telemetria browser → console /salute) ──────────
+    // Scritti SOLO dal server (/api/log, admin creds); l'admin li legge.
+    match /clientErrors/{x} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // ─── pass studio (passRegistrations / passMeta) ───────────────────
+    // Console admin (pass-studio.html) + endpoint server (bypassano le rules).
+    match /passRegistrations/{x} { allow read, write: if isAdmin(); }
+    match /passMeta/{x}          { allow read, write: if isAdmin(); }
 
     // ─── documentShares ───────────────────────────────────────────────
     match /documentShares/{shareId} {

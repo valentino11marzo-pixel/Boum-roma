@@ -69,6 +69,8 @@ const llB   = env.authenticatedContext('llB').firestore();
 const tA    = env.authenticatedContext('tA').firestore();
 const tB    = env.authenticatedContext('tB').firestore();
 const anon  = env.unauthenticatedContext().firestore();
+// Sessione Firebase ANONIMA (magic-link/intake): signed-in ma provider 'anonymous'.
+const anonProv = env.authenticatedContext('anonSess', { firebase: { sign_in_provider: 'anonymous' } }).firestore();
 
 console.log('\n\x1b[1mBOOM Firestore Rules — test suite\x1b[0m\n');
 
@@ -152,6 +154,40 @@ await check('landlord A creates a share for SELF', assertSucceeds(setDoc(doc(llA
 await check('landlord A CANNOT create a share owned by B', assertFails(setDoc(doc(llA, 'documentShares/share3'), { token:'t3', ownerId:'llB', docIds:['d1'] })));
 await check('landlord A reads OWN taxPack', assertSucceeds(getDoc(doc(llA, 'taxPacks/pack1'))));
 await check('landlord B CANNOT read A taxPack', assertFails(getDoc(doc(llB, 'taxPacks/pack1'))));
+
+// ── Sessioni anonime: niente notifiche né audit log ─────────────────────
+console.log('\nAnonymous PROVIDER session (magic-link/intake)');
+await check('anon-provider CANNOT create a notification',
+  assertFails(setDoc(doc(anonProv, 'notifications/spoof1'), { userId: 'tA', title: 'fake', read: false })));
+await check('anon-provider CANNOT append to activityLog',
+  assertFails(setDoc(doc(anonProv, 'activityLog/poison1'), { action: 'fake', actor: 'anon' })));
+await check('tenant CAN still create a notification',
+  assertSucceeds(setDoc(doc(tA, 'notifications/n1'), { userId: 'adminUid', title: 'hi', read: false })));
+await check('tenant CAN still append to activityLog',
+  assertSucceeds(setDoc(doc(tA, 'activityLog/a1'), { action: 'login', userId: 'tA' })));
+
+// ── registrations / deals / pass studio ─────────────────────────────────
+console.log('\nregistrations + deals + pass studio');
+await check('unauthenticated CAN create a registration (public onboarding)',
+  assertSucceeds(setDoc(doc(anon, 'registrations/r1'), { name: 'Walk-in', email: 'a@b.com' })));
+await check('unauthenticated CANNOT read registrations',
+  assertFails(getDoc(doc(anon, 'registrations/r1'))));
+await check('admin reads registrations',
+  assertSucceeds(getDoc(doc(admin, 'registrations/r1'))));
+await check('admin writes deals',
+  assertSucceeds(setDoc(doc(admin, 'deals/d1'), { title: 'Deal' })));
+await check('landlord CANNOT read deals',
+  assertFails(getDoc(doc(llA, 'deals/d1'))));
+await check('admin writes passMeta',
+  assertSucceeds(setDoc(doc(admin, 'passMeta/p1'), { serial: 'x' })));
+await check('tenant CANNOT read passRegistrations',
+  assertFails(getDoc(doc(tA, 'passRegistrations/p1'))));
+await check('admin reads clientErrors (console /salute)',
+  assertSucceeds(getDoc(doc(admin, 'clientErrors/e1'))));
+await check('landlord CANNOT read clientErrors',
+  assertFails(getDoc(doc(llA, 'clientErrors/e1'))));
+await check('nobody writes clientErrors from the browser',
+  assertFails(setDoc(doc(admin, 'clientErrors/e2'), { message: 'x' })));
 
 // ── DEFAULT DENY ────────────────────────────────────────────────────────
 console.log('\nDefault-deny');
