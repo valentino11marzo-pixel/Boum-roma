@@ -48,6 +48,10 @@ SITE_URL = 'https://www.boomrome.com'
 WIZARD_API_BASE = os.environ.get('WIZARD_API_BASE', 'https://www.boomrome.com')
 WIZARD_SECRET = os.environ.get('WIZARD_SECRET') or os.environ.get('HOMIE_SECRET', '')
 
+BOT_VERSION = '3.0'          # bumped by meaningful releases; shown in /status
+START_TS = time.time()
+AI_MODE = None               # set by _secret_probe(): True = full AI brain on
+
 def wizard_post(path, payload, timeout=35):
     """POST to a BOOM wizard endpoint with the shared secret. Returns parsed
     JSON on success, or None on any failure so the caller can fall back."""
@@ -434,37 +438,79 @@ async def video_text(update, context):
 async def photos_skip(update, context):
     context.user_data['_photos'] = []; return await photos_done(update, context)
 
+def _share_kit(listing, url):
+    """Ready-to-post caption (WhatsApp/Instagram) built from the listing."""
+    femoji = {'terrace': '☀️ terrazzo', 'balcony': '🌿 balcone', 'ac': '🌡 aria condizionata',
+              'elevator': '🏗 ascensore', 'parking': '🅿️ posto auto', 'dishwasher': '🍽 lavastoviglie'}
+    top = ' · '.join(femoji[f] for f in (listing.get('features') or []) if f in femoji)
+    bits = [f"🏡 {listing.get('name','Casa BOOM')} — {listing.get('zone','Roma')}"]
+    facts = ' · '.join(str(x) for x in [f"{listing.get('sqm')}mq" if listing.get('sqm') else None,
+                                        f"{listing.get('beds')} camere" if listing.get('beds') else None,
+                                        f"€{listing.get('price',0):,}/mese"] if x)
+    bits.append(facts)
+    if top: bits.append(top)
+    bits.append('✅ Verificata BOOM · contratto regolare · zero sorprese')
+    bits.append(f"👉 {url}")
+    return '\n'.join(bits)
+
+async def _do_publish(context, d, photo_ids):
+    """Shared publish pipeline: upload photos → AI description (if missing) →
+    publish → confirmation + share kit → Photo Lab auto-curation.
+    Used by the step wizard AND the one-message quick create."""
+    image_urls = []
+    for i, file_id in enumerate(photo_ids):
+        try:
+            tg_file = await context.bot.get_file(file_id); file_bytes = await tg_file.download_as_bytearray()
+            ts = int(datetime.now(timezone.utc).timestamp() * 1000)
+            url = await asyncio.to_thread(upload_photo, f"listings/{ts}_photo_{i}.jpg", bytes(file_bytes))
+            image_urls.append(url); logger.info(f"Uploaded {i+1}/{len(photo_ids)}")
+        except Exception as e: logger.error(f"Photo upload error: {e}")
+    if not d.get('description'):
+        ai = await asyncio.to_thread(wizard_post, '/api/wizard/describe', {
+            'type': d.get('type'), 'zone': d.get('zone'), 'address': d.get('address'),
+            'sqm': d.get('sqm'), 'floor': d.get('floor'), 'beds': d.get('beds'),
+            'bathrooms': d.get('bathrooms'), 'furnished': d.get('furnished'),
+            'price': d.get('price'), 'features': d.get('features', []),
+            'availableDate': d.get('availableDate'), 'concordato': d.get('concordato'),
+        })
+        if ai and ai.get('ok') and ai.get('en'):
+            d['description'] = ai['en'].strip()
+            if ai.get('it'): d['descriptionIt'] = ai['it'].strip()
+    now = datetime.now(timezone.utc).isoformat() + 'Z'
+    listing = {'name': d.get('name',''), 'address': d.get('address',''), 'zone': d.get('zone',''), 'price': d.get('price',0), 'type': d.get('type',''), 'status': 'available', 'beds': d.get('beds',0), 'bedrooms': d.get('beds',0), 'sqm': d.get('sqm',0), 'size': d.get('sqm',0), 'floor': str(d.get('floor','')), 'bathrooms': d.get('bathrooms',0), 'furnished': d.get('furnished','no'), 'availableDate': d.get('availableDate','Subito'), 'concordato': d.get('concordato','tbd'), 'description': d.get('description',''), 'descriptionIt': d.get('descriptionIt',''), 'features': d.get('features',[]), 'tags': [t for t in [d.get('zone','').lower(), d.get('type','').lower(), 'concordato' if d.get('concordato') is True else '', 'furnished' if d.get('furnished') == 'yes' else ''] if t], 'image': image_urls[0] if image_urls else '', 'images': image_urls, 'videoUrl': d.get('videoUrl', ''), 'createdAt': now, 'updatedAt': now, 'createdBy': 'homie'}
+    if d.get('depositMonths'):
+        listing['depositMonths'] = d['depositMonths']
+        listing['deposit'] = round(d['depositMonths'] * (listing['price'] or 0))
+    doc_id = await asyncio.to_thread(publish_listing, listing)
+    detail_url = f"{SITE_URL}/listing/{doc_id}"
+    await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=f"━━━━━━━━━━━━━━━━━━━━━━\n✅ *LISTING PUBBLICATO!*\n━━━━━━━━━━━━━━━━━━━━━━\n\n🏠 *{listing['name']}*\n📍 {listing['address']}, {listing['zone']}\n💶 €{listing['price']:,}/mese\n📐 {listing['sqm']}mq · Piano {listing['floor']}\n📸 {len(image_urls)} foto\n\n🔗 *Link per il cliente:*\n`{detail_url}`\n\n☝️ Tocca per copiare\n\n✏️ Ritocchi: /prezzo /deposito /video /modifica `{doc_id}`", parse_mode='Markdown')
+    logger.info(f"Listing created: {doc_id}")
+    # share kit: caption pronta per WhatsApp/Instagram (long-press to copy)
+    try:
+        await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text="📣 Pronta da condividere (tieni premuto → copia):\n\n" + _share_kit(listing, detail_url))
+    except Exception as e: logger.warning(f'share kit: {e}')
+    # Photo Lab: auto-curate the gallery right after publishing (reversible;
+    # the listing is already live with the raw photos, this only upgrades it)
+    if len(image_urls) >= 2:
+        note = await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text='✨ Miglioro e riordino le foto con l\'AI… (1-2 min)')
+        try:
+            rep = await asyncio.to_thread(photos_enhance, doc_id, 'apply')
+            await note.edit_text(_enhance_summary(rep))
+        except Exception as e:
+            logger.warning(f'photo enhance: {e}')
+            await note.edit_text(f'✨ Foto: miglioramento non riuscito ({e}) — le foto originali restano online. Riprova con /fotolab {doc_id}')
+    return doc_id
+
 async def confirm_cb(update, context):
     q = update.callback_query; await q.answer()
     if q.data.replace('cfm_', '') == 'cancel':
         await q.edit_message_text("🗑 Listing annullato."); context.user_data.clear(); return ConversationHandler.END
     await q.edit_message_text("⏳ *Caricamento in corso...*", parse_mode='Markdown')
-    d = context.user_data; photo_ids = d.pop('_photos', []); image_urls = []
-    for i, file_id in enumerate(photo_ids):
-        try:
-            tg_file = await context.bot.get_file(file_id); file_bytes = await tg_file.download_as_bytearray()
-            ts = int(datetime.now(timezone.utc).timestamp() * 1000)
-            url = upload_photo(f"listings/{ts}_photo_{i}.jpg", bytes(file_bytes))
-            image_urls.append(url); logger.info(f"Uploaded {i+1}/{len(photo_ids)}")
-        except Exception as e: logger.error(f"Photo upload error: {e}")
-    now = datetime.now(timezone.utc).isoformat() + 'Z'
-    listing = {'name': d.get('name',''), 'address': d.get('address',''), 'zone': d.get('zone',''), 'price': d.get('price',0), 'type': d.get('type',''), 'status': 'available', 'beds': d.get('beds',0), 'bedrooms': d.get('beds',0), 'sqm': d.get('sqm',0), 'size': d.get('sqm',0), 'floor': str(d.get('floor','')), 'bathrooms': d.get('bathrooms',0), 'furnished': d.get('furnished','no'), 'availableDate': d.get('availableDate','Subito'), 'concordato': d.get('concordato','tbd'), 'description': d.get('description',''), 'descriptionIt': d.get('descriptionIt',''), 'features': d.get('features',[]), 'tags': [t for t in [d.get('zone','').lower(), d.get('type','').lower(), 'concordato' if d.get('concordato') is True else '', 'furnished' if d.get('furnished') == 'yes' else ''] if t], 'image': image_urls[0] if image_urls else '', 'images': image_urls, 'videoUrl': d.get('videoUrl', ''), 'createdAt': now, 'updatedAt': now, 'createdBy': 'homie'}
+    d = context.user_data; photo_ids = d.pop('_photos', [])
     try:
-        doc_id = publish_listing(listing); detail_url = f"{SITE_URL}/apartment-detail?id={doc_id}"
-        await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=f"━━━━━━━━━━━━━━━━━━━━━━\n✅ *LISTING PUBBLICATO!*\n━━━━━━━━━━━━━━━━━━━━━━\n\n🏠 *{listing['name']}*\n📍 {listing['address']}, {listing['zone']}\n💶 €{listing['price']:,}/mese\n📐 {listing['sqm']}mq · Piano {listing['floor']}\n📸 {len(image_urls)} foto\n\n🔗 *Link per il cliente:*\n`{detail_url}`\n\n☝️ Tocca per copiare\n\n✏️ Ritocchi: /prezzo /deposito /video /modifica `{doc_id}`", parse_mode='Markdown')
-        logger.info(f"Listing created: {doc_id}")
-        # Photo Lab: auto-curate the gallery right after publishing (reversible;
-        # the listing is already live with the raw photos, this only upgrades it)
-        if len(image_urls) >= 2:
-            note = await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text='✨ Miglioro e riordino le foto con l\'AI… (1-2 min)')
-            try:
-                rep = await asyncio.to_thread(photos_enhance, doc_id, 'apply')
-                await note.edit_text(_enhance_summary(rep))
-            except Exception as e:
-                logger.warning(f'photo enhance: {e}')
-                await note.edit_text(f'✨ Foto: miglioramento non riuscito ({e}) — le foto originali restano online. Riprova con /fotolab {doc_id}')
+        await _do_publish(context, d, photo_ids)
     except Exception as e:
-        logger.error(f"Firestore error: {e}"); await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=f"❌ Errore: {e}")
+        logger.error(f"Publish error: {e}"); await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=f"❌ Errore: {e}")
     context.user_data.clear(); return ConversationHandler.END
 
 async def cancel(update, context):
@@ -601,7 +647,7 @@ async def cmd_modifica(update, context):
     except Exception as e: await update.message.reply_text(f"❌ {e}")
 
 async def cmd_help(update, context):
-    await update.message.reply_text("━━━━━━━━━━━━━━━━━━━━━━\n🏠 *BOOM Listing Commands*\n━━━━━━━━━━━━━━━━━━━━━━\n\n/nuovoflat — Crea nuovo listing\n/listings — Mostra attivi con link\n\n💬 *Oppure scrivimi in italiano:*\n_\"metti il deposito a 2 mesi per Pigneto\"_\n_\"aumenta il prezzo di Levico di 100€\"_\nTi mostro la modifica e confermi con un tap.\n\n✏️ *Comandi diretti*\n/prezzo `ID 1300` — Cambia il canone\n/deposito `ID 3` — Deposito in mesi\n/video `ID link` — Aggiungi/cambia video\n/modifica `ID campo valore` — Ogni altro campo\n/fotolab `ID` — AI migliora e riordina le foto\n\n/rent `ID` — Segna affittato\n/reactivate `ID` — Rimetti disponibile\n/delete `ID` — Elimina listing\n/cancel — Annulla wizard\n/help — Questo messaggio", parse_mode='Markdown')
+    await update.message.reply_text("━━━━━━━━━━━━━━━━━━━━━━\n🏠 *BOOM Listing Wizard*\n━━━━━━━━━━━━━━━━━━━━━━\n\n⚡ *Annuncio in 30 secondi*\n1. Mandami le foto in blocco\n2. Descrivimi la casa in UN messaggio (o vocale 🎙):\n_\"trilocale a Pigneto, via del Pigneto 3, 95mq, terzo piano, due bagni, arredato, 1350€, libero dal 1 settembre\"_\n3. ✅ Pubblica! → foto migliorate + descrizione AI + caption social\n\n💬 *Modifiche in italiano:*\n_\"metti il deposito a 2 mesi per Pigneto\"_\n_\"migliora le foto di Levico\"_\n\n📋 *Comandi*\n/nuovoflat — Wizard classico a passi\n/listings — Annunci attivi con link\n/status — Stato bot, AI, catalogo\n/stats `[ID]` — Candidature e giorni sul mercato\n/prezzo `ID 1300` · /deposito `ID 3` · /video `ID link`\n/modifica `ID campo valore` · /fotolab `ID`\n/rent `ID` · /reactivate `ID` · /delete `ID`\n/svuota — Azzera foto in memoria\n/cancel — Annulla wizard · /help — Questo messaggio", parse_mode='Markdown')
 
 # ─── Photo Lab bridge (api/photos/enhance — AI curation + enhancement) ────────
 def photos_enhance(listing_id, mode='apply'):
@@ -740,16 +786,160 @@ def _local_interpret(text, prev=''):
         return {'ok': True, 'action': 'none', 'note': f"Ho capito l'annuncio ({d.get('name','?')}) ma non la modifica. Prova: 'deposito a 2 mesi', 'prezzo a 1300', o incolla un link video."}
     return {'ok': True, 'action': 'update', 'id': doc_id, 'name': d.get('name') or doc_id, 'updates': updates, 'summary': summary}
 
+# ─── Quick create: photos in bulk + ONE message (or a voice note) ─────────────
+# Photos sent OUTSIDE the step wizard land in a per-chat buffer; the next
+# message that DESCRIBES a home (interpret action 'create') publishes it in
+# one confirmation tap, photos included. The 14-step wizard stays as fallback.
+PENDING_PHOTOS = {}                 # chat_id -> {'ids': [...], 'ts': epoch, 'noticed': epoch}
+PHOTO_BUFFER_TTL = 45 * 60
+
+def _photo_buffer(chat_id):
+    buf = PENDING_PHOTOS.get(chat_id)
+    if buf and time.time() - buf['ts'] <= PHOTO_BUFFER_TTL: return buf
+    return None
+
+async def buffer_photo(update, context):
+    if not is_admin(update): return
+    chat_id = update.effective_chat.id
+    buf = _photo_buffer(chat_id) or {'ids': [], 'ts': time.time(), 'noticed': 0}
+    buf['ids'].append(update.message.photo[-1].file_id); buf['ts'] = time.time()
+    buf['ids'] = buf['ids'][-30:]
+    PENDING_PHOTOS[chat_id] = buf
+    # albums arrive as a burst of messages: acknowledge at most every few seconds
+    if time.time() - buf['noticed'] > 4:
+        buf['noticed'] = time.time()
+        await update.message.reply_text(f"📸 *{len(buf['ids'])} foto* in memoria.\nOra descrivimi la casa in un messaggio (zona, indirizzo, mq, piano, camere, bagni, prezzo, disponibilità…) — anche un vocale — e la pubblico.\n/svuota per azzerare · /nuovoflat per il wizard classico", parse_mode='Markdown')
+
+async def cmd_svuota(update, context):
+    if not is_admin(update): return
+    PENDING_PHOTOS.pop(update.effective_chat.id, None)
+    await update.message.reply_text('🗑 Foto in memoria azzerate.')
+
+async def heic_warning(update, context):
+    if not is_admin(update): return
+    doc = update.message.document
+    name = (doc.file_name or '').lower() if doc else ''
+    if doc and (name.endswith(('.heic', '.heif')) or (doc.mime_type or '').startswith('image/')):
+        await update.message.reply_text("📎 L'hai mandata come FILE: le foto iPhone (HEIC) così non si possono elaborare.\nInviala come *FOTO* (galleria → seleziona → invia come foto): Telegram la converte in JPEG e il Photo Lab la può migliorare.", parse_mode='Markdown')
+
+async def voice_message(update, context):
+    if not is_admin(update): return
+    v = update.message.voice or update.message.audio
+    if not v: return
+    if getattr(v, 'duration', 0) and v.duration > 120:
+        await update.message.reply_text('🎙 Vocale troppo lungo (max 2 minuti).'); return
+    msg = await update.message.reply_text('🎧 Ascolto…')
+    try:
+        f = await context.bot.get_file(v.file_id)
+        data = await f.download_as_bytearray()
+        res = await asyncio.to_thread(_transcribe, bytes(data), getattr(v, 'mime_type', None) or 'audio/ogg')
+        if res.get('unconfigured'):
+            await msg.edit_text('🎙 Per i vocali serve la chiave OPENAI_API_KEY su Vercel (trascrizione Whisper). Intanto scrivimi in testo!'); return
+        text = (res.get('text') or '').strip()
+        if not text:
+            await msg.edit_text('🎧 Non ho capito l\'audio — riprova o scrivimi.'); return
+        await msg.edit_text(f'🎧 Ho capito: “{text}”')
+        await _nl_process(update, context, text)
+    except Exception as e:
+        await msg.edit_text(f'❌ {e}')
+
+def _transcribe(audio_bytes, mime):
+    if not WIZARD_SECRET: return {'unconfigured': True}
+    try:
+        r = http_requests.post(f'{WIZARD_API_BASE}/api/wizard/transcribe',
+                               headers={'Content-Type': 'application/json', 'X-Wizard-Secret': WIZARD_SECRET},
+                               json={'base64': base64.b64encode(audio_bytes).decode('ascii'), 'mimeType': mime}, timeout=60)
+        if r.status_code == 501: return {'unconfigured': True}
+        if r.status_code != 200: return {'text': ''}
+        return r.json()
+    except Exception:
+        return {'text': ''}
+
+async def cmd_status(update, context):
+    if not is_admin(update): return
+    up = int(time.time() - START_TS)
+    dd, hh, mm = up // 86400, (up % 86400) // 3600, (up % 3600) // 60
+    ai = 'attiva ✅' if AI_MODE else ('SPENTA ⚠️ — segreto non allineato' if AI_MODE is False else 'sconosciuta')
+    try:
+        listings = fs_query_available('listings')
+        vids = sum(1 for _, x in listings if x.get('videoUrl') or x.get('youtubeUrl'))
+        cat = f"{len(listings)} annunci attivi · {vids} con video"
+    except Exception as e:
+        cat = f'catalogo non leggibile ({e})'
+    buf = _photo_buffer(update.effective_chat.id)
+    extra = f"\n📸 {len(buf['ids'])} foto in memoria (descrivi la casa per pubblicarle)" if buf else ''
+    await update.message.reply_text(f"🤖 *BOOM Wizard* v{BOT_VERSION}\n🟢 Online da {dd}g {hh}h {mm}m\n🧠 AI: {ai}\n🏠 {cat}{extra}", parse_mode='Markdown')
+
+def _count_leads(listing_id):
+    body = {'structuredQuery': {'from': [{'collectionId': 'leads'}], 'where': {'fieldFilter': {'field': {'fieldPath': 'listingId'}, 'op': 'EQUAL', 'value': {'stringValue': listing_id}}}, 'limit': 300}}
+    r = http_requests.post(f'{fs_base()}:runQuery', headers=fs_headers(), json=body)
+    r.raise_for_status()
+    return sum(1 for it in r.json() if 'document' in it)
+
+def _days_since(iso):
+    try:
+        clean = str(iso).replace('Z', '').split('+')[0]
+        then = datetime.fromisoformat(clean)
+        return max(0, (datetime.utcnow() - then).days)
+    except Exception:
+        return None
+
+async def cmd_stats(update, context):
+    if not is_admin(update): return
+    try:
+        if context.args:
+            doc_id = context.args[0]
+            d = fs_get_doc('listings', doc_id)
+            leads = _count_leads(doc_id)
+            days = _days_since(d.get('createdAt'))
+            photos = len([u for u in [d.get('image')] + (d.get('images') or []) if u])
+            dm = d.get('depositMonths')
+            dep_line = f"{dm:g} mesi" if isinstance(dm, (int, float)) and dm else '1 mese (default)'
+            await update.message.reply_text(
+                f"📊 *{d.get('name', doc_id)}*\n"
+                f"💶 €{int(d.get('price') or 0):,}/mese · {d.get('zone','')}\n"
+                f"👥 {leads} candidature\n"
+                f"📅 {days if days is not None else '?'} giorni sul mercato\n"
+                f"📸 {photos} foto · 🎥 video {'✅' if d.get('videoUrl') else '—'}\n"
+                f"🔐 deposito {dep_line}\n"
+                f"{SITE_URL}/listing/{doc_id}", parse_mode='Markdown')
+            return
+        listings = fs_query_available('listings')
+        lines, tot_leads = [], 0
+        for doc_id, d in listings[:15]:
+            leads = _count_leads(doc_id); tot_leads += leads
+            days = _days_since(d.get('createdAt'))
+            flags = ('🎥' if d.get('videoUrl') else '·')
+            lines.append(f"• *{d.get('name','?')}* — 👥{leads} · 📅{days if days is not None else '?'}gg {flags}")
+        await update.message.reply_text(f"📊 *Catalogo* — {len(listings)} attivi · {tot_leads} candidature\n\n" + '\n'.join(lines) + "\n\n/stats `ID` per il dettaglio", parse_mode='Markdown')
+    except Exception as e:
+        await update.message.reply_text(f"❌ {e}")
+
 async def nl_message(update, context):
     if not is_admin(update): return
     text = (update.message.text or '').strip()
     if not text: return
+    await _nl_process(update, context, text)
+
+async def _nl_process(update, context, text):
     chat_id = update.effective_chat.id
     prev = NL_CTX.get(chat_id, '')
     payload = {'text': text}
     if prev: payload['context'] = prev
-    plan = wizard_post('/api/wizard/interpret', payload, timeout=45) or _local_interpret(text, prev)
+    plan = await asyncio.to_thread(wizard_post, '/api/wizard/interpret', payload, 45)
+    if not plan: plan = _local_interpret(text, prev)
     kb = InlineKeyboardMarkup([[InlineKeyboardButton('✅ Conferma', callback_data='nl_ok'), InlineKeyboardButton('✖️ Annulla', callback_data='nl_no')]])
+    if plan and plan.get('action') == 'create' and plan.get('fields'):
+        NL_CTX.pop(chat_id, None)
+        buf = _photo_buffer(chat_id)
+        plan['_photos'] = list(buf['ids']) if buf else []
+        PENDING_NL[chat_id] = plan
+        lines = '\n'.join('• ' + s for s in (plan.get('summary') or []))
+        nph = len(plan['_photos'])
+        photo_line = f"📸 {nph} foto pronte" if nph else '📸 nessuna foto in memoria (puoi mandarle anche dopo e rilanciare /fotolab)'
+        kb2 = InlineKeyboardMarkup([[InlineKeyboardButton('✅ Pubblica!', callback_data='nl_ok'), InlineKeyboardButton('✖️ Annulla', callback_data='nl_no')]])
+        await update.message.reply_text(f"🆕 *NUOVO ANNUNCIO*\n{lines}\n{photo_line}\n\nDescrizione AI bilingue e miglioramento foto partono da soli. Pubblico?", parse_mode='Markdown', reply_markup=kb2)
+        return
     if plan and plan.get('action') == 'photos' and plan.get('id'):
         NL_CTX.pop(chat_id, None)
         PENDING_NL[chat_id] = plan
@@ -771,6 +961,25 @@ async def nl_confirm_cb(update, context):
     plan = PENDING_NL.pop(q.message.chat.id, None)
     if q.data != 'nl_ok' or not plan:
         await q.edit_message_text('✖️ Annullato.'); return
+    if plan.get('action') == 'create':
+        await q.edit_message_text('⏳ *Pubblico l\'annuncio…*', parse_mode='Markdown')
+        F = plan['fields']
+        d = {
+            'type': F.get('type', 'appartamento'), 'zone': F.get('zone', ''), 'address': F.get('address', ''),
+            'sqm': F.get('sqm', 0), 'floor': F.get('floor', ''), 'beds': F.get('beds', 0),
+            'bathrooms': F.get('bathrooms', 0), 'price': F.get('price', 0),
+            'furnished': F.get('furnished', 'no'), 'availableDate': F.get('availableDate', 'Subito'),
+            'features': F.get('features', []), 'videoUrl': F.get('videoUrl', ''),
+            'concordato': F.get('concordato', 'tbd'), 'depositMonths': F.get('depositMonths'),
+        }
+        d['name'] = f"{str(d['type']).title()} {d['zone']}".strip()
+        try:
+            await _do_publish(context, d, plan.get('_photos') or [])
+            PENDING_PHOTOS.pop(q.message.chat.id, None)
+        except Exception as e:
+            logger.error(f'quick create: {e}')
+            await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=f'❌ Pubblicazione fallita: {e}')
+        return
     if plan.get('action') == 'photos':
         await q.edit_message_text('⏳ Foto in lavorazione… (1-2 min)')
         try:
@@ -798,7 +1007,9 @@ def _tg_notify_sync(text):
         pass
 
 def _secret_probe():
+    global AI_MODE
     if not WIZARD_SECRET:
+        AI_MODE = False
         _tg_notify_sync('⚠️ Wizard: WIZARD_SECRET assente dal .env — modalità AI SPENTA '
                         '(capisco solo frasi semplici, niente descrizioni AI né comprensione completa). '
                         'Aggiungi WIZARD_SECRET al .env con il valore di Vercel e riavviami.')
@@ -808,10 +1019,12 @@ def _secret_probe():
                                headers={'Content-Type': 'application/json', 'X-Wizard-Secret': WIZARD_SECRET},
                                json={}, timeout=15)
         if r.status_code == 401:
+            AI_MODE = False
             _tg_notify_sync('⚠️ Wizard: il WIZARD_SECRET nel .env NON combacia con Vercel — modalità AI SPENTA '
                             '(parser locale). Copia il valore giusto da Vercel → Settings → Environment Variables '
                             'nel .env e riavviami per sbloccare la comprensione completa.')
         else:
+            AI_MODE = True
             logger.info('secret probe OK — AI mode on')
     except Exception as e:
         logger.warning(f'secret probe failed: {e}')
@@ -852,9 +1065,17 @@ def main():
     app.add_handler(CommandHandler('deposito', cmd_deposito))
     app.add_handler(CommandHandler('modifica', cmd_modifica))
     app.add_handler(CommandHandler('fotolab', cmd_fotolab))
+    app.add_handler(CommandHandler('status', cmd_status))
+    app.add_handler(CommandHandler('stats', cmd_stats))
+    app.add_handler(CommandHandler('svuota', cmd_svuota))
     app.add_handler(CommandHandler('help', cmd_help))
     app.add_handler(CallbackQueryHandler(nl_confirm_cb, pattern='^nl_'))
-    # last: free-text messages outside the wizard flow → natural-language edits
+    # outside the wizard flow: photos buffer up for the quick create, voice
+    # notes get transcribed, image FILES get the HEIC warning, and free text
+    # goes through the natural-language brain (last, so commands win)
+    app.add_handler(MessageHandler(filters.PHOTO, buffer_photo))
+    app.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, voice_message))
+    app.add_handler(MessageHandler(filters.Document.ALL, heic_warning))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, nl_message))
     logger.info("🚀 BOOM Listing Wizard avviato!")
     app.run_polling(allowed_updates=Update.ALL_TYPES)

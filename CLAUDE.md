@@ -116,6 +116,8 @@ GMAIL_APP_PASS
 
 # AI document parsing
 ANTHROPIC_API_KEY
+OPENAI_API_KEY               # optional — Whisper transcription for the
+                             # wizard bot's voice notes (/api/wizard/transcribe)
 
 # Cron auth
 CRON_SECRET
@@ -212,9 +214,19 @@ deposit recompute, twins size/bedrooms) and returns
 parser (deposito/prezzo/video/stato) when this endpoint is unavailable.
 
 ### GET/POST `/api/wizard/video-radar` (cron Monday 07:00 UTC)
-Weekly video-coverage nudge. Lists AVAILABLE listings without `videoUrl`
-and messages the admin Telegram chat with the `/video <id> <link>` command
-for each. Silent at 100% coverage. Auth like `/api/wizard/health`.
+Weekly LISTING QUALITY radar ("pagella"). Grades every AVAILABLE listing
+0-10 (video 3, ≥8 photos 2, rich description 2, availableDate 1,
+depositMonths 1, concordato known 1 — `gradeListing()` exported) and
+messages the admin chat with each incomplete listing's score, gaps and the
+bot command for the biggest one. Silent when the catalog is all 10/10.
+Auth like `/api/wizard/health`.
+
+### POST `/api/wizard/transcribe`
+Voice-note transcription for the wizard bot (operator dictates a listing).
+Auth `X-Wizard-Secret`. Body `{ base64, mimeType? }` (Telegram ogg/opus,
+≤4MB) → `{ ok, text }` via OpenAI Whisper when `OPENAI_API_KEY` is set;
+501 `transcribe_unconfigured` otherwise (the bot tells the operator voice
+isn't set up — never a silent failure).
 
 ### POST `/api/wizard/upload`
 Photo-upload bridge for the Telegram wizard bot. Auth via `X-Wizard-Secret`
