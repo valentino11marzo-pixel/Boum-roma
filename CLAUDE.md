@@ -250,6 +250,20 @@ brand-new leads instantly — context card + one-tap "Apri WhatsApp" (wa.me)
 when there's a phone — while the Commerciale's AI reply draft follows via
 the usual approval card.
 
+### GET/POST `/api/leads/brain` (cron */10 min, offset :03)
+IL LEAD BRAIN — server-side replacement for Homie's per-lead Sonnet grading
+(~2k tok/lead + ~10k/day AI-blocking injections). Stage 0: free rules
+(injection/newsletter regex → dead+archived, property-rented lookup,
+deterministic score from phone/email/message depth/expat-EN/employment/
+budget/move-in signals; confident highs and lows graded without AI — only
+the ambiguous middle band proceeds). Stage 1: ONE batched haiku call per
+run (≤20 leads/call, `stage0()` exported+tested, hard daily cap 12 calls in
+`leadBrainBudget/<date>`). Never auto-archives a reachable human (unlike
+Homie's score<45 rule): spam dies, thin-but-real stays C. Writes grade/
+gradeReason/intent/confidence on the lead; dead → status archived (the
+Commerciale never spends tokens on them). notify-pending shows 🔥A/🟢B/🟡C,
+sorts A first, never pings dead. Heartbeat `teamHealth/lead-brain` (/team).
+
 ### POST `/api/apply-lead`
 Public lead-capture for the apartment-detail APPLY/RESERVE/WAITLIST flow.
 Fired (non-blocking) when a visitor passes the quick eligibility check. Body

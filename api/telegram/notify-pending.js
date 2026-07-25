@@ -112,15 +112,18 @@ export default async function handler(req, res) {
       limit: 50,
     });
   } catch (_) { /* non-fatal */ }
+  const GRADE_ICON = { A: '🔥', B: '🟢', C: '🟡' };
+  const gradeRank = l => ({ A: 0, B: 1 }[l.grade] ?? 2);
   const ldToNotify = (leads || [])
-    .filter(l => !l.telegramNotifiedAt)
-    .sort((a, b) => ts(b.createdAt) - ts(a.createdAt))
+    .filter(l => !l.telegramNotifiedAt && l.grade !== 'dead')
+    .sort((a, b) => gradeRank(a) - gradeRank(b) || ts(b.createdAt) - ts(a.createdAt))
     .slice(0, 5);
   const ldResults = [];
   for (const l of ldToNotify) {
     try {
+      const gtag = l.grade ? ` · ${GRADE_ICON[l.grade] || ''} grade ${esc(l.grade)}${l.gradeReason ? ' (' + esc(String(l.gradeReason).slice(0, 60)) + ')' : ''}` : '';
       const bits = [
-        `🟢 <b>NUOVO LEAD</b> — ${esc(l.source || '?')}`,
+        `🟢 <b>NUOVO LEAD</b> — ${esc(l.source || '?')}${gtag}`,
         `👤 ${esc(l.name || 'sconosciuto')}` +
           (l.phone ? ` · 📞 ${esc(l.phone)}` : '') +
           (l.email ? ` · ✉️ ${esc(l.email)}` : ''),
