@@ -636,6 +636,10 @@
       "schedule": "0 7 * * 1"
     },
     {
+      "path": "/api/leads/scan-inbox",
+      "schedule": "*/10 * * * *"
+    },
+    {
       "path": "/api/documents/scan-inbox",
       "schedule": "50 3 * * *"
     },

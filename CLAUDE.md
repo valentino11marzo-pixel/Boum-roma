@@ -236,6 +236,20 @@ credentials (forced under the `listings/` prefix) and returns
 `{ ok, url, path }`. Lets the bot store photos without holding Firebase admin
 creds; the bot falls back to a direct Storage upload if this is unavailable.
 
+### GET/POST `/api/leads/scan-inbox` (cron */10 min)
+Server-side ear on the portals: reads the Gmail mailbox over IMAP for
+Immobiliare/Idealista/Casa.it/Subito REQUEST emails ("hai ricevuto una
+richiesta" — saved-search alerts stay with pfs/scan-inbox), extracts the
+prospect via Claude haiku (never invents), matches the listing against the
+real catalog, dedupes per email-message (`leadImports`) AND per person
+(same email/phone in 7 days — so Homie's Mac-side ingestion never
+duplicates), and writes the same `leads` schema as `/api/homie/inbound`.
+Heartbeat `pfsRadarHealth/leads-inbox`. Auth like the PFS crons; `?dry=1`.
+Downstream: `api/telegram/notify-pending` (every minute) now ALSO pings
+brand-new leads instantly — context card + one-tap "Apri WhatsApp" (wa.me)
+when there's a phone — while the Commerciale's AI reply draft follows via
+the usual approval card.
+
 ### POST `/api/apply-lead`
 Public lead-capture for the apartment-detail APPLY/RESERVE/WAITLIST flow.
 Fired (non-blocking) when a visitor passes the quick eligibility check. Body

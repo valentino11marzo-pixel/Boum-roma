@@ -100,12 +100,54 @@ export default async function handler(req, res) {
     }
   }
 
+  // ── Instant NEW-LEAD ping: the lead circle starts within a minute. ──────
+  // Whatever caught the lead (portal-email scanner, Homie/WhatsApp, apply
+  // form), the operator's phone shows WHO, WHAT and — when there's a phone —
+  // a one-tap "open WhatsApp" button. The AI reply draft still follows via
+  // the Commerciale's proposal card; this is the speed layer.
+  let leads = [];
+  try {
+    leads = await fsList('leads', {
+      filter: { field: 'status', op: 'EQUAL', value: 'new' },
+      limit: 50,
+    });
+  } catch (_) { /* non-fatal */ }
+  const ldToNotify = (leads || [])
+    .filter(l => !l.telegramNotifiedAt)
+    .sort((a, b) => ts(b.createdAt) - ts(a.createdAt))
+    .slice(0, 5);
+  const ldResults = [];
+  for (const l of ldToNotify) {
+    try {
+      const bits = [
+        `🟢 <b>NUOVO LEAD</b> — ${esc(l.source || '?')}`,
+        `👤 ${esc(l.name || 'sconosciuto')}` +
+          (l.phone ? ` · 📞 ${esc(l.phone)}` : '') +
+          (l.email ? ` · ✉️ ${esc(l.email)}` : ''),
+        l.propertyTitle ? `🏠 ${esc(l.propertyTitle)}${l.propertyPrice ? ' · €' + Number(l.propertyPrice).toLocaleString('it-IT') + '/mese' : ''}` : null,
+        l.message ? `💬 <i>${esc(String(l.message).slice(0, 280))}</i>` : null,
+        '✍️ Bozza di risposta AI in arrivo (Commerciale) — o muoviti tu prima:',
+      ].filter(Boolean);
+      const digits = String(l.phone || '').replace(/\D/g, '');
+      const wa = digits ? 'https://wa.me/' + (digits.length === 10 && digits.startsWith('3') ? '39' + digits : digits) : null;
+      const buttons = [[]];
+      if (wa) buttons[0].push({ text: '💬 Apri WhatsApp', url: wa });
+      buttons[0].push({ text: '📇 Portale', url: 'https://www.boomrome.com/portal' });
+      const mid = await tgSend(chatId, bits.join('\n'), { reply_markup: { inline_keyboard: buttons } });
+      await fsPatch(`leads/${l.id}`, { telegramNotifiedAt: new Date(), telegramMessageId: mid || null });
+      ldResults.push({ id: l.id, ok: true });
+    } catch (err) {
+      ldResults.push({ id: l.id, ok: false, error: err.message });
+    }
+  }
+
   return res.status(200).json({
     ok: true,
     scanned: pending.length,
     notified: results.filter(r => r.ok).length,
     failed:   results.filter(r => !r.ok).length,
     events: { scanned: events.length, notified: evResults.filter(r => r.ok).length, failed: evResults.filter(r => !r.ok).length },
+    leads: { scanned: leads.length, notified: ldResults.filter(r => r.ok).length, failed: ldResults.filter(r => !r.ok).length },
     results,
   });
 }

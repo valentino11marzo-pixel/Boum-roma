@@ -935,6 +935,16 @@ async def _nl_process(update, context, text):
         plan['_photos'] = list(buf['ids']) if buf else []
         PENDING_NL[chat_id] = plan
         lines = '\n'.join('• ' + s for s in (plan.get('summary') or []))
+        F = plan['fields']
+        # canone concordato traffic light: is the asked rent in the legal band?
+        try:
+            est = canone_estimate(F.get('zone'), F.get('sqm'))
+            if est and F.get('price'):
+                lo, hi, lbl = est
+                pos = 'SOTTO fascia' if F['price'] < lo else 'SOPRA fascia' if F['price'] > hi else 'in fascia ✅'
+                lines += f"\n💡 Concordato {lbl}: €{lo:,}–€{hi:,} — il tuo €{F['price']:,} è {pos}"
+        except Exception as e:
+            logger.warning(f'canone hint (create): {e}')
         nph = len(plan['_photos'])
         photo_line = f"📸 {nph} foto pronte" if nph else '📸 nessuna foto in memoria (puoi mandarle anche dopo e rilanciare /fotolab)'
         kb2 = InlineKeyboardMarkup([[InlineKeyboardButton('✅ Pubblica!', callback_data='nl_ok'), InlineKeyboardButton('✖️ Annulla', callback_data='nl_no')]])
