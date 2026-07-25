@@ -640,6 +640,10 @@
       "schedule": "*/10 * * * *"
     },
     {
+      "path": "/api/leads/brain",
+      "schedule": "3-59/10 * * * *"
+    },
+    {
       "path": "/api/documents/scan-inbox",
       "schedule": "50 3 * * *"
     },
