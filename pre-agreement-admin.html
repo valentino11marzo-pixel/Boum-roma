@@ -229,6 +229,8 @@ h1{font-weight:200;font-size:24px;letter-spacing:-.3px;margin-bottom:3px}
           <label class="fld"><span>Tipo</span><select id="fType"><option>Transitional Lease</option><option>4+4 Residential</option><option>3+2 Concordato</option></select></label>
         </div>
         <label class="fld"><span>Esigenza transitoria (clausola 5.x)</span><input id="fReason" placeholder="es. corso di studi SIOI · trasferta di lavoro fino al …"></label>
+        <label class="fld"><span>Offerta valida fino al (facoltativo)</span><input id="fValid" type="date"></label>
+        <p class="hintline">Passata la data, il link mostra "offerta scaduta" e la firma si blocca — un deal già accettato/pagato non è mai toccato. Per riattivare: ✎ Modifica e sposti la data, <b>stesso link</b>.</p>
       </div>
 
       <div class="card"><h2><span class="no">03</span><span class="tt">Money</span></h2>
@@ -396,6 +398,7 @@ function readForm(){
     property:{address:$('fAddress').value.trim(),floor:$('fFloor').value.trim()||null,unit:$('fUnit').value.trim()||null,condition:$('fCondition').value.trim()||'Furnished',type:'Entire Apartment',use:'Residential'},
     landlord:{name:$('fLandlord').value.trim(),email:$('fLEmail').value.trim()||null,phone:$('fLPhone').value.trim()||null},
     extraDoc:$('fXDoc').value.trim()||null,
+    validUntil:$('fValid').value||null,
     tenant:{fullName:$('fTName').value.trim()||null,email:$('fTEmail').value.trim()||null,phone:$('fTPhone').value.trim()||null},
     lease:{startDate:start,months:months,endDate:start?endDateISO(start,months):null,type:$('fType').value,lawRef:'uso transitorio · L.431/98 art.5 c.1',reason:$('fReason').value.trim()||null},
     knobs:knobs,                 // raw inputs → the create API derives server-side
@@ -421,7 +424,7 @@ window.createPA=async function(){
       /* update in place — same token, same link, status back to sent */
       await firebase.firestore().collection('preAgreements').doc(EDIT_ID).update({
         listingId:body.listingId,propertyId:body.propertyId,autoConvert:!!body.propertyId,
-        property:body.property,landlord:body.landlord,extraDoc:body.extraDoc,
+        property:body.property,landlord:body.landlord,extraDoc:body.extraDoc,validUntil:body.validUntil,
         tenant:body.tenant,tenants:[body.tenant],lease:body.lease,money:body.money,
         extras:body.extras,customClauses:body.customClauses,note:body.note,
         status:'sent',updatedAt:new Date().toISOString(),updatedBy:USER.email||USER.uid
@@ -451,6 +454,7 @@ function fillForm(d){
   $('fLandlord').value=(d.landlord||{}).name||'';
   $('fLEmail').value=(d.landlord||{}).email||'';$('fLPhone').value=(d.landlord||{}).phone||'';
   $('fXDoc').value=d.extraDoc||'';
+  $('fValid').value=d.validUntil||'';
   $('fStart').value=(d.lease||{}).startDate||'';$('fMonths').value=(d.lease||{}).months||12;
   try{$('fType').value=(d.lease||{}).type||'Transitional Lease'}catch(e){}
   $('fReason').value=(d.lease||{}).reason||'';
@@ -590,6 +594,11 @@ window.convertPA=async function(id){
   };
 };
 
+/* mirror of api/preagreement/lookup.js paExpired() — Rome calendar day */
+function paExpiredUi(d){
+  if(!d.validUntil||d.status==='accepted'||d.status==='paid')return false;
+  try{return new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Rome'})>String(d.validUntil);}catch(e){return false;}
+}
 function paRow(d){
   var st=(d.status||'sent'),m=d.money||{},t=d.tenant||{},ll=d.landlord||{},url=location.origin+'/pre-agreement?t='+d.token;
   var when=(d.createdAt||'').slice(0,10);
@@ -621,7 +630,8 @@ function paRow(d){
     +'<span class="when">'+when+'</span>'
     +'<div class="addr">'+esc((d.property||{}).address||'')+'</div></div>'
     +'<div class="meta">Canone <b>'+eur(m.rent||0)+'</b>'+(m.energyCredit?' +'+eur(m.energyCredit)+' energy':'')+' · alla firma <b>'+eur(m.dueAtSigning||0)+'</b> · '+((d.lease||{}).months||'—')+' mesi dal '+(((d.lease||{}).startDate)||'—')+(views?' · '+views+' view'+(views>1?'s':''):'')
-    +(d.propertyId&&!d.contractId?' · <span style="color:var(--gold-light)">auto-contratto ON</span>':'')+'</div>'
+    +(d.propertyId&&!d.contractId?' · <span style="color:var(--gold-light)">auto-contratto ON</span>':'')
+    +(d.validUntil&&!done&&st!=='revoked'?(paExpiredUi(d)?' · <span style="color:#ff8a70;font-weight:500">⌛ OFFERTA SCADUTA — ✎ Modifica per estenderla</span>':' · <span style="color:var(--gold-light)">valida fino al '+d.validUntil+'</span>'):'')+'</div>'
     +docsLine
     +'<div class="acts">'
     +(done?(

@@ -590,6 +590,35 @@ function countUp(scope){
   }catch(e){}
 }
 
+/* the reservation chip carries the offer's validity when one is set */
+function validityChip(){
+  if(!PA.validUntil||PA.expired)return 'Reserved for you — awaiting your signature';
+  var dl=null;
+  try{dl=Math.ceil((new Date(PA.validUntil+'T23:59:59')-new Date())/86400000);}catch(e){}
+  return 'Reserved for you — offer valid until '+fmtD(PA.validUntil)
+    +(dl!=null&&dl<=5?' · '+(dl<=0?'last day':dl+' day'+(dl===1?'':'s')+' left'):'');
+}
+
+/* ═══ EXPIRED — the offer window closed (acceptance only; nothing is lost:
+   the console's Edit extends the SAME link) ═══ */
+function renderExpired(){
+  var p=PA.property||{};
+  var wa='https://wa.me/393313251961?text='+encodeURIComponent('Ciao BOOM! Il mio pre-agreement per '+((p.address||'').split(',')[0])+' è scaduto — possiamo aggiornarlo?');
+  $('pAcc').innerHTML=
+    '<div class="docwrap"><div class="doc"><span class="foil"></span><span class="grain"></span>'
+    +'<span class="cm tl"></span><span class="cm tr"></span><span class="cm bl"></span><span class="cm br"></span>'
+    +'<div class="sec issued"><span class="seal" style="opacity:.45">'+sealSVG()+'</span>'
+    +'<h2>This offer has expired</h2>'
+    +'<p>'+esc(p.address||'')+' — the reserved terms were valid until <b>'+fmtD(PA.validUntil)+'</b>.<br>'
+    +'The apartment may still be available: one message and we refresh your offer in minutes.</p>'
+    +'<div><a class="obtn wa" href="'+wa+'" target="_blank" rel="noopener">Request an updated offer →</a> '
+    +'<a class="obtn" href="/apartments">Browse available homes →</a></div>'
+    +'</div></div></div>';
+  [].slice.call(document.querySelectorAll('.panel')).forEach(function(x){x.classList.remove('on')});
+  $('pAcc').classList.add('on');
+  $('segs').style.display='none';$('hprog').style.width='100%';$('abar').style.display='none';
+}
+
 /* ═══ STEP 1 — REVIEW ═══ */
 function renderStep1(){
   var p=PA.property,le=PA.lease,m=PA.money;
@@ -598,7 +627,7 @@ function renderStep1(){
     '<span class="eyebrow">Rental proposal · Pre-agreement'+(PA.ref?' · <span class="mono" style="letter-spacing:1px">'+esc(PA.ref)+'</span>':'')+'</span>'
     +'<h1 class="big">'+esc(p.address).replace(/,([^,]*)$/,',<em>$1</em>')+'</h1>'
     +'<div class="subline">'+esc(le.type)+' · '+esc(le.lawRef)+'</div>'
-    +'<div class="chip">Reserved for you — awaiting your signature</div>'
+    +'<div class="chip">'+validityChip()+'</div>'
     +'<div class="tiles">'
       +'<div class="tile hero"><div class="k">Monthly'+((ec>0||(PA.money||{}).utilities==='included')?' all-in':'')+'</div><div class="v"><span data-roll="'+eur(m.monthlyTotal!=null?m.monthlyTotal:m.rent)+'">'+eur(m.monthlyTotal!=null?m.monthlyTotal:m.rent)+'</span><small> /month</small></div></div>'
       +'<div class="tile"><div class="k">Due today to lock it</div><div class="v"><span data-roll="'+eur(m.dueAtSigning)+'">'+eur(m.dueAtSigning)+'</span></div></div>'
@@ -1135,6 +1164,7 @@ function boot(){
   document.title='Pre-Agreement — '+(PA.property.address||'BOOM Roma');
   var accepted=PA.status==='accepted'||PA.status==='paid';
   if(accepted){$('hdr').style.display='';$('segs').style.display='none';renderAccepted();return;}
+  if(PA.expired){$('hdr').style.display='';renderExpired();return;}
   $('hdr').style.display='';$('abar').style.display='';
   renderStep1();
   goStep(1);

@@ -18,6 +18,7 @@ import Stripe from 'stripe';
 import { fsList, fsPatch, readJson, logActivity } from '../homie/_lib.js';
 import { sendPaEmails } from './_notify.js';
 import { maybeAutoConvert } from './_auto.js';
+import { paExpired } from './lookup.js';
 
 const clip = (v, n = 200) => (v == null ? null : String(v).trim().slice(0, n) || null);
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -62,6 +63,9 @@ export default async function handler(req, res) {
     const { id, ...data } = hit;   // fsList returns flat rows: {id, ...fields}
     if (data.status === 'revoked') return res.status(410).json({ ok: false, error: 'revoked' });
     if (data.status === 'accepted') return res.status(200).json({ ok: true, ref: data.ref || null, checkoutUrl: null, already: true });
+    // Expired offer: acceptance refused (the console's Edit extends the same
+    // link — status never changes here, so reviving is one field away).
+    if (paExpired(data)) return res.status(410).json({ ok: false, error: 'expired', validUntil: data.validUntil });
 
     const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
     const ref = 'BOOM-' + Date.now().toString(36).toUpperCase();
