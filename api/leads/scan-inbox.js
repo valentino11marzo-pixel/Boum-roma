@@ -88,6 +88,15 @@ export default async function handler(req, res) {
   const stats = { scanned: 0, requests: 0, ingested: 0, duplicates: 0, aiCalls: 0, unmatched: 0 };
   const client = new ImapFlow({ host: 'imap.gmail.com', port: 993, secure: true, auth: { user, pass }, logger: false });
 
+  // processed-message memory: ONE doc under heartbeat/ (a collection the
+  // security rules already allow to admin) — no new rules deploy needed,
+  // and one patch per run instead of one per message
+  const MEM_DOC = 'heartbeat/leads-inbox-memory';
+  let seen = {};
+  try { seen = ((await fsGet(MEM_DOC)) || {}).seen || {}; } catch { /* first run */ }
+  let memDirty = false;
+  const remember = (id, outcome) => { seen[id] = { at: new Date().toISOString(), outcome }; memDirty = true; };
+
   try {
     await client.connect();
     const lock = await client.getMailboxLock('INBOX');
@@ -117,7 +126,7 @@ export default async function handler(req, res) {
 
         const msgId = parsed.messageId || `${uid}@${user}`;
         const memId = sha1(msgId);
-        try { if (await fsGet(`leadImports/${memId}`)) { stats.duplicates++; continue; } } catch { /* first time */ }
+        if (seen[memId]) { stats.duplicates++; continue; }
 
         let lead;
         try {
@@ -125,7 +134,7 @@ export default async function handler(req, res) {
           lead = await extractLead(aiKey, subject, parsed.text || parsed.html || '');
         } catch (e) { console.warn('[leads/scan-inbox] extract', e.message); continue; }
         if (!lead || !lead.name) {
-          if (!dry) await fsPatch(`leadImports/${memId}`, { at: new Date(), subject: subject.slice(0, 140), outcome: 'not_a_lead' });
+          remember(memId, 'not_a_lead');
           continue;
         }
 
@@ -140,7 +149,7 @@ export default async function handler(req, res) {
         }
         if (dupe) {
           stats.duplicates++;
-          if (!dry) await fsPatch(`leadImports/${memId}`, { at: new Date(), subject: subject.slice(0, 140), outcome: 'duplicate_person' });
+          remember(memId, 'duplicate_person');
           continue;
         }
 
@@ -165,12 +174,18 @@ export default async function handler(req, res) {
             raw: { subject: subject.slice(0, 200), from: fromAddr, via: 'leads/scan-inbox' },
             createdAt: new Date(),
           });
-          await fsPatch(`leadImports/${memId}`, { at: new Date(), subject: subject.slice(0, 140), outcome: 'ingested', name: String(lead.name).slice(0, 80) });
+          remember(memId, 'ingested');
         }
         stats.ingested++;
       }
     } finally {
       lock.release();
+    }
+    if (memDirty && !dry) {
+      // prune to the newest 400 entries so the doc never grows unbounded
+      const entries = Object.entries(seen).sort((a, b) => String(b[1].at).localeCompare(String(a[1].at))).slice(0, 400);
+      try { await fsPatch(MEM_DOC, { seen: Object.fromEntries(entries), updatedAt: new Date() }); }
+      catch (e) { console.warn('[leads/scan-inbox] memory save failed:', e.message); }
     }
     await client.logout();
   } catch (e) {
