@@ -30,8 +30,8 @@
 
   function Cell(host) {
     var el = document.createElement('span');
-    el.className = 'fc';
-    el.innerHTML = '<i class="st"><b></b></i><i class="sb"><b></b></i><i class="lt"><b></b></i><i class="lb"><b></b></i>';
+    el.className = 'fc2';
+    el.innerHTML = '<i class="st"><b></b></i><i class="sb"><b></b></i><i class="lt"><b></b></i><i class="lb"><b></b></i><s></s>';
     host.appendChild(el);
     this.st = el.children[0].firstChild;
     this.sb = el.children[1].firstChild;
@@ -112,9 +112,35 @@
     })();
   };
 
+  var measurer = document.createElement('canvas').getContext('2d');
+  function calibrate(host, drum) {
+    /* Solari 4.0 — optical precision, measured at runtime:
+       cap-height center == cell center (--gs), cell width == widest
+       drum glyph + margins (--cw). The hinge is painted as an overlay,
+       so no pixel of the glyph is ever lost. */
+    var cs = getComputedStyle(host);
+    var fs = parseFloat(cs.fontSize);
+    measurer.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+    var chPx = 1.26 * fs;
+    var m = measurer.measureText('H');
+    var fa = m.fontBoundingBoxAscent !== undefined ? m.fontBoundingBoxAscent : m.actualBoundingBoxAscent * 1.25;
+    var fd = m.fontBoundingBoxDescent !== undefined ? m.fontBoundingBoxDescent : m.actualBoundingBoxAscent * 0.25;
+    var baseline = (chPx + fa - fd) / 2;
+    var capH = m.actualBoundingBoxAscent;
+    var shift = chPx / 2 - (baseline - capH / 2);
+    var maxW = 0;
+    for (var i = 0; i < drum.length; i++) {
+      var w = measurer.measureText(drum[i]).width;
+      if (w > maxW) maxW = w;
+    }
+    host.style.setProperty('--gs', shift.toFixed(2) + 'px');
+    host.style.setProperty('--cw', ((maxW + fs * 0.24) / fs).toFixed(4) + 'em');
+  }
+
   function Board(host, len, drum) {
     host.textContent = '';
     host.classList.add('flap-scale');
+    calibrate(host, drum);
     this.cells = [];
     this.drum = drum;
     for (var i = 0; i < len; i++) this.cells.push(new Cell(host));
