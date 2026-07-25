@@ -647,7 +647,7 @@ async def cmd_modifica(update, context):
     except Exception as e: await update.message.reply_text(f"❌ {e}")
 
 async def cmd_help(update, context):
-    await update.message.reply_text("━━━━━━━━━━━━━━━━━━━━━━\n🏠 *BOOM Listing Wizard*\n━━━━━━━━━━━━━━━━━━━━━━\n\n⚡ *Annuncio in 30 secondi*\n1. Mandami le foto in blocco\n2. Descrivimi la casa in UN messaggio (o vocale 🎙):\n_\"trilocale a Pigneto, via del Pigneto 3, 95mq, terzo piano, due bagni, arredato, 1350€, libero dal 1 settembre\"_\n3. ✅ Pubblica! → foto migliorate + descrizione AI + caption social\n\n💬 *Modifiche in italiano:*\n_\"metti il deposito a 2 mesi per Pigneto\"_\n_\"migliora le foto di Levico\"_\n\n📋 *Comandi*\n/nuovoflat — Wizard classico a passi\n/listings — Annunci attivi con link\n/status — Stato bot, AI, catalogo\n/stats `[ID]` — Candidature e giorni sul mercato\n/prezzo `ID 1300` · /deposito `ID 3` · /video `ID link`\n/modifica `ID campo valore` · /fotolab `ID`\n/rent `ID` · /reactivate `ID` · /delete `ID`\n/svuota — Azzera foto in memoria\n/cancel — Annulla wizard · /help — Questo messaggio", parse_mode='Markdown')
+    await update.message.reply_text("━━━━━━━━━━━━━━━━━━━━━━\n🏠 *BOOM Listing Wizard*\n━━━━━━━━━━━━━━━━━━━━━━\n\n⚡ *Annuncio in 30 secondi*\n1. Mandami le foto in blocco\n2. Descrivimi la casa in UN messaggio (o vocale 🎙):\n_\"trilocale a Pigneto, via del Pigneto 3, 95mq, terzo piano, due bagni, arredato, 1350€, libero dal 1 settembre\"_\n3. ✅ Pubblica! → foto migliorate + descrizione AI + caption social\n\n💬 *Modifiche in italiano:*\n_\"metti il deposito a 2 mesi per Pigneto\"_\n_\"migliora le foto di Levico\"_\n\n📋 *Comandi*\n/nuovoflat — Wizard classico a passi\n/listings — Annunci attivi con link\n/status — Stato bot, AI, catalogo\n/stats `[ID]` — Candidature e giorni sul mercato\n/interessati `[ID]` — Chi vuole ogni casa, i 🔥 prima\n/prezzo `ID 1300` · /deposito `ID 3` · /video `ID link`\n/modifica `ID campo valore` · /fotolab `ID`\n/rent `ID` · /reactivate `ID` · /delete `ID`\n/svuota — Azzera foto in memoria\n/cancel — Annulla wizard · /help — Questo messaggio", parse_mode='Markdown')
 
 # ─── Photo Lab bridge (api/photos/enhance — AI curation + enhancement) ────────
 def photos_enhance(listing_id, mode='apply'):
@@ -870,11 +870,87 @@ async def cmd_status(update, context):
     extra = f"\n📸 {len(buf['ids'])} foto in memoria (descrivi la casa per pubblicarle)" if buf else ''
     await update.message.reply_text(f"🤖 *BOOM Wizard* v{BOT_VERSION}\n🟢 Online da {dd}g {hh}h {mm}m\n🧠 AI: {ai}\n🏠 {cat}{extra}", parse_mode='Markdown')
 
-def _count_leads(listing_id):
-    body = {'structuredQuery': {'from': [{'collectionId': 'leads'}], 'where': {'fieldFilter': {'field': {'fieldPath': 'listingId'}, 'op': 'EQUAL', 'value': {'stringValue': listing_id}}}, 'limit': 300}}
-    r = http_requests.post(f'{fs_base()}:runQuery', headers=fs_headers(), json=body)
+def _run_lead_query(field=None, value=None, limit=300):
+    q = {'from': [{'collectionId': 'leads'}], 'limit': limit}
+    if field:
+        q['where'] = {'fieldFilter': {'field': {'fieldPath': field}, 'op': 'EQUAL', 'value': {'stringValue': value}}}
+    r = http_requests.post(f'{fs_base()}:runQuery', headers=fs_headers(), json={'structuredQuery': q})
     r.raise_for_status()
-    return sum(1 for it in r.json() if 'document' in it)
+    out = []
+    for it in r.json():
+        if 'document' in it:
+            doc = it['document']
+            d = {k: firestore_to_python(v) for k, v in doc.get('fields', {}).items()}
+            d['_id'] = doc['name'].split('/')[-1]
+            out.append(d)
+    return out
+
+def _query_leads(listing_id=None, limit=300):
+    """Leads for a listing — merging BOTH field spellings in the wild:
+    propertyId (Homie/portal scanner) and listingId (site apply form)."""
+    if not listing_id:
+        return _run_lead_query(limit=limit)
+    seen, out = set(), []
+    for field in ('propertyId', 'listingId'):
+        try:
+            for d in _run_lead_query(field, listing_id, limit):
+                if d['_id'] not in seen:
+                    seen.add(d['_id']); out.append(d)
+        except Exception as e:
+            logger.warning(f'lead query {field}: {e}')
+    return out
+
+def _count_leads(listing_id):
+    return len(_query_leads(listing_id))
+
+GRADE_EMOJI = {'A': '🔥', 'B': '🟢', 'C': '🟡', 'dead': '⚫'}
+
+async def cmd_interessati(update, context):
+    """Per-property interest review: /interessati = overview per home;
+    /interessati ID = every interested person, strongest first."""
+    if not is_admin(update): return
+    try:
+        if context.args:
+            doc_id = context.args[0]
+            d = fs_get_doc('listings', doc_id)
+            people = _query_leads(doc_id)
+            if not people:
+                await update.message.reply_text(f"Nessun interessato (ancora) per *{d.get('name', doc_id)}*.", parse_mode='Markdown'); return
+            rank = {'A': 0, 'B': 1, 'C': 3, 'dead': 4}
+            people.sort(key=lambda p: (rank.get(p.get('grade'), 2), str(p.get('createdAt', ''))))
+            lines = []
+            for p in people[:20]:
+                g = GRADE_EMOJI.get(p.get('grade'), '·')
+                days = _days_since(p.get('createdAt'))
+                bits = [f"{g} *{p.get('name', '?')}*"]
+                if p.get('phone'): bits.append(f"📞 {p['phone']}")
+                if days is not None: bits.append(f"{days}gg fa")
+                if p.get('status') and p['status'] != 'new': bits.append(str(p['status']))
+                detail = str(p.get('brief') or p.get('message') or '')[:90]
+                lines.append(' · '.join(bits) + (f"\n   _{detail}_" if detail else ''))
+            more = f"\n…e altri {len(people) - 20}." if len(people) > 20 else ''
+            await update.message.reply_text(f"👥 *{d.get('name', doc_id)}* — {len(people)} interessati\n\n" + '\n'.join(lines) + more, parse_mode='Markdown')
+            return
+        allleads = _query_leads(limit=400)
+        listings = {i: x for i, x in fs_query_available('listings')}
+        groups = {}
+        for p in allleads:
+            pid = p.get('propertyId') or p.get('listingId')
+            if not pid: continue
+            g = groups.setdefault(pid, {'n': 0, 'hot': 0})
+            g['n'] += 1
+            if p.get('grade') == 'A': g['hot'] += 1
+        if not groups:
+            await update.message.reply_text('Nessun lead agganciato a un immobile, per ora.'); return
+        rows = sorted(groups.items(), key=lambda kv: -kv[1]['n'])
+        lines = []
+        for pid, g in rows[:15]:
+            name = (listings.get(pid) or {}).get('name') or pid
+            hot = f" ({g['hot']}🔥)" if g['hot'] else ''
+            lines.append(f"• *{name}* — {g['n']} interessati{hot}\n   `/interessati {pid}`")
+        await update.message.reply_text('👥 *Interessi per immobile*\n\n' + '\n'.join(lines), parse_mode='Markdown')
+    except Exception as e:
+        await update.message.reply_text(f"❌ {e}")
 
 def _days_since(iso):
     try:
@@ -1077,6 +1153,7 @@ def main():
     app.add_handler(CommandHandler('fotolab', cmd_fotolab))
     app.add_handler(CommandHandler('status', cmd_status))
     app.add_handler(CommandHandler('stats', cmd_stats))
+    app.add_handler(CommandHandler('interessati', cmd_interessati))
     app.add_handler(CommandHandler('svuota', cmd_svuota))
     app.add_handler(CommandHandler('help', cmd_help))
     app.add_handler(CallbackQueryHandler(nl_confirm_cb, pattern='^nl_'))

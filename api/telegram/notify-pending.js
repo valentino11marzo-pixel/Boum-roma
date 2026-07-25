@@ -114,8 +114,12 @@ export default async function handler(req, res) {
   } catch (_) { /* non-fatal */ }
   const GRADE_ICON = { A: '🔥', B: '🟢', C: '🟡' };
   const gradeRank = l => ({ A: 0, B: 1 }[l.grade] ?? 2);
+  // Wait up to ~4 min for the Lead Brain grade+brief before pinging, so the
+  // card usually arrives already analyzed; older ungraded leads ping anyway.
+  const GRACE_MS = 4 * 60 * 1000;
   const ldToNotify = (leads || [])
     .filter(l => !l.telegramNotifiedAt && l.grade !== 'dead')
+    .filter(l => l.grade || (Date.now() - ts(l.createdAt)) >= GRACE_MS)
     .sort((a, b) => gradeRank(a) - gradeRank(b) || ts(b.createdAt) - ts(a.createdAt))
     .slice(0, 5);
   // Anti-chaos at volume: A/B (and not-yet-graded) leads get a full compact
@@ -134,7 +138,9 @@ export default async function handler(req, res) {
         head,
         l.propertyTitle ? `🏠 ${esc(l.propertyTitle)}${l.propertyPrice ? ' · €' + Number(l.propertyPrice).toLocaleString('it-IT') + '/mese' : ''}` : null,
         (l.phone || l.email) ? [l.phone && `📞 ${esc(l.phone)}`, l.email && `✉️ ${esc(l.email)}`].filter(Boolean).join(' · ') : null,
-        l.message ? `💬 <i>${esc(String(l.message).slice(0, 240))}</i>` : null,
+        // AI brief when the Brain produced one (synthetic but detail-complete);
+        // raw quote as fallback so nothing is ever hidden
+        l.brief ? `🧠 ${esc(l.brief)}` : (l.message ? `💬 <i>${esc(String(l.message).slice(0, 240))}</i>` : null),
       ].filter(Boolean);
       const digits = String(l.phone || '').replace(/\D/g, '');
       const waNum = digits ? (digits.length === 10 && digits.startsWith('3') ? '39' + digits : digits) : null;
@@ -146,7 +152,9 @@ export default async function handler(req, res) {
         const first = String(l.name || '').trim().split(/\s+/)[0] || '';
         const link = l.propertyId ? `https://www.boomrome.com/listing/${encodeURIComponent(l.propertyId)}` : 'https://www.boomrome.com/apartments';
         const title = l.propertyTitle || null;
-        const en = l.language === 'en';
+        // BOOM's audience is international: English is the default voice;
+        // Italian only when the lead explicitly wrote in Italian
+        const en = l.language !== 'it';
         const msgTxt = en
           ? (`Hi${first ? ' ' + first : ''}! This is Valentino from BOOM Roma 👋 Thanks for your interest` +
              (title ? ` in "${title}"` : '') + `. Here you'll find all the details, photos and video: ${link}\n` +
