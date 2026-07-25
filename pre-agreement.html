@@ -376,7 +376,7 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
     --gold-muted:rgba(138,109,0,.08);--gold-faint:rgba(138,109,0,.04);
     --green:#1a7a4d;--green-muted:rgba(26,122,77,.14);--panel:transparent;--panel2:transparent;--void:#fff}
   body{background:#fff;color:#000}
-  header,.bg,.abar,.gbtn,.consent,.obtn,.stampov,.prq small,.timeline,.addcot,.cot .cothead button,.doc .grain,.doc .wm,.cm{display:none!important}
+  header,.bg,.abar,.gbtn,.consent,.obtn,.stampov,.prq small,.timeline,.addcot,.cot .cothead button,.doc .grain,.doc .wm,.cm,.upcard{display:none!important}
   .docwrap::before,.docwrap::after{display:none}
   .rv{opacity:1!important;transform:none!important;filter:none!important}
   .doc .doc-h,.doc .sec{opacity:1!important;animation:none!important;transform:none!important}
@@ -924,6 +924,10 @@ function wireReveal(scope){
 
 /* ═══ ACCEPTED ═══ */
 function renderAccepted(){
+  /* the accepted view REPLACES the flow — clear the step panels so their
+     hidden DOM (e.g. the Verify upload cards) can't shadow the accepted
+     view's ids (#upcx late-upload card) */
+  ['p1','p2','p3','p4'].forEach(function(id){var e=$(id);if(e)e.innerHTML='';});
   var p=PA.property,m=PA.money||{},t=PA.tenant||{};
   var TS=Array.isArray(PA.tenants)&&PA.tenants.length?PA.tenants:[t];
   var paid=PA.status==='paid'||PAID;

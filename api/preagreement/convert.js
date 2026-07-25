@@ -145,7 +145,13 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
     identityDocs: uploads.map(u => ({ url: u.url, name: u.name, tenantIndex: u.tenantIndex || 0, at: u.at })),
     status: 'active',
     signatureStatus: 'none',
-    signingOrder: 'sequential',           // tenant first; delegate countersigns when ready
+    signingOrder: 'sequential',           // tenant first; landlord countersigns when ready
+    // Landlord identity from the PA — magic-sign shows the real name even
+    // when the portal property has no ownerId/users profile (owner-direct
+    // signing is the default now).
+    landlordName: (pa.landlord || {}).name || property.ownerName || '',
+    landlordEmail: (pa.landlord || {}).email || null,
+    landlordPhone: (pa.landlord || {}).phone || null,
     tenantSignToken: newToken(),
     landlordSignToken: newToken(),
     landlordDelegate: delegateOn ? {

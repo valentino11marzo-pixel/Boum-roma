@@ -69,6 +69,13 @@ export default async function handler(req, res) {
   try { if (signerId) signer = (await fsGet('users/' + signerId)) || {}; } catch (_) {}
   try { if (otherId)  otherParty = (await fsGet('users/' + otherId))  || {}; } catch (_) {}
 
+  // Landlord-name fallback: PA-converted contracts carry the landlord's
+  // real identity (contract.landlordName) even when the property has no
+  // ownerId/users doc — never show the counterpart as "—".
+  const llName = contract.landlordName || (contract.landlordDelegate || {}).onBehalfOf || property.ownerName || '';
+  if (role === 'tenant' && !otherParty.name && llName) otherParty = { ...otherParty, name: llName };
+  if (role === 'landlord' && !signer.name && llName) signer = { ...signer, name: llName, email: signer.email || contract.landlordEmail || '' };
+
   // Sanitize: the signing UI needs the signer's name (to greet them), the
   // other party's name (to display), property summary, and contract
   // financial terms. Never expose tokens, signatures, IBANs, or the other
