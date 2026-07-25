@@ -118,18 +118,23 @@ export default async function handler(req, res) {
     .filter(l => !l.telegramNotifiedAt && l.grade !== 'dead')
     .sort((a, b) => gradeRank(a) - gradeRank(b) || ts(b.createdAt) - ts(a.createdAt))
     .slice(0, 5);
+  // Anti-chaos at volume: A/B (and not-yet-graded) leads get a full compact
+  // card each; C leads are BATCHED into one digest message per run. Dead
+  // never ping. Cards keep a fixed visual grammar — grade first, then home,
+  // then contact, then quote — so ten in a row still scan in seconds.
+  const ldFull = ldToNotify.filter(l => l.grade !== 'C');
+  const ldLight = ldToNotify.filter(l => l.grade === 'C');
   const ldResults = [];
-  for (const l of ldToNotify) {
+  for (const l of ldFull) {
     try {
-      const gtag = l.grade ? ` · ${GRADE_ICON[l.grade] || ''} grade ${esc(l.grade)}${l.gradeReason ? ' (' + esc(String(l.gradeReason).slice(0, 60)) + ')' : ''}` : '';
+      const head = l.grade
+        ? `${GRADE_ICON[l.grade] || '🟢'} <b>${esc(l.name || 'Lead')}</b> · ${esc(l.source || '?')} · ${esc(l.grade)}`
+        : `🟢 <b>${esc(l.name || 'Lead')}</b> · ${esc(l.source || '?')}`;
       const bits = [
-        `🟢 <b>NUOVO LEAD</b> — ${esc(l.source || '?')}${gtag}`,
-        `👤 ${esc(l.name || 'sconosciuto')}` +
-          (l.phone ? ` · 📞 ${esc(l.phone)}` : '') +
-          (l.email ? ` · ✉️ ${esc(l.email)}` : ''),
+        head,
         l.propertyTitle ? `🏠 ${esc(l.propertyTitle)}${l.propertyPrice ? ' · €' + Number(l.propertyPrice).toLocaleString('it-IT') + '/mese' : ''}` : null,
-        l.message ? `💬 <i>${esc(String(l.message).slice(0, 280))}</i>` : null,
-        '✍️ Bozza di risposta AI in arrivo (Commerciale) — o muoviti tu prima:',
+        (l.phone || l.email) ? [l.phone && `📞 ${esc(l.phone)}`, l.email && `✉️ ${esc(l.email)}`].filter(Boolean).join(' · ') : null,
+        l.message ? `💬 <i>${esc(String(l.message).slice(0, 240))}</i>` : null,
       ].filter(Boolean);
       const digits = String(l.phone || '').replace(/\D/g, '');
       const waNum = digits ? (digits.length === 10 && digits.startsWith('3') ? '39' + digits : digits) : null;
@@ -159,6 +164,23 @@ export default async function handler(req, res) {
       ldResults.push({ id: l.id, ok: true });
     } catch (err) {
       ldResults.push({ id: l.id, ok: false, error: err.message });
+    }
+  }
+  // C-grade digest: one line each, one message, one Portale button
+  if (ldLight.length) {
+    try {
+      const rows = ldLight.map(l =>
+        `• ${esc(l.name || '?')} — ${esc(l.source || '?')}${l.propertyTitle ? ' · ' + esc(String(l.propertyTitle).slice(0, 40)) : ''}${l.phone ? ' · 📞' : ''}`
+      ).join('\n');
+      const mid = await tgSend(chatId,
+        `🟡 <b>${ldLight.length} lead C</b> (deboli ma reali) — il Commerciale li copre coi template:\n${rows}`,
+        { reply_markup: { inline_keyboard: [[{ text: '📇 Vedili sul portale', url: 'https://www.boomrome.com/portal' }]] } });
+      for (const l of ldLight) {
+        await fsPatch(`leads/${l.id}`, { telegramNotifiedAt: new Date(), telegramMessageId: mid || null });
+        ldResults.push({ id: l.id, ok: true });
+      }
+    } catch (err) {
+      ldResults.push({ digest: true, ok: false, error: err.message });
     }
   }
 
