@@ -594,6 +594,106 @@ window.convertPA=async function(id){
   };
 };
 
+/* ── 📦 FASCICOLO ARPE — everything the association needs, one ZIP ──
+   Checklist with a traffic light: signed contract + tenant IDs +
+   transitional proof come from the deal; visura/planimetria/APE/delega
+   live on the PROPERTY (uploaded once, inherited by every contract).
+   ZIP built client-side (JSZip) from the tokenized URLs. */
+var JSZIP_SRC='https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
+function loadJSZip(){return new Promise(function(ok,ko){if(window.JSZip)return ok();var s=document.createElement('script');s.src=JSZIP_SRC;s.onload=ok;s.onerror=ko;document.head.appendChild(s);});}
+var DOSSIER_SLOTS=[['visura','Visura catastale'],['planimetria','Planimetria'],['ape','APE (attestato energetico)'],['delega','Delega/incarico ARPE firmato']];
+window.closeFasc=function(){var o=document.getElementById('fascov');if(o)o.remove();};
+window.fascicoloPA=async function(id){
+  var d=PAS.find(function(x){return x.id===id});if(!d||!d.contractId)return;
+  var db=firebase.firestore();
+  var contract=null,property=null;
+  try{var cs=await db.collection('contracts').doc(d.contractId).get();if(cs.exists)contract=cs.data();}catch(e){}
+  try{var pid=(contract&&contract.propertyId)||d.propertyId;if(pid){var ps=await db.collection('properties').doc(pid).get();if(ps.exists){property=ps.data();property.__id=pid;}}}catch(e){}
+  var ups=Array.isArray(d.uploads)?d.uploads:[];
+  var ids=ups.filter(function(u){return u.kind!=='extra'});
+  var extra=ups.filter(function(u){return u.kind==='extra'});
+  var dossier=(property&&property.dossier)||{};
+  var contractPdf=contract&&(contract.signingCertificateUrl||contract.generatedPDF)||null;
+  /* the checklist — [label, ok, detailHtml, files[{folder,url,name}]] */
+  var items=[
+    ['Contratto firmato',!!contractPdf,contractPdf?'PDF con certificato di firma':'in attesa delle firme (Magic Sign)',contractPdf?[{folder:'01_Contratto',url:contractPdf,name:'Contratto_firmato.pdf'}]:[]],
+    ['Scheda Allegato 2/B',null,'<a href="/scheda-canone" target="_blank" style="color:var(--gold)">genera dalla Scheda Canone →</a> e aggiungila a mano al fascicolo',[]],
+    ['Documenti conduttore',ids.length>0,ids.length?ids.length+' file':'nessun documento caricato',ids.map(function(u,i){return {folder:'03_Conduttore',url:u.url,name:(u.name||'doc_'+(i+1))}})],
+    ['Esigenza transitoria',!!((d.lease||{}).reason&&(extra.length||!d.extraDoc)),((d.lease||{}).reason?'clausola: '+esc((d.lease||{}).reason)+' · ':'')+(extra.length?extra.length+' documento/i di supporto':(d.extraDoc?'documento di supporto in attesa':'—')),extra.map(function(u,i){return {folder:'04_Transitorieta',url:u.url,name:(u.name||'doc_'+(i+1))}})]
+  ];
+  DOSSIER_SLOTS.forEach(function(s){
+    var slot=dossier[s[0]];
+    items.push([s[1],!!slot,slot?esc(slot.name||'caricato')+' · '+String(slot.at||'').slice(0,10):'manca — caricalo qui sotto',
+      slot?[{folder:'05_Immobile',url:slot.url,name:s[0]+'_'+(slot.name||'doc')}]:[],s[0]]);
+  });
+  var okCount=items.filter(function(i){return i[1]===true}).length;
+  var reqCount=items.filter(function(i){return i[1]!==null}).length;
+  var ov=document.createElement('div');ov.className='cvov';ov.id='fascov';
+  ov.innerHTML='<div class="cvbox">'
+    +'<h3>📦 Fascicolo ARPE</h3>'
+    +'<div class="sub2"><b style="color:var(--t1)">'+esc(((d.tenant||{}).fullName||'—'))+'</b> · '+esc(((d.property||{}).address||''))
+    +'<br>Semaforo: <b style="color:'+(okCount===reqCount?'var(--green)':'var(--gold)')+'">'+okCount+'/'+reqCount+'</b> — con tutto verde, lo ZIP è pronto da inoltrare ad ARPE.</div>'
+    +items.map(function(it,ix){
+      return '<div class="cvlink"><b style="color:'+(it[1]===true?'var(--green)':it[1]===null?'var(--t3)':'var(--gold-deep)')+'">'
+        +(it[1]===true?'✓ ':it[1]===null?'· ':'⏳ ')+esc(it[0])+'</b>'
+        +'<span class="u">'+it[2]+'</span>'
+        +(it[4]?'<div class="row2"><button class="pbtn" onclick="document.getElementById(\'fsl'+it[4]+'\').click()">'+(it[1]?'Sostituisci':'Carica')+' →</button>'
+          +'<input type="file" id="fsl'+it[4]+'" accept="application/pdf,image/*" style="display:none" onchange="dossierUp(\''+(property?property.__id:'')+'\',\''+it[4]+'\',this,\''+id+'\')"></div>':'')
+        +'</div>';
+    }).join('')
+    +'<button class="gbtn" id="fzip" style="margin-top:14px">Scarica lo ZIP del fascicolo ↓</button>'
+    +'<p class="err" id="fErr2"></p>'
+    +'<div style="text-align:center;margin-top:12px"><button class="pbtn" onclick="closeFasc()">Chiudi</button></div>'
+    +'</div>';
+  ov.addEventListener('click',function(e){if(e.target===ov)closeFasc();});
+  document.body.appendChild(ov);
+  document.getElementById('fzip').onclick=async function(){
+    var btn=this,err=document.getElementById('fErr2');err.style.display='none';
+    btn.disabled=true;btn.textContent='Preparo il fascicolo…';
+    try{
+      await loadJSZip();
+      var zip=new JSZip();
+      var files=[];items.forEach(function(it){(it[3]||[]).forEach(function(f){files.push(f)})});
+      var missing=items.filter(function(i){return i[1]===false}).map(function(i){return i[0]});
+      for(var i=0;i<files.length;i++){
+        btn.textContent='Scarico '+(i+1)+'/'+files.length+'…';
+        try{
+          var r=await fetch(files[i].url);if(!r.ok)throw 0;
+          zip.folder(files[i].folder).file(files[i].name.replace(/[^a-zA-Z0-9._-]/g,'_'),await r.blob());
+        }catch(e){missing.push(files[i].folder+'/'+files[i].name+' (download fallito)');}
+      }
+      zip.file('INDICE.txt',
+        'FASCICOLO ARPE — BOOM · Egidi Immobiliare S.r.l.\n'
+        +'Deal: '+((d.tenant||{}).fullName||'')+' · '+((d.property||{}).address||'')+' · rif '+(d.ref||'')+'\n'
+        +'Contratto: '+d.contractId+' · generato '+new Date().toISOString().slice(0,10)+'\n\n'
+        +'CONTENUTO\n'+files.map(function(f){return '  '+f.folder+'/'+f.name}).join('\n')
+        +'\n\nDA AGGIUNGERE A MANO\n  02_Scheda_Allegato_2B (genera da boomrome.com/scheda-canone)\n'
+        +(missing.length?missing.map(function(m){return '  MANCA: '+m}).join('\n')+'\n':''));
+      var blob=await zip.generateAsync({type:'blob'});
+      var a=document.createElement('a');a.href=URL.createObjectURL(blob);
+      a.download='Fascicolo_ARPE_'+String(d.ref||d.contractId).replace(/[^A-Za-z0-9-]/g,'')+'.zip';
+      a.click();setTimeout(function(){URL.revokeObjectURL(a.href)},4000);
+      btn.disabled=false;btn.textContent='Scarica lo ZIP del fascicolo ↓';
+    }catch(e){btn.disabled=false;btn.textContent='Scarica lo ZIP del fascicolo ↓';err.textContent='ZIP non riuscito — '+(e.message||'riprova');err.style.display='block';}
+  };
+};
+window.dossierUp=async function(propertyId,slot,input,paId){
+  var file=input.files&&input.files[0];if(!file)return;
+  if(!propertyId){alert('Collega prima la proprietà del portal (→ Contratto).');return;}
+  var fr=new FileReader();
+  fr.onload=async function(){
+    try{
+      var tok=await USER.getIdToken();
+      var r=await fetch('/api/properties/dossier',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
+        body:JSON.stringify({propertyId:propertyId,slot:slot,base64:fr.result,name:file.name,contentType:file.type||'application/pdf'})});
+      var j=await r.json();
+      if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
+      closeFasc();fascicoloPA(paId);   // riapre col semaforo aggiornato
+    }catch(e){alert('Upload fallito: '+(e.message||'riprova'));}
+  };
+  fr.readAsDataURL(file);
+};
+
 /* mirror of api/preagreement/lookup.js paExpired() — Rome calendar day */
 function paExpiredUi(d){
   if(!d.validUntil||d.status==='accepted'||d.status==='paid')return false;
@@ -645,6 +745,7 @@ function paRow(d){
         +(llWa?'<a class="pbtn wa" href="'+llWa+'" target="_blank" rel="noopener">Firma proprietario su WhatsApp</a>':'')
         +(d.landlordSignUrl?'<button class="pbtn" onclick="copyTxt(\''+d.landlordSignUrl+'\')">'+(d.delegated?'Copia link delega':'Copia link firma proprietario')+'</button>':'')
         +'<button class="pbtn" onclick="resendCopy(\''+d.id+'\',this)">✉ Reinvia copia</button>'
+        +(d.contractId?'<button class="pbtn" onclick="fascicoloPA(\''+d.id+'\')">📦 Fascicolo ARPE</button>':'')
       ):'')
     +'<button class="pbtn" onclick="copyPaLink(\''+d.token+'\')">Copia link</button>'
     +'<a class="pbtn" href="'+url+'" target="_blank" rel="noopener">Apri</a>'

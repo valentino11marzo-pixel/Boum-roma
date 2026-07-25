@@ -136,7 +136,9 @@ export function paDocumentHtml(pa, opts = {}) {
 }
 
 // ── The shell: black masthead + white paper card on a warm desk ──────────
-function shell(inner, preheader) {
+// Exported: this is THE email design system for the whole platform
+// (journey emails, rent receipts, fascicolo) — one look everywhere.
+export function shell(inner, preheader) {
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="color-scheme" content="light"></head>
   <body style="margin:0;padding:0;background:${PAPER_BG}">
   <span style="display:none;max-height:0;overflow:hidden">${esc(preheader || '')}</span>
@@ -159,21 +161,21 @@ function shell(inner, preheader) {
 }
 
 // Primary action — gold pill, dark text (the one thing to tap).
-function btn(href, label) {
+export function btn(href, label) {
   return `<table cellpadding="0" cellspacing="0" style="margin:24px auto 0"><tr>
     <td style="background:${GOLD};border-radius:100px;padding:15px 32px;text-align:center">
       <a href="${esc(href)}" style="font-family:${SANS};font-size:12px;letter-spacing:2px;text-transform:uppercase;font-weight:bold;color:#1A1407;text-decoration:none">${esc(label)}</a>
     </td></tr></table>`;
 }
 // Secondary action — quiet black pill.
-function btn2(href, label) {
+export function btn2(href, label) {
   return `<table cellpadding="0" cellspacing="0" style="margin:12px auto 0"><tr>
     <td style="background:#141414;border-radius:100px;padding:12px 26px;text-align:center">
       <a href="${esc(href)}" style="font-family:${SANS};font-size:11.5px;letter-spacing:1.4px;color:#FFFFFF;text-decoration:none">${esc(label)}</a>
     </td></tr></table>`;
 }
-const para = (html, extra) => `<p style="font-family:${SANS};font-size:14px;font-weight:300;color:#33312C;line-height:1.75;margin:0 0 20px;${extra || ''}">${html}</p>`;
-const fine = (html, extra) => `<p style="font-family:${SANS};font-size:11.5px;font-weight:300;color:${SOFT};line-height:1.7;margin:14px 0 0;${extra || ''}">${html}</p>`;
+export const para = (html, extra) => `<p style="font-family:${SANS};font-size:14px;font-weight:300;color:#33312C;line-height:1.75;margin:0 0 20px;${extra || ''}">${html}</p>`;
+export const fine = (html, extra) => `<p style="font-family:${SANS};font-size:11.5px;font-weight:300;color:${SOFT};line-height:1.7;margin:14px 0 0;${extra || ''}">${html}</p>`;
 
 // "Your contract is ready to sign" — the tenant's Magic-Sign email.
 // notifyClient:false = admin heads-up only (the auto pipeline PREPARES the

@@ -147,6 +147,14 @@ BANK_MAIL_FROM               # optional — extra sender filters for the bank
                              # statement email scanner (comma-separated,
                              # e.g. "intesasanpaolo.com,fineco.it")
 
+# Canone via BOOM + journey (api/payments/pay.js, api/journey/_run.js)
+RENT_FEE_PCT                 # optional — service fee % on card rent payments
+                             # (default 2.5)
+RENT_FEE_MIN                 # optional — fee floor in EUR (default 9)
+REVIEW_URL                   # the REAL Google review link (g.page/r/…) used
+                             # by the journey's T+3 and exit emails; falls
+                             # back to a Google search for the profile
+
 # Lo Smistatore (api/documents/_smista.js + scan-inbox)
 DOC_MAIL_FROM                # optional — extra TRUSTED senders whose email
                              # attachments get auto-filed (comma-separated,
@@ -427,6 +435,49 @@ admin countersigns per delega on their own schedule → RLI registration →
 tenant portal (payments/documents). Terms differ per deal: any money knob,
 extra line items and custom clauses per PA; edit before acceptance (same
 link); after acceptance/payment, Duplicate creates the new version.
+
+### Tenant lifecycle — La tua casa BOOM + Canone via BOOM + journey + Fascicolo ARPE
+- **`tenant.html` (served at `/casa`)** — REBUILT on real data (the old page
+  was a stub with hardcoded payments). BoomPortal auth (role tenant), reads
+  own `contracts`/`payments`/`maintenance` + property client-side (allowed
+  by firestore.rules). Sections: hero tiles (canone, prossimo pagamento,
+  scadenza, pagamenti ✓), **01 Il prossimo pagamento** (one-tap card pay),
+  02 storico + ricevute (Stripe receiptUrl), 03 documenti (contratto
+  firmato, stato deposito, richiesta via WhatsApp), 04 manutenzione (form +
+  own requests), 05 Concierge (Move-in Pack €149, Cleaning Premium €119,
+  su misura — WhatsApp-first), 06 referral. Linked from tenant +
+  reservation Wallet passes and every journey email.
+- **`POST /api/payments/pay`** — Bearer ID token (tenant/admin). Body
+  `{paymentId}`; a tenant can only pay their own docs. Stripe Checkout with
+  TWO line items: the installment + "Commissione servizio BOOM"
+  (`rentFee()` exported: RENT_FEE_PCT% of amount, min RENT_FEE_MIN — card
+  costs ~1.5%+€0.25 so the default 2.5%/€9 keeps real margin at any rent).
+  `service:'RENT'` metadata → webhook branch marks the payment
+  `paid/paidVia:'stripe'/paidDate/receiptUrl/serviceFeeEur` (idempotent on
+  stripeSessionId), receipt email to tenant + admin heads-up. The bank
+  reconciliation path is untouched (a stripe-paid doc is no longer pending
+  so batch matching skips it).
+- **Saldo deposito** — `convert.js` now also creates
+  `payments/depbal_<contractId>` (`type:'deposit-balance'`, due on
+  startDate) whenever the PA split the deposit — payable from /casa,
+  reminded by the journey's T-7 email.
+- **`api/journey/_run.js`** (from reminder-cron, hourly window, once per
+  step per contract via `contracts.journey.<step>` flags): T-30 welcome +
+  Move-in Pack · T-14 documents/utilities nudge · T-7 Cleaning Premium +
+  deposit balance · T-1 keys (INCLUDED, never sold) · T+3 review ask
+  (REVIEW_URL) + casa intro · T-90 before end = renewal CONFIRMATION ONLY
+  (no upsell; admin notified) · end+3 = thank-you + review + referral.
+  Upsells are WhatsApp-first (prefilled wa.me), emails use the shared
+  design system (`_notify.js` exports shell/btn/btn2/para/fine).
+- **Fascicolo ARPE** — property dossier slots (visura/planimetria/APE/
+  delega) uploaded once per property via `POST /api/properties/dossier`
+  (admin; Storage `property-docs/<propId>/`, admin-only per storage.rules
+  — REMEMBER `npx firebase-tools deploy --only storage`) and stored on
+  `properties.dossier.<slot>`. Console rows with a contract get
+  **📦 Fascicolo ARPE**: traffic-light checklist (contratto firmato, scheda
+  2/B da generare, documenti conduttore, esigenza transitoria, 4 slot
+  immobile con upload) + client-side ZIP (JSZip CDN) with INDICE.txt —
+  ready to forward to ARPE for registrazione + asseverazione.
 
 ### POST `/api/magic-sign/lookup`
 Public endpoint for the Magic-Sign UI. Body: `{ token }`. Looks up the

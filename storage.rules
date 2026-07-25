@@ -132,6 +132,15 @@ service firebase.storage {
       allow read, write: if isAdmin();
     }
 
+    // ─── property-docs/{propId}/** ────────────────────────────────────
+    // The property DOSSIER for the Fascicolo ARPE (visura, planimetria,
+    // APE, delega ARPE) — uploaded once per property from the console via
+    // api/properties/dossier.js (admin creds server-side); tokenized URLs
+    // stored on properties/{id}.dossier are the read credential.
+    match /property-docs/{propId}/{allPaths=**} {
+      allow read, write: if isAdmin();
+    }
+
     // ─── smistatore/{fiscalYear}/** ───────────────────────────────────
     // Lo Smistatore's filed documents (api/documents/_smista.js): photos/PDFs
     // sent via Telegram or forwarded email, uploaded server-side with the

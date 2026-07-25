@@ -264,6 +264,10 @@
       "destination": "/portal.html"
     },
     {
+      "source": "/casa",
+      "destination": "/tenant.html"
+    },
+    {
       "source": "/owners",
       "destination": "/owners.html"
     },

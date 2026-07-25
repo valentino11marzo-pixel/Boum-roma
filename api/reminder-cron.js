@@ -260,6 +260,17 @@ export default async function handler(req, res) {
       results.paReminders = await runPaReminders();
     } catch (e) { results.errors.push(`pa-remind: ${e.message}`); }
 
+    // ── Tenant journey: T-30/T-14/T-7/T-1 pre-move-in, T+3 review ask,
+    // T-90 renewal confirmation (no upsell), exit thank-you + referral.
+    // Once per step per contract (contracts.journey flags). Lazy import,
+    // best-effort. Runs at most once an hour (minute 0-14 window). ──
+    if (now.getUTCMinutes() < 15) {
+      try {
+        const { runJourney } = await import('./journey/_run.js');
+        results.journey = await runJourney();
+      } catch (e) { results.errors.push(`journey: ${e.message}`); }
+    }
+
     return res.status(200).json({ ok: true, timestamp: now.toISOString(), ...results });
   } catch (e) {
     console.error('Cron error:', e);

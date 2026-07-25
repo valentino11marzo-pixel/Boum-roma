@@ -192,6 +192,22 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
     return { ok: false, error: 'contract_create_failed' };
   }
 
+  // Deposit balance as a REAL installment: when the PA split the deposit
+  // (n% at signing, rest upon move-in), the remainder becomes a payments
+  // doc due on move-in day — payable by card from /casa (Canone via BOOM)
+  // or by transfer (bank reconciliation matches it like any rent). The
+  // journey's T-7 email reminds the tenant automatically.
+  const depBal = Number(m.depositAtMoveIn) || 0;
+  if (depBal > 0 && le.startDate) {
+    fsCreate('payments', {
+      type: 'deposit-balance',
+      contractId, tenantId, propertyId: propId,
+      amount: depBal, month: 'saldo deposito',
+      dueDate: le.startDate, status: 'pending',
+      createdAt: new Date().toISOString(), createdBy: 'preagreement_convert',
+    }, 'depbal_' + contractId).catch(() => {});
+  }
+
   // Back-link on the PA (best-effort — the contract exists either way).
   // Sign URLs are stored here too so the console can offer 🖊 Magic Sign /
   // WhatsApp share without extra reads (preAgreements is admin-only).
