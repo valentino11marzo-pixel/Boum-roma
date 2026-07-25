@@ -78,7 +78,8 @@ async function gradeBatch(key, items) {
   const SYSTEM = `Sei il valutatore lead di BOOM Roma, agenzia affitti premium orientata a inquilini internazionali/expat e professionisti. Per OGNI lead assegna:
 grade: "A" (qualificato e pronto: reddito/lavoro solido o expat in arrivo, richiesta specifica, budget compatibile) | "B" (promettente ma incompleto) | "C" (generico/debole ma persona reale) | "dead" (spam, agenzia, bot, non è una persona interessata)
 intent: "visita" | "info" | "apply" | "other"
-Rispondi SOLO array JSON, stesso ordine: [{"i":<n>,"grade":"...","intent":"...","confidence":0-1,"reason":"<max 8 parole>"}]`;
+brief: sintesi operativa in italiano (max 30 parole) che CONSERVA ogni dettaglio utile alla trattativa: chi è (lavoro/studio/coppia), budget, data ingresso, durata, richieste specifiche, urgenza. Niente riempitivi.
+Rispondi SOLO array JSON, stesso ordine: [{"i":<n>,"grade":"...","intent":"...","confidence":0-1,"reason":"<max 8 parole>","brief":"<sintesi>"}]`;
   const lines = items.map((x, n) =>
     `LEAD ${n}: fonte=${x.source || '?'} | nome=${x.name || '?'} | tel=${x.phone ? 'sì' : 'no'} | email=${x.email ? 'sì' : 'no'} | lingua=${x.language || '?'}` +
     ` | annuncio=${x.propertyTitle || '?'}${x.propertyPrice ? ' €' + x.propertyPrice : ''}` +
@@ -155,7 +156,7 @@ export default async function handler(req, res) {
           batch.forEach((l, n) => {
             const g = byI.get(n) || {};
             const grade = ['A', 'B', 'C', 'dead'].includes(g.grade) ? g.grade : 'C';
-            grades.set(l.id, { grade, reason: String(g.reason || '').slice(0, 120), intent: g.intent, confidence: Math.max(0, Math.min(1, +g.confidence || 0.6)), by: 'ai-batch' });
+            grades.set(l.id, { grade, reason: String(g.reason || '').slice(0, 120), intent: g.intent, brief: g.brief ? String(g.brief).slice(0, 300) : null, confidence: Math.max(0, Math.min(1, +g.confidence || 0.6)), by: 'ai-batch' });
             stats.aiGraded++;
           });
         } catch (e) {
@@ -173,6 +174,7 @@ export default async function handler(req, res) {
         gradedBy: g.by, gradedAt: new Date(),
       };
       if (g.intent) patch.intent = g.intent;
+      if (g.brief) patch.brief = g.brief;
       if (g.grade === 'dead') { patch.status = 'archived'; patch.archivedReason = 'lead-brain: ' + g.reason; }
       await fsPatch(`leads/${id}`, patch);
     }
