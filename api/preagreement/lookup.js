@@ -8,6 +8,17 @@
 
 import { fsList, fsPatch, readJson } from '../homie/_lib.js';
 
+// Offer expiry gates NEW acceptances only — never an accepted/paid deal.
+// "Today" is Rome's calendar day, so the offer dies at midnight in Rome.
+export function paExpired(data) {
+  if (!data || !data.validUntil) return false;
+  if (data.status === 'accepted' || data.status === 'paid') return false;
+  try {
+    const todayRome = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Rome' });
+    return todayRome > String(data.validUntil);
+  } catch { return false; }
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -50,6 +61,8 @@ export default async function handler(req, res) {
         contractReady: !!data.contractId,
         note: data.note || null, createdAt: data.createdAt,
         acceptedAt: data.acceptedAt || null, ref: data.ref || null,
+        validUntil: data.validUntil || null,
+        expired: paExpired(data),
       },
     });
   } catch (e) {

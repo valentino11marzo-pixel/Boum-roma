@@ -309,7 +309,12 @@ annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
   of annual OR months of rent, endDate month-end clamp). The admin console
   mirrors the same math client-side for edit-in-place.
 - `POST /api/preagreement/lookup` — public `{ token }` → sanitized doc
-  (incl. `tenants[]`); audit-logs views; 410 when revoked.
+  (incl. `tenants[]`); audit-logs views; 410 when revoked. Exports
+  `paExpired()`: optional `validUntil` (YYYY-MM-DD, Rome calendar day)
+  gates NEW acceptances only — lookup exposes `expired`, the page renders
+  a branded "offer expired" view (WhatsApp refresh CTA), submit returns
+  410 `expired`; accepted/paid deals are never touched, and the console's
+  ✎ Edit extends the SAME link (row shows "⌛ OFFERTA SCADUTA").
 - `POST /api/preagreement/submit` — public. Tenant self-fills identity
   (name/dob/birthplace/nationality/address/CF/ID/email/phone) + optional
   co-tenants (`tenants[]`, ≤6, each typed name = signature, joint & several

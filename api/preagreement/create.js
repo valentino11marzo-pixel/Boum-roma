@@ -158,6 +158,10 @@ export default async function handler(req, res) {
     // — e.g. proof of the transitional need. Never blocking: the client can
     // sign without it and send it later from the accepted page (same link).
     extraDoc: clip(b.extraDoc, 160),
+    // Offer expiry (YYYY-MM-DD, end of that day Rome time). Gates NEW
+    // acceptances only — an accepted/paid deal is never voided. Extend it
+    // any time from the console's Edit (same link revives).
+    validUntil: /^\d{4}-\d{2}-\d{2}$/.test(String(b.validUntil || '')) ? String(b.validUntil) : null,
     tenant,                    // primary tenant (compat + prefill)
     tenants: [tenant],         // full parties list — the page appends co-tenants
     lease: {
