@@ -38,11 +38,13 @@ export default async function handler(req, res) {
     return res.status(409).json({ ok: false, error: 'not_accepted_yet', status: pa.status });
   }
 
-  // Ensure the contract exists (idempotent — returns existing links if so).
+  // Ensure the contract exists (idempotent — returns existing links if so;
+  // an already-converted contract keeps its own delegate setting). Owner
+  // signs directly unless the caller explicitly asks for delega.
   const out = await convertPaToContract({
     pa, paId,
     propertyId: b.propertyId || pa.propertyId,
-    delegate: true,
+    delegate: b.delegate === true,
     actor: auth.email || auth.uid,
   });
   if (!out.ok) {
