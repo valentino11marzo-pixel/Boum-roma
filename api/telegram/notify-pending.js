@@ -132,9 +132,27 @@ export default async function handler(req, res) {
         '✍️ Bozza di risposta AI in arrivo (Commerciale) — o muoviti tu prima:',
       ].filter(Boolean);
       const digits = String(l.phone || '').replace(/\D/g, '');
-      const wa = digits ? 'https://wa.me/' + (digits.length === 10 && digits.startsWith('3') ? '39' + digits : digits) : null;
+      const waNum = digits ? (digits.length === 10 && digits.startsWith('3') ? '39' + digits : digits) : null;
+      // Pre-filled first message: greeting by first name, THEIR apartment
+      // with its public link, and the right question — the operator lands
+      // in WhatsApp with the reply ready to send (editable before sending).
+      let wa = null;
+      if (waNum) {
+        const first = String(l.name || '').trim().split(/\s+/)[0] || '';
+        const link = l.propertyId ? `https://www.boomrome.com/listing/${encodeURIComponent(l.propertyId)}` : 'https://www.boomrome.com/apartments';
+        const title = l.propertyTitle || null;
+        const en = l.language === 'en';
+        const msgTxt = en
+          ? (`Hi${first ? ' ' + first : ''}! This is Valentino from BOOM Roma 👋 Thanks for your interest` +
+             (title ? ` in "${title}"` : '') + `. Here you'll find all the details, photos and video: ${link}\n` +
+             `Would you like to book a viewing (in person or live video)? Or just ask me anything you'd like to know!`)
+          : (`Ciao${first ? ' ' + first : ''}! Sono Valentino di BOOM Roma 👋 Grazie per il tuo interesse` +
+             (title ? ` per "${title}"` : '') + `. Qui trovi tutti i dettagli, le foto e il video: ${link}\n` +
+             `Ti andrebbe di fissare una visita (dal vivo o in video)? Oppure chiedimi pure qualsiasi informazione!`);
+        wa = `https://wa.me/${waNum}?text=${encodeURIComponent(msgTxt)}`;
+      }
       const buttons = [[]];
-      if (wa) buttons[0].push({ text: '💬 Apri WhatsApp', url: wa });
+      if (wa) buttons[0].push({ text: '💬 WhatsApp (msg pronto)', url: wa });
       buttons[0].push({ text: '📇 Portale', url: 'https://www.boomrome.com/portal' });
       const mid = await tgSend(chatId, bits.join('\n'), { reply_markup: { inline_keyboard: buttons } });
       await fsPatch(`leads/${l.id}`, { telegramNotifiedAt: new Date(), telegramMessageId: mid || null });
