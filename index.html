@@ -265,6 +265,412 @@
         .flap-scale { font-size: 0.94em; letter-spacing: 0; }
         .hero-stat-value.flap-scale { font-size: clamp(26px, 5.2vw, 31px); }
 
+        /* ═══════════════════════════════════════════════════════════
+           IL TERMINALE — experience layer (js/boom-terminale.js):
+           gate · linea gialla · orologio · carte d'imbarco ·
+           tabellone partenze vivo · clack opzionale.
+           ═══════════════════════════════════════════════════════════ */
+.tbp-panel{
+  position:absolute;
+  right:clamp(24px,7vw,108px);
+  top:57%;
+  transform:translateY(-50%);
+  width:392px;
+  box-sizing:border-box;
+  padding:20px 20px 18px;
+  background:rgba(10,10,10,.8);
+  border:1px solid rgba(255,215,0,.15);
+  border-radius:12px;
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  font-family:'Helvetica Neue',Inter,sans-serif;
+  pointer-events:none;
+  -webkit-user-select:none;
+  user-select:none;
+  z-index:3;
+}
+@media (max-width:1099.98px){
+  .tbp-panel{display:none;}
+}
+.tbp-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+  font:400 9px/1 ui-monospace,'SF Mono',Menlo,monospace;
+  letter-spacing:3px;
+  color:rgba(255,215,0,.55);
+  white-space:nowrap;
+  padding-bottom:12px;
+  margin-bottom:12px;
+  border-bottom:1px solid rgba(255,215,0,.12);
+}
+.tbp-dot{
+  display:inline-block;
+  width:3px;
+  height:3px;
+  border-radius:50%;
+  background:#30D158;
+  box-shadow:0 0 6px rgba(48,209,88,.9);
+  vertical-align:1px;
+  margin-right:4px;
+}
+.tbp-cols{
+  display:flex;
+  align-items:baseline;
+  gap:12px;
+  font:400 8px/1 ui-monospace,'SF Mono',Menlo,monospace;
+  letter-spacing:2px;
+  color:rgba(255,255,255,.3);
+  white-space:nowrap;
+  margin-bottom:10px;
+}
+.tbp-c1{flex:1 1 auto;}
+.tbp-c2{flex:0 0 46px;}
+.tbp-c3{flex:0 0 auto;}
+.tbp-rows{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.tbp-row{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+.tbp-zone{
+  flex:1 1 auto;
+  min-width:0;
+  font-size:13px;
+  line-height:1;
+  letter-spacing:0;
+  white-space:nowrap;
+  overflow:hidden;
+}
+.tbp-tipo{
+  flex:0 0 46px;
+  font:400 10px/1 ui-monospace,'SF Mono',Menlo,monospace;
+  letter-spacing:1px;
+  color:rgba(255,255,255,.45);
+  white-space:nowrap;
+}
+.tbp-stato{
+  flex:0 0 auto;
+  font-size:11px;
+  line-height:1;
+  letter-spacing:0;
+  white-space:nowrap;
+}
+
+/* ============================================================
+   SEGNALETICA — wayfinding di stazione (statico per definizione)
+   Scope totale: body.segnaletica
+   ============================================================ */
+
+/* 1 · GATE SIGN — l'eyebrow diventa un cartello gate */
+body.segnaletica .hero-eyebrow {
+    background: #0B0B0B;
+    border: 1px solid rgba(255, 215, 0, 0.2);
+    border-radius: 6px;
+    padding: 0 14px 0 0;
+    overflow: hidden;
+}
+
+/* blocchetto oro pieno a sinistra: "GATE" nero, mono, a tutta altezza */
+body.segnaletica .hero-eyebrow::before {
+    content: 'GATE';
+    align-self: stretch;
+    display: inline-flex;
+    align-items: center;
+    padding: 7px 9px 7px 10px; /* dx -1px: compensa la coda del letter-spacing */
+    background: var(--gold, #FFD700);
+    color: #030303;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 1.5px;
+    border-radius: 5px 0 0 5px; /* 6px esterni - 1px di bordo */
+}
+
+/* freccia direzionale dopo il testo */
+body.segnaletica .hero-eyebrow::after {
+    content: '\2192';
+    color: var(--gold, #FFD700);
+    font-size: 12px;
+    font-weight: 300;
+    line-height: 1;
+}
+
+/* 2 · LINEA DI BANCHINA — hairline oro sopra la riga statistiche */
+body.segnaletica .hero-stats.linea-banchina {
+    position: relative;
+    border-top: 1px solid rgba(255, 215, 0, 0.18);
+    padding-top: 18px;
+}
+
+body.segnaletica .hero-stats.linea-banchina::before {
+    content: 'ATTENZIONE ALLA LINEA GIALLA \00B7 MIND THE GOLD LINE';
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 10px);
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 8px;
+    font-weight: 400;
+    line-height: 1;
+    letter-spacing: 3px;
+    color: rgba(255, 215, 0, 0.4);
+    pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════════════════
+   IMBARCO 2.0 — boarding-pass hero stats (body.imbarco)
+   Biglietto: corpo #0C0C0C + stub destro con strappo,
+   tacche di perforazione e micro-barcode verticale.
+   ═══════════════════════════════════════════════════════ */
+body.imbarco .hero-stats { align-items: stretch; }
+
+body.imbarco .hero-stat {
+    --imbStub: 46px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    text-align: left;
+    width: 100%;
+    max-width: 185px;
+    min-height: 100px;
+    padding: 13px calc(var(--imbStub) + 12px) 13px 15px;
+    background: #0C0C0C;
+    border: 1px solid rgba(255, 215, 0, 0.18);
+    border-radius: 10px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45),
+                inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    overflow: visible;
+}
+
+/* Linea di strappo verticale (tratteggiata) al confine dello stub */
+body.imbarco .hero-stat::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    bottom: 8px;
+    right: var(--imbStub);
+    width: 1px;
+    background: repeating-linear-gradient(180deg,
+        rgba(255, 215, 0, 0.28) 0,
+        rgba(255, 215, 0, 0.28) 4px,
+        rgba(255, 215, 0, 0)    4px,
+        rgba(255, 215, 0, 0)    9px);
+    pointer-events: none;
+}
+
+/* Micro-barcode verticale dentro lo stub: due passi sovrapposti */
+body.imbarco .hero-stat::after {
+    content: '';
+    position: absolute;
+    top: 15px;
+    bottom: 15px;
+    right: calc((var(--imbStub) - 12px) / 2);
+    width: 12px;
+    background-image:
+        repeating-linear-gradient(180deg,
+            rgba(255, 215, 0, 0.22) 0,
+            rgba(255, 215, 0, 0.22) 1px,
+            rgba(255, 215, 0, 0)    1px,
+            rgba(255, 215, 0, 0)    3px),
+        repeating-linear-gradient(180deg,
+            rgba(255, 215, 0, 0.14) 0,
+            rgba(255, 215, 0, 0.14) 2px,
+            rgba(255, 215, 0, 0)    2px,
+            rgba(255, 215, 0, 0)    7px);
+    border-radius: 1px;
+    pointer-events: none;
+}
+
+/* Tacche di perforazione che mordono i bordi alto/basso (iniettate dal JS) */
+body.imbarco .imbarco-notch {
+    position: absolute;
+    right: calc(var(--imbStub) - 6px);
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 50%,
+        #030303 0,
+        #030303 4.2px,
+        rgba(255, 215, 0, 0.3) 4.6px,
+        rgba(255, 215, 0, 0.3) 5.4px,
+        rgba(3, 3, 3, 0) 5.8px);
+    pointer-events: none;
+    z-index: 2;
+    font-style: normal;
+}
+body.imbarco .imbarco-notch-t { top: -6px; }
+body.imbarco .imbarco-notch-b { bottom: -6px; }
+
+/* Intestazione a due righe: "BOOM //" sopra la label esistente */
+body.imbarco .hero-stat-label {
+    order: -1;
+    margin: 0 0 10px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.55);
+}
+body.imbarco .hero-stat-label::before {
+    content: 'BOOM //';
+    display: block;
+    margin-bottom: 3px;
+    font-size: 8px;
+    letter-spacing: 3px;
+    color: rgba(255, 215, 0, 0.5);
+}
+
+/* Il valore flap resta protagonista, centro-sinistra */
+body.imbarco .hero-stat-value {
+    margin: 0;
+    white-space: nowrap;
+}
+
+/* Riga microcopy (iniettata dal JS) */
+body.imbarco .imbarco-line {
+    display: block;
+    margin-top: 8px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-style: normal;
+    font-size: 7.5px;
+    font-weight: 400;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: rgba(255, 215, 0, 0.45);
+    white-space: nowrap;
+}
+
+/* Cerimonia d'ingresso: le carte escono dalla stampante */
+@keyframes imbarcoPrint {
+    0%   { opacity: 0; transform: translateY(12px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+body.imbarco.imbarco-enter .hero-stat {
+    animation: imbarcoPrint 0.45s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+body.imbarco.imbarco-enter .hero-stat:nth-child(2) { animation-delay: 0.08s; }
+body.imbarco.imbarco-enter .hero-stat:nth-child(3) { animation-delay: 0.16s; }
+body.imbarco.imbarco-enter .hero-stat:nth-child(4) { animation-delay: 0.24s; }
+
+@media (prefers-reduced-motion: reduce) {
+    body.imbarco .hero-stat { animation: none !important; }
+}
+
+/* Mobile: 2x2 (gia' nel grid base), stub compattato */
+@media (max-width: 639px) {
+    body.imbarco .hero-stat {
+        --imbStub: 34px;
+        max-width: none;
+        padding-right: calc(var(--imbStub) + 10px);
+    }
+    body.imbarco .hero-stat::after {
+        width: 10px;
+        right: calc((var(--imbStub) - 10px) / 2);
+        top: 13px;
+        bottom: 13px;
+    }
+}
+
+.stclk{position:fixed;top:96px;right:clamp(24px,7vw,108px);z-index:5;display:none;flex-direction:column;align-items:center;gap:8px;pointer-events:none;opacity:0;transform:translateY(-6px);transition:opacity .9s cubic-bezier(.22,1,.36,1),transform .9s cubic-bezier(.22,1,.36,1)}
+.stclk.on{opacity:1;transform:none}
+.stclk-dial{display:block;width:72px;height:72px;border-radius:50%}
+.stclk-cap{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:8px;font-weight:400;line-height:1;letter-spacing:3px;text-indent:3px;color:rgba(255,215,0,0.5);text-transform:uppercase;-webkit-user-select:none;user-select:none}
+@media (min-width:1100px){.stclk{display:flex}}
+@media (prefers-reduced-motion:reduce){.stclk{transition:none;transform:none;opacity:1}}
+
+.boom-audio-toggle{position:fixed;right:18px;bottom:18px;z-index:300;display:inline-block;margin:0;padding:9px 16px;font-family:"SF Mono","Roboto Mono",ui-monospace,Menlo,Consolas,monospace;font-size:9px;font-weight:400;letter-spacing:2px;line-height:1;text-transform:uppercase;color:rgba(255,215,0,.5);background:rgba(10,10,10,.8);border:1px solid rgba(255,215,0,.2);border-radius:100px;cursor:pointer;-webkit-appearance:none;appearance:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;transition:color .3s ease}
+.boom-audio-toggle.is-on{color:rgba(255,215,0,.9)}
+.boom-audio-toggle:focus{outline:none}
+.boom-audio-toggle:focus-visible{outline:1px solid rgba(255,215,0,.6);outline-offset:3px}
+
+/* ── Orologio flap · testata tabellone ── */
+.fclk{ display:inline-flex; align-items:center; white-space:nowrap; }
+.fclk-b{ display:inline-block; }
+.fclk-sep{
+  display:inline-block;
+  font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+  font-weight:400;
+  font-style:normal;
+  text-decoration:none;            /* <s> nasce barrato: azzerato */
+  color:#FFD700;
+  opacity:.55;                     /* riposo (e stato reduced-motion) */
+  margin:0 .22em;
+  transform:translateY(-.08em);    /* i due punti otticamente a centro cella */
+  animation:fclkBlink 1s steps(1,end) infinite;  /* il battito del tempo */
+}
+@keyframes fclkBlink{
+  0%,100%{ opacity:1 }
+  50%    { opacity:.35 }
+}
+@media (prefers-reduced-motion:reduce){
+  .fclk-sep{ animation:none; opacity:.55; }
+}
+
+/* ═══ Tabellone partenze — vita e interattività (tabelloneVita) ═══ */
+
+/* Il pannello vivo riacquista il puntatore (base: pointer-events:none) */
+.tbp-panel.tbp-live{ pointer-events:auto; }
+.tbp-panel.tbp-live .tbp-row{ position:relative; cursor:pointer; }
+
+/* Transizioni di riga: dissolvenze da orafo, mai scatti */
+.tbp-row{ transition:opacity .8s ease, background-color .35s ease; }
+.tbp-zona{ transition:filter .35s ease; }
+.tbp-stato{ transition:filter .6s ease; }
+
+/* BOARDING: lo stato si accende, nient'altro cambia */
+.tbp-row.tbp-hot .tbp-stato{ filter:brightness(1.45); }
+
+/* DEPARTED: la riga si spegne ma resta leggibile */
+.tbp-row.tbp-gone{ opacity:.45; }
+
+/* Hover solo su puntatore fine: oro a dose omeopatica + freccia mono */
+@media (hover:hover) and (pointer:fine){
+  .tbp-panel.tbp-live .tbp-row:hover{ background-color:rgba(255,215,0,.04); }
+  .tbp-panel.tbp-live .tbp-row:hover .tbp-zona{ filter:brightness(1.25); }
+  .tbp-panel.tbp-live .tbp-row::after{
+    content:'→';
+    position:absolute; right:8px; top:50%;
+    transform:translateY(-50%) translateX(-4px);
+    font-family:'SF Mono',ui-monospace,Menlo,Consolas,monospace;
+    font-size:10px; font-weight:400; line-height:1;
+    color:rgba(255,215,0,.5);
+    opacity:0;
+    transition:opacity .25s ease, transform .25s ease;
+    pointer-events:none;
+  }
+  .tbp-panel.tbp-live .tbp-row:hover::after{
+    opacity:1;
+    transform:translateY(-50%) translateX(0);
+  }
+}
+
+/* Riga-invito: il tabellone È l'inventario */
+.tbp-invite{
+  display:block;
+  margin-top:9px;
+  padding:8px 10px 2px;
+  border-top:1px solid rgba(255,215,0,.10);
+  font-family:'SF Mono',ui-monospace,Menlo,Consolas,monospace;
+  font-size:8px; font-weight:400; letter-spacing:2px;
+  color:rgba(255,215,0,.4);
+  text-decoration:none; text-align:center;
+  transition:color .3s ease;
+}
+.tbp-invite:hover,
+.tbp-invite:focus-visible{ color:rgba(255,215,0,.7); }
+
+
         ::selection {
             background: var(--gold);
             color: var(--black);
@@ -3790,6 +4196,7 @@
     </script>
         <script defer src="/js/boom-campo.js"></script>
         <script defer src="/js/boom-solari.js"></script>
+        <script defer src="/js/boom-terminale.js"></script>
         <script defer src="/js/boom-cinema.js"></script>
     <script defer src="/js/boom-track.js"></script>
     <!-- boom-bg.js (guilloché texture) intentionally NOT loaded on the home:

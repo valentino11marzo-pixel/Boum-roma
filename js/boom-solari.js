@@ -170,6 +170,10 @@
       el.dataset.counted = '1';              /* keep the count-up animation off the board */
       return new Board(el, el.dataset.flap.length, DRUM_NUM);
     });
+    if (window.BoomSolari) {                 /* shared handles for boom-terminale.js */
+      window.BoomSolari.wordBoard = wordBoard;
+      window.BoomSolari.statBoards = boards;
+    }
 
     if (reduced) {
       if (wordBoard) wordBoard.show('DAYS');
@@ -206,5 +210,5 @@
     boot();
   }
 
-  window.BoomSolari = { Cell: Cell, Board: Board };
+  window.BoomSolari = { Cell: Cell, Board: Board, wordBoard: null, statBoards: [] };
 })();
