@@ -164,512 +164,112 @@
             background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
         }
 
-        /* ═══════════════════════════════════════════════════════════
-           IL CAMPO — quiet light field (js/boom-campo.js)
-           Atelier system: the voice of the home is the Solari
-           typography (js/boom-solari.js); the background is only an
-           atmosphere — sunlight through an off-stage colonnade,
-           alpha budget ≤ 0.05. One canvas, nothing else.
-           ═══════════════════════════════════════════════════════════ */
-        #boomCampo {
+        /* Tech Background Container */
+        .tech-bg {
             position: fixed;
-            inset: 0;
-            z-index: 0;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             pointer-events: none;
-        }
-
-        /* When the canvas field is live, the CSS radar fallback rests */
-        body.radar-live .radar-container { display: none; }
-
-        /* ═══════════════════════════════════════════════════════════
-           SOLARI — split-flap cells (driven by js/boom-solari.js).
-           Two static half-cells + two 3D leaves; the hinge line at the
-           center. The board is built from EXISTING text: the "DAYS" in
-           the title (#flapWord) and the four stats ([data-flap]).
-           ═══════════════════════════════════════════════════════════ */
-        .fc2 {
-            --ch: 1.26em;
-            --cw: 0.84em;
-            --gs: 0px;
-            position: relative;
-            display: inline-block;
-            width: var(--cw);
-            height: var(--ch);
-            margin-right: 0.07em;
-            vertical-align: -0.20em;
-            border-radius: 0.085em;
-            background: #060606;
-            box-shadow:
-                inset 0 0 0 1px rgba(255, 255, 255, 0.045),
-                0 0.08em 0.3em rgba(0, 0, 0, 0.6);
-            perspective: 3em;
-            color: var(--gold);
-        }
-        .fc2 i {
-            position: absolute;
-            left: 0;
-            width: 100%;
-            height: 50%;
+            z-index: 0;
             overflow: hidden;
-            font-style: normal;
         }
-        .fc2 i b {
+
+        /* Animated gradient orbs */
+        .tech-orb {
             position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.04;
+            animation: orb-float 20s ease-in-out infinite;
+        }
+
+        .tech-orb-1 {
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, var(--gold) 0%, transparent 70%);
+            top: -200px;
+            right: -100px;
+            animation-delay: 0s;
+        }
+
+        .tech-orb-2 {
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, #635BFF 0%, transparent 70%);
+            bottom: -150px;
+            left: -100px;
+            animation-delay: -7s;
+            opacity: 0.025;
+        }
+
+        .tech-orb-3 {
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, var(--gold-light) 0%, transparent 70%);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation-delay: -14s;
+            opacity: 0.02;
+        }
+
+        @keyframes orb-float {
+            0%, 100% {
+                transform: translate(0, 0) scale(1);
+            }
+            25% {
+                transform: translate(30px, -20px) scale(1.05);
+            }
+            50% {
+                transform: translate(-20px, 30px) scale(0.95);
+            }
+            75% {
+                transform: translate(-30px, -10px) scale(1.02);
+            }
+        }
+
+        /* Subtle grid overlay */
+        .tech-grid {
+            position: absolute;
+            top: 0;
             left: 0;
             width: 100%;
-            height: var(--ch);
-            line-height: var(--ch);
-            text-align: center;
-            font-weight: inherit;
-            transform: translateY(var(--gs));
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(255, 215, 0, 0.015) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 215, 0, 0.015) 1px, transparent 1px);
+            background-size: 80px 80px;
+            mask-image: radial-gradient(ellipse at center, black 0%, transparent 70%);
+            -webkit-mask-image: radial-gradient(ellipse at center, black 0%, transparent 70%);
         }
-        .fc2 .st { top: 0; border-radius: 0.085em 0.085em 0 0; background: linear-gradient(180deg, #191919, #0F0F0F); z-index: 1; }
-        .fc2 .sb { bottom: 0; border-radius: 0 0 0.085em 0.085em; background: linear-gradient(180deg, #0A0A0A, #121212); z-index: 1; }
-        .fc2 .st b { top: 0; }
-        .fc2 .sb b { top: -100%; }
-        .fc2 .lt { top: 0; border-radius: 0.085em 0.085em 0 0; background: linear-gradient(180deg, #191919, #0F0F0F); transform-origin: center bottom; z-index: 4; display: none; }
-        .fc2 .lt b { top: 0; }
-        .fc2 .lb { bottom: 0; border-radius: 0 0 0.085em 0.085em; background: linear-gradient(180deg, #0A0A0A, #121212); transform-origin: center top; transform: rotateX(88deg); z-index: 3; display: none; }
-        .fc2 .lb b { top: -100%; }
-        .fc2 s {
-            position: absolute;
-            left: 0; right: 0; top: 50%;
-            height: 0.035em;
-            min-height: 1px;
-            margin-top: calc(0.035em / -2);
-            background: linear-gradient(180deg, rgba(0, 0, 0, 0.92), rgba(0, 0, 0, 0.5));
-            z-index: 6;
-            text-decoration: none;
+
+        /* Interactive mouse glow - activated by JS */
+        .mouse-glow {
+            position: fixed;
+            width: 400px;
+            height: 400px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255, 215, 0, 0.06) 0%, transparent 60%);
+            pointer-events: none;
+            z-index: 1;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            transform: translate(-50%, -50%);
         }
-        .fc2 s::before, .fc2 s::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            width: 0.055em;
-            height: 0.16em;
-            transform: translateY(-50%);
-            background: linear-gradient(180deg, #000, #1A1A1A);
-            border-radius: 0.02em;
+
+        .mouse-glow.active {
+            opacity: 1;
         }
-        .fc2 s::before { left: 0; border-radius: 0 0.02em 0.02em 0; }
-        .fc2 s::after { right: 0; border-radius: 0.02em 0 0 0.02em; }
-        @keyframes flTop {
-            0%   { transform: rotateX(0);      filter: brightness(1); }
-            100% { transform: rotateX(-88deg); filter: brightness(0.45); }
+
+        @media (max-width: 768px) {
+            .tech-orb-1 { width: 300px; height: 300px; }
+            .tech-orb-2 { width: 250px; height: 250px; }
+            .tech-orb-3 { display: none; }
+            .tech-grid { background-size: 50px 50px; }
+            .mouse-glow { display: none; }
         }
-        @keyframes flBot {
-            0%   { transform: rotateX(88deg);  filter: brightness(0.5); }
-            55%  { filter: brightness(1.15); }
-            100% { transform: rotateX(0);      filter: brightness(1); }
-        }
-        .flap-scale { font-size: 0.94em; letter-spacing: 0; }
-        .hero-stat-value.flap-scale { font-size: clamp(26px, 5.2vw, 31px); }
-
-        /* ═══════════════════════════════════════════════════════════
-           IL TERMINALE — experience layer (js/boom-terminale.js):
-           gate · linea gialla · orologio · carte d'imbarco ·
-           tabellone partenze vivo · clack opzionale.
-           ═══════════════════════════════════════════════════════════ */
-.tbp-panel{
-  position:absolute;
-  right:clamp(24px,7vw,108px);
-  top:57%;
-  transform:translateY(-50%);
-  width:392px;
-  box-sizing:border-box;
-  padding:20px 20px 18px;
-  background:rgba(10,10,10,.8);
-  border:1px solid rgba(255,215,0,.15);
-  border-radius:12px;
-  backdrop-filter:blur(4px);
-  -webkit-backdrop-filter:blur(4px);
-  font-family:'Helvetica Neue',Inter,sans-serif;
-  pointer-events:none;
-  -webkit-user-select:none;
-  user-select:none;
-  z-index:3;
-}
-@media (max-width:1099.98px){
-  .tbp-panel{display:none;}
-}
-.tbp-head{
-  display:flex;
-  justify-content:space-between;
-  align-items:baseline;
-  font:400 9px/1 ui-monospace,'SF Mono',Menlo,monospace;
-  letter-spacing:3px;
-  color:rgba(255,215,0,.55);
-  white-space:nowrap;
-  padding-bottom:12px;
-  margin-bottom:12px;
-  border-bottom:1px solid rgba(255,215,0,.12);
-}
-.tbp-dot{
-  display:inline-block;
-  width:3px;
-  height:3px;
-  border-radius:50%;
-  background:#30D158;
-  box-shadow:0 0 6px rgba(48,209,88,.9);
-  vertical-align:1px;
-  margin-right:4px;
-}
-.tbp-cols{
-  display:flex;
-  align-items:baseline;
-  gap:12px;
-  font:400 8px/1 ui-monospace,'SF Mono',Menlo,monospace;
-  letter-spacing:2px;
-  color:rgba(255,255,255,.3);
-  white-space:nowrap;
-  margin-bottom:10px;
-}
-.tbp-c1{flex:1 1 auto;}
-.tbp-c2{flex:0 0 46px;}
-.tbp-c3{flex:0 0 auto;}
-.tbp-rows{
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-}
-.tbp-row{
-  display:flex;
-  align-items:center;
-  gap:12px;
-}
-.tbp-zone{
-  flex:1 1 auto;
-  min-width:0;
-  font-size:13px;
-  line-height:1;
-  letter-spacing:0;
-  white-space:nowrap;
-  overflow:hidden;
-}
-.tbp-tipo{
-  flex:0 0 46px;
-  font:400 10px/1 ui-monospace,'SF Mono',Menlo,monospace;
-  letter-spacing:1px;
-  color:rgba(255,255,255,.45);
-  white-space:nowrap;
-}
-.tbp-stato{
-  flex:0 0 auto;
-  font-size:11px;
-  line-height:1;
-  letter-spacing:0;
-  white-space:nowrap;
-}
-
-/* ============================================================
-   SEGNALETICA — wayfinding di stazione (statico per definizione)
-   Scope totale: body.segnaletica
-   ============================================================ */
-
-/* 1 · GATE SIGN — l'eyebrow diventa un cartello gate */
-body.segnaletica .hero-eyebrow {
-    background: #0B0B0B;
-    border: 1px solid rgba(255, 215, 0, 0.2);
-    border-radius: 6px;
-    padding: 0 14px 0 0;
-    overflow: hidden;
-}
-
-/* blocchetto oro pieno a sinistra: "GATE" nero, mono, a tutta altezza */
-body.segnaletica .hero-eyebrow::before {
-    content: 'GATE';
-    align-self: stretch;
-    display: inline-flex;
-    align-items: center;
-    padding: 7px 9px 7px 10px; /* dx -1px: compensa la coda del letter-spacing */
-    background: var(--gold, #FFD700);
-    color: #030303;
-    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-    font-size: 9px;
-    font-weight: 700;
-    line-height: 1;
-    letter-spacing: 1.5px;
-    border-radius: 5px 0 0 5px; /* 6px esterni - 1px di bordo */
-}
-
-/* freccia direzionale dopo il testo */
-body.segnaletica .hero-eyebrow::after {
-    content: '\2192';
-    color: var(--gold, #FFD700);
-    font-size: 12px;
-    font-weight: 300;
-    line-height: 1;
-}
-
-/* 2 · LINEA DI BANCHINA — hairline oro sopra la riga statistiche */
-body.segnaletica .hero-stats.linea-banchina {
-    position: relative;
-    border-top: 1px solid rgba(255, 215, 0, 0.18);
-    padding-top: 18px;
-}
-
-body.segnaletica .hero-stats.linea-banchina::before {
-    content: 'ATTENZIONE ALLA LINEA GIALLA \00B7 MIND THE GOLD LINE';
-    position: absolute;
-    left: 0;
-    bottom: calc(100% + 10px);
-    max-width: 100%;
-    overflow: hidden;
-    white-space: nowrap;
-    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-    font-size: 8px;
-    font-weight: 400;
-    line-height: 1;
-    letter-spacing: 3px;
-    color: rgba(255, 215, 0, 0.4);
-    pointer-events: none;
-}
-
-/* ═══════════════════════════════════════════════════════
-   IMBARCO 2.0 — boarding-pass hero stats (body.imbarco)
-   Biglietto: corpo #0C0C0C + stub destro con strappo,
-   tacche di perforazione e micro-barcode verticale.
-   ═══════════════════════════════════════════════════════ */
-body.imbarco .hero-stats { align-items: stretch; }
-
-body.imbarco .hero-stat {
-    --imbStub: 46px;
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: space-between;
-    text-align: left;
-    width: 100%;
-    max-width: 185px;
-    min-height: 100px;
-    padding: 13px calc(var(--imbStub) + 12px) 13px 15px;
-    background: #0C0C0C;
-    border: 1px solid rgba(255, 215, 0, 0.18);
-    border-radius: 10px;
-    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45),
-                inset 0 1px 0 rgba(255, 255, 255, 0.04);
-    overflow: visible;
-}
-
-/* Linea di strappo verticale (tratteggiata) al confine dello stub */
-body.imbarco .hero-stat::before {
-    content: '';
-    position: absolute;
-    top: 8px;
-    bottom: 8px;
-    right: var(--imbStub);
-    width: 1px;
-    background: repeating-linear-gradient(180deg,
-        rgba(255, 215, 0, 0.28) 0,
-        rgba(255, 215, 0, 0.28) 4px,
-        rgba(255, 215, 0, 0)    4px,
-        rgba(255, 215, 0, 0)    9px);
-    pointer-events: none;
-}
-
-/* Micro-barcode verticale dentro lo stub: due passi sovrapposti */
-body.imbarco .hero-stat::after {
-    content: '';
-    position: absolute;
-    top: 15px;
-    bottom: 15px;
-    right: calc((var(--imbStub) - 12px) / 2);
-    width: 12px;
-    background-image:
-        repeating-linear-gradient(180deg,
-            rgba(255, 215, 0, 0.22) 0,
-            rgba(255, 215, 0, 0.22) 1px,
-            rgba(255, 215, 0, 0)    1px,
-            rgba(255, 215, 0, 0)    3px),
-        repeating-linear-gradient(180deg,
-            rgba(255, 215, 0, 0.14) 0,
-            rgba(255, 215, 0, 0.14) 2px,
-            rgba(255, 215, 0, 0)    2px,
-            rgba(255, 215, 0, 0)    7px);
-    border-radius: 1px;
-    pointer-events: none;
-}
-
-/* Tacche di perforazione che mordono i bordi alto/basso (iniettate dal JS) */
-body.imbarco .imbarco-notch {
-    position: absolute;
-    right: calc(var(--imbStub) - 6px);
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 50% 50%,
-        #030303 0,
-        #030303 4.2px,
-        rgba(255, 215, 0, 0.3) 4.6px,
-        rgba(255, 215, 0, 0.3) 5.4px,
-        rgba(3, 3, 3, 0) 5.8px);
-    pointer-events: none;
-    z-index: 2;
-    font-style: normal;
-}
-body.imbarco .imbarco-notch-t { top: -6px; }
-body.imbarco .imbarco-notch-b { bottom: -6px; }
-
-/* Intestazione a due righe: "BOOM //" sopra la label esistente */
-body.imbarco .hero-stat-label {
-    order: -1;
-    margin: 0 0 10px;
-    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-    font-size: 9px;
-    font-weight: 400;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.55);
-}
-body.imbarco .hero-stat-label::before {
-    content: 'BOOM //';
-    display: block;
-    margin-bottom: 3px;
-    font-size: 8px;
-    letter-spacing: 3px;
-    color: rgba(255, 215, 0, 0.5);
-}
-
-/* Il valore flap resta protagonista, centro-sinistra */
-body.imbarco .hero-stat-value {
-    margin: 0;
-    white-space: nowrap;
-}
-
-/* Riga microcopy (iniettata dal JS) */
-body.imbarco .imbarco-line {
-    display: block;
-    margin-top: 8px;
-    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-    font-style: normal;
-    font-size: 7.5px;
-    font-weight: 400;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    color: rgba(255, 215, 0, 0.45);
-    white-space: nowrap;
-}
-
-/* Cerimonia d'ingresso: le carte escono dalla stampante */
-@keyframes imbarcoPrint {
-    0%   { opacity: 0; transform: translateY(12px); }
-    100% { opacity: 1; transform: translateY(0); }
-}
-body.imbarco.imbarco-enter .hero-stat {
-    animation: imbarcoPrint 0.45s cubic-bezier(0.22, 0.61, 0.36, 1) both;
-}
-body.imbarco.imbarco-enter .hero-stat:nth-child(2) { animation-delay: 0.08s; }
-body.imbarco.imbarco-enter .hero-stat:nth-child(3) { animation-delay: 0.16s; }
-body.imbarco.imbarco-enter .hero-stat:nth-child(4) { animation-delay: 0.24s; }
-
-@media (prefers-reduced-motion: reduce) {
-    body.imbarco .hero-stat { animation: none !important; }
-}
-
-/* Mobile: 2x2 (gia' nel grid base), stub compattato */
-@media (max-width: 639px) {
-    body.imbarco .hero-stat {
-        --imbStub: 34px;
-        max-width: none;
-        padding-right: calc(var(--imbStub) + 10px);
-    }
-    body.imbarco .hero-stat::after {
-        width: 10px;
-        right: calc((var(--imbStub) - 10px) / 2);
-        top: 13px;
-        bottom: 13px;
-    }
-}
-
-.stclk{position:fixed;top:96px;right:clamp(24px,7vw,108px);z-index:5;display:none;flex-direction:column;align-items:center;gap:8px;pointer-events:none;opacity:0;transform:translateY(-6px);transition:opacity .9s cubic-bezier(.22,1,.36,1),transform .9s cubic-bezier(.22,1,.36,1)}
-.stclk.on{opacity:1;transform:none}
-.stclk-dial{display:block;width:72px;height:72px;border-radius:50%}
-.stclk-cap{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:8px;font-weight:400;line-height:1;letter-spacing:3px;text-indent:3px;color:rgba(255,215,0,0.5);text-transform:uppercase;-webkit-user-select:none;user-select:none}
-@media (min-width:1100px){.stclk{display:flex}}
-@media (prefers-reduced-motion:reduce){.stclk{transition:none;transform:none;opacity:1}}
-
-.boom-audio-toggle{position:fixed;right:18px;bottom:18px;z-index:300;display:inline-block;margin:0;padding:9px 16px;font-family:"SF Mono","Roboto Mono",ui-monospace,Menlo,Consolas,monospace;font-size:9px;font-weight:400;letter-spacing:2px;line-height:1;text-transform:uppercase;color:rgba(255,215,0,.5);background:rgba(10,10,10,.8);border:1px solid rgba(255,215,0,.2);border-radius:100px;cursor:pointer;-webkit-appearance:none;appearance:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;transition:color .3s ease}
-.boom-audio-toggle.is-on{color:rgba(255,215,0,.9)}
-.boom-audio-toggle:focus{outline:none}
-.boom-audio-toggle:focus-visible{outline:1px solid rgba(255,215,0,.6);outline-offset:3px}
-
-/* ── Orologio flap · testata tabellone ── */
-.fclk{ display:inline-flex; align-items:center; white-space:nowrap; }
-.fclk-b{ display:inline-block; }
-.fclk-sep{
-  display:inline-block;
-  font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
-  font-weight:400;
-  font-style:normal;
-  text-decoration:none;            /* <s> nasce barrato: azzerato */
-  color:#FFD700;
-  opacity:.55;                     /* riposo (e stato reduced-motion) */
-  margin:0 .22em;
-  transform:translateY(-.08em);    /* i due punti otticamente a centro cella */
-  animation:fclkBlink 1s steps(1,end) infinite;  /* il battito del tempo */
-}
-@keyframes fclkBlink{
-  0%,100%{ opacity:1 }
-  50%    { opacity:.35 }
-}
-@media (prefers-reduced-motion:reduce){
-  .fclk-sep{ animation:none; opacity:.55; }
-}
-
-/* ═══ Tabellone partenze — vita e interattività (tabelloneVita) ═══ */
-
-/* Il pannello vivo riacquista il puntatore (base: pointer-events:none) */
-.tbp-panel.tbp-live{ pointer-events:auto; }
-.tbp-panel.tbp-live .tbp-row{ position:relative; cursor:pointer; }
-
-/* Transizioni di riga: dissolvenze da orafo, mai scatti */
-.tbp-row{ transition:opacity .8s ease, background-color .35s ease; }
-.tbp-zona{ transition:filter .35s ease; }
-.tbp-stato{ transition:filter .6s ease; }
-
-/* BOARDING: lo stato si accende, nient'altro cambia */
-.tbp-row.tbp-hot .tbp-stato{ filter:brightness(1.45); }
-
-/* DEPARTED: la riga si spegne ma resta leggibile */
-.tbp-row.tbp-gone{ opacity:.45; }
-
-/* Hover solo su puntatore fine: oro a dose omeopatica + freccia mono */
-@media (hover:hover) and (pointer:fine){
-  .tbp-panel.tbp-live .tbp-row:hover{ background-color:rgba(255,215,0,.04); }
-  .tbp-panel.tbp-live .tbp-row:hover .tbp-zona{ filter:brightness(1.25); }
-  .tbp-panel.tbp-live .tbp-row::after{
-    content:'→';
-    position:absolute; right:8px; top:50%;
-    transform:translateY(-50%) translateX(-4px);
-    font-family:'SF Mono',ui-monospace,Menlo,Consolas,monospace;
-    font-size:10px; font-weight:400; line-height:1;
-    color:rgba(255,215,0,.5);
-    opacity:0;
-    transition:opacity .25s ease, transform .25s ease;
-    pointer-events:none;
-  }
-  .tbp-panel.tbp-live .tbp-row:hover::after{
-    opacity:1;
-    transform:translateY(-50%) translateX(0);
-  }
-}
-
-/* Riga-invito: il tabellone È l'inventario */
-.tbp-invite{
-  display:block;
-  margin-top:9px;
-  padding:8px 10px 2px;
-  border-top:1px solid rgba(255,215,0,.10);
-  font-family:'SF Mono',ui-monospace,Menlo,Consolas,monospace;
-  font-size:8px; font-weight:400; letter-spacing:2px;
-  color:rgba(255,215,0,.4);
-  text-decoration:none; text-align:center;
-  transition:color .3s ease;
-}
-.tbp-invite:hover,
-.tbp-invite:focus-visible{ color:rgba(255,215,0,.7); }
-
 
         ::selection {
             background: var(--gold);
@@ -950,14 +550,53 @@ body.imbarco.imbarco-enter .hero-stat:nth-child(4) { animation-delay: 0.24s; }
             overflow: hidden;
         }
 
-        /* Ambient Background — kept as an (empty) anchor: its presence
-           tells boom-cinema.js the page has its own ambient layer, so the
-           shared engine doesn't inject .cine-ambient on top of RadarScape */
+        /* Ambient Background */
         .hero-ambient {
             position: absolute;
             inset: 0;
             overflow: hidden;
             pointer-events: none;
+        }
+
+        .hero-glow {
+            position: absolute;
+            width: 800px;
+            height: 800px;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.12;
+        }
+
+        .hero-glow-1 {
+            background: var(--gold);
+            top: -300px;
+            right: -200px;
+            animation: float-slow 20s ease-in-out infinite;
+        }
+
+        .hero-glow-2 {
+            background: var(--gold);
+            bottom: -400px;
+            left: -300px;
+            animation: float-slow 25s ease-in-out infinite reverse;
+            opacity: 0.08;
+        }
+
+        @keyframes float-slow {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(30px, -30px); }
+        }
+
+        /* Grid Pattern */
+        .hero-grid {
+            position: absolute;
+            inset: 0;
+            background-image: 
+                linear-gradient(rgba(255, 215, 0, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 215, 0, 0.02) 1px, transparent 1px);
+            background-size: 60px 60px;
+            mask-image: radial-gradient(ellipse at center, black 0%, transparent 70%);
+            -webkit-mask-image: radial-gradient(ellipse at center, black 0%, transparent 70%);
         }
 
         /* Radar Animation */
@@ -3054,8 +2693,14 @@ body.imbarco.imbarco-enter .hero-stat:nth-child(4) { animation-delay: 0.24s; }
 <script defer src="/js/boom-consent.js"></script>
 </head>
 <body>
-    <!-- Il Campo — quiet colonnade-light field behind the hero (js/boom-campo.js) -->
-    <canvas id="boomCampo" aria-hidden="true"></canvas>
+    <!-- Tech Background -->
+    <div class="tech-bg">
+        <div class="tech-orb tech-orb-1"></div>
+        <div class="tech-orb tech-orb-2"></div>
+        <div class="tech-orb tech-orb-3"></div>
+        <div class="tech-grid"></div>
+    </div>
+    <div class="mouse-glow" id="mouseGlow"></div>
 
     <!-- Scroll Progress -->
     <div class="scroll-progress" id="scrollProgress"></div>
@@ -3117,10 +2762,13 @@ body.imbarco.imbarco-enter .hero-stat:nth-child(4) { animation-delay: 0.24s; }
 
     <!-- Hero -->
     <section class="hero">
-        <!-- Empty on purpose: suppresses boom-cinema's injected ambient (RadarScape owns the background) -->
-        <div class="hero-ambient"></div>
+        <div class="hero-ambient">
+            <div class="hero-glow hero-glow-1"></div>
+            <div class="hero-glow hero-glow-2"></div>
+            <div class="hero-grid"></div>
+        </div>
 
-        <!-- Radar Animation — CSS fallback, hidden while the RadarScape canvas is live -->
+        <!-- Radar Animation -->
         <div class="radar-container">
             <div class="radar-ring"></div>
             <div class="radar-ring"></div>
@@ -3139,7 +2787,7 @@ body.imbarco.imbarco-enter .hero-stat:nth-child(4) { animation-delay: 0.24s; }
 
             <h1 class="hero-title">
                 GET YOUR <span class="highlight">ROME</span> APARTMENT<br>
-                IN <span class="highlight" id="flapWord">DAYS</span>, NOT WEEKS.
+                IN <span class="highlight">DAYS</span>, NOT WEEKS.
             </h1>
 
             <p class="hero-subtitle">
@@ -3153,19 +2801,19 @@ body.imbarco.imbarco-enter .hero-stat:nth-child(4) { animation-delay: 0.24s; }
 
             <div class="hero-stats">
                 <div class="hero-stat">
-                    <div class="hero-stat-value" data-flap="48H">48h</div>
+                    <div class="hero-stat-value">48h</div>
                     <div class="hero-stat-label">Move-in Time</div>
                 </div>
                 <div class="hero-stat">
-                    <div class="hero-stat-value" data-flap="98%">98%</div>
+                    <div class="hero-stat-value">98%</div>
                     <div class="hero-stat-label">Success Rate</div>
                 </div>
                 <div class="hero-stat">
-                    <div class="hero-stat-value" data-flap="2MIN">2min</div>
+                    <div class="hero-stat-value">2min</div>
                     <div class="hero-stat-label">Response Time</div>
                 </div>
                 <div class="hero-stat">
-                    <div class="hero-stat-value" data-flap="€0">€0</div>
+                    <div class="hero-stat-value">€0</div>
                     <div class="hero-stat-label">Hidden Fees</div>
                 </div>
             </div>
@@ -3996,6 +3644,27 @@ body.imbarco.imbarco-enter .hero-stat:nth-child(4) { animation-delay: 0.24s; }
     <script src="https://unpkg.com/lenis@1.1.13/dist/lenis.min.js"></script>
     <script>
         // ═══════════════════════════════════════════════════════════
+        // Interactive Mouse Glow
+        // ═══════════════════════════════════════════════════════════
+        const mouseGlow = document.getElementById('mouseGlow');
+        let mouseTimeout;
+
+        document.addEventListener('mousemove', (e) => {
+            mouseGlow.style.left = e.clientX + 'px';
+            mouseGlow.style.top = e.clientY + 'px';
+            mouseGlow.classList.add('active');
+            
+            clearTimeout(mouseTimeout);
+            mouseTimeout = setTimeout(() => {
+                mouseGlow.classList.remove('active');
+            }, 1500);
+        });
+
+        document.addEventListener('mouseleave', () => {
+            mouseGlow.classList.remove('active');
+        });
+
+        // ═══════════════════════════════════════════════════════════
         // Navigation
         // ═══════════════════════════════════════════════════════════
         const nav = document.getElementById('nav');
@@ -4194,14 +3863,9 @@ body.imbarco.imbarco-enter .hero-stat:nth-child(4) { animation-delay: 0.24s; }
             navigator.serviceWorker.register('/sw.js', { scope: '/' });
         }
     </script>
-        <script defer src="/js/boom-campo.js"></script>
-        <script defer src="/js/boom-solari.js"></script>
-        <script defer src="/js/boom-terminale.js"></script>
         <script defer src="/js/boom-cinema.js"></script>
     <script defer src="/js/boom-track.js"></script>
     <!-- boom-bg.js (guilloché texture) intentionally NOT loaded on the home:
-         the Atelier system wants one gold layer only — the Campo field.
-         Legacy pages still load it independently. -->
-
+         it fought the page for attention. Legacy pages still load it. -->
 </body>
 </html>
