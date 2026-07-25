@@ -241,7 +241,7 @@ Server-side ear on the portals: reads the Gmail mailbox over IMAP for
 Immobiliare/Idealista/Casa.it/Subito REQUEST emails ("hai ricevuto una
 richiesta" — saved-search alerts stay with pfs/scan-inbox), extracts the
 prospect via Claude haiku (never invents), matches the listing against the
-real catalog, dedupes per email-message (`leadImports`) AND per person
+real catalog, dedupes per email-message (memory doc `heartbeat/leads-inbox-memory`) AND per person
 (same email/phone in 7 days — so Homie's Mac-side ingestion never
 duplicates), and writes the same `leads` schema as `/api/homie/inbound`.
 Heartbeat `pfsRadarHealth/leads-inbox`. Auth like the PFS crons; `?dry=1`.
@@ -258,7 +258,7 @@ deterministic score from phone/email/message depth/expat-EN/employment/
 budget/move-in signals; confident highs and lows graded without AI — only
 the ambiguous middle band proceeds). Stage 1: ONE batched haiku call per
 run (≤20 leads/call, `stage0()` exported+tested, hard daily cap 12 calls in
-`leadBrainBudget/<date>`). Never auto-archives a reachable human (unlike
+`heartbeat/lead-brain-budget`). Never auto-archives a reachable human (unlike
 Homie's score<45 rule): spam dies, thin-but-real stays C. Writes grade/
 gradeReason/intent/confidence on the lead; dead → status archived (the
 Commerciale never spends tokens on them). notify-pending shows 🔥A/🟢B/🟡C,

@@ -130,9 +130,15 @@ export default async function handler(req, res) {
     // batched AI for the middle band, behind a daily cap
     if (ambiguous.length) {
       const key = process.env.ANTHROPIC_API_KEY;
+      // daily AI budget in ONE doc under heartbeat/ (already admin-writable
+      // per firestore.rules — no new rules deploy needed); resets on day change
+      const BUDGET_DOC = 'heartbeat/lead-brain-budget';
       const day = new Date().toISOString().slice(0, 10);
       let used = 0;
-      try { used = Number((await fsGet(`leadBrainBudget/${day}`) || {}).calls || 0); } catch { /* first */ }
+      try {
+        const b = (await fsGet(BUDGET_DOC)) || {};
+        used = b.day === day ? Number(b.calls || 0) : 0;
+      } catch { /* first */ }
       if (!key || used >= DAILY_AI_CALL_CAP) {
         stats.capped = true;
         for (const l of ambiguous) grades.set(l.id, { grade: 'B', reason: 'AI cap/off — banda media prudente (' + (l._why || 's0') + ')', confidence: 0.4, by: 'rules-fallback' });
@@ -141,7 +147,10 @@ export default async function handler(req, res) {
         try {
           const out = await gradeBatch(key, batch);
           stats.aiCalls = 1;
-          if (!dry) await fsPatch(`leadBrainBudget/${day}`, { calls: used + 1, at: new Date() });
+          if (!dry) {
+            try { await fsPatch(BUDGET_DOC, { day, calls: used + 1, at: new Date() }); }
+            catch (e) { console.warn('[leads/brain] budget save failed:', e.message); }
+          }
           const byI = new Map((out || []).map(o => [o.i, o]));
           batch.forEach((l, n) => {
             const g = byI.get(n) || {};
