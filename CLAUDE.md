@@ -305,17 +305,25 @@ annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
 - `POST /api/preagreement/convert` — admin/owner/landlord. One tap from the
   console: accepted/paid PA → `contracts` doc (identity/lease/money carried
   over, tenant `users` profile bootstrapped by email match, Magic-Sign
-  tokens minted, `signingOrder:'sequential'`). `delegate:true` (default)
-  records `landlordDelegate` — the landlord-side sign link is returned to
-  the ADMIN who countersigns per delega after the tenant signs (sign.html
+  tokens minted, `signingOrder:'sequential'`). By DEFAULT the OWNER signs
+  directly — the landlord-side link is shared with them from the console
+  (WhatsApp one-tap when `landlord.phone` is set). `delegate:true` is the
+  per-deal OPTION: records `landlordDelegate`, the link stays with the
+  ADMIN who countersigns per delega after the tenant signs (sign.html
   shows "signing as X on behalf of Y"; magic-sign submit stamps
-  `landlordSignedByDelegate`). Idempotent via `pa.contractId`.
+  `landlordSignedByDelegate`). The choice is echoed on `pa.delegated`.
+  Idempotent via `pa.contractId`.
 - `POST /api/preagreement/upload` — public, PA-token-scoped. The Verify
   step's ID/passport upload: base64 (client downscales photos to ~1800px
   JPEG) → Firebase Storage `preagreements/<paId>/…` under ADMIN creds
   (admin-only per storage.rules; tokenized URL kept on `pa.uploads[]`,
   never returned to the public page). Convert copies these onto the
-  contract (`identityDocs`) + tenant user profile.
+  contract (`identityDocs`) + tenant user profile. `kind:'extra'` marks
+  the optional SECOND requested document (`pa.extraDoc`, set from the
+  console — e.g. proof of the transitional need): its own Verify slot,
+  NEVER blocking, uploadable even after acceptance from the accepted page
+  ("One more document" card until it arrives; lookup exposes
+  `extraDoc`/`extraDocCount`).
 - `api/preagreement/_auto.js` — `maybeAutoConvert()`: when the PA carries
   `propertyId` + `autoConvert` (set from the console's "Portal property"
   picker), the contract creates ITSELF the moment the deal closes — from
@@ -344,16 +352,31 @@ annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
   view with "what happens next" timeline (payment → contract → sign →
   keys), Stripe resume, QR, WhatsApp copy, print = b/w paper replica.
   Custom `extras[]` money lines render in §4, `customClauses[]` in §5.
-- `pre-agreement-admin.html` — generator + management console (BoomPortal
-  auth, listing prefill, live fee math, WhatsApp share). Realtime list of all
-  preAgreements with status chips (sent/viewed/accepted/paid/revoked): copy
-  link, WhatsApp, **Edit terms** (patches the SAME doc/token — the client's
+- `pre-agreement-admin.html` — the console, rebuilt as a command deck
+  (BoomPortal auth, Italian UI, brand gold #D4AF37, real BOOM mark).
+  KPI strip (in corso / da chiudere / incassato € / contratti), tabs
+  Nuovo⇄Deals, search + status filter chips with live counts. Form in
+  numbered sections: immobile & proprietario (incl. owner email/WhatsApp
+  for the sign link), lease, money (live riepilogo card), clausole,
+  **documenti richiesti** (extraDoc with one-tap presets: esigenza
+  transitoria / CF / buste paga), cliente. Rows: colored status edge, ONE
+  gold primary action (🖊 Magic Sign / → Contratto), owner-sign WhatsApp
+  share (non-delega + phone), extra-doc state (⏳ in attesa / ✓), uploads
+  links, **Edit terms** (patches the SAME doc/token — the client's
   existing link shows the new terms, status back to `sent`; only for
-  sent/viewed/revoked), Duplicate (prefills a new one), Revoke/Reactivate.
-- `api/preagreement/_notify.js` — b/w document email (modeled on the real
-  proposal) + `sendPaEmails({event:'paid'|'accepted', notifyClient})`.
-  Client gets the document + Stripe receipt link; admin
-  (valentino@boom-rome.com) gets a copy + next-step nudge. Gmail/Nodemailer.
+  sent/viewed/revoked), Duplicate, Revoke/Reactivate. Convert modal:
+  delegate checkbox OFF by default (owner signs directly).
+- `api/preagreement/_notify.js` — one email design system for the whole
+  suite: black masthead + gold BOOM wordmark, white paper card, document
+  with gold N°/PAID chips and a gold "due at signing" band, gold primary
+  CTA + quiet black secondary, Wallet badge.
+  `sendPaEmails({event:'paid'|'accepted', notifyClient})`: client gets the
+  document + Stripe receipt link + PDF attached; admin
+  (valentino@boom-rome.com) gets a copy + next-step nudge + one-tap
+  client-WhatsApp button. `sendContractSignEmail` adapts the landlord
+  block: delega → the admin's countersign link; otherwise → "Firma
+  proprietario" + WhatsApp-to-owner button when `landlord.phone` exists.
+  Gmail/Nodemailer.
 - `api/stripe-webhook.js` PREAGREEMENT branch — on checkout completed:
   doc → `status:'paid'` (+paidEur/paidAt/paidSessionId, idempotent on
   retries), fetches the Stripe receipt_url, sends both emails.

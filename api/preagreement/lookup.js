@@ -43,6 +43,10 @@ export default async function handler(req, res) {
         // uploads stay private (their URLs carry the read token) — the page
         // only needs how many arrived, to restore the Verify step's state
         uploadsCount: Array.isArray(data.uploads) ? data.uploads.length : 0,
+        // the optional second requested document (e.g. proof of transitional
+        // need) — label + whether it already arrived (never blocking)
+        extraDoc: data.extraDoc || null,
+        extraDocCount: Array.isArray(data.uploads) ? data.uploads.filter(u => u && u.kind === 'extra').length : 0,
         contractReady: !!data.contractId,
         note: data.note || null, createdAt: data.createdAt,
         acceptedAt: data.acceptedAt || null, ref: data.ref || null,

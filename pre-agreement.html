@@ -745,33 +745,51 @@ function renderStep3(){
       +'<input type="file" id="upin'+i+'" accept="image/*,application/pdf" style="display:none" onchange="onDoc('+i+',this)">'
       +'</div>';
   });
+  // the optional SECOND requested document (e.g. proof of transitional
+  // need) — never blocking: the client can sign now and send it later
+  // from this same page.
+  if(PA.extraDoc){
+    var gotX=!!UP.x||(Number(PA.extraDocCount)||0)>0;
+    html+='<div class="upcard'+(gotX?' done':'')+'" id="upcx">'
+      +'<div class="uphead"><b>'+esc(PA.extraDoc)+'</b><span class="ubadge">✓ Received</span></div>'
+      +'<div class="uptile" id="uptilex" onclick="pickDoc(\'x\')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></svg><span id="uplblx">Photograph or upload it</span></div>'
+      +'<div class="upchips" id="upchipsx"></div>'
+      +'<input type="file" id="upinx" accept="image/*,application/pdf" style="display:none" onchange="onDoc(\'x\',this)">'
+      +'<div class="jointnote" style="margin-top:11px">Requested for your contract — <b style="color:var(--t2);font-weight:400">not required to sign today</b>. You can send it later from this same page, or on WhatsApp.</div>'
+      +'</div>';
+  }
   html+='<div class="upnote"><b>Encrypted &amp; private.</b> Your document travels over TLS, is stored on Google Cloud with access restricted to your BOOM advisor, and is used only to prepare your rental contract and the mandatory Agenzia delle Entrate registration (GDPR).</div>'
     +'<p class="err" id="p3Err" role="alert"></p>';
   $('p3').innerHTML=html;
   wireReveal($('p3'));
 }
 window.pickDoc=function(i){var e=$('upin'+i);if(e)e.click();};
+/* i is a tenant index (0..5) for IDs, or 'x' for the optional extra
+   requested document. Works on the Verify step AND on the accepted page
+   (late upload — same token, same endpoint). */
 window.onDoc=function(i,input){
   var file=input.files&&input.files[0];if(!file)return;
+  var isX=i==='x';
   var tile=$('uptile'+i),lbl=$('uplbl'+i),err=$('p3Err');
-  err.style.display='none';
+  if(err)err.style.display='none';
   tile.classList.add('busy');
   lbl.innerHTML='';var sp=document.createElement('span');sp.className='spin';lbl.appendChild(sp);lbl.appendChild(document.createTextNode(' Encrypting & uploading…'));
   shrink(file).then(function(payload){
     return fetch('/api/preagreement/upload',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({token:TOKEN,base64:payload.base64,contentType:payload.type,name:file.name,tenantIndex:i})});
+      body:JSON.stringify({token:TOKEN,base64:payload.base64,contentType:payload.type,name:file.name,tenantIndex:isX?0:i,kind:isX?'extra':'id'})});
   }).then(function(r){return r.json()}).then(function(j){
     if(!j||!j.ok)throw 0;
     UP[i]=(UP[i]||0)+1;
+    if(isX)PA.extraDocCount=(Number(PA.extraDocCount)||0)+1;
     var card=$('upc'+i);if(card)card.classList.add('done');
     var chips=$('upchips'+i);
     if(chips){var s=document.createElement('span');s.textContent='✓ '+(file.name.length>26?file.name.slice(0,24)+'…':file.name);chips.appendChild(s);}
-    tile.classList.remove('busy');lbl.textContent='Add another document (e.g. back side)';
+    tile.classList.remove('busy');lbl.textContent=isX?'Add another file':'Add another document (e.g. back side)';
     input.value='';
-    barSync();
+    try{barSync();}catch(_e){}
   }).catch(function(){
-    tile.classList.remove('busy');lbl.textContent='Photograph or upload ID / passport';
-    err.textContent='Upload didn’t go through — try again, or send it later on WhatsApp.';err.style.display='block';
+    tile.classList.remove('busy');lbl.textContent=isX?'Photograph or upload it':'Photograph or upload ID / passport';
+    if(err){err.textContent='Upload didn’t go through — try again, or send it later on WhatsApp.';err.style.display='block';}
     input.value='';
   });
 };
@@ -934,6 +952,17 @@ function renderAccepted(){
   if(stillDue){
     html+='<div style="max-width:430px;margin:20px auto 0"><button class="gbtn" id="payNowBtn" onclick="payNow()">Complete your reservation — '+eur(m.dueAtSigning)+' via Stripe →</button>'
       +'<p style="font-size:11px;color:var(--t3);margin-top:9px">Secured by Stripe · credited to your first month · refunded in full within 48h</p></div>';
+  }
+  // the requested second document, still missing → late upload right here
+  // (same link, same endpoint — zero friction, never a blocker)
+  if(PA.extraDoc&&!(Number(PA.extraDocCount)||0)&&!UP.x){
+    html+='<div class="upcard" id="upcx" style="max-width:430px;margin:24px auto 0;text-align:left">'
+      +'<div class="uphead"><b>One more document</b><span class="ubadge">✓ Received</span></div>'
+      +'<div style="font-size:12.5px;color:var(--t3);margin-bottom:11px;line-height:1.6">'+esc(PA.extraDoc)+' — whenever you’re ready. Upload it here or send it on <a href="https://wa.me/393313251961" style="color:var(--gold)">WhatsApp</a>.</div>'
+      +'<div class="uptile" id="uptilex" onclick="pickDoc(\'x\')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></svg><span id="uplblx">Photograph or upload it</span></div>'
+      +'<div class="upchips" id="upchipsx"></div>'
+      +'<input type="file" id="upinx" accept="image/*,application/pdf" style="display:none" onchange="onDoc(\'x\',this)">'
+      +'</div>';
   }
   var contractReady=!!PA.contractReady;
   html+='<div class="timeline">'

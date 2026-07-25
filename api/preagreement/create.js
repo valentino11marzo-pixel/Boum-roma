@@ -121,6 +121,13 @@ export default async function handler(req, res) {
   }
 
   const token = crypto.randomBytes(16).toString('hex');
+  // Optional landlord contact — lets the console share the owner's sign link
+  // directly (most contracts are signed by the owner; delega is the option).
+  const landlord = {
+    name: landlordName,
+    email: clip((b.landlord || {}).email, 160),
+    phone: clip((b.landlord || {}).phone, 60),
+  };
   const tenant = {
     fullName: clip((b.tenant || {}).fullName, 120),
     email: clip((b.tenant || {}).email, 160),
@@ -146,7 +153,11 @@ export default async function handler(req, res) {
       floor: clip(p.floor, 40),
       unit: clip(p.unit, 40),
     },
-    landlord: { name: landlordName },
+    landlord,
+    // Optional SECOND document requested in the Verify step (besides the ID)
+    // — e.g. proof of the transitional need. Never blocking: the client can
+    // sign without it and send it later from the accepted page (same link).
+    extraDoc: clip(b.extraDoc, 160),
     tenant,                    // primary tenant (compat + prefill)
     tenants: [tenant],         // full parties list — the page appends co-tenants
     lease: {

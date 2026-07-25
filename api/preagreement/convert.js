@@ -13,18 +13,20 @@
 //     autoConvert → the contract materializes the moment the deal closes
 //     (payment confirmed, or acceptance when nothing is due via Stripe).
 //
-// Delegate protocol (the BOOM way, as on the real signed proposals where
-// Valentino signs "on behalf of" the owner): delegate:true (default) records
-// landlordDelegate — the landlord-side Magic-Sign link belongs to the ADMIN,
-// who countersigns per delega on their own schedule after the tenant signs
-// (signingOrder sequential), keeping registration timing fully in-house.
+// Landlord signature: by DEFAULT the owner signs directly — the landlord-side
+// Magic-Sign link is meant for them (the console shares it via WhatsApp/email
+// after the tenant signs; signingOrder sequential). delegate:true is the
+// OPTION for deals where the admin countersigns per delega scritta (as on
+// some real BOOM proposals): it records landlordDelegate and the landlord
+// link stays with the admin instead.
 //
 // Method:   POST
 // Headers:  Authorization: Bearer <firebase-id-token>  (admin/owner/landlord)
 // Body: {
 //   id:          string,        // preAgreements doc id
 //   propertyId?: string,        // defaults to pa.propertyId
-//   delegate?:   boolean,       // default true — agency countersigns per delega
+//   delegate?:   boolean,       // default FALSE — owner signs directly;
+//                               // true = agency countersigns per delega
 //   delegateName?: string,      // default 'Valentino Egidi'
 //   type?:       'transitorio'|'studenti'   // default 'transitorio'
 // }
@@ -41,7 +43,7 @@ const clip = (v, n = 200) => (v == null ? null : String(v).trim().slice(0, n) ||
 // ── Core conversion, shared by the console handler and the auto pipeline ──
 // Returns { ok, already?, contractId, tenantId, tenantSignUrl,
 //           landlordSignUrl, delegate } or { ok:false, error }.
-export async function convertPaToContract({ pa, paId, propertyId, delegate = true, delegateName, type, actor = 'system' }) {
+export async function convertPaToContract({ pa, paId, propertyId, delegate = false, delegateName, type, actor = 'system' }) {
   if (!pa || !paId) return { ok: false, error: 'no_pa' };
   if (pa.status !== 'accepted' && pa.status !== 'paid') return { ok: false, error: 'not_accepted_yet' };
 
@@ -100,7 +102,7 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = tru
   const months = Math.max(1, Number(le.months) || 12);
   const rent = Number(m.rent) || 0;
   const cType = type === 'studenti' ? 'studenti' : 'transitorio';
-  const delegateOn = delegate !== false;
+  const delegateOn = delegate === true;
   const dName = clip(delegateName, 120) || 'Valentino Egidi';
   const newToken = () => crypto.randomUUID();
 
@@ -191,6 +193,7 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = tru
     contractId, convertedAt: new Date().toISOString(), convertedBy: actor,
     tenantSignUrl: `${BASE}/sign?sign=${contract.tenantSignToken}`,
     landlordSignUrl: `${BASE}/sign?sign=${contract.landlordSignToken}`,
+    delegated: delegateOn,   // the console shapes the landlord-link action on this
   }).catch(() => {});
   logActivity('preagreement_converted', 'contract',
     { paId, ref: pa.ref || '', contractId, tenant: t.fullName, delegate: delegateOn, auto: actor === 'auto' }, actor)
@@ -224,7 +227,7 @@ export default async function handler(req, res) {
   const out = await convertPaToContract({
     pa, paId,
     propertyId: clip(b.propertyId, 80),
-    delegate: b.delegate !== false,
+    delegate: b.delegate === true,
     delegateName: b.delegateName,
     type: b.type,
     actor: auth.email || auth.uid,
