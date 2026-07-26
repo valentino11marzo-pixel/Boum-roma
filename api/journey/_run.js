@@ -42,9 +42,28 @@ const esc = s => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt
 const eur = n => '€' + Number(n || 0).toLocaleString('en-US');
 const fmtD = s => { try { return new Date(String(s).slice(0, 10) + 'T00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); } catch { return s; } };
 
-// The review link: set REVIEW_URL in Vercel to the real Google review URL
-// (g.page/r/…) — falls back to a search that lands on the profile.
-const REVIEW_URL = process.env.REVIEW_URL
+// The review link: set REVIEW_URL in Vercel to the real Google review URL —
+// the one that opens the STAR BOX directly, not the profile:
+//   https://g.page/r/<id>/review
+//   https://search.google.com/local/writereview?placeid=<id>
+// A share link (maps.app.goo.gl/…) or a /maps/place/… URL lands on the card
+// instead, and roughly half the people never find the "write a review"
+// button from there. So we validate: anything that is not a real write-review
+// URL is refused and we fall back to the search, loudly — a wrong value must
+// never ship silently inside a client email.
+export function reviewUrl(raw) {
+  const v = String(raw || '').trim();
+  if (!v) return null;
+  const ok = /^https:\/\/g\.page\/r\/[A-Za-z0-9_-]+\/review\/?$/.test(v)
+    || /^https:\/\/search\.google\.com\/local\/writereview\?placeid=[A-Za-z0-9_-]+$/.test(v);
+  if (!ok) {
+    console.warn('[journey] REVIEW_URL ignorato — non è un link "scrivi recensione" '
+      + '(atteso g.page/r/<id>/review o search.google.com/local/writereview?placeid=<id>):', v);
+    return null;
+  }
+  return v;
+}
+const REVIEW_URL = reviewUrl(process.env.REVIEW_URL)
   || 'https://www.google.com/search?q=BOOM+Rome+boomrome.com+reviews';
 
 const dayDiff = (iso) => {
