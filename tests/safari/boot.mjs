@@ -70,11 +70,22 @@ function stub({ mode, role }) {
       return () => {};
     },
   };
+  // `spuriousNull`: Safari emette null e SOLO DOPO risolve la sessione
+  // persistita. Senza periodo di grazia la pagina rimbalza al login.
+  const onAuth = (cb) => {
+    if (mode === 'spuriousNull') {
+      setTimeout(() => cb(null), 10);
+      setTimeout(() => cb({ uid: 'u1', email: 't@boom' }), 900);
+    } else {
+      setTimeout(() => cb({ uid: 'u1', email: 't@boom' }), 10);
+    }
+    return () => {};
+  };
   window.firebase = {
     initializeApp: () => {},
     auth: Object.assign(
       () => ({
-        onAuthStateChanged: (cb) => { setTimeout(() => cb({ uid: 'u1', email: 't@boom' }), 10); return () => {}; },
+        onAuthStateChanged: onAuth,
         setPersistence: () => Promise.resolve(),
         signOut: () => Promise.resolve(),
       }),
@@ -91,13 +102,20 @@ const CASES = [
   { name: 'manuale: boot normale',                      page: 'manuale',             role: 'admin',  mode: 'ok',            wait: 1400, expect: 'app' },
   { name: 'lettura profilo appesa → schermata recovery', page: 'pre-agreement-admin', role: 'admin',  mode: 'profileHang',   wait: 17000, expect: 'recovery' },
   { name: 'canale realtime muto → fallback get()',      page: 'pre-agreement-admin', role: 'admin',  mode: 'silentChannel', wait: 8000,  expect: 'app' },
+  { name: 'null spurio da Safari → niente rimbalzo',    page: 'pre-agreement-admin', role: 'admin',  mode: 'spuriousNull',  wait: 3000,  expect: 'app' },
+  { name: 'null spurio su /casa → niente rimbalzo',     page: 'tenant',              role: 'tenant', mode: 'spuriousNull',  wait: 3000,  expect: 'app' },
 ];
 
 const browser = await chromium.launch({ executablePath: BROWSER, args: ['--no-sandbox'] });
 let pass = 0, fail = 0;
 
 for (const c of CASES) {
-  const ctx = await browser.newContext();
+  const ctx = await browser.newContext({
+    // UA di Safari desktop: attiva i rami Safari-specifici (grazia di 3s sul
+    // null spurio, persistence senza synchronizeTabs).
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 '
+      + '(KHTML, like Gecko) Version/18.3 Safari/605.1.15',
+  });
   const page = await ctx.newPage();
   const crashes = [];
   page.on('pageerror', (e) => crashes.push(e.message));
@@ -107,7 +125,9 @@ for (const c of CASES) {
   await page.goto(`http://127.0.0.1:${PORT}/${c.page}.html`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(c.wait);
 
-  const state = await page.evaluate(() => {
+  const url = page.url();
+  const bounced = url.indexOf('/login') >= 0;
+  const state = bounced ? 'login' : await page.evaluate(() => {
     if (document.getElementById('bp-recovery')) return 'recovery';
     const load = document.getElementById('load');
     const stillLoading = load && getComputedStyle(load).display !== 'none';

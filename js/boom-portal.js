@@ -285,13 +285,33 @@
             }
             var auth = firebase.auth();
             var db = firebase.firestore();
-            var unsub = auth.onAuthStateChanged(async function (user) {
-                unsub();
+            // Periodo di grazia sul primo `null`. Safari può emettere un null
+            // spurio da onAuthStateChanged prima di aver risolto la sessione
+            // persistita (IndexedDB lento): senza attesa la pagina rimbalza al
+            // login pur essendo l'utente loggato — ed è esattamente il "non
+            // accede bene" di Safari desktop. portal.html aveva già questa
+            // difesa; il guard condiviso no. Il redirect parte dopo la grazia
+            // e viene annullato se l'utente arriva nel frattempo.
+            var isSafariUA = /^((?!chrome|android|crios|fxios|edgios).)*safari/i
+                .test(navigator.userAgent || '');
+            var grace = opts.graceMs != null ? opts.graceMs : (isSafariUA ? 3000 : 1000);
+            var settled = false, bounceTimer = null, unsub = null;
+            var stop = function () { if (unsub) { try { unsub(); } catch (e) {} unsub = null; } };
+
+            unsub = auth.onAuthStateChanged(async function (user) {
+                if (settled) return;
                 if (!user) {
-                    if (opts.silentRedirect !== false) window.location.href = loginWithNext;
-                    reject(new Error('not_authenticated'));
+                    if (bounceTimer) return;                 // grazia già in corso
+                    bounceTimer = setTimeout(function () {
+                        if (settled) return;
+                        settled = true; stop();
+                        if (opts.silentRedirect !== false) window.location.href = loginWithNext;
+                        reject(new Error('not_authenticated'));
+                    }, grace);
                     return;
                 }
+                if (bounceTimer) { clearTimeout(bounceTimer); bounceTimer = null; }
+                settled = true; stop();
                 try {
                     // Lettura profilo con watchdog: se IndexedDB/WebChannel si
                     // impianta (capita su Safari desktop) la get() non rifiuta
