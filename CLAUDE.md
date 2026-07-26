@@ -522,6 +522,15 @@ mediaType }`. Fetches the file server-side, sends to Claude (haiku), returns
 `{ category, text, entities:{ dates, amounts, codiceFiscale, iban,
 partitaIva, fiscalYear } }`. Anthropic key stays server-side.
 
+### POST `/api/homie/wa-outbox`
+WhatsApp OUTBOX for the Mac-side Homie agent: approved WhatsApp replies go
+out AUTOMATICALLY. Executor marks the action executed (wa.me link kept as
+manual fallback); Homie polls `{op:'pull'}` (approved-and-unsent, executed
+<48h, max 10/pull), sends via wacli/send_whatsapp.sh, then `{op:'ack',
+actionId, ok, error?}` — delivery state lives on the action doc
+(`waSentAt`/`waSendError`), nothing sends twice, failures visible. Auth
+`X-Homie-Secret`.
+
 ### POST `/api/homie/property`
 Homie → PFS bridge. Homie scrapes a property (Immobiliare/Idealista/etc.), calls this with the listing data. Validates, then delegates to the shared ingestion pipeline `api/pfs/_ingest.js` (dedupe on `pfsProperties/<sha1(sourceUrl)>`, agency filter, scoring via `api/homie/_match.js`, push score ≥ 60 into each active client's `portalProperties` swipe deck). Client-portal.html already listens and triggers a "New Property!" alert on the client's phone. Auth via `X-Homie-Secret`. See file header for payload schema.
 
