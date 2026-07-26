@@ -377,7 +377,8 @@ annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
 - `POST /api/preagreement/create` — admin/owner/landlord (Bearer ID token).
   Deal fields (property, landlord, lease, money knobs: rent/energyCredit/
   depositMonths/depositSplitPct/feeMode(pct|months)/feePct/feeMonths/
-  feeVatPct/feeDue(move-in|signing|separate)/dueAtSigning) → creates
+  feeVatPct/feeDue(move-in|signing|separate)/dueAtSigning/
+  **installmentMonths(1|2|3|6|12)** = rent cadence, monthly…annual) → creates
   `preAgreements` doc with 32-hex token → `{ ok, id, token, url }`.
   All money derivations server-side via exported `deriveMoney()` (monthly
   total with energy credit, deposit split at-signing/at-move-in, fee as %
@@ -488,6 +489,35 @@ admin countersigns per delega on their own schedule → RLI registration →
 tenant portal (payments/documents). Terms differ per deal: any money knob,
 extra line items and custom clauses per PA; edit before acceptance (same
 link); after acceptance/payment, Duplicate creates the new version.
+
+### Rent cadence (mensile · bimestrale · trimestrale · semestrale · annuale)
+`money.installmentMonths` (1|2|3|6|12) + derived `installmentAmount`
+(= monthlyTotal × cadence, energy credit included) travel the whole chain:
+console selector with live instalment preview → client document, PDF and
+email ("Rent instalment · paid quarterly in advance") → `contracts.
+installmentMonths/installmentAmount` (canone.installments stays the MONTH
+count: portal.html validates monthly×installments===total and would
+"auto-fix" it destructively) → the schedule generator.
+**The schedule (api/magic-sign/submit.js step (e) and the portal's
+`generateMonthlyPayments`, kept in sync) counts LEASE months, not calendar
+months**: a lease starting on the 10th is billed in full from day one, the
+due date never falls before the period starts, month-ends are clamped, the
+last period is prorated to what the lease actually has left, and both
+paths write the same deterministic id `pay_<contractId>_<YYYY-MM>` (plus
+`coversTo`, `installmentMonths`) so they can never duplicate a schedule.
+Legacy contracts with no cadence field behave exactly as before.
+
+### One-tap buy from an email — `GET /api/services/buy`
+`?kind=&e=&n=&ref=` → creates the Stripe session from the shared catalog
+(`api/_catalog.js`, imported by both this and `service-checkout.js`; it
+holds no Stripe client so a missing key can't crash the module) and 302s
+into Checkout. Only `EMAIL_BUYABLE` kinds (movein-pack, cleaning-premium)
+are sellable from a bare link — the others need their page's context. A
+malformed `e` is dropped rather than shadowing what the buyer types on
+Stripe (the webhook now prefers `session.customer_details.email`). The
+journey emails carry it as the gold button with a WhatsApp line underneath,
+and skip the pitch entirely for a product already bought (`leads` lookup,
+one query per run).
 
 ### Tenant lifecycle — La tua casa BOOM + Canone via BOOM + journey + Fascicolo ARPE
 - **`tenant.html` (served at `/casa`)** — REBUILT on real data (the old page

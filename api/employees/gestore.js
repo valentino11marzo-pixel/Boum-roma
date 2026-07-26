@@ -89,7 +89,8 @@ async function run({ dry }) {
     const monthLabel = /^\d{4}-\d{2}$/.test(String(p.month || ''))
       ? new Date(p.month + '-01T00:00:00Z').toLocaleDateString('it-IT', { month: 'long', year: 'numeric', timeZone: 'UTC' })
       : (p.month || 'in corso');
-    const what = p.type === 'deposit-balance' ? 'il saldo del deposito cauzionale' : `il canone di ${monthLabel}`;
+    const what = p.type === 'deposit-balance' ? 'il saldo del deposito cauzionale'
+      : (p.installmentMonths > 1 ? `la rata di canone ${p.installmentMonths}-mensile (${monthLabel})` : `il canone di ${monthLabel}`);
     const draft =
       `Ciao ${name || ''},\n\n` +
       `ti scriviamo per ${what} relativo a ${prop}: risulta ancora da saldare l'importo di ${euro(p.amount)}, in scadenza il ${p.dueDate}.\n\n` +

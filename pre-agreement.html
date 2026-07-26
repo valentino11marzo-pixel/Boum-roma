@@ -525,6 +525,10 @@ function moneyRows(){
         +kv('Energy credit','+ '+eur(ec),'included · covers electricity up to '+eur(ec)+'/month')
         +kv('Monthly total',eur(m.monthlyTotal!=null?m.monthlyTotal:m.rent+ec),'all-in as above · other utilities excluded')
       : kv('Monthly rent',eur(m.rent),inc?'all utilities included':'utilities excluded'))
+    +((m.installmentMonths||1)>1
+      ? kv('Rent instalment',eur(m.installmentAmount!=null?m.installmentAmount:(m.monthlyTotal||m.rent)*m.installmentMonths),
+          'paid '+({2:'every two months',3:'quarterly',6:'every six months',12:'annually'}[m.installmentMonths]||'monthly')+' in advance')
+      : '')
     +kv('Security deposit',eur(m.deposit),depSub);
   (PA.extras||[]).forEach(function(x){html+=kv(esc(x.label),eur(x.amount));});
   html+='<div class="total"><span class="k">Total due at signing</span><span class="v"><span data-roll="'+eur(m.dueAtSigning)+'">'+eur(m.dueAtSigning)+'</span></span></div>';
@@ -550,7 +554,9 @@ function condList(nTenants){
     'The security deposit shall be returned at the end of the lease (within 15 days after move-out / keys handover), subject to verification of the property’s condition and settlement of any outstanding utility balance. Normal wear and tear caused by ordinary and reasonable use of the property shall not be deemed damage and shall not be deducted from the security deposit.',
     'The security deposit shall be fully returned if the Landlord cancels the agreement for any reason, or if the Tenant cancels with justified cause.',
     'The Tenant shall maintain the property in good condition and promptly report any defects or issues.',
-    'Monthly rent shall be paid by the 5th of each month via bank transfer.'
+    ((PA.money||{}).installmentMonths||1)>1
+      ? 'Rent shall be paid in advance every '+(PA.money.installmentMonths)+' months (instalment of '+eur(PA.money.installmentAmount)+'), by the 5th day of the first month of each period, via bank transfer or card from the tenant portal.'
+      : 'Monthly rent shall be paid by the 5th of each month via bank transfer or card from the tenant portal.'
   ];
   if(ec>0)conds.push('The monthly payment of '+eur(m.monthlyTotal!=null?m.monthlyTotal:m.rent+ec)+' consists of: (a) base rent of '+eur(m.rent)+' and (b) an energy allowance of '+eur(ec)+' included in the monthly fee. The energy allowance covers electricity consumption up to '+eur(ec)+'/month; should monthly electricity costs exceed it, the Tenant shall pay only the surplus directly to the Landlord upon presentation of the utility bill. If consumption is equal to or below the allowance, no additional charge applies.');
   if(le.reason)conds.push('Transitional need: '+le.reason+'.');

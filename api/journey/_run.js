@@ -14,8 +14,9 @@
 //   end+3 exit: thank you + review + become-a-referrer. Nothing else.
 //
 // Every email: the platform design system (black masthead, gold BOOM),
-// linked to /casa and WhatsApp. Upsells are WhatsApp-first (one tap opens
-// the chat with the request pre-written) — selling stays human.
+// linked to /casa. Upsells give BOTH doors: a gold button that opens Stripe
+// in one tap (api/services/buy.js — price from the server catalog) and a
+// quiet WhatsApp line for whoever wants to ask a human first.
 //
 // NOTE: static imports only (Vercel NFT does not trace lazy import of npm
 // packages — this file is itself lazy-imported, which is fine: it's local).
@@ -28,6 +29,15 @@ const ADMIN_EMAIL = 'valentino@boom-rome.com';
 const WA = 'https://wa.me/393313251961';
 const CASA = 'https://www.boomrome.com/casa';
 const waMsg = t => WA + '?text=' + encodeURIComponent(t);
+// One-tap purchase straight from the email (api/services/buy.js → Stripe).
+// Price and copy come from the server catalog, never from this file.
+const buyUrl = (kind, tenant) => 'https://www.boomrome.com/api/services/buy?kind=' + kind
+  + (tenant && tenant.email ? '&e=' + encodeURIComponent(tenant.email) : '')
+  + (tenant && tenant.name ? '&n=' + encodeURIComponent(tenant.name) : '');
+// what the client actually gets — three lines, no marketing fog
+const includes = items => `<table cellpadding="0" cellspacing="0" style="margin:14px auto 0">${items.map(i =>
+  `<tr><td style="padding:3px 0;font-family:Helvetica Neue,Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:300;color:#6E6A60">
+    <span style="color:#D4AF37">·</span>&nbsp; ${i}</td></tr>`).join('')}</table>`;
 const esc = s => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
 const eur = n => '€' + Number(n || 0).toLocaleString('en-US');
 const fmtD = s => { try { return new Date(String(s).slice(0, 10) + 'T00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); } catch { return s; } };
@@ -44,7 +54,7 @@ const dayDiff = (iso) => {
 };
 
 // step key → { when(c) -> true if inside the window, subject, html }
-function steps({ c, tenant, addrShort, addr, first }) {
+function steps({ c, tenant, addrShort, addr, first, has = () => false }) {
   const start = c.startDate, end = c.endDate;
   const dStart = start ? dayDiff(start) : null;
   const dEnd = end ? dayDiff(end) : null;
@@ -57,8 +67,13 @@ function steps({ c, tenant, addrShort, addr, first }) {
       subject: `${dStart} days to ${addrShort} — the countdown is on`,
       html: para(`Ciao ${esc(first)} — <b>${dStart} days</b> to your move-in at <b>${esc(addr)}</b> (${fmtD(start)}). Everything on our side is on track. From today, your home base is <b>La tua casa BOOM</b>: payments, documents, requests — one place, always.`)
         + casaBtns
-        + para(`One thing worth handling early: <b>utilities</b>. Our Move-in Pack takes care of electricity &amp; gas transfers, internet activation and the residency guide — you arrive, everything works.`, 'margin-top:24px')
-        + btn2(waMsg(`Ciao BOOM! Vorrei il Move-in Pack per ${addr} (volture luce/gas, internet, guida residenza).`), '🔌 Move-in Pack €149 — su WhatsApp')
+        + (has('movein-pack') ? '' :
+            para(`One thing worth handling early: <b>utilities</b>. Our <b>Move-in Pack</b> takes care of it end to end — you arrive, everything works.`, 'margin-top:26px')
+            + includes(['Electricity &amp; gas transferred into your name',
+                        'Internet activated at your address',
+                        'Step-by-step residency guide, in English'])
+            + btn(buyUrl('movein-pack', tenant), 'Add the Move-in Pack — €149')
+            + fine(`Rather talk first? <a href="${waMsg(`Ciao BOOM! Info sul Move-in Pack per ${addr}.`)}" style="color:#141414">Ask on WhatsApp</a> — same team, no bots.`, 'text-align:center'))
         + fine(`Questions anytime — just reply or <a href="${WA}" style="color:#141414">WhatsApp us</a>.`, 'text-align:center'),
     },
     {
@@ -67,17 +82,25 @@ function steps({ c, tenant, addrShort, addr, first }) {
       subject: `Two weeks to ${addrShort} — a quick check`,
       html: para(`Ciao ${esc(first)} — two weeks out, quick check-in. If any document is still missing on your side (ID, proof for the transitional lease), you can upload it in one tap from your pre-agreement link or send it on WhatsApp — takes a minute now, saves days at registration.`)
         + casaBtns
-        + para(`And if you'd rather not think about utilities at all, the <b>Move-in Pack</b> is still the shortcut.`, 'margin-top:22px')
-        + btn2(waMsg(`Ciao BOOM! Info sul Move-in Pack per ${addr}.`), 'Chiedi su WhatsApp')
-        ,
+        + (has('movein-pack')
+            ? para(`Your <b>Move-in Pack</b> is already in motion — utilities and internet are on us from here.`, 'margin-top:24px')
+            : para(`And if you'd rather not think about utilities at all, the <b>Move-in Pack</b> is still the shortcut — we start the transfers the same day.`, 'margin-top:24px')
+              + btn2(buyUrl('movein-pack', tenant), 'Move-in Pack — €149')
+              + fine(`Questions? <a href="${waMsg(`Ciao BOOM! Info sul Move-in Pack per ${addr}.`)}" style="color:#141414">WhatsApp us</a>.`, 'text-align:center')),
     },
     {
       key: 't7',
       due: dStart != null && dStart <= 7 && dStart >= 4,
       subject: `One week to ${addrShort} ✨`,
       html: para(`Ciao ${esc(first)} — one week! Two things make move-in day perfect:`)
-        + para(`<b>1 · A spotless home.</b> Our <b>Cleaning Premium</b> is a professional deep clean the day before you arrive — beds, kitchen, bathrooms, windows. You open the door to a hotel-fresh apartment.`, 'margin-bottom:8px')
-        + btn2(waMsg(`Ciao BOOM! Vorrei il Cleaning Premium prima del mio arrivo a ${addr}.`), '✨ Cleaning Premium €119 — prenota')
+        + (has('cleaning-premium')
+            ? para(`<b>1 · A spotless home.</b> Your <b>Cleaning Premium</b> is booked — the team goes in the day before you arrive, and you'll get the photo report.`, 'margin-bottom:4px')
+            : para(`<b>1 · A spotless home.</b> Our <b>Cleaning Premium</b> is a professional deep clean the day before you arrive. You open the door to a hotel-fresh apartment.`, 'margin-bottom:4px')
+              + includes(['Kitchen, bathrooms, floors and windows',
+                          'Done the day before your move-in',
+                          'Photo report before you arrive'])
+              + btn(buyUrl('cleaning-premium', tenant), 'Book Cleaning Premium — €119')
+              + fine(`Prefer to ask first? <a href="${waMsg(`Ciao BOOM! Vorrei il Cleaning Premium prima del mio arrivo a ${addr}.`)}" style="color:#141414">WhatsApp us</a>.`, 'text-align:center'))
         + para(`<b>2 · The numbers, settled.</b> Any remaining balance (deposit or first payment) is one tap in your portal — card or transfer, receipt automatic.`, 'margin-top:22px')
         + casaBtns,
     },
@@ -129,6 +152,13 @@ function steps({ c, tenant, addrShort, addr, first }) {
 
 export async function runJourney() {
   const out = { checked: 0, sent: [], errors: 0 };
+  // Already-bought products are never pitched again: one query per run,
+  // keyed email|kind. (The webhook writes a paid `leads` doc per purchase.)
+  const owned = new Set();
+  try {
+    const svc = await fsList('leads', { filter: { field: 'type', op: 'EQUAL', value: 'service' }, limit: 300 });
+    (svc || []).forEach(l => { if (l && l.paid && l.email && l.kind) owned.add(String(l.email).toLowerCase() + '|' + l.kind); });
+  } catch (e) { console.warn('[journey] owned lookup:', e.message); }
   let contracts = [];
   try {
     contracts = await fsList('contracts', { filter: { field: 'status', op: 'EQUAL', value: 'active' }, limit: 300 });
@@ -152,7 +182,8 @@ export async function runJourney() {
     if (!addr) addr = 'your home in Rome';
     const addrShort = addr.split(',')[0];
 
-    for (const st of steps({ c, tenant, addr, addrShort, first })) {
+    const has = kind => owned.has(String(email).toLowerCase() + '|' + kind);
+    for (const st of steps({ c, tenant, addr, addrShort, first, has })) {
       if (!st.due || j[st.key]) continue;
       try {
         await sendEmail({ to: email, subject: st.subject, html: shell(st.html, st.subject) });

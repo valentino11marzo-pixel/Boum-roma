@@ -56,7 +56,10 @@ export default async function handler(req, res) {
   // Cents-exact: deposit balances routinely carry .50 — the charge must
   // equal the payment doc to the cent or reconciliation never closes.
   const cents = Math.round((Number(pay.amount) || 0) * 100);
-  if (cents < 1000 || cents > 2000000) return res.status(400).json({ ok: false, error: 'bad_amount' });
+  // ceiling sized for a full ANNUAL instalment (rent × 12), not one month
+  if (cents < 1000 || cents > 12000000) {
+    return res.status(400).json({ ok: false, error: 'bad_amount', amount: Number(pay.amount) || 0 });
+  }
   const amount = cents / 100;
   if (!process.env.STRIPE_SECRET_KEY) return res.status(503).json({ ok: false, error: 'payments_unconfigured' });
 

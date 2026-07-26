@@ -252,6 +252,17 @@ h1{font-weight:200;font-size:24px;letter-spacing:-.3px;margin-bottom:3px}
           <label class="fld"><span>Fee dovuta</span><select id="fFeeDue"><option value="move-in">Al move-in</option><option value="separate">Separatamente</option><option value="signing">Alla firma</option></select></label>
           <label class="fld"><span>Dovuto alla firma €</span><input id="fDue" type="number" inputmode="numeric" placeholder="auto"></label>
         </div>
+        <div class="g2">
+          <label class="fld"><span>Cadenza del canone</span><select id="fFreq">
+            <option value="1">Mensile</option>
+            <option value="2">Bimestrale</option>
+            <option value="3">Trimestrale</option>
+            <option value="6">Semestrale</option>
+            <option value="12">Annuale</option>
+          </select></label>
+          <div class="fld"><span>Rata risultante</span><div id="freqOut" style="background:var(--input);border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-size:14.5px;color:var(--gold-light)">—</div></div>
+        </div>
+        <p class="hintline">La cadenza vale per tutto: documento, contratto, piano rate generato alla firma, /casa e solleciti. <b>Anticipata</b> — la rata copre il periodo che inizia.</p>
         <label class="fld"><span>Voci extra — una per riga: Etichetta = importo</span><textarea id="fExtras" rows="2" placeholder="Final cleaning (at move-in) = 120&#10;Garage parking /month = 90"></textarea></label>
         <label class="fld"><span>Nota sul documento (facoltativa)</span><input id="fNote" placeholder="es. deposito già versato il 06/07 · IBAN …"></label>
       </div>
@@ -328,18 +339,20 @@ function deriveMoney(k){
   var feeVat=r2(fee*vatPct/100), feeTotal=r2(fee+feeVat);
   var feeDue=['move-in','signing','separate'].indexOf(k.feeDue)>=0?k.feeDue:'separate';
   var utilities=k.utilities==='included'?'included':'excluded';
+  var im=[1,2,3,6,12].indexOf(+k.installmentMonths)>=0?+k.installmentMonths:1;
+  var installmentAmount=r2(r2(rent+ec)*im);
   var dueDefault=r2(depS+(feeDue==='signing'?feeTotal:0));
   var due=(k.dueAtSigning!=null&&k.dueAtSigning!=='')?Math.max(0,+k.dueAtSigning||0):dueDefault;
   return {rent:rent,energyCredit:ec,monthlyTotal:r2(rent+ec),utilities:utilities,depositMonths:dm,deposit:deposit,
     depositSplitPct:splitPct,depositAtSigning:depS,depositAtMoveIn:depM,
     feeMode:feeMode,feePct:feePct,feeMonths:feeMonths,feeFlat:feeFlat,fee:fee,feeVatPct:vatPct,feeVat:feeVat,
-    feeTotal:feeTotal,feeDue:feeDue,dueAtSigning:due};
+    feeTotal:feeTotal,feeDue:feeDue,installmentMonths:im,installmentAmount:installmentAmount,dueAtSigning:due};
 }
 function moneyKnobs(){
   return {rent:+$('fRent').value||0,energyCredit:+$('fEnergy').value||0,utilities:$('fUtil').value,
     depositMonths:$('fDepM').value!==''?+$('fDepM').value:1,depositSplitPct:+$('fDepSplit').value,
     feeMode:$('fFeeMode').value,feePct:+$('fFeePct').value||0,feeMonths:+$('fFeeMonths').value||0,feeFlat:$('fFeeFlat').value!==''?+$('fFeeFlat').value:null,
-    feeVatPct:+$('fVatPct').value||0,feeDue:$('fFeeDue').value,
+    feeVatPct:+$('fVatPct').value||0,feeDue:$('fFeeDue').value,installmentMonths:+$('fFreq').value||1,
     dueAtSigning:$('fDue').value!==''?Math.max(0,+$('fDue').value||0):null};
 }
 function feeModeUi(){
@@ -354,12 +367,16 @@ function mathLine(){
   var sc=$('sumcard');
   if(!mm.rent){sc.style.display='none';return;}
   sc.style.display='';
-  $('mathLine').innerHTML=(mm.energyCredit?'Mensile totale <b>'+eur(mm.monthlyTotal)+'</b> (canone + energy) · ':'')
+  var FREQ={1:'mensile',2:'bimestrale',3:'trimestrale',6:'semestrale',12:'annuale'};
+  $('freqOut').innerHTML=mm.installmentMonths===1?eur(mm.installmentAmount)+' al mese'
+    :'<b>'+eur(mm.installmentAmount)+'</b> ogni '+mm.installmentMonths+' mesi';
+  $('mathLine').innerHTML=(mm.installmentMonths>1?'Canone <b>'+FREQ[mm.installmentMonths]+'</b>: '+eur(mm.installmentAmount)+' a rata · ':'')
+    +(mm.energyCredit?'Mensile totale <b>'+eur(mm.monthlyTotal)+'</b> (canone + energy) · ':'')
     +'Deposito <b>'+eur(mm.deposit)+'</b>'+(mm.depositSplitPct<100?' ('+eur(mm.depositAtSigning)+' alla firma · '+eur(mm.depositAtMoveIn)+' al move-in)':'')
     +' · fee <b>'+eur(mm.fee)+'</b>'+(mm.feeMode==='flat'?' (fissa)':'')+' + IVA '+eur(mm.feeVat)+' = <b>'+eur(mm.feeTotal)+'</b> ('+(mm.feeDue==='move-in'?'al move-in':mm.feeDue==='signing'?'alla firma':'separata')+')'
     +' · <b style="color:var(--gold)">dovuto alla firma '+eur(mm.dueAtSigning)+'</b>';
 }
-['fRent','fEnergy','fDepM','fDepSplit','fFeeMode','fFeePct','fFeeMonths','fFeeFlat','fVatPct','fFeeDue','fDue'].forEach(function(id){
+['fRent','fEnergy','fDepM','fDepSplit','fFeeMode','fFeePct','fFeeMonths','fFeeFlat','fVatPct','fFeeDue','fDue','fFreq'].forEach(function(id){
   document.addEventListener('input',function(e){if(e.target.id===id)mathLine();});
   document.addEventListener('change',function(e){if(e.target.id===id)mathLine();});
 });
@@ -469,6 +486,7 @@ function fillForm(d){
   $('fVatPct').value=mo.feeVatPct!=null?mo.feeVatPct:22;
   $('fFeeDue').value=['move-in','signing','separate'].indexOf(mo.feeDue)>=0?mo.feeDue:'separate';
   $('fDue').value=mo.dueAtSigning!=null?mo.dueAtSigning:'';
+  try{$('fFreq').value=String(mo.installmentMonths||1)}catch(e){}
   try{$('fProp').value=d.propertyId||''}catch(e){}
   $('fExtras').value=(Array.isArray(d.extras)?d.extras:[]).map(function(x){return x.label+' = '+x.amount}).join('\n');
   $('fClauses').value=(Array.isArray(d.customClauses)?d.customClauses:[]).join('\n');

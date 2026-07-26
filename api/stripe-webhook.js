@@ -306,7 +306,11 @@ async function handleService(res, session, m) {
   const docId = session.id.replace(/[^a-zA-Z0-9]/g, '').substring(0, 30);
   const now = new Date().toISOString();
   const amountEur = (session.amount_total || 0) / 100;
-  const email = m.email || session.customer_email || '';
+  // customer_details.email is what the buyer TYPED on the Stripe page — it
+  // wins over anything we guessed at session creation (a one-tap email link
+  // may carry no address at all).
+  const email = (session.customer_details && session.customer_details.email)
+    || m.email || session.customer_email || '';
   const meta = SERVICE_META[m.kind] || { title: m.kind || 'Service', emoji: '✓' };
   const lead = {
     type: 'service',
@@ -386,7 +390,11 @@ async function handleReserve(res, session, m) {
   const docId = session.id.replace(/[^a-zA-Z0-9]/g, '').substring(0, 30);
   const now = new Date().toISOString();
   const amountEur = (session.amount_total || 0) / 100;
-  const email = m.email || session.customer_email || '';
+  // customer_details.email is what the buyer TYPED on the Stripe page — it
+  // wins over anything we guessed at session creation (a one-tap email link
+  // may carry no address at all).
+  const email = (session.customer_details && session.customer_details.email)
+    || m.email || session.customer_email || '';
   const lead = {
     type: 'reservation',
     service: 'RESERVE',
