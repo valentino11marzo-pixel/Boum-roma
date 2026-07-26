@@ -115,7 +115,7 @@
 
     /* card */
     .card{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:22px;
-      padding:26px 24px;backdrop-filter:blur(22px) saturate(1.2);-webkit-backdrop-filter:blur(22px) saturate(1.2);
+      padding:26px 24px;-webkit-backdrop-filter:blur(22px) saturate(1.2);backdrop-filter:blur(22px) saturate(1.2);
       box-shadow:0 1px 0 rgba(255,255,255,.05) inset, 0 26px 60px -24px rgba(0,0,0,.85)}
     .card::before{content:'';position:absolute;top:-1px;left:22px;right:22px;height:1px;
       background:linear-gradient(90deg,transparent,rgba(246,228,166,.5),transparent)}
@@ -415,7 +415,7 @@
       property: DEMO_DATA.property,
       signer:{ name:'Giulia Bianchi', email:'landlord@boomrome.com', cf:'RSSMRA85T10A562S', dob:'1980-01-01', pob:'Roma, Italy', address:'Via dei Coronari 8, Roma', docType:'id', docNum:'CA9988776', nationality:'Italy', phone:'' },
       otherParty:{ name:'Demo Tenant' } };
-    function demoBadge(){ if(document.getElementById('_demoBadge')) return; document.body.appendChild(el('<div id="_demoBadge" style="position:fixed;top:14px;right:14px;z-index:60;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:rgba(20,20,24,.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-size:9.5px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold)">Demo</div>')); }
+    function demoBadge(){ if(document.getElementById('_demoBadge')) return; document.body.appendChild(el('<div id="_demoBadge" style="position:fixed;top:14px;right:14px;z-index:60;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:rgba(20,20,24,.7);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);font-size:9.5px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold)">Demo</div>')); }
     function startDemo(){
       demoBadge();
       // Role-aware demo: ?demo=1 (tenant std) | ?demo=landlord (landlord std)

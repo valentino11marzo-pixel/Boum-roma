@@ -825,9 +825,49 @@ Auth gate pattern (use this for any new portal page):
 ```js
 const { user, profile } = await BoomPortal.requireAuth(
   ['owner', 'landlord', 'admin'],   // allowed roles, or null to skip
-  { loginUrl: '/login.html' }
+  { loginUrl: '/login' }            // base only — never bake a ?next= in
 );
 ```
+
+**Safari desktop hardening** (a wedged WebKit used to leave the logged-in
+pages on their loader with no signal at all):
+- `js/firebase-config.js` — the 12 pages that load it used to call
+  `enablePersistence({synchronizeTabs:true})` **synchronously on the boot
+  path**. On WebKit that IndexedDB + WebLocks handshake stalls for seconds
+  and the auth guard's first read looks hung. Now deferred to an idle
+  callback, skipped on iOS, no `synchronizeTabs` on Safari, escape hatch
+  `?nopersist=1` / `localStorage.boom_no_persist='1'` — the same treatment
+  `js/portal-app.js` already applied to portal.html.
+- `BoomPortal.withTimeout(promise, ms)` — a Firestore read that never
+  settles is a loader that never leaves. `requireAuth` reads the profile
+  under a 7s watchdog, retries `{source:'server'}`, then gives up loudly.
+- `BoomPortal.showRecovery()` / `hardReset(signOut)` — instead of an
+  eternal spinner: a branded panel with the two moves that actually fix a
+  wedged browser (wipe SW caches + registrations + Firestore IndexedDB and
+  reload with `?fresh=`, or sign out clean). Query params are preserved.
+- `requireAuth` normalizes `loginUrl` (strips `.html` — `cleanUrls` makes
+  it a 308 hop — and any pre-baked `?next=`, which used to duplicate the
+  param and, on `wrong_role`, bounce straight back to the denied page in a
+  loop) and tags the bounce with `?b=1`. `login.html` counts those: twice
+  in a minute means the browser is not keeping the session (private mode /
+  cookies blocked) and it says so instead of looping forever.
+- Realtime lists carry a fallback: a Firestore `onSnapshot` whose channel
+  never opens calls **neither** `onData` nor `onError`. `watchPAs()` in
+  the console falls back to a one-shot `.get()` after 6s and renders a
+  visible error with a recovery button instead of an empty page.
+- `BoomPortal.registerServiceWorker()` calls `reg.update()` — Safari does
+  not re-check `sw.js` as eagerly as Chrome, so a stale worker could serve
+  an old shell for days. Cache version is `boom-v12`.
+- `vercel.json` now sends `private, no-store` + `noindex` on every
+  logged-in surface (`casa`, `tenant`, `manuale`, `pre-agreement-admin`,
+  `pfs-command`, `photo-lab`, `salute`, …), not just the portal group.
+- `-webkit-backdrop-filter` is mandatory alongside every `backdrop-filter`
+  (older WebKit ignores the unprefixed form and the frosted bars go flat).
+
+Regression suite: `node tests/safari/boot.mjs` — fakes Firebase and asserts
+that a hung profile read, a mute realtime channel and a normal boot all end
+in a usable page, never a spinner. Needs `playwright-core`
+(`BOOM_PLAYWRIGHT=/path/to/index.js` if it lives outside the project).
 
 Firestore listeners with auto-retry / exponential backoff:
 

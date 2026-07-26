@@ -260,7 +260,7 @@ body{font-family:'Helvetica Neue',-apple-system,sans-serif;background:var(--blac
 // with user-facing pass delivery, so the gate lives here, not on the API.)
 (async () => {
   try {
-    const { user } = await BoomPortal.requireAuth(['admin'], { loginUrl: '/login.html' });
+    const { user } = await BoomPortal.requireAuth(['admin'], { loginUrl: '/login' });
     void user;
     const s = document.getElementById('ppAuthShield'); if (s) s.remove();
   } catch (e) { console.warn('[proppass] auth gate:', e && e.message); }

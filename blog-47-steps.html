@@ -106,7 +106,7 @@
         .bg-grid { position:fixed; inset:0; z-index:0; opacity:0.03; pointer-events:none; }
 
         /* Nav — same as all pages */
-        .bnav { position:fixed; top:0; left:0; right:0; z-index:1000; padding:14px 0; background:rgba(3,3,3,0.95); backdrop-filter:blur(20px); border-bottom:1px solid var(--border); }
+        .bnav { position:fixed; top:0; left:0; right:0; z-index:1000; padding:14px 0; background:rgba(3,3,3,0.95); -webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px); border-bottom:1px solid var(--border); }
         .bnav-in { max-width:1200px; margin:0 auto; padding:0 24px; display:flex; align-items:center; justify-content:space-between; }
         .bnav-logo { display:flex; align-items:center; gap:12px; transition:transform 0.3s var(--ease); }
         .bnav-logo:hover { transform:scale(1.02); }
@@ -186,7 +186,7 @@
         .boom-upsell:hover::before { opacity:1; }
         @property --angle { syntax:'<angle>'; initial-value:0deg; inherits:false; }
         @keyframes borderSpin { to { --angle:360deg; } }
-        .boom-upsell-inner { position:relative; z-index:1; border-radius:15px; overflow:hidden; background: linear-gradient(165deg, rgba(12,12,14,0.97), rgba(18,18,22,0.99)); backdrop-filter:blur(20px); }
+        .boom-upsell-inner { position:relative; z-index:1; border-radius:15px; overflow:hidden; background: linear-gradient(165deg, rgba(12,12,14,0.97), rgba(18,18,22,0.99)); -webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px); }
         .boom-upsell-inner::before { content:''; position:absolute; inset:0; pointer-events:none; opacity:0.025;
             background-image: linear-gradient(30deg, rgba(245,166,35,1) 1px, transparent 1px), linear-gradient(150deg, rgba(245,166,35,1) 1px, transparent 1px), linear-gradient(270deg, rgba(245,166,35,1) 1px, transparent 1px);
             background-size: 60px 104px; background-position: 0 0, 30px 52px, 15px 26px;

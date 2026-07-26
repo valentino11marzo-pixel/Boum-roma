@@ -25,7 +25,12 @@
         var isProd = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
         if (!isProd) return;
         var run = function () {
-            navigator.serviceWorker.register('/sw.js').catch(function (err) {
+            navigator.serviceWorker.register('/sw.js').then(function (reg) {
+                // Safari non ricontrolla sw.js con la stessa aggressività di
+                // Chrome: senza questo, un service worker di un deploy vecchio
+                // può continuare a servire una shell stantia per giorni.
+                try { reg.update(); } catch (e) {}
+            }).catch(function (err) {
                 console.warn('[BoomPortal] SW registration failed:', err && err.message);
             });
         };
@@ -161,19 +166,114 @@
         });
     };
 
+    // ─── Promise watchdog ─────────────────────────────────────────────────
+    // Firestore reads can hang indefinitely (WebKit IndexedDB lock, blocked
+    // WebChannel). A promise that never settles = a loader that never leaves.
+    BP.withTimeout = function (promise, ms, label) {
+        return new Promise(function (resolve, reject) {
+            var done = false;
+            var timer = setTimeout(function () {
+                if (done) return;
+                done = true;
+                var e = new Error((label || 'operation') + '_timeout');
+                e.code = 'boom/timeout';
+                reject(e);
+            }, ms || 8000);
+            Promise.resolve(promise).then(
+                function (v) { if (!done) { done = true; clearTimeout(timer); resolve(v); } },
+                function (e) { if (!done) { done = true; clearTimeout(timer); reject(e); } }
+            );
+        });
+    };
+
+    // ─── Stuck-boot recovery ──────────────────────────────────────────────
+    // Last line of defence: instead of an eternal spinner, offer the two
+    // moves that actually fix a wedged browser (hard reload without the
+    // local cache/persistence, or sign out and start clean).
+    BP.showRecovery = function (title, detail) {
+        if (document.getElementById('bp-recovery')) return;
+        var wrap = document.createElement('div');
+        wrap.id = 'bp-recovery';
+        wrap.setAttribute('role', 'alertdialog');
+        wrap.style.cssText = 'position:fixed;inset:0;z-index:99999;display:grid;place-items:center;'
+            + 'background:rgba(4,4,6,.94);padding:22px;'
+            + 'font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Inter,sans-serif';
+        wrap.innerHTML =
+            '<div style="max-width:420px;width:100%;text-align:center;color:#fff">'
+            + '<div style="font-size:11px;letter-spacing:4px;color:#D4AF37;margin-bottom:18px">BOOM</div>'
+            + '<div style="font-size:19px;font-weight:500;margin-bottom:10px">' + BP.escapeHtml(title || 'Connessione bloccata') + '</div>'
+            + '<div style="font-size:13.5px;line-height:1.6;color:#9a9a9a;margin-bottom:24px">'
+            + BP.escapeHtml(detail || 'Il browser non è riuscito a completare il controllo di accesso.') + '</div>'
+            + '<button id="bp-rec-reload" style="width:100%;padding:14px;border:0;border-radius:12px;'
+            + 'background:#D4AF37;color:#0a0a0a;font-size:14px;font-weight:600;cursor:pointer">Riprova pulendo la cache</button>'
+            + '<button id="bp-rec-out" style="width:100%;margin-top:10px;padding:14px;border:1px solid rgba(255,255,255,.14);'
+            + 'border-radius:12px;background:transparent;color:#ddd;font-size:13.5px;cursor:pointer">Esci e rientra</button>'
+            + '</div>';
+        document.body.appendChild(wrap);
+        document.getElementById('bp-rec-reload').onclick = function () {
+            BP.hardReset(false);
+        };
+        document.getElementById('bp-rec-out').onclick = function () {
+            BP.hardReset(true);
+        };
+    };
+
+    // Wipe every local layer that can wedge a session (SW caches, service
+    // workers, Firestore IndexedDB), optionally sign out, then reload.
+    BP.hardReset = function (signOut) {
+        var jobs = [];
+        try { localStorage.setItem('boom_no_persist', '1'); } catch (e) {}
+        if (signOut && typeof firebase !== 'undefined' && firebase.auth) {
+            try { jobs.push(firebase.auth().signOut().catch(function () {})); } catch (e) {}
+        }
+        if (window.caches && caches.keys) {
+            jobs.push(caches.keys().then(function (ks) {
+                return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+            }).catch(function () {}));
+        }
+        if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+            jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
+                return Promise.all(rs.map(function (r) { return r.unregister(); }));
+            }).catch(function () {}));
+        }
+        try {
+            if (window.indexedDB && indexedDB.deleteDatabase) {
+                ['firestore/[DEFAULT]/boom-property-dashboards/main', 'firebaseLocalStorageDb']
+                    .forEach(function (n) { if (!signOut && n === 'firebaseLocalStorageDb') return; try { indexedDB.deleteDatabase(n); } catch (e) {} });
+            }
+        } catch (e) {}
+        var go = function () {
+            if (signOut) return window.location.replace('/login');
+            // Conserva i parametri esistenti (un token nell'URL non va perso)
+            // e aggiunge ?fresh= per bucare la cache HTTP del browser.
+            var qs = location.search.replace(/[?&]fresh=\d+/g, '').replace(/^&/, '?');
+            qs = qs && qs !== '?' ? qs + '&fresh=' + Date.now() : '?fresh=' + Date.now();
+            window.location.replace(location.pathname + qs + location.hash);
+        };
+        BP.withTimeout(Promise.all(jobs), 3500).then(go, go);
+    };
+
     // ─── Auth guard ───────────────────────────────────────────────────────
     // Returns a Promise that resolves with {user, profile} when authenticated
     // and the user's role is allowed. `allowedRoles` accepts a string OR array
     // OR null (no role check). Otherwise redirects to loginUrl.
     BP.requireAuth = function (allowedRoles, opts) {
         opts = opts || {};
-        var loginUrl = opts.loginUrl || '/login';
+        // Normalizza: alcune pagine passano '/login.html?next=…' — con
+        // cleanUrls '/login.html' è un redirect 308 in più e il ?next=
+        // preconfezionato si sommava al nostro (due parametri identici) e,
+        // peggio, il ritorno su wrong_role puntava di nuovo alla pagina
+        // negata → loop di redirect. La destinazione la calcoliamo qui.
+        var loginUrl = String(opts.loginUrl || '/login').split('?')[0].replace(/\.html$/, '');
         // Round-trip: dopo il login si torna alla pagina richiesta (path+hash).
         // Usato solo per not_authenticated; su wrong_role/profile_missing si va
         // al login "pulito" (che porta a /portal, il quale si adatta al ruolo)
         // per non creare loop di redirect sulla pagina negata.
-        var loginWithNext = loginUrl + (loginUrl.indexOf('?') >= 0 ? '&' : '?')
-            + 'next=' + encodeURIComponent(location.pathname + location.search + location.hash);
+        // `b=1` = "rimbalzato da una pagina protetta": permette al login di
+        // accorgersi di un ciclo login↔pagina (tipico quando Safari blocca
+        // lo storage e la sessione non sopravvive al redirect).
+        var loginWithNext = loginUrl + '?b=1&next='
+            + encodeURIComponent(location.pathname + location.search + location.hash);
         var rolesArray = allowedRoles == null
             ? null
             : (Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles]);
@@ -193,7 +293,18 @@
                     return;
                 }
                 try {
-                    var doc = await db.collection('users').doc(user.uid).get();
+                    // Lettura profilo con watchdog: se IndexedDB/WebChannel si
+                    // impianta (capita su Safari desktop) la get() non rifiuta
+                    // MAI e la pagina resterebbe sul loader per sempre. Dopo 7s
+                    // riproviamo forzando il server; se anche quella si blocca,
+                    // errore visibile e azionabile invece del limbo.
+                    var doc = await BP.withTimeout(
+                        db.collection('users').doc(user.uid).get(), 7000
+                    ).catch(function () {
+                        return BP.withTimeout(
+                            db.collection('users').doc(user.uid).get({ source: 'server' }), 8000
+                        );
+                    });
                     if (!doc.exists) {
                         BP.showError('User profile not found.');
                         setTimeout(function () { window.location.href = loginUrl; }, 1500);
@@ -209,7 +320,15 @@
                     }
                     resolve({ user: user, profile: profile });
                 } catch (err) {
-                    BP.showError('Auth check failed: ' + (err.message || err));
+                    if (err && (err.code === 'boom/timeout' || err.code === 'unavailable')) {
+                        BP.showRecovery(
+                            'Connessione bloccata',
+                            'Il browser non riesce a leggere i dati (cache locale o rete). '
+                            + 'Un riavvio pulito di solito risolve — i tuoi dati non vengono toccati.'
+                        );
+                    } else {
+                        BP.showError('Auth check failed: ' + (err.message || err));
+                    }
                     reject(err);
                 }
             });

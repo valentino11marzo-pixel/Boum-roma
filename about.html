@@ -84,7 +84,7 @@
 
         /* NAV */
         nav{position:fixed;width:100%;top:0;z-index:1000;padding:0 clamp(24px,4vw,48px);height:52px;display:flex;align-items:center;background:transparent;transition:background .5s,backdrop-filter .5s,border-color .5s;border-bottom:.5px solid transparent}
-        nav.scrolled{background:rgba(0,0,0,.82);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom-color:rgba(255,255,255,.08)}
+        nav.scrolled{background:rgba(0,0,0,.82);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-bottom-color:rgba(255,255,255,.08)}
         .nav-inner{max-width:1080px;margin:0 auto;width:100%;display:flex;justify-content:space-between;align-items:center}
         .logo{display:flex;align-items:center;gap:10px;transition:opacity .3s}.logo:hover{opacity:.7}
         .logo .boom-logo-svg{width:28px;height:28px}
@@ -97,7 +97,7 @@
         .hamburger span{position:absolute;left:0;width:100%;height:1px;background:var(--g2);transition:all .3s}
         .hamburger span:nth-child(1){top:0}.hamburger span:nth-child(2){top:50%}.hamburger span:nth-child(3){bottom:0}
         .hamburger.active span:nth-child(1){top:50%;transform:rotate(45deg)}.hamburger.active span:nth-child(2){opacity:0}.hamburger.active span:nth-child(3){bottom:50%;transform:rotate(-45deg)}
-        .mobile-menu{position:fixed;inset:0;background:rgba(0,0,0,.97);backdrop-filter:blur(40px);z-index:999;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:20px;opacity:0;pointer-events:none;transition:opacity .4s}
+        .mobile-menu{position:fixed;inset:0;background:rgba(0,0,0,.97);-webkit-backdrop-filter:blur(40px);backdrop-filter:blur(40px);z-index:999;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:20px;opacity:0;pointer-events:none;transition:opacity .4s}
         .mobile-menu.active{opacity:1;pointer-events:all}
         .mobile-menu a{color:var(--g4);font-size:20px;font-weight:300;letter-spacing:.02em;transition:color .3s;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif}
         .mobile-menu a:hover{color:var(--white)}

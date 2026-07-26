@@ -111,7 +111,7 @@
 
         /* Nav */
         .bnav { position:fixed; top:0; left:0; right:0; z-index:1000; padding:14px 0;
-            background:rgba(3,3,3,0.95); backdrop-filter:blur(20px); border-bottom:1px solid var(--border); }
+            background:rgba(3,3,3,0.95); -webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px); border-bottom:1px solid var(--border); }
         .bnav-in { max-width:1200px; margin:0 auto; padding:0 24px; display:flex; align-items:center; justify-content:space-between; }
         .bnav-logo { display:flex; align-items:center; gap:12px; transition:transform 0.3s var(--ease); }
         .bnav-logo:hover { transform:scale(1.02); }
@@ -213,7 +213,7 @@
             background:linear-gradient(135deg, rgba(245,166,35,0.25), rgba(245,166,35,0.05) 40%, rgba(245,166,35,0.15) 60%, rgba(245,166,35,0.05)); transition:all 0.5s var(--ease); }
         .boom-upsell:hover { background:linear-gradient(135deg, rgba(245,166,35,0.4), rgba(245,166,35,0.1) 40%, rgba(245,166,35,0.25) 60%, rgba(245,166,35,0.1)); }
         .boom-upsell-inner { position:relative; z-index:1; border-radius:15px; overflow:hidden;
-            background:linear-gradient(165deg, rgba(12,12,14,0.97), rgba(18,18,22,0.99)); backdrop-filter:blur(20px); }
+            background:linear-gradient(165deg, rgba(12,12,14,0.97), rgba(18,18,22,0.99)); -webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px); }
         .upsell-layout { display:flex; gap:0; position:relative; z-index:2; }
         .upsell-icon-col { width:72px; min-height:100%; flex-shrink:0; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px 0;
             background:linear-gradient(180deg, rgba(245,166,35,0.08) 0%, rgba(245,166,35,0.02) 100%); border-right:1px solid rgba(245,166,35,0.08); }

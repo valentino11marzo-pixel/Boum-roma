@@ -56,7 +56,7 @@
 }
 html{scroll-behavior:smooth}
 body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weight:300;background:var(--bg);color:var(--t0);min-height:100dvh;-webkit-font-smoothing:antialiased;letter-spacing:-.012em}
-.hdr{position:sticky;top:0;z-index:20;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:rgba(8,8,8,0.92);border-bottom:1px solid var(--b0);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.hdr{position:sticky;top:0;z-index:20;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:rgba(8,8,8,0.92);border-bottom:1px solid var(--b0);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
 .logo{display:flex;align-items:center;gap:8px;text-decoration:none}
 .logo-svg{width:20px;height:20px;flex-shrink:0}
 .logo-wm{font-size:13px;font-weight:300;letter-spacing:.32em;color:var(--t0);text-transform:uppercase}
@@ -173,7 +173,7 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
 .cal-btn-g:hover{border-color:rgba(66,133,244,.55);background:rgba(66,133,244,.1)}
 .cal-btn-a{background:var(--s2);border-color:var(--b2)}
 .cal-btn-a:hover{border-color:var(--b3);background:var(--s3)}
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);padding:10px 18px;border-radius:10px;font-size:12px;font-weight:400;letter-spacing:.02em;white-space:nowrap;pointer-events:none;opacity:0;transition:all .25s;z-index:100;backdrop-filter:blur(12px)}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);padding:10px 18px;border-radius:10px;font-size:12px;font-weight:400;letter-spacing:.02em;white-space:nowrap;pointer-events:none;opacity:0;transition:all .25s;z-index:100;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .toast.err{background:rgba(255,59,48,.15);border:1px solid rgba(255,59,48,.3);color:#FF6B6B}
 .toast.ok{background:rgba(52,199,89,.12);border:1px solid rgba(52,199,89,.25);color:#4CD964}

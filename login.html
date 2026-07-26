@@ -177,7 +177,7 @@
     .hero-inner{max-width:600px}
 
     .eyebrow{display:inline-flex;align-items:center;gap:9px;margin-bottom:26px;padding:6px 13px;border-radius:999px;
-      border:1px solid var(--line);background:rgba(255,255,255,.03);backdrop-filter:blur(6px);
+      border:1px solid var(--line);background:rgba(255,255,255,.03);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
       font-family:var(--ui);font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--text-2)}
     .eyebrow .pip{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 9px var(--gold)}
 
@@ -205,7 +205,7 @@
     /* ── Auth panel ── */
     .auth{position:relative;display:flex;align-items:center;justify-content:center;
       padding:40px clamp(28px,3.4vw,56px);background:var(--panel);
-      backdrop-filter:blur(18px) saturate(1.2);-webkit-backdrop-filter:blur(18px) saturate(1.2)}
+      -webkit-backdrop-filter:blur(18px) saturate(1.2);backdrop-filter:blur(18px) saturate(1.2);-webkit-backdrop-filter:blur(18px) saturate(1.2)}
     .auth::before{content:'';position:absolute;top:0;bottom:0;left:0;width:1px;pointer-events:none;
       background:linear-gradient(180deg, rgba(246,228,166,.45), rgba(255,255,255,.12) 20%, rgba(255,255,255,.03) 55%, transparent)}
     .auth-inner{width:100%;max-width:352px;animation:enter .7s var(--ease) both;animation-delay:.15s}
@@ -285,7 +285,7 @@
       .auth::before{display:none}
       .dome{left:50%;top:32%;width:min(640px,92vw);height:min(640px,92vw);opacity:.62}
       .dome .sweep,.dome .sweep2,.dome .beam,.dome .rim{display:none}   /* drop mix-blend layers on mobile for speed */
-      .auth{background:#0a0a0c;backdrop-filter:none;-webkit-backdrop-filter:none}  /* solid panel = cheaper paint */
+      .auth{background:#0a0a0c;-webkit-backdrop-filter:none;backdrop-filter:none;-webkit-backdrop-filter:none}  /* solid panel = cheaper paint */
       .field input{font-size:16px}                         /* 16px prevents iOS focus-zoom */
       .tint{background:radial-gradient(70% 50% at 50% 30%, rgba(8,8,10,.45), rgba(8,8,10,.92) 75%),linear-gradient(0deg, rgba(8,8,10,.9), transparent 60%)}
       .mhead{display:block;margin-bottom:6px}
@@ -476,6 +476,28 @@
         catch{ try{ await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION); }catch{} }
       })();
 
+      // ── Rilevamento ciclo login ↔ pagina protetta ────────────────────────
+      // Se il browser non conserva la sessione (Safari in navigazione privata
+      // o con lo storage bloccato), il login riesce, la pagina protetta non
+      // trova l'utente e rimbalza qui: all'infinito, senza un solo messaggio.
+      // La pagina protetta arriva con ?b=1 — se succede 2 volte in un minuto
+      // lo diciamo, invece di far girare l'utente a vuoto.
+      function bounceCheck(){
+        try{
+          if(new URLSearchParams(location.search).get('b')!=='1') return;
+          const now=Date.now();
+          const hist=(JSON.parse(sessionStorage.getItem('boom_bounce')||'[]'))
+            .filter(t=>now-t<60000).concat(now);
+          sessionStorage.setItem('boom_bounce',JSON.stringify(hist.slice(-5)));
+          if(hist.length>=2){
+            sessionStorage.removeItem('boom_bounce');
+            showMessage('Il browser non sta conservando la sessione. Su Safari: '
+              +'esci dalla Navigazione privata e disattiva “Blocca tutti i cookie” '
+              +'in Impostazioni → Privacy, poi riprova.','error');
+          }
+        }catch(e){/* storage bloccato: niente da fare, ma nessun crash */}
+      }
+
       auth.onAuthStateChanged(u=>{ if(u) window.location.href=NEXT_DEST; });
 
       const form=document.getElementById('loginForm');
@@ -548,6 +570,8 @@
         showMessage('If an account exists for that email, a reset link is on its way.','success');
         setTimeout(()=>{ forgotBtn.disabled=false; },4000);
       });
+
+      bounceCheck();   // dopo i const del DOM: showMessage ha bisogno di messageEl
     });
   </script>
 </body>

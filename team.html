@@ -145,7 +145,7 @@ section > h3 { font-size: 12px; letter-spacing: 3px; color: var(--text-secondary
   const watchdog = setTimeout(() => shieldFail('L\'accesso sta impiegando troppo — connessione o SDK Firebase bloccato.'), 15000);
   let auth;
   try {
-    auth = await BoomPortal.requireAuth(['admin'], { loginUrl: '/login.html' });
+    auth = await BoomPortal.requireAuth(['admin'], { loginUrl: '/login' });
   } catch (e) {
     clearTimeout(watchdog);
     const m = String(e && e.message || e);

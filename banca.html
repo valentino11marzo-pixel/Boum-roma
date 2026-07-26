@@ -188,7 +188,7 @@ input:focus, textarea:focus { border-color: rgba(212,175,55,.4); }
   };
   const watchdog = setTimeout(() => shieldFail('L\'accesso sta impiegando troppo — connessione o SDK Firebase bloccato.'), 15000);
   try {
-    await BoomPortal.requireAuth(['admin'], { loginUrl: '/login.html' });
+    await BoomPortal.requireAuth(['admin'], { loginUrl: '/login' });
   } catch (e) {
     clearTimeout(watchdog);
     const m = String(e && e.message || e);
