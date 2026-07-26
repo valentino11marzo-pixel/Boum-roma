@@ -265,7 +265,7 @@
     },
     {
       "source": "/casa",
-      "destination": "/tenant.html"
+      "destination": "/tenant"
     },
     {
       "source": "/welcome-to-rome",
@@ -397,7 +397,7 @@
     },
     {
       "source": "/boom-doc-parser",
-      "destination": "/boom_doc_parser.html"
+      "destination": "/boom_doc_parser"
     },
     {
       "source": "/cockpit-preview",
