@@ -56,12 +56,15 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 .bg .aur{position:absolute;width:120vmax;height:120vmax;border-radius:50%;filter:blur(90px);opacity:.45}
 .bg .aur.a{left:-46vmax;top:-72vmax;background:radial-gradient(circle,rgba(212,175,55,.10),transparent 58%)}
 .bg .aur.b{right:-58vmax;bottom:-74vmax;background:radial-gradient(circle,rgba(90,110,150,.10),transparent 58%)}
+.bg .scan{position:absolute;left:0;right:0;top:-12%;height:26vh;opacity:0;background:linear-gradient(180deg,transparent,rgba(212,175,55,.03) 45%,rgba(212,175,55,.06) 50%,rgba(212,175,55,.03) 55%,transparent)}
 .bg .vign{position:absolute;inset:0;background:radial-gradient(130% 100% at 50% 34%,transparent 50%,rgba(0,0,0,.62) 100%)}
 @media(prefers-reduced-motion:no-preference){
   .bg .aur.a{animation:aurA 46s var(--ease) infinite alternate}
   .bg .aur.b{animation:aurB 58s var(--ease) infinite alternate}
   @keyframes aurA{to{transform:translate(9vmax,7vmax) scale(1.12)}}
   @keyframes aurB{to{transform:translate(-8vmax,-6vmax) scale(1.08)}}
+  .bg .scan{animation:scan 26s linear infinite}
+  @keyframes scan{0%,78%{top:-28%;opacity:0}80%{opacity:1}95%{opacity:1}100%{top:112%;opacity:0}}
 }
 
 header{position:sticky;top:0;z-index:50;background:rgba(5,5,6,.72);backdrop-filter:blur(20px) saturate(1.5);-webkit-backdrop-filter:blur(20px) saturate(1.5);border-bottom:1px solid var(--line2)}
@@ -170,6 +173,24 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
 .advisor a:hover{background:rgba(37,211,102,.08)}
 .foot{color:var(--t4);font-size:9px;text-align:center;margin-top:30px;letter-spacing:2.2px;text-transform:uppercase}
 
+/* sticky quick-nav: one thumb-reach jump to any section of the home */
+.qnav{position:sticky;top:57px;z-index:40;display:flex;gap:7px;overflow-x:auto;padding:12px 0 10px;margin:6px -18px 0;padding-left:18px;padding-right:18px;scrollbar-width:none;background:linear-gradient(180deg,rgba(5,5,6,.92) 70%,transparent);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.qnav::-webkit-scrollbar{display:none}
+.qnav a{flex:none;border:1px solid var(--line);border-radius:100px;padding:8px 14px;font-size:9.5px;letter-spacing:1.8px;text-transform:uppercase;color:var(--t3);text-decoration:none;transition:.25s;background:rgba(255,255,255,.02)}
+.qnav a:hover{border-color:var(--line-gold);color:var(--gold)}
+.card{scroll-margin-top:118px}
+/* the payment ceremony — green appears only around money */
+.payov{position:fixed;inset:0;z-index:210;display:none;place-items:center;background:rgba(4,5,4,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);text-align:center}
+.payov.on{display:grid}
+.payov .amt{font-size:clamp(38px,10vw,54px);font-weight:200;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+.payov .cap{font-size:10px;letter-spacing:3.4px;text-transform:uppercase;color:var(--green);margin-top:14px}
+.payov .sub{font-size:12px;color:var(--t3);margin-top:8px}
+.payov .ring{width:72px;height:72px;border-radius:50%;border:1px solid rgba(74,222,158,.5);margin:0 auto 22px;display:grid;place-items:center;color:var(--green);position:relative}
+.payov .ring::after{content:"";position:absolute;inset:-8px;border-radius:50%;border:1px solid rgba(74,222,158,.25)}
+@media(prefers-reduced-motion:no-preference){.payov.on .ring{animation:payPulse 1.2s var(--ease) infinite alternate}@keyframes payPulse{from{box-shadow:0 0 0 rgba(74,222,158,0)}to{box-shadow:0 0 34px rgba(74,222,158,.35)}}}
+.wifiqr{display:flex;gap:14px;align-items:center;margin:6px 0 4px;padding:12px 2px;border-top:1px solid var(--line2)}
+.wifiqr img{width:92px;height:92px;border-radius:12px;border:1px solid var(--line);padding:6px;background:#fff;flex:none}
+.wifiqr small{font-size:11px;color:var(--t3);line-height:1.6}
 .rv{opacity:0;transform:translateY(16px)}
 .rv.in{opacity:1;transform:none;transition:opacity .7s var(--ease),transform .7s var(--ease)}
 @media(prefers-reduced-motion:reduce){.rv{opacity:1;transform:none}}
@@ -184,7 +205,7 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
     <path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/>
   </g></g>
 </defs></svg>
-<div class="bg" aria-hidden="true"><span class="grid"></span><span class="aur a"></span><span class="aur b"></span><span class="vign"></span></div>
+<div class="bg" aria-hidden="true"><span class="grid"></span><span class="aur a"></span><span class="aur b"></span><span class="scan"></span><span class="vign"></span></div>
 
 <header>
   <div class="hrow">
@@ -204,6 +225,13 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
   <div class="foot" id="foot" style="display:none">Egidi Immobiliare S.r.l. · P.IVA 17322991005 · boomrome.com</div>
 </main>
 
+<div class="payov" id="payov" aria-hidden="true"><div>
+  <div class="ring"><svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+  <div class="amt" id="payAmt">€0</div>
+  <div class="cap">Secure payment · Stripe</div>
+  <div class="sub" id="paySub">Cards &amp; Apple Pay · automatic receipt · redirecting…</div>
+</div></div>
+
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
@@ -216,9 +244,12 @@ var USER=null,PROFILE=null,CONTRACT=null,PROPERTY=null,PAYMENTS=[],MAINT=[];
 
 /* ── Casa 2.0 i18n: ENGLISH FIRST (the BOOM tenant is an expat) with an
    Italian toggle, persisted. t(key) resolves; strings kept in one place. ── */
-var LANG=(function(){try{return localStorage.getItem('boom:casa:lang')||'en'}catch(e){return 'en'}})();
+var LANG=(function(){try{return localStorage.getItem('boom:casa:lang')||((navigator.language||'').slice(0,2)==='it'?'it':'en')}catch(e){return 'en'}})();
 var STR={
  en:{home:'Your home',logout:'Log out',open:'Opening your home…',active:'Contract active',reserved:'Reserved in your name',
+  gm:'Good morning',ga:'Good afternoon',ge:'Good evening',daysToKeys:'{n} days to your keys',keysToday:'keys day!',
+  nPay:'Payment',nHist:'History',nDocs:'Documents',nMan:'Manual',nHood:'Area',nFix:'Repairs',nConc:'Concierge',nKit:'Rome Kit',nRef:'Invite',
+  wifiScan:'Point the camera here — joins the Wi-Fi instantly. No typing, no typos.',redirect:'Cards &amp; Apple Pay · automatic receipt · redirecting…',
   monthly:'Monthly rent',nextPay:'Next payment',due:'Due date',allGood:'all clear ✓',paidReg:'Payments on record',
   s1:'Next payment',depositBal:'Security deposit balance',rentOf:'Rent',dueBy:'Due by',lateBy:'Overdue since',late:'overdue — settle it now',dueSoon:'coming up',
   payCard:'Pay by card',service:'service',payFoot1:'Stripe · cards & Apple Pay · automatic receipt by email and in your history',
@@ -250,6 +281,9 @@ var STR={
   shareMsg:'Moving to Rome? This is how I found my apartment — BOOM handles everything, contract to keys. Use my code {code}: https://www.boomrome.com/?ref={code}',
   kitShareMsg:'If you are moving to Rome, save this — the survival guide for codice fiscale, residency, SIM & co: https://www.boomrome.com/welcome-to-rome'},
  it:{home:'La tua casa',logout:'Esci',open:'Apro la tua casa…',active:'Contratto attivo',reserved:'Casa riservata a tuo nome',
+  gm:'Buongiorno',ga:'Buon pomeriggio',ge:'Buonasera',daysToKeys:'{n} giorni alle chiavi',keysToday:'giorno delle chiavi!',
+  nPay:'Pagamenti',nHist:'Storico',nDocs:'Documenti',nMan:'Manuale',nHood:'Quartiere',nFix:'Riparazioni',nConc:'Concierge',nKit:'Rome Kit',nRef:'Invita',
+  wifiScan:'Inquadra col telefono — si collega al Wi-Fi all\'istante. Zero password da battere.',redirect:'Carte &amp; Apple Pay · ricevuta automatica · reindirizzamento…',
   monthly:'Canone mensile',nextPay:'Prossimo pagamento',due:'Scadenza',allGood:'tutto in regola ✓',paidReg:'Pagamenti registrati',
   s1:'Il prossimo pagamento',depositBal:'Saldo deposito cauzionale',rentOf:'Canone',dueBy:'Entro il',lateBy:'Scaduto il',late:'in ritardo — sistemalo ora',dueSoon:'in scadenza',
   payCard:'Paga con carta',service:'servizio',payFoot1:'Stripe · carte &amp; Apple Pay · ricevuta automatica via email e nello storico',
@@ -303,6 +337,29 @@ function nextPending(){
   return p[0]||null;
 }
 
+function greet(){var h=new Date().getHours();return t(h<12?'gm':h<18?'ga':'ge')}
+function countUp(scope){
+  try{
+    if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+    [].slice.call(scope.querySelectorAll('[data-roll]')).forEach(function(el,ix){
+      var target=el.getAttribute('data-roll'),mm=target.match(/([\d.,]+)/);if(!mm)return;
+      var num=parseFloat(mm[1].replace(/,/g,''));if(!isFinite(num))return;
+      var t0=performance.now(),D=850+ix*110;
+      (function tick(now){
+        var p=Math.min(1,(now-t0)/D),e2=1-Math.pow(1-p,4);
+        el.textContent=p<1?target.replace(mm[1],Math.round(num*e2).toLocaleString('en-US')):target;
+        if(p<1)requestAnimationFrame(tick);
+      })(t0);
+    });
+  }catch(e){}
+}
+function wifiQr(name,pass){
+  var host=document.getElementById('wifiQrImg');if(!host)return;
+  var payload='WIFI:T:WPA;S:'+String(name).replace(/([\\;,:"])/g,'\\$1')+';P:'+String(pass).replace(/([\\;,:"])/g,'\\$1')+';;';
+  var go=function(){try{window.QRCode.toDataURL(payload,{margin:0,width:368,color:{dark:'#111111',light:'#ffffff'}},function(err,durl){if(!err&&durl)host.src=durl;});}catch(e){}};
+  if(window.QRCode&&window.QRCode.toDataURL)return go();
+  var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js';s.onload=go;document.head.appendChild(s);
+}
 function refCode(){return 'BOOM-'+String(USER&&USER.uid||'ROMA').replace(/[^a-zA-Z0-9]/g,'').slice(0,6).toUpperCase()}
 function manLine(ic,label,val,copyable){
   if(!val)return '';
@@ -341,23 +398,32 @@ function render(){
   var man=(PROPERTY&&PROPERTY.manual)||null;
   var hood=(PROPERTY&&Array.isArray(PROPERTY.neighborhood))?PROPERTY.neighborhood.filter(function(x){return x&&x.name}):[];
   var N=0;var no=function(){N++;return (N<10?'0':'')+N};
+  var firstName=String((PROFILE&&PROFILE.name)||'').split(' ')[0];
+  var dToKeys=null;
+  try{if(c.startDate&&c.startDate>todayISO)dToKeys=Math.ceil((new Date(c.startDate+'T00:00')-new Date(todayISO+'T00:00'))/86400000);}catch(e){}
 
   var html=
-    '<span class="eyebrow">La tua casa BOOM</span>'
+    '<span class="eyebrow">'+greet()+(firstName?', '+esc(firstName):'')+'</span>'
     +'<h1 class="big">'+esc(addr).replace(/,([^,]*)$/,',<em>$1</em>')+'</h1>'
     +(c.startDate?'<div class="subline">'+esc(c.type||'')+' · '+fmtD(c.startDate)+' → '+fmtD(c.endDate)+'</div>':'')
-    +'<div class="chip">'+(c.signatureStatus==='completed'?t('active'):t('reserved'))+'</div>'
+    +'<div class="chip">'+(c.signatureStatus==='completed'?t('active'):t('reserved'))+(dToKeys!=null?' · '+(dToKeys===0?t('keysToday'):t('daysToKeys').replace('{n}',dToKeys)):'')+'</div>'
     +'<div class="tiles">'
-      +'<div class="tile hero"><div class="k">'+t('monthly')+'</div><div class="v">'+eur(rent)+'<small> /m</small></div></div>'
-      +'<div class="tile"><div class="k">'+t('nextPay')+'</div><div class="v">'+(next?eur(next.amount):'—')+'</div></div>'
+      +'<div class="tile hero"><div class="k">'+t('monthly')+'</div><div class="v"><span data-roll="'+eur(rent)+'">'+eur(rent)+'</span><small> /m</small></div></div>'
+      +'<div class="tile"><div class="k">'+t('nextPay')+'</div><div class="v">'+(next?('<span data-roll="'+eur(next.amount)+'">'+eur(next.amount)+'</span>'):'—')+'</div></div>'
       +'<div class="tile"><div class="k">'+t('due')+'</div><div class="v" style="font-size:15px;font-weight:300">'+(next?fmtD(next.dueDate):t('allGood'))+'</div></div>'
       +'<div class="tile"><div class="k">'+t('paidReg')+'</div><div class="v">'+paidCount+'<small> ✓</small></div></div>'
     +'</div>';
 
+  /* sticky quick-nav — built from the sections that actually render */
+  var navItems=[['s-pay','nPay'],['s-hist','nHist'],['s-docs','nDocs'],['s-man','nMan']];
+  if(hood.length)navItems.push(['s-hood','nHood']);
+  navItems.push(['s-fix','nFix'],['s-conc','nConc'],['s-kit','nKit'],['s-ref','nRef']);
+  html+='<nav class="qnav">'+navItems.map(function(x){return '<a href="#'+x[0]+'">'+t(x[1])+'</a>'}).join('')+'</nav>';
+
   if(paidId)html+='<div class="paidband">'+t('paidBand')+'</div>';
 
   /* ── next payment ── */
-  html+='<div class="card paycard rv">'+secH(no(),t('s1'));
+  html+='<div class="card paycard rv" id="s-pay">'+secH(no(),t('s1'));
   if(next){
     var lab=next.type==='deposit-balance'?t('depositBal'):t('rentOf')+' '+esc(next.month||String(next.dueDate||'').slice(0,7));
     html+='<div class="pm"><div class="lab">'+lab+'<b>'+(late?t('lateBy'):t('dueBy'))+' '+fmtD(next.dueDate)+'</b></div>'
@@ -373,7 +439,7 @@ function render(){
 
   /* ── history ── */
   var hist=PAYMENTS.slice().sort(function(a,b){return String(b.dueDate||'').localeCompare(String(a.dueDate||''))});
-  html+='<div class="card rv">'+secH(no(),t('s2'))+'<div class="rowlist" id="histRows">';
+  html+='<div class="card rv" id="s-hist">'+secH(no(),t('s2'))+'<div class="rowlist" id="histRows">';
   if(!hist.length)html+='<div style="font-size:13px;color:var(--t3)">'+t('histEmpty')+'</div>';
   html+=hist.slice(0,6).map(payRow).join('');
   html+='</div>'
@@ -381,7 +447,7 @@ function render(){
     +'</div>';
 
   /* ── documents ── */
-  html+='<div class="card rv">'+secH(no(),t('s3'));
+  html+='<div class="card rv" id="s-docs">'+secH(no(),t('s3'));
   if(c.signingCertificateUrl){
     html+='<a class="dlink" href="'+c.signingCertificateUrl+'" target="_blank" rel="noopener"><span class="ic">📄</span><span>'+t('contractDoc')+'<br><small>'+t('contractSub')+'</small></span><span class="go">→</span></a>';
   }else if(c.generatedPDF){
@@ -396,10 +462,11 @@ function render(){
   html+='</div>';
 
   /* ── THE HOME MANUAL — the feature that kills 90% of the questions ── */
-  html+='<div class="card rv">'+secH(no(),t('sM'))
+  html+='<div class="card rv" id="s-man">'+secH(no(),t('sM'))
     +'<div style="font-size:12.5px;color:var(--t3);margin:-6px 0 12px">'+t('manualSub')+'</div>';
   if(man&&(man.wifiName||man.heating||man.trash||man.appliances||man.emergency||man.rules||man.access)){
-    if(man.wifiName)html+=manLine('📶',t('wifi'),man.wifiName+(man.wifiPass?'\n'+man.wifiPass:''),man.wifiPass||man.wifiName);
+    if(man.wifiName)html+=manLine('📶',t('wifi'),man.wifiName+(man.wifiPass?'\n'+man.wifiPass:''),man.wifiPass||man.wifiName)
+      +(man.wifiPass?'<div class="wifiqr"><img id="wifiQrImg" alt="Wi-Fi QR"><small>'+t('wifiScan')+'</small></div>':'');
     html+=manLine('🔥',t('heating'),man.heating)
       +manLine('♻️',t('trash'),man.trash)
       +manLine('🧺',t('appliances'),man.appliances)
@@ -413,7 +480,7 @@ function render(){
 
   /* ── neighbourhood, curated by the advisor ── */
   if(hood.length){
-    html+='<div class="card rv">'+secH(no(),t('sN'))
+    html+='<div class="card rv" id="s-hood">'+secH(no(),t('sN'))
       +'<div style="font-size:12.5px;color:var(--t3);margin:-6px 0 12px">'+t('neighSub')+'</div>';
     hood.slice(0,8).forEach(function(x){
       var q=encodeURIComponent((x.name||'')+' Roma');
@@ -425,7 +492,7 @@ function render(){
   }
 
   /* ── maintenance ── */
-  html+='<div class="card rv">'+secH(no(),t('s4'))
+  html+='<div class="card rv" id="s-fix">'+secH(no(),t('s4'))
     +'<div class="g2">'
     +'<label class="fld"><span>'+t('mCat')+'</span><select id="mCat"><option value="idraulica">'+t('cat1')+'</option><option value="elettricita">'+t('cat2')+'</option><option value="elettrodomestici">'+t('cat3')+'</option><option value="riscaldamento">'+t('cat4')+'</option><option value="serrature">'+t('cat5')+'</option><option value="altro">'+t('cat6')+'</option></select></label>'
     +'<label class="fld"><span>'+t('mPri')+'</span><select id="mPri"><option value="normal">'+t('pri1')+'</option><option value="high">'+t('pri2')+'</option><option value="emergency">'+t('pri3')+'</option></select></label>'
@@ -438,7 +505,7 @@ function render(){
     +'</div>';
 
   /* ── concierge ── */
-  html+='<div class="card rv">'+secH(no(),t('s5'))
+  html+='<div class="card rv" id="s-conc">'+secH(no(),t('s5'))
     +'<div style="font-size:12.5px;color:var(--t3);margin:-6px 0 12px">'+t('s5Sub')+'</div>'
     +'<div class="svc">'
     +'<a class="svcard" href="'+waMsg('Ciao BOOM! Vorrei il Move-in Pack per '+addr+' (volture luce/gas, internet, guida residenza).')+'" target="_blank" rel="noopener"><span class="em">🔌</span><span><b>'+t('svc1')+'</b><span>'+t('svc1d')+'</span></span><span class="pr">€149</span></a>'
@@ -447,14 +514,14 @@ function render(){
     +'</div></div>';
 
   /* ── Welcome to Rome Kit — the viral engine, made to leave this page ── */
-  html+='<div class="card rv" style="border-color:var(--line-gold)">'+secH(no(),t('sK'))
+  html+='<div class="card rv" id="s-kit" style="border-color:var(--line-gold)">'+secH(no(),t('sK'))
     +'<div style="font-size:13px;color:var(--t2);line-height:1.7">'+t('kitSub')+'</div>'
     +'<a class="obtn" href="/welcome-to-rome" style="margin-top:12px;border-color:var(--line-gold);color:var(--gold)">'+t('kitBtn')+'</a> '
     +'<button class="obtn" onclick="shareKit()">'+t('kitShare')+'</button>'
     +'</div>';
 
   /* ── referral with a personal code + native share ── */
-  html+='<div class="card rv">'+secH(no(),t('s6'))
+  html+='<div class="card rv" id="s-ref">'+secH(no(),t('s6'))
     +'<div style="font-size:13px;color:var(--t2);line-height:1.7">'+t('refText')+'</div>'
     +'<div style="margin-top:13px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">'
     +'<span style="border:1px dashed var(--line-gold);border-radius:10px;padding:9px 16px;font-family:var(--mono);font-size:13px;letter-spacing:2px;color:var(--gold)">'+refCode()+'</span>'
@@ -468,6 +535,8 @@ function render(){
   $('app').innerHTML=html;
   wire(next,hist);
   reveal();
+  countUp($('app'));
+  if(man&&man.wifiName&&man.wifiPass)wifiQr(man.wifiName,man.wifiPass);
 }
 
 function payRow(p){
@@ -492,7 +561,14 @@ function wire(next,hist){
       USER.getIdToken().then(function(tok){
         return fetch('/api/payments/pay',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({paymentId:next.id})});
       }).then(function(r){return r.json()}).then(function(j){
-        if(j&&j.ok&&j.checkoutUrl){location.href=j.checkoutUrl;return;}
+        if(j&&j.ok&&j.checkoutUrl){
+          var po=$('payov'),pa=$('payAmt'),ps=$('paySub');
+          if(pa)pa.textContent=eur(j.total||next.amount);
+          if(ps)ps.innerHTML=t('redirect');
+          if(po&&!matchMedia('(prefers-reduced-motion: reduce)').matches){po.classList.add('on');setTimeout(function(){location.href=j.checkoutUrl;},1100);}
+          else location.href=j.checkoutUrl;
+          return;
+        }
         throw new Error((j&&j.error)||'failed');
       }).catch(function(){
         pb.disabled=false;pb.textContent=t('payRetry');
@@ -530,6 +606,7 @@ function wire(next,hist){
 function reveal(){
   try{
     var els=[].slice.call(document.querySelectorAll('.rv'));
+    els.forEach(function(e,i){e.style.transitionDelay=((i%5)*55)+'ms'});
     if(!('IntersectionObserver' in window)){els.forEach(function(e){e.classList.add('in')});return;}
     var io=new IntersectionObserver(function(es){es.forEach(function(en){if(en.isIntersecting){en.target.classList.add('in');io.unobserve(en.target);}})},{threshold:.1});
     els.forEach(function(e){io.observe(e)});
