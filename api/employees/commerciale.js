@@ -67,6 +67,14 @@ async function run({ dry }) {
   const ageOf = l => { const t = Date.parse(l.createdAt || 0); return t ? now - t : null; };
   const reachable = l => !!(l.email || l.phone);
 
+// channel choice: honour the origin channel when we can actually reach them
+function pickChannel(lead) {
+  const src = String(lead.source || '').toLowerCase();
+  if (src.includes('whatsapp') && lead.phone) return 'whatsapp';
+  if (lead.email) return 'email';
+  return lead.phone ? 'whatsapp' : 'email';
+}
+
   const proposals = [];
   let firstCount = 0, followupCount = 0, aiErrors = 0;
 
@@ -137,7 +145,10 @@ async function proposeFirstReply(lead, dry) {
   const { text } = await callClaude({ system: SYSTEM, user: `Scrivi la prima risposta a questo lead.\n\n${facts}`, maxTokens: 700 });
   const parsed = extractJson(text) || { subject: 'La tua richiesta — BOOM Roma', body: text };
 
-  const channel = lead.email ? 'email' : 'whatsapp';
+  // Reply on the channel they used: someone who wrote on WhatsApp expects
+  // a WhatsApp answer (and Homie's outbox now delivers it after approval),
+  // even if we happen to know their email. Email otherwise.
+  const channel = pickChannel(lead);
   const r = await proposeAction({
     leadId: lead.id,
     kind: 'reply',
@@ -167,7 +178,10 @@ async function proposeFollowup(lead, dry) {
     ? `Hi${name},\n\nJust checking in on your enquiry — we're still happy to help you find the right place in Rome. If you're still looking, reply with your ideal move-in date and we'll line up a couple of options (with video tours if you're abroad).\n\nBest,\nIl team BOOM`
     : `Ciao${name},\n\nTi scriviamo di nuovo per la tua richiesta: siamo ancora a disposizione per aiutarti a trovare la casa giusta a Roma. Se stai ancora cercando, rispondici con la tua data di ingresso ideale e ti proponiamo un paio di opzioni (anche con video-visita).\n\nA presto,\nIl team BOOM`;
 
-  const channel = lead.email ? 'email' : 'whatsapp';
+  // Reply on the channel they used: someone who wrote on WhatsApp expects
+  // a WhatsApp answer (and Homie's outbox now delivers it after approval),
+  // even if we happen to know their email. Email otherwise.
+  const channel = pickChannel(lead);
   const r = await proposeAction({
     leadId: lead.id,
     kind: 'reply',
