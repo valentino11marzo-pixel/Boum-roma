@@ -84,12 +84,15 @@ async function run({ dry }) {
       digest.push(`💸 ${prop} — ${euro(p.amount)} in ritardo ${late}gg (nessuna email inquilino)`);
       continue;
     }
-    const monthLabel = p.month
+    // month is 'YYYY-MM' for rent installments; deposit docs carry labels
+    // like 'saldo deposito' — never feed those to Date (→ 'Invalid Date').
+    const monthLabel = /^\d{4}-\d{2}$/.test(String(p.month || ''))
       ? new Date(p.month + '-01T00:00:00Z').toLocaleDateString('it-IT', { month: 'long', year: 'numeric', timeZone: 'UTC' })
-      : 'in corso';
+      : (p.month || 'in corso');
+    const what = p.type === 'deposit-balance' ? 'il saldo del deposito cauzionale' : `il canone di ${monthLabel}`;
     const draft =
       `Ciao ${name || ''},\n\n` +
-      `ti scriviamo per il canone di ${monthLabel} relativo a ${prop}: risulta ancora da saldare l'importo di ${euro(p.amount)}, in scadenza il ${p.dueDate}.\n\n` +
+      `ti scriviamo per ${what} relativo a ${prop}: risulta ancora da saldare l'importo di ${euro(p.amount)}, in scadenza il ${p.dueDate}.\n\n` +
       `Se il pagamento è già partito, ignora pure questo messaggio. In caso contrario ti chiediamo di provvedere nei prossimi giorni; per qualsiasi difficoltà siamo qui — basta rispondere a questa email.\n\n` +
       `Grazie,\nIl team BOOM`;
     const r = await maybePropose(dry, {

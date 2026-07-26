@@ -53,8 +53,11 @@ export default async function handler(req, res) {
   }
   if (pay.status === 'paid') return res.status(409).json({ ok: false, error: 'already_paid' });
 
-  const amount = Math.round(Number(pay.amount) || 0);
-  if (amount < 10 || amount > 20000) return res.status(400).json({ ok: false, error: 'bad_amount' });
+  // Cents-exact: deposit balances routinely carry .50 — the charge must
+  // equal the payment doc to the cent or reconciliation never closes.
+  const cents = Math.round((Number(pay.amount) || 0) * 100);
+  if (cents < 1000 || cents > 2000000) return res.status(400).json({ ok: false, error: 'bad_amount' });
+  const amount = cents / 100;
   if (!process.env.STRIPE_SECRET_KEY) return res.status(503).json({ ok: false, error: 'payments_unconfigured' });
 
   const fee = rentFee(amount);
@@ -74,7 +77,7 @@ export default async function handler(req, res) {
           price_data: {
             currency: 'eur',
             product_data: { name: label, description: 'BOOM Roma · pagamento tracciato, ricevuta automatica via email.' },
-            unit_amount: amount * 100,
+            unit_amount: cents,
           },
           quantity: 1,
         },
@@ -94,6 +97,9 @@ export default async function handler(req, res) {
       },
       success_url: 'https://www.boomrome.com/casa?paid=' + encodeURIComponent(paymentId),
       cancel_url: 'https://www.boomrome.com/casa',
+      // Short expiry: abandoned sessions die in 30 min instead of Stripe's
+      // 24h default — shrinks the stale-session double-payment window.
+      expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
     });
     fsPatch('payments/' + paymentId, { checkoutSessionId: session.id }).catch(() => {});
     logActivity('rent_checkout_opened', 'payment', { paymentId, amount, fee, by: auth.email }, auth.email || 'tenant').catch(() => {});

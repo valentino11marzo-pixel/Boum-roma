@@ -186,6 +186,8 @@ async function handleDeposit(res, session, m) {
       dueDate: now.slice(0, 10),
       status: 'paid',
       paidAt: now,
+      paidDate: now.slice(0, 10),   // consumed by /casa rows + portal revenue stats
+      paidVia: 'stripe',
       stripeSessionId: session.id,
       createdAt: now,
     });
@@ -535,8 +537,32 @@ async function handleRent(res, session, m) {
   let pay = null;
   try { pay = await readDoc(`payments/${paymentId}`); } catch (_) {}
   if (!pay) return res.status(200).json({ received: true, error: 'payment_not_found', paymentId });
-  if (pay.status === 'paid' && pay.stripeSessionId === session.id) {
-    return res.status(200).json({ received: true, duplicate: true, paymentId });
+  if (pay.status === 'paid') {
+    // Same session retried by Stripe → simple ack.
+    if (pay.stripeSessionId === session.id) {
+      return res.status(200).json({ received: true, duplicate: true, paymentId });
+    }
+    // Paid by ANOTHER route (bank reconciliation, or a second checkout
+    // session that survived): NEVER overwrite the record — this charge is
+    // a probable double payment. Alarm the operator for a refund.
+    const dupNow = new Date().toISOString();
+    try {
+      await writeDoc('agentNotifications', 'rent-double-' + paymentId + '-' + session.id.slice(-8), {
+        type: 'payment.rent.double',
+        summary: `🚨 POSSIBILE DOPPIO INCASSO su ${paymentId}: già ${pay.paidVia || 'paid'}${pay.paidDate ? ' il ' + pay.paidDate : ''}, ora ricevuto ANCHE via Stripe (${session.id}) — verifica e rimborsa`,
+        priority: 'high', status: 'pending', actor: 'stripe-webhook',
+        dedupKey: 'rent-double-' + paymentId, createdAt: dupNow, attempts: 0,
+      });
+    } catch (_) {}
+    try {
+      await sendEmail({
+        to: 'valentino@boom-rome.com',
+        subject: `🚨 Possibile doppio incasso — ${paymentId}`,
+        html: shell(para(`La rata <b>${paymentId}</b> risultava già pagata (${pay.paidVia || '—'}${pay.paidDate ? ' · ' + pay.paidDate : ''}) ma è appena arrivato ANCHE un pagamento Stripe (sessione ${session.id}, €${((session.amount_total || 0) / 100).toLocaleString('it-IT')}).<br><b>Verifica su Stripe e rimborsa l'incasso doppio.</b> Il record originale non è stato toccato.`)
+          + btn2('https://dashboard.stripe.com/payments', 'Apri Stripe')),
+      });
+    } catch (_) {}
+    return res.status(200).json({ received: true, doublePayment: true, paymentId });
   }
 
   // Stripe receipt link (best-effort)

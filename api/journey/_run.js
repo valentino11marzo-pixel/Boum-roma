@@ -84,16 +84,16 @@ function steps({ c, tenant, addrShort, addr, first }) {
     {
       key: 't1',
       due: dStart != null && dStart <= 1 && dStart >= 0,
-      subject: `Tomorrow: keys to ${addrShort} 🔑`,
-      html: para(`Ciao ${esc(first)} — tomorrow is the day. <b>Key handover is on us</b> — included, as always. Bring your ID; we bring the keys, the meter readings and a small welcome. Your advisor will confirm the exact time on WhatsApp.`)
-        + btn(waMsg(`Ciao! Confermiamo l'orario per la consegna chiavi di domani a ${addr}?`), 'Conferma l’orario su WhatsApp')
+      subject: `${dStart === 0 ? 'Today' : 'Tomorrow'}: keys to ${addrShort} 🔑`,
+      html: para(`Ciao ${esc(first)} — ${dStart === 0 ? 'today is the day' : 'tomorrow is the day'}. <b>Key handover is on us</b> — included, as always. Bring your ID; we bring the keys, the meter readings and a small welcome. Your advisor will confirm the exact time on WhatsApp.`)
+        + btn(waMsg(`Ciao! Confermiamo l'orario per la consegna chiavi a ${addr}?`), 'Conferma l’orario su WhatsApp')
         + fine(`Anything last-minute — we're one message away.`, 'text-align:center'),
     },
     {
       key: 'p3',
       due: dStart != null && dStart <= -3 && dStart >= -6,
       subject: `Settling in at ${addrShort}?`,
-      html: para(`Ciao ${esc(first)} — three days in. We hope ${esc(addrShort)} already feels like yours. Everything about your home now lives in <b>La tua casa BOOM</b>: payments with automatic receipts, documents, one-tap maintenance.`)
+      html: para(`Ciao ${esc(first)} — ${-dStart} days in. We hope ${esc(addrShort)} already feels like yours. Everything about your home now lives in <b>La tua casa BOOM</b>: payments with automatic receipts, documents, one-tap maintenance.`)
         + casaBtns
         + para(`One small favour: if the journey so far deserved it, <b>a review means the world</b> to a small team like ours — it's how the next tenant finds us. Two minutes, honestly appreciated:`, 'margin-top:24px')
         + btn2(REVIEW_URL, '★ Leave a review')
@@ -101,7 +101,11 @@ function steps({ c, tenant, addrShort, addr, first }) {
     },
     {
       key: 'r90',
-      due: dEnd != null && dEnd <= 90 && dEnd >= 84,
+      // Only once the tenancy has STARTED (short leases would otherwise get
+      // the renewal ask before move-in). Second window catches leases
+      // shorter than ~3 months, whose end is already <84 days at move-in.
+      due: dStart != null && dStart < 0 && dEnd != null
+        && ((dEnd <= 90 && dEnd >= 84) || (dEnd <= 28 && dEnd >= 22)),
       subject: `${addrShort} — your lease ends ${fmtD(end)}. Stay on?`,
       html: para(`Ciao ${esc(first)} — a simple question, well in advance: your lease at <b>${esc(addr)}</b> ends on <b>${fmtD(end)}</b>. Would you like to stay on?`)
         + para(`One tap either way — no forms, no pressure:`)
@@ -113,7 +117,7 @@ function steps({ c, tenant, addrShort, addr, first }) {
       key: 'exit',
       due: dEnd != null && dEnd <= -3 && dEnd >= -8,
       subject: `Thank you for calling ${addrShort} home 🤍`,
-      html: para(`Ciao ${esc(first)} — the keys are back and your time at <b>${esc(addr)}</b> is complete. Thank you, sincerely, for being a BOOM tenant. Deposit return follows the timeline in your agreement — track it from your portal.`)
+      html: para(`Ciao ${esc(first)} — your lease at <b>${esc(addr)}</b> reached its end date on ${fmtD(end)}. If the keys are back with us: thank you, sincerely, for being a BOOM tenant — deposit return follows the timeline in your agreement. If plans changed and you're staying on, ignore this note and <a href="${WA}" style="color:#141414">ping us on WhatsApp</a> — we'll sort the renewal.`)
         + para(`Two small things before we part:`)
         + btn(REVIEW_URL, '★ Leave a review — 2 minutes')
         + para(`And if someone you know is looking for a home in Rome, introduce us — our referral thank-you is real.`, 'margin-top:20px')
@@ -162,7 +166,7 @@ export async function runJourney() {
             subject: (st.key === 'r90' ? '⏳ T-90 rinnovo chiesto — ' : '👋 Uscita completata — ') + (tenant.name || '') + ' · ' + addrShort,
             html: shell(para(st.key === 'r90'
               ? `Ho chiesto a <b>${esc(tenant.name || email)}</b> se rinnova <b>${esc(addr)}</b> (fine: ${fmtD(c.endDate)}). La risposta ti arriva su WhatsApp — segna l'esito sul contratto.`
-              : `Percorso chiuso per <b>${esc(tenant.name || email)}</b> · ${esc(addr)}. Inviati ringraziamento, richiesta recensione e invito referral. Prossimo: restituzione deposito nei termini.`)
+              : `Contratto oltre la endDate per <b>${esc(tenant.name || email)}</b> · ${esc(addr)}. Inviati ringraziamento, richiesta recensione e invito referral. <b>Verifica</b>: uscita reale (→ restituzione deposito nei termini) o rinnovo (→ aggiorna endDate/nuovo contratto così il journey riparte pulito).`)
               + btn2('https://www.boomrome.com/portal', 'Apri il portale')),
           }).catch(() => {});
         }

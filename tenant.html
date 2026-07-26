@@ -234,8 +234,12 @@ function nextPending(){
 function render(){
   var addr=(PROPERTY&&(PROPERTY.address||PROPERTY.name))||'La tua casa BOOM';
   var c=CONTRACT||{};
-  var next=nextPending();
   var paidId=new URLSearchParams(location.search).get('paid');
+  /* returning from Stripe: the webhook may not have landed yet — treat the
+     just-paid installment as paid (optimistic) so the page NEVER shows a
+     live pay button for it under the green confirmation band */
+  if(paidId){PAYMENTS.forEach(function(p){if(p.id===paidId&&p.status!=='paid'){p.status='paid';p.paidVia='stripe';p.paidDate=todayISO;}});}
+  var next=nextPending();
   var firstRent=PAYMENTS.filter(function(p){return p.type!=='deposit'&&p.type!=='deposit-balance'})[0];
   var rent=Number(c.rent)||(firstRent?Number(firstRent.amount):0);
   var paidCount=PAYMENTS.filter(function(p){return p.status==='paid'}).length;

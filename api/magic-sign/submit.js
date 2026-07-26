@@ -351,13 +351,16 @@ export default async function handler(req, res) {
       } catch (e) { console.warn('[magic-sign/submit] listing sync:', e.message); }
     }
 
-    // (e) Payment schedule — only if none exists yet
+    // (e) Payment schedule — only if the MONTHLY schedule doesn't exist yet.
+    // Deposit docs (dep_/depbal_, type 'deposit'/'deposit-balance') don't
+    // count: the PA convert step writes depbal_<contractId> BEFORE signing,
+    // and it must never suppress the rent installments.
     if (fullContract.startDate && fullContract.endDate && fullContract.rent) {
       try {
-        const existing = await fsList('payments', {
+        const existing = (await fsList('payments', {
           filter: { field: 'contractId', op: 'EQUAL', value: contractId },
-          limit: 1,
-        });
+          limit: 10,
+        })).filter(p => !String(p.type || '').startsWith('deposit'));
         if (!existing.length) {
           const writes = [];
           const pStart = new Date(fullContract.startDate);

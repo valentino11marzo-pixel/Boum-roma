@@ -201,7 +201,9 @@ export async function sendContractSignEmail({ pa, tenantSignUrl, landlordSignUrl
           + fine(`Your signature is a legally valid electronic signature (FES — Art. 21 CAD), recorded with a
             signed certificate. After you sign, the landlord countersigns and BOOM files the registration with the
             Agenzia delle Entrate. Questions? Just reply — a human answers. Or
-            <a href="https://wa.me/393313251961" style="color:${INK}">WhatsApp BOOM</a>.`, 'margin-top:20px;text-align:center'),
+            <a href="https://wa.me/393313251961" style="color:${INK}">WhatsApp BOOM</a>.`, 'margin-top:20px;text-align:center')
+          + fine(`From signing onward, your home lives at <a href="https://www.boomrome.com/casa" style="color:${INK}">boomrome.com/casa</a> —
+            payments with automatic receipts, documents, requests. First visit? Tap “Password dimenticata” on the login page with this email address.`, 'text-align:center'),
           `Your contract for ${addr} is ready to sign`),
       });
       results.client = true;

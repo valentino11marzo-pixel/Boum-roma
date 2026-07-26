@@ -46,6 +46,11 @@ export default async function handler(req, res) {
   try {
     const prop = await fsGet('properties/' + propertyId);
     if (!prop) return res.status(404).json({ ok: false, error: 'property_not_found' });
+    // Object-level authorization, same rule as firestore.rules ownsProperty:
+    // a landlord/owner can only touch THEIR property's dossier.
+    if (auth.profile.role !== 'admin' && String(prop.ownerId || '') !== auth.uid) {
+      return res.status(403).json({ ok: false, error: 'not_your_property' });
+    }
 
     const safeName = String(body.name || slot).replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 60);
     const path = `property-docs/${propertyId}/${slot}_${Date.now()}_${safeName}`;
