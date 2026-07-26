@@ -16,11 +16,18 @@
 // the cached result without re-running.
 
 import { fsGet, fsPatch, logActivity, guardPost, okJson, errJson } from './_lib.js';
+// STATIC imports, deliberately: Vercel's bundler cannot trace a dynamic
+// import(variable) — the tool modules were missing from the deployed bundle
+// and every approved action died with "Cannot find module ... messages.send"
+// (prod 2026-07-26). Same failure class as the CLAUDE.md nodemailer warning.
+import messagesSend from './messages.send.js';
+import viewingsSchedule from './viewings.schedule.js';
+import leadsUpdate from './leads.update.js';
 
-// Tool dispatch table — kind → { module path, payload-to-args transform }
+// Tool dispatch table — kind → { tool handler, payload-to-args transform }
 const DISPATCH = {
   reply: {
-    module: './messages.send.js',
+    handler: messagesSend,
     build: (action, override) => {
       const p = { ...(action.payload || {}), ...(override || {}) };
       return {
@@ -35,7 +42,7 @@ const DISPATCH = {
     },
   },
   schedule_viewing: {
-    module: './viewings.schedule.js',
+    handler: viewingsSchedule,
     build: (action, override) => {
       const p = { ...(action.payload || {}), ...(override || {}) };
       return {
@@ -48,7 +55,7 @@ const DISPATCH = {
     },
   },
   qualify: {
-    module: './leads.update.js',
+    handler: leadsUpdate,
     build: (action, override) => {
       const p = { ...(action.payload || {}), ...(override || {}) };
       return {
@@ -60,7 +67,7 @@ const DISPATCH = {
     },
   },
   archive: {
-    module: './leads.update.js',
+    handler: leadsUpdate,
     build: (action, override) => {
       const p = { ...(action.payload || {}), ...(override || {}) };
       return {
@@ -71,7 +78,7 @@ const DISPATCH = {
     },
   },
   note: {
-    module: './leads.update.js',
+    handler: leadsUpdate,
     build: (action, override) => {
       const p = { ...(action.payload || {}), ...(override || {}) };
       return { id: action.leadId, notes: p.text || p.note || action.summary };
@@ -82,9 +89,7 @@ const DISPATCH = {
 
 // Call a sibling tool handler in-process. Fakes the (req, res) interface so
 // each tool stays callable as a standalone Vercel function AND as a library.
-async function callTool(modulePath, payload) {
-  const mod = await import(modulePath);
-  const handler = mod.default;
+async function callTool(handler, payload) {
   let captured = { status: 0, body: null };
   const fakeReq = {
     method: 'POST',
@@ -128,7 +133,7 @@ export default async function handler(req, res) {
   const args = dispatch.build(action, body.override);
   let toolResult;
   try {
-    toolResult = await callTool(dispatch.module, args);
+    toolResult = await callTool(dispatch.handler, args);
   } catch (e) {
     console.error('[agent/execute]', id, action.kind, e);
     await fsPatch(`action_queue/${id}`, {
