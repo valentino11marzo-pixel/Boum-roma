@@ -303,6 +303,15 @@ viewing id + server secret).
   video room, emails the client, pushes the Wallet pass. A reschedule
   re-opens the countdown (reminder flags reset).
 - `GET /api/viewings/ics?id=` — public calendar file for Apple/Outlook.
+- `GET /api/viewings/pass?id=` — the client's boarding pass, served for real:
+  loads the LIVE viewing (address, coords, time, video room), signs it and
+  streams `application/vnd.apple.pkpass`. `&meta=1` returns JSON for the
+  delivery page's mockup. Replaces the old pass-delivery path, which POSTed
+  hand-assembled URL params to `/api/generate-pass` (so the pass carried
+  nothing) and then navigated to a `blob:` URL — which iOS Safari does not
+  reliably hand to Wallet. pass-delivery.html now navigates to this URL for
+  viewings, and its broken `<img>` logo (a file absent from the repo) is an
+  inline SVG that cannot 404.
 - **The operator's calendar fills itself** (`_ical.js` + `_invite.js`): every
   booking is emailed to `VIEWINGS_CALENDAR_EMAIL` (default `GMAIL_USER`) as a
   genuine iCalendar invitation — Gmail/Apple Mail/Outlook add it on their own,
