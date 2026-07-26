@@ -87,6 +87,16 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
 .err-msg{font-size:11px;color:#FF3B30;margin-top:4px;display:none}
 .div{height:1px;background:var(--b0);margin:16px 0}
 .date-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+/* viewing mode: in person vs video call */
+.mode-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mode-opt{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:13px 14px;background:var(--s2);border:1px solid var(--b1);border-radius:var(--rsm);cursor:pointer;text-align:left;transition:border-color .2s,background .2s;font-family:inherit}
+.mode-opt:hover{border-color:rgba(212,175,55,.4)}
+.mode-opt.on{border-color:var(--gold);background:rgba(212,175,55,.08)}
+.mode-ico{font-size:18px;line-height:1}
+.mode-t{font-size:13.5px;color:var(--t0);font-weight:400;letter-spacing:-.01em}
+.mode-s{font-size:11px;color:var(--t2);font-weight:300;line-height:1.35}
+.tz-hint{font-size:11px;color:var(--t2);font-weight:300;margin-top:7px;letter-spacing:-.01em}
+@media(max-width:420px){.mode-row{grid-template-columns:1fr}}
 .inp[type="date"]::-webkit-calendar-picker-indicator,.inp[type="time"]::-webkit-calendar-picker-indicator{filter:invert(.35);cursor:pointer}
 .note-area{width:100%;min-height:70px;resize:vertical;padding:11px 13px;background:var(--s2);border:1px solid var(--b1);border-radius:var(--rsm);color:var(--t0);font-family:inherit;font-size:13px;font-weight:300;letter-spacing:-.01em;outline:none;line-height:1.55;transition:border-color .2s}
 .note-area:focus{border-color:rgba(255, 215, 0,.45);box-shadow:0 0 0 3px rgba(255, 215, 0,.06)}
@@ -319,12 +329,30 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
     </div>
     <div class="card-bd">
       <div class="div" style="margin-top:0"></div>
+      <!-- Mode: the same appointment, two doors. Video is a first-class
+           choice, not a fallback — most of our clients are still abroad. -->
+      <div class="fg">
+        <label class="lbl">How would you like to visit? *</label>
+        <div class="mode-row">
+          <button type="button" class="mode-opt on" id="mode-person" onclick="pickMode('person')">
+            <span class="mode-ico">🚶</span>
+            <span class="mode-t">In person</span>
+            <span class="mode-s">We meet you at the door</span>
+          </button>
+          <button type="button" class="mode-opt" id="mode-video" onclick="pickMode('video')">
+            <span class="mode-ico">🎥</span>
+            <span class="mode-t">Video call</span>
+            <span class="mode-s">Live walk-through, from anywhere</span>
+          </button>
+        </div>
+      </div>
       <div class="fg">
         <label class="lbl">Proposed date &amp; time *</label>
         <div class="date-row">
           <input class="inp" type="date" id="in-date">
           <input class="inp" type="time" id="in-time" value="10:00">
         </div>
+        <div class="tz-hint" id="tz-hint"></div>
       </div>
       <div class="fg">
         <label class="lbl">Notes (optional)</label>
@@ -426,7 +454,26 @@ firebase.initializeApp({apiKey:"AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",authDom
 const db=firebase.firestore();
 emailjs.init('dnMxbtS2qDm_o7SHE');
 
-let ST={step:1,name:'',email:'',phone:'',listing:null,date:'',time:'',notes:'',reqId:null};
+let ST={step:1,name:'',email:'',phone:'',listing:null,date:'',time:'',notes:'',reqId:null,mode:'person'};
+
+function pickMode(m){
+  ST.mode=m;
+  document.getElementById('mode-person').classList.toggle('on',m==='person');
+  document.getElementById('mode-video').classList.toggle('on',m==='video');
+  updateSum();
+}
+/* Times are always Rome time — say it out loud to anyone who isn't here yet. */
+function tzHint(){
+  const el=document.getElementById('tz-hint'); if(!el) return;
+  let local='';
+  try{
+    const tz=Intl.DateTimeFormat().resolvedOptions().timeZone||'';
+    const romeNow=new Date().toLocaleString('en-US',{timeZone:'Europe/Rome',hour:'numeric',minute:'2-digit'});
+    const hereNow=new Date().toLocaleString('en-US',{hour:'numeric',minute:'2-digit'});
+    if(tz && !/Rome/.test(tz) && romeNow!==hereNow) local=` · it's ${romeNow} in Rome right now, ${hereNow} for you`;
+  }catch(e){}
+  el.textContent='All times are Rome time (CET)'+local;
+}
 const PW={1:'0%',2:'33%',3:'67%',4:'100%'};
 window._L={};
 
@@ -502,7 +549,9 @@ function toStep3(){
 }
 function updateSum(){
   const d=document.getElementById('in-date').value,t=document.getElementById('in-time').value;
-  if(d&&t)document.getElementById('sum-time').textContent=fmtDT(new Date(d+'T'+t));
+  const how=ST.mode==='video'?' · 🎥 video call':' · 🚶 in person';
+  if(d&&t)document.getElementById('sum-time').textContent=fmtDT(new Date(d+'T'+t))+how;
+  tzHint();
 }
 
 async function submitRequest(){
@@ -517,9 +566,11 @@ async function submitRequest(){
       clientName:ST.name,clientEmail:ST.email,clientPhone:ST.phone,
       listingId:l.id,listingName:l.name||l.address||'Property',listingZone:l.zone||'',listingPrice:l.price||0,
       proposedDate:d,proposedTime:t,proposedDateTime:dt.toISOString(),
+      mode:ST.mode,durationMinutes:ST.mode==='video'?20:30,
+      language:(navigator.language||'en').toLowerCase().startsWith('it')?'it':'en',
       notes:ST.notes,status:'pending',
       confirmedDate:null,confirmedTime:null,confirmedDateTime:null,
-      reminder3hSent:false,reminder30mSent:false,
+      reminder24hSent:false,reminder3hSent:false,reminder30mSent:false,afterAskSent:false,
       agentEmail:'valentino@boomrome.com',
       createdAt:firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -537,7 +588,8 @@ async function submitRequest(){
           listingName: (l.name || l.address || 'Property') + (l.zone ? ' · ' + l.zone : ''),
           requestedDate: d,
           requestedTime: t,
-          notes: ST.notes || ''
+          mode: ST.mode,
+          notes: (ST.mode === 'video' ? '[VIDEO CALL] ' : '') + (ST.notes || '')
         })
       });
     } catch (notifyErr) {
