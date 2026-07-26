@@ -110,8 +110,9 @@ export default async function handler(req, res) {
   const action = await fsGet(`action_queue/${id}`);
   if (!action) return errJson(res, 404, 'action_not_found');
 
-  // Idempotency
-  if (['executed', 'rejected', 'failed'].includes(action.status)) {
+  // Idempotency — but a FAILED action stays retryable: pressing Approva again
+  // re-runs it (transient Firestore/SMTP hiccups must not need a new proposal).
+  if (['executed', 'rejected'].includes(action.status)) {
     return okJson(res, { id, status: action.status, cached: true, result: action.executionResult || null });
   }
 
@@ -129,6 +130,7 @@ export default async function handler(req, res) {
   try {
     toolResult = await callTool(dispatch.module, args);
   } catch (e) {
+    console.error('[agent/execute]', id, action.kind, e);
     await fsPatch(`action_queue/${id}`, {
       status: 'failed', failedAt: new Date(), executionError: e.message,
     });
