@@ -17,6 +17,7 @@
 import { fsList, fsPatch, fsGet } from '../homie/_lib.js';
 import { startOf, endOf, isVideo, videoRoom } from './_lib.js';
 import { sendReminder, sendAfter, sendConfirmation } from './_email.js';
+import { inviteOperator } from './_invite.js';
 
 const MIN = 60 * 1000, H = 60 * MIN;
 
@@ -80,6 +81,7 @@ export async function runViewingMoments() {
         const full = await withListing(v);
         if (isVideo(full) && !full.videoUrl) full.videoUrl = videoRoom(v.id);
         await sendConfirmation(full, lang);
+        await inviteOperator(full, 'new').catch(e => console.warn('[viewings] invite:', e.message));
         await fsPatch(`viewingRequests/${v.id}`, {
           confirmationSent: true, confirmationSentAt: new Date(),
           ...(full.videoUrl && !v.videoUrl ? { videoUrl: full.videoUrl } : {}),
