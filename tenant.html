@@ -569,6 +569,7 @@ function wire(next,hist){
       USER.getIdToken().then(function(tok){
         return fetch('/api/payments/pay',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({paymentId:next.id})});
       }).then(function(r){return r.json()}).then(function(j){
+        if(j&&!j.ok&&j.error==='already_paid'){pb.textContent=t('paid');setTimeout(function(){location.href='/casa'},900);return;}
         if(j&&j.ok&&j.checkoutUrl){
           var po=$('payov'),pa=$('payAmt'),ps=$('paySub');
           if(pa)pa.textContent=eur(j.total||next.amount);
@@ -623,7 +624,7 @@ function reveal(){
 }
 
 /* ── boot: everything REAL, from the tenant's own documents ── */
-BoomPortal.requireAuth(['tenant'],{loginUrl:'/login.html?next=%2Fcasa'}).then(function(res){
+BoomPortal.requireAuth(['tenant'],{loginUrl:'/login.html?next='+encodeURIComponent('/casa'+location.search)}).then(function(res){
   USER=res.user;PROFILE=res.profile||{};
   var db=firebase.firestore();
   $('logout').onclick=function(){firebase.auth().signOut().then(function(){location.href='/login.html'})};

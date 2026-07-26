@@ -366,35 +366,54 @@ export default async function handler(req, res) {
           const pStart = new Date(fullContract.startDate);
           const pEnd = new Date(fullContract.endDate);
           const payDay = parseInt(fullContract.paymentDay, 10) || 5;
-          // cadence: 1 = monthly (default), 2/3/6/12 = bimonthly…annual.
-          // Each instalment is paid IN ADVANCE and covers the period starting
-          // on its due month, so the amount is rent × cadence.
+          // Cadence: 1 = monthly (default), 2/3/6/12 = bimonthly…annual.
+          // The unit is a LEASE month (start day → day before the next
+          // anniversary), not a calendar month, so a lease that begins on the
+          // 10th is billed in full from day one and never loses its first
+          // period. Each instalment is paid in advance and covers `step`
+          // lease months — the last one is clamped and prorated to whatever
+          // the lease actually has left.
           const step = [1, 2, 3, 6, 12].includes(Number(fullContract.installmentMonths))
             ? Number(fullContract.installmentMonths) : 1;
-          const perInstalment = Math.round((Number(fullContract.installmentAmount) || fullContract.rent * step) * 100) / 100;
-          let cur = new Date(pStart.getFullYear(), pStart.getMonth(), payDay);
-          if (cur < pStart) cur.setMonth(cur.getMonth() + step);
-          let safety = 0;
-          while (cur <= pEnd && safety++ < 60) {
-            const month = cur.toISOString().slice(0, 7);
-            const dueDate = cur.toISOString().split('T')[0];
-            const coversTo = new Date(cur.getFullYear(), cur.getMonth() + step - 1, 1).toISOString().slice(0, 7);
+          const addMonths = (d, n) => {
+            const x = new Date(d.getFullYear(), d.getMonth() + n, d.getDate());
+            // month-end clamp: 31 Jan + 1 month = 28/29 Feb, never 3 March
+            if (x.getDate() !== d.getDate()) x.setDate(0);
+            return x;
+          };
+          // how many whole lease months the contract really spans
+          let monthsTotal = 0;
+          while (monthsTotal < 600 && addMonths(pStart, monthsTotal) <= pEnd) monthsTotal++;
+          const perMonth = Math.round(
+            ((Number(fullContract.installmentAmount) || fullContract.rent * step) / step) * 100
+          ) / 100;
+
+          for (let i = 0; i < monthsTotal; i += step) {
+            const periodStart = addMonths(pStart, i);
+            const covered = Math.min(step, monthsTotal - i);
+            // due on the pay day of the period's month, never before the
+            // period itself begins
+            let due = new Date(periodStart.getFullYear(), periodStart.getMonth(), payDay);
+            if (due < periodStart) due = periodStart;
+            const month = `${periodStart.getFullYear()}-${String(periodStart.getMonth() + 1).padStart(2, '0')}`;
+            const lastCovered = addMonths(pStart, i + covered - 1);
+            const coversTo = `${lastCovered.getFullYear()}-${String(lastCovered.getMonth() + 1).padStart(2, '0')}`;
+            const dueDate = `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, '0')}-${String(due.getDate()).padStart(2, '0')}`;
             writes.push({
               docPath: 'payments/pay_' + contractId + '_' + month,
               fields: {
                 contractId,
                 tenantId: fullContract.tenantId || '',
                 propertyId: fullContract.propertyId || '',
-                amount: perInstalment,
+                amount: Math.round(perMonth * covered * 100) / 100,
                 month,
                 dueDate,
                 status: 'pending',
-                installmentMonths: step,
-                coversTo: step > 1 ? coversTo : month,
+                installmentMonths: covered,
+                coversTo,
               },
               serverTimestampFields: ['createdAt'],
             });
-            cur.setMonth(cur.getMonth() + step);
           }
           if (writes.length) await commitWrites(writes);
         }

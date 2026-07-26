@@ -145,7 +145,10 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
     canone: {
       monthly: rent,
       total: Math.round(rent * months * 100) / 100,
-      installments: Math.ceil(months / installmentMonths),
+      // installments stays the MONTH count: portal.html validates
+      // monthly × installments === total and offers a destructive auto-fix
+      // when it doesn't. The cadence lives in its own fields.
+      installments: months,
       installmentMonths,
       installmentAmount,
       paymentDay: 5,

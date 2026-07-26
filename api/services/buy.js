@@ -12,7 +12,7 @@
 // → 302 to Stripe Checkout · 400 unknown kind · 429 rate limited · 503 unset
 
 import Stripe from 'stripe';
-import { CATALOG } from '../service-checkout.js';
+import { CATALOG, EMAIL_BUYABLE } from '../_catalog.js';
 
 const HITS = new Map();
 const WINDOW_MS = 10 * 60 * 1000;
@@ -22,7 +22,9 @@ function rateLimited(ip) {
   const arr = (HITS.get(ip) || []).filter(t => now - t < WINDOW_MS);
   arr.push(now);
   HITS.set(ip, arr);
-  if (HITS.size > 5000) HITS.clear();
+  // evict the oldest entries instead of wiping every counter at once —
+  // clearing the whole map would hand a free reset to anyone cycling IPs
+  if (HITS.size > 5000) for (const k of [...HITS.keys()].slice(0, 1000)) HITS.delete(k);
   return arr.length > MAX_PER_WINDOW;
 }
 const clip = (v, n = 160) => (v == null ? '' : String(v).trim().slice(0, n));
@@ -46,14 +48,20 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
   const q = req.query || {};
   const kind = clip(q.kind, 40);
-  const item = CATALOG[kind];
-  if (!item) return oops(res, 400, 'This service is no longer available.');
+  // Only the journey products can be bought from a bare link: the others
+  // are sold from their page, which collects the context they need.
+  const item = EMAIL_BUYABLE.includes(kind) ? CATALOG[kind] : null;
+  if (!item) return oops(res, 400, 'This service is not available from this link.');
 
   const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
   if (rateLimited(ip)) return oops(res, 429, 'One moment — too many requests in a row.');
   if (!process.env.STRIPE_SECRET_KEY) return oops(res, 503, 'Payments are unavailable right now.');
 
-  const email = clip(q.e, 160);
+  // an address that doesn't validate is DROPPED, never carried into the
+  // metadata: the webhook prefers what the buyer types on the Stripe page,
+  // and a malformed one there would shadow it
+  const emailRaw = clip(q.e, 160);
+  const email = EMAIL_RE.test(emailRaw) ? emailRaw : '';
   const name = clip(q.n, 120);
   const ref = clip(q.ref, 80);
 
@@ -62,7 +70,7 @@ export default async function handler(req, res) {
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
-      customer_email: EMAIL_RE.test(email) ? email : undefined,
+      customer_email: email || undefined,
       line_items: [{
         price_data: {
           currency: 'eur',
