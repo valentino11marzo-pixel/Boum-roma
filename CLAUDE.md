@@ -440,13 +440,23 @@ link); after acceptance/payment, Duplicate creates the new version.
 - **`tenant.html` (served at `/casa`)** — REBUILT on real data (the old page
   was a stub with hardcoded payments). BoomPortal auth (role tenant), reads
   own `contracts`/`payments`/`maintenance` + property client-side (allowed
-  by firestore.rules). Sections: hero tiles (canone, prossimo pagamento,
-  scadenza, pagamenti ✓), **01 Il prossimo pagamento** (one-tap card pay),
-  02 storico + ricevute (Stripe receiptUrl), 03 documenti (contratto
-  firmato, stato deposito, richiesta via WhatsApp), 04 manutenzione (form +
-  own requests), 05 Concierge (Move-in Pack €149, Cleaning Premium €119,
-  su misura — WhatsApp-first), 06 referral. Linked from tenant +
-  reservation Wallet passes and every journey email.
+  by firestore.rules). **Casa 2.0: ENGLISH-FIRST** (the BOOM tenant is an
+  expat) with IT toggle persisted (`STR` dict + `t()`). Sections: hero
+  tiles, next payment (one-tap card pay), storico + ricevute, documenti,
+  **Manuale della Casa** (renders `properties.manual`: Wi-Fi with copy
+  button, heating, waste days, appliances, access, emergency, rules),
+  **Quartiere** (`properties.neighborhood[]` with Maps links),
+  manutenzione, Concierge (€149/€119/su misura — WhatsApp-first),
+  **Welcome to Rome Kit** card (share), **referral con codice personale**
+  (`BOOM-<uid6>`, navigator.share). Linked from Wallet passes + journey.
+- **`welcome-to-rome.html` (`/welcome-to-rome`)** — public English expat
+  survival guide (codice fiscale, home without horror stories, residency,
+  tessera sanitaria, SIM, bank, ATAC) with BOOM tips + CTA + share bar.
+  THE viral asset: indexed, og-tagged, made to be forwarded.
+- **`manuale.html` (`/manuale`)** — admin editor of the home manual:
+  property picker (✓ when filled), Wi-Fi/heating/trash/appliances/access/
+  emergency/rules + neighborhood lines (`emoji · nome · nota`), saves to
+  `properties.{manual,neighborhood}` client-side (admin rules).
 - **`POST /api/payments/pay`** — Bearer ID token (tenant/admin). Body
   `{paymentId}`; a tenant can only pay their own docs. Stripe Checkout with
   TWO line items: the installment + "Commissione servizio BOOM"

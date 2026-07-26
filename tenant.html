@@ -190,7 +190,7 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
   <div class="hrow">
     <span class="hl">La tua casa</span>
     <a class="brand" href="/"><svg class="mark" viewBox="0 0 1024 1024" width="28" height="28" aria-hidden="true"><use href="#boomMark"/></svg><b>BOOM</b></a>
-    <button class="hout" id="logout">Esci</button>
+    <span style="justify-self:end;display:flex;gap:14px;align-items:center"><button class="hout" id="langBtn" style="letter-spacing:1.4px">IT</button><button class="hout" id="logout">Esci</button></span>
   </div>
 </header>
 
@@ -213,6 +213,78 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
 (function(){
 'use strict';
 var USER=null,PROFILE=null,CONTRACT=null,PROPERTY=null,PAYMENTS=[],MAINT=[];
+
+/* ── Casa 2.0 i18n: ENGLISH FIRST (the BOOM tenant is an expat) with an
+   Italian toggle, persisted. t(key) resolves; strings kept in one place. ── */
+var LANG=(function(){try{return localStorage.getItem('boom:casa:lang')||'en'}catch(e){return 'en'}})();
+var STR={
+ en:{home:'Your home',logout:'Log out',open:'Opening your home…',active:'Contract active',reserved:'Reserved in your name',
+  monthly:'Monthly rent',nextPay:'Next payment',due:'Due date',allGood:'all clear ✓',paidReg:'Payments on record',
+  s1:'Next payment',depositBal:'Security deposit balance',rentOf:'Rent',dueBy:'Due by',lateBy:'Overdue since',late:'overdue — settle it now',dueSoon:'coming up',
+  payCard:'Pay by card',service:'service',payFoot1:'Stripe · cards & Apple Pay · automatic receipt by email and in your history',
+  payFoot2:'Prefer a bank transfer? Totally fine — use the details in your contract; this page updates by itself.',
+  paidBand:'✓ Payment received — your receipt is on its way by email. Thank you!',
+  noDue:'Nothing due — you are all set ✓',opening:'Opening secure checkout…',payRetry:'Try again — or message us on WhatsApp',
+  s2:'History &amp; receipts',histEmpty:'Your history will appear here after the first payment.',showAll:'Show all',
+  deposit:'Deposit',depBalance:'Deposit balance',paidW:'paid',byCard:'by card',byBank:'by transfer',receipt:'receipt →',paid:'✓ paid',pending:'upcoming',lateSt:'overdue',
+  s3:'Your documents',contractDoc:'Signed contract + certificate',contractSub:'official PDF with the digital signatures',yourContract:'Your contract',
+  depositDoc:'Security deposit',depPaid:'paid ✓ — protected and refundable at the end of your stay',depSettled:'settled ✓',depDueAt:'balance of {x} at move-in',
+  needMore:'Need something else?',needMoreSub:'fiscal receipts, statements, copies — ask and it arrives',
+  sM:'Your home manual',manualSub:'Everything about this apartment — always in your pocket.',
+  wifi:'Wi-Fi',copy:'copy',copied:'copied ✓',heating:'Heating & hot water',trash:'Waste & recycling',appliances:'Appliances',emergency:'Emergency contacts',rules:'House rules',checkin:'Building & access',
+  manualSoon:'Your home manual is being prepared — Wi-Fi, heating, waste days, appliances. It will appear here.',
+  sN:'Your neighbourhood',neighSub:'Picked by your advisor — the good stuff nearby.',mapIt:'map →',
+  s4:'Need a hand at home?',mCat:'What is it about',mPri:'Urgency',mDesc:'Tell us what happened',
+  cat1:'Plumbing',cat2:'Electricity',cat3:'Appliances',cat4:'Heating / AC',cat5:'Doors & locks',cat6:'Other',
+  pri1:'Whenever possible',pri2:'Urgent',pri3:'Emergency',
+  mSend:'Send the request →',mOk:'✓ Received — we will get back to you shortly.',mShort:'A few more words so we arrive prepared.',mFail:'Did not go through — try again or WhatsApp us.',statusOpen:'open',
+  s5:'BOOM Concierge',s5Sub:'Rome, handled. One message and we take care of it.',
+  svc1:'Move-in Pack',svc1d:'Electricity &amp; gas in your name, internet activated, residency guide — arrive and live.',
+  svc2:'Cleaning Premium',svc2d:'Professional deep clean — a spotless home in one afternoon.',
+  svc3:'Bespoke concierge',svc3d:'Groceries, laundry, repairs, reservations — just say it.',from:'from',
+  sK:'Welcome to Rome Kit',kitSub:'Codice fiscale, residency, SIM, bank, transport — the survival guide we wish existed when we moved here. Free, in English, made to be shared.',
+  kitBtn:'Open the guide →',kitShare:'Share it with a friend',
+  s6:'Gift BOOM to a friend',refText:'Know someone moving to Rome? Introduce us: the BOOM journey for them, a <b style="color:var(--gold-light);font-weight:400">real thank-you on your next rent</b> for you.',
+  refCode:'Your personal code',refShare:'Share your invite',refWa:'On WhatsApp →',
+  advisor:'Your advisor on this home — replies personally',
+  shareMsg:'Moving to Rome? This is how I found my apartment — BOOM handles everything, contract to keys. Use my code {code}: https://www.boomrome.com/?ref={code}',
+  kitShareMsg:'If you are moving to Rome, save this — the survival guide for codice fiscale, residency, SIM & co: https://www.boomrome.com/welcome-to-rome'},
+ it:{home:'La tua casa',logout:'Esci',open:'Apro la tua casa…',active:'Contratto attivo',reserved:'Casa riservata a tuo nome',
+  monthly:'Canone mensile',nextPay:'Prossimo pagamento',due:'Scadenza',allGood:'tutto in regola ✓',paidReg:'Pagamenti registrati',
+  s1:'Il prossimo pagamento',depositBal:'Saldo deposito cauzionale',rentOf:'Canone',dueBy:'Entro il',lateBy:'Scaduto il',late:'in ritardo — sistemalo ora',dueSoon:'in scadenza',
+  payCard:'Paga con carta',service:'servizio',payFoot1:'Stripe · carte &amp; Apple Pay · ricevuta automatica via email e nello storico',
+  payFoot2:'Preferisci il bonifico? Va benissimo — usa i riferimenti del contratto, la pagina si aggiorna da sola.',
+  paidBand:'✓ Pagamento ricevuto — la ricevuta è in arrivo via email. Grazie!',
+  noDue:'Nessun pagamento in scadenza — sei in regola ✓',opening:'Apro il checkout sicuro…',payRetry:'Riprova — o scrivici su WhatsApp',
+  s2:'Storico &amp; ricevute',histEmpty:'Lo storico apparirà qui dal primo pagamento.',showAll:'Mostra tutto',
+  deposit:'Deposito',depBalance:'Saldo deposito',paidW:'pagato',byCard:'con carta',byBank:'con bonifico',receipt:'ricevuta →',paid:'✓ pagato',pending:'in arrivo',lateSt:'in ritardo',
+  s3:'I tuoi documenti',contractDoc:'Contratto firmato + certificato',contractSub:'PDF ufficiale con le firme digitali',yourContract:'Il tuo contratto',
+  depositDoc:'Deposito cauzionale',depPaid:'versato ✓ — protetto e restituibile a fine contratto',depSettled:'saldato ✓',depDueAt:'saldo di {x} al move-in',
+  needMore:'Ti serve altro?',needMoreSub:'ricevute fiscali, attestazioni, copie — chiedi e arriva',
+  sM:'Il manuale della casa',manualSub:'Tutto di questo appartamento — sempre in tasca.',
+  wifi:'Wi-Fi',copy:'copia',copied:'copiato ✓',heating:'Riscaldamento &amp; acqua calda',trash:'Rifiuti &amp; differenziata',appliances:'Elettrodomestici',emergency:'Contatti di emergenza',rules:'Regole della casa',checkin:'Palazzo &amp; accessi',
+  manualSoon:'Il manuale della tua casa è in preparazione — Wi-Fi, caldaia, giorni dei rifiuti, elettrodomestici. Apparirà qui.',
+  sN:'Il tuo quartiere',neighSub:'Scelti dal tuo advisor — il meglio qui intorno.',mapIt:'mappa →',
+  s4:'Serve una mano in casa?',mCat:'Cosa riguarda',mPri:'Urgenza',mDesc:'Racconta il problema',
+  cat1:'Idraulica',cat2:'Elettricità',cat3:'Elettrodomestici',cat4:'Clima / riscaldamento',cat5:'Porte &amp; serrature',cat6:'Altro',
+  pri1:'Quando possibile',pri2:'Urgente',pri3:'Emergenza',
+  mSend:'Invia la richiesta →',mOk:'✓ Ricevuta — ti ricontattiamo a breve.',mShort:'Due parole in più, così arriviamo preparati.',mFail:'Non è partita — riprova o scrivici su WhatsApp.',statusOpen:'aperta',
+  s5:'BOOM Concierge',s5Sub:'La città, risolta. Un messaggio e ci pensiamo noi.',
+  svc1:'Move-in Pack',svc1d:'Volture luce &amp; gas, internet attivato, guida residenza — arrivi e vivi.',
+  svc2:'Cleaning Premium',svc2d:'Pulizia profonda professionale — casa perfetta in un pomeriggio.',
+  svc3:'Concierge su misura',svc3d:'Spesa, lavanderia, riparazioni, prenotazioni — dillo e basta.',from:'da',
+  sK:'Welcome to Rome Kit',kitSub:'Codice fiscale, residenza, SIM, banca, trasporti — la guida che avremmo voluto trovare noi. Gratuita, in inglese, fatta per essere condivisa.',
+  kitBtn:'Apri la guida →',kitShare:'Condividila con un amico',
+  s6:'Regala BOOM a un amico',refText:'Conosci qualcuno che si trasferisce a Roma? Presentacelo: per lui il percorso BOOM, per te un <b style="color:var(--gold-light);font-weight:400">grazie concreto sul prossimo canone</b>.',
+  refCode:'Il tuo codice personale',refShare:'Condividi il tuo invito',refWa:'Su WhatsApp →',
+  advisor:'Il tuo advisor su questa casa — risponde personalmente',
+  shareMsg:'Ti trasferisci a Roma? Io ho trovato casa così — BOOM gestisce tutto, dal contratto alle chiavi. Usa il mio codice {code}: https://www.boomrome.com/?ref={code}',
+  kitShareMsg:'Se ti trasferisci a Roma salva questa — la guida per codice fiscale, residenza, SIM &amp; co: https://www.boomrome.com/welcome-to-rome'}
+};
+function t(k){return (STR[LANG]&&STR[LANG][k])||STR.en[k]||k}
+function setLang(l){LANG=l;try{localStorage.setItem('boom:casa:lang',l)}catch(e){};syncLangBtn();render();}
+function syncLangBtn(){var b=$('langBtn');if(b)b.textContent=LANG==='en'?'IT':'EN';}
+
 var WA='https://wa.me/393313251961';
 var $=function(id){return document.getElementById(id)};
 var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;')};
@@ -231,6 +303,26 @@ function nextPending(){
   return p[0]||null;
 }
 
+function refCode(){return 'BOOM-'+String(USER&&USER.uid||'ROMA').replace(/[^a-zA-Z0-9]/g,'').slice(0,6).toUpperCase()}
+function manLine(ic,label,val,copyable){
+  if(!val)return '';
+  return '<div class="dlink" style="cursor:default"><span class="ic">'+ic+'</span><span style="flex:1"><small style="letter-spacing:1.4px;text-transform:uppercase">'+label+'</small>'
+    +esc(val).replace(/\n/g,'<br>')+'</span>'
+    +(copyable?'<button class="obtn" style="margin:0;padding:8px 14px;flex:none" onclick="copyVal(this,\''+esc(String(copyable)).replace(/'/g,'')+'\')">'+t('copy')+'</button>':'')
+    +'</div>';
+}
+window.copyVal=function(btn,v){try{navigator.clipboard.writeText(v);btn.textContent=t('copied');setTimeout(function(){btn.textContent=t('copy')},2200);}catch(e){}};
+window.shareRef=function(){
+  var msg=t('shareMsg').replace(/\{code\}/g,refCode());
+  if(navigator.share){navigator.share({text:msg}).catch(function(){});}
+  else location.href='https://wa.me/?text='+encodeURIComponent(msg);
+};
+window.shareKit=function(){
+  var msg=t('kitShareMsg');
+  if(navigator.share){navigator.share({text:msg}).catch(function(){});}
+  else location.href='https://wa.me/?text='+encodeURIComponent(msg);
+};
+
 function render(){
   var addr=(PROPERTY&&(PROPERTY.address||PROPERTY.name))||'La tua casa BOOM';
   var c=CONTRACT||{};
@@ -246,90 +338,132 @@ function render(){
   var depBal=null;
   PAYMENTS.forEach(function(p){if(p.type==='deposit-balance')depBal=p;});
   var late=!!(next&&next.dueDate&&next.dueDate<todayISO);
+  var man=(PROPERTY&&PROPERTY.manual)||null;
+  var hood=(PROPERTY&&Array.isArray(PROPERTY.neighborhood))?PROPERTY.neighborhood.filter(function(x){return x&&x.name}):[];
+  var N=0;var no=function(){N++;return (N<10?'0':'')+N};
 
   var html=
     '<span class="eyebrow">La tua casa BOOM</span>'
     +'<h1 class="big">'+esc(addr).replace(/,([^,]*)$/,',<em>$1</em>')+'</h1>'
-    +(c.startDate?'<div class="subline">Contratto '+esc(c.type||'')+' · '+fmtD(c.startDate)+' → '+fmtD(c.endDate)+'</div>':'')
-    +'<div class="chip">'+(c.signatureStatus==='completed'?'Contratto attivo':'Casa riservata a tuo nome')+'</div>'
+    +(c.startDate?'<div class="subline">'+esc(c.type||'')+' · '+fmtD(c.startDate)+' → '+fmtD(c.endDate)+'</div>':'')
+    +'<div class="chip">'+(c.signatureStatus==='completed'?t('active'):t('reserved'))+'</div>'
     +'<div class="tiles">'
-      +'<div class="tile hero"><div class="k">Canone mensile</div><div class="v">'+eur(rent)+'<small> /mese</small></div></div>'
-      +'<div class="tile"><div class="k">Prossimo pagamento</div><div class="v">'+(next?eur(next.amount):'—')+'</div></div>'
-      +'<div class="tile"><div class="k">Scadenza</div><div class="v" style="font-size:15px;font-weight:300">'+(next?fmtD(next.dueDate):'tutto in regola ✓')+'</div></div>'
-      +'<div class="tile"><div class="k">Pagamenti registrati</div><div class="v">'+paidCount+'<small> ✓</small></div></div>'
+      +'<div class="tile hero"><div class="k">'+t('monthly')+'</div><div class="v">'+eur(rent)+'<small> /m</small></div></div>'
+      +'<div class="tile"><div class="k">'+t('nextPay')+'</div><div class="v">'+(next?eur(next.amount):'—')+'</div></div>'
+      +'<div class="tile"><div class="k">'+t('due')+'</div><div class="v" style="font-size:15px;font-weight:300">'+(next?fmtD(next.dueDate):t('allGood'))+'</div></div>'
+      +'<div class="tile"><div class="k">'+t('paidReg')+'</div><div class="v">'+paidCount+'<small> ✓</small></div></div>'
     +'</div>';
 
-  if(paidId)html+='<div class="paidband">✓ Pagamento ricevuto — la ricevuta è in arrivo nella tua email. Grazie!</div>';
+  if(paidId)html+='<div class="paidband">'+t('paidBand')+'</div>';
 
-  /* ── 01 · next payment ── */
-  html+='<div class="card paycard rv">'+secH('01','Il prossimo pagamento');
+  /* ── next payment ── */
+  html+='<div class="card paycard rv">'+secH(no(),t('s1'));
   if(next){
-    var lab=next.type==='deposit-balance'?'Saldo deposito cauzionale':'Canone '+esc(next.month||String(next.dueDate||'').slice(0,7));
-    html+='<div class="pm"><div class="lab">'+lab+'<b>'+(late?'Scaduto il ':'Entro il ')+fmtD(next.dueDate)+'</b></div>'
-      +'<div><div class="amt">'+eur(next.amount)+'</div><div class="due'+(late?' late':'')+'">'+(late?'in ritardo — sistemalo ora':'in scadenza')+'</div></div></div>'
+    var lab=next.type==='deposit-balance'?t('depositBal'):t('rentOf')+' '+esc(next.month||String(next.dueDate||'').slice(0,7));
+    html+='<div class="pm"><div class="lab">'+lab+'<b>'+(late?t('lateBy'):t('dueBy'))+' '+fmtD(next.dueDate)+'</b></div>'
+      +'<div><div class="amt">'+eur(next.amount)+'</div><div class="due'+(late?' late':'')+'">'+(late?t('late'):t('dueSoon'))+'</div></div></div>'
       +'<button class="paybtn" id="payBtn">'
       +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
-      +'Paga con carta — '+eur(next.amount)+' + '+eur(feePreview(Number(next.amount)))+' servizio</button>'
-      +'<div class="payfoot"><span class="lock">●</span> Stripe · carte &amp; Apple Pay · ricevuta automatica via email e qui nello storico<br>Preferisci il bonifico? Va benissimo — usa i riferimenti del contratto, la rata si aggiorna da sola.</div>';
+      +t('payCard')+' — '+eur(next.amount)+' + '+eur(feePreview(Number(next.amount)))+' '+t('service')+'</button>'
+      +'<div class="payfoot"><span class="lock">●</span> '+t('payFoot1')+'<br>'+t('payFoot2')+'</div>';
   }else{
-    html+='<div style="font-size:13.5px;color:var(--t2)">Nessun pagamento in scadenza — sei in regola ✓</div>';
+    html+='<div style="font-size:13.5px;color:var(--t2)">'+t('noDue')+'</div>';
   }
   html+='</div>';
 
-  /* ── 02 · history ── */
+  /* ── history ── */
   var hist=PAYMENTS.slice().sort(function(a,b){return String(b.dueDate||'').localeCompare(String(a.dueDate||''))});
-  html+='<div class="card rv">'+secH('02','Storico &amp; ricevute')+'<div class="rowlist" id="histRows">';
-  if(!hist.length)html+='<div style="font-size:13px;color:var(--t3)">Lo storico apparirà qui dal primo pagamento.</div>';
+  html+='<div class="card rv">'+secH(no(),t('s2'))+'<div class="rowlist" id="histRows">';
+  if(!hist.length)html+='<div style="font-size:13px;color:var(--t3)">'+t('histEmpty')+'</div>';
   html+=hist.slice(0,6).map(payRow).join('');
   html+='</div>'
-    +(hist.length>6?'<button class="morebtn" id="moreBtn">Mostra tutto ('+hist.length+') ↓</button>':'')
+    +(hist.length>6?'<button class="morebtn" id="moreBtn">'+t('showAll')+' ('+hist.length+') ↓</button>':'')
     +'</div>';
 
-  /* ── 03 · documents ── */
-  html+='<div class="card rv">'+secH('03','I tuoi documenti');
+  /* ── documents ── */
+  html+='<div class="card rv">'+secH(no(),t('s3'));
   if(c.signingCertificateUrl){
-    html+='<a class="dlink" href="'+c.signingCertificateUrl+'" target="_blank" rel="noopener"><span class="ic">📄</span><span>Contratto firmato + certificato<br><small>PDF ufficiale con le firme digitali</small></span><span class="go">→</span></a>';
+    html+='<a class="dlink" href="'+c.signingCertificateUrl+'" target="_blank" rel="noopener"><span class="ic">📄</span><span>'+t('contractDoc')+'<br><small>'+t('contractSub')+'</small></span><span class="go">→</span></a>';
   }else if(c.generatedPDF){
-    html+='<a class="dlink" href="'+c.generatedPDF+'" target="_blank" rel="noopener"><span class="ic">📄</span><span>Il tuo contratto<br><small>PDF</small></span><span class="go">→</span></a>';
+    html+='<a class="dlink" href="'+c.generatedPDF+'" target="_blank" rel="noopener"><span class="ic">📄</span><span>'+t('yourContract')+'<br><small>PDF</small></span><span class="go">→</span></a>';
   }
   if(depBal||c.depositPaid){
-    html+='<div class="dlink" style="cursor:default"><span class="ic">🛡</span><span>Deposito cauzionale<br><small>'
-      +(c.depositPaid?'versato ✓ — protetto e restituibile a fine contratto':(depBal&&depBal.status==='paid'?'saldato ✓':'saldo di '+eur((depBal||{}).amount)+' al move-in'))
+    html+='<div class="dlink" style="cursor:default"><span class="ic">🛡</span><span>'+t('depositDoc')+'<br><small>'
+      +(c.depositPaid?t('depPaid'):(depBal&&depBal.status==='paid'?t('depSettled'):t('depDueAt').replace('{x}',eur((depBal||{}).amount))))
       +'</small></span></div>';
   }
-  html+='<a class="dlink" href="'+waMsg('Ciao BOOM! Mi serve una copia di un documento della mia casa ('+addr+').')+'" target="_blank" rel="noopener"><span class="ic">💬</span><span>Ti serve altro?<br><small>ricevute fiscali, attestazioni, copie — chiedi e arriva</small></span><span class="go">→</span></a>';
+  html+='<a class="dlink" href="'+waMsg('Ciao BOOM! Mi serve una copia di un documento della mia casa ('+addr+').')+'" target="_blank" rel="noopener"><span class="ic">💬</span><span>'+t('needMore')+'<br><small>'+t('needMoreSub')+'</small></span><span class="go">→</span></a>';
   html+='</div>';
 
-  /* ── 04 · maintenance ── */
-  html+='<div class="card rv">'+secH('04','Serve una mano in casa?')
+  /* ── THE HOME MANUAL — the feature that kills 90% of the questions ── */
+  html+='<div class="card rv">'+secH(no(),t('sM'))
+    +'<div style="font-size:12.5px;color:var(--t3);margin:-6px 0 12px">'+t('manualSub')+'</div>';
+  if(man&&(man.wifiName||man.heating||man.trash||man.appliances||man.emergency||man.rules||man.access)){
+    if(man.wifiName)html+=manLine('📶',t('wifi'),man.wifiName+(man.wifiPass?'\n'+man.wifiPass:''),man.wifiPass||man.wifiName);
+    html+=manLine('🔥',t('heating'),man.heating)
+      +manLine('♻️',t('trash'),man.trash)
+      +manLine('🧺',t('appliances'),man.appliances)
+      +manLine('🏛',t('checkin'),man.access)
+      +manLine('🆘',t('emergency'),man.emergency)
+      +manLine('📜',t('rules'),man.rules);
+  }else{
+    html+='<div style="font-size:13px;color:var(--t3);line-height:1.7">'+t('manualSoon')+'</div>';
+  }
+  html+='</div>';
+
+  /* ── neighbourhood, curated by the advisor ── */
+  if(hood.length){
+    html+='<div class="card rv">'+secH(no(),t('sN'))
+      +'<div style="font-size:12.5px;color:var(--t3);margin:-6px 0 12px">'+t('neighSub')+'</div>';
+    hood.slice(0,8).forEach(function(x){
+      var q=encodeURIComponent((x.name||'')+' Roma');
+      html+='<div class="dlink" style="cursor:default"><span class="ic">'+esc(x.icon||'📍')+'</span><span style="flex:1">'+esc(x.name)
+        +(x.note?'<br><small>'+esc(x.note)+'</small>':'')+'</span>'
+        +'<a href="https://www.google.com/maps/search/?api=1&query='+q+'" target="_blank" rel="noopener" style="color:var(--gold-light);font-size:11px;text-decoration:none;flex:none">'+t('mapIt')+'</a></div>';
+    });
+    html+='</div>';
+  }
+
+  /* ── maintenance ── */
+  html+='<div class="card rv">'+secH(no(),t('s4'))
     +'<div class="g2">'
-    +'<label class="fld"><span>Cosa riguarda</span><select id="mCat"><option value="idraulica">Idraulica</option><option value="elettricita">Elettricità</option><option value="elettrodomestici">Elettrodomestici</option><option value="riscaldamento">Clima / riscaldamento</option><option value="serrature">Porte &amp; serrature</option><option value="altro">Altro</option></select></label>'
-    +'<label class="fld"><span>Urgenza</span><select id="mPri"><option value="normal">Quando possibile</option><option value="high">Urgente</option><option value="emergency">Emergenza</option></select></label>'
+    +'<label class="fld"><span>'+t('mCat')+'</span><select id="mCat"><option value="idraulica">'+t('cat1')+'</option><option value="elettricita">'+t('cat2')+'</option><option value="elettrodomestici">'+t('cat3')+'</option><option value="riscaldamento">'+t('cat4')+'</option><option value="serrature">'+t('cat5')+'</option><option value="altro">'+t('cat6')+'</option></select></label>'
+    +'<label class="fld"><span>'+t('mPri')+'</span><select id="mPri"><option value="normal">'+t('pri1')+'</option><option value="high">'+t('pri2')+'</option><option value="emergency">'+t('pri3')+'</option></select></label>'
     +'</div>'
-    +'<label class="fld"><span>Racconta il problema</span><textarea id="mDesc" rows="3" placeholder="Es. il rubinetto della cucina perde da ieri…"></textarea></label>'
-    +'<button class="obtn" id="mSend" style="border-color:var(--line-gold);color:var(--gold)">Invia la richiesta →</button>'
-    +'<span class="ok" id="mOk">✓ Ricevuta — ti ricontattiamo a breve.</span>'
+    +'<label class="fld"><span>'+t('mDesc')+'</span><textarea id="mDesc" rows="3" placeholder="…"></textarea></label>'
+    +'<button class="obtn" id="mSend" style="border-color:var(--line-gold);color:var(--gold)">'+t('mSend')+'</button>'
+    +'<span class="ok" id="mOk">'+t('mOk')+'</span>'
     +'<span class="err" id="mErr"></span>'
     +'<div id="mList">'+maintRows()+'</div>'
     +'</div>';
 
-  /* ── 05 · concierge ── */
-  html+='<div class="card rv">'+secH('05','BOOM Concierge')
-    +'<div style="font-size:12.5px;color:var(--t3);margin:-6px 0 12px">La città, risolta. Un messaggio e ci pensiamo noi.</div>'
+  /* ── concierge ── */
+  html+='<div class="card rv">'+secH(no(),t('s5'))
+    +'<div style="font-size:12.5px;color:var(--t3);margin:-6px 0 12px">'+t('s5Sub')+'</div>'
     +'<div class="svc">'
-    +'<a class="svcard" href="'+waMsg('Ciao BOOM! Vorrei il Move-in Pack per '+addr+' (volture luce/gas, internet, guida residenza).')+'" target="_blank" rel="noopener"><span class="em">🔌</span><span><b>Move-in Pack</b><span>Volture luce &amp; gas, internet attivato, guida residenza — arrivi e vivi.</span></span><span class="pr">€149</span></a>'
-    +'<a class="svcard" href="'+waMsg('Ciao BOOM! Vorrei prenotare il Cleaning Premium per '+addr+'.')+'" target="_blank" rel="noopener"><span class="em">✨</span><span><b>Cleaning Premium</b><span>Pulizia profonda professionale — casa perfetta in un pomeriggio.</span></span><span class="pr">€119</span></a>'
-    +'<a class="svcard" href="'+waMsg('Ciao BOOM! Ho bisogno del concierge: ')+'" target="_blank" rel="noopener"><span class="em">🤵</span><span><b>Concierge su misura</b><span>Spesa, lavanderia, riparazioni, prenotazioni — dillo e basta.</span></span><span class="pr">da €15</span></a>'
+    +'<a class="svcard" href="'+waMsg('Ciao BOOM! Vorrei il Move-in Pack per '+addr+' (volture luce/gas, internet, guida residenza).')+'" target="_blank" rel="noopener"><span class="em">🔌</span><span><b>'+t('svc1')+'</b><span>'+t('svc1d')+'</span></span><span class="pr">€149</span></a>'
+    +'<a class="svcard" href="'+waMsg('Ciao BOOM! Vorrei prenotare il Cleaning Premium per '+addr+'.')+'" target="_blank" rel="noopener"><span class="em">✨</span><span><b>'+t('svc2')+'</b><span>'+t('svc2d')+'</span></span><span class="pr">€119</span></a>'
+    +'<a class="svcard" href="'+waMsg('Ciao BOOM! Ho bisogno del concierge: ')+'" target="_blank" rel="noopener"><span class="em">🤵</span><span><b>'+t('svc3')+'</b><span>'+t('svc3d')+'</span></span><span class="pr">'+t('from')+' €15</span></a>'
     +'</div></div>';
 
-  /* ── 06 · referral ── */
-  html+='<div class="card rv">'+secH('06','Regala BOOM a un amico')
-    +'<div style="font-size:13px;color:var(--t2);line-height:1.7">Conosci qualcuno che cerca casa a Roma? Presentacelo: per lui il percorso BOOM, per te un <b style="color:var(--gold-light);font-weight:400">grazie concreto</b> sul prossimo canone.</div>'
-    +'<a class="obtn" href="/refer" style="margin-top:12px">Invita un amico →</a> '
-    +'<a class="obtn wa" href="'+waMsg('Ciao BOOM! Voglio presentarvi un amico che cerca casa: ')+'" target="_blank" rel="noopener">Su WhatsApp →</a>'
+  /* ── Welcome to Rome Kit — the viral engine, made to leave this page ── */
+  html+='<div class="card rv" style="border-color:var(--line-gold)">'+secH(no(),t('sK'))
+    +'<div style="font-size:13px;color:var(--t2);line-height:1.7">'+t('kitSub')+'</div>'
+    +'<a class="obtn" href="/welcome-to-rome" style="margin-top:12px;border-color:var(--line-gold);color:var(--gold)">'+t('kitBtn')+'</a> '
+    +'<button class="obtn" onclick="shareKit()">'+t('kitShare')+'</button>'
     +'</div>';
 
-  html+='<div class="advisor rv"><span class="av"><svg viewBox="0 0 1024 1024" width="22" height="22" aria-hidden="true"><use href="#boomMark"/></svg></span><div><b>Valentino · BOOM Roma</b><span>Il tuo advisor — risponde personalmente</span></div><a href="'+WA+'" target="_blank" rel="noopener">WhatsApp</a></div>';
+  /* ── referral with a personal code + native share ── */
+  html+='<div class="card rv">'+secH(no(),t('s6'))
+    +'<div style="font-size:13px;color:var(--t2);line-height:1.7">'+t('refText')+'</div>'
+    +'<div style="margin-top:13px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">'
+    +'<span style="border:1px dashed var(--line-gold);border-radius:10px;padding:9px 16px;font-family:var(--mono);font-size:13px;letter-spacing:2px;color:var(--gold)">'+refCode()+'</span>'
+    +'<span style="font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t4)">'+t('refCode')+'</span></div>'
+    +'<button class="obtn" onclick="shareRef()" style="margin-top:12px;border-color:var(--line-gold);color:var(--gold)">'+t('refShare')+' →</button> '
+    +'<a class="obtn wa" href="https://wa.me/?text='+encodeURIComponent(t('shareMsg').replace(/\{code\}/g,refCode()))+'" target="_blank" rel="noopener">'+t('refWa')+'</a>'
+    +'</div>';
+
+  html+='<div class="advisor rv"><span class="av"><svg viewBox="0 0 1024 1024" width="22" height="22" aria-hidden="true"><use href="#boomMark"/></svg></span><div><b>Valentino · BOOM Roma</b><span>'+t('advisor')+'</span></div><a href="'+WA+'" target="_blank" rel="noopener">WhatsApp</a></div>';
 
   $('app').innerHTML=html;
   wire(next,hist);
@@ -338,15 +472,15 @@ function render(){
 
 function payRow(p){
   var late=p.status!=='paid'&&p.dueDate&&p.dueDate<todayISO;
-  var lab=p.type==='deposit'?'Deposito':p.type==='deposit-balance'?'Saldo deposito':(p.month||String(p.dueDate||'').slice(0,7));
-  return '<div class="prow"><span class="mo">'+esc(lab)+'<small>'+(p.status==='paid'?('pagato'+(p.paidVia==='stripe'?' con carta':p.paidVia==='bank'?' con bonifico':'')+(p.paidDate?' · '+fmtD(p.paidDate):'')):('entro '+fmtD(p.dueDate)))+'</small></span>'
-    +(p.receiptUrl?'<a href="'+p.receiptUrl+'" target="_blank" rel="noopener">ricevuta →</a>':'')
+  var lab=p.type==='deposit'?t('deposit'):p.type==='deposit-balance'?t('depBalance'):(p.month||String(p.dueDate||'').slice(0,7));
+  return '<div class="prow"><span class="mo">'+esc(lab)+'<small>'+(p.status==='paid'?(t('paidW')+(p.paidVia==='stripe'?' '+t('byCard'):p.paidVia==='bank'?' '+t('byBank'):'')+(p.paidDate?' · '+fmtD(p.paidDate):'')):(t('dueBy')+' '+fmtD(p.dueDate)))+'</small></span>'
+    +(p.receiptUrl?'<a href="'+p.receiptUrl+'" target="_blank" rel="noopener">'+t('receipt')+'</a>':'')
     +'<span class="amt2">'+eur(p.amount)+'</span>'
-    +'<span class="st '+(p.status==='paid'?'paid':(late?'late':'pending'))+'">'+(p.status==='paid'?'✓ pagato':(late?'in ritardo':'in arrivo'))+'</span></div>';
+    +'<span class="st '+(p.status==='paid'?'paid':(late?'late':'pending'))+'">'+(p.status==='paid'?t('paid'):(late?t('lateSt'):t('pending')))+'</span></div>';
 }
 function maintRows(){
   return MAINT.slice(0,4).map(function(m){
-    return '<div class="mrow"><span>'+esc((m.category||'')+(m.description?' — '+String(m.description).slice(0,60):''))+'</span><span class="st'+(m.status==='resolved'||m.status==='done'?' done':'')+'">'+esc(m.status==='pending'?'aperta':(m.status||'aperta'))+'</span></div>';
+    return '<div class="mrow"><span>'+esc((m.category||'')+(m.description?' — '+String(m.description).slice(0,60):''))+'</span><span class="st'+(m.status==='resolved'||m.status==='done'?' done':'')+'">'+esc(m.status==='pending'?t('statusOpen'):(m.status||t('statusOpen')))+'</span></div>';
   }).join('');
 }
 
@@ -354,14 +488,14 @@ function wire(next,hist){
   var pb=$('payBtn');
   if(pb&&next){
     pb.onclick=function(){
-      pb.disabled=true;pb.textContent='Apro il checkout sicuro…';
+      pb.disabled=true;pb.textContent=t('opening');
       USER.getIdToken().then(function(tok){
         return fetch('/api/payments/pay',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({paymentId:next.id})});
       }).then(function(r){return r.json()}).then(function(j){
         if(j&&j.ok&&j.checkoutUrl){location.href=j.checkoutUrl;return;}
         throw new Error((j&&j.error)||'failed');
       }).catch(function(){
-        pb.disabled=false;pb.textContent='Riprova — o scrivici su WhatsApp';
+        pb.disabled=false;pb.textContent=t('payRetry');
       });
     };
   }
@@ -372,8 +506,8 @@ function wire(next,hist){
     ms.onclick=function(){
       var desc=($('mDesc').value||'').trim();
       var ok=$('mOk'),err=$('mErr');ok.style.display='none';err.style.display='none';
-      if(desc.length<8){err.textContent='Due parole in più sul problema, così arriviamo preparati.';err.style.display='inline';return;}
-      ms.disabled=true;ms.textContent='Invio…';
+      if(desc.length<8){err.textContent=t('mShort');err.style.display='inline';return;}
+      ms.disabled=true;ms.textContent='…';
       var doc={userId:USER.uid,tenantId:USER.uid,tenantName:(PROFILE&&PROFILE.name)||USER.email||'',
         propertyId:(CONTRACT&&CONTRACT.propertyId)||(PROFILE&&PROFILE.propertyId)||'',
         propertyName:(PROPERTY&&(PROPERTY.name||PROPERTY.address))||'',
@@ -381,13 +515,13 @@ function wire(next,hist){
         status:'pending',createdAt:new Date().toISOString()};
       firebase.firestore().collection('maintenance').add(doc).then(function(){
         ok.style.display='inline';$('mDesc').value='';
-        ms.disabled=false;ms.textContent='Invia la richiesta →';
+        ms.disabled=false;ms.textContent=t('mSend');
         MAINT.unshift(doc);
         $('mList').innerHTML=maintRows();
         try{fetch('/api/agent/notify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'maintenance.opened',summary:'🔧 '+doc.category+' ('+doc.priority+') — '+(doc.propertyName||doc.tenantName),detail:desc.slice(0,300)})});}catch(e){}
       }).catch(function(){
-        ms.disabled=false;ms.textContent='Invia la richiesta →';
-        err.textContent='Non è partita — riprova o scrivici su WhatsApp.';err.style.display='inline';
+        ms.disabled=false;ms.textContent=t('mSend');
+        err.textContent=t('mFail');err.style.display='inline';
       });
     };
   }
@@ -408,6 +542,9 @@ BoomPortal.requireAuth(['tenant'],{loginUrl:'/login.html?next=%2Fcasa'}).then(fu
   USER=res.user;PROFILE=res.profile||{};
   var db=firebase.firestore();
   $('logout').onclick=function(){firebase.auth().signOut().then(function(){location.href='/login.html'})};
+  $('logout').textContent=t('logout');
+  $('langBtn').onclick=function(){setLang(LANG==='en'?'it':'en')};
+  syncLangBtn();
 
   var qContracts=db.collection('contracts').where('tenantId','==',USER.uid).limit(10).get()
     .then(function(s){var rows=[];s.forEach(function(d){var v=d.data();v.id=d.id;rows.push(v)});
