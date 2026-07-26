@@ -366,26 +366,35 @@ export default async function handler(req, res) {
           const pStart = new Date(fullContract.startDate);
           const pEnd = new Date(fullContract.endDate);
           const payDay = parseInt(fullContract.paymentDay, 10) || 5;
+          // cadence: 1 = monthly (default), 2/3/6/12 = bimonthly…annual.
+          // Each instalment is paid IN ADVANCE and covers the period starting
+          // on its due month, so the amount is rent × cadence.
+          const step = [1, 2, 3, 6, 12].includes(Number(fullContract.installmentMonths))
+            ? Number(fullContract.installmentMonths) : 1;
+          const perInstalment = Math.round((Number(fullContract.installmentAmount) || fullContract.rent * step) * 100) / 100;
           let cur = new Date(pStart.getFullYear(), pStart.getMonth(), payDay);
-          if (cur < pStart) cur.setMonth(cur.getMonth() + 1);
+          if (cur < pStart) cur.setMonth(cur.getMonth() + step);
           let safety = 0;
           while (cur <= pEnd && safety++ < 60) {
             const month = cur.toISOString().slice(0, 7);
             const dueDate = cur.toISOString().split('T')[0];
+            const coversTo = new Date(cur.getFullYear(), cur.getMonth() + step - 1, 1).toISOString().slice(0, 7);
             writes.push({
               docPath: 'payments/pay_' + contractId + '_' + month,
               fields: {
                 contractId,
                 tenantId: fullContract.tenantId || '',
                 propertyId: fullContract.propertyId || '',
-                amount: fullContract.rent,
+                amount: perInstalment,
                 month,
                 dueDate,
                 status: 'pending',
+                installmentMonths: step,
+                coversTo: step > 1 ? coversTo : month,
               },
               serverTimestampFields: ['createdAt'],
             });
-            cur.setMonth(cur.getMonth() + 1);
+            cur.setMonth(cur.getMonth() + step);
           }
           if (writes.length) await commitWrites(writes);
         }

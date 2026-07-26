@@ -119,6 +119,10 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
   const m = pa.money || {}, le = pa.lease || {};
   const months = Math.max(1, Number(le.months) || 12);
   const rent = Number(m.rent) || 0;
+  // instalment cadence (1|2|3|6|12 months) — the schedule generator and the
+  // tenant portal both read it from the contract
+  const installmentMonths = [1, 2, 3, 6, 12].includes(Number(m.installmentMonths)) ? Number(m.installmentMonths) : 1;
+  const installmentAmount = Math.round((Number(m.installmentAmount) || rent * installmentMonths) * 100) / 100;
   const cType = type === 'studenti' ? 'studenti' : 'transitorio';
   const delegateOn = delegate === true;
   const dName = clip(delegateName, 120) || 'Valentino Egidi';
@@ -136,10 +140,14 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
     accessoryCharges: Number(m.energyCredit) || 0,
     paymentMethod: 'bonifico bancario',
     paymentDay: 5,
+    installmentMonths,
+    installmentAmount,
     canone: {
       monthly: rent,
       total: Math.round(rent * months * 100) / 100,
-      installments: months,
+      installments: Math.ceil(months / installmentMonths),
+      installmentMonths,
+      installmentAmount,
       paymentDay: 5,
       paymentMethod: 'bonifico bancario',
       cedolareSecca: true,

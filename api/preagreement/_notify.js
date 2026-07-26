@@ -116,6 +116,13 @@ export function paDocumentHtml(pa, opts = {}) {
     ${row('The property', `<b>${esc(p.address || '')}</b>`, [p.type, p.floor, p.condition].filter(Boolean).map(esc).join(' · '))}
     ${row('Lease term', `<b>${fmtD(le.startDate)} → ${fmtD(le.endDate)}</b>`, `${le.months || ''} months · ${esc(le.type || '')}${le.reason ? ' · need: ' + esc(le.reason) : ''}`)}
     ${rentRow}
+    ${(() => {
+      const im = [1, 2, 3, 6, 12].includes(Number(m.installmentMonths)) ? Number(m.installmentMonths) : 1;
+      if (im <= 1) return '';
+      const F = { 2: 'every two months', 3: 'quarterly', 6: 'every six months', 12: 'annually' };
+      return row('Rent instalment', `<b>${eur(m.installmentAmount != null ? m.installmentAmount : (m.monthlyTotal || m.rent) * im)}</b>`,
+        `paid ${F[im]} in advance · ${im} months × ${eur(m.monthlyTotal || m.rent)}`);
+    })()}
     ${row('Deposit', `<b>${eur(m.deposit)}</b>`, depSub)}
     ${extrasRows}
     ${row('Agency fee', feeNote, feeWhen)}

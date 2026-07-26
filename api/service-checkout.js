@@ -18,7 +18,7 @@ import Stripe from 'stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-const CATALOG = {
+export const CATALOG = {
   'virtual-viewing': {
     eur: 89,
     label: 'Virtual Viewing — live video tour',

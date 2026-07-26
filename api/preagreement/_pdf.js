@@ -196,6 +196,12 @@ export async function buildPaPdf(pa) {
   rows.push({ desc: depDesc, amount: eur(m.deposit) });
   (pa.extras || []).forEach(x => rows.push({ desc: x.label, amount: eur(x.amount) }));
   rows.push({ desc: 'TOTAL DUE AT SIGNING', amount: eur(m.dueAtSigning), total: true });
+  const imP = [1, 2, 3, 6, 12].includes(Number(m.installmentMonths)) ? Number(m.installmentMonths) : 1;
+  const FREQP = { 2: 'every two months', 3: 'quarterly', 6: 'every six months', 12: 'annually' };
+  if (imP > 1) rows.push({
+    desc: `Rent instalment - paid ${FREQP[imP]} in advance (${imP} months x ${eur(monthlyTotal)})`,
+    amount: eur(m.installmentAmount != null ? m.installmentAmount : monthlyTotal * imP),
+  });
   moneyTable(rows);
   const feeAmt = m.feeMode === 'months'
     ? `${m.feeMonths || 1} month's base rent = ${eur(m.fee)}`
@@ -214,7 +220,9 @@ export async function buildPaPdf(pa) {
     "The security deposit shall be returned at the end of the lease (within 15 days after move-out / keys hand over), subject to verification of the property's condition and settlement of any outstanding utility balance. Normal wear and tear caused by ordinary and reasonable use of the property shall not be deemed damage and shall not be deducted from the security deposit.",
     'The security deposit shall be fully returned if the Landlord cancels the agreement for any reason, or if the Tenant cancels with justified cause.',
     'The Tenant shall maintain the property in good condition and promptly report any defects or issues.',
-    'Monthly rent shall be paid by the 5th of each month via bank transfer.',
+    ([1, 2, 3, 6, 12].includes(Number(m.installmentMonths)) ? Number(m.installmentMonths) : 1) > 1
+      ? `Rent shall be paid in advance every ${m.installmentMonths} months (instalment of ${eur(m.installmentAmount)}), by the 5th day of the first month of each period, via bank transfer or card from the tenant portal.`
+      : 'Monthly rent shall be paid by the 5th of each month via bank transfer or card from the tenant portal.',
   ];
   if (ec > 0) conds.push(`The monthly payment of ${eur(monthlyTotal)} consists of: (a) base rent of ${eur(m.rent)} and (b) an energy allowance of ${eur(ec)} included in the monthly fee. The energy allowance of ${eur(ec)}/month covers electricity consumption up to ${eur(ec)}. Should monthly electricity costs exceed ${eur(ec)}, the Tenant shall pay only the surplus (the amount exceeding ${eur(ec)}) directly to the Landlord upon presentation of the utility bill. If monthly electricity consumption is equal to or below ${eur(ec)}, no additional charge applies.`);
   if (le.reason) conds.push(`Transitional need: ${le.reason}.`);

@@ -255,6 +255,7 @@ var STR={
   payCard:'Pay by card',service:'service',payFoot1:'Stripe · cards & Apple Pay · automatic receipt by email and in your history',
   payFoot2:'Prefer a bank transfer? Totally fine — use the details in your contract; this page updates by itself.',
   paidBand:'✓ Payment received — your receipt is on its way by email. Thank you!',
+  boughtBand:'✓ {x} confirmed — we are on it. Details by email, and your advisor will follow up.',
   noDue:'Nothing due — you are all set ✓',opening:'Opening secure checkout…',payRetry:'Try again — or message us on WhatsApp',
   s2:'History &amp; receipts',histEmpty:'Your history will appear here after the first payment.',showAll:'Show all',
   deposit:'Deposit',depBalance:'Deposit balance',paidW:'paid',byCard:'by card',byBank:'by transfer',receipt:'receipt →',paid:'✓ paid',pending:'upcoming',lateSt:'overdue',
@@ -289,6 +290,7 @@ var STR={
   payCard:'Paga con carta',service:'servizio',payFoot1:'Stripe · carte &amp; Apple Pay · ricevuta automatica via email e nello storico',
   payFoot2:'Preferisci il bonifico? Va benissimo — usa i riferimenti del contratto, la pagina si aggiorna da sola.',
   paidBand:'✓ Pagamento ricevuto — la ricevuta è in arrivo via email. Grazie!',
+  boughtBand:'✓ {x} confermato — ci pensiamo noi. Dettagli via email, il tuo advisor ti scrive.',
   noDue:'Nessun pagamento in scadenza — sei in regola ✓',opening:'Apro il checkout sicuro…',payRetry:'Riprova — o scrivici su WhatsApp',
   s2:'Storico &amp; ricevute',histEmpty:'Lo storico apparirà qui dal primo pagamento.',showAll:'Mostra tutto',
   deposit:'Deposito',depBalance:'Saldo deposito',paidW:'pagato',byCard:'con carta',byBank:'con bonifico',receipt:'ricevuta →',paid:'✓ pagato',pending:'in arrivo',lateSt:'in ritardo',
@@ -421,11 +423,13 @@ function render(){
   html+='<nav class="qnav">'+navItems.map(function(x){return '<a href="#'+x[0]+'">'+t(x[1])+'</a>'}).join('')+'</nav>';
 
   if(paidId)html+='<div class="paidband">'+t('paidBand')+'</div>';
+  var bought=new URLSearchParams(location.search).get('bought');
+  if(bought)html+='<div class="paidband">'+t('boughtBand').replace('{x}',esc({'movein-pack':'Move-in Pack','cleaning-premium':'Cleaning Premium'}[bought]||bought))+'</div>';
 
   /* ── next payment ── */
   html+='<div class="card paycard rv" id="s-pay">'+secH(no(),t('s1'));
   if(next){
-    var lab=next.type==='deposit-balance'?t('depositBal'):t('rentOf')+' '+esc(next.month||String(next.dueDate||'').slice(0,7));
+    var lab=next.type==='deposit-balance'?t('depositBal'):t('rentOf')+' '+esc(periodLabel(next));
     html+='<div class="pm"><div class="lab">'+lab+'<b>'+(late?t('lateBy'):t('dueBy'))+' '+fmtD(next.dueDate)+'</b></div>'
       +'<div><div class="amt">'+eur(next.amount)+'</div><div class="due'+(late?' late':'')+'">'+(late?t('late'):t('dueSoon'))+'</div></div></div>'
       +'<button class="paybtn" id="payBtn">'
@@ -539,9 +543,13 @@ function render(){
   if(man&&man.wifiName&&man.wifiPass)wifiQr(man.wifiName,man.wifiPass);
 }
 
+function periodLabel(p){
+  var m=p.month||String(p.dueDate||'').slice(0,7);
+  return (p.coversTo&&p.coversTo!==m)?(m+' → '+p.coversTo):m;
+}
 function payRow(p){
   var late=p.status!=='paid'&&p.dueDate&&p.dueDate<todayISO;
-  var lab=p.type==='deposit'?t('deposit'):p.type==='deposit-balance'?t('depBalance'):(p.month||String(p.dueDate||'').slice(0,7));
+  var lab=p.type==='deposit'?t('deposit'):p.type==='deposit-balance'?t('depBalance'):periodLabel(p);
   return '<div class="prow"><span class="mo">'+esc(lab)+'<small>'+(p.status==='paid'?(t('paidW')+(p.paidVia==='stripe'?' '+t('byCard'):p.paidVia==='bank'?' '+t('byBank'):'')+(p.paidDate?' · '+fmtD(p.paidDate):'')):(t('dueBy')+' '+fmtD(p.dueDate)))+'</small></span>'
     +(p.receiptUrl?'<a href="'+p.receiptUrl+'" target="_blank" rel="noopener">'+t('receipt')+'</a>':'')
     +'<span class="amt2">'+eur(p.amount)+'</span>'

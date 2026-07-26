@@ -86,6 +86,14 @@ export function deriveMoney(m) {
   // The energy-credit knob only applies when utilities are excluded.
   const utilities = m.utilities === 'included' ? 'included' : 'excluded';
 
+  // Instalment frequency: rent can be collected every 1 (monthly), 2, 3, 6
+  // or 12 months — Italian leases routinely use trimestrale/semestrale, and
+  // the whole chain (document, contract, payment schedule, /casa, reminders)
+  // follows this one number.
+  const installmentMonths = [1, 2, 3, 6, 12].includes(num(m.installmentMonths, 1))
+    ? num(m.installmentMonths, 1) : 1;
+  const installmentAmount = r2(monthlyTotal * installmentMonths);
+
   const dueDefault = r2(depositAtSigning + (feeDue === 'signing' ? feeTotal : 0));
   const dueAtSigning = m.dueAtSigning != null && m.dueAtSigning !== ''
     ? Math.max(0, num(m.dueAtSigning))
@@ -95,6 +103,7 @@ export function deriveMoney(m) {
     rent, energyCredit, monthlyTotal, utilities,
     depositMonths, deposit, depositSplitPct, depositAtSigning, depositAtMoveIn,
     feeMode, feePct, feeMonths, feeFlat, fee, feeVatPct, feeVat, feeTotal, feeDue,
+    installmentMonths, installmentAmount,
     dueAtSigning,
   };
 }
