@@ -118,9 +118,10 @@ export default async function handler(req, res) {
         await tgAckCallback(cq.id, 'Approvata, eseguo…');
         // 2) Fire executor
         const exec = await callExecutor(actionId);
+        const execDetail = exec.data && (exec.data.details || (exec.data.result && exec.data.result.error));
         const tag = exec.ok && exec.status === 'executed' ? '✅ <b>ESEGUITA</b>'
                  : exec.ok                                ? `✅ <b>APPROVATA</b> (${exec.status || 'in coda'})`
-                 :                                          `⚠️ <b>APPROVATA</b> ma executor: ${exec.error || 'errore'}`;
+                 :                                          `⚠️ <b>APPROVATA</b> ma executor: ${exec.error || 'errore'}${execDetail ? `\n<i>${String(execDetail).slice(0, 180)}</i>` : ''}\n↻ Ripremi Approva per ritentare`;
         await tgEdit(chatId, messageId, fmtAction(action) + `\n\n${tag}\n<i>id:</i> <code>${actionId}</code>`);
         return res.status(200).json({ ok: true });
       }
