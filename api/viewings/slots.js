@@ -24,6 +24,7 @@
 import { fsGet, fsCreate, fsList, fsPatch, readJson, logActivity } from '../homie/_lib.js';
 import { videoRoom, passUrl, startOf } from './_lib.js';
 import { sendConfirmation } from './_email.js';
+import { inviteOperator } from './_invite.js';
 
 const TZ = 'Europe/Rome';
 const DEFAULTS = {
@@ -230,6 +231,10 @@ export default async function handler(req, res) {
       await sendConfirmation(full, full.language);
       await fsPatch(`viewingRequests/${id}`, { confirmationSent: true, confirmationSentAt: new Date() });
     } catch (e) { console.warn('[viewings/slots] confirmation mail:', e.message); }
+
+    // the appointment lands in the operator's calendar by itself
+    try { await inviteOperator(full, 'new'); }
+    catch (e) { console.warn('[viewings/slots] operator invite:', e.message); }
 
     await logActivity('Visita prenotata dal cliente', 'viewing',
       { id, mode, when: when.toISOString(), listing: full.listingName }, 'self-service');

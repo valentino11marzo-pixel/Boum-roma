@@ -20,6 +20,7 @@ import { requireCronOrAdmin } from '../pfs/_guard.js';
 import { readJson } from '../homie/_lib.js';
 import { videoRoom, isVideo, startOf, passUrl, SITE } from './_lib.js';
 import { sendConfirmation, sendChanged } from './_email.js';
+import { inviteOperator } from './_invite.js';
 
 const VALID_MODE = new Set(['person', 'video']);
 
@@ -72,6 +73,7 @@ export default async function handler(req, res) {
         status: 'cancelled', voided: true, cancelledAt: new Date(), cancelledBy: actor,
       });
       await sendChanged(v, 'cancelled', v.language === 'it' ? 'it' : 'en').catch(e => console.warn('[viewings] cancel mail:', e.message));
+      await inviteOperator(v, 'cancel').catch(e => console.warn('[viewings] cancel invite:', e.message));
       await pushPass(id);
       await logActivity('Visita annullata', 'viewing', { id }, actor);
       return res.status(200).json({ ok: true, id, status: 'cancelled' });
@@ -115,6 +117,9 @@ export default async function handler(req, res) {
       if (rescheduled) await sendChanged(fresh, 'rescheduled', lang);
       else await sendConfirmation(fresh, lang);
     } catch (e) { console.warn('[viewings/confirm] mail failed:', e.message); }
+    // calendar: create on confirm, update in place on reschedule
+    try { await inviteOperator(fresh, rescheduled ? 'update' : 'new'); }
+    catch (e) { console.warn('[viewings/confirm] invite failed:', e.message); }
     await pushPass(id);
     await logActivity(rescheduled ? 'Visita spostata' : 'Visita confermata', 'viewing',
       { id, mode, when: patch.confirmedDateTime }, actor);
