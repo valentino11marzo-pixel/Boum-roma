@@ -75,11 +75,29 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
   const uploads = Array.isArray(pa.uploads) ? pa.uploads : [];
 
   // ── 1. Tenant user: reuse by email, else bootstrap from the PA identity ──
+  // The users doc MUST be keyed by a real Firebase Auth uid: /casa and
+  // /api/payments/pay authorize on tenantId === auth.uid. So when no
+  // profile matches by email, we mint the Auth account server-side
+  // (Identity Toolkit signUp, random password — the tenant sets their own
+  // via "Password dimenticata" on /login) and key the doc on its localId.
   let tenantId = null;
   try {
     if (t.email) {
       const hits = await fsList('users', { filter: { field: 'email', op: 'EQUAL', value: t.email }, limit: 1 });
       if (hits && hits[0]) tenantId = hits[0].id;
+    }
+    let authUid = null;
+    if (!tenantId && t.email && process.env.FIREBASE_API_KEY) {
+      try {
+        const r = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${process.env.FIREBASE_API_KEY}`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: t.email, password: crypto.randomBytes(18).toString('base64url'), returnSecureToken: false }),
+        });
+        const d = await r.json().catch(() => ({}));
+        if (d && d.localId) authUid = d.localId;
+        // EMAIL_EXISTS with no users doc → fall through to auto-ID (rare;
+        // the operator links the profile from the portal)
+      } catch (_) {}
     }
     if (!tenantId) {
       const { id } = await fsCreate('users', {
@@ -89,8 +107,8 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
         address: t.address || '', docNum: t.idDoc || '', nationality: t.nationality || '',
         identityDocs: uploads.filter(u => (u.tenantIndex || 0) === 0).map(u => ({ url: u.url, name: u.name, at: u.at })),
         createdBy: 'preagreement_convert', createdAt: new Date().toISOString(),
-      });
-      tenantId = id;
+      }, authUid || undefined).then(r => { tenantId = authUid || r.id; })
+        .catch(e => { if (e && e.exists && authUid) tenantId = authUid; else throw e; });
     }
   } catch (e) {
     console.error('[preagreement/convert] tenant bootstrap failed:', e.message);
@@ -190,6 +208,24 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
     }
     console.error('[preagreement/convert] contract create failed:', e.message);
     return { ok: false, error: 'contract_create_failed' };
+  }
+
+  // Deposit balance as a REAL installment: when the PA split the deposit
+  // (n% at signing, rest upon move-in), the remainder becomes a payments
+  // doc due on move-in day — payable by card from /casa (Canone via BOOM)
+  // or by transfer (bank reconciliation matches it like any rent). The
+  // journey's T-7 email reminds the tenant automatically.
+  const depBal = Number(m.depositAtMoveIn) || 0;
+  if (depBal > 0 && le.startDate) {
+    try {
+      await fsCreate('payments', {
+        type: 'deposit-balance',
+        contractId, tenantId, propertyId: propId,
+        amount: depBal, month: 'saldo deposito',
+        dueDate: le.startDate, status: 'pending',
+        createdAt: new Date().toISOString(), createdBy: 'preagreement_convert',
+      }, 'depbal_' + contractId);
+    } catch (e) { if (!e.exists) console.error('[preagreement/convert] depbal:', e.message); }
   }
 
   // Back-link on the PA (best-effort — the contract exists either way).

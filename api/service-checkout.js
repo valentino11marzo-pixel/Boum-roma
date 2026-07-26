@@ -43,6 +43,20 @@ const CATALOG = {
     desc: 'A written traffic-light verdict on your rental contract within 24 hours: what is fine, what is unfair, what is missing. Credited in full if you upgrade to Deal Assistance.',
     cancel: '/contract-check-express',
   },
+  // Tenant-journey concierge products (sold WhatsApp-first from the journey
+  // emails and /casa; these entries let any page checkout them directly too).
+  'movein-pack': {
+    eur: 149,
+    label: 'Move-in Pack — utilities handled',
+    desc: 'Electricity & gas transfers in your name, internet activation, residency registration guide. You arrive, everything works.',
+    cancel: '/concierge',
+  },
+  'cleaning-premium': {
+    eur: 119,
+    label: 'Cleaning Premium — deep clean',
+    desc: 'Professional deep clean of your apartment (kitchen, bathrooms, floors, windows) the day before move-in — hotel-fresh keys-in-hand.',
+    cancel: '/concierge',
+  },
 };
 
 const HITS = new Map(); // ip -> [timestamps]

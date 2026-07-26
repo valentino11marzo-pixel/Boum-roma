@@ -1,7 +1,8 @@
 import Stripe from 'stripe';
 import crypto from 'node:crypto';
 import { fsList, fsPatch } from './homie/_lib.js';
-import { sendPaEmails } from './preagreement/_notify.js';
+import { sendPaEmails, shell, para, fine, btn, btn2 } from './preagreement/_notify.js';
+import { sendEmail } from './agent/_lib.js';
 import { maybeAutoConvert } from './preagreement/_auto.js';
 
 export const config = { api: { bodyParser: false } };
@@ -185,6 +186,8 @@ async function handleDeposit(res, session, m) {
       dueDate: now.slice(0, 10),
       status: 'paid',
       paidAt: now,
+      paidDate: now.slice(0, 10),   // consumed by /casa rows + portal revenue stats
+      paidVia: 'stripe',
       stripeSessionId: session.id,
       createdAt: now,
     });
@@ -282,6 +285,20 @@ const SERVICE_META = {
     next2: ['We read every clause', 'The same eyes as Deal Assistance'],
     next3: ['Verdict within 24 hours', 'Green / amber / red, in writing'],
     next4: ['Need the full shield?', '€49 credited on Deal Assistance'],
+  },
+  'movein-pack': {
+    title: 'Move-in Pack', emoji: '🔌',
+    next1: ['We take over your utilities', 'Electricity & gas transfers started today'],
+    next2: ['Internet activated', 'Best available line at your address'],
+    next3: ['Residency guide', 'Step-by-step for the anagrafe'],
+    next4: ['You arrive, everything works', 'Status updates on WhatsApp'],
+  },
+  'cleaning-premium': {
+    title: 'Cleaning Premium', emoji: '✨',
+    next1: ['We schedule the team', 'The day before your move-in'],
+    next2: ['Professional deep clean', 'Kitchen, bathrooms, floors, windows'],
+    next3: ['Photo report when done', 'So you see it before you arrive'],
+    next4: ['Keys to a spotless home', 'Hotel-fresh, guaranteed'],
   },
 };
 
@@ -506,6 +523,108 @@ async function handlePreagreement(res, session, m) {
   return res.status(200).json({ received: true, preAgreementId: id, contractId: (converted && converted.contractId) || null });
 }
 
+// RENT — Canone via BOOM: a tenant paid a scheduled installment (or the
+// deposit balance) by card from /casa (api/payments/pay.js). Marks the
+// payment doc paid (paidVia:'stripe') and emails the receipt with the
+// platform's design system. Idempotent on stripeSessionId.
+async function handleRent(res, session, m) {
+  const paymentId = String(m.paymentId || '').trim();
+  if (!paymentId) return res.status(200).json({ received: true, error: 'no_paymentId' });
+  const now = new Date().toISOString();
+  const amount = Number(m.amount) || Math.round(((session.amount_total || 0) / 100) - (Number(m.fee) || 0));
+  const fee = Number(m.fee) || 0;
+
+  let pay = null;
+  try { pay = await readDoc(`payments/${paymentId}`); } catch (_) {}
+  if (!pay) return res.status(200).json({ received: true, error: 'payment_not_found', paymentId });
+  if (pay.status === 'paid') {
+    // Same session retried by Stripe → simple ack.
+    if (pay.stripeSessionId === session.id) {
+      return res.status(200).json({ received: true, duplicate: true, paymentId });
+    }
+    // Paid by ANOTHER route (bank reconciliation, or a second checkout
+    // session that survived): NEVER overwrite the record — this charge is
+    // a probable double payment. Alarm the operator for a refund.
+    const dupNow = new Date().toISOString();
+    try {
+      await writeDoc('agentNotifications', 'rent-double-' + paymentId + '-' + session.id.slice(-8), {
+        type: 'payment.rent.double',
+        summary: `🚨 POSSIBILE DOPPIO INCASSO su ${paymentId}: già ${pay.paidVia || 'paid'}${pay.paidDate ? ' il ' + pay.paidDate : ''}, ora ricevuto ANCHE via Stripe (${session.id}) — verifica e rimborsa`,
+        priority: 'high', status: 'pending', actor: 'stripe-webhook',
+        dedupKey: 'rent-double-' + paymentId, createdAt: dupNow, attempts: 0,
+      });
+    } catch (_) {}
+    try {
+      await sendEmail({
+        to: 'valentino@boom-rome.com',
+        subject: `🚨 Possibile doppio incasso — ${paymentId}`,
+        html: shell(para(`La rata <b>${paymentId}</b> risultava già pagata (${pay.paidVia || '—'}${pay.paidDate ? ' · ' + pay.paidDate : ''}) ma è appena arrivato ANCHE un pagamento Stripe (sessione ${session.id}, €${((session.amount_total || 0) / 100).toLocaleString('it-IT')}).<br><b>Verifica su Stripe e rimborsa l'incasso doppio.</b> Il record originale non è stato toccato.`)
+          + btn2('https://dashboard.stripe.com/payments', 'Apri Stripe')),
+      });
+    } catch (_) {}
+    return res.status(200).json({ received: true, doublePayment: true, paymentId });
+  }
+
+  // Stripe receipt link (best-effort)
+  let receiptUrl = null;
+  try {
+    if (session.payment_intent) {
+      const pi = await stripe.paymentIntents.retrieve(String(session.payment_intent), { expand: ['latest_charge'] });
+      receiptUrl = (pi.latest_charge && pi.latest_charge.receipt_url) || null;
+    }
+  } catch (_) {}
+
+  try {
+    await patchDoc(`payments/${paymentId}`, {
+      status: 'paid', paidAt: now, paidDate: now.slice(0, 10),
+      paidVia: 'stripe', stripeSessionId: session.id,
+      serviceFeeEur: fee, receiptUrl: receiptUrl || '',
+    });
+  } catch (err) {
+    console.error('[rent] payment patch:', err.message);
+    return res.status(500).json({ received: false, error: 'patch_failed' });
+  }
+
+  try {
+    await writeDoc('agentNotifications', 'rent-' + paymentId + '-' + session.id.slice(-8), {
+      type: 'payment.rent',
+      summary: `💶 Canone incassato via BOOM: €${amount.toLocaleString('it-IT')} (${pay.month || paymentId}) + fee €${fee}`,
+      priority: 'normal', status: 'pending', actor: 'stripe-webhook',
+      dedupKey: 'rent-' + paymentId, createdAt: now, attempts: 0,
+    });
+  } catch (err) { console.error('[rent] notify write:', err.message); }
+
+  const isDeposit = pay.type === 'deposit-balance';
+  const label = isDeposit ? 'saldo del deposito cauzionale' : `canone di ${pay.month || String(pay.dueDate || '').slice(0, 7)}`;
+  const email = session.customer_email || '';
+  const eurFmt = n => '€' + Number(n || 0).toLocaleString('en-US');
+  if (email) {
+    try {
+      await sendEmail({
+        to: email,
+        subject: `Ricevuta — ${isDeposit ? 'saldo deposito' : 'canone ' + (pay.month || '')} ${eurFmt(amount)} ✓`,
+        html: shell(
+          para(`Pagamento ricevuto ✓ — il tuo ${label} di <b>${eurFmt(amount)}</b> è registrato${fee ? ` (commissione servizio ${eurFmt(fee)})` : ''}. La ricevuta è tua per sempre: la ritrovi anche in <b>La tua casa BOOM</b>, insieme allo storico completo.`)
+          + btn('https://www.boomrome.com/casa', 'Apri La tua casa BOOM')
+          + (receiptUrl ? fine(`Ricevuta Stripe: <a href="${receiptUrl}" style="color:#141414">apri →</a>`, 'text-align:center') : '')
+          + fine('Domande? Rispondi a questa email o <a href="https://wa.me/393313251961" style="color:#141414">scrivici su WhatsApp</a>.', 'text-align:center'),
+          `Pagamento ${eurFmt(amount)} registrato`),
+      });
+    } catch (err) { console.error('[rent] tenant email:', err.message); }
+  }
+  try {
+    await sendEmail({
+      to: 'valentino@boom-rome.com',
+      subject: `💶 CANONE VIA BOOM ${eurFmt(amount)} — ${pay.month || paymentId}`,
+      html: shell(
+        para(`Incassato via Stripe: <b>${eurFmt(amount)}</b> (${label}) + commissione servizio <b>${eurFmt(fee)}</b>.<br>Payment <b>${paymentId}</b> · contratto ${pay.contractId || '—'} · segnato <b>paid · stripe</b> — la riconciliazione bancaria lo salta in automatico.`)
+        + btn2('https://www.boomrome.com/portal', 'Apri il portale')),
+    });
+  } catch (err) { console.error('[rent] admin email:', err.message); }
+
+  return res.status(200).json({ received: true, rent: true, paymentId });
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).send('Method not allowed');
 
@@ -541,6 +660,10 @@ export default async function handler(req, res) {
 
   if (m.service === 'PREAGREEMENT') {
     return handlePreagreement(res, session, m);
+  }
+
+  if (m.service === 'RENT') {
+    return handleRent(res, session, m);
   }
 
   if (m.service !== 'PFS') {
