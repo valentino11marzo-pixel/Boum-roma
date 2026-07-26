@@ -90,13 +90,32 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
 /* viewing mode: in person vs video call */
 .mode-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .mode-opt{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:13px 14px;background:var(--s2);border:1px solid var(--b1);border-radius:var(--rsm);cursor:pointer;text-align:left;transition:border-color .2s,background .2s;font-family:inherit}
-.mode-opt:hover{border-color:rgba(212,175,55,.4)}
-.mode-opt.on{border-color:var(--gold);background:rgba(212,175,55,.08)}
+.mode-opt:hover{border-color:var(--g-line)}
+.mode-opt.on{border-color:rgba(255,215,0,.45);background:var(--g-dim)}
 .mode-ico{font-size:18px;line-height:1}
 .mode-t{font-size:13.5px;color:var(--t0);font-weight:400;letter-spacing:-.01em}
 .mode-s{font-size:11px;color:var(--t2);font-weight:300;line-height:1.35}
-.tz-hint{font-size:11px;color:var(--t2);font-weight:300;margin-top:7px;letter-spacing:-.01em}
+.tz-hint{font-size:11px;color:var(--t2);font-weight:300;margin-top:9px;letter-spacing:-.01em}
 @media(max-width:420px){.mode-row{grid-template-columns:1fr}}
+/* availability: days as a rail, times as a grid — taken slots simply aren't there */
+.slot-load{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--t1);font-weight:300;padding:14px 2px}
+.slot-spin{width:12px;height:12px;border:1.5px solid var(--b2);border-top-color:var(--g);border-radius:50%;animation:sspin .7s linear infinite}
+@keyframes sspin{to{transform:rotate(360deg)}}
+.day-row{display:flex;gap:7px;overflow-x:auto;padding-bottom:9px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.day-row::-webkit-scrollbar{display:none}
+.day-chip{flex:0 0 auto;padding:9px 13px;background:var(--s2);border:1px solid var(--b1);border-radius:var(--rsm);cursor:pointer;font-family:inherit;font-size:12px;font-weight:300;color:var(--t1);letter-spacing:-.01em;white-space:nowrap;transition:all .18s}
+.day-chip:hover{border-color:var(--b2);color:var(--t0)}
+.day-chip.on{border-color:rgba(255,215,0,.45);background:var(--g-dim);color:var(--t0)}
+.day-chip b{display:block;font-weight:400;color:inherit}
+.day-chip .dc-n{font-size:10px;color:var(--t2);letter-spacing:.06em;text-transform:uppercase}
+.day-chip.on .dc-n{color:var(--g)}
+.time-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:7px;margin-top:4px}
+.time-slot{padding:11px 6px;background:var(--s2);border:1px solid var(--b1);border-radius:var(--rsm);cursor:pointer;font-family:inherit;font-size:13.5px;font-weight:300;color:var(--t0);letter-spacing:.01em;transition:all .16s;text-align:center}
+.time-slot:hover{border-color:var(--g-line);background:var(--s3)}
+.time-slot.on{border-color:var(--g);background:var(--g-dim);color:var(--g);font-weight:400;box-shadow:0 0 0 3px rgba(255,215,0,.06)}
+.slot-empty{font-size:12px;color:var(--t1);font-weight:300;line-height:1.6;padding:12px 0}
+.slot-empty a{color:var(--g);text-decoration:none}
+.instant{display:inline-flex;align-items:center;gap:6px;font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ok);border:1px solid rgba(52,199,89,.3);background:rgba(52,199,89,.07);padding:4px 10px;border-radius:100px;margin-top:12px}
 .inp[type="date"]::-webkit-calendar-picker-indicator,.inp[type="time"]::-webkit-calendar-picker-indicator{filter:invert(.35);cursor:pointer}
 .note-area{width:100%;min-height:70px;resize:vertical;padding:11px 13px;background:var(--s2);border:1px solid var(--b1);border-radius:var(--rsm);color:var(--t0);font-family:inherit;font-size:13px;font-weight:300;letter-spacing:-.01em;outline:none;line-height:1.55;transition:border-color .2s}
 .note-area:focus{border-color:rgba(255, 215, 0,.45);box-shadow:0 0 0 3px rgba(255, 215, 0,.06)}
@@ -324,8 +343,8 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
     <div class="card-shimmer"></div>
     <div class="card-hd">
       <div class="eyebrow">Step 3 of 3</div>
-      <div class="ttl">When works for you?</div>
-      <div class="sub">Propose any date and time — Valentino will confirm or suggest an alternative.</div>
+      <div class="ttl">Pick your time.</div>
+      <div class="sub">These are real openings — the slot is yours the moment you tap it.<span class="instant">⚡ Instant confirmation</span></div>
     </div>
     <div class="card-bd">
       <div class="div" style="margin-top:0"></div>
@@ -346,11 +365,15 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
           </button>
         </div>
       </div>
+      <!-- Real availability. The client takes a slot; it is confirmed on the
+           spot, because these ARE the operator's open hours. -->
       <div class="fg">
-        <label class="lbl">Proposed date &amp; time *</label>
-        <div class="date-row">
-          <input class="inp" type="date" id="in-date">
-          <input class="inp" type="time" id="in-time" value="10:00">
+        <label class="lbl">Pick a time — confirmed instantly *</label>
+        <div class="slot-load" id="slot-load"><span class="slot-spin"></span> Loading availability…</div>
+        <div class="day-row" id="day-row"></div>
+        <div class="time-grid" id="time-grid"></div>
+        <div class="slot-empty hidden" id="slot-empty">
+          No open slots right now — <a href="https://wa.me/393313251961" target="_blank" rel="noopener">message us on WhatsApp</a> and we'll find a time.
         </div>
         <div class="tz-hint" id="tz-hint"></div>
       </div>
@@ -373,7 +396,7 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
       <div class="btn-row">
         <button class="btn btn-s" onclick="setStep(2)">← Back</button>
         <button class="btn btn-p" id="btn-submit" onclick="submitRequest()">
-          <span class="btn-label">Send Request →</span><div class="spin"></div>
+          <span class="btn-label">Confirm booking →</span><div class="spin"></div>
         </button>
       </div>
     </div>
@@ -413,8 +436,8 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
           <polyline id="conf-chk" points="6,15 12,21 24,9" stroke="#34C759" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="32" stroke-dashoffset="32"/>
         </svg>
       </div>
-      <div class="pend-title">Confirmed!</div>
-      <div class="pend-sub">Your viewing is confirmed. Add it to your calendar<br>and we'll see you there.</div>
+      <div class="pend-title">Confirmed.</div>
+      <div class="pend-sub" id="conf-sub">Your viewing is booked. Everything you need is<br>in your inbox — and on the pass below.</div>
       <div class="status-badge conf-badge"><div class="sdot-pulse conf-dot"></div>Confirmed</div>
       <div class="sum-chip" style="text-align:left;margin-bottom:5px">
         <div class="sc-icon">🏠</div><div><div class="sc-lbl">Property</div><div class="sc-val" id="conf-prop">—</div></div>
@@ -422,9 +445,15 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
       <div class="sum-chip" style="text-align:left;margin-bottom:5px">
         <div class="sc-icon">📅</div><div><div class="sc-lbl">Confirmed time</div><div class="sc-val" id="conf-time">—</div></div>
       </div>
-      <div class="sum-chip" style="text-align:left;margin-bottom:20px">
+      <div class="sum-chip" style="text-align:left;margin-bottom:16px">
         <div class="sc-icon">👤</div><div><div class="sc-lbl">Agent</div><div class="sc-val">Valentino — BOOM Rome</div></div>
       </div>
+      <!-- the one thing they'll actually tap on the day -->
+      <a class="btn btn-p" id="conf-act" href="#" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none;margin-bottom:8px">📍 Get directions</a>
+      <a class="cal-btn cal-btn-a" id="conf-pass" href="#" style="width:100%;justify-content:center;margin-bottom:14px">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+        Add to Apple Wallet
+      </a>
       <div class="cal-row">
         <a class="cal-btn cal-btn-g" id="cal-g" href="#" target="_blank">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -435,8 +464,8 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
           Apple Calendar
         </a>
       </div>
-      <div class="sub" style="font-size:12px;color:var(--t2)">
-        Bring valid ID · Arrive 5 min early<br>
+      <div class="sub" style="font-size:12px;color:var(--t2);line-height:1.7">
+        We'll remind you the day before, 3 hours and 30 minutes ahead.<br>
         <a href="https://wa.me/393313251961" style="color:var(--g);opacity:.8;text-decoration:none" target="_blank">WhatsApp Valentino →</a>
       </div>
     </div>
@@ -460,6 +489,48 @@ function pickMode(m){
   ST.mode=m;
   document.getElementById('mode-person').classList.toggle('on',m==='person');
   document.getElementById('mode-video').classList.toggle('on',m==='video');
+  ST.when=null;ST.day=null;updateSum();
+  loadSlots();                       // video slots are shorter: the grid changes
+}
+
+/* ---- availability ------------------------------------------------------ */
+/* The server publishes only what is really bookable (open hours minus taken
+   slots minus minimum notice), so anything the client can tap is a yes.    */
+async function loadSlots(){
+  const load=document.getElementById('slot-load'),row=document.getElementById('day-row'),
+        grid=document.getElementById('time-grid'),empty=document.getElementById('slot-empty');
+  load.style.display='flex';row.innerHTML='';grid.innerHTML='';empty.classList.add('hidden');
+  try{
+    const r=await fetch('/api/viewings/slots?mode='+encodeURIComponent(ST.mode)+(ST.listing?'&listingId='+encodeURIComponent(ST.listing.id):''));
+    const j=await r.json();
+    ST.slots=(j&&j.ok&&Array.isArray(j.slots))?j.slots:[];
+  }catch(e){ST.slots=[]}
+  load.style.display='none';
+  if(!ST.slots.length){empty.classList.remove('hidden');updateSum();return}
+  ST.day=ST.slots[0].date;
+  row.innerHTML=ST.slots.map(d=>{
+    const [wd,dnum,mon]=d.label.split(' ');
+    return `<button type="button" class="day-chip${d.date===ST.day?' on':''}" data-day="${d.date}" onclick="pickDay('${d.date}')">
+      <span class="dc-n">${wd}</span><b>${dnum} ${mon}</b></button>`;
+  }).join('');
+  paintTimes();
+}
+function pickDay(date){
+  ST.day=date;ST.when=null;
+  document.querySelectorAll('.day-chip').forEach(c=>c.classList.toggle('on',c.dataset.day===date));
+  paintTimes();updateSum();
+}
+function paintTimes(){
+  const day=ST.slots.find(d=>d.date===ST.day);
+  const grid=document.getElementById('time-grid');
+  if(!day){grid.innerHTML='';return}
+  grid.innerHTML=day.times.map(t=>
+    `<button type="button" class="time-slot${t.iso===ST.when?' on':''}" data-iso="${t.iso}" onclick="pickSlot('${t.iso}')">${t.label}</button>`
+  ).join('');
+}
+function pickSlot(iso){
+  ST.when=iso;
+  document.querySelectorAll('.time-slot').forEach(s=>s.classList.toggle('on',s.dataset.iso===iso));
   updateSum();
 }
 /* Times are always Rome time — say it out loud to anyone who isn't here yet. */
@@ -536,99 +607,90 @@ function pick(id){
 
 function toStep3(){
   if(!ST.listing){toast('err','Select a property first');return}
-  const today=new Date().toISOString().split('T')[0];
-  document.getElementById('in-date').min=today;
-  document.getElementById('in-date').value='';
   const l=ST.listing;
   document.getElementById('sum-prop').textContent=(l.name||l.address||'Property')+(l.zone?' — '+l.zone:'');
-  document.getElementById('sum-time').textContent='—';
+  ST.when=null;updateSum();
   setStep(3);
-  ['in-date','in-time'].forEach(id=>{
-    document.getElementById(id).addEventListener('change',updateSum);
-  });
+  loadSlots();
 }
 function updateSum(){
-  const d=document.getElementById('in-date').value,t=document.getElementById('in-time').value;
   const how=ST.mode==='video'?' · 🎥 video call':' · 🚶 in person';
-  if(d&&t)document.getElementById('sum-time').textContent=fmtDT(new Date(d+'T'+t))+how;
+  const el=document.getElementById('sum-time');
+  if(el)el.textContent=ST.when?(fmtRome(ST.when)+how):'Pick a time above';
+  const btn=document.getElementById('btn-submit');
+  if(btn)btn.disabled=!ST.when;
   tzHint();
+}
+/* Always show Rome time explicitly — the client may be in another timezone. */
+function fmtRome(iso){
+  return new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Rome',weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(iso));
 }
 
 async function submitRequest(){
-  const d=document.getElementById('in-date').value,t=document.getElementById('in-time').value;
-  if(!d||!t){toast('err','Please select a date and time');return}
-  ST.date=d;ST.time=t;ST.notes=document.getElementById('in-notes').value.trim();
+  if(!ST.when){toast('err','Please pick a time');return}
+  ST.notes=document.getElementById('in-notes').value.trim();
   const btn=document.getElementById('btn-submit');
   btn.classList.add('loading');
+  const l=ST.listing;
   try{
-    const l=ST.listing,dt=new Date(d+'T'+t),dtStr=fmtDT(dt);
-    const ref=await db.collection('viewingRequests').add({
-      clientName:ST.name,clientEmail:ST.email,clientPhone:ST.phone,
-      listingId:l.id,listingName:l.name||l.address||'Property',listingZone:l.zone||'',listingPrice:l.price||0,
-      proposedDate:d,proposedTime:t,proposedDateTime:dt.toISOString(),
-      mode:ST.mode,durationMinutes:ST.mode==='video'?20:30,
-      language:(navigator.language||'en').toLowerCase().startsWith('it')?'it':'en',
-      notes:ST.notes,status:'pending',
-      confirmedDate:null,confirmedTime:null,confirmedDateTime:null,
-      reminder24hSent:false,reminder3hSent:false,reminder30mSent:false,afterAskSent:false,
-      agentEmail:'valentino@boomrome.com',
-      createdAt:firebase.firestore.FieldValue.serverTimestamp()
-    });
-    ST.reqId=ref.id;
-    // Server-side admin notification (cleaner than client-side EmailJS, also tolerates 4xx)
-    try {
-      await fetch('/api/notify-viewing-created', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          viewingId: ref.id,
-          clientName: ST.name,
-          clientEmail: ST.email,
-          clientPhone: ST.phone,
-          listingName: (l.name || l.address || 'Property') + (l.zone ? ' · ' + l.zone : ''),
-          requestedDate: d,
-          requestedTime: t,
-          mode: ST.mode,
-          notes: (ST.mode === 'video' ? '[VIDEO CALL] ' : '') + (ST.notes || '')
-        })
-      });
-    } catch (notifyErr) {
-      console.warn('[book] notify-viewing-created failed (non-fatal):', notifyErr);
-    }
-    const propName=(l.name||l.address||'Property')+(l.zone?' — '+l.zone:'');
-    document.getElementById('sum-p-final').textContent=propName;
-    document.getElementById('sum-t-final').textContent=dtStr;
+    // The server re-checks the slot (the grid may be seconds stale), writes the
+    // viewing as CONFIRMED and sends the boarding pass before we even answer.
+    const r=await fetch('/api/viewings/slots',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        listingId:l.id,listingName:l.name||l.address||'Property',
+        when:ST.when,mode:ST.mode,
+        name:ST.name,email:ST.email,phone:ST.phone,notes:ST.notes,
+        language:(navigator.language||'en').toLowerCase().startsWith('it')?'it':'en',
+        company:''
+      })});
+    const j=await r.json().catch(()=>null);
     btn.classList.remove('loading');
+    if(r.status===409){
+      toast('err','That slot was just taken — pick another one');
+      loadSlots();return;
+    }
+    if(!j||!j.ok){toast('err','Something went wrong. Please try again.');return}
+    ST.reqId=j.id;
+    // admin ping (non-blocking, tolerates failure)
+    fetch('/api/notify-viewing-created',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({viewingId:j.id,clientName:ST.name,clientEmail:ST.email,clientPhone:ST.phone,
+        listingName:(l.name||l.address||'Property')+(l.zone?' · '+l.zone:''),
+        requestedDate:ST.when.slice(0,10),requestedTime:ST.when.slice(11,16),mode:ST.mode,
+        notes:(ST.mode==='video'?'[VIDEO CALL] ':'')+(ST.notes||'')})}).catch(()=>{});
     setStep(4);
-    startPolling(ref.id);
+    showConfirmed({
+      listingName:l.name||l.address||'Property',listingZone:l.zone||'',
+      confirmedDateTime:j.when,mode:j.mode,videoUrl:j.videoUrl,id:j.id
+    });
   }catch(e){console.error(e);btn.classList.remove('loading');toast('err','Something went wrong. Please try again.')}
 }
 
-function startPolling(id){
-  const iv=setInterval(async()=>{
-    try{
-      const doc=await db.collection('viewingRequests').doc(id).get();
-      const data=doc.data();
-      if(data?.status==='confirmed'&&data.confirmedDateTime){clearInterval(iv);showConfirmed(data)}
-    }catch(e){}
-  },15000);
-  setTimeout(()=>clearInterval(iv),7200000);
-}
-
 function showConfirmed(data){
-  const dt=new Date(data.confirmedDateTime),dtStr=fmtDT(dt);
+  const dtStr=fmtRome(data.confirmedDateTime)+' (Rome time)';
+  const video=data.mode==='video';
   document.getElementById('conf-prop').textContent=data.listingName+(data.listingZone?' — '+data.listingZone:'');
   document.getElementById('conf-time').textContent=dtStr;
-  const s=dt.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
-  const e=new Date(dt.getTime()+3600000).toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
-  const ttl=encodeURIComponent('Viewing — '+data.listingName+' (BOOM)');
-  const loc=encodeURIComponent(data.listingName+(data.listingZone?', '+data.listingZone+', Rome, Italy':''));
-  document.getElementById('cal-g').href=`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${ttl}&dates=${s}/${e}&location=${loc}&details=${encodeURIComponent('Property viewing via BOOM Rome\nContact: +39 331 325 1961')}`;
-  document.getElementById('cal-a').href=`data:text/calendar;charset=utf8,BEGIN:VCALENDAR%0AVERSION:2.0%0ABEGIN:VEVENT%0ADTSTART:${s}%0ADTEND:${e}%0ASUMMARY:${ttl}%0ALOCATION:${loc}%0AEND:VEVENT%0AEND:VCALENDAR`;
+  document.getElementById('conf-sub').innerHTML=video
+    ? 'Your video viewing is booked. The link is in your inbox<br>and in the button below — no app to install.'
+    : 'Your viewing is booked. Everything you need is<br>in your inbox — and on the pass below.';
+  // calendar: the server owns the canonical .ics (with its 3h alarm)
+  document.getElementById('cal-g').href='/api/viewings/ics?id='+encodeURIComponent(data.id)+'&g=1';
+  document.getElementById('cal-a').href='/api/viewings/ics?id='+encodeURIComponent(data.id);
+  document.getElementById('cal-g').setAttribute('download','');
+  // the one-tap action + the Wallet pass
+  const act=document.getElementById('conf-act');
+  if(video&&data.videoUrl){act.href=data.videoUrl;act.textContent='🎥 Join the video call';}
+  else{
+    const l=ST.listing||{};
+    act.href='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent([l.address||data.listingName,'Roma','Italia'].filter(Boolean).join(', '));
+    act.textContent='📍 Get directions';
+  }
+  document.getElementById('conf-pass').href='/pass-delivery?type=viewing&id='+encodeURIComponent(data.id);
   const chk=document.getElementById('conf-chk');
   if(chk){chk.style.animation='none';chk.offsetHeight;chk.style.animation='drawChk .5s .2s ease forwards'}
   document.getElementById('pend-body').classList.add('hidden');
   document.getElementById('conf-body').classList.remove('hidden');
+  try{boomTrack&&boomTrack('viewing_booked',{mode:data.mode,item_id:(ST.listing||{}).id||''})}catch(e){}
 }
 
 function fmtDT(dt){return dt.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})+' · '+dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}

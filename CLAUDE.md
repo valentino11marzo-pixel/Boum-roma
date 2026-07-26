@@ -307,10 +307,23 @@ viewing id + server secret).
   the lock-screen trigger near the building. `_passkit.loadPassData` now
   reads `listings` before `properties` (book.html writes `listingId`) —
   previously book-created passes shipped with no address and no coords.
-- `book.html` — step 3 asks **in person or video call** (video is a
-  first-class choice, most clients are still abroad), states Rome time with
-  the visitor's local offset, and writes `mode`, `durationMinutes`,
-  `language` + the countdown flags.
+- `GET|POST /api/viewings/slots` — **real availability, instant
+  confirmation** (the multinational leap: no more "propose a time and
+  wait"). GET publishes bookable slots from `settings/viewingAvailability`
+  (weekly Rome-time windows, per-mode duration person 45' / video 20',
+  minimum notice, horizon, max/day) minus every live viewing plus a 15'
+  gap. POST re-verifies the slot server-side (the grid can be seconds
+  stale → 409 `slot_taken`), writes the viewing as **confirmed** — the
+  slots ARE the operator's declared availability, so nothing is left to
+  approve — mints the video room and sends the confirmation immediately
+  (waiting for the cron would break the promise). Honeypot + email
+  validation. `buildSlots()` exported and unit-tested.
+- `book.html` — step 3 is now a real picker: **in person or video call**
+  (video first-class, most clients are still abroad), day rail + time
+  grid of genuinely free slots, "⚡ Instant confirmation", Rome time with
+  the visitor's local offset. The confirmed screen leads with the one
+  thing they'll tap on the day (directions / join call), then Wallet and
+  calendar. No polling, no pending limbo.
 
 ### POST `/api/apply-lead`
 Public lead-capture for the apartment-detail APPLY/RESERVE/WAITLIST flow.
