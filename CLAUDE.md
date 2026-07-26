@@ -160,6 +160,8 @@ DOC_MAIL_FROM                # optional — extra TRUSTED senders whose email
                              # attachments get auto-filed (comma-separated,
                              # e.g. "commercialista@studiorossi.it"). The
                              # operator's own addresses are always trusted.
+VIEWINGS_CALENDAR_EMAIL      # optional — where viewing calendar invites are
+                             # sent (defaults to GMAIL_USER)
 TELEGRAM_BOT_TOKEN           # already used by api/telegram/*; pfs health alerts
 TELEGRAM_CHAT_ID
 ```
@@ -301,6 +303,29 @@ viewing id + server secret).
   video room, emails the client, pushes the Wallet pass. A reschedule
   re-opens the countdown (reminder flags reset).
 - `GET /api/viewings/ics?id=` — public calendar file for Apple/Outlook.
+- `GET /api/viewings/pass?id=` — the client's boarding pass, served for real:
+  loads the LIVE viewing (address, coords, time, video room), signs it and
+  streams `application/vnd.apple.pkpass`. `&meta=1` returns JSON for the
+  delivery page's mockup. Replaces the old pass-delivery path, which POSTed
+  hand-assembled URL params to `/api/generate-pass` (so the pass carried
+  nothing) and then navigated to a `blob:` URL — which iOS Safari does not
+  reliably hand to Wallet. pass-delivery.html now navigates to this URL for
+  viewings, and its broken `<img>` logo (a file absent from the repo) is an
+  inline SVG that cannot 404.
+- **The operator's calendar fills itself** (`_ical.js` + `_invite.js`): every
+  booking is emailed to `VIEWINGS_CALENDAR_EMAIL` (default `GMAIL_USER`) as a
+  genuine iCalendar invitation — Gmail/Apple Mail/Outlook add it on their own,
+  no OAuth, no API project, nothing to expire. Stable `UID` + growing
+  `SEQUENCE` means a reschedule UPDATES that same event in place and
+  `METHOD:CANCEL` deletes it; the client rides as ATTENDEE, video viewings
+  carry `X-GOOGLE-CONFERENCE` so Google shows a join button, and two VALARMs
+  (‑3h, ‑30m) ring on the operator's own devices. Wired into all three paths
+  (self-booking, confirm/reschedule/cancel, path-independent confirmation).
+- `GET /api/viewings/feed?key=` — **subscribe once, done forever**: a live
+  calendar feed (`feedKey()` derived from `HOMIE_SECRET`, rotate to revoke) of
+  every viewing from ‑30d to +120d, `REFRESH-INTERVAL:PT15M`. Google Calendar
+  → "From URL", Apple Calendar → "New Calendar Subscription". Belt and
+  braces with the invites: if a mail is ever missed, the feed still has it.
 - Wallet: `buildViewingPass` gained `mode`/`videoUrl` — a video pass shows
   "VIDEO", leads with a **Entra nella call →** link and drops the geofence
   (a room has no address); an in-person pass keeps address, Maps link and

@@ -65,14 +65,19 @@ async function getMailer() {
 }
 
 // Send a single email. Returns { messageId }.
-export async function sendEmail({ to, subject, html, text, from, attachments }) {
+export async function sendEmail({ to, subject, html, text, from, attachments, icalEvent, cc }) {
   if (!to || !subject || (!html && !text)) throw new Error('to, subject and html|text required');
   const m = await getMailer();
   const info = await m.sendMail({
     from: from || `BOOM Rome <${process.env.GMAIL_USER}>`,
     to, subject, html, text,
+    ...(cc ? { cc } : {}),
     // nodemailer attachment objects: [{ filename, content(Buffer), contentType }]
     ...(Array.isArray(attachments) && attachments.length ? { attachments } : {}),
+    // icalEvent: { method:'REQUEST'|'CANCEL', filename, content } — nodemailer
+    // sends it as a text/calendar alternative, which is what makes Gmail and
+    // Apple Mail add (or update, or remove) the event automatically.
+    ...(icalEvent && icalEvent.content ? { icalEvent } : {}),
   });
   return { messageId: info.messageId };
 }
