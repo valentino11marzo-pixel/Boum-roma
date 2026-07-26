@@ -620,6 +620,40 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
 .sb-x{position:absolute;top:calc(24px + env(safe-area-inset-top,0px));right:14px;z-index:8}
 .sb-hint{position:absolute;left:0;right:0;bottom:calc(10px + var(--safe));z-index:4;text-align:center;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t4);pointer-events:none}
 
+/* ── BOLD: the name carries a gold baton; the price carries light ── */
+.titlewrap h1::after{content:"";display:block;width:44px;height:3px;margin-top:14px;background:linear-gradient(90deg,var(--gold),transparent);border-radius:3px}
+.price-inline b,.dtop .p{text-shadow:0 0 28px rgba(255,215,0,.22)}
+
+/* ── THE POWER GRID: potenza, sicurezza, velocità — in four numbers ── */
+.powergrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-bottom:18px}
+@media(min-width:680px){.powergrid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.pw{background:var(--card);padding:18px 16px;position:relative;overflow:hidden}
+.pw b{display:block;font-family:var(--disp);font-weight:200;font-size:clamp(30px,5vw,42px);color:var(--gold);line-height:1;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+.pw b i{font-style:normal}
+.pw b small{font-size:.45em;letter-spacing:0;color:var(--gold-light)}
+.pw span{display:block;font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t3);margin-top:8px}
+.pw::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--gold),transparent);opacity:0;transition:opacity .7s var(--ease)}
+.sec.chp-in .pw::before{opacity:.85}
+body.chapters .proofs.stamped .proof:nth-child(5){transition-delay:.48s}
+
+/* ── the block, PRECISE: live coordinates + the exact entrance ── */
+.blkchips{position:absolute;left:12px;bottom:12px;z-index:5;display:flex;gap:8px;flex-wrap:wrap;pointer-events:none}
+.blkchips>*{pointer-events:auto}
+.blkchips[hidden]{display:none!important}
+.blkchip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:rgba(0,0,0,.55);backdrop-filter:blur(10px);border-radius:100px;padding:9px 14px;font-size:11.5px;color:var(--t2);transition:.2s}
+a.blkchip:hover{border-color:var(--line-gold);color:var(--gold)}
+.blkchip.coords{font-variant-numeric:tabular-nums;letter-spacing:.4px;color:var(--gold);border-color:var(--line-gold)}
+
+/* ── the viral handoff: deciding is a two-person sport ── */
+.sharestrip{margin-top:14px;border:1px solid var(--line);border-radius:15px;background:var(--card);padding:16px 18px;display:flex;align-items:center;gap:13px;flex-wrap:wrap}
+.sharestrip .tx{flex:1;min-width:200px}
+.sharestrip h4{font-weight:400;font-size:14.5px;font-family:var(--sans)}
+.sharestrip p{color:var(--t2);font-size:12.5px;margin-top:3px}
+.sharestrip .acts{display:flex;gap:8px}
+.sharestrip .acts a,.sharestrip .acts button{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:100px;padding:10px 15px;font-size:12.5px;transition:.2s;background:var(--surface)}
+.sharestrip .acts a:hover,.sharestrip .acts button:hover{border-color:var(--line-gold);color:var(--gold)}
+.sharestrip .acts .wa{color:#25D366;border-color:rgba(37,211,102,.28)}
+
 /* app-grade page handoff: native cross-document transition (Chrome/Safari 18+,
    silent no-op elsewhere). Fast and quiet — the BoomElevate hero morph stays
    the star; this only removes the white-flash "website" cut between pages. */
@@ -743,6 +777,14 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
     },
     {
       "@type": "Question",
+      "name": "Can foreigners legally rent in Rome for 1-18 months?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes — BOOM specialises in the registered transitional contract (contratto transitorio, L.431/98): fully legal for 1-18 month stays, registered with the Agenzia delle Entrate, deposit protected, with English support throughout."
+      }
+    },
+    {
+      "@type": "Question",
       "name": "Can I reserve a place before someone else takes it?",
       "acceptedAnswer": {
         "@type": "Answer",
@@ -860,6 +902,10 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
           </div>
           <div class="blip" aria-hidden="true"></div>
           <button class="m3facade" onclick="boom3D(this)" aria-label="Explore the block in 3D">◆ Explore the block in 3D<small>Real map · 3D buildings · 5 / 10 / 15-min walk rings</small></button>
+          <div class="blkchips" id="blkChips" hidden>
+            <span class="blkchip coords" id="blkCoords">◈ —</span>
+            <a class="blkchip" id="blkSv" href="#" target="_blank" rel="noopener">⟲ Street View · the exact entrance</a>
+          </div>
         </div>
         <a class="skyjump" id="skyJump" href="/apartments?view=map">◉ See this home on Rome’s Skyline <small>satellite · 3D · Street View · distances to LUISS, Sapienza, Termini…</small><span class="arr">→</span></a>
         <a class="skyjump" id="vvTour" href="https://wa.me/393313251961?text=Hi!%20I'd%20like%20a%20live%20video%20tour%20of%20an%20apartment." rel="noopener" onclick="try{boomTrack('generate_lead',{channel:'whatsapp',intent:'video_viewing_request',item_id:PID||''})}catch(e){}">📹 Not in Rome? <small>Book a free live video tour of this home — you direct, we film · usually within 24h</small><span style="color:var(--gold);font-size:15px;white-space:nowrap">Free →</span></a>
@@ -878,11 +924,18 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
 
       <section class="sec reveal" id="trust" data-ambient="marmoantico">
         <div class="sec-h"><span class="num">04</span><div><div class="eyebrow">Safe &amp; fast</div><h2>Proof, not <span class="g">promises</span>.</h2></div></div>
+        <div class="powergrid" id="powergrid">
+          <div class="pw"><b><i>2</i><small>h</small></b><span>Max reply time</span></div>
+          <div class="pw"><b><i>48</i><small>h</small></b><span>Approval → keys</span></div>
+          <div class="pw"><b><i data-noroll>4.9</i><small>★</small></b><span>47 Google reviews</span></div>
+          <div class="pw"><b><i>100</i><small>%</small></b><span>Registered contracts</span></div>
+        </div>
         <div class="proofs">
           <div class="proof"><span class="c">✓</span> Verified in person &amp; video</div>
           <div class="proof"><span class="c">✓</span> ID-checked owner</div>
           <div class="proof"><span class="c">✓</span> Registered legal contract</div>
           <div class="proof"><span class="c">✓</span> Deposit protected</div>
+          <div class="proof"><span class="c">✓</span> Transitional lease · 1–18 months, expat-ready</div>
         </div>
         <div class="steps">
           <div class="step"><div class="n">01</div><h4>Apply</h4><p>2 minutes. We reply within 2 hours.</p></div>
@@ -890,6 +943,10 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
           <div class="step"><div class="n">03</div><h4>Keys</h4><p>In as little as 48 hours.</p></div>
         </div>
         <div class="after"><div class="ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM11 18h2"/></svg></div><div class="tx"><h4>After you move in, BOOM stays</h4><p>Rent, documents, maintenance and your deposit — all in your BOOM app. An agency’s care, a product’s convenience.</p></div></div>
+        <div class="sharestrip">
+          <div class="tx"><h4>Deciding with someone?</h4><p>Send this home to your partner or flatmate — photos, price, booking. One link, in English.</p></div>
+          <div class="acts"><a class="wa" id="shWa" href="#" target="_blank" rel="noopener">WhatsApp</a><button type="button" id="shCopy">Copy link</button></div>
+        </div>
       </section>
 
       <section class="sec reveal" id="similar">
@@ -901,6 +958,7 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
       <section class="sec reveal" id="faq">
         <div class="sec-h"><span class="num">06</span><div><div class="eyebrow">Answers</div><h2>Before you even <span class="g">ask</span>.</h2></div></div>
         <div class="faq" id="faqList"></div>
+        <a class="skyjump" href="/welcome-to-rome" style="margin-top:18px" onclick="try{boomTrack('welcome_kit_click',{source_page:'listing'})}catch(e){}">✈ Moving to Rome from abroad? <small>The free BOOM survival guide — codice fiscale, legal contracts, SIM, bank, residency. Everything expats ask, in English.</small><span class="arr">→</span></a>
       </section>
 
       <section class="upsell reveal">
@@ -990,7 +1048,7 @@ try{
   if(window.BoomAmbient){
     /* sections on: marmoantico (arrival) → seta (the money reads in silence)
        → caustica (water-light for the place) → marmoantico (the tail) */
-    window.__amb=BoomAmbient.mount({ink:'#060607',inkRGB:'6,6,7',palette:{a:'255,215,0',b:'255,229,160'},intensity:.6,scene:'marmoantico',z:-3});
+    window.__amb=BoomAmbient.mount({ink:'#060607',inkRGB:'6,6,7',palette:{a:'255,215,0',b:'255,229,160'},intensity:.72,scene:'marmoantico',z:-3});
     var _aw=document.querySelector('[data-boom-ambient]');
     if(_aw&&!matchMedia('(prefers-reduced-motion: reduce)').matches){_aw.style.opacity='0';_aw.style.transition='opacity 1.4s cubic-bezier(.16,1,.3,1)';setTimeout(function(){_aw.style.opacity='';},700);}
   }
@@ -1188,6 +1246,7 @@ function toggleDecode(){const d=document.getElementById('decoded');const o=d.cla
 
 const FAQ=[['Can I see it before deciding?','Yes — and you book it like a flight seat: pick a real slot on this page (in person, or a live video call if you’re abroad) and it’s confirmed on the spot, with reminders and a Wallet pass. No message ping-pong.'],
 ['Can I move in on a different date than availability?','Yes. Set your date in “Your stay”: after availability you move in straight away; before it, we show the exact gap and can alert you or find an alternative.'],
+['I’m a foreigner staying 1–18 months — can I legally rent?','That’s exactly our speciality. We use the registered transitional contract (contratto transitorio, L.431/98): fully legal for stays from 1 to 18 months, registered with the Agenzia delle Entrate, deposit protected, English support end to end. A real contract — not a handshake over a coffee.'],
 ['How fast can I really move in?','As fast as 48 hours from approval. We reply to every application within 2 hours and handle contract and keys.'],
 ['Is the contract legitimate?','Always: registered legal contract, ID-verified owner, protected deposit. We’re a licensed Rome agency (Egidi Immobiliare S.r.l.).'],
 ['What do I actually pay to move in?','Only what you see in “Your stay”: first month + refundable deposit + the one-off agency fee (10% of the annual rent, stated up front). Nothing else.'],
@@ -1228,6 +1287,20 @@ function boom3D(btn){
   if(_map3d)return;var host=document.getElementById('map3d');if(!host)return;
   var lat=+L.lat||41.8902,lng=+L.lng||12.4922;
   if(btn){btn.innerHTML='<span style="color:var(--t3);font-size:12px">Loading map…</span>';btn.style.pointerEvents='none';}
+  /* the real thing first: Google Photorealistic 3D of the EXACT building —
+     armed the moment GOOGLE_MAPS_API_KEY lands in Vercel (via /api/maps-key,
+     same pipeline as the Skyline). MapLibre stays as the always-working
+     fallback: no key, no coords, blocked CDN — the block still renders. */
+  prKey().then(function(key){
+    if(!(key&&+L.lat&&+L.lng))throw 0;
+    return prModule().then(function(){return BoomPhotoreal.open({key:key,lat:+L.lat,lng:+L.lng,name:L.name});})
+      .then(function(){
+        boomTrack('photoreal_open',{item_id:PID||L.id||''});
+        if(btn){btn.innerHTML='◆ Explore the block in 3D<small>Google Photoreal · real rooftops, real light — tap to fly again</small>';btn.style.pointerEvents='';}
+      });
+  }).catch(function(){boom3DML(btn,host,lat,lng);});
+}
+function boom3DML(btn,host,lat,lng){
   ensureML().then(function(){
     var reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
     var map=new maplibregl.Map({container:'map3d',style:'https://tiles.openfreemap.org/styles/liberty',center:[lng,lat],zoom:reduce?16:13.4,pitch:reduce?55:0,bearing:0,cooperativeGestures:true,antialias:true,attributionControl:false});
@@ -1752,7 +1825,7 @@ function experienceArrive(){
   const io=new IntersectionObserver(function(es){es.forEach(function(en){
     if(en.isIntersecting){en.target.classList.add('chp-in');io.unobserve(en.target);}
   })},{threshold:.3});
-  ['about','money','place'].forEach(id=>{const el=document.getElementById(id);if(el)io.observe(el);});
+  ['about','money','place','trust'].forEach(id=>{const el=document.getElementById(id);if(el)io.observe(el);});
 })();
 (function(){ // chapter rail — the visit has a script: Photos → Home → Money → Location
   const CH=[['top','Photos'],['about','The home'],['money','The money'],['place','The location']];
@@ -1831,8 +1904,43 @@ function postPaint(){
   var bb=document.getElementById('bookBtn');if(bb)bb.hidden=!PID;
   var vt=document.getElementById('vvTour');
   if(vt&&PID)vt.onclick=function(ev){ev.preventDefault();try{boomTrack('generate_lead',{channel:'slots',intent:'video_viewing_request',item_id:PID})}catch(e){}openBook('video');};
+  /* precision, shown not claimed: live coordinates + the exact entrance —
+     only when the pin is real. No coords, no chips: never a fake pin. */
+  var bc=document.getElementById('blkChips'),hasPin=!!(+L.lat&&+L.lng);
+  if(bc){bc.hidden=!hasPin;
+    if(hasPin){
+      var cc=document.getElementById('blkCoords');if(cc)cc.textContent='◈ '+(+L.lat).toFixed(4)+'° N · '+(+L.lng).toFixed(4)+'° E';
+      var sv=document.getElementById('blkSv');if(sv){sv.href='https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+(+L.lat)+','+(+L.lng);
+        sv.onclick=function(){try{boomTrack('streetview_open',{item_id:PID||L.id||''})}catch(e){}};}
+    }}
+  /* if the Google key is live, say so on the facade before the first tap */
+  if(hasPin)prKey().then(function(k){
+    var f=document.querySelector('#map3d .m3facade small');
+    if(k&&f)f.textContent='Google Photoreal 3D · real rooftops, real light · the exact building';
+  }).catch(function(){});
+  /* the viral handoff — English link, ready to forward */
+  var shUrl=PID?(location.origin+'/listing/'+encodeURIComponent(PID)):location.href;
+  var sw=document.getElementById('shWa');
+  if(sw){sw.href='https://wa.me/?text='+encodeURIComponent('Look at this verified Rome home — '+L.name+', '+(L.zone||'Rome')+' · €'+Math.round(L.price).toLocaleString('en-US')+'/mo. Legal contract, video tour, instant viewing: '+shUrl);
+    sw.onclick=function(){try{boomTrack('share',{method:'whatsapp_forward',item_id:PID||L.id||''})}catch(e){}};}
+  var sc=document.getElementById('shCopy');
+  if(sc&&!sc.__wired){sc.__wired=1;
+    if(navigator.share){sc.textContent='Share';sc.onclick=function(){try{boomTrack('share',{method:'native',item_id:PID||L.id||''})}catch(e){}try{navigator.share({title:document.title,url:shUrl}).catch(function(){})}catch(e){}};}
+    else sc.onclick=function(){try{boomTrack('share',{method:'clipboard',item_id:PID||L.id||''})}catch(e){}try{navigator.clipboard.writeText(shUrl)}catch(e){}sc.textContent='Copied ✓';setTimeout(function(){sc.textContent='Copy link'},1400);};
+  }
   try{initFit()}catch(e){}
 }
+
+/* ---- Google Photoreal plumbing: key + module, both cached, both lazy ---- */
+var _prk,_prm;
+function prKey(){return _prk||(_prk=fetch('/api/maps-key').then(function(r){return r.json()}).then(function(j){return (j&&j.key)||null}).catch(function(){_prk=null;return null}));}
+function prModule(){return _prm||(_prm=new Promise(function(res,rej){
+  if(window.BoomPhotoreal)return res();
+  var s=document.createElement('script');s.src='/js/boom-photoreal.js';
+  s.onload=function(){window.BoomPhotoreal?res():rej(new Error('photoreal_missing'))};
+  s.onerror=function(){_prm=null;rej(new Error('photoreal_load'))};
+  document.head.appendChild(s);
+}));}
 
 /* ---- the heart is real: same boom:saved set the discovery page reads ---- */
 function _savedSet(){try{return new Set(JSON.parse(localStorage.getItem('boom:saved')||'[]'))}catch(e){return new Set()}}
@@ -2133,6 +2241,16 @@ document.addEventListener('visibilitychange',function(){
   if(!SB.open)return;
   if(document.hidden)sbPause();else sbResume();
 });
+
+/* ---- the power grid lands with weight: numbers roll in as it enters view ---- */
+(function(){
+  var pg=document.getElementById('powergrid');if(!pg)return;
+  if(REDUCE_SEQ||!('IntersectionObserver' in window))return;
+  new IntersectionObserver(function(es,io){es.forEach(function(en){
+    if(!en.isIntersecting)return;io.disconnect();
+    pg.querySelectorAll('.pw b i').forEach(function(el,i){if(!el.hasAttribute('data-noroll'))rollNum(el,i*120)});
+  })},{threshold:.4}).observe(pg);
+})();
 
 bkTeaser();
 </script>
