@@ -63,7 +63,7 @@
         .reveal { opacity: 0; transform: translateY(60px); transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
         .reveal.active { opacity: 1; transform: translateY(0); }
         .reveal-delay-1 { transition-delay: 0.1s; } .reveal-delay-2 { transition-delay: 0.2s; } .reveal-delay-3 { transition-delay: 0.3s; }
-        nav { position: fixed; width: 100%; top: 0; z-index: 100; padding: 20px 50px; background: rgba(0,0,0,0.98); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255, 215, 0, 0.1); }
+        nav { position: fixed; width: 100%; top: 0; z-index: 100; padding: 20px 50px; background: rgba(0,0,0,0.98); -webkit-backdrop-filter:blur(20px);backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255, 215, 0, 0.1); }
         .nav-container { max-width: 1400px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
         .logo { display: flex; align-items: center; gap: 15px; text-decoration: none; color: white; }
         .logo-svg { width: 80px; height: 80px; filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.5)); transition: filter 0.3s ease; }

@@ -67,7 +67,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
   @keyframes scan{0%,78%{top:-28%;opacity:0}80%{opacity:1}95%{opacity:1}100%{top:112%;opacity:0}}
 }
 
-header{position:sticky;top:0;z-index:50;background:rgba(5,5,6,.72);backdrop-filter:blur(20px) saturate(1.5);-webkit-backdrop-filter:blur(20px) saturate(1.5);border-bottom:1px solid var(--line2)}
+header{position:sticky;top:0;z-index:50;background:rgba(5,5,6,.72);-webkit-backdrop-filter:blur(20px) saturate(1.5);backdrop-filter:blur(20px) saturate(1.5);border-bottom:1px solid var(--line2)}
 .hrow{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:13px 20px;max-width:720px;margin:0 auto}
 .hl{font-size:9px;letter-spacing:2.4px;text-transform:uppercase;color:var(--t4)}
 .brand{display:flex;align-items:center;gap:10px;justify-self:center;color:inherit;text-decoration:none}
@@ -88,7 +88,7 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
 .chip{display:inline-flex;align-items:center;gap:8px;margin-top:14px;border:1px solid var(--line-gold);background:var(--gold-faint);border-radius:100px;padding:7px 15px;font-size:9.5px;letter-spacing:2.4px;text-transform:uppercase;color:var(--gold)}
 .chip::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 10px rgba(212,175,55,.8)}
 
-.tiles{position:relative;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin:22px 0 4px;border-radius:var(--r);overflow:hidden;background:var(--panel);border:1px solid var(--line2);backdrop-filter:blur(8px)}
+.tiles{position:relative;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin:22px 0 4px;border-radius:var(--r);overflow:hidden;background:var(--panel);border:1px solid var(--line2);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
 .tiles::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,var(--gold),rgba(212,175,55,.25),transparent 80%)}
 .tile{padding:17px 16px 14px}
 .tile:nth-child(2n){border-left:1px solid var(--line2)}
@@ -98,7 +98,7 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
 .tile .v small{font-size:11.5px;color:var(--t3);letter-spacing:.3px}
 .tile.hero .v{background:linear-gradient(180deg,#FFF3C4,var(--gold-light) 30%,var(--gold) 78%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
 
-.card{margin-top:16px;padding:20px;border:1px solid var(--line2);border-radius:var(--r);background:linear-gradient(180deg,rgba(255,252,240,.03),rgba(255,255,255,.015));backdrop-filter:blur(8px);position:relative;overflow:hidden}
+.card{margin-top:16px;padding:20px;border:1px solid var(--line2);border-radius:var(--r);background:linear-gradient(180deg,rgba(255,252,240,.03),rgba(255,255,255,.015));-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);position:relative;overflow:hidden}
 .card::after{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,rgba(212,175,55,.5),rgba(212,175,55,.12),transparent 75%)}
 .card h2{display:flex;align-items:baseline;gap:11px;margin-bottom:14px}
 .card h2 .no{font-family:var(--mono);font-size:9px;color:var(--gold);border:1px solid var(--line-gold);border-radius:6px;padding:3px 7px;background:var(--gold-faint)}
@@ -180,7 +180,7 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
 .qnav a:hover{border-color:var(--line-gold);color:var(--gold)}
 .card{scroll-margin-top:118px}
 /* the payment ceremony — green appears only around money */
-.payov{position:fixed;inset:0;z-index:210;display:none;place-items:center;background:rgba(4,5,4,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);text-align:center}
+.payov{position:fixed;inset:0;z-index:210;display:none;place-items:center;background:rgba(4,5,4,.92);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);text-align:center}
 .payov.on{display:grid}
 .payov .amt{font-size:clamp(38px,10vw,54px);font-weight:200;letter-spacing:-1px;font-variant-numeric:tabular-nums}
 .payov .cap{font-size:10px;letter-spacing:3.4px;text-transform:uppercase;color:var(--green);margin-top:14px}
@@ -624,30 +624,35 @@ function reveal(){
 }
 
 /* ── boot: everything REAL, from the tenant's own documents ── */
-BoomPortal.requireAuth(['tenant'],{loginUrl:'/login.html?next='+encodeURIComponent('/casa'+location.search)}).then(function(res){
+BoomPortal.requireAuth(['tenant'],{loginUrl:'/login'}).then(function(res){
   USER=res.user;PROFILE=res.profile||{};
   var db=firebase.firestore();
-  $('logout').onclick=function(){firebase.auth().signOut().then(function(){location.href='/login.html'})};
+  $('logout').onclick=function(){firebase.auth().signOut().then(function(){location.href='/login'})};
   $('logout').textContent=t('logout');
   $('langBtn').onclick=function(){setLang(LANG==='en'?'it':'en')};
   syncLangBtn();
 
-  var qContracts=db.collection('contracts').where('tenantId','==',USER.uid).limit(10).get()
+  // Ogni lettura ha un watchdog: su Safari desktop una get() può restare
+  // sospesa per sempre (IndexedDB/WebChannel) e la Promise.all qui sotto
+  // non si risolverebbe mai → loader eterno. Meglio una sezione vuota che
+  // una pagina bloccata.
+  var T=function(p){return BoomPortal.withTimeout(p,9000)};
+  var qContracts=T(db.collection('contracts').where('tenantId','==',USER.uid).limit(10).get())
     .then(function(s){var rows=[];s.forEach(function(d){var v=d.data();v.id=d.id;rows.push(v)});
       rows.sort(function(a,b){return String(b.startDate||'').localeCompare(String(a.startDate||''))});
       CONTRACT=rows.filter(function(c){return c.status==='active'})[0]||rows[0]||null;})
     .catch(function(){});
-  var qPays=db.collection('payments').where('tenantId','==',USER.uid).limit(120).get()
+  var qPays=T(db.collection('payments').where('tenantId','==',USER.uid).limit(120).get())
     .then(function(s){PAYMENTS=[];s.forEach(function(d){var v=d.data();v.id=d.id;PAYMENTS.push(v)});})
     .catch(function(){});
-  var qMaint=db.collection('maintenance').where('userId','==',USER.uid).limit(20).get()
+  var qMaint=T(db.collection('maintenance').where('userId','==',USER.uid).limit(20).get())
     .then(function(s){MAINT=[];s.forEach(function(d){MAINT.push(d.data())});
       MAINT.sort(function(a,b){return String(b.createdAt||'').localeCompare(String(a.createdAt||''))});})
     .catch(function(){});
 
   Promise.all([qContracts,qPays,qMaint]).then(function(){
     var pid=(CONTRACT&&CONTRACT.propertyId)||PROFILE.propertyId||null;
-    return pid?db.collection('properties').doc(pid).get().then(function(d){if(d.exists)PROPERTY=d.data();}).catch(function(){}):null;
+    return pid?T(db.collection('properties').doc(pid).get()).then(function(d){if(d.exists)PROPERTY=d.data();}).catch(function(){}):null;
   }).then(function(){
     $('load').style.display='none';$('app').style.display='';$('foot').style.display='';
     document.title='La tua casa — '+((PROPERTY&&PROPERTY.address)||'BOOM Roma');

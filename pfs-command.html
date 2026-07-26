@@ -67,7 +67,7 @@ input, select, textarea { font: inherit; color: var(--text); }
 .shield-sub { font-size: 11px; letter-spacing: 3px; color: var(--text-muted); text-transform: uppercase; }
 
 /* ── Topbar ──────────────────────────────────────────────── */
-.topbar { background: rgba(0,0,0,0.92); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); padding: 16px 20px 14px; z-index: 200; }
+.topbar { background: rgba(0,0,0,0.92); -webkit-backdrop-filter:blur(20px);backdrop-filter: blur(20px);  border-bottom: 1px solid var(--border); padding: 16px 20px 14px; z-index: 200; }
 .tb-row1 { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
 .tb-brand { display: flex; align-items: center; gap: 12px; }
 .tb-dot { width: 26px; height: 26px; border-radius: 50%; background: linear-gradient(135deg, var(--gold), var(--gold-dark)); box-shadow: 0 0 14px var(--gold-glow); flex-shrink: 0; }
@@ -141,11 +141,11 @@ section { scroll-margin-top: 16px; }
 .fc-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .fc-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 42px; background: linear-gradient(135deg, #1c1c1c, #0a0a0a); opacity: .8; }
 .badge-row { position: absolute; top: 10px; left: 10px; display: flex; gap: 6px; flex-wrap: wrap; max-width: calc(100% - 20px); }
-.pbadge { padding: 4px 10px; border-radius: 100px; font-size: 9px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); border: 1px solid var(--border); color: var(--text-secondary); }
+.pbadge { padding: 4px 10px; border-radius: 100px; font-size: 9px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; background: rgba(0,0,0,0.7); -webkit-backdrop-filter:blur(8px);backdrop-filter: blur(8px); border: 1px solid var(--border); color: var(--text-secondary); }
 .adv-private { background: var(--gold-light); border-color: rgba(212,175,55,0.4); color: var(--gold); }
 .adv-unknown { background: var(--amber-light); border-color: rgba(245,165,36,0.4); color: var(--amber); }
 .adv-agency { background: var(--red-light); border-color: rgba(176,80,80,0.4); color: var(--red-muted); }
-.opill { position: absolute; top: 10px; right: 10px; padding: 4px 10px; border-radius: 100px; font-size: 9px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; backdrop-filter: blur(8px); }
+.opill { position: absolute; top: 10px; right: 10px; padding: 4px 10px; border-radius: 100px; font-size: 9px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; -webkit-backdrop-filter:blur(8px);backdrop-filter: blur(8px); }
 .st-gray { background: rgba(255,255,255,0.1); color: var(--text-secondary); }
 .st-blue { background: var(--blue-light); color: var(--blue); }
 .st-gold { background: var(--gold-light); color: var(--gold); }
@@ -230,7 +230,7 @@ section { scroll-margin-top: 16px; }
 .empty .ebtns { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 
 /* ── Modal ───────────────────────────────────────────────── */
-#modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 8000; display: flex; align-items: flex-start; justify-content: center; padding: 24px 16px; overflow-y: auto; animation: fadein .2s ease; }
+#modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); -webkit-backdrop-filter:blur(10px);backdrop-filter: blur(10px);  z-index: 8000; display: flex; align-items: flex-start; justify-content: center; padding: 24px 16px; overflow-y: auto; animation: fadein .2s ease; }
 #modal-overlay[hidden] { display: none; }
 .modal { background: var(--bg-card); border: 1px solid rgba(212,175,55,0.25); border-radius: 20px; width: 100%; max-width: 580px; padding: 26px 24px; margin: auto 0; }
 .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
@@ -257,7 +257,7 @@ section { scroll-margin-top: 16px; }
 .sc-dim { color: var(--text-muted); }
 
 /* ── Bottom nav (mobile) ─────────────────────────────────── */
-#bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 64px; background: rgba(0,0,0,0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid var(--border); display: flex; justify-content: space-around; align-items: center; padding-bottom: env(safe-area-inset-bottom); z-index: 300; }
+#bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 64px; background: rgba(0,0,0,0.95); -webkit-backdrop-filter:blur(20px);backdrop-filter: blur(20px);  border-top: 1px solid var(--border); display: flex; justify-content: space-around; align-items: center; padding-bottom: env(safe-area-inset-bottom); z-index: 300; }
 .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--text-muted); padding: 6px 14px; transition: color .2s; }
 .nav-item.active { color: var(--gold); }
 .ni-icon { font-size: 18px; }
@@ -274,7 +274,9 @@ section { scroll-margin-top: 16px; }
 @keyframes amb-drift { from { transform: translate3d(-130px,-40px,0); } to { transform: translate3d(130px,70px,0); } }
 
 /* ── Glassmorphism (graceful fallback: solid bg already set) ── */
-@supports ((backdrop-filter: blur(18px)) or (-webkit-backdrop-filter: blur(18px))) {
+@supports ((-webkit-backdrop-filter:blur(18px)) or (-webkit-backdrop-filter: blur(18px))) {
+    .modal, .hpop, .palette, #brief-panel, .tg-card, .tg-zero {
+        background: rgba(20,20,20,0.7);backdrop-filter: blur(18px)) or (-webkit-backdrop-filter: blur(18px))) {
     .modal, .hpop, .palette, #brief-panel, .tg-card, .tg-zero {
         background: rgba(20,20,20,0.7);
         -webkit-backdrop-filter: blur(18px);
@@ -2091,7 +2093,7 @@ function startListeners() {
 (async function init() {
     try {
         BoomPortal.registerServiceWorker();
-        const { user, profile } = await BoomPortal.requireAuth(['admin'], { loginUrl: '/login.html' });
+        const { user, profile } = await BoomPortal.requireAuth(['admin'], { loginUrl: '/login' });
         void user; void profile; // gate superato: accesso admin verificato
         $('auth-shield').style.display = 'none';
         $('app').hidden = false;

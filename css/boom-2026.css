@@ -24,7 +24,7 @@ a{color:inherit;text-decoration:none}
 input,textarea,select{font-family:inherit}
 .eyebrow{font-size:10.5px;letter-spacing:2.8px;text-transform:uppercase;color:var(--gold)}
 /* nav */
-nav.top{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;justify-content:space-between;align-items:center;padding:13px 20px;background:rgba(6,6,7,.92);backdrop-filter:blur(18px);border-bottom:1px solid var(--line-soft)}
+nav.top{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;justify-content:space-between;align-items:center;padding:13px 20px;background:rgba(6,6,7,.92);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border-bottom:1px solid var(--line-soft)}
 .brand{display:flex;align-items:center;gap:10px}
 .brand b{font-weight:300;letter-spacing:5px;font-size:15px}
 .nlinks{display:flex;align-items:center;gap:18px;font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t3)}
@@ -33,7 +33,7 @@ nav.top{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;justify-cont
 .nlinks .wa:hover{background:var(--gold-muted);color:var(--gold)}
 @media(max-width:640px){.nlinks a.hide-m{display:none}}
 /* the family strip — one suite, four products */
-.fam{position:fixed;top:52px;left:0;right:0;z-index:49;display:flex;gap:4px;padding:8px 12px;background:rgba(6,6,7,.88);backdrop-filter:blur(14px);border-bottom:1px solid var(--line-soft);overflow-x:auto;scrollbar-width:none}
+.fam{position:fixed;top:52px;left:0;right:0;z-index:49;display:flex;gap:4px;padding:8px 12px;background:rgba(6,6,7,.88);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:1px solid var(--line-soft);overflow-x:auto;scrollbar-width:none}
 .fam::-webkit-scrollbar{display:none}
 .fam a:first-child{margin-left:auto}.fam a:last-child{margin-right:auto}
 .fam a{flex:none;font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--t4);padding:7px 13px;border-radius:100px;border:1px solid transparent;transition:.3s;white-space:nowrap}
@@ -148,7 +148,7 @@ footer{position:relative;z-index:5;border-top:1px solid var(--line-soft);margin-
 .fbot .ok{display:inline-flex;align-items:center;gap:6px}
 .fbot .ok i{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px rgba(61,220,151,.8)}
 /* checkout sheet */
-.ov{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);display:none;align-items:flex-end;justify-content:center}
+.ov{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.7);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);display:none;align-items:flex-end;justify-content:center}
 .ov.on{display:flex}
 @media(min-width:640px){.ov{align-items:center}}
 .sheet{width:100%;max-width:480px;max-height:88vh;overflow:auto;background:var(--surface);border:1px solid var(--line-gold);border-radius:22px 22px 0 0;padding:24px 22px calc(24px + var(--safe));animation:rise .4s var(--ease)}
@@ -169,7 +169,7 @@ footer{position:relative;z-index:5;border-top:1px solid var(--line-soft);margin-
 .sheet .alt{margin-top:12px;text-align:center;font-size:12px;color:var(--t3)}
 .sheet .alt a{color:var(--gold)}
 /* sticky mobile pay bar */
-.paybar{position:fixed;left:0;right:0;bottom:0;top:auto;z-index:90;display:none;gap:12px;align-items:center;padding:10px 14px calc(10px + var(--safe));background:rgba(6,6,7,.94);backdrop-filter:blur(20px);border-top:1px solid var(--line-gold);transform:translateY(110%);transition:transform .45s var(--ease)}
+.paybar{position:fixed;left:0;right:0;bottom:0;top:auto;z-index:90;display:none;gap:12px;align-items:center;padding:10px 14px calc(10px + var(--safe));background:rgba(6,6,7,.94);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-top:1px solid var(--line-gold);transform:translateY(110%);transition:transform .45s var(--ease)}
 .paybar.on{transform:none}
 .paybar .pinfo{flex:1;min-width:0}
 .paybar .pinfo b{display:block;font-size:13px;font-weight:400}
@@ -187,7 +187,7 @@ footer{position:relative;z-index:5;border-top:1px solid var(--line-soft);margin-
 .container{width: 100%; max-width: 1320px; margin: 0 auto; padding: 0 var(--space-lg);}
 @media (min-width: 768px){.container{padding: 0 var(--space-2xl);}}
 .nav{position: fixed; top: 0; left: 0; right: 0; z-index: 10000; padding: var(--space-lg) 0; transition: all 0.4s var(--ease-out); background: linear-gradient(180deg, rgba(3, 3, 3, 1) 0%, rgba(3, 3, 3, 0.9) 60%, transparent 100%);}
-.nav.scrolled{background: rgba(3, 3, 3, 1); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid var(--border-subtle); padding: var(--space-md) 0;}
+.nav.scrolled{background: rgba(3, 3, 3, 1); -webkit-backdrop-filter:blur(20px);backdrop-filter: blur(20px);  border-bottom: 1px solid var(--border-subtle); padding: var(--space-md) 0;}
 .nav-inner{display: flex; align-items: center; justify-content: space-between;}
 .logo{display: flex; align-items: center; gap: var(--space-md); transition: transform 0.3s var(--ease-out);}
 .logo:hover{transform: scale(1.02);}
@@ -235,7 +235,7 @@ footer{position:relative;z-index:5;border-top:1px solid var(--line-soft);margin-
 /* pinned height: the .fam services strip docks flush under the nav, so the
    nav must not grow/shrink on scroll (index shrinks 128 -> 113px; we live at
    the 113px scrolled state, always solid over the ambient) */
-.nav{padding:var(--space-md) 0;background:rgba(6,6,7,.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-bottom:1px solid var(--line-soft);z-index:50}
+.nav{padding:var(--space-md) 0;background:rgba(6,6,7,.92);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border-bottom:1px solid var(--line-soft);z-index:50}
 .nav.scrolled{padding:var(--space-md) 0;background:rgba(6,6,7,.97)}
 .nav .container{padding:0 20px}
 .mobile-menu{z-index:60}
