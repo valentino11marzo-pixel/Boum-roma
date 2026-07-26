@@ -271,6 +271,14 @@ export default async function handler(req, res) {
       } catch (e) { results.errors.push(`journey: ${e.message}`); }
     }
 
+    // ── Viewing countdown: T-24h / T-3h / T-30m before the appointment and
+    // the "how did it go?" ask after it. EVERY run (not hourly): a 30-minute
+    // warning is worthless if it can fire an hour late. ──
+    try {
+      const { runViewingMoments } = await import('./viewings/_moments.js');
+      results.viewings = await runViewingMoments();
+    } catch (e) { results.errors.push(`viewings: ${e.message}`); }
+
     return res.status(200).json({ ok: true, timestamp: now.toISOString(), ...results });
   } catch (e) {
     console.error('Cron error:', e);

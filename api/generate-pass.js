@@ -261,7 +261,13 @@ function buildViewingPass({
   viewingId, clientName = "", propertyAddress = "", propertyCity = "Roma",
   propertyCoords = null, confirmedDateISO, durationMinutes = 30,
   meetingPoint = "AL CITOFONO", isVoided = false,
+  mode = "person", videoUrl = null,
 }) {
+  // A video viewing is the same ticket with a different door: the back of the
+  // pass leads to the room instead of the map, and the meeting point becomes
+  // "your browser". Everything else — countdown, relevantDate, updates — is
+  // identical, so the client experience never forks.
+  const video = String(mode).toLowerCase() === "video" && !!videoUrl;
   const eventDate = safeDate(confirmedDateISO);
   const expirationDate = eventDate ? new Date(eventDate.getTime() + (durationMinutes + 60) * 60 * 1000) : null;
 
@@ -280,22 +286,24 @@ function buildViewingPass({
     authenticationToken: generateAuthToken(viewingId || clientName),
     eventTicket: {
       headerFields: clean([
-        fText("type", "VIEWING", isVoided ? "ANNULLATA" : "PRIVATA", { textAlignment: R }),
+        fText("type", "VIEWING", isVoided ? "ANNULLATA" : (video ? "VIDEO" : "PRIVATA"), { textAlignment: R }),
       ]),
       primaryFields: [],
       secondaryFields: clean([
-        fText("addr", "INDIRIZZO", propertyAddress),
+        fText("addr", video ? "VIDEOCHIAMATA" : "INDIRIZZO", video ? "Si apre nel browser" : propertyAddress),
       ]),
       auxiliaryFields: clean([
         fDate("date", "DATA", confirmedDateISO, { changeMessage: "Visita spostata: %@" }),
         eventDate ? { key: "time", label: "ORA", value: eventDate.toISOString(), dateStyle: "PKDateStyleNone", timeStyle: "PKDateStyleShort", ignoresTimeZone: true, textAlignment: R, changeMessage: "Nuovo orario: %@" } : null,
       ]),
       backFields: clean([
+        // the first back field is the ACTION: join the call, or open the map
+        video && !isVoided ? fLink("join", "Videochiamata", videoUrl, "Entra nella call →") : null,
         fText("client", "Cliente", clientName),
         fText("immobile", "Immobile", [propertyAddress, propertyCity].filter(Boolean).join(", ")),
         fText("dur", "Durata", `${durationMinutes} minuti`),
-        fText("meet", "Punto d'incontro", meetingPoint),
-        (propertyCoords && propertyCoords.lat && propertyCoords.lng)
+        fText("meet", "Punto d'incontro", video ? "Dal tuo browser — nessuna app" : meetingPoint),
+        (!video && propertyCoords && propertyCoords.lat && propertyCoords.lng)
           ? fLink("maps", "Mappa", `https://maps.apple.com/?ll=${propertyCoords.lat},${propertyCoords.lng}&q=${encodeURIComponent(propertyAddress)}`, "Apri in Mappe →")
           : null,
         fText("resched", "Riprogrammazione", isVoided ? "Visita ANNULLATA. Contattaci per riprogrammare." : "Puoi riprogrammare fino a 2 ore prima."),
@@ -308,7 +316,9 @@ function buildViewingPass({
   };
   if (eventDate) pass.relevantDate = eventDate.toISOString();
   if (expirationDate) pass.expirationDate = expirationDate.toISOString();
-  if (propertyCoords && propertyCoords.lat && propertyCoords.lng && !isVoided) {
+  // Geofence only makes sense for a physical visit: a video pass that lights
+  // up when you walk past the building would be noise.
+  if (!video && propertyCoords && propertyCoords.lat && propertyCoords.lng && !isVoided) {
     pass.locations = [{ latitude: parseFloat(propertyCoords.lat), longitude: parseFloat(propertyCoords.lng), relevantText: `La tua visita — ${propertyAddress}` }];
     pass.semantics = {
       eventType: "PKEventTypeGeneric",

@@ -272,6 +272,46 @@ gradeReason/intent/confidence on the lead; dead → status archived (the
 Commerciale never spends tokens on them). notify-pending shows 🔥A/🟢B/🟡C,
 sorts A first, never pings dead. Heartbeat `teamHealth/lead-brain` (/team).
 
+### Il ciclo visita (`/api/viewings/*` + `book.html` + Wallet pass)
+A BOOM viewing behaves like a FLIGHT: confirmed → boarding pass + calendar,
+then the system speaks at the crucial moments, then asks how it went. Two
+modes, one pipeline: `mode:'person'` (address + one-tap directions +
+geofenced Wallet pass) or `mode:'video'` (instant browser room, no app, no
+account — `videoRoom()` derives an unguessable stable Jitsi URL from the
+viewing id + server secret).
+- `api/viewings/_lib.js` — pure helpers shared by every surface: video room,
+  Google-Calendar URL, `.ics` (with a 3h VALARM), `primaryAction()` (join
+  the call / open Maps), Rome-time formatting, pass URL.
+- `api/viewings/_email.js` — the email family in the pre-agreement design
+  system (black masthead, gold BOOM, one primary action): confirmation
+  (ticket card + action + Google/Apple calendar + Wallet), the three
+  reminders, the after-visit question (3 WhatsApp one-tap answers:
+  interested / thinking / not the one), reschedule + cancel. IT/EN.
+- `api/viewings/_moments.js` — THE COUNTDOWN, inside `reminder-cron` every
+  run (not hourly — a 30-minute warning is worthless an hour late):
+  **T-24h / T-3h / T-30m**, then **T+2h** "how did it go?" (also flips the
+  viewing to `completed`). Each fires once (flags on the doc) inside a
+  tolerant window; a missed run never skips, a double run never doubles.
+  Also sends the confirmation **path-independently**: whoever set
+  `status:'confirmed'` (this API, the portal's Viewings page, a hand edit),
+  the client gets the kit exactly once (`confirmationSent`).
+- `POST /api/viewings/confirm` — the operator's one move (admin/homie/cron
+  auth): `{id, action:'confirm'|'reschedule'|'cancel', when, mode,
+  durationMinutes, meetingPoint}`. Enriches from the listing, mints the
+  video room, emails the client, pushes the Wallet pass. A reschedule
+  re-opens the countdown (reminder flags reset).
+- `GET /api/viewings/ics?id=` — public calendar file for Apple/Outlook.
+- Wallet: `buildViewingPass` gained `mode`/`videoUrl` — a video pass shows
+  "VIDEO", leads with a **Entra nella call →** link and drops the geofence
+  (a room has no address); an in-person pass keeps address, Maps link and
+  the lock-screen trigger near the building. `_passkit.loadPassData` now
+  reads `listings` before `properties` (book.html writes `listingId`) —
+  previously book-created passes shipped with no address and no coords.
+- `book.html` — step 3 asks **in person or video call** (video is a
+  first-class choice, most clients are still abroad), states Rome time with
+  the visitor's local offset, and writes `mode`, `durationMinutes`,
+  `language` + the countdown flags.
+
 ### POST `/api/apply-lead`
 Public lead-capture for the apartment-detail APPLY/RESERVE/WAITLIST flow.
 Fired (non-blocking) when a visitor passes the quick eligibility check. Body
