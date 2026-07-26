@@ -492,7 +492,11 @@ link); after acceptance/payment, Duplicate creates the new version.
 
 ### Rent cadence (mensile · bimestrale · trimestrale · semestrale · annuale)
 `money.installmentMonths` (1|2|3|6|12) + derived `installmentAmount`
-(= monthlyTotal × cadence, energy credit included) travel the whole chain:
+(= `chargedMonthly` × cadence) travel the whole chain. **`billEnergyCredit`**
+(default true) decides whether the energy allowance is COLLECTED with the
+rent (`chargedMonthly` = monthlyTotal) or settled apart against the real
+bills (`chargedMonthly` = rent) — the console switch, the document clause,
+the PDF, the email and the generated instalments all follow it:
 console selector with live instalment preview → client document, PDF and
 email ("Rent instalment · paid quarterly in advance") → `contracts.
 installmentMonths/installmentAmount` (canone.installments stays the MONTH

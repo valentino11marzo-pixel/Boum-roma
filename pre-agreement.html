@@ -522,12 +522,12 @@ function moneyRows(){
   if(split>0&&split<100)depSub=depM+' — '+split+'% ('+eur(m.depositAtSigning!=null?m.depositAtSigning:m.deposit*split/100)+') due at signing, '+(100-split)+'% ('+eur(m.depositAtMoveIn!=null?m.depositAtMoveIn:m.deposit*(100-split)/100)+') upon move-in';
   var html=(ec>0
       ? kv('Monthly base rent',eur(m.rent))
-        +kv('Energy credit','+ '+eur(ec),'included · covers electricity up to '+eur(ec)+'/month')
-        +kv('Monthly total',eur(m.monthlyTotal!=null?m.monthlyTotal:m.rent+ec),'all-in as above · other utilities excluded')
+        +kv('Energy credit','+ '+eur(ec),(m.billEnergyCredit===false?'settled separately against the actual bills':'included in the monthly payment')+' · covers electricity up to '+eur(ec)+'/month')
+        +kv('Monthly total',eur(m.monthlyTotal!=null?m.monthlyTotal:m.rent+ec),(m.billEnergyCredit===false?'rent '+eur(m.rent)+' billed + energy '+eur(ec)+' settled apart':'all-in as above')+' · other utilities excluded')
       : kv('Monthly rent',eur(m.rent),inc?'all utilities included':'utilities excluded'))
     +((m.installmentMonths||1)>1
-      ? kv('Rent instalment',eur(m.installmentAmount!=null?m.installmentAmount:(m.monthlyTotal||m.rent)*m.installmentMonths),
-          'paid '+({2:'every two months',3:'quarterly',6:'every six months',12:'annually'}[m.installmentMonths]||'monthly')+' in advance')
+      ? kv('Rent instalment',eur(m.installmentAmount!=null?m.installmentAmount:(m.chargedMonthly||m.monthlyTotal||m.rent)*m.installmentMonths),
+          'paid '+({2:'every two months',3:'quarterly',6:'every six months',12:'annually'}[m.installmentMonths]||'monthly')+' in advance · '+eur(m.chargedMonthly!=null?m.chargedMonthly:(m.monthlyTotal||m.rent))+'/month × '+m.installmentMonths)
       : '')
     +kv('Security deposit',eur(m.deposit),depSub);
   (PA.extras||[]).forEach(function(x){html+=kv(esc(x.label),eur(x.amount));});
@@ -558,7 +558,9 @@ function condList(nTenants){
       ? 'Rent shall be paid in advance every '+(PA.money.installmentMonths)+' months (instalment of '+eur(PA.money.installmentAmount)+'), by the 5th day of the first month of each period, via bank transfer or card from the tenant portal.'
       : 'Monthly rent shall be paid by the 5th of each month via bank transfer or card from the tenant portal.'
   ];
-  if(ec>0)conds.push('The monthly payment of '+eur(m.monthlyTotal!=null?m.monthlyTotal:m.rent+ec)+' consists of: (a) base rent of '+eur(m.rent)+' and (b) an energy allowance of '+eur(ec)+' included in the monthly fee. The energy allowance covers electricity consumption up to '+eur(ec)+'/month; should monthly electricity costs exceed it, the Tenant shall pay only the surplus directly to the Landlord upon presentation of the utility bill. If consumption is equal to or below the allowance, no additional charge applies.');
+  if(ec>0)conds.push(m.billEnergyCredit===false
+    ? 'In addition to the rent of '+eur(m.rent)+'/month, an energy allowance of '+eur(ec)+'/month applies and is settled SEPARATELY from the rent instalments, against the actual utility bills. The allowance covers electricity consumption up to '+eur(ec)+'/month; should monthly electricity costs exceed it, the Tenant shall pay only the surplus upon presentation of the bill. If consumption is equal to or below the allowance, no additional charge applies.'
+    : 'The monthly payment of '+eur(m.monthlyTotal!=null?m.monthlyTotal:m.rent+ec)+' consists of: (a) base rent of '+eur(m.rent)+' and (b) an energy allowance of '+eur(ec)+' included in the monthly fee. The energy allowance covers electricity consumption up to '+eur(ec)+'/month; should monthly electricity costs exceed it, the Tenant shall pay only the surplus directly to the Landlord upon presentation of the utility bill. If consumption is equal to or below the allowance, no additional charge applies.');
   if(le.reason)conds.push('Transitional need: '+le.reason+'.');
   conds.push(inc
     ?'All utilities (electricity, gas, water, internet) are included in the monthly rent, within fair and ordinary use of the property.'

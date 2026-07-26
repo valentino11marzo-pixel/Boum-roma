@@ -188,7 +188,10 @@ export async function buildPaPdf(pa) {
   const rows = [];
   const monthlyTotal = m.monthlyTotal != null ? m.monthlyTotal : (Number(m.rent) || 0) + ec;
   rows.push(ec > 0
-    ? { desc: `Monthly base Rent ${eur(m.rent)} + Energy Credit ${eur(ec)} (total ${eur(monthlyTotal)}/month)`, amount: eur(monthlyTotal) }
+    ? { desc: m.billEnergyCredit === false
+          ? `Monthly base Rent ${eur(m.rent)} + Energy Credit ${eur(ec)} settled separately (total ${eur(monthlyTotal)}/month)`
+          : `Monthly base Rent ${eur(m.rent)} + Energy Credit ${eur(ec)} (total ${eur(monthlyTotal)}/month)`,
+        amount: eur(monthlyTotal) }
     : { desc: `Monthly Rent${inc ? ' (all utilities included)' : ''}`, amount: eur(m.rent) });
   const depDesc = split > 0 && split < 100
     ? `Security Deposit - ${m.depositMonths} month's base rent (${split}% due at signing, ${100 - split}% due upon move-in)`
@@ -199,8 +202,8 @@ export async function buildPaPdf(pa) {
   const imP = [1, 2, 3, 6, 12].includes(Number(m.installmentMonths)) ? Number(m.installmentMonths) : 1;
   const FREQP = { 2: 'every two months', 3: 'quarterly', 6: 'every six months', 12: 'annually' };
   if (imP > 1) rows.push({
-    desc: `Rent instalment - paid ${FREQP[imP]} in advance (${imP} months x ${eur(monthlyTotal)})`,
-    amount: eur(m.installmentAmount != null ? m.installmentAmount : monthlyTotal * imP),
+    desc: `Rent instalment - paid ${FREQP[imP]} in advance (${imP} months x ${eur(m.chargedMonthly != null ? m.chargedMonthly : monthlyTotal)})`,
+    amount: eur(m.installmentAmount != null ? m.installmentAmount : (m.chargedMonthly != null ? m.chargedMonthly : monthlyTotal) * imP),
   });
   moneyTable(rows);
   const feeAmt = m.feeMode === 'months'
@@ -224,7 +227,8 @@ export async function buildPaPdf(pa) {
       ? `Rent shall be paid in advance every ${m.installmentMonths} months (instalment of ${eur(m.installmentAmount)}), by the 5th day of the first month of each period, via bank transfer or card from the tenant portal.`
       : 'Monthly rent shall be paid by the 5th of each month via bank transfer or card from the tenant portal.',
   ];
-  if (ec > 0) conds.push(`The monthly payment of ${eur(monthlyTotal)} consists of: (a) base rent of ${eur(m.rent)} and (b) an energy allowance of ${eur(ec)} included in the monthly fee. The energy allowance of ${eur(ec)}/month covers electricity consumption up to ${eur(ec)}. Should monthly electricity costs exceed ${eur(ec)}, the Tenant shall pay only the surplus (the amount exceeding ${eur(ec)}) directly to the Landlord upon presentation of the utility bill. If monthly electricity consumption is equal to or below ${eur(ec)}, no additional charge applies.`);
+  if (ec > 0 && m.billEnergyCredit === false) conds.push(`In addition to the rent of ${eur(m.rent)}/month, an energy allowance of ${eur(ec)}/month applies and is settled SEPARATELY from the rent instalments, against the actual utility bills. Should monthly electricity costs exceed ${eur(ec)}, the Tenant shall pay only the surplus upon presentation of the bill.`);
+  else if (ec > 0) conds.push(`The monthly payment of ${eur(monthlyTotal)} consists of: (a) base rent of ${eur(m.rent)} and (b) an energy allowance of ${eur(ec)} included in the monthly fee. The energy allowance of ${eur(ec)}/month covers electricity consumption up to ${eur(ec)}. Should monthly electricity costs exceed ${eur(ec)}, the Tenant shall pay only the surplus (the amount exceeding ${eur(ec)}) directly to the Landlord upon presentation of the utility bill. If monthly electricity consumption is equal to or below ${eur(ec)}, no additional charge applies.`);
   if (le.reason) conds.push(`Transitional need: ${le.reason}.`);
   conds.push(inc
     ? 'All utilities (electricity, gas, water, internet) are included in the monthly rent, within fair and ordinary use of the property.'

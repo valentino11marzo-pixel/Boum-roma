@@ -95,7 +95,7 @@ export function paDocumentHtml(pa, opts = {}) {
     : 'due separately — not at signing';
   const rentRow = ec > 0
     ? row('Monthly total', `<b>${eur(m.monthlyTotal != null ? m.monthlyTotal : (Number(m.rent) || 0) + ec)}</b> /month`,
-        `base rent ${eur(m.rent)} + energy credit ${eur(ec)} (covers electricity up to ${eur(ec)}/month)`)
+        `base rent ${eur(m.rent)} + energy credit ${eur(ec)} ${m.billEnergyCredit === false ? 'settled separately' : 'included'} (covers electricity up to ${eur(ec)}/month)`)
     : row('Monthly rent', `<b>${eur(m.rent)}</b> /month`, inc ? 'all utilities included' : null);
   const depSub = split > 0 && split < 100
     ? `${m.depositMonths || 1} month(s)’ base rent — ${split}% (${eur(m.depositAtSigning != null ? m.depositAtSigning : m.deposit * split / 100)}) at signing, ${100 - split}% (${eur(m.depositAtMoveIn != null ? m.depositAtMoveIn : m.deposit * (100 - split) / 100)}) upon move-in`
@@ -120,8 +120,9 @@ export function paDocumentHtml(pa, opts = {}) {
       const im = [1, 2, 3, 6, 12].includes(Number(m.installmentMonths)) ? Number(m.installmentMonths) : 1;
       if (im <= 1) return '';
       const F = { 2: 'every two months', 3: 'quarterly', 6: 'every six months', 12: 'annually' };
-      return row('Rent instalment', `<b>${eur(m.installmentAmount != null ? m.installmentAmount : (m.monthlyTotal || m.rent) * im)}</b>`,
-        `paid ${F[im]} in advance · ${im} months × ${eur(m.monthlyTotal || m.rent)}`);
+      const per = m.chargedMonthly != null ? m.chargedMonthly : (m.monthlyTotal || m.rent);
+      return row('Rent instalment', `<b>${eur(m.installmentAmount != null ? m.installmentAmount : per * im)}</b>`,
+        `paid ${F[im]} in advance · ${im} months × ${eur(per)}`);
     })()}
     ${row('Deposit', `<b>${eur(m.deposit)}</b>`, depSub)}
     ${extrasRows}

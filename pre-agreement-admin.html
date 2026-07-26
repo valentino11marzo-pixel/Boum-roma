@@ -237,7 +237,7 @@ h1{font-weight:200;font-size:24px;letter-spacing:-.3px;margin-bottom:3px}
         <div class="g3">
           <label class="fld req"><span>Canone base €/mese</span><input id="fRent" type="number" inputmode="numeric" placeholder="1200"></label>
           <label class="fld"><span>Utenze</span><select id="fUtil"><option value="excluded">Escluse (a carico inquilino)</option><option value="included">Incluse nel canone</option></select></label>
-          <label class="fld"><span>Energy credit €/mese</span><input id="fEnergy" type="number" inputmode="numeric" value="0" min="0" max="1000" title="Incluso nel canone mensile — copre l'elettricità fino a questo importo (clausola aggiunta in automatico)"></label>
+          <label class="fld"><span>Energy credit €/mese</span><input id="fEnergy" type="number" inputmode="numeric" value="0" min="0" max="1000" title="Copre l'elettricità fino a questo importo (clausola aggiunta in automatico)"></label>
           <label class="fld"><span>Deposito (mesi)</span><input id="fDepM" type="number" value="1" min="0" max="6" step="0.5"></label>
         </div>
         <div class="g3">
@@ -253,6 +253,10 @@ h1{font-weight:200;font-size:24px;letter-spacing:-.3px;margin-bottom:3px}
           <label class="fld"><span>Dovuto alla firma €</span><input id="fDue" type="number" inputmode="numeric" placeholder="auto"></label>
         </div>
         <div class="g2">
+          <label class="fld"><span>Energy credit — come si incassa</span><select id="fEcBill">
+            <option value="in">Dentro la rata (canone + energia)</option>
+            <option value="apart">A parte (rata = solo canone)</option>
+          </select></label>
           <label class="fld"><span>Cadenza del canone</span><select id="fFreq">
             <option value="1">Mensile</option>
             <option value="2">Bimestrale</option>
@@ -340,19 +344,23 @@ function deriveMoney(k){
   var feeDue=['move-in','signing','separate'].indexOf(k.feeDue)>=0?k.feeDue:'separate';
   var utilities=k.utilities==='included'?'included':'excluded';
   var im=[1,2,3,6,12].indexOf(+k.installmentMonths)>=0?+k.installmentMonths:1;
-  var installmentAmount=r2(r2(rent+ec)*im);
+  var billEc=ec>0?(k.billEnergyCredit!==false):false;
+  var chargedMonthly=r2(billEc?r2(rent+ec):rent);
+  var installmentAmount=r2(chargedMonthly*im);
   var dueDefault=r2(depS+(feeDue==='signing'?feeTotal:0));
   var due=(k.dueAtSigning!=null&&k.dueAtSigning!=='')?Math.max(0,+k.dueAtSigning||0):dueDefault;
   return {rent:rent,energyCredit:ec,monthlyTotal:r2(rent+ec),utilities:utilities,depositMonths:dm,deposit:deposit,
     depositSplitPct:splitPct,depositAtSigning:depS,depositAtMoveIn:depM,
     feeMode:feeMode,feePct:feePct,feeMonths:feeMonths,feeFlat:feeFlat,fee:fee,feeVatPct:vatPct,feeVat:feeVat,
-    feeTotal:feeTotal,feeDue:feeDue,installmentMonths:im,installmentAmount:installmentAmount,dueAtSigning:due};
+    feeTotal:feeTotal,feeDue:feeDue,installmentMonths:im,billEnergyCredit:billEc,
+    chargedMonthly:chargedMonthly,installmentAmount:installmentAmount,dueAtSigning:due};
 }
 function moneyKnobs(){
   return {rent:+$('fRent').value||0,energyCredit:+$('fEnergy').value||0,utilities:$('fUtil').value,
     depositMonths:$('fDepM').value!==''?+$('fDepM').value:1,depositSplitPct:+$('fDepSplit').value,
     feeMode:$('fFeeMode').value,feePct:+$('fFeePct').value||0,feeMonths:+$('fFeeMonths').value||0,feeFlat:$('fFeeFlat').value!==''?+$('fFeeFlat').value:null,
     feeVatPct:+$('fVatPct').value||0,feeDue:$('fFeeDue').value,installmentMonths:+$('fFreq').value||1,
+    billEnergyCredit:$('fEcBill').value!=='apart',
     dueAtSigning:$('fDue').value!==''?Math.max(0,+$('fDue').value||0):null};
 }
 function feeModeUi(){
@@ -368,15 +376,17 @@ function mathLine(){
   if(!mm.rent){sc.style.display='none';return;}
   sc.style.display='';
   var FREQ={1:'mensile',2:'bimestrale',3:'trimestrale',6:'semestrale',12:'annuale'};
-  $('freqOut').innerHTML=mm.installmentMonths===1?eur(mm.installmentAmount)+' al mese'
-    :'<b>'+eur(mm.installmentAmount)+'</b> ogni '+mm.installmentMonths+' mesi';
+  $('freqOut').innerHTML=(mm.installmentMonths===1?eur(mm.installmentAmount)+' al mese'
+    :'<b>'+eur(mm.installmentAmount)+'</b> ogni '+mm.installmentMonths+' mesi')
+    +(mm.energyCredit?(mm.billEnergyCredit?' <span style="color:var(--t3);font-size:11.5px">· energia inclusa</span>'
+      :' <span style="color:var(--t3);font-size:11.5px">· energia a parte</span>'):'');
   $('mathLine').innerHTML=(mm.installmentMonths>1?'Canone <b>'+FREQ[mm.installmentMonths]+'</b>: '+eur(mm.installmentAmount)+' a rata · ':'')
     +(mm.energyCredit?'Mensile totale <b>'+eur(mm.monthlyTotal)+'</b> (canone + energy) · ':'')
     +'Deposito <b>'+eur(mm.deposit)+'</b>'+(mm.depositSplitPct<100?' ('+eur(mm.depositAtSigning)+' alla firma · '+eur(mm.depositAtMoveIn)+' al move-in)':'')
     +' · fee <b>'+eur(mm.fee)+'</b>'+(mm.feeMode==='flat'?' (fissa)':'')+' + IVA '+eur(mm.feeVat)+' = <b>'+eur(mm.feeTotal)+'</b> ('+(mm.feeDue==='move-in'?'al move-in':mm.feeDue==='signing'?'alla firma':'separata')+')'
     +' · <b style="color:var(--gold)">dovuto alla firma '+eur(mm.dueAtSigning)+'</b>';
 }
-['fRent','fEnergy','fDepM','fDepSplit','fFeeMode','fFeePct','fFeeMonths','fFeeFlat','fVatPct','fFeeDue','fDue','fFreq'].forEach(function(id){
+['fRent','fEnergy','fDepM','fDepSplit','fFeeMode','fFeePct','fFeeMonths','fFeeFlat','fVatPct','fFeeDue','fDue','fFreq','fEcBill'].forEach(function(id){
   document.addEventListener('input',function(e){if(e.target.id===id)mathLine();});
   document.addEventListener('change',function(e){if(e.target.id===id)mathLine();});
 });
@@ -487,6 +497,7 @@ function fillForm(d){
   $('fFeeDue').value=['move-in','signing','separate'].indexOf(mo.feeDue)>=0?mo.feeDue:'separate';
   $('fDue').value=mo.dueAtSigning!=null?mo.dueAtSigning:'';
   try{$('fFreq').value=String(mo.installmentMonths||1)}catch(e){}
+  try{$('fEcBill').value=(mo.billEnergyCredit===false)?'apart':'in'}catch(e){}
   try{$('fProp').value=d.propertyId||''}catch(e){}
   $('fExtras').value=(Array.isArray(d.extras)?d.extras:[]).map(function(x){return x.label+' = '+x.amount}).join('\n');
   $('fClauses').value=(Array.isArray(d.customClauses)?d.customClauses:[]).join('\n');

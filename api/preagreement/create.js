@@ -92,7 +92,12 @@ export function deriveMoney(m) {
   // follows this one number.
   const installmentMonths = [1, 2, 3, 6, 12].includes(num(m.installmentMonths, 1))
     ? num(m.installmentMonths, 1) : 1;
-  const installmentAmount = r2(monthlyTotal * installmentMonths);
+  // Is the energy allowance COLLECTED with the rent, or settled apart
+  // (against the real bills)? Default: with the rent, as on the paper
+  // proposals. Only meaningful when there IS an allowance.
+  const billEnergyCredit = energyCredit > 0 ? m.billEnergyCredit !== false : false;
+  const chargedMonthly = r2(billEnergyCredit ? monthlyTotal : rent);
+  const installmentAmount = r2(chargedMonthly * installmentMonths);
 
   const dueDefault = r2(depositAtSigning + (feeDue === 'signing' ? feeTotal : 0));
   const dueAtSigning = m.dueAtSigning != null && m.dueAtSigning !== ''
@@ -103,7 +108,7 @@ export function deriveMoney(m) {
     rent, energyCredit, monthlyTotal, utilities,
     depositMonths, deposit, depositSplitPct, depositAtSigning, depositAtMoveIn,
     feeMode, feePct, feeMonths, feeFlat, fee, feeVatPct, feeVat, feeTotal, feeDue,
-    installmentMonths, installmentAmount,
+    installmentMonths, billEnergyCredit, chargedMonthly, installmentAmount,
     dueAtSigning,
   };
 }

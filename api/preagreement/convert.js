@@ -123,6 +123,8 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
   // tenant portal both read it from the contract
   const installmentMonths = [1, 2, 3, 6, 12].includes(Number(m.installmentMonths)) ? Number(m.installmentMonths) : 1;
   const installmentAmount = Math.round((Number(m.installmentAmount) || rent * installmentMonths) * 100) / 100;
+  // energy allowance collected with the rent (default) or settled apart
+  const billEnergyCredit = m.billEnergyCredit !== false && Number(m.energyCredit) > 0;
   const cType = type === 'studenti' ? 'studenti' : 'transitorio';
   const delegateOn = delegate === true;
   const dName = clip(delegateName, 120) || 'Valentino Egidi';
@@ -142,6 +144,7 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
     paymentDay: 5,
     installmentMonths,
     installmentAmount,
+    billEnergyCredit,
     canone: {
       monthly: rent,
       total: Math.round(rent * months * 100) / 100,
