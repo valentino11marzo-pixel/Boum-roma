@@ -3,7 +3,7 @@
 // Cache-first for static assets (icons, manifest).
 // Skips Firebase / EmailJS / 3rd-party traffic entirely.
 
-const CACHE_VERSION = 'boom-v12';
+const CACHE_VERSION = 'boom-v13';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 // NB: portal.html NON è nel precache — il sito pubblico registra questo SW e
 // non deve scaricare 2.5MB di shell in background. Il portale entra in cache
@@ -65,17 +65,29 @@ self.addEventListener('fetch', (event) => {
     if (portalAsset) {
         event.respondWith(
             caches.open(STATIC_CACHE).then(async (cache) => {
-                try {
-                    const res = await fetch(event.request);
+                // Rete preferita, MA con un tetto: su Safari una fetch può
+                // restare appesa per minuti su una connessione incastrata —
+                // ed è lo "spinner infinito" visto sul portale. Se entro 6s
+                // la rete non ha risposto e in cache c'è una copia (visita
+                // precedente o pre-warm della pagina /login), si parte da
+                // quella; la risposta di rete, quando arriva, aggiorna
+                // comunque la cache per la prossima apertura. Senza copia in
+                // cache si continua ad aspettare la rete, identico a prima.
+                const net = fetch(event.request).then((res) => {
                     if (res && res.ok && !res.redirected) {
                         cache.put(portalAsset, res.clone()).catch(() => null);
                     }
                     return res;
-                } catch (e) {
-                    const cached = await cache.match(portalAsset);
-                    if (cached) return cached;
-                    throw e;
-                }
+                });
+                try { event.waitUntil(net.then(() => null, () => null)); } catch (e) {}
+                const winner = await Promise.race([
+                    net.catch(() => 'NET_FAIL'),
+                    new Promise((r) => setTimeout(() => r('NET_SLOW'), 6000))
+                ]);
+                if (winner !== 'NET_FAIL' && winner !== 'NET_SLOW') return winner;
+                const cached = await cache.match(portalAsset);
+                if (cached) return cached;
+                return net;
             })
         );
         return;

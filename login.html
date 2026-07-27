@@ -77,9 +77,12 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" media="print" onload="this.media='all'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"></noscript>
 
-  <!-- Firebase Auth — deferred so it never blocks first paint. -->
-  <script defer src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <!-- Firebase Auth — deferred so it never blocks first paint. Stessa
+       versione 10.7.0 del portale: così dopo il login il browser trova
+       app-compat e auth-compat già nella cache HTTP e il boot del portale
+       non li riscarica. -->
+  <script defer src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
 
   <style>
     *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
@@ -507,17 +510,21 @@
       const auth=firebase.auth();
       const isSafari=/^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
+      // Destinazione di default '/portal' (SENZA .html): con cleanUrls attivo
+      // '/portal.html' risponde 308 → '/portal', quindi ogni login pagava un
+      // redirect in più — e il pre-warm del SW non salvava nulla, perché una
+      // risposta redirected non viene messa in cache di proposito.
       function getNextDest(){
         try{
           const raw=new URLSearchParams(location.search).get('next');
-          if(!raw) return '/portal.html';
+          if(!raw) return '/portal';
           const v=raw.trim();
-          if(v.length>512) return '/portal.html';
-          if(!v.startsWith('/')) return '/portal.html';
-          if(v.startsWith('//')||v.startsWith('/\\')) return '/portal.html';
-          if(v.includes('\\')||v.includes(':')) return '/portal.html';
+          if(v.length>512) return '/portal';
+          if(!v.startsWith('/')) return '/portal';
+          if(v.startsWith('//')||v.startsWith('/\\')) return '/portal';
+          if(v.includes('\\')||v.includes(':')) return '/portal';
           return v;
-        }catch{ return '/portal.html'; }
+        }catch{ return '/portal'; }
       }
       const NEXT_DEST=getNextDest();
 
@@ -527,7 +534,10 @@
       if('serviceWorker' in navigator && !(navigator.connection&&navigator.connection.saveData)
          && (NEXT_DEST==='/portal.html'||NEXT_DEST==='/portal'||NEXT_DEST.startsWith('/portal.html#')||NEXT_DEST.startsWith('/portal#'))){
         navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(()=>{});
-        const warm=()=>{ ['/portal.html','/js/portal-app.js','/css/portal.css'].forEach(u=>{ fetch(u,{credentials:'same-origin'}).catch(()=>{}); }); };
+        // '/portal' e non '/portal.html': il 308 di cleanUrls marcava la
+        // risposta come redirected e il SW (giustamente) non la salvava —
+        // il pre-warm della shell era di fatto un no-op.
+        const warm=()=>{ ['/portal','/js/portal-app.js','/css/portal.css'].forEach(u=>{ fetch(u,{credentials:'same-origin'}).catch(()=>{}); }); };
         const start=()=>{
           if(navigator.serviceWorker.controller) warm();
           else navigator.serviceWorker.addEventListener('controllerchange',warm,{once:true});

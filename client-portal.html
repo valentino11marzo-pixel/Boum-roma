@@ -49,7 +49,9 @@
   <link rel="dns-prefetch" href="https://www.googletagmanager.com">
   <link rel="dns-prefetch" href="https://www.google-analytics.com">
 <!-- BOOM_SEO:END -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font async: su Safari uno stylesheet sincrono verso fonts.googleapis.com blocca il primo paint -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap"></noscript>
     <!-- Self-contained: this portal defines its own tokens + base inline (mirroring
          the BOOM design system 1:1). We intentionally do NOT link boom-core.css here —
          its full-viewport noise texture (body::before, z-index:9999) sat on top of
