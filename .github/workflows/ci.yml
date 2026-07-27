@@ -42,6 +42,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # firebase-tools (non pinnato) da fine luglio 2026 rifiuta Java < 21
+      # per l'emulatore Firestore; il default del runner è più vecchio →
+      # il job era rosso su OGNI branch, main compreso, senza alcuna
+      # modifica al repo.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
       - name: Installa firebase-tools + deps test
         run: |
           npm install --no-save firebase-tools >/dev/null
