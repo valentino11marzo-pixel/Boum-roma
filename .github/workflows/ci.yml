@@ -42,6 +42,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # firebase-tools recente richiede JDK 21+ per l'emulatore; il runner
+      # di default ne ha uno più vecchio → "no longer supports Java version
+      # before 21" e il job muore prima ancora di testare le rules.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
       - name: Installa firebase-tools + deps test
         run: |
           npm install --no-save firebase-tools >/dev/null
