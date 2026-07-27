@@ -47,6 +47,10 @@
   <meta name="twitter:image" content="https://www.boomrome.com/BOOMsocialprofile.png">
   <meta name="twitter:image:alt" content="Apartment Details — Rome Verified Rental | BOOM">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Il 3D fotorealistico scarica Cesium dal CDN e le tessere da Google:
+       aprire DNS/TLS in anticipo toglie ~300-500ms al primo tocco. -->
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="dns-prefetch" href="https://tile.googleapis.com">
   <link rel="dns-prefetch" href="https://www.googletagmanager.com">
   <link rel="dns-prefetch" href="https://www.google-analytics.com">
 <!-- BOOM_SEO:END -->
@@ -1131,10 +1135,45 @@ let _map3d=null;
 function ensureML(){return window.__mlp||(window.__mlp=new Promise(function(res,rej){if(window.maplibregl)return res();
   var c=document.createElement('link');c.rel='stylesheet';c.href='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css';document.head.appendChild(c);
   var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.min.js';s.onload=function(){res()};s.onerror=rej;document.head.appendChild(s);}));}
+/* ── Il 3D fotorealistico (Google Photorealistic 3D Tiles) ────────────────
+   Roma vera — fotogrammetria, tetti, alberi — invece delle scatole grigie
+   estruse. Si arma da solo appena GOOGLE_MAPS_API_KEY è su Vercel; senza
+   chiave, o se Cesium non carica, si scende sulla mappa MapLibre, che
+   resta il ripiego che non muore mai. Il modulo (~3MB) viene scaricato
+   solo quando qualcuno tocca il bottone: zero peso per chi non lo apre. */
+var _prk=null;
+function prKey(){
+  return _prk||(_prk=fetch('/api/maps-key').then(function(r){return r.json()})
+    .then(function(j){return (j&&j.key)||null}).catch(function(){return null}));
+}
+function prModule(){
+  if(window.BoomPhotoreal)return Promise.resolve();
+  return new Promise(function(res,rej){
+    var s=document.createElement('script');s.src='/js/boom-photoreal.js';
+    s.onload=function(){window.BoomPhotoreal?res():rej(new Error('photoreal_missing'))};
+    s.onerror=function(){rej(new Error('photoreal_load_failed'))};
+    document.head.appendChild(s);
+  });
+}
 function boom3D(btn){
   if(_map3d)return;var host=document.getElementById('map3d');if(!host)return;
   var lat=+L.lat||41.8902,lng=+L.lng||12.4922;
+  var label=btn?btn.innerHTML:null;
+  var restore=function(){if(btn&&label){btn.innerHTML=label;btn.style.pointerEvents='';}};
   if(btn){btn.innerHTML='<span style="color:var(--t3);font-size:12px">Loading map…</span>';btn.style.pointerEvents='none';}
+  try{boomTrack('block_explore',{item_id:PID||L.id||'sample'})}catch(e){}
+  prKey().then(function(key){
+    if(!key)return null;                       // chiave non configurata
+    return prModule().then(function(){
+      return BoomPhotoreal.open({lat:lat,lng:lng,name:L.name||'this home',key:key})
+        .then(function(){restore();return true;});
+    });
+  }).then(function(done){ if(!done) mapFallback(btn,host,lat,lng); })
+    .catch(function(){ mapFallback(btn,host,lat,lng); });
+}
+/* ── ripiego: mappa vettoriale con volumi estrusi e anelli a piedi ─────── */
+function mapFallback(btn,host,lat,lng){
+  if(_map3d)return;
   ensureML().then(function(){
     var reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
     var map=new maplibregl.Map({container:'map3d',style:'https://tiles.openfreemap.org/styles/liberty',center:[lng,lat],zoom:reduce?16:13.4,pitch:reduce?55:0,bearing:0,cooperativeGestures:true,antialias:true,attributionControl:false});
