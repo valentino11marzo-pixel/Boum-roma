@@ -260,6 +260,16 @@ brand-new leads instantly — context card + one-tap "Apri WhatsApp" (wa.me)
 when there's a phone — while the Commerciale's AI reply draft follows via
 the usual approval card.
 
+### Lingua delle risposte (`api/_lang.js`)
+`replyLang(src)` decides IT vs EN from what the person ACTUALLY wrote
+(Italian function words + accents vs English markers), falling back to an
+explicit `language` flag and finally to **English** — BOOM's house language.
+Used by the Telegram lead card's pre-filled WhatsApp message, the
+Commerciale's drafts and its follow-up template. Fixes the bug where
+`leads/scan-inbox` stored `language:'it'` by default, so every pre-filled
+reply came out in Italian even for an English-speaking expat; the scanner now
+stores `null` when the language is unknown.
+
 ### GET/POST `/api/leads/brain` (cron */10 min, offset :03)
 IL LEAD BRAIN — server-side replacement for Homie's per-lead Sonnet grading
 (~2k tok/lead + ~10k/day AI-blocking injections). Stage 0: free rules
@@ -349,6 +359,46 @@ viewing id + server secret).
   the visitor's local offset. The confirmed screen leads with the one
   thing they'll tap on the day (directions / join call), then Wallet and
   calendar. No polling, no pending limbo.
+- `api/viewings/_avail.js` — **the availability engine, one copy**. The
+  public grid, the client's reschedule page and the operator's Telegram
+  picker all read it, so they can never disagree about what's free.
+  `loadConfig` / `busyBlocks(cfg, exceptId)` / `buildSlots` / `slotOffered`,
+  plus the Rome-time helpers (offsets derived from `Intl`, no tz library).
+  `exceptId` is what makes a reschedule possible at all — without it a
+  viewing blocks itself and can never move by 30 minutes. Unit-tested
+  (`node tests/viewings/avail.mjs`): step math, the 15' gap, notice,
+  horizon, max/day, and the DST boundary.
+- `api/viewings/_apply.js` — **the ONE place a viewing changes state**.
+  Four surfaces confirm/move/cancel (the operator's API, their Telegram
+  buttons, the client's own page, the portal); the side-effects — email,
+  Wallet push, calendar invite in place, reminder-flag reset — live here
+  once, so they cannot drift. `confirm.js` is now a thin auth wrapper.
+- **The client owns their appointment** — `POST /api/viewings/manage` +
+  `viewing.html` (`/viewing?t=<ref>`). No login: the link IS the
+  credential (`manageToken` in `_lib.js` is *derived*, not stored, so
+  every viewing ever created already has a valid one, no migration;
+  rotating `HOMIE_SECRET` revokes them all). Ops: `lookup` (ticket +
+  free slots), `slots` (the other mode's grid), `reschedule` (re-verified
+  server-side → 409 `slot_taken`), `cancel` (allowed right up to the
+  start). Every change runs through `_apply.js` **and pings the operator's
+  Telegram immediately** — a client rescheduling themselves is never a
+  silent surprise. The page is English-first with IT toggle, shows Rome
+  time next to the visitor's own clock, and carries the day-of action,
+  Wallet and .ics. Linked from the confirmation email, the T-24h reminder,
+  the reschedule email and `book.html`'s confirmed screen.
+- **Telegram: the agenda in your pocket** (`api/telegram/_viewings.js`).
+  Every viewing request pings the admin chat (via `notify-pending`, every
+  minute) as a card with the three moves — **✅ Conferma <l'orario
+  proposto>** (one tap, no typing), **🔁 Sposta** (a real slot picker:
+  day rail → times, mode switch person⇄video, re-verified before writing),
+  **✖️ Annulla** (two steps, because it emails the client). Self-booked
+  viewings arrive as a notification with Sposta/Annulla. `/visite [giorni]`
+  prints the week grouped by day and re-sends an actionable card for
+  anything still open. Callback data is capped at 64 bytes by Telegram —
+  the encoding (`vok/vmv/vdy/vtm/vmo/vxq/vxx/vbk`, mode as one char, time
+  as base36 epoch-minutes) is asserted in `node tests/viewings/telegram.mjs`
+  along with HTML escaping, since one oversized button silently kills the
+  whole keyboard.
 
 ### POST `/api/apply-lead`
 Public lead-capture for the apartment-detail APPLY/RESERVE/WAITLIST flow.
@@ -687,7 +737,7 @@ after a human tap. Shared plumbing in `api/employees/_lib.js`
 |---|---|---|
 | `/api/employees/contabile` | daily 04:40 | Fiscal picture from live data: obligations due/overdue (`js/fiscal-engine.js`, landlord + company from paid `invoices` by quarter), commercialista document checklist per contract (`js/taxpack-engine.js`), collections YTD + late payments. Telegram only when actionable. On the 1st of the month emails a "chiusura mese" recap (`ACCOUNTING_EMAIL` env, falls back to `GMAIL_USER`). |
 | `/api/employees/gestore` | daily 05:10 | Property manager: drafts payment-reminder emails (≥3gg late, re-proposes weekly via ISO-week contextHash) and signature nudges with the party's Magic-Sign link (`/sign?sign=<token>`) as approvable `action_queue` items; Telegram digest of renewals ≤90gg, compliance deadlines (`js/compliance-rules.js`), maintenance open >48h. |
-| `/api/employees/commerciale` | every 2h, 06-18 | Lead responder: any lead still `new` after a 20-min human window gets a Claude-drafted first reply (same persona as `agent/ai.reply`) proposed for approval; still `new` after 48h (grade A/B or apply/reserve) gets one templated follow-up. Caps per run; dedupe before paying for the AI call. |
+| `/api/employees/commerciale` | every 2h, 06-18 | Lead responder, property-aware: any lead still `new` after a 20-min human window gets a Claude-drafted first reply (same persona as `agent/ai.reply`) proposed for approval; still `new` after 48h (grade A/B or apply/reserve) gets one templated follow-up. Caps per run; dedupe before paying for the AI call. |
 
 All three accept POST with Vercel cron secret, `X-Homie-Secret`, or an admin
 Firebase ID token (see `api/pfs/_guard.js`); `?dry=1` computes without
@@ -795,7 +845,21 @@ real. Backs the "Aggiungi annuncio" modal in `pfs-command.html`.
 - New pages should follow the dark theme with gold accents pattern
 - Property-specific pages follow `apartment_[name].html` naming
 - Blog posts follow `blog-[slug].html` naming
-- No automated tests exist in this project
+- **Tests**: `npm test` runs every suite (`tests/run-all.mjs`); `npm test -- money safari`
+  runs a subset. No framework, no emulator — each suite drives the REAL handler
+  and stubs only the network (`globalThis.fetch` over an in-memory Firestore) or
+  the browser. A suite needing something absent (playwright-core) prints `SKIP:`
+  and is reported as skipped, never as a failure.
+
+  | Suite | Copre |
+  |---|---|
+  | `tests/money/run.mjs` | checkout, webhook Stripe idempotenti, conversione PA→contratto |
+  | `tests/fiscal/test.mjs` | motore scadenze fiscali |
+  | `tests/taxpack/test.mjs` | pacchetto commercialista |
+  | `tests/journey/steps.mjs` | **le regole commerciali dell'operatore**: quando parte ogni email e cosa NON deve contenere (T-90 e uscita non vendono, le chiavi non si vendono mai, un prodotto già comprato non si ripropone, il rinnovo non arriva prima del move-in su un transitorio breve) |
+  | `tests/journey/review-url.mjs` | solo un vero link "scrivi recensione" (`g.page/r/<id>/review`) entra nelle email; un link Maps "Condividi" viene rifiutato con warning |
+  | `tests/dossier/run.mjs` | fascicolo ARPE: un landlord non può scrivere nel fascicolo di un immobile altrui, path sotto `property-docs/<id>/`, slot già pieni non sovrascritti |
+  | `tests/safari/boot.mjs` | nessuna superficie autenticata resta appesa su un loader |
 - PWA support via `manifest.json` and `sw.js` service worker — registered on
   the 3 portals via `BoomPortal.registerServiceWorker()`
 

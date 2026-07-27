@@ -12,6 +12,9 @@
 
 import { fsList, fsPatch } from '../homie/_lib.js';
 import { tgSend, fmtAction, actionKeyboard } from './_lib.js';
+import { fmtViewingCard, viewingKeyboard } from './_viewings.js';
+import { loadViewing } from '../viewings/_apply.js';
+import { replyLang } from '../_lang.js';
 
 const MAX_PER_RUN = 10; // cap so a backlog doesn't spam Telegram
 const esc = s => String(s || '').replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c]));
@@ -136,7 +139,7 @@ export default async function handler(req, res) {
         : `🟢 <b>${esc(l.name || 'Lead')}</b> · ${esc(l.source || '?')}`;
       const bits = [
         head,
-        l.propertyTitle ? `🏠 ${esc(l.propertyTitle)}${l.propertyPrice ? ' · €' + Number(l.propertyPrice).toLocaleString('it-IT') + '/mese' : ''}` : null,
+        l.propertyTitle ? `🏠 ${esc(l.propertyTitle)}${l.propertyPrice ? ' · €' + Number(l.propertyPrice).toLocaleString('it-IT', { useGrouping: true, maximumFractionDigits: 0 }) + '/mese' : ''}` : null,
         (l.phone || l.email) ? [l.phone && `📞 ${esc(l.phone)}`, l.email && `✉️ ${esc(l.email)}`].filter(Boolean).join(' · ') : null,
         // AI brief when the Brain produced one (synthetic but detail-complete);
         // raw quote as fallback so nothing is ever hidden
@@ -152,9 +155,9 @@ export default async function handler(req, res) {
         const first = String(l.name || '').trim().split(/\s+/)[0] || '';
         const link = l.propertyId ? `https://www.boomrome.com/listing/${encodeURIComponent(l.propertyId)}` : 'https://www.boomrome.com/apartments';
         const title = l.propertyTitle || null;
-        // BOOM's audience is international: English is the default voice;
-        // Italian only when the lead explicitly wrote in Italian
-        const en = l.language !== 'it';
+        // Language is decided by what they ACTUALLY wrote, not by a stored
+        // flag: the portal-email extractor used to default everyone to 'it'.
+        const en = replyLang(l) !== 'it';
         const msgTxt = en
           ? (`Hi${first ? ' ' + first : ''}! This is Valentino from BOOM Roma 👋 Thanks for your interest` +
              (title ? ` in "${title}"` : '') + `. Here you'll find all the details, photos and video: ${link}\n` +
@@ -192,6 +195,41 @@ export default async function handler(req, res) {
     }
   }
 
+  // ── Il ciclo visita: ogni richiesta arriva col tasto per chiuderla. ─────
+  // Una visita che aspetta è un cliente che aspetta. La card porta i tre
+  // gesti (conferma all'orario proposto, sposta, annulla) così il giro si
+  // chiude dal telefono, in piedi, in dieci secondi. Le visite che il
+  // cliente ha già prenotato da solo negli slot pubblici arrivano come
+  // notifica — non c'è niente da approvare, gli slot ERANO la disponibilità
+  // dichiarata — ma con Sposta/Annulla a portata di pollice.
+  let viewings = [];
+  try {
+    for (const status of ['pending', 'confirmed']) {
+      viewings = viewings.concat(await fsList('viewingRequests', {
+        filter: { field: 'status', op: 'EQUAL', value: status },
+        limit: 50,
+      }));
+    }
+  } catch (_) { /* non-fatal */ }
+  const vwToNotify = (viewings || [])
+    .filter(v => !v.voided && !v.telegramNotifiedAt)
+    // una visita già confermata si annuncia solo se l'ha presa il cliente:
+    // quelle confermate dall'operatore le ha appena toccate lui
+    .filter(v => String(v.status).toLowerCase() === 'pending' || v.selfBooked)
+    .sort((a, b) => ts(b.createdAt) - ts(a.createdAt))
+    .slice(0, 5);
+  const vwResults = [];
+  for (const v of vwToNotify) {
+    try {
+      const full = (await loadViewing(v.id).catch(() => null)) || v;
+      const mid = await tgSend(chatId, fmtViewingCard(full), { reply_markup: viewingKeyboard(full) });
+      await fsPatch(`viewingRequests/${v.id}`, { telegramNotifiedAt: new Date(), telegramMessageId: mid || null });
+      vwResults.push({ id: v.id, ok: true });
+    } catch (err) {
+      vwResults.push({ id: v.id, ok: false, error: err.message });
+    }
+  }
+
   return res.status(200).json({
     ok: true,
     scanned: pending.length,
@@ -199,6 +237,7 @@ export default async function handler(req, res) {
     failed:   results.filter(r => !r.ok).length,
     events: { scanned: events.length, notified: evResults.filter(r => r.ok).length, failed: evResults.filter(r => !r.ok).length },
     leads: { scanned: leads.length, notified: ldResults.filter(r => r.ok).length, failed: ldResults.filter(r => !r.ok).length },
+    viewings: { scanned: viewings.length, notified: vwResults.filter(r => r.ok).length, failed: vwResults.filter(r => !r.ok).length },
     results,
   });
 }

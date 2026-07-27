@@ -23,7 +23,8 @@
 
 import { fsList, fsGet, fsPatch } from '../homie/_lib.js';
 import { sendEmail } from '../agent/_lib.js';
-import { shell, btn, btn2, para, fine } from '../preagreement/_notify.js';
+// Un solo sistema di design per tutte le email della piattaforma.
+import { shell, btn, btn2, para, fine, includes, hero, tiles, timeline, rule } from '../preagreement/_notify.js';
 
 const ADMIN_EMAIL = 'valentino@boom-rome.com';
 const WA = 'https://wa.me/393313251961';
@@ -34,17 +35,32 @@ const waMsg = t => WA + '?text=' + encodeURIComponent(t);
 const buyUrl = (kind, tenant) => 'https://www.boomrome.com/api/services/buy?kind=' + kind
   + (tenant && tenant.email ? '&e=' + encodeURIComponent(tenant.email) : '')
   + (tenant && tenant.name ? '&n=' + encodeURIComponent(tenant.name) : '');
-// what the client actually gets — three lines, no marketing fog
-const includes = items => `<table cellpadding="0" cellspacing="0" style="margin:14px auto 0">${items.map(i =>
-  `<tr><td style="padding:3px 0;font-family:Helvetica Neue,Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:300;color:#6E6A60">
-    <span style="color:#D4AF37">·</span>&nbsp; ${i}</td></tr>`).join('')}</table>`;
 const esc = s => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
 const eur = n => '€' + Number(n || 0).toLocaleString('en-US');
 const fmtD = s => { try { return new Date(String(s).slice(0, 10) + 'T00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); } catch { return s; } };
 
-// The review link: set REVIEW_URL in Vercel to the real Google review URL
-// (g.page/r/…) — falls back to a search that lands on the profile.
-const REVIEW_URL = process.env.REVIEW_URL
+// The review link: set REVIEW_URL in Vercel to the real Google review URL —
+// the one that opens the STAR BOX directly, not the profile:
+//   https://g.page/r/<id>/review
+//   https://search.google.com/local/writereview?placeid=<id>
+// A share link (maps.app.goo.gl/…) or a /maps/place/… URL lands on the card
+// instead, and roughly half the people never find the "write a review"
+// button from there. So we validate: anything that is not a real write-review
+// URL is refused and we fall back to the search, loudly — a wrong value must
+// never ship silently inside a client email.
+export function reviewUrl(raw) {
+  const v = String(raw || '').trim();
+  if (!v) return null;
+  const ok = /^https:\/\/g\.page\/r\/[A-Za-z0-9_-]+\/review\/?$/.test(v)
+    || /^https:\/\/search\.google\.com\/local\/writereview\?placeid=[A-Za-z0-9_-]+$/.test(v);
+  if (!ok) {
+    console.warn('[journey] REVIEW_URL ignorato — non è un link "scrivi recensione" '
+      + '(atteso g.page/r/<id>/review o search.google.com/local/writereview?placeid=<id>):', v);
+    return null;
+  }
+  return v;
+}
+const REVIEW_URL = reviewUrl(process.env.REVIEW_URL)
   || 'https://www.google.com/search?q=BOOM+Rome+boomrome.com+reviews';
 
 const dayDiff = (iso) => {
@@ -54,7 +70,7 @@ const dayDiff = (iso) => {
 };
 
 // step key → { when(c) -> true if inside the window, subject, html }
-function steps({ c, tenant, addrShort, addr, first, has = () => false }) {
+export function steps({ c, tenant, addrShort, addr, first, has = () => false }) {
   const start = c.startDate, end = c.endDate;
   const dStart = start ? dayDiff(start) : null;
   const dEnd = end ? dayDiff(end) : null;
