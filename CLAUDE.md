@@ -155,6 +155,16 @@ REVIEW_URL                   # the REAL Google review link (g.page/r/…) used
                              # by the journey's T+3 and exit emails; falls
                              # back to a Google search for the profile
 
+# Google Analytics sync (api/analytics/*)
+GA4_PROPERTY_ID              # NUMERIC GA4 property id (GA Admin → Property
+                             # settings) — NOT the G-… measurement id the
+                             # pages carry
+GA_SA_JSON_BASE64            # base64 of a Google service-account JSON key
+                             # (Analytics Data API enabled); the SA email
+                             # must be added as Viewer on the GA4 property.
+                             # Missing → cron no-ops silently, ad-hoc
+                             # queries return 501. GA_SA_JSON (raw) also ok.
+
 # Lo Smistatore (api/documents/_smista.js + scan-inbox)
 DOC_MAIL_FROM                # optional — extra TRUSTED senders whose email
                              # attachments get auto-filed (comma-separated,
@@ -404,6 +414,28 @@ about listings that appear AFTER saving; later runs email a digest (max 6
 homes) via Nodemailer with /listing/:id links + one-click unsubscribe
 (`/api/search/unsub?id&e` → status:'unsubscribed'). `?dry=1` reports
 without emailing. Auth: Vercel cron Bearer CRON_SECRET.
+
+### GET/POST `/api/analytics/ga` (cron daily 05:30 UTC)
+Sync diretto Google Analytics → BOOM. The site's pages carry GA4 tag
+`G-EYCD59RDVJ` (consent-gated by `js/boom-consent.js`); this endpoint reads
+the property server-side via the **GA4 Data API** — no npm deps, service
+account JWT signed with node:crypto (`api/analytics/_ga.js`, raw-fetch
+pattern). Auth like the PFS crons (`_guard.js`).
+- **GET (cron)** — daily snapshot: yesterday/7d/28d totals (one runReport,
+  3 dateRanges), 14-day trend, top pages/sources/countries/cities/devices/
+  events over 7d → written to `webAnalytics/daily_<YYYY-MM-DD>` +
+  `webAnalytics/latest`. `?dry=1` computes without writing. Unconfigured →
+  silent no-op (no Telegram noise). Heartbeat `teamHealth/analytics`
+  (3 straight failures → Telegram alert).
+- **POST** ad-hoc analysis: `{mode:'report', dimensions, metrics, days |
+  startDate/endDate, filter?, orderBy?, limit?}` → tidy rows;
+  `{mode:'realtime'}` → who's on the site NOW; `{mode:'snapshot'}` →
+  manual refresh (console button).
+- The morning brief (`api/pfs/brief.js`) folds `webAnalytics/latest` into
+  its JSON as `sitoWeb` — the daily Telegram brief comments on traffic
+  only when there's a real signal. Pure helpers (`tidyReport`,
+  `assembleSnapshot`, `snapshotSpecs`) unit-tested in
+  `tests/analytics/test.mjs`.
 
 ### Pre-agreement suite (`/api/preagreement/*` + `pre-agreement.html` + `pre-agreement-admin.html`)
 Sendable RENTAL PROPOSAL / pre-agreement, modeled on the real BOOM document

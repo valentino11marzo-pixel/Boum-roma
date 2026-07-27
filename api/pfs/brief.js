@@ -52,6 +52,23 @@ function compactClient(c) {
   };
 }
 
+// Traffico boomrome.com dallo snapshot GA (api/analytics/ga.js →
+// webAnalytics/latest). Assente finché il sync non è configurato.
+function compactWeb(w) {
+  if (!w || !w.ieri) return null;
+  return {
+    aggiornatoAl: w.date || null,
+    ieri: w.ieri,
+    ultimi7g: w.g7,
+    utenti28g: w.g28 ? w.g28.utenti : null,
+    trend14: (w.trend14 || []).map(t => ({ d: t.data, u: t.utenti })),
+    topPagine: (w.pagine7g || []).slice(0, 6),
+    topFonti: (w.sorgenti7g || []).slice(0, 6),
+    paesi: (w.paesi7g || []).slice(0, 5),
+    eventi: (w.eventi7g || []).slice(0, 8),
+  };
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'GET' && req.method !== 'POST') {
     return res.status(405).json({ ok: false, error: 'method_not_allowed' });
@@ -84,6 +101,10 @@ export default async function handler(req, res) {
     } catch { /* health doc may not exist yet */ }
   }
 
+  let sitoWeb = null;
+  try { sitoWeb = compactWeb(await fsGet('webAnalytics/latest')); }
+  catch (e) { console.warn('[pfs/brief] webAnalytics read failed:', e.message); }
+
   const stats = {
     annunci48h: properties.length,
     privati: properties.filter(p => p.advertiser === 'private').length,
@@ -99,17 +120,21 @@ export default async function handler(req, res) {
     clienti: clients.map(compactClient),
     annunciUltime48h: properties.slice(0, 40).map(compactProperty),
   };
+  if (sitoWeb) data.sitoWeb = sitoWeb;
 
   // ── Ask Claude for the brief ──────────────────────────────
   const system =
     'Sei l\'analista operativo del servizio Property Finding di BOOM Roma (ricerca casa per clienti paganti, Roma). ' +
     'Ricevi un JSON con lo stato delle ultime 48 ore: annunci entrati dal radar, match pushati ai clienti, stato outreach ' +
-    '(contatto dei proprietari privati), feedback dei clienti (like/scartate) e salute delle fonti. ' +
+    '(contatto dei proprietari privati), feedback dei clienti (like/scartate) e salute delle fonti; quando presente, ' +
+    'sitoWeb contiene il traffico Google Analytics di boomrome.com (ieri/7gg/28gg, trend, pagine, fonti, paesi, eventi). ' +
     'Scrivi il briefing operativo del giorno in italiano, per Valentino che lo legge dal telefono. ' +
     'Formato: HTML minimale compatibile Telegram (solo <b> e <i>, niente markdown, niente liste annidate). ' +
     'Struttura: 1) una riga di sintesi; 2) "Da proporre ora" — gli annunci con match non ancora gestiti, con prezzo e cliente; ' +
     '3) "Outreach" — chi contattare o sollecitare; 4) "Clienti" — segnali dal feedback (like/scartate/non visti); ' +
-    '5) "Sistema" — solo se una fonte è ferma o ci sono annunci da verificare; 6) "Le 3 azioni di oggi" — priorità concrete. ' +
+    '5) "Sistema" — solo se una fonte è ferma o ci sono annunci da verificare; ' +
+    '6) "Sito" — una o due righe sul traffico solo se c\'è un segnale vero (picco o calo netto, fonte insolita, pagina o annuncio che tira); ' +
+    '7) "Le 3 azioni di oggi" — priorità concrete. ' +
     'Massimo ~200 parole. Concreto e diretto: nomi, cifre, zone. Ometti le sezioni vuote. Non inventare nulla che non sia nel JSON.';
 
   let brief;
