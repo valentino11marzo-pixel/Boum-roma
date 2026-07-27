@@ -795,7 +795,21 @@ real. Backs the "Aggiungi annuncio" modal in `pfs-command.html`.
 - New pages should follow the dark theme with gold accents pattern
 - Property-specific pages follow `apartment_[name].html` naming
 - Blog posts follow `blog-[slug].html` naming
-- No automated tests exist in this project
+- **Tests**: `npm test` runs every suite (`tests/run-all.mjs`); `npm test -- money safari`
+  runs a subset. No framework, no emulator — each suite drives the REAL handler
+  and stubs only the network (`globalThis.fetch` over an in-memory Firestore) or
+  the browser. A suite needing something absent (playwright-core) prints `SKIP:`
+  and is reported as skipped, never as a failure.
+
+  | Suite | Copre |
+  |---|---|
+  | `tests/money/run.mjs` | checkout, webhook Stripe idempotenti, conversione PA→contratto |
+  | `tests/fiscal/test.mjs` | motore scadenze fiscali |
+  | `tests/taxpack/test.mjs` | pacchetto commercialista |
+  | `tests/journey/steps.mjs` | **le regole commerciali dell'operatore**: quando parte ogni email e cosa NON deve contenere (T-90 e uscita non vendono, le chiavi non si vendono mai, un prodotto già comprato non si ripropone, il rinnovo non arriva prima del move-in su un transitorio breve) |
+  | `tests/journey/review-url.mjs` | solo un vero link "scrivi recensione" (`g.page/r/<id>/review`) entra nelle email; un link Maps "Condividi" viene rifiutato con warning |
+  | `tests/dossier/run.mjs` | fascicolo ARPE: un landlord non può scrivere nel fascicolo di un immobile altrui, path sotto `property-docs/<id>/`, slot già pieni non sovrascritti |
+  | `tests/safari/boot.mjs` | nessuna superficie autenticata resta appesa su un loader |
 - PWA support via `manifest.json` and `sw.js` service worker — registered on
   the 3 portals via `BoomPortal.registerServiceWorker()`
 

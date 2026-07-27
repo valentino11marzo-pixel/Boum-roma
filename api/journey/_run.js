@@ -73,7 +73,7 @@ const dayDiff = (iso) => {
 };
 
 // step key → { when(c) -> true if inside the window, subject, html }
-function steps({ c, tenant, addrShort, addr, first, has = () => false }) {
+export function steps({ c, tenant, addrShort, addr, first, has = () => false }) {
   const start = c.startDate, end = c.endDate;
   const dStart = start ? dayDiff(start) : null;
   const dEnd = end ? dayDiff(end) : null;
