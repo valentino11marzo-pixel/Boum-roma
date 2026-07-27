@@ -643,6 +643,8 @@ body.chapters .proofs.stamped .proof:nth-child(5){transition-delay:.48s}
 .blkchip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:rgba(0,0,0,.55);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-radius:100px;padding:9px 14px;font-size:11.5px;color:var(--t2);transition:.2s}
 a.blkchip:hover{border-color:var(--line-gold);color:var(--gold)}
 .blkchip.coords{font-variant-numeric:tabular-nums;letter-spacing:.4px;color:var(--gold);border-color:var(--line-gold)}
+#blkPr[hidden]{display:none!important}
+.m3a{width:9px;height:9px;border-radius:50%;background:var(--gold-light);border:1.5px solid #1a1407;box-shadow:0 0 8px rgba(255,215,0,.55);cursor:help}
 
 /* ── the viral handoff: deciding is a two-person sport ── */
 .sharestrip{margin-top:14px;border:1px solid var(--line);border-radius:15px;background:var(--card);padding:16px 18px;display:flex;align-items:center;gap:13px;flex-wrap:wrap}
@@ -901,10 +903,12 @@ a.blkchip:hover{border-color:var(--line-gold);color:var(--gold)}
             <div class="ring" style="width:300px;height:300px"></div>
           </div>
           <div class="blip" aria-hidden="true"></div>
-          <button class="m3facade" onclick="boom3D(this)" aria-label="Explore the block in 3D">◆ Explore the block in 3D<small>Real map · 3D buildings · 5 / 10 / 15-min walk rings</small></button>
+          <button class="m3facade" onclick="boom3D(this)" aria-label="Open the real map of the block">◆ The block, for real<small>wakes as you arrive — 3D buildings · your building in gold · walk rings</small></button>
           <div class="blkchips" id="blkChips" hidden>
             <span class="blkchip coords" id="blkCoords">◈ —</span>
-            <a class="blkchip" id="blkSv" href="#" target="_blank" rel="noopener">⟲ Street View · the exact entrance</a>
+            <button type="button" class="blkchip" id="blkPr" hidden onclick="openPhotoreal()">◆ Photoreal 3D</button>
+            <a class="blkchip" id="blkSv" href="#" target="_blank" rel="noopener">⟲ Street View</a>
+            <a class="blkchip" id="blkDir" href="#" target="_blank" rel="noopener">➤ Directions</a>
           </div>
         </div>
         <a class="skyjump" id="skyJump" href="/apartments?view=map">◉ See this home on Rome’s Skyline <small>satellite · 3D · Street View · distances to LUISS, Sapienza, Termini…</small><span class="arr">→</span></a>
@@ -1043,6 +1047,7 @@ a.blkchip:hover{border-color:var(--line-gold);color:var(--gold)}
 <script src="/js/boom-elevate.js"></script>
 <script src="/js/boom-ambient.js"></script>
 <script src="/js/boom-fondali.js"></script>
+<script src="/js/neighborhoods.js"></script>
 <script>
 /* MATERIA: living stone under the whole visit — develops in as the price lands */
 try{
@@ -1289,21 +1294,25 @@ function ensureML(){return window.__mlp||(window.__mlp=new Promise(function(res,
   var c=document.createElement('link');c.rel='stylesheet';c.href='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css';document.head.appendChild(c);
   var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.min.js';s.onload=function(){res()};s.onerror=rej;document.head.appendChild(s);}));}
 function boom3D(btn){
+  /* the block RESTUDIED: no more gadget-behind-a-button. The real map wakes
+     inline (scroll-arrival or tap), with the building in gold, the anchors
+     that decide a life here, and one-tap chips: Photoreal · Street View ·
+     Directions. Photoreal moved to its chip — full-screen on YOUR gesture,
+     never auto-hijacking the page. */
   if(_map3d)return;var host=document.getElementById('map3d');if(!host)return;
   var lat=+L.lat||41.8902,lng=+L.lng||12.4922;
-  if(btn){btn.innerHTML='<span style="color:var(--t3);font-size:12px">Loading map…</span>';btn.style.pointerEvents='none';}
-  /* the real thing first: Google Photorealistic 3D of the EXACT building —
-     armed the moment GOOGLE_MAPS_API_KEY lands in Vercel (via /api/maps-key,
-     same pipeline as the Skyline). MapLibre stays as the always-working
-     fallback: no key, no coords, blocked CDN — the block still renders. */
+  if(btn){btn.innerHTML='<span style="color:var(--t3);font-size:12px">Waking the block…</span>';btn.style.pointerEvents='none';}
+  boom3DML(btn,host,lat,lng);
+}
+function openPhotoreal(){
   prKey().then(function(key){
     if(!(key&&+L.lat&&+L.lng))throw 0;
     return prModule().then(function(){return BoomPhotoreal.open({key:key,lat:+L.lat,lng:+L.lng,name:L.name});})
-      .then(function(){
-        boomTrack('photoreal_open',{item_id:PID||L.id||''});
-        if(btn){btn.innerHTML='◆ Explore the block in 3D<small>Google Photoreal · real rooftops, real light — tap to fly again</small>';btn.style.pointerEvents='';}
-      });
-  }).catch(function(){boom3DML(btn,host,lat,lng);});
+      .then(function(){boomTrack('photoreal_open',{item_id:PID||L.id||''});});
+  }).catch(function(){
+    var b=document.getElementById('blkPr');
+    if(b){b.textContent='◆ 3D unavailable right now';setTimeout(function(){b.textContent='◆ Photoreal 3D';},1800);}
+  });
 }
 /* the exact building, in gold: query the rendered footprint under the pin
    and re-extrude just that one. Honest by construction — no footprint in
@@ -1337,6 +1346,12 @@ function boom3DML(btn,host,lat,lng){
         map.addLayer({id:'rings-l',type:'line',source:'rings',paint:{'line-color':'#FFD700','line-opacity':.45,'line-width':1.4,'line-dasharray':[2,2]}});}catch(e){}
       var el=document.createElement('div');el.className='m3pin';
       new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat([lng,lat]).addTo(map);
+      /* the anchors within reach, on the map itself (hover for the name) */
+      try{ANCHORS.forEach(function(s){
+        if(havKm(lat,lng,s[3],s[4])>4)return;
+        var d=document.createElement('div');d.className='m3a';d.title=s[1]+' · '+s[2];
+        new maplibregl.Marker({element:d,anchor:'center'}).setLngLat([s[4],s[3]]).addTo(map);
+      });}catch(e){}
       host.querySelectorAll('.rings,.blip,.m3facade').forEach(function(n){n.remove();});
       if(!reduce)map.flyTo({center:[lng,lat],zoom:16.2,pitch:60,bearing:-18,duration:3200});
       /* LA SAGOMA: when the camera settles, the exact building lights up in
@@ -1743,7 +1758,9 @@ function paintData(){
   document.getElementById('aboutZone').textContent=(zl&&zl.icon)?('heart of '+L.zone):('real Rome of '+String(L.zone||'').trim());
   if(L.real)document.getElementById('aboutDesc').textContent=L.description||(L.name+' in '+L.zone+' — '+((zl&&zl.lore)?zl.lore:'a genuine, well-connected Roman neighbourhood')+'. Verified in person and on video by our team — what you see is exactly what you get.');
   const zs=document.getElementById('zsense');
-  if(zs){zs.hidden=false;zs.innerHTML='<span class="zk">The neighbourhood</span>'+String(L.zone||'Rome').trim().replace(/</g,'&lt;')+' — '+((zl&&zl.lore)?zl.lore:'a genuine Roman quartiere: well-connected, everyday cafés, fair prices')+'.';}
+  if(zs){const _gs=(window.BOOM&&BOOM.zoneToSlug)?BOOM.zoneToSlug(L.zone||''):null;
+    zs.hidden=false;zs.innerHTML='<span class="zk">The neighbourhood</span>'+String(L.zone||'Rome').trim().replace(/</g,'&lt;')+' — '+((zl&&zl.lore)?zl.lore:'a genuine Roman quartiere: well-connected, everyday cafés, fair prices')+'.'
+      +(_gs?' <a href="/apartments-in/'+_gs+'" style="color:var(--gold);border-bottom:1px solid var(--line-gold);white-space:nowrap" onclick="try{boomTrack(\'guide_click\',{slug:\''+_gs+'\'})}catch(e){}">Read the honest guide →</a>':'');}
   document.getElementById('simZone').textContent=L.zone;
   document.getElementById('hPrice').textContent=eur(L.price);
   const af=L.availableFrom;
@@ -1781,9 +1798,12 @@ function mapReal(d){
   return {id:d.id||PID||'',name:d.name||d.title||'Apartment in Rome',zone:zone,price:+d.price||0,deposit:+d.deposit||+d.price||0,depositMonths:+d.depositMonths||0,agencyFee:d.agencyFee!=null?(+d.agencyFee||0):Math.round((+d.price||0)*1.2),beds:(d.beds!=null?d.beds:(d.bedrooms!=null?d.bedrooms:0)),baths:(d.bathrooms!=null?d.bathrooms:(d.baths!=null?d.baths:1)),sqm:d.sqm||d.size||0,floor:d.floor||1,furnished:(d.furnished===true)||/furnish/i.test(feat.join(' ')+' '+(d.description||'')),real:true,status:((d.status||d.availabilityStatus||'available')+'').toLowerCase(),availableFrom:af,images:imgs,features:feat,description:(typeof d.description==='string'&&d.description.trim())?d.description.trim():'',nearby:[],similar:[],lat:+d.lat||0,lng:+d.lng||0,video:(d.videoUrl||d.youtubeUrl||null)};
 }
 /* ── REAL recommendations: the catalog itself decides what's similar ── */
+/* the anchors that decide a life in Rome — one list, used by the nearby
+   rows AND plotted on the live map */
+var ANCHORS=[['🚇','Termini','Trains + Metro A/B',41.9009,12.5018],['🏛','Colosseo','The ancient centre',41.8902,12.4924],['🏛','Vatican','St Peter’s & museums',41.9022,12.4534],['🎓','Sapienza','Main campus',41.9038,12.5135],['🎓','LUISS','Viale Romania campus',41.9269,12.4917],['🎓','Roma Tre','Ostiense campus',41.8564,12.4790],['🎓','John Cabot','Trastevere campus',41.8937,12.4664]];
 function realNearby(){
   if(!L.real||!L.lat||!L.lng)return;
-  var SPOTS=[['🚇','Termini','Trains + Metro A/B',41.9009,12.5018],['🏛','Colosseo','The ancient centre',41.8902,12.4924],['🏛','Vatican','St Peter’s & museums',41.9022,12.4534],['🎓','Sapienza','Main campus',41.9038,12.5135],['🎓','LUISS','Viale Romania campus',41.9269,12.4917],['🎓','Roma Tre','Ostiense campus',41.8564,12.4790],['🎓','John Cabot','Trastevere campus',41.8937,12.4664]];
+  var SPOTS=ANCHORS;
   var R=6371,r=Math.PI/180;
   var rows=SPOTS.map(function(s){
     var dy=(s[3]-L.lat)*r,dx=(s[4]-L.lng)*r;
@@ -1939,11 +1959,11 @@ function postPaint(){
       var cc=document.getElementById('blkCoords');if(cc)cc.textContent='◈ '+(+L.lat).toFixed(4)+'° N · '+(+L.lng).toFixed(4)+'° E';
       var sv=document.getElementById('blkSv');if(sv){sv.href='https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+(+L.lat)+','+(+L.lng);
         sv.onclick=function(){try{boomTrack('streetview_open',{item_id:PID||L.id||''})}catch(e){}};}
+      var dr=document.getElementById('blkDir');if(dr)dr.href='https://www.google.com/maps/dir/?api=1&destination='+(+L.lat)+','+(+L.lng);
     }}
-  /* if the Google key is live, say so on the facade before the first tap */
+  /* Photoreal is a chip, armed only when the Google key is live */
   if(hasPin)prKey().then(function(k){
-    var f=document.querySelector('#map3d .m3facade small');
-    if(k&&f)f.textContent='Google Photoreal 3D · real rooftops, real light · the exact building';
+    var pr=document.getElementById('blkPr');if(k&&pr)pr.hidden=false;
   }).catch(function(){});
   /* the viral handoff — English link, ready to forward */
   var shUrl=PID?(location.origin+'/listing/'+encodeURIComponent(PID)):location.href;
@@ -2268,6 +2288,18 @@ document.addEventListener('visibilitychange',function(){
   if(!SB.open)return;
   if(document.hidden)sbPause();else sbResume();
 });
+
+/* ---- the block wakes as you arrive — the map is the section, not a prize
+        behind a button. Save-Data users keep the tap-to-load facade. ---- */
+(function(){
+  var pl=document.getElementById('place');
+  if(!pl||!('IntersectionObserver' in window))return;
+  if(navigator.connection&&navigator.connection.saveData)return;
+  new IntersectionObserver(function(es,io){es.forEach(function(en){
+    if(!en.isIntersecting)return;io.disconnect();
+    try{boom3D(document.querySelector('#map3d .m3facade'))}catch(e){}
+  })},{rootMargin:'320px 0px'}).observe(pl);
+})();
 
 /* ---- the power grid lands with weight: numbers roll in as it enters view ---- */
 (function(){

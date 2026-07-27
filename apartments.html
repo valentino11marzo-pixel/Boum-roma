@@ -125,6 +125,23 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 .expatline:hover .arr{transform:translateX(4px)}
 /* price carries light on every card */
 .pc .pr{text-shadow:0 0 20px rgba(255,215,0,.16)}
+/* ── mobile hero: an EXPERIENCE, not a pile. One idea per band:
+     statement → the four numbers → live market → zones (one swipeable
+     line) → the guide → the command bar. tbadges vanish here — the power
+     row already carries the trust, twice is clutter. ── */
+@media(max-width:679px){
+  .hero{padding-top:calc(var(--nav) + 18px)}
+  .hero p{font-size:14px;margin-top:10px}
+  .tbadges{display:none}
+  .pulse{margin-top:10px;padding:6px 12px;font-size:11px}
+  .heropow{margin-top:13px;gap:8px 12px}
+  .heropow b{font-size:24px}
+  .hoods{white-space:nowrap;overflow-x:auto;scrollbar-width:none;line-height:1.6;margin-top:12px;-webkit-mask-image:linear-gradient(90deg,#000 84%,transparent);mask-image:linear-gradient(90deg,#000 84%,transparent)}
+  .hoods::-webkit-scrollbar{display:none}
+  .expatline{margin-top:11px;padding:11px 13px;font-size:12px}
+  .expatline small{font-size:10.5px}
+  .intent{margin-top:14px}
+}
 /* culture & community — Rome is a city of villages */
 .culture{margin-top:54px}
 .culture h2{font-size:clamp(22px,4vw,32px);font-weight:200;margin-top:6px}
@@ -603,6 +620,7 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
 .tbadges span,.tbadges a{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:100px;padding:6px 11px;color:var(--t3);transition:.2s}
 .tbadges i{font-style:normal;color:var(--green);font-size:10px}
 .tbadges a:hover{border-color:var(--line-gold);color:var(--gold)}
+@media(max-width:679px){.tbadges{display:none}}
 .hoods{margin-top:18px;font-size:11.5px;letter-spacing:.4px;color:var(--t4);line-height:2}.hoods a{color:var(--t3);transition:color .2s}.hoods a:hover{color:var(--gold)}.hoods span{margin:0 6px;color:var(--t4)}.hoods .apt-hoods-all{color:var(--gold)}</style>
     <div class="hoods" role="navigation" aria-label="Browse by neighborhood">
                 <a href="/apartments-in/trastevere">Trastevere</a><span>·</span>
@@ -613,6 +631,7 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
                 <a href="/apartments-in/testaccio">Testaccio</a><span>·</span>
                 <a href="/apartments-in/ostiense">Ostiense</a><span>·</span>
                 <a href="/apartments-in/trieste-coppede">Trieste &amp; Coppedè</a><span>·</span>
+                <a href="/apartments-in/ponte-milvio">Ponte Milvio</a><span>·</span>
                 <a href="/apartments-in/san-lorenzo">San Lorenzo</a><span>·</span>
                 <a href="/apartments-in/esquilino">Esquilino</a>
                 <a href="/apartments-in" class="apt-hoods-all">All guides →</a>
@@ -1485,7 +1504,8 @@ fetch('/api/listings',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{
 function cultureRail(){
   try{
     if(!window.BOOM||!BOOM.allNeighborhoods)return;
-    var LORE={'trastevere':'Cobbled lanes, ivy on the walls and the best evening light in Rome','centro-storico':'Domes, fountains and streets that empty beautifully at night','monti':'Artisan workshops and wine bars, ten minutes from the Colosseum','prati':'Elegant, ordered streets a short walk from the Vatican walls','pigneto':'The creative quarter — street art, third-wave cafés, honest trattorie','testaccio':'The market, the food — the Rome that Romans keep for themselves','ostiense':'Street art on industrial walls and Garbatella’s village courtyards','trieste-coppede':'The Liberty villas of Coppedè, morning markets, calm streets','san-lorenzo':'Student energy and kitchens that stay open late, next to Sapienza','esquilino':'Rome at its most international — every cuisine on earth'};
+    /* one line per village, written like the guides: both sides, no brochure */
+    var LORE={'trastevere':'Postcard Rome, priced like it — crowded at dinner, magic after midnight','centro-storico':'Living inside the monument: sublime, expensive, never quiet on weekends','monti':'The hip rione that earned it — artisans and wine bars, tourist flow on weekends','prati':'Bourgeois order by the Vatican walls — elegant, safe, sober after 10pm','pigneto':'Rome’s Berlin corner — creative, cheaper, rough edges and proud of them','testaccio':'The most Roman food in Rome — working-class soul, nightlife in the old mattatoio','ostiense':'Street art, the gasometer, Garbatella courtyards — real life at real prices','trieste-coppede':'Leafy and genuinely quiet — you trade nightlife for sleep and Villa Ada','ponte-milvio':'Aperitivo capital of the north — riverside, MAXXI, loud on match days','san-lorenzo':'Student Rome: the cheapest central rents, the loudest central nights','esquilino':'Every cuisine on earth around Piazza Vittorio — vibrant, chaotic, undervalued'};
     var counts={};(L||[]).filter(isRentable).forEach(function(l){var s=BOOM.zoneToSlug(l.zone||'');if(s)counts[s]=(counts[s]||0)+1;});
     var host=document.getElementById('cultrow');if(!host)return;
     host.innerHTML=BOOM.allNeighborhoods().map(function(n){
