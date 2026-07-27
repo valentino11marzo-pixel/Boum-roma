@@ -22,132 +22,18 @@
 //     left to approve. Anything else would re-introduce the ping-pong.
 
 import { fsGet, fsCreate, fsList, fsPatch, readJson, logActivity } from '../homie/_lib.js';
-import { videoRoom, passUrl, startOf } from './_lib.js';
+import { videoRoom, passUrl, manageUrl } from './_lib.js';
 import { sendConfirmation } from './_email.js';
 import { inviteOperator } from './_invite.js';
+import { TZ, loadConfig, busyBlocks, buildSlots, slotOffered } from './_avail.js';
+import { replyLang } from '../_lang.js';
 
-const TZ = 'Europe/Rome';
-const DEFAULTS = {
-  // 0 = Sunday … 6 = Saturday, Rome local hours
-  windows: {
-    1: [['10:00', '13:00'], ['15:00', '19:00']],
-    2: [['10:00', '13:00'], ['15:00', '19:00']],
-    3: [['10:00', '13:00'], ['15:00', '19:00']],
-    4: [['10:00', '13:00'], ['15:00', '19:00']],
-    5: [['10:00', '13:00'], ['15:00', '18:00']],
-    6: [['10:00', '13:00']],
-  },
-  slotMinutes: { person: 45, video: 20 },
-  minNoticeHours: 4,
-  horizonDays: 14,
-  maxPerDay: 6,
-};
+// re-exported so the availability engine has a single public entry point for
+// callers that already knew this module (and for the unit tests)
+export { buildSlots };
 
 const clip = (s, n) => String(s == null ? '' : s).trim().slice(0, n);
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i;
-
-// ── Rome-time helpers (no external tz library: derive the offset from Intl) ──
-function romeOffsetMinutes(utcDate) {
-  const s = new Intl.DateTimeFormat('en-US', {
-    timeZone: TZ, hour12: false,
-    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
-  }).formatToParts(utcDate).reduce((a, p) => (a[p.type] = p.value, a), {});
-  const asUTC = Date.UTC(+s.year, +s.month - 1, +s.day, +s.hour, +s.minute);
-  return Math.round((asUTC - utcDate.getTime()) / 60000);
-}
-// a Rome wall-clock (Y-M-D H:M) → the real UTC instant
-function romeToUtc(y, m, d, hh, mm) {
-  const guess = new Date(Date.UTC(y, m - 1, d, hh, mm));
-  const off = romeOffsetMinutes(guess);
-  return new Date(guess.getTime() - off * 60000);
-}
-function romeParts(date) {
-  const p = new Intl.DateTimeFormat('en-GB', {
-    timeZone: TZ, weekday: 'short', day: '2-digit', month: 'short',
-    year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
-  }).formatToParts(date).reduce((a, x) => (a[x.type] = x.value, a), {});
-  return p;
-}
-const hhmm = str => { const [h, m] = String(str).split(':').map(Number); return { h: h || 0, m: m || 0 }; };
-
-async function loadConfig() {
-  try {
-    const c = await fsGet('settings/viewingAvailability');
-    if (!c) return DEFAULTS;
-    return {
-      windows: c.windows && Object.keys(c.windows).length ? c.windows : DEFAULTS.windows,
-      slotMinutes: { ...DEFAULTS.slotMinutes, ...(c.slotMinutes || {}) },
-      minNoticeHours: Number(c.minNoticeHours) > 0 ? Number(c.minNoticeHours) : DEFAULTS.minNoticeHours,
-      horizonDays: Number(c.horizonDays) > 0 ? Math.min(30, Number(c.horizonDays)) : DEFAULTS.horizonDays,
-      maxPerDay: Number(c.maxPerDay) > 0 ? Number(c.maxPerDay) : DEFAULTS.maxPerDay,
-    };
-  } catch { return DEFAULTS; }
-}
-
-// every live appointment in the horizon, as [startMs, endMs) blocks
-async function busyBlocks(cfg) {
-  const out = [];
-  for (const status of ['confirmed', 'pending']) {
-    let rows = [];
-    try { rows = await fsList('viewingRequests', { filter: { field: 'status', op: 'EQUAL', value: status }, limit: 200 }); }
-    catch { /* best effort: an unreadable list must not block booking */ }
-    for (const v of rows) {
-      if (v.voided) continue;
-      const s = startOf(v);
-      if (!s) continue;
-      const dur = Number(v.durationMinutes) || 45;
-      out.push([s.getTime(), s.getTime() + dur * 60000, String(v.confirmedDate || '').slice(0, 10) || null]);
-    }
-  }
-  return out;
-}
-
-export function buildSlots(cfg, busy, mode, now = new Date()) {
-  const step = cfg.slotMinutes[mode] || 45;
-  const gap = 15;                                  // travel/reset between visits
-  const notAfter = now.getTime() + cfg.horizonDays * 86400000;
-  const notBefore = now.getTime() + cfg.minNoticeHours * 3600000;
-  const days = [];
-
-  for (let i = 0; i <= cfg.horizonDays; i++) {
-    const probe = new Date(now.getTime() + i * 86400000);
-    const p = romeParts(probe);
-    const y = +p.year, mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].indexOf(p.month) + 1, d = +p.day;
-    const dow = romeToUtc(y, mo, d, 12, 0).getUTCDay();
-    const wins = cfg.windows[dow] || cfg.windows[String(dow)] || [];
-    if (!wins.length) continue;
-
-    const dateKey = `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-    const bookedToday = busy.filter(b => b[2] === dateKey).length;
-    if (bookedToday >= cfg.maxPerDay) continue;
-
-    const times = [];
-    for (const [from, to] of wins) {
-      const a = hhmm(from), b = hhmm(to);
-      let cur = romeToUtc(y, mo, d, a.h, a.m);
-      const end = romeToUtc(y, mo, d, b.h, b.m);
-      while (cur.getTime() + step * 60000 <= end.getTime() + 1) {
-        const s = cur.getTime(), e = s + step * 60000;
-        const free = !busy.some(([bs, be]) => s < be + gap * 60000 && e + gap * 60000 > bs);
-        if (free && s >= notBefore && s <= notAfter) {
-          times.push({
-            iso: new Date(s).toISOString(),
-            label: new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(s)),
-          });
-        }
-        cur = new Date(e);
-      }
-    }
-    if (times.length) {
-      days.push({
-        date: dateKey,
-        label: new Intl.DateTimeFormat('en-GB', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short' }).format(romeToUtc(y, mo, d, 12, 0)),
-        times,
-      });
-    }
-  }
-  return days;
-}
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -187,8 +73,7 @@ export default async function handler(req, res) {
   try {
     // re-verify the slot server-side: the list the client saw may be stale
     const busy = await busyBlocks(cfg);
-    const offered = buildSlots(cfg, busy, mode).some(d => d.times.some(t => t.iso === when.toISOString()));
-    if (!offered) return res.status(409).json({ ok: false, error: 'slot_taken' });
+    if (!slotOffered(buildSlots(cfg, busy, mode), when)) return res.status(409).json({ ok: false, error: 'slot_taken' });
 
     let listing = null;
     if (listingId) listing = await fsGet(`listings/${listingId}`).catch(() => null);
@@ -209,7 +94,9 @@ export default async function handler(req, res) {
       scheduledAt: when.toISOString(),
       status: 'confirmed',                       // the slot WAS the availability
       selfBooked: true,
-      language: String(body.language || '').toLowerCase() === 'it' ? 'it' : 'en',
+      // unknown stays unknown: replyLang reads the notes they actually typed
+      // and falls back to English, BOOM's house language
+      language: ['it', 'en'].includes(String(body.language || '').toLowerCase()) ? String(body.language).toLowerCase() : null,
       notes: clip(body.notes, 800) || null,
       voided: false,
       reminder24hSent: false, reminder3hSent: false, reminder30mSent: false, afterAskSent: false,
@@ -228,7 +115,7 @@ export default async function handler(req, res) {
 
     // confirm instantly — waiting 15 minutes for the cron would break the promise
     try {
-      await sendConfirmation(full, full.language);
+      await sendConfirmation(full, replyLang(full));
       await fsPatch(`viewingRequests/${id}`, { confirmationSent: true, confirmationSentAt: new Date() });
     } catch (e) { console.warn('[viewings/slots] confirmation mail:', e.message); }
 
@@ -242,6 +129,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       ok: true, id, status: 'confirmed', when: when.toISOString(), mode,
       videoUrl: full.videoUrl || undefined, passUrl: passUrl(full),
+      manageUrl: manageUrl(full),
     });
   } catch (e) {
     console.error('[viewings/slots] POST', e);
