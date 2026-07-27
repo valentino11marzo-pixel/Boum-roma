@@ -12,6 +12,7 @@
 
 import { fsList, fsPatch } from '../homie/_lib.js';
 import { tgSend, fmtAction, actionKeyboard } from './_lib.js';
+import { replyLang } from '../_lang.js';
 
 const MAX_PER_RUN = 10; // cap so a backlog doesn't spam Telegram
 const esc = s => String(s || '').replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c]));
@@ -152,9 +153,9 @@ export default async function handler(req, res) {
         const first = String(l.name || '').trim().split(/\s+/)[0] || '';
         const link = l.propertyId ? `https://www.boomrome.com/listing/${encodeURIComponent(l.propertyId)}` : 'https://www.boomrome.com/apartments';
         const title = l.propertyTitle || null;
-        // BOOM's audience is international: English is the default voice;
-        // Italian only when the lead explicitly wrote in Italian
-        const en = l.language !== 'it';
+        // Language is decided by what they ACTUALLY wrote, not by a stored
+        // flag: the portal-email extractor used to default everyone to 'it'.
+        const en = replyLang(l) !== 'it';
         const msgTxt = en
           ? (`Hi${first ? ' ' + first : ''}! This is Valentino from BOOM Roma 👋 Thanks for your interest` +
              (title ? ` in "${title}"` : '') + `. Here you'll find all the details, photos and video: ${link}\n` +

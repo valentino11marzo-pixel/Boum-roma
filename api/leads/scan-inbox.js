@@ -165,7 +165,9 @@ export default async function handler(req, res) {
             email: lead.email ? String(lead.email).trim().slice(0, 160) : null,
             phone: lead.phone ? String(lead.phone).trim().slice(0, 40) : null,
             message: lead.message ? String(lead.message).slice(0, 1500) : null,
-            language: lead.language === 'en' ? 'en' : 'it',
+            // never default to Italian: an unknown language is unknown, and
+            // every downstream template treats unknown as English (replyLang)
+            language: ['it', 'en'].includes(String(lead.language || '').toLowerCase()) ? String(lead.language).toLowerCase() : null,
             propertyId: prop ? prop.id : null,
             propertyTitle: prop ? (prop.name || null) : (lead.listingTitle ? String(lead.listingTitle).slice(0, 160) : null),
             propertyPrice: prop ? (prop.price || null) : null,
