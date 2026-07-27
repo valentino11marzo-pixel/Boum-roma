@@ -19,6 +19,8 @@
 // Auth: cron secret / X-Homie-Secret / admin ID token. `?dry=1` = read-only.
 
 import { callClaude, extractJson } from '../agent/_claude.js';
+import { replyLang } from '../_lang.js';
+import { fsGet, fsList as fsListRaw } from '../homie/_lib.js';
 import {
   requireCronOrAdmin, fsList, logActivity, proposeAction,
   reportEmployeeHealth, saveReport,
@@ -31,14 +33,28 @@ const MAX_LEAD_AGE_MS = 14 * 86400000;        // don't dig up archaeology
 const MAX_FIRST_PER_RUN = 5;
 const MAX_FOLLOWUP_PER_RUN = 3;
 
-const SYSTEM = `Sei l'assistente commerciale di BOOM Roma, agenzia premium di affitti a Roma (boomrome.com). Scrivi la PRIMA risposta a un lead che ha mostrato interesse per un appartamento o per il servizio di ricerca casa.
+const SYSTEM = `Sei l'assistente commerciale di BOOM Roma, agenzia premium di affitti a Roma (boomrome.com). Il pubblico è internazionale: expat, professionisti in trasferimento, studenti stranieri. Scrivi la PRIMA risposta a un lead.
 
-Regole:
-- Tono caldo, umano, professionale — mai robotico, mai markdown, massimo 1 emoji.
-- Personalizza usando i dati del lead (nome, zona, budget, immobile d'interesse). Non inventare dettagli che non hai.
-- Massimo 5-6 frasi. Vai dritto al valore: conferma disponibilità/interesse, fai 1 domanda utile per qualificare (es. data di ingresso o budget se mancano), e proponi il passo successivo (una call o una visita).
-- Firma come "Il team BOOM".
-- Scrivi in inglese se il lead scrive in inglese, altrimenti in italiano.
+LINGUA: scrivi nella lingua indicata da "Lingua risposta" nei fatti. È già stata decisa: rispettala sempre.
+
+TONO: caldo, umano, competente. Mai robotico, mai markdown, massimo 1 emoji. 5-7 frasi. Firma "Il team BOOM" (o "The BOOM team" in inglese).
+
+LA REGOLA PIÙ IMPORTANTE — lo stato dell'immobile:
+- Se lo stato è DISPONIBILE: conferma con naturalezza, rispondi a ciò che ha chiesto, e proponi il passo successivo (visita di persona o in video).
+- Se è AFFITTATO / NON PIÙ DISPONIBILE: dillo SUBITO, con onestà e senza giri di parole ("quella casa è appena stata assegnata"). Poi rilancia: chiedi i criteri (zona, budget, data) e proponi alternative. Mai far credere che sia libera, mai ignorare la domanda.
+- Se non sai quale immobile: chiedi con garbo a cosa si riferisce.
+
+RISPONDI A CIÒ CHE HANNO CHIESTO: se chiedono spese incluse, arredamento, durata, animali, disponibilità da una data — affronta quel punto per primo. Non usare un testo generico. Se un'informazione non ce l'hai, dillo e prometti di verificarla.
+
+QUALIFICA CON UNA SOLA DOMANDA: la più utile che manca (data di ingresso, budget, quante persone). Mai un interrogatorio.
+
+I NOSTRI SERVIZI (menzionane AL MASSIMO UNO, solo se risolve un problema reale che emerge dal messaggio, e come possibilità, mai come vendita):
+- Virtual Viewing (€89): per chi è all'estero e vuole vedere case NON nostre. Le case BOOM si visitano in video gratis — non venderlo mai per i nostri immobili.
+- Property Finding (€350): per chi cerca qualcosa di specifico che non abbiamo, o ha poco tempo. Cerchiamo noi sul mercato.
+- Deal Assistance (€249): per chi ha già trovato casa altrove e vuole essere protetto nella trattativa e nel contratto.
+- Contract Check (€49): per chi ha un contratto in mano e teme clausole scorrette.
+- Concierge: per chi arriva a Roma e deve sistemare codice fiscale, utenze, residenza.
+Regole d'oro dell'upsell: MAI più di un servizio, MAI nella stessa frase della risposta principale, MAI se il lead è già interessato a una nostra casa disponibile (in quel caso l'unico obiettivo è la visita). Una riga discreta in chiusura, tono "se ti serve, ci siamo", nessuna pressione, nessun prezzo martellato. Se nulla calza: NON menzionare servizi.
 
 Rispondi SOLO con un oggetto JSON valido, senza testo attorno:
 {"subject": "<oggetto email breve>", "body": "<corpo del messaggio>"}`;
@@ -132,6 +148,53 @@ async function proposeFirstReply(lead, dry) {
   const probe = await proposeProbe(contextHash);
   if (probe) return { type: 'first', leadId: lead.id, dedupHit: true };
 
+
+// What the draft MUST know before writing a word: is that home still free?
+// Answering "yes it's available" about a rented flat is the single worst
+// thing an assistant can do — it burns the lead and the reputation at once.
+async function propertyContext(lead) {
+  const pid = lead.propertyId || lead.listingId;
+  if (!pid) return { line: null, available: null };
+  let l = null;
+  try { l = await fsGet(`listings/${pid}`); } catch { /* ignore */ }
+  if (!l) { try { l = await fsGet(`properties/${pid}`); } catch { /* ignore */ } }
+  if (!l) return { line: null, available: null };
+  const st = String(l.status || 'available').toLowerCase();
+  const gone = /rented|affittat|off_market|reserved|unavailable/.test(st);
+  const facts = [
+    l.name || null,
+    l.price ? `€${l.price}/mese` : null,
+    l.sqm ? `${l.sqm}mq` : null,
+    l.beds ? `${l.beds} camere` : null,
+    l.furnished === 'yes' ? 'arredato' : l.furnished === 'no' ? 'non arredato' : null,
+    l.availableDate ? `libero da ${l.availableDate}` : null,
+  ].filter(Boolean).join(' · ');
+  return {
+    available: !gone,
+    line: `STATO IMMOBILE: ${gone ? 'NON PIÙ DISPONIBILE (affittato/riservato) — dillo con onestà e proponi alternative' : 'DISPONIBILE'}${facts ? `\nDati veri dell'immobile: ${facts}` : ''}`,
+  };
+}
+
+// When the home is gone, give the model REAL alternatives instead of vague
+// promises: same zone first, then similar price.
+async function alternatives(lead) {
+  try {
+    const all = await fsListRaw('listings', { filter: { field: 'status', op: 'EQUAL', value: 'available' }, limit: 60 });
+    const zone = String(lead.zone || lead.propertyZone || '').toLowerCase();
+    const price = Number(lead.budget || lead.propertyPrice || lead.listingPrice || 0);
+    const scored = all.map(l => {
+      let s = 0;
+      if (zone && String(l.zone || '').toLowerCase().includes(zone)) s += 2;
+      if (price && l.price && Math.abs(Number(l.price) - price) <= price * 0.2) s += 1;
+      return { l, s };
+    }).sort((a, b) => b.s - a.s).slice(0, 3).filter(x => x.s > 0 || !zone);
+    if (!scored.length) return null;
+    return 'ALTERNATIVE REALI disponibili ora (citane al massimo 2, con link):\n' + scored.map(({ l }) =>
+      `- ${l.name || l.id}${l.zone ? ', ' + l.zone : ''}${l.price ? ' — €' + l.price + '/mese' : ''} → https://www.boomrome.com/listing/${l.id}`
+    ).join('\n');
+  } catch { return null; }
+}
+
   const facts = [
     lead.name ? `Nome lead: ${lead.name}` : null,
     lead.budget ? `Budget: €${lead.budget}/mese` : null,
@@ -140,9 +203,19 @@ async function proposeFirstReply(lead, dry) {
     lead.intent ? `Intento: ${lead.intent}` : null,
     lead.source ? `Fonte: ${lead.source}` : null,
     lead.message ? `Messaggio originale del lead: "${String(lead.message).slice(0, 500)}"` : null,
-  ].filter(Boolean).join('\n');
+    lead.brief ? `Sintesi: ${lead.brief}` : null,
+    `Lingua risposta: ${replyLang(lead) === 'it' ? 'ITALIANO' : 'INGLESE'}`,
+  ].filter(Boolean);
 
-  const { text } = await callClaude({ system: SYSTEM, user: `Scrivi la prima risposta a questo lead.\n\n${facts}`, maxTokens: 700 });
+  const ctx = await propertyContext(lead);
+  if (ctx.line) facts.push(ctx.line);
+  if (ctx.available === false) {
+    const alt = await alternatives(lead);
+    if (alt) facts.push(alt);
+  }
+  const factsText = facts.filter(Boolean).join('\n');
+
+  const { text } = await callClaude({ system: SYSTEM, user: `Scrivi la prima risposta a questo lead.\n\n${factsText}`, maxTokens: 700 });
   const parsed = extractJson(text) || { subject: 'La tua richiesta — BOOM Roma', body: text };
 
   // Reply on the channel they used: someone who wrote on WhatsApp expects
@@ -172,10 +245,10 @@ async function proposeFollowup(lead, dry) {
   const contextHash = `commerciale:followup:${lead.id}`;
   if (dry) return { type: 'followup', leadId: lead.id, dedupHit: false, dry: true };
 
-  const en = /[a-z]/i.test(lead.message || '') && !/[àèéìòù]/i.test(lead.message || '') && (lead.language === 'en' || /\b(the|and|looking|apartment|hi|hello)\b/i.test(lead.message || ''));
+  const en = replyLang(lead) !== 'it';   // one detector for the whole system
   const name = lead.name ? ` ${lead.name.split(' ')[0]}` : '';
   const draft = en
-    ? `Hi${name},\n\nJust checking in on your enquiry — we're still happy to help you find the right place in Rome. If you're still looking, reply with your ideal move-in date and we'll line up a couple of options (with video tours if you're abroad).\n\nBest,\nIl team BOOM`
+    ? `Hi${name},\n\nJust checking in on your enquiry — we're still happy to help you find the right place in Rome. If you're still looking, reply with your ideal move-in date and we'll line up a couple of options (with video tours if you're abroad).\n\nBest,\nThe BOOM team`
     : `Ciao${name},\n\nTi scriviamo di nuovo per la tua richiesta: siamo ancora a disposizione per aiutarti a trovare la casa giusta a Roma. Se stai ancora cercando, rispondici con la tua data di ingresso ideale e ti proponiamo un paio di opzioni (anche con video-visita).\n\nA presto,\nIl team BOOM`;
 
   // Reply on the channel they used: someone who wrote on WhatsApp expects
