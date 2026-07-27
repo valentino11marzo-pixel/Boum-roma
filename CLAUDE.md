@@ -857,12 +857,32 @@ pages on their loader with no signal at all):
   visible error with a recovery button instead of an empty page.
 - `BoomPortal.registerServiceWorker()` calls `reg.update()` — Safari does
   not re-check `sw.js` as eagerly as Chrome, so a stale worker could serve
-  an old shell for days. Cache version is `boom-v12`.
+  an old shell for days. Cache version is `boom-v13`. portal.html's inline
+  registration does the same.
 - `vercel.json` now sends `private, no-store` + `noindex` on every
   logged-in surface (`casa`, `tenant`, `manuale`, `pre-agreement-admin`,
   `pfs-command`, `photo-lab`, `salute`, …), not just the portal group.
 - `-webkit-backdrop-filter` is mandatory alongside every `backdrop-filter`
   (older WebKit ignores the unprefixed form and the frosted bars go flat).
+- Google-Fonts stylesheets on logged-in pages load **async**
+  (`media="print" onload` + `<noscript>` fallback): a synchronous
+  stylesheet to fonts.googleapis.com blocks Safari's first paint — the
+  spinner included — for the whole cold-connection round trip.
+- `sw.js` portal shell fetch is network-first **with a 6s cap**: on a
+  wedged Safari connection the fetch used to hang for minutes; now the
+  cached copy (from a previous visit or the /login pre-warm) takes over
+  while the network response still refreshes the cache in background.
+- Login → portal handoff: login.html uses the same Firebase SDK 10.7.0 as
+  the portal (HTTP-cache reuse), lands on `/portal` (never `/portal.html`,
+  whose cleanUrls 308 also made the SW refuse to cache the pre-warm), and
+  the boot never awaits writes (`lastLogin` is fire-and-forget — an
+  awaited write on a stalled WebChannel used to hang the whole boot).
+- Portal boot is stale-while-revalidate: a same-user `boom_data_cache`
+  snapshot up to 24h old renders instantly while `loadDataFresh(true)`
+  re-syncs in background (admin core reads run in ONE concurrent batch —
+  the old sequential "batch 1/2/3" + 100ms Safari pauses are gone). The
+  25s hard watchdog now enters the app shell when user+profile are
+  already in hand instead of bouncing an authenticated user to login.
 
 Regression suite: `node tests/safari/boot.mjs` — fakes Firebase and asserts
 that a hung profile read, a mute realtime channel and a normal boot all end

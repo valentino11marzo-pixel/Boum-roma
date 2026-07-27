@@ -12,8 +12,9 @@
 <link rel="icon" href="https://www.boomrome.com/BOOMlogogoldicon512.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
+<!-- Font async: su Safari uno stylesheet sincrono verso fonts.googleapis.com blocca il primo paint -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"></noscript>
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
@@ -274,9 +275,7 @@ section { scroll-margin-top: 16px; }
 @keyframes amb-drift { from { transform: translate3d(-130px,-40px,0); } to { transform: translate3d(130px,70px,0); } }
 
 /* ── Glassmorphism (graceful fallback: solid bg already set) ── */
-@supports ((-webkit-backdrop-filter:blur(18px)) or (-webkit-backdrop-filter: blur(18px))) {
-    .modal, .hpop, .palette, #brief-panel, .tg-card, .tg-zero {
-        background: rgba(20,20,20,0.7);backdrop-filter: blur(18px)) or (-webkit-backdrop-filter: blur(18px))) {
+@supports ((backdrop-filter: blur(18px)) or (-webkit-backdrop-filter: blur(18px))) {
     .modal, .hpop, .palette, #brief-panel, .tg-card, .tg-zero {
         background: rgba(20,20,20,0.7);
         -webkit-backdrop-filter: blur(18px);
