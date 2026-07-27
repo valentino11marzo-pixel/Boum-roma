@@ -1300,6 +1300,23 @@ function boom3D(btn){
       });
   }).catch(function(){boom3DML(btn,host,lat,lng);});
 }
+/* the exact building, in gold: query the rendered footprint under the pin
+   and re-extrude just that one. Honest by construction — no footprint in
+   the tile, no highlight. */
+function goldHouse(map,lng,lat){
+  try{
+    var pt=map.project([lng,lat]);
+    var fs=map.queryRenderedFeatures([[pt.x-7,pt.y-7],[pt.x+7,pt.y+7]],{layers:['b3d']});
+    if(!fs.length)return;
+    var f=fs[0],p=f.properties||{};
+    var gj={type:'Feature',properties:{h:+(p.render_height||p.height)||16,b:+(p.render_min_height||p.min_height)||0},geometry:f.geometry};
+    var src=map.getSource('thehouse');
+    if(src){src.setData(gj);return;}
+    map.addSource('thehouse',{type:'geojson',data:gj});
+    map.addLayer({id:'thehouse-x',type:'fill-extrusion',source:'thehouse',paint:{'fill-extrusion-color':'#FFD700','fill-extrusion-height':['get','h'],'fill-extrusion-base':['get','b'],'fill-extrusion-opacity':.88,'fill-extrusion-vertical-gradient':true}});
+    map.addLayer({id:'thehouse-l',type:'line',source:'thehouse',paint:{'line-color':'#FFE55C','line-width':2,'line-opacity':.95}});
+  }catch(e){}
+}
 function boom3DML(btn,host,lat,lng){
   ensureML().then(function(){
     var reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
@@ -1317,6 +1334,11 @@ function boom3DML(btn,host,lat,lng){
       new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat([lng,lat]).addTo(map);
       host.querySelectorAll('.rings,.blip,.m3facade').forEach(function(n){n.remove();});
       if(!reduce)map.flyTo({center:[lng,lat],zoom:16.2,pitch:60,bearing:-18,duration:3200});
+      /* LA SAGOMA: when the camera settles, the exact building lights up in
+         gold — its real footprint from the vector tiles, extruded. If the
+         tile has no footprint here, nothing fake is drawn. */
+      var _gold=function(){goldHouse(map,lng,lat)};
+      map.once('idle',function(){_gold();map.once('idle',_gold);});
     });
     map.on('error',function(){});
   }).catch(function(){/* keep the decorative block alive: offer retry + an external fallback */

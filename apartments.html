@@ -125,6 +125,16 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 .expatline:hover .arr{transform:translateX(4px)}
 /* price carries light on every card */
 .pc .pr{text-shadow:0 0 20px rgba(255,215,0,.16)}
+/* culture & community — Rome is a city of villages */
+.culture{margin-top:54px}
+.culture h2{font-size:clamp(22px,4vw,32px);font-weight:200;margin-top:6px}
+.cultrow{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;margin-top:16px;padding-bottom:6px}
+.cultrow::-webkit-scrollbar{display:none}
+.cc{flex:0 0 242px;scroll-snap-align:start;border:1px solid var(--line);background:linear-gradient(180deg,rgba(16,16,18,.72),rgba(11,11,12,.72));-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-radius:16px;padding:16px;transition:.25s var(--ease);display:flex;flex-direction:column;gap:8px}
+.cc:hover{border-color:var(--line-gold);transform:translateY(-3px);box-shadow:0 14px 40px rgba(0,0,0,.4)}
+.cc .nm{font-family:var(--disp);font-size:16.5px;font-weight:300}
+.cc .lore{color:var(--t2);font-size:12px;line-height:1.6;flex:1}
+.cc .ft{font-size:11.5px;color:var(--gold)}
 /* trust pulse — live market numbers, computed once from the full inventory */
 .pulse{display:inline-flex;align-items:center;gap:9px;margin-top:14px;border:1px solid rgba(255,215,0,.18);background:rgba(255,215,0,.05);border-radius:100px;padding:8px 15px;font-size:12px;color:var(--t2);font-variant-numeric:tabular-nums;letter-spacing:.2px;max-width:100%}
 .pulse[hidden]{display:none}
@@ -258,11 +268,11 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 .mpin:hover,.mpin:focus{background:var(--gold);color:#1a1407;font-weight:600;z-index:5}
 .mapnote{position:absolute;left:14px;bottom:12px;font-size:11px;color:var(--t3);background:rgba(0,0,0,.5);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-radius:100px;padding:7px 12px}
 .mapview .maplibregl-map{position:absolute;inset:0;border-radius:18px}
-.mpin2{background:var(--card);border:1px solid var(--line-gold);border-radius:100px;padding:6px 11px;font-size:12px;font-family:var(--disp);color:var(--gold);cursor:pointer;white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,.55);transition:.18s var(--ease)}
-.mpin2:hover{background:var(--gold);color:#1a1407;font-weight:600;z-index:5}
+.mpin2{background:rgba(12,12,15,.78);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(255,215,0,.34);border-radius:100px;padding:6px 11px;font-size:12px;font-family:var(--disp);color:var(--gold);cursor:pointer;white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,.55);text-shadow:0 0 14px rgba(255,215,0,.3);transition:.18s var(--ease)}
+.mpin2:hover{background:var(--gold);color:#1a1407;font-weight:600;z-index:5;text-shadow:none;box-shadow:0 8px 26px rgba(255,215,0,.32)}
 .mpin2.sv{border-color:var(--green);box-shadow:0 0 0 1px var(--green-muted),0 6px 18px rgba(0,0,0,.55)}
 .mpin2.wl{border-style:dashed}
-.mpin2.on{background:var(--gold);color:#1a1407;font-weight:600;z-index:6;transform:scale(1.08)}
+.mpin2.on{background:var(--gold);color:#1a1407;font-weight:600;z-index:6;transform:scale(1.08);text-shadow:none;box-shadow:0 0 0 4px rgba(255,215,0,.22),0 10px 30px rgba(255,215,0,.38)}
 /* zone-level pins must read as "around here", never as a doorstep:
    dotted ring, muted gold, ≈ prefix — a different species at a glance */
 .mpin2.zn{border-style:dotted;border-color:rgba(255,215,0,.4);color:var(--gold-light);background:rgba(12,12,15,.72);font-size:11px;padding:5px 10px}
@@ -647,6 +657,13 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
   <div class="empty" id="empty" style="display:none"><h3>No exact match</h3><p>Try widening the budget or dates — or <a href="#" onclick="saveSearchAct();return false">let us find it for you →</a></p>
     <button type="button" class="facet" style="margin-top:16px" onclick="resetAll()">✕ Clear all filters</button></div>
 
+  <section class="culture" id="culture" aria-label="Rome, culture and community by neighbourhood">
+    <span class="eyebrow">Culture &amp; community</span>
+    <h2>Rome is a city of <span class="g">villages</span>. Find yours.</h2>
+    <p style="color:var(--t2);font-size:14px;margin-top:8px;max-width:56ch">Ten rioni, ten personalities. Each guide is written for internationals — where to live, what it really costs, how it feels at 11pm.</p>
+    <div class="cultrow" id="cultrow"></div>
+  </section>
+
   <section class="upsell">
     <div class="eyebrow">More than a portal</div>
     <h2>Not seeing the one? <span class="g">We’ll find it.</span></h2>
@@ -717,13 +734,17 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
 
 <script src="/js/boom-elevate.js"></script>
 <script src="/js/boom-ambient.js"></script>
+<script src="/js/neighborhoods.js"></script>
 <script>
 /* The page's ambience: Marmo Antico — living stone. Soft gold clouds and
    cloudy veins drifting along one grain; the material the client chose.
    Scrolling stirs the stone; it settles on its own. */
 try{
   if(window.BoomAmbient){
-    window.__amb=BoomAmbient.mount({ink:'#060607',inkRGB:'6,6,7',palette:{a:'255,215,0',b:'255,229,160'},intensity:.8,sections:false,scene:'marmoantico'});
+    /* CARDO: la griglia stradale di Roma antica come sfondo vivo — identità
+       romana + ultra-tech in una scena sola, più presente della vecchia
+       pietra (.9) ma sempre sotto il contenuto */
+    window.__amb=BoomAmbient.mount({ink:'#060607',inkRGB:'6,6,7',palette:{a:'255,215,0',b:'255,229,160'},intensity:.9,sections:false,scene:'cardo'});
     var _stY=0;
     addEventListener('scroll',function(){var dy=Math.abs(scrollY-_stY);_stY=scrollY;try{if(dy)window.__amb.stir(Math.min(1,dy/250))}catch(_e){}},{passive:true});
   }
@@ -1103,6 +1124,29 @@ function showBlock(p,pinEl){
   c.classList.add('on');
   try{_dmap.flyTo({center:p.co,zoom:Math.max(_dmap.getZoom(),15.2),pitch:58,duration:1100,essential:true});}catch(e){}
   showLinks(p.co);
+  try{_dmap.once('idle',goldHouseSky)}catch(e){}
+}
+/* LA SAGOMA sullo Skyline: il palazzo esatto del blocco aperto si accende
+   in oro — footprint reale dai vector tile, ri-estruso. Niente footprint
+   nel tile → nessun falso; ritenta una volta quando i tile arrivano. */
+function goldHouseSky(){
+  try{
+    if(!_blockP||!_dmap)return;
+    var pt=_dmap.project(_blockP.co);
+    var fs=_dmap.queryRenderedFeatures([[pt.x-7,pt.y-7],[pt.x+7,pt.y+7]],{layers:['b3d']});
+    var src=_dmap.getSource('thehouse');
+    if(!fs.length){
+      if(src)src.setData({type:'FeatureCollection',features:[]});
+      if(!goldHouseSky._r){goldHouseSky._r=1;_dmap.once('idle',function(){goldHouseSky._r=0;goldHouseSky();});}
+      return;
+    }
+    var f=fs[0],p=f.properties||{};
+    var gj={type:'Feature',properties:{h:+(p.render_height||p.height)||16,b:+(p.render_min_height||p.min_height)||0},geometry:f.geometry};
+    if(src){src.setData(gj);return;}
+    _dmap.addSource('thehouse',{type:'geojson',data:gj});
+    _dmap.addLayer({id:'thehouse-x',type:'fill-extrusion',source:'thehouse',paint:{'fill-extrusion-color':'#FFD700','fill-extrusion-height':['get','h'],'fill-extrusion-base':['get','b'],'fill-extrusion-opacity':.88,'fill-extrusion-vertical-gradient':true}});
+    _dmap.addLayer({id:'thehouse-l',type:'line',source:'thehouse',paint:{'line-color':'#FFE55C','line-width':2,'line-opacity':.95}});
+  }catch(e){}
 }
 function orbitBlock(){
   if(!_blockP||!_dmap)return;
@@ -1141,6 +1185,7 @@ function stopOrbit(keepHint){
 }
 function closeBlock(silent){
   stopOrbit();_blockP=null;
+  try{var _hs=_dmap&&_dmap.getSource('thehouse');if(_hs)_hs.setData({type:'FeatureCollection',features:[]});}catch(e){}
   var c=document.getElementById('blockcard');if(c)c.classList.remove('on');
   document.querySelectorAll('.mpin2.on').forEach(function(x){x.classList.remove('on')});
   if(!silent){clearLinks();try{if(_ovBounds)_dmap.fitBounds(_ovBounds,{padding:70,maxZoom:15.5,duration:1300,pitch:55});}catch(e){}}
@@ -1426,7 +1471,23 @@ document.getElementById('cmpN').textContent=cmp.size;document.getElementById('cm
 fetch('/api/listings',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{
   if(j&&j.ok&&Array.isArray(j.listings)&&j.listings.length){L=j.listings.filter(isRentable).map(mapReal);if(!L.length)L=SAMPLE;
     var _pc=document.querySelector('.proto');if(_pc)_pc.innerHTML='DISCOVERY · <b>live data</b> · '+L.length+' homes';}
-}).catch(()=>{}).finally(function(){trustPulse();seoItemList();render();restoreScroll();});
+}).catch(()=>{}).finally(function(){trustPulse();seoItemList();render();restoreScroll();cultureRail();});
+
+/* ── culture & community: the ten villages, each with its one true line and
+     its LIVE count — guides written for internationals, linked where the
+     search actually happens. ── */
+function cultureRail(){
+  try{
+    if(!window.BOOM||!BOOM.allNeighborhoods)return;
+    var LORE={'trastevere':'Cobbled lanes, ivy on the walls and the best evening light in Rome','centro-storico':'Domes, fountains and streets that empty beautifully at night','monti':'Artisan workshops and wine bars, ten minutes from the Colosseum','prati':'Elegant, ordered streets a short walk from the Vatican walls','pigneto':'The creative quarter — street art, third-wave cafés, honest trattorie','testaccio':'The market, the food — the Rome that Romans keep for themselves','ostiense':'Street art on industrial walls and Garbatella’s village courtyards','trieste-coppede':'The Liberty villas of Coppedè, morning markets, calm streets','san-lorenzo':'Student energy and kitchens that stay open late, next to Sapienza','esquilino':'Rome at its most international — every cuisine on earth'};
+    var counts={};(L||[]).filter(isRentable).forEach(function(l){var s=BOOM.zoneToSlug(l.zone||'');if(s)counts[s]=(counts[s]||0)+1;});
+    var host=document.getElementById('cultrow');if(!host)return;
+    host.innerHTML=BOOM.allNeighborhoods().map(function(n){
+      var c=counts[n.slug]||0;
+      return '<a class="cc" href="/apartments-in/'+n.slug+'"><span class="nm">'+n.name+'</span><span class="lore">'+(LORE[n.slug]||'A genuine Roman quartiere — well connected, honest prices')+'.</span><span class="ft">'+(c?('Guide + '+c+' verified home'+(c>1?'s':'')+' now'):'Read the guide')+' →</span></a>';
+    }).join('');
+  }catch(e){}
+}
 
 /* ── the search is a link: syncURL already writes every filter into the URL,
      so sharing the search IS sharing the page. One tap, ready to forward. ── */
