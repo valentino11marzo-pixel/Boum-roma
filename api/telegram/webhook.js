@@ -17,6 +17,7 @@
 
 import { fsGet, fsPatch, fsList, readJson } from '../homie/_lib.js';
 import { tgSend, tgEdit, tgAckCallback, requireWebhookSecret, isAuthorizedChat, fmtAction } from './_lib.js';
+import { handleViewingCallback, sendAgenda } from './_viewings.js';
 
 // Canonical public host for self-calls (the executor). VERCEL_URL deployment
 // URLs can be auth-gated / unreliable for server-to-server self-fetches, which
@@ -98,6 +99,16 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: true });
       }
 
+      // ── Il ciclo visita (v*) — confirm / move / cancel, dal telefono ────
+      // Deve venire PRIMA della lettura di action_queue: una visita non vive
+      // in quella collezione e il lookup risponderebbe "Non trovata".
+      if (verb[0] === 'v') {
+        const handled = await handleViewingCallback(verb, data.slice(verb.length + 1), {
+          chatId, messageId, callbackId: cq.id,
+        });
+        if (handled) return res.status(200).json({ ok: true });
+      }
+
       const action = await fsGet(`action_queue/${actionId}`);
       if (!action) {
         await tgAckCallback(cq.id, 'Non trovata');
@@ -177,6 +188,7 @@ export default async function handler(req, res) {
           'Tap sui bottoni per approvare/rifiutare, o:',
           '',
           '• /queue — vedi le pending',
+          '• /visite — agenda dei prossimi 7 giorni + richieste da confermare',
           '• /snapshot — stato portal',
           '• /edit <code>&lt;id&gt; &lt;testo&gt;</code> — modifica la bozza',
           '• /cancel — annulla un edit in corso',
@@ -198,6 +210,14 @@ export default async function handler(req, res) {
 
       if (text === '/queue') {
         await tgSend(chatId, await fmtSnapshot());
+        return res.status(200).json({ ok: true });
+      }
+
+      // /visite — l'agenda della settimana, con le richieste ancora aperte
+      // già pronte da confermare con un tap. `/visite 14` allarga l'orizzonte.
+      if (text === '/visite' || text.startsWith('/visite ')) {
+        const n = parseInt(text.slice(8).trim(), 10);
+        await sendAgenda(chatId, Number.isFinite(n) && n > 0 && n <= 30 ? n : 7);
         return res.status(200).json({ ok: true });
       }
 

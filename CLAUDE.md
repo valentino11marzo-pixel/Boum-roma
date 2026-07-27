@@ -359,6 +359,46 @@ viewing id + server secret).
   the visitor's local offset. The confirmed screen leads with the one
   thing they'll tap on the day (directions / join call), then Wallet and
   calendar. No polling, no pending limbo.
+- `api/viewings/_avail.js` — **the availability engine, one copy**. The
+  public grid, the client's reschedule page and the operator's Telegram
+  picker all read it, so they can never disagree about what's free.
+  `loadConfig` / `busyBlocks(cfg, exceptId)` / `buildSlots` / `slotOffered`,
+  plus the Rome-time helpers (offsets derived from `Intl`, no tz library).
+  `exceptId` is what makes a reschedule possible at all — without it a
+  viewing blocks itself and can never move by 30 minutes. Unit-tested
+  (`node tests/viewings/avail.mjs`): step math, the 15' gap, notice,
+  horizon, max/day, and the DST boundary.
+- `api/viewings/_apply.js` — **the ONE place a viewing changes state**.
+  Four surfaces confirm/move/cancel (the operator's API, their Telegram
+  buttons, the client's own page, the portal); the side-effects — email,
+  Wallet push, calendar invite in place, reminder-flag reset — live here
+  once, so they cannot drift. `confirm.js` is now a thin auth wrapper.
+- **The client owns their appointment** — `POST /api/viewings/manage` +
+  `viewing.html` (`/viewing?t=<ref>`). No login: the link IS the
+  credential (`manageToken` in `_lib.js` is *derived*, not stored, so
+  every viewing ever created already has a valid one, no migration;
+  rotating `HOMIE_SECRET` revokes them all). Ops: `lookup` (ticket +
+  free slots), `slots` (the other mode's grid), `reschedule` (re-verified
+  server-side → 409 `slot_taken`), `cancel` (allowed right up to the
+  start). Every change runs through `_apply.js` **and pings the operator's
+  Telegram immediately** — a client rescheduling themselves is never a
+  silent surprise. The page is English-first with IT toggle, shows Rome
+  time next to the visitor's own clock, and carries the day-of action,
+  Wallet and .ics. Linked from the confirmation email, the T-24h reminder,
+  the reschedule email and `book.html`'s confirmed screen.
+- **Telegram: the agenda in your pocket** (`api/telegram/_viewings.js`).
+  Every viewing request pings the admin chat (via `notify-pending`, every
+  minute) as a card with the three moves — **✅ Conferma <l'orario
+  proposto>** (one tap, no typing), **🔁 Sposta** (a real slot picker:
+  day rail → times, mode switch person⇄video, re-verified before writing),
+  **✖️ Annulla** (two steps, because it emails the client). Self-booked
+  viewings arrive as a notification with Sposta/Annulla. `/visite [giorni]`
+  prints the week grouped by day and re-sends an actionable card for
+  anything still open. Callback data is capped at 64 bytes by Telegram —
+  the encoding (`vok/vmv/vdy/vtm/vmo/vxq/vxx/vbk`, mode as one char, time
+  as base36 epoch-minutes) is asserted in `node tests/viewings/telegram.mjs`
+  along with HTML escaping, since one oversized button silently kills the
+  whole keyboard.
 
 ### POST `/api/apply-lead`
 Public lead-capture for the apartment-detail APPLY/RESERVE/WAITLIST flow.

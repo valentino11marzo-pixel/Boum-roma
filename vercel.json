@@ -95,6 +95,11 @@
       "permanent": true
     },
     {
+      "source": "/viewing.html",
+      "destination": "/viewing",
+      "permanent": true
+    },
+    {
       "source": "/concierge.html",
       "destination": "/concierge",
       "permanent": true
@@ -246,6 +251,10 @@
     {
       "source": "/book",
       "destination": "/book.html"
+    },
+    {
+      "source": "/viewing",
+      "destination": "/viewing.html"
     },
     {
       "source": "/about",
@@ -471,7 +480,7 @@
       ]
     },
     {
-      "source": "/(portal|admin|admin-flats|setup-firebase|seed-listings|boom-doc-parser|boom_doc_parser|cockpit-preview|team|banca|salute|manuale|photo-lab|pfs-command|pre-agreement-admin|casa|tenant|portal.html|admin.html|admin-flats.html|setup-firebase.html|seed-listings.html|boom_doc_parser.html|cockpit-preview.html|team.html|banca.html|salute.html|manuale.html|photo-lab.html|pfs-command.html|pre-agreement-admin.html|tenant.html)(.*)",
+      "source": "/(portal|admin|admin-flats|setup-firebase|seed-listings|boom-doc-parser|boom_doc_parser|cockpit-preview|team|banca|salute|manuale|photo-lab|pfs-command|pre-agreement-admin|casa|tenant|portal.html|admin.html|admin-flats.html|setup-firebase.html|seed-listings.html|boom_doc_parser.html|cockpit-preview.html|team.html|banca.html|salute.html|manuale.html|photo-lab.html|pfs-command.html|pre-agreement-admin.html|tenant.html|viewing|viewing.html)(.*)",
       "headers": [
         {
           "key": "X-Robots-Tag",
