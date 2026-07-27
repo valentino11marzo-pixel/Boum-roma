@@ -119,3 +119,30 @@ export function primaryAction(v, lang = 'en') {
 }
 
 export const passUrl = v => `${SITE}/pass-delivery?type=viewing&id=${encodeURIComponent(v.id)}`;
+
+// ── the client's own key to their appointment ──────────────────────────────
+// A viewing needs no account and no password: the link IS the credential.
+// The token is derived (not stored), so every viewing ever created — past
+// ones included — already has a valid link, with no migration and nothing
+// extra to keep in sync. Rotating HOMIE_SECRET invalidates them all at once.
+export function manageToken(viewingId) {
+  const salt = process.env.HOMIE_SECRET || process.env.CRON_SECRET || 'boom';
+  return crypto.createHash('sha256').update(`viewing-manage:${viewingId}:${salt}`).digest('hex').slice(0, 24);
+}
+
+/** One opaque blob for the URL: `<id>.<token>` */
+export const manageRef = id => `${id}.${manageToken(id)}`;
+
+/** @returns the viewing id when the token checks out, otherwise null */
+export function parseManageRef(ref) {
+  const s = String(ref || '');
+  const i = s.lastIndexOf('.');
+  if (i <= 0 || i === s.length - 1) return null;
+  const id = s.slice(0, i);
+  const got = Buffer.from(s.slice(i + 1));
+  const want = Buffer.from(manageToken(id));
+  if (got.length !== want.length) return null;
+  return crypto.timingSafeEqual(got, want) ? id : null;
+}
+
+export const manageUrl = v => `${SITE}/viewing?t=${manageRef(v.id)}`;

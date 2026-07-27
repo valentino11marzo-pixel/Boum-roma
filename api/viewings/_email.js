@@ -10,7 +10,7 @@ import { sendEmail } from '../agent/_lib.js';
 import { shell, btn, btn2, para, fine } from '../preagreement/_notify.js';
 import {
   isVideo, videoRoom, startOf, fmtWhen, googleCalUrl, icsUrl,
-  primaryAction, passUrl, waMsg, WA,
+  primaryAction, passUrl, waMsg, WA, manageUrl,
 } from './_lib.js';
 
 const esc = s => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
@@ -64,6 +64,12 @@ export function sendConfirmation(v, lang = 'en') {
     para(it
       ? `Ti scriveremo <b>il giorno prima</b>, poi <b>3 ore</b> e <b>30 minuti</b> prima: non devi ricordarti nulla.`
       : `We'll write <b>the day before</b>, then <b>3 hours</b> and <b>30 minutes</b> before — you don't have to remember a thing.`) +
+    // Plans change — especially for someone still abroad. One link, no login,
+    // no waiting for a human to read a message: they pick another free slot
+    // themselves and everything (calendar, Wallet, countdown) follows.
+    para(it
+      ? `Ti serve un altro orario, o passare da videochiamata a visita di persona? <a href="${manageUrl(v)}" style="color:#B8960C"><b>Gestisci la visita qui</b></a> — un tap, senza account.`
+      : `Need a different time, or to switch between video and in person? <a href="${manageUrl(v)}" style="color:#B8960C"><b>Manage your viewing here</b></a> — one tap, no account needed.`) +
     (isVideo(v)
       ? fine(it
         ? 'La videochiamata si apre nel browser: nessuna app, nessun account. Se sei da telefono, usa Chrome o Safari.'
@@ -87,8 +93,8 @@ export function sendReminder(v, when, lang = 'en') {
   }[when];
   const body = {
     '24h': it
-      ? `Domani <b>${esc(fmtWhen(s, lang))}</b>. Se ti serve spostarla, basta rispondere a questa email o scriverci su WhatsApp.`
-      : `Tomorrow, <b>${esc(fmtWhen(s, lang))}</b>. Need to move it? Just reply to this email or message us on WhatsApp.`,
+      ? `Domani <b>${esc(fmtWhen(s, lang))}</b>. Se ti serve spostarla, <a href="${manageUrl(v)}" style="color:#B8960C">scegli un altro orario qui</a> — ci pensa tutto il sistema.`
+      : `Tomorrow, <b>${esc(fmtWhen(s, lang))}</b>. Need to move it? <a href="${manageUrl(v)}" style="color:#B8960C">Pick another time here</a> — everything updates itself.`,
     '3h': isVideo(v)
       ? (it ? 'Tra poco ci vediamo in video. Ti consigliamo cuffie e una connessione stabile.' : 'We\'ll see you on video shortly. Headphones and a stable connection help.')
       : (it ? 'Tra poco ci vediamo. Tocca il pulsante per le indicazioni: ti portiamo esattamente al portone.' : 'See you shortly. Tap the button for directions — it takes you right to the door.'),
@@ -152,7 +158,9 @@ export function sendChanged(v, kind, lang = 'en') {
       + ticket(v, lang)
       + btn(act.href, act.label)
       + (cal ? btn2(cal, it ? '📅 Aggiorna il calendario' : '📅 Update your calendar') : '')
-      + fine(it ? 'Il pass nel Wallet si aggiorna da solo.' : 'Your Wallet pass updates itself.');
+      + fine(it
+        ? `Il pass nel Wallet si aggiorna da solo. Non va bene neanche questo? <a href="${manageUrl(v)}" style="color:#B8960C">Scegli tu l'orario</a>.`
+        : `Your Wallet pass updates itself. Still not right? <a href="${manageUrl(v)}" style="color:#B8960C">Pick a time yourself</a>.`);
   return send(v,
     cancelled
       ? (it ? `Visita annullata — ${v.listingName || 'BOOM Rome'}` : `Viewing cancelled — ${v.listingName || 'BOOM Rome'}`)
