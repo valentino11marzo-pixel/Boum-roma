@@ -883,7 +883,7 @@ a.blkchip:hover{border-color:var(--line-gold);color:var(--gold)}
         <div class="feat" id="feat"></div>
       </section>
 
-      <section class="sec reveal" id="money" data-ambient="seta">
+      <section class="sec reveal" id="money" data-ambient="seta-doro">
         <div class="sec-h"><span class="num">02</span><div><div class="eyebrow">The money</div><h2>Exactly what you <span class="g">pay</span>. And what comes back.</h2></div></div>
         <p class="sub">Everything to move in — computed on the dates you choose. No fees invented at the table.</p>
         <div class="mtiles" id="mtiles"></div>
@@ -922,7 +922,7 @@ a.blkchip:hover{border-color:var(--line-gold);color:var(--gold)}
         <a class="skyline-link" href="/skyline">See every BOOM home on Rome's 3D skyline ↗</a>
       </section>
 
-      <section class="sec reveal" id="trust" data-ambient="marmoantico">
+      <section class="sec reveal" id="trust" data-ambient="raggiera">
         <div class="sec-h"><span class="num">04</span><div><div class="eyebrow">Safe &amp; fast</div><h2>Proof, not <span class="g">promises</span>.</h2></div></div>
         <div class="powergrid" id="powergrid">
           <div class="pw"><b><i>2</i><small>h</small></b><span>Max reply time</span></div>
@@ -1042,13 +1042,18 @@ a.blkchip:hover{border-color:var(--line-gold);color:var(--gold)}
 
 <script src="/js/boom-elevate.js"></script>
 <script src="/js/boom-ambient.js"></script>
+<script src="/js/boom-fondali.js"></script>
 <script>
 /* MATERIA: living stone under the whole visit — develops in as the price lands */
 try{
   if(window.BoomAmbient){
-    /* sections on: marmoantico (arrival) → seta (the money reads in silence)
-       → caustica (water-light for the place) → marmoantico (the tail) */
-    window.__amb=BoomAmbient.mount({ink:'#060607',inkRGB:'6,6,7',palette:{a:'255,215,0',b:'255,229,160'},intensity:.72,scene:'marmoantico',z:-3});
+    /* THE SCORE, finally real. The old scene names (marmoantico/seta/
+       caustica) never existed in the engine — setScene() silently dropped
+       them and the canvas stayed EMPTY. Now every act names a scene that
+       exists: marmo (travertine arrival) → seta-doro (liquid-gold silk for
+       the money) → tevere (water-light for the place) → raggiera (the Deco
+       crown behind the proof). boom-fondali.js registers the lab scenes. */
+    window.__amb=BoomAmbient.mount({ink:'#060607',inkRGB:'6,6,7',palette:{a:'255,215,0',b:'255,229,160'},intensity:.78,scene:'marmoantico',z:-3});
     var _aw=document.querySelector('[data-boom-ambient]');
     if(_aw&&!matchMedia('(prefers-reduced-motion: reduce)').matches){_aw.style.opacity='0';_aw.style.transition='opacity 1.4s cubic-bezier(.16,1,.3,1)';setTimeout(function(){_aw.style.opacity='';},700);}
   }

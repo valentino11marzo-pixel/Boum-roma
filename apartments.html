@@ -582,7 +582,7 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
 <div class="mm" id="mm"><a href="/apartments">Apartments</a><a href="/property-finding">Property Finding</a><a href="/deal-assistance">Deal Assistance</a><a href="/virtual-viewing">Virtual Viewing</a><a href="/about">About</a><a href="https://wa.me/393313251961" class="wa">WhatsApp</a></div>
 
 <div class="shell">
-  <header class="hero">
+  <header class="hero" data-ambient="oculus">
     <span class="eyebrow">BOOM · Rome's verified transitional rentals · 1–18 months</span>
     <h1>Move to Rome. <span class="g">Legally. In English.</span> <span class="g" style="white-space:nowrap">In 48 hours.</span></h1>
     <p>Every home filmed and verified in person. Registered transitional contracts built for internationals. Every price computed to the euro — and viewings you book like a flight seat, confirmed on the spot.</p>
@@ -627,7 +627,7 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
   </header>
 </div>
 
-<div class="shell">
+<div class="shell" data-ambient="cardo">
   <div class="fbar"><div class="fbar-in" id="fbar">
     <button class="fpill filters" onclick="openSheet()" aria-haspopup="dialog">⚙ Filters <span class="cnt" id="fcount"></span></button>
     <button class="fpill" data-quick="beds" onclick="cycleBeds()" aria-pressed="false">Bedrooms <span id="bedsLbl">Any</span></button>
@@ -657,14 +657,14 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
   <div class="empty" id="empty" style="display:none"><h3>No exact match</h3><p>Try widening the budget or dates — or <a href="#" onclick="saveSearchAct();return false">let us find it for you →</a></p>
     <button type="button" class="facet" style="margin-top:16px" onclick="resetAll()">✕ Clear all filters</button></div>
 
-  <section class="culture" id="culture" aria-label="Rome, culture and community by neighbourhood">
+  <section class="culture" id="culture" data-ambient="sampietrini" aria-label="Rome, culture and community by neighbourhood">
     <span class="eyebrow">Culture &amp; community</span>
     <h2>Rome is a city of <span class="g">villages</span>. Find yours.</h2>
     <p style="color:var(--t2);font-size:14px;margin-top:8px;max-width:56ch">Ten rioni, ten personalities. Each guide is written for internationals — where to live, what it really costs, how it feels at 11pm.</p>
     <div class="cultrow" id="cultrow"></div>
   </section>
 
-  <section class="upsell">
+  <section class="upsell" data-ambient="aurum">
     <div class="eyebrow">More than a portal</div>
     <h2>Not seeing the one? <span class="g">We’ll find it.</span></h2>
     <p class="lead">We’re an agency with a tech engine. Tell us your dates and budget and we hunt, verify and bring you the right home.</p>
@@ -734,6 +734,7 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
 
 <script src="/js/boom-elevate.js"></script>
 <script src="/js/boom-ambient.js"></script>
+<script src="/js/boom-fondali.js"></script>
 <script src="/js/neighborhoods.js"></script>
 <script>
 /* The page's ambience: Marmo Antico — living stone. Soft gold clouds and
@@ -741,10 +742,15 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
    Scrolling stirs the stone; it settles on its own. */
 try{
   if(window.BoomAmbient){
-    /* CARDO: la griglia stradale di Roma antica come sfondo vivo — identità
-       romana + ultra-tech in una scena sola, più presente della vecchia
-       pietra (.9) ma sempre sotto il contenuto */
-    window.__amb=BoomAmbient.mount({ink:'#060607',inkRGB:'6,6,7',palette:{a:'255,215,0',b:'255,229,160'},intensity:.9,sections:false,scene:'cardo'});
+    /* LA PARTITURA della discovery — quattro atti, un canvas:
+       OCULUS (i cassettoni del Pantheon + lama di sole) all'arrivo →
+       CARDO (la griglia di Roma percorsa da luci) mentre sfogli le case →
+       SAMPIETRINI (la strada, la community) sulla cultura →
+       AURUM (oro fuso) sull'upsell. Cross-fade guidato dallo scroll. */
+    window.__amb=BoomAmbient.mount({ink:'#060607',inkRGB:'6,6,7',palette:{a:'255,215,0',b:'255,229,160'},intensity:.9,scene:'oculus'});
+    /* lo sfondo respira col gesto: scroll → stir; overlay → si acquieta */
+    var _stirY2=0;
+    addEventListener('scroll',function(){var dy=Math.abs(scrollY-_stirY2);_stirY2=scrollY;try{if(dy)__amb.stir(Math.min(1,dy/250))}catch(e){}},{passive:true});
     var _stY=0;
     addEventListener('scroll',function(){var dy=Math.abs(scrollY-_stY);_stY=scrollY;try{if(dy)window.__amb.stir(Math.min(1,dy/250))}catch(_e){}},{passive:true});
   }
@@ -1397,8 +1403,8 @@ function syncSheet(){if(document.getElementById('sheet').classList.contains('sho
 let lastFocus=null;
 function openSheet(){lastFocus=document.activeElement;buildSheet();document.getElementById('sheet').classList.add('show');document.body.style.overflow='hidden';document.querySelector('#sheet .xc').focus();}
 function closeSheet(){document.getElementById('sheet').classList.remove('show');document.body.style.overflow='';if(lastFocus)lastFocus.focus();}
-function openOv(id){lastFocus=document.activeElement;document.getElementById(id).classList.add('show');document.body.style.overflow='hidden';const x=document.querySelector('#'+id+' .xc');if(x)x.focus();}
-function closeOv(id){document.getElementById(id).classList.remove('show');document.body.style.overflow='';if(lastFocus)lastFocus.focus();}
+function openOv(id){lastFocus=document.activeElement;document.getElementById(id).classList.add('show');document.body.style.overflow='hidden';const x=document.querySelector('#'+id+' .xc');if(x)x.focus();try{if(window.__amb)__amb.mood('focus')}catch(e){}}
+function closeOv(id){document.getElementById(id).classList.remove('show');document.body.style.overflow='';if(lastFocus)lastFocus.focus();try{if(window.__amb)__amb.mood('browse')}catch(e){}}
 function resetAll(){Object.assign(S,{q:'',budgetMax:4000,moveIn:'',beds:0,baths:0,furnished:false,video:false,zones:[],feats:[],sort:'match',savedOnly:false});syncControls();buildSheet();render();}
 document.getElementById('sheet').addEventListener('click',e=>{if(e.target.id==='sheet')closeSheet();});
 document.getElementById('cmpOv').addEventListener('click',e=>{if(e.target.id==='cmpOv')closeOv('cmpOv');});
