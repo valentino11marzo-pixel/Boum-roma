@@ -260,6 +260,16 @@ brand-new leads instantly — context card + one-tap "Apri WhatsApp" (wa.me)
 when there's a phone — while the Commerciale's AI reply draft follows via
 the usual approval card.
 
+### Lingua delle risposte (`api/_lang.js`)
+`replyLang(src)` decides IT vs EN from what the person ACTUALLY wrote
+(Italian function words + accents vs English markers), falling back to an
+explicit `language` flag and finally to **English** — BOOM's house language.
+Used by the Telegram lead card's pre-filled WhatsApp message, the
+Commerciale's drafts and its follow-up template. Fixes the bug where
+`leads/scan-inbox` stored `language:'it'` by default, so every pre-filled
+reply came out in Italian even for an English-speaking expat; the scanner now
+stores `null` when the language is unknown.
+
 ### GET/POST `/api/leads/brain` (cron */10 min, offset :03)
 IL LEAD BRAIN — server-side replacement for Homie's per-lead Sonnet grading
 (~2k tok/lead + ~10k/day AI-blocking injections). Stage 0: free rules
@@ -687,7 +697,7 @@ after a human tap. Shared plumbing in `api/employees/_lib.js`
 |---|---|---|
 | `/api/employees/contabile` | daily 04:40 | Fiscal picture from live data: obligations due/overdue (`js/fiscal-engine.js`, landlord + company from paid `invoices` by quarter), commercialista document checklist per contract (`js/taxpack-engine.js`), collections YTD + late payments. Telegram only when actionable. On the 1st of the month emails a "chiusura mese" recap (`ACCOUNTING_EMAIL` env, falls back to `GMAIL_USER`). |
 | `/api/employees/gestore` | daily 05:10 | Property manager: drafts payment-reminder emails (≥3gg late, re-proposes weekly via ISO-week contextHash) and signature nudges with the party's Magic-Sign link (`/sign?sign=<token>`) as approvable `action_queue` items; Telegram digest of renewals ≤90gg, compliance deadlines (`js/compliance-rules.js`), maintenance open >48h. |
-| `/api/employees/commerciale` | every 2h, 06-18 | Lead responder: any lead still `new` after a 20-min human window gets a Claude-drafted first reply (same persona as `agent/ai.reply`) proposed for approval; still `new` after 48h (grade A/B or apply/reserve) gets one templated follow-up. Caps per run; dedupe before paying for the AI call. |
+| `/api/employees/commerciale` | every 2h, 06-18 | Lead responder, property-aware: any lead still `new` after a 20-min human window gets a Claude-drafted first reply (same persona as `agent/ai.reply`) proposed for approval; still `new` after 48h (grade A/B or apply/reserve) gets one templated follow-up. Caps per run; dedupe before paying for the AI call. |
 
 All three accept POST with Vercel cron secret, `X-Homie-Secret`, or an admin
 Firebase ID token (see `api/pfs/_guard.js`); `?dry=1` computes without
