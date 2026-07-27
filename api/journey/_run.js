@@ -23,7 +23,8 @@
 
 import { fsList, fsGet, fsPatch } from '../homie/_lib.js';
 import { sendEmail } from '../agent/_lib.js';
-import { shell, btn, btn2, para, fine } from '../preagreement/_notify.js';
+// Un solo sistema di design per tutte le email della piattaforma.
+import { shell, btn, btn2, para, fine, includes, hero, tiles, timeline, rule } from '../preagreement/_notify.js';
 
 const ADMIN_EMAIL = 'valentino@boom-rome.com';
 const WA = 'https://wa.me/393313251961';
@@ -34,10 +35,6 @@ const waMsg = t => WA + '?text=' + encodeURIComponent(t);
 const buyUrl = (kind, tenant) => 'https://www.boomrome.com/api/services/buy?kind=' + kind
   + (tenant && tenant.email ? '&e=' + encodeURIComponent(tenant.email) : '')
   + (tenant && tenant.name ? '&n=' + encodeURIComponent(tenant.name) : '');
-// what the client actually gets — three lines, no marketing fog
-const includes = items => `<table cellpadding="0" cellspacing="0" style="margin:14px auto 0">${items.map(i =>
-  `<tr><td style="padding:3px 0;font-family:Helvetica Neue,Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:300;color:#6E6A60">
-    <span style="color:#D4AF37">·</span>&nbsp; ${i}</td></tr>`).join('')}</table>`;
 const esc = s => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
 const eur = n => '€' + Number(n || 0).toLocaleString('en-US');
 const fmtD = s => { try { return new Date(String(s).slice(0, 10) + 'T00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); } catch { return s; } };

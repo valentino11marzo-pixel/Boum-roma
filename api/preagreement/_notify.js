@@ -22,7 +22,10 @@ import { buildPaPdf } from './_pdf.js';
 
 const ADMIN_EMAIL = 'valentino@boom-rome.com';
 
-// Palette (email-safe, hard-coded — no CSS vars in email clients)
+// ── Palette ───────────────────────────────────────────────────────────────
+// Hard-coded: email clients have no CSS variables. Every colour is also
+// re-declared in the dark-mode block of the <style> below, so the document
+// reads as a deliberate design in dark mode instead of an inverted mess.
 const INK = '#141414';          // near-black text
 const SOFT = '#6E6A60';         // secondary text, warm grey
 const FAINT = '#98948A';        // tertiary
@@ -30,7 +33,12 @@ const HAIR = '#E7E4DC';         // hairlines on paper
 const GOLD = '#D4AF37';         // brand gold (chips, CTA fill)
 const GOLD_DEEP = '#8A6D1D';    // gold that reads on white paper
 const PAPER_BG = '#EFEDE7';     // the desk the paper sits on
-const SANS = 'Helvetica Neue,Helvetica,Arial,sans-serif';
+// Quoted family name: an unquoted multi-word font is invalid CSS and some
+// clients (notably older Outlook.com) drop the whole declaration.
+const SANS = "'Helvetica Neue',Helvetica,Arial,sans-serif";
+// Outlook desktop renders with Word: it ignores line-height unless told to
+// do so exactly, and letter-spacing not at all. This prefix goes on text.
+const MSO = 'mso-line-height-rule:exactly;';
 
 const esc = s => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
 const eur = n => '€' + Number(n || 0).toLocaleString('en-US', {
@@ -146,44 +154,197 @@ export function paDocumentHtml(pa, opts = {}) {
 // ── The shell: black masthead + white paper card on a warm desk ──────────
 // Exported: this is THE email design system for the whole platform
 // (journey emails, rent receipts, fascicolo) — one look everywhere.
+// The <style> block: progressive enhancement only. Every element is already
+// styled inline, so a client that strips this (some Outlook.com views) still
+// renders the email correctly — it just doesn't get the responsive collapse
+// or the dark theme.
+const HEAD_CSS = `
+/* iOS: don't auto-enlarge our type. Outlook: don't add table gaps. */
+body{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;width:100%!important}
+table{border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0}
+img{border:0;line-height:100%;outline:none;-ms-interpolation-mode:bicubic}
+/* iOS turns dates, addresses and phone numbers into blue links. Ours stay ours. */
+a[x-apple-data-detectors]{color:inherit!important;text-decoration:none!important;
+  font-size:inherit!important;font-family:inherit!important;font-weight:inherit!important;line-height:inherit!important}
+.bp-link:hover{opacity:.82}
+
+@media only screen and (max-width:620px){
+  .bp-pad{padding:26px 20px 24px!important}
+  .bp-mast{padding:18px 20px!important}
+  /* Le righe del documento passano da etichetta-a-sinistra/valore-a-destra
+     a due righe impilate: a 320px la colonna destra andava a capo su ogni
+     parola. */
+  .bp-k,.bp-v{display:block!important;width:100%!important;text-align:left!important;
+    padding-right:0!important;white-space:normal!important}
+  .bp-k{padding:14px 0 2px!important;border-bottom:none!important}
+  .bp-v{padding:0 0 13px!important;font-size:15px!important}
+  .bp-hero{font-size:34px!important}
+  .bp-btn a{display:block!important}
+  .bp-tile{display:block!important;width:100%!important}
+}
+
+/* Dark mode: la carta resta un documento, non un negativo fotografico.
+   [data-ogsc] copre Outlook.com, che riscrive gli stili invece di
+   rispettare la media query. */
+@media (prefers-color-scheme:dark){
+  .bp-desk{background:#0B0B0D!important}
+  .bp-paper{background:#15151A!important;border-color:#2A2A31!important}
+  .bp-ink,.bp-ink b{color:#F1EFE9!important}
+  .bp-soft{color:#A7A297!important}
+  .bp-faint{color:#807B72!important}
+  .bp-hair{border-color:#2A2A31!important}
+  .bp-panel{background:#1C1C22!important}
+  .bp-goldband{background:#241E0C!important}
+  .bp-golddeep{color:${GOLD}!important}
+  .bp-foot{color:#6E6A62!important}
+  .bp-btn2 td{background:#2E2E36!important}
+}
+[data-ogsc] .bp-desk{background:#0B0B0D!important}
+[data-ogsc] .bp-paper{background:#15151A!important;border-color:#2A2A31!important}
+[data-ogsc] .bp-ink,[data-ogsc] .bp-ink b{color:#F1EFE9!important}
+[data-ogsc] .bp-soft{color:#A7A297!important}
+[data-ogsc] .bp-faint{color:#807B72!important}
+[data-ogsc] .bp-panel{background:#1C1C22!important}
+[data-ogsc] .bp-golddeep{color:${GOLD}!important}`;
+
+// ── The shell: black masthead + white paper card on a warm desk ──────────
+// Exported: this is THE email design system for the whole platform
+// (journey emails, rent receipts, owner statements) — one look everywhere.
+//
+// `preheader` is the line the inbox shows next to the subject. Without one,
+// Gmail scrapes the first words of the body ("Ciao Anna — 28 days to…"),
+// which wastes the single most-read line of the whole email.
 export function shell(inner, preheader) {
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="color-scheme" content="light"></head>
-  <body style="margin:0;padding:0;background:${PAPER_BG}">
-  <span style="display:none;max-height:0;overflow:hidden">${esc(preheader || '')}</span>
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:${PAPER_BG};padding:30px 12px"><tr><td align="center">
+  return `<!doctype html>
+<html lang="en" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<!--[if mso]><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
+<style>${HEAD_CSS}</style>
+</head>
+<body class="bp-desk" style="margin:0;padding:0;background:${PAPER_BG}">
+<!-- Preheader + spacer: lo spazio unicode consuma il resto della riga di
+     anteprima, così l'inbox non ci attacca dietro l'inizio del corpo. -->
+<div style="display:none;font-size:1px;color:${PAPER_BG};line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden">${esc(preheader || '')}${'&#8203;&nbsp;'.repeat(60)}</div>
 
-    <table width="640" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;border-collapse:separate">
-      <tr><td style="background:#0A0A0B;border-radius:16px 16px 0 0;border-bottom:2px solid ${GOLD};padding:20px 34px;text-align:center">
-        <span style="font-family:${SANS};font-size:15px;letter-spacing:9px;color:${GOLD};font-weight:300">B O O M</span><br>
-        <span style="font-family:${SANS};font-size:8.5px;letter-spacing:3.4px;text-transform:uppercase;color:#8F8A7E">Premium rentals · Roma</span>
-      </td></tr>
-      <tr><td style="background:#FFFFFF;border:1px solid #E3E0D7;border-top:none;border-radius:0 0 16px 16px;padding:36px 34px 30px">${inner}</td></tr>
-    </table>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="bp-desk" style="background:${PAPER_BG}"><tr>
+<td align="center" style="padding:30px 12px">
 
-    <table width="640" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%"><tr>
-      <td style="padding:18px 6px;font-family:${SANS};font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:#A6A298;text-align:center">
-        Egidi Immobiliare S.r.l. · P.IVA 17322991005 · <a href="https://www.boomrome.com" style="color:#A6A298;text-decoration:none">boomrome.com</a>
+  <table role="presentation" width="640" cellpadding="0" cellspacing="0" border="0" style="max-width:640px;width:100%;border-collapse:separate">
+    <tr><td class="bp-mast" style="background:#0A0A0B;border-radius:16px 16px 0 0;border-bottom:2px solid ${GOLD};padding:22px 34px;text-align:center">
+      <div style="font-family:${SANS};font-size:15px;letter-spacing:9px;color:${GOLD};font-weight:300;${MSO}line-height:20px">B&nbsp;O&nbsp;O&nbsp;M</div>
+      <div style="font-family:${SANS};font-size:8.5px;letter-spacing:3.4px;text-transform:uppercase;color:#8F8A7E;${MSO}line-height:14px;padding-top:4px">Premium rentals · Roma</div>
+    </td></tr>
+    <tr><td class="bp-paper bp-pad" style="background:#FFFFFF;border:1px solid #E3E0D7;border-top:none;border-radius:0 0 16px 16px;padding:36px 34px 30px">${inner}</td></tr>
+  </table>
+
+  <table role="presentation" width="640" cellpadding="0" cellspacing="0" border="0" style="max-width:640px;width:100%"><tr>
+    <td class="bp-foot" style="padding:18px 6px;font-family:${SANS};font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:#A6A298;text-align:center;${MSO}line-height:16px">
+      Egidi Immobiliare S.r.l. · P.IVA 17322991005 · <a href="https://www.boomrome.com" style="color:#A6A298;text-decoration:none">boomrome.com</a>
+    </td>
+  </tr></table>
+
+</td></tr></table></body></html>`;
+}
+
+// ── Bulletproof buttons ───────────────────────────────────────────────────
+// Outlook su Windows disegna con Word: niente border-radius, e il padding su
+// un <a> viene ignorato — il bottone diventa un link nudo. La roundrect VML
+// è l'unico modo per avere una vera pillola lì, e resta invisibile altrove.
+function pill(href, label, { bg, fg, size, pad, weight, spacing, margin, cls }) {
+  const w = Math.max(210, Math.round(label.length * (size * 0.78) + pad * 2 + 26));
+  const h = Math.round(size * 1.05 + pad * 2 + 8);
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" class="${cls}" style="margin:${margin}">
+  <tr><td align="center">
+    <!--[if mso]>
+    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word"
+      href="${esc(href)}" style="height:${h}px;v-text-anchor:middle;width:${w}px;" arcsize="50%" stroke="f" fillcolor="${bg}">
+      <w:anchorlock/>
+      <center style="color:${fg};font-family:Helvetica,Arial,sans-serif;font-size:${size}px;font-weight:${weight}">${esc(label)}</center>
+    </v:roundrect>
+    <![endif]-->
+    <!--[if !mso]><!-- -->
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+      <td style="background:${bg};border-radius:100px;text-align:center">
+        <a class="bp-link" href="${esc(href)}" style="display:inline-block;padding:${pad}px ${Math.round(pad * 2.1)}px;font-family:${SANS};font-size:${size}px;letter-spacing:${spacing}px;font-weight:${weight};color:${fg};text-decoration:none;${MSO}line-height:${Math.round(size * 1.05)}px">${esc(label)}</a>
       </td>
     </tr></table>
-  </td></tr></table></body></html>`;
+    <!--<![endif]-->
+  </td></tr></table>`;
 }
 
 // Primary action — gold pill, dark text (the one thing to tap).
 export function btn(href, label) {
-  return `<table cellpadding="0" cellspacing="0" style="margin:24px auto 0"><tr>
-    <td style="background:${GOLD};border-radius:100px;padding:15px 32px;text-align:center">
-      <a href="${esc(href)}" style="font-family:${SANS};font-size:12px;letter-spacing:2px;text-transform:uppercase;font-weight:bold;color:#1A1407;text-decoration:none">${esc(label)}</a>
-    </td></tr></table>`;
+  return pill(href, String(label).toUpperCase(), {
+    bg: GOLD, fg: '#1A1407', size: 12, pad: 15, weight: 'bold', spacing: 2,
+    margin: '24px auto 0', cls: 'bp-btn',
+  });
 }
 // Secondary action — quiet black pill.
 export function btn2(href, label) {
-  return `<table cellpadding="0" cellspacing="0" style="margin:12px auto 0"><tr>
-    <td style="background:#141414;border-radius:100px;padding:12px 26px;text-align:center">
-      <a href="${esc(href)}" style="font-family:${SANS};font-size:11.5px;letter-spacing:1.4px;color:#FFFFFF;text-decoration:none">${esc(label)}</a>
-    </td></tr></table>`;
+  return pill(href, String(label), {
+    bg: '#141414', fg: '#FFFFFF', size: 12, pad: 12, weight: 'normal', spacing: 1.2,
+    margin: '12px auto 0', cls: 'bp-btn bp-btn2',
+  });
 }
-export const para = (html, extra) => `<p style="font-family:${SANS};font-size:14px;font-weight:300;color:#33312C;line-height:1.75;margin:0 0 20px;${extra || ''}">${html}</p>`;
-export const fine = (html, extra) => `<p style="font-family:${SANS};font-size:11.5px;font-weight:300;color:${SOFT};line-height:1.7;margin:14px 0 0;${extra || ''}">${html}</p>`;
+
+export const para = (html, extra) => `<p class="bp-ink" style="font-family:${SANS};font-size:14.5px;font-weight:300;color:#33312C;line-height:1.75;margin:0 0 20px;${MSO}${extra || ''}">${html}</p>`;
+export const fine = (html, extra) => `<p class="bp-soft" style="font-family:${SANS};font-size:11.5px;font-weight:300;color:${SOFT};line-height:1.7;margin:14px 0 0;${MSO}${extra || ''}">${html}</p>`;
+
+// ── Nuove primitive di composizione ───────────────────────────────────────
+
+// L'unico numero che conta, trattato come tale (importo dovuto, incasso,
+// saldo). Un cliente apre l'email per QUESTO: non deve cercarlo.
+export function hero({ eyebrow, value, note } = {}) {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="bp-goldband" style="background:#FBF8EF;border-left:3px solid ${GOLD};border-radius:0 12px 12px 0;margin:0 0 24px">
+  <tr><td style="padding:20px 22px">
+    ${eyebrow ? `<div class="bp-golddeep" style="font-family:${SANS};font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:${GOLD_DEEP};${MSO}line-height:14px">${esc(eyebrow)}</div>` : ''}
+    <div class="bp-ink bp-hero" style="font-family:${SANS};font-size:38px;font-weight:200;color:${INK};letter-spacing:-1px;${MSO}line-height:46px;padding-top:4px">${value}</div>
+    ${note ? `<div class="bp-soft" style="font-family:${SANS};font-size:12px;font-weight:300;color:${SOFT};${MSO}line-height:18px;padding-top:5px">${note}</div>` : ''}
+  </td></tr></table>`;
+}
+
+// Due o tre dati affiancati che si impilano sul telefono.
+export function tiles(items = []) {
+  const cells = items.filter(Boolean).map(t => `
+    <td class="bp-tile" width="${Math.floor(100 / items.length)}%" style="padding:14px 16px;vertical-align:top">
+      <div class="bp-faint" style="font-family:${SANS};font-size:9px;letter-spacing:1.8px;text-transform:uppercase;color:${FAINT};${MSO}line-height:13px">${esc(t.k)}</div>
+      <div class="bp-ink" style="font-family:${SANS};font-size:17px;font-weight:400;color:${INK};${MSO}line-height:24px;padding-top:3px">${t.v}</div>
+      ${t.sub ? `<div class="bp-soft" style="font-family:${SANS};font-size:11px;font-weight:300;color:${SOFT};${MSO}line-height:16px">${t.sub}</div>` : ''}
+    </td>`).join('');
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="bp-panel" style="background:#F7F5F0;border-radius:12px;margin:0 0 22px"><tr>${cells}</tr></table>`;
+}
+
+// "Cosa succede adesso" — la sequenza, numerata. Toglie l'ansia del "e poi?".
+export function timeline(steps = []) {
+  const rows = steps.filter(Boolean).map((s, i) => `
+    <tr>
+      <td width="30" style="vertical-align:top;padding:0 12px 16px 0">
+        <div style="width:24px;height:24px;background:${i === 0 ? GOLD : 'transparent'};border:1px solid ${i === 0 ? GOLD : HAIR};border-radius:100px;text-align:center;font-family:${SANS};font-size:11px;font-weight:bold;color:${i === 0 ? '#1A1407' : FAINT};${MSO}line-height:24px">${i + 1}</div>
+      </td>
+      <td style="vertical-align:top;padding:0 0 16px">
+        <div class="bp-ink" style="font-family:${SANS};font-size:13.5px;font-weight:500;color:${INK};${MSO}line-height:20px">${esc(s.title)}</div>
+        ${s.note ? `<div class="bp-soft" style="font-family:${SANS};font-size:12px;font-weight:300;color:${SOFT};${MSO}line-height:18px;padding-top:2px">${s.note}</div>` : ''}
+      </td>
+    </tr>`).join('');
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:6px 0 4px">${rows}</table>`;
+}
+
+// Filo d'oro sottile: separa i capitoli senza pesare.
+export const rule = () => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:26px 0"><tr><td class="bp-hair" style="border-top:1px solid ${HAIR};font-size:0;line-height:0">&nbsp;</td></tr></table>`;
+
+// Elenco di cosa è incluso — spunte oro, niente <ul> (Outlook li sbaglia).
+export function includes(items = []) {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px">${
+    items.filter(Boolean).map(i => `<tr>
+      <td width="20" style="vertical-align:top;font-family:${SANS};font-size:13px;color:${GOLD_DEEP};${MSO}line-height:22px" class="bp-golddeep">✓</td>
+      <td class="bp-soft" style="font-family:${SANS};font-size:13px;font-weight:300;color:${SOFT};${MSO}line-height:22px">${i}</td>
+    </tr>`).join('')}</table>`;
+}
 
 // "Your contract is ready to sign" — the tenant's Magic-Sign email.
 // notifyClient:false = admin heads-up only (the auto pipeline PREPARES the
