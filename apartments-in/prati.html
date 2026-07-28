@@ -49,15 +49,11 @@
   <link rel="dns-prefetch" href="https://www.googletagmanager.com">
   <link rel="dns-prefetch" href="https://www.google-analytics.com">
 <!-- BOOM_SEO:END -->
-    <!-- Perf: early-connect to the hosts that gate the LCP photos (Firebase data + imgur images) -->
-    <link rel="preconnect" href="https://i.imgur.com" crossorigin>
-    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
   <!-- BOOM_SEO:placeholder — populated by scripts/seo-update.js -->
 
   <!-- Google tag -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
-  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied',wait_for_update:500});gtag('config','G-EYCD59RDVJ')</script>
+  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-EYCD59RDVJ')</script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -267,8 +263,7 @@ footer{background:var(--bg1);border-top:1px solid var(--border);padding:60px 50p
   "sameAs": [
     "https://www.instagram.com/boomrome",
     "https://www.linkedin.com/company/boomrome",
-    "https://wa.me/393313251961",
-    "https://share.google/xikmVxQCRuKOdWcND"
+    "https://wa.me/393331234567"
   ],
   "address": {
     "@type": "PostalAddress",
@@ -432,8 +427,6 @@ footer{background:var(--bg1);border-top:1px solid var(--border);padding:60px 50p
 }
   </script>
 <!-- BOOM_JSONLD:END -->
-    <link rel="stylesheet" href="/css/boom-cinema.css">
-<script defer src="/js/boom-consent.js"></script>
 </head>
 <body>
 
@@ -602,7 +595,6 @@ footer{background:var(--bg1);border-top:1px solid var(--border);padding:60px 50p
   <div class="cta-actions">
     <a href="/book" class="btn btn-primary">Book a Viewing</a>
     <a href="/property-finding" class="btn btn-ghost">Have BOOM Find Me One</a>
-    <a href="https://wa.me/393313251961" class="btn btn-ghost" rel="noopener">💬 WhatsApp Us</a>
   </div>
 </section>
 
@@ -635,7 +627,6 @@ footer{background:var(--bg1);border-top:1px solid var(--border);padding:60px 50p
         <a href="/terms">Terms</a>
       </div>
     </div>
-    <nav class="foot-nbhds" aria-label="Rome neighborhoods" style="border-top:1px solid rgba(255,255,255,0.08);margin-top:8px;padding:18px 0 4px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:baseline;font-size:13px;line-height:1.8"><span style="color:#999;letter-spacing:1px;text-transform:uppercase;font-size:11px">Rome neighborhoods</span><a href="/apartments-in/trastevere">Trastevere</a><a href="/apartments-in/centro-storico">Centro Storico</a><a href="/apartments-in/monti">Monti</a><span aria-current="page" style="color:#D4AF37">Prati</span><a href="/apartments-in/pigneto">Pigneto</a><a href="/apartments-in/testaccio">Testaccio</a><a href="/apartments-in/ostiense">Ostiense</a><a href="/apartments-in/trieste-coppede">Trieste &amp; Coppedè</a><a href="/apartments-in/san-lorenzo">San Lorenzo</a><a href="/apartments-in/esquilino">Esquilino</a></nav>
     <div class="foot-bottom">© 2026 BOOM Rome — Premium rentals, built in Rome.</div>
   </footer>
 
@@ -663,9 +654,8 @@ const db=firebase.firestore();
   const matchAttr=grid.getAttribute('data-zone-match')||'';
   const terms=matchAttr.toLowerCase().split('|').filter(Boolean);
   try{
-    let all;
-    try{ const snap=await db.collection('listings').get(); all=snap.docs.map(d=>({id:d.id,...d.data()})); }
-    catch(_){ const r=await fetch('/api/listings',{cache:'no-store'}); const j=await r.json(); all=(j&&j.listings)||[]; }
+    const snap=await db.collection('listings').get();
+    const all=snap.docs.map(d=>({id:d.id,...d.data()}));
     const matched=all.filter(l=>{
       const s=(l.status||l.availabilityStatus||'').toLowerCase();
       if(s==='rented'||s==='affittato'||s==='off_market')return false;
@@ -722,7 +712,5 @@ function injectItemListJsonLd(items){
 }
 </script>
 
-        <script defer src="/js/boom-cinema.js"></script>
-    <script defer src="/js/boom-track.js"></script>
 </body>
 </html>
