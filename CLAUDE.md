@@ -806,7 +806,13 @@ One pipeline, three doors:
 3. **Nightly sweep cron** (03:20 UTC, `GET ?mode=sweep&limit=N` with Bearer
    CRON_SECRET): finds listings never curated OR whose curation was clobbered
    (a wizard re-publish replaces the whole `images` array) and re-applies, up
-   to 3 per run, time-boxed — nothing stays raw forever.
+   to 3 per run, time-boxed — nothing stays raw forever. **Order = impact**
+   (`sweepOrder()`, exported + tested): richest galleries first, ties keep the
+   document order. `fsList` hands candidates over in document-ID order — pure
+   alphabet — and on a one-photo listing the brain has nothing to decide (no
+   cover to pick, no gallery to reorder, no duplicate to drop). With 3 slots a
+   night that once left a 25-photo listing raw for three nights while three
+   single-photo ones took the slots.
 
 `audit` = Claude Vision (haiku) classifies every photo (photo/render/
 floorplan/document, room, needed rotation, quality, coverScore, watermark) →
@@ -859,6 +865,7 @@ real. Backs the "Aggiungi annuncio" modal in `pfs-command.html`.
   | `tests/journey/steps.mjs` | **le regole commerciali dell'operatore**: quando parte ogni email e cosa NON deve contenere (T-90 e uscita non vendono, le chiavi non si vendono mai, un prodotto già comprato non si ripropone, il rinnovo non arriva prima del move-in su un transitorio breve) |
   | `tests/journey/review-url.mjs` | solo un vero link "scrivi recensione" (`g.page/r/<id>/review`) entra nelle email; un link Maps "Condividi" viene rifiutato con warning |
   | `tests/dossier/run.mjs` | fascicolo ARPE: un landlord non può scrivere nel fascicolo di un immobile altrui, path sotto `property-docs/<id>/`, slot già pieni non sovrascritti |
+  | `tests/photos/sweep.mjs` | photo-lab: chi è candidato allo sweep, quali foto contano come sorgente (i nostri output enhanced mai), e l'ordine con cui le 3 notti si spendono — le gallerie vere prima degli annunci da una foto. Si auto-skippa senza `sharp` |
   | `tests/safari/boot.mjs` | nessuna superficie autenticata resta appesa su un loader |
 - PWA support via `manifest.json` and `sw.js` service worker — registered on
   the 3 portals via `BoomPortal.registerServiceWorker()`
