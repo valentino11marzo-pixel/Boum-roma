@@ -30,10 +30,11 @@ jobs:
           echo "api/: OK"
       - name: Test percorsi soldi (checkout + webhook + convert, tutto mockato)
         run: node tests/money/run.mjs
-      - name: Test motori puri (fiscal + taxpack)
+      - name: Test motori puri (fiscal + taxpack + dataops)
         run: |
           node tests/fiscal/test.mjs
           node tests/taxpack/test.mjs
+          node tests/dataops/test.mjs
 
   firestore-rules:
     runs-on: ubuntu-latest
