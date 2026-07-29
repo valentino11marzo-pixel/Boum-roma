@@ -15,6 +15,10 @@
 import { fsGet, fsPatch, fsCreate, readJson, logActivity } from '../homie/_lib.js';
 import { setCors, rateOk } from '../magic-sign/_shared.js';
 import { parseSchedaRef, schedaLocked, identityComplete, validCF } from './_scheda.js';
+// Static imports (Vercel NFT non traccia i lazy import di pacchetti npm):
+// la conferma al cliente viaggia sul design system condiviso.
+import { sendEmail } from '../agent/_lib.js';
+import { shell, para, fine, timeline } from '../preagreement/_notify.js';
 
 const clip = (v, n = 160) => String(v == null ? '' : v).trim().slice(0, n);
 
@@ -112,6 +116,48 @@ export default async function handler(req, res) {
 
   const complete = identityComplete(id);
   await logActivity('scheda_submitted', 'contract', { contractId, role, complete }, 'scheda').catch(() => {});
+
+  // ── Conferma al cliente (una volta sola, quando la scheda è completa) ──
+  // Nel design system BOOM, nella lingua del lettore. Best-effort e con
+  // timeout: un SMTP piantato non deve mai bloccare il submit.
+  const confirmFlag = 'scheda' + (P === 'tenant' ? 'Tenant' : 'Landlord') + 'ConfirmedAt';
+  if (complete && !contract[confirmFlag]) {
+    try {
+      let to = '';
+      if (targetUid) { const u = await fsGet('users/' + targetUid).catch(() => null); to = (u && u.email) || ''; }
+      if (!to && role === 'landlord') to = contract.landlordEmail || '';
+      if (!to) to = contract[P + 'Email'] || '';
+      if (to) {
+        const escH = s => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
+        const propLabel = escH((property && (property.name || property.address)) || 'your BOOM home');
+        const first = escH(String(id.name).split(' ')[0]);
+        const html = role === 'landlord'
+          ? shell(
+              para(`Gentile ${first},<br>grazie — la Sua scheda per <b>${propLabel}</b> è arrivata, completa. Non deve fare altro.`)
+              + timeline([
+                { title: 'Scheda ricevuta', note: 'Anagrafica registrata nei nostri sistemi' },
+                { title: 'BOOM prepara il contratto', note: 'Con questi dati, senza ridigitare nulla' },
+                { title: 'Firma digitale', note: 'Riceverà un link sicuro separato quando è il momento' },
+              ])
+              + fine('I Suoi dati sono usati solo per il contratto di locazione (GDPR). Per modifiche può riaprire lo stesso link finché il contratto non è firmato.'),
+              'Scheda ricevuta — al resto pensiamo noi.')
+          : shell(
+              para(`Hi ${first},<br>thank you — your details for <b>${propLabel}</b> are in, complete. Nothing else to do for now.`)
+              + timeline([
+                { title: 'Details received', note: 'Your scheda is safely on file' },
+                { title: 'BOOM prepares your contract', note: 'With these details — nothing to re-type' },
+                { title: 'Digital signature', note: 'You’ll get a separate secure link when it’s time to sign' },
+              ])
+              + fine('Your data is used only for your rental contract (GDPR). Need a correction? Reopen the same link any time before signing.'),
+              'Your details are in — we take it from here.');
+        await Promise.race([
+          sendEmail({ to, subject: role === 'landlord' ? `✓ Scheda ricevuta — ${propLabel}` : `✓ Your details are in — ${propLabel}`, html }),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('email_timeout')), 15000)),
+        ]);
+        fsPatch('contracts/' + contractId, { [confirmFlag]: nowISO }).catch(() => {});
+      }
+    } catch (e) { console.warn('[profile/submit] confirmation email:', e.message); }
+  }
   // Wake the operator's channels like magic-sign does — a completed scheda
   // usually means "regenerate the PDF and send the sign link".
   try {

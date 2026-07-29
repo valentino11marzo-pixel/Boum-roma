@@ -1508,7 +1508,8 @@ Valentyne - BOOM Rome`
             // Apple Wallet HTTP endpoints, which is fine from an anonymous
             // browser session.
             if (otherSigned) {
-                try { sendCAFEmail(contractId).catch(function(e){ console.warn('CAF email:', e); }); } catch (_) {}
+                // CAF dossier: sent server-side by api/sign/_finalize.js on
+                // completion (any signing path) — no client-side email here.
                 (async function postSignaturePassFlow() {
                     try {
                         var passResult = await generateContractPasses(contractId);
@@ -14445,15 +14446,25 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 } catch (e) { console.warn('[Contract] Lead link update skipped:', e); }
             }
 
-            // 📧 SEND SIGNATURE REQUEST EMAILS
+            // 📧 SIGNATURE INVITATION — server-side (api/sign/send-link):
+            // parte anche a portal chiuso, design system condiviso, lingua
+            // del lettore, traccia sul contratto. Protocollo sequenziale:
+            // parte l'inquilino; il locatore riceve il suo link in automatico
+            // alla firma dell'inquilino (stage email di magic-sign).
             const sendEmails = document.getElementById('cSendEmails')?.checked !== false;
             const prop = S.properties.find(p => p.id === data.propertyId);
             const tenant = S.users.find(u => u.id === data.tenantId);
             const landlord = prop ? S.users.find(u => u.id === prop.ownerId) : null;
-            
-            if (sendEmails) {
-                if (landlord) await sendSignatureEmail(landlord, contractData, prop, 'landlord');
-                if (tenant) await sendSignatureEmail(tenant, contractData, prop, 'tenant');
+
+            if (sendEmails && tenant) {
+                try {
+                    const idToken = await auth.currentUser.getIdToken();
+                    await fetch('/api/sign/send-link', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+                        body: JSON.stringify({ contractId: ref.id, role: 'tenant' })
+                    });
+                } catch (e) { console.warn('[Contract] sign invite failed:', e); }
             }
             
             // Notifications (existing logic)
@@ -18619,121 +18630,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         } else { toast('error', 'Errore generazione pass'); }
     }
 
-    async function sendCAFEmail(contractId) {
-        try {
-            var contract = (S.contracts || []).find(function(c) { return c.id === contractId; });
-            if (!contract) { var cDoc = await db.collection('contracts').doc(contractId).get(); if (cDoc.exists) contract = { id: cDoc.id, ...cDoc.data() }; }
-            if (!contract) { console.warn('[CAF] Contract not found:', contractId); return false; }
-            var property = (S.properties || []).find(function(p) { return p.id === contract.propertyId; });
-            var settingsDoc = await db.collection('settings').doc('general').get();
-            var cafEmail = settingsDoc.exists ? settingsDoc.data().cafEmail : '';
-            var cafEmailAlt = settingsDoc.exists ? settingsDoc.data().cafEmailAlt : '';
-            if (!cafEmail) { console.warn('[CAF] No CAF email configured in settings'); return false; }
-            var reqType = contract.requiresAsseverazione ? 'asseverazione' : 'registrazione';
-            var llName = contract.landlordName || '[da completare]';
-            var llCF = contract.landlordCF || '[da completare]';
-            var tenName = contract.tenantName || '[da completare]';
-            var tenCF = contract.tenantCF || '[da completare]';
-            var propAddr = property?.address || property?.name || 'immobile';
-            var cedolare = (contract.cedolareSecca || 'si') !== 'no' ? 'Sì' : 'No';
-            var closingLines = 'LOCATORE: ' + llName + ' · CF: ' + llCF + ' · Nato/a: ' + (contract.landlordDob||'') + ' a ' + (contract.landlordPob||'') + ' · Res: ' + (contract.landlordAddress||'') + ' · Doc: ' + (contract.landlordDocType||'') + ' ' + (contract.landlordDocNum||'') +
-                '\n\nCONDUTTORE: ' + tenName + ' · CF: ' + tenCF + ' · Nato/a: ' + (contract.tenantDob||'') + ' a ' + (contract.tenantPob||'') + ' · Res: ' + (contract.tenantAddress||'') + ' · Doc: ' + (contract.tenantDocType||'') + ' ' + (contract.tenantDocNum||'') +
-                '\n\nIMMOBILE: ' + propAddr + ' · Catasto: ' + (property?.cadastralData || contract.cadastral || 'N/A') + ' · Vani: ' + (property?.rooms||'N/A') + ' · mq: ' + (property?.sqm||'N/A') +
-                '\n\nCedolare secca: ' + cedolare;
-            var params = {
-                heading: 'Richiesta ' + reqType + ' contratto',
-                subheading: propAddr,
-                name: 'CAF',
-                intro: 'Nuova richiesta di ' + reqType + ' per il contratto firmato da entrambe le parti.',
-                card_title: reqType.toUpperCase(),
-                card_color: '#D4AF37',
-                r1_icon: '🏠', r1_label: 'Immobile', r1_value: propAddr,
-                r2_icon: '📋', r2_label: 'Tipo / Durata', r2_value: (contract.type || 'transitorio') + ' · ' + contract.startDate + ' — ' + contract.endDate,
-                r3_icon: '💰', r3_label: 'Canone / Deposito', r3_value: '€' + (contract.rent||0) + '/mese · Deposito €' + (contract.deposit||0),
-                r4_icon: '📝', r4_label: 'Parti', r4_value: llName + ' (locatore) / ' + tenName + ' (conduttore)',
-                closing: closingLines + (contract.generatedPDF ? '\n\n📎 Contratto firmato (PDF): ' + contract.generatedPDF : ''),
-                attachment_url: contract.generatedPDF || '',
-                cta_text: 'Apri Portal BOOM →',
-                portal_link: window.location.origin + window.location.pathname
-            };
-            await sendBoomEmail(EMAILJS_CONFIG.templates.notification, cafEmail, params);
-            if (cafEmailAlt) await sendBoomEmail(EMAILJS_CONFIG.templates.notification, cafEmailAlt, params);
-            console.log('[CAF] Email sent to', cafEmail);
-            return true;
-        } catch (err) { console.error('[CAF] Email error:', err); return false; }
-    }
-
-    async function sendSignatureEmail(user, contract, property, role) {
-        if (!user?.email) return false;
-        var signBase = window.location.origin + '/sign';   // premium signer page (sign.html)
-        var token = role === 'tenant' ? contract.tenantSignToken : contract.landlordSignToken;
-        var signLink = token ? signBase + '?sign=' + token : signBase;
-        var firstName = (user.name || '').split(' ')[0];
-        var roleLabel = role === 'landlord' ? 'Landlord' : 'Tenant';
-        var vh = 'BOOM-' + btoa((contract.id||'') + (contract.startDate||'') + contract.rent).substring(0,12).toUpperCase();
-
-        // Apple-level HTML email
-        var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>'
-            + '<body style="margin:0;padding:0;background:#f5f5f5;font-family:Helvetica Neue,Helvetica,Arial,sans-serif;font-weight:300">'
-            + '<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:32px 16px"><tr><td align="center">'
-            + '<table width="520" cellpadding="0" cellspacing="0" style="background:#08080A;border-radius:16px;overflow:hidden;max-width:520px;width:100%">'
-            // Header
-            + '<tr><td style="padding:32px 32px 24px">'
-            + '<table width="100%" cellpadding="0" cellspacing="0"><tr>'
-            + '<td><img src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDI0IDEwMjQiIHdpZHRoPSIxMDI0IiBoZWlnaHQ9IjEwMjQiPgogIDxkZWZzPgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJnb2xkR3JhZGllbnQiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMCUiIHkyPSIxMDAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI0ZGRDU0RiIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiNGNUE2MjMiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgPC9kZWZzPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDAsMTAyNCkgc2NhbGUoMC4xLC0wLjEpIiBmaWxsPSJ1cmwoI2dvbGRHcmFkaWVudCkiPgogICAgPHBhdGggZD0iTTQ4NjAgODc0OSBjLTUwOSAtMjkgLTk3NiAtMTYxIC0xNDEzIC00MDEgLTU4MCAtMzE3IC0xMDU3IC04MDYgLTEzNTAgLTEzODMgLTE0OCAtMjkyIC0yMjkgLTUzMiAtMjkxIC04NTkgLTg5IC00NjUgLTY5IC0xMDA1IDU0IC0xNDYxIDE4NCAtNjg4IDYxNiAtMTMwOCAxMjMyIC0xNzY5IDQ5MiAtMzY4IDExNzIgLTYwOSAxNzk0IC02MzUgNTQ2IC0yMiA5ODcgNTcgMTQ4OSAyNjcgNTAzIDIxMSA5NzkgNTg5IDEzMjcgMTA1MyAzNDAgNDUzIDU1NyA5OTQgNjMwIDE1NjkgMTcgMTM1IDE3IDYzMCAwIDc2MCAtOTMgNzE2IC0zOTYgMTM0MSAtOTAwIDE4NjEgLTI4MCAyODkgLTU2OSA0OTggLTkyMiA2NjcgLTQxNiAyMDAgLTgxMyAzMDMgLTEyODUgMzMyIC0xNjUgMTAgLTE3MCAxMCAtMzY1IC0xeiBtNjEwIC0xNDQgYzc0MyAtMTAzIDE0MzYgLTQ1OSAxOTE5IC05ODUgMzM4IC0zNjcgNTYyIC03NTEgNzA0IC0xMjA1IDI3NiAtODc5IDEzMiAtMTg1OCAtMzg4IC0yNjQwIC0yNDIgLTM2NCAtNDkzIC02MTUgLTkwMCAtOTAwIGwtNzAgLTQ5IDEwOSAxMDQgYzQxMyAzOTYgNjc5IDkxOSA3NjcgMTUwNSAzMyAyMTcgMzMgNTU4IDAgNzY1IC03NSA0NzYgLTI1NyA4OTYgLTU0OSAxMjY1IC0xMjcgMTYxIC0zNjMgMzgwIC01NDkgNTExIC0zMDAgMjExIC02ODkgMzYzIC0xMDc5IDQyMCAtMTcyIDI2IC02MDQgMjYgLTc2NCAwIC0yOTYgLTQ3IC01NDUgLTEyOCAtODA4IC0yNjIgLTIzNiAtMTIyIC00NDAgLTI3MSAtNjMyIC00NjQgLTQ4NiAtNDg1IC03NDkgLTExMjEgLTc1MSAtMTgxNSAtMSAtNjExIDE3MCAtMTE0OCA1MTUgLTE2MDggMTAwIC0xMzQgMjg2IC0zMzUgMzgyIC00MTMgMzMgLTI3IC04IC0yIC05MSA1NSAtNTEzIDM1MSAtOTA0IDgwNSAtMTE0MyAxMzMxIC03MSAxNTYgLTEzNiAzMzYgLTE2OCA0NjUgLTkgMzMgLTE5IDc2IC0yNCA5NSAtNSAxOSAtMjAgMTAwIC0zNCAxODAgLTU5IDM0MyAtNjAgNzQwIDAgMTA3MCA4MSA0NTYgMjI5IDgyNiA0NzkgMTIwMCAyNDYgMzY4IDU1OCA2NjkgOTQ5IDkxNyAzODYgMjQ1IDg4MSA0MTggMTMyMSA0NjIgNjEgNiAxMjQgMTMgMTQwIDE1IDczIDEwIDU1NiAtNCA2NjUgLTE5eiBtLTYwIC0xMzI5IGMxMDUgLTE2IDI1OCAtNDkgMzM1IC03MiA4MiAtMjYgMTk3IC02NiAyNDAgLTg0IDE0OSAtNjUgMTkwIC04NCAyNjYgLTEyNiA2NzcgLTM3OSAxMTI5IC0xMDQ5IDEyNDYgLTE4NDkgMjcgLTE4MiAyNCAtNTE3IC01IC02OTUgLTc1IC00NTggLTIyNSAtODEzIC01MDAgLTExNzkgLTExNiAtMTU0IC0zNDAgLTM2OSAtNTI3IC01MDYgLTQ0IC0zMiAtODcgLTYzIC05NSAtNjkgLTggLTYgMzUgMzkgOTYgOTkgMTc4IDE3NyAyODMgMzIxIDM5NyA1NTAgMTYxIDMyMiAyMzEgNjc2IDIwNSAxMDQ1IC0zMiA0NjcgLTIyMyA5MDIgLTU0MiAxMjM3IC0yMzkgMjUxIC01MjEgNDI2IC04NzMgNTQyIC03OSAyNiAtMjczIDY3IC0zODMgODEgLTEwOCAxMyAtMzQ5IDEzIC00NjUgMCAtMjc2IC0zMiAtNTk3IC0xNDUgLTgzNCAtMjkzIC0yMjQgLTE0MCAtNDY2IC0zNzggLTYxMyAtNjAyIC0zMDcgLTQ3MCAtNDA3IC0xMDU1IC0yNzMgLTE1OTkgODAgLTMyNyAyMTcgLTU4OSA0NTQgLTg3MSA3MSAtODQgNzMgLTg4IDMxIC01NiAtMjkzIDIyNSAtNTQ3IDUzNSAtNzE4IDg3NyAtMzQgNjggLTY1IDE0MyAtMTIyIDI5NCAtNDIgMTEyIC0xMDEgMzgzIC0xMjAgNTU1IC0xNCAxMjcgLTE0IDQwMSAwIDUzNCA1MSA0ODIgMjIzIDkxMiA1MTYgMTI4OCAyNjkgMzQ0IDY1NCA2MjAgMTA4NSA3NzggMTYwIDU5IDQwMCAxMTUgNTc0IDEzNCAxMjEgMTMgNTA4IDUgNjI1IC0xM3ogbS0zMCAtMTE2NSBjNDAxIC04MSA3MjEgLTI0MiA5OTIgLTQ5OSA2NDMgLTYxMiA3NjkgLTE2MDcgMzAwIC0yMzY3IC0xMTggLTE5MCAtMjkxIC0zODYgLTQ2MyAtNTI0IC0xMzcgLTExMSAtMTQ4IC0xMTMgLTQ5IC0xMiAxMTAgMTEyIDIwNiAyNDggMjc1IDM4NiA2NyAxMzcgOTggMjIyIDEzMiAzNjcgMjQgMTAzIDI2IDEzMiAyNyAzMjMgMCAxODIgLTMgMjI0IC0yMiAzMTAgLTQ3IDIxMSAtMTI2IDM5NCAtMjQ1IDU2OSAtMTI2IDE4NiAtMzU4IDM4NyAtNTY0IDQ5MCAtMzg0IDE5MSAtODIzIDIyNSAtMTIxOCA5NSAtNDgyIC0xNjAgLTg1NCAtNTQxIC0xMDA0IC0xMDI5IC0xMTcgLTM3OSAtODEgLTgxMCA5NiAtMTE2NSAzNyAtNzIgMTMwIC0yMTUgMTY2IC0yNTIgMTcgLTE4IDI2IC0zMyAyMCAtMzMgLTYgMCAtNjEgNTIgLTEyMSAxMTYgLTI1OSAyNzIgLTQyNCA1NzUgLTUxMSA5MzQgLTExMSA0NTkgLTE4IDEwMDYgMjQ1IDE0MzAgMjk4IDQ4MyA3OTEgNzk3IDEzNzkgODgwIDExMCAxNiA0NDggNCA1NjUgLTE5eiBtLTIzOSAtOTExIGMzNjAgLTI4IDY4MCAtMTcxIDkyNSAtNDE1IDE5NCAtMTkzIDMxNyAtNDE1IDM4MiAtNjg4IDI0IC0xMDIgMjYgLTEzMCAyNiAtMzEyIDAgLTE5MSAtMSAtMjA1IC0zMCAtMzIwIC01MyAtMjA1IC0xMzIgLTM3MiAtMjUxIC01MzUgLTU4IC03OSAtMjYzIC0yODggLTMyMyAtMzMwIC0zMSAtMjIgLTI5IC0xOCAxOCAzNSAxOTUgMjIwIDMxMiA1MTkgMzEyIDc5NSAwIDMyNSAtMTIxIDYxNCAtMzUwIDg0MSAtMzY5IDM2NCAtOTI2IDQ1MyAtMTM4NSAyMjIgLTMzNiAtMTcwIC01NzggLTQ5OSAtNjM2IC04NjUgLTE5IC0xMjYgLTcgLTM3MSAyNSAtNDkwIDQ0IC0xNjIgOTcgLTI4NCAxNzMgLTM5OCA5IC0xNCAtNCAtNSAtMzAgMjAgLTI2IDI0IC00NSA1MSAtNDIgNTggMiA3IDEgMTEgLTQgNyAtMTEgLTYgLTU4IDUxIC0xMTggMTQwIC0xMDkgMTYzIC0xODMgMzQ3IC0yMTkgNTQ1IC0yMyAxMjcgLTIzIDM1MSAtMSA0ODkgNTUgMzM1IDI0OCA2NzcgNDkyIDg3MSAyNjEgMjA4IDUzMCAzMTEgODgxIDMzOCAxMSAxIDgxIC0zIDE1NSAtOHogbTI5IC03MTQgYzQ1OSAtNzQgODIzIC00MjggODk1IC04NjkgNTggLTM1OCAtNjAgLTY5NiAtMzQ1IC05ODcgbC0zNCAtMzUgMjIgMzUgYzExNSAxODIgMTc5IDQwMyAxNjggNTc1IC0xNCAyMzUgLTEwNCA0MzMgLTI2OCA1OTEgLTEzNyAxMzQgLTI4NyAyMDkgLTQ3MiAyMzkgLTExNSAxOSAtMTg3IDE5IC0zMDMgMCAtMzM3IC01NSAtNjEyIC0zMDIgLTcwNCAtNjM1IC0zMiAtMTEzIC0zNCAtMzI1IC01IC00NDAgMjMgLTkyIDcwIC0yMTMgOTggLTI1NCBsMjEgLTMxIC0zMSAyOSBjLTM5IDM2IC0xMjAgMTUyIC0xNTUgMjIxIC0zNSA3MSAtODEgMjE1IC0xMDIgMzE5IC0yNSAxMzAgLTE3IDM1NyAxNyA0NzYgMTAyIDM1NCAzNTcgNjE4IDcwNiA3MzAgMTUyIDQ5IDMzMSA2MiA0OTIgMzZ6IG0tNzMgLTU2NyBjMTc4IC0yNCAzMjcgLTEwMSA0NTQgLTIzNiAxMzcgLTE0MyAxOTkgLTMwMyAyMDEgLTUxMyAxIC0xNjIgLTQyIC0zMDkgLTEzNSAtNDUzIC01MiAtODIgLTczIC05NyAtMzggLTI4IDUxIDk5IDY3IDI5MCAzNiA0MTIgLTU3IDIxOSAtMjUxIDQxMyAtNDY2IDQ2NCAtNzUgMTcgLTIzNiAyMCAtMzExIDQgLTIxMyAtNDQgLTQyMiAtMjQ3IC00NzMgLTQ2MCAtMzEgLTEzMyAtMTMgLTMyNSA0MSAtNDMxIDM1IC03MCA4IC00NyAtNTIgNDMgLTU4IDg4IC05MCAxNjcgLTExNCAyODYgLTI1IDEyMSAtMjUgMjIwIC0xIDMzMSAzMyAxNDYgODQgMjQzIDE4NiAzNTEgMTcxIDE4MyA0MTMgMjY2IDY3MiAyMzB6IG0xNSAtNDcwIGM4MCAtMTcgMTg2IC03NiAyNDggLTEzOSAxMDYgLTEwNyAxNTggLTI0OCAxNDcgLTM5OCAtNiAtOTIgLTI1IC0xNTIgLTc5IC0yNTAgLTQ1IC04MiAtNjAgLTkxIC0yNyAtMTcgMTggNDEgMjEgNjIgMTcgMTQ5IC00IDg5IC04IDEwOCAtMzUgMTYyIC00MyA4MiAtMTI2IDE2NSAtMjA5IDIwNSAtNTggMjkgLTgwIDM0IC0xNTggMzcgLTExMiA1IC0xODQgLTEyIC0yNTkgLTYyIC0xODIgLTEyMSAtMjUxIC0zMjMgLTE3MSAtNTA2IGwyNCAtNTUgLTI1IDMwIGMtMzYgNDQgLTkyIDE2MiAtMTA0IDIyMyAtMzkgMTg5IDE0IDM2OSAxNDYgNDkyIDEwNSA5OSAyMDQgMTM5IDM0NSAxMzkgNDggMSAxMTEgLTQgMTQwIC0xMHoiLz4KICA8L2c+Cjwvc3ZnPgo=" width="40" height="40" style="border-radius:50%;vertical-align:middle" alt="BOOM"> <span style="font-size:16px;font-weight:300;letter-spacing:5px;color:#fff;vertical-align:middle;margin-left:8px">BOOM</span></td>'
-            + '<td align="right"><span style="font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:1px;text-transform:uppercase">Magic Sign</span></td>'
-            + '</tr></table>'
-            + '</td></tr>'
-            // Title
-            + '<tr><td style="padding:0 32px 8px"><div style="font-size:24px;font-weight:300;color:#fff;letter-spacing:-0.3px">Your contract is ready</div></td></tr>'
-            + '<tr><td style="padding:0 32px 24px"><div style="font-size:13px;color:rgba(255,255,255,0.4);font-weight:300">Hi ' + firstName + ', your rental contract is ready for your digital signature as ' + roleLabel + '.</div></td></tr>'
-            // Property card
-            + '<tr><td style="padding:0 32px 20px"><table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,255,255,0.04);border-radius:12px;border-left:3px solid #FFD54F">'
-            + '<tr><td style="padding:16px 20px">'
-            + '<div style="font-size:9px;color:rgba(255,213,79,0.7);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">PROPERTY</div>'
-            + '<div style="font-size:18px;color:#fff;font-weight:300">' + (property?.name || '') + '</div>'
-            + '<div style="font-size:12px;color:rgba(255,255,255,0.35);margin-top:3px">' + (property?.address || 'Roma') + '</div>'
-            + '</td></tr></table></td></tr>'
-            // Details grid
-            + '<tr><td style="padding:0 32px 20px"><table width="100%" cellpadding="0" cellspacing="0"><tr>'
-            + '<td width="50%" style="padding-right:5px"><table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,255,255,0.04);border-radius:10px"><tr><td style="padding:14px 16px"><div style="font-size:9px;color:rgba(255,255,255,0.3);letter-spacing:1px">MONTHLY RENT</div><div style="font-size:20px;color:#FFD54F;font-weight:300;margin-top:4px">\u20ac' + (contract.rent||0).toLocaleString('it-IT') + '</div></td></tr></table></td>'
-            + '<td width="50%" style="padding-left:5px"><table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,255,255,0.04);border-radius:10px"><tr><td style="padding:14px 16px"><div style="font-size:9px;color:rgba(255,255,255,0.3);letter-spacing:1px">PERIOD</div><div style="font-size:13px;color:#fff;font-weight:300;margin-top:6px">' + fmtDate(contract.startDate) + ' \u2013 ' + fmtDate(contract.endDate) + '</div></td></tr></table></td>'
-            + '</tr></table></td></tr>'
-            // CTA button
-            + '<tr><td style="padding:0 32px 24px"><table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="background:#FFD54F;border-radius:12px;padding:16px"><a href="' + signLink + '" style="color:#08080A;text-decoration:none;font-size:14px;font-weight:400;letter-spacing:0.5px;display:block">Review and sign your contract</a></td></tr></table></td></tr>'
-            // Verification
-            + '<tr><td style="padding:0 32px 24px"><table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,213,79,0.06);border-radius:10px;border:1px solid rgba(255,213,79,0.1)"><tr><td style="padding:12px 16px"><div style="font-size:9px;color:rgba(255,213,79,0.4);letter-spacing:2px;text-transform:uppercase;margin-bottom:3px">VERIFICATION</div><div style="font-size:14px;color:rgba(255,213,79,0.7);letter-spacing:2px;font-family:monospace">' + vh + '</div></td></tr></table></td></tr>'
-            // Legal note
-            + '<tr><td style="padding:0 32px 8px"><div style="font-size:11px;color:rgba(255,255,255,0.2);font-weight:300;line-height:1.6">This is a secure digital signature with legal validity under Italian law (FES \u2014 Art. 21 CAD, D.Lgs. 82/2005).</div></td></tr>'
-            // Footer
-            + '<tr><td style="padding:16px 32px 24px;border-top:1px solid rgba(255,255,255,0.04)">'
-            + '<div style="font-size:10px;color:rgba(255,255,255,0.15);font-weight:300;line-height:1.8">'
-            + COMPANY.legal + ' | P.IVA ' + COMPANY.piva + '<br>'
-            + '<a href="https://www.boomrome.com" style="color:rgba(255,213,79,0.3);text-decoration:none">boomrome.com</a> | ' + COMPANY.phone
-            + '</div></td></tr>'
-            + '</table>'
-            + '</td></tr></table></body></html>';
-
-        // Send via EmailJS (pass HTML as message_html param)
-        var emailSent = await sendBoomEmail(EMAILJS_CONFIG.templates.signatureRequest, user.email, {
-            name: firstName,
-            full_name: user.name,
-            role_label: roleLabel,
-            property_name: property?.name || 'Immobile',
-            property_address: property?.address || '',
-            rent: '\u20ac' + (contract.rent || 0).toLocaleString('it-IT'),
-            start_date: fmtDate(contract.startDate),
-            end_date: fmtDate(contract.endDate),
-            portal_link: signLink,
-            company_name: COMPANY.name,
-            company_email: COMPANY.email,
-            company_phone: COMPANY.phone,
-            message_html: html
-        });
-
-
-        return emailSent;
-    }
+    // sendCAFEmail / sendSignatureEmail (EmailJS, browser-only) sono stati
+    // sostituiti dal ciclo server-side: api/sign/send-link (invito firma) e
+    // api/sign/_finalize.js → sendCafDossier (fascicolo CAF alla firma
+    // completa, qualunque sia la superficie di firma).
     
     // Premium post-signature welcome email with one-click magic link.
     // Pattern: Firestore-Only token (32+ chars unguessable, 1h expiry, single-use)
@@ -19106,13 +19006,33 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (!contract.landlordSignature && !contract.landlordSignToken) { tokenUpdates.landlordSignToken = genToken(); contract.landlordSignToken = tokenUpdates.landlordSignToken; }
         if (!contract.tenantSignature && !contract.tenantSignToken) { tokenUpdates.tenantSignToken = genToken(); contract.tenantSignToken = tokenUpdates.tenantSignToken; }
         if (Object.keys(tokenUpdates).length) await db.collection('contracts').doc(contractId).update(tokenUpdates);
+        // Promemoria via api/sign/send-link (server-side, design system,
+        // lingua del lettore). Il lato locatore su contratto sequenziale non
+        // ancora firmato dall'inquilino risponde 409 awaiting_tenant — giusto
+        // così: il suo link arriva in automatico alla firma dell'inquilino.
+        let _idToken = '';
+        try { _idToken = await auth.currentUser.getIdToken(); } catch (e) {}
+        const remind = async (role, uid) => {
+            if (!_idToken) return false;
+            try {
+                const r = await fetch('/api/sign/send-link', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _idToken },
+                    body: JSON.stringify({ contractId, role })
+                });
+                const j = await r.json().catch(() => null);
+                if (j && j.ok && j.sent) {
+                    if (uid) await createNotification(uid, 'contract', '✏️ Promemoria: Firma contratto', 'Il contratto per ' + (property?.name || 'immobile') + ' è in attesa della tua firma', { contractId, skipEmail: true });
+                    return true;
+                }
+            } catch (e) { console.warn('[remind]', role, e); }
+            return false;
+        };
         if (!contract.landlordSignature && property?.ownerId) {
-            const landlord = S.users.find(u => u.id === property.ownerId);
-            if (landlord) { await sendSignatureEmail(landlord, contract, property, 'landlord'); await createNotification(landlord.id, 'contract', '✏️ Promemoria: Firma contratto', 'Il contratto per ' + (property?.name || 'immobile') + ' è in attesa della tua firma', { contractId, skipEmail: true }); sent++; }
+            if (await remind('landlord', property.ownerId)) sent++;
         }
         if (!contract.tenantSignature && contract.tenantId) {
-            const tenant = S.users.find(u => u.id === contract.tenantId);
-            if (tenant) { await sendSignatureEmail(tenant, contract, property, 'tenant'); await createNotification(tenant.id, 'contract', '✏️ Promemoria: Firma contratto', 'Il contratto per ' + (property?.name || 'immobile') + ' è in attesa della tua firma', { contractId, skipEmail: true }); sent++; }
+            if (await remind('tenant', contract.tenantId)) sent++;
         }
         if (sent) { try { await db.collection('contracts').doc(contractId).update({ lastReminderAt: firebase.firestore.FieldValue.serverTimestamp() }); contract.lastReminderAt = new Date(); } catch (e) {} }
         toast('success', sent ? '📧 Promemoria inviato!' : 'Nessun promemoria da inviare');

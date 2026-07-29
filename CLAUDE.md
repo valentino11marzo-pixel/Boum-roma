@@ -684,6 +684,44 @@ admin-only per the rules. The user-profile sync writes BOTH users schemas
 (sign `cf/dob/…` AND wizard `codiceFiscale/birthDate/…`) so the Allegato
 generators and the RLI scheda always see identity collected at signing.
 
+### Il ciclo email del contratto (`api/sign/_notify.js` + `send-link`)
+UN design system per ogni email della piattaforma
+(`api/preagreement/_notify.js`: masthead nero col MARCHIO reale — PNG
+hosted `android-chrome-192x192.png`, Gmail scarta data-URI e SVG — carta
+bianca, pill oro, dark-mode aware; esporta `shell/btn/btn2/para/fine/row/
+hero/tiles/timeline/includes/rule`). Lingua del lettore: inquilino EN,
+locatore e operatore IT. Tutto server-side (Nodemailer), best-effort e
+time-boxed — mai può bloccare una firma.
+- `POST /api/sign/send-link` — admin/owner/landlord (Bearer; owner solo
+  sui propri immobili). L'INVITO a firmare per QUALSIASI contratto:
+  backfilla il token mancante (contratti legacy), invia nel design system,
+  stampa `signInvite<Role>At`. Sequenziale: lato locatore su contratto non
+  ancora firmato dall'inquilino → 409 `awaiting_tenant` (il suo link parte
+  in automatico alla firma dell'inquilino). Sostituisce l'EmailJS
+  `sendSignatureEmail` del portal (browser-only, rimosso): saveContract e
+  il promemoria firme ora chiamano questo endpoint.
+- `notifyPartialSignature` / `notifyAdminContractSigned` (chiamate da
+  magic-sign/submit e reminder-cron): conferma al firmatario + "Tocca a
+  Lei"/"your turn" alla controparte col suo link; milestone IT all'admin
+  (`ADMIN_NOTIFY_EMAIL`, default valentino@boom-rome.com).
+- `sendWelcomeEmails` (da `_finalize.js`): welcome tenant EN (portal
+  magic-link, saldo deposito se pendente, timeline utenze/TARI/residenza,
+  certificato) + landlord IT (passi fiscali per regime, cessione
+  fabbricato se extra-UE).
+- `sendCafDossier` (da `_finalize.js`, UNA volta — idempotente su
+  `finalizedAt`): il fascicolo asseverazione/registrazione con anagrafica
+  COMPLETA di entrambe le parti (post-firma lo è per costruzione), catasto,
+  termini, link a PDF firmato + certificato FES + documenti d'identità →
+  `CAF_EMAIL` (default **valentino@boom-rome.com**). Prima viveva in
+  portal-app.js via EmailJS e partiva SOLO dal vecchio flusso di firma nel
+  portal — su /sign non partiva affatto.
+- La Scheda completa manda al cliente una conferma one-shot
+  (`scheda<Role>ConfirmedAt`) nel suo idioma (`api/profile/submit.js`).
+- Due bug di produzione trovati dai test (pdf-lib REALE nella suite):
+  il certificato FES falliva SEMPRE (freccia "→" non WinAnsi) e finalize
+  leggeva `cedolareSecca === true` mentre i contratti reali portano 'si'
+  → obbligazioni del regime sbagliato a scadenzario. Entrambi corretti.
+
 ### La Scheda (`/scheda` + `api/profile/*`) — anagrafica universale
 "Compila la tua scheda in 2 minuti": ONE link that collects a party's
 anagrafica (identity + ID upload) for ANY contract, decoupled from the
@@ -949,6 +987,7 @@ real. Backs the "Aggiungi annuncio" modal in `pfs-command.html`.
   | `tests/photos/sweep.mjs` | photo-lab: chi è candidato allo sweep, quali foto contano come sorgente (i nostri output enhanced mai), e l'ordine con cui le 3 notti si spendono — le gallerie vere prima degli annunci da una foto. Si auto-skippa senza `sharp` |
   | `tests/copy/run.mjs` | descrizioni: lo sweep riscrive i template del bot e le schede mute, ma **mai** le parole di un umano — verificato sulle stringhe vere del catalogo, dove il testo scritto a mano è più CORTO del template |
   | `tests/scheda/run.mjs` | La Scheda: token derivati (ruolo nella derivazione, timing-safe), precedenza prefill contratto→sign→wizard, lock post-firma, sync profilo su ENTRAMBI gli schemi users, upload con OCR che non blocca mai, /api/profile/link autorizzato |
+  | `tests/notify/run.mjs` | ciclo email contratto (pdf-lib REALE, nodemailer mockato): fascicolo CAF a valentino@boom-rome.com esattamente una volta con anagrafica di entrambe le parti, welcome nella lingua del lettore, invito firma col link giusto e 409 sul locatore sequenziale, conferma scheda one-shot |
   | `tests/safari/boot.mjs` | nessuna superficie autenticata resta appesa su un loader |
 - PWA support via `manifest.json` and `sw.js` service worker — registered on
   the 3 portals via `BoomPortal.registerServiceWorker()`

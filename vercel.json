@@ -623,6 +623,15 @@
     },
     "api/profile/upload.js": {
       "maxDuration": 60
+    },
+    "api/profile/submit.js": {
+      "maxDuration": 60
+    },
+    "api/sign/send-link.js": {
+      "maxDuration": 60
+    },
+    "api/magic-sign/submit.js": {
+      "maxDuration": 60
     }
   },
   "crons": [

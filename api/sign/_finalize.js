@@ -17,12 +17,11 @@ import crypto from 'node:crypto';
 // traced by Vercel's bundler and fails at runtime in production.
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { fsCreate, fsPatch, fsGet, getAdminToken } from '../homie/_lib.js';
-import { sendEmail } from '../agent/_lib.js';
+import { sendWelcomeEmails, sendCafDossier } from './_notify.js';
 // pdf-lib is imported lazily inside buildCertificate so a load failure only
 // skips the certificate — obligations, magic link and welcome emails still run.
 
 const BASE = 'https://www.boomrome.com';
-const GOLD = '#B8860B';
 const STORAGE_BUCKET = process.env.FIREBASE_STORAGE_BUCKET || 'boom-property-dashboards.firebasestorage.app';
 const MS_CONSENT = 'I confirm my identity and accept all lease terms. This digital signature is legally valid (FES — Art. 21 CAD).';
 
@@ -51,7 +50,10 @@ export async function finalizeContract(contract){
   const ownerId  = property && property.ownerId;
   const landlord = ownerId ? await fsGet(`users/${ownerId}`).catch(()=>null) : null;
 
-  const cedolare = contract.cedolareSecca === true || contract.regime === 'cedolare';
+  // cedolareSecca sui contratti reali è la STRINGA 'si'/'no' (portal e
+  // convert), non un boolean: il vecchio `=== true` mandava OGNI contratto
+  // cedolare nel ramo registro+bollo (obbligazioni sbagliate a scadenzario).
+  const cedolare = !(contract.cedolareSecca === false || contract.cedolareSecca === 'no');
   const nationality = contract.tenantNationality || (tenant && tenant.nationality) || '';
   const nonEU = !isEU(nationality);
   const propLabel = (property && (property.address || property.name)) || '';
@@ -120,77 +122,22 @@ export async function finalizeContract(contract){
   } catch(e){ console.warn('[finalize] magicLink failed:', e.message); }
   const portalLink = magicId ? `${BASE}/portal.html?postSign=1&magicToken=${magicId}` : `${BASE}/portal.html`;
 
-  // ── Welcome emails ──
-  const tenantEmail = (tenant && tenant.email) || contract.tenantEmail || '';
-  const tenantName = (tenant && tenant.name) || contract.tenantName || 'there';
-  const landlordEmail = (landlord && landlord.email) || contract.landlordEmail || '';
-  const landlordName = (landlord && landlord.name) || contract.landlordName || 'there';
-  const certLine = certUrl ? `<p style="margin:14px 0 0;font-size:13px"><a href="${esc(certUrl)}" style="color:${GOLD};text-decoration:none">⬇ Download your signing certificate (PDF)</a></p>` : '';
-  // Deposit recovery path: if the tenant closed the /sign page without paying,
-  // the welcome email carries the same Stripe checkout link.
-  const depLine = (!contract.depositPaid && contract.depositPayToken && Number(contract.deposit || 0) > 0)
-    ? `<p style="margin:16px 0 0">${btn(`${BASE}/sign?deposit=retry&pt=${encodeURIComponent(contract.depositPayToken)}`, 'Pay the deposit — €' + Number(contract.deposit).toLocaleString('it-IT'))}</p>`
-    : '';
-
-  // Both emails run in parallel with a hard timeout: nodemailer has no socket
-  // timeout configured, and this runs inside the signer's request — a stalled
-  // SMTP connection must never push the response past the function limit.
-  const withTimeout = (p, ms, tag) => Promise.race([
-    p, new Promise((_, rej) => setTimeout(() => rej(new Error(tag + '_timeout')), ms)),
+  // ── Welcome emails + fascicolo CAF (design system condiviso) ──
+  // api/sign/_notify.js — tenant EN, landlord IT, CAF → valentino@boom-rome.com.
+  // Parallel and internally time-boxed: a stalled SMTP can never push the
+  // signer's request past the function limit. The CAF dossier used to live
+  // in portal-app.js (EmailJS) and only fired from the legacy in-portal
+  // signing path — on /sign it never went out at all.
+  const [welcome, caf] = await Promise.all([
+    sendWelcomeEmails(contract, property, { portalLink, certUrl, cedolare, nonEU }),
+    sendCafDossier(contract, property, { certUrl }),
   ]);
-  const emailJobs = [];
-
-  if (tenantEmail) {
-    emailJobs.push(withTimeout(
-      sendEmail({
-        to: tenantEmail,
-        subject: '🔑 Welcome home — your BOOM contract is active',
-        html: emailShell('Welcome home', `
-          <p style="margin:0 0 14px">Hi ${esc(tenantName)},</p>
-          <p style="margin:0 0 18px">Your lease for <b>${esc(propLabel || 'your new home')}</b> is now <b style="color:${GOLD}">fully signed and active</b>. One tap and you’re in your portal — documents, payments and support in one place.</p>
-          ${btn(portalLink, 'Enter my portal')}
-          ${depLine}
-          ${certLine}
-          <p style="margin:18px 0 6px;font-size:13px;color:#666">Prefer a password? Open the portal above, then choose <b>“Set a password”</b> to make it permanent. This one‑tap link expires in 72 hours.</p>
-          <div style="margin:22px 0 6px;border-top:1px solid #eee"></div>
-          <p style="margin:16px 0 8px;font-size:13px;color:#666"><b>A couple of things on your side</b> (we’ll remind you):</p>
-          <ul style="margin:0 0 4px;padding-left:18px;font-size:13px;color:#555;line-height:1.7">
-            <li>Set up utilities (electricity, gas, water) around your move‑in</li>
-            <li>TARI (waste tax) registration with the Comune</li>
-            <li>Residence/domicile registration if you need it</li>
-          </ul>
-        `),
-      }), 15000, 'tenant_email',
-    ).catch(e => console.warn('[finalize] tenant email failed:', e.message)));
-  }
-
-  if (landlordEmail) {
-    const fiscalLines = (cedolare
-      ? ['Cedolare secca: raccomandata/PEC al conduttore (rinuncia ISTAT)']
-      : ['Decision: cedolare secca vs registro+bollo', 'Imposta di registro 2% (min €67) + bollo €16'])
-      .concat(['Registrazione contratto (RLI) entro 30 giorni'])
-      .concat(nonEU ? ['Cessione di fabbricato alla Questura entro 48h (conduttore extra‑UE)'] : []);
-    emailJobs.push(withTimeout(
-      sendEmail({
-        to: landlordEmail,
-        subject: '✓ Your BOOM lease is signed — what’s next',
-        html: emailShell('Lease signed', `
-          <p style="margin:0 0 14px">Hi ${esc(landlordName)},</p>
-          <p style="margin:0 0 18px">The lease for <b>${esc(propLabel || 'your property')}</b> is <b style="color:${GOLD}">fully signed</b>. BOOM has scheduled the deadlines below in your dashboard — we handle the registration with you.</p>
-          <p style="margin:0 0 8px;font-size:13px;color:#666"><b>Upcoming fiscal steps</b></p>
-          <ul style="margin:0 0 14px;padding-left:18px;font-size:13px;color:#555;line-height:1.7">${fiscalLines.map(l=>'<li>'+esc(l)+'</li>').join('')}</ul>
-          ${btn(BASE+'/portal.html', 'Open dashboard')}
-          ${certLine}
-        `),
-      }), 15000, 'landlord_email',
-    ).catch(e => console.warn('[finalize] landlord email failed:', e.message)));
-  }
-
-  await Promise.all(emailJobs);
+  const tenantEmail = !!(welcome && welcome.tenant);
+  const landlordEmail = !!(welcome && welcome.landlord);
 
   try { await fsPatch(`contracts/${contract.id}`, { finalizedAt: now, magicLinkId: magicId, signingCertificateUrl: certUrl }); } catch(e){ console.warn('[finalize] mark failed:', e.message); }
 
-  return { ok:true, obligations: created, certificate: !!certUrl, magicLink: !!magicId, tenantEmail: !!tenantEmail, landlordEmail: !!landlordEmail };
+  return { ok:true, obligations: created, certificate: !!certUrl, magicLink: !!magicId, tenantEmail, landlordEmail, caf: !!(caf && caf.ok) };
 }
 
 // ── Firebase Storage upload (admin token) ──
@@ -228,7 +175,9 @@ async function buildCertificate(c, property){
   row('Immobile', (property && (property.address || property.name)) || '');
   row('Tipo', c.type === 'studenti' ? 'Per studenti' : 'Transitorio');
   row('Canone / Deposito', (money(c.rent) || '-') + '   /   ' + (money(c.deposit) || '-'));
-  row('Periodo', (c.startDate ? ymd(c.startDate) : '-') + '   →   ' + (c.endDate ? ymd(c.endDate) : '-'));
+  // Solo caratteri WinAnsi: la freccia "→" (U+2192) non è codificabile con
+  // gli StandardFonts di pdf-lib e faceva fallire l'INTERO certificato.
+  row('Periodo', (c.startDate ? ymd(c.startDate) : '-') + '   -   ' + (c.endDate ? ymd(c.endDate) : '-'));
   row('Stato', 'COMPLETO — ' + (c.fullySignedAt ? new Date(c.fullySignedAt).toLocaleString('it-IT') : ''));
   y -= 8;
 
@@ -261,22 +210,4 @@ async function buildCertificate(c, property){
   T('Firma Elettronica Semplice ai sensi dell’art. 21 D.Lgs 82/2005 (CAD) — BOOM Rome · boomrome.com', 40, 66, 8, font, grey);
   T('Generato il ' + new Date().toLocaleString('it-IT'), 40, 52, 7, font, grey);
   return await pdf.save();
-}
-
-// ── email helpers (inline styles for client compatibility) ──
-function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-function btn(href, label){
-  return `<a href="${esc(href)}" style="display:inline-block;background:linear-gradient(180deg,#F6E4A6,#E9C766 46%,#B98E2E);color:#1c1503;text-decoration:none;font-weight:700;font-size:14px;letter-spacing:.3px;padding:13px 26px;border-radius:11px">${esc(label)}</a>`;
-}
-function emailShell(title, inner){
-  return `<div style="margin:0;padding:24px;background:#0c0c0e;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif">
-    <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 14px 40px rgba(0,0,0,.4)">
-      <div style="background:#0c0c0e;padding:22px 28px;text-align:center">
-        <div style="font-size:18px;font-weight:300;letter-spacing:9px;color:#fff;padding-left:9px">BOOM</div>
-        <div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#B8860B;margin-top:5px">${esc(title)}</div>
-      </div>
-      <div style="padding:28px 28px 30px;color:#222;font-size:15px;line-height:1.6">${inner}</div>
-      <div style="padding:16px 28px;background:#f6f6f4;color:#999;font-size:11px;text-align:center">BOOM Rome · boomrome.com · Encrypted · FES (Art. 21 CAD)</div>
-    </div>
-  </div>`;
 }
