@@ -472,7 +472,11 @@ var WA='https://wa.me/393313251961';
 var $=function(id){return document.getElementById(id)};
 var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;')};
 var eur=function(n){var f=Math.round(n*100)%100!==0;return '€'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:f?2:0,maximumFractionDigits:2})};
-var fmtD=function(s){try{return new Date(String(s).slice(0,10)+'T00:00').toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'})}catch(e){return s||''}};
+/* La data segue la lingua scelta: una pagina in inglese che scrive
+   "2 agosto 2026" sembra sciatta. setLang() richiama render(), quindi il
+   toggle riformatta anche le date. */
+var fmtD=function(s){try{return new Date(String(s).slice(0,10)+'T00:00')
+  .toLocaleDateString(LANG==='it'?'it-IT':'en-GB',{day:'numeric',month:'long',year:'numeric'})}catch(e){return s||''}};
 var todayISO=new Date().toISOString().slice(0,10);
 /* mirror of api/payments/pay.js rentFee defaults — preview only; the
    Stripe page shows the exact server-side figure as its own line item */
@@ -568,12 +572,33 @@ function countUp(scope){
     });
   }catch(e){}
 }
+/* Il QR del Wi-Fi arriva da un CDN. L'<img> nasceva senza src — cioè un
+   rettangolo bianco vuoto — e se il CDN è lento, bloccato o giù restava così
+   per sempre, senza che nulla lo spiegasse. Ora il contenitore è nascosto
+   finché il codice non c'è, e se non arriva sparisce: la password del Wi-Fi
+   con il suo bottone di copia resta comunque lì sopra, che è ciò che serve. */
 function wifiQr(name,pass){
   var host=document.getElementById('wifiQrImg');if(!host)return;
+  var box=host.closest?host.closest('.wifiqr'):null;
+  if(box)box.style.display='none';
   var payload='WIFI:T:WPA;S:'+String(name).replace(/([\\;,:"])/g,'\\$1')+';P:'+String(pass).replace(/([\\;,:"])/g,'\\$1')+';;';
-  var go=function(){try{window.QRCode.toDataURL(payload,{margin:0,width:368,color:{dark:'#111111',light:'#ffffff'}},function(err,durl){if(!err&&durl)host.src=durl;});}catch(e){}};
+  var give=function(){if(box&&box.parentNode)box.parentNode.removeChild(box)};
+  var go=function(){
+    try{
+      window.QRCode.toDataURL(payload,{margin:0,width:368,color:{dark:'#111111',light:'#ffffff'}},function(err,durl){
+        if(err||!durl)return give();
+        host.src=durl;
+        if(box)box.style.display='';
+      });
+    }catch(e){give()}
+  };
   if(window.QRCode&&window.QRCode.toDataURL)return go();
-  var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js';s.onload=go;document.head.appendChild(s);
+  var s=document.createElement('script');
+  s.src='https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js';
+  s.onload=go; s.onerror=give;
+  /* CDN che non risponde mai (né load né error): dopo 6s si rinuncia. */
+  setTimeout(function(){if(!host.src)give()},6000);
+  document.head.appendChild(s);
 }
 function refCode(){return 'BOOM-'+String(USER&&USER.uid||'ROMA').replace(/[^a-zA-Z0-9]/g,'').slice(0,6).toUpperCase()}
 function manLine(ic,label,val,copyable){
