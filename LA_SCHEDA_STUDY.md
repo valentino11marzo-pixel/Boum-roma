@@ -1,5 +1,12 @@
 # LA SCHEDA — Anagrafica cliente universale
 
+> **STATO**: Fase 1 IMPLEMENTATA (api/profile/* + scheda.html + swap Share
+> Hub + fix fallback Allegato B/C + doppio schema users in magic-sign) e
+> in più il generatore Allegato C ora monta il contratto tipo
+> dell'associazione (accordo Roma 27.07.2023, prot. RA/2023/0044852).
+> Suite `tests/scheda/run.mjs` (36 check) verde. Vedi CLAUDE.md → "La
+> Scheda" per il riferimento operativo.
+
 **Data**: Luglio 2026
 **Domanda dell'operatore**: "Per i clienti che non ho onboardato con la pre-agreement page mi ritrovo senza anagrafica e la devo reinserire io. Serve un modo più universale e moderno. La devo sempre fare col Magic Sign o no?"
 **Metodo**: lettura completa del codice (sign.html, api/magic-sign/*, api/preagreement/*, js/portal-app.js, firestore.rules), zero inferenze.

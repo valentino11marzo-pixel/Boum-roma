@@ -676,10 +676,76 @@ anonymously — denied by `firestore.rules`.
 ### POST `/api/magic-sign/submit`
 Public endpoint that persists the contract signature on behalf of the
 anonymous Magic-Sign user. Body includes the token, signature data URI,
-identity payload, phone, consent record. Runs every Firestore write under
-admin credentials (signature + identity + landlord profile + RLI deadline
-+ lead closure + property status + listing sync + payment schedule +
-tenant user bootstrap). All those mutations are admin-only per the rules.
+identity payload (incl. `docIssuer`/`docIssueDate`), phone, consent record.
+Runs every Firestore write under admin credentials (signature + identity +
+landlord profile + RLI deadline + lead closure + property status + listing
+sync + payment schedule + tenant user bootstrap). All those mutations are
+admin-only per the rules. The user-profile sync writes BOTH users schemas
+(sign `cf/dob/…` AND wizard `codiceFiscale/birthDate/…`) so the Allegato
+generators and the RLI scheda always see identity collected at signing.
+
+### La Scheda (`/scheda` + `api/profile/*`) — anagrafica universale
+"Compila la tua scheda in 2 minuti": ONE link that collects a party's
+anagrafica (identity + ID upload) for ANY contract, decoupled from the
+signature — the missing piece for clients not onboarded via pre-agreement
+(the legacy `form-tenant/form-landlord` pages wrote anonymously to the
+admin-only `contractRegistrations` collection and silently failed; the
+Share Hub now hands out /scheda links instead). Study: `LA_SCHEDA_STUDY.md`.
+- **Derived tokens, zero migration** (`api/profile/_scheda.js`, same
+  pattern as the viewings' manageToken): `sha256("scheda:<role>:<id>:
+  <HOMIE_SECRET>")` → URL blob `<contractId>.<t|l>.<token>`. Every
+  contract ever created — signed ones included — already has a valid
+  link; rotating `HOMIE_SECRET` revokes all; role lives INSIDE the
+  derivation; a scheda link can never sign.
+- `POST /api/profile/lookup` — public `{t}` → role, `locked`, property
+  label, prefilled identity merged contract→sign-schema→wizard-schema.
+- `POST /api/profile/submit` — public. Writes contract party fields
+  (`tenantName/CF/Dob/Pob/Address/DocType/DocNum/DocIssuer/DocIssueDate/
+  Nationality/Phone`) + users sync on BOTH schemas + `landlords/` for the
+  landlord role. CF checksum-validated when present (optional — fresh
+  expats). Re-editable until that party SIGNS, then 410 (identity of a
+  signed act is frozen); pings the operator via `agentNotifications`.
+- `POST /api/profile/upload` — public. ID document → Storage
+  `contracts/<id>/identity/…` under admin creds (URL never returned to the
+  page), appended to `contract.identityDocs` + the user profile. With
+  `extract:true` the same bytes go through Claude haiku and the response
+  carries the identity fields read off the document (**OCR-first UX**: the
+  client photographs the ID and the form fills itself; never invents,
+  never blocks the upload). Allowed even post-firma (the ID copy for the
+  RLI dossier is additive).
+- `POST /api/profile/link` — admin/owner/landlord (Bearer): returns the
+  two derived /scheda URLs for a contract (the browser can't compute
+  them). Owners only for their own property's contracts. Feeds the
+  portal's Share Hub cards + `sendMissingInfoLink`.
+- `scheda.html` (`/scheda?t=…`, cleanUrls; noindex + no-store in
+  vercel.json): sign.html's design shell, EN-first with IT toggle
+  (landlord defaults IT), Model-C staging (confirm when known / form when
+  not), "⚡ compila con una foto" OCR shortcut, document step skippable,
+  read-only view when locked. No Firebase on the page — same-origin API
+  only.
+- **Deal flow per i clienti legacy**: contratto minimo nel portal →
+  Scheda (anagrafica + documento self-service) → 🔄 Rigenera PDF (ora
+  completo) → Magic Sign. Per contratti già firmati su carta: solo
+  Scheda (upload documento incluso) — nessuna firma fittizia.
+
+### Contratto studenti — template associazione (accordo Roma 27/07/2023)
+`_generateContractPDF_allegatoC` (js/portal-app.js) genera il contratto
+tipo STUDENTI dell'associazione: accordo territoriale depositato presso il
+Comune di Roma Capitale il 27.07.2023 **prot. RA/2023/0044852**, art. 5
+comma 2 L.431/98 (fonte: `contratto_tipo_STUDENTI_Roma_2023.doc`, refusi
+dell'originale normalizzati — il secondo "Articolo 13" è il 14, come da
+clausola 1341/1342). Punti chiave: disdetta 3 mesi (art.1), natura
+transitoria con protocollo nuovo (art.2), canone con cadenza rate reale
+(`installmentMonths`, art.3), interessi deposito annuali + "altre forme di
+garanzia" (art.4), art.6 **biforcato su `cedolareSecca`** (default: testo
+cedolare del modello; 'no' → variante registro/bollo), conviventi da
+`contract.cohabitants` (art.8), slot opzionali `garanzieAltre`/
+`oneriQuota`/`subentroModalita`/`accessiModalita`/`consegnaStato`,
+utenze private a carico conduttore nelle Altre clausole (art.16) +
+`otherClauses` in coda. Both Allegato generators (B and C) read identity
+through the fallback chain contract fields → users sign schema → users
+wizard schema — a regenerated PDF never prints dots for data a party
+already self-filled on /sign or /scheda.
 
 ### POST `/api/documents/share`
 Admin/landlord (Firebase ID token via `api/_auth.js`). Creates a
@@ -882,6 +948,7 @@ real. Backs the "Aggiungi annuncio" modal in `pfs-command.html`.
   | `tests/dossier/run.mjs` | fascicolo ARPE: un landlord non può scrivere nel fascicolo di un immobile altrui, path sotto `property-docs/<id>/`, slot già pieni non sovrascritti |
   | `tests/photos/sweep.mjs` | photo-lab: chi è candidato allo sweep, quali foto contano come sorgente (i nostri output enhanced mai), e l'ordine con cui le 3 notti si spendono — le gallerie vere prima degli annunci da una foto. Si auto-skippa senza `sharp` |
   | `tests/copy/run.mjs` | descrizioni: lo sweep riscrive i template del bot e le schede mute, ma **mai** le parole di un umano — verificato sulle stringhe vere del catalogo, dove il testo scritto a mano è più CORTO del template |
+  | `tests/scheda/run.mjs` | La Scheda: token derivati (ruolo nella derivazione, timing-safe), precedenza prefill contratto→sign→wizard, lock post-firma, sync profilo su ENTRAMBI gli schemi users, upload con OCR che non blocca mai, /api/profile/link autorizzato |
   | `tests/safari/boot.mjs` | nessuna superficie autenticata resta appesa su un loader |
 - PWA support via `manifest.json` and `sw.js` service worker — registered on
   the 3 portals via `BoomPortal.registerServiceWorker()`

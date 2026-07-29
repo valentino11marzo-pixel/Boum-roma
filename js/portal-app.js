@@ -17051,20 +17051,27 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const dot = '………';
 
             // --------------- Variable data points ---------------
-            const locName = (landlord && landlord.name) || dot;
-            const locDOB  = (landlord && landlord.birthDate)  ? fmtDate(landlord.birthDate) : dot;
-            const locPOB  = (landlord && landlord.birthPlace) || dot;
-            const locDom  = (landlord && landlord.address)    || dot;
-            const locCF   = (landlord && landlord.codiceFiscale) || dot;
+            // Identity fallback chain: contract fields (Magic Sign / La
+            // Scheda) → users sign-schema (cf/dob/…) → users wizard-schema
+            // (codiceFiscale/birthDate/…) — a regenerated PDF must never
+            // print dots for data a party already self-filled.
+            const pick = (...vals) => { for (const v of vals) { if (v !== undefined && v !== null && String(v).trim() !== '') return String(v); } return ''; };
+            const locName = pick(contract.landlordName, landlord && landlord.name) || dot;
+            const locDOBr = pick(contract.landlordDob, landlord && landlord.dob, landlord && landlord.birthDate);
+            const locDOB  = locDOBr ? fmtDate(locDOBr) : dot;
+            const locPOB  = pick(contract.landlordPob, landlord && landlord.pob, landlord && landlord.birthPlace) || dot;
+            const locDom  = pick(contract.landlordAddress, landlord && landlord.address) || dot;
+            const locCF   = pick(contract.landlordCF, landlord && landlord.cf, landlord && landlord.codiceFiscale) || dot;
 
-            const tenName = (tenant && tenant.name) || dot;
-            const tenDOB  = (tenant && tenant.birthDate)  ? fmtDate(tenant.birthDate) : dot;
-            const tenPOB  = (tenant && tenant.birthPlace) || dot;
-            const tenDom  = (tenant && tenant.address)    || dot;
-            const tenCF   = (tenant && tenant.codiceFiscale) || dot;
-            const tenDoc  = (tenant && tenant.idDocType)
-                ? (tenant.idDocType + (tenant.idDocNumber ? ' n. ' + tenant.idDocNumber : ''))
-                : dot;
+            const tenName = pick(contract.tenantName, tenant && tenant.name) || dot;
+            const tenDOBr = pick(contract.tenantDob, tenant && tenant.dob, tenant && tenant.birthDate);
+            const tenDOB  = tenDOBr ? fmtDate(tenDOBr) : dot;
+            const tenPOB  = pick(contract.tenantPob, tenant && tenant.pob, tenant && tenant.birthPlace) || dot;
+            const tenDom  = pick(contract.tenantAddress, tenant && tenant.address) || dot;
+            const tenCF   = pick(contract.tenantCF, tenant && tenant.cf, tenant && tenant.codiceFiscale) || dot;
+            const tenDocT = pick(contract.tenantDocType, tenant && tenant.docType, tenant && tenant.idDocType);
+            const tenDocN = pick(contract.tenantDocNum, tenant && tenant.docNum, tenant && tenant.idDocNumber);
+            const tenDoc  = tenDocT ? (tenDocT + (tenDocN ? ' n. ' + tenDocN : '')) : dot;
 
             const propCity   = (property && property.city)    || 'Roma';
             const propStreet = (property && property.address) || dot;
@@ -17436,20 +17443,31 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const dot = '………';
 
             // --------------- Variable data points ---------------
-            const locName = (landlord && landlord.name) || dot;
-            const locDOB  = (landlord && landlord.birthDate)  ? fmtDate(landlord.birthDate) : dot;
-            const locPOB  = (landlord && landlord.birthPlace) || dot;
-            const locDom  = (landlord && landlord.address)    || dot;
-            const locCF   = (landlord && landlord.codiceFiscale) || dot;
+            // Identity fallback chain: contract fields (written by Magic
+            // Sign / La Scheda at self-fill time) → users sign-schema
+            // (cf/dob/…) → users wizard-schema (codiceFiscale/birthDate/…).
+            // Without the chain, a regenerated PDF printed dots even when
+            // the party had already filled everything on /sign or /scheda.
+            const pick = (...vals) => { for (const v of vals) { if (v !== undefined && v !== null && String(v).trim() !== '') return String(v); } return ''; };
+            const locName = pick(contract.landlordName, landlord && landlord.name) || dot;
+            const locDOBr = pick(contract.landlordDob, landlord && landlord.dob, landlord && landlord.birthDate);
+            const locDOB  = locDOBr ? fmtDate(locDOBr) : dot;
+            const locPOB  = pick(contract.landlordPob, landlord && landlord.pob, landlord && landlord.birthPlace) || dot;
+            const locDom  = pick(contract.landlordAddress, landlord && landlord.address) || dot;
+            const locCF   = pick(contract.landlordCF, landlord && landlord.cf, landlord && landlord.codiceFiscale) || dot;
 
-            const tenName = (tenant && tenant.name) || dot;
-            const tenDOB  = (tenant && tenant.birthDate)  ? fmtDate(tenant.birthDate) : dot;
-            const tenPOB  = (tenant && tenant.birthPlace) || dot;
-            const tenDom  = (tenant && tenant.address)    || dot;
-            const tenCF   = (tenant && tenant.codiceFiscale) || dot;
-            const tenDoc  = (tenant && tenant.idDocType)
-                ? (tenant.idDocType + (tenant.idDocNumber ? ' n. ' + tenant.idDocNumber : ''))
-                : dot;
+            const tenName = pick(contract.tenantName, tenant && tenant.name) || dot;
+            const tenDOBr = pick(contract.tenantDob, tenant && tenant.dob, tenant && tenant.birthDate);
+            const tenDOB  = tenDOBr ? fmtDate(tenDOBr) : dot;
+            const tenPOB  = pick(contract.tenantPob, tenant && tenant.pob, tenant && tenant.birthPlace) || dot;
+            const tenCF   = pick(contract.tenantCF, tenant && tenant.cf, tenant && tenant.codiceFiscale) || dot;
+            const tenDocTypeRaw = pick(contract.tenantDocType, tenant && tenant.docType, tenant && tenant.idDocType);
+            const tenDocNum     = pick(contract.tenantDocNum, tenant && tenant.docNum, tenant && tenant.idDocNumber) || dot;
+            const tenDocIssuer  = pick(contract.tenantDocIssuer, tenant && tenant.docIssuer) || dot;
+            const tenDocIssuedR = pick(contract.tenantDocIssueDate, tenant && tenant.docIssueDate);
+            const tenDocIssued  = tenDocIssuedR ? fmtDate(tenDocIssuedR) : dot;
+            const docTypeIt = { passport: 'passaporto', id: 'carta d’identità', permit: 'permesso di soggiorno', patente: 'patente auto' };
+            const tenDocLabel = docTypeIt[tenDocTypeRaw] || tenDocTypeRaw || 'C.I/patente auto';
 
             const propCity   = (property && property.city)    || 'Roma';
             const propStreet = (property && property.address) || dot;
@@ -17462,14 +17480,18 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const propFurnished = propFurnishedFlag ? 'ammobiliata' : 'non ammobiliata';
 
             const cadast    = (property && property.cadastralData) || formatCadastral(property) || dot;
-            const energy    = (property && (property.energyCert || property.energyClass)) || dot;
+            const rendita   = (contract.renditaCatastale || (property && property.renditaCatastale))
+                              ? fmtIt(contract.renditaCatastale || property.renditaCatastale) : dot;
+            const energy    = (property && (property.energyCert || property.energyClass)) || contract.energyClass || dot;
             const sicurezza = (contract.propertyExtra && contract.propertyExtra.sicurezzaImpianti)
-                              || (property && property.safetyImplants) || dot;
+                              || (property && property.safetyImplants) || '';
             const tab = (contract.propertyExtra && contract.propertyExtra.tabelleMillesimali) || {};
             const tabFmt = (v) => (v !== undefined && v !== null && v !== '') ? String(v) : dot;
             const tabPro = tabFmt(tab['proprieta'] || tab['proprietà']);
             const tabRis = tabFmt(tab.riscaldamento);
             const tabAcq = tabFmt(tab.acqua);
+            const tabSca = tabFmt(tab.scale);
+            const tabAsc = tabFmt(tab.ascensore);
             const tabAlt = tabFmt(tab.altre);
 
             const durText = (contract.durata && contract.durata.text)
@@ -17488,6 +17510,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const canInstallments = (contract.canone && contract.canone.installments) || durMonths || 12;
             const canTotal        = (contract.canone && contract.canone.total)        || (canMonthly * canInstallments);
 
+            // Rate: cadenza reale del contratto (mensile di default; la
+            // catena installmentMonths/installmentAmount arriva dal PA).
+            const instStep  = [1, 2, 3, 6, 12].includes(Number(contract.installmentMonths)) ? Number(contract.installmentMonths) : 1;
+            const cadWord   = { 1: 'mensili', 2: 'bimestrali', 3: 'trimestrali', 6: 'semestrali', 12: 'annuali' }[instStep];
+            const nRate     = Math.max(1, Math.ceil((durMonths || canInstallments) / instStep));
+            const rataAmount = Number(contract.installmentAmount) || (canMonthly * instStep);
+            const payDay    = parseInt(contract.paymentDay, 10) || (contract.canone && parseInt(contract.canone.paymentDay, 10)) || 5;
+            const rateClause = instStep === 1
+                ? `in n. ${nRate} rate mensili eguali anticipate di € ${fmtIt(rataAmount)} (${fmtIt(rataAmount)}/00) ciascuna, entro il giorno ${payDay} di ogni mese`
+                : `in n. ${nRate} rate ${cadWord} eguali anticipate di € ${fmtIt(rataAmount)} (${fmtIt(rataAmount)}/00) ciascuna, entro il giorno ${payDay} del primo mese di ciascun periodo`;
+
             const depAmount = (contract.deposit && typeof contract.deposit === 'object')
                 ? (contract.deposit.amount || 0)
                 : (contract.deposit || 0);
@@ -17503,25 +17536,31 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                                    || contract.courseName || dot;
             const studUniversita = (contract.studenti && contract.studenti.universita)
                                    || contract.universityName || dot;
-            const studUniversitaIndirizzo = (contract.studenti && contract.studenti.universitaIndirizzo) || dot;
 
-            const consegnaStato = contract.consegnaStato || dot;
+            // Slot liberi del contratto tipo — '--' quando non pattuiti,
+            // esattamente come sul modello dell'associazione.
+            const garanzieAltre = contract.garanzieAltre || '--';
+            const oneriQuota    = (contract.oneriQuota !== undefined && contract.oneriQuota !== null && contract.oneriQuota !== '')
+                                  ? fmtIt(contract.oneriQuota) : '--';
+            const subentroMod   = contract.subentroModalita || '--';
+            const accessiMod    = contract.accessiModalita || '--';
+            const cedolareOn    = (contract.cedolareSecca || 'si') !== 'no';
+
+            const consegnaStato = contract.consegnaStato || '--';
             const sigPlace = contract.signaturePlace || (property && property.city) || 'Roma';
             const sigDateRaw = contract.signatureDate || contract.fullySignedAt || new Date();
             const sigDateStr = fmtDate(sigDateRaw);
 
-            // --------------- HEADER ---------------
+            // --------------- HEADER (contratto tipo associazione, accordo Roma 27.07.2023) ---------------
             doc.setFont('times', 'bold');
             doc.setFontSize(14);
-            doc.text('ALLEGATO C', pageW / 2, y, { align: 'center' });
-            y += 7;
             doc.text('LOCAZIONE ABITATIVA PER STUDENTI UNIVERSITARI', pageW / 2, y, { align: 'center' });
-            y += 7;
+            y += 6;
             doc.setFont('times', 'normal');
             doc.setFontSize(10);
-            doc.text('(Legge 9 dicembre 1998, n. 431, articolo 5, comma 3)', pageW / 2, y, { align: 'center' });
+            doc.text('ai sensi dell’art. 5, comma 2 Legge 9/12/98 n° 431', pageW / 2, y, { align: 'center' });
             y += 5;
-            const subHdr = doc.splitTextToSize("In conformità all'accordo territoriale di Roma Capitale del 25 luglio 2023 e depositato presso il Comune di Roma il 27/07/2023 prot. QC/82672/2023", pw);
+            const subHdr = doc.splitTextToSize('in conformità all’accordo territoriale tra le Associazioni dei proprietari e degli inquilini depositato presso il Comune di Roma Capitale il 27.07.2023 con protocollo n° RA/2023/0044852', pw);
             doc.text(subHdr, pageW / 2, y, { align: 'center', maxWidth: pw });
             y += subHdr.length * ptToMm(10) * 1.15 + 6;
 
@@ -17529,64 +17568,78 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             doc.setFontSize(11);
 
             // --------------- PARTI ---------------
-            addParagraph(`Il/La sig./soc. ${locName}, nato/a il ${locDOB} a ${locPOB}, domiciliato/a in ${locDom}, C.F. ${locCF}, di seguito denominato/a locatore concede in locazione`);
-            addParagraph(`al/alla sig. ${tenName}, nato/a il ${tenDOB} a ${tenPOB}, domiciliato/a in ${tenDom}, C.F. ${tenCF}, di seguito denominato/a conduttore, identificato/a mediante ${tenDoc}, che accetta, per sé e suoi aventi causa,`);
+            addParagraph(`Il sig. ${locName}, C.F. ${locCF}, nato/a a ${locPOB} il ${locDOB}, residente in ${locDom}, di seguito denominato/a locatore`);
+            addParagraph('CONCEDE IN LOCAZIONE', { bold: true, align: 'center', x: pageW / 2, after: 4 });
+            addParagraph(`al sig. ${tenName}, C.F. ${tenCF}, nato/a a ${tenPOB} il ${tenDOB}, domiciliato/a nei locali oggetto della locazione, identificato/a mediante ${tenDocLabel} n. ${tenDocNum} rilasciata da ${tenDocIssuer} il ${tenDocIssued}, di seguito denominato/a conduttore,`);
+            addParagraph('CHE ACCETTA, PER SÉ E SUOI AVENTI CAUSA,', { bold: true, align: 'center', x: pageW / 2, after: 4 });
 
-            addParagraph(`A) l'unità immobiliare posta in ${propCity}, via ${propStreet}, piano ${propFloor}, scala ${propScala}, int. ${propInt}, composta di n. ${propRooms} vani, oltre cucina e servizi, e dotata altresì dei seguenti elementi accessori ${propAcc}`);
-            addParagraph(`${propFurnished} come da elenco a parte sottoscritto dalle parti.`);
+            addParagraph(`l'unità immobiliare posta in ${propCity}, via ${propStreet}, piano ${propFloor}, scala ${propScala}, int. ${propInt}, composta di n. ${propRooms} vani, oltre cucina e servizi, e dotata altresì dei seguenti elementi accessori: ${propAcc}, ${propFurnished} come da elenco a parte sottoscritto dalle parti.`);
 
-            addParagraph(`a) estremi catastali identificativi dell'unità immobiliare: ${cadast}`);
-            addParagraph(`b) prestazione energetica: ${energy}`);
-            addParagraph(`c) sicurezza impianti: ${sicurezza}`);
-            addParagraph(`d) tabelle millesimali: proprietà ${tabPro}, riscaldamento ${tabRis}, acqua ${tabAcq}, altre ${tabAlt}`);
+            addParagraph(`A) estremi catastali identificativi dell'unità immobiliare: ${cadast}, rendita catastale € ${rendita}.`);
+            addParagraph(`B) PRESTAZIONE ENERGETICA: classe ${energy}. Il conduttore dichiara di aver ricevuto le informazioni e la documentazione in ordine alla attestazione della prestazione energetica dell'immobile.`);
+            addParagraph(sicurezza
+                ? `C) SICUREZZA IMPIANTI: ${sicurezza}`
+                : 'C) SICUREZZA IMPIANTI: Il conduttore prende atto che gli impianti esistenti nell’appartamento in oggetto e quelli condominiali non dispongono di certificazione a norma, ai sensi delle disposizioni vigenti in materia di sicurezza.');
+            addParagraph(`D) TABELLE MILLESIMALI: proprietà ${tabPro}, riscaldamento ${tabRis}, acqua ${tabAcq}, scale ${tabSca}, ascensore ${tabAsc}, altre ${tabAlt}.`);
 
             y += 2;
-            addParagraph('La locazione è regolata dalle pattuizioni seguenti.', { italic: true, after: 2 });
+            addParagraph('LA LOCAZIONE È REGOLATA DALLE PATTUIZIONI SEGUENTI', { bold: true, align: 'center', x: pageW / 2, after: 2 });
 
-            // --------------- ARTICOLI 1-16 (verbatim CAF studenti) ---------------
+            // --------------- ARTICOLI 1-16 (contratto tipo associazione, verbatim) ---------------
+            // Fonte: contratto_tipo_STUDENTI_Roma_2023 (accordo depositato il
+            // 27/07/2023, prot. RA/2023/0044852). Refusi dell'originale
+            // normalizzati: il secondo "Articolo 13" (Accessi) è il 14, come
+            // conferma la stessa clausola 1341/1342 del modello.
 
             addArticle(1, 'Durata',
-                `Il contratto è stipulato per la durata di ${durMonths || dot} mesi, dal ${durStartStr} al ${durEndStr}. Alla prima scadenza il contratto si rinnova automaticamente per uguale periodo se il conduttore non comunica al locatore disdetta almeno un mese e non oltre tre mesi prima della data di scadenza del contratto.`
+                `Il contratto è stipulato per la durata di ${durMonths || dot} mesi, dal ${durStartStr} al ${durEndStr}. Alla prima scadenza il contratto si rinnova automaticamente per uguale periodo se il conduttore non comunica al locatore disdetta almeno tre mesi prima della data di scadenza del contratto.`
             );
 
             addArticle(2, 'Natura transitoria',
-                `Secondo quanto previsto dall'Accordo territoriale stipulato ai sensi dell'articolo 5, comma 3, della legge n. 431/98, di Roma Capitale del 25 luglio 2023 e depositato il 27/07/2023 presso il Comune di Roma prot. QC/82672/2023, le parti concordano che la presente locazione ha natura transitoria in quanto il conduttore espressamente ha l'esigenza di abitare l'immobile frequentando il corso di studi di ${studCorsoStudi} presso ${studUniversita}, con sede in ${studUniversitaIndirizzo}.`
+                `Secondo quanto previsto dall'Accordo territoriale stipulato ai sensi dell'articolo 5, comma 2, della legge n. 431/98, tra le Associazioni della proprietà e le Organizzazioni degli inquilini, depositato il 27/07/2023 con Protocollo n° RA/2023/0044852 presso il Comune di Roma Capitale, le parti concordano che la presente locazione ha natura transitoria in quanto il conduttore espressamente ha l'esigenza di abitare l'immobile per un periodo non eccedente i ${durMonths || dot} mesi, frequentando il corso di studi di ${studCorsoStudi} presso l'Università “${studUniversita}” di Roma.`
             );
 
             addArticle(3, 'Canone',
-                isAnnual
-                    ? `Il canone annuo di locazione, secondo quanto stabilito dall'Accordo territoriale di Roma Capitale del 25 luglio 2023, è convenuto in euro ${fmtIt(canTotal)} (${fmtIt(canTotal)}/00), che il conduttore si obbliga a corrispondere a mezzo di bonifico bancario, in n. ${canInstallments} rate mensili eguali anticipate di euro ${fmtIt(canMonthly)} (${fmtIt(canMonthly)}/00) ciascuna, da versare entro il giorno 5 di ogni mese.`
-                    : `Il canone complessivo di locazione, riferito all'intera durata contrattuale di ${durText}, secondo quanto stabilito dall'Accordo territoriale di Roma Capitale del 25 luglio 2023, è convenuto in euro ${fmtIt(canTotal)} (${fmtIt(canTotal)}/00), che il conduttore si obbliga a corrispondere a mezzo di bonifico bancario, in n. ${canInstallments} rate mensili eguali anticipate di euro ${fmtIt(canMonthly)} (${fmtIt(canMonthly)}/00) ciascuna, da versare entro il giorno 5 di ogni mese.`
+                (isAnnual
+                    ? `Il canone annuo di locazione, secondo quanto stabilito dall'Accordo territoriale stipulato ai sensi dell'articolo 5, comma 2, della legge n. 431/98, tra le Associazioni della proprietà e le Organizzazioni degli inquilini, depositato il 27/07/2023 con Protocollo n° RA/2023/0044852 presso il Comune di Roma Capitale, è convenuto in € ${fmtIt(canTotal)} (${fmtIt(canTotal)}/00), che il conduttore si obbliga a corrispondere nel domicilio del locatore ovvero a mezzo di bonifico bancario, ${rateClause}.`
+                    : `Il canone di locazione, riferito all'intera durata contrattuale di ${durText}, secondo quanto stabilito dall'Accordo territoriale stipulato ai sensi dell'articolo 5, comma 2, della legge n. 431/98, tra le Associazioni della proprietà e le Organizzazioni degli inquilini, depositato il 27/07/2023 con Protocollo n° RA/2023/0044852 presso il Comune di Roma Capitale, è convenuto in € ${fmtIt(canTotal)} (${fmtIt(canTotal)}/00), che il conduttore si obbliga a corrispondere nel domicilio del locatore ovvero a mezzo di bonifico bancario, ${rateClause}.`)
+                + `\n\nNel caso in cui l'Accordo territoriale di cui al presente punto lo preveda, il canone viene aggiornato ogni anno nella misura contrattata, che comunque non può superare il 75% della variazione Istat ed esclusivamente nel caso in cui il locatore non abbia optato per la “cedolare secca” per la durata dell'opzione.`
             );
 
             if (hasDeposit) {
                 addArticle(4, 'Deposito cauzionale e altre forme di garanzia',
-                    `A garanzia delle obbligazioni assunte col presente contratto, il conduttore versa al locatore (che con la firma del contratto ne rilascia quietanza) una somma di euro ${fmtIt(depAmount)} (${fmtIt(depAmount)}/00) pari a n. ${depMonthsStr} mensilità del canone, non imputabile in conto canoni e produttiva di interessi legali, riconosciuti al conduttore al termine della locazione. Il deposito cauzionale così costituito viene reso al termine della locazione previa verifica dello stato dell'unità immobiliare e dell'osservanza di ogni obbligazione contrattuale.`
+                    `A garanzia delle obbligazioni assunte col presente contratto, il conduttore versa al locatore (che con la firma del contratto ne rilascia, in caso, quietanza) una somma di € ${fmtIt(depAmount)} (${fmtIt(depAmount)}/00) pari a ${depMonthsStr} mensilità del canone, non imputabile in conto canoni e produttiva di interessi legali, riconosciuti al conduttore al termine di ogni anno di locazione. Il deposito cauzionale così costituito viene reso al termine della locazione, previa verifica dello stato dell'unità immobiliare e dell'osservanza di ogni obbligazione contrattuale.\n\nAltre forme di garanzia: ${garanzieAltre}.`
+                );
+            } else {
+                addArticle(4, 'Deposito cauzionale e altre forme di garanzia',
+                    `Le parti concordano che per il presente contratto non viene costituito deposito cauzionale.\n\nAltre forme di garanzia: ${garanzieAltre}.`
                 );
             }
 
             addArticle(5, 'Oneri accessori',
-                `Per gli oneri accessori le parti fanno applicazione della Tabella oneri accessori, allegato D al decreto emanato dal Ministro delle infrastrutture e dei trasporti di concerto con il Ministro dell'economia e delle finanze ai sensi dell'articolo 4, comma 2, della legge n. 431/1998 e di cui il presente contratto costituisce l'Allegato C.\n\nIn sede di consuntivo, il pagamento degli oneri anzidetti, per la quota parte di quelli condominiali/comuni a carico del conduttore, deve avvenire entro sessanta giorni dalla richiesta. Prima di effettuare il pagamento, il conduttore ha diritto di ottenere l'indicazione specifica delle spese anzidette e dei criteri di ripartizione. Ha inoltre diritto di prendere visione - anche tramite organizzazioni sindacali - presso il locatore (o il suo amministratore o l'amministratore condominiale, ove esistente) dei documenti giustificativi delle spese effettuate. Insieme con il pagamento della prima rata del canone annuale, il conduttore versa una quota di acconto non superiore a quella di sua spettanza risultante dal rendiconto dell'anno precedente.\n\nSono interamente a carico del conduttore le spese relative ad ogni utenza (energia elettrica, acqua, gas, telefono e altro).`
+                `Per gli oneri accessori le parti fanno applicazione della Tabella oneri accessori, allegato D al decreto emanato dal Ministero delle infrastrutture e dei trasporti di concerto con il Ministero dell'economia e delle finanze ai sensi dell'articolo 4, comma 2, della legge n. 431/1998 e di cui il presente contratto costituisce l'Allegato C.\n\nIn sede di consuntivo, il pagamento degli oneri anzidetti, per la quota parte di quelli condominiali/comuni a carico del conduttore, deve avvenire entro sessanta giorni dalla richiesta. Prima di effettuare il pagamento, il conduttore ha diritto di ottenere l'indicazione specifica delle spese anzidette e dei criteri di ripartizione. Ha inoltre diritto di prendere visione - anche tramite organizzazioni sindacali - presso il locatore (o il suo amministratore o l'amministratore condominiale, ove esistente) dei documenti giustificativi delle spese effettuate. Insieme con il pagamento della prima rata del canone annuale, il conduttore versa una quota di acconto non superiore a quella di sua spettanza risultante dal rendiconto dell'anno precedente.\n\nPer le spese di cui al presente articolo il conduttore versa una quota di € ${oneriQuota} salvo conguaglio.`
             );
 
             addArticle(6, 'Spese di bollo e di registrazione',
-                `Le spese di bollo per il presente contratto e per le ricevute conseguenti sono a carico del conduttore. Il locatore provvede alla registrazione del contratto, dandone documentata comunicazione al conduttore - che corrisponde la quota di sua spettanza, pari alla metà - e all'amministratore del condominio ai sensi dell'art. 13 della legge 431 del 1998.\n\nLe parti possono delegare alla registrazione del contratto una delle organizzazioni sindacali che abbia prestato assistenza ai fini della stipula del contratto medesimo.`
+                cedolareOn
+                    ? `Il locatore intende avvalersi delle disposizioni di cui al DLGS n. 23 del 14-03-2011 cosiddetta "cedolare secca". Pertanto a norma di tale disposizione il locatore dichiara di rinunciare all'applicazione degli adeguamenti Istat. Il presente contratto, quindi, è esente da imposta di bollo e tassa registro. È facoltà del locatore recedere dalla tassazione della cedolare secca e in tal caso il canone sarà adeguato annualmente con l'applicazione dell'Istat al 75% e le spese di bollo per il presente contratto e per le ricevute conseguenti saranno a carico del conduttore mentre la tassa di registro è pari alla metà. Il locatore provvede alla registrazione del contratto, dandone documentata comunicazione al conduttore e all'Amministratore del condominio ai sensi dell'art. 13 legge 431 del 1998.\n\nLe parti possono delegare alla registrazione del contratto una delle organizzazioni sindacali che abbia prestato assistenza ai fini della stipula del contratto medesimo.`
+                    : `Le spese di bollo per il presente contratto e per le ricevute conseguenti sono a carico del conduttore, mentre la tassa di registro è ripartita al 50% tra le parti. Il locatore provvede alla registrazione del contratto, dandone documentata comunicazione al conduttore e all'Amministratore del condominio ai sensi dell'art. 13 legge 431 del 1998.\n\nLe parti possono delegare alla registrazione del contratto una delle organizzazioni sindacali che abbia prestato assistenza ai fini della stipula del contratto medesimo.`
             );
 
             addArticle(7, 'Pagamento',
-                `Il pagamento del canone o di quant'altro dovuto anche per oneri accessori non può venire sospeso o ritardato da pretese o eccezioni del conduttore, qualunque ne sia il titolo. Il mancato puntuale pagamento, per qualunque causa, anche di una sola rata del canone (nonché di quant'altro dovuto, ove di importo pari almeno ad una mensilità del canone), costituisce in mora il conduttore, fatto salvo quanto previsto dall'articolo 55 della legge n. 392/78.`
+                `Il pagamento del canone o di quant'altro dovuto anche per oneri accessori non può venire sospeso o ritardato da pretese o eccezioni del conduttore, quale ne sia il titolo. Il mancato puntuale pagamento, per qualsiasi causa, anche di una sola rata del canone, nonché di quant'altro dovuto, ove di importo pari almeno ad una mensilità del canone, costituisce in mora il conduttore, fatto salvo quanto previsto dall'articolo 55 della legge 27 luglio 1978, n. 392.`
             );
 
             addArticle(8, 'Uso',
-                `L'immobile deve essere destinato esclusivamente ad uso di civile abitazione del conduttore. Salvo patto scritto contrario, è fatto divieto di sublocare o dare in comodato, in tutto o in parte, l'unità immobiliare, pena la risoluzione di diritto del contratto.`
+                `L'immobile deve essere destinato esclusivamente a civile abitazione del conduttore e delle seguenti persone attualmente con lui conviventi: ${contract.cohabitants || '--'}.\n\nSalvo espresso patto scritto contrario, è fatto divieto di sublocazione e di comodato sia totale sia parziale. Per la successione nel contratto si applica l'articolo 6 della legge n. 392/78, nel testo vigente a seguito della sentenza della Corte costituzionale n. 404/1988.`
             );
 
             addArticle(9, 'Recesso del conduttore',
-                `Il conduttore ha facoltà di recedere dal contratto per gravi motivi, previo avviso da recapitarsi mediante lettera raccomandata almeno tre mesi prima. Tale facoltà è consentita anche ad uno o più dei conduttori firmatari ed in tal caso, dal mese dell'intervenuto recesso, la locazione prosegue nei confronti degli altri, ferma restando la solidarietà del conduttore recedente per i pregressi periodi di conduzione.`
+                `Il conduttore ha facoltà di recedere dal contratto per gravi motivi, previo avviso da recapitarsi mediante lettera raccomandata almeno tre mesi prima della scadenza. Tale facoltà è consentita anche ad uno o più dei conduttori firmatari ed in tal caso, dal mese dell'intervenuto recesso, la locazione prosegue nei confronti degli altri, ferma restando la solidarietà del conduttore recedente per i pregressi periodi di conduzione.\n\nLe modalità di subentro sono così concordate tra le parti: ${subentroMod}.`
             );
 
             addArticle(10, 'Consegna',
-                `Il conduttore dichiara di aver visitato l'unità immobiliare locatagli, di averla trovata adatta all'uso convenuto e - così - di prenderla in consegna ad ogni effetto col ritiro delle chiavi, costituendosi da quel momento custode della stessa. Il conduttore si impegna a riconsegnare l'unità immobiliare nello stato in cui l'ha ricevuta, salvo il deperimento d'uso, pena il risarcimento del danno. Si impegna altresì a rispettare le norme del regolamento dello stabile ove esistente, accusando in tal caso ricevuta dello stesso con la firma del presente contratto, così come si impegna ad osservare le deliberazioni dell'assemblea dei condomini. È in ogni caso vietato al conduttore compiere atti e tenere comportamenti che possano recare molestia agli altri abitanti dello stabile.\n\nLe parti danno atto, in relazione allo stato dell'immobile, ai sensi dell'articolo 1590 del Codice civile di quanto segue: ${consegnaStato}`
+                `Il conduttore dichiara di aver visitato l'unità immobiliare locatagli, di averla trovata adatta all'uso convenuto e, pertanto, di prenderla in consegna ad ogni effetto col ritiro delle chiavi, costituendosi da quel momento custode della stessa. Il conduttore si impegna a riconsegnare l'unità immobiliare nello stato in cui l'ha ricevuta, salvo il deperimento d'uso, pena il risarcimento del danno; si impegna, altresì, a rispettare le norme del regolamento dello stabile ove esistente, accusando in tal caso ricevuta dello stesso con la firma del presente contratto, così come si impegna ad osservare le deliberazioni dell'assemblea dei condomini. È in ogni caso vietato al conduttore compiere atti e tenere comportamenti che possano recare molestia agli altri abitanti dello stabile.\n\nLe parti danno atto, in relazione allo stato dell'unità immobiliare, ai sensi dell'articolo 1590 del Codice civile di quanto segue: ${consegnaStato} ovvero di quanto risulta dal verbale di consegna.`
             );
 
             addArticle(11, 'Modifiche e danni',
@@ -17598,19 +17651,19 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             );
 
             addArticle(13, 'Impianti',
-                `Il conduttore - in caso di installazione sullo stabile di antenna televisiva centralizzata - si obbliga a servirsi unicamente dell'impianto relativo, restando sin d'ora il locatore in caso di inosservanza autorizzato a far rimuovere e demolire ogni antenna individuale a spese del conduttore, il quale nulla può pretendere a qualsiasi titolo, fatte salve le eccezioni di legge.\n\nPer quanto attiene all'impianto termico autonomo, ove presente, ai sensi della normativa del D.lgs 192/05, con particolare riferimento all'art. 7 comma 1, il conduttore subentra per la durata della detenzione alla figura del proprietario nell'onere di adempiere alle operazioni di controllo e di manutenzione.`
+                `Il conduttore - in caso d'installazione sullo stabile di antenna televisiva centralizzata - si obbliga a servirsi unicamente dell'impianto relativo, restando sin d'ora il locatore, in caso di inosservanza, autorizzato a far rimuovere e demolire ogni antenna individuale a spese del conduttore, il quale nulla può pretendere a qualsiasi titolo, fatte salve le eccezioni di legge.\n\nPer quanto attiene all'impianto termico autonomo, ove presente, ai sensi della normativa del d.lgs n. 192/05, con particolare riferimento all'art. 7 comma 1, il conduttore subentra per la durata della detenzione alla figura del proprietario nell'onere di adempiere alle operazioni di controllo e di manutenzione.`
             );
 
             addArticle(14, 'Accessi',
-                `Il conduttore deve consentire l'accesso all'unità immobiliare al locatore, al suo amministratore nonché ai loro incaricati ove gli stessi ne abbiano - motivandola - ragione.\n\nNel caso in cui il locatore intenda vendere o, in caso di recesso anticipato del conduttore, locare l'unità immobiliare, questi deve consentirne la visita una volta la settimana, per almeno due ore, con esclusione dei giorni festivi.`
+                `Il conduttore deve consentire l'accesso all'unità immobiliare al locatore, al suo amministratore nonché ai loro incaricati ove gli stessi ne abbiano - motivandola - ragione.\n\nNel caso in cui il locatore intenda vendere o, in caso di recesso anticipato del conduttore, locare l'unità immobiliare, questi deve consentirne la visita una volta la settimana, per almeno due ore, con esclusione dei giorni festivi oppure con le seguenti modalità: ${accessiMod}.`
             );
 
             addArticle(15, 'Commissione di negoziazione paritetica e conciliazione stragiudiziale',
-                `La Commissione di cui all'articolo 6 del decreto del Ministro delle infrastrutture e dei trasporti di concerto con il Ministro dell'economia e delle finanze, emanato ai sensi dell'articolo 4, comma 2, della legge 431/98, è composta da due membri scelti fra appartenenti alle rispettive organizzazioni firmatarie dell'Accordo territoriale sulla base delle designazioni, rispettivamente, del locatore e del conduttore.\n\nL'operato della Commissione è disciplinato dal documento "Procedure di negoziazione e conciliazione stragiudiziale nonché modalità di funzionamento della Commissione", Allegato E, al citato decreto.\n\nLa richiesta di intervento della Commissione non determina la sospensione delle obbligazioni contrattuali. La richiesta di attivazione della Commissione non comporta oneri.`
+                `La Commissione di cui all'articolo 6 del decreto del Ministro delle infrastrutture e dei trasporti di concerto con il Ministro dell'economia e delle finanze, emanato ai sensi dell'articolo 4, comma 2, della legge 431 del 1998, è composta da due membri scelti fra appartenenti alle rispettive organizzazioni firmatarie dell'Accordo territoriale sulla base delle designazioni, rispettivamente, del locatore e del conduttore.\n\nL'operato della Commissione è disciplinato dal documento “Procedure di negoziazione e conciliazione stragiudiziale nonché modalità di funzionamento della Commissione”, Allegato E al citato decreto. La richiesta di intervento della Commissione non determina la sospensione delle obbligazioni contrattuali.\n\nLa richiesta di attivazione della Commissione non comporta oneri.`
             );
 
             addArticle(16, 'Varie',
-                `A tutti gli effetti del presente contratto, comprese la notifica degli atti esecutivi, e ai fini della competenza a giudicare, il conduttore elegge domicilio nei locali a lui locati e, ove egli più non li occupi o comunque detenga, presso l'ufficio di segreteria del Comune ove è situato l'immobile locato.\n\nQualunque modifica al presente contratto non può aver luogo, e non può essere provata, se non con atto scritto.\n\nIl locatore ed il conduttore si autorizzano reciprocamente a comunicare a terzi i propri dati personali in relazione ad adempimenti connessi col rapporto di locazione (d.lgs n. 196/03).\n\nPer quanto non previsto dal presente contratto le parti rinviano a quanto in materia disposto dal Codice civile, dalle leggi n. 392/78 e n. 431/98 o comunque dalle norme vigenti e dagli usi locali nonché alla normativa ministeriale emanata in applicazione della legge n. 431/98 ed agli Accordi di cui agli articoli 2 e 3.`
+                `A tutti gli effetti del presente contratto, compresa la notifica degli atti esecutivi, e ai fini della competenza a giudicare, il conduttore elegge domicilio nei locali a lui locati e, ove egli più non li occupi o comunque detenga, presso l'ufficio di segreteria del Comune ove è situato l'immobile locato.\n\nQualunque modifica al presente contratto non può aver luogo, e non può essere provata, se non con atto scritto.\n\nIl locatore ed il conduttore si autorizzano reciprocamente a comunicare a terzi i propri dati personali in relazione ad adempimenti connessi col rapporto di locazione (d.Lgs n. 196/03).\n\nPer quanto non previsto dal presente contratto le parti rinviano a quanto in materia disposto dal Codice civile, dalle leggi n. 392/1978 e n. 431 del 1998 o comunque dalle norme vigenti e dagli usi locali nonché alla normativa ministeriale emanata in applicazione della legge n. 431 del 1998 ed agli Accordi di cui agli articoli 2 e 3.\n\nAltre clausole: sono a carico del conduttore le spese relative alle utenze private di energia elettrica, gas, acqua, tassa rifiuti.${contract.otherClauses ? '\n\n' + contract.otherClauses : ''}`
             );
 
             // --------------- LETTO, APPROVATO, SOTTOSCRITTO ---------------
@@ -17618,7 +17671,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             ensureSpace(60);
             doc.setFont('times', 'bold');
             doc.setFontSize(11);
-            doc.text('Letto, approvato e sottoscritto', margin, y);
+            doc.text('Letto, approvato e sottoscritto.', margin, y);
             y += 8;
             doc.setFont('times', 'normal');
             doc.setFontSize(11);
@@ -17645,12 +17698,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             doc.text('Il Conduttore: ' + tenName, rightX, sig1Y + 5);
             y = sig1Y + 16;
 
-            // --- 1341-1342 block (studenti list: 2, 4, 5, 7, 9, 10, 11, 13, 14, 15, 16) ---
+            // --- 1341-1342 block (lista del contratto tipo associazione) ---
             y += 14;
             ensureSpace(40);
             doc.setFont('times', 'normal');
             doc.setFontSize(10);
-            const art1341 = `A mente degli articoli 1341 e 1342 del Codice civile, le parti specificamente approvano i patti di cui agli articoli 2 (Natura transitoria), 4 (Deposito cauzionale e altre forme di garanzia), 5 (Oneri accessori), 7 (Pagamento), 9 (Recesso del conduttore), 10 (Consegna), 11 (Modifiche e danni), 13 (Impianti), 14 (Accessi), 15 (Commissione di negoziazione paritetica e conciliazione stragiudiziale) e 16 (Varie) del presente contratto.`;
+            const art1341 = `A mente degli articoli 1341 e 1342 del Codice civile, le parti specificamente approvano i patti di cui agli articoli 2 (Natura transitoria), 4 (Deposito cauzionale e altre forme di garanzia), 5 (Oneri accessori), 7 (Pagamento, risoluzione), 9 (Recesso del conduttore), 10 (Consegna), 11 (Modifiche e danni), 13 (Impianti), 14 (Accessi), 15 (Commissione di negoziazione paritetica e conciliazione stragiudiziale) e 16 (Varie) del presente contratto.`;
             const art1341Lines = doc.splitTextToSize(art1341, pw);
             const art1341LineH = ptToMm(10) * 1.15;
             ensureSpace(art1341Lines.length * art1341LineH);
@@ -21308,16 +21361,29 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         </div>`;
     }
 
-    // ── Send the right pre-filled form link via WhatsApp/email to the tenant/landlord
-    function sendMissingInfoLink(contractId, who) {
+    // ── Send La Scheda link via WhatsApp/email to the tenant/landlord.
+    // The scheda token is derived server-side (HOMIE_SECRET) — /api/profile/link
+    // resolves it; the old form-tenant/form-landlord pages wrote anonymously to
+    // an admin-only collection and silently failed for the client.
+    async function sendMissingInfoLink(contractId, who) {
         const c = (S.contracts || []).find(x => x.id === contractId);
         if (!c) return toast('error', 'Contratto non trovato');
         const isTenant = who === 'tenant';
         const target = isTenant
             ? (S.users || []).find(u => u.id === c.tenantId)
             : (S.users || []).find(u => u.id === (S.properties || []).find(p => p.id === c.propertyId)?.ownerId);
-        const token = isTenant ? c.tenantSignToken : c.landlordSignToken;
-        const url = `${window.location.origin}/${isTenant ? 'form-tenant.html' : 'form-landlord.html'}?contract=${encodeURIComponent(contractId)}${token ? '&t=' + encodeURIComponent(token) : ''}`;
+        let url = '';
+        try {
+            const idToken = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/profile/link', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+                body: JSON.stringify({ contractId })
+            });
+            const j = await r.json().catch(() => null);
+            if (j && j.ok) url = isTenant ? j.tenantUrl : j.landlordUrl;
+        } catch (e) { console.warn('[sendMissingInfoLink]', e); }
+        if (!url) return toast('error', 'Link scheda non disponibile — riprova');
         const name = target?.name || (isTenant ? 'inquilino' : 'proprietario');
         const phone = target?.phone || '';
         const email = target?.email || '';
@@ -21375,6 +21441,21 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             catch (e) { console.warn('[shareHub backfill]', e); }
         }
 
+        // La Scheda: i token sono DERIVATI server-side da HOMIE_SECRET (il
+        // browser non può calcolarli) — una POST restituisce entrambi i link.
+        // Vale anche per contratti già firmati (upload documento).
+        let schedaLinks = null;
+        try {
+            const idToken = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/profile/link', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+                body: JSON.stringify({ contractId })
+            });
+            const j = await r.json().catch(() => null);
+            if (j && j.ok) schedaLinks = j;
+        } catch (e) { console.warn('[shareHub] scheda links unavailable:', e); }
+
         const base = window.location.origin;
         // ---- Build the link catalogue ----
         const links = [];
@@ -21391,17 +21472,18 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 emailBody: (n) => `Ciao ${n},\n\nti inviamo il link per la firma digitale del contratto di locazione per ${prop?.name || 'l\'immobile'}.\nPuoi firmare direttamente dal tuo telefono o computer:\n\n{URL}\n\nGrazie,\nBOOM Roma`
             });
         }
-        // Tenant: anagrafica form
-        if (tenant) {
-            const t = c.tenantSignToken ? `&t=${encodeURIComponent(c.tenantSignToken)}` : '';
+        // Tenant: La Scheda (anagrafica universale — sostituisce il vecchio
+        // form-tenant, che scriveva anonimo su una collection admin-only e
+        // falliva in silenzio per il cliente)
+        if (schedaLinks && schedaLinks.tenantUrl) {
             links.push({
                 audience: 'tenant', icon: '📋', title: 'Compila i tuoi dati',
-                subtitle: 'CF, indirizzo, documento — sblocca la registrazione AdE',
-                url: `${base}/form-tenant.html?contract=${encodeURIComponent(contractId)}${t}`,
+                subtitle: 'La Scheda — anagrafica + foto documento con lettura automatica',
+                url: schedaLinks.tenantUrl,
                 target: tenant,
-                waText: (n) => `Ciao ${n}, per la registrazione del contratto AdE servono ancora qualche dato in più. Lo compili qui in 2 min: {URL}\n\n— BOOM Roma`,
-                emailSubj: 'BOOM · Dati per registrazione contratto',
-                emailBody: (n) => `Ciao ${n},\n\nper completare la registrazione del contratto all'Agenzia delle Entrate ci servono ancora alcuni dati anagrafici.\nLi puoi inserire qui (2 minuti):\n\n{URL}\n\nGrazie,\nBOOM Roma`
+                waText: (n) => `Ciao ${n}, per il tuo contratto ci servono i tuoi dati anagrafici. Li compili qui in 2 minuti (basta una foto del documento): {URL}\n\n— BOOM Roma`,
+                emailSubj: 'BOOM · I tuoi dati per il contratto',
+                emailBody: (n) => `Ciao ${n},\n\nper preparare e registrare il contratto ci servono i tuoi dati anagrafici.\nLi puoi inserire qui (2 minuti — con una foto del documento si compila da solo):\n\n{URL}\n\nGrazie,\nBOOM Roma`
             });
         }
         // Tenant: Apple Wallet pass (if already generated during onboarding)
@@ -21442,17 +21524,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 emailBody: (n) => `Gentile ${n},\n\ntrova allegato il link per la firma digitale del contratto di locazione di ${prop?.name || 'l\'immobile'}.\nPuò firmare dal Suo telefono o computer:\n\n{URL}\n\nCordiali saluti,\nBOOM Roma`
             });
         }
-        // Landlord: anagrafica form
-        if (landlord) {
-            const l = c.landlordSignToken ? `&t=${encodeURIComponent(c.landlordSignToken)}` : '';
+        // Landlord: La Scheda (anagrafica universale, IT-first per il locatore)
+        if (schedaLinks && schedaLinks.landlordUrl) {
             links.push({
                 audience: 'landlord', icon: '📋', title: 'Compila i tuoi dati',
-                subtitle: 'CF, IBAN, dati catastali — necessari per RLI',
-                url: `${base}/form-landlord.html?contract=${encodeURIComponent(contractId)}${l}`,
+                subtitle: 'La Scheda — anagrafica + documento per la registrazione RLI',
+                url: schedaLinks.landlordUrl,
                 target: landlord,
-                waText: (n) => `Gentile ${n}, per la registrazione del contratto all'AdE ci servono i Suoi dati anagrafici e l'IBAN. Li può inserire qui: {URL}\n\n— BOOM Roma`,
+                waText: (n) => `Gentile ${n}, per la registrazione del contratto all'AdE ci servono i Suoi dati anagrafici. Li può inserire qui (2 minuti, basta una foto del documento): {URL}\n\n— BOOM Roma`,
                 emailSubj: 'BOOM · Dati per registrazione contratto',
-                emailBody: (n) => `Gentile ${n},\n\nper completare la registrazione del contratto all'Agenzia delle Entrate ci servono i Suoi dati anagrafici e bancari (IBAN per gli incassi affitto).\nLi può inserire qui:\n\n{URL}\n\nCordiali saluti,\nBOOM Roma`
+                emailBody: (n) => `Gentile ${n},\n\nper completare la registrazione del contratto all'Agenzia delle Entrate ci servono i Suoi dati anagrafici.\nLi può inserire qui (con una foto del documento il modulo si compila da solo):\n\n{URL}\n\nCordiali saluti,\nBOOM Roma`
             });
         }
         // Landlord: Apple Wallet pass

@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>La Scheda — BOOM Rome</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon-32x32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#08080A">
+  <meta name="color-scheme" content="dark">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <!-- CSP — same-origin API only: no Firebase, no third-party scripts. -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    base-uri 'self';
+    object-src 'none';
+    frame-ancestors 'self';
+    form-action 'self';
+    script-src 'self' 'unsafe-inline';
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+    font-src 'self' https://fonts.gstatic.com;
+    img-src 'self' data: blob:;
+    connect-src 'self';
+    upgrade-insecure-requests;
+  ">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"></noscript>
+
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+    :root{
+      --bg:#08080A; --panel:rgba(13,13,16,.74);
+      --field:rgba(255,255,255,.045); --field-hover:rgba(255,255,255,.07); --field-focus:rgba(255,255,255,.09);
+      --text:#F1F1F3; --text-2:rgba(241,241,243,.66); --text-3:rgba(241,241,243,.42); --text-4:rgba(241,241,243,.24);
+      --line:rgba(255,255,255,.10); --line-2:rgba(255,255,255,.06);
+      --gold:#E9C766; --gold-bright:#F6E4A6; --gold-deep:#B98E2E;
+      --green:#5FD08C; --red:#F08585;
+      --display:'Helvetica Neue','Helvetica Neue LT','Arial Nova',Helvetica,Arial,'Inter',sans-serif;
+      --ui:'Inter','Helvetica Neue',Helvetica,Arial,sans-serif;
+      --ease:cubic-bezier(.22,1,.36,1);
+    }
+    html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+    body{font-family:var(--ui);background:var(--bg);color:var(--text);font-weight:400;min-height:100svh;
+      line-height:1.5;letter-spacing:-.011em;position:relative;overflow-x:hidden;
+      display:flex;align-items:flex-start;justify-content:center;
+      padding:max(28px,env(safe-area-inset-top)) 18px max(28px,env(safe-area-inset-bottom))}
+
+    /* ── Roman geometry backdrop (coherent with /sign and /login) ── */
+    .scene{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+    .bloom{position:absolute;left:50%;top:-8%;width:760px;height:760px;transform:translateX(-50%);
+      background:radial-gradient(circle, rgba(233,199,102,.13), transparent 62%);filter:blur(8px);animation:breathe 13s ease-in-out infinite}
+    @keyframes breathe{0%,100%{opacity:.7}50%{opacity:1}}
+    .dome{position:absolute;top:-24%;left:50%;width:min(820px,150vw);height:min(820px,150vw);transform:translateX(-50%);
+      -webkit-mask:radial-gradient(circle at 50% 50%, #000 4%, rgba(0,0,0,.7) 26%, transparent 58%);
+              mask:radial-gradient(circle at 50% 50%, #000 4%, rgba(0,0,0,.7) 26%, transparent 58%);opacity:.55}
+    .dome>div{position:absolute;inset:0;border-radius:50%}
+    .dome .rings{background:repeating-radial-gradient(circle at 50% 50%, transparent 0 36px, rgba(233,199,102,.15) 36px 37px);animation:ringbreath 16s ease-in-out infinite}
+    @keyframes ringbreath{0%,100%{transform:scale(1)}50%{transform:scale(1.012)}}
+    .dome .spokes{background:repeating-conic-gradient(from 0deg at 50% 50%, rgba(233,199,102,.13) 0 .30deg, transparent .30deg 7.5deg);animation:spin 120s linear infinite}
+    .dome .shade{background:radial-gradient(circle at 50% 47%, rgba(255,243,208,.06) 0%, transparent 30%, rgba(0,0,0,.16) 74%, rgba(0,0,0,.26) 100%)}
+    .dome .sweep{background:conic-gradient(from 0deg at 50% 50%, transparent 0 58%, rgba(246,228,166,.18) 76%, transparent 92%);mix-blend-mode:screen;animation:spin 30s linear infinite}
+    .dome .rim{inset:9%;
+      -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+              mask:radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+      background:conic-gradient(from 200deg, transparent, rgba(233,199,102,.7), transparent 110deg, rgba(233,199,102,.35) 230deg, transparent);
+      animation:spin 90s linear infinite reverse}
+    .dome .oculus{background:radial-gradient(circle at 50% 50%, rgba(255,250,232,.75) 0%, rgba(246,228,166,.34) 8%, rgba(233,199,102,.10) 18%, transparent 34%);animation:pulse 7.5s ease-in-out infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @keyframes pulse{0%,100%{opacity:.62;transform:scale(.99)}50%{opacity:1;transform:scale(1.04)}}
+    .vignette{position:fixed;inset:0;z-index:0;pointer-events:none;
+      background:radial-gradient(ellipse 92% 72% at 50% 24%, transparent 42%, rgba(0,0,0,.74) 100%)}
+
+    .shell{position:relative;z-index:2;width:100%;max-width:440px;margin-top:8px}
+    .head{display:flex;flex-direction:column;align-items:center;text-align:center;margin-bottom:18px}
+    .logo{width:42px;height:42px;filter:drop-shadow(0 0 14px rgba(233,199,102,.5));margin-bottom:14px;animation:logofloat 6s ease-in-out infinite}
+    @keyframes logofloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+    .wordmark{font-family:var(--display);font-weight:300;font-size:17px;letter-spacing:9px;text-transform:uppercase;
+      background:linear-gradient(180deg,#fff,#E7DFCB 55%,#C9AE6C);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;padding-left:9px}
+    .kicker{margin-top:7px;font-size:10px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:var(--text-4)}
+
+    .lang{position:fixed;top:14px;right:14px;z-index:60;display:flex;gap:2px;padding:3px;border-radius:999px;
+      border:1px solid var(--line);background:rgba(20,20,24,.7);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+    .lang button{border:none;background:transparent;color:var(--text-3);font-family:var(--ui);font-size:10.5px;font-weight:700;
+      letter-spacing:1px;padding:5px 10px;border-radius:999px;cursor:pointer}
+    .lang button.on{background:rgba(233,199,102,.16);color:var(--gold)}
+
+    .progress{display:flex;gap:6px;justify-content:center;margin:16px 0 22px}
+    .progress i{height:3px;width:26px;border-radius:3px;background:rgba(255,255,255,.10);transition:background .4s var(--ease),width .4s var(--ease)}
+    .progress i.on{background:var(--gold);width:34px;box-shadow:0 0 10px rgba(233,199,102,.5)}
+    .progress i.done{background:rgba(233,199,102,.45)}
+
+    .card{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:22px;
+      padding:26px 24px;-webkit-backdrop-filter:blur(22px) saturate(1.2);backdrop-filter:blur(22px) saturate(1.2);
+      box-shadow:0 1px 0 rgba(255,255,255,.05) inset, 0 26px 60px -24px rgba(0,0,0,.85);animation:cardin .8s var(--ease) both}
+    .card::before{content:'';position:absolute;top:-1px;left:22px;right:22px;height:1px;
+      background:linear-gradient(90deg,transparent,rgba(246,228,166,.5),transparent)}
+    @keyframes cardin{from{opacity:0;transform:translateY(16px) scale(.985)}to{opacity:1;transform:none}}
+    .step{animation:stepin .5s var(--ease)}
+    @keyframes stepin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+    h1.t{font-family:var(--display);font-weight:300;font-size:23px;letter-spacing:-.01em;margin-bottom:6px}
+    p.sub{font-size:13px;color:var(--text-3);margin-bottom:20px;line-height:1.55}
+
+    .summary{border:1px solid var(--line);border-radius:16px;padding:18px;background:rgba(255,255,255,.02);margin-bottom:18px}
+    .summary .prop{padding-left:13px;border-left:2px solid var(--gold);margin-bottom:14px}
+    .summary .prop .lbl{font-size:9px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:rgba(233,199,102,.7);margin-bottom:5px}
+    .summary .prop .name{font-family:var(--display);font-weight:300;font-size:18px}
+    .summary .prop .addr{font-size:12px;color:var(--text-3);margin-top:2px}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .cell .k{font-size:9.5px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:var(--text-4);margin-bottom:3px}
+    .cell .v{font-size:14px;font-weight:500;word-break:break-word}
+
+    .field{margin-bottom:13px}
+    .field label{display:block;font-size:11.5px;font-weight:500;color:var(--text-2);margin:0 0 6px 2px}
+    .field .hint{font-size:11px;color:var(--text-4);font-weight:400}
+    .inp{width:100%;height:46px;padding:0 14px;background:var(--field);border:1px solid var(--line);border-radius:11px;
+      color:var(--text);font-family:var(--ui);font-size:16px;font-weight:400;letter-spacing:-.01em;outline:none;
+      transition:border-color .2s var(--ease),background .2s var(--ease),box-shadow .2s var(--ease)}
+    .inp::placeholder{color:var(--text-4)}
+    .inp:hover{background:var(--field-hover);border-color:rgba(255,255,255,.17)}
+    .inp:focus{border-color:rgba(233,199,102,.6);background:var(--field-focus);box-shadow:0 0 0 3px rgba(233,199,102,.13)}
+    .inp.bad{border-color:rgba(240,133,133,.6);box-shadow:0 0 0 3px rgba(240,133,133,.12)}
+    .inp.mono{font-variant-numeric:tabular-nums;letter-spacing:1px;text-transform:uppercase}
+    select.inp{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px}
+    .err{font-size:11.5px;color:#F2A0A0;margin:5px 2px 0;display:none}
+    .err.show{display:block}
+    .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+    .btn{position:relative;width:100%;height:50px;border:none;border-radius:13px;cursor:pointer;overflow:hidden;
+      background:linear-gradient(180deg,var(--gold-bright),var(--gold) 46%,var(--gold-deep));color:#1c1503;
+      font-family:var(--ui);font-size:14px;font-weight:600;letter-spacing:-.01em;
+      box-shadow:0 1px 0 rgba(255,255,255,.4) inset, 0 8px 22px -10px rgba(233,199,102,.5);
+      transition:filter .2s var(--ease),transform .12s var(--ease);margin-top:6px}
+    .btn:hover:not(:disabled){filter:brightness(1.05)} .btn:active:not(:disabled){transform:scale(.99)}
+    .btn:disabled{opacity:.45;cursor:not-allowed}
+    .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--text-2);box-shadow:none}
+    .btn.ghost:hover:not(:disabled){border-color:rgba(255,255,255,.2);color:var(--text);filter:none}
+    .btn:not(.ghost)::after{content:'';position:absolute;top:0;left:-130%;width:55%;height:100%;
+      background:linear-gradient(100deg,transparent,rgba(255,255,255,.5),transparent);transform:skewX(-18deg);transition:left .7s var(--ease);pointer-events:none}
+    .btn:not(.ghost):hover:not(:disabled)::after{left:140%}
+    .btnrow{display:flex;gap:10px;margin-top:8px}
+    .btnrow .btn{margin-top:0}
+    .btnrow .ghost{flex:0 0 38%}
+    .spin{display:inline-block;width:17px;height:17px;border:2px solid rgba(28,21,3,.3);border-top-color:#1c1503;border-radius:50%;animation:rot .7s linear infinite;vertical-align:-3px}
+    @keyframes rot{to{transform:rotate(360deg)}}
+
+    /* OCR shortcut card */
+    .ocr{position:relative;display:flex;align-items:center;gap:13px;border:1px dashed rgba(233,199,102,.45);
+      border-radius:14px;padding:14px 16px;background:rgba(233,199,102,.05);margin-bottom:18px;cursor:pointer;
+      transition:background .2s var(--ease),border-color .2s var(--ease)}
+    .ocr:hover{background:rgba(233,199,102,.09);border-color:rgba(233,199,102,.7)}
+    .ocr .ic{width:38px;height:38px;flex-shrink:0;border-radius:10px;display:grid;place-items:center;
+      background:rgba(233,199,102,.14);color:var(--gold)}
+    .ocr .tt{font-size:13px;font-weight:600;color:var(--gold)}
+    .ocr .dd{font-size:11.5px;color:var(--text-3);margin-top:2px;line-height:1.45}
+    .ocr.busy{pointer-events:none;opacity:.75}
+
+    /* upload slot */
+    .upl{border:1px dashed var(--line);border-radius:14px;padding:22px 16px;text-align:center;cursor:pointer;
+      transition:border-color .2s var(--ease),background .2s var(--ease);margin-bottom:12px}
+    .upl:hover{border-color:rgba(233,199,102,.5);background:rgba(233,199,102,.04)}
+    .upl .big{font-size:26px;margin-bottom:6px}
+    .upl .tt{font-size:13px;font-weight:600;color:var(--text-2)}
+    .upl .dd{font-size:11.5px;color:var(--text-4);margin-top:3px}
+    .docrow{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:11px;
+      padding:10px 13px;margin-bottom:8px;font-size:12.5px;color:var(--text-2)}
+    .docrow .ok{color:var(--green);flex-shrink:0}
+
+    .msg{display:flex;align-items:flex-start;gap:9px;padding:11px 13px;border-radius:11px;font-size:12.5px;line-height:1.5;margin-bottom:16px}
+    .msg.error{background:rgba(240,133,133,.09);border:1px solid rgba(240,133,133,.26);color:#F2A0A0}
+    .center{text-align:center;padding:14px 4px}
+    .center .ic{width:60px;height:60px;border-radius:50%;display:grid;place-items:center;margin:6px auto 16px;
+      border:1px solid var(--line);background:rgba(255,255,255,.03)}
+    .center h2{font-family:var(--display);font-weight:300;font-size:22px;margin-bottom:8px}
+    .center p{font-size:13px;color:var(--text-3);line-height:1.6;max-width:34ch;margin:0 auto}
+    .success-ring{position:relative}
+    .success-ring::before,.success-ring::after{content:'';position:absolute;inset:-1px;border-radius:50%;border:1px solid rgba(95,208,140,.55)}
+    .success-ring::before{animation:ring 1.9s var(--ease) infinite}
+    .success-ring::after{animation:ring 1.9s var(--ease) .65s infinite}
+    @keyframes ring{0%{transform:scale(1);opacity:.7}100%{transform:scale(1.8);opacity:0}}
+    .draw{stroke-dasharray:46;stroke-dashoffset:46;animation:draw .65s var(--ease) .2s forwards}
+    @keyframes draw{to{stroke-dashoffset:0}}
+    .next{background:rgba(255,255,255,.02);border-radius:12px;padding:14px 16px;margin-top:16px;text-align:left}
+    .next .n{display:flex;gap:10px;align-items:flex-start;font-size:12px;color:var(--text-3);padding:4px 0}
+    .next .n::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--gold);margin-top:6px;flex-shrink:0}
+
+    .trust{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:18px;
+      font-size:10.5px;font-weight:500;letter-spacing:.3px;color:var(--text-4)}
+    .trust svg{color:var(--green);opacity:.7}
+    .sk{height:14px;border-radius:6px;background:linear-gradient(90deg,rgba(255,255,255,.05),rgba(255,255,255,.1),rgba(255,255,255,.05));
+      background-size:200% 100%;animation:sh 1.3s linear infinite;margin:10px 0}
+    @keyframes sh{to{background-position:-200% 0}}
+    @media (max-width:480px){.dome{width:min(600px,155vw);height:min(600px,155vw)}.dome .rim{display:none}}
+    @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition-duration:.01ms!important}.draw{stroke-dashoffset:0}.success-ring::before,.success-ring::after{display:none}}
+  </style>
+</head>
+<body>
+  <div class="scene" aria-hidden="true">
+    <div class="bloom"></div>
+    <div class="dome"><div class="rings"></div><div class="spokes"></div><div class="shade"></div><div class="sweep"></div><div class="rim"></div><div class="oculus"></div></div>
+  </div>
+  <div class="vignette" aria-hidden="true"></div>
+
+  <div class="lang" id="lang"><button data-l="en">EN</button><button data-l="it">IT</button></div>
+
+  <main class="shell">
+    <div class="head">
+      <svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" role="img" aria-label="BOOM Rome">
+        <circle cx="12" cy="12" r="10.4" stroke="#E9C766" stroke-width="1.1"/>
+        <circle cx="12" cy="12" r="7.2" stroke="#E9C766" stroke-width="1"/>
+        <circle cx="12" cy="12" r="4.1" stroke="#E9C766" stroke-width=".9"/>
+        <circle cx="12" cy="12" r="1.4" fill="#F6E4A6"/>
+      </svg>
+      <div class="wordmark">BOOM</div>
+      <div class="kicker" id="kick">La Scheda</div>
+    </div>
+
+    <div class="progress" id="progress" aria-hidden="true"></div>
+
+    <div class="card">
+      <div id="flow"><div class="sk" style="width:55%"></div><div class="sk"></div><div class="sk" style="width:80%"></div><div class="sk" style="width:40%"></div></div>
+    </div>
+
+    <div class="trust">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
+      <span id="trustline">Encrypted · used only for your rental contract (GDPR)</span>
+    </div>
+  </main>
+
+  <input type="file" id="file" accept="image/*,.pdf" style="display:none">
+
+  <script>
+  (function(){
+    'use strict';
+    var FLOW = document.getElementById('flow');
+    var PROG = document.getElementById('progress');
+    var qs = new URLSearchParams(location.search);
+    var T = (qs.get('t')||'').trim();
+
+    // ── i18n ──
+    var STR = {
+      en: {
+        kick:'La Scheda', trust:'Encrypted · used only for your rental contract (GDPR)',
+        inv_t:'Invalid link', inv_d:'This link is missing or malformed. Please use the link BOOM sent you.',
+        err_t:'Something went wrong', err_d:'We couldn’t load your scheda. Please try again in a moment.',
+        conn_t:'Connection needed', conn_d:'We couldn’t reach the server. Check your connection and refresh.',
+        locked_t:'Already on file', locked_d:'This contract is signed, so your details are locked. You can still add a copy of your ID below — useful for the registration.',
+        who_t:'Your details', who_d:'Needed by Italian law to register your rental contract. Two minutes, once.',
+        confirm_t:'Confirm your details', confirm_d:'We already have your information — check it’s correct and confirm.',
+        ocr_t:'Fill it with one photo', ocr_d:'Snap your passport or ID — we read it and fill the form for you.', ocr_busy:'Reading your document…',
+        ocr_done:'Document read ✓ — check the fields and confirm.', ocr_fail:'We saved your document but couldn’t read it — please fill the form manually.',
+        f_name:'Full name', f_dob:'Date of birth', f_pob:'Place of birth', f_pob_ph:'City, Country',
+        f_cf:'Codice Fiscale', f_cf_hint:'— 16 characters, leave empty if you don’t have one yet',
+        f_addr:'Current address', f_addr_ph:'Street, number, city', f_doc:'Document', f_docnum:'Document no.',
+        f_issuer:'Issued by', f_issuer_ph:'Authority', f_issued:'Issue date', f_nat:'Nationality', f_nat_ph:'Country',
+        f_phone:'Phone', f_phone_ph:'+39 …',
+        e_cf:'That Codice Fiscale doesn’t look valid.', e_req:'Please fill the highlighted fields.',
+        doc_passport:'Passport', doc_id:'Carta d’identità', doc_permit:'Permesso di soggiorno', doc_patente:'Patente',
+        b_continue:'Continue', b_back:'Back', b_edit:'Edit', b_confirm:'Confirm & continue', b_skip:'Skip for now',
+        b_send:'Send my scheda', b_add:'Add another document', b_done:'Done',
+        doc_t:'Your ID document', doc_d:'A photo of your passport or ID completes the file for the contract registration. You can skip and send it later.',
+        upl_t:'Photograph or upload', upl_d:'Passport, carta d’identità or permesso — JPG, PNG or PDF',
+        upl_ok:'Document received', uploading:'Uploading…', upl_fail:'Upload failed — please try again.', too_big:'PDF too large (max 3 MB). A photo works best.',
+        done_t:'Scheda complete', done_partial_t:'Scheda sent',
+        done_d:'Thank you — your details are on file with BOOM.',
+        done_partial_d:'Thank you — we saved what you filled. You can reopen this link anytime to complete it.',
+        next1:'BOOM prepares your contract with these details', next2:'You’ll receive a separate secure link to sign', next3:'Nothing else to do now',
+        locked_next:'Your data is already part of the signed contract',
+        k_prop:'Property', k_period:'Period', k_role_t:'Tenant', k_role_l:'Landlord',
+        k_name:'Full name', k_cf:'Codice Fiscale', k_dob:'Date of birth', k_pob:'Place of birth', k_doc:'Document', k_nat:'Nationality', k_addr:'Address',
+        saving:'Saving…', save_fail:'We couldn’t save your scheda.', rate:'Too many attempts — wait a moment.',
+      },
+      it: {
+        kick:'La Scheda', trust:'Cifrata · usata solo per il tuo contratto di locazione (GDPR)',
+        inv_t:'Link non valido', inv_d:'Questo link è incompleto o errato. Usa il link che ti ha inviato BOOM.',
+        err_t:'Qualcosa è andato storto', err_d:'Non riusciamo a caricare la tua scheda. Riprova tra un momento.',
+        conn_t:'Serve la connessione', conn_d:'Non raggiungiamo il server. Controlla la connessione e ricarica.',
+        locked_t:'Già registrata', locked_d:'Il contratto è firmato, quindi i dati sono bloccati. Puoi comunque aggiungere una copia del documento qui sotto — utile per la registrazione.',
+        who_t:'I tuoi dati', who_d:'Richiesti dalla legge per registrare il contratto di locazione. Due minuti, una volta sola.',
+        confirm_t:'Conferma i tuoi dati', confirm_d:'Abbiamo già le tue informazioni — controlla che siano corrette e conferma.',
+        ocr_t:'Compila con una foto', ocr_d:'Fotografa passaporto o carta d’identità — leggiamo noi e compiliamo il modulo.', ocr_busy:'Lettura del documento…',
+        ocr_done:'Documento letto ✓ — controlla i campi e conferma.', ocr_fail:'Documento salvato ma non leggibile — compila i campi a mano.',
+        f_name:'Nome e cognome', f_dob:'Data di nascita', f_pob:'Luogo di nascita', f_pob_ph:'Città, Paese',
+        f_cf:'Codice Fiscale', f_cf_hint:'— 16 caratteri, lascia vuoto se non ce l’hai ancora',
+        f_addr:'Indirizzo attuale', f_addr_ph:'Via, numero, città', f_doc:'Documento', f_docnum:'Numero documento',
+        f_issuer:'Rilasciato da', f_issuer_ph:'Ente', f_issued:'Data rilascio', f_nat:'Nazionalità', f_nat_ph:'Paese',
+        f_phone:'Telefono', f_phone_ph:'+39 …',
+        e_cf:'Questo Codice Fiscale non sembra valido.', e_req:'Compila i campi evidenziati.',
+        doc_passport:'Passaporto', doc_id:'Carta d’identità', doc_permit:'Permesso di soggiorno', doc_patente:'Patente',
+        b_continue:'Continua', b_back:'Indietro', b_edit:'Modifica', b_confirm:'Conferma e continua', b_skip:'Salta per ora',
+        b_send:'Invia la scheda', b_add:'Aggiungi un altro documento', b_done:'Fine',
+        doc_t:'Il tuo documento', doc_d:'Una foto del passaporto o della carta d’identità completa il fascicolo per la registrazione. Puoi saltare e inviarla dopo.',
+        upl_t:'Fotografa o carica', upl_d:'Passaporto, carta d’identità o permesso — JPG, PNG o PDF',
+        upl_ok:'Documento ricevuto', uploading:'Caricamento…', upl_fail:'Caricamento fallito — riprova.', too_big:'PDF troppo grande (max 3 MB). Meglio una foto.',
+        done_t:'Scheda completa', done_partial_t:'Scheda inviata',
+        done_d:'Grazie — i tuoi dati sono in archivio da BOOM.',
+        done_partial_d:'Grazie — abbiamo salvato quello che hai compilato. Puoi riaprire questo link quando vuoi per completarla.',
+        next1:'BOOM prepara il contratto con questi dati', next2:'Riceverai un link sicuro separato per la firma', next3:'Per ora non devi fare altro',
+        locked_next:'I tuoi dati fanno già parte del contratto firmato',
+        k_prop:'Immobile', k_period:'Periodo', k_role_t:'Inquilino', k_role_l:'Locatore',
+        k_name:'Nome e cognome', k_cf:'Codice Fiscale', k_dob:'Data di nascita', k_pob:'Luogo di nascita', k_doc:'Documento', k_nat:'Nazionalità', k_addr:'Indirizzo',
+        saving:'Salvataggio…', save_fail:'Non riusciamo a salvare la scheda.', rate:'Troppi tentativi — aspetta un momento.',
+      }
+    };
+    var lang = localStorage.getItem('boom_scheda_lang') || '';
+    function t(k){ return (STR[lang]||STR.en)[k] || STR.en[k] || k; }
+    function setLang(l){
+      lang = (l==='it')?'it':'en';
+      try{ localStorage.setItem('boom_scheda_lang', lang); }catch(e){}
+      document.documentElement.lang = lang;
+      [].forEach.call(document.querySelectorAll('#lang button'), function(b){ b.classList.toggle('on', b.dataset.l===lang); });
+      document.getElementById('kick').textContent = t('kick');
+      document.getElementById('trustline').textContent = t('trust');
+      if (S.view) S.view();   // re-render current screen in the new language
+    }
+    document.getElementById('lang').addEventListener('click', function(e){
+      var b = e.target.closest('button'); if(b) setLang(b.dataset.l);
+    });
+
+    // ── State ──
+    var S = { data:null, role:'tenant', locked:false, id:{}, docs:0, uploadedNow:0, view:null };
+
+    function el(html){ var d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstChild; }
+    function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+    function setProgress(n){
+      if(n<0){ PROG.innerHTML=''; return; }
+      var h=''; for(var i=1;i<=3;i++){ h += '<i class="'+(i<n?'done':(i===n?'on':''))+'"></i>'; }
+      PROG.innerHTML=h;
+    }
+    function validCF(cf){
+      cf=(cf||'').toUpperCase().trim();
+      if(!/^[A-Z0-9]{16}$/.test(cf)) return false;
+      var odd={'0':1,'1':0,'2':5,'3':7,'4':9,'5':13,'6':15,'7':17,'8':19,'9':21,'A':1,'B':0,'C':5,'D':7,'E':9,'F':13,'G':15,'H':17,'I':19,'J':21,'K':2,'L':4,'M':18,'N':20,'O':11,'P':3,'Q':6,'R':8,'S':12,'T':14,'U':16,'V':10,'W':22,'X':25,'Y':24,'Z':23};
+      var even={'0':0,'1':1,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'A':0,'B':1,'C':2,'D':3,'E':4,'F':5,'G':6,'H':7,'I':8,'J':9,'K':10,'L':11,'M':12,'N':13,'O':14,'P':15,'Q':16,'R':17,'S':18,'T':19,'U':20,'V':21,'W':22,'X':23,'Y':24,'Z':25};
+      var sum=0; for(var i=0;i<15;i++){ sum += (i%2===0)?odd[cf[i]]:even[cf[i]]; }
+      return String.fromCharCode(65+(sum%26))===cf[15];
+    }
+    function docLabel(x){ return x==='id'?t('doc_id'):(x==='permit'?t('doc_permit'):(x==='patente'?t('doc_patente'):t('doc_passport'))); }
+    function centered(icon,title,text,cta){
+      setProgress(-1); S.view=null;
+      FLOW.innerHTML='';
+      FLOW.appendChild(el('<div class="step center"><div class="ic">'+icon+'</div><h2>'+esc(title)+'</h2><p>'+text+'</p>'+(cta||'')+'</div>'));
+    }
+    var ICON_WARN='<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#F0A0A0" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+    var ICON_LINK='<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#E9C766" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
+    var ICON_CHECK='<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#5FD08C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path class="draw" d="M20 6 9 17l-5-5"/></svg>';
+    var SUPPORT='<a class="btn ghost" style="display:inline-flex;width:auto;padding:0 22px;margin-top:18px;align-items:center;justify-content:center" href="https://wa.me/393313251961" target="_blank" rel="noopener noreferrer">WhatsApp BOOM</a>';
+    function flash(text){
+      var x=document.getElementById('_flash'); if(x) x.remove();
+      x=el('<div id="_flash" class="msg error" style="position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:50;max-width:380px;width:calc(100% - 36px);box-shadow:0 12px 30px rgba(0,0,0,.5)"><span>'+esc(text)+'</span></div>');
+      document.body.appendChild(x);
+      setTimeout(function(){ if(x) x.remove(); },5200);
+    }
+
+    // ═══ BOOT ═══
+    document.addEventListener('DOMContentLoaded', function(){
+      setLang(lang || 'en');
+      if(!T){ centered(ICON_LINK, t('inv_t'), t('inv_d'), SUPPORT); return; }
+      fetch('/api/profile/lookup',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ t:T }) })
+        .then(function(r){ return r.json().catch(function(){return {ok:false};}).then(function(j){ return { status:r.status, j:j||{} }; }); })
+        .then(function(res){
+          var j=res.j;
+          if(!j.ok){
+            if(j.error==='invalid_link'||j.error==='not_found') return centered(ICON_LINK, t('inv_t'), t('inv_d'), SUPPORT);
+            return centered(ICON_WARN, t('err_t'), t('err_d'), SUPPORT);
+          }
+          S.data=j; S.role=j.role||'tenant'; S.locked=!!j.locked; S.docs=j.docsCount||0;
+          S.id = idFrom(j.signer||{});
+          if(!lang) setLang(S.role==='landlord' ? 'it' : 'en');
+          if(S.locked) return renderLocked();
+          renderWho();
+        })
+        .catch(function(){ centered(ICON_WARN, t('conn_t'), t('conn_d'), SUPPORT); });
+    });
+
+    function idFrom(s){
+      return { name:s.name||'', cf:(s.cf||'').toUpperCase(), dob:s.dob||'', pob:s.pob||'', address:s.address||'',
+        docType:s.docType||'passport', docNum:s.docNum||'', docIssuer:s.docIssuer||'', docIssueDate:s.docIssueDate||'',
+        nationality:s.nationality||'', phone:s.phone||'' };
+    }
+    function idComplete(d){ return !!(d.name&&d.dob&&d.pob&&d.address&&d.docNum&&d.nationality&&(!d.cf||validCF(d.cf))&&d.cf); }
+
+    function propCard(){
+      var p=(S.data&&S.data.property)||{}; var l=(S.data&&S.data.lease)||{};
+      var period=(l.startDate&&l.endDate)?(l.startDate+' → '+l.endDate):'';
+      if(!p.name&&!p.address) return '';
+      return '<div class="summary"><div class="prop"><div class="lbl">'+esc(t('k_prop'))+' · '+esc(S.role==='landlord'?t('k_role_l'):t('k_role_t'))+'</div>'+
+        '<div class="name">'+esc(p.name||'Apartment')+'</div><div class="addr">'+esc(p.address||'')+(period?(' · '+esc(period)):'')+'</div></div></div>';
+    }
+
+    // ═══ SCREEN — locked (signed contract: read-only + doc upload) ═══
+    function renderLocked(){
+      setProgress(-1); S.view=renderLocked;
+      var d=S.id;
+      FLOW.innerHTML='';
+      FLOW.appendChild(el(
+        '<div class="step">'+
+          '<h1 class="t">'+esc(t('locked_t'))+'</h1>'+
+          '<p class="sub">'+esc(t('locked_d'))+'</p>'+
+          propCard()+
+          '<div class="summary"><div class="grid2">'+
+            '<div class="cell"><div class="k">'+esc(t('k_name'))+'</div><div class="v">'+esc(d.name||'—')+'</div></div>'+
+            '<div class="cell"><div class="k">'+esc(t('k_cf'))+'</div><div class="v">'+esc(d.cf||'—')+'</div></div>'+
+            '<div class="cell"><div class="k">'+esc(t('k_doc'))+'</div><div class="v">'+esc(d.docNum?(docLabel(d.docType)+' · '+d.docNum):'—')+'</div></div>'+
+            '<div class="cell"><div class="k">'+esc(t('k_nat'))+'</div><div class="v">'+esc(d.nationality||'—')+'</div></div>'+
+          '</div></div>'+
+          '<div id="docarea"></div>'+
+        '</div>'
+      ));
+      renderDocArea(document.getElementById('docarea'), true);
+    }
+
+    // ═══ STEP 1 — WHO ═══
+    function renderWho(){
+      setProgress(1);
+      if(idComplete(S.id)) renderConfirm(); else renderForm();
+    }
+    function renderConfirm(){
+      setProgress(1); S.view=renderConfirm;
+      var d=S.id;
+      FLOW.innerHTML='';
+      FLOW.appendChild(el(
+        '<div class="step">'+
+          '<h1 class="t">'+esc(t('confirm_t'))+'</h1>'+
+          '<p class="sub">'+esc(t('confirm_d'))+'</p>'+
+          propCard()+
+          '<div class="summary"><div class="grid2">'+
+            '<div class="cell"><div class="k">'+esc(t('k_name'))+'</div><div class="v">'+esc(d.name)+'</div></div>'+
+            '<div class="cell"><div class="k">'+esc(t('k_cf'))+'</div><div class="v">'+esc(d.cf||'—')+'</div></div>'+
+            '<div class="cell"><div class="k">'+esc(t('k_dob'))+'</div><div class="v">'+esc(d.dob)+'</div></div>'+
+            '<div class="cell"><div class="k">'+esc(t('k_pob'))+'</div><div class="v">'+esc(d.pob)+'</div></div>'+
+            '<div class="cell"><div class="k">'+esc(t('k_doc'))+'</div><div class="v">'+esc(docLabel(d.docType)+' · '+d.docNum)+'</div></div>'+
+            '<div class="cell"><div class="k">'+esc(t('k_nat'))+'</div><div class="v">'+esc(d.nationality)+'</div></div>'+
+            '<div class="cell" style="grid-column:1/-1"><div class="k">'+esc(t('k_addr'))+'</div><div class="v">'+esc(d.address)+'</div></div>'+
+          '</div></div>'+
+          '<div class="btnrow"><button class="btn ghost" id="w-edit">'+esc(t('b_edit'))+'</button><button class="btn" id="w-ok">'+esc(t('b_confirm'))+'</button></div>'+
+        '</div>'
+      ));
+      document.getElementById('w-edit').onclick=renderForm;
+      document.getElementById('w-ok').onclick=function(){ save(this); };
+    }
+    function renderForm(){
+      setProgress(1); S.view=renderForm;
+      var s=S.id;
+      FLOW.innerHTML='';
+      FLOW.appendChild(el(
+        '<div class="step">'+
+          '<h1 class="t">'+esc(t('who_t'))+'</h1>'+
+          '<p class="sub">'+esc(t('who_d'))+'</p>'+
+          propCard()+
+          '<div class="ocr" id="ocr"><div class="ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg></div>'+
+            '<div><div class="tt" id="ocr-t">'+esc(t('ocr_t'))+'</div><div class="dd" id="ocr-d">'+esc(t('ocr_d'))+'</div></div></div>'+
+          '<div class="field"><label>'+esc(t('f_name'))+'</label><input class="inp" id="i-name" value="'+esc(s.name)+'" placeholder="Name Surname" autocomplete="name"></div>'+
+          '<div class="row2">'+
+            '<div class="field"><label>'+esc(t('f_dob'))+'</label><input class="inp" id="i-dob" type="date" value="'+esc(s.dob)+'"></div>'+
+            '<div class="field"><label>'+esc(t('f_pob'))+'</label><input class="inp" id="i-pob" value="'+esc(s.pob)+'" placeholder="'+esc(t('f_pob_ph'))+'"></div>'+
+          '</div>'+
+          '<div class="field"><label>'+esc(t('f_cf'))+' <span class="hint">'+esc(t('f_cf_hint'))+'</span></label><input class="inp mono" id="i-cf" maxlength="16" value="'+esc(s.cf)+'" placeholder="RSSMRA85T10A562S"><div class="err" id="e-cf">'+esc(t('e_cf'))+'</div></div>'+
+          '<div class="field"><label>'+esc(t('f_addr'))+'</label><input class="inp" id="i-addr" value="'+esc(s.address)+'" placeholder="'+esc(t('f_addr_ph'))+'" autocomplete="street-address"></div>'+
+          '<div class="row2">'+
+            '<div class="field"><label>'+esc(t('f_doc'))+'</label><select class="inp" id="i-doctype">'+
+              '<option value="passport"'+(s.docType==='passport'?' selected':'')+'>'+esc(t('doc_passport'))+'</option>'+
+              '<option value="id"'+(s.docType==='id'?' selected':'')+'>'+esc(t('doc_id'))+'</option>'+
+              '<option value="permit"'+(s.docType==='permit'?' selected':'')+'>'+esc(t('doc_permit'))+'</option>'+
+              '<option value="patente"'+(s.docType==='patente'?' selected':'')+'>'+esc(t('doc_patente'))+'</option>'+
+            '</select></div>'+
+            '<div class="field"><label>'+esc(t('f_docnum'))+'</label><input class="inp" id="i-docnum" value="'+esc(s.docNum)+'" placeholder="—"></div>'+
+          '</div>'+
+          '<div class="row2">'+
+            '<div class="field"><label>'+esc(t('f_issuer'))+'</label><input class="inp" id="i-issuer" value="'+esc(s.docIssuer)+'" placeholder="'+esc(t('f_issuer_ph'))+'"></div>'+
+            '<div class="field"><label>'+esc(t('f_issued'))+'</label><input class="inp" id="i-issued" type="date" value="'+esc(s.docIssueDate)+'"></div>'+
+          '</div>'+
+          '<div class="row2">'+
+            '<div class="field"><label>'+esc(t('f_nat'))+'</label><input class="inp" id="i-nat" value="'+esc(s.nationality)+'" placeholder="'+esc(t('f_nat_ph'))+'"></div>'+
+            '<div class="field"><label>'+esc(t('f_phone'))+'</label><input class="inp" id="i-phone" type="tel" inputmode="tel" value="'+esc(s.phone)+'" placeholder="'+esc(t('f_phone_ph'))+'"></div>'+
+          '</div>'+
+          '<button class="btn" id="w-next">'+esc(t('b_continue'))+'</button>'+
+        '</div>'
+      ));
+      var cf=document.getElementById('i-cf');
+      cf.oninput=function(){ cf.value=cf.value.toUpperCase(); document.getElementById('e-cf').classList.remove('show'); cf.classList.remove('bad'); };
+      document.getElementById('ocr').onclick=function(){ pickFile(true); };
+      document.getElementById('w-next').onclick=function(){
+        var g=function(id){ return (document.getElementById(id).value||'').trim(); };
+        S.id={ name:g('i-name'), dob:g('i-dob'), pob:g('i-pob'), cf:g('i-cf').toUpperCase(), address:g('i-addr'),
+          docType:g('i-doctype'), docNum:g('i-docnum'), docIssuer:g('i-issuer'), docIssueDate:g('i-issued'),
+          nationality:g('i-nat'), phone:g('i-phone') };
+        var firstBad=null;
+        ['i-name','i-dob','i-pob','i-addr','i-docnum','i-nat'].forEach(function(id){
+          var inp=document.getElementById(id); var bad=!(inp.value||'').trim();
+          inp.classList.toggle('bad',bad); if(bad&&!firstBad) firstBad=inp;
+        });
+        if(S.id.cf && !validCF(S.id.cf)){ cf.classList.add('bad'); document.getElementById('e-cf').classList.add('show'); if(!firstBad) firstBad=cf; }
+        if(firstBad){ flash(t('e_req')); firstBad.focus(); firstBad.scrollIntoView({block:'center',behavior:'smooth'}); return; }
+        save(document.getElementById('w-next'));
+      };
+    }
+
+    // ═══ SAVE → STEP 2 ═══
+    function save(btn){
+      if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin"></span>'; }
+      fetch('/api/profile/submit',{ method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ t:T, identity:S.id, phone:S.id.phone||'' }) })
+        .then(function(r){ return r.json().catch(function(){return {ok:false};}); })
+        .then(function(j){
+          if(!j.ok){
+            if(btn){ btn.disabled=false; btn.textContent=t('b_confirm'); }
+            if(j.error==='cf_invalid'){ flash(t('e_cf')); return renderForm(); }
+            if(j.error==='rate_limited') return flash(t('rate'));
+            if(j.error==='already_signed'){ S.locked=true; return renderLocked(); }
+            return flash(t('save_fail'));
+          }
+          S.saved=true; S.savedComplete=!!j.complete;
+          renderDoc();
+        })
+        .catch(function(){ if(btn){ btn.disabled=false; btn.textContent=t('b_confirm'); } flash(t('conn_d')); });
+    }
+
+    // ═══ STEP 2 — DOCUMENT ═══
+    function renderDoc(){
+      setProgress(2); S.view=renderDoc;
+      FLOW.innerHTML='';
+      FLOW.appendChild(el(
+        '<div class="step">'+
+          '<h1 class="t">'+esc(t('doc_t'))+'</h1>'+
+          '<p class="sub">'+esc(t('doc_d'))+'</p>'+
+          '<div id="docarea"></div>'+
+          '<div class="btnrow"><button class="btn ghost" id="d-skip">'+esc(t('b_skip'))+'</button><button class="btn" id="d-done"'+((S.docs+S.uploadedNow)>0?'':' disabled')+'>'+esc(t('b_continue'))+'</button></div>'+
+        '</div>'
+      ));
+      renderDocArea(document.getElementById('docarea'), false);
+      document.getElementById('d-skip').onclick=renderDone;
+      document.getElementById('d-done').onclick=renderDone;
+    }
+    function renderDocArea(host, standalone){
+      host.innerHTML='';
+      var have=S.docs+S.uploadedNow;
+      if(have>0){
+        var row=el('<div class="docrow"><span class="ok">✓</span><span>'+esc(t('upl_ok'))+' ('+have+')</span></div>');
+        host.appendChild(row);
+      }
+      var slot=el('<div class="upl"><div class="big">🪪</div><div class="tt">'+esc(have>0?t('b_add'):t('upl_t'))+'</div><div class="dd">'+esc(t('upl_d'))+'</div></div>');
+      slot.onclick=function(){ pickFile(false); };
+      host.appendChild(slot);
+    }
+
+    // ═══ FILE PICK / DOWNSCALE / UPLOAD ═══
+    var FILE=document.getElementById('file');
+    var _ocrMode=false;
+    function pickFile(ocr){ _ocrMode=!!ocr; FILE.value=''; FILE.click(); }
+    FILE.addEventListener('change', function(){
+      var f=FILE.files && FILE.files[0]; if(!f) return;
+      if(/pdf/i.test(f.type)){
+        if(f.size>3*1024*1024) return flash(t('too_big'));
+        var rd=new FileReader();
+        rd.onload=function(){ upload(String(rd.result), 'application/pdf', f.name); };
+        rd.readAsDataURL(f);
+        return;
+      }
+      // Photo → downscale to ~1600px JPEG so the payload stays small.
+      var img=new Image();
+      var url=URL.createObjectURL(f);
+      img.onload=function(){
+        try{
+          var max=1600, w=img.width, h=img.height;
+          var k=Math.min(1, max/Math.max(w,h));
+          var cv=document.createElement('canvas'); cv.width=Math.round(w*k); cv.height=Math.round(h*k);
+          cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+          URL.revokeObjectURL(url);
+          upload(cv.toDataURL('image/jpeg',0.85), 'image/jpeg', (f.name||'document').replace(/\.[^.]+$/,'')+'.jpg');
+        }catch(e){ URL.revokeObjectURL(url); flash(t('upl_fail')); }
+      };
+      img.onerror=function(){ URL.revokeObjectURL(url); flash(t('upl_fail')); };
+      img.src=url;
+    });
+    function upload(dataUri, contentType, name){
+      var ocrEl=document.getElementById('ocr');
+      if(_ocrMode && ocrEl){ ocrEl.classList.add('busy'); document.getElementById('ocr-t').textContent=t('ocr_busy'); document.getElementById('ocr-d').textContent='…'; }
+      fetch('/api/profile/upload',{ method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ t:T, base64:dataUri, contentType:contentType, name:name, extract:_ocrMode }) })
+        .then(function(r){ return r.json().catch(function(){return {ok:false};}); })
+        .then(function(j){
+          if(!j.ok){
+            if(_ocrMode && ocrEl){ ocrEl.classList.remove('busy'); document.getElementById('ocr-t').textContent=t('ocr_t'); document.getElementById('ocr-d').textContent=t('ocr_d'); }
+            return flash(j.error==='too_large'?t('too_big'):(j.error==='rate_limited'?t('rate'):t('upl_fail')));
+          }
+          S.uploadedNow++;
+          if(_ocrMode){
+            var x=j.extracted;
+            if(x){
+              // fill only what the client hasn't already typed
+              var setIf=function(id,v){ var n=document.getElementById(id); if(n&&v&&!(n.value||'').trim()) n.value=v; };
+              setIf('i-name',x.name); setIf('i-dob',x.dob); setIf('i-pob',x.pob);
+              setIf('i-cf',x.cf); setIf('i-docnum',x.docNum); setIf('i-issuer',x.docIssuer);
+              setIf('i-issued',x.docIssueDate); setIf('i-nat',x.nationality);
+              if(x.docType){ var sel=document.getElementById('i-doctype'); if(sel) sel.value=x.docType; }
+              if(ocrEl){ ocrEl.classList.remove('busy'); document.getElementById('ocr-t').textContent='✓'; document.getElementById('ocr-d').textContent=t('ocr_done'); }
+            } else if(ocrEl){
+              ocrEl.classList.remove('busy'); document.getElementById('ocr-t').textContent=t('ocr_t'); document.getElementById('ocr-d').textContent=t('ocr_fail');
+            }
+          } else {
+            var area=document.getElementById('docarea'); if(area) renderDocArea(area, S.locked);
+            var done=document.getElementById('d-done'); if(done) done.disabled=false;
+          }
+        })
+        .catch(function(){
+          if(_ocrMode && ocrEl){ ocrEl.classList.remove('busy'); document.getElementById('ocr-t').textContent=t('ocr_t'); document.getElementById('ocr-d').textContent=t('ocr_d'); }
+          flash(t('conn_d'));
+        });
+    }
+
+    // ═══ STEP 3 — DONE ═══
+    function renderDone(){
+      setProgress(3); S.view=renderDone;
+      var complete=!!S.savedComplete;
+      FLOW.innerHTML='';
+      FLOW.appendChild(el(
+        '<div class="step center">'+
+          '<div class="ic success-ring" style="border-color:rgba(95,208,140,.4)">'+ICON_CHECK+'</div>'+
+          '<h2>'+esc(complete?t('done_t'):t('done_partial_t'))+'</h2>'+
+          '<p>'+esc(complete?t('done_d'):t('done_partial_d'))+'</p>'+
+          '<div class="next" style="width:100%">'+
+            '<div class="n">'+esc(t('next1'))+'</div>'+
+            '<div class="n">'+esc(t('next2'))+'</div>'+
+            '<div class="n">'+esc(t('next3'))+'</div>'+
+          '</div>'+
+        '</div>'
+      ));
+      setTimeout(function(){ setProgress(-1); }, 1200);
+    }
+  })();
+  </script>
+</body>
+</html>
