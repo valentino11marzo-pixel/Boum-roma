@@ -617,6 +617,9 @@
     "api/photos/enhance.js": {
       "maxDuration": 60,
       "memory": 1769
+    },
+    "api/wizard/describe.js": {
+      "maxDuration": 60
     }
   },
   "crons": [
@@ -691,6 +694,10 @@
     {
       "path": "/api/photos/enhance?mode=sweep",
       "schedule": "20 3 * * *"
+    },
+    {
+      "path": "/api/wizard/describe?mode=sweep",
+      "schedule": "35 3 * * *"
     }
   ]
 }
