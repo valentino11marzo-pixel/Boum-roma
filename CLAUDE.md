@@ -150,7 +150,10 @@ BANK_MAIL_FROM               # optional — extra sender filters for the bank
 # Canone via BOOM + journey (api/payments/pay.js, api/journey/_run.js)
 RENT_FEE_PCT                 # optional — service fee % on card rent payments
                              # (default 2.5)
-RENT_FEE_MIN                 # optional — fee floor in EUR (default 9)
+RENT_FEE_MIN                 # optional — fee floor in EUR (only with RENT_FEE_PCT)
+RENT_FEE_BUFFER              # optional — margine sopra il costo Stripe misurato,
+                             # in euro (default 0 = si va a pari)
+RENT_FEE_MAX_PCT             # optional — tetto di sicurezza in % (default 4)
 REVIEW_URL                   # the REAL Google review link (g.page/r/…) used
                              # by the journey's T+3 and exit emails; falls
                              # back to a Google search for the profile
@@ -579,6 +582,52 @@ admin countersigns per delega on their own schedule → RLI registration →
 tenant portal (payments/documents). Terms differ per deal: any money knob,
 extra line items and custom clauses per PA; edit before acceptance (same
 link); after acceptance/payment, Duplicate creates the new version.
+
+### Il bonifico gratuito + la commissione misurata (`api/payments/_ref.js`)
+La carta costa a Stripe l'1,5% se europea e il **3,25% se extra-SEE** — e
+l'inquilino BOOM è un expat. Una commissione fissa al 2,5% quindi guadagnava
+sugli europei e **perdeva su ogni carta estera** (−€26,50 su un canone da
+3.500). Due mosse:
+
+- **Il bonifico, a zero.** In `/casa`, accanto al bottone carta: beneficiario,
+  IBAN e **causale col codice della rata**, ognuno con copia. Costa zero a
+  entrambi e la riconciliazione la fa già `/banca`. Compare SOLO se hai
+  impostato `settings/payout` (`{iban, beneficiary}`) — mai un IBAN inventato.
+- **`payRef(paymentId)`** → `BOOM-XXXXXX`, derivato (sha256, alfabeto senza
+  I/O/0/1), quindi ogni rata esistente ne ha già uno: nessuna migrazione.
+  `reconcile()` guadagna una **via esatta** prima delle euristiche: il
+  movimento dice quale rata paga. Codice giusto + importo diverso (acconto,
+  errore) → suggerimento, MAI un "pagato" falso.
+  La funzione è duplicata in `/casa` (`payRefLocal`, crypto.subtle) perché la
+  pagina deve mostrare la causale: `tests/bonifico/parity.mjs` gira quella del
+  browser in un browser vero e la confronta col server — se divergono, il
+  cliente copia una causale che nessuno riconosce.
+- **La commissione si misura, non si indovina.** Il webhook salva su ogni rata
+  il costo reale (`balance_transaction.fee`), il paese e il brand della carta,
+  e alimenta `settings/rentFeeStats`. `rentFee(amount, stats)` = costo medio
+  osservato + `RENT_FEE_BUFFER` (default **0 → si va a pari**), con tetto
+  `RENT_FEE_MAX_PCT` (4) e forzatura `RENT_FEE_PCT`. Sotto 8 incassi usa il
+  **caso peggiore** (3,3% + €0,30): partire sotto costo è il difetto che
+  questa formula elimina. `/casa` mostra quel seed come **massimo**, così
+  l'addebito reale può solo essere più basso.
+
+### Il lucchetto sull'immobile (`api/preagreement/_lock.js`)
+Due candidati potevano accettare, pagare e generare **due contratti** sullo
+stesso appartamento: `submit.js` controllava solo che *quella* proposta non
+fosse già accettata. Ora un documento di lucchetto **per ogni mese** della
+locazione, id deterministico, creato con `fsCreate(...,docId)` → Firestore
+risponde 409 su documento esistente, quindi è un compare-and-set atomico e non
+un "leggi poi scrivi". Un doc per mese perché due proposte sullo stesso
+immobile per **periodi disgiunti sono legittime**: la sovrapposizione si
+rileva da sé. Chiave a scaletta `propertyId → listingId → indirizzo
+normalizzato`. Il secondo candidato **non viene respinto**: la proposta
+diventa `status:'reserve'`, niente pagamento né contratto, ping Telegram
+all'operatore, e la pagina dice la verità. Il lucchetto lo prende
+l'accettazione ma **scade in 48h** se il dovuto non arriva (`confirmLock` dal
+webhook lo rende definitivo). Spazzino `sweepLocks()` in `reminder-cron`
+(oraria) perché la console revoca client-side e il lucchetto resterebbe
+appeso. **`firestore.rules`: `propertyLocks` è admin-only — senza quella riga
+cadeva nel default-deny e il lucchetto non funzionava affatto.**
 
 ### Rent cadence (mensile · bimestrale · trimestrale · semestrale · annuale)
 `money.installmentMonths` (1|2|3|6|12) + derived `installmentAmount`
