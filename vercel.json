@@ -620,6 +620,9 @@
     },
     "api/wizard/describe.js": {
       "maxDuration": 60
+    },
+    "api/profile/upload.js": {
+      "maxDuration": 60
     }
   },
   "crons": [
