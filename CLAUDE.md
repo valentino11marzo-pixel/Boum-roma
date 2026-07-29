@@ -200,7 +200,22 @@ AI listing-copy for the Telegram wizard bot. Auth via `X-Wizard-Secret`
 returns `{ ok, en, it }` — a polished bilingual description from Claude
 (`claude-haiku-4-5-20251001`). The `ANTHROPIC_API_KEY` stays server-side; the
 bot can't call Claude directly. Bot falls back to a template if this is
-unavailable.
+unavailable — and that template now humanises the feature codes (it used to
+join the raw DB keys, publishing "washing_machine, double_glazing" on the
+listing page and inside `/llms-listings.txt`, i.e. straight to crawlers).
+
+**Sweep** — `GET ?mode=sweep[&limit=N]` (cron 03:35 UTC, auth like the other
+wizard crons: Bearer `CRON_SECRET`, `X-Homie-Secret`, or an admin ID token).
+A listing page with no text is invisible to search and uncitable by AI answer
+engines, which reward specific facts over filler. On 2026-07-28 the live
+catalog had **10 empty descriptions and 10 carrying the bot's template**; the
+sweep rewrites them nightly (6/run, time-boxed, ordered available-and-mute
+first). **It never rewrites a human's words**: length is the wrong test — the
+real catalog's human copy runs 66–203 chars while the template reaches 203, so
+a "too short" rule would delete *"perfect for Luiss students"* and keep
+*"Features include ac, balcony"*. Only EMPTY text and the template's own
+signature qualify (`isBoilerplate` / `copyGap` / `copyOrder`, exported +
+tested), and anything overwritten is preserved in `descriptionOriginal`.
 
 ### GET/POST `/api/wizard/health` (cron */10 min)
 Watchdog for the Telegram listing wizard bot. The bot (via
@@ -866,6 +881,7 @@ real. Backs the "Aggiungi annuncio" modal in `pfs-command.html`.
   | `tests/journey/review-url.mjs` | solo un vero link "scrivi recensione" (`g.page/r/<id>/review`) entra nelle email; un link Maps "Condividi" viene rifiutato con warning |
   | `tests/dossier/run.mjs` | fascicolo ARPE: un landlord non può scrivere nel fascicolo di un immobile altrui, path sotto `property-docs/<id>/`, slot già pieni non sovrascritti |
   | `tests/photos/sweep.mjs` | photo-lab: chi è candidato allo sweep, quali foto contano come sorgente (i nostri output enhanced mai), e l'ordine con cui le 3 notti si spendono — le gallerie vere prima degli annunci da una foto. Si auto-skippa senza `sharp` |
+  | `tests/copy/run.mjs` | descrizioni: lo sweep riscrive i template del bot e le schede mute, ma **mai** le parole di un umano — verificato sulle stringhe vere del catalogo, dove il testo scritto a mano è più CORTO del template |
   | `tests/safari/boot.mjs` | nessuna superficie autenticata resta appesa su un loader |
 - PWA support via `manifest.json` and `sw.js` service worker — registered on
   the 3 portals via `BoomPortal.registerServiceWorker()`

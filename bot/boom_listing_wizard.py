@@ -392,8 +392,19 @@ async def description_cb(update, context):
             label = '✅ Descrizione AI (IT/EN)'
         else:
             # Fallback: original built-in template (AI unavailable / no secret).
+            # The feature codes are DATABASE keys — joining them raw published
+            # "washing_machine, double_glazing" on the public listing page and
+            # in /llms-listings.txt, which is what search engines and AI answer
+            # engines read. Same labels as api/wizard/describe.js.
             furn_text = {'yes': 'fully furnished', 'partial': 'partially furnished', 'no': 'unfurnished'}
-            feats = d.get('features', []); feat_text = f" Features include {', '.join(feats)}." if feats else ""
+            feat_labels = {
+                'ac': 'air conditioning', 'elevator': 'elevator', 'balcony': 'balcony',
+                'terrace': 'terrace', 'washing_machine': 'washing machine', 'dishwasher': 'dishwasher',
+                'parking': 'parking space', 'storage': 'storage room', 'pets_allowed': 'pets allowed',
+                'wifi': 'WiFi included', 'double_glazing': 'double glazing', 'doorman': 'doorman',
+            }
+            feats = [feat_labels.get(f, str(f).replace('_', ' ')) for f in d.get('features', [])]
+            feat_text = f" Features include {', '.join(feats)}." if feats else ""
             d['description'] = f"Beautiful {d.get('type', 'apartment')} in {d.get('zone', 'Rome')}, {d.get('sqm', '')}sqm on floor {d.get('floor', 'N/A')}, {furn_text.get(d.get('furnished', 'no'), 'unfurnished')}. {d.get('beds', '')} beds, {d.get('bathrooms', '')} bathroom{'s' if d.get('bathrooms', 1) > 1 else ''}.{feat_text} €{d.get('price', 0):,}/month."
             label = '✅ Descrizione generata (modello base)'
     else:
