@@ -15,6 +15,7 @@ const SUITES = [
   { name: 'journey',  file: 'tests/journey/steps.mjs',    what: 'regole commerciali delle email automatiche' },
   { name: 'review',   file: 'tests/journey/review-url.mjs', what: 'link recensione Google' },
   { name: 'dossier',  file: 'tests/dossier/run.mjs',      what: 'fascicolo ARPE: autorizzazione e upload' },
+  { name: 'lock',     file: 'tests/lock/run.mjs',         what: 'lucchetto immobile: due candidati non chiudono lo stesso' },
   { name: 'photoreal',file: 'tests/photoreal/run.mjs',    what: '3D isolato: camera prima del tileset, comandi, chiusura' },
   { name: 'safari',   file: 'tests/safari/boot.mjs',      what: 'nessuna pagina autenticata resta appesa' },
 ];

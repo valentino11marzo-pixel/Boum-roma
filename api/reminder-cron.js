@@ -260,6 +260,17 @@ export default async function handler(req, res) {
       results.paReminders = await runPaReminders();
     } catch (e) { results.errors.push(`pa-remind: ${e.message}`); }
 
+    // ── Lucchetti sull'immobile: libera quelli che non hanno più diritto di
+    // tenerlo (proposta revocata dalla console con una scrittura client-side,
+    // proposta cancellata, riserva non pagata oltre la finestra). Senza questa
+    // passata un appartamento resterebbe congelato. Una volta l'ora. ──
+    if (now.getUTCMinutes() < 15) {
+      try {
+        const { sweepLocks } = await import('./preagreement/_lock.js');
+        results.propertyLocks = await sweepLocks();
+      } catch (e) { results.errors.push(`pa-locks: ${e.message}`); }
+    }
+
     // ── Tenant journey: T-30/T-14/T-7/T-1 pre-move-in, T+3 review ask,
     // T-90 renewal confirmation (no upsell), exit thank-you + referral.
     // Once per step per contract (contracts.journey flags). Lazy import,

@@ -105,6 +105,21 @@ export async function fsCreate(collection, data, docId) {
 
 // Patch (update fields on) an existing doc by full path "collection/docId"
 // or "collection/parent/sub/docId". Creates the doc if it doesn't exist.
+// Cancella un documento. Usato dai lucchetti sull'immobile
+// (api/preagreement/_lock.js), dove un lucchetto preso a metà va restituito.
+// Un 404 NON è un errore: il documento non c'è più, che è il risultato voluto.
+export async function fsDelete(docPath) {
+  const token = await getAdminToken();
+  const res = await fetch(`${FS_BASE}/${docPath}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok && res.status !== 404) {
+    throw new Error(`Firestore delete failed (${res.status}): ${await res.text()}`);
+  }
+  return true;
+}
+
 export async function fsPatch(docPath, data) {
   const token = await getAdminToken();
   const fields = toFsFields(data);

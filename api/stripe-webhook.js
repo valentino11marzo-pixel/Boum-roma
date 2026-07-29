@@ -508,6 +508,15 @@ async function handlePreagreement(res, session, m) {
     });
   } catch (e) { console.error('[webhook/pa] patch failed:', e.message); }
 
+  // Il dovuto alla firma è arrivato: il lucchetto sull'immobile diventa
+  // DEFINITIVO. Prima scadeva dopo 48h, perché una riserva che non paga non
+  // deve congelare l'appartamento; ora che i soldi ci sono, nessun altro
+  // candidato può più subentrare.
+  try {
+    const { confirmLock } = await import('./preagreement/_lock.js');
+    await confirmLock({ pa, paId: id });
+  } catch (e) { console.error('[webhook/pa] lucchetto non confermato:', e.message); }
+
   // Stripe receipt link (best-effort)
   let receiptUrl = null;
   try {

@@ -247,6 +247,12 @@ service cloud.firestore {
     match /bankImports/{x}                 { allow read, write: if isAdmin(); }
     match /docImports/{x}                  { allow read, write: if isAdmin(); }
     match /complianceState/{x}             { allow read, write: if isAdmin(); }
+    // Lucchetti sull'immobile (api/preagreement/_lock.js): impediscono che due
+    // candidati chiudano lo stesso appartamento. Scritti SOLO server-side con
+    // le credenziali admin — che passano comunque da queste regole, quindi
+    // senza questa riga cadrebbero nel default-deny e il lucchetto non
+    // funzionerebbe affatto.
+    match /propertyLocks/{x}               { allow read, write: if isAdmin(); }
 
     // ─── Default deny ─────────────────────────────────────────────────
     match /{document=**} {
