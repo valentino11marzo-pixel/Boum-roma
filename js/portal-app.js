@@ -2299,9 +2299,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (loading && !loading.classList.contains('hidden')) {
             console.warn('[Boot] hard timeout — forcing UI exit from loading state');
             hideLoading();
-            // If we never reached the app shell, fall back to the auth screen so
-            // the user can at least retry / sign in.
-            if (!document.getElementById('app').classList.contains('active')) showAuth();
+            if (!document.getElementById('app').classList.contains('active')) {
+                // Utente e profilo già in mano → entra nella shell: i listener
+                // realtime e il lazy load completano i dati da soli. Mandare un
+                // utente autenticato sulla schermata di login era il vecchio
+                // fallback ed era la mossa sbagliata.
+                if (S.user && S.profile) showApp();
+                else showAuth();
+            }
         }
     }, 25000);
     
@@ -2372,7 +2377,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 ]);
                 if (doc.exists) {
                     S.profile = { id: u.uid, ...doc.data() };
-                    await db.collection('users').doc(u.uid).update({ lastLogin: firebase.firestore.FieldValue.serverTimestamp() }).catch(() => {});
+                    // lastLogin è telemetria: MAI awaitarla sul boot path. Una
+                    // write Firestore senza timeout su un canale Safari
+                    // incastrato non risolve mai → boot appeso fino al
+                    // watchdog dei 25s pur essendo l'utente autenticato.
+                    db.collection('users').doc(u.uid).update({ lastLogin: firebase.firestore.FieldValue.serverTimestamp() }).catch(() => {});
                     // loadData() can still take long on big admin accounts (bulk
                     // gets of properties/contracts/payments/etc.). Show the app
                     // even if it stalls past 20s — listeners + cached data will
@@ -2444,28 +2453,38 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         console.log('Loading data...');
         const startTime = performance.now();
         
-        // Check cache first (5 min expiry). Cache is tagged with the owning
-        // uid + role so a different user on a shared device never loads
-        // someone else's data dump from localStorage.
+        // Stale-while-revalidate: il boot NON aspetta mai la rete se esiste
+        // uno snapshot locale dello stesso utente (tag uid+role: su un
+        // dispositivo condiviso un altro utente non eredita mai il dump).
+        //  - snapshot ≤5 min  → si usa e si rinfresca con calma (2s);
+        //  - snapshot ≤24 h   → si usa SUBITO e si rinfresca immediatamente
+        //                       in background (listener realtime + refresh
+        //                       riallineano in pochi secondi);
+        //  - più vecchio      → carico di rete come prima.
+        // Prima il limite era 5 minuti secchi: oltre, ogni apertura del
+        // portale restava sullo spinner per l'intero load Firestore.
         const cacheKey = 'boom_data_cache';
-        const cacheExpiry = 5 * 60 * 1000; // 5 minutes
+        const cacheFresh = 5 * 60 * 1000;        // sotto: refresh rilassato
+        const cacheUsable = 24 * 60 * 60 * 1000; // sotto: boot istantaneo + refresh subito
         const cached = localStorage.getItem(cacheKey);
         if (cached) {
             try {
                 const { data, timestamp, uid, role } = JSON.parse(cached);
                 const sameUser = uid === S.profile?.id && role === S.profile?.role;
-                if (sameUser && Date.now() - timestamp < cacheExpiry) {
-                    console.log('Using cached data');
+                const age = Date.now() - timestamp;
+                if (sameUser && age < cacheUsable) {
+                    console.log('Using cached data (age ' + Math.round(age / 1000) + 's)');
                     Object.assign(S, data);
                     checkAlerts();
-                    // Refresh in background
-                    setTimeout(() => loadDataFresh(true), 2000);
+                    // Refresh in background: subito se lo snapshot è stantio,
+                    // con calma se ha meno di 5 minuti.
+                    setTimeout(() => loadDataFresh(true), age < cacheFresh ? 2000 : 0);
                     return;
                 }
                 if (!sameUser) localStorage.removeItem(cacheKey);
             } catch (e) { console.log('Cache invalid'); }
         }
-        
+
         await loadDataFresh(false);
     }
     
@@ -2565,7 +2584,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         });
 
         cacheData();
-        if (!silent) checkAlerts();
+        checkAlerts();
+        if (silent) {
+            // Refresh in background dopo un boot dalla cache (percorso SWR):
+            // riallinea la UI ai dati appena arrivati — ma mai sotto un modal
+            // aperto, un re-render cancellerebbe l'input dell'utente. È lo
+            // stesso comportamento del percorso admin (blocco lazy → render).
+            const modals = document.getElementById('modals');
+            if (!modals || !modals.children.length) {
+                try { renderPage(); buildNav(); } catch (e) { console.warn('Silent refresh render:', e); }
+            }
+        }
         console.log('Scoped data loaded in', (performance.now() - startTime).toFixed(0), 'ms');
     }
 
@@ -2597,30 +2626,28 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             }
         }
         try {
-            // BATCH 1: Critical data (always load first)
-            console.log('Loading batch 1...');
-            const [users, props, contracts] = await Promise.all([
+            // Dati core in UN solo giro concorrente. Le vecchie "batch 1/2/3"
+            // sequenziali (+100ms di pausa tra l'una e l'altra su Safari)
+            // erano un retaggio degli stalli WebKit ormai risolti alla radice
+            // (persistence differita + watchdog): Firestore multiplexa tutte
+            // le query su un unico canale, quindi serializzare non proteggeva
+            // nulla e costava ~2 round-trip extra a ogni boot admin.
+            console.log('Loading core data...');
+            const [users, props, contracts, payments, maint, clients, docs, invoices, rules, ruleExecs] = await Promise.all([
                 db.collection('users').get(),
                 db.collection('properties').get(),
-                db.collection('contracts').get()
+                db.collection('contracts').get(),
+                db.collection('payments').get(),
+                db.collection('maintenance').get(),
+                db.collection('clients').get(),
+                db.collection('documents').get(),
+                db.collection('invoices').get(),
+                db.collection('rules').get(),
+                db.collection('ruleExecutions').orderBy('executedAt', 'desc').limit(50).get()
             ]);
             S.users = users.docs.map(d => ({ id: d.id, ...d.data() }));
             S.properties = props.docs.map(d => ({ id: d.id, ...d.data() }));
             S.contracts = contracts.docs.map(d => ({ id: d.id, ...d.data() }));
-            console.log('Batch 1 done:', (performance.now() - startTime).toFixed(0), 'ms');
-            
-            // For Safari: smaller batches with delays
-            if (isSafariDesktop) {
-                await new Promise(r => setTimeout(r, 100));
-            }
-            
-            // BATCH 2: Secondary data
-            console.log('Loading batch 2...');
-            const [payments, maint, clients] = await Promise.all([
-                db.collection('payments').get(),
-                db.collection('maintenance').get(),
-                db.collection('clients').get()
-            ]);
             S.payments = payments.docs.map(d => ({ id: d.id, ...d.data() }));
             // Auto-mark overdue payments
             var today = new Date().toISOString().split('T')[0];
@@ -2632,25 +2659,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             });
             S.maintenance = maint.docs.map(d => ({ id: d.id, ...d.data() }));
             S.clients = clients.docs.map(d => ({ id: d.id, ...d.data() }));
-            console.log('Batch 2 done:', (performance.now() - startTime).toFixed(0), 'ms');
-            
-            if (isSafariDesktop) {
-                await new Promise(r => setTimeout(r, 100));
-            }
-            
-            // BATCH 3: Documents & Invoices
-            console.log('Loading batch 3...');
-            const [docs, invoices, rules, ruleExecs] = await Promise.all([
-                db.collection('documents').get(),
-                db.collection('invoices').get(),
-                db.collection('rules').get(),
-                db.collection('ruleExecutions').orderBy('executedAt', 'desc').limit(50).get()
-            ]);
             S.documents = docs.docs.map(d => ({ id: d.id, ...d.data() }));
             S.invoices = invoices.docs.map(d => ({ id: d.id, ...d.data() }));
             S.rules = rules.docs.map(d => ({ id: d.id, ...d.data() }));
             S.ruleExecutions = ruleExecs.docs.map(d => ({ id: d.id, ...d.data() }));
-            console.log('Batch 3 done:', (performance.now() - startTime).toFixed(0), 'ms');
+            console.log('Core batch done:', (performance.now() - startTime).toFixed(0), 'ms');
             
             // Cache core data (tagged with uid + role for shared-device safety)
             cacheData();
@@ -3719,7 +3732,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (link) link.href = loginUrlWithNext();
         document.getElementById('authScreen').classList.remove('hidden');
     }
-    function showApp() { hideLoading(); document.getElementById('authScreen').classList.add('hidden'); document.getElementById('app').classList.add('active'); setupApp(); }
+    function showApp() {
+        // Idempotente: può arrivare sia dal flusso naturale che dal watchdog
+        // dei 25s — la seconda chiamata non deve rifare setup/listener.
+        const app = document.getElementById('app');
+        if (app.classList.contains('active')) { hideLoading(); return; }
+        hideLoading();
+        document.getElementById('authScreen').classList.add('hidden');
+        app.classList.add('active');
+        setupApp();
+    }
     function showAuthError(m) { const e = document.getElementById('authError'); e.textContent = m; e.classList.add('show'); document.getElementById('authInfo').classList.remove('show'); }
     function showAuthInfo(m) { const e = document.getElementById('authInfo'); e.textContent = m; e.classList.add('show'); document.getElementById('authError').classList.remove('show'); }
 

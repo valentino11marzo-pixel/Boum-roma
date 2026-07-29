@@ -307,13 +307,24 @@ async function processListing(token, id, mode, actor) {
   return { ok: true, plan: report, applied: { cover: newUrls[0], images: newUrls } };
 }
 
+// Sweep order: the nightly slots are scarce (3 per run, 42s of budget), and
+// fsList hands them over in document-ID order — pure alphabet, zero relation
+// to impact. On a one-photo listing the brain has NOTHING to decide: no cover
+// to pick, no gallery to reorder, no duplicate to drop, only a cosmetic pass.
+// Ordering by ID once left a 25-photo listing raw for three nights while three
+// single-photo ones took the slots. Richest galleries first; ties keep the
+// document order (Array#sort is stable) so a run stays reproducible.
+export function sweepOrder(candidates) {
+  return [...candidates].sort((a, b) => sourceUrls(b.js).length - sourceUrls(a.js).length);
+}
+
 // ── the nightly sweep: nothing stays raw ────────────────────────────────────
 async function sweep(token, limit, actor) {
   const started = Date.now();
   const rows = await fsList('listings', { limit: 300 });
-  const candidates = (Array.isArray(rows) ? rows : [])
+  const candidates = sweepOrder((Array.isArray(rows) ? rows : [])
     .map(r => ({ id: r.id, js: r }))
-    .filter(c => c.id && needsCuration(c.js));
+    .filter(c => c.id && needsCuration(c.js)));
   const processed = [], failed = [];
   for (const c of candidates) {
     if (processed.length >= limit) break;
