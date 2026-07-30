@@ -95,7 +95,13 @@ service cloud.firestore {
                     || (isTenant() && resource.data.userId == uid())
                     || (isLandlord() && resource.data.propertyId != null
                         && ownsProperty(resource.data.propertyId));
-      allow create: if isSignedIn() && request.resource.data.userId == uid();
+      // L'admin può aprire una segnalazione PER un inquilino: succede ogni
+      // volta che qualcuno telefona invece di usare l'app, e serve
+      // all'inquilino di prova. Senza `isAdmin()` la regola ammetteva solo
+      // "creo per me stesso" e ogni scrittura server-side per conto di terzi
+      // tornava PERMISSION_DENIED.
+      allow create: if isAdmin()
+                    || (isSignedIn() && request.resource.data.userId == uid());
       allow update, delete: if isAdmin();
     }
 

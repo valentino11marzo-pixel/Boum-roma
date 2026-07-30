@@ -328,7 +328,13 @@ input:focus, textarea:focus { border-color: rgba(212,175,55,.4); }
     ev.target.disabled = true; demoOut.textContent = 'Creo…';
     try {
       const j = await authed('POST');
-      if (!j.ok) throw new Error(j.detail || j.error || 'errore');
+      if (!j.ok) {
+        /* Il server dice a QUALE passo si è fermato: un 403 di Firestore da
+           solo non lo dice, e senza quello non si sa quale regola guardare. */
+        const e = new Error(j.detail || j.error || 'errore');
+        e.step = j.step; e.hint = j.hint; e.created = j.created;
+        throw e;
+      }
       /* La password si vede UNA volta e non è salvata da nessuna parte:
          chi la perde ricrea un inquilino, ci vogliono due secondi. */
       demoOut.innerHTML =
@@ -338,6 +344,7 @@ input:focus, textarea:focus { border-color: rgba(212,175,55,.4); }
         +   '<div>' + esc(j.email) + '</div><div>' + esc(j.password) + '</div>'
         + '</div>'
         + '<button class="ghost" id="demoCopy" style="justify-self:start">COPIA CREDENZIALI</button>'
+        + (j.warning ? '<div style="color:#e8c06a;font-size:12px">' + esc(j.warning) + '</div>' : '')
         + '<div style="color:var(--text-muted);font-size:11.5px">La password compare solo ora e non è salvata: se la perdi, ricrea.</div>'
         + '</div>';
       const cp = document.getElementById('demoCopy');
@@ -346,8 +353,15 @@ input:focus, textarea:focus { border-color: rgba(212,175,55,.4); }
           () => toast('Credenziali copiate', 'success'), () => toast('Copia non riuscita', 'error'));
       });
     } catch (e) {
-      demoOut.textContent = 'Creazione fallita: ' + (e.message || e);
-      demoOut.style.color = '#ff8a70';
+      demoOut.innerHTML = '<div style="text-align:left;display:grid;gap:8px">'
+        + '<div style="color:#ff8a70">Creazione fallita'
+        + (e.step ? ' scrivendo <b>' + esc(e.step) + '</b>' : '') + '.</div>'
+        + (e.hint ? '<div style="color:#e8c06a">' + esc(e.hint) + '</div>' : '')
+        + (e.created && e.created.length
+            ? '<div style="color:var(--text-muted);font-size:11.5px">Creato prima di fermarsi: '
+              + esc(e.created.join(', ')) + ' — usa CANCELLA I DATI DI PROVA per ripulire.</div>' : '')
+        + '<div style="color:var(--text-muted);font-size:11.5px">' + esc(e.message || e) + '</div>'
+        + '</div>';
     }
     ev.target.disabled = false;
   });

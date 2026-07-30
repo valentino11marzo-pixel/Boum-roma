@@ -71,12 +71,20 @@ export default async function handler(req, res) {
   const email = `demo.tenant.${tag}@boomrome.com`;
   const password = makePassword();
 
+  // Traccia quale passo sta girando: un 403 di Firestore dice solo
+  // "insufficient permissions" e non quale collezione — che è esattamente
+  // l'informazione che serve, perché ogni collezione ha regole sue.
+  const done = [];
+  let step = 'auth';
+  const at = (name, fn) => { step = name; return fn().then((r) => { done.push(name); return r; }); };
+
   try {
     const uid = await createAuthUser(email, password);
+    done.push('auth');
     const propId = 'demo_prop_' + tag;
     const ctrId = 'demo_ctr_' + tag;
 
-    await fsCreate('users', {
+    await at('users', () => fsCreate('users', {
       demo: true,
       name: 'Anna Rossi (prova)',
       email, phone: '+39 333 000 0000',
@@ -84,11 +92,11 @@ export default async function handler(req, res) {
       propertyId: propId,
       createdAt: new Date().toISOString(),
       createdBy: auth.email || 'admin',
-    }, uid);
+    }, uid));
 
     // Immobile col manuale PIENO: serve perché le sezioni Manuale e Quartiere
     // abbiano davvero qualcosa da mostrare, altrimenti la prova non dice nulla.
-    await fsCreate('properties', {
+    await at('properties', () => fsCreate('properties', {
       demo: true,
       name: 'Trilocale Via Cavour (prova)',
       address: 'Via Cavour 12, Roma',
@@ -110,9 +118,9 @@ export default async function handler(req, res) {
         { emoji: '🛒', name: 'Conad Via Urbana', note: 'aperto fino alle 21' },
       ],
       createdAt: new Date().toISOString(),
-    }, propId);
+    }, propId));
 
-    await fsCreate('contracts', {
+    await at('contracts', () => fsCreate('contracts', {
       demo: true,
       status: 'demo',                 // ← non 'active': l'automazione lo salta
       tenantId: uid, tenantName: 'Anna Rossi (prova)', tenantEmail: email,
@@ -123,7 +131,7 @@ export default async function handler(req, res) {
       installmentMonths: 1, installmentAmount: rent,
       canone: { monthly: rent, installments: 12, total: rent * 12 },
       createdAt: new Date().toISOString(),
-    }, ctrId);
+    }, ctrId));
 
     // Una rata da pagare (così si vedono bottone carta e bonifico) e tre
     // pagate con vie diverse, per popolare storico e ricevute.
@@ -134,7 +142,7 @@ export default async function handler(req, res) {
       { m: -3, due: shift(-86), status: 'paid', paidVia: 'stripe' },
     ];
     for (const p of pays) {
-      await fsCreate('payments', {
+      await at('payments', () => fsCreate('payments', {
         demo: true,
         contractId: ctrId, tenantId: uid, tenantName: 'Anna Rossi (prova)',
         propertyId: propId,
@@ -143,17 +151,27 @@ export default async function handler(req, res) {
         ...(p.status === 'paid' ? { paidVia: p.paidVia, paidDate: p.due } : {}),
         installmentMonths: 1,
         createdAt: new Date().toISOString(),
-      }, `demo_pay_${tag}_${ym(p.m)}`);
+      }, `demo_pay_${tag}_${ym(p.m)}`));
     }
 
-    await fsCreate('maintenance', {
-      demo: true,
-      userId: uid, propertyId: propId,
-      category: 'Plumbing', title: 'Caldaia — acqua tiepida al mattino',
-      urgency: 'whenever', status: 'in-progress',
-      notes: 'Tecnico previsto giovedì.',
-      createdAt: new Date().toISOString(),
-    }, 'demo_mnt_' + tag);
+    // Non fatale: se la regola di `maintenance` non è aggiornata l'inquilino
+    // di prova serve comunque a tutto il resto. Meglio una sezione vuota che
+    // nessuna prova.
+    let maintenanceOk = true;
+    try {
+      await fsCreate('maintenance', {
+        demo: true,
+        userId: uid, propertyId: propId,
+        category: 'Plumbing', title: 'Caldaia — acqua tiepida al mattino',
+        urgency: 'whenever', status: 'in-progress',
+        notes: 'Tecnico previsto giovedì.',
+        createdAt: new Date().toISOString(),
+      }, 'demo_mnt_' + tag);
+      done.push('maintenance');
+    } catch (e) {
+      maintenanceOk = false;
+      console.warn('[admin/test-tenant] maintenance non creata:', e.message);
+    }
 
     logActivity('test_tenant_created', 'admin', { email, uid }, auth.email || 'admin').catch(() => {});
 
@@ -161,14 +179,27 @@ export default async function handler(req, res) {
       ok: true,
       email, password,                      // ← mostrata UNA volta, non salvata
       url: 'https://www.boomrome.com/casa',
-      uid, tag,
+      uid, tag, created: done,
+      warning: maintenanceOk ? null
+        : 'La sezione Manutenzione resterà vuota: la regola Firestore di '
+        + '`maintenance` non permette all\'admin di creare per conto di un '
+        + 'altro utente. Ripubblica le regole con '
+        + '`npx firebase-tools deploy --only firestore:rules`.',
       note: 'Contratto con status:demo e ogni documento demo:true — journey, '
           + 'Gestore e Contabile lo ignorano. DELETE su questo endpoint per '
           + 'cancellare tutto.',
     });
   } catch (e) {
-    console.error('[admin/test-tenant]', e.message);
-    return res.status(500).json({ ok: false, error: 'create_failed', detail: e.message });
+    console.error('[admin/test-tenant] fallito al passo', step + ':', e.message);
+    const denied = /PERMISSION_DENIED|\(403\)/.test(String(e.message));
+    return res.status(500).json({
+      ok: false, error: 'create_failed', step, created: done,
+      detail: e.message,
+      hint: denied
+        ? `Firestore ha rifiutato la scrittura su \`${step}\`. Le regole non `
+          + 'sono aggiornate: `npx firebase-tools deploy --only firestore:rules`.'
+        : null,
+    });
   }
 }
 
