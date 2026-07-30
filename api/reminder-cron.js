@@ -125,6 +125,23 @@ function buildEmail({ clientName, listingName, listingZone, confirmedDateTime, i
   return { subject, html };
 }
 
+// ── Watchdog inviti freddi (puro, testato in tests/notify) ──────────────
+// Invito a firmare inviato, NESSUNA firma dopo 72h → re-invito automatico
+// al conduttore (max 2, distanza 24h dal reminder manuale). Un contratto
+// mai invitato resta una decisione umana: qui non si inventa nulla.
+export function shouldReinvite(c, nowMs) {
+  const H72 = 72 * 3600 * 1000, H24 = 24 * 3600 * 1000;
+  if (!c) return false;
+  if (c.status && c.status !== 'active') return false;
+  if (c.tenantSignature || c.landlordSignature) return false;   // partial → ci pensa l'altro nudge
+  if (!c.tenantSignToken || !c.signInviteTenantAt) return false;
+  if (nowMs - new Date(c.signInviteTenantAt).getTime() < H72) return false;
+  const last = c.lastReminderAt ? new Date(c.lastReminderAt).getTime() : 0;
+  if (last && nowMs - last < H24) return false;
+  if ((c.inviteNudgeCount || 0) >= 2) return false;
+  return true;
+}
+
 export default async function handler(req, res) {
   if (req.headers['authorization'] !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).json({ error: 'Unauthorized' });
@@ -252,6 +269,42 @@ export default async function handler(req, res) {
       results.signNudged = nudged;
     } catch (e) { results.errors.push(`sign-nudge: ${e.message}`); }
 
+    // ── Invito a firmare mai aperto → re-invito dopo 72h (max 2) ──
+    // Chiude l'altro buco del funnel firme: il contratto INVIATO su cui
+    // nessuno ha ancora firmato. Il re-invito parte come "Reminder —" nello
+    // stesso design system, e ogni invio resta tracciato sul contratto.
+    try {
+      const noneQ = await fsQuery('contracts', token, {
+        field: { fieldPath: 'signatureStatus' }, op: 'EQUAL', value: { stringValue: 'none' },
+      });
+      const cold = (noneQ || []).filter(r => r.document).map(r => parseDoc(r.document)).filter(Boolean);
+      let reinvited = 0;
+      for (const c of cold) {
+        if (!shouldReinvite(c, now.getTime())) continue;
+        try {
+          const { fsGet } = await import('./homie/_lib.js');
+          const { sendSignInvite } = await import('./sign/_notify.js');
+          const tenant = c.tenantId ? await fsGet('users/' + c.tenantId).catch(() => null) : null;
+          const to = (tenant && tenant.email) || c.tenantEmail || '';
+          if (!to) continue;
+          const sent = await sendSignInvite({
+            contract: c, property: null, role: 'tenant', to,
+            name: c.tenantName || (tenant && tenant.name) || '',
+            url: `https://www.boomrome.com/sign?sign=${encodeURIComponent(c.tenantSignToken)}`,
+            resend: true,
+          });
+          if (sent && sent.ok) {
+            await fsPatch(`contracts/${c.id}`, {
+              lastReminderAt: { timestampValue: now.toISOString() },
+              inviteNudgeCount: { integerValue: String((c.inviteNudgeCount || 0) + 1) },
+            }, token);
+            reinvited++;
+          }
+        } catch (e) { results.errors.push(`reinvite ${c.id}: ${e.message}`); }
+      }
+      results.inviteNudged = reinvited;
+    } catch (e) { results.errors.push(`invite-nudge: ${e.message}`); }
+
 // ── Pre-agreement 24h nudge: accepted + payment due + Stripe never
     // completed → one gentle email with a resume-payment link. Lazy import,
     // best-effort — must never take the cron down. ──
@@ -259,6 +312,17 @@ export default async function handler(req, res) {
       const { runPaReminders } = await import('./preagreement/_remind.js');
       results.paReminders = await runPaReminders();
     } catch (e) { results.errors.push(`pa-remind: ${e.message}`); }
+
+    // ── Lucchetti sull'immobile: libera quelli che non hanno più diritto di
+    // tenerlo (proposta revocata dalla console con una scrittura client-side,
+    // proposta cancellata, riserva non pagata oltre la finestra). Senza questa
+    // passata un appartamento resterebbe congelato. Una volta l'ora. ──
+    if (now.getUTCMinutes() < 15) {
+      try {
+        const { sweepLocks } = await import('./preagreement/_lock.js');
+        results.propertyLocks = await sweepLocks();
+      } catch (e) { results.errors.push(`pa-locks: ${e.message}`); }
+    }
 
     // ── Tenant journey: T-30/T-14/T-7/T-1 pre-move-in, T+3 review ask,
     // T-90 renewal confirmation (no upsell), exit thank-you + referral.

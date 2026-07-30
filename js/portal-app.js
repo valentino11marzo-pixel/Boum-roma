@@ -1508,7 +1508,8 @@ Valentyne - BOOM Rome`
             // Apple Wallet HTTP endpoints, which is fine from an anonymous
             // browser session.
             if (otherSigned) {
-                try { sendCAFEmail(contractId).catch(function(e){ console.warn('CAF email:', e); }); } catch (_) {}
+                // CAF dossier: sent server-side by api/sign/_finalize.js on
+                // completion (any signing path) — no client-side email here.
                 (async function postSignaturePassFlow() {
                     try {
                         var passResult = await generateContractPasses(contractId);
@@ -5977,6 +5978,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     async function confirmViewing() {
+        // Server-side da cima a fondo: /api/viewings/confirm (la STESSA
+        // _apply.js di Telegram e della pagina cliente) manda l'email nel
+        // design system, il Wallet pass, l'invito iCal all'operatore e
+        // riapre il countdown. Prima da qui partiva EmailJS dal browser:
+        // grafica diversa e niente se il portal si chiudeva a metà.
         const form = document.getElementById('confForm');
         const id = form.querySelector('[name="id"]').value;
         const date = form.querySelector('[name="date"]').value;
@@ -5986,47 +5992,20 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (!v) return;
         try {
             const dt = new Date(date + 'T' + time);
-            const durationMin = v.duration || 60;
-            await db.collection('viewingRequests').doc(id).update({
-                status: 'confirmed',
-                confirmedDate: date,
-                confirmedTime: time,
-                confirmedDateTime: dt.toISOString(),
-                confirmedAt: firebase.firestore.FieldValue.serverTimestamp()
+            const idToken = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/viewings/confirm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+                body: JSON.stringify({ id, action: 'confirm', when: dt.toISOString(), durationMinutes: v.duration || 60 })
             });
+            const j = await r.json().catch(() => null);
+            if (!j || !j.ok) throw new Error((j && j.error) || 'confirm_failed');
             // Back-link to source lead if exists
             if (v.linkedLeadId) {
                 db.collection('leads').doc(v.linkedLeadId).update({ linkedViewingId: id, viewingScheduledAt: firebase.firestore.FieldValue.serverTimestamp() }).catch(function(e){ console.warn('Lead back-link:', e); });
             }
-            // Update local cache so downstream (generateViewingPass, admin notify) sees confirmed times
-            const freshV = Object.assign({}, v, { confirmedDate: date, confirmedTime: time, confirmedDateTime: dt.toISOString(), status: 'confirmed' });
-            const idx = (S.viewingRequests || []).findIndex(x => x.id === id);
-            if (idx >= 0) S.viewingRequests[idx] = Object.assign({}, S.viewingRequests[idx], { confirmedDate: date, confirmedTime: time, status: 'confirmed' });
-
-            // 1) Resolve address (property → listing → viewing fallback)
-            const addr = await resolveViewingAddress(freshV);
-
-            // 2) Build calendar links (Google + universal ICS w/ GEO + reminders)
-            const calLinks = buildCalendarLinks(dt, durationMin, addr, freshV);
-
-            // 3) Generate viewing pass FIRST so we can include URL in client email
-            let passUrl = '';
-            try {
-                const passResult = await generateViewingPass(id);
-                if (passResult && passResult.url) passUrl = passResult.url;
-                console.log('[Viewing] Pass generated on confirm:', passUrl ? 'OK' : 'no URL');
-            } catch (passErr) { console.warn('[Viewing] auto-pass failed:', passErr); }
-
-            // 4) Admin notification (structured)
-            try { await sendAdminViewingNotification('confirmed', freshV); }
-            catch (notifyErr) { console.warn('[admin-notify confirmed]', notifyErr); }
-
-            // 5) Client confirmation email — pass URL + ICS link embedded
-            try { await sendClientViewingConfirmation(freshV, dt, durationMin, addr, passUrl, calLinks); }
-            catch (clientErr) { console.warn('[viewing client email]', clientErr); }
-
             closeModal();
-            toast('success', '✅ Confirmed — client notified + pass generated');
+            toast('success', '✅ Confermata — email, pass e calendario partiti dal server');
             await refreshViewings();
         } catch(e) { console.error(e); toast('error', 'Error: ' + e.message); }
     }
@@ -6068,111 +6047,32 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     async function rescheduleViewing() {
+        // Anche lo spostamento passa dal server (_apply.js): se la visita era
+        // confermata -> action 'reschedule' (email di spostamento, pass e
+        // invito iCal aggiornati in place, promemoria riaperti); se era solo
+        // richiesta -> action 'confirm' sul nuovo orario (conferma immediata
+        // col kit completo, la filosofia degli slots). L'EmailJS dal browser
+        // non serve piu'.
         const form = document.getElementById('rescForm');
         const id = form.querySelector('[name="id"]').value;
         const date = form.querySelector('[name="date"]').value;
         const time = form.querySelector('[name="time"]').value;
-        const msg = form.querySelector('[name="msg"]').value.trim();
         if (!date || !time) return toast('error', 'Select a date and time');
         const v = (S.viewingRequests||[]).find(r => r.id === id);
         if (!v) return;
         try {
             const dt = new Date(date + 'T' + time);
-            const durationMin = v.duration || 60;
-            const dtStr = dt.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}) + ' · ' + dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
-            // If viewing was already confirmed, treat reschedule as a re-confirm to a new date
             const wasConfirmed = (v.status === 'confirmed' || v.confirmedDate);
-            const newStatus = wasConfirmed ? 'confirmed' : 'rescheduled';
-            const updateFields = wasConfirmed
-                ? {
-                    status: 'confirmed',
-                    confirmedDate: date,
-                    confirmedTime: time,
-                    confirmedDateTime: dt.toISOString(),
-                    rescheduledAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    agentMessage: msg || null
-                }
-                : {
-                    status: 'rescheduled',
-                    suggestedDate: date,
-                    suggestedTime: time,
-                    suggestedDateTime: dt.toISOString(),
-                    agentMessage: msg || null,
-                    rescheduledAt: firebase.firestore.FieldValue.serverTimestamp()
-                };
-            await db.collection('viewingRequests').doc(id).update(updateFields);
-
-            // Update local cache
-            const idx = (S.viewingRequests || []).findIndex(x => x.id === id);
-            if (idx >= 0) S.viewingRequests[idx] = Object.assign({}, S.viewingRequests[idx], updateFields, { confirmedDate: wasConfirmed ? date : S.viewingRequests[idx].confirmedDate });
-            const freshV = Object.assign({}, v, updateFields);
-
-            if (wasConfirmed) {
-                // Auto-regen pass with new date (relevantDate updated by builder)
-                let passUrl = '';
-                try {
-                    const passResult = await generateViewingPass(id);
-                    if (passResult && passResult.url) passUrl = passResult.url;
-                    console.log('[Viewing] Pass regenerated after reschedule');
-                } catch (passErr) { console.warn('[Viewing] reschedule pass regen failed:', passErr); }
-
-                const addr = await resolveViewingAddress(freshV);
-                const calLinks = buildCalendarLinks(dt, durationMin, addr, freshV);
-
-                // Notify client of reschedule + pass
-                try {
-                    await emailjs.send('service_74n80th', 'boom_notification', {
-                        to_email: v.clientEmail,
-                        from_name: 'Valentino — BOOM',
-                        reply_to: 'valentino@boomrome.com',
-                        heading: '↩ Viewing Rescheduled',
-                        subheading: addr.label || v.listingName,
-                        name: (v.clientName || '').split(' ')[0],
-                        intro: msg || 'I\'ve moved your viewing to the new slot below. Pass + calendar links updated.',
-                        card_title: 'NEW TIME',
-                        card_color: '#0A84FF',
-                        r1_icon: '📅', r1_label: 'New Date & Time', r1_value: dtStr,
-                        r2_icon: '🏠', r2_label: 'Property', r2_value: addr.label || v.listingName,
-                        r3_icon: '📍', r3_label: 'Meeting point', r3_value: v.meetingPoint || 'AL CITOFONO',
-                        r4_icon: '📞', r4_label: 'Agent', r4_value: 'Valentino — +39 331 325 1961',
-                        closing: 'Bring valid ID. Arrive 5 min early.\n\n' +
-                            (passUrl ? '🎟️ Updated Apple Wallet pass: ' + passUrl + '\n' : '') +
-                            (calLinks.ics ? '📅 Calendar (universal): ' + calLinks.ics + '\n' : '') +
-                            (calLinks.google ? '📅 Google Calendar: ' + calLinks.google : ''),
-                        cta_text: passUrl ? 'Open updated pass →' : 'Add to Calendar →',
-                        portal_link: passUrl || calLinks.google,
-                        attachment_url: passUrl || ''
-                    });
-                } catch (clientErr) { console.warn('[reschedule client email]', clientErr); }
-
-                try { await sendAdminViewingNotification('rescheduled', freshV); }
-                catch (notifyErr) { console.warn('[admin-notify rescheduled]', notifyErr); }
-            } else {
-                // First-time proposal — send simple suggestion email
-                await emailjs.send('service_74n80th', 'boom_notification', {
-                    to_email: v.clientEmail,
-                    from_name: 'Valentino — BOOM',
-                    reply_to: 'valentino@boomrome.com',
-                    heading: '↩ Alternative Time Proposed',
-                    subheading: v.listingName,
-                    name: (v.clientName || '').split(' ')[0],
-                    intro: msg || 'The time you proposed doesn\'t work for me. I\'d suggest the slot below instead.',
-                    card_title: 'Suggested Time',
-                    card_color: '#0A84FF',
-                    r1_icon: '📅', r1_label: 'Suggested', r1_value: dtStr,
-                    r2_icon: '🏠', r2_label: 'Property', r2_value: v.listingName,
-                    r3_icon: '📞', r3_label: 'Questions?', r3_value: '+39 331 325 1961',
-                    r4_icon: '💬', r4_label: 'WhatsApp', r4_value: 'wa.me/393313251961',
-                    closing: 'Reply to this email or WhatsApp me to confirm.',
-                    cta_text: 'WhatsApp Valentino →',
-                    portal_link: 'https://wa.me/393313251961'
-                });
-                try { await sendAdminViewingNotification('rescheduled', freshV); }
-                catch (notifyErr) { console.warn('[admin-notify rescheduled]', notifyErr); }
-            }
-
+            const idToken = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/viewings/confirm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+                body: JSON.stringify({ id, action: wasConfirmed ? 'reschedule' : 'confirm', when: dt.toISOString(), durationMinutes: v.duration || 60 })
+            });
+            const j = await r.json().catch(() => null);
+            if (!j || !j.ok) throw new Error((j && j.error) || 'reschedule_failed');
             closeModal();
-            toast('success', wasConfirmed ? '↩ Rescheduled — client notified + pass updated' : '↩ Alternative sent to client');
+            toast('success', wasConfirmed ? '↩ Spostata — cliente avvisato, pass e calendario aggiornati' : '✅ Confermata sul nuovo orario — kit completo inviato');
             await refreshViewings();
         } catch(e) { console.error(e); toast('error', 'Error: ' + e.message); }
     }
@@ -14445,15 +14345,25 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 } catch (e) { console.warn('[Contract] Lead link update skipped:', e); }
             }
 
-            // 📧 SEND SIGNATURE REQUEST EMAILS
+            // 📧 SIGNATURE INVITATION — server-side (api/sign/send-link):
+            // parte anche a portal chiuso, design system condiviso, lingua
+            // del lettore, traccia sul contratto. Protocollo sequenziale:
+            // parte l'inquilino; il locatore riceve il suo link in automatico
+            // alla firma dell'inquilino (stage email di magic-sign).
             const sendEmails = document.getElementById('cSendEmails')?.checked !== false;
             const prop = S.properties.find(p => p.id === data.propertyId);
             const tenant = S.users.find(u => u.id === data.tenantId);
             const landlord = prop ? S.users.find(u => u.id === prop.ownerId) : null;
-            
-            if (sendEmails) {
-                if (landlord) await sendSignatureEmail(landlord, contractData, prop, 'landlord');
-                if (tenant) await sendSignatureEmail(tenant, contractData, prop, 'tenant');
+
+            if (sendEmails && tenant) {
+                try {
+                    const idToken = await auth.currentUser.getIdToken();
+                    await fetch('/api/sign/send-link', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+                        body: JSON.stringify({ contractId: ref.id, role: 'tenant' })
+                    });
+                } catch (e) { console.warn('[Contract] sign invite failed:', e); }
             }
             
             // Notifications (existing logic)
@@ -15781,6 +15691,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <button class="btn btn-secondary btn-sm" onclick="previewContractPDF('${c.id}')">👁 Anteprima</button>
                 <button class="btn btn-secondary btn-sm" onclick="downloadContractPDF('${c.id}')">📥 PDF</button>
                 <button class="btn btn-secondary btn-sm" onclick="regenerateContractPDF('${c.id}')" title="Rigenera Allegato B con dati aggiornati">🔄 Rigenera PDF</button>
+                <button class="btn btn-secondary btn-sm" onclick="openFascicolo('${c.id}')" title="Scheda attestazione canone (fascia) + dati RLI + scadenzario — PDF">📑 Fascicolo${c.canoneScheda ? (c.canoneScheda.fits === false ? ' ⚠' : c.canoneScheda.fits === true ? ' ✓' : '') : ''}</button>
+                ${!c.rliRegisteredAt ? `<button class="btn btn-secondary btn-sm" onclick="markRliRegistered('${c.id}')" title="Segna la registrazione RLI fatta: chiude la scadenza e aggiorna il fascicolo">✓ RLI registrato</button>` : `<span class="btn btn-sm" style="background:rgba(52,199,89,.12);color:var(--green);cursor:default" title="Registrato il ${c.rliRegisteredAt ? String(c.rliRegisteredAt).slice(0,10) : ''}">✓ RLI ${String(c.rliRegisteredAt).slice(0,10)}</span>`}
                 ${sigStatus === 'complete' ? `<button class="btn btn-secondary btn-sm" onclick="archiveDeal('${c.id}')" title="Archivia deal completo su Storage">${c.dealArchived ? '✅ Archiviato' : '📦 Archive Deal'}</button>` : ''}
                 <button class="btn btn-secondary" onclick="closeModal()">Chiudi</button>
                 <button class="btn" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('editContract',S.contracts.find(x=>x.id===cid)),250)">✏️ Modifica</button>
@@ -17051,20 +16963,27 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const dot = '………';
 
             // --------------- Variable data points ---------------
-            const locName = (landlord && landlord.name) || dot;
-            const locDOB  = (landlord && landlord.birthDate)  ? fmtDate(landlord.birthDate) : dot;
-            const locPOB  = (landlord && landlord.birthPlace) || dot;
-            const locDom  = (landlord && landlord.address)    || dot;
-            const locCF   = (landlord && landlord.codiceFiscale) || dot;
+            // Identity fallback chain: contract fields (Magic Sign / La
+            // Scheda) → users sign-schema (cf/dob/…) → users wizard-schema
+            // (codiceFiscale/birthDate/…) — a regenerated PDF must never
+            // print dots for data a party already self-filled.
+            const pick = (...vals) => { for (const v of vals) { if (v !== undefined && v !== null && String(v).trim() !== '') return String(v); } return ''; };
+            const locName = pick(contract.landlordName, landlord && landlord.name) || dot;
+            const locDOBr = pick(contract.landlordDob, landlord && landlord.dob, landlord && landlord.birthDate);
+            const locDOB  = locDOBr ? fmtDate(locDOBr) : dot;
+            const locPOB  = pick(contract.landlordPob, landlord && landlord.pob, landlord && landlord.birthPlace) || dot;
+            const locDom  = pick(contract.landlordAddress, landlord && landlord.address) || dot;
+            const locCF   = pick(contract.landlordCF, landlord && landlord.cf, landlord && landlord.codiceFiscale) || dot;
 
-            const tenName = (tenant && tenant.name) || dot;
-            const tenDOB  = (tenant && tenant.birthDate)  ? fmtDate(tenant.birthDate) : dot;
-            const tenPOB  = (tenant && tenant.birthPlace) || dot;
-            const tenDom  = (tenant && tenant.address)    || dot;
-            const tenCF   = (tenant && tenant.codiceFiscale) || dot;
-            const tenDoc  = (tenant && tenant.idDocType)
-                ? (tenant.idDocType + (tenant.idDocNumber ? ' n. ' + tenant.idDocNumber : ''))
-                : dot;
+            const tenName = pick(contract.tenantName, tenant && tenant.name) || dot;
+            const tenDOBr = pick(contract.tenantDob, tenant && tenant.dob, tenant && tenant.birthDate);
+            const tenDOB  = tenDOBr ? fmtDate(tenDOBr) : dot;
+            const tenPOB  = pick(contract.tenantPob, tenant && tenant.pob, tenant && tenant.birthPlace) || dot;
+            const tenDom  = pick(contract.tenantAddress, tenant && tenant.address) || dot;
+            const tenCF   = pick(contract.tenantCF, tenant && tenant.cf, tenant && tenant.codiceFiscale) || dot;
+            const tenDocT = pick(contract.tenantDocType, tenant && tenant.docType, tenant && tenant.idDocType);
+            const tenDocN = pick(contract.tenantDocNum, tenant && tenant.docNum, tenant && tenant.idDocNumber);
+            const tenDoc  = tenDocT ? (tenDocT + (tenDocN ? ' n. ' + tenDocN : '')) : dot;
 
             const propCity   = (property && property.city)    || 'Roma';
             const propStreet = (property && property.address) || dot;
@@ -17436,20 +17355,31 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const dot = '………';
 
             // --------------- Variable data points ---------------
-            const locName = (landlord && landlord.name) || dot;
-            const locDOB  = (landlord && landlord.birthDate)  ? fmtDate(landlord.birthDate) : dot;
-            const locPOB  = (landlord && landlord.birthPlace) || dot;
-            const locDom  = (landlord && landlord.address)    || dot;
-            const locCF   = (landlord && landlord.codiceFiscale) || dot;
+            // Identity fallback chain: contract fields (written by Magic
+            // Sign / La Scheda at self-fill time) → users sign-schema
+            // (cf/dob/…) → users wizard-schema (codiceFiscale/birthDate/…).
+            // Without the chain, a regenerated PDF printed dots even when
+            // the party had already filled everything on /sign or /scheda.
+            const pick = (...vals) => { for (const v of vals) { if (v !== undefined && v !== null && String(v).trim() !== '') return String(v); } return ''; };
+            const locName = pick(contract.landlordName, landlord && landlord.name) || dot;
+            const locDOBr = pick(contract.landlordDob, landlord && landlord.dob, landlord && landlord.birthDate);
+            const locDOB  = locDOBr ? fmtDate(locDOBr) : dot;
+            const locPOB  = pick(contract.landlordPob, landlord && landlord.pob, landlord && landlord.birthPlace) || dot;
+            const locDom  = pick(contract.landlordAddress, landlord && landlord.address) || dot;
+            const locCF   = pick(contract.landlordCF, landlord && landlord.cf, landlord && landlord.codiceFiscale) || dot;
 
-            const tenName = (tenant && tenant.name) || dot;
-            const tenDOB  = (tenant && tenant.birthDate)  ? fmtDate(tenant.birthDate) : dot;
-            const tenPOB  = (tenant && tenant.birthPlace) || dot;
-            const tenDom  = (tenant && tenant.address)    || dot;
-            const tenCF   = (tenant && tenant.codiceFiscale) || dot;
-            const tenDoc  = (tenant && tenant.idDocType)
-                ? (tenant.idDocType + (tenant.idDocNumber ? ' n. ' + tenant.idDocNumber : ''))
-                : dot;
+            const tenName = pick(contract.tenantName, tenant && tenant.name) || dot;
+            const tenDOBr = pick(contract.tenantDob, tenant && tenant.dob, tenant && tenant.birthDate);
+            const tenDOB  = tenDOBr ? fmtDate(tenDOBr) : dot;
+            const tenPOB  = pick(contract.tenantPob, tenant && tenant.pob, tenant && tenant.birthPlace) || dot;
+            const tenCF   = pick(contract.tenantCF, tenant && tenant.cf, tenant && tenant.codiceFiscale) || dot;
+            const tenDocTypeRaw = pick(contract.tenantDocType, tenant && tenant.docType, tenant && tenant.idDocType);
+            const tenDocNum     = pick(contract.tenantDocNum, tenant && tenant.docNum, tenant && tenant.idDocNumber) || dot;
+            const tenDocIssuer  = pick(contract.tenantDocIssuer, tenant && tenant.docIssuer) || dot;
+            const tenDocIssuedR = pick(contract.tenantDocIssueDate, tenant && tenant.docIssueDate);
+            const tenDocIssued  = tenDocIssuedR ? fmtDate(tenDocIssuedR) : dot;
+            const docTypeIt = { passport: 'passaporto', id: 'carta d’identità', permit: 'permesso di soggiorno', patente: 'patente auto' };
+            const tenDocLabel = docTypeIt[tenDocTypeRaw] || tenDocTypeRaw || 'C.I/patente auto';
 
             const propCity   = (property && property.city)    || 'Roma';
             const propStreet = (property && property.address) || dot;
@@ -17462,14 +17392,18 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const propFurnished = propFurnishedFlag ? 'ammobiliata' : 'non ammobiliata';
 
             const cadast    = (property && property.cadastralData) || formatCadastral(property) || dot;
-            const energy    = (property && (property.energyCert || property.energyClass)) || dot;
+            const rendita   = (contract.renditaCatastale || (property && property.renditaCatastale))
+                              ? fmtIt(contract.renditaCatastale || property.renditaCatastale) : dot;
+            const energy    = (property && (property.energyCert || property.energyClass)) || contract.energyClass || dot;
             const sicurezza = (contract.propertyExtra && contract.propertyExtra.sicurezzaImpianti)
-                              || (property && property.safetyImplants) || dot;
+                              || (property && property.safetyImplants) || '';
             const tab = (contract.propertyExtra && contract.propertyExtra.tabelleMillesimali) || {};
             const tabFmt = (v) => (v !== undefined && v !== null && v !== '') ? String(v) : dot;
             const tabPro = tabFmt(tab['proprieta'] || tab['proprietà']);
             const tabRis = tabFmt(tab.riscaldamento);
             const tabAcq = tabFmt(tab.acqua);
+            const tabSca = tabFmt(tab.scale);
+            const tabAsc = tabFmt(tab.ascensore);
             const tabAlt = tabFmt(tab.altre);
 
             const durText = (contract.durata && contract.durata.text)
@@ -17488,6 +17422,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const canInstallments = (contract.canone && contract.canone.installments) || durMonths || 12;
             const canTotal        = (contract.canone && contract.canone.total)        || (canMonthly * canInstallments);
 
+            // Rate: cadenza reale del contratto (mensile di default; la
+            // catena installmentMonths/installmentAmount arriva dal PA).
+            const instStep  = [1, 2, 3, 6, 12].includes(Number(contract.installmentMonths)) ? Number(contract.installmentMonths) : 1;
+            const cadWord   = { 1: 'mensili', 2: 'bimestrali', 3: 'trimestrali', 6: 'semestrali', 12: 'annuali' }[instStep];
+            const nRate     = Math.max(1, Math.ceil((durMonths || canInstallments) / instStep));
+            const rataAmount = Number(contract.installmentAmount) || (canMonthly * instStep);
+            const payDay    = parseInt(contract.paymentDay, 10) || (contract.canone && parseInt(contract.canone.paymentDay, 10)) || 5;
+            const rateClause = instStep === 1
+                ? `in n. ${nRate} rate mensili eguali anticipate di € ${fmtIt(rataAmount)} (${fmtIt(rataAmount)}/00) ciascuna, entro il giorno ${payDay} di ogni mese`
+                : `in n. ${nRate} rate ${cadWord} eguali anticipate di € ${fmtIt(rataAmount)} (${fmtIt(rataAmount)}/00) ciascuna, entro il giorno ${payDay} del primo mese di ciascun periodo`;
+
             const depAmount = (contract.deposit && typeof contract.deposit === 'object')
                 ? (contract.deposit.amount || 0)
                 : (contract.deposit || 0);
@@ -17503,25 +17448,31 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                                    || contract.courseName || dot;
             const studUniversita = (contract.studenti && contract.studenti.universita)
                                    || contract.universityName || dot;
-            const studUniversitaIndirizzo = (contract.studenti && contract.studenti.universitaIndirizzo) || dot;
 
-            const consegnaStato = contract.consegnaStato || dot;
+            // Slot liberi del contratto tipo — '--' quando non pattuiti,
+            // esattamente come sul modello dell'associazione.
+            const garanzieAltre = contract.garanzieAltre || '--';
+            const oneriQuota    = (contract.oneriQuota !== undefined && contract.oneriQuota !== null && contract.oneriQuota !== '')
+                                  ? fmtIt(contract.oneriQuota) : '--';
+            const subentroMod   = contract.subentroModalita || '--';
+            const accessiMod    = contract.accessiModalita || '--';
+            const cedolareOn    = (contract.cedolareSecca || 'si') !== 'no';
+
+            const consegnaStato = contract.consegnaStato || '--';
             const sigPlace = contract.signaturePlace || (property && property.city) || 'Roma';
             const sigDateRaw = contract.signatureDate || contract.fullySignedAt || new Date();
             const sigDateStr = fmtDate(sigDateRaw);
 
-            // --------------- HEADER ---------------
+            // --------------- HEADER (contratto tipo associazione, accordo Roma 27.07.2023) ---------------
             doc.setFont('times', 'bold');
             doc.setFontSize(14);
-            doc.text('ALLEGATO C', pageW / 2, y, { align: 'center' });
-            y += 7;
             doc.text('LOCAZIONE ABITATIVA PER STUDENTI UNIVERSITARI', pageW / 2, y, { align: 'center' });
-            y += 7;
+            y += 6;
             doc.setFont('times', 'normal');
             doc.setFontSize(10);
-            doc.text('(Legge 9 dicembre 1998, n. 431, articolo 5, comma 3)', pageW / 2, y, { align: 'center' });
+            doc.text('ai sensi dell’art. 5, comma 2 Legge 9/12/98 n° 431', pageW / 2, y, { align: 'center' });
             y += 5;
-            const subHdr = doc.splitTextToSize("In conformità all'accordo territoriale di Roma Capitale del 25 luglio 2023 e depositato presso il Comune di Roma il 27/07/2023 prot. QC/82672/2023", pw);
+            const subHdr = doc.splitTextToSize('in conformità all’accordo territoriale tra le Associazioni dei proprietari e degli inquilini depositato presso il Comune di Roma Capitale il 27.07.2023 con protocollo n° RA/2023/0044852', pw);
             doc.text(subHdr, pageW / 2, y, { align: 'center', maxWidth: pw });
             y += subHdr.length * ptToMm(10) * 1.15 + 6;
 
@@ -17529,64 +17480,78 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             doc.setFontSize(11);
 
             // --------------- PARTI ---------------
-            addParagraph(`Il/La sig./soc. ${locName}, nato/a il ${locDOB} a ${locPOB}, domiciliato/a in ${locDom}, C.F. ${locCF}, di seguito denominato/a locatore concede in locazione`);
-            addParagraph(`al/alla sig. ${tenName}, nato/a il ${tenDOB} a ${tenPOB}, domiciliato/a in ${tenDom}, C.F. ${tenCF}, di seguito denominato/a conduttore, identificato/a mediante ${tenDoc}, che accetta, per sé e suoi aventi causa,`);
+            addParagraph(`Il sig. ${locName}, C.F. ${locCF}, nato/a a ${locPOB} il ${locDOB}, residente in ${locDom}, di seguito denominato/a locatore`);
+            addParagraph('CONCEDE IN LOCAZIONE', { bold: true, align: 'center', x: pageW / 2, after: 4 });
+            addParagraph(`al sig. ${tenName}, C.F. ${tenCF}, nato/a a ${tenPOB} il ${tenDOB}, domiciliato/a nei locali oggetto della locazione, identificato/a mediante ${tenDocLabel} n. ${tenDocNum} rilasciata da ${tenDocIssuer} il ${tenDocIssued}, di seguito denominato/a conduttore,`);
+            addParagraph('CHE ACCETTA, PER SÉ E SUOI AVENTI CAUSA,', { bold: true, align: 'center', x: pageW / 2, after: 4 });
 
-            addParagraph(`A) l'unità immobiliare posta in ${propCity}, via ${propStreet}, piano ${propFloor}, scala ${propScala}, int. ${propInt}, composta di n. ${propRooms} vani, oltre cucina e servizi, e dotata altresì dei seguenti elementi accessori ${propAcc}`);
-            addParagraph(`${propFurnished} come da elenco a parte sottoscritto dalle parti.`);
+            addParagraph(`l'unità immobiliare posta in ${propCity}, via ${propStreet}, piano ${propFloor}, scala ${propScala}, int. ${propInt}, composta di n. ${propRooms} vani, oltre cucina e servizi, e dotata altresì dei seguenti elementi accessori: ${propAcc}, ${propFurnished} come da elenco a parte sottoscritto dalle parti.`);
 
-            addParagraph(`a) estremi catastali identificativi dell'unità immobiliare: ${cadast}`);
-            addParagraph(`b) prestazione energetica: ${energy}`);
-            addParagraph(`c) sicurezza impianti: ${sicurezza}`);
-            addParagraph(`d) tabelle millesimali: proprietà ${tabPro}, riscaldamento ${tabRis}, acqua ${tabAcq}, altre ${tabAlt}`);
+            addParagraph(`A) estremi catastali identificativi dell'unità immobiliare: ${cadast}, rendita catastale € ${rendita}.`);
+            addParagraph(`B) PRESTAZIONE ENERGETICA: classe ${energy}. Il conduttore dichiara di aver ricevuto le informazioni e la documentazione in ordine alla attestazione della prestazione energetica dell'immobile.`);
+            addParagraph(sicurezza
+                ? `C) SICUREZZA IMPIANTI: ${sicurezza}`
+                : 'C) SICUREZZA IMPIANTI: Il conduttore prende atto che gli impianti esistenti nell’appartamento in oggetto e quelli condominiali non dispongono di certificazione a norma, ai sensi delle disposizioni vigenti in materia di sicurezza.');
+            addParagraph(`D) TABELLE MILLESIMALI: proprietà ${tabPro}, riscaldamento ${tabRis}, acqua ${tabAcq}, scale ${tabSca}, ascensore ${tabAsc}, altre ${tabAlt}.`);
 
             y += 2;
-            addParagraph('La locazione è regolata dalle pattuizioni seguenti.', { italic: true, after: 2 });
+            addParagraph('LA LOCAZIONE È REGOLATA DALLE PATTUIZIONI SEGUENTI', { bold: true, align: 'center', x: pageW / 2, after: 2 });
 
-            // --------------- ARTICOLI 1-16 (verbatim CAF studenti) ---------------
+            // --------------- ARTICOLI 1-16 (contratto tipo associazione, verbatim) ---------------
+            // Fonte: contratto_tipo_STUDENTI_Roma_2023 (accordo depositato il
+            // 27/07/2023, prot. RA/2023/0044852). Refusi dell'originale
+            // normalizzati: il secondo "Articolo 13" (Accessi) è il 14, come
+            // conferma la stessa clausola 1341/1342 del modello.
 
             addArticle(1, 'Durata',
-                `Il contratto è stipulato per la durata di ${durMonths || dot} mesi, dal ${durStartStr} al ${durEndStr}. Alla prima scadenza il contratto si rinnova automaticamente per uguale periodo se il conduttore non comunica al locatore disdetta almeno un mese e non oltre tre mesi prima della data di scadenza del contratto.`
+                `Il contratto è stipulato per la durata di ${durMonths || dot} mesi, dal ${durStartStr} al ${durEndStr}. Alla prima scadenza il contratto si rinnova automaticamente per uguale periodo se il conduttore non comunica al locatore disdetta almeno tre mesi prima della data di scadenza del contratto.`
             );
 
             addArticle(2, 'Natura transitoria',
-                `Secondo quanto previsto dall'Accordo territoriale stipulato ai sensi dell'articolo 5, comma 3, della legge n. 431/98, di Roma Capitale del 25 luglio 2023 e depositato il 27/07/2023 presso il Comune di Roma prot. QC/82672/2023, le parti concordano che la presente locazione ha natura transitoria in quanto il conduttore espressamente ha l'esigenza di abitare l'immobile frequentando il corso di studi di ${studCorsoStudi} presso ${studUniversita}, con sede in ${studUniversitaIndirizzo}.`
+                `Secondo quanto previsto dall'Accordo territoriale stipulato ai sensi dell'articolo 5, comma 2, della legge n. 431/98, tra le Associazioni della proprietà e le Organizzazioni degli inquilini, depositato il 27/07/2023 con Protocollo n° RA/2023/0044852 presso il Comune di Roma Capitale, le parti concordano che la presente locazione ha natura transitoria in quanto il conduttore espressamente ha l'esigenza di abitare l'immobile per un periodo non eccedente i ${durMonths || dot} mesi, frequentando il corso di studi di ${studCorsoStudi} presso l'Università “${studUniversita}” di Roma.`
             );
 
             addArticle(3, 'Canone',
-                isAnnual
-                    ? `Il canone annuo di locazione, secondo quanto stabilito dall'Accordo territoriale di Roma Capitale del 25 luglio 2023, è convenuto in euro ${fmtIt(canTotal)} (${fmtIt(canTotal)}/00), che il conduttore si obbliga a corrispondere a mezzo di bonifico bancario, in n. ${canInstallments} rate mensili eguali anticipate di euro ${fmtIt(canMonthly)} (${fmtIt(canMonthly)}/00) ciascuna, da versare entro il giorno 5 di ogni mese.`
-                    : `Il canone complessivo di locazione, riferito all'intera durata contrattuale di ${durText}, secondo quanto stabilito dall'Accordo territoriale di Roma Capitale del 25 luglio 2023, è convenuto in euro ${fmtIt(canTotal)} (${fmtIt(canTotal)}/00), che il conduttore si obbliga a corrispondere a mezzo di bonifico bancario, in n. ${canInstallments} rate mensili eguali anticipate di euro ${fmtIt(canMonthly)} (${fmtIt(canMonthly)}/00) ciascuna, da versare entro il giorno 5 di ogni mese.`
+                (isAnnual
+                    ? `Il canone annuo di locazione, secondo quanto stabilito dall'Accordo territoriale stipulato ai sensi dell'articolo 5, comma 2, della legge n. 431/98, tra le Associazioni della proprietà e le Organizzazioni degli inquilini, depositato il 27/07/2023 con Protocollo n° RA/2023/0044852 presso il Comune di Roma Capitale, è convenuto in € ${fmtIt(canTotal)} (${fmtIt(canTotal)}/00), che il conduttore si obbliga a corrispondere nel domicilio del locatore ovvero a mezzo di bonifico bancario, ${rateClause}.`
+                    : `Il canone di locazione, riferito all'intera durata contrattuale di ${durText}, secondo quanto stabilito dall'Accordo territoriale stipulato ai sensi dell'articolo 5, comma 2, della legge n. 431/98, tra le Associazioni della proprietà e le Organizzazioni degli inquilini, depositato il 27/07/2023 con Protocollo n° RA/2023/0044852 presso il Comune di Roma Capitale, è convenuto in € ${fmtIt(canTotal)} (${fmtIt(canTotal)}/00), che il conduttore si obbliga a corrispondere nel domicilio del locatore ovvero a mezzo di bonifico bancario, ${rateClause}.`)
+                + `\n\nNel caso in cui l'Accordo territoriale di cui al presente punto lo preveda, il canone viene aggiornato ogni anno nella misura contrattata, che comunque non può superare il 75% della variazione Istat ed esclusivamente nel caso in cui il locatore non abbia optato per la “cedolare secca” per la durata dell'opzione.`
             );
 
             if (hasDeposit) {
                 addArticle(4, 'Deposito cauzionale e altre forme di garanzia',
-                    `A garanzia delle obbligazioni assunte col presente contratto, il conduttore versa al locatore (che con la firma del contratto ne rilascia quietanza) una somma di euro ${fmtIt(depAmount)} (${fmtIt(depAmount)}/00) pari a n. ${depMonthsStr} mensilità del canone, non imputabile in conto canoni e produttiva di interessi legali, riconosciuti al conduttore al termine della locazione. Il deposito cauzionale così costituito viene reso al termine della locazione previa verifica dello stato dell'unità immobiliare e dell'osservanza di ogni obbligazione contrattuale.`
+                    `A garanzia delle obbligazioni assunte col presente contratto, il conduttore versa al locatore (che con la firma del contratto ne rilascia, in caso, quietanza) una somma di € ${fmtIt(depAmount)} (${fmtIt(depAmount)}/00) pari a ${depMonthsStr} mensilità del canone, non imputabile in conto canoni e produttiva di interessi legali, riconosciuti al conduttore al termine di ogni anno di locazione. Il deposito cauzionale così costituito viene reso al termine della locazione, previa verifica dello stato dell'unità immobiliare e dell'osservanza di ogni obbligazione contrattuale.\n\nAltre forme di garanzia: ${garanzieAltre}.`
+                );
+            } else {
+                addArticle(4, 'Deposito cauzionale e altre forme di garanzia',
+                    `Le parti concordano che per il presente contratto non viene costituito deposito cauzionale.\n\nAltre forme di garanzia: ${garanzieAltre}.`
                 );
             }
 
             addArticle(5, 'Oneri accessori',
-                `Per gli oneri accessori le parti fanno applicazione della Tabella oneri accessori, allegato D al decreto emanato dal Ministro delle infrastrutture e dei trasporti di concerto con il Ministro dell'economia e delle finanze ai sensi dell'articolo 4, comma 2, della legge n. 431/1998 e di cui il presente contratto costituisce l'Allegato C.\n\nIn sede di consuntivo, il pagamento degli oneri anzidetti, per la quota parte di quelli condominiali/comuni a carico del conduttore, deve avvenire entro sessanta giorni dalla richiesta. Prima di effettuare il pagamento, il conduttore ha diritto di ottenere l'indicazione specifica delle spese anzidette e dei criteri di ripartizione. Ha inoltre diritto di prendere visione - anche tramite organizzazioni sindacali - presso il locatore (o il suo amministratore o l'amministratore condominiale, ove esistente) dei documenti giustificativi delle spese effettuate. Insieme con il pagamento della prima rata del canone annuale, il conduttore versa una quota di acconto non superiore a quella di sua spettanza risultante dal rendiconto dell'anno precedente.\n\nSono interamente a carico del conduttore le spese relative ad ogni utenza (energia elettrica, acqua, gas, telefono e altro).`
+                `Per gli oneri accessori le parti fanno applicazione della Tabella oneri accessori, allegato D al decreto emanato dal Ministero delle infrastrutture e dei trasporti di concerto con il Ministero dell'economia e delle finanze ai sensi dell'articolo 4, comma 2, della legge n. 431/1998 e di cui il presente contratto costituisce l'Allegato C.\n\nIn sede di consuntivo, il pagamento degli oneri anzidetti, per la quota parte di quelli condominiali/comuni a carico del conduttore, deve avvenire entro sessanta giorni dalla richiesta. Prima di effettuare il pagamento, il conduttore ha diritto di ottenere l'indicazione specifica delle spese anzidette e dei criteri di ripartizione. Ha inoltre diritto di prendere visione - anche tramite organizzazioni sindacali - presso il locatore (o il suo amministratore o l'amministratore condominiale, ove esistente) dei documenti giustificativi delle spese effettuate. Insieme con il pagamento della prima rata del canone annuale, il conduttore versa una quota di acconto non superiore a quella di sua spettanza risultante dal rendiconto dell'anno precedente.\n\nPer le spese di cui al presente articolo il conduttore versa una quota di € ${oneriQuota} salvo conguaglio.`
             );
 
             addArticle(6, 'Spese di bollo e di registrazione',
-                `Le spese di bollo per il presente contratto e per le ricevute conseguenti sono a carico del conduttore. Il locatore provvede alla registrazione del contratto, dandone documentata comunicazione al conduttore - che corrisponde la quota di sua spettanza, pari alla metà - e all'amministratore del condominio ai sensi dell'art. 13 della legge 431 del 1998.\n\nLe parti possono delegare alla registrazione del contratto una delle organizzazioni sindacali che abbia prestato assistenza ai fini della stipula del contratto medesimo.`
+                cedolareOn
+                    ? `Il locatore intende avvalersi delle disposizioni di cui al DLGS n. 23 del 14-03-2011 cosiddetta "cedolare secca". Pertanto a norma di tale disposizione il locatore dichiara di rinunciare all'applicazione degli adeguamenti Istat. Il presente contratto, quindi, è esente da imposta di bollo e tassa registro. È facoltà del locatore recedere dalla tassazione della cedolare secca e in tal caso il canone sarà adeguato annualmente con l'applicazione dell'Istat al 75% e le spese di bollo per il presente contratto e per le ricevute conseguenti saranno a carico del conduttore mentre la tassa di registro è pari alla metà. Il locatore provvede alla registrazione del contratto, dandone documentata comunicazione al conduttore e all'Amministratore del condominio ai sensi dell'art. 13 legge 431 del 1998.\n\nLe parti possono delegare alla registrazione del contratto una delle organizzazioni sindacali che abbia prestato assistenza ai fini della stipula del contratto medesimo.`
+                    : `Le spese di bollo per il presente contratto e per le ricevute conseguenti sono a carico del conduttore, mentre la tassa di registro è ripartita al 50% tra le parti. Il locatore provvede alla registrazione del contratto, dandone documentata comunicazione al conduttore e all'Amministratore del condominio ai sensi dell'art. 13 legge 431 del 1998.\n\nLe parti possono delegare alla registrazione del contratto una delle organizzazioni sindacali che abbia prestato assistenza ai fini della stipula del contratto medesimo.`
             );
 
             addArticle(7, 'Pagamento',
-                `Il pagamento del canone o di quant'altro dovuto anche per oneri accessori non può venire sospeso o ritardato da pretese o eccezioni del conduttore, qualunque ne sia il titolo. Il mancato puntuale pagamento, per qualunque causa, anche di una sola rata del canone (nonché di quant'altro dovuto, ove di importo pari almeno ad una mensilità del canone), costituisce in mora il conduttore, fatto salvo quanto previsto dall'articolo 55 della legge n. 392/78.`
+                `Il pagamento del canone o di quant'altro dovuto anche per oneri accessori non può venire sospeso o ritardato da pretese o eccezioni del conduttore, quale ne sia il titolo. Il mancato puntuale pagamento, per qualsiasi causa, anche di una sola rata del canone, nonché di quant'altro dovuto, ove di importo pari almeno ad una mensilità del canone, costituisce in mora il conduttore, fatto salvo quanto previsto dall'articolo 55 della legge 27 luglio 1978, n. 392.`
             );
 
             addArticle(8, 'Uso',
-                `L'immobile deve essere destinato esclusivamente ad uso di civile abitazione del conduttore. Salvo patto scritto contrario, è fatto divieto di sublocare o dare in comodato, in tutto o in parte, l'unità immobiliare, pena la risoluzione di diritto del contratto.`
+                `L'immobile deve essere destinato esclusivamente a civile abitazione del conduttore e delle seguenti persone attualmente con lui conviventi: ${contract.cohabitants || '--'}.\n\nSalvo espresso patto scritto contrario, è fatto divieto di sublocazione e di comodato sia totale sia parziale. Per la successione nel contratto si applica l'articolo 6 della legge n. 392/78, nel testo vigente a seguito della sentenza della Corte costituzionale n. 404/1988.`
             );
 
             addArticle(9, 'Recesso del conduttore',
-                `Il conduttore ha facoltà di recedere dal contratto per gravi motivi, previo avviso da recapitarsi mediante lettera raccomandata almeno tre mesi prima. Tale facoltà è consentita anche ad uno o più dei conduttori firmatari ed in tal caso, dal mese dell'intervenuto recesso, la locazione prosegue nei confronti degli altri, ferma restando la solidarietà del conduttore recedente per i pregressi periodi di conduzione.`
+                `Il conduttore ha facoltà di recedere dal contratto per gravi motivi, previo avviso da recapitarsi mediante lettera raccomandata almeno tre mesi prima della scadenza. Tale facoltà è consentita anche ad uno o più dei conduttori firmatari ed in tal caso, dal mese dell'intervenuto recesso, la locazione prosegue nei confronti degli altri, ferma restando la solidarietà del conduttore recedente per i pregressi periodi di conduzione.\n\nLe modalità di subentro sono così concordate tra le parti: ${subentroMod}.`
             );
 
             addArticle(10, 'Consegna',
-                `Il conduttore dichiara di aver visitato l'unità immobiliare locatagli, di averla trovata adatta all'uso convenuto e - così - di prenderla in consegna ad ogni effetto col ritiro delle chiavi, costituendosi da quel momento custode della stessa. Il conduttore si impegna a riconsegnare l'unità immobiliare nello stato in cui l'ha ricevuta, salvo il deperimento d'uso, pena il risarcimento del danno. Si impegna altresì a rispettare le norme del regolamento dello stabile ove esistente, accusando in tal caso ricevuta dello stesso con la firma del presente contratto, così come si impegna ad osservare le deliberazioni dell'assemblea dei condomini. È in ogni caso vietato al conduttore compiere atti e tenere comportamenti che possano recare molestia agli altri abitanti dello stabile.\n\nLe parti danno atto, in relazione allo stato dell'immobile, ai sensi dell'articolo 1590 del Codice civile di quanto segue: ${consegnaStato}`
+                `Il conduttore dichiara di aver visitato l'unità immobiliare locatagli, di averla trovata adatta all'uso convenuto e, pertanto, di prenderla in consegna ad ogni effetto col ritiro delle chiavi, costituendosi da quel momento custode della stessa. Il conduttore si impegna a riconsegnare l'unità immobiliare nello stato in cui l'ha ricevuta, salvo il deperimento d'uso, pena il risarcimento del danno; si impegna, altresì, a rispettare le norme del regolamento dello stabile ove esistente, accusando in tal caso ricevuta dello stesso con la firma del presente contratto, così come si impegna ad osservare le deliberazioni dell'assemblea dei condomini. È in ogni caso vietato al conduttore compiere atti e tenere comportamenti che possano recare molestia agli altri abitanti dello stabile.\n\nLe parti danno atto, in relazione allo stato dell'unità immobiliare, ai sensi dell'articolo 1590 del Codice civile di quanto segue: ${consegnaStato} ovvero di quanto risulta dal verbale di consegna.`
             );
 
             addArticle(11, 'Modifiche e danni',
@@ -17598,19 +17563,19 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             );
 
             addArticle(13, 'Impianti',
-                `Il conduttore - in caso di installazione sullo stabile di antenna televisiva centralizzata - si obbliga a servirsi unicamente dell'impianto relativo, restando sin d'ora il locatore in caso di inosservanza autorizzato a far rimuovere e demolire ogni antenna individuale a spese del conduttore, il quale nulla può pretendere a qualsiasi titolo, fatte salve le eccezioni di legge.\n\nPer quanto attiene all'impianto termico autonomo, ove presente, ai sensi della normativa del D.lgs 192/05, con particolare riferimento all'art. 7 comma 1, il conduttore subentra per la durata della detenzione alla figura del proprietario nell'onere di adempiere alle operazioni di controllo e di manutenzione.`
+                `Il conduttore - in caso d'installazione sullo stabile di antenna televisiva centralizzata - si obbliga a servirsi unicamente dell'impianto relativo, restando sin d'ora il locatore, in caso di inosservanza, autorizzato a far rimuovere e demolire ogni antenna individuale a spese del conduttore, il quale nulla può pretendere a qualsiasi titolo, fatte salve le eccezioni di legge.\n\nPer quanto attiene all'impianto termico autonomo, ove presente, ai sensi della normativa del d.lgs n. 192/05, con particolare riferimento all'art. 7 comma 1, il conduttore subentra per la durata della detenzione alla figura del proprietario nell'onere di adempiere alle operazioni di controllo e di manutenzione.`
             );
 
             addArticle(14, 'Accessi',
-                `Il conduttore deve consentire l'accesso all'unità immobiliare al locatore, al suo amministratore nonché ai loro incaricati ove gli stessi ne abbiano - motivandola - ragione.\n\nNel caso in cui il locatore intenda vendere o, in caso di recesso anticipato del conduttore, locare l'unità immobiliare, questi deve consentirne la visita una volta la settimana, per almeno due ore, con esclusione dei giorni festivi.`
+                `Il conduttore deve consentire l'accesso all'unità immobiliare al locatore, al suo amministratore nonché ai loro incaricati ove gli stessi ne abbiano - motivandola - ragione.\n\nNel caso in cui il locatore intenda vendere o, in caso di recesso anticipato del conduttore, locare l'unità immobiliare, questi deve consentirne la visita una volta la settimana, per almeno due ore, con esclusione dei giorni festivi oppure con le seguenti modalità: ${accessiMod}.`
             );
 
             addArticle(15, 'Commissione di negoziazione paritetica e conciliazione stragiudiziale',
-                `La Commissione di cui all'articolo 6 del decreto del Ministro delle infrastrutture e dei trasporti di concerto con il Ministro dell'economia e delle finanze, emanato ai sensi dell'articolo 4, comma 2, della legge 431/98, è composta da due membri scelti fra appartenenti alle rispettive organizzazioni firmatarie dell'Accordo territoriale sulla base delle designazioni, rispettivamente, del locatore e del conduttore.\n\nL'operato della Commissione è disciplinato dal documento "Procedure di negoziazione e conciliazione stragiudiziale nonché modalità di funzionamento della Commissione", Allegato E, al citato decreto.\n\nLa richiesta di intervento della Commissione non determina la sospensione delle obbligazioni contrattuali. La richiesta di attivazione della Commissione non comporta oneri.`
+                `La Commissione di cui all'articolo 6 del decreto del Ministro delle infrastrutture e dei trasporti di concerto con il Ministro dell'economia e delle finanze, emanato ai sensi dell'articolo 4, comma 2, della legge 431 del 1998, è composta da due membri scelti fra appartenenti alle rispettive organizzazioni firmatarie dell'Accordo territoriale sulla base delle designazioni, rispettivamente, del locatore e del conduttore.\n\nL'operato della Commissione è disciplinato dal documento “Procedure di negoziazione e conciliazione stragiudiziale nonché modalità di funzionamento della Commissione”, Allegato E al citato decreto. La richiesta di intervento della Commissione non determina la sospensione delle obbligazioni contrattuali.\n\nLa richiesta di attivazione della Commissione non comporta oneri.`
             );
 
             addArticle(16, 'Varie',
-                `A tutti gli effetti del presente contratto, comprese la notifica degli atti esecutivi, e ai fini della competenza a giudicare, il conduttore elegge domicilio nei locali a lui locati e, ove egli più non li occupi o comunque detenga, presso l'ufficio di segreteria del Comune ove è situato l'immobile locato.\n\nQualunque modifica al presente contratto non può aver luogo, e non può essere provata, se non con atto scritto.\n\nIl locatore ed il conduttore si autorizzano reciprocamente a comunicare a terzi i propri dati personali in relazione ad adempimenti connessi col rapporto di locazione (d.lgs n. 196/03).\n\nPer quanto non previsto dal presente contratto le parti rinviano a quanto in materia disposto dal Codice civile, dalle leggi n. 392/78 e n. 431/98 o comunque dalle norme vigenti e dagli usi locali nonché alla normativa ministeriale emanata in applicazione della legge n. 431/98 ed agli Accordi di cui agli articoli 2 e 3.`
+                `A tutti gli effetti del presente contratto, compresa la notifica degli atti esecutivi, e ai fini della competenza a giudicare, il conduttore elegge domicilio nei locali a lui locati e, ove egli più non li occupi o comunque detenga, presso l'ufficio di segreteria del Comune ove è situato l'immobile locato.\n\nQualunque modifica al presente contratto non può aver luogo, e non può essere provata, se non con atto scritto.\n\nIl locatore ed il conduttore si autorizzano reciprocamente a comunicare a terzi i propri dati personali in relazione ad adempimenti connessi col rapporto di locazione (d.Lgs n. 196/03).\n\nPer quanto non previsto dal presente contratto le parti rinviano a quanto in materia disposto dal Codice civile, dalle leggi n. 392/1978 e n. 431 del 1998 o comunque dalle norme vigenti e dagli usi locali nonché alla normativa ministeriale emanata in applicazione della legge n. 431 del 1998 ed agli Accordi di cui agli articoli 2 e 3.\n\nAltre clausole: sono a carico del conduttore le spese relative alle utenze private di energia elettrica, gas, acqua, tassa rifiuti.${contract.otherClauses ? '\n\n' + contract.otherClauses : ''}`
             );
 
             // --------------- LETTO, APPROVATO, SOTTOSCRITTO ---------------
@@ -17618,7 +17583,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             ensureSpace(60);
             doc.setFont('times', 'bold');
             doc.setFontSize(11);
-            doc.text('Letto, approvato e sottoscritto', margin, y);
+            doc.text('Letto, approvato e sottoscritto.', margin, y);
             y += 8;
             doc.setFont('times', 'normal');
             doc.setFontSize(11);
@@ -17645,12 +17610,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             doc.text('Il Conduttore: ' + tenName, rightX, sig1Y + 5);
             y = sig1Y + 16;
 
-            // --- 1341-1342 block (studenti list: 2, 4, 5, 7, 9, 10, 11, 13, 14, 15, 16) ---
+            // --- 1341-1342 block (lista del contratto tipo associazione) ---
             y += 14;
             ensureSpace(40);
             doc.setFont('times', 'normal');
             doc.setFontSize(10);
-            const art1341 = `A mente degli articoli 1341 e 1342 del Codice civile, le parti specificamente approvano i patti di cui agli articoli 2 (Natura transitoria), 4 (Deposito cauzionale e altre forme di garanzia), 5 (Oneri accessori), 7 (Pagamento), 9 (Recesso del conduttore), 10 (Consegna), 11 (Modifiche e danni), 13 (Impianti), 14 (Accessi), 15 (Commissione di negoziazione paritetica e conciliazione stragiudiziale) e 16 (Varie) del presente contratto.`;
+            const art1341 = `A mente degli articoli 1341 e 1342 del Codice civile, le parti specificamente approvano i patti di cui agli articoli 2 (Natura transitoria), 4 (Deposito cauzionale e altre forme di garanzia), 5 (Oneri accessori), 7 (Pagamento, risoluzione), 9 (Recesso del conduttore), 10 (Consegna), 11 (Modifiche e danni), 13 (Impianti), 14 (Accessi), 15 (Commissione di negoziazione paritetica e conciliazione stragiudiziale) e 16 (Varie) del presente contratto.`;
             const art1341Lines = doc.splitTextToSize(art1341, pw);
             const art1341LineH = ptToMm(10) * 1.15;
             ensureSpace(art1341Lines.length * art1341LineH);
@@ -18566,121 +18531,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         } else { toast('error', 'Errore generazione pass'); }
     }
 
-    async function sendCAFEmail(contractId) {
-        try {
-            var contract = (S.contracts || []).find(function(c) { return c.id === contractId; });
-            if (!contract) { var cDoc = await db.collection('contracts').doc(contractId).get(); if (cDoc.exists) contract = { id: cDoc.id, ...cDoc.data() }; }
-            if (!contract) { console.warn('[CAF] Contract not found:', contractId); return false; }
-            var property = (S.properties || []).find(function(p) { return p.id === contract.propertyId; });
-            var settingsDoc = await db.collection('settings').doc('general').get();
-            var cafEmail = settingsDoc.exists ? settingsDoc.data().cafEmail : '';
-            var cafEmailAlt = settingsDoc.exists ? settingsDoc.data().cafEmailAlt : '';
-            if (!cafEmail) { console.warn('[CAF] No CAF email configured in settings'); return false; }
-            var reqType = contract.requiresAsseverazione ? 'asseverazione' : 'registrazione';
-            var llName = contract.landlordName || '[da completare]';
-            var llCF = contract.landlordCF || '[da completare]';
-            var tenName = contract.tenantName || '[da completare]';
-            var tenCF = contract.tenantCF || '[da completare]';
-            var propAddr = property?.address || property?.name || 'immobile';
-            var cedolare = (contract.cedolareSecca || 'si') !== 'no' ? 'Sì' : 'No';
-            var closingLines = 'LOCATORE: ' + llName + ' · CF: ' + llCF + ' · Nato/a: ' + (contract.landlordDob||'') + ' a ' + (contract.landlordPob||'') + ' · Res: ' + (contract.landlordAddress||'') + ' · Doc: ' + (contract.landlordDocType||'') + ' ' + (contract.landlordDocNum||'') +
-                '\n\nCONDUTTORE: ' + tenName + ' · CF: ' + tenCF + ' · Nato/a: ' + (contract.tenantDob||'') + ' a ' + (contract.tenantPob||'') + ' · Res: ' + (contract.tenantAddress||'') + ' · Doc: ' + (contract.tenantDocType||'') + ' ' + (contract.tenantDocNum||'') +
-                '\n\nIMMOBILE: ' + propAddr + ' · Catasto: ' + (property?.cadastralData || contract.cadastral || 'N/A') + ' · Vani: ' + (property?.rooms||'N/A') + ' · mq: ' + (property?.sqm||'N/A') +
-                '\n\nCedolare secca: ' + cedolare;
-            var params = {
-                heading: 'Richiesta ' + reqType + ' contratto',
-                subheading: propAddr,
-                name: 'CAF',
-                intro: 'Nuova richiesta di ' + reqType + ' per il contratto firmato da entrambe le parti.',
-                card_title: reqType.toUpperCase(),
-                card_color: '#D4AF37',
-                r1_icon: '🏠', r1_label: 'Immobile', r1_value: propAddr,
-                r2_icon: '📋', r2_label: 'Tipo / Durata', r2_value: (contract.type || 'transitorio') + ' · ' + contract.startDate + ' — ' + contract.endDate,
-                r3_icon: '💰', r3_label: 'Canone / Deposito', r3_value: '€' + (contract.rent||0) + '/mese · Deposito €' + (contract.deposit||0),
-                r4_icon: '📝', r4_label: 'Parti', r4_value: llName + ' (locatore) / ' + tenName + ' (conduttore)',
-                closing: closingLines + (contract.generatedPDF ? '\n\n📎 Contratto firmato (PDF): ' + contract.generatedPDF : ''),
-                attachment_url: contract.generatedPDF || '',
-                cta_text: 'Apri Portal BOOM →',
-                portal_link: window.location.origin + window.location.pathname
-            };
-            await sendBoomEmail(EMAILJS_CONFIG.templates.notification, cafEmail, params);
-            if (cafEmailAlt) await sendBoomEmail(EMAILJS_CONFIG.templates.notification, cafEmailAlt, params);
-            console.log('[CAF] Email sent to', cafEmail);
-            return true;
-        } catch (err) { console.error('[CAF] Email error:', err); return false; }
-    }
-
-    async function sendSignatureEmail(user, contract, property, role) {
-        if (!user?.email) return false;
-        var signBase = window.location.origin + '/sign';   // premium signer page (sign.html)
-        var token = role === 'tenant' ? contract.tenantSignToken : contract.landlordSignToken;
-        var signLink = token ? signBase + '?sign=' + token : signBase;
-        var firstName = (user.name || '').split(' ')[0];
-        var roleLabel = role === 'landlord' ? 'Landlord' : 'Tenant';
-        var vh = 'BOOM-' + btoa((contract.id||'') + (contract.startDate||'') + contract.rent).substring(0,12).toUpperCase();
-
-        // Apple-level HTML email
-        var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>'
-            + '<body style="margin:0;padding:0;background:#f5f5f5;font-family:Helvetica Neue,Helvetica,Arial,sans-serif;font-weight:300">'
-            + '<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:32px 16px"><tr><td align="center">'
-            + '<table width="520" cellpadding="0" cellspacing="0" style="background:#08080A;border-radius:16px;overflow:hidden;max-width:520px;width:100%">'
-            // Header
-            + '<tr><td style="padding:32px 32px 24px">'
-            + '<table width="100%" cellpadding="0" cellspacing="0"><tr>'
-            + '<td><img src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDI0IDEwMjQiIHdpZHRoPSIxMDI0IiBoZWlnaHQ9IjEwMjQiPgogIDxkZWZzPgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJnb2xkR3JhZGllbnQiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMCUiIHkyPSIxMDAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI0ZGRDU0RiIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiNGNUE2MjMiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgPC9kZWZzPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDAsMTAyNCkgc2NhbGUoMC4xLC0wLjEpIiBmaWxsPSJ1cmwoI2dvbGRHcmFkaWVudCkiPgogICAgPHBhdGggZD0iTTQ4NjAgODc0OSBjLTUwOSAtMjkgLTk3NiAtMTYxIC0xNDEzIC00MDEgLTU4MCAtMzE3IC0xMDU3IC04MDYgLTEzNTAgLTEzODMgLTE0OCAtMjkyIC0yMjkgLTUzMiAtMjkxIC04NTkgLTg5IC00NjUgLTY5IC0xMDA1IDU0IC0xNDYxIDE4NCAtNjg4IDYxNiAtMTMwOCAxMjMyIC0xNzY5IDQ5MiAtMzY4IDExNzIgLTYwOSAxNzk0IC02MzUgNTQ2IC0yMiA5ODcgNTcgMTQ4OSAyNjcgNTAzIDIxMSA5NzkgNTg5IDEzMjcgMTA1MyAzNDAgNDUzIDU1NyA5OTQgNjMwIDE1NjkgMTcgMTM1IDE3IDYzMCAwIDc2MCAtOTMgNzE2IC0zOTYgMTM0MSAtOTAwIDE4NjEgLTI4MCAyODkgLTU2OSA0OTggLTkyMiA2NjcgLTQxNiAyMDAgLTgxMyAzMDMgLTEyODUgMzMyIC0xNjUgMTAgLTE3MCAxMCAtMzY1IC0xeiBtNjEwIC0xNDQgYzc0MyAtMTAzIDE0MzYgLTQ1OSAxOTE5IC05ODUgMzM4IC0zNjcgNTYyIC03NTEgNzA0IC0xMjA1IDI3NiAtODc5IDEzMiAtMTg1OCAtMzg4IC0yNjQwIC0yNDIgLTM2NCAtNDkzIC02MTUgLTkwMCAtOTAwIGwtNzAgLTQ5IDEwOSAxMDQgYzQxMyAzOTYgNjc5IDkxOSA3NjcgMTUwNSAzMyAyMTcgMzMgNTU4IDAgNzY1IC03NSA0NzYgLTI1NyA4OTYgLTU0OSAxMjY1IC0xMjcgMTYxIC0zNjMgMzgwIC01NDkgNTExIC0zMDAgMjExIC02ODkgMzYzIC0xMDc5IDQyMCAtMTcyIDI2IC02MDQgMjYgLTc2NCAwIC0yOTYgLTQ3IC01NDUgLTEyOCAtODA4IC0yNjIgLTIzNiAtMTIyIC00NDAgLTI3MSAtNjMyIC00NjQgLTQ4NiAtNDg1IC03NDkgLTExMjEgLTc1MSAtMTgxNSAtMSAtNjExIDE3MCAtMTE0OCA1MTUgLTE2MDggMTAwIC0xMzQgMjg2IC0zMzUgMzgyIC00MTMgMzMgLTI3IC04IC0yIC05MSA1NSAtNTEzIDM1MSAtOTA0IDgwNSAtMTE0MyAxMzMxIC03MSAxNTYgLTEzNiAzMzYgLTE2OCA0NjUgLTkgMzMgLTE5IDc2IC0yNCA5NSAtNSAxOSAtMjAgMTAwIC0zNCAxODAgLTU5IDM0MyAtNjAgNzQwIDAgMTA3MCA4MSA0NTYgMjI5IDgyNiA0NzkgMTIwMCAyNDYgMzY4IDU1OCA2NjkgOTQ5IDkxNyAzODYgMjQ1IDg4MSA0MTggMTMyMSA0NjIgNjEgNiAxMjQgMTMgMTQwIDE1IDczIDEwIDU1NiAtNCA2NjUgLTE5eiBtLTYwIC0xMzI5IGMxMDUgLTE2IDI1OCAtNDkgMzM1IC03MiA4MiAtMjYgMTk3IC02NiAyNDAgLTg0IDE0OSAtNjUgMTkwIC04NCAyNjYgLTEyNiA2NzcgLTM3OSAxMTI5IC0xMDQ5IDEyNDYgLTE4NDkgMjcgLTE4MiAyNCAtNTE3IC01IC02OTUgLTc1IC00NTggLTIyNSAtODEzIC01MDAgLTExNzkgLTExNiAtMTU0IC0zNDAgLTM2OSAtNTI3IC01MDYgLTQ0IC0zMiAtODcgLTYzIC05NSAtNjkgLTggLTYgMzUgMzkgOTYgOTkgMTc4IDE3NyAyODMgMzIxIDM5NyA1NTAgMTYxIDMyMiAyMzEgNjc2IDIwNSAxMDQ1IC0zMiA0NjcgLTIyMyA5MDIgLTU0MiAxMjM3IC0yMzkgMjUxIC01MjEgNDI2IC04NzMgNTQyIC03OSAyNiAtMjczIDY3IC0zODMgODEgLTEwOCAxMyAtMzQ5IDEzIC00NjUgMCAtMjc2IC0zMiAtNTk3IC0xNDUgLTgzNCAtMjkzIC0yMjQgLTE0MCAtNDY2IC0zNzggLTYxMyAtNjAyIC0zMDcgLTQ3MCAtNDA3IC0xMDU1IC0yNzMgLTE1OTkgODAgLTMyNyAyMTcgLTU4OSA0NTQgLTg3MSA3MSAtODQgNzMgLTg4IDMxIC01NiAtMjkzIDIyNSAtNTQ3IDUzNSAtNzE4IDg3NyAtMzQgNjggLTY1IDE0MyAtMTIyIDI5NCAtNDIgMTEyIC0xMDEgMzgzIC0xMjAgNTU1IC0xNCAxMjcgLTE0IDQwMSAwIDUzNCA1MSA0ODIgMjIzIDkxMiA1MTYgMTI4OCAyNjkgMzQ0IDY1NCA2MjAgMTA4NSA3NzggMTYwIDU5IDQwMCAxMTUgNTc0IDEzNCAxMjEgMTMgNTA4IDUgNjI1IC0xM3ogbS0zMCAtMTE2NSBjNDAxIC04MSA3MjEgLTI0MiA5OTIgLTQ5OSA2NDMgLTYxMiA3NjkgLTE2MDcgMzAwIC0yMzY3IC0xMTggLTE5MCAtMjkxIC0zODYgLTQ2MyAtNTI0IC0xMzcgLTExMSAtMTQ4IC0xMTMgLTQ5IC0xMiAxMTAgMTEyIDIwNiAyNDggMjc1IDM4NiA2NyAxMzcgOTggMjIyIDEzMiAzNjcgMjQgMTAzIDI2IDEzMiAyNyAzMjMgMCAxODIgLTMgMjI0IC0yMiAzMTAgLTQ3IDIxMSAtMTI2IDM5NCAtMjQ1IDU2OSAtMTI2IDE4NiAtMzU4IDM4NyAtNTY0IDQ5MCAtMzg0IDE5MSAtODIzIDIyNSAtMTIxOCA5NSAtNDgyIC0xNjAgLTg1NCAtNTQxIC0xMDA0IC0xMDI5IC0xMTcgLTM3OSAtODEgLTgxMCA5NiAtMTE2NSAzNyAtNzIgMTMwIC0yMTUgMTY2IC0yNTIgMTcgLTE4IDI2IC0zMyAyMCAtMzMgLTYgMCAtNjEgNTIgLTEyMSAxMTYgLTI1OSAyNzIgLTQyNCA1NzUgLTUxMSA5MzQgLTExMSA0NTkgLTE4IDEwMDYgMjQ1IDE0MzAgMjk4IDQ4MyA3OTEgNzk3IDEzNzkgODgwIDExMCAxNiA0NDggNCA1NjUgLTE5eiBtLTIzOSAtOTExIGMzNjAgLTI4IDY4MCAtMTcxIDkyNSAtNDE1IDE5NCAtMTkzIDMxNyAtNDE1IDM4MiAtNjg4IDI0IC0xMDIgMjYgLTEzMCAyNiAtMzEyIDAgLTE5MSAtMSAtMjA1IC0zMCAtMzIwIC01MyAtMjA1IC0xMzIgLTM3MiAtMjUxIC01MzUgLTU4IC03OSAtMjYzIC0yODggLTMyMyAtMzMwIC0zMSAtMjIgLTI5IC0xOCAxOCAzNSAxOTUgMjIwIDMxMiA1MTkgMzEyIDc5NSAwIDMyNSAtMTIxIDYxNCAtMzUwIDg0MSAtMzY5IDM2NCAtOTI2IDQ1MyAtMTM4NSAyMjIgLTMzNiAtMTcwIC01NzggLTQ5OSAtNjM2IC04NjUgLTE5IC0xMjYgLTcgLTM3MSAyNSAtNDkwIDQ0IC0xNjIgOTcgLTI4NCAxNzMgLTM5OCA5IC0xNCAtNCAtNSAtMzAgMjAgLTI2IDI0IC00NSA1MSAtNDIgNTggMiA3IDEgMTEgLTQgNyAtMTEgLTYgLTU4IDUxIC0xMTggMTQwIC0xMDkgMTYzIC0xODMgMzQ3IC0yMTkgNTQ1IC0yMyAxMjcgLTIzIDM1MSAtMSA0ODkgNTUgMzM1IDI0OCA2NzcgNDkyIDg3MSAyNjEgMjA4IDUzMCAzMTEgODgxIDMzOCAxMSAxIDgxIC0zIDE1NSAtOHogbTI5IC03MTQgYzQ1OSAtNzQgODIzIC00MjggODk1IC04NjkgNTggLTM1OCAtNjAgLTY5NiAtMzQ1IC05ODcgbC0zNCAtMzUgMjIgMzUgYzExNSAxODIgMTc5IDQwMyAxNjggNTc1IC0xNCAyMzUgLTEwNCA0MzMgLTI2OCA1OTEgLTEzNyAxMzQgLTI4NyAyMDkgLTQ3MiAyMzkgLTExNSAxOSAtMTg3IDE5IC0zMDMgMCAtMzM3IC01NSAtNjEyIC0zMDIgLTcwNCAtNjM1IC0zMiAtMTEzIC0zNCAtMzI1IC01IC00NDAgMjMgLTkyIDcwIC0yMTMgOTggLTI1NCBsMjEgLTMxIC0zMSAyOSBjLTM5IDM2IC0xMjAgMTUyIC0xNTUgMjIxIC0zNSA3MSAtODEgMjE1IC0xMDIgMzE5IC0yNSAxMzAgLTE3IDM1NyAxNyA0NzYgMTAyIDM1NCAzNTcgNjE4IDcwNiA3MzAgMTUyIDQ5IDMzMSA2MiA0OTIgMzZ6IG0tNzMgLTU2NyBjMTc4IC0yNCAzMjcgLTEwMSA0NTQgLTIzNiAxMzcgLTE0MyAxOTkgLTMwMyAyMDEgLTUxMyAxIC0xNjIgLTQyIC0zMDkgLTEzNSAtNDUzIC01MiAtODIgLTczIC05NyAtMzggLTI4IDUxIDk5IDY3IDI5MCAzNiA0MTIgLTU3IDIxOSAtMjUxIDQxMyAtNDY2IDQ2NCAtNzUgMTcgLTIzNiAyMCAtMzExIDQgLTIxMyAtNDQgLTQyMiAtMjQ3IC00NzMgLTQ2MCAtMzEgLTEzMyAtMTMgLTMyNSA0MSAtNDMxIDM1IC03MCA4IC00NyAtNTIgNDMgLTU4IDg4IC05MCAxNjcgLTExNCAyODYgLTI1IDEyMSAtMjUgMjIwIC0xIDMzMSAzMyAxNDYgODQgMjQzIDE4NiAzNTEgMTcxIDE4MyA0MTMgMjY2IDY3MiAyMzB6IG0xNSAtNDcwIGM4MCAtMTcgMTg2IC03NiAyNDggLTEzOSAxMDYgLTEwNyAxNTggLTI0OCAxNDcgLTM5OCAtNiAtOTIgLTI1IC0xNTIgLTc5IC0yNTAgLTQ1IC04MiAtNjAgLTkxIC0yNyAtMTcgMTggNDEgMjEgNjIgMTcgMTQ5IC00IDg5IC04IDEwOCAtMzUgMTYyIC00MyA4MiAtMTI2IDE2NSAtMjA5IDIwNSAtNTggMjkgLTgwIDM0IC0xNTggMzcgLTExMiA1IC0xODQgLTEyIC0yNTkgLTYyIC0xODIgLTEyMSAtMjUxIC0zMjMgLTE3MSAtNTA2IGwyNCAtNTUgLTI1IDMwIGMtMzYgNDQgLTkyIDE2MiAtMTA0IDIyMyAtMzkgMTg5IDE0IDM2OSAxNDYgNDkyIDEwNSA5OSAyMDQgMTM5IDM0NSAxMzkgNDggMSAxMTEgLTQgMTQwIC0xMHoiLz4KICA8L2c+Cjwvc3ZnPgo=" width="40" height="40" style="border-radius:50%;vertical-align:middle" alt="BOOM"> <span style="font-size:16px;font-weight:300;letter-spacing:5px;color:#fff;vertical-align:middle;margin-left:8px">BOOM</span></td>'
-            + '<td align="right"><span style="font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:1px;text-transform:uppercase">Magic Sign</span></td>'
-            + '</tr></table>'
-            + '</td></tr>'
-            // Title
-            + '<tr><td style="padding:0 32px 8px"><div style="font-size:24px;font-weight:300;color:#fff;letter-spacing:-0.3px">Your contract is ready</div></td></tr>'
-            + '<tr><td style="padding:0 32px 24px"><div style="font-size:13px;color:rgba(255,255,255,0.4);font-weight:300">Hi ' + firstName + ', your rental contract is ready for your digital signature as ' + roleLabel + '.</div></td></tr>'
-            // Property card
-            + '<tr><td style="padding:0 32px 20px"><table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,255,255,0.04);border-radius:12px;border-left:3px solid #FFD54F">'
-            + '<tr><td style="padding:16px 20px">'
-            + '<div style="font-size:9px;color:rgba(255,213,79,0.7);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">PROPERTY</div>'
-            + '<div style="font-size:18px;color:#fff;font-weight:300">' + (property?.name || '') + '</div>'
-            + '<div style="font-size:12px;color:rgba(255,255,255,0.35);margin-top:3px">' + (property?.address || 'Roma') + '</div>'
-            + '</td></tr></table></td></tr>'
-            // Details grid
-            + '<tr><td style="padding:0 32px 20px"><table width="100%" cellpadding="0" cellspacing="0"><tr>'
-            + '<td width="50%" style="padding-right:5px"><table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,255,255,0.04);border-radius:10px"><tr><td style="padding:14px 16px"><div style="font-size:9px;color:rgba(255,255,255,0.3);letter-spacing:1px">MONTHLY RENT</div><div style="font-size:20px;color:#FFD54F;font-weight:300;margin-top:4px">\u20ac' + (contract.rent||0).toLocaleString('it-IT') + '</div></td></tr></table></td>'
-            + '<td width="50%" style="padding-left:5px"><table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,255,255,0.04);border-radius:10px"><tr><td style="padding:14px 16px"><div style="font-size:9px;color:rgba(255,255,255,0.3);letter-spacing:1px">PERIOD</div><div style="font-size:13px;color:#fff;font-weight:300;margin-top:6px">' + fmtDate(contract.startDate) + ' \u2013 ' + fmtDate(contract.endDate) + '</div></td></tr></table></td>'
-            + '</tr></table></td></tr>'
-            // CTA button
-            + '<tr><td style="padding:0 32px 24px"><table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="background:#FFD54F;border-radius:12px;padding:16px"><a href="' + signLink + '" style="color:#08080A;text-decoration:none;font-size:14px;font-weight:400;letter-spacing:0.5px;display:block">Review and sign your contract</a></td></tr></table></td></tr>'
-            // Verification
-            + '<tr><td style="padding:0 32px 24px"><table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,213,79,0.06);border-radius:10px;border:1px solid rgba(255,213,79,0.1)"><tr><td style="padding:12px 16px"><div style="font-size:9px;color:rgba(255,213,79,0.4);letter-spacing:2px;text-transform:uppercase;margin-bottom:3px">VERIFICATION</div><div style="font-size:14px;color:rgba(255,213,79,0.7);letter-spacing:2px;font-family:monospace">' + vh + '</div></td></tr></table></td></tr>'
-            // Legal note
-            + '<tr><td style="padding:0 32px 8px"><div style="font-size:11px;color:rgba(255,255,255,0.2);font-weight:300;line-height:1.6">This is a secure digital signature with legal validity under Italian law (FES \u2014 Art. 21 CAD, D.Lgs. 82/2005).</div></td></tr>'
-            // Footer
-            + '<tr><td style="padding:16px 32px 24px;border-top:1px solid rgba(255,255,255,0.04)">'
-            + '<div style="font-size:10px;color:rgba(255,255,255,0.15);font-weight:300;line-height:1.8">'
-            + COMPANY.legal + ' | P.IVA ' + COMPANY.piva + '<br>'
-            + '<a href="https://www.boomrome.com" style="color:rgba(255,213,79,0.3);text-decoration:none">boomrome.com</a> | ' + COMPANY.phone
-            + '</div></td></tr>'
-            + '</table>'
-            + '</td></tr></table></body></html>';
-
-        // Send via EmailJS (pass HTML as message_html param)
-        var emailSent = await sendBoomEmail(EMAILJS_CONFIG.templates.signatureRequest, user.email, {
-            name: firstName,
-            full_name: user.name,
-            role_label: roleLabel,
-            property_name: property?.name || 'Immobile',
-            property_address: property?.address || '',
-            rent: '\u20ac' + (contract.rent || 0).toLocaleString('it-IT'),
-            start_date: fmtDate(contract.startDate),
-            end_date: fmtDate(contract.endDate),
-            portal_link: signLink,
-            company_name: COMPANY.name,
-            company_email: COMPANY.email,
-            company_phone: COMPANY.phone,
-            message_html: html
-        });
-
-
-        return emailSent;
-    }
+    // sendCAFEmail / sendSignatureEmail (EmailJS, browser-only) sono stati
+    // sostituiti dal ciclo server-side: api/sign/send-link (invito firma) e
+    // api/sign/_finalize.js → sendCafDossier (fascicolo CAF alla firma
+    // completa, qualunque sia la superficie di firma).
     
     // Premium post-signature welcome email with one-click magic link.
     // Pattern: Firestore-Only token (32+ chars unguessable, 1h expiry, single-use)
@@ -19053,13 +18907,33 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (!contract.landlordSignature && !contract.landlordSignToken) { tokenUpdates.landlordSignToken = genToken(); contract.landlordSignToken = tokenUpdates.landlordSignToken; }
         if (!contract.tenantSignature && !contract.tenantSignToken) { tokenUpdates.tenantSignToken = genToken(); contract.tenantSignToken = tokenUpdates.tenantSignToken; }
         if (Object.keys(tokenUpdates).length) await db.collection('contracts').doc(contractId).update(tokenUpdates);
+        // Promemoria via api/sign/send-link (server-side, design system,
+        // lingua del lettore). Il lato locatore su contratto sequenziale non
+        // ancora firmato dall'inquilino risponde 409 awaiting_tenant — giusto
+        // così: il suo link arriva in automatico alla firma dell'inquilino.
+        let _idToken = '';
+        try { _idToken = await auth.currentUser.getIdToken(); } catch (e) {}
+        const remind = async (role, uid) => {
+            if (!_idToken) return false;
+            try {
+                const r = await fetch('/api/sign/send-link', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _idToken },
+                    body: JSON.stringify({ contractId, role })
+                });
+                const j = await r.json().catch(() => null);
+                if (j && j.ok && j.sent) {
+                    if (uid) await createNotification(uid, 'contract', '✏️ Promemoria: Firma contratto', 'Il contratto per ' + (property?.name || 'immobile') + ' è in attesa della tua firma', { contractId, skipEmail: true });
+                    return true;
+                }
+            } catch (e) { console.warn('[remind]', role, e); }
+            return false;
+        };
         if (!contract.landlordSignature && property?.ownerId) {
-            const landlord = S.users.find(u => u.id === property.ownerId);
-            if (landlord) { await sendSignatureEmail(landlord, contract, property, 'landlord'); await createNotification(landlord.id, 'contract', '✏️ Promemoria: Firma contratto', 'Il contratto per ' + (property?.name || 'immobile') + ' è in attesa della tua firma', { contractId, skipEmail: true }); sent++; }
+            if (await remind('landlord', property.ownerId)) sent++;
         }
         if (!contract.tenantSignature && contract.tenantId) {
-            const tenant = S.users.find(u => u.id === contract.tenantId);
-            if (tenant) { await sendSignatureEmail(tenant, contract, property, 'tenant'); await createNotification(tenant.id, 'contract', '✏️ Promemoria: Firma contratto', 'Il contratto per ' + (property?.name || 'immobile') + ' è in attesa della tua firma', { contractId, skipEmail: true }); sent++; }
+            if (await remind('tenant', contract.tenantId)) sent++;
         }
         if (sent) { try { await db.collection('contracts').doc(contractId).update({ lastReminderAt: firebase.firestore.FieldValue.serverTimestamp() }); contract.lastReminderAt = new Date(); } catch (e) {} }
         toast('success', sent ? '📧 Promemoria inviato!' : 'Nessun promemoria da inviare');
@@ -21308,16 +21182,29 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         </div>`;
     }
 
-    // ── Send the right pre-filled form link via WhatsApp/email to the tenant/landlord
-    function sendMissingInfoLink(contractId, who) {
+    // ── Send La Scheda link via WhatsApp/email to the tenant/landlord.
+    // The scheda token is derived server-side (HOMIE_SECRET) — /api/profile/link
+    // resolves it; the old form-tenant/form-landlord pages wrote anonymously to
+    // an admin-only collection and silently failed for the client.
+    async function sendMissingInfoLink(contractId, who) {
         const c = (S.contracts || []).find(x => x.id === contractId);
         if (!c) return toast('error', 'Contratto non trovato');
         const isTenant = who === 'tenant';
         const target = isTenant
             ? (S.users || []).find(u => u.id === c.tenantId)
             : (S.users || []).find(u => u.id === (S.properties || []).find(p => p.id === c.propertyId)?.ownerId);
-        const token = isTenant ? c.tenantSignToken : c.landlordSignToken;
-        const url = `${window.location.origin}/${isTenant ? 'form-tenant.html' : 'form-landlord.html'}?contract=${encodeURIComponent(contractId)}${token ? '&t=' + encodeURIComponent(token) : ''}`;
+        let url = '';
+        try {
+            const idToken = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/profile/link', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+                body: JSON.stringify({ contractId })
+            });
+            const j = await r.json().catch(() => null);
+            if (j && j.ok) url = isTenant ? j.tenantUrl : j.landlordUrl;
+        } catch (e) { console.warn('[sendMissingInfoLink]', e); }
+        if (!url) return toast('error', 'Link scheda non disponibile — riprova');
         const name = target?.name || (isTenant ? 'inquilino' : 'proprietario');
         const phone = target?.phone || '';
         const email = target?.email || '';
@@ -21342,6 +21229,72 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         </div></div>`;
     }
     window.sendMissingInfoLink = sendMissingInfoLink;
+
+    // ── 📑 Fascicolo Fiscale: scheda attestazione canone + RLI + scadenzario.
+    // Generato/rigenerato server-side (api/fiscal/fascicolo). Se la zona
+    // dell'accordo o i mq non si risolvono da soli, chiede QUI il dato e lo
+    // persiste su contract.canoneScheda — la rigenerazione resta stabile.
+    async function openFascicolo(contractId, overrides) {
+        toast('info', '📑 Genero il fascicolo…');
+        try {
+            const idToken = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/fiscal/fascicolo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+                body: JSON.stringify(Object.assign({ contractId }, overrides || {}))
+            });
+            const j = await r.json().catch(() => null);
+            if (!j || !j.ok) return toast('error', 'Fascicolo: ' + ((j && j.error) || 'errore'));
+            const calc = j.calc || {};
+            if (calc.error === 'zona_non_trovata') {
+                const z = prompt('Zona accordo non riconosciuta dall\'indirizzo.\nInserisci il codice zona ARPE (es. B14 per Trastevere, C1 Parioli, C30 Pigneto):');
+                if (z && z.trim()) return openFascicolo(contractId, Object.assign({}, overrides, { zonaCod: z.trim().toUpperCase() }));
+            } else if (calc.error === 'mq_mancanti') {
+                const mq = prompt('Mq calpestabili dell\'immobile (manca sqm sulla property):');
+                if (mq && +mq > 0) return openFascicolo(contractId, Object.assign({}, overrides, { mq: +mq }));
+            } else if (calc.fits === false) {
+                toast('error', `⚠ FUORI FASCIA (${calc.zonaCod} · fascia ${calc.fascia}, max €${Number(calc.cMax).toLocaleString('it-IT')}) — il PDF lo dettaglia`);
+            } else if (calc.fits === true) {
+                toast('success', `✓ In fascia ${calc.fascia} (${calc.zonaCod}) — max asseverabile €${Number(calc.cMax).toLocaleString('it-IT')}`);
+            }
+            // aggiorna la cache locale così il bottone mostra ✓/⚠ senza reload
+            const lc = (S.contracts || []).find(x => x.id === contractId);
+            if (lc) { lc.fascicoloFiscaleUrl = j.url; lc.canoneScheda = calc; }
+            window.open(j.url, '_blank', 'noopener');
+        } catch (e) { console.error(e); toast('error', 'Fascicolo: ' + e.message); }
+    }
+    window.openFascicolo = openFascicolo;
+
+    // ── ✓ RLI registrato: chiude il loop della registrazione in un tap —
+    // stampa la data sul contratto, spegne la scadenza "Registrare RLI" e
+    // rigenera il fascicolo così anche il PDF dice "Registrato il…".
+    async function markRliRegistered(contractId) {
+        const today = new Date().toISOString().slice(0, 10);
+        const when = prompt('Data di registrazione RLI (YYYY-MM-DD):', today);
+        if (!when || !/^\d{4}-\d{2}-\d{2}$/.test(when.trim())) return;
+        try {
+            await db.collection('contracts').doc(contractId).update({ rliRegisteredAt: when.trim() });
+            const dl = await db.collection('deadlines').where('linkedContractId', '==', contractId).get();
+            let closed = 0;
+            for (const d of dl.docs) {
+                const t = String((d.data() || {}).title || '');
+                if (t.indexOf('Registrare RLI') === 0 && (d.data() || {}).status !== 'done') {
+                    await d.ref.update({ status: 'done', completedAt: firebase.firestore.FieldValue.serverTimestamp() });
+                    closed++;
+                }
+            }
+            const lc = (S.contracts || []).find(x => x.id === contractId);
+            if (lc) lc.rliRegisteredAt = when.trim();
+            toast('success', `✓ RLI registrato il ${when.trim()}${closed ? ' · scadenza chiusa' : ''}`);
+            // rigenera il fascicolo in background (best-effort)
+            try {
+                const idToken = await auth.currentUser.getIdToken();
+                fetch('/api/fiscal/fascicolo', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken }, body: JSON.stringify({ contractId }) }).catch(() => {});
+            } catch (_) {}
+            await refresh();
+        } catch (e) { console.error(e); toast('error', 'RLI: ' + e.message); }
+    }
+    window.markRliRegistered = markRliRegistered;
 
     // 🔗 Share Hub — single place that surfaces every shareable link for a contract
     // and *backfills missing tokens on the fly* so legacy contracts (created before
@@ -21375,6 +21328,21 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             catch (e) { console.warn('[shareHub backfill]', e); }
         }
 
+        // La Scheda: i token sono DERIVATI server-side da HOMIE_SECRET (il
+        // browser non può calcolarli) — una POST restituisce entrambi i link.
+        // Vale anche per contratti già firmati (upload documento).
+        let schedaLinks = null;
+        try {
+            const idToken = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/profile/link', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+                body: JSON.stringify({ contractId })
+            });
+            const j = await r.json().catch(() => null);
+            if (j && j.ok) schedaLinks = j;
+        } catch (e) { console.warn('[shareHub] scheda links unavailable:', e); }
+
         const base = window.location.origin;
         // ---- Build the link catalogue ----
         const links = [];
@@ -21391,17 +21359,18 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 emailBody: (n) => `Ciao ${n},\n\nti inviamo il link per la firma digitale del contratto di locazione per ${prop?.name || 'l\'immobile'}.\nPuoi firmare direttamente dal tuo telefono o computer:\n\n{URL}\n\nGrazie,\nBOOM Roma`
             });
         }
-        // Tenant: anagrafica form
-        if (tenant) {
-            const t = c.tenantSignToken ? `&t=${encodeURIComponent(c.tenantSignToken)}` : '';
+        // Tenant: La Scheda (anagrafica universale — sostituisce il vecchio
+        // form-tenant, che scriveva anonimo su una collection admin-only e
+        // falliva in silenzio per il cliente)
+        if (schedaLinks && schedaLinks.tenantUrl) {
             links.push({
                 audience: 'tenant', icon: '📋', title: 'Compila i tuoi dati',
-                subtitle: 'CF, indirizzo, documento — sblocca la registrazione AdE',
-                url: `${base}/form-tenant.html?contract=${encodeURIComponent(contractId)}${t}`,
+                subtitle: 'La Scheda — anagrafica + foto documento con lettura automatica',
+                url: schedaLinks.tenantUrl,
                 target: tenant,
-                waText: (n) => `Ciao ${n}, per la registrazione del contratto AdE servono ancora qualche dato in più. Lo compili qui in 2 min: {URL}\n\n— BOOM Roma`,
-                emailSubj: 'BOOM · Dati per registrazione contratto',
-                emailBody: (n) => `Ciao ${n},\n\nper completare la registrazione del contratto all'Agenzia delle Entrate ci servono ancora alcuni dati anagrafici.\nLi puoi inserire qui (2 minuti):\n\n{URL}\n\nGrazie,\nBOOM Roma`
+                waText: (n) => `Ciao ${n}, per il tuo contratto ci servono i tuoi dati anagrafici. Li compili qui in 2 minuti (basta una foto del documento): {URL}\n\n— BOOM Roma`,
+                emailSubj: 'BOOM · I tuoi dati per il contratto',
+                emailBody: (n) => `Ciao ${n},\n\nper preparare e registrare il contratto ci servono i tuoi dati anagrafici.\nLi puoi inserire qui (2 minuti — con una foto del documento si compila da solo):\n\n{URL}\n\nGrazie,\nBOOM Roma`
             });
         }
         // Tenant: Apple Wallet pass (if already generated during onboarding)
@@ -21442,17 +21411,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 emailBody: (n) => `Gentile ${n},\n\ntrova allegato il link per la firma digitale del contratto di locazione di ${prop?.name || 'l\'immobile'}.\nPuò firmare dal Suo telefono o computer:\n\n{URL}\n\nCordiali saluti,\nBOOM Roma`
             });
         }
-        // Landlord: anagrafica form
-        if (landlord) {
-            const l = c.landlordSignToken ? `&t=${encodeURIComponent(c.landlordSignToken)}` : '';
+        // Landlord: La Scheda (anagrafica universale, IT-first per il locatore)
+        if (schedaLinks && schedaLinks.landlordUrl) {
             links.push({
                 audience: 'landlord', icon: '📋', title: 'Compila i tuoi dati',
-                subtitle: 'CF, IBAN, dati catastali — necessari per RLI',
-                url: `${base}/form-landlord.html?contract=${encodeURIComponent(contractId)}${l}`,
+                subtitle: 'La Scheda — anagrafica + documento per la registrazione RLI',
+                url: schedaLinks.landlordUrl,
                 target: landlord,
-                waText: (n) => `Gentile ${n}, per la registrazione del contratto all'AdE ci servono i Suoi dati anagrafici e l'IBAN. Li può inserire qui: {URL}\n\n— BOOM Roma`,
+                waText: (n) => `Gentile ${n}, per la registrazione del contratto all'AdE ci servono i Suoi dati anagrafici. Li può inserire qui (2 minuti, basta una foto del documento): {URL}\n\n— BOOM Roma`,
                 emailSubj: 'BOOM · Dati per registrazione contratto',
-                emailBody: (n) => `Gentile ${n},\n\nper completare la registrazione del contratto all'Agenzia delle Entrate ci servono i Suoi dati anagrafici e bancari (IBAN per gli incassi affitto).\nLi può inserire qui:\n\n{URL}\n\nCordiali saluti,\nBOOM Roma`
+                emailBody: (n) => `Gentile ${n},\n\nper completare la registrazione del contratto all'Agenzia delle Entrate ci servono i Suoi dati anagrafici.\nLi può inserire qui (con una foto del documento il modulo si compila da solo):\n\n{URL}\n\nCordiali saluti,\nBOOM Roma`
             });
         }
         // Landlord: Apple Wallet pass

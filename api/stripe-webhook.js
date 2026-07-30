@@ -508,6 +508,15 @@ async function handlePreagreement(res, session, m) {
     });
   } catch (e) { console.error('[webhook/pa] patch failed:', e.message); }
 
+  // Il dovuto alla firma è arrivato: il lucchetto sull'immobile diventa
+  // DEFINITIVO. Prima scadeva dopo 48h, perché una riserva che non paga non
+  // deve congelare l'appartamento; ora che i soldi ci sono, nessun altro
+  // candidato può più subentrare.
+  try {
+    const { confirmLock } = await import('./preagreement/_lock.js');
+    await confirmLock({ pa, paId: id });
+  } catch (e) { console.error('[webhook/pa] lucchetto non confermato:', e.message); }
+
   // Stripe receipt link (best-effort)
   let receiptUrl = null;
   try {
@@ -573,24 +582,61 @@ async function handleRent(res, session, m) {
     return res.status(200).json({ received: true, doublePayment: true, paymentId });
   }
 
-  // Stripe receipt link (best-effort)
-  let receiptUrl = null;
+  // Ricevuta Stripe + COSTO REALE dell'incasso (best-effort).
+  //
+  // Stripe dice, su ogni addebito, quanto gli è costato: balance_transaction
+  // .fee. Finora quel dato lo buttavamo via e la commissione al cliente era
+  // una percentuale decisa al buio — che sulle carte estere (3,25%) va in
+  // perdita e su quelle europee (1,5%) sovrapprezza. Salvandolo, la
+  // commissione può regolarsi sul misurato invece che sul listino.
+  let receiptUrl = null, stripeCostEur = null, cardCountry = null, cardBrand = null;
   try {
     if (session.payment_intent) {
-      const pi = await stripe.paymentIntents.retrieve(String(session.payment_intent), { expand: ['latest_charge'] });
-      receiptUrl = (pi.latest_charge && pi.latest_charge.receipt_url) || null;
+      const pi = await stripe.paymentIntents.retrieve(String(session.payment_intent),
+        { expand: ['latest_charge.balance_transaction'] });
+      const ch = pi.latest_charge || null;
+      receiptUrl = (ch && ch.receipt_url) || null;
+      const bt = ch && ch.balance_transaction;
+      if (bt && typeof bt.fee === 'number') stripeCostEur = Math.round(bt.fee) / 100;
+      const card = ch && ch.payment_method_details && ch.payment_method_details.card;
+      if (card) { cardCountry = card.country || null; cardBrand = card.brand || null; }
     }
-  } catch (_) {}
+  } catch (e) { console.error('[rent] costo reale non leggibile:', e.message); }
 
   try {
     await patchDoc(`payments/${paymentId}`, {
       status: 'paid', paidAt: now, paidDate: now.slice(0, 10),
       paidVia: 'stripe', stripeSessionId: session.id,
       serviceFeeEur: fee, receiptUrl: receiptUrl || '',
+      // Il conto vero di questo incasso: quanto abbiamo chiesto, quanto ci è
+      // costato, cosa ci resta. Con il paese della carta, che è la ragione per
+      // cui lo stesso incasso costa il doppio.
+      stripeCostEur, cardCountry, cardBrand,
+      marginEur: stripeCostEur == null ? null : Math.round((fee - stripeCostEur) * 100) / 100,
     });
   } catch (err) {
     console.error('[rent] payment patch:', err.message);
     return res.status(500).json({ received: false, error: 'patch_failed' });
+  }
+
+  // La statistica che fa scendere la commissione da sola: volume incassato,
+  // costo realmente sostenuto, numero di incassi. pay.js la legge alla
+  // creazione della sessione successiva, quindi il prezzo converge sul costo
+  // vero senza che nessuno decida una percentuale a mano.
+  if (stripeCostEur != null) {
+    try {
+      const prev = (await readDoc('settings/rentFeeStats').catch(() => null)) || {};
+      await patchDoc('settings/rentFeeStats', {
+        count: (Number(prev.count) || 0) + 1,
+        volumeEur: Math.round(((Number(prev.volumeEur) || 0) + amount) * 100) / 100,
+        costEur: Math.round(((Number(prev.costEur) || 0) + stripeCostEur) * 100) / 100,
+        // Parte fissa: Stripe ne applica una per addebito (~€0,25). Tenerla
+        // separata evita di gonfiare la percentuale sui canoni piccoli.
+        fixedEur: Math.round(((Number(prev.fixedEur) || 0) + 0.25) * 100) / 100,
+        lastAt: now,
+        lastCardCountry: cardCountry || null,
+      });
+    } catch (err) { console.error('[rent] statistica costi:', err.message); }
   }
 
   try {

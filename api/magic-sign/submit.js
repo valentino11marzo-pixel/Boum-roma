@@ -133,6 +133,8 @@ export default async function handler(req, res) {
     upd.tenantPob = id.pob || '';
     upd.tenantDocType = id.docType || '';
     upd.tenantDocNum = id.docNum || '';
+    upd.tenantDocIssuer = id.docIssuer || '';
+    upd.tenantDocIssueDate = id.docIssueDate || '';
     upd.tenantNationality = id.nationality || '';
     upd.tenantSignature = body.signature;
     upd.tenantSignedAt = nowISO;
@@ -157,6 +159,8 @@ export default async function handler(req, res) {
     upd.landlordPob = id.pob || '';
     upd.landlordDocType = id.docType || '';
     upd.landlordDocNum = id.docNum || '';
+    upd.landlordDocIssuer = id.docIssuer || '';
+    upd.landlordDocIssueDate = id.docIssueDate || '';
     upd.landlordNationality = id.nationality || '';
     upd.landlordSignature = body.signature;
     upd.landlordSignedAt = nowISO;
@@ -254,7 +258,17 @@ export default async function handler(req, res) {
           pob: id.pob || '',
           docType: id.docType || '',
           docNum: id.docNum || '',
+          docIssuer: id.docIssuer || '',
+          docIssueDate: id.docIssueDate || '',
           nationality: id.nationality || '',
+          // Wizard-schema mirror: the Allegato B/C generators and parts of
+          // the portal still read codiceFiscale/birthDate/… — without this,
+          // identity collected at signing never reached a regenerated PDF.
+          codiceFiscale: id.cf || '',
+          birthDate: id.dob || '',
+          birthPlace: id.pob || '',
+          idDocType: id.docType || '',
+          idDocNumber: id.docNum || '',
         };
         // First-time tenant signer: ensure base profile fields are seeded
         // so the post-signature account-activation flow has email/role/name.

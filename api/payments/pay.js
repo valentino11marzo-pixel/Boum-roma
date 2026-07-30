@@ -23,10 +23,57 @@ import { requireRole, setCors } from '../_auth.js';
 
 const eur2 = n => Math.round(n * 100) / 100;
 
-export function rentFee(amount) {
-  const pct = Math.max(0, Math.min(10, Number(process.env.RENT_FEE_PCT || 2.5)));
-  const min = Math.max(0, Math.min(100, Number(process.env.RENT_FEE_MIN || 9)));
-  return eur2(Math.max(min, amount * pct / 100));
+// ─── La commissione: misurata, non indovinata ─────────────────────────────
+// Una percentuale fissa non può andare a pari: la stessa carta costa a Stripe
+// l'1,5% se europea e il 3,25% se americana, e il paese non lo sappiamo prima
+// dell'addebito. Un 2,5% uguale per tutti quindi guadagna sugli europei e
+// PERDE su ogni carta estera — e l'inquilino BOOM è un expat.
+//
+// Quindi non si indovina un tasso: si misura. Il webhook salva su ogni rata il
+// costo reale (balance_transaction.fee) e aggiorna settings/rentFeeStats; qui
+// la commissione è il costo medio davvero sostenuto + un margine deciso da te.
+//
+//   RENT_FEE_BUFFER   margine sopra il costo, in euro (default 0 → si va a pari)
+//   RENT_FEE_MAX_PCT  tetto di sicurezza in % (default 4)
+//   RENT_FEE_PCT      forzatura manuale: se impostata, vince su tutto
+//
+// Finché non c'è storia si parte dal caso peggiore (3% + €0,30): meglio
+// partire prudenti e scendere man mano che i dati arrivano, che partire in
+// perdita e accorgersene a fine trimestre.
+// Il seed copre il CASO PEGGIORE reale (carta extra-SEE: 3,25% + €0,25), non
+// una media ottimista: prima che ci siano dati non si sa quale carta arriverà,
+// e partire sotto costo è esattamente il difetto che questa formula elimina.
+// Sembra alto perché la carta È alta — ed è per questo che accanto, in /casa,
+// c'è il bonifico a zero.
+const SEED_PCT = 3.3, SEED_FIXED = 0.30, MIN_SAMPLE = 8;
+
+export function measuredCost(stats, amount) {
+  const n = Number((stats || {}).count) || 0;
+  const volume = Number((stats || {}).volumeEur) || 0;
+  const cost = Number((stats || {}).costEur) || 0;
+  if (n < MIN_SAMPLE || volume <= 0 || cost <= 0) {
+    return { cost: amount * SEED_PCT / 100 + SEED_FIXED, basis: 'seed', n };
+  }
+  // Regressione a una riga: parte proporzionale sul volume, parte fissa media.
+  // Con pochi campioni non si separa quota e fisso in modo affidabile, quindi
+  // si usa il rapporto costo/volume più il fisso medio osservato.
+  const pct = cost / volume;
+  const fixed = Number((stats || {}).fixedEur) ? Number(stats.fixedEur) / n : 0;
+  return { cost: amount * pct + fixed, basis: 'measured', n, pct: pct * 100 };
+}
+
+export function rentFee(amount, stats) {
+  const forced = process.env.RENT_FEE_PCT;
+  const maxPct = Math.max(0.5, Math.min(10, Number(process.env.RENT_FEE_MAX_PCT || 4)));
+  const cap = amount * maxPct / 100;
+  if (forced != null && forced !== '') {
+    const pct = Math.max(0, Math.min(10, Number(forced)));
+    const min = Math.max(0, Math.min(100, Number(process.env.RENT_FEE_MIN || 0)));
+    return eur2(Math.min(cap, Math.max(min, amount * pct / 100)));
+  }
+  const buffer = Math.max(0, Math.min(50, Number(process.env.RENT_FEE_BUFFER || 0)));
+  const { cost } = measuredCost(stats, amount);
+  return eur2(Math.min(cap, Math.max(0, cost + buffer)));
 }
 
 export default async function handler(req, res) {
@@ -63,7 +110,12 @@ export default async function handler(req, res) {
   const amount = cents / 100;
   if (!process.env.STRIPE_SECRET_KEY) return res.status(503).json({ ok: false, error: 'payments_unconfigured' });
 
-  const fee = rentFee(amount);
+  // Il costo medio davvero sostenuto sugli incassi passati (settings/
+  // rentFeeStats, aggiornato dal webhook). Assente = si parte dal caso
+  // peggiore, mai da un tasso ottimista.
+  let feeStats = null;
+  try { feeStats = await fsGet('settings/rentFeeStats'); } catch (_) {}
+  const fee = rentFee(amount, feeStats);
   const isDeposit = pay.type === 'deposit-balance';
   const label = isDeposit
     ? 'Saldo deposito cauzionale'

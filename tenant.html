@@ -152,6 +152,28 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
 .paybtn:not(:disabled):hover{filter:brightness(1.06);transform:translateY(-1px)}
 .paybtn:disabled{opacity:.5}
 .payfoot{font-size:11px;color:var(--t3);text-align:center;margin-top:10px;line-height:1.7}
+/* ── Bonifico: la corsia gratuita. Deliberatamente più quieta del bottone
+   carta — non è un secondo invito a pagare, è la strada per chi non vuole
+   pagare commissioni. Monospaziato sui dati, perché IBAN e causale si
+   leggono a cifre, non a parole. */
+.bfx{margin-top:18px;padding-top:18px;border-top:1px solid var(--line2)}
+.bfh{display:flex;align-items:center;gap:9px;font-size:12px;letter-spacing:1.8px;text-transform:uppercase;color:var(--t2)}
+.bffree{font-size:9.5px;letter-spacing:1.4px;color:#1a1407;background:var(--gold);border-radius:100px;padding:3px 9px;font-weight:600}
+.bfp{font-size:12.5px;color:var(--t3);line-height:1.7;margin:9px 0 14px}
+.bfr{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line2)}
+.bfk{flex:0 0 34%;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t4)}
+.bfv{flex:1;min-width:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;
+  color:var(--t1);word-break:break-all;line-height:1.5}
+.bfc{flex:none;border:1px solid var(--line);background:transparent;color:var(--t2);border-radius:100px;
+  padding:5px 11px;font-size:10.5px;letter-spacing:.6px;cursor:pointer;transition:.2s var(--ease);font-family:inherit}
+.bfc:hover{border-color:var(--gold);color:var(--gold)}
+.bfc.ok{border-color:var(--gold);color:var(--gold)}
+.bfall{width:100%;margin-top:14px;border:1px solid var(--line);background:transparent;color:var(--t2);
+  border-radius:100px;padding:12px;font-size:11px;letter-spacing:1.6px;text-transform:uppercase;
+  cursor:pointer;transition:.2s var(--ease);font-family:inherit}
+.bfall:hover{border-color:var(--gold);color:var(--gold)}
+.bfn{font-size:11px;color:var(--t4);line-height:1.7;margin-top:12px}
+@media(max-width:460px){.bfr{flex-wrap:wrap}.bfk{flex:0 0 100%}.bfv{flex:1 1 auto}}
 .payfoot .lock{color:var(--green)}
 .paidband{border:1px solid rgba(74,222,158,.3);background:var(--green-muted);border-radius:14px;padding:13px 16px;font-size:13px;color:var(--green);text-align:center;margin-top:16px}
 
@@ -367,8 +389,13 @@ var STR={
   wifiScan:'Point the camera here — joins the Wi-Fi instantly. No typing, no typos.',redirect:'Cards &amp; Apple Pay · automatic receipt · redirecting…',
   monthly:'Monthly rent',nextPay:'Next payment',due:'Due date',allGood:'all clear ✓',paidReg:'Payments on record',
   s1:'Next payment',depositBal:'Security deposit balance',rentOf:'Rent',dueBy:'Due by',lateBy:'Overdue since',late:'overdue — settle it now',dueSoon:'coming up',
-  payCard:'Pay by card',service:'service',payFoot1:'Stripe · cards & Apple Pay · automatic receipt by email and in your history',
-  payFoot2:'Prefer a bank transfer? Totally fine — use the details in your contract; this page updates by itself.',
+  payCard:'Pay by card',service:'max service fee',payFoot1:'Stripe · cards & Apple Pay · automatic receipt by email and in your history',
+  payFoot2:'Or pay by bank transfer below — free, and this page updates by itself.',
+  bfTitle:'Bank transfer',bfFree:'free',
+  bfWhy:'No card fee for you, none for us. It lands in 1–2 working days and this page ticks itself off — as long as you keep the reference below.',
+  bfBene:'Beneficiary',bfIban:'IBAN',bfRef:'Reference — please keep it exactly',bfAmt:'Amount',
+  bfCopy:'Copy',bfCopied:'Copied ✓',bfAll:'Copy all details',
+  bfNote:'The reference is what lets us match your transfer automatically. Without it we still find it — it just takes a person and a day.',
   paidBand:'✓ Payment received — your receipt is on its way by email. Thank you!',
   boughtBand:'✓ {x} confirmed — we are on it. Details by email, and your advisor will follow up.',
   noDue:'Nothing due — you are all set ✓',opening:'Opening secure checkout…',payRetry:'Try again — or message us on WhatsApp',
@@ -402,8 +429,13 @@ var STR={
   wifiScan:'Inquadra col telefono — si collega al Wi-Fi all\'istante. Zero password da battere.',redirect:'Carte &amp; Apple Pay · ricevuta automatica · reindirizzamento…',
   monthly:'Canone mensile',nextPay:'Prossimo pagamento',due:'Scadenza',allGood:'tutto in regola ✓',paidReg:'Pagamenti registrati',
   s1:'Il prossimo pagamento',depositBal:'Saldo deposito cauzionale',rentOf:'Canone',dueBy:'Entro il',lateBy:'Scaduto il',late:'in ritardo — sistemalo ora',dueSoon:'in scadenza',
-  payCard:'Paga con carta',service:'servizio',payFoot1:'Stripe · carte &amp; Apple Pay · ricevuta automatica via email e nello storico',
-  payFoot2:'Preferisci il bonifico? Va benissimo — usa i riferimenti del contratto, la pagina si aggiorna da sola.',
+  payCard:'Paga con carta',service:'di servizio max',payFoot1:'Stripe · carte &amp; Apple Pay · ricevuta automatica via email e nello storico',
+  payFoot2:'Oppure paga con bonifico qui sotto — gratis, e la pagina si aggiorna da sola.',
+  bfTitle:'Bonifico bancario',bfFree:'gratis',
+  bfWhy:'Nessuna commissione per te, nessuna per noi. Arriva in 1–2 giorni lavorativi e la pagina si spunta da sola, se lasci la causale qui sotto.',
+  bfBene:'Beneficiario',bfIban:'IBAN',bfRef:'Causale — lasciala esattamente così',bfAmt:'Importo',
+  bfCopy:'Copia',bfCopied:'Copiato ✓',bfAll:'Copia tutti i dati',
+  bfNote:'La causale è ciò che ci permette di abbinare il bonifico da soli. Senza, lo troviamo comunque: ci vuole solo una persona e un giorno.',
   paidBand:'✓ Pagamento ricevuto — la ricevuta è in arrivo via email. Grazie!',
   boughtBand:'✓ {x} confermato — ci pensiamo noi. Dettagli via email, il tuo advisor ti scrive.',
   noDue:'Nessun pagamento in scadenza — sei in regola ✓',opening:'Apro il checkout sicuro…',payRetry:'Riprova — o scrivici su WhatsApp',
@@ -440,11 +472,81 @@ var WA='https://wa.me/393313251961';
 var $=function(id){return document.getElementById(id)};
 var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;')};
 var eur=function(n){var f=Math.round(n*100)%100!==0;return '€'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:f?2:0,maximumFractionDigits:2})};
-var fmtD=function(s){try{return new Date(String(s).slice(0,10)+'T00:00').toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'})}catch(e){return s||''}};
+/* La data segue la lingua scelta: una pagina in inglese che scrive
+   "2 agosto 2026" sembra sciatta. setLang() richiama render(), quindi il
+   toggle riformatta anche le date. */
+var fmtD=function(s){try{return new Date(String(s).slice(0,10)+'T00:00')
+  .toLocaleDateString(LANG==='it'?'it-IT':'en-GB',{day:'numeric',month:'long',year:'numeric'})}catch(e){return s||''}};
 var todayISO=new Date().toISOString().slice(0,10);
 /* mirror of api/payments/pay.js rentFee defaults — preview only; the
    Stripe page shows the exact server-side figure as its own line item */
-function feePreview(a){return Math.round(Math.max(9,a*2.5/100)*100)/100}
+/* Anteprima della commissione carta. NON può conoscere il tasso misurato
+   (vive in settings/rentFeeStats, lo legge il server), quindi mostra il SEED
+   di api/payments/pay.js — il caso peggiore. Dichiarato come massimo: quando
+   la statistica converge l'addebito reale è più basso, e la sorpresa può
+   essere solo in meglio. Se cambi SEED_PCT là, cambialo anche qui. */
+function feePreview(a){return Math.round((a*3.3/100+0.30)*100)/100}
+
+/* ── Il codice della causale ────────────────────────────────────────────
+   Deve dare lo STESSO risultato di api/payments/_ref.js, altrimenti la
+   causale che mostriamo qui non verrebbe riconosciuta dalla banca. Stessa
+   ricetta: sha256('boom-pay-ref:'+id), primi 6 byte mappati su un alfabeto
+   senza caratteri sosia. Verificato da tests/bonifico/parity.mjs. */
+var REF_ALPHABET='23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+function payRefLocal(id){
+  if(!id)return Promise.resolve(null);
+  var enc=new TextEncoder().encode('boom-pay-ref:'+id);
+  return crypto.subtle.digest('SHA-256',enc).then(function(buf){
+    var b=new Uint8Array(buf),out='';
+    for(var i=0;i<6;i++)out+=REF_ALPHABET[b[i]%REF_ALPHABET.length];
+    return 'BOOM-'+out;
+  });
+}
+
+/* I dati per il bonifico: impostati una volta da te in settings/payout.
+   Senza IBAN il blocco non compare — mai un IBAN inventato. */
+var PAYOUT=null;
+function bonificoBlock(next){
+  if(!PAYOUT||!PAYOUT.iban)return '';
+  return '<div class="bfx" id="bfx" data-pid="'+esc(next.id)+'" data-amt="'+Number(next.amount)+'"></div>';
+}
+function renderBonifico(){
+  var host=document.getElementById('bfx');if(!host||!PAYOUT||!PAYOUT.iban)return;
+  var pid=host.getAttribute('data-pid'),amt=Number(host.getAttribute('data-amt'))||0;
+  payRefLocal(pid).then(function(ref){
+    var period=(PAYMENTS.filter(function(p){return p.id===pid})[0]||{});
+    var caus=[ref,'canone '+(period.month||String(period.dueDate||'').slice(0,7))].filter(Boolean).join(' ');
+    var row=function(k,v,copy){
+      return '<div class="bfr"><span class="bfk">'+k+'</span>'
+        +'<span class="bfv">'+esc(v)+'</span>'
+        +(copy?'<button class="bfc" type="button" data-copy="'+esc(v)+'">'+t('bfCopy')+'</button>':'')+'</div>';
+    };
+    host.innerHTML='<div class="bfh">'+t('bfTitle')+'<span class="bffree">'+t('bfFree')+'</span></div>'
+      +'<p class="bfp">'+t('bfWhy')+'</p>'
+      +row(t('bfBene'),PAYOUT.beneficiary||'BOOM · Egidi Immobiliare S.r.l.',1)
+      +row(t('bfIban'),PAYOUT.iban,1)
+      +row(t('bfAmt'),eur(amt),1)
+      +row(t('bfRef'),caus,1)
+      +'<button class="bfall" type="button" id="bfAll">'+t('bfAll')+'</button>'
+      +'<p class="bfn">'+t('bfNote')+'</p>';
+    var flash=function(b){var o=b.textContent;b.textContent=t('bfCopied');b.classList.add('ok');
+      setTimeout(function(){b.textContent=o;b.classList.remove('ok')},1600);};
+    var put=function(txt,b){
+      var done=function(){flash(b)};
+      if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(done,done);
+      else{try{var ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);
+        ta.select();document.execCommand('copy');ta.remove();done();}catch(e){}}
+    };
+    host.addEventListener('click',function(ev){
+      var b=ev.target.closest&&ev.target.closest('[data-copy]');
+      if(b)return put(b.getAttribute('data-copy'),b);
+      if(ev.target.id==='bfAll'){
+        put([ (PAYOUT.beneficiary||'BOOM · Egidi Immobiliare S.r.l.'),
+              'IBAN: '+PAYOUT.iban, eur(amt), caus ].join('\n'), ev.target);
+      }
+    });
+  }).catch(function(){ host.remove(); });   /* crypto.subtle assente: meglio niente che una causale sbagliata */
+}
 function waMsg(t){return WA+'?text='+encodeURIComponent(t)}
 function secH(no,t){return '<h2><span class="no">'+no+'</span><span class="tt">'+t+'</span></h2>'}
 
@@ -470,12 +572,33 @@ function countUp(scope){
     });
   }catch(e){}
 }
+/* Il QR del Wi-Fi arriva da un CDN. L'<img> nasceva senza src — cioè un
+   rettangolo bianco vuoto — e se il CDN è lento, bloccato o giù restava così
+   per sempre, senza che nulla lo spiegasse. Ora il contenitore è nascosto
+   finché il codice non c'è, e se non arriva sparisce: la password del Wi-Fi
+   con il suo bottone di copia resta comunque lì sopra, che è ciò che serve. */
 function wifiQr(name,pass){
   var host=document.getElementById('wifiQrImg');if(!host)return;
+  var box=host.closest?host.closest('.wifiqr'):null;
+  if(box)box.style.display='none';
   var payload='WIFI:T:WPA;S:'+String(name).replace(/([\\;,:"])/g,'\\$1')+';P:'+String(pass).replace(/([\\;,:"])/g,'\\$1')+';;';
-  var go=function(){try{window.QRCode.toDataURL(payload,{margin:0,width:368,color:{dark:'#111111',light:'#ffffff'}},function(err,durl){if(!err&&durl)host.src=durl;});}catch(e){}};
+  var give=function(){if(box&&box.parentNode)box.parentNode.removeChild(box)};
+  var go=function(){
+    try{
+      window.QRCode.toDataURL(payload,{margin:0,width:368,color:{dark:'#111111',light:'#ffffff'}},function(err,durl){
+        if(err||!durl)return give();
+        host.src=durl;
+        if(box)box.style.display='';
+      });
+    }catch(e){give()}
+  };
   if(window.QRCode&&window.QRCode.toDataURL)return go();
-  var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js';s.onload=go;document.head.appendChild(s);
+  var s=document.createElement('script');
+  s.src='https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js';
+  s.onload=go; s.onerror=give;
+  /* CDN che non risponde mai (né load né error): dopo 6s si rinuncia. */
+  setTimeout(function(){if(!host.src)give()},6000);
+  document.head.appendChild(s);
 }
 function refCode(){return 'BOOM-'+String(USER&&USER.uid||'ROMA').replace(/[^a-zA-Z0-9]/g,'').slice(0,6).toUpperCase()}
 function manLine(ic,label,val,copyable){
@@ -550,7 +673,14 @@ function render(){
       +'<button class="paybtn" id="payBtn">'
       +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
       +t('payCard')+' — '+eur(next.amount)+' + '+eur(feePreview(Number(next.amount)))+' '+t('service')+'</button>'
-      +'<div class="payfoot"><span class="lock">●</span> '+t('payFoot1')+'<br>'+t('payFoot2')+'</div>';
+      +'<div class="payfoot"><span class="lock">●</span> '+t('payFoot1')+'<br>'+t('payFoot2')+'</div>'
+      /* ── La strada gratuita, accanto a quella comoda ──────────────────
+         La carta costa a BOOM fino al 3,25%: la commissione esiste solo per
+         coprirla. Il bonifico non costa niente a nessuno dei due, quindi è
+         gratis — e la riconciliazione la fa /banca da sola, purché la
+         causale porti il codice della rata. Compare solo se l'IBAN è stato
+         impostato: mai un IBAN inventato. */
+      +bonificoBlock(next);
   }else{
     html+='<div style="font-size:13.5px;color:var(--t2)">'+t('noDue')+'</div>';
   }
@@ -760,18 +890,24 @@ BoomPortal.requireAuth(['tenant'],{loginUrl:'/login'}).then(function(res){
   var qPays=T(db.collection('payments').where('tenantId','==',USER.uid).limit(120).get())
     .then(function(s){PAYMENTS=[];s.forEach(function(d){var v=d.data();v.id=d.id;PAYMENTS.push(v)});})
     .catch(function(){});
+  // Dati per il bonifico, impostati una volta da /banca in payout/default.
+  // Collezione a sé perché /settings è pubblica e un IBAN non deve esserlo. Se il doc
+  // non c'è, il blocco bonifico semplicemente non compare.
+  var qPayout=T(db.collection('payout').doc('default').get())
+    .then(function(d){if(d&&d.exists)PAYOUT=d.data()}).catch(function(){});
   var qMaint=T(db.collection('maintenance').where('userId','==',USER.uid).limit(20).get())
     .then(function(s){MAINT=[];s.forEach(function(d){MAINT.push(d.data())});
       MAINT.sort(function(a,b){return String(b.createdAt||'').localeCompare(String(a.createdAt||''))});})
     .catch(function(){});
 
-  Promise.all([qContracts,qPays,qMaint]).then(function(){
+  Promise.all([qContracts,qPays,qMaint,qPayout]).then(function(){
     var pid=(CONTRACT&&CONTRACT.propertyId)||PROFILE.propertyId||null;
     return pid?T(db.collection('properties').doc(pid).get()).then(function(d){if(d.exists)PROPERTY=d.data();}).catch(function(){}):null;
   }).then(function(){
     $('load').style.display='none';$('app').style.display='';$('foot').style.display='';
     document.title='La tua casa — '+((PROPERTY&&PROPERTY.address)||'BOOM Roma');
     render();
+    renderBonifico();
   });
 }).catch(function(){/* requireAuth redirects */});
 })();

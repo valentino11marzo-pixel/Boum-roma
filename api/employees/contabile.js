@@ -26,6 +26,7 @@
 import FISCAL from '../../js/fiscal-engine.js';
 import TAXPACK from '../../js/taxpack-engine.js';
 import { sendEmail } from '../agent/_lib.js';
+import { real } from '../_demo.js';
 import {
   requireCronOrAdmin, fsGet, fsList, logActivity, tgNotify,
   reportEmployeeHealth, saveReport, daysUntil, euro, esc, propLabel,
@@ -61,8 +62,8 @@ async function run({ dry, forceMonthly, yearOverride }) {
 
   const [properties, contracts, payments, documents, invoices, bankHealth, bankAccounts] = await Promise.all([
     fsList('properties', { limit: 200 }),
-    fsList('contracts', { limit: 300 }),
-    fsList('payments', { limit: 600 }),
+    fsList('contracts', { limit: 300 }).then(real),
+    fsList('payments', { limit: 600 }).then(real),
     fsList('documents', { limit: 600 }).catch(() => []),
     fsList('invoices', { limit: 400 }).catch(() => []),
     fsGet('teamHealth/banca').catch(() => null),
