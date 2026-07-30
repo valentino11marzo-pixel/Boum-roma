@@ -756,14 +756,31 @@ aumenti non superano il max di fascia, le riduzioni sì; `matchZone` non
 tira mai a indovinare — ambiguo → null). Stessa aritmetica di
 `scheda-canone.html` (il calcolatore/preventivatore admin). Tutto testo
 PDF passa da `wa()` (WinAnsi-safe — la lezione del certificato FES).
+**In console**: la PA admin mostra il VERDETTO LIVE mentre scrivi il
+canone (✓ in fascia / ⚠ fuori, col max asseverabile — serve una property
+con mq selezionata) e la ⚙ calibra `settings/canoneAccordo` (pArr
+ammobiliato, pDur 3+2) — UN doc letto da console E Fascicolo. Nel portal
+ogni riga contratto ha **📑 Fascicolo** (genera/apre il PDF; se zona o mq
+mancano li chiede e li persiste su `contract.canoneScheda`) e **✓ RLI
+registrato** (stampa `rliRegisteredAt`, chiude la scadenza "Registrare
+RLI", rigenera il fascicolo — il loop registrazione si chiude in un tap).
 
 ### Journey consapevole (contesto nel `_run.js`)
-`steps()` riceve `missing` e `late`: il T-14 chiede PER NOME ciò che manca
-(link `/scheda` derivato — anagrafica e/o foto documento) invece del
-generico "se manca qualcosa"; con rate scadute (`late`, una query payments
-per run) gli upsell TACCIONO su T-30/T-14/T-7 (non si vende a chi ha un
-pagamento aperto) e gli avvisi T-90/uscita all'operatore segnalano gli
-arretrati prima di rinnovo/restituzione deposito.
+`steps()` riceve `missing`, `late` e `walletUrl`: il T-14 chiede PER NOME
+ciò che manca (link `/scheda` derivato — anagrafica e/o foto documento)
+invece del generico "se manca qualcosa"; con rate scadute (`late`, una
+query payments per run) gli upsell TACCIONO su T-30/T-14/T-7 (non si
+vende a chi ha un pagamento aperto) e gli avvisi T-90/uscita
+all'operatore segnalano gli arretrati prima di rinnovo/restituzione
+deposito. Il **Wallet pass della casa** (`tenantWalletUrl(contractId)` →
+`/api/my-pass`, link derivato, pass ricostruito live) viaggia nel welcome
+post-firma, nel T-30 e nel T-1 — sempre visibile dentro il journey.
+Le visite dal portal (conferma/sposta) ora chiamano
+`/api/viewings/confirm` — l'EmailJS browser-side del flusso visite è
+stato rimosso: email, pass e inviti iCal partono sempre dal server.
+`/scheda?demo=1` (form vuoto con OCR simulato), `?demo=known` (conferma
+one-tap), `?demo=landlord` (locatore IT): walkthrough senza API né
+contratti veri, come `/sign?demo=1`.
 
 ### Watchdog firme (reminder-cron)
 Due guardie: firme PARZIALI ferme >48h → re-nudge automatico alla

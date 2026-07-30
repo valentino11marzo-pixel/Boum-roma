@@ -23,6 +23,12 @@
 import { fsGet } from '../homie/_lib.js';
 import { sendEmail } from '../agent/_lib.js';
 import { shell, btn, btn2, para, fine, tiles, timeline, includes, rule, row } from '../preagreement/_notify.js';
+// Il pass Wallet del contratto è servito LIVE da /api/my-pass (ricostruito
+// da Firestore a ogni tap): il link è derivato, niente da generare o salvare.
+import { generateAuthToken } from '../generate-pass.js';
+
+export const tenantWalletUrl = (contractId) =>
+  `${'https://www.boomrome.com'}/api/my-pass?type=tenant&id=${encodeURIComponent(contractId)}&t=${generateAuthToken(String(contractId))}`;
 
 const BASE = 'https://www.boomrome.com';
 const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL || 'valentino@boom-rome.com';
@@ -204,6 +210,7 @@ export async function sendWelcomeEmails(contract, property, { portalLink, certUr
     out.tenant = await trySend(g.tenantEmail, '🔑 Welcome home — your BOOM contract is active', shell(
       para(`Hi ${esc(first)},<br>your lease for <b>${esc(g.propLabel)}</b> is now <b>fully signed and active</b>. One tap and you’re in your portal — payments, documents and support in one place.`)
       + btn(portalLink || BASE + '/casa', 'Enter my portal')
+      + (contract.id ? btn2(tenantWalletUrl(contract.id), ' Add to Apple Wallet — your home pass') : '')
       + (depositPending
         ? btn2(`${BASE}/sign?deposit=retry&pt=${encodeURIComponent(contract.depositPayToken)}`, `Pay the deposit — ${eur(contract.deposit)}`)
         : '')

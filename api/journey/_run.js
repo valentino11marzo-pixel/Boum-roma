@@ -27,6 +27,9 @@ import { sendEmail } from '../agent/_lib.js';
 import { shell, btn, btn2, para, fine, includes, hero, tiles, timeline, rule } from '../preagreement/_notify.js';
 // Link Scheda derivato server-side: il T-14 chiede per nome ciò che manca.
 import { schedaUrl } from '../profile/_scheda.js';
+// Wallet pass del contratto, sempre a portata dentro il journey (servito
+// live da /api/my-pass, link derivato — niente da generare).
+import { tenantWalletUrl } from '../sign/_notify.js';
 
 const ADMIN_EMAIL = 'valentino@boom-rome.com';
 const WA = 'https://wa.me/393313251961';
@@ -77,11 +80,14 @@ const dayDiff = (iso) => {
 // `late`: rate scadute sul contratto — gli upsell tacciono (non si vende a
 // chi ha un pagamento aperto; ci pensa il sollecito), i contenuti utili
 // restano.
-export function steps({ c, tenant, addrShort, addr, first, has = () => false, missing = null, late = false }) {
+// `walletUrl`: il pass Apple Wallet della casa — presente su T-30 (arriva
+// col countdown) e T-1 (il giorno delle chiavi lo hai al polso).
+export function steps({ c, tenant, addrShort, addr, first, has = () => false, missing = null, late = false, walletUrl = '' }) {
   const start = c.startDate, end = c.endDate;
   const dStart = start ? dayDiff(start) : null;
   const dEnd = end ? dayDiff(end) : null;
-  const casaBtns = btn(CASA, 'Apri La tua casa BOOM');
+  const casaBtns = btn(CASA, 'Apri La tua casa BOOM')
+    + (walletUrl ? btn2(walletUrl, ' Add to Apple Wallet — your home pass') : '');
 
   return [
     {
@@ -142,6 +148,7 @@ export function steps({ c, tenant, addrShort, addr, first, has = () => false, mi
       subject: `${dStart === 0 ? 'Today' : 'Tomorrow'}: keys to ${addrShort} 🔑`,
       html: para(`Ciao ${esc(first)} — ${dStart === 0 ? 'today is the day' : 'tomorrow is the day'}. <b>Key handover is on us</b> — included, as always. Bring your ID; we bring the keys, the meter readings and a small welcome. Your advisor will confirm the exact time on WhatsApp.`)
         + btn(waMsg(`Ciao! Confermiamo l'orario per la consegna chiavi a ${addr}?`), 'Conferma l’orario su WhatsApp')
+        + (walletUrl ? btn2(walletUrl, ' Your home pass in Apple Wallet') : '')
         + fine(`Anything last-minute — we're one message away.`, 'text-align:center'),
     },
     {
@@ -234,7 +241,7 @@ export async function runJourney() {
     const missing = (!identityOk || !docsOk)
       ? { identityOk, docsOk, schedaUrl: schedaUrl(id, 'tenant') }
       : null;
-    for (const st of steps({ c, tenant, addr, addrShort, first, has, missing, late })) {
+    for (const st of steps({ c, tenant, addr, addrShort, first, has, missing, late, walletUrl: tenantWalletUrl(id) })) {
       if (!st.due || j[st.key]) continue;
       try {
         await sendEmail({ to: email, subject: st.subject, html: shell(st.html, st.subject) });
