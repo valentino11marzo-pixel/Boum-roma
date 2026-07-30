@@ -632,6 +632,9 @@
     },
     "api/magic-sign/submit.js": {
       "maxDuration": 60
+    },
+    "api/fiscal/fascicolo.js": {
+      "maxDuration": 60
     }
   },
   "crons": [

@@ -93,7 +93,7 @@ let IP = '9.1.1.1';
 const mkReq = (body, headers = {}) => ({ method: 'POST', headers: { 'x-forwarded-for': IP, ...headers }, body, socket: {} });
 
 // ── Seed ─────────────────────────────────────────────────────────────────
-store.set('properties/prop1', { ownerId: 'own1', name: 'Trastevere Loft', address: 'Via della Lungaretta 12', rooms: 3, sqm: 78, energyClass: 'F', cadastralData: 'foglio 495, part. 120, sub 8' });
+store.set('properties/prop1', { ownerId: 'own1', name: 'Trastevere Loft', address: 'Via della Lungaretta 12', zone: 'Trastevere', rooms: 3, sqm: 78, furnished: true, energyClass: 'F', cadastralData: 'foglio 495, part. 120, sub 8', features: ['elevator', 'ac', 'balcony'] });
 store.set('users/t1', { email: 'anna@expat.com', name: 'Anna Expat', role: 'tenant' });
 store.set('users/own1', { email: 'giulia@owner.it', name: 'Giulia Bianchi', role: 'landlord' });
 
@@ -140,9 +140,34 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   check('welcome landlord: cessione fabbricato per extra-UE', wl.length === 1 && /Questura/.test(wl[0].html));
   check('design: il marchio hosted è nel masthead', wt.length === 1 && wt[0].html.includes('android-chrome-192x192.png'));
 
+  // Fascicolo Fiscale: generato dentro finalize, linkato nel CAF, snapshot
+  // del calcolo canone persistito sul contratto (zona Trastevere → B14).
+  const ctr = store.get('contracts/ctrF');
+  check('fascicolo: PDF generato e URL sul contratto',
+    typeof ctr.fascicoloFiscaleUrl === 'string' && ctr.fascicoloFiscaleUrl.includes('fascicolo-fiscale.pdf'));
+  check('fascicolo: calcolo canone persistito (zona B14, fascia, verdetto)',
+    ctr.canoneScheda && ctr.canoneScheda.zonaCod === 'B14' && !!ctr.canoneScheda.fascia
+    && typeof ctr.canoneScheda.cMax === 'number' && ctr.canoneScheda.fits === true);
+  const caf2 = mailTo('valentino@boom-rome.com').find(m => /Asseverazione/i.test(m.subject));
+  check('CAF: il Fascicolo Fiscale è linkato nell\'email', !!caf2 && caf2.html.includes('Fascicolo Fiscale'));
+
   const before = mails().length;
   const again = await finalizeContract({ ...FULL, finalizedAt: '2026-07-29T11:05:00Z' });
   check('finalize: idempotente — nessuna nuova email al retry', again.skipped === true && mails().length === before);
+}
+
+// ═══ 1b. Watchdog inviti freddi (predicato puro) ═══
+{
+  const { shouldReinvite } = await import('../../api/reminder-cron.js');
+  const now = Date.now();
+  const h = (n) => new Date(now - n * 3600 * 1000).toISOString();
+  const base = { status: 'active', tenantSignToken: 'tk', signInviteTenantAt: h(80) };
+  check('reinvite: invito freddo da 80h → SÌ', shouldReinvite({ ...base }, now) === true);
+  check('reinvite: invito fresco (<72h) → no', shouldReinvite({ ...base, signInviteTenantAt: h(10) }, now) === false);
+  check('reinvite: MAI invitato → no (decisione umana)', shouldReinvite({ status: 'active', tenantSignToken: 'tk' }, now) === false);
+  check('reinvite: già firmato → no', shouldReinvite({ ...base, tenantSignature: 'sig' }, now) === false);
+  check('reinvite: reminder manuale <24h fa → no', shouldReinvite({ ...base, lastReminderAt: h(2) }, now) === false);
+  check('reinvite: cap 2 re-inviti → no', shouldReinvite({ ...base, inviteNudgeCount: 2 }, now) === false);
 }
 
 // ═══ 2. notifyPartialSignature: lingue e link giusti ═══

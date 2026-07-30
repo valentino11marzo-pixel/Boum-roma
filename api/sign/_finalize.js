@@ -18,6 +18,7 @@ import crypto from 'node:crypto';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { fsCreate, fsPatch, fsGet, getAdminToken } from '../homie/_lib.js';
 import { sendWelcomeEmails, sendCafDossier } from './_notify.js';
+import { buildFascicolo } from '../fiscal/fascicolo.js';
 // pdf-lib is imported lazily inside buildCertificate so a load failure only
 // skips the certificate — obligations, magic link and welcome emails still run.
 
@@ -122,6 +123,17 @@ export async function finalizeContract(contract){
   } catch(e){ console.warn('[finalize] magicLink failed:', e.message); }
   const portalLink = magicId ? `${BASE}/portal.html?postSign=1&magicToken=${magicId}` : `${BASE}/portal.html`;
 
+  // ── Fascicolo Fiscale (scheda canone + dati RLI + scadenzario) ──
+  // Dopo le obbligazioni (così lo scadenzario del PDF le vede) e prima
+  // delle email (così il CAF riceve il link). Best-effort: se zona o mq
+  // mancano, il PDF nasce comunque con le pagine RLI+scadenze e la scheda
+  // canone dice esattamente cosa impostare dalla console.
+  let fascicoloUrl = '';
+  try {
+    const fasc = await buildFascicolo(contract.id, { contract, property });
+    if (fasc && fasc.ok) fascicoloUrl = fasc.url;
+  } catch (e) { console.warn('[finalize] fascicolo:', e.message); }
+
   // ── Welcome emails + fascicolo CAF (design system condiviso) ──
   // api/sign/_notify.js — tenant EN, landlord IT, CAF → valentino@boom-rome.com.
   // Parallel and internally time-boxed: a stalled SMTP can never push the
@@ -130,7 +142,7 @@ export async function finalizeContract(contract){
   // signing path — on /sign it never went out at all.
   const [welcome, caf] = await Promise.all([
     sendWelcomeEmails(contract, property, { portalLink, certUrl, cedolare, nonEU }),
-    sendCafDossier(contract, property, { certUrl }),
+    sendCafDossier(contract, property, { certUrl, fascicoloUrl }),
   ]);
   const tenantEmail = !!(welcome && welcome.tenant);
   const landlordEmail = !!(welcome && welcome.landlord);

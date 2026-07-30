@@ -684,6 +684,46 @@ admin-only per the rules. The user-profile sync writes BOTH users schemas
 (sign `cf/dob/…` AND wizard `codiceFiscale/birthDate/…`) so the Allegato
 generators and the RLI scheda always see identity collected at signing.
 
+### Il Fascicolo Fiscale (`api/fiscal/fascicolo.js` + `js/canone-engine.js`)
+UN PDF, tre pagine, generato DAL CONTRATTO alla firma completa (dentro
+`_finalize.js`, best-effort) e rigenerabile dalla console (`POST
+{contractId, zonaCod?, parIdx?, mag?, mq…}` — override PERSISTITI su
+`contract.canoneScheda`, la rigenerazione è stabile). Storage
+`contracts/<id>/fascicolo-fiscale.pdf` → `contract.fascicoloFiscaleUrl`,
+linkato nell'email CAF.
+1. **SCHEDA PER L'ATTESTAZIONE DI RISPONDENZA** (accordo Roma 25/07/2023 +
+   DM 16/01/2017): parti, catasto, superficie convenzionale coi
+   coefficienti ufficiali, i 20 parametri ARPE derivati dalle feature REALI
+   di immobile/annuncio (mai inventati — la mappatura è dichiarata sul
+   documento), maggiorazioni provate (transitorio +10, classe energetica,
+   attico; ammobiliato solo se `settings/canoneAccordo.pArr` è calibrato) e
+   il VERDETTO: il canone pattuito rientra nella fascia di oscillazione o
+   sfora di quanto (mai nascosto).
+2. **DATI REGISTRAZIONE RLI** — i quadri da ricopiare sul modello AdE.
+3. **SCADENZARIO** del contratto (le deadline a sistema).
+`js/canone-engine.js` è il motore PURO condiviso (75 zone dell'accordo con
+fasce A/B/C €/mq/mese, soglie subfascia B≥3/C≥7, regola del cap: gli
+aumenti non superano il max di fascia, le riduzioni sì; `matchZone` non
+tira mai a indovinare — ambiguo → null). Stessa aritmetica di
+`scheda-canone.html` (il calcolatore/preventivatore admin). Tutto testo
+PDF passa da `wa()` (WinAnsi-safe — la lezione del certificato FES).
+
+### Journey consapevole (contesto nel `_run.js`)
+`steps()` riceve `missing` e `late`: il T-14 chiede PER NOME ciò che manca
+(link `/scheda` derivato — anagrafica e/o foto documento) invece del
+generico "se manca qualcosa"; con rate scadute (`late`, una query payments
+per run) gli upsell TACCIONO su T-30/T-14/T-7 (non si vende a chi ha un
+pagamento aperto) e gli avvisi T-90/uscita all'operatore segnalano gli
+arretrati prima di rinnovo/restituzione deposito.
+
+### Watchdog firme (reminder-cron)
+Due guardie: firme PARZIALI ferme >48h → re-nudge automatico alla
+controparte (max 3, cooldown 24h col promemoria manuale); inviti FREDDI
+(`signatureStatus none`, invito inviato >72h, nessuna firma) → re-invito
+"Reminder —" al conduttore (max 2, `inviteNudgeCount`;
+`shouldReinvite()` esportato e testato). Un contratto MAI invitato non
+viene toccato: resta una decisione umana.
+
 ### Il ciclo email del contratto (`api/sign/_notify.js` + `send-link`)
 UN design system per ogni email della piattaforma
 (`api/preagreement/_notify.js`: masthead nero col MARCHIO reale — PNG
@@ -980,6 +1020,7 @@ real. Backs the "Aggiungi annuncio" modal in `pfs-command.html`.
   |---|---|
   | `tests/money/run.mjs` | checkout, webhook Stripe idempotenti, conversione PA→contratto |
   | `tests/fiscal/test.mjs` | motore scadenze fiscali |
+  | `tests/fiscal/canone.mjs` | canone concordato: superficie convenzionale (coefficienti e tetti), fascia dai parametri, regola del cap, match zona che non indovina, parametri solo da feature reali, verdetto fits/fuori |
   | `tests/taxpack/test.mjs` | pacchetto commercialista |
   | `tests/journey/steps.mjs` | **le regole commerciali dell'operatore**: quando parte ogni email e cosa NON deve contenere (T-90 e uscita non vendono, le chiavi non si vendono mai, un prodotto già comprato non si ripropone, il rinnovo non arriva prima del move-in su un transitorio breve) |
   | `tests/journey/review-url.mjs` | solo un vero link "scrivi recensione" (`g.page/r/<id>/review`) entra nelle email; un link Maps "Condividi" viene rifiutato con warning |

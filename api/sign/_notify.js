@@ -241,7 +241,7 @@ export async function sendWelcomeEmails(contract, property, { portalLink, certUr
 // link al PDF firmato, al certificato e ai documenti d'identità. Prima
 // viveva in portal-app.js via EmailJS e partiva SOLO dal vecchio flusso di
 // firma dentro il portal — su /sign non partiva affatto.
-export async function sendCafDossier(contract, property, { certUrl } = {}) {
+export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl } = {}) {
   try {
     if (!CAF_EMAIL) return { ok: false, error: 'no_caf_email' };
     const g = await gather(contract, property);
@@ -282,7 +282,9 @@ export async function sendCafDossier(contract, property, { certUrl } = {}) {
           ${row('Allegati', [
               contract.generatedPDF ? `<a href="${esc(contract.generatedPDF)}" style="color:#8A6D1D"><b>Contratto (PDF)</b></a>` : '<b>PDF non ancora generato</b>',
               certUrl ? `<a href="${esc(certUrl)}" style="color:#8A6D1D"><b>Certificato FES</b></a>` : null,
-            ].filter(Boolean).join(' · '), null)}
+              (fascicoloUrl || contract.fascicoloFiscaleUrl) ? `<a href="${esc(fascicoloUrl || contract.fascicoloFiscaleUrl)}" style="color:#8A6D1D"><b>Fascicolo Fiscale</b></a>` : null,
+            ].filter(Boolean).join(' · '),
+            (fascicoloUrl || contract.fascicoloFiscaleUrl) ? 'il Fascicolo contiene: scheda attestazione canone (fascia di oscillazione), dati RLI, scadenzario' : null)}
           ${row('Documenti identità', docLinks, null)}
         </table>`
       + btn(BASE + '/portal', 'Apri nel portal')
