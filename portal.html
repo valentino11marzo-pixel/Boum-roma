@@ -652,6 +652,48 @@ function boomToggleCollapse() {
 function boomCloseBridge() {
   document.getElementById('boomBridge').classList.remove('visible');
 }
+
+// ============================================================
+// BOOM DEAL LINK (#deal=<base64url JSON>)
+// Un link che semina il wizard "Nuovo cliente → contratto firmato"
+// con TUTTO il deal (anagrafica, convivente, termini): l'operatore
+// apre, rivede il riepilogo e preme "Crea contratto & manda firma".
+// Il payload viaggia nel FRAMMENTO: il browser non lo invia mai al
+// server (niente log, niente cache) — e sopravvive al giro di login
+// via sessionStorage. Nessuna scrittura avviene dal link: è solo un
+// prefill del wizard, che resta dietro l'auth admin del portal.
+// ============================================================
+(function () {
+  try {
+    var m = (window.location.hash || '').match(/[#&]deal=([^&]+)/);
+    if (m) {
+      sessionStorage.setItem('boom_deal', m[1]);
+      window.history.replaceState({}, '', window.location.pathname + window.location.search);
+    }
+  } catch (e) {}
+  var blob = null;
+  try { blob = sessionStorage.getItem('boom_deal'); } catch (e) {}
+  if (!blob) return;
+  var payload = null;
+  try {
+    payload = JSON.parse(decodeURIComponent(escape(atob(blob.replace(/-/g, '+').replace(/_/g, '/')))));
+  } catch (e) {
+    console.warn('BOOM Deal: payload non valido', e);
+    try { sessionStorage.removeItem('boom_deal'); } catch (e2) {}
+    return;
+  }
+  var tries = 0;
+  var t = setInterval(function () {
+    tries++;
+    if (tries > 240) { clearInterval(t); return; }   // ~2 min poi lascia stare
+    if (typeof window.openDealSeed !== 'function') return;
+    var r;
+    try { r = window.openDealSeed(payload); } catch (e) { r = 'denied'; }
+    if (r === false) return;                          // dati non pronti: riprova
+    clearInterval(t);
+    try { sessionStorage.removeItem('boom_deal'); } catch (e) {}
+  }, 500);
+})();
 </script>
 <script>
 // PWA service worker — network-first HTML/API, cache-first static assets

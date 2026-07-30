@@ -6455,6 +6455,62 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
     window.openNewClientWizard = openNewClientWizard;
 
+    // ── DEAL LINK (#deal=…) — semina il wizard da un payload esterno ──
+    // Chiamata dall'inline script di portal.html quando l'URL porta un
+    // payload nel FRAMMENTO (mai inviato al server, mai nei log). Ritorna:
+    //   true     wizard aperto e seminato (il chiamante pulisce e smette)
+    //   false    dati non ancora pronti (il chiamante riprova tra poco)
+    //   'denied' niente da fare (ruolo non admin / payload rotto): stop.
+    // Il payload è SOLO un prefill: nessuna scrittura avviene finché
+    // l'operatore non preme "Crea contratto & manda firma" e rivede tutto.
+    function openDealSeed(d) {
+        if (!S.profile) return false;
+        if (!isAdmin()) return 'denied';
+        if (!d || typeof d !== 'object' || !d.tenant || !d.tenant.name) return 'denied';
+        const t = d.tenant, c = d.contract || {};
+        // Immobile: match sul catalogo reale (indirizzo o nome) — mai
+        // inventato. Ambiguo o assente → lo sceglie l'operatore allo step 3.
+        let propertyId = c.propertyId && (S.properties || []).some(p => p.id === c.propertyId) ? c.propertyId : '';
+        if (!propertyId && d.propertyMatch) {
+            const q = String(d.propertyMatch).toLowerCase();
+            const hits = (S.properties || []).filter(p =>
+                String(p.address || '').toLowerCase().includes(q) ||
+                String(p.name || '').toLowerCase().includes(q));
+            if (hits.length === 1) propertyId = hits[0].id;
+        }
+        const extra = {};
+        for (const k of ['cohabitants', 'otherClauses', 'notes', 'transitionalReason', 'transitionalDocs', 'tenantNationality']) {
+            if (typeof c[k] === 'string' && c[k]) extra[k] = c[k];
+        }
+        const rent = parseInt(c.rent) || 0;
+        const ready = propertyId && rent > 0 && c.startDate && c.endDate && (t.email || t.phone);
+        _newClientWizard = {
+            step: !(t.email || t.phone) ? 1 : (ready ? 4 : 3),
+            sourceKind: 'dealLink', sourceId: null,
+            name: t.name || '', email: t.email || '', phone: t.phone || '',
+            language: (t.language || 'it').toLowerCase() === 'en' ? 'en' : 'it',
+            codiceFiscale: (t.codiceFiscale || '').toUpperCase(), birthDate: t.birthDate || '',
+            birthPlace: t.birthPlace || '', address: t.address || '',
+            idDocType: t.idDocType || '', idDocNumber: t.idDocNumber || '',
+            propertyId, type: c.type === 'studenti' ? 'studenti' : 'transitorio',
+            startDate: c.startDate || new Date().toISOString().slice(0, 10),
+            endDate: c.endDate || '',
+            rent,
+            depositMonths: parseInt(c.depositMonths) || 2,
+            paymentDay: parseInt(c.paymentDay) || 5,
+            paymentMethod: c.paymentMethod || 'bonifico bancario',
+            cedolareSecca: c.cedolareSecca === 'no' ? 'no' : 'si',
+            extra,
+            conviventi: Array.isArray(d.conviventi) ? d.conviventi.slice(0, 6).filter(x => x && x.name) : [],
+            landlordName: typeof d.landlordName === 'string' ? d.landlordName : '',
+        };
+        renderNewClientWizard();
+        if (ready) toast('success', '⚡ Deal importato', `${_newClientWizard.name} — controlla il riepilogo e premi 🚀`);
+        else toast('info', '⚡ Deal importato', 'Completa i campi mancanti: il resto è già compilato');
+        return true;
+    }
+    window.openDealSeed = openDealSeed;
+
     function renderNewClientWizard() {
         const w = _newClientWizard;
         if (!w) return;
@@ -6472,7 +6528,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         let body = '', footer = '';
 
         if (w.step === 1) {
-            const sourceLabel = w.sourceKind === 'lead' ? '📨 Lead' : w.sourceKind === 'pfsClient' ? '💼 Cliente PFS' : w.sourceKind === 'crmClient' ? '🤝 Cliente CRM' : null;
+            const sourceLabel = w.sourceKind === 'lead' ? '📨 Lead' : w.sourceKind === 'pfsClient' ? '💼 Cliente PFS' : w.sourceKind === 'crmClient' ? '🤝 Cliente CRM' : w.sourceKind === 'dealLink' ? '⚡ Deal Link' : null;
             body = `
                 <div style="background:var(--bg-elevated);padding:14px;border-radius:10px;margin-bottom:12px">
                     <div style="font-weight:600;margin-bottom:6px">Da dove parti?</div>
@@ -6512,7 +6568,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
 
         else if (w.step === 3) {
-            const propOptions = (S.properties || []).filter(p => p.availabilityStatus !== 'rented').map(p => `<option value="${p.id}" data-rent="${p.rent || 0}" ${w.propertyId===p.id?'selected':''}>${esc(p.name)} · €${p.rent || 0}/mo · ${p.address || ''}</option>`).join('');
+            // Un deal link può puntare un immobile già "rented" (è proprio
+            // questo deal ad affittarlo): l'immobile seminato resta in lista.
+            const propOptions = (S.properties || []).filter(p => p.availabilityStatus !== 'rented' || p.id === w.propertyId).map(p => `<option value="${p.id}" data-rent="${p.rent || 0}" ${w.propertyId===p.id?'selected':''}>${esc(p.name)} · €${p.rent || 0}/mo · ${p.address || ''}</option>`).join('');
             // Auto-compute endDate based on type if not set
             if (!w.endDate && w.startDate) {
                 const months = w.type === 'studenti' ? 12 : 18;
@@ -6556,15 +6614,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         <div><div style="color:var(--text-muted);font-size:11px">Canone</div><div><strong style="color:var(--gold)">€${w.rent}/mese</strong></div></div>
                         <div><div style="color:var(--text-muted);font-size:11px">Deposito</div><div>€${deposit} (${w.depositMonths} mensilità)</div></div>
                         <div><div style="color:var(--text-muted);font-size:11px">Cedolare</div><div>${w.cedolareSecca === 'si' ? '10%' : 'No (IRPEF)'}</div></div>
+                        ${(w.conviventi && w.conviventi.length) ? `<div><div style="color:var(--text-muted);font-size:11px">Convivent${w.conviventi.length > 1 ? 'i' : 'e'}</div><div>${esc(w.conviventi.map(x => x.name).join(', '))}</div></div>` : ''}
+                        ${w.landlordName ? `<div><div style="color:var(--text-muted);font-size:11px">Locatore</div><div>${esc(w.landlordName)}</div></div>` : ''}
                     </div>
                 </div>
                 <div style="background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.3);border-radius:10px;padding:12px;font-size:12px;color:var(--text-muted)">
                     Cliccando <strong style="color:var(--gold)">Crea contratto & manda firma</strong> il sistema farà tutto questo in automatico:
                     <ul style="margin:8px 0 0 18px;padding:0;line-height:1.7">
-                        <li>Crea l'utente inquilino in BOOM</li>
-                        <li>Crea il contratto (status: <em>active</em>, non ancora firmato)</li>
+                        <li>Crea l'utente inquilino in BOOM${(w.conviventi && w.conviventi.length) ? ' (+ la scheda cliente del convivente)' : ''}</li>
+                        <li>Crea il contratto (status: <em>active</em>, non ancora firmato) con scadenze e PDF</li>
                         <li>Genera i magic-link di firma per inquilino e proprietario</li>
-                        <li>Spedisce i link via email${w.phone ? ' + apre WhatsApp pronto' : ''}</li>
+                        <li>Invia all'inquilino l'invito di firma via email${w.phone ? ' (+ link WhatsApp pronto)' : ''} — il proprietario riceve il suo alla firma dell'inquilino</li>
                         <li>${w.sourceKind === 'lead' ? 'Marca il lead originale come <em>converted</em>' : 'Logga l’evento nell’Activity Log'}</li>
                     </ul>
                 </div>
@@ -6648,51 +6708,144 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (finishBtn) finishBtn.disabled = true;
         if (backBtn) backBtn.disabled = true;
         try {
-            // 1) Create tenant user
+            // 1) Create tenant user — o RIUSA la scheda esistente (stessa
+            // email o stesso CF, ruolo tenant): ri-aprire lo stesso deal
+            // link non crea mai doppioni. Sulla scheda riusata i campi
+            // identità VUOTI si riempiono dal deal; i pieni non si toccano.
             progress('1/4 · Creo l’utente inquilino…');
-            const userRef = await db.collection('users').add({
-                name: w.name, email: w.email || '', phone: w.phone || '',
-                role: 'tenant', language: w.language,
-                codiceFiscale: w.codiceFiscale || '', address: w.address || '',
-                birthDate: w.birthDate || '', birthPlace: w.birthPlace || '',
-                idDocType: w.idDocType || '', idDocNumber: w.idDocNumber || '',
-                linkedLeadId: w.sourceKind === 'lead' ? w.sourceId : null,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                createdVia: 'newClientWizard',
-            });
-            const userId = userRef.id;
+            const _sameEmail = (a, b) => a && b && String(a).toLowerCase() === String(b).toLowerCase();
+            const _sameCF = (a, b) => a && b && String(a).toUpperCase() === String(b).toUpperCase();
+            const existing = (S.users || []).find(u => u.role === 'tenant' &&
+                (_sameEmail(u.email, w.email) || _sameCF(u.codiceFiscale, w.codiceFiscale)));
+            let userId;
+            if (existing) {
+                userId = existing.id;
+                const fill = {};
+                for (const [k, v] of Object.entries({ codiceFiscale: (w.codiceFiscale || '').toUpperCase(), address: w.address, birthDate: w.birthDate, birthPlace: w.birthPlace, idDocType: w.idDocType, idDocNumber: w.idDocNumber, phone: w.phone, language: w.language })) {
+                    if (v && !existing[k]) fill[k] = v;
+                }
+                if (Object.keys(fill).length) {
+                    try { await db.collection('users').doc(userId).update(fill); Object.assign(existing, fill); } catch (e) { console.warn('[wizard] user fill', e); }
+                }
+            } else {
+                const userRef = await db.collection('users').add({
+                    name: w.name, email: w.email || '', phone: w.phone || '',
+                    role: 'tenant', language: w.language,
+                    codiceFiscale: (w.codiceFiscale || '').toUpperCase(), address: w.address || '',
+                    birthDate: w.birthDate || '', birthPlace: w.birthPlace || '',
+                    idDocType: w.idDocType || '', idDocNumber: w.idDocNumber || '',
+                    linkedLeadId: w.sourceKind === 'lead' ? w.sourceId : null,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    createdVia: 'newClientWizard',
+                });
+                userId = userRef.id;
+                // Subito in S.users: il generatore PDF legge l'identità da qui.
+                (S.users = S.users || []).push({ id: userId, name: w.name, email: w.email || '', phone: w.phone || '', role: 'tenant', language: w.language, codiceFiscale: (w.codiceFiscale || '').toUpperCase(), address: w.address || '', birthDate: w.birthDate || '', birthPlace: w.birthPlace || '', idDocType: w.idDocType || '', idDocNumber: w.idDocNumber || '' });
+            }
 
-            // 2) Create contract (mirrors saveContract shape — see ~10852)
+            // 1b) Conviventi dal deal link: la scheda cliente nasce anche per
+            // loro (anagrafica pronta per art. convivenza, ARPE, futuri
+            // contratti). Stesso dedupe su email/CF.
+            for (const cv of (w.conviventi || [])) {
+                if (!cv || !cv.name) continue;
+                const dup = (S.users || []).find(u => _sameEmail(u.email, cv.email) || _sameCF(u.codiceFiscale, cv.codiceFiscale));
+                if (dup) continue;
+                try {
+                    const cvRef = await db.collection('users').add({
+                        name: cv.name, email: cv.email || '', phone: cv.phone || '',
+                        role: 'tenant', language: w.language,
+                        codiceFiscale: (cv.codiceFiscale || '').toUpperCase(), address: cv.address || '',
+                        birthDate: cv.birthDate || '', birthPlace: cv.birthPlace || '',
+                        idDocType: cv.idDocType || '', idDocNumber: cv.idDocNumber || '',
+                        notes: 'Convivente di ' + w.name,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        createdVia: 'newClientWizard',
+                    });
+                    (S.users = S.users || []).push({ id: cvRef.id, name: cv.name, email: cv.email || '', phone: cv.phone || '', role: 'tenant', codiceFiscale: (cv.codiceFiscale || '').toUpperCase() });
+                } catch (e) { console.warn('[wizard] convivente', e); }
+            }
+
+            // 2) Create contract (mirrors saveContract shape — see ~10852).
+            // Se lo stesso deal è GIÀ stato chiuso (stesso inquilino, stesso
+            // immobile, stessa decorrenza) non si duplica: si riusa quel
+            // contratto e al massimo si rimanda l'invito di firma.
             progress('2/4 · Creo il contratto…');
             const monthly = parseInt(w.rent) || 0;
-            const months = w.type === 'studenti' ? 12 : 18;
             const total = monthly * 12;
             const newToken = () => (crypto.randomUUID ? crypto.randomUUID() : 'tk-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10));
-            const contractRef = await db.collection('contracts').add({
-                propertyId: w.propertyId,
-                tenantId: userId,
-                type: w.type,
-                startDate: w.startDate,
-                endDate: w.endDate,
-                rent: monthly,
-                deposit: monthly * (w.depositMonths || 2),
-                depositMonths: w.depositMonths || 2,
-                paymentMethod: w.paymentMethod,
-                paymentDay: w.paymentDay,
-                canone: { monthly, total, installments: 12, paymentDay: w.paymentDay, paymentMethod: w.paymentMethod, cedolareSecca: w.cedolareSecca !== 'no', oneriMode: 'tabella_allegato_d' },
-                durata: { startDate: w.startDate, endDate: w.endDate, text: `${w.startDate} → ${w.endDate}` },
-                cedolareSecca: w.cedolareSecca,
-                status: 'active',
-                signatureStatus: 'none',
-                tenantSignToken: newToken(),
-                landlordSignToken: newToken(),
-                paymentsGenerated: false,
-                welcomeEmailSent: false,
-                linkedLeadId: w.sourceKind === 'lead' ? w.sourceId : null,
-                createdVia: 'newClientWizard',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            });
-            const contractId = contractRef.id;
+            const prior = (S.contracts || []).find(x => x.tenantId === userId && x.propertyId === w.propertyId && x.startDate === w.startDate && x.status !== 'cancelled');
+            let contractId, ctrData;
+            if (prior) {
+                contractId = prior.id; ctrData = prior;
+            } else {
+                const extra = w.extra || {};
+                const _fmtIt = (iso) => { const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? `${m[3]}/${m[2]}/${m[1]}` : String(iso || ''); };
+                const cohabAuto = (w.conviventi || []).map(x => {
+                    let s = x.name;
+                    if (x.birthPlace || x.birthDate) s += `, nato/a${x.birthPlace ? ' a ' + x.birthPlace : ''}${x.birthDate ? ' il ' + _fmtIt(x.birthDate) : ''}`;
+                    if (x.codiceFiscale) s += `, C.F. ${String(x.codiceFiscale).toUpperCase()}`;
+                    return s;
+                }).join('; ');
+                ctrData = {
+                    propertyId: w.propertyId,
+                    tenantId: userId,
+                    type: w.type,
+                    startDate: w.startDate,
+                    endDate: w.endDate,
+                    rent: monthly,
+                    deposit: monthly * (w.depositMonths || 2),
+                    depositMonths: w.depositMonths || 2,
+                    paymentMethod: w.paymentMethod,
+                    paymentDay: w.paymentDay,
+                    canone: { monthly, total, installments: 12, paymentDay: w.paymentDay, paymentMethod: w.paymentMethod, cedolareSecca: w.cedolareSecca !== 'no', oneriMode: 'tabella_allegato_d' },
+                    durata: { startDate: w.startDate, endDate: w.endDate, text: `${w.startDate} → ${w.endDate}` },
+                    cedolareSecca: w.cedolareSecca,
+                    cohabitants: extra.cohabitants || cohabAuto || '',
+                    otherClauses: extra.otherClauses || '',
+                    transitionalReason: extra.transitionalReason || '',
+                    transitionalDocs: extra.transitionalDocs || '',
+                    notes: extra.notes || '',
+                    status: 'active',
+                    signatureStatus: 'none',
+                    tenantSignToken: newToken(),
+                    landlordSignToken: newToken(),
+                    paymentsGenerated: false,
+                    welcomeEmailSent: false,
+                    linkedLeadId: w.sourceKind === 'lead' ? w.sourceId : null,
+                    createdVia: 'newClientWizard',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                };
+                if (extra.tenantNationality) ctrData.tenantNationality = extra.tenantNationality;
+                if (w.landlordName) ctrData.landlordName = w.landlordName;
+                // Anagrafica locatore dalla rubrica landlords (stessa strada
+                // di saveContract): il PDF nasce completo anche lato locatore.
+                const selProp = (S.properties || []).find(p => p.id === w.propertyId);
+                if (selProp?.ownerId) {
+                    try {
+                        const llDoc = await db.collection('landlords').doc(selProp.ownerId).get();
+                        if (llDoc.exists) {
+                            const ll = llDoc.data();
+                            if (ll.name) ctrData.landlordName = ll.name;
+                            if (ll.codiceFiscale) ctrData.landlordCF = ll.codiceFiscale;
+                            if (ll.birthDate) ctrData.landlordDob = ll.birthDate;
+                            if (ll.birthPlace) ctrData.landlordPob = ll.birthPlace;
+                            if (ll.address) ctrData.landlordAddress = ll.address;
+                            if (ll.idDocType) ctrData.landlordDocType = ll.idDocType;
+                            if (ll.idDocNumber) ctrData.landlordDocNum = ll.idDocNumber;
+                        }
+                    } catch (e) { console.warn('[wizard] landlord pre-fill', e); }
+                }
+                const contractRef = await db.collection('contracts').add(ctrData);
+                contractId = contractRef.id;
+                // 2b) Scadenze + PDF: la stessa strada di saveContract — il
+                // wizard non deve produrre un contratto "minore" (la scadenza
+                // "Registrare RLI" alimenta il loop del Fascicolo Fiscale).
+                try { await generateContractDeadlines(contractId, ctrData); } catch (e) { console.warn('[wizard] deadlines', e); }
+                try {
+                    S.contracts.push({ id: contractId, ...ctrData });
+                    await generateContractPDF(contractId);
+                } catch (e) { console.warn('[wizard] pdf', e); }
+            }
 
             // 3) Mark source lead as converted
             if (w.sourceKind === 'lead' && w.sourceId) {
@@ -6705,33 +6858,44 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 } catch (e) { console.warn('[wizard] lead update', e); }
             }
 
-            // 4) Send magic-sign links via email (tenant + landlord)
-            progress('4/4 · Invio i link di firma…');
-            const ctrDoc = (await db.collection('contracts').doc(contractId).get()).data();
-            const baseUrl = window.location.origin + '/sign';   // premium signer page (sign.html)
-            const tenantLink = `${baseUrl}?sign=${ctrDoc.tenantSignToken}`;
+            // 4) L'INVITO DI FIRMA parte dal server (/api/sign/send-link):
+            // design system condiviso, lingua del lettore, traccia
+            // signInviteTenantAt sul contratto. Protocollo SEQUENZIALE: il
+            // locatore riceve il SUO link in automatico alla firma
+            // dell'inquilino (stage email di magic-sign) — mai i due link
+            // insieme. Ri-premere qui = re-invio (send-link è idempotente).
+            progress('4/4 · Invio l’invito di firma…');
+            const tenantLink = `${window.location.origin}/sign?sign=${ctrData.tenantSignToken}`;
             const property = (S.properties || []).find(p => p.id === w.propertyId) || {};
             const landlord = property.ownerId ? (S.users || []).find(u => u.id === property.ownerId) : null;
-            let emailsSent = 0;
-            if (w.email && typeof createNotification === 'function') {
+            let inviteSent = false;
+            if (w.email) {
                 try {
+                    const idToken = await auth.currentUser.getIdToken();
+                    const r = await fetch('/api/sign/send-link', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+                        body: JSON.stringify({ contractId, role: 'tenant' })
+                    });
+                    inviteSent = r.ok;
+                } catch (e) { console.warn('[wizard] send-link', e); }
+            }
+            // Notifiche in-app (skipEmail: l'email vera è l'invito qui sopra)
+            try {
+                if (typeof createNotification === 'function') {
                     await createNotification(userId, 'contract', '✍️ Firma il tuo contratto',
-                        `Ciao ${w.name}, il contratto per ${property.name || 'la tua casa'} è pronto: clicca per firmarlo.`,
-                        { contractId, magicLink: tenantLink });
-                    emailsSent++;
-                } catch (e) { console.warn('[wizard] tenant notify', e); }
-            }
-            if (landlord?.email && typeof createNotification === 'function') {
-                const landlordLink = `${baseUrl}?sign=${ctrDoc.landlordSignToken}`;
-                try {
-                    await createNotification(landlord.id, 'contract', '✍️ Firma contratto inquilino',
-                        `Un nuovo inquilino (${w.name}) è pronto a firmare per ${property.name || 'l’immobile'}. Firma da locatore qui.`,
-                        { contractId, magicLink: landlordLink });
-                    emailsSent++;
-                } catch (e) { console.warn('[wizard] landlord notify', e); }
-            }
+                        `Ciao ${w.name}, il contratto per ${property.name || 'la tua casa'} è pronto: controlla l'email con il link di firma.`,
+                        { contractId, skipEmail: true });
+                    if (landlord) await createNotification(landlord.id, 'contract', '📋 Nuovo contratto in firma',
+                        `${w.name} sta per firmare per ${property.name || 'l’immobile'}. Riceverai il tuo link di firma alla sua firma.`,
+                        { contractId, skipEmail: true });
+                }
+            } catch (e) { console.warn('[wizard] notify', e); }
 
             try { if (typeof logActivity === 'function') await logActivity('newClient_wizard_completed', 'contract', { userId, contractId, sourceKind: w.sourceKind, sourceId: w.sourceId }); } catch {}
+
+            // Aggiorna le liste (nuovo cliente + contratto visibili subito)
+            try { await refresh(); } catch (e) { console.warn('[wizard] refresh', e); }
 
             // Success screen
             const waUrl = w.phone ? `https://wa.me/${String(w.phone).replace(/\D/g, '')}?text=${encodeURIComponent(`Ciao ${w.name}! Il contratto è pronto, puoi firmarlo qui: ${tenantLink}`)}` : null;
@@ -6741,7 +6905,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div style="text-align:center;padding:18px 0">
                         <div style="font-size:48px">🎉</div>
                         <div style="font-weight:600;font-size:18px;margin-top:6px">Tutto fatto.</div>
-                        <div style="color:var(--text-muted);font-size:13px;margin-top:4px">${emailsSent > 0 ? `Email di firma inviate (${emailsSent}).` : 'Contratto creato. Le email di firma non sono partite — usa il link copiabile qui sotto.'}</div>
+                        <div style="color:var(--text-muted);font-size:13px;margin-top:4px">${inviteSent ? `Invito di firma inviato a ${esc(w.email)}. Il proprietario riceverà il suo link alla firma dell'inquilino.` : 'Contratto creato. L\'email di invito non è partita — usa il link copiabile qui sotto.'}</div>
                     </div>
                     <div style="background:var(--bg-elevated);padding:14px;border-radius:10px;font-size:13px">
                         <div style="font-weight:600;margin-bottom:8px">🔗 Link di firma inquilino</div>

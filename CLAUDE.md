@@ -1189,6 +1189,21 @@ that a hung profile read, a mute realtime channel and a normal boot all end
 in a usable page, never a spinner. Needs `playwright-core`
 (`BOOM_PLAYWRIGHT=/path/to/index.js` if it lives outside the project).
 
+**Deal Link** (`/portal#deal=<base64url JSON>`): semina il wizard
+"🚀 Nuovo cliente → contratto firmato" con un deal completo — `{tenant,
+conviventi[], propertyMatch, landlordName, contract:{type, rent, startDate,
+endDate, depositMonths, paymentDay, cohabitants, otherClauses,
+transitionalReason, notes, tenantNationality}}`. Il payload viaggia nel
+FRAMMENTO (mai al server/log), sopravvive al giro di login via
+sessionStorage, ed è solo un PREFILL: nessuna scrittura finché l'admin non
+preme 🚀 nel riepilogo. Il wizard ora è idempotente (riusa cliente per
+email/CF e contratto per inquilino+immobile+decorrenza), crea le schede
+cliente dei conviventi, tira l'anagrafica locatore da `landlords`, genera
+scadenze + PDF come saveContract e manda l'invito firma via
+`/api/sign/send-link` (sequenziale: il locatore riceve il suo link alla
+firma dell'inquilino — prima spediva entrambi i link subito, fuori dal
+design system).
+
 Firestore listeners with auto-retry / exponential backoff:
 
 ```js
