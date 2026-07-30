@@ -646,7 +646,7 @@ body.chapters .proofs.stamped .proof:nth-child(5){transition-delay:.48s}
 .blkchip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:rgba(0,0,0,.55);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-radius:100px;padding:9px 14px;font-size:11.5px;color:var(--t2);transition:.2s}
 a.blkchip:hover{border-color:var(--line-gold);color:var(--gold)}
 .blkchip.coords{font-variant-numeric:tabular-nums;letter-spacing:.4px;color:var(--gold);border-color:var(--line-gold)}
-#blkPr[hidden]{display:none!important}
+.blkchip[hidden]{display:none!important}
 .m3a{width:9px;height:9px;border-radius:50%;background:var(--gold-light);border:1.5px solid #1a1407;box-shadow:0 0 8px rgba(255,215,0,.55);cursor:help}
 
 /* ── the viral handoff: deciding is a two-person sport ── */
@@ -901,7 +901,6 @@ a.blkchip:hover{border-color:var(--line-gold);color:var(--gold)}
           <button class="m3facade" onclick="boom3D(this)" aria-label="Open the real map of the block">◆ The block, for real<small>wakes as you arrive — 3D buildings · your building in gold · walk rings</small></button>
           <div class="blkchips" id="blkChips" hidden>
             <span class="blkchip coords" id="blkCoords">◈ —</span>
-            <button type="button" class="blkchip" id="blkPr" hidden onclick="openPhotoreal()">◆ Photoreal 3D</button>
             <a class="blkchip" id="blkSv" href="#" target="_blank" rel="noopener">⟲ Street View</a>
             <a class="blkchip" id="blkDir" href="#" target="_blank" rel="noopener">➤ Directions</a>
           </div>
@@ -1042,6 +1041,7 @@ a.blkchip:hover{border-color:var(--line-gold);color:var(--gold)}
 <script src="/js/boom-elevate.js"></script>
 <script src="/js/boom-ambient.js"></script>
 <script src="/js/boom-fondali.js"></script>
+<script src="/js/boom-geo.js"></script>
 <script src="/js/neighborhoods.js"></script>
 <script>
 /* MATERIA: living stone under the whole visit — develops in as the price lands */
@@ -1288,47 +1288,38 @@ let _map3d=null;
 function ensureML(){return window.__mlp||(window.__mlp=new Promise(function(res,rej){if(window.maplibregl)return res();
   var c=document.createElement('link');c.rel='stylesheet';c.href='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css';document.head.appendChild(c);
   var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.min.js';s.onload=function(){res()};s.onerror=rej;document.head.appendChild(s);}));}
-/* ── Il 3D fotorealistico (Google Photorealistic 3D Tiles) ────────────────
-   Roma vera — fotogrammetria, tetti, alberi — invece delle scatole grigie
-   estruse. Si arma da solo appena GOOGLE_MAPS_API_KEY è su Vercel; senza
-   chiave, o se Cesium non carica, si scende sulla mappa MapLibre, che
-   resta il ripiego che non muore mai. Il modulo (~3MB) viene scaricato
-   solo quando qualcuno tocca il bottone: zero peso per chi non lo apre. */
-var _prk=null;
-function prKey(){
-  return _prk||(_prk=fetch('/api/maps-key').then(function(r){return r.json()})
-    .then(function(j){return (j&&j.key)||null}).catch(function(){return null}));
-}
-function prModule(){
-  if(window.BoomPhotoreal)return Promise.resolve();
-  return new Promise(function(res,rej){
-    var s=document.createElement('script');s.src='/js/boom-photoreal.js';
-    s.onload=function(){window.BoomPhotoreal?res():rej(new Error('photoreal_missing'))};
-    s.onerror=function(){rej(new Error('photoreal_load_failed'))};
-    document.head.appendChild(s);
-  });
-}
+/* ── Perché qui non c'è più il 3D fotorealistico di Google ────────────────
+   I Photorealistic 3D Tiles NON sono erogabili a questo account: dall'8
+   luglio 2025 Google applica ai progetti con fatturazione nell'Area
+   Economica Europea termini che escludono tile 3D e satellitari, e
+   tile.googleapis.com risponde 403 PERMISSION_DENIED — verificato il
+   29/07/2026, con e senza Referer di boomrome.com. Egidi Immobiliare è
+   italiana: non è una chiave da sistemare, è una regola di piattaforma.
+
+   La chiave però esisteva, quindi il chip "◆ Photoreal 3D" compariva su
+   ogni scheda con pin: chi lo toccava scaricava ~3MB di Cesium e leggeva
+   "3D unavailable right now". Sempre. Una promessa che falliva sempre è
+   peggio di una funzione assente, quindi il chip e la sua idraulica sono
+   via. Resta MapLibre con la sagoma d'oro, che è sempre stata l'unica
+   strada percorribile.
+   js/boom-photoreal.js e la sua suite restano nel repo, non referenziati:
+   se un giorno la restrizione cade, o la fatturazione non è più EEA,
+   si riarma da qui. Non riesumarlo senza aver prima ri-provato quel 403. */
 function boom3D(btn){
   /* the block RESTUDIED: no more gadget-behind-a-button. The real map wakes
      inline (scroll-arrival or tap), with the building in gold, the anchors
-     that decide a life here, and one-tap chips: Photoreal · Street View ·
-     Directions. Photoreal moved to its chip — full-screen on YOUR gesture,
-     never auto-hijacking the page. */
+     that decide a life here, and one-tap chips: Street View · Directions. */
   if(_map3d)return;var host=document.getElementById('map3d');if(!host)return;
   var lat=+L.lat||41.8902,lng=+L.lng||12.4922;
   if(btn){btn.innerHTML='<span style="color:var(--t3);font-size:12px">Waking the block…</span>';btn.style.pointerEvents='none';}
   try{boomTrack('block_explore',{item_id:PID||L.id||'sample'})}catch(e){}
   boom3DML(btn,host,lat,lng);
 }
-function openPhotoreal(){
-  prKey().then(function(key){
-    if(!(key&&+L.lat&&+L.lng))throw 0;
-    return prModule().then(function(){return BoomPhotoreal.open({key:key,lat:+L.lat,lng:+L.lng,name:L.name});})
-      .then(function(){boomTrack('photoreal_open',{item_id:PID||L.id||''});});
-  }).catch(function(){
-    var b=document.getElementById('blkPr');
-    if(b){b.textContent='◆ 3D unavailable right now';setTimeout(function(){b.textContent='◆ Photoreal 3D';},1800);}
-  });
+/* La sagoma d'oro si accende SOLO su via + civico. Su una via senza numero il
+   pin cade da qualche parte lungo la strada e il palazzo sotto è arbitrario:
+   illuminarlo come "il tuo" sarebbe la stessa bugia, solo più piccola. */
+function pinIsPlaceable(){
+  try{return BOOM_GEO.pinPrecision(L).level==='exact'}catch(e){return false}
 }
 /* the exact building, in gold: query the rendered footprint under the pin
    and re-extrude just that one. Honest by construction — no footprint in
@@ -1373,9 +1364,14 @@ function boom3DML(btn,host,lat,lng){
       if(!reduce)map.flyTo({center:[lng,lat],zoom:16.2,pitch:60,bearing:-18,duration:3200});
       /* LA SAGOMA: when the camera settles, the exact building lights up in
          gold — its real footprint from the vector tiles, extruded. If the
-         tile has no footprint here, nothing fake is drawn. */
-      var _gold=function(){goldHouse(map,lng,lat)};
-      map.once('idle',function(){_gold();map.once('idle',_gold);});
+         tile has no footprint here, nothing fake is drawn.
+         E non si accende affatto su un pin di quartiere: illuminerebbe un
+         palazzo qualsiasi presentandolo come "il tuo". Onesto significa anche
+         tacere quando non si sa. */
+      if(pinIsPlaceable()){
+        var _gold=function(){goldHouse(map,lng,lat)};
+        map.once('idle',function(){_gold();map.once('idle',_gold);});
+      }
     });
     map.on('error',function(){});
   }).catch(function(){/* keep the decorative block alive: offer retry + an external fallback */
@@ -1970,18 +1966,33 @@ function postPaint(){
   if(vt&&PID)vt.onclick=function(ev){ev.preventDefault();try{boomTrack('generate_lead',{channel:'slots',intent:'video_viewing_request',item_id:PID})}catch(e){}openBook('video');};
   /* precision, shown not claimed: live coordinates + the exact entrance —
      only when the pin is real. No coords, no chips: never a fake pin. */
+  /* PRECISIONE, DICHIARATA PER QUELLO CHE È. Il chip prometteva 4 decimali —
+     11 metri — anche quando la coordinata era il centroide di un quartiere, e
+     offriva "the exact entrance" su una via a caso: tre case del centro
+     condividevano lo stesso centroide, quindi lo stesso portone sbagliato tre
+     volte. Ora la fonte del pin decide cosa si può dire (js/boom-geo.js). */
   var bc=document.getElementById('blkChips'),hasPin=!!(+L.lat&&+L.lng);
+  var PREC=(function(){try{return BOOM_GEO.pinPrecision(L)}catch(e){return {level:hasPin?'zone':'none',exact:false}}})();
+  var PCOPY=(function(){try{return BOOM_GEO.pinCopy(PREC.level,L.zone)}catch(e){return {coords:false,street:false,note:''}}})();
   if(bc){bc.hidden=!hasPin;
     if(hasPin){
-      var cc=document.getElementById('blkCoords');if(cc)cc.textContent='◈ '+(+L.lat).toFixed(4)+'° N · '+(+L.lng).toFixed(4)+'° E';
-      var sv=document.getElementById('blkSv');if(sv){sv.href='https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+(+L.lat)+','+(+L.lng);
-        sv.onclick=function(){try{boomTrack('streetview_open',{item_id:PID||L.id||''})}catch(e){}};}
+      var cc=document.getElementById('blkCoords');
+      if(cc)cc.textContent=PCOPY.coords
+        ? '◈ '+(+L.lat).toFixed(4)+'° N · '+(+L.lng).toFixed(4)+'° E'
+        : '≈ '+PCOPY.note;
+      var sv=document.getElementById('blkSv');
+      if(sv){
+        /* su un centroide Street View aprirebbe una strada qualunque */
+        sv.hidden=!PCOPY.street;
+        if(PCOPY.street){
+          sv.textContent=PREC.level==='exact'?'⟲ Street View · the exact entrance':'⟲ Street View · this street';
+          sv.href='https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+(+L.lat)+','+(+L.lng);
+          sv.onclick=function(){try{boomTrack('streetview_open',{item_id:PID||L.id||''})}catch(e){}};
+        }
+      }
+      /* le indicazioni restano sempre: portano dove sappiamo portare */
       var dr=document.getElementById('blkDir');if(dr)dr.href='https://www.google.com/maps/dir/?api=1&destination='+(+L.lat)+','+(+L.lng);
     }}
-  /* Photoreal is a chip, armed only when the Google key is live */
-  if(hasPin)prKey().then(function(k){
-    var pr=document.getElementById('blkPr');if(k&&pr)pr.hidden=false;
-  }).catch(function(){});
   /* the viral handoff — English link, ready to forward */
   var shUrl=PID?(location.origin+'/listing/'+encodeURIComponent(PID)):location.href;
   var sw=document.getElementById('shWa');
@@ -1994,17 +2005,6 @@ function postPaint(){
   }
   try{initFit()}catch(e){}
 }
-
-/* ---- Google Photoreal plumbing: key + module, both cached, both lazy ---- */
-var _prk,_prm;
-function prKey(){return _prk||(_prk=fetch('/api/maps-key').then(function(r){return r.json()}).then(function(j){return (j&&j.key)||null}).catch(function(){_prk=null;return null}));}
-function prModule(){return _prm||(_prm=new Promise(function(res,rej){
-  if(window.BoomPhotoreal)return res();
-  var s=document.createElement('script');s.src='/js/boom-photoreal.js';
-  s.onload=function(){window.BoomPhotoreal?res():rej(new Error('photoreal_missing'))};
-  s.onerror=function(){_prm=null;rej(new Error('photoreal_load'))};
-  document.head.appendChild(s);
-}));}
 
 /* ---- the heart is real: same boom:saved set the discovery page reads ---- */
 function _savedSet(){try{return new Set(JSON.parse(localStorage.getItem('boom:saved')||'[]'))}catch(e){return new Set()}}
