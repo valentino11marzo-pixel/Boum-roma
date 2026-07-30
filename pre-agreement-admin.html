@@ -293,7 +293,7 @@ h1{font-weight:200;font-size:24px;letter-spacing:-.3px;margin-bottom:3px}
         </div>
       </div>
 
-      <div class="sumcard" id="sumcard" style="display:none"><div class="cap">Riepilogo deal</div><div id="mathLine">—</div></div>
+      <div class="sumcard" id="sumcard" style="display:none"><div class="cap">Riepilogo deal</div><div id="mathLine">—</div><div id="canoneLine" style="margin-top:7px;padding-top:7px;border-top:1px dashed rgba(212,175,55,.25)"></div></div>
 
       <button class="gbtn" id="goBtn" onclick="createPA()">Crea il link del pre-agreement →</button>
       <p class="err" id="fErr"></p>
@@ -317,6 +317,7 @@ h1{font-weight:200;font-size:24px;letter-spacing:-.3px;margin-bottom:3px}
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
 <script src="/js/firebase-config.js"></script>
 <script src="/js/boom-portal.js"></script>
+<script src="/js/canone-engine.js"></script>
 <script>
 (function(){
 'use strict';
@@ -386,10 +387,65 @@ function mathLine(){
     +' · fee <b>'+eur(mm.fee)+'</b>'+(mm.feeMode==='flat'?' (fissa)':'')+' + IVA '+eur(mm.feeVat)+' = <b>'+eur(mm.feeTotal)+'</b> ('+(mm.feeDue==='move-in'?'al move-in':mm.feeDue==='signing'?'alla firma':'separata')+')'
     +' · <b style="color:var(--gold)">dovuto alla firma '+eur(mm.dueAtSigning)+'</b>';
 }
-['fRent','fEnergy','fDepM','fDepSplit','fFeeMode','fFeePct','fFeeMonths','fFeeFlat','fVatPct','fFeeDue','fDue','fFreq','fEcBill'].forEach(function(id){
+['fRent','fEnergy','fDepM','fDepSplit','fFeeMode','fFeePct','fFeeMonths','fFeeFlat','fVatPct','fFeeDue','fDue','fFreq','fEcBill','fProp','fAddress'].forEach(function(id){
   document.addEventListener('input',function(e){if(e.target.id===id)mathLine();});
   document.addEventListener('change',function(e){if(e.target.id===id)mathLine();});
 });
+
+/* ── CANONE CONCORDATO, verdetto live ─────────────────────────────────────
+   Mentre scrivi il canone, la console dice se RIENTRA nella fascia di
+   oscillazione dell'accordo (motore condiviso js/canone-engine.js — lo
+   stesso del Fascicolo Fiscale). Onesto: senza mq o zona riconoscibile
+   dice cosa manca, mai un numero inventato. Config (pArr ammobiliato,
+   soglie) da settings/canoneAccordo — calibrabile qui con ⚙. */
+var CANONE_CFG=null;
+async function loadCanoneCfg(){
+  if(CANONE_CFG!==null)return CANONE_CFG;
+  CANONE_CFG={};
+  try{var s=await firebase.firestore().collection('settings').doc('canoneAccordo').get();if(s.exists)CANONE_CFG=s.data()||{};}catch(e){}
+  return CANONE_CFG;
+}
+function canoneLine(){
+  var el=$('canoneLine');if(!el||!window.BOOM_CANONE)return;
+  var rent=+$('fRent').value||0;
+  if(!rent){el.innerHTML='';return;}
+  var pid=$('fProp').value;
+  var p=(PROPS||[]).find(function(x){return x.id===pid})||null;
+  var zonaText=(p&&(p.canoneZonaCod||p.zone||p.address))||$('fAddress').value||'';
+  var zona=window.BOOM_CANONE.matchZone(zonaText);
+  var gear=' <a href="#" onclick="calibraAccordo();return false" title="Calibra accordo (ammobiliato %, soglie)" style="color:var(--t3);text-decoration:none">⚙</a>';
+  if(!zona){el.innerHTML='<span style="color:var(--t3)">Canone concordato: zona non riconosciuta'+(zonaText?' («'+zonaText.slice(0,28)+'»)':'')+' — verifica con ARPE</span>'+gear;return;}
+  if(!p||!p.sqm){el.innerHTML='<span style="color:var(--t3)">Zona <b>'+zona.cod+'</b> ('+zona.nome+') · fascia B '+zona.bMin+'–'+zona.bMax+' €/mq — seleziona una proprietà con mq per il verdetto</span>'+gear;return;}
+  var s=window.BOOM_CANONE.solve({zona:zona,mq:p.sqm,canone:rent,tipo:'trans',features:p.features||[],
+    furnished:p.furnished,energyClass:p.energyClass,floorText:p.floor,cfg:CANONE_CFG||{}});
+  if(!s.ok){el.innerHTML='<span style="color:var(--t3)">Canone: '+s.error+'</span>'+gear;return;}
+  var max=s.cMax.toLocaleString('it-IT',{maximumFractionDigits:0});
+  el.innerHTML=(s.fits
+    ? '<b style="color:var(--gold)">✓ IN FASCIA '+s.fascia+'</b> ('+zona.cod+' · '+s.nP+' parametri) — max asseverabile <b>€ '+max+'</b>/mese'
+    : '<b style="color:#E08573">⚠ FUORI FASCIA di € '+(s.canone-s.cMax).toLocaleString('it-IT',{maximumFractionDigits:0})+'</b> ('+zona.cod+' · fascia '+s.fascia+', max € '+max+') — riporta il canone o verifica i parametri')
+    +gear;
+}
+var _origMathLine=mathLine;
+mathLine=function(){_origMathLine();loadCanoneCfg().then(canoneLine);};
+
+/* ⚙ Calibrazione accordo → settings/canoneAccordo (l'admin può scrivere
+   settings da client per rules). Il server (Fascicolo) legge lo stesso doc:
+   una calibrazione sola, ovunque. */
+window.calibraAccordo=async function(){
+  var cfg=await loadCanoneCfg();
+  var d=window.BOOM_CANONE.DEFAULT_CFG;
+  var pArr=prompt('Maggiorazione AMMOBILIATO % (accordo Roma — 0 = non calibrata, mai applicata):',cfg.pArr!=null?cfg.pArr:d.pArr);
+  if(pArr===null)return;
+  var pDur=prompt('Maggiorazione DURATA % per contratti 3+2 (0 se non prevista):',cfg.pDur!=null?cfg.pDur:d.pDur);
+  if(pDur===null)return;
+  var out={pArr:Math.max(0,Math.min(30,+pArr||0)),pDur:Math.max(0,Math.min(20,+pDur||0)),
+    sMed:cfg.sMed!=null?cfg.sMed:d.sMed,sMax:cfg.sMax!=null?cfg.sMax:d.sMax,updatedAt:new Date().toISOString()};
+  try{
+    await firebase.firestore().collection('settings').doc('canoneAccordo').set(out,{merge:true});
+    CANONE_CFG=out;canoneLine();
+    alert('Accordo calibrato ✓ — vale per la console E per il Fascicolo Fiscale.');
+  }catch(e){alert('Salvataggio fallito: '+e.message);}
+};
 window.setXDoc=function(v){$('fXDoc').value=v;};
 
 /* ── tabs ── */
@@ -560,7 +616,9 @@ async function loadProps(){
   PROPS=[];
   try{
     var snap=await firebase.firestore().collection('properties').limit(200).get();
-    snap.forEach(function(doc){var v=doc.data();PROPS.push({id:doc.id,name:v.name||v.title||doc.id,address:v.address||'',zone:v.zone||''});});
+    snap.forEach(function(doc){var v=doc.data();PROPS.push({id:doc.id,name:v.name||v.title||doc.id,address:v.address||'',zone:v.zone||'',
+      sqm:+v.sqm||0,furnished:!!v.furnished,energyClass:v.energyClass||'',floor:v.floor||'',canoneZonaCod:v.canoneZonaCod||'',
+      features:(Array.isArray(v.features)?v.features:[]).concat(Array.isArray(v.amenities)?v.amenities:[])});});
     PROPS.sort(function(a,b){return String(a.name).localeCompare(String(b.name))});
   }catch(e){console.warn('properties load',e);}
   return PROPS;

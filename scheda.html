@@ -243,6 +243,11 @@
     var PROG = document.getElementById('progress');
     var qs = new URLSearchParams(location.search);
     var T = (qs.get('t')||'').trim();
+    // Demo walkthrough — nessuna API, nessun contratto vero:
+    //   ?demo=1        → inquilino, form vuoto (l'esperienza del cliente legacy)
+    //   ?demo=known    → anagrafica già nota → conferma one-tap
+    //   ?demo=landlord → locatore, italiano
+    var DEMO = (qs.get('demo')||'').trim();
 
     // ── i18n ──
     var STR = {
@@ -362,6 +367,7 @@
     // ═══ BOOT ═══
     document.addEventListener('DOMContentLoaded', function(){
       setLang(lang || 'en');
+      if(DEMO){ startDemo(); return; }
       if(!T){ centered(ICON_LINK, t('inv_t'), t('inv_d'), SUPPORT); return; }
       fetch('/api/profile/lookup',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ t:T }) })
         .then(function(r){ return r.json().catch(function(){return {ok:false};}).then(function(j){ return { status:r.status, j:j||{} }; }); })
@@ -379,6 +385,22 @@
         })
         .catch(function(){ centered(ICON_WARN, t('conn_t'), t('conn_d'), SUPPORT); });
     });
+
+    function startDemo(){
+      document.body.appendChild(el('<div style="position:fixed;top:14px;left:14px;z-index:60;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:rgba(20,20,24,.7);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);font-size:9.5px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold)">Demo</div>'));
+      var known = DEMO==='known';
+      var ll = DEMO==='landlord';
+      S.data = {
+        role: ll?'landlord':'tenant', locked:false, docsCount:0,
+        property: { name:'Trastevere Loft', address:'Via della Lungaretta 12, Roma' },
+        lease: { startDate:'2026-09-01', endDate:'2027-08-31' },
+        signer: known||ll ? { name: ll?'Giulia Bianchi':'Anna Smith', cf:'RSSMRA85T10A562S', dob:'1998-05-04', pob: ll?'Roma':'Boston, USA', address: ll?'Via dei Coronari 8, Roma':'Via della Lungaretta 12, Roma', docType: ll?'id':'passport', docNum: ll?'CA9988776':'USA991', docIssuer: ll?'Comune di Roma':'US Dept of State', docIssueDate:'2022-01-01', nationality: ll?'Italiana':'American' } : {},
+      };
+      S.role = S.data.role; S.locked=false; S.docs=0;
+      S.id = idFrom(S.data.signer||{});
+      if(!localStorage.getItem('boom_scheda_lang')) setLang(ll?'it':'en');
+      renderWho();
+    }
 
     function idFrom(s){
       return { name:s.name||'', cf:(s.cf||'').toUpperCase(), dob:s.dob||'', pob:s.pob||'', address:s.address||'',
@@ -506,6 +528,7 @@
     // ═══ SAVE → STEP 2 ═══
     function save(btn){
       if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin"></span>'; }
+      if(DEMO){ setTimeout(function(){ S.saved=true; S.savedComplete=idComplete(S.id); renderDoc(); }, 550); return; }
       fetch('/api/profile/submit',{ method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ t:T, identity:S.id, phone:S.id.phone||'' }) })
         .then(function(r){ return r.json().catch(function(){return {ok:false};}); })
@@ -583,6 +606,24 @@
     function upload(dataUri, contentType, name){
       var ocrEl=document.getElementById('ocr');
       if(_ocrMode && ocrEl){ ocrEl.classList.add('busy'); document.getElementById('ocr-t').textContent=t('ocr_busy'); document.getElementById('ocr-d').textContent='…'; }
+      if(DEMO){
+        // Demo: l'OCR "legge" il documento e compila i campi vuoti da solo.
+        setTimeout(function(){
+          S.uploadedNow++;
+          if(_ocrMode){
+            var x={ name:'Anna Smith', dob:'1998-05-04', pob:'Boston, USA', cf:'', docNum:'USA991', docIssuer:'US Dept of State', docIssueDate:'2022-01-01', nationality:'American', docType:'passport' };
+            var setIf=function(id,v){ var n=document.getElementById(id); if(n&&v&&!(n.value||'').trim()) n.value=v; };
+            setIf('i-name',x.name); setIf('i-dob',x.dob); setIf('i-pob',x.pob); setIf('i-docnum',x.docNum);
+            setIf('i-issuer',x.docIssuer); setIf('i-issued',x.docIssueDate); setIf('i-nat',x.nationality);
+            var sel=document.getElementById('i-doctype'); if(sel) sel.value=x.docType;
+            if(ocrEl){ ocrEl.classList.remove('busy'); document.getElementById('ocr-t').textContent='✓'; document.getElementById('ocr-d').textContent=t('ocr_done'); }
+          } else {
+            var area=document.getElementById('docarea'); if(area) renderDocArea(area, S.locked);
+            var done=document.getElementById('d-done'); if(done) done.disabled=false;
+          }
+        }, 1100);
+        return;
+      }
       fetch('/api/profile/upload',{ method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ t:T, base64:dataUri, contentType:contentType, name:name, extract:_ocrMode }) })
         .then(function(r){ return r.json().catch(function(){return {ok:false};}); })
