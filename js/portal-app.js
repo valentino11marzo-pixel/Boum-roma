@@ -5978,6 +5978,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     async function confirmViewing() {
+        // Server-side da cima a fondo: /api/viewings/confirm (la STESSA
+        // _apply.js di Telegram e della pagina cliente) manda l'email nel
+        // design system, il Wallet pass, l'invito iCal all'operatore e
+        // riapre il countdown. Prima da qui partiva EmailJS dal browser:
+        // grafica diversa e niente se il portal si chiudeva a metà.
         const form = document.getElementById('confForm');
         const id = form.querySelector('[name="id"]').value;
         const date = form.querySelector('[name="date"]').value;
@@ -5987,47 +5992,20 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (!v) return;
         try {
             const dt = new Date(date + 'T' + time);
-            const durationMin = v.duration || 60;
-            await db.collection('viewingRequests').doc(id).update({
-                status: 'confirmed',
-                confirmedDate: date,
-                confirmedTime: time,
-                confirmedDateTime: dt.toISOString(),
-                confirmedAt: firebase.firestore.FieldValue.serverTimestamp()
+            const idToken = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/viewings/confirm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+                body: JSON.stringify({ id, action: 'confirm', when: dt.toISOString(), durationMinutes: v.duration || 60 })
             });
+            const j = await r.json().catch(() => null);
+            if (!j || !j.ok) throw new Error((j && j.error) || 'confirm_failed');
             // Back-link to source lead if exists
             if (v.linkedLeadId) {
                 db.collection('leads').doc(v.linkedLeadId).update({ linkedViewingId: id, viewingScheduledAt: firebase.firestore.FieldValue.serverTimestamp() }).catch(function(e){ console.warn('Lead back-link:', e); });
             }
-            // Update local cache so downstream (generateViewingPass, admin notify) sees confirmed times
-            const freshV = Object.assign({}, v, { confirmedDate: date, confirmedTime: time, confirmedDateTime: dt.toISOString(), status: 'confirmed' });
-            const idx = (S.viewingRequests || []).findIndex(x => x.id === id);
-            if (idx >= 0) S.viewingRequests[idx] = Object.assign({}, S.viewingRequests[idx], { confirmedDate: date, confirmedTime: time, status: 'confirmed' });
-
-            // 1) Resolve address (property → listing → viewing fallback)
-            const addr = await resolveViewingAddress(freshV);
-
-            // 2) Build calendar links (Google + universal ICS w/ GEO + reminders)
-            const calLinks = buildCalendarLinks(dt, durationMin, addr, freshV);
-
-            // 3) Generate viewing pass FIRST so we can include URL in client email
-            let passUrl = '';
-            try {
-                const passResult = await generateViewingPass(id);
-                if (passResult && passResult.url) passUrl = passResult.url;
-                console.log('[Viewing] Pass generated on confirm:', passUrl ? 'OK' : 'no URL');
-            } catch (passErr) { console.warn('[Viewing] auto-pass failed:', passErr); }
-
-            // 4) Admin notification (structured)
-            try { await sendAdminViewingNotification('confirmed', freshV); }
-            catch (notifyErr) { console.warn('[admin-notify confirmed]', notifyErr); }
-
-            // 5) Client confirmation email — pass URL + ICS link embedded
-            try { await sendClientViewingConfirmation(freshV, dt, durationMin, addr, passUrl, calLinks); }
-            catch (clientErr) { console.warn('[viewing client email]', clientErr); }
-
             closeModal();
-            toast('success', '✅ Confirmed — client notified + pass generated');
+            toast('success', '✅ Confermata — email, pass e calendario partiti dal server');
             await refreshViewings();
         } catch(e) { console.error(e); toast('error', 'Error: ' + e.message); }
     }
@@ -6069,111 +6047,32 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     async function rescheduleViewing() {
+        // Anche lo spostamento passa dal server (_apply.js): se la visita era
+        // confermata -> action 'reschedule' (email di spostamento, pass e
+        // invito iCal aggiornati in place, promemoria riaperti); se era solo
+        // richiesta -> action 'confirm' sul nuovo orario (conferma immediata
+        // col kit completo, la filosofia degli slots). L'EmailJS dal browser
+        // non serve piu'.
         const form = document.getElementById('rescForm');
         const id = form.querySelector('[name="id"]').value;
         const date = form.querySelector('[name="date"]').value;
         const time = form.querySelector('[name="time"]').value;
-        const msg = form.querySelector('[name="msg"]').value.trim();
         if (!date || !time) return toast('error', 'Select a date and time');
         const v = (S.viewingRequests||[]).find(r => r.id === id);
         if (!v) return;
         try {
             const dt = new Date(date + 'T' + time);
-            const durationMin = v.duration || 60;
-            const dtStr = dt.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}) + ' · ' + dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
-            // If viewing was already confirmed, treat reschedule as a re-confirm to a new date
             const wasConfirmed = (v.status === 'confirmed' || v.confirmedDate);
-            const newStatus = wasConfirmed ? 'confirmed' : 'rescheduled';
-            const updateFields = wasConfirmed
-                ? {
-                    status: 'confirmed',
-                    confirmedDate: date,
-                    confirmedTime: time,
-                    confirmedDateTime: dt.toISOString(),
-                    rescheduledAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    agentMessage: msg || null
-                }
-                : {
-                    status: 'rescheduled',
-                    suggestedDate: date,
-                    suggestedTime: time,
-                    suggestedDateTime: dt.toISOString(),
-                    agentMessage: msg || null,
-                    rescheduledAt: firebase.firestore.FieldValue.serverTimestamp()
-                };
-            await db.collection('viewingRequests').doc(id).update(updateFields);
-
-            // Update local cache
-            const idx = (S.viewingRequests || []).findIndex(x => x.id === id);
-            if (idx >= 0) S.viewingRequests[idx] = Object.assign({}, S.viewingRequests[idx], updateFields, { confirmedDate: wasConfirmed ? date : S.viewingRequests[idx].confirmedDate });
-            const freshV = Object.assign({}, v, updateFields);
-
-            if (wasConfirmed) {
-                // Auto-regen pass with new date (relevantDate updated by builder)
-                let passUrl = '';
-                try {
-                    const passResult = await generateViewingPass(id);
-                    if (passResult && passResult.url) passUrl = passResult.url;
-                    console.log('[Viewing] Pass regenerated after reschedule');
-                } catch (passErr) { console.warn('[Viewing] reschedule pass regen failed:', passErr); }
-
-                const addr = await resolveViewingAddress(freshV);
-                const calLinks = buildCalendarLinks(dt, durationMin, addr, freshV);
-
-                // Notify client of reschedule + pass
-                try {
-                    await emailjs.send('service_74n80th', 'boom_notification', {
-                        to_email: v.clientEmail,
-                        from_name: 'Valentino — BOOM',
-                        reply_to: 'valentino@boomrome.com',
-                        heading: '↩ Viewing Rescheduled',
-                        subheading: addr.label || v.listingName,
-                        name: (v.clientName || '').split(' ')[0],
-                        intro: msg || 'I\'ve moved your viewing to the new slot below. Pass + calendar links updated.',
-                        card_title: 'NEW TIME',
-                        card_color: '#0A84FF',
-                        r1_icon: '📅', r1_label: 'New Date & Time', r1_value: dtStr,
-                        r2_icon: '🏠', r2_label: 'Property', r2_value: addr.label || v.listingName,
-                        r3_icon: '📍', r3_label: 'Meeting point', r3_value: v.meetingPoint || 'AL CITOFONO',
-                        r4_icon: '📞', r4_label: 'Agent', r4_value: 'Valentino — +39 331 325 1961',
-                        closing: 'Bring valid ID. Arrive 5 min early.\n\n' +
-                            (passUrl ? '🎟️ Updated Apple Wallet pass: ' + passUrl + '\n' : '') +
-                            (calLinks.ics ? '📅 Calendar (universal): ' + calLinks.ics + '\n' : '') +
-                            (calLinks.google ? '📅 Google Calendar: ' + calLinks.google : ''),
-                        cta_text: passUrl ? 'Open updated pass →' : 'Add to Calendar →',
-                        portal_link: passUrl || calLinks.google,
-                        attachment_url: passUrl || ''
-                    });
-                } catch (clientErr) { console.warn('[reschedule client email]', clientErr); }
-
-                try { await sendAdminViewingNotification('rescheduled', freshV); }
-                catch (notifyErr) { console.warn('[admin-notify rescheduled]', notifyErr); }
-            } else {
-                // First-time proposal — send simple suggestion email
-                await emailjs.send('service_74n80th', 'boom_notification', {
-                    to_email: v.clientEmail,
-                    from_name: 'Valentino — BOOM',
-                    reply_to: 'valentino@boomrome.com',
-                    heading: '↩ Alternative Time Proposed',
-                    subheading: v.listingName,
-                    name: (v.clientName || '').split(' ')[0],
-                    intro: msg || 'The time you proposed doesn\'t work for me. I\'d suggest the slot below instead.',
-                    card_title: 'Suggested Time',
-                    card_color: '#0A84FF',
-                    r1_icon: '📅', r1_label: 'Suggested', r1_value: dtStr,
-                    r2_icon: '🏠', r2_label: 'Property', r2_value: v.listingName,
-                    r3_icon: '📞', r3_label: 'Questions?', r3_value: '+39 331 325 1961',
-                    r4_icon: '💬', r4_label: 'WhatsApp', r4_value: 'wa.me/393313251961',
-                    closing: 'Reply to this email or WhatsApp me to confirm.',
-                    cta_text: 'WhatsApp Valentino →',
-                    portal_link: 'https://wa.me/393313251961'
-                });
-                try { await sendAdminViewingNotification('rescheduled', freshV); }
-                catch (notifyErr) { console.warn('[admin-notify rescheduled]', notifyErr); }
-            }
-
+            const idToken = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/viewings/confirm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+                body: JSON.stringify({ id, action: wasConfirmed ? 'reschedule' : 'confirm', when: dt.toISOString(), durationMinutes: v.duration || 60 })
+            });
+            const j = await r.json().catch(() => null);
+            if (!j || !j.ok) throw new Error((j && j.error) || 'reschedule_failed');
             closeModal();
-            toast('success', wasConfirmed ? '↩ Rescheduled — client notified + pass updated' : '↩ Alternative sent to client');
+            toast('success', wasConfirmed ? '↩ Spostata — cliente avvisato, pass e calendario aggiornati' : '✅ Confermata sul nuovo orario — kit completo inviato');
             await refreshViewings();
         } catch(e) { console.error(e); toast('error', 'Error: ' + e.message); }
     }
@@ -15792,6 +15691,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <button class="btn btn-secondary btn-sm" onclick="previewContractPDF('${c.id}')">👁 Anteprima</button>
                 <button class="btn btn-secondary btn-sm" onclick="downloadContractPDF('${c.id}')">📥 PDF</button>
                 <button class="btn btn-secondary btn-sm" onclick="regenerateContractPDF('${c.id}')" title="Rigenera Allegato B con dati aggiornati">🔄 Rigenera PDF</button>
+                <button class="btn btn-secondary btn-sm" onclick="openFascicolo('${c.id}')" title="Scheda attestazione canone (fascia) + dati RLI + scadenzario — PDF">📑 Fascicolo${c.canoneScheda ? (c.canoneScheda.fits === false ? ' ⚠' : c.canoneScheda.fits === true ? ' ✓' : '') : ''}</button>
+                ${!c.rliRegisteredAt ? `<button class="btn btn-secondary btn-sm" onclick="markRliRegistered('${c.id}')" title="Segna la registrazione RLI fatta: chiude la scadenza e aggiorna il fascicolo">✓ RLI registrato</button>` : `<span class="btn btn-sm" style="background:rgba(52,199,89,.12);color:var(--green);cursor:default" title="Registrato il ${c.rliRegisteredAt ? String(c.rliRegisteredAt).slice(0,10) : ''}">✓ RLI ${String(c.rliRegisteredAt).slice(0,10)}</span>`}
                 ${sigStatus === 'complete' ? `<button class="btn btn-secondary btn-sm" onclick="archiveDeal('${c.id}')" title="Archivia deal completo su Storage">${c.dealArchived ? '✅ Archiviato' : '📦 Archive Deal'}</button>` : ''}
                 <button class="btn btn-secondary" onclick="closeModal()">Chiudi</button>
                 <button class="btn" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('editContract',S.contracts.find(x=>x.id===cid)),250)">✏️ Modifica</button>
@@ -21328,6 +21229,72 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         </div></div>`;
     }
     window.sendMissingInfoLink = sendMissingInfoLink;
+
+    // ── 📑 Fascicolo Fiscale: scheda attestazione canone + RLI + scadenzario.
+    // Generato/rigenerato server-side (api/fiscal/fascicolo). Se la zona
+    // dell'accordo o i mq non si risolvono da soli, chiede QUI il dato e lo
+    // persiste su contract.canoneScheda — la rigenerazione resta stabile.
+    async function openFascicolo(contractId, overrides) {
+        toast('info', '📑 Genero il fascicolo…');
+        try {
+            const idToken = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/fiscal/fascicolo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+                body: JSON.stringify(Object.assign({ contractId }, overrides || {}))
+            });
+            const j = await r.json().catch(() => null);
+            if (!j || !j.ok) return toast('error', 'Fascicolo: ' + ((j && j.error) || 'errore'));
+            const calc = j.calc || {};
+            if (calc.error === 'zona_non_trovata') {
+                const z = prompt('Zona accordo non riconosciuta dall\'indirizzo.\nInserisci il codice zona ARPE (es. B14 per Trastevere, C1 Parioli, C30 Pigneto):');
+                if (z && z.trim()) return openFascicolo(contractId, Object.assign({}, overrides, { zonaCod: z.trim().toUpperCase() }));
+            } else if (calc.error === 'mq_mancanti') {
+                const mq = prompt('Mq calpestabili dell\'immobile (manca sqm sulla property):');
+                if (mq && +mq > 0) return openFascicolo(contractId, Object.assign({}, overrides, { mq: +mq }));
+            } else if (calc.fits === false) {
+                toast('error', `⚠ FUORI FASCIA (${calc.zonaCod} · fascia ${calc.fascia}, max €${Number(calc.cMax).toLocaleString('it-IT')}) — il PDF lo dettaglia`);
+            } else if (calc.fits === true) {
+                toast('success', `✓ In fascia ${calc.fascia} (${calc.zonaCod}) — max asseverabile €${Number(calc.cMax).toLocaleString('it-IT')}`);
+            }
+            // aggiorna la cache locale così il bottone mostra ✓/⚠ senza reload
+            const lc = (S.contracts || []).find(x => x.id === contractId);
+            if (lc) { lc.fascicoloFiscaleUrl = j.url; lc.canoneScheda = calc; }
+            window.open(j.url, '_blank', 'noopener');
+        } catch (e) { console.error(e); toast('error', 'Fascicolo: ' + e.message); }
+    }
+    window.openFascicolo = openFascicolo;
+
+    // ── ✓ RLI registrato: chiude il loop della registrazione in un tap —
+    // stampa la data sul contratto, spegne la scadenza "Registrare RLI" e
+    // rigenera il fascicolo così anche il PDF dice "Registrato il…".
+    async function markRliRegistered(contractId) {
+        const today = new Date().toISOString().slice(0, 10);
+        const when = prompt('Data di registrazione RLI (YYYY-MM-DD):', today);
+        if (!when || !/^\d{4}-\d{2}-\d{2}$/.test(when.trim())) return;
+        try {
+            await db.collection('contracts').doc(contractId).update({ rliRegisteredAt: when.trim() });
+            const dl = await db.collection('deadlines').where('linkedContractId', '==', contractId).get();
+            let closed = 0;
+            for (const d of dl.docs) {
+                const t = String((d.data() || {}).title || '');
+                if (t.indexOf('Registrare RLI') === 0 && (d.data() || {}).status !== 'done') {
+                    await d.ref.update({ status: 'done', completedAt: firebase.firestore.FieldValue.serverTimestamp() });
+                    closed++;
+                }
+            }
+            const lc = (S.contracts || []).find(x => x.id === contractId);
+            if (lc) lc.rliRegisteredAt = when.trim();
+            toast('success', `✓ RLI registrato il ${when.trim()}${closed ? ' · scadenza chiusa' : ''}`);
+            // rigenera il fascicolo in background (best-effort)
+            try {
+                const idToken = await auth.currentUser.getIdToken();
+                fetch('/api/fiscal/fascicolo', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken }, body: JSON.stringify({ contractId }) }).catch(() => {});
+            } catch (_) {}
+            await refresh();
+        } catch (e) { console.error(e); toast('error', 'RLI: ' + e.message); }
+    }
+    window.markRliRegistered = markRliRegistered;
 
     // 🔗 Share Hub — single place that surfaces every shareable link for a contract
     // and *backfills missing tokens on the fly* so legacy contracts (created before
