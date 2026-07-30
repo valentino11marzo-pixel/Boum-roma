@@ -25,6 +25,8 @@ import { fsList, fsGet, fsPatch } from '../homie/_lib.js';
 import { sendEmail } from '../agent/_lib.js';
 // Un solo sistema di design per tutte le email della piattaforma.
 import { shell, btn, btn2, para, fine, includes, hero, tiles, timeline, rule } from '../preagreement/_notify.js';
+// Link Scheda derivato server-side: il T-14 chiede per nome ciò che manca.
+import { schedaUrl } from '../profile/_scheda.js';
 
 const ADMIN_EMAIL = 'valentino@boom-rome.com';
 const WA = 'https://wa.me/393313251961';
@@ -70,7 +72,12 @@ const dayDiff = (iso) => {
 };
 
 // step key → { when(c) -> true if inside the window, subject, html }
-export function steps({ c, tenant, addrShort, addr, first, has = () => false }) {
+// `missing`: { identityOk, docsOk, schedaUrl } — il T-14 chiede ESATTAMENTE
+// ciò che manca (link La Scheda) invece del generico "se manca qualcosa".
+// `late`: rate scadute sul contratto — gli upsell tacciono (non si vende a
+// chi ha un pagamento aperto; ci pensa il sollecito), i contenuti utili
+// restano.
+export function steps({ c, tenant, addrShort, addr, first, has = () => false, missing = null, late = false }) {
   const start = c.startDate, end = c.endDate;
   const dStart = start ? dayDiff(start) : null;
   const dEnd = end ? dayDiff(end) : null;
@@ -83,7 +90,7 @@ export function steps({ c, tenant, addrShort, addr, first, has = () => false }) 
       subject: `${dStart} days to ${addrShort} — the countdown is on`,
       html: para(`Ciao ${esc(first)} — <b>${dStart} days</b> to your move-in at <b>${esc(addr)}</b> (${fmtD(start)}). Everything on our side is on track. From today, your home base is <b>La tua casa BOOM</b>: payments, documents, requests — one place, always.`)
         + casaBtns
-        + (has('movein-pack') ? '' :
+        + ((has('movein-pack') || late) ? '' :
             para(`One thing worth handling early: <b>utilities</b>. Our <b>Move-in Pack</b> takes care of it end to end — you arrive, everything works.`, 'margin-top:26px')
             + includes(['Electricity &amp; gas transferred into your name',
                         'Internet activated at your address',
@@ -96,9 +103,16 @@ export function steps({ c, tenant, addrShort, addr, first, has = () => false }) 
       key: 't14',
       due: dStart != null && dStart <= 14 && dStart >= 10,
       subject: `Two weeks to ${addrShort} — a quick check`,
-      html: para(`Ciao ${esc(first)} — two weeks out, quick check-in. If any document is still missing on your side (ID, proof for the transitional lease), you can upload it in one tap from your pre-agreement link or send it on WhatsApp — takes a minute now, saves days at registration.`)
+      // Consapevole della Scheda: se sappiamo COSA manca, lo chiediamo per
+      // nome col link giusto — mai più il generico "se manca qualcosa".
+      html: (missing && missing.schedaUrl && (!missing.identityOk || !missing.docsOk)
+          ? para(`Ciao ${esc(first)} — two weeks out, quick check-in. One thing is still missing on our side: ${!missing.identityOk && !missing.docsOk ? '<b>your personal details and a photo of your ID</b>' : !missing.identityOk ? '<b>a few personal details</b> (codice fiscale, document)' : '<b>a photo of your ID document</b>'} — required to register your contract. Two minutes, one link — a photo of your document fills the form by itself:`)
+            + btn(missing.schedaUrl, 'Complete my scheda — 2 min')
+            + fine('Just done it? Then you’re all set — everything else is on track.', 'text-align:center')
+          : para(`Ciao ${esc(first)} — two weeks out, quick check-in. Documents on our side are <b>complete</b> — nothing needed from you. If anything changes, we’ll ask for it by name.`))
         + casaBtns
-        + (has('movein-pack')
+        + (late ? ''
+          : has('movein-pack')
             ? para(`Your <b>Move-in Pack</b> is already in motion — utilities and internet are on us from here.`, 'margin-top:24px')
             : para(`And if you'd rather not think about utilities at all, the <b>Move-in Pack</b> is still the shortcut — we start the transfers the same day.`, 'margin-top:24px')
               + btn2(buyUrl('movein-pack', tenant), 'Move-in Pack — €149')
@@ -109,7 +123,9 @@ export function steps({ c, tenant, addrShort, addr, first, has = () => false }) 
       due: dStart != null && dStart <= 7 && dStart >= 4,
       subject: `One week to ${addrShort} ✨`,
       html: para(`Ciao ${esc(first)} — one week! Two things make move-in day perfect:`)
-        + (has('cleaning-premium')
+        + (late
+            ? para(`<b>1 · The numbers.</b> Our records show an instalment still open on your side — settling it before move-in keeps everything smooth. One tap in your portal, card or transfer, receipt automatic.`, 'margin-bottom:4px')
+            : has('cleaning-premium')
             ? para(`<b>1 · A spotless home.</b> Your <b>Cleaning Premium</b> is booked — the team goes in the day before you arrive, and you'll get the photo report.`, 'margin-bottom:4px')
             : para(`<b>1 · A spotless home.</b> Our <b>Cleaning Premium</b> is a professional deep clean the day before you arrive. You open the door to a hotel-fresh apartment.`, 'margin-bottom:4px')
               + includes(['Kitchen, bathrooms, floors and windows',
@@ -180,6 +196,18 @@ export async function runJourney() {
     contracts = await fsList('contracts', { filter: { field: 'status', op: 'EQUAL', value: 'active' }, limit: 300 });
   } catch (e) { console.error('[journey] contracts list:', e.message); return out; }
 
+  // Morosità: una query sola — rate pending con dueDate passata, per contratto.
+  const overdueBy = new Map();
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const pend = await fsList('payments', { filter: { field: 'status', op: 'EQUAL', value: 'pending' }, limit: 300 });
+    (pend || []).forEach(p => {
+      if (p && p.contractId && p.dueDate && String(p.dueDate).slice(0, 10) < today) {
+        overdueBy.set(p.contractId, (overdueBy.get(p.contractId) || 0) + 1);
+      }
+    });
+  } catch (e) { console.warn('[journey] overdue lookup:', e.message); }
+
   for (const row of contracts || []) {
     const { id, ...c } = row;
     if (!c.startDate) continue;
@@ -199,7 +227,14 @@ export async function runJourney() {
     const addrShort = addr.split(',')[0];
 
     const has = kind => owned.has(String(email).toLowerCase() + '|' + kind);
-    for (const st of steps({ c, tenant, addr, addrShort, first, has })) {
+    const late = (overdueBy.get(id) || 0) > 0;
+    // La Scheda: cosa manca DAVVERO (identità essenziale + copia documento).
+    const identityOk = !!(c.tenantCF && c.tenantDocNum);
+    const docsOk = Array.isArray(c.identityDocs) && c.identityDocs.length > 0;
+    const missing = (!identityOk || !docsOk)
+      ? { identityOk, docsOk, schedaUrl: schedaUrl(id, 'tenant') }
+      : null;
+    for (const st of steps({ c, tenant, addr, addrShort, first, has, missing, late })) {
       if (!st.due || j[st.key]) continue;
       try {
         await sendEmail({ to: email, subject: st.subject, html: shell(st.html, st.subject) });
@@ -212,8 +247,8 @@ export async function runJourney() {
             to: ADMIN_EMAIL,
             subject: (st.key === 'r90' ? '⏳ T-90 rinnovo chiesto — ' : '👋 Uscita completata — ') + (tenant.name || '') + ' · ' + addrShort,
             html: shell(para(st.key === 'r90'
-              ? `Ho chiesto a <b>${esc(tenant.name || email)}</b> se rinnova <b>${esc(addr)}</b> (fine: ${fmtD(c.endDate)}). La risposta ti arriva su WhatsApp — segna l'esito sul contratto.`
-              : `Contratto oltre la endDate per <b>${esc(tenant.name || email)}</b> · ${esc(addr)}. Inviati ringraziamento, richiesta recensione e invito referral. <b>Verifica</b>: uscita reale (→ restituzione deposito nei termini) o rinnovo (→ aggiorna endDate/nuovo contratto così il journey riparte pulito).`)
+              ? `Ho chiesto a <b>${esc(tenant.name || email)}</b> se rinnova <b>${esc(addr)}</b> (fine: ${fmtD(c.endDate)}). La risposta ti arriva su WhatsApp — segna l'esito sul contratto.${late ? ' <b>⚠ Attenzione: rate scadute su questo contratto</b> — valuta il rinnovo di conseguenza.' : ''}`
+              : `Contratto oltre la endDate per <b>${esc(tenant.name || email)}</b> · ${esc(addr)}. Inviati ringraziamento, richiesta recensione e invito referral. <b>Verifica</b>: uscita reale (→ restituzione deposito nei termini) o rinnovo (→ aggiorna endDate/nuovo contratto così il journey riparte pulito).${late ? ' <b>⚠ Rate scadute in essere</b> — chiudi i conti prima della restituzione del deposito.' : ''}`)
               + btn2('https://www.boomrome.com/portal', 'Apri il portale')),
           }).catch(() => {});
         }

@@ -48,7 +48,9 @@ const eur = n => '€' + Number(n || 0).toLocaleString('en-US', {
 const fmtD = s => { try { return new Date(String(s).slice(0, 10) + 'T00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); } catch { return s; } };
 
 // One document row (label left, value right) — email-safe table markup.
-function row(k, v, sub) {
+// Exported: the CAF dossier and the signing-lifecycle emails (api/sign/
+// _notify.js) render their data with the same paper rows.
+export function row(k, v, sub) {
   return `<tr>
     <td style="padding:10px 0;border-bottom:1px solid ${HAIR};font-family:${SANS};font-size:9.5px;letter-spacing:1.6px;text-transform:uppercase;color:${FAINT};vertical-align:top;white-space:nowrap;padding-right:24px">${esc(k)}</td>
     <td style="padding:10px 0;border-bottom:1px solid ${HAIR};font-family:${SANS};font-size:14px;font-weight:300;color:${INK};text-align:right">${v}${sub ? `<br><span style="font-size:11px;color:${SOFT}">${sub}</span>` : ''}</td>
@@ -235,16 +237,21 @@ export function shell(inner, preheader) {
 <td align="center" style="padding:30px 12px">
 
   <table role="presentation" width="640" cellpadding="0" cellspacing="0" border="0" style="max-width:640px;width:100%;border-collapse:separate">
-    <tr><td class="bp-mast" style="background:#0A0A0B;border-radius:16px 16px 0 0;border-bottom:2px solid ${GOLD};padding:22px 34px;text-align:center">
+    <tr><td class="bp-mast" style="background:#0A0A0B;border-radius:16px 16px 0 0;border-bottom:2px solid ${GOLD};padding:26px 34px 22px;text-align:center">
+      <!-- Il marchio vero (anelli d'oro), non solo il wordmark. PNG hosted:
+           Gmail scarta data-URI e non rende gli SVG; se le immagini sono
+           bloccate resta il wordmark sotto — il masthead non muore mai. -->
+      <img src="https://www.boomrome.com/android-chrome-192x192.png" width="46" height="46" alt="BOOM"
+        style="display:block;margin:0 auto 10px;border-radius:50%">
       <div style="font-family:${SANS};font-size:15px;letter-spacing:9px;color:${GOLD};font-weight:300;${MSO}line-height:20px">B&nbsp;O&nbsp;O&nbsp;M</div>
-      <div style="font-family:${SANS};font-size:8.5px;letter-spacing:3.4px;text-transform:uppercase;color:#8F8A7E;${MSO}line-height:14px;padding-top:4px">Premium rentals · Roma</div>
+      <div style="font-family:${SANS};font-size:8.5px;letter-spacing:3.4px;text-transform:uppercase;color:#8F8A7E;${MSO}line-height:14px;padding-top:5px">Premium rentals · Roma</div>
     </td></tr>
     <tr><td class="bp-paper bp-pad" style="background:#FFFFFF;border:1px solid #E3E0D7;border-top:none;border-radius:0 0 16px 16px;padding:36px 34px 30px">${inner}</td></tr>
   </table>
 
   <table role="presentation" width="640" cellpadding="0" cellspacing="0" border="0" style="max-width:640px;width:100%"><tr>
     <td class="bp-foot" style="padding:18px 6px;font-family:${SANS};font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:#A6A298;text-align:center;${MSO}line-height:16px">
-      Egidi Immobiliare S.r.l. · P.IVA 17322991005 · <a href="https://www.boomrome.com" style="color:#A6A298;text-decoration:none">boomrome.com</a>
+      Egidi Immobiliare S.r.l. · P.IVA 17322991005 · <a href="https://www.boomrome.com" style="color:#A6A298;text-decoration:none">boomrome.com</a> · <a href="mailto:valentino@boom-rome.com" style="color:#A6A298;text-decoration:none">valentino@boom-rome.com</a>
     </td>
   </tr></table>
 
