@@ -890,9 +890,10 @@ BoomPortal.requireAuth(['tenant'],{loginUrl:'/login'}).then(function(res){
   var qPays=T(db.collection('payments').where('tenantId','==',USER.uid).limit(120).get())
     .then(function(s){PAYMENTS=[];s.forEach(function(d){var v=d.data();v.id=d.id;PAYMENTS.push(v)});})
     .catch(function(){});
-  // Dati per il bonifico, impostati una volta in settings/payout. Se il doc
+  // Dati per il bonifico, impostati una volta da /banca in payout/default.
+  // Collezione a sé perché /settings è pubblica e un IBAN non deve esserlo. Se il doc
   // non c'è, il blocco bonifico semplicemente non compare.
-  var qPayout=T(db.collection('settings').doc('payout').get())
+  var qPayout=T(db.collection('payout').doc('default').get())
     .then(function(d){if(d&&d.exists)PAYOUT=d.data()}).catch(function(){});
   var qMaint=T(db.collection('maintenance').where('userId','==',USER.uid).limit(20).get())
     .then(function(s){MAINT=[];s.forEach(function(d){MAINT.push(d.data())});

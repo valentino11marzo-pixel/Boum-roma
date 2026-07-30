@@ -19,6 +19,7 @@
 // Auth: cron secret / X-Homie-Secret / admin ID token. `?dry=1` = read-only.
 
 import COMPLIANCE from '../../js/compliance-rules.js';
+import { real } from '../_demo.js';
 import {
   requireCronOrAdmin, fsList, logActivity, tgNotify, proposeAction,
   reportEmployeeHealth, saveReport, daysUntil, isoWeek, euro, esc, propLabel,
@@ -51,8 +52,8 @@ async function run({ dry }) {
   const week = isoWeek(now);
 
   const [contracts, payments, properties, users, maintenance, stateDocs] = await Promise.all([
-    fsList('contracts', { limit: 300 }),
-    fsList('payments', { limit: 600 }),
+    fsList('contracts', { limit: 300 }).then(real),
+    fsList('payments', { limit: 600 }).then(real),
     fsList('properties', { limit: 200 }),
     fsList('users', { limit: 1000 }).catch(() => []),
     fsList('maintenance', { limit: 150 }).catch(() => []),

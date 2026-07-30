@@ -22,6 +22,7 @@
 // packages — this file is itself lazy-imported, which is fine: it's local).
 
 import { fsList, fsGet, fsPatch } from '../homie/_lib.js';
+import { isDemo } from '../_demo.js';
 import { sendEmail } from '../agent/_lib.js';
 // Un solo sistema di design per tutte le email della piattaforma.
 import { shell, btn, btn2, para, fine, includes, hero, tiles, timeline, rule } from '../preagreement/_notify.js';
@@ -183,6 +184,8 @@ export async function runJourney() {
   for (const row of contracts || []) {
     const { id, ...c } = row;
     if (!c.startDate) continue;
+    if (isDemo(c)) continue;   // niente email verso un inquilino di prova
+
     out.checked++;
     const j = c.journey || {};
 
