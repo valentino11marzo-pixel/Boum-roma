@@ -813,14 +813,24 @@ time-boxed — mai può bloccare una firma.
   magic-sign/submit e reminder-cron): conferma al firmatario + "Tocca a
   Lei"/"your turn" alla controparte col suo link; milestone IT all'admin
   (`ADMIN_NOTIFY_EMAIL`, default valentino@boom-rome.com).
+- **Il contratto firmato viaggia in ALLEGATO** (`_finalize.js
+  buildSignedContract`): alla firma completa il server scarica
+  `generatedPDF`, gli APPENDE la pagina delle firme (firme grafiche,
+  nomi, data/ora, hash, rinvio al certificato) e salva
+  `contracts/<id>/contratto-firmato.pdf` → `contract.signedPdfUrl`.
+  Contratti legacy senza PDF sorgente: si salta senza rumore, alle email
+  resta il certificato (mai bloccare una firma).
 - `sendWelcomeEmails` (da `_finalize.js`): welcome tenant EN (portal
-  magic-link, saldo deposito se pendente, timeline utenze/TARI/residenza,
-  certificato) + landlord IT (passi fiscali per regime, cessione
-  fabbricato se extra-UE).
+  magic-link, saldo deposito se pendente, timeline utenze/TARI/residenza)
+  + landlord IT (passi fiscali per regime, cessione fabbricato se
+  extra-UE) — entrambe con **contratto firmato + certificato FES in
+  allegato PDF** (link nel corpo come rete di sicurezza; download
+  time-boxed, un allegato fallito non ferma mai l'email).
 - `sendCafDossier` (da `_finalize.js`, UNA volta — idempotente su
   `finalizedAt`): il fascicolo asseverazione/registrazione con anagrafica
   COMPLETA di entrambe le parti (post-firma lo è per costruzione), catasto,
-  termini, link a PDF firmato + certificato FES + documenti d'identità →
+  termini, link + **3 PDF in allegato (contratto firmato, certificato FES,
+  Fascicolo Fiscale) — pronto da inoltrare ad ARPE/CAF così com'è** →
   `CAF_EMAIL` (default **valentino@boom-rome.com**). Prima viveva in
   portal-app.js via EmailJS e partiva SOLO dal vecchio flusso di firma nel
   portal — su /sign non partiva affatto.

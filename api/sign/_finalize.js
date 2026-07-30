@@ -110,6 +110,21 @@ export async function finalizeContract(contract){
     certUrl = await uploadPdf(`contracts/${contract.id}/signing-certificate.pdf`, Buffer.from(bytes));
   } catch(e){ console.warn('[finalize] certificate failed:', e.message); }
 
+  // ── Contratto firmato (PDF originale + pagina delle firme) ──
+  // È QUESTO il documento che viaggia in ALLEGATO alle parti: il PDF del
+  // contratto con in coda la pagina firme (immagini, nomi, data/ora, hash,
+  // rinvio al certificato). Senza generatedPDF (contratti legacy) si salta
+  // senza rumore: alle email resta comunque il certificato FES.
+  let signedPdfUrl = '';
+  try {
+    const bytes = await buildSignedContract({
+      ...contract,
+      tenantName: contract.tenantName || (tenant && tenant.name) || '',
+      landlordName: contract.landlordName || (landlord && landlord.name) || '',
+    }, property);
+    if (bytes) signedPdfUrl = await uploadPdf(`contracts/${contract.id}/contratto-firmato.pdf`, Buffer.from(bytes));
+  } catch(e){ console.warn('[finalize] signed pdf failed:', e.message); }
+
   // ── Server-issued tenant magic link (single-use, 72h) ──
   let magicId = '';
   try {
@@ -141,15 +156,15 @@ export async function finalizeContract(contract){
   // in portal-app.js (EmailJS) and only fired from the legacy in-portal
   // signing path — on /sign it never went out at all.
   const [welcome, caf] = await Promise.all([
-    sendWelcomeEmails(contract, property, { portalLink, certUrl, cedolare, nonEU }),
-    sendCafDossier(contract, property, { certUrl, fascicoloUrl }),
+    sendWelcomeEmails(contract, property, { portalLink, certUrl, cedolare, nonEU, signedPdfUrl }),
+    sendCafDossier(contract, property, { certUrl, fascicoloUrl, signedPdfUrl }),
   ]);
   const tenantEmail = !!(welcome && welcome.tenant);
   const landlordEmail = !!(welcome && welcome.landlord);
 
-  try { await fsPatch(`contracts/${contract.id}`, { finalizedAt: now, magicLinkId: magicId, signingCertificateUrl: certUrl }); } catch(e){ console.warn('[finalize] mark failed:', e.message); }
+  try { await fsPatch(`contracts/${contract.id}`, { finalizedAt: now, magicLinkId: magicId, signingCertificateUrl: certUrl, ...(signedPdfUrl ? { signedPdfUrl } : {}) }); } catch(e){ console.warn('[finalize] mark failed:', e.message); }
 
-  return { ok:true, obligations: created, certificate: !!certUrl, magicLink: !!magicId, tenantEmail, landlordEmail, caf: !!(caf && caf.ok) };
+  return { ok:true, obligations: created, certificate: !!certUrl, signedPdf: !!signedPdfUrl, magicLink: !!magicId, tenantEmail, landlordEmail, caf: !!(caf && caf.ok) };
 }
 
 // ── Firebase Storage upload (admin token) ──
@@ -161,6 +176,79 @@ async function uploadPdf(path, bytes){
   const meta = await r.json().catch(()=>({}));
   const dt = (meta.downloadTokens || '').split(',')[0];
   return `https://firebasestorage.googleapis.com/v0/b/${STORAGE_BUCKET}/o/${encodeURIComponent(path)}?alt=media${dt ? ('&token=' + dt) : ''}`;
+}
+
+// ── Contratto firmato: il PDF del contratto + la pagina delle firme ──
+// Scarica generatedPDF (creato dal portal alla creazione del contratto),
+// gli APPENDE una pagina A4 con le firme grafiche di entrambe le parti,
+// data/ora, hash e rinvio al certificato FES, e restituisce i byte del
+// documento unico. Ritorna null se il contratto non ha un PDF sorgente
+// (legacy): il chiamante allega allora solo il certificato.
+async function buildSignedContract(c, property){
+  const src = c.generatedPDF || c.contractPdfUrl || '';
+  if (!src) return null;
+  const r = await Promise.race([
+    fetch(src),
+    new Promise((_, rej) => setTimeout(() => rej(new Error('pdf_fetch_timeout')), 10000)),
+  ]);
+  if (!r || !r.ok) throw new Error('pdf_fetch_' + (r ? r.status : 'ko'));
+  const buf = Buffer.from(await r.arrayBuffer());
+  if (!buf.length) throw new Error('pdf_empty');
+
+  const pdf = await PDFDocument.load(buf, { ignoreEncryption: true });
+  const page = pdf.addPage([595, 842]);
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const dark = rgb(0.05,0.05,0.06), gold = rgb(0.72,0.55,0.05), grey = rgb(0.42,0.42,0.45);
+  const T = (t,x,y,sz,f,col)=>page.drawText(String(t==null?'':t),{x,y,size:sz,font:f||font,color:col||dark});
+
+  page.drawRectangle({ x:0, y:792, width:595, height:50, color:dark });
+  T('BOOM', 40, 810, 18, bold, rgb(1,1,1));
+  T('ROMA', 96, 812, 10, font, rgb(0.91,0.78,0.41));
+  T('Signature page', 360, 818, 9, font, rgb(0.8,0.8,0.8));
+  T('Pagina delle firme', 360, 805, 9, font, rgb(0.8,0.8,0.8));
+
+  let y = 758;
+  T('PAGINA DELLE FIRME — SIGNATURE PAGE', 40, y, 13, bold, gold);
+  page.drawLine({ start:{x:40,y:y-8}, end:{x:555,y:y-8}, thickness:1, color:gold });
+  y -= 26;
+  T('Parte integrante del contratto che precede / An integral part of the preceding contract.', 40, y, 9, font, grey);
+  y -= 24;
+  const row = (label, val) => { T(label, 40, y, 9, bold, grey); T(val, 180, y, 10, font, dark); y -= 18; };
+  row('Contratto', c.id || '');
+  row('Immobile', (property && (property.address || property.name)) || '');
+  // Solo caratteri WinAnsi (la lezione del certificato: la freccia U+2192
+  // non è codificabile con gli StandardFonts e fa fallire l'intero PDF).
+  row('Periodo', (c.startDate ? ymd(c.startDate) : '-') + '   -   ' + (c.endDate ? ymd(c.endDate) : '-'));
+  row('Firmato da entrambe le parti il', c.fullySignedAt ? new Date(c.fullySignedAt).toLocaleString('it-IT') : '');
+  y -= 10;
+
+  const block = async (title, name, cf, sig, at, x) => {
+    let yy = y;
+    T(title, x, yy, 10, bold, gold); yy -= 16;
+    T('Firmatario: ' + (name || '-'), x, yy, 9); yy -= 13;
+    T('Codice Fiscale: ' + (cf || '-'), x, yy, 9); yy -= 13;
+    T('Data/ora: ' + (at ? new Date(at).toLocaleString('it-IT') : '-'), x, yy, 9); yy -= 14;
+    page.drawRectangle({ x, y: yy-58, width:230, height:56, borderColor:grey, borderWidth:0.5, color:rgb(0.99,0.99,0.98) });
+    if (sig) {
+      try {
+        const m = /^data:image\/(png|jpe?g);base64,(.+)$/i.exec(sig);
+        if (m) { const b = Buffer.from(m[2], 'base64'); const im = m[1].toLowerCase().startsWith('jp') ? await pdf.embedJpg(b) : await pdf.embedPng(b);
+          const ar = im.width / im.height; let w = 200, h = w / ar; if (h > 46) { h = 46; w = h * ar; }
+          page.drawImage(im, { x: x + (230 - w)/2, y: yy - 56 + (52 - h)/2, width: w, height: h }); }
+      } catch(e){}
+    }
+  };
+  await block('IL CONDUTTORE (Tenant)', c.tenantName, c.tenantCF, c.tenantSignature, c.tenantSignedAt, 40);
+  await block('IL LOCATORE (Landlord)', c.landlordName, c.landlordCF, c.landlordSignature, c.landlordSignedAt, 320);
+
+  const docHash = sha256([c.id, c.rent, c.startDate, c.endDate, c.tenantSignedAt, c.landlordSignedAt, c.tenantConsentHash, c.landlordConsentHash].join('|'));
+  page.drawLine({ start:{x:40,y:150}, end:{x:555,y:150}, thickness:0.5, color:grey });
+  T('Document hash (SHA-256): ' + docHash, 40, 136, 7, font, grey);
+  T('Firma Elettronica Semplice ai sensi dell’art. 21 D.Lgs 82/2005 (CAD). Il certificato di firma con audit', 40, 122, 8, font, grey);
+  T('completo (IP, consenso, hash) accompagna questo documento / The full signing certificate travels with this document.', 40, 110, 8, font, grey);
+  T('BOOM Rome · boomrome.com · Generato il ' + new Date().toLocaleString('it-IT'), 40, 82, 7, font, grey);
+  return await pdf.save();
 }
 
 // ── FES signing certificate (one A4 page, signatures + audit trail) ──

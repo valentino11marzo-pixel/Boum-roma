@@ -54,10 +54,32 @@ function fromFs(v) {
 }
 const fromFsFields = (f) => { const o = {}; for (const [k, v] of Object.entries(f || {})) o[k] = fromFs(v); return o; };
 
+// PDF sorgente del contratto (1 pagina, pdf-lib REALE): serve a testare che
+// finalize lo scarichi e gli appenda la pagina firme.
+const { PDFDocument: TestPDF } = await import('pdf-lib');
+const SRC_PDF = Buffer.from(await (async () => { const d = await TestPDF.create(); d.addPage([595, 842]); return d.save(); })());
+// Storage in-memory: gli upload conservano i byte, i GET alt=media li
+// riservono — così gli ALLEGATI delle email sono i PDF veri, verificabili.
+const storageFiles = new Map();
+
 globalThis.fetch = async (url, opts = {}) => {
   url = String(url);
   if (url.includes('identitytoolkit')) return okJson({ idToken: 'tok', users: [{ localId: 'caller1', email: 'op@boom.it' }] });
-  if (url.includes('firebasestorage.googleapis.com')) return okJson({ downloadTokens: 'dltok' });
+  if (url.startsWith('https://storage.example/contract.pdf')) return new Response(SRC_PDF, { status: 200, headers: { 'Content-Type': 'application/pdf' } });
+  if (url.includes('firebasestorage.googleapis.com')) {
+    if (opts.method === 'POST') {
+      const name = new URL(url).searchParams.get('name');
+      if (name) storageFiles.set(name, Buffer.from(opts.body));
+      return okJson({ downloadTokens: 'dltok' });
+    }
+    const m = url.match(/\/o\/([^?]+)\?alt=media/);
+    if (m) {
+      const bytes = storageFiles.get(decodeURIComponent(m[1]));
+      if (!bytes) return new Response('not found', { status: 404 });
+      return new Response(bytes, { status: 200, headers: { 'Content-Type': 'application/pdf' } });
+    }
+    return okJson({ downloadTokens: 'dltok' });
+  }
   if (url.includes('firestore.googleapis.com')) {
     const path = (url.split('/documents')[1] || '').replace(/^\//, '').split('?')[0];
     const qs = new URL(url).searchParams;
@@ -129,14 +151,37 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   check('CAF: anagrafica completa di ENTRAMBE le parti', caf.length === 1
     && caf[0].html.includes('RSSMRA85T10A562S') && caf[0].html.includes('BNCGLI70A41H501X')
     && caf[0].html.includes('US Dept of State'));
-  check('CAF: link contratto PDF + certificato', caf.length === 1
-    && caf[0].html.includes('https://storage.example/contract.pdf')
+  check('CAF: linka il contratto FIRMATO + certificato', caf.length === 1
+    && caf[0].html.includes('contratto-firmato.pdf')
     && caf[0].html.includes('signing-certificate.pdf'));
+  check('CAF: 3 PDF in allegato (contratto firmato, certificato, fascicolo)', caf.length === 1
+    && (caf[0].attachments || []).length === 3
+    && ['BOOM_Contratto_firmato.pdf', 'BOOM_Certificato_di_firma.pdf', 'BOOM_Fascicolo_Fiscale.pdf']
+        .every(n => (caf[0].attachments || []).some(a => a.filename === n)));
+
+  // Il contratto firmato: PDF sorgente (1 pagina) + pagina delle firme = 2.
+  const ctrPatched = store.get('contracts/ctrF');
+  check('contratto firmato: URL persistito sul contratto', out.signedPdf === true
+    && String(ctrPatched.signedPdfUrl || '').includes('contratto-firmato.pdf'));
+  const signedBytes = storageFiles.get('contracts/ctrF/contratto-firmato.pdf');
+  let signedPages = 0;
+  try { signedPages = (await TestPDF.load(signedBytes)).getPageCount(); } catch {}
+  check('contratto firmato: PDF originale + pagina firme appesa', signedPages === 2);
 
   const wt = mailTo('anna@expat.com').filter(m => /Welcome home/.test(m.subject));
   check('welcome tenant: inglese, link portal', wt.length === 1 && /Enter my portal/i.test(wt[0].html));
+  check('welcome tenant: contratto firmato + certificato IN ALLEGATO', wt.length === 1
+    && (wt[0].attachments || []).length === 2
+    && (wt[0].attachments || []).some(a => a.filename === 'BOOM_Signed_Contract.pdf' && a.content && a.content.length > 500)
+    && (wt[0].attachments || []).some(a => a.filename === 'BOOM_Signing_Certificate.pdf')
+    && /Attached/.test(wt[0].html));
   const wl = mailTo('giulia@owner.it').filter(m => /Contratto firmato/.test(m.subject));
   check('welcome landlord: italiano, passi fiscali', wl.length === 1 && /Cedolare secca/.test(wl[0].html) && /RLI/.test(wl[0].html));
+  check('welcome landlord: contratto firmato + certificato IN ALLEGATO (nomi IT)', wl.length === 1
+    && (wl[0].attachments || []).length === 2
+    && (wl[0].attachments || []).some(a => a.filename === 'BOOM_Contratto_firmato.pdf')
+    && (wl[0].attachments || []).some(a => a.filename === 'BOOM_Certificato_di_firma.pdf')
+    && /In allegato/.test(wl[0].html));
   check('welcome landlord: cessione fabbricato per extra-UE', wl.length === 1 && /Questura/.test(wl[0].html));
   check('design: il marchio hosted è nel masthead', wt.length === 1 && wt[0].html.includes('android-chrome-192x192.png'));
 
@@ -154,6 +199,27 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   const before = mails().length;
   const again = await finalizeContract({ ...FULL, finalizedAt: '2026-07-29T11:05:00Z' });
   check('finalize: idempotente — nessuna nuova email al retry', again.skipped === true && mails().length === before);
+}
+
+// ═══ 1c. Contratto legacy SENZA PDF sorgente: mai bloccare la firma ═══
+// Niente generatedPDF → niente contratto-firmato, ma le welcome partono
+// comunque col certificato in allegato e il CAF dice la verità sul PDF.
+{
+  const G = { ...FULL, id: 'ctrG' };
+  delete G.generatedPDF;
+  store.set('contracts/ctrG', { ...G });
+  const b = mails().length;
+  const out = await finalizeContract({ ...G });
+  check('legacy senza PDF: finalize ok, signedPdf false', out.ok === true && out.signedPdf === false);
+  const wt = mails().slice(b).find(m => m.to === 'anna@expat.com' && /Welcome home/.test(m.subject));
+  check('legacy senza PDF: welcome col SOLO certificato in allegato', !!wt
+    && (wt.attachments || []).length === 1
+    && wt.attachments[0].filename === 'BOOM_Signing_Certificate.pdf'
+    && /Signing certificate/.test(wt.html));
+  const caf = mails().slice(b).find(m => m.to === 'valentino@boom-rome.com' && /Asseverazione/i.test(m.subject));
+  check('legacy senza PDF: CAF onesto (PDF non ancora generato) + cert e fascicolo allegati', !!caf
+    && caf.html.includes('PDF non ancora generato')
+    && (caf.attachments || []).length === 2);
 }
 
 // ═══ 1b. Watchdog inviti freddi (predicato puro) ═══

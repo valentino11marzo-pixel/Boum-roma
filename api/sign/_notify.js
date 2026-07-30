@@ -43,14 +43,32 @@ const fmtIT = s => { try { return new Date(String(s).slice(0, 10) + 'T00:00').to
 
 // Time-boxed send — SMTP can stall, and much of this runs inside the
 // signer's own request.
-function send(to, subject, html) {
+function send(to, subject, html, attachments) {
   return Promise.race([
-    sendEmail({ to, subject, html }),
-    new Promise((_, rej) => setTimeout(() => rej(new Error('email_timeout')), 15000)),
+    sendEmail({ to, subject, html, attachments }),
+    new Promise((_, rej) => setTimeout(() => rej(new Error('email_timeout')), 20000)),
   ]);
 }
-const trySend = (to, subject, html) => send(to, subject, html).then(() => true)
+const trySend = (to, subject, html, attachments) => send(to, subject, html, attachments).then(() => true)
   .catch((e) => { console.warn('[sign/notify] send', to, e.message); return false; });
+
+// Scarica un PDF da Storage e lo prepara come allegato nodemailer.
+// Best-effort e time-boxed: un download fallito non ferma mai l'email —
+// il documento resta raggiungibile dal link. Cap 8MB (limite Gmail 25MB
+// totali: contratto + certificato + fascicolo restano ampiamente sotto).
+async function fetchPdfAttachment(url, filename) {
+  if (!url) return null;
+  try {
+    const r = await Promise.race([
+      fetch(url),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('att_timeout')), 8000)),
+    ]);
+    if (!r || !r.ok) return null;
+    const content = Buffer.from(await r.arrayBuffer());
+    if (!content.length || content.length > 8 * 1024 * 1024) return null;
+    return { filename, content, contentType: 'application/pdf' };
+  } catch (e) { console.warn('[sign/notify] attachment', filename, e.message); return null; }
+}
 
 async function gather(contract, property) {
   const prop = property
@@ -197,18 +215,33 @@ export async function notifyAdminContractSigned(contract, property) {
 }
 
 // ── Welcome emails on completion (tenant EN · landlord IT) ───────────────
-export async function sendWelcomeEmails(contract, property, { portalLink, certUrl, cedolare, nonEU } = {}) {
+// Il contratto FIRMATO viaggia in ALLEGATO a entrambe le parti (insieme al
+// certificato di firma): nessuno deve entrare da nessuna parte per avere il
+// proprio documento. I link restano nel corpo come rete di sicurezza.
+export async function sendWelcomeEmails(contract, property, { portalLink, certUrl, cedolare, nonEU, signedPdfUrl } = {}) {
   const g = await gather(contract, property);
   const out = { tenant: false, landlord: false };
-  const certLine = certUrl
-    ? fine(`⬇ <a href="${esc(certUrl)}" style="color:#8A6D1D">Signing certificate (PDF)</a> — keep it with your records.`, 'text-align:center')
+  const certHref = certUrl || contract.signingCertificateUrl || '';
+  const signedHref = signedPdfUrl || contract.signedPdfUrl || '';
+  const [contractPdf, certPdf] = await Promise.all([
+    fetchPdfAttachment(signedHref, 'contratto-firmato.pdf'),
+    fetchPdfAttachment(certHref, 'certificato-firma.pdf'),
+  ]);
+  const attachFor = (contractName, certName) => [
+    contractPdf ? { ...contractPdf, filename: contractName } : null,
+    certPdf ? { ...certPdf, filename: certName } : null,
+  ].filter(Boolean);
+  const certLine = certHref
+    ? fine(`⬇ <a href="${esc(certHref)}" style="color:#8A6D1D">Signing certificate (PDF)</a> — keep it with your records.`, 'text-align:center')
     : '';
 
   if (g.tenantEmail) {
     const first = String(g.tenantName || 'there').split(' ')[0];
     const depositPending = !contract.depositPaid && contract.depositPayToken && Number(contract.deposit || 0) > 0;
+    const atts = attachFor('BOOM_Signed_Contract.pdf', 'BOOM_Signing_Certificate.pdf');
     out.tenant = await trySend(g.tenantEmail, '🔑 Welcome home — your BOOM contract is active', shell(
       para(`Hi ${esc(first)},<br>your lease for <b>${esc(g.propLabel)}</b> is now <b>fully signed and active</b>. One tap and you’re in your portal — payments, documents and support in one place.`)
+      + (contractPdf ? fine('📎 Attached: your <b>signed contract</b> and the signing certificate (PDF) — keep them with your records.', 'text-align:center') : '')
       + btn(portalLink || BASE + '/casa', 'Enter my portal')
       + (contract.id ? btn2(tenantWalletUrl(contract.id), ' Add to Apple Wallet — your home pass') : '')
       + (depositPending
@@ -220,9 +253,9 @@ export async function sendWelcomeEmails(contract, property, { portalLink, certUr
         { title: 'TARI (waste tax)', note: 'Registration with the Comune di Roma' },
         { title: 'Residence / domicile', note: 'If you need it — we can point you the right way' },
       ])
-      + certLine
+      + (contractPdf ? '' : certLine)
       + fine('Prefer a password? Open the portal, then choose “Set a password”. The one-tap link expires in 72 hours.', 'text-align:center'),
-      'Your contract is active — your portal is one tap away.'));
+      'Your contract is active — signed copy attached.'), atts);
   }
 
   if (g.landlordEmail) {
@@ -232,12 +265,14 @@ export async function sendWelcomeEmails(contract, property, { portalLink, certUr
       : ['Scelta regime: cedolare secca vs registro + bollo', 'Imposta di registro 2% (min €67) + bollo €16'])
       .concat(['Registrazione contratto (RLI) entro 30 giorni — la seguiamo noi'])
       .concat(nonEU ? ['Cessione di fabbricato alla Questura entro 48h (conduttore extra-UE)'] : []);
+    const atts = attachFor('BOOM_Contratto_firmato.pdf', 'BOOM_Certificato_di_firma.pdf');
     out.landlord = await trySend(g.landlordEmail, '✓ Contratto firmato — i prossimi passi', shell(
       para(`Gentile ${esc(first)},<br>il contratto per <b>${esc(g.propLabel)}</b> è <b>firmato da entrambe le parti</b>. BOOM ha già messo a scadenzario i passi qui sotto — la registrazione la seguiamo insieme.`)
+      + (contractPdf ? fine('📎 In allegato: il <b>contratto firmato</b> e il certificato di firma (PDF) — da conservare.', 'text-align:center') : '')
       + includes(fiscal.map(esc))
       + btn(BASE + '/portal', 'Apri la dashboard')
-      + (certUrl ? fine(`⬇ <a href="${esc(certUrl)}" style="color:#8A6D1D">Certificato di firma (PDF)</a>`, 'text-align:center') : ''),
-      'Contratto perfezionato — scadenze fiscali già a calendario.'));
+      + (contractPdf ? '' : (certHref ? fine(`⬇ <a href="${esc(certHref)}" style="color:#8A6D1D">Certificato di firma (PDF)</a>`, 'text-align:center') : '')),
+      'Contratto perfezionato — copia firmata in allegato.'), atts);
   }
   return out;
 }
@@ -248,10 +283,19 @@ export async function sendWelcomeEmails(contract, property, { portalLink, certUr
 // link al PDF firmato, al certificato e ai documenti d'identità. Prima
 // viveva in portal-app.js via EmailJS e partiva SOLO dal vecchio flusso di
 // firma dentro il portal — su /sign non partiva affatto.
-export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl } = {}) {
+export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl, signedPdfUrl } = {}) {
   try {
     if (!CAF_EMAIL) return { ok: false, error: 'no_caf_email' };
     const g = await gather(contract, property);
+    // Il dossier deve poter essere INOLTRATO così com'è ad ARPE/CAF:
+    // contratto firmato, certificato e fascicolo fiscale in allegato.
+    const signedHref = signedPdfUrl || contract.signedPdfUrl || '';
+    const fascHref = fascicoloUrl || contract.fascicoloFiscaleUrl || '';
+    const cafAtts = (await Promise.all([
+      fetchPdfAttachment(signedHref, 'BOOM_Contratto_firmato.pdf'),
+      fetchPdfAttachment(certUrl || contract.signingCertificateUrl, 'BOOM_Certificato_di_firma.pdf'),
+      fetchPdfAttachment(fascHref, 'BOOM_Fascicolo_Fiscale.pdf'),
+    ])).filter(Boolean);
     const reqType = contract.requiresAsseverazione !== false ? 'Asseverazione + Registrazione' : 'Registrazione';
     const cad = g.prop.cadastralData || contract.cadastral || '—';
     const docs = Array.isArray(contract.identityDocs) ? contract.identityDocs : [];
@@ -287,18 +331,21 @@ export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl
               `cedolare secca: ${(contract.cedolareSecca || 'si') !== 'no' ? 'SÌ' : 'NO'}`,
             ].map(esc).join(' · '))}
           ${row('Allegati', [
-              contract.generatedPDF ? `<a href="${esc(contract.generatedPDF)}" style="color:#8A6D1D"><b>Contratto (PDF)</b></a>` : '<b>PDF non ancora generato</b>',
+              signedHref ? `<a href="${esc(signedHref)}" style="color:#8A6D1D"><b>Contratto firmato (PDF)</b></a>`
+                : contract.generatedPDF ? `<a href="${esc(contract.generatedPDF)}" style="color:#8A6D1D"><b>Contratto (PDF, pre-firma)</b></a>` : '<b>PDF non ancora generato</b>',
               certUrl ? `<a href="${esc(certUrl)}" style="color:#8A6D1D"><b>Certificato FES</b></a>` : null,
-              (fascicoloUrl || contract.fascicoloFiscaleUrl) ? `<a href="${esc(fascicoloUrl || contract.fascicoloFiscaleUrl)}" style="color:#8A6D1D"><b>Fascicolo Fiscale</b></a>` : null,
+              fascHref ? `<a href="${esc(fascHref)}" style="color:#8A6D1D"><b>Fascicolo Fiscale</b></a>` : null,
             ].filter(Boolean).join(' · '),
-            (fascicoloUrl || contract.fascicoloFiscaleUrl) ? 'il Fascicolo contiene: scheda attestazione canone (fascia di oscillazione), dati RLI, scadenzario' : null)}
+            [cafAtts.length ? `${cafAtts.length} PDF in allegato — email pronta da inoltrare` : null,
+             fascHref ? 'il Fascicolo contiene: scheda attestazione canone (fascia di oscillazione), dati RLI, scadenzario' : null,
+            ].filter(Boolean).join(' · ') || null)}
           ${row('Documenti identità', docLinks, null)}
         </table>`
       + btn(BASE + '/portal', 'Apri nel portal')
       + fine('Generato automaticamente alla firma completa. La scadenza RLI (30gg) è già a scadenzario nel portal.', 'text-align:center'),
       `${reqType} — ${g.propLabel} · anagrafica completa e allegati.`);
 
-    const ok = await trySend(CAF_EMAIL, `📑 ${reqType} — ${g.propLabel}`, html);
+    const ok = await trySend(CAF_EMAIL, `📑 ${reqType} — ${g.propLabel}`, html, cafAtts);
     return { ok };
   } catch (e) { console.warn('[sign/notify] caf:', e.message); return { ok: false, error: e.message }; }
 }
