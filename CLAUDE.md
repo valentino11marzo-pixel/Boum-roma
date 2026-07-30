@@ -421,6 +421,52 @@ viewing id + server secret).
   veniva avvisato e si presentava al portone. Aggiunti anche ↩ Reschedule
   sulle confermate, il filtro ✕ Cancelled, e i modal ora mostrano/prefillano
   l'orario reale anche per i doc self-booked (che hanno solo i campi ISO).
+- **La geometria della giornata** (`travelGapMinutes` in `_avail.js`): il
+  gap tra due impegni non è più un 15' piatto — Roma non è un punto. Visite
+  IN PERSONA sullo stesso immobile si INCATENANO (gap 0: tre clienti, un
+  viaggio — il grid offre lo slot adiacente); tra immobili geocodificati il
+  gap è il viaggio vero (haversine + euristica Roma ~8'+3,2'/km, clamp
+  15–45'); video = 15' piatto (nessun viaggio); tutto ciò che non si conosce
+  (doc legacy senza coordinate, blocchi ICS esterni) = 15' identico a prima.
+  Il contesto (l'immobile che si sta prenotando) arriva da book.html (che
+  già mandava `listingId`), dalla pagina self-service del cliente e dal
+  picker Telegram; `slots.js`/`_apply.js` stampano `lat`/`lng` sul doc
+  visita alla creazione/conferma così `busyBlocks` non fa letture extra.
+  Test: `node tests/viewings/gap.mjs`.
+
+### Il Regista (`api/regista/*` — cron 05:30 UTC + Telegram)
+Il quarto membro de La Squadra: dirige la GIORNATA dell'operatore.
+- **Il Foglio di Chiamata** (`_brief.js`, deterministico — un call sheet
+  deve essere GIUSTO, non eloquente: zero AI): ogni mattina alle 07:30 su
+  Telegram la timeline delle visite di oggi coi viaggi reali tra una e
+  l'altra (stessa euristica della griglia — foglio e grid non possono
+  divergere), cosa è successo stanotte (prenotazioni self-service,
+  spostamenti del cliente), le richieste da confermare → /visite, i task di
+  oggi con bottoni ✓ Fatta / ⏰ +1g, e domani in una riga. Silenzioso a
+  giornata vuota; `/giornata` lo manda on demand (anche vuoto).
+- **La memoria task** (`_tasks.js`, collection `operatorTasks` admin-only in
+  firestore.rules): l'operatore scrive al bot in linguaggio naturale
+  ("ricordami di comprare le lampadine per Pigneto domani alle 15") →
+  `parseTaskText`, parser REGEX a grammatica chiusa (mai un'allucinazione:
+  oggi/stasera/domattina/domani/dopodomani/giorni della settimana — con
+  lookaround espliciti, `\b` è cieco dopo "giovedì" — /task, DD/MM, "5
+  settembre", "il 15", orari IT/EN am/pm; grammatica pinnata nei test).
+  `/task` lista gli aperti. **Un task CON orario diventa un VERO evento nel
+  calendario del telefono** (invito iCal UID `boom-task-<id>`, SEQUENCE
+  crescente): ✓ Fatta → METHOD:CANCEL e l'evento sparisce da solo, ⏰ +1g →
+  l'evento si sposta. `_busyics.js` filtra `boom-task-*` così un task non
+  mangia mai uno slot prenotabile via round-trip ICS.
+- **Task automatici** (nel run del cron, id deterministici
+  `task_prep_<giorno>_<immobile>` / `task_esito_<viewingId>` — un rerun non
+  duplica MAI, la data sta in testa all'id così la troncatura non la taglia):
+  🔑 preparazione chiavi/accesso per ogni immobile con visite in persona
+  oggi (l'orario della prima visita nel titolo; se le visite vengono
+  annullate il prep task si auto-VOIDa), 📋 "esito visita" per ogni visita
+  completata ieri — il follow-up che decide il fatturato, messo dove
+  l'operatore lo vede.
+- Heartbeat `teamHealth/regista` (card 🎬 in `/team`), alert Telegram dopo 3
+  run falliti, `?dry=1` per l'anteprima. Callback `tkd:`/`tks:` ≤64 byte per
+  costruzione. Test: `node tests/regista/run.mjs`.
 - `api/viewings/_apply.js` — **the ONE place a viewing changes state**.
   Four surfaces confirm/move/cancel (the operator's API, their Telegram
   buttons, the client's own page, the portal); the side-effects — email,
@@ -1133,6 +1179,8 @@ real. Backs the "Aggiungi annuncio" modal in `pfs-command.html`.
   | `tests/viewings/avail.mjs` | griglia slot: passi, gap 15', preavviso, orizzonte, maxPerDay, DST, token del link cliente |
   | `tests/viewings/telegram.mjs` | card Telegram visite: callback ≤64 byte, escaping HTML |
   | `tests/viewings/busyics.mjs` | il calendario Workspace nella griglia: impegni ICS bloccano gli slot (TZID, ricorrenze, EXDATE, RECURRENCE-ID, all-day busy/free), eventi BOOM filtrati, maxPerDay immune, cache + fail-open |
+  | `tests/viewings/gap.mjs` | la geometria della giornata: stesso immobile a catena (gap 0), viaggi reali tra zone (clamp 15–45'), video piatto, blocchi legacy identici a prima |
+  | `tests/regista/run.mjs` | Il Regista: grammatica dei promemoria (IT/EN, accenti, "il 16/08", range che non sono date), id deterministici ≤64B, inviti calendario dei task, foglio di chiamata (escaping, viaggi, catene, giorno vuoto) |
   | `tests/safari/boot.mjs` | nessuna superficie autenticata resta appesa su un loader |
 - PWA support via `manifest.json` and `sw.js` service worker — registered on
   the 3 portals via `BoomPortal.registerServiceWorker()`

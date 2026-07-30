@@ -40,7 +40,9 @@ const FRESH_MS = 2 * 60 * 1000;
 const STALE_OK_MS = 6 * 60 * 60 * 1000;
 const MAX_ITER = 40000;                    // recurrence runaway guard
 
-const BOOM_UID_RE = /^(boom-)?viewing-[^@\s]*@boomrome\.com$/i;
+// invites + client .ics + feed (viewing) AND the Regista's task events:
+// Firestore is the truth for all of them — their calendar copies never block
+const BOOM_UID_RE = /^(boom-(viewing|task)-|viewing-)[^@\s]*@boomrome\.com$/i;
 
 // ── ICS text → raw VEVENTs ─────────────────────────────────────────────────
 export function unfoldIcs(text) {

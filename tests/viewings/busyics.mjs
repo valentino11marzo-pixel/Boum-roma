@@ -101,6 +101,7 @@ const times = (slots, date) => {
   const t = ics(
     vevent('UID:boom-viewing-abc123@boomrome.com', 'DTSTART:20260803T083000Z', 'DTEND:20260803T093000Z'),
     vevent('UID:viewing-abc123@boomrome.com', 'DTSTART:20260803T100000Z', 'DTEND:20260803T110000Z'),
+    vevent('UID:boom-task-task_m_ff@boomrome.com', 'DTSTART:20260803T060000Z', 'DTEND:20260803T063000Z'),
   );
   ok('BOOM UIDs never block', String(times(gridWith(t), '2026-08-03')) === '10:00,10:45,11:30,12:15');
 }

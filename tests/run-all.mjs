@@ -29,6 +29,8 @@ const SUITES = [
   { name: 'viewings', file: 'tests/viewings/avail.mjs',   what: 'griglia slot: passi, gap, preavviso, orizzonte, DST, link cliente' },
   { name: 'vtelegram',file: 'tests/viewings/telegram.mjs', what: 'card Telegram visite: callback ≤64B, escaping' },
   { name: 'gcal',     file: 'tests/viewings/busyics.mjs', what: 'Google Workspace nella griglia: gli impegni ICS tolgono gli slot, eventi BOOM filtrati' },
+  { name: 'gap',      file: 'tests/viewings/gap.mjs',     what: 'geometria della giornata: visite stesso immobile a catena, viaggi reali tra zone' },
+  { name: 'regista',  file: 'tests/regista/run.mjs',      what: 'Il Regista: grammatica promemoria, id deterministici, foglio di chiamata' },
   { name: 'safari',   file: 'tests/safari/boot.mjs',      what: 'nessuna pagina autenticata resta appesa' },
 ];
 
