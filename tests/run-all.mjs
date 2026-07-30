@@ -31,6 +31,7 @@ const SUITES = [
   { name: 'gcal',     file: 'tests/viewings/busyics.mjs', what: 'Google Workspace nella griglia: gli impegni ICS tolgono gli slot, eventi BOOM filtrati' },
   { name: 'gap',      file: 'tests/viewings/gap.mjs',     what: 'geometria della giornata: visite stesso immobile a catena, viaggi reali tra zone' },
   { name: 'regista',  file: 'tests/regista/run.mjs',      what: 'Il Regista: grammatica promemoria, id deterministici, foglio di chiamata' },
+  { name: 'recupero', file: 'tests/recovery/run.mjs',     what: 'Il Recupero: checkout abbandonati → lead, mai i test dell\'operatore, lingua dal cliente' },
   { name: 'safari',   file: 'tests/safari/boot.mjs',      what: 'nessuna pagina autenticata resta appesa' },
 ];
 

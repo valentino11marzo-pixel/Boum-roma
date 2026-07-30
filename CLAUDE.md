@@ -731,6 +731,29 @@ paths write the same deterministic id `pay_<contractId>_<YYYY-MM>` (plus
 `coversTo`, `installmentMonths`) so they can never duplicate a schedule.
 Legacy contracts with no cadence field behave exactly as before.
 
+### GET/POST `/api/payments/recover-checkouts` (cron ogni 4h) — IL RECUPERO
+I quasi-clienti di Stripe. Legge le checkout session SCADUTE degli ultimi 14
+giorni: **PFS/SERVICE/RESERVE** (form completo, arrivati al pagamento, mai
+pagato) → lead `strec_<sessione>` in `leads` (status `new`, source
+`stripe-recovery`) e da lì la macchina ESISTENTE fa tutto da sola (Lead
+Brain → notify-pending con bottone WhatsApp → Commerciale);
+**PREAGREEMENT/DEPOSIT/RENT** scaduti → recap Telegram (il cliente è già
+nel pipeline: ha accettato e non ha pagato, serve l'operatore, non un lead
+doppio). Mai un falso positivo: email dell'operatore filtrate (i suoi
+test), chi ha RIPROVATO e pagato viene saltato (check sessioni complete
+per email), chi è già in `leads` viene saltato, id deterministico → un
+rerun non duplica mai. La lingua del lead viene SOLO dalle parole verbatim
+del cliente (mai dal riassunto italiano per l'operatore). Heartbeat
+`teamHealth/recupero` (card ♻️ in `/team`). Auth come i cron PFS; `?dry=1`.
+Test: `node tests/recovery/run.mjs`.
+
+**`api/stripe-webhook.js` — soldi che tornano indietro, mai in silenzio**:
+oltre a `checkout.session.completed` ora gestisce `charge.refunded`,
+`charge.dispute.created` (alert Telegram ad alta priorità con la SCADENZA
+per le prove — una dispute non risposta è persa) e `charge.dispute.closed`
+(esito). Idempotente sui retry via `agentNotifications/stripe-<eventId>`.
+I 4 eventi sono abilitati sull'endpoint live (`we_1TOvpx…`).
+
 ### One-tap buy from an email — `GET /api/services/buy`
 `?kind=&e=&n=&ref=` → creates the Stripe session from the shared catalog
 (`api/_catalog.js`, imported by both this and `service-checkout.js`; it
@@ -1181,6 +1204,7 @@ real. Backs the "Aggiungi annuncio" modal in `pfs-command.html`.
   | `tests/viewings/busyics.mjs` | il calendario Workspace nella griglia: impegni ICS bloccano gli slot (TZID, ricorrenze, EXDATE, RECURRENCE-ID, all-day busy/free), eventi BOOM filtrati, maxPerDay immune, cache + fail-open |
   | `tests/viewings/gap.mjs` | la geometria della giornata: stesso immobile a catena (gap 0), viaggi reali tra zone (clamp 15–45'), video piatto, blocchi legacy identici a prima |
   | `tests/regista/run.mjs` | Il Regista: grammatica dei promemoria (IT/EN, accenti, "il 16/08", range che non sono date), id deterministici ≤64B, inviti calendario dei task, foglio di chiamata (escaping, viaggi, catene, giorno vuoto) |
+  | `tests/recovery/run.mjs` | Il Recupero: chi diventa lead (PFS/SERVICE/RESERVE) e chi recap (PA/DEPOSIT/RENT), i test dell'operatore mai, id deterministico, lingua dalle parole del cliente |
   | `tests/safari/boot.mjs` | nessuna superficie autenticata resta appesa su un loader |
 - PWA support via `manifest.json` and `sw.js` service worker — registered on
   the 3 portals via `BoomPortal.registerServiceWorker()`
