@@ -744,6 +744,7 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
 <script src="/js/boom-elevate.js"></script>
 <script src="/js/boom-ambient.js"></script>
 <script src="/js/boom-fondali.js"></script>
+<script src="/js/boom-geo.js"></script>
 <script src="/js/neighborhoods.js"></script>
 <script>
 /* The page's ambience: Marmo Antico — living stone. Soft gold clouds and
@@ -1074,13 +1075,22 @@ var DLORE=[
 ];
 function zoneLoreD(z){z=String(z||'');for(var i=0;i<DLORE.length;i++){if(DLORE[i][0].test(z))return DLORE[i][1];}return null;}
 var _ovBounds=null;
+/* Un pin è "esatto" solo se sappiamo che è stato geocodificato un indirizzo.
+   Se il modulo non è caricato non si mente per ottimismo: si degrada a
+   posizione approssimativa. */
+function pinExact(l){try{return BOOM_GEO.pinPrecision(l).exact===true}catch(e){return false}}
+function pinLevel(l){try{return BOOM_GEO.pinPrecision(l).level}catch(e){return 'zone'}}
 function plotMarks(list){_marks.forEach(m=>m.remove());_marks=[];closeBlock(true);
   if(!_dmap)return;
   ensureBlockEls();
   var seen={},pts=[];
   list.forEach(function(l){
     var hasCo=(l.lat&&l.lng);
-    var exact=hasCo&&!l.geoZone;              // baked zone-centroids are NOT building-exact
+    /* `geoZone` non è scritto su NESSUN annuncio (0 su 19), quindi il vecchio
+       `hasCo && !l.geoZone` era sempre vero: ogni pin si dichiarava esatto e
+       il prefisso "≈" non compariva mai — legenda "≈ zone area" compresa.
+       La provenienza vera sta in `listing.geo`; la legge js/boom-geo.js. */
+    var exact=hasCo&&pinExact(l);
     var co=hasCo?[l.lng,l.lat]:zoneCoordD(l);
     if(!co)return;
     if(!exact){var key=co[0].toFixed(3)+','+co[1].toFixed(3),n=seen[key]||0;seen[key]=n+1;
@@ -1102,7 +1112,26 @@ function plotMarks(list){_marks.forEach(m=>m.remove());_marks=[];closeBlock(true
     p.el=el;
     var mk=new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat(p.co).addTo(_dmap);_marks.push(mk);b.extend(p.co);});
   _ovBounds=b;
-  try{_dmap.fitBounds(b,{padding:70,maxZoom:15.5,duration:600,pitch:55});}catch(e){}
+  /* Con un solo risultato il bounds ha area zero, quindi fitBounds va diretto
+     a maxZoom: a 15.5 con pitch 55 si vedono i tetti e nient'altro — nessuna
+     cupola, nessun riferimento (le etichette POI sono nascoste di proposito) e
+     TUTTE le ancore fuori quadro. Cioè la mappa si spegne proprio quando
+     stai guardando una casa. Con pochi risultati si allarga fino a comprendere
+     l'ancora più vicina — Termini, LUISS, l'università — così la casa si vede
+     SEMPRE in relazione a qualcosa che il visitatore conosce. */
+  var fitB=b,cap=15.5;
+  if(pts.length<=2){
+    fitB=new maplibregl.LngLatBounds();
+    pts.forEach(function(p){fitB.extend(p.co);
+      var nA=ANCHORS.map(function(A){return {A:A,d:_hav(p.co,[A[0],A[1]])}})
+                    .sort(function(x,y){return x.d-y.d})[0];
+      if(nA)fitB.extend([nA.A[0],nA.A[1]]);});
+    cap=14.4;
+  }
+  try{_dmap.fitBounds(fitB,{padding:70,maxZoom:cap,duration:600,pitch:55});}catch(e){}
+  /* e i fili d'oro si accendono da soli: su una casa sola non c'è nulla su cui
+     passare col mouse, e su telefono l'hover non esiste affatto */
+  if(pts.length===1)setTimeout(function(){try{showLinks(pts[0].co)}catch(e){}},700);
   /* deep-linked from a listing page: land straight on that home's block */
   if(S.focus){var _t=pts.filter(function(p){return p.l.id===S.focus})[0];S.focus='';
     if(_t)setTimeout(function(){showBlock(_t,_t.el);},900);}}
@@ -1166,13 +1195,10 @@ function goldHouseSky(){
 function orbitBlock(){
   if(!_blockP||!_dmap)return;
   try{boomTrack('block_explore',{item_id:_blockP.l.id})}catch(e){}
-  /* photoreal 3D (Google tiles) when the key is configured — else satellite orbit */
-  if(window.__prKey&&window.BoomPhotoreal){
-    var P=_blockP;
-    BoomPhotoreal.open({lat:P.co[1],lng:P.co[0],name:P.l.name,key:__prKey})
-      .catch(function(){orbitSat();});
-    return;
-  }
+  /* Il ramo photoreal (Google 3D Tiles) è stato rimosso: tile.googleapis.com
+     risponde 403 a questo account per la regola EEA — vedi la nota in
+     apartment-detail.html. Tentarlo significava solo far aspettare l'utente
+     prima dell'orbita satellitare, che è sempre stata quella che funziona. */
   orbitSat();
 }
 function orbitSat(){
@@ -1208,13 +1234,9 @@ function closeBlock(silent){
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&_blockP)closeBlock();});
 function renderMap(list){
   var mv=document.getElementById('mapview');mv.classList.add('on');
-  /* photoreal readiness: one fetch — if a Google key is configured, arm the
-     Cesium module lazily; "Explore the block" upgrades itself automatically */
-  if(window.__prKey===undefined){window.__prKey=null;
-    fetch('/api/maps-key').then(function(r){return r.json()}).then(function(j){
-      if(j&&j.key){window.__prKey=j.key;
-        var s=document.createElement('script');s.src='/js/boom-photoreal.js';document.head.appendChild(s);}
-    }).catch(function(){});}
+  /* Qui si scaricavano ~3MB di Cesium a OGNI apertura dello Skyline, anche a
+     chi non toccava "Explore the block" — per una funzione che a questo
+     account risponde 403 (regola EEA, vedi apartment-detail.html). Via. */
   ensureML().then(function(){
     if(!_dmap){_dmap=new maplibregl.Map({container:'mapview',style:'https://tiles.openfreemap.org/styles/liberty',center:[12.4922,41.8902],zoom:11.6,pitch:55,bearing:-12,cooperativeGestures:true,antialias:true,attributionControl:false});
       _dmap.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');

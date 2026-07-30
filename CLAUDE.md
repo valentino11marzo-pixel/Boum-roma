@@ -36,6 +36,9 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
   fiscal-engine.js        Pure obligations engine: per-property/contract +
                           company (Egidi) fiscal deadlines + amounts.
                           window.BOOM_FISCAL
+  boom-geo.js             How true is this pin — exact (street+number) /
+                          street / zone / none, read from listing.geo.
+                          window.BOOM_GEO. See "Precisione dei pin".
 firestore.rules           Firestore security rules (role-based)
 storage.rules             Storage security rules (role-based file access)
 firebase.json             Firebase deploy config (firestore + storage rules)
@@ -1059,6 +1062,56 @@ admin/owner/landlord). `dryRun:true` scores a hypothetical listing against
 every active client without writing; `dryRun:false` ingests + pushes for
 real. Backs the "Aggiungi annuncio" modal in `pfs-command.html`.
 
+## Precisione dei pin + perché non c'è il 3D di Google (`js/boom-geo.js`)
+
+**Google Photorealistic 3D Tiles non sono erogabili a questo account.** Dall'8
+luglio 2025 i progetti Google Cloud con fatturazione **EEA** sono esclusi da
+tile 3D e satellitari: `tile.googleapis.com` risponde `403 PERMISSION_DENIED`
+("not available for your account and region"), con **e senza** Referer di
+boomrome.com — verificato 2026-07-29. Egidi è italiana: non è una chiave da
+sistemare. Il chip "◆ Photoreal 3D" compariva su ogni scheda con pin (la
+chiave *esisteva*), scaricava ~3MB di Cesium e falliva **sempre**; lo Skyline
+li scaricava a ogni apertura della mappa, anche a chi non toccava nulla.
+Rimossi entrambi, insieme a `/api/maps-key`. `js/boom-photoreal.js` e
+`tests/photoreal/` restano nel repo non referenziati: se la restrizione cade,
+si riarma da lì — **ri-provare quel 403 prima di riesumarlo**.
+
+**La precisione del pin è dedotta, non dichiarata.** Le pagine leggevano
+`listing.geoZone`, campo che **nessun annuncio porta** (0 su 19), quindi
+`exact = hasCo && !geoZone` era sempre vero: ogni pin si presentava come
+indirizzo esatto, il prefisso `≈` non compariva mai e la legenda "≈ zone area"
+dello Skyline era decorativa. Tre case del centro dichiaravano lo stesso
+centroide (`41.8986, 12.4735` = il centroide `DZONES` di "centro storico") e la
+scheda offriva "Street View · the exact entrance" su una via a caso vicino a
+Navona. La provenienza però c'era già, in `listing.geo` (`src`, `q`), scritta
+dal bake dei geocodici. `pinPrecision()` la legge:
+
+| livello | condizione | cosa è concesso in pagina |
+|---|---|---|
+| `exact` | `q` con via **e** civico | chip coordinate, "Street View · the exact entrance", **sagoma d'oro** |
+| `street` | `q` con via senza civico | "Street View · this street", nessun chip coordinate |
+| `zone` | `src:'zone'`, oppure `q` del solo quartiere (`"Prati, Roma"`), oppure coordinate ≤4 decimali senza provenienza | solo "posizione approssimativa in <zona>" + Directions |
+| `none` | nessuna lat/lng | nessun chip |
+
+Un CAP a 5 cifre non è un civico. La **sagoma d'oro** si accende solo su
+`exact`: su una via senza numero il palazzo sotto il pin è arbitrario, e
+illuminarlo come "il tuo" è la stessa bugia in piccolo. `pinCopy()` tiene le
+parole in un posto solo così Skyline e scheda non possono contraddirsi;
+`pinAudit()` dà il quadro (oggi: 5 exact · 4 street · 7 zone · 3 none).
+
+**Zoom dello Skyline**: con un solo risultato il bounds ha area zero e
+`fitBounds` andava diretto a `maxZoom:15.5` — a quel punto, con `pitch:55` e le
+etichette POI nascoste di proposito, si vedono i tetti e **tutte le ancore
+finiscono fuori quadro**: la mappa si spegne proprio mentre guardi una casa.
+Con ≤2 risultati il bounds si allarga fino all'ancora più vicina (Termini,
+LUISS, …) e i fili d'oro si accendono da soli dopo 700ms — su una casa sola non
+c'è nulla su cui passare col mouse, e su telefono l'hover non esiste.
+
+**Ancora falso**: i tempi mostrati come "door-to-door" sono `km_in_linea_d_aria
+× 4.2 + 10`, senza rete né orari (`apartment-detail.html`, `apartments.html`
+`_dl()`). Sbagliati a caso — Roma è anisotropa, lungo la metro A voli e in
+trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
+
 ## Conventions
 
 - **Serverless deps live in `api/package.json`** (the manifest the Vercel
@@ -1093,6 +1146,7 @@ real. Backs the "Aggiungi annuncio" modal in `pfs-command.html`.
   | `tests/dossier/run.mjs` | fascicolo ARPE: un landlord non può scrivere nel fascicolo di un immobile altrui, path sotto `property-docs/<id>/`, slot già pieni non sovrascritti |
   | `tests/photos/sweep.mjs` | photo-lab: chi è candidato allo sweep, quali foto contano come sorgente (i nostri output enhanced mai), e l'ordine con cui le 3 notti si spendono — le gallerie vere prima degli annunci da una foto. Si auto-skippa senza `sharp` |
   | `tests/copy/run.mjs` | descrizioni: lo sweep riscrive i template del bot e le schede mute, ma **mai** le parole di un umano — verificato sulle stringhe vere del catalogo, dove il testo scritto a mano è più CORTO del template |
+  | `tests/geo/run.mjs` | precisione dei pin (`js/boom-geo.js`): portone (via+civico), strada, quartiere o niente — sulle stringhe `geo.q` vere del catalogo, incluso il caso insidioso `src:'nominatim'` su `q:'Prati, Roma'` |
   | `tests/scheda/run.mjs` | La Scheda: token derivati (ruolo nella derivazione, timing-safe), precedenza prefill contratto→sign→wizard, lock post-firma, sync profilo su ENTRAMBI gli schemi users, upload con OCR che non blocca mai, /api/profile/link autorizzato |
   | `tests/notify/run.mjs` | ciclo email contratto (pdf-lib REALE, nodemailer mockato): fascicolo CAF a valentino@boom-rome.com esattamente una volta con anagrafica di entrambe le parti, welcome nella lingua del lettore, invito firma col link giusto e 409 sul locatore sequenziale, conferma scheda one-shot |
   | `tests/safari/boot.mjs` | nessuna superficie autenticata resta appesa su un loader |
