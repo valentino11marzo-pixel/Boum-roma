@@ -122,6 +122,8 @@ export default async function handler(req, res) {
     address: u.address || '',
     docType: u.docType || u.idDocType || '',
     docNum: u.docNum || u.idDocNumber || '',
+    docIssuer: u.docIssuer || '',
+    docIssueDate: u.docIssueDate || '',
     nationality: u.nationality || '',
     phone: u.phone || '',
   });

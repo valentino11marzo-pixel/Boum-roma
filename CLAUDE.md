@@ -725,10 +725,154 @@ anonymously — denied by `firestore.rules`.
 ### POST `/api/magic-sign/submit`
 Public endpoint that persists the contract signature on behalf of the
 anonymous Magic-Sign user. Body includes the token, signature data URI,
-identity payload, phone, consent record. Runs every Firestore write under
-admin credentials (signature + identity + landlord profile + RLI deadline
-+ lead closure + property status + listing sync + payment schedule +
-tenant user bootstrap). All those mutations are admin-only per the rules.
+identity payload (incl. `docIssuer`/`docIssueDate`), phone, consent record.
+Runs every Firestore write under admin credentials (signature + identity +
+landlord profile + RLI deadline + lead closure + property status + listing
+sync + payment schedule + tenant user bootstrap). All those mutations are
+admin-only per the rules. The user-profile sync writes BOTH users schemas
+(sign `cf/dob/…` AND wizard `codiceFiscale/birthDate/…`) so the Allegato
+generators and the RLI scheda always see identity collected at signing.
+
+### Il Fascicolo Fiscale (`api/fiscal/fascicolo.js` + `js/canone-engine.js`)
+UN PDF, tre pagine, generato DAL CONTRATTO alla firma completa (dentro
+`_finalize.js`, best-effort) e rigenerabile dalla console (`POST
+{contractId, zonaCod?, parIdx?, mag?, mq…}` — override PERSISTITI su
+`contract.canoneScheda`, la rigenerazione è stabile). Storage
+`contracts/<id>/fascicolo-fiscale.pdf` → `contract.fascicoloFiscaleUrl`,
+linkato nell'email CAF.
+1. **SCHEDA PER L'ATTESTAZIONE DI RISPONDENZA** (accordo Roma 25/07/2023 +
+   DM 16/01/2017): parti, catasto, superficie convenzionale coi
+   coefficienti ufficiali, i 20 parametri ARPE derivati dalle feature REALI
+   di immobile/annuncio (mai inventati — la mappatura è dichiarata sul
+   documento), maggiorazioni provate (transitorio +10, classe energetica,
+   attico; ammobiliato solo se `settings/canoneAccordo.pArr` è calibrato) e
+   il VERDETTO: il canone pattuito rientra nella fascia di oscillazione o
+   sfora di quanto (mai nascosto).
+2. **DATI REGISTRAZIONE RLI** — i quadri da ricopiare sul modello AdE.
+3. **SCADENZARIO** del contratto (le deadline a sistema).
+`js/canone-engine.js` è il motore PURO condiviso (75 zone dell'accordo con
+fasce A/B/C €/mq/mese, soglie subfascia B≥3/C≥7, regola del cap: gli
+aumenti non superano il max di fascia, le riduzioni sì; `matchZone` non
+tira mai a indovinare — ambiguo → null). Stessa aritmetica di
+`scheda-canone.html` (il calcolatore/preventivatore admin). Tutto testo
+PDF passa da `wa()` (WinAnsi-safe — la lezione del certificato FES).
+
+### Journey consapevole (contesto nel `_run.js`)
+`steps()` riceve `missing` e `late`: il T-14 chiede PER NOME ciò che manca
+(link `/scheda` derivato — anagrafica e/o foto documento) invece del
+generico "se manca qualcosa"; con rate scadute (`late`, una query payments
+per run) gli upsell TACCIONO su T-30/T-14/T-7 (non si vende a chi ha un
+pagamento aperto) e gli avvisi T-90/uscita all'operatore segnalano gli
+arretrati prima di rinnovo/restituzione deposito.
+
+### Watchdog firme (reminder-cron)
+Due guardie: firme PARZIALI ferme >48h → re-nudge automatico alla
+controparte (max 3, cooldown 24h col promemoria manuale); inviti FREDDI
+(`signatureStatus none`, invito inviato >72h, nessuna firma) → re-invito
+"Reminder —" al conduttore (max 2, `inviteNudgeCount`;
+`shouldReinvite()` esportato e testato). Un contratto MAI invitato non
+viene toccato: resta una decisione umana.
+
+### Il ciclo email del contratto (`api/sign/_notify.js` + `send-link`)
+UN design system per ogni email della piattaforma
+(`api/preagreement/_notify.js`: masthead nero col MARCHIO reale — PNG
+hosted `android-chrome-192x192.png`, Gmail scarta data-URI e SVG — carta
+bianca, pill oro, dark-mode aware; esporta `shell/btn/btn2/para/fine/row/
+hero/tiles/timeline/includes/rule`). Lingua del lettore: inquilino EN,
+locatore e operatore IT. Tutto server-side (Nodemailer), best-effort e
+time-boxed — mai può bloccare una firma.
+- `POST /api/sign/send-link` — admin/owner/landlord (Bearer; owner solo
+  sui propri immobili). L'INVITO a firmare per QUALSIASI contratto:
+  backfilla il token mancante (contratti legacy), invia nel design system,
+  stampa `signInvite<Role>At`. Sequenziale: lato locatore su contratto non
+  ancora firmato dall'inquilino → 409 `awaiting_tenant` (il suo link parte
+  in automatico alla firma dell'inquilino). Sostituisce l'EmailJS
+  `sendSignatureEmail` del portal (browser-only, rimosso): saveContract e
+  il promemoria firme ora chiamano questo endpoint.
+- `notifyPartialSignature` / `notifyAdminContractSigned` (chiamate da
+  magic-sign/submit e reminder-cron): conferma al firmatario + "Tocca a
+  Lei"/"your turn" alla controparte col suo link; milestone IT all'admin
+  (`ADMIN_NOTIFY_EMAIL`, default valentino@boom-rome.com).
+- `sendWelcomeEmails` (da `_finalize.js`): welcome tenant EN (portal
+  magic-link, saldo deposito se pendente, timeline utenze/TARI/residenza,
+  certificato) + landlord IT (passi fiscali per regime, cessione
+  fabbricato se extra-UE).
+- `sendCafDossier` (da `_finalize.js`, UNA volta — idempotente su
+  `finalizedAt`): il fascicolo asseverazione/registrazione con anagrafica
+  COMPLETA di entrambe le parti (post-firma lo è per costruzione), catasto,
+  termini, link a PDF firmato + certificato FES + documenti d'identità →
+  `CAF_EMAIL` (default **valentino@boom-rome.com**). Prima viveva in
+  portal-app.js via EmailJS e partiva SOLO dal vecchio flusso di firma nel
+  portal — su /sign non partiva affatto.
+- La Scheda completa manda al cliente una conferma one-shot
+  (`scheda<Role>ConfirmedAt`) nel suo idioma (`api/profile/submit.js`).
+- Due bug di produzione trovati dai test (pdf-lib REALE nella suite):
+  il certificato FES falliva SEMPRE (freccia "→" non WinAnsi) e finalize
+  leggeva `cedolareSecca === true` mentre i contratti reali portano 'si'
+  → obbligazioni del regime sbagliato a scadenzario. Entrambi corretti.
+
+### La Scheda (`/scheda` + `api/profile/*`) — anagrafica universale
+"Compila la tua scheda in 2 minuti": ONE link that collects a party's
+anagrafica (identity + ID upload) for ANY contract, decoupled from the
+signature — the missing piece for clients not onboarded via pre-agreement
+(the legacy `form-tenant/form-landlord` pages wrote anonymously to the
+admin-only `contractRegistrations` collection and silently failed; the
+Share Hub now hands out /scheda links instead). Study: `LA_SCHEDA_STUDY.md`.
+- **Derived tokens, zero migration** (`api/profile/_scheda.js`, same
+  pattern as the viewings' manageToken): `sha256("scheda:<role>:<id>:
+  <HOMIE_SECRET>")` → URL blob `<contractId>.<t|l>.<token>`. Every
+  contract ever created — signed ones included — already has a valid
+  link; rotating `HOMIE_SECRET` revokes all; role lives INSIDE the
+  derivation; a scheda link can never sign.
+- `POST /api/profile/lookup` — public `{t}` → role, `locked`, property
+  label, prefilled identity merged contract→sign-schema→wizard-schema.
+- `POST /api/profile/submit` — public. Writes contract party fields
+  (`tenantName/CF/Dob/Pob/Address/DocType/DocNum/DocIssuer/DocIssueDate/
+  Nationality/Phone`) + users sync on BOTH schemas + `landlords/` for the
+  landlord role. CF checksum-validated when present (optional — fresh
+  expats). Re-editable until that party SIGNS, then 410 (identity of a
+  signed act is frozen); pings the operator via `agentNotifications`.
+- `POST /api/profile/upload` — public. ID document → Storage
+  `contracts/<id>/identity/…` under admin creds (URL never returned to the
+  page), appended to `contract.identityDocs` + the user profile. With
+  `extract:true` the same bytes go through Claude haiku and the response
+  carries the identity fields read off the document (**OCR-first UX**: the
+  client photographs the ID and the form fills itself; never invents,
+  never blocks the upload). Allowed even post-firma (the ID copy for the
+  RLI dossier is additive).
+- `POST /api/profile/link` — admin/owner/landlord (Bearer): returns the
+  two derived /scheda URLs for a contract (the browser can't compute
+  them). Owners only for their own property's contracts. Feeds the
+  portal's Share Hub cards + `sendMissingInfoLink`.
+- `scheda.html` (`/scheda?t=…`, cleanUrls; noindex + no-store in
+  vercel.json): sign.html's design shell, EN-first with IT toggle
+  (landlord defaults IT), Model-C staging (confirm when known / form when
+  not), "⚡ compila con una foto" OCR shortcut, document step skippable,
+  read-only view when locked. No Firebase on the page — same-origin API
+  only.
+- **Deal flow per i clienti legacy**: contratto minimo nel portal →
+  Scheda (anagrafica + documento self-service) → 🔄 Rigenera PDF (ora
+  completo) → Magic Sign. Per contratti già firmati su carta: solo
+  Scheda (upload documento incluso) — nessuna firma fittizia.
+
+### Contratto studenti — template associazione (accordo Roma 27/07/2023)
+`_generateContractPDF_allegatoC` (js/portal-app.js) genera il contratto
+tipo STUDENTI dell'associazione: accordo territoriale depositato presso il
+Comune di Roma Capitale il 27.07.2023 **prot. RA/2023/0044852**, art. 5
+comma 2 L.431/98 (fonte: `contratto_tipo_STUDENTI_Roma_2023.doc`, refusi
+dell'originale normalizzati — il secondo "Articolo 13" è il 14, come da
+clausola 1341/1342). Punti chiave: disdetta 3 mesi (art.1), natura
+transitoria con protocollo nuovo (art.2), canone con cadenza rate reale
+(`installmentMonths`, art.3), interessi deposito annuali + "altre forme di
+garanzia" (art.4), art.6 **biforcato su `cedolareSecca`** (default: testo
+cedolare del modello; 'no' → variante registro/bollo), conviventi da
+`contract.cohabitants` (art.8), slot opzionali `garanzieAltre`/
+`oneriQuota`/`subentroModalita`/`accessiModalita`/`consegnaStato`,
+utenze private a carico conduttore nelle Altre clausole (art.16) +
+`otherClauses` in coda. Both Allegato generators (B and C) read identity
+through the fallback chain contract fields → users sign schema → users
+wizard schema — a regenerated PDF never prints dots for data a party
+already self-filled on /sign or /scheda.
 
 ### POST `/api/documents/share`
 Admin/landlord (Firebase ID token via `api/_auth.js`). Creates a
@@ -925,12 +1069,15 @@ real. Backs the "Aggiungi annuncio" modal in `pfs-command.html`.
   |---|---|
   | `tests/money/run.mjs` | checkout, webhook Stripe idempotenti, conversione PA→contratto |
   | `tests/fiscal/test.mjs` | motore scadenze fiscali |
+  | `tests/fiscal/canone.mjs` | canone concordato: superficie convenzionale (coefficienti e tetti), fascia dai parametri, regola del cap, match zona che non indovina, parametri solo da feature reali, verdetto fits/fuori |
   | `tests/taxpack/test.mjs` | pacchetto commercialista |
   | `tests/journey/steps.mjs` | **le regole commerciali dell'operatore**: quando parte ogni email e cosa NON deve contenere (T-90 e uscita non vendono, le chiavi non si vendono mai, un prodotto già comprato non si ripropone, il rinnovo non arriva prima del move-in su un transitorio breve) |
   | `tests/journey/review-url.mjs` | solo un vero link "scrivi recensione" (`g.page/r/<id>/review`) entra nelle email; un link Maps "Condividi" viene rifiutato con warning |
   | `tests/dossier/run.mjs` | fascicolo ARPE: un landlord non può scrivere nel fascicolo di un immobile altrui, path sotto `property-docs/<id>/`, slot già pieni non sovrascritti |
   | `tests/photos/sweep.mjs` | photo-lab: chi è candidato allo sweep, quali foto contano come sorgente (i nostri output enhanced mai), e l'ordine con cui le 3 notti si spendono — le gallerie vere prima degli annunci da una foto. Si auto-skippa senza `sharp` |
   | `tests/copy/run.mjs` | descrizioni: lo sweep riscrive i template del bot e le schede mute, ma **mai** le parole di un umano — verificato sulle stringhe vere del catalogo, dove il testo scritto a mano è più CORTO del template |
+  | `tests/scheda/run.mjs` | La Scheda: token derivati (ruolo nella derivazione, timing-safe), precedenza prefill contratto→sign→wizard, lock post-firma, sync profilo su ENTRAMBI gli schemi users, upload con OCR che non blocca mai, /api/profile/link autorizzato |
+  | `tests/notify/run.mjs` | ciclo email contratto (pdf-lib REALE, nodemailer mockato): fascicolo CAF a valentino@boom-rome.com esattamente una volta con anagrafica di entrambe le parti, welcome nella lingua del lettore, invito firma col link giusto e 409 sul locatore sequenziale, conferma scheda one-shot |
   | `tests/safari/boot.mjs` | nessuna superficie autenticata resta appesa su un loader |
 - PWA support via `manifest.json` and `sw.js` service worker — registered on
   the 3 portals via `BoomPortal.registerServiceWorker()`

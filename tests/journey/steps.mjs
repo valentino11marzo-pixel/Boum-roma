@@ -12,7 +12,7 @@ import { steps } from '../../api/journey/_run.js';
 const iso = (d) => d.toISOString().slice(0, 10);
 const shift = (days) => { const d = new Date(); d.setUTCDate(d.getUTCDate() + days); return iso(d); };
 
-function fire({ startIn, endIn, bought = [] }) {
+function fire({ startIn, endIn, bought = [], missing = null, late = false }) {
   const c = {
     startDate: startIn != null ? shift(startIn) : null,
     endDate: endIn != null ? shift(endIn) : null,
@@ -24,6 +24,7 @@ function fire({ startIn, endIn, bought = [] }) {
     addr: 'Via Cavour 12, Roma',
     first: 'Anna',
     has: (kind) => bought.includes(kind),
+    missing, late,
   });
   return all.filter((s) => s.due);
 }
@@ -113,6 +114,27 @@ check('transitorio 2 mesi: nessun rinnovo prima del move-in',
   !fire({ startIn: 5, endIn: 66 }).some((s) => s.key === 'r90'));
 check('transitorio 2 mesi: il rinnovo arriva a lease iniziato',
   fire({ startIn: -35, endIn: 25 }).some((s) => s.key === 'r90'));
+
+// ═══ 7 · Journey consapevole: morosità e Scheda mancante ═══════════════════
+// Regole: a chi ha rate scadute NON si vende (i contenuti utili restano);
+// se sappiamo cosa manca, il T-14 lo chiede PER NOME col link della Scheda.
+console.log('\n\x1b[1mMorosità e Scheda\x1b[0m');
+const t30late = one({ startIn: 28, endIn: 393, late: true });
+check('T-30 con rate scadute: NIENTE upsell', t30late && !SELLS.test(t30late.html));
+const t7late = one({ startIn: 6, endIn: 371, late: true });
+check('T-7 con rate scadute: niente Cleaning, resta il promemoria saldo',
+  t7late && !/Book Cleaning Premium/i.test(t7late.html) && /instalment still open/i.test(t7late.html));
+
+const SCHEDA = 'https://www.boomrome.com/scheda?t=ctr1.t.abc';
+const t14miss = one({ startIn: 12, endIn: 377, missing: { identityOk: false, docsOk: false, schedaUrl: SCHEDA } });
+check('T-14 con scheda incompleta: chiede per nome e porta il link /scheda',
+  t14miss && t14miss.html.includes(SCHEDA) && /personal details and a photo/i.test(t14miss.html));
+const t14docs = one({ startIn: 12, endIn: 377, missing: { identityOk: true, docsOk: false, schedaUrl: SCHEDA } });
+check('T-14 con solo documento mancante: chiede SOLO la foto del documento',
+  t14docs && t14docs.html.includes(SCHEDA) && /photo of your ID document/i.test(t14docs.html) && !/personal details and a photo/i.test(t14docs.html));
+const t14ok = one({ startIn: 12, endIn: 377 });
+check('T-14 con tutto a posto: dice "complete", nessun link scheda',
+  t14ok && !t14ok.html.includes('/scheda?t=') && /complete/i.test(t14ok.html));
 
 console.log('\n────────────────────────────────────────────────');
 console.log(`\x1b[1mResult: ${pass} passed, ${fail} failed\x1b[0m`);
