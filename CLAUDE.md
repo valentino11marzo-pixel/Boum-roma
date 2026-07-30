@@ -165,6 +165,13 @@ DOC_MAIL_FROM                # optional — extra TRUSTED senders whose email
                              # operator's own addresses are always trusted.
 VIEWINGS_CALENDAR_EMAIL      # optional — where viewing calendar invites are
                              # sent (defaults to GMAIL_USER)
+BUSY_ICS_URLS                # optional — secret ICS address(es) of the
+                             # operator's REAL calendar (Google Workspace:
+                             # Calendar → Settings → your calendar →
+                             # "Secret address in iCal format"), comma-
+                             # separated. Busy events remove slots from the
+                             # public booking grid. Fail-open: an unreachable
+                             # calendar never blocks bookings
 TELEGRAM_BOT_TOKEN           # already used by api/telegram/*; pfs health alerts
 TELEGRAM_CHAT_ID
 ```
@@ -386,6 +393,34 @@ viewing id + server secret).
   viewing blocks itself and can never move by 30 minutes. Unit-tested
   (`node tests/viewings/avail.mjs`): step math, the 15' gap, notice,
   horizon, max/day, and the DST boundary.
+- `api/viewings/_busyics.js` — **il calendario Workspace dentro la griglia**
+  (la risposta a "non posso avere disponibilità istantanea costante su tutti
+  gli appartamenti"): legge gli indirizzi ICS segreti (`BUSY_ICS_URLS` env
+  e/o `busyIcs` sul doc `settings/viewingAvailability`) e ogni impegno REALE
+  dell'operatore diventa un blocco per `busyBlocks()` — book.html, la pagina
+  self-service del cliente e il picker Telegram smettono INSIEME di offrire
+  quello slot. Bloccare l'instant booking per un pomeriggio = trascinare un
+  evento in Google Calendar, nessuna UI BOOM. TRANSPARENT ("libero") e
+  CANCELLED non bloccano; gli eventi BOOM stessi (UID
+  `boom-viewing-*`/`viewing-*@boomrome.com` — inviti, .ics cliente, feed)
+  sono filtrati, altrimenti la copia in calendario di una visita bloccherebbe
+  il SUO stesso reschedule; ricorrenze espanse nell'orizzonte (DAILY/WEEKLY
+  con BYDAY/INTERVAL/COUNT/UNTIL/EXDATE, istanze spostate via RECURRENCE-ID,
+  MONTHLY/YEARLY semplici — l'esotico contribuisce solo la prima istanza);
+  gli impegni esterni NON consumano `maxPerDay` (sono tempo occupato, non
+  visite); fetch con cache 2' + stale 6h e SEMPRE fail-open: un calendario
+  irraggiungibile non spegne mai le prenotazioni. È integrazione senza
+  credenziali OAuth: l'URL segreto È la credenziale (rotarlo da Google lo
+  revoca). Test: `node tests/viewings/busyics.mjs`.
+- **Annullamento admin dal portal**: la riga visita ha ✕ Cancel anche sulle
+  CONFERMATE (le instant self-booked nascono confermate — prima il bottone
+  esisteva solo sulle pending) e passa da `/api/viewings/confirm` →
+  `_apply.js`: email di annullamento al cliente, METHOD:CANCEL che toglie
+  l'evento dal calendario, Wallet pass aggiornato, countdown spento. Prima
+  il portal scriveva solo `status:'cancelled'` su Firestore: il cliente non
+  veniva avvisato e si presentava al portone. Aggiunti anche ↩ Reschedule
+  sulle confermate, il filtro ✕ Cancelled, e i modal ora mostrano/prefillano
+  l'orario reale anche per i doc self-booked (che hanno solo i campi ISO).
 - `api/viewings/_apply.js` — **the ONE place a viewing changes state**.
   Four surfaces confirm/move/cancel (the operator's API, their Telegram
   buttons, the client's own page, the portal); the side-effects — email,
@@ -1095,6 +1130,9 @@ real. Backs the "Aggiungi annuncio" modal in `pfs-command.html`.
   | `tests/copy/run.mjs` | descrizioni: lo sweep riscrive i template del bot e le schede mute, ma **mai** le parole di un umano — verificato sulle stringhe vere del catalogo, dove il testo scritto a mano è più CORTO del template |
   | `tests/scheda/run.mjs` | La Scheda: token derivati (ruolo nella derivazione, timing-safe), precedenza prefill contratto→sign→wizard, lock post-firma, sync profilo su ENTRAMBI gli schemi users, upload con OCR che non blocca mai, /api/profile/link autorizzato |
   | `tests/notify/run.mjs` | ciclo email contratto (pdf-lib REALE, nodemailer mockato): fascicolo CAF a valentino@boom-rome.com esattamente una volta con anagrafica di entrambe le parti, welcome nella lingua del lettore, invito firma col link giusto e 409 sul locatore sequenziale, conferma scheda one-shot |
+  | `tests/viewings/avail.mjs` | griglia slot: passi, gap 15', preavviso, orizzonte, maxPerDay, DST, token del link cliente |
+  | `tests/viewings/telegram.mjs` | card Telegram visite: callback ≤64 byte, escaping HTML |
+  | `tests/viewings/busyics.mjs` | il calendario Workspace nella griglia: impegni ICS bloccano gli slot (TZID, ricorrenze, EXDATE, RECURRENCE-ID, all-day busy/free), eventi BOOM filtrati, maxPerDay immune, cache + fail-open |
   | `tests/safari/boot.mjs` | nessuna superficie autenticata resta appesa su un loader |
 - PWA support via `manifest.json` and `sw.js` service worker — registered on
   the 3 portals via `BoomPortal.registerServiceWorker()`

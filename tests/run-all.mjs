@@ -26,6 +26,9 @@ const SUITES = [
   { name: 'copy',     file: 'tests/copy/run.mjs',         what: 'descrizioni: riscrive i template, mai le parole di un umano' },
   { name: 'scheda',   file: 'tests/scheda/run.mjs',       what: 'La Scheda: token derivati, prefill, lock post-firma, doppio schema' },
   { name: 'notify',   file: 'tests/notify/run.mjs',       what: 'ciclo email contratto: CAF una volta sola, inviti per ruolo e lingua' },
+  { name: 'viewings', file: 'tests/viewings/avail.mjs',   what: 'griglia slot: passi, gap, preavviso, orizzonte, DST, link cliente' },
+  { name: 'vtelegram',file: 'tests/viewings/telegram.mjs', what: 'card Telegram visite: callback ≤64B, escaping' },
+  { name: 'gcal',     file: 'tests/viewings/busyics.mjs', what: 'Google Workspace nella griglia: gli impegni ICS tolgono gli slot, eventi BOOM filtrati' },
   { name: 'safari',   file: 'tests/safari/boot.mjs',      what: 'nessuna pagina autenticata resta appesa' },
 ];
 

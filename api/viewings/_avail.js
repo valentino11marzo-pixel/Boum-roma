@@ -9,6 +9,9 @@
 //   · weekly windows per weekday, Rome wall-clock (`settings/viewingAvailability`)
 //   · per-mode duration (person 45' / video 20'), minimum notice, horizon, max/day
 //   · a live viewing blocks its slot plus a 15' gap on either side
+//   · the operator's REAL calendar (Google Workspace secret ICS — _busyics.js,
+//     `BUSY_ICS_URLS` env and/or `busyIcs` on the config doc) blocks too: an
+//     event in the agenda removes the slot from every surface at once
 //
 // No external timezone library: Rome offsets are derived from Intl, which the
 // Node runtime already carries. `exceptId` lets a RESCHEDULE ignore the
@@ -17,6 +20,7 @@
 
 import { fsGet, fsList } from '../homie/_lib.js';
 import { startOf } from './_lib.js';
+import { externalBusy } from './_busyics.js';
 
 export const TZ = 'Europe/Rome';
 export const GAP_MINUTES = 15;               // travel / reset between visits
@@ -35,6 +39,7 @@ export const DEFAULTS = {
   minNoticeHours: 4,
   horizonDays: 14,
   maxPerDay: 6,
+  busyIcs: null,           // secret ICS URL(s) — merged with BUSY_ICS_URLS env
 };
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -82,6 +87,7 @@ export async function loadConfig() {
       minNoticeHours: Number(c.minNoticeHours) >= 0 ? Number(c.minNoticeHours) : DEFAULTS.minNoticeHours,
       horizonDays: Number(c.horizonDays) > 0 ? Math.min(30, Number(c.horizonDays)) : DEFAULTS.horizonDays,
       maxPerDay: Number(c.maxPerDay) > 0 ? Number(c.maxPerDay) : DEFAULTS.maxPerDay,
+      busyIcs: c.busyIcs || null,
     };
   } catch { return DEFAULTS; }
 }
@@ -105,6 +111,11 @@ export async function busyBlocks(cfg, exceptId = null) {
       out.push([s.getTime(), s.getTime() + dur * 60000, romeDateKey(s)]);
     }
   }
+  // the operator's Google Workspace calendar: a real appointment removes the
+  // slot for every surface. Best-effort — an unreachable calendar must never
+  // switch off bookings (fail-open with cache inside _busyics.js).
+  try { out.push(...await externalBusy(cfg)); }
+  catch (e) { console.warn('[viewings/_avail] external busy skipped:', e && e.message); }
   return out;
 }
 
