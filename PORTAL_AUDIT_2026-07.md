@@ -101,6 +101,37 @@ chiunque* (il sito pubblico lo legge) — lì dentro ci sono IBAN e dati fiscali
 "Fatture e Corrispettivi" dell'AdE o si passa all'intermediario del
 commercialista. La schermata lo dice invece di fingere un invio.
 
+### Una testata sola per tutti i PDF
+
+Il portale disegnava la **stessa lettera in tre posti**: `generateTemplatePDF`
+("Style B v7" — banda nera, filetto oro a tre sezioni, marchio, pill del
+riferimento), la ricevuta di canone, e la fattura. Tre copie che al primo
+ritocco divergono. Ora c'è `boomDocHead`/`boomDocFoot`/`boomDocSection`/
+`boomDocParty` e tutte e tre ereditano da lì; le pagine successive alla prima
+riportano la testata con "— SEGUE" e la numerazione. Il corpo prende la
+disciplina del cartaceo di `api/preagreement/_pdf.js` — riquadri parte,
+tabelle bordate, riga TOTALE in grassetto — perché è il linguaggio con cui
+BOOM parla già ai clienti.
+
+La fattura guadagna il **riepilogo IVA per aliquota** con Natura e riferimento
+normativo: è la prima cosa che un commercialista cerca, e non c'era.
+
+**Tre difetti trovati renderizzando il PDF, non rileggendolo** (`tests/invoice/
+render.mjs` costruisce il documento con jsPDF vero, lo rasterizza con pdf.js e
+misura dov'è finito il testo):
+
+| difetto | perché sfuggiva |
+|---|---|
+| `charSpace` + `align:'right'`: jsPDF non toglie la spaziatura dell'ultimo carattere → "TOTALE"/"IMPOSTA" a **195,2mm su 194** | 1,2mm: invisibile a schermo, tagliato in stampa |
+| soglie di salto pagina a occhio (`y > 240`) → una fattura di **due righe** occupava due pagine | il blocco ci stava per 0,8mm |
+| `splitTextToSize` è di qualche decimo ottimista → paragrafi avvolti su `DOC_W` esatti sbordavano | idem |
+
+I primi due sono ora `need(h)` — che misura il blocco invece di indovinarlo,
+con l'altezza del blocco pagamento ricavata da `splitTextToSize` — e il terzo
+un margine di sicurezza (`DOC_TW = DOC_W - 2`). Il test tiene anche il
+controllo dei margini in piedi per il futuro, e **dice quale stringa sfora**
+invece di limitarsi a fallire.
+
 ### La ricevuta di pigione resta, ma smette di travestirsi
 
 I documenti auto-generati sui canoni ora nascono `kind:'receipt'`, con serie

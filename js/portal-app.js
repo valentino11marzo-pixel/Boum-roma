@@ -19563,48 +19563,61 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
     }
 
+    // La ricevuta di canone: STESSA testata della fattura (boomDocHead), corpo
+    // diverso perché è un documento diverso — attesta un incasso, non fattura
+    // nulla, e infatti non ha né IVA né numerazione fiscale. Prima disegnava
+    // una terza intestazione a mano: stesso marchio, tre implementazioni.
     function _buildReceiptDoc(pay, c, p, t) {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
+        if (!window.jspdf) return null;
+        var doc = new window.jspdf.jsPDF();
+        var ref = 'RIC-' + String(pay.id).slice(-8).toUpperCase();
+        var amount = Number(pay.amount) || 0;
+        var fmtAmt = amount.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-        doc.setFillColor(0, 0, 0); doc.rect(0, 0, 210, 35, 'F');
-        doc.setTextColor(212, 175, 55); doc.setFontSize(28); doc.setFont('helvetica', 'bold'); doc.text('BOOM', 20, 22);
-        doc.setTextColor(255); doc.setFontSize(14); doc.text('RICEVUTA DI PAGAMENTO', 190, 22, { align: 'right' });
+        var y = boomDocHead(doc, {
+            title: 'RICEVUTA DI PAGAMENTO',
+            ref: ref,
+            dateLine: 'Roma, ' + (pay.paidDate ? fmtDate(pay.paidDate) : fmtDate(new Date())),
+        });
 
-        let y = 50;
-        doc.setTextColor(0);
-        doc.setFillColor(245, 245, 245); doc.rect(15, y - 5, 180, 18, 'F');
-        doc.setFontSize(10); doc.text(`Data: ${fmtDate(pay.paidDate)}`, 20, y + 5);
-        doc.text(`N°: RIC-${pay.id.slice(-8).toUpperCase()}`, 150, y + 5);
+        y = boomDocSection(doc, y, 1, 'Parti');
+        var gap = 6, colW = (DOC_W - gap) / 2;
+        var hL = boomDocParty(doc, DOC_M, y, colW, 'Ricevuto da', [
+            (t && t.name) || 'Inquilino', (t && t.email) || '', (t && t.codiceFiscale) || (t && t.cf) || '',
+        ]);
+        var hR = boomDocParty(doc, DOC_M + colW + gap, y, colW, 'Immobile', [
+            (p && p.name) || '—', (p && p.address) || 'Roma',
+        ]);
+        y += Math.max(hL, hR) + 8;
 
-        y += 30;
-        doc.setFont('helvetica', 'bold'); doc.text('RICEVUTO DA:', 20, y);
-        doc.setFont('helvetica', 'normal'); y += 7; doc.text(t?.name || 'Inquilino', 20, y);
+        y = boomDocSection(doc, y, 2, 'Pagamento');
+        doc.setFillColor(247, 247, 247); doc.rect(DOC_M, y, DOC_W, 13, 'F');
+        [['Periodo', pay.month || '—'],
+         ['Data incasso', fmtDate(pay.paidDate)],
+         ['Modalita', pay.paidVia === 'stripe' ? 'Carta' : pay.paidVia === 'bank' ? 'Bonifico' : 'Bonifico'],
+         ['Riferimento', ref]].forEach(function (kv, i) {
+            var x = DOC_M + 4 + i * (DOC_W / 4);
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor.apply(doc, DOC_SOFT);
+            doc.text(kv[0].toUpperCase(), x, y + 5, { charSpace: 0.8 });
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor.apply(doc, DOC_INK);
+            doc.text(String(kv[1]), x, y + 10.5);
+        });
+        y += 22;
 
-        y += 15;
-        doc.setFont('helvetica', 'bold'); doc.text('IMMOBILE:', 20, y);
-        doc.setFont('helvetica', 'normal'); y += 7; doc.text(p?.name || 'N/A', 20, y);
-        y += 5; doc.text(p?.address || 'Roma', 20, y);
-
-        y += 15;
-        doc.setFont('helvetica', 'bold'); doc.text('PERIODO:', 20, y);
-        doc.setFont('helvetica', 'normal'); y += 7; doc.text(pay.month || 'N/A', 20, y);
-
+        doc.setFillColor.apply(doc, DOC_GOLD); doc.rect(DOC_M, y, DOC_W, 14, 'F');
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(0, 0, 0);
+        doc.text('IMPORTO RICEVUTO', DOC_M + 4, y + 8.8, { charSpace: 0.5 });
+        doc.setFontSize(13);
+        doc.text('EUR ' + fmtAmt, DOC_R - 4, y + 9.2, { align: 'right' });
         y += 20;
-        doc.setFillColor(212, 175, 55); doc.rect(15, y - 5, 180, 25, 'F');
-        doc.setTextColor(0); doc.setFontSize(12); doc.setFont('helvetica', 'bold');
-        doc.text('IMPORTO RICEVUTO', 20, y + 5);
-        doc.setFontSize(20); doc.text(`EUR ${pay.amount},00`, 190, y + 8, { align: 'right' });
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.6); doc.setTextColor.apply(doc, DOC_INK);
+        doc.text('(Euro ' + numberToWords(Math.round(amount)) + '/' + String(Math.round((amount % 1) * 100)).padStart(2, '0') + ')', DOC_M, y);
+        y += 10;
+        doc.splitTextToSize('Si attesta di aver ricevuto la somma sopra indicata a titolo di canone di locazione per il periodo indicato. ' +
+            'Il presente documento e\' una ricevuta di pagamento: non costituisce fattura e non e\' soggetto a fatturazione elettronica.',
+            DOC_TW).forEach(function (ln) { doc.text(ln, DOC_M, y); y += 4.6; });
 
-        doc.setTextColor(0); doc.setFontSize(10); doc.setFont('helvetica', 'normal');
-        y += 35;
-        doc.text(`(Euro ${numberToWords(pay.amount)}/00)`, 20, y);
-
-        y += 20;
-        doc.text('Pagamento per canone di locazione mensile.', 20, y);
-
-        doc.setFillColor(0, 0, 0); doc.rect(0, 275, 210, 25, 'F');
-        doc.setTextColor(150); doc.setFontSize(8); doc.text(`${COMPANY.legal} | ${COMPANY.website}`, 105, 285, { align: 'center' });
+        boomDocFoot(doc, { note: 'Ricevuta di canone di locazione — documento non fiscale.' });
         return doc;
     }
 
@@ -19614,6 +19627,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const p = c ? S.properties.find(x => x.id === c.propertyId) : null;
         const t = c ? S.users.find(x => x.id === c.tenantId) : null;
         const doc = _buildReceiptDoc(pay, c, p, t);
+        if (!doc) return toast('error', 'Libreria PDF non pronta', 'Riprova fra un istante');
         doc.save(`Ricevuta_${p?.name?.replace(/\s+/g, '_') || ''}_${pay.month || ''}.pdf`);
         toast('success', 'Ricevuta scaricata!');
     }
@@ -19631,6 +19645,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const p = c ? S.properties.find(x => x.id === c.propertyId) : null;
             const t = c ? S.users.find(x => x.id === c.tenantId) : null;
             const docPdf = _buildReceiptDoc(pay, c, p, t);
+            if (!docPdf) return null;
             const blob = docPdf.output('blob');
             const ref = 'RIC-' + String(pay.id).slice(-8).toUpperCase();
             const ownerSeg = (t && t.id) || 'admin';
@@ -20374,55 +20389,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         };
         
         // ═══════════════════════════════════════════════════════════════════════════
-        // HEADER - Dark Luxury Design (Style B from v7)
+        // HEADER — una sola testata per tutti i PDF del portale (boomDocHead).
+        // Era disegnata qui a mano, e la stessa lettera era ridisegnata nella
+        // ricevuta e nella fattura: tre copie che al primo ritocco divergono.
+        // La pill del riferimento ora si dimensiona sul testo — a larghezza
+        // fissa (39mm) un `ref` lungo usciva dal bordo arrotondato.
         // ═══════════════════════════════════════════════════════════════════════════
-        
-        // Black gradient background
-        doc.setFillColor(10, 10, 10);
-        doc.rect(0, 0, 140, 38, 'F');
-        doc.setFillColor(10, 10, 10);
-        doc.rect(140, 0, 70, 38, 'F');
-        
-        // 3-section gold accent line at Y=38
-        doc.setFillColor(255, 213, 79);  // Gold Light FFD54F
-        doc.rect(0, 38, 70, 2.5, 'F');
-        doc.setFillColor(245, 166, 35);  // Gold Dark F5A623
-        doc.rect(70, 38, 70, 2.5, 'F');
-        doc.setFillColor(255, 213, 79);  // Gold Light FFD54F
-        doc.rect(140, 38, 70, 2.5, 'F');
-        
-        // Logo image (24x24mm at position 16,7)
-        doc.addImage(BOOM_LOGO_B64, 'PNG', 16, 7, 24, 24);
-        
-        // BOOM wordmark
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(22);
-        doc.setTextColor(212, 175, 55);
-        doc.text('BOOM', 46, 21);
-        
-        // Tagline
-        doc.setFontSize(6);
-        doc.setTextColor(150, 150, 150);
-        doc.text('PROPERTY MANAGEMENT', 46, 28);
-        
-        // Document title (right side)
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(9);
-        doc.setTextColor(255, 255, 255);
-        doc.text(titles[type] || 'DOCUMENTO', 194, 12, { align: 'right' });
-        
-        // Reference badge (gold pill)
-        doc.setFillColor(255, 213, 79);
-        doc.roundedRect(155, 16, 39, 8, 4, 4, 'F');
-        doc.setFontSize(7);
-        doc.setTextColor(0, 0, 0);
-        doc.text(`Rif: ${ref}`, 174.5, 21.5, { align: 'center' });
-        
-        // Date
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
-        doc.setTextColor(170, 170, 170);
-        doc.text(`Roma, ${today}`, 194, 32, { align: 'right' });
+        boomDocHead(doc, {
+            title: titles[type] || 'DOCUMENTO',
+            ref: 'Rif: ' + ref,
+            dateLine: `Roma, ${today}`,
+        });
         
         // ═══════════════════════════════════════════════════════════════════════════
         // CONTENT - Varia per tipo
@@ -28425,113 +28402,360 @@ ${d.description || '-'}`;
      * invBuildPdf — la COPIA DI CORTESIA. Legge gli stessi totali dell'XML
      * (una sola aritmetica): PDF e XML non possono raccontare due storie.
      */
+    // ═══════════════════════════════════════════════════════════════════════
+    // BOOM DOC KIT — un letterhead solo per tutti i PDF del portale
+    // ═══════════════════════════════════════════════════════════════════════
+    //
+    // Il portale disegnava TRE intestazioni diverse per lo stesso marchio: una
+    // in generateTemplatePDF ("Style B v7": banda nera, filetto oro a tre
+    // sezioni, marchio, pill di riferimento), una a mano nella ricevuta di
+    // canone, una nella fattura. Tre teste della stessa lettera che divergono
+    // al primo ritocco. Qui ce n'è una, e le pagine successive alla prima la
+    // ereditano per costruzione.
+    //
+    // Il corpo prende invece la disciplina del documento cartaceo di
+    // api/preagreement/_pdf.js — tabelle etichetta/valore bordate, riga
+    // TOTALE in grassetto, piè di pagina Egidi — perché è il linguaggio con
+    // cui BOOM parla già ai clienti e ai commercialisti.
+
+    var DOC_INK = [17, 17, 17], DOC_SOFT = [125, 125, 125], DOC_LINE = [214, 214, 214];
+    var DOC_GOLD = [212, 175, 55], DOC_GOLD_L = [255, 213, 79], DOC_GOLD_D = [245, 166, 35];
+    var DOC_M = 16, DOC_R = 194, DOC_W = 178;          // margini in mm (A4 = 210)
+    // Larghezza per l'avvolgimento del testo: 2mm meno della colonna. Le
+    // metriche di splitTextToSize sono leggermente ottimiste rispetto a quelle
+    // del renderer, e un paragrafo avvolto su DOC_W esatti sbordava di 8/10 di
+    // millimetro — invisibile a schermo, visibile sulla carta.
+    var DOC_TW = DOC_W - 2;
+
+    // Testata: banda nera + filetto oro a tre sezioni + marchio + pill.
+    function boomDocHead(doc, o) {
+        o = o || {};
+        doc.setFillColor(10, 10, 10); doc.rect(0, 0, 210, 38, 'F');
+        doc.setFillColor.apply(doc, DOC_GOLD_L); doc.rect(0, 38, 70, 2.5, 'F');
+        doc.setFillColor.apply(doc, DOC_GOLD_D); doc.rect(70, 38, 70, 2.5, 'F');
+        doc.setFillColor.apply(doc, DOC_GOLD_L); doc.rect(140, 38, 70, 2.5, 'F');
+
+        try { if (typeof BOOM_LOGO_B64 !== 'undefined') doc.addImage(BOOM_LOGO_B64, 'PNG', 16, 7, 24, 24); } catch (e) {}
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(22);
+        doc.setTextColor.apply(doc, DOC_GOLD); doc.text('BOOM', 46, 21);
+        doc.setFontSize(6); doc.setTextColor(150, 150, 150);
+        doc.text(o.tagline || 'PROPERTY MANAGEMENT', 46, 28);
+
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255, 255, 255);
+        doc.text(String(o.title || 'DOCUMENTO'), DOC_R, 12, { align: 'right' });
+
+        if (o.ref) {
+            // La pill si dimensiona sul testo: un numero lungo usciva dal bordo.
+            doc.setFontSize(7);
+            var w = Math.max(30, doc.getTextWidth(String(o.ref)) + 10);
+            doc.setFillColor.apply(doc, DOC_GOLD_L);
+            doc.roundedRect(DOC_R - w, 16, w, 8, 4, 4, 'F');
+            doc.setTextColor(0, 0, 0);
+            doc.text(String(o.ref), DOC_R - w / 2, 21.5, { align: 'center' });
+        }
+        if (o.stamp) {   // stato del documento, sotto la pill
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(7);
+            doc.setTextColor.apply(doc, DOC_GOLD);
+            doc.text(String(o.stamp).toUpperCase(), DOC_R, 29.5, { align: 'right' });
+        }
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(170, 170, 170);
+        doc.text(o.dateLine || ('Roma, ' + new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })), DOC_R, 35, { align: 'right' });
+
+        doc.setTextColor.apply(doc, DOC_INK);
+        return 52;   // y di partenza del corpo
+    }
+
+    // Piè di pagina: filetto, ragione sociale con P.IVA, nota, numero pagina.
+    function boomDocFoot(doc, o) {
+        o = o || {};
+        var pages = doc.internal.getNumberOfPages();
+        for (var i = 1; i <= pages; i++) {
+            doc.setPage(i);
+            doc.setDrawColor.apply(doc, DOC_GOLD); doc.setLineWidth(0.4);
+            doc.line(DOC_M, 280, DOC_R, 280);
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
+            doc.setTextColor.apply(doc, DOC_SOFT);
+            doc.text(o.legal || (COMPANY.legal + '   ·   P.IVA ' + COMPANY.piva + '   ·   ' + COMPANY.website), DOC_M, 285);
+            if (o.note) doc.text(String(o.note), DOC_M, 289.5);
+            if (pages > 1) doc.text(i + ' / ' + pages, DOC_R, 285, { align: 'right' });
+        }
+        doc.setPage(pages);
+    }
+
+    // Titolo di sezione: numero + testo spaziato, come sul documento cartaceo.
+    function boomDocSection(doc, y, no, title) {
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5);
+        doc.setTextColor.apply(doc, DOC_INK);
+        if (no != null) doc.text(String(no) + '.', DOC_M, y);
+        doc.text(String(title).toUpperCase(), DOC_M + (no != null ? 7 : 0), y, { charSpace: 1.6 });
+        doc.setDrawColor.apply(doc, DOC_LINE); doc.setLineWidth(0.3);
+        doc.line(DOC_M, y + 2.6, DOC_R, y + 2.6);
+        return y + 9;
+    }
+
+    // Riquadro etichetta/valore su più righe — il blocco "parte" del cartaceo.
+    function boomDocParty(doc, x, y, w, label, lines) {
+        var body = (lines || []).filter(Boolean).map(String);
+        var h = 11 + body.length * 4.6 + 3;
+        doc.setDrawColor.apply(doc, DOC_LINE); doc.setLineWidth(0.3);
+        doc.rect(x, y, w, h);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5);
+        doc.setTextColor.apply(doc, DOC_SOFT);
+        doc.text(String(label).toUpperCase(), x + 4, y + 6, { charSpace: 1.1 });
+        doc.setFontSize(8.6); doc.setTextColor.apply(doc, DOC_INK);
+        body.forEach(function (t, i) {
+            doc.setFont('helvetica', i === 0 ? 'bold' : 'normal');
+            doc.text(doc.splitTextToSize(t, w - 8)[0] || '', x + 4, y + 12 + i * 4.6);
+        });
+        return h;
+    }
+
+    /**
+     * invBuildPdf — la COPIA DI CORTESIA della fattura.
+     *
+     * Legge gli STESSI totali dell'XML (una sola aritmetica, in
+     * js/invoice-engine.js): PDF e XML non possono raccontare due storie.
+     * È il documento che il cliente stampa e il commercialista archivia,
+     * quindi ha il riepilogo IVA per aliquota — la parte che un
+     * commercialista guarda per prima e che la versione precedente non aveva.
+     */
     function invBuildPdf(inv, seller) {
         if (!window.jspdf) { toast('error', 'Libreria PDF non pronta', 'Riprova fra un istante'); return null; }
-        var jsPDF = window.jspdf.jsPDF;
-        var doc = new jsPDF();
-        var t = IE().computeTotals(inv);
-        var f = IE().fmtEur;
+        var doc = new window.jspdf.jsPDF();
+        var IEx = IE();
+        var t = IEx.computeTotals(inv);
+        var f = IEx.fmtEur;
         var isCredit = inv.docType === 'TD04';
-        var W = 210, L = 18, R = 192;
-
-        doc.setFillColor(0, 0, 0); doc.rect(0, 0, W, 34, 'F');
-        doc.setTextColor(212, 175, 55); doc.setFontSize(26); doc.setFont('helvetica', 'bold'); doc.text('BOOM', L, 21);
-        doc.setTextColor(255); doc.setFontSize(13);
-        doc.text(isCredit ? 'NOTA DI CREDITO' : (IE().DOC_TYPES[inv.docType] || 'FATTURA').toUpperCase(), R, 21, { align: 'right' });
-        doc.setFontSize(7); doc.setTextColor(160);
-        doc.text('Copia di cortesia — l\'originale e\' il file XML trasmesso al Sistema di Interscambio', R, 27, { align: 'right' });
-
-        var y = 44;
-        doc.setTextColor(0); doc.setFontSize(9); doc.setFont('helvetica', 'bold');
-        doc.text('EMITTENTE', L, y);
-        doc.text('CLIENTE', 110, y);
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
-        var sl = [seller.name, [seller.address, seller.streetNumber].filter(Boolean).join(' '),
-                  [seller.zip, seller.city, seller.province ? '(' + seller.province + ')' : ''].filter(Boolean).join(' '),
-                  seller.vat ? 'P.IVA ' + seller.vat : '', seller.cf && seller.cf !== seller.vat ? 'C.F. ' + seller.cf : '',
-                  seller.reaNumber ? 'REA ' + seller.reaOffice + '-' + seller.reaNumber : ''].filter(Boolean);
         var b = inv.buyer || {};
-        var bl = [IE().buyerName(b), [b.address, b.streetNumber].filter(Boolean).join(' '),
-                  [b.zip, b.city, b.province ? '(' + b.province + ')' : ''].filter(Boolean).join(' '),
-                  b.vat ? 'P.IVA ' + b.vat : '', b.cf ? 'C.F. ' + b.cf : '',
-                  b.sdiCode ? 'Cod. dest. ' + b.sdiCode : (b.pec ? 'PEC ' + b.pec : '')].filter(Boolean);
-        var yy = y + 6;
-        sl.forEach(function (line, i) { doc.text(String(line), L, yy + i * 5); });
-        bl.forEach(function (line, i) { doc.text(String(line), 110, yy + i * 5); });
-        y = yy + Math.max(sl.length, bl.length) * 5 + 6;
+        var dmy = function (d) { return d ? IEx.isoDate(d).split('-').reverse().join('/') : '—'; };
 
-        doc.setFillColor(245, 245, 245); doc.rect(L, y, R - L, 13, 'F');
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-        doc.text('Documento n. ' + (inv.number || '—'), L + 4, y + 8);
-        doc.setFont('helvetica', 'normal');
-        doc.text('Data ' + IE().isoDate(inv.date).split('-').reverse().join('/'), 108, y + 8);
-        if (inv.dueDate) doc.text('Scadenza ' + IE().isoDate(inv.dueDate).split('-').reverse().join('/'), 150, y + 8);
-        y += 20;
-
-        if (inv.relatedDoc && inv.relatedDoc.number) {
-            doc.setFontSize(8); doc.text('Riferimento fattura n. ' + inv.relatedDoc.number + ' del ' +
-                String(inv.relatedDoc.date || '').split('-').reverse().join('/'), L, y); y += 7;
-        }
-
-        // Righe
-        doc.setFillColor(0); doc.rect(L, y, R - L, 9, 'F');
-        doc.setTextColor(255); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
-        doc.text('DESCRIZIONE', L + 3, y + 6);
-        doc.text('Q.TA', 120, y + 6, { align: 'right' });
-        doc.text('PREZZO', 145, y + 6, { align: 'right' });
-        doc.text('IVA', 160, y + 6, { align: 'right' });
-        doc.text('TOTALE', R - 3, y + 6, { align: 'right' });
-        y += 13; doc.setTextColor(0); doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
-        t.rows.forEach(function (r) {
-            var wrapped = doc.splitTextToSize(String(r.description || ''), 95);
-            doc.text(wrapped, L + 3, y);
-            doc.text(String(r.qty), 120, y, { align: 'right' });
-            doc.text(f(r.unitPrice), 145, y, { align: 'right' });
-            doc.text(r.vatRate ? r.vatRate + '%' : (r.nature || '—'), 160, y, { align: 'right' });
-            doc.text(f(r.total), R - 3, y, { align: 'right' });
-            y += Math.max(wrapped.length, 1) * 5 + 2;
-            if (y > 240) { doc.addPage(); y = 25; }
+        var docTitle = isCredit ? 'NOTA DI CREDITO' : (IEx.DOC_TYPES[inv.docType] || 'FATTURA').toUpperCase();
+        var y = boomDocHead(doc, {
+            title: docTitle,
+            ref: inv.number ? 'N. ' + inv.number : 'BOZZA',
+            stamp: inv.status === 'paid' ? 'incassata' : (inv.sdiStatus === 'trasmessa' ? 'trasmessa SdI' : ''),
+            dateLine: 'Roma, ' + dmy(inv.date),
         });
 
-        y += 4; doc.setDrawColor(210); doc.line(115, y, R, y); y += 7;
-        doc.setFontSize(9);
-        t.vatSummary.forEach(function (s2) {
-            doc.text('Imponibile ' + s2.rate + '%' + (s2.nature ? ' (' + s2.nature + ')' : ''), 118, y);
-            doc.text('EUR ' + f(s2.taxable), R - 3, y, { align: 'right' }); y += 5;
-            if (s2.rate) { doc.text('IVA ' + s2.rate + '%', 118, y); doc.text('EUR ' + f(s2.vat), R - 3, y, { align: 'right' }); y += 5; }
+        // Il piè di pagina occupa da 280mm in giù: il corpo si ferma a 272.
+        // `need(h)` chiede spazio per un blocco di altezza NOTA, invece di
+        // confrontarsi con soglie a occhio — erano quelle a mandare a pagina
+        // due una fattura di due righe, lasciando la prima mezza vuota.
+        var BODY_END = 272;
+        var need = function (h) {
+            if (y + h <= BODY_END) return false;
+            doc.addPage();
+            y = boomDocHead(doc, {
+                title: docTitle + ' — SEGUE',
+                ref: inv.number ? 'N. ' + inv.number : 'BOZZA',
+                dateLine: 'Roma, ' + dmy(inv.date),
+            });
+            return true;
+        };
+
+        // ── 1. Parti ──────────────────────────────────────────────────
+        y = boomDocSection(doc, y, 1, 'Parti');
+        var gap = 6, colW = (DOC_W - gap) / 2;
+        var hL = boomDocParty(doc, DOC_M, y, colW, 'Cedente / prestatore', [
+            seller.name,
+            [seller.address, seller.streetNumber].filter(Boolean).join(' '),
+            [seller.zip, seller.city, seller.province ? '(' + seller.province + ')' : ''].filter(Boolean).join(' '),
+            seller.vat ? 'P.IVA ' + seller.vat : '',
+            seller.cf && seller.cf !== seller.vat ? 'C.F. ' + seller.cf : '',
+            seller.reaNumber ? 'REA ' + seller.reaOffice + '-' + seller.reaNumber : '',
+            'Regime ' + (seller.regime || 'RF01'),
+        ]);
+        var hR = boomDocParty(doc, DOC_M + colW + gap, y, colW, 'Cessionario / committente', [
+            IEx.buyerName(b),
+            [b.address, b.streetNumber].filter(Boolean).join(' '),
+            [b.zip, b.city, b.province ? '(' + b.province + ')' : ''].filter(Boolean).join(' '),
+            b.vat ? 'P.IVA ' + b.vat : '',
+            b.cf ? 'C.F. ' + b.cf : '',
+            b.sdiCode ? 'Cod. dest. ' + b.sdiCode : (b.pec ? 'PEC ' + b.pec : ''),
+            (b.country || 'IT') !== 'IT' ? 'Paese ' + b.country : '',
+        ]);
+        y += Math.max(hL, hR) + 8;
+
+        // ── 2. Estremi del documento ──────────────────────────────────
+        var strip = [
+            ['Numero', inv.number || '(bozza)'],
+            ['Data', dmy(inv.date)],
+            ['Scadenza', inv.dueDate ? dmy(inv.dueDate) : '—'],
+            ['Pagamento', (IEx.MOD_PAGAMENTO[(inv.payment || {}).method] || 'Bonifico')],
+        ];
+        doc.setFillColor(247, 247, 247); doc.rect(DOC_M, y, DOC_W, 13, 'F');
+        strip.forEach(function (kv, i) {
+            var x = DOC_M + 4 + i * (DOC_W / 4);
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor.apply(doc, DOC_SOFT);
+            doc.text(kv[0].toUpperCase(), x, y + 5, { charSpace: 0.8 });
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor.apply(doc, DOC_INK);
+            doc.text(String(kv[1]), x, y + 10.5);
+        });
+        y += 19;
+        if (isCredit && inv.relatedDoc && inv.relatedDoc.number) {
+            doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor.apply(doc, DOC_SOFT);
+            doc.text('Storna la fattura n. ' + inv.relatedDoc.number + ' del ' + dmy(inv.relatedDoc.date), DOC_M, y);
+            y += 7;
+        }
+
+        // ── 3. Righe ──────────────────────────────────────────────────
+        y = boomDocSection(doc, y, isCredit ? 2 : 2, 'Descrizione della prestazione');
+        var COL = { desc: DOC_M + 3, qty: DOC_M + 106, price: DOC_M + 130, vat: DOC_M + 148, tot: DOC_R - 3 };
+        var head = function (yy) {
+            doc.setFillColor(10, 10, 10); doc.rect(DOC_M, yy, DOC_W, 7, 'F');
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(6.8); doc.setTextColor(255, 255, 255);
+            doc.text('DESCRIZIONE', COL.desc, yy + 4.7, { charSpace: 0.7 });
+            // Niente charSpace sulle intestazioni allineate a destra: jsPDF
+            // non toglie la spaziatura dell'ultimo carattere quando allinea,
+            // e "TOTALE"/"IMPOSTA" finivano oltre il margine (195,2mm su 194).
+            doc.text('Q.TA', COL.qty, yy + 4.7, { align: 'right' });
+            doc.text('PREZZO', COL.price, yy + 4.7, { align: 'right' });
+            doc.text('IVA', COL.vat, yy + 4.7, { align: 'right' });
+            doc.text('TOTALE', COL.tot, yy + 4.7, { align: 'right' });
+            doc.setTextColor.apply(doc, DOC_INK);
+            return yy + 7;
+        };
+        y = head(y);
+        doc.setFontSize(8.6);
+        t.rows.forEach(function (r) {
+            var lines = doc.splitTextToSize(String(r.description || '—'), 98);
+            var rh = Math.max(8, lines.length * 4.4 + 3.6);
+            // Salto pagina che RIPETE l'intestazione: una riga orfana sotto
+            // colonne senza nomi non si legge.
+            if (need(rh)) y = head(y);
+            doc.setFont('helvetica', 'normal'); doc.setTextColor.apply(doc, DOC_INK); doc.setFontSize(8.6);
+            lines.forEach(function (ln, i) { doc.text(ln, COL.desc, y + 5.4 + i * 4.4); });
+            doc.text(String(r.qty), COL.qty, y + 5.4, { align: 'right' });
+            doc.text(f(r.unitPrice), COL.price, y + 5.4, { align: 'right' });
+            doc.text(r.vatRate ? r.vatRate + '%' : (r.nature || '—'), COL.vat, y + 5.4, { align: 'right' });
+            doc.setFont('helvetica', 'bold');
+            doc.text(f(r.total), COL.tot, y + 5.4, { align: 'right' });
+            if (r.withholding && t.withholding) {
+                doc.setFont('helvetica', 'italic'); doc.setFontSize(6.5); doc.setTextColor.apply(doc, DOC_SOFT);
+                doc.text('soggetta a ritenuta', COL.desc, y + 5.4 + lines.length * 4.4);
+                rh += 3.6; doc.setFontSize(8.6); doc.setTextColor.apply(doc, DOC_INK);
+            }
+            doc.setDrawColor.apply(doc, DOC_LINE); doc.setLineWidth(0.2);
+            doc.line(DOC_M, y + rh, DOC_R, y + rh);
+            y += rh;
+        });
+        y += 8;
+
+        // ── 4. Riepilogo IVA — la parte che il commercialista legge ────
+        // Riepilogo + totali sono un blocco solo: spezzarli fra due pagine
+        // mette l'imponibile di qua e il totale di là.
+        need(24 + t.vatSummary.length * 6 + (t.stampDutyDue ? 6 : 0) + 40 + (t.withholding ? 20 : 0));
+        y = boomDocSection(doc, y, 3, 'Riepilogo IVA');
+        var RC = { al: DOC_M + 3, nat: DOC_M + 26 };
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(6.8); doc.setTextColor.apply(doc, DOC_SOFT);
+        doc.text('ALIQUOTA', RC.al, y, { charSpace: 0.7 });
+        doc.text('NATURA / RIFERIMENTO NORMATIVO', RC.nat, y, { charSpace: 0.7 });
+        doc.text('IMPONIBILE', DOC_M + 132, y, { align: 'right' });
+        doc.text('IMPOSTA', DOC_R - 3, y, { align: 'right' });
+        y += 3;
+        doc.setDrawColor.apply(doc, DOC_LINE); doc.setLineWidth(0.3); doc.line(DOC_M, y, DOC_R, y);
+        y += 5;
+        doc.setTextColor.apply(doc, DOC_INK);
+        t.vatSummary.forEach(function (v) {
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(8.6);
+            doc.text(v.rate.toFixed(2) + '%', RC.al, y);
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(7.2); doc.setTextColor.apply(doc, DOC_SOFT);
+            var norma = v.rate === 0
+                ? (v.nature + ' — ' + ((inv.naturaNorma && inv.naturaNorma[v.nature]) || IEx.NATURA_NORMA[v.nature] || IEx.NATURE[v.nature] || ''))
+                : 'Operazione imponibile';
+            doc.text(doc.splitTextToSize(norma, 100)[0] || '', RC.nat, y);
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(8.6); doc.setTextColor.apply(doc, DOC_INK);
+            doc.text(f(v.taxable), DOC_M + 132, y, { align: 'right' });
+            doc.text(f(v.vat), DOC_R - 3, y, { align: 'right' });
+            y += 6;
         });
         if (t.stampDutyDue) {
-            doc.text('Imposta di bollo' + (t.stampDutyCharged ? '' : ' (non riaddebitata)'), 118, y);
-            doc.text('EUR ' + f(t.stampDuty), R - 3, y, { align: 'right' }); y += 5;
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(8.6);
+            doc.text('Imposta di bollo' + (t.stampDutyCharged ? '' : ' (a carico dell\'emittente)'), RC.al, y);
+            doc.text(f(t.stampDuty), DOC_R - 3, y, { align: 'right' });
+            y += 6;
         }
-        y += 2; doc.setFillColor(212, 175, 55); doc.rect(115, y, R - 115, 12, 'F');
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(0);
-        doc.text('TOTALE DOCUMENTO', 118, y + 8);
-        doc.text('EUR ' + f(t.total), R - 3, y + 8, { align: 'right' });
-        y += 17;
+        y += 4;
+
+        // ── 5. Totali ─────────────────────────────────────────────────
+        var TX = DOC_M + 100, TW = DOC_W - 100;
+        doc.setDrawColor.apply(doc, DOC_LINE); doc.setLineWidth(0.3); doc.line(TX, y, DOC_R, y); y += 6;
+        var tRow = function (label, val, bold) {
+            doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(bold ? 9 : 8.6);
+            doc.setTextColor.apply(doc, bold ? DOC_INK : DOC_SOFT);
+            doc.text(label, TX + 3, y);
+            doc.setTextColor.apply(doc, DOC_INK); doc.setFont('helvetica', 'bold');
+            doc.text(val, DOC_R - 3, y, { align: 'right' });
+            y += 5.6;
+        };
+        tRow('Totale imponibile', 'EUR ' + f(t.taxable));
+        if (t.vat) tRow('Totale imposta', 'EUR ' + f(t.vat));
+        if (t.stampDutyCharged) tRow('Bollo', 'EUR ' + f(t.stampDutyCharged));
+
+        doc.setFillColor.apply(doc, DOC_GOLD); doc.rect(TX, y - 1, TW, 11, 'F');
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(0, 0, 0);
+        doc.text('TOTALE DOCUMENTO', TX + 3, y + 6.2, { charSpace: 0.5 });
+        doc.setFontSize(11);
+        doc.text('EUR ' + f(t.total), DOC_R - 3, y + 6.4, { align: 'right' });
+        y += 18;   // la banda oro non deve toccare il titolo successivo
         if (t.withholding) {
-            doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
-            doc.text('Ritenuta d\'acconto', 118, y); doc.text('- EUR ' + f(t.withholding), R - 3, y, { align: 'right' }); y += 6;
-            doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
-            doc.text('NETTO A PAGARE', 118, y); doc.text('EUR ' + f(t.netToPay), R - 3, y, { align: 'right' }); y += 8;
+            doc.setTextColor.apply(doc, DOC_INK);
+            tRow('Ritenuta d\'acconto', '- EUR ' + f(t.withholding));
+            doc.setDrawColor(10, 10, 10); doc.setLineWidth(0.5); doc.rect(TX, y - 1, TW, 10);
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor.apply(doc, DOC_INK);
+            doc.text('NETTO A PAGARE', TX + 3, y + 5.8, { charSpace: 0.5 });
+            doc.setFontSize(10.5);
+            doc.text('EUR ' + f(t.netToPay), DOC_R - 3, y + 6, { align: 'right' });
+            y += 15;
         }
 
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(60);
+        // ── 6. Pagamento e note ───────────────────────────────────────
         var pay = inv.payment || {};
-        var payLines = [];
-        if (pay.iban) payLines.push('Pagamento: ' + (IE().MOD_PAGAMENTO[pay.method] || 'bonifico') + ' — IBAN ' + pay.iban);
-        if (inv.causale) payLines.push(String(inv.causale));
-        if (t.stampDutyDue) payLines.push('Imposta di bollo assolta in modo virtuale ai sensi del DM 17/06/2014.');
-        if (seller.regime === 'RF19') payLines.push(IE().NATURA_NORMA['N2.2'] + '.');
-        payLines.forEach(function (line) {
-            doc.splitTextToSize(line, R - L).forEach(function (w) { doc.text(w, L, y); y += 4.5; });
-            y += 1;
-        });
+        // Altezza MISURATA, non stimata: la causale si avvolge su un numero
+        // di righe che solo splitTextToSize conosce, e una stima larga di
+        // pochi millimetri mandava a pagina due un blocco che ci stava.
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+        var causaleLines = inv.causale ? doc.splitTextToSize(String(inv.causale), DOC_TW).length : 0;
+        var payH = 9 + 5.2 + (pay.iban ? 5.2 : 0) + (pay.bank ? 5.2 : 0) + (causaleLines ? 2 + causaleLines * 4.2 : 0);
+        need(payH);
+        y = boomDocSection(doc, y, 4, 'Pagamento');
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.6); doc.setTextColor.apply(doc, DOC_INK);
+        var payTxt = (IEx.COND_PAGAMENTO[pay.condition] || 'Pagamento completo') + ' · ' +
+                     (IEx.MOD_PAGAMENTO[pay.method] || 'Bonifico') +
+                     (inv.dueDate ? ' · entro il ' + dmy(inv.dueDate) : '');
+        doc.text(payTxt, DOC_M, y); y += 5.2;
+        if (pay.iban) {
+            doc.setFont('helvetica', 'bold');
+            doc.text('IBAN  ' + String(pay.iban).replace(/\s/g, '').toUpperCase(), DOC_M, y); y += 5.2;
+            doc.setFont('helvetica', 'normal');
+        }
+        if (pay.bank) { doc.text(String(pay.bank), DOC_M, y); y += 5.2; }
+        if (inv.causale) {
+            y += 2;
+            doc.setTextColor.apply(doc, DOC_SOFT); doc.setFontSize(8);
+            doc.splitTextToSize(String(inv.causale), DOC_TW).forEach(function (ln) { doc.text(ln, DOC_M, y); y += 4.2; });
+        }
 
-        doc.setFillColor(0); doc.rect(0, 279, W, 21, 'F');
-        doc.setTextColor(150); doc.setFontSize(7);
-        doc.text(seller.name + ' · P.IVA ' + (seller.vat || '—') + ' · ' + (COMPANY.website || ''), 105, 288, { align: 'center' });
-        doc.text('Documento generato dal portale BOOM · non sostituisce la fattura elettronica trasmessa allo SdI', 105, 293, { align: 'center' });
+        // Note di legge: quelle che rendono il documento leggibile senza l'XML.
+        var notes = [];
+        if (t.stampDutyDue) notes.push('Imposta di bollo assolta in modo virtuale ai sensi del DM 17/06/2014.');
+        if (seller.regime === 'RF19' || seller.regime === 'RF02') notes.push(IEx.NATURA_NORMA['N2.2'] + '.');
+        if (t.withholding) notes.push('Importo soggetto a ritenuta d\'acconto: il committente versa la ritenuta all\'Erario e corrisponde il netto indicato.');
+        if (notes.length) {
+            y += 4;
+            doc.setFont('helvetica', 'italic'); doc.setFontSize(7.2); doc.setTextColor.apply(doc, DOC_SOFT);
+            notes.forEach(function (n) {
+                doc.splitTextToSize(n, DOC_TW).forEach(function (ln) { doc.text(ln, DOC_M, y); y += 3.8; });
+                y += 1.4;
+            });
+        }
+
+        boomDocFoot(doc, {
+            legal: seller.name + '   ·   P.IVA ' + (seller.vat || '—') + '   ·   ' + COMPANY.website,
+            // Detto sul documento, non solo a schermo: chi lo riceve deve
+            // sapere che l'originale fiscale è il file trasmesso allo SdI.
+            note: 'Copia di cortesia. L\'originale e\' la fattura elettronica trasmessa al Sistema di Interscambio.',
+        });
         return doc;
     }
 

@@ -15,6 +15,7 @@ const SUITES = [
   { name: 'taxpack',  file: 'tests/taxpack/test.mjs',     what: 'pacchetto commercialista' },
   { name: 'invoice',  file: 'tests/invoice/run.mjs',      what: 'fattura elettronica: totali al centesimo, numerazione senza buchi, XML FatturaPA che lo SdI accetta' },
   { name: 'invoiceui',file: 'tests/invoice/ui.mjs',       what: 'editor fattura: si apre, i totali a schermo sono quelli del motore, la validazione blocca' },
+  { name: 'invoicepdf',file:'tests/invoice/render.mjs',  what: 'il PDF fattura/ricevuta renderizzato DAVVERO: totali stampati, riepilogo IVA, niente fuori dai margini' },
   { name: 'journey',  file: 'tests/journey/steps.mjs',    what: 'regole commerciali delle email automatiche' },
   { name: 'review',   file: 'tests/journey/review-url.mjs', what: 'link recensione Google' },
   { name: 'dossier',  file: 'tests/dossier/run.mjs',      what: 'fascicolo ARPE: autorizzazione e upload' },

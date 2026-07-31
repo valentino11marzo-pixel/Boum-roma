@@ -1093,6 +1093,25 @@ mangiava i centesimi.
   cortesia che legge GLI STESSI totali dell'XML, download XML col nome
   conforme `IT<piva>_<progressivo>.xml`, stato da_trasmettere/trasmessa.
   BOOM GENERA l'XML, non lo TRASMETTE — la UI lo dice invece di fingere.
+- **BOOM doc kit — UNA testata per tutti i PDF del portale**
+  (`boomDocHead`/`boomDocFoot`/`boomDocSection`/`boomDocParty`): banda nera,
+  filetto oro a tre sezioni, marchio, pill del riferimento che si dimensiona
+  sul testo (a 39mm fissi un `ref` lungo usciva dal bordo), piè con ragione
+  sociale + P.IVA + numero di pagina. Il portale disegnava la STESSA lettera
+  in tre posti — `generateTemplatePDF`, la ricevuta di canone, la fattura —
+  e al primo ritocco divergevano; ora ereditano tutte da qui, e le pagine
+  successive alla prima riportano la testata con "— SEGUE". Il corpo prende
+  invece la disciplina del cartaceo di `api/preagreement/_pdf.js` (riquadri
+  parte, tabelle bordate, riga TOTALE in grassetto).
+  La fattura ha in più il **riepilogo IVA per aliquota** con Natura e
+  riferimento normativo — la parte che il commercialista guarda per prima.
+  Tre trappole trovate RENDERIZZANDO il PDF, non rileggendolo:
+  `charSpace` + `align:'right'` in jsPDF non toglie la spaziatura dell'ultimo
+  carattere e "TOTALE"/"IMPOSTA" uscivano a 195,2mm su 194; le soglie di
+  salto pagina a occhio mandavano a pagina due una fattura di due righe
+  (ora `need(h)` misura il blocco, e l'altezza del blocco pagamento si
+  ricava da `splitTextToSize`, non si stima); `splitTextToSize` è di qualche
+  decimo ottimista, quindi si avvolge su `DOC_TW = DOC_W - 2`.
 - **`billing/company`** (collezione NUOVA, admin-only in firestore.rules):
   denominazione, P.IVA con checksum a schermo, regime, sede, REA, capitale,
   IBAN, aliquota default, sezionale. NON in `settings`, che le rules aprono
@@ -1370,6 +1389,7 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/taxpack/test.mjs` | pacchetto commercialista |
   | `tests/invoice/run.mjs` | fattura elettronica: centesimi che non si perdono, IVA sul riepilogo e non per riga, bollo solo oltre €77,47, numerazione che non ripete un numero dopo una cancellazione, XML FatturaPA che lo SdI accetta, nota di credito che non muta l'originale |
   | `tests/invoice/ui.mjs` | l'editor fattura si apre DAVVERO (Chromium, Firebase finto): totali a schermo = totali del motore, la validazione blocca l'emissione, un nome cliente con HTML non entra nel DOM. Si auto-skippa senza playwright-core |
+  | `tests/invoice/render.mjs` | il PDF **renderizzato davvero** (jsPDF + pdf.js veri, PNG su disco): i totali stampati sono quelli del motore, c'è il riepilogo IVA, il netto a pagare compare solo con la ritenuta, la nota di credito richiama l'originale, molte righe vanno a pagina 2 RIPETENDO l'intestazione, e **niente testo esce dai margini** (16/194mm) — il controllo che ha trovato l'overflow di `charSpace`. Legge jspdf/pdfjs-dist da node_modules (`npm i jspdf@2.5.1 pdfjs-dist@3.11.174` o `BOOM_PDFLIBS=<dir>`), nessuna CDN; si auto-skippa senza |
   | `tests/journey/steps.mjs` | **le regole commerciali dell'operatore**: quando parte ogni email e cosa NON deve contenere (T-90 e uscita non vendono, le chiavi non si vendono mai, un prodotto già comprato non si ripropone, il rinnovo non arriva prima del move-in su un transitorio breve) |
   | `tests/journey/review-url.mjs` | solo un vero link "scrivi recensione" (`g.page/r/<id>/review`) entra nelle email; un link Maps "Condividi" viene rifiutato con warning |
   | `tests/dossier/run.mjs` | fascicolo ARPE: un landlord non può scrivere nel fascicolo di un immobile altrui, path sotto `property-docs/<id>/`, slot già pieni non sovrascritti |
