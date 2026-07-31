@@ -169,6 +169,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ─── billing — dati fiscali dell'emittente ────────────────────────
+    // NON in /settings, che è aperto in lettura a chiunque (il sito
+    // pubblico lo legge): qui dentro ci sono IBAN, P.IVA, REA e capitale
+    // sociale della società. Stessa ragione per cui esiste /payout.
+    match /billing/{x} { allow read, write: if isAdmin(); }
+
     // ─── viewingRequests ──────────────────────────────────────────────
     match /viewingRequests/{x} {
       allow create: if true;

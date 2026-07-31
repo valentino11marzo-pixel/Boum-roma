@@ -169,11 +169,19 @@ window.__portalAppLoaded = true; // sentinella per la via d'uscita anti-spinner-
         name: 'BOOM',
         legal: 'Egidi Immobiliare S.r.l.',
         address: 'Roma, Italia',
+        // ⚠️ Questa P.IVA NON supera il controllo di checksum (algoritmo
+        // ufficiale a 11 cifre) — vedi tests/invoice/run.mjs. Resta qui solo
+        // per i PDF legacy: la fatturazione elettronica legge `billing/company`
+        // (Impostazioni → Dati di fatturazione), dove il campo è validato.
         piva: '17546591000',
         email: 'info@boomrome.com',
         phone: '+39 331 325 1961',
         website: 'www.boomrome.com',
-        iban: 'IT00X0000000000000000000000', // ⚠️ UPDATE WITH REAL IBAN
+        // IBAN segnaposto: NON stamparlo mai su un documento che va al
+        // cliente. Le fatture leggono l'IBAN da `billing/company`, i canoni
+        // da `settings/payout`. Se un giorno un PDF mostra questo numero,
+        // qualcuno ha bypassato entrambi.
+        iban: '',
         logo: 'data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDI0IDEwMjQiIHdpZHRoPSIxMDI0IiBoZWlnaHQ9IjEwMjQiPgogIDxkZWZzPgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJnb2xkR3JhZGllbnQiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMCUiIHkyPSIxMDAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI0ZGRDU0RiIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiNGNUE2MjMiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgPC9kZWZzPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDAsMTAyNCkgc2NhbGUoMC4xLC0wLjEpIiBmaWxsPSJ1cmwoI2dvbGRHcmFkaWVudCkiPgogICAgPHBhdGggZD0iTTQ4NjAgODc0OSBjLTUwOSAtMjkgLTk3NiAtMTYxIC0xNDEzIC00MDEgLTU4MCAtMzE3IC0xMDU3IC04MDYgLTEzNTAgLTEzODMgLTE0OCAtMjkyIC0yMjkgLTUzMiAtMjkxIC04NTkgLTg5IC00NjUgLTY5IC0xMDA1IDU0IC0xNDYxIDE4NCAtNjg4IDYxNiAtMTMwOCAxMjMyIC0xNzY5IDQ5MiAtMzY4IDExNzIgLTYwOSAxNzk0IC02MzUgNTQ2IC0yMiA5ODcgNTcgMTQ4OSAyNjcgNTAzIDIxMSA5NzkgNTg5IDEzMjcgMTA1MyAzNDAgNDUzIDU1NyA5OTQgNjMwIDE1NjkgMTcgMTM1IDE3IDYzMCAwIDc2MCAtOTMgNzE2IC0zOTYgMTM0MSAtOTAwIDE4NjEgLTI4MCAyODkgLTU2OSA0OTggLTkyMiA2NjcgLTQxNiAyMDAgLTgxMyAzMDMgLTEyODUgMzMyIC0xNjUgMTAgLTE3MCAxMCAtMzY1IC0xeiBtNjEwIC0xNDQgYzc0MyAtMTAzIDE0MzYgLTQ1OSAxOTE5IC05ODUgMzM4IC0zNjcgNTYyIC03NTEgNzA0IC0xMjA1IDI3NiAtODc5IDEzMiAtMTg1OCAtMzg4IC0yNjQwIC0yNDIgLTM2NCAtNDkzIC02MTUgLTkwMCAtOTAwIGwtNzAgLTQ5IDEwOSAxMDQgYzQxMyAzOTYgNjc5IDkxOSA3NjcgMTUwNSAzMyAyMTcgMzMgNTU4IDAgNzY1IC03NSA0NzYgLTI1NyA4OTYgLTU0OSAxMjY1IC0xMjcgMTYxIC0zNjMgMzgwIC01NDkgNTExIC0zMDAgMjExIC02ODkgMzYzIC0xMDc5IDQyMCAtMTcyIDI2IC02MDQgMjYgLTc2NCAwIC0yOTYgLTQ3IC01NDUgLTEyOCAtODA4IC0yNjIgLTIzNiAtMTIyIC00NDAgLTI3MSAtNjMyIC00NjQgLTQ4NiAtNDg1IC03NDkgLTExMjEgLTc1MSAtMTgxNSAtMSAtNjExIDE3MCAtMTE0OCA1MTUgLTE2MDggMTAwIC0xMzQgMjg2IC0zMzUgMzgyIC00MTMgMzMgLTI3IC04IC0yIC05MSA1NSAtNTEzIDM1MSAtOTA0IDgwNSAtMTE0MyAxMzMxIC03MSAxNTYgLTEzNiAzMzYgLTE2OCA0NjUgLTkgMzMgLTE5IDc2IC0yNCA5NSAtNSAxOSAtMjAgMTAwIC0zNCAxODAgLTU5IDM0MyAtNjAgNzQwIDAgMTA3MCA4MSA0NTYgMjI5IDgyNiA0NzkgMTIwMCAyNDYgMzY4IDU1OCA2NjkgOTQ5IDkxNyAzODYgMjQ1IDg4MSA0MTggMTMyMSA0NjIgNjEgNiAxMjQgMTMgMTQwIDE1IDczIDEwIDU1NiAtNCA2NjUgLTE5eiBtLTYwIC0xMzI5IGMxMDUgLTE2IDI1OCAtNDkgMzM1IC03MiA4MiAtMjYgMTk3IC02NiAyNDAgLTg0IDE0OSAtNjUgMTkwIC04NCAyNjYgLTEyNiA2NzcgLTM3OSAxMTI5IC0xMDQ5IDEyNDYgLTE4NDkgMjcgLTE4MiAyNCAtNTE3IC01IC02OTUgLTc1IC00NTggLTIyNSAtODEzIC01MDAgLTExNzkgLTExNiAtMTU0IC0zNDAgLTM2OSAtNTI3IC01MDYgLTQ0IC0zMiAtODcgLTYzIC05NSAtNjkgLTggLTYgMzUgMzkgOTYgOTkgMTc4IDE3NyAyODMgMzIxIDM5NyA1NTAgMTYxIDMyMiAyMzEgNjc2IDIwNSAxMDQ1IC0zMiA0NjcgLTIyMyA5MDIgLTU0MiAxMjM3IC0yMzkgMjUxIC01MjEgNDI2IC04NzMgNTQyIC03OSAyNiAtMjczIDY3IC0zODMgODEgLTEwOCAxMyAtMzQ5IDEzIC00NjUgMCAtMjc2IC0zMiAtNTk3IC0xNDUgLTgzNCAtMjkzIC0yMjQgLTE0MCAtNDY2IC0zNzggLTYxMyAtNjAyIC0zMDcgLTQ3MCAtNDA3IC0xMDU1IC0yNzMgLTE1OTkgODAgLTMyNyAyMTcgLTU4OSA0NTQgLTg3MSA3MSAtODQgNzMgLTg4IDMxIC01NiAtMjkzIDIyNSAtNTQ3IDUzNSAtNzE4IDg3NyAtMzQgNjggLTY1IDE0MyAtMTIyIDI5NCAtNDIgMTEyIC0xMDEgMzgzIC0xMjAgNTU1IC0xNCAxMjcgLTE0IDQwMSAwIDUzNCA1MSA0ODIgMjIzIDkxMiA1MTYgMTI4OCAyNjkgMzQ0IDY1NCA2MjAgMTA4NSA3NzggMTYwIDU5IDQwMCAxMTUgNTc0IDEzNCAxMjEgMTMgNTA4IDUgNjI1IC0xM3ogbS0zMCAtMTE2NSBjNDAxIC04MSA3MjEgLTI0MiA5OTIgLTQ5OSA2NDMgLTYxMiA3NjkgLTE2MDcgMzAwIC0yMzY3IC0xMTggLTE5MCAtMjkxIC0zODYgLTQ2MyAtNTI0IC0xMzcgLTExMSAtMTQ4IC0xMTMgLTQ5IC0xMiAxMTAgMTEyIDIwNiAyNDggMjc1IDM4NiA2NyAxMzcgOTggMjIyIDEzMiAzNjcgMjQgMTAzIDI2IDEzMiAyNyAzMjMgMCAxODIgLTMgMjI0IC0yMiAzMTAgLTQ3IDIxMSAtMTI2IDM5NCAtMjQ1IDU2OSAtMTI2IDE4NiAtMzU4IDM4NyAtNTY0IDQ5MCAtMzg0IDE5MSAtODIzIDIyNSAtMTIxOCA5NSAtNDgyIC0xNjAgLTg1NCAtNTQxIC0xMDA0IC0xMDI5IC0xMTcgLTM3OSAtODEgLTgxMCA5NiAtMTE2NSAzNyAtNzIgMTMwIC0yMTUgMTY2IC0yNTIgMTcgLTE4IDI2IC0zMyAyMCAtMzMgLTYgMCAtNjEgNTIgLTEyMSAxMTYgLTI1OSAyNzIgLTQyNCA1NzUgLTUxMSA5MzQgLTExMSA0NTkgLTE4IDEwMDYgMjQ1IDE0MzAgMjk4IDQ4MyA3OTEgNzk3IDEzNzkgODgwIDExMCAxNiA0NDggNCA1NjUgLTE5eiBtLTIzOSAtOTExIGMzNjAgLTI4IDY4MCAtMTcxIDkyNSAtNDE1IDE5NCAtMTkzIDMxNyAtNDE1IDM4MiAtNjg4IDI0IC0xMDIgMjYgLTEzMCAyNiAtMzEyIDAgLTE5MSAtMSAtMjA1IC0zMCAtMzIwIC01MyAtMjA1IC0xMzIgLTM3MiAtMjUxIC01MzUgLTU4IC03OSAtMjYzIC0yODggLTMyMyAtMzMwIC0zMSAtMjIgLTI5IC0xOCAxOCAzNSAxOTUgMjIwIDMxMiA1MTkgMzEyIDc5NSAwIDMyNSAtMTIxIDYxNCAtMzUwIDg0MSAtMzY5IDM2NCAtOTI2IDQ1MyAtMTM4NSAyMjIgLTMzNiAtMTcwIC01NzggLTQ5OSAtNjM2IC04NjUgLTE5IC0xMjYgLTcgLTM3MSAyNSAtNDkwIDQ0IC0xNjIgOTcgLTI4NCAxNzMgLTM5OCA5IC0xNCAtNCAtNSAtMzAgMjAgLTI2IDI0IC00NSA1MSAtNDIgNTggMiA3IDEgMTEgLTQgNyAtMTEgLTYgLTU4IDUxIC0xMTggMTQwIC0xMDkgMTYzIC0xODMgMzQ3IC0yMTkgNTQ1IC0yMyAxMjcgLTIzIDM1MSAtMSA0ODkgNTUgMzM1IDI0OCA2NzcgNDkyIDg3MSAyNjEgMjA4IDUzMCAzMTEgODgxIDMzOCAxMSAxIDgxIC0zIDE1NSAtOHogbTI5IC03MTQgYzQ1OSAtNzQgODIzIC00MjggODk1IC04NjkgNTggLTM1OCAtNjAgLTY5NiAtMzQ1IC05ODcgbC0zNCAtMzUgMjIgMzUgYzExNSAxODIgMTc5IDQwMyAxNjggNTc1IC0xNCAyMzUgLTEwNCA0MzMgLTI2OCA1OTEgLTEzNyAxMzQgLTI4NyAyMDkgLTQ3MiAyMzkgLTExNSAxOSAtMTg3IDE5IC0zMDMgMCAtMzM3IC01NSAtNjEyIC0zMDIgLTcwNCAtNjM1IC0zMiAtMTEzIC0zNCAtMzI1IC01IC00NDAgMjMgLTkyIDcwIC0yMTMgOTggLTI1NCBsMjEgLTMxIC0zMSAyOSBjLTM5IDM2IC0xMjAgMTUyIC0xNTUgMjIxIC0zNSA3MSAtODEgMjE1IC0xMDIgMzE5IC0yNSAxMzAgLTE3IDM1NyAxNyA0NzYgMTAyIDM1NCAzNTcgNjE4IDcwNiA3MzAgMTUyIDQ5IDMzMSA2MiA0OTIgMzZ6IG0tNzMgLTU2NyBjMTc4IC0yNCAzMjcgLTEwMSA0NTQgLTIzNiAxMzcgLTE0MyAxOTkgLTMwMyAyMDEgLTUxMyAxIC0xNjIgLTQyIC0zMDkgLTEzNSAtNDUzIC01MiAtODIgLTczIC05NyAtMzggLTI4IDUxIDk5IDY3IDI5MCAzNiA0MTIgLTU3IDIxOSAtMjUxIDQxMyAtNDY2IDQ2NCAtNzUgMTcgLTIzNiAyMCAtMzExIDQgLTIxMyAtNDQgLTQyMiAtMjQ3IC00NzMgLTQ2MCAtMzEgLTEzMyAtMTMgLTMyNSA0MSAtNDMxIDM1IC03MCA4IC00NyAtNTIgNDMgLTU4IDg4IC05MCAxNjcgLTExNCAyODYgLTI1IDEyMSAtMjUgMjIwIC0xIDMzMSAzMyAxNDYgODQgMjQzIDE4NiAzNTEgMTcxIDE4MyA0MTMgMjY2IDY3MiAyMzB6IG0xNSAtNDcwIGM4MCAtMTcgMTg2IC03NiAyNDggLTEzOSAxMDYgLTEwNyAxNTggLTI0OCAxNDcgLTM5OCAtNiAtOTIgLTI1IC0xNTIgLTc5IC0yNTAgLTQ1IC04MiAtNjAgLTkxIC0yNyAtMTcgMTggNDEgMjEgNjIgMTcgMTQ5IC00IDg5IC04IDEwOCAtMzUgMTYyIC00MyA4MiAtMTI2IDE2NSAtMjA5IDIwNSAtNTggMjkgLTgwIDM0IC0xNTggMzcgLTExMiA1IC0xODQgLTEyIC0yNTkgLTYyIC0xODIgLTEyMSAtMjUxIC0zMjMgLTE3MSAtNTA2IGwyNCAtNTUgLTI1IDMwIGMtMzYgNDQgLTkyIDE2MiAtMTA0IDIyMyAtMzkgMTg5IDE0IDM2OSAxNDYgNDkyIDEwNSA5OSAyMDQgMTM5IDM0NSAxMzkgNDggMSAxMTEgLTQgMTQwIC0xMHoiLz4KICA8L2c+Cjwvc3ZnPgo='
     };
 
@@ -1688,7 +1696,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         heading: 'Your first payment.', subheading: 'Everything you need',
                         name: firstName, intro: 'Payment details for ' + (p?.name||'your apartment') + '.',
                         card_title: 'PAYMENT', card_color: '#FFD54F',
-                        r1_icon: '\uD83C\uDFE6', r1_label: 'IBAN', r1_value: COMPANY.iban,
+                        r1_icon: '\uD83C\uDFE6', r1_label: 'IBAN', r1_value: payoutIban(),
                         r2_icon: '\uD83D\uDCB0', r2_label: 'Amount', r2_value: '\u20ac' + c.rent + '/month',
                         r3_icon: '\uD83D\uDCC5', r3_label: 'Due', r3_value: 'By the ' + (c.paymentDay||5) + 'th',
                         r4_icon: '\uD83D\uDCDD', r4_label: 'Ref', r4_value: 'Rent ' + (p?.name||''),
@@ -2671,6 +2679,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             
             // LAZY LOAD: Non-critical data (load after app is shown)
             setTimeout(async () => {
+                // Coordinate di incasso + dati fiscali dell'emittente: due
+                // documenti soli, ma senza di loro il portale stampa un IBAN
+                // segnaposto sui promemoria di pagamento e un XML che lo SdI
+                // scarta. Best-effort: un errore qui non ferma il boot.
+                try { await Promise.all([loadBillingSettings(), loadPayoutSettings()]); } catch (e) {}
+
                 try {
                     // Listings
                     const listings = await db.collection('listings').get();
@@ -3255,7 +3269,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 r1_icon: '💰', r1_label: 'Notice', r1_value: title,
                 r2_icon: '📍', r2_label: 'Property', r2_value: propName || 'N/A',
                 r3_icon: '📋', r3_label: 'Details', r3_value: message,
-                r4_icon: '🏦', r4_label: 'IBAN', r4_value: COMPANY.iban,
+                r4_icon: '🏦', r4_label: 'IBAN', r4_value: payoutIban(),
                 cta_text: 'View payments'
             },
             contract: {
@@ -4007,8 +4021,23 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             default: m.innerHTML = r === 'admin' ? adminDashboard() : r === 'landlord' ? landlordDashboard() : tenantDashboard();
         }
         // Post-render hooks
-        setTimeout(() => loadChartJS().then(() => initDashboardCharts()), 50);
-        if (S.page === 'settings' && isAdmin()) setTimeout(() => loadCAFSettings(), 100);
+        // Chart.js (~200KB dalla CDN) partiva a OGNI renderPage — anche su
+        // Fatture, Documenti, Impostazioni, dove non esiste un canvas. La
+        // promise era memoizzata, ma initDashboardCharts distruggeva e
+        // ricostruiva comunque ogni istanza a ogni navigazione.
+        if (document.querySelector('canvas[id$="Chart"]')) {
+            setTimeout(() => loadChartJS().then(() => initDashboardCharts()).catch(() => {}), 50);
+        }
+        if (S.page === 'settings' && isAdmin()) setTimeout(() => {
+            loadCAFSettings();
+            // I dati di fatturazione vivono in una collezione admin-only che
+            // non passa dal bulk load: si caricano quando servono e la card
+            // si ridisegna da sola invece di mostrarsi vuota.
+            if (!_invBillingLoaded) loadBillingSettings().then(() => {
+                const card = document.getElementById('billingCard');
+                if (card && S.page === 'settings') card.outerHTML = billingSettingsCard();
+            });
+        }, 100);
         // Property Radar — auto-scan stale searches once per session when the page opens.
         if (S.page === 'property-radar' && !window._radarAutoScanned) {
             const stale = (S.radarSearches || []).filter(s => s.enabled !== false && (!s.lastScanAt || (Date.now() - (s.lastScanAt.toDate ? s.lastScanAt.toDate().getTime() : 0)) > 6 * 3600 * 1000));
@@ -4492,9 +4521,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         </div>
                         <div class="card-body" style="padding-top:12px">
                             <div style="display:flex;gap:10px;flex-wrap:wrap">
-                                <button class="btn" onclick="openQuickInvoiceModal('DAS')">💼 DAS €${SERVICES.DAS?.price || 150}</button>
-                                <button class="btn btn-secondary" onclick="openQuickInvoiceModal('VV')">🔑 VV €${SERVICES.VV?.price || 80}</button>
-                                <button class="btn btn-secondary" onclick="openQuickInvoiceModal('PM')">🏠 PM €${SERVICES.PM?.price || 100}</button>
+                                ${Object.keys(SERVICES).map((k, idx) => `<button class="btn${idx ? ' btn-secondary' : ''}" onclick="openQuickInvoiceModal('${k}')">${k} €${SERVICES[k].price}</button>`).join('')}
                                 <button class="btn btn-secondary" onclick="openQuickInvoiceModal('custom')">✏️ Personalizzata</button>
                             </div>
                         </div>
@@ -4544,7 +4571,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                                 const prop = S.properties.find(p => p.id === m.propertyId);
                                 return { type: 'maint', date: m.createdAt, html: `<div class="list-item" style="padding:12px 16px">
                                     <div class="list-icon" style="background:var(--orange-light)">🔧</div>
-                                    <div class="list-content"><div class="list-title">${m.title}</div><div class="list-subtitle">${prop?.name || 'Immobile'}</div></div>
+                                    <div class="list-content"><div class="list-title">${esc(m.title)}</div><div class="list-subtitle">${esc(prop?.name || 'Immobile')}</div></div>
                                     <span class="badge ${m.status === 'resolved' ? 'green' : m.priority === 'urgent' ? 'red' : 'orange'}">${m.status === 'resolved' ? '✓' : m.priority === 'urgent' ? '!' : '◐'}</span>
                                 </div>` };
                             })].sort((a, b) => {
@@ -5248,52 +5275,28 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
     }
 
+    // La "fattura rapida" scriveva un documento SENZA numero (schema diverso
+    // da saveInvoice: niente `number`, niente `recipientType`) — le righe
+    // uscivano "undefined" in elenco e il PDF si salvava come
+    // BOOM_Fattura_undefined.pdf. Ora è una scorciatoia che PRECOMPILA
+    // l'editor vero: una sola via di emissione, un solo schema.
     async function createQuickInvoice() {
         const clientId = document.getElementById('qiClient').value;
         const description = document.getElementById('qiDescription').value;
-        const amount = parseFloat(document.getElementById('qiAmount').value);
+        const amount = parseFloat(String(document.getElementById('qiAmount').value).replace(',', '.'));
         const notes = document.getElementById('qiNotes').value;
+        if (!description || !amount) return toast('error', 'Inserisci descrizione e importo');
 
-        if (!description || !amount) {
-            toast('error', 'Inserisci descrizione e importo');
-            return;
-        }
-
-        let clientName = '', clientEmail = '';
-
+        await openInvoiceEditor({ recipientId: clientId && clientId !== 'new' ? clientId : null });
+        if (!_invDraft) return;
+        _invDraft.lines[0].description = description;
+        _invDraft.lines[0].unitPrice = amount;
+        if (notes) _invDraft.causale = notes;
         if (clientId === 'new') {
-            clientName = document.getElementById('qiNewName').value;
-            clientEmail = document.getElementById('qiNewEmail').value;
-            if (!clientName) {
-                toast('error', 'Inserisci nome cliente');
-                return;
-            }
-        } else if (clientId) {
-            const client = S.clients.find(c => c.id === clientId);
-            clientName = client?.name || '';
-            clientEmail = client?.email || '';
+            _invDraft.buyer.name = document.getElementById('qiNewName')?.value || '';
+            _invDraft.buyer.email = document.getElementById('qiNewEmail')?.value || '';
         }
-
-        try {
-            const invoiceData = {
-                clientId: clientId && clientId !== 'new' ? clientId : null,
-                clientName,
-                clientEmail,
-                description,
-                amount,
-                notes,
-                status: 'pending',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                createdBy: S.user.uid
-            };
-
-            await db.collection('invoices').add(invoiceData);
-            toast('success', `Fattura €${amount} creata!`);
-            closeModal();
-            goTo('invoices');
-        } catch (err) {
-            toast('error', 'Errore: ' + err.message);
-        }
+        invRenderEditor();
     }
 
     function landlordDashboard() {
@@ -5732,7 +5735,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                             <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Dettagli bonifico bancario:</div>
                             <div class="info-box" style="margin-bottom:0">
                                 <div class="info-box-row"><span class="info-box-label">Intestatario</span><span class="info-box-value" style="font-size:12px">${landlord?.name || COMPANY.legal}</span></div>
-                                <div class="info-box-row"><span class="info-box-label">IBAN</span><span id="landlordIban" class="info-box-value" style="font-size:10px;font-family:monospace">${landlord?.iban || COMPANY.iban}</span></div>
+                                <div class="info-box-row"><span class="info-box-label">IBAN</span><span id="landlordIban" class="info-box-value" style="font-size:10px;font-family:monospace">${landlord?.iban || payoutIban()}</span></div>
                                 <div class="info-box-row"><span class="info-box-label">Causale</span><span class="info-box-value" style="font-size:12px">Canone ${myProp?.name || ''}</span></div>
                             </div>
                             <button class="btn btn-sm btn-secondary" style="margin-top:12px;width:100%" onclick="navigator.clipboard.writeText(document.getElementById('landlordIban').textContent).then(()=>toast('success','IBAN copiato'))">📋 Copia IBAN</button>
@@ -7116,7 +7119,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:14px">
             ${sectionCard('Contratti', '📋', contracts.length, contractsBody, kind === 'user' ? `<button class="btn btn-xs" onclick="openModal('addContract',{tenantId:'${id}'})">+ Nuovo</button>` : '')}
             ${sectionCard('Pagamenti', '💳', payments.length, paymentsBody)}
-            ${sectionCard('Fatture', '🧾', invoices.length, invoicesBody, `<button class="btn btn-xs" onclick="openModal('addInvoice',{recipientId:'${id}'})">+ Nuova</button>`)}
+            ${sectionCard('Fatture', '🧾', invoices.length, invoicesBody, `<button class="btn btn-xs" onclick="openInvoiceEditor({recipientId:'${id}'})">+ Nuova</button>`)}
             ${sectionCard('Documenti', '📁', documents.length, documentsBody, kind === 'user' ? `<button class="btn btn-xs" onclick="openDocUploadModal('${id}')">+ Carica</button>` : '')}
             ${sectionCard('Manutenzione', '🔧', maintenance.length, maintBody)}
             ${sectionCard('Timeline', '🕒', events.length, timelineBody)}
@@ -7423,14 +7426,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function editClientModal(id) {
         const c = S.clients.find(x => x.id === id); if (!c) return;
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal lg">
-            <div class="modal-header"><h3 class="modal-title">✏️ Modifica ${c.name}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-header"><h3 class="modal-title">✏️ Modifica ${esc(c.name)}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body"><form id="editClientForm" onsubmit="updateClient(event,'${id}')">
-                <div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" value="${c.name}" required></div><div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" name="email" value="${c.email}" required></div></div>
+                <div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" value="${esc(c.name)}" required></div><div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" name="email" value="${c.email}" required></div></div>
                 <div class="form-row"><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" name="phone" value="${c.phone || ''}"></div><div class="form-group"><label class="form-label">Servizio</label><select class="form-select" name="service"><option value="PFS" ${c.service==='PFS'?'selected':''}>🏠 PFS €350</option><option value="DAS" ${c.service==='DAS'?'selected':''}>📋 DAS €249</option><option value="VV" ${c.service==='VV'?'selected':''}>🎥 VV €89</option></select></div></div>
                 <div class="form-row"><div class="form-group"><label class="form-label">Budget €/mese</label><input type="number" class="form-input" name="budget" value="${c.budget || ''}"></div><div class="form-group"><label class="form-label">Zona</label><input type="text" class="form-input" name="zone" value="${c.zone || ''}"></div></div>
                 <div class="form-row"><div class="form-group"><label class="form-label">Data Arrivo</label><input type="date" class="form-input" name="arrivalDate" value="${c.arrivalDate || ''}"></div><div class="form-group"><label class="form-label">Durata</label><input type="text" class="form-input" name="duration" value="${c.duration || ''}" placeholder="es. 12 mesi"></div></div>
                 <div class="form-row"><div class="form-group"><label class="form-label">Stage</label><select class="form-select" name="stage">${PIPELINE_STAGES.map(s => `<option value="${s.id}" ${c.stage===s.id?'selected':''}>${s.icon} ${s.name}</option>`).join('')}</select></div><div class="form-group"><label class="form-label">Source</label><select class="form-select" name="source"><option value="website" ${c.source==='website'?'selected':''}>Website</option><option value="referral" ${c.source==='referral'?'selected':''}>Referral</option><option value="social" ${c.source==='social'?'selected':''}>Social</option><option value="google" ${c.source==='google'?'selected':''}>Google</option><option value="other" ${c.source==='other'?'selected':''}>Altro</option></select></div></div>
-                <div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes">${c.notes || ''}</textarea></div>
+                <div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes">${esc(c.notes || '')}</textarea></div>
             </form></div>
             <div class="modal-footer">
                 <button class="btn btn-danger btn-sm" onclick="deleteClient('${id}')">🗑 Elimina</button>
@@ -7459,30 +7462,31 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         catch (err) { toast('error', 'Errore', err.message); }
     }
     
+    // Prima apriva un mini-form che scriveva un documento con un numero
+    // costruito da `S.invoices.length + 1` — che si RIPETE appena si cancella
+    // una riga. Adesso apre l'editor fiscale già intestato al cliente.
     function createInvoiceFor(id) {
-        const c = S.clients.find(x => x.id === id); if (!c) return;
-        const num = 'BOOM-' + new Date().getFullYear() + '-' + String((S.invoices?.length || 0) + 1).padStart(4, '0');
-        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal">
-            <div class="modal-header"><h3 class="modal-title">🧾 Fattura per ${c.name}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
-            <div class="modal-body"><form id="quickInvForm" onsubmit="saveInvoice(event)">
-                <input type="hidden" name="clientId" value="${id}">
-                <div class="form-row"><div class="form-group"><label class="form-label">Numero</label><input type="text" class="form-input" name="number" value="${num}" required></div><div class="form-group"><label class="form-label">Importo €</label><input type="number" class="form-input" name="amount" value="${SERVICES[c.service]?.price || 0}" required></div></div>
-                <div class="form-group"><label class="form-label">Servizio</label><input type="text" class="form-input" name="service" value="${SERVICES[c.service]?.name || c.service}"></div>
-                <div class="form-group"><label class="form-label">Descrizione</label><textarea class="form-textarea" name="description">Servizio ${c.service} - ${c.name}</textarea></div>
-            </form></div>
-            <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('quickInvForm').requestSubmit()">💾 Crea</button></div>
-        </div></div>`;
+        const c = (S.clients || []).find(x => x.id === id);
+        openInvoiceEditor({ recipientId: id, preset: c && c.service });
     }
-    
+
     function openTemplateForClient(id) {
         const c = S.clients.find(x => x.id === id); if (!c) return;
         openTemplateModal(c.service.toLowerCase(), c);
     }
 
     function invoicesPage() {
-        const all = S.invoices || [];
-        const pending = all.filter(i => i.status === 'pending');
+        // Fatture e ricevute vivono nella stessa collezione ma non sono la
+        // stessa cosa: la ricevuta di canone documenta soldi dell'inquilino
+        // diretti al proprietario, non ricavo BOOM. Tenerle nello stesso
+        // conteggio faceva leggere "Fatturato €X" a chi X non l'ha incassato.
+        const every = S.invoices || [];
+        const all = every.filter(invIsFiscal);
+        const receipts = every.filter(i => !invIsFiscal(i));
+        const pending = all.filter(i => i.status === 'pending' || i.status === 'issued');
         const paid = all.filter(i => i.status === 'paid');
+        const drafts = all.filter(i => i.status === 'draft');
+        const toSend = all.filter(i => i.status && i.status !== 'draft' && i.sdiStatus !== 'trasmessa');
         const thisYear = new Date().getFullYear();
         const ytdRevenue = paid.filter(i => new Date(i.date || i.createdAt).getFullYear() === thisYear).reduce((s, i) => s + (i.amount || 0), 0);
 
@@ -7503,25 +7507,30 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         const invoiceRow = (inv) => {
             const r = getRecipient(inv);
+            const fiscal = invIsFiscal(inv);
             const year = new Date(inv.date || inv.createdAt).getFullYear();
             const search = [inv.number, r.name, inv.service, inv.description].filter(Boolean).join(' ').toLowerCase();
             const reminders = inv.remindersSent || 0;
-            return `<div class="list-item clickable invoice-item" data-status="${inv.status}" data-kind="${r.kind}" data-year="${year}" data-search="${esc(search)}" onclick="viewInvoice('${inv.id}')" style="padding:14px 16px">
+            return `<div class="list-item clickable invoice-item" data-status="${inv.status}" data-kind="${r.kind}" data-doc="${fiscal ? 'invoice' : 'receipt'}" data-sdi="${fiscal && inv.status && inv.status !== 'draft' && inv.sdiStatus !== 'trasmessa' ? 'todo' : 'ok'}" data-year="${year}" data-search="${esc(search)}" onclick="viewInvoice('${inv.id}')" style="padding:14px 16px">
                 <div class="list-icon" style="background:${inv.status === 'paid' ? 'var(--green-light)' : 'var(--orange-light)'}">🧾</div>
                 <div class="list-content" style="flex:1;min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                        <span style="font-weight:600">${inv.number}</span>
+                        <span style="font-weight:600">${esc(inv.number || 'Bozza')}</span>
+                        ${!fiscal ? '<span class="badge gray" style="font-size:9px" title="Ricevuta di canone — non è una fattura BOOM">canone</span>' : ''}
+                        ${inv.docType === 'TD04' ? '<span class="badge purple" style="font-size:9px">NC</span>' : ''}
+                        ${fiscal && inv.status && inv.status !== 'draft' && inv.sdiStatus !== 'trasmessa' ? '<span class="badge orange" style="font-size:9px" title="XML non ancora trasmesso allo SdI">SdI</span>' : ''}
                         <span style="color:var(--text-secondary)">·</span>
-                        <span>${r.name}</span>
+                        <span>${esc(r.name)}</span>
                         ${recipientBadge(r.kind)}
                         ${reminders > 0 ? `<span class="badge orange" style="font-size:9px" title="${reminders} solleciti">📧 ×${reminders}</span>` : ''}
                     </div>
-                    <div class="list-subtitle" style="margin-top:4px">${inv.service || ''} · ${fmtDate(inv.date || inv.createdAt)}</div>
+                    <div class="list-subtitle" style="margin-top:4px">${esc(inv.service || '')} · ${fmtDate(inv.date || inv.createdAt)}</div>
                 </div>
-                <div class="list-meta"><div class="list-value ${inv.status === 'paid' ? 'text-green' : 'text-gold'}">€${(inv.amount || 0).toLocaleString('it-IT')}</div><span class="badge ${inv.status === 'paid' ? 'green' : 'orange'}">${inv.status === 'paid' ? 'Pagata' : 'In Attesa'}</span></div>
+                <div class="list-meta"><div class="list-value ${inv.status === 'paid' ? 'text-green' : 'text-gold'}">€${(inv.amount || 0).toLocaleString('it-IT')}</div><span class="badge ${inv.status === 'paid' ? 'green' : inv.status === 'draft' ? 'gray' : 'orange'}">${inv.status === 'paid' ? 'Pagata' : inv.status === 'draft' ? 'Bozza' : 'In Attesa'}</span></div>
                 <div style="display:flex;gap:4px">
                     ${inv.status === 'pending' && r.email ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();sendInvoiceReminder('${inv.id}')" title="Invia sollecito email">📧</button>` : ''}
-                    <button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();downloadInvoicePDF('${inv.id}')" title="Scarica PDF">📥</button>
+                    <button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();downloadInvoicePDF('${inv.id}')" title="Copia di cortesia PDF">📄</button>
+                    ${fiscal ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();downloadInvoiceXML('${inv.id}')" title="XML FatturaPA per lo SdI">⬇︎</button>` : ''}
                 </div>
             </div>`;
         };
@@ -7589,12 +7598,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         </div>`;
 
         return `<div class="page-header">
-            <div><h1 class="page-title">Fatture</h1><div class="page-subtitle">${all.length} totali · €${ytdRevenue.toLocaleString('it-IT')} incassati nel ${thisYear} ${ytdGrowth !== 0 ? `· <span style="color:var(--${ytdGrowth > 0 ? 'green' : 'red'})">${ytdGrowth > 0 ? '+' : ''}${ytdGrowth}% YoY</span>` : ''}</div></div>
+            <div><h1 class="page-title">Fatture</h1><div class="page-subtitle">${all.length} document${all.length === 1 ? 'o' : 'i'} fiscal${all.length === 1 ? 'e' : 'i'}${receipts.length ? ` · ${receipts.length} ricevute canone` : ''} · €${ytdRevenue.toLocaleString('it-IT')} incassati nel ${thisYear} ${ytdGrowth !== 0 ? `· <span style="color:var(--${ytdGrowth > 0 ? 'green' : 'red'})">${ytdGrowth > 0 ? '+' : ''}${ytdGrowth}% YoY</span>` : ''}</div></div>
             <div class="page-actions">
                 <button class="btn btn-secondary btn-sm" onclick="exportInvoicesCSV()">📊 Export</button>
-                <button class="btn" onclick="openModal('addInvoice')">+ Nuova</button>
+                <button class="btn" onclick="openInvoiceEditor()">+ Nuovo documento</button>
             </div>
         </div>
+
+        ${!billingConfigured() ? `<div class="alert warning" style="margin-bottom:14px"><span class="alert-icon">⚠️</span><div class="alert-content">
+            <div class="alert-title">Dati di fatturazione non configurati</div>
+            <div class="alert-text">P.IVA, sede e REA dell'emittente mancano: senza, l'XML FatturaPA viene scartato dallo SdI e le fatture restano solo PDF. <a href="#" onclick="goTo('settings');return false" style="color:var(--gold)">Impostazioni → Dati di fatturazione →</a></div></div></div>` : ''}
 
         <!-- 📊 KPI ROW 1: headline numbers -->
         <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:14px">
@@ -7613,10 +7626,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <div class="stat-value text-green">€${paid.reduce((s,i)=>s+(i.amount||0),0).toLocaleString('it-IT')}</div>
                 <div style="font-size:10px;color:var(--text-muted);margin-top:2px">${paid.length} fatt.</div>
             </div>
-            <div class="stat-card">
-                <div class="stat-label">Conversion</div>
-                <div class="stat-value" style="color:var(--${convRate >= 80 ? 'green' : convRate >= 60 ? 'orange' : 'red'})">${convRate}%</div>
-                <div style="font-size:10px;color:var(--text-muted);margin-top:2px">emesse → pagate</div>
+            <div class="stat-card" style="cursor:pointer" onclick="filterInvoices('tosend', this.closest('.stats-grid').parentElement.querySelector('[data-filter=tosend]'))" title="Emesse ma non ancora caricate sullo SdI">
+                <div class="stat-label">Da trasmettere</div>
+                <div class="stat-value" style="color:var(--${toSend.length ? 'orange' : 'green'})">${toSend.length}</div>
+                <div style="font-size:10px;color:var(--text-muted);margin-top:2px">${toSend.length ? 'XML da caricare' : 'tutto allo SdI'}${drafts.length ? ` · ${drafts.length} bozze` : ''}</div>
             </div>
             <div class="stat-card">
                 <div class="stat-label">${thisYear} vs ${lastYear}</div>
@@ -7663,6 +7676,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <button class="btn btn-sm" data-filter="all" onclick="filterInvoices('all', this)">Tutte</button>
                 <button class="btn btn-sm btn-secondary" data-filter="pending" onclick="filterInvoices('pending', this)">⏳ Da incassare</button>
                 <button class="btn btn-sm btn-secondary" data-filter="paid" onclick="filterInvoices('paid', this)">✓ Pagate</button>
+                <button class="btn btn-sm btn-secondary" data-filter="tosend" onclick="filterInvoices('tosend', this)">📤 Da trasmettere</button>
+                <span style="color:var(--text-muted);font-size:11px;margin:0 4px">|</span>
+                <button class="btn btn-sm btn-secondary" data-filter="doc-invoice" onclick="filterInvoices('doc-invoice', this)">🧾 Fatture</button>
+                <button class="btn btn-sm btn-secondary" data-filter="doc-receipt" onclick="filterInvoices('doc-receipt', this)">💰 Ricevute canone</button>
                 <span style="color:var(--text-muted);font-size:11px;margin:0 4px">|</span>
                 <button class="btn btn-sm btn-secondary" data-filter="kind-landlord" onclick="filterInvoices('kind-landlord', this)">🏠 Proprietari</button>
                 <button class="btn btn-sm btn-secondary" data-filter="kind-tenant" onclick="filterInvoices('kind-tenant', this)">👤 Inquilini</button>
@@ -7671,18 +7688,21 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <input type="search" id="invoiceSearch" class="form-input" placeholder="🔎 Cerca numero, destinatario, servizio…" oninput="searchInvoices(this.value)" style="flex:1;min-width:200px;margin-left:auto">
             </div>
             <div class="card-body flush">${all.length === 0
-                ? '<div class="empty-state"><div class="empty-icon">🧾</div><div class="empty-title">Nessuna fattura</div><div class="empty-subtitle">Crea la prima fattura per iniziare</div><button class="btn" onclick="openModal(\'addInvoice\')" style="margin-top:12px">+ Crea prima fattura</button></div>'
-                : all.map(invoiceRow).join('')
+                ? '<div class="empty-state"><div class="empty-icon">🧾</div><div class="empty-title">Nessuna fattura</div><div class="empty-subtitle">Crea la prima fattura per iniziare</div><button class="btn" onclick="openInvoiceEditor()" style="margin-top:12px">+ Emetti la prima fattura</button></div>'
+                : all.concat(receipts).map(invoiceRow).join('')
             }</div>
         </div>`;
     }
 
     // Active filter state for invoices (combinable: status + kind + year + search).
-    const invoiceFilters = { status: 'all', kind: 'all', year: 'all', search: '' };
+    const invoiceFilters = { status: 'all', kind: 'all', doc: 'all', year: 'all', search: '' };
 
     function filterInvoices(filter, btn) {
-        if (filter === 'all' || filter === 'pending' || filter === 'paid') {
+        if (filter === 'all' || filter === 'pending' || filter === 'paid' || filter === 'tosend') {
             invoiceFilters.status = filter;
+        } else if (filter.startsWith('doc-')) {
+            const d = filter.slice(4);
+            invoiceFilters.doc = (invoiceFilters.doc === d) ? 'all' : d;
         } else if (filter.startsWith('kind-')) {
             const k = filter.slice(5);
             invoiceFilters.kind = (invoiceFilters.kind === k) ? 'all' : k;
@@ -7695,7 +7715,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             btn.parentElement.querySelectorAll('button.btn-sm[data-filter]').forEach(b => {
                 const f = b.dataset.filter;
                 let active = false;
-                if (['all','pending','paid'].includes(f)) active = (f === invoiceFilters.status);
+                if (['all','pending','paid','tosend'].includes(f)) active = (f === invoiceFilters.status);
+                else if (f.startsWith('doc-')) active = (f.slice(4) === invoiceFilters.doc);
                 else if (f.startsWith('kind-')) active = (f.slice(5) === invoiceFilters.kind);
                 else if (f.startsWith('year-')) active = (f.slice(5) === invoiceFilters.year);
                 b.classList.toggle('btn-secondary', !active);
@@ -7706,11 +7727,18 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function searchInvoices(q) { invoiceFilters.search = (q || '').toLowerCase().trim(); applyInvoiceFilters(); }
     function applyInvoiceFilters() {
         document.querySelectorAll('.invoice-item').forEach(item => {
-            const okStatus = invoiceFilters.status === 'all' || item.dataset.status === invoiceFilters.status;
+            const st = invoiceFilters.status;
+            // "pending" = tutto ciò che non è incassato (issued incluso):
+            // un documento emesso e non pagato è esattamente un credito aperto.
+            const okStatus = st === 'all' ? true
+                : st === 'tosend' ? item.dataset.sdi === 'todo'
+                : st === 'pending' ? (item.dataset.status !== 'paid' && item.dataset.status !== 'draft')
+                : item.dataset.status === st;
+            const okDoc    = invoiceFilters.doc === 'all'    || item.dataset.doc === invoiceFilters.doc;
             const okKind   = invoiceFilters.kind === 'all'   || item.dataset.kind === invoiceFilters.kind;
             const okYear   = invoiceFilters.year === 'all'   || item.dataset.year === invoiceFilters.year;
             const okSearch = !invoiceFilters.search || (item.dataset.search || '').includes(invoiceFilters.search);
-            item.style.display = (okStatus && okKind && okYear && okSearch) ? '' : 'none';
+            item.style.display = (okStatus && okDoc && okKind && okYear && okSearch) ? '' : 'none';
         });
     }
 
@@ -8183,14 +8211,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <div class="list-icon" style="background:var(--gold-light)">🏠</div>
                 <div class="list-content" style="flex:1;min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                        <span style="font-weight:600">${p.name}</span>
+                        <span style="font-weight:600">${esc(p.name)}</span>
                         <span class="badge ${avail.color}">${avail.icon} ${avail.text}</span>
                         ${p.youtubeUrl ? '<span title="Video tour disponibile">📺</span>' : ''}
                     </div>
                     <div class="list-subtitle" style="margin-top:4px">
                         ${owner ? `<span>🏠 ${owner.name}</span>` : ''}
                         ${tenant ? `<span style="margin-left:8px">→ 👤 ${tenant.name}</span>` : ''}
-                        ${p.address ? `<span style="margin-left:8px">📍 ${p.address}</span>` : ''}
+                        ${p.address ? `<span style="margin-left:8px">📍 ${esc(p.address)}</span>` : ''}
                         ${p.sqm ? `<span style="margin-left:8px">📐 ${p.sqm}m²</span>` : ''}
                     </div>
                 </div>
@@ -8836,7 +8864,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <div class="list-icon" style="background:var(--${s.bg});font-size:16px">${m.priority === 'urgent' && m.status !== 'resolved' ? '🚨' : s.icon}</div>
                 <div class="list-content" style="flex:1;min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                        <span style="font-weight:600">${m.title}</span>
+                        <span style="font-weight:600">${esc(m.title)}</span>
                         <span class="badge ${pr.color}" style="font-size:9px">${pr.icon} ${pr.text}</span>
                         <span class="badge ${s.color}">${s.text}</span>
                         ${isOld ? `<span class="badge red" style="font-size:9px">⏰ ${ageInDays}gg</span>` : ''}
@@ -8846,7 +8874,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         <span style="margin-left:8px">👤 ${u?.name || 'N/A'}</span>
                         <span style="margin-left:8px">📅 ${fmtDate(m.createdAt)}</span>
                     </div>
-                    ${m.description ? `<div style="font-size:12px;color:var(--text-muted);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:400px">${m.description}</div>` : ''}
+                    ${m.description ? `<div style="font-size:12px;color:var(--text-muted);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:400px">${esc(m.description)}</div>` : ''}
                 </div>
                 <div style="display:flex;align-items:center;gap:6px">
                     ${m.status === 'open' ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();updateMaintenanceStatus('${m.id}','in_progress')" title="Inizia lavoro">▶️</button>` : ''}
@@ -12182,7 +12210,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="form-group"><label class="form-label">Assegna a</label>
                         <select class="form-select" name="userId">
                             <option value="">-- Nessuna assegnazione (solo admin) --</option>
-                            <optgroup label="🏠 Proprietari">${landlords.map(u => `<option value="${u.id}">${u.name} (${u.email})</option>`).join('')}</optgroup>
+                            <optgroup label="🏠 Proprietari">${landlords.map(u => `<option value="${u.id}">${esc(u.name)} (${esc(u.email)})</option>`).join('')}</optgroup>
                             <optgroup label="👤 Inquilini">${tenants.map(u => `<option value="${u.id}">${u.name} (${u.email})</option>`).join('')}</optgroup>
                         </select>
                     </div>
@@ -12201,7 +12229,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const u = S.users.find(x => x.id === userId);
         if (!u) return;
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal">
-            <div class="modal-header"><h3 class="modal-title">📤 Carica Documento per ${u.name}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-header"><h3 class="modal-title">📤 Carica Documento per ${esc(u.name)}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body"><form id="userDocForm" onsubmit="saveUserDoc(event,'${userId}')">
                 <div class="form-row">
                     <div class="form-group"><label class="form-label">Nome Documento *</label><input type="text" class="form-input" name="name" required placeholder="es. Carta Identità"></div>
@@ -12311,7 +12339,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal">
             <div class="modal-header"><h3 class="modal-title">✏️ Modifica Documento</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body"><form id="editDocForm" onsubmit="updateDoc(event,'${id}')">
-                <div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" value="${d.name}" required></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="type"><option value="contract" ${d.type==='contract'?'selected':''}>📋 Contratto</option><option value="id" ${d.type==='id'?'selected':''}>🪪 ID</option><option value="receipt" ${d.type==='receipt'?'selected':''}>🧾 Ricevuta</option><option value="utility" ${d.type==='utility'?'selected':''}>💡 Utenza</option><option value="other" ${d.type==='other'?'selected':''}>📄 Altro</option></select></div></div>
+                <div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" value="${esc(d.name)}" required></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="type"><option value="contract" ${d.type==='contract'?'selected':''}>📋 Contratto</option><option value="id" ${d.type==='id'?'selected':''}>🪪 ID</option><option value="receipt" ${d.type==='receipt'?'selected':''}>🧾 Ricevuta</option><option value="utility" ${d.type==='utility'?'selected':''}>💡 Utenza</option><option value="other" ${d.type==='other'?'selected':''}>📄 Altro</option></select></div></div>
                 <div class="form-row"><div class="form-group"><label class="form-label">Assegna a</label><select class="form-select" name="userId"><option value="">-- Admin --</option><optgroup label="🏠 Proprietari">${landlords.map(u => `<option value="${u.id}" ${d.userId===u.id?'selected':''}>${u.name}</option>`).join('')}</optgroup><optgroup label="👤 Inquilini">${tenants.map(u => `<option value="${u.id}" ${d.userId===u.id?'selected':''}>${u.name}</option>`).join('')}</optgroup></select></div><div class="form-group"><label class="form-label">Immobile</label><select class="form-select" name="propertyId"><option value="">-- Nessuno --</option>${S.properties.map(p => `<option value="${p.id}" ${d.propertyId===p.id?'selected':''}>${p.name}</option>`).join('')}</select></div></div>
                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:8px 0"><input type="checkbox" name="shared" value="true" ${d.shared?'checked':''}> 🔗 Condiviso</label>
             </form></div>
@@ -12525,7 +12553,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="info-box">
                         <div class="info-box-title">💳 Dati per il Pagamento</div>
                         <div class="info-box-row"><span class="info-box-label">Intestatario</span><span class="info-box-value">${COMPANY.legal}</span></div>
-                        <div class="info-box-row"><span class="info-box-label">IBAN</span><span class="info-box-value" style="font-size:11px">${COMPANY.iban}</span></div>
+                        <div class="info-box-row"><span class="info-box-label">IBAN</span><span class="info-box-value" style="font-size:11px">${esc(payoutIban())}</span></div>
                         <div class="info-box-row"><span class="info-box-label">Causale</span><span class="info-box-value">Affitto ${prop?.name}</span></div>
                     </div>
                 </div></div>
@@ -13140,6 +13168,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <button class="lang-btn ${S.lang === 'EN' ? 'active' : ''}" onclick="setLang('EN')">🇬🇧 English</button>
                 </div>
             </div></div>
+            ${isAdmin() ? billingSettingsCard() : ''}
             ${isAdmin() ? `<div class="card"><div class="card-header"><h3 class="card-title">📋 CAF / Registrazione Contratti</h3></div><div class="card-body">
                 <p style="margin-bottom:16px;color:var(--text-secondary);font-size:13px">Email del CAF per l'invio automatico delle richieste di asseverazione e registrazione contratti.</p>
                 <div class="form-group"><label class="form-label">Email CAF</label><input type="email" class="form-input" id="setCafEmail" placeholder="caf@esempio.it"></div>
@@ -13925,7 +13954,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         if (type === 'addClient') return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">💼 Nuovo Cliente CRM</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveClient(event)"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required></div><div class="form-group"><label class="form-label">Servizio *</label><select class="form-select" name="service" required><option value="PFS">🏠 PFS €350</option><option value="DAS">📝 DAS €249</option><option value="VV">👁️ VV €89</option></select></div></div><div class="form-row"><div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" name="email" required></div><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" name="phone"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Budget €</label><input type="number" class="form-input" name="budget"></div><div class="form-group"><label class="form-label">Zona</label><input type="text" class="form-input" name="zone"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Data Arrivo</label><input type="date" class="form-input" name="arrivalDate"></div><div class="form-group"><label class="form-label">Durata</label><input type="text" class="form-input" name="duration" placeholder="6 mesi"></div></div><div class="form-group"><label class="form-label">Source</label><select class="form-select" name="source"><option value="google">Google</option><option value="instagram">Instagram</option><option value="referral">Referral</option><option value="website">Website</option><option value="other">Altro</option></select></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes"></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Salva</button></div></div></div>`;
 
-        if (type === 'addInvoice') { const num = 'BOOM-' + new Date().getFullYear() + '-' + String(S.invoices.length + 1).padStart(4, '0'); const landlords = S.users.filter(u => u.role === 'landlord'); const tenants = S.users.filter(u => u.role === 'tenant'); return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">🧾 Nuova Fattura</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveInvoice(event)"><div class="form-row"><div class="form-group"><label class="form-label">Numero</label><input type="text" class="form-input" name="number" value="${num}" readonly></div><div class="form-group"><label class="form-label">Data</label><input type="date" class="form-input" name="date" value="${new Date().toISOString().split('T')[0]}"></div></div><div class="form-group"><label class="form-label">Destinatario *</label><select class="form-select" name="recipientId" required><option value="">Seleziona...</option><optgroup label="🏠 Proprietari">${landlords.map(l => `<option value="${l.id}" data-type="landlord">${l.name}</option>`).join('')}</optgroup><optgroup label="👤 Inquilini">${tenants.map(t => `<option value="${t.id}" data-type="tenant">${t.name}</option>`).join('')}</optgroup><optgroup label="💼 Clienti CRM">${S.clients.map(c => `<option value="${c.id}" data-type="client" data-service="${c.service}" data-price="${SERVICES[c.service]?.price || 0}">${c.name} (${c.service})</option>`).join('')}</optgroup></select></div><div class="form-row"><div class="form-group"><label class="form-label">Servizio/Descrizione *</label><input type="text" class="form-input" name="service" placeholder="Es: Gestione immobiliare, PFS, Commissione..." required></div><div class="form-group"><label class="form-label">Importo € *</label><input type="number" class="form-input" name="amount" required></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="description" rows="2" placeholder="Dettagli aggiuntivi..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Crea Fattura</button></div></div></div>`; }
+        // 'addInvoice' RIMOSSO — la sua numerazione (`S.invoices.length + 1`)
+        // si ripeteva a ogni cancellazione e il documento non aveva IVA,
+        // dati fiscali del cliente né XML. Ogni chiamante ora apre
+        // openInvoiceEditor(). Il ramo resta come reindirizzo per i deep-link
+        // e i preferiti del browser.
+        if (type === 'addInvoice') { setTimeout(() => openInvoiceEditor(data || {}), 0); return ''; }
 
         if (type === 'addDocument') return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">📁 Carica Documento</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveDocument(event)"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="type"><option value="contract">📋 Contratto</option><option value="id">🪪 Documento ID</option><option value="receipt">🧾 Ricevuta</option><option value="utility">💡 Utenza</option><option value="other">📄 Altro</option></select></div></div>${isAdmin() ? `<div class="form-group"><label class="form-label">Condividi con inquilino/proprietario</label><select class="form-select" name="shared"><option value="false">No - Solo io</option><option value="true">Sì - Condividi</option></select></div>` : ''}<div class="form-group"><label class="form-label">File</label><div class="file-zone" onclick="document.getElementById('fileInput').click()"><div class="file-zone-icon">📁</div><div class="file-zone-text">Clicca per selezionare</div></div><input type="file" id="fileInput" class="file-input" onchange="handleFile(this)"><div id="filePreview"></div></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Carica</button></div></div></div>`;
 
@@ -14157,7 +14191,6 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         return '';
     }
 
-    function updateInvAmount(sel) { const opt = sel.options[sel.selectedIndex]; document.getElementById('invService').value = opt.dataset.service || ''; document.getElementById('invAmount').value = opt.dataset.price || ''; }
     function fillContractRent(sel) { document.getElementById('cRent').value = sel.options[sel.selectedIndex].dataset.rent || ''; }
     function fillPayAmount(sel) { document.getElementById('pAmount').value = sel.options[sel.selectedIndex].dataset.rent || ''; }
     function handleFile(input) { const file = input.files[0]; if (!file) return; if (file.size > 10*1024*1024) { toast('error', 'File troppo grande (max 10MB)'); return; } selectedFile = file; document.getElementById('filePreview').innerHTML = `<div class="file-preview"><span>📄</span><div style="flex:1"><div>${esc(file.name)}</div><div style="font-size:11px;color:var(--text-muted)">${(file.size/1024).toFixed(1)} KB</div></div></div>`; const ob = document.getElementById('ocrBtn'); if (ob) ob.style.display = 'inline-flex'; }
@@ -14230,39 +14263,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         } catch (err) { toast('error', 'Errore', err.message); }
     }
 
+    // saveInvoice() legacy — sostituita da invIssue()/invSaveDraft(), che
+    // assegnano un progressivo reale, calcolano IVA/bollo/ritenuta e
+    // producono l'XML. Il vecchio percorso scriveva `parseInt(amount)`:
+    // una fattura da 1.383,50 veniva salvata come 1.383.
     async function saveInvoice(e) {
-        e.preventDefault();
-        const data = Object.fromEntries(new FormData(e.target));
-        if (!data.recipientId || !data.amount || !data.service) return toast('error', 'Compila i campi obbligatori');
-        
-        // Determine recipient type and name
-        let recipientType = 'client';
-        let recipientName = '';
-        const landlord = S.users.find(u => u.id === data.recipientId && u.role === 'landlord');
-        const tenant = S.users.find(u => u.id === data.recipientId && u.role === 'tenant');
-        const client = S.clients.find(c => c.id === data.recipientId);
-        
-        if (landlord) { recipientType = 'landlord'; recipientName = landlord.name; }
-        else if (tenant) { recipientType = 'tenant'; recipientName = tenant.name; }
-        else if (client) { recipientType = 'client'; recipientName = client.name; }
-        
-        try {
-            await db.collection('invoices').add({
-                number: data.number, 
-                recipientId: data.recipientId,
-                recipientType,
-                recipientName,
-                clientId: data.recipientId, // Backward compatibility
-                service: data.service || '', 
-                amount: parseInt(data.amount) || 0,
-                date: data.date || new Date().toISOString().split('T')[0],
-                description: data.description || '', 
-                status: 'pending', 
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            closeModal(); await refresh(); toast('success', 'Fattura creata!');
-            logActivity('Fattura creata', 'invoice', { clientName: data.clientName || data.client, amount: data.amount, service: data.service });
-        } catch (err) { toast('error', 'Errore', err.message); }
+        if (e && e.preventDefault) e.preventDefault();
+        openInvoiceEditor({});
     }
 
     async function saveDocument(e) {
@@ -14956,24 +14963,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     // ── Next invoice number, format BOOM-YYYY-NNNN, progressive per calendar year.
-    function nextInvoiceNumber() {
-        const yr = new Date().getFullYear();
-        const sameYear = (S.invoices || []).filter(i => {
-            const d = new Date(i.date || i.createdAt || 0);
-            return d.getFullYear() === yr;
-        });
-        // Pull max NNNN from existing BOOM-YYYY-NNNN, fallback to count + 1
-        let maxN = 0;
-        sameYear.forEach(i => {
-            const m = (i.number || '').match(/(\d{3,5})$/);
-            if (m) { const n = parseInt(m[1], 10); if (n > maxN) maxN = n; }
-        });
-        const next = String(maxN + 1).padStart(4, '0');
-        return `BOOM-${yr}-${next}`;
-    }
-
-    // ── Auto-generate a rent-receipt invoice for a paid payment.
-    // Idempotent: skipped if payment.invoiceId or a matching invoice already exists.
+    // ── Ricevuta di canone per una rata incassata.
+    // NON è una fattura BOOM: il canone passa dall'inquilino al proprietario,
+    // BOOM non lo fattura e non è suo ricavo. Il documento nasce marcato
+    // `kind:'receipt'` così i KPI "Fatturato" smettono di gonfiarsi con soldi
+    // di terzi, non finisce nella numerazione fiscale e non è trasmissibile
+    // allo SdI. Idempotente su payment.invoiceId.
     async function autoInvoiceForPayment(payment) {
         if (!payment) return null;
         if (payment.invoiceId) return null; // already linked
@@ -14986,8 +14981,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const property = contract ? S.properties.find(p => p.id === contract.propertyId) : null;
         if (!tenant) return null;
 
-        const number = nextInvoiceNumber();
+        // Serie separata (RIC-…): un progressivo fiscale non si consuma
+        // per un documento che fiscale non è.
+        const number = 'RIC-' + (payment.month || new Date().getFullYear()) + '-' + String(payment.id).slice(-6).toUpperCase();
         const docRef = await db.collection('invoices').add({
+            kind: 'receipt',
             number,
             recipientId: tenant.id,
             recipientType: 'tenant',
@@ -15011,7 +15009,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         try { await db.collection('payments').doc(payment.id).update({ invoiceId: docRef.id, invoiceNumber: number }); }
         catch (e) { console.warn('[autoInvoice payment link]', e); }
 
-        logActivity('Fattura auto-generata', 'invoice', { number, amount: payment.amount, tenantName: tenant.name, propertyName: property?.name });
+        logActivity('Ricevuta canone generata', 'invoice', { number, amount: payment.amount, tenantName: tenant.name, propertyName: property?.name });
         return { id: docRef.id, number };
     }
 
@@ -15480,10 +15478,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const hasPortal = !!linkedUser;
         const canActivatePortal = !hasPortal && (c.stage === 'closing' || c.stage === 'placed');
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal lg">
-            <div class="modal-header"><h3 class="modal-title">💼 ${c.name}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-header"><h3 class="modal-title">💼 ${esc(c.name)}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body">
                 <div class="detail-header"><div class="avatar xl ${c.service === 'DAS' ? 'blue' : c.service === 'VV' ? 'purple' : ''}">${initials(c.name)}</div>
-                    <div class="detail-info"><h2 class="detail-title">${c.name}</h2><p class="detail-subtitle">${c.email}${c.phone ? ' · ' + c.phone : ''}</p>
+                    <div class="detail-info"><h2 class="detail-title">${esc(c.name)}</h2><p class="detail-subtitle">${esc(c.email)}${c.phone ? ' · ' + esc(c.phone) : ''}</p>
                         <div class="detail-badges"><span class="badge ${SERVICES[c.service]?.color}">${c.service} \u20AC${SERVICES[c.service]?.price}</span><span class="badge ${stageBadgeColor(c.stage)}">${stageLabel(c.stage)}</span>${hasPortal ? '<span class="badge green">Portal Active</span>' : '<span class="badge gray">No Portal</span>'}</div>
                     </div>
                 </div>
@@ -15495,7 +15493,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div><div class="detail-label">Source</div><div class="detail-value">${c.source || 'N/A'}</div></div>
                     <div><div class="detail-label">Creato</div><div class="detail-value">${fmtDate(c.createdAt)}</div></div>
                 </div>
-                ${c.notes ? `<div class="mt-16"><div class="detail-label">Note</div><p style="background:var(--bg);padding:12px;border-radius:8px;margin-top:6px;font-size:13px">${c.notes}</p></div>` : ''}
+                ${c.notes ? `<div class="mt-16"><div class="detail-label">Note</div><p style="background:var(--bg);padding:12px;border-radius:8px;margin-top:6px;font-size:13px">${esc(c.notes)}</p></div>` : ''}
                 ${canActivatePortal ? `
                 <div class="mt-16" style="background:linear-gradient(135deg,rgba(212,175,55,0.08),rgba(212,175,55,0.02));border:1px solid var(--gold-light);border-radius:12px;padding:16px">
                     <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
@@ -15667,31 +15665,67 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     function viewInvoice(id) {
-        const inv = S.invoices.find(x => x.id === id); if (!inv) return;
-        // Resolve recipient across clients (CRM) + users (landlord/tenant).
+        const inv = (S.invoices || []).find(x => x.id === id); if (!inv) return;
+        const IEx = window.BOOM_INVOICE;
+        const fiscal = invIsFiscal(inv);
+        const issued = inv.status && inv.status !== 'draft';
         const rid = inv.recipientId || inv.clientId;
-        const client = S.clients.find(c => c.id === rid);
-        const user = !client ? S.users.find(u => u.id === rid) : null;
-        const recipientName = client?.name || user?.name || 'N/A';
+        const client = (S.clients || []).find(c => c.id === rid);
+        const user = !client ? (S.users || []).find(u => u.id === rid) : null;
+        const recipientName = inv.recipientName || (inv.buyer && IEx && IEx.buyerName(inv.buyer)) || client?.name || user?.name || 'N/A';
         const recipientRole = client ? 'Cliente CRM' : (user?.role === 'landlord' ? 'Proprietario' : user?.role === 'tenant' ? 'Inquilino' : '');
-        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal">
-            <div class="modal-header"><h3 class="modal-title">🧾 ${inv.number}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+        const t = IEx ? IEx.computeTotals(invUpgradeLegacy(JSON.parse(JSON.stringify(inv)), inv.sellerSnapshot || invSeller())) : null;
+        const f = (c) => IEx ? IEx.fmtEur(c) : c;
+
+        // Riga per riga, con l'IVA visibile: la vista vecchia mostrava un
+        // "Importo" solo e non si capiva se fosse imponibile o totale.
+        const lineRows = t ? t.rows.map(r =>
+            `<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">
+                <span>${esc(r.description)}${r.qty !== 1 ? ` <span style="color:var(--text-muted)">× ${r.qty}</span>` : ''}</span>
+                <span style="white-space:nowrap">€ ${f(r.total)} <span style="color:var(--text-muted);font-size:11px">${r.vatRate ? r.vatRate + '%' : esc(r.nature || '')}</span></span>
+            </div>`).join('') : '';
+
+        const sdi = inv.sdiStatus || (fiscal && issued ? 'da_trasmettere' : null);
+        const sdiBadge = !fiscal ? '<span class="badge gray" title="Documento non fiscale">Ricevuta</span>'
+            : sdi === 'trasmessa' ? '<span class="badge green">✓ Trasmessa allo SdI</span>'
+            : issued ? '<span class="badge orange">⏳ Da trasmettere allo SdI</span>'
+            : '<span class="badge gray">Bozza</span>';
+
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal lg">
+            <div class="modal-header"><h3 class="modal-title">${fiscal ? '🧾' : '💰'} ${esc(inv.number || 'Bozza')}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body">
-                <div class="detail-grid">
-                    <div><div class="detail-label">Destinatario${recipientRole ? ' · ' + recipientRole : ''}</div><div class="detail-value">${recipientName}</div></div>
-                    <div><div class="detail-label">Servizio</div><div class="detail-value">${inv.service || 'N/A'}</div></div>
-                    <div><div class="detail-label">Importo</div><div class="detail-value text-gold" style="font-size:20px">€${inv.amount || 0}</div></div>
-                    <div><div class="detail-label">Stato</div><div class="detail-value"><span class="badge ${inv.status === 'paid' ? 'green' : 'orange'}">${inv.status === 'paid' ? 'Pagata' : 'In Attesa'}</span></div></div>
-                    <div><div class="detail-label">Data</div><div class="detail-value">${fmtDate(inv.createdAt)}</div></div>
-                    ${inv.paidDate ? `<div><div class="detail-label">Pagata il</div><div class="detail-value">${fmtDate(inv.paidDate)}</div></div>` : ''}
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+                    <span class="badge ${inv.status === 'paid' ? 'green' : inv.status === 'draft' ? 'gray' : 'orange'}">${inv.status === 'paid' ? 'Pagata' : inv.status === 'draft' ? 'Bozza' : 'In attesa'}</span>
+                    ${sdiBadge}
+                    ${inv.docType === 'TD04' ? '<span class="badge purple">Nota di credito</span>' : ''}
                 </div>
-                ${inv.description ? `<div class="mt-16"><div class="detail-label">Descrizione</div><p style="background:var(--bg);padding:12px;border-radius:8px;margin-top:6px">${inv.description}</p></div>` : ''}
+                <div class="detail-grid">
+                    <div><div class="detail-label">Destinatario${recipientRole ? ' · ' + esc(recipientRole) : ''}</div><div class="detail-value">${esc(recipientName)}</div></div>
+                    <div><div class="detail-label">Data</div><div class="detail-value">${fmtDate(inv.date || inv.createdAt)}</div></div>
+                    ${inv.dueDate ? `<div><div class="detail-label">Scadenza</div><div class="detail-value">${fmtDate(inv.dueDate)}</div></div>` : ''}
+                    ${inv.paidDate ? `<div><div class="detail-label">Pagata il</div><div class="detail-value">${fmtDate(inv.paidDate)}</div></div>` : ''}
+                    ${inv.buyer?.vat ? `<div><div class="detail-label">P.IVA cliente</div><div class="detail-value">${esc(inv.buyer.vat)}</div></div>` : ''}
+                    ${inv.buyer?.sdiCode ? `<div><div class="detail-label">Codice destinatario</div><div class="detail-value">${esc(inv.buyer.sdiCode)}</div></div>` : ''}
+                </div>
+                ${lineRows ? `<div style="margin-top:16px">${lineRows}</div>` : ''}
+                ${t ? `<div style="margin-top:12px;display:flex;justify-content:space-between;align-items:baseline">
+                    <span style="color:var(--text-secondary);font-size:13px">Imponibile € ${f(t.taxable)}${t.vat ? ' · IVA € ' + f(t.vat) : ''}${t.stampDutyDue ? ' · bollo € ' + f(t.stampDuty) : ''}</span>
+                    <strong class="text-gold" style="font-size:22px">€ ${f(t.total)}</strong></div>
+                    ${t.withholding ? `<div style="text-align:right;font-size:13px;color:var(--text-secondary)">ritenuta − € ${f(t.withholding)} · <strong>netto € ${f(t.netToPay)}</strong></div>` : ''}` : ''}
+                ${inv.causale || inv.description ? `<div class="mt-16"><div class="detail-label">Causale</div><p style="background:var(--bg);padding:12px;border-radius:8px;margin-top:6px;font-size:13px">${esc(inv.causale || inv.description)}</p></div>` : ''}
+                ${fiscal && issued && sdi !== 'trasmessa' ? `<div class="alert info" style="margin-top:14px"><span class="alert-icon">📤</span><div class="alert-content">
+                    <div class="alert-title">Il documento non è ancora in circolo</div>
+                    <div class="alert-text">Scarica l'XML e caricalo su <em>Fatture e Corrispettivi</em> (Agenzia Entrate) o mandalo all'intermediario del commercialista. BOOM genera il file; la trasmissione allo SdI resta un passaggio tuo.</div></div></div>` : ''}
             </div>
             <div class="modal-footer">
-                <button class="btn btn-danger btn-sm" onclick="confirmDelete('invoice','${inv.id}','${inv.number}')">🗑</button>
-                <button class="btn btn-secondary" onclick="downloadInvoicePDF('${inv.id}')">📥 PDF</button>
-                ${inv.status === 'pending' ? `<button class="btn btn-success" onclick="markInvoicePaid('${inv.id}')">✔ Segna Pagata</button>` : ''}
-                <button class="btn" onclick="closeModal()">Chiudi</button>
+                ${issued && fiscal
+                    ? `<button class="btn btn-secondary btn-sm" onclick="openCreditNote('${inv.id}')" title="Storna con nota di credito">↩︎ Storna</button>`
+                    : `<button class="btn btn-danger btn-sm" onclick="confirmDelete('invoice','${inv.id}','${esc(inv.number || 'bozza').replace(/'/g, '&#39;')}')">🗑</button>`}
+                ${inv.status === 'draft' ? `<button class="btn btn-secondary" onclick="closeModal();openInvoiceEditor({id:'${inv.id}'})">✎ Modifica</button>` : ''}
+                <button class="btn btn-secondary" onclick="downloadInvoicePDF('${inv.id}')">📄 PDF</button>
+                ${fiscal ? `<button class="btn btn-secondary" onclick="downloadInvoiceXML('${inv.id}')">⬇︎ XML SdI</button>` : ''}
+                ${fiscal && issued && sdi !== 'trasmessa' ? `<button class="btn btn-secondary" onclick="invMarkSent('${inv.id}')">✓ Trasmessa</button>` : ''}
+                ${inv.status !== 'paid' && inv.status !== 'draft' ? `<button class="btn btn-success" onclick="markInvoicePaid('${inv.id}')">✔ Incassata</button>` : ''}
             </div>
         </div></div>`;
     }
@@ -15711,10 +15745,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const userContracts = S.contracts.filter(c => c.tenantId === id);
         const userDocs = S.documents.filter(d => d.userId === id);
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal lg">
-            <div class="modal-header"><h3 class="modal-title">👤 ${u.name}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-header"><h3 class="modal-title">👤 ${esc(u.name)}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body" style="max-height:70vh;overflow-y:auto">
                 <div class="detail-header"><div class="avatar xl ${u.role === 'admin' ? 'purple' : u.role === 'landlord' ? '' : 'blue'}">${initials(u.name)}</div>
-                    <div class="detail-info"><h2 class="detail-title">${u.name}</h2><p class="detail-subtitle">${u.email}</p>
+                    <div class="detail-info"><h2 class="detail-title">${esc(u.name)}</h2><p class="detail-subtitle">${esc(u.email)}</p>
                         <div class="detail-badges"><span class="badge ${u.role === 'admin' ? 'purple' : u.role === 'landlord' ? 'gold' : 'blue'}">${roleLabel(u.role)}</span></div>
                     </div>
                 </div>
@@ -15725,8 +15759,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div><div class="detail-label">Telefono</div><div class="detail-value">${u.phone || '—'}</div></div>
                     <div><div class="detail-label">Codice Fiscale</div><div class="detail-value" style="font-family:monospace">${u.codiceFiscale || '—'}</div></div>
                     <div><div class="detail-label">IBAN</div><div class="detail-value" style="font-family:monospace;font-size:12px">${u.iban || '—'}</div></div>
-                    <div style="grid-column:1/-1"><div class="detail-label">Indirizzo</div><div class="detail-value">${u.address || '—'}</div></div>
-                    ${u.notes ? `<div style="grid-column:1/-1"><div class="detail-label">Note</div><div class="detail-value" style="background:var(--surface);padding:10px;border-radius:8px;font-size:13px">${u.notes}</div></div>` : ''}
+                    <div style="grid-column:1/-1"><div class="detail-label">Indirizzo</div><div class="detail-value">${esc(u.address) || '—'}</div></div>
+                    ${u.notes ? `<div style="grid-column:1/-1"><div class="detail-label">Note</div><div class="detail-value" style="background:var(--surface);padding:10px;border-radius:8px;font-size:13px">${esc(u.notes)}</div></div>` : ''}
                 </div>
                 
                 <div class="section-title mt-16" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px">📊 Account</div>
@@ -18919,7 +18953,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             + '</td></tr></table></td></tr>'
             + '<tr><td style="padding:0 32px 6px"><table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,255,255,0.03);border-radius:10px"><tr><td style="padding:12px 16px">'
             + '<div style="font-size:10px;color:rgba(255,255,255,0.25);margin-bottom:8px">PAYMENT</div>'
-            + '<div style="font-size:12px;color:#fff">IBAN: ' + COMPANY.iban + '</div>'
+            + '<div style="font-size:12px;color:#fff">IBAN: ' + payoutIban() + '</div>'
             + '<div style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:2px">' + COMPANY.legal + '</div>'
             + '</td></tr></table></td></tr>'
             + '<tr><td style="padding:0 32px 20px"><table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,255,255,0.03);border-radius:10px"><tr><td style="padding:12px 16px">'
@@ -18952,7 +18986,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             r1_icon: '\ud83d\udccd', r1_label: 'Address', r1_value: property?.address || '',
             r2_icon: '\ud83d\udcb0', r2_label: 'Monthly Rent', r2_value: '\u20ac' + (contract.rent || 0).toLocaleString('it-IT') + ' \u2014 due on the ' + (contract.paymentDay||5) + 'th',
             r3_icon: '\ud83d\udcc5', r3_label: 'Start Date', r3_value: fmtDate(contract.startDate),
-            r4_icon: '\ud83c\udfe6', r4_label: 'IBAN', r4_value: COMPANY.iban + ' (' + COMPANY.legal + ')',
+            r4_icon: '\ud83c\udfe6', r4_label: 'IBAN', r4_value: payoutIban() + ' (' + payoutBeneficiary() + ')',
             closing: 'Your portal is ready.' + (contract.generatedPDF ? '\n\n📎 Your signed contract (PDF): ' + contract.generatedPDF : ''),
             attachment_url: contract.generatedPDF || '',
             cta_text: 'Open your portal',
@@ -19022,7 +19056,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             card_color: cfg.card_color,
             r1_icon: '💰', r1_label: 'Importo', r1_value: amount,
             r2_icon: '📅', r2_label: 'Scadenza', r2_value: fmtDate(payment.dueDate),
-            r3_icon: '🏦', r3_label: 'IBAN', r3_value: COMPANY.iban,
+            r3_icon: '🏦', r3_label: 'IBAN', r3_value: payoutIban(),
             r4_icon: '📝', r4_label: 'Causale', r4_value: 'Affitto ' + (property?.name || '') + ' ' + (payment.month || ''),
             closing: cfg.closing,
             cta_text: cfg.cta_text,
@@ -19060,7 +19094,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (level === 2) {
             return `${firstName}, ti scriviamo perché il canone ${amount} di ${propName} (scaduto il ${due}, ${days}gg di ritardo) risulta ancora insoluto. Provvedi al pagamento e inviaci la contabile per evitare il sollecito formale con interessi di mora. — BOOM Roma`;
         }
-        return `Ciao ${firstName}, ti ricordiamo che il canone ${amount} di ${propName} è scaduto il ${due} (${days}gg di ritardo). Se hai già pagato ignora pure! IBAN: ${COMPANY.iban}. Grazie — BOOM Roma`;
+        const iban = payoutIban({ blank: true });
+        return `Ciao ${firstName}, ti ricordiamo che il canone ${amount} di ${propName} è scaduto il ${due} (${days}gg di ritardo). Se hai già pagato ignora pure!${iban ? ` IBAN: ${iban}.` : ''} Grazie — BOOM Roma`;
     }
     
     async function sendPaymentConfirmEmail(tenant, contract, property, payment) {
@@ -19615,45 +19650,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     function downloadInvoicePDF(id) {
-        const inv = S.invoices.find(i => i.id === id); if (!inv) return;
-        const client = S.clients.find(c => c.id === inv.clientId);
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        
-        doc.setFillColor(0, 0, 0); doc.rect(0, 0, 210, 35, 'F');
-        doc.setTextColor(212, 175, 55); doc.setFontSize(28); doc.setFont('helvetica', 'bold'); doc.text('BOOM', 20, 22);
-        doc.setTextColor(255); doc.setFontSize(16); doc.text('FATTURA', 190, 22, { align: 'right' });
-        
-        doc.setTextColor(0); doc.setFillColor(245); doc.rect(120, 45, 75, 25, 'F');
-        doc.setFontSize(10); doc.setFont('helvetica', 'bold');
-        doc.text('N°:', 125, 53); doc.text('Data:', 125, 61);
-        doc.setFont('helvetica', 'normal'); doc.text(inv.number, 145, 53); doc.text(fmtDate(inv.createdAt), 145, 61);
-        
-        let y = 50;
-        doc.setFont('helvetica', 'bold'); doc.text('DA:', 20, y); doc.setFont('helvetica', 'normal');
-        y += 6; doc.text(COMPANY.legal, 20, y); y += 5; doc.text(`P.IVA: ${COMPANY.piva}`, 20, y);
-        
-        y = 85; doc.setFont('helvetica', 'bold'); doc.text('A:', 20, y); doc.setFont('helvetica', 'normal');
-        y += 6; doc.text(client?.name || 'Cliente', 20, y); if (client?.email) { y += 5; doc.text(client.email, 20, y); }
-        
-        y = 115; doc.setFillColor(0); doc.rect(15, y, 180, 10, 'F');
-        doc.setTextColor(255); doc.setFont('helvetica', 'bold'); doc.text('Descrizione', 20, y + 7); doc.text('Importo', 175, y + 7, { align: 'right' });
-        
-        y += 15; doc.setTextColor(0); doc.setFont('helvetica', 'normal');
-        doc.text(inv.service || 'Servizio BOOM', 20, y); doc.text(`EUR ${inv.amount || 0}`, 175, y, { align: 'right' });
-        
-        y += 20; doc.setDrawColor(200); doc.line(120, y, 195, y);
-        y += 10; doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.text('TOTALE:', 130, y);
-        doc.setTextColor(212, 175, 55); doc.text(`EUR ${inv.amount || 0}`, 175, y, { align: 'right' });
-        
-        y += 25; doc.setTextColor(0); doc.setFontSize(10); doc.setFont('helvetica', 'bold');
-        doc.text('Pagamento:', 20, y); doc.setFont('helvetica', 'normal'); y += 7; doc.text(`IBAN: ${COMPANY.iban}`, 20, y);
-        
-        doc.setFillColor(0); doc.rect(0, 275, 210, 25, 'F');
-        doc.setTextColor(150); doc.setFontSize(8); doc.text(`${COMPANY.legal} | ${COMPANY.website}`, 105, 285, { align: 'center' });
-        
-        doc.save(`BOOM_Fattura_${inv.number}.pdf`);
-        toast('success', 'Fattura scaricata!');
+        const inv = (S.invoices || []).find(i => i.id === id);
+        if (!inv) return toast('error', 'Documento non trovato');
+        if (!window.BOOM_INVOICE) return toast('error', 'Motore fatture non caricato', 'Ricarica la pagina');
+        // I documenti vecchi (service + amount, nessuna riga) vengono
+        // normalizzati al volo: una riga sola, stessa aritmetica di oggi.
+        const doc = invBuildPdf(invUpgradeLegacy(JSON.parse(JSON.stringify(inv)), inv.sellerSnapshot || invSeller()), inv.sellerSnapshot || invSeller());
+        if (!doc) return;
+        doc.save('BOOM_' + String(inv.number || inv.id).replace(/[\/\\]/g, '-') + '.pdf');
+        toast('success', 'PDF scaricato', 'Copia di cortesia — l\'originale fiscale è l\'XML');
     }
 
     function generateServiceContractPDF(clientId) {
@@ -21814,11 +21819,21 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     window.openShareHub = openShareHub;
 
     // ── Download the contract PDF (reuses the existing generator at line 13792)
-    async function downloadContractPDF(contractId) {
-        try { await generateContractPDF(contractId); }
-        catch (e) { console.error(e); toast('error', 'Errore PDF: ' + e.message); }
-    }
-    window.downloadContractPDF = downloadContractPDF;
+    // downloadContractPDF() RIMOSSA da qui.
+    //
+    // Era una seconda definizione dello stesso nome, 2.500 righe più in basso
+    // dell'originale: in uno script classico l'ULTIMA vince, quindi ogni
+    // "scarica PDF" del portale finiva in questo stub da 4 righe e la
+    // funzione vera (≈riga 19344 — scarica il PDF ARCHIVIATO, rigenera solo
+    // se le firme sono più recenti, nomina il file con immobile e inquilino)
+    // non veniva mai eseguita.
+    //
+    // Il danno non era estetico: lo stub chiamava generateContractPDF() a
+    // secco, scavalcando la guardia firme di regenerateContractPDF(). Su un
+    // contratto COMPLETO premere "scarica" riscriveva generatedPDF/pdfHash
+    // mentre contratto-firmato.pdf e il certificato FES restavano congelati
+    // sui byte della firma — due copie divergenti dello stesso atto, e
+    // l'hash del certificato che non torna più.
 
     // ── Mark contract as successfully registered in AdE
     async function markRegistered(contractId) {
@@ -27793,3 +27808,813 @@ ${d.description || '-'}`;
     
     // i18n helper - use i() for translated strings
     function i(key) { return (I18N[S.lang] || I18N.IT)[key] || (I18N.IT)[key] || key; }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // FATTURAZIONE ELETTRONICA — il documento fiscale, non la copia di cortesia
+    // ═══════════════════════════════════════════════════════════════════════════
+    //
+    // In Italia la fattura È il file XML che viaggia sullo SdI (obbligatorio
+    // B2B/B2C dal 2019, esteso a tutti i forfettari dal 2024). Il portale
+    // sapeva stampare PDF e ricevute di pigione — nessuno dei due è una
+    // fattura. Qui si emette il documento vero:
+    //
+    //   righe con IVA/Natura → totali al centesimo (js/invoice-engine.js)
+    //   → numerazione progressiva per anno e sezionale
+    //   → validazione PRIMA dell'invio (uno scarto SdI si scopre giorni dopo)
+    //   → XML FatturaPA 1.2.2 + PDF di cortesia coerente con l'XML
+    //   → nota di credito TD04 per stornare (una fattura emessa non si cancella)
+    //
+    // Il file XML si carica sul canale SdI (portale Fatture e Corrispettivi
+    // dell'AdE, o l'intermediario del commercialista). BOOM lo GENERA; non lo
+    // TRASMETTE — dirlo chiaramente in UI vale più di un bottone che finge.
+
+    var _invDraft = null;          // documento in lavorazione nell'editor
+    var _invBillingLoaded = false;
+
+    function IE() { return window.BOOM_INVOICE; }
+
+    // ── Dati fatturazione dell'emittente ────────────────────────────────
+    // Vivono in `billing/company` (admin-only per le rules) e NON in
+    // `settings`, che firestore.rules apre in lettura a chiunque: lì dentro
+    // ci sono IBAN e dati fiscali della società.
+    async function loadBillingSettings(force) {
+        if (_invBillingLoaded && !force) return S.billing;
+        try {
+            var d = await db.collection('billing').doc('company').get();
+            S.billing = d.exists ? d.data() : null;
+        } catch (e) { console.warn('[billing]', e.message); S.billing = S.billing || null; }
+        _invBillingLoaded = true;
+        return S.billing;
+    }
+
+    // L'emittente effettivo: quello configurato, con COMPANY come sola rete di
+    // sicurezza per i campi non fiscali. I campi fiscali (P.IVA, sede, REA)
+    // NON hanno fallback: meglio un errore di validazione che una fattura
+    // emessa con dati inventati.
+    function invSeller() {
+        var b = S.billing || {};
+        return {
+            name: b.name || COMPANY.legal,
+            vat: b.vat || '',
+            cf: b.cf || '',
+            regime: b.regime || 'RF01',
+            address: b.address || '', streetNumber: b.streetNumber || '',
+            zip: b.zip || '', city: b.city || '', province: b.province || '',
+            country: b.country || 'IT',
+            email: b.email || COMPANY.email, phone: b.phone || COMPANY.phone,
+            iban: b.iban || '', bank: b.bank || '',
+            reaOffice: b.reaOffice || '', reaNumber: b.reaNumber || '',
+            shareCapital: b.shareCapital || '', soleShareholder: b.soleShareholder || '',
+            liquidation: b.liquidation || 'LN',
+            sezionale: b.sezionale || '',
+            defaultVatRate: b.defaultVatRate == null ? 22 : b.defaultVatRate,
+            defaultPaymentMethod: b.defaultPaymentMethod || 'MP05',
+            paymentTermsDays: b.paymentTermsDays == null ? 30 : b.paymentTermsDays,
+        };
+    }
+
+    // ── L'IBAN vero, mai un segnaposto ──────────────────────────────────
+    // `COMPANY.iban` conteneva 'IT00X0000000000000000000000' e finiva in otto
+    // punti VIVI: il promemoria WhatsApp di pagamento all'inquilino, la card
+    // IBAN del portale inquilino, le email di benvenuto, il PDF fattura. Ogni
+    // inquilino in ritardo riceveva un IBAN inesistente. La fonte è
+    // `settings/payout` (già usata da /casa per il bonifico del canone), con
+    // `billing/company` come seconda scelta; se manca si DICE che manca.
+    function payoutIban(opts) {
+        opts = opts || {};
+        var iban = (S.payout && S.payout.iban) || (S.billing && S.billing.iban) || '';
+        if (iban) return iban;
+        return opts.blank ? '' : 'IBAN non configurato — Impostazioni → Dati di fatturazione';
+    }
+    function payoutBeneficiary() {
+        return (S.payout && S.payout.beneficiary) || (S.billing && S.billing.name) || COMPANY.legal;
+    }
+    async function loadPayoutSettings() {
+        try {
+            var d = await db.collection('payout').doc('default').get();
+            if (!d.exists) {
+                var all = await db.collection('payout').limit(1).get();
+                d = all.docs[0] || null;
+            }
+            S.payout = d && (d.exists === undefined || d.exists) ? d.data() : null;
+        } catch (e) { console.warn('[payout]', e.message); }
+        return S.payout;
+    }
+
+    function billingConfigured() {
+        var s = invSeller();
+        return !!(s.name && s.vat && s.address && s.zip && s.city);
+    }
+
+    // ── Classificazione documenti ───────────────────────────────────────
+    // I documenti auto-generati sui canoni non sono fatture BOOM: sono
+    // ricevute di pigione. Contarli come "Fatturato" gonfiava il ricavo del
+    // portale con soldi che passano dall'inquilino al proprietario.
+    function invKind(inv) {
+        if (!inv) return 'invoice';
+        if (inv.kind) return inv.kind;
+        if (inv.autoGenerated || inv.paymentId) return 'receipt';
+        return 'invoice';
+    }
+    function invIsFiscal(inv) { return invKind(inv) === 'invoice'; }
+
+    // ── Editor ──────────────────────────────────────────────────────────
+    async function openInvoiceEditor(opts) {
+        opts = opts || {};
+        if (!IE()) return toast('error', 'Motore fatture non caricato', 'Ricarica la pagina');
+        document.getElementById('modals').innerHTML =
+            '<div class="modal-overlay active"><div class="modal xl"><div class="modal-body" style="padding:60px;text-align:center">' +
+            '<div class="spinner"></div><p style="margin-top:16px;color:var(--text-muted)">Carico i dati di fatturazione…</p></div></div></div>';
+        await loadBillingSettings();
+        var seller = invSeller();
+
+        if (opts.id) {
+            var src = (S.invoices || []).find(function (x) { return x.id === opts.id; });
+            if (!src) { closeModal(); return toast('error', 'Documento non trovato'); }
+            _invDraft = JSON.parse(JSON.stringify(src));
+            _invDraft = invUpgradeLegacy(_invDraft, seller);
+        } else if (opts.creditNoteFor) {
+            var orig = (S.invoices || []).find(function (x) { return x.id === opts.creditNoteFor; });
+            if (!orig) { closeModal(); return toast('error', 'Fattura non trovata'); }
+            _invDraft = IE().creditNoteFrom(invUpgradeLegacy(JSON.parse(JSON.stringify(orig)), seller), { reason: opts.reason });
+        } else {
+            _invDraft = IE().emptyInvoice(seller);
+            if (opts.preset && SERVICES[opts.preset]) {
+                _invDraft.lines[0].description = SERVICES[opts.preset].name;
+                _invDraft.lines[0].unitPrice = SERVICES[opts.preset].price;
+            }
+            if (opts.recipientId) invPickRecipient(opts.recipientId, true);
+        }
+        invRenderEditor();
+    }
+
+    // Un documento pre-esistente (schema vecchio: service + amount) diventa
+    // una riga sola. Nessuna migrazione di massa: si converte quando si apre.
+    function invUpgradeLegacy(inv, seller) {
+        if (!inv.lines || !inv.lines.length) {
+            var gross = Number(inv.amount) || 0;
+            inv.lines = [{
+                description: inv.description || inv.service || 'Servizio',
+                qty: 1, unitPrice: gross,
+                vatRate: seller.regime === 'RF19' ? 0 : (seller.defaultVatRate == null ? 22 : seller.defaultVatRate),
+                nature: seller.regime === 'RF19' ? 'N2.2' : '',
+                withholding: false,
+                _legacyGross: true,
+            }];
+            inv._legacyAmount = gross;
+        }
+        if (!inv.buyer) {
+            var rid = inv.recipientId || inv.clientId;
+            inv.buyer = invBuyerFromParty(rid) || { country: 'IT', name: inv.recipientName || '', sdiCode: '' };
+        }
+        if (!inv.payment) inv.payment = { condition: 'TP02', method: seller.defaultPaymentMethod, iban: seller.iban, bank: seller.bank };
+        if (!inv.withholding) inv.withholding = { enabled: false, type: 'RT02', rate: 20, basePct: 100, causale: 'A' };
+        if (!inv.stampDuty) inv.stampDuty = { auto: true, amount: IE().BOLLO_AMOUNT, chargedToClient: true };
+        if (!inv.docType) inv.docType = 'TD01';
+        if (!inv.date) inv.date = IE().isoDate(inv.createdAt || new Date());
+        return inv;
+    }
+
+    // Anagrafica del cliente da users / clients / landlords — così i dati
+    // fiscali si scrivono una volta e poi si riusano.
+    function invBuyerFromParty(id) {
+        if (!id) return null;
+        var u = (S.users || []).find(function (x) { return x.id === id; });
+        var c = !u && (S.clients || []).find(function (x) { return x.id === id; });
+        var l = !u && !c && (S.landlords || []).find(function (x) { return x.id === id; });
+        var p = u || c || l;
+        if (!p) return null;
+        var bill = p.billing || {};
+        return {
+            kind: bill.kind || (p.vat || p.partitaIva ? 'company' : 'person'),
+            name: bill.name || p.name || '',
+            firstName: bill.firstName || '', lastName: bill.lastName || '',
+            vat: bill.vat || p.partitaIva || p.vat || '',
+            cf: bill.cf || p.codiceFiscale || p.cf || '',
+            country: bill.country || 'IT',
+            address: bill.address || p.address || '',
+            streetNumber: bill.streetNumber || '',
+            zip: bill.zip || p.zip || '', city: bill.city || p.city || 'Roma',
+            province: bill.province || p.province || 'RM',
+            sdiCode: bill.sdiCode || '', pec: bill.pec || '',
+            email: p.email || '', phone: p.phone || '',
+        };
+    }
+
+    function invPickRecipient(id, silent) {
+        if (!_invDraft) return;
+        _invDraft.recipientId = id || null;
+        var u = (S.users || []).find(function (x) { return x.id === id; });
+        var c = !u && (S.clients || []).find(function (x) { return x.id === id; });
+        _invDraft.recipientType = u ? (u.role || 'user') : (c ? 'client' : 'landlordDb');
+        var b = invBuyerFromParty(id);
+        if (b) {
+            // Non si sovrascrive quello che l'operatore ha già scritto a mano.
+            var cur = _invDraft.buyer || {};
+            Object.keys(b).forEach(function (k) { if (b[k] && !cur[k]) cur[k] = b[k]; });
+            if (b.name) cur.name = b.name;
+            _invDraft.buyer = cur;
+        }
+        if (!silent) invRenderEditor();
+    }
+
+    // ── Sync DOM → draft (prima di ogni re-render, per non perdere il typing)
+    function invSync() {
+        if (!_invDraft) return;
+        var g = function (id) { var e = document.getElementById(id); return e ? e.value : undefined; };
+        var ck = function (id) { var e = document.getElementById(id); return e ? e.checked : undefined; };
+        var set = function (obj, key, v) { if (v !== undefined) obj[key] = v; };
+
+        set(_invDraft, 'docType', g('invDocType'));
+        set(_invDraft, 'date', g('invDate'));
+        set(_invDraft, 'dueDate', g('invDueDate'));
+        set(_invDraft, 'sezionale', g('invSezionale'));
+        set(_invDraft, 'causale', g('invCausale'));
+
+        var b = _invDraft.buyer = _invDraft.buyer || {};
+        ['name', 'firstName', 'lastName', 'vat', 'cf', 'address', 'streetNumber',
+         'zip', 'city', 'province', 'country', 'sdiCode', 'pec', 'email'].forEach(function (k) {
+            set(b, k, g('invB_' + k));
+        });
+        var kind = g('invB_kind'); if (kind !== undefined) b.kind = kind;
+
+        (_invDraft.lines || []).forEach(function (l, i) {
+            set(l, 'description', g('invL_desc_' + i));
+            set(l, 'qty', g('invL_qty_' + i));
+            set(l, 'unitPrice', g('invL_price_' + i));
+            set(l, 'vatRate', g('invL_vat_' + i));
+            set(l, 'nature', g('invL_nat_' + i));
+            var w = ck('invL_wh_' + i); if (w !== undefined) l.withholding = w;
+        });
+
+        var wh = _invDraft.withholding = _invDraft.withholding || {};
+        var whOn = ck('invWhOn'); if (whOn !== undefined) wh.enabled = whOn;
+        set(wh, 'type', g('invWhType'));
+        set(wh, 'rate', g('invWhRate'));
+        set(wh, 'basePct', g('invWhBase'));
+        set(wh, 'causale', g('invWhCausale'));
+
+        var pay = _invDraft.payment = _invDraft.payment || {};
+        set(pay, 'condition', g('invPayCond'));
+        set(pay, 'method', g('invPayMethod'));
+        set(pay, 'iban', g('invPayIban'));
+
+        var st = _invDraft.stampDuty = _invDraft.stampDuty || {};
+        var stCharge = ck('invBolloCharge'); if (stCharge !== undefined) st.chargedToClient = stCharge;
+    }
+
+    function invEdit() { invSync(); invRenderEditor(); }
+    function invLive() { invSync(); invRenderTotals(); invRenderChecks(); }
+
+    function invAddLine() {
+        invSync();
+        var s = invSeller();
+        var forf = s.regime === 'RF19' || s.regime === 'RF02';
+        _invDraft.lines.push({
+            description: '', qty: 1, unitPrice: '',
+            vatRate: forf ? 0 : s.defaultVatRate, nature: forf ? 'N2.2' : '', withholding: false,
+        });
+        invRenderEditor();
+    }
+    function invRemoveLine(i) {
+        invSync();
+        if (_invDraft.lines.length <= 1) return toast('info', 'Serve almeno una riga');
+        _invDraft.lines.splice(i, 1);
+        invRenderEditor();
+    }
+
+    // ── Render ──────────────────────────────────────────────────────────
+    function invRenderEditor() {
+        var d = _invDraft, s = invSeller();
+        if (!d) return;
+        var isCredit = d.docType === 'TD04';
+        var editable = !d.number || d.status === 'draft';
+        var partyOptions = invPartyOptions(d.recipientId);
+        var natOpts = Object.keys(IE().NATURE).map(function (k) {
+            return '<option value="' + k + '">' + k + ' · ' + esc(IE().NATURE[k]) + '</option>';
+        }).join('');
+
+        var lineRows = (d.lines || []).map(function (l, i) {
+            var zero = String(l.vatRate) === '0';
+            return '<div class="inv-line" style="display:grid;grid-template-columns:1fr 70px 110px 90px 1fr 34px;gap:8px;align-items:start;padding:10px 0;border-bottom:1px solid var(--border)">' +
+                '<div><input type="text" class="form-input" id="invL_desc_' + i + '" value="' + esc(l.description || '') + '" placeholder="Descrizione della prestazione" oninput="invLive()">' +
+                    '<label style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--text-muted);margin-top:5px"><input type="checkbox" id="invL_wh_' + i + '" ' + (l.withholding ? 'checked' : '') + ' onchange="invLive()"> soggetta a ritenuta</label></div>' +
+                '<input type="number" step="0.01" class="form-input" id="invL_qty_' + i + '" value="' + esc(String(l.qty == null ? 1 : l.qty)) + '" oninput="invLive()" title="Quantità">' +
+                '<input type="number" step="0.01" class="form-input" id="invL_price_' + i + '" value="' + esc(String(l.unitPrice == null ? '' : l.unitPrice)) + '" placeholder="0,00" oninput="invLive()" title="Prezzo unitario €">' +
+                '<select class="form-select" id="invL_vat_' + i + '" onchange="invEdit()" title="Aliquota IVA">' +
+                    [0, 4, 5, 10, 22].map(function (r) { return '<option value="' + r + '"' + (String(l.vatRate) === String(r) ? ' selected' : '') + '>' + r + '%</option>'; }).join('') +
+                '</select>' +
+                (zero
+                    ? '<select class="form-select" id="invL_nat_' + i + '" onchange="invLive()" title="Natura (obbligatoria a IVA 0)">' + natOpts.replace('value="' + (l.nature || 'N2.2') + '"', 'value="' + (l.nature || 'N2.2') + '" selected') + '</select>'
+                    : '<div style="font-size:11px;color:var(--text-muted);padding-top:10px">IVA ' + esc(String(l.vatRate)) + '%</div>') +
+                '<button class="btn btn-xs btn-secondary" onclick="invRemoveLine(' + i + ')" title="Rimuovi riga">×</button>' +
+            '</div>';
+        }).join('');
+
+        var body =
+        (!billingConfigured() ? '<div class="alert warning" style="margin-bottom:14px"><span class="alert-icon">⚠️</span><div class="alert-content">' +
+            '<div class="alert-title">Dati di fatturazione mancanti</div>' +
+            '<div class="alert-text">Senza P.IVA e sede dell\'emittente lo SdI scarta il file. ' +
+            '<a href="#" onclick="closeModal();goTo(\'settings\');setTimeout(function(){var e=document.getElementById(\'billingCard\');if(e)e.scrollIntoView({behavior:\'smooth\'})},300);return false" style="color:var(--gold)">Compila ora →</a></div></div></div>' : '') +
+
+        '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:14px">' +
+            '<div class="form-group"><label class="form-label">Tipo documento</label>' +
+                '<select class="form-select" id="invDocType" onchange="invEdit()"' + (isCredit ? ' disabled' : '') + '>' +
+                Object.keys(IE().DOC_TYPES).map(function (k) { return '<option value="' + k + '"' + (d.docType === k ? ' selected' : '') + '>' + k + ' · ' + esc(IE().DOC_TYPES[k]) + '</option>'; }).join('') +
+                '</select></div>' +
+            '<div class="form-group"><label class="form-label">Data</label><input type="date" class="form-input" id="invDate" value="' + esc(IE().isoDate(d.date)) + '" onchange="invLive()"></div>' +
+            '<div class="form-group"><label class="form-label">Scadenza pagamento</label><input type="date" class="form-input" id="invDueDate" value="' + esc(d.dueDate ? IE().isoDate(d.dueDate) : '') + '" onchange="invLive()"></div>' +
+            '<div class="form-group"><label class="form-label">Numero</label>' +
+                (d.number
+                    ? '<input type="text" class="form-input" value="' + esc(d.number) + '" readonly>'
+                    : '<input type="text" class="form-input" id="invSezionale" value="' + esc(d.sezionale || '') + '" placeholder="sezionale (facolt.)" oninput="invLive()">') +
+                '<div style="font-size:10px;color:var(--text-muted);margin-top:4px">' + (d.number ? 'assegnato' : 'prossimo: ' + esc(invPreviewNumber())) + '</div></div>' +
+        '</div>' +
+
+        (isCredit && d.relatedDoc ? '<div class="alert info" style="margin-bottom:14px"><span class="alert-icon">↩︎</span><div class="alert-content"><div class="alert-title">Nota di credito</div><div class="alert-text">Storna la fattura n. ' + esc(d.relatedDoc.number) + ' del ' + esc(d.relatedDoc.date || '') + '. L\'originale resta emesso e valido: è il modo corretto di annullare, non la cancellazione.</div></div></div>' : '') +
+
+        // ── Cliente ──
+        '<div class="card" style="margin-bottom:14px"><div class="card-header"><h3 class="card-title">👤 Cliente (cessionario/committente)</h3></div><div class="card-body">' +
+            '<div class="form-row"><div class="form-group"><label class="form-label">Da rubrica</label>' +
+                '<select class="form-select" onchange="invPickRecipient(this.value)">' + partyOptions + '</select></div>' +
+            '<div class="form-group"><label class="form-label">Tipo</label><select class="form-select" id="invB_kind" onchange="invEdit()">' +
+                '<option value="company"' + ((d.buyer.kind || 'company') === 'company' ? ' selected' : '') + '>Azienda / P.IVA</option>' +
+                '<option value="person"' + (d.buyer.kind === 'person' ? ' selected' : '') + '>Persona fisica</option></select></div></div>' +
+            (d.buyer.kind === 'person'
+                ? '<div class="form-row"><div class="form-group"><label class="form-label">Nome</label><input type="text" class="form-input" id="invB_firstName" value="' + esc(d.buyer.firstName || '') + '" oninput="invLive()"></div>' +
+                  '<div class="form-group"><label class="form-label">Cognome</label><input type="text" class="form-input" id="invB_lastName" value="' + esc(d.buyer.lastName || '') + '" oninput="invLive()"></div></div>' +
+                  '<input type="hidden" id="invB_name" value="' + esc(d.buyer.name || '') + '">'
+                : '<div class="form-group"><label class="form-label">Denominazione *</label><input type="text" class="form-input" id="invB_name" value="' + esc(d.buyer.name || '') + '" oninput="invLive()"></div>') +
+            '<div class="form-row"><div class="form-group"><label class="form-label">Partita IVA</label><input type="text" class="form-input" id="invB_vat" value="' + esc(d.buyer.vat || '') + '" placeholder="11 cifre" oninput="invLive()"></div>' +
+            '<div class="form-group"><label class="form-label">Codice Fiscale</label><input type="text" class="form-input" id="invB_cf" value="' + esc(d.buyer.cf || '') + '" oninput="invLive()"></div></div>' +
+            '<div class="form-row"><div class="form-group" style="flex:2"><label class="form-label">Indirizzo *</label><input type="text" class="form-input" id="invB_address" value="' + esc(d.buyer.address || '') + '" oninput="invLive()"></div>' +
+            '<div class="form-group" style="flex:0 0 90px"><label class="form-label">Civico</label><input type="text" class="form-input" id="invB_streetNumber" value="' + esc(d.buyer.streetNumber || '') + '" oninput="invLive()"></div></div>' +
+            '<div class="form-row"><div class="form-group"><label class="form-label">CAP *</label><input type="text" class="form-input" id="invB_zip" value="' + esc(d.buyer.zip || '') + '" placeholder="00184" oninput="invLive()"></div>' +
+            '<div class="form-group"><label class="form-label">Comune *</label><input type="text" class="form-input" id="invB_city" value="' + esc(d.buyer.city || '') + '" oninput="invLive()"></div>' +
+            '<div class="form-group" style="flex:0 0 80px"><label class="form-label">Prov.</label><input type="text" class="form-input" id="invB_province" maxlength="2" value="' + esc(d.buyer.province || '') + '" oninput="invLive()"></div>' +
+            '<div class="form-group" style="flex:0 0 90px"><label class="form-label">Paese</label><input type="text" class="form-input" id="invB_country" maxlength="2" value="' + esc(d.buyer.country || 'IT') + '" oninput="invLive()"></div></div>' +
+            '<div class="form-row"><div class="form-group"><label class="form-label">Codice Destinatario SdI</label><input type="text" class="form-input" id="invB_sdiCode" maxlength="7" value="' + esc(d.buyer.sdiCode || '') + '" placeholder="0000000 se privato" oninput="invLive()"></div>' +
+            '<div class="form-group"><label class="form-label">PEC destinatario</label><input type="email" class="form-input" id="invB_pec" value="' + esc(d.buyer.pec || '') + '" oninput="invLive()"></div>' +
+            '<div class="form-group"><label class="form-label">Email (copia cortesia)</label><input type="email" class="form-input" id="invB_email" value="' + esc(d.buyer.email || '') + '" oninput="invLive()"></div></div>' +
+            '<div style="font-size:11px;color:var(--text-muted)">Il recapito elettronico decide dove atterra la fattura: <strong>codice destinatario</strong> a 7 caratteri per chi ha P.IVA, <strong>0000000</strong> per un privato (finisce nel suo cassetto fiscale), <strong>XXXXXXX</strong> per un cliente estero.</div>' +
+        '</div></div>' +
+
+        // ── Righe ──
+        '<div class="card" style="margin-bottom:14px"><div class="card-header"><h3 class="card-title">📋 Righe del documento</h3>' +
+            '<button class="btn btn-xs" onclick="invAddLine()">+ Riga</button></div><div class="card-body">' +
+            '<div style="display:grid;grid-template-columns:1fr 70px 110px 90px 1fr 34px;gap:8px;font-size:10px;letter-spacing:1px;color:var(--text-muted);padding-bottom:6px;border-bottom:1px solid var(--border)">' +
+            '<div>DESCRIZIONE</div><div>Q.TÀ</div><div>PREZZO €</div><div>IVA</div><div>NATURA</div><div></div></div>' +
+            lineRows +
+        '</div></div>' +
+
+        // ── Ritenuta / pagamento ──
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">' +
+            '<div class="card"><div class="card-header"><h3 class="card-title">✂️ Ritenuta d\'acconto</h3></div><div class="card-body">' +
+                '<label style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><input type="checkbox" id="invWhOn" ' + (d.withholding.enabled ? 'checked' : '') + ' onchange="invEdit()"> Applica ritenuta</label>' +
+                (d.withholding.enabled
+                    ? '<div class="form-row"><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" id="invWhType" onchange="invLive()">' +
+                        Object.keys(IE().TIPI_RITENUTA).map(function (k) { return '<option value="' + k + '"' + (d.withholding.type === k ? ' selected' : '') + '>' + k + '</option>'; }).join('') + '</select></div>' +
+                      '<div class="form-group"><label class="form-label">Aliquota %</label><input type="number" step="0.01" class="form-input" id="invWhRate" value="' + esc(String(d.withholding.rate || 20)) + '" oninput="invLive()"></div>' +
+                      '<div class="form-group"><label class="form-label">Su base %</label><input type="number" step="0.01" class="form-input" id="invWhBase" value="' + esc(String(d.withholding.basePct == null ? 100 : d.withholding.basePct)) + '" oninput="invLive()"></div>' +
+                      '<div class="form-group" style="flex:0 0 80px"><label class="form-label">Causale</label><input type="text" class="form-input" id="invWhCausale" maxlength="2" value="' + esc(d.withholding.causale || 'A') + '" oninput="invLive()"></div></div>' +
+                      '<div style="font-size:11px;color:var(--text-muted)">Base 50% + aliquota 23% = l\'11,5% delle provvigioni. Il cliente bonifica il <strong>netto</strong> e versa la ritenuta per conto di BOOM.</div>'
+                    : '<div style="font-size:11px;color:var(--text-muted)">Una S.r.l. che fattura mediazione immobiliare di norma <strong>non</strong> subisce ritenuta. Attivala solo se il committente te l\'ha chiesta.</div>') +
+            '</div></div>' +
+            '<div class="card"><div class="card-header"><h3 class="card-title">💳 Pagamento</h3></div><div class="card-body">' +
+                '<div class="form-row"><div class="form-group"><label class="form-label">Condizioni</label><select class="form-select" id="invPayCond" onchange="invLive()">' +
+                    Object.keys(IE().COND_PAGAMENTO).map(function (k) { return '<option value="' + k + '"' + (d.payment.condition === k ? ' selected' : '') + '>' + esc(IE().COND_PAGAMENTO[k]) + '</option>'; }).join('') + '</select></div>' +
+                '<div class="form-group"><label class="form-label">Modalità</label><select class="form-select" id="invPayMethod" onchange="invLive()">' +
+                    Object.keys(IE().MOD_PAGAMENTO).map(function (k) { return '<option value="' + k + '"' + (d.payment.method === k ? ' selected' : '') + '>' + k + ' · ' + esc(IE().MOD_PAGAMENTO[k]) + '</option>'; }).join('') + '</select></div></div>' +
+                '<div class="form-group"><label class="form-label">IBAN</label><input type="text" class="form-input" id="invPayIban" value="' + esc(d.payment.iban || '') + '" placeholder="IT…" oninput="invLive()"></div>' +
+                '<label style="display:flex;align-items:center;gap:8px;font-size:12px"><input type="checkbox" id="invBolloCharge" ' + (d.stampDuty.chargedToClient !== false ? 'checked' : '') + ' onchange="invLive()"> Riaddebita il bollo da €2 al cliente (quando dovuto)</label>' +
+            '</div></div>' +
+        '</div>' +
+
+        '<div class="form-group"><label class="form-label">Causale / note in fattura</label><textarea class="form-textarea" id="invCausale" rows="2" oninput="invLive()" placeholder="es. Provvigione per contratto di locazione del 15/07/2026">' + esc(d.causale || '') + '</textarea></div>' +
+
+        '<div id="invTotals"></div><div id="invChecks"></div>';
+
+        document.getElementById('modals').innerHTML =
+        '<div class="modal-overlay active"><div class="modal xl">' +
+            '<div class="modal-header"><h3 class="modal-title">' + (isCredit ? '↩︎ Nota di credito' : (d.number ? '🧾 ' + esc(d.number) : '🧾 Nuovo documento fiscale')) + '</h3>' +
+            '<button class="modal-close" onclick="closeInvoiceEditor()">×</button></div>' +
+            '<div class="modal-body" style="max-height:66vh;overflow-y:auto">' + body + '</div>' +
+            '<div class="modal-footer">' +
+                '<button class="btn btn-secondary" onclick="closeInvoiceEditor()">Annulla</button>' +
+                (editable ? '<button class="btn btn-secondary" onclick="invSaveDraft()">💾 Salva bozza</button>' : '') +
+                '<button class="btn btn-secondary" onclick="invPreviewPdf()">👁 Anteprima PDF</button>' +
+                (editable ? '<button class="btn" id="invEmitBtn" onclick="invIssue()">✅ Emetti documento</button>'
+                          : '<button class="btn" onclick="invDownloadXmlDraft()">⬇︎ XML FatturaPA</button>') +
+            '</div>' +
+        '</div></div>';
+        invRenderTotals(); invRenderChecks();
+    }
+
+    function closeInvoiceEditor() { _invDraft = null; closeModal(); }
+
+    function invPartyOptions(selected) {
+        var g = function (label, arr) {
+            if (!arr.length) return '';
+            return '<optgroup label="' + label + '">' + arr.map(function (p) {
+                return '<option value="' + p.id + '"' + (p.id === selected ? ' selected' : '') + '>' + esc(p.name || p.email || p.id) + '</option>';
+            }).join('') + '</optgroup>';
+        };
+        return '<option value="">— scrivi a mano —</option>' +
+            g('🏠 Proprietari', (S.users || []).filter(function (u) { return u.role === 'landlord'; })) +
+            g('👤 Inquilini', (S.users || []).filter(function (u) { return u.role === 'tenant'; })) +
+            g('💼 Clienti CRM', (S.clients || [])) +
+            g('📇 Rubrica locatori', (S.landlords || []));
+    }
+
+    function invPreviewNumber() {
+        var n = IE().nextNumber(S.invoices || [], {
+            year: new Date((_invDraft && _invDraft.date) || Date.now()).getFullYear(),
+            sezionale: (_invDraft && _invDraft.sezionale) || '',
+        });
+        return n.number;
+    }
+
+    function invRenderTotals() {
+        var el = document.getElementById('invTotals'); if (!el || !_invDraft) return;
+        var t = IE().computeTotals(_invDraft);
+        var f = IE().fmtEur;
+        var row = function (label, val, opts) {
+            opts = opts || {};
+            return '<div style="display:flex;justify-content:space-between;padding:' + (opts.big ? '10px 0' : '5px 0') + ';' +
+                (opts.border ? 'border-top:1px solid var(--border);margin-top:6px;' : '') + '">' +
+                '<span style="' + (opts.big ? 'font-weight:600;' : 'color:var(--text-secondary);font-size:13px') + '">' + label + '</span>' +
+                '<strong style="' + (opts.big ? 'font-size:20px;color:var(--gold)' : 'font-size:13px') + '">' + val + '</strong></div>';
+        };
+        el.innerHTML = '<div class="card" style="margin-top:6px"><div class="card-body">' +
+            t.vatSummary.map(function (b) {
+                return row('Imponibile ' + b.rate + '%' + (b.nature ? ' (' + b.nature + ')' : ''), '€ ' + f(b.taxable)) +
+                       (b.rate ? row('IVA ' + b.rate + '%', '€ ' + f(b.vat)) : '');
+            }).join('') +
+            (t.stampDutyDue ? row('Imposta di bollo' + (t.stampDutyCharged ? '' : ' (a carico BOOM)'), '€ ' + f(t.stampDuty)) : '') +
+            row('Totale documento', '€ ' + f(t.total), { big: true, border: true }) +
+            (t.withholding ? row('Ritenuta d\'acconto', '− € ' + f(t.withholding)) +
+                row('Netto a pagare', '€ ' + f(t.netToPay), { big: true, border: true }) : '') +
+        '</div></div>';
+    }
+
+    function invRenderChecks() {
+        var el = document.getElementById('invChecks'); if (!el || !_invDraft) return;
+        var issues = IE().validate(_invDraft, invSeller());
+        var errs = issues.filter(function (x) { return x.level === 'error'; });
+        var warns = issues.filter(function (x) { return x.level === 'warn'; });
+        var btn = document.getElementById('invEmitBtn');
+        if (btn) { btn.disabled = errs.length > 0; btn.style.opacity = errs.length ? '.45' : '1'; }
+        if (!issues.length) {
+            el.innerHTML = '<div class="alert success" style="margin-top:10px"><span class="alert-icon">✓</span><div class="alert-content">' +
+                '<div class="alert-title">Pronto per lo SdI</div><div class="alert-text">Nessun campo mancante fra quelli che lo SdI verifica.</div></div></div>';
+            return;
+        }
+        el.innerHTML =
+            (errs.length ? '<div class="alert error" style="margin-top:10px"><span class="alert-icon">⛔</span><div class="alert-content">' +
+                '<div class="alert-title">' + errs.length + ' cos' + (errs.length === 1 ? 'a' : 'e') + ' bloccano l\'emissione</div>' +
+                '<ul style="margin:6px 0 0 16px;font-size:12px">' + errs.map(function (e) { return '<li>' + esc(e.msg) + '</li>'; }).join('') + '</ul></div></div>' : '') +
+            (warns.length ? '<div class="alert warning" style="margin-top:10px"><span class="alert-icon">⚠️</span><div class="alert-content">' +
+                '<div class="alert-title">Da verificare</div><ul style="margin:6px 0 0 16px;font-size:12px">' +
+                warns.map(function (e) { return '<li>' + esc(e.msg) + '</li>'; }).join('') + '</ul></div></div>' : '');
+    }
+
+    // ── Persistenza ─────────────────────────────────────────────────────
+    function invPayload(extra) {
+        var d = _invDraft, t = IE().computeTotals(d);
+        return Object.assign({
+            kind: 'invoice',
+            docType: d.docType || 'TD01',
+            number: d.number || null,
+            progressive: d.progressive || null,
+            year: d.year || new Date(IE().isoDate(d.date)).getFullYear(),
+            sezionale: d.sezionale || '',
+            date: IE().isoDate(d.date),
+            dueDate: d.dueDate ? IE().isoDate(d.dueDate) : null,
+            currency: 'EUR',
+            buyer: d.buyer || {},
+            recipientId: d.recipientId || null,
+            recipientType: d.recipientType || null,
+            recipientName: IE().buyerName(d.buyer),
+            lines: (d.lines || []).map(function (l) {
+                return {
+                    description: l.description || '', qty: Number(l.qty) || 1,
+                    unitPrice: IE().eur(IE().cents(l.unitPrice)),
+                    vatRate: Number(l.vatRate) || 0, nature: l.nature || '',
+                    discountPct: Number(l.discountPct) || 0, withholding: !!l.withholding,
+                };
+            }),
+            withholding: d.withholding || { enabled: false },
+            stampDuty: d.stampDuty || { auto: true },
+            payment: d.payment || {},
+            causale: d.causale || '',
+            relatedDoc: d.relatedDoc || null,
+            totals: t.eur,
+            // `amount` resta il TOTALE documento: tutte le viste legacy
+            // (KPI, ageing, CSV, scheda cliente) leggono questo campo.
+            amount: t.eur.total,
+            service: (d.lines && d.lines[0] && d.lines[0].description) || '',
+            description: d.causale || '',
+            sellerSnapshot: invSeller(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        }, extra || {});
+    }
+
+    async function invSaveDraft() {
+        invSync();
+        try {
+            var payload = invPayload({ status: 'draft' });
+            if (_invDraft.id) await db.collection('invoices').doc(_invDraft.id).update(payload);
+            else {
+                payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                payload.createdBy = S.profile && S.profile.id;
+                var ref = await db.collection('invoices').add(payload);
+                _invDraft.id = ref.id;
+            }
+            await invPersistBuyerOnParty();
+            toast('success', 'Bozza salvata', 'Nessun numero consumato finché non emetti');
+            await refresh();
+        } catch (e) { toast('error', 'Errore salvataggio', e.message); }
+    }
+
+    async function invIssue() {
+        invSync();
+        var errs = IE().validate(_invDraft, invSeller()).filter(function (x) { return x.level === 'error'; });
+        if (errs.length) return toast('error', 'Documento incompleto', errs[0].msg);
+
+        var year = new Date(IE().isoDate(_invDraft.date)).getFullYear();
+        var n = IE().nextNumber(S.invoices || [], { year: year, sezionale: _invDraft.sezionale || '' });
+        if (!confirm('Emettere il documento n. ' + n.number + ' per ' + IE().buyerName(_invDraft.buyer) + '?\n\nUna volta emesso il numero è consumato: per annullarlo servirà una nota di credito.')) return;
+
+        try {
+            _invDraft.number = n.number; _invDraft.progressive = n.progressive; _invDraft.year = n.year;
+            var payload = invPayload({
+                status: 'issued', issuedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                issuedBy: (S.profile && S.profile.id) || null, sdiStatus: 'da_trasmettere',
+            });
+            if (_invDraft.id) await db.collection('invoices').doc(_invDraft.id).update(payload);
+            else {
+                payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                payload.createdBy = S.profile && S.profile.id;
+                var ref = await db.collection('invoices').add(payload);
+                _invDraft.id = ref.id;
+            }
+            await invPersistBuyerOnParty();
+            logActivity('Documento fiscale emesso', 'invoice', { number: n.number, docType: _invDraft.docType, amount: payload.amount });
+            toast('success', 'Emesso ' + n.number, 'Ora scarica l\'XML e caricalo sullo SdI');
+            invDownloadXmlDraft();
+            invDownloadPdfDraft();
+            closeInvoiceEditor();
+            await refresh();
+        } catch (e) { toast('error', 'Errore emissione', e.message); }
+    }
+
+    // I dati fiscali digitati una volta restano sulla scheda del cliente:
+    // la seconda fattura allo stesso cliente si compila da sola.
+    async function invPersistBuyerOnParty() {
+        var d = _invDraft; if (!d || !d.recipientId) return;
+        var b = d.buyer || {};
+        var billing = {
+            kind: b.kind || 'company', name: b.name || '', firstName: b.firstName || '', lastName: b.lastName || '',
+            vat: b.vat || '', cf: b.cf || '', country: b.country || 'IT',
+            address: b.address || '', streetNumber: b.streetNumber || '', zip: b.zip || '',
+            city: b.city || '', province: b.province || '', sdiCode: b.sdiCode || '', pec: b.pec || '',
+        };
+        var coll = (S.users || []).some(function (u) { return u.id === d.recipientId; }) ? 'users'
+                 : (S.clients || []).some(function (c) { return c.id === d.recipientId; }) ? 'clients'
+                 : (S.landlords || []).some(function (l) { return l.id === d.recipientId; }) ? 'landlords' : null;
+        if (!coll) return;
+        try { await db.collection(coll).doc(d.recipientId).set({ billing: billing }, { merge: true }); }
+        catch (e) { console.warn('[billing sync]', e.message); }
+    }
+
+    // ── Export ──────────────────────────────────────────────────────────
+    function invDownloadXmlDraft() { if (_invDraft) invXmlFor(_invDraft); }
+    function downloadInvoiceXML(id) {
+        var inv = (S.invoices || []).find(function (x) { return x.id === id; });
+        if (!inv) return toast('error', 'Documento non trovato');
+        if (!invIsFiscal(inv)) return toast('info', 'Non è una fattura', 'Le ricevute di canone non si trasmettono allo SdI');
+        invXmlFor(invUpgradeLegacy(JSON.parse(JSON.stringify(inv)), invSeller()));
+    }
+    function invXmlFor(inv) {
+        var seller = inv.sellerSnapshot || invSeller();
+        var errs = IE().validate(inv, seller).filter(function (x) { return x.level === 'error'; });
+        if (errs.length && !confirm('Il documento ha ' + errs.length + ' problema/i che lo SdI probabilmente rifiuterà:\n\n· ' +
+            errs.slice(0, 5).map(function (e) { return e.msg; }).join('\n· ') + '\n\nScaricare comunque l\'XML?')) return;
+        var xml = IE().buildXML(inv, seller);
+        var name = IE().xmlFilename(seller, inv.progressive || 1);
+        var blob = new Blob([xml], { type: 'application/xml' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a'); a.href = url; a.download = name; a.click();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+        toast('success', name, 'Caricalo su Fatture e Corrispettivi (AdE) o mandalo al commercialista');
+    }
+
+    function invPreviewPdf() { invSync(); invDownloadPdfDraft(); }
+    function invDownloadPdfDraft() {
+        if (!_invDraft) return;
+        var doc = invBuildPdf(_invDraft, _invDraft.sellerSnapshot || invSeller());
+        if (doc) doc.save('BOOM_' + (_invDraft.number || 'bozza').replace(/[\/\\]/g, '-') + '.pdf');
+    }
+
+    /**
+     * invBuildPdf — la COPIA DI CORTESIA. Legge gli stessi totali dell'XML
+     * (una sola aritmetica): PDF e XML non possono raccontare due storie.
+     */
+    function invBuildPdf(inv, seller) {
+        if (!window.jspdf) { toast('error', 'Libreria PDF non pronta', 'Riprova fra un istante'); return null; }
+        var jsPDF = window.jspdf.jsPDF;
+        var doc = new jsPDF();
+        var t = IE().computeTotals(inv);
+        var f = IE().fmtEur;
+        var isCredit = inv.docType === 'TD04';
+        var W = 210, L = 18, R = 192;
+
+        doc.setFillColor(0, 0, 0); doc.rect(0, 0, W, 34, 'F');
+        doc.setTextColor(212, 175, 55); doc.setFontSize(26); doc.setFont('helvetica', 'bold'); doc.text('BOOM', L, 21);
+        doc.setTextColor(255); doc.setFontSize(13);
+        doc.text(isCredit ? 'NOTA DI CREDITO' : (IE().DOC_TYPES[inv.docType] || 'FATTURA').toUpperCase(), R, 21, { align: 'right' });
+        doc.setFontSize(7); doc.setTextColor(160);
+        doc.text('Copia di cortesia — l\'originale e\' il file XML trasmesso al Sistema di Interscambio', R, 27, { align: 'right' });
+
+        var y = 44;
+        doc.setTextColor(0); doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+        doc.text('EMITTENTE', L, y);
+        doc.text('CLIENTE', 110, y);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+        var sl = [seller.name, [seller.address, seller.streetNumber].filter(Boolean).join(' '),
+                  [seller.zip, seller.city, seller.province ? '(' + seller.province + ')' : ''].filter(Boolean).join(' '),
+                  seller.vat ? 'P.IVA ' + seller.vat : '', seller.cf && seller.cf !== seller.vat ? 'C.F. ' + seller.cf : '',
+                  seller.reaNumber ? 'REA ' + seller.reaOffice + '-' + seller.reaNumber : ''].filter(Boolean);
+        var b = inv.buyer || {};
+        var bl = [IE().buyerName(b), [b.address, b.streetNumber].filter(Boolean).join(' '),
+                  [b.zip, b.city, b.province ? '(' + b.province + ')' : ''].filter(Boolean).join(' '),
+                  b.vat ? 'P.IVA ' + b.vat : '', b.cf ? 'C.F. ' + b.cf : '',
+                  b.sdiCode ? 'Cod. dest. ' + b.sdiCode : (b.pec ? 'PEC ' + b.pec : '')].filter(Boolean);
+        var yy = y + 6;
+        sl.forEach(function (line, i) { doc.text(String(line), L, yy + i * 5); });
+        bl.forEach(function (line, i) { doc.text(String(line), 110, yy + i * 5); });
+        y = yy + Math.max(sl.length, bl.length) * 5 + 6;
+
+        doc.setFillColor(245, 245, 245); doc.rect(L, y, R - L, 13, 'F');
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+        doc.text('Documento n. ' + (inv.number || '—'), L + 4, y + 8);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Data ' + IE().isoDate(inv.date).split('-').reverse().join('/'), 108, y + 8);
+        if (inv.dueDate) doc.text('Scadenza ' + IE().isoDate(inv.dueDate).split('-').reverse().join('/'), 150, y + 8);
+        y += 20;
+
+        if (inv.relatedDoc && inv.relatedDoc.number) {
+            doc.setFontSize(8); doc.text('Riferimento fattura n. ' + inv.relatedDoc.number + ' del ' +
+                String(inv.relatedDoc.date || '').split('-').reverse().join('/'), L, y); y += 7;
+        }
+
+        // Righe
+        doc.setFillColor(0); doc.rect(L, y, R - L, 9, 'F');
+        doc.setTextColor(255); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+        doc.text('DESCRIZIONE', L + 3, y + 6);
+        doc.text('Q.TA', 120, y + 6, { align: 'right' });
+        doc.text('PREZZO', 145, y + 6, { align: 'right' });
+        doc.text('IVA', 160, y + 6, { align: 'right' });
+        doc.text('TOTALE', R - 3, y + 6, { align: 'right' });
+        y += 13; doc.setTextColor(0); doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+        t.rows.forEach(function (r) {
+            var wrapped = doc.splitTextToSize(String(r.description || ''), 95);
+            doc.text(wrapped, L + 3, y);
+            doc.text(String(r.qty), 120, y, { align: 'right' });
+            doc.text(f(r.unitPrice), 145, y, { align: 'right' });
+            doc.text(r.vatRate ? r.vatRate + '%' : (r.nature || '—'), 160, y, { align: 'right' });
+            doc.text(f(r.total), R - 3, y, { align: 'right' });
+            y += Math.max(wrapped.length, 1) * 5 + 2;
+            if (y > 240) { doc.addPage(); y = 25; }
+        });
+
+        y += 4; doc.setDrawColor(210); doc.line(115, y, R, y); y += 7;
+        doc.setFontSize(9);
+        t.vatSummary.forEach(function (s2) {
+            doc.text('Imponibile ' + s2.rate + '%' + (s2.nature ? ' (' + s2.nature + ')' : ''), 118, y);
+            doc.text('EUR ' + f(s2.taxable), R - 3, y, { align: 'right' }); y += 5;
+            if (s2.rate) { doc.text('IVA ' + s2.rate + '%', 118, y); doc.text('EUR ' + f(s2.vat), R - 3, y, { align: 'right' }); y += 5; }
+        });
+        if (t.stampDutyDue) {
+            doc.text('Imposta di bollo' + (t.stampDutyCharged ? '' : ' (non riaddebitata)'), 118, y);
+            doc.text('EUR ' + f(t.stampDuty), R - 3, y, { align: 'right' }); y += 5;
+        }
+        y += 2; doc.setFillColor(212, 175, 55); doc.rect(115, y, R - 115, 12, 'F');
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(0);
+        doc.text('TOTALE DOCUMENTO', 118, y + 8);
+        doc.text('EUR ' + f(t.total), R - 3, y + 8, { align: 'right' });
+        y += 17;
+        if (t.withholding) {
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+            doc.text('Ritenuta d\'acconto', 118, y); doc.text('- EUR ' + f(t.withholding), R - 3, y, { align: 'right' }); y += 6;
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+            doc.text('NETTO A PAGARE', 118, y); doc.text('EUR ' + f(t.netToPay), R - 3, y, { align: 'right' }); y += 8;
+        }
+
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(60);
+        var pay = inv.payment || {};
+        var payLines = [];
+        if (pay.iban) payLines.push('Pagamento: ' + (IE().MOD_PAGAMENTO[pay.method] || 'bonifico') + ' — IBAN ' + pay.iban);
+        if (inv.causale) payLines.push(String(inv.causale));
+        if (t.stampDutyDue) payLines.push('Imposta di bollo assolta in modo virtuale ai sensi del DM 17/06/2014.');
+        if (seller.regime === 'RF19') payLines.push(IE().NATURA_NORMA['N2.2'] + '.');
+        payLines.forEach(function (line) {
+            doc.splitTextToSize(line, R - L).forEach(function (w) { doc.text(w, L, y); y += 4.5; });
+            y += 1;
+        });
+
+        doc.setFillColor(0); doc.rect(0, 279, W, 21, 'F');
+        doc.setTextColor(150); doc.setFontSize(7);
+        doc.text(seller.name + ' · P.IVA ' + (seller.vat || '—') + ' · ' + (COMPANY.website || ''), 105, 288, { align: 'center' });
+        doc.text('Documento generato dal portale BOOM · non sostituisce la fattura elettronica trasmessa allo SdI', 105, 293, { align: 'center' });
+        return doc;
+    }
+
+    async function openCreditNote(id) {
+        var inv = (S.invoices || []).find(function (x) { return x.id === id; });
+        if (!inv) return;
+        if (!invIsFiscal(inv)) return toast('info', 'Non è una fattura', 'Le ricevute di canone non si stornano con una nota di credito');
+        var reason = prompt('Motivo dello storno (finisce sulla nota di credito):', 'errore di fatturazione');
+        if (reason === null) return;
+        await openInvoiceEditor({ creditNoteFor: id, reason: reason });
+    }
+
+    async function invMarkSent(id) {
+        try {
+            await db.collection('invoices').doc(id).update({
+                sdiStatus: 'trasmessa', sdiSentAt: firebase.firestore.FieldValue.serverTimestamp(),
+            });
+            await refresh(); closeModal();
+            toast('success', 'Segnata come trasmessa');
+        } catch (e) { toast('error', 'Errore', e.message); }
+    }
+
+    // ── Impostazioni: dati di fatturazione ──────────────────────────────
+    function billingSettingsCard() {
+        var b = S.billing || {};
+        var v = function (k, d) { return esc(b[k] == null ? (d == null ? '' : d) : b[k]); };
+        var vatOk = b.vat ? IE().checkVat(b.vat) : null;
+        return '<div class="card" id="billingCard"><div class="card-header"><h3 class="card-title">🧾 Dati di fatturazione (emittente)</h3>' +
+            (billingConfigured() ? '<span class="badge green">configurato</span>' : '<span class="badge orange">da compilare</span>') + '</div><div class="card-body">' +
+            '<p style="margin-bottom:14px;color:var(--text-secondary);font-size:13px">Questi dati finiscono nel blocco <em>CedentePrestatore</em> dell\'XML FatturaPA. Sono salvati in <code>billing/company</code>, collezione riservata all\'admin — non in <code>settings</code>, che le regole Firestore aprono in lettura a chiunque.</p>' +
+            '<div class="form-row"><div class="form-group" style="flex:2"><label class="form-label">Denominazione *</label><input type="text" class="form-input" id="blName" value="' + v('name', COMPANY.legal) + '"></div>' +
+            '<div class="form-group"><label class="form-label">Regime fiscale</label><select class="form-select" id="blRegime">' +
+                Object.keys(IE().REGIMI).map(function (k) { return '<option value="' + k + '"' + ((b.regime || 'RF01') === k ? ' selected' : '') + '>' + k + ' · ' + esc(IE().REGIMI[k]) + '</option>'; }).join('') +
+            '</select></div></div>' +
+            '<div class="form-row"><div class="form-group"><label class="form-label">Partita IVA *</label><input type="text" class="form-input" id="blVat" value="' + v('vat') + '" placeholder="11 cifre" oninput="billingCheckVat(this.value)">' +
+                '<div id="blVatMsg" style="font-size:11px;margin-top:4px;color:var(--' + (vatOk === false ? 'red' : 'text-muted') + ')">' +
+                (vatOk === false ? '⛔ checksum non valido — lo SdI rifiuterà il file' : (vatOk ? '✓ checksum valido' : '')) + '</div></div>' +
+            '<div class="form-group"><label class="form-label">Codice Fiscale</label><input type="text" class="form-input" id="blCf" value="' + v('cf') + '" placeholder="se diverso dalla P.IVA"></div></div>' +
+            '<div class="form-row"><div class="form-group" style="flex:2"><label class="form-label">Indirizzo sede *</label><input type="text" class="form-input" id="blAddress" value="' + v('address') + '"></div>' +
+            '<div class="form-group" style="flex:0 0 90px"><label class="form-label">Civico</label><input type="text" class="form-input" id="blStreetNumber" value="' + v('streetNumber') + '"></div></div>' +
+            '<div class="form-row"><div class="form-group"><label class="form-label">CAP *</label><input type="text" class="form-input" id="blZip" value="' + v('zip') + '"></div>' +
+            '<div class="form-group"><label class="form-label">Comune *</label><input type="text" class="form-input" id="blCity" value="' + v('city', 'Roma') + '"></div>' +
+            '<div class="form-group" style="flex:0 0 80px"><label class="form-label">Prov.</label><input type="text" class="form-input" id="blProvince" maxlength="2" value="' + v('province', 'RM') + '"></div></div>' +
+            '<div class="form-row"><div class="form-group"><label class="form-label">Ufficio REA</label><input type="text" class="form-input" id="blReaOffice" maxlength="2" value="' + v('reaOffice', 'RM') + '"></div>' +
+            '<div class="form-group"><label class="form-label">Numero REA</label><input type="text" class="form-input" id="blReaNumber" value="' + v('reaNumber') + '"></div>' +
+            '<div class="form-group"><label class="form-label">Capitale sociale €</label><input type="number" step="0.01" class="form-input" id="blShareCapital" value="' + v('shareCapital') + '"></div>' +
+            '<div class="form-group"><label class="form-label">Socio unico</label><select class="form-select" id="blSoleShareholder">' +
+                ['', 'SU', 'SM'].map(function (o) { return '<option value="' + o + '"' + ((b.soleShareholder || '') === o ? ' selected' : '') + '>' + (o === 'SU' ? 'SU · socio unico' : o === 'SM' ? 'SM · più soci' : '— non indicato') + '</option>'; }).join('') +
+            '</select></div></div>' +
+            '<div style="font-size:11px;color:var(--text-muted);margin:-6px 0 14px">Il blocco REA è obbligatorio per le società di capitali: senza, l\'XML viene scartato.</div>' +
+            '<div class="form-row"><div class="form-group" style="flex:2"><label class="form-label">IBAN per gli incassi</label><input type="text" class="form-input" id="blIban" value="' + v('iban') + '" placeholder="IT…"></div>' +
+            '<div class="form-group"><label class="form-label">Banca</label><input type="text" class="form-input" id="blBank" value="' + v('bank') + '"></div></div>' +
+            '<div class="form-row"><div class="form-group"><label class="form-label">Aliquota IVA di default</label><select class="form-select" id="blVatRate">' +
+                [0, 4, 5, 10, 22].map(function (r) { return '<option value="' + r + '"' + (String(b.defaultVatRate == null ? 22 : b.defaultVatRate) === String(r) ? ' selected' : '') + '>' + r + '%</option>'; }).join('') +
+            '</select></div>' +
+            '<div class="form-group"><label class="form-label">Giorni di scadenza</label><input type="number" class="form-input" id="blTerms" value="' + v('paymentTermsDays', 30) + '"></div>' +
+            '<div class="form-group"><label class="form-label">Sezionale</label><input type="text" class="form-input" id="blSezionale" value="' + v('sezionale') + '" placeholder="facoltativo"></div></div>' +
+            '<button class="btn" onclick="saveBillingSettings()">Salva dati di fatturazione</button>' +
+        '</div></div>';
+    }
+
+    function billingCheckVat(v) {
+        var el = document.getElementById('blVatMsg'); if (!el) return;
+        var s = String(v || '').replace(/\D/g, '');
+        if (!s) { el.textContent = ''; el.style.color = 'var(--text-muted)'; return; }
+        var ok = IE().checkVat(s);
+        el.textContent = ok ? '✓ checksum valido' : (s.length === 11 ? '⛔ checksum non valido — lo SdI rifiuterà il file' : s.length + '/11 cifre');
+        el.style.color = ok ? 'var(--green)' : 'var(--red)';
+    }
+
+    async function saveBillingSettings() {
+        var g = function (id) { var e = document.getElementById(id); return e ? e.value.trim() : ''; };
+        var vat = g('blVat').replace(/\D/g, '');
+        if (vat && !IE().checkVat(vat) && !confirm('La Partita IVA ' + vat + ' non supera il controllo di checksum: lo SdI scarterà ogni fattura emessa con questo dato.\n\nSalvare comunque?')) return;
+        try {
+            await db.collection('billing').doc('company').set({
+                name: g('blName'), vat: vat, cf: g('blCf'), regime: g('blRegime'),
+                address: g('blAddress'), streetNumber: g('blStreetNumber'), zip: g('blZip'),
+                city: g('blCity'), province: g('blProvince').toUpperCase(), country: 'IT',
+                reaOffice: g('blReaOffice').toUpperCase(), reaNumber: g('blReaNumber'),
+                shareCapital: g('blShareCapital'), soleShareholder: g('blSoleShareholder'), liquidation: 'LN',
+                iban: g('blIban').replace(/\s/g, '').toUpperCase(), bank: g('blBank'),
+                defaultVatRate: Number(g('blVatRate')), paymentTermsDays: Number(g('blTerms')) || 30,
+                sezionale: g('blSezionale'), defaultPaymentMethod: 'MP05',
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+            await loadBillingSettings(true);
+            toast('success', 'Dati di fatturazione salvati');
+            renderPage();
+        } catch (e) { toast('error', 'Errore', e.message); }
+    }

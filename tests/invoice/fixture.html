@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"><title>invoice editor fixture</title></head>
+<body>
+<!-- Lo shell minimo che il modulo fatture tocca. Nessun Firebase reale:
+     portal-app.js è uno script classico e al load definisce soltanto — le
+     sue chiamate di boot stanno dentro onFirebaseScriptLoad/onAuthStateChanged,
+     che qui non scattano mai. -->
+<div id="loading" class="hidden"></div>
+<div id="main"></div>
+<div id="modals"></div>
+<div id="toasts"></div>
+<div id="sidebar"></div>
+<div id="sidebarOverlay"></div>
+<div id="navItems"></div>
+<span id="headerAvatar"></span><span id="headerName"></span>
+
+<script>
+// ── Firebase finto: solo la superficie che il modulo attraversa. ──
+(function () {
+  var noop = function () { return Promise.resolve(); };
+  function coll() {
+    return {
+      doc: function () {
+        return {
+          get: function () { return Promise.resolve({ exists: false, data: function () { return {}; } }); },
+          set: noop, update: noop,
+        };
+      },
+      add: function () { return Promise.resolve({ id: 'fake' }); },
+      get: function () { return Promise.resolve({ docs: [] }); },
+      limit: function () { return coll(); },
+      where: function () { return coll(); },
+      orderBy: function () { return coll(); },
+      onSnapshot: function () { return function () {}; },
+    };
+  }
+  window.firebase = {
+    apps: [], initializeApp: function () {}, auth: function () { return { currentUser: null, onAuthStateChanged: function () {} }; },
+    firestore: Object.assign(function () { return { collection: coll, enablePersistence: noop }; },
+      { FieldValue: { serverTimestamp: function () { return '<ts>'; } } }),
+    storage: function () { return { ref: function () { return { put: noop }; } }; },
+  };
+  window.db = { collection: coll };
+  window.storage = window.firebase.storage();
+  window.auth = window.firebase.auth();
+})();
+</script>
+
+<script src="/js/invoice-engine.js"></script>
+<script src="/js/portal-app.js"></script>
+
+<script>
+// Stato minimo: l'editor legge S.profile per createdBy e le rubriche per il
+// select destinatario. Emittente completo, così l'unico blocco alla partenza
+// è il cliente vuoto — che è esattamente quello che il test verifica.
+S.profile = { id: 'admin1', role: 'admin', name: 'Admin', email: 'a@b.it' };
+S.user = { uid: 'admin1' };
+S.users = []; S.clients = []; S.landlords = []; S.invoices = [];
+S.billing = {
+  name: 'Egidi Immobiliare S.r.l.', vat: '00743110157', regime: 'RF01',
+  address: 'Via Nazionale', streetNumber: '12', zip: '00184', city: 'Roma', province: 'RM',
+  iban: 'IT60X0542811101000000123456', reaOffice: 'RM', reaNumber: '1723456',
+};
+window._invBillingLoaded = true;
+try { _invBillingLoaded = true; } catch (e) {}
+
+// jsPDF finto: l'anteprima PDF non deve scaricare nulla in un test.
+window.jspdf = { jsPDF: function () {
+  var self = this;
+  ['setFillColor','rect','setTextColor','setFontSize','setFont','text','line','setDrawColor','addPage','save']
+    .forEach(function (m) { self[m] = function () { return self; }; });
+  self.splitTextToSize = function (s) { return [String(s)]; };
+} };
+
+// Accessori per il test: leggere la bozza corrente e forzare il caricamento
+// dei setting senza rete.
+window.__draft = function () { return _invDraft; };
+window.loadBillingSettings = function () { _invBillingLoaded = true; return Promise.resolve(S.billing); };
+window.toast = function () {};
+</script>
+</body></html>
