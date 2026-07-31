@@ -22,7 +22,7 @@
 // Response 4xx: { ok:false, error }
 
 import { fsGet, fsPatch, fsList, readJson, logActivity } from '../homie/_lib.js';
-import { findContractByToken, commitWrites, fsGetWithTime, setCors, rateOk } from './_shared.js';
+import { findContractByToken, commitWrites, fsGetWithTime, tenantSideComplete, setCors, rateOk } from './_shared.js';
 
 // ── TERMS FREEZE ──────────────────────────────────────────────────────────
 // L'impronta dei termini ECONOMICI del contratto. La prima firma la congela
@@ -86,15 +86,19 @@ export default async function handler(req, res) {
   }
   if (!hit) return res.status(404).json({ ok: false, error: 'invalid_or_used' });
 
-  const { contract, role } = hit;
+  const { contract, role, coIndex } = hit;
   const contractId = contract.id;
 
-  // Sequential signing guard (mirrors lookup — API can't bypass the order).
-  if (role === 'landlord' && !contract.tenantSignature && contract.signingOrder !== 'any') {
+  // Sequential signing guard (mirrors lookup — API can't bypass the order):
+  // il locatore controfirma solo a LATO CONDUTTORI completo (principale +
+  // tutti i co-conduttori). I co-conduttori firmano in parallelo tra loro.
+  if (role === 'landlord' && !tenantSideComplete(contract) && contract.signingOrder !== 'any') {
     return res.status(409).json({ ok: false, error: 'awaiting_tenant' });
   }
 
-  const already = role === 'tenant' ? !!contract.tenantSignature : !!contract.landlordSignature;
+  const already = role === 'tenant' ? !!contract.tenantSignature
+    : role === 'cotenant' ? !!(((contract.coTenants || [])[coIndex] || {}).signature)
+    : !!contract.landlordSignature;
   // signatureStatus lets a retrying signer (e.g. after a timed-out first
   // attempt that DID record the signature) render the right success state.
   if (already) return res.status(410).json({ ok: false, error: 'already_signed', role, signatureStatus: contract.signatureStatus || 'partial' });
@@ -178,6 +182,11 @@ export default async function handler(req, res) {
       upd.tenantPhone = String(phone.number).slice(0, 30);
       upd.tenantPhoneVerified = false;
     }
+  } else if (role === 'cotenant') {
+    // La firma del co-conduttore vive DENTRO coTenants[idx]: l'array viene
+    // riscritto dal dato FRESCO più avanti (dopo la rilettura), così la
+    // precondizione updateTime protegge il read-modify-write anche da due
+    // co-firmatari concorrenti.
   } else {
     upd.landlordCF = id.cf || '';
     upd.landlordAddress = id.address || '';
@@ -246,7 +255,9 @@ export default async function handler(req, res) {
 
   // Anti-doppione sul dato FRESCO (il check iniziale usava la query per
   // token, che può essere stantia di qualche secondo).
-  const freshAlready = role === 'tenant' ? !!fresh.tenantSignature : !!fresh.landlordSignature;
+  const freshAlready = role === 'tenant' ? !!fresh.tenantSignature
+    : role === 'cotenant' ? !!(((fresh.coTenants || [])[coIndex] || {}).signature)
+    : !!fresh.landlordSignature;
   if (freshAlready) {
     return res.status(410).json({ ok: false, error: 'already_signed', role, signatureStatus: fresh.signatureStatus || 'partial' });
   }
@@ -283,8 +294,33 @@ export default async function handler(req, res) {
     };
   }
 
-  const otherSigned = role === 'tenant' ? !!fresh.landlordSignature : !!fresh.tenantSignature;
-  let fullySigned = otherSigned;
+  // CO-FIRMA: riscrittura di coTenants[idx] dal dato fresco (identità
+  // fill-only + firma + consenso). Fatta QUI, dopo la rilettura, così la
+  // precondizione updateTime del write copre anche questo array.
+  if (role === 'cotenant') {
+    const list = (Array.isArray(fresh.coTenants) ? fresh.coTenants : []).map(x => ({ ...x }));
+    if (!list[coIndex] || !list[coIndex].name) return res.status(404).json({ ok: false, error: 'invalid_or_used' });
+    Object.assign(list[coIndex], {
+      cf: id.cf || list[coIndex].cf || '',
+      address: id.address || list[coIndex].address || '',
+      dob: id.dob || list[coIndex].dob || '',
+      birthPlace: id.pob || list[coIndex].birthPlace || '',
+      idDoc: id.docNum || list[coIndex].idDoc || '',
+      nationality: id.nationality || list[coIndex].nationality || '',
+      signature: body.signature, signedAt: nowISO,
+      signedIP: reqIP || body.signerIP || '',
+      signedUA: reqUA || (body.signerUA || '').slice(0, 200),
+      consentText: consent.text, consentHash: consent.hash, consentAt: nowISO,
+      ...(phoneVerified ? { phone: phoneNumber, phoneVerified: true }
+        : (phone.number ? { phone: String(phone.number).slice(0, 30) } : {})),
+    });
+    upd.coTenants = list;
+  }
+
+  // Firma completa = locatore + LATO CONDUTTORI al completo (questa firma
+  // inclusa): principale e tutti i co-conduttori.
+  const afterMine = { ...fresh, ...upd };
+  let fullySigned = tenantSideComplete(afterMine) && !!afterMine.landlordSignature;
   upd.signatureStatus = fullySigned ? 'complete' : 'partial';
   if (fullySigned) {
     upd.status = 'active';
@@ -325,7 +361,7 @@ export default async function handler(req, res) {
   if (!fullySigned) {
     try {
       const after = await fsGet('contracts/' + contractId);
-      if (after && after.tenantSignature && after.landlordSignature && after.signatureStatus !== 'complete') {
+      if (after && tenantSideComplete(after) && after.landlordSignature && after.signatureStatus !== 'complete') {
         fullySigned = true;
         upd.signatureStatus = 'complete';
         await fsPatch('contracts/' + contractId, { signatureStatus: 'complete', status: 'active', fullySignedAt: nowISO });
@@ -554,7 +590,7 @@ export default async function handler(req, res) {
     const _n = await import('../sign/_notify.js');
     const fullC = { ...fresh, ...upd, id: contractId };
     if (fullySigned) { await _n.notifyAdminContractSigned(fullC, propertyDoc); }
-    else { await _n.notifyPartialSignature(fullC, role, propertyDoc); }
+    else { await _n.notifyPartialSignature(fullC, role, propertyDoc, role === 'cotenant' ? { coIndex } : {}); }
   } catch (e) { console.warn('[magic-sign/submit] stage notify:', e.message); }
 
   // ── 7. Audit ───────────────────────────────────────────
@@ -574,11 +610,11 @@ export default async function handler(req, res) {
       type: 'contract.signed',
       summary: fullySigned
         ? `Contratto firmato da TUTTI · ${contractId} (chiudere il flow)`
-        : `Contratto firmato da ${role} · ${contractId} (manca l'altra parte)`,
+        : `Contratto firmato da ${role === 'cotenant' ? ('co-conduttore ' + ((((contract.coTenants || [])[coIndex]) || {}).name || (coIndex + 1))) : role} · ${contractId} (mancano altre firme)`,
       priority: fullySigned ? 'urgent' : 'low',
       ref: { collection: 'contracts', id: contractId },
       payload: { contractId, role, fullySigned },
-      dedupKey: `contract-signed-${contractId}-${role}`,
+      dedupKey: `contract-signed-${contractId}-${role}${role === 'cotenant' ? coIndex : ''}`,
       status: 'pending',
       actor: 'magic-sign',
       createdAt: new Date().toISOString(),

@@ -142,10 +142,17 @@ export async function sendSignInvite({ contract, property, role, to, name, url, 
 export async function notifyPartialSignature(contract, signedRole, property, opts = {}) {
   try {
     const g = await gather(contract, property);
-    const signerIsTenant = signedRole === 'tenant';
-    const signerEmail = signerIsTenant ? g.tenantEmail : g.landlordEmail;
-    const signerName  = (signerIsTenant ? g.tenantName : g.landlordName) || 'there';
-    const otherEmail  = signerIsTenant ? g.landlordEmail : g.tenantEmail;
+    // CO-FIRMA: il co-conduttore è lato-conduttori (conferma EN); il
+    // "Tocca a Lei" al locatore parte SOLO quando il lato conduttori è
+    // COMPLETO (principale + tutti i co-firmatari) — mai prima.
+    const isCo = signedRole === 'cotenant';
+    const coT = isCo ? ((contract.coTenants || [])[opts.coIndex] || {}) : null;
+    const signerIsTenant = signedRole === 'tenant' || isCo;
+    const { tenantSideComplete } = await import('../magic-sign/_shared.js');
+    const sideDone = signerIsTenant ? tenantSideComplete(contract) : true;
+    const signerEmail = isCo ? (coT.email || '') : (signerIsTenant ? g.tenantEmail : g.landlordEmail);
+    const signerName  = (isCo ? coT.name : (signerIsTenant ? g.tenantName : g.landlordName)) || 'there';
+    const otherEmail  = (signerIsTenant ? (sideDone ? g.landlordEmail : '') : g.tenantEmail);
     const otherName   = (signerIsTenant ? g.landlordName : g.tenantName) || 'there';
     const otherToken  = signerIsTenant ? contract.landlordSignToken : contract.tenantSignToken;
     const link = otherToken ? `${BASE}/sign?sign=${encodeURIComponent(otherToken)}` : '';

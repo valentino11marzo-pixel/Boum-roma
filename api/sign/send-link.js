@@ -56,7 +56,10 @@ export default async function handler(req, res) {
 
   const signed = role === 'tenant' ? !!contract.tenantSignature : !!contract.landlordSignature;
   if (signed) return res.status(409).json({ ok: false, error: 'already_signed' });
-  if (role === 'landlord' && !contract.tenantSignature && contract.signingOrder !== 'any') {
+  // Sequenziale: il locatore controfirma solo a lato-conduttori COMPLETO
+  // (principale + tutti i co-conduttori).
+  const { tenantSideComplete, cosignRef } = await import('../magic-sign/_shared.js');
+  if (role === 'landlord' && !tenantSideComplete(contract) && contract.signingOrder !== 'any') {
     return res.status(409).json({ ok: false, error: 'awaiting_tenant' });
   }
 
@@ -94,5 +97,21 @@ export default async function handler(req, res) {
     fsPatch('contracts/' + contractId, { [stampField]: new Date().toISOString() }).catch(() => {});
     logActivity('sign_invite_sent', 'contract', { contractId, role, to, resend }, auth.email || auth.uid).catch(() => {});
   }
-  return res.status(200).json({ ok: true, url, sent: !!sent.ok, resend });
+
+  // CO-FIRMA: l'invito lato-conduttori raggiunge ANCHE i co-conduttori,
+  // ciascuno col suo link derivato (cosignRef — niente token da coniare).
+  let coInvited = 0;
+  if (role === 'tenant' && Array.isArray(contract.coTenants)) {
+    for (let i = 0; i < contract.coTenants.length; i++) {
+      const cv = contract.coTenants[i];
+      if (!cv || !cv.name || cv.signature || !cv.email) continue;
+      try {
+        const coUrl = `${BASE}/sign?sign=${encodeURIComponent(cosignRef(contractId, i))}`;
+        const r = await sendSignInvite({ contract, property, role: 'tenant', to: cv.email, name: cv.name, url: coUrl, resend });
+        if (r && r.ok) coInvited++;
+      } catch (e) { console.warn('[send-link] co-tenant invite', i, e.message); }
+    }
+  }
+
+  return res.status(200).json({ ok: true, url, sent: !!sent.ok, resend, ...(coInvited ? { coInvited } : {}) });
 }

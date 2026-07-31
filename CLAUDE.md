@@ -877,6 +877,25 @@ one query per run).
   immobile con upload) + client-side ZIP (JSZip CDN) with INDICE.txt —
   ready to forward to ARPE for registrazione + asseverazione.
 
+### Co-firma multi-conduttore (coTenants[])
+Due o più conduttori firmano DAVVERO, ciascuno col proprio link. Token
+DERIVATI (`cosignToken` in `api/magic-sign/_shared.js`:
+sha256("cosign:<contractId>:<idx>:<HOMIE_SECRET>"), ref
+`<contractId>.c<idx>.<token>` nello stesso `?sign=`): niente da coniare
+né migrare — ogni contratto con `coTenants[]` ha già i suoi link;
+ruotare il secret revoca tutto. lookup rende il co-conduttore come
+tenant (prefill dalla SUA identità sul contratto; il ruolo vero si
+rideriva dal token al submit); la firma vive DENTRO `coTenants[idx]`
+(riscrittura dal dato fresco, protetta dalla precondizione updateTime);
+`tenantSideComplete()` = principale + TUTTI i co-conduttori, ed è la
+condizione che sblocca la controfirma del locatore (sequenziale) e il
+"Tocca a Lei". send-link lato tenant invita anche i co-conduttori;
+certificato FES e pagina firme mostrano i loro blocchi (fino a 2 in
+pagina, hash del documento include le loro firme). Sorgenti dei
+coTenants: conversione PA (tenants[] della proposta) e Deal Link con
+`cofirma:true` (i conviventi del payload diventano co-firmatari, clausola
+di co-intestazione automatica). Test: notify 60→68.
+
 ### POST `/api/magic-sign/lookup`
 Public endpoint for the Magic-Sign UI. Body: `{ token }`. Looks up the
 contract by `tenantSignToken` or `landlordSignToken`, returns sanitized

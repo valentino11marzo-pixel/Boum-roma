@@ -17,10 +17,47 @@ export async function fsGetWithTime(docPath) {
   return { data: fsDocToJs(doc), updateTime: doc.updateTime || null };
 }
 
-// Look up a contract by either tenantSignToken or landlordSignToken.
-// Returns { contract, role } or null.
+// ── CO-FIRMA: token DERIVATI per i co-conduttori ─────────────────────────
+// Stesso pattern di scheda/manageToken: sha256("cosign:<contractId>:<idx>:
+// <HOMIE_SECRET>") — niente da memorizzare, niente query dentro array,
+// ogni contratto con coTenants[] ha GIÀ i suoi link (zero migrazione),
+// ruotare il secret revoca tutto. Il ref viaggia nello stesso parametro
+// ?sign= come "<contractId>.c<idx>.<token>".
+import crypto from 'node:crypto';
+
+export function cosignToken(contractId, idx) {
+  const salt = process.env.HOMIE_SECRET || process.env.CRON_SECRET || 'boom';
+  return crypto.createHash('sha256')
+    .update(`cosign:${contractId}:${idx}:${salt}`).digest('hex').slice(0, 24);
+}
+export const cosignRef = (contractId, idx) => `${contractId}.c${idx}.${cosignToken(contractId, idx)}`;
+
+export function parseCoSignRef(token) {
+  const m = /^([A-Za-z0-9_-]{4,80})\.c(\d{1,2})\.([a-f0-9]{24})$/.exec(String(token || ''));
+  if (!m) return null;
+  const idx = Number(m[2]);
+  const expect = cosignToken(m[1], idx);
+  const a = Buffer.from(m[3]), b = Buffer.from(expect);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  return { contractId: m[1], idx };
+}
+
+// Look up a contract by tenantSignToken, landlordSignToken or a derived
+// co-sign ref. Returns { contract, role, coIndex? } or null.
 export async function findContractByToken(token) {
   if (!token || typeof token !== 'string' || token.length < 8) return null;
+
+  // Co-firma: il ref è auto-verificante — niente query, si carica per ID.
+  const co = parseCoSignRef(token);
+  if (co) {
+    const { fsGet } = await import('../homie/_lib.js');
+    const contract = await fsGet('contracts/' + co.contractId).catch(() => null);
+    if (!contract) return null;
+    const list = Array.isArray(contract.coTenants) ? contract.coTenants : [];
+    if (!list[co.idx] || !list[co.idx].name) return null;
+    return { contract: { ...contract, id: co.contractId }, role: 'cotenant', coIndex: co.idx };
+  }
+
   // tenantSignToken first (most common path)
   let hits = await fsList('contracts', {
     filter: { field: 'tenantSignToken', op: 'EQUAL', value: token },
@@ -35,6 +72,14 @@ export async function findContractByToken(token) {
   });
   if (hits.length === 1) return { contract: hits[0], role: 'landlord' };
   return null;
+}
+
+// Lato-conduttori completo = conduttore principale + TUTTI i co-conduttori.
+// È la condizione che sblocca la controfirma del locatore (sequenziale).
+export function tenantSideComplete(contract) {
+  if (!contract || !contract.tenantSignature) return false;
+  const list = Array.isArray(contract.coTenants) ? contract.coTenants : [];
+  return list.filter(x => x && x.name).every(x => !!x.signature);
 }
 
 // Apply server-side timestamp via a Firestore field transform. The plain

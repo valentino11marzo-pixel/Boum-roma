@@ -386,6 +386,71 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   check('prima apertura tracciata sul contratto (signViewedTenantAt)', !!ms2.signViewedTenantAt);
 }
 
+// ═══ 1e. CO-FIRMA: token derivati, parallelo tra conduttori, locatore per ultimo ═══
+{
+  const msSubmit = (await import('../../api/magic-sign/submit.js')).default;
+  const msLookup = (await import('../../api/magic-sign/lookup.js')).default;
+  const sendLink = (await import('../../api/sign/send-link.js')).default;
+  const { cosignRef, tenantSideComplete } = await import('../../api/magic-sign/_shared.js');
+  const CONSENT = 'I confirm my identity and accept all lease terms. This digital signature is legally valid (FES — Art. 21 CAD).';
+  const SIG = 'data:image/png;base64,' + 'B'.repeat(400);
+  store.set('users/caller1', { role: 'admin' });
+  store.set('contracts/ctrCS', {
+    propertyId: 'prop1', tenantId: 't1', type: 'transitorio', cedolareSecca: 'si',
+    rent: 1400, deposit: 2800, startDate: '2026-09-01', endDate: '2027-08-31', paymentDay: 1,
+    tenantName: 'Julie V', tenantEmail: 'julie@x.fr', landlordName: 'Stefano C',
+    landlordEmail: 'stefano@x.it',
+    coTenants: [{ name: 'Anouk G', cf: 'GRTNKA06L65Z110O', email: 'anouk@x.fr', tenantIndex: 1 }],
+    tenantSignToken: 'CSTOK_TENANT_1', landlordSignToken: 'CSTOK_LANDLORD_1',
+    signingOrder: 'sequential', signatureStatus: 'none', status: 'active',
+    generatedPDF: 'https://storage.example/contract.pdf',
+  });
+  const body = (token) => ({ token, signature: SIG, consent: { text: CONSENT, hash: '' }, identity: {} });
+  const coRef = cosignRef('ctrCS', 0);
+
+  IP = '9.1.3.1';
+  let r = mkRes();
+  const before = mails().length;
+  await sendLink(mkReq({ contractId: 'ctrCS', role: 'tenant' }, { authorization: 'Bearer x' }), r);
+  check('send-link con co-firma: invita il principale E il co-conduttore (link derivato)',
+    r.code === 200 && r.body.coInvited === 1
+    && mails().slice(before).some(m => m.to === 'anouk@x.fr' && m.html.includes(encodeURIComponent(coRef))));
+
+  r = mkRes();
+  await msSubmit(mkReq(body('CSTOK_TENANT_1')), r);
+  check('principale firma → partial (manca il co-conduttore)', r.code === 200 && r.body.signatureStatus === 'partial');
+  r = mkRes();
+  await msSubmit(mkReq(body('CSTOK_LANDLORD_1')), r);
+  check('locatore BLOCCATO finché il lato conduttori non è completo', r.code === 409 && r.body.error === 'awaiting_tenant');
+
+  IP = '9.1.3.2';
+  r = mkRes();
+  await msLookup(mkReq({ token: coRef }), r);
+  check('lookup co-conduttore: 200, rende come tenant, prefill con la SUA identità',
+    r.code === 200 && r.body.role === 'tenant' && r.body.cosign && r.body.cosign.index === 0
+    && r.body.signer.name === 'Anouk G' && r.body.signer.cf === 'GRTNKA06L65Z110O');
+
+  r = mkRes();
+  await msSubmit(mkReq(body(coRef)), r);
+  const cs1 = store.get('contracts/ctrCS');
+  check('co-conduttore firma nel SUO slot: lato conduttori completo, contratto ancora partial',
+    r.code === 200 && !!cs1.coTenants[0].signature && !!cs1.coTenants[0].signedAt
+    && tenantSideComplete(cs1) && cs1.signatureStatus === 'partial');
+  r = mkRes();
+  await msSubmit(mkReq(body(coRef)), r);
+  check('co-conduttore che rifirma → 410', r.code === 410 && r.body.error === 'already_signed');
+
+  IP = '9.1.3.3';
+  r = mkRes();
+  await msSubmit(mkReq(body('CSTOK_LANDLORD_1')), r);
+  const cs2 = store.get('contracts/ctrCS');
+  check('locatore controfirma a lato completo → COMPLETE + finalize',
+    r.code === 200 && r.body.fullySigned === true && cs2.signatureStatus === 'complete' && !!cs2.finalizedAt);
+  check('certificato costruito con TUTTE le firme (hash include i co-conduttori)',
+    String(cs2.signingCertificateUrl || '').includes('signing-certificate.pdf')
+    && storageFiles.has('contracts/ctrCS/signing-certificate.pdf'));
+}
+
 // ═══ 1b. Watchdog inviti freddi (predicato puro) ═══
 {
   const { shouldReinvite } = await import('../../api/reminder-cron.js');

@@ -6689,6 +6689,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             cedolareSecca: c.cedolareSecca === 'no' ? 'no' : 'si',
             extra,
             conviventi: Array.isArray(d.conviventi) ? d.conviventi.slice(0, 6).filter(x => x && x.name) : [],
+            // cofirma: i "conviventi" del payload diventano CO-FIRMATARI —
+            // co-intestatari che firmano il Magic Sign col proprio link.
+            cofirma: d.cofirma === true,
             landlordName: typeof d.landlordName === 'string' ? d.landlordName : '',
         };
         renderNewClientWizard();
@@ -6801,7 +6804,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         <div><div style="color:var(--text-muted);font-size:11px">Canone</div><div><strong style="color:var(--gold)">€${w.rent}/mese</strong></div></div>
                         <div><div style="color:var(--text-muted);font-size:11px">Deposito</div><div>€${deposit} (${w.depositMonths} mensilità)</div></div>
                         <div><div style="color:var(--text-muted);font-size:11px">Cedolare</div><div>${w.cedolareSecca === 'si' ? '10%' : 'No (IRPEF)'}</div></div>
-                        ${(w.conviventi && w.conviventi.length) ? `<div><div style="color:var(--text-muted);font-size:11px">Convivent${w.conviventi.length > 1 ? 'i' : 'e'}</div><div>${esc(w.conviventi.map(x => x.name).join(', '))}</div></div>` : ''}
+                        ${(w.conviventi && w.conviventi.length) ? `<div><div style="color:var(--text-muted);font-size:11px">${w.cofirma ? 'Co-firmatari' : 'Convivent' + (w.conviventi.length > 1 ? 'i' : 'e')}</div><div>${esc(w.conviventi.map(x => x.name).join(', '))}${w.cofirma ? ' 🖊' : ''}</div></div>` : ''}
                         ${w.landlordName ? `<div><div style="color:var(--text-muted);font-size:11px">Locatore</div><div>${esc(w.landlordName)}</div></div>` : ''}
                     </div>
                 </div>
@@ -6999,8 +7002,22 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     canone: { monthly, total, installments: 12, paymentDay: w.paymentDay, paymentMethod: w.paymentMethod, cedolareSecca: w.cedolareSecca !== 'no', oneriMode: 'tabella_allegato_d' },
                     durata: { startDate: w.startDate, endDate: w.endDate, text: `${w.startDate} → ${w.endDate}` },
                     cedolareSecca: w.cedolareSecca,
-                    cohabitants: extra.cohabitants || cohabAuto || '',
-                    otherClauses: extra.otherClauses || '',
+                    // cofirma: i nominativi NON sono conviventi ma CO-CONDUTTORI
+                    // che firmano col proprio link derivato (coTenants[]).
+                    cohabitants: w.cofirma ? '' : (extra.cohabitants || cohabAuto || ''),
+                    ...(w.cofirma && (w.conviventi || []).length ? {
+                        coTenants: (w.conviventi || []).map((x, i) => ({
+                            name: x.name, cf: String(x.codiceFiscale || '').toUpperCase(), dob: x.birthDate || '',
+                            birthPlace: x.birthPlace || '', address: x.address || '', idDoc: x.idDocNumber || '',
+                            nationality: x.nationality || '', email: x.email || '', phone: x.phone || '',
+                            tenantIndex: i + 1,
+                        })),
+                    } : {}),
+                    otherClauses: [extra.otherClauses || '',
+                        (w.cofirma && (w.conviventi || []).length)
+                            ? 'Il presente contratto è co-intestato: ' + (w.conviventi || []).map(x => x.name).join(', ')
+                              + ' sottoscrive/sottoscrivono quale/i co-conduttore/i con firma elettronica, obbligandosi in solido con il conduttore per tutte le obbligazioni derivanti dal presente contratto.'
+                            : ''].filter(Boolean).join('\n'),
                     transitionalReason: extra.transitionalReason || '',
                     transitionalDocs: extra.transitionalDocs || '',
                     notes: extra.notes || '',

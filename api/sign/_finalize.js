@@ -293,7 +293,19 @@ async function buildSignedContract(c, property){
   await block('IL CONDUTTORE (Tenant)', c.tenantName, c.tenantCF, c.tenantSignature, c.tenantSignedAt, 40);
   await block('IL LOCATORE (Landlord)', c.landlordName, c.landlordCF, c.landlordSignature, c.landlordSignedAt, 320);
 
-  const docHash = sha256([c.id, c.rent, c.startDate, c.endDate, c.tenantSignedAt, c.landlordSignedAt, c.tenantConsentHash, c.landlordConsentHash].join('|'));
+  // CO-FIRMA: blocchi firma anche per i co-conduttori (fino a 2 in pagina).
+  const coSigList = (Array.isArray(c.coTenants) ? c.coTenants : []).filter(x => x && x.name);
+  if (coSigList.length) {
+    y -= 150;
+    const shown = coSigList.slice(0, 2);
+    for (let i = 0; i < shown.length; i++) {
+      const cv = shown[i];
+      await block(`IL CO-CONDUTTORE ${i + 1} (Co-tenant)`, cv.name, cv.cf, cv.signature, cv.signedAt, i % 2 === 0 ? 40 : 320);
+    }
+    if (coSigList.length > 2) T('+ ' + (coSigList.length - 2) + ' ulteriori co-conduttori — firme registrate a sistema.', 40, Math.max(160, y - 150), 8, font, grey);
+  }
+
+  const docHash = sha256([c.id, c.rent, c.startDate, c.endDate, c.tenantSignedAt, c.landlordSignedAt, c.tenantConsentHash, c.landlordConsentHash, ...coSigList.map(x => (x.signedAt || '') + (x.consentHash || ''))].join('|'));
   page.drawLine({ start:{x:40,y:150}, end:{x:555,y:150}, thickness:0.5, color:grey });
   T('Document hash (SHA-256): ' + docHash, 40, 136, 7, font, grey);
   T('Firma Elettronica Semplice ai sensi dell’art. 21 D.Lgs 82/2005 (CAD). Il certificato di firma con audit', 40, 122, 8, font, grey);
@@ -354,7 +366,21 @@ async function buildCertificate(c, property){
   await block('CONDUTTORE (Tenant)', c.tenantName, c.tenantCF, c.tenantSignature, c.tenantSignedAt, c.tenantSignedIP, c.tenantConsentHash, 40);
   await block('LOCATORE (Landlord)', c.landlordName, c.landlordCF, c.landlordSignature, c.landlordSignedAt, c.landlordSignedIP, c.landlordConsentHash, 320);
 
-  const docHash = sha256([c.id, c.rent, c.startDate, c.endDate, c.tenantSignedAt, c.landlordSignedAt, c.tenantConsentHash, c.landlordConsentHash].join('|'));
+  // CO-FIRMA: i co-conduttori hanno il LORO blocco (firma, CF, data/ora,
+  // IP, hash del consenso) — fino a 2 in pagina; oltre, la riga li conta
+  // e le firme restano comunque registrate a sistema.
+  const coList = (Array.isArray(c.coTenants) ? c.coTenants : []).filter(x => x && x.name);
+  if (coList.length) {
+    y -= 170;
+    const coShown = coList.slice(0, 2);
+    for (let i = 0; i < coShown.length; i++) {
+      const cv = coShown[i];
+      await block(`CO-CONDUTTORE ${i + 1} (Co-tenant)`, cv.name, cv.cf, cv.signature, cv.signedAt, cv.signedIP, cv.consentHash, i % 2 === 0 ? 40 : 320);
+    }
+    if (coList.length > 2) T('+ ' + (coList.length - 2) + ' ulteriori co-conduttori — firme registrate a sistema.', 40, Math.max(150, y - 170), 8, font, grey);
+  }
+
+  const docHash = sha256([c.id, c.rent, c.startDate, c.endDate, c.tenantSignedAt, c.landlordSignedAt, c.tenantConsentHash, c.landlordConsentHash, ...coList.map(x => (x.signedAt || '') + (x.consentHash || ''))].join('|'));
   page.drawLine({ start:{x:40,y:132}, end:{x:555,y:132}, thickness:0.5, color:grey });
   T('Document hash (SHA-256): ' + docHash, 40, 118, 7, font, grey);
   T('Consenso accettato: ' + MS_CONSENT, 40, 104, 7, font, grey);
