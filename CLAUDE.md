@@ -168,13 +168,20 @@ DOC_MAIL_FROM                # optional — extra TRUSTED senders whose email
                              # operator's own addresses are always trusted.
 VIEWINGS_CALENDAR_EMAIL      # optional — where viewing calendar invites are
                              # sent (defaults to GMAIL_USER)
-BUSY_ICS_URLS                # optional — secret ICS address(es) of the
-                             # operator's REAL calendar (Google Workspace:
-                             # Calendar → Settings → your calendar →
-                             # "Secret address in iCal format"), comma-
-                             # separated. Busy events remove slots from the
-                             # public booking grid. Fail-open: an unreachable
-                             # calendar never blocks bookings
+BUSY_ICS_URLS                # optional — ICS address(es) of the operator's
+                             # REAL calendar (Google Workspace: Calendar →
+                             # Settings → your calendar → Integrate calendar),
+                             # comma-separated. Busy events remove slots from
+                             # the public booking grid. Fail-open: an
+                             # unreachable calendar never blocks bookings.
+                             # NOTA: l'indirizzo SEGRETO non compare quando
+                             # l'admin Workspace ha disattivato la condivisione
+                             # esterna (Admin console → App → Google Workspace
+                             # → Calendar → Impostazioni di condivisione). In
+                             # quel caso o si riabilita, oppure si usa
+                             # l'indirizzo PUBBLICO di un calendario condiviso
+                             # in modalità "solo disponibilità" — dropBoomEchoes
+                             # copre gli UID anonimizzati di quella modalità
 TELEGRAM_BOT_TOKEN           # already used by api/telegram/*; pfs health alerts
 TELEGRAM_CHAT_ID
 ```
@@ -407,7 +414,14 @@ viewing id + server secret).
   CANCELLED non bloccano; gli eventi BOOM stessi (UID
   `boom-viewing-*`/`viewing-*@boomrome.com` — inviti, .ics cliente, feed)
   sono filtrati, altrimenti la copia in calendario di una visita bloccherebbe
-  il SUO stesso reschedule; ricorrenze espanse nell'orizzonte (DAILY/WEEKLY
+  il SUO stesso reschedule; **se il feed anonimizza gli UID** (calendario
+  condiviso in modalità "solo disponibilità" — quello che resta quando
+  l'admin Workspace disattiva la condivisione esterna dei dettagli, e in cui
+  l'indirizzo *segreto* non compare affatto) subentra `dropBoomEchoes()`:
+  un blocco esterno che inizia E finisce entro 2' da una visita viva è
+  l'eco di quella visita, non un impegno diverso — scartarlo è sicuro anche
+  se la stima sbaglia, perché la visita stessa è già nella lista occupati;
+  ricorrenze espanse nell'orizzonte (DAILY/WEEKLY
   con BYDAY/INTERVAL/COUNT/UNTIL/EXDATE, istanze spostate via RECURRENCE-ID,
   MONTHLY/YEARLY semplici — l'esotico contribuisce solo la prima istanza);
   gli impegni esterni NON consumano `maxPerDay` (sono tempo occupato, non
