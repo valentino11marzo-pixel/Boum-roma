@@ -19,6 +19,7 @@ import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { fsCreate, fsPatch, fsGet, getAdminToken } from '../homie/_lib.js';
 import { sendWelcomeEmails, sendCafDossier } from './_notify.js';
 import { buildFascicolo } from '../fiscal/fascicolo.js';
+import { buildRegistrationPack } from './_pack.js';
 // pdf-lib is imported lazily inside buildCertificate so a load failure only
 // skips the certificate — obligations, magic link and welcome emails still run.
 
@@ -149,6 +150,21 @@ export async function finalizeContract(contract){
     if (fasc && fasc.ok) fascicoloUrl = fasc.url;
   } catch (e) { console.warn('[finalize] fascicolo:', e.message); }
 
+  // ── Pack Registrazione (ZIP: tutto il necessario per RLI + ARPE) ──
+  // Contratto firmato, certificato, fascicolo, visura/planimetria/APE/
+  // delega dal dossier immobile, documenti identità, attestazione
+  // esigenza + INDICE con checklist. Budget rigido dentro _pack.js: non
+  // allunga mai la firma; rigenerabile con 📦 Pack / POST api/fiscal/pack.
+  let pack = { url: '', missing: [] };
+  try {
+    const p = await buildRegistrationPack({
+      ...contract,
+      tenantName: contract.tenantName || (tenant && tenant.name) || '',
+      landlordName: contract.landlordName || (landlord && landlord.name) || '',
+    }, property, { signedPdfUrl, certUrl, fascicoloUrl });
+    if (p && p.ok) pack = p;
+  } catch (e) { console.warn('[finalize] pack:', e.message); }
+
   // ── Welcome emails + fascicolo CAF (design system condiviso) ──
   // api/sign/_notify.js — tenant EN, landlord IT, CAF → valentino@boom-rome.com.
   // Parallel and internally time-boxed: a stalled SMTP can never push the
@@ -157,14 +173,14 @@ export async function finalizeContract(contract){
   // signing path — on /sign it never went out at all.
   const [welcome, caf] = await Promise.all([
     sendWelcomeEmails(contract, property, { portalLink, certUrl, cedolare, nonEU, signedPdfUrl }),
-    sendCafDossier(contract, property, { certUrl, fascicoloUrl, signedPdfUrl }),
+    sendCafDossier(contract, property, { certUrl, fascicoloUrl, signedPdfUrl, packUrl: pack.url, packMissing: pack.missing }),
   ]);
   const tenantEmail = !!(welcome && welcome.tenant);
   const landlordEmail = !!(welcome && welcome.landlord);
 
   try { await fsPatch(`contracts/${contract.id}`, { finalizedAt: now, magicLinkId: magicId, signingCertificateUrl: certUrl, ...(signedPdfUrl ? { signedPdfUrl } : {}) }); } catch(e){ console.warn('[finalize] mark failed:', e.message); }
 
-  return { ok:true, obligations: created, certificate: !!certUrl, signedPdf: !!signedPdfUrl, magicLink: !!magicId, tenantEmail, landlordEmail, caf: !!(caf && caf.ok) };
+  return { ok:true, obligations: created, certificate: !!certUrl, signedPdf: !!signedPdfUrl, pack: !!pack.url, packMissing: pack.missing, magicLink: !!magicId, tenantEmail, landlordEmail, caf: !!(caf && caf.ok) };
 }
 
 // ── Firebase Storage upload (admin token) ──

@@ -15856,6 +15856,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <button class="btn btn-secondary btn-sm" onclick="downloadContractPDF('${c.id}')">📥 PDF</button>
                 <button class="btn btn-secondary btn-sm" onclick="regenerateContractPDF('${c.id}')" title="Rigenera Allegato B con dati aggiornati">🔄 Rigenera PDF</button>
                 <button class="btn btn-secondary btn-sm" onclick="openFascicolo('${c.id}')" title="Scheda attestazione canone (fascia) + dati RLI + scadenzario — PDF">📑 Fascicolo${c.canoneScheda ? (c.canoneScheda.fits === false ? ' ⚠' : c.canoneScheda.fits === true ? ' ✓' : '') : ''}</button>
+                <button class="btn btn-secondary btn-sm" onclick="openPack('${c.id}')" title="Pack registrazione+asseverazione: ZIP con contratto firmato, certificato, fascicolo, visura, planimetria, APE, delega, identità, attestazione esigenza">📦 Pack${Array.isArray(c.registrationPackMissing) ? (c.registrationPackMissing.length ? ' ⚠' : ' ✓') : ''}</button>
                 ${!c.rliRegisteredAt ? `<button class="btn btn-secondary btn-sm" onclick="markRliRegistered('${c.id}')" title="Segna la registrazione RLI fatta: chiude la scadenza e aggiorna il fascicolo">✓ RLI registrato</button>` : `<span class="btn btn-sm" style="background:rgba(52,199,89,.12);color:var(--green);cursor:default" title="Registrato il ${c.rliRegisteredAt ? String(c.rliRegisteredAt).slice(0,10) : ''}">✓ RLI ${String(c.rliRegisteredAt).slice(0,10)}</span>`}
                 ${sigStatus === 'complete' ? `<button class="btn btn-secondary btn-sm" onclick="archiveDeal('${c.id}')" title="Archivia deal completo su Storage">${c.dealArchived ? '✅ Archiviato' : '📦 Archive Deal'}</button>` : ''}
                 <button class="btn btn-secondary" onclick="closeModal()">Chiudi</button>
@@ -21428,6 +21429,32 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         } catch (e) { console.error(e); toast('error', 'Fascicolo: ' + e.message); }
     }
     window.openFascicolo = openFascicolo;
+
+    // ── 📦 Pack Registrazione: (ri)genera lo ZIP con tutto il necessario
+    // per RLI + ARPE. Se manca qualcosa (APE, planimetria, attestazione)
+    // lo dice per nome — l'INDICE.txt dentro lo ZIP spiega dove caricarlo.
+    async function openPack(contractId) {
+        toast('info', '📦 Genero il pack registrazione…');
+        try {
+            const idToken = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/fiscal/pack', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+                body: JSON.stringify({ contractId })
+            });
+            const j = await r.json().catch(() => null);
+            if (!j || !j.ok) return toast('error', 'Pack: ' + ((j && j.error) || 'errore'));
+            if (Array.isArray(j.missing) && j.missing.length) {
+                toast('error', '⚠ Nel pack mancano: ' + j.missing.slice(0, 4).join(', ') + (j.missing.length > 4 ? '…' : '') + ' — vedi INDICE.txt');
+            } else {
+                toast('success', '✓ Pack completo (' + (j.files || []).length + ' documenti) — pronto per CAF/ARPE');
+            }
+            const lc = (S.contracts || []).find(x => x.id === contractId);
+            if (lc) { lc.registrationPackUrl = j.url; lc.registrationPackMissing = j.missing || []; }
+            window.open(j.url, '_blank', 'noopener');
+        } catch (e) { console.error(e); toast('error', 'Pack: ' + e.message); }
+    }
+    window.openPack = openPack;
 
     // ── ✓ RLI registrato: chiude il loop della registrazione in un tap —
     // stampa la data sul contratto, spegne la scadenza "Registrare RLI" e

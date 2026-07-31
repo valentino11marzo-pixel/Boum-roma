@@ -83,6 +83,16 @@ const dayDiff = (iso) => {
 // restano.
 // `walletUrl`: il pass Apple Wallet della casa — presente su T-30 (arriva
 // col countdown) e T-1 (il giorno delle chiavi lo hai al polso).
+// Un contratto invitato alla firma digitale ma non ancora perfezionato è nel
+// funnel firma, non nel ciclo casa: il journey lo salta finché non è
+// 'complete'. Un legacy firmato su carta (nessun invito, nessuna firma
+// digitale a sistema) è una locazione vera: per lui il journey resta attivo.
+export function journeyEligible(c) {
+  if (!c) return false;
+  const invited = !!(c.signInviteTenantAt || c.signInviteLandlordAt) || c.signatureStatus === 'partial';
+  return !invited || c.signatureStatus === 'complete';
+}
+
 export function steps({ c, tenant, addrShort, addr, first, has = () => false, missing = null, late = false, walletUrl = '' }) {
   const start = c.startDate, end = c.endDate;
   const dStart = start ? dayDiff(start) : null;
@@ -220,6 +230,11 @@ export async function runJourney() {
     const { id, ...c } = row;
     if (!c.startDate) continue;
     if (isDemo(c)) continue;   // niente email verso un inquilino di prova
+    // Firma digitale in corso → il contratto è nel funnel FIRMA (inviti,
+    // stage, watchdog), non nel ciclo casa: un T-30 di benvenuto a chi non
+    // ha ancora firmato è fuori luogo. I legacy firmati su carta (nessun
+    // invito, nessuna firma digitale) restano dentro il journey.
+    if (!journeyEligible(c)) { out.awaitingSignature = (out.awaitingSignature || 0) + 1; continue; }
 
     out.checked++;
     const j = c.journey || {};

@@ -635,6 +635,9 @@
     },
     "api/fiscal/fascicolo.js": {
       "maxDuration": 60
+    },
+    "api/fiscal/pack.js": {
+      "maxDuration": 60
     }
   },
   "crons": [

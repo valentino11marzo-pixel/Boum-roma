@@ -283,7 +283,7 @@ export async function sendWelcomeEmails(contract, property, { portalLink, certUr
 // link al PDF firmato, al certificato e ai documenti d'identità. Prima
 // viveva in portal-app.js via EmailJS e partiva SOLO dal vecchio flusso di
 // firma dentro il portal — su /sign non partiva affatto.
-export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl, signedPdfUrl } = {}) {
+export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl, signedPdfUrl, packUrl, packMissing } = {}) {
   try {
     if (!CAF_EMAIL) return { ok: false, error: 'no_caf_email' };
     const g = await gather(contract, property);
@@ -339,6 +339,13 @@ export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl
             [cafAtts.length ? `${cafAtts.length} PDF in allegato — email pronta da inoltrare` : null,
              fascHref ? 'il Fascicolo contiene: scheda attestazione canone (fascia di oscillazione), dati RLI, scadenzario' : null,
             ].filter(Boolean).join(' · ') || null)}
+          ${row('Pack registrazione',
+            (packUrl || contract.registrationPackUrl)
+              ? `<a href="${esc(packUrl || contract.registrationPackUrl)}" style="color:#8A6D1D"><b>📦 ZIP completo per RLI + ARPE</b></a>`
+              : '<b>non generato</b> — bottone 📦 Pack sulla riga contratto',
+            (Array.isArray(packMissing) && packMissing.length)
+              ? '⚠ Nel pack mancano: ' + packMissing.map(esc).join(', ') + ' — l\'INDICE.txt dentro lo ZIP dice dove caricarli; poi rigenera con 📦 Pack'
+              : ((packUrl || contract.registrationPackUrl) ? 'completo: contratto firmato, certificato, fascicolo, visura, planimetria, APE, delega, identità, attestazione esigenza' : null))}
           ${row('Documenti identità', docLinks, null)}
         </table>`
       + btn(BASE + '/portal', 'Apri nel portal')
