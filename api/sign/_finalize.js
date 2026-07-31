@@ -212,6 +212,41 @@ async function buildSignedContract(c, property){
   if (!buf.length) throw new Error('pdf_empty');
 
   const pdf = await PDFDocument.load(buf, { ignoreEncryption: true });
+
+  // ── LE FIRME SUL CONTRATTO, dove il documento le aspetta ──
+  // Il generatore del portal registra le ancore delle righe-firma
+  // (sigAnchors: rapporti sulla pagina, indipendenti dall'unità jsPDF).
+  // Qui le firme grafiche si stampano ESATTAMENTE lì: la copia via email
+  // esce come un originale firmato, e la pagina firme in coda resta come
+  // addendum probatorio. PDF legacy senza ancore: solo l'addendum.
+  const anchorBlocks = (c.sigAnchors && Array.isArray(c.sigAnchors.blocks)) ? c.sigAnchors.blocks : [];
+  if (anchorBlocks.length) {
+    const embFor = {};
+    for (const role of ['tenant', 'landlord']) {
+      const sig = role === 'tenant' ? c.tenantSignature : c.landlordSignature;
+      const m = /^data:image\/(png|jpe?g);base64,(.+)$/i.exec(String(sig || ''));
+      if (!m) continue;
+      try {
+        const b = Buffer.from(m[2], 'base64');
+        embFor[role] = m[1].toLowerCase().startsWith('jp') ? await pdf.embedJpg(b) : await pdf.embedPng(b);
+      } catch (e) { console.warn('[finalize] sig embed', role, e.message); }
+    }
+    const pages = pdf.getPages();
+    for (const a of anchorBlocks) {
+      const im = embFor[a.role];
+      const pg = pages[(Number(a.page) || 1) - 1];
+      if (!im || !pg) continue;
+      const { width: W, height: H } = pg.getSize();
+      const boxW = Math.max(20, (a.wr || 0) * W), boxH = Math.max(10, (a.hr || 0) * H);
+      // yr è misurato dal bordo ALTO (convenzione jsPDF); pdf-lib dal basso.
+      const x = (a.xr || 0) * W, yTop = (a.yr || 0) * H;
+      const ar = im.width / im.height;
+      let fw = boxW, fh = fw / ar;
+      if (fh > boxH) { fh = boxH; fw = fh * ar; }
+      try { pg.drawImage(im, { x, y: H - yTop - boxH + (boxH - fh) / 2, width: fw, height: fh }); } catch (e) {}
+    }
+  }
+
   const page = pdf.addPage([595, 842]);
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);

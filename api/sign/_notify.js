@@ -56,7 +56,7 @@ const trySend = (to, subject, html, attachments) => send(to, subject, html, atta
 // Best-effort e time-boxed: un download fallito non ferma mai l'email —
 // il documento resta raggiungibile dal link. Cap 8MB (limite Gmail 25MB
 // totali: contratto + certificato + fascicolo restano ampiamente sotto).
-async function fetchPdfAttachment(url, filename) {
+async function fetchPdfAttachment(url, filename, contentType = 'application/pdf') {
   if (!url) return null;
   try {
     const r = await Promise.race([
@@ -66,7 +66,8 @@ async function fetchPdfAttachment(url, filename) {
     if (!r || !r.ok) return null;
     const content = Buffer.from(await r.arrayBuffer());
     if (!content.length || content.length > 8 * 1024 * 1024) return null;
-    return { filename, content, contentType: 'application/pdf' };
+    // contentType null → nodemailer lo deduce dal nome file (foto documento)
+    return contentType ? { filename, content, contentType } : { filename, content };
   } catch (e) { console.warn('[sign/notify] attachment', filename, e.message); return null; }
 }
 
@@ -296,6 +297,23 @@ export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl
       fetchPdfAttachment(certUrl || contract.signingCertificateUrl, 'BOOM_Certificato_di_firma.pdf'),
       fetchPdfAttachment(fascHref, 'BOOM_Fascicolo_Fiscale.pdf'),
     ])).filter(Boolean);
+    // Documenti d'identità + attestazione esigenza IN ALLEGATO (max 6,
+    // budget totale ~18MB): l'email si inoltra ad ARPE/CAF senza aprire
+    // nulla. Un download fallito non ferma niente — i link restano sotto.
+    {
+      const idDocs = (Array.isArray(contract.identityDocs) ? contract.identityDocs : []).slice(0, 6);
+      let budget = 18 * 1024 * 1024 - cafAtts.reduce((n, a) => n + (a.content ? a.content.length : 0), 0);
+      for (let i = 0; i < idDocs.length; i++) {
+        const d = idDocs[i];
+        if (!d || !d.url || budget <= 0) continue;
+        const isExtra = d.kind === 'extra';
+        const base = String(d.name || 'doc').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 40);
+        const name = (isExtra ? 'Attestazione_esigenza_' : 'Documento_identita_') + (i + 1) + '_'
+          + base + (/\.[a-z0-9]{2,4}$/i.test(base) ? '' : '.jpg');
+        const att = await fetchPdfAttachment(d.url, name, null);
+        if (att && att.content.length <= budget) { cafAtts.push(att); budget -= att.content.length; }
+      }
+    }
     const reqType = contract.requiresAsseverazione !== false ? 'Asseverazione + Registrazione' : 'Registrazione';
     const cad = g.prop.cadastralData || contract.cadastral || '—';
     const docs = Array.isArray(contract.identityDocs) ? contract.identityDocs : [];
@@ -336,7 +354,7 @@ export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl
               certUrl ? `<a href="${esc(certUrl)}" style="color:#8A6D1D"><b>Certificato FES</b></a>` : null,
               fascHref ? `<a href="${esc(fascHref)}" style="color:#8A6D1D"><b>Fascicolo Fiscale</b></a>` : null,
             ].filter(Boolean).join(' · '),
-            [cafAtts.length ? `${cafAtts.length} PDF in allegato — email pronta da inoltrare` : null,
+            [cafAtts.length ? `${cafAtts.length} allegati — email pronta da inoltrare` : null,
              fascHref ? 'il Fascicolo contiene: scheda attestazione canone (fascia di oscillazione), dati RLI, scadenzario' : null,
             ].filter(Boolean).join(' · ') || null)}
           ${row('Pack registrazione',

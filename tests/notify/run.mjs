@@ -183,6 +183,12 @@ const FULL = {
   tenantSignedAt: '2026-07-29T10:00:00Z', landlordSignedAt: '2026-07-29T11:00:00Z',
   fullySignedAt: '2026-07-29T11:00:00Z', signatureStatus: 'complete',
   generatedPDF: 'https://storage.example/contract.pdf',
+  // Ancore delle righe-firma come le scrive il generatore del portal:
+  // esercitano la stampa delle firme SUL contratto (non solo l'addendum).
+  sigAnchors: { v: 1, blocks: [
+    { role: 'landlord', page: 1, xr: 0.084, yr: 0.72, wr: 0.27, hr: 0.074 },
+    { role: 'tenant', page: 1, xr: 0.62, yr: 0.72, wr: 0.27, hr: 0.074 },
+  ] },
   identityDocs: [{ url: 'https://storage.example/doc1.jpg', name: 'passport.jpg', role: 'tenant', at: '2026-07-28' }],
   depositPaid: true,
 };
@@ -202,10 +208,11 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   check('CAF: linka il contratto FIRMATO + certificato', caf.length === 1
     && caf[0].html.includes('contratto-firmato.pdf')
     && caf[0].html.includes('signing-certificate.pdf'));
-  check('CAF: 3 PDF in allegato (contratto firmato, certificato, fascicolo)', caf.length === 1
-    && (caf[0].attachments || []).length === 3
+  check('CAF: contratto firmato + certificato + fascicolo + DOCUMENTO IDENTITÀ in allegato', caf.length === 1
+    && (caf[0].attachments || []).length === 4
     && ['BOOM_Contratto_firmato.pdf', 'BOOM_Certificato_di_firma.pdf', 'BOOM_Fascicolo_Fiscale.pdf']
-        .every(n => (caf[0].attachments || []).some(a => a.filename === n)));
+        .every(n => (caf[0].attachments || []).some(a => a.filename === n))
+    && (caf[0].attachments || []).some(a => a.filename === 'Documento_identita_1_passport.jpg'));
 
   // Il contratto firmato: PDF sorgente (1 pagina) + pagina delle firme = 2.
   const ctrPatched = store.get('contracts/ctrF');
@@ -308,9 +315,9 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
     && wt.attachments[0].filename === 'BOOM_Signing_Certificate.pdf'
     && /Signing certificate/.test(wt.html));
   const caf = mails().slice(b).find(m => m.to === 'valentino@boom-rome.com' && /Asseverazione/i.test(m.subject));
-  check('legacy senza PDF: CAF onesto (PDF non ancora generato) + cert e fascicolo allegati', !!caf
+  check('legacy senza PDF: CAF onesto (PDF non ancora generato) + cert, fascicolo e identità allegati', !!caf
     && caf.html.includes('PDF non ancora generato')
-    && (caf.attachments || []).length === 2);
+    && (caf.attachments || []).length === 3);
   check('legacy senza PDF: il pack elenca "Contratto firmato" tra i mancanti',
     Array.isArray(out.packMissing) && out.packMissing.includes('Contratto firmato')
     && !!caf && /Nel pack mancano/.test(caf.html) && caf.html.includes('Contratto firmato'));

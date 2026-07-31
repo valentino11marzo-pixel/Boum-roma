@@ -17426,6 +17426,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             );
 
             // --------------- LETTO, APPROVATO, SOTTOSCRITTO ---------------
+            // Ancore delle righe-firma (rapporti sulla pagina, 1-based page):
+            // il server le usa per stampare le firme grafiche ESATTAMENTE qui
+            // sul contratto firmato — non solo nella pagina firme in coda.
+            const _sigA = [];
             y += 6;
             ensureSpace(60);
             doc.setFont('times', 'bold');
@@ -17455,6 +17459,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             doc.setFontSize(10);
             doc.text('Il Locatore: ' + locName, margin, sig1Y + 5);
             doc.text('Il Conduttore: ' + tenName, rightX, sig1Y + 5);
+            {
+                const _pg = doc.internal.getCurrentPageInfo().pageNumber;
+                _sigA.push(
+                    { role: 'landlord', page: _pg, xr: margin / pageW, yr: (sig1Y - sigH + 4) / pageH, wr: (sigW - 4) / pageW, hr: sigH / pageH },
+                    { role: 'tenant', page: _pg, xr: rightX / pageW, yr: (sig1Y - sigH + 4) / pageH, wr: (sigW - 4) / pageW, hr: sigH / pageH });
+            }
             y = sig1Y + 16;
 
             // --- 1341–1342 block ---
@@ -17485,6 +17495,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             doc.setFontSize(10);
             doc.text('Il Locatore: ' + locName, margin, sig2Y + 5);
             doc.text('Il Conduttore: ' + tenName, rightX, sig2Y + 5);
+            {
+                const _pg = doc.internal.getCurrentPageInfo().pageNumber;
+                _sigA.push(
+                    { role: 'landlord', page: _pg, xr: margin / pageW, yr: (sig2Y - sigH + 4) / pageH, wr: (sigW - 4) / pageW, hr: sigH / pageH },
+                    { role: 'tenant', page: _pg, xr: rightX / pageW, yr: (sig2Y - sigH + 4) / pageH, wr: (sigW - 4) / pageW, hr: sigH / pageH });
+            }
 
             // --------------- FOOTER (Pagina N di M) ---------------
             const totalPages = doc.internal.getNumberOfPages();
@@ -17511,6 +17527,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             await db.collection('contracts').doc(contractId).update({
                 generatedPDF: pdfUrl,
                 pdfHash: hash,
+                sigAnchors: { v: 1, blocks: _sigA },
                 pdfSizeKB: Math.round(pdfBlob.size / 1024),
                 pdfGeneratedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
@@ -17839,6 +17856,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             );
 
             // --------------- LETTO, APPROVATO, SOTTOSCRITTO ---------------
+            // Ancore delle righe-firma (rapporti sulla pagina, 1-based page):
+            // il server le usa per stampare le firme grafiche ESATTAMENTE qui
+            // sul contratto firmato — non solo nella pagina firme in coda.
+            const _sigA = [];
             y += 6;
             ensureSpace(60);
             doc.setFont('times', 'bold');
@@ -17868,6 +17889,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             doc.setFontSize(10);
             doc.text('Il Locatore: ' + locName, margin, sig1Y + 5);
             doc.text('Il Conduttore: ' + tenName, rightX, sig1Y + 5);
+            {
+                const _pg = doc.internal.getCurrentPageInfo().pageNumber;
+                _sigA.push(
+                    { role: 'landlord', page: _pg, xr: margin / pageW, yr: (sig1Y - sigH + 4) / pageH, wr: (sigW - 4) / pageW, hr: sigH / pageH },
+                    { role: 'tenant', page: _pg, xr: rightX / pageW, yr: (sig1Y - sigH + 4) / pageH, wr: (sigW - 4) / pageW, hr: sigH / pageH });
+            }
             y = sig1Y + 16;
 
             // --- 1341-1342 block (lista del contratto tipo associazione) ---
@@ -17898,6 +17925,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             doc.setFontSize(10);
             doc.text('Il Locatore: ' + locName, margin, sig2Y + 5);
             doc.text('Il Conduttore: ' + tenName, rightX, sig2Y + 5);
+            {
+                const _pg = doc.internal.getCurrentPageInfo().pageNumber;
+                _sigA.push(
+                    { role: 'landlord', page: _pg, xr: margin / pageW, yr: (sig2Y - sigH + 4) / pageH, wr: (sigW - 4) / pageW, hr: sigH / pageH },
+                    { role: 'tenant', page: _pg, xr: rightX / pageW, yr: (sig2Y - sigH + 4) / pageH, wr: (sigW - 4) / pageW, hr: sigH / pageH });
+            }
 
             // --------------- FOOTER (Pagina N di M) ---------------
             const totalPages = doc.internal.getNumberOfPages();
@@ -17924,6 +17957,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             await db.collection('contracts').doc(contractId).update({
                 generatedPDF: pdfUrl,
                 pdfHash: hash,
+                sigAnchors: { v: 1, blocks: _sigA },
                 pdfSizeKB: Math.round(pdfBlob.size / 1024),
                 pdfGeneratedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
