@@ -6,7 +6,7 @@
 //
 //   node tests/journey/steps.mjs
 
-import { steps } from '../../api/journey/_run.js';
+import { steps, journeyEligible } from '../../api/journey/_run.js';
 
 // ── helper: costruisce lo stato a N giorni dall'inizio (o dalla fine) ──────
 const iso = (d) => d.toISOString().slice(0, 10);
@@ -135,6 +135,16 @@ check('T-14 con solo documento mancante: chiede SOLO la foto del documento',
 const t14ok = one({ startIn: 12, endIn: 377 });
 check('T-14 con tutto a posto: dice "complete", nessun link scheda',
   t14ok && !t14ok.html.includes('/scheda?t=') && /complete/i.test(t14ok.html));
+
+// ── journeyEligible: mai un benvenuto a chi non ha ancora firmato ──
+check('firma in corso (invitato, nessuna firma): journey TACE',
+  journeyEligible({ signInviteTenantAt: '2026-07-30', signatureStatus: 'none' }) === false);
+check('firma parziale: journey tace anche senza campo invito',
+  journeyEligible({ signatureStatus: 'partial' }) === false);
+check('firma completa: journey attivo',
+  journeyEligible({ signInviteTenantAt: '2026-07-30', signatureStatus: 'complete' }) === true);
+check('legacy su carta (nessun invito, nessuna firma digitale): journey attivo',
+  journeyEligible({ startDate: '2025-01-01' }) === true);
 
 console.log('\n────────────────────────────────────────────────');
 console.log(`\x1b[1mResult: ${pass} passed, ${fail} failed\x1b[0m`);

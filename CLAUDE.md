@@ -168,13 +168,20 @@ DOC_MAIL_FROM                # optional — extra TRUSTED senders whose email
                              # operator's own addresses are always trusted.
 VIEWINGS_CALENDAR_EMAIL      # optional — where viewing calendar invites are
                              # sent (defaults to GMAIL_USER)
-BUSY_ICS_URLS                # optional — secret ICS address(es) of the
-                             # operator's REAL calendar (Google Workspace:
-                             # Calendar → Settings → your calendar →
-                             # "Secret address in iCal format"), comma-
-                             # separated. Busy events remove slots from the
-                             # public booking grid. Fail-open: an unreachable
-                             # calendar never blocks bookings
+BUSY_ICS_URLS                # optional — ICS address(es) of the operator's
+                             # REAL calendar (Google Workspace: Calendar →
+                             # Settings → your calendar → Integrate calendar),
+                             # comma-separated. Busy events remove slots from
+                             # the public booking grid. Fail-open: an
+                             # unreachable calendar never blocks bookings.
+                             # NOTA: l'indirizzo SEGRETO non compare quando
+                             # l'admin Workspace ha disattivato la condivisione
+                             # esterna (Admin console → App → Google Workspace
+                             # → Calendar → Impostazioni di condivisione). In
+                             # quel caso o si riabilita, oppure si usa
+                             # l'indirizzo PUBBLICO di un calendario condiviso
+                             # in modalità "solo disponibilità" — dropBoomEchoes
+                             # copre gli UID anonimizzati di quella modalità
 TELEGRAM_BOT_TOKEN           # already used by api/telegram/*; pfs health alerts
 TELEGRAM_CHAT_ID
 ```
@@ -407,7 +414,14 @@ viewing id + server secret).
   CANCELLED non bloccano; gli eventi BOOM stessi (UID
   `boom-viewing-*`/`viewing-*@boomrome.com` — inviti, .ics cliente, feed)
   sono filtrati, altrimenti la copia in calendario di una visita bloccherebbe
-  il SUO stesso reschedule; ricorrenze espanse nell'orizzonte (DAILY/WEEKLY
+  il SUO stesso reschedule; **se il feed anonimizza gli UID** (calendario
+  condiviso in modalità "solo disponibilità" — quello che resta quando
+  l'admin Workspace disattiva la condivisione esterna dei dettagli, e in cui
+  l'indirizzo *segreto* non compare affatto) subentra `dropBoomEchoes()`:
+  un blocco esterno che inizia E finisce entro 2' da una visita viva è
+  l'eco di quella visita, non un impegno diverso — scartarlo è sicuro anche
+  se la stima sbaglia, perché la visita stessa è già nella lista occupati;
+  ricorrenze espanse nell'orizzonte (DAILY/WEEKLY
   con BYDAY/INTERVAL/COUNT/UNTIL/EXDATE, istanze spostate via RECURRENCE-ID,
   MONTHLY/YEARLY semplici — l'esotico contribuisce solo la prima istanza);
   gli impegni esterni NON consumano `maxPerDay` (sono tempo occupato, non
@@ -956,6 +970,25 @@ time-boxed — mai può bloccare una firma.
   `CAF_EMAIL` (default **valentino@boom-rome.com**). Prima viveva in
   portal-app.js via EmailJS e partiva SOLO dal vecchio flusso di firma nel
   portal — su /sign non partiva affatto.
+- **Pack Registrazione** (`api/sign/_pack.js` + `api/_zip.js` ZIP writer
+  STORE senza dipendenze npm): UN file
+  `contracts/<id>/pack-registrazione.zip` con TUTTO ciò che servono RLI +
+  asseverazione ARPE — contratto firmato, certificato FES, Fascicolo
+  Fiscale, visura/planimetria/APE/delega dal dossier immobile
+  (`properties.dossier.*`), documenti identità (`contract.identityDocs`,
+  il `kind:'extra'` = attestazione esigenza ora sopravvive alla
+  conversione PA→contratto), più `00_INDICE.txt` con anagrafica+CF,
+  motivazione transitorietà e la CHECKLIST di cosa manca e dove
+  caricarlo. Generato alla firma completa (budget rigido 25s dentro
+  finalize — mai allunga la firma) e rigenerabile con **📦 Pack** sulla
+  riga contratto (`POST /api/fiscal/pack`, admin, maxDuration 60). URL +
+  mancanti persistiti (`registrationPackUrl/Missing/At`); l'email CAF
+  porta il link ZIP e l'avviso "⚠ Nel pack mancano: …".
+- **Journey gate firme** (`journeyEligible()` esportata+testata): un
+  contratto invitato alla firma digitale ma non `complete` è nel funnel
+  firma, NON nel ciclo casa — niente T-30 di benvenuto a chi non ha
+  firmato. I legacy firmati su carta (nessun invito a sistema) restano
+  dentro il journey.
 - La Scheda completa manda al cliente una conferma one-shot
   (`scheda<Role>ConfirmedAt`) nel suo idioma (`api/profile/submit.js`).
 - Due bug di produzione trovati dai test (pdf-lib REALE nella suite):

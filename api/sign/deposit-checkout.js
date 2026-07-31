@@ -37,7 +37,9 @@ export default async function handler(req, res) {
     if (!contract) return res.status(404).json({ ok: false, error: 'invalid_token' });
     if (contract.depositPaid) return res.status(409).json({ ok: false, error: 'already_paid' });
 
-    const amountEur = Number(contract.deposit || 0);
+    // Si incassa il SALDO: deposito pattuito meno quanto già versato fuori
+    // piattaforma (es. bonifico alla firma della proposta) — mai il pieno.
+    const amountEur = Math.max(0, Number(contract.deposit || 0) - Number(contract.depositAlreadyPaidEur || 0));
     if (!(amountEur > 0)) return res.status(409).json({ ok: false, error: 'no_deposit' });
 
     let label = 'your BOOM Rome lease';

@@ -20,7 +20,7 @@
 
 import { fsGet, fsList } from '../homie/_lib.js';
 import { startOf } from './_lib.js';
-import { externalBusy } from './_busyics.js';
+import { externalBusy, dropBoomEchoes } from './_busyics.js';
 
 export const TZ = 'Europe/Rome';
 export const GAP_MINUTES = 15;               // travel / reset between visits
@@ -140,17 +140,22 @@ export async function loadConfig() {
  */
 export async function busyBlocks(cfg, exceptId = null) {
   const out = [];
+  // every live viewing, INCLUDING the one being rescheduled: the excepted one
+  // is precisely the one whose calendar echo must not block its own move
+  const ownTimes = [];
   for (const status of ['confirmed', 'pending']) {
     let rows = [];
     try { rows = await fsList('viewingRequests', { filter: { field: 'status', op: 'EQUAL', value: status }, limit: 200 }); }
     catch { /* best effort: an unreadable list must not block booking */ }
     for (const v of rows) {
       if (v.voided) continue;
-      if (exceptId && v.id === exceptId) continue;
       const s = startOf(v);
       if (!s) continue;
       const dur = Number(v.durationMinutes) || 45;
-      out.push([s.getTime(), s.getTime() + dur * 60000, romeDateKey(s), {
+      const span = [s.getTime(), s.getTime() + dur * 60000];
+      ownTimes.push(span);
+      if (exceptId && v.id === exceptId) continue;
+      out.push([span[0], span[1], romeDateKey(s), {
         listingId: v.listingId || v.propertyId || null,
         lat: v.lat != null ? Number(v.lat) : null,
         lng: v.lng != null ? Number(v.lng) : null,
@@ -160,8 +165,9 @@ export async function busyBlocks(cfg, exceptId = null) {
   }
   // the operator's Google Workspace calendar: a real appointment removes the
   // slot for every surface. Best-effort — an unreachable calendar must never
-  // switch off bookings (fail-open with cache inside _busyics.js).
-  try { out.push(...await externalBusy(cfg)); }
+  // switch off bookings (fail-open with cache inside _busyics.js). Echoes of
+  // our own viewings are dropped even when the feed anonymises UIDs.
+  try { out.push(...dropBoomEchoes(await externalBusy(cfg), ownTimes)); }
   catch (e) { console.warn('[viewings/_avail] external busy skipped:', e && e.message); }
   return out;
 }

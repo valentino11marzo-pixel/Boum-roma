@@ -13,7 +13,7 @@
 //            410 { ok:false, error:'already_signed', role }
 //            400 { ok:false, error:'missing_token' }
 
-import { fsGet, readJson } from '../homie/_lib.js';
+import { fsGet, fsPatch, fsCreate, readJson } from '../homie/_lib.js';
 import { findContractByToken, setCors, rateOk } from './_shared.js';
 
 export default async function handler(req, res) {
@@ -53,7 +53,28 @@ export default async function handler(req, res) {
     return res.status(410).json({
       ok: false, error: 'already_signed', role,
       signatureStatus: contract.signatureStatus || 'partial',
+      signedAt: (role === 'tenant' ? contract.tenantSignedAt : contract.landlordSignedAt) || null,
     });
+  }
+
+  // ── Prima apertura: stampata sul contratto + ping all'operatore ──
+  // "Ha aperto il contratto" è il segnale che prima non esisteva: nessuno
+  // sapeva se il cliente avesse mai visto il link. Best-effort, una volta
+  // sola per ruolo, mai bloccante.
+  const viewedField = role === 'tenant' ? 'signViewedTenantAt' : 'signViewedLandlordAt';
+  if (!contract[viewedField]) {
+    const nowISO = new Date().toISOString();
+    fsPatch('contracts/' + contract.id, { [viewedField]: nowISO }).catch(() => {});
+    fsCreate('agentNotifications', {
+      type: 'contract.sign_opened',
+      summary: `👀 ${role === 'tenant' ? "L'inquilino" : 'Il locatore'} ha APERTO il contratto · ${contract.id}`,
+      priority: 'low',
+      ref: { collection: 'contracts', id: contract.id },
+      payload: { contractId: contract.id, role },
+      dedupKey: `sign-opened-${contract.id}-${role}`,
+      status: 'pending', actor: 'magic-sign',
+      createdAt: nowISO, attempts: 0,
+    }).catch(() => {});
   }
 
   // Fetch related docs server-side.

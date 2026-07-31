@@ -13,7 +13,7 @@ import { readFileSync } from 'node:fs';
 import { buildSlots } from '../../api/viewings/_avail.js';
 import {
   parseVevents, parseIcsTime, zonedToEpoch,
-  icsBusy, busyIcsUrls, externalBusy, clearIcsCache,
+  icsBusy, busyIcsUrls, externalBusy, clearIcsCache, dropBoomEchoes,
 } from '../../api/viewings/_busyics.js';
 
 let fails = 0;
@@ -197,6 +197,26 @@ const times = (slots, date) => {
   clearIcsCache();
 }
 
+// ── 10b. free/busy sharing: no UID, so echoes are caught by time ──────────
+{
+  // A calendar shared as "free/busy only" anonymises everything: the viewing
+  // we ourselves created comes back as a nameless busy block. Without the
+  // time-based defence it would block its own reschedule.
+  const s = Date.UTC(2026, 7, 3, 8, 0), e = s + 45 * 60000;
+  const anon = ics(vevent('UID:abc123xyz@google.com', 'DTSTART:20260803T080000Z', 'DTEND:20260803T084500Z', 'SUMMARY:Busy'));
+  const blocks = icsBusy(anon, WIN_S, WIN_E);
+  ok('the anonymised block is parsed', blocks.length === 1);
+  ok('…and dropped when it echoes a live viewing', dropBoomEchoes(blocks, [[s, e]]).length === 0);
+  ok('a 1-minute drift still counts as the same event',
+    dropBoomEchoes(blocks, [[s + 60000, e + 60000]]).length === 0);
+  ok('a genuinely different commitment survives',
+    dropBoomEchoes(blocks, [[s + 3 * 3600000, e + 3 * 3600000]]).length === 1);
+  ok('same start but a longer event is NOT an echo',
+    dropBoomEchoes(blocks, [[s, e + 30 * 60000]]).length === 1);
+  ok('no viewings at all → nothing is dropped', dropBoomEchoes(blocks, []).length === 1);
+  ok('a missing list is handled', dropBoomEchoes(blocks, null).length === 1);
+}
+
 // ── 10c. la diagnosi: il silenzio del fail-open deve poter essere letto ───
 {
   const cfg = { ...CFG, busyIcs: 'https://cal.example/secret.ics' };
@@ -243,6 +263,11 @@ const times = (slots, date) => {
   const src = readFileSync(new URL('../../api/viewings/_avail.js', import.meta.url), 'utf8');
   const body = src.slice(src.indexOf('function busyBlocks'));
   ok('busyBlocks merges externalBusy into the grid', /externalBusy\(/.test(body));
+  ok('…through the echo filter', /dropBoomEchoes\(/.test(body));
+  // the excepted viewing must still reach ownTimes, otherwise its echo blocks
+  // the very reschedule exceptId exists to allow
+  ok('the excepted viewing is still collected for echo matching',
+    body.indexOf('ownTimes.push') < body.indexOf('exceptId && v.id === exceptId'), 'ownTimes.push must come first');
 }
 
 console.log(fails ? `\n${fails} FAILED` : '\nAll green.');

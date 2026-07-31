@@ -174,7 +174,10 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
     linkedLeadId: '', linkedLeadSource: '', linkedViewingId: '',
     preAgreementId: paId,
     preAgreementRef: pa.ref || null,
-    identityDocs: uploads.map(u => ({ url: u.url, name: u.name, tenantIndex: u.tenantIndex || 0, at: u.at })),
+    // kind viaggia col documento: 'extra' = attestazione dell'esigenza
+    // (transitoria/studenti) — il Pack Registrazione la distingue dai
+    // documenti d'identità. Prima si perdeva nella conversione.
+    identityDocs: uploads.map(u => ({ url: u.url, name: u.name, tenantIndex: u.tenantIndex || 0, at: u.at, ...(u.kind === 'extra' ? { kind: 'extra' } : {}) })),
     status: 'active',
     signatureStatus: 'none',
     signingOrder: 'sequential',           // tenant first; landlord countersigns when ready

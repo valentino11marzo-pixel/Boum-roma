@@ -66,6 +66,10 @@ globalThis.fetch = async (url, opts = {}) => {
   url = String(url);
   if (url.includes('identitytoolkit')) return okJson({ idToken: 'tok', users: [{ localId: 'caller1', email: 'op@boom.it' }] });
   if (url.startsWith('https://storage.example/contract.pdf')) return new Response(SRC_PDF, { status: 200, headers: { 'Content-Type': 'application/pdf' } });
+  // Qualsiasi altro file "esterno" (documenti identità, dossier immobile):
+  // contenuto deterministico dal path, così il test verifica la FEDELTÀ
+  // dei byte dentro lo ZIP del pack.
+  if (url.startsWith('https://storage.example/')) return new Response(Buffer.from('FILE:' + url.slice(24)), { status: 200 });
   if (url.includes('firebasestorage.googleapis.com')) {
     if (opts.method === 'POST') {
       const name = new URL(url).searchParams.get('name');
@@ -83,26 +87,64 @@ globalThis.fetch = async (url, opts = {}) => {
   if (url.includes('firestore.googleapis.com')) {
     const path = (url.split('/documents')[1] || '').replace(/^\//, '').split('?')[0];
     const qs = new URL(url).searchParams;
-    if (path.startsWith(':runQuery')) return okJson([{}]);
+    const bump = (k) => docTimes.set(k, new Date(Date.now() + docTimes.size).toISOString());
+    const docRow = (k) => ({ name: 'projects/p/databases/(default)/documents/' + k, fields: toFsFields(store.get(k)), updateTime: docTimes.get(k) || '2026-01-01T00:00:00Z', createTime: '2026-01-01T00:00:00Z' });
+    // runQuery REALE (filtro EQUAL su un campo): serve a findContractByToken
+    // e alle fsList del completamento firma.
+    if (path.startsWith(':runQuery')) {
+      const sq = (JSON.parse(opts.body || '{}') || {}).structuredQuery || {};
+      const col = ((sq.from || [])[0] || {}).collectionId || '';
+      const ff = (sq.where || {}).fieldFilter;
+      const rows = [];
+      for (const [k] of store) {
+        if (!k.startsWith(col + '/')) continue;
+        if (ff) {
+          const want = fromFs(ff.value);
+          const got = (store.get(k) || {})[ff.field.fieldPath];
+          if (got !== want) continue;
+        }
+        rows.push({ document: docRow(k) });
+        if (sq.limit && rows.length >= sq.limit) break;
+      }
+      return okJson(rows.length ? rows : [{}]);
+    }
+    // :commit con updateMask (merge) e PRECONDIZIONE currentDocument.updateTime
+    if (path.startsWith(':commit')) {
+      const writes = (JSON.parse(opts.body || '{}') || {}).writes || [];
+      for (const w of writes) {
+        const k = (w.update.name.split('/documents/')[1] || '');
+        if (w.currentDocument && w.currentDocument.updateTime) {
+          const cur = docTimes.get(k) || '2026-01-01T00:00:00Z';
+          if (cur !== w.currentDocument.updateTime) return new Response(JSON.stringify({ error: { status: 'FAILED_PRECONDITION', message: 'the stored version does not match' } }), { status: 400 });
+        }
+        const doc = store.get(k) || {};
+        Object.assign(doc, fromFsFields(w.update.fields));
+        store.set(k, doc); bump(k);
+      }
+      return okJson({ writeResults: writes.map(() => ({})) });
+    }
     if (opts.method === 'POST') {
       const docId = qs.get('documentId') || 'auto_' + (store.size + 1);
       const key = path + '/' + docId;
       if (qs.get('documentId') && store.has(key)) return new Response('conflict', { status: 409 });
       store.set(key, fromFsFields(JSON.parse(opts.body).fields));
+      bump(key);
       return okJson({ name: 'projects/p/databases/(default)/documents/' + key });
     }
     if (opts.method === 'PATCH') {
       const cur = store.get(path) || {};
       Object.assign(cur, fromFsFields(JSON.parse(opts.body).fields));
       store.set(path, cur);
+      bump(path);
       return okJson({ name: 'projects/p/databases/(default)/documents/' + path });
     }
     const doc = store.get(path);
     if (!doc) return new Response('not found', { status: 404 });
-    return okJson({ name: 'projects/p/databases/(default)/documents/' + path, fields: toFsFields(doc) });
+    return okJson(docRow(path));
   }
   throw new Error('fetch non stubbata: ' + url);
 };
+const docTimes = new Map();
 
 const mkRes = () => ({
   code: 0, body: null, headers: {},
@@ -115,7 +157,13 @@ let IP = '9.1.1.1';
 const mkReq = (body, headers = {}) => ({ method: 'POST', headers: { 'x-forwarded-for': IP, ...headers }, body, socket: {} });
 
 // ── Seed ─────────────────────────────────────────────────────────────────
-store.set('properties/prop1', { ownerId: 'own1', name: 'Trastevere Loft', address: 'Via della Lungaretta 12', zone: 'Trastevere', rooms: 3, sqm: 78, furnished: true, energyClass: 'F', cadastralData: 'foglio 495, part. 120, sub 8', features: ['elevator', 'ac', 'balcony'] });
+store.set('properties/prop1', { ownerId: 'own1', name: 'Trastevere Loft', address: 'Via della Lungaretta 12', zone: 'Trastevere', rooms: 3, sqm: 78, furnished: true, energyClass: 'F', cadastralData: 'foglio 495, part. 120, sub 8', features: ['elevator', 'ac', 'balcony'],
+  dossier: {
+    visura:      { url: 'https://storage.example/visura.pdf', name: 'visura.pdf', contentType: 'application/pdf', at: '2026-07-01' },
+    planimetria: { url: 'https://storage.example/pln.pdf', name: 'pln.pdf', contentType: 'application/pdf', at: '2026-07-01' },
+    ape:         { url: 'https://storage.example/ape.pdf', name: 'ape.pdf', contentType: 'application/pdf', at: '2026-07-01' },
+    delega:      { url: 'https://storage.example/delega.pdf', name: 'delega.pdf', contentType: 'application/pdf', at: '2026-07-01' },
+  } });
 store.set('users/t1', { email: 'anna@expat.com', name: 'Anna Expat', role: 'tenant' });
 store.set('users/own1', { email: 'giulia@owner.it', name: 'Giulia Bianchi', role: 'landlord' });
 
@@ -167,6 +215,49 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   let signedPages = 0;
   try { signedPages = (await TestPDF.load(signedBytes)).getPageCount(); } catch {}
   check('contratto firmato: PDF originale + pagina firme appesa', signedPages === 2);
+
+  // ── Pack Registrazione: uno ZIP con TUTTO, e l'indice che dice la verità ──
+  const readZip = (buf) => {
+    const eocd = buf.length - 22;
+    if (buf.readUInt32LE(eocd) !== 0x06054b50) throw new Error('no_eocd');
+    const count = buf.readUInt16LE(eocd + 10);
+    let off = buf.readUInt32LE(eocd + 16);
+    const files = {};
+    for (let i = 0; i < count; i++) {
+      if (buf.readUInt32LE(off) !== 0x02014b50) throw new Error('bad_central');
+      const nameLen = buf.readUInt16LE(off + 28), extraLen = buf.readUInt16LE(off + 30), cmtLen = buf.readUInt16LE(off + 32);
+      const size = buf.readUInt32LE(off + 24);
+      const lho = buf.readUInt32LE(off + 42);
+      const name = buf.slice(off + 46, off + 46 + nameLen).toString('utf8');
+      const ln = buf.readUInt16LE(lho + 26), le = buf.readUInt16LE(lho + 28);
+      files[name] = buf.slice(lho + 30 + ln + le, lho + 30 + ln + le + size);
+      off += 46 + nameLen + extraLen + cmtLen;
+    }
+    return files;
+  };
+  check('pack: generato e URL persistito sul contratto', out.pack === true
+    && String(ctrPatched.registrationPackUrl || '').includes('pack-registrazione.zip'));
+  let zf = {};
+  try { zf = readZip(storageFiles.get('contracts/ctrF/pack-registrazione.zip')); } catch (e) { console.log('  zip parse:', e.message); }
+  const zNames = Object.keys(zf);
+  check('pack: contiene indice, contratto firmato, certificato, fascicolo',
+    zNames.includes('00_INDICE.txt') && zNames.includes('01_Contratto_firmato.pdf')
+    && zNames.includes('02_Certificato_firma_FES.pdf') && zNames.includes('03_Fascicolo_Fiscale.pdf'));
+  check('pack: contiene visura, planimetria, APE, delega dal dossier immobile',
+    zNames.some(n => n.startsWith('04_Visura')) && zNames.some(n => n.startsWith('05_Planimetria'))
+    && zNames.some(n => n.startsWith('06_APE')) && zNames.some(n => n.startsWith('07_Delega')));
+  check('pack: contiene il documento identità del conduttore',
+    zNames.some(n => n.startsWith('08_1_Documento_conduttore')));
+  check('pack: i byte del contratto firmato dentro lo ZIP sono IDENTICI a quelli in Storage',
+    !!zf['01_Contratto_firmato.pdf'] && zf['01_Contratto_firmato.pdf'].equals(storageFiles.get('contracts/ctrF/contratto-firmato.pdf')));
+  const indice = String(zf['00_INDICE.txt'] || '');
+  check('pack: INDICE con codici fiscali di entrambe le parti',
+    indice.includes('RSSMRA85T10A562S') && indice.includes('BNCGLI70A41H501X'));
+  check('pack: INDICE dice cosa MANCA (attestazione studenti) e dove caricarla',
+    /MANCA/.test(indice) && indice.includes('Attestazione iscrizione universitaria') && /dove:/.test(indice));
+  check('pack: il CAF riceve il link allo ZIP con l\'avviso dei mancanti', caf.length === 1
+    && caf[0].html.includes('pack-registrazione.zip')
+    && /Nel pack mancano/.test(caf[0].html) && caf[0].html.includes('Attestazione iscrizione universitaria'));
 
   const wt = mailTo('anna@expat.com').filter(m => /Welcome home/.test(m.subject));
   check('welcome tenant: inglese, link portal', wt.length === 1 && /Enter my portal/i.test(wt[0].html));
@@ -220,6 +311,72 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   check('legacy senza PDF: CAF onesto (PDF non ancora generato) + cert e fascicolo allegati', !!caf
     && caf.html.includes('PDF non ancora generato')
     && (caf.attachments || []).length === 2);
+  check('legacy senza PDF: il pack elenca "Contratto firmato" tra i mancanti',
+    Array.isArray(out.packMissing) && out.packMissing.includes('Contratto firmato')
+    && !!caf && /Nel pack mancano/.test(caf.html) && caf.html.includes('Contratto firmato'));
+}
+
+// ═══ 1d. Magic Sign submit: terms freeze, già-firmato VIVO, sequenziale ═══
+{
+  const msSubmit = (await import('../../api/magic-sign/submit.js')).default;
+  const msLookup = (await import('../../api/magic-sign/lookup.js')).default;
+  const CONSENT = 'I confirm my identity and accept all lease terms. This digital signature is legally valid (FES — Art. 21 CAD).';
+  const SIG = 'data:image/png;base64,' + 'A'.repeat(400);
+  store.set('contracts/ctrMS', {
+    propertyId: 'prop1', tenantId: 't1', type: 'transitorio', cedolareSecca: 'si',
+    rent: 1200, deposit: 2400, startDate: '2026-10-01', endDate: '2027-09-30', paymentDay: 5,
+    tenantName: 'Anna Expat', landlordName: 'Giulia Bianchi',
+    tenantSignToken: 'MSTOK_TENANT_1', landlordSignToken: 'MSTOK_LANDLORD_1',
+    signingOrder: 'sequential', signatureStatus: 'none', status: 'active',
+    generatedPDF: 'https://storage.example/contract.pdf',
+  });
+  const body = (token) => ({ token, signature: SIG, consent: { text: CONSENT, hash: '' }, identity: { cf: 'rssmra85t10a562s', dob: '1998-05-04' } });
+
+  IP = '9.1.2.1';
+  let r = mkRes();
+  await msSubmit(mkReq(body('MSTOK_LANDLORD_1')), r);
+  check('submit: locatore prima dell\'inquilino su sequenziale → 409', r.code === 409 && r.body.error === 'awaiting_tenant');
+
+  // L'inquilino APRE il link (lookup) prima di firmare: prima apertura tracciata
+  r = mkRes();
+  await msLookup(mkReq({ token: 'MSTOK_TENANT_1' }), r);
+  check('lookup pre-firma: 200 col prefill del firmatario', r.code === 200 && r.body.ok === true && r.body.role === 'tenant');
+
+  r = mkRes();
+  await msSubmit(mkReq(body('MSTOK_TENANT_1')), r);
+  const ms1 = store.get('contracts/ctrMS');
+  check('submit tenant: 200 partial + TERMINI CONGELATI (hash+snapshot)', r.code === 200 && r.body.signatureStatus === 'partial'
+    && typeof ms1.signedTermsHash === 'string' && ms1.signedTermsHash.length === 64
+    && ms1.signedTerms && ms1.signedTerms.rent === 1200 && ms1.signedTerms.endDate === '2027-09-30');
+  check('submit tenant: token SOPRAVVIVE (usedAt stampato) + CF normalizzato',
+    ms1.tenantSignToken === 'MSTOK_TENANT_1' && !!ms1.tenantSignTokenUsedAt && ms1.tenantCF === 'RSSMRA85T10A562S');
+
+  IP = '9.1.2.2';
+  r = mkRes();
+  await msLookup(mkReq({ token: 'MSTOK_TENANT_1' }), r);
+  check('lookup dopo la firma: 410 already_signed VIVO (non più "Link not valid")',
+    r.code === 410 && r.body.error === 'already_signed' && !!r.body.signedAt);
+  r = mkRes();
+  await msSubmit(mkReq(body('MSTOK_TENANT_1')), r);
+  check('re-submit stesso ruolo → 410, la prima firma non si sovrascrive', r.code === 410 && r.body.error === 'already_signed');
+
+  // L'admin "ritocca" il canone DOPO la firma dell'inquilino…
+  store.get('contracts/ctrMS').rent = 1300;
+  IP = '9.1.2.3';
+  r = mkRes();
+  await msSubmit(mkReq(body('MSTOK_LANDLORD_1')), r);
+  check('termini cambiati tra le firme → controfirma BLOCCATA (409 terms_changed)', r.code === 409 && r.body.error === 'terms_changed');
+  check('terms_changed → ping urgente all\'operatore', [...store.keys()].some(k => k.startsWith('agentNotifications/') && (store.get(k) || {}).type === 'contract.terms_changed'));
+
+  // …ripristinati i termini firmati, la controfirma passa e chiude tutto.
+  store.get('contracts/ctrMS').rent = 1200;
+  r = mkRes();
+  await msSubmit(mkReq(body('MSTOK_LANDLORD_1')), r);
+  const ms2 = store.get('contracts/ctrMS');
+  check('controfirma sui termini GIUSTI → complete + cascata (rate generate)',
+    r.code === 200 && r.body.fullySigned === true && ms2.signatureStatus === 'complete'
+    && [...store.keys()].some(k => k.startsWith('payments/pay_ctrMS_')));
+  check('prima apertura tracciata sul contratto (signViewedTenantAt)', !!ms2.signViewedTenantAt);
 }
 
 // ═══ 1b. Watchdog inviti freddi (predicato puro) ═══
@@ -287,6 +444,25 @@ IP = '9.1.1.2';
   r = mkRes();
   await sendLink(mkReq({ contractId: 'ctrF', role: 'tenant' }, { authorization: 'Bearer x' }), r);
   check('send-link su parte già firmata → 409 already_signed', r.code === 409 && r.body.error === 'already_signed');
+}
+
+// ═══ 3b. /api/fiscal/pack: rigenerazione on-demand (admin) ═══
+const packEndpoint = (await import('../../api/fiscal/pack.js')).default;
+IP = '9.1.1.5';
+{
+  let r = mkRes();
+  await packEndpoint(mkReq({ contractId: 'ctrF' }), r);
+  check('pack endpoint: senza token → 401', r.code === 401);
+
+  r = mkRes();
+  await packEndpoint(mkReq({ contractId: 'ctrF' }, { authorization: 'Bearer x' }), r);
+  check('pack endpoint: admin → 200 con url e mancanti', r.code === 200 && r.body.ok === true
+    && String(r.body.url || '').includes('pack-registrazione.zip')
+    && Array.isArray(r.body.missing));
+
+  r = mkRes();
+  await packEndpoint(mkReq({ contractId: 'nope' }, { authorization: 'Bearer x' }), r);
+  check('pack endpoint: contratto inesistente → 404', r.code === 404);
 }
 
 // ═══ 4. scheda: conferma al cliente, una volta sola ═══
