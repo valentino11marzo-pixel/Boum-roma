@@ -315,6 +315,33 @@ export function icsBusy(text, winStart, winEnd) {
   return out;
 }
 
+// ── BOOM's own events, when the UID is not readable ───────────────────────
+// The UID filter above is the precise defence, but it needs a UID. A calendar
+// shared as "free/busy only" (the mode a Workspace admin leaves available
+// when external sharing of details is off) returns every event anonymised —
+// no SUMMARY, and no UID we can recognise. In that mode a viewing's own
+// calendar copy would come back as a plain busy block and would block ITS OWN
+// reschedule: the exact bug the UID filter exists to prevent.
+//
+// So there is a second, coarser defence: an external block that starts AND
+// ends within a couple of minutes of a live BOOM viewing is that viewing's
+// echo, not a separate commitment. Dropping it is safe even when the guess is
+// wrong — the viewing itself is already in the busy list, so the slot stays
+// blocked either way; the only behaviour that changes is that a viewing can
+// be moved again.
+export const ECHO_TOLERANCE_MS = 2 * 60 * 1000;
+
+/**
+ * @param external  [[startMs, endMs, dateKey], …] from externalBusy()
+ * @param ownTimes  [[startMs, endMs], …] — every live viewing, INCLUDING the
+ *                  one being rescheduled (whose echo is the whole point)
+ */
+export function dropBoomEchoes(external, ownTimes, tol = ECHO_TOLERANCE_MS) {
+  if (!Array.isArray(ownTimes) || !ownTimes.length) return external;
+  return external.filter(b => !ownTimes.some(([s, e]) =>
+    Math.abs(b[0] - s) <= tol && Math.abs(b[1] - e) <= tol));
+}
+
 // ── config + fetch ─────────────────────────────────────────────────────────
 export function busyIcsUrls(cfg) {
   const raw = String(process.env.BUSY_ICS_URLS || '').split(/[\s,]+/);
