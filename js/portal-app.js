@@ -5834,6 +5834,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (filter === 'pending') shown = pending;
         else if (filter === 'confirmed') shown = confirmed;
         else if (filter === 'rescheduled') shown = rescheduled;
+        else if (filter === 'cancelled') shown = cancelled;
         else if (filter === 'all') shown = all;
 
         function statusBadge(v) {
@@ -5863,14 +5864,22 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <button class="btn btn-sm btn-secondary" onclick="cancelViewing('${v.id}')" style="font-size:11px;padding:5px 12px;opacity:.5">✕</button>`;
             if (v.status === 'rescheduled') return `
                 <button class="btn btn-sm" onclick="confirmViewingModal('${v.id}')" style="background:var(--gold);color:#000;font-size:11px;padding:5px 12px">✓ Confirm</button>`;
-            if (v.status === 'confirmed') return `
+            if (v.status === 'confirmed' || v.status === 'completed') {
+                let actions = `
                 <button class="btn btn-sm" onclick="generateViewingPass('${v.id}')" style="background:#000;color:#fff;font-size:11px;padding:5px 12px;border:1px solid rgba(255,255,255,.2)"> Send Pass</button>${v.passSent ? ' <span class="badge green" style="font-size:9px">Pass ✓</span>' : ''}`;
                 if (v.passSent && v.passSentUrl && (v.clientPhone || v.phone)) {
                     actions += ` <button class="btn btn-sm btn-secondary" onclick="(function(){var u=buildBoomWaLink('${(v.clientPhone || v.phone || '').replace(/'/g, '')}', 'viewing', { clientName: '${(v.clientName || '').replace(/'/g, '')}', confirmedDate: '${v.confirmedDate || ''}', confirmedTime: '${v.confirmedTime || ''}', passUrl: '${v.passSentUrl}' });if(u)window.open(u,'_blank');})()" style="font-size:11px;padding:5px 12px">💬 WA</button>`;
                 }
-                if ((v.status === 'completed' || v.status === 'confirmed') && !v.linkedContractId) {
+                if (!v.linkedContractId) {
                     actions += ` <button class="btn btn-sm" onclick="createContractFromViewing('${v.id}')" style="background:var(--gold);color:#000;font-size:11px;padding:5px 12px">📝 Contratto</button>`;
                 }
+                if (v.status === 'confirmed') {
+                    actions += `
+                <button class="btn btn-sm btn-secondary" onclick="rescheduleViewingModal('${v.id}')" style="font-size:11px;padding:5px 12px">↩ Reschedule</button>
+                <button class="btn btn-sm btn-secondary" onclick="cancelViewing('${v.id}')" style="font-size:11px;padding:5px 12px;color:#E88;border-color:rgba(238,136,136,.35)">✕ Cancel</button>`;
+                }
+                return actions;
+            }
             return '';
         }
 
@@ -5897,6 +5906,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <button class="btn btn-sm ${filter==='pending'?'':'btn-secondary'}" onclick="setViewingsFilter('pending')" style="${filter==='pending'?'background:var(--gold);color:#000':''}">⏳ Pending ${pending.length?`(${pending.length})`:''}</button>
             <button class="btn btn-sm ${filter==='confirmed'?'':'btn-secondary'}" onclick="setViewingsFilter('confirmed')" style="${filter==='confirmed'?'background:var(--gold);color:#000':''}">✅ Confirmed</button>
             <button class="btn btn-sm ${filter==='rescheduled'?'':'btn-secondary'}" onclick="setViewingsFilter('rescheduled')" style="${filter==='rescheduled'?'background:var(--gold);color:#000':''}">↩ Rescheduled</button>
+            <button class="btn btn-sm ${filter==='cancelled'?'':'btn-secondary'}" onclick="setViewingsFilter('cancelled')" style="${filter==='cancelled'?'background:var(--gold);color:#000':''}">✕ Cancelled</button>
             <button class="btn btn-sm ${filter==='all'?'':'btn-secondary'}" onclick="setViewingsFilter('all')" style="${filter==='all'?'background:var(--gold);color:#000':''}">All</button>
         </div>
 
@@ -5941,12 +5951,29 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     function setViewingsFilter(f) { S.viewingsFilter = f; goTo('viewings'); }
 
+    function viewingWhenLocal(v) {
+        // Best-known instant of the appointment, in the operator's local clock.
+        // ISO fields first: self-booked docs (slots.js) carry ONLY those, and the
+        // legacy confirmedTime is a UTC slice that must not be read as local.
+        var iso = v && (v.confirmedDateTime || v.scheduledAt || v.proposedDateTime);
+        var d = iso ? new Date(iso) : null;
+        if ((!d || isNaN(d.getTime())) && v && v.proposedDate && v.proposedTime) d = new Date(v.proposedDate + 'T' + v.proposedTime);
+        if (!d || isNaN(d.getTime())) return null;
+        var p = function(n){ return String(n).padStart(2, '0'); };
+        return {
+            date: d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()),
+            time: p(d.getHours()) + ':' + p(d.getMinutes()),
+            label: d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + p(d.getHours()) + ':' + p(d.getMinutes()),
+        };
+    }
+
     async function confirmViewingModal(id) {
         const v = (S.viewingRequests||[]).find(r => r.id === id);
         if (!v) return;
-        // Prefill with proposed date/time
-        const proposed = v.proposedDate || new Date().toISOString().split('T')[0];
-        const proposedT = v.proposedTime || '10:00';
+        // Prefill with the best-known date/time
+        const wl = viewingWhenLocal(v);
+        const proposed = (wl && wl.date) || new Date().toISOString().split('T')[0];
+        const proposedT = (wl && wl.time) || '10:00';
         document.getElementById('modals').innerHTML = `
         <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
         <div class="modal" onclick="event.stopPropagation()">
@@ -5954,7 +5981,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div class="modal-body">
                 <div class="info-box" style="margin-bottom:16px">
                     <div style="font-size:13px"><strong>${esc(v.clientName)}</strong> → ${esc(v.listingName)}</div>
-                    <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Proposed: ${v.proposedDate} at ${v.proposedTime}</div>
+                    <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Proposed: ${wl ? wl.label : '—'}</div>
                 </div>
                 <form id="confForm">
                     <input type="hidden" name="id" value="${id}">
@@ -6013,24 +6040,25 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     async function rescheduleViewingModal(id) {
         const v = (S.viewingRequests||[]).find(r => r.id === id);
         if (!v) return;
+        const wl = viewingWhenLocal(v);
         document.getElementById('modals').innerHTML = `
         <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
         <div class="modal" onclick="event.stopPropagation()">
-            <div class="modal-header"><h3 class="modal-title">↩ Propose Alternative</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-header"><h3 class="modal-title">↩ ${v.status === 'confirmed' ? 'Move Viewing' : 'Propose Alternative'}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body">
                 <div class="info-box" style="margin-bottom:16px">
-                    <div style="font-size:13px"><strong>${esc(v.clientName)}</strong> proposed: ${v.proposedDate} at ${v.proposedTime}</div>
+                    <div style="font-size:13px"><strong>${esc(v.clientName)}</strong> — current: ${wl ? wl.label : '—'}</div>
                 </div>
                 <form id="rescForm">
                     <input type="hidden" name="id" value="${id}">
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Your Suggested Date *</label>
-                            <input type="date" class="form-input" name="date" required>
+                            <input type="date" class="form-input" name="date" value="${(wl && wl.date) || ''}" required>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Your Suggested Time *</label>
-                            <input type="time" class="form-input" name="time" value="10:00" required>
+                            <input type="time" class="form-input" name="time" value="${(wl && wl.time) || '10:00'}" required>
                         </div>
                     </div>
                     <div class="form-group">
@@ -6078,50 +6106,31 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     async function cancelViewing(id) {
-        if (!confirm('Cancel this viewing request?')) return;
+        // Server-side da cima a fondo, come conferma e spostamento: la STESSA
+        // _apply.js di Telegram e della pagina cliente manda l'email di
+        // annullamento nel design system, il METHOD:CANCEL che toglie l'evento
+        // dal calendario dell'operatore, aggiorna il Wallet pass (voided) e
+        // spegne il countdown. Prima da qui partiva solo un update Firestore:
+        // la visita moriva in silenzio e il cliente si presentava al portone.
         const v = (S.viewingRequests || []).find(r => r.id === id);
+        const wasConfirmed = v && (v.status === 'confirmed' || v.confirmedDateTime || v.confirmedDate);
+        if (!confirm(wasConfirmed
+            ? 'Cancel this viewing? The client will be notified by email and the calendar event will be removed.'
+            : 'Cancel this viewing request? The client will be notified by email.')) return;
         try {
-            await db.collection('viewingRequests').doc(id).update({ status: 'cancelled', cancelledAt: firebase.firestore.FieldValue.serverTimestamp() });
-            // Local cache update
+            const idToken = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/viewings/confirm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+                body: JSON.stringify({ id, action: 'cancel' })
+            });
+            const j = await r.json().catch(() => null);
+            if (!j || !j.ok) throw new Error((j && j.error) || 'cancel_failed');
             const idx = (S.viewingRequests || []).findIndex(x => x.id === id);
-            if (idx >= 0) S.viewingRequests[idx] = Object.assign({}, S.viewingRequests[idx], { status: 'cancelled' });
-            const freshV = Object.assign({}, v || { id: id }, { status: 'cancelled' });
-
-            // If a pass was previously generated, regenerate as voided so already-installed
-            // Apple Wallet passes get the strikethrough indicator on next push.
-            if (v && v.passSent) {
-                try {
-                    const addr = await resolveViewingAddress(freshV);
-                    const confirmedDateISO = combineToISO(v.confirmedDate || v.proposedDate, v.confirmedTime || v.proposedTime);
-                    toast('info', 'Voiding pass...');
-                    const result = await generatePass('viewing', {
-                        viewingId: id,
-                        clientName: v.clientName || '',
-                        propertyAddress: addr.address || v.listingName || '',
-                        propertyCity: addr.city || 'Roma',
-                        propertyCoords: addr.coords,
-                        confirmedDateISO: confirmedDateISO,
-                        durationMinutes: v.duration || 30,
-                        meetingPoint: v.meetingPoint || 'AL CITOFONO',
-                        isVoided: true
-                    });
-                    if (result && result.url) {
-                        await db.collection('viewingRequests').doc(id).update({
-                            passVoided: true,
-                            passVoidedAt: new Date().toISOString(),
-                            passSentUrl: result.url
-                        }).catch(function(e){});
-                        console.log('[Viewing] Voided pass generated:', result.url);
-                    }
-                } catch (voidErr) { console.warn('[Viewing] void pass failed:', voidErr); }
-            }
-
-            try { await sendAdminViewingNotification('cancelled', freshV); }
-            catch (notifyErr) { console.warn('[admin-notify cancelled]', notifyErr); }
-
-            toast('success', 'Viewing cancelled');
+            if (idx >= 0) S.viewingRequests[idx] = Object.assign({}, S.viewingRequests[idx], { status: 'cancelled', voided: true });
+            toast('success', '✕ Annullata — cliente avvisato, calendario e pass aggiornati');
             await refreshViewings();
-        } catch(e) { toast('error', e.message); }
+        } catch(e) { console.error(e); toast('error', 'Error: ' + e.message); }
     }
 
     async function refreshViewings() {

@@ -9,6 +9,9 @@
 //   · weekly windows per weekday, Rome wall-clock (`settings/viewingAvailability`)
 //   · per-mode duration (person 45' / video 20'), minimum notice, horizon, max/day
 //   · a live viewing blocks its slot plus a 15' gap on either side
+//   · the operator's REAL calendar (Google Workspace secret ICS — _busyics.js,
+//     `BUSY_ICS_URLS` env and/or `busyIcs` on the config doc) blocks too: an
+//     event in the agenda removes the slot from every surface at once
 //
 // No external timezone library: Rome offsets are derived from Intl, which the
 // Node runtime already carries. `exceptId` lets a RESCHEDULE ignore the
@@ -17,9 +20,49 @@
 
 import { fsGet, fsList } from '../homie/_lib.js';
 import { startOf } from './_lib.js';
+import { externalBusy } from './_busyics.js';
 
 export const TZ = 'Europe/Rome';
 export const GAP_MINUTES = 15;               // travel / reset between visits
+export const SAME_LISTING_GAP_MINUTES = 0;   // back-to-back showings chain at the door
+export const MAX_TRAVEL_GAP_MINUTES = 45;
+
+/**
+ * The gap Rome actually demands between two commitments.
+ * Both sides are {listingId, lat, lng, mode} (any field may be missing).
+ *   · either side video          → flat GAP_MINUTES (no travel — it's a call)
+ *   · same listing, in person    → 0: three clients, one trip, a chain of
+ *     showings at the same door (this is what makes clustering possible)
+ *   · both geocoded              → haversine + Rome heuristic (~8′ to park
+ *     and walk + ~3.2′/km door to door), clamped to [15′, 45′] — a Parioli
+ *     visit right after a Trastevere one stops being bookable 15′ apart
+ *   · anything unknown           → GAP_MINUTES, exactly the old behavior
+ */
+export function travelGapMinutes(a, b) {
+  if (!a || !b) return GAP_MINUTES;
+  if (String(a.mode || 'person') === 'video' || String(b.mode || 'person') === 'video') return GAP_MINUTES;
+  if (a.listingId && b.listingId && String(a.listingId) === String(b.listingId)) return SAME_LISTING_GAP_MINUTES;
+  const c = [a.lat, a.lng, b.lat, b.lng].map(Number);
+  if (!c.every(Number.isFinite)) return GAP_MINUTES;
+  const toRad = x => x * Math.PI / 180;
+  const dLat = toRad(c[2] - c[0]), dLng = toRad(c[3] - c[1]);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(c[0])) * Math.cos(toRad(c[2])) * Math.sin(dLng / 2) ** 2;
+  const km = 2 * 6371 * Math.asin(Math.sqrt(h));
+  return Math.max(GAP_MINUTES, Math.min(MAX_TRAVEL_GAP_MINUTES, Math.round(8 + km * 3.2)));
+}
+
+/** The candidate side of travelGapMinutes, loaded from the listing. */
+export async function listingCtx(listingId) {
+  if (!listingId) return null;
+  let l = await fsGet(`listings/${listingId}`).catch(() => null);
+  if (!l) l = await fsGet(`properties/${listingId}`).catch(() => null);
+  if (!l) return { listingId };
+  return {
+    listingId,
+    lat: l.lat != null ? Number(l.lat) : null,
+    lng: l.lng != null ? Number(l.lng) : null,
+  };
+}
 
 export const DEFAULTS = {
   // 0 = Sunday … 6 = Saturday, Rome local hours
@@ -35,6 +78,7 @@ export const DEFAULTS = {
   minNoticeHours: 4,
   horizonDays: 14,
   maxPerDay: 6,
+  busyIcs: null,           // secret ICS URL(s) — merged with BUSY_ICS_URLS env
 };
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -82,12 +126,16 @@ export async function loadConfig() {
       minNoticeHours: Number(c.minNoticeHours) >= 0 ? Number(c.minNoticeHours) : DEFAULTS.minNoticeHours,
       horizonDays: Number(c.horizonDays) > 0 ? Math.min(30, Number(c.horizonDays)) : DEFAULTS.horizonDays,
       maxPerDay: Number(c.maxPerDay) > 0 ? Number(c.maxPerDay) : DEFAULTS.maxPerDay,
+      busyIcs: c.busyIcs || null,
     };
   } catch { return DEFAULTS; }
 }
 
 /**
- * Every live appointment in the horizon as [startMs, endMs, dateKey] blocks.
+ * Every live appointment in the horizon as [startMs, endMs, dateKey, meta]
+ * blocks. `meta` ({listingId, lat, lng, mode}) feeds travelGapMinutes so the
+ * grid knows WHERE each commitment is, not just when; blocks without it
+ * (legacy docs, external calendar events) fall back to the flat gap.
  * @param exceptId  viewing id to ignore (a reschedule must not block itself)
  */
 export async function busyBlocks(cfg, exceptId = null) {
@@ -102,18 +150,34 @@ export async function busyBlocks(cfg, exceptId = null) {
       const s = startOf(v);
       if (!s) continue;
       const dur = Number(v.durationMinutes) || 45;
-      out.push([s.getTime(), s.getTime() + dur * 60000, romeDateKey(s)]);
+      out.push([s.getTime(), s.getTime() + dur * 60000, romeDateKey(s), {
+        listingId: v.listingId || v.propertyId || null,
+        lat: v.lat != null ? Number(v.lat) : null,
+        lng: v.lng != null ? Number(v.lng) : null,
+        mode: v.mode || 'person',
+      }]);
     }
   }
+  // the operator's Google Workspace calendar: a real appointment removes the
+  // slot for every surface. Best-effort — an unreachable calendar must never
+  // switch off bookings (fail-open with cache inside _busyics.js).
+  try { out.push(...await externalBusy(cfg)); }
+  catch (e) { console.warn('[viewings/_avail] external busy skipped:', e && e.message); }
   return out;
 }
 
 /**
  * The published grid. Pure — same inputs, same output (unit-testable).
+ * @param ctx  {listingId, lat, lng} of the listing being booked — turns the
+ *             flat gap into travelGapMinutes per busy block: same-apartment
+ *             showings chain back-to-back, cross-town ones spread out. When
+ *             absent (legacy callers, no listing on the page) the grid
+ *             behaves exactly as before.
  * @returns [{ date:'YYYY-MM-DD', label:'Thu 31 Jul', times:[{iso,label}] }]
  */
-export function buildSlots(cfg, busy, mode, now = new Date()) {
+export function buildSlots(cfg, busy, mode, now = new Date(), ctx = null) {
   const step = cfg.slotMinutes[mode] || 45;
+  const slotCtx = ctx ? { ...ctx, mode } : null;
   const gapMs = GAP_MINUTES * 60000;
   const notAfter = now.getTime() + cfg.horizonDays * 86400000;
   const notBefore = now.getTime() + cfg.minNoticeHours * 3600000;
@@ -137,7 +201,10 @@ export function buildSlots(cfg, busy, mode, now = new Date()) {
       const end = romeToUtc(y, mo, d, b.h, b.m);
       while (cur.getTime() + step * 60000 <= end.getTime() + 1) {
         const s = cur.getTime(), e = s + step * 60000;
-        const free = !busy.some(([bs, be]) => s < be + gapMs && e + gapMs > bs);
+        const free = !busy.some(b => {
+          const g = slotCtx ? travelGapMinutes(slotCtx, b[3]) * 60000 : gapMs;
+          return s < b[1] + g && e + g > b[0];
+        });
         if (free && s >= notBefore && s <= notAfter) {
           times.push({
             iso: new Date(s).toISOString(),

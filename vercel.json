@@ -706,6 +706,14 @@
       "schedule": "10 5 * * *"
     },
     {
+      "path": "/api/regista/cron",
+      "schedule": "30 5 * * *"
+    },
+    {
+      "path": "/api/payments/recover-checkouts",
+      "schedule": "25 */4 * * *"
+    },
+    {
       "path": "/api/employees/commerciale",
       "schedule": "0 6-18/2 * * *"
     },

@@ -102,6 +102,9 @@ export default async function handler(req, res) {
 
   const lang = replyLang(v);
   const op = String((body && body.op) || 'lookup').toLowerCase();
+  // the viewing knows its listing (loadViewing enriches lat/lng): reschedule
+  // grids get the same travel-aware gaps as the public booking page
+  const vctx = { listingId: v.listingId || v.propertyId || null, lat: v.lat != null ? Number(v.lat) : null, lng: v.lng != null ? Number(v.lng) : null };
   const start = startOf(v);
   const past = !start || start.getTime() <= Date.now();
   const open = OPEN_STATUSES.has(String(v.status || '').toLowerCase()) && !v.voided;
@@ -114,7 +117,7 @@ export default async function handler(req, res) {
       if (canChange) {
         const cfg = await loadConfig();
         const mode = isVideo(v) ? 'video' : 'person';
-        slots = buildSlots(cfg, await busyBlocks(cfg, id), mode);
+        slots = buildSlots(cfg, await busyBlocks(cfg, id), mode, new Date(), vctx);
       }
       return res.status(200).json({
         ok: true, timezone: TZ, canChange, past,
@@ -127,7 +130,7 @@ export default async function handler(req, res) {
       if (!canChange) return res.status(409).json({ ok: false, error: past ? 'too_late' : 'not_open' });
       const mode = VALID_MODE.has(String(body.mode || '').toLowerCase()) ? String(body.mode).toLowerCase() : (isVideo(v) ? 'video' : 'person');
       const cfg = await loadConfig();
-      return res.status(200).json({ ok: true, mode, timezone: TZ, slots: buildSlots(cfg, await busyBlocks(cfg, id), mode) });
+      return res.status(200).json({ ok: true, mode, timezone: TZ, slots: buildSlots(cfg, await busyBlocks(cfg, id), mode, new Date(), vctx) });
     }
 
     // ── reschedule ────────────────────────────────────────────────────────
@@ -143,7 +146,7 @@ export default async function handler(req, res) {
       // seconds stale, and two people can want the same 15:00.
       const cfg = await loadConfig();
       const busy = await busyBlocks(cfg, id);
-      if (!slotOffered(buildSlots(cfg, busy, mode), when)) {
+      if (!slotOffered(buildSlots(cfg, busy, mode, new Date(), vctx), when)) {
         return res.status(409).json({ ok: false, error: 'slot_taken' });
       }
 

@@ -178,6 +178,11 @@ service cloud.firestore {
     // ─── config ───────────────────────────────────────────────────────
     match /config/{x} { allow read, write: if isAdmin(); }
 
+    // ─── operatorTasks (Il Regista: foglio di chiamata + promemoria) ──
+    // Solo admin; i cron scrivono con credenziali admin. Senza questa riga
+    // cadrebbe nel default-deny (la lezione di propertyLocks).
+    match /operatorTasks/{x} { allow read, write: if isAdmin(); }
+
     // ─── activityLog ──────────────────────────────────────────────────
     match /activityLog/{x} {
       allow read:   if isAdmin();

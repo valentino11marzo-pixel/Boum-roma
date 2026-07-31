@@ -168,6 +168,13 @@ DOC_MAIL_FROM                # optional — extra TRUSTED senders whose email
                              # operator's own addresses are always trusted.
 VIEWINGS_CALENDAR_EMAIL      # optional — where viewing calendar invites are
                              # sent (defaults to GMAIL_USER)
+BUSY_ICS_URLS                # optional — secret ICS address(es) of the
+                             # operator's REAL calendar (Google Workspace:
+                             # Calendar → Settings → your calendar →
+                             # "Secret address in iCal format"), comma-
+                             # separated. Busy events remove slots from the
+                             # public booking grid. Fail-open: an unreachable
+                             # calendar never blocks bookings
 TELEGRAM_BOT_TOKEN           # already used by api/telegram/*; pfs health alerts
 TELEGRAM_CHAT_ID
 ```
@@ -389,6 +396,80 @@ viewing id + server secret).
   viewing blocks itself and can never move by 30 minutes. Unit-tested
   (`node tests/viewings/avail.mjs`): step math, the 15' gap, notice,
   horizon, max/day, and the DST boundary.
+- `api/viewings/_busyics.js` — **il calendario Workspace dentro la griglia**
+  (la risposta a "non posso avere disponibilità istantanea costante su tutti
+  gli appartamenti"): legge gli indirizzi ICS segreti (`BUSY_ICS_URLS` env
+  e/o `busyIcs` sul doc `settings/viewingAvailability`) e ogni impegno REALE
+  dell'operatore diventa un blocco per `busyBlocks()` — book.html, la pagina
+  self-service del cliente e il picker Telegram smettono INSIEME di offrire
+  quello slot. Bloccare l'instant booking per un pomeriggio = trascinare un
+  evento in Google Calendar, nessuna UI BOOM. TRANSPARENT ("libero") e
+  CANCELLED non bloccano; gli eventi BOOM stessi (UID
+  `boom-viewing-*`/`viewing-*@boomrome.com` — inviti, .ics cliente, feed)
+  sono filtrati, altrimenti la copia in calendario di una visita bloccherebbe
+  il SUO stesso reschedule; ricorrenze espanse nell'orizzonte (DAILY/WEEKLY
+  con BYDAY/INTERVAL/COUNT/UNTIL/EXDATE, istanze spostate via RECURRENCE-ID,
+  MONTHLY/YEARLY semplici — l'esotico contribuisce solo la prima istanza);
+  gli impegni esterni NON consumano `maxPerDay` (sono tempo occupato, non
+  visite); fetch con cache 2' + stale 6h e SEMPRE fail-open: un calendario
+  irraggiungibile non spegne mai le prenotazioni. È integrazione senza
+  credenziali OAuth: l'URL segreto È la credenziale (rotarlo da Google lo
+  revoca). Test: `node tests/viewings/busyics.mjs`.
+- **Annullamento admin dal portal**: la riga visita ha ✕ Cancel anche sulle
+  CONFERMATE (le instant self-booked nascono confermate — prima il bottone
+  esisteva solo sulle pending) e passa da `/api/viewings/confirm` →
+  `_apply.js`: email di annullamento al cliente, METHOD:CANCEL che toglie
+  l'evento dal calendario, Wallet pass aggiornato, countdown spento. Prima
+  il portal scriveva solo `status:'cancelled'` su Firestore: il cliente non
+  veniva avvisato e si presentava al portone. Aggiunti anche ↩ Reschedule
+  sulle confermate, il filtro ✕ Cancelled, e i modal ora mostrano/prefillano
+  l'orario reale anche per i doc self-booked (che hanno solo i campi ISO).
+- **La geometria della giornata** (`travelGapMinutes` in `_avail.js`): il
+  gap tra due impegni non è più un 15' piatto — Roma non è un punto. Visite
+  IN PERSONA sullo stesso immobile si INCATENANO (gap 0: tre clienti, un
+  viaggio — il grid offre lo slot adiacente); tra immobili geocodificati il
+  gap è il viaggio vero (haversine + euristica Roma ~8'+3,2'/km, clamp
+  15–45'); video = 15' piatto (nessun viaggio); tutto ciò che non si conosce
+  (doc legacy senza coordinate, blocchi ICS esterni) = 15' identico a prima.
+  Il contesto (l'immobile che si sta prenotando) arriva da book.html (che
+  già mandava `listingId`), dalla pagina self-service del cliente e dal
+  picker Telegram; `slots.js`/`_apply.js` stampano `lat`/`lng` sul doc
+  visita alla creazione/conferma così `busyBlocks` non fa letture extra.
+  Test: `node tests/viewings/gap.mjs`.
+
+### Il Regista (`api/regista/*` — cron 05:30 UTC + Telegram)
+Il quarto membro de La Squadra: dirige la GIORNATA dell'operatore.
+- **Il Foglio di Chiamata** (`_brief.js`, deterministico — un call sheet
+  deve essere GIUSTO, non eloquente: zero AI): ogni mattina alle 07:30 su
+  Telegram la timeline delle visite di oggi coi viaggi reali tra una e
+  l'altra (stessa euristica della griglia — foglio e grid non possono
+  divergere), cosa è successo stanotte (prenotazioni self-service,
+  spostamenti del cliente), le richieste da confermare → /visite, i task di
+  oggi con bottoni ✓ Fatta / ⏰ +1g, e domani in una riga. Silenzioso a
+  giornata vuota; `/giornata` lo manda on demand (anche vuoto).
+- **La memoria task** (`_tasks.js`, collection `operatorTasks` admin-only in
+  firestore.rules): l'operatore scrive al bot in linguaggio naturale
+  ("ricordami di comprare le lampadine per Pigneto domani alle 15") →
+  `parseTaskText`, parser REGEX a grammatica chiusa (mai un'allucinazione:
+  oggi/stasera/domattina/domani/dopodomani/giorni della settimana — con
+  lookaround espliciti, `\b` è cieco dopo "giovedì" — /task, DD/MM, "5
+  settembre", "il 15", orari IT/EN am/pm; grammatica pinnata nei test).
+  `/task` lista gli aperti. **Un task CON orario diventa un VERO evento nel
+  calendario del telefono** (invito iCal UID `boom-task-<id>`, SEQUENCE
+  crescente): ✓ Fatta → METHOD:CANCEL e l'evento sparisce da solo, ⏰ +1g →
+  l'evento si sposta. `_busyics.js` filtra `boom-task-*` così un task non
+  mangia mai uno slot prenotabile via round-trip ICS.
+- **Task automatici** (nel run del cron, id deterministici
+  `task_prep_<giorno>_<immobile>` / `task_esito_<viewingId>` — un rerun non
+  duplica MAI, la data sta in testa all'id così la troncatura non la taglia):
+  🔑 preparazione chiavi/accesso per ogni immobile con visite in persona
+  oggi (l'orario della prima visita nel titolo; se le visite vengono
+  annullate il prep task si auto-VOIDa), 📋 "esito visita" per ogni visita
+  completata ieri — il follow-up che decide il fatturato, messo dove
+  l'operatore lo vede.
+- Heartbeat `teamHealth/regista` (card 🎬 in `/team`), alert Telegram dopo 3
+  run falliti, `?dry=1` per l'anteprima. Callback `tkd:`/`tks:` ≤64 byte per
+  costruzione. Test: `node tests/regista/run.mjs`.
 - `api/viewings/_apply.js` — **the ONE place a viewing changes state**.
   Four surfaces confirm/move/cancel (the operator's API, their Telegram
   buttons, the client's own page, the portal); the side-effects — email,
@@ -652,6 +733,29 @@ last period is prorated to what the lease actually has left, and both
 paths write the same deterministic id `pay_<contractId>_<YYYY-MM>` (plus
 `coversTo`, `installmentMonths`) so they can never duplicate a schedule.
 Legacy contracts with no cadence field behave exactly as before.
+
+### GET/POST `/api/payments/recover-checkouts` (cron ogni 4h) — IL RECUPERO
+I quasi-clienti di Stripe. Legge le checkout session SCADUTE degli ultimi 14
+giorni: **PFS/SERVICE/RESERVE** (form completo, arrivati al pagamento, mai
+pagato) → lead `strec_<sessione>` in `leads` (status `new`, source
+`stripe-recovery`) e da lì la macchina ESISTENTE fa tutto da sola (Lead
+Brain → notify-pending con bottone WhatsApp → Commerciale);
+**PREAGREEMENT/DEPOSIT/RENT** scaduti → recap Telegram (il cliente è già
+nel pipeline: ha accettato e non ha pagato, serve l'operatore, non un lead
+doppio). Mai un falso positivo: email dell'operatore filtrate (i suoi
+test), chi ha RIPROVATO e pagato viene saltato (check sessioni complete
+per email), chi è già in `leads` viene saltato, id deterministico → un
+rerun non duplica mai. La lingua del lead viene SOLO dalle parole verbatim
+del cliente (mai dal riassunto italiano per l'operatore). Heartbeat
+`teamHealth/recupero` (card ♻️ in `/team`). Auth come i cron PFS; `?dry=1`.
+Test: `node tests/recovery/run.mjs`.
+
+**`api/stripe-webhook.js` — soldi che tornano indietro, mai in silenzio**:
+oltre a `checkout.session.completed` ora gestisce `charge.refunded`,
+`charge.dispute.created` (alert Telegram ad alta priorità con la SCADENZA
+per le prove — una dispute non risposta è persa) e `charge.dispute.closed`
+(esito). Idempotente sui retry via `agentNotifications/stripe-<eventId>`.
+I 4 eventi sono abilitati sull'endpoint live (`we_1TOvpx…`).
 
 ### One-tap buy from an email — `GET /api/services/buy`
 `?kind=&e=&n=&ref=` → creates the Stripe session from the shared catalog
@@ -1178,6 +1282,12 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/geo/run.mjs` | precisione dei pin (`js/boom-geo.js`): portone (via+civico), strada, quartiere o niente — sulle stringhe `geo.q` vere del catalogo, incluso il caso insidioso `src:'nominatim'` su `q:'Prati, Roma'` |
   | `tests/scheda/run.mjs` | La Scheda: token derivati (ruolo nella derivazione, timing-safe), precedenza prefill contratto→sign→wizard, lock post-firma, sync profilo su ENTRAMBI gli schemi users, upload con OCR che non blocca mai, /api/profile/link autorizzato |
   | `tests/notify/run.mjs` | ciclo email contratto (pdf-lib REALE, nodemailer mockato): fascicolo CAF a valentino@boom-rome.com esattamente una volta con anagrafica di entrambe le parti, welcome nella lingua del lettore, invito firma col link giusto e 409 sul locatore sequenziale, conferma scheda one-shot |
+  | `tests/viewings/avail.mjs` | griglia slot: passi, gap 15', preavviso, orizzonte, maxPerDay, DST, token del link cliente |
+  | `tests/viewings/telegram.mjs` | card Telegram visite: callback ≤64 byte, escaping HTML |
+  | `tests/viewings/busyics.mjs` | il calendario Workspace nella griglia: impegni ICS bloccano gli slot (TZID, ricorrenze, EXDATE, RECURRENCE-ID, all-day busy/free), eventi BOOM filtrati, maxPerDay immune, cache + fail-open |
+  | `tests/viewings/gap.mjs` | la geometria della giornata: stesso immobile a catena (gap 0), viaggi reali tra zone (clamp 15–45'), video piatto, blocchi legacy identici a prima |
+  | `tests/regista/run.mjs` | Il Regista: grammatica dei promemoria (IT/EN, accenti, "il 16/08", range che non sono date), id deterministici ≤64B, inviti calendario dei task, foglio di chiamata (escaping, viaggi, catene, giorno vuoto) |
+  | `tests/recovery/run.mjs` | Il Recupero: chi diventa lead (PFS/SERVICE/RESERVE) e chi recap (PA/DEPOSIT/RENT), i test dell'operatore mai, id deterministico, lingua dalle parole del cliente |
   | `tests/safari/boot.mjs` | nessuna superficie autenticata resta appesa su un loader |
 - PWA support via `manifest.json` and `sw.js` service worker — registered on
   the 3 portals via `BoomPortal.registerServiceWorker()`
