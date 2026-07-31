@@ -198,10 +198,10 @@ await t('la card impostazioni riflette lo stato reale della configurazione', asy
 await t('una P.IVA con checksum rotto viene segnalata nella card', async () => {
   const html = await page.evaluate(() => {
     const keep = S.billing;
-    S.billing = Object.assign({}, keep, { vat: '17546591000' });
+    S.billing = Object.assign({}, keep, { vat: '17546591000' }); // il vecchio refuso
     const h = window.billingSettingsCard(); S.billing = keep; return h;
   });
-  ok(html.includes('checksum non valido'), 'la P.IVA cablata in COMPANY dev\'essere segnalata');
+  ok(html.includes('checksum non valido'), 'una P.IVA che non torna dev\'essere segnalata a schermo');
 });
 
 await browser.close();

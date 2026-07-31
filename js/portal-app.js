@@ -169,11 +169,16 @@ window.__portalAppLoaded = true; // sentinella per la via d'uscita anti-spinner-
         name: 'BOOM',
         legal: 'Egidi Immobiliare S.r.l.',
         address: 'Roma, Italia',
-        // ⚠️ Questa P.IVA NON supera il controllo di checksum (algoritmo
-        // ufficiale a 11 cifre) — vedi tests/invoice/run.mjs. Resta qui solo
-        // per i PDF legacy: la fatturazione elettronica legge `billing/company`
-        // (Impostazioni → Dati di fatturazione), dove il campo è validato.
-        piva: '17546591000',
+        // P.IVA reale di Egidi Immobiliare S.r.l., checksum verificato
+        // (tests/invoice/run.mjs). La precedente — 17546591000 — era un
+        // refuso che non superava il controllo a 11 cifre, ed era stampata su
+        // ogni PDF prodotto dal portale: con quella nel CedentePrestatore lo
+        // SdI avrebbe scartato ogni fattura elettronica.
+        //
+        // Serve ai PDF legacy e a precompilare il form Impostazioni. La
+        // fatturazione elettronica legge comunque `billing/company`, che è
+        // l'unica fonte con anche sede e REA.
+        piva: '17322991005',
         email: 'info@boomrome.com',
         phone: '+39 331 325 1961',
         website: 'www.boomrome.com',
@@ -28553,7 +28558,7 @@ ${d.description || '-'}`;
     function billingSettingsCard() {
         var b = S.billing || {};
         var v = function (k, d) { return esc(b[k] == null ? (d == null ? '' : d) : b[k]); };
-        var vatOk = b.vat ? IE().checkVat(b.vat) : null;
+        var vatOk = IE().checkVat(b.vat || COMPANY.piva);
         return '<div class="card" id="billingCard"><div class="card-header"><h3 class="card-title">🧾 Dati di fatturazione (emittente)</h3>' +
             (billingConfigured() ? '<span class="badge green">configurato</span>' : '<span class="badge orange">da compilare</span>') + '</div><div class="card-body">' +
             '<p style="margin-bottom:14px;color:var(--text-secondary);font-size:13px">Questi dati finiscono nel blocco <em>CedentePrestatore</em> dell\'XML FatturaPA. Sono salvati in <code>billing/company</code>, collezione riservata all\'admin — non in <code>settings</code>, che le regole Firestore aprono in lettura a chiunque.</p>' +
@@ -28561,7 +28566,7 @@ ${d.description || '-'}`;
             '<div class="form-group"><label class="form-label">Regime fiscale</label><select class="form-select" id="blRegime">' +
                 Object.keys(IE().REGIMI).map(function (k) { return '<option value="' + k + '"' + ((b.regime || 'RF01') === k ? ' selected' : '') + '>' + k + ' · ' + esc(IE().REGIMI[k]) + '</option>'; }).join('') +
             '</select></div></div>' +
-            '<div class="form-row"><div class="form-group"><label class="form-label">Partita IVA *</label><input type="text" class="form-input" id="blVat" value="' + v('vat') + '" placeholder="11 cifre" oninput="billingCheckVat(this.value)">' +
+            '<div class="form-row"><div class="form-group"><label class="form-label">Partita IVA *</label><input type="text" class="form-input" id="blVat" value="' + v('vat', COMPANY.piva) + '" placeholder="11 cifre" oninput="billingCheckVat(this.value)">' +
                 '<div id="blVatMsg" style="font-size:11px;margin-top:4px;color:var(--' + (vatOk === false ? 'red' : 'text-muted') + ')">' +
                 (vatOk === false ? '⛔ checksum non valido — lo SdI rifiuterà il file' : (vatOk ? '✓ checksum valido' : '')) + '</div></div>' +
             '<div class="form-group"><label class="form-label">Codice Fiscale</label><input type="text" class="form-input" id="blCf" value="' + v('cf') + '" placeholder="se diverso dalla P.IVA"></div></div>' +

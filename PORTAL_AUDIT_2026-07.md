@@ -32,8 +32,26 @@ collezione `invoices`:
 | `autoInvoiceForPayment()` | `BOOM-YYYY-NNNN` | nessuna | inquilino | **fatturava il canone**: soldi dell'inquilino diretti al proprietario contati come ricavo BOOM |
 
 Più: `parseInt(data.amount)` — una fattura da 1.383,50 veniva salvata **1.383**.
-E `COMPANY.piva` (`17546591000`) **non supera il controllo di checksum**
-dell'algoritmo ufficiale a 11 cifre; è stampata su ogni PDF prodotto finora.
+E `COMPANY.piva` valeva `17546591000`, che **non supera il controllo di
+checksum** dell'algoritmo ufficiale a 11 cifre — stampata su ogni PDF prodotto
+finora e destinata a far scartare dallo SdI ogni fattura elettronica.
+
+Non era un dato ignoto: la P.IVA giusta — **`17322991005`** — era **già scritta
+correttamente in cinque altri posti del repo**, compresa un'altra riga dello
+stesso `portal-app.js`:
+
+| file | valore |
+|---|---|
+| `js/portal-app.js:181` (`COMPANY.piva`) | `17546591000` ✗ |
+| `js/portal-app.js:10825` (pagina «Egidi Immobiliare — Fiscale») | `17322991005` ✓ |
+| `api/preagreement/_pdf.js` (piè di pagina del pre-accordo) | `17322991005` ✓ |
+| `api/preagreement/_notify.js` (piè di pagina email) | `17322991005` ✓ |
+| `docs/*-outreach.md` | `17322991005` ✓ |
+
+Due P.IVA diverse nello stesso file, e quella sbagliata era la costante che
+alimentava i PDF. È il caso da manuale per cui un dato del genere deve avere
+**una sola fonte con una verifica automatica**: `checkVat()` lo respinge, un
+test lo pinna, e la card Impostazioni lo dice a schermo mentre lo si digita.
 
 ### Cosa c'è adesso
 
@@ -249,14 +267,13 @@ Ordinate per rapporto valore/rischio.
 
 - **Il caricamento dati** (§4): fuori scope, va fatto contro dati veri.
 - **Le 53 funzioni morte** (§3): vanno tolte in un commit dedicato.
-- **La P.IVA `17546591000`**: non la correggo da solo, perché non conosco quella
-  giusta. È lasciata in `COMPANY` per i PDF legacy, con un commento che dice
-  che non supera il checksum, un test che lo pinna
-  (`tests/invoice/run.mjs`, «la P.IVA cablata in portal-app NON supera il
-  checksum») e la card Impostazioni che lo segnala a schermo appena la si
-  digita. **Va inserita quella vera in Impostazioni → Dati di fatturazione
-  prima di emettere il primo documento**: la fatturazione elettronica legge da
-  lì, non da `COMPANY`.
+- **La sede e il REA dell'emittente**: la P.IVA è ora quella vera
+  (`17322991005`, checksum verificato e pinnato nei test) e precompila il form,
+  ma `COMPANY.address` vale `'Roma, Italia'` — non è una sede: manca via,
+  civico e CAP, e il numero REA non è noto. Senza quelli l'XML viene scartato,
+  e la validazione lo dice. **Vanno completati in Impostazioni → Dati di
+  fatturazione prima di emettere il primo documento**: la fatturazione
+  elettronica legge `billing/company`, non `COMPANY`.
 - **`firestore.rules`**: aggiunta solo la riga per `billing` (admin-only).
   Ricordarsi `npx firebase-tools deploy --only firestore:rules`.
 

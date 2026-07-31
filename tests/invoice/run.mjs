@@ -237,12 +237,12 @@ t('P.IVA: il checksum vero, non una lunghezza', () => {
   ok(fields(errs({ date: '2026-07-31', buyer: { ...BUYER_B2B, vat: '17546591001' }, lines: [{ description: 'x', unitPrice: 1, vatRate: 22 }] })).includes('buyer.vat'));
 });
 
-t('la P.IVA cablata in portal-app (17546591000) NON supera il checksum', () => {
-  // Questo test è una campana, non un capriccio: quel numero è stampato oggi
-  // su ogni PDF che il portale produce. Con quello nel CedentePrestatore lo
-  // SdI scarta il file. Va corretto in Impostazioni → Dati fatturazione con
-  // la P.IVA reale, e quando succede questo test va aggiornato di conseguenza.
-  ok(!INV.checkVat('17546591000'));
+t('la P.IVA di Egidi in portal-app supera il checksum', () => {
+  // Pinnata perché è il dato che finisce nel CedentePrestatore: con una P.IVA
+  // sbagliata lo SdI scarta OGNI fattura, e lo scarto arriva giorni dopo.
+  // La precedente (17546591000) era un refuso e falliva questo controllo.
+  ok(INV.checkVat('17322991005'), 'P.IVA Egidi Immobiliare S.r.l.');
+  ok(!INV.checkVat('17546591000'), 'il vecchio refuso deve restare respinto');
 });
 
 t('aliquota 0 senza Natura → errore (scarto SdI 00400)', () => {
