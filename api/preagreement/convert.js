@@ -151,8 +151,12 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
     // deposito. depositPaid solo quando non resta alcun saldo.
     depositAlreadyPaidEur: (pa.status === 'paid' && Number(m.depositAtSigning) > 0) ? Number(m.depositAtSigning) : 0,
     depositPaid: pa.status === 'paid' && Number(m.depositAtSigning) > 0 && !(Number(m.depositAtMoveIn) > 0),
-    // La provvigione smette di sparire: viaggia sul contratto (fattura,
-    // recap, futuri incassi) — prima non arrivava in NESSUN rail.
+    // La provvigione smette di sparire: viaggia sul contratto SOLO come
+    // dato interno (fattura, recap, incassi). REGOLA DI BUSINESS: la fee
+    // BOOM non compare MAI nel contratto di locazione stampato/firmato/
+    // registrato (Allegato B/C, sign.html, fascicolo) — vive nel
+    // pre-agreement (che il cliente sottoscrive) e nei gestionali interni.
+    // Nessun generatore deve leggere questo campo per stamparlo sul PDF.
     agencyFee: (Number(m.feeTotal) > 0 || Number(m.fee) > 0) ? {
       totalEur: Number(m.feeTotal) || Number(m.fee) || 0,
       baseEur: Number(m.fee) || 0,
