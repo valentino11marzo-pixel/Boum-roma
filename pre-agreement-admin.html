@@ -504,6 +504,14 @@ window.createPA=async function(){
   var btn=$('goBtn');btn.disabled=true;btn.textContent=EDIT_ID?'Salvo…':'Creo…';
   try{
     if(EDIT_ID){
+      /* GUARDIA: un PA già CONVERTITO in contratto non si riscrive — il
+         contratto resterebbe sui termini vecchi senza alcun avviso (drift
+         silenzioso). La strada giusta è Duplica → nuova proposta. */
+      var _cur=await firebase.firestore().collection('preAgreements').doc(EDIT_ID).get();
+      if(_cur.exists&&(_cur.data()||{}).contractId){
+        err.textContent='⛔ Questa proposta è già stata convertita in contratto ('+_cur.data().contractId+'): non si modifica. Usa Duplica per una nuova versione.';
+        err.style.display='block';btn.disabled=false;btn.textContent='Salva';return;
+      }
       /* update in place — same token, same link, status back to sent */
       await firebase.firestore().collection('preAgreements').doc(EDIT_ID).update({
         listingId:body.listingId,propertyId:body.propertyId,autoConvert:!!body.propertyId,

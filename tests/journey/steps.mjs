@@ -145,6 +145,10 @@ check('firma completa: journey attivo',
   journeyEligible({ signInviteTenantAt: '2026-07-30', signatureStatus: 'complete' }) === true);
 check('legacy su carta (nessun invito, nessuna firma digitale): journey attivo',
   journeyEligible({ startDate: '2025-01-01' }) === true);
+check('nato da pre-agreement, mai firmato: journey TACE anche senza invito',
+  journeyEligible({ preAgreementId: 'pa1', signatureStatus: 'none' }) === false);
+check('nato da pre-agreement e FIRMATO: journey attivo',
+  journeyEligible({ preAgreementId: 'pa1', signatureStatus: 'complete' }) === true);
 
 console.log('\n────────────────────────────────────────────────');
 console.log(`\x1b[1mResult: ${pass} passed, ${fail} failed\x1b[0m`);

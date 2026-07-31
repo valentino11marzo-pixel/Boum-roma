@@ -6786,6 +6786,18 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const total = monthly * 12;
             const newToken = () => (crypto.randomUUID ? crypto.randomUUID() : Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join(''));
             const prior = (S.contracts || []).find(x => x.tenantId === userId && x.propertyId === w.propertyId && x.startDate === w.startDate && x.status !== 'cancelled');
+            // ANTI DOPPIO AFFITTO: il lucchetto server (propertyLocks) copre
+            // solo il rail pre-agreement — questo rail deve almeno vedere un
+            // contratto attivo sovrapposto sullo stesso immobile e chiedere.
+            const overlap = !prior && (S.contracts || []).find(x =>
+                x.propertyId === w.propertyId && x.status === 'active' && x.startDate && x.endDate
+                && !(x.endDate < w.startDate || x.startDate > w.endDate));
+            if (overlap && !confirm('⚠ Su questo immobile esiste già un contratto ATTIVO ' + overlap.startDate + ' → ' + overlap.endDate + ' (' + (overlap.tenantName || overlap.tenantId || '') + ').\n\nCreare comunque un secondo contratto sovrapposto?')) {
+                if (finishBtn) finishBtn.disabled = false;
+                if (backBtn) backBtn.disabled = false;
+                progress('');
+                return;
+            }
             let contractId, ctrData;
             if (prior) {
                 contractId = prior.id; ctrData = prior;
@@ -6820,6 +6832,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     ...(extra.depositAlreadyPaidEur > 0 ? { depositAlreadyPaidEur: extra.depositAlreadyPaidEur } : {}),
                     status: 'active',
                     signatureStatus: 'none',
+                    signingOrder: 'sequential',
+                    requiresAsseverazione: true,
                     tenantSignToken: newToken(),
                     landlordSignToken: newToken(),
                     paymentsGenerated: false,
@@ -14427,10 +14441,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 return;
             }
         }
+        // ANTI DOPPIO AFFITTO (stessa guardia del wizard): un contratto
+        // attivo sovrapposto sullo stesso immobile va confermato a voce.
+        const _ovl = (S.contracts || []).find(x =>
+            x.propertyId === data.propertyId && x.status === 'active' && x.startDate && x.endDate
+            && data.startDate && data.endDate && !(x.endDate < data.startDate || x.startDate > data.endDate));
+        if (_ovl && !confirm('⚠ Su questo immobile esiste già un contratto ATTIVO ' + _ovl.startDate + ' → ' + _ovl.endDate + '.\n\nCreare comunque un secondo contratto sovrapposto?')) return;
         try {
             const _mb = (data.startDate && data.endDate) ? monthsBetween(data.startDate, data.endDate) : { text: '', months: 0 };
             const contractData = {
-                propertyId: data.propertyId, 
+                propertyId: data.propertyId,
                 tenantId: data.tenantId,
                 type: data.type || 'transitorio',
                 startDate: data.startDate, 

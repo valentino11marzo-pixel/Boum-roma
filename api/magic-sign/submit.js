@@ -221,11 +221,19 @@ export default async function handler(req, res) {
   // /api/sign/deposit-checkout (the sign token is nulled by this request).
   // Il dovuto via Stripe è il SALDO: deposito pattuito meno quanto già
   // versato (es. alla firma della proposta) — mai il deposito pieno.
+  // UN SOLO PADRONE per ogni incasso: se il saldo vive già come rata
+  // depbal_ (rail pre-agreement: pagabile da /casa, promemoria T-7,
+  // riconciliazione bancaria), il CTA Stripe alla firma NON lo chiede una
+  // seconda volta.
   const depositBalance = Math.max(0, Number(contract.deposit || 0) - Number(contract.depositAlreadyPaidEur || 0));
   let depositPayToken = '';
   if (role === 'tenant' && depositBalance > 0 && !contract.depositPaid) {
-    depositPayToken = contract.depositPayToken || crypto.randomBytes(24).toString('hex');
-    upd.depositPayToken = depositPayToken;
+    let depbalOwned = false;
+    try { depbalOwned = !!(await fsGet('payments/depbal_' + contractId)); } catch (_) {}
+    if (!depbalOwned) {
+      depositPayToken = contract.depositPayToken || crypto.randomBytes(24).toString('hex');
+      upd.depositPayToken = depositPayToken;
+    }
   }
 
   // ── 3. Re-read FRESH (dati + updateTime per la precondizione) ──

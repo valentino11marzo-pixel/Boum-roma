@@ -89,8 +89,15 @@ const dayDiff = (iso) => {
 // digitale a sistema) è una locazione vera: per lui il journey resta attivo.
 export function journeyEligible(c) {
   if (!c) return false;
-  const invited = !!(c.signInviteTenantAt || c.signInviteLandlordAt) || c.signatureStatus === 'partial';
-  return !invited || c.signatureStatus === 'complete';
+  if (c.signatureStatus === 'complete') return true;
+  // Nel funnel firma (journey muto) se: invitato alla firma digitale, firma
+  // parziale, oppure NATO dal pre-agreement (digitale per costruzione — il
+  // rail PA non stampava l'invito e il T-30 partiva su contratti mai
+  // firmati). I legacy su carta (nessuno di questi segnali) restano dentro.
+  const inFunnel = !!(c.signInviteTenantAt || c.signInviteLandlordAt)
+    || c.signatureStatus === 'partial'
+    || !!c.preAgreementId;
+  return !inFunnel;
 }
 
 export function steps({ c, tenant, addrShort, addr, first, has = () => false, missing = null, late = false, walletUrl = '' }) {

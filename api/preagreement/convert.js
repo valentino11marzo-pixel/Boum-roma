@@ -100,15 +100,20 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
       } catch (_) {}
     }
     if (!tenantId) {
-      const { id } = await fsCreate('users', {
-        role: 'tenant',
-        name: t.fullName, email: t.email || '', phone: t.phone || '',
-        cf: t.cf || '', dob: t.dob || '', pob: t.birthPlace || '',
-        address: t.address || '', docNum: t.idDoc || '', nationality: t.nationality || '',
-        identityDocs: uploads.filter(u => (u.tenantIndex || 0) === 0).map(u => ({ url: u.url, name: u.name, at: u.at })),
-        createdBy: 'preagreement_convert', createdAt: new Date().toISOString(),
-      }, authUid || undefined).then(r => { tenantId = authUid || r.id; })
-        .catch(e => { if (e && e.exists && authUid) tenantId = authUid; else throw e; });
+      // BUG storico: il vecchio `const { id } = await fsCreate(...).then(r
+      // => { … })` destrutturava il ritorno del .then (undefined) e faceva
+      // fallire l'INTERA conversione su ogni inquilino mai visto prima.
+      try {
+        const r = await fsCreate('users', {
+          role: 'tenant',
+          name: t.fullName, email: t.email || '', phone: t.phone || '',
+          cf: t.cf || '', dob: t.dob || '', pob: t.birthPlace || '',
+          address: t.address || '', docNum: t.idDoc || '', nationality: t.nationality || '',
+          identityDocs: uploads.filter(u => (u.tenantIndex || 0) === 0).map(u => ({ url: u.url, name: u.name, at: u.at })),
+          createdBy: 'preagreement_convert', createdAt: new Date().toISOString(),
+        }, authUid || undefined);
+        tenantId = authUid || (r && r.id);
+      } catch (e) { if (e && e.exists && authUid) tenantId = authUid; else throw e; }
     }
   } catch (e) {
     console.error('[preagreement/convert] tenant bootstrap failed:', e.message);
@@ -139,6 +144,23 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
     rent,
     deposit: Number(m.deposit) || 0,
     depositMonths: Number(m.depositMonths) || 1,
+    // LA VERITÀ SUL DEPOSITO: quanto è GIÀ incassato col pre-agreement
+    // (dueAtSigning pagato via Stripe include depositAtSigning). Senza
+    // questo campo la firma Magic Sign chiedeva il deposito PIENO mentre
+    // esisteva anche la rata depbal_: tripla esposizione dello stesso
+    // deposito. depositPaid solo quando non resta alcun saldo.
+    depositAlreadyPaidEur: (pa.status === 'paid' && Number(m.depositAtSigning) > 0) ? Number(m.depositAtSigning) : 0,
+    depositPaid: pa.status === 'paid' && Number(m.depositAtSigning) > 0 && !(Number(m.depositAtMoveIn) > 0),
+    // La provvigione smette di sparire: viaggia sul contratto (fattura,
+    // recap, futuri incassi) — prima non arrivava in NESSUN rail.
+    agencyFee: (Number(m.feeTotal) > 0 || Number(m.fee) > 0) ? {
+      totalEur: Number(m.feeTotal) || Number(m.fee) || 0,
+      baseEur: Number(m.fee) || 0,
+      vatPct: Number(m.feeVatPct) || 22,
+      due: m.feeDue || 'move-in',
+      mode: m.feeMode || 'pct',
+      paidWithSigning: pa.status === 'paid' && m.feeDue === 'signing',
+    } : null,
     accessoryCharges: Number(m.energyCredit) || 0,
     paymentMethod: 'bonifico bancario',
     paymentDay: 5,
@@ -163,8 +185,27 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
     transitionalReason: le.reason || '',
     transitionalDocs: '',
     universityName: '', courseName: '',
-    cohabitants: tenants.slice(1).map(x => x.fullName).filter(Boolean).join(', '),
-    otherClauses: (Array.isArray(pa.customClauses) ? pa.customClauses : []).join('\n'),
+    // I co-conduttori del PA sopravvivono con l'IDENTITÀ COMPLETA (prima
+    // restavano solo i nomi concatenati): pack, PDF, scheda 360° e la
+    // co-firma leggono da qui. La stringa cohabitants resta per i
+    // generatori Allegato, ma ora porta anagrafica, non solo nomi.
+    cohabitants: tenants.slice(1).filter(x => x && x.fullName).map(x =>
+      [x.fullName, x.birthPlace ? 'nato/a a ' + x.birthPlace : '', x.dob ? 'il ' + x.dob : '',
+       x.cf ? 'C.F. ' + String(x.cf).toUpperCase() : ''].filter(Boolean).join(', ')).join('; '),
+    coTenants: tenants.slice(1).filter(x => x && x.fullName).map((x, i) => ({
+      name: x.fullName, cf: String(x.cf || '').toUpperCase(), dob: x.dob || '',
+      birthPlace: x.birthPlace || '', address: x.address || '', idDoc: x.idDoc || '',
+      nationality: x.nationality || '', email: x.email || '', phone: x.phone || '',
+      tenantIndex: i + 1, paSignedName: x.signName || x.typedSignature || x.signature || '',
+    })),
+    otherClauses: [
+      ...(Array.isArray(pa.customClauses) ? pa.customClauses : []),
+      ...(tenants.length > 1 ? [
+        'I co-conduttori (' + tenants.slice(1).map(x => x.fullName).filter(Boolean).join(', ')
+        + ') hanno sottoscritto la proposta accettata ' + (pa.ref || paId)
+        + ' e si obbligano in solido con il conduttore per tutte le obbligazioni derivanti dal presente contratto.',
+      ] : []),
+    ].join('\n'),
     studenti: null,
     notes: `Da pre-agreement ${pa.ref || paId} — accettato ${String(pa.acceptedAt || '').slice(0, 10)}${pa.paidAt ? ` · pagato €${pa.paidEur} il ${String(pa.paidAt).slice(0, 10)}` : ''}${uploads.length ? ` · ${uploads.length} documento/i d'identità allegati` : ''}.`,
     cadastral: '', energyClass: '',
@@ -245,6 +286,27 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
     } catch (e) { if (!e.exists) console.error('[preagreement/convert] depbal:', e.message); }
   }
 
+  // Schede cliente dei CO-CONDUTTORI (best-effort, dedupe per email):
+  // l'anagrafica raccolta dal PA diventa un profilo vero anche per loro.
+  for (let i = 0; i < tenants.slice(1).length; i++) {
+    const x = tenants[i + 1];
+    if (!x || !x.fullName) continue;
+    try {
+      if (x.email) {
+        const dup = await fsList('users', { filter: { field: 'email', op: 'EQUAL', value: x.email }, limit: 1 });
+        if (dup && dup[0]) continue;
+      }
+      await fsCreate('users', {
+        role: 'tenant', name: x.fullName, email: x.email || '', phone: x.phone || '',
+        cf: String(x.cf || '').toUpperCase(), dob: x.dob || '', pob: x.birthPlace || '',
+        address: x.address || '', docNum: x.idDoc || '', nationality: x.nationality || '',
+        identityDocs: uploads.filter(u => (u.tenantIndex || 0) === i + 1).map(u => ({ url: u.url, name: u.name, at: u.at })),
+        notes: 'Co-conduttore — PA ' + (pa.ref || paId),
+        createdBy: 'preagreement_convert', createdAt: new Date().toISOString(),
+      });
+    } catch (e) { console.warn('[preagreement/convert] co-tenant user:', e.message); }
+  }
+
   // Back-link on the PA (best-effort — the contract exists either way).
   // Sign URLs are stored here too so the console can offer 🖊 Magic Sign /
   // WhatsApp share without extra reads (preAgreements is admin-only).
@@ -257,6 +319,16 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
   logActivity('preagreement_converted', 'contract',
     { paId, ref: pa.ref || '', contractId, tenant: t.fullName, delegate: delegateOn, auto: actor === 'auto' }, actor)
     .catch(() => {});
+  // Il rail PA non può generare il PDF del contratto (jsPDF vive nel
+  // portal): promemoria operativo su Telegram — senza generatedPDF la
+  // copia firmata in allegato alla firma completa viene saltata.
+  fsCreate('agentNotifications', {
+    type: 'contract.pdf_missing',
+    summary: `📄 Contratto ${contractId} creato dal pre-agreement: genera il PDF dal portal (🔄 Rigenera PDF) prima dell'invito a firmare`,
+    priority: 'low', ref: { collection: 'contracts', id: contractId },
+    dedupKey: 'pdf-missing-' + contractId, status: 'pending',
+    actor: 'preagreement-convert', createdAt: new Date().toISOString(), attempts: 0,
+  }).catch(() => {});
 
   return {
     ok: true, contractId, tenantId,
