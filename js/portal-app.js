@@ -5890,6 +5890,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <p class="page-subtitle">Viewing requests from boomrome.com/book</p>
             </div>
             <div class="page-actions">
+                <button class="btn btn-secondary" style="font-size:12px" onclick="openAvailabilityModal()">⚙️ Disponibilità</button>
                 <button class="btn btn-secondary" style="font-size:12px" onclick="openCheckInScan()">📷 Check-in QR</button>
                 <a href="https://www.boomrome.com/book" target="_blank" class="btn btn-secondary" style="font-size:12px">🔗 Book Link</a>
             </div>
@@ -5967,6 +5968,169 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         };
     }
 
+    // ─── DISPONIBILITÀ: la regola ─────────────────────────────────────────────
+    // Le finestre di prenotazione erano i default hardcoded del server: nessuna
+    // pagina le mostrava, nessuna le poteva cambiare. Qui si scrivono una volta
+    // (settings/viewingAvailability) e valgono ovunque — book.html, la pagina
+    // del cliente e il picker Telegram leggono TUTTI questo doc.
+    // Le eccezioni del giorno restano in Google Calendar: un evento "Impegnato"
+    // toglie lo slot senza passare da qui.
+    let S_AVAIL = null;   // ultima config letta (serve anche all'avviso conflitti)
+
+    async function loadAvailability(force) {
+        if (S_AVAIL && !force) return S_AVAIL;
+        try {
+            const doc = await db.collection('settings').doc('viewingAvailability').get();
+            const A = window.BOOM_AVAIL;
+            S_AVAIL = doc.exists && doc.data() && Object.keys(doc.data()).length
+                ? Object.assign({}, A.UI_DEFAULTS, doc.data())
+                : Object.assign({}, A.UI_DEFAULTS);
+        } catch (e) {
+            console.warn('[availability] load:', e);
+            S_AVAIL = Object.assign({}, window.BOOM_AVAIL.UI_DEFAULTS);
+        }
+        return S_AVAIL;
+    }
+
+    async function openAvailabilityModal() {
+        const A = window.BOOM_AVAIL;
+        if (!A) return toast('error', 'Modulo disponibilità non caricato');
+        const cfg = await loadAvailability(true);
+        const wins = cfg.windows || {};
+        const rows = A.DAYS.map(d => `
+            <div class="form-group" style="margin-bottom:10px">
+                <label class="form-label" style="display:flex;justify-content:space-between">
+                    <span>${d.long}</span>
+                    <span style="font-weight:400;color:var(--text-muted);font-size:11px">vuoto = chiuso</span>
+                </label>
+                <input class="form-input" data-day="${d.i}" placeholder="es. 10:00-13:00, 15:00-19:00"
+                       value="${esc(A.formatWindows(wins[d.i]))}" oninput="availPreview()">
+            </div>`).join('');
+
+        document.getElementById('modals').innerHTML = `
+        <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+        <div class="modal" onclick="event.stopPropagation()" style="max-width:640px">
+            <div class="modal-header"><h3 class="modal-title">⚙️ Disponibilità visite</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-body">
+                <div class="info-box" style="margin-bottom:16px;font-size:12px;line-height:1.6">
+                    Questa è la <b>regola</b>: quando sei prenotabile in generale.<br>
+                    Le <b>eccezioni</b> del singolo giorno si fanno in Google Calendar — un evento
+                    segnato <b>“Impegnato”</b> toglie gli slot da solo, qui non devi toccare nulla.
+                </div>
+                <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px">Finestre settimanali (ora di Roma)</div>
+                ${rows}
+                <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);margin:18px 0 10px">Regole</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Durata visita di persona (min)</label>
+                        <input type="number" class="form-input" id="avPerson" min="10" max="180" value="${Number((cfg.slotMinutes||{}).person)||45}" oninput="availPreview()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Durata video (min)</label>
+                        <input type="number" class="form-input" id="avVideo" min="10" max="180" value="${Number((cfg.slotMinutes||{}).video)||20}" oninput="availPreview()">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Preavviso minimo (ore)</label>
+                        <input type="number" class="form-input" id="avNotice" min="0" max="168" value="${Number(cfg.minNoticeHours)||0}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Con quanti giorni d'anticipo (max 30)</label>
+                        <input type="number" class="form-input" id="avHorizon" min="1" max="30" value="${Number(cfg.horizonDays)||14}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Max visite al giorno</label>
+                        <input type="number" class="form-input" id="avMax" min="1" max="20" value="${Number(cfg.maxPerDay)||6}">
+                    </div>
+                </div>
+                <div id="avPreview" style="margin-top:6px;font-size:12px;color:var(--gold)"></div>
+                <div id="avError" style="margin-top:10px;font-size:12px;color:#E88;display:none"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
+                <button class="btn" style="background:var(--gold);color:#000" onclick="saveAvailability()">Salva regola</button>
+            </div>
+        </div></div>`;
+        availPreview();
+    }
+
+    function availReadForm() {
+        const A = window.BOOM_AVAIL;
+        const windows = {};
+        document.querySelectorAll('[data-day]').forEach(el => { windows[el.getAttribute('data-day')] = el.value; });
+        return A.buildConfig({
+            windows,
+            person: document.getElementById('avPerson').value,
+            video: document.getElementById('avVideo').value,
+            minNoticeHours: document.getElementById('avNotice').value,
+            horizonDays: document.getElementById('avHorizon').value,
+            maxPerDay: document.getElementById('avMax').value,
+        });
+    }
+
+    function availPreview() {
+        const A = window.BOOM_AVAIL;
+        const box = document.getElementById('avPreview');
+        const err = document.getElementById('avError');
+        if (!box) return;
+        try {
+            const cfg = availReadForm();
+            const n = A.previewCount(cfg.windows, cfg.slotMinutes.person);
+            const cap = Math.min(n, (cfg.maxPerDay || 6) * Object.keys(cfg.windows).length);
+            box.textContent = `≈ ${cap} visite di persona prenotabili a settimana (${n} slot, tetto ${cfg.maxPerDay}/giorno)`;
+            err.style.display = 'none';
+        } catch (e) {
+            box.textContent = '';
+            err.textContent = '⚠️ ' + e.message;
+            err.style.display = '';
+        }
+    }
+
+    async function saveAvailability() {
+        let cfg;
+        try { cfg = availReadForm(); }
+        catch (e) { return toast('error', e.message); }
+        try {
+            // merge: non tocchiamo busyIcs (il calendario si collega da env/altrove)
+            await db.collection('settings').doc('viewingAvailability').set(cfg, { merge: true });
+            S_AVAIL = Object.assign({}, S_AVAIL || {}, cfg);
+            closeModal();
+            toast('success', '⚙️ Disponibilità aggiornata — vale subito su /book, sul link cliente e su Telegram');
+        } catch (e) { toast('error', 'Errore: ' + e.message); }
+    }
+
+    // Le altre visite vive, nel formato che vuole BOOM_AVAIL.checkSlot
+    function availOtherViewings() {
+        return (S.viewingRequests || [])
+            .filter(v => !v.voided && (v.status === 'confirmed' || v.status === 'pending'))
+            .map(v => {
+                const iso = v.confirmedDateTime || v.scheduledAt || v.proposedDateTime
+                    || (v.proposedDate && v.proposedTime ? v.proposedDate + 'T' + v.proposedTime : null);
+                const d = iso ? new Date(iso) : null;
+                if (!d || isNaN(d.getTime())) return null;
+                return { id: v.id, start: d, minutes: Number(v.durationMinutes) || 45, clientName: v.clientName || v.name, listingName: v.listingName };
+            })
+            .filter(Boolean);
+    }
+
+    // L'avviso mentre scegli data/ora nei modal: NON blocca (sei l'operatore,
+    // a volte devi forzare) ma non ti lascia sovrapporre due clienti senza
+    // saperlo — cosa che finora succedeva in silenzio.
+    function availWarn(boxId, dateId, timeId, minutes, exceptId) {
+        const A = window.BOOM_AVAIL;
+        const box = document.getElementById(boxId);
+        if (!A || !box) return;
+        const form = box.closest('.modal');
+        const date = form.querySelector('[name="date"]').value;
+        const time = form.querySelector('[name="time"]').value;
+        if (!date || !time) { box.innerHTML = ''; return; }
+        const warns = A.checkSlot(new Date(date + 'T' + time), minutes, availOtherViewings(), S_AVAIL || A.UI_DEFAULTS, exceptId || null);
+        box.innerHTML = warns.length
+            ? warns.map(w => `<div style="color:${w.level === 'clash' ? '#E88' : 'var(--text-muted)'}">${w.level === 'clash' ? '⚠️' : 'ℹ️'} ${esc(w.text)}</div>`).join('')
+            : '<div style="color:#6C6">✓ Orario libero, dentro le tue finestre</div>';
+    }
+
     async function confirmViewingModal(id) {
         const v = (S.viewingRequests||[]).find(r => r.id === id);
         if (!v) return;
@@ -5988,13 +6152,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Confirmed Date *</label>
-                            <input type="date" class="form-input" name="date" value="${proposed}" required>
+                            <input type="date" class="form-input" name="date" value="${proposed}" required
+                                   oninput="availWarn('confWarn','date','time',${Number(v.durationMinutes) || 45},'${id}')">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Confirmed Time *</label>
-                            <input type="time" class="form-input" name="time" value="${proposedT}" required>
+                            <input type="time" class="form-input" name="time" value="${proposedT}" required
+                                   oninput="availWarn('confWarn','date','time',${Number(v.durationMinutes) || 45},'${id}')">
                         </div>
                     </div>
+                    <div id="confWarn" style="font-size:12px;line-height:1.6"></div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -6002,6 +6169,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <button class="btn" style="background:var(--gold);color:#000" onclick="confirmViewing()">✅ Confirm & Notify</button>
             </div>
         </div></div>`;
+        // la regola arriva da Firestore: finché non c'è, l'avviso usa i default
+        await loadAvailability();
+        availWarn('confWarn', 'date', 'time', Number(v.durationMinutes) || 45, id);
     }
 
     async function confirmViewing() {
@@ -6054,13 +6224,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Your Suggested Date *</label>
-                            <input type="date" class="form-input" name="date" value="${(wl && wl.date) || ''}" required>
+                            <input type="date" class="form-input" name="date" value="${(wl && wl.date) || ''}" required
+                                   oninput="availWarn('rescWarn','date','time',${Number(v.durationMinutes) || 45},'${id}')">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Your Suggested Time *</label>
-                            <input type="time" class="form-input" name="time" value="${(wl && wl.time) || '10:00'}" required>
+                            <input type="time" class="form-input" name="time" value="${(wl && wl.time) || '10:00'}" required
+                                   oninput="availWarn('rescWarn','date','time',${Number(v.durationMinutes) || 45},'${id}')">
                         </div>
                     </div>
+                    <div id="rescWarn" style="font-size:12px;line-height:1.6;margin-bottom:10px"></div>
                     <div class="form-group">
                         <label class="form-label">Message to client (optional)</label>
                         <textarea class="form-textarea" name="msg" rows="2" placeholder="e.g. That time doesn't work for me. How about this slot?"></textarea>
@@ -6072,6 +6245,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <button class="btn" onclick="rescheduleViewing()">↩ Send Alternative</button>
             </div>
         </div></div>`;
+        await loadAvailability();
+        availWarn('rescWarn', 'date', 'time', Number(v.durationMinutes) || 45, id);
     }
 
     async function rescheduleViewing() {
