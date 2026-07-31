@@ -415,6 +415,24 @@ viewing id + server secret).
   irraggiungibile non spegne mai le prenotazioni. È integrazione senza
   credenziali OAuth: l'URL segreto È la credenziale (rotarlo da Google lo
   revoca). Test: `node tests/viewings/busyics.mjs`.
+- **`GET|POST /api/viewings/calendar-check` + `/calendario` sul bot** — il
+  prezzo del fail-open è che il silenzio è ambiguo ("nessuno slot tolto" =
+  collegato e libero, oppure non collegato?). Questa è la risposta esplicita:
+  legge il calendario ADESSO (bypassa la cache), dice quante sorgenti, se
+  rispondono, quanti eventi ha letto, quanti **occupano tempo** e quali sono
+  i prossimi. Non mostra MAI l'URL (è la credenziale). **Trappola vera,
+  incontrata in produzione**: gli eventi creati in automatico da Gmail
+  (`eventType:FROM_GMAIL` — voli, hotel, conferme) nascono `TRANSPARENT`
+  cioè "Libero", quindi NON bloccano; il verdetto lo dice esplicitamente
+  invece di far concludere che l'integrazione è rotta. Per bloccare uno
+  slot l'evento va segnato **"Impegnato"** in Google Calendar.
+  **Nota Workspace**: se l'admin del dominio tiene "Opzioni di condivisione
+  esterna per i calendari principali" su *"Solo informazioni sulla
+  disponibilità"* o su *nessuna condivisione*, l'indirizzo **segreto** non
+  compare affatto nel pannello del calendario — va portato a "Condividi
+  tutte le informazioni" (è un permesso, non pubblica nulla), oppure si usa
+  l'indirizzo pubblico in modalità disponibilità (lì entra in gioco
+  `dropBoomEchoes`, perché quel feed anonimizza gli UID).
 - **Annullamento admin dal portal**: la riga visita ha ✕ Cancel anche sulle
   CONFERMATE (le instant self-booked nascono confermate — prima il bottone
   esisteva solo sulle pending) e passa da `/api/viewings/confirm` →

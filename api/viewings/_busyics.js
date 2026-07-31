@@ -328,12 +328,14 @@ export function busyIcsUrls(cfg) {
 const CACHE = new Map();                     // url → { at, text }
 export function clearIcsCache() { CACHE.clear(); }
 
+// never the full URL anywhere: it carries the secret
+export const safeHost = url => { try { return new URL(url).host; } catch { return 'calendar'; } };
+
 async function fetchIcsText(url, nowMs, fetchImpl) {
   const hit = CACHE.get(url);
   const age = hit ? nowMs - hit.at : Infinity;
   if (hit && age < FRESH_MS) return hit.text;
-  let host = 'calendar';
-  try { host = new URL(url).host; } catch { /* keep the placeholder */ }
+  const host = safeHost(url);
   try {
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), ICS_FETCH_TIMEOUT_MS);
@@ -346,7 +348,6 @@ async function fetchIcsText(url, nowMs, fetchImpl) {
     CACHE.set(url, { at: nowMs, text });
     return text;
   } catch (e) {
-    // never the full URL in a log line — it carries the secret
     console.warn(`[viewings/_busyics] fetch failed (${host}):`, e && e.message);
     return hit && age < STALE_OK_MS ? hit.text : null;
   }
@@ -355,9 +356,11 @@ async function fetchIcsText(url, nowMs, fetchImpl) {
 /**
  * The operator's external calendars as busy blocks for buildSlots().
  * dateKey is null on purpose: external events must not consume maxPerDay.
+ * @param report  optional array — per-source diagnostics are pushed into it
+ *                (host, ok, counts, error). Never contains the secret URL.
  * @returns [[startMs, endMs, null], …] — [] on any failure (fail-open)
  */
-export async function externalBusy(cfg, now = new Date(), fetchImpl = globalThis.fetch) {
+export async function externalBusy(cfg, now = new Date(), fetchImpl = globalThis.fetch, report = null) {
   const urls = busyIcsUrls(cfg);
   if (!urls.length || typeof fetchImpl !== 'function') return [];
   const nowMs = now.getTime();
@@ -366,10 +369,18 @@ export async function externalBusy(cfg, now = new Date(), fetchImpl = globalThis
   const winEnd = nowMs + (horizonDays + 2) * 86400000;
   const texts = await Promise.all(urls.map(u => fetchIcsText(u, nowMs, fetchImpl)));
   const out = [];
-  for (const t of texts) {
-    if (!t) continue;
-    try { out.push(...icsBusy(t, winStart, winEnd)); }
-    catch (e) { console.warn('[viewings/_busyics] parse failed:', e && e.message); }
+  for (let i = 0; i < texts.length; i++) {
+    const host = safeHost(urls[i]);
+    const text = texts[i];
+    if (!text) { if (report) report.push({ host, ok: false, error: 'unreachable_or_not_ics' }); continue; }
+    try {
+      const found = icsBusy(text, winStart, winEnd);
+      out.push(...found);
+      if (report) report.push({ host, ok: true, events: parseVevents(text).length, busy: found.length });
+    } catch (e) {
+      console.warn('[viewings/_busyics] parse failed:', e && e.message);
+      if (report) report.push({ host, ok: false, error: String((e && e.message) || 'parse_failed').slice(0, 120) });
+    }
   }
   return out.map(([s, e]) => [s, e, null]);
 }

@@ -199,6 +199,7 @@ export default async function handler(req, res) {
           '• /queue — vedi le pending',
           '• /visite — agenda dei prossimi 7 giorni + richieste da confermare',
           '• /giornata — il Foglio di Chiamata di oggi (visite, viaggi, task)',
+          '• /calendario — il tuo Google Calendar è collegato alla griglia? Cosa blocca?',
           '• /task — i tuoi task aperti · /task <code>&lt;testo&gt;</code> per crearne uno',
           '• Oppure scrivimi "ricordami di … domani alle 15": task salvato e messo in calendario',
           '• /snapshot — stato portal',
@@ -237,6 +238,19 @@ export default async function handler(req, res) {
       // parte anche a giornata vuota)
       if (text === '/giornata') {
         await sendBrief(chatId);
+        return res.status(200).json({ ok: true });
+      }
+
+      // /calendario — il calendario esterno fallisce in silenzio per progetto
+      // (fail-open). Questa è l'unica risposta esplicita: collegato o no,
+      // raggiungibile o no, quali impegni tolgono slot davvero.
+      if (text === '/calendario') {
+        try {
+          const { calendarDiagnosis, formatDiagnosis } = await import('../viewings/calendar-check.js');
+          await tgSend(chatId, formatDiagnosis(await calendarDiagnosis()));
+        } catch (e) {
+          await tgSend(chatId, '🗓 Diagnosi non riuscita: ' + String(e.message || e).slice(0, 200));
+        }
         return res.status(200).json({ ok: true });
       }
 
