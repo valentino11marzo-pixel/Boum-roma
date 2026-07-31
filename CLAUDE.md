@@ -456,6 +456,29 @@ viewing id + server secret).
   veniva avvisato e si presentava al portone. Aggiunti anche ↩ Reschedule
   sulle confermate, il filtro ✕ Cancelled, e i modal ora mostrano/prefillano
   l'orario reale anche per i doc self-booked (che hanno solo i campi ISO).
+- **⚙️ Disponibilità nel portal** (`js/viewing-availability.js`, UMD come
+  boom-geo/canone-engine → `window.BOOM_AVAIL`, caricato da portal.html):
+  fino al 2026-07 le finestre di prenotazione erano i **default hardcoded**
+  di `_avail.js` (lun-ven 10-13 e 15-19, sab 10-13) — nessuna pagina le
+  mostrava e **nessuna le poteva cambiare**: l'operatore poteva solo
+  TOGLIERE tempo dal calendario, mai ridefinire l'orario di lavoro. Il
+  bottone sulla pagina Viewings apre il modal che scrive
+  `settings/viewingAvailability` (finestre per giorno in ora di Roma,
+  durate persona/video, preavviso, orizzonte, max/giorno) con anteprima
+  live di quante visite entrano davvero a settimana. **La divisione dei
+  ruoli**: la REGOLA sta qui, le ECCEZIONI del singolo giorno restano un
+  evento "Impegnato" in Google Calendar. `buildConfig` **rifiuta** un
+  valore impossibile invece di aggiustarlo (una finestra scritta male non
+  dà errore: dà una griglia vuota, e lo scopre il cliente). I default
+  della console sono asseriti UGUALI a quelli del server nei test —
+  divergere significherebbe far modificare all'operatore una regola che
+  non è in vigore.
+- **L'avviso quando forzi un orario** (`checkSlot`): dal portal Confirm e
+  Reschedule accettano QUALSIASI data/ora (sei l'operatore, a volte devi
+  forzare) — ma prima nessuno diceva che stavi sovrapponendo due clienti.
+  Ora i modal mostrano in tempo reale ⚠️ sovrapposizione (col nome del
+  cliente e l'ora), ℹ️ fuori finestra / giorno chiuso / passato, oppure
+  ✓ libero. **Avverte, non blocca.** Test: `node tests/viewings/availability-ui.mjs`.
 - **La geometria della giornata** (`travelGapMinutes` in `_avail.js`): il
   gap tra due impegni non è più un 15' piatto — Roma non è un punto. Visite
   IN PERSONA sullo stesso immobile si INCATENANO (gap 0: tre clienti, un
@@ -1317,6 +1340,7 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/viewings/avail.mjs` | griglia slot: passi, gap 15', preavviso, orizzonte, maxPerDay, DST, token del link cliente |
   | `tests/viewings/telegram.mjs` | card Telegram visite: callback ≤64 byte, escaping HTML |
   | `tests/viewings/busyics.mjs` | il calendario Workspace nella griglia: impegni ICS bloccano gli slot (TZID, ricorrenze, EXDATE, RECURRENCE-ID, all-day busy/free), eventi BOOM filtrati, maxPerDay immune, cache + fail-open |
+  | `tests/viewings/availability-ui.mjs` | la regola della disponibilità: parsing delle finestre (rifiuta 19:00-15:00, sovrapposte, "mattina"), default console == default server, anteprima che non promette slot inesistenti, avviso conflitti (sovrapposizione col nome, fuori finestra, giorno chiuso, non con sé stessa) |
   | `tests/viewings/gap.mjs` | la geometria della giornata: stesso immobile a catena (gap 0), viaggi reali tra zone (clamp 15–45'), video piatto, blocchi legacy identici a prima |
   | `tests/regista/run.mjs` | Il Regista: grammatica dei promemoria (IT/EN, accenti, "il 16/08", range che non sono date), id deterministici ≤64B, inviti calendario dei task, foglio di chiamata (escaping, viaggi, catene, giorno vuoto) |
   | `tests/recovery/run.mjs` | Il Recupero: chi diventa lead (PFS/SERVICE/RESERVE) e chi recap (PA/DEPOSIT/RENT), i test dell'operatore mai, id deterministico, lingua dalle parole del cliente |
