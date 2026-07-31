@@ -217,6 +217,47 @@ const times = (slots, date) => {
   ok('a missing list is handled', dropBoomEchoes(blocks, null).length === 1);
 }
 
+// ── 10c. la diagnosi: il silenzio del fail-open deve poter essere letto ───
+{
+  const cfg = { ...CFG, busyIcs: 'https://cal.example/secret.ics' };
+  const busyTxt = ics(vevent('UID:x@y', 'DTSTART:20260803T083000Z', 'DTEND:20260803T093000Z'));
+  const freeTxt = ics(vevent('UID:f@y', 'DTSTART:20260803T083000Z', 'DTEND:20260803T093000Z', 'TRANSP:TRANSPARENT'));
+
+  clearIcsCache();
+  let rep = [];
+  await externalBusy(cfg, NOW, async () => ({ ok: true, status: 200, text: async () => busyTxt }), rep);
+  ok('il report dice host, eventi letti e blocchi', rep.length === 1 && rep[0].ok && rep[0].events === 1 && rep[0].busy === 1, JSON.stringify(rep));
+  ok('il report non contiene mai l\'URL segreto', !JSON.stringify(rep).includes('secret.ics'), JSON.stringify(rep));
+
+  // il caso che ha ingannato l'operatore: eventi letti, ma nessuno blocca
+  clearIcsCache(); rep = [];
+  await externalBusy(cfg, NOW, async () => ({ ok: true, status: 200, text: async () => freeTxt }), rep);
+  ok('un evento "Libero" si vede nel report ma non blocca', rep[0].events === 1 && rep[0].busy === 0, JSON.stringify(rep));
+
+  clearIcsCache(); rep = [];
+  await externalBusy(cfg, NOW, async () => { throw new Error('boom'); }, rep);
+  ok('una sorgente irraggiungibile è dichiarata', rep.length === 1 && !rep[0].ok && rep[0].error, JSON.stringify(rep));
+  clearIcsCache();
+}
+
+// ── 10d. il verdetto che legge l'operatore ────────────────────────────────
+{
+  const { formatDiagnosis } = await import('../../api/viewings/calendar-check.js');
+  const none = formatDiagnosis({ configured: 0, sources: [], busy: 0, next: [], horizonDays: 14 });
+  ok('non collegato lo dice, e rassicura', /NON collegato/.test(none) && /funzionano lo stesso/.test(none));
+  ok('…e nomina la variabile giusta', /BUSY_ICS_URLS/.test(none));
+
+  const down = formatDiagnosis({ configured: 1, sources: [{ host: 'cal.x', ok: false, error: 'http_404' }], busy: 0, next: [], horizonDays: 14 });
+  ok('irraggiungibile non viene spacciato per collegato', /IRRAGGIUNGIBILE/.test(down) && /http_404/.test(down));
+
+  const free = formatDiagnosis({ configured: 1, sources: [{ host: 'cal.x', ok: true, events: 3, busy: 0 }], busy: 0, next: [], horizonDays: 14 });
+  ok('eventi letti ma nessuno blocca → spiega il perché', /Libero/.test(free) && /Impegnato/.test(free), free);
+
+  const busy = formatDiagnosis({ configured: 1, sources: [{ host: 'cal.x', ok: true, events: 3, busy: 1 }], busy: 1, horizonDays: 14,
+    next: [{ start: 0, end: 0, label: 'lun 3 ago 10:30–11:30' }] });
+  ok('con impegni veri li elenca', /Prossimi impegni/.test(busy) && /lun 3 ago 10:30/.test(busy), busy);
+}
+
 // ── 11. the wiring: busyBlocks actually reads the external calendar ───────
 {
   const src = readFileSync(new URL('../../api/viewings/_avail.js', import.meta.url), 'utf8');
