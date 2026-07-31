@@ -219,8 +219,11 @@ export default async function handler(req, res) {
   // The tenant's success screen offers Stripe checkout for the security
   // deposit the moment they sign. The payToken is the credential for
   // /api/sign/deposit-checkout (the sign token is nulled by this request).
+  // Il dovuto via Stripe è il SALDO: deposito pattuito meno quanto già
+  // versato (es. alla firma della proposta) — mai il deposito pieno.
+  const depositBalance = Math.max(0, Number(contract.deposit || 0) - Number(contract.depositAlreadyPaidEur || 0));
   let depositPayToken = '';
-  if (role === 'tenant' && Number(contract.deposit || 0) > 0 && !contract.depositPaid) {
+  if (role === 'tenant' && depositBalance > 0 && !contract.depositPaid) {
     depositPayToken = contract.depositPayToken || crypto.randomBytes(24).toString('hex');
     upd.depositPayToken = depositPayToken;
   }
@@ -576,9 +579,8 @@ export default async function handler(req, res) {
   } catch (e) { /* never block the response */ }
 
   // Deposit info for the tenant's success screen (Stripe checkout CTA).
-  const depositAmt = Number(contract.deposit || 0);
-  const deposit = (role === 'tenant' && depositAmt > 0 && !fresh.depositPaid && depositPayToken)
-    ? { required: true, amountEur: depositAmt, payToken: depositPayToken }
+  const deposit = (role === 'tenant' && depositBalance > 0 && !fresh.depositPaid && depositPayToken)
+    ? { required: true, amountEur: depositBalance, payToken: depositPayToken }
     : null;
 
   return res.status(200).json({

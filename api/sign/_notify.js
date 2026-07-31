@@ -245,7 +245,7 @@ export async function sendWelcomeEmails(contract, property, { portalLink, certUr
       + btn(portalLink || BASE + '/casa', 'Enter my portal')
       + (contract.id ? btn2(tenantWalletUrl(contract.id), ' Add to Apple Wallet — your home pass') : '')
       + (depositPending
-        ? btn2(`${BASE}/sign?deposit=retry&pt=${encodeURIComponent(contract.depositPayToken)}`, `Pay the deposit — ${eur(contract.deposit)}`)
+        ? btn2(`${BASE}/sign?deposit=retry&pt=${encodeURIComponent(contract.depositPayToken)}`, `Pay the deposit — ${eur(Math.max(0, Number(contract.deposit || 0) - Number(contract.depositAlreadyPaidEur || 0)))}`)
         : '')
       + rule()
       + timeline([

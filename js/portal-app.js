@@ -6491,6 +6491,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         for (const k of ['cohabitants', 'otherClauses', 'notes', 'transitionalReason', 'transitionalDocs', 'tenantNationality']) {
             if (typeof c[k] === 'string' && c[k]) extra[k] = c[k];
         }
+        // Deposito già versato (es. alla firma della proposta): il flusso di
+        // firma chiederà via Stripe SOLO il saldo, mai il deposito pieno.
+        if (Number(c.depositAlreadyPaidEur) > 0) extra.depositAlreadyPaidEur = Number(c.depositAlreadyPaidEur);
         const rent = parseInt(c.rent) || 0;
         const ready = propertyId && rent > 0 && c.startDate && c.endDate && (t.email || t.phone);
         _newClientWizard = {
@@ -6814,6 +6817,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     transitionalReason: extra.transitionalReason || '',
                     transitionalDocs: extra.transitionalDocs || '',
                     notes: extra.notes || '',
+                    ...(extra.depositAlreadyPaidEur > 0 ? { depositAlreadyPaidEur: extra.depositAlreadyPaidEur } : {}),
                     status: 'active',
                     signatureStatus: 'none',
                     tenantSignToken: newToken(),
