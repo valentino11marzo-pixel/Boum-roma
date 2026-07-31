@@ -305,6 +305,29 @@ export default async function handler(req, res) {
       results.inviteNudged = reinvited;
     } catch (e) { results.errors.push(`invite-nudge: ${e.message}`); }
 
+    // ── Watchdog refinalize: contratti COMPLETI senza finalizedAt ──
+    // finalize è best-effort dentro la richiesta del firmatario: se cade
+    // (timeout, pdf-lib, SMTP) il contratto resta firmato ma SENZA
+    // certificato, contratto-firmato, pack ed email — e finora il recupero
+    // era solo manuale. Qui si ritenta da solo (max 2/run: dentro c'è PDF
+    // + email, pesa). finalizeContract è idempotente su finalizedAt.
+    try {
+      const compQ = await fsQuery('contracts', token, {
+        field: { fieldPath: 'signatureStatus' }, op: 'EQUAL', value: { stringValue: 'complete' },
+      });
+      const unfinalized = (compQ || []).filter(r => r.document).map(r => parseDoc(r.document))
+        .filter(c => c && !c.finalizedAt && c.tenantSignature && c.landlordSignature);
+      let refinalized = 0;
+      for (const c of unfinalized.slice(0, 2)) {
+        try {
+          const { finalizeContract } = await import('./sign/_finalize.js');
+          const fin = await finalizeContract(c);
+          if (fin && fin.ok && !fin.skipped) refinalized++;
+        } catch (e) { results.errors.push(`refinalize ${c.id}: ${e.message}`); }
+      }
+      if (refinalized) results.refinalized = refinalized;
+    } catch (e) { results.errors.push(`refinalize-watchdog: ${e.message}`); }
+
 // ── Pre-agreement 24h nudge: accepted + payment due + Stripe never
     // completed → one gentle email with a resume-payment link. Lazy import,
     // best-effort — must never take the cron down. ──

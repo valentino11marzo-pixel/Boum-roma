@@ -87,26 +87,64 @@ globalThis.fetch = async (url, opts = {}) => {
   if (url.includes('firestore.googleapis.com')) {
     const path = (url.split('/documents')[1] || '').replace(/^\//, '').split('?')[0];
     const qs = new URL(url).searchParams;
-    if (path.startsWith(':runQuery')) return okJson([{}]);
+    const bump = (k) => docTimes.set(k, new Date(Date.now() + docTimes.size).toISOString());
+    const docRow = (k) => ({ name: 'projects/p/databases/(default)/documents/' + k, fields: toFsFields(store.get(k)), updateTime: docTimes.get(k) || '2026-01-01T00:00:00Z', createTime: '2026-01-01T00:00:00Z' });
+    // runQuery REALE (filtro EQUAL su un campo): serve a findContractByToken
+    // e alle fsList del completamento firma.
+    if (path.startsWith(':runQuery')) {
+      const sq = (JSON.parse(opts.body || '{}') || {}).structuredQuery || {};
+      const col = ((sq.from || [])[0] || {}).collectionId || '';
+      const ff = (sq.where || {}).fieldFilter;
+      const rows = [];
+      for (const [k] of store) {
+        if (!k.startsWith(col + '/')) continue;
+        if (ff) {
+          const want = fromFs(ff.value);
+          const got = (store.get(k) || {})[ff.field.fieldPath];
+          if (got !== want) continue;
+        }
+        rows.push({ document: docRow(k) });
+        if (sq.limit && rows.length >= sq.limit) break;
+      }
+      return okJson(rows.length ? rows : [{}]);
+    }
+    // :commit con updateMask (merge) e PRECONDIZIONE currentDocument.updateTime
+    if (path.startsWith(':commit')) {
+      const writes = (JSON.parse(opts.body || '{}') || {}).writes || [];
+      for (const w of writes) {
+        const k = (w.update.name.split('/documents/')[1] || '');
+        if (w.currentDocument && w.currentDocument.updateTime) {
+          const cur = docTimes.get(k) || '2026-01-01T00:00:00Z';
+          if (cur !== w.currentDocument.updateTime) return new Response(JSON.stringify({ error: { status: 'FAILED_PRECONDITION', message: 'the stored version does not match' } }), { status: 400 });
+        }
+        const doc = store.get(k) || {};
+        Object.assign(doc, fromFsFields(w.update.fields));
+        store.set(k, doc); bump(k);
+      }
+      return okJson({ writeResults: writes.map(() => ({})) });
+    }
     if (opts.method === 'POST') {
       const docId = qs.get('documentId') || 'auto_' + (store.size + 1);
       const key = path + '/' + docId;
       if (qs.get('documentId') && store.has(key)) return new Response('conflict', { status: 409 });
       store.set(key, fromFsFields(JSON.parse(opts.body).fields));
+      bump(key);
       return okJson({ name: 'projects/p/databases/(default)/documents/' + key });
     }
     if (opts.method === 'PATCH') {
       const cur = store.get(path) || {};
       Object.assign(cur, fromFsFields(JSON.parse(opts.body).fields));
       store.set(path, cur);
+      bump(path);
       return okJson({ name: 'projects/p/databases/(default)/documents/' + path });
     }
     const doc = store.get(path);
     if (!doc) return new Response('not found', { status: 404 });
-    return okJson({ name: 'projects/p/databases/(default)/documents/' + path, fields: toFsFields(doc) });
+    return okJson(docRow(path));
   }
   throw new Error('fetch non stubbata: ' + url);
 };
+const docTimes = new Map();
 
 const mkRes = () => ({
   code: 0, body: null, headers: {},
@@ -276,6 +314,69 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   check('legacy senza PDF: il pack elenca "Contratto firmato" tra i mancanti',
     Array.isArray(out.packMissing) && out.packMissing.includes('Contratto firmato')
     && !!caf && /Nel pack mancano/.test(caf.html) && caf.html.includes('Contratto firmato'));
+}
+
+// ═══ 1d. Magic Sign submit: terms freeze, già-firmato VIVO, sequenziale ═══
+{
+  const msSubmit = (await import('../../api/magic-sign/submit.js')).default;
+  const msLookup = (await import('../../api/magic-sign/lookup.js')).default;
+  const CONSENT = 'I confirm my identity and accept all lease terms. This digital signature is legally valid (FES — Art. 21 CAD).';
+  const SIG = 'data:image/png;base64,' + 'A'.repeat(400);
+  store.set('contracts/ctrMS', {
+    propertyId: 'prop1', tenantId: 't1', type: 'transitorio', cedolareSecca: 'si',
+    rent: 1200, deposit: 2400, startDate: '2026-10-01', endDate: '2027-09-30', paymentDay: 5,
+    tenantName: 'Anna Expat', landlordName: 'Giulia Bianchi',
+    tenantSignToken: 'MSTOK_TENANT_1', landlordSignToken: 'MSTOK_LANDLORD_1',
+    signingOrder: 'sequential', signatureStatus: 'none', status: 'active',
+    generatedPDF: 'https://storage.example/contract.pdf',
+  });
+  const body = (token) => ({ token, signature: SIG, consent: { text: CONSENT, hash: '' }, identity: { cf: 'rssmra85t10a562s', dob: '1998-05-04' } });
+
+  IP = '9.1.2.1';
+  let r = mkRes();
+  await msSubmit(mkReq(body('MSTOK_LANDLORD_1')), r);
+  check('submit: locatore prima dell\'inquilino su sequenziale → 409', r.code === 409 && r.body.error === 'awaiting_tenant');
+
+  // L'inquilino APRE il link (lookup) prima di firmare: prima apertura tracciata
+  r = mkRes();
+  await msLookup(mkReq({ token: 'MSTOK_TENANT_1' }), r);
+  check('lookup pre-firma: 200 col prefill del firmatario', r.code === 200 && r.body.ok === true && r.body.role === 'tenant');
+
+  r = mkRes();
+  await msSubmit(mkReq(body('MSTOK_TENANT_1')), r);
+  const ms1 = store.get('contracts/ctrMS');
+  check('submit tenant: 200 partial + TERMINI CONGELATI (hash+snapshot)', r.code === 200 && r.body.signatureStatus === 'partial'
+    && typeof ms1.signedTermsHash === 'string' && ms1.signedTermsHash.length === 64
+    && ms1.signedTerms && ms1.signedTerms.rent === 1200 && ms1.signedTerms.endDate === '2027-09-30');
+  check('submit tenant: token SOPRAVVIVE (usedAt stampato) + CF normalizzato',
+    ms1.tenantSignToken === 'MSTOK_TENANT_1' && !!ms1.tenantSignTokenUsedAt && ms1.tenantCF === 'RSSMRA85T10A562S');
+
+  IP = '9.1.2.2';
+  r = mkRes();
+  await msLookup(mkReq({ token: 'MSTOK_TENANT_1' }), r);
+  check('lookup dopo la firma: 410 already_signed VIVO (non più "Link not valid")',
+    r.code === 410 && r.body.error === 'already_signed' && !!r.body.signedAt);
+  r = mkRes();
+  await msSubmit(mkReq(body('MSTOK_TENANT_1')), r);
+  check('re-submit stesso ruolo → 410, la prima firma non si sovrascrive', r.code === 410 && r.body.error === 'already_signed');
+
+  // L'admin "ritocca" il canone DOPO la firma dell'inquilino…
+  store.get('contracts/ctrMS').rent = 1300;
+  IP = '9.1.2.3';
+  r = mkRes();
+  await msSubmit(mkReq(body('MSTOK_LANDLORD_1')), r);
+  check('termini cambiati tra le firme → controfirma BLOCCATA (409 terms_changed)', r.code === 409 && r.body.error === 'terms_changed');
+  check('terms_changed → ping urgente all\'operatore', [...store.keys()].some(k => k.startsWith('agentNotifications/') && (store.get(k) || {}).type === 'contract.terms_changed'));
+
+  // …ripristinati i termini firmati, la controfirma passa e chiude tutto.
+  store.get('contracts/ctrMS').rent = 1200;
+  r = mkRes();
+  await msSubmit(mkReq(body('MSTOK_LANDLORD_1')), r);
+  const ms2 = store.get('contracts/ctrMS');
+  check('controfirma sui termini GIUSTI → complete + cascata (rate generate)',
+    r.code === 200 && r.body.fullySigned === true && ms2.signatureStatus === 'complete'
+    && [...store.keys()].some(k => k.startsWith('payments/pay_ctrMS_')));
+  check('prima apertura tracciata sul contratto (signViewedTenantAt)', !!ms2.signViewedTenantAt);
 }
 
 // ═══ 1b. Watchdog inviti freddi (predicato puro) ═══

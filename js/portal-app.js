@@ -6781,7 +6781,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             progress('2/4 · Creo il contratto…');
             const monthly = parseInt(w.rent) || 0;
             const total = monthly * 12;
-            const newToken = () => (crypto.randomUUID ? crypto.randomUUID() : 'tk-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10));
+            const newToken = () => (crypto.randomUUID ? crypto.randomUUID() : Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join(''));
             const prior = (S.contracts || []).find(x => x.tenantId === userId && x.propertyId === w.propertyId && x.startDate === w.startDate && x.status !== 'cancelled');
             let contractId, ctrData;
             if (prior) {
@@ -15133,6 +15133,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const data = Object.fromEntries(new FormData(e.target));
         const _existingContract = S.contracts.find(x => x.id === id) || {};
         const _isStudenti = _existingContract.type === 'studenti';
+        // GUARDIA FIRME: un contratto firmato (anche da UNA sola parte) non si
+        // modifica — la firma è attaccata a QUEI termini (signedTermsHash sul
+        // server rifiuterebbe comunque la controfirma: 409 terms_changed).
+        // La strada giusta è la nuova versione: Duplica → nuovo giro di firme.
+        if (_existingContract.signatureStatus === 'partial' || _existingContract.signatureStatus === 'complete'
+            || _existingContract.tenantSignature || _existingContract.landlordSignature) {
+            toast('error', '🔒 Contratto firmato: non modificabile', 'Le firme sono legate a questi termini. Crea una NUOVA versione (duplica) e falla rifirmare.');
+            return;
+        }
         // Canone math validation (Muky bug guard)
         const _monthly = parseInt(data.rent) || 0;
         const _total = parseInt(data.canoneTotal) || 0;
@@ -15191,29 +15200,82 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const data = Object.fromEntries(new FormData(e.target));
         const contract = S.contracts.find(c => c.id === id);
         if (!contract) return;
-        
+
         let newRent = contract.rent;
         if (data.newRent) {
             newRent = parseInt(data.newRent);
         } else if (data.adjustment) {
             newRent = Math.round(contract.rent * (1 + parseFloat(data.adjustment) / 100));
         }
-        
+
+        const _signed = contract.tenantSignature || contract.landlordSignature
+            || contract.signatureStatus === 'partial' || contract.signatureStatus === 'complete';
         try {
-            await db.collection('contracts').doc(id).update({
-                endDate: data.newEndDate,
-                rent: newRent,
-                renewalHistory: firebase.firestore.FieldValue.arrayUnion({
-                    date: new Date().toISOString(),
-                    previousEnd: contract.endDate,
-                    newEnd: data.newEndDate,
-                    previousRent: contract.rent,
-                    newRent: newRent,
-                    notes: data.renewalNotes || ''
-                }),
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            closeModal(); await refresh(); toast('success', 'Contratto rinnovato!', `Nuova scadenza: ${fmtDate(data.newEndDate)}`);
+            if (_signed) {
+                // IL RINNOVO DI UN CONTRATTO FIRMATO È UN NUOVO CONTRATTO.
+                // Prima si mutavano endDate/canone SOTTO le firme esistenti:
+                // il documento firmato raccontava termini mai firmati. Ora si
+                // clona con i nuovi termini, firme azzerate e token nuovi; il
+                // vecchio resta agli atti come 'renewed' e rate/journey/PDF
+                // ripartono puliti dal nuovo giro di Magic Sign.
+                const newStart = (() => { const d = new Date(contract.endDate); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); })();
+                const newToken = () => (crypto.randomUUID ? crypto.randomUUID() : Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join(''));
+                const clone = { ...contract };
+                delete clone.id;
+                ['tenantSignature', 'landlordSignature', 'tenantSignedAt', 'landlordSignedAt', 'tenantSignedIP', 'landlordSignedIP',
+                 'tenantSignedUA', 'landlordSignedUA', 'tenantConsentText', 'tenantConsentHash', 'tenantConsentAt',
+                 'landlordConsentText', 'landlordConsentHash', 'landlordConsentAt', 'signedTermsHash', 'signedTermsAt', 'signedTerms',
+                 'fullySignedAt', 'finalizedAt', 'signingCertificateUrl', 'signedPdfUrl', 'registrationPackUrl',
+                 'registrationPackMissing', 'registrationPackAt', 'fascicoloFiscaleUrl', 'canoneScheda', 'journey',
+                 'signInviteTenantAt', 'signInviteLandlordAt', 'signViewedTenantAt', 'signViewedLandlordAt',
+                 'tenantSignTokenUsedAt', 'landlordSignTokenUsedAt', 'rliRegisteredAt', 'magicLinkId', 'generatedPDF', 'pdfHash',
+                 'depositPayToken', 'depositPaid', 'inviteNudgeCount', 'lastReminderAt', 'welcomeEmailSent',
+                 'createdAt', 'updatedAt', 'renewalHistory'].forEach(k => delete clone[k]);
+                const _inst = (contract.canone && contract.canone.installments) || 12;
+                Object.assign(clone, {
+                    startDate: newStart,
+                    endDate: data.newEndDate,
+                    rent: newRent,
+                    canone: { ...(contract.canone || {}), monthly: newRent, total: newRent * _inst, installments: _inst },
+                    durata: { startDate: newStart, endDate: data.newEndDate, text: `${newStart} → ${data.newEndDate}` },
+                    status: 'active',
+                    signatureStatus: 'none',
+                    tenantSignToken: newToken(),
+                    landlordSignToken: newToken(),
+                    paymentsGenerated: false,
+                    renewalOf: id,
+                    notes: (data.renewalNotes ? data.renewalNotes + ' · ' : '') + 'Rinnovo del contratto ' + id,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                });
+                const ref = await db.collection('contracts').add(clone);
+                await db.collection('contracts').doc(id).update({
+                    status: 'renewed', renewedToId: ref.id,
+                    renewalHistory: firebase.firestore.FieldValue.arrayUnion({
+                        date: new Date().toISOString(), previousEnd: contract.endDate, newEnd: data.newEndDate,
+                        previousRent: contract.rent, newRent: newRent, newContractId: ref.id, notes: data.renewalNotes || ''
+                    }),
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                try { await generateContractDeadlines(ref.id, clone); } catch (e2) { console.warn('[renew] deadlines', e2); }
+                try { S.contracts.push({ id: ref.id, ...clone }); await generateContractPDF(ref.id); } catch (e2) { console.warn('[renew] pdf', e2); }
+                closeModal(); await refresh();
+                toast('success', '🔄 Rinnovo = NUOVO contratto', 'Firme azzerate — manda l\'invito Magic Sign dal contratto nuovo');
+            } else {
+                await db.collection('contracts').doc(id).update({
+                    endDate: data.newEndDate,
+                    rent: newRent,
+                    renewalHistory: firebase.firestore.FieldValue.arrayUnion({
+                        date: new Date().toISOString(),
+                        previousEnd: contract.endDate,
+                        newEnd: data.newEndDate,
+                        previousRent: contract.rent,
+                        newRent: newRent,
+                        notes: data.renewalNotes || ''
+                    }),
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                closeModal(); await refresh(); toast('success', 'Contratto rinnovato!', `Nuova scadenza: ${fmtDate(data.newEndDate)}`);
+            }
         } catch (err) { toast('error', 'Errore', err.message); }
     }
 
@@ -19004,8 +19066,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const tenant = S.users.find(u => u.id === contract.tenantId);
         const landlord = property ? S.users.find(u => u.id === property.ownerId) : null;
         
-        const canLandlordSign = S.profile.id === property?.ownerId || isAdmin();
-        const canTenantSign = S.profile.id === contract.tenantId || isAdmin();
+        // Mai firma d'ufficio: un admin NON firma al posto delle parti — al
+        // massimo condivide il loro link /sign (Share Hub). La firma resta
+        // un atto personale del titolare del ruolo.
+        const canLandlordSign = S.profile.id === property?.ownerId;
+        const canTenantSign = S.profile.id === contract.tenantId;
         
         document.getElementById('modals').innerHTML = `
         <div class="modal-overlay active">
@@ -19288,6 +19353,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     async function regenerateContractPDF(id) {
         const contract = S.contracts.find(c => c.id === id);
         if (!contract) return;
+
+        // GUARDIA FIRME: a contratto COMPLETO il PDF fa fede — rigenerarlo
+        // sovrascriverebbe generatedPDF/pdfHash mentre contratto-firmato.pdf
+        // e certificato restano congelati sui byte della firma: copie
+        // divergenti. Per cambiare i termini serve una NUOVA versione.
+        if (contract.signatureStatus === 'complete' || (contract.tenantSignature && contract.landlordSignature)) {
+            toast('error', '🔒 Contratto firmato da entrambe le parti', 'Il PDF firmato fa fede e non si rigenera. Per nuovi termini: rinnovo/duplica → nuovo giro di firme.');
+            return;
+        }
 
         // Self-healing: detect and offer to fix stale canone math before regenerating PDF
         const monthly = (contract.canone && contract.canone.monthly) || contract.rent || 0;
@@ -21519,7 +21593,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div></div></div>`;
 
         // Backfill any missing token in a single Firestore write
-        const mk = () => (crypto.randomUUID ? crypto.randomUUID() : 'tk-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10));
+        const mk = () => (crypto.randomUUID ? crypto.randomUUID() : Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join(''));
         const updates = {};
         if (!c.tenantSignToken && !c.tenantSignature)   { updates.tenantSignToken   = mk(); c.tenantSignToken   = updates.tenantSignToken; }
         if (!c.landlordSignToken && !c.landlordSignature) { updates.landlordSignToken = mk(); c.landlordSignToken = updates.landlordSignToken; }
@@ -21599,8 +21673,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             });
         }
 
-        // Landlord: magic-sign
-        if (!c.landlordSignature && c.landlordSignToken) {
+        // Landlord: magic-sign — SOLO quando tocca a lui. Il protocollo è
+        // sequenziale (l'inquilino firma per primo): offrire il link del
+        // locatore prima, via WhatsApp/email, aggirava la regola che
+        // /api/sign/send-link fa rispettare (409 awaiting_tenant). La pagina
+        // /sign comunque lo parcheggerebbe ("Not your turn yet"), ma il link
+        // giusto al momento giusto evita la confusione.
+        if (!c.landlordSignature && c.landlordSignToken && (c.tenantSignature || c.signingOrder === 'any')) {
             links.push({
                 audience: 'landlord', icon: '🖋️', title: 'Firma il contratto',
                 subtitle: 'Firma da telefono come locatore',

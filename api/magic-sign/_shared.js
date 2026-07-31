@@ -3,7 +3,19 @@
 // from /api/homie/_lib.js — Magic-Sign endpoints are open to anonymous
 // callers but authorize via the single-use signing token carried in the URL.
 
-import { fsList, FS_BASE, getAdminToken, toFsFields } from '../homie/_lib.js';
+import { fsList, FS_BASE, getAdminToken, toFsFields, fsDocToJs } from '../homie/_lib.js';
+
+// Documento + updateTime: serve al write di firma per la precondizione
+// ottimistica (currentDocument.updateTime) che chiude la race del doppio
+// submit — fsGet normale scarta l'updateTime.
+export async function fsGetWithTime(docPath) {
+  const token = await getAdminToken();
+  const r = await fetch(`${FS_BASE}/${docPath}`, { headers: { Authorization: `Bearer ${token}` } });
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error('fsGetWithTime_' + r.status);
+  const doc = await r.json();
+  return { data: fsDocToJs(doc), updateTime: doc.updateTime || null };
+}
 
 // Look up a contract by either tenantSignToken or landlordSignToken.
 // Returns { contract, role } or null.
@@ -29,7 +41,10 @@ export async function findContractByToken(token) {
 // fsPatch helper writes fields literally; some cascading updates want
 // serverTimestamp() for createdAt / updatedAt. We do those through :commit.
 //
-// `writes` is an array of { docPath, fields, serverTimestampFields }.
+// `writes` is an array of { docPath, fields, serverTimestampFields,
+// precondition? } — precondition.updateTime rende il write CONDIZIONATO
+// (Firestore risponde FAILED_PRECONDITION se il documento è cambiato nel
+// frattempo): è il lucchetto ottimistico del write di firma.
 export async function commitWrites(writes) {
   const token = await getAdminToken();
   const projectPath = FS_BASE.replace(/\/documents$/, '');
@@ -47,6 +62,7 @@ export async function commitWrites(writes) {
       const write = { update };
       if (updateMask.length) write.updateMask = { fieldPaths: updateMask };
       if (fieldTransforms.length) write.updateTransforms = fieldTransforms;
+      if (w.precondition && w.precondition.updateTime) write.currentDocument = { updateTime: w.precondition.updateTime };
       return write;
     }),
   };

@@ -22,7 +22,26 @@
 // Response 4xx: { ok:false, error }
 
 import { fsGet, fsPatch, fsList, readJson, logActivity } from '../homie/_lib.js';
-import { findContractByToken, commitWrites, setCors, rateOk } from './_shared.js';
+import { findContractByToken, commitWrites, fsGetWithTime, setCors, rateOk } from './_shared.js';
+
+// ── TERMS FREEZE ──────────────────────────────────────────────────────────
+// L'impronta dei termini ECONOMICI del contratto. La prima firma la congela
+// sul documento (signedTermsHash + snapshot leggibile); ogni firma
+// successiva la ricalcola sui valori CORRENTI e rifiuta con 409
+// terms_changed se qualcuno ha toccato canone/date/deposito nel mezzo —
+// nessuno controfirma mai condizioni diverse da quelle già firmate.
+// Esportata e testata.
+export function termsFingerprint(c) {
+  return [
+    'rent:' + Number(c.rent || 0),
+    'deposit:' + Number(c.deposit || 0),
+    'start:' + String(c.startDate || ''),
+    'end:' + String(c.endDate || ''),
+    'cadence:' + ([1, 2, 3, 6, 12].includes(Number(c.installmentMonths)) ? Number(c.installmentMonths) : 1),
+    'type:' + String(c.type || ''),
+    'cedolare:' + (((c.cedolareSecca || 'si') !== 'no' && c.cedolareSecca !== false) ? 'si' : 'no'),
+  ].join('|');
+}
 
 // Canonical consent — MUST equal sign.html's CONSENT and _finalize.js's
 // MS_CONSENT: the certificate attests exactly this text.
@@ -82,6 +101,10 @@ export default async function handler(req, res) {
 
   // ── 2. Build the signature update for the contract ──────
   const id = body.identity || {};
+  // Il CF entra normalizzato (maiuscolo, senza spazi) — la validazione
+  // checksum resta permissiva (expat con CF provvisori), ma il dato che
+  // finisce su contratto/certificato/RLI è sempre in forma canonica.
+  if (id.cf) id.cf = String(id.cf).toUpperCase().replace(/\s+/g, '').slice(0, 16);
   const phone = body.phone || {};
   const consent = body.consent;
 
@@ -143,7 +166,10 @@ export default async function handler(req, res) {
     upd.tenantConsentText = consent.text;
     upd.tenantConsentHash = consent.hash;
     upd.tenantConsentAt = nowISO;
-    upd.tenantSignToken = null;
+    // Il token NON si azzera più: chi riapre il proprio link deve vedere
+    // "Hai già firmato ✓" (lookup 410), non "Link not valid". La firma
+    // registrata blocca comunque ogni ri-uso (check already qui e in lookup).
+    upd.tenantSignTokenUsedAt = nowISO;
     if (phoneVerified) {
       upd.tenantPhoneVerified = true;
       upd.tenantPhoneVerifiedAt = phone.verifiedAt || nowISO;
@@ -169,7 +195,7 @@ export default async function handler(req, res) {
     upd.landlordConsentText = consent.text;
     upd.landlordConsentHash = consent.hash;
     upd.landlordConsentAt = nowISO;
-    upd.landlordSignToken = null;
+    upd.landlordSignTokenUsedAt = nowISO;
     if (phoneVerified) {
       upd.landlordPhoneVerified = true;
       upd.landlordPhoneVerifiedAt = phone.verifiedAt || nowISO;
@@ -199,11 +225,52 @@ export default async function handler(req, res) {
     upd.depositPayToken = depositPayToken;
   }
 
-  // ── 3. Re-read contract to determine combined signature status ──
-  let fresh;
-  try { fresh = await fsGet('contracts/' + contractId); }
-  catch (e) { return res.status(500).json({ ok: false, error: 'reread_failed' }); }
+  // ── 3. Re-read FRESH (dati + updateTime per la precondizione) ──
+  let fresh = null, freshTime = null;
+  try {
+    const pre = await fsGetWithTime('contracts/' + contractId);
+    if (pre) { fresh = pre.data; freshTime = pre.updateTime; }
+  } catch (e) { return res.status(500).json({ ok: false, error: 'reread_failed' }); }
   if (!fresh) return res.status(404).json({ ok: false, error: 'contract_vanished' });
+
+  // Anti-doppione sul dato FRESCO (il check iniziale usava la query per
+  // token, che può essere stantia di qualche secondo).
+  const freshAlready = role === 'tenant' ? !!fresh.tenantSignature : !!fresh.landlordSignature;
+  if (freshAlready) {
+    return res.status(410).json({ ok: false, error: 'already_signed', role, signatureStatus: fresh.signatureStatus || 'partial' });
+  }
+
+  // TERMS FREEZE: verifica sui valori CORRENTI, congelamento alla prima firma.
+  const currentTermsHash = sha256(termsFingerprint(fresh));
+  if (fresh.signedTermsHash && fresh.signedTermsHash !== currentTermsHash) {
+    try {
+      const { fsCreate } = await import('../homie/_lib.js');
+      fsCreate('agentNotifications', {
+        type: 'contract.terms_changed',
+        summary: `⚠ Termini modificati DOPO una firma · ${contractId} — controfirma BLOCCATA (serve nuova versione del contratto)`,
+        priority: 'urgent',
+        ref: { collection: 'contracts', id: contractId },
+        payload: { contractId, role },
+        dedupKey: `terms-changed-${contractId}`,
+        status: 'pending', actor: 'magic-sign',
+        createdAt: new Date().toISOString(), attempts: 0,
+      }).catch(() => {});
+    } catch (_) {}
+    return res.status(409).json({ ok: false, error: 'terms_changed' });
+  }
+  if (!fresh.signedTermsHash) {
+    upd.signedTermsHash = currentTermsHash;
+    upd.signedTermsAt = nowISO;
+    upd.signedTerms = {
+      rent: Number(fresh.rent || 0),
+      deposit: Number(fresh.deposit || 0),
+      startDate: String(fresh.startDate || ''),
+      endDate: String(fresh.endDate || ''),
+      installmentMonths: [1, 2, 3, 6, 12].includes(Number(fresh.installmentMonths)) ? Number(fresh.installmentMonths) : 1,
+      type: String(fresh.type || ''),
+      cedolareSecca: ((fresh.cedolareSecca || 'si') !== 'no' && fresh.cedolareSecca !== false) ? 'si' : 'no',
+    };
+  }
 
   const otherSigned = role === 'tenant' ? !!fresh.landlordSignature : !!fresh.tenantSignature;
   let fullySigned = otherSigned;
@@ -213,9 +280,28 @@ export default async function handler(req, res) {
     upd.fullySignedAt = nowISO;
   }
 
-  // ── 4. Write contract update ───────────────────────────
-  try { await fsPatch('contracts/' + contractId, upd); }
-  catch (e) {
+  // ── 4. Write contract update (precondizione ottimistica) ──
+  // Il patch è condizionato all'updateTime appena letto: se un altro submit
+  // scrive nel mezzo (doppio tap, seconda scheda), Firestore risponde
+  // FAILED_PRECONDITION — si rilegge e, se questo ruolo risulta già
+  // firmato, si risponde 410 invece di sovrascrivere firma, IP e timestamp
+  // del primo submit.
+  try {
+    if (freshTime) {
+      try {
+        await commitWrites([{ docPath: 'contracts/' + contractId, fields: upd, precondition: { updateTime: freshTime } }]);
+      } catch (e) {
+        if (/FAILED_PRECONDITION|precondition/i.test(String(e.message || ''))) {
+          const again = await fsGet('contracts/' + contractId).catch(() => null);
+          const nowSigned = again && (role === 'tenant' ? again.tenantSignature : again.landlordSignature);
+          if (nowSigned) return res.status(410).json({ ok: false, error: 'already_signed', role, signatureStatus: (again && again.signatureStatus) || 'partial' });
+          await fsPatch('contracts/' + contractId, upd);   // conflitto su ALTRI campi: riprova secca
+        } else { throw e; }
+      }
+    } else {
+      await fsPatch('contracts/' + contractId, upd);
+    }
+  } catch (e) {
     console.error('[magic-sign/submit] contract write:', e.message);
     return res.status(500).json({ ok: false, error: 'contract_write_failed' });
   }
@@ -277,7 +363,10 @@ export default async function handler(req, res) {
           if (!existing) {
             patch.role = 'tenant';
             patch.name = body.signerName || '';
-            patch.email = body.signerEmail || '';
+            // L'email del profilo (a cui parte il magic-link del portale)
+            // preferisce quella GIÀ nota al sistema (deal/PA/invito) — il
+            // campo digitato in pagina è solo il fallback.
+            patch.email = contract.tenantEmail || body.signerEmail || '';
             patch.linkedContractId = contractId;
             patch.createdBy = 'magic_sign';
           }
