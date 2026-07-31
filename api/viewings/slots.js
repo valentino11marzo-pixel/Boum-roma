@@ -25,7 +25,7 @@ import { fsGet, fsCreate, fsList, fsPatch, readJson, logActivity } from '../homi
 import { videoRoom, passUrl, manageUrl } from './_lib.js';
 import { sendConfirmation } from './_email.js';
 import { inviteOperator } from './_invite.js';
-import { TZ, loadConfig, busyBlocks, buildSlots, slotOffered } from './_avail.js';
+import { TZ, loadConfig, busyBlocks, buildSlots, slotOffered, listingCtx } from './_avail.js';
 import { replyLang } from '../_lang.js';
 
 // re-exported so the availability engine has a single public entry point for
@@ -46,7 +46,10 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     const mode = String((req.query && req.query.mode) || 'person').toLowerCase() === 'video' ? 'video' : 'person';
     try {
-      const slots = buildSlots(cfg, await busyBlocks(cfg), mode);
+      // the listing being booked shapes the gaps: same-apartment slots chain,
+      // cross-town ones spread by real travel time (book.html already sends it)
+      const ctx = await listingCtx(clip((req.query && req.query.listingId) || '', 80));
+      const slots = buildSlots(cfg, await busyBlocks(cfg), mode, new Date(), ctx);
       res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60');
       return res.status(200).json({ ok: true, timezone: TZ, mode, slots });
     } catch (e) {
@@ -71,12 +74,15 @@ export default async function handler(req, res) {
   if (isNaN(when.getTime())) return res.status(400).json({ ok: false, error: 'when_invalid' });
 
   try {
-    // re-verify the slot server-side: the list the client saw may be stale
-    const busy = await busyBlocks(cfg);
-    if (!slotOffered(buildSlots(cfg, busy, mode), when)) return res.status(409).json({ ok: false, error: 'slot_taken' });
-
     let listing = null;
     if (listingId) listing = await fsGet(`listings/${listingId}`).catch(() => null);
+    const ctx = listing
+      ? { listingId, lat: listing.lat != null ? Number(listing.lat) : null, lng: listing.lng != null ? Number(listing.lng) : null }
+      : (listingId ? { listingId } : null);
+
+    // re-verify the slot server-side: the list the client saw may be stale
+    const busy = await busyBlocks(cfg);
+    if (!slotOffered(buildSlots(cfg, busy, mode, new Date(), ctx), when)) return res.status(409).json({ ok: false, error: 'slot_taken' });
 
     const durationMinutes = cfg.slotMinutes[mode] || 45;
     const doc = {
@@ -86,6 +92,9 @@ export default async function handler(req, res) {
       listingName: (listing && (listing.name || listing.address)) || clip(body.listingName, 160) || null,
       listingZone: (listing && listing.zone) || null,
       listingPrice: (listing && listing.price) || null,
+      // coords ride on the doc so busyBlocks can compute travel gaps for free
+      lat: listing && listing.lat != null ? Number(listing.lat) : null,
+      lng: listing && listing.lng != null ? Number(listing.lng) : null,
       mode, durationMinutes,
       proposedDateTime: when.toISOString(),
       confirmedDateTime: when.toISOString(),

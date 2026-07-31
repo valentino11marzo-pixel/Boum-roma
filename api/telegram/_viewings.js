@@ -100,7 +100,15 @@ export function viewingKeyboard(v) {
 // ── the picker ─────────────────────────────────────────────────────────────
 async function slotsFor(id, mode) {
   const cfg = await loadConfig();
-  return buildSlots(cfg, await busyBlocks(cfg, id), mode);
+  // same travel-aware grid as the public page: the viewing's own listing is
+  // the candidate side, so a move proposal never ignores the day's geometry
+  let ctx = null;
+  try {
+    const { loadViewing } = await import('../viewings/_apply.js');
+    const v = await loadViewing(id);
+    if (v) ctx = { listingId: v.listingId || v.propertyId || null, lat: v.lat != null ? Number(v.lat) : null, lng: v.lng != null ? Number(v.lng) : null };
+  } catch { /* no ctx → flat gap, same grid as before */ }
+  return buildSlots(cfg, await busyBlocks(cfg, id), mode, new Date(), ctx);
 }
 
 function dayKeyboard(id, mode, slots) {

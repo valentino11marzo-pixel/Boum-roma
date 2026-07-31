@@ -4,6 +4,7 @@ import { fsList, fsPatch } from './homie/_lib.js';
 import { sendPaEmails, shell, para, fine, btn, btn2 } from './preagreement/_notify.js';
 import { sendEmail } from './agent/_lib.js';
 import { maybeAutoConvert } from './preagreement/_auto.js';
+import { tgNotify } from './pfs/_health.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -679,6 +680,59 @@ async function handleRent(res, session, m) {
   return res.status(200).json({ received: true, rent: true, paymentId });
 }
 
+// ── Soldi che tornano indietro: MAI in silenzio ────────────────────────────
+// Un rimborso o una CONTESTAZIONE (dispute) finora arrivavano solo nella
+// dashboard Stripe: su una dispute non risposta entro la scadenza l'importo
+// è perso per sempre. Ora ogni evento suona sul Telegram dell'operatore e
+// lascia una notifica in agentNotifications (che fa anche da idempotenza:
+// il retry di Stripe trova il doc già scritto e non suona due volte).
+async function handleMoneyBack(res, event) {
+  const o = event.data.object || {};
+  const eur = n => '€' + (Math.round(n || 0) / 100).toLocaleString('it-IT');
+  const when = e => e ? new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', day: 'numeric', month: 'long' }).format(new Date(e * 1000)) : '—';
+
+  let text = '';
+  let priority = 'normal';
+  if (event.type === 'charge.refunded') {
+    const who = (o.billing_details && (o.billing_details.name || o.billing_details.email)) || '—';
+    const full = (o.amount_refunded || 0) >= (o.amount || 0);
+    text = `↩️ <b>RIMBORSO ${full ? 'totale' : 'parziale'}: ${eur(o.amount_refunded)}</b>\n`
+      + `${who} · addebito ${eur(o.amount)}\n`
+      + `https://dashboard.stripe.com/payments/${o.payment_intent || o.id}`;
+  } else if (event.type === 'charge.dispute.created') {
+    priority = 'high';
+    const dueBy = o.evidence_details && o.evidence_details.due_by;
+    text = `🚨 <b>CONTESTAZIONE (dispute): ${eur(o.amount)}</b>\n`
+      + `Motivo: ${o.reason || '—'}\n`
+      + `⏰ Rispondi con le prove <b>entro il ${when(dueBy)}</b> — senza risposta l'importo è perso.\n`
+      + `https://dashboard.stripe.com/disputes/${o.id}`;
+  } else {
+    const esito = o.status === 'won' ? 'VINTA ✓' : o.status === 'lost' ? 'PERSA ✗' : (o.status || 'chiusa');
+    text = `⚖️ Dispute ${esito} — ${eur(o.amount)}\nhttps://dashboard.stripe.com/disputes/${o.id}`;
+  }
+
+  let w = null;
+  try {
+    w = await writeDoc('agentNotifications', 'stripe-' + String(event.id).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40), {
+      type: 'stripe.' + event.type,
+      summary: text.replace(/<[^>]+>/g, '').split('\n').slice(0, 2).join(' · '),
+      priority, status: 'pending', actor: 'stripe-webhook',
+      dedupKey: 'stripe-' + event.id, createdAt: new Date().toISOString(), attempts: 0,
+    });
+  } catch (e) { console.error('[moneyback] notify write:', e.message); }
+  if (w && w.exists) return res.status(200).json({ received: true, duplicate: true });
+
+  try { await tgNotify(text); } catch (e) { console.error('[moneyback] telegram:', e.message); }
+  return res.status(200).json({ received: true, moneyback: event.type });
+}
+
+const HANDLED_EVENTS = new Set([
+  'checkout.session.completed',
+  'charge.refunded',
+  'charge.dispute.created',
+  'charge.dispute.closed',
+]);
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).send('Method not allowed');
 
@@ -693,8 +747,12 @@ export default async function handler(req, res) {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  if (event.type !== 'checkout.session.completed') {
+  if (!HANDLED_EVENTS.has(event.type)) {
     return res.status(200).json({ received: true, ignored: event.type });
+  }
+
+  if (event.type !== 'checkout.session.completed') {
+    return handleMoneyBack(res, event);
   }
 
   const session = event.data.object;
