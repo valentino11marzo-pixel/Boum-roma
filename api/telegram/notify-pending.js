@@ -119,10 +119,14 @@ export default async function handler(req, res) {
   const gradeRank = l => ({ A: 0, B: 1 }[l.grade] ?? 2);
   // Wait up to ~4 min for the Lead Brain grade+brief before pinging, so the
   // card usually arrives already analyzed; older ungraded leads ping anyway.
+  // EXCEPT WhatsApp: that person is typing RIGHT NOW, on the channel where a
+  // reply within a minute is normal and one within an hour is an insult. A
+  // portal email can wait for its grade; a live chat cannot.
   const GRACE_MS = 4 * 60 * 1000;
+  const isLive = l => String(l.source || '') === 'whatsapp';
   const ldToNotify = (leads || [])
     .filter(l => !l.telegramNotifiedAt && l.grade !== 'dead')
-    .filter(l => l.grade || (Date.now() - ts(l.createdAt)) >= GRACE_MS)
+    .filter(l => l.grade || isLive(l) || (Date.now() - ts(l.createdAt)) >= GRACE_MS)
     .sort((a, b) => gradeRank(a) - gradeRank(b) || ts(b.createdAt) - ts(a.createdAt))
     .slice(0, 5);
   // Anti-chaos at volume: A/B (and not-yet-graded) leads get a full compact
@@ -134,9 +138,12 @@ export default async function handler(req, res) {
   const ldResults = [];
   for (const l of ldFull) {
     try {
+      // WhatsApp reads as a live thread, not as a source label — the operator
+      // must see at a glance that someone is waiting on the other side.
+      const src = String(l.source || '') === 'whatsapp' ? '💬 ti ha scritto su WhatsApp' : esc(l.source || '?');
       const head = l.grade
-        ? `${GRADE_ICON[l.grade] || '🟢'} <b>${esc(l.name || 'Lead')}</b> · ${esc(l.source || '?')} · ${esc(l.grade)}`
-        : `🟢 <b>${esc(l.name || 'Lead')}</b> · ${esc(l.source || '?')}`;
+        ? `${GRADE_ICON[l.grade] || '🟢'} <b>${esc(l.name || 'Lead')}</b> · ${src} · ${esc(l.grade)}`
+        : `🟢 <b>${esc(l.name || 'Lead')}</b> · ${src}`;
       const bits = [
         head,
         l.propertyTitle ? `🏠 ${esc(l.propertyTitle)}${l.propertyPrice ? ' · €' + Number(l.propertyPrice).toLocaleString('it-IT', { useGrouping: true, maximumFractionDigits: 0 }) + '/mese' : ''}` : null,
@@ -158,17 +165,33 @@ export default async function handler(req, res) {
         // Language is decided by what they ACTUALLY wrote, not by a stored
         // flag: the portal-email extractor used to default everyone to 'it'.
         const en = replyLang(l) !== 'it';
-        const msgTxt = en
-          ? (`Hi${first ? ' ' + first : ''}! This is Valentino from BOOM Roma 👋 Thanks for your interest` +
-             (title ? ` in "${title}"` : '') + `. Here you'll find all the details, photos and video: ${link}\n` +
-             `Would you like to book a viewing (in person or live video)? Or just ask me anything you'd like to know!`)
-          : (`Ciao${first ? ' ' + first : ''}! Sono Valentino di BOOM Roma 👋 Grazie per il tuo interesse` +
-             (title ? ` per "${title}"` : '') + `. Qui trovi tutti i dettagli, le foto e il video: ${link}\n` +
-             `Ti andrebbe di fissare una visita (dal vivo o in video)? Oppure chiedimi pure qualsiasi informazione!`);
+        // A lead who wrote to us ON WhatsApp is already mid-conversation:
+        // opening with "Hi, thanks for your interest" reads like a cold
+        // outreach to someone who is looking at their own message above it.
+        // Same channel, different move: answer, don't introduce yourself.
+        const inThread = String(l.source || '') === 'whatsapp';
+        const msgTxt = inThread
+          ? (en
+            ? (`Hi${first ? ' ' + first : ''}, Valentino here 👋` +
+               (title ? ` Here's everything on "${title}" — photos, video and details: ${link}` : ` ${link}`) +
+               `\nWant to see it? I can do in person or a live video call — tell me what suits you.`)
+            : (`Ciao${first ? ' ' + first : ''}, sono Valentino 👋` +
+               (title ? ` Qui trovi tutto su "${title}" — foto, video e dettagli: ${link}` : ` ${link}`) +
+               `\nLa vuoi vedere? Posso dal vivo o in videochiamata — dimmi tu.`))
+          : (en
+            ? (`Hi${first ? ' ' + first : ''}! This is Valentino from BOOM Roma 👋 Thanks for your interest` +
+               (title ? ` in "${title}"` : '') + `. Here you'll find all the details, photos and video: ${link}\n` +
+               `Would you like to book a viewing (in person or live video)? Or just ask me anything you'd like to know!`)
+            : (`Ciao${first ? ' ' + first : ''}! Sono Valentino di BOOM Roma 👋 Grazie per il tuo interesse` +
+               (title ? ` per "${title}"` : '') + `. Qui trovi tutti i dettagli, le foto e il video: ${link}\n` +
+               `Ti andrebbe di fissare una visita (dal vivo o in video)? Oppure chiedimi pure qualsiasi informazione!`));
         wa = `https://wa.me/${waNum}?text=${encodeURIComponent(msgTxt)}`;
       }
       const buttons = [[]];
-      if (wa) buttons[0].push({ text: '💬 WhatsApp (msg pronto)', url: wa });
+      if (wa) buttons[0].push({
+        text: String(l.source || '') === 'whatsapp' ? '💬 Rispondi (già scritto)' : '💬 WhatsApp (msg pronto)',
+        url: wa,
+      });
       buttons[0].push({ text: '📇 Portale', url: 'https://www.boomrome.com/portal' });
       const mid = await tgSend(chatId, bits.join('\n'), { reply_markup: { inline_keyboard: buttons } });
       await fsPatch(`leads/${l.id}`, { telegramNotifiedAt: new Date(), telegramMessageId: mid || null });
