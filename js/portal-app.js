@@ -7440,6 +7440,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 </div>
                 <div class="list-meta"><div class="list-value ${inv.status === 'paid' ? 'text-green' : 'text-gold'}">€${(inv.amount || 0).toLocaleString('it-IT')}</div><span class="badge ${inv.status === 'paid' ? 'green' : 'orange'}">${inv.status === 'paid' ? 'Pagata' : 'In Attesa'}</span></div>
                 <div style="display:flex;gap:4px">
+                    ${inv.status === 'pending' ? `<button class="btn btn-xs" onclick="event.stopPropagation();showPaymentLink('inv','${inv.id}')" title="Link di pagamento con carta (non scade)">💳</button>` : ''}
                     ${inv.status === 'pending' && r.email ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();sendInvoiceReminder('${inv.id}')" title="Invia sollecito email">📧</button>` : ''}
                     <button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();downloadInvoicePDF('${inv.id}')" title="Scarica PDF">📥</button>
                 </div>
@@ -8374,6 +8375,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     </div>
                     ${p.status === 'pending' ? `
                         <div style="display:flex;flex-direction:column;gap:4px">
+                            <button class="btn btn-xs" onclick="event.stopPropagation();showPaymentLink('pay','${p.id}')" title="Link di pagamento con carta (non scade)">💳</button>
                             <button class="btn btn-xs btn-success" onclick="event.stopPropagation();markPaymentPaid('${p.id}')" title="Segna pagato">✔</button>
                             ${p.proofUrl ? `<a href="${p.proofUrl}" target="_blank" class="btn btn-xs btn-secondary" onclick="event.stopPropagation()" title="Vedi ricevuta">📄</a>` : ''}
                             ${isOverdueNow ? `<button class="btn btn-xs btn-danger" onclick="event.stopPropagation();sendPaymentReminder('${p.id}')" title="Invia sollecito">📧</button>` : ''}
@@ -28202,4 +28204,104 @@ ${d.description || '-'}`;
             console.error('[Company] salvataggio fallito:', e);
             toast('error', 'Salvataggio non riuscito', e.message);
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // LINK DI PAGAMENTO STRIPE — dal portale a WhatsApp in un tocco
+    // ═══════════════════════════════════════════════════════════════════
+    // Il link NON è una sessione Stripe (quella scade in 30 minuti): è un
+    // URL stabile di BOOM che a ogni apertura crea una sessione fresca. Si
+    // può mandare oggi e pagare la settimana prossima. Il token è derivato
+    // lato server (api/payments/_token.js), quindi ogni rata e ogni fattura
+    // già esistente ha da subito il suo link, senza migrazioni.
+
+    async function paymentLinkFor(kind, id) {
+        const token = await auth.currentUser.getIdToken();
+        const r = await fetch('/api/payments/link-for', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ kind, id })
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok || !data.ok) throw new Error(data.error || ('errore ' + r.status));
+        return data.url;
+    }
+
+    // Copia negli appunti con ricaduta su prompt() — su Safari senza HTTPS
+    // o senza permesso, navigator.clipboard non c'è e il tasto sembrerebbe
+    // rotto invece di dare comunque il link all'operatore.
+    async function copyToClipboard(text, okMsg) {
+        try {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(text);
+                toast('success', okMsg || 'Copiato');
+                return true;
+            }
+        } catch (e) { /* si passa al piano B */ }
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+            document.body.appendChild(ta); ta.select();
+            const ok = document.execCommand('copy');
+            ta.remove();
+            if (ok) { toast('success', okMsg || 'Copiato'); return true; }
+        } catch (e) {}
+        window.prompt('Copia il link:', text);
+        return false;
+    }
+
+    // Un solo pannello per entrambi i casi (rata o fattura): mostra il link,
+    // il tasto copia e — se conosciamo il numero — l'invio WhatsApp con il
+    // messaggio già scritto. L'operatore non deve comporre nulla.
+    async function showPaymentLink(kind, id) {
+        const isInv = kind === 'inv';
+        const doc = isInv
+            ? (S.invoices || []).find(x => x.id === id)
+            : (S.payments || []).find(x => x.id === id);
+        if (!doc) { toast('error', 'Documento non trovato'); return; }
+        if (doc.status === 'paid') { toast('info', 'Già pagato', 'Non serve un link.'); return; }
+
+        toast('info', 'Preparo il link…');
+        let url;
+        try { url = await paymentLinkFor(kind, id); }
+        catch (e) { toast('error', 'Link non creato', e.message); return; }
+
+        const amount = Number(doc.amount) || 0;
+        let who = null, phone = '', name = '';
+        if (isInv) {
+            who = (S.users || []).find(u => u.id === (doc.recipientId || doc.clientId))
+               || (S.clients || []).find(c => c.id === (doc.recipientId || doc.clientId));
+            name = doc.recipientName || who?.name || '';
+        } else {
+            who = (S.users || []).find(u => u.id === doc.tenantId);
+            name = who?.name || '';
+        }
+        phone = String(who?.phone || '').replace(/[^0-9]/g, '');
+
+        const what = isInv
+            ? `la fattura ${doc.number || ''}`.trim()
+            : (doc.type === 'deposit-balance' ? 'il saldo del deposito' : `il canone di ${doc.month || fmtDate(doc.dueDate)}`);
+        const msg = `Ciao${name ? ' ' + name.split(' ')[0] : ''}, puoi pagare ${what} (€${amount.toLocaleString('it-IT')}) con carta da qui: ${url}`;
+
+        document.getElementById('modals').innerHTML = `
+        <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+          <div class="modal" style="max-width:520px">
+            <div class="modal-header"><h3>💳 Link di pagamento</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-body">
+              <div style="font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:16px">
+                ${esc(what.charAt(0).toUpperCase() + what.slice(1))} · <strong style="color:var(--gold)">€${amount.toLocaleString('it-IT')}</strong>${name ? ' · ' + esc(name) : ''}<br>
+                Il link non scade: si può mandare adesso e pagare più avanti. Quando il pagamento arriva, ${isInv ? 'la fattura' : 'la rata'} si segna pagata da sola.
+              </div>
+              <div style="background:var(--bg-input);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:11.5px;word-break:break-all;color:var(--text-secondary);margin-bottom:16px">${esc(url)}</div>
+              <div style="display:flex;gap:10px;flex-wrap:wrap">
+                <button class="btn btn-sm" onclick="copyToClipboard(${JSON.stringify(url).replace(/"/g, '&quot;')},'Link copiato')">📋 Copia link</button>
+                ${phone ? `<a class="btn btn-sm" style="text-decoration:none" target="_blank" rel="noopener"
+                    href="https://wa.me/${esc(phone)}?text=${encodeURIComponent(msg)}">💬 Manda su WhatsApp</a>` : ''}
+                <button class="btn btn-sm btn-secondary" onclick="copyToClipboard(${JSON.stringify(msg).replace(/"/g, '&quot;')},'Messaggio copiato')">✍️ Copia messaggio</button>
+                <a class="btn btn-sm btn-secondary" style="text-decoration:none" href="${esc(url)}" target="_blank" rel="noopener">👁 Prova</a>
+              </div>
+              ${!phone ? `<div style="font-size:11.5px;color:var(--text-secondary);margin-top:14px">Nessun telefono in archivio per ${esc(name || 'questo contatto')}: copia il link e mandalo come preferisci.</div>` : ''}
+            </div>
+          </div>
+        </div>`;
     }

@@ -688,6 +688,39 @@ mediaType }`. Fetches the file server-side, sends to Claude (haiku), returns
 `{ category, text, entities:{ dates, amounts, codiceFiscale, iban,
 partitaIva, fiscalYear } }`. Anthropic key stays server-side.
 
+### Link di pagamento Stripe (`/api/payments/link` + `link-for`)
+Il portale può incassare QUALSIASI rata o fattura con carta, mandando un
+link su WhatsApp. Il link **non è** una Checkout Session (quella scade in 30
+minuti, per scelta): è un URL stabile di BOOM che a ogni apertura crea una
+sessione fresca e ci reindirizza dentro — si manda oggi e si paga la
+settimana prossima. Il token è **derivato** (`_token.js`, HMAC su
+`HOMIE_SECRET`), quindi ogni rata e ogni fattura già esistente ha da subito
+un link valido senza migrazioni, e ruotando il segreto si revocano tutti.
+- `POST /api/payments/link-for` — admin/owner/landlord: `{kind:'pay'|'inv', id}`
+  → `{url}`. Il calcolo del token resta server-side (se il segreto arrivasse
+  al browser chiunque potrebbe generare link per qualsiasi documento). Un
+  landlord ottiene link solo per i propri immobili; le fatture sono admin-only;
+  documento inesistente 404, già pagato 409.
+- `GET /api/payments/link?k&id&t` — pubblico, nessun login. Casi non-felici
+  resi come **pagine HTML** in stile BOOM, mai come JSON (chi apre un link e
+  vede `{"error":"not_found"}` pensa a una truffa): già pagato (con link alla
+  ricevuta), link non valido, importo anomalo, pagamenti non configurati.
+- La **commissione di servizio** si applica solo al canone (è il costo della
+  carta, voce a sé come in `payments/pay.js`); su una fattura BOOM no —
+  sarebbe farsi pagare due volte lo stesso servizio.
+- Ramo webhook **INVOICE**: segna la fattura `paid/paidVia:'stripe'` con
+  `receiptUrl`, scrive la notifica operativa e manda le ricevute. Stessa
+  disciplina del canone: retry della stessa sessione → `duplicate`; una
+  SECONDA sessione su un documento già saldato non sovrascrive mai nulla e
+  fa scattare l'allarme **doppio incasso** (`agentNotifications`).
+- UI: bottone 💳 sulle righe di Pagamenti e Fatture → pannello con link,
+  copia, **WhatsApp col messaggio già scritto** (quando il numero è in
+  archivio) e anteprima. `copyToClipboard()` ricade su `execCommand` e poi
+  su `prompt()` — su Safari senza contesto sicuro `navigator.clipboard` non
+  esiste e il tasto sembrerebbe rotto.
+Coperto da `tests/money/run.mjs` (token stabile/non trasferibile fra tipi,
+autorizzazioni di `link-for`, incasso fattura, idempotenza, doppio incasso).
+
 ### Dati: LA BONIFICA + L'INNESTO (`js/dataops-engine.js` + portal pages)
 Two admin-only portal pages that keep the archive honest. All decision logic
 lives in the pure, dependency-free `js/dataops-engine.js`
