@@ -117,13 +117,41 @@ export async function finalizeContract(contract){
   // rinvio al certificato). Senza generatedPDF (contratti legacy) si salta
   // senza rumore: alle email resta comunque il certificato FES.
   let signedPdfUrl = '';
+  let timestampUrl = '';
   try {
     const bytes = await buildSignedContract({
       ...contract,
       tenantName: contract.tenantName || (tenant && tenant.name) || '',
       landlordName: contract.landlordName || (landlord && landlord.name) || '',
     }, property);
-    if (bytes) signedPdfUrl = await uploadPdf(`contracts/${contract.id}/contratto-firmato.pdf`, Buffer.from(bytes));
+    if (bytes) {
+      const pdfBuf = Buffer.from(bytes);
+      signedPdfUrl = await uploadPdf(`contracts/${contract.id}/contratto-firmato.pdf`, pdfBuf);
+
+      // ── Marca temporale RFC3161 sull'hash del contratto firmato ──
+      // Una TSA terza attesta che QUESTI byte esistevano a QUESTA data:
+      // evidenza di data certa che rafforza la FES a costo zero. La
+      // TimeStampReq DER è a lunghezza fissa (SHA-256 + certReq=TRUE).
+      // Fail-open totale: una TSA irraggiungibile non tocca mai la firma.
+      try {
+        const pdfSha = crypto.createHash('sha256').update(pdfBuf).digest();
+        const tsq = Buffer.concat([
+          Buffer.from('30390201013031300d060960864801650304020105000420', 'hex'),
+          pdfSha,
+          Buffer.from('0101ff', 'hex'),
+        ]);
+        const r = await Promise.race([
+          fetch('https://freetsa.org/tsr', { method: 'POST', headers: { 'Content-Type': 'application/timestamp-query' }, body: tsq }),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('tsa_timeout')), 8000)),
+        ]);
+        if (r && r.ok) {
+          const tsr = Buffer.from(await r.arrayBuffer());
+          if (tsr.length > 100) {
+            timestampUrl = await uploadPdf(`contracts/${contract.id}/timestamp.tsr`, tsr, 'application/timestamp-reply');
+          }
+        }
+      } catch (e) { console.warn('[finalize] rfc3161:', e.message); }
+    }
   } catch(e){ console.warn('[finalize] signed pdf failed:', e.message); }
 
   // ── Server-issued tenant magic link (single-use, 72h) ──
@@ -178,16 +206,16 @@ export async function finalizeContract(contract){
   const tenantEmail = !!(welcome && welcome.tenant);
   const landlordEmail = !!(welcome && welcome.landlord);
 
-  try { await fsPatch(`contracts/${contract.id}`, { finalizedAt: now, magicLinkId: magicId, signingCertificateUrl: certUrl, ...(signedPdfUrl ? { signedPdfUrl } : {}) }); } catch(e){ console.warn('[finalize] mark failed:', e.message); }
+  try { await fsPatch(`contracts/${contract.id}`, { finalizedAt: now, magicLinkId: magicId, signingCertificateUrl: certUrl, ...(signedPdfUrl ? { signedPdfUrl } : {}), ...(timestampUrl ? { timestampTsrUrl: timestampUrl } : {}) }); } catch(e){ console.warn('[finalize] mark failed:', e.message); }
 
-  return { ok:true, obligations: created, certificate: !!certUrl, signedPdf: !!signedPdfUrl, pack: !!pack.url, packMissing: pack.missing, magicLink: !!magicId, tenantEmail, landlordEmail, caf: !!(caf && caf.ok) };
+  return { ok:true, obligations: created, certificate: !!certUrl, signedPdf: !!signedPdfUrl, timestamp: !!timestampUrl, pack: !!pack.url, packMissing: pack.missing, magicLink: !!magicId, tenantEmail, landlordEmail, caf: !!(caf && caf.ok) };
 }
 
 // ── Firebase Storage upload (admin token) ──
-async function uploadPdf(path, bytes){
+async function uploadPdf(path, bytes, contentType = 'application/pdf'){
   const token = await getAdminToken();
   const url = `https://firebasestorage.googleapis.com/v0/b/${STORAGE_BUCKET}/o?uploadType=media&name=${encodeURIComponent(path)}`;
-  const r = await fetch(url, { method:'POST', headers:{ Authorization:`Bearer ${token}`, 'Content-Type':'application/pdf' }, body: bytes });
+  const r = await fetch(url, { method:'POST', headers:{ Authorization:`Bearer ${token}`, 'Content-Type':contentType }, body: bytes });
   if (!r.ok) throw new Error('storage_' + r.status + ': ' + (await r.text()).slice(0,200));
   const meta = await r.json().catch(()=>({}));
   const dt = (meta.downloadTokens || '').split(',')[0];

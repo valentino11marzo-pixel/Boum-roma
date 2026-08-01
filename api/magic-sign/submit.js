@@ -149,6 +149,13 @@ export default async function handler(req, res) {
     } catch (e) { console.warn('[magic-sign/submit] phone token verify:', e.message); }
   }
 
+  // OTP OBBLIGATORIO (flag `otpRequired` sul contratto): la firma esige il
+  // telefono verificato via Firebase — il fattore in più che avvicina la
+  // FES alla FEA. Default assente = off: nessun contratto esistente cambia.
+  if (contract.otpRequired === true && !phoneVerified) {
+    return res.status(428).json({ ok: false, error: 'otp_required' });
+  }
+
   const nowISO = new Date().toISOString();
 
   const upd = {};

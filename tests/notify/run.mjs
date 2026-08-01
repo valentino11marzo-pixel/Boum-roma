@@ -70,6 +70,9 @@ globalThis.fetch = async (url, opts = {}) => {
   // contenuto deterministico dal path, così il test verifica la FEDELTÀ
   // dei byte dentro lo ZIP del pack.
   if (url.startsWith('https://storage.example/')) return new Response(Buffer.from('FILE:' + url.slice(24)), { status: 200 });
+  // TSA RFC3161 (freetsa): risposta finta abbastanza lunga da passare il
+  // sanity check (>100 byte) — la marca temporale viene archiviata.
+  if (url.startsWith('https://freetsa.org/tsr')) return new Response(Buffer.alloc(300, 7), { status: 200 });
   if (url.includes('firebasestorage.googleapis.com')) {
     if (opts.method === 'POST') {
       const name = new URL(url).searchParams.get('name');
@@ -449,6 +452,21 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   check('certificato costruito con TUTTE le firme (hash include i co-conduttori)',
     String(cs2.signingCertificateUrl || '').includes('signing-certificate.pdf')
     && storageFiles.has('contracts/ctrCS/signing-certificate.pdf'));
+  check('marca temporale RFC3161 archiviata e stampata sul contratto',
+    String(cs2.timestampTsrUrl || '').includes('timestamp.tsr')
+    && storageFiles.has('contracts/ctrCS/timestamp.tsr'));
+
+  // OTP OBBLIGATORIO: col flag, la firma senza telefono verificato è respinta
+  store.set('contracts/ctrOTP', {
+    propertyId: 'prop1', tenantId: 't1', type: 'transitorio', rent: 900, deposit: 900,
+    startDate: '2026-10-01', endDate: '2027-03-31', tenantName: 'Anna Expat',
+    tenantSignToken: 'OTPTOK_1', signingOrder: 'sequential', signatureStatus: 'none',
+    otpRequired: true,
+  });
+  r = mkRes();
+  await msSubmit(mkReq(body('OTPTOK_1')), r);
+  check('otpRequired: firma senza telefono verificato → 428 otp_required',
+    r.code === 428 && r.body.error === 'otp_required');
 }
 
 // ═══ 1b. Watchdog inviti freddi (predicato puro) ═══
