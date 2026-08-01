@@ -1,5 +1,33 @@
 # BOOM Listing Wizard — Telegram bot
 
+**v3.1 — il cervello gratis.** Every free-text message used to go straight to
+`claude-sonnet-5` with the WHOLE catalog in the prompt (~1.5k input tokens per
+message) — including "affittato Cavour" and "quanto costa Pigneto?", which a
+regex resolves perfectly for nothing. The router is now local-first:
+
+1. **is it a question?** → answered from the catalog (price, deposit,
+   interested leads, video, photos, days on market, address, status, "quali
+   sono liberi") — **zero cost**
+2. **is it a plain edit?** → parsed locally (deposit, price abs/relative,
+   video link, status, furnished, sqm, beds, bathrooms, floor, Italian dates
+   → ISO, agency fee, several edits in one sentence) — **zero cost**
+3. **anything else** → escalates to `/api/wizard/interpret` exactly as before
+   (typo'd names, dictated new listings, anaphora)
+
+No capability is lost — the model still handles everything the regex can't.
+On a realistic operator day, **85% of messages cost nothing**; `/status` shows
+the split so the saving is visible instead of theoretical.
+
+Two guards make local parsing safe, both regression-tested:
+- **a question never becomes a write** — "Levico è affittato?" contains
+  "affittato" and would otherwise mark the flat rented for a question
+- **a new home never becomes an edit** — "trilocale a Prati, 80mq, 1500 euro"
+  would otherwise latch onto an existing *Trilocale* and rewrite its size
+
+Suite: `python3 tests/wizard/local_brain.py` (47 asserzioni). It extracts the
+pure functions from the bot via the AST, so it runs with no `.env`, no
+Telegram and no network.
+
 **v3 — the wizard disappears**: send photos in bulk, then describe the home
 in ONE message ("trilocale a Pigneto, via del Pigneto 3, 95mq, terzo piano,
 due bagni, arredato, 1350€, libero dal 1 settembre") — or a VOICE NOTE
@@ -21,9 +49,9 @@ reads), `/video ID link`, `/modifica ID campo valore` (whitelisted fields:
 nome indirizzo zona prezzo mq piano letti bagni arredato disponibile
 descrizione video commissione stato). The bot also understands plain
 Italian: write "metti il deposito a due mesi per Pigneto" or "aumenta il
-prezzo di Levico di 100€" — it builds the edit via `/api/wizard/interpret`
-(Claude against the real catalog; local regex fallback if the endpoint is
-unavailable) and applies it only after the ✅ Conferma tap. Runs on the
+prezzo di Levico di 100€" — resolved by the local brain when it can, else by
+`/api/wizard/interpret` (Claude against the real catalog), and applied only
+after the ✅ Conferma tap. Runs on the
 **Mac mini** (`boomserver@Mac-mini-di-BOOM`), polling Telegram. Writes to
 Firestore + Storage via the Firebase REST API using the admin account
 `valentino@boomrome.com` (same email/password pattern as `api/reminder-cron.js`).
