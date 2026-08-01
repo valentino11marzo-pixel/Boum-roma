@@ -255,8 +255,26 @@ pass), derives money fields (`depositMonths` → EUR `deposit`, price change →
 deposit recompute, twins size/bedrooms) and returns
 `{ action:'update', id, name, updates, summary[] }` or
 `{ action:'none', note }`. Never writes — the bot shows the summary with a
-✅ Conferma button and applies on tap. The bot falls back to a local regex
-parser (deposito/prezzo/video/stato) when this endpoint is unavailable.
+✅ Conferma button and applies on tap.
+
+**Il bot chiama questo endpoint per ULTIMO, non per primo** (wizard v3.1).
+Ogni messaggio libero pagava un `claude-sonnet-5` con TUTTO il catalogo nel
+prompt (~1.500 token di input a messaggio) — compresi "affittato Cavour" e
+"quanto costa Pigneto?", che una regex risolve per zero; il parser locale
+esisteva ma era solo il paracadute per quando l'endpoint era giù. Ora il
+router in `_nl_process` è: **domanda** → risposta letta dal catalogo (prezzo,
+deposito, interessati, video, foto, giorni sul mercato, indirizzo, stato,
+"quali sono liberi") → **modifica piana** → regex (anche arredamento, mq,
+camere, bagni, piano, date IT→ISO, commissione, più modifiche in una frase) →
+**tutto il resto** sale qui, dove il modello serve davvero (refusi nei nomi,
+case nuove dettate a voce, anafore). Nessuna capacità persa; su una giornata
+tipo **85% dei messaggi costa zero**, e `/status` mostra lo split a runtime.
+Due guardie, entrambe trovate dai test prima della produzione: una DOMANDA
+non diventa mai una scrittura ("Levico è affittato?" contiene "affittato" e
+avrebbe marcato l'immobile affittato per una domanda) e una CASA NUOVA non
+diventa mai una modifica ("trilocale a Prati, 80mq" agganciava un
+*Trilocale* esistente e gli riscriveva i metri).
+Test: `python3 tests/wizard/local_brain.py`.
 
 ### GET/POST `/api/wizard/video-radar` (cron Monday 07:00 UTC)
 Weekly LISTING QUALITY radar ("pagella"). Grades every AVAILABLE listing
@@ -456,6 +474,25 @@ viewing id + server secret).
   veniva avvisato e si presentava al portone. Aggiunti anche ↩ Reschedule
   sulle confermate, il filtro ✕ Cancelled, e i modal ora mostrano/prefillano
   l'orario reale anche per i doc self-booked (che hanno solo i campi ISO).
+- **Il double confirm** (`requireApproval`, default **true** in
+  `_avail.js` DEFAULTS + toggle nel modal ⚙️ Disponibilità): l'instant
+  booking confermava da solo, ma una visita è un impegno su un immobile
+  vero e l'operatore vuole filtrare chi entra. Ora il cliente sceglie
+  comunque uno slot REALE (nessun ping-pong di date) e **quell'orario resta
+  tenuto per lui** — `busyBlocks` conta già le pending — ma la visita nasce
+  `status:'pending'`: niente campi `confirmed*`, niente pass, niente invito
+  in calendario, niente countdown. Parte solo `sendRequested()` ("l'orario è
+  tenuto, ti confermiamo entro poche ore"), e la card con ✅ Conferma arriva
+  su Telegram da `notify-pending` entro un minuto; alla conferma il kit
+  completo parte da `_apply.js`/`_moments.js` come sempre. La GET di
+  `/api/viewings/slots` espone `requireApproval` e **book.html cambia le
+  parole** (via `applyApprovalCopy()`: niente "⚡ Instant confirmation", il
+  bottone diventa "Request this viewing", e la schermata *"Request sent"* —
+  che esisteva già ed era irraggiungibile — diventa la sua strada). Test:
+  il ramo è asserito sulla SORGENTE (`tests/viewings/availability-ui.mjs`):
+  l'uscita anticipata deve precedere `sendConfirmation` e `inviteOperator`,
+  perché un pass per una visita non confermata è una bugia al cliente e un
+  evento fantasma nell'agenda dell'operatore.
 - **⚙️ Disponibilità nel portal** (`js/viewing-availability.js`, UMD come
   boom-geo/canone-engine → `window.BOOM_AVAIL`, caricato da portal.html):
   fino al 2026-07 le finestre di prenotazione erano i **default hardcoded**
@@ -1128,6 +1165,52 @@ actionId, ok, error?}` — delivery state lives on the action doc
 (`waSentAt`/`waSendError`), nothing sends twice, failures visible. Auth
 `X-Homie-Secret`.
 
+### POST `/api/homie/message` — da WhatsApp a lead, senza far pensare nessuno
+La CHIAVE DI VOLTA che permette a Homie di smettere di analizzare (mandato
+completo + prompt da incollare: `bot/HOMIE.md`). Finché Homie leggeva ogni
+messaggio con Sonnet era lui a decidere "questa è una persona che cerca
+casa" e a creare il lead; senza quel pensiero, un WhatsApp da un numero
+sconosciuto finiva in `conversations` e **basta** — il Lead Brain non lo
+vedeva, `notify-pending` non lo mandava, il Commerciale non scriveva nulla
+(tutti interrogano `leads`). Il cliente spariva dal telefono e sopravviveva
+solo nell'Inbox del portale, che richiede un desktop.
+`api/homie/_lead.js` rende la decisione **deterministica e gratis**:
+- inbound da un numero che non è già un contatto BOOM → doc `leads` nello
+  schema che leggono già `homie/inbound` e `leads/scan-inbox`, e da lì parte
+  la macchina esistente (Brain in batch → ping Telegram → Commerciale);
+- `isNoise()` scarta SOLO il non-messaggio (un 👍, un "ok") — allo spam pensa
+  già `stage0` del Brain, gratis: qui non si giudica se la persona è seria;
+- inquilini/proprietari/clienti PFS (risolti per telefono) **non** entrano in
+  pipeline: scrivono per la caldaia, non per affittare;
+- un lead che esiste si ARRICCHISCE invece di duplicarsi — `mergeMessage()`
+  accumula i pezzi di una chat ("ciao" · "cercavo un bilocale" · "per
+  settembre"), così `replyLang` vede la lingua vera e il Commerciale scrive
+  sul contesto completo, non sul "ciao";
+- **`direction:'out'` marca il lead `contacted`**: se l'operatore ha già
+  risposto a mano, il Commerciale tace — due voci sulla stessa conversazione
+  sono una figura che non si recupera;
+- `phoneVariants()` — WhatsApp consegna SEMPRE l'internazionale
+  (`+393334444444`), i portali salvano il nazionale (`3334444444`): cercare
+  una forma sola sdoppiava la stessa persona in due lead con due risposte
+  diverse. Ora la lettura prova tutte le forme e la scrittura normalizza
+  ALLA PORTA (`buildLead` + `leads/scan-inbox`), così il problema smette di
+  rigenerarsi.
+`notify-pending` tratta i lead WhatsApp come **vivi**: niente grazia di 4
+minuti per il grade (quella persona sta digitando adesso), header
+"💬 ti ha scritto su WhatsApp", e il messaggio precompilato è una RISPOSTA,
+non una presentazione — "Grazie per il tuo interesse" sotto il messaggio che
+ti ha appena scritto legge come un contatto a freddo.
+**`/api/homie/inbound` ora deduplica** (prima faceva `fsCreate` e basta:
+andava bene finché Homie era l'unica fonte). Nella finestra in cui Homie
+cambia mandato la stessa persona arriva da DUE porte — l'inoltro grezzo
+parte all'istante, `inbound` dopo l'analisi, quindi il duplicato lo creava
+proprio `inbound`. Deduplicando lì, **qualunque ordine** produce un lead solo
+e i due lati non hanno bisogno di essere coordinati: si possono tenere accesi
+insieme per giorni.
+Test: `node tests/whatsapp/run.mjs` (Firestore finto in memoria, si guida il
+handler vero; copre entrambi gli ordini della transizione, verificati per
+mutazione).
+
 ### POST `/api/homie/property`
 Homie → PFS bridge. Homie scrapes a property (Immobiliare/Idealista/etc.), calls this with the listing data. Validates, then delegates to the shared ingestion pipeline `api/pfs/_ingest.js` (dedupe on `pfsProperties/<sha1(sourceUrl)>`, agency filter, scoring via `api/homie/_match.js`, push score ≥ 60 into each active client's `portalProperties` swipe deck). Client-portal.html already listens and triggers a "New Property!" alert on the client's phone. Auth via `X-Homie-Secret`. See file header for payload schema.
 
@@ -1363,6 +1446,8 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/viewings/gap.mjs` | la geometria della giornata: stesso immobile a catena (gap 0), viaggi reali tra zone (clamp 15–45'), video piatto, blocchi legacy identici a prima |
   | `tests/regista/run.mjs` | Il Regista: grammatica dei promemoria (IT/EN, accenti, "il 16/08", range che non sono date), id deterministici ≤64B, inviti calendario dei task, foglio di chiamata (escaping, viaggi, catene, giorno vuoto) |
   | `tests/recovery/run.mjs` | Il Recupero: chi diventa lead (PFS/SERVICE/RESERVE) e chi recap (PA/DEPOSIT/RENT), i test dell'operatore mai, id deterministico, lingua dalle parole del cliente |
+  | `tests/whatsapp/run.mjs` | Da WhatsApp a lead senza AI: il rumore resta fuori (👍, "ok") e la persona vera entra, l'inquilino che scrive per la caldaia non inquina la pipeline, un lead per persona anche col numero archiviato in formato diverso (nazionale vs internazionale), una risposta umana zittisce il Commerciale. Guida il handler VERO su un Firestore finto in memoria |
+  | `tests/wizard/local_brain.py` | Il cervello gratis del bot wizard (`python3`): cosa capisce senza modello e — più importante — cosa deve rifiutarsi di capire. Una domanda ("Levico è affittato?") non può diventare una scrittura; un annuncio nuovo dettato non può diventare la modifica di uno esistente. Estrae le funzioni pure dal bot via AST: gira senza `.env`, senza Telegram, senza rete |
   | `tests/sign/lang.mjs` | /sign bilingue guidata in un browser vero (demo mode): default per ruolo (locatore IT, inquilino EN), toggle che ridisegna lo step corrente in entrambe le direzioni, percorso intero tradotto, Skip OTP che non blocca, link WhatsApp presenti. Si auto-skippa senza playwright |
   | `tests/safari/boot.mjs` | nessuna superficie autenticata resta appesa su un loader |
 - PWA support via `manifest.json` and `sw.js` service worker — registered on

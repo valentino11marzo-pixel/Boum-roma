@@ -675,7 +675,7 @@ a.blkchip:hover{border-color:var(--line-gold);color:var(--gold)}
       "name": "Can I see the apartment before deciding?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Yes. Book a real time slot directly on the page — in person or as a live video call — and it is confirmed instantly, with reminders and an Apple Wallet pass."
+        "text": "Yes. Pick a real time slot directly on the page — in person or as a live video call. The slot is held for you straight away, and once confirmed you get reminders and an Apple Wallet pass. No message ping-pong."
       }
     },
     {
@@ -1249,7 +1249,7 @@ function paintDecoded(){
 paintDecoded();
 function toggleDecode(){const d=document.getElementById('decoded');const o=d.classList.toggle('open');const b=document.getElementById('dtog');b.textContent=o?'− Hide the detail':'＋ See every euro, decoded';b.setAttribute('aria-expanded',o);}
 
-const FAQ=[['Can I see it before deciding?','Yes — and you book it like a flight seat: pick a real slot on this page (in person, or a live video call if you’re abroad) and it’s confirmed on the spot, with reminders and a Wallet pass. No message ping-pong.'],
+const FAQ=[['Can I see it before deciding?','Yes — and you book it like a flight seat: pick a real slot on this page (in person, or a live video call if you’re abroad) and it’s held for you straight away. Once confirmed you get reminders and a Wallet pass. No message ping-pong.'],
 ['Can I move in on a different date than availability?','Yes. Set your date in “Your stay”: after availability you move in straight away; before it, we show the exact gap and can alert you or find an alternative.'],
 ['I’m a foreigner staying 1–18 months — can I legally rent?','That’s exactly our speciality. We use the registered transitional contract (contratto transitorio, L.431/98): fully legal for stays from 1 to 18 months, registered with the Agenzia delle Entrate, deposit protected, English support end to end. A real contract — not a handshake over a coffee.'],
 ['How fast can I really move in?','As fast as 48 hours from approval. We reply to every application within 2 hours and handle contract and keys.'],
@@ -2058,7 +2058,9 @@ function bkFetch(mode){
   if(BK.cache[mode])return BK.cache[mode];
   BK.cache[mode]=fetch('/api/viewings/slots?mode='+mode+(PID?'&listingId='+encodeURIComponent(PID):''))
     .then(function(r){return r.ok?r.json():null})
-    .then(function(j){return (j&&j.ok&&Array.isArray(j.slots))?j.slots:null})
+    /* requireApproval decide TUTTE le parole di questa lane: se l'operatore
+       conferma ogni visita, promettere "confirmed instantly" è una bugia. */
+    .then(function(j){if(j&&j.requireApproval)BK.approval=true;return (j&&j.ok&&Array.isArray(j.slots))?j.slots:null})
     .catch(function(){return null})
     .then(function(v){if(v===null)delete BK.cache[mode];return v});
   return BK.cache[mode];
@@ -2069,9 +2071,12 @@ function bkTeaser(){
   setTimeout(function(){bkFetch('person').then(function(days){
     if(!days||!days.length||!days[0].times.length)return;
     var d=days[0],el=document.getElementById('bkNext');
-    if(el)el.textContent='Next free slot: '+bkDayTag(d.date,d.label)+' '+d.times[0].label+' — instant confirmation';
+    if(el)el.textContent='Next free slot: '+bkDayTag(d.date,d.label)+' '+d.times[0].label
+      +(BK.approval?' — we hold it for you':' — instant confirmation');
     var vt=document.getElementById('vvTour'),sm=vt&&vt.querySelector('small');
-    if(sm)sm.textContent='pick a real slot — confirmed instantly · no app, no account';
+    if(sm)sm.textContent=BK.approval
+      ? 'pick a real slot — we hold it and confirm · no app, no account'
+      : 'pick a real slot — confirmed instantly · no app, no account';
   }).catch(function(){})},1400);
 }
 function openBook(m){
@@ -2088,7 +2093,8 @@ function bkRender(){
   var b=document.getElementById('bkBody');if(!b)return;
   if(BK.done){bkRenderDone(b);return;}
   b.innerHTML=
-    '<p class="bk-sub">'+sbEsc(L.name)+(L.zone?' · '+sbEsc(L.zone):'')+' — real availability, confirmed on the spot. Free, no documents.</p>'
+    '<p class="bk-sub">'+sbEsc(L.name)+(L.zone?' · '+sbEsc(L.zone):'')+' — real availability, '
+      +(BK.approval?'held for you the moment you pick it':'confirmed on the spot')+'. Free, no documents.</p>'
     +'<div class="seg" id="bkSeg" style="margin-top:10px"><button type="button" data-m="person" class="'+(BK.mode==='person'?'on':'')+'">In person · 45 min</button><button type="button" data-m="video" class="'+(BK.mode==='video'?'on':'')+'">Live video call · 20 min</button></div>'
     +'<div id="bkSlots"><div class="bk-wait"><span></span><span></span><span></span></div></div>'
     +'<div class="bk-tz" id="bkTz"></div>'
@@ -2099,7 +2105,7 @@ function bkRender(){
     +'<label class="bk-f"><span>Phone / WhatsApp</span><input id="bkPhone" type="tel" autocomplete="tel" value="'+String(RES.phone||'').replace(/"/g,'&quot;')+'" oninput="bkArm()"></label>'
     +'</div></div>'
     +'<p class="bk-err" id="bkErr" role="alert"></p>'
-    +'<button class="paybtn" id="bkGo" disabled onclick="bkSubmit()"><span class="lk"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><span class="tx"><b id="bkGoLbl">Pick a time above</b><small>instant confirmation · reminders + Wallet pass included</small></span><span class="amt">Free</span></button>'
+    +'<button class="paybtn" id="bkGo" disabled onclick="bkSubmit()"><span class="lk"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><span class="tx"><b id="bkGoLbl">Pick a time above</b><small>'+(BK.approval?'we hold your slot · confirmed within a few hours':'instant confirmation · reminders + Wallet pass included')+'</small></span><span class="amt">Free</span></button>'
     +'<p class="paysafe"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z"/></svg><span>'+(BK.mode==='video'?'A real person walks you through the home live — <b>you direct, we film</b>.':'A real person shows you the home.')+' Reschedule or cancel any time from your confirmation email.</span></p>';
   var seg=document.getElementById('bkSeg');
   if(seg)seg.addEventListener('click',function(e){var bt=e.target.closest('button');if(!bt||bt.dataset.m===BK.mode)return;bkGrab();BK.mode=bt.dataset.m;BK.when='';bkRender();bkLoad();});
@@ -2151,7 +2157,7 @@ function bkErr(m){var e=document.getElementById('bkErr');if(e){e.textContent=m;e
 function bkSubmit(){
   var btn=document.getElementById('bkGo');if(!btn||btn.disabled||BK.busy)return;
   bkGrab();BK.busy=true;btn.disabled=true;
-  var lbl=document.getElementById('bkGoLbl');if(lbl)lbl.textContent='Booking your slot…';
+  var lbl=document.getElementById('bkGoLbl');if(lbl)lbl.textContent=BK.approval?'Holding your slot…':'Booking your slot…';
   try{navigator.vibrate&&navigator.vibrate(8)}catch(e){}
   var s=computeStay();
   fetch('/api/viewings/slots',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
@@ -2168,7 +2174,7 @@ function bkSubmit(){
       viewingId:x.j.id,clientName:RES.name,clientEmail:RES.email,clientPhone:RES.phone||'',
       listingName:L.name+(L.zone?' · '+L.zone:''),requestedDate:String(x.j.when).slice(0,10),requestedTime:String(x.j.when).slice(11,16),
       mode:x.j.mode,notes:(x.j.mode==='video'?'[VIDEO CALL] ':'')+'Self-booked from the listing page'})}).catch(function(){})}catch(e){}
-    boomTrack('viewing_booked',{item_id:PID||'',mode:x.j.mode});
+    boomTrack(x.j.status==='pending'?'viewing_requested':'viewing_booked',{item_id:PID||'',mode:x.j.mode});
     boomTrack('generate_lead',{method:'viewing_slots',item_id:PID||''});
     try{navigator.vibrate&&navigator.vibrate(12)}catch(e){}
     bkRender();
@@ -2178,6 +2184,21 @@ function bkSubmit(){
 }
 function bkRenderDone(b){
   var j=BK.done,video=j.mode==='video';
+  /* RICHIESTA ≠ CONFERMA. Con il double confirm la visita nasce pending:
+     niente pass (non esiste ancora), niente calendario, niente "ci vediamo
+     lì". Solo la verità: l'orario è tenuto, la conferma arriva via email. */
+  if(j.status==='pending'){
+    b.innerHTML='<div class="bk-done">'
+      +'<div style="font-size:34px;line-height:1">⏳</div>'
+      +'<div style="font-size:10px;letter-spacing:2.6px;text-transform:uppercase;color:var(--gold);font-weight:600;margin-top:10px">Request sent</div>'
+      +'<h3 style="font-family:var(--disp);font-weight:200;font-size:23px;margin-top:6px">'+bkRome(j.when)+'</h3>'
+      +'<div style="font-size:12px;color:var(--t3);margin-top:5px">Rome time · '+(video?'live video call · 20 min':'in person · 45 min')+' · '+sbEsc(L.name)+'</div>'
+      +'<p style="color:var(--t2);font-size:13.5px;margin:10px auto 0;max-width:42ch">That time is <b>held for you</b> while we confirm it. You\'ll get an email as soon as it\'s confirmed — usually within a few hours, with directions, your pass and the calendar file.</p>'
+      +'</div>'
+      +(j.manageUrl?'<a class="obtn" style="text-decoration:none" href="'+sbEsc(j.manageUrl)+'">Change or cancel this request</a>':'')
+      +'<a class="obtn" style="text-decoration:none;margin-top:4px" href="'+bkWa()+'" target="_blank" rel="noopener">Questions? WhatsApp your advisor</a>';
+    return;
+  }
   var act=video
     ?(j.videoUrl?'<a class="gbtn" style="text-decoration:none" href="'+sbEsc(j.videoUrl)+'" target="_blank" rel="noopener">🎥 Your private video room →</a>':'')
     :'<a class="gbtn" style="text-decoration:none" href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent((L.lat&&L.lng)?(L.lat+','+L.lng):(L.name+', '+(L.zone||'')+', Roma, Italia'))+'" target="_blank" rel="noopener">📍 Get directions</a>';
