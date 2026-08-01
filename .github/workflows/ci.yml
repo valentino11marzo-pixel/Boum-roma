@@ -9,6 +9,11 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Avvio manuale: quando GitHub perde l'evento di una push (succede, e senza
+  # questo non esiste alcun modo di far girare i test su quel commit — niente
+  # run da ri-lanciare, nessuna verifica) la CI si riavvia da Actions → CI →
+  # "Run workflow", oppure via API.
+  workflow_dispatch:
 
 jobs:
   static-checks:
