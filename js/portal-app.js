@@ -6758,9 +6758,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
 
         else if (w.step === 3) {
-            // Un deal link può puntare un immobile già "rented" (è proprio
-            // questo deal ad affittarlo): l'immobile seminato resta in lista.
-            const propOptions = (S.properties || []).filter(p => p.availabilityStatus !== 'rented' || p.id === w.propertyId).map(p => `<option value="${p.id}" data-rent="${p.rent || 0}" ${w.propertyId===p.id?'selected':''}>${esc(p.name)} · €${p.rent || 0}/mo · ${p.address || ''}</option>`).join('');
+            // TUTTI gli immobili, sempre: un contratto nuovo nasce spesso
+            // proprio su un immobile occupato OGGI che si libera alla
+            // decorrenza (nascondere i "rented" lasciava la tendina VUOTA
+            // su un portafoglio tutto affittato). Il doppio affitto vero lo
+            // ferma la guardia di sovrapposizione al momento della creazione.
+            const propOptions = (S.properties || []).map(p => `<option value="${p.id}" data-rent="${p.rent || 0}" ${w.propertyId===p.id?'selected':''}>${esc(p.name)}${p.availabilityStatus === 'rented' ? ' · occupato' : ''} · €${p.rent || 0}/mo · ${p.address || ''}</option>`).join('');
             // Auto-compute endDate based on type if not set
             if (!w.endDate && w.startDate) {
                 const months = w.type === 'studenti' ? 12 : 18;
@@ -6768,7 +6771,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 w.endDate = d.toISOString().slice(0, 10);
             }
             body = `
-                <div class="form-group"><label class="form-label">Immobile *</label><select class="form-select" id="wzProp" onchange="wizardSyncRent()">${propOptions ? '<option value="">Seleziona...</option>' + propOptions : '<option value="">⚠️ Nessun immobile disponibile — aggiungine uno prima</option>'}</select></div>
+                <div class="form-group"><label class="form-label">Immobile *</label><select class="form-select" id="wzProp" onchange="wizardSyncRent()">${propOptions ? '<option value="">Seleziona...</option>' + propOptions : '<option value="">⚠️ Nessun immobile nel portale — crealo da Immobili e riapri il link</option>'}</select></div>
                 <div class="form-row">
                     <div class="form-group"><label class="form-label">Tipo contratto</label><select class="form-select" id="wzType" onchange="wizardSyncDates()"><option value="transitorio" ${w.type==='transitorio'?'selected':''}>Transitorio (18 mesi)</option><option value="studenti" ${w.type==='studenti'?'selected':''}>Studenti (12 mesi)</option></select></div>
                     <div class="form-group"><label class="form-label">Canone mensile €</label><input type="number" class="form-input" id="wzRent" value="${w.rent}"></div>
