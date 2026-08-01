@@ -121,6 +121,17 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
 .note-area:focus{border-color:rgba(255, 215, 0,.45);box-shadow:0 0 0 3px rgba(255, 215, 0,.06)}
 .note-area::placeholder{color:var(--t2)}
 .pc{position:relative;padding:14px 16px 12px;margin-bottom:7px;background:var(--s1);border:1px solid var(--b1);border-radius:var(--rsm);cursor:pointer;transition:border-color .18s,background .18s;overflow:hidden}
+/* la vetrina: la foto fa metà del lavoro di scelta */
+.pc-img{display:flex;gap:13px;align-items:stretch;padding:11px 16px 11px 11px}
+.pc-thumb{flex:0 0 82px;min-height:66px;border-radius:9px;background-size:cover;background-position:center;background-color:var(--s2)}
+.pc-img .pc-body{flex:1;min-width:0}
+.pc-img .pc-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.zone-row{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 13px}
+.zchip{font-size:11.5px;letter-spacing:.02em;padding:6px 12px;border-radius:100px;border:1px solid var(--b1);background:transparent;color:var(--t2);cursor:pointer;transition:.16s}
+.zchip:hover{border-color:var(--g);color:var(--t1)}
+.zchip.on{background:var(--g);border-color:var(--g);color:#0a0a0a;font-weight:600}
+.zone-note{font-size:12px;color:var(--t2);margin:0 0 12px;line-height:1.6}
+.zone-note a{color:var(--g);text-decoration:none}
 .pc::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 15% 50%,rgba(255, 215, 0,.045),transparent 65%);opacity:0;transition:opacity .22s;pointer-events:none}
 .pc:hover{border-color:var(--b2)}.pc:hover::after{opacity:1}
 .pc.sel{border-color:rgba(255, 215, 0,.4);background:rgba(255, 215, 0,.025)}.pc.sel::after{opacity:1}
@@ -319,8 +330,8 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
     <div class="card-shimmer"></div>
     <div class="card-hd">
       <div class="eyebrow">Step 2 of 3</div>
-      <div class="ttl">Choose a flat.</div>
-      <div class="sub">Select the property you'd like to visit.</div>
+      <div class="ttl" id="s2-ttl">Choose a flat.</div>
+      <div class="sub" id="s2-sub">Select the property you'd like to visit.</div>
     </div>
     <div class="card-bd" id="props-list">
       <div class="pc-skel"><div class="skel" style="height:10px;width:40%;margin-bottom:8px"></div><div class="skel" style="height:14px;width:80%"></div></div>
@@ -482,7 +493,13 @@ firebase.initializeApp({apiKey:"AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",authDom
 const db=firebase.firestore();
 emailjs.init('dnMxbtS2qDm_o7SHE');
 
-let ST={step:1,name:'',email:'',phone:'',listing:null,date:'',time:'',notes:'',reqId:null,mode:'person'};
+let ST={step:1,name:'',email:'',phone:'',listing:null,date:'',time:'',notes:'',reqId:null,mode:'person',
+        all:[],zone:'',pre:null,approval:false};
+/* il contesto della landing (?zone=pigneto) e il link diretto (?listing=<id>) */
+try{const q=new URLSearchParams(location.search);
+  ST.zone=(q.get('zone')||q.get('z')||'').trim().toLowerCase();
+  ST.pre=(q.get('listing')||q.get('id')||'').trim()||null;
+}catch(e){}
 
 function pickMode(m){
   ST.mode=m;
@@ -591,26 +608,76 @@ function toStep2(){
   setStep(2);loadListings();
 }
 
+/* Il contesto arriva dalla landing: /book?zone=pigneto apre già filtrato su
+   Pigneto. Chi stava leggendo di un quartiere non deve ricominciare da capo —
+   era il punto di caduta più costoso del sito. `?listing=<id>` salta oltre. */
+const ZSLUG=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+function zoneMatches(listingZone,slug){
+  if(!slug)return true;
+  const a=ZSLUG(listingZone),b=ZSLUG(slug);
+  if(!a)return false;
+  // Solo uguaglianza o prefisso su confine di parola: "trieste-coppede" trova
+  // "Trieste", ma "ponte-milvio" NON deve pescare "Ponte Lungo". Un falso
+  // negativo mostra tutto il catalogo con una nota onesta; un falso positivo
+  // manda il cliente in un altro quartiere — molto peggio.
+  return a===b||a.startsWith(b+'-')||b.startsWith(a+'-');
+}
+
 async function loadListings(){
   const c=document.getElementById('props-list');
   try{
     const snap=await db.collection('listings').where('status','==','available').get();
     if(snap.empty){c.innerHTML='<div class="empty-state"><span>🏠</span>No properties available right now.<br>Contact us directly — we may have unlisted options.</div>';return}
-    const list=snap.docs.map(d=>({id:d.id,...d.data()}));
-    list.forEach(l=>window._L[l.id]=l);
-    c.innerHTML=list.map(l=>`
-      <div class="pc" id="pc-${l.id}" onclick="pick('${l.id}')">
-        <div class="pc-check"><svg width="10" height="10" viewBox="0 0 14 14"><polyline class="cp" points="2,7 5.5,10.5 12,3.5"/></svg></div>
-        <div class="pc-zone">${esc(l.zone||'Rome')} · €${(l.price||0).toLocaleString()}/mo</div>
-        <div class="pc-name">${esc(l.name||l.address||'Property')}</div>
-        <div class="pc-meta">
-          ${l.bedrooms?`<span class="pc-detail">${l.bedrooms} bed${l.bedrooms>1?'s':''}</span>`:''}
-          ${l.sqm?`<span class="pc-detail">${l.sqm} m²</span>`:''}
-          ${l.file?`<a class="pc-link" href="${l.file.startsWith('http')?l.file:'https://www.boomrome.com/'+l.file}" target="_blank" onclick="event.stopPropagation()">View ↗</a>`:''}
-        </div>
-      </div>`).join('');
+    const all=snap.docs.map(d=>({id:d.id,...d.data()}));
+    all.forEach(l=>window._L[l.id]=l);
+    ST.all=all;
+    paintProps();
   }catch(e){c.innerHTML='<div class="empty-state"><span>⚠️</span>Couldn\'t load. Please refresh.</div>'}
 }
+
+function propCard(l){
+  const img=l.image||(Array.isArray(l.images)&&l.images[0])||'';
+  return `<div class="pc${img?' pc-img':''}" id="pc-${l.id}" onclick="pick('${l.id}')">
+    <div class="pc-check"><svg width="10" height="10" viewBox="0 0 14 14"><polyline class="cp" points="2,7 5.5,10.5 12,3.5"/></svg></div>
+    ${img?`<div class="pc-thumb" style="background-image:url('${esc(img)}')"></div>`:''}
+    <div class="pc-body">
+      <div class="pc-zone">${esc(l.zone||'Rome')} · €${(l.price||0).toLocaleString()}/mo</div>
+      <div class="pc-name">${esc(l.name||l.address||'Property')}</div>
+      <div class="pc-meta">
+        ${l.bedrooms?`<span class="pc-detail">${l.bedrooms} bed${l.bedrooms>1?'s':''}</span>`:''}
+        ${l.sqm?`<span class="pc-detail">${l.sqm} m²</span>`:''}
+        <a class="pc-link" href="/listing/${encodeURIComponent(l.id)}" target="_blank" onclick="event.stopPropagation()">View ↗</a>
+      </div>
+    </div>
+  </div>`;
+}
+
+function paintProps(){
+  const c=document.getElementById('props-list'),all=ST.all||[];
+  const zones=[...new Set(all.map(l=>l.zone).filter(Boolean))].sort();
+  const shown=all.filter(l=>zoneMatches(l.zone,ST.zone));
+  // Un filtro che non trova nulla non deve lasciare la pagina vuota: si dice
+  // che lì non c'è niente ORA e si mostra il resto, invece di un vicolo cieco.
+  const list=shown.length?shown:all;
+  const note=(ST.zone&&!shown.length)
+    ? `<div class="zone-note">Nothing free in <b>${esc(ST.zone.replace(/-/g,' '))}</b> right now — here's everything else available.</div>`
+    : (ST.zone?`<div class="zone-note">Showing <b>${shown.length}</b> in <b>${esc(ST.zone.replace(/-/g,' '))}</b> · <a href="#" onclick="setZone('');return false">see all ${all.length}</a></div>`:'');
+  const chips=zones.length>1?`<div class="zone-row">
+      <button type="button" class="zchip${ST.zone?'':' on'}" onclick="setZone('')">All</button>
+      ${zones.map(z=>`<button type="button" class="zchip${zoneMatches(z,ST.zone)&&ST.zone?' on':''}" onclick="setZone('${esc(ZSLUG(z))}')">${esc(z)}</button>`).join('')}
+    </div>`:'';
+  const t=document.getElementById('s2-ttl'),s=document.getElementById('s2-sub');
+  if(t&&ST.zone&&shown.length){t.textContent='Available in '+ST.zone.replace(/-/g,' ').replace(/\b\w/g,m=>m.toUpperCase())+'.';
+    if(s)s.textContent='Pick the one you\'d like to see — you choose the time next.';}
+  c.innerHTML=chips+note+list.map(propCard).join('');
+  // preselezione: un solo risultato, o l'immobile arrivato per link
+  const pre=ST.pre&&list.find(l=>l.id===ST.pre);
+  if(pre)pick(pre.id);
+  else if(list.length===1)pick(list[0].id);
+}
+
+function setZone(z){ST.zone=z;ST.listing=null;ST.pre=null;
+  document.getElementById('btn-s2-next').disabled=true;paintProps();}
 
 function pick(id){
   document.querySelectorAll('.pc').forEach(el=>el.classList.remove('sel'));
