@@ -80,6 +80,12 @@ const throws = (fn, re) => { try { fn(); return false; } catch (e) { return re ?
   ok('un ICS http (non sicuro) è rifiutato', throws(() => buildConfig({ ...form, busyIcs: 'http://cal/x.ics' }), /https/));
   ok('un ICS https passa', buildConfig({ ...form, busyIcs: 'https://cal/x.ics' }).busyIcs === 'https://cal/x.ics');
   ok('svuotarlo scollega il calendario', buildConfig({ ...form, busyIcs: '  ' }).busyIcs === null);
+
+  // il double confirm: il default è "confermo io", e deve poter essere spento
+  ok('di default confermo io ogni visita', buildConfig(form).requireApproval === true);
+  ok('…e la console concorda col server', UI_DEFAULTS.requireApproval === SERVER_DEFAULTS.requireApproval);
+  ok('si può passare all\'istantaneo', buildConfig({ ...form, requireApproval: false }).requireApproval === false);
+  ok('il valore è sempre booleano', buildConfig({ ...form, requireApproval: 'si' }).requireApproval === true);
 }
 
 // ── 4. l'anteprima deve dire il vero ──────────────────────────────────────
@@ -132,6 +138,29 @@ const throws = (fn, re) => { try { fn(); return false; } catch (e) { return re ?
   ok('una data non valida non esplode', checkSlot(new Date('boh'), 45, others, CFG, null, NOW).length === 0);
   ok('senza altre visite non inventa conflitti',
     checkSlot(new Date('2026-08-03T08:00:00Z'), 45, null, CFG, null, NOW).filter(w => w.level === 'clash').length === 0);
+}
+
+// ── 5b. il double confirm, lato server: cosa NON deve partire ─────────────
+{
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../../api/viewings/slots.js', import.meta.url), 'utf8');
+  const post = src.slice(src.indexOf('const needsApproval'));
+  const iApproval = post.indexOf('if (needsApproval)');
+  const iConfirm = post.indexOf('sendConfirmation(');
+  const iInvite = post.indexOf('inviteOperator(');
+
+  ok('la richiesta nasce pending', /status: needsApproval \? 'pending' : 'confirmed'/.test(post));
+  ok('il ramo approvazione esiste ed esce prima', iApproval > 0 && iApproval < iConfirm);
+  // il punto: un pass e un invito in calendario per una visita NON confermata
+  // sono una bugia al cliente e un evento fantasma nell'agenda dell'operatore
+  ok('nessuna email di conferma su una richiesta', iApproval < iConfirm, `${iApproval} vs ${iConfirm}`);
+  ok('nessun invito in calendario su una richiesta', iApproval < iInvite, `${iApproval} vs ${iInvite}`);
+  ok('la richiesta manda la SUA email', /sendRequested\(/.test(post));
+  ok('i campi confirmed* non si scrivono su una richiesta', /\.\.\.\(needsApproval \? \{\} : \{/.test(post));
+  ok('la risposta dichiara lo stato al client', /status: 'pending'/.test(post));
+
+  const grid = src.slice(0, src.indexOf('const needsApproval'));
+  ok('la griglia dice alla pagina se serve approvazione', /requireApproval: !!cfg\.requireApproval/.test(grid));
 }
 
 // ── 6. helper ─────────────────────────────────────────────────────────────
