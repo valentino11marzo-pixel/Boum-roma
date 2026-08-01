@@ -28572,11 +28572,15 @@ ${d.description || '-'}`;
             dateLine: 'Roma, ' + dmy(inv.date),
         });
 
-        // Il piè di pagina occupa da 280mm in giù: il corpo si ferma a 272.
+        // Il piè di pagina comincia col filetto a 280mm: il corpo può arrivare
+        // a 276 e restare con 4mm di aria. Era 272, e su una fattura con la
+        // ritenuta il blocco pagamento mancava il fondo pagina per mezzo
+        // millimetro — spedendo tre righe a pagina due con 40mm di bianco
+        // sopra.
         // `need(h)` chiede spazio per un blocco di altezza NOTA, invece di
         // confrontarsi con soglie a occhio — erano quelle a mandare a pagina
         // due una fattura di due righe, lasciando la prima mezza vuota.
-        var BODY_END = 272;
+        var BODY_END = 276;
         var need = function (h) {
             if (y + h <= BODY_END) return false;
             doc.addPage();
@@ -28782,12 +28786,27 @@ ${d.description || '-'}`;
 
         // ── 6. Pagamento e note ───────────────────────────────────────
         var pay = inv.payment || {};
-        // Altezza MISURATA, non stimata: la causale si avvolge su un numero
-        // di righe che solo splitTextToSize conosce, e una stima larga di
-        // pochi millimetri mandava a pagina due un blocco che ci stava.
+        // Le note di legge si preparano PRIMA di chiedere lo spazio: sono
+        // parte dello stesso blocco. Contando solo il pagamento, il salto
+        // pagina veniva deciso su un'altezza incompleta e le note potevano
+        // scivolare sotto il filetto del piè — invisibili finché non capita
+        // la fattura giusta.
+        var notes = [];
+        if (t.stampDutyDue) notes.push('Imposta di bollo assolta in modo virtuale ai sensi del DM 17/06/2014.');
+        if (seller.regime === 'RF19' || seller.regime === 'RF02') notes.push(IEx.NATURA_NORMA['N2.2'] + '.');
+        if (t.withholding) notes.push('Importo soggetto a ritenuta d\'acconto: il committente versa la ritenuta all\'Erario e corrisponde il netto indicato.');
+
+        // Altezza MISURATA, non stimata: causale e note si avvolgono su un
+        // numero di righe che solo splitTextToSize conosce, e una stima larga
+        // di pochi millimetri mandava a pagina due un blocco che ci stava.
         doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
         var causaleLines = inv.causale ? doc.splitTextToSize(String(inv.causale), DOC_TW).length : 0;
-        var payH = 9 + 5.2 + (pay.iban ? 5.2 : 0) + (pay.bank ? 5.2 : 0) + (causaleLines ? 2 + causaleLines * 4.2 : 0);
+        doc.setFont('helvetica', 'italic'); doc.setFontSize(DOC_T.note);
+        var notesH = notes.length
+            ? 4 + notes.reduce(function (a, nt) { return a + doc.splitTextToSize(nt, DOC_TW).length * 3.8 + 1.4; }, 0)
+            : 0;
+        var payH = 9 + 5.2 + (pay.iban ? 5.2 : 0) + (pay.bank ? 5.2 : 0)
+                 + (causaleLines ? 2 + causaleLines * 4.2 : 0) + notesH;
         need(payH);
         y = boomDocSection(doc, y, 4, 'Pagamento');
         doc.setFont('helvetica', 'normal'); doc.setFontSize(8.6); doc.setTextColor.apply(doc, DOC_INK);
@@ -28807,11 +28826,8 @@ ${d.description || '-'}`;
             doc.splitTextToSize(String(inv.causale), DOC_TW).forEach(function (ln) { doc.text(ln, DOC_M, y); y += 4.2; });
         }
 
-        // Note di legge: quelle che rendono il documento leggibile senza l'XML.
-        var notes = [];
-        if (t.stampDutyDue) notes.push('Imposta di bollo assolta in modo virtuale ai sensi del DM 17/06/2014.');
-        if (seller.regime === 'RF19' || seller.regime === 'RF02') notes.push(IEx.NATURA_NORMA['N2.2'] + '.');
-        if (t.withholding) notes.push('Importo soggetto a ritenuta d\'acconto: il committente versa la ritenuta all\'Erario e corrisponde il netto indicato.');
+        // Note di legge: quelle che rendono il documento leggibile senza l'XML
+        // (preparate sopra, insieme allo spazio che si è chiesto per loro).
         if (notes.length) {
             y += 4;
             doc.setFont('helvetica', 'italic'); doc.setFontSize(7.2); doc.setTextColor.apply(doc, DOC_SOFT);

@@ -127,6 +127,11 @@ const CASE = {
   stampDuty: { auto: true, chargedToClient: true },
 };
 
+// Emittente forfettario, per la nota "operazione non soggetta a IVA".
+const SELLER_RF19 = { name: 'Egidi Immobiliare S.r.l.', vat: '00743110157', regime: 'RF19',
+  address: 'Via Nazionale', streetNumber: '12', zip: '00184', city: 'Roma', province: 'RM',
+  country: 'IT', iban: 'IT60X0542811101000000123456', reaOffice: 'RM', reaNumber: '1723456' };
+
 await mkdir(OUT, { recursive: true });
 
 async function render(name, inv, seller, builder) {
@@ -149,6 +154,8 @@ async function render(name, inv, seller, builder) {
       // come 8mm. La conversione va fatta sulla pagina non scalata.
       const PT_W = pg.getViewport({ scale: 1 }).width;   // 595.28 pt = 210 mm
       const mm = (pt) => pt / PT_W * 210;
+      const PT_H = pg.getViewport({ scale: 1 }).height;  // 841,89 pt = 297 mm
+      const mmY = (pt) => (PT_H - pt) / PT_H * 297;
       const canvas = document.createElement('canvas');
       canvas.width = vp.width; canvas.height = vp.height;
       await pg.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
@@ -165,6 +172,11 @@ async function render(name, inv, seller, builder) {
         minX: Math.min(...real.map((it) => mm(it.transform[4]))),
         widest: real.slice().sort((a, b) => (b.transform[4] + (b.width || 0)) - (a.transform[4] + (a.width || 0)))[0],
         leftmost: real.slice().sort((a, b) => a.transform[4] - b.transform[4])[0],
+        // maxY = quanto in basso arriva il CORPO. Il piè (285/289,5mm) è
+        // disegnato apposta laggiù, quindi si esclude.
+        maxY: Math.max(...real.map((it) => mmY(it.transform[5])).filter((v) => v < 282), 0),
+        lowest: real.map((it) => ({ str: it.str, y: mmY(it.transform[5]) }))
+          .filter((v) => v.y < 282).sort((a, b) => b.y - a.y)[0],
       });
     }
     return { pages };
@@ -350,6 +362,27 @@ await t('senza payLink il documento resta identico a prima', async () => {
   const pages = await render('paga-assente', { ...CASE, number: '24/2026', progressive: 24 }, null);
   ok(!squash(pages[0].text).includes(squash('PAGA CON CARTA')));
   ok(pages.length === 1);
+});
+
+await t('le note di legge non finiscono mai sotto il piè di pagina', async () => {
+  // Il piè comincia col filetto a 280mm. Le note (bollo, regime, ritenuta)
+  // sono l'ultimo blocco del documento: se il salto pagina le ignora, su una
+  // fattura abbastanza carica scivolano sotto la linea e spariscono.
+  const casi = [
+    ['note-ritenuta', { ...CASE, number: '30/2026', progressive: 30,
+      withholding: { enabled: true, type: 'RT02', rate: 23, basePct: 50, causale: 'R' } }],
+    ['note-forfettario', { ...CASE, number: '31/2026', progressive: 31,
+      lines: [{ description: 'Consulenza', qty: 1, unitPrice: 900, vatRate: 0, nature: 'N2.2' }] }],
+    ['note-tutte', { ...CASE, number: '32/2026', progressive: 32,
+      lines: Array.from({ length: 14 }, (_, i) => ({ description: 'Prestazione ' + (i + 1) + ' con descrizione lunga che manda a capo il testo nella colonna descrizione', qty: 1, unitPrice: 120, vatRate: 22 })),
+      withholding: { enabled: true, type: 'RT02', rate: 23, basePct: 50, causale: 'R' } }],
+  ];
+  for (const [name, inv] of casi) {
+    const pages = await render(name, inv, name === 'note-forfettario' ? { ...SELLER_RF19 } : null);
+    pages.forEach((p, i) => {
+      ok(p.maxY <= 277, `${name} pagina ${i + 1}: testo del corpo a ${p.maxY.toFixed(1)}mm, sotto il filetto del piè (280mm) — "${(p.lowest || {}).str}"`);
+    });
+  }
 });
 
 await t('la ricevuta di canone usa la STESSA testata della fattura', async () => {
