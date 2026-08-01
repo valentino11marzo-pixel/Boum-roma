@@ -28485,6 +28485,7 @@ ${d.description || '-'}`;
     var DOC_INK = [16, 16, 18], DOC_SOFT = [132, 132, 132], DOC_FAINT = [176, 176, 176];
     var DOC_LINE = [222, 222, 222], DOC_HAIR = [236, 236, 236];
     var DOC_GOLD = [176, 150, 12], DOC_GOLD_BR = [212, 175, 55];
+    var DOC_GOLD_L = [255, 213, 79], DOC_GOLD_D = [245, 166, 35];   // la barra a tre sezioni
     var DOC_DARK = [14, 14, 16];
 
     var DOC_M = 18, DOC_R = 192, DOC_W = 174;          // margini in mm (A4 = 210)
@@ -28539,39 +28540,51 @@ ${d.description || '-'}`;
     /**
      * boomDocHead — la testata di ogni PDF del portale.
      *
-     * Parla la lingua PREMIUM del marchio (Helvetica leggera, tracking largo,
-     * nero e oro, molta aria) invece di quella dei template admin di prima:
-     * banda nera più alta e respirata, un solo filo d'oro al posto della barra
-     * tricolore a tre sezioni, e l'identità del documento — tipo, numero, data —
-     * incolonnata a destra invece che schiacciata in una pill gialla.
+     * Banda nera, filetto oro a tre sezioni, marchio a sinistra e identità del
+     * documento a destra nella pill. È la testata storica di BOOM: riconoscibile,
+     * e la variante "tutta aria" provata dopo non reggeva il confronto. Le due
+     * correzioni tenute: la pill si dimensiona sul TESTO (a 39mm fissi un
+     * riferimento lungo usciva dal bordo arrotondato) e tutto è allineato ai
+     * margini del corpo, 18/192, così testata e contenuto stanno sulla stessa
+     * colonna invece che ognuno per conto suo.
      */
     function boomDocHead(doc, o) {
         o = o || {};
-        var H = 46;
-        doc.setFillColor.apply(doc, DOC_DARK); doc.rect(0, 0, 210, H, 'F');
-        // Un filo d'oro, non una barra: 0,7mm a piena pagina.
-        doc.setFillColor.apply(doc, DOC_GOLD_BR); doc.rect(0, H, 210, 0.7, 'F');
+        doc.setFillColor(10, 10, 10); doc.rect(0, 0, 210, 38, 'F');
+        doc.setFillColor.apply(doc, DOC_GOLD_L); doc.rect(0, 38, 70, 2.5, 'F');
+        doc.setFillColor.apply(doc, DOC_GOLD_D); doc.rect(70, 38, 70, 2.5, 'F');
+        doc.setFillColor.apply(doc, DOC_GOLD_L); doc.rect(140, 38, 70, 2.5, 'F');
 
-        try { if (typeof BOOM_LOGO_B64 !== 'undefined') doc.addImage(BOOM_LOGO_B64, 'PNG', DOC_M, 12, 21, 21); } catch (e) {}
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(DOC_T.mark);
+        try { if (typeof BOOM_LOGO_B64 !== 'undefined') doc.addImage(BOOM_LOGO_B64, 'PNG', DOC_M, 7, 24, 24); } catch (e) {}
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(22);
         doc.setTextColor.apply(doc, DOC_GOLD_BR);
-        doc.text('BOOM', DOC_M + 26, 26, { charSpace: 3.4 });
-        doc.setFontSize(5.6); doc.setTextColor(128, 128, 128);
-        doc.text(o.tagline || 'PROPERTY MANAGEMENT', DOC_M + 26.7, 32, { charSpace: 1.5 });
+        doc.text('BOOM', DOC_M + 30, 21);
+        doc.setFontSize(6); doc.setTextColor(150, 150, 150);
+        doc.text(o.tagline || 'PROPERTY MANAGEMENT', DOC_M + 30, 28);
 
-        // Colonna destra: cosa è, che numero ha, di quando è.
-        doc.setFontSize(DOC_T.eyebrow); doc.setTextColor(150, 150, 150);
-        docText(doc, String(o.title || 'DOCUMENTO').toUpperCase(), DOC_R, 17, { align: 'right', charSpace: 1.7 });
-        doc.setFontSize(15); doc.setTextColor(255, 255, 255);
-        doc.text(String(o.ref || ''), DOC_R, 27, { align: 'right' });
-        doc.setFontSize(DOC_T.micro); doc.setTextColor(140, 140, 140);
-        doc.text(String(o.dateLine || ''), DOC_R, 33.5, { align: 'right' });
-        if (o.stamp) {
-            doc.setFontSize(DOC_T.eyebrow); doc.setTextColor.apply(doc, DOC_GOLD_BR);
-            docText(doc, String(o.stamp).toUpperCase(), DOC_R, 39.5, { align: 'right', charSpace: 1.4 });
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+        doc.setTextColor(255, 255, 255);
+        doc.text(String(o.title || 'DOCUMENTO').toUpperCase(), DOC_R, 12, { align: 'right' });
+
+        if (o.ref) {
+            doc.setFontSize(7.4);
+            var w = Math.max(32, doc.getTextWidth(String(o.ref)) + 11);
+            doc.setFillColor.apply(doc, DOC_GOLD_L);
+            doc.roundedRect(DOC_R - w, 16, w, 8.4, 4.2, 4.2, 'F');
+            doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 24, 0);
+            doc.text(String(o.ref), DOC_R - w / 2, 21.7, { align: 'center' });
         }
+        if (o.stamp) {
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(6.4);
+            doc.setTextColor.apply(doc, DOC_GOLD_BR);
+            docText(doc, String(o.stamp).toUpperCase(), DOC_R, 29.5, { align: 'right', charSpace: 1 });
+        }
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+        doc.setTextColor(170, 170, 170);
+        doc.text(String(o.dateLine || ''), DOC_R, 35.5, { align: 'right' });
+
         doc.setTextColor.apply(doc, DOC_INK);
-        return 52;   // il corpo parte con aria, non incollato alla banda
+        return 48;
     }
 
     /** Piè: un filo, la ragione sociale, la pagina. */
@@ -28638,31 +28651,50 @@ ${d.description || '-'}`;
      */
     function boomStripePlate(doc, x, y, w, opts) {
         opts = opts || {};
-        var h = 34;
+        var h = 42;
+        // Piastra scura: l'unico elemento pieno del documento, perché è
+        // l'unica azione. Tutto il resto è fili e aria, e il contrasto lavora.
         doc.setFillColor.apply(doc, DOC_DARK);
-        doc.roundedRect(x, y, w, h, 2.4, 2.4, 'F');
-        // Keyline d'oro a sinistra: l'accento del marchio dove serve.
-        doc.setFillColor.apply(doc, DOC_GOLD_BR);
-        doc.rect(x, y + 2.4, 1.4, h - 4.8, 'F');
+        doc.roundedRect(x, y, w, h, 2.6, 2.6, 'F');
 
-        var px = x + 8;
+        var px = x + 9;
         doc.setFont('helvetica', 'normal'); doc.setFontSize(DOC_T.eyebrow);
         doc.setTextColor.apply(doc, DOC_GOLD_BR);
-        doc.text('PAGA CON CARTA', px, y + 8.6, { charSpace: 1.6 });
+        doc.text(String(opts.label || 'DA PAGARE'), px, y + 8.6, { charSpace: 1.5 });
 
-        doc.setFontSize(DOC_T.amount); doc.setTextColor(255, 255, 255);
-        doc.text(opts.amount || '', px, y + 17.4);
+        // La cifra, ripetuta: chi guarda il bottone deve sapere cosa sta per
+        // pagare senza risalire ai totali dall'altra parte della pagina.
+        doc.setFontSize(16); doc.setTextColor(255, 255, 255);
+        doc.text(opts.amount || '', px, y + 18);
 
-        doc.setFontSize(6.2); doc.setTextColor(150, 150, 150);
-        doc.text(doc.splitTextToSize(String(opts.url || '').replace(/^https?:\/\//, ''), w - 16)[0] || '', px, y + 23.2);
+        // IL BOTTONE. Una pill d'oro PIENA con testo nero: è la forma che si
+        // legge come "si preme" anche stampata su carta. Il riquadro scuro da
+        // solo era un riquadro; questo è un bottone.
+        var bw = 52, bh = 9.4, bx = px, by = y + 22, ARROW = 11;
+        doc.setFillColor.apply(doc, DOC_GOLD_BR);
+        doc.roundedRect(bx, by, bw, bh, 4.7, 4.7, 'F');
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+        doc.setTextColor(24, 18, 0);
+        // Il testo si centra nello spazio che RESTA a sinistra della freccia,
+        // non in tutta la pill: centrandolo sull'intera larghezza il testo
+        // spaziato finiva sotto la punta.
+        doc.text(String(opts.cta || 'PAGA ORA'), bx + (bw - ARROW) / 2, by + 6.1, { align: 'center', charSpace: 0.8 });
+        // Freccia disegnata, non un glifo: "→" non è WinAnsi e jsPDF la mangia.
+        var ax = bx + bw - ARROW + 3, ay = by + bh / 2;
+        doc.setDrawColor(24, 18, 0); doc.setLineWidth(0.5);
+        doc.line(ax - 2.4, ay, ax + 1.8, ay);
+        doc.line(ax + 0.3, ay - 1.5, ax + 1.9, ay);
+        doc.line(ax + 0.3, ay + 1.5, ax + 1.9, ay);
 
-        docRule(doc, y + 26.4, px, x + w - 8, [58, 58, 62], 0.2);
-        doc.setFontSize(5.6); doc.setTextColor(128, 128, 128);
-        doc.text(opts.trust || 'Visa · Mastercard · Amex · Apple Pay   —   pagamenti protetti da Stripe', px, y + 30.2, { charSpace: 0.15 });
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(6);
+        doc.setTextColor(140, 140, 140);
+        doc.text(doc.splitTextToSize(String(opts.url || '').replace(/^https?:\/\//, ''), w - 18)[0] || '', px, y + 35.4);
+        doc.setFontSize(5.6); doc.setTextColor(112, 112, 112);
+        doc.text(opts.trust || 'Visa · Mastercard · Amex · Apple Pay   —   protetto da Stripe', px, y + 39.4, { charSpace: 0.15 });
 
         if (opts.url) {
             doc.link(x, y, w, h, { url: opts.url });
-            doc.textWithLink('', px, y + 25.5, { url: opts.url });
+            doc.textWithLink('', px, y + 35.4, { url: opts.url });
         }
         doc.setTextColor.apply(doc, DOC_INK);
         return h;
@@ -28726,7 +28758,7 @@ ${d.description || '-'}`;
             b.sdiCode ? 'Cod. destinatario ' + b.sdiCode : (b.pec ? 'PEC ' + b.pec : ''),
             (b.country || 'IT') !== 'IT' ? 'Paese ' + b.country : '',
         ]);
-        y += Math.max(hL, hR) + 9;
+        y += Math.max(hL, hR) + 6;
 
         // ── Estremi: quattro celle fra due fili, senza fondino grigio ──
         docRule(doc, y - 6, DOC_M, DOC_R, DOC_LINE, 0.2);
@@ -28792,7 +28824,7 @@ ${d.description || '-'}`;
             y += rh;
             docRule(doc, y - 3.2, DOC_M, DOC_R, DOC_HAIR, 0.2);
         });
-        y += 7;
+        y += 6;
 
         // ── 3. Riepilogo IVA + totali, affiancati al badge ─────────────
         var whRows = t.withholding ? 2 : 0;
@@ -28831,7 +28863,7 @@ ${d.description || '-'}`;
             doc.text(f(t.stampDuty), DOC_R, y, { align: 'right' });
             y += 5.8;
         }
-        y += 6;
+        y += 5;
 
         // Le due colonne: a sinistra l'azione, a destra la cifra.
         var bandTop = y;
@@ -28881,16 +28913,17 @@ ${d.description || '-'}`;
         var payableDoc = payLink && !isCredit && inv.status !== 'paid' && inv.status !== 'draft'
             && inv.number && t.netToPay > 0;
         if (payableDoc) {
-            var ph = boomStripePlate(doc, DOC_M, bandTop, 88, {
+            var plateTop = bandTop - 4;
+            var ph = boomStripePlate(doc, DOC_M, plateTop, 88, {
                 amount: '€ ' + f(t.netToPay),
                 url: payLink,
             });
             // Le due colonne sono indipendenti: il flusso riprende sotto la
             // PIÙ BASSA. Senza, una fattura col blocco totali corto si
             // scriveva la sezione successiva addosso al badge.
-            y = Math.max(y, bandTop + ph);
+            y = Math.max(y, plateTop + ph);
         }
-        y += 5;
+        y += 9;
 
         // ── 4. Pagamento e note ───────────────────────────────────────
         var pay = inv.payment || {};

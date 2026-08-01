@@ -287,12 +287,14 @@ await t('molte righe: va a pagina 2 e RIPETE l\'intestazione di tabella', async 
 
 // ── La ricevuta di canone: stessa testata, corpo suo ──
 // ── Il link di pagamento sul documento ──
-await t('fattura pagabile: il riquadro "PAGA CON CARTA" col link vero', async () => {
+await t('fattura pagabile: il badge col bottone e il link vero', async () => {
   const pages = await render('paga', { ...CASE, number: '20/2026', progressive: 20,
     payLink: 'https://www.boomrome.com/fattura?t=inv20.9f2c1ab7d4e6', }, null);
   ok(pages.length === 1, 'il riquadro non deve far crescere il documento');
   const txt = pages[0].text.replace(/\s+/g, ' ');
-  ok(squash(txt).includes(squash('PAGA CON CARTA')), 'manca il riquadro');
+  ok(squash(txt).includes(squash('DA PAGARE')), 'manca l\'etichetta del badge');
+  ok(squash(txt).includes(squash('PAGA ORA')), 'manca il bottone');
+  ok(txt.includes('1.991,44'), 'il badge deve ripetere la cifra da pagare');
   ok(txt.includes('boomrome.com/fattura'), 'manca l\'indirizzo in chiaro per chi stampa');
   ok(/Stripe/i.test(txt), 'manca la rassicurazione sul circuito');
   ok(pages[0].maxX <= 192.6, `sfora: ${pages[0].maxX.toFixed(1)}mm`);
@@ -356,16 +358,16 @@ await t('nota di credito e bozza NON mostrano il pulsante di pagamento', async (
   const nc = await render('paga-nc', { ...CASE, docType: 'TD04', number: '22/2026', progressive: 22,
     relatedDoc: { number: '12/2026', date: '2026-07-31' },
     payLink: 'https://www.boomrome.com/fattura?t=inv22.bbbb' }, null);
-  ok(!squash(nc[0].text).includes(squash('PAGA CON CARTA')), 'una nota di credito restituisce soldi, non li chiede');
+  ok(!squash(nc[0].text).includes(squash('PAGA ORA')), 'una nota di credito restituisce soldi, non li chiede');
 
   const paid = await render('paga-saldata', { ...CASE, number: '23/2026', progressive: 23, status: 'paid',
     payLink: 'https://www.boomrome.com/fattura?t=inv23.cccc' }, null);
-  ok(!squash(paid[0].text).includes(squash('PAGA CON CARTA')), 'una fattura saldata non si ripaga');
+  ok(!squash(paid[0].text).includes(squash('PAGA ORA')), 'una fattura saldata non si ripaga');
 });
 
 await t('senza payLink il documento resta identico a prima', async () => {
   const pages = await render('paga-assente', { ...CASE, number: '24/2026', progressive: 24 }, null);
-  ok(!squash(pages[0].text).includes(squash('PAGA CON CARTA')));
+  ok(!squash(pages[0].text).includes(squash('PAGA ORA')));
   ok(pages.length === 1);
 });
 
