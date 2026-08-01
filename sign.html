@@ -586,11 +586,22 @@
             '<div class="field"><label>Mobile number</label><input class="inp" id="o-num" type="tel" inputmode="tel" value="'+esc((s.phone||'').replace(/^\+39/,''))+'" placeholder="333 123 4567"></div>'+
           '</div>'+
           '<button class="btn" id="o-send">Send code</button>'+
-          '<div class="btnrow" style="margin-top:10px"><button class="btn ghost" id="o-back">Back</button></div>'+
+          '<div class="btnrow" style="margin-top:10px"><button class="btn ghost" id="o-back">Back</button><button class="btn ghost" id="o-skip">Skip for now</button></div>'+
+          '<p class="sub" style="margin-top:12px;font-size:12px">No SMS? You can skip this step — your signature stays fully valid.</p>'+
+          '<p class="sub" style="margin-top:6px;text-align:center"><a href="https://wa.me/393313251961?text='+encodeURIComponent('Hi! I\'m signing the BOOM contract and have a question')+'" target="_blank" rel="noopener noreferrer" style="color:var(--gold)">Questions? Chat with BOOM on WhatsApp →</a></p>'+
         '</div>'
       ));
       document.getElementById('o-back').onclick=renderIdentity;
       document.getElementById('o-send').onclick=sendOtp;
+      // L'OTP è un rafforzativo, non un requisito (il server non lo esige):
+      // un SMS che non arriva non deve MAI costare una firma.
+      document.getElementById('o-skip').onclick=function(){
+        S.id=S.id||{};
+        var pre=(document.getElementById('o-pre').value||'').replace(/[^\d+]/g,'');
+        var num=(document.getElementById('o-num').value||'').replace(/\D/g,'');
+        if(num){ S.id.phone=((pre&&pre.charAt(0)==='+')?pre:(pre?('+'+pre):''))+num; }
+        renderSign();
+      };
     }
     function sendOtp(){
       if(DEMO){ renderOtpVerify('+39 333 012 3456'); return; }
@@ -694,6 +705,7 @@
             '<div class="pad-tools"><button id="pad-undo" type="button">Undo</button><button id="pad-clear" type="button">Clear</button></div></div>'+
           '<label class="consent"><input type="checkbox" id="consent"><span>I confirm my identity and accept all lease terms. This digital signature is legally valid <b>(FES — Art. 21 CAD)</b>.</span></label>'+
           '<div class="btnrow"><button class="btn ghost" id="s-back">Back</button><button class="btn" id="s-sign" disabled>Sign contract</button></div>'+
+          '<p class="sub" style="margin-top:14px;text-align:center"><a href="https://wa.me/393313251961?text='+encodeURIComponent('Hi! I\'m signing the BOOM contract and have a question')+'" target="_blank" rel="noopener noreferrer" style="color:var(--gold)">Questions before signing? Chat with BOOM on WhatsApp →</a></p>'+
         '</div>'
       ));
       var pad=initPad(document.getElementById('pad'), document.getElementById('pad-ph'));

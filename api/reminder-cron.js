@@ -305,6 +305,64 @@ export default async function handler(req, res) {
       results.inviteNudged = reinvited;
     } catch (e) { results.errors.push(`invite-nudge: ${e.message}`); }
 
+    // ── Aperto ma NON firmato → nudge gentile dopo 24h (una volta) ──
+    // Il caso visto in produzione: 👀 link aperto, nessuna firma, nessuna
+    // domanda. Diverso dal re-invito 72h (che copre chi non ha mai aperto):
+    // qui la persona ha VISTO il contratto e si è fermata — un promemoria
+    // morbido col suo stesso link, anche per i CO-FIRMATARI (link derivato).
+    try {
+      const DAY = 24 * 3600 * 1000;
+      const seen = [];
+      for (const st of ['none', 'partial']) {
+        const q = await fsQuery('contracts', token, {
+          field: { fieldPath: 'signatureStatus' }, op: 'EQUAL', value: { stringValue: st },
+        });
+        (q || []).filter(r => r.document).map(r => parseDoc(r.document)).filter(Boolean).forEach(c => seen.push(c));
+      }
+      let viewNudged = 0;
+      for (const c of seen) {
+        if (c.status && c.status !== 'active') continue;
+        const targets = [];
+        if (!c.tenantSignature && c.tenantSignToken && c.signViewedTenantAt && !c.viewNudgedTenantAt
+            && (now.getTime() - new Date(c.signViewedTenantAt).getTime()) > DAY) {
+          const { fsGet } = await import('./homie/_lib.js');
+          const tenant = c.tenantId ? await fsGet('users/' + c.tenantId).catch(() => null) : null;
+          targets.push({
+            to: (tenant && tenant.email) || c.tenantEmail || '',
+            name: c.tenantName || (tenant && tenant.name) || '',
+            url: `https://www.boomrome.com/sign?sign=${encodeURIComponent(c.tenantSignToken)}`,
+            stamp: 'viewNudgedTenantAt',
+          });
+        }
+        const coList = Array.isArray(c.coTenants) ? c.coTenants : [];
+        for (let i = 0; i < coList.length; i++) {
+          const cv = coList[i];
+          if (!cv || !cv.name || cv.signature || !cv.email) continue;
+          const viewed = c['signViewedCo' + i + 'At'];
+          if (!viewed || c['viewNudgedCo' + i + 'At']) continue;
+          if ((now.getTime() - new Date(viewed).getTime()) <= DAY) continue;
+          const { cosignRef } = await import('./magic-sign/_shared.js');
+          targets.push({
+            to: cv.email, name: cv.name,
+            url: `https://www.boomrome.com/sign?sign=${encodeURIComponent(cosignRef(c.id, i))}`,
+            stamp: 'viewNudgedCo' + i + 'At',
+          });
+        }
+        for (const tg of targets.slice(0, 2)) {
+          if (!tg.to) continue;
+          try {
+            const { sendSignInvite } = await import('./sign/_notify.js');
+            const sent = await sendSignInvite({ contract: c, property: null, role: 'tenant', to: tg.to, name: tg.name, url: tg.url, resend: true });
+            if (sent && sent.ok) {
+              await fsPatch(`contracts/${c.id}`, { [tg.stamp]: { timestampValue: now.toISOString() } }, token);
+              viewNudged++;
+            }
+          } catch (e) { results.errors.push(`view-nudge ${c.id}: ${e.message}`); }
+        }
+      }
+      if (viewNudged) results.viewNudged = viewNudged;
+    } catch (e) { results.errors.push(`view-nudge: ${e.message}`); }
+
     // ── Watchdog refinalize: contratti COMPLETI senza finalizedAt ──
     // finalize è best-effort dentro la richiesta del firmatario: se cade
     // (timeout, pdf-lib, SMTP) il contratto resta firmato ma SENZA
