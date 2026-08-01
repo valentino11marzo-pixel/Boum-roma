@@ -28,15 +28,33 @@ globalThis.__stripeCalls = [];
 const FS = 'firestore.googleapis.com';
 const okJson = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'Content-Type': 'application/json' } });
 
+// Serializzazione COMPLETA (array e mappe annidate incluse): il convert
+// scrive coTenants[]/agencyFee{} e la lib vera li gestisce — lo stub deve
+// fare altrettanto o i test mentono per difetto suo.
+function toFsV(v) {
+  if (v === null || v === undefined) return { nullValue: null };
+  if (typeof v === 'boolean') return { booleanValue: v };
+  if (typeof v === 'number') return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+  if (Array.isArray(v)) return { arrayValue: { values: v.map(toFsV) } };
+  if (typeof v === 'object') { const f = {}; for (const [k, x] of Object.entries(v)) f[k] = toFsV(x); return { mapValue: { fields: f } }; }
+  return { stringValue: String(v) };
+}
 function toFsFieldsShallow(obj) {
   const f = {};
-  for (const [k, v] of Object.entries(obj || {})) {
-    if (v === null) f[k] = { nullValue: null };
-    else if (typeof v === 'boolean') f[k] = { booleanValue: v };
-    else if (typeof v === 'number') f[k] = Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
-    else f[k] = { stringValue: String(v) };
-  }
+  for (const [k, v] of Object.entries(obj || {})) f[k] = toFsV(v);
   return f;
+}
+function fromFsV(v) {
+  if (!v || typeof v !== 'object') return null;
+  if ('stringValue' in v) return v.stringValue;
+  if ('booleanValue' in v) return v.booleanValue;
+  if ('integerValue' in v) return +v.integerValue;
+  if ('doubleValue' in v) return v.doubleValue;
+  if ('nullValue' in v) return null;
+  if ('timestampValue' in v) return v.timestampValue;
+  if ('arrayValue' in v) return ((v.arrayValue || {}).values || []).map(fromFsV);
+  if ('mapValue' in v) { const o = {}; for (const [k, x] of Object.entries((v.mapValue || {}).fields || {})) o[k] = fromFsV(x); return o; }
+  return null;
 }
 
 globalThis.fetch = async (url, opts = {}) => {
@@ -70,14 +88,14 @@ globalThis.fetch = async (url, opts = {}) => {
       if (qs.get('documentId') && store.has(key)) return new Response('conflict', { status: 409 });
       const fields = JSON.parse(opts.body).fields || {};
       const flat = {};
-      for (const [k, v] of Object.entries(fields)) flat[k] = v.stringValue ?? v.booleanValue ?? (v.integerValue ? +v.integerValue : v.doubleValue ?? null);
+      for (const [k, v] of Object.entries(fields)) flat[k] = fromFsV(v);
       store.set(key, flat);
       return okJson({ name: 'projects/p/databases/(default)/documents/' + key });
     }
     if (opts.method === 'PATCH') {
       const fields = JSON.parse(opts.body).fields || {};
       const flat = store.get(clean) || {};
-      for (const [k, v] of Object.entries(fields)) flat[k] = v.stringValue ?? v.booleanValue ?? (v.integerValue ? +v.integerValue : v.doubleValue ?? null);
+      for (const [k, v] of Object.entries(fields)) flat[k] = fromFsV(v);
       store.set(clean, flat);
       return okJson({ name: 'projects/p/databases/(default)/documents/' + clean });
     }
@@ -291,6 +309,38 @@ const webhook = (await import('../../api/stripe-webhook.js')).default;
     r.body?.doublePayment === true && store.get('invoices/inv1').stripeSessionId === 'cs_inv_1');
   check('webhook INVOICE: doppio incasso notificato all\'operatore',
     [...store.keys()].some(k => k.startsWith('agentNotifications/inv-double-')));
+}
+
+// ═══ 9. convert: verità sul deposito + co-conduttori + provvigione ═══
+{
+  const { convertPaToContract } = await import('../../api/preagreement/convert.js');
+  store.set('properties/prop10', { ownerId: 'll10', name: 'Casa10', ownerName: 'Verdi' });
+  const pa = {
+    status: 'paid', paidEur: 3449.6, paidAt: '2026-07-10', propertyId: 'prop10', ref: 'BOOM-Z',
+    tenant: { fullName: 'Julie V', email: 'julie@x.fr', phone: '333', cf: 'VRBJLU06M44Z110V' },
+    tenants: [
+      { fullName: 'Julie V', email: 'julie@x.fr', phone: '333', cf: 'VRBJLU06M44Z110V' },
+      { fullName: 'Anouk G', email: 'anouk@x.fr', cf: 'grtnka06l65z110o', dob: '2006-07-25', birthPlace: 'Bouliac' },
+    ],
+    money: { rent: 1400, deposit: 2800, depositMonths: 2, depositAtSigning: 1400, depositAtMoveIn: 1400,
+             fee: 1680, feeVatPct: 22, feeVat: 369.6, feeTotal: 2049.6, feeDue: 'move-in', feeMode: 'pct' },
+    lease: { months: 12, startDate: '2026-09-01', endDate: '2027-08-31' },
+  };
+  const out = await convertPaToContract({ pa, paId: 'pa10' });
+  const c = store.get('contracts/pa_pa10');
+  check('convert PAID: depositAlreadyPaidEur = acconto incassato, non depositPaid (resta saldo)',
+    out.ok && c && c.depositAlreadyPaidEur === 1400 && c.depositPaid === false);
+  check('convert: rata saldo depbal_ creata per la parte al move-in',
+    store.has('payments/depbal_pa_pa10') && store.get('payments/depbal_pa_pa10').amount === 1400);
+  check('convert: co-conduttore con IDENTITÀ COMPLETA (non solo il nome)',
+    Array.isArray(c.coTenants) && c.coTenants.length === 1 && c.coTenants[0].cf === 'GRTNKA06L65Z110O'
+    && c.coTenants[0].birthPlace === 'Bouliac' && c.cohabitants.includes('C.F. GRTNKA06L65Z110O'));
+  check('convert: clausola di solidarietà dei co-conduttori nelle altre clausole',
+    /si obbligano in solido/.test(c.otherClauses) && c.otherClauses.includes('Anouk G'));
+  check('convert: la provvigione VIAGGIA sul contratto (prima spariva)',
+    c.agencyFee && c.agencyFee.totalEur === 2049.6 && c.agencyFee.due === 'move-in');
+  check('convert: scheda cliente creata anche per il co-conduttore',
+    [...store.keys()].some(k => k.startsWith('users/') && (store.get(k) || {}).name === 'Anouk G'));
 }
 
 console.log('\n' + '─'.repeat(48));

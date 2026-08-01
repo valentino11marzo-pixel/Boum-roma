@@ -81,6 +81,34 @@ export function sendConfirmation(v, lang = 'en') {
     it ? 'La tua visita è confermata' : 'Your viewing is confirmed');
 }
 
+// ── 1b. REQUESTED — l'orario è tenuto, la conferma arriva ─────────────────
+// Quando l'operatore conferma ogni visita a mano, il cliente NON deve
+// ricevere il kit di volo (pass, calendario, "ci vediamo lì"): riceverebbe
+// un biglietto per un aereo che potrebbe non partire. Riceve invece la sola
+// cosa che gli serve — abbiamo la tua richiesta, quell'orario è tenuto per
+// te, ti diciamo entro poco — e nessun pulsante che finga una certezza.
+export function sendRequested(v, lang = 'en') {
+  const it = lang === 'it';
+  const inner =
+    para(it
+      ? `Ciao <b>${esc(firstName(v.clientName || v.name))}</b>, abbiamo ricevuto la tua richiesta di visita. <b>L'orario che hai scelto è tenuto per te</b> mentre la confermiamo.`
+      : `Hi <b>${esc(firstName(v.clientName || v.name))}</b>, we've got your viewing request. <b>The time you picked is held for you</b> while we confirm it.`) +
+    ticket(v, lang) +
+    para(it
+      ? `Ti scriviamo appena è confermata — di solito <b>entro poche ore</b>. In quella email troverai le indicazioni, il pass e il calendario.`
+      : `We'll write the moment it's confirmed — usually <b>within a few hours</b>. That email will carry the directions, your pass and the calendar file.`) +
+    btn(waMsg(it
+      ? `Ciao BOOM, ho appena richiesto una visita per ${v.listingName || ''}`
+      : `Hi BOOM, I've just requested a viewing for ${v.listingName || ''}`),
+      it ? '💬 Scrivici su WhatsApp' : '💬 Message us on WhatsApp') +
+    fine(it
+      ? `Ti serve un altro orario? <a href="${manageUrl(v)}" style="color:#B8960C">Cambialo qui</a> — un tap, senza account.`
+      : `Need a different time? <a href="${manageUrl(v)}" style="color:#B8960C">Change it here</a> — one tap, no account needed.`);
+  return send(v,
+    it ? `Richiesta ricevuta — ${v.listingName || 'BOOM Rome'}` : `Request received — ${v.listingName || 'BOOM Rome'}`,
+    inner, it ? 'Richiesta ricevuta, orario tenuto' : 'Request received, time held');
+}
+
 // ── 2. REMINDERS — the flight countdown ────────────────────────────────────
 export function sendReminder(v, when, lang = 'en') {
   const it = lang === 'it';

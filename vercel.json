@@ -480,7 +480,7 @@
       ]
     },
     {
-      "source": "/(portal|admin|admin-flats|setup-firebase|seed-listings|boom-doc-parser|boom_doc_parser|cockpit-preview|team|banca|salute|manuale|photo-lab|pfs-command|pre-agreement-admin|casa|tenant|portal.html|admin.html|admin-flats.html|setup-firebase.html|seed-listings.html|boom_doc_parser.html|cockpit-preview.html|team.html|banca.html|salute.html|manuale.html|photo-lab.html|pfs-command.html|pre-agreement-admin.html|tenant.html|viewing|viewing.html)(.*)",
+      "source": "/(portal|admin|admin-flats|setup-firebase|seed-listings|boom-doc-parser|boom_doc_parser|cockpit-preview|team|banca|salute|manuale|photo-lab|pfs-command|pre-agreement-admin|casa|tenant|portal.html|admin.html|admin-flats.html|setup-firebase.html|seed-listings.html|boom_doc_parser.html|cockpit-preview.html|team.html|banca.html|salute.html|manuale.html|photo-lab.html|pfs-command.html|pre-agreement-admin.html|tenant.html|viewing|viewing.html|scheda|scheda.html)(.*)",
       "headers": [
         {
           "key": "X-Robots-Tag",
@@ -617,6 +617,27 @@
     "api/photos/enhance.js": {
       "maxDuration": 60,
       "memory": 1769
+    },
+    "api/wizard/describe.js": {
+      "maxDuration": 60
+    },
+    "api/profile/upload.js": {
+      "maxDuration": 60
+    },
+    "api/profile/submit.js": {
+      "maxDuration": 60
+    },
+    "api/sign/send-link.js": {
+      "maxDuration": 60
+    },
+    "api/magic-sign/submit.js": {
+      "maxDuration": 60
+    },
+    "api/fiscal/fascicolo.js": {
+      "maxDuration": 60
+    },
+    "api/fiscal/pack.js": {
+      "maxDuration": 60
     }
   },
   "crons": [
@@ -685,12 +706,24 @@
       "schedule": "10 5 * * *"
     },
     {
+      "path": "/api/regista/cron",
+      "schedule": "30 5 * * *"
+    },
+    {
+      "path": "/api/payments/recover-checkouts",
+      "schedule": "25 */4 * * *"
+    },
+    {
       "path": "/api/employees/commerciale",
       "schedule": "0 6-18/2 * * *"
     },
     {
       "path": "/api/photos/enhance?mode=sweep",
       "schedule": "20 3 * * *"
+    },
+    {
+      "path": "/api/wizard/describe?mode=sweep",
+      "schedule": "35 3 * * *"
     }
   ]
 }

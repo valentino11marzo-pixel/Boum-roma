@@ -627,6 +627,39 @@ function renderExpired(){
   $('segs').style.display='none';$('hprog').style.width='100%';$('abar').style.display='none';
 }
 
+/* Qualcun altro ha chiuso questo appartamento mentre il cliente firmava.
+   È il momento peggiore per una porta in faccia: ha appena caricato documento
+   e identità. Quindi si dice la verità, si conferma che è registrato come
+   riserva, e gli si danno le due mosse utili. */
+function renderTaken(reserved){
+  var p=PA.property||{};
+  var short=(p.address||'').split(',')[0];
+  var wa='https://wa.me/393313251961?text='+encodeURIComponent(
+    'Ciao BOOM! Ho firmato per '+short+' ma era già stato riservato. '
+    +'Potete tenermi come riserva e propormi un\'alternativa simile?');
+  $('pAcc').innerHTML=
+    '<div class="docwrap"><div class="doc"><span class="foil"></span><span class="grain"></span>'
+    +'<span class="cm tl"></span><span class="cm tr"></span><span class="cm bl"></span><span class="cm br"></span>'
+    +'<div class="sec issued"><span class="seal" style="opacity:.45">'+sealSVG()+'</span>'
+    +'<h2>This home was just reserved</h2>'
+    +'<p><b>'+esc(p.address||'')+'</b> was closed by another applicant minutes before you.<br>'
+    +'We’re sorry — that is genuinely bad timing, and we know how much you just put in.</p>'
+    +(reserved
+      ? '<div class="paidband" style="margin:18px 0">✓ Your signed application is saved — '
+        +'you are first in line if this one falls through</div>'
+      : '')
+    +'<p>Your advisor has already been notified and will call you. Rome moves fast: '
+    +'tell us your dates and budget and we’ll put the next right home in front of you first, '
+    +'before it goes public.</p>'
+    +'<div><a class="obtn wa" href="'+wa+'" target="_blank" rel="noopener">Talk to your advisor →</a> '
+    +'<a class="obtn" href="/apartments">See available homes →</a></div>'
+    +'</div></div></div>';
+  [].slice.call(document.querySelectorAll('.panel')).forEach(function(x){x.classList.remove('on')});
+  $('pAcc').classList.add('on');
+  $('segs').style.display='none';$('hprog').style.width='100%';$('abar').style.display='none';
+  try{window.scrollTo({top:0,behavior:'smooth'})}catch(e){window.scrollTo(0,0)}
+}
+
 /* ═══ STEP 1 — REVIEW ═══ */
 function renderStep1(){
   var p=PA.property,le=PA.lease,m=PA.money;
@@ -1146,6 +1179,15 @@ function accept(){
     body:JSON.stringify({token:TOKEN,tenant:tenant,tenants:tenants,accept:true})})
   .then(function(r){return r.json()})
   .then(function(j){
+    /* L'appartamento è stato chiuso da un altro candidato mentre questa
+       persona compilava. Non la respingiamo: documento, identità e firma sono
+       salvati come riserva. Glielo diciamo con onestà e le diamo la mossa
+       successiva, invece di un errore generico. */
+    if(j&&j.error==='property_taken'){
+      try{localStorage.removeItem(DKEY)}catch(e){}
+      renderTaken(j.reserved);
+      return;
+    }
     if(!j||!j.ok)throw 0;
     try{localStorage.removeItem(DKEY)}catch(e){}
     if(j.checkoutUrl){

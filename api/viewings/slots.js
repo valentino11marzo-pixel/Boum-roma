@@ -23,9 +23,9 @@
 
 import { fsGet, fsCreate, fsList, fsPatch, readJson, logActivity } from '../homie/_lib.js';
 import { videoRoom, passUrl, manageUrl } from './_lib.js';
-import { sendConfirmation } from './_email.js';
+import { sendConfirmation, sendRequested } from './_email.js';
 import { inviteOperator } from './_invite.js';
-import { TZ, loadConfig, busyBlocks, buildSlots, slotOffered } from './_avail.js';
+import { TZ, loadConfig, busyBlocks, buildSlots, slotOffered, listingCtx } from './_avail.js';
 import { replyLang } from '../_lang.js';
 
 // re-exported so the availability engine has a single public entry point for
@@ -46,9 +46,14 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     const mode = String((req.query && req.query.mode) || 'person').toLowerCase() === 'video' ? 'video' : 'person';
     try {
-      const slots = buildSlots(cfg, await busyBlocks(cfg), mode);
+      // the listing being booked shapes the gaps: same-apartment slots chain,
+      // cross-town ones spread by real travel time (book.html already sends it)
+      const ctx = await listingCtx(clip((req.query && req.query.listingId) || '', 80));
+      const slots = buildSlots(cfg, await busyBlocks(cfg), mode, new Date(), ctx);
       res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60');
-      return res.status(200).json({ ok: true, timezone: TZ, mode, slots });
+      // requireApproval viaggia nella risposta: la pagina non deve MAI
+      // promettere "confermato subito" se poi la visita nasce da confermare
+      return res.status(200).json({ ok: true, timezone: TZ, mode, slots, requireApproval: !!cfg.requireApproval });
     } catch (e) {
       console.error('[viewings/slots] GET', e);
       return res.status(500).json({ ok: false, error: 'internal' });
@@ -71,14 +76,22 @@ export default async function handler(req, res) {
   if (isNaN(when.getTime())) return res.status(400).json({ ok: false, error: 'when_invalid' });
 
   try {
-    // re-verify the slot server-side: the list the client saw may be stale
-    const busy = await busyBlocks(cfg);
-    if (!slotOffered(buildSlots(cfg, busy, mode), when)) return res.status(409).json({ ok: false, error: 'slot_taken' });
-
     let listing = null;
     if (listingId) listing = await fsGet(`listings/${listingId}`).catch(() => null);
+    const ctx = listing
+      ? { listingId, lat: listing.lat != null ? Number(listing.lat) : null, lng: listing.lng != null ? Number(listing.lng) : null }
+      : (listingId ? { listingId } : null);
+
+    // re-verify the slot server-side: the list the client saw may be stale
+    const busy = await busyBlocks(cfg);
+    if (!slotOffered(buildSlots(cfg, busy, mode, new Date(), ctx), when)) return res.status(409).json({ ok: false, error: 'slot_taken' });
 
     const durationMinutes = cfg.slotMinutes[mode] || 45;
+    // Con l'approvazione attiva la visita nasce RICHIESTA: lo slot è già
+    // bloccato per gli altri (busyBlocks conta anche le pending), ma niente
+    // pass, niente calendario, niente countdown finché l'operatore non tocca
+    // ✅ Conferma — da Telegram o dal portal.
+    const needsApproval = !!cfg.requireApproval;
     const doc = {
       clientName: name, clientEmail: email, clientPhone: phone || null,
       name, email, phone: phone || null,
@@ -86,13 +99,20 @@ export default async function handler(req, res) {
       listingName: (listing && (listing.name || listing.address)) || clip(body.listingName, 160) || null,
       listingZone: (listing && listing.zone) || null,
       listingPrice: (listing && listing.price) || null,
+      // coords ride on the doc so busyBlocks can compute travel gaps for free
+      lat: listing && listing.lat != null ? Number(listing.lat) : null,
+      lng: listing && listing.lng != null ? Number(listing.lng) : null,
       mode, durationMinutes,
       proposedDateTime: when.toISOString(),
-      confirmedDateTime: when.toISOString(),
-      confirmedDate: when.toISOString().slice(0, 10),
-      confirmedTime: when.toISOString().slice(11, 16),
+      // i campi "confirmed*" si scrivono solo quando lo è davvero: altrimenti
+      // il portal e il countdown leggerebbero una conferma che non c'è
+      ...(needsApproval ? {} : {
+        confirmedDateTime: when.toISOString(),
+        confirmedDate: when.toISOString().slice(0, 10),
+        confirmedTime: when.toISOString().slice(11, 16),
+      }),
       scheduledAt: when.toISOString(),
-      status: 'confirmed',                       // the slot WAS the availability
+      status: needsApproval ? 'pending' : 'confirmed',
       selfBooked: true,
       // unknown stays unknown: replyLang reads the notes they actually typed
       // and falls back to English, BOOM's house language
@@ -101,7 +121,9 @@ export default async function handler(req, res) {
       voided: false,
       reminder24hSent: false, reminder3hSent: false, reminder30mSent: false, afterAskSent: false,
       confirmationSent: false,
-      createdAt: new Date(), confirmedAt: new Date(), createdBy: 'self-service',
+      createdAt: new Date(),
+      ...(needsApproval ? {} : { confirmedAt: new Date() }),
+      createdBy: 'self-service',
     };
     if (mode === 'video') doc.videoUrl = null;   // filled right after we have the id
 
@@ -112,6 +134,20 @@ export default async function handler(req, res) {
       await fsPatch(`viewingRequests/${id}`, { videoUrl: full.videoUrl });
     }
     if (listing && listing.address) full.listingAddress = listing.address;
+
+    if (needsApproval) {
+      // una richiesta non è una conferma: si dice al cliente che è arrivata e
+      // quando avrà risposta, e NON gli si manda un pass che non vale ancora.
+      // L'operatore riceve la card con ✅ Conferma da notify-pending (1 min).
+      try { await sendRequested(full, replyLang(full)); }
+      catch (e) { console.warn('[viewings/slots] request mail:', e.message); }
+      await logActivity('Richiesta di visita dal cliente', 'viewing',
+        { id, mode, when: when.toISOString(), listing: full.listingName }, 'self-service');
+      return res.status(200).json({
+        ok: true, id, status: 'pending', when: when.toISOString(), mode,
+        manageUrl: manageUrl(full),
+      });
+    }
 
     // confirm instantly — waiting 15 minutes for the cron would break the promise
     try {

@@ -646,7 +646,7 @@ body.chapters .proofs.stamped .proof:nth-child(5){transition-delay:.48s}
 .blkchip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:rgba(0,0,0,.55);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-radius:100px;padding:9px 14px;font-size:11.5px;color:var(--t2);transition:.2s}
 a.blkchip:hover{border-color:var(--line-gold);color:var(--gold)}
 .blkchip.coords{font-variant-numeric:tabular-nums;letter-spacing:.4px;color:var(--gold);border-color:var(--line-gold)}
-#blkPr[hidden]{display:none!important}
+.blkchip[hidden]{display:none!important}
 .m3a{width:9px;height:9px;border-radius:50%;background:var(--gold-light);border:1.5px solid #1a1407;box-shadow:0 0 8px rgba(255,215,0,.55);cursor:help}
 
 /* ── the viral handoff: deciding is a two-person sport ── */
@@ -675,7 +675,7 @@ a.blkchip:hover{border-color:var(--line-gold);color:var(--gold)}
       "name": "Can I see the apartment before deciding?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Yes. Book a real time slot directly on the page — in person or as a live video call — and it is confirmed instantly, with reminders and an Apple Wallet pass."
+        "text": "Yes. Pick a real time slot directly on the page — in person or as a live video call. The slot is held for you straight away, and once confirmed you get reminders and an Apple Wallet pass. No message ping-pong."
       }
     },
     {
@@ -901,7 +901,6 @@ a.blkchip:hover{border-color:var(--line-gold);color:var(--gold)}
           <button class="m3facade" onclick="boom3D(this)" aria-label="Open the real map of the block">◆ The block, for real<small>wakes as you arrive — 3D buildings · your building in gold · walk rings</small></button>
           <div class="blkchips" id="blkChips" hidden>
             <span class="blkchip coords" id="blkCoords">◈ —</span>
-            <button type="button" class="blkchip" id="blkPr" hidden onclick="openPhotoreal()">◆ Photoreal 3D</button>
             <a class="blkchip" id="blkSv" href="#" target="_blank" rel="noopener">⟲ Street View</a>
             <a class="blkchip" id="blkDir" href="#" target="_blank" rel="noopener">➤ Directions</a>
           </div>
@@ -1042,6 +1041,7 @@ a.blkchip:hover{border-color:var(--line-gold);color:var(--gold)}
 <script src="/js/boom-elevate.js"></script>
 <script src="/js/boom-ambient.js"></script>
 <script src="/js/boom-fondali.js"></script>
+<script src="/js/boom-geo.js"></script>
 <script src="/js/neighborhoods.js"></script>
 <script>
 /* MATERIA: living stone under the whole visit — develops in as the price lands */
@@ -1249,7 +1249,7 @@ function paintDecoded(){
 paintDecoded();
 function toggleDecode(){const d=document.getElementById('decoded');const o=d.classList.toggle('open');const b=document.getElementById('dtog');b.textContent=o?'− Hide the detail':'＋ See every euro, decoded';b.setAttribute('aria-expanded',o);}
 
-const FAQ=[['Can I see it before deciding?','Yes — and you book it like a flight seat: pick a real slot on this page (in person, or a live video call if you’re abroad) and it’s confirmed on the spot, with reminders and a Wallet pass. No message ping-pong.'],
+const FAQ=[['Can I see it before deciding?','Yes — and you book it like a flight seat: pick a real slot on this page (in person, or a live video call if you’re abroad) and it’s held for you straight away. Once confirmed you get reminders and a Wallet pass. No message ping-pong.'],
 ['Can I move in on a different date than availability?','Yes. Set your date in “Your stay”: after availability you move in straight away; before it, we show the exact gap and can alert you or find an alternative.'],
 ['I’m a foreigner staying 1–18 months — can I legally rent?','That’s exactly our speciality. We use the registered transitional contract (contratto transitorio, L.431/98): fully legal for stays from 1 to 18 months, registered with the Agenzia delle Entrate, deposit protected, English support end to end. A real contract — not a handshake over a coffee.'],
 ['How fast can I really move in?','As fast as 48 hours from approval. We reply to every application within 2 hours and handle contract and keys.'],
@@ -1288,47 +1288,38 @@ let _map3d=null;
 function ensureML(){return window.__mlp||(window.__mlp=new Promise(function(res,rej){if(window.maplibregl)return res();
   var c=document.createElement('link');c.rel='stylesheet';c.href='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css';document.head.appendChild(c);
   var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.min.js';s.onload=function(){res()};s.onerror=rej;document.head.appendChild(s);}));}
-/* ── Il 3D fotorealistico (Google Photorealistic 3D Tiles) ────────────────
-   Roma vera — fotogrammetria, tetti, alberi — invece delle scatole grigie
-   estruse. Si arma da solo appena GOOGLE_MAPS_API_KEY è su Vercel; senza
-   chiave, o se Cesium non carica, si scende sulla mappa MapLibre, che
-   resta il ripiego che non muore mai. Il modulo (~3MB) viene scaricato
-   solo quando qualcuno tocca il bottone: zero peso per chi non lo apre. */
-var _prk=null;
-function prKey(){
-  return _prk||(_prk=fetch('/api/maps-key').then(function(r){return r.json()})
-    .then(function(j){return (j&&j.key)||null}).catch(function(){return null}));
-}
-function prModule(){
-  if(window.BoomPhotoreal)return Promise.resolve();
-  return new Promise(function(res,rej){
-    var s=document.createElement('script');s.src='/js/boom-photoreal.js';
-    s.onload=function(){window.BoomPhotoreal?res():rej(new Error('photoreal_missing'))};
-    s.onerror=function(){rej(new Error('photoreal_load_failed'))};
-    document.head.appendChild(s);
-  });
-}
+/* ── Perché qui non c'è più il 3D fotorealistico di Google ────────────────
+   I Photorealistic 3D Tiles NON sono erogabili a questo account: dall'8
+   luglio 2025 Google applica ai progetti con fatturazione nell'Area
+   Economica Europea termini che escludono tile 3D e satellitari, e
+   tile.googleapis.com risponde 403 PERMISSION_DENIED — verificato il
+   29/07/2026, con e senza Referer di boomrome.com. Egidi Immobiliare è
+   italiana: non è una chiave da sistemare, è una regola di piattaforma.
+
+   La chiave però esisteva, quindi il chip "◆ Photoreal 3D" compariva su
+   ogni scheda con pin: chi lo toccava scaricava ~3MB di Cesium e leggeva
+   "3D unavailable right now". Sempre. Una promessa che falliva sempre è
+   peggio di una funzione assente, quindi il chip e la sua idraulica sono
+   via. Resta MapLibre con la sagoma d'oro, che è sempre stata l'unica
+   strada percorribile.
+   js/boom-photoreal.js e la sua suite restano nel repo, non referenziati:
+   se un giorno la restrizione cade, o la fatturazione non è più EEA,
+   si riarma da qui. Non riesumarlo senza aver prima ri-provato quel 403. */
 function boom3D(btn){
   /* the block RESTUDIED: no more gadget-behind-a-button. The real map wakes
      inline (scroll-arrival or tap), with the building in gold, the anchors
-     that decide a life here, and one-tap chips: Photoreal · Street View ·
-     Directions. Photoreal moved to its chip — full-screen on YOUR gesture,
-     never auto-hijacking the page. */
+     that decide a life here, and one-tap chips: Street View · Directions. */
   if(_map3d)return;var host=document.getElementById('map3d');if(!host)return;
   var lat=+L.lat||41.8902,lng=+L.lng||12.4922;
   if(btn){btn.innerHTML='<span style="color:var(--t3);font-size:12px">Waking the block…</span>';btn.style.pointerEvents='none';}
   try{boomTrack('block_explore',{item_id:PID||L.id||'sample'})}catch(e){}
   boom3DML(btn,host,lat,lng);
 }
-function openPhotoreal(){
-  prKey().then(function(key){
-    if(!(key&&+L.lat&&+L.lng))throw 0;
-    return prModule().then(function(){return BoomPhotoreal.open({key:key,lat:+L.lat,lng:+L.lng,name:L.name});})
-      .then(function(){boomTrack('photoreal_open',{item_id:PID||L.id||''});});
-  }).catch(function(){
-    var b=document.getElementById('blkPr');
-    if(b){b.textContent='◆ 3D unavailable right now';setTimeout(function(){b.textContent='◆ Photoreal 3D';},1800);}
-  });
+/* La sagoma d'oro si accende SOLO su via + civico. Su una via senza numero il
+   pin cade da qualche parte lungo la strada e il palazzo sotto è arbitrario:
+   illuminarlo come "il tuo" sarebbe la stessa bugia, solo più piccola. */
+function pinIsPlaceable(){
+  try{return BOOM_GEO.pinPrecision(L).level==='exact'}catch(e){return false}
 }
 /* the exact building, in gold: query the rendered footprint under the pin
    and re-extrude just that one. Honest by construction — no footprint in
@@ -1373,9 +1364,14 @@ function boom3DML(btn,host,lat,lng){
       if(!reduce)map.flyTo({center:[lng,lat],zoom:16.2,pitch:60,bearing:-18,duration:3200});
       /* LA SAGOMA: when the camera settles, the exact building lights up in
          gold — its real footprint from the vector tiles, extruded. If the
-         tile has no footprint here, nothing fake is drawn. */
-      var _gold=function(){goldHouse(map,lng,lat)};
-      map.once('idle',function(){_gold();map.once('idle',_gold);});
+         tile has no footprint here, nothing fake is drawn.
+         E non si accende affatto su un pin di quartiere: illuminerebbe un
+         palazzo qualsiasi presentandolo come "il tuo". Onesto significa anche
+         tacere quando non si sa. */
+      if(pinIsPlaceable()){
+        var _gold=function(){goldHouse(map,lng,lat)};
+        map.once('idle',function(){_gold();map.once('idle',_gold);});
+      }
     });
     map.on('error',function(){});
   }).catch(function(){/* keep the decorative block alive: offer retry + an external fallback */
@@ -1970,18 +1966,33 @@ function postPaint(){
   if(vt&&PID)vt.onclick=function(ev){ev.preventDefault();try{boomTrack('generate_lead',{channel:'slots',intent:'video_viewing_request',item_id:PID})}catch(e){}openBook('video');};
   /* precision, shown not claimed: live coordinates + the exact entrance —
      only when the pin is real. No coords, no chips: never a fake pin. */
+  /* PRECISIONE, DICHIARATA PER QUELLO CHE È. Il chip prometteva 4 decimali —
+     11 metri — anche quando la coordinata era il centroide di un quartiere, e
+     offriva "the exact entrance" su una via a caso: tre case del centro
+     condividevano lo stesso centroide, quindi lo stesso portone sbagliato tre
+     volte. Ora la fonte del pin decide cosa si può dire (js/boom-geo.js). */
   var bc=document.getElementById('blkChips'),hasPin=!!(+L.lat&&+L.lng);
+  var PREC=(function(){try{return BOOM_GEO.pinPrecision(L)}catch(e){return {level:hasPin?'zone':'none',exact:false}}})();
+  var PCOPY=(function(){try{return BOOM_GEO.pinCopy(PREC.level,L.zone)}catch(e){return {coords:false,street:false,note:''}}})();
   if(bc){bc.hidden=!hasPin;
     if(hasPin){
-      var cc=document.getElementById('blkCoords');if(cc)cc.textContent='◈ '+(+L.lat).toFixed(4)+'° N · '+(+L.lng).toFixed(4)+'° E';
-      var sv=document.getElementById('blkSv');if(sv){sv.href='https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+(+L.lat)+','+(+L.lng);
-        sv.onclick=function(){try{boomTrack('streetview_open',{item_id:PID||L.id||''})}catch(e){}};}
+      var cc=document.getElementById('blkCoords');
+      if(cc)cc.textContent=PCOPY.coords
+        ? '◈ '+(+L.lat).toFixed(4)+'° N · '+(+L.lng).toFixed(4)+'° E'
+        : '≈ '+PCOPY.note;
+      var sv=document.getElementById('blkSv');
+      if(sv){
+        /* su un centroide Street View aprirebbe una strada qualunque */
+        sv.hidden=!PCOPY.street;
+        if(PCOPY.street){
+          sv.textContent=PREC.level==='exact'?'⟲ Street View · the exact entrance':'⟲ Street View · this street';
+          sv.href='https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+(+L.lat)+','+(+L.lng);
+          sv.onclick=function(){try{boomTrack('streetview_open',{item_id:PID||L.id||''})}catch(e){}};
+        }
+      }
+      /* le indicazioni restano sempre: portano dove sappiamo portare */
       var dr=document.getElementById('blkDir');if(dr)dr.href='https://www.google.com/maps/dir/?api=1&destination='+(+L.lat)+','+(+L.lng);
     }}
-  /* Photoreal is a chip, armed only when the Google key is live */
-  if(hasPin)prKey().then(function(k){
-    var pr=document.getElementById('blkPr');if(k&&pr)pr.hidden=false;
-  }).catch(function(){});
   /* the viral handoff — English link, ready to forward */
   var shUrl=PID?(location.origin+'/listing/'+encodeURIComponent(PID)):location.href;
   var sw=document.getElementById('shWa');
@@ -1994,17 +2005,6 @@ function postPaint(){
   }
   try{initFit()}catch(e){}
 }
-
-/* ---- Google Photoreal plumbing: key + module, both cached, both lazy ---- */
-var _prk,_prm;
-function prKey(){return _prk||(_prk=fetch('/api/maps-key').then(function(r){return r.json()}).then(function(j){return (j&&j.key)||null}).catch(function(){_prk=null;return null}));}
-function prModule(){return _prm||(_prm=new Promise(function(res,rej){
-  if(window.BoomPhotoreal)return res();
-  var s=document.createElement('script');s.src='/js/boom-photoreal.js';
-  s.onload=function(){window.BoomPhotoreal?res():rej(new Error('photoreal_missing'))};
-  s.onerror=function(){_prm=null;rej(new Error('photoreal_load'))};
-  document.head.appendChild(s);
-}));}
 
 /* ---- the heart is real: same boom:saved set the discovery page reads ---- */
 function _savedSet(){try{return new Set(JSON.parse(localStorage.getItem('boom:saved')||'[]'))}catch(e){return new Set()}}
@@ -2058,7 +2058,9 @@ function bkFetch(mode){
   if(BK.cache[mode])return BK.cache[mode];
   BK.cache[mode]=fetch('/api/viewings/slots?mode='+mode+(PID?'&listingId='+encodeURIComponent(PID):''))
     .then(function(r){return r.ok?r.json():null})
-    .then(function(j){return (j&&j.ok&&Array.isArray(j.slots))?j.slots:null})
+    /* requireApproval decide TUTTE le parole di questa lane: se l'operatore
+       conferma ogni visita, promettere "confirmed instantly" è una bugia. */
+    .then(function(j){if(j&&j.requireApproval)BK.approval=true;return (j&&j.ok&&Array.isArray(j.slots))?j.slots:null})
     .catch(function(){return null})
     .then(function(v){if(v===null)delete BK.cache[mode];return v});
   return BK.cache[mode];
@@ -2069,9 +2071,12 @@ function bkTeaser(){
   setTimeout(function(){bkFetch('person').then(function(days){
     if(!days||!days.length||!days[0].times.length)return;
     var d=days[0],el=document.getElementById('bkNext');
-    if(el)el.textContent='Next free slot: '+bkDayTag(d.date,d.label)+' '+d.times[0].label+' — instant confirmation';
+    if(el)el.textContent='Next free slot: '+bkDayTag(d.date,d.label)+' '+d.times[0].label
+      +(BK.approval?' — we hold it for you':' — instant confirmation');
     var vt=document.getElementById('vvTour'),sm=vt&&vt.querySelector('small');
-    if(sm)sm.textContent='pick a real slot — confirmed instantly · no app, no account';
+    if(sm)sm.textContent=BK.approval
+      ? 'pick a real slot — we hold it and confirm · no app, no account'
+      : 'pick a real slot — confirmed instantly · no app, no account';
   }).catch(function(){})},1400);
 }
 function openBook(m){
@@ -2088,7 +2093,8 @@ function bkRender(){
   var b=document.getElementById('bkBody');if(!b)return;
   if(BK.done){bkRenderDone(b);return;}
   b.innerHTML=
-    '<p class="bk-sub">'+sbEsc(L.name)+(L.zone?' · '+sbEsc(L.zone):'')+' — real availability, confirmed on the spot. Free, no documents.</p>'
+    '<p class="bk-sub">'+sbEsc(L.name)+(L.zone?' · '+sbEsc(L.zone):'')+' — real availability, '
+      +(BK.approval?'held for you the moment you pick it':'confirmed on the spot')+'. Free, no documents.</p>'
     +'<div class="seg" id="bkSeg" style="margin-top:10px"><button type="button" data-m="person" class="'+(BK.mode==='person'?'on':'')+'">In person · 45 min</button><button type="button" data-m="video" class="'+(BK.mode==='video'?'on':'')+'">Live video call · 20 min</button></div>'
     +'<div id="bkSlots"><div class="bk-wait"><span></span><span></span><span></span></div></div>'
     +'<div class="bk-tz" id="bkTz"></div>'
@@ -2099,7 +2105,7 @@ function bkRender(){
     +'<label class="bk-f"><span>Phone / WhatsApp</span><input id="bkPhone" type="tel" autocomplete="tel" value="'+String(RES.phone||'').replace(/"/g,'&quot;')+'" oninput="bkArm()"></label>'
     +'</div></div>'
     +'<p class="bk-err" id="bkErr" role="alert"></p>'
-    +'<button class="paybtn" id="bkGo" disabled onclick="bkSubmit()"><span class="lk"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><span class="tx"><b id="bkGoLbl">Pick a time above</b><small>instant confirmation · reminders + Wallet pass included</small></span><span class="amt">Free</span></button>'
+    +'<button class="paybtn" id="bkGo" disabled onclick="bkSubmit()"><span class="lk"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><span class="tx"><b id="bkGoLbl">Pick a time above</b><small>'+(BK.approval?'we hold your slot · confirmed within a few hours':'instant confirmation · reminders + Wallet pass included')+'</small></span><span class="amt">Free</span></button>'
     +'<p class="paysafe"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z"/></svg><span>'+(BK.mode==='video'?'A real person walks you through the home live — <b>you direct, we film</b>.':'A real person shows you the home.')+' Reschedule or cancel any time from your confirmation email.</span></p>';
   var seg=document.getElementById('bkSeg');
   if(seg)seg.addEventListener('click',function(e){var bt=e.target.closest('button');if(!bt||bt.dataset.m===BK.mode)return;bkGrab();BK.mode=bt.dataset.m;BK.when='';bkRender();bkLoad();});
@@ -2151,7 +2157,7 @@ function bkErr(m){var e=document.getElementById('bkErr');if(e){e.textContent=m;e
 function bkSubmit(){
   var btn=document.getElementById('bkGo');if(!btn||btn.disabled||BK.busy)return;
   bkGrab();BK.busy=true;btn.disabled=true;
-  var lbl=document.getElementById('bkGoLbl');if(lbl)lbl.textContent='Booking your slot…';
+  var lbl=document.getElementById('bkGoLbl');if(lbl)lbl.textContent=BK.approval?'Holding your slot…':'Booking your slot…';
   try{navigator.vibrate&&navigator.vibrate(8)}catch(e){}
   var s=computeStay();
   fetch('/api/viewings/slots',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
@@ -2168,7 +2174,7 @@ function bkSubmit(){
       viewingId:x.j.id,clientName:RES.name,clientEmail:RES.email,clientPhone:RES.phone||'',
       listingName:L.name+(L.zone?' · '+L.zone:''),requestedDate:String(x.j.when).slice(0,10),requestedTime:String(x.j.when).slice(11,16),
       mode:x.j.mode,notes:(x.j.mode==='video'?'[VIDEO CALL] ':'')+'Self-booked from the listing page'})}).catch(function(){})}catch(e){}
-    boomTrack('viewing_booked',{item_id:PID||'',mode:x.j.mode});
+    boomTrack(x.j.status==='pending'?'viewing_requested':'viewing_booked',{item_id:PID||'',mode:x.j.mode});
     boomTrack('generate_lead',{method:'viewing_slots',item_id:PID||''});
     try{navigator.vibrate&&navigator.vibrate(12)}catch(e){}
     bkRender();
@@ -2178,6 +2184,21 @@ function bkSubmit(){
 }
 function bkRenderDone(b){
   var j=BK.done,video=j.mode==='video';
+  /* RICHIESTA ≠ CONFERMA. Con il double confirm la visita nasce pending:
+     niente pass (non esiste ancora), niente calendario, niente "ci vediamo
+     lì". Solo la verità: l'orario è tenuto, la conferma arriva via email. */
+  if(j.status==='pending'){
+    b.innerHTML='<div class="bk-done">'
+      +'<div style="font-size:34px;line-height:1">⏳</div>'
+      +'<div style="font-size:10px;letter-spacing:2.6px;text-transform:uppercase;color:var(--gold);font-weight:600;margin-top:10px">Request sent</div>'
+      +'<h3 style="font-family:var(--disp);font-weight:200;font-size:23px;margin-top:6px">'+bkRome(j.when)+'</h3>'
+      +'<div style="font-size:12px;color:var(--t3);margin-top:5px">Rome time · '+(video?'live video call · 20 min':'in person · 45 min')+' · '+sbEsc(L.name)+'</div>'
+      +'<p style="color:var(--t2);font-size:13.5px;margin:10px auto 0;max-width:42ch">That time is <b>held for you</b> while we confirm it. You\'ll get an email as soon as it\'s confirmed — usually within a few hours, with directions, your pass and the calendar file.</p>'
+      +'</div>'
+      +(j.manageUrl?'<a class="obtn" style="text-decoration:none" href="'+sbEsc(j.manageUrl)+'">Change or cancel this request</a>':'')
+      +'<a class="obtn" style="text-decoration:none;margin-top:4px" href="'+bkWa()+'" target="_blank" rel="noopener">Questions? WhatsApp your advisor</a>';
+    return;
+  }
   var act=video
     ?(j.videoUrl?'<a class="gbtn" style="text-decoration:none" href="'+sbEsc(j.videoUrl)+'" target="_blank" rel="noopener">🎥 Your private video room →</a>':'')
     :'<a class="gbtn" style="text-decoration:none" href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent((L.lat&&L.lng)?(L.lat+','+L.lng):(L.name+', '+(L.zone||'')+', Roma, Italia'))+'" target="_blank" rel="noopener">📍 Get directions</a>';

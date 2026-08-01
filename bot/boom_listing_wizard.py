@@ -392,8 +392,19 @@ async def description_cb(update, context):
             label = '✅ Descrizione AI (IT/EN)'
         else:
             # Fallback: original built-in template (AI unavailable / no secret).
+            # The feature codes are DATABASE keys — joining them raw published
+            # "washing_machine, double_glazing" on the public listing page and
+            # in /llms-listings.txt, which is what search engines and AI answer
+            # engines read. Same labels as api/wizard/describe.js.
             furn_text = {'yes': 'fully furnished', 'partial': 'partially furnished', 'no': 'unfurnished'}
-            feats = d.get('features', []); feat_text = f" Features include {', '.join(feats)}." if feats else ""
+            feat_labels = {
+                'ac': 'air conditioning', 'elevator': 'elevator', 'balcony': 'balcony',
+                'terrace': 'terrace', 'washing_machine': 'washing machine', 'dishwasher': 'dishwasher',
+                'parking': 'parking space', 'storage': 'storage room', 'pets_allowed': 'pets allowed',
+                'wifi': 'WiFi included', 'double_glazing': 'double glazing', 'doorman': 'doorman',
+            }
+            feats = [feat_labels.get(f, str(f).replace('_', ' ')) for f in d.get('features', [])]
+            feat_text = f" Features include {', '.join(feats)}." if feats else ""
             d['description'] = f"Beautiful {d.get('type', 'apartment')} in {d.get('zone', 'Rome')}, {d.get('sqm', '')}sqm on floor {d.get('floor', 'N/A')}, {furn_text.get(d.get('furnished', 'no'), 'unfurnished')}. {d.get('beds', '')} beds, {d.get('bathrooms', '')} bathroom{'s' if d.get('bathrooms', 1) > 1 else ''}.{feat_text} €{d.get('price', 0):,}/month."
             label = '✅ Descrizione generata (modello base)'
     else:
@@ -646,8 +657,43 @@ async def cmd_modifica(update, context):
         await update.message.reply_text(f"✏️ *{campo}* → {val}\n`{SITE_URL}/listing/{doc_id}`", parse_mode='Markdown')
     except Exception as e: await update.message.reply_text(f"❌ {e}")
 
+HELP_TEXT = """━━━━━━━━━━━━━━━━━━━━━━
+🏠 *BOOM Listing Wizard*
+━━━━━━━━━━━━━━━━━━━━━━
+_Parlami normale. I comandi sono solo una scorciatoia._
+
+⚡ *1 · PUBBLICARE (30 secondi)*
+Foto in blocco → poi la casa in UN messaggio (o un vocale 🎙):
+_"trilocale a Pigneto, via del Pigneto 3, 95mq, terzo piano, due bagni, arredato, 1350€, libero dal 1 settembre"_
+→ ✅ Pubblica: foto migliorate, descrizione AI bilingue, caption social.
+
+✏️ *2 · MODIFICARE (scrivilo e basta)*
+_"deposito a 2 mesi per Pigneto"_ · _"prezzo a 1300 Cavour"_
+_"aumenta Levico di 100"_ · _"affittato Trastevere"_
+_"non arredato Ostiense"_ · _"libero dal 1 ottobre Prati"_
+_"migliora le foto di Levico"_ · incolla un link YouTube
+→ ti mostro cosa cambio, applico solo dopo il ✅.
+
+❓ *3 · CHIEDERE (risposta immediata)*
+_"quanto costa Pigneto?"_ · _"quanti interessati ha Cavour?"_
+_"che deposito ha Levico?"_ · _"quali sono liberi?"_
+_"Prati ha il video?"_ · _"da quanto è sul mercato Ostiense?"_
+
+📋 *4 · COMANDI* (quando sai già cosa vuoi)
+/listings — annunci attivi con link
+/stats `[ID]` — candidature e giorni sul mercato
+/interessati `[ID]` — chi vuole ogni casa, i 🔥 prima
+/fotolab `ID` — rifai le foto con l'AI
+/prezzo `ID 1300` · /deposito `ID 3` · /video `ID link`
+/modifica `ID campo valore`
+/rent `ID` · /reactivate `ID` · /delete `ID`
+/nuovoflat — wizard classico a passi (se preferisci i bottoni)
+/svuota — azzera le foto in memoria
+/status — stato, AI, catalogo, risparmio
+/cancel — esci dal wizard · /help — questo messaggio"""
+
 async def cmd_help(update, context):
-    await update.message.reply_text("━━━━━━━━━━━━━━━━━━━━━━\n🏠 *BOOM Listing Wizard*\n━━━━━━━━━━━━━━━━━━━━━━\n\n⚡ *Annuncio in 30 secondi*\n1. Mandami le foto in blocco\n2. Descrivimi la casa in UN messaggio (o vocale 🎙):\n_\"trilocale a Pigneto, via del Pigneto 3, 95mq, terzo piano, due bagni, arredato, 1350€, libero dal 1 settembre\"_\n3. ✅ Pubblica! → foto migliorate + descrizione AI + caption social\n\n💬 *Modifiche in italiano:*\n_\"metti il deposito a 2 mesi per Pigneto\"_\n_\"migliora le foto di Levico\"_\n\n📋 *Comandi*\n/nuovoflat — Wizard classico a passi\n/listings — Annunci attivi con link\n/status — Stato bot, AI, catalogo\n/stats `[ID]` — Candidature e giorni sul mercato\n/interessati `[ID]` — Chi vuole ogni casa, i 🔥 prima\n/prezzo `ID 1300` · /deposito `ID 3` · /video `ID link`\n/modifica `ID campo valore` · /fotolab `ID`\n/rent `ID` · /reactivate `ID` · /delete `ID`\n/svuota — Azzera foto in memoria\n/cancel — Annulla wizard · /help — Questo messaggio", parse_mode='Markdown')
+    await update.message.reply_text(HELP_TEXT, parse_mode='Markdown')
 
 # ─── Photo Lab bridge (api/photos/enhance — AI curation + enhancement) ────────
 def photos_enhance(listing_id, mode='apply'):
@@ -737,10 +783,136 @@ def _match_listing(t, listings):
         return winners[0][1], winners[0][2]
     return 'AMBIG', [d.get('name', '?') for _, _, d in winners]
 
-def _local_interpret(text, prev=''):
+# ─── Il cervello gratis ───────────────────────────────────────────────────────
+# Ogni messaggio libero finiva dritto a claude-sonnet-5 con TUTTO il catalogo
+# nel prompt (~1.500 token di input a messaggio) — compresi "affittato Cavour"
+# e "quanto costa Pigneto?", che una regex risolve perfettamente per zero.
+# È la lezione di Homie applicata a noi stessi: si paga il modello solo per
+# quello che solo un modello sa fare.
+#
+#   1. è una DOMANDA?        → risposta letta dal catalogo, costo zero
+#   2. è una MODIFICA piana? → interpretata in locale, costo zero
+#   3. tutto il resto        → sale a /api/wizard/interpret (nomi con refusi,
+#                              annunci nuovi dettati a voce, frasi strane)
+#
+# Nessuna capacità persa: quando il locale non è sicuro, l'AI interviene
+# esattamente come prima. /status mostra lo split, così il risparmio si vede.
+NL_STATS = {'free': 0, 'ai': 0}
+
+QUESTION_RE = re.compile(
+    r'^\s*(quant|qual|che\s|chi\s|come\s|dove\s|c[\'’]?è\s|ci sono|mi dici|dimmi|'
+    r'fammi vedere|mostrami|elenca|lista|vedi)', re.I)
+MONTHS_IT = {'gennaio': 1, 'febbraio': 2, 'marzo': 3, 'aprile': 4, 'maggio': 5, 'giugno': 6,
+             'luglio': 7, 'agosto': 8, 'settembre': 9, 'ottobre': 10, 'novembre': 11, 'dicembre': 12}
+ORDINALS_IT = {'primo': 1, 'secondo': 2, 'terzo': 3, 'quarto': 4, 'quinto': 5, 'sesto': 6,
+               'settimo': 7, 'ottavo': 8, 'nono': 9, 'decimo': 10}
+
+def _is_question(t):
+    return bool(QUESTION_RE.search(t)) or t.rstrip().endswith('?')
+
+def _num(raw):
+    """'due' | '2' | '2,5' → number, or None."""
+    if raw is None: return None
+    raw = str(raw).strip().lower()
+    if raw in NUM_WORDS: return NUM_WORDS[raw]
+    if raw in ORDINALS_IT: return ORDINALS_IT[raw]
+    try: return float(raw.replace(',', '.')) if (',' in raw or '.' in raw) else int(raw)
+    except ValueError: return None
+
+def _it_date(t):
+    """'dal 1 settembre' / 'dal 01/09' / 'subito' → ISO date or 'Subito'."""
+    if re.search(r'\b(subito|da subito|immediat)', t): return 'Subito'
+    m = re.search(r'\b(\d{1,2})\s+(' + '|'.join(MONTHS_IT) + r')\b', t)
+    if m:
+        day, mon = int(m.group(1)), MONTHS_IT[m.group(2)]
+        year = datetime.utcnow().year
+        if (mon, day) < (datetime.utcnow().month, datetime.utcnow().day): year += 1
+        return f'{year}-{mon:02d}-{day:02d}'
+    m = re.search(r'\b(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?\b', t)
+    if m:
+        day, mon = int(m.group(1)), int(m.group(2))
+        if 1 <= mon <= 12 and 1 <= day <= 31:
+            year = int(m.group(3) or datetime.utcnow().year)
+            if year < 100: year += 2000
+            return f'{year}-{mon:02d}-{day:02d}'
+    return None
+
+# ── 1. domande: si risponde leggendo, non pensando ───────────────────────────
+def _local_answer(text, listings):
+    """A read-only reply built from the catalog, or None to keep going.
+    Costs one Firestore read the bot was making anyway — zero AI."""
+    t = text.lower()
+    if not _is_question(t): return None
+
+    # catalogue-wide questions, no listing to match
+    if re.search(r'\b(liber|disponibil|attiv)\w*\b', t) and re.search(r'\b(quali|quante|quanti|elenca|lista|tutti|tutte)\b', t):
+        if not listings: return '📭 Nessun annuncio disponibile in catalogo.'
+        rows = [f"• *{d.get('name','?')}* — €{int(d.get('price') or 0):,}/mese · {d.get('zone','')}" for _, d in listings[:15]]
+        return f"🏠 *{len(listings)} annunci disponibili*\n\n" + '\n'.join(rows)
+    if re.search(r'quant\w*\s+(annunci|case|appartamenti|immobili)', t):
+        vids = sum(1 for _, d in listings if d.get('videoUrl') or d.get('youtubeUrl'))
+        return f"🏠 *{len(listings)} annunci disponibili* · {vids} con video tour."
+
+    m = _match_listing(t, listings)
+    if m is None or m[0] == 'AMBIG': return None      # let the AI disambiguate
+    doc_id, d = m
+    name = d.get('name') or doc_id
+    price = int(d.get('price') or 0)
+
+    if re.search(r'\b(prezzo|costa|costo|canone|affitto mensile)\b', t):
+        dm = d.get('depositMonths')
+        dep = f" · deposito {dm:g} mesi (€{round(float(dm) * price):,})" if isinstance(dm, (int, float)) and dm else ''
+        return f"💶 *{name}* — €{price:,}/mese{dep}"
+    if re.search(r'\b(deposit|cauzion)\w*', t):
+        dm = d.get('depositMonths')
+        if isinstance(dm, (int, float)) and dm:
+            return f"🔐 *{name}* — deposito {dm:g} mesi = €{round(float(dm) * price):,}"
+        return f"🔐 *{name}* — deposito non impostato (default 1 mese = €{price:,})"
+    if re.search(r'\bvideo\b', t):
+        v = d.get('videoUrl') or d.get('youtubeUrl')
+        return f"🎥 *{name}* — {v}" if v else f"🎥 *{name}* — nessun video tour.\nMandami il link YouTube e lo aggancio."
+    if re.search(r'\b(lead|interessat|candidat|richiest|contatt)\w*', t):
+        try: n = _count_leads(doc_id)
+        except Exception: return None
+        return (f"👥 *{name}* — {n} interessati.\n`/interessati {doc_id}` per i nomi"
+                if n else f"👥 *{name}* — ancora nessun interessato.")
+    if re.search(r'\b(foto|immagini)\b', t):
+        n = len([u for u in [d.get('image')] + (d.get('images') or []) if u])
+        return f"📸 *{name}* — {n} foto." + ('' if n >= 8 else f"\n_Sotto le 8: `/fotolab {doc_id}` o mandamene altre._")
+    if re.search(r'\b(giorni|da quanto|sul mercato|quando.*pubblicat)\b', t):
+        days = _days_since(d.get('createdAt'))
+        return f"📅 *{name}* — {days if days is not None else '?'} giorni sul mercato."
+    if re.search(r'\b(indirizzo|dove\s|zona)\b', t):
+        return f"📍 *{name}* — {d.get('address','?')}, {d.get('zone','?')}"
+    if re.search(r'\b(affittat|liber[oa]|disponibil|stato|ancora)\w*', t):
+        st = str(d.get('status') or 'available')
+        label = {'available': '🟢 disponibile', 'rented': '🔴 affittato', 'waitlist': '🟡 lista d\'attesa'}.get(st, st)
+        return f"*{name}* — {label}"
+    return None
+
+# ── 2. modifiche piane: la regex fa il 90% del lavoro vero ───────────────────
+TYPE_WORDS_RE = re.compile(r'\b(monolocale|bilocale|trilocale|quadrilocale|attico|loft)\b')
+
+def _smells_like_new(t):
+    """Un annuncio NUOVO dettato ("trilocale a Prati, 80mq, 1500 euro") assomiglia
+    pericolosamente a una modifica: la parola-tipo aggancia per sbaglio un
+    annuncio esistente e la regex gli riscrive i metri. Quando il messaggio ha
+    la FORMA di una casa nuova — tipologia + metratura/prezzo + più dati — si
+    lascia decidere al modello, che è l'unico che sa distinguerli davvero."""
+    if not TYPE_WORDS_RE.search(t): return False
+    signals = sum(bool(re.search(p, t)) for p in (
+        r'\d{2,3}\s*(?:mq|m2|m²|metri)', r'\d{3,5}\s*(?:€|euro)', r'\bvia\b|\bviale\b|\bpiazza\b',
+        r'\d\s*bagn', r'\d\s*(?:camer|stanz)', r'\bpiano\b', r'\barredat'))
+    return signals >= 2
+
+def _local_interpret(text, prev='', listings=None):
     t = ((prev + ' ' if prev else '') + text).lower()
-    try: listings = fs_query_available('listings')
-    except Exception: return None
+    if listings is None:
+        try: listings = fs_query_available('listings')
+        except Exception: return None
+    # una casa nuova non è una modifica: sale al modello, sempre
+    if _smells_like_new(t):
+        return {'ok': True, 'action': 'none', 'note': 'Sembra un annuncio nuovo.'}
     m = _match_listing(t, listings)
     if m is None:
         return {'ok': True, 'action': 'none', 'note': "Di quale annuncio parli? Dimmi il nome o l'ID (vedi /listings)."}
@@ -751,13 +923,17 @@ def _local_interpret(text, prev=''):
         return {'ok': True, 'action': 'photos', 'id': doc_id, 'name': d.get('name') or doc_id}
     price = int(d.get('price') or 0)
     updates, summary = {}, []
+
+    # deposito in mesi (il sistema ragiona in mesi, gli euro li deriva)
     m = re.search(r'(\d+(?:[.,]5)?|un[oa]?|due|tre|quattro|cinque|sei)\s*mes', t)
     if m and re.search(r'deposit|cauzion', t):
-        raw = m.group(1)
-        months = NUM_WORDS.get(raw) or float(raw.replace(',', '.'))
-        dep = round(months * price)
-        updates.update({'depositMonths': months, 'deposit': dep})
-        summary.append(f"Deposito: {months:g} mesi = €{dep:,}")
+        months = _num(m.group(1))
+        if months:
+            dep = round(months * price)
+            updates.update({'depositMonths': months, 'deposit': dep})
+            summary.append(f"Deposito: {months:g} mesi = €{dep:,}")
+
+    # prezzo, relativo o assoluto
     m = re.search(r'(aument|alza|rincar|abbass|riduc|scont|diminu)\w*\D*?di\s*€?\s*(\d[\d.]*)', t)
     if m and price:
         delta = _parse_money(m.group(2))
@@ -766,6 +942,10 @@ def _local_interpret(text, prev=''):
         summary.append(f"Prezzo: €{price:,} → €{new_price:,}")
     else:
         m = re.search(r'(?:prezzo|canone|affitto)\D*?a\s*€?\s*(\d[\d.]*)', t)
+        # "Levico a 1250": senza la parola prezzo, ma una cifra da canone dopo
+        # "a" è inequivocabile — purché non sia "a 2 mesi" o "a 80 mq"
+        if not m:
+            m = re.search(r'\ba\s+€?\s*(\d{3}[\d.]*)\s*(?:€|euro)?(?!\s*(?:mes|mq|m2|m²|metri|bagn|camer|piano))', t)
         if m:
             updates['price'] = _parse_money(m.group(1))
             summary.append(f"Prezzo: €{price:,} → €{updates['price']:,}")
@@ -774,17 +954,68 @@ def _local_interpret(text, prev=''):
         if isinstance(months, (int, float)) and months > 0 and 'deposit' not in updates:
             updates['deposit'] = round(months * updates['price'])
             summary.append(f"Deposito ricalcolato: €{updates['deposit']:,}")
+
+    # video tour
     m = re.search(r'(https?://\S*youtu\S*)', text)
     if m:
         updates['videoUrl'] = m.group(1)
         summary.append('Video tour aggiornato')
-    if re.search(r'affittat', t):
+
+    # stato
+    if re.search(r'affittat|è andat[oa]|preso|occupat', t):
         updates['status'] = 'rented'; summary.append('Stato: affittato')
-    elif re.search(r'riattiv|di nuovo disponibile|rimetti disponibile', t):
+    elif re.search(r'riattiv|di nuovo disponibile|rimetti disponibile|tornat[oa] liber', t):
         updates['status'] = 'available'; summary.append('Stato: disponibile')
+
+    # arredamento
+    if re.search(r'\b(semi[- ]?arredat|parzialmente arredat)', t):
+        updates['furnished'] = 'partial'; summary.append('Arredamento: parziale')
+    elif re.search(r'\bnon arredat|\bvuot[oa]\b|\bnudo\b|\bspoglio\b', t):
+        updates['furnished'] = 'no'; summary.append('Arredamento: non arredato')
+    elif re.search(r'\barredat', t):
+        updates['furnished'] = 'yes'; summary.append('Arredamento: arredato')
+
+    # metratura / vani / piano — solo con la parola-chiave esplicita accanto
+    m = re.search(r'(\d{2,3})\s*(?:mq|m2|m²|metri quadr)', t)
+    if m:
+        updates['sqm'] = int(m.group(1)); summary.append(f"Metratura: {updates['sqm']} mq")
+    m = re.search(r'(\d|un[oa]?|due|tre|quattro|cinque)\s*(?:camer|stanz)', t)
+    if m and not re.search(r'stanz\w*\s+da\s+bagno', t):
+        n = _num(m.group(1))
+        if n: updates['beds'] = int(n); summary.append(f"Camere: {int(n)}")
+    m = re.search(r'(\d|un[oa]?|due|tre)\s*bagn', t)
+    if m:
+        n = _num(m.group(1))
+        if n: updates['bathrooms'] = int(n); summary.append(f"Bagni: {int(n)}")
+    m = re.search(r'piano\s+(terra|rialzato|attico|\d{1,2}|' + '|'.join(ORDINALS_IT) + r')', t)
+    if m:
+        raw = m.group(1)
+        updates['floor'] = raw.title() if raw in ('terra', 'rialzato', 'attico') else str(_num(raw) or raw)
+        summary.append(f"Piano: {updates['floor']}")
+
+    # disponibilità
+    if re.search(r'\b(liber[oa]|disponibil\w*)\b', t) and not updates.get('status'):
+        iso = _it_date(t)
+        if iso:
+            updates['availableDate'] = iso
+            summary.append(f"Disponibile: {'subito' if iso == 'Subito' else iso}")
+
+    # commissione
+    m = re.search(r'commission\w*\D*?(\d[\d.]*)', t)
+    if m:
+        updates['agencyFee'] = _parse_money(m.group(1))
+        summary.append(f"Commissione: €{updates['agencyFee']:,}")
+
     if not updates:
         return {'ok': True, 'action': 'none', 'note': f"Ho capito l'annuncio ({d.get('name','?')}) ma non la modifica. Prova: 'deposito a 2 mesi', 'prezzo a 1300', o incolla un link video."}
-    return {'ok': True, 'action': 'update', 'id': doc_id, 'name': d.get('name') or doc_id, 'updates': updates, 'summary': summary}
+    # LA GUARDIA: "Levico è affittato?" contiene "affittato" e diventerebbe un
+    # ORDINE — un immobile marcato affittato per una domanda. Una frase
+    # interrogativa non produce MAI una scrittura gratis: se _local_answer non
+    # ha saputo rispondere, decide il modello.
+    if _is_question(t):
+        return {'ok': True, 'action': 'none', 'note': 'Sembra una domanda, non una modifica.'}
+    return {'ok': True, 'action': 'update', 'id': doc_id, 'name': d.get('name') or doc_id,
+            'updates': updates, 'summary': summary, '_free': True}
 
 # ─── Quick create: photos in bulk + ONE message (or a voice note) ─────────────
 # Photos sent OUTSIDE the step wizard land in a per-chat buffer; the next
@@ -868,7 +1099,12 @@ async def cmd_status(update, context):
         cat = f'catalogo non leggibile ({e})'
     buf = _photo_buffer(update.effective_chat.id)
     extra = f"\n📸 {len(buf['ids'])} foto in memoria (descrivi la casa per pubblicarle)" if buf else ''
-    await update.message.reply_text(f"🤖 *BOOM Wizard* v{BOT_VERSION}\n🟢 Online da {dd}g {hh}h {mm}m\n🧠 AI: {ai}\n🏠 {cat}{extra}", parse_mode='Markdown')
+    # quanto sto risparmiando davvero: i messaggi risolti in locale non hanno
+    # mai toccato un modello. Se questa riga dice 0 gratis, il router è rotto.
+    tot = NL_STATS['free'] + NL_STATS['ai']
+    money = (f"\n💸 {NL_STATS['free']} messaggi gratis · {NL_STATS['ai']} con AI "
+             f"({round(100 * NL_STATS['free'] / tot)}% a costo zero)") if tot else ''
+    await update.message.reply_text(f"🤖 *BOOM Wizard* v{BOT_VERSION}\n🟢 Online da {dd}g {hh}h {mm}m\n🧠 AI: {ai}\n🏠 {cat}{extra}{money}", parse_mode='Markdown')
 
 def _run_lead_query(field=None, value=None, limit=300):
     q = {'from': [{'collectionId': 'leads'}], 'limit': limit}
@@ -1000,10 +1236,46 @@ async def nl_message(update, context):
 async def _nl_process(update, context, text):
     chat_id = update.effective_chat.id
     prev = NL_CTX.get(chat_id, '')
-    payload = {'text': text}
-    if prev: payload['context'] = prev
-    plan = await asyncio.to_thread(wizard_post, '/api/wizard/interpret', payload, 45)
-    if not plan: plan = _local_interpret(text, prev)
+
+    # ── Il router: gratis prima, AI solo quando serve davvero. ───────────────
+    # Il catalogo si legge UNA volta e serve a tutti e tre i passaggi (la
+    # domanda, la modifica locale, e il prompt dell'AI se ci si arriva).
+    listings = None
+    try:
+        listings = await asyncio.to_thread(fs_query_available, 'listings')
+    except Exception as e:
+        logger.warning(f'catalogo non leggibile: {e}')
+
+    plan = None
+    if listings:
+        # 1. una domanda si risponde leggendo, non pensando
+        try:
+            answer = await asyncio.to_thread(_local_answer, (prev + ' ' if prev else '') + text, listings)
+        except Exception as e:
+            logger.warning(f'local answer: {e}'); answer = None
+        if answer:
+            NL_STATS['free'] += 1
+            NL_CTX.pop(chat_id, None)
+            await update.message.reply_text(answer, parse_mode='Markdown')
+            return
+        # 2. una modifica piana la fa la regex — stesso risultato, costo zero
+        try:
+            local = _local_interpret(text, prev, listings)
+        except Exception as e:
+            logger.warning(f'local interpret: {e}'); local = None
+        if local and local.get('_free'):
+            NL_STATS['free'] += 1
+            plan = local
+
+    # 3. tutto il resto sale al modello: refusi nei nomi, case nuove dettate
+    #    a voce, frasi che nessuna regex onesta può coprire
+    if plan is None:
+        payload = {'text': text}
+        if prev: payload['context'] = prev
+        plan = await asyncio.to_thread(wizard_post, '/api/wizard/interpret', payload, 45)
+        if plan: NL_STATS['ai'] += 1
+        else: plan = _local_interpret(text, prev, listings)   # endpoint giù → paracadute
+
     kb = InlineKeyboardMarkup([[InlineKeyboardButton('✅ Conferma', callback_data='nl_ok'), InlineKeyboardButton('✖️ Annulla', callback_data='nl_no')]])
     if plan and plan.get('action') == 'create' and plan.get('fields'):
         NL_CTX.pop(chat_id, None)

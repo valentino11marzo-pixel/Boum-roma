@@ -70,6 +70,15 @@ export default async function handler(req, res) {
     signSentBy: auth.email || auth.uid,
     tenantSignUrl, landlordSignUrl,
   }).catch(() => {});
+  // L'invito va STAMPATO ANCHE SUL CONTRATTO: journeyEligible tace il
+  // ciclo casa sui contratti invitati-non-firmati, e il watchdog re-inviti
+  // del reminder-cron riparte da signInviteTenantAt — senza questo stamp
+  // il rail PA restava invisibile a entrambi.
+  if (out.contractId && emailed) {
+    fsPatch('contracts/' + out.contractId, {
+      signInviteTenantAt: new Date().toISOString(),
+    }).catch(() => {});
+  }
   logActivity('preagreement_sign_sent', 'contract',
     { paId, ref: pa.ref || '', contractId: out.contractId, emailed }, auth.email || 'admin')
     .catch(() => {});

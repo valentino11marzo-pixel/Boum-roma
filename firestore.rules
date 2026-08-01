@@ -39,6 +39,10 @@ service cloud.firestore {
     // ─── PUBLIC CATALOG — read open to all, writes admin-only ─────────
     match /listings/{x}  { allow read: if true; allow write: if isAdmin(); }
     match /settings/{x}  { allow read: if true; allow write: if isAdmin(); }
+    // Coordinate per il bonifico del canone. NON in /settings, che è
+    // leggibile da chiunque via API: un IBAN esposto così invita scraping.
+    // L'inquilino che deve pagare è comunque autenticato.
+    match /payout/{x}    { allow read: if request.auth != null; allow write: if isAdmin(); }
 
     // ─── users ────────────────────────────────────────────────────────
     match /users/{userId} {
@@ -91,7 +95,13 @@ service cloud.firestore {
                     || (isTenant() && resource.data.userId == uid())
                     || (isLandlord() && resource.data.propertyId != null
                         && ownsProperty(resource.data.propertyId));
-      allow create: if isSignedIn() && request.resource.data.userId == uid();
+      // L'admin può aprire una segnalazione PER un inquilino: succede ogni
+      // volta che qualcuno telefona invece di usare l'app, e serve
+      // all'inquilino di prova. Senza `isAdmin()` la regola ammetteva solo
+      // "creo per me stesso" e ogni scrittura server-side per conto di terzi
+      // tornava PERMISSION_DENIED.
+      allow create: if isAdmin()
+                    || (isSignedIn() && request.resource.data.userId == uid());
       allow update, delete: if isAdmin();
     }
 
@@ -167,6 +177,11 @@ service cloud.firestore {
 
     // ─── config ───────────────────────────────────────────────────────
     match /config/{x} { allow read, write: if isAdmin(); }
+
+    // ─── operatorTasks (Il Regista: foglio di chiamata + promemoria) ──
+    // Solo admin; i cron scrivono con credenziali admin. Senza questa riga
+    // cadrebbe nel default-deny (la lezione di propertyLocks).
+    match /operatorTasks/{x} { allow read, write: if isAdmin(); }
 
     // ─── activityLog ──────────────────────────────────────────────────
     match /activityLog/{x} {
@@ -247,6 +262,12 @@ service cloud.firestore {
     match /bankImports/{x}                 { allow read, write: if isAdmin(); }
     match /docImports/{x}                  { allow read, write: if isAdmin(); }
     match /complianceState/{x}             { allow read, write: if isAdmin(); }
+    // Lucchetti sull'immobile (api/preagreement/_lock.js): impediscono che due
+    // candidati chiudano lo stesso appartamento. Scritti SOLO server-side con
+    // le credenziali admin — che passano comunque da queste regole, quindi
+    // senza questa riga cadrebbero nel default-deny e il lucchetto non
+    // funzionerebbe affatto.
+    match /propertyLocks/{x}               { allow read, write: if isAdmin(); }
 
     // ─── Default deny ─────────────────────────────────────────────────
     match /{document=**} {

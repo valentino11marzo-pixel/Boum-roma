@@ -36,18 +36,12 @@
 // Response: { ok, conversationId, messageId, created, dedupHit? }
 
 import { fsCreate, fsGet, fsPatch, fsList, logActivity, requireSecret, readJson } from './_lib.js';
+import {
+  isNoise, matchListing, mergeMessage, buildLead, recentLeadByPhone, loadCatalog,
+  normalizePhone, phoneVariants,
+} from './_lead.js';
 
 // ── Pure helpers (mirror js/conversations.js so the id/phone logic matches) ──
-function normalizePhone(p) {
-  if (!p) return '';
-  let s = String(p).replace(/[^\d+]/g, '');
-  if (!s) return '';
-  if (s.startsWith('00')) s = '+' + s.slice(2);
-  else if (!s.startsWith('+')) {
-    if (s.startsWith('3') || s.startsWith('0')) s = '+39' + s.replace(/^0/, '');
-  }
-  return s;
-}
 function convIdFor(contactType, contactId) {
   return 'conv_' + contactType + '_' + String(contactId).replace(/[^A-Za-z0-9_-]/g, '');
 }
@@ -60,8 +54,10 @@ function preview(t, max = 90) {
 // Try to resolve an existing BOOM entity from a phone number, scanning the
 // collections a WhatsApp contact could live in. Returns { contactType, entity }.
 async function resolveByPhone(phone) {
-  const norm = normalizePhone(phone);
-  const candidates = [norm, phone].filter(Boolean);
+  // Ogni forma sotto cui quel numero può essere stato archiviato: WhatsApp
+  // manda l'internazionale, i portali salvano il nazionale. Cercare una sola
+  // forma significa non riconoscere un inquilino e trattarlo da sconosciuto.
+  const candidates = phoneVariants(phone);
   const scans = [
     { type: 'lead',     coll: 'leads',      field: 'phone' },
     { type: 'tenant',   coll: 'users',      field: 'phone', roleEq: 'tenant' },
@@ -226,5 +222,111 @@ export default async function handler(req, res) {
     preview: preview(text, 60), needsReply: !!header.needsReply,
   });
 
-  return res.status(200).json({ ok: true, conversationId: cid, messageId, created });
+  // ── IL LEAD: qui Homie smette di dover pensare. ─────────────────────────
+  // Un inbound da un numero che non è già un contatto BOOM diventa un lead
+  // nello schema che tutto il resto legge già — e da lì la macchina parte da
+  // sola: Lead Brain (batch, con tetto) → ping Telegram col bottone WhatsApp
+  // → bozza del Commerciale. Nessuna AI in più rispetto a oggi, e una in
+  // meno per messaggio sul Mac.
+  let leadInfo = null;
+  try { leadInfo = await syncLead({ direction, text, contactType, contactId, contactPhone, contactName, cid, existing, now, messageId: body.messageId }); }
+  catch (e) { console.warn('[homie/message] lead sync:', e.message); }
+
+  return res.status(200).json({ ok: true, conversationId: cid, messageId, created, ...(leadInfo || {}) });
+}
+
+/**
+ * Tiene allineati conversazione e pipeline. Non lancia mai verso l'alto: un
+ * problema qui non deve far fallire la registrazione del messaggio, che è il
+ * dato che conta.
+ */
+async function syncLead({ direction, text, contactType, contactId, contactPhone, contactName, cid, existing, now, messageId }) {
+  // Il lead già agganciato a questa conversazione (o quello del portale/sito
+  // creato pochi giorni fa dallo stesso numero: una persona, un lead).
+  let leadId = (existing && existing.leadId) || null;
+  if (!leadId && contactType === 'lead' && contactId) leadId = contactId;
+
+  // ── l'operatore ha risposto a mano → il Commerciale non ci prova ────────
+  // Senza questo, l'operatore risponde su WhatsApp e mezz'ora dopo il
+  // Commerciale propone la SUA bozza per lo stesso lead: due voci sulla
+  // stessa conversazione, ed è il tipo di figura che non si recupera.
+  if (direction === 'out') {
+    if (!leadId) return null;
+    try {
+      const lead = await fsGet(`leads/${leadId}`);
+      if (lead && (lead.status === 'new' || !lead.status)) {
+        await fsPatch(`leads/${leadId}`, {
+          status: 'contacted',
+          contactedAt: now,
+          contactedBy: 'whatsapp',
+        });
+        return { leadId, leadStatus: 'contacted' };
+      }
+    } catch { /* non-fatal */ }
+    return { leadId };
+  }
+
+  if (direction !== 'in') return null;
+
+  // ── un lead che esiste già si ARRICCHISCE, non si duplica ───────────────
+  if (leadId) {
+    try {
+      const lead = await fsGet(`leads/${leadId}`);
+      if (!lead) return null;
+      const patch = { lastInboundAt: now };
+      if (!isNoise(text)) {
+        const merged = mergeMessage(lead.message, text);
+        if (merged !== lead.message) patch.message = merged;
+        // la casa può emergere al terzo messaggio, non al primo
+        if (!lead.propertyId) {
+          const hit = matchListing(text, await loadCatalog());
+          if (hit) Object.assign(patch, { propertyId: hit.id, propertyTitle: hit.name || null, propertyPrice: hit.price || null });
+        }
+      }
+      // ha riscritto dopo che era stato chiuso: torna vivo — a meno che il
+      // Brain l'avesse marcato dead (spam), che riscrive proprio perché è spam
+      if (['closed', 'archived'].includes(String(lead.status || '')) && lead.grade !== 'dead') {
+        patch.status = 'new';
+        patch.telegramNotifiedAt = null;      // rifallo squillare: è tornato
+      }
+      await fsPatch(`leads/${leadId}`, patch);
+      return { leadId, leadUpdated: true };
+    } catch (e) {
+      console.warn('[homie/message] lead enrich:', e.message);
+      return null;
+    }
+  }
+
+  // ── contatti già nostri: inquilini, proprietari, clienti PFS ────────────
+  // Scrivono per la caldaia o per il contratto, non per affittare: la loro
+  // conversazione è già visibile in Inbox e non deve inquinare la pipeline.
+  if (contactType !== 'whatsapp') return null;
+
+  // ── un lead nuovo ───────────────────────────────────────────────────────
+  if (isNoise(text)) return null;                       // un 👍 non è un cliente
+
+  const prior = await recentLeadByPhone(contactPhone, now.getTime());
+  if (prior) {
+    // stesso numero già in pipeline da un'altra porta (portale, form del sito)
+    try {
+      await fsPatch(`leads/${prior.id}`, {
+        message: mergeMessage(prior.message, text),
+        lastInboundAt: now,
+        ...(prior.phone ? {} : { phone: contactPhone }),
+      });
+      await fsPatch('conversations/' + cid, { leadId: prior.id });
+    } catch { /* non-fatal */ }
+    return { leadId: prior.id, leadDeduped: true };
+  }
+
+  const listing = matchListing(text, await loadCatalog());
+  const doc = buildLead({
+    text, phone: contactPhone, name: contactName, listing,
+    messageId, conversationId: cid, at: now,
+  });
+  const { id } = await fsCreate('leads', doc);
+  // la conversazione ricorda il suo lead: i messaggi successivi lo arricchiscono
+  try { await fsPatch('conversations/' + cid, { leadId: id }); } catch { /* non-fatal */ }
+  await logActivity('lead_from_whatsapp', 'lead', { leadId: id, conversationId: cid, listing: doc.propertyTitle }, 'homie');
+  return { leadId: id, leadCreated: true };
 }

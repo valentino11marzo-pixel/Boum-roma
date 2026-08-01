@@ -121,6 +121,9 @@ export async function applyViewingChange(id, opts = {}) {
   if (opts.meetingPoint) patch.meetingPoint = String(opts.meetingPoint).slice(0, 120);
   if (opts.notes) patch.notes = String(opts.notes).slice(0, 800);
   if (mode === 'video') patch.videoUrl = v.videoUrl || videoRoom(id);
+  // persist the listing's coords (enrichViewing found them) so the busy block
+  // this viewing casts can price travel gaps without extra reads
+  if (v.lat != null && v.lng != null) { patch.lat = Number(v.lat); patch.lng = Number(v.lng); }
 
   // A moved appointment re-opens the countdown: the client must hear it again.
   const moved = action === 'reschedule'
