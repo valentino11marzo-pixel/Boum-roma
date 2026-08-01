@@ -22,6 +22,7 @@ import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import crypto from 'node:crypto';
 import { fsGet, fsPatch, fsCreate, fsList } from '../homie/_lib.js';
+import { normalizePhone } from '../homie/_lead.js';
 import { requireCronOrAdmin } from '../pfs/_guard.js';
 import { reportHealth } from '../pfs/_health.js';
 
@@ -163,7 +164,10 @@ export default async function handler(req, res) {
             source: portal.replace(/\..*$/, ''),
             name: String(lead.name).slice(0, 120),
             email: lead.email ? String(lead.email).trim().slice(0, 160) : null,
-            phone: lead.phone ? String(lead.phone).trim().slice(0, 40) : null,
+            // normalizzato alla porta: WhatsApp consegna sempre +39…, i portali
+            // scrivono di tutto. Archiviare una forma sola rende la stessa
+            // persona due lead quando riscrive da un altro canale.
+            phone: lead.phone ? (normalizePhone(lead.phone) || String(lead.phone).trim()).slice(0, 40) : null,
             message: lead.message ? String(lead.message).slice(0, 1500) : null,
             // never default to Italian: an unknown language is unknown, and
             // every downstream template treats unknown as English (replyLang)

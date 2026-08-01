@@ -249,3 +249,7 @@ console.log('\n' + '─'.repeat(48));
 console.log(`La Scheda: ${passed} passed, ${failed} failed`);
 if (failed) { console.error('FAILED: ' + bad.join(' | ')); process.exit(1); }
 console.log('La scheda universale si comporta come previsto.');
+// Uscita ESPLICITA: la suite stubba fetch e lascia un handle appeso, quindi
+// l'event loop non si svuota da solo — il verdetto compariva e il processo
+// restava vivo per sempre, bloccando `npm test` a metà batteria per tutti.
+process.exit(0);
