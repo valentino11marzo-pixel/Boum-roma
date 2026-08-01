@@ -7801,6 +7801,28 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 </div>
             </div>
             
+            <!-- LA PORTA GIUSTA. Da questa pagina escono ricevute, proposte e
+                 contratti di locazione: documenti che NON hanno numerazione
+                 fiscale, IVA, né XML per lo SdI. Le fatture si fanno da
+                 Fatture. Non dirlo lasciava l'operatore a cercarle qui. -->
+            <div class="card" style="margin-bottom:20px;border-left:3px solid var(--gold)">
+                <div class="card-body" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+                    <div style="flex:1;min-width:280px">
+                        <div style="font-size:15px;font-weight:600;margin-bottom:6px">🧾 Cerchi una fattura?</div>
+                        <div style="font-size:13px;color:var(--text-secondary);line-height:1.6">
+                            Non si fa da qui. Questa pagina genera <strong>ricevute, proposte e contratti</strong>:
+                            documenti senza numerazione fiscale, senza IVA e senza XML per lo SdI.
+                            Una fattura è un documento fiscale — numero progressivo, riepilogo IVA,
+                            file FatturaPA — e si emette da <strong>Fatture</strong>.
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                        <button class="btn" onclick="openInvoiceEditor()">+ Emetti fattura</button>
+                        <button class="btn btn-secondary" onclick="goTo('invoices')">Vai a Fatture</button>
+                    </div>
+                </div>
+            </div>
+
             <div class="alert info" style="margin-bottom:20px">
                 <span class="alert-icon">🌐</span>
                 <div class="alert-content">
@@ -7899,6 +7921,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <div class="card">
                     <div class="card-header" style="background:var(--orange-light)">
                         <h3 class="card-title" style="color:var(--orange)">🧾 Ricevute</h3>
+                        <span class="badge gray" style="font-size:10px" title="Documenti non fiscali: attestano un incasso, non lo fatturano">non fiscali</span>
                     </div>
                     <div class="card-body">
                         <div style="display:grid;gap:10px">
@@ -19587,6 +19610,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // diverso perché è un documento diverso — attesta un incasso, non fattura
     // nulla, e infatti non ha né IVA né numerazione fiscale. Prima disegnava
     // una terza intestazione a mano: stesso marchio, tre implementazioni.
+    // La ricevuta di canone: STESSA testata della fattura (boomDocHead), corpo
+    // diverso perché è un documento diverso — attesta un incasso, non fattura
+    // nulla, e infatti non ha né IVA né numerazione fiscale.
     function _buildReceiptDoc(pay, c, p, t) {
         if (!window.jspdf) return null;
         var doc = new window.jspdf.jsPDF();
@@ -19600,42 +19626,47 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             dateLine: 'Roma, ' + (pay.paidDate ? fmtDate(pay.paidDate) : fmtDate(new Date())),
         });
 
-        y = boomDocSection(doc, y, 1, 'Parti');
-        var gap = 6, colW = (DOC_W - gap) / 2;
+        y = boomDocSection(doc, y, '01', 'Parti');
+        var gap = 12, colW = (DOC_W - gap) / 2;
         var hL = boomDocParty(doc, DOC_M, y, colW, 'Ricevuto da', [
-            (t && t.name) || 'Inquilino', (t && t.email) || '', (t && t.codiceFiscale) || (t && t.cf) || '',
+            (t && t.name) || 'Inquilino', (t && t.email) || '', (t && (t.codiceFiscale || t.cf)) || '',
         ]);
         var hR = boomDocParty(doc, DOC_M + colW + gap, y, colW, 'Immobile', [
             (p && p.name) || '—', (p && p.address) || 'Roma',
         ]);
-        y += Math.max(hL, hR) + 8;
+        y += Math.max(hL, hR) + 14;
 
-        y = boomDocSection(doc, y, 2, 'Pagamento');
-        doc.setFillColor(247, 247, 247); doc.rect(DOC_M, y, DOC_W, 13, 'F');
+        docRule(doc, y - 6, DOC_M, DOC_R, DOC_LINE, 0.2);
         [['Periodo', pay.month || '—'],
          ['Data incasso', fmtDate(pay.paidDate)],
-         ['Modalita', pay.paidVia === 'stripe' ? 'Carta' : pay.paidVia === 'bank' ? 'Bonifico' : 'Bonifico'],
+         ['Modalita', pay.paidVia === 'stripe' ? 'Carta' : 'Bonifico'],
          ['Riferimento', ref]].forEach(function (kv, i) {
-            var x = DOC_M + 4 + i * (DOC_W / 4);
-            doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor.apply(doc, DOC_SOFT);
-            doc.text(kv[0].toUpperCase(), x, y + 5, { charSpace: 0.8 });
-            doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor.apply(doc, DOC_INK);
-            doc.text(String(kv[1]), x, y + 10.5);
+            var x = DOC_M + i * (DOC_W / 4);
+            docEyebrow(doc, kv[0], x, y);
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(DOC_T.body + 0.4);
+            doc.setTextColor.apply(doc, DOC_INK);
+            doc.text(String(kv[1]), x, y + 6);
         });
-        y += 22;
-
-        doc.setFillColor.apply(doc, DOC_GOLD); doc.rect(DOC_M, y, DOC_W, 14, 'F');
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(0, 0, 0);
-        doc.text('IMPORTO RICEVUTO', DOC_M + 4, y + 8.8, { charSpace: 0.5 });
-        doc.setFontSize(13);
-        doc.text('EUR ' + fmtAmt, DOC_R - 4, y + 9.2, { align: 'right' });
-        y += 20;
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.6); doc.setTextColor.apply(doc, DOC_INK);
-        doc.text('(Euro ' + numberToWords(Math.round(amount)) + '/' + String(Math.round((amount % 1) * 100)).padStart(2, '0') + ')', DOC_M, y);
         y += 10;
+        docRule(doc, y, DOC_M, DOC_R, DOC_LINE, 0.2);
+        y += 18;
+
+        doc.setFillColor.apply(doc, DOC_GOLD_BR); doc.rect(DOC_M, y, DOC_W, 16, 'F');
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(DOC_T.eyebrow);
+        doc.setTextColor(40, 32, 0);
+        doc.text('IMPORTO RICEVUTO', DOC_M + 5, y + 6.2, { charSpace: 1.4 });
+        doc.setFontSize(DOC_T.hero); doc.setTextColor(20, 16, 0);
+        doc.text('€ ' + fmtAmt, DOC_R - 5, y + 12.2, { align: 'right' });
+        y += 23;
+
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(DOC_T.body);
+        doc.setTextColor(70, 70, 70);
+        doc.text('(Euro ' + numberToWords(Math.round(amount)) + '/' + String(Math.round((amount % 1) * 100)).padStart(2, '0') + ')', DOC_M, y);
+        y += 12;
+        doc.setFontSize(DOC_T.note); doc.setTextColor.apply(doc, DOC_SOFT);
         doc.splitTextToSize('Si attesta di aver ricevuto la somma sopra indicata a titolo di canone di locazione per il periodo indicato. ' +
             'Il presente documento e\' una ricevuta di pagamento: non costituisce fattura e non e\' soggetto a fatturazione elettronica.',
-            DOC_TW).forEach(function (ln) { doc.text(ln, DOC_M, y); y += 4.6; });
+            DOC_TW).forEach(function (ln) { doc.text(ln, DOC_M, y); y += 4.4; });
 
         boomDocFoot(doc, { note: 'Ricevuta di canone di locazione — documento non fiscale.' });
         return doc;
@@ -28449,99 +28480,191 @@ ${d.description || '-'}`;
     // TOTALE in grassetto, piè di pagina Egidi — perché è il linguaggio con
     // cui BOOM parla già ai clienti e ai commercialisti.
 
-    var DOC_INK = [17, 17, 17], DOC_SOFT = [125, 125, 125], DOC_LINE = [214, 214, 214];
-    var DOC_GOLD = [212, 175, 55], DOC_GOLD_L = [255, 213, 79], DOC_GOLD_D = [245, 166, 35];
-    var DOC_M = 16, DOC_R = 194, DOC_W = 178;          // margini in mm (A4 = 210)
-    // Scala tipografica del documento: una progressione sola, dichiarata qui.
-    // Prima le misure erano sparse fra 6,5 e 11 scelte caso per caso — è il
-    // modo in cui un documento perde gerarchia senza che nessuno lo decida.
-    var DOC_T = { micro: 6.6, note: 7.4, body: 8.8, lead: 9.6, amount: 11, hero: 15 };
-    // Larghezza per l'avvolgimento del testo: 2mm meno della colonna. Le
-    // metriche di splitTextToSize sono leggermente ottimiste rispetto a quelle
-    // del renderer, e un paragrafo avvolto su DOC_W esatti sbordava di 8/10 di
-    // millimetro — invisibile a schermo, visibile sulla carta.
+    // Palette: il nero e l'oro del marchio, più due grigi. Niente altro —
+    // ogni colore in più su un documento è rumore.
+    var DOC_INK = [16, 16, 18], DOC_SOFT = [132, 132, 132], DOC_FAINT = [176, 176, 176];
+    var DOC_LINE = [222, 222, 222], DOC_HAIR = [236, 236, 236];
+    var DOC_GOLD = [176, 150, 12], DOC_GOLD_BR = [212, 175, 55];
+    var DOC_DARK = [14, 14, 16];
+
+    var DOC_M = 18, DOC_R = 192, DOC_W = 174;          // margini in mm (A4 = 210)
+    // Larghezza per l'avvolgimento: 2mm meno della colonna. Le metriche di
+    // splitTextToSize sono leggermente ottimiste rispetto al renderer, e un
+    // paragrafo avvolto su DOC_W esatti sbordava di 8/10 di millimetro —
+    // invisibile a schermo, visibile sulla carta.
     var DOC_TW = DOC_W - 2;
+    // Scala tipografica: una progressione sola, dichiarata. Prima le misure
+    // erano sparse fra 6,5 e 11 scelte caso per caso — è il modo in cui un
+    // documento perde gerarchia senza che nessuno lo decida.
+    var DOC_T = { eyebrow: 6.2, micro: 7, note: 7.6, body: 8.8, lead: 10, amount: 13, hero: 17, mark: 20 };
 
-    // Testata: banda nera + filetto oro a tre sezioni + marchio + pill.
-    function boomDocHead(doc, o) {
+    // Una lettera spaziata a mano: charSpace + align:'right' in jsPDF non
+    // sottrae la spaziatura dell'ultimo carattere, quindi il testo esce dal
+    // margine. Qui si misura e si compensa, così le etichette possono essere
+    // spaziate ANCHE a destra senza sfondare.
+    function docText(doc, txt, x, y, o) {
         o = o || {};
-        doc.setFillColor(10, 10, 10); doc.rect(0, 0, 210, 38, 'F');
-        doc.setFillColor.apply(doc, DOC_GOLD_L); doc.rect(0, 38, 70, 2.5, 'F');
-        doc.setFillColor.apply(doc, DOC_GOLD_D); doc.rect(70, 38, 70, 2.5, 'F');
-        doc.setFillColor.apply(doc, DOC_GOLD_L); doc.rect(140, 38, 70, 2.5, 'F');
-
-        try { if (typeof BOOM_LOGO_B64 !== 'undefined') doc.addImage(BOOM_LOGO_B64, 'PNG', 16, 7, 24, 24); } catch (e) {}
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(22);
-        doc.setTextColor.apply(doc, DOC_GOLD); doc.text('BOOM', 46, 21);
-        doc.setFontSize(6); doc.setTextColor(150, 150, 150);
-        doc.text(o.tagline || 'PROPERTY MANAGEMENT', 46, 28);
-
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255, 255, 255);
-        doc.text(String(o.title || 'DOCUMENTO'), DOC_R, 12, { align: 'right' });
-
-        if (o.ref) {
-            // La pill si dimensiona sul testo: un numero lungo usciva dal bordo.
-            doc.setFontSize(7);
-            var w = Math.max(30, doc.getTextWidth(String(o.ref)) + 10);
-            doc.setFillColor.apply(doc, DOC_GOLD_L);
-            doc.roundedRect(DOC_R - w, 16, w, 8, 4, 4, 'F');
-            doc.setTextColor(0, 0, 0);
-            doc.text(String(o.ref), DOC_R - w / 2, 21.5, { align: 'center' });
-        }
-        if (o.stamp) {   // stato del documento, sotto la pill
-            doc.setFont('helvetica', 'bold'); doc.setFontSize(7);
-            doc.setTextColor.apply(doc, DOC_GOLD);
-            doc.text(String(o.stamp).toUpperCase(), DOC_R, 29.5, { align: 'right' });
-        }
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(170, 170, 170);
-        doc.text(o.dateLine || ('Roma, ' + new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })), DOC_R, 35, { align: 'right' });
-
-        doc.setTextColor.apply(doc, DOC_INK);
-        return 52;   // y di partenza del corpo
+        var t = String(txt == null ? '' : txt);
+        if (!o.charSpace || o.align !== 'right') { doc.text(t, x, y, o); return; }
+        var opts = {};
+        for (var k in o) opts[k] = o[k];
+        delete opts.align;
+        // charSpace è espresso nell'UNITÀ DEL DOCUMENTO (mm), non in punti:
+        // misurato rendendo la stessa stringa con e senza spaziatura e
+        // confrontando la larghezza estratta da pdf.js.
+        //
+        // Si compensa per t.length e non per t.length-1: nel PDF il parametro
+        // Tc si applica DOPO ogni glifo, ultimo compreso. Contare un salto in
+        // meno lasciava l'etichetta 6/10 di millimetro oltre il margine.
+        var w = doc.getTextWidth(t) + o.charSpace * t.length;
+        doc.text(t, x - w, y, opts);
     }
 
-    // Piè di pagina: filetto, ragione sociale con P.IVA, nota, numero pagina.
+    // Filo sottile: la struttura di un documento premium è fatta di questi,
+    // non di riquadri pieni.
+    function docRule(doc, y, x1, x2, color, weight) {
+        doc.setDrawColor.apply(doc, color || DOC_HAIR);
+        doc.setLineWidth(weight || 0.2);
+        doc.line(x1 == null ? DOC_M : x1, y, x2 == null ? DOC_R : x2, y);
+    }
+
+    // Occhiello: la piccola etichetta maiuscola spaziata sopra ogni blocco.
+    function docEyebrow(doc, txt, x, y, o) {
+        o = o || {};
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(DOC_T.eyebrow);
+        doc.setTextColor.apply(doc, o.color || DOC_SOFT);
+        docText(doc, String(txt).toUpperCase(), x, y, { charSpace: 1.5, align: o.align });
+    }
+
+    /**
+     * boomDocHead — la testata di ogni PDF del portale.
+     *
+     * Parla la lingua PREMIUM del marchio (Helvetica leggera, tracking largo,
+     * nero e oro, molta aria) invece di quella dei template admin di prima:
+     * banda nera più alta e respirata, un solo filo d'oro al posto della barra
+     * tricolore a tre sezioni, e l'identità del documento — tipo, numero, data —
+     * incolonnata a destra invece che schiacciata in una pill gialla.
+     */
+    function boomDocHead(doc, o) {
+        o = o || {};
+        var H = 46;
+        doc.setFillColor.apply(doc, DOC_DARK); doc.rect(0, 0, 210, H, 'F');
+        // Un filo d'oro, non una barra: 0,7mm a piena pagina.
+        doc.setFillColor.apply(doc, DOC_GOLD_BR); doc.rect(0, H, 210, 0.7, 'F');
+
+        try { if (typeof BOOM_LOGO_B64 !== 'undefined') doc.addImage(BOOM_LOGO_B64, 'PNG', DOC_M, 12, 21, 21); } catch (e) {}
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(DOC_T.mark);
+        doc.setTextColor.apply(doc, DOC_GOLD_BR);
+        doc.text('BOOM', DOC_M + 26, 26, { charSpace: 3.4 });
+        doc.setFontSize(5.6); doc.setTextColor(128, 128, 128);
+        doc.text(o.tagline || 'PROPERTY MANAGEMENT', DOC_M + 26.7, 32, { charSpace: 1.5 });
+
+        // Colonna destra: cosa è, che numero ha, di quando è.
+        doc.setFontSize(DOC_T.eyebrow); doc.setTextColor(150, 150, 150);
+        docText(doc, String(o.title || 'DOCUMENTO').toUpperCase(), DOC_R, 17, { align: 'right', charSpace: 1.7 });
+        doc.setFontSize(15); doc.setTextColor(255, 255, 255);
+        doc.text(String(o.ref || ''), DOC_R, 27, { align: 'right' });
+        doc.setFontSize(DOC_T.micro); doc.setTextColor(140, 140, 140);
+        doc.text(String(o.dateLine || ''), DOC_R, 33.5, { align: 'right' });
+        if (o.stamp) {
+            doc.setFontSize(DOC_T.eyebrow); doc.setTextColor.apply(doc, DOC_GOLD_BR);
+            docText(doc, String(o.stamp).toUpperCase(), DOC_R, 39.5, { align: 'right', charSpace: 1.4 });
+        }
+        doc.setTextColor.apply(doc, DOC_INK);
+        return 52;   // il corpo parte con aria, non incollato alla banda
+    }
+
+    /** Piè: un filo, la ragione sociale, la pagina. */
     function boomDocFoot(doc, o) {
         o = o || {};
         var pages = doc.internal.getNumberOfPages();
         for (var i = 1; i <= pages; i++) {
             doc.setPage(i);
-            doc.setDrawColor.apply(doc, DOC_GOLD); doc.setLineWidth(0.4);
-            doc.line(DOC_M, 280, DOC_R, 280);
-            doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
+            docRule(doc, 279, DOC_M, DOC_R, DOC_LINE, 0.2);
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(DOC_T.eyebrow);
             doc.setTextColor.apply(doc, DOC_SOFT);
-            doc.text(o.legal || (COMPANY.legal + '   ·   P.IVA ' + COMPANY.piva + '   ·   ' + COMPANY.website), DOC_M, 285);
-            if (o.note) doc.text(String(o.note), DOC_M, 289.5);
-            if (pages > 1) doc.text(i + ' / ' + pages, DOC_R, 285, { align: 'right' });
+            doc.text(o.legal || (COMPANY.legal + '   ·   P.IVA ' + COMPANY.piva + '   ·   ' + COMPANY.website), DOC_M, 284.5);
+            if (o.note) { doc.setTextColor.apply(doc, DOC_FAINT); doc.text(String(o.note), DOC_M, 288.6); }
+            if (pages > 1) {
+                doc.setTextColor.apply(doc, DOC_SOFT);
+                doc.text(i + ' / ' + pages, DOC_R, 284.5, { align: 'right' });
+            }
         }
         doc.setPage(pages);
     }
 
-    // Titolo di sezione: numero + testo spaziato, come sul documento cartaceo.
+    /** Titolo di sezione: numero, testo spaziato, un filo sotto. */
     function boomDocSection(doc, y, no, title) {
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(DOC_T.micro);
+        doc.setTextColor.apply(doc, DOC_GOLD);
+        if (no != null) doc.text(String(no), DOC_M, y);
         doc.setTextColor.apply(doc, DOC_INK);
-        if (no != null) doc.text(String(no) + '.', DOC_M, y);
-        doc.text(String(title).toUpperCase(), DOC_M + (no != null ? 7 : 0), y, { charSpace: 1.6 });
-        doc.setDrawColor.apply(doc, DOC_LINE); doc.setLineWidth(0.3);
-        doc.line(DOC_M, y + 2.6, DOC_R, y + 2.6);
-        return y + 9;
+        doc.text(String(title).toUpperCase(), DOC_M + (no != null ? 6 : 0), y, { charSpace: 1.9 });
+        docRule(doc, y + 3, DOC_M, DOC_R, DOC_LINE, 0.2);
+        return y + 9.5;
     }
 
-    // Riquadro etichetta/valore su più righe — il blocco "parte" del cartaceo.
+    /**
+     * Blocco parte: occhiello + nome + righe. Senza riquadro — i bordi pieni
+     * appesantiscono, e su un documento la gerarchia la fanno peso e aria.
+     */
     function boomDocParty(doc, x, y, w, label, lines) {
         var body = (lines || []).filter(Boolean).map(String);
-        var h = 11 + body.length * 4.6 + 3;
-        doc.setDrawColor.apply(doc, DOC_LINE); doc.setLineWidth(0.3);
-        doc.rect(x, y, w, h);
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5);
-        doc.setTextColor.apply(doc, DOC_SOFT);
-        doc.text(String(label).toUpperCase(), x + 4, y + 6, { charSpace: 1.1 });
-        doc.setFontSize(8.6); doc.setTextColor.apply(doc, DOC_INK);
-        body.forEach(function (t, i) {
-            doc.setFont('helvetica', i === 0 ? 'bold' : 'normal');
-            doc.text(doc.splitTextToSize(t, w - 8)[0] || '', x + 4, y + 12 + i * 4.6);
+        docEyebrow(doc, label, x, y);
+        // Font prima della misura, sempre: splitTextToSize legge quello corrente.
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(DOC_T.lead);
+        doc.setTextColor.apply(doc, DOC_INK);
+        doc.text(doc.splitTextToSize(body[0] || '—', w)[0] || '—', x, y + 6.5);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(DOC_T.body);
+        doc.setTextColor(70, 70, 70);
+        body.slice(1).forEach(function (t, i) {
+            doc.text(doc.splitTextToSize(t, w)[0] || '', x, y + 12.2 + i * 4.3);
         });
+        return 12.2 + Math.max(0, body.length - 1) * 4.3;
+    }
+
+    /**
+     * boomStripePlate — il badge di pagamento.
+     *
+     * È l'unica AZIONE di tutto il documento, quindi è l'unico elemento che
+     * può permettersi di essere pieno e scuro: tutto il resto è fili e aria,
+     * e il contrasto fa il lavoro. Ripete la cifra — chi lo guarda deve sapere
+     * cosa sta per pagare senza risalire ai totali — e dice con cosa si paga,
+     * perché "paga con carta" senza sapere se accetti la sua Amex è metà
+     * informazione.
+     *
+     * Su schermo è un link su TUTTA l'area, non solo sulle parole; su carta
+     * l'indirizzo resta leggibile.
+     */
+    function boomStripePlate(doc, x, y, w, opts) {
+        opts = opts || {};
+        var h = 34;
+        doc.setFillColor.apply(doc, DOC_DARK);
+        doc.roundedRect(x, y, w, h, 2.4, 2.4, 'F');
+        // Keyline d'oro a sinistra: l'accento del marchio dove serve.
+        doc.setFillColor.apply(doc, DOC_GOLD_BR);
+        doc.rect(x, y + 2.4, 1.4, h - 4.8, 'F');
+
+        var px = x + 8;
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(DOC_T.eyebrow);
+        doc.setTextColor.apply(doc, DOC_GOLD_BR);
+        doc.text('PAGA CON CARTA', px, y + 8.6, { charSpace: 1.6 });
+
+        doc.setFontSize(DOC_T.amount); doc.setTextColor(255, 255, 255);
+        doc.text(opts.amount || '', px, y + 17.4);
+
+        doc.setFontSize(6.2); doc.setTextColor(150, 150, 150);
+        doc.text(doc.splitTextToSize(String(opts.url || '').replace(/^https?:\/\//, ''), w - 16)[0] || '', px, y + 23.2);
+
+        docRule(doc, y + 26.4, px, x + w - 8, [58, 58, 62], 0.2);
+        doc.setFontSize(5.6); doc.setTextColor(128, 128, 128);
+        doc.text(opts.trust || 'Visa · Mastercard · Amex · Apple Pay   —   pagamenti protetti da Stripe', px, y + 30.2, { charSpace: 0.15 });
+
+        if (opts.url) {
+            doc.link(x, y, w, h, { url: opts.url });
+            doc.textWithLink('', px, y + 25.5, { url: opts.url });
+        }
+        doc.setTextColor.apply(doc, DOC_INK);
         return h;
     }
 
@@ -28550,9 +28673,6 @@ ${d.description || '-'}`;
      *
      * Legge gli STESSI totali dell'XML (una sola aritmetica, in
      * js/invoice-engine.js): PDF e XML non possono raccontare due storie.
-     * È il documento che il cliente stampa e il commercialista archivia,
-     * quindi ha il riepilogo IVA per aliquota — la parte che un
-     * commercialista guarda per prima e che la versione precedente non aveva.
      */
     function invBuildPdf(inv, seller) {
         if (!window.jspdf) { toast('error', 'Libreria PDF non pronta', 'Riprova fra un istante'); return null; }
@@ -28568,18 +28688,11 @@ ${d.description || '-'}`;
         var y = boomDocHead(doc, {
             title: docTitle,
             ref: inv.number ? 'N. ' + inv.number : 'BOZZA',
-            stamp: inv.status === 'paid' ? 'incassata' : (inv.sdiStatus === 'trasmessa' ? 'trasmessa SdI' : ''),
             dateLine: 'Roma, ' + dmy(inv.date),
+            stamp: inv.status === 'paid' ? 'incassata' : (inv.sdiStatus === 'trasmessa' ? 'trasmessa SdI' : ''),
         });
 
-        // Il piè di pagina comincia col filetto a 280mm: il corpo può arrivare
-        // a 276 e restare con 4mm di aria. Era 272, e su una fattura con la
-        // ritenuta il blocco pagamento mancava il fondo pagina per mezzo
-        // millimetro — spedendo tre righe a pagina due con 40mm di bianco
-        // sopra.
-        // `need(h)` chiede spazio per un blocco di altezza NOTA, invece di
-        // confrontarsi con soglie a occhio — erano quelle a mandare a pagina
-        // due una fattura di due righe, lasciando la prima mezza vuota.
+        // Il piè comincia col filo a 279mm: il corpo si ferma a 274.
         var BODY_END = 276;
         var need = function (h) {
             if (y + h <= BODY_END) return false;
@@ -28593,8 +28706,8 @@ ${d.description || '-'}`;
         };
 
         // ── 1. Parti ──────────────────────────────────────────────────
-        y = boomDocSection(doc, y, 1, 'Parti');
-        var gap = 6, colW = (DOC_W - gap) / 2;
+        y = boomDocSection(doc, y, '01', 'Parti');
+        var gap = 12, colW = (DOC_W - gap) / 2;
         var hL = boomDocParty(doc, DOC_M, y, colW, 'Cedente / prestatore', [
             seller.name,
             [seller.address, seller.streetNumber].filter(Boolean).join(' '),
@@ -28602,7 +28715,7 @@ ${d.description || '-'}`;
             seller.vat ? 'P.IVA ' + seller.vat : '',
             seller.cf && seller.cf !== seller.vat ? 'C.F. ' + seller.cf : '',
             seller.reaNumber ? 'REA ' + seller.reaOffice + '-' + seller.reaNumber : '',
-            'Regime ' + (seller.regime || 'RF01'),
+            'Regime fiscale ' + (seller.regime || 'RF01'),
         ]);
         var hR = boomDocParty(doc, DOC_M + colW + gap, y, colW, 'Cessionario / committente', [
             IEx.buyerName(b),
@@ -28610,187 +28723,177 @@ ${d.description || '-'}`;
             [b.zip, b.city, b.province ? '(' + b.province + ')' : ''].filter(Boolean).join(' '),
             b.vat ? 'P.IVA ' + b.vat : '',
             b.cf ? 'C.F. ' + b.cf : '',
-            b.sdiCode ? 'Cod. dest. ' + b.sdiCode : (b.pec ? 'PEC ' + b.pec : ''),
+            b.sdiCode ? 'Cod. destinatario ' + b.sdiCode : (b.pec ? 'PEC ' + b.pec : ''),
             (b.country || 'IT') !== 'IT' ? 'Paese ' + b.country : '',
         ]);
-        y += Math.max(hL, hR) + 8;
+        y += Math.max(hL, hR) + 9;
 
-        // ── 2. Estremi del documento ──────────────────────────────────
-        var strip = [
-            ['Numero', inv.number || '(bozza)'],
-            ['Data', dmy(inv.date)],
-            ['Scadenza', inv.dueDate ? dmy(inv.dueDate) : '—'],
-            ['Pagamento', (IEx.MOD_PAGAMENTO[(inv.payment || {}).method] || 'Bonifico')],
-        ];
-        doc.setFillColor(247, 247, 247); doc.rect(DOC_M, y, DOC_W, 13, 'F');
-        strip.forEach(function (kv, i) {
-            var x = DOC_M + 4 + i * (DOC_W / 4);
-            doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor.apply(doc, DOC_SOFT);
-            doc.text(kv[0].toUpperCase(), x, y + 5, { charSpace: 0.8 });
-            doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor.apply(doc, DOC_INK);
-            doc.text(String(kv[1]), x, y + 10.5);
-        });
-        y += 19;
-        if (isCredit && inv.relatedDoc && inv.relatedDoc.number) {
-            doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor.apply(doc, DOC_SOFT);
-            doc.text('Storna la fattura n. ' + inv.relatedDoc.number + ' del ' + dmy(inv.relatedDoc.date), DOC_M, y);
-            y += 7;
-        }
-
-        // ── 3. Righe ──────────────────────────────────────────────────
-        y = boomDocSection(doc, y, isCredit ? 2 : 2, 'Descrizione della prestazione');
-        var COL = { desc: DOC_M + 3, qty: DOC_M + 106, price: DOC_M + 130, vat: DOC_M + 148, tot: DOC_R - 3 };
-        var head = function (yy) {
-            doc.setFillColor(10, 10, 10); doc.rect(DOC_M, yy, DOC_W, 7, 'F');
-            doc.setFont('helvetica', 'bold'); doc.setFontSize(6.8); doc.setTextColor(255, 255, 255);
-            doc.text('DESCRIZIONE', COL.desc, yy + 4.7, { charSpace: 0.7 });
-            // Niente charSpace sulle intestazioni allineate a destra: jsPDF
-            // non toglie la spaziatura dell'ultimo carattere quando allinea,
-            // e "TOTALE"/"IMPOSTA" finivano oltre il margine (195,2mm su 194).
-            doc.text('Q.TA', COL.qty, yy + 4.7, { align: 'right' });
-            doc.text('PREZZO', COL.price, yy + 4.7, { align: 'right' });
-            doc.text('IVA', COL.vat, yy + 4.7, { align: 'right' });
-            doc.text('TOTALE', COL.tot, yy + 4.7, { align: 'right' });
+        // ── Estremi: quattro celle fra due fili, senza fondino grigio ──
+        docRule(doc, y - 6, DOC_M, DOC_R, DOC_LINE, 0.2);
+        [['Numero', inv.number || '(bozza)'],
+         ['Data', dmy(inv.date)],
+         ['Scadenza', inv.dueDate ? dmy(inv.dueDate) : '—'],
+         ['Pagamento', (IEx.MOD_PAGAMENTO[(inv.payment || {}).method] || 'Bonifico')]
+        ].forEach(function (kv, i) {
+            var x = DOC_M + i * (DOC_W / 4);
+            docEyebrow(doc, kv[0], x, y);
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(DOC_T.body + 0.4);
             doc.setTextColor.apply(doc, DOC_INK);
-            return yy + 7;
-        };
-        y = head(y);
-        doc.setFontSize(8.6);
-        t.rows.forEach(function (r) {
-            var lines = doc.splitTextToSize(String(r.description || '—'), 98);
-            var rh = Math.max(8, lines.length * 4.4 + 3.6);
-            // Salto pagina che RIPETE l'intestazione: una riga orfana sotto
-            // colonne senza nomi non si legge.
-            if (need(rh)) y = head(y);
-            doc.setFont('helvetica', 'normal'); doc.setTextColor.apply(doc, DOC_INK); doc.setFontSize(8.6);
-            lines.forEach(function (ln, i) { doc.text(ln, COL.desc, y + 5.4 + i * 4.4); });
-            doc.text(String(r.qty), COL.qty, y + 5.4, { align: 'right' });
-            doc.text(f(r.unitPrice), COL.price, y + 5.4, { align: 'right' });
-            doc.text(r.vatRate ? r.vatRate + '%' : (r.nature || '—'), COL.vat, y + 5.4, { align: 'right' });
-            doc.setFont('helvetica', 'bold');
-            doc.text(f(r.total), COL.tot, y + 5.4, { align: 'right' });
-            if (r.withholding && t.withholding) {
-                doc.setFont('helvetica', 'italic'); doc.setFontSize(6.5); doc.setTextColor.apply(doc, DOC_SOFT);
-                doc.text('soggetta a ritenuta', COL.desc, y + 5.4 + lines.length * 4.4);
-                rh += 3.6; doc.setFontSize(8.6); doc.setTextColor.apply(doc, DOC_INK);
-            }
-            doc.setDrawColor.apply(doc, DOC_LINE); doc.setLineWidth(0.2);
-            doc.line(DOC_M, y + rh, DOC_R, y + rh);
-            y += rh;
+            doc.text(String(kv[1]), x, y + 6);
         });
         y += 8;
+        docRule(doc, y, DOC_M, DOC_R, DOC_LINE, 0.2);
+        y += 9;
 
-        // ── 4. Riepilogo IVA — la parte che il commercialista legge ────
-        // Riepilogo + totali sono un blocco solo: spezzarli fra due pagine
-        // mette l'imponibile di qua e il totale di là.
-        need(24 + t.vatSummary.length * 6 + (t.stampDutyDue ? 6 : 0) + 40 + (t.withholding ? 20 : 0));
-        y = boomDocSection(doc, y, 3, 'Riepilogo IVA');
-        var RC = { al: DOC_M + 3, nat: DOC_M + 26 };
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(6.8); doc.setTextColor.apply(doc, DOC_SOFT);
-        doc.text('ALIQUOTA', RC.al, y, { charSpace: 0.7 });
-        doc.text('NATURA / RIFERIMENTO NORMATIVO', RC.nat, y, { charSpace: 0.7 });
-        doc.text('IMPONIBILE', DOC_M + 132, y, { align: 'right' });
-        doc.text('IMPOSTA', DOC_R - 3, y, { align: 'right' });
-        y += 3;
-        doc.setDrawColor.apply(doc, DOC_LINE); doc.setLineWidth(0.3); doc.line(DOC_M, y, DOC_R, y);
-        y += 5;
-        doc.setTextColor.apply(doc, DOC_INK);
+        if (isCredit && inv.relatedDoc && inv.relatedDoc.number) {
+            doc.setFont('helvetica', 'italic'); doc.setFontSize(DOC_T.note);
+            doc.setTextColor.apply(doc, DOC_SOFT);
+            doc.text('Storna la fattura n. ' + inv.relatedDoc.number + ' del ' + dmy(inv.relatedDoc.date), DOC_M, y);
+            y += 9;
+        }
+
+        // ── 2. Righe ──────────────────────────────────────────────────
+        y = boomDocSection(doc, y, '02', 'Descrizione della prestazione');
+        var COL = { desc: DOC_M, qty: DOC_M + 112, price: DOC_M + 134, vat: DOC_M + 150, tot: DOC_R };
+        var head = function (yy) {
+            docEyebrow(doc, 'Descrizione', COL.desc, yy);
+            docEyebrow(doc, 'Q.tà', COL.qty, yy, { align: 'right' });
+            docEyebrow(doc, 'Prezzo', COL.price, yy, { align: 'right' });
+            docEyebrow(doc, 'IVA', COL.vat, yy, { align: 'right' });
+            docEyebrow(doc, 'Totale', COL.tot, yy, { align: 'right' });
+            docRule(doc, yy + 3.4, DOC_M, DOC_R, DOC_INK, 0.35);
+            return yy + 10;
+        };
+        y = head(y);
+        t.rows.forEach(function (r) {
+            // Il font va impostato PRIMA di misurare: splitTextToSize usa la
+            // dimensione corrente, e chiamandolo dopo un'etichetta da 6,2pt
+            // spezzava come se il testo fosse piccolo — le descrizioni
+            // uscivano dalla colonna e finivano sopra i numeri.
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(DOC_T.body);
+            var lines = doc.splitTextToSize(String(r.description || '—'), 106);
+            var rh = lines.length * 4.6 + (r.withholding && t.withholding ? 4 : 0) + 5;
+            if (need(rh)) y = head(y);
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(DOC_T.body);
+            doc.setTextColor.apply(doc, DOC_INK);
+            lines.forEach(function (ln, i) { doc.text(ln, COL.desc, y + i * 4.6); });
+            var baseY = y;
+            doc.setTextColor(90, 90, 90);
+            doc.text(String(r.qty), COL.qty, baseY, { align: 'right' });
+            doc.text(f(r.unitPrice), COL.price, baseY, { align: 'right' });
+            doc.text(r.vatRate ? r.vatRate + '%' : (r.nature || '—'), COL.vat, baseY, { align: 'right' });
+            doc.setFont('helvetica', 'bold'); doc.setTextColor.apply(doc, DOC_INK);
+            doc.text(f(r.total), COL.tot, baseY, { align: 'right' });
+            if (r.withholding && t.withholding) {
+                doc.setFont('helvetica', 'italic'); doc.setFontSize(DOC_T.eyebrow);
+                doc.setTextColor.apply(doc, DOC_FAINT);
+                doc.text('soggetta a ritenuta', COL.desc, y + lines.length * 4.6 + 0.4);
+            }
+            y += rh;
+            docRule(doc, y - 3.2, DOC_M, DOC_R, DOC_HAIR, 0.2);
+        });
+        y += 7;
+
+        // ── 3. Riepilogo IVA + totali, affiancati al badge ─────────────
+        var whRows = t.withholding ? 2 : 0;
+        need(18 + t.vatSummary.length * 5.8 + (t.stampDutyDue ? 6 : 0) + 34 + whRows * 7);
+        y = boomDocSection(doc, y, '03', 'Riepilogo IVA');
+
+        // Un'etichetta spaziata costa quasi il doppio della sua larghezza
+        // naturale: "Natura / riferimento normativo" con charSpace 1,5
+        // arrivava sopra la colonna Imponibile. Qui sta corta.
+        docEyebrow(doc, 'Aliquota', DOC_M, y);
+        docEyebrow(doc, 'Natura', DOC_M + 26, y);
+        docEyebrow(doc, 'Imponibile', DOC_M + 130, y, { align: 'right' });
+        docEyebrow(doc, 'Imposta', DOC_R, y, { align: 'right' });
+        docRule(doc, y + 3.2, DOC_M, DOC_R, DOC_LINE, 0.2);
+        y += 8;
         t.vatSummary.forEach(function (v) {
-            doc.setFont('helvetica', 'bold'); doc.setFontSize(8.6);
-            doc.text(v.rate.toFixed(2) + '%', RC.al, y);
-            doc.setFont('helvetica', 'normal'); doc.setFontSize(7.2); doc.setTextColor.apply(doc, DOC_SOFT);
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(DOC_T.body);
+            doc.setTextColor.apply(doc, DOC_INK);
+            doc.text(v.rate.toFixed(2) + '%', DOC_M, y);
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(DOC_T.micro);
+            doc.setTextColor.apply(doc, DOC_SOFT);
             var norma = v.rate === 0
                 ? (v.nature + ' — ' + ((inv.naturaNorma && inv.naturaNorma[v.nature]) || IEx.NATURA_NORMA[v.nature] || IEx.NATURE[v.nature] || ''))
                 : 'Operazione imponibile';
-            doc.text(doc.splitTextToSize(norma, 100)[0] || '', RC.nat, y);
-            doc.setFont('helvetica', 'normal'); doc.setFontSize(8.6); doc.setTextColor.apply(doc, DOC_INK);
-            doc.text(f(v.taxable), DOC_M + 132, y, { align: 'right' });
-            doc.text(f(v.vat), DOC_R - 3, y, { align: 'right' });
-            y += 6;
+            doc.text(doc.splitTextToSize(norma, 96)[0] || '', DOC_M + 26, y);
+            doc.setFontSize(DOC_T.body); doc.setTextColor.apply(doc, DOC_INK);
+            doc.text(f(v.taxable), DOC_M + 130, y, { align: 'right' });
+            doc.text(f(v.vat), DOC_R, y, { align: 'right' });
+            y += 5.8;
         });
         if (t.stampDutyDue) {
-            doc.setFont('helvetica', 'normal'); doc.setFontSize(8.6);
-            doc.text('Imposta di bollo' + (t.stampDutyCharged ? '' : ' (a carico dell\'emittente)'), RC.al, y);
-            doc.text(f(t.stampDuty), DOC_R - 3, y, { align: 'right' });
-            y += 6;
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(DOC_T.body);
+            doc.setTextColor.apply(doc, DOC_SOFT);
+            doc.text('Imposta di bollo' + (t.stampDutyCharged ? '' : ' (a carico dell\'emittente)'), DOC_M, y);
+            doc.setTextColor.apply(doc, DOC_INK);
+            doc.text(f(t.stampDuty), DOC_R, y, { align: 'right' });
+            y += 5.8;
         }
-        y += 4;
+        y += 6;
 
-        // ── 5. Totali ─────────────────────────────────────────────────
-        var TX = DOC_M + 100, TW = DOC_W - 100;
-        var totalsTop = y;   // la colonna sinistra resta libera: ci va il CTA
-        doc.setDrawColor.apply(doc, DOC_LINE); doc.setLineWidth(0.3); doc.line(TX, y, DOC_R, y); y += 6;
-        var tRow = function (label, val, bold) {
-            doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(bold ? DOC_T.lead : DOC_T.body);
-            doc.setTextColor.apply(doc, bold ? DOC_INK : DOC_SOFT);
-            doc.text(label, TX + 3, y);
-            doc.setTextColor.apply(doc, DOC_INK); doc.setFont('helvetica', 'bold');
-            doc.text(val, DOC_R - 3, y, { align: 'right' });
+        // Le due colonne: a sinistra l'azione, a destra la cifra.
+        var bandTop = y;
+        var TX = DOC_M + 96, TW = DOC_R - TX;
+        var tRow = function (label, val, strong) {
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(DOC_T.body);
+            doc.setTextColor.apply(doc, strong ? DOC_INK : DOC_SOFT);
+            doc.text(label, TX, y);
+            doc.setFont('helvetica', strong ? 'bold' : 'normal');
+            doc.setTextColor.apply(doc, DOC_INK);
+            doc.text(val, DOC_R, y, { align: 'right' });
             y += 5.6;
         };
-        tRow('Totale imponibile', 'EUR ' + f(t.taxable));
-        if (t.vat) tRow('Totale imposta', 'EUR ' + f(t.vat));
-        if (t.stampDutyCharged) tRow('Bollo', 'EUR ' + f(t.stampDutyCharged));
+        tRow('Totale imponibile', f(t.taxable));
+        if (t.vat) tRow('Totale imposta', f(t.vat));
+        if (t.stampDutyCharged) tRow('Imposta di bollo', f(t.stampDutyCharged));
 
-        doc.setFillColor.apply(doc, DOC_GOLD); doc.rect(TX, y - 1, TW, 11, 'F');
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(DOC_T.lead); doc.setTextColor(0, 0, 0);
-        doc.text('TOTALE DOCUMENTO', TX + 3, y + 6.2, { charSpace: 0.5 });
-        doc.setFontSize(DOC_T.amount);
-        doc.text('EUR ' + f(t.total), DOC_R - 3, y + 6.4, { align: 'right' });
-        y += 16;
+        y += 2;
+        doc.setFillColor.apply(doc, DOC_GOLD_BR);
+        doc.rect(TX, y, TW, 15, 'F');
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(DOC_T.eyebrow);
+        doc.setTextColor(40, 32, 0);
+        doc.text(isCredit ? 'TOTALE A CREDITO' : 'TOTALE DOCUMENTO', TX + 5, y + 5.8, { charSpace: 1.4 });
+        doc.setFontSize(DOC_T.hero); doc.setTextColor(20, 16, 0);
+        doc.text('€ ' + f(t.total), DOC_R - 5, y + 11.6, { align: 'right' });
+        y += 15;
+
         if (t.withholding) {
-            doc.setTextColor.apply(doc, DOC_INK);
-            tRow('Ritenuta d\'acconto', '- EUR ' + f(t.withholding));
-            doc.setDrawColor(10, 10, 10); doc.setLineWidth(0.5); doc.rect(TX, y - 1, TW, 10);
-            doc.setFont('helvetica', 'bold'); doc.setFontSize(DOC_T.lead); doc.setTextColor.apply(doc, DOC_INK);
-            doc.text('NETTO A PAGARE', TX + 3, y + 5.8, { charSpace: 0.5 });
-            doc.setFontSize(DOC_T.amount);
-            doc.text('EUR ' + f(t.netToPay), DOC_R - 3, y + 6, { align: 'right' });
-            y += 15;
-        }
-
-        // ── 5b. Paga con carta ────────────────────────────────────────
-        // Il riquadro sta NELLA fascia dei totali, colonna sinistra: prima era
-        // mezza pagina bianca, e l'unica azione del documento merita di stare
-        // accanto alla cifra invece che in fondo. Su schermo è un link vero
-        // (doc.link), su carta resta l'indirizzo in chiaro.
-        var payLink = inv.payLink || '';
-        var payableDoc = payLink && !isCredit && inv.status !== 'paid' && inv.status !== 'draft' && inv.number && t.netToPay > 0;
-        if (payableDoc) {
-            // 26mm è quanto serve al contenuto (titolo, nota, indirizzo) con
-            // 3mm di respiro sotto: più alto e la sezione successiva veniva
-            // spinta oltre il fondo pagina, spezzando in due una fattura che
-            // ci stava.
-            var pw = 92, ph = 26, py = totalsTop - 1;
-            doc.setDrawColor.apply(doc, DOC_GOLD); doc.setLineWidth(0.5);
-            doc.roundedRect(DOC_M, py, pw, ph, 2, 2);
-            doc.setFillColor.apply(doc, DOC_GOLD); doc.rect(DOC_M, py, 1.6, ph, 'F');
-            doc.setFont('helvetica', 'bold'); doc.setFontSize(DOC_T.lead);
-            doc.setTextColor.apply(doc, DOC_INK);
-            doc.text('PAGA CON CARTA', DOC_M + 6, py + 8.4, { charSpace: 0.6 });
-            doc.setFont('helvetica', 'normal'); doc.setFontSize(DOC_T.note);
+            y += 6;
+            // Meno ASCII, non U+2212: il set WinAnsi di jsPDF non ha il segno
+            // meno tipografico e mangia la stringa — stessa trappola della
+            // freccia "→" nel certificato FES.
+            tRow('Ritenuta d\'acconto', '- ' + f(t.withholding));
+            y += 1;
+            docRule(doc, y - 4, TX, DOC_R, DOC_INK, 0.35);
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(DOC_T.eyebrow);
             doc.setTextColor.apply(doc, DOC_SOFT);
-            doc.text('Apri il link, paga in un tocco. Pagamento sicuro su Stripe.', DOC_M + 6, py + 13.8);
-            doc.setFontSize(DOC_T.note); doc.setTextColor(20, 60, 160);
-            var shown = String(payLink).replace(/^https?:\/\//, '');
-            doc.textWithLink(shown, DOC_M + 6, py + 20.6, { url: payLink });
-            // Tutto il riquadro è cliccabile, non solo le sette parole blu.
-            doc.link(DOC_M, py, pw, ph, { url: payLink });
+            doc.text('NETTO A PAGARE', TX, y + 2.4, { charSpace: 1.4 });
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(DOC_T.amount + 1);
             doc.setTextColor.apply(doc, DOC_INK);
-            // Le due colonne sono indipendenti: il flusso riprende sotto la
-            // PIÙ BASSA. Senza questo, una fattura col blocco totali corto
-            // (nessuna IVA, nessuna ritenuta) si scriveva la sezione 4
-            // addosso al riquadro.
-            y = Math.max(y, py + ph + 6);
+            doc.text('€ ' + f(t.netToPay), DOC_R, y + 3.4, { align: 'right' });
+            y += 10;
         }
 
-        // ── 6. Pagamento e note ───────────────────────────────────────
+        // Il badge, nella colonna sinistra rimasta libera.
+        var payLink = inv.payLink || '';
+        var payableDoc = payLink && !isCredit && inv.status !== 'paid' && inv.status !== 'draft'
+            && inv.number && t.netToPay > 0;
+        if (payableDoc) {
+            var ph = boomStripePlate(doc, DOC_M, bandTop, 88, {
+                amount: '€ ' + f(t.netToPay),
+                url: payLink,
+            });
+            // Le due colonne sono indipendenti: il flusso riprende sotto la
+            // PIÙ BASSA. Senza, una fattura col blocco totali corto si
+            // scriveva la sezione successiva addosso al badge.
+            y = Math.max(y, bandTop + ph);
+        }
+        y += 5;
+
+        // ── 4. Pagamento e note ───────────────────────────────────────
         var pay = inv.payment || {};
-        // Le note di legge si preparano PRIMA di chiedere lo spazio: sono
-        // parte dello stesso blocco. Contando solo il pagamento, il salto
-        // pagina veniva deciso su un'altezza incompleta e le note potevano
-        // scivolare sotto il filetto del piè — invisibili finché non capita
-        // la fattura giusta.
         var notes = [];
         if (t.stampDutyDue) notes.push('Imposta di bollo assolta in modo virtuale ai sensi del DM 17/06/2014.');
         if (seller.regime === 'RF19' || seller.regime === 'RF02') notes.push(IEx.NATURA_NORMA['N2.2'] + '.');
@@ -28799,48 +28902,46 @@ ${d.description || '-'}`;
         // Altezza MISURATA, non stimata: causale e note si avvolgono su un
         // numero di righe che solo splitTextToSize conosce, e una stima larga
         // di pochi millimetri mandava a pagina due un blocco che ci stava.
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(DOC_T.body);
         var causaleLines = inv.causale ? doc.splitTextToSize(String(inv.causale), DOC_TW).length : 0;
         doc.setFont('helvetica', 'italic'); doc.setFontSize(DOC_T.note);
         var notesH = notes.length
-            ? 4 + notes.reduce(function (a, nt) { return a + doc.splitTextToSize(nt, DOC_TW).length * 3.8 + 1.4; }, 0)
+            ? 6 + notes.reduce(function (a, nt) { return a + doc.splitTextToSize(nt, DOC_TW).length * 3.9 + 1.6; }, 0)
             : 0;
-        var payH = 9 + 5.2 + (pay.iban ? 5.2 : 0) + (pay.bank ? 5.2 : 0)
-                 + (causaleLines ? 2 + causaleLines * 4.2 : 0) + notesH;
+        var payH = 9.5 + 5.4 + (pay.iban ? 5.4 : 0) + (pay.bank ? 5.4 : 0)
+                 + (causaleLines ? 3 + causaleLines * 4.4 : 0) + notesH;
         need(payH);
-        y = boomDocSection(doc, y, 4, 'Pagamento');
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.6); doc.setTextColor.apply(doc, DOC_INK);
-        var payTxt = (IEx.COND_PAGAMENTO[pay.condition] || 'Pagamento completo') + ' · ' +
-                     (IEx.MOD_PAGAMENTO[pay.method] || 'Bonifico') +
-                     (inv.dueDate ? ' · entro il ' + dmy(inv.dueDate) : '');
-        doc.text(payTxt, DOC_M, y); y += 5.2;
-        if (pay.iban) {
-            doc.setFont('helvetica', 'bold');
-            doc.text('IBAN  ' + String(pay.iban).replace(/\s/g, '').toUpperCase(), DOC_M, y); y += 5.2;
-            doc.setFont('helvetica', 'normal');
-        }
-        if (pay.bank) { doc.text(String(pay.bank), DOC_M, y); y += 5.2; }
-        if (inv.causale) {
-            y += 2;
-            doc.setTextColor.apply(doc, DOC_SOFT); doc.setFontSize(8);
-            doc.splitTextToSize(String(inv.causale), DOC_TW).forEach(function (ln) { doc.text(ln, DOC_M, y); y += 4.2; });
-        }
 
-        // Note di legge: quelle che rendono il documento leggibile senza l'XML
-        // (preparate sopra, insieme allo spazio che si è chiesto per loro).
+        y = boomDocSection(doc, y, '04', 'Pagamento');
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(DOC_T.body);
+        doc.setTextColor(70, 70, 70);
+        doc.text((IEx.COND_PAGAMENTO[pay.condition] || 'Pagamento completo') + '  ·  '
+            + (IEx.MOD_PAGAMENTO[pay.method] || 'Bonifico')
+            + (inv.dueDate ? '  ·  entro il ' + dmy(inv.dueDate) : ''), DOC_M, y);
+        y += 5.4;
+        if (pay.iban) {
+            doc.setFont('helvetica', 'bold'); doc.setTextColor.apply(doc, DOC_INK);
+            doc.text('IBAN  ' + String(pay.iban).replace(/\s/g, '').toUpperCase(), DOC_M, y);
+            y += 5.4; doc.setFont('helvetica', 'normal'); doc.setTextColor(70, 70, 70);
+        }
+        if (pay.bank) { doc.text(String(pay.bank), DOC_M, y); y += 5.4; }
+        if (inv.causale) {
+            y += 3;
+            doc.setTextColor.apply(doc, DOC_SOFT); doc.setFontSize(DOC_T.note);
+            doc.splitTextToSize(String(inv.causale), DOC_TW).forEach(function (ln) { doc.text(ln, DOC_M, y); y += 4.4; });
+        }
         if (notes.length) {
-            y += 4;
-            doc.setFont('helvetica', 'italic'); doc.setFontSize(7.2); doc.setTextColor.apply(doc, DOC_SOFT);
-            notes.forEach(function (n) {
-                doc.splitTextToSize(n, DOC_TW).forEach(function (ln) { doc.text(ln, DOC_M, y); y += 3.8; });
-                y += 1.4;
+            y += 6;
+            doc.setFont('helvetica', 'italic'); doc.setFontSize(DOC_T.note);
+            doc.setTextColor.apply(doc, DOC_FAINT);
+            notes.forEach(function (nt) {
+                doc.splitTextToSize(nt, DOC_TW).forEach(function (ln) { doc.text(ln, DOC_M, y); y += 3.9; });
+                y += 1.6;
             });
         }
 
         boomDocFoot(doc, {
             legal: seller.name + '   ·   P.IVA ' + (seller.vat || '—') + '   ·   ' + COMPANY.website,
-            // Detto sul documento, non solo a schermo: chi lo riceve deve
-            // sapere che l'originale fiscale è il file trasmesso allo SdI.
             note: 'Copia di cortesia. L\'originale e\' la fattura elettronica trasmessa al Sistema di Interscambio.',
         });
         return doc;

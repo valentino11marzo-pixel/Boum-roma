@@ -256,6 +256,16 @@ await t('la ripartizione per trimestre conta le note di credito in NEGATIVO', as
      'la ricevuta di canone non deve entrare nell\'IVA a debito');
 });
 
+await t('la pagina Template dice che le fatture NON si fanno da lì', async () => {
+  errors.length = 0;
+  const html = await page.evaluate(() => window.templatesPage());
+  ok(/Cerchi una fattura/i.test(html), 'la pagina non affronta la domanda');
+  ok(/Emetti fattura|openInvoiceEditor/.test(html), 'manca la porta verso l\'editor');
+  ok(/senza numerazione fiscale|non fiscali/i.test(html),
+     'deve dire perché una ricevuta non è una fattura, non solo dove andare');
+  ok(errors.length === 0, errors.join(' | '));
+});
+
 await browser.close();
 server.close();
 console.log('\n' + (fail ? '\x1b[31m' : '\x1b[32m') + pass + ' passati, ' + fail + ' falliti\x1b[0m\n');

@@ -1093,6 +1093,11 @@ mangiava i centesimi.
   cortesia che legge GLI STESSI totali dell'XML, download XML col nome
   conforme `IT<piva>_<progressivo>.xml`, stato da_trasmettere/trasmessa.
   BOOM GENERA l'XML, non lo TRASMETTE — la UI lo dice invece di fingere.
+- **Dove si fa una fattura**: da **Fatture** (o Fatturazione), MAI da Template
+  — quella pagina genera ricevute, proposte e contratti di locazione, che non
+  hanno numerazione fiscale né IVA né XML. Non dirlo lasciava l'operatore a
+  cercarle lì: ora Template si apre con la card «Cerchi una fattura?» e il
+  bottone che porta all'editor, e la card Ricevute è marcata *non fiscali*.
 - **BOOM doc kit — UNA testata per tutti i PDF del portale**
   (`boomDocHead`/`boomDocFoot`/`boomDocSection`/`boomDocParty`): banda nera,
   filetto oro a tre sezioni, marchio, pill del riferimento che si dimensiona
@@ -1104,14 +1109,28 @@ mangiava i centesimi.
   invece la disciplina del cartaceo di `api/preagreement/_pdf.js` (riquadri
   parte, tabelle bordate, riga TOTALE in grassetto).
   La fattura ha in più il **riepilogo IVA per aliquota** con Natura e
-  riferimento normativo — la parte che il commercialista guarda per prima.
-  Tre trappole trovate RENDERIZZANDO il PDF, non rileggendolo:
-  `charSpace` + `align:'right'` in jsPDF non toglie la spaziatura dell'ultimo
-  carattere e "TOTALE"/"IMPOSTA" uscivano a 195,2mm su 194; le soglie di
-  salto pagina a occhio mandavano a pagina due una fattura di due righe
-  (ora `need(h)` misura il blocco, e l'altezza del blocco pagamento si
-  ricava da `splitTextToSize`, non si stima); `splitTextToSize` è di qualche
-  decimo ottimista, quindi si avvolge su `DOC_TW = DOC_W - 2`.
+  riferimento normativo — la parte che il commercialista guarda per prima — e
+  il **badge Stripe** (`boomStripePlate`): l'unico elemento pieno e scuro di
+  tutto il documento, perché è l'unica AZIONE e il contrasto fa il lavoro.
+  Ripete la cifra (chi lo guarda deve sapere cosa sta per pagare senza
+  risalire ai totali) e dichiara i circuiti accettati, perché "paga con carta"
+  senza sapere se accetti la sua Amex è metà informazione.
+  Il linguaggio è quello PREMIUM del marchio (Helvetica leggera, tracking
+  largo, fili sottili invece di riquadri pieni, molta aria), non quello dei
+  vecchi template admin: un filo d'oro al posto della barra tricolore,
+  l'identità del documento incolonnata a destra invece che in una pill gialla.
+  **Trappole trovate RENDERIZZANDO il PDF, non rileggendolo** — tutte scoperte
+  da `tests/invoice/render.mjs`, che misura dove finisce il testo:
+  `splitTextToSize` misura col font CORRENTE, quindi chiamarlo prima di
+  `setFontSize` spezzava le descrizioni come se fossero da 6pt e finivano
+  sopra le colonne numeriche; `charSpace` è in **millimetri** (unità del
+  documento) e si applica anche DOPO l'ultimo glifo, quindi con `align:'right'`
+  va compensato per `t.length` — non `length-1`, non convertito da punti;
+  `U+2212` (il meno tipografico) non è WinAnsi e jsPDF mangia la stringa,
+  stessa trappola della freccia nel certificato FES; le soglie di salto
+  pagina vanno MISURATE (`need(h)` con altezze da `splitTextToSize`), perché
+  a occhio si sbaglia di un millimetro e una fattura di due righe finisce in
+  due pagine.
 - **`billing/company`** (collezione NUOVA, admin-only in firestore.rules):
   denominazione, P.IVA con checksum a schermo, regime, sede, REA, capitale,
   IBAN, aliquota default, sezionale. NON in `settings`, che le rules aprono

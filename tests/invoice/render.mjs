@@ -198,8 +198,11 @@ await t('la fattura si renderizza in una pagina sola', async () => {
 
 await t('il documento porta emittente, cliente e numero', async () => {
   const txt = base[0].text;
-  ['BOOM', 'FATTURA', '12/2026', 'Egidi Immobiliare', 'Bellucci Property Holdings',
-   'P.IVA', 'M5UXCR1', 'Cod. dest.'].forEach((s) => ok(txt.includes(s), 'manca "' + s + '" nel PDF'));
+  // Il marchio e i titoli sono spaziati (charSpace): pdf.js li restituisce
+  // lettera per lettera, quindi si confrontano senza spazi.
+  ['BOOM', 'FATTURA'].forEach((s) => ok(hasLabel(base[0], s), 'manca "' + s + '" nel PDF'));
+  ['12/2026', 'Egidi Immobiliare', 'Bellucci Property Holdings',
+   'P.IVA', 'M5UXCR1', 'Cod. destinatario'].forEach((s) => ok(txt.includes(s), 'manca "' + s + '" nel PDF'));
 });
 
 await t('i totali stampati sono quelli del motore', async () => {
@@ -224,10 +227,10 @@ await t('il PDF dichiara di essere una copia di cortesia', async () => {
   ok(base[0].text.includes('00743110157'), 'manca la P.IVA dell\'emittente nel pie\' di pagina');
 });
 
-await t('niente testo fuori dai margini (16mm / 194mm)', async () => {
+await t('niente testo fuori dai margini (18mm / 192mm)', async () => {
   base.forEach((p, i) => {
-    ok(p.minX >= 15.5, `pagina ${i + 1}: testo a ${p.minX.toFixed(1)}mm, oltre il margine sinistro (16mm) — "${(p.leftmost || {}).str}"`);
-    ok(p.maxX <= 194.6, `pagina ${i + 1}: testo fino a ${p.maxX.toFixed(1)}mm, oltre il margine destro (194mm) — "${(p.widest || {}).str}"`);
+    ok(p.minX >= 17.5, `pagina ${i + 1}: testo a ${p.minX.toFixed(1)}mm, oltre il margine sinistro (18mm) — "${(p.leftmost || {}).str}"`);
+    ok(p.maxX <= 192.6, `pagina ${i + 1}: testo fino a ${p.maxX.toFixed(1)}mm, oltre il margine destro (192mm) — "${(p.widest || {}).str}"`);
   });
 });
 
@@ -266,7 +269,7 @@ await t('nota di credito: titolo, riferimento all\'originale', async () => {
     causale: 'Storno totale per risoluzione consensuale.',
   }, null);
   const txt = pages[0].text.replace(/\s+/g, ' ');
-  ok(txt.includes('NOTA DI CREDITO'), 'titolo sbagliato');
+  ok(squash(txt).includes(squash('NOTA DI CREDITO')), 'titolo sbagliato');
   ok(txt.includes('Storna la fattura n. 12/2026'), 'manca il richiamo all\'originale');
 });
 
@@ -292,8 +295,8 @@ await t('fattura pagabile: il riquadro "PAGA CON CARTA" col link vero', async ()
   ok(squash(txt).includes(squash('PAGA CON CARTA')), 'manca il riquadro');
   ok(txt.includes('boomrome.com/fattura'), 'manca l\'indirizzo in chiaro per chi stampa');
   ok(/Stripe/i.test(txt), 'manca la rassicurazione sul circuito');
-  ok(pages[0].maxX <= 194.6, `sfora: ${pages[0].maxX.toFixed(1)}mm`);
-  ok(pages[0].minX >= 15.5, `sfora a sinistra: ${pages[0].minX.toFixed(1)}mm`);
+  ok(pages[0].maxX <= 192.6, `sfora: ${pages[0].maxX.toFixed(1)}mm`);
+  ok(pages[0].minX >= 17.5, `sfora a sinistra: ${pages[0].minX.toFixed(1)}mm`);
 });
 
 await t('il riquadro è un link cliccabile, non solo testo blu', async () => {
@@ -337,14 +340,16 @@ await t('col blocco totali corto il riquadro non si scrive addosso alla sezione 
     }));
   }, [CORTO]);
 
-  const link = items.find((i) => i.s.includes('boomrome.com/fattura'));
-  ok(link, 'il link non è nel documento');
+  // L'ancora è l'ULTIMA riga DENTRO il riquadro (i circuiti), non il link:
+  // sotto il link c'è ancora contenuto del badge.
+  const trust = items.filter((i) => /Mastercard|Stripe/.test(i.s)).sort((a, b) => b.y - a.y)[0];
+  ok(trust, 'il riquadro non è nel documento');
   // SOLO la colonna sinistra: a destra c'è il blocco totali, che sta
   // legittimamente alla stessa altezza del riquadro.
-  const below = items.filter((i) => i.x < 100 && i.y > link.y).sort((a, b) => a.y - b.y)[0];
-  ok(below, 'sotto il riquadro non c\'è più nulla, atteso il titolo "4. Pagamento"');
-  ok(below.y > link.y + 8,
-     `la colonna sinistra riprende a ${below.y.toFixed(1)}mm ("${below.s}") mentre il riquadro finisce verso ${(link.y + 7.5).toFixed(1)}mm: si sovrappongono`);
+  const below = items.filter((i) => i.x < 100 && i.y > trust.y + 1).sort((a, b) => a.y - b.y)[0];
+  ok(below, 'sotto il riquadro non c\'è più nulla, atteso il titolo "04 Pagamento"');
+  ok(below.y > trust.y + 6,
+     `la colonna sinistra riprende a ${below.y.toFixed(1)}mm ("${below.s}") mentre il riquadro finisce a ${trust.y.toFixed(1)}mm: si sovrappongono`);
 });
 
 await t('nota di credito e bozza NON mostrano il pulsante di pagamento', async () => {
@@ -396,7 +401,7 @@ await t('la ricevuta di canone usa la STESSA testata della fattura', async () =>
   ok(errors.length === 0, 'errori JS: ' + errors.join(' | '));
   ok(pages.length === 1, 'la ricevuta deve stare in una pagina');
   const txt = pages[0].text;
-  ok(txt.includes('BOOM'), 'manca il marchio');
+  ok(hasLabel(pages[0], 'BOOM'), 'manca il marchio');
   ok(hasLabel(pages[0], 'RICEVUTA DI PAGAMENTO'), 'titolo sbagliato');
   ok(txt.includes('Mary Johnson') && txt.includes('Trastevere Loft'), 'mancano inquilino/immobile');
   ok(txt.includes('1.450,00'), 'importo assente o senza centesimi');
@@ -420,8 +425,8 @@ await t('ricevuta: niente fuori dai margini', async () => {
     c: {}, p: { name: 'Attico Aventino con nome molto lungo per il riquadro', address: 'Viale Giotto 128, 00153 Roma' },
     t: { name: 'Alessandra Del Monte Buonarroti', email: 'alessandra.delmonte@example.com' },
   }, null, 'receipt');
-  ok(pages[0].minX >= 15.5, `testo a ${pages[0].minX.toFixed(1)}mm — "${(pages[0].leftmost || {}).str}"`);
-  ok(pages[0].maxX <= 194.6, `testo fino a ${pages[0].maxX.toFixed(1)}mm — "${(pages[0].widest || {}).str}"`);
+  ok(pages[0].minX >= 17.5, `testo a ${pages[0].minX.toFixed(1)}mm — "${(pages[0].leftmost || {}).str}"`);
+  ok(pages[0].maxX <= 192.6, `testo fino a ${pages[0].maxX.toFixed(1)}mm — "${(pages[0].widest || {}).str}"`);
 });
 
 await browser.close();
