@@ -16065,20 +16065,32 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         <button class="btn btn-xs ${sigStatus === 'complete' ? 'btn-success' : ''}" onclick="viewContractSignatures('${c.id}')">${sigStatus === 'complete' ? '📥 Vedi/Scarica' : '✏️ Gestisci Firme'}</button>
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-                        <div style="display:flex;align-items:center;gap:8px">
-                            <span style="font-size:20px">${c.landlordSignature ? '✅' : '⏳'}</span>
-                            <div>
-                                <div style="font-size:12px;color:var(--text-muted)">Proprietario</div>
-                                <div style="font-size:13px">${o?.name || 'N/A'}</div>
-                            </div>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:8px">
-                            <span style="font-size:20px">${c.tenantSignature ? '✅' : '⏳'}</span>
-                            <div>
-                                <div style="font-size:12px;color:var(--text-muted)">Inquilino</div>
-                                <div style="font-size:13px">${t?.name || 'N/A'}</div>
-                            </div>
-                        </div>
+                        ${(() => {
+                            // FUNNEL FIRMA per firmatario: invitato ✉️ → aperto 👀 → firmato ✅
+                            // (le aperture arrivano da lookup: signViewed*At; co-firmatari inclusi)
+                            const fmtT = (v) => { try { return new Date(v).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } };
+                            const rows = [
+                                { label: 'Inquilino', name: t?.name || c.tenantName || 'N/A', signedAt: c.tenantSignedAt, signed: !!c.tenantSignature, viewed: c.signViewedTenantAt, invited: c.signInviteTenantAt },
+                                ...((Array.isArray(c.coTenants) ? c.coTenants : []).filter(cv => cv && cv.name).map((cv, i) => (
+                                    { label: 'Co-conduttore 🖊', name: cv.name, signedAt: cv.signedAt, signed: !!cv.signature, viewed: c['signViewedCo' + i + 'At'], invited: c.signInviteTenantAt }))),
+                                { label: 'Proprietario', name: o?.name || c.landlordName || 'N/A', signedAt: c.landlordSignedAt, signed: !!c.landlordSignature, viewed: c.signViewedLandlordAt, invited: c.signInviteLandlordAt },
+                            ];
+                            return rows.map(r => {
+                                const icon = r.signed ? '✅' : r.viewed ? '👀' : r.invited ? '✉️' : '⏳';
+                                const stato = r.signed ? ('Firmato' + (r.signedAt ? ' · ' + fmtT(r.signedAt) : ''))
+                                    : r.viewed ? ('Ha aperto il link · ' + fmtT(r.viewed))
+                                    : r.invited ? ('Invitato · ' + fmtT(r.invited) + ' — non ha ancora aperto')
+                                    : 'Non ancora invitato';
+                                return `<div style="display:flex;align-items:center;gap:8px">
+                                    <span style="font-size:20px">${icon}</span>
+                                    <div>
+                                        <div style="font-size:12px;color:var(--text-muted)">${r.label}</div>
+                                        <div style="font-size:13px">${esc(r.name)}</div>
+                                        <div style="font-size:11px;color:${r.signed ? 'var(--green, #4ade80)' : 'var(--text-muted)'}">${stato}</div>
+                                    </div>
+                                </div>`;
+                            }).join('');
+                        })()}
                     </div>
                 </div>
                 
