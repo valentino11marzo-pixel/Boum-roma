@@ -3791,6 +3791,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // Check Stripe payment return
         checkStripeReturn();
 
+        // Dati aziendali (IBAN incluso) da Firestore. Fire-and-forget: se la
+        // lettura è lenta il portale è già in piedi con i default.
+        loadCompanySettings();
+
         // Start notification listener
         startNotificationListener();
         startContractsListener();
@@ -13002,6 +13006,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     function settingsPage() {
         return `<div class="page-header"><h1 class="page-title">⚙️ Impostazioni</h1></div>
+            ${companySettingsCard()}
             <div class="card"><div class="card-header"><h3 class="card-title">👤 Profilo</h3></div><div class="card-body">
                 <form onsubmit="updateProfile(event)">
                     <div class="form-row"><div class="form-group"><label class="form-label">Nome</label><input type="text" class="form-input" id="setName" value="${S.profile.name}"></div><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" id="setPhone" value="${S.profile.phone || ''}"></div></div>
@@ -18953,7 +18958,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (level === 2) {
             return `${firstName}, ti scriviamo perché il canone ${amount} di ${propName} (scaduto il ${due}, ${days}gg di ritardo) risulta ancora insoluto. Provvedi al pagamento e inviaci la contabile per evitare il sollecito formale con interessi di mora. — BOOM Roma`;
         }
-        return `Ciao ${firstName}, ti ricordiamo che il canone ${amount} di ${propName} è scaduto il ${due} (${days}gg di ritardo). Se hai già pagato ignora pure! IBAN: ${COMPANY.iban}. Grazie — BOOM Roma`;
+        // Un IBAN sbagliato è peggio di nessun IBAN: chi lo riceve prova a
+        // pagare e il bonifico non arriva. Se non è configurato lo si omette.
+        return `Ciao ${firstName}, ti ricordiamo che il canone ${amount} di ${propName} è scaduto il ${due} (${days}gg di ritardo). Se hai già pagato ignora pure!${companyIbanMissing() ? '' : ' IBAN: ' + COMPANY.iban + '.'} Grazie — BOOM Roma`;
     }
     
     async function sendPaymentConfirmEmail(tenant, contract, property, payment) {
@@ -19508,7 +19515,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         doc.setTextColor(212, 175, 55); doc.text(`EUR ${inv.amount || 0}`, 175, y, { align: 'right' });
         
         y += 25; doc.setTextColor(0); doc.setFontSize(10); doc.setFont('helvetica', 'bold');
-        doc.text('Pagamento:', 20, y); doc.setFont('helvetica', 'normal'); y += 7; doc.text(`IBAN: ${COMPANY.iban}`, 20, y);
+        doc.text('Pagamento:', 20, y); doc.setFont('helvetica', 'normal'); y += 7;
+        // Idem sulla fattura: meglio "IBAN da comunicare" che un IBAN inesistente.
+        doc.text(companyIbanMissing() ? 'IBAN: da comunicare' : `IBAN: ${COMPANY.iban}`, 20, y);
         
         doc.setFillColor(0); doc.rect(0, 275, 210, 25, 'F');
         doc.setTextColor(150); doc.setFontSize(8); doc.text(`${COMPANY.legal} | ${COMPANY.website}`, 105, 285, { align: 'center' });
@@ -28103,5 +28112,94 @@ ${d.description || '-'}`;
             console.error('[Innesto] creazione fallita:', e);
             toast('error', 'Creazione non riuscita', e.message + (created.length ? ' — già creati: ' + created.join(', ') : ''));
             _innesto.busy = false; renderPage();
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // DATI AZIENDALI — vivono in Firestore, non nel codice
+    // ═══════════════════════════════════════════════════════════════════
+    // L'IBAN stava scritto nel sorgente con accanto "⚠️ UPDATE WITH REAL
+    // IBAN": un segnaposto che finiva nei solleciti di pagamento e nelle
+    // fatture PDF. Ora i dati stanno in settings/company, si modificano
+    // dalle Impostazioni e valgono ovunque senza deploy.
+
+    async function loadCompanySettings() {
+        try {
+            // Mai sul percorso critico del boot (lezione dell'audit Safari):
+            // se la lettura si blocca, il portale parte lo stesso con i default.
+            const doc = await db.collection('settings').doc('company').get();
+            const remote = doc.exists ? doc.data() : {};
+            const merged = window.BOOM_DATAOPS.mergeCompany(COMPANY, remote);
+            Object.assign(COMPANY, merged.company);   // COMPANY è const: si muta, non si riassegna
+            S.companyWarnings = merged.warnings;
+            if (merged.warnings.length && isAdmin()) {
+                toast('warning', 'Dati aziendali da completare', merged.warnings[0]);
+            }
+        } catch (e) {
+            console.warn('[Company] impostazioni non lette, uso i default:', e.message);
+        }
+    }
+
+    function companyIbanMissing() {
+        return window.BOOM_DATAOPS.isPlaceholderIban(COMPANY.iban);
+    }
+
+    function companySettingsCard() {
+        if (!isAdmin()) return '';
+        const f = (key, label, ph) => `
+            <div class="form-group">
+                <label class="form-label">${esc(label)}</label>
+                <input type="text" class="form-input" id="co_${key}" value="${esc(COMPANY[key] || '')}" placeholder="${esc(ph || '')}">
+            </div>`;
+        return `
+        <div class="card"><div class="card-header"><h3 class="card-title">🏛 Dati aziendali</h3></div><div class="card-body">
+            ${companyIbanMissing() ? `<div style="padding:12px 14px;background:rgba(255,59,59,0.08);border:1px solid rgba(255,59,59,0.3);border-radius:10px;margin-bottom:16px;font-size:13px;line-height:1.6;color:#FF9A9A">
+                <strong>L'IBAN non è configurato.</strong> I solleciti di pagamento e le fatture PDF
+                riportano l'IBAN qui sotto: finché è vuoto o errato, un inquilino che riceve un
+                sollecito non ha modo di pagarti. Compilalo e salva.
+            </div>` : ''}
+            <p style="margin-bottom:16px;color:var(--text-secondary);font-size:13px">
+                Questi dati compaiono su fatture, solleciti, email e PDF. Si modificano qui, senza toccare il codice.
+            </p>
+            <div class="form-row">${f('name', 'Nome commerciale')}${f('legal', 'Ragione sociale')}</div>
+            <div class="form-row">${f('piva', 'Partita IVA')}${f('codiceFiscale', 'Codice fiscale')}</div>
+            ${f('address', 'Sede')}
+            <div class="form-row">${f('email', 'Email')}${f('phone', 'Telefono')}</div>
+            <div class="form-row">${f('website', 'Sito')}${f('pec', 'PEC')}</div>
+            <div class="form-row">${f('iban', 'IBAN', 'IT00 X000 0000 0000 0000 0000 000')}${f('bankName', 'Banca')}</div>
+            <button class="btn" onclick="saveCompanySettings()">Salva dati aziendali</button>
+        </div></div>`;
+    }
+
+    async function saveCompanySettings() {
+        if (!isAdmin()) { toast('error', 'Solo admin'); return; }
+        const V = window.BOOM_DATAOPS;
+        const data = {};
+        V.COMPANY_FIELDS.forEach(k => {
+            const el = document.getElementById('co_' + k);
+            if (el) data[k] = el.value.trim();
+        });
+        // L'IBAN si controlla PRIMA di salvare: un refuso qui vale quanto il
+        // segnaposto — il bonifico non arriva e te ne accorgi settimane dopo.
+        if (data.iban) {
+            const v = V.validateIBAN(data.iban);
+            if (!v.valid) { toast('error', 'IBAN non valido', v.reason); return; }
+            data.iban = v.value;
+        }
+        try {
+            await db.collection('settings').doc('company').set({
+                ...data,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedBy: S.profile?.email || S.profile?.id || 'admin'
+            }, { merge: true });
+            const merged = V.mergeCompany(COMPANY, data);
+            Object.assign(COMPANY, merged.company);
+            S.companyWarnings = merged.warnings;
+            await logActivity('company_settings_updated', 'system', { campi: Object.keys(data).filter(k => data[k]) });
+            toast('success', 'Dati aziendali salvati', merged.warnings.length ? merged.warnings[0] : 'Valgono da subito su fatture, solleciti e PDF.');
+            renderPage();
+        } catch (e) {
+            console.error('[Company] salvataggio fallito:', e);
+            toast('error', 'Salvataggio non riuscito', e.message);
         }
     }

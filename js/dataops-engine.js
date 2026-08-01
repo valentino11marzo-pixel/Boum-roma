@@ -558,9 +558,64 @@
         return out;
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    // PARTE 3 — I DATI AZIENDALI (IBAN incluso) fuori dal codice
+    // ══════════════════════════════════════════════════════════════════
+    // L'IBAN dell'azienda finiva scritto nel sorgente con accanto un
+    // "⚠️ UPDATE WITH REAL IBAN" mai fatto — e quel segnaposto veniva
+    // stampato nei solleciti di pagamento e nelle fatture PDF. Un dato che
+    // cambia (banca, sede, PEC) non deve richiedere un deploy: vive in
+    // Firestore e si modifica dalle Impostazioni. Qui la parte pura:
+    // whitelist dei campi, pulizia dei valori, e il riconoscimento del
+    // segnaposto — perché "IT00X000…" non deve MAI raggiungere un inquilino.
+
+    var COMPANY_FIELDS = ['name', 'legal', 'address', 'piva', 'codiceFiscale', 'email',
+        'phone', 'website', 'iban', 'bankName', 'pec', 'rea', 'capitaleSociale'];
+
+    // Un IBAN è "da compilare" se è vuoto, se è il vecchio segnaposto, o se
+    // semplicemente non supera il mod-97 (un refuso vale quanto un finto:
+    // in entrambi i casi il bonifico non arriva).
+    function isPlaceholderIban(v) {
+        var s = txt(v).toUpperCase().replace(/[\s-]/g, '');
+        if (!s) return true;
+        if (/^IT0*X?0+$/.test(s)) return true;          // IT00X000000000000000000000…
+        if (/^(X|0)+$/.test(s.slice(4))) return true;
+        return !validateIBAN(s).valid;
+    }
+
+    /**
+     * Fonde i valori salvati su Firestore sopra i default del codice.
+     * Ignora i campi non previsti e quelli vuoti (un campo vuoto non deve
+     * cancellare un default buono).
+     * @returns {{company:Object, warnings:string[]}}
+     */
+    function mergeCompany(defaults, remote) {
+        var out = Object.assign({}, defaults || {});
+        var warnings = [];
+        remote = remote || {};
+        COMPANY_FIELDS.forEach(function (k) {
+            var v = remote[k];
+            if (v == null) return;
+            v = txt(v).trim();
+            if (!v) return;
+            if (k === 'iban') v = v.toUpperCase().replace(/[\s-]/g, '');
+            if (k === 'piva' || k === 'codiceFiscale') v = v.toUpperCase().replace(/\s/g, '');
+            out[k] = v;
+        });
+        if (isPlaceholderIban(out.iban)) {
+            warnings.push('L\'IBAN aziendale non è configurato (o non è valido): i solleciti di '
+                + 'pagamento e le fatture uscirebbero con un IBAN su cui nessuno può pagare. '
+                + 'Impostalo in Impostazioni → Dati aziendali.');
+        }
+        return { company: out, warnings: warnings };
+    }
+
     return {
         // bonifica
         classifyDoc: classifyDoc, scanDataset: scanDataset, cascadeFor: cascadeFor,
+        // dati aziendali
+        mergeCompany: mergeCompany, isPlaceholderIban: isPlaceholderIban,
+        COMPANY_FIELDS: COMPANY_FIELDS,
         isProtected: isProtected, looksTestString: looksTestString,
         looksTestEmail: looksTestEmail, looksTestPhone: looksTestPhone,
         docLabel: docLabel,

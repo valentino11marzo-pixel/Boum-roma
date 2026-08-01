@@ -239,6 +239,34 @@ console.log('\n── Normalizzazione verso lo schema del portale ────�
   eq('giorno pagamento fuori scala → 5', n2.contract.paymentDay, 5);
 }
 
+console.log('\n── Dati aziendali fuori dal codice (IBAN incluso) ────────');
+{
+  ok('il vecchio segnaposto è riconosciuto', E.isPlaceholderIban('IT00X0000000000000000000000'));
+  ok('IBAN vuoto è "da compilare"', E.isPlaceholderIban(''));
+  ok('IBAN con refuso vale quanto un finto', E.isPlaceholderIban('IT60X0542811101000000123457'));
+  ok('IBAN vero non è segnaposto', !E.isPlaceholderIban('IT60X0542811101000000123456'));
+  ok('IBAN vero con spazi non è segnaposto', !E.isPlaceholderIban('IT60 X054 2811 1010 0000 0123 456'));
+
+  const defaults = { name: 'BOOM', legal: 'Egidi Immobiliare S.r.l.', iban: 'IT00X0000000000000000000000', email: 'info@boomrome.com' };
+
+  const m1 = E.mergeCompany(defaults, { iban: 'it60 x054 2811 1010 0000 0123 456', phone: '+39 331 325 1961' });
+  eq('IBAN normalizzato in maiuscolo senza spazi', m1.company.iban, 'IT60X0542811101000000123456');
+  eq('campo nuovo aggiunto', m1.company.phone, '+39 331 325 1961');
+  eq('default conservato se non sovrascritto', m1.company.legal, 'Egidi Immobiliare S.r.l.');
+  eq('nessun avviso con IBAN valido', m1.warnings.length, 0);
+
+  const m2 = E.mergeCompany(defaults, {});
+  ok('IBAN non configurato → avviso esplicito', m2.warnings.length === 1 && /IBAN aziendale/.test(m2.warnings[0]));
+  ok("l'avviso dice dove sistemarlo", /Impostazioni/.test(m2.warnings[0]));
+
+  const m3 = E.mergeCompany(defaults, { iban: '   ', email: '' });
+  eq('un valore vuoto non cancella il default', m3.company.email, 'info@boomrome.com');
+
+  const m4 = E.mergeCompany(defaults, { role: 'admin', __proto__: { x: 1 }, evil: 'drop', piva: ' 17546591000 ' });
+  ok('campo fuori whitelist ignorato', m4.company.evil === undefined && m4.company.role === undefined);
+  eq('partita IVA ripulita', m4.company.piva, '17546591000');
+}
+
 console.log('\n' + '─'.repeat(56));
 if (failed) {
   console.log(`\x1b[31mDataOps: ${passed} passed, ${failed} failed\x1b[0m`);
