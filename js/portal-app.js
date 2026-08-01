@@ -3854,6 +3854,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (r === 'admin') {
             const activeClients = (S.clients || []).filter(c => !['completed', 'lost'].includes(c.stage)).length;
             const pendingInv = S.invoices.filter(i => i.status === 'pending').length;
+            // Documenti emessi che non hanno ancora fatto il giro dello SdI:
+            // è la coda che, se resta ferma, diventa un problema fiscale.
+            const toSendSdi = (S.invoices || []).filter(i => typeof invSdiState === 'function'
+                && ['da_trasmettere', 'scartata'].includes(invSdiState(i))).length;
             const openMaint = S.maintenance.filter(m => m.status !== 'resolved' && m.status !== 'closed' && m.status !== 'done').length;
             const overduePayments = S.payments.filter(p => p.status === 'pending' && isOverdue(p.dueDate)).length;
             const urgentDeadlines = (S.deadlines || []).filter(d => d.status !== 'done' && daysUntil(d.date) !== null && daysUntil(d.date) <= 7).length + (S.tasks || []).filter(t => t.status !== 'done' && t.priority === 'urgent').length;
@@ -3874,6 +3878,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="nav-item ${S.page==='inbox'?'active':''}" onclick="goTo('inbox')"><span class="nav-icon">📨</span> Inbox ${unreadInbox?`<span class="nav-badge gold">${unreadInbox}</span>`:''}</div>
                     <div class="nav-item ${S.page==='adminflats'?'active':''}" onclick="goTo('adminflats')"><span class="nav-icon">🏢</span> AdminFlats</div>
                     <div class="nav-item ${S.page==='invoices'?'active':''}" onclick="goTo('invoices')"><span class="nav-icon">🧾</span> Fatture ${pendingInv?`<span class="nav-badge gold">${pendingInv}</span>`:''}</div>
+                    <div class="nav-item ${S.page==='fatturazione'?'active':''}" onclick="goTo('fatturazione')"><span class="nav-icon">📡</span> Fatturazione ${toSendSdi?`<span class="nav-badge orange">${toSendSdi}</span>`:''}</div>
                 </div>
                 <div class="nav-section"><div class="nav-label">Gestione</div>
                     <div class="nav-item ${S.page==='properties'?'active':''}" onclick="goTo('properties')"><span class="nav-icon">🏠</span> Immobili</div>
@@ -3976,6 +3981,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             case 'property-engine': S.page = 'boom-tools'; m.innerHTML = isAdmin() ? boomToolsPage() : accessDenied(); buildNav(); break;
             // === Core Admin ===
             case 'invoices': m.innerHTML = isAdmin() ? invoicesPage() : accessDenied(); break;
+            case 'fatturazione': m.innerHTML = isAdmin() ? fatturazionePage() : accessDenied(); break;
             case 'templates': m.innerHTML = isAdmin() ? templatesPage() : accessDenied(); break;
             case 'users': m.innerHTML = isAdmin() ? usersPage() : accessDenied(); break;
             case 'properties': m.innerHTML = isAdmin() ? propertiesPage() : accessDenied(); break;
@@ -7536,6 +7542,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     ${inv.status === 'pending' && r.email ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();sendInvoiceReminder('${inv.id}')" title="Invia sollecito email">📧</button>` : ''}
                     <button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();downloadInvoicePDF('${inv.id}')" title="Copia di cortesia PDF">📄</button>
                     ${fiscal ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();downloadInvoiceXML('${inv.id}')" title="XML FatturaPA per lo SdI">⬇︎</button>` : ''}
+                    ${fiscal && inv.status && inv.status !== 'draft' && inv.status !== 'paid' && inv.docType !== 'TD04' ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();invShareWhatsApp('${inv.id}')" title="Manda il link di pagamento su WhatsApp">💬</button>` : ''}
                 </div>
             </div>`;
         };
@@ -15690,10 +15697,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <span style="white-space:nowrap">€ ${f(r.total)} <span style="color:var(--text-muted);font-size:11px">${r.vatRate ? r.vatRate + '%' : esc(r.nature || '')}</span></span>
             </div>`).join('') : '';
 
-        const sdi = inv.sdiStatus || (fiscal && issued ? 'da_trasmettere' : null);
-        const sdiBadge = !fiscal ? '<span class="badge gray" title="Documento non fiscale">Ricevuta</span>'
-            : sdi === 'trasmessa' ? '<span class="badge green">✓ Trasmessa allo SdI</span>'
-            : issued ? '<span class="badge orange">⏳ Da trasmettere allo SdI</span>'
+        const sdi = invSdiState(inv);
+        // Pagabile con carta: le stesse condizioni che applica il server in
+        // api/invoices/_link.isPayable — se divergessero, il portale
+        // offrirebbe un bottone che poi risponde 409.
+        const payable = fiscal && issued && inv.status !== 'paid' && inv.docType !== 'TD04'
+            && (Number((inv.totals || {}).netToPay) || Number(inv.amount) || 0) > 0;
+        const sdiInfo = sdi ? SDI_STATES[sdi] : null;
+        const sdiBadge = !fiscal ? '<span class="badge gray" title="Documento non fiscale — non si trasmette allo SdI">Ricevuta</span>'
+            : sdiInfo ? `<span class="badge ${sdiInfo.color}" title="${esc(sdiInfo.hint)}">${sdiInfo.icon} ${sdiInfo.label}</span>`
             : '<span class="badge gray">Bozza</span>';
 
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal lg">
@@ -15718,9 +15730,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <strong class="text-gold" style="font-size:22px">€ ${f(t.total)}</strong></div>
                     ${t.withholding ? `<div style="text-align:right;font-size:13px;color:var(--text-secondary)">ritenuta − € ${f(t.withholding)} · <strong>netto € ${f(t.netToPay)}</strong></div>` : ''}` : ''}
                 ${inv.causale || inv.description ? `<div class="mt-16"><div class="detail-label">Causale</div><p style="background:var(--bg);padding:12px;border-radius:8px;margin-top:6px;font-size:13px">${esc(inv.causale || inv.description)}</p></div>` : ''}
-                ${fiscal && issued && sdi !== 'trasmessa' ? `<div class="alert info" style="margin-top:14px"><span class="alert-icon">📤</span><div class="alert-content">
-                    <div class="alert-title">Il documento non è ancora in circolo</div>
-                    <div class="alert-text">Scarica l'XML e caricalo su <em>Fatture e Corrispettivi</em> (Agenzia Entrate) o mandalo all'intermediario del commercialista. BOOM genera il file; la trasmissione allo SdI resta un passaggio tuo.</div></div></div>` : ''}
+                ${fiscal && sdiInfo ? `<div class="card" style="margin-top:14px"><div class="card-body">
+                    <div style="font-size:11px;letter-spacing:1px;color:var(--text-muted);margin-bottom:8px">CICLO SDI</div>
+                    <div style="font-size:12.5px;color:var(--text-secondary);line-height:1.6;margin-bottom:10px">${esc(sdiInfo.hint)}${inv.sdiRejectReason ? `<br><strong style="color:var(--red)">Motivo dello scarto: ${esc(inv.sdiRejectReason)}</strong>` : ''}</div>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap">
+                        ${Object.keys(SDI_STATES).filter(k => k !== sdi).map(k => `<button class="btn btn-xs btn-secondary" onclick="invSetSdiState('${inv.id}','${k}')">${SDI_STATES[k].icon} ${SDI_STATES[k].label}</button>`).join('')}
+                    </div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:10px;line-height:1.55">BOOM genera l'XML; la trasmissione allo SdI la fai tu da <em>Fatture e Corrispettivi</em> o via commercialista — poi segna qui l'esito. <a href="#" onclick="closeModal();goTo('fatturazione');return false" style="color:var(--gold)">Vai a Fatturazione →</a></div>
+                </div></div>` : ''}
             </div>
             <div class="modal-footer">
                 ${issued && fiscal
@@ -15729,7 +15746,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 ${inv.status === 'draft' ? `<button class="btn btn-secondary" onclick="closeModal();openInvoiceEditor({id:'${inv.id}'})">✎ Modifica</button>` : ''}
                 <button class="btn btn-secondary" onclick="downloadInvoicePDF('${inv.id}')">📄 PDF</button>
                 ${fiscal ? `<button class="btn btn-secondary" onclick="downloadInvoiceXML('${inv.id}')">⬇︎ XML SdI</button>` : ''}
-                ${fiscal && issued && sdi !== 'trasmessa' ? `<button class="btn btn-secondary" onclick="invMarkSent('${inv.id}')">✓ Trasmessa</button>` : ''}
+                ${payable ? `<button class="btn btn-secondary" onclick="invCopyLink('${inv.id}')" title="Link pubblico: il cliente vede e paga">🔗 Link</button>` : ''}
+                ${payable ? `<button class="btn btn-secondary" onclick="invShareWhatsApp('${inv.id}')">💬 WhatsApp</button>` : ''}
+                ${fiscal && issued ? `<button class="btn btn-secondary" onclick="invEmailToClient('${inv.id}')">✉️ Email</button>` : ''}
+
                 ${inv.status !== 'paid' && inv.status !== 'draft' ? `<button class="btn btn-success" onclick="markInvoicePaid('${inv.id}')">✔ Incassata</button>` : ''}
             </div>
         </div></div>`;
@@ -28297,6 +28317,7 @@ ${d.description || '-'}`;
             service: (d.lines && d.lines[0] && d.lines[0].description) || '',
             description: d.causale || '',
             sellerSnapshot: invSeller(),
+            payLink: d.payLink || null,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         }, extra || {});
     }
@@ -28342,7 +28363,17 @@ ${d.description || '-'}`;
             }
             await invPersistBuyerOnParty();
             logActivity('Documento fiscale emesso', 'invoice', { number: n.number, docType: _invDraft.docType, amount: payload.amount });
-            toast('success', 'Emesso ' + n.number, 'Ora scarica l\'XML e caricalo sullo SdI');
+
+            // Il link di pagamento si chiede ADESSO: il token è derivato lato
+            // server (il browser non può calcolarlo) e il PDF che sto per
+            // scaricare deve già portarlo. Best-effort: se fallisce, il
+            // documento resta valido e il link si chiede dopo dalla riga.
+            try {
+                var lk = await invFetchLink(_invDraft.id, { force: true });
+                _invDraft.payLink = lk.url;
+            } catch (e) { console.warn('[payLink]', e.message); }
+
+            toast('success', 'Emesso ' + n.number, 'Scarica l\'XML per lo SdI · il PDF porta il link di pagamento');
             invDownloadXmlDraft();
             invDownloadPdfDraft();
             closeInvoiceEditor();
@@ -28421,6 +28452,10 @@ ${d.description || '-'}`;
     var DOC_INK = [17, 17, 17], DOC_SOFT = [125, 125, 125], DOC_LINE = [214, 214, 214];
     var DOC_GOLD = [212, 175, 55], DOC_GOLD_L = [255, 213, 79], DOC_GOLD_D = [245, 166, 35];
     var DOC_M = 16, DOC_R = 194, DOC_W = 178;          // margini in mm (A4 = 210)
+    // Scala tipografica del documento: una progressione sola, dichiarata qui.
+    // Prima le misure erano sparse fra 6,5 e 11 scelte caso per caso — è il
+    // modo in cui un documento perde gerarchia senza che nessuno lo decida.
+    var DOC_T = { micro: 6.6, note: 7.4, body: 8.8, lead: 9.6, amount: 11, hero: 15 };
     // Larghezza per l'avvolgimento del testo: 2mm meno della colonna. Le
     // metriche di splitTextToSize sono leggermente ottimiste rispetto a quelle
     // del renderer, e un paragrafo avvolto su DOC_W esatti sbordava di 8/10 di
@@ -28679,9 +28714,10 @@ ${d.description || '-'}`;
 
         // ── 5. Totali ─────────────────────────────────────────────────
         var TX = DOC_M + 100, TW = DOC_W - 100;
+        var totalsTop = y;   // la colonna sinistra resta libera: ci va il CTA
         doc.setDrawColor.apply(doc, DOC_LINE); doc.setLineWidth(0.3); doc.line(TX, y, DOC_R, y); y += 6;
         var tRow = function (label, val, bold) {
-            doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(bold ? 9 : 8.6);
+            doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(bold ? DOC_T.lead : DOC_T.body);
             doc.setTextColor.apply(doc, bold ? DOC_INK : DOC_SOFT);
             doc.text(label, TX + 3, y);
             doc.setTextColor.apply(doc, DOC_INK); doc.setFont('helvetica', 'bold');
@@ -28693,20 +28729,55 @@ ${d.description || '-'}`;
         if (t.stampDutyCharged) tRow('Bollo', 'EUR ' + f(t.stampDutyCharged));
 
         doc.setFillColor.apply(doc, DOC_GOLD); doc.rect(TX, y - 1, TW, 11, 'F');
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(0, 0, 0);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(DOC_T.lead); doc.setTextColor(0, 0, 0);
         doc.text('TOTALE DOCUMENTO', TX + 3, y + 6.2, { charSpace: 0.5 });
-        doc.setFontSize(11);
+        doc.setFontSize(DOC_T.amount);
         doc.text('EUR ' + f(t.total), DOC_R - 3, y + 6.4, { align: 'right' });
-        y += 18;   // la banda oro non deve toccare il titolo successivo
+        y += 16;
         if (t.withholding) {
             doc.setTextColor.apply(doc, DOC_INK);
             tRow('Ritenuta d\'acconto', '- EUR ' + f(t.withholding));
             doc.setDrawColor(10, 10, 10); doc.setLineWidth(0.5); doc.rect(TX, y - 1, TW, 10);
-            doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor.apply(doc, DOC_INK);
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(DOC_T.lead); doc.setTextColor.apply(doc, DOC_INK);
             doc.text('NETTO A PAGARE', TX + 3, y + 5.8, { charSpace: 0.5 });
-            doc.setFontSize(10.5);
+            doc.setFontSize(DOC_T.amount);
             doc.text('EUR ' + f(t.netToPay), DOC_R - 3, y + 6, { align: 'right' });
             y += 15;
+        }
+
+        // ── 5b. Paga con carta ────────────────────────────────────────
+        // Il riquadro sta NELLA fascia dei totali, colonna sinistra: prima era
+        // mezza pagina bianca, e l'unica azione del documento merita di stare
+        // accanto alla cifra invece che in fondo. Su schermo è un link vero
+        // (doc.link), su carta resta l'indirizzo in chiaro.
+        var payLink = inv.payLink || '';
+        var payableDoc = payLink && !isCredit && inv.status !== 'paid' && inv.status !== 'draft' && inv.number && t.netToPay > 0;
+        if (payableDoc) {
+            // 26mm è quanto serve al contenuto (titolo, nota, indirizzo) con
+            // 3mm di respiro sotto: più alto e la sezione successiva veniva
+            // spinta oltre il fondo pagina, spezzando in due una fattura che
+            // ci stava.
+            var pw = 92, ph = 26, py = totalsTop - 1;
+            doc.setDrawColor.apply(doc, DOC_GOLD); doc.setLineWidth(0.5);
+            doc.roundedRect(DOC_M, py, pw, ph, 2, 2);
+            doc.setFillColor.apply(doc, DOC_GOLD); doc.rect(DOC_M, py, 1.6, ph, 'F');
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(DOC_T.lead);
+            doc.setTextColor.apply(doc, DOC_INK);
+            doc.text('PAGA CON CARTA', DOC_M + 6, py + 8.4, { charSpace: 0.6 });
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(DOC_T.note);
+            doc.setTextColor.apply(doc, DOC_SOFT);
+            doc.text('Apri il link, paga in un tocco. Pagamento sicuro su Stripe.', DOC_M + 6, py + 13.8);
+            doc.setFontSize(DOC_T.note); doc.setTextColor(20, 60, 160);
+            var shown = String(payLink).replace(/^https?:\/\//, '');
+            doc.textWithLink(shown, DOC_M + 6, py + 20.6, { url: payLink });
+            // Tutto il riquadro è cliccabile, non solo le sette parole blu.
+            doc.link(DOC_M, py, pw, ph, { url: payLink });
+            doc.setTextColor.apply(doc, DOC_INK);
+            // Le due colonne sono indipendenti: il flusso riprende sotto la
+            // PIÙ BASSA. Senza questo, una fattura col blocco totali corto
+            // (nessuna IVA, nessuna ritenuta) si scriveva la sezione 4
+            // addosso al riquadro.
+            y = Math.max(y, py + ph + 6);
         }
 
         // ── 6. Pagamento e note ───────────────────────────────────────
@@ -28768,14 +28839,363 @@ ${d.description || '-'}`;
         await openInvoiceEditor({ creditNoteFor: id, reason: reason });
     }
 
-    async function invMarkSent(id) {
+    // invMarkSent() sostituita da invSetSdiState(): lo stato SdI non è un
+    // interruttore trasmessa/non trasmessa ma un ciclo con cinque esiti reali
+    // (consegnata, non recapitata, scartata…), e un documento scartato va
+    // trattato diversamente da uno consegnato.
+
+    // ── Il link di pagamento: chiederlo, condividerlo, mandarlo ─────────
+    //
+    // Il token è derivato da HOMIE_SECRET lato server: il browser NON può
+    // calcolarlo. Si chiede a /api/invoices/link, che lo persiste su
+    // `payLink` — da lì lo leggono il PDF, la riga in elenco e l'email.
+
+    async function invFetchLink(id, opts) {
+        opts = opts || {};
+        var cached = (S.invoices || []).find(function (x) { return x.id === id; });
+        if (cached && cached.payLink && !opts.force) {
+            return { url: cached.payLink, whatsapp: null, message: null };
+        }
+        var token = await auth.currentUser.getIdToken();
+        var r = await fetch('/api/invoices/link', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+            body: JSON.stringify({ invoiceId: id }),
+        });
+        var d = await r.json().catch(function () { return {}; });
+        if (!r.ok || !d.ok) throw new Error(d.error || 'link_failed');
+        if (cached) cached.payLink = d.url;
+        return d;
+    }
+
+    async function invCopyLink(id) {
         try {
-            await db.collection('invoices').doc(id).update({
-                sdiStatus: 'trasmessa', sdiSentAt: firebase.firestore.FieldValue.serverTimestamp(),
-            });
-            await refresh(); closeModal();
-            toast('success', 'Segnata come trasmessa');
+            var d = await invFetchLink(id, { force: true });
+            await navigator.clipboard.writeText(d.url);
+            toast('success', 'Link copiato', 'Il cliente può vedere e pagare la fattura');
+            renderPage();
         } catch (e) { toast('error', 'Errore', e.message); }
+    }
+
+    async function invShareWhatsApp(id) {
+        try {
+            var d = await invFetchLink(id, { force: true });
+            // La finestra si apre PRIMA della await successiva: Safari blocca
+            // window.open se non è nello stesso task del click. Qui la await è
+            // già finita, quindi si apre subito.
+            window.open(d.whatsapp, '_blank', 'noopener');
+        } catch (e) { toast('error', 'Errore', e.message); }
+    }
+
+    async function invEmailToClient(id) {
+        var inv = (S.invoices || []).find(function (x) { return x.id === id; });
+        if (!inv) return;
+        var b = inv.buyer || {};
+        var to = b.email || '';
+        to = prompt('Mandare la fattura ' + (inv.number || '') + ' a questo indirizzo?', to);
+        if (!to) return;
+        try {
+            var token = await auth.currentUser.getIdToken();
+            var r = await fetch('/api/invoices/notify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+                body: JSON.stringify({ invoiceId: id, to: to }),
+            });
+            var d = await r.json().catch(function () { return {}; });
+            if (!r.ok || !d.ok) throw new Error(d.error || 'send_failed');
+            toast('success', 'Inviata a ' + d.to, 'Con il pulsante di pagamento');
+            await refresh();
+        } catch (e) { toast('error', 'Invio fallito', e.message); }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // FATTURAZIONE — la sezione dove si governa il ciclo, non solo l'elenco
+    // ═══════════════════════════════════════════════════════════════════════
+    //
+    // La pagina Fatture elenca i documenti. Questa governa il loro CICLO:
+    // quali devono ancora partire per lo SdI, cosa lo SdI ha risposto, quanta
+    // IVA è maturata nel trimestre, e il pacchetto da mandare al
+    // commercialista. Sono le quattro domande che l'operatore si fa davvero
+    // ogni tre mesi, e finora la risposta stava in tre punti diversi.
+    //
+    // Lo stato SdI segue il ciclo REALE del Sistema di Interscambio, non uno
+    // inventato: emessa → in transito → consegnata (RC) / non recapitata (MC,
+    // il cassetto fiscale) / scartata (NS, da rifare). Finché il canale non
+    // c'è, l'avanzamento è manuale — ma il modello è già quello giusto, così
+    // il giorno che si collega un intermediario cambia solo chi scrive il
+    // campo.
+
+    var SDI_STATES = {
+        da_trasmettere: { label: 'Da trasmettere', color: 'orange', icon: '📤', hint: 'XML pronto, non ancora caricato sul canale SdI' },
+        trasmessa:      { label: 'Trasmessa',      color: 'blue',   icon: '📡', hint: 'Caricata sullo SdI, in attesa di esito' },
+        consegnata:     { label: 'Consegnata',     color: 'green',  icon: '✓',  hint: 'Ricevuta di consegna (RC): il cliente l\'ha ricevuta' },
+        non_recapitata: { label: 'Non recapitata', color: 'gold',   icon: '📥', hint: 'Mancata consegna (MC): valida, disponibile nel cassetto fiscale del cliente' },
+        scartata:       { label: 'Scartata',       color: 'red',    icon: '⛔', hint: 'Notifica di scarto (NS): il documento NON esiste, va corretto e riemesso entro 5 giorni' },
+    };
+
+    function invSdiState(inv) {
+        if (!invIsFiscal(inv)) return null;
+        if (!inv.number || inv.status === 'draft') return null;
+        return inv.sdiStatus && SDI_STATES[inv.sdiStatus] ? inv.sdiStatus : 'da_trasmettere';
+    }
+
+    async function invSetSdiState(id, state) {
+        if (!SDI_STATES[state]) return;
+        var patch = { sdiStatus: state, sdiUpdatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+        if (state === 'scartata') {
+            var why = prompt('Motivo dello scarto SdI (codice o descrizione), così resta a verbale:');
+            if (why === null) return;
+            patch.sdiRejectReason = String(why).slice(0, 300);
+        }
+        try {
+            await db.collection('invoices').doc(id).update(patch);
+            logActivity('Stato SdI aggiornato', 'invoice', { invoiceId: id, sdiStatus: state });
+            await refresh();
+            toast('success', SDI_STATES[state].label);
+        } catch (e) { toast('error', 'Errore', e.message); }
+    }
+
+    // Trimestri: l'unità in cui ragionano la LIPE e il commercialista.
+    function invQuarter(d) {
+        var dt = d && d.toDate ? d.toDate() : new Date(d || Date.now());
+        return { year: dt.getFullYear(), q: Math.floor(dt.getMonth() / 3) + 1 };
+    }
+    function invInQuarter(inv, year, q) {
+        var k = invQuarter(inv.date || inv.createdAt);
+        return k.year === year && k.q === q;
+    }
+
+    function fatturazionePage() {
+        var IEx = IE();
+        if (!IEx) return '<div class="empty-state"><div class="empty-title">Motore fatture non caricato</div></div>';
+        var every = S.invoices || [];
+        var fiscal = every.filter(invIsFiscal);
+        var now = new Date();
+        var cur = invQuarter(now);
+        var sel = S.fatturazioneQ || (cur.year + '-' + cur.q);
+        var selY = parseInt(sel.split('-')[0], 10), selQ = parseInt(sel.split('-')[1], 10);
+        var inQ = fiscal.filter(function (i) { return invInQuarter(i, selY, selQ); });
+
+        // Riepilogo IVA del trimestre, dai TOTALI persistiti sul documento —
+        // gli stessi che sono finiti nell'XML. Nessun ricalcolo divergente.
+        var sum = inQ.reduce(function (a, i) {
+            var t = i.totals || {};
+            var sign = i.docType === 'TD04' ? -1 : 1;   // la nota di credito storna
+            a.taxable += sign * (Number(t.taxable) || 0);
+            a.vat += sign * (Number(t.vat) || 0);
+            a.total += sign * (Number(t.total) || Number(i.amount) || 0);
+            if (i.status === 'paid') a.cashed += sign * (Number(t.total) || Number(i.amount) || 0);
+            return a;
+        }, { taxable: 0, vat: 0, total: 0, cashed: 0 });
+
+        var byState = {};
+        Object.keys(SDI_STATES).forEach(function (k) { byState[k] = []; });
+        fiscal.forEach(function (i) { var st = invSdiState(i); if (st) byState[st].push(i); });
+
+        var eur = function (n) { return '€' + Number(n || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+
+        var years = [...new Set(fiscal.map(function (i) { return invQuarter(i.date || i.createdAt).year; }))];
+        if (!years.length) years = [cur.year];
+        years.sort(function (a, b) { return b - a; });
+        var qTabs = years.map(function (yy) {
+            return [1, 2, 3, 4].map(function (q) {
+                var k = yy + '-' + q;
+                var n = fiscal.filter(function (i) { return invInQuarter(i, yy, q); }).length;
+                if (!n && k !== sel) return '';
+                return '<button class="btn btn-sm ' + (k === sel ? '' : 'btn-secondary') + '" onclick="setFatturazioneQ(\'' + k + '\')">'
+                    + 'T' + q + ' ' + yy + (n ? ' <span style="opacity:.6">· ' + n + '</span>' : '') + '</button>';
+            }).join('');
+        }).join('');
+
+        var lane = function (key) {
+            var st = SDI_STATES[key], list = byState[key];
+            return '<div class="card" style="padding:0">'
+                + '<div style="padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px">'
+                + '<span style="font-size:12px;font-weight:600;color:var(--' + st.color + ')">' + st.icon + ' ' + st.label + '</span>'
+                + '<span class="badge ' + st.color + '" style="font-size:10px">' + list.length + '</span></div>'
+                + '<div style="padding:8px 14px 12px">'
+                + '<div style="font-size:10.5px;color:var(--text-muted);line-height:1.5;margin-bottom:8px">' + esc(st.hint) + '</div>'
+                + (list.length
+                    ? list.slice(0, 6).map(function (i) {
+                        return '<div class="list-item clickable" style="padding:8px 0;border-bottom:1px solid var(--border)" onclick="viewInvoice(\'' + i.id + '\')">'
+                            + '<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:600">' + esc(i.number || '—') + '</div>'
+                            + '<div style="font-size:10.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(i.recipientName || '') + '</div></div>'
+                            + '<div style="font-size:12px;white-space:nowrap">' + eur((i.totals || {}).total || i.amount) + '</div></div>';
+                      }).join('') + (list.length > 6 ? '<div style="font-size:10.5px;color:var(--text-muted);padding-top:8px">+ altri ' + (list.length - 6) + '</div>' : '')
+                    : '<div style="font-size:11px;color:var(--text-muted);padding:6px 0">—</div>')
+                + '</div></div>';
+        };
+
+        var seller = invSeller();
+        var toSend = byState.da_trasmettere.length;
+        var rejected = byState.scartata.length;
+
+        return '<div class="page-header">'
+            + '<div><h1 class="page-title">Fatturazione elettronica</h1>'
+            + '<div class="page-subtitle">Ciclo SdI, IVA del trimestre e pacchetto per il commercialista</div></div>'
+            + '<div class="page-actions"><button class="btn btn-secondary btn-sm" onclick="goTo(\'invoices\')">🧾 Elenco fatture</button>'
+            + '<button class="btn" onclick="openInvoiceEditor()">+ Nuovo documento</button></div></div>'
+
+            + (!billingConfigured()
+                ? '<div class="alert warning" style="margin-bottom:14px"><span class="alert-icon">⚠️</span><div class="alert-content">'
+                + '<div class="alert-title">Emittente incompleto</div><div class="alert-text">Senza P.IVA, sede e REA l\'XML viene scartato. '
+                + '<a href="#" onclick="goTo(\'settings\');return false" style="color:var(--gold)">Impostazioni → Dati di fatturazione →</a></div></div></div>' : '')
+
+            + (rejected
+                ? '<div class="alert error" style="margin-bottom:14px"><span class="alert-icon">⛔</span><div class="alert-content">'
+                + '<div class="alert-title">' + rejected + ' document' + (rejected === 1 ? 'o scartato' : 'i scartati') + ' dallo SdI</div>'
+                + '<div class="alert-text">Un documento scartato <strong>fiscalmente non esiste</strong>: va corretto e riemesso entro 5 giorni dalla notifica, tenendo la stessa data.</div></div></div>' : '')
+
+            // ── Il canale ──
+            + '<div class="card" style="margin-bottom:14px"><div class="card-body" style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">'
+            + '<div style="flex:1;min-width:260px">'
+            + '<div style="font-size:11px;letter-spacing:1px;color:var(--text-muted);margin-bottom:8px">CANALE DI TRASMISSIONE</div>'
+            + '<div style="font-size:15px;margin-bottom:6px">Manuale <span class="badge gray" style="font-size:10px">nessun intermediario collegato</span></div>'
+            + '<div style="font-size:12px;color:var(--text-secondary);line-height:1.6">BOOM genera l\'XML conforme; il caricamento sullo SdI lo fai tu da '
+            + '<a href="https://ivaservizi.agenziaentrate.gov.it" target="_blank" rel="noopener" style="color:var(--gold)">Fatture e Corrispettivi</a> '
+            + 'o lo passi all\'intermediario del commercialista. Quando colleghi un canale (Fatture in Cloud, Aruba, Zucchetti…) questa sezione lo userà al posto tuo: '
+            + 'il ciclo di stato qui sotto è già quello reale dello SdI.</div></div>'
+            + '<div style="min-width:190px">'
+            + '<div style="font-size:11px;letter-spacing:1px;color:var(--text-muted);margin-bottom:8px">EMITTENTE</div>'
+            + '<div style="font-size:13px;font-weight:600">' + esc(seller.name || '—') + '</div>'
+            + '<div style="font-size:12px;color:var(--text-secondary)">P.IVA ' + esc(seller.vat || '—')
+            + (seller.vat && !IEx.checkVat(seller.vat) ? ' <span style="color:var(--red)">⛔</span>' : '') + '</div>'
+            + '<div style="font-size:12px;color:var(--text-secondary)">Regime ' + esc(seller.regime || 'RF01') + '</div>'
+            + '</div></div></div>'
+
+            // ── Il ciclo ──
+            + '<div style="font-size:11px;letter-spacing:1px;color:var(--text-muted);margin:0 0 10px">CICLO SDI · TUTTI I DOCUMENTI</div>'
+            + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:18px">'
+            + Object.keys(SDI_STATES).map(lane).join('') + '</div>'
+
+            // ── Il trimestre ──
+            + '<div class="card"><div class="card-header"><h3 class="card-title">📊 Trimestre</h3>'
+            + '<div style="display:flex;gap:6px;flex-wrap:wrap">' + qTabs + '</div></div><div class="card-body">'
+            + '<div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px">'
+            + '<div class="stat-card"><div class="stat-label">Documenti</div><div class="stat-value">' + inQ.length + '</div></div>'
+            + '<div class="stat-card"><div class="stat-label">Imponibile</div><div class="stat-value">' + eur(sum.taxable) + '</div></div>'
+            + '<div class="stat-card"><div class="stat-label">IVA a debito</div><div class="stat-value text-gold">' + eur(sum.vat) + '</div>'
+            + '<div style="font-size:10px;color:var(--text-muted);margin-top:2px">da versare con la LIPE</div></div>'
+            + '<div class="stat-card"><div class="stat-label">Incassato</div><div class="stat-value text-green">' + eur(sum.cashed) + '</div>'
+            + '<div style="font-size:10px;color:var(--text-muted);margin-top:2px">su ' + eur(sum.total) + '</div></div>'
+            + '</div>'
+            + '<div style="font-size:11.5px;color:var(--text-muted);line-height:1.6;margin-bottom:14px">'
+            + 'Le note di credito sono conteggiate <strong>in negativo</strong>: stornano il documento originale, non si sommano ad esso. '
+            + 'I totali vengono dai valori salvati sul documento — gli stessi finiti nell\'XML, mai un ricalcolo che può divergere.</div>'
+            + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+            + '<button class="btn" onclick="invExportQuarter()">📦 Pacchetto commercialista (ZIP)</button>'
+            + '<button class="btn btn-secondary" onclick="invExportQuarterCsv()">📊 Registro IVA (CSV)</button>'
+            + (toSend ? '<button class="btn btn-secondary" onclick="invExportPendingXml()">⬇︎ XML da trasmettere (' + toSend + ')</button>' : '')
+            + '</div></div></div>';
+    }
+
+    function setFatturazioneQ(k) { S.fatturazioneQ = k; renderPage(); }
+
+    function invQuarterSel() {
+        var cur = invQuarter(new Date());
+        var sel = S.fatturazioneQ || (cur.year + '-' + cur.q);
+        return { y: parseInt(sel.split('-')[0], 10), q: parseInt(sel.split('-')[1], 10) };
+    }
+
+    /**
+     * Il pacchetto del commercialista: XML + PDF di ogni documento del
+     * trimestre, più un indice leggibile. È la cosa che si fa a mano quattro
+     * volte l'anno e che nessuno ha voglia di rifare.
+     */
+    async function invExportQuarter() {
+        if (typeof JSZip === 'undefined') return toast('error', 'Libreria ZIP non pronta', 'Riprova fra un istante');
+        var IEx = IE(); var sel = invQuarterSel();
+        var list = (S.invoices || []).filter(invIsFiscal)
+            .filter(function (i) { return invInQuarter(i, sel.y, sel.q) && i.status !== 'draft' && i.number; })
+            .sort(function (a, b) { return (a.progressive || 0) - (b.progressive || 0); });
+        if (!list.length) return toast('info', 'Trimestre vuoto', 'Nessun documento emesso in T' + sel.q + ' ' + sel.y);
+
+        toast('info', 'Preparo ' + list.length + ' documenti…');
+        var zip = new JSZip();
+        var idx = ['PACCHETTO FATTURAZIONE — T' + sel.q + ' ' + sel.y,
+                   'Emittente: ' + invSeller().name + ' — P.IVA ' + (invSeller().vat || '—'),
+                   'Generato il ' + new Date().toLocaleString('it-IT'), '',
+                   'N.'.padEnd(14) + 'DATA'.padEnd(12) + 'CLIENTE'.padEnd(34) + 'IMPONIBILE'.padStart(12) + 'IVA'.padStart(11) + 'TOTALE'.padStart(12) + '  STATO SDI'];
+        var tot = { taxable: 0, vat: 0, total: 0 };
+
+        for (var n = 0; n < list.length; n++) {
+            var inv = invUpgradeLegacy(JSON.parse(JSON.stringify(list[n])), list[n].sellerSnapshot || invSeller());
+            var seller = list[n].sellerSnapshot || invSeller();
+            var t = IEx.computeTotals(inv);
+            var sign = inv.docType === 'TD04' ? -1 : 1;
+            tot.taxable += sign * t.taxable; tot.vat += sign * t.vat; tot.total += sign * t.total;
+            var base = String(inv.number).replace(/[\/\\]/g, '-');
+            try { zip.file('XML/' + IEx.xmlFilename(seller, inv.progressive || n + 1), IEx.buildXML(inv, seller)); } catch (e) {}
+            try {
+                var pdf = invBuildPdf(inv, seller);
+                if (pdf) zip.file('PDF/' + base + '.pdf', pdf.output('blob'));
+            } catch (e) {}
+            idx.push(String(inv.number).padEnd(14)
+                + String(IEx.isoDate(inv.date).split('-').reverse().join('/')).padEnd(12)
+                + String(IEx.buyerName(inv.buyer) || '').slice(0, 32).padEnd(34)
+                + IEx.fmtEur(sign * t.taxable).padStart(12)
+                + IEx.fmtEur(sign * t.vat).padStart(11)
+                + IEx.fmtEur(sign * t.total).padStart(12)
+                + '  ' + (SDI_STATES[invSdiState(list[n])] || {}).label);
+        }
+        idx.push('', ''.padEnd(60) + 'TOTALI'.padStart(0),
+            'Imponibile'.padEnd(60) + IEx.fmtEur(tot.taxable).padStart(12),
+            'IVA a debito'.padEnd(60) + IEx.fmtEur(tot.vat).padStart(12),
+            'Totale documenti'.padEnd(60) + IEx.fmtEur(tot.total).padStart(12),
+            '', 'Le note di credito (TD04) sono riportate in NEGATIVO: stornano il documento originale.',
+            'I file XML sono gli originali fiscali; i PDF sono copie di cortesia.');
+        zip.file('00_INDICE.txt', idx.join('\n'));
+
+        try {
+            var blob = await zip.generateAsync({ type: 'blob' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url; a.download = 'BOOM_Fatturazione_T' + sel.q + '_' + sel.y + '.zip'; a.click();
+            setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
+            toast('success', 'Pacchetto pronto', list.length + ' documenti · XML + PDF + indice');
+            logActivity('Pacchetto fatturazione esportato', 'invoice', { quarter: 'T' + sel.q + ' ' + sel.y, count: list.length });
+        } catch (e) { toast('error', 'Errore ZIP', e.message); }
+    }
+
+    function invExportQuarterCsv() {
+        var IEx = IE(); var sel = invQuarterSel();
+        var list = (S.invoices || []).filter(invIsFiscal)
+            .filter(function (i) { return invInQuarter(i, sel.y, sel.q) && i.status !== 'draft'; })
+            .sort(function (a, b) { return (a.progressive || 0) - (b.progressive || 0); });
+        // Formato italiano: separatore ;, virgola decimale, BOM per Excel.
+        var rows = ['Numero;Data;Tipo;Cliente;P.IVA/CF;Imponibile;IVA;Totale;Stato;Stato SdI'];
+        list.forEach(function (i) {
+            var t = i.totals || {};
+            var b = i.buyer || {};
+            var d = function (n) { return String(Number(n || 0).toFixed(2)).replace('.', ','); };
+            rows.push([
+                i.number || '', IEx.isoDate(i.date).split('-').reverse().join('/'), i.docType || 'TD01',
+                '"' + String(IEx.buyerName(b) || i.recipientName || '').replace(/"/g, '""') + '"',
+                b.vat || b.cf || '', d(t.taxable), d(t.vat), d(t.total),
+                i.status === 'paid' ? 'Incassata' : 'Da incassare',
+                (SDI_STATES[invSdiState(i)] || {}).label || '',
+            ].join(';'));
+        });
+        downloadCSV('﻿' + rows.join('\n'), 'BOOM_RegistroIVA_T' + sel.q + '_' + sel.y + '.csv');
+    }
+
+    async function invExportPendingXml() {
+        if (typeof JSZip === 'undefined') return toast('error', 'Libreria ZIP non pronta');
+        var IEx = IE();
+        var list = (S.invoices || []).filter(function (i) { return invSdiState(i) === 'da_trasmettere'; });
+        if (!list.length) return toast('info', 'Niente da trasmettere');
+        var zip = new JSZip();
+        list.forEach(function (raw, n) {
+            var seller = raw.sellerSnapshot || invSeller();
+            var inv = invUpgradeLegacy(JSON.parse(JSON.stringify(raw)), seller);
+            try { zip.file(IEx.xmlFilename(seller, inv.progressive || n + 1), IEx.buildXML(inv, seller)); } catch (e) {}
+        });
+        var blob = await zip.generateAsync({ type: 'blob' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a'); a.href = url;
+        a.download = 'BOOM_XML_da_trasmettere.zip'; a.click();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
+        toast('success', list.length + ' XML pronti', 'Caricali su Fatture e Corrispettivi, poi segna "Trasmessa"');
     }
 
     // ── Impostazioni: dati di fatturazione ──────────────────────────────

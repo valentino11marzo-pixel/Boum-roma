@@ -1138,6 +1138,59 @@ mangiava i centesimi.
   riscriveva `generatedPDF`/`pdfHash` mentre contratto-firmato.pdf e il
   certificato FES restavano sui byte della firma: due copie divergenti dello
   stesso atto. Stub rimosso.
+### Il link di pagamento della fattura (`api/invoices/*` + `/fattura`)
+Una fattura che chiede un bonifico e basta si incassa in tre settimane. Con un
+link che si apre e si paga, si incassa in tre minuti.
+- **`api/invoices/_link.js`** — token DERIVATO (`sha256("invoice-pay:<id>:<HOMIE_SECRET>")`,
+  stesso schema di `viewings/manageToken` e `/scheda`): ogni fattura mai emessa
+  ha già un link valido, nessuna migrazione, ruotare `HOMIE_SECRET` li revoca
+  tutti. Il dominio entra nella derivazione, quindi un token fattura non apre
+  una visita. `isPayable()` è la regola unica: bozze, note di credito (TD04),
+  documenti annullati e fatture GIÀ incassate non si pagano — il caso vero è il
+  link rimasto in una chat e ritoccato un mese dopo. `amountCents()` addebita il
+  **netto**, mai il lordo con la ritenuta (che il cliente versa all'Erario).
+  `publicView()` decide cosa la pagina può vedere: nome, righe, totali, IBAN —
+  **mai** P.IVA/CF/codice destinatario del cliente né i dati REA dell'emittente.
+- **`/fattura?t=<id>.<token>`** (`fattura.html`, noindex + no-store): pagina
+  pubblica senza login, stesso design system di `/viewing` e `/scheda`, IT/EN.
+  Il documento come un biglietto, la cifra da pagare grande, "Paga con carta"
+  → Stripe, IBAN col tasto copia sotto. Se la fattura viene saldata mentre la
+  pagina è aperta, il 409 la ricarica invece di aprire un checkout inutile.
+- `POST /api/invoices/lookup` (pubblico) · `POST /api/invoices/pay` (pubblico,
+  l'importo si legge da Firestore — **mai** dal client) · `POST /api/invoices/link`
+  (admin: il browser non può derivare il token) · `POST /api/invoices/notify`
+  (admin: email al cliente col pulsante, nel design system BOOM).
+- `api/stripe-webhook.js` branch **INVOICE**: marca pagata, allega la ricevuta
+  Stripe, avvisa cliente + operatore. Idempotente sulla sessione; se il
+  documento risultava già incassato per **altra** via non sovrascrive nulla e
+  alza un allarme di doppio incasso (su una fattura è un rimborso da fare).
+- Nel PDF il riquadro **PAGA CON CARTA** sta nella colonna sinistra della
+  fascia totali — mezza pagina che prima era bianca, e l'unica azione del
+  documento merita di stare accanto alla cifra. È un link vero (`doc.link` su
+  tutto il riquadro, non solo sul testo blu) e l'indirizzo resta in chiaro per
+  chi stampa. Le due colonne sono indipendenti: il flusso riprende sotto la più
+  bassa, altrimenti con un blocco totali corto la sezione 4 ci finiva sopra.
+
+### Fatturazione (`/portal#fatturazione`)
+La pagina Fatture elenca; questa **governa il ciclo**. Quattro domande che
+l'operatore si fa ogni tre mesi e la cui risposta stava in tre posti diversi.
+- **Ciclo SdI reale, non inventato**: `da_trasmettere → trasmessa → consegnata
+  (RC) / non_recapitata (MC, cassetto fiscale) / scartata (NS)`. Uno scartato
+  **fiscalmente non esiste** e va riemesso entro 5 giorni tenendo la data: la
+  UI lo dice, e il motivo dello scarto resta a verbale sul documento. Finché
+  non c'è un intermediario collegato l'avanzamento è manuale — ma il modello è
+  già quello giusto, quindi collegare un canale cambia solo chi scrive il campo.
+- **Trimestre**: imponibile, IVA a debito per la LIPE, incassato. Le note di
+  credito contano **in negativo** (stornano, non si sommano) e le ricevute di
+  canone restano fuori. I totali vengono dai valori salvati sul documento —
+  gli stessi finiti nell'XML, mai un ricalcolo che può divergere.
+- **📦 Pacchetto commercialista**: uno ZIP col trimestre intero — XML originali,
+  PDF di cortesia e `00_INDICE.txt` coi totali. È il lavoro manuale che si fa
+  quattro volte l'anno. Più registro IVA in CSV italiano (`;`, virgola
+  decimale, BOM) e lo ZIP dei soli XML ancora da trasmettere.
+- **Onestà**: la card del canale dice "Manuale — nessun intermediario
+  collegato" invece di far finta. Stripe **non** trasmette allo SdI: incassa.
+
 - Audit completo del portale: `PORTAL_AUDIT_2026-07.md`.
 
 ### POST `/api/documents/share`
@@ -1387,6 +1440,7 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/fiscal/test.mjs` | motore scadenze fiscali |
   | `tests/fiscal/canone.mjs` | canone concordato: superficie convenzionale (coefficienti e tetti), fascia dai parametri, regola del cap, match zona che non indovina, parametri solo da feature reali, verdetto fits/fuori |
   | `tests/taxpack/test.mjs` | pacchetto commercialista |
+  | `tests/invoice/link.mjs` | link di pagamento: token non forgiabile e legato al dominio, una fattura già incassata non si ripaga, si addebita il netto e non il lordo, la pagina pubblica non svela P.IVA/CF/note interne |
   | `tests/invoice/run.mjs` | fattura elettronica: centesimi che non si perdono, IVA sul riepilogo e non per riga, bollo solo oltre €77,47, numerazione che non ripete un numero dopo una cancellazione, XML FatturaPA che lo SdI accetta, nota di credito che non muta l'originale |
   | `tests/invoice/ui.mjs` | l'editor fattura si apre DAVVERO (Chromium, Firebase finto): totali a schermo = totali del motore, la validazione blocca l'emissione, un nome cliente con HTML non entra nel DOM. Si auto-skippa senza playwright-core |
   | `tests/invoice/render.mjs` | il PDF **renderizzato davvero** (jsPDF + pdf.js veri, PNG su disco): i totali stampati sono quelli del motore, c'è il riepilogo IVA, il netto a pagare compare solo con la ritenuta, la nota di credito richiama l'originale, molte righe vanno a pagina 2 RIPETENDO l'intestazione, e **niente testo esce dai margini** (16/194mm) — il controllo che ha trovato l'overflow di `charSpace`. Legge jspdf/pdfjs-dist da node_modules (`npm i jspdf@2.5.1 pdfjs-dist@3.11.174` o `BOOM_PDFLIBS=<dir>`), nessuna CDN; si auto-skippa senza |

@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>La tua fattura — BOOM Rome</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#08080A">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BOOM">
+<style>
+/* Stesso sistema di viewing.html e scheda.html — il cliente che riceve una
+   fattura BOOM deve riconoscere la stessa mano che gli ha mandato la visita.
+   Scala tipografica su una sola progressione, spaziatura su una griglia di
+   4px, il denaro in cifre tabulari (le colonne non ballano fra una riga e
+   l'altra: senza font-variant-numeric i totali si disallineano). */
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --g:#FFD700;--g-dim:rgba(255,215,0,0.10);--g-line:rgba(255,215,0,0.22);--g-glow:rgba(255,215,0,0.07);
+  --bg:#080808;--s0:#0C0C0C;--s1:#101010;--s2:#141414;--s3:#1A1A1A;
+  --b0:rgba(255,255,255,0.04);--b1:rgba(255,255,255,0.07);--b2:rgba(255,255,255,0.11);--b3:rgba(255,255,255,0.16);
+  --t0:#F2F2F2;--t1:#888;--t2:#444;--ok:#34C759;--warn:#FF9F0A;--err:#FF3B30;
+  --r:16px;--rsm:10px;--rxs:7px;
+  --sp:4px;
+}
+html{-webkit-text-size-adjust:100%}
+body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weight:300;background:var(--bg);color:var(--t0);min-height:100dvh;-webkit-font-smoothing:antialiased;letter-spacing:-.012em}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:'tnum' 1}
+
+.hdr{position:sticky;top:0;z-index:20;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:rgba(8,8,8,0.92);border-bottom:1px solid var(--b0);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
+.logo{display:flex;align-items:center;gap:8px;text-decoration:none}
+.logo-svg{width:20px;height:20px;flex-shrink:0}
+.logo-wm{font-size:13px;font-weight:300;letter-spacing:.32em;color:var(--t0);text-transform:uppercase}
+.hdr-r{display:flex;align-items:center;gap:9px}
+.lang{background:none;border:none;font-family:inherit;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--t2);cursor:pointer;padding:4px}
+.lang:hover,.lang.on{color:var(--t0)}
+
+.wrap{max-width:460px;margin:0 auto;padding:24px 14px 120px}
+.card{background:var(--s0);border:1px solid var(--b1);border-radius:var(--r);overflow:hidden;animation:fadeUp .38s both;margin-bottom:14px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.card-bd{padding:20px}
+.eyebrow{font-size:9px;font-weight:400;letter-spacing:.12em;text-transform:uppercase;color:var(--t2);margin-bottom:8px}
+
+/* Il documento, come un biglietto */
+.doc{position:relative;background:linear-gradient(160deg,#0E0E0E,#0A0A0A);border:1px solid var(--b1);border-radius:var(--r);overflow:hidden;margin-bottom:14px;animation:fadeUp .38s both}
+.doc::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 12% 0%,rgba(255,215,0,.055),transparent 62%);pointer-events:none}
+.doc-top{padding:20px 20px 16px;position:relative}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:100px;font-size:9.5px;font-weight:400;letter-spacing:.09em;text-transform:uppercase;margin-bottom:16px}
+.badge.ok{background:rgba(52,199,89,.08);border:1px solid rgba(52,199,89,.25);color:var(--ok)}
+.badge.pend{background:rgba(255,159,10,.08);border:1px solid rgba(255,159,10,.25);color:var(--warn)}
+.badge.late{background:rgba(255,59,48,.08);border:1px solid rgba(255,59,48,.25);color:var(--err)}
+.badge.off{background:rgba(255,255,255,.04);border:1px solid var(--b2);color:var(--t1)}
+.pip{width:5px;height:5px;border-radius:50%;background:currentColor}
+.doc-kicker{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--t2);margin-bottom:6px}
+.doc-no{font-size:26px;font-weight:300;letter-spacing:-.024em;line-height:1.1;margin-bottom:5px}
+.doc-from{font-size:12.5px;color:var(--t1)}
+
+/* La cifra: l'unica cosa che conta a colpo d'occhio */
+.amt{padding:20px;border-top:1px dashed var(--b2);border-bottom:1px dashed var(--b2);background:rgba(255,255,255,.012);position:relative}
+.amt::before,.amt::after{content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:var(--bg);top:-8px}
+.amt::before{left:-9px}.amt::after{right:-9px}
+.amt-k{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--t2);margin-bottom:6px}
+.amt-v{font-size:38px;font-weight:300;letter-spacing:-.03em;line-height:1;color:var(--g)}
+.amt-note{font-size:11.5px;color:var(--t2);margin-top:8px;line-height:1.5}
+
+.rows{padding:14px 20px 18px}
+.row{display:flex;gap:12px;padding:9px 0;border-bottom:1px solid var(--b0)}
+.row:last-child{border-bottom:none}
+.k{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--t2);width:96px;flex-shrink:0;padding-top:3px}
+.v{font-size:13.5px;color:var(--t0);font-weight:300;line-height:1.45;flex:1;min-width:0}
+
+/* Righe del documento + riepilogo */
+.li{display:flex;justify-content:space-between;gap:14px;padding:11px 0;border-bottom:1px solid var(--b0);font-size:13.5px;line-height:1.45}
+.li:last-of-type{border-bottom:1px solid var(--b1)}
+.li-d{font-weight:300;color:var(--t0);flex:1;min-width:0}
+.li-q{font-size:11px;color:var(--t2);margin-top:2px}
+.li-a{color:var(--t0);white-space:nowrap;padding-top:1px}
+.tot{display:flex;justify-content:space-between;padding:7px 0;font-size:13px;color:var(--t1)}
+.tot strong{color:var(--t0);font-weight:400}
+.tot.big{padding-top:12px;margin-top:6px;border-top:1px solid var(--b1);font-size:15px;color:var(--t0)}
+.tot.big strong{color:var(--g);font-size:19px;font-weight:300;letter-spacing:-.02em}
+
+/* Azioni */
+.btn{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;padding:17px;border-radius:var(--rsm);font-family:inherit;font-size:14.5px;font-weight:400;letter-spacing:-.01em;border:none;cursor:pointer;text-decoration:none;transition:transform .12s,opacity .12s}
+.btn:active{transform:scale(.985)}
+.btn-p{background:var(--g);color:#0A0A0A}
+.btn-s{background:var(--s2);color:var(--t0);border:1px solid var(--b2)}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.btn-note{font-size:11px;color:var(--t2);text-align:center;margin-top:10px;line-height:1.55}
+.stack{display:grid;gap:10px}
+
+.iban{margin-top:14px;padding:14px;border:1px solid var(--b1);border-radius:var(--rsm);background:var(--s1)}
+.iban-k{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--t2);margin-bottom:6px}
+.iban-v{font-size:13px;letter-spacing:.02em;word-break:break-all;color:var(--t0);display:flex;align-items:center;justify-content:space-between;gap:10px}
+.copy{background:none;border:1px solid var(--b2);border-radius:var(--rxs);color:var(--t1);font-family:inherit;font-size:10px;letter-spacing:.06em;text-transform:uppercase;padding:5px 10px;cursor:pointer;flex-shrink:0}
+.copy:hover{color:var(--t0);border-color:var(--b3)}
+
+.state{text-align:center;padding:80px 24px}
+.state-i{font-size:34px;margin-bottom:16px;opacity:.5}
+.state-t{font-size:18px;font-weight:300;margin-bottom:8px}
+.state-s{font-size:13px;color:var(--t1);line-height:1.6}
+.spin{width:22px;height:22px;border:2px solid var(--b2);border-top-color:var(--g);border-radius:50%;margin:0 auto 18px;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.foot{text-align:center;font-size:10.5px;color:var(--t2);line-height:1.7;margin-top:26px}
+@media(max-width:380px){.amt-v{font-size:32px}.doc-no{font-size:22px}}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <a class="logo" href="https://www.boomrome.com">
+    <svg class="logo-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" stroke="#FFD700" stroke-width="1"/>
+      <circle cx="12" cy="13" r="6.2" stroke="#FFD700" stroke-width="1"/>
+      <circle cx="12" cy="14.4" r="3" stroke="#FFD700" stroke-width="1"/>
+    </svg>
+    <span class="logo-wm">Boom</span>
+  </a>
+  <div class="hdr-r">
+    <button class="lang on" id="langIt" onclick="setLang('it')">IT</button>
+    <button class="lang" id="langEn" onclick="setLang('en')">EN</button>
+  </div>
+</div>
+
+<div class="wrap" id="wrap">
+  <div class="state"><div class="spin"></div><div class="state-s" id="bootMsg">Carico il documento…</div></div>
+</div>
+
+<script>
+'use strict';
+var T = {
+  it: {
+    kicker: 'Fattura', kickerNC: 'Nota di credito', from: 'emessa da',
+    due: 'Da pagare', paid: 'Pagata', overdue: 'Scaduta', credit: 'A tuo credito',
+    dueDate: 'Scadenza', date: 'Data', to: 'Intestata a', ref: 'Causale',
+    taxable: 'Imponibile', vat: 'IVA', stamp: 'Bollo', wh: 'Ritenuta', total: 'Totale documento',
+    pay: 'Paga con carta', paying: 'Apro il pagamento…', pdf: 'Scarica il PDF',
+    payNote: 'Pagamento sicuro su Stripe. Non conserviamo i dati della tua carta.',
+    ibanK: 'Oppure con bonifico', copy: 'Copia', copied: 'Copiato',
+    paidT: 'Pagamento ricevuto', paidS: 'Grazie. Il documento risulta saldato.',
+    receipt: 'Ricevuta del pagamento',
+    errT: 'Documento non trovato', errS: 'Il link non è valido o è stato revocato. Scrivici e te ne mandiamo uno nuovo.',
+    netT: 'Connessione assente', netS: 'Non riesco a raggiungere il server. Riprova fra un momento.',
+    notPayT: 'Niente da pagare', notPayS: 'Questo documento non è pagabile online. Se pensi sia un errore, scrivici.',
+    wa: 'Scrivici su WhatsApp',
+    fine: 'Egidi Immobiliare S.r.l. · P.IVA 17322991005 · boomrome.com',
+  },
+  en: {
+    kicker: 'Invoice', kickerNC: 'Credit note', from: 'issued by',
+    due: 'Amount due', paid: 'Paid', overdue: 'Overdue', credit: 'Credited to you',
+    dueDate: 'Due by', date: 'Date', to: 'Billed to', ref: 'Reference',
+    taxable: 'Net', vat: 'VAT', stamp: 'Stamp duty', wh: 'Withholding', total: 'Document total',
+    pay: 'Pay by card', paying: 'Opening payment…', pdf: 'Download PDF',
+    payNote: 'Secure payment on Stripe. We never store your card details.',
+    ibanK: 'Or by bank transfer', copy: 'Copy', copied: 'Copied',
+    paidT: 'Payment received', paidS: 'Thank you. This document is settled.',
+    receipt: 'Payment receipt',
+    errT: 'Document not found', errS: 'This link is not valid or has been revoked. Message us and we will send a new one.',
+    netT: 'No connection', netS: 'We cannot reach the server. Please try again in a moment.',
+    notPayT: 'Nothing to pay', notPayS: 'This document cannot be paid online. If you think that is wrong, message us.',
+    wa: 'Message us on WhatsApp',
+    fine: 'Egidi Immobiliare S.r.l. · VAT 17322991005 · boomrome.com',
+  },
+};
+var lang = (navigator.language || 'it').toLowerCase().indexOf('it') === 0 ? 'it' : 'en';
+var INV = null;
+var REF = new URLSearchParams(location.search).get('t') || '';
+var JUST_PAID = new URLSearchParams(location.search).get('paid') === '1';
+
+function t(k) { return (T[lang] || T.it)[k] || k; }
+function esc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function eur(n) {
+  return '€ ' + Number(n || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function dmy(iso) {
+  if (!iso) return '—';
+  var p = String(iso).slice(0, 10).split('-');
+  return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : String(iso);
+}
+function setLang(l) {
+  lang = l;
+  document.documentElement.lang = l;
+  document.getElementById('langIt').classList.toggle('on', l === 'it');
+  document.getElementById('langEn').classList.toggle('on', l === 'en');
+  if (INV) render(); else boot();
+}
+
+function state(icon, title, sub, extra) {
+  document.getElementById('wrap').innerHTML =
+    '<div class="state"><div class="state-i">' + icon + '</div>' +
+    '<div class="state-t">' + esc(title) + '</div>' +
+    '<div class="state-s">' + esc(sub) + '</div>' +
+    (extra || '') + '</div>';
+}
+
+var WA = 'https://wa.me/393313251961';
+
+async function boot() {
+  if (!REF) return state('🔗', t('errT'), t('errS'), waBtn());
+  try {
+    var r = await fetch('/api/invoices/lookup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ t: REF }),
+    });
+    if (r.status === 404) return state('🔎', t('errT'), t('errS'), waBtn());
+    if (!r.ok) throw new Error('http ' + r.status);
+    var d = await r.json();
+    INV = d.invoice;
+    render();
+  } catch (e) {
+    state('📡', t('netT'), t('netS'),
+      '<div style="margin-top:22px"><button class="btn btn-s" onclick="location.reload()">↻</button></div>');
+  }
+}
+function waBtn() {
+  return '<div style="margin-top:24px"><a class="btn btn-s" href="' + WA + '" target="_blank" rel="noopener">' + esc(t('wa')) + '</a></div>';
+}
+
+function render() {
+  var i = INV;
+  var isCredit = i.docType === 'TD04';
+  var paid = i.status === 'paid' || JUST_PAID;
+  var late = !paid && i.dueDate && String(i.dueDate).slice(0, 10) < new Date().toISOString().slice(0, 10);
+
+  var badge = paid
+    ? '<span class="badge ok"><span class="pip"></span>' + esc(t('paid')) + '</span>'
+    : isCredit ? '<span class="badge off"><span class="pip"></span>' + esc(t('credit')) + '</span>'
+    : late ? '<span class="badge late"><span class="pip"></span>' + esc(t('overdue')) + '</span>'
+    : '<span class="badge pend"><span class="pip"></span>' + esc(t('due')) + '</span>';
+
+  var lines = (i.lines || []).map(function (l) {
+    var amount = Math.round(l.unitPrice * (l.qty || 1) * 100) / 100;
+    return '<div class="li"><div class="li-d">' + esc(l.description) +
+      (l.qty && l.qty !== 1 ? '<div class="li-q num">× ' + l.qty + ' · ' + eur(l.unitPrice) + '</div>' : '') +
+      '</div><div class="li-a num">' + eur(amount) + '</div></div>';
+  }).join('');
+
+  var totals =
+    '<div class="tot"><span>' + esc(t('taxable')) + '</span><strong class="num">' + eur(i.taxable) + '</strong></div>' +
+    (i.vat ? '<div class="tot"><span>' + esc(t('vat')) + '</span><strong class="num">' + eur(i.vat) + '</strong></div>' : '') +
+    (i.stampDuty ? '<div class="tot"><span>' + esc(t('stamp')) + '</span><strong class="num">' + eur(i.stampDuty) + '</strong></div>' : '') +
+    '<div class="tot big"><span>' + esc(t('total')) + '</span><strong class="num">' + eur(i.total) + '</strong></div>' +
+    (i.withholding ? '<div class="tot"><span>' + esc(t('wh')) + '</span><strong class="num">− ' + eur(i.withholding) + '</strong></div>' : '');
+
+  // Il pulsante di pagamento c'è solo se c'è davvero qualcosa da incassare:
+  // niente bottone finto che poi risponde 409.
+  var action = paid
+    ? (i.receiptUrl
+        ? '<a class="btn btn-s" href="' + esc(i.receiptUrl) + '" target="_blank" rel="noopener">' + esc(t('receipt')) + '</a>'
+        : '')
+    : i.payable
+      ? '<button class="btn btn-p" id="payBtn" onclick="pay()">' + esc(t('pay')) + '</button>' +
+        '<div class="btn-note">' + esc(t('payNote')) + '</div>'
+      : '';
+
+  document.getElementById('wrap').innerHTML =
+    (paid ? '<div class="card"><div class="card-bd" style="text-align:center">' +
+      '<div style="font-size:30px;margin-bottom:10px">✓</div>' +
+      '<div style="font-size:17px;font-weight:300;margin-bottom:6px">' + esc(t('paidT')) + '</div>' +
+      '<div class="state-s">' + esc(t('paidS')) + '</div></div></div>' : '') +
+
+    '<div class="doc">' +
+      '<div class="doc-top">' + badge +
+        '<div class="doc-kicker">' + esc(isCredit ? t('kickerNC') : t('kicker')) + '</div>' +
+        '<div class="doc-no num">N. ' + esc(i.number || '—') + '</div>' +
+        '<div class="doc-from">' + esc(t('from')) + ' ' + esc(i.sellerName) + '</div>' +
+      '</div>' +
+      '<div class="amt">' +
+        '<div class="amt-k">' + esc(paid ? t('paid') : isCredit ? t('credit') : t('due')) + '</div>' +
+        '<div class="amt-v num">' + eur(i.netToPay) + '</div>' +
+        (!paid && i.dueDate ? '<div class="amt-note">' + esc(t('dueDate')) + ' ' + dmy(i.dueDate) + '</div>' : '') +
+      '</div>' +
+      '<div class="rows">' +
+        '<div class="row"><div class="k">' + esc(t('to')) + '</div><div class="v">' + esc(i.buyerName || '—') + '</div></div>' +
+        '<div class="row"><div class="k">' + esc(t('date')) + '</div><div class="v num">' + dmy(i.date) + '</div></div>' +
+        (i.causale ? '<div class="row"><div class="k">' + esc(t('ref')) + '</div><div class="v">' + esc(i.causale) + '</div></div>' : '') +
+      '</div>' +
+    '</div>' +
+
+    (action ? '<div class="stack" style="margin-bottom:14px">' + action + '</div>' : '') +
+
+    '<div class="card"><div class="card-bd">' +
+      '<div class="eyebrow">' + esc(isCredit ? t('kickerNC') : t('kicker')) + '</div>' +
+      lines + '<div style="margin-top:12px">' + totals + '</div>' +
+      (!paid && i.payable && i.iban
+        ? '<div class="iban"><div class="iban-k">' + esc(t('ibanK')) + '</div>' +
+          '<div class="iban-v"><span class="num" id="ibanTxt">' + esc(i.iban) + '</span>' +
+          '<button class="copy" id="ibanBtn" onclick="copyIban()">' + esc(t('copy')) + '</button></div>' +
+          '<div class="btn-note" style="text-align:left;margin-top:8px">' + esc(t('ref')) + ': ' + esc(i.number || '') + '</div></div>'
+        : '') +
+    '</div></div>' +
+
+    '<div class="foot">' + esc(t('fine')) + '</div>';
+}
+
+async function pay() {
+  var b = document.getElementById('payBtn');
+  if (!b) return;
+  b.disabled = true; b.textContent = t('paying');
+  try {
+    var r = await fetch('/api/invoices/pay', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ t: REF }),
+    });
+    var d = await r.json().catch(function () { return {}; });
+    if (r.ok && d.url) { location.href = d.url; return; }
+    // 409 = qualcuno l'ha già saldata mentre la pagina era aperta.
+    if (r.status === 409) { JUST_PAID = d.error === 'already_paid'; return boot(); }
+    throw new Error(d.error || 'http ' + r.status);
+  } catch (e) {
+    b.disabled = false; b.textContent = t('pay');
+    state('⚠️', t('notPayT'), t('notPayS'), waBtn());
+  }
+}
+
+function copyIban() {
+  var v = (INV && INV.iban) || '';
+  var btn = document.getElementById('ibanBtn');
+  navigator.clipboard.writeText(v).then(function () {
+    if (btn) { btn.textContent = t('copied'); setTimeout(function () { btn.textContent = t('copy'); }, 1800); }
+  }).catch(function () {});
+}
+
+document.documentElement.lang = lang;
+document.getElementById('langIt').classList.toggle('on', lang === 'it');
+document.getElementById('langEn').classList.toggle('on', lang === 'en');
+boot();
+</script>
+</body>
+</html>

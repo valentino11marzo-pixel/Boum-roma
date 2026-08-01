@@ -14,6 +14,7 @@ const SUITES = [
   { name: 'canone',   file: 'tests/fiscal/canone.mjs',    what: 'canone concordato: fasce, cap, superficie convenzionale, verdetto' },
   { name: 'taxpack',  file: 'tests/taxpack/test.mjs',     what: 'pacchetto commercialista' },
   { name: 'invoice',  file: 'tests/invoice/run.mjs',      what: 'fattura elettronica: totali al centesimo, numerazione senza buchi, XML FatturaPA che lo SdI accetta' },
+  { name: 'invoicelink',file:'tests/invoice/link.mjs',   what: 'link di pagamento: token non forgiabile, una fattura pagata non si ripaga, la pagina pubblica non svela i dati fiscali' },
   { name: 'invoiceui',file: 'tests/invoice/ui.mjs',       what: 'editor fattura: si apre, i totali a schermo sono quelli del motore, la validazione blocca' },
   { name: 'invoicepdf',file:'tests/invoice/render.mjs',  what: 'il PDF fattura/ricevuta renderizzato DAVVERO: totali stampati, riepilogo IVA, niente fuori dai margini' },
   { name: 'journey',  file: 'tests/journey/steps.mjs',    what: 'regole commerciali delle email automatiche' },

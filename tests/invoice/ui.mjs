@@ -204,6 +204,58 @@ await t('una P.IVA con checksum rotto viene segnalata nella card', async () => {
   ok(html.includes('checksum non valido'), 'una P.IVA che non torna dev\'essere segnalata a schermo');
 });
 
+// ── La sezione Fatturazione ──
+await t('la pagina Fatturazione si costruisce con l\'archivio vuoto', async () => {
+  errors.length = 0;
+  const html = await page.evaluate(() => window.fatturazionePage());
+  ok(html.includes('Fatturazione elettronica'), 'titolo assente');
+  ok(html.includes('CICLO SDI'), 'manca il ciclo SdI');
+  ok(/Manuale/.test(html) && /nessun intermediario/.test(html),
+     'deve dichiarare che non c\'è un canale collegato invece di far finta');
+  ok(errors.length === 0, errors.join(' | '));
+});
+
+await t('il ciclo SdI ha i cinque esiti reali, non un interruttore', async () => {
+  const st = await page.evaluate(() => Object.keys(window.SDI_STATES));
+  ['da_trasmettere', 'trasmessa', 'consegnata', 'non_recapitata', 'scartata']
+    .forEach((k) => ok(st.includes(k), 'manca lo stato ' + k));
+  const scarto = await page.evaluate(() => window.SDI_STATES.scartata.hint);
+  ok(/non esiste/i.test(scarto), 'lo scarto deve dire che il documento NON esiste: ' + scarto);
+});
+
+await t('lo stato SdI si applica solo ai documenti fiscali emessi', async () => {
+  const r = await page.evaluate(() => ({
+    bozza: window.invSdiState({ kind: 'invoice', status: 'draft' }),
+    ricevuta: window.invSdiState({ kind: 'receipt', status: 'paid', number: 'RIC-1' }),
+    emessa: window.invSdiState({ kind: 'invoice', status: 'issued', number: '1/2026' }),
+    consegnata: window.invSdiState({ kind: 'invoice', status: 'paid', number: '2/2026', sdiStatus: 'consegnata' }),
+  }));
+  eq(r.bozza, null, 'una bozza non è ancora nel ciclo');
+  eq(r.ricevuta, null, 'una ricevuta di canone non si trasmette allo SdI');
+  eq(r.emessa, 'da_trasmettere', 'un documento emesso parte da "da trasmettere"');
+  eq(r.consegnata, 'consegnata');
+});
+
+await t('la ripartizione per trimestre conta le note di credito in NEGATIVO', async () => {
+  const totals = await page.evaluate(() => {
+    S.invoices = [
+      { id: 'a', kind: 'invoice', status: 'issued', number: '1/2026', date: '2026-02-10', docType: 'TD01', totals: { taxable: 1000, vat: 220, total: 1220 } },
+      { id: 'b', kind: 'invoice', status: 'paid',   number: '2/2026', date: '2026-03-01', docType: 'TD01', totals: { taxable: 500, vat: 110, total: 610 } },
+      { id: 'c', kind: 'invoice', status: 'issued', number: '3/2026', date: '2026-03-20', docType: 'TD04', totals: { taxable: 200, vat: 44, total: 244 } },
+      { id: 'd', kind: 'receipt', status: 'paid',   number: 'RIC-9',  date: '2026-03-22', totals: { taxable: 900, vat: 0, total: 900 } },
+    ];
+    S.fatturazioneQ = '2026-1';
+    const html = window.fatturazionePage();
+    S.invoices = [];
+    return html;
+  });
+  // 1000 + 500 - 200 = 1300 imponibile · 220 + 110 - 44 = 286 IVA
+  ok(totals.includes('1.300,00'), 'imponibile del trimestre errato (la nota di credito deve stornare)');
+  ok(totals.includes('286,00'), 'IVA del trimestre errata');
+  ok(!totals.includes('2.200,00') && !totals.includes('900,00'),
+     'la ricevuta di canone non deve entrare nell\'IVA a debito');
+});
+
 await browser.close();
 server.close();
 console.log('\n' + (fail ? '\x1b[31m' : '\x1b[32m') + pass + ' passati, ' + fail + ' falliti\x1b[0m\n');

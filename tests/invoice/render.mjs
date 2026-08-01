@@ -89,7 +89,7 @@ const hasLabel = (page, label) => squash(page.text).includes(squash(label));
 const browser = await chromium.launch({ executablePath: BROWSER, args: ['--no-sandbox'] });
 const page = await browser.newPage({ viewport: { width: 900, height: 1200 } });
 const errors = [];
-page.on('pageerror', (e) => errors.push(String(e)));
+page.on('pageerror', (e) => errors.push(String(e) + ' @ ' + String(e.stack || '').split('\n').slice(1,3).join(' | ')));
 await page.goto(`http://localhost:${PORT}/tests/invoice/fixture.html`, { waitUntil: 'networkidle' });
 
 // jsPDF e pdf.js VERI al posto degli stub del fixture, serviti in locale.
@@ -271,6 +271,87 @@ await t('molte righe: va a pagina 2 e RIPETE l\'intestazione di tabella', async 
 });
 
 // ── La ricevuta di canone: stessa testata, corpo suo ──
+// ── Il link di pagamento sul documento ──
+await t('fattura pagabile: il riquadro "PAGA CON CARTA" col link vero', async () => {
+  const pages = await render('paga', { ...CASE, number: '20/2026', progressive: 20,
+    payLink: 'https://www.boomrome.com/fattura?t=inv20.9f2c1ab7d4e6', }, null);
+  ok(pages.length === 1, 'il riquadro non deve far crescere il documento');
+  const txt = pages[0].text.replace(/\s+/g, ' ');
+  ok(squash(txt).includes(squash('PAGA CON CARTA')), 'manca il riquadro');
+  ok(txt.includes('boomrome.com/fattura'), 'manca l\'indirizzo in chiaro per chi stampa');
+  ok(/Stripe/i.test(txt), 'manca la rassicurazione sul circuito');
+  ok(pages[0].maxX <= 194.6, `sfora: ${pages[0].maxX.toFixed(1)}mm`);
+  ok(pages[0].minX >= 15.5, `sfora a sinistra: ${pages[0].minX.toFixed(1)}mm`);
+});
+
+await t('il riquadro è un link cliccabile, non solo testo blu', async () => {
+  const annots = await page.evaluate(async ([inv]) => {
+    const doc = window.invBuildPdf(inv, window.invSeller());
+    const pdfjs = window.pdfjsLib;
+    pdfjs.GlobalWorkerOptions.workerSrc = '/__lib/worker.js';
+    const pdf = await pdfjs.getDocument({ data: doc.output('arraybuffer') }).promise;
+    const a = await (await pdf.getPage(1)).getAnnotations();
+    return a.filter((x) => x.url).map((x) => ({ url: x.url, rect: x.rect }));
+  }, [{ ...CASE, number: '21/2026', progressive: 21, payLink: 'https://www.boomrome.com/fattura?t=inv21.aaaa' }]);
+  ok(annots.length >= 2, 'attesi almeno due link (il testo e tutto il riquadro), trovati ' + annots.length);
+  ok(annots.every((a) => a.url.includes('/fattura?t=inv21')), 'un link punta altrove: ' + JSON.stringify(annots));
+  // Il riquadro deve essere abbastanza grande da beccarlo col dito.
+  const big = annots.find((a) => (a.rect[2] - a.rect[0]) > 200);
+  ok(big, 'nessuna area cliccabile larga: ' + JSON.stringify(annots.map((a) => a.rect)));
+});
+
+await t('col blocco totali corto il riquadro non si scrive addosso alla sezione 4', async () => {
+  // Forfettario: nessuna IVA, nessuna ritenuta → la colonna destra dei totali
+  // è alta la metà e il riquadro a sinistra la supera. Le due colonne sono
+  // indipendenti: il flusso deve riprendere sotto la PIÙ BASSA.
+  const CORTO = { ...CASE, number: '25/2026', progressive: 25,
+    lines: [{ description: 'Consulenza', qty: 1, unitPrice: 300, vatRate: 0, nature: 'N2.2' }],
+    causale: '', payment: { condition: 'TP02', method: 'MP05', iban: 'IT60X0542811101000000123456' },
+    payLink: 'https://www.boomrome.com/fattura?t=inv25.dddd' };
+  await render('paga-corto', CORTO, null);
+
+  const items = await page.evaluate(async ([inv]) => {
+    const doc = window.invBuildPdf(inv, window.invSeller());
+    const pdfjs = window.pdfjsLib;
+    pdfjs.GlobalWorkerOptions.workerSrc = '/__lib/worker.js';
+    const pdf = await pdfjs.getDocument({ data: doc.output('arraybuffer') }).promise;
+    const pg = await pdf.getPage(1);
+    const vp = pg.getViewport({ scale: 1 });
+    const tc = await pg.getTextContent();
+    return tc.items.filter((i) => i.str && i.str.trim()).map((i) => ({
+      s: i.str,
+      x: i.transform[4] / vp.width * 210,
+      y: (vp.height - i.transform[5]) / vp.height * 297,   // mm dall'alto
+    }));
+  }, [CORTO]);
+
+  const link = items.find((i) => i.s.includes('boomrome.com/fattura'));
+  ok(link, 'il link non è nel documento');
+  // SOLO la colonna sinistra: a destra c'è il blocco totali, che sta
+  // legittimamente alla stessa altezza del riquadro.
+  const below = items.filter((i) => i.x < 100 && i.y > link.y).sort((a, b) => a.y - b.y)[0];
+  ok(below, 'sotto il riquadro non c\'è più nulla, atteso il titolo "4. Pagamento"');
+  ok(below.y > link.y + 8,
+     `la colonna sinistra riprende a ${below.y.toFixed(1)}mm ("${below.s}") mentre il riquadro finisce verso ${(link.y + 7.5).toFixed(1)}mm: si sovrappongono`);
+});
+
+await t('nota di credito e bozza NON mostrano il pulsante di pagamento', async () => {
+  const nc = await render('paga-nc', { ...CASE, docType: 'TD04', number: '22/2026', progressive: 22,
+    relatedDoc: { number: '12/2026', date: '2026-07-31' },
+    payLink: 'https://www.boomrome.com/fattura?t=inv22.bbbb' }, null);
+  ok(!squash(nc[0].text).includes(squash('PAGA CON CARTA')), 'una nota di credito restituisce soldi, non li chiede');
+
+  const paid = await render('paga-saldata', { ...CASE, number: '23/2026', progressive: 23, status: 'paid',
+    payLink: 'https://www.boomrome.com/fattura?t=inv23.cccc' }, null);
+  ok(!squash(paid[0].text).includes(squash('PAGA CON CARTA')), 'una fattura saldata non si ripaga');
+});
+
+await t('senza payLink il documento resta identico a prima', async () => {
+  const pages = await render('paga-assente', { ...CASE, number: '24/2026', progressive: 24 }, null);
+  ok(!squash(pages[0].text).includes(squash('PAGA CON CARTA')));
+  ok(pages.length === 1);
+});
+
 await t('la ricevuta di canone usa la STESSA testata della fattura', async () => {
   errors.length = 0;
   const pages = await render('ricevuta', {

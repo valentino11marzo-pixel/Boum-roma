@@ -6,6 +6,12 @@
      sue chiamate di boot stanno dentro onFirebaseScriptLoad/onAuthStateChanged,
      che qui non scattano mai. -->
 <div id="loading" class="hidden"></div>
+<!-- Il watchdog auth del portale scatta dopo 8s e chiama showAuth(): senza
+     questi nodi lanciava un TypeError nel bel mezzo delle suite più lunghe.
+     Il fixture deve modellare lo shell che dice di modellare. -->
+<div id="authScreen" class="hidden"><a id="authLoginLink" href="#"></a>
+  <div id="authError"></div><div id="authInfo"></div></div>
+<div id="app" class="hidden"></div>
 <div id="main"></div>
 <div id="modals"></div>
 <div id="toasts"></div>

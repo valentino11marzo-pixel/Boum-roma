@@ -5,6 +5,7 @@ import { sendPaEmails, shell, para, fine, btn, btn2 } from './preagreement/_noti
 import { sendEmail } from './agent/_lib.js';
 import { maybeAutoConvert } from './preagreement/_auto.js';
 import { tgNotify } from './pfs/_health.js';
+import { payUrl } from './invoices/_link.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -543,6 +544,98 @@ async function handlePreagreement(res, session, m) {
 
 // RENT — Canone via BOOM: a tenant paid a scheduled installment (or the
 // deposit balance) by card from /casa (api/payments/pay.js). Marks the
+// Fattura saldata con carta dal link pubblico (/fattura?t=…).
+// Idempotente sulla sessione: Stripe ritenta lo stesso evento più volte e un
+// secondo passaggio non deve riscrivere la data di incasso.
+async function handleInvoice(res, session, m) {
+  const invoiceId = String(m.invoiceId || '').trim();
+  if (!invoiceId) return res.status(200).json({ received: true, error: 'no_invoiceId' });
+
+  let inv = null;
+  try { inv = await readDoc(`invoices/${invoiceId}`); } catch (_) {}
+  if (!inv) return res.status(200).json({ received: true, error: 'invoice_not_found', invoiceId });
+
+  if (inv.status === 'paid') {
+    if (inv.stripeSessionId === session.id) {
+      return res.status(200).json({ received: true, duplicate: true, invoiceId });
+    }
+    // Già incassata per altra via (bonifico riconciliato da /banca) e ora
+    // pagata ANCHE con carta: non si sovrascrive nulla, si chiama l'operatore.
+    // Su una fattura un doppio incasso è un rimborso da fare, non un dato da
+    // aggiustare in silenzio.
+    try {
+      await writeDoc('agentNotifications', 'inv-double-' + invoiceId + '-' + session.id.slice(-8), {
+        type: 'invoice.double',
+        summary: `🚨 POSSIBILE DOPPIO INCASSO sulla fattura ${inv.number || invoiceId}: risultava già pagata${inv.paidDate ? ' il ' + inv.paidDate : ''}, ora incassata ANCHE via Stripe (${session.id}) — verifica e rimborsa`,
+        priority: 'high', status: 'pending', actor: 'stripe-webhook',
+        dedupKey: 'inv-double-' + invoiceId, createdAt: new Date().toISOString(), attempts: 0,
+      });
+    } catch (_) {}
+    try { await tgNotify(`🚨 Doppio incasso sulla fattura ${inv.number || invoiceId} — verifica su Stripe e rimborsa.`); } catch (_) {}
+    return res.status(200).json({ received: true, doublePayment: true, invoiceId });
+  }
+
+  const paidEur = (session.amount_total || 0) / 100;
+  let receiptUrl = null;
+  try {
+    const pi = session.payment_intent
+      ? await stripe.paymentIntents.retrieve(String(session.payment_intent), { expand: ['latest_charge'] })
+      : null;
+    receiptUrl = (pi && pi.latest_charge && pi.latest_charge.receipt_url) || null;
+  } catch (_) {}
+
+  const now = new Date().toISOString();
+  try {
+    await fsPatch(`invoices/${invoiceId}`, {
+      status: 'paid',
+      paidDate: now,
+      paidVia: 'stripe',
+      paidEur,
+      stripeSessionId: session.id,
+      receiptUrl,
+    });
+  } catch (e) {
+    console.error('[webhook invoice patch]', e.message);
+    return res.status(200).json({ received: true, error: 'patch_failed' });
+  }
+
+  const b = inv.buyer || {};
+  const to = session.customer_details?.email || b.email || inv.recipientEmail || null;
+  const label = `${inv.docType === 'TD06' ? 'Parcella' : 'Fattura'} n. ${inv.number || invoiceId}`;
+  const eur = paidEur.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  if (to) {
+    try {
+      await sendEmail({
+        to,
+        subject: `Pagamento ricevuto — ${label}`,
+        html: shell(
+          para(`Grazie: abbiamo ricevuto il pagamento di <b>€ ${eur}</b> per la <b>${label}</b>.`)
+          + para('Il documento resta consultabile dal link che hai già; la ricevuta della carta è di Stripe.')
+          + (receiptUrl ? btn(receiptUrl, 'Ricevuta del pagamento') : '')
+          + btn2(payUrl(invoiceId), 'Rivedi il documento')
+          + fine('Egidi Immobiliare S.r.l.')
+        ),
+      });
+    } catch (e) { console.warn('[webhook invoice mail client]', e.message); }
+  }
+
+  try {
+    await sendEmail({
+      to: process.env.ADMIN_NOTIFY_EMAIL || 'valentino@boom-rome.com',
+      subject: `💳 Incassata ${label} — € ${eur}`,
+      html: shell(
+        para(`<b>${label}</b> incassata con carta: <b>€ ${eur}</b>${b.name ? ' da ' + b.name : ''}.`)
+        + para('Il documento è già marcato pagato nel portale.')
+        + btn2('https://dashboard.stripe.com/payments', 'Apri Stripe')
+      ),
+    });
+  } catch (_) {}
+  try { await tgNotify(`💳 Incassata ${label} — € ${eur}${b.name ? ' · ' + b.name : ''}`); } catch (_) {}
+
+  return res.status(200).json({ received: true, invoiceId, paidEur });
+}
+
 // payment doc paid (paidVia:'stripe') and emails the receipt with the
 // platform's design system. Idempotent on stripeSessionId.
 async function handleRent(res, session, m) {
@@ -776,6 +869,10 @@ export default async function handler(req, res) {
 
   if (m.service === 'RENT') {
     return handleRent(res, session, m);
+  }
+
+  if (m.service === 'INVOICE') {
+    return handleInvoice(res, session, m);
   }
 
   if (m.service !== 'PFS') {
