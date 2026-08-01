@@ -1181,8 +1181,16 @@ minuti per il grade (quella persona sta digitando adesso), header
 "💬 ti ha scritto su WhatsApp", e il messaggio precompilato è una RISPOSTA,
 non una presentazione — "Grazie per il tuo interesse" sotto il messaggio che
 ti ha appena scritto legge come un contatto a freddo.
+**`/api/homie/inbound` ora deduplica** (prima faceva `fsCreate` e basta:
+andava bene finché Homie era l'unica fonte). Nella finestra in cui Homie
+cambia mandato la stessa persona arriva da DUE porte — l'inoltro grezzo
+parte all'istante, `inbound` dopo l'analisi, quindi il duplicato lo creava
+proprio `inbound`. Deduplicando lì, **qualunque ordine** produce un lead solo
+e i due lati non hanno bisogno di essere coordinati: si possono tenere accesi
+insieme per giorni.
 Test: `node tests/whatsapp/run.mjs` (Firestore finto in memoria, si guida il
-handler vero).
+handler vero; copre entrambi gli ordini della transizione, verificati per
+mutazione).
 
 ### POST `/api/homie/property`
 Homie → PFS bridge. Homie scrapes a property (Immobiliare/Idealista/etc.), calls this with the listing data. Validates, then delegates to the shared ingestion pipeline `api/pfs/_ingest.js` (dedupe on `pfsProperties/<sha1(sourceUrl)>`, agency filter, scoring via `api/homie/_match.js`, push score ≥ 60 into each active client's `portalProperties` swipe deck). Client-portal.html already listens and triggers a "New Property!" alert on the client's phone. Auth via `X-Homie-Secret`. See file header for payload schema.

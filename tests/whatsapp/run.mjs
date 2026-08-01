@@ -261,6 +261,50 @@ for (const l of CATALOG) DB.set(`listings/${l.id}`, l);
   ok('…e lo dichiara', r2.dedupHit === true, r2);
 }
 
+// 5g-bis. LA FINESTRA DI TRANSIZIONE.
+// Mentre Homie cambia mandato, la stessa persona può arrivare da DUE porte:
+// l'inoltro grezzo (/api/homie/message, parte all'istante) e il vecchio
+// /api/homie/inbound (parte dopo l'analisi, quindi DOPO). Entrambi gli ordini
+// devono produrre UN lead solo — altrimenti il cliente riceve due risposte
+// diverse proprio nei giorni in cui stiamo spegnendo il vecchio sistema.
+{
+  const { default: inbound } = await import('../../api/homie/inbound.js');
+  const callInbound = async payload => {
+    const req = { method: 'POST', headers: { 'x-homie-secret': 'test-secret' }, body: payload,
+      on(ev, cb) { if (ev === 'data') cb(Buffer.from(JSON.stringify(payload))); if (ev === 'end') cb(); return this; } };
+    let out = null;
+    const res = { setHeader() {}, status() { return this; }, json(o) { out = o; return this; }, end() { return this; } };
+    await inbound(req, res);
+    return out || {};
+  };
+
+  // ordine A: prima l'inoltro grezzo, poi l'analisi di Homie
+  const beforeA = leads().length;
+  await call({ direction: 'in', channel: 'whatsapp', phone: '+393332222222',
+    body: 'Ciao, cercavo un trilocale a Pigneto da settembre', messageId: 'wA' });
+  const rA = await callInbound({ source: 'whatsapp', name: 'Marco R', phone: '+393332222222',
+    message: 'Ciao, cercavo un trilocale a Pigneto da settembre', grade: 'B' });
+  ok('inoltro poi analisi → un lead solo', leads().length === beforeA + 1 && rA.deduped === true,
+    { n: leads().length - beforeA, rA });
+
+  // ordine B: prima l'analisi (vecchio percorso), poi l'inoltro grezzo
+  const beforeB = leads().length;
+  await callInbound({ source: 'whatsapp', name: 'Giulia T', phone: '+393331111111',
+    message: 'Salve, il monolocale di Ostiense è libero?' });
+  const rB = await call({ direction: 'in', channel: 'whatsapp', phone: '+393331111111',
+    body: 'Salve, il monolocale di Ostiense è libero?', messageId: 'wB' });
+  ok('analisi poi inoltro → un lead solo', leads().length === beforeB + 1, { n: leads().length - beforeB, rB });
+
+  // e il formato del numero non deve rompere nemmeno qui
+  const beforeC = leads().length;
+  await call({ direction: 'in', channel: 'whatsapp', phone: '+393337000000',
+    body: 'Buonasera, cerco casa in zona Pigneto', messageId: 'wC' });
+  const rC = await callInbound({ source: 'whatsapp', name: 'Luca P', phone: '3337000000',
+    message: 'Buonasera, cerco casa in zona Pigneto' });
+  ok('formati diversi fra le due porte → sempre un lead solo',
+    leads().length === beforeC + 1 && rC.deduped === true, { n: leads().length - beforeC, rC });
+}
+
 // 5h. il buco che chiudeva Homie: un lead vivo dopo un giro completo
 {
   const whatsappLeads = leads().filter(([, l]) => l.source === 'whatsapp');

@@ -116,6 +116,36 @@ autenticate. Qui serve una testa, e la testa può restare.
 >
 > Se qualcosa non è chiaro, chiedi prima di consumare token.
 
+## La transizione — l'ordine conta
+
+Il rischio di questo cambio non è che qualcosa esploda: è che qualcosa smetta
+di funzionare **in silenzio**. Un lead perso non produce un errore, produce
+una giornata tranquilla. Quindi:
+
+1. **Attiva l'inoltro** (`/api/homie/message`).
+2. **Verifica con un numero che il sistema non conosce**: entro un minuto
+   deve arrivare un ping Telegram col bottone "💬 Rispondi (già scritto)".
+3. **Solo dopo** spegni il ciclo di analisi.
+
+Sovrapporre i due sistemi per qualche giorno è **sicuro**: `/api/homie/inbound`
+ora deduplica per telefono (finestra 7 giorni, tutte le forme del numero), e
+`/api/homie/message` fa lo stesso. Qualunque ordine arrivino, resta un lead
+solo e i messaggi si sommano. Nessuna coordinazione richiesta fra i due lati.
+
+**Cosa NON spegnere** insieme all'analisi:
+- `/api/homie/property` — lo scraping dei portali è un lavoro di **sessione**,
+  resta tuo. Se si ferma, il radar PFS perde una fonte.
+- l'inoltro dei moduli di intake, se sei tu l'unico a raccoglierli.
+- qualunque segnale di vita della macchina: se il Mac smette di dire che è
+  vivo, nessuno se ne accorge finché non serve.
+
+**Cosa si degrada, consapevolmente**: senza il campo `analysis`, l'Inbox del
+portale perde il riassunto AI, la risposta suggerita e l'urgenza a livello di
+conversazione. È voluto — quel giudizio ora vive sul lead (Lead Brain:
+`grade`, `brief`, `intent`) e costa un ventesimo. Inoltre ogni inbound viene
+marcato "da rispondere", inquilini compresi: la lista è più rumorosa ma non
+perde più niente.
+
 ## Come verificare che sia davvero spento
 
 - Il consumo giornaliero di Homie deve crollare a quasi zero: restano solo le
