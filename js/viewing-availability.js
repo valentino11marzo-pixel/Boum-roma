@@ -43,6 +43,7 @@
     minNoticeHours: 4,
     horizonDays: 14,
     maxPerDay: 6,
+    requireApproval: true,
   };
 
   const HHMM = /^([01]?\d|2[0-3]):([0-5]\d)$/;
@@ -97,6 +98,8 @@
     if (!(maxPerDay >= 1 && maxPerDay <= 20)) throw new Error('Massimo visite al giorno: tra 1 e 20.');
 
     const cfg = { windows, slotMinutes: { person, video }, minNoticeHours, horizonDays, maxPerDay };
+    // il default è "confermo io": una visita è un impegno su un immobile vero
+    cfg.requireApproval = form.requireApproval === undefined ? true : !!form.requireApproval;
     if (form.busyIcs != null) {
       const url = String(form.busyIcs).trim();
       if (url && !/^https:\/\/\S+$/i.test(url)) throw new Error('L\'indirizzo del calendario deve iniziare con https://');

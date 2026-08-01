@@ -456,6 +456,25 @@ viewing id + server secret).
   veniva avvisato e si presentava al portone. Aggiunti anche ↩ Reschedule
   sulle confermate, il filtro ✕ Cancelled, e i modal ora mostrano/prefillano
   l'orario reale anche per i doc self-booked (che hanno solo i campi ISO).
+- **Il double confirm** (`requireApproval`, default **true** in
+  `_avail.js` DEFAULTS + toggle nel modal ⚙️ Disponibilità): l'instant
+  booking confermava da solo, ma una visita è un impegno su un immobile
+  vero e l'operatore vuole filtrare chi entra. Ora il cliente sceglie
+  comunque uno slot REALE (nessun ping-pong di date) e **quell'orario resta
+  tenuto per lui** — `busyBlocks` conta già le pending — ma la visita nasce
+  `status:'pending'`: niente campi `confirmed*`, niente pass, niente invito
+  in calendario, niente countdown. Parte solo `sendRequested()` ("l'orario è
+  tenuto, ti confermiamo entro poche ore"), e la card con ✅ Conferma arriva
+  su Telegram da `notify-pending` entro un minuto; alla conferma il kit
+  completo parte da `_apply.js`/`_moments.js` come sempre. La GET di
+  `/api/viewings/slots` espone `requireApproval` e **book.html cambia le
+  parole** (via `applyApprovalCopy()`: niente "⚡ Instant confirmation", il
+  bottone diventa "Request this viewing", e la schermata *"Request sent"* —
+  che esisteva già ed era irraggiungibile — diventa la sua strada). Test:
+  il ramo è asserito sulla SORGENTE (`tests/viewings/availability-ui.mjs`):
+  l'uscita anticipata deve precedere `sendConfirmation` e `inviteOperator`,
+  perché un pass per una visita non confermata è una bugia al cliente e un
+  evento fantasma nell'agenda dell'operatore.
 - **⚙️ Disponibilità nel portal** (`js/viewing-availability.js`, UMD come
   boom-geo/canone-engine → `window.BOOM_AVAIL`, caricato da portal.html):
   fino al 2026-07 le finestre di prenotazione erano i **default hardcoded**

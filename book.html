@@ -341,7 +341,7 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
     <div class="card-hd">
       <div class="eyebrow">Step 3 of 3</div>
       <div class="ttl">Pick your time.</div>
-      <div class="sub">These are real openings — the slot is yours the moment you tap it.<span class="instant">⚡ Instant confirmation</span></div>
+      <div class="sub" id="s3-sub">These are real openings — the slot is yours the moment you tap it.<span class="instant" id="s3-instant">⚡ Instant confirmation</span></div>
     </div>
     <div class="card-bd">
       <div class="div" style="margin-top:0"></div>
@@ -365,7 +365,7 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
       <!-- Real availability. The client takes a slot; it is confirmed on the
            spot, because these ARE the operator's open hours. -->
       <div class="fg">
-        <label class="lbl">Pick a time — confirmed instantly *</label>
+        <label class="lbl" id="s3-lbl">Pick a time — confirmed instantly *</label>
         <div class="slot-load" id="slot-load"><span class="slot-spin"></span> Loading availability…</div>
         <div class="day-row" id="day-row"></div>
         <div class="time-grid" id="time-grid"></div>
@@ -419,9 +419,10 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
         <div class="sc-icon">🏠</div><div><div class="sc-lbl">Property</div><div class="sc-val" id="sum-p-final">—</div></div>
       </div>
       <div class="sum-chip" style="text-align:left;margin-bottom:20px">
-        <div class="sc-icon">📅</div><div><div class="sc-lbl">Proposed</div><div class="sc-val" id="sum-t-final">—</div></div>
+        <div class="sc-icon">📅</div><div><div class="sc-lbl">Your time</div><div class="sc-val" id="sum-t-final">—</div></div>
       </div>
-      <div class="sub" style="font-size:12px;color:var(--t2)">
+      <div class="sub" style="font-size:12px;color:var(--t2);line-height:1.9">
+        <a id="pend-manage" href="#" style="color:var(--g);text-decoration:none">Change or cancel this request →</a><br>
         Questions? <a href="https://wa.me/393313251961" style="color:var(--g);opacity:.8;text-decoration:none" target="_blank">WhatsApp Valentino →</a>
       </div>
     </div>
@@ -502,6 +503,9 @@ async function loadSlots(){
     const r=await fetch('/api/viewings/slots?mode='+encodeURIComponent(ST.mode)+(ST.listing?'&listingId='+encodeURIComponent(ST.listing.id):''));
     const j=await r.json();
     ST.slots=(j&&j.ok&&Array.isArray(j.slots))?j.slots:[];
+    // La pagina non deve MAI promettere una certezza che il server non dà:
+    // se l'operatore conferma ogni visita, qui si parla di richiesta.
+    if(j&&j.requireApproval){ST.approval=true;applyApprovalCopy()}
   }catch(e){ST.slots=[]}
   load.style.display='none';
   if(!ST.slots.length){empty.classList.remove('hidden');updateSum();return}
@@ -512,6 +516,18 @@ async function loadSlots(){
       <span class="dc-n">${wd}</span><b>${dnum} ${mon}</b></button>`;
   }).join('');
   paintTimes();
+}
+/* Un solo posto per le parole: se cambiassero in due punti diversi, la
+   pagina prometterebbe due cose diverse nella stessa schermata. */
+function applyApprovalCopy(){
+  const sub=document.getElementById('s3-sub'),chip=document.getElementById('s3-instant'),
+        lbl=document.getElementById('s3-lbl'),btn=document.getElementById('btn-submit');
+  if(sub)sub.firstChild.nodeValue='These are real openings — pick one and we hold it for you.';
+  if(chip){chip.textContent='✓ Confirmed within a few hours';chip.style.color='#FF9F0A';
+    chip.style.borderColor='rgba(255,159,10,.3)';chip.style.background='rgba(255,159,10,.07)'}
+  if(lbl)lbl.textContent='Pick a time — we hold it while we confirm *';
+  const bl=btn&&btn.querySelector('.btn-label');
+  if(bl)bl.textContent='Request this viewing →';
 }
 function pickDay(date){
   ST.day=date;ST.when=null;
@@ -649,6 +665,14 @@ async function submitRequest(){
     }
     if(!j||!j.ok){toast('err','Something went wrong. Please try again.');return}
     ST.reqId=j.id;
+    // Il server decide: 'pending' = l'operatore deve confermare. La schermata
+    // "Request sent" esisteva già ed era irraggiungibile — ora è la sua strada.
+    if(j.status==='pending'){
+      setStep(4);
+      showPending({listingName:l.name||l.address||'Property',listingZone:l.zone||'',
+        when:j.when,mode:j.mode,manageUrl:j.manageUrl});
+      return;
+    }
     // admin ping (non-blocking, tolerates failure)
     fetch('/api/notify-viewing-created',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({viewingId:j.id,clientName:ST.name,clientEmail:ST.email,clientPhone:ST.phone,
@@ -661,6 +685,21 @@ async function submitRequest(){
       confirmedDateTime:j.when,mode:j.mode,videoUrl:j.videoUrl,id:j.id,manageUrl:j.manageUrl
     });
   }catch(e){console.error(e);btn.classList.remove('loading');toast('err','Something went wrong. Please try again.')}
+}
+
+function showPending(data){
+  const p=document.getElementById('sum-p-final');
+  if(p)p.textContent=data.listingName+(data.listingZone?' — '+data.listingZone:'');
+  const t=document.getElementById('sum-t-final');
+  if(t)t.textContent=fmtRome(data.when)+' (Rome time)';
+  const sub=document.querySelector('#pend-body .pend-sub');
+  if(sub)sub.innerHTML='That time is <b>held for you</b> while we confirm it.<br>'
+    +'You\'ll get an email as soon as it\'s confirmed — usually within a few hours.';
+  const mng=document.getElementById('pend-manage');
+  if(mng){if(data.manageUrl)mng.href=data.manageUrl;else mng.style.display='none'}
+  document.getElementById('conf-body').classList.add('hidden');
+  document.getElementById('pend-body').classList.remove('hidden');
+  try{boomTrack&&boomTrack('viewing_requested',{mode:data.mode,item_id:(ST.listing||{}).id||''})}catch(e){}
 }
 
 function showConfirmed(data){

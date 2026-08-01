@@ -79,6 +79,12 @@ export const DEFAULTS = {
   horizonDays: 14,
   maxPerDay: 6,
   busyIcs: null,           // secret ICS URL(s) — merged with BUSY_ICS_URLS env
+  // L'operatore conferma OGNI visita. Il cliente sceglie comunque uno slot
+  // REALE (niente ping-pong di date), lo slot resta suo mentre la richiesta è
+  // aperta — ma il kit di volo (email, Wallet, calendario, countdown) parte
+  // solo dopo il tap di conferma. È la differenza tra "prenotato" e
+  // "richiesto", e su un appartamento vero non è la stessa cosa.
+  requireApproval: true,
 };
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -127,6 +133,7 @@ export async function loadConfig() {
       horizonDays: Number(c.horizonDays) > 0 ? Math.min(30, Number(c.horizonDays)) : DEFAULTS.horizonDays,
       maxPerDay: Number(c.maxPerDay) > 0 ? Number(c.maxPerDay) : DEFAULTS.maxPerDay,
       busyIcs: c.busyIcs || null,
+      requireApproval: c.requireApproval === undefined ? DEFAULTS.requireApproval : !!c.requireApproval,
     };
   } catch { return DEFAULTS; }
 }

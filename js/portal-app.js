@@ -6044,7 +6044,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         <input type="number" class="form-input" id="avMax" min="1" max="20" value="${Number(cfg.maxPerDay)||6}">
                     </div>
                 </div>
-                <div id="avPreview" style="margin-top:6px;font-size:12px;color:var(--gold)"></div>
+                <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);margin:18px 0 10px">Conferma</div>
+                <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;padding:12px;border:1px solid var(--border);border-radius:8px">
+                    <input type="checkbox" id="avApproval" ${cfg.requireApproval === false ? '' : 'checked'} style="margin-top:3px">
+                    <span style="font-size:13px;line-height:1.6">
+                        <b>Confermo io ogni visita</b><br>
+                        <span style="color:var(--text-muted);font-size:12px">Il cliente sceglie uno slot reale e quell'orario resta tenuto per lui, ma la visita nasce come <b>richiesta</b>: pass, calendario e promemoria partono solo quando premi ✅ Conferma (da qui o da Telegram).<br>
+                        Se lo togli, la prenotazione è confermata all'istante — più veloce, ma non puoi più filtrare chi viene.</span>
+                    </span>
+                </label>
+                <div id="avPreview" style="margin-top:12px;font-size:12px;color:var(--gold)"></div>
                 <div id="avError" style="margin-top:10px;font-size:12px;color:#E88;display:none"></div>
             </div>
             <div class="modal-footer">
@@ -6066,6 +6075,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             minNoticeHours: document.getElementById('avNotice').value,
             horizonDays: document.getElementById('avHorizon').value,
             maxPerDay: document.getElementById('avMax').value,
+            requireApproval: document.getElementById('avApproval').checked,
         });
     }
 
