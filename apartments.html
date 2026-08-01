@@ -9,9 +9,9 @@
     <link rel="icon" href="/favicon-16x16.png" sizes="16x16" type="image/png">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="manifest" href="/site.webmanifest">
-    <title>Verified Apartments in Rome for Expats | BOOM</title>
+    <title>Apartments for Rent in Rome — Video-Verified Listings | BOOM</title>
 <!-- BOOM_SEO:START -->
-  <meta name="description" content="Browse verified, ready-now apartments in Rome for expats and students — all-fees-included pricing, English support, move in this week.">
+  <meta name="description" content="Browse video-verified apartments for rent in Rome. Centro Storico, Trastevere, Pigneto, Monti and more. 48-hour move-in, no broker fees, legal contracts. Updated daily.">
   <meta name="keywords" content="apartments Rome, flats for rent Rome, apartments Trastevere, apartments Centro Storico, rent flat Rome, Rome apartments expat, short-term apartment Rome">
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
   <meta name="googlebot" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
@@ -30,8 +30,8 @@
   <meta property="og:site_name" content="BOOM Rome">
   <meta property="og:locale" content="en_US">
   <meta property="og:locale:alternate" content="it_IT">
-  <meta property="og:title" content="Verified Apartments in Rome for Expats | BOOM">
-  <meta property="og:description" content="Browse verified, ready-now apartments in Rome for expats and students — all-fees-included pricing, English support, move in this week.">
+  <meta property="og:title" content="Apartments for Rent in Rome — Video-Verified Listings | BOOM">
+  <meta property="og:description" content="Browse video-verified apartments for rent in Rome. Centro Storico, Trastevere, Pigneto, Monti and more. 48-hour move-in, no broker fees, legal contracts. Updated daily.">
   <meta property="og:url" content="https://www.boomrome.com/apartments">
   <meta property="og:image" content="https://www.boomrome.com/BOOMsocialprofile.png">
   <meta property="og:image:secure_url" content="https://www.boomrome.com/BOOMsocialprofile.png">
@@ -42,8 +42,8 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:site" content="@boomrome">
   <meta name="twitter:creator" content="@boomrome">
-  <meta name="twitter:title" content="Verified Apartments in Rome for Expats | BOOM">
-  <meta name="twitter:description" content="Browse verified, ready-now apartments in Rome for expats and students — all-fees-included pricing, English support, move in this week.">
+  <meta name="twitter:title" content="Apartments for Rent in Rome — Video-Verified Listings | BOOM">
+  <meta name="twitter:description" content="Browse video-verified apartments for rent in Rome. Centro Storico, Trastevere, Pigneto, Monti and more. 48-hour move-in, no broker fees, legal contracts. Updated daily.">
   <meta name="twitter:image" content="https://www.boomrome.com/BOOMsocialprofile.png">
   <meta name="twitter:image:alt" content="Apartments for Rent in Rome — Video-Verified Listings | BOOM">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -60,8 +60,6 @@
     <!-- Google Analytics -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
     <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied',wait_for_update:500});gtag('config','G-EYCD59RDVJ');</script>
-<meta name="theme-color" content="#060607">
-<meta name="color-scheme" content="dark">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://images.unsplash.com" crossorigin>
@@ -107,7 +105,51 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 /* hero + intent */
 .hero{padding:calc(var(--nav) + 26px) 0 6px}
 .hero h1{font-size:clamp(32px,6vw,56px);font-weight:200;letter-spacing:-.02em;line-height:1.06;max-width:24ch}
+.hero h1::after{content:"";display:block;width:52px;height:3px;margin-top:16px;background:linear-gradient(90deg,var(--gold),transparent);border-radius:3px}
 .hero p{color:var(--t2);font-size:clamp(15px,1.8vw,17px);margin-top:12px;max-width:52ch}
+/* the power row: potenza, sicurezza, velocità — before a single card loads */
+.heropow{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:16px;color:var(--t3);font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase}
+.heropow span{display:inline-flex;align-items:baseline;gap:8px;white-space:nowrap}
+.heropow b{font-family:var(--disp);font-weight:200;font-size:clamp(22px,3.4vw,30px);color:var(--gold);letter-spacing:-.5px;font-variant-numeric:tabular-nums;line-height:1;text-shadow:0 0 22px rgba(255,215,0,.2)}
+.heropow b i{font-style:normal}
+.heropow b small{font-size:.5em;color:var(--gold-light)}
+.heropow .d{width:1px;height:22px;background:var(--line-soft);flex:none}
+@media(max-width:560px){.heropow{gap:10px 14px}.heropow .d{display:none}.heropow span{flex:1 1 40%}}
+/* the expat handoff: the viral asset, at the point of maximum intent */
+.expatline{display:flex;align-items:center;gap:10px;margin-top:14px;border:1px solid var(--line-gold);background:var(--gold-faint);border-radius:13px;padding:12px 16px;font-size:13px;color:var(--gold);transition:.25s var(--ease)}
+.expatline small{flex:1;color:var(--t3);font-size:11px;line-height:1.5}
+.expatline .arr{transition:transform .25s var(--ease)}
+.expatline:hover{border-color:var(--gold);background:var(--gold-muted)}
+.expatline:hover .arr{transform:translateX(4px)}
+/* price carries light on every card */
+.pc .pr{text-shadow:0 0 20px rgba(255,215,0,.16)}
+/* ── mobile hero: an EXPERIENCE, not a pile. One idea per band:
+     statement → the four numbers → live market → zones (one swipeable
+     line) → the guide → the command bar. tbadges vanish here — the power
+     row already carries the trust, twice is clutter. ── */
+@media(max-width:679px){
+  .hero{padding-top:calc(var(--nav) + 18px)}
+  .hero p{font-size:14px;margin-top:10px}
+  .tbadges{display:none}
+  .pulse{margin-top:10px;padding:6px 12px;font-size:11px}
+  .heropow{margin-top:13px;gap:8px 12px}
+  .heropow b{font-size:24px}
+  .hoods{white-space:nowrap;overflow-x:auto;scrollbar-width:none;line-height:1.6;margin-top:12px;-webkit-mask-image:linear-gradient(90deg,#000 84%,transparent);mask-image:linear-gradient(90deg,#000 84%,transparent)}
+  .hoods::-webkit-scrollbar{display:none}
+  .expatline{margin-top:11px;padding:11px 13px;font-size:12px}
+  .expatline small{font-size:10.5px}
+  .intent{margin-top:14px}
+}
+/* culture & community — Rome is a city of villages */
+.culture{margin-top:54px}
+.culture h2{font-size:clamp(22px,4vw,32px);font-weight:200;margin-top:6px}
+.cultrow{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;margin-top:16px;padding-bottom:6px}
+.cultrow::-webkit-scrollbar{display:none}
+.cc{flex:0 0 242px;scroll-snap-align:start;border:1px solid var(--line);background:linear-gradient(180deg,rgba(16,16,18,.72),rgba(11,11,12,.72));-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-radius:16px;padding:16px;transition:.25s var(--ease);display:flex;flex-direction:column;gap:8px}
+.cc:hover{border-color:var(--line-gold);transform:translateY(-3px);box-shadow:0 14px 40px rgba(0,0,0,.4)}
+.cc .nm{font-family:var(--disp);font-size:16.5px;font-weight:300}
+.cc .lore{color:var(--t2);font-size:12px;line-height:1.6;flex:1}
+.cc .ft{font-size:11.5px;color:var(--gold)}
 /* trust pulse — live market numbers, computed once from the full inventory */
 .pulse{display:inline-flex;align-items:center;gap:9px;margin-top:14px;border:1px solid rgba(255,215,0,.18);background:rgba(255,215,0,.05);border-radius:100px;padding:8px 15px;font-size:12px;color:var(--t2);font-variant-numeric:tabular-nums;letter-spacing:.2px;max-width:100%}
 .pulse[hidden]{display:none}
@@ -241,11 +283,11 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 .mpin:hover,.mpin:focus{background:var(--gold);color:#1a1407;font-weight:600;z-index:5}
 .mapnote{position:absolute;left:14px;bottom:12px;font-size:11px;color:var(--t3);background:rgba(0,0,0,.5);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-radius:100px;padding:7px 12px}
 .mapview .maplibregl-map{position:absolute;inset:0;border-radius:18px}
-.mpin2{background:var(--card);border:1px solid var(--line-gold);border-radius:100px;padding:6px 11px;font-size:12px;font-family:var(--disp);color:var(--gold);cursor:pointer;white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,.55);transition:.18s var(--ease)}
-.mpin2:hover{background:var(--gold);color:#1a1407;font-weight:600;z-index:5}
+.mpin2{background:rgba(12,12,15,.78);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(255,215,0,.34);border-radius:100px;padding:6px 11px;font-size:12px;font-family:var(--disp);color:var(--gold);cursor:pointer;white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,.55);text-shadow:0 0 14px rgba(255,215,0,.3);transition:.18s var(--ease)}
+.mpin2:hover{background:var(--gold);color:#1a1407;font-weight:600;z-index:5;text-shadow:none;box-shadow:0 8px 26px rgba(255,215,0,.32)}
 .mpin2.sv{border-color:var(--green);box-shadow:0 0 0 1px var(--green-muted),0 6px 18px rgba(0,0,0,.55)}
 .mpin2.wl{border-style:dashed}
-.mpin2.on{background:var(--gold);color:#1a1407;font-weight:600;z-index:6;transform:scale(1.08)}
+.mpin2.on{background:var(--gold);color:#1a1407;font-weight:600;z-index:6;transform:scale(1.08);text-shadow:none;box-shadow:0 0 0 4px rgba(255,215,0,.22),0 10px 30px rgba(255,215,0,.38)}
 /* zone-level pins must read as "around here", never as a doorstep:
    dotted ring, muted gold, ≈ prefix — a different species at a glance */
 .mpin2.zn{border-style:dotted;border-color:rgba(255,215,0,.4);color:var(--gold-light);background:rgba(12,12,15,.72);font-size:11px;padding:5px 10px}
@@ -397,6 +439,40 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
 @keyframes skshine{to{background-position:-200% 0}}
 @media(prefers-reduced-motion:reduce){.skel .ph,.skel .l1,.skel .l2,.skel .l3{animation:none}}
 </style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Are the apartments on BOOM verified?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes — every listing is video-checked by our team, with a legal contract and a properly handled deposit."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I rent without visiting Rome first?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. We offer live video viewings and a refundable hold so you can secure a verified apartment from abroad."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Are agency fees included in the price?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Listed prices are all-inclusive of agency fees, so you see the real monthly cost up front."
+      }
+    }
+  ]
+}
+  </script>
+
+<script defer src="/js/boom-consent.js"></script>
 <!-- BOOM_JSONLD:START -->
   <script type="application/ld+json">
 {
@@ -417,13 +493,10 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
   "sameAs": [
     "https://www.instagram.com/boomrome",
     "https://www.linkedin.com/company/boomrome",
-    "https://wa.me/393313251961",
-    "https://share.google/xikmVxQCRuKOdWcND"
+    "https://wa.me/393331234567"
   ],
   "address": {
     "@type": "PostalAddress",
-    "streetAddress": "Via dei Coronari 181/184",
-    "postalCode": "00186",
     "addressLocality": "Rome",
     "addressRegion": "Lazio",
     "addressCountry": "IT"
@@ -432,12 +505,7 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
     "@type": "City",
     "name": "Rome"
   },
-  "priceRange": "€€-€€€",
-  "aggregateRating": {
-    "@type": "AggregateRating",
-    "ratingValue": "4.9",
-    "reviewCount": "47"
-  }
+  "priceRange": "€€-€€€"
 }
   </script>
   <script type="application/ld+json">
@@ -501,40 +569,6 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
 }
   </script>
 <!-- BOOM_JSONLD:END -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  "mainEntity": [
-    {
-      "@type": "Question",
-      "name": "Are the apartments on BOOM verified?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Yes — every listing is video-checked by our team, with a legal contract and a properly handled deposit."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Can I rent without visiting Rome first?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Yes. We offer live video viewings and a refundable hold so you can secure a verified apartment from abroad."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Are agency fees included in the price?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Listed prices are all-inclusive of agency fees, so you see the real monthly cost up front."
-      }
-    }
-  ]
-}
-  </script>
-
-<script defer src="/js/boom-consent.js"></script>
 </head>
 <body>
 <noscript><section style="max-width:720px;margin:40px auto;padding:0 20px;font-family:Helvetica,Arial,sans-serif">
@@ -555,10 +589,16 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
 <div class="mm" id="mm"><a href="/apartments">Apartments</a><a href="/property-finding">Property Finding</a><a href="/deal-assistance">Deal Assistance</a><a href="/virtual-viewing">Virtual Viewing</a><a href="/about">About</a><a href="https://wa.me/393313251961" class="wa">WhatsApp</a></div>
 
 <div class="shell">
-  <header class="hero">
-    <span class="eyebrow">BOOM · Verified homes in Rome</span>
-    <h1>Find your home in Rome, <span class="g" style="white-space:nowrap">for your dates.</span></h1>
-    <p>Every home filmed and verified in person. Every price computed to the euro. Tell us your dates — we rank the city by how well it fits your life.</p>
+  <header class="hero" data-ambient="oculus">
+    <span class="eyebrow">BOOM · Rome's verified transitional rentals · 1–18 months</span>
+    <h1>Move to Rome. <span class="g">Legally. In English.</span> <span class="g" style="white-space:nowrap">In 48 hours.</span></h1>
+    <p>Every home filmed and verified in person. Registered transitional contracts built for internationals. Every price computed to the euro — and viewings you book like a flight seat, confirmed on the spot.</p>
+    <div class="heropow" id="heroPow" aria-label="The BOOM standard">
+      <span><b><i>2</i><small>h</small></b> max reply</span><i class="d" aria-hidden="true"></i>
+      <span><b><i>48</i><small>h</small></b> approval → keys</span><i class="d" aria-hidden="true"></i>
+      <span><b><i data-noroll>4.9</i><small>★</small></b> 47 reviews</span><i class="d" aria-hidden="true"></i>
+      <span><b><i>100</i><small>%</small></b> registered contracts</span>
+    </div>
     <div class="pulse" id="pulse" aria-live="polite" hidden><span class="pdot" aria-hidden="true"></span><span id="pulseTxt"></span></div>
     <div class="tbadges" aria-label="Why renters trust BOOM">
       <span><i>✓</i> English-speaking team</span>
@@ -570,6 +610,7 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
 .tbadges span,.tbadges a{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:100px;padding:6px 11px;color:var(--t3);transition:.2s}
 .tbadges i{font-style:normal;color:var(--green);font-size:10px}
 .tbadges a:hover{border-color:var(--line-gold);color:var(--gold)}
+@media(max-width:679px){.tbadges{display:none}}
 .hoods{margin-top:18px;font-size:11.5px;letter-spacing:.4px;color:var(--t4);line-height:2}.hoods a{color:var(--t3);transition:color .2s}.hoods a:hover{color:var(--gold)}.hoods span{margin:0 6px;color:var(--t4)}.hoods .apt-hoods-all{color:var(--gold)}</style>
     <div class="hoods" role="navigation" aria-label="Browse by neighborhood">
                 <a href="/apartments-in/trastevere">Trastevere</a><span>·</span>
@@ -580,10 +621,12 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
                 <a href="/apartments-in/testaccio">Testaccio</a><span>·</span>
                 <a href="/apartments-in/ostiense">Ostiense</a><span>·</span>
                 <a href="/apartments-in/trieste-coppede">Trieste &amp; Coppedè</a><span>·</span>
+                <a href="/apartments-in/ponte-milvio">Ponte Milvio</a><span>·</span>
                 <a href="/apartments-in/san-lorenzo">San Lorenzo</a><span>·</span>
                 <a href="/apartments-in/esquilino">Esquilino</a>
                 <a href="/apartments-in" class="apt-hoods-all">All guides →</a>
             </div>
+    <a class="expatline" href="/welcome-to-rome" onclick="try{boomTrack('welcome_kit_click',{source_page:'apartments'})}catch(e){}">✈ New to Rome from abroad? <small>The free BOOM survival guide — codice fiscale, legal contracts, SIM, bank, residency. Everything expats ask, in English.</small><span class="arr">→</span></a>
     <div class="intent">
       <div class="ifield isearch"><label for="q">Search</label><span class="ic" aria-hidden="true">⌕</span><input id="q" type="text" placeholder="Zone, street, landmark…" autocomplete="off"></div>
       <div class="ifield"><label for="budget">Max budget /month</label><select id="budget"><option value="4000">Any</option><option value="1000">€1,000</option><option value="1500">€1,500</option><option value="2000">€2,000</option><option value="2500">€2,500</option><option value="3000">€3,000</option></select></div>
@@ -593,7 +636,7 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
   </header>
 </div>
 
-<div class="shell">
+<div class="shell" data-ambient="cardo">
   <div class="fbar"><div class="fbar-in" id="fbar">
     <button class="fpill filters" onclick="openSheet()" aria-haspopup="dialog">⚙ Filters <span class="cnt" id="fcount"></span></button>
     <button class="fpill" data-quick="beds" onclick="cycleBeds()" aria-pressed="false">Bedrooms <span id="bedsLbl">Any</span></button>
@@ -603,6 +646,7 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
     <button class="fpill" data-quick="lift" onclick="toggleFeat('Lift',this)" aria-pressed="false">Lift</button>
     <button class="fpill" data-quick="ac" onclick="toggleFeat('Air conditioning',this)" aria-pressed="false">A/C</button>
     <button class="fpill" data-quick="saved" onclick="toggleSavedOnly()" aria-pressed="false">♥ Saved <span class="cnt" id="savedCnt"></span></button>
+    <button class="fpill" id="shareSearch" onclick="shareSearch()" aria-label="Share this search — the link carries your filters">↗ Share</button>
     <button class="fpill clearall" id="clearAll" onclick="resetAll()" style="display:none" aria-label="Clear all filters">✕ Clear all <span class="cnt" id="clearCnt"></span></button>
   </div></div>
 
@@ -622,7 +666,14 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
   <div class="empty" id="empty" style="display:none"><h3>No exact match</h3><p>Try widening the budget or dates — or <a href="#" onclick="saveSearchAct();return false">let us find it for you →</a></p>
     <button type="button" class="facet" style="margin-top:16px" onclick="resetAll()">✕ Clear all filters</button></div>
 
-  <section class="upsell">
+  <section class="culture" id="culture" data-ambient="sampietrini" aria-label="Rome, culture and community by neighbourhood">
+    <span class="eyebrow">Culture &amp; community</span>
+    <h2>Rome is a city of <span class="g">villages</span>. Find yours.</h2>
+    <p style="color:var(--t2);font-size:14px;margin-top:8px;max-width:56ch">Ten rioni, ten personalities. Each guide is written for internationals — where to live, what it really costs, how it feels at 11pm.</p>
+    <div class="cultrow" id="cultrow"></div>
+  </section>
+
+  <section class="upsell" data-ambient="aurum">
     <div class="eyebrow">More than a portal</div>
     <h2>Not seeing the one? <span class="g">We’ll find it.</span></h2>
     <p class="lead">We’re an agency with a tech engine. Tell us your dates and budget and we hunt, verify and bring you the right home.</p>
@@ -692,13 +743,24 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
 
 <script src="/js/boom-elevate.js"></script>
 <script src="/js/boom-ambient.js"></script>
+<script src="/js/boom-fondali.js"></script>
+<script src="/js/boom-geo.js"></script>
+<script src="/js/neighborhoods.js"></script>
 <script>
 /* The page's ambience: Marmo Antico — living stone. Soft gold clouds and
    cloudy veins drifting along one grain; the material the client chose.
    Scrolling stirs the stone; it settles on its own. */
 try{
   if(window.BoomAmbient){
-    window.__amb=BoomAmbient.mount({ink:'#060607',inkRGB:'6,6,7',palette:{a:'255,215,0',b:'255,229,160'},intensity:.8,sections:false,scene:'marmoantico'});
+    /* LA PARTITURA della discovery — quattro atti, un canvas:
+       OCULUS (i cassettoni del Pantheon + lama di sole) all'arrivo →
+       CARDO (la griglia di Roma percorsa da luci) mentre sfogli le case →
+       SAMPIETRINI (la strada, la community) sulla cultura →
+       AURUM (oro fuso) sull'upsell. Cross-fade guidato dallo scroll. */
+    window.__amb=BoomAmbient.mount({ink:'#060607',inkRGB:'6,6,7',palette:{a:'255,215,0',b:'255,229,160'},intensity:.9,scene:'oculus'});
+    /* lo sfondo respira col gesto: scroll → stir; overlay → si acquieta */
+    var _stirY2=0;
+    addEventListener('scroll',function(){var dy=Math.abs(scrollY-_stirY2);_stirY2=scrollY;try{if(dy)__amb.stir(Math.min(1,dy/250))}catch(e){}},{passive:true});
     var _stY=0;
     addEventListener('scroll',function(){var dy=Math.abs(scrollY-_stY);_stY=scrollY;try{if(dy)window.__amb.stir(Math.min(1,dy/250))}catch(_e){}},{passive:true});
   }
@@ -1013,13 +1075,22 @@ var DLORE=[
 ];
 function zoneLoreD(z){z=String(z||'');for(var i=0;i<DLORE.length;i++){if(DLORE[i][0].test(z))return DLORE[i][1];}return null;}
 var _ovBounds=null;
+/* Un pin è "esatto" solo se sappiamo che è stato geocodificato un indirizzo.
+   Se il modulo non è caricato non si mente per ottimismo: si degrada a
+   posizione approssimativa. */
+function pinExact(l){try{return BOOM_GEO.pinPrecision(l).exact===true}catch(e){return false}}
+function pinLevel(l){try{return BOOM_GEO.pinPrecision(l).level}catch(e){return 'zone'}}
 function plotMarks(list){_marks.forEach(m=>m.remove());_marks=[];closeBlock(true);
   if(!_dmap)return;
   ensureBlockEls();
   var seen={},pts=[];
   list.forEach(function(l){
     var hasCo=(l.lat&&l.lng);
-    var exact=hasCo&&!l.geoZone;              // baked zone-centroids are NOT building-exact
+    /* `geoZone` non è scritto su NESSUN annuncio (0 su 19), quindi il vecchio
+       `hasCo && !l.geoZone` era sempre vero: ogni pin si dichiarava esatto e
+       il prefisso "≈" non compariva mai — legenda "≈ zone area" compresa.
+       La provenienza vera sta in `listing.geo`; la legge js/boom-geo.js. */
+    var exact=hasCo&&pinExact(l);
     var co=hasCo?[l.lng,l.lat]:zoneCoordD(l);
     if(!co)return;
     if(!exact){var key=co[0].toFixed(3)+','+co[1].toFixed(3),n=seen[key]||0;seen[key]=n+1;
@@ -1041,7 +1112,26 @@ function plotMarks(list){_marks.forEach(m=>m.remove());_marks=[];closeBlock(true
     p.el=el;
     var mk=new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat(p.co).addTo(_dmap);_marks.push(mk);b.extend(p.co);});
   _ovBounds=b;
-  try{_dmap.fitBounds(b,{padding:70,maxZoom:15.5,duration:600,pitch:55});}catch(e){}
+  /* Con un solo risultato il bounds ha area zero, quindi fitBounds va diretto
+     a maxZoom: a 15.5 con pitch 55 si vedono i tetti e nient'altro — nessuna
+     cupola, nessun riferimento (le etichette POI sono nascoste di proposito) e
+     TUTTE le ancore fuori quadro. Cioè la mappa si spegne proprio quando
+     stai guardando una casa. Con pochi risultati si allarga fino a comprendere
+     l'ancora più vicina — Termini, LUISS, l'università — così la casa si vede
+     SEMPRE in relazione a qualcosa che il visitatore conosce. */
+  var fitB=b,cap=15.5;
+  if(pts.length<=2){
+    fitB=new maplibregl.LngLatBounds();
+    pts.forEach(function(p){fitB.extend(p.co);
+      var nA=ANCHORS.map(function(A){return {A:A,d:_hav(p.co,[A[0],A[1]])}})
+                    .sort(function(x,y){return x.d-y.d})[0];
+      if(nA)fitB.extend([nA.A[0],nA.A[1]]);});
+    cap=14.4;
+  }
+  try{_dmap.fitBounds(fitB,{padding:70,maxZoom:cap,duration:600,pitch:55});}catch(e){}
+  /* e i fili d'oro si accendono da soli: su una casa sola non c'è nulla su cui
+     passare col mouse, e su telefono l'hover non esiste affatto */
+  if(pts.length===1)setTimeout(function(){try{showLinks(pts[0].co)}catch(e){}},700);
   /* deep-linked from a listing page: land straight on that home's block */
   if(S.focus){var _t=pts.filter(function(p){return p.l.id===S.focus})[0];S.focus='';
     if(_t)setTimeout(function(){showBlock(_t,_t.el);},900);}}
@@ -1078,17 +1168,37 @@ function showBlock(p,pinEl){
   c.classList.add('on');
   try{_dmap.flyTo({center:p.co,zoom:Math.max(_dmap.getZoom(),15.2),pitch:58,duration:1100,essential:true});}catch(e){}
   showLinks(p.co);
+  try{_dmap.once('idle',goldHouseSky)}catch(e){}
+}
+/* LA SAGOMA sullo Skyline: il palazzo esatto del blocco aperto si accende
+   in oro — footprint reale dai vector tile, ri-estruso. Niente footprint
+   nel tile → nessun falso; ritenta una volta quando i tile arrivano. */
+function goldHouseSky(){
+  try{
+    if(!_blockP||!_dmap)return;
+    var pt=_dmap.project(_blockP.co);
+    var fs=_dmap.queryRenderedFeatures([[pt.x-7,pt.y-7],[pt.x+7,pt.y+7]],{layers:['b3d']});
+    var src=_dmap.getSource('thehouse');
+    if(!fs.length){
+      if(src)src.setData({type:'FeatureCollection',features:[]});
+      if(!goldHouseSky._r){goldHouseSky._r=1;_dmap.once('idle',function(){goldHouseSky._r=0;goldHouseSky();});}
+      return;
+    }
+    var f=fs[0],p=f.properties||{};
+    var gj={type:'Feature',properties:{h:+(p.render_height||p.height)||16,b:+(p.render_min_height||p.min_height)||0},geometry:f.geometry};
+    if(src){src.setData(gj);return;}
+    _dmap.addSource('thehouse',{type:'geojson',data:gj});
+    _dmap.addLayer({id:'thehouse-x',type:'fill-extrusion',source:'thehouse',paint:{'fill-extrusion-color':'#FFD700','fill-extrusion-height':['get','h'],'fill-extrusion-base':['get','b'],'fill-extrusion-opacity':.88,'fill-extrusion-vertical-gradient':true}});
+    _dmap.addLayer({id:'thehouse-l',type:'line',source:'thehouse',paint:{'line-color':'#FFE55C','line-width':2,'line-opacity':.95}});
+  }catch(e){}
 }
 function orbitBlock(){
   if(!_blockP||!_dmap)return;
   try{boomTrack('block_explore',{item_id:_blockP.l.id})}catch(e){}
-  /* photoreal 3D (Google tiles) when the key is configured — else satellite orbit */
-  if(window.__prKey&&window.BoomPhotoreal){
-    var P=_blockP;
-    BoomPhotoreal.open({lat:P.co[1],lng:P.co[0],name:P.l.name,key:__prKey})
-      .catch(function(){orbitSat();});
-    return;
-  }
+  /* Il ramo photoreal (Google 3D Tiles) è stato rimosso: tile.googleapis.com
+     risponde 403 a questo account per la regola EEA — vedi la nota in
+     apartment-detail.html. Tentarlo significava solo far aspettare l'utente
+     prima dell'orbita satellitare, che è sempre stata quella che funziona. */
   orbitSat();
 }
 function orbitSat(){
@@ -1116,6 +1226,7 @@ function stopOrbit(keepHint){
 }
 function closeBlock(silent){
   stopOrbit();_blockP=null;
+  try{var _hs=_dmap&&_dmap.getSource('thehouse');if(_hs)_hs.setData({type:'FeatureCollection',features:[]});}catch(e){}
   var c=document.getElementById('blockcard');if(c)c.classList.remove('on');
   document.querySelectorAll('.mpin2.on').forEach(function(x){x.classList.remove('on')});
   if(!silent){clearLinks();try{if(_ovBounds)_dmap.fitBounds(_ovBounds,{padding:70,maxZoom:15.5,duration:1300,pitch:55});}catch(e){}}
@@ -1123,13 +1234,9 @@ function closeBlock(silent){
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&_blockP)closeBlock();});
 function renderMap(list){
   var mv=document.getElementById('mapview');mv.classList.add('on');
-  /* photoreal readiness: one fetch — if a Google key is configured, arm the
-     Cesium module lazily; "Explore the block" upgrades itself automatically */
-  if(window.__prKey===undefined){window.__prKey=null;
-    fetch('/api/maps-key').then(function(r){return r.json()}).then(function(j){
-      if(j&&j.key){window.__prKey=j.key;
-        var s=document.createElement('script');s.src='/js/boom-photoreal.js';document.head.appendChild(s);}
-    }).catch(function(){});}
+  /* Qui si scaricavano ~3MB di Cesium a OGNI apertura dello Skyline, anche a
+     chi non toccava "Explore the block" — per una funzione che a questo
+     account risponde 403 (regola EEA, vedi apartment-detail.html). Via. */
   ensureML().then(function(){
     if(!_dmap){_dmap=new maplibregl.Map({container:'mapview',style:'https://tiles.openfreemap.org/styles/liberty',center:[12.4922,41.8902],zoom:11.6,pitch:55,bearing:-12,cooperativeGestures:true,antialias:true,attributionControl:false});
       _dmap.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');
@@ -1327,8 +1434,8 @@ function syncSheet(){if(document.getElementById('sheet').classList.contains('sho
 let lastFocus=null;
 function openSheet(){lastFocus=document.activeElement;buildSheet();document.getElementById('sheet').classList.add('show');document.body.style.overflow='hidden';document.querySelector('#sheet .xc').focus();}
 function closeSheet(){document.getElementById('sheet').classList.remove('show');document.body.style.overflow='';if(lastFocus)lastFocus.focus();}
-function openOv(id){lastFocus=document.activeElement;document.getElementById(id).classList.add('show');document.body.style.overflow='hidden';const x=document.querySelector('#'+id+' .xc');if(x)x.focus();}
-function closeOv(id){document.getElementById(id).classList.remove('show');document.body.style.overflow='';if(lastFocus)lastFocus.focus();}
+function openOv(id){lastFocus=document.activeElement;document.getElementById(id).classList.add('show');document.body.style.overflow='hidden';const x=document.querySelector('#'+id+' .xc');if(x)x.focus();try{if(window.__amb)__amb.mood('focus')}catch(e){}}
+function closeOv(id){document.getElementById(id).classList.remove('show');document.body.style.overflow='';if(lastFocus)lastFocus.focus();try{if(window.__amb)__amb.mood('browse')}catch(e){}}
 function resetAll(){Object.assign(S,{q:'',budgetMax:4000,moveIn:'',beds:0,baths:0,furnished:false,video:false,zones:[],feats:[],sort:'match',savedOnly:false});syncControls();buildSheet();render();}
 document.getElementById('sheet').addEventListener('click',e=>{if(e.target.id==='sheet')closeSheet();});
 document.getElementById('cmpOv').addEventListener('click',e=>{if(e.target.id==='cmpOv')closeOv('cmpOv');});
@@ -1401,7 +1508,46 @@ document.getElementById('cmpN').textContent=cmp.size;document.getElementById('cm
 fetch('/api/listings',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{
   if(j&&j.ok&&Array.isArray(j.listings)&&j.listings.length){L=j.listings.filter(isRentable).map(mapReal);if(!L.length)L=SAMPLE;
     var _pc=document.querySelector('.proto');if(_pc)_pc.innerHTML='DISCOVERY · <b>live data</b> · '+L.length+' homes';}
-}).catch(()=>{}).finally(function(){trustPulse();seoItemList();render();restoreScroll();});
+}).catch(()=>{}).finally(function(){trustPulse();seoItemList();render();restoreScroll();cultureRail();});
+
+/* ── culture & community: the ten villages, each with its one true line and
+     its LIVE count — guides written for internationals, linked where the
+     search actually happens. ── */
+function cultureRail(){
+  try{
+    if(!window.BOOM||!BOOM.allNeighborhoods)return;
+    /* one line per village, written like the guides: both sides, no brochure */
+    var LORE={'trastevere':'Postcard Rome, priced like it — crowded at dinner, magic after midnight','centro-storico':'Living inside the monument: sublime, expensive, never quiet on weekends','monti':'The hip rione that earned it — artisans and wine bars, tourist flow on weekends','prati':'Bourgeois order by the Vatican walls — elegant, safe, sober after 10pm','pigneto':'Rome’s Berlin corner — creative, cheaper, rough edges and proud of them','testaccio':'The most Roman food in Rome — working-class soul, nightlife in the old mattatoio','ostiense':'Street art, the gasometer, Garbatella courtyards — real life at real prices','trieste-coppede':'Leafy and genuinely quiet — you trade nightlife for sleep and Villa Ada','ponte-milvio':'Aperitivo capital of the north — riverside, MAXXI, loud on match days','san-lorenzo':'Student Rome: the cheapest central rents, the loudest central nights','esquilino':'Every cuisine on earth around Piazza Vittorio — vibrant, chaotic, undervalued'};
+    var counts={};(L||[]).filter(isRentable).forEach(function(l){var s=BOOM.zoneToSlug(l.zone||'');if(s)counts[s]=(counts[s]||0)+1;});
+    var host=document.getElementById('cultrow');if(!host)return;
+    host.innerHTML=BOOM.allNeighborhoods().map(function(n){
+      var c=counts[n.slug]||0;
+      return '<a class="cc" href="/apartments-in/'+n.slug+'"><span class="nm">'+n.name+'</span><span class="lore">'+(LORE[n.slug]||'A genuine Roman quartiere — well connected, honest prices')+'.</span><span class="ft">'+(c?('Guide + '+c+' verified home'+(c>1?'s':'')+' now'):'Read the guide')+' →</span></a>';
+    }).join('');
+  }catch(e){}
+}
+
+/* ── the search is a link: syncURL already writes every filter into the URL,
+     so sharing the search IS sharing the page. One tap, ready to forward. ── */
+function shareSearch(){
+  var url=location.href,b=document.getElementById('shareSearch');
+  try{boomTrack('search_share',{filters:activeCount()})}catch(e){}
+  if(navigator.share){try{navigator.share({title:document.title,url:url}).catch(function(){})}catch(e){}return;}
+  var done=function(){if(b){b.textContent='✓ Copied';setTimeout(function(){b.textContent='↗ Share';},1400);}};
+  try{navigator.clipboard.writeText(url).then(done,done)}catch(e){done()}
+}
+/* the power row lands with weight — numbers roll once, above the fold */
+(function(){
+  if(matchMedia('(prefers-reduced-motion:reduce)').matches)return;
+  document.querySelectorAll('#heroPow b i:not([data-noroll])').forEach(function(el,k){
+    var txt=el.textContent,num=parseFloat(txt);if(!isFinite(num)||num<=0)return;
+    setTimeout(function(){var t0=performance.now(),d=850;
+      (function tick(n){var p=Math.min(1,(n-t0)/d),e=1-Math.pow(1-p,3);
+        el.textContent=p<1?String(Math.round(num*e)):txt;
+        if(p<1)requestAnimationFrame(tick);})(t0);
+    },260+k*140);
+  });
+})();
 </script>
 </body>
 </html>

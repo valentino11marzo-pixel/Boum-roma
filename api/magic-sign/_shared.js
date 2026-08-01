@@ -3,12 +3,61 @@
 // from /api/homie/_lib.js — Magic-Sign endpoints are open to anonymous
 // callers but authorize via the single-use signing token carried in the URL.
 
-import { fsList, FS_BASE, getAdminToken, toFsFields } from '../homie/_lib.js';
+import { fsList, FS_BASE, getAdminToken, toFsFields, fsDocToJs } from '../homie/_lib.js';
 
-// Look up a contract by either tenantSignToken or landlordSignToken.
-// Returns { contract, role } or null.
+// Documento + updateTime: serve al write di firma per la precondizione
+// ottimistica (currentDocument.updateTime) che chiude la race del doppio
+// submit — fsGet normale scarta l'updateTime.
+export async function fsGetWithTime(docPath) {
+  const token = await getAdminToken();
+  const r = await fetch(`${FS_BASE}/${docPath}`, { headers: { Authorization: `Bearer ${token}` } });
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error('fsGetWithTime_' + r.status);
+  const doc = await r.json();
+  return { data: fsDocToJs(doc), updateTime: doc.updateTime || null };
+}
+
+// ── CO-FIRMA: token DERIVATI per i co-conduttori ─────────────────────────
+// Stesso pattern di scheda/manageToken: sha256("cosign:<contractId>:<idx>:
+// <HOMIE_SECRET>") — niente da memorizzare, niente query dentro array,
+// ogni contratto con coTenants[] ha GIÀ i suoi link (zero migrazione),
+// ruotare il secret revoca tutto. Il ref viaggia nello stesso parametro
+// ?sign= come "<contractId>.c<idx>.<token>".
+import crypto from 'node:crypto';
+
+export function cosignToken(contractId, idx) {
+  const salt = process.env.HOMIE_SECRET || process.env.CRON_SECRET || 'boom';
+  return crypto.createHash('sha256')
+    .update(`cosign:${contractId}:${idx}:${salt}`).digest('hex').slice(0, 24);
+}
+export const cosignRef = (contractId, idx) => `${contractId}.c${idx}.${cosignToken(contractId, idx)}`;
+
+export function parseCoSignRef(token) {
+  const m = /^([A-Za-z0-9_-]{4,80})\.c(\d{1,2})\.([a-f0-9]{24})$/.exec(String(token || ''));
+  if (!m) return null;
+  const idx = Number(m[2]);
+  const expect = cosignToken(m[1], idx);
+  const a = Buffer.from(m[3]), b = Buffer.from(expect);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  return { contractId: m[1], idx };
+}
+
+// Look up a contract by tenantSignToken, landlordSignToken or a derived
+// co-sign ref. Returns { contract, role, coIndex? } or null.
 export async function findContractByToken(token) {
   if (!token || typeof token !== 'string' || token.length < 8) return null;
+
+  // Co-firma: il ref è auto-verificante — niente query, si carica per ID.
+  const co = parseCoSignRef(token);
+  if (co) {
+    const { fsGet } = await import('../homie/_lib.js');
+    const contract = await fsGet('contracts/' + co.contractId).catch(() => null);
+    if (!contract) return null;
+    const list = Array.isArray(contract.coTenants) ? contract.coTenants : [];
+    if (!list[co.idx] || !list[co.idx].name) return null;
+    return { contract: { ...contract, id: co.contractId }, role: 'cotenant', coIndex: co.idx };
+  }
+
   // tenantSignToken first (most common path)
   let hits = await fsList('contracts', {
     filter: { field: 'tenantSignToken', op: 'EQUAL', value: token },
@@ -25,11 +74,22 @@ export async function findContractByToken(token) {
   return null;
 }
 
+// Lato-conduttori completo = conduttore principale + TUTTI i co-conduttori.
+// È la condizione che sblocca la controfirma del locatore (sequenziale).
+export function tenantSideComplete(contract) {
+  if (!contract || !contract.tenantSignature) return false;
+  const list = Array.isArray(contract.coTenants) ? contract.coTenants : [];
+  return list.filter(x => x && x.name).every(x => !!x.signature);
+}
+
 // Apply server-side timestamp via a Firestore field transform. The plain
 // fsPatch helper writes fields literally; some cascading updates want
 // serverTimestamp() for createdAt / updatedAt. We do those through :commit.
 //
-// `writes` is an array of { docPath, fields, serverTimestampFields }.
+// `writes` is an array of { docPath, fields, serverTimestampFields,
+// precondition? } — precondition.updateTime rende il write CONDIZIONATO
+// (Firestore risponde FAILED_PRECONDITION se il documento è cambiato nel
+// frattempo): è il lucchetto ottimistico del write di firma.
 export async function commitWrites(writes) {
   const token = await getAdminToken();
   const projectPath = FS_BASE.replace(/\/documents$/, '');
@@ -47,6 +107,7 @@ export async function commitWrites(writes) {
       const write = { update };
       if (updateMask.length) write.updateMask = { fieldPaths: updateMask };
       if (fieldTransforms.length) write.updateTransforms = fieldTransforms;
+      if (w.precondition && w.precondition.updateTime) write.currentDocument = { updateTime: w.precondition.updateTime };
       return write;
     }),
   };

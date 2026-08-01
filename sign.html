@@ -489,7 +489,7 @@
     }
 
     // ═══════════════ STEP 2 — IDENTITY (auto-staged: confirm if known, fill if not) ═══════════════
-    function idFrom(s){ return { name:s.name||'', dob:s.dob||'', pob:s.pob||'', cf:(s.cf||'').toUpperCase(), address:s.address||'', docType:s.docType||'passport', docNum:s.docNum||'', nationality:s.nationality||'' }; }
+    function idFrom(s){ return { name:s.name||'', dob:s.dob||'', pob:s.pob||'', cf:(s.cf||'').toUpperCase(), address:s.address||'', docType:s.docType||'passport', docNum:s.docNum||'', docIssuer:s.docIssuer||'', docIssueDate:s.docIssueDate||'', nationality:s.nationality||'' }; }
     function identityComplete(s){ var d=idFrom(s); return !!(d.name&&d.dob&&d.pob&&d.address&&d.docNum&&d.nationality&&validCF(d.cf)); }
     function docLabel(t){ return t==='id'?'Carta d’identità':(t==='permit'?'Permesso di soggiorno':'Passport'); }
     function renderIdentity(){
@@ -544,6 +544,10 @@
             '</select></div>'+
             '<div class="field"><label>Document no.</label><input class="inp" id="i-docnum" value="'+esc(s.docNum||'')+'" placeholder="Number"></div>'+
           '</div>'+
+          '<div class="row2">'+
+            '<div class="field"><label>Issued by <span class="hint">— optional</span></label><input class="inp" id="i-issuer" value="'+esc(s.docIssuer||'')+'" placeholder="Authority"></div>'+
+            '<div class="field"><label>Issue date <span class="hint">— optional</span></label><input class="inp" id="i-issued" type="date" value="'+esc(s.docIssueDate||'')+'"></div>'+
+          '</div>'+
           '<div class="field"><label>Nationality</label><input class="inp" id="i-nat" value="'+esc(s.nationality||'')+'" placeholder="Country"></div>'+
           '<div class="btnrow"><button class="btn ghost" id="i-back">Back</button><button class="btn" id="i-next">Continue</button></div>'+
         '</div>'
@@ -553,7 +557,7 @@
       document.getElementById('i-back').onclick=renderReview;
       document.getElementById('i-next').onclick=function(){
         var g=function(id){ return (document.getElementById(id).value||'').trim(); };
-        var data={ name:g('i-name'), dob:g('i-dob'), pob:g('i-pob'), cf:g('i-cf').toUpperCase(), address:g('i-addr'), docType:g('i-doctype'), docNum:g('i-docnum'), nationality:g('i-nat') };
+        var data={ name:g('i-name'), dob:g('i-dob'), pob:g('i-pob'), cf:g('i-cf').toUpperCase(), address:g('i-addr'), docType:g('i-doctype'), docNum:g('i-docnum'), docIssuer:g('i-issuer'), docIssueDate:g('i-issued'), nationality:g('i-nat') };
         var firstBad=null;
         ['i-name','i-dob','i-pob','i-cf','i-addr','i-docnum','i-nat'].forEach(function(id){
           var inp=document.getElementById(id); var bad=!(inp.value||'').trim();
@@ -754,7 +758,7 @@
           signerIP: arr[1],
           signerName: S.id.name || signer.name || '',
           signerEmail: signer.email || '',
-          identity: { cf:S.id.cf||'', address:S.id.address||'', dob:S.id.dob||'', pob:S.id.pob||'', docType:S.id.docType||'', docNum:S.id.docNum||'', nationality:S.id.nationality||'' },
+          identity: { cf:S.id.cf||'', address:S.id.address||'', dob:S.id.dob||'', pob:S.id.pob||'', docType:S.id.docType||'', docNum:S.id.docNum||'', docIssuer:S.id.docIssuer||'', docIssueDate:S.id.docIssueDate||'', nationality:S.id.nationality||'' },
           phone: { number:S.id.phone||'', verified: !!S.id.phoneVerified, verifiedAt:S.id.phoneVerifiedAt||'', idToken:S.id.phoneIdToken||'' },
           consent: { text: CONSENT, hash: arr[0], at: new Date().toISOString() }
         };

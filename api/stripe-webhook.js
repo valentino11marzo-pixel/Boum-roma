@@ -4,6 +4,7 @@ import { fsList, fsPatch } from './homie/_lib.js';
 import { sendPaEmails, shell, para, fine, btn, btn2 } from './preagreement/_notify.js';
 import { sendEmail } from './agent/_lib.js';
 import { maybeAutoConvert } from './preagreement/_auto.js';
+import { tgNotify } from './pfs/_health.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -508,6 +509,15 @@ async function handlePreagreement(res, session, m) {
     });
   } catch (e) { console.error('[webhook/pa] patch failed:', e.message); }
 
+  // Il dovuto alla firma è arrivato: il lucchetto sull'immobile diventa
+  // DEFINITIVO. Prima scadeva dopo 48h, perché una riserva che non paga non
+  // deve congelare l'appartamento; ora che i soldi ci sono, nessun altro
+  // candidato può più subentrare.
+  try {
+    const { confirmLock } = await import('./preagreement/_lock.js');
+    await confirmLock({ pa, paId: id });
+  } catch (e) { console.error('[webhook/pa] lucchetto non confermato:', e.message); }
+
   // Stripe receipt link (best-effort)
   let receiptUrl = null;
   try {
@@ -573,24 +583,61 @@ async function handleRent(res, session, m) {
     return res.status(200).json({ received: true, doublePayment: true, paymentId });
   }
 
-  // Stripe receipt link (best-effort)
-  let receiptUrl = null;
+  // Ricevuta Stripe + COSTO REALE dell'incasso (best-effort).
+  //
+  // Stripe dice, su ogni addebito, quanto gli è costato: balance_transaction
+  // .fee. Finora quel dato lo buttavamo via e la commissione al cliente era
+  // una percentuale decisa al buio — che sulle carte estere (3,25%) va in
+  // perdita e su quelle europee (1,5%) sovrapprezza. Salvandolo, la
+  // commissione può regolarsi sul misurato invece che sul listino.
+  let receiptUrl = null, stripeCostEur = null, cardCountry = null, cardBrand = null;
   try {
     if (session.payment_intent) {
-      const pi = await stripe.paymentIntents.retrieve(String(session.payment_intent), { expand: ['latest_charge'] });
-      receiptUrl = (pi.latest_charge && pi.latest_charge.receipt_url) || null;
+      const pi = await stripe.paymentIntents.retrieve(String(session.payment_intent),
+        { expand: ['latest_charge.balance_transaction'] });
+      const ch = pi.latest_charge || null;
+      receiptUrl = (ch && ch.receipt_url) || null;
+      const bt = ch && ch.balance_transaction;
+      if (bt && typeof bt.fee === 'number') stripeCostEur = Math.round(bt.fee) / 100;
+      const card = ch && ch.payment_method_details && ch.payment_method_details.card;
+      if (card) { cardCountry = card.country || null; cardBrand = card.brand || null; }
     }
-  } catch (_) {}
+  } catch (e) { console.error('[rent] costo reale non leggibile:', e.message); }
 
   try {
     await patchDoc(`payments/${paymentId}`, {
       status: 'paid', paidAt: now, paidDate: now.slice(0, 10),
       paidVia: 'stripe', stripeSessionId: session.id,
       serviceFeeEur: fee, receiptUrl: receiptUrl || '',
+      // Il conto vero di questo incasso: quanto abbiamo chiesto, quanto ci è
+      // costato, cosa ci resta. Con il paese della carta, che è la ragione per
+      // cui lo stesso incasso costa il doppio.
+      stripeCostEur, cardCountry, cardBrand,
+      marginEur: stripeCostEur == null ? null : Math.round((fee - stripeCostEur) * 100) / 100,
     });
   } catch (err) {
     console.error('[rent] payment patch:', err.message);
     return res.status(500).json({ received: false, error: 'patch_failed' });
+  }
+
+  // La statistica che fa scendere la commissione da sola: volume incassato,
+  // costo realmente sostenuto, numero di incassi. pay.js la legge alla
+  // creazione della sessione successiva, quindi il prezzo converge sul costo
+  // vero senza che nessuno decida una percentuale a mano.
+  if (stripeCostEur != null) {
+    try {
+      const prev = (await readDoc('settings/rentFeeStats').catch(() => null)) || {};
+      await patchDoc('settings/rentFeeStats', {
+        count: (Number(prev.count) || 0) + 1,
+        volumeEur: Math.round(((Number(prev.volumeEur) || 0) + amount) * 100) / 100,
+        costEur: Math.round(((Number(prev.costEur) || 0) + stripeCostEur) * 100) / 100,
+        // Parte fissa: Stripe ne applica una per addebito (~€0,25). Tenerla
+        // separata evita di gonfiare la percentuale sui canoni piccoli.
+        fixedEur: Math.round(((Number(prev.fixedEur) || 0) + 0.25) * 100) / 100,
+        lastAt: now,
+        lastCardCountry: cardCountry || null,
+      });
+    } catch (err) { console.error('[rent] statistica costi:', err.message); }
   }
 
   try {
@@ -633,6 +680,59 @@ async function handleRent(res, session, m) {
   return res.status(200).json({ received: true, rent: true, paymentId });
 }
 
+// ── Soldi che tornano indietro: MAI in silenzio ────────────────────────────
+// Un rimborso o una CONTESTAZIONE (dispute) finora arrivavano solo nella
+// dashboard Stripe: su una dispute non risposta entro la scadenza l'importo
+// è perso per sempre. Ora ogni evento suona sul Telegram dell'operatore e
+// lascia una notifica in agentNotifications (che fa anche da idempotenza:
+// il retry di Stripe trova il doc già scritto e non suona due volte).
+async function handleMoneyBack(res, event) {
+  const o = event.data.object || {};
+  const eur = n => '€' + (Math.round(n || 0) / 100).toLocaleString('it-IT');
+  const when = e => e ? new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', day: 'numeric', month: 'long' }).format(new Date(e * 1000)) : '—';
+
+  let text = '';
+  let priority = 'normal';
+  if (event.type === 'charge.refunded') {
+    const who = (o.billing_details && (o.billing_details.name || o.billing_details.email)) || '—';
+    const full = (o.amount_refunded || 0) >= (o.amount || 0);
+    text = `↩️ <b>RIMBORSO ${full ? 'totale' : 'parziale'}: ${eur(o.amount_refunded)}</b>\n`
+      + `${who} · addebito ${eur(o.amount)}\n`
+      + `https://dashboard.stripe.com/payments/${o.payment_intent || o.id}`;
+  } else if (event.type === 'charge.dispute.created') {
+    priority = 'high';
+    const dueBy = o.evidence_details && o.evidence_details.due_by;
+    text = `🚨 <b>CONTESTAZIONE (dispute): ${eur(o.amount)}</b>\n`
+      + `Motivo: ${o.reason || '—'}\n`
+      + `⏰ Rispondi con le prove <b>entro il ${when(dueBy)}</b> — senza risposta l'importo è perso.\n`
+      + `https://dashboard.stripe.com/disputes/${o.id}`;
+  } else {
+    const esito = o.status === 'won' ? 'VINTA ✓' : o.status === 'lost' ? 'PERSA ✗' : (o.status || 'chiusa');
+    text = `⚖️ Dispute ${esito} — ${eur(o.amount)}\nhttps://dashboard.stripe.com/disputes/${o.id}`;
+  }
+
+  let w = null;
+  try {
+    w = await writeDoc('agentNotifications', 'stripe-' + String(event.id).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40), {
+      type: 'stripe.' + event.type,
+      summary: text.replace(/<[^>]+>/g, '').split('\n').slice(0, 2).join(' · '),
+      priority, status: 'pending', actor: 'stripe-webhook',
+      dedupKey: 'stripe-' + event.id, createdAt: new Date().toISOString(), attempts: 0,
+    });
+  } catch (e) { console.error('[moneyback] notify write:', e.message); }
+  if (w && w.exists) return res.status(200).json({ received: true, duplicate: true });
+
+  try { await tgNotify(text); } catch (e) { console.error('[moneyback] telegram:', e.message); }
+  return res.status(200).json({ received: true, moneyback: event.type });
+}
+
+const HANDLED_EVENTS = new Set([
+  'checkout.session.completed',
+  'charge.refunded',
+  'charge.dispute.created',
+  'charge.dispute.closed',
+]);
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).send('Method not allowed');
 
@@ -647,8 +747,12 @@ export default async function handler(req, res) {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  if (event.type !== 'checkout.session.completed') {
+  if (!HANDLED_EVENTS.has(event.type)) {
     return res.status(200).json({ received: true, ignored: event.type });
+  }
+
+  if (event.type !== 'checkout.session.completed') {
+    return handleMoneyBack(res, event);
   }
 
   const session = event.data.object;

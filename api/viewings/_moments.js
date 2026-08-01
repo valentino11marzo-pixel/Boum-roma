@@ -18,6 +18,7 @@ import { fsList, fsPatch, fsGet } from '../homie/_lib.js';
 import { startOf, endOf, isVideo, videoRoom } from './_lib.js';
 import { sendReminder, sendAfter, sendConfirmation } from './_email.js';
 import { inviteOperator } from './_invite.js';
+import { replyLang } from '../_lang.js';
 
 const MIN = 60 * 1000, H = 60 * MIN;
 
@@ -28,7 +29,9 @@ const MOMENTS = [
   { key: '30m', flag: 'reminder30mSent', from: -45 * MIN, to: -20 * MIN },
 ];
 
-const langOf = v => (String(v.language || '').toLowerCase() === 'it' ? 'it' : 'en');
+// One decider for the whole system: what the client actually WROTE beats any
+// stored flag, and an unknown language means English (see api/_lang.js).
+const langOf = v => replyLang(v);
 
 // the address and the map coordinates live on the listing, not on the request
 async function withListing(v) {

@@ -36,6 +36,9 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
   fiscal-engine.js        Pure obligations engine: per-property/contract +
                           company (Egidi) fiscal deadlines + amounts.
                           window.BOOM_FISCAL
+  boom-geo.js             How true is this pin — exact (street+number) /
+                          street / zone / none, read from listing.geo.
+                          window.BOOM_GEO. See "Precisione dei pin".
 firestore.rules           Firestore security rules (role-based)
 storage.rules             Storage security rules (role-based file access)
 firebase.json             Firebase deploy config (firestore + storage rules)
@@ -150,7 +153,10 @@ BANK_MAIL_FROM               # optional — extra sender filters for the bank
 # Canone via BOOM + journey (api/payments/pay.js, api/journey/_run.js)
 RENT_FEE_PCT                 # optional — service fee % on card rent payments
                              # (default 2.5)
-RENT_FEE_MIN                 # optional — fee floor in EUR (default 9)
+RENT_FEE_MIN                 # optional — fee floor in EUR (only with RENT_FEE_PCT)
+RENT_FEE_BUFFER              # optional — margine sopra il costo Stripe misurato,
+                             # in euro (default 0 = si va a pari)
+RENT_FEE_MAX_PCT             # optional — tetto di sicurezza in % (default 4)
 REVIEW_URL                   # the REAL Google review link (g.page/r/…) used
                              # by the journey's T+3 and exit emails; falls
                              # back to a Google search for the profile
@@ -172,6 +178,20 @@ DOC_MAIL_FROM                # optional — extra TRUSTED senders whose email
                              # operator's own addresses are always trusted.
 VIEWINGS_CALENDAR_EMAIL      # optional — where viewing calendar invites are
                              # sent (defaults to GMAIL_USER)
+BUSY_ICS_URLS                # optional — ICS address(es) of the operator's
+                             # REAL calendar (Google Workspace: Calendar →
+                             # Settings → your calendar → Integrate calendar),
+                             # comma-separated. Busy events remove slots from
+                             # the public booking grid. Fail-open: an
+                             # unreachable calendar never blocks bookings.
+                             # NOTA: l'indirizzo SEGRETO non compare quando
+                             # l'admin Workspace ha disattivato la condivisione
+                             # esterna (Admin console → App → Google Workspace
+                             # → Calendar → Impostazioni di condivisione). In
+                             # quel caso o si riabilita, oppure si usa
+                             # l'indirizzo PUBBLICO di un calendario condiviso
+                             # in modalità "solo disponibilità" — dropBoomEchoes
+                             # copre gli UID anonimizzati di quella modalità
 TELEGRAM_BOT_TOKEN           # already used by api/telegram/*; pfs health alerts
 TELEGRAM_CHAT_ID
 ```
@@ -210,7 +230,22 @@ AI listing-copy for the Telegram wizard bot. Auth via `X-Wizard-Secret`
 returns `{ ok, en, it }` — a polished bilingual description from Claude
 (`claude-haiku-4-5-20251001`). The `ANTHROPIC_API_KEY` stays server-side; the
 bot can't call Claude directly. Bot falls back to a template if this is
-unavailable.
+unavailable — and that template now humanises the feature codes (it used to
+join the raw DB keys, publishing "washing_machine, double_glazing" on the
+listing page and inside `/llms-listings.txt`, i.e. straight to crawlers).
+
+**Sweep** — `GET ?mode=sweep[&limit=N]` (cron 03:35 UTC, auth like the other
+wizard crons: Bearer `CRON_SECRET`, `X-Homie-Secret`, or an admin ID token).
+A listing page with no text is invisible to search and uncitable by AI answer
+engines, which reward specific facts over filler. On 2026-07-28 the live
+catalog had **10 empty descriptions and 10 carrying the bot's template**; the
+sweep rewrites them nightly (6/run, time-boxed, ordered available-and-mute
+first). **It never rewrites a human's words**: length is the wrong test — the
+real catalog's human copy runs 66–203 chars while the template reaches 203, so
+a "too short" rule would delete *"perfect for Luiss students"* and keep
+*"Features include ac, balcony"*. Only EMPTY text and the template's own
+signature qualify (`isBoilerplate` / `copyGap` / `copyOrder`, exported +
+tested), and anything overwritten is preserved in `descriptionOriginal`.
 
 ### GET/POST `/api/wizard/health` (cron */10 min)
 Watchdog for the Telegram listing wizard bot. The bot (via
@@ -369,6 +404,168 @@ viewing id + server secret).
   the visitor's local offset. The confirmed screen leads with the one
   thing they'll tap on the day (directions / join call), then Wallet and
   calendar. No polling, no pending limbo.
+- `api/viewings/_avail.js` — **the availability engine, one copy**. The
+  public grid, the client's reschedule page and the operator's Telegram
+  picker all read it, so they can never disagree about what's free.
+  `loadConfig` / `busyBlocks(cfg, exceptId)` / `buildSlots` / `slotOffered`,
+  plus the Rome-time helpers (offsets derived from `Intl`, no tz library).
+  `exceptId` is what makes a reschedule possible at all — without it a
+  viewing blocks itself and can never move by 30 minutes. Unit-tested
+  (`node tests/viewings/avail.mjs`): step math, the 15' gap, notice,
+  horizon, max/day, and the DST boundary.
+- `api/viewings/_busyics.js` — **il calendario Workspace dentro la griglia**
+  (la risposta a "non posso avere disponibilità istantanea costante su tutti
+  gli appartamenti"): legge gli indirizzi ICS segreti (`BUSY_ICS_URLS` env
+  e/o `busyIcs` sul doc `settings/viewingAvailability`) e ogni impegno REALE
+  dell'operatore diventa un blocco per `busyBlocks()` — book.html, la pagina
+  self-service del cliente e il picker Telegram smettono INSIEME di offrire
+  quello slot. Bloccare l'instant booking per un pomeriggio = trascinare un
+  evento in Google Calendar, nessuna UI BOOM. TRANSPARENT ("libero") e
+  CANCELLED non bloccano; gli eventi BOOM stessi (UID
+  `boom-viewing-*`/`viewing-*@boomrome.com` — inviti, .ics cliente, feed)
+  sono filtrati, altrimenti la copia in calendario di una visita bloccherebbe
+  il SUO stesso reschedule; **se il feed anonimizza gli UID** (calendario
+  condiviso in modalità "solo disponibilità" — quello che resta quando
+  l'admin Workspace disattiva la condivisione esterna dei dettagli, e in cui
+  l'indirizzo *segreto* non compare affatto) subentra `dropBoomEchoes()`:
+  un blocco esterno che inizia E finisce entro 2' da una visita viva è
+  l'eco di quella visita, non un impegno diverso — scartarlo è sicuro anche
+  se la stima sbaglia, perché la visita stessa è già nella lista occupati;
+  ricorrenze espanse nell'orizzonte (DAILY/WEEKLY
+  con BYDAY/INTERVAL/COUNT/UNTIL/EXDATE, istanze spostate via RECURRENCE-ID,
+  MONTHLY/YEARLY semplici — l'esotico contribuisce solo la prima istanza);
+  gli impegni esterni NON consumano `maxPerDay` (sono tempo occupato, non
+  visite); fetch con cache 2' + stale 6h e SEMPRE fail-open: un calendario
+  irraggiungibile non spegne mai le prenotazioni. È integrazione senza
+  credenziali OAuth: l'URL segreto È la credenziale (rotarlo da Google lo
+  revoca). Test: `node tests/viewings/busyics.mjs`.
+- **`GET|POST /api/viewings/calendar-check` + `/calendario` sul bot** — il
+  prezzo del fail-open è che il silenzio è ambiguo ("nessuno slot tolto" =
+  collegato e libero, oppure non collegato?). Questa è la risposta esplicita:
+  legge il calendario ADESSO (bypassa la cache), dice quante sorgenti, se
+  rispondono, quanti eventi ha letto, quanti **occupano tempo** e quali sono
+  i prossimi. Non mostra MAI l'URL (è la credenziale). **Trappola vera,
+  incontrata in produzione**: gli eventi creati in automatico da Gmail
+  (`eventType:FROM_GMAIL` — voli, hotel, conferme) nascono `TRANSPARENT`
+  cioè "Libero", quindi NON bloccano; il verdetto lo dice esplicitamente
+  invece di far concludere che l'integrazione è rotta. Per bloccare uno
+  slot l'evento va segnato **"Impegnato"** in Google Calendar.
+  **Nota Workspace**: se l'admin del dominio tiene "Opzioni di condivisione
+  esterna per i calendari principali" su *"Solo informazioni sulla
+  disponibilità"* o su *nessuna condivisione*, l'indirizzo **segreto** non
+  compare affatto nel pannello del calendario — va portato a "Condividi
+  tutte le informazioni" (è un permesso, non pubblica nulla), oppure si usa
+  l'indirizzo pubblico in modalità disponibilità (lì entra in gioco
+  `dropBoomEchoes`, perché quel feed anonimizza gli UID).
+- **Annullamento admin dal portal**: la riga visita ha ✕ Cancel anche sulle
+  CONFERMATE (le instant self-booked nascono confermate — prima il bottone
+  esisteva solo sulle pending) e passa da `/api/viewings/confirm` →
+  `_apply.js`: email di annullamento al cliente, METHOD:CANCEL che toglie
+  l'evento dal calendario, Wallet pass aggiornato, countdown spento. Prima
+  il portal scriveva solo `status:'cancelled'` su Firestore: il cliente non
+  veniva avvisato e si presentava al portone. Aggiunti anche ↩ Reschedule
+  sulle confermate, il filtro ✕ Cancelled, e i modal ora mostrano/prefillano
+  l'orario reale anche per i doc self-booked (che hanno solo i campi ISO).
+- **⚙️ Disponibilità nel portal** (`js/viewing-availability.js`, UMD come
+  boom-geo/canone-engine → `window.BOOM_AVAIL`, caricato da portal.html):
+  fino al 2026-07 le finestre di prenotazione erano i **default hardcoded**
+  di `_avail.js` (lun-ven 10-13 e 15-19, sab 10-13) — nessuna pagina le
+  mostrava e **nessuna le poteva cambiare**: l'operatore poteva solo
+  TOGLIERE tempo dal calendario, mai ridefinire l'orario di lavoro. Il
+  bottone sulla pagina Viewings apre il modal che scrive
+  `settings/viewingAvailability` (finestre per giorno in ora di Roma,
+  durate persona/video, preavviso, orizzonte, max/giorno) con anteprima
+  live di quante visite entrano davvero a settimana. **La divisione dei
+  ruoli**: la REGOLA sta qui, le ECCEZIONI del singolo giorno restano un
+  evento "Impegnato" in Google Calendar. `buildConfig` **rifiuta** un
+  valore impossibile invece di aggiustarlo (una finestra scritta male non
+  dà errore: dà una griglia vuota, e lo scopre il cliente). I default
+  della console sono asseriti UGUALI a quelli del server nei test —
+  divergere significherebbe far modificare all'operatore una regola che
+  non è in vigore.
+- **L'avviso quando forzi un orario** (`checkSlot`): dal portal Confirm e
+  Reschedule accettano QUALSIASI data/ora (sei l'operatore, a volte devi
+  forzare) — ma prima nessuno diceva che stavi sovrapponendo due clienti.
+  Ora i modal mostrano in tempo reale ⚠️ sovrapposizione (col nome del
+  cliente e l'ora), ℹ️ fuori finestra / giorno chiuso / passato, oppure
+  ✓ libero. **Avverte, non blocca.** Test: `node tests/viewings/availability-ui.mjs`.
+- **La geometria della giornata** (`travelGapMinutes` in `_avail.js`): il
+  gap tra due impegni non è più un 15' piatto — Roma non è un punto. Visite
+  IN PERSONA sullo stesso immobile si INCATENANO (gap 0: tre clienti, un
+  viaggio — il grid offre lo slot adiacente); tra immobili geocodificati il
+  gap è il viaggio vero (haversine + euristica Roma ~8'+3,2'/km, clamp
+  15–45'); video = 15' piatto (nessun viaggio); tutto ciò che non si conosce
+  (doc legacy senza coordinate, blocchi ICS esterni) = 15' identico a prima.
+  Il contesto (l'immobile che si sta prenotando) arriva da book.html (che
+  già mandava `listingId`), dalla pagina self-service del cliente e dal
+  picker Telegram; `slots.js`/`_apply.js` stampano `lat`/`lng` sul doc
+  visita alla creazione/conferma così `busyBlocks` non fa letture extra.
+  Test: `node tests/viewings/gap.mjs`.
+
+### Il Regista (`api/regista/*` — cron 05:30 UTC + Telegram)
+Il quarto membro de La Squadra: dirige la GIORNATA dell'operatore.
+- **Il Foglio di Chiamata** (`_brief.js`, deterministico — un call sheet
+  deve essere GIUSTO, non eloquente: zero AI): ogni mattina alle 07:30 su
+  Telegram la timeline delle visite di oggi coi viaggi reali tra una e
+  l'altra (stessa euristica della griglia — foglio e grid non possono
+  divergere), cosa è successo stanotte (prenotazioni self-service,
+  spostamenti del cliente), le richieste da confermare → /visite, i task di
+  oggi con bottoni ✓ Fatta / ⏰ +1g, e domani in una riga. Silenzioso a
+  giornata vuota; `/giornata` lo manda on demand (anche vuoto).
+- **La memoria task** (`_tasks.js`, collection `operatorTasks` admin-only in
+  firestore.rules): l'operatore scrive al bot in linguaggio naturale
+  ("ricordami di comprare le lampadine per Pigneto domani alle 15") →
+  `parseTaskText`, parser REGEX a grammatica chiusa (mai un'allucinazione:
+  oggi/stasera/domattina/domani/dopodomani/giorni della settimana — con
+  lookaround espliciti, `\b` è cieco dopo "giovedì" — /task, DD/MM, "5
+  settembre", "il 15", orari IT/EN am/pm; grammatica pinnata nei test).
+  `/task` lista gli aperti. **Un task CON orario diventa un VERO evento nel
+  calendario del telefono** (invito iCal UID `boom-task-<id>`, SEQUENCE
+  crescente): ✓ Fatta → METHOD:CANCEL e l'evento sparisce da solo, ⏰ +1g →
+  l'evento si sposta. `_busyics.js` filtra `boom-task-*` così un task non
+  mangia mai uno slot prenotabile via round-trip ICS.
+- **Task automatici** (nel run del cron, id deterministici
+  `task_prep_<giorno>_<immobile>` / `task_esito_<viewingId>` — un rerun non
+  duplica MAI, la data sta in testa all'id così la troncatura non la taglia):
+  🔑 preparazione chiavi/accesso per ogni immobile con visite in persona
+  oggi (l'orario della prima visita nel titolo; se le visite vengono
+  annullate il prep task si auto-VOIDa), 📋 "esito visita" per ogni visita
+  completata ieri — il follow-up che decide il fatturato, messo dove
+  l'operatore lo vede.
+- Heartbeat `teamHealth/regista` (card 🎬 in `/team`), alert Telegram dopo 3
+  run falliti, `?dry=1` per l'anteprima. Callback `tkd:`/`tks:` ≤64 byte per
+  costruzione. Test: `node tests/regista/run.mjs`.
+- `api/viewings/_apply.js` — **the ONE place a viewing changes state**.
+  Four surfaces confirm/move/cancel (the operator's API, their Telegram
+  buttons, the client's own page, the portal); the side-effects — email,
+  Wallet push, calendar invite in place, reminder-flag reset — live here
+  once, so they cannot drift. `confirm.js` is now a thin auth wrapper.
+- **The client owns their appointment** — `POST /api/viewings/manage` +
+  `viewing.html` (`/viewing?t=<ref>`). No login: the link IS the
+  credential (`manageToken` in `_lib.js` is *derived*, not stored, so
+  every viewing ever created already has a valid one, no migration;
+  rotating `HOMIE_SECRET` revokes them all). Ops: `lookup` (ticket +
+  free slots), `slots` (the other mode's grid), `reschedule` (re-verified
+  server-side → 409 `slot_taken`), `cancel` (allowed right up to the
+  start). Every change runs through `_apply.js` **and pings the operator's
+  Telegram immediately** — a client rescheduling themselves is never a
+  silent surprise. The page is English-first with IT toggle, shows Rome
+  time next to the visitor's own clock, and carries the day-of action,
+  Wallet and .ics. Linked from the confirmation email, the T-24h reminder,
+  the reschedule email and `book.html`'s confirmed screen.
+- **Telegram: the agenda in your pocket** (`api/telegram/_viewings.js`).
+  Every viewing request pings the admin chat (via `notify-pending`, every
+  minute) as a card with the three moves — **✅ Conferma <l'orario
+  proposto>** (one tap, no typing), **🔁 Sposta** (a real slot picker:
+  day rail → times, mode switch person⇄video, re-verified before writing),
+  **✖️ Annulla** (two steps, because it emails the client). Self-booked
+  viewings arrive as a notification with Sposta/Annulla. `/visite [giorni]`
+  prints the week grouped by day and re-sends an actionable card for
+  anything still open. Callback data is capped at 64 bytes by Telegram —
+  the encoding (`vok/vmv/vdy/vtm/vmo/vxq/vxx/vbk`, mode as one char, time
+  as base36 epoch-minutes) is asserted in `node tests/viewings/telegram.mjs`
+  along with HTML escaping, since one oversized button silently kills the
+  whole keyboard.
 
 ### POST `/api/apply-lead`
 Public lead-capture for the apartment-detail APPLY/RESERVE/WAITLIST flow.
@@ -557,6 +754,52 @@ tenant portal (payments/documents). Terms differ per deal: any money knob,
 extra line items and custom clauses per PA; edit before acceptance (same
 link); after acceptance/payment, Duplicate creates the new version.
 
+### Il bonifico gratuito + la commissione misurata (`api/payments/_ref.js`)
+La carta costa a Stripe l'1,5% se europea e il **3,25% se extra-SEE** — e
+l'inquilino BOOM è un expat. Una commissione fissa al 2,5% quindi guadagnava
+sugli europei e **perdeva su ogni carta estera** (−€26,50 su un canone da
+3.500). Due mosse:
+
+- **Il bonifico, a zero.** In `/casa`, accanto al bottone carta: beneficiario,
+  IBAN e **causale col codice della rata**, ognuno con copia. Costa zero a
+  entrambi e la riconciliazione la fa già `/banca`. Compare SOLO se hai
+  impostato `settings/payout` (`{iban, beneficiary}`) — mai un IBAN inventato.
+- **`payRef(paymentId)`** → `BOOM-XXXXXX`, derivato (sha256, alfabeto senza
+  I/O/0/1), quindi ogni rata esistente ne ha già uno: nessuna migrazione.
+  `reconcile()` guadagna una **via esatta** prima delle euristiche: il
+  movimento dice quale rata paga. Codice giusto + importo diverso (acconto,
+  errore) → suggerimento, MAI un "pagato" falso.
+  La funzione è duplicata in `/casa` (`payRefLocal`, crypto.subtle) perché la
+  pagina deve mostrare la causale: `tests/bonifico/parity.mjs` gira quella del
+  browser in un browser vero e la confronta col server — se divergono, il
+  cliente copia una causale che nessuno riconosce.
+- **La commissione si misura, non si indovina.** Il webhook salva su ogni rata
+  il costo reale (`balance_transaction.fee`), il paese e il brand della carta,
+  e alimenta `settings/rentFeeStats`. `rentFee(amount, stats)` = costo medio
+  osservato + `RENT_FEE_BUFFER` (default **0 → si va a pari**), con tetto
+  `RENT_FEE_MAX_PCT` (4) e forzatura `RENT_FEE_PCT`. Sotto 8 incassi usa il
+  **caso peggiore** (3,3% + €0,30): partire sotto costo è il difetto che
+  questa formula elimina. `/casa` mostra quel seed come **massimo**, così
+  l'addebito reale può solo essere più basso.
+
+### Il lucchetto sull'immobile (`api/preagreement/_lock.js`)
+Due candidati potevano accettare, pagare e generare **due contratti** sullo
+stesso appartamento: `submit.js` controllava solo che *quella* proposta non
+fosse già accettata. Ora un documento di lucchetto **per ogni mese** della
+locazione, id deterministico, creato con `fsCreate(...,docId)` → Firestore
+risponde 409 su documento esistente, quindi è un compare-and-set atomico e non
+un "leggi poi scrivi". Un doc per mese perché due proposte sullo stesso
+immobile per **periodi disgiunti sono legittime**: la sovrapposizione si
+rileva da sé. Chiave a scaletta `propertyId → listingId → indirizzo
+normalizzato`. Il secondo candidato **non viene respinto**: la proposta
+diventa `status:'reserve'`, niente pagamento né contratto, ping Telegram
+all'operatore, e la pagina dice la verità. Il lucchetto lo prende
+l'accettazione ma **scade in 48h** se il dovuto non arriva (`confirmLock` dal
+webhook lo rende definitivo). Spazzino `sweepLocks()` in `reminder-cron`
+(oraria) perché la console revoca client-side e il lucchetto resterebbe
+appeso. **`firestore.rules`: `propertyLocks` è admin-only — senza quella riga
+cadeva nel default-deny e il lucchetto non funzionava affatto.**
+
 ### Rent cadence (mensile · bimestrale · trimestrale · semestrale · annuale)
 `money.installmentMonths` (1|2|3|6|12) + derived `installmentAmount`
 (= `chargedMonthly` × cadence) travel the whole chain. **`billEnergyCredit`**
@@ -577,6 +820,29 @@ last period is prorated to what the lease actually has left, and both
 paths write the same deterministic id `pay_<contractId>_<YYYY-MM>` (plus
 `coversTo`, `installmentMonths`) so they can never duplicate a schedule.
 Legacy contracts with no cadence field behave exactly as before.
+
+### GET/POST `/api/payments/recover-checkouts` (cron ogni 4h) — IL RECUPERO
+I quasi-clienti di Stripe. Legge le checkout session SCADUTE degli ultimi 14
+giorni: **PFS/SERVICE/RESERVE** (form completo, arrivati al pagamento, mai
+pagato) → lead `strec_<sessione>` in `leads` (status `new`, source
+`stripe-recovery`) e da lì la macchina ESISTENTE fa tutto da sola (Lead
+Brain → notify-pending con bottone WhatsApp → Commerciale);
+**PREAGREEMENT/DEPOSIT/RENT** scaduti → recap Telegram (il cliente è già
+nel pipeline: ha accettato e non ha pagato, serve l'operatore, non un lead
+doppio). Mai un falso positivo: email dell'operatore filtrate (i suoi
+test), chi ha RIPROVATO e pagato viene saltato (check sessioni complete
+per email), chi è già in `leads` viene saltato, id deterministico → un
+rerun non duplica mai. La lingua del lead viene SOLO dalle parole verbatim
+del cliente (mai dal riassunto italiano per l'operatore). Heartbeat
+`teamHealth/recupero` (card ♻️ in `/team`). Auth come i cron PFS; `?dry=1`.
+Test: `node tests/recovery/run.mjs`.
+
+**`api/stripe-webhook.js` — soldi che tornano indietro, mai in silenzio**:
+oltre a `checkout.session.completed` ora gestisce `charge.refunded`,
+`charge.dispute.created` (alert Telegram ad alta priorità con la SCADENZA
+per le prove — una dispute non risposta è persa) e `charge.dispute.closed`
+(esito). Idempotente sui retry via `agentNotifications/stripe-<eventId>`.
+I 4 eventi sono abilitati sull'endpoint live (`we_1TOvpx…`).
 
 ### One-tap buy from an email — `GET /api/services/buy`
 `?kind=&e=&n=&ref=` → creates the Stripe session from the shared catalog
@@ -643,6 +909,25 @@ one query per run).
   immobile con upload) + client-side ZIP (JSZip CDN) with INDICE.txt —
   ready to forward to ARPE for registrazione + asseverazione.
 
+### Co-firma multi-conduttore (coTenants[])
+Due o più conduttori firmano DAVVERO, ciascuno col proprio link. Token
+DERIVATI (`cosignToken` in `api/magic-sign/_shared.js`:
+sha256("cosign:<contractId>:<idx>:<HOMIE_SECRET>"), ref
+`<contractId>.c<idx>.<token>` nello stesso `?sign=`): niente da coniare
+né migrare — ogni contratto con `coTenants[]` ha già i suoi link;
+ruotare il secret revoca tutto. lookup rende il co-conduttore come
+tenant (prefill dalla SUA identità sul contratto; il ruolo vero si
+rideriva dal token al submit); la firma vive DENTRO `coTenants[idx]`
+(riscrittura dal dato fresco, protetta dalla precondizione updateTime);
+`tenantSideComplete()` = principale + TUTTI i co-conduttori, ed è la
+condizione che sblocca la controfirma del locatore (sequenziale) e il
+"Tocca a Lei". send-link lato tenant invita anche i co-conduttori;
+certificato FES e pagina firme mostrano i loro blocchi (fino a 2 in
+pagina, hash del documento include le loro firme). Sorgenti dei
+coTenants: conversione PA (tenants[] della proposta) e Deal Link con
+`cofirma:true` (i conviventi del payload diventano co-firmatari, clausola
+di co-intestazione automatica). Test: notify 60→68.
+
 ### POST `/api/magic-sign/lookup`
 Public endpoint for the Magic-Sign UI. Body: `{ token }`. Looks up the
 contract by `tenantSignToken` or `landlordSignToken`, returns sanitized
@@ -653,10 +938,200 @@ anonymously — denied by `firestore.rules`.
 ### POST `/api/magic-sign/submit`
 Public endpoint that persists the contract signature on behalf of the
 anonymous Magic-Sign user. Body includes the token, signature data URI,
-identity payload, phone, consent record. Runs every Firestore write under
-admin credentials (signature + identity + landlord profile + RLI deadline
-+ lead closure + property status + listing sync + payment schedule +
-tenant user bootstrap). All those mutations are admin-only per the rules.
+identity payload (incl. `docIssuer`/`docIssueDate`), phone, consent record.
+Runs every Firestore write under admin credentials (signature + identity +
+landlord profile + RLI deadline + lead closure + property status + listing
+sync + payment schedule + tenant user bootstrap). All those mutations are
+admin-only per the rules. The user-profile sync writes BOTH users schemas
+(sign `cf/dob/…` AND wizard `codiceFiscale/birthDate/…`) so the Allegato
+generators and the RLI scheda always see identity collected at signing.
+
+### Il Fascicolo Fiscale (`api/fiscal/fascicolo.js` + `js/canone-engine.js`)
+UN PDF, tre pagine, generato DAL CONTRATTO alla firma completa (dentro
+`_finalize.js`, best-effort) e rigenerabile dalla console (`POST
+{contractId, zonaCod?, parIdx?, mag?, mq…}` — override PERSISTITI su
+`contract.canoneScheda`, la rigenerazione è stabile). Storage
+`contracts/<id>/fascicolo-fiscale.pdf` → `contract.fascicoloFiscaleUrl`,
+linkato nell'email CAF.
+1. **SCHEDA PER L'ATTESTAZIONE DI RISPONDENZA** (accordo Roma 25/07/2023 +
+   DM 16/01/2017): parti, catasto, superficie convenzionale coi
+   coefficienti ufficiali, i 20 parametri ARPE derivati dalle feature REALI
+   di immobile/annuncio (mai inventati — la mappatura è dichiarata sul
+   documento), maggiorazioni provate (transitorio +10, classe energetica,
+   attico; ammobiliato solo se `settings/canoneAccordo.pArr` è calibrato) e
+   il VERDETTO: il canone pattuito rientra nella fascia di oscillazione o
+   sfora di quanto (mai nascosto).
+2. **DATI REGISTRAZIONE RLI** — i quadri da ricopiare sul modello AdE.
+3. **SCADENZARIO** del contratto (le deadline a sistema).
+`js/canone-engine.js` è il motore PURO condiviso (75 zone dell'accordo con
+fasce A/B/C €/mq/mese, soglie subfascia B≥3/C≥7, regola del cap: gli
+aumenti non superano il max di fascia, le riduzioni sì; `matchZone` non
+tira mai a indovinare — ambiguo → null). Stessa aritmetica di
+`scheda-canone.html` (il calcolatore/preventivatore admin). Tutto testo
+PDF passa da `wa()` (WinAnsi-safe — la lezione del certificato FES).
+**In console**: la PA admin mostra il VERDETTO LIVE mentre scrivi il
+canone (✓ in fascia / ⚠ fuori, col max asseverabile — serve una property
+con mq selezionata) e la ⚙ calibra `settings/canoneAccordo` (pArr
+ammobiliato, pDur 3+2) — UN doc letto da console E Fascicolo. Nel portal
+ogni riga contratto ha **📑 Fascicolo** (genera/apre il PDF; se zona o mq
+mancano li chiede e li persiste su `contract.canoneScheda`) e **✓ RLI
+registrato** (stampa `rliRegisteredAt`, chiude la scadenza "Registrare
+RLI", rigenera il fascicolo — il loop registrazione si chiude in un tap).
+
+### Journey consapevole (contesto nel `_run.js`)
+`steps()` riceve `missing`, `late` e `walletUrl`: il T-14 chiede PER NOME
+ciò che manca (link `/scheda` derivato — anagrafica e/o foto documento)
+invece del generico "se manca qualcosa"; con rate scadute (`late`, una
+query payments per run) gli upsell TACCIONO su T-30/T-14/T-7 (non si
+vende a chi ha un pagamento aperto) e gli avvisi T-90/uscita
+all'operatore segnalano gli arretrati prima di rinnovo/restituzione
+deposito. Il **Wallet pass della casa** (`tenantWalletUrl(contractId)` →
+`/api/my-pass`, link derivato, pass ricostruito live) viaggia nel welcome
+post-firma, nel T-30 e nel T-1 — sempre visibile dentro il journey.
+Le visite dal portal (conferma/sposta) ora chiamano
+`/api/viewings/confirm` — l'EmailJS browser-side del flusso visite è
+stato rimosso: email, pass e inviti iCal partono sempre dal server.
+`/scheda?demo=1` (form vuoto con OCR simulato), `?demo=known` (conferma
+one-tap), `?demo=landlord` (locatore IT): walkthrough senza API né
+contratti veri, come `/sign?demo=1`.
+
+### Watchdog firme (reminder-cron)
+Due guardie: firme PARZIALI ferme >48h → re-nudge automatico alla
+controparte (max 3, cooldown 24h col promemoria manuale); inviti FREDDI
+(`signatureStatus none`, invito inviato >72h, nessuna firma) → re-invito
+"Reminder —" al conduttore (max 2, `inviteNudgeCount`;
+`shouldReinvite()` esportato e testato). Un contratto MAI invitato non
+viene toccato: resta una decisione umana.
+
+### Il ciclo email del contratto (`api/sign/_notify.js` + `send-link`)
+UN design system per ogni email della piattaforma
+(`api/preagreement/_notify.js`: masthead nero col MARCHIO reale — PNG
+hosted `android-chrome-192x192.png`, Gmail scarta data-URI e SVG — carta
+bianca, pill oro, dark-mode aware; esporta `shell/btn/btn2/para/fine/row/
+hero/tiles/timeline/includes/rule`). Lingua del lettore: inquilino EN,
+locatore e operatore IT. Tutto server-side (Nodemailer), best-effort e
+time-boxed — mai può bloccare una firma.
+- `POST /api/sign/send-link` — admin/owner/landlord (Bearer; owner solo
+  sui propri immobili). L'INVITO a firmare per QUALSIASI contratto:
+  backfilla il token mancante (contratti legacy), invia nel design system,
+  stampa `signInvite<Role>At`. Sequenziale: lato locatore su contratto non
+  ancora firmato dall'inquilino → 409 `awaiting_tenant` (il suo link parte
+  in automatico alla firma dell'inquilino). Sostituisce l'EmailJS
+  `sendSignatureEmail` del portal (browser-only, rimosso): saveContract e
+  il promemoria firme ora chiamano questo endpoint.
+- `notifyPartialSignature` / `notifyAdminContractSigned` (chiamate da
+  magic-sign/submit e reminder-cron): conferma al firmatario + "Tocca a
+  Lei"/"your turn" alla controparte col suo link; milestone IT all'admin
+  (`ADMIN_NOTIFY_EMAIL`, default valentino@boom-rome.com).
+- **Il contratto firmato viaggia in ALLEGATO** (`_finalize.js
+  buildSignedContract`): alla firma completa il server scarica
+  `generatedPDF`, gli APPENDE la pagina delle firme (firme grafiche,
+  nomi, data/ora, hash, rinvio al certificato) e salva
+  `contracts/<id>/contratto-firmato.pdf` → `contract.signedPdfUrl`.
+  Contratti legacy senza PDF sorgente: si salta senza rumore, alle email
+  resta il certificato (mai bloccare una firma).
+- `sendWelcomeEmails` (da `_finalize.js`): welcome tenant EN (portal
+  magic-link, saldo deposito se pendente, timeline utenze/TARI/residenza)
+  + landlord IT (passi fiscali per regime, cessione fabbricato se
+  extra-UE) — entrambe con **contratto firmato + certificato FES in
+  allegato PDF** (link nel corpo come rete di sicurezza; download
+  time-boxed, un allegato fallito non ferma mai l'email).
+- `sendCafDossier` (da `_finalize.js`, UNA volta — idempotente su
+  `finalizedAt`): il fascicolo asseverazione/registrazione con anagrafica
+  COMPLETA di entrambe le parti (post-firma lo è per costruzione), catasto,
+  termini, link + **3 PDF in allegato (contratto firmato, certificato FES,
+  Fascicolo Fiscale) — pronto da inoltrare ad ARPE/CAF così com'è** →
+  `CAF_EMAIL` (default **valentino@boom-rome.com**). Prima viveva in
+  portal-app.js via EmailJS e partiva SOLO dal vecchio flusso di firma nel
+  portal — su /sign non partiva affatto.
+- **Pack Registrazione** (`api/sign/_pack.js` + `api/_zip.js` ZIP writer
+  STORE senza dipendenze npm): UN file
+  `contracts/<id>/pack-registrazione.zip` con TUTTO ciò che servono RLI +
+  asseverazione ARPE — contratto firmato, certificato FES, Fascicolo
+  Fiscale, visura/planimetria/APE/delega dal dossier immobile
+  (`properties.dossier.*`), documenti identità (`contract.identityDocs`,
+  il `kind:'extra'` = attestazione esigenza ora sopravvive alla
+  conversione PA→contratto), più `00_INDICE.txt` con anagrafica+CF,
+  motivazione transitorietà e la CHECKLIST di cosa manca e dove
+  caricarlo. Generato alla firma completa (budget rigido 25s dentro
+  finalize — mai allunga la firma) e rigenerabile con **📦 Pack** sulla
+  riga contratto (`POST /api/fiscal/pack`, admin, maxDuration 60). URL +
+  mancanti persistiti (`registrationPackUrl/Missing/At`); l'email CAF
+  porta il link ZIP e l'avviso "⚠ Nel pack mancano: …".
+- **Journey gate firme** (`journeyEligible()` esportata+testata): un
+  contratto invitato alla firma digitale ma non `complete` è nel funnel
+  firma, NON nel ciclo casa — niente T-30 di benvenuto a chi non ha
+  firmato. I legacy firmati su carta (nessun invito a sistema) restano
+  dentro il journey.
+- La Scheda completa manda al cliente una conferma one-shot
+  (`scheda<Role>ConfirmedAt`) nel suo idioma (`api/profile/submit.js`).
+- Due bug di produzione trovati dai test (pdf-lib REALE nella suite):
+  il certificato FES falliva SEMPRE (freccia "→" non WinAnsi) e finalize
+  leggeva `cedolareSecca === true` mentre i contratti reali portano 'si'
+  → obbligazioni del regime sbagliato a scadenzario. Entrambi corretti.
+
+### La Scheda (`/scheda` + `api/profile/*`) — anagrafica universale
+"Compila la tua scheda in 2 minuti": ONE link that collects a party's
+anagrafica (identity + ID upload) for ANY contract, decoupled from the
+signature — the missing piece for clients not onboarded via pre-agreement
+(the legacy `form-tenant/form-landlord` pages wrote anonymously to the
+admin-only `contractRegistrations` collection and silently failed; the
+Share Hub now hands out /scheda links instead). Study: `LA_SCHEDA_STUDY.md`.
+- **Derived tokens, zero migration** (`api/profile/_scheda.js`, same
+  pattern as the viewings' manageToken): `sha256("scheda:<role>:<id>:
+  <HOMIE_SECRET>")` → URL blob `<contractId>.<t|l>.<token>`. Every
+  contract ever created — signed ones included — already has a valid
+  link; rotating `HOMIE_SECRET` revokes all; role lives INSIDE the
+  derivation; a scheda link can never sign.
+- `POST /api/profile/lookup` — public `{t}` → role, `locked`, property
+  label, prefilled identity merged contract→sign-schema→wizard-schema.
+- `POST /api/profile/submit` — public. Writes contract party fields
+  (`tenantName/CF/Dob/Pob/Address/DocType/DocNum/DocIssuer/DocIssueDate/
+  Nationality/Phone`) + users sync on BOTH schemas + `landlords/` for the
+  landlord role. CF checksum-validated when present (optional — fresh
+  expats). Re-editable until that party SIGNS, then 410 (identity of a
+  signed act is frozen); pings the operator via `agentNotifications`.
+- `POST /api/profile/upload` — public. ID document → Storage
+  `contracts/<id>/identity/…` under admin creds (URL never returned to the
+  page), appended to `contract.identityDocs` + the user profile. With
+  `extract:true` the same bytes go through Claude haiku and the response
+  carries the identity fields read off the document (**OCR-first UX**: the
+  client photographs the ID and the form fills itself; never invents,
+  never blocks the upload). Allowed even post-firma (the ID copy for the
+  RLI dossier is additive).
+- `POST /api/profile/link` — admin/owner/landlord (Bearer): returns the
+  two derived /scheda URLs for a contract (the browser can't compute
+  them). Owners only for their own property's contracts. Feeds the
+  portal's Share Hub cards + `sendMissingInfoLink`.
+- `scheda.html` (`/scheda?t=…`, cleanUrls; noindex + no-store in
+  vercel.json): sign.html's design shell, EN-first with IT toggle
+  (landlord defaults IT), Model-C staging (confirm when known / form when
+  not), "⚡ compila con una foto" OCR shortcut, document step skippable,
+  read-only view when locked. No Firebase on the page — same-origin API
+  only.
+- **Deal flow per i clienti legacy**: contratto minimo nel portal →
+  Scheda (anagrafica + documento self-service) → 🔄 Rigenera PDF (ora
+  completo) → Magic Sign. Per contratti già firmati su carta: solo
+  Scheda (upload documento incluso) — nessuna firma fittizia.
+
+### Contratto studenti — template associazione (accordo Roma 27/07/2023)
+`_generateContractPDF_allegatoC` (js/portal-app.js) genera il contratto
+tipo STUDENTI dell'associazione: accordo territoriale depositato presso il
+Comune di Roma Capitale il 27.07.2023 **prot. RA/2023/0044852**, art. 5
+comma 2 L.431/98 (fonte: `contratto_tipo_STUDENTI_Roma_2023.doc`, refusi
+dell'originale normalizzati — il secondo "Articolo 13" è il 14, come da
+clausola 1341/1342). Punti chiave: disdetta 3 mesi (art.1), natura
+transitoria con protocollo nuovo (art.2), canone con cadenza rate reale
+(`installmentMonths`, art.3), interessi deposito annuali + "altre forme di
+garanzia" (art.4), art.6 **biforcato su `cedolareSecca`** (default: testo
+cedolare del modello; 'no' → variante registro/bollo), conviventi da
+`contract.cohabitants` (art.8), slot opzionali `garanzieAltre`/
+`oneriQuota`/`subentroModalita`/`accessiModalita`/`consegnaStato`,
+utenze private a carico conduttore nelle Altre clausole (art.16) +
+`otherClauses` in coda. Both Allegato generators (B and C) read identity
+through the fallback chain contract fields → users sign schema → users
+wizard schema — a regenerated PDF never prints dots for data a party
+already self-filled on /sign or /scheda.
 
 ### POST `/api/documents/share`
 Admin/landlord (Firebase ID token via `api/_auth.js`). Creates a
@@ -798,7 +1273,13 @@ One pipeline, three doors:
 3. **Nightly sweep cron** (03:20 UTC, `GET ?mode=sweep&limit=N` with Bearer
    CRON_SECRET): finds listings never curated OR whose curation was clobbered
    (a wizard re-publish replaces the whole `images` array) and re-applies, up
-   to 3 per run, time-boxed — nothing stays raw forever.
+   to 3 per run, time-boxed — nothing stays raw forever. **Order = impact**
+   (`sweepOrder()`, exported + tested): richest galleries first, ties keep the
+   document order. `fsList` hands candidates over in document-ID order — pure
+   alphabet — and on a one-photo listing the brain has nothing to decide (no
+   cover to pick, no gallery to reorder, no duplicate to drop). With 3 slots a
+   night that once left a 25-photo listing raw for three nights while three
+   single-photo ones took the slots.
 
 `audit` = Claude Vision (haiku) classifies every photo (photo/render/
 floorplan/document, room, needed rotation, quality, coverScore, watermark) →
@@ -820,6 +1301,56 @@ admin/owner/landlord). `dryRun:true` scores a hypothetical listing against
 every active client without writing; `dryRun:false` ingests + pushes for
 real. Backs the "Aggiungi annuncio" modal in `pfs-command.html`.
 
+## Precisione dei pin + perché non c'è il 3D di Google (`js/boom-geo.js`)
+
+**Google Photorealistic 3D Tiles non sono erogabili a questo account.** Dall'8
+luglio 2025 i progetti Google Cloud con fatturazione **EEA** sono esclusi da
+tile 3D e satellitari: `tile.googleapis.com` risponde `403 PERMISSION_DENIED`
+("not available for your account and region"), con **e senza** Referer di
+boomrome.com — verificato 2026-07-29. Egidi è italiana: non è una chiave da
+sistemare. Il chip "◆ Photoreal 3D" compariva su ogni scheda con pin (la
+chiave *esisteva*), scaricava ~3MB di Cesium e falliva **sempre**; lo Skyline
+li scaricava a ogni apertura della mappa, anche a chi non toccava nulla.
+Rimossi entrambi, insieme a `/api/maps-key`. `js/boom-photoreal.js` e
+`tests/photoreal/` restano nel repo non referenziati: se la restrizione cade,
+si riarma da lì — **ri-provare quel 403 prima di riesumarlo**.
+
+**La precisione del pin è dedotta, non dichiarata.** Le pagine leggevano
+`listing.geoZone`, campo che **nessun annuncio porta** (0 su 19), quindi
+`exact = hasCo && !geoZone` era sempre vero: ogni pin si presentava come
+indirizzo esatto, il prefisso `≈` non compariva mai e la legenda "≈ zone area"
+dello Skyline era decorativa. Tre case del centro dichiaravano lo stesso
+centroide (`41.8986, 12.4735` = il centroide `DZONES` di "centro storico") e la
+scheda offriva "Street View · the exact entrance" su una via a caso vicino a
+Navona. La provenienza però c'era già, in `listing.geo` (`src`, `q`), scritta
+dal bake dei geocodici. `pinPrecision()` la legge:
+
+| livello | condizione | cosa è concesso in pagina |
+|---|---|---|
+| `exact` | `q` con via **e** civico | chip coordinate, "Street View · the exact entrance", **sagoma d'oro** |
+| `street` | `q` con via senza civico | "Street View · this street", nessun chip coordinate |
+| `zone` | `src:'zone'`, oppure `q` del solo quartiere (`"Prati, Roma"`), oppure coordinate ≤4 decimali senza provenienza | solo "posizione approssimativa in <zona>" + Directions |
+| `none` | nessuna lat/lng | nessun chip |
+
+Un CAP a 5 cifre non è un civico. La **sagoma d'oro** si accende solo su
+`exact`: su una via senza numero il palazzo sotto il pin è arbitrario, e
+illuminarlo come "il tuo" è la stessa bugia in piccolo. `pinCopy()` tiene le
+parole in un posto solo così Skyline e scheda non possono contraddirsi;
+`pinAudit()` dà il quadro (oggi: 5 exact · 4 street · 7 zone · 3 none).
+
+**Zoom dello Skyline**: con un solo risultato il bounds ha area zero e
+`fitBounds` andava diretto a `maxZoom:15.5` — a quel punto, con `pitch:55` e le
+etichette POI nascoste di proposito, si vedono i tetti e **tutte le ancore
+finiscono fuori quadro**: la mappa si spegne proprio mentre guardi una casa.
+Con ≤2 risultati il bounds si allarga fino all'ancora più vicina (Termini,
+LUISS, …) e i fili d'oro si accendono da soli dopo 700ms — su una casa sola non
+c'è nulla su cui passare col mouse, e su telefono l'hover non esiste.
+
+**Ancora falso**: i tempi mostrati come "door-to-door" sono `km_in_linea_d_aria
+× 4.2 + 10`, senza rete né orari (`apartment-detail.html`, `apartments.html`
+`_dl()`). Sbagliati a caso — Roma è anisotropa, lungo la metro A voli e in
+trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
+
 ## Conventions
 
 - **Serverless deps live in `api/package.json`** (the manifest the Vercel
@@ -837,7 +1368,34 @@ real. Backs the "Aggiungi annuncio" modal in `pfs-command.html`.
 - New pages should follow the dark theme with gold accents pattern
 - Property-specific pages follow `apartment_[name].html` naming
 - Blog posts follow `blog-[slug].html` naming
-- No automated tests exist in this project
+- **Tests**: `npm test` runs every suite (`tests/run-all.mjs`); `npm test -- money safari`
+  runs a subset. No framework, no emulator — each suite drives the REAL handler
+  and stubs only the network (`globalThis.fetch` over an in-memory Firestore) or
+  the browser. A suite needing something absent (playwright-core) prints `SKIP:`
+  and is reported as skipped, never as a failure.
+
+  | Suite | Copre |
+  |---|---|
+  | `tests/money/run.mjs` | checkout, webhook Stripe idempotenti, conversione PA→contratto |
+  | `tests/fiscal/test.mjs` | motore scadenze fiscali |
+  | `tests/fiscal/canone.mjs` | canone concordato: superficie convenzionale (coefficienti e tetti), fascia dai parametri, regola del cap, match zona che non indovina, parametri solo da feature reali, verdetto fits/fuori |
+  | `tests/taxpack/test.mjs` | pacchetto commercialista |
+  | `tests/journey/steps.mjs` | **le regole commerciali dell'operatore**: quando parte ogni email e cosa NON deve contenere (T-90 e uscita non vendono, le chiavi non si vendono mai, un prodotto già comprato non si ripropone, il rinnovo non arriva prima del move-in su un transitorio breve) |
+  | `tests/journey/review-url.mjs` | solo un vero link "scrivi recensione" (`g.page/r/<id>/review`) entra nelle email; un link Maps "Condividi" viene rifiutato con warning |
+  | `tests/dossier/run.mjs` | fascicolo ARPE: un landlord non può scrivere nel fascicolo di un immobile altrui, path sotto `property-docs/<id>/`, slot già pieni non sovrascritti |
+  | `tests/photos/sweep.mjs` | photo-lab: chi è candidato allo sweep, quali foto contano come sorgente (i nostri output enhanced mai), e l'ordine con cui le 3 notti si spendono — le gallerie vere prima degli annunci da una foto. Si auto-skippa senza `sharp` |
+  | `tests/copy/run.mjs` | descrizioni: lo sweep riscrive i template del bot e le schede mute, ma **mai** le parole di un umano — verificato sulle stringhe vere del catalogo, dove il testo scritto a mano è più CORTO del template |
+  | `tests/geo/run.mjs` | precisione dei pin (`js/boom-geo.js`): portone (via+civico), strada, quartiere o niente — sulle stringhe `geo.q` vere del catalogo, incluso il caso insidioso `src:'nominatim'` su `q:'Prati, Roma'` |
+  | `tests/scheda/run.mjs` | La Scheda: token derivati (ruolo nella derivazione, timing-safe), precedenza prefill contratto→sign→wizard, lock post-firma, sync profilo su ENTRAMBI gli schemi users, upload con OCR che non blocca mai, /api/profile/link autorizzato |
+  | `tests/notify/run.mjs` | ciclo email contratto (pdf-lib REALE, nodemailer mockato): fascicolo CAF a valentino@boom-rome.com esattamente una volta con anagrafica di entrambe le parti, welcome nella lingua del lettore, invito firma col link giusto e 409 sul locatore sequenziale, conferma scheda one-shot |
+  | `tests/viewings/avail.mjs` | griglia slot: passi, gap 15', preavviso, orizzonte, maxPerDay, DST, token del link cliente |
+  | `tests/viewings/telegram.mjs` | card Telegram visite: callback ≤64 byte, escaping HTML |
+  | `tests/viewings/busyics.mjs` | il calendario Workspace nella griglia: impegni ICS bloccano gli slot (TZID, ricorrenze, EXDATE, RECURRENCE-ID, all-day busy/free), eventi BOOM filtrati, maxPerDay immune, cache + fail-open |
+  | `tests/viewings/availability-ui.mjs` | la regola della disponibilità: parsing delle finestre (rifiuta 19:00-15:00, sovrapposte, "mattina"), default console == default server, anteprima che non promette slot inesistenti, avviso conflitti (sovrapposizione col nome, fuori finestra, giorno chiuso, non con sé stessa) |
+  | `tests/viewings/gap.mjs` | la geometria della giornata: stesso immobile a catena (gap 0), viaggi reali tra zone (clamp 15–45'), video piatto, blocchi legacy identici a prima |
+  | `tests/regista/run.mjs` | Il Regista: grammatica dei promemoria (IT/EN, accenti, "il 16/08", range che non sono date), id deterministici ≤64B, inviti calendario dei task, foglio di chiamata (escaping, viaggi, catene, giorno vuoto) |
+  | `tests/recovery/run.mjs` | Il Recupero: chi diventa lead (PFS/SERVICE/RESERVE) e chi recap (PA/DEPOSIT/RENT), i test dell'operatore mai, id deterministico, lingua dalle parole del cliente |
+  | `tests/safari/boot.mjs` | nessuna superficie autenticata resta appesa su un loader |
 - PWA support via `manifest.json` and `sw.js` service worker — registered on
   the 3 portals via `BoomPortal.registerServiceWorker()`
 
@@ -899,17 +1457,52 @@ pages on their loader with no signal at all):
   visible error with a recovery button instead of an empty page.
 - `BoomPortal.registerServiceWorker()` calls `reg.update()` — Safari does
   not re-check `sw.js` as eagerly as Chrome, so a stale worker could serve
-  an old shell for days. Cache version is `boom-v12`.
+  an old shell for days. Cache version is `boom-v13`. portal.html's inline
+  registration does the same.
 - `vercel.json` now sends `private, no-store` + `noindex` on every
   logged-in surface (`casa`, `tenant`, `manuale`, `pre-agreement-admin`,
   `pfs-command`, `photo-lab`, `salute`, …), not just the portal group.
 - `-webkit-backdrop-filter` is mandatory alongside every `backdrop-filter`
   (older WebKit ignores the unprefixed form and the frosted bars go flat).
+- Google-Fonts stylesheets on logged-in pages load **async**
+  (`media="print" onload` + `<noscript>` fallback): a synchronous
+  stylesheet to fonts.googleapis.com blocks Safari's first paint — the
+  spinner included — for the whole cold-connection round trip.
+- `sw.js` portal shell fetch is network-first **with a 6s cap**: on a
+  wedged Safari connection the fetch used to hang for minutes; now the
+  cached copy (from a previous visit or the /login pre-warm) takes over
+  while the network response still refreshes the cache in background.
+- Login → portal handoff: login.html uses the same Firebase SDK 10.7.0 as
+  the portal (HTTP-cache reuse), lands on `/portal` (never `/portal.html`,
+  whose cleanUrls 308 also made the SW refuse to cache the pre-warm), and
+  the boot never awaits writes (`lastLogin` is fire-and-forget — an
+  awaited write on a stalled WebChannel used to hang the whole boot).
+- Portal boot is stale-while-revalidate: a same-user `boom_data_cache`
+  snapshot up to 24h old renders instantly while `loadDataFresh(true)`
+  re-syncs in background (admin core reads run in ONE concurrent batch —
+  the old sequential "batch 1/2/3" + 100ms Safari pauses are gone). The
+  25s hard watchdog now enters the app shell when user+profile are
+  already in hand instead of bouncing an authenticated user to login.
 
 Regression suite: `node tests/safari/boot.mjs` — fakes Firebase and asserts
 that a hung profile read, a mute realtime channel and a normal boot all end
 in a usable page, never a spinner. Needs `playwright-core`
 (`BOOM_PLAYWRIGHT=/path/to/index.js` if it lives outside the project).
+
+**Deal Link** (`/portal#deal=<base64url JSON>`): semina il wizard
+"🚀 Nuovo cliente → contratto firmato" con un deal completo — `{tenant,
+conviventi[], propertyMatch, landlordName, contract:{type, rent, startDate,
+endDate, depositMonths, paymentDay, cohabitants, otherClauses,
+transitionalReason, notes, tenantNationality}}`. Il payload viaggia nel
+FRAMMENTO (mai al server/log), sopravvive al giro di login via
+sessionStorage, ed è solo un PREFILL: nessuna scrittura finché l'admin non
+preme 🚀 nel riepilogo. Il wizard ora è idempotente (riusa cliente per
+email/CF e contratto per inquilino+immobile+decorrenza), crea le schede
+cliente dei conviventi, tira l'anagrafica locatore da `landlords`, genera
+scadenze + PDF come saveContract e manda l'invito firma via
+`/api/sign/send-link` (sequenziale: il locatore riceve il suo link alla
+firma dell'inquilino — prima spediva entrambi i link subito, fuori dal
+design system).
 
 Firestore listeners with auto-retry / exponential backoff:
 
