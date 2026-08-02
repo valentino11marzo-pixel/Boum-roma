@@ -145,6 +145,16 @@
       "permanent": true
     },
     {
+      "source": "/remote-move-pack.html",
+      "destination": "/remote-move-pack",
+      "permanent": true
+    },
+    {
+      "source": "/pacchetto-concordato.html",
+      "destination": "/pacchetto-concordato",
+      "permanent": true
+    },
+    {
       "source": "/privacy.html",
       "destination": "/privacy",
       "permanent": true
@@ -359,6 +369,14 @@
     {
       "source": "/deposit-recovery",
       "destination": "/deposit-recovery.html"
+    },
+    {
+      "source": "/remote-move-pack",
+      "destination": "/remote-move-pack.html"
+    },
+    {
+      "source": "/pacchetto-concordato",
+      "destination": "/pacchetto-concordato.html"
     },
     {
       "source": "/contract-check-express",
