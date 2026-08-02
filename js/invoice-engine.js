@@ -56,6 +56,19 @@
     SCARTATO:          { label: 'Scartata',         short: 'NON EMESSA', tone: 'red',   issued: false, todo: true,  hint: 'Rifiutata dallo SDI: l\'operazione risulta NON fatturata. Va riemessa — oltre i 5 giorni dalla notifica non si conservano data e numero.' },
   };
 
+  /* ─── Tipo documento ────────────────────────────────────────────────
+     La collection `invoices` non contiene solo fatture: il portale ci
+     auto-genera anche le RICEVUTE del canone quando un inquilino paga.
+     Confonderle è un errore grosso in due modi:
+       · il canone di locazione abitativa è ESENTE IVA (art. 10 n.8 DPR
+         633/72), quindi non entra nella liquidazione al 22%;
+       · quei soldi non sono nemmeno ricavo di Egidi — transitano verso il
+         proprietario.
+     Una ricevuta quindi non concorre all'IVA e non consuma il progressivo
+     delle fatture: sono due serie diverse, e mescolarle corrompe la
+     numerazione che il registro deve poter dimostrare. */
+  var TIPO_DOC = { FATTURA: 'fattura', RICEVUTA: 'ricevuta' };
+
   var REGIME = { TRIMESTRALE: 'trimestrale', MENSILE: 'mensile' };
   var PAESE_REGIME = { IT: 'IT', CE: 'CE', EE: 'EE' };
   var CANALI = ['STRIPE', 'BONIFICO', 'ASSEGNO', 'ALTRO'];
@@ -195,7 +208,15 @@
     var dataIncasso = isoDate(d.dataIncasso || d.paidDate) || null;
     var anno = Number(d.anno) || yearOf(dataFattura) || null;
 
-    var numero = d.numero != null ? Number(d.numero) : parseLegacyNumber(d.number);
+    // Una ricevuta canone si riconosce dal tipo dichiarato oppure — sui doc
+    // già scritti dal portale — dal fatto che è agganciata a una rata.
+    var tipoDoc = d.tipoDoc === TIPO_DOC.RICEVUTA || (!d.tipoDoc && d.paymentId)
+      ? TIPO_DOC.RICEVUTA : TIPO_DOC.FATTURA;
+
+    // Il progressivo delle fatture non lo consuma una ricevuta: serie diverse.
+    var numero = tipoDoc === TIPO_DOC.RICEVUTA
+      ? null
+      : (d.numero != null ? Number(d.numero) : parseLegacyNumber(d.number));
     var statoSdi = normalizeSdi(d.statoSdi || d.sdi);
     if (!statoSdi) statoSdi = dataFattura ? SDI.CONSEGNATO : SDI.NON_INVIATA;
 
@@ -205,9 +226,12 @@
 
     return {
       id: d.id || null,
+      tipoDoc: tipoDoc,
       anno: anno,
-      numero: isFinite(numero) ? numero : null,
-      numeroLabel: anno && isFinite(numero) ? numero + '/' + anno : (d.number || '—'),
+      numero: numero != null && isFinite(numero) ? numero : null,
+      numeroLabel: tipoDoc === TIPO_DOC.RICEVUTA
+        ? (d.number || 'ricevuta')
+        : (anno && isFinite(numero) ? numero + '/' + anno : (d.number || '—')),
       dataFattura: dataFattura,
       dataIncasso: dataIncasso,
       clienteNome: d.clienteNome || d.cliente || d.recipientName || d.clientName || '',
@@ -261,8 +285,11 @@
 
   function meta(inv) { return SDI_META[inv && inv.statoSdi] || SDI_META.NON_INVIATA; }
   function isIssued(inv) { return meta(inv).issued; }      // giuridicamente emessa
-  function countsForVat(inv) { return meta(inv).issued; }  // concorre alla liquidazione
-  function needsAction(inv) { return meta(inv).todo; }
+  function isFattura(inv) { return !inv || inv.tipoDoc !== TIPO_DOC.RICEVUTA; }
+  // Concorre alla liquidazione solo una FATTURA emessa: una ricevuta di
+  // canone abitativo è esente (art. 10 n.8) e non è ricavo di Egidi.
+  function countsForVat(inv) { return isFattura(inv) && meta(inv).issued; }
+  function needsAction(inv) { return isFattura(inv) && meta(inv).todo; }
 
   // ─── Numerazione ─────────────────────────────────────────────────────
   /* `MAX(numero)+1` non basta e `length+1` è peggio (il portale generava
@@ -279,7 +306,7 @@
     var used = [], burned = [], seen = {}, duplicates = [];
     (invoices || []).forEach(function (raw) {
       var inv = raw && raw._raw !== undefined ? raw : normalize(raw);
-      if (inv.anno !== y || inv.numero == null) return;
+      if (!isFattura(inv) || inv.anno !== y || inv.numero == null) return;
       if (seen[inv.numero]) duplicates.push(inv.numero); else seen[inv.numero] = true;
       used.push(inv.numero);
       if (!isIssued(inv)) burned.push(inv.numero);
@@ -324,6 +351,10 @@
       if (inv.anno !== y && yearOf(inv.dataFattura) !== y) return;
       var q = quarterOf(inv.dataFattura);
       if (!q) return;
+      // Le ricevute non sono "escluse dalla liquidazione": non ne fanno
+      // proprio parte. Metterle nel riquadro degli scarti farebbe sembrare
+      // un problema una cosa che è normale.
+      if (!isFattura(inv)) return;
       if (!countsForVat(inv)) {
         esclusi.imponibile = round2(esclusi.imponibile + inv.imponibile);
         esclusi.iva = round2(esclusi.iva + inv.iva);
@@ -373,9 +404,9 @@
   function billingQueue(rows, today) {
     var t = isoDate(today) || isoDate(new Date());
     var items = (rows || []).map(function (r) {
-      var inv = r && r._raw !== undefined ? r : normalize(r);
-      var giorni = daysBetween(inv.dataIncasso || inv.dataFattura, t);
-      return Object.assign({}, inv, { giorniAttesa: giorni });
+      return r && r._raw !== undefined ? r : normalize(r);
+    }).filter(isFattura).map(function (inv) {
+      return Object.assign({}, inv, { giorniAttesa: daysBetween(inv.dataIncasso || inv.dataFattura, t) });
     });
     items.sort(function (a, b) {
       // Prima i più vecchi: sono quelli che rischiano di scivolare in un
@@ -666,12 +697,12 @@
   var API = {
     SDI: SDI, SDI_META: SDI_META, REGIME: REGIME, PAESE_REGIME: PAESE_REGIME,
     CANALI: CANALI, TIPI_SERVIZIO: TIPI_SERVIZIO, ALIQUOTA_STD: ALIQUOTA_STD,
-    TIC_COLUMNS: TIC_COLUMNS, CODICE_DEST_ESTERO: CODICE_DEST_ESTERO,
+    TIC_COLUMNS: TIC_COLUMNS, CODICE_DEST_ESTERO: CODICE_DEST_ESTERO, TIPO_DOC: TIPO_DOC,
     round2: round2, splitVat: splitVat, fromImponibile: fromImponibile,
     isoDate: isoDate, yearOf: yearOf, quarterOf: quarterOf, fmtIt: fmtIt, fmtEuro: fmtEuro,
     vatDueDate: vatDueDate, lipeDueDate: lipeDueDate, interesseTrimestrale: interesseTrimestrale,
     normalize: normalize, normalizeSdi: normalizeSdi, meta: meta,
-    isIssued: isIssued, countsForVat: countsForVat, needsAction: needsAction,
+    isIssued: isIssued, countsForVat: countsForVat, needsAction: needsAction, isFattura: isFattura,
     numberingAudit: numberingAudit, nextNumero: nextNumero,
     vatLedger: vatLedger, revenueByQuarter: revenueByQuarter,
     billingQueue: billingQueue, projectVat: projectVat, daysBetween: daysBetween,

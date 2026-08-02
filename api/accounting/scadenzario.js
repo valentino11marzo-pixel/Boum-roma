@@ -16,6 +16,7 @@
 // obligation key, so re-imports update rather than duplicate.
 
 import FISCAL from '../../js/fiscal-engine.js';
+import FATTURE from '../../js/invoice-engine.js';
 import { requireCronOrAdmin } from '../pfs/_guard.js';
 import { fsList } from '../homie/_lib.js';
 
@@ -39,14 +40,14 @@ export default async function handler(req, res) {
     const userById = {}; users.forEach(u => { userById[u.id] = u; });
 
     // ── Company (this year + next year's carry-over deadlines) ──────────
-    const revenueByQuarter = { 1: 0, 2: 0, 3: 0, 4: 0 };
-    for (const inv of invoices) {
-      if (inv.status !== 'paid') continue;
-      const d = new Date(inv.paidDate || inv.date || 0);
-      if (d.getFullYear() !== fiscalYear) continue;
-      revenueByQuarter[Math.floor(d.getMonth() / 3) + 1] += Number(inv.amount) || 0;
-    }
-    const company = FISCAL.companyObligations(fiscalYear, revenueByQuarter);
+    // L'IVA per trimestre la calcola il registro fatture: scorporata dal
+    // lordo, sulla DATA FATTURA (non l'incasso) e senza le scartate, che
+    // non sono giuridicamente emesse. Prima si sommavano gli importi delle
+    // sole fatture incassate, bucketati per data di pagamento.
+    const company = FISCAL.companyObligations(
+      fiscalYear,
+      FATTURE.revenueByQuarter(invoices.map((i) => FATTURE.normalize(i)), fiscalYear),
+    );
 
     // ── Clients: landlord obligations grouped by property owner ─────────
     const byClient = {};

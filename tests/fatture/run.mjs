@@ -232,6 +232,42 @@ const coda = E.parseInvoiceCsv(fixture('coda.csv'));
     E.nextPivaEstera([{ pivaCliente: '17322991005' }]) === '00000000001');
 }
 
+// ═══ 6bis. Le ricevute di canone non sono fatture ═══
+{
+  /* La collection `invoices` ospita anche le ricevute che il portale genera
+     quando un inquilino paga l'affitto. Contarle come fatture sarebbe grave
+     due volte: il canone abitativo è ESENTE IVA (art. 10 n.8) e quei soldi
+     non sono nemmeno ricavo di Egidi — transitano verso il proprietario. */
+  const ricevuta = E.normalize({
+    id: 'r1', number: 'RIC-2026-07-abcd', tipoDoc: 'ricevuta', paymentId: 'pay_1',
+    lordo: 1400, imponibile: 1400, iva: 0, aliquota: 0,
+    dataFattura: '2026-07-05', incassato: true,
+  });
+  check('ricevuta: riconosciuta dal tipo dichiarato', !E.isFattura(ricevuta));
+  check('ricevuta: NON concorre alla liquidazione IVA', !E.countsForVat(ricevuta));
+  check('ricevuta: non chiede nessuna azione', !E.needsAction(ricevuta));
+
+  // I documenti già scritti dal portale non portano `tipoDoc`: si
+  // riconoscono perché sono agganciati a una rata.
+  const legacyRic = E.normalize({ id: 'r2', number: 'BOOM-2026-0007', paymentId: 'pay_9', amount: 1400, date: '2026-07-05', status: 'paid' });
+  check('ricevuta: i doc già scritti si riconoscono dalla rata agganciata', !E.isFattura(legacyRic));
+  check('ricevuta: non consuma il progressivo delle fatture (serie diverse)', legacyRic.numero === null);
+
+  // Il conto che conta: una ricevuta da 1.400 non deve spostare l'IVA.
+  const conRicevute = E.vatLedger(registro.rows.concat([
+    { tipoDoc: 'ricevuta', lordo: 1400, imponibile: 1400, iva: 0, dataFattura: '2026-05-05', anno: 2026 },
+    { number: 'X', paymentId: 'p2', amount: 2200, date: '2026-05-06', status: 'paid' },
+  ]), 2026);
+  check('ricevuta: l\'IVA Q2 resta 2.103,42 con due ricevute in mezzo',
+    near(conRicevute.byQuarter[2].iva, 2103.42));
+  check('ricevuta: non finisce nemmeno tra le "escluse" (non è uno scarto)',
+    conRicevute.esclusi.count === 3);
+  check('ricevuta: non entra nella coda "da fatturare"',
+    E.billingQueue([{ tipoDoc: 'ricevuta', lordo: 1400, dataIncasso: '2026-05-05' }], '2026-08-02').count === 0);
+  check('ricevuta: non sposta il prossimo numero libero',
+    E.numberingAudit(registro.rows.concat([{ number: 'BOOM-2026-0099', paymentId: 'p3', amount: 900, date: '2026-06-01' }]), 2026).next === 24);
+}
+
 // ═══ 7bis. Un solo formato per lo stesso importo ═══
 {
   // Gli allarmi li compone il SERVER (Node), i totali il BROWSER: le due

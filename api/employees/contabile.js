@@ -24,6 +24,7 @@
 // `?dry=1` computes and returns everything without writing or notifying.
 
 import FISCAL from '../../js/fiscal-engine.js';
+import FATTURE from '../../js/invoice-engine.js';
 import TAXPACK from '../../js/taxpack-engine.js';
 import { sendEmail } from '../agent/_lib.js';
 import { real } from '../_demo.js';
@@ -74,14 +75,23 @@ async function run({ dry, forceMonthly, yearOverride }) {
 
   // ── 1. Scadenze fiscali (landlord + company) ──────────────────────────
   const landlordObl = FISCAL.landlordObligations({ properties, contracts, fiscalYear });
-  const revenueByQuarter = { 1: 0, 2: 0, 3: 0, 4: 0 };
-  for (const inv of invoices) {
-    if (inv.status !== 'paid') continue;
-    const d = new Date(inv.paidDate || inv.date || 0);
-    if (d.getFullYear() !== fiscalYear) continue;
-    revenueByQuarter[Math.floor(d.getMonth() / 3) + 1] += Number(inv.amount) || 0;
-  }
-  const companyObl = FISCAL.companyObligations(fiscalYear, revenueByQuarter);
+
+  /* L'IVA la calcola il registro fatture, non questo file. Qui c'erano DUE
+     errori nella stessa riga: si contavano solo le fatture `paid` e si
+     bucketavano per data INCASSO. Ma il trimestre lo determina la data
+     FATTURA, e una fattura valida non ancora incassata deve comunque l'IVA
+     — spariva del tutto. Il motore filtra anche le scartate, che non sono
+     giuridicamente emesse e la cui imposta non è dovuta. */
+  const fatture = invoices.map((i) => FATTURE.normalize(i));
+  const ledger = FATTURE.vatLedger(fatture, fiscalYear);
+  const companyObl = FISCAL.companyObligations(fiscalYear, FATTURE.revenueByQuarter(fatture, fiscalYear));
+
+  // La coda: incassi registrati e mai fatturati. È l'allarme che, da solo,
+  // avrebbe evitato l'arretrato di quattro mesi.
+  const codaFatture = FATTURE.billingQueue(
+    fatture.filter((i) => !i.dataFattura),
+    now.toISOString().slice(0, 10),
+  );
   const roll = FISCAL.rollup(landlordObl.concat(companyObl), now);
 
   const oblLine = o => ({
@@ -160,8 +170,11 @@ async function run({ dry, forceMonthly, yearOverride }) {
     paymentsLate: late.length,
     incassatoYtd: Math.round(incassatoYtd),
     outstandingYtd: Math.round(attesoYtd - incassatoYtd),
+    fattureDaEmettere: codaFatture.count,
+    fattureScartate: ledger.esclusi.count,
   };
   const summary =
+    (counts.fattureDaEmettere ? `Fatture: ${counts.fattureDaEmettere} da emettere · ${euro(codaFatture.totali.lordo)} | ` : '') +
     `Fisco: ${counts.oblOverdue} scadute · ${counts.oblDueSoon} ≤30gg | ` +
     `Pacchetto: ${counts.packsReady}/${counts.packsTotal} pronti | ` +
     `Incassi YTD ${euro(counts.incassatoYtd)} (da incassare ${euro(counts.outstandingYtd)}) | ` +
@@ -170,10 +183,23 @@ async function run({ dry, forceMonthly, yearOverride }) {
 
   // ── Telegram: solo quando c'è da agire ───────────────────────────────
   const urgentSoon = dueSoon.filter(o => (o.days ?? 99) <= 7);
-  const actionable = overdue.length || urgentSoon.length || late.length || banca.toConfirm || banca.consentExpired;
+  const scartate = ledger.esclusi.count;
+  const actionable = overdue.length || urgentSoon.length || late.length
+    || codaFatture.count || scartate || banca.toConfirm || banca.consentExpired;
   let notified = false;
   if (!dry && actionable) {
     const lines = [`🧮 <b>Contabile — da fare</b>`];
+    // In cima, perché è il debito che matura in silenzio: un incasso senza
+    // fattura non compare in nessuna scadenza finché non è troppo tardi.
+    if (codaFatture.count) {
+      lines.push(`🧾 <b>${codaFatture.count} incassi senza fattura</b> · ${euro(codaFatture.totali.lordo)}`
+        + ` — IVA ${euro(codaFatture.totali.iva)}, il più vecchio da ${codaFatture.oldestDays}gg`
+        + `: https://boomrome.com/fatturazione`);
+    }
+    if (scartate) {
+      lines.push(`⚠️ ${scartate} fatture SCARTATE dallo SDI (${euro(ledger.esclusi.lordo)})`
+        + ` — non sono emesse, l'operazione risulta non fatturata`);
+    }
     overdue.slice(0, 6).forEach(o => lines.push(`🔴 ${esc(o.label)} — scaduta da ${Math.abs(o.days)}gg${o.amount ? ` · ~${euro(o.amount)}` : ''}`));
     urgentSoon.slice(0, 6).forEach(o => lines.push(`🟠 ${esc(o.label)} — tra ${o.days}gg${o.amount ? ` · ~${euro(o.amount)}` : ''}`));
     late.slice(0, 6).forEach(l => lines.push(`💸 ${esc(l.property)} — ${euro(l.amount)} in ritardo ${l.daysLate}gg`));
@@ -196,6 +222,16 @@ async function run({ dry, forceMonthly, yearOverride }) {
     counts,
     fiscalYear,
     obligations: { overdue, dueSoon },
+    fatture: {
+      daEmettere: codaFatture.count,
+      daEmettereLordo: codaFatture.totali.lordo,
+      daEmettereIva: codaFatture.totali.iva,
+      attesaMax: codaFatture.oldestDays,
+      scartate: ledger.esclusi.count,
+      scartateLordo: ledger.esclusi.lordo,
+      ivaAnno: ledger.total.iva,
+      ricaviAnno: ledger.total.imponibile,
+    },
     packs: packs.slice(0, 20),
     late: late.slice(0, 15),
     banca,

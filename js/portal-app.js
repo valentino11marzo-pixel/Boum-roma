@@ -3462,7 +3462,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // 5. Pending invoices > 30 days
         S.invoices.filter(i => i.status === 'pending' && daysSince(i.createdAt) > 30).forEach(i => {
             const client = S.clients.find(c => c.id === i.clientId);
-            reminders.push({ type: 'invoice_overdue', priority: 'medium', icon: '🧾', color: 'orange', title: 'Fattura da incassare', text: `${i.number} - ${client?.name || 'Cliente'} · €${i.amount}`, action: `viewInvoice('${i.id}')`, date: i.createdAt });
+            const _r = window.BOOM_FATTURE.normalize(i);
+            reminders.push({ type: 'invoice_overdue', priority: 'medium', icon: '🧾', color: 'orange', title: 'Fattura da incassare', text: `${_r.numeroLabel} - ${client?.name || 'Cliente'} · ${window.BOOM_FATTURE.fmtEuro(_r.lordo)}`, action: `viewInvoice('${i.id}')`, date: i.createdAt });
         });
 
         // 6. CRM clients in hot stage for > 7 days without action
@@ -4062,7 +4063,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 months.push(mName);
                 const mStart = new Date(d.getFullYear(), d.getMonth(), 1);
                 const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-                const boomM = (S.invoices || []).filter(inv => inv.status === 'paid' && inv.paidDate && new Date(inv.paidDate) >= mStart && new Date(inv.paidDate) <= mEnd).reduce((s, inv) => s + (inv.amount || 0), 0);
+                const boomM = (S.invoices || []).filter(inv => window.BOOM_FATTURE.normalize(inv).incassato && inv.paidDate && new Date(inv.paidDate) >= mStart && new Date(inv.paidDate) <= mEnd).reduce((s, inv) => s + window.BOOM_FATTURE.normalize(inv).lordo, 0);
                 const rentM = (S.payments || []).filter(p => p.status === 'paid' && p.paidDate && new Date(p.paidDate) >= mStart && new Date(p.paidDate) <= mEnd).reduce((s, p) => s + (p.amount || 0), 0);
                 boomRev.push(boomM);
                 rentRev.push(rentM);
@@ -4286,13 +4287,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function adminDashboard() {
         // === COMPREHENSIVE DATA CALCULATIONS ===
         const activeClients = (S.clients || []).filter(c => !['completed', 'lost'].includes(c.stage));
-        const paidInvoices = S.invoices.filter(i => i.status === 'paid');
-        const thisMonthRev = paidInvoices.filter(i => isThisMonth(i.paidDate)).reduce((s, i) => s + (i.amount || 0), 0);
-        const lastMonthRev = paidInvoices.filter(i => isLastMonth(i.paidDate)).reduce((s, i) => s + (i.amount || 0), 0);
+        // Il cruscotto misura CASSA: quindi il lordo incassato. `i.amount`
+        // non esiste sui documenti importati (faceva zero) e `status` non è
+        // più l'unico modo di sapere se una fattura è stata pagata.
+        const _inv = (i) => window.BOOM_FATTURE.normalize(i);
+        const paidInvoices = S.invoices.filter(i => _inv(i).incassato);
+        const thisMonthRev = paidInvoices.filter(i => isThisMonth(i.paidDate)).reduce((s, i) => s + _inv(i).lordo, 0);
+        const lastMonthRev = paidInvoices.filter(i => isLastMonth(i.paidDate)).reduce((s, i) => s + _inv(i).lordo, 0);
         const revGrowth = lastMonthRev > 0 ? Math.round(((thisMonthRev - lastMonthRev) / lastMonthRev) * 100) : 0;
         const pipeline = activeClients.reduce((s, c) => s + (SERVICES[c.service]?.price || 0), 0);
-        const pendingInv = S.invoices.filter(i => i.status === 'pending');
-        const pendingInvTotal = pendingInv.reduce((s, i) => s + (i.amount || 0), 0);
+        const pendingInv = S.invoices.filter(i => _inv(i).dataFattura && !_inv(i).incassato);
+        const pendingInvTotal = pendingInv.reduce((s, i) => s + _inv(i).lordo, 0);
         const openMaint = S.maintenance.filter(m => m.status !== 'resolved');
         const urgentMaint = openMaint.filter(m => m.priority === 'urgent');
         const overduePayments = S.payments.filter(p => p.status === 'pending' && isOverdue(p.dueDate));
@@ -4316,7 +4321,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const yearRevenue = paidInvoices.filter(i => {
             const d = i.paidDate?.toDate ? i.paidDate.toDate() : new Date(i.paidDate);
             return d >= yearStart;
-        }).reduce((s, i) => s + (i.amount || 0), 0);
+        }).reduce((s, i) => s + _inv(i).lordo, 0);
         const rentRevenue = S.payments.filter(p => p.status === 'paid').reduce((s, p) => s + (p.amount || 0), 0);
 
         // Contracts
@@ -7231,7 +7236,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         payments.forEach(p => {
             if (p.paidDate) events.push({ ts: p.paidDate, icon: '💰', text: `Pagato €${p.amount} (${p.month || ''})` });
         });
-        invoices.forEach(i => { if (i.createdAt) events.push({ ts: i.createdAt, icon: '🧾', text: `Fattura ${i.number} · €${i.amount}`, link: () => viewInvoice(i.id) }); });
+        invoices.forEach(i => { if (i.createdAt) { const n = window.BOOM_FATTURE.normalize(i); events.push({ ts: i.createdAt, icon: '🧾', text: `Fattura ${n.numeroLabel} · ${window.BOOM_FATTURE.fmtEuro(n.lordo)}`, link: () => viewInvoice(i.id) }); } });
         documents.forEach(d => { if (d.createdAt) events.push({ ts: d.createdAt, icon: '📁', text: `Documento: ${d.name}` }); });
         maintenance.forEach(m => { if (m.createdAt) events.push({ ts: m.createdAt, icon: '🔧', text: `Richiesta manutenzione: ${m.title}`, link: () => viewMaintenance(m.id) }); });
         // Pull activityLog entries that reference this person
@@ -7282,7 +7287,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             return `<div class="list-item clickable" onclick="openModal('editPayment',S.payments.find(x=>x.id==='${p.id}'))"><div class="list-icon">${p.status === 'paid' ? '✓' : overdue ? '⚠️' : '⏳'}</div><div class="list-content"><div class="list-title">${p.month || ''} · €${p.amount}</div><div class="list-subtitle">${p.status === 'paid' ? 'Pagato il ' + fmtDate(p.paidDate) : 'Scadenza ' + fmtDate(p.dueDate)}${overdue ? ' · in ritardo' : ''}</div></div></div>`;
         }).join('') + (payments.length > 8 ? `<div style="padding:8px 16px;color:var(--text-muted);font-size:12px">+${payments.length - 8} altri</div>` : '') : null;
 
-        const invoicesBody = invoices.length ? invoices.slice(0, 6).map(i => `<div class="list-item clickable" onclick="viewInvoice('${i.id}')"><div class="list-icon">🧾</div><div class="list-content"><div class="list-title">${i.number} · €${i.amount} <span class="badge ${i.status === 'paid' ? 'green' : 'orange'}" style="font-size:9px">${i.status === 'paid' ? 'pagata' : 'in attesa'}</span></div><div class="list-subtitle">${i.service || ''} · ${fmtDate(i.date || i.createdAt)}</div></div></div>`).join('') : null;
+        const invoicesBody = invoices.length ? invoices.slice(0, 6).map(raw => { const i = window.BOOM_FATTURE.normalize(raw); return `<div class="list-item clickable" onclick="viewInvoice('${raw.id}')"><div class="list-icon">🧾</div><div class="list-content"><div class="list-title">${esc(i.numeroLabel)} · ${window.BOOM_FATTURE.fmtEuro(i.lordo)} <span class="badge ${i.incassato ? 'green' : 'orange'}" style="font-size:9px">${i.incassato ? 'incassata' : 'da incassare'}</span></div><div class="list-subtitle">${esc(raw.service || i.descrizione || '')} · ${fmtDate(i.dataFattura || raw.createdAt)}</div></div></div>`; }).join('') : null;
 
         const documentsBody = documents.length ? documents.slice(0, 6).map(d => `<div class="list-item clickable" onclick="${d.fileUrl ? `window.open('${d.fileUrl}','_blank')` : `editDocModal('${d.id}')`}"><div class="list-icon">${docIcon(d.type)}</div><div class="list-content"><div class="list-title">${d.name}</div><div class="list-subtitle">${d.type || ''} · ${fmtDate(d.createdAt)}</div></div></div>`).join('') : null;
 
@@ -7666,17 +7671,40 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     
     function createInvoiceFor(id) {
         const c = S.clients.find(x => x.id === id); if (!c) return;
-        const num = 'BOOM-' + new Date().getFullYear() + '-' + String((S.invoices?.length || 0) + 1).padStart(4, '0');
+        const IE = window.BOOM_FATTURE;
+        const anno = new Date().getFullYear();
+        // Il progressivo REALE: max(usati)+1 contando i numeri bruciati dalle
+        // scartate. `S.invoices.length + 1` proponeva 47 su un registro il
+        // cui prossimo numero libero è 24.
+        const numero = IE.nextNumero((S.invoices || []).map(i => IE.normalize(i)), anno);
+        const lordo = SERVICES[c.service]?.price || 0;
+        const m = IE.splitVat(lordo);
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal">
-            <div class="modal-header"><h3 class="modal-title">🧾 Fattura per ${c.name}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-header"><h3 class="modal-title">🧾 Fattura per ${esc(c.name)}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body"><form id="quickInvForm" onsubmit="saveInvoice(event)">
                 <input type="hidden" name="clientId" value="${id}">
-                <div class="form-row"><div class="form-group"><label class="form-label">Numero</label><input type="text" class="form-input" name="number" value="${num}" required></div><div class="form-group"><label class="form-label">Importo €</label><input type="number" class="form-input" name="amount" value="${SERVICES[c.service]?.price || 0}" required></div></div>
-                <div class="form-group"><label class="form-label">Servizio</label><input type="text" class="form-input" name="service" value="${SERVICES[c.service]?.name || c.service}"></div>
-                <div class="form-group"><label class="form-label">Descrizione</label><textarea class="form-textarea" name="description">Servizio ${c.service} - ${c.name}</textarea></div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Numero</label><input type="number" class="form-input" name="numero" value="${numero}" required></div>
+                    <div class="form-group"><label class="form-label">Lordo € <span style="color:var(--text-muted);font-weight:400">(quanto paga il cliente)</span></label>
+                        <input type="number" step="0.01" class="form-input" name="amount" value="${lordo}" required oninput="quickInvSplit(this.value)"></div>
+                </div>
+                <div id="quickInvSplit" style="font-size:12px;color:var(--text-secondary);margin:-4px 0 12px">
+                    imponibile <b>${IE.fmtEuro(m.imponibile)}</b> · IVA 22% <b>${IE.fmtEuro(m.iva)}</b>
+                </div>
+                <div class="form-group"><label class="form-label">Servizio</label><input type="text" class="form-input" name="service" value="${esc(SERVICES[c.service]?.name || c.service || '')}"></div>
+                <div class="form-group"><label class="form-label">Descrizione</label><textarea class="form-textarea" name="description">Servizio ${esc(c.service || '')} - ${esc(c.name)}</textarea></div>
             </form></div>
             <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('quickInvForm').requestSubmit()">💾 Crea</button></div>
         </div></div>`;
+    }
+
+    // Lo scorporo si vede MENTRE si digita: l'errore che questo modulo esiste
+    // per eliminare è confondere lordo e imponibile, e si previene mostrandoli.
+    function quickInvSplit(v) {
+        const el = document.getElementById('quickInvSplit'); if (!el) return;
+        const IE = window.BOOM_FATTURE;
+        const m = IE.splitVat(String(v).replace(',', '.'));
+        el.innerHTML = `imponibile <b>${IE.fmtEuro(m.imponibile)}</b> · IVA 22% <b>${IE.fmtEuro(m.iva)}</b>`;
     }
     
     function openTemplateForClient(id) {
@@ -7685,11 +7713,22 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     function invoicesPage() {
-        const all = S.invoices || [];
-        const pending = all.filter(i => i.status === 'pending');
-        const paid = all.filter(i => i.status === 'paid');
+        const IEp = window.BOOM_FATTURE;
+        /* La coda vive nella STESSA collection: sono righe senza data
+           fattura (un incasso che aspetta di diventare un documento). Vanno
+           tenute fuori dal registro, ma vanno DETTE — è il numero che questa
+           pagina non sapeva mostrare. */
+        const raw = (S.invoices || []).map(i => ({ raw: i, n: IEp.normalize(i) }));
+        const all = raw.filter(x => x.n.dataFattura).map(x => x.raw);
+        const codaP = IEp.billingQueue(raw.filter(x => !x.n.dataFattura).map(x => x.n), new Date());
+        // "pending/paid" qui è l'INCASSO, non lo SDI: sono assi distinti, e
+        // i documenti importati non portano affatto il vecchio `status`.
+        const pending = all.filter(i => !IEp.normalize(i).incassato);
+        const paid = all.filter(i => IEp.normalize(i).incassato);
         const thisYear = new Date().getFullYear();
-        const ytdRevenue = paid.filter(i => new Date(i.date || i.createdAt).getFullYear() === thisYear).reduce((s, i) => s + (i.amount || 0), 0);
+        // I ricavi sono l'IMPONIBILE delle fatture EMESSE (le scartate non
+        // lo sono) — non il lordo delle sole incassate.
+        const ytdRevenue = IEp.vatLedger(all.map(i => IEp.normalize(i)), thisYear).total.imponibile;
 
         const getRecipient = (inv) => {
             const rid = inv.recipientId || inv.clientId;
@@ -7706,27 +7745,46 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             client:   '<span class="badge purple" style="font-size:10px" title="Cliente CRM">💼</span>',
         })[kind] || '<span class="badge" style="font-size:10px">📄</span>';
 
-        const invoiceRow = (inv) => {
-            const r = getRecipient(inv);
-            const year = new Date(inv.date || inv.createdAt).getFullYear();
-            const search = [inv.number, r.name, inv.service, inv.description].filter(Boolean).join(' ').toLowerCase();
-            const reminders = inv.remindersSent || 0;
-            return `<div class="list-item clickable invoice-item" data-status="${inv.status}" data-kind="${r.kind}" data-year="${year}" data-search="${esc(search)}" onclick="viewInvoice('${inv.id}')" style="padding:14px 16px">
-                <div class="list-icon" style="background:${inv.status === 'paid' ? 'var(--green-light)' : 'var(--orange-light)'}">🧾</div>
+        /* La riga porta ora DUE stati, perché sono due cose diverse:
+           lo SDI (la fattura è emessa?) e l'incasso (i soldi sono arrivati?).
+           Fonderli in `pending|paid` rendeva invisibile la differenza fra una
+           MANCATA CONSEGNA — valida, nulla da fare — e una SCARTATA, che non
+           è emessa affatto e va rifatta. E l'importo mostra la terna: lordo
+           grande, imponibile e IVA sotto, perché il commercialista conta
+           l'imponibile e il portale mostrava solo un numero ambiguo. */
+        const IE = window.BOOM_FATTURE;
+        const invoiceRow = (raw) => {
+            const inv = IE.normalize(raw);
+            const r = getRecipient(raw);
+            const m = IE.meta(inv);
+            const year = inv.anno || new Date(raw.date || raw.createdAt).getFullYear();
+            const search = [raw.number, inv.numeroLabel, r.name, raw.service, inv.descrizione].filter(Boolean).join(' ').toLowerCase();
+            const reminders = raw.remindersSent || 0;
+            const paid = inv.incassato;
+            return `<div class="list-item clickable invoice-item" data-status="${paid ? 'paid' : 'pending'}" data-kind="${r.kind}" data-year="${year}" data-search="${esc(search)}" onclick="viewInvoice('${raw.id}')" style="padding:14px 16px">
+                <div class="list-icon" style="background:${paid ? 'var(--green-light)' : 'var(--orange-light)'}">🧾</div>
                 <div class="list-content" style="flex:1;min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                        <span style="font-weight:600">${inv.number}</span>
+                        <span style="font-weight:600">${esc(inv.numeroLabel)}</span>
                         <span style="color:var(--text-secondary)">·</span>
                         <span>${r.name}</span>
                         ${recipientBadge(r.kind)}
+                        ${inv.needsReview ? '<span class="badge orange" style="font-size:9px" title="Il documento porta un solo importo e non dice se è lordo o imponibile — confermalo in /fatturazione">❓ importo</span>' : ''}
                         ${reminders > 0 ? `<span class="badge orange" style="font-size:9px" title="${reminders} solleciti">📧 ×${reminders}</span>` : ''}
                     </div>
-                    <div class="list-subtitle" style="margin-top:4px">${inv.service || ''} · ${fmtDate(inv.date || inv.createdAt)}</div>
+                    <div class="list-subtitle" style="margin-top:4px">${esc(inv.descrizione || raw.service || '')} · ${fmtDate(inv.dataFattura || raw.createdAt)}</div>
                 </div>
-                <div class="list-meta"><div class="list-value ${inv.status === 'paid' ? 'text-green' : 'text-gold'}">€${(inv.amount || 0).toLocaleString('it-IT')}</div><span class="badge ${inv.status === 'paid' ? 'green' : 'orange'}">${inv.status === 'paid' ? 'Pagata' : 'In Attesa'}</span></div>
+                <div class="list-meta" style="text-align:right">
+                    <div class="list-value ${paid ? 'text-green' : 'text-gold'}">${IE.fmtEuro(inv.lordo)}</div>
+                    <div style="font-size:10px;color:var(--text-muted);margin-top:2px">imp. ${IE.fmtEuro(inv.imponibile)} · IVA ${IE.fmtEuro(inv.iva)}</div>
+                    <div style="margin-top:4px;display:flex;gap:4px;justify-content:flex-end;flex-wrap:wrap">
+                        <span class="badge ${m.tone === 'red' ? 'red' : m.tone === 'green' ? 'green' : 'orange'}" title="${esc(m.hint)}">${esc(m.short)}</span>
+                        <span class="badge ${paid ? 'green' : 'orange'}">${paid ? 'Incassata' : 'Da incassare'}</span>
+                    </div>
+                </div>
                 <div style="display:flex;gap:4px">
-                    ${inv.status === 'pending' && r.email ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();sendInvoiceReminder('${inv.id}')" title="Invia sollecito email">📧</button>` : ''}
-                    <button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();downloadInvoicePDF('${inv.id}')" title="Scarica PDF">📥</button>
+                    ${!paid && r.email ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();sendInvoiceReminder('${raw.id}')" title="Invia sollecito email">📧</button>` : ''}
+                    <button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();downloadInvoicePDF('${raw.id}')" title="Scarica PDF">📥</button>
                 </div>
             </div>`;
         };
@@ -7737,27 +7795,33 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // ── 📊 Dashboard: ageing, cash flow, YoY, top debtors ───────────
         const now = new Date();
         const lastYear = thisYear - 1;
-        const ytdRevenueLY = paid.filter(i => new Date(i.date || i.createdAt).getFullYear() === lastYear).reduce((s, i) => s + (i.amount || 0), 0);
+        // Confronto anno su anno sulla STESSA grandezza: imponibile contro
+        // imponibile. Prima l'anno corrente era una somma e il precedente
+        // un'altra, e la percentuale non voleva dire niente.
+        const ytdRevenueLY = IEp.vatLedger(all.map(i => IEp.normalize(i)), lastYear).total.imponibile;
         const ytdGrowth = ytdRevenueLY > 0 ? Math.round(((ytdRevenue - ytdRevenueLY) / ytdRevenueLY) * 100) : (ytdRevenue > 0 ? 100 : 0);
         // Issued/paid conversion (all-time)
         const convRate = all.length ? Math.round((paid.length / all.length) * 100) : 0;
         // Pending ageing buckets — based on invoice date if no dueDate
-        const daysOld = (inv) => Math.floor((now - new Date(inv.date || inv.createdAt || Date.now())) / 86400000);
+        const daysOld = (inv) => Math.floor((now - new Date(IEp.normalize(inv).dataFattura || inv.createdAt || Date.now())) / 86400000);
+        // Il credito è il LORDO: è quello che il cliente deve ancora versare.
+        // (`i.amount` non esiste sui documenti importati e faceva zero.)
+        const lordoDi = (inv) => IEp.normalize(inv).lordo;
         const aging = { '0-30': 0, '31-60': 0, '61-90': 0, '90+': 0 };
         const agingTotals = { '0-30': 0, '31-60': 0, '61-90': 0, '90+': 0 };
         pending.forEach(i => {
             const d = daysOld(i);
             const bucket = d <= 30 ? '0-30' : d <= 60 ? '31-60' : d <= 90 ? '61-90' : '90+';
-            aging[bucket]++; agingTotals[bucket] += i.amount || 0;
+            aging[bucket]++; agingTotals[bucket] += lordoDi(i);
         });
-        const pendingTotal = pending.reduce((s,i)=>s+(i.amount||0),0);
+        const pendingTotal = pending.reduce((s, i) => s + lordoDi(i), 0);
         // Top 3 debtors by outstanding amount
         const debtorMap = {};
         pending.forEach(i => {
             const r = getRecipient(i);
             const key = i.recipientId || i.clientId || 'unknown';
             if (!debtorMap[key]) debtorMap[key] = { name: r.name, kind: r.kind, total: 0, count: 0, oldest: 0 };
-            debtorMap[key].total += i.amount || 0;
+            debtorMap[key].total += lordoDi(i);
             debtorMap[key].count++;
             const d = daysOld(i);
             if (d > debtorMap[key].oldest) debtorMap[key].oldest = d;
@@ -7776,7 +7840,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // Per-month revenue this year (used for the sparkline)
         const months = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
         const monthly = new Array(12).fill(0);
-        paid.forEach(i => { const d = new Date(i.date || i.createdAt); if (d.getFullYear() === thisYear) monthly[d.getMonth()] += i.amount || 0; });
+        paid.forEach(i => { const d = new Date(IEp.normalize(i).dataFattura || i.createdAt); if (d.getFullYear() === thisYear) monthly[d.getMonth()] += lordoDi(i); });
         const maxMonth = Math.max(1, ...monthly);
         const sparkline = monthly.map((v, idx) => {
             const h = Math.max(2, Math.round((v / maxMonth) * 36));
@@ -7793,13 +7857,29 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div style="font-size:10px;color:var(--text-muted)">${aging[key]} fatt.</div>
         </div>`;
 
+        // L'allarme prima del cruscotto: incassi già arrivati e mai fatturati.
+        const codaBanner = codaP.count ? `
+        <div class="card" style="margin-bottom:16px;border-color:rgba(243,18,96,.35)">
+            <div style="padding:14px 18px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+                <span style="font-size:22px">🔴</span>
+                <div style="flex:1;min-width:200px">
+                    <div style="font-weight:600">${codaP.count} incassi senza fattura · ${IEp.fmtEuro(codaP.totali.lordo)}</div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">IVA latente ${IEp.fmtEuro(codaP.totali.iva)} · il più vecchio da ${codaP.oldestDays} giorni</div>
+                </div>
+                <a class="btn btn-sm" href="/fatturazione">Apri la coda →</a>
+            </div>
+        </div>` : '';
+
         return `<div class="page-header">
-            <div><h1 class="page-title">Fatture</h1><div class="page-subtitle">${all.length} totali · €${ytdRevenue.toLocaleString('it-IT')} incassati nel ${thisYear} ${ytdGrowth !== 0 ? `· <span style="color:var(--${ytdGrowth > 0 ? 'green' : 'red'})">${ytdGrowth > 0 ? '+' : ''}${ytdGrowth}% YoY</span>` : ''}</div></div>
+            <div><h1 class="page-title">Fatture</h1><div class="page-subtitle">${all.length} emesse · ${IEp.fmtEuro(ytdRevenue)} di imponibile nel ${thisYear} ${ytdGrowth !== 0 ? `· <span style="color:var(--${ytdGrowth > 0 ? 'green' : 'red'})">${ytdGrowth > 0 ? '+' : ''}${ytdGrowth}% YoY</span>` : ''}</div></div>
             <div class="page-actions">
+                <a class="btn btn-secondary btn-sm" href="/fatturazione">🧾 Registro & IVA</a>
                 <button class="btn btn-secondary btn-sm" onclick="exportInvoicesCSV()">📊 Export</button>
                 <button class="btn" onclick="openModal('addInvoice')">+ Nuova</button>
             </div>
         </div>
+
+        ${codaBanner}
 
         <!-- 📊 KPI ROW 1: headline numbers -->
         <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:14px">
@@ -7810,12 +7890,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
             <div class="stat-card" style="cursor:pointer" onclick="filterInvoices('pending', this.closest('.stats-grid').parentElement.querySelector('[data-filter=pending]'))">
                 <div class="stat-label">Da Incassare</div>
-                <div class="stat-value text-gold">€${pendingTotal.toLocaleString('it-IT')}</div>
+                <div class="stat-value text-gold">${IEp.fmtEuro(pendingTotal)}</div>
                 <div style="font-size:10px;color:var(--text-muted);margin-top:2px">${pending.length} fatt.</div>
             </div>
             <div class="stat-card" style="cursor:pointer" onclick="filterInvoices('paid', this.closest('.stats-grid').parentElement.querySelector('[data-filter=paid]'))">
                 <div class="stat-label">Incassate</div>
-                <div class="stat-value text-green">€${paid.reduce((s,i)=>s+(i.amount||0),0).toLocaleString('it-IT')}</div>
+                <div class="stat-value text-green">${IEp.fmtEuro(paid.reduce((s,i)=>s+lordoDi(i),0))}</div>
                 <div style="font-size:10px;color:var(--text-muted);margin-top:2px">${paid.length} fatt.</div>
             </div>
             <div class="stat-card">
@@ -10962,64 +11042,99 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function commercialistaEgidiView() {
         const FX = window.BOOM_FISCAL;
         const year = _cmState.year || new Date().getFullYear();
-        // Revenue by quarter from issued invoices (paid + pending) for the year.
-        const revByQ = { 1: 0, 2: 0, 3: 0, 4: 0 };
-        let totalRev = 0;
-        (S.invoices || []).forEach(inv => {
-            const d = inv.date ? new Date(inv.date) : (inv.createdAt && inv.createdAt.toDate ? inv.createdAt.toDate() : null);
-            if (!d || d.getFullYear() !== Number(year)) return;
-            const q = Math.floor(d.getMonth() / 3) + 1;
-            const amt = Number(inv.amount) || 0;
-            revByQ[q] += amt; totalRev += amt;
-        });
-        // Paid PFS fees (Stripe) as additional revenue if dated this year.
-        (S.pfsClients || []).forEach(c => {
-            const paid = Number(c.amount_paid) || (c.amount_eur ? Number(c.amount_eur) * 100 : 0);
-            if (!paid) return;
-            const d = c.paid_at ? new Date(c.paid_at) : (c.created_at ? new Date(c.created_at) : null);
-            if (!d || d.getFullYear() !== Number(year)) return;
-            const q = Math.floor(d.getMonth() / 3) + 1;
-            const eur = paid > 1000 ? paid / 100 : paid; // stripe amounts are cents
-            revByQ[q] += eur; totalRev += eur;
-        });
+        /* ═══ I ricavi sono l'IMPONIBILE delle fatture EMESSE ═══════════
+           Tre correzioni rispetto a prima, tutte dimostrabili sui dati veri
+           di Egidi:
+           1. si sommava `inv.amount`, che sui documenti reali è il LORDO
+              (quello che il cliente ha pagato), e poi il motore ci
+              applicava il 22%: l'IVA usciva gonfiata del 22%. Il
+              commercialista conta l'imponibile — la somma degli imponibili
+              2025 fa 17.298,76, esattamente la voce "Ricavi" del bilancio.
+           2. le fatture SCARTATE entravano nel conto. Non sono
+              giuridicamente emesse: la loro IVA non è dovuta.
+           3. si sommavano ANCHE i compensi PFS incassati su Stripe. Un PFS
+              già fatturato veniva così contato due volte; uno non ancora
+              fatturato non è un ricavo registrato ma un incasso DA
+              FATTURARE, e come tale ha una sua voce separata qui sotto. */
+        const IE = window.BOOM_FATTURE;
+        const allInv = (S.invoices || []).map(i => IE.normalize(i));
+        const ledger = IE.vatLedger(allInv, year);
+        const revByQ = IE.revenueByQuarter(allInv, year);
+        const totalRev = ledger.total.imponibile;
+        // Incassi registrati e mai fatturati (le righe di coda vivono nella
+        // stessa collection, riconoscibili perché prive di data fattura).
+        const codaInv = IE.billingQueue(allInv.filter(i => !i.dataFattura), new Date());
 
         const companyObl = FX ? FX.companyObligations(year, revByQ) : [];
         const roll = FX ? FX.rollup(companyObl, new Date()) : { totalDue: 0, counts: {} };
-        const ivaTotal = companyObl.filter(o => o.category === 'vat' && o.amount).reduce((s, o) => s + o.amount, 0);
+        const ivaTotal = ledger.total.iva;
 
         const nowY = new Date().getFullYear();
         const yearOpts = [];
         for (let yy = nowY; yy >= nowY - 5; yy--) yearOpts.push(`<option value="${yy}" ${yy === year ? 'selected' : ''}>${yy}</option>`);
 
-        const qCard = (q) => `<div class="stat-card"><div class="stat-label">Q${q} ${year}</div><div class="stat-value">${FX.fmtEuro(revByQ[q])}</div><div class="stat-description">IVA ~${FX.fmtEuro(Math.round(revByQ[q]*0.22))}</div></div>`;
+        // Ogni trimestre mostra l'imponibile E l'IVA reale, con la data di
+        // versamento: "IVA ~22%" era una stima su un numero che era già lordo.
+        const qCard = (q) => {
+            const b = ledger.byQuarter[q];
+            return `<div class="stat-card"><div class="stat-label">Q${q} ${year}</div>
+                <div class="stat-value">${FX.fmtEuro(b.imponibile)}</div>
+                <div class="stat-description">IVA ${FX.fmtEuro(b.iva)} · versamento ${IE.fmtIt(b.dueDate)}</div></div>`;
+        };
+
+        // L'allarme che vale più di ogni cruscotto: incassi senza fattura.
+        const codaBanner = codaInv.count ? `
+            <div class="card" style="margin-bottom:20px;border-color:rgba(243,18,96,.35)">
+                <div style="padding:16px 18px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+                    <span style="font-size:24px">🔴</span>
+                    <div style="flex:1;min-width:220px">
+                        <div style="font-weight:600;margin-bottom:3px">${codaInv.count} incassi senza fattura · ${FX.fmtEuro(codaInv.totali.lordo)}</div>
+                        <div style="font-size:12.5px;color:var(--text-secondary);line-height:1.6">IVA latente ${FX.fmtEuro(codaInv.totali.iva)}. Il più vecchio aspetta da ${codaInv.oldestDays} giorni — non compare in nessuna scadenza finché non lo si emette.</div>
+                    </div>
+                    <a class="btn btn-sm" href="/fatturazione">Apri fatturazione →</a>
+                </div>
+            </div>` : '';
+
+        const scartateBanner = ledger.esclusi.count ? `
+            <div class="card" style="margin-bottom:20px;border-color:rgba(245,165,36,.32)">
+                <div style="padding:14px 18px;font-size:13px;line-height:1.7">
+                    ⚠️ <b>${ledger.esclusi.count} fatture scartate dallo SDI</b> per ${FX.fmtEuro(ledger.esclusi.lordo)} —
+                    escluse da ricavi e liquidazione, perché una fattura scartata non è giuridicamente emessa
+                    (${FX.fmtEuro(ledger.esclusi.iva)} di IVA <b>non dovuta</b>). Vanno riemesse: la via è il ravvedimento, e la decide la commercialista.
+                </div>
+            </div>` : '';
 
         return `<div class="page-header">
                 <div><h1 class="page-title">🏢 Egidi Immobiliare — Fiscale</h1><p class="page-subtitle">Ricavi · IVA trimestrale · scadenze societarie · P.IVA 17322991005</p></div>
                 <div class="page-actions">
                     <button class="btn btn-secondary btn-sm" onclick="window._cmEgidi=false;renderPage()">← Proprietari</button>
+                    <a class="btn btn-secondary btn-sm" href="/fatturazione">🧾 Fatturazione</a>
                     <select class="form-select" style="width:auto" onchange="_cmState.year=parseInt(this.value);renderPage()">${yearOpts.join('')}</select>
                 </div>
             </div>
 
+            ${codaBanner}
+            ${scartateBanner}
+
             <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
-                <div class="stat-card highlight"><div class="stat-label">Ricavi ${year}</div><div class="stat-value gold">${FX.fmtEuro(totalRev)}</div><div class="stat-description">fatture + PFS incassati</div></div>
-                <div class="stat-card"><div class="stat-label">IVA stimata ${year}</div><div class="stat-value">${FX.fmtEuro(ivaTotal)}</div><div class="stat-description">22% sui ricavi imponibili</div></div>
+                <div class="stat-card highlight"><div class="stat-label">Ricavi ${year}</div><div class="stat-value gold">${FX.fmtEuro(totalRev)}</div><div class="stat-description">imponibile su ${ledger.total.count} fatture emesse</div></div>
+                <div class="stat-card"><div class="stat-label">IVA ${year}</div><div class="stat-value">${FX.fmtEuro(ivaTotal)}</div><div class="stat-description">scorporata dal lordo incassato</div></div>
                 <div class="stat-card ${roll.counts.overdue ? 'highlight' : ''}"><div class="stat-label">Scadute</div><div class="stat-value ${roll.counts.overdue ? '' : 'green'}">${roll.counts.overdue || 0}</div></div>
                 <div class="stat-card"><div class="stat-label">Entro 30 giorni</div><div class="stat-value">${roll.counts.dueSoon || 0}</div></div>
             </div>
 
             <div class="card" style="margin-bottom:20px">
-                <div style="padding:14px 18px;border-bottom:1px solid var(--border)"><strong>Ricavi per trimestre</strong></div>
+                <div style="padding:14px 18px;border-bottom:1px solid var(--border)"><strong>Ricavi per trimestre</strong> <span style="font-size:11px;color:var(--text-muted);margin-left:8px">imponibile · IVA sulla data fattura</span></div>
                 <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);padding:16px;gap:12px">
                     ${qCard(1)}${qCard(2)}${qCard(3)}${qCard(4)}
                 </div>
             </div>
 
-            ${egidiPLBlock(year, totalRev)}
+            ${egidiPLBlock(year, totalRev, ledger, codaInv)}
 
-            ${egidiReconcileBlock(year)}
+            ${egidiReconcileBlock(year, codaInv)}
 
-            ${egidiAdviceBlock(year, totalRev, revByQ)}
+            ${egidiAdviceBlock(year, totalRev, revByQ, ledger, codaInv)}
 
             ${FX ? `
             <div class="card" style="margin-top:20px">
@@ -11040,32 +11155,43 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // Ricavi (fatture emesse + PFS Stripe incassati) vs costi (compensi
     // gestione PAGATI ai landlord — tracciati come spese su contratti +
     // costi tracciati su manutenzione/spese se presenti).
-    function egidiPLBlock(year, totalRev) {
-        // Costi gestionali: managementFee mensile per ogni contratto attivo nell'anno
-        // (è un compenso CHE TU TRATTIENI dal canone — quindi ricavo TUO, non costo;
-        // lascio invece le voci "spesa" che BOOM ha sostenuto se mai presenti).
-        // Per Egidi i veri costi non sono dentro BOOM (commercialista, marketing,
-        // hosting, ecc.) → mostro solo ciò che ho e dico chiaramente cosa manca.
+    /* Questo riquadro calcolava "Ricavi − rimborsi PFS = MARGINE NETTO BOOM"
+       e lo stampava in oro, senza una riga di costi. Sul 2025 mostrava così
+       un margine a cinque cifre positive mentre il bilancio Studio
+       Cardarelli chiude a −13.013,95 con 30.312,71 di costi — e la
+       commercialista segnala il rischio di società non operativa. Un numero
+       positivo lì è peggio di nessun numero.
+       Ora si mostra ciò che BOOM sa davvero (i ricavi fatturati, la coda che
+       li aumenterà, i rimborsi) e si DICE che il risultato d'esercizio non è
+       calcolabile qui, invece di inventarne uno. */
+    function egidiPLBlock(year, totalRev, ledger, coda) {
         const FX = window.BOOM_FISCAL;
         const refundedPFS = (S.pfsClients || []).filter(c => {
             if (c.status !== 'refunded' && c.status !== 'rimborsato') return false;
             const d = c.paid_at ? new Date(c.paid_at) : null;
             return d && d.getFullYear() === Number(year);
         }).reduce((s, c) => s + ((Number(c.amount_paid)||0) > 1000 ? Number(c.amount_paid)/100 : (Number(c.amount_eur)||0)), 0);
-        const margin = totalRev - refundedPFS;
+        const row = (l, v, style) => `<tr><td style="padding:8px 0;color:var(--text-muted)">${l}</td><td style="text-align:right;${style||'font-weight:600'}">${v}</td></tr>`;
         return `
         <div class="card" style="margin-bottom:20px">
             <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
-                <span style="font-size:20px">📊</span><strong>Conto economico ${year}</strong>
+                <span style="font-size:20px">📊</span><strong>Ricavi ${year}</strong>
                 <span style="font-size:11px;color:var(--text-muted);margin-left:auto">vista gestionale · non sostitutiva della contabilità</span>
             </div>
             <div class="card-body">
                 <table style="width:100%;border-collapse:collapse;font-size:14px">
-                    <tr><td style="padding:8px 0;color:var(--text-muted)">Ricavi imponibili (fatture + PFS)</td><td style="text-align:right;font-weight:600">${FX.fmtEuro(totalRev)}</td></tr>
-                    <tr><td style="padding:8px 0;color:var(--text-muted)">— Rimborsi PFS (no-match)</td><td style="text-align:right;color:var(--red)">${refundedPFS ? '−'+FX.fmtEuro(refundedPFS) : '—'}</td></tr>
-                    <tr style="border-top:1px solid var(--border)"><td style="padding:10px 0;font-weight:600">Margine netto BOOM</td><td style="text-align:right;font-weight:700;color:var(--gold);font-size:16px">${FX.fmtEuro(margin)}</td></tr>
+                    ${row('Imponibile fatturato (' + ledger.total.count + ' fatture emesse)', FX.fmtEuro(totalRev))}
+                    ${row('IVA a debito', FX.fmtEuro(ledger.total.iva), 'color:var(--text-secondary)')}
+                    ${coda.count ? row('Da fatturare — imponibile in coda', '+' + FX.fmtEuro(coda.totali.imponibile), 'color:var(--gold);font-weight:600') : ''}
+                    ${refundedPFS ? row('Rimborsi PFS (no-match)', '−' + FX.fmtEuro(refundedPFS), 'color:var(--red)') : ''}
                 </table>
-                <div style="font-size:11px;color:var(--text-muted);margin-top:12px">I costi (commercialista, marketing, hosting, stipendi) non sono tracciati in BOOM. Tienili nel tuo gestionale contabile e chiedi al commercialista il risultato d'esercizio reale.</div>
+                <div style="font-size:11.5px;color:var(--text-muted);margin-top:14px;line-height:1.7;padding-top:12px;border-top:1px solid var(--border)">
+                    <b style="color:var(--text-secondary)">Il risultato d'esercizio non si legge qui.</b>
+                    I costi (commercialista, marketing, hosting, ammortamenti, compensi) non sono tracciati in BOOM: senza di loro
+                    "ricavi meno rimborsi" non è un margine, è solo un ricavo. Il risultato vero lo dà il commercialista —
+                    e se l'esercizio chiude in perdita per più anni consecutivi entra in gioco la disciplina delle società non operative,
+                    che è una conversazione da avere con lui, non un numero da stimare qui.
+                </div>
             </div>
         </div>`;
     }
@@ -11074,7 +11200,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // Per ogni PFS pagato dell'anno verifica se esiste una fattura emessa.
     // Mette in luce: PFS senza fattura (da fatturare!) + fatture senza
     // riscontro (verificare il pagamento).
-    function egidiReconcileBlock(year) {
+    function egidiReconcileBlock(year, coda) {
+        /* Questo blocco guardava SOLO i `pfsClients`. Degli incassi reali di
+           Egidi (23 Stripe + 9 bonifici nel 2026) nessuno è un doc PFS:
+           diceva "✓ TUTTO QUADRATO" con 30.692,20 non fatturati sotto —
+           il peggior modo possibile di sbagliare, perché rassicura.
+           Ora la coda vera viene PRIMA, e il verdetto verde può comparire
+           solo quando anche quella è vuota. */
+        const codaQ = coda || { count: 0, totali: { lordo: 0, iva: 0 }, oldestDays: 0 };
         const paidPFS = (S.pfsClients || []).filter(c => {
             const ok = (Number(c.amount_paid)||0) > 0 || (Number(c.amount_eur)||0) > 0;
             const d = c.paid_at ? new Date(c.paid_at) : null;
@@ -11091,16 +11224,21 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const invWithoutPaid = invoices.filter(i =>
             i.service && /PFS/i.test(i.service) && i.status !== 'paid' && !paidPFS.some(c => c.id === i.recipientId)
         );
-        const allOk = !pfsWithoutInvoice.length && !invWithoutPaid.length;
+        const allOk = !codaQ.count && !pfsWithoutInvoice.length && !invWithoutPaid.length;
         const FX = window.BOOM_FISCAL;
         return `
         <div class="card" style="margin-bottom:20px;${allOk ? '' : 'border-color:rgba(212,175,55,0.3)'}">
             <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
                 <span style="font-size:20px">🔍</span><strong>Riconciliazione</strong>
-                <span style="font-size:11px;color:var(--text-muted)">PFS Stripe ↔ Fatture emesse</span>
+                <span style="font-size:11px;color:var(--text-muted)">incassi ↔ fatture emesse</span>
                 ${allOk ? '<span class="badge" style="margin-left:auto;background:rgba(0,210,106,0.15);color:var(--green);font-size:10px;padding:4px 10px">TUTTO QUADRATO</span>' : ''}
             </div>
             <div class="card-body">
+                ${codaQ.count ? `<div style="margin-bottom:16px">
+                    <div style="font-weight:600;color:var(--red);margin-bottom:6px">🧾 Incassi senza fattura (${codaQ.count}) · ${FX.fmtEuro(codaQ.totali.lordo)}</div>
+                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;line-height:1.6">Stripe e bonifici già incassati e mai fatturati — ${FX.fmtEuro(codaQ.totali.iva)} di IVA latente, il più vecchio da ${codaQ.oldestDays} giorni.</div>
+                    <a class="btn btn-sm" href="/fatturazione">Apri la coda in /fatturazione →</a>
+                </div>` : ''}
                 ${pfsWithoutInvoice.length ? `<div style="margin-bottom:14px">
                     <div style="font-weight:600;color:var(--gold);margin-bottom:8px">📤 PFS pagati senza fattura emessa (${pfsWithoutInvoice.length})</div>
                     <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">Crea le fatture: ti servono per la dichiarazione IVA e per i ricavi del trimestre.</div>
@@ -11110,16 +11248,29 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div style="font-weight:600;color:var(--orange);margin-bottom:8px">⚠️ Fatture PFS non corrisposte (${invWithoutPaid.length})</div>
                     ${invWithoutPaid.slice(0,8).map(i => `<div class="list-item" style="padding:10px 14px"><span style="flex:1">${esc(i.number||'')} · ${FX.fmtEuro(Number(i.amount)||0)}</span><span style="font-size:11px;color:var(--text-muted)">${esc(i.status||'pending')}</span></div>`).join('')}
                 </div>` : ''}
-                ${allOk ? '<div style="text-align:center;padding:20px 0;color:var(--green);font-size:14px">✓ Ogni PFS pagato ha la sua fattura · ogni fattura PFS ha il suo incasso</div>' : ''}
+                ${allOk ? '<div style="text-align:center;padding:20px 0;color:var(--green);font-size:14px">✓ Ogni incasso ha la sua fattura · ogni fattura ha il suo incasso</div>' : ''}
             </div>
         </div>`;
     }
 
     // ─── Egidi · Consigli & ottimizzazioni ──────────────────────────────────
     // Euristiche sui dati reali — niente AI, niente magia, solo signal chiari.
-    function egidiAdviceBlock(year, totalRev, revByQ) {
+    function egidiAdviceBlock(year, totalRev, revByQ, ledger, coda) {
         const advice = [];
         const FX = window.BOOM_FISCAL;
+        const IE = window.BOOM_FATTURE;
+        // Il segnale che precede tutti gli altri: soldi incassati che non
+        // hanno ancora una fattura, e il trimestre in cui cadranno.
+        if (coda && coda.count) {
+            const p = IE.projectVat(coda.items, new Date());
+            advice.push({
+                icon: '🧾', tone: 'red',
+                title: coda.count + ' incassi ancora da fatturare · ' + FX.fmtEuro(coda.totali.lordo),
+                body: 'Emettendole oggi l\'IVA (' + FX.fmtEuro(coda.totali.iva) + ') cade in Q' + p.trimestre
+                    + ', da versare entro il ' + IE.fmtIt(p.scadenza) + '. Il più vecchio incasso aspetta da '
+                    + coda.oldestDays + ' giorni.',
+            });
+        }
         // 1. Soglia regime forfettario €85k
         if (totalRev > 70000 && totalRev < 85000) {
             advice.push({ icon: '⚠️', tone: 'gold', title: 'Avvicinamento soglia €85k (forfettario)', body: 'Sei a ' + FX.fmtEuro(totalRev) + '. Se Egidi è in regime forfettario, attento al superamento — chiedi al commercialista come pianificare il Q4.' });
@@ -11128,16 +11279,29 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             advice.push({ icon: '🚨', tone: 'red', title: 'Soglia €85k superata', body: 'Ricavi a ' + FX.fmtEuro(totalRev) + '. Se eri in forfettario passi al regime ordinario dal prossimo anno (o subito a 100k+). Pianifica con commercialista.' });
         }
         // 2. Concentrazione trimestrale (un solo Q raccoglie >70% dei ricavi → fattura troppo tardi?)
-        const maxQ = Math.max(...Object.values(revByQ));
+        // `revByQ` porta ora la terna {imponibile, iva}, non un numero.
+        const qImp = [1, 2, 3, 4].map(q => (revByQ[q] && revByQ[q].imponibile) || 0);
+        const maxQ = Math.max(...qImp);
         if (totalRev > 1000 && maxQ / totalRev > 0.7) {
-            const qLabel = ['Q1','Q2','Q3','Q4'][Object.values(revByQ).indexOf(maxQ)];
+            const qLabel = 'Q' + (qImp.indexOf(maxQ) + 1);
             advice.push({ icon: '📅', tone: 'gold', title: 'Ricavi concentrati in ' + qLabel, body: 'Più del 70% del fatturato è in un solo trimestre. Distribuire l\'emissione fatture aiuta cashflow e IVA trimestrale.' });
         }
-        // 3. Fatture non pagate (di tutti i tempi)
-        const unpaid = (S.invoices || []).filter(i => i.status === 'pending' || (!i.status && !i.paidDate));
-        const unpaidAmount = unpaid.reduce((s, i) => s + (Number(i.amount) || 0), 0);
+        // 3. Fatture EMESSE e non ancora incassate. Le scartate non contano:
+        // non sono un credito, sono un documento da rifare.
+        const unpaid = (S.invoices || []).map(i => IE.normalize(i))
+            .filter(i => i.dataFattura && IE.isIssued(i) && !i.incassato);
+        const unpaidAmount = unpaid.reduce((s, i) => s + i.lordo, 0);
         if (unpaidAmount > 0) {
             advice.push({ icon: '💸', tone: 'gold', title: unpaid.length + ' fatture da incassare · ' + FX.fmtEuro(unpaidAmount), body: 'Hai crediti aperti per ' + FX.fmtEuro(unpaidAmount) + '. Manda solleciti dalla pagina Fatture.' });
+        }
+        // 3b. Le scartate: non emesse, quindi non fatturate.
+        if (ledger && ledger.esclusi.count) {
+            advice.push({
+                icon: '⚠️', tone: 'red',
+                title: ledger.esclusi.count + ' fatture scartate dallo SDI · ' + FX.fmtEuro(ledger.esclusi.lordo),
+                body: 'Una fattura scartata non è emessa: quelle operazioni risultano NON fatturate, e i loro numeri sono bruciati. '
+                    + 'Oltre i 5 giorni dalla notifica non si conservano data e numero — la via è il ravvedimento, e la decide la commercialista.',
+            });
         }
         // 4. Compensi gestione mancanti sui contratti attivi
         const activeContracts = (S.contracts || []).filter(c => c.status === 'active');
@@ -11187,8 +11351,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (!ok) return;
         let obligations = [];
         if (party === 'company') {
-            const revByQ = { 1:0, 2:0, 3:0, 4:0 };
-            (S.invoices || []).forEach(i => { const d = i.date ? new Date(i.date) : null; if (d && d.getFullYear() === Number(year)) revByQ[Math.floor(d.getMonth()/3)+1] += Number(i.amount)||0; });
+            // Le scadenze SALVATE diventano promemoria email con un importo
+            // dentro: qui l'errore non resta a schermo, parte per posta. La
+            // terna esatta la dà il registro (scorporo dal lordo, scartate
+            // escluse), non `amount × 22%`.
+            const revByQ = window.BOOM_FATTURE.revenueByQuarter(
+                (S.invoices || []).map(i => window.BOOM_FATTURE.normalize(i)), year);
             obligations = FX.companyObligations(year, revByQ);
         } else {
             // landlord: passed property+year via _cmState
@@ -14130,7 +14298,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         if (type === 'addClient') return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">💼 Nuovo Cliente CRM</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveClient(event)"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required></div><div class="form-group"><label class="form-label">Servizio *</label><select class="form-select" name="service" required><option value="PFS">🏠 PFS €350</option><option value="DAS">📝 DAS €249</option><option value="VV">👁️ VV €89</option></select></div></div><div class="form-row"><div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" name="email" required></div><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" name="phone"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Budget €</label><input type="number" class="form-input" name="budget"></div><div class="form-group"><label class="form-label">Zona</label><input type="text" class="form-input" name="zone"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Data Arrivo</label><input type="date" class="form-input" name="arrivalDate"></div><div class="form-group"><label class="form-label">Durata</label><input type="text" class="form-input" name="duration" placeholder="6 mesi"></div></div><div class="form-group"><label class="form-label">Source</label><select class="form-select" name="source"><option value="google">Google</option><option value="instagram">Instagram</option><option value="referral">Referral</option><option value="website">Website</option><option value="other">Altro</option></select></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes"></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Salva</button></div></div></div>`;
 
-        if (type === 'addInvoice') { const num = 'BOOM-' + new Date().getFullYear() + '-' + String(S.invoices.length + 1).padStart(4, '0'); const landlords = S.users.filter(u => u.role === 'landlord'); const tenants = S.users.filter(u => u.role === 'tenant'); return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">🧾 Nuova Fattura</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveInvoice(event)"><div class="form-row"><div class="form-group"><label class="form-label">Numero</label><input type="text" class="form-input" name="number" value="${num}" readonly></div><div class="form-group"><label class="form-label">Data</label><input type="date" class="form-input" name="date" value="${new Date().toISOString().split('T')[0]}"></div></div><div class="form-group"><label class="form-label">Destinatario *</label><select class="form-select" name="recipientId" required><option value="">Seleziona...</option><optgroup label="🏠 Proprietari">${landlords.map(l => `<option value="${l.id}" data-type="landlord">${l.name}</option>`).join('')}</optgroup><optgroup label="👤 Inquilini">${tenants.map(t => `<option value="${t.id}" data-type="tenant">${t.name}</option>`).join('')}</optgroup><optgroup label="💼 Clienti CRM">${S.clients.map(c => `<option value="${c.id}" data-type="client" data-service="${c.service}" data-price="${SERVICES[c.service]?.price || 0}">${c.name} (${c.service})</option>`).join('')}</optgroup></select></div><div class="form-row"><div class="form-group"><label class="form-label">Servizio/Descrizione *</label><input type="text" class="form-input" name="service" placeholder="Es: Gestione immobiliare, PFS, Commissione..." required></div><div class="form-group"><label class="form-label">Importo € *</label><input type="number" class="form-input" name="amount" required></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="description" rows="2" placeholder="Dettagli aggiuntivi..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Crea Fattura</button></div></div></div>`; }
+        if (type === 'addInvoice') { const num = nextInvoiceNumber(); const numOnly = parseInt(num, 10); const landlords = S.users.filter(u => u.role === 'landlord'); const tenants = S.users.filter(u => u.role === 'tenant'); return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">🧾 Nuova Fattura</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveInvoice(event)"><div class="form-row"><div class="form-group"><label class="form-label">Numero <span style="color:var(--text-muted);font-weight:400">(progressivo ${new Date().getFullYear()})</span></label><input type="number" class="form-input" name="numero" value="${numOnly}" required></div><div class="form-group"><label class="form-label">Data</label><input type="date" class="form-input" name="date" value="${new Date().toISOString().split('T')[0]}"></div></div><div class="form-group"><label class="form-label">Destinatario *</label><select class="form-select" name="recipientId" required><option value="">Seleziona...</option><optgroup label="🏠 Proprietari">${landlords.map(l => `<option value="${l.id}" data-type="landlord">${l.name}</option>`).join('')}</optgroup><optgroup label="👤 Inquilini">${tenants.map(t => `<option value="${t.id}" data-type="tenant">${t.name}</option>`).join('')}</optgroup><optgroup label="💼 Clienti CRM">${S.clients.map(c => `<option value="${c.id}" data-type="client" data-service="${c.service}" data-price="${SERVICES[c.service]?.price || 0}">${c.name} (${c.service})</option>`).join('')}</optgroup></select></div><div class="form-row"><div class="form-group"><label class="form-label">Servizio/Descrizione *</label><input type="text" class="form-input" name="service" placeholder="Es: Gestione immobiliare, PFS, Commissione..." required></div><div class="form-group"><label class="form-label">Lordo € * <span style="color:var(--text-muted);font-weight:400">(quanto paga il cliente)</span></label><input type="number" step="0.01" class="form-input" name="amount" required oninput="quickInvSplit(this.value)"></div></div><div id="quickInvSplit" style="font-size:12px;color:var(--text-secondary);margin:-6px 0 12px">imponibile e IVA si calcolano dallo scorporo del lordo</div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="description" rows="2" placeholder="Dettagli aggiuntivi..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Crea Fattura</button></div></div></div>`; }
 
         if (type === 'addDocument') return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">📁 Carica Documento</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveDocument(event)"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="type"><option value="contract">📋 Contratto</option><option value="id">🪪 Documento ID</option><option value="receipt">🧾 Ricevuta</option><option value="utility">💡 Utenza</option><option value="other">📄 Altro</option></select></div></div>${isAdmin() ? `<div class="form-group"><label class="form-label">Condividi con inquilino/proprietario</label><select class="form-select" name="shared"><option value="false">No - Solo io</option><option value="true">Sì - Condividi</option></select></div>` : ''}<div class="form-group"><label class="form-label">File</label><div class="file-zone" onclick="document.getElementById('fileInput').click()"><div class="file-zone-icon">📁</div><div class="file-zone-text">Clicca per selezionare</div></div><input type="file" id="fileInput" class="file-input" onchange="handleFile(this)"><div id="filePreview"></div></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Carica</button></div></div></div>`;
 
@@ -14438,35 +14606,65 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     async function saveInvoice(e) {
         e.preventDefault();
         const data = Object.fromEntries(new FormData(e.target));
-        if (!data.recipientId || !data.amount || !data.service) return toast('error', 'Compila i campi obbligatori');
-        
+        // `clientId` è il nome che usa il modal rapido (createInvoiceFor):
+        // accettarlo qui è ciò che rende quel bottone funzionante. Prima
+        // pretendeva solo `recipientId` e il modal rapido falliva SEMPRE con
+        // "Compila i campi obbligatori", proprio nel percorso che parte dal
+        // blocco di riconciliazione.
+        const recipientId = data.recipientId || data.clientId;
+        if (!recipientId || !data.amount) return toast('error', 'Compila i campi obbligatori');
+
         // Determine recipient type and name
         let recipientType = 'client';
         let recipientName = '';
-        const landlord = S.users.find(u => u.id === data.recipientId && u.role === 'landlord');
-        const tenant = S.users.find(u => u.id === data.recipientId && u.role === 'tenant');
-        const client = S.clients.find(c => c.id === data.recipientId);
-        
+        const landlord = S.users.find(u => u.id === recipientId && u.role === 'landlord');
+        const tenant = S.users.find(u => u.id === recipientId && u.role === 'tenant');
+        const client = S.clients.find(c => c.id === recipientId);
+
         if (landlord) { recipientType = 'landlord'; recipientName = landlord.name; }
         else if (tenant) { recipientType = 'tenant'; recipientName = tenant.name; }
         else if (client) { recipientType = 'client'; recipientName = client.name; }
-        
+
+        /* L'importo che si digita è il LORDO — quello che il cliente paga.
+           Due difetti in una riga sola, prima: `parseInt` troncava i decimali
+           (1.446,69 → 1446, e sul registro reale succede su venti righe), e
+           il valore veniva salvato in un unico campo ambiguo che il motore
+           fiscale poi moltiplicava per 0,22 come se fosse imponibile.
+           Adesso si scrive la terna completa. */
+        const IE = window.BOOM_FATTURE;
+        const money = IE.splitVat(String(data.amount).replace(',', '.'));
+        if (!(money.lordo > 0)) return toast('error', 'Importo non valido');
+        const dataFattura = data.date || new Date().toISOString().split('T')[0];
+        const anno = IE.yearOf(dataFattura);
+        // Numerazione: max(usati)+1 contando anche i numeri bruciati dalle
+        // scartate, non `S.invoices.length + 1` (che su un registro con 46
+        // documenti proponeva 47 dove il prossimo libero è 24).
+        const numero = Number(data.numero) || IE.nextNumero((S.invoices || []).map(i => IE.normalize(i)), anno);
+
         try {
             await db.collection('invoices').add({
-                number: data.number, 
-                recipientId: data.recipientId,
+                anno, numero,
+                number: data.number || (numero + '/' + anno),
+                recipientId,
                 recipientType,
                 recipientName,
-                clientId: data.recipientId, // Backward compatibility
-                service: data.service || '', 
-                amount: parseInt(data.amount) || 0,
-                date: data.date || new Date().toISOString().split('T')[0],
-                description: data.description || '', 
-                status: 'pending', 
+                clienteNome: recipientName || data.clienteNome || '',
+                clientId: recipientId, // Backward compatibility
+                service: data.service || '',
+                descrizione: data.description || data.service || '',
+                lordo: money.lordo, imponibile: money.imponibile, iva: money.iva, aliquota: money.aliquota,
+                amount: money.lordo,        // compatibilità con le viste legacy
+                dataFattura,
+                date: dataFattura,
+                // Due assi distinti: lo SDI (emissione) e l'incasso.
+                statoSdi: IE.SDI.NON_INVIATA,
+                incassato: false,
+                status: 'pending',
+                description: data.description || '',
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-            closeModal(); await refresh(); toast('success', 'Fattura creata!');
-            logActivity('Fattura creata', 'invoice', { clientName: data.clientName || data.client, amount: data.amount, service: data.service });
+            closeModal(); await refresh(); toast('success', `Fattura n.${numero}/${anno} creata`);
+            logActivity('Fattura creata', 'invoice', { recipientName, lordo: money.lordo, numero, anno, service: data.service });
         } catch (err) { toast('error', 'Errore', err.message); }
     }
 
@@ -15166,21 +15364,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         } catch (err) { toast('error', 'Errore', err.message); }
     }
 
-    // ── Next invoice number, format BOOM-YYYY-NNNN, progressive per calendar year.
+    /* Il progressivo dell'anno. La regex `(\d{3,5})$` leggeva solo i numeri
+       nel vecchio formato BOOM-YYYY-NNNN e ignorava tutto il registro reale,
+       dove il numero è un intero: sul 2026 non trovava nulla e proponeva 1,
+       un numero già bruciato da una fattura scartata. Il motore conta i
+       numeri USATI (scartati inclusi — quelli non si riusano mai) e regge
+       i buchi noti senza riempirli. */
     function nextInvoiceNumber() {
         const yr = new Date().getFullYear();
-        const sameYear = (S.invoices || []).filter(i => {
-            const d = new Date(i.date || i.createdAt || 0);
-            return d.getFullYear() === yr;
-        });
-        // Pull max NNNN from existing BOOM-YYYY-NNNN, fallback to count + 1
-        let maxN = 0;
-        sameYear.forEach(i => {
-            const m = (i.number || '').match(/(\d{3,5})$/);
-            if (m) { const n = parseInt(m[1], 10); if (n > maxN) maxN = n; }
-        });
-        const next = String(maxN + 1).padStart(4, '0');
-        return `BOOM-${yr}-${next}`;
+        const IE = window.BOOM_FATTURE;
+        return String(IE.nextNumero((S.invoices || []).map(i => IE.normalize(i)), yr)) + '/' + yr;
     }
 
     // ── Auto-generate a rent-receipt invoice for a paid payment.
@@ -15197,9 +15390,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const property = contract ? S.properties.find(p => p.id === contract.propertyId) : null;
         if (!tenant) return null;
 
-        const number = nextInvoiceNumber();
+        /* Questa è una RICEVUTA di canone, non una fattura: il canone di
+           locazione abitativa è esente IVA (art. 10 n.8 DPR 633/72) e quei
+           soldi transitano verso il proprietario — non sono ricavo di Egidi.
+           Dichiararlo la tiene fuori dalla liquidazione e fuori dal
+           progressivo delle fatture, che è una serie a sé. */
+        const number = 'RIC-' + (payment.month || new Date().toISOString().slice(0, 7)) + '-' + String(payment.id).slice(-4);
         const docRef = await db.collection('invoices').add({
             number,
+            tipoDoc: 'ricevuta',
             recipientId: tenant.id,
             recipientType: 'tenant',
             recipientName: tenant.name || '',
@@ -15210,8 +15409,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             service: `Canone locazione ${payment.month || ''}`.trim(),
             description: `Ricevuta canone di locazione · ${property?.name || ''} · ${payment.month || ''}`.trim(),
             amount: payment.amount || 0,
+            lordo: payment.amount || 0, imponibile: payment.amount || 0, iva: 0, aliquota: 0,
             date: payment.paidDate || new Date().toISOString().split('T')[0],
+            dataFattura: payment.paidDate || new Date().toISOString().split('T')[0],
             status: 'paid',
+            incassato: true,
             paidDate: payment.paidDate || new Date().toISOString(),
             autoGenerated: true,
             source: payment.stripeSessionId ? 'stripe' : 'manual',
@@ -15885,15 +16087,19 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const user = !client ? S.users.find(u => u.id === rid) : null;
         const recipientName = client?.name || user?.name || 'N/A';
         const recipientRole = client ? 'Cliente CRM' : (user?.role === 'landlord' ? 'Proprietario' : user?.role === 'tenant' ? 'Inquilino' : '');
+        // Emissione (SDI) e incasso sono due assi: il modal li mostra separati.
+        const _iv = window.BOOM_FATTURE, _n = _iv.normalize(inv), _m = _iv.meta(_n);
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal">
-            <div class="modal-header"><h3 class="modal-title">🧾 ${inv.number}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-header"><h3 class="modal-title">🧾 ${esc(_n.numeroLabel)}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body">
                 <div class="detail-grid">
                     <div><div class="detail-label">Destinatario${recipientRole ? ' · ' + recipientRole : ''}</div><div class="detail-value">${recipientName}</div></div>
                     <div><div class="detail-label">Servizio</div><div class="detail-value">${inv.service || 'N/A'}</div></div>
-                    <div><div class="detail-label">Importo</div><div class="detail-value text-gold" style="font-size:20px">€${inv.amount || 0}</div></div>
-                    <div><div class="detail-label">Stato</div><div class="detail-value"><span class="badge ${inv.status === 'paid' ? 'green' : 'orange'}">${inv.status === 'paid' ? 'Pagata' : 'In Attesa'}</span></div></div>
-                    <div><div class="detail-label">Data</div><div class="detail-value">${fmtDate(inv.createdAt)}</div></div>
+                    <div><div class="detail-label">Lordo</div><div class="detail-value text-gold" style="font-size:20px">${_iv.fmtEuro(_n.lordo)}</div>
+                        <div style="font-size:11px;color:var(--text-muted);margin-top:3px">imponibile ${_iv.fmtEuro(_n.imponibile)} · IVA ${_n.aliquota}% ${_iv.fmtEuro(_n.iva)}</div></div>
+                    <div><div class="detail-label">Stato SDI</div><div class="detail-value"><span class="badge ${_m.tone === 'red' ? 'red' : _m.tone === 'green' ? 'green' : 'orange'}" title="${esc(_m.hint)}">${esc(_m.label)}</span></div>
+                        <div style="margin-top:5px"><span class="badge ${_n.incassato ? 'green' : 'orange'}">${_n.incassato ? 'Incassata' : 'Da incassare'}</span></div></div>
+                    <div><div class="detail-label">Data fattura</div><div class="detail-value">${fmtDate(_n.dataFattura || inv.createdAt)}</div></div>
                     ${inv.paidDate ? `<div><div class="detail-label">Pagata il</div><div class="detail-value">${fmtDate(inv.paidDate)}</div></div>` : ''}
                 </div>
                 ${inv.description ? `<div class="mt-16"><div class="detail-label">Descrizione</div><p style="background:var(--bg);padding:12px;border-radius:8px;margin-top:6px">${inv.description}</p></div>` : ''}
@@ -19927,7 +20133,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         doc.setTextColor(0); doc.setFillColor(245); doc.rect(120, 45, 75, 25, 'F');
         doc.setFontSize(10); doc.setFont('helvetica', 'bold');
         doc.text('N°:', 125, 53); doc.text('Data:', 125, 61);
-        doc.setFont('helvetica', 'normal'); doc.text(inv.number, 145, 53); doc.text(fmtDate(inv.createdAt), 145, 61);
+        doc.setFont('helvetica', 'normal'); doc.text(window.BOOM_FATTURE.normalize(inv).numeroLabel, 145, 53);
+        doc.text(fmtDate(window.BOOM_FATTURE.normalize(inv).dataFattura || inv.createdAt), 145, 61);
         
         let y = 50;
         doc.setFont('helvetica', 'bold'); doc.text('DA:', 20, y); doc.setFont('helvetica', 'normal');
@@ -19940,11 +20147,19 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         doc.setTextColor(255); doc.setFont('helvetica', 'bold'); doc.text('Descrizione', 20, y + 7); doc.text('Importo', 175, y + 7, { align: 'right' });
         
         y += 15; doc.setTextColor(0); doc.setFont('helvetica', 'normal');
-        doc.text(inv.service || 'Servizio BOOM', 20, y); doc.text(`EUR ${inv.amount || 0}`, 175, y, { align: 'right' });
+        // L'importo di riga è l'IMPONIBILE, e l'IVA ha una riga sua: stampare
+        // il solo lordo su un documento intestato "fattura" non è una
+        // semplificazione, è un documento che non sta in piedi.
+        const _p = window.BOOM_FATTURE.normalize(inv);
+        doc.text(inv.service || _p.descrizione || 'Servizio BOOM', 20, y);
+        doc.text(`EUR ${_p.imponibile.toFixed(2)}`, 175, y, { align: 'right' });
         
         y += 20; doc.setDrawColor(200); doc.line(120, y, 195, y);
-        y += 10; doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.text('TOTALE:', 130, y);
-        doc.setTextColor(212, 175, 55); doc.text(`EUR ${inv.amount || 0}`, 175, y, { align: 'right' });
+        y += 8; doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+        doc.text('Imponibile:', 130, y); doc.text(`EUR ${_p.imponibile.toFixed(2)}`, 175, y, { align: 'right' });
+        y += 6; doc.text(`IVA ${_p.aliquota}%:`, 130, y); doc.text(`EUR ${_p.iva.toFixed(2)}`, 175, y, { align: 'right' });
+        y += 9; doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.text('TOTALE:', 130, y);
+        doc.setTextColor(212, 175, 55); doc.text(`EUR ${_p.lordo.toFixed(2)}`, 175, y, { align: 'right' });
         
         y += 25; doc.setTextColor(0); doc.setFontSize(10); doc.setFont('helvetica', 'bold');
         doc.text('Pagamento:', 20, y); doc.setFont('helvetica', 'normal'); y += 7; doc.text(`IBAN: ${COMPANY.iban}`, 20, y);
@@ -19952,7 +20167,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         doc.setFillColor(0); doc.rect(0, 275, 210, 25, 'F');
         doc.setTextColor(150); doc.setFontSize(8); doc.text(`${COMPANY.legal} | ${COMPANY.website}`, 105, 285, { align: 'center' });
         
-        doc.save(`BOOM_Fattura_${inv.number}.pdf`);
+        doc.save(`BOOM_Fattura_${_p.numeroLabel.replace('/', '-')}.pdf`);
         toast('success', 'Fattura scaricata!');
     }
 
@@ -21428,15 +21643,22 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // ═══════════════════════════════════════════════════════════════════════════
     // EXPORT FUNCTIONS
     // ═══════════════════════════════════════════════════════════════════════════
+    // L'export porta la terna (lordo/imponibile/IVA) e i DUE stati: un file
+    // con un solo "Importo" e un solo "Stato" costringe chi lo riceve a
+    // indovinare quale dei due, ed è così che nasce l'errore del 22%.
     function exportInvoicesCSV() {
-        let csv = 'Numero,Destinatario,Tipo,Servizio,Importo,Stato,Data\n';
-        S.invoices.forEach(i => {
-            const rid = i.recipientId || i.clientId;
+        const IE = window.BOOM_FATTURE;
+        let csv = 'Numero,Data,Destinatario,Tipo,Servizio,Lordo,Imponibile,IVA,Stato SDI,Incasso\n';
+        S.invoices.forEach(raw => {
+            const i = IE.normalize(raw);
+            const rid = raw.recipientId || raw.clientId;
             const client = S.clients.find(c => c.id === rid);
             const user = !client ? S.users.find(u => u.id === rid) : null;
-            const name = client?.name || user?.name || '';
+            const name = i.clienteNome || client?.name || user?.name || '';
             const kind = client ? 'CRM' : (user?.role === 'landlord' ? 'Proprietario' : user?.role === 'tenant' ? 'Inquilino' : '');
-            csv += `"${i.number}","${name}","${kind}","${i.service || ''}",${i.amount || 0},"${i.status}","${fmtDate(i.date || i.createdAt)}"\n`;
+            csv += `"${i.numeroLabel}","${IE.fmtIt(i.dataFattura)}","${name}","${kind}","${raw.service || ''}",`
+                + `${i.lordo.toFixed(2)},${i.imponibile.toFixed(2)},${i.iva.toFixed(2)},`
+                + `"${IE.meta(i).label}","${i.incassato ? 'incassata' : 'da incassare'}"\n`;
         });
         downloadCSV(csv, 'BOOM_Fatture.csv');
     }
