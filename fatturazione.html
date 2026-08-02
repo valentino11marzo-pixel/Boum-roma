@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+<meta name="theme-color" content="#08080A">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Fatturazione · BOOM</title>
+<link rel="icon" href="https://www.boomrome.com/BOOMlogogoldicon512.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Font async: su Safari uno stylesheet sincrono verso fonts.googleapis.com blocca il primo paint -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"></noscript>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="/js/firebase-config.js"></script>
+<script src="/js/boom-portal.js"></script>
+<!-- Lo STESSO motore del server: la proiezione che vedi qui e l'IVA che
+     calcola /api/fiscal/invoices non possono divergere. -->
+<script src="/js/invoice-engine.js"></script>
+
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --gold: #D4AF37; --gold-light: rgba(212,175,55,0.15); --gold-dark: #B8960C;
+  --bg: #000; --bg-card: #0A0A0A; --bg-elevated: #141414; --bg-input: #1A1A1A;
+  --border: rgba(255,255,255,0.08); --text: #FFF; --text-secondary: #999; --text-muted: #555;
+  --green: #00D26A; --amber: #F5A524; --red: #F31260;
+}
+body { font-family: 'Inter','Helvetica Neue',sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 22px 18px 140px; }
+header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+header h1 { font-size: 19px; font-weight: 300; letter-spacing: 4px; }
+header h1 b { color: var(--gold); font-weight: 600; }
+header .sub { color: var(--text-muted); font-size: 11px; letter-spacing: 1px; margin-top: 3px; }
+header nav a { color: var(--text-secondary); font-size: 12px; text-decoration: none; margin-left: 14px; }
+header nav a:hover { color: var(--gold); }
+
+button, .btn {
+  background: var(--gold-light); color: var(--gold); border: 1px solid rgba(212,175,55,.35);
+  border-radius: 9px; padding: 9px 16px; font-size: 12px; font-weight: 600; letter-spacing: .8px;
+  cursor: pointer; font-family: inherit; transition: .15s; text-decoration: none; display: inline-block;
+}
+button:hover:not(:disabled) { background: rgba(212,175,55,.28); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+button.ghost { background: var(--bg-elevated); color: var(--text-secondary); border-color: var(--border); }
+button.ghost:hover:not(:disabled) { color: var(--gold); border-color: rgba(212,175,55,.35); }
+button.sm { padding: 6px 11px; font-size: 11px; }
+input, select, textarea {
+  background: var(--bg-input); border: 1px solid var(--border); color: var(--text);
+  border-radius: 9px; padding: 9px 12px; font-size: 13px; font-family: inherit; outline: none;
+}
+input:focus, select:focus, textarea:focus { border-color: rgba(212,175,55,.4); }
+label.fld { display: block; font-size: 10.5px; letter-spacing: 1.4px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 5px; }
+
+/* ── Allarmi: la ragione per cui questa pagina esiste ── */
+.alerts { display: grid; gap: 9px; margin-bottom: 22px; }
+.alert { display: flex; gap: 13px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-card); border-left-width: 3px; }
+.alert.red { border-left-color: var(--red); } .alert.amber { border-left-color: var(--amber); } .alert.green { border-left-color: var(--green); }
+.alert .ic { font-size: 19px; line-height: 1.2; }
+.alert .ttl { font-weight: 600; font-size: 13.5px; margin-bottom: 3px; }
+.alert .bd { font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+
+/* ── KPI ── */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px,1fr)); gap: 11px; margin-bottom: 24px; }
+.kpi { background: var(--bg-card); border: 1px solid var(--border); border-radius: 13px; padding: 15px 16px; }
+.kpi.hot { border-color: rgba(243,18,96,.3); }
+.kpi .lbl { font-size: 10px; letter-spacing: 1.6px; color: var(--text-muted); text-transform: uppercase; }
+.kpi .val { font-size: 25px; font-weight: 300; letter-spacing: .5px; margin-top: 7px; }
+.kpi .val.gold { color: var(--gold); } .kpi .val.red { color: var(--red); } .kpi .val.green { color: var(--green); }
+.kpi .note { font-size: 11px; color: var(--text-secondary); margin-top: 5px; line-height: 1.5; }
+
+/* ── Tabs ── */
+.tabs { display: flex; gap: 7px; border-bottom: 1px solid var(--border); margin-bottom: 18px; flex-wrap: wrap; }
+.tab { background: none; border: none; border-bottom: 2px solid transparent; border-radius: 0; padding: 10px 13px; color: var(--text-secondary); font-size: 12px; letter-spacing: 1.2px; font-weight: 500; }
+.tab:hover { background: none; color: var(--text); }
+.tab.on { color: var(--gold); border-bottom-color: var(--gold); }
+.tab .n { background: var(--bg-elevated); border-radius: 20px; padding: 1px 7px; font-size: 10px; margin-left: 6px; color: var(--text-secondary); }
+.tab.on .n { background: var(--gold-light); color: var(--gold); }
+
+/* ── Righe ── */
+.rows { display: flex; flex-direction: column; gap: 6px; }
+.row { background: var(--bg-card); border: 1px solid var(--border); border-radius: 11px; padding: 11px 14px;
+       display: grid; grid-template-columns: 26px 88px 1fr auto; gap: 12px; align-items: center; font-size: 12.5px; }
+.row.sel { border-color: rgba(212,175,55,.45); background: rgba(212,175,55,.05); }
+.row .date { color: var(--text-muted); font-size: 11px; }
+.row .who { min-width: 0; }
+.row .who b { display: block; font-weight: 500; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .who span { color: var(--text-muted); font-size: 11px; }
+.row .money { text-align: right; white-space: nowrap; }
+.row .money b { font-size: 13.5px; font-weight: 600; }
+.row .money span { display: block; color: var(--text-muted); font-size: 10.5px; margin-top: 2px; }
+.row input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--gold); cursor: pointer; }
+.row.reg { grid-template-columns: 62px 84px 1fr auto 104px; }
+.num { font-variant-numeric: tabular-nums; color: var(--gold); font-weight: 600; font-size: 12.5px; }
+.badge { font-size: 9.5px; padding: 3px 8px; border-radius: 20px; border: 1px solid var(--border); color: var(--text-secondary); background: var(--bg-elevated); letter-spacing: .6px; white-space: nowrap; }
+.badge.green { color: var(--green); border-color: rgba(0,210,106,.3); }
+.badge.red { color: var(--red); border-color: rgba(243,18,96,.35); }
+.badge.amber { color: var(--amber); border-color: rgba(245,165,36,.35); }
+.badge.grey { color: var(--text-muted); }
+.empty { color: var(--text-muted); font-size: 12.5px; padding: 34px 16px; text-align: center; border: 1px dashed var(--border); border-radius: 12px; line-height: 1.7; }
+
+/* ── Barra azioni fissa ── */
+.bar { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(10,10,10,.96);
+       backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+       border-top: 1px solid var(--border); padding: 12px 18px; z-index: 40; display: none; }
+.bar.on { display: block; }
+.bar .in { max-width: 1180px; margin: 0 auto; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.bar .cnt { font-size: 13px; } .bar .cnt b { color: var(--gold); }
+.bar .proj { font-size: 11.5px; color: var(--text-secondary); line-height: 1.5; }
+.bar .proj b { color: var(--text); }
+.bar .sp { flex: 1; }
+
+/* ── Trimestri ── */
+.qgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(228px,1fr)); gap: 11px; }
+.q { background: var(--bg-card); border: 1px solid var(--border); border-radius: 13px; padding: 15px 16px; }
+.q.due { border-color: rgba(212,175,55,.4); }
+.q h4 { font-size: 12px; letter-spacing: 2px; color: var(--text-secondary); font-weight: 500; }
+.q .iva { font-size: 24px; font-weight: 300; color: var(--gold); margin: 8px 0 3px; }
+.q .ln { font-size: 11.5px; color: var(--text-muted); line-height: 1.75; display: flex; justify-content: space-between; }
+.q .ln b { color: var(--text-secondary); font-weight: 500; }
+.note { font-size: 11.5px; color: var(--text-muted); line-height: 1.75; padding: 13px 15px; background: var(--bg-elevated); border-radius: 11px; margin-top: 16px; }
+.note b { color: var(--text-secondary); }
+
+.panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 13px; padding: 17px; margin-bottom: 14px; }
+.panel h3 { font-size: 12px; letter-spacing: 2.4px; color: var(--text-secondary); font-weight: 500; text-transform: uppercase; margin-bottom: 12px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px,1fr)); gap: 12px; }
+#shield { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 999; color: var(--text-secondary); font-size: 12px; letter-spacing: 3px; }
+@media (max-width: 640px) {
+  .row { grid-template-columns: 24px 1fr auto; }
+  .row .date { display: none; }
+  .row.reg { grid-template-columns: 54px 1fr auto; }
+  .row.reg .date { display: none; }
+}
+</style>
+</head>
+<body>
+<div id="shield">ACCESSO…</div>
+
+<div class="wrap" id="app" style="display:none">
+  <header>
+    <div>
+      <h1>FATTURA<b>ZIONE</b></h1>
+      <div class="sub" id="emittente">—</div>
+    </div>
+    <nav>
+      <a href="/banca">Banca</a><a href="/team">Squadra</a><a href="/portal">Portale</a>
+    </nav>
+  </header>
+
+  <div class="alerts" id="alerts"></div>
+  <div class="kpis" id="kpis"></div>
+
+  <div class="tabs" id="tabs">
+    <button class="tab on" data-tab="coda">DA FATTURARE <span class="n" id="nCoda">0</span></button>
+    <button class="tab" data-tab="registro">REGISTRO <span class="n" id="nReg">0</span></button>
+    <button class="tab" data-tab="iva">IVA</button>
+    <button class="tab" data-tab="import">IMPORT</button>
+  </div>
+
+  <div id="view"></div>
+</div>
+
+<div class="bar" id="bar">
+  <div class="in">
+    <div class="cnt"><b id="selN">0</b> selezionate · <b id="selTot">—</b></div>
+    <div class="proj" id="proj"></div>
+    <div class="sp"></div>
+    <div><label class="fld">Data fattura</label><input type="date" id="dataFat"></div>
+    <button class="ghost sm" id="btnExport">📤 Esporta TIC</button>
+    <button id="btnIssue">Numera ed emetti</button>
+  </div>
+</div>
+
+<script>
+(async function () {
+  // Shield auto-diagnostico (come /banca e /team): mai un "ACCESSO…" muto.
+  const shield = document.getElementById('shield');
+  const shieldFail = (msg) => {
+    shield.innerHTML = '<div style="text-align:center;max-width:340px;line-height:1.8;letter-spacing:.5px">⚠️ ' + msg
+      + '<br><br><a href="/login?next=%2Ffatturazione" style="color:#D4AF37">Vai al login</a>'
+      + ' · <a href="/portal" style="color:#999">Apri il portale</a></div>';
+  };
+  const watchdog = setTimeout(() => shieldFail('L\'accesso sta impiegando troppo — connessione o SDK Firebase bloccato.'), 15000);
+  try {
+    await BoomPortal.requireAuth(['admin'], { loginUrl: '/login' });
+  } catch (e) {
+    clearTimeout(watchdog);
+    const m = String(e && e.message || e);
+    if (m === 'not_authenticated') return;
+    shieldFail(m === 'wrong_role' ? 'Questa console è solo per il ruolo ADMIN.'
+      : m === 'profile_missing' ? 'Profilo utente non trovato in Firestore.'
+      : 'Accesso fallito: ' + m);
+    return;
+  }
+  clearTimeout(watchdog);
+  shield.style.display = 'none';
+  document.getElementById('app').style.display = '';
+
+  const E = window.BOOM_FATTURE;
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const euro = E.fmtEuro;
+  const toast = (m, t) => BoomPortal.toast(m, { type: t || 'info' });
+
+  async function api(payload, raw) {
+    const token = await firebase.auth().currentUser.getIdToken();
+    const r = await fetch('/api/fiscal/invoices', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (raw) return r;
+    const j = await r.json().catch(() => ({ ok: false, error: 'risposta non valida' }));
+    if (!j.ok && j.error) throw new Error(j.error);
+    return j;
+  }
+
+  let S = null;                 // stato dal server
+  let tab = 'coda';
+  let anno = new Date().getFullYear();
+  const sel = new Set();        // id selezionati nella coda
+
+  // ── Caricamento ─────────────────────────────────────────────────────
+  async function load() {
+    try {
+      S = await api({ op: 'state', anno });
+      sel.forEach((id) => { if (!S.coda.some(c => c.id === id)) sel.delete(id); });
+      render();
+    } catch (e) {
+      $('view').innerHTML = '<div class="empty">Caricamento fallito: ' + esc(e.message)
+        + '<br><br><button class="ghost sm" onclick="location.reload()">Riprova</button></div>';
+    }
+  }
+
+  // ── Render ──────────────────────────────────────────────────────────
+  function render() {
+    const em = S.settings.emittente;
+    $('emittente').textContent = em.ragioneSociale + ' · P.IVA ' + em.piva;
+    renderAlerts(); renderKpis();
+    $('nCoda').textContent = S.coda.length;
+    $('nReg').textContent = S.registro.length;
+    document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+    $('view').innerHTML = tab === 'coda' ? viewCoda()
+      : tab === 'registro' ? viewRegistro()
+      : tab === 'iva' ? viewIva() : viewImport();
+    wire();
+    syncBar();
+  }
+
+  function renderAlerts() {
+    if (!S.alerts.length) {
+      $('alerts').innerHTML = '<div class="alert green"><div class="ic">✓</div><div><div class="ttl">Registro in ordine</div>'
+        + '<div class="bd">Nessun incasso senza fattura, nessuna scartata aperta, numerazione coerente.</div></div></div>';
+      return;
+    }
+    $('alerts').innerHTML = S.alerts.map(a =>
+      '<div class="alert ' + esc(a.tone) + '"><div class="ic">' + esc(a.icon) + '</div><div>'
+      + '<div class="ttl">' + esc(a.title) + '</div><div class="bd">' + esc(a.body) + '</div></div></div>').join('');
+  }
+
+  function renderKpis() {
+    const t = S.totali;
+    // Il trimestre in corso e la sua scadenza: la domanda "quanto devo e
+    // quando" deve avere una risposta senza aprire una tab.
+    const q = E.quarterOf(S.today);
+    const qb = S.ledger.byQuarter[q];
+    const gg = E.daysBetween(S.today, qb.dueDate);
+    $('kpis').innerHTML = [
+      ['DA FATTURARE', euro(t.codaLordo), t.codaCount + ' incassi · IVA latente ' + euro(t.codaIva), t.codaCount ? 'red' : 'green', t.codaCount ? 'hot' : ''],
+      ['IVA Q' + q + ' ' + anno, euro(qb.iva), 'versamento ' + E.fmtIt(qb.dueDate) + (gg >= 0 ? ' · tra ' + gg + ' giorni' : ' · SCADUTO'), 'gold', ''],
+      ['RICAVI ' + anno, euro(t.ricaviAnno), 'imponibile su fatture emesse', '', ''],
+      ['CREDITO APERTO', euro(t.creditoAperto), 'fatture emesse non incassate', '', ''],
+    ].map(([l, v, n, c, k]) =>
+      '<div class="kpi ' + k + '"><div class="lbl">' + l + '</div><div class="val ' + c + '">' + v + '</div>'
+      + '<div class="note">' + esc(n) + '</div></div>').join('');
+  }
+
+  // ── Tab: DA FATTURARE ───────────────────────────────────────────────
+  function viewCoda() {
+    if (!S.coda.length) {
+      return '<div class="empty">Nessun incasso in attesa di fattura.<br>'
+        + 'Gli incassi arrivano dall\'import CSV di Stripe e della banca.</div>';
+    }
+    const head = '<div class="panel" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'
+      + '<button class="ghost sm" id="selAll">Seleziona tutto</button>'
+      + '<button class="ghost sm" id="selNone">Deseleziona</button>'
+      + '<span style="font-size:11.5px;color:var(--text-muted);line-height:1.6">'
+      + 'Il più vecchio aspetta da <b style="color:var(--amber)">' + S.coda[0].giorniAttesa + ' giorni</b>. '
+      + 'Selezionane uno o più, scegli la data fattura e assegna i progressivi.</span></div>';
+    return head + '<div class="rows">' + S.coda.map(rowCoda).join('') + '</div>';
+  }
+
+  function rowCoda(i) {
+    const on = sel.has(i.id);
+    const tag = i.canale ? '<span class="badge">' + esc(i.canale) + '</span> ' : '';
+    return '<div class="row ' + (on ? 'sel' : '') + '" data-id="' + esc(i.id) + '">'
+      + '<input type="checkbox" data-pick="' + esc(i.id) + '"' + (on ? ' checked' : '') + '>'
+      + '<div class="date">' + E.fmtIt(i.dataIncasso) + '</div>'
+      + '<div class="who"><b>' + esc(i.clienteNome || i.email || '—') + '</b>'
+      + '<span>' + tag + esc(i.descrizione || '') + ' · ' + i.giorniAttesa + ' gg</span></div>'
+      + '<div class="money"><b>' + euro(i.lordo) + '</b><span>imp. ' + euro(i.imponibile) + ' · IVA ' + euro(i.iva) + '</span></div>'
+      + '</div>';
+  }
+
+  // ── Tab: REGISTRO ───────────────────────────────────────────────────
+  function viewRegistro() {
+    const anni = S.anni.length ? S.anni : [anno];
+    const tabs = '<div class="panel" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
+      + anni.map(y => '<button class="' + (y === anno ? '' : 'ghost ') + 'sm" data-anno="' + y + '">' + y + '</button>').join('')
+      + '<span style="font-size:11.5px;color:var(--text-muted);margin-left:auto">'
+      + 'Prossimo numero libero: <b style="color:var(--gold)">' + S.numbering.next + '</b>'
+      + (S.numbering.burned.length ? ' · bruciati dalle scartate: ' + S.numbering.burned.join(', ') : '')
+      + (S.numbering.holes.length ? ' · buchi noti: ' + S.numbering.holes.join(', ') : '')
+      + '</span></div>';
+    const rows = S.registro.filter(i => i.anno === anno);
+    if (!rows.length) return tabs + '<div class="empty">Nessuna fattura nel ' + anno + '.</div>';
+    return tabs + '<div class="rows">' + rows.map(rowReg).join('') + '</div>';
+  }
+
+  function rowReg(i) {
+    const m = E.SDI_META[i.statoSdi] || E.SDI_META.NON_INVIATA;
+    const rev = i.needsReview ? ' <span class="badge amber" title="Importo da confermare: il documento porta un solo importo, senza distinzione tra lordo e imponibile">❓ importo</span>' : '';
+    const inc = i.incassato ? '' : ' <span class="badge">non incassata</span>';
+    return '<div class="row reg" data-edit="' + esc(i.id) + '" style="cursor:pointer">'
+      + '<div class="num">' + (i.numero != null ? 'n.' + i.numero : '—') + '</div>'
+      + '<div class="date">' + E.fmtIt(i.dataFattura) + '</div>'
+      + '<div class="who"><b>' + esc(i.clienteNome || '—') + '</b><span>' + esc(i.descrizione || '') + rev + inc + '</span></div>'
+      + '<div class="money"><b>' + euro(i.lordo) + '</b><span>imp. ' + euro(i.imponibile) + ' · IVA ' + euro(i.iva) + '</span></div>'
+      + '<div style="text-align:right"><span class="badge ' + m.tone + '" title="' + esc(m.hint) + '">' + esc(m.short) + '</span></div>'
+      + '</div>';
+  }
+
+  // ── Tab: IVA ────────────────────────────────────────────────────────
+  function viewIva() {
+    const L = S.ledger;
+    const qNow = E.quarterOf(S.today);
+    const cards = [1, 2, 3, 4].map(q => {
+      const b = L.byQuarter[q];
+      return '<div class="q ' + (q === qNow ? 'due' : '') + '"><h4>Q' + q + ' ' + anno + '</h4>'
+        + '<div class="iva">' + euro(b.iva) + '</div>'
+        + '<div class="ln"><span>imponibile</span><b>' + euro(b.imponibile) + '</b></div>'
+        + '<div class="ln"><span>fatture</span><b>' + b.count + '</b></div>'
+        + (b.interessi ? '<div class="ln"><span>interessi 1%</span><b>' + euro(b.interessi) + '</b></div>' : '')
+        + '<div class="ln" style="margin-top:7px;border-top:1px solid var(--border);padding-top:7px">'
+        + '<span>versamento</span><b>' + E.fmtIt(b.dueDate) + '</b></div>'
+        + '<div class="ln"><span>LIPE</span><b>' + E.fmtIt(b.lipeDate) + '</b></div></div>';
+    }).join('');
+
+    const esc0 = L.esclusi;
+    const escluse = esc0.count
+      ? '<div class="panel" style="border-color:rgba(243,18,96,.28);margin-top:16px"><h3>Escluse dalla liquidazione</h3>'
+        + '<div style="font-size:12.5px;line-height:1.75;color:var(--text-secondary)">'
+        + '<b style="color:var(--red)">' + esc0.count + ' fatture scartate</b> per ' + euro(esc0.lordo)
+        + ' — ' + euro(esc0.iva) + ' di IVA che <b>non è dovuta</b>, perché una fattura scartata dallo SDI non è '
+        + 'giuridicamente emessa. Contarle come valide è l\'errore che gonfiava la liquidazione.</div></div>'
+      : '';
+
+    const proj = sel.size ? null : E.projectVat(S.coda, S.today, { regime: S.settings.regimeIva });
+    const projBlock = (proj && proj.count)
+      ? '<div class="panel" style="margin-top:16px"><h3>Se emetti oggi tutta la coda</h3>'
+        + '<div class="grid2"><div><label class="fld">Fatture</label><div style="font-size:19px">' + proj.count + '</div></div>'
+        + '<div><label class="fld">Imponibile</label><div style="font-size:19px">' + euro(proj.imponibile) + '</div></div>'
+        + '<div><label class="fld">IVA</label><div style="font-size:19px;color:var(--gold)">' + euro(proj.iva) + '</div></div>'
+        + '<div><label class="fld">Cade in</label><div style="font-size:19px">Q' + proj.trimestre + '</div></div>'
+        + '<div><label class="fld">Da versare entro</label><div style="font-size:19px">' + E.fmtIt(proj.scadenza) + '</div></div></div>'
+        + '<div class="note">Emettere prima della fine del trimestre sposta l\'IVA sulla scadenza precedente. '
+        + 'Gli interessi dell\'1% del regime trimestrale (' + euro(proj.interessi) + ') sono una voce a parte, non imposta.</div></div>'
+      : '';
+
+    const reg = S.settings.regimeIva;
+    const conf = S.settings.regimeConfermato;
+    const regBlock = '<div class="panel" style="margin-top:16px"><h3>Regime IVA</h3>'
+      + '<div style="display:flex;gap:11px;align-items:center;flex-wrap:wrap">'
+      + '<select id="regSel"><option value="trimestrale"' + (reg === 'trimestrale' ? ' selected' : '') + '>Trimestrale</option>'
+      + '<option value="mensile"' + (reg === 'mensile' ? ' selected' : '') + '>Mensile</option></select>'
+      + '<label style="font-size:12px;color:var(--text-secondary);display:flex;gap:7px;align-items:center">'
+      + '<input type="checkbox" id="regConf"' + (conf ? ' checked' : '') + ' style="width:15px;height:15px;accent-color:var(--gold)">'
+      + 'confermato dalla commercialista</label>'
+      + '<button class="sm" id="regSave">Salva</button></div>'
+      + (conf ? '' : '<div class="note">⚠️ <b>Il trimestrale è un\'assunzione, non un dato.</b> '
+        + 'Tutto il calendario di questa pagina dipende da qui: sul mensile le scadenze sono dodici, non quattro. '
+        + 'Chiedilo alla commercialista e spunta la casella — finché non è spuntata, le date sono una stima.</div>')
+      + '</div>';
+
+    return '<div class="qgrid">' + cards + '</div>' + escluse + projBlock + regBlock;
+  }
+
+  // ── Tab: IMPORT ─────────────────────────────────────────────────────
+  function viewImport() {
+    return '<div class="panel"><h3>Importa CSV</h3>'
+      + '<div style="font-size:12.5px;color:var(--text-secondary);line-height:1.8;margin-bottom:13px">'
+      + 'Due formati, riconosciuti dall\'intestazione:<br>'
+      + '· <b>registro emesse</b> — <code>anno, numero, data_fattura, cliente, lordo, imponibile, iva, stato_sdi</code><br>'
+      + '· <b>coda incassi</b> — <code>data_incasso, cliente, email, paese, lordo, canale, tipo, descrizione</code><br>'
+      + 'Gli id sono deterministici: reimportare lo stesso file non duplica nulla.</div>'
+      + '<input type="file" id="csvFile" accept=".csv,text/csv" style="margin-bottom:11px">'
+      + '<textarea id="csvText" rows="7" placeholder="…oppure incolla qui il CSV" style="width:100%;font-family:ui-monospace,monospace;font-size:11.5px"></textarea>'
+      + '<div style="margin-top:11px;display:flex;gap:9px;flex-wrap:wrap">'
+      + '<button id="btnImport">Importa</button>'
+      + '<button class="ghost" id="btnExpReg">📤 Esporta registro ' + anno + ' per TIC</button></div>'
+      + '<div id="impOut" style="margin-top:13px;font-size:12.5px;line-height:1.7"></div></div>'
+      + '<div class="note">Il collo di bottiglia non è generare i dati: è ricopiarli su TIC una fattura alla volta. '
+      + 'Il CSV di export ha le colonne <b>nell\'ordine dei campi a video</b>, così chi inserisce non deve cercare — '
+      + 'e l\'<b>importo unitario è l\'imponibile</b>, mai il lordo (digitare il lordo lì è l\'errore che moltiplica per 1,22).</div>';
+  }
+
+  // ── Barra azioni + proiezione live ──────────────────────────────────
+  function syncBar() {
+    const bar = $('bar');
+    bar.classList.toggle('on', tab === 'coda' && sel.size > 0);
+    if (!sel.size) return;
+    const picked = S.coda.filter(i => sel.has(i.id));
+    const tot = picked.reduce((s, i) => s + i.lordo, 0);
+    $('selN').textContent = picked.length;
+    $('selTot').textContent = euro(tot);
+    // La proiezione si ricalcola col MOTORE, mentre scegli la data: è la
+    // domanda che il portale non sapeva nemmeno formulare.
+    const d = $('dataFat').value || S.today;
+    const p = E.projectVat(picked, d, { regime: S.settings.regimeIva });
+    $('proj').innerHTML = 'IVA <b>' + euro(p.iva) + '</b> in <b>Q' + p.trimestre + ' ' + p.anno
+      + '</b> · versamento <b>' + E.fmtIt(p.scadenza) + '</b>';
+  }
+
+  // ── Eventi ──────────────────────────────────────────────────────────
+  function wire() {
+    document.querySelectorAll('[data-pick]').forEach(cb => {
+      cb.onchange = () => {
+        cb.checked ? sel.add(cb.dataset.pick) : sel.delete(cb.dataset.pick);
+        cb.closest('.row').classList.toggle('sel', cb.checked);
+        syncBar();
+      };
+    });
+    const all = $('selAll'), none = $('selNone');
+    if (all) all.onclick = () => { S.coda.forEach(i => sel.add(i.id)); render(); };
+    if (none) none.onclick = () => { sel.clear(); render(); };
+    document.querySelectorAll('[data-anno]').forEach(b => {
+      b.onclick = async () => { anno = Number(b.dataset.anno); await load(); };
+    });
+    document.querySelectorAll('[data-edit]').forEach(r => { r.onclick = () => openEdit(r.dataset.edit); });
+
+    const rs = $('regSave');
+    if (rs) rs.onclick = async () => {
+      try {
+        await api({ op: 'settings', settings: { regimeIva: $('regSel').value, regimeConfermato: $('regConf').checked } });
+        toast('Regime salvato', 'success'); await load();
+      } catch (e) { toast(e.message, 'error'); }
+    };
+
+    const bi = $('btnImport');
+    if (bi) bi.onclick = doImport;
+    const bf = $('csvFile');
+    if (bf) bf.onchange = async () => {
+      const f = bf.files[0]; if (!f) return;
+      $('csvText').value = await f.text();
+    };
+    const br = $('btnExpReg');
+    if (br) br.onclick = () => download({ op: 'export', scope: 'registro', anno });
+  }
+
+  $('dataFat').value = new Date().toISOString().slice(0, 10);
+  $('dataFat').onchange = syncBar;
+  document.querySelectorAll('.tab').forEach(b => { b.onclick = () => { tab = b.dataset.tab; render(); }; });
+
+  $('btnIssue').onclick = async () => {
+    const ids = [...sel];
+    const d = $('dataFat').value;
+    if (!d) return toast('Scegli la data fattura', 'error');
+    const p = E.projectVat(S.coda.filter(i => sel.has(i.id)), d, { regime: S.settings.regimeIva });
+    const ok = await BoomPortal.confirm(
+      'Assegno i progressivi a ' + ids.length + ' fatture con data ' + E.fmtIt(d) + '.\n\n'
+      + 'Partono dal numero ' + S.numbering.next + '. IVA ' + euro(p.iva) + ' in Q' + p.trimestre
+      + ', da versare entro il ' + E.fmtIt(p.scadenza) + '.\n\n'
+      + 'I numeri assegnati non si possono riusare.');
+    if (!ok) return;
+    $('btnIssue').disabled = true;
+    try {
+      const r = await api({ op: 'issue', ids, dataFattura: d });
+      sel.clear();
+      const nums = r.issued.map(i => i.numero);
+      toast(r.issued.length + ' fatture numerate (n.' + nums[0] + '–' + nums[nums.length - 1] + ')', 'success');
+      if (r.errors && r.errors.length) toast(r.errors.length + ' righe non numerate — vedi registro', 'error');
+      tab = 'registro';
+      await load();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { $('btnIssue').disabled = false; }
+  };
+
+  $('btnExport').onclick = () => download({ op: 'export', ids: [...sel], dataFattura: $('dataFat').value });
+
+  async function download(payload) {
+    try {
+      const r = await api(payload, true);
+      if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || ('HTTP ' + r.status)); }
+      const blob = await r.blob();
+      const cd = r.headers.get('Content-Disposition') || '';
+      const name = (cd.match(/filename="([^"]+)"/) || [])[1] || 'fatture.csv';
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = name; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  async function doImport() {
+    const csv = $('csvText').value.trim();
+    if (csv.length < 10) return toast('Incolla o carica un CSV', 'error');
+    $('btnImport').disabled = true;
+    try {
+      const r = await api({ op: 'import', csv });
+      $('impOut').innerHTML = '<b style="color:var(--green)">' + r.created + ' create</b> · '
+        + r.skipped + ' già presenti · formato <b>' + esc(r.kind) + '</b>'
+        + (r.errors && r.errors.length ? '<div style="color:var(--amber);margin-top:7px">' + r.errors.map(esc).join('<br>') + '</div>' : '');
+      $('csvText').value = '';
+      await load();
+    } catch (e) { $('impOut').innerHTML = '<span style="color:var(--red)">' + esc(e.message) + '</span>'; }
+    finally { $('btnImport').disabled = false; }
+  }
+
+  // ── Modifica di una fattura del registro ────────────────────────────
+  function openEdit(id) {
+    const i = S.registro.find(x => x.id === id);
+    if (!i) return;
+    const m = E.SDI_META[i.statoSdi] || E.SDI_META.NON_INVIATA;
+    const opts = Object.keys(E.SDI_META).map(k =>
+      '<option value="' + k + '"' + (k === i.statoSdi ? ' selected' : '') + '>' + esc(E.SDI_META[k].label) + '</option>').join('');
+    const host = document.createElement('div');
+    host.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:200;display:flex;align-items:center;justify-content:center;padding:18px';
+    host.innerHTML = '<div class="panel" style="max-width:520px;width:100%;max-height:88vh;overflow:auto">'
+      + '<h3>' + (i.numero != null ? 'Fattura n.' + i.numero + '/' + i.anno : 'Documento') + '</h3>'
+      + '<div style="font-size:13px;margin-bottom:14px;line-height:1.7">' + esc(i.clienteNome || '—')
+      + '<br><span style="color:var(--text-muted);font-size:11.5px">' + esc(i.descrizione || '') + '</span></div>'
+      + '<div class="grid2">'
+      + '<div><label class="fld">Lordo incassato €</label><input type="number" step="0.01" id="eLordo" value="' + i.lordo + '"></div>'
+      + '<div><label class="fld">Stato SDI</label><select id="eSdi">' + opts + '</select></div>'
+      + '<div><label class="fld">Incassata</label><select id="eInc"><option value="1"' + (i.incassato ? ' selected' : '') + '>sì</option><option value="0"' + (i.incassato ? '' : ' selected') + '>no</option></select></div>'
+      + '<div><label class="fld">Cliente</label><input id="eNome" value="' + esc(i.clienteNome || '') + '"></div>'
+      + '</div>'
+      + '<div style="margin-top:11px"><label class="fld">Note</label><input id="eNote" value="' + esc(i.note || '') + '" placeholder="es. pagante diverso dall\'intestatario"></div>'
+      + '<div class="note">' + esc(m.hint) + (i.needsReview
+        ? '<br><br>⚠️ <b>Importo da confermare.</b> Questo documento porta un solo importo e non dice se è lordo o imponibile. '
+        + 'Conferma il <b>lordo incassato</b>: imponibile e IVA si ricalcolano da soli.' : '') + '</div>'
+      + '<div style="display:flex;gap:9px;margin-top:15px;justify-content:flex-end">'
+      + '<button class="ghost" id="eCancel">Annulla</button><button id="eSave">Salva</button></div></div>';
+    document.body.appendChild(host);
+    host.onclick = (ev) => { if (ev.target === host) host.remove(); };
+    host.querySelector('#eCancel').onclick = () => host.remove();
+    host.querySelector('#eSave').onclick = async () => {
+      const updates = {
+        statoSdi: host.querySelector('#eSdi').value,
+        incassato: host.querySelector('#eInc').value === '1',
+        clienteNome: host.querySelector('#eNome').value,
+        note: host.querySelector('#eNote').value,
+      };
+      const nuovoLordo = Number(host.querySelector('#eLordo').value);
+      // Il lordo si manda SOLO se è cambiato davvero: mandarlo sempre
+      // toglierebbe i centesimi reali di TIC (350,01 → 350,00) su ogni
+      // salvataggio innocuo.
+      if (Math.abs(nuovoLordo - i.lordo) > 0.001) updates.lordo = nuovoLordo;
+      try {
+        await api({ op: 'patch', id, updates });
+        host.remove(); toast('Salvato', 'success'); await load();
+      } catch (e) { toast(e.message, 'error'); }
+    };
+  }
+
+  await load();
+  BoomPortal.registerServiceWorker && BoomPortal.registerServiceWorker();
+})();
+</script>
+</body>
+</html>

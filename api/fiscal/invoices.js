@@ -167,31 +167,36 @@ async function opImport(req, res, body, actor) {
   const existing = await loadAll();
   const byId = new Map(existing.map((i) => [i.id, i]));
 
+  const isReg = parsed.kind === 'emesse';
   let created = 0, skipped = 0;
   const errors = [];
+  const todo = [];
   for (const row of parsed.rows) {
-    const isReg = parsed.kind === 'emesse';
     if (isReg && (!row.anno || !row.numero)) { errors.push('riga senza anno/numero'); continue; }
     if (!isReg && !row.dataIncasso) { errors.push('riga senza data incasso'); continue; }
     const id = isReg ? idEmessa(row) : idCoda(row);
     if (byId.has(id)) { skipped++; continue; }
-    const doc = {
-      ...row,
-      importedAt: new Date().toISOString(),
-      importedBy: actor,
-      source: isReg ? 'import-registro' : 'import-coda',
-    };
-    try {
-      // fsCreate con docId risponde 409 su documento esistente: è un
-      // compare-and-set, non un "leggi poi scrivi". Due import in parallelo
-      // non possono duplicare.
-      await fsCreate('invoices', doc, id);
-      created++;
-      byId.set(id, doc);
-    } catch (e) {
-      if (e.exists) skipped++;
-      else errors.push(`${id}: ${e.message}`);
-    }
+    todo.push([id, row]);
+  }
+
+  /* Scritture a piccoli gruppi: l'import iniziale è ~80 documenti e in
+     sequenza sono altrettanti round-trip. Il parallelismo è sicuro perché
+     `fsCreate` con docId è un compare-and-set (Firestore risponde 409 su
+     documento esistente), non un "leggi poi scrivi": due richieste sullo
+     stesso id non possono duplicare, una delle due perde e conta skipped. */
+  const importedAt = new Date().toISOString();
+  const source = isReg ? 'import-registro' : 'import-coda';
+  const POOL = 5;
+  for (let i = 0; i < todo.length; i += POOL) {
+    await Promise.all(todo.slice(i, i + POOL).map(async ([id, row]) => {
+      try {
+        await fsCreate('invoices', { ...row, importedAt, importedBy: actor, source }, id);
+        created++;
+      } catch (e) {
+        if (e.exists) skipped++;
+        else errors.push(`${id}: ${e.message}`);
+      }
+    }));
   }
 
   await logActivity('Fatture importate', 'fiscal',

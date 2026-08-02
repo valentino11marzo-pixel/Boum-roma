@@ -232,6 +232,19 @@ const coda = E.parseInvoiceCsv(fixture('coda.csv'));
     E.nextPivaEstera([{ pivaCliente: '17322991005' }]) === '00000000001');
 }
 
+// ═══ 7bis. Un solo formato per lo stesso importo ═══
+{
+  // Gli allarmi li compone il SERVER (Node), i totali il BROWSER: le due
+  // stringhe finiscono affiancate. In italiano il default CLDR non raggruppa
+  // i numeri a quattro cifre e le implementazioni non concordano, così lo
+  // stesso 5534,59 usciva "€5534,59" da Node e "€5.534,59" da Chrome.
+  check('formato: le migliaia si raggruppano sempre, anche a 4 cifre',
+    E.fmtEuro(5534.59) === '€5.534,59');
+  check('formato: due decimali sempre, anche sullo zero',
+    E.fmtEuro(350) === '€350,00' && E.fmtEuro(0) === '€0,00');
+  check('formato: cinque cifre invariate', E.fmtEuro(30692.20) === '€30.692,20');
+}
+
 // ═══ 8. La diagnostica che accende gli allarmi ═══
 {
   const audit = E.registryAudit(registro.rows, 2026, coda.rows, '2026-08-02');

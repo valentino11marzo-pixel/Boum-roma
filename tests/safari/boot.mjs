@@ -104,6 +104,10 @@ const CASES = [
   { name: 'canale realtime muto → fallback get()',      page: 'pre-agreement-admin', role: 'admin',  mode: 'silentChannel', wait: 8000,  expect: 'app' },
   { name: 'null spurio da Safari → niente rimbalzo',    page: 'pre-agreement-admin', role: 'admin',  mode: 'spuriousNull',  wait: 3000,  expect: 'app' },
   { name: 'null spurio su /casa → niente rimbalzo',     page: 'tenant',              role: 'tenant', mode: 'spuriousNull',  wait: 3000,  expect: 'app' },
+  // La console fatturazione carica i dati da /api/fiscal/invoices, che qui
+  // non esiste: deve comunque entrare nella pagina e dire cosa è andato
+  // storto, non restare sul velo "ACCESSO…".
+  { name: 'fatturazione: entra anche con API irraggiungibile', page: 'fatturazione', role: 'admin', mode: 'ok', wait: 2000, expect: 'app' },
 ];
 
 const browser = await chromium.launch({ executablePath: BROWSER, args: ['--no-sandbox'] });
@@ -129,8 +133,11 @@ for (const c of CASES) {
   const bounced = url.indexOf('/login') >= 0;
   const state = bounced ? 'login' : await page.evaluate(() => {
     if (document.getElementById('bp-recovery')) return 'recovery';
-    const load = document.getElementById('load');
-    const stillLoading = load && getComputedStyle(load).display !== 'none';
+    // Due nomi per la stessa cosa: il portale usa #load, le console admin
+    // (/banca, /fatturazione) usano #shield. Guardarne uno solo farebbe
+    // passare per "app" una console rimasta sul suo velo.
+    const veil = document.getElementById('load') || document.getElementById('shield');
+    const stillLoading = veil && getComputedStyle(veil).display !== 'none';
     return stillLoading ? 'stuck' : 'app';
   });
   const ok = state === c.expect && crashes.length === 0;

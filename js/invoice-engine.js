@@ -124,8 +124,17 @@
     return Math.floor((Number(s.slice(5, 7)) - 1) / 3) + 1;
   }
   function fmtIt(d) { var s = isoDate(d); return s ? s.slice(8, 10) + '/' + s.slice(5, 7) + '/' + s.slice(0, 4) : ''; }
+  /* `useGrouping` va FISSATO. In italiano il default CLDR è
+     minimumGroupingDigits=2, cioè i numeri a quattro cifre non si
+     raggruppano — e le implementazioni non concordano: lo stesso 5534.59
+     esce "5534,59" da Node e "5.534,59" da Chrome. Le stringhe di questo
+     motore nascono in ENTRAMBI (gli allarmi li compone il server, i totali
+     il browser) e finivano affiancate sulla stessa schermata: due formati
+     per lo stesso importo, su una pagina che parla di soldi. */
   function fmtEuro(n) {
-    return '€' + (Number(n) || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return '€' + (Number(n) || 0).toLocaleString('it-IT', {
+      minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: true,
+    });
   }
 
   /* Scadenze di versamento IVA (§2.3).
