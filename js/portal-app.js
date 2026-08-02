@@ -16172,7 +16172,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <button class="btn btn-sm" style="background:var(--gold);color:#000;font-weight:600" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openShareHub(cid),260)" title="Tutti i link condivisibili: firma, dati, pass, immobile">🔗 Link da condividere</button>
                 <button class="btn btn-secondary btn-sm" onclick="previewContractPDF('${c.id}')">👁 Anteprima</button>
                 <button class="btn btn-secondary btn-sm" onclick="downloadContractPDF('${c.id}')">📥 PDF</button>
-                <button class="btn btn-secondary btn-sm" onclick="regenerateContractPDF('${c.id}')" title="Rigenera Allegato B con dati aggiornati">🔄 Rigenera PDF</button>
+                <button class="btn ${(c.generatedPDF && c.clauseVersion !== 2 && c.signatureStatus !== 'complete') ? '' : 'btn-secondary'} btn-sm" onclick="regenerateContractPDF('${c.id}')" title="${(c.generatedPDF && c.clauseVersion !== 2 && c.signatureStatus !== 'complete') ? 'Questo PDF usa le clausole vecchie (impianti/oneri): rigeneralo prima di mandarlo in firma' : 'Rigenera il PDF con i dati aggiornati'}">🔄 Rigenera PDF${(c.generatedPDF && c.clauseVersion !== 2 && c.signatureStatus !== 'complete') ? ' ⚠' : ''}</button>
                 <button class="btn btn-secondary btn-sm" onclick="openFascicolo('${c.id}')" title="Scheda attestazione canone (fascia) + dati RLI + scadenzario — PDF">📑 Fascicolo${c.canoneScheda ? (c.canoneScheda.fits === false ? ' ⚠' : c.canoneScheda.fits === true ? ' ✓' : '') : ''}</button>
                 <button class="btn btn-secondary btn-sm" onclick="openPack('${c.id}')" title="Pack registrazione+asseverazione: ZIP con contratto firmato, certificato, fascicolo, visura, planimetria, APE, delega, identità, attestazione esigenza">📦 Pack${Array.isArray(c.registrationPackMissing) ? (c.registrationPackMissing.length ? ' ⚠' : ' ✓') : ''}</button>
                 ${!c.rliRegisteredAt ? `<button class="btn btn-secondary btn-sm" onclick="markRliRegistered('${c.id}')" title="Segna la registrazione RLI fatta: chiude la scadenza e aggiorna il fascicolo">✓ RLI registrato</button>` : `<span class="btn btn-sm" style="background:rgba(52,199,89,.12);color:var(--green);cursor:default" title="Registrato il ${c.rliRegisteredAt ? String(c.rliRegisteredAt).slice(0,10) : ''}">✓ RLI ${String(c.rliRegisteredAt).slice(0,10)}</span>`}
@@ -17750,7 +17750,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 pdfHash: hash,
                 sigAnchors: { v: 1, blocks: _sigA },
                 pdfSizeKB: Math.round(pdfBlob.size / 1024),
-                pdfGeneratedAt: firebase.firestore.FieldValue.serverTimestamp()
+                pdfGeneratedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                clauseVersion: 2
             });
 
             const localContract = S.contracts.find(c => c.id === contractId);
@@ -18177,7 +18178,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 pdfHash: hash,
                 sigAnchors: { v: 1, blocks: _sigA },
                 pdfSizeKB: Math.round(pdfBlob.size / 1024),
-                pdfGeneratedAt: firebase.firestore.FieldValue.serverTimestamp()
+                pdfGeneratedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                clauseVersion: 2
             });
 
             const localContract = S.contracts.find(c => c.id === contractId);
