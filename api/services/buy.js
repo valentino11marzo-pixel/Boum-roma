@@ -13,6 +13,7 @@
 
 import Stripe from 'stripe';
 import { CATALOG, EMAIL_BUYABLE } from '../_catalog.js';
+import { verifySell } from './_sell.js';
 
 const HITS = new Map();
 const WINDOW_MS = 10 * 60 * 1000;
@@ -48,9 +49,13 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
   const q = req.query || {};
   const kind = clip(q.kind, 40);
-  // Only the journey products can be bought from a bare link: the others
-  // are sold from their page, which collects the context they need.
-  const item = EMAIL_BUYABLE.includes(kind) ? CATALOG[kind] : null;
+  // Only the journey products can be bought from a BARE link: the others are
+  // sold from their page, which collects the context they need. A link the
+  // OPERATOR minted (`sig`, see _sell.js) carries that context in the
+  // conversation itself, so it unlocks the whole catalog — that signature is
+  // the only difference, and it can only come from someone holding the secret.
+  const signed = verifySell(kind, clip(q.sig, 64));
+  const item = (signed || EMAIL_BUYABLE.includes(kind)) ? CATALOG[kind] : null;
   if (!item) return oops(res, 400, 'This service is not available from this link.');
 
   const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
@@ -80,8 +85,13 @@ export default async function handler(req, res) {
         quantity: 1,
       }],
       // same metadata contract as the web checkout → same webhook branch
-      metadata: { service: 'SERVICE', kind, name, email, phone: '', source: 'email', ref },
-      success_url: 'https://www.boomrome.com/casa?bought=' + encodeURIComponent(kind),
+      metadata: { service: 'SERVICE', kind, name, email, phone: '', source: signed ? 'operator' : 'email', ref },
+      // A journey link is tapped by a tenant who already lives in /casa; an
+      // operator link is tapped by someone who may not be a client at all, so
+      // it lands on the branded thank-you that closes the GA4 funnel.
+      success_url: signed
+        ? 'https://www.boomrome.com/thank-you?service=' + encodeURIComponent(kind) + '&session_id={CHECKOUT_SESSION_ID}'
+        : 'https://www.boomrome.com/casa?bought=' + encodeURIComponent(kind),
       cancel_url: 'https://www.boomrome.com' + (item.cancel || '/concierge'),
       expires_at: Math.floor(Date.now() / 1000) + 60 * 60,
     });
