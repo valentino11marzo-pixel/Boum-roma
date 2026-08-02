@@ -1306,6 +1306,36 @@ Test: `node tests/whatsapp/run.mjs` (Firestore finto in memoria, si guida il
 handler vero; copre entrambi gli ordini della transizione, verificati per
 mutazione).
 
+### GET/POST `/api/homie/searches` — gli occhi di Homie sul radar PFS
+Il problema sta scritto in `api/pfs/_fetch.js`: *"both portals run anti-bot
+protection and may 403 datacenter IPs — the email-alert path is the
+LOAD-BEARING source"*. Cioè il radar del servizio che i clienti **pagano**
+(Property Finding, €350) scopre un immobile **quando il portale decide di
+mandare l'email**, raggruppata e in ritardo — mentre a Roma un buon affitto
+da privato raccoglie decine di contatti nelle prime ore. Il server non può
+risolverlo per costruzione; il Mac di Homie (IP residenziale, browser vero,
+sessioni autenticate) sì. **La pipeline esisteva già tutta**
+(`/api/homie/property` → `pfs/_ingest.js`: dedupe → filtro agenzie →
+punteggio su ogni cliente → push nel mazzo di swipe): mancava solo che Homie
+sapesse COSA guardare.
+- **GET** → la lista viva delle ricerche da aprire, da `radarSearches`
+  (auto-generata da `pfs/sync-searches` dai criteri reali di ogni cliente
+  attivo, quindi niente da hardcodare sul Mac). `urlOverride` batte sempre
+  `searchUrl` — è la manopola manuale dell'operatore. `activeSearches()`
+  esportata e testata: spente, senza URL o con URL rotto non entrano mai.
+- **POST** `{ok, searches, found, ingested, blocked, error?}` → heartbeat
+  `pfsRadarHealth/homie-eyes`, quindi l'allerta Telegram esistente (3
+  fallimenti consecutivi) copre anche gli occhi di Homie.
+- **`runVerdict()` — la regola che tiene in piedi il resto**: un radar
+  CIECO non deve mai sembrare un mercato fermo. "Zero risultati" e "il
+  portale mi ha sbattuto fuori" arrivano identici; solo il secondo è un
+  guasto, e se non lo si distingue il radar muore in silenzio proprio
+  mentre il cliente paga per essere il primo. Esportata e testata (anche
+  per mutazione), non riscritta nei test.
+Cadenza suggerita 10′. I duplicati sono gratis (dedupe `sha1(sourceUrl)`),
+quindi il contratto col Mac è "nel dubbio manda". Test:
+`node tests/pfs/eyes.mjs`. Mandato completo: `bot/HOMIE.md`.
+
 ### POST `/api/homie/property`
 Homie → PFS bridge. Homie scrapes a property (Immobiliare/Idealista/etc.), calls this with the listing data. Validates, then delegates to the shared ingestion pipeline `api/pfs/_ingest.js` (dedupe on `pfsProperties/<sha1(sourceUrl)>`, agency filter, scoring via `api/homie/_match.js`, push score ≥ 60 into each active client's `portalProperties` swipe deck). Client-portal.html already listens and triggers a "New Property!" alert on the client's phone. Auth via `X-Homie-Secret`. See file header for payload schema.
 
@@ -1541,6 +1571,7 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/viewings/gap.mjs` | la geometria della giornata: stesso immobile a catena (gap 0), viaggi reali tra zone (clamp 15–45'), video piatto, blocchi legacy identici a prima |
   | `tests/regista/run.mjs` | Il Regista: grammatica dei promemoria (IT/EN, accenti, "il 16/08", range che non sono date), id deterministici ≤64B, inviti calendario dei task, foglio di chiamata (escaping, viaggi, catene, giorno vuoto) |
   | `tests/recovery/run.mjs` | Il Recupero: chi diventa lead (PFS/SERVICE/RESERVE) e chi recap (PA/DEPOSIT/RENT), i test dell'operatore mai, id deterministico, lingua dalle parole del cliente |
+  | `tests/pfs/eyes.mjs` | Gli occhi di Homie sul radar PFS: nella lista di lavoro non entrano ricerche spente o con URL rotti, la manopola manuale (`urlOverride`) vince sempre, e — la regola che conta — un radar CIECO (403/captcha su tutte le ricerche) non passa mai per un mercato fermo |
   | `tests/whatsapp/run.mjs` | Da WhatsApp a lead senza AI: il rumore resta fuori (👍, "ok") e la persona vera entra, l'inquilino che scrive per la caldaia non inquina la pipeline, un lead per persona anche col numero archiviato in formato diverso (nazionale vs internazionale), una risposta umana zittisce il Commerciale. Guida il handler VERO su un Firestore finto in memoria |
   | `tests/wizard/local_brain.py` | Il cervello gratis del bot wizard (`python3`): cosa capisce senza modello e — più importante — cosa deve rifiutarsi di capire. Una domanda ("Levico è affittato?") non può diventare una scrittura; un annuncio nuovo dettato non può diventare la modifica di uno esistente. Estrae le funzioni pure dal bot via AST: gira senza `.env`, senza Telegram, senza rete |
   | `tests/sign/lang.mjs` | /sign bilingue guidata in un browser vero (demo mode): default per ruolo (locatore IT, inquilino EN), toggle che ridisegna lo step corrente in entrambe le direzioni, percorso intero tradotto, Skip OTP che non blocca, link WhatsApp presenti. Si auto-skippa senza playwright |

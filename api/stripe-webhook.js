@@ -301,6 +301,22 @@ const SERVICE_META = {
     next3: ['Photo report when done', 'So you see it before you arrive'],
     next4: ['Keys to a spotless home', 'Hotel-fresh, guaranteed'],
   },
+  'remote-move-pack': {
+    title: 'Remote Move Pack', emoji: '🧳',
+    next1: ['Send your shortlist', 'Reply with 1–2 listings — or ask us to point you'],
+    next2: ['Live video viewings ×2', 'Scheduled within 48h, you join from anywhere'],
+    next3: ['Contract checked & negotiated', 'Clause-by-clause in English, verdict in 24h'],
+    next4: ['You land ready', 'Keys plan + utilities guidance before your flight'],
+  },
+  // lang:'it' → the client confirmation email switches to Italian (the
+  // concordato buyer is a Rome landlord — same reader-language rule as _lang.js).
+  'concordato-pack': {
+    title: 'Pacchetto Concordato', emoji: '🏛️', lang: 'it',
+    next1: ['Inviaci i dati dell\'immobile', 'Rispondi a questa email: visura o vecchio contratto'],
+    next2: ['Verifica ufficiale del canone', 'Entro 48h: fascia, massimo asseverabile e bozza contratto'],
+    next3: ['Attestazione di rispondenza', 'Pratica gestita con l\'organizzazione firmataria'],
+    next4: ['Registrazione RLI', 'Da lì in poi cedolare al 10% — fascicolo completo in PDF'],
+  },
 };
 
 async function handleService(res, session, m) {
@@ -366,21 +382,26 @@ async function handleService(res, session, m) {
   } catch (err) { console.error('Admin service email error:', err); }
 
   try {
+    const it = meta.lang === 'it';
     if (email) await sendEmailJS({
       to_email: email,
-      heading: `Your ${meta.title} is confirmed`,
-      subheading: 'BOOM Rome — paid & scheduled',
+      heading: it ? `${meta.title} — confermato` : `Your ${meta.title} is confirmed`,
+      subheading: it ? 'BOOM Rome — pagato, in lavorazione' : 'BOOM Rome — paid & scheduled',
       name: firstName,
-      intro: `Payment received — €${amountEur}, Stripe-secured. Here's exactly what happens next:`,
+      intro: it
+        ? `Pagamento ricevuto — €${amountEur}, via Stripe. Ecco esattamente cosa succede adesso:`
+        : `Payment received — €${amountEur}, Stripe-secured. Here's exactly what happens next:`,
       card_color: '#D4AF37',
-      card_title: 'What happens next',
+      card_title: it ? 'I prossimi passi' : 'What happens next',
       r1_icon: '✓', r1_label: (meta.next1 || ['We take it from here'])[0], r1_value: (meta.next1 || ['', 'Right away'])[1],
       r2_icon: '✓', r2_label: (meta.next2 || ['—'])[0], r2_value: (meta.next2 || ['', ''])[1],
       r3_icon: '✓', r3_label: (meta.next3 || ['—'])[0], r3_value: (meta.next3 || ['', ''])[1],
       r4_icon: '✓', r4_label: (meta.next4 || ['—'])[0], r4_value: (meta.next4 || ['', ''])[1],
-      closing: 'Anything at all — reply to this email or message us on WhatsApp. A human answers within 2 hours.',
-      cta_text: 'Back to BOOM',
-      portal_link: 'https://www.boomrome.com/apartments.html',
+      closing: it
+        ? 'Per qualsiasi cosa rispondi a questa email o scrivici su WhatsApp — risponde una persona, entro 2 ore.'
+        : 'Anything at all — reply to this email or message us on WhatsApp. A human answers within 2 hours.',
+      cta_text: it ? 'Torna su BOOM' : 'Back to BOOM',
+      portal_link: it ? 'https://www.boomrome.com/canone' : 'https://www.boomrome.com/apartments.html',
     });
   } catch (err) { console.error('Client service email error:', err); }
 
