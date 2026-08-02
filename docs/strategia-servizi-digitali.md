@@ -218,6 +218,8 @@ Le due malattie hanno cure diverse; diagnosticare prima di curare.
   conviene / attestazione" — e chi cerca è ESATTAMENTE il proprietario che vogliamo.
 - **Da costruire:** pagina prodotto + voce catalogo + CTA con risparmio nel verdetto
   di `/canone`. ~2–3 giorni. Filtri: 5/5/5/5/4 = **24/25**.
+- **Stato: LIVE 2026-08-02** — `/pacchetto-concordato` (kind `concordato-pack`,
+  €349) + CTA con parametri dal verdetto di `/canone`; email cliente in italiano.
 
 #### Scommessa 2 — **September Landing / Remote Move Pack** (studenti+expat, €299)
 - **Cosa:** bundle Virtual Viewing + Deal Assistance + coordinamento move-in in un
@@ -231,6 +233,8 @@ Le due malattie hanno cure diverse; diagnosticare prima di curare.
 - **Da costruire:** 1 pagina bundle + 1 voce catalogo (1 giorno). Il resto è
   ESECUZIONE dell'outreach già scritto: 5–6 uffici, non 5.000 studenti.
   Filtri: 5/5/4/5/4 = **23/25**. **La più urgente per calendario.**
+- **Stato: LIVE 2026-08-02** — `/remote-move-pack` (kind `remote-move-pack`,
+  €299) nella famiglia Services 2.0. Resta l'outreach università: quello è umano.
 
 ### DOPO (60–90 giorni) — il ricavo ricorrente
 
