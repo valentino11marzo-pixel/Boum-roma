@@ -98,6 +98,12 @@ export function txDocId(tx) {
 // Deterministic keyword rules — the operator can re-categorize from /banca
 // (a manual `categoryLocked` beats any future re-run).
 const CATEGORY_RULES = [
+  // I compensi di BOOM vengono PRIMA di `canoni`: "provvigione intermediazione
+  // locazione" contiene "locazion" e finiva tra i canoni, cioè tra i soldi di
+  // qualcun altro. Senza una categoria propria un bonifico "Property finding
+  // service" da 427 cadeva in `altri-incassi` e nessuno sapeva che andava
+  // fatturato.
+  { cat: 'compensi',    re: /provvigion|intermediazion|property\s*finding|protection\s*fee|compenso|onorari|competenze\s*agenzia|commissione\s*agenzia/i, side: 'in' },
   { cat: 'canoni',      re: /affitto|canone|locazion|rent\b|pigione/i, side: 'in' },
   { cat: 'caparre',     re: /caparra|deposito cauzion|deposit/i },
   { cat: 'stripe',      re: /stripe/i, side: 'in' },
@@ -116,6 +122,137 @@ export function categorize({ amount, description, counterparty }) {
     if (r.re.test(hay)) return r.cat;
   }
   return amount >= 0 ? 'altri-incassi' : 'altre-uscite';
+}
+
+/* ─── Flusso: cosa è DAVVERO un incasso ───────────────────────────────────
+   La categoria dice di che natura è un movimento; il FLUSSO dice se è denaro
+   di BOOM. Sono due domande diverse e la seconda è quella che conta, perché
+   la maggior parte di ciò che entra su questo conto non è ricavo:
+
+   · STORNO — l'estratto di giugno contiene tre bonifici falliti e
+     riaccreditati. Dichiara 26.140 di entrate contro 22.538 reali: senza
+     riconoscere le righe "STORNO SCRITTURA OPERAZIONE DEL …" e neutralizzare
+     la COPPIA (lo storno e il movimento originale), ogni totale è gonfiato.
+   · PASSANTE — i depositi cauzionali entrano e ripartono verso il
+     proprietario entro pochi giorni. Nel trimestre maggio-luglio 2026 sono
+     la voce dominante: su ~46.500 in entrata le fee vere sono TRE. Non sono
+     ricavi e non vanno fatturati.
+   · FEE — il compenso di BOOM. Questo sì va fatturato, ed è l'unica cosa che
+     deve accendere un allarme quando la fattura non c'è.
+
+   Funzione PURA su una lista di movimenti: nessuna rete, testabile. Non
+   modifica gli input. */
+const RE_STORNO = /storno\s+(scrittura|operazione|bonifico)|riaccredito|stornato/i;
+const RE_INOLTRO = /inoltro\s+(deposito|caparra)|restituzione\s+(deposito|caparra)|giroconto\s+deposito|rimborso\s+cauzion/i;
+const RE_DEPOSITO = /caparra|cauzion|deposito/i;
+// Un payout Stripe non è una fee singola: è il netto di molti pagamenti, già
+// riconciliati per altra via. Trattarlo come compenso da fatturare
+// produrrebbe un allarme per ogni accredito.
+const RE_STRIPE = /stripe/i;
+
+// "…OPERAZIONE DEL 03/06/2026" → '2026-06-03'. Solo date complete: un
+// "DEL 03/06" senza anno resterebbe ambiguo a cavallo di dicembre.
+function dateInText(s) {
+  const m = String(s || '').match(/\b(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})\b/);
+  if (!m) return null;
+  const gg = Number(m[1]), mm = Number(m[2]);
+  if (gg < 1 || gg > 31 || mm < 1 || mm > 12) return null;
+  return `${m[3]}-${String(mm).padStart(2, '0')}-${String(gg).padStart(2, '0')}`;
+}
+
+export function classifyFlow(txs, { windowDays = 45 } = {}) {
+  const out = (txs || []).map((t) => ({ ...t, flow: null, pairId: null }));
+  const day = 86400000;
+  const at = (t) => (t.bookingDate ? Date.parse(t.bookingDate) : NaN);
+  const hay = (t) => `${t.description || ''} ${t.counterparty || ''}`;
+  const used = new Set();
+
+  /* 1. Storni — la coppia si annulla.
+     La banca SCRIVE la data dell'originale nella causale ("STORNO SCRITTURA
+     OPERAZIONE DEL 03/06/2026"): quando c'è, si appaia su quella. Con tre
+     bonifici falliti dello stesso importo a giorni consecutivi — il caso
+     reale dell'estratto di giugno — la vicinanza temporale sbaglia coppia
+     nella metà dei casi. I totali tornerebbero comunque, ma un operatore che
+     apre la coppia troverebbe una controparte che non c'entra, e a quel
+     punto non si fida più della classificazione. */
+  out.forEach((t, i) => {
+    if (used.has(i) || !RE_STORNO.test(hay(t))) return;
+    const dichiarata = dateInText(hay(t));
+    let best = -1, bestGap = Infinity;
+    out.forEach((o, j) => {
+      if (j === i || used.has(j)) return;
+      if (Math.abs(o.amount + t.amount) > 0.01) return;      // segno opposto, stesso importo
+      if (RE_STORNO.test(hay(o))) return;                     // l'originale non è uno storno
+      if (dichiarata) {
+        // Data esatta: o corrisponde, o non è quella operazione.
+        if (o.bookingDate !== dichiarata) return;
+        best = j; bestGap = -1;
+        return;
+      }
+      const gap = Math.abs(at(o) - at(t));
+      if (!isFinite(gap) || gap > 20 * day) return;
+      if (gap < bestGap) { bestGap = gap; best = j; }
+    });
+    if (best >= 0) {
+      used.add(i); used.add(best);
+      out[i].flow = 'storno'; out[best].flow = 'storno';
+      out[i].pairId = String(best); out[best].pairId = String(i);
+    } else {
+      out[i].flow = 'storno';   // storno senza originale nella finestra
+    }
+  });
+
+  // 2. Depositi passanti — un'entrata "deposito" che riesce verso il
+  // proprietario. L'uscita può essere di importo diverso (trattenute), quindi
+  // si accetta uno scarto, ma MAI superiore all'entrata: un'uscita più grande
+  // è un altro movimento.
+  out.forEach((t, i) => {
+    if (used.has(i) || t.flow || t.amount <= 0) return;
+    if (!RE_DEPOSITO.test(hay(t))) return;
+    let best = -1, bestGap = Infinity;
+    out.forEach((o, j) => {
+      if (j === i || used.has(j) || o.flow || o.amount >= 0) return;
+      if (!RE_INOLTRO.test(hay(o))) return;
+      const abs = Math.abs(o.amount);
+      if (abs > t.amount + 0.01 || abs < t.amount * 0.5) return;
+      const gap = at(o) - at(t);
+      if (!isFinite(gap) || gap < -day || gap > windowDays * day) return;
+      if (gap < bestGap) { bestGap = gap; best = j; }
+    });
+    if (best >= 0) {
+      used.add(i); used.add(best);
+      out[i].flow = 'passante'; out[best].flow = 'passante';
+      out[i].pairId = String(best); out[best].pairId = String(i);
+    }
+  });
+
+  // 3. Le fee: quello che resta e che è un compenso.
+  out.forEach((t) => {
+    if (t.flow) return;
+    if (t.amount > 0 && t.category === 'compensi' && !RE_STRIPE.test(hay(t))) t.flow = 'fee';
+  });
+  return out;
+}
+
+/* L'allarme del §6, quello che da solo avrebbe evitato l'arretrato di
+   quattro mesi: incassi classificati FEE che non hanno una fattura.
+   Prudente per scelta — un movimento già collegato a una fattura, o con un
+   importo che corrisponde a una fattura emessa in una finestra di 60 giorni,
+   NON viene segnalato. Meglio un allarme mancato che un allarme falso: un
+   elenco che grida al lupo viene smesso di guardare, e allora non serve più
+   a niente. */
+export function feeWithoutInvoice(txs, invoices, { windowDays = 60 } = {}) {
+  const day = 86400000;
+  const emesse = (invoices || []).filter((i) => i.dataFattura && i.lordo > 0);
+  return (txs || []).filter((t) => {
+    if (t.flow !== 'fee' || t.invoiceId) return false;
+    const at = Date.parse(t.bookingDate || '');
+    return !emesse.some((i) => {
+      if (Math.abs(i.lordo - t.amount) > 0.01) return false;
+      const d = Date.parse(i.dataFattura);
+      return !isFinite(at) || Math.abs(d - at) <= windowDays * day;
+    });
+  });
 }
 
 // ─── Reconciliation: bonifico in entrata ⇄ payment del portale ─────────────
@@ -172,7 +309,12 @@ export function reconcile(tx, pendingPayments, tenantNameById) {
 function monthNameIt(ym) {
   try {
     return new Date(ym + '-01T00:00:00Z').toLocaleDateString('it-IT', { month: 'long', timeZone: 'UTC' }).toLowerCase();
-  } catch { return ' '; }
+  // Sentinella che non può comparire in una causale. Va scritta come
+  // ESCAPE, non come byte NUL letterale: un NUL nel sorgente rende il file
+  // "binario" per grep/ripgrep, e questo file smette di comparire nelle
+  // ricerche di chi lo deve modificare. (Stringa vuota no: `includes('')`
+  // è sempre vero e ogni rata risulterebbe agganciata al mese.)
+  } catch { return '\u0000'; }
 }
 
 // Apply a confirmed match: payment → paid, tx → linked. Reversible from the
@@ -364,7 +506,17 @@ export async function ingestBankTransactions(rawTxs, { accountId, source, actor 
     category: categorize({ amount: r.amount, description: r.description || '', counterparty: r.counterparty || '' }),
     source,
   }));
-  const withIds = txs.map(tx => ({ tx, docId: txDocId(tx) }));
+  // Il flusso si decide sul BATCH: storni e depositi passanti sono coppie, e
+  // una riga da sola non dice mai se è un incasso vero.
+  const flowed = classifyFlow(txs);
+  const docIds = flowed.map(txDocId);
+  // `classifyFlow` appaia per INDICE (è pura, non conosce Firestore). Su un
+  // documento un indice non vuole dire niente al run successivo: qui diventa
+  // l'id dell'altro movimento della coppia.
+  const withIds = flowed.map((tx, i) => ({
+    tx: { ...tx, pairId: tx.pairId != null ? docIds[Number(tx.pairId)] || null : null },
+    docId: docIds[i],
+  }));
   const seen = withIds.length ? await batchExists('bankTransactions', withIds.map(w => w.docId)) : new Set();
   const fresh = withIds.filter(w => !seen.has(w.docId));
 

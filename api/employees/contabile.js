@@ -27,6 +27,7 @@ import FISCAL from '../../js/fiscal-engine.js';
 import FATTURE from '../../js/invoice-engine.js';
 import TAXPACK from '../../js/taxpack-engine.js';
 import { sendEmail } from '../agent/_lib.js';
+import { feeWithoutInvoice } from '../banking/_lib.js';
 import { real } from '../_demo.js';
 import {
   requireCronOrAdmin, fsGet, fsList, logActivity, tgNotify,
@@ -153,11 +154,26 @@ async function run({ dry, forceMonthly, yearOverride }) {
 
   // ── 4. Banca (dal sync di La Banca, corre prima di questo cron) ───────
   const bankStats = (bankHealth && bankHealth.stats) || {};
+  /* Le fee arrivate in banca e mai fatturate. È l'altra metà dell'allarme:
+     la coda in `invoices` copre gli incassi già registrati come da fatturare,
+     questo copre quelli che sono ENTRATI SUL CONTO e non è ancora passato
+     nessuno a guardarli. `feeWithoutInvoice` è prudente per scelta — un
+     movimento già collegato, o con un importo che corrisponde a una fattura
+     emessa nei 60 giorni, tace: un elenco che grida al lupo viene smesso di
+     guardare, e allora non serve più. */
+  let feeScoperte = [];
+  try {
+    const txs = await fsList('bankTransactions', { limit: 400 });
+    feeScoperte = feeWithoutInvoice(txs, fatture);
+  } catch { /* la banca può non essere collegata: non è un errore del Contabile */ }
+
   const banca = {
     accounts: bankAccounts.filter(a => a.status !== 'disabled').length,
     consentExpired: bankAccounts.filter(a => a.status === 'consent_expired').length,
     matchedLastRun: bankStats.matched || 0,
     toConfirm: bankStats.suggested || 0,
+    feeSenzaFattura: feeScoperte.length,
+    feeSenzaFatturaEur: Math.round(feeScoperte.reduce((s, t) => s + (Number(t.amount) || 0), 0)),
   };
 
   const counts = {
@@ -185,7 +201,7 @@ async function run({ dry, forceMonthly, yearOverride }) {
   const urgentSoon = dueSoon.filter(o => (o.days ?? 99) <= 7);
   const scartate = ledger.esclusi.count;
   const actionable = overdue.length || urgentSoon.length || late.length
-    || codaFatture.count || scartate || banca.toConfirm || banca.consentExpired;
+    || codaFatture.count || scartate || banca.toConfirm || banca.consentExpired || banca.feeSenzaFattura;
   let notified = false;
   if (!dry && actionable) {
     const lines = [`🧮 <b>Contabile — da fare</b>`];
@@ -204,6 +220,7 @@ async function run({ dry, forceMonthly, yearOverride }) {
     urgentSoon.slice(0, 6).forEach(o => lines.push(`🟠 ${esc(o.label)} — tra ${o.days}gg${o.amount ? ` · ~${euro(o.amount)}` : ''}`));
     late.slice(0, 6).forEach(l => lines.push(`💸 ${esc(l.property)} — ${euro(l.amount)} in ritardo ${l.daysLate}gg`));
     if (missingDocs.length) lines.push(`📁 ${missingDocs.length} documenti mancanti per il commercialista`);
+    if (banca.feeSenzaFattura) lines.push(`🏦 ${banca.feeSenzaFattura} compensi arrivati in banca senza fattura (~${euro(banca.feeSenzaFatturaEur)}): https://boomrome.com/fatturazione`);
     if (banca.toConfirm) lines.push(`🏦 ${banca.toConfirm} bonifici da confermare come canoni: https://boomrome.com/banca`);
     if (daSmistare) lines.push(`📥 ${daSmistare} documenti archiviati ma senza immobile — assegnali dal portale`);
     if (banca.consentExpired) lines.push(`🏦 Consenso banca scaduto su ${banca.consentExpired} cont${banca.consentExpired === 1 ? 'o' : 'i'} — rinnova da /banca`);
