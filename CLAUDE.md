@@ -36,6 +36,10 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
   fiscal-engine.js        Pure obligations engine: per-property/contract +
                           company (Egidi) fiscal deadlines + amounts.
                           window.BOOM_FISCAL
+  invoice-engine.js       Il registro fatture: scorporo IVA dal lordo, stato
+                          SDI, numerazione con buchi e numeri bruciati, coda
+                          incassi non fatturati, export TIC.
+                          window.BOOM_FATTURE. Vedi "Il registro fatture".
   boom-geo.js             How true is this pin — exact (street+number) /
                           street / zone / none, read from listing.geo.
                           window.BOOM_GEO. See "Precisione dei pin".
@@ -67,6 +71,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `owner-dashboard.html` | Landlord/owner SPA. Firestore-backed, filtered by `ownerId`. |
 | `tenant.html` | Tenant SPA. Realtime property + maintenance feed. |
 | `client-portal.html` | PFS client swipe app. Reads `pfsClients` collection. |
+| `fatturazione.html` | Registro fatture Egidi (admin). Coda incassi da fatturare, emissione coi progressivi, liquidazione IVA per trimestre, export TIC. Backed by `api/fiscal/invoices.js` + `js/invoice-engine.js`. |
 | `pfs-command.html` | PFS Command Center (admin). Radar feed, per-client match scores, outreach tracking, source health, search management. Backed by `api/pfs/*`. |
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
 
@@ -1283,7 +1288,7 @@ after a human tap. Shared plumbing in `api/employees/_lib.js`
 
 | Employee (cron) | Schedule (UTC) | What it does |
 |---|---|---|
-| `/api/employees/contabile` | daily 04:40 | Fiscal picture from live data: obligations due/overdue (`js/fiscal-engine.js`, landlord + company from paid `invoices` by quarter), commercialista document checklist per contract (`js/taxpack-engine.js`), collections YTD + late payments. Telegram only when actionable. On the 1st of the month emails a "chiusura mese" recap (`ACCOUNTING_EMAIL` env, falls back to `GMAIL_USER`). |
+| `/api/employees/contabile` | daily 04:40 | Fiscal picture from live data: obligations due/overdue (`js/fiscal-engine.js`, landlord + company via `js/invoice-engine.js` — IVA scorporata dal lordo, sulla DATA FATTURA, scartate escluse; prima filtrava `status==='paid'` e bucketava per data incasso, così una fattura valida non incassata spariva), commercialista document checklist per contract (`js/taxpack-engine.js`), collections YTD + late payments. Telegram only when actionable. On the 1st of the month emails a "chiusura mese" recap (`ACCOUNTING_EMAIL` env, falls back to `GMAIL_USER`). |
 | `/api/employees/gestore` | daily 05:10 | Property manager: drafts payment-reminder emails (≥3gg late, re-proposes weekly via ISO-week contextHash) and signature nudges with the party's Magic-Sign link (`/sign?sign=<token>`) as approvable `action_queue` items; Telegram digest of renewals ≤90gg, compliance deadlines (`js/compliance-rules.js`), maintenance open >48h. |
 | `/api/employees/commerciale` | every 2h, 06-18 | Lead responder, property-aware: any lead still `new` after a 20-min human window gets a Claude-drafted first reply (same persona as `agent/ai.reply`) proposed for approval; still `new` after 48h (grade A/B or apply/reserve) gets one templated follow-up. Caps per run; dedupe before paying for the AI call. |
 
@@ -1316,6 +1321,81 @@ Two intakes:
   senders (operator's own addresses + `DOC_MAIL_FROM`). Processed emails
   remembered in `docImports`; per-run AI budget; Telegram recap.
 
+## Il registro fatture (`js/invoice-engine.js` + `api/fiscal/invoices.js` + `/fatturazione`)
+
+Il portale conosceva UN campo, `amount`, e UNO stato, `pending|paid`. Sui
+dati veri di Egidi (registro TIC 2023-2026, incassi Stripe e Banca Sella)
+quel modello non regge, e i tre difetti costano soldi veri:
+
+- **`amount` non dice se è lordo o imponibile.** In banca e su Stripe arriva
+  sempre il LORDO; il commercialista conta l'IMPONIBILE. La prova sta nei
+  dati: la somma degli imponibili 2025 fa **17.298,76**, esattamente la voce
+  "Ricavi" del bilancio Studio Cardarelli (il lordo fa 21.104,49). Il motore
+  fiscale moltiplicava per 0,22 un numero già lordo → IVA gonfiata del 22%.
+- **`pending|paid` è l'asse INCASSO**, lo SDI è ORTOGONALE. `SCARTATO` = non
+  giuridicamente emessa, l'operazione risulta NON fatturata e rientra nelle
+  cose da fare; `MANCATA_CONSEGNA` = valida, il cliente la trova nel cassetto
+  fiscale, **nulla da fare**. Opposti. Fondendoli, le 3 scartate 2026
+  (11.687,20 lordi) contavano come ricavo.
+- **Mancava lo stato del problema vero**: INCASSATO MA NON FATTURATO. È il
+  buco da cui sono passate 34 fatture per **30.692,20** (5.534,59 di IVA)
+  senza che nessuno se ne accorgesse per quattro mesi.
+
+Insieme, i primi due portavano l'IVA 2026 da **2.393,82 a 5.491,62** — 2,3×.
+
+**Il motore** (`window.BOOM_FATTURE`, puro come canone-engine): scorporo dal
+lordo con arrotondamento sull'IMPONIBILE e IVA per differenza (così il totale
+torna sempre all'incassato); `vatLedger` per DATA FATTURA con le scartate
+escluse; `nextNumero` che regge insieme buchi (2025 n.4 e 5 mai esistiti) e
+numeri BRUCIATI (2026 n.1, 17, 22 scartati — non si riusano mai); coda
+incassi; `projectVat` ("se emetto oggi, quanto devo e quando"); `ticRow` +
+`toCsvIt` nell'ordine dei campi TIC; parser dei due CSV. Lo leggono portale,
+console, Contabile e scadenzario: **non possono più dare tre IVA diverse**,
+che è precisamente quello che facevano.
+
+**Ricevute ≠ fatture** (`tipoDoc`). La collection `invoices` ospita anche le
+ricevute di canone che il portale genera quando un inquilino paga. Il canone
+di locazione abitativa è **esente IVA** (art. 10 n.8 DPR 633/72) e quei soldi
+non sono nemmeno ricavo di Egidi: transitano verso il proprietario. Una
+ricevuta non concorre alla liquidazione, non entra nella coda e **non consuma
+il progressivo delle fatture** (serie diverse). I doc già scritti si
+riconoscono dalla rata agganciata — nessuna migrazione.
+
+**Un ciclo di vita, una collection**: incasso senza fattura (`statoSdi
+NON_INVIATA`, nessun numero) → `issue` assegna progressivo e data → stato SDI.
+Sono lo stesso oggetto in tre momenti: separarli costringerebbe a copiare
+importi tra collection, ed è lì che si perdono i centesimi. La liquidazione
+ignora da sé chi non ha data fattura, quindi la coda non inquina l'IVA.
+
+`POST /api/fiscal/invoices` (admin, `_guard.js`) — op `state` · `import` (i
+due CSV, id deterministici → reimportare non duplica) · `issue` · `patch` ·
+`remove` · `settings` · `export`. Tre regole che il codice fa RISPETTARE: un
+numero bruciato non si riusa e il progressivo nasce da una lettura fresca
+(due schede aperte non emettono lo stesso numero); una fattura numerata non
+si cancella (409 — si annulla con nota di credito, un buco nella numerazione
+non si spiega al controllo); imponibile e IVA non sono scrivibili a mano, si
+correggono confermando il LORDO. Banca e IBAN dell'emittente restano costanti
+server-side, fuori da `settings/` (world-readable) e fuori dal motore servito
+al browser.
+
+**`/fatturazione`** (admin, noindex) — DA FATTURARE (coda ordinata dal più
+vecchio, selezione multipla, la barra ricalcola IVA/trimestre/scadenza
+mentre scegli la data, PRIMA di scrivere) · REGISTRO (badge SDI distinti,
+prossimo numero libero coi bruciati) · IVA (4 trimestri con versamento e
+LIPE + riquadro delle scartate che dice quanta imposta NON è dovuta) ·
+IMPORT. Carica lo STESSO motore del server.
+
+**Da confermare con la commercialista**, e la console lo dichiara invece di
+nasconderlo dietro un default: il regime **trimestrale** è un'assunzione (sul
+mensile le scadenze sono dodici); il trattamento dei rimborsi spese resta
+`null` = da decidere (art. 15 DPR 633/72 fuori campo *oppure* imponibile
+22% — trattamenti opposti). Restano decisioni umane anche le 3 scartate fuori
+termine (ravvedimento) e il caso Kerem Ovadya.
+
+Q4 del trimestrale si versa il **16 marzo** dell'anno successivo con la
+dichiarazione annuale: `fiscal-engine.js` aveva il 16 febbraio, e l'assertion
+sbagliata stava anche nei test.
+
 ## La Banca (open banking — api/banking/* + banca.html)
 
 PSD2 bank feed for the Contabile via **GoCardless Bank Account Data** (ex
@@ -1333,6 +1413,7 @@ no-op), `bankRequisitions` (consent audit).
 | `POST /api/banking/sync` | **cron daily 04:15** (before the Contabile). Pulls movements (first run backfills full history), dedupes via batchGet, categorizes (prima nota rules in `_lib.js`), reconciles credits against pending `payments`: exact amount + due-date window + unique candidate + (tenant-name or month or unique-amount) → payment marked paid (`paidVia:'bank'`); weaker matches → `matchSuggestions`, confirmed by one tap in /banca. Heartbeat `teamHealth/banca`; Telegram when a consent is ≤7gg from expiry. |
 | `POST /api/banking/export` | estratto conto / prima nota CSV for the commercialista — Italian format (semicolon, DD/MM/YYYY, decimal comma, UTF-8 BOM); prima nota adds per-category period totals |
 | `POST /api/banking/scan-inbox` | **cron daily 04:05 — the primary feed now that GoCardless is closed to new signups.** Reads the Gmail mailbox over IMAP (same infra as pfs/scan-inbox). Three tiers: (1) **movement-alert emails** ("Hai ricevuto un bonifico di €1.200 da…") — amounts live in the BODY, extracted via Claude haiku, but ONLY from recognized bank sender domains (`KNOWN_BANK_DOMAINS` + `BANK_MAIL_FROM`) so a tenant writing "ti ho fatto il bonifico" never becomes a transaction; (2) **statement attachments** — CSV parsed directly, PDF via Claude document block; (3) forwarded emails, same handling. "Statement available behind login" emails yield an empty extraction and are remembered so the AI call is never repeated. Processed emails → `bankImports`; tx-level dedupe makes re-runs no-ops; per-run AI budget. Telegram recap when something lands. Heartbeat `teamHealth/banca-mail`. Setup: attiva nell'home banking gli avvisi email di movimento (e, se disponibile, l'invio dell'estratto come allegato). |
+| `classifyFlow` + `feeWithoutInvoice` (`_lib.js`) | Il FLUSSO, distinto dalla categoria: dice se un movimento è denaro di BOOM. **Storni** — l'estratto di giugno dichiara 26.140 di entrate contro 22.538 reali: la coppia storno+originale si neutralizza, appaiata sulla data che la banca SCRIVE in causale ("OPERAZIONE DEL 03/06/2026"), perché con tre bonifici identici a giorni consecutivi la vicinanza temporale sbaglia coppia. **Depositi passanti** — entrano e ripartono verso il proprietario: nel trimestre mag-lug 2026, su ~46.500 in entrata, le fee vere sono TRE. **Categoria `compensi`** prima inesistente, e messa PRIMA di `canoni` (una "provvigione intermediazione locazione" contiene "locazion" e finiva tra i soldi di qualcun altro). Da qui l'allarme fee-senza-fattura nel report del Contabile, prudente per scelta: un elenco che grida al lupo viene smesso di guardare. |
 | `POST /api/banking/import` | manual fallback: paste the home-banking CSV (column auto-detect for the common Italian exports), same dedupe+reconcile pipeline — works with zero API setup |
 | `POST /api/accounting/scadenzario` | unified deadline book derived live: company (IVA/LIPE/CCIAA/Redditi from `invoices` by quarter) + one group per property owner (registro, IMU, cedolare, ISTAT + contract renewals ≤120gg). `format:'ics'` → calendar file (stable UIDs, re-import updates). |
 
@@ -1466,6 +1547,9 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/dossier/run.mjs` | fascicolo ARPE: un landlord non può scrivere nel fascicolo di un immobile altrui, path sotto `property-docs/<id>/`, slot già pieni non sovrascritti |
   | `tests/photos/sweep.mjs` | photo-lab: chi è candidato allo sweep, quali foto contano come sorgente (i nostri output enhanced mai), e l'ordine con cui le 3 notti si spendono — le gallerie vere prima degli annunci da una foto. Si auto-skippa senza `sharp` |
   | `tests/copy/run.mjs` | descrizioni: lo sweep riscrive i template del bot e le schede mute, ma **mai** le parole di un umano — verificato sulle stringhe vere del catalogo, dove il testo scritto a mano è più CORTO del template |
+  | `tests/fatture/run.mjs` | il registro sui NUMERI VERI (fixture = registro TIC e coda incassi reali, coi soli nomi ed email sostituiti). Tre ancore: imponibile 2025 = 17.298,76 = i "Ricavi" del bilancio, IVA Q2 2026 = 2.103,42 = la scadenza del 20/08, prossimo numero libero = 24 su un registro con buchi e numeri bruciati. E le ricevute di canone che non devono MAI entrare nella liquidazione |
+  | `tests/fatture/api.mjs` | il handler vero su Firestore in memoria: reimportare lo stesso CSV non duplica, i progressivi non collidono tra chiamate, una fattura numerata è incancellabile |
+  | `tests/fatture/banca.mjs` | il flusso dei movimenti nelle due direzioni dell'errore: troppo permissivo (storni e depositi passanti contati come incassi) e troppo severo (una fee vera che non suona, cioè il problema di partenza) |
   | `tests/geo/run.mjs` | precisione dei pin (`js/boom-geo.js`): portone (via+civico), strada, quartiere o niente — sulle stringhe `geo.q` vere del catalogo, incluso il caso insidioso `src:'nominatim'` su `q:'Prati, Roma'` |
   | `tests/scheda/run.mjs` | La Scheda: token derivati (ruolo nella derivazione, timing-safe), precedenza prefill contratto→sign→wizard, lock post-firma, sync profilo su ENTRAMBI gli schemi users, upload con OCR che non blocca mai, /api/profile/link autorizzato |
   | `tests/notify/run.mjs` | ciclo email contratto (pdf-lib REALE, nodemailer mockato): fascicolo CAF a valentino@boom-rome.com esattamente una volta con anagrafica di entrambe le parti, welcome nella lingua del lettore, invito firma col link giusto e 409 sul locatore sequenziale, conferma scheda one-shot |

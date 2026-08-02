@@ -3,7 +3,11 @@
 // Cache-first for static assets (icons, manifest).
 // Skips Firebase / EmailJS / 3rd-party traffic entirely.
 
-const CACHE_VERSION = 'boom-v14';
+// v15: js/portal-app.js è cache-first, quindi una copia vecchia resterebbe
+// servita a chi ha già visitato il portale — e con essa il calcolo IVA
+// sbagliato che questa versione corregge. Un numero fiscale stantio è
+// peggio di un layout stantio: si bumpa.
+const CACHE_VERSION = 'boom-v15';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 // NB: portal.html NON è nel precache — il sito pubblico registra questo SW e
 // non deve scaricare 2.5MB di shell in background. Il portale entra in cache
