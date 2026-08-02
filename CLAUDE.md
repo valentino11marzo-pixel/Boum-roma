@@ -1000,6 +1000,24 @@ stato rimosso: email, pass e inviti iCal partono sempre dal server.
 one-tap), `?demo=landlord` (locatore IT): walkthrough senza API né
 contratti veri, come `/sign?demo=1`.
 
+### Verbale di consegna chiavi (`POST /api/contracts/verbale` + `/verbale`)
+Il contratto (Art. 3 di entrambi gli Allegati) rinvia a "quanto risulta dal
+verbale di consegna" — questo lo genera davvero, SUL POSTO. `verbale.html`
+(`/verbale?c=<contractId>`, admin/owner/landlord via BoomPortal, mobile-first,
+no-store+noindex) il giorno delle chiavi: chiavi consegnate (stepper),
+letture contatori (POD/PDR + foto opzionali, downscale client 1600px),
+stato + note, poi le firme sullo schermo del telefono — conduttore
+principale, co-conduttori presenti (checkbox "presente e firma"), operatore.
+L'endpoint (Bearer; owner solo sui contratti dei PROPRI immobili) genera il
+PDF (pdf-lib, `wa()` WinAnsi-safe, dichiarazione art. 1590 c.c., foto 2 per
+riga, firme a 2 colonne), lo carica su `contracts/<id>/verbale-consegna_*.pdf`,
+marca `contract.verbaleConsegna` (nomi firmatari, MAI i dataURI), lo archivia
+in `documents` con categoria `verbale` (il taxpack la riconosce già → la
+checklist commercialista si spunta da sola) e lo invia IN ALLEGATO:
+conduttori+co-conduttori (EN), proprietario (IT), admin. Bottone 🔑 sulla
+riga contratto del portal (✓ quando esiste). Le letture fanno fede per le
+volture. Test: `node tests/verbale/run.mjs`.
+
 ### Watchdog firme (reminder-cron)
 Due guardie: firme PARZIALI ferme >48h → re-nudge automatico alla
 controparte (max 3, cooldown 24h col promemoria manuale); inviti FREDDI
@@ -1479,6 +1497,7 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/pfs/eyes.mjs` | Gli occhi di Homie sul radar PFS: nella lista di lavoro non entrano ricerche spente o con URL rotti, la manopola manuale (`urlOverride`) vince sempre, e — la regola che conta — un radar CIECO (403/captcha su tutte le ricerche) non passa mai per un mercato fermo |
   | `tests/whatsapp/run.mjs` | Da WhatsApp a lead senza AI: il rumore resta fuori (👍, "ok") e la persona vera entra, l'inquilino che scrive per la caldaia non inquina la pipeline, un lead per persona anche col numero archiviato in formato diverso (nazionale vs internazionale), una risposta umana zittisce il Commerciale. Guida il handler VERO su un Firestore finto in memoria |
   | `tests/wizard/local_brain.py` | Il cervello gratis del bot wizard (`python3`): cosa capisce senza modello e — più importante — cosa deve rifiutarsi di capire. Una domanda ("Levico è affittato?") non può diventare una scrittura; un annuncio nuovo dettato non può diventare la modifica di uno esistente. Estrae le funzioni pure dal bot via AST: gira senza `.env`, senza Telegram, senza rete |
+  | `tests/verbale/run.mjs` | verbale consegna chiavi: il PDF vero (WinAnsi-ostile compreso) viaggia in allegato a conduttori/co-conduttori/proprietario/admin, owner solo sui contratti dei propri immobili (403 = zero scritture), firme richieste per entrambi i lati, sul contratto restano solo i NOMI mai i dataURI |
   | `tests/sign/lang.mjs` | /sign bilingue guidata in un browser vero (demo mode): default per ruolo (locatore IT, inquilino EN), toggle che ridisegna lo step corrente in entrambe le direzioni, percorso intero tradotto, Skip OTP che non blocca, link WhatsApp presenti. Si auto-skippa senza playwright |
   | `tests/safari/boot.mjs` | nessuna superficie autenticata resta appesa su un loader |
 - PWA support via `manifest.json` and `sw.js` service worker — registered on
