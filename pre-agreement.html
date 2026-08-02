@@ -138,6 +138,18 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
 .total::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);box-shadow:0 0 12px rgba(212,175,55,.6)}
 .total .k{font-size:9.5px;letter-spacing:2.6px;text-transform:uppercase;color:var(--gold);font-weight:400}
 .total .v{font-size:27px;font-weight:200;font-variant-numeric:tabular-nums;letter-spacing:-.5px;background:linear-gradient(180deg,#FFF3C4,var(--gold));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.adxn{font-size:12.5px;color:var(--t3);line-height:1.6;margin:0 0 14px;font-weight:300}
+.adx{display:flex;align-items:center;gap:13px;padding:14px 15px;border:1px solid var(--line);border-radius:12px;margin-bottom:9px;cursor:pointer;transition:border-color .25s var(--spring),background .25s}
+.adx:hover{border-color:var(--line-gold)}
+.adx:has(input:checked){border-color:var(--gold);background:rgba(212,175,55,.05)}
+.adx input{appearance:none;-webkit-appearance:none;width:21px;height:21px;border:1px solid var(--line-gold);border-radius:7px;background:transparent;position:relative;flex:none;cursor:pointer;transition:all .3s var(--spring)}
+.adx input:checked{background:linear-gradient(180deg,var(--gold-light),var(--gold));border-color:var(--gold)}
+.adx input::after{content:"";position:absolute;left:5px;top:4px;width:9px;height:5px;border:solid #1a1407;border-width:0 0 2px 2px;transform:rotate(-45deg) scale(0);transition:transform .25s var(--spring) .05s}
+.adx input:checked::after{transform:rotate(-45deg) scale(1)}
+.adxb{flex:1;min-width:0}
+.adxb b{display:block;font-size:14px;font-weight:400;color:var(--t1)}
+.adxb small{display:block;font-size:12px;color:var(--t3);line-height:1.5;margin-top:3px;font-weight:300}
+.adxp{color:var(--gold);font-size:14.5px;font-weight:400;white-space:nowrap}
 .feenote{margin-top:13px;border:1px dashed var(--line-gold);border-radius:12px;padding:12px 15px;font-size:12.5px;color:var(--t2);line-height:1.68;font-weight:300}
 .feenote b{color:var(--t1);font-weight:400}
 .conds{list-style:none;display:grid;gap:10px}
@@ -512,6 +524,41 @@ function sealSVG(){return '<svg viewBox="0 0 1024 1024" width="100%" height="100
 function secH(no,title){return '<h2><span class="no">§'+(no<10?'0'+no:no)+'</span><span class="tt">'+title+'</span></h2>';}
 
 /* ═══ shared builders: money rows + conditions (used in step 1 AND the deed) ═══ */
+/* ── Add to your move ───────────────────────────────────────────────────────
+   Il momento in cui il cliente ha già deciso è il momento in cui un servizio
+   utile si vende da solo. I prezzi arrivano dal catalogo SERVER-side
+   (lookup → addonsOffered): qui si mostrano soltanto. Spuntare aggiorna il
+   totale dovuto; il server ricalcola comunque da capo alla firma. */
+var ADDONS=[];
+function addonsBlock(){
+  var off=(PA.addonsOffered||[]);
+  if(!off.length||PA.status==='accepted'||PA.status==='paid')return '';
+  var rows=off.map(function(a){
+    return '<label class="adx" for="adx_'+a.kind+'">'
+      +'<input type="checkbox" id="adx_'+a.kind+'" value="'+esc(a.kind)+'" onchange="toggleAddon(this)">'
+      +'<span class="adxb"><b>'+esc(a.label)+'</b><small>'+esc(a.pitch)+'</small></span>'
+      +'<span class="adxp">+'+eur(a.eur)+'</span></label>';
+  }).join('');
+  return '<div class="sec"><span class="ghost">04b</span><h2>Add to your move</h2>'
+    +'<p class="adxn">Optional — tick what you want and it is added to the amount due at signing. '
+    +'Nothing here is required to rent the apartment.</p>'
+    +rows+'</div>';
+}
+function toggleAddon(el){
+  var k=el.value;
+  ADDONS=ADDONS.filter(function(x){return x!==k});
+  if(el.checked)ADDONS.push(k);
+  var off=(PA.addonsOffered||[]);
+  var extra=ADDONS.reduce(function(s,k){
+    var a=off.find(function(o){return o.kind===k});return s+(a?a.eur:0);},0);
+  var base=Number((PA.money||{}).dueAtSigning)||0;
+  var tot=$('dueTot');
+  if(tot){tot.textContent=eur(base+extra);tot.setAttribute('data-roll',eur(base+extra));}
+  // la barra d'azione dice quanto si sta per pagare: se cambia il totale e lei
+  // resta ferma, il cliente scopre l'importo nuovo solo su Stripe
+  var hint=$('abarHint');
+  if(hint&&extra>0)hint.textContent='Due at signing '+eur(base+extra)+' · incl. '+ADDONS.length+' add-on'+(ADDONS.length>1?'s':'');
+}
 function moneyRows(){
   var m=PA.money||{};
   var inc=m.utilities==='included';
@@ -531,7 +578,7 @@ function moneyRows(){
       : '')
     +kv('Security deposit',eur(m.deposit),depSub);
   (PA.extras||[]).forEach(function(x){html+=kv(esc(x.label),eur(x.amount));});
-  html+='<div class="total"><span class="k">Total due at signing</span><span class="v"><span data-roll="'+eur(m.dueAtSigning)+'">'+eur(m.dueAtSigning)+'</span></span></div>';
+  html+='<div class="total"><span class="k">Total due at signing</span><span class="v"><span id="dueTot" data-roll="'+eur(m.dueAtSigning)+'">'+eur(m.dueAtSigning)+'</span></span></div>';
   var feeAmt=(m.feeMode==='months')
     ?(m.feeMonths||1)+((m.feeMonths||1)===1?' month’s':' months’')+' base rent = '+eur(m.fee)
     :(m.feeMode==='flat'||m.feeFlat!=null)?eur(m.fee)+' (fixed)'
@@ -930,6 +977,7 @@ function renderStep4(){
     +kv('Initial duration',le.months+' months',esc(le.lawRef))
     +kv('End date',fmtD(le.endDate))+'</div>';
   html+='<div class="sec"><span class="ghost">04</span><h2>Financial terms</h2>'+moneyRows()+'</div>';
+  html+=addonsBlock();
   html+='<div class="sec"><span class="ghost">05</span><h2>General conditions</h2>'+condList(TS.length)+'</div>';
   // §6 signature + visible audit trail
   html+='<div class="sec" id="sec6"><span class="ghost">06</span><h2>Acceptance &amp; signature</h2>'
@@ -1176,7 +1224,7 @@ function accept(){
   err.style.display='none';
   var btn=$('abarBtn');btn.disabled=true;btn.textContent='Signing…';
   fetch('/api/preagreement/submit',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({token:TOKEN,tenant:tenant,tenants:tenants,accept:true})})
+    body:JSON.stringify({token:TOKEN,tenant:tenant,tenants:tenants,accept:true,addons:ADDONS})})
   .then(function(r){return r.json()})
   .then(function(j){
     /* L'appartamento è stato chiuso da un altro candidato mentre questa

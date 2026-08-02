@@ -418,10 +418,10 @@ var STR={
   svc3:'Bespoke concierge',svc3d:'Groceries, laundry, repairs, reservations — just say it.',from:'from',
   sK:'Welcome to Rome Kit',kitSub:'Codice fiscale, residency, SIM, bank, transport — the survival guide we wish existed when we moved here. Free, in English, made to be shared.',
   kitBtn:'Open the guide →',kitShare:'Share it with a friend',
-  s6:'Gift BOOM to a friend',refText:'Know someone moving to Rome? Introduce us: the BOOM journey for them, a <b style="color:var(--gold-light);font-weight:400">real thank-you on your next rent</b> for you.',
-  refCode:'Your personal code',refShare:'Share your invite',refWa:'On WhatsApp →',
+  s6:'Gift BOOM to a friend',refText:'Know someone moving to Rome? Introduce us and you both get <b style="color:var(--gold-light);font-weight:400">€50</b> — them off their move, you off your next rent. Confirmed the day they move in.',
+  refCode:'Your personal code',refHow:'Refer someone →',refShare:'Share your invite',refWa:'On WhatsApp →',
   advisor:'Your advisor on this home — replies personally',
-  shareMsg:'Moving to Rome? This is how I found my apartment — BOOM handles everything, contract to keys. Use my code {code}: https://www.boomrome.com/?ref={code}',
+  shareMsg:'Moving to Rome? This is how I found my apartment — BOOM handles everything, contract to keys. Use my code {code} and we both get €50: https://www.boomrome.com/?ref={code}',
   kitShareMsg:'If you are moving to Rome, save this — the survival guide for codice fiscale, residency, SIM & co: https://www.boomrome.com/welcome-to-rome'},
  it:{home:'La tua casa',logout:'Esci',open:'Apro la tua casa…',active:'Contratto attivo',reserved:'Casa riservata a tuo nome',
   gm:'Buongiorno',ga:'Buon pomeriggio',ge:'Buonasera',daysToKeys:'{n} giorni alle chiavi',keysToday:'giorno delle chiavi!',
@@ -458,10 +458,10 @@ var STR={
   svc3:'Concierge su misura',svc3d:'Spesa, lavanderia, riparazioni, prenotazioni — dillo e basta.',from:'da',
   sK:'Welcome to Rome Kit',kitSub:'Codice fiscale, residenza, SIM, banca, trasporti — la guida che avremmo voluto trovare noi. Gratuita, in inglese, fatta per essere condivisa.',
   kitBtn:'Apri la guida →',kitShare:'Condividila con un amico',
-  s6:'Regala BOOM a un amico',refText:'Conosci qualcuno che si trasferisce a Roma? Presentacelo: per lui il percorso BOOM, per te un <b style="color:var(--gold-light);font-weight:400">grazie concreto sul prossimo canone</b>.',
-  refCode:'Il tuo codice personale',refShare:'Condividi il tuo invito',refWa:'Su WhatsApp →',
+  s6:'Regala BOOM a un amico',refText:'Conosci qualcuno che si trasferisce a Roma? Presentacelo e prendete <b style="color:var(--gold-light);font-weight:400">€50 a testa</b> — lui sul trasloco, tu sul prossimo canone. Confermato il giorno in cui entra in casa.',
+  refCode:'Il tuo codice personale',refHow:'Presenta qualcuno →',refShare:'Condividi il tuo invito',refWa:'Su WhatsApp →',
   advisor:'Il tuo advisor su questa casa — risponde personalmente',
-  shareMsg:'Ti trasferisci a Roma? Io ho trovato casa così — BOOM gestisce tutto, dal contratto alle chiavi. Usa il mio codice {code}: https://www.boomrome.com/?ref={code}',
+  shareMsg:'Ti trasferisci a Roma? Io ho trovato casa così — BOOM gestisce tutto, dal contratto alle chiavi. Usa il mio codice {code}: prendiamo €50 a testa — https://www.boomrome.com/?ref={code}',
   kitShareMsg:'Se ti trasferisci a Roma salva questa — la guida per codice fiscale, residenza, SIM &amp; co: https://www.boomrome.com/welcome-to-rome'}
 };
 function t(k){return (STR[LANG]&&STR[LANG][k])||STR.en[k]||k}
@@ -776,7 +776,8 @@ function render(){
     +'<span style="border:1px dashed var(--line-gold);border-radius:10px;padding:9px 16px;font-family:var(--mono);font-size:13px;letter-spacing:2px;color:var(--gold)">'+refCode()+'</span>'
     +'<span style="font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t4)">'+t('refCode')+'</span></div>'
     +'<button class="obtn" onclick="shareRef()" style="margin-top:12px;border-color:var(--line-gold);color:var(--gold)">'+t('refShare')+' →</button> '
-    +'<a class="obtn wa" href="https://wa.me/?text='+encodeURIComponent(t('shareMsg').replace(/\{code\}/g,refCode()))+'" target="_blank" rel="noopener">'+t('refWa')+'</a>'
+    +'<a class="obtn wa" href="https://wa.me/?text='+encodeURIComponent(t('shareMsg').replace(/\{code\}/g,refCode()))+'" target="_blank" rel="noopener">'+t('refWa')+'</a> '
+    +'<a class="obtn" href="/refer?code='+encodeURIComponent(refCode())+'" target="_blank" rel="noopener">'+t('refHow')+'</a>'
     +'</div>';
 
   html+='<div class="advisor rv"><span class="av"><svg viewBox="0 0 1024 1024" width="22" height="22" aria-hidden="true"><use href="#boomMark"/></svg></span><div><b>Valentino · BOOM Roma</b><span>'+t('advisor')+'</span></div><a href="'+WA+'" target="_blank" rel="noopener">WhatsApp</a></div>';

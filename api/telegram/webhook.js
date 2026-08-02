@@ -25,6 +25,10 @@ import { handleTaskCallback, handleTaskText, sendBrief } from '../regista/_teleg
 // made the approve button's executor silently fail; www is the stable alias.
 const BASE = process.env.PUBLIC_BASE_URL || 'https://www.boomrome.com';
 
+// HTML escape for the Telegram messages built here (same helper as _viewings /
+// notify-pending — one unescaped '<' silently kills the whole message).
+const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
 // Persistent per-chat state (so /edit can prompt → wait for next message).
 // Stored in a tiny Firestore doc so it survives serverless cold starts.
 async function getState(chatId) {
@@ -197,6 +201,7 @@ export default async function handler(req, res) {
           'Tap sui bottoni per approvare/rifiutare, o:',
           '',
           '• /queue — vedi le pending',
+          '• /vendi — manda a un cliente il link di pagamento di un servizio',
           '• /visite — agenda dei prossimi 7 giorni + richieste da confermare',
           '• /giornata — il Foglio di Chiamata di oggi (visite, viaggi, task)',
           '• /calendario — il tuo Google Calendar è collegato alla griglia? Cosa blocca?',
@@ -223,6 +228,51 @@ export default async function handler(req, res) {
 
       if (text === '/queue') {
         await tgSend(chatId, await fmtSnapshot());
+        return res.status(200).json({ ok: true });
+      }
+
+      // /vendi — IL LINK CHE VENDE. Ogni euro incassato da BOOM è nato in una
+      // conversazione con una persona dentro; quella conversazione non aveva
+      // un bottone per incassare. Ora sì: `/vendi` elenca il catalogo,
+      // `/vendi <servizio> [email] [nome]` restituisce il link da inoltrare al
+      // cliente su WhatsApp — prezzo dal catalogo server-side, mai digitato a
+      // mano, quindi mai sbagliato.
+      if (text === '/vendi' || text.startsWith('/vendi ')) {
+        const { sellUrl, sellables, matchKind } = await import('../services/_sell.js');
+        const arg = text.slice(6).trim();
+        if (!arg) {
+          const list = sellables()
+            .map(s => `• <code>${s.kind}</code> — €${s.eur} · ${esc(s.label.split('—')[0].trim())}`)
+            .join('\n');
+          await tgSend(chatId, [
+            '<b>💶 Manda un link di pagamento</b>', '',
+            list, '',
+            'Uso: <code>/vendi &lt;servizio&gt; [email] [nome]</code>',
+            'Es: <code>/vendi virtual-viewing anna@mail.com Anna</code>',
+            '', '<i>Il link apre Stripe sul servizio giusto, al prezzo di listino. Inoltralo e basta.</i>',
+          ].join('\n'));
+          return res.status(200).json({ ok: true });
+        }
+        const parts = arg.split(/\s+/);
+        const kind = matchKind(parts[0]);
+        if (kind === 'AMBIGUOUS') {
+          await tgSend(chatId, `Quale? "${esc(parts[0])}" combacia con più servizi — scrivi l'id esatto (<code>/vendi</code> per la lista).`);
+          return res.status(200).json({ ok: true });
+        }
+        if (!kind) {
+          await tgSend(chatId, `Non conosco "${esc(parts[0])}". <code>/vendi</code> per il catalogo.`);
+          return res.status(200).json({ ok: true });
+        }
+        const email = parts.find(p => p.includes('@')) || '';
+        const name = parts.slice(1).filter(p => !p.includes('@')).join(' ');
+        const url = sellUrl(kind, { email, name, ref: 'telegram' });
+        const svc = sellables().find(s => s.kind === kind);
+        await tgSend(chatId, [
+          `<b>${esc(svc.label)}</b> — €${svc.eur}`,
+          email ? `Per: ${esc(email)}${name ? ' · ' + esc(name) : ''}` : (name ? `Per: ${esc(name)}` : ''),
+          '', url, '',
+          '<i>Copia e incolla al cliente. Paga da telefono in un minuto; quando paga arriva il lead e partono le email.</i>',
+        ].filter(Boolean).join('\n'));
         return res.status(200).json({ ok: true });
       }
 
