@@ -486,7 +486,7 @@
       var DEP = (qs.get('deposit')||'').trim();
       if(DEP==='success'){
         centered(ICON_CHECK,'Deposit received','Your security deposit has been received and your home is secured. A receipt is on its way to your email — see you at key handover!',
-          '<a class="btn ghost" href="/portal.html" style="display:inline-flex;width:auto;padding:0 22px;margin-top:18px;align-items:center;justify-content:center;text-decoration:none">Go to portal</a>');
+          '<a class="btn ghost" href="/portal" style="display:inline-flex;width:auto;padding:0 22px;margin-top:18px;align-items:center;justify-content:center;text-decoration:none">Go to portal</a>');
         return;
       }
       if(DEP==='retry'){
@@ -970,7 +970,7 @@
             '</p>'+
           '</div>';
       } else {
-        accountHtml='<a class="btn" href="/portal.html" style="display:flex;align-items:center;justify-content:center;text-decoration:none;margin-top:18px">Open portal</a>';
+        accountHtml='<a class="btn" href="/portal" style="display:flex;align-items:center;justify-content:center;text-decoration:none;margin-top:18px">Open portal</a>';
       }
       FLOW.appendChild(el(
         '<div class="step center" style="text-align:left">'+

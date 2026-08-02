@@ -225,7 +225,7 @@ input:focus, textarea:focus { border-color: rgba(212,175,55,.4); }
   const shieldFail = (msg) => {
     shield.innerHTML = '<div style="text-align:center;max-width:340px;line-height:1.8;letter-spacing:.5px">'
       + '⚠️ ' + msg
-      + '<br><br><a href="/login.html?next=%2Fbanca" style="color:#D4AF37">Vai al login</a>'
+      + '<br><br><a href="/login?next=%2Fbanca" style="color:#D4AF37">Vai al login</a>'
       + ' · <a href="/portal" style="color:#999">Apri il portale</a></div>';
   };
   const watchdog = setTimeout(() => shieldFail('L\'accesso sta impiegando troppo — connessione o SDK Firebase bloccato.'), 15000);

@@ -145,6 +145,11 @@
       "permanent": true
     },
     {
+      "source": "/services.html",
+      "destination": "/services",
+      "permanent": true
+    },
+    {
       "source": "/remote-move-pack.html",
       "destination": "/remote-move-pack",
       "permanent": true
@@ -369,6 +374,10 @@
     {
       "source": "/deposit-recovery",
       "destination": "/deposit-recovery.html"
+    },
+    {
+      "source": "/services",
+      "destination": "/services.html"
     },
     {
       "source": "/remote-move-pack",
@@ -646,9 +655,6 @@
       "maxDuration": 60
     },
     "api/sign/send-link.js": {
-      "maxDuration": 60
-    },
-    "api/magic-sign/submit.js": {
       "maxDuration": 60
     },
     "api/fiscal/fascicolo.js": {

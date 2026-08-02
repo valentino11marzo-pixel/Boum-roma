@@ -20,6 +20,7 @@ import { sendPaEmails } from './_notify.js';
 import { maybeAutoConvert } from './_auto.js';
 import { paExpired } from './lookup.js';
 import { acquireLock, confirmLock, HOLD_HOURS } from './_lock.js';
+import { normalizeAddons, addonsTotal } from './_addons.js';
 import { tgSend } from '../telegram/_lib.js';
 
 // Telegram in parse_mode HTML: un nome con & o < romperebbe il messaggio.
@@ -89,7 +90,12 @@ export default async function handler(req, res) {
     // secondo non passano entrambi. Se il dovuto alla firma non arriva entro
     // HOLD_HOURS il lucchetto scade — una riserva che non paga non congela
     // l'immobile.
-    const dueNow = Math.round(Number((data.money || {}).dueAtSigning) || 0);
+    // Add-on scelti dal cliente sulla pagina della proposta. I `kind` arrivano
+    // dal browser, i PREZZI dal catalogo server-side: un payload manomesso può
+    // al massimo scegliere un servizio diverso, mai un prezzo diverso.
+    const addons = normalizeAddons(b.addons);
+    const addonsEur = addonsTotal(addons);
+    const dueNow = Math.round(Number((data.money || {}).dueAtSigning) || 0) + addonsEur;
     let lock = { ok: true, reason: 'skipped' };
     try {
       lock = await acquireLock({ pa: data, paId: id, firm: dueNow <= 0 });
@@ -128,6 +134,7 @@ export default async function handler(req, res) {
     await fsPatch(`preAgreements/${id}`, {
       tenant, tenants: signed, status: 'accepted', ref,
       acceptedAt: new Date().toISOString(),
+      ...(addons.length ? { addons, addonsEur } : {}),
       consent: { at: new Date().toISOString(), ip, ua: String(req.headers['user-agent'] || '').slice(0, 160) },
     });
     logActivity('preagreement_accepted', 'preagreement', { id, ref, tenant: fullName, coTenants: signed.length - 1, address: (data.property || {}).address }, 'web')
@@ -140,12 +147,37 @@ export default async function handler(req, res) {
     if (due > 0 && process.env.STRIPE_SECRET_KEY) {
       try {
         const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+        // Il dovuto della proposta e gli add-on sono RIGHE SEPARATE: su Stripe
+        // il cliente legge esattamente cosa sta pagando, e la ricevuta lo
+        // dice — un totale unico che "cresce" senza spiegazione è il modo più
+        // veloce per far abbandonare un pagamento già deciso.
+        const baseEur = Math.max(0, due - addonsEur);
         const eur = Math.max(50, Math.min(20000, due));
+        const line_items = [];
+        if (baseEur > 0) line_items.push({
+          price_data: {
+            currency: 'eur',
+            product_data: {
+              name: `Pre-agreement ${ref} — ${(data.property || {}).address || 'Rome apartment'}`,
+              description: 'Amount due at signing per your BOOM pre-agreement. Deposit terms per the agreement.',
+            },
+            unit_amount: Math.max(50, Math.min(20000, baseEur)) * 100,
+          },
+          quantity: 1,
+        });
+        for (const a of addons) line_items.push({
+          price_data: {
+            currency: 'eur',
+            product_data: { name: `BOOM ${a.label}` },
+            unit_amount: a.eur * 100,
+          },
+          quantity: 1,
+        });
         const session = await stripe.checkout.sessions.create({
           mode: 'payment',
           payment_method_types: ['card'],
           customer_email: email,
-          line_items: [{
+          line_items: line_items.length ? line_items : [{
             price_data: {
               currency: 'eur',
               product_data: {
@@ -160,6 +192,8 @@ export default async function handler(req, res) {
             service: 'PREAGREEMENT', ref, token,
             address: clip((data.property || {}).address, 200) || '',
             name: fullName, email, phone,
+            addons: addons.map(a => a.kind).join(',').slice(0, 200),
+            addonsEur: String(addonsEur),
           },
           success_url: 'https://www.boomrome.com/pre-agreement?t=' + token + '&paid=1',
           cancel_url: 'https://www.boomrome.com/pre-agreement?t=' + token,
