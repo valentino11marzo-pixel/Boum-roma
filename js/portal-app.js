@@ -150,7 +150,14 @@ window.__portalAppLoaded = true; // sentinella per la via d'uscita anti-spinner-
         const ua = (navigator.userAgent || '').toLowerCase();
         const isSafariUA = /^((?!chrome|android|crios|fxios).)*safari/.test(ua);
         const isIOS      = /iphone|ipad|ipod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        if (location.search.includes('nopersist=1') || localStorage.getItem('boom_no_persist') === '1') return;
+        // Safari in navigazione privata / con i cookie bloccati fa LANCIARE
+        // localStorage, non lo restituisce vuoto. js/firebase-config.js lo
+        // avvolge già; qui no, e l'eccezione moriva dentro l'idle callback
+        // lasciando la persistenza spenta senza dirlo. Stesso trattamento.
+        try {
+            if (location.search.includes('nopersist=1')) return;
+            if (localStorage.getItem('boom_no_persist') === '1') return;
+        } catch (e) { return; } // storage negato → niente persistenza, mai un crash
         if (isIOS) return; // iOS Safari + persistence = 3-5s stall, not worth it.
         const opts = isSafariUA ? {} : { synchronizeTabs: true };
         db.enablePersistence(opts).catch(err => {
@@ -2310,7 +2317,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             }
         }
     }, 25000);
-    
+
+    // Da qui in poi il portale ha una rete propria. La shell lo legge per
+    // decidere se la sua scialuppa serve ancora: prima di questo punto un
+    // errore lascerebbe la pagina senza NESSUN guardiano (la sentinella
+    // __portalAppLoaded sta alla riga 1, si accende al parse e non dice nulla
+    // sul fatto che il boot sia davvero partito). Deve restare l'ultima riga
+    // dopo il watchdog, mai spostata più in alto.
+    window.__portalBootArmed = true;
+
     auth.onAuthStateChanged(async u => {
         if (isMagicSign || isIntakeForm) return;
         if (isPostSign) return; // postSign boot handler handles its own auth
@@ -3792,6 +3807,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // Check Stripe payment return
         checkStripeReturn();
 
+        // Dati aziendali (IBAN incluso) da Firestore. Fire-and-forget: se la
+        // lettura è lenta il portale è già in piedi con i default.
+        loadCompanySettings();
+
         // Start notification listener
         startNotificationListener();
         startContractsListener();
@@ -3877,6 +3896,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="nav-item ${S.page==='underwriting'?'active':''}" onclick="goTo('underwriting')"><span class="nav-icon">📊</span> Rischio · Shield</div>
                     <div class="nav-item ${S.page==='relet'?'active':''}" onclick="goTo('relet')"><span class="nav-icon">🏘️</span> Zero-Vacancy</div>
                     <div class="nav-item ${S.page==='landlords'?'active':''}" onclick="goTo('landlords')"><span class="nav-icon">🏘️</span> Landlord DB</div>
+                </div>
+                <div class="nav-section"><div class="nav-label">Dati</div>
+                    <div class="nav-item ${S.page==='innesto'?'active':''}" onclick="goTo('innesto')"><span class="nav-icon">🌱</span> Innesto <span class="nav-badge gold">AI</span></div>
+                    <div class="nav-item ${S.page==='bonifica'?'active':''}" onclick="goTo('bonifica')"><span class="nav-icon">🧹</span> Bonifica</div>
                 </div>
                 <div class="nav-section"><div class="nav-label">Sistema</div>
                     <div class="nav-item ${S.page==='users'?'active':''}" onclick="goTo('users')"><span class="nav-icon">👤</span> Utenti</div>
@@ -4004,10 +4027,18 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             case 'settings': m.innerHTML = settingsPage(); break;
             case 'underwriting': m.innerHTML = isAdmin() ? underwritingPage() : accessDenied(); break;
             case 'relet': m.innerHTML = isAdmin() ? reletPage() : accessDenied(); break;
+            // === DATI (bonifica archivio + import intelligente) ===
+            case 'bonifica': m.innerHTML = isAdmin() ? bonificaPage() : accessDenied(); break;
+            case 'innesto': m.innerHTML = isAdmin() ? innestoPage() : accessDenied(); break;
             default: m.innerHTML = r === 'admin' ? adminDashboard() : r === 'landlord' ? landlordDashboard() : tenantDashboard();
         }
         // Post-render hooks
-        setTimeout(() => loadChartJS().then(() => initDashboardCharts()), 50);
+        // .catch obbligatorio: questo gira DENTRO il render della dashboard,
+        // cioè durante il boot. Senza, una CDN irraggiungibile produce un
+        // rejection non gestito proprio mentre la pagina si apre. I grafici
+        // sono un di più: la dashboard resta perfettamente usabile senza.
+        setTimeout(() => loadChartJS().then(() => initDashboardCharts())
+            .catch((e) => console.warn('[Dashboard] grafici non disponibili:', e.message)), 50);
         if (S.page === 'settings' && isAdmin()) setTimeout(() => loadCAFSettings(), 100);
         // Property Radar — auto-scan stale searches once per session when the page opens.
         if (S.page === 'property-radar' && !window._radarAutoScanned) {
@@ -4036,9 +4067,21 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const s = document.createElement('script');
             s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js';
             s.onload = resolve;
-            s.onerror = reject;
+            // Un Error con un nome, non l'Event grezzo: rigettare l'evento
+            // faceva arrivare in telemetria un "Event" senza stack né origine
+            // (ce n'è uno in produzione da /portal). Ora si sa QUALE script.
+            s.onerror = () => reject(new Error('Chart.js load failed'));
+            // Una CDN che non risponde non deve tenere il portale in ostaggio:
+            // senza tetto la promise resta pendente per sempre e il grafico non
+            // arriva né riesce a fallire.
+            setTimeout(() => reject(new Error('Chart.js load timeout')), 15000);
             document.head.appendChild(s);
         });
+        // Un fallimento non deve restare un rejection non gestito: il ramo
+        // .catch qui sotto lo assorbe e permette di RIPROVARE alla prossima
+        // apertura (senza azzerare, il portale ricorderebbe per sempre la
+        // promise fallita e i grafici non tornerebbero più).
+        window._chartJSLoading.catch(() => { window._chartJSLoading = null; });
         return window._chartJSLoading;
     }
 
@@ -7725,6 +7768,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 </div>
                 <div class="list-meta"><div class="list-value ${inv.status === 'paid' ? 'text-green' : 'text-gold'}">€${(inv.amount || 0).toLocaleString('it-IT')}</div><span class="badge ${inv.status === 'paid' ? 'green' : 'orange'}">${inv.status === 'paid' ? 'Pagata' : 'In Attesa'}</span></div>
                 <div style="display:flex;gap:4px">
+                    ${inv.status === 'pending' ? `<button class="btn btn-xs" onclick="event.stopPropagation();showPaymentLink('inv','${inv.id}')" title="Link di pagamento con carta (non scade)">💳</button>` : ''}
                     ${inv.status === 'pending' && r.email ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();sendInvoiceReminder('${inv.id}')" title="Invia sollecito email">📧</button>` : ''}
                     <button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();downloadInvoicePDF('${inv.id}')" title="Scarica PDF">📥</button>
                 </div>
@@ -8659,6 +8703,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     </div>
                     ${p.status === 'pending' ? `
                         <div style="display:flex;flex-direction:column;gap:4px">
+                            <button class="btn btn-xs" onclick="event.stopPropagation();showPaymentLink('pay','${p.id}')" title="Link di pagamento con carta (non scade)">💳</button>
                             <button class="btn btn-xs btn-success" onclick="event.stopPropagation();markPaymentPaid('${p.id}')" title="Segna pagato">✔</button>
                             ${p.proofUrl ? `<a href="${p.proofUrl}" target="_blank" class="btn btn-xs btn-secondary" onclick="event.stopPropagation()" title="Vedi ricevuta">📄</a>` : ''}
                             ${isOverdueNow ? `<button class="btn btn-xs btn-danger" onclick="event.stopPropagation();sendPaymentReminder('${p.id}')" title="Invia sollecito">📧</button>` : ''}
@@ -13291,6 +13336,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     function settingsPage() {
         return `<div class="page-header"><h1 class="page-title">⚙️ Impostazioni</h1></div>
+            ${companySettingsCard()}
             <div class="card"><div class="card-header"><h3 class="card-title">👤 Profilo</h3></div><div class="card-body">
                 <form onsubmit="updateProfile(event)">
                     <div class="form-row"><div class="form-group"><label class="form-label">Nome</label><input type="text" class="form-input" id="setName" value="${S.profile.name}"></div><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" id="setPhone" value="${S.profile.phone || ''}"></div></div>
@@ -19326,7 +19372,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (level === 2) {
             return `${firstName}, ti scriviamo perché il canone ${amount} di ${propName} (scaduto il ${due}, ${days}gg di ritardo) risulta ancora insoluto. Provvedi al pagamento e inviaci la contabile per evitare il sollecito formale con interessi di mora. — BOOM Roma`;
         }
-        return `Ciao ${firstName}, ti ricordiamo che il canone ${amount} di ${propName} è scaduto il ${due} (${days}gg di ritardo). Se hai già pagato ignora pure! IBAN: ${COMPANY.iban}. Grazie — BOOM Roma`;
+        // Un IBAN sbagliato è peggio di nessun IBAN: chi lo riceve prova a
+        // pagare e il bonifico non arriva. Se non è configurato lo si omette.
+        return `Ciao ${firstName}, ti ricordiamo che il canone ${amount} di ${propName} è scaduto il ${due} (${days}gg di ritardo). Se hai già pagato ignora pure!${companyIbanMissing() ? '' : ' IBAN: ' + COMPANY.iban + '.'} Grazie — BOOM Roma`;
     }
     
     async function sendPaymentConfirmEmail(tenant, contract, property, payment) {
@@ -19959,7 +20007,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         doc.setTextColor(212, 175, 55); doc.text(`EUR ${inv.amount || 0}`, 175, y, { align: 'right' });
         
         y += 25; doc.setTextColor(0); doc.setFontSize(10); doc.setFont('helvetica', 'bold');
-        doc.text('Pagamento:', 20, y); doc.setFont('helvetica', 'normal'); y += 7; doc.text(`IBAN: ${COMPANY.iban}`, 20, y);
+        doc.text('Pagamento:', 20, y); doc.setFont('helvetica', 'normal'); y += 7;
+        // Idem sulla fattura: meglio "IBAN da comunicare" che un IBAN inesistente.
+        doc.text(companyIbanMissing() ? 'IBAN: da comunicare' : `IBAN: ${COMPANY.iban}`, 20, y);
         
         doc.setFillColor(0); doc.rect(0, 275, 210, 25, 'F');
         doc.setTextColor(150); doc.setFontSize(8); doc.text(`${COMPANY.legal} | ${COMPANY.website}`, 105, 285, { align: 'center' });
@@ -28068,6 +28118,12 @@ ${d.description || '-'}`;
     }
     
     function sendBrowserNotification(title, body) {
+        // iOS/WebKit non espone Notification fuori dalle PWA installate: leggere
+        // .permission lì è un ReferenceError, non un "false". Ne abbiamo uno
+        // registrato in produzione da iPhone (portal-app.js, settingsPage) —
+        // stesso errore, altro punto: qui basta a rompere il render di una
+        // pagina, perché chiamata dal listener realtime delle notifiche.
+        if (typeof Notification === 'undefined') return;
         if (Notification.permission === 'granted' && document.hidden) {
             new Notification(title, { body, icon: COMPANY.logo });
         }
@@ -28119,3 +28175,768 @@ ${d.description || '-'}`;
     
     // i18n helper - use i() for translated strings
     function i(key) { return (I18N[S.lang] || I18N.IT)[key] || (I18N.IT)[key] || key; }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // LA BONIFICA — togliere il rumore senza perdere un dato vero
+    // ═══════════════════════════════════════════════════════════════════
+    // Tre garanzie, in ordine di importanza:
+    //  1. non cancella NULLA che non sia stato spuntato a mano;
+    //  2. per ogni documento dice PERCHÉ lo ritiene spazzatura;
+    //  3. prima di eseguire scarica un backup JSON di ciò che sta per
+    //     sparire (Firestore non ha cestino: questa è l'unica rete).
+    // Il classificatore vive in js/dataops-engine.js ed è coperto da test.
+
+    let _bonifica = { scan: null, selected: new Set(), busy: false, armed: false };
+
+    function bonificaKey(it) { return it.collection + '/' + it.id; }
+
+    function bonificaPage() {
+        const s = _bonifica.scan;
+        if (!s) {
+            return `
+            <div class="page-header"><h1>🧹 Bonifica</h1>
+                <p style="color:var(--text-secondary);font-size:13px">Trova e rimuove i dati di prova, le notifiche vecchie e i riferimenti rotti. Non cancella nulla senza la tua spunta.</p></div>
+            <div class="card" style="text-align:center;padding:48px 24px">
+                <div style="font-size:44px;margin-bottom:14px">🧹</div>
+                <div style="font-size:16px;margin-bottom:8px">Analizza l'archivio</div>
+                <div style="color:var(--text-secondary);font-size:13px;line-height:1.6;max-width:520px;margin:0 auto 24px">
+                    Passa in rassegna utenti, immobili, contratti, pagamenti, manutenzioni, documenti, lead e notifiche.
+                    Segnala solo ciò che ha un motivo esplicito per essere considerato spazzatura, e mette il lucchetto
+                    su tutto ciò che ha valore legale o economico (pagamenti incassati, contratti firmati, documenti con allegato).
+                </div>
+                <button class="btn" onclick="bonificaScan()">Analizza adesso</button>
+            </div>`;
+        }
+
+        const t = s.totals;
+        const selCount = _bonifica.selected.size;
+        const groups = s.groups.map(g => {
+            const rows = g.items.map(it => {
+                const k = bonificaKey(it);
+                const on = _bonifica.selected.has(k);
+                const sevColor = it.severity === 'alta' ? '#FF6B35' : it.severity === 'media' ? '#D4AF37' : 'var(--text-secondary)';
+                return `
+                <label style="display:flex;gap:12px;padding:12px 14px;border-bottom:1px solid var(--border);cursor:pointer;align-items:flex-start;${it.protected ? 'background:rgba(255,107,53,0.04)' : ''}">
+                    <input type="checkbox" ${on ? 'checked' : ''} onchange="bonificaToggle('${esc(k)}',this.checked)" style="margin-top:3px;flex-shrink:0">
+                    <div style="flex:1;min-width:0">
+                        <div style="font-size:13px;color:var(--text);margin-bottom:3px;word-break:break-word">${esc(it.label)}</div>
+                        <div style="font-size:11.5px;color:var(--text-secondary);line-height:1.5">${it.reasons.map(esc).join(' · ')}</div>
+                        ${it.protected ? '<div style="font-size:11px;color:#FF6B35;margin-top:4px">🔒 Ha valore legale o economico — spunta solo se sei certo</div>' : ''}
+                    </div>
+                    <span style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:${sevColor};flex-shrink:0">${it.severity}</span>
+                </label>`;
+            }).join('');
+            const gSel = g.items.filter(i => _bonifica.selected.has(bonificaKey(i))).length;
+            return `
+            <div class="card" style="padding:0;margin-bottom:16px;overflow:hidden">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border)">
+                    <div><strong style="font-size:14px">${esc(g.collection)}</strong>
+                         <span style="color:var(--text-secondary);font-size:12px;margin-left:8px">${g.items.length} segnalati${gSel ? ' · ' + gSel + ' spuntati' : ''}</span></div>
+                    <div style="display:flex;gap:8px">
+                        <button class="btn btn-sm" onclick="bonificaGroupSelect('${esc(g.collection)}',true)">Spunta tutti</button>
+                        <button class="btn btn-sm" onclick="bonificaGroupSelect('${esc(g.collection)}',false)">Nessuno</button>
+                    </div>
+                </div>
+                ${rows}
+            </div>`;
+        }).join('');
+
+        return `
+        <div class="page-header"><h1>🧹 Bonifica</h1>
+            <p style="color:var(--text-secondary);font-size:13px">${t.scanned} documenti analizzati · ${t.flagged} segnalati · ${t.protected} protetti</p></div>
+
+        <div class="card" style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:16px">
+            <div><div style="font-size:22px;color:#FF6B35">${t.alta}</div><div style="font-size:11px;color:var(--text-secondary)">severità alta</div></div>
+            <div><div style="font-size:22px;color:#D4AF37">${t.media}</div><div style="font-size:11px;color:var(--text-secondary)">media</div></div>
+            <div><div style="font-size:22px;color:var(--text-secondary)">${t.bassa}</div><div style="font-size:11px;color:var(--text-secondary)">bassa</div></div>
+            <div style="flex:1"></div>
+            <button class="btn btn-sm" onclick="bonificaScan()">↻ Rianalizza</button>
+        </div>
+
+        ${t.flagged === 0 ? `<div class="card" style="text-align:center;padding:44px"><div style="font-size:38px;margin-bottom:12px">✨</div>
+            <div style="font-size:15px">Archivio pulito</div>
+            <div style="color:var(--text-secondary);font-size:13px;margin-top:6px">Nessun dato di prova, nessun riferimento rotto, nessuna notifica scaduta.</div></div>` : groups}
+
+        ${t.flagged ? `
+        <div class="card" style="position:sticky;bottom:16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;border-color:${selCount ? '#FF6B35' : 'var(--border)'}">
+            <div style="flex:1;min-width:200px">
+                <div style="font-size:14px">${selCount ? selCount + ' documenti da cancellare' : 'Nessun documento spuntato'}</div>
+                <div style="font-size:11.5px;color:var(--text-secondary);margin-top:3px">
+                    ${selCount ? 'Verrà scaricato un backup JSON prima di procedere. L\'operazione non è reversibile.' : 'Spunta ciò che vuoi eliminare.'}
+                </div>
+            </div>
+            ${selCount ? `<button class="btn btn-sm" onclick="bonificaBackup()">⬇ Solo backup</button>` : ''}
+            <button class="btn" ${selCount && !_bonifica.busy ? '' : 'disabled'} onclick="bonificaApply()"
+                style="${_bonifica.armed ? 'background:#FF3B3B;color:#fff' : ''}">
+                ${_bonifica.busy ? 'Cancellazione…' : _bonifica.armed ? `Confermi? Cancella ${selCount}` : 'Cancella selezionati'}
+            </button>
+        </div>` : ''}`;
+    }
+
+    // Le collezioni che la bonifica guarda. Solo quelle già in memoria (più
+    // le notifiche persistenti, lette qui): passare all'engine SOLO ciò che
+    // è davvero caricato è la condizione perché la caccia agli orfani non
+    // produca falsi positivi (vedi dataops-engine, semantica dell'indice).
+    async function bonificaScan() {
+        if (!isAdmin()) { toast('error', 'Solo admin'); return; }
+        toast('info', 'Analisi in corso…');
+        let dbNotifs = [];
+        try {
+            const snap = await db.collection('notifications').orderBy('createdAt', 'desc').limit(500).get();
+            dbNotifs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        } catch (e) { console.warn('[Bonifica] notifiche non lette:', e.message); }
+
+        const dataset = {
+            users: S.users || [], properties: S.properties || [], contracts: S.contracts || [],
+            payments: S.payments || [], maintenance: S.maintenance || [], documents: S.documents || [],
+            leads: S.leads || [], clients: S.clients || [], notifications: dbNotifs
+        };
+        // Una collezione vuota in memoria è ambigua: può essere davvero vuota
+        // o semplicemente non ancora caricata (il portale carica in due tempi).
+        // Nel dubbio la togliamo: l'engine non dichiarerà orfano nessun
+        // riferimento verso di lei. Meglio un orfano non trovato che mezzo
+        // archivio proposto per la cancellazione.
+        Object.keys(dataset).forEach(k => {
+            if (k === 'notifications') return;            // appena letta qui: attendibile
+            if (!Array.isArray(dataset[k]) || !dataset[k].length) delete dataset[k];
+        });
+
+        const scan = window.BOOM_DATAOPS.scanDataset(dataset, { notificationKeepDays: 30 });
+        _bonifica = { scan, selected: new Set(), busy: false, armed: false, dataset };
+        scan.groups.forEach(g => g.items.forEach(it => { if (it.preselected) _bonifica.selected.add(bonificaKey(it)); }));
+        renderPage();
+        toast('success', 'Analisi completata', scan.totals.flagged + ' documenti segnalati su ' + scan.totals.scanned);
+    }
+
+    function bonificaToggle(key, on) {
+        if (on) _bonifica.selected.add(key); else _bonifica.selected.delete(key);
+        _bonifica.armed = false;
+        renderPage();
+    }
+    function bonificaGroupSelect(collection, on) {
+        const g = (_bonifica.scan.groups || []).find(x => x.collection === collection);
+        if (!g) return;
+        g.items.forEach(it => {
+            const k = bonificaKey(it);
+            // "Spunta tutti" non tocca mai i protetti: quelli si spuntano
+            // uno per uno, guardandoli in faccia.
+            if (on && it.protected) return;
+            if (on) _bonifica.selected.add(k); else _bonifica.selected.delete(k);
+        });
+        _bonifica.armed = false;
+        renderPage();
+    }
+
+    function bonificaSelectedItems() {
+        const out = [];
+        (_bonifica.scan.groups || []).forEach(g => g.items.forEach(it => {
+            if (_bonifica.selected.has(bonificaKey(it))) out.push(it);
+        }));
+        return out;
+    }
+
+    // Firestore non ha cestino. Questo file è l'unico modo per rimettere
+    // dentro qualcosa cancellato per errore.
+    function bonificaBackup() {
+        const items = bonificaSelectedItems();
+        const ds = _bonifica.dataset || {};
+        const payload = {
+            esportatoIl: new Date().toISOString(),
+            da: S.profile?.email || S.profile?.id || 'admin',
+            avvertenza: 'Backup dei documenti selezionati per la cancellazione. Conservare finché non si è certi.',
+            documenti: items.map(it => ({
+                collection: it.collection, id: it.id, motivi: it.reasons,
+                dati: (ds[it.collection] || []).find(d => String(d.id) === String(it.id)) || null
+            }))
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'boom-bonifica-' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.json';
+        document.body.appendChild(a); a.click();
+        setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+        toast('success', 'Backup scaricato', items.length + ' documenti');
+        return items.length;
+    }
+
+    async function bonificaApply() {
+        const items = bonificaSelectedItems();
+        if (!items.length) return;
+
+        // Primo click: mostra cosa si trascina dietro e arma il pulsante.
+        if (!_bonifica.armed) {
+            const cascade = window.BOOM_DATAOPS.cascadeFor(
+                items.map(i => ({ collection: i.collection, id: i.id })), _bonifica.dataset || {});
+            if (cascade.length) {
+                toast('warning', 'Attenzione: ' + cascade.length + ' documenti collegati',
+                    'Cancellando questi, ' + cascade.length + ' fra pagamenti/contratti resterebbero orfani. Valuta se aggiungerli.');
+            }
+            const prot = items.filter(i => i.protected).length;
+            if (prot) toast('warning', prot + ' documenti protetti nella selezione', 'Hanno valore legale o economico.');
+            _bonifica.armed = true;
+            renderPage();
+            setTimeout(() => { if (_bonifica.armed) { _bonifica.armed = false; renderPage(); } }, 12000);
+            return;
+        }
+
+        bonificaBackup();   // il backup parte SEMPRE, prima di toccare Firestore
+        _bonifica.busy = true; _bonifica.armed = false; renderPage();
+
+        let done = 0, failed = 0;
+        try {
+            for (let i = 0; i < items.length; i += 400) {
+                const chunk = items.slice(i, i + 400);
+                const batch = db.batch();
+                chunk.forEach(it => batch.delete(db.collection(it.collection).doc(it.id)));
+                try { await batch.commit(); done += chunk.length; }
+                catch (e) { failed += chunk.length; console.error('[Bonifica] batch fallito:', e); }
+            }
+            // Allinea lo stato in memoria senza rileggere tutto.
+            const byCol = {};
+            items.forEach(it => (byCol[it.collection] = byCol[it.collection] || new Set()).add(String(it.id)));
+            Object.keys(byCol).forEach(col => {
+                if (Array.isArray(S[col])) S[col] = S[col].filter(d => !byCol[col].has(String(d.id)));
+            });
+            try { localStorage.removeItem('boom_data_cache'); } catch (e) {}
+            await logActivity('bonifica_eseguita', 'system', {
+                cancellati: done, falliti: failed,
+                perCollezione: Object.fromEntries(Object.keys(byCol).map(c => [c, byCol[c].size]))
+            });
+            checkAlerts(); buildNav();
+            toast(failed ? 'warning' : 'success', 'Bonifica completata',
+                done + ' documenti rimossi' + (failed ? ' · ' + failed + ' non riusciti' : ''));
+        } finally {
+            _bonifica.busy = false;
+            await bonificaScan();
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // L'INNESTO — far entrare il dato reale senza riscriverlo a mano
+    // ═══════════════════════════════════════════════════════════════════
+    // Incolli il contratto (o ci butti dentro il PDF, o la foto, o il
+    // messaggio del proprietario) e il portale propone proprietario,
+    // immobile, inquilino e contratto GIÀ nello schema giusto, dicendo per
+    // ognuno se è nuovo o se esiste già in archivio (e perché lo pensa).
+    // Nulla viene scritto prima della tua conferma.
+
+    let _innesto = { proposal: null, matches: null, notes: [], confidence: null, busy: false, file: null, links: {} };
+
+    function innestoPage() {
+        const p = _innesto.proposal;
+        return `
+        <div class="page-header"><h1>🌱 Innesto</h1>
+            <p style="color:var(--text-secondary);font-size:13px">Da un contratto, un documento o due righe di messaggio a dati reali nel portale. Con anteprima, controlli e nessuna scrittura prima della conferma.</p></div>
+
+        <div class="card" style="margin-bottom:16px">
+            <div style="font-size:13px;margin-bottom:10px">Materiale di partenza</div>
+            <textarea id="innestoText" rows="7" placeholder="Incolla qui il testo: un contratto, l'email del proprietario, il messaggio WhatsApp con i dati dell'inquilino, gli appunti della visita…"
+                style="width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:12px;font-family:inherit;font-size:13px;line-height:1.6;resize:vertical"></textarea>
+            <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px">
+                <label class="btn btn-sm" style="cursor:pointer;margin:0">
+                    📎 Allega PDF o foto
+                    <input type="file" accept="application/pdf,image/png,image/jpeg,image/webp" style="display:none" onchange="innestoFile(this)">
+                </label>
+                <span id="innestoFileName" style="font-size:12px;color:var(--text-secondary)">${_innesto.file ? esc(_innesto.file.name) : 'nessun file'}</span>
+                <div style="flex:1"></div>
+                <button class="btn" ${_innesto.busy ? 'disabled' : ''} onclick="innestoAnalyze()">${_innesto.busy ? 'Lettura in corso…' : 'Leggi e proponi'}</button>
+            </div>
+            <div style="font-size:11.5px;color:var(--text-secondary);margin-top:10px;line-height:1.5">
+                Il documento viene letto dall'AI solo per estrarre i campi. Non viene salvato da nessuna parte finché non confermi.
+            </div>
+        </div>
+
+        ${_innesto.notes.length ? `<div class="card" style="margin-bottom:16px;border-color:rgba(212,175,55,0.3)">
+            <div style="font-size:12px;color:var(--gold);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Note di lettura${_innesto.confidence != null ? ' · sicurezza ' + _innesto.confidence + '%' : ''}</div>
+            ${_innesto.notes.map(n => `<div style="font-size:12.5px;color:var(--text-secondary);line-height:1.6">• ${esc(n)}</div>`).join('')}
+        </div>` : ''}
+
+        ${p ? innestoProposalCard(p) : ''}`;
+    }
+
+    function innestoProposalCard(p) {
+        const V = window.BOOM_DATAOPS;
+        const val = V.validateProposal(p);
+        const blocks = [];
+
+        const field = (section, key, label, value, type) => `
+            <div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)">
+                <div style="width:150px;flex-shrink:0;font-size:11.5px;color:var(--text-secondary)">${esc(label)}</div>
+                <input value="${esc(value == null ? '' : String(value))}" type="${type || 'text'}"
+                    oninput="innestoEdit('${section}','${key}',this.value)"
+                    style="flex:1;min-width:0;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:7px 10px;font-size:13px;font-family:inherit">
+            </div>`;
+
+        const section = (key, icon, title, fields, matchKind, pool) => {
+            const d = p[key];
+            if (!d) return '';
+            const m = matchKind ? V.findMatch(d, pool || [], matchKind) : { match: null };
+            const linked = _innesto.links[key];
+            const isLinked = linked === undefined ? !!m.match : linked !== null;
+            return `
+            <div class="card" style="margin-bottom:14px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+                    <strong style="font-size:14px">${icon} ${esc(title)}</strong>
+                    ${m.match
+                        ? `<label style="display:flex;gap:8px;align-items:center;font-size:12px;color:${isLinked ? '#00FF88' : 'var(--text-secondary)'};cursor:pointer">
+                             <input type="checkbox" ${isLinked ? 'checked' : ''} onchange="innestoLink('${key}',this.checked,'${esc(m.match.id)}')">
+                             Collega a «${esc(m.match.name || m.match.email || m.match.id)}» — ${esc(m.why)}
+                           </label>`
+                        : `<span style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--gold)">nuovo</span>`}
+                </div>
+                ${isLinked && m.match
+                    ? `<div style="font-size:12.5px;color:var(--text-secondary);line-height:1.6">Verrà usato il record esistente. I campi qui sotto non creeranno un doppione.</div>`
+                    : fields.map(f => field(key, f[0], f[1], d[f[0]], f[2])).join('')}
+            </div>`;
+        };
+
+        blocks.push(section('landlord', '🏛', 'Proprietario', [
+            ['name', 'Nome'], ['email', 'Email', 'email'], ['phone', 'Telefono'],
+            ['codiceFiscale', 'Codice fiscale'], ['iban', 'IBAN'], ['address', 'Residenza']
+        ], 'person', (S.users || []).filter(u => u.role === 'landlord' || u.role === 'owner').concat(S.landlords || [])));
+
+        blocks.push(section('property', '🏠', 'Immobile', [
+            ['name', 'Nome'], ['address', 'Indirizzo'], ['rent', 'Canone mensile €', 'number'],
+            ['sqm', 'Metri quadri', 'number'], ['rooms', 'Locali', 'number'], ['bathrooms', 'Bagni', 'number'],
+            ['floor', 'Piano'], ['interno', 'Interno'], ['cadastralData', 'Dati catastali'], ['energyClass', 'Classe energetica']
+        ], 'property', S.properties || []));
+
+        blocks.push(section('tenant', '👤', 'Inquilino', [
+            ['name', 'Nome'], ['email', 'Email', 'email'], ['phone', 'Telefono'],
+            ['codiceFiscale', 'Codice fiscale'], ['birthDate', 'Data di nascita', 'date'],
+            ['birthPlace', 'Luogo di nascita'], ['address', 'Residenza']
+        ], 'person', (S.users || []).filter(u => u.role === 'tenant')));
+
+        blocks.push(section('contract', '📋', 'Contratto', [
+            ['type', 'Tipo'], ['startDate', 'Inizio', 'date'], ['endDate', 'Fine', 'date'],
+            ['rent', 'Canone mensile €', 'number'], ['deposit', 'Deposito €', 'number'],
+            ['paymentDay', 'Giorno pagamento', 'number'], ['installmentMonths', 'Cadenza (mesi)', 'number'],
+            ['accessoryCharges', 'Oneri accessori €', 'number'], ['transitionalReason', 'Motivo transitorio']
+        ], null, null));
+
+        // Riepilogo onesto: distingue cosa nasce da cosa viene solo collegato,
+        // così l'operatore sa in anticipo l'effetto del pulsante.
+        const landlordPool = (S.users || []).filter(u => u.role === 'landlord' || u.role === 'owner').concat(S.landlords || []);
+        const willLink = (key, pool, kind) => {
+            if (_innesto.links[key] === null) return false;              // "scollega" esplicito
+            if (_innesto.links[key]) return true;                        // aggancio scelto
+            return !!V.findMatch(p[key], pool, kind).match;              // aggancio proposto
+        };
+        const willCreate = [];
+        if (p.landlord && !willLink('landlord', landlordPool, 'person')) willCreate.push('proprietario');
+        if (p.property && !willLink('property', S.properties || [], 'property')) willCreate.push('immobile');
+        if (p.tenant && !willLink('tenant', (S.users || []).filter(u => u.role === 'tenant'), 'person')) willCreate.push('inquilino');
+        if (p.contract) willCreate.push('contratto + piano rate');
+        if (!willCreate.length) willCreate.push('solo collegamenti (nessun nuovo record)');
+
+        return `
+        ${blocks.join('')}
+        ${val.errors.length ? `<div class="card" style="border-color:#FF3B3B;margin-bottom:14px">
+            <div style="font-size:12px;color:#FF3B3B;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Da correggere prima di procedere</div>
+            ${val.errors.map(e => `<div style="font-size:12.5px;color:#FF9A9A;line-height:1.6">• ${esc(e)}</div>`).join('')}
+        </div>` : ''}
+        ${val.warnings.length ? `<div class="card" style="border-color:rgba(255,107,53,0.35);margin-bottom:14px">
+            <div style="font-size:12px;color:#FF6B35;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Da guardare (non bloccante)</div>
+            ${val.warnings.map(w => `<div style="font-size:12.5px;color:var(--text-secondary);line-height:1.6">• ${esc(w)}</div>`).join('')}
+        </div>` : ''}
+        <div class="card" style="position:sticky;bottom:16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+            <div style="flex:1;min-width:220px">
+                <div style="font-size:14px">${val.ok ? 'Pronto: ' + willCreate.join(' · ') : 'Correggi gli errori per procedere'}</div>
+                <div style="font-size:11.5px;color:var(--text-secondary);margin-top:3px">Le rate vengono generate con lo stesso motore della firma digitale (nessun doppione possibile).</div>
+            </div>
+            <button class="btn btn-sm" onclick="innestoReset()">Annulla</button>
+            <button class="btn" ${val.ok && !_innesto.busy ? '' : 'disabled'} onclick="innestoApply()">${_innesto.busy ? 'Creazione…' : 'Crea nel portale'}</button>
+        </div>`;
+    }
+
+    function innestoFile(input) {
+        const f = input.files && input.files[0];
+        if (!f) return;
+        if (f.size > 8 * 1024 * 1024) { toast('error', 'File troppo grande', 'Massimo 8 MB'); input.value = ''; return; }
+        _innesto.file = f;
+        const el = document.getElementById('innestoFileName');
+        if (el) el.textContent = f.name;
+    }
+
+    async function innestoAnalyze() {
+        const text = (document.getElementById('innestoText') || {}).value || '';
+        if (!text.trim() && !_innesto.file) { toast('error', 'Serve del materiale', 'Incolla del testo o allega un file'); return; }
+        _innesto.busy = true; renderPage();
+        try {
+            const payload = { text: text.slice(0, 60000), context: { known: {
+                landlords: (S.users || []).filter(u => u.role === 'landlord' || u.role === 'owner').map(u => u.name).filter(Boolean).slice(0, 60),
+                properties: (S.properties || []).map(p => p.name).filter(Boolean).slice(0, 60)
+            } } };
+            if (_innesto.file) {
+                payload.base64 = await new Promise((res, rej) => {
+                    const r = new FileReader();
+                    r.onload = () => res(String(r.result).split(',')[1] || '');
+                    r.onerror = rej;
+                    r.readAsDataURL(_innesto.file);
+                });
+                payload.mediaType = _innesto.file.type || 'application/pdf';
+            }
+            const token = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/portal/ingest', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                body: JSON.stringify(payload)
+            });
+            const data = await r.json().catch(() => ({}));
+            if (!r.ok || !data.ok) throw new Error(data.error || ('errore ' + r.status));
+            if (data.empty || !data.proposal || !Object.keys(data.proposal).length) {
+                toast('warning', 'Nessun dato riconosciuto', 'Prova ad aggiungere più contesto o un documento più leggibile');
+                _innesto.notes = data.notes || []; _innesto.proposal = null;
+            } else {
+                _innesto.proposal = window.BOOM_DATAOPS.normalizeProposal(data.proposal);
+                _innesto.notes = data.notes || [];
+                _innesto.confidence = data.confidence;
+                _innesto.links = {};
+                toast('success', 'Proposta pronta', 'Controlla i campi prima di confermare');
+            }
+        } catch (e) {
+            console.error('[Innesto]', e);
+            toast('error', 'Lettura non riuscita', e.message);
+        } finally {
+            _innesto.busy = false; renderPage();
+        }
+    }
+
+    function innestoEdit(section, key, value) {
+        if (!_innesto.proposal || !_innesto.proposal[section]) return;
+        const numeric = ['rent', 'sqm', 'rooms', 'bathrooms', 'deposit', 'depositMonths',
+                         'paymentDay', 'installmentMonths', 'accessoryCharges'];
+        _innesto.proposal[section][key] = numeric.indexOf(key) >= 0
+            ? (value === '' ? null : Number(value)) : value;
+        // Nessun renderPage(): riscrivere il DOM mentre si digita farebbe
+        // perdere il cursore. La validazione si aggiorna al blur/azione.
+    }
+    function innestoLink(section, on, matchId) {
+        _innesto.links[section] = on ? matchId : null;
+        renderPage();
+    }
+    function innestoReset() {
+        _innesto = { proposal: null, matches: null, notes: [], confidence: null, busy: false, file: null, links: {} };
+        renderPage();
+    }
+
+    // Creazione nell'ordine delle dipendenze: proprietario → immobile →
+    // inquilino → contratto → rate. Ogni passo riusa lo stesso schema che
+    // usano le maschere del portale, così il dato importato è
+    // indistinguibile da quello inserito a mano.
+    async function innestoApply() {
+        const V = window.BOOM_DATAOPS;
+        const p = _innesto.proposal;
+        if (!p) return;
+        const val = V.validateProposal(p);
+        if (!val.ok) { toast('error', 'Ci sono errori da correggere'); return; }
+        _innesto.busy = true; renderPage();
+
+        const created = [];
+        try {
+            const now = firebase.firestore.FieldValue.serverTimestamp();
+
+            // 1 — Proprietario
+            let ownerId = _innesto.links.landlord || null;
+            if (p.landlord && !ownerId) {
+                const pool = (S.users || []).filter(u => u.role === 'landlord' || u.role === 'owner');
+                const m = _innesto.links.landlord === null ? { match: null } : V.findMatch(p.landlord, pool, 'person');
+                if (m.match) ownerId = m.match.id;
+                else {
+                    const ref = await db.collection('users').add({
+                        name: p.landlord.name, email: p.landlord.email || '', phone: p.landlord.phone || '',
+                        codiceFiscale: p.landlord.codiceFiscale || '', iban: p.landlord.iban || '',
+                        address: p.landlord.address || '', birthDate: p.landlord.birthDate || '',
+                        birthPlace: p.landlord.birthPlace || '', role: 'landlord',
+                        source: 'innesto', createdAt: now
+                    });
+                    ownerId = ref.id;
+                    S.users.push({ id: ref.id, name: p.landlord.name, email: p.landlord.email || '', role: 'landlord' });
+                    created.push('proprietario');
+                }
+            }
+
+            // 2 — Immobile
+            let propertyId = null;
+            if (p.property) {
+                const m = V.findMatch(p.property, S.properties || [], 'property');
+                if (m.match && _innesto.links.property !== null) { propertyId = m.match.id; }
+                else {
+                    const ref = await db.collection('properties').add({
+                        name: p.property.name, address: p.property.address || '',
+                        ownerId: ownerId || '', rent: p.property.rent || 0,
+                        sqm: p.property.sqm || null, rooms: p.property.rooms || null,
+                        bathrooms: p.property.bathrooms || null, floor: p.property.floor || '',
+                        scala: p.property.scala || '', interno: p.property.interno || '',
+                        cadastralData: p.property.cadastralData || '', energyClass: p.property.energyClass || '',
+                        propertyType: p.property.propertyType || 'apartment',
+                        availabilityStatus: p.contract ? 'rented' : 'available',
+                        source: 'innesto', createdAt: now
+                    });
+                    propertyId = ref.id;
+                    S.properties.push({ id: ref.id, name: p.property.name, address: p.property.address || '', ownerId: ownerId || '', rent: p.property.rent || 0 });
+                    created.push('immobile');
+                }
+            }
+
+            // 3 — Inquilino (profilo Firestore; l'account di accesso si crea
+            //     dalla scheda utente quando serve davvero il portale)
+            let tenantId = _innesto.links.tenant || null;
+            if (p.tenant && !tenantId) {
+                const m = _innesto.links.tenant === null
+                    ? { match: null } : V.findMatch(p.tenant, (S.users || []).filter(u => u.role === 'tenant'), 'person');
+                if (m.match) tenantId = m.match.id;
+                else {
+                    const ref = await db.collection('users').add({
+                        name: p.tenant.name, email: p.tenant.email || '', phone: p.tenant.phone || '',
+                        codiceFiscale: p.tenant.codiceFiscale || '', address: p.tenant.address || '',
+                        birthDate: p.tenant.birthDate || '', birthPlace: p.tenant.birthPlace || '',
+                        nationality: p.tenant.nationality || '', role: 'tenant',
+                        source: 'innesto', createdAt: now
+                    });
+                    tenantId = ref.id;
+                    S.users.push({ id: ref.id, name: p.tenant.name, email: p.tenant.email || '', role: 'tenant' });
+                    created.push('inquilino');
+                }
+            }
+
+            // 4 — Contratto + rate
+            if (p.contract && propertyId && tenantId) {
+                const c = p.contract;
+                const monthly = Number(c.rent) || 0;
+                const step = [1, 2, 3, 6, 12].indexOf(Number(c.installmentMonths)) >= 0 ? Number(c.installmentMonths) : 1;
+                const contractData = {
+                    propertyId, tenantId, type: c.type || 'transitorio',
+                    startDate: c.startDate, endDate: c.endDate,
+                    rent: monthly, deposit: Number(c.deposit) || 0,
+                    depositMonths: Number(c.depositMonths) || 0,
+                    accessoryCharges: Number(c.accessoryCharges) || 0,
+                    paymentMethod: 'bonifico bancario',
+                    paymentDay: Number(c.paymentDay) || 5,
+                    installmentMonths: step,
+                    installmentAmount: Math.round(monthly * step * 100) / 100,
+                    cedolareSecca: c.cedolareSecca || 'si',
+                    transitionalReason: c.transitionalReason || '',
+                    notes: (c.notes ? c.notes + ' · ' : '') + 'Importato con Innesto',
+                    status: 'active', signatureStatus: 'none',
+                    paymentsGenerated: false, welcomeEmailSent: false,
+                    source: 'innesto', createdAt: now
+                };
+                if (ownerId) contractData.landlordId = ownerId;
+                const ref = await db.collection('contracts').add(contractData);
+                S.contracts.push({ id: ref.id, ...contractData });
+                created.push('contratto');
+
+                try {
+                    const n = await generateMonthlyPayments(ref.id, contractData);
+                    await db.collection('contracts').doc(ref.id).update({ paymentsGenerated: true }).catch(() => {});
+                    if (n) created.push(n + ' rate');
+                } catch (e) { console.warn('[Innesto] piano rate non generato:', e); toast('warning', 'Contratto creato', 'Il piano rate va generato a mano'); }
+
+                if (propertyId) {
+                    await db.collection('properties').doc(propertyId)
+                        .update({ currentContractId: ref.id, availabilityStatus: 'rented' }).catch(() => {});
+                }
+            }
+
+            await logActivity('innesto_import', 'system', { creati: created, confidence: _innesto.confidence });
+            try { localStorage.removeItem('boom_data_cache'); } catch (e) {}
+            toast('success', 'Innesto completato', created.join(' · '));
+            innestoReset();
+            await loadDataFresh(true);
+            buildNav(); renderPage();
+        } catch (e) {
+            console.error('[Innesto] creazione fallita:', e);
+            toast('error', 'Creazione non riuscita', e.message + (created.length ? ' — già creati: ' + created.join(', ') : ''));
+            _innesto.busy = false; renderPage();
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // DATI AZIENDALI — vivono in Firestore, non nel codice
+    // ═══════════════════════════════════════════════════════════════════
+    // L'IBAN stava scritto nel sorgente con accanto "⚠️ UPDATE WITH REAL
+    // IBAN": un segnaposto che finiva nei solleciti di pagamento e nelle
+    // fatture PDF. Ora i dati stanno in settings/company, si modificano
+    // dalle Impostazioni e valgono ovunque senza deploy.
+
+    async function loadCompanySettings() {
+        try {
+            // Mai sul percorso critico del boot (lezione dell'audit Safari):
+            // se la lettura si blocca, il portale parte lo stesso con i default.
+            const doc = await db.collection('settings').doc('company').get();
+            const remote = doc.exists ? doc.data() : {};
+            const merged = window.BOOM_DATAOPS.mergeCompany(COMPANY, remote);
+            Object.assign(COMPANY, merged.company);   // COMPANY è const: si muta, non si riassegna
+            S.companyWarnings = merged.warnings;
+            if (merged.warnings.length && isAdmin()) {
+                toast('warning', 'Dati aziendali da completare', merged.warnings[0]);
+            }
+        } catch (e) {
+            console.warn('[Company] impostazioni non lette, uso i default:', e.message);
+        }
+    }
+
+    function companyIbanMissing() {
+        return window.BOOM_DATAOPS.isPlaceholderIban(COMPANY.iban);
+    }
+
+    function companySettingsCard() {
+        if (!isAdmin()) return '';
+        const f = (key, label, ph) => `
+            <div class="form-group">
+                <label class="form-label">${esc(label)}</label>
+                <input type="text" class="form-input" id="co_${key}" value="${esc(COMPANY[key] || '')}" placeholder="${esc(ph || '')}">
+            </div>`;
+        return `
+        <div class="card"><div class="card-header"><h3 class="card-title">🏛 Dati aziendali</h3></div><div class="card-body">
+            ${companyIbanMissing() ? `<div style="padding:12px 14px;background:rgba(255,59,59,0.08);border:1px solid rgba(255,59,59,0.3);border-radius:10px;margin-bottom:16px;font-size:13px;line-height:1.6;color:#FF9A9A">
+                <strong>L'IBAN non è configurato.</strong> I solleciti di pagamento e le fatture PDF
+                riportano l'IBAN qui sotto: finché è vuoto o errato, un inquilino che riceve un
+                sollecito non ha modo di pagarti. Compilalo e salva.
+            </div>` : ''}
+            <p style="margin-bottom:16px;color:var(--text-secondary);font-size:13px">
+                Questi dati compaiono su fatture, solleciti, email e PDF. Si modificano qui, senza toccare il codice.
+            </p>
+            <div class="form-row">${f('name', 'Nome commerciale')}${f('legal', 'Ragione sociale')}</div>
+            <div class="form-row">${f('piva', 'Partita IVA')}${f('codiceFiscale', 'Codice fiscale')}</div>
+            ${f('address', 'Sede')}
+            <div class="form-row">${f('email', 'Email')}${f('phone', 'Telefono')}</div>
+            <div class="form-row">${f('website', 'Sito')}${f('pec', 'PEC')}</div>
+            <div class="form-row">${f('iban', 'IBAN', 'IT00 X000 0000 0000 0000 0000 000')}${f('bankName', 'Banca')}</div>
+            <button class="btn" onclick="saveCompanySettings()">Salva dati aziendali</button>
+        </div></div>`;
+    }
+
+    async function saveCompanySettings() {
+        if (!isAdmin()) { toast('error', 'Solo admin'); return; }
+        const V = window.BOOM_DATAOPS;
+        const data = {};
+        V.COMPANY_FIELDS.forEach(k => {
+            const el = document.getElementById('co_' + k);
+            if (el) data[k] = el.value.trim();
+        });
+        // L'IBAN si controlla PRIMA di salvare: un refuso qui vale quanto il
+        // segnaposto — il bonifico non arriva e te ne accorgi settimane dopo.
+        if (data.iban) {
+            const v = V.validateIBAN(data.iban);
+            if (!v.valid) { toast('error', 'IBAN non valido', v.reason); return; }
+            data.iban = v.value;
+        }
+        try {
+            await db.collection('settings').doc('company').set({
+                ...data,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedBy: S.profile?.email || S.profile?.id || 'admin'
+            }, { merge: true });
+            const merged = V.mergeCompany(COMPANY, data);
+            Object.assign(COMPANY, merged.company);
+            S.companyWarnings = merged.warnings;
+            await logActivity('company_settings_updated', 'system', { campi: Object.keys(data).filter(k => data[k]) });
+            toast('success', 'Dati aziendali salvati', merged.warnings.length ? merged.warnings[0] : 'Valgono da subito su fatture, solleciti e PDF.');
+            renderPage();
+        } catch (e) {
+            console.error('[Company] salvataggio fallito:', e);
+            toast('error', 'Salvataggio non riuscito', e.message);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // LINK DI PAGAMENTO STRIPE — dal portale a WhatsApp in un tocco
+    // ═══════════════════════════════════════════════════════════════════
+    // Il link NON è una sessione Stripe (quella scade in 30 minuti): è un
+    // URL stabile di BOOM che a ogni apertura crea una sessione fresca. Si
+    // può mandare oggi e pagare la settimana prossima. Il token è derivato
+    // lato server (api/payments/_token.js), quindi ogni rata e ogni fattura
+    // già esistente ha da subito il suo link, senza migrazioni.
+
+    async function paymentLinkFor(kind, id) {
+        const token = await auth.currentUser.getIdToken();
+        const r = await fetch('/api/payments/link-for', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ kind, id })
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok || !data.ok) throw new Error(data.error || ('errore ' + r.status));
+        return data.url;
+    }
+
+    // Copia negli appunti con ricaduta su prompt() — su Safari senza HTTPS
+    // o senza permesso, navigator.clipboard non c'è e il tasto sembrerebbe
+    // rotto invece di dare comunque il link all'operatore.
+    async function copyToClipboard(text, okMsg) {
+        try {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(text);
+                toast('success', okMsg || 'Copiato');
+                return true;
+            }
+        } catch (e) { /* si passa al piano B */ }
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+            document.body.appendChild(ta); ta.select();
+            const ok = document.execCommand('copy');
+            ta.remove();
+            if (ok) { toast('success', okMsg || 'Copiato'); return true; }
+        } catch (e) {}
+        window.prompt('Copia il link:', text);
+        return false;
+    }
+
+    // Un solo pannello per entrambi i casi (rata o fattura): mostra il link,
+    // il tasto copia e — se conosciamo il numero — l'invio WhatsApp con il
+    // messaggio già scritto. L'operatore non deve comporre nulla.
+    async function showPaymentLink(kind, id) {
+        const isInv = kind === 'inv';
+        const doc = isInv
+            ? (S.invoices || []).find(x => x.id === id)
+            : (S.payments || []).find(x => x.id === id);
+        if (!doc) { toast('error', 'Documento non trovato'); return; }
+        if (doc.status === 'paid') { toast('info', 'Già pagato', 'Non serve un link.'); return; }
+
+        toast('info', 'Preparo il link…');
+        let url;
+        try { url = await paymentLinkFor(kind, id); }
+        catch (e) { toast('error', 'Link non creato', e.message); return; }
+
+        const amount = Number(doc.amount) || 0;
+        let who = null, phone = '', name = '';
+        if (isInv) {
+            who = (S.users || []).find(u => u.id === (doc.recipientId || doc.clientId))
+               || (S.clients || []).find(c => c.id === (doc.recipientId || doc.clientId));
+            name = doc.recipientName || who?.name || '';
+        } else {
+            who = (S.users || []).find(u => u.id === doc.tenantId);
+            name = who?.name || '';
+        }
+        phone = String(who?.phone || '').replace(/[^0-9]/g, '');
+
+        const what = isInv
+            ? `la fattura ${doc.number || ''}`.trim()
+            : (doc.type === 'deposit-balance' ? 'il saldo del deposito' : `il canone di ${doc.month || fmtDate(doc.dueDate)}`);
+        const msg = `Ciao${name ? ' ' + name.split(' ')[0] : ''}, puoi pagare ${what} (€${amount.toLocaleString('it-IT')}) con carta da qui: ${url}`;
+
+        document.getElementById('modals').innerHTML = `
+        <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+          <div class="modal" style="max-width:520px">
+            <div class="modal-header"><h3>💳 Link di pagamento</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-body">
+              <div style="font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:16px">
+                ${esc(what.charAt(0).toUpperCase() + what.slice(1))} · <strong style="color:var(--gold)">€${amount.toLocaleString('it-IT')}</strong>${name ? ' · ' + esc(name) : ''}<br>
+                Il link non scade: si può mandare adesso e pagare più avanti. Quando il pagamento arriva, ${isInv ? 'la fattura' : 'la rata'} si segna pagata da sola.
+              </div>
+              <div style="background:var(--bg-input);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:11.5px;word-break:break-all;color:var(--text-secondary);margin-bottom:16px">${esc(url)}</div>
+              <div style="display:flex;gap:10px;flex-wrap:wrap">
+                <button class="btn btn-sm" onclick="copyToClipboard(${JSON.stringify(url).replace(/"/g, '&quot;')},'Link copiato')">📋 Copia link</button>
+                ${phone ? `<a class="btn btn-sm" style="text-decoration:none" target="_blank" rel="noopener"
+                    href="https://wa.me/${esc(phone)}?text=${encodeURIComponent(msg)}">💬 Manda su WhatsApp</a>` : ''}
+                <button class="btn btn-sm btn-secondary" onclick="copyToClipboard(${JSON.stringify(msg).replace(/"/g, '&quot;')},'Messaggio copiato')">✍️ Copia messaggio</button>
+                <a class="btn btn-sm btn-secondary" style="text-decoration:none" href="${esc(url)}" target="_blank" rel="noopener">👁 Prova</a>
+              </div>
+              ${!phone ? `<div style="font-size:11.5px;color:var(--text-secondary);margin-top:14px">Nessun telefono in archivio per ${esc(name || 'questo contatto')}: copia il link e mandalo come preferisci.</div>` : ''}
+            </div>
+          </div>
+        </div>`;
+    }
