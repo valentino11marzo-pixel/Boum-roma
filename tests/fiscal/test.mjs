@@ -60,7 +60,17 @@ const q1 = find(co, 'iva_q1_');
 ok('IVA Q1 emitted', !!q1);
 ok('IVA Q1 = 22% of 10000 = 2200', q1.amount === 2200);
 ok('IVA Q1 due 16 May', q1.dueDate === '2025-05-16');
-ok('IVA Q4 due Feb next year', find(co, 'iva_q4_').dueDate === '2026-02-16');
+// Q4 del trimestrale si versa il 16 MARZO dell'anno successivo, con la
+// dichiarazione annuale. Questa riga asseriva il 16 febbraio: un mese di
+// anticipo su una scadenza vera, cioè il bug scritto nei test.
+ok('IVA Q4 due 16 March next year', find(co, 'iva_q4_').dueDate === '2026-03-16');
+// La forma esatta {imponibile, iva} arriva dal registro fatture e NON va
+// ricalcolata: è già scorporata dal lordo e senza le fatture scartate.
+ok('IVA esatta dal registro non viene ri-moltiplicata per 0,22', (() => {
+  const exact = F.companyObligations(2025, { 2: { imponibile: 9561.00, iva: 2103.42 } });
+  const q2 = find(exact, 'iva_q2_');
+  return q2.amount === 2103 && q2.amountIsEstimate === false;
+})());
 ok('IVA Q3 zero revenue → low severity', find(co, 'iva_q3_').severity === 'low');
 ok('LIPE emitted', !!find(co, 'lipe_q1_'));
 ok('CCIAA diritto annuale emitted', !!find(co, 'cciaa_'));

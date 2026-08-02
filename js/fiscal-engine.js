@@ -203,32 +203,51 @@
   // ─── Company (Egidi) obligations from revenue ────────────────────────
   // revenueByQuarter: { 1: amount, 2: ..., 3: ..., 4: ... } net revenue per quarter.
   // Computes VAT (IVA) settlement deadlines + corporate annual deadlines.
+  /* `revenueByQuarter` accetta DUE forme, e la differenza non è cosmetica:
+       • un NUMERO → imponibile del trimestre, l'IVA si stima al 22%;
+       • un OGGETTO {imponibile, iva} → la terna ESATTA già calcolata dal
+         registro fatture (js/invoice-engine.js `revenueByQuarter`), che
+         scorpora dal lordo e ESCLUDE le fatture scartate.
+     La seconda forma è quella giusta e va preferita ovunque ci sia un
+     registro: moltiplicare per 0,22 un importo che è già lordo gonfia
+     l'IVA del 22%, e contare una fattura scartata come emessa aggiunge
+     un'imposta che non è dovuta. Sui dati reali di Egidi i due errori
+     insieme portavano l'IVA 2026 da 2.393,82 a 5.491,62. */
   function companyObligations(fiscalYear, revenueByQuarter) {
     var out = [];
     var y = Number(fiscalYear) || new Date().getFullYear();
     var rev = revenueByQuarter || {};
     // Quarterly VAT (regime trimestrale) payment deadlines.
+    // Q4 si versa il 16 MARZO dell'anno successivo con la dichiarazione
+    // annuale — non il 16 febbraio, che era un mese di anticipo su una
+    // scadenza vera.
     var quarters = [
       { q: 1, due: y + '-05-16' },
       { q: 2, due: y + '-08-20' },
       { q: 3, due: y + '-11-16' },
-      { q: 4, due: (y + 1) + '-02-16' },
+      { q: 4, due: (y + 1) + '-03-16' },
     ];
     quarters.forEach(function (qq) {
-      var net = Number(rev[qq.q]) || 0;
-      // If amounts are gross (IVA inclusa), IVA = gross - gross/1.22. If net, IVA = net*0.22.
-      // We treat the passed figures as NET imponibile → IVA a debito = net * 22% (+1% interessi trimestrale ignored).
-      var iva = net ? Math.round(net * IVA_STANDARD) : 0;
+      var entry = rev[qq.q];
+      var exact = entry && typeof entry === 'object';
+      var net = exact ? (Number(entry.imponibile) || 0) : (Number(entry) || 0);
+      var iva = exact
+        ? Math.round(Number(entry.iva) || 0)
+        : (net ? Math.round(net * IVA_STANDARD) : 0);
       out.push(obl({
         key: 'iva_q' + qq.q + '_' + y,
         label: 'IVA trimestrale Q' + qq.q + ' ' + y,
         category: 'vat', party: 'company',
         dueDate: qq.due,
         amount: iva || null,
-        amountIsEstimate: true,
-        severity: net ? 'high' : 'low',
+        amountIsEstimate: !exact,
+        severity: iva ? 'high' : 'low',
         recurring: true,
-        note: net ? 'IVA 22% su ricavi imponibili Q' + qq.q + ' (' + Math.round(net) + '€)' : 'Nessun ricavo registrato nel trimestre',
+        note: iva
+          ? (exact
+              ? 'IVA su fatture emesse Q' + qq.q + ' (imponibile ' + Math.round(net) + '€, scartate escluse)'
+              : 'IVA 22% su ricavi imponibili Q' + qq.q + ' (' + Math.round(net) + '€)')
+          : 'Nessun ricavo registrato nel trimestre',
       }));
       // LIPE — comunicazione liquidazioni periodiche (end of 2nd month after quarter).
       var lipeMap = { 1: y + '-05-31', 2: y + '-09-30', 3: y + '-11-30', 4: (y + 1) + '-02-28' };
