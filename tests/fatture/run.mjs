@@ -207,6 +207,17 @@ const coda = E.parseInvoiceCsv(fixture('coda.csv'));
   check('TIC: nessuna dicitura competenza quando coincide con l\'anno fattura',
     !/COMPETENZA/.test(E.ticRow(E.normalize({ anno: 2026, dataFattura: '2026-09-15', competenzaAnno: 2026, descrizione: 'X', lordo: 100 }))['Descrizione']));
 
+  // Banca e IBAN li fornisce il chiamante server-side. Se un giorno qualcuno
+  // li "comodizza" dentro il motore finiscono in un bundle JS pubblico, che è
+  // la ragione per cui le coordinate del canone stanno in `payout/` e non in
+  // `settings/`. La regola si asserisce sulla SORGENTE, non sul risultato.
+  check('IBAN: ticRow senza opzioni non stampa coordinate bancarie',
+    row['Banca'] === '' && row['IBAN'] === '');
+  check('IBAN: fornito dal chiamante finisce nell\'export',
+    E.ticRow(inv, { banca: 'Banca Sella', iban: 'IT00X0000000000000000000000' })['IBAN'].startsWith('IT00X'));
+  check('IBAN: nessun IBAN cablato nel motore servito al browser',
+    !/\bIT\d{2}[A-Z]\d{10,}/.test(readFileSync(join(HERE, '../../js/invoice-engine.js'), 'utf8')));
+
   const csv = E.toCsvIt([row], E.TIC_COLUMNS);
   check('CSV: separatore ; e decimale , (Excel italiano)', csv.includes(';') && csv.includes('286,89'));
   check('CSV: BOM UTF-8 per gli accenti', csv.charCodeAt(0) === 0xFEFF);

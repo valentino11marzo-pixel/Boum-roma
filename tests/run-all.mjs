@@ -14,6 +14,7 @@ const SUITES = [
   { name: 'canone',   file: 'tests/fiscal/canone.mjs',    what: 'canone concordato: fasce, cap, superficie convenzionale, verdetto' },
   { name: 'taxpack',  file: 'tests/taxpack/test.mjs',     what: 'pacchetto commercialista' },
   { name: 'fatture',  file: 'tests/fatture/run.mjs',      what: 'registro fatture sui numeri veri: scorporo IVA, stato SDI, numerazione con buchi, coda incassi' },
+  { name: 'fattapi',  file: 'tests/fatture/api.mjs',      what: 'handler /api/fiscal/invoices: import idempotente, progressivi che non collidono, numerata mai cancellabile' },
   { name: 'journey',  file: 'tests/journey/steps.mjs',    what: 'regole commerciali delle email automatiche' },
   { name: 'review',   file: 'tests/journey/review-url.mjs', what: 'link recensione Google' },
   { name: 'dossier',  file: 'tests/dossier/run.mjs',      what: 'fascicolo ARPE: autorizzazione e upload' },

@@ -434,7 +434,8 @@
   var TIC_COLUMNS = [
     'Numero', 'Data', 'Nome', 'Indirizzo', 'Paese', 'P.IVA',
     'Articolo', 'Descrizione', 'Unita', 'Quantita',
-    'Importo unitario', 'Aliquota IVA', 'Modalita pagamento', 'Scadenza', 'Totale',
+    'Importo unitario', 'Aliquota IVA', 'Modalita pagamento', 'Banca', 'IBAN',
+    'Scadenza', 'Totale',
   ];
   function ticRow(inv, opts) {
     var i = inv && inv._raw !== undefined ? inv : normalize(inv);
@@ -457,6 +458,12 @@
       'Importo unitario': numIt(i.imponibile),
       'Aliquota IVA': String(i.aliquota),
       'Modalita pagamento': 'Bonifico',
+      // Banca e IBAN arrivano da chi chiama, non da qui: questo file è
+      // servito al browser e un IBAN in un bundle pubblico è un invito allo
+      // scraping (è la stessa ragione per cui le coordinate del canone
+      // stanno in `payout/` e non in `settings/`, leggibile da chiunque).
+      'Banca': o.banca || '',
+      'IBAN': o.iban || '',
       'Scadenza': fmtIt(i.dataFattura || o.dataFattura),
       'Totale': numIt(i.lordo),
     };
