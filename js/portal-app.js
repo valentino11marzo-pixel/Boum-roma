@@ -16577,10 +16577,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             // Notifications (existing logic preserved)
             if (role === 'landlord' && contract?.tenantId) {
                 await createNotification(contract.tenantId, 'contract', 'Landlord has signed',
-                    'The landlord signed for ' + (property?.name||'') + '. ' + (isComplete ? 'Contract complete!' : 'Your turn to sign.'), {contractId:contractId});
+                    'The landlord signed for ' + (property?.name||'') + '. ' + (isComplete ? 'Contract complete!' : 'Your turn to sign.'), {contractId:contractId, skipEmail:true});
             } else if (role === 'tenant' && property?.ownerId) {
                 await createNotification(property.ownerId, 'contract', 'Tenant has signed',
-                    'The tenant signed for ' + (property?.name||'') + '. ' + (isComplete ? 'Contract complete!' : 'Your turn to sign.'), {contractId:contractId});
+                    'The tenant signed for ' + (property?.name||'') + '. ' + (isComplete ? 'Contract complete!' : 'Your turn to sign.'), {contractId:contractId, skipEmail:true});
             }
             var admins = S.users.filter(function(u){return u.role==='admin';});
             for (var ai=0; ai<admins.length; ai++) {
@@ -16621,9 +16621,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
             await refresh();
 
-            // BOOM PROTOCOL: Auto-activate on complete (calls existing activateContract)
+            // BOOM PROTOCOL: a firma completa NON si attiva più da qui.
+            // activateContract manda welcome (EmailJS) + notifica-email, ma
+            // il server fa già tutto — e siccome questo percorso non scrive
+            // finalizedAt, il watchdog del cron rifaceva welcome + fascicolo
+            // CAF: TRE welcome allo stesso inquilino. Ora si lascia lavorare
+            // il server (finalizeContract entro 15'), che è anche l'unico a
+            // produrre certificato, contratto firmato, pack e marca temporale.
             if (isComplete) {
-                await activateContract(contractId);
+                toast('info', '✓ Firma completa', 'Il server genera certificato, PDF firmato e email (entro 15 min)');
             }
         } catch (err) { toast('error', 'Error', err.message); }
     }
@@ -16715,8 +16721,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             }
             
             // 6. Notify all parties
-            if (tenant) await createNotification(tenant.id, 'contract', '🏠 Benvenuto! Il tuo portale è attivo', `Il contratto per ${property?.name || 'il tuo immobile'} è stato attivato. Accedi al portale per iniziare.`, { contractId });
-            if (landlord) await createNotification(landlord.id, 'contract', '✅ Contratto attivato', `Il contratto per ${property?.name || 'immobile'} con ${tenant?.name || 'inquilino'} è ora attivo. ${payCount} pagamenti generati.`, { contractId });
+            // skipEmail: il benvenuto per email lo manda il SERVER
+            // (sendWelcomeEmails, col contratto firmato e il certificato in
+            // allegato). Qui resta la sola notifica in-app, altrimenti il
+            // cliente riceve due benvenuti diversi a pochi minuti l'uno
+            // dall'altro.
+            if (tenant) await createNotification(tenant.id, 'contract', '🏠 Benvenuto! Il tuo portale è attivo', `Il contratto per ${property?.name || 'il tuo immobile'} è stato attivato. Accedi al portale per iniziare.`, { contractId, skipEmail: true });
+            if (landlord) await createNotification(landlord.id, 'contract', '✅ Contratto attivato', `Il contratto per ${property?.name || 'immobile'} con ${tenant?.name || 'inquilino'} è ora attivo. ${payCount} pagamenti generati.`, { contractId, skipEmail: true });
             
             // 7. Log
             logActivity('★ Contratto attivato automaticamente', 'contract', {
