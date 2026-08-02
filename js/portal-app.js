@@ -21969,6 +21969,20 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 emailBody: (n) => `Ciao ${n},\n\nti inviamo il link per la firma digitale del contratto di locazione per ${prop?.name || 'l\'immobile'}.\nPuoi firmare direttamente dal tuo telefono o computer:\n\n{URL}\n\nGrazie,\nBOOM Roma`
             });
         }
+        // Co-conduttori: link firma DERIVATI (cosignRef server-side via
+        // /api/profile/link) — ciascuno firma nel proprio slot con il SUO link.
+        (schedaLinks && Array.isArray(schedaLinks.cosign) ? schedaLinks.cosign : []).forEach(co => {
+            if (co.signed || !co.url) return;
+            links.push({
+                audience: 'tenant', icon: '🖋️', title: `Firma il contratto — ${co.name}`,
+                subtitle: 'Co-firma Magic Sign — il link personale di questo co-conduttore',
+                url: co.url,
+                target: { name: co.name },
+                waText: (n) => `Hi ${co.name.split(' ')[0]}! Here is your personal link to sign the lease for ${prop?.name || 'the apartment'} — it takes 2 minutes from your phone: {URL}\n\n— BOOM Roma`,
+                emailSubj: `BOOM · Your signature — ${prop?.name || 'lease'}`.trim(),
+                emailBody: () => `Hi ${co.name.split(' ')[0]},\n\nhere is your personal link to sign the lease for ${prop?.name || 'the apartment'} (2 minutes, from your phone):\n\n{URL}\n\nThanks,\nBOOM Roma`
+            });
+        });
         // Tenant: La Scheda (anagrafica universale — sostituisce il vecchio
         // form-tenant, che scriveva anonimo su una collection admin-only e
         // falliva in silenzio per il cliente)
