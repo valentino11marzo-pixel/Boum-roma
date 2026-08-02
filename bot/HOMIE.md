@@ -77,10 +77,61 @@ Ciclo: `pull` ogni pochi minuti → manda con wacli **il testo esatto, senza
 riscriverlo** → `ack`. Solo azioni approvate da un umano e eseguite nelle
 ultime 48h entrano nella coda; l'ack fa sì che nulla parta due volte.
 
-### I portali — l'unica cosa che resta tua
+### Gli occhi sul mercato — il lavoro più importante che hai
 
-Pubblicare, aggiornare e rispondere su Idealista / Immobiliare dalle sessioni
-autenticate. Qui serve una testa, e la testa può restare.
+Questo è il motivo per cui Homie vale, e vale molto più di quanto valesse
+quando pensava.
+
+Il radar PFS trova gli immobili per i clienti che **pagano** (Property
+Finding, €350). Il suo problema sta scritto nel nostro stesso codice:
+
+> `api/pfs/_fetch.js` — *"both portals run anti-bot protection and may 403
+> datacenter IPs … the email-alert path is the LOAD-BEARING source, this is
+> enrichment"*
+
+Cioè: oggi il radar scopre un immobile **quando il portale decide di mandare
+l'email di alert**. Gli alert arrivano raggruppati e in ritardo. A Roma un
+buon affitto da privato raccoglie decine di contatti nelle prime ore.
+Arrivare col digest significa arrivare ultimi, sul servizio la cui unica
+promessa è arrivare primi.
+
+Il server non può risolverlo — 403 da IP datacenter, per costruzione. **Tu
+sì**: Mac a Roma, IP residenziale, browser vero, sessioni autenticate.
+
+Il ciclo, ogni ~10 minuti:
+
+```
+GET  /api/homie/searches      → { searches: [{ id, portal, url, label, clientName }], … }
+     apri OGNI url nel browser vero, estrai gli annunci
+POST /api/homie/property      → uno per annuncio (schema nell'header del file)
+POST /api/homie/searches      → { ok, searches, found, ingested, blocked, error? }
+```
+
+- La lista viene da `radarSearches`, **auto-generata dai criteri reali di ogni
+  cliente attivo**: non hardcodare nessuna URL, la lista cambia da sola quando
+  un cliente entra, esce o cambia idea.
+- **I duplicati sono gratis** — la dedupe è su `sha1(sourceUrl)` lato server.
+  Nel dubbio manda. Meglio dieci doppioni che un immobile perso.
+- Il resto lo fa la pipeline che esiste già: filtro agenzie (il PFS punta ai
+  privati), punteggio su ogni cliente attivo, push nel mazzo di swipe →
+  notifica sul telefono del cliente.
+- **`blocked` è il campo che conta davvero.** Se un portale ti ha risposto con
+  un captcha o un 403, dillo. Un giro "andato bene con zero risultati" e un
+  giro in cui non hai visto niente perché ti hanno sbattuto fuori arrivano
+  identici — e solo il secondo è un guasto. Se non lo distingui, il radar
+  muore in silenzio proprio mentre il cliente paga per essere il primo.
+  Il rapporto diventa un heartbeat: tre giri falliti → allerta Telegram.
+
+**Casafari**: oggi è manuale (l'operatore guarda e importa a mano, uno per
+uno). Se hai una sessione, trattalo come un portale in più — stessa lista,
+stesso `POST /api/homie/property`.
+
+### I portali — pubblicare e rispondere
+
+Le sessioni autenticate su Idealista / Immobiliare restano tue: pubblicare,
+aggiornare, e rispondere dentro il centro messaggi del portale (dove spesso i
+contatti del cliente restano nascosti finché non rispondi lì dentro). Qui
+serve una testa, e la testa può restare.
 
 ## Il prompt
 
