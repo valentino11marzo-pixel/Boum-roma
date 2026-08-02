@@ -1664,10 +1664,49 @@ pages on their loader with no signal at all):
   25s hard watchdog now enters the app shell when user+profile are
   already in hand instead of bouncing an authenticated user to login.
 
+- **La scialuppa scattava sull'indizio sbagliato** (lo spinner infinito che
+  l'operatore vedeva su Safari, agosto 2026). La via d'uscita a 15s di
+  portal.html usciva subito se `window.__portalAppLoaded` era vero — ma quella
+  sentinella è la **RIGA 1** di `portal-app.js`: si accende appena il file è
+  parsato, prima che il boot faccia alcunché. Il watchdog interno dell'app
+  nasce ~2.300 righe più in là, quindi QUALUNQUE eccezione in mezzo spegneva
+  l'unica scialuppa armata e non ne creava nessun'altra: spinner per sempre,
+  senza uscita. Che su WebKit quelle eccezioni esistano non è teoria — i log
+  di `/api/log` ne portano due dai dispositivi dell'operatore
+  (`Can't find variable: Notification`, e un rejection IndexedDB
+  *"Attempt to get records from database without an in-progress transaction"*).
+  Ora il watchdog scatta sul **SINTOMO** (il loader è ancora acceso), mai su un
+  indizio: 15s se l'app non ha ancora armato la sua rete
+  (`window.__portalBootArmed`, stampata subito dopo il watchdog dei 25s), 30s
+  comunque, e un `window.onerror` mentre la rete non è armata accorcia
+  l'attesa a 2,5s. Corretti insieme i difetti che ci arrivavano dentro:
+  `Notification` letta senza guard (iOS non la espone fuori dalle PWA
+  installate), `localStorage` non protetto in `startFirestorePersistence`
+  (Safari privato LANCIA invece di restituire vuoto — `firebase-config.js` lo
+  avvolgeva già, `portal-app.js` no) e `loadChartJS` che rigettava l'Event
+  grezzo senza `.catch()` sul chiamante della dashboard: una CDN lenta
+  produceva un rejection non gestito durante il boot, che in telemetria si
+  legge `Event` e non dice nulla.
+- **`/login`**: `signInWithEmailAndPassword` era atteso senza tetto — su WebKit
+  incastrato il bottone girava all'infinito, senza messaggio. Ora c'è un limite
+  di 20s con un messaggio che indica la via d'uscita; è sicuro perché
+  `onAuthStateChanged` redirige comunque se il login arriva in ritardo. Stesso
+  trattamento alle due letture Firestore di `boom_doc_parser.html` (il `catch`
+  copriva il rifiuto, non il silenzio).
+
 Regression suite: `node tests/safari/boot.mjs` — fakes Firebase and asserts
 that a hung profile read, a mute realtime channel and a normal boot all end
 in a usable page, never a spinner. Needs `playwright-core`
 (`BOOM_PLAYWRIGHT=/path/to/index.js` if it lives outside the project).
+**Copre anche portal.html** — la superficie più grande e l'unica con un boot
+proprio invece di `BoomPortal.requireAuth`, che restava fuori mentre la suite
+dichiarava "nessuna superficie autenticata resta appesa": verde e cieca sulla
+pagina che si piantava davvero. Il caso *"lo script muore dopo la riga 1"*
+riproduce lo spinner infinito e pretende la card di uscita.
+
+**Nota**: `owner-dashboard.html` è oggi una pagina STATICA — non carica
+Firebase né autentica nessuno, malgrado la tabella dei portali qui sopra lo
+descriva come SPA Firestore filtrata per `ownerId`.
 
 **Deal Link** (`/portal#deal=<base64url JSON>`): semina il wizard
 "🚀 Nuovo cliente → contratto firmato" con un deal completo — `{tenant,

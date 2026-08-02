@@ -150,7 +150,14 @@ window.__portalAppLoaded = true; // sentinella per la via d'uscita anti-spinner-
         const ua = (navigator.userAgent || '').toLowerCase();
         const isSafariUA = /^((?!chrome|android|crios|fxios).)*safari/.test(ua);
         const isIOS      = /iphone|ipad|ipod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        if (location.search.includes('nopersist=1') || localStorage.getItem('boom_no_persist') === '1') return;
+        // Safari in navigazione privata / con i cookie bloccati fa LANCIARE
+        // localStorage, non lo restituisce vuoto. js/firebase-config.js lo
+        // avvolge già; qui no, e l'eccezione moriva dentro l'idle callback
+        // lasciando la persistenza spenta senza dirlo. Stesso trattamento.
+        try {
+            if (location.search.includes('nopersist=1')) return;
+            if (localStorage.getItem('boom_no_persist') === '1') return;
+        } catch (e) { return; } // storage negato → niente persistenza, mai un crash
         if (isIOS) return; // iOS Safari + persistence = 3-5s stall, not worth it.
         const opts = isSafariUA ? {} : { synchronizeTabs: true };
         db.enablePersistence(opts).catch(err => {
@@ -2310,7 +2317,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             }
         }
     }, 25000);
-    
+
+    // Da qui in poi il portale ha una rete propria. La shell lo legge per
+    // decidere se la sua scialuppa serve ancora: prima di questo punto un
+    // errore lascerebbe la pagina senza NESSUN guardiano (la sentinella
+    // __portalAppLoaded sta alla riga 1, si accende al parse e non dice nulla
+    // sul fatto che il boot sia davvero partito). Deve restare l'ultima riga
+    // dopo il watchdog, mai spostata più in alto.
+    window.__portalBootArmed = true;
+
     auth.onAuthStateChanged(async u => {
         if (isMagicSign || isIntakeForm) return;
         if (isPostSign) return; // postSign boot handler handles its own auth
@@ -4018,7 +4033,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             default: m.innerHTML = r === 'admin' ? adminDashboard() : r === 'landlord' ? landlordDashboard() : tenantDashboard();
         }
         // Post-render hooks
-        setTimeout(() => loadChartJS().then(() => initDashboardCharts()), 50);
+        // .catch obbligatorio: questo gira DENTRO il render della dashboard,
+        // cioè durante il boot. Senza, una CDN irraggiungibile produce un
+        // rejection non gestito proprio mentre la pagina si apre. I grafici
+        // sono un di più: la dashboard resta perfettamente usabile senza.
+        setTimeout(() => loadChartJS().then(() => initDashboardCharts())
+            .catch((e) => console.warn('[Dashboard] grafici non disponibili:', e.message)), 50);
         if (S.page === 'settings' && isAdmin()) setTimeout(() => loadCAFSettings(), 100);
         // Property Radar — auto-scan stale searches once per session when the page opens.
         if (S.page === 'property-radar' && !window._radarAutoScanned) {
@@ -4047,9 +4067,21 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const s = document.createElement('script');
             s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js';
             s.onload = resolve;
-            s.onerror = reject;
+            // Un Error con un nome, non l'Event grezzo: rigettare l'evento
+            // faceva arrivare in telemetria un "Event" senza stack né origine
+            // (ce n'è uno in produzione da /portal). Ora si sa QUALE script.
+            s.onerror = () => reject(new Error('Chart.js load failed'));
+            // Una CDN che non risponde non deve tenere il portale in ostaggio:
+            // senza tetto la promise resta pendente per sempre e il grafico non
+            // arriva né riesce a fallire.
+            setTimeout(() => reject(new Error('Chart.js load timeout')), 15000);
             document.head.appendChild(s);
         });
+        // Un fallimento non deve restare un rejection non gestito: il ramo
+        // .catch qui sotto lo assorbe e permette di RIPROVARE alla prossima
+        // apertura (senza azzerare, il portale ricorderebbe per sempre la
+        // promise fallita e i grafici non tornerebbero più).
+        window._chartJSLoading.catch(() => { window._chartJSLoading = null; });
         return window._chartJSLoading;
     }
 
@@ -28060,6 +28092,12 @@ ${d.description || '-'}`;
     }
     
     function sendBrowserNotification(title, body) {
+        // iOS/WebKit non espone Notification fuori dalle PWA installate: leggere
+        // .permission lì è un ReferenceError, non un "false". Ne abbiamo uno
+        // registrato in produzione da iPhone (portal-app.js, settingsPage) —
+        // stesso errore, altro punto: qui basta a rompere il render di una
+        // pagina, perché chiamata dal listener realtime delle notifiche.
+        if (typeof Notification === 'undefined') return;
         if (Notification.permission === 'granted' && document.hidden) {
             new Notification(title, { body, icon: COMPANY.logo });
         }
