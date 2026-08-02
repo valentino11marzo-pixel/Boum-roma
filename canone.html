@@ -150,6 +150,10 @@
   .saving .k{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--green);font-weight:600}
   .saving .v{font-size:26px;font-weight:700;color:var(--green);margin:4px 0 2px}
   .saving .d{font-size:12px;color:var(--text-secondary)}
+  .btn-pack{display:block;text-align:center;background:var(--gold);color:#000;border-radius:12px;
+    font-weight:700;font-size:14.5px;letter-spacing:.3px;padding:14px;margin-top:14px;transition:.2s}
+  .btn-pack:hover{transform:translateY(-1px);box-shadow:0 10px 30px rgba(212,175,55,.35)}
+  .pack-sub{font-size:11.5px;color:var(--text-dim);text-align:center;margin-top:8px}
   .disclaimer{font-size:11px;color:var(--text-dim);line-height:1.5;margin-top:18px;border-top:1px solid var(--border-soft);padding-top:14px}
   .empty{color:var(--text-dim);text-align:center;padding:50px 10px;font-size:14px}
 
@@ -312,6 +316,9 @@
           <div class="d">all'anno con la cedolare secca al 10% invece del 21%, + IMU ridotta del 25%</div>
         </div>
 
+        <a class="btn-pack" id="rPack" href="/pacchetto-concordato">Mettiti in regola — Pacchetto €349 →</a>
+        <div class="pack-sub">contratto + attestazione + registrazione RLI, fatti da BOOM · rimborso se non rientri in fascia</div>
+
         <p class="disclaimer">Stima basata sull'Accordo Territoriale del Comune di Roma (2023) e sui coefficienti di superficie convenzionale. Il canone definitivo dipende dalla classificazione esatta dell'immobile e, per i contratti non assistiti, richiede l'<b>attestazione/asseverazione</b> di un'organizzazione firmataria. BOOM la gestisce per te.</p>
       </div>
     </div>
@@ -321,7 +328,7 @@
   <div class="lead" id="leadCard">
     <div class="lead-form-wrap" id="leadFormWrap">
       <h2>Vuoi il <b>calcolo certificato</b> e l'asseverazione?</h2>
-      <p class="l-sub">BOOM ti prepara il contratto a canone concordato, l'attestazione CAF e — se vuoi — gestisce l'affitto al posto tuo. Lascia i tuoi dati: ti ricontattiamo entro 24 ore con il calcolo ufficiale.</p>
+      <p class="l-sub">BOOM ti prepara il contratto a canone concordato, l'attestazione CAF e — se vuoi — gestisce l'affitto al posto tuo. Lascia i tuoi dati: ti ricontattiamo entro 24 ore con il calcolo ufficiale. Oppure fai da subito sul serio: il <a href="/pacchetto-concordato" style="color:var(--gold);text-decoration:underline">Pacchetto Concordato (€349)</a> — contratto, attestazione e registrazione fatti da noi.</p>
       <form class="lead-grid" id="leadForm" onsubmit="return submitLead(event)">
         <input type="text" id="lf_company" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
         <input type="text" id="lf_name" placeholder="Nome e cognome" required>
@@ -364,7 +371,7 @@
 <footer>
   <div class="wrap">
     <div class="fnav">
-      <a href="/">Home</a><a href="/apartments">Appartamenti</a><a href="/owners">Proprietari</a>
+      <a href="/">Home</a><a href="/pacchetto-concordato">Pacchetto Concordato</a><a href="/apartments">Appartamenti</a><a href="/owners">Proprietari</a>
       <a href="/blog">Blog</a><a href="/privacy">Privacy</a>
     </div>
     BOOM Rome · Gestione affitti premium a Roma · <a href="https://www.boomrome.com">boomrome.com</a>
@@ -559,6 +566,10 @@ function recalc(){
     cedolare10: Math.round(annuo*0.10), risparmioAnnuo: Math.round(annuo*0.11),
     rangeMin: Math.round(cMin), rangeMax: Math.round(cMax)
   };
+
+  const pk = document.getElementById('rPack');
+  if (pk) pk.href = '/pacchetto-concordato?zona=' + encodeURIComponent(z[1]) +
+    '&mq=' + sc.calp + '&canone=' + Math.round(mensile) + '&risparmio=' + Math.round(annuo*0.11);
 }
 
 async function submitLead(e){

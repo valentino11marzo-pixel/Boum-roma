@@ -32,6 +32,20 @@ export const CATALOG = {
     desc: 'A written traffic-light verdict on your rental contract within 24 hours: what is fine, what is unfair, what is missing. Credited in full if you upgrade to Deal Assistance.',
     cancel: '/contract-check-express',
   },
+  'remote-move-pack': {
+    eur: 299,
+    label: 'Remote Move Pack — close from abroad',
+    desc: 'Two live video viewings, clause-by-clause contract review in English, negotiation and arrival setup — everything you need to rent in Rome before you land. Credited toward your agency fee if you rent a BOOM home.',
+    cancel: '/remote-move-pack',
+  },
+  // Landlord-side (Italian audience) — sold from /pacchetto-concordato,
+  // fed by the free /canone calculator.
+  'concordato-pack': {
+    eur: 349,
+    label: 'Pacchetto Canone Concordato — chiavi in mano',
+    desc: 'Verifica ufficiale del canone, contratto conforme all\'Accordo di Roma, attestazione di rispondenza gestita e registrazione RLI. Rimborso integrale se il tuo immobile non può rientrare in fascia.',
+    cancel: '/pacchetto-concordato',
+  },
   // Tenant-journey concierge products.
   'movein-pack': {
     eur: 149,
