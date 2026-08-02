@@ -387,6 +387,9 @@
         ph_code:'Code', ph_num:'Mobile number', ph_send:'Send code',
         ph_skip_note:'No SMS? You can skip this step — your signature stays fully valid.',
         otp_t:'Enter the code', otp_sent:'Sent to', otp_verify:'Verify',
+        otp_fail:'We couldn’t send the code to this number — you can tap “Skip for now” and sign anyway.',
+        otp_many:'Too many attempts. Wait a few minutes, or tap “Skip for now” and sign anyway.',
+        otp_bad:'That number doesn’t look valid — check the country code, or tap “Skip for now”.',
         sig_t:'Sign your contract', sig_d:'Draw your signature in the box below.',
         sig_here:'Sign here', sig_undo:'Undo', sig_clear:'Clear', sig_go:'Sign contract',
         consent:'I confirm my identity and accept all lease terms. This digital signature is legally valid <b>(FES — Art. 21 CAD)</b>.',
@@ -416,6 +419,9 @@
         ph_code:'Prefisso', ph_num:'Numero di cellulare', ph_send:'Invia il codice',
         ph_skip_note:'Nessun SMS? Può saltare questo passaggio — la firma resta pienamente valida.',
         otp_t:'Inserisca il codice', otp_sent:'Inviato a', otp_verify:'Verifica',
+        otp_fail:'Non siamo riusciti a inviare il codice a questo numero — può premere “Salta per ora” e firmare comunque.',
+        otp_many:'Troppi tentativi. Attenda qualche minuto, oppure prema “Salta per ora” e firmi comunque.',
+        otp_bad:'Il numero non sembra valido — controlli il prefisso internazionale, oppure prema “Salta per ora”.',
         sig_t:'Firmi il contratto', sig_d:'Tracci la firma nel riquadro qui sotto.',
         sig_here:'Firmi qui', sig_undo:'Annulla', sig_clear:'Cancella', sig_go:'Firma il contratto',
         consent:'Confermo la mia identità e accetto tutti i termini del contratto di locazione. Questa firma digitale è legalmente valida <b>(FES — art. 21 CAD)</b>.',
@@ -673,15 +679,27 @@
     function renderPhone(){
       setProgress(3); S.step=3; S.view=renderPhone;
       var s=S.data.signer||{};
-      var pre=(s.phone&&/^\+/.test(s.phone))? '' : '+39';
+      // Separazione prefisso/numero robusta: i country code sono a 1-3 cifre
+      // e non si deducono a occhio — questa lista copre i paesi dei clienti
+      // BOOM; qualunque altro prefisso resta digitabile a mano.
+      var CC=['+39','+33','+44','+49','+34','+31','+32','+41','+43','+351','+353','+45','+46','+47','+358','+48','+30','+40','+420','+36','+1','+61','+81','+86','+91','+7','+971','+972','+55','+52','+27','+212','+216','+20'];
+      var raw=String(s.phone||'').replace(/[^\d+]/g,'');
+      var pre='+39', num=raw;
+      if(raw.charAt(0)==='+'){
+        var hit=CC.filter(function(c){ return raw.indexOf(c)===0; }).sort(function(a,b){ return b.length-a.length; })[0];
+        if(hit){ pre=hit; num=raw.slice(hit.length); }
+        else { var m=/^(\+\d{1,3})(\d+)$/.exec(raw); if(m){ pre=m[1]; num=m[2]; } else { pre='+39'; num=raw.replace(/\D/g,''); } }
+      } else { num=raw.replace(/\D/g,''); }
+      var ccOpts=CC.concat(CC.indexOf(pre)<0?[pre]:[]).map(function(c){
+        return '<option value="'+c+'"'+(c===pre?' selected':'')+'>'+c+'</option>'; }).join('');
       FLOW.innerHTML='';
       FLOW.appendChild(el(
         '<div class="step" id="otp-send">'+
           '<h1 class="t">'+t('ph_t')+'</h1>'+
           '<p class="sub">'+t('ph_d')+'</p>'+
           '<div class="row2" style="grid-template-columns:84px 1fr">'+
-            '<div class="field"><label>'+t('ph_code')+'</label><input class="inp" id="o-pre" value="'+pre+'" style="text-align:center"></div>'+
-            '<div class="field"><label>'+t('ph_num')+'</label><input class="inp" id="o-num" type="tel" inputmode="tel" value="'+esc((s.phone||'').replace(/^\+39/,''))+'" placeholder="333 123 4567"></div>'+
+            '<div class="field"><label>'+t('ph_code')+'</label><select class="inp" id="o-pre" style="text-align:center">'+ccOpts+'</select></div>'+
+            '<div class="field"><label>'+t('ph_num')+'</label><input class="inp" id="o-num" type="tel" inputmode="tel" value="'+esc(num)+'" placeholder="6 12 34 56 78"></div>'+
           '</div>'+
           '<button class="btn" id="o-send">'+t('ph_send')+'</button>'+
           '<div class="btnrow" style="margin-top:10px"><button class="btn ghost" id="o-back">'+t('b_back')+'</button><button class="btn ghost" id="o-skip">'+t('b_skip')+'</button></div>'+
@@ -723,9 +741,9 @@
     }
     function otpError(btn){ return function(err){
       btn.disabled=false; btn.textContent='Send code';
-      var m='Couldn’t send the code. Check the number and try again.';
-      if(err&&err.code==='auth/too-many-requests') m='Too many attempts. Please wait a few minutes and try again.';
-      else if(err&&err.code==='auth/invalid-phone-number') m='That phone number doesn’t look valid.';
+      var m=t('otp_fail');
+      if(err&&err.code==='auth/too-many-requests') m=t('otp_many');
+      else if(err&&err.code==='auth/invalid-phone-number') m=t('otp_bad');
       flash(m);
     };}
     function renderOtpVerify(phone){
