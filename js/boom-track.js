@@ -4,8 +4,9 @@
        <script defer src="/js/boom-track.js"></script>
 
    - First-touch source attribution (UTM → referrer → direct), persisted.
-   - Stamps the source into every <form> (web3forms emails carry it) and into
-     the WhatsApp prefill ("… (ref: instagram)") so every lead self-reports.
+   - Stamps the source into every <form> (it rides into the lead via
+     /api/leads/web raw.extra) and into the WhatsApp prefill
+     ("… (ref: instagram)") so every lead self-reports where it came from.
    - GA4 events: whatsapp_click · begin_checkout · cta_intent · generate_lead
      (all carry source_channel) + context-aware bilingual WhatsApp prefill.
    - Defensive: no-ops if gtag absent; never blocks navigation.
@@ -61,7 +62,8 @@
     return o;
   }
 
-  // ── Stamp the source into every form (web3forms/email leads carry it) ────
+  // ── Stamp the source into every form: gli handler mandano tutto il
+  //    FormData all'endpoint, quindi l'attribuzione finisce sul lead ────
   [].forEach.call(document.querySelectorAll('form'), function (f) {
     if (f.querySelector('input[name="boom_source"]')) return;
     var add = function (n, v) { var i = document.createElement('input'); i.type = 'hidden'; i.name = n; i.value = v; f.appendChild(i); };
