@@ -38,6 +38,7 @@ const SUITES = [
   { name: 'whatsapp', file: 'tests/whatsapp/run.mjs',     what: 'WhatsApp → lead senza AI: rumore fuori, persona vera dentro, un lead per persona' },
   { name: 'sell',     file: 'tests/sell/run.mjs',         what: 'Il Link che Vende: la firma sblocca il catalogo, il link nudo resta ai due sicuri, e un servizio ambiguo non si indovina' },
   { name: 'referral', file: 'tests/referral/run.mjs',     what: 'Il referral che vale: la segnalazione diventa un lead vero con dentro chi l\'ha mandata, e un amico irraggiungibile non entra' },
+  { name: 'growth',   file: 'tests/growth/run.mjs',       what: 'I due canali gratuiti: università e aziende entrano in pipeline col loro codice, e la recensione si chiede solo a chi ha già le chiavi' },
   { name: 'verbale',  file: 'tests/verbale/run.mjs',      what: 'verbale consegna chiavi: PDF vero in allegato alle parti, owner solo sui propri immobili, firme mai persistite come dataURI' },
   { name: 'signlang', file: 'tests/sign/lang.mjs',        what: 'la pagina di firma parla la lingua di chi firma' },
   { name: 'safari',   file: 'tests/safari/boot.mjs',      what: 'nessuna pagina autenticata resta appesa' },
