@@ -38,7 +38,11 @@ service cloud.firestore {
 
     // ─── PUBLIC CATALOG — read open to all, writes admin-only ─────────
     match /listings/{x}  { allow read: if true; allow write: if isAdmin(); }
-    match /settings/{x}  { allow read: if true; allow write: if isAdmin(); }
+    // settings è pubblico (il sito legge config di pagina), MA il doc
+    // `company` porta IBAN e dati bancari: la stessa ragione per cui
+    // /payout esiste separato. Chi è autenticato (portal, /casa) lo
+    // legge; l'API anonima no. (Audit 2026-08, S2.)
+    match /settings/{x}  { allow read: if x != 'company' || request.auth != null; allow write: if isAdmin(); }
     // Coordinate per il bonifico del canone. NON in /settings, che è
     // leggibile da chiunque via API: un IBAN esposto così invita scraping.
     // L'inquilino che deve pagare è comunque autenticato.

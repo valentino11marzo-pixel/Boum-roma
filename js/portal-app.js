@@ -195,32 +195,17 @@ window.__portalAppLoaded = true; // sentinella per la via d'uscita anti-spinner-
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // EMAILJS CONFIGURATION — Update with your credentials from emailjs.com
+    // EMAIL — le email del portal partono dal SERVER (/api/notify/send).
+    // EmailJS browser-side è stato ritirato (audit 2026-08, D1): l'SDK non
+    // viene più caricato né inizializzato. EMAILJS_CONFIG.templates resta
+    // solo come etichetta di log per sendBoomEmail.
     // ═══════════════════════════════════════════════════════════════════════════
     const EMAILJS_CONFIG = {
-        publicKey: 'dnMxbtS2qDm_o7SHE',       // emailjs.com → Account → API Keys
-        serviceId: 'service_74n80th',       // emailjs.com → Email Services
         templates: {
             signatureRequest: 'boom_signature_request',
             notification: 'boom_notification'
         }
     };
-    // Initialize EmailJS
-    // EmailJS is loaded with `defer`, so it isn't available at parse-time. Init
-    // immediately if already loaded, otherwise wait for DOMContentLoaded — by
-    // then deferred scripts have run. Guarded so we init exactly once.
-    (function initEmailJsWhenReady() {
-        function tryInit() {
-            if (window.__emailjsInited) return true;
-            if (typeof emailjs === 'undefined') return false;
-            try { emailjs.init(EMAILJS_CONFIG.publicKey); window.__emailjsInited = true; return true; }
-            catch (e) { console.warn('EmailJS init failed:', e.message); return false; }
-        }
-        if (!tryInit()) {
-            document.addEventListener('DOMContentLoaded', tryInit, { once: true });
-            window.addEventListener('load', tryInit, { once: true });
-        }
-    })();
 
     // ═══════════════════════════════════════════════════════════════════════════
     // STRIPE CONFIGURATION - Update these values!
@@ -2615,18 +2600,30 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     function cacheData() {
-        try {
-            localStorage.setItem('boom_data_cache', JSON.stringify({
-                timestamp: Date.now(),
-                uid: S.profile?.id,
-                role: S.profile?.role,
-                data: {
-                    users: S.users, properties: S.properties, contracts: S.contracts,
-                    payments: S.payments, maintenance: S.maintenance, clients: S.clients,
-                    documents: S.documents, invoices: S.invoices, rules: S.rules, ruleExecutions: S.ruleExecutions
-                }
-            }));
-        } catch (e) { console.log('Cache save failed:', e.message); }
+        // La cache copriva 10 collezioni su 22: al boot da cache la sidebar
+        // partiva coi badge a ZERO (lead, visite, scadenze…) finché il lazy
+        // load non finiva (audit 2026-08, I2). Ora copre tutto lo stato, e la
+        // serializzazione (potenzialmente MB) gira in idle, mai sul percorso
+        // critico del main thread.
+        const snapshot = () => {
+            try {
+                localStorage.setItem('boom_data_cache', JSON.stringify({
+                    timestamp: Date.now(),
+                    uid: S.profile?.id,
+                    role: S.profile?.role,
+                    data: {
+                        users: S.users, properties: S.properties, contracts: S.contracts,
+                        payments: S.payments, maintenance: S.maintenance, clients: S.clients,
+                        documents: S.documents, invoices: S.invoices, rules: S.rules, ruleExecutions: S.ruleExecutions,
+                        listings: S.listings, leads: S.leads, deadlines: S.deadlines, tasks: S.tasks,
+                        pfsClients: S.pfsClients, pfsProperties: S.pfsProperties, landlords: S.landlords,
+                        viewingRequests: S.viewingRequests, conversations: S.conversations
+                    }
+                }));
+            } catch (e) { console.log('Cache save failed:', e.message); }
+        };
+        if (typeof requestIdleCallback === 'function') requestIdleCallback(snapshot, { timeout: 4000 });
+        else setTimeout(snapshot, 300);
     }
 
     async function loadDataFresh(silent) {
@@ -2649,29 +2646,34 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             // le query su un unico canale, quindi serializzare non proteggeva
             // nulla e costava ~2 round-trip extra a ogni boot admin.
             console.log('Loading core data...');
+            // Tetti sulle query (audit 2026-08, I1): 9 su 10 erano .get() nudi —
+            // collezioni INTERE a ogni boot, per sempre. I limiti sono guardrail
+            // larghi (oggi non tagliano nulla), NON orderBy+limit: un orderBy su
+            // un campo che i doc legacy non hanno li NASCONDEREBBE in silenzio.
             const [users, props, contracts, payments, maint, clients, docs, invoices, rules, ruleExecs] = await Promise.all([
-                db.collection('users').get(),
-                db.collection('properties').get(),
-                db.collection('contracts').get(),
-                db.collection('payments').get(),
-                db.collection('maintenance').get(),
-                db.collection('clients').get(),
-                db.collection('documents').get(),
-                db.collection('invoices').get(),
-                db.collection('rules').get(),
+                db.collection('users').limit(800).get(),
+                db.collection('properties').limit(400).get(),
+                db.collection('contracts').limit(800).get(),
+                db.collection('payments').limit(3000).get(),
+                db.collection('maintenance').limit(600).get(),
+                db.collection('clients').limit(1200).get(),
+                db.collection('documents').limit(1500).get(),
+                db.collection('invoices').limit(1200).get(),
+                db.collection('rules').limit(200).get(),
                 db.collection('ruleExecutions').orderBy('executedAt', 'desc').limit(50).get()
             ]);
             S.users = users.docs.map(d => ({ id: d.id, ...d.data() }));
             S.properties = props.docs.map(d => ({ id: d.id, ...d.data() }));
             S.contracts = contracts.docs.map(d => ({ id: d.id, ...d.data() }));
             S.payments = payments.docs.map(d => ({ id: d.id, ...d.data() }));
-            // Auto-mark overdue payments
+            // Rate scadute: flip SOLO in memoria. Prima ogni boot faceva una
+            // update() Firestore per ogni rata scaduta (N scritture a ogni
+            // apertura, per sempre — audit 2026-08). Nessun consumatore
+            // richiede lo stato persistito: il server calcola dal dueDate e la
+            // riconciliazione banca accetta pending e overdue allo stesso modo.
             var today = new Date().toISOString().split('T')[0];
             S.payments.forEach(function(p) {
-                if (p.status === 'pending' && p.dueDate && p.dueDate < today) {
-                    p.status = 'overdue';
-                    db.collection('payments').doc(p.id).update({ status: 'overdue' }).catch(function(e) { console.warn('Overdue update:', e); });
-                }
+                if (p.status === 'pending' && p.dueDate && p.dueDate < today) p.status = 'overdue';
             });
             S.maintenance = maint.docs.map(d => ({ id: d.id, ...d.data() }));
             S.clients = clients.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -2684,70 +2686,64 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             // Cache core data (tagged with uid + role for shared-device safety)
             cacheData();
             
-            // LAZY LOAD: Non-critical data (load after app is shown)
+            // LAZY LOAD: dati non-critici, dopo che l'app è visibile.
+            // I 6 gruppi erano SEQUENZIALI (ogni try await-ava il precedente):
+            // 6 round-trip in fila = 1,5-3s di sola latenza su mobile. Ora
+            // partono INSIEME; ogni gruppo tiene il proprio catch, quindi un
+            // gruppo che fallisce non tocca gli altri (audit 2026-08, I1).
             setTimeout(async () => {
-                try {
-                    // Listings
-                    const listings = await db.collection('listings').get();
-                    S.listings = listings.docs.map(d => ({ id: d.id, ...d.data() }));
-                } catch (e) { S.listings = []; }
-                
-                try {
-                    // Incoming leads from Homie auto-responder
-                    const leads = await db.collection('leads').orderBy('createdAt', 'desc').limit(100).get();
-                    S.leads = leads.docs.map(d => ({ id: d.id, ...d.data() }));
-                } catch (e) { S.leads = []; }
-                
-                try {
-                    // Activity audit log
-                    const actLog = await db.collection('activityLog').orderBy('timestamp', 'desc').limit(200).get();
-                    S.activityLog = actLog.docs.map(d => ({ id: d.id, ...d.data() }));
-                } catch (e) { S.activityLog = []; }
-                
-                try {
-                    // Command Center
-                    const [deadlines, tasks] = await Promise.all([
-                        db.collection('deadlines').get(),
-                        db.collection('tasks').get()
-                    ]);
-                    S.deadlines = deadlines.docs.map(d => ({ id: d.id, ...d.data() }));
-                    S.tasks = tasks.docs.map(d => ({ id: d.id, ...d.data() }));
-                } catch (e) { S.deadlines = []; S.tasks = []; console.error('Deadlines/tasks load:', e); toast('error', 'Errore caricamento scadenze'); }
-                
-                try {
-                    // PFS Pipeline
-                    const [pfsClients, pfsProperties, pfsActivities, landlords] = await Promise.all([
-                        db.collection('pfsClients').get(),
-                        db.collection('pfsProperties').get(),
-                        db.collection('pfsActivities').orderBy('timestamp', 'desc').limit(100).get(),
-                        db.collection('landlords').get()
-                    ]);
-                    S.pfsClients = pfsClients.docs.map(d => ({ id: d.id, ...d.data() }));
-                    S.pfsProperties = pfsProperties.docs.map(d => ({ id: d.id, ...d.data() }));
-                    S.pfsActivities = pfsActivities.docs.map(d => ({ id: d.id, ...d.data() }));
-                    S.landlords = landlords.docs.map(d => ({ id: d.id, ...d.data() }));
-                } catch (e) { 
-                    S.pfsClients = []; S.pfsProperties = []; S.pfsActivities = []; S.landlords = [];
-                }
-                
-                try {
-                    // Viewing Requests
-                    const vr = await db.collection('viewingRequests').orderBy('createdAt', 'desc').limit(100).get();
-                    S.viewingRequests = vr.docs.map(d => ({ id: d.id, ...d.data() }));
-                } catch (e) { S.viewingRequests = []; }
-
-                try {
-                    // Inbox: conversations + recent messages
-                    const [convs, msgs] = await Promise.all([
-                        db.collection('conversations').orderBy('lastMessageAt', 'desc').limit(200).get(),
-                        db.collection('messages').orderBy('at', 'desc').limit(500).get()
-                    ]);
-                    S.conversations = convs.docs.map(d => ({ id: d.id, ...d.data() }));
-                    S.messages = msgs.docs.map(d => ({ id: d.id, ...d.data() }));
-                } catch (e) { S.conversations = []; S.messages = []; console.warn('Inbox load:', e.message); }
+                const rows = (snap) => snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                await Promise.all([
+                    (async () => {
+                        try { S.listings = rows(await db.collection('listings').limit(400).get()); }
+                        catch (e) { S.listings = []; }
+                    })(),
+                    (async () => {
+                        try { S.leads = rows(await db.collection('leads').orderBy('createdAt', 'desc').limit(100).get()); }
+                        catch (e) { S.leads = []; }
+                    })(),
+                    (async () => {
+                        try { S.activityLog = rows(await db.collection('activityLog').orderBy('timestamp', 'desc').limit(200).get()); }
+                        catch (e) { S.activityLog = []; }
+                    })(),
+                    (async () => {
+                        try {
+                            const [deadlines, tasks] = await Promise.all([
+                                db.collection('deadlines').limit(1500).get(),
+                                db.collection('tasks').limit(800).get()
+                            ]);
+                            S.deadlines = rows(deadlines); S.tasks = rows(tasks);
+                        } catch (e) { S.deadlines = []; S.tasks = []; console.error('Deadlines/tasks load:', e); toast('error', 'Errore caricamento scadenze'); }
+                    })(),
+                    (async () => {
+                        try {
+                            const [pfsClients, pfsProperties, pfsActivities, landlords] = await Promise.all([
+                                db.collection('pfsClients').limit(500).get(),
+                                db.collection('pfsProperties').limit(1500).get(),
+                                db.collection('pfsActivities').orderBy('timestamp', 'desc').limit(100).get(),
+                                db.collection('landlords').limit(500).get()
+                            ]);
+                            S.pfsClients = rows(pfsClients); S.pfsProperties = rows(pfsProperties);
+                            S.pfsActivities = rows(pfsActivities); S.landlords = rows(landlords);
+                        } catch (e) { S.pfsClients = []; S.pfsProperties = []; S.pfsActivities = []; S.landlords = []; }
+                    })(),
+                    (async () => {
+                        try { S.viewingRequests = rows(await db.collection('viewingRequests').orderBy('createdAt', 'desc').limit(100).get()); }
+                        catch (e) { S.viewingRequests = []; }
+                    })(),
+                    (async () => {
+                        try {
+                            const [convs, msgs] = await Promise.all([
+                                db.collection('conversations').orderBy('lastMessageAt', 'desc').limit(200).get(),
+                                db.collection('messages').orderBy('at', 'desc').limit(500).get()
+                            ]);
+                            S.conversations = rows(convs); S.messages = rows(msgs);
+                        } catch (e) { S.conversations = []; S.messages = []; console.warn('Inbox load:', e.message); }
+                    })(),
+                ]);
 
                 console.log('Lazy data loaded:', (performance.now() - startTime).toFixed(0), 'ms total');
-                // Update UI if needed
+                cacheData(); // ora la cache copre ANCHE i dati lazy: i badge partono giusti
                 if (S.page === 'command' || S.page === 'pfs-pipeline' || S.page === 'leads' || S.page === 'dashboard' || S.page === 'viewings' || S.page === 'inbox') renderPage();
                 buildNav();
             }, isSafariDesktop ? 1500 : 500);
@@ -2923,9 +2919,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // or landlord) writes to Firestore, but the admin's local copy used to stay stale
     // until cache expiry/reload, so "Contratti da Firmare" never cleared. Keep it live.
     function startContractsListener() {
-        if (!S.profile?.id) return;
+        // Solo admin: per landlord/tenant una query non filtrata viene comunque
+        // rifiutata dalle rules (errore + retry a vuoto, audit 2026-08). Il
+        // limit è il guardrail gemello di quello del boot — senza, lo snapshot
+        // iniziale riscaricava la collezione INTERA una seconda volta.
+        if (!S.profile?.id || !isAdmin()) return;
         if (S.contractsListener) S.contractsListener();
-        S.contractsListener = db.collection('contracts')
+        S.contractsListener = db.collection('contracts').limit(800)
             .onSnapshot(snapshot => {
                 S.contracts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 checkAlerts();
@@ -2992,7 +2992,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (!S.profile?.id || !isAdmin()) return;
         if (S.maintenanceListener) S.maintenanceListener();
         S._maintSeen = new Set((S.maintenance || []).map(m => m.id));
-        S.maintenanceListener = db.collection('maintenance')
+        S.maintenanceListener = db.collection('maintenance').limit(600)
             .onSnapshot(snapshot => {
                 S.maintenance = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 const active = m => m.status !== 'resolved' && m.status !== 'closed' && m.status !== 'done';
@@ -3835,6 +3835,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <span>🔍</span>
                     <input type="text" placeholder="Cerca clienti, immobili, documenti..." onkeyup="handleSearch(this.value)" id="globalSearch">
                 </div>`;
+            document.getElementById('mobileSearchBtn')?.removeAttribute('hidden');
         }
         
         buildNav();
@@ -3901,7 +3902,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="nav-item ${S.page==='innesto'?'active':''}" onclick="goTo('innesto')"><span class="nav-icon">🌱</span> Innesto <span class="nav-badge gold">AI</span></div>
                     <div class="nav-item ${S.page==='bonifica'?'active':''}" onclick="goTo('bonifica')"><span class="nav-icon">🧹</span> Bonifica</div>
                 </div>
+                <div class="nav-section"><div class="nav-label">Console</div>
+                    <div class="nav-item" onclick="window.open('/team','_blank')"><span class="nav-icon">🤖</span> La Squadra</div>
+                    <div class="nav-item" onclick="window.open('/banca','_blank')"><span class="nav-icon">🏦</span> Banca &amp; Fisco</div>
+                    <div class="nav-item" onclick="window.open('/pfs-command','_blank')"><span class="nav-icon">🛰️</span> PFS Command</div>
+                    <div class="nav-item" onclick="window.open('/photo-lab','_blank')"><span class="nav-icon">🎞️</span> Photo Lab</div>
+                    <div class="nav-item" onclick="window.open('/manuale','_blank')"><span class="nav-icon">🏠</span> Manuale Casa</div>
+                    <div class="nav-item" onclick="window.open('/salute','_blank')"><span class="nav-icon">🩺</span> Salute Sistema</div>
+                </div>
                 <div class="nav-section"><div class="nav-label">Sistema</div>
+                    <div class="nav-item ${S.page==='rules'?'active':''}" onclick="goTo('rules')"><span class="nav-icon">⚡</span> Regole &amp; Automazioni</div>
                     <div class="nav-item ${S.page==='users'?'active':''}" onclick="goTo('users')"><span class="nav-icon">👤</span> Utenti</div>
                     <div class="nav-item ${S.page==='activity-log'?'active':''}" onclick="goTo('activity-log')"><span class="nav-icon">📋</span> Activity Log</div>
                 </div>
@@ -4037,7 +4047,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // cioè durante il boot. Senza, una CDN irraggiungibile produce un
         // rejection non gestito proprio mentre la pagina si apre. I grafici
         // sono un di più: la dashboard resta perfettamente usabile senza.
-        setTimeout(() => loadChartJS().then(() => initDashboardCharts())
+        // SOLO sulle pagine coi canvas: prima Chart.js veniva iniettato da
+        // cdnjs a OGNI renderPage — un handshake TLS extra anche su pagine
+        // senza un solo grafico (audit 2026-08, I4).
+        const wantsCharts = S.page === 'dashboard' || !S.page; // market-intel si carica Chart.js da sé
+        if (wantsCharts) setTimeout(() => loadChartJS().then(() => initDashboardCharts())
             .catch((e) => console.warn('[Dashboard] grafici non disponibili:', e.message)), 50);
         if (S.page === 'settings' && isAdmin()) setTimeout(() => loadCAFSettings(), 100);
         // Property Radar — auto-scan stale searches once per session when the page opens.
@@ -14155,8 +14169,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // ═══════════════════════════════════════════════════════════════════════════
     // MODALS
     // ═══════════════════════════════════════════════════════════════════════════
-    function openModal(type, data) { 
-        document.getElementById('modals').innerHTML = getModal(type, data); 
+    function openModal(type, data) {
+        document.body.classList.add('modal-open'); // iOS: blocca lo scroll della pagina dietro
+        document.getElementById('modals').innerHTML = getModal(type, data);
         setTimeout(() => {
             document.querySelector('.modal-overlay')?.classList.add('active');
             // Initialize image upload for listing modals
@@ -14169,7 +14184,18 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             }
         }, 10); 
     }
-    function closeModal() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active')); setTimeout(() => { document.getElementById('modals').innerHTML = ''; selectedFile = null; listingImageUrl = ''; }, 200); }
+    function closeModal() { document.body.classList.remove('modal-open'); document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active')); setTimeout(() => { document.getElementById('modals').innerHTML = ''; selectedFile = null; listingImageUrl = ''; }, 200); }
+
+    // La search globale su mobile: l'header-center è display:none ≤800px —
+    // il bottone 🔍 la riapre come overlay sotto l'header (stessa input,
+    // stesso handleSearch, zero duplicazione).
+    function toggleMobileSearch() {
+        const h = document.querySelector('.header');
+        if (!h || !document.getElementById('globalSearch')) return;
+        const open = h.classList.toggle('search-open');
+        if (open) setTimeout(() => document.getElementById('globalSearch')?.focus(), 60);
+        else { document.getElementById('searchResults')?.remove(); }
+    }
 
     function getModal(type, data) {
         if (type === 'notifications') return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">🔔 Notifiche</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body">${S.notifications.map(n => `<div class="alert ${n.type} mb-8"><span class="alert-icon">${n.type === 'danger' ? '⚠️' : '📋'}</span><div class="alert-content"><div class="alert-title">${n.title}</div><div class="alert-text">${n.text}</div></div></div>`).join('')}</div><div class="modal-footer"><button class="btn" onclick="closeModal()">Chiudi</button></div></div></div>`;
@@ -16211,6 +16237,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <div style="background:var(--surface);border-radius:8px;overflow:hidden">${c.renewalHistory.map(r => `<div style="padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px">${fmtDate(r.date)} - Esteso fino a ${fmtDate(r.newEnd)} ${r.newRent !== r.previousRent ? `· Affitto: €${r.previousRent} → €${r.newRent}` : ''}</div>`).join('')}</div>` : ''}
             </div>
             <div class="modal-footer" style="flex-wrap:wrap;gap:8px">
+                <button class="btn" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('editContract',S.contracts.find(x=>x.id===cid)),250)">✏️ Modifica</button>
                 <button class="btn btn-danger btn-sm" onclick="confirmDelete('contract','${c.id}','Contratto ${p?.name}')">🗑</button>
                 ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--purple);color:white" onclick="generateDeadlinesForContract('${c.id}')" title="Genera scadenze automatiche">📅 Genera Scadenze</button>` : ''}
                 ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--red);color:white" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('terminateContract',S.contracts.find(x=>x.id===cid)),250)">⛔ Termina</button>` : ''}
@@ -16225,7 +16252,6 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 ${!c.rliRegisteredAt ? `<button class="btn btn-secondary btn-sm" onclick="markRliRegistered('${c.id}')" title="Segna la registrazione RLI fatta: chiude la scadenza e aggiorna il fascicolo">✓ RLI registrato</button>` : `<span class="btn btn-sm" style="background:rgba(52,199,89,.12);color:var(--green);cursor:default" title="Registrato il ${c.rliRegisteredAt ? String(c.rliRegisteredAt).slice(0,10) : ''}">✓ RLI ${String(c.rliRegisteredAt).slice(0,10)}</span>`}
                 ${sigStatus === 'complete' ? `<button class="btn btn-secondary btn-sm" onclick="archiveDeal('${c.id}')" title="Archivia deal completo su Storage">${c.dealArchived ? '✅ Archiviato' : '📦 Archive Deal'}</button>` : ''}
                 <button class="btn btn-secondary" onclick="closeModal()">Chiudi</button>
-                <button class="btn" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('editContract',S.contracts.find(x=>x.id===cid)),250)">✏️ Modifica</button>
             </div>
         </div></div>`;
     }
@@ -18313,27 +18339,27 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
     
     // ═══════════════════════════════════════════════════════════════════════════
-    // ★ BOOM EMAIL ENGINE — EmailJS Integration
+    // ★ BOOM EMAIL ENGINE — ponte verso il server
     // ═══════════════════════════════════════════════════════════════════════════
-    
+
+    // Migrato da EmailJS browser-side a /api/notify/send (audit 2026-08, D1):
+    // un'email spedita dal browser moriva con la tab e vestiva un design
+    // diverso dal resto della piattaforma. STESSA FIRMA di prima — i 16
+    // chiamanti non sanno nulla; templateId resta solo per il log.
     async function sendBoomEmail(templateId, toEmail, params) {
-        if (EMAILJS_CONFIG.publicKey === 'YOUR_PUBLIC_KEY') {
-            console.warn('[BOOM] EmailJS not configured — skipping email to', toEmail);
-            logActivity('Email skipped (EmailJS non configurato)', 'system', { to: toEmail, template: templateId });
-            return false;
-        }
         try {
-            await emailjs.send(EMAILJS_CONFIG.serviceId, templateId, {
-                to_email: toEmail,
-                from_name: 'BOOM Property Management',
-                reply_to: COMPANY.email,
-                ...params
-            }, EMAILJS_CONFIG.publicKey);
+            const idTok = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/notify/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idTok },
+                body: JSON.stringify({ to: toEmail, params: params || {} })
+            });
+            if (!r.ok) throw new Error('notify_send_' + r.status);
             logActivity('Email inviata', 'system', { template: templateId, to: toEmail });
             return true;
         } catch (err) {
             console.error('[BOOM] Email send failed:', err);
-            toast('warning', 'Email non inviata', `Errore: ${err?.text || err?.message || 'unknown'}`);
+            toast('warning', 'Email non inviata', `Errore: ${err?.message || 'unknown'}`);
             return false;
         }
     }
@@ -18475,10 +18501,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             if (passUrl) closingLines += '🎟️ Apple Wallet pass: ' + passUrl + '\n';
             if (calLinks && calLinks.ics) closingLines += '📅 Add to calendar (universal): ' + calLinks.ics + '\n';
             if (calLinks && calLinks.google) closingLines += '📅 Google Calendar: ' + calLinks.google;
-            await emailjs.send('service_74n80th', 'boom_notification', {
-                to_email: v.clientEmail,
-                from_name: 'Valentino — BOOM',
-                reply_to: 'valentino@boomrome.com',
+            await sendBoomEmail(EMAILJS_CONFIG.templates.notification, v.clientEmail, {
                 heading: '✅ Viewing Confirmed',
                 subheading: addr && addr.label ? addr.label : (v.listingName || ''),
                 name: firstName,
@@ -18567,10 +18590,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 '',
                 '— BOOM Auto-notify'
             ];
-            await emailjs.send('service_74n80th', 'boom_notification', {
-                to_email: ADMIN_EMAIL,
-                from_name: 'BOOM Portal',
-                reply_to: v.clientEmail || 'noreply@boomrome.com',
+            await sendBoomEmail(EMAILJS_CONFIG.templates.notification, ADMIN_EMAIL, {
                 heading: subject,
                 subheading: (v.listingName || ''),
                 name: 'Valentino',
@@ -18595,7 +18615,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             return null;
         }
         try {
-            var res = await fetch('/api/generate-pass', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: type, data: data }) });
+            var idTok = await auth.currentUser.getIdToken();
+            var res = await fetch('/api/generate-pass', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Firebase-Token': idTok }, body: JSON.stringify({ type: type, data: data }) });
             if (!res.ok) throw new Error('Pass generation failed');
             var blob = await res.blob();
             // Upload to Firebase Storage to get a public URL

@@ -56,17 +56,16 @@
          NON caricate al boot. Vengono iniettate dopo il load della pagina, in
          idle (vedi loader qui sotto), così l'avvio del portale non spartisce
          banda/CPU con codice che serve solo su azioni utente (export PDF,
-         firma, zip, email). I punti d'uso hanno già le loro guardie
-         (initEmailJS controlla typeof emailjs, ecc.). Chart.js/PDF.js/jsQR
-         hanno già i loro loader lazy dedicati. -->
+         firma, zip). Le email partono dal server (/api/notify/send) —
+         EmailJS è stato ritirato. Chart.js/PDF.js/jsQR hanno già i loro
+         loader lazy dedicati. -->
     <script>
     (function () {
         var HEAVY_LIBS = [
             'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
             'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
             'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js',
-            'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js',
-            'https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js'
+            'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js'
         ];
         function inject(src) {
             return new Promise(function (resolve) {
@@ -219,6 +218,7 @@
             <div class="header-center" id="searchContainer"></div>
             <div class="header-right">
                 <span class="header-badge" id="headerBadge">Admin</span>
+                <button class="search-btn" onclick="toggleMobileSearch()" id="mobileSearchBtn" title="Cerca" hidden>🔍</button>
                 <button class="reminder-btn" onclick="showReminders()" id="reminderBtn" title="Promemoria">📋</button>
                 <button class="notif-btn" onclick="showNotifications()" id="notifBtn">🔔</button>
                 <div class="user-menu" onclick="goTo('settings')">
@@ -277,7 +277,7 @@
 <style>
 #boomBridge {
   position: fixed; bottom: 24px; right: 24px; z-index: 9000;
-  width: 360px;
+  width: min(360px, calc(100vw - 32px)); /* su iPhone mini/SE il 360 fisso usciva dallo schermo */
   background: #0c0c0e;
   border: 1px solid #C9A84C;
   border-radius: 16px;
