@@ -1061,6 +1061,20 @@ conduttori+co-conduttori (EN), proprietario (IT), admin. Bottone 🔑 sulla
 riga contratto del portal (✓ quando esiste). Le letture fanno fede per le
 volture. Test: `node tests/verbale/run.mjs`.
 
+### Rendiconto proprietario (`GET/POST /api/owners/rendiconto`, cron 1° del mese 06:10 UTC)
+Il 1° del mese ogni proprietario riceve il rendiconto del mese CHIUSO:
+per ogni suo immobile i canoni incassati (data + via), le rate del mese
+aperte, gli ARRETRATI totali, le manutenzioni del periodo — PDF nel
+design BOOM (pdf-lib, `wa()`) su Storage `rendiconti/<ownerId>/` + email
+IT nel design system con PDF in allegato. Email risolta users →
+landlords → contract.landlordEmail; senza email → segnalato nel recap
+Telegram, MAI perso in silenzio; proprietario senza movimenti → salta.
+Idempotente per (proprietario, mese) via `rendiconti/<ownerId>_<YYYY-MM>`
+(fsCreate 409 → skip; collection admin-only in firestore.rules — la
+lezione propertyLocks). `?dry=1`, `?month=YYYY-MM`, `?ownerId=`; auth
+come i cron PFS. Heartbeat `teamHealth/rendiconto`.
+Test: `node tests/rendiconto/run.mjs`.
+
 ### Watchdog firme (reminder-cron)
 Due guardie: firme PARZIALI ferme >48h → re-nudge automatico alla
 controparte (max 3, cooldown 24h col promemoria manuale); inviti FREDDI
