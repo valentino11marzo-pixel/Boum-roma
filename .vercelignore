@@ -7,3 +7,9 @@ owner.html
 admin.html
 apartments-legacy.html
 apartment-detail-legacy.html
+# Audit 2026-08: morte verificate (zero link entranti / superate dal portal)
+setup-firebase.html
+detail-v2.html
+admin-flats.html
+tenant-registration.html
+js/boom-bg-roma.js

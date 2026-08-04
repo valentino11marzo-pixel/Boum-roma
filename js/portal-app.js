@@ -1605,59 +1605,6 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // ═══════════════════════════════════════════════════════════════════════
     // ★ BRIDGE: Lead/Client → Contract (pre-fill from intake data)
     // ═══════════════════════════════════════════════════════════════════════
-    function createContractFromLead(leadId, source) {
-        var lead = null;
-        if (source === 'pfs') lead = (S.pfsClients||[]).find(function(x){return x.id===leadId;});
-        else if (source === 'lead') lead = (S.leads||[]).find(function(x){return x.id===leadId;});
-        else lead = (S.leads||[]).find(function(x){return x.id===leadId;}) || (S.pfsClients||[]).find(function(x){return x.id===leadId;});
-        if (!lead) return toast('error','Lead not found');
-        var tenantName = lead.name || (lead.firstName && lead.lastName ? lead.firstName + ' ' + lead.lastName : '');
-        var tenantEmail = lead.email || '';
-        var tenantId = '';
-        var existingUser = S.users.find(function(u) { return u.email && tenantEmail && u.email.toLowerCase() === tenantEmail.toLowerCase(); });
-        if (existingUser) tenantId = existingUser.id;
-        var startDate = lead.arrivalDate || lead.checkIn || (lead.searchCriteria ? lead.searchCriteria.checkIn : '') || '';
-        var months = parseInt(lead.duration || lead.durationMonths || lead.months || (lead.searchCriteria ? lead.searchCriteria.duration : '') || '12') || 12;
-        var endDate = '';
-        if (startDate) { var sd = new Date(startDate); sd.setMonth(sd.getMonth() + months); endDate = sd.toISOString().split('T')[0]; }
-        var rent = parseInt(lead.budget || (lead.searchCriteria ? lead.searchCriteria.budget : '') || '0') || 0;
-        var deposit = rent * 3;
-        var situation = lead.situation || lead.transitionalReason || '';
-        closeModal();
-        setTimeout(function() {
-            openModal('addContract');
-            setTimeout(function() {
-                var f = document.getElementById('mForm');
-                if (!f) return;
-                var set = function(n, v) { var el = f.querySelector('[name="' + n + '"]'); if (el && v) el.value = String(v); };
-                if (tenantId) { var ts = f.querySelector('[name="tenantId"]'); if (ts) ts.value = tenantId; }
-                var hiddenLead = document.createElement('input'); hiddenLead.type = 'hidden'; hiddenLead.name = 'linkedLeadId'; hiddenLead.value = leadId; f.appendChild(hiddenLead);
-                var hiddenLeadSrc = document.createElement('input'); hiddenLeadSrc.type = 'hidden'; hiddenLeadSrc.name = 'linkedLeadSource'; hiddenLeadSrc.value = source || 'lead'; f.appendChild(hiddenLeadSrc);
-                if (lead.linkedViewingId) { var hiddenView = document.createElement('input'); hiddenView.type = 'hidden'; hiddenView.name = 'linkedViewingId'; hiddenView.value = lead.linkedViewingId; f.appendChild(hiddenView); }
-                if (typeof setContractType === 'function') setContractType('transitorio');
-                setTimeout(function() {
-                    if (typeof contractWizardNav === 'function') contractWizardNav(1);
-                    setTimeout(function() {
-                        set('startDate', startDate); set('endDate', endDate);
-                        set('rent', rent); set('deposit', deposit);
-                        set('transitionalReason', situation);
-                        if (typeof calcContractDuration === 'function') calcContractDuration();
-                        if (typeof calcDeposit === 'function') calcDeposit();
-                        setTimeout(function() {
-                            if (typeof contractWizardNav === 'function') contractWizardNav(2);
-                            setTimeout(function() {
-                                var notes = 'Source: ' + (lead.source||lead.referralSource||'website');
-                                if (lead.musthaves || lead.mustHaves) notes += '\nRequirements: ' + (lead.musthaves || lead.mustHaves);
-                                if (lead.notes) notes += '\nNotes: ' + lead.notes;
-                                set('notes', notes);
-                            }, 200);
-                        }, 300);
-                    }, 200);
-                }, 400);
-                toast('info', 'Pre-filled from ' + tenantName, 'Review and complete');
-            }, 350);
-        }, 200);
-    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // ★ ONBOARDING SEQUENCE — Day 3, 7, 30 automated emails
@@ -13166,6 +13113,20 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <p class="page-subtitle">Essential guides for living in Rome as an expat</p>
                 </div>
             </div>
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:14px">
+                <a href="/welcome-to-rome" target="_blank" rel="noopener" class="card" style="text-decoration:none;color:inherit;border-color:var(--gold)">
+                    <div class="card-body" style="padding:20px;display:flex;align-items:center;gap:12px">
+                        <div style="width:44px;height:44px;border-radius:12px;background:var(--gold-light);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">🇮🇹</div>
+                        <div><div style="font-weight:600;font-size:15px">Welcome to Rome Kit</div><div style="font-size:11px;color:var(--text-muted)">The full survival guide — codice fiscale, residency, SIM, bank & more</div></div>
+                    </div>
+                </a>
+                <a href="/casa" target="_blank" rel="noopener" class="card" style="text-decoration:none;color:inherit;border-color:var(--gold)">
+                    <div class="card-body" style="padding:20px;display:flex;align-items:center;gap:12px">
+                        <div style="width:44px;height:44px;border-radius:12px;background:var(--gold-light);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">🏠</div>
+                        <div><div style="font-weight:600;font-size:15px">Your Home Manual</div><div style="font-size:11px;color:var(--text-muted)">Wi-Fi, heating, trash days & neighbourhood picks — specific to YOUR home</div></div>
+                    </div>
+                </a>
+            </div>
             <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px">
                 ${guides.map((g, i) => `
                     <div class="card" style="cursor:pointer;transition:all .25s" onclick="this.querySelector('.ih-expand').style.display=this.querySelector('.ih-expand').style.display==='none'?'block':'none'" onmouseover="this.style.borderColor='${colorMap[g.color]}'" onmouseout="this.style.borderColor=''">
@@ -13484,70 +13445,6 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     
     
     // Build weekly calendar view
-    function buildWeeklyView(deadlines, tasks) {
-        const now = new Date();
-        const todayStr = now.toISOString().split('T')[0];
-        const startOfWeek = new Date(now);
-        const dayOfWeek = now.getDay();
-        startOfWeek.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1)); // Monday
-        startOfWeek.setHours(0, 0, 0, 0);
-        
-        const weekDays = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
-        const dayItems = [];
-        
-        for (let i = 0; i < 7; i++) {
-            const d = new Date(startOfWeek);
-            d.setDate(startOfWeek.getDate() + i);
-            const key = d.toISOString().split('T')[0];
-            dayItems.push({ key, day: weekDays[i], date: d.getDate(), deadlines: [], tasks: [] });
-        }
-        
-        // Assign deadlines to days
-        deadlines.forEach(dl => {
-            const dlDate = dl.date ? (typeof dl.date === 'string' ? dl.date.split('T')[0] : new Date(dl.date).toISOString().split('T')[0]) : null;
-            if (dlDate) {
-                const dayItem = dayItems.find(di => di.key === dlDate);
-                if (dayItem) dayItem.deadlines.push(dl);
-            }
-        });
-        
-        // Assign tasks to days
-        tasks.forEach(t => {
-            if (!t.dueDate) return;
-            const tDate = typeof t.dueDate === 'string' ? t.dueDate.split('T')[0] : new Date(t.dueDate).toISOString().split('T')[0];
-            const dayItem = dayItems.find(di => di.key === tDate);
-            if (dayItem) dayItem.tasks.push(t);
-        });
-        
-        const totalItems = dayItems.reduce((sum, di) => sum + di.deadlines.length + di.tasks.length, 0);
-        if (totalItems === 0) return '';
-        
-        let html = '<div class="card" style="margin-bottom:20px">';
-        html += '<div class="card-header"><span class="card-title">📅 Questa Settimana</span><span class="badge blue">' + totalItems + ' items</span></div>';
-        html += '<div class="card-body" style="padding:12px"><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px">';
-        
-        dayItems.forEach(di => {
-            const isToday = di.key === todayStr;
-            const hasItems = di.deadlines.length + di.tasks.length > 0;
-            
-            html += '<div style="background:' + (isToday ? 'var(--gold-light)' : 'var(--bg)') + ';border:' + (isToday ? '2px solid var(--gold)' : '1px solid var(--border)') + ';border-radius:8px;padding:8px;min-height:80px">';
-            html += '<div style="font-size:10px;font-weight:600;color:' + (isToday ? 'var(--gold)' : 'var(--text-muted)') + ';margin-bottom:6px;text-align:center">' + di.day + ' ' + di.date + '</div>';
-            
-            di.deadlines.forEach(d => {
-                html += '<div style="font-size:10px;padding:4px;background:var(--orange-light);border-radius:4px;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + esc(d.title) + '">📅 ' + esc(d.title.substring(0, 12)) + '</div>';
-            });
-            
-            di.tasks.forEach(t => {
-                html += '<div style="font-size:10px;padding:4px;background:var(--blue-light);border-radius:4px;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + esc(t.title) + '">✅ ' + esc(t.title.substring(0, 12)) + '</div>';
-            });
-            
-            if (!hasItems) html += '<div style="font-size:10px;color:var(--text-muted);text-align:center">—</div>';
-            html += '</div>';
-        });
-        
-        html += '</div></div></div>';
-        return html;
-    }
     
     function renderDeadlineItem(d) {
         const days = daysUntil(d.date);
@@ -18402,124 +18299,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     // Resolve a viewing's display address with property → listing → viewing fallback chain.
     // Returns { address, city, coords, label } — label is 'address (city)' or fallback.
-    async function resolveViewingAddress(v) {
-        var out = { address: '', city: 'Roma', coords: null, label: v.listingName || '' };
-        if (!v) return out;
-        var prop = (S.properties || []).find(function(p) { return p.id === v.propertyId; });
-        if (!prop && v.propertyId) {
-            try { var pDoc = await db.collection('properties').doc(v.propertyId).get(); if (pDoc.exists) prop = Object.assign({ id: v.propertyId }, pDoc.data()); }
-            catch (e) {}
-        }
-        if (prop) {
-            out.address = prop.address || '';
-            out.city = prop.city || 'Roma';
-            out.coords = prop.coordinates || (prop.lat && prop.lng ? { lat: prop.lat, lng: prop.lng } : null);
-        }
-        if ((!out.address || !out.coords) && v.listingId) {
-            try {
-                var lDoc = await db.collection('listings').doc(v.listingId).get();
-                if (lDoc.exists) {
-                    var lData = lDoc.data();
-                    if (!out.address) out.address = lData.address || '';
-                    if (!out.city || out.city === 'Roma') out.city = lData.city || out.city;
-                    if (!out.coords) out.coords = lData.coordinates || (lData.lat && lData.lng ? { lat: lData.lat, lng: lData.lng } : null);
-                }
-            } catch (e) {}
-        }
-        if (!out.address) out.address = v.address || v.listingName || '';
-        out.label = out.address ? (out.address + (out.city ? (', ' + out.city) : '')) : (v.listingName || '');
-        return out;
-    }
 
     // Build both Google Calendar URL + universal ICS data URL with GEO + reminders.
     // dt: Date object (start). durationMin defaults to 60. addr: { address, city, coords, label }.
-    function buildCalendarLinks(dt, durationMin, addr, v) {
-        durationMin = durationMin || 60;
-        var pad = function(n) { return n < 10 ? '0' + n : '' + n; };
-        var endDt = new Date(dt.getTime() + durationMin * 60000);
-        var fmtZ = function(d) { return d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'; };
-        var s = fmtZ(dt);
-        var e = fmtZ(endDt);
-        var title = 'Viewing — ' + (v.listingName || 'BOOM') + ' · ' + (v.clientName || '');
-        var locStr = addr && addr.label ? addr.label : (v.listingName || 'Roma');
-        var details = 'Cliente: ' + (v.clientName || '') +
-            '\nEmail: ' + (v.clientEmail || '') +
-            (v.clientPhone ? '\nPhone: ' + v.clientPhone : '') +
-            '\nNotes: ' + (v.notes || '—') +
-            '\n\nMeeting point: ' + (v.meetingPoint || 'AL CITOFONO') +
-            '\nAgent: Valentino · +39 331 325 1961';
-        var gcal = 'https://calendar.google.com/calendar/render?action=TEMPLATE'
-            + '&text=' + encodeURIComponent(title)
-            + '&dates=' + s + '/' + e
-            + '&location=' + encodeURIComponent(locStr)
-            + '&details=' + encodeURIComponent(details);
-        // Universal ICS with GEO + 24h/1h alarms
-        var uid = 'boom-viewing-' + (v.id || Date.now()) + '@boomrome.com';
-        var stamp = fmtZ(new Date());
-        var icsLines = [
-            'BEGIN:VCALENDAR',
-            'VERSION:2.0',
-            'PRODID:-//BOOM Rome//Viewing//EN',
-            'CALSCALE:GREGORIAN',
-            'METHOD:PUBLISH',
-            'BEGIN:VEVENT',
-            'UID:' + uid,
-            'DTSTAMP:' + stamp,
-            'DTSTART:' + s,
-            'DTEND:' + e,
-            'SUMMARY:' + title.replace(/[,;\\]/g, '\\$&'),
-            'DESCRIPTION:' + details.replace(/\n/g, '\\n').replace(/[,;\\]/g, '\\$&'),
-            'LOCATION:' + locStr.replace(/[,;\\]/g, '\\$&')
-        ];
-        if (addr && addr.coords && addr.coords.lat && addr.coords.lng) {
-            icsLines.push('GEO:' + addr.coords.lat + ';' + addr.coords.lng);
-        }
-        // 24h reminder
-        icsLines.push('BEGIN:VALARM', 'TRIGGER:-P1D', 'ACTION:DISPLAY', 'DESCRIPTION:Viewing tomorrow', 'END:VALARM');
-        // 1h reminder
-        icsLines.push('BEGIN:VALARM', 'TRIGGER:-PT1H', 'ACTION:DISPLAY', 'DESCRIPTION:Viewing in 1 hour', 'END:VALARM');
-        icsLines.push('END:VEVENT', 'END:VCALENDAR');
-        var icsRaw = icsLines.join('\r\n');
-        var icsUrl = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(icsRaw);
-        return { google: gcal, ics: icsUrl, title: title, location: locStr };
-    }
 
     // Send confirmation email to viewing client (with pass URL + ICS calendar link).
-    async function sendClientViewingConfirmation(v, dt, durationMin, addr, passUrl, calLinks) {
-        if (!v.clientEmail) return false;
-        try {
-            var dtStr = dt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) +
-                ' · ' + dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-            var firstName = (v.clientName || '').split(' ')[0] || '';
-            var rows = {
-                r1_icon: '📅', r1_label: 'Date & Time', r1_value: dtStr,
-                r2_icon: '🏠', r2_label: 'Property', r2_value: addr && addr.label ? addr.label : (v.listingName || ''),
-                r3_icon: '📍', r3_label: 'Meeting point', r3_value: v.meetingPoint || 'AL CITOFONO',
-                r4_icon: '📞', r4_label: 'Agent', r4_value: 'Valentino — +39 331 325 1961'
-            };
-            var closingLines = 'Bring a valid ID. Arrive 5 min early.\n\n';
-            if (passUrl) closingLines += '🎟️ Apple Wallet pass: ' + passUrl + '\n';
-            if (calLinks && calLinks.ics) closingLines += '📅 Add to calendar (universal): ' + calLinks.ics + '\n';
-            if (calLinks && calLinks.google) closingLines += '📅 Google Calendar: ' + calLinks.google;
-            await sendBoomEmail(EMAILJS_CONFIG.templates.notification, v.clientEmail, {
-                heading: '✅ Viewing Confirmed',
-                subheading: addr && addr.label ? addr.label : (v.listingName || ''),
-                name: firstName,
-                intro: 'Your viewing is confirmed. Apple Wallet pass + calendar links below.',
-                card_title: v.listingName || 'BOOM Viewing',
-                card_color: '#34C759',
-                r1_icon: rows.r1_icon, r1_label: rows.r1_label, r1_value: rows.r1_value,
-                r2_icon: rows.r2_icon, r2_label: rows.r2_label, r2_value: rows.r2_value,
-                r3_icon: rows.r3_icon, r3_label: rows.r3_label, r3_value: rows.r3_value,
-                r4_icon: rows.r4_icon, r4_label: rows.r4_label, r4_value: rows.r4_value,
-                closing: closingLines,
-                cta_text: passUrl ? 'Add to Apple Wallet →' : 'Add to Google Calendar →',
-                portal_link: passUrl || (calLinks && calLinks.google) || 'https://boomrome.com',
-                attachment_url: passUrl || ''
-            });
-            return true;
-        } catch (e) { console.warn('[viewing client email]', e); return false; }
-    }
 
     // Send landlord welcome email post-signature with pass URL embedded.
     async function sendLandlordWelcomeWithPass(contract, landlord, property, passUrl) {
@@ -21660,7 +21444,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // BUROCRAZIA PAGE (merges Registrazioni + Asseverazioni + Archivio)
     // ═══════════════════════════════════════════════════════════════════════════
 
-    let burocraziaTab = 'archivio'; // archivio | registrazioni | asseverazioni
+    let burocraziaTab = 'archivio'; // archivio | registrazioni
     let burocraziaFilter = 'all';  // all | toSign | toRegister | overdue | done
     let burocraziaSearch = '';
 
@@ -21699,12 +21483,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div class="tabs" style="margin-bottom:20px">
                 <div class="tab ${burocraziaTab === 'archivio' ? 'active' : ''}" onclick="burocraziaTab='archivio';renderPage()">📁 Archivio contratti</div>
                 <div class="tab ${burocraziaTab === 'registrazioni' ? 'active' : ''}" onclick="burocraziaTab='registrazioni';renderPage()">📝 Form dati clienti</div>
-                <div class="tab ${burocraziaTab === 'asseverazioni' ? 'active' : ''}" onclick="burocraziaTab='asseverazioni';renderPage()">📋 Asseverazioni · Checklist</div>
             </div>
 
-            ${burocraziaTab === 'archivio' ? burocraziaArchivio()
-              : burocraziaTab === 'registrazioni' ? burocraziaRegistrazioni()
-              : burocraziaAsseverazioni()}
+            ${burocraziaTab === 'registrazioni' ? burocraziaRegistrazioni() : burocraziaArchivio()}
         `;
     }
     
@@ -22261,15 +22042,6 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
     }
     
-    function burocraziaAsseverazioni() {
-        // Re-use existing asseverazioni page content but without the page header
-        try {
-            const content = asseverazioniPage();
-            return content.replace(/<div class="page-header">[\s\S]*?<\/div>/, '');
-        } catch(e) {
-            return '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Asseverazioni</div><div class="empty-text">Nessun dato</div></div>';
-        }
-    }
 
     function registrationsPage() {
         console.log('Building registrations page...');
@@ -22785,146 +22557,6 @@ IBAN: ${l.iban || '-'}`;
     // Main PFS Pipeline Page - Command Center View
 
     // Command Center Dashboard
-    function renderPFSCommandCenter() {
-        const analytics = getPFSAnalytics();
-        const clients = S.pfsClients || [];
-        const active = clients.filter(c => c.stage !== 'placed');
-        const urgent = active.filter(c => calculatePFSPriority(c) >= 55).sort((a,b) => calculatePFSPriority(b) - calculatePFSPriority(a));
-        const todayTasks = getTodayPFSTasks();
-
-        return `
-            <!-- Health Score Banner -->
-            <div style="background:linear-gradient(135deg, ${analytics.healthScore >= 70 ? 'rgba(52,199,89,0.15)' : analytics.healthScore >= 40 ? 'rgba(255,149,0,0.15)' : 'rgba(255,59,48,0.15)'}, transparent);border:1px solid ${analytics.healthScore >= 70 ? 'var(--green)' : analytics.healthScore >= 40 ? 'var(--orange)' : 'var(--red)'};border-radius:16px;padding:20px 24px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center">
-                <div>
-                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">PIPELINE HEALTH</div>
-                    <div style="font-size:32px;font-weight:800;color:${analytics.healthScore >= 70 ? 'var(--green)' : analytics.healthScore >= 40 ? 'var(--orange)' : 'var(--red)'}">${analytics.healthScore}%</div>
-                </div>
-                <div style="text-align:right">
-                    ${analytics.slaBreaches > 0 ? `<div style="color:var(--red);font-size:13px;font-weight:600">⚠️ ${analytics.slaBreaches} SLA Breach${analytics.slaBreaches > 1 ? 'es' : ''}</div>` : ''}
-                    ${analytics.atRisk > 0 ? `<div style="color:var(--orange);font-size:13px">⏳ ${analytics.atRisk} At Risk</div>` : ''}
-                    ${analytics.healthScore === 100 ? `<div style="color:var(--green);font-size:13px">✨ All systems optimal!</div>` : ''}
-                </div>
-            </div>
-
-            <!-- Key Metrics -->
-            <div class="stats-grid" style="grid-template-columns:repeat(6,1fr);margin-bottom:24px">
-                <div class="stat-card gold" onclick="setPFSView('kanban')" style="cursor:pointer">
-                    <div class="stat-icon">👥</div>
-                    <div class="stat-value">${analytics.active}</div>
-                    <div class="stat-label">Active Clients</div>
-                </div>
-                <div class="stat-card ${analytics.critical > 0 ? 'red' : 'green'}">
-                    <div class="stat-icon">🔥</div>
-                    <div class="stat-value">${analytics.urgent}</div>
-                    <div class="stat-label">Need Attention</div>
-                </div>
-                <div class="stat-card purple">
-                    <div class="stat-icon">💰</div>
-                    <div class="stat-value">€${analytics.totalPipelineValue.toLocaleString()}</div>
-                    <div class="stat-label">Pipeline Value</div>
-                </div>
-                <div class="stat-card blue">
-                    <div class="stat-icon">💵</div>
-                    <div class="stat-value">€${analytics.earnedThisMonth.toLocaleString()}</div>
-                    <div class="stat-label">Earned This Month</div>
-                </div>
-                <div class="stat-card green">
-                    <div class="stat-icon">🎉</div>
-                    <div class="stat-value">${analytics.placedThisMonth}</div>
-                    <div class="stat-label">Placed This Month</div>
-                </div>
-                <div class="stat-card cyan">
-                    <div class="stat-icon">📊</div>
-                    <div class="stat-value">${analytics.placedThisMonth > analytics.placedLastMonth ? '↑' : analytics.placedThisMonth < analytics.placedLastMonth ? '↓' : '→'}</div>
-                    <div class="stat-label">vs Last Month</div>
-                </div>
-            </div>
-
-            <div class="grid-2">
-                <!-- Urgent Actions -->
-                <div class="card" style="${urgent.length > 0 ? 'border-color:var(--orange)' : ''}">
-                    <div class="card-header">
-                        <h3 class="card-title">🔥 Priority Queue</h3>
-                        <span class="badge ${urgent.length > 0 ? 'orange' : 'green'}">${urgent.length}</span>
-                    </div>
-                    <div class="card-body flush" style="max-height:400px;overflow-y:auto">
-                        ${urgent.length === 0 ? `
-                            <div class="empty-state" style="padding:30px">
-                                <div class="empty-icon">✨</div>
-                                <div class="empty-title">All Clear!</div>
-                                <div class="empty-text">No urgent clients right now</div>
-                            </div>
-                        ` : urgent.slice(0, 8).map(c => renderPFSPriorityItem(c)).join('')}
-                    </div>
-                </div>
-
-                <!-- Today's Tasks -->
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">📋 Today's Tasks</h3>
-                        <span class="badge blue">${todayTasks.length}</span>
-                    </div>
-                    <div class="card-body flush" style="max-height:400px;overflow-y:auto">
-                        ${todayTasks.length === 0 ? `
-                            <div class="empty-state" style="padding:30px">
-                                <div class="empty-icon">📝</div>
-                                <div class="empty-title">No Tasks Today</div>
-                                <div class="empty-text">Great job staying on top!</div>
-                            </div>
-                        ` : todayTasks.slice(0, 8).map(t => `
-                            <div class="list-item clickable" onclick="openPFSClientDetail('${t.clientId}')">
-                                <div style="width:32px;height:32px;border-radius:8px;background:var(--${t.priority === 'high' ? 'red' : t.priority === 'medium' ? 'orange' : 'blue'}-light);display:flex;align-items:center;justify-content:center;font-size:14px">${t.icon}</div>
-                                <div class="list-content">
-                                    <div class="list-title" style="font-size:13px">${esc(t.task)}</div>
-                                    <div class="list-subtitle">${esc(t.clientName)}</div>
-                                </div>
-                                <button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();completePFSTask('${t.id}')">✓</button>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            </div>
-
-            <!-- Stage Overview Mini -->
-            <div class="card mt-24">
-                <div class="card-header">
-                    <h3 class="card-title">📊 Pipeline Overview</h3>
-                    <button class="btn btn-xs btn-secondary" onclick="setPFSView('kanban')">View Kanban →</button>
-                </div>
-                <div class="card-body">
-                    <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:8px">
-                        ${PFS_STAGES.filter(s => s.id !== 'placed').map(stage => {
-                            const count = analytics.stageDistribution[stage.id] || 0;
-                            return `
-                                <div style="flex:1;min-width:100px;background:var(--bg-elevated);border-radius:12px;padding:16px;text-align:center;border:1px solid var(--border)">
-                                    <div style="font-size:20px;margin-bottom:4px">${stage.icon}</div>
-                                    <div style="font-size:24px;font-weight:700;color:var(--${stage.color})">${count}</div>
-                                    <div style="font-size:11px;color:var(--text-muted)">${stage.name}</div>
-                                </div>
-                            `;
-                        }).join('')}
-                    </div>
-                </div>
-            </div>
-
-            <!-- Recent Activity -->
-            <div class="card mt-24">
-                <div class="card-header">
-                    <h3 class="card-title">📋 Recent Activity</h3>
-                </div>
-                <div class="card-body flush" style="max-height:250px;overflow-y:auto">
-                    ${(S.pfsActivities || []).slice(0, 12).map(a => `
-                        <div class="list-item" style="padding:10px 16px">
-                            <div class="list-content">
-                                <div class="list-title" style="font-size:13px">${esc(a.message)}</div>
-                                <div class="list-subtitle">${timeAgo(a.timestamp)} · ${esc(a.user || 'System')}</div>
-                            </div>
-                        </div>
-                    `).join('') || '<div class="empty-state" style="padding:20px"><div class="empty-text">No recent activity</div></div>'}
-                </div>
-            </div>
-        `;
-    }
 
     function renderPFSPriorityItem(client) {
         const priority = calculatePFSPriority(client);
@@ -23118,111 +22750,6 @@ IBAN: ${l.iban || '-'}`;
     }
 
     // Pro List View with sorting and filtering
-    function renderPFSListPro() {
-        const clients = S.pfsClients || [];
-        const { serviceFilter, sortBy, showCompleted } = pfsState;
-
-        let filtered = clients.filter(c => showCompleted || c.stage !== 'placed');
-        if (serviceFilter !== 'all') filtered = filtered.filter(c => c.service === serviceFilter);
-
-        // Sort
-        filtered.sort((a, b) => {
-            switch (sortBy) {
-                case 'priority': return calculatePFSPriority(b) - calculatePFSPriority(a);
-                case 'moveIn': return (new Date(a.moveIn || '2099-01-01')) - (new Date(b.moveIn || '2099-01-01'));
-                case 'lastContact': return (new Date(b.lastContact || 0)) - (new Date(a.lastContact || 0));
-                case 'created': return (new Date(b.createdAt || 0)) - (new Date(a.createdAt || 0));
-                default: return 0;
-            }
-        });
-
-        return `
-            <!-- Controls -->
-            <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center;justify-content:space-between">
-                <div style="display:flex;gap:8px;align-items:center">
-                    <span style="font-size:12px;color:var(--text-muted)">Filter:</span>
-                    <button class="btn btn-xs ${serviceFilter === 'all' ? '' : 'btn-secondary'}" onclick="setPFSServiceFilter('all')">All (${clients.filter(c => showCompleted || c.stage !== 'placed').length})</button>
-                    ${Object.entries(PFS_SERVICES).map(([key, svc]) => `
-                        <button class="btn btn-xs ${serviceFilter === key ? '' : 'btn-secondary'}" onclick="setPFSServiceFilter('${key}')">${svc.icon} ${key}</button>
-                    `).join('')}
-                </div>
-                <div style="display:flex;gap:8px;align-items:center">
-                    <span style="font-size:12px;color:var(--text-muted)">Sort:</span>
-                    <select class="form-select" style="width:auto;padding:6px 12px;font-size:12px" onchange="setPFSSort(this.value)">
-                        <option value="priority" ${sortBy === 'priority' ? 'selected' : ''}>Priority</option>
-                        <option value="moveIn" ${sortBy === 'moveIn' ? 'selected' : ''}>Move-in Date</option>
-                        <option value="lastContact" ${sortBy === 'lastContact' ? 'selected' : ''}>Last Contact</option>
-                        <option value="created" ${sortBy === 'created' ? 'selected' : ''}>Created</option>
-                    </select>
-                    <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-muted);cursor:pointer">
-                        <input type="checkbox" ${showCompleted ? 'checked' : ''} onchange="pfsState.showCompleted=this.checked;renderPage()"> Show Placed
-                    </label>
-                </div>
-            </div>
-
-            <!-- Table -->
-            <div class="card">
-                <div class="card-body flush">
-                    <table class="crm-table">
-                        <thead>
-                            <tr>
-                                <th style="width:40px">P</th>
-                                <th>Client</th>
-                                <th>Service</th>
-                                <th>Stage</th>
-                                <th>Budget</th>
-                                <th>Move-in</th>
-                                <th>Last Contact</th>
-                                <th>SLA</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${filtered.map(c => {
-                                const priority = calculatePFSPriority(c);
-                                const pLevel = getPriorityLevel(priority);
-                                const stage = PFS_STAGES.find(s => s.id === c.stage);
-                                const sla = getSLAStatus(c);
-                                const service = PFS_SERVICES[c.service];
-                                const lastContactDays = c.lastContact ? Math.floor((new Date() - new Date(c.lastContact)) / (1000*60*60*24)) : null;
-                                const daysUntil = c.moveIn ? Math.ceil((new Date(c.moveIn) - new Date()) / (1000*60*60*24)) : null;
-
-                                return `
-                                    <tr onclick="openPFSClientDetail('${c.id}')" style="cursor:pointer">
-                                        <td>
-                                            <div style="width:28px;height:28px;border-radius:6px;background:${pLevel.bg};color:${pLevel.color};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">${priority}</div>
-                                        </td>
-                                        <td>
-                                            <div style="display:flex;align-items:center;gap:10px">
-                                                <div class="avatar" style="width:32px;height:32px;font-size:12px">${c.name?.charAt(0) || '?'}</div>
-                                                <div>
-                                                    <div style="font-weight:500">${esc(c.name)}</div>
-                                                    <div style="font-size:11px;color:var(--text-muted)">${esc(c.zone || c.email || '')}</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td><span class="badge ${service?.color || 'gray'}">${service?.icon || ''} ${c.service}</span></td>
-                                        <td><span class="badge ${stage?.color || 'gray'}">${stage?.icon || ''} ${stage?.name || c.stage}</span></td>
-                                        <td>€${c.budget || '-'}</td>
-                                        <td style="color:${daysUntil !== null && daysUntil <= 7 ? 'var(--red)' : 'inherit'}">${daysUntil !== null ? (daysUntil <= 0 ? 'OVERDUE' : daysUntil + 'd') : '-'}</td>
-                                        <td style="color:${lastContactDays !== null && lastContactDays >= 3 ? 'var(--orange)' : 'inherit'}">${lastContactDays !== null ? lastContactDays + 'd ago' : 'Never'}</td>
-                                        <td>${sla ? `<span style="color:${sla.color}">${sla.percent}%</span>` : '-'}</td>
-                                        <td onclick="event.stopPropagation()">
-                                            <div style="display:flex;gap:4px">
-                                                <button class="btn btn-xs btn-secondary" onclick="openPFSWhatsApp('${c.id}')">💬</button>
-                                                <button class="btn btn-xs btn-secondary" onclick="openPFSQuickTemplate('${c.id}')">📝</button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                `;
-                            }).join('')}
-                        </tbody>
-                    </table>
-                    ${filtered.length === 0 ? '<div class="empty-state" style="padding:40px"><div class="empty-icon">📋</div><div class="empty-title">No Clients</div><div class="empty-text">Add your first client to get started</div></div>' : ''}
-                </div>
-            </div>
-        `;
-    }
 
     // Analytics Dashboard
     function renderPFSAnalytics() {
@@ -25427,16 +24954,13 @@ IBAN: ${l.iban || '-'}`;
                 '<div class="card"><div class="card-header"><h3 class="card-title">📤 Brief</h3></div><div class="card-body"><div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:16px;font-size:12px;white-space:pre-wrap;max-height:250px;overflow-y:auto">' + esc(ziGenerateBrief()) + '</div><div style="display:flex;gap:10px;margin-top:16px"><button class="btn" onclick="ziCopyBrief()" style="flex:1">📋 Copy</button><button class="btn" onclick="ziSendWhatsApp()" style="flex:1;background:#25D366">💬 WhatsApp</button></div></div></div>' +
                 '</div><div>' +
                 '<div class="card"><div class="card-header"><h3 class="card-title">📍 Zones</h3><div style="display:flex;gap:8px"><button class="btn btn-sm btn-secondary" onclick="ziOpenAllImmo()">All Immo</button><button class="btn btn-sm btn-secondary" onclick="ziOpenAllIdealista()">All Idealista</button></div></div><div class="card-body flush">' + (zones.length === 0 ? '<div class="empty-state" style="padding:40px"><div class="empty-icon">🎓</div><div class="empty-text">Select university</div></div>' : zones.map(function(z) { return '<div class="list-item" style="flex-wrap:wrap;gap:12px;border-left:3px solid ' + (z.tier === 'primary' ? 'var(--gold)' : z.tier === 'secondary' ? 'var(--blue)' : 'var(--text-muted)') + '"><div class="list-content" style="min-width:140px"><div class="list-title">' + z.name + '</div><div class="list-subtitle">🚶 ' + z.time + ' · €' + z.avgPrice + ' avg · <span class="badge ' + (z.trend >= 0 ? 'green' : 'blue') + '">' + (z.trend >= 0 ? '+' : '') + z.trend + '%</span></div></div><div style="display:flex;gap:6px"><a href="' + buildZIImmobiliareUrl(z.slug) + '" target="_blank" class="btn btn-xs btn-secondary" style="color:#FF5733">🏠 Immo</a>' + (buildZIIdealistaUrl(z.slug) ? '<a href="' + buildZIIdealistaUrl(z.slug) + '" target="_blank" class="btn btn-xs btn-secondary" style="color:#92D050">🏡 Idealista</a>' : '') + '</div></div>'; }).join('')) + '</div></div></div></div>';
-        } else if (ziState.currentTab === 'analytics') {
-            var hotZones = allZones.filter(function(z) { return z.trend > 3; }).sort(function(a, b) { return b.trend - a.trend; });
-            tabContent = '<div class="stats-grid" style="grid-template-columns:repeat(4,1fr)"><div class="stat-card gold"><div class="stat-icon">💰</div><div class="stat-value">€875</div><div class="stat-label">Avg Rome</div></div><div class="stat-card green"><div class="stat-icon">📉</div><div class="stat-value">€550</div><div class="stat-label">Cheapest</div></div><div class="stat-card blue"><div class="stat-icon">📈</div><div class="stat-value">€1,450</div><div class="stat-label">Priciest</div></div><div class="stat-card purple"><div class="stat-icon">🔥</div><div class="stat-value">+6.5%</div><div class="stat-label">Fastest Rise</div></div></div><div class="grid-2"><div class="card"><div class="card-header"><h3 class="card-title">📊 Price by Zone</h3></div><div class="card-body">' + allZones.slice(0, 10).map(function(z) { return '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px"><div style="width:90px;font-size:11px;text-align:right;color:var(--text-secondary)">' + z.name + '</div><div style="flex:1;height:20px;background:var(--bg-elevated);border-radius:4px;overflow:hidden;position:relative"><div style="height:100%;width:' + (z.avgPrice / maxPrice * 100) + '%;background:linear-gradient(90deg,var(--gold),var(--gold-dark));border-radius:4px"></div><span style="position:absolute;right:8px;top:2px;font-size:10px;font-weight:600">€' + z.avgPrice + '</span></div></div>'; }).join('') + '</div></div><div class="card"><div class="card-header"><h3 class="card-title">🔥 Hot Zones</h3></div><div class="card-body flush">' + hotZones.slice(0, 6).map(function(z) { return '<div class="list-item"><div class="list-content"><div class="list-title">' + z.name + '</div><div class="list-subtitle">€' + z.avgPrice + '/mo avg</div></div><span class="badge green">+' + z.trend + '%</span></div>'; }).join('') + '</div></div></div><div class="card"><div class="card-header"><h3 class="card-title">💡 Insights</h3></div><div class="card-body"><div class="grid-3"><div style="background:var(--bg-elevated);padding:16px;border-radius:12px"><div style="font-size:24px;margin-bottom:8px">💰</div><div style="font-weight:600;margin-bottom:4px">Best Value</div><div style="color:var(--text-secondary);font-size:12px">Anagnina at €550/mo - great for Erasmus</div></div><div style="background:var(--bg-elevated);padding:16px;border-radius:12px"><div style="font-size:24px;margin-bottom:8px">📈</div><div style="font-weight:600;margin-bottom:4px">Rising Fast</div><div style="color:var(--text-secondary);font-size:12px">Ostiense +6.5% - act fast on deals</div></div><div style="background:var(--bg-elevated);padding:16px;border-radius:12px"><div style="font-size:24px;margin-bottom:8px">⭐</div><div style="font-weight:600;margin-bottom:4px">Premium</div><div style="color:var(--text-secondary);font-size:12px">Parioli €1,450/mo - LUISS area</div></div></div></div></div>';
         } else if (ziState.currentTab === 'shortlist') {
             var avgPrice = ziState.shortlist.length ? Math.round(ziState.shortlist.reduce(function(s, p) { return s + p.price; }, 0) / ziState.shortlist.length) : 0;
             tabContent = '<div class="stats-grid" style="grid-template-columns:repeat(4,1fr)"><div class="stat-card gold"><div class="stat-icon">📋</div><div class="stat-value">' + ziState.shortlist.length + '</div><div class="stat-label">Properties</div></div><div class="stat-card green"><div class="stat-icon">👤</div><div class="stat-value">' + clientName + '</div><div class="stat-label">Client</div></div><div class="stat-card blue"><div class="stat-icon">💰</div><div class="stat-value">€' + avgPrice + '</div><div class="stat-label">Avg Price</div></div><div class="stat-card purple"><div class="stat-icon">✓</div><div class="stat-value">Ready</div><div class="stat-label">Status</div></div></div><div class="grid-2"><div><div class="card"><div class="card-header"><h3 class="card-title">➕ Add Property</h3></div><div class="card-body"><form onsubmit="ziAddToShortlist(event)"><div class="form-row"><div class="form-group"><label class="form-label">Price €/mo *</label><input type="number" class="form-input" name="price" required placeholder="900"></div><div class="form-group"><label class="form-label">Zone *</label><input type="text" class="form-input" name="zone" required placeholder="Trastevere"></div></div><div class="form-group"><label class="form-label">Address</label><input type="text" class="form-input" name="address" placeholder="Via Roma 123"></div><div class="form-row"><div class="form-group"><label class="form-label">Beds</label><input type="number" class="form-input" name="bedrooms" value="1"></div><div class="form-group"><label class="form-label">Size m²</label><input type="number" class="form-input" name="size" placeholder="45"></div></div><div class="form-group"><label class="form-label">Link</label><input type="url" class="form-input" name="link" placeholder="https://..."></div><div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Features, landlord..."></textarea></div><div style="display:flex;gap:10px"><button type="submit" class="btn" style="flex:1">➕ Add</button><button type="button" class="btn btn-secondary" onclick="ziOpenQuickLandlord()">👤 Save Landlord</button></div></form></div></div></div><div><div class="card"><div class="card-header"><h3 class="card-title">📋 Shortlist</h3></div><div class="card-body flush">' + (ziState.shortlist.length === 0 ? '<div class="empty-state" style="padding:40px"><div class="empty-icon">📋</div><div class="empty-text">Add properties</div></div>' : ziState.shortlist.map(function(p, i) { return '<div class="list-item" style="position:relative"><span style="position:absolute;left:8px;top:8px;width:20px;height:20px;background:var(--gold);color:#000;font-size:10px;font-weight:700;border-radius:4px;display:flex;align-items:center;justify-content:center">' + (i + 1) + '</span><div class="list-content" style="margin-left:24px"><div class="list-title">' + esc(p.address || p.zone) + '</div><div class="list-subtitle">📍 ' + esc(p.zone) + ' · €' + p.price + ' · ' + p.bedrooms + ' bed</div></div><button class="btn btn-xs btn-danger" onclick="ziRemoveFromShortlist(' + p.id + ')">×</button></div>'; }).join('')) + '</div></div><div class="card"><div class="card-header"><h3 class="card-title">📤 Shortlist Brief</h3></div><div class="card-body"><div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:16px;font-size:12px;white-space:pre-wrap;max-height:200px;overflow-y:auto">' + esc(ziGenerateShortlistBrief()) + '</div><div style="display:flex;gap:10px;margin-top:16px"><button class="btn" onclick="ziCopyShortlistBrief()" style="flex:1">📋 Copy</button><button class="btn" onclick="ziSendShortlistWhatsApp()" style="flex:1;background:#25D366">💬 WhatsApp</button></div></div></div></div></div>';
         }
 
-        return '<div class="page-header"><div><h1 class="page-title">🎯 Zone Intelligence</h1><p class="page-subtitle">Property search, analytics & shortlist</p></div><button class="btn btn-secondary" onclick="ziReset()">🔄 Reset</button></div>' +
-            '<div class="tabs" style="margin-bottom:24px"><div class="tab ' + (ziState.currentTab === 'search' ? 'active' : '') + '" onclick="ziSwitchTab(\'search\')">🔍 Search</div><div class="tab ' + (ziState.currentTab === 'analytics' ? 'active' : '') + '" onclick="ziSwitchTab(\'analytics\')">📊 Analytics</div><div class="tab ' + (ziState.currentTab === 'shortlist' ? 'active' : '') + '" onclick="ziSwitchTab(\'shortlist\')">📋 Shortlist</div></div>' + tabContent;
+        return '<div class="page-header"><div><h1 class="page-title">🎯 Zone Intelligence</h1><p class="page-subtitle">Property search & shortlist per cliente</p></div><button class="btn btn-secondary" onclick="ziReset()">🔄 Reset</button></div>' +
+            '<div class="tabs" style="margin-bottom:24px"><div class="tab ' + (ziState.currentTab === 'search' ? 'active' : '') + '" onclick="ziSwitchTab(\'search\')">🔍 Search</div><div class="tab ' + (ziState.currentTab === 'shortlist' ? 'active' : '') + '" onclick="ziSwitchTab(\'shortlist\')">📋 Shortlist</div></div>' + tabContent;
     }
 
     // ═══════════════════════════════════════════════════════════════════════════════════════
@@ -25585,17 +25109,6 @@ IBAN: ${l.iban || '-'}`;
     }
 
     // Load properties from Firestore
-    async function loadPREProperties() {
-        try {
-            const snap = await db.collection('preProperties').orderBy('createdAt', 'desc').get();
-            preState.properties = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-            return preState.properties;
-        } catch (err) {
-            console.error('Error loading properties:', err);
-            preState.properties = [];
-            return [];
-        }
-    }
 
     async function preSaveProperty(data) {
         try {
@@ -25879,10 +25392,6 @@ IBAN: ${l.iban || '-'}`;
         renderPage();
     }
 
-    function preReset() {
-        preState = { ...preState, currentTab: 'dashboard', selectedClient: null, selectedUni: null, minBudget: 400, maxBudget: 1500 };
-        renderPage();
-    }
 
     // ═══════════════════════════════════════════════════════════════════════════
     // CASAFARI INTEGRATION - Complete Filter System
@@ -26778,7 +26287,6 @@ IBAN: ${l.iban || '-'}`;
     }
     function boomSaveAndAdd() { boomSaveProperty(); }
     function boomManualEntry() { boomCardState.step = 2; renderBoomCardModal(); }
-    function boomEditCard() { boomCardState.step = 2; renderBoomCardModal(); }
 
     // ==========================================
     // POINTS OF INTEREST (POI) DATABASE
@@ -27268,180 +26776,6 @@ IBAN: ${l.iban || '-'}`;
     ];
 
 
-    function listingFormCard() {
-        const d = listingState.current || {};
-        return `
-            <div class="card" style="margin-bottom:24px;border-color:var(--gold)">
-                <div class="card-header" style="background:var(--gold-light)">
-                    <span class="card-title">${d.id ? '✏️ Modifica' : '➕ Nuovo'} Annuncio</span>
-                    <button class="btn btn-sm btn-secondary" onclick="cancelListingEdit()">✕ Chiudi</button>
-                </div>
-                <div class="card-body">
-                    <!-- Tipo Operazione -->
-                    <div class="grid-2" style="margin-bottom:16px">
-                        <div>
-                            <label class="form-label">Tipo Operazione *</label>
-                            <select id="lst_opType" class="form-input">
-                                <option value="affitto" ${d.operationType==='affitto'?'selected':''}>Affitto</option>
-                                <option value="vendita" ${d.operationType==='vendita'?'selected':''}>Vendita</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="form-label">Tipologia *</label>
-                            <select id="lst_propType" class="form-input">
-                                <option value="appartamento" ${d.propertyType==='appartamento'?'selected':''}>Appartamento</option>
-                                <option value="stanza" ${d.propertyType==='stanza'?'selected':''}>Stanza</option>
-                                <option value="monolocale" ${d.propertyType==='monolocale'?'selected':''}>Monolocale</option>
-                                <option value="loft" ${d.propertyType==='loft'?'selected':''}>Loft</option>
-                                <option value="attico" ${d.propertyType==='attico'?'selected':''}>Attico</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Indirizzo -->
-                    <div style="margin-bottom:16px">
-                        <label class="form-label">Indirizzo Completo *</label>
-                        <input type="text" id="lst_address" class="form-input" value="${esc(d.address||'')}" placeholder="Via Roma 123, Roma">
-                    </div>
-                    
-                    <div class="grid-3" style="margin-bottom:16px">
-                        <div>
-                            <label class="form-label">Zona *</label>
-                            <select id="lst_zone" class="form-input">
-                                <option value="">Seleziona zona...</option>
-                                ${ZONE_ROMA.map(z => `<option value="${z}" ${d.zone===z?'selected':''}>${z}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div>
-                            <label class="form-label">CAP</label>
-                            <input type="text" id="lst_cap" class="form-input" value="${esc(d.cap||'')}" placeholder="00185">
-                        </div>
-                        <div>
-                            <label class="form-label">Piano</label>
-                            <select id="lst_floor" class="form-input">
-                                <option value="">--</option>
-                                <option value="T" ${d.floor==='T'?'selected':''}>Terra</option>
-                                <option value="R" ${d.floor==='R'?'selected':''}>Rialzato</option>
-                                ${[1,2,3,4,5,6,7,8,9,10].map(n => `<option value="${n}" ${d.floor==n?'selected':''}>${n}°</option>`).join('')}
-                                <option value="A" ${d.floor==='A'?'selected':''}>Attico</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Prezzo e Caratteristiche -->
-                    <div class="grid-4" style="margin-bottom:16px">
-                        <div>
-                            <label class="form-label">Prezzo €/mese *</label>
-                            <input type="number" id="lst_price" class="form-input" value="${d.price||''}" placeholder="850">
-                        </div>
-                        <div>
-                            <label class="form-label">Spese €</label>
-                            <input type="number" id="lst_expenses" class="form-input" value="${d.expenses||''}" placeholder="100">
-                        </div>
-                        <div>
-                            <label class="form-label">Superficie mq *</label>
-                            <input type="number" id="lst_sqm" class="form-input" value="${d.sqm||''}" placeholder="65">
-                        </div>
-                        <div>
-                            <label class="form-label">Locali</label>
-                            <select id="lst_rooms" class="form-input">
-                                ${[1,2,3,4,5,6].map(n => `<option value="${n}" ${d.rooms==n?'selected':''}>${n}</option>`).join('')}
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="grid-4" style="margin-bottom:16px">
-                        <div>
-                            <label class="form-label">Camere</label>
-                            <select id="lst_bedrooms" class="form-input">
-                                ${[0,1,2,3,4,5].map(n => `<option value="${n}" ${d.bedrooms==n?'selected':''}>${n}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div>
-                            <label class="form-label">Bagni</label>
-                            <select id="lst_bathrooms" class="form-input">
-                                ${[1,2,3].map(n => `<option value="${n}" ${d.bathrooms==n?'selected':''}>${n}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div>
-                            <label class="form-label">Arredato</label>
-                            <select id="lst_furnished" class="form-input">
-                                <option value="arredato" ${d.furnished==='arredato'?'selected':''}>Arredato</option>
-                                <option value="parziale" ${d.furnished==='parziale'?'selected':''}>Parzialmente</option>
-                                <option value="non_arredato" ${d.furnished==='non_arredato'?'selected':''}>Non arredato</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="form-label">Classe Energetica</label>
-                            <select id="lst_energy" class="form-input">
-                                ${['A4','A3','A2','A1','B','C','D','E','F','G'].map(c => `<option value="${c}" ${d.energyClass===c?'selected':''}>${c}</option>`).join('')}
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Contratto -->
-                    <div class="grid-3" style="margin-bottom:16px">
-                        <div>
-                            <label class="form-label">Tipo Contratto</label>
-                            <select id="lst_contract" class="form-input">
-                                <option value="4+4" ${d.contractType==='4+4'?'selected':''}>4+4 Libero</option>
-                                <option value="3+2" ${d.contractType==='3+2'?'selected':''}>3+2 Concordato</option>
-                                <option value="transitorio" ${d.contractType==='transitorio'?'selected':''}>Transitorio</option>
-                                <option value="studenti" ${d.contractType==='studenti'?'selected':''}>Studenti</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="form-label">Disponibile da</label>
-                            <input type="date" id="lst_availFrom" class="form-input" value="${d.availableFrom||''}">
-                        </div>
-                        <div>
-                            <label class="form-label">Cauzione (mesi)</label>
-                            <select id="lst_deposit" class="form-input">
-                                ${[1,2,3].map(n => `<option value="${n}" ${d.deposit==n?'selected':''}>${n} ${n===1?'mese':'mesi'}</option>`).join('')}
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Caratteristiche Extra -->
-                    <div style="margin-bottom:16px">
-                        <label class="form-label">Caratteristiche</label>
-                        <div style="display:flex;flex-wrap:wrap;gap:8px">
-                            ${['Balcone','Terrazzo','Ascensore','Aria Condizionata','Riscaldamento Autonomo','Posto Auto','Cantina','Giardino','Portiere','Fibra Ottica'].map(f => `
-                                <label style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:var(--bg-elevated);border-radius:6px;cursor:pointer;font-size:12px">
-                                    <input type="checkbox" id="lst_feat_${f.replace(/\s/g,'')}" ${(d.features||[]).includes(f)?'checked':''}>
-                                    ${f}
-                                </label>
-                            `).join('')}
-                        </div>
-                    </div>
-
-                    <!-- Titolo -->
-                    <div style="margin-bottom:16px">
-                        <label class="form-label">Titolo Annuncio</label>
-                        <input type="text" id="lst_title" class="form-input" value="${esc(d.title||'')}" placeholder="Luminoso bilocale in zona San Lorenzo">
-                        <button class="btn btn-sm btn-secondary" style="margin-top:8px" onclick="generateTitle()">✨ Genera Titolo</button>
-                    </div>
-
-                    <!-- Descrizione -->
-                    <div style="margin-bottom:16px">
-                        <label class="form-label">Descrizione</label>
-                        <textarea id="lst_description" class="form-input" rows="6" placeholder="Descrizione dell'immobile...">${esc(d.description||'')}</textarea>
-                        <div style="display:flex;gap:8px;margin-top:8px">
-                            <button class="btn btn-sm btn-secondary" onclick="generateDescription()">✨ Genera Descrizione</button>
-                            <button class="btn btn-sm btn-secondary" onclick="generateDescriptionEN()">🇬🇧 English</button>
-                        </div>
-                    </div>
-
-                    <!-- Actions -->
-                    <div style="display:flex;gap:12px;flex-wrap:wrap;padding-top:16px;border-top:1px solid var(--border)">
-                        <button class="btn" onclick="saveDraft()" style="flex:1;min-width:150px">💾 Salva Bozza</button>
-                        <button class="btn btn-secondary" onclick="publishToImmobiliare()" style="background:#c41e3a;border-color:#c41e3a;color:white">🏠 Immobiliare</button>
-                        <button class="btn btn-secondary" onclick="publishToIdealista()" style="background:#1a1a1a;border-color:#1a1a1a;color:white">🏡 Idealista</button>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
 
     function openNewListing() {
         listingState.current = { ...LISTING_DEFAULTS, id: null, createdAt: new Date().toISOString() };
@@ -27713,375 +27047,6 @@ ${d.description || '-'}`;
     // ASSEVERAZIONI - Checklist & Workflow
     // ========================================
     
-    function asseverazioniPage() {
-        return `
-            <div class="page-header">
-                <h1 class="page-title">📋 Asseverazioni</h1>
-                <p class="page-subtitle">Checklist e workflow per contratti a canone concordato</p>
-            </div>
-            
-            <div class="grid-2" style="gap:24px;margin-bottom:24px">
-                <div class="card" style="border-left:4px solid #10b981">
-                    <h3 style="margin-bottom:16px">📚 Contratto STUDENTI</h3>
-                    <div style="margin-bottom:12px;padding:12px;background:var(--glass-bg);border-radius:8px">
-                        <div style="font-weight:600;margin-bottom:8px">✅ Quando usare:</div>
-                        <ul style="margin:0;padding-left:20px;font-size:13px;line-height:1.8">
-                            <li>Inquilino iscritto a università/master/dottorato</li>
-                            <li>Residenza in comune DIVERSO da Roma</li>
-                            <li>Durata desiderata: 6-36 mesi</li>
-                            <li>Vuoi rinnovo automatico</li>
-                        </ul>
-                    </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
-                        <div><span style="color:var(--text-muted)">Durata:</span> 6-36 mesi</div>
-                        <div><span style="color:var(--text-muted)">Rinnovo:</span> Automatico ✅</div>
-                        <div><span style="color:var(--text-muted)">Cedolare:</span> 10%</div>
-                        <div><span style="color:var(--text-muted)">Firma:</span> Studente o genitore</div>
-                    </div>
-                </div>
-                
-                <div class="card" style="border-left:4px solid #f59e0b">
-                    <h3 style="margin-bottom:16px">🔄 Contratto TRANSITORIO</h3>
-                    <div style="margin-bottom:12px;padding:12px;background:var(--glass-bg);border-radius:8px">
-                        <div style="font-weight:600;margin-bottom:8px">✅ Quando usare:</div>
-                        <ul style="margin:0;padding-left:20px;font-size:13px;line-height:1.8">
-                            <li>Inquilino NON studente universitario</li>
-                            <li>Ha esigenza temporanea documentabile</li>
-                            <li>Durata desiderata: 1-18 mesi MAX</li>
-                            <li>Contratto termina automaticamente</li>
-                        </ul>
-                    </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
-                        <div><span style="color:var(--text-muted)">Durata:</span> 1-18 mesi</div>
-                        <div><span style="color:var(--text-muted)">Rinnovo:</span> NO ❌</div>
-                        <div><span style="color:var(--text-muted)">Cedolare:</span> 10%</div>
-                        <div><span style="color:var(--text-muted)">Richiede:</span> Motivazione</div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Decision Tree -->
-            <div class="card" style="margin-bottom:24px">
-                <h3 style="margin-bottom:16px">🎯 Quale contratto per il tuo cliente?</h3>
-                <div class="table-wrapper">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Tipo Cliente</th>
-                                <th>Contratto</th>
-                                <th>Note</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>🎓 Studente Erasmus/Università</td>
-                                <td><span class="status-badge" style="background:#10b981">STUDENTI</span></td>
-                                <td>Residenza fuori Roma</td>
-                            </tr>
-                            <tr>
-                                <td>🎓 Studente Master/PhD</td>
-                                <td><span class="status-badge" style="background:#10b981">STUDENTI</span></td>
-                                <td>Anche corsi post-laurea</td>
-                            </tr>
-                            <tr>
-                                <td>💼 Lavoratore contratto a termine</td>
-                                <td><span class="status-badge" style="background:#f59e0b">TRANSITORIO</span></td>
-                                <td>Allegare contratto lavoro</td>
-                            </tr>
-                            <tr>
-                                <td>💼 Stagista / Intern</td>
-                                <td><span class="status-badge" style="background:#f59e0b">TRANSITORIO</span></td>
-                                <td>Lettera azienda/convenzione</td>
-                            </tr>
-                            <tr>
-                                <td>💻 Digital Nomad (< 18 mesi)</td>
-                                <td><span class="status-badge" style="background:#f59e0b">TRANSITORIO</span></td>
-                                <td>Lettera lavoro remoto</td>
-                            </tr>
-                            <tr>
-                                <td>💼 Lavoratore stabile (> 18 mesi)</td>
-                                <td><span class="status-badge" style="background:#6366f1">3+2 o 4+4</span></td>
-                                <td>Non transitorio</td>
-                            </tr>
-                            <tr>
-                                <td>🏖️ Turista lungo</td>
-                                <td><span class="status-badge" style="background:#ef4444">❌ NO</span></td>
-                                <td>Serve loc. turistica</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            
-            <!-- Checklists -->
-            <div class="grid-2" style="gap:24px;margin-bottom:24px">
-                <!-- STUDENTI Checklist -->
-                <div class="card">
-                    <h3 style="margin-bottom:16px;color:#10b981">📚 Checklist STUDENTI</h3>
-                    <div style="font-size:13px">
-                        <div style="font-weight:600;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--glass-border)">Documenti CONDUTTORE:</div>
-                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
-                            <input type="checkbox" style="margin-top:2px" id="chk_s1">
-                            <span>Documento identità studente</span>
-                        </label>
-                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
-                            <input type="checkbox" style="margin-top:2px" id="chk_s2">
-                            <span>Codice fiscale studente</span>
-                        </label>
-                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
-                            <input type="checkbox" style="margin-top:2px" id="chk_s3">
-                            <span><strong>Certificato iscrizione università</strong> (con anno accademico)</span>
-                        </label>
-                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
-                            <input type="checkbox" style="margin-top:2px" id="chk_s4">
-                            <span>Documento genitore/garante (se firma genitore)</span>
-                        </label>
-                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
-                            <input type="checkbox" style="margin-top:2px" id="chk_s5">
-                            <span>Codice fiscale genitore (se garante)</span>
-                        </label>
-                        
-                        <div style="font-weight:600;margin:16px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--glass-border)">Documenti LOCATORE:</div>
-                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
-                            <input type="checkbox" style="margin-top:2px" id="chk_s6">
-                            <span>Documento identità proprietario</span>
-                        </label>
-                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
-                            <input type="checkbox" style="margin-top:2px" id="chk_s7">
-                            <span>Codice fiscale proprietario</span>
-                        </label>
-                        
-                        <div style="font-weight:600;margin:16px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--glass-border)">Documenti IMMOBILE:</div>
-                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
-                            <input type="checkbox" style="margin-top:2px" id="chk_s8">
-                            <span><strong>APE</strong> in corso di validità</span>
-                        </label>
-                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
-                            <input type="checkbox" style="margin-top:2px" id="chk_s9">
-                            <span>Visura catastale (dati catastali)</span>
-                        </label>
-                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
-                            <input type="checkbox" style="margin-top:2px" id="chk_s10">
-                            <span>Superficie calpestabile (mq)</span>
-                        </label>
-                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
-                            <input type="checkbox" style="margin-top:2px" id="chk_s11">
-                            <span>Planimetria (se locazione parziale/stanza)</span>
-                        </label>
-                        
-                        <div style="font-weight:600;margin:16px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--glass-border)">Contratto:</div>
-                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
-                            <input type="checkbox" style="margin-top:2px" id="chk_s12">
-                            <span>Contratto firmato (modello accordo territoriale)</span>
-                        </label>
-                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
-                            <input type="checkbox" style="margin-top:2px" id="chk_s13">
-                            <span>Scheda calcolo canone compilata</span>
-                        </label>
-                    </div>
-                    
-                    <div style="margin-top:16px;padding:12px;background:#10b98120;border-radius:8px;font-size:12px">
-                        <strong>⚠️ Requisito chiave:</strong> La residenza dello studente deve essere in un Comune DIVERSO da Roma (deve risultare nel contratto)
-                    </div>
-                </div>
-                
-                <!-- TRANSITORIO Checklist -->
-                <div class="card">
-                    <h3 style="margin-bottom:16px;color:#f59e0b">🔄 Checklist TRANSITORIO</h3>
-                    <div style="font-size:13px">
-                        <div style="font-weight:600;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--glass-border)">Documenti CONDUTTORE:</div>
-                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
-                            <input type="checkbox" style="margin-top:2px" id="chk_t1">
-                            <span>Documento identità</span>
-                        </label>
-                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
-                            <input type="checkbox" style="margin-top:2px" id="chk_t2">
-                            <span>Codice fiscale</span>
-                        </label>
-                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
-                            <input type="checkbox" style="margin-top:2px" id="chk_t3">
-                            <span><strong>Documento giustificativo esigenza</strong> (vedi tabella)</span>
-                        </label>
-                        
-                        <div style="font-weight:600;margin:16px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--glass-border)">Documenti LOCATORE:</div>
-                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
-                            <input type="checkbox" style="margin-top:2px" id="chk_t4">
-                            <span>Documento identità proprietario</span>
-                        </label>
-                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
-                            <input type="checkbox" style="margin-top:2px" id="chk_t5">
-                            <span>Codice fiscale proprietario</span>
-                        </label>
-                        
-                        <div style="font-weight:600;margin:16px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--glass-border)">Documenti IMMOBILE:</div>
-                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
-                            <input type="checkbox" style="margin-top:2px" id="chk_t6">
-                            <span><strong>APE</strong> in corso di validità</span>
-                        </label>
-                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
-                            <input type="checkbox" style="margin-top:2px" id="chk_t7">
-                            <span>Visura catastale (dati catastali)</span>
-                        </label>
-                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
-                            <input type="checkbox" style="margin-top:2px" id="chk_t8">
-                            <span>Superficie calpestabile (mq)</span>
-                        </label>
-                        
-                        <div style="font-weight:600;margin:16px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--glass-border)">Contratto:</div>
-                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
-                            <input type="checkbox" style="margin-top:2px" id="chk_t9">
-                            <span>Contratto firmato (modello accordo territoriale)</span>
-                        </label>
-                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
-                            <input type="checkbox" style="margin-top:2px" id="chk_t10">
-                            <span>Scheda calcolo canone compilata</span>
-                        </label>
-                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
-                            <input type="checkbox" style="margin-top:2px" id="chk_t11">
-                            <span><strong>Motivazione transitoria indicata nel contratto</strong></span>
-                        </label>
-                    </div>
-                    
-                    <div style="margin-top:16px;padding:12px;background:#f59e0b20;border-radius:8px;font-size:12px">
-                        <strong>⚠️ Senza motivazione documentata</strong> il contratto è NULLO e diventa automaticamente 4+4!
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Motivazioni Transitorio -->
-            <div class="card" style="margin-bottom:24px">
-                <h3 style="margin-bottom:16px">📄 Motivazioni valide per TRANSITORIO (Roma)</h3>
-                <div class="table-wrapper">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Motivazione</th>
-                                <th>Documento richiesto</th>
-                                <th>Note</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>💼 Contratto lavoro a termine</td>
-                                <td>Copia contratto lavoro</td>
-                                <td>Durata max = durata contratto</td>
-                            </tr>
-                            <tr>
-                                <td>🎓 Stage / Tirocinio</td>
-                                <td>Lettera azienda / Convenzione</td>
-                                <td>Anche curriculare</td>
-                            </tr>
-                            <tr>
-                                <td>📋 Progetto lavorativo temporaneo</td>
-                                <td>Lettera incarico / Progetto</td>
-                                <td>Specificare durata progetto</td>
-                            </tr>
-                            <tr>
-                                <td>✈️ Trasferimento temporaneo lavoro</td>
-                                <td>Lettera datore di lavoro</td>
-                                <td>Distacco, trasferta, etc.</td>
-                            </tr>
-                            <tr>
-                                <td>📚 Formazione professionale</td>
-                                <td>Iscrizione corso</td>
-                                <td>Corsi non universitari</td>
-                            </tr>
-                            <tr>
-                                <td>🏥 Cure mediche</td>
-                                <td>Certificato medico</td>
-                                <td>Cure continuative</td>
-                            </tr>
-                            <tr>
-                                <td>🔨 Ristrutturazione casa propria</td>
-                                <td>Permessi / CILA / SCIA</td>
-                                <td>Casa in ristrutturazione</td>
-                            </tr>
-                            <tr>
-                                <td>⚖️ Separazione / Divorzio in corso</td>
-                                <td>Atto legale / Ricorso</td>
-                                <td>Temporanea sistemazione</td>
-                            </tr>
-                            <tr>
-                                <td>👨‍👩‍👧 Assistenza familiare</td>
-                                <td>Documentazione medica familiare</td>
-                                <td>Vicinanza a parente</td>
-                            </tr>
-                            <tr>
-                                <td>🏠 Attesa consegna immobile acquistato</td>
-                                <td>Preliminare / Rogito</td>
-                                <td>Con data prevista</td>
-                            </tr>
-                            <tr>
-                                <td>💻 Remote work temporaneo</td>
-                                <td>Lettera azienda / Contratto</td>
-                                <td>Smart working da Roma</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            
-            <!-- Servizi Asseverazione -->
-            <div class="card" style="margin-bottom:24px">
-                <h3 style="margin-bottom:16px">🏢 Dove fare l'asseverazione a Roma</h3>
-                <div class="grid-3" style="gap:16px">
-                    <div style="padding:16px;background:var(--glass-bg);border-radius:12px;border:1px solid var(--glass-border)">
-                        <div style="font-weight:600;margin-bottom:8px">🌐 DokiCasa</div>
-                        <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px">Servizio online completo</div>
-                        <div style="font-size:12px;margin-bottom:4px">💰 €99-129 + IVA / pratica</div>
-                        <div style="font-size:12px;margin-bottom:4px">⏱️ 2-5 giorni</div>
-                        <div style="font-size:12px;margin-bottom:12px">✅ Include contratto + calcolo</div>
-                        <a href="https://dokicasa.it" target="_blank" class="btn btn-sm" style="width:100%">Vai al sito →</a>
-                    </div>
-                    
-                    <div style="padding:16px;background:var(--glass-bg);border-radius:12px;border:1px solid var(--glass-border)">
-                        <div style="font-weight:600;margin-bottom:8px">📧 ServiziProfessionali</div>
-                        <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px">Via email, commercialisti</div>
-                        <div style="font-size:12px;margin-bottom:4px">💰 ~€130-150 / pratica</div>
-                        <div style="font-size:12px;margin-bottom:4px">⏱️ Variabile</div>
-                        <div style="font-size:12px;margin-bottom:12px">📩 info@serviziprofessionali.biz</div>
-                        <a href="https://serviziprofessionali.biz/asseverazione.html" target="_blank" class="btn btn-sm" style="width:100%">Vai al sito →</a>
-                    </div>
-                    
-                    <div style="padding:16px;background:var(--glass-bg);border-radius:12px;border:1px solid var(--glass-border)">
-                        <div style="font-weight:600;margin-bottom:8px">🏛️ Confabitare Roma</div>
-                        <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px">Associazione proprietari</div>
-                        <div style="font-size:12px;margin-bottom:4px">💰 Tessera + ~€30-50/pratica</div>
-                        <div style="font-size:12px;margin-bottom:4px">⏱️ 5-10 giorni</div>
-                        <div style="font-size:12px;margin-bottom:12px">✅ PDF/A firmato + QR code</div>
-                        <a href="https://confabitareroma.it" target="_blank" class="btn btn-sm" style="width:100%">Vai al sito →</a>
-                    </div>
-                </div>
-                
-                <div style="margin-top:16px;padding:12px;background:var(--glass-bg);border-radius:8px;font-size:13px">
-                    <strong>💡 Consiglio:</strong> Per 1-2 pratiche/mese usa <strong>DokiCasa</strong> (veloce, tutto online). Per volume maggiore valuta tesseramento <strong>Confabitare</strong> (costi inferiori per pratica).
-                </div>
-            </div>
-            
-            <!-- Quick Reference -->
-            <div class="card">
-                <h3 style="margin-bottom:16px">⚠️ Errori da evitare</h3>
-                <div class="grid-2" style="gap:16px">
-                    <div style="padding:12px;background:#ef444420;border-radius:8px;border-left:4px solid #ef4444">
-                        <div style="font-weight:600;margin-bottom:4px">❌ Studente residente a Roma</div>
-                        <div style="font-size:12px;color:var(--text-muted)">Non può fare contratto studenti - serve residenza FUORI Roma</div>
-                    </div>
-                    <div style="padding:12px;background:#ef444420;border-radius:8px;border-left:4px solid #ef4444">
-                        <div style="font-weight:600;margin-bottom:4px">❌ Transitorio senza motivazione</div>
-                        <div style="font-size:12px;color:var(--text-muted)">Contratto NULLO → diventa automaticamente 4+4</div>
-                    </div>
-                    <div style="padding:12px;background:#ef444420;border-radius:8px;border-left:4px solid #ef4444">
-                        <div style="font-weight:600;margin-bottom:4px">❌ Transitorio > 18 mesi</div>
-                        <div style="font-size:12px;color:var(--text-muted)">Non esiste - massimo 18 mesi poi finisce</div>
-                    </div>
-                    <div style="padding:12px;background:#ef444420;border-radius:8px;border-left:4px solid #ef4444">
-                        <div style="font-weight:600;margin-bottom:4px">❌ "Rinnovare" il transitorio</div>
-                        <div style="font-size:12px;color:var(--text-muted)">Non si può rinnovare - serve NUOVO contratto con NUOVA motivazione</div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
     // ═══════════════════════════════════════════════════════════════════════════
     // PWA - Progressive Web App
     // ═══════════════════════════════════════════════════════════════════════════
