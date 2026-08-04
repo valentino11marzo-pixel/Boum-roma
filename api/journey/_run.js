@@ -54,20 +54,13 @@ const fmtD = s => { try { return new Date(String(s).slice(0, 10) + 'T00:00').toL
 // button from there. So we validate: anything that is not a real write-review
 // URL is refused and we fall back to the search, loudly — a wrong value must
 // never ship silently inside a client email.
-export function reviewUrl(raw) {
-  const v = String(raw || '').trim();
-  if (!v) return null;
-  const ok = /^https:\/\/g\.page\/r\/[A-Za-z0-9_-]+\/review\/?$/.test(v)
-    || /^https:\/\/search\.google\.com\/local\/writereview\?placeid=[A-Za-z0-9_-]+$/.test(v);
-  if (!ok) {
-    console.warn('[journey] REVIEW_URL ignorato — non è un link "scrivi recensione" '
-      + '(atteso g.page/r/<id>/review o search.google.com/local/writereview?placeid=<id>):', v);
-    return null;
-  }
-  return v;
-}
-const REVIEW_URL = reviewUrl(process.env.REVIEW_URL)
-  || 'https://www.google.com/search?q=BOOM+Rome+boomrome.com+reviews';
+// La validazione vive ora in api/reviews/_lib.js — la usano sia questo
+// journey sia il comando /recensione del bot, e due copie della stessa regola
+// finirebbero per divergere proprio su ciò che non deve sbagliare.
+// Ri-esportata qui perché tests/journey/review-url.mjs la importa da qui.
+export { reviewUrl } from '../reviews/_lib.js';
+import { activeReviewUrl } from '../reviews/_lib.js';
+const REVIEW_URL = activeReviewUrl();
 
 const dayDiff = (iso) => {
   // whole days from today (UTC date math on YYYY-MM-DD) to iso; negative = past

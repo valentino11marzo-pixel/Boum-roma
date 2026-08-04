@@ -350,11 +350,7 @@
     <section class="form-section reveal" id="form">
         <div class="form-container">
             <div class="form-header"><div class="form-tag">Free · No exclusivity · Replies within 24h</div><h2 class="form-title">Partner with BOOM</h2><p class="form-subtitle">Tell us about your office and we'll set up your students' safe path to housing in Rome.</p></div>
-<form action="https://api.web3forms.com/submit" method="POST">
-                <input type="hidden" name="access_key" value="5b10beba-c7e0-4cd2-98f9-2dbb0aefe889">
-                <input type="hidden" name="subject" value="🎓 NEW UNIVERSITY PARTNERSHIP INQUIRY">
-                <input type="hidden" name="from_name" value="BOOM University Partnerships">
-                <input type="hidden" name="redirect" value="https://boom-rome.com/_thank-you.html">
+<form id="partnerForm" onsubmit="return sendPartner(event)">
                 <div class="form-row">
                     <div class="form-group"><label class="form-label">Your name <span class="required">*</span></label><input type="text" name="name" class="form-input" required placeholder="Full name"></div>
                     <div class="form-group"><label class="form-label">Work email <span class="required">*</span></label><input type="email" name="email" class="form-input" required placeholder="you@university.edu"></div>
@@ -368,7 +364,9 @@
                     <div class="form-group"><label class="form-label">International students per year</label><select name="students_per_year" class="form-select"><option value="">Select a range</option><option>Under 50</option><option>50–150</option><option>150–500</option><option>500–1,000</option><option>1,000+</option></select></div>
                 </div>
                 <div class="form-group"><label class="form-label">Anything we should know?</label><textarea name="message" class="form-textarea" placeholder="Your intake calendar, the housing challenges you face, what would help your students most..."></textarea></div>
-                <button type="submit" class="form-submit">Start the partnership</button>
+                <input type="text" name="website" id="pfCompany" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px">
+                <p id="pfErr" role="alert" style="display:none;color:#E5735F;font-size:13.5px;margin:0 0 12px"></p>
+                <button type="submit" class="form-submit" id="pfBtn">Start the partnership</button>
                 <p class="form-note">We'll reply within 24 hours with your referral link, materials and a named contact.</p>
             </form>
         </div>
@@ -556,5 +554,25 @@
     <script defer src="/js/boom-track.js"></script>
     <script defer src="/js/boom-film.js"></script>
     <script defer src="/js/boom-pixel.js"></script>
+<script>
+/* Il partner diventa un LEAD (/api/partners/submit): prima finiva su
+   Web3Forms e non entrava in pipeline. */
+function sendPartner(e){e.preventDefault();
+  var M={"name":"name","email":"email","org":"institution","role":"role","country":"country","volume":"students_per_year","message":"message"},F=document.getElementById("partnerForm");
+  var err=document.getElementById("pfErr"),btn=document.getElementById("pfBtn");
+  var g=function(n){var el=F.querySelector("[name=\""+n+"\"]");return el?el.value.trim():""};
+  var body={kind:"university",company:document.getElementById("pfCompany").value};
+  for(var k in M)body[k]=g(M[k]);
+  err.style.display="none";btn.disabled=true;var lbl=btn.textContent;btn.textContent="Sending…";
+  fetch("/api/partners/submit",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
+  .then(function(r){return r.json()}).then(function(j){
+    if(!j||!j.ok)throw new Error((j&&j.error)||"failed");
+    F.innerHTML="<div style=\"text-align:center;padding:26px 0\"><div style=\"width:56px;height:56px;border-radius:50%;border:1px solid #46C08A;color:#46C08A;display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 16px\">✓</div><h3 style=\"font-size:22px;font-weight:300;margin-bottom:8px\">Thank you — we have it.</h3><p style=\"color:rgba(255,255,255,.6);font-size:14.5px;max-width:460px;margin:0 auto\">We reply within 24 hours with your referral link, materials and a named contact."+(j.code?" Your partner code: <b style=\'color:#D4AF37\'>"+j.code+"</b>.":"")+"</p></div>";
+    try{if(typeof gtag==="function")gtag("event","generate_lead",{channel:"partner",partner_kind:"university"});}catch(e){}
+  }).catch(function(ex){btn.disabled=false;btn.textContent=lbl;
+    err.textContent=(ex&&ex.message==="contact_required")?"We need your name and a valid work email.":"That did not go through — try again, or email us directly.";
+    err.style.display="block";});
+  return false;}
+</script>
 </body>
 </html>
