@@ -28068,7 +28068,10 @@ ${d.description || '-'}`;
     }
     
     function sendBrowserNotification(title, body) {
-        if (Notification.permission === 'granted' && document.hidden) {
+        // iOS (Safari/Chrome) non ha l'API Notification: il riferimento nudo
+        // lanciava ReferenceError DENTRO un callback onSnapshot — crash visto
+        // dai log client su iPhone. Prima si controlla che esista.
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted' && document.hidden) {
             new Notification(title, { body, icon: COMPANY.logo });
         }
     }
