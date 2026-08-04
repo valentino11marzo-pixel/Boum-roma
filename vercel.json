@@ -344,10 +344,6 @@
       "destination": "/tenant.html"
     },
     {
-      "source": "/tenant-registration",
-      "destination": "/tenant-registration.html"
-    },
-    {
       "source": "/proppass",
       "destination": "/proppass.html"
     },
@@ -404,10 +400,6 @@
       "destination": "/thank-you.html"
     },
     {
-      "source": "/admin-flats",
-      "destination": "/admin-flats.html"
-    },
-    {
       "source": "/owner-dashboard",
       "destination": "/owner-dashboard.html"
     },
@@ -426,10 +418,6 @@
     {
       "source": "/seed-listings",
       "destination": "/seed-listings.html"
-    },
-    {
-      "source": "/setup-firebase",
-      "destination": "/setup-firebase.html"
     },
     {
       "source": "/boom-doc-parser",
