@@ -653,6 +653,9 @@
     },
     "api/fiscal/pack.js": {
       "maxDuration": 60
+    },
+    "api/owners/rendiconto.js": {
+      "maxDuration": 60
     }
   },
   "crons": [
@@ -739,6 +742,10 @@
     {
       "path": "/api/wizard/describe?mode=sweep",
       "schedule": "35 3 * * *"
+    },
+    {
+      "path": "/api/owners/rendiconto",
+      "schedule": "10 6 1 * *"
     }
   ]
 }
