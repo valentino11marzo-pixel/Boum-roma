@@ -660,18 +660,15 @@
             <div class="form-wrapper">
                 <div id="formAlert"></div>
 
-                <form id="contactForm" class="contact-form" action="https://api.web3forms.com/submit" method="POST">
+                <form id="contactForm" class="contact-form">
                     <!-- Web3Forms Access Key -->
-                    <input type="hidden" name="access_key" value="5b10beba-c7e0-4cd2-98f9-2dbb0aefe889">
                     
                     <!-- Custom Subject -->
-                    <input type="hidden" name="subject" value="📞 BOOM - New Contact Form Message">
                     
                     <!-- Form Type -->
                     <input type="hidden" name="form_type" value="contact-page">
                     
                     <!-- Redirect -->
-                    <input type="hidden" name="redirect" value="https://boom-rome.vercel.app/thank-you.html">
                     
                     <div class="form-row">
                         <div class="form-group">
@@ -777,16 +774,23 @@
             const formData = new FormData(contactForm);
 
             try {
-                const response = await fetch('https://api.web3forms.com/submit', {
+                /* Il contatto entra in pipeline (/api/leads/web): prima
+                   finiva su Web3Forms e non lo vedeva né il portale né il
+                   Commerciale. */
+                const body = { form: 'contact' };
+                formData.forEach((v, k) => { body[k] = v; });
+                if (body.botcheck) body.company = body.botcheck;
+
+                const response = await fetch('/api/leads/web', {
                     method: 'POST',
-                    body: formData
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
                 });
 
                 const data = await response.json();
 
-                if (data.success) {
-                    // Redirect to thank you page
-                    window.location.href = 'https://boom-rome.vercel.app/thank-you.html';
+                if (data.ok) {
+                    window.location.href = '/thank-you';
                 } else {
                     formAlert.innerHTML = `
                         <div class="form-alert error">

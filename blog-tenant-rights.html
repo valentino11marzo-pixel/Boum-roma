@@ -729,12 +729,7 @@
                 </div>
                 <p style="font-size:12px;color:var(--text-4);">Or message us directly: <a href="https://wa.me/393313251961" style="color:var(--gold);">WhatsApp &rarr;</a></p>
             </div>
-            <form class="contact-form" action="https://api.web3forms.com/submit" method="POST">
-                <input type="hidden" name="access_key" value="5b10beba-c7e0-4cd2-98f9-2dbb0aefe889">
-                <input type="hidden" name="subject" value="BOOM Blog — Tenant Rights Inquiry">
-                <input type="hidden" name="from_name" value="BOOM Tenant Rights">
-                <input type="hidden" name="to" value="Valentino@boom-rome.com">
-                <input type="hidden" name="redirect" value="/blog-tenant-rights">
+            <form class="contact-form"  data-boomform="blog-tenant-rights">
                 <div class="form-row">
                     <div class="form-field">
                         <label for="cf-name">Name</label>
@@ -956,5 +951,29 @@ renderQuestions();
     <script defer src="/js/boom-track.js"></script>
     <script defer src="/js/boom-read.js"></script>
     <script defer src="/js/boom-pixel.js"></script>
+<script>
+/* I moduli pubblici entrano in pipeline (/api/leads/web): prima
+   finivano su Web3Forms e nessuno li vedeva. */
+(function boomFormWire(){
+  document.addEventListener("submit",function(e){
+    var F=e.target;if(!F||!F.getAttribute||!F.getAttribute("data-boomform"))return;
+    e.preventDefault();
+    var btn=F.querySelector("[type=submit]"),lbl=btn?btn.textContent:"";
+    if(btn){btn.disabled=true;btn.textContent="Sending…";}
+    var body={form:F.getAttribute("data-boomform")};
+    new FormData(F).forEach(function(v,k){body[k]=v;});
+    if(body.botcheck){body.company=body.botcheck;}
+    fetch("/api/leads/web",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
+    .then(function(r){return r.json()}).then(function(j){
+      if(!j||!j.ok)throw new Error((j&&j.error)||"failed");
+      F.innerHTML="<div style=\"text-align:center;padding:26px 4px\"><div style=\"width:54px;height:54px;border-radius:50%;border:1px solid #46C08A;color:#46C08A;display:flex;align-items:center;justify-content:center;font-size:25px;margin:0 auto 14px\">✓</div><h3 style=\"font-size:20px;font-weight:400;margin-bottom:6px\">Got it — thank you.</h3><p style=\"opacity:.65;font-size:14px;margin:0\">A human replies within a few hours. Urgent? WhatsApp us.</p></div>";
+      try{if(typeof gtag==="function")gtag("event","generate_lead",{channel:"form",form:body.form});}catch(_){}
+    }).catch(function(){
+      if(btn){btn.disabled=false;btn.textContent=lbl;}
+      alert("That did not go through — please try again, or message us on WhatsApp.");
+    });
+  },true);
+})();
+</script>
 </body>
 </html>
