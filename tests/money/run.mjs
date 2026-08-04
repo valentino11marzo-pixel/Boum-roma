@@ -242,7 +242,76 @@ const webhook = (await import('../../api/stripe-webhook.js')).default;
   check('convert: un solo contratto per il PA', contractDocs.length === 1);
 }
 
-// ═══ 7b. convert: verità sul deposito + co-conduttori + provvigione ═══
+// ═══ 8. Link di pagamento (token derivato + ramo INVOICE) ═══
+{
+  const { payToken, verifyPayToken, payLink, collectionFor } = await import('../../api/payments/_token.js');
+
+  check('token: stesso documento → stesso token (link stabile nel tempo)',
+    payToken('pay', 'p1') === payToken('pay', 'p1'));
+  check('token: documenti diversi → token diversi',
+    payToken('pay', 'p1') !== payToken('pay', 'p2'));
+  check('token: stesso id ma tipo diverso → token diverso (una fattura non apre una rata)',
+    payToken('pay', 'x1') !== payToken('inv', 'x1'));
+  check('token: verifica corretta', verifyPayToken('pay', 'p1', payToken('pay', 'p1')));
+  check('token: token altrui rifiutato', !verifyPayToken('pay', 'p1', payToken('pay', 'p2')));
+  check('token: token vuoto rifiutato', !verifyPayToken('pay', 'p1', ''));
+  check('token: tipo sconosciuto → nessuna collezione', collectionFor('utenti') === null);
+  check('link: contiene tipo, id e token', /k=pay&id=p1&t=[0-9a-f]{24}$/.test(payLink('pay', 'p1')));
+
+  // link-for: solo admin per le fatture, e mai per un documento già pagato
+  const linkFor = (await import('../../api/payments/link-for.js')).default;
+  store.set('invoices/inv1', { number: '2026/001', amount: 500, status: 'pending' });
+  store.set('invoices/inv2', { number: '2026/002', amount: 500, status: 'paid' });
+  store.set('users/admin1', { role: 'admin', email: 'a@b.c' });
+
+  let r = mkRes();
+  await linkFor(mkReq({ kind: 'inv', id: 'inv1' }, { authorization: 'Bearer t' }), r);
+  check('link-for: admin ottiene il link della fattura', r.code === 200 && /k=inv&id=inv1/.test(r.body?.url || ''));
+
+  r = mkRes();
+  await linkFor(mkReq({ kind: 'inv', id: 'inv2' }, { authorization: 'Bearer t' }), r);
+  check('link-for: documento già pagato → 409, nessun link', r.code === 409);
+
+  r = mkRes();
+  await linkFor(mkReq({ kind: 'inv', id: 'non-esiste' }, { authorization: 'Bearer t' }), r);
+  check('link-for: documento inesistente → 404', r.code === 404);
+
+  r = mkRes();
+  await linkFor(mkReq({ kind: 'utenti', id: 'x' }, { authorization: 'Bearer t' }), r);
+  check('link-for: tipo non consentito → 400 (non si generano link su altre collezioni)', r.code === 400);
+
+  // webhook INVOICE: incassa, è idempotente, e non sovrascrive mai un già pagato
+  const eb = emails.length;
+  let ev = sessionEvent({ service: 'INVOICE', invoiceId: 'inv1', number: '2026/001', amount: '500' }, { id: 'cs_inv_1', amount_total: 50000 });
+  r = mkRes();
+  await webhook(mkStreamReq(ev), r);
+  const inv = store.get('invoices/inv1');
+  check('webhook INVOICE: fattura segnata pagata via stripe',
+    inv?.status === 'paid' && inv?.paidVia === 'stripe' && inv?.stripeSessionId === 'cs_inv_1');
+  // NB: le email di questo ramo escono via nodemailer (non EmailJS), che qui
+  // non è stubbato — si verifica quindi ciò che tiene insieme il portale:
+  // la notifica operativa scritta su agentNotifications.
+  check('webhook INVOICE: incasso notificato nel portale',
+    [...store.keys()].some(k => k.startsWith('agentNotifications/inv-') && !k.includes('double')));
+
+  const eb2 = emails.length;
+  r = mkRes();
+  await webhook(mkStreamReq(ev), r);
+  check('webhook INVOICE: retry stessa sessione → duplicate, zero nuove email',
+    r.body?.duplicate === true && emails.length === eb2);
+
+  // Una SECONDA sessione su una fattura già pagata non deve sovrascrivere
+  // nulla: è un probabile doppio incasso e va segnalato, non nascosto.
+  r = mkRes();
+  await webhook(mkStreamReq(sessionEvent(
+    { service: 'INVOICE', invoiceId: 'inv1', amount: '500' }, { id: 'cs_inv_2', amount_total: 50000 })), r);
+  check('webhook INVOICE: seconda sessione → allarme doppio incasso, dato non sovrascritto',
+    r.body?.doublePayment === true && store.get('invoices/inv1').stripeSessionId === 'cs_inv_1');
+  check('webhook INVOICE: doppio incasso notificato all\'operatore',
+    [...store.keys()].some(k => k.startsWith('agentNotifications/inv-double-')));
+}
+
+// ═══ 9. convert: verità sul deposito + co-conduttori + provvigione ═══
 {
   const { convertPaToContract } = await import('../../api/preagreement/convert.js');
   store.set('properties/prop10', { ownerId: 'll10', name: 'Casa10', ownerName: 'Verdi' });

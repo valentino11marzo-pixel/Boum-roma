@@ -33,6 +33,10 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
                           realtime listener, toast, loader, confirm, SW reg)
   taxpack-engine.js       Pure Italian rental-tax engine (checklist, totals,
                           cedolare calc, zip manifest). window.BOOM_TAXPACK
+  dataops-engine.js       Pure engine behind Bonifica + Innesto: test-data
+                          classifier (with the `protected` lock), orphan
+                          detection, CF/IBAN validation, entity matching,
+                          proposal normalization. window.BOOM_DATAOPS
   fiscal-engine.js        Pure obligations engine: per-property/contract +
                           company (Egidi) fiscal deadlines + amounts.
                           window.BOOM_FISCAL
@@ -1174,6 +1178,97 @@ mediaType }`. Fetches the file server-side, sends to Claude (haiku), returns
 `{ category, text, entities:{ dates, amounts, codiceFiscale, iban,
 partitaIva, fiscalYear } }`. Anthropic key stays server-side.
 
+### Link di pagamento Stripe (`/api/payments/link` + `link-for`)
+Il portale può incassare QUALSIASI rata o fattura con carta, mandando un
+link su WhatsApp. Il link **non è** una Checkout Session (quella scade in 30
+minuti, per scelta): è un URL stabile di BOOM che a ogni apertura crea una
+sessione fresca e ci reindirizza dentro — si manda oggi e si paga la
+settimana prossima. Il token è **derivato** (`_token.js`, HMAC su
+`HOMIE_SECRET`), quindi ogni rata e ogni fattura già esistente ha da subito
+un link valido senza migrazioni, e ruotando il segreto si revocano tutti.
+- `POST /api/payments/link-for` — admin/owner/landlord: `{kind:'pay'|'inv', id}`
+  → `{url}`. Il calcolo del token resta server-side (se il segreto arrivasse
+  al browser chiunque potrebbe generare link per qualsiasi documento). Un
+  landlord ottiene link solo per i propri immobili; le fatture sono admin-only;
+  documento inesistente 404, già pagato 409.
+- `GET /api/payments/link?k&id&t` — pubblico, nessun login. Casi non-felici
+  resi come **pagine HTML** in stile BOOM, mai come JSON (chi apre un link e
+  vede `{"error":"not_found"}` pensa a una truffa): già pagato (con link alla
+  ricevuta), link non valido, importo anomalo, pagamenti non configurati.
+- La **commissione di servizio** si applica solo al canone (è il costo della
+  carta, voce a sé come in `payments/pay.js`); su una fattura BOOM no —
+  sarebbe farsi pagare due volte lo stesso servizio.
+- Ramo webhook **INVOICE**: segna la fattura `paid/paidVia:'stripe'` con
+  `receiptUrl`, scrive la notifica operativa e manda le ricevute. Stessa
+  disciplina del canone: retry della stessa sessione → `duplicate`; una
+  SECONDA sessione su un documento già saldato non sovrascrive mai nulla e
+  fa scattare l'allarme **doppio incasso** (`agentNotifications`).
+- UI: bottone 💳 sulle righe di Pagamenti e Fatture → pannello con link,
+  copia, **WhatsApp col messaggio già scritto** (quando il numero è in
+  archivio) e anteprima. `copyToClipboard()` ricade su `execCommand` e poi
+  su `prompt()` — su Safari senza contesto sicuro `navigator.clipboard` non
+  esiste e il tasto sembrerebbe rotto.
+Coperto da `tests/money/run.mjs` (token stabile/non trasferibile fra tipi,
+autorizzazioni di `link-for`, incasso fattura, idempotenza, doppio incasso).
+
+### Dati: LA BONIFICA + L'INNESTO (`js/dataops-engine.js` + portal pages)
+Two admin-only portal pages that keep the archive honest. All decision logic
+lives in the pure, dependency-free `js/dataops-engine.js`
+(`window.BOOM_DATAOPS`, 85 unit tests in `tests/dataops/test.mjs`) — it
+decides what gets DELETED and what gets CREATED, so it is testable without a
+browser or Firestore.
+- **🧹 Bonifica** (`goTo('bonifica')`) — finds test data, stale notifications
+  and broken references, then deletes ONLY what the operator ticks. Every
+  item carries the reason it was flagged, in Italian. `isProtected()` locks
+  anything with legal or monetary weight (paid payments, signed/registered
+  contracts, documents with a file, admin users): shown, explained, never
+  preselected, and skipped by "select all". Preselection is limited to
+  severity `alta` + unprotected. Orphan hunting uses an index built ONLY
+  from collections actually loaded — a missing key means "I didn't read it"
+  and nothing is declared orphan (an empty in-memory array is treated as
+  not-loaded, since the portal loads in two waves). Before any delete it
+  downloads a JSON backup of exactly what is about to disappear (Firestore
+  has no trash), then batches the deletes, prunes `S`, drops the data cache
+  and writes an `activityLog` entry. Two-step arm on the button, with the
+  cascade (payments of a deleted contract, contracts of a deleted property)
+  surfaced BEFORE execution.
+- **🌱 Innesto** (`goTo('innesto')`) — paste a contract / an owner's email /
+  a WhatsApp message, or drop a PDF or photo, and get a proposal already in
+  the portal's exact schema: landlord → property → tenant → contract →
+  rent schedule. Each entity says whether it is NEW or matches an existing
+  record and why (`findMatch`: same CF / email / IBAN / address / name, also
+  reversed word order; below 70 it proposes nothing — a visible duplicate
+  beats a contract attached to the wrong person). Real validation before
+  anything is written: codice fiscale checksum (omocodia-aware), IBAN
+  mod-97, date coherence, canone sanity — errors block, warnings don't. The
+  schedule is generated by the SAME `generateMonthlyPayments()` used by
+  magic-sign, so the two paths can never duplicate one.
+
+### Dati aziendali (IBAN) fuori dal codice — `settings/company`
+`COMPANY` in `portal-app.js` carried `iban: 'IT00X0000000000000000000000'` with
+a never-actioned "⚠️ UPDATE WITH REAL IBAN" comment — and that placeholder was
+printed in the **late-payment reminder** sent to tenants and in the generated
+**invoice PDF**. Company data now lives in Firestore `settings/company`
+(admin-write per the existing rules), is merged over the code defaults at boot
+by `BOOM_DATAOPS.mergeCompany()` (field whitelist, values cleaned, empty never
+overwrites a good default) and is edited from **Impostazioni → Dati aziendali**
+— no deploy to change bank, PEC or address. `isPlaceholderIban()` treats
+empty / old placeholder / mod-97 failure alike: while it holds, the reminder
+**omits** the IBAN and the invoice prints "IBAN: da comunicare" (a wrong IBAN
+is worse than none — the payer tries and the transfer never arrives), the
+console shows a red card, and admins get a toast at boot. Saving re-validates
+the IBAN before writing. `loadCompanySettings()` is fire-and-forget off the
+boot path (Safari-audit rule: nothing awaited on boot).
+
+### POST `/api/portal/ingest`
+Admin/owner/landlord (Firebase ID token). Body `{ text?, base64?, mediaType?,
+context:{ known:{ landlords[], properties[] } } }` → `{ ok, proposal, notes[],
+confidence }`. Claude (haiku) extracts the four entities; the prompt forbids
+inventing values (an empty field is correct, an invented one ends up in a
+registered contract) and the response is field-whitelisted server-side to the
+portal's schema. **Writes nothing** — creation happens client-side after the
+operator reviews and confirms. `ANTHROPIC_API_KEY` stays server-side.
+
 ### POST `/api/homie/wa-outbox`
 WhatsApp OUTBOX for the Mac-side Homie agent: approved WhatsApp replies go
 out AUTOMATICALLY. Executor marks the action executed (wa.me link kept as
@@ -1588,10 +1683,49 @@ pages on their loader with no signal at all):
   25s hard watchdog now enters the app shell when user+profile are
   already in hand instead of bouncing an authenticated user to login.
 
+- **La scialuppa scattava sull'indizio sbagliato** (lo spinner infinito che
+  l'operatore vedeva su Safari, agosto 2026). La via d'uscita a 15s di
+  portal.html usciva subito se `window.__portalAppLoaded` era vero — ma quella
+  sentinella è la **RIGA 1** di `portal-app.js`: si accende appena il file è
+  parsato, prima che il boot faccia alcunché. Il watchdog interno dell'app
+  nasce ~2.300 righe più in là, quindi QUALUNQUE eccezione in mezzo spegneva
+  l'unica scialuppa armata e non ne creava nessun'altra: spinner per sempre,
+  senza uscita. Che su WebKit quelle eccezioni esistano non è teoria — i log
+  di `/api/log` ne portano due dai dispositivi dell'operatore
+  (`Can't find variable: Notification`, e un rejection IndexedDB
+  *"Attempt to get records from database without an in-progress transaction"*).
+  Ora il watchdog scatta sul **SINTOMO** (il loader è ancora acceso), mai su un
+  indizio: 15s se l'app non ha ancora armato la sua rete
+  (`window.__portalBootArmed`, stampata subito dopo il watchdog dei 25s), 30s
+  comunque, e un `window.onerror` mentre la rete non è armata accorcia
+  l'attesa a 2,5s. Corretti insieme i difetti che ci arrivavano dentro:
+  `Notification` letta senza guard (iOS non la espone fuori dalle PWA
+  installate), `localStorage` non protetto in `startFirestorePersistence`
+  (Safari privato LANCIA invece di restituire vuoto — `firebase-config.js` lo
+  avvolgeva già, `portal-app.js` no) e `loadChartJS` che rigettava l'Event
+  grezzo senza `.catch()` sul chiamante della dashboard: una CDN lenta
+  produceva un rejection non gestito durante il boot, che in telemetria si
+  legge `Event` e non dice nulla.
+- **`/login`**: `signInWithEmailAndPassword` era atteso senza tetto — su WebKit
+  incastrato il bottone girava all'infinito, senza messaggio. Ora c'è un limite
+  di 20s con un messaggio che indica la via d'uscita; è sicuro perché
+  `onAuthStateChanged` redirige comunque se il login arriva in ritardo. Stesso
+  trattamento alle due letture Firestore di `boom_doc_parser.html` (il `catch`
+  copriva il rifiuto, non il silenzio).
+
 Regression suite: `node tests/safari/boot.mjs` — fakes Firebase and asserts
 that a hung profile read, a mute realtime channel and a normal boot all end
 in a usable page, never a spinner. Needs `playwright-core`
 (`BOOM_PLAYWRIGHT=/path/to/index.js` if it lives outside the project).
+**Copre anche portal.html** — la superficie più grande e l'unica con un boot
+proprio invece di `BoomPortal.requireAuth`, che restava fuori mentre la suite
+dichiarava "nessuna superficie autenticata resta appesa": verde e cieca sulla
+pagina che si piantava davvero. Il caso *"lo script muore dopo la riga 1"*
+riproduce lo spinner infinito e pretende la card di uscita.
+
+**Nota**: `owner-dashboard.html` è oggi una pagina STATICA — non carica
+Firebase né autentica nessuno, malgrado la tabella dei portali qui sopra lo
+descriva come SPA Firestore filtrata per `ownerId`.
 
 **Deal Link** (`/portal#deal=<base64url JSON>`): semina il wizard
 "🚀 Nuovo cliente → contratto firmato" con un deal completo — `{tenant,

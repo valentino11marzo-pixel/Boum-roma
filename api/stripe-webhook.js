@@ -701,6 +701,94 @@ async function handleRent(res, session, m) {
   return res.status(200).json({ received: true, rent: true, paymentId });
 }
 
+// INVOICE — una fattura BOOM pagata con carta dal link mandato su WhatsApp.
+// Stessa disciplina del canone: idempotente sul retry di Stripe, e se il
+// documento risultava già saldato per altra via NON lo sovrascrive mai —
+// segnala un possibile doppio incasso invece di nasconderlo.
+async function handleInvoice(res, session, m) {
+  const invoiceId = String(m.invoiceId || '').trim();
+  if (!invoiceId) return res.status(200).json({ received: true, error: 'no_invoiceId' });
+  const now = new Date().toISOString();
+  const amount = Number(m.amount) || Math.round((session.amount_total || 0) / 100);
+
+  let inv = null;
+  try { inv = await readDoc(`invoices/${invoiceId}`); } catch (_) {}
+  if (!inv) return res.status(200).json({ received: true, error: 'invoice_not_found', invoiceId });
+
+  if (inv.status === 'paid') {
+    if (inv.stripeSessionId === session.id) {
+      return res.status(200).json({ received: true, duplicate: true, invoiceId });
+    }
+    try {
+      await writeDoc('agentNotifications', 'inv-double-' + invoiceId + '-' + session.id.slice(-8), {
+        type: 'payment.invoice.double',
+        summary: `🚨 POSSIBILE DOPPIO INCASSO sulla fattura ${inv.number || invoiceId}: già pagata${inv.paidDate ? ' il ' + inv.paidDate : ''}, ora ricevuto ANCHE via Stripe.`,
+        priority: 'high', status: 'pending', actor: 'stripe-webhook',
+        dedupKey: 'inv-double-' + invoiceId, createdAt: now, attempts: 0,
+      });
+    } catch (_) {}
+    return res.status(200).json({ received: true, doublePayment: true, invoiceId });
+  }
+
+  let receiptUrl = null;
+  try {
+    if (session.payment_intent) {
+      const pi = await stripe.paymentIntents.retrieve(String(session.payment_intent), { expand: ['latest_charge'] });
+      receiptUrl = (pi.latest_charge && pi.latest_charge.receipt_url) || null;
+    }
+  } catch (_) {}
+
+  try {
+    await patchDoc(`invoices/${invoiceId}`, {
+      status: 'paid', paidAt: now, paidDate: now.slice(0, 10),
+      paidVia: 'stripe', stripeSessionId: session.id, receiptUrl: receiptUrl || '',
+    });
+  } catch (err) {
+    console.error('[invoice] patch:', err.message);
+    return res.status(500).json({ received: false, error: 'patch_failed' });
+  }
+
+  try {
+    await writeDoc('agentNotifications', 'inv-' + invoiceId + '-' + session.id.slice(-8), {
+      type: 'payment.invoice.paid',
+      summary: `🧾 Fattura ${inv.number || invoiceId} incassata: €${amount}${inv.recipientName ? ' — ' + inv.recipientName : ''}.`,
+      priority: 'normal', status: 'pending', actor: 'stripe-webhook',
+      dedupKey: 'inv-' + invoiceId, createdAt: now, attempts: 0,
+    });
+  } catch (err) { console.error('[invoice] notify:', err.message); }
+
+  const eurFmt = n => '€' + Number(n || 0).toLocaleString('it-IT');
+  // Il link si manda anche a chi non ha l'email in archivio: in quel caso
+  // Stripe non riceve customer_email e l'indirizzo è quello DIGITATO dal
+  // pagante — senza questo la ricevuta non partirebbe proprio a chi ha pagato.
+  const email = (session.customer_details && session.customer_details.email)
+    || session.customer_email || inv.recipientEmail || '';
+  if (email) {
+    try {
+      await sendEmail({
+        to: email,
+        subject: `Ricevuta — fattura ${inv.number || ''} ${eurFmt(amount)} ✓`,
+        html: shell(
+          para(`Pagamento ricevuto ✓ — la fattura <b>${inv.number || invoiceId}</b> di <b>${eurFmt(amount)}</b> risulta saldata.`)
+          + (receiptUrl ? fine(`Ricevuta Stripe: <a href="${receiptUrl}" style="color:#141414">apri →</a>`, 'text-align:center') : '')
+          + fine('Domande? Rispondi a questa email o <a href="https://wa.me/393313251961" style="color:#141414">scrivici su WhatsApp</a>.', 'text-align:center'),
+          `Fattura ${eurFmt(amount)} saldata`),
+      });
+    } catch (err) { console.error('[invoice] client email:', err.message); }
+  }
+  try {
+    await sendEmail({
+      to: 'valentino@boom-rome.com',
+      subject: `🧾 FATTURA INCASSATA ${eurFmt(amount)} — ${inv.number || invoiceId}`,
+      html: shell(
+        para(`Incassata via Stripe: <b>${eurFmt(amount)}</b> — fattura <b>${inv.number || invoiceId}</b>${inv.recipientName ? ' a ' + inv.recipientName : ''}.`)
+        + btn2('https://www.boomrome.com/portal', 'Apri il portale')),
+    });
+  } catch (err) { console.error('[invoice] admin email:', err.message); }
+
+  return res.status(200).json({ received: true, invoice: true, invoiceId });
+}
+
 // ── Soldi che tornano indietro: MAI in silenzio ────────────────────────────
 // Un rimborso o una CONTESTAZIONE (dispute) finora arrivavano solo nella
 // dashboard Stripe: su una dispute non risposta entro la scadenza l'importo
@@ -797,6 +885,10 @@ export default async function handler(req, res) {
 
   if (m.service === 'RENT') {
     return handleRent(res, session, m);
+  }
+
+  if (m.service === 'INVOICE') {
+    return handleInvoice(res, session, m);
   }
 
   if (m.service !== 'PFS') {

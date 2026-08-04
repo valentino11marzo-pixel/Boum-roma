@@ -620,12 +620,22 @@
         if(!email||!password){ showMessage('Please enter your email and password.','error'); return; }
         setLoading(true); clearMessage();
         try{
-          await auth.signInWithEmailAndPassword(email,password);
+          // Tetto sul sign-in. Su WebKit incastrato (IndexedDB/WebChannel)
+          // questa promise può non risolversi MAI: senza tetto il bottone
+          // restava a girare all'infinito, senza messaggio e senza uscita —
+          // l'equivalente su /login dello spinner infinito del portale.
+          // È sicuro: onAuthStateChanged qui sopra redirige comunque se il
+          // login arriva in ritardo, quindi al peggio si avvisa di troppo.
+          await Promise.race([
+            auth.signInWithEmailAndPassword(email,password),
+            new Promise((_,rej)=>setTimeout(()=>rej(new Error('boom/timeout')),20000))
+          ]);
           showMessage('Welcome back — signing you in…','success');
           setTimeout(()=>{ window.location.href=NEXT_DEST; }, isSafari?500:120);
         }catch(err){
           let msg='Incorrect email or password. Please try again.';
-          if(err.code==='auth/too-many-requests') msg='Too many attempts. Please wait a moment and try again.';
+          if(err && err.message==='boom/timeout') msg='Sign-in is taking too long — your browser may be stuck. Reload the page, or try a private window.';
+          else if(err.code==='auth/too-many-requests') msg='Too many attempts. Please wait a moment and try again.';
           else if(err.code==='auth/network-request-failed') msg='Network error. Check your connection and try again.';
           else if(err.code==='auth/user-disabled') msg='This account has been disabled. Contact support.';
           showMessage(msg,'error'); setLoading(false); pwInput.focus(); pwInput.select();
