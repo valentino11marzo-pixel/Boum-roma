@@ -23,7 +23,8 @@ import crypto from "crypto";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
-import { fsPatch } from "./homie/_lib.js";
+import { fsPatch, fsGet } from "./homie/_lib.js";
+import { verifyIdToken, bearerFrom } from "./_auth.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -471,8 +472,24 @@ export default async function handler(req, res) {
   if (allowedOrigins.includes(origin)) res.setHeader("Access-Control-Allow-Origin", origin);
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Firebase-Token, X-Homie-Secret, Authorization");
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+
+  // Questo endpoint FIRMA col certificato Apple Wallet di produzione: era
+  // pubblico e chiunque poteva coniare carte "BOOM" con contenuti arbitrari
+  // (audit 2026-08, S1 — i gemelli pass-issue/push/diag erano già protetti).
+  // I flussi cliente moderni non passano da qui (my-pass e viewings/pass
+  // hanno i loro token derivati): chi chiama è SEMPRE un operatore.
+  const secretOk = req.headers["x-homie-secret"] && req.headers["x-homie-secret"] === process.env.HOMIE_SECRET;
+  if (!secretOk) {
+    const tok = req.headers["x-firebase-token"] || bearerFrom(req);
+    const u = tok ? await verifyIdToken(tok).catch(() => null) : null;
+    const prof = u ? await fsGet("users/" + u.localId).catch(() => null) : null;
+    if (!prof || !["admin", "owner", "landlord"].includes(prof.role)) {
+      return res.status(401).json({ error: "auth_required", hint: "Pass signing is operator-only. Open your pass from the link BOOM sent you, or ask for a fresh one." });
+    }
+  }
 
   try {
     const { type = "tenant", data } = req.body || {};
