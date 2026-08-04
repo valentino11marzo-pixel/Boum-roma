@@ -86,7 +86,10 @@ export default async function handler(req, res) {
   if (!aiKey) return res.status(200).json({ ok: false, error: 'anthropic_key_missing' });
 
   const since = new Date(Date.now() - LOOKBACK_DAYS * 24 * 3600 * 1000);
-  const stats = { scanned: 0, requests: 0, ingested: 0, duplicates: 0, aiCalls: 0, unmatched: 0 };
+  // Deadline morbida sotto il limite piattaforma (60s): uscire puliti batte
+  // il kill a metà lavoro — memoria e dedupe rendono gratis il giro dopo.
+  const softDeadline = Date.now() + 48_000;
+  const stats = { scanned: 0, requests: 0, ingested: 0, duplicates: 0, aiCalls: 0, unmatched: 0, timeBoxed: 0 };
   const client = new ImapFlow({ host: 'imap.gmail.com', port: 993, secure: true, auth: { user, pass }, logger: false });
 
   // processed-message memory: ONE doc under heartbeat/ (a collection the
@@ -113,6 +116,11 @@ export default async function handler(req, res) {
 
       for (const uid of uids) {
         if (stats.aiCalls >= AI_BUDGET_PER_RUN) break;
+        if (Date.now() > softDeadline) {
+          stats.timeBoxed = uids.size - stats.scanned;
+          console.warn('[leads/scan-inbox] soft deadline: restano', stats.timeBoxed, 'email al prossimo giro');
+          break;
+        }
         stats.scanned++;
         let parsed;
         try {

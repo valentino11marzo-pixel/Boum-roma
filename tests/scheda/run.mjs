@@ -236,6 +236,20 @@ IP = '1.2.3.4';
   await link(mkReq({ contractId: 'ctr1' }, { authorization: 'Bearer faketoken' }), r);
   check('link admin: URL derivate coerenti', r.code === 200 && r.body.tenantUrl === schedaUrl('ctr1', 'tenant') && r.body.landlordUrl === schedaUrl('ctr1', 'landlord'));
   check('link admin: lock riflesso (landlord firmato)', r.body.tenantLocked === false && r.body.landlordLocked === true);
+  check('link admin: senza coTenants nessun campo cosign', !('cosign' in r.body));
+
+  // Con coTenants[]: anche i link firma dei co-conduttori (derivati) —
+  // l'URL deve combaciare con cosignRef, un co già firmato è marcato.
+  const { cosignRef } = await import('../../api/magic-sign/_shared.js');
+  store.set('contracts/ctr1', { ...store.get('contracts/ctr1'),
+    coTenants: [{ name: 'Anouk Garot', email: 'a@x.fr' }, { name: 'Terza Persona', signature: 'data:image/png;base64,x' }] });
+  r = mkRes();
+  await link(mkReq({ contractId: 'ctr1' }, { authorization: 'Bearer faketoken' }), r);
+  check('link admin: cosign[] con URL derivato del co-conduttore',
+    r.code === 200 && Array.isArray(r.body.cosign) && r.body.cosign.length === 2
+    && r.body.cosign[0].url.endsWith('/sign?sign=' + encodeURIComponent(cosignRef('ctr1', 0)))
+    && r.body.cosign[0].signed === false && r.body.cosign[1].signed === true);
+  store.set('contracts/ctr1', { ...store.get('contracts/ctr1'), coTenants: undefined });
 
   // owner non admin: contratto di un ALTRO owner → 403
   store.set('users/caller1', { role: 'landlord' });

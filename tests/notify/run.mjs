@@ -115,6 +115,12 @@ globalThis.fetch = async (url, opts = {}) => {
     if (path.startsWith(':commit')) {
       const writes = (JSON.parse(opts.body || '{}') || {}).writes || [];
       for (const w of writes) {
+        // Severo come il VERO Firestore: il name di un write è un RESOURCE
+        // NAME (projects/…), mai un URL. Lo stub permissivo qui ha nascosto
+        // il bug che in produzione bloccava OGNI firma (2026-08-02).
+        if (!/^projects\/[^/]+\/databases\/\(default\)\/documents\/.+/.test(String(w.update.name))) {
+          return new Response(JSON.stringify({ error: { code: 400, message: `Document name "${w.update.name}" is invalid`, status: 'INVALID_ARGUMENT' } }), { status: 400 });
+        }
         const k = (w.update.name.split('/documents/')[1] || '');
         if (w.currentDocument && w.currentDocument.updateTime) {
           const cur = docTimes.get(k) || '2026-01-01T00:00:00Z';

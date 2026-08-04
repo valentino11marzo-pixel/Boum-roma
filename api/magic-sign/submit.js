@@ -59,6 +59,26 @@ function isValidSignature(s) {
     && s.length < SIG_MAX_LEN;
 }
 
+// Una firma che fallisce non deve restare muta sul telefono del cliente:
+// l'operatore la vede subito e può intervenire mentre la persona è ancora
+// davanti allo schermo. Best-effort, mai bloccante, deduplicato per
+// contratto+motivo (un cliente che riprova 5 volte non fa 5 allarmi).
+async function alertSignFailure(contractId, role, reason, extra) {
+  try {
+    const { fsCreate } = await import('../homie/_lib.js');
+    await fsCreate('agentNotifications', {
+      type: 'contract.sign_failed',
+      summary: `⛔ FIRMA FALLITA · ${contractId || 'token sconosciuto'} · ${role || '?'} · motivo: ${reason}${extra ? ' — ' + extra : ''}`,
+      priority: 'urgent',
+      ref: { collection: 'contracts', id: contractId || '' },
+      payload: { contractId: contractId || '', role: role || '', reason: String(reason || '') },
+      dedupKey: `sign-failed-${contractId || 'na'}-${reason}`,
+      status: 'pending', actor: 'magic-sign',
+      createdAt: new Date().toISOString(), attempts: 0,
+    });
+  } catch (e) { console.warn('[magic-sign/submit] alert:', e.message); }
+}
+
 export default async function handler(req, res) {
   setCors(req, res);
   if (req.method === 'OPTIONS') return res.status(204).end();
@@ -72,7 +92,10 @@ export default async function handler(req, res) {
 
   const token = typeof body.token === 'string' ? body.token.trim() : '';
   if (!token) return res.status(400).json({ ok: false, error: 'missing_token' });
-  if (!isValidSignature(body.signature)) return res.status(400).json({ ok: false, error: 'invalid_signature' });
+  if (!isValidSignature(body.signature)) {
+    alertSignFailure('', '', 'invalid_signature', 'lunghezza ' + String((body.signature || '').length));
+    return res.status(400).json({ ok: false, error: 'invalid_signature' });
+  }
   if (!body.consent || typeof body.consent.text !== 'string' || typeof body.consent.hash !== 'string') {
     return res.status(400).json({ ok: false, error: 'missing_consent' });
   }
@@ -84,7 +107,7 @@ export default async function handler(req, res) {
     console.error('[magic-sign/submit] lookup:', e.message);
     return res.status(500).json({ ok: false, error: 'lookup_failed' });
   }
-  if (!hit) return res.status(404).json({ ok: false, error: 'invalid_or_used' });
+  if (!hit) { alertSignFailure('', '', 'invalid_or_used', 'token non riconosciuto'); return res.status(404).json({ ok: false, error: 'invalid_or_used' }); }
 
   const { contract, role, coIndex } = hit;
   const contractId = contract.id;
@@ -153,6 +176,7 @@ export default async function handler(req, res) {
   // telefono verificato via Firebase — il fattore in più che avvicina la
   // FES alla FEA. Default assente = off: nessun contratto esistente cambia.
   if (contract.otpRequired === true && !phoneVerified) {
+    alertSignFailure(contract.id, role, 'otp_required', 'telefono non verificato');
     return res.status(428).json({ ok: false, error: 'otp_required' });
   }
 
@@ -285,6 +309,7 @@ export default async function handler(req, res) {
         createdAt: new Date().toISOString(), attempts: 0,
       }).catch(() => {});
     } catch (_) {}
+    alertSignFailure(contractId, role, 'terms_changed', 'i termini sono cambiati dopo la prima firma — rimanda il link');
     return res.status(409).json({ ok: false, error: 'terms_changed' });
   }
   if (!fresh.signedTermsHash) {
@@ -357,6 +382,7 @@ export default async function handler(req, res) {
     }
   } catch (e) {
     console.error('[magic-sign/submit] contract write:', e.message);
+    alertSignFailure(contractId, role, 'contract_write_failed', String(e.message || '').slice(0, 160));
     return res.status(500).json({ ok: false, error: 'contract_write_failed' });
   }
 

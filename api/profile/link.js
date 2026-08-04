@@ -7,11 +7,18 @@
 // Method:   POST
 // Headers:  Authorization: Bearer <firebase-id-token>
 // Body:     { contractId }
-// Response: { ok, tenantUrl, landlordUrl, tenantLocked, landlordLocked }
+// Response: { ok, tenantUrl, landlordUrl, tenantLocked, landlordLocked,
+//             cosign: [{ index, name, url, signed }] }
+// cosign: anche i link FIRMA dei co-conduttori sono derivati (cosignRef da
+// HOMIE_SECRET) — il browser non può calcolarli, e senza questo campo lo
+// Share Hub non aveva nulla da incollare su WhatsApp per un co-conduttore.
 
 import { fsGet, readJson } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
 import { schedaUrl, schedaLocked } from './_scheda.js';
+import { cosignRef } from '../magic-sign/_shared.js';
+
+const BASE = process.env.PUBLIC_BASE_URL || 'https://www.boomrome.com';
 
 export default async function handler(req, res) {
   setCors(req, res);
@@ -38,11 +45,21 @@ export default async function handler(req, res) {
     if (ownerId !== auth.uid) return res.status(403).json({ ok: false, error: 'not_your_contract' });
   }
 
+  const cosign = (Array.isArray(contract.coTenants) ? contract.coTenants : [])
+    .map((co, i) => (co && co.name ? {
+      index: i,
+      name: String(co.name).slice(0, 60),
+      url: `${BASE}/sign?sign=${encodeURIComponent(cosignRef(contractId, i))}`,
+      signed: !!co.signature,
+    } : null))
+    .filter(Boolean);
+
   return res.status(200).json({
     ok: true,
     tenantUrl: schedaUrl(contractId, 'tenant'),
     landlordUrl: schedaUrl(contractId, 'landlord'),
     tenantLocked: schedaLocked(contract, 'tenant'),
     landlordLocked: schedaLocked(contract, 'landlord'),
+    ...(cosign.length ? { cosign } : {}),
   });
 }

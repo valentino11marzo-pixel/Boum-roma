@@ -403,6 +403,13 @@
         e_err_t:'Something went wrong', e_err_d:'We couldn’t load this contract. Please try again in a moment.',
         e_conn_t:'Connection needed', e_conn_d:'We couldn’t reach the signing service. Check your connection and refresh.',
         support:'Contact BOOM',
+        e_rate:'Too many attempts — wait a minute and press Sign again.',
+        e_terms:'This contract was updated after it was sent. Please ask BOOM to resend your signing link — it takes a second.',
+        e_otp:'This contract requires phone verification: go back and verify your number.',
+        e_used:'This signing link is no longer valid. Ask BOOM for a fresh one.',
+        e_consent:'Please tick the consent box again and press Sign.',
+        e_sig:'Your signature didn’t come through — clear the box, sign again with a slower stroke, and press Sign.',
+        e_generic:'We couldn’t record your signature. Try once more — if it keeps failing, tap the WhatsApp link below and we’ll sort it in a minute.',
       },
       it: {
         kicker:'Firma sicura',
@@ -435,6 +442,13 @@
         e_err_t:'Qualcosa è andato storto', e_err_d:'Non riusciamo a caricare il contratto. Riprovi tra un momento.',
         e_conn_t:'Serve la connessione', e_conn_d:'Non riusciamo a raggiungere il servizio di firma. Controlli la connessione e ricarichi.',
         support:'Contatta BOOM',
+        e_rate:'Troppi tentativi — attenda un minuto e prema di nuovo Firma.',
+        e_terms:'Il contratto è stato aggiornato dopo l’invio. Chieda a BOOM di rimandare il link di firma — è questione di un attimo.',
+        e_otp:'Questo contratto richiede la verifica del telefono: torni indietro e verifichi il numero.',
+        e_used:'Questo link di firma non è più valido. Ne chieda uno nuovo a BOOM.',
+        e_consent:'Rimetta la spunta sul consenso e prema Firma.',
+        e_sig:'La firma non è arrivata — cancelli il riquadro, la rifaccia con un tratto più lento e prema Firma.',
+        e_generic:'Non siamo riusciti a registrare la firma. Riprovi — se continua, tocchi il link WhatsApp qui sotto e lo risolviamo in un minuto.',
       }
     };
     var lang = '';
@@ -900,9 +914,17 @@
           if(j&&j.error==='already_signed'){ renderSuccess(j.signatureStatus==='complete'); return; }
           try{ console.error('[sign submit] failed:', j); }catch(e){}
           var b=document.getElementById('s-sign'); if(b){ b.disabled=false; b.textContent='Sign contract'; }
-          if(j&&j.error==='rate_limited') return flash('Too many attempts — please wait a moment.');
-          var why=(j&&(j.error||j.detail))?(' ['+esc(String(j.error||j.detail))+']'):'';
-          return flash('We couldn’t record your signature.'+why);
+          var code=(j&&(j.error||j.detail))?String(j.error||j.detail):'';
+          if(code==='rate_limited') return flash(t('e_rate'));
+          if(code==='terms_changed') return flash(t('e_terms'));
+          if(code==='awaiting_tenant') return flash(t('e_turn_d'));
+          if(code==='otp_required') return flash(t('e_otp'));
+          if(code==='invalid_or_used') return flash(t('e_used'));
+          if(code==='invalid_consent_text'||code==='invalid_consent_hash'||code==='missing_consent') return flash(t('e_consent'));
+          if(code==='invalid_signature') return flash(t('e_sig'));
+          // Sconosciuto: si dice la verità, si offre la via umana, e il codice
+          // resta visibile (serve a noi per capire in un secondo).
+          return flash(t('e_generic')+(code?(' ['+esc(code)+']'):''));
         }
         // Obligations + FES certificate + tenant magic link + welcome emails are
         // produced server-side by /api/magic-sign/submit on full completion.

@@ -92,11 +92,17 @@ export function tenantSideComplete(contract) {
 // frattempo): è il lucchetto ottimistico del write di firma.
 export async function commitWrites(writes) {
   const token = await getAdminToken();
-  const projectPath = FS_BASE.replace(/\/documents$/, '');
+  // Il name di un write è un RESOURCE NAME ("projects/<p>/databases/(default)/
+  // documents/<path>"), NON un URL: FS_BASE è l'endpoint REST completo e va
+  // spogliato dell'origine. Col prefisso https:// Firestore risponde
+  // 400 INVALID_ARGUMENT ("Document name ... is invalid") — il bug che il
+  // 2026-08-02 bloccava OGNI firma in produzione mentre lo stub dei test,
+  // permissivo sui nomi, lasciava passare tutto.
+  const resourceBase = FS_BASE.replace(/^https?:\/\/[^/]+\/v1\//, '');
   const body = {
     writes: writes.map(w => {
       const update = {
-        name: `${projectPath}/documents/${w.docPath}`,
+        name: `${resourceBase}/${w.docPath}`,
         fields: toFsFields(w.fields || {}),
       };
       const updateMask = Object.keys(w.fields || {});

@@ -92,6 +92,7 @@
          defer safely and stop blocking the parser during boot. -->
     <script defer src="/js/taxpack-engine.js"></script>
     <script defer src="/js/fiscal-engine.js"></script>
+    <script defer src="/js/dataops-engine.js"></script>
     <script defer src="/js/conversations.js"></script>
     <script defer src="/js/relet-engine.js"></script>
     <script defer src="/js/underwriting-engine.js"></script>
@@ -126,9 +127,9 @@
     
     <div class="loading" id="loading"><div class="spinner"></div><div style="color:var(--text-muted);font-size:14px">Caricamento...</div></div>
     <script>
-    // Via d'uscita: se lo script applicativo non parte (rete, cache corrotta,
-    // service worker incastrato), lo spinner non deve MAI restare infinito.
-    // Dopo 15s senza boot si mostra una card con login + reset totale.
+    // Via d'uscita: se il portale non arriva a mostrarsi (rete, cache corrotta,
+    // service worker incastrato, eccezione durante il boot), lo spinner non
+    // deve MAI restare infinito: si mostra una card con login + reset totale.
     (function () {
         window.__boomReset = function () {
             var done = function () { location.reload(); };
@@ -144,10 +145,21 @@
                 setTimeout(done, 4000);
             } catch (e) { done(); }
         };
-        setTimeout(function () {
-            if (window.__portalAppLoaded) return;
+        // La scialuppa scatta sul SINTOMO (il loader è ancora acceso), non su un
+        // indizio (lo script si è caricato). La versione precedente usciva
+        // subito se __portalAppLoaded era vero — ma quella sentinella sta alla
+        // RIGA 1 di portal-app.js, cioè si accende appena il file viene
+        // parsato, prima che il boot abbia fatto alcunché. Il watchdog interno
+        // dell'app nasce ~2300 righe più in là: qualunque eccezione in mezzo
+        // (su WebKit ne abbiamo di registrate: Notification assente, IndexedDB
+        // che salta) spegneva la scialuppa QUI e non ne armava nessun'altra →
+        // spinner infinito, senza uscita. Riprodotto in browser:
+        // tests/safari/boot.mjs, caso "portal-app.js lancia dopo la riga 1".
+        var showEscape = function () {
             var l = document.getElementById('loading');
             if (!l || l.classList.contains('hidden')) return;
+            if (l.getAttribute('data-escape') === '1') return;
+            l.setAttribute('data-escape', '1');
             l.innerHTML = '<div style="max-width:340px;text-align:center;padding:24px">' +
                 '<div style="font-size:34px;margin-bottom:14px">⏳</div>' +
                 '<div style="color:#FFF;font-size:15px;margin-bottom:8px">Il portale non si è avviato</div>' +
@@ -155,7 +167,23 @@
                 '<a href="/login?next=%2Fportal" style="display:block;padding:13px;background:#D4AF37;color:#08080A;border-radius:12px;text-decoration:none;font-size:14px;margin-bottom:10px">Vai al login</a>' +
                 '<button onclick="window.__boomReset()" style="width:100%;padding:13px;background:transparent;border:1px solid rgba(255,255,255,0.2);border-radius:12px;color:#FFF;font-size:14px;cursor:pointer">Riprova da zero (svuota cache)</button>' +
                 '</div>';
-        }, 15000);
+        };
+        // Due tempi, entrambi condizionati al loader ANCORA acceso:
+        //  15s → l'app non ha ancora armato la propria rete (__portalBootArmed,
+        //        stampata subito dopo il watchdog interno): è morta prima di
+        //        arrivarci, aspettare oltre non serve a niente.
+        //  30s → la rete interna esiste (hard timeout a 25s) ma non ha
+        //        funzionato: si esce comunque, mai uno spinner eterno.
+        setTimeout(function () { if (!window.__portalBootArmed) showEscape(); }, 15000);
+        setTimeout(showEscape, 30000);
+        // Un'eccezione non catturata mentre il loader è acceso e la rete interna
+        // non è ancora armata È il caso senza uscita: si accorcia l'attesa. La
+        // grazia di 2,5s evita di sfrattare un boot sano per l'errore di una
+        // risorsa secondaria (un'icona che manca non è un portale rotto).
+        window.addEventListener('error', function () {
+            if (window.__portalBootArmed) return;
+            setTimeout(function () { if (!window.__portalBootArmed) showEscape(); }, 2500);
+        });
     })();
     </script>
     <div class="auth hidden" id="authScreen">

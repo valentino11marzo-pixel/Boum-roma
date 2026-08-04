@@ -199,6 +199,15 @@ export async function finalizeContract(contract){
   // signer's request past the function limit. The CAF dossier used to live
   // in portal-app.js (EmailJS) and only fired from the legacy in-portal
   // signing path — on /sign it never went out at all.
+  // IL SEMAFORO SI ALZA PRIMA DELLE EMAIL. La guardia di idempotenza è
+  // contract.finalizedAt, ma finora veniva scritto DOPO l'invio, in un
+  // try/catch best-effort: se quel PATCH falliva (rete, quota), il run
+  // successivo del watchdog rispediva welcome + fascicolo CAF a tutti.
+  // Meglio rischiare un contratto senza email (recuperabile a mano) che un
+  // cliente che riceve due volte il suo benvenuto e il CAF due fascicoli.
+  try { await fsPatch(`contracts/${contract.id}`, { finalizedAt: now }); }
+  catch (e) { console.warn('[finalize] early mark failed:', e.message); }
+
   const [welcome, caf] = await Promise.all([
     sendWelcomeEmails(contract, property, { portalLink, certUrl, cedolare, nonEU, signedPdfUrl }),
     sendCafDossier(contract, property, { certUrl, fascicoloUrl, signedPdfUrl, packUrl: pack.url, packMissing: pack.missing }),
