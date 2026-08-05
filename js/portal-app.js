@@ -3951,7 +3951,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             case 'photo-studio': m.innerHTML = isAdmin() ? photoStudioPage() : accessDenied(); if (isAdmin()) setTimeout(photoStudioInitDnd, 30); break;
             case 'market-intel': m.innerHTML = (isAdmin() || isLandlord()) ? marketIntelPage() : accessDenied(); setTimeout(marketInitChart, 50); break;
             case 'activity-log': m.innerHTML = isAdmin() ? activityLogPage() : accessDenied(); break;
-            case 'adminflats': m.innerHTML = isAdmin() ? adminflatsPage() : accessDenied(); break;
+            case 'adminflats': m.innerHTML = isAdmin() ? adminflatsPage() : accessDenied(); if (isAdmin()) setTimeout(loadPeritoChips, 0); break;
             // === SCHEDA 360° (cliente unico hub) ===
             case 'person': m.innerHTML = isAdmin() ? personPage(S.pageArg) : accessDenied(); break;
             // === BUROCRAZIA (merges Registrazioni + Asseverazioni) ===
@@ -14081,7 +14081,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                                         <small style="color:var(--text-muted)">${l.address || l.zone || '—'}</small>
                                     </td>
                                     <td><span class="badge gray">${l.zone || '—'}</span></td>
-                                    <td style="color:var(--gold);font-weight:600;font-size:16px">€${(l.price || 0).toLocaleString()}</td>
+                                    <td style="color:var(--gold);font-weight:600;font-size:16px">€${(l.price || 0).toLocaleString()}<div class="perito-slot" data-pid="${l.id}" data-zone="${esc(l.zone||'')}" style="font-size:10px;font-weight:400;color:var(--text-muted);margin-top:3px;line-height:1.4"></div></td>
                                     <td>
                                         <small style="color:var(--text-secondary)">
                                             ${l.beds || (l.bedrooms ? l.bedrooms + ' cam' : '—')} · ${l.size || (l.sqm ? l.sqm + 'm²' : '—')}<br>
@@ -14210,6 +14210,50 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const l = S.listings.find(x => x.id === id);
         if (!l) return toast('error', 'Listing non trovato');
         openModal('editListing', l);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // IL PERITO nella pagina annunci — la comps chip sotto ogni prezzo.
+    //
+    // Legge SOLO marketStats/<zona> (un documento per zona, scritto dal cron
+    // del Perito alle 05:50) — mai il registro marketListings dal browser.
+    // Fire-and-forget DOPO il render (regola Safari): la pagina è intera
+    // anche senza, e dove il libro mastro non ha ancora campione la chip
+    // resta muta — un numero debole non si mostra (la regola minSample vive
+    // nel motore, qui si rispetta il suo verdetto).
+    // ═══════════════════════════════════════════════════════════════════
+    async function loadPeritoChips() {
+        const ME = window.BOOM_MARKET;
+        if (!ME || !window.db) return;
+        const slots = document.querySelectorAll('.perito-slot');
+        if (!slots.length) return;
+
+        S.marketStats = S.marketStats || {};
+        const zones = [...new Set([...slots].map(el => ME.normalizeZone(el.dataset.zone)).filter(Boolean))];
+        await Promise.all(zones.filter(z => !(z in S.marketStats)).map(z =>
+            db.collection('marketStats').doc(z).get()
+                .then(d => { S.marketStats[z] = d.exists ? d.data() : null; })
+                .catch(() => { S.marketStats[z] = null; })
+        ));
+
+        slots.forEach(el => {
+            const l = S.listings.find(x => x.id === el.dataset.pid);
+            const zone = ME.normalizeZone(el.dataset.zone);
+            const stats = zone ? S.marketStats[zone] : null;
+            if (!l || !stats) return;                       // il libro si sta riempiendo: silenzio
+            const sqm = parseFloat(l.sqm || l.size);
+            const pos = ME.pricePositionFromStats({ price: l.price, sqm: isFinite(sqm) ? sqm : null }, stats);
+            const bits = [];
+            if (pos.ok) {
+                const sign = pos.vsMedianPct > 0 ? '+' : '';
+                const col = pos.band === 'sopra-p75' ? '#F5A524' : pos.band === 'sotto-p25' ? '#00D26A' : 'var(--text-muted)';
+                bits.push(`<span style="color:${col}">📐 ${pos.eurSqm} €/m² · ${sign}${pos.vsMedianPct}% vs mediana zona</span>`);
+            }
+            if (stats.absorption && stats.absorption.ok) {
+                bits.push(`zona affitta in ~${stats.absorption.medianDays}gg`);
+            }
+            if (bits.length) el.innerHTML = bits.join(' · ');
+        });
     }
 
     async function cycleListing(id, currentStatus) {

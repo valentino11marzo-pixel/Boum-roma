@@ -95,5 +95,34 @@ check('il battito vuoto ha parole sue: un libro vuoto non è un mercato fermo', 
     'il backlog di verifiche deve essere visibile: senza morti l\'assorbimento invecchia in silenzio');
 });
 
+// ── La comps chip nel portal ─────────────────────────────────────────────
+
+const app = read('js/portal-app.js');
+const portalHtml = read('portal.html');
+
+check('la chip del Perito legge marketStats, MAI il registro intero dal browser', () => {
+  const fn = app.slice(app.indexOf('async function loadPeritoChips'), app.indexOf('async function cycleListing'));
+  assert.ok(fn.length > 100, 'loadPeritoChips non trovata');
+  assert.ok(fn.includes("collection('marketStats')"), 'deve leggere il doc di zona');
+  assert.ok(!fn.includes("collection('marketListings')"),
+    'il browser non deve mai scaricare il libro mastro: un doc per zona, scritto dal cron');
+  assert.ok(fn.includes('pricePositionFromStats'), 'la fascia la calcola il motore, non la pagina');
+});
+
+check('la chip è agganciata al render della pagina annunci, dopo il paint', () => {
+  assert.ok(app.includes('perito-slot'), 'lo slot nelle righe non esiste');
+  assert.ok(/case 'adminflats'.*loadPeritoChips/.test(app),
+    'senza l\'aggancio al dispatch la chip non parte mai');
+  assert.ok(/setTimeout\(loadPeritoChips/.test(app),
+    'deve partire DOPO il render (regola Safari: mai un await sul percorso di paint)');
+});
+
+check('portal.html carica il motore (la chip senza motore tace, non esplode)', () => {
+  assert.ok(portalHtml.includes('market-engine.js'), 'script mancante in portal.html');
+  const fn = app.slice(app.indexOf('async function loadPeritoChips'), app.indexOf('async function cycleListing'));
+  assert.ok(fn.includes('if (!ME || !window.db) return'),
+    'senza motore o senza db la chip deve uscire in silenzio');
+});
+
 console.log(`\n  ${pass} passati, ${fail} falliti\n`);
 process.exit(fail ? 1 : 0);

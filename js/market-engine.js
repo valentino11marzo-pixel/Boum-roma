@@ -302,8 +302,31 @@
     };
   }
 
+  /* La posizione prezzo letta dal SOLO doc marketStats/<zona> — la comps
+   * card nel portal legge un documento, mai il registro intero. Dai tre
+   * quantili non esce un percentile esatto: esce una FASCIA, ed è giusto
+   * così — mostrare "78°" calcolato da tre numeri sarebbe finta precisione.
+   * bands: sotto p25 · p25–mediana · mediana–p75 · sopra p75. */
+  function pricePositionFromStats(subject, stats) {
+    var mine = eurSqm(subject);
+    if (mine == null) return { ok: false, reason: 'no_price_or_sqm' };
+    var a = stats && stats.asked;
+    if (!a || !a.ok) return { ok: false, reason: (a && a.reason) || 'no_stats', sample: a ? a.sample : 0 };
+    var band, label;
+    if (mine < a.p25) { band = 'sotto-p25'; label = 'sotto il 25° percentile di zona'; }
+    else if (mine <= a.medianEurSqm) { band = 'p25-mediana'; label = 'tra il 25° e la mediana di zona'; }
+    else if (mine <= a.p75) { band = 'mediana-p75'; label = 'tra la mediana e il 75° di zona'; }
+    else { band = 'sopra-p75'; label = 'sopra il 75° percentile di zona'; }
+    return {
+      ok: true, eurSqm: Math.round(mine * 10) / 10, band: band, label: label,
+      zone: { p25: a.p25, median: a.medianEurSqm, p75: a.p75, sample: a.sample },
+      vsMedianPct: Math.round(((mine / a.medianEurSqm) - 1) * 100)
+    };
+  }
+
   var API = {
     normalizeZone: normalizeZone, observe: observe,
+    pricePositionFromStats: pricePositionFromStats,
     deathVerdict: deathVerdict, applyCheck: applyCheck, checkQueue: checkQueue,
     zoneStats: zoneStats, pricePosition: pricePosition, compsFor: compsFor,
     percentile: percentile, eurSqm: eurSqm,

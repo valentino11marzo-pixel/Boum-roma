@@ -224,6 +224,27 @@ check('comps: stessa zona, vivi, taglia ±25%, mai sé stesso, lowSample onesto'
   assert.equal(r.lowSample, true, 'con 2 comparabili lo si DICE');
 });
 
+check('pricePositionFromStats: la fascia dal solo doc di zona, mai finta precisione', () => {
+  const stats = { asked: { ok: true, sample: 24, p25: 18, medianEurSqm: 21, p75: 25 } };
+  const at = (price, sqm) => M.pricePositionFromStats({ price, sqm }, stats);
+  assert.equal(at(17 * 50, 50).band, 'sotto-p25');
+  assert.equal(at(20 * 50, 50).band, 'p25-mediana');
+  assert.equal(at(23 * 50, 50).band, 'mediana-p75');
+  assert.equal(at(30 * 50, 50).band, 'sopra-p75');
+  assert.equal(at(30 * 50, 50).vsMedianPct, 43, '+43% sulla mediana');
+  assert.ok(!('percentile' in at(20 * 50, 50)), 'da tre quantili non esce un percentile esatto');
+});
+
+check('pricePositionFromStats: senza statistiche o campione dice il perché', () => {
+  const small = M.pricePositionFromStats({ price: 1000, sqm: 50 },
+    { asked: { ok: false, reason: 'small_sample', sample: 3 } });
+  assert.equal(small.ok, false);
+  assert.equal(small.reason, 'small_sample');
+  assert.equal(small.sample, 3);
+  const noSqm = M.pricePositionFromStats({ price: 1000 }, { asked: { ok: true, sample: 24, p25: 18, medianEurSqm: 21, p75: 25 } });
+  assert.equal(noSqm.reason, 'no_price_or_sqm');
+});
+
 check('normalizeZone: accenti, maiuscole, spazi → uno slug solo', () => {
   assert.equal(M.normalizeZone('Centro Storico '), 'centro-storico');
   assert.equal(M.normalizeZone('SAN GIOVANNI'), 'san-giovanni');
