@@ -169,17 +169,10 @@ img{border:0;line-height:100%;outline:none;-ms-interpolation-mode:bicubic}
 a[x-apple-data-detectors]{color:inherit!important;text-decoration:none!important;
   font-size:inherit!important;font-family:inherit!important;font-weight:inherit!important;line-height:inherit!important}
 .bp-link:hover{opacity:.82}
-/* Link nel corpo senza stile inline del chiamante: oro leggibile su carta
-   (il GOLD pieno su bianco non regge il contrasto per il testo). */
-.bp-paper a:not(.bp-link){color:${GOLD_DEEP}}
 
 @media only screen and (max-width:620px){
   .bp-pad{padding:26px 20px 24px!important}
-  .bp-mast{padding:22px 20px 18px!important}
-  /* Le pillole diventano piene: su un telefono il bottone È l'email. */
-  .bp-btn{width:100%!important}
-  .bp-btn>tr>td,.bp-btn td{width:100%!important}
-  .bp-btn table{width:100%!important}
+  .bp-mast{padding:18px 20px!important}
   /* Le righe del documento passano da etichetta-a-sinistra/valore-a-destra
      a due righe impilate: a 320px la colonna destra andava a capo su ogni
      parola. */
@@ -244,25 +237,21 @@ export function shell(inner, preheader) {
 <td align="center" style="padding:30px 12px">
 
   <table role="presentation" width="640" cellpadding="0" cellspacing="0" border="0" style="max-width:640px;width:100%;border-collapse:separate">
-    <tr><td class="bp-mast" style="background:#0A0A0B;border-radius:16px 16px 0 0;border-bottom:2px solid ${GOLD};padding:30px 34px 24px;text-align:center">
-      <!-- Masthead PURAMENTE tipografico: il PNG hosted rendeva con un
-           artefatto chiaro sopra il wordmark (visto in anteprima reale) e
-           con le immagini bloccate lasciava un buco. Il tipo non può
-           tradire: nessuna richiesta, nessun blocco, identico ovunque.
-           Il filetto oro corto sopra il wordmark è il "marchio". -->
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto"><tr>
-        <td style="border-top:1px solid ${GOLD};font-size:0;line-height:0" width="34">&nbsp;</td>
-      </tr></table>
-      <div style="font-family:${SANS};font-size:19px;letter-spacing:11px;color:${GOLD};font-weight:300;${MSO}line-height:26px;padding-top:12px">B&nbsp;O&nbsp;O&nbsp;M</div>
-      <div style="font-family:${SANS};font-size:8.5px;letter-spacing:3.6px;text-transform:uppercase;color:#8F8A7E;${MSO}line-height:14px;padding-top:6px">Premium rentals · Roma</div>
+    <tr><td class="bp-mast" style="background:#0A0A0B;border-radius:16px 16px 0 0;border-bottom:2px solid ${GOLD};padding:26px 34px 22px;text-align:center">
+      <!-- Il marchio vero (anelli d'oro), non solo il wordmark. PNG hosted:
+           Gmail scarta data-URI e non rende gli SVG; se le immagini sono
+           bloccate resta il wordmark sotto — il masthead non muore mai. -->
+      <img src="https://www.boomrome.com/android-chrome-192x192.png" width="46" height="46" alt="BOOM"
+        style="display:block;margin:0 auto 10px;border-radius:50%">
+      <div style="font-family:${SANS};font-size:15px;letter-spacing:9px;color:${GOLD};font-weight:300;${MSO}line-height:20px">B&nbsp;O&nbsp;O&nbsp;M</div>
+      <div style="font-family:${SANS};font-size:8.5px;letter-spacing:3.4px;text-transform:uppercase;color:#8F8A7E;${MSO}line-height:14px;padding-top:5px">Premium rentals · Roma</div>
     </td></tr>
     <tr><td class="bp-paper bp-pad" style="background:#FFFFFF;border:1px solid #E3E0D7;border-top:none;border-radius:0 0 16px 16px;padding:36px 34px 30px">${inner}</td></tr>
   </table>
 
   <table role="presentation" width="640" cellpadding="0" cellspacing="0" border="0" style="max-width:640px;width:100%"><tr>
     <td class="bp-foot" style="padding:18px 6px;font-family:${SANS};font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:#A6A298;text-align:center;${MSO}line-height:16px">
-      <a href="https://www.boomrome.com" style="color:#A6A298;text-decoration:none">boomrome.com</a> &nbsp;·&nbsp; <a href="https://wa.me/393313251961" style="color:#A6A298;text-decoration:none">WhatsApp</a> &nbsp;·&nbsp; <a href="mailto:valentino@boom-rome.com" style="color:#A6A298;text-decoration:none">valentino@boom-rome.com</a><br>
-      <span style="letter-spacing:1.2px">Egidi Immobiliare S.r.l. · P.IVA 17322991005 · Roma</span>
+      Egidi Immobiliare S.r.l. · P.IVA 17322991005 · <a href="https://www.boomrome.com" style="color:#A6A298;text-decoration:none">boomrome.com</a> · <a href="mailto:valentino@boom-rome.com" style="color:#A6A298;text-decoration:none">valentino@boom-rome.com</a>
     </td>
   </tr></table>
 
@@ -296,22 +285,21 @@ function pill(href, label, { bg, fg, size, pad, weight, spacing, margin, cls }) 
 }
 
 // Primary action — gold pill, dark text (the one thing to tap).
-// 13px + padding 16 ≈ una pillola da ~50px: il pollice non sbaglia.
 export function btn(href, label) {
   return pill(href, String(label).toUpperCase(), {
-    bg: GOLD, fg: '#1A1407', size: 13, pad: 16, weight: 'bold', spacing: 2,
-    margin: '26px auto 0', cls: 'bp-btn',
+    bg: GOLD, fg: '#1A1407', size: 12, pad: 15, weight: 'bold', spacing: 2,
+    margin: '24px auto 0', cls: 'bp-btn',
   });
 }
 // Secondary action — quiet black pill.
 export function btn2(href, label) {
   return pill(href, String(label), {
-    bg: '#141414', fg: '#FFFFFF', size: 12, pad: 13, weight: 'normal', spacing: 1.2,
+    bg: '#141414', fg: '#FFFFFF', size: 12, pad: 12, weight: 'normal', spacing: 1.2,
     margin: '12px auto 0', cls: 'bp-btn bp-btn2',
   });
 }
 
-export const para = (html, extra) => `<p class="bp-ink" style="font-family:${SANS};font-size:15px;font-weight:300;color:#33312C;line-height:1.75;margin:0 0 20px;${MSO}${extra || ''}">${html}</p>`;
+export const para = (html, extra) => `<p class="bp-ink" style="font-family:${SANS};font-size:14.5px;font-weight:300;color:#33312C;line-height:1.75;margin:0 0 20px;${MSO}${extra || ''}">${html}</p>`;
 export const fine = (html, extra) => `<p class="bp-soft" style="font-family:${SANS};font-size:11.5px;font-weight:300;color:${SOFT};line-height:1.7;margin:14px 0 0;${MSO}${extra || ''}">${html}</p>`;
 
 // ── Nuove primitive di composizione ───────────────────────────────────────
