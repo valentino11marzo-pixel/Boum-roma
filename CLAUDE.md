@@ -611,12 +611,24 @@ qualification snapshot in `message` + `raw`) so every serious applicant lands
 in the pipeline even if they never open Stripe. Returns `{ ok, id }`.
 
 ### BOOM La Réunion (`/reunion` + `api/reunion-lead.js` + `api/_market.js`)
-Il secondo mercato. Landing **francese** (toggle EN, `?lang=en`) che serve DUE
-pubblici a parti uguali — propriétaires e locataires — con un selettore che
-riscrive metà pagina senza ricaricare (`body[data-aud]`, CSS puro). Il
-francese **non** si deduce da `navigator.language`: servire inglese sotto una
-canonical dichiarata `fr` significa darlo anche al crawler. `?role=owner|tenant`
-apre già dal lato giusto (per condividere un link mirato).
+Il secondo mercato. Landing **francese** (toggle EN, `?lang=en`) che serve TRE
+pubblici — propriétaires, locataires e **acheteurs** — con un selettore che
+riscrive metà pagina senza ricaricare (`body[data-aud]`, CSS puro: si
+NASCONDONO gli altri due, mai `display:revert`, che trasformerebbe un `.frow`
+in blocco e romperebbe il form). Il francese **non** si deduce da
+`navigator.language`: servire inglese sotto una canonical dichiarata `fr`
+significa darlo anche al crawler. `?role=owner|tenant|buyer` apre già dal lato
+giusto (per condividere un link mirato).
+- **Il terzo binario (acquisto)** è l'unico dove la parte più preziosa è anche
+  la più regolamentata: in Francia ricerca per conto dell'acquirente e
+  trattativa sono **transaction** e richiedono la **carte T** (più severa
+  della carte G della gestione). Quindi la pagina vende ciò che è davvero
+  erogabile oggi — andare a VEDERE il bene che il cliente ha già trovato,
+  visita video in diretta, compte rendu scritto, lettura di diagnostics e
+  documenti di condominio — e la ricerca/negoziazione resta dentro `lg-*`,
+  che compare solo cambiando `data-legal`. `budgetKind:'purchase'` distingue
+  il budget d'acquisto dal canone: stampare "320 000 €/mese" sarebbe la
+  prova, mandata al cliente, che nessuno ha capito la sua richiesta.
 - `POST /api/reunion-lead` — pubblico, stesso irrigidimento di `canone-lead`
   (honeypot, rate limit per IP, campi clippati) e **stesso schema `leads`**:
   il lead sale nella macchina esistente (Lead Brain → notify-pending →
@@ -643,12 +655,14 @@ apre già dal lato giusto (per condividere un link mirato).
   frasi giuste — FAQ e mentions légales insieme, invece di una caccia alle
   formulazioni nel file. I campi `[NUMÉRO]`/`[SIREN]`/`[PARTENAIRE]` vanno
   riempiti PRIMA di cambiare l'attributo.
-- Test: `node tests/reunion/run.mjs` (62 check) — la porta (honeypot, rifiuti
+- Test: `node tests/reunion/run.mjs` (92 check) — la porta (honeypot, rifiuti
   che non scrivono mai un lead a metà, limite per IP), il lato che non si perde
   mai, la lingua che non ricade sull'italiano, **il lead romano che non diventa
   réunionnais** (la regressione più cara: risposte in francese ai clienti di
   Roma) e le due guardie asserite sulla SORGENTE, perché conta l'ORDINE — la
-  guardia deve stare prima della chiamata che spende e spedisce.
+  guardia deve stare prima della chiamata che spende e spedisce. Più il terzo
+  binario: gli alias del ruolo, il budget d'acquisto che non diventa MAI un
+  canone mensile, e la riserva carte T scritta invece che sottintesa.
 
 ### POST `/api/service-checkout`
 Public one-tap Stripe Checkout for the productised services (Services 2.0

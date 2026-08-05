@@ -84,9 +84,13 @@
       donc aucun scintillement au chargement et rien à réécrire en JS. ── */
 html[lang="fr"] .l-en{display:none!important}
 html[lang="en"] .l-fr{display:none!important}
-/* ── les deux publics : propriétaires ⇄ locataires ── */
-body[data-aud="owner"]  .a-tenant{display:none!important}
-body[data-aud="tenant"] .a-owner {display:none!important}
+/* ── les trois publics : propriétaires ⇄ locataires ⇄ acheteurs ──
+   On MASQUE les autres au lieu d'afficher le bon : `display:revert` rendrait
+   un `.frow` (grille à deux colonnes) en simple bloc et casserait le
+   formulaire. Masquer laisse chaque élément garder son propre display. */
+body[data-aud="owner"]  .a-tenant, body[data-aud="owner"]  .a-buyer {display:none!important}
+body[data-aud="tenant"] .a-owner,  body[data-aud="tenant"] .a-buyer {display:none!important}
+body[data-aud="buyer"]  .a-owner,  body[data-aud="buyer"]  .a-tenant{display:none!important}
 
 /* ── L'INTERRUPTEUR LOI HOGUET (voir <body data-legal>) ────────────────────
    En France, gestion locative et transaction supposent une carte
@@ -141,6 +145,12 @@ main{padding-top:150px}
 .pick b{display:block;font-weight:400;font-size:16px;margin-top:8px}
 .pick p{font-size:12.5px;color:var(--t3);margin-top:4px}
 .pick .go{display:block;margin-top:12px;font-size:12.5px;color:var(--gold)}
+/* La troisième porte (acheter) est une bande sous les deux : la location est
+   le métier principal, l'achat est un troisième chemin — la mise en page le
+   dit avant que le texte ne le dise. */
+@media(min-width:560px){.pick.wide{grid-column:1/-1;display:flex;align-items:center;gap:16px}
+  .pick.wide .ic{font-size:22px}.pick.wide div{flex:1}.pick.wide b{margin-top:0}
+  .pick.wide .go{margin-top:0;white-space:nowrap}}
 
 /* le volet — le parcours BOOM, pas un chiffre inventé */
 .panelcard{border:1px solid var(--line);border-radius:18px;overflow:hidden;background:var(--card);box-shadow:0 30px 80px rgba(0,0,0,.5)}
@@ -174,6 +184,10 @@ main{padding-top:150px}
 .formwrap{margin-top:26px;border:1px solid var(--line-gold);border-radius:22px;background:var(--card);padding:26px}
 .frow{display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}
 @media(min-width:640px){.frow.two{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.fld select{width:100%;background:var(--input);border:1px solid var(--line);border-radius:12px;padding:13px 14px;font-size:15px;color:var(--t1);outline:none;transition:border-color .3s;-webkit-appearance:none;appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,var(--t3) 50%),linear-gradient(135deg,var(--t3) 50%,transparent 50%);
+  background-position:calc(100% - 19px) 21px,calc(100% - 14px) 21px;background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+.fld select:focus{border-color:var(--line-gold)}
 .formwrap .paybtn{margin-top:20px;justify-content:center}
 .formwrap .paybtn .tx{flex:none}
 .consent{font-size:11px;color:var(--t4);margin-top:12px;text-align:center;max-width:56ch;margin-left:auto;margin-right:auto}
@@ -210,7 +224,7 @@ main{padding-top:150px}
     <div class="nav-links">
       <a href="#proprietaires" class="nav-link"><span class="l-fr">Propriétaires</span><span class="l-en">Owners</span></a>
       <a href="#locataires" class="nav-link"><span class="l-fr">Locataires</span><span class="l-en">Tenants</span></a>
-      <a href="#ile" class="nav-link"><span class="l-fr">Sur place</span><span class="l-en">On the ground</span></a>
+      <a href="#acheter" class="nav-link"><span class="l-fr">Acheter</span><span class="l-en">Buying</span></a>
       <a href="#zones" class="nav-link"><span class="l-fr">Communes</span><span class="l-en">Areas</span></a>
       <a href="#faq" class="nav-link">FAQ</a>
       <a href="https://www.boomrome.com/" class="nav-link" target="_blank" rel="noopener">BOOM Rome ↗</a>
@@ -228,6 +242,7 @@ main{padding-top:150px}
   <div class="mobile-menu-links">
     <a href="#proprietaires" class="mobile-menu-link"><span class="l-fr">Propriétaires</span><span class="l-en">Owners</span></a>
     <a href="#locataires" class="mobile-menu-link"><span class="l-fr">Locataires</span><span class="l-en">Tenants</span></a>
+    <a href="#acheter" class="mobile-menu-link"><span class="l-fr">Acheteurs</span><span class="l-en">Buyers</span></a>
     <a href="#methode" class="mobile-menu-link"><span class="l-fr">Notre méthode</span><span class="l-en">Our method</span></a>
     <a href="#ile" class="mobile-menu-link"><span class="l-fr">Sur place</span><span class="l-en">On the ground</span></a>
     <a href="#zones" class="mobile-menu-link"><span class="l-fr">Communes</span><span class="l-en">Areas</span></a>
@@ -265,6 +280,14 @@ main{padding-top:150px}
           <p><span class="l-fr">Des biens réellement visités, une visite vidéo en direct, un dossier qui passe.</span><span class="l-en">Homes we've actually walked, a live video viewing, an application that gets accepted.</span></p>
           <span class="go"><span class="l-fr">Voir comment →</span><span class="l-en">See how →</span></span>
         </button>
+        <button type="button" class="pick wide" onclick="pickAud('buyer','hero')">
+          <span class="ic">🔎</span>
+          <div>
+            <b><span class="l-fr">J'achète à La Réunion</span><span class="l-en">I'm buying on Réunion</span></b>
+            <p><span class="l-fr">Vous avez repéré une annonce depuis la métropole ? On va voir le bien pour vous, en direct, et on vous dit ce qu'il a vraiment.</span><span class="l-en">Spotted a listing from 9,000 km away? We go and see it for you, live, and tell you what it's really like.</span></p>
+          </div>
+          <span class="go"><span class="l-fr">Voir comment →</span><span class="l-en">See how →</span></span>
+        </button>
       </div>
 
       <div class="proof">
@@ -287,16 +310,17 @@ main{padding-top:150px}
     </div>
   </header>
 
-  <!-- ═══ LE SÉLECTEUR : la page sert deux publics à parts égales ═══ -->
+  <!-- ═══ LE SÉLECTEUR : trois publics, trois métiers distincts ═══ -->
   <section class="rv" id="proprietaires">
     <div class="sec-h">
       <span class="num"><span class="l-fr">COMMENT ÇA MARCHE</span><span class="l-en">HOW IT WORKS</span></span>
       <h2><span class="l-fr">Vous êtes <span class="g">de quel côté ?</span></span><span class="l-en">Which <span class="g">side are you on?</span></span></h2>
     </div>
-    <p class="sec-sub"><span class="l-fr">Les deux métiers n'ont rien à voir. Choisissez le vôtre — le reste de la page s'adapte.</span><span class="l-en">The two jobs have nothing in common. Pick yours — the rest of the page follows.</span></p>
+    <p class="sec-sub"><span class="l-fr">Louer son bien, chercher à louer, acheter : trois métiers qui n'ont rien à voir. Choisissez le vôtre — le reste de la page s'adapte.</span><span class="l-en">Letting your place, looking for one, buying: three jobs with nothing in common. Pick yours — the rest of the page follows.</span></p>
     <div class="seg" role="group" aria-label="Propriétaire ou locataire">
       <button type="button" id="segOwner"  aria-pressed="true"  onclick="pickAud('owner','seg')"><span class="l-fr">Propriétaire</span><span class="l-en">Owner</span></button>
       <button type="button" id="segTenant" aria-pressed="false" onclick="pickAud('tenant','seg')"><span class="l-fr">Locataire</span><span class="l-en">Tenant</span></button>
+      <button type="button" id="segBuyer"  aria-pressed="false" onclick="pickAud('buyer','seg')"><span class="l-fr">Acheteur</span><span class="l-en">Buyer</span></button>
     </div>
 
     <!-- ── PROPRIÉTAIRES ── -->
@@ -372,6 +396,46 @@ main{padding-top:150px}
         <div class="tri"><b>✈️ <span class="l-fr">Vous arrivez de loin ?</span><span class="l-en">Arriving from far away?</span></b><p><span class="l-fr">Mutation, études, retour au pays : on cale la recherche sur votre date d'arrivée, pas sur la nôtre.</span><span class="l-en">A posting, studies, a move home: we work to your arrival date, not ours.</span></p></div>
         <div class="tri"><b>🗣️ <span class="l-fr">En français ou en anglais</span><span class="l-en">French or English</span></b><p><span class="l-fr">Toute la procédure, y compris le bail expliqué ligne à ligne, dans la langue où vous êtes à l'aise.</span><span class="l-en">The whole process, lease explained line by line, in the language you're comfortable in.</span></p></div>
         <div class="tri"><b>💬 <span class="l-fr">On répond</span><span class="l-en">We answer</span></b><p><span class="l-fr">Même pour dire « ce logement n'est pas pour vous ». Le silence, c'est ce qui rend cette recherche épuisante.</span><span class="l-en">Even to say "this one isn't for you". Silence is what makes this search exhausting.</span></p></div>
+      </div>
+    </div>
+
+    <!-- ── ACHETEURS ── -->
+    <div class="a-buyer" id="acheter">
+      <div class="steps">
+        <div class="step"><span class="dot"></span>
+          <div class="k">1 · <span class="l-fr">Vous repérez</span><span class="l-en">You spot it</span></div>
+          <div class="v"><span class="l-fr">Une annonce, une adresse</span><span class="l-en">A listing, an address</span></div>
+          <div class="s"><span class="l-fr">On part de ce que vous avez trouvé. Vous envoyez le lien depuis la métropole, on regarde ce qu'il y a autour et ce que la commune paie vraiment pour ce type de bien.</span><span class="l-en">We start from what you found. You send the link from wherever you are; we look at what's around it and what that town actually pays for that kind of property.</span></div>
+        </div>
+        <div class="step"><span class="dot"></span>
+          <div class="k">2 · <span class="l-fr">On y va</span><span class="l-en">We go</span></div>
+          <div class="v"><span class="l-fr">Caméra à la main, vous dirigez</span><span class="l-en">Camera in hand, you direct</span></div>
+          <div class="s"><span class="l-fr">La visite se fait en direct : la fissure, l'humidité derrière le meuble, la vue réelle, la route en bas à 7h. Ce que les photos d'annonce ne montrent jamais.</span><span class="l-en">The viewing happens live: the crack, the damp behind the furniture, the actual view, the road below at 7am. What listing photos never show.</span></div>
+        </div>
+        <div class="step"><span class="dot"></span>
+          <div class="k">3 · <span class="l-fr">Le compte rendu</span><span class="l-en">The report</span></div>
+          <div class="v"><span class="l-fr">Écrit, avec ce qui cloche</span><span class="l-en">Written, with what's wrong</span></div>
+          <div class="s"><span class="l-fr">État, exposition, travaux prévisibles, documents lus avec vous. Un achat se décide sur des faits, à 9 000 km comme ailleurs.</span><span class="l-en">Condition, aspect, foreseeable works, documents read with you. A purchase is decided on facts, at 9,000 km as anywhere else.</span></div>
+        </div>
+      </div>
+
+      <div class="get">
+        <div class="g-it"><span class="ic">🎥</span><b><span class="l-fr">Visite vidéo en direct</span><span class="l-en">Live video viewing</span></b><p><span class="l-fr">Vous dirigez, on ouvre ce que vous demandez. L'enregistrement vous reste — pour le revoir, ou pour le montrer à un artisan.</span><span class="l-en">You direct, we open whatever you ask. The recording stays with you — to rewatch, or to show a builder.</span></p></div>
+        <div class="g-it"><span class="ic">📋</span><b><span class="l-fr">Compte rendu écrit</span><span class="l-en">Written report</span></b><p><span class="l-fr">État, luminosité, nuisances, travaux prévisibles — y compris ce qui devrait vous faire renoncer.</span><span class="l-en">Condition, light, nuisances, foreseeable works — including what ought to make you walk away.</span></p></div>
+        <div class="g-it"><span class="ic">📑</span><b><span class="l-fr">Les documents lus avec vous</span><span class="l-en">The paperwork, read with you</span></b><p><span class="l-fr">Diagnostics, règlement de copropriété, PV d'assemblée, charges, travaux votés. Ce qui coûte cher, c'est ce que personne n'a lu.</span><span class="l-en">Surveys, co-ownership rules, meeting minutes, charges, works already voted. What costs money is what nobody read.</span></p></div>
+        <div class="g-it"><span class="ic">🌪️</span><b><span class="l-fr">Le bâti face au climat</span><span class="l-en">The building against the climate</span></b><p><span class="l-fr">Normes cycloniques, exposition, humidité, corrosion en bord de mer. Sur cette île, ça ne se vérifie pas sur un PDF.</span><span class="l-en">Cyclone standards, exposure, damp, corrosion near the sea. On this island that can't be checked on a PDF.</span></p></div>
+        <div class="g-it"><span class="ic">🗺️</span><b><span class="l-fr">Le quartier au sol</span><span class="l-en">The area at ground level</span></b><p><span class="l-fr">Temps de trajet réels aux heures réelles, écoles, commerces, la rue le samedi soir.</span><span class="l-en">Real journey times at real hours, schools, shops, what the street is like on a Saturday night.</span></p></div>
+        <div class="g-it"><span class="ic">🔑</span><b><span class="l-fr">Et après l'achat</span><span class="l-en">And after the purchase</span></b><p><span class="l-fr">Si le bien devient un investissement locatif, c'est notre métier de tous les jours — on enchaîne sans vous faire recommencer à zéro.</span><span class="l-en">If it becomes a rental investment, that's our daily job — we carry straight on instead of making you start again.</span></p></div>
+      </div>
+
+      <div class="trio">
+        <div class="tri"><b>⚖️ <span class="l-fr">Ce que nous faisons, et ce que nous ne faisons pas</span><span class="l-en">What we do, and what we don't</span></b>
+          <p class="lg lg-pending"><span class="l-fr">La recherche pour compte d'acquéreur et la négociation relèvent de la carte T. Nous ne les proposons pas tant qu'elle n'est pas en place. Tout ce qui est décrit ci-dessus, en revanche, nous pouvons le faire dès aujourd'hui.</span><span class="l-en">Searching and negotiating on a buyer's behalf require the carte T licence. We don't offer those until it's in place. Everything described above, however, we can do today.</span></p>
+          <p class="lg lg-card"><span class="l-fr">Recherche, sélection et négociation sous mandat de recherche écrit, carte professionnelle T n° <b>[NUMÉRO]</b>.</span><span class="l-en">Search, shortlisting and negotiation under a written search mandate, professional licence T no. <b>[NUMBER]</b>.</span></p>
+          <p class="lg lg-partner"><span class="l-fr">La recherche et la négociation sont assurées par <b>[PARTENAIRE]</b> (carte T n° <b>[NUMÉRO]</b>) ; BOOM fait les yeux sur place, le compte rendu et la lecture des documents.</span><span class="l-en">Search and negotiation are handled by <b>[PARTNER]</b> (licence T no. <b>[NUMBER]</b>); BOOM is the eyes on the ground, the report and the paperwork read-through.</span></p>
+        </div>
+        <div class="tri"><b>🌍 <span class="l-fr">Vous achetez à distance</span><span class="l-en">Buying from a distance</span></b><p><span class="l-fr">C'est le cas le plus fréquent, et le plus risqué : on signe un compromis sur des photos. Notre travail est de remplacer les photos par des faits.</span><span class="l-en">The most common case, and the riskiest: people commit on photographs. Our job is to replace the photographs with facts.</span></p></div>
+        <div class="tri"><b>✍️ <span class="l-fr">Le prix, dit avant</span><span class="l-en">The price, said upfront</span></b><p><span class="l-fr">Une visite avec compte rendu se chiffre à l'avance, par écrit. Vous saurez ce que ça coûte avant de nous dire oui.</span><span class="l-en">A visit with a report is quoted in advance, in writing. You'll know the cost before saying yes.</span></p></div>
       </div>
     </div>
   </section>
@@ -488,6 +552,14 @@ main{padding-top:150px}
         <div class="a"><span class="l-fr">Non. La signature électronique est la norme chez nous : bail, état des lieux et pièces circulent en ligne, chaque partie signe depuis son téléphone. Beaucoup de nos dossiers se bouclent avant que le locataire ait posé le pied sur l'île.</span><span class="l-en">No. E-signature is our normal way of working: lease, inventory and documents travel online and each party signs from their phone. Plenty of our files close before the tenant has set foot on the island.</span></div>
       </details>
       <details>
+        <summary><span class="l-fr">J'achète depuis la métropole. Vous pouvez aller voir le bien ?</span><span class="l-en">I'm buying from mainland France. Can you go and see the property?</span></summary>
+        <div class="a">
+          <span class="l-fr">Oui — c'est même la demande la plus fréquente côté achat. Vous nous envoyez l'annonce, on va sur place, vous visitez en direct et vous recevez un compte rendu écrit : état, exposition, humidité, normes cycloniques, travaux prévisibles, plus les documents (diagnostics, copropriété) lus avec vous.</span>
+          <span class="l-en">Yes — it's the most common request on the buying side. You send us the listing, we go there, you view it live, and you get a written report: condition, aspect, damp, cyclone standards, foreseeable works, plus the paperwork (surveys, co-ownership) read through with you.</span>
+          <span class="lg lg-pending"> <span class="l-fr">La recherche pour votre compte et la négociation, elles, relèvent de la carte T : elles démarreront quand elle sera en place.</span><span class="l-en">Searching and negotiating on your behalf, though, require the carte T licence — those start when it's in place.</span></span>
+        </div>
+      </details>
+      <details>
         <summary><span class="l-fr">Êtes-vous une agence immobilière ?</span><span class="l-en">Are you an estate agency?</span></summary>
         <div class="a">
           <!-- ↓ pilotées par <body data-legal> — une seule s'affiche. -->
@@ -523,8 +595,9 @@ main{padding-top:150px}
     <div class="formwrap">
       <form id="reForm" novalidate>
         <div class="seg" style="margin-bottom:18px" role="group" aria-label="Propriétaire ou locataire">
-          <button type="button" id="fOwner"  aria-pressed="true"  onclick="pickAud('owner','form')"><span class="l-fr">Je suis propriétaire</span><span class="l-en">I'm an owner</span></button>
+          <button type="button" id="fOwner"  aria-pressed="true"  onclick="pickAud('owner','form')"><span class="l-fr">Je loue mon bien</span><span class="l-en">I rent mine out</span></button>
           <button type="button" id="fTenant" aria-pressed="false" onclick="pickAud('tenant','form')"><span class="l-fr">Je cherche un logement</span><span class="l-en">I'm looking</span></button>
+          <button type="button" id="fBuyer"  aria-pressed="false" onclick="pickAud('buyer','form')"><span class="l-fr">J'achète</span><span class="l-en">I'm buying</span></button>
         </div>
 
         <div class="frow two">
@@ -544,6 +617,14 @@ main{padding-top:150px}
         <div class="frow two a-tenant">
           <div class="fld"><label for="fBudget"><span class="l-fr">Budget mensuel (€)</span><span class="l-en">Monthly budget (€)</span></label><input id="fBudget" inputmode="numeric" placeholder="900"></div>
           <div class="fld"><label for="fMoveIn"><span class="l-fr">Date d'emménagement</span><span class="l-en">Move-in date</span></label><input id="fMoveIn" placeholder="septembre 2026"></div>
+        </div>
+        <!-- champs propres à l'acheteur : le budget est un TOTAL, pas un loyer -->
+        <div class="frow two a-buyer">
+          <div class="fld"><label for="fBBudget"><span class="l-fr">Budget d'achat (€)</span><span class="l-en">Purchase budget (€)</span></label><input id="fBBudget" inputmode="numeric" placeholder="320000"></div>
+          <div class="fld"><label for="fBKind"><span class="l-fr">Type de bien</span><span class="l-en">Type of property</span></label><input id="fBKind" placeholder="F3, villa, terrain…"></div>
+        </div>
+        <div class="frow a-buyer">
+          <div class="fld"><label for="fPurpose"><span class="l-fr">Pour quel usage ?</span><span class="l-en">What for?</span></label><select id="fPurpose"></select></div>
         </div>
 
         <div class="fld"><label for="fMsg"><span class="l-fr">En deux lignes</span><span class="l-en">In two lines</span></label><textarea id="fMsg" rows="3" placeholder="…"></textarea></div>
@@ -599,6 +680,7 @@ main{padding-top:150px}
         <ul class="footer-links-list">
           <li><a href="#proprietaires"><span class="l-fr">Propriétaires</span><span class="l-en">Owners</span></a></li>
           <li><a href="#locataires"><span class="l-fr">Locataires</span><span class="l-en">Tenants</span></a></li>
+          <li><a href="#acheter"><span class="l-fr">Acheteurs</span><span class="l-en">Buyers</span></a></li>
           <li><a href="#methode"><span class="l-fr">Notre méthode</span><span class="l-en">Our method</span></a></li>
           <li><a href="#zones"><span class="l-fr">Communes</span><span class="l-en">Areas</span></a></li>
           <li><a href="#faq">FAQ</a></li>
@@ -648,11 +730,17 @@ try{if(window.BoomAmbient)BoomAmbient.mount({ink:'#060607',inkRGB:'6,6,7',palett
    mémoire du choix. ?lang=en gagne sur tout, pour partager un lien EN. */
 var PH={
   fr:{fName:'Marie Payet',fEmail:'marie@email.com',fPhone:'+262 …',fCommune:'Saint-Denis, Saint-Pierre…',fKind:'T3, 68 m², avec parking…',fBudget:'900',fMoveIn:'septembre 2026',
+      fBBudget:'320000',fBKind:'F3, villa, terrain…',
       fMsgOwner:'Mon T3 à Saint-Pierre est libre depuis juin, je vis à Lyon.',
-      fMsgTenant:'J\'arrive en septembre pour un poste à Saint-Denis, je cherche un T2.'},
+      fMsgTenant:'J\'arrive en septembre pour un poste à Saint-Denis, je cherche un T2.',
+      fMsgBuyer:'J\'ai repéré une annonce à Saint-Gilles, je suis à Nantes et je ne peux pas me déplacer.',
+      purpose:[['','—'],['résidence principale','Résidence principale'],['investissement locatif','Investissement locatif'],['résidence secondaire','Résidence secondaire'],['pas encore décidé','Je ne sais pas encore']]},
   en:{fName:'Marie Payet',fEmail:'marie@email.com',fPhone:'+262 …',fCommune:'Saint-Denis, Saint-Pierre…',fKind:'2-bed, 68 m², with parking…',fBudget:'900',fMoveIn:'September 2026',
+      fBBudget:'320000',fBKind:'2-bed, house, land…',
       fMsgOwner:'My flat in Saint-Pierre has been empty since June — I live in Lyon.',
-      fMsgTenant:'I arrive in September for a job in Saint-Denis, looking for a one-bed.'}
+      fMsgTenant:'I arrive in September for a job in Saint-Denis, looking for a one-bed.',
+      fMsgBuyer:'I found a listing in Saint-Gilles — I\'m in Nantes and can\'t travel to see it.',
+      purpose:[['','—'],['résidence principale','Main home'],['investissement locatif','Rental investment'],['résidence secondaire','Second home'],['pas encore décidé','Not decided yet']]}
 };
 function setLang(l,silent){
   l=(l==='en')?'en':'fr';
@@ -662,17 +750,28 @@ function setLang(l,silent){
   if(fr)fr.classList.toggle('on',l==='fr');
   if(en)en.classList.toggle('on',l==='en');
   var p=PH[l];
-  ['fName','fEmail','fPhone','fCommune','fKind','fBudget','fMoveIn'].forEach(function(id){
+  ['fName','fEmail','fPhone','fCommune','fKind','fBudget','fMoveIn','fBBudget','fBKind'].forEach(function(id){
     var el=document.getElementById(id);if(el&&p[id])el.placeholder=p[id];
   });
+  // La liste déroulante : le LIBELLÉ change de langue, la VALEUR envoyée au
+  // serveur reste la même (le résumé que lit l'opérateur est en français).
+  var sel=document.getElementById('fPurpose');
+  if(sel){
+    var keep=sel.value;
+    sel.innerHTML='';
+    p.purpose.forEach(function(o){
+      var opt=document.createElement('option');opt.value=o[0];opt.textContent=o[1];sel.appendChild(opt);
+    });
+    sel.value=keep;
+  }
   syncMsgPlaceholder();
   if(!silent)boomTrack('language_switch',{language:l,source_page:'reunion'});
 }
 function syncMsgPlaceholder(){
   var l=document.documentElement.lang==='en'?'en':'fr';
-  var owner=document.body.getAttribute('data-aud')==='owner';
+  var aud=document.body.getAttribute('data-aud');
   var el=document.getElementById('fMsg');
-  if(el)el.placeholder=PH[l][owner?'fMsgOwner':'fMsgTenant'];
+  if(el)el.placeholder=PH[l][aud==='owner'?'fMsgOwner':aud==='buyer'?'fMsgBuyer':'fMsgTenant'];
 }
 (function(){
   /* Le français est la langue de la page, pas une préférence à deviner :
@@ -688,14 +787,20 @@ function syncMsgPlaceholder(){
    Un seul état, lu par le CSS (body[data-aud]) et par l'envoi du
    formulaire. Le champ `role` du lead en dépend, et c'est la seule chose
    que l'opérateur regarde avant de répondre : il ne doit jamais mentir. */
-function pickAud(aud,src){
-  aud=(aud==='tenant')?'tenant':'owner';
-  document.body.setAttribute('data-aud',aud);
-  [['segOwner','segTenant'],['fOwner','fTenant']].forEach(function(pair){
-    var o=document.getElementById(pair[0]),t=document.getElementById(pair[1]);
-    if(o){o.classList.toggle('on',aud==='owner');o.setAttribute('aria-pressed',String(aud==='owner'));}
-    if(t){t.classList.toggle('on',aud==='tenant');t.setAttribute('aria-pressed',String(aud==='tenant'));}
+var AUDS=['owner','tenant','buyer'];
+var AUD_BTN={owner:['segOwner','fOwner'],tenant:['segTenant','fTenant'],buyer:['segBuyer','fBuyer']};
+function syncAudButtons(aud){
+  AUDS.forEach(function(a){
+    AUD_BTN[a].forEach(function(id){
+      var el=document.getElementById(id);
+      if(el){el.classList.toggle('on',a===aud);el.setAttribute('aria-pressed',String(a===aud));}
+    });
   });
+}
+function pickAud(aud,src){
+  aud=AUDS.indexOf(aud)>-1?aud:'owner';
+  document.body.setAttribute('data-aud',aud);
+  syncAudButtons(aud);
   syncMsgPlaceholder();
   try{localStorage.setItem('boom_re_aud',aud)}catch(e){}
   if(src==='hero'){
@@ -712,17 +817,17 @@ function pickAud(aud,src){
   var q=(new URLSearchParams(location.search).get('role')||'').toLowerCase();
   var hash=(location.hash||'').toLowerCase();
   var saved=null;try{saved=localStorage.getItem('boom_re_aud')}catch(e){}
-  var start=(q==='tenant'||q==='locataire')?'tenant'
-           :(q==='owner'||q==='proprietaire'||q==='landlord')?'owner'
-           :(hash.indexOf('locataire')>-1||hash.indexOf('tenant')>-1)?'tenant'
-           :(hash.indexOf('proprietaire')>-1||hash.indexOf('owner')>-1)?'owner'
-           :(saved||'owner');
+  var byWord=function(s){
+    if(!s)return null;
+    if(s.indexOf('buyer')>-1||s.indexOf('achet')>-1||s.indexOf('acquer')>-1)return 'buyer';
+    if(s.indexOf('tenant')>-1||s.indexOf('locataire')>-1)return 'tenant';
+    if(s.indexOf('owner')>-1||s.indexOf('landlord')>-1||s.indexOf('proprietaire')>-1)return 'owner';
+    return null;
+  };
+  var start=byWord(q)||byWord(hash)||saved||'owner';
+  if(AUDS.indexOf(start)<0)start='owner';
   document.body.setAttribute('data-aud',start);
-  [['segOwner','segTenant'],['fOwner','fTenant']].forEach(function(pair){
-    var o=document.getElementById(pair[0]),t=document.getElementById(pair[1]);
-    if(o){o.classList.toggle('on',start==='owner');o.setAttribute('aria-pressed',String(start==='owner'));}
-    if(t){t.classList.toggle('on',start==='tenant');t.setAttribute('aria-pressed',String(start==='tenant'));}
-  });
+  syncAudButtons(start);
   syncMsgPlaceholder();
 })();
 
@@ -730,8 +835,8 @@ function pickAud(aud,src){
    volet : sinon le menu pointe vers un bloc masqué et le clic ne fait
    rien du tout — le pire des retours, parce qu'il ressemble à une panne. */
 (function(){
-  var MAP={'#proprietaires':'owner','#locataires':'tenant'};
-  document.querySelectorAll('a[href="#proprietaires"],a[href="#locataires"]').forEach(function(a){
+  var MAP={'#proprietaires':'owner','#locataires':'tenant','#acheter':'buyer'};
+  document.querySelectorAll('a[href="#proprietaires"],a[href="#locataires"],a[href="#acheter"]').forEach(function(a){
     a.addEventListener('click',function(ev){
       ev.preventDefault();
       pickAud(MAP[a.getAttribute('href')],'nav');
@@ -780,9 +885,10 @@ document.getElementById('reForm').addEventListener('submit',function(ev){
     body:JSON.stringify({
       role:aud,name:name,email:email,phone:phone,
       commune:v('fCommune'),message:v('fMsg'),
-      propertyKind:aud==='owner'?v('fKind'):'',
-      budget:aud==='tenant'?v('fBudget'):'',
+      propertyKind:aud==='owner'?v('fKind'):aud==='buyer'?v('fBKind'):'',
+      budget:aud==='tenant'?v('fBudget'):aud==='buyer'?v('fBBudget'):'',
       moveIn:aud==='tenant'?v('fMoveIn'):'',
+      purpose:aud==='buyer'?v('fPurpose'):'',
       lang:document.documentElement.lang==='en'?'en':'fr',
       company:document.getElementById('fCompany').value
     })})
