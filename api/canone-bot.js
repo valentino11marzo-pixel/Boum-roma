@@ -2,10 +2,24 @@
 // Richiede env var: ANTHROPIC_API_KEY (Settings > Environment Variables su Vercel)
 // Modello: Haiku — costo trascurabile, coerente con l'architettura a tre livelli di Homie.
 
+// Endpoint pubblico che paga un modello: senza tetti era costo aperto
+// (audit 2026-08, S4). Rate per IP + cap su ciò che entra nel prompt.
+const RL = new Map(); const RL_WINDOW = 60_000, RL_MAX = 10;
+function rateOk(ip) { const n = Date.now(); const e = RL.get(ip); if (!e || n - e.t >= RL_WINDOW) { RL.set(ip, { c: 1, t: n }); return true; } e.c++; return e.c <= RL_MAX; }
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
-  const { messages, campiNoti, zone } = req.body || {};
+  const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
+  if (!rateOk(ip)) return res.status(429).json({ error: 'rate_limited' });
+  let { messages, campiNoti, zone } = req.body || {};
   if (!Array.isArray(messages)) return res.status(400).json({ error: 'messages mancanti' });
+  // Il client non decide quanto costa la chiamata: conversazione troncata
+  // agli ultimi 30 turni, ogni turno max 2000 caratteri, zone max 100 voci.
+  messages = messages.slice(-30).map(m => ({
+    role: m && m.role === 'assistant' ? 'assistant' : 'user',
+    content: String((m && m.content) || '').slice(0, 2000),
+  }));
+  zone = (Array.isArray(zone) ? zone : []).slice(0, 100).map(z => String(z).slice(0, 40));
   if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ error: 'no-key', detail: 'ANTHROPIC_API_KEY non configurata nelle Environment Variables di Vercel' });
 
   const system = `Sei l'assistente BOOM per la pre-verifica del canone concordato (Accordo territoriale Roma).

@@ -20,6 +20,7 @@
 
 import { callClaude, extractJson } from '../agent/_claude.js';
 import { replyLang } from '../_lang.js';
+import { isReunion } from '../_market.js';
 import { fsGet, fsList as fsListRaw } from '../homie/_lib.js';
 import {
   requireCronOrAdmin, fsList, logActivity, proposeAction,
@@ -102,6 +103,14 @@ function pickChannel(lead) {
   for (const lead of leads) {
     if (Date.now() > softDeadline) { timeBoxed = true; break; }
     if (!isNew(lead) || !reachable(lead)) continue;
+    // La Réunion: il Commerciale TACE. Tutto ciò che lo rende bravo — il
+    // SYSTEM prompt che descrive il mercato romano, il catalogo `listings`
+    // che consulta, il follow-up "stai ancora cercando casa a Roma?" — è
+    // calibrato su Roma, e su un lead réunionnais produrrebbe una prima
+    // risposta in inglese che parla di un'altra isola. Meglio nessuna bozza
+    // che una bozza sbagliata: il lead esce comunque su Telegram entro un
+    // minuto, con il messaggio francese già scritto (api/_market.js).
+    if (isReunion(lead)) continue;
     const age = ageOf(lead);
     if (age == null || age < HUMAN_WINDOW_MS || age > MAX_LEAD_AGE_MS) continue;
 

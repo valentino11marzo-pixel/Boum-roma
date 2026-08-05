@@ -55,6 +55,11 @@
       "permanent": false
     },
     {
+      "source": "/(la-reunion|reunion-island|974)",
+      "destination": "/reunion",
+      "permanent": false
+    },
+    {
       "source": "/(owner|owner.html)",
       "destination": "/owner-dashboard",
       "permanent": false
@@ -349,10 +354,6 @@
       "destination": "/tenant.html"
     },
     {
-      "source": "/tenant-registration",
-      "destination": "/tenant-registration.html"
-    },
-    {
       "source": "/proppass",
       "destination": "/proppass.html"
     },
@@ -413,10 +414,6 @@
       "destination": "/thank-you.html"
     },
     {
-      "source": "/admin-flats",
-      "destination": "/admin-flats.html"
-    },
-    {
       "source": "/owner-dashboard",
       "destination": "/owner-dashboard.html"
     },
@@ -435,10 +432,6 @@
     {
       "source": "/seed-listings",
       "destination": "/seed-listings.html"
-    },
-    {
-      "source": "/setup-firebase",
-      "destination": "/setup-firebase.html"
     },
     {
       "source": "/boom-doc-parser",
@@ -674,6 +667,12 @@
     },
     "api/fiscal/pack.js": {
       "maxDuration": 60
+    },
+    "api/owners/rendiconto.js": {
+      "maxDuration": 60
+    },
+    "api/ops/conservazione.js": {
+      "maxDuration": 60
     }
   },
   "crons": [
@@ -760,6 +759,14 @@
     {
       "path": "/api/wizard/describe?mode=sweep",
       "schedule": "35 3 * * *"
+    },
+    {
+      "path": "/api/owners/rendiconto",
+      "schedule": "10 6 1 * *"
+    },
+    {
+      "path": "/api/ops/conservazione",
+      "schedule": "40 5 2 * *"
     }
   ]
 }

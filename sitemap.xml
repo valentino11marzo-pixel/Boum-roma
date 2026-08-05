@@ -37,6 +37,14 @@
     <priority>0.85</priority>
   </url>
   <url>
+    <loc>https://www.boomrome.com/reunion</loc>
+    <lastmod>2026-08-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://www.boomrome.com/reunion"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.boomrome.com/reunion?lang=en"/>
+  </url>
+  <url>
     <loc>https://www.boomrome.com/remote-move-pack</loc>
     <lastmod>2026-08-02</lastmod>
     <changefreq>monthly</changefreq>
