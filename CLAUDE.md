@@ -161,6 +161,15 @@ RENT_FEE_MIN                 # optional — fee floor in EUR (only with RENT_FEE
 RENT_FEE_BUFFER              # optional — margine sopra il costo Stripe misurato,
                              # in euro (default 0 = si va a pari)
 RENT_FEE_MAX_PCT             # optional — tetto di sicurezza in % (default 4)
+
+# Canone automatico SEPA (api/payments/_sdd.js, sdd-setup.js)
+SDD_FEE_EUR                  # optional — commissione flat forzata per addebito
+SDD_FEE_BUFFER               # optional — margine BOOM sopra il costo medio
+                             # misurato (default 1.50 — qui il default NON è
+                             # zero: margine richiesto esplicitamente)
+SDD_FEE_MAX_PCT              # optional — tetto in % della rata (default 1.5)
+SDD_LEAD_DAYS                # optional — anticipo addebito sulla scadenza
+                             # (default 7: SEPA regola in ~5 giorni lavorativi)
 REVIEW_URL                   # the REAL Google review link (g.page/r/…) used
                              # by the journey's T+3 and exit emails; falls
                              # back to a Google search for the profile
@@ -340,6 +349,66 @@ Homie's score<45 rule): spam dies, thin-but-real stays C. Writes grade/
 gradeReason/intent/confidence on the lead; dead → status archived (the
 Commerciale never spends tokens on them). notify-pending shows 🔥A/🟢B/🟡C,
 sorts A first, never pings dead. Heartbeat `teamHealth/lead-brain` (/team).
+
+### GET `/api/feed/immobiliare.xml?k=<feedKey>[&gz=1][&core=1]`
+Il catalogo BOOM nel formato feed di Immobiliare.it (specifiche raccolte in
+`docs/feed-immobiliare.md` — la doc del portale tecnico è pubblica ma il
+sandbox non raggiunge il dominio). Modello PULL: l'endpoint emette sempre il
+feed fresco (`?gz=1` → `feed.xml.gz` pronto per l'FTP batch); a consegnarlo
+è il Mac di Homie (Immobiliare vuole gli IP pubblici dei chiamanti e Vercel
+non ne ha di fissi). Regole implementate: identità unique-id+email agenzia,
+`date-updated` ISO (se la loro data è ≥ non aggiornano), transaction R/EUR,
+ISTAT Roma 058091, e la precisione dei pin NON si spaccia (`map="exact"` e
+indirizzo visibile solo su via+civico verificati da boom-geo). I nodi in
+attesa dell'XSD completo (superficie, locali, descrizioni) stanno nel blocco
+EXTENDED, escludibile con `?core=1`. `feedKey` derivato da HOMIE_SECRET.
+Env: `FEED_AGENCY_EMAIL` (username agenzia sul portale). Attivazione: team
+Support tecnico Immobiliare (FTP batch o credenziali REST + X-IMMO-SOURCE).
+Test: `node tests/feed/run.mjs`.
+
+### Il Pubblicista (`api/publisher/*` + `bot/PUBBLICISTA.md`)
+Il binario di pubblicazione verso i portali INDIPENDENTE dalle loro
+risposte: il feed Immobiliare è pronto ma l'attivazione dipende da un
+Support che non risponde, e Idealista apre il real-time solo ai software
+partner (Miogest/Gestim — nessuna spec pubblica; verificato 2026-08). Il
+server pensa, il Mac di Homie esegue attraverso QUALUNQUE porta sia aperta:
+- `api/publisher/_state.js` — motore puro esportato+testato. UNA funzione
+  (`coreContent`) alimenta sia `publishHash` sia il payload, quindi hash e
+  contenuto non possono divergere; i campi volatili non toccano l'hash e
+  l'ordine foto sì (la prima è la copertina). `worklist(listings, pubs)`:
+  **remove → create → update** (una casa affittata online genera lead da
+  rifiutare: si toglie PRIMA di aggiungere), fallimenti ripetuti
+  (3× sullo stesso hash) PARCHEGGIATI invece che ritentati a vuoto — e
+  l'edit dell'operatore (hash nuovo) li sblocca da solo. `payloadFor`:
+  feature umanizzate IT/EN (mai `washing_machine` grezzo — la lezione del
+  template wizard), `showExactAddress` da boom-geo (il toggle del pannello
+  segue la precisione VERA del pin), hints per portale (immobiliare:
+  typologyId+ISTAT+`xmlNodePath` del nodo REST; idealista: vocabolario),
+  MAI un campo inventato. `publishable` importata dal feed: vetrina, feed
+  e Pubblicista non possono divergere.
+- `GET/POST /api/publisher/queue` — auth come i cron PFS. GET `?portal=`
+  → worklist con payload completi (kill switch `settings/publisher`,
+  globale e per portale). POST rapporto → stato su
+  `portalPubs/<portale>_<listingId>` (admin-only in firestore.rules — la
+  lezione propertyLocks), l'hash registrato è quello ECHOED dall'azione
+  (se l'operatore edita mentre il Mac lavora, il diff se ne accorge al
+  giro dopo), heartbeat `pfsRadarHealth/publisher-<portale>` con la regola
+  degli occhi di Homie: giro a vuoto = salute, `blocked:true` (login/
+  captcha) = guasto → allerta Telegram esistente dopo 3 run. Recap
+  Telegram solo quando qualcosa è cambiato davvero.
+- **Le due porte** (`bot/PUBBLICISTA.md`, il mandato completo): Porta A =
+  feed/REST quando il Support attiva (batch `?gz=1` via FTP, oppure PUT
+  del nodo singolo `?id=<listingId>` sul feed — aggiunto apposta); Porta
+  B = OGGI, Playwright sul Mac contro i pannelli agenzia PROPRI
+  (Immobiliare/Getrix, Idealista pro) con profilo persistente: è
+  l'automazione del proprio back office, la stessa cosa che fa un
+  gestionale. Regole d'oro: mai inventare, ritmo umano, captcha/2FA =
+  STOP e rapporto `blocked` (mai aggirare), ogni esito riferito.
+  Cambiare porta = cambiare SOLO il trasporto: coda, stato e diff restano.
+- Test: `node tests/publisher/run.mjs` (33 check — hash, worklist,
+  parcheggio, payload onesto, verdetto, e il loop VERO GET→POST→GET su
+  Firestore in memoria con lo stub PATCH che rifiuta `exists=false` sui
+  doc esistenti, come il Firestore vero).
 
 ### Il ciclo visita (`/api/viewings/*` + `book.html` + Wallet pass)
 A BOOM viewing behaves like a FLIGHT: confirmed → boarding pass + calendar,
@@ -611,12 +680,24 @@ qualification snapshot in `message` + `raw`) so every serious applicant lands
 in the pipeline even if they never open Stripe. Returns `{ ok, id }`.
 
 ### BOOM La Réunion (`/reunion` + `api/reunion-lead.js` + `api/_market.js`)
-Il secondo mercato. Landing **francese** (toggle EN, `?lang=en`) che serve DUE
-pubblici a parti uguali — propriétaires e locataires — con un selettore che
-riscrive metà pagina senza ricaricare (`body[data-aud]`, CSS puro). Il
-francese **non** si deduce da `navigator.language`: servire inglese sotto una
-canonical dichiarata `fr` significa darlo anche al crawler. `?role=owner|tenant`
-apre già dal lato giusto (per condividere un link mirato).
+Il secondo mercato. Landing **francese** (toggle EN, `?lang=en`) che serve TRE
+pubblici — propriétaires, locataires e **acheteurs** — con un selettore che
+riscrive metà pagina senza ricaricare (`body[data-aud]`, CSS puro: si
+NASCONDONO gli altri due, mai `display:revert`, che trasformerebbe un `.frow`
+in blocco e romperebbe il form). Il francese **non** si deduce da
+`navigator.language`: servire inglese sotto una canonical dichiarata `fr`
+significa darlo anche al crawler. `?role=owner|tenant|buyer` apre già dal lato
+giusto (per condividere un link mirato).
+- **Il terzo binario (acquisto)** è l'unico dove la parte più preziosa è anche
+  la più regolamentata: in Francia ricerca per conto dell'acquirente e
+  trattativa sono **transaction** e richiedono la **carte T** (più severa
+  della carte G della gestione). Quindi la pagina vende ciò che è davvero
+  erogabile oggi — andare a VEDERE il bene che il cliente ha già trovato,
+  visita video in diretta, compte rendu scritto, lettura di diagnostics e
+  documenti di condominio — e la ricerca/negoziazione resta dentro `lg-*`,
+  che compare solo cambiando `data-legal`. `budgetKind:'purchase'` distingue
+  il budget d'acquisto dal canone: stampare "320 000 €/mese" sarebbe la
+  prova, mandata al cliente, che nessuno ha capito la sua richiesta.
 - `POST /api/reunion-lead` — pubblico, stesso irrigidimento di `canone-lead`
   (honeypot, rate limit per IP, campi clippati) e **stesso schema `leads`**:
   il lead sale nella macchina esistente (Lead Brain → notify-pending →
@@ -643,12 +724,30 @@ apre già dal lato giusto (per condividere un link mirato).
   frasi giuste — FAQ e mentions légales insieme, invece di una caccia alle
   formulazioni nel file. I campi `[NUMÉRO]`/`[SIREN]`/`[PARTENAIRE]` vanno
   riempiti PRIMA di cambiare l'attributo.
-- Test: `node tests/reunion/run.mjs` (62 check) — la porta (honeypot, rifiuti
+- **Essere trovati e essere CITATI** (il giro SEO/GEO): immagine social
+  dedicata `og-reunion.png` **generata dal repo** (card HTML → screenshot
+  headless → crop PNG senza dipendenze, `tests/` ne asserisce i 1200×630 —
+  prima la pagina condivideva su WhatsApp la card di Roma); title 51 car. e
+  description 155; **quattro blocchi JSON-LD** (Organization, Breadcrumb,
+  FAQPage, `@graph` con WebPage+speakable e i **tre Service** con
+  `audience`/`areaServed`/`url` del proprio volet — è ciò che permette a un
+  motore di rispondere "sì, anche per un acquirente"); il blocco **« en bref »**
+  scritto per essere citato (fatti a plat, compresa la riga che dice cosa NON
+  facciamo — una fonte che dichiara i propri limiti è una fonte che si cita);
+  `llms.txt` con la sezione del secondo mercato, i tre `?role=` e la nota
+  Hoguet, così un'AI non promette per noi più di quanto facciamo.
+  **Invariante testata**: ogni domanda nel FAQPage deve esistere come
+  `<summary>` VISIBILE (markup che afferma ciò che la pagina non mostra è
+  contenuto nascosto: Google lo sanziona e un motore cita una frase
+  introvabile), e i selettori `speakable` devono puntare a nodi reali.
+- Test: `node tests/reunion/run.mjs` (117 check) — la porta (honeypot, rifiuti
   che non scrivono mai un lead a metà, limite per IP), il lato che non si perde
   mai, la lingua che non ricade sull'italiano, **il lead romano che non diventa
   réunionnais** (la regressione più cara: risposte in francese ai clienti di
   Roma) e le due guardie asserite sulla SORGENTE, perché conta l'ORDINE — la
-  guardia deve stare prima della chiamata che spende e spedisce.
+  guardia deve stare prima della chiamata che spende e spedisce. Più il terzo
+  binario: gli alias del ruolo, il budget d'acquisto che non diventa MAI un
+  canone mensile, e la riserva carte T scritta invece che sottintesa.
 
 ### POST `/api/service-checkout`
 Public one-tap Stripe Checkout for the productised services (Services 2.0
@@ -830,6 +929,49 @@ sugli europei e **perdeva su ogni carta estera** (−€26,50 su un canone da
   **caso peggiore** (3,3% + €0,30): partire sotto costo è il difetto che
   questa formula elimina. `/casa` mostra quel seed come **massimo**, così
   l'addebito reale può solo essere più basso.
+
+### Il canone automatico SEPA (`api/payments/_sdd.js` + `sdd-setup.js` + webhook)
+Il cerchio dei soldi chiuso: l'inquilino autorizza UNA volta e ogni rata
+parte da sola. Capability `sepa_debit_payments` attivata sull'account
+Stripe (Dashboard → Pagamenti → configurazione Default, 2026-08-05).
+- **Mandato**: card in `/casa` → `POST /api/payments/sdd-setup` (Bearer
+  tenant/admin; un tenant solo sul PROPRIO contratto) → Stripe Checkout
+  `mode:'setup'` con `sepa_debit` — l'IBAN non tocca mai i server BOOM. Il
+  webhook (`SDD_SETUP`) salva `contract.sdd` {customerId, paymentMethodId,
+  mandateRef, ibanLast4, activatedAt} — via `fsPatch` di homie/_lib, NON il
+  `patchDoc` locale del webhook che appiattisce le mappe a String(v) (e la
+  RILETTURA con `fsGet`, non col `readDoc` locale che le appiattisce a
+  null — due trappole vere trovate dai test). Il customer si persiste già
+  alla creazione della sessione (riuso sui retry). `action:'cancel'` spegne
+  e stacca il payment method.
+- **Collector** (`collectSdd()` da reminder-cron, finestra oraria): rate
+  `pending` dei contratti con mandato attivo, addebitate `SDD_LEAD_DAYS`
+  (7) prima della scadenza — SEPA regola in ~5gg lavorativi, così i soldi
+  arrivano intorno alla scadenza. UN addebito per rata PER COSTRUZIONE:
+  idempotency key Stripe `sdd_<paymentId>` + guardia `sddPiId` sul doc.
+  Solo canone (mai il saldo deposito), mai rate scadute PRIMA del mandato,
+  un PI rifiutato scrive `sddInitError` e NON si ritenta da solo (un retry
+  SEPA su fondi insufficienti brucia commissioni), Telegram avvisato.
+- **Esiti** (webhook, `payment_intent.succeeded`/`payment_failed` filtrati
+  su `metadata.service==='RENT_SDD'` — i PI delle Checkout carta passano
+  oltre): succeeded → rata `paid · paidVia:'sepa'`, ricevuta EN al cliente,
+  costo reale in `settings/sddFeeStats`; già pagata per altra via → MAI
+  sovrascritta, allarme doppio incasso (stessa disciplina della carta);
+  failed → `sddStatus:'failed'`, la rata RESTA pending e torna pagabile a
+  mano, email "paga con carta o bonifico" + Telegram alta priorità.
+- **La commissione col margine BOOM**: `sddFee()` = costo medio misurato
+  PER ADDEBITO (il costo SEPA è flat, non proporzionale — media diversa da
+  quella della carta) + `SDD_FEE_BUFFER` default **€1.50** (qui il margine
+  di default NON è zero: richiesto esplicitamente), tetto
+  `SDD_FEE_MAX_PCT` 1.5%, seed €0.50. Default ≈ €2/addebito contro ~€30
+  di carta su un canone da 900 — l'argomento di vendita è il prezzo.
+- **/casa**: terza corsia accanto a carta e bonifico — card 🏦 attiva/
+  disattiva (IBAN ••••last4), banner "si sta incassando da sola" che
+  SOSTITUISCE bottone carta e bonifico mentre l'addebito è in volo (due
+  vie aperte insieme = invito al doppio pagamento), nota rossa se
+  l'addebito è fallito, band `?sdd=ok` al ritorno da Stripe.
+- Test: `node tests/sdd/run.mjs` (38 check — fee, eligibilità, collector
+  idempotente, webhook setup/succeeded/failed/double, endpoint auth).
 
 ### Il lucchetto sull'immobile (`api/preagreement/_lock.js`)
 Due candidati potevano accettare, pagare e generare **due contratti** sullo

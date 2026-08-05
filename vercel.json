@@ -262,6 +262,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/feed/immobiliare.xml",
+      "destination": "/api/feed/immobiliare"
+    },
+    {
       "source": "/listing/:id",
       "destination": "/api/listing"
     },

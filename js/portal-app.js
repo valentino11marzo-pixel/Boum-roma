@@ -7111,15 +7111,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const landlord = property.ownerId ? (S.users || []).find(u => u.id === property.ownerId) : null;
             let inviteSent = false;
             if (w.email) {
-                try {
-                    const idToken = await auth.currentUser.getIdToken();
-                    const r = await fetch('/api/sign/send-link', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
-                        body: JSON.stringify({ contractId, role: 'tenant' })
-                    });
-                    inviteSent = r.ok;
-                } catch (e) { console.warn('[wizard] send-link', e); }
+                // Gate qualità: template completo (o scelta esplicita) prima
+                // che il link di firma parta — vedi inviteTenantToSign.
+                inviteSent = await inviteTenantToSign(contractId);
             }
             // Notifiche in-app (skipEmail: l'email vera è l'invito qui sopra)
             try {
@@ -14442,6 +14436,103 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // vero textarea per i testi lunghi e target comodi da telefono.
     // Non passa da getModal/closeModal: convive con una modale già aperta
     // (es. il dettaglio contratto) senza distruggerla.
+
+    // ── TEMPLATE COMPLETO PRIMA DELLA FIRMA ─────────────────────────────
+    // Il documento che il cliente firma è QUELLO registrato: se parte con i
+    // puntini, resta coi puntini. Questo checker usa la stessa catena di
+    // risoluzione dei generatori (contratto → users schema sign → users
+    // schema wizard) e divide: CRITICI (identità delle parti — senza, il
+    // firmato è incompleto) e CONSIGLIATI (catasto, residenza, APE — servono
+    // a RLI/asseverazione ma non bloccano la firma).
+    function templateMissing(contract) {
+        const t = (S.users || []).find(u => u.id === contract.tenantId) || {};
+        const prop = (S.properties || []).find(p => p.id === contract.propertyId) || {};
+        const llU = prop.ownerId ? ((S.users || []).find(u => u.id === prop.ownerId) || {}) : {};
+        const ll = (S.landlords || []).find(l => l.id === prop.ownerId) || {};
+        const pick = (...vals) => { for (const v of vals) { const s = String(v == null ? '' : v).trim(); if (s) return s; } return ''; };
+        const critici = [], consigliati = [];
+        const needC = (label, ...vals) => { if (!pick(...vals)) critici.push(label); };
+        const needS = (label, ...vals) => { if (!pick(...vals)) consigliati.push(label); };
+        needC('Codice fiscale inquilino', contract.tenantCF, t.cf, t.codiceFiscale);
+        needC('Data di nascita inquilino', contract.tenantDob, t.dob, t.birthDate);
+        needC('Luogo di nascita inquilino', contract.tenantPob, t.pob, t.birthPlace);
+        needC('Documento inquilino (tipo + numero)', contract.tenantDocNum, t.docNum, t.documentNumber);
+        needC('Nazionalità inquilino', contract.tenantNationality, t.nationality);
+        needC('Codice fiscale locatore', contract.landlordCF, llU.cf, llU.codiceFiscale, ll.cf, ll.codiceFiscale);
+        needS('Residenza inquilino', contract.tenantAddress, t.address, t.residenza);
+        needS('Dati catastali immobile (foglio/particella/sub)', prop.catFoglio || prop.cadastralSheet, contract.catFoglio);
+        needS('Classe energetica (APE)', contract.energyClass, prop.energyClass);
+        (Array.isArray(contract.coTenants) ? contract.coTenants : []).forEach((co, i) => {
+            if (co && co.name && !String(co.cf || '').trim()) critici.push('Codice fiscale co-conduttore ' + (i + 1) + ' (' + co.name.split(' ')[0] + ')');
+        });
+        return { critici, consigliati };
+    }
+
+    // Dialog a scelte (fratello di askModal): risolve la chiave scelta o null.
+    function chooseModal({ title, message = '', choices = [] }) {
+        return new Promise((resolve) => {
+            const wrap = document.createElement('div');
+            wrap.className = 'modal-overlay active';
+            wrap.style.zIndex = '1200';
+            wrap.innerHTML = `<div class="modal" style="max-width:480px">
+                <div class="modal-header"><h3 class="modal-title">${esc(title || '')}</h3><button class="modal-close" data-ch="__x">×</button></div>
+                <div class="modal-body">${message ? `<div style="font-size:13px;color:var(--text-secondary);white-space:pre-line;line-height:1.6">${message}</div>` : ''}</div>
+                <div class="modal-footer" style="flex-wrap:wrap">${choices.map(c => `<button class="btn ${c.primary ? '' : 'btn-secondary'}" data-ch="${esc(c.key)}">${esc(c.label)}</button>`).join('')}</div>
+            </div>`;
+            document.body.appendChild(wrap);
+            document.body.classList.add('modal-open');
+            wrap.addEventListener('click', (e) => {
+                const b = e.target.closest('[data-ch]');
+                if (!b && e.target !== wrap) return;
+                wrap.remove();
+                if (!document.querySelector('#modals .modal-overlay.active')) document.body.classList.remove('modal-open');
+                resolve(b && b.dataset.ch !== '__x' ? b.dataset.ch : null);
+            });
+        });
+    }
+
+    // Il PRIMO invito di firma passa da qui: se mancano i dati CRITICI il
+    // dialog propone La Scheda (il cliente si auto-compila e il PDF esce
+    // completo); se è tutto in ordine e nessuno ha ancora firmato, il PDF
+    // viene RIGENERATO un istante prima dell'invio così porta ogni dato
+    // arrivato dopo la creazione. Ritorna true se l'invito è partito.
+    async function inviteTenantToSign(contractId, { skipGate = false } = {}) {
+        const contract = (S.contracts || []).find(c => c.id === contractId)
+            || (await db.collection('contracts').doc(contractId).get().then(d => d.exists ? { id: contractId, ...d.data() } : null).catch(() => null));
+        if (!contract) return false;
+        if (!skipGate) {
+            const miss = templateMissing(contract);
+            if (miss.critici.length) {
+                const pick = await chooseModal({
+                    title: '📋 Il contratto non è completo',
+                    message: 'Mancano dati che finiranno NEI PUNTINI del documento firmato:\n\n• ' + miss.critici.join('\n• ')
+                        + (miss.consigliati.length ? '\n\nConsigliati (per RLI/asseverazione):\n• ' + miss.consigliati.join('\n• ') : '')
+                        + '\n\nCon La Scheda il cliente si compila da solo (2 minuti, OCR dal documento) e la firma parte DOPO, su un contratto completo.',
+                    choices: [
+                        { key: 'scheda', label: '📋 Manda La Scheda (consigliato)', primary: true },
+                        { key: 'force', label: 'Invia comunque la firma' },
+                    ],
+                });
+                if (pick === 'scheda') { await sendMissingInfoLink(contractId, 'tenant'); return false; }
+                if (pick !== 'force') return false;
+            }
+            // Dati ok e nessuna firma: il PDF che parte è quello più fresco.
+            if (!contract.tenantSignature && !contract.landlordSignature && (contract.signatureStatus || 'none') !== 'complete') {
+                try { await generateContractPDF(contractId); } catch (e) { console.warn('[invite] regen PDF:', e); }
+            }
+        }
+        try {
+            const idToken = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/sign/send-link', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+                body: JSON.stringify({ contractId, role: 'tenant' })
+            });
+            return r.ok;
+        } catch (e) { console.warn('[invite] send-link:', e); return false; }
+    }
+    window.inviteTenantToSign = inviteTenantToSign;
+
     function askModal({ title, message = '', placeholder = '', value = '', type = 'text', okLabel = 'Conferma' }) {
         return new Promise((resolve) => {
             const wrap = document.createElement('div');
@@ -15144,14 +15235,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const landlord = prop ? S.users.find(u => u.id === prop.ownerId) : null;
 
             if (sendEmails && tenant) {
-                try {
-                    const idToken = await auth.currentUser.getIdToken();
-                    await fetch('/api/sign/send-link', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
-                        body: JSON.stringify({ contractId: ref.id, role: 'tenant' })
-                    });
-                } catch (e) { console.warn('[Contract] sign invite failed:', e); }
+                await inviteTenantToSign(ref.id);
             }
             
             // Notifications (existing logic)
@@ -18079,6 +18163,24 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     { role: 'tenant', page: _pg, xr: rightX / pageW, yr: (sig1Y - sigH + 4) / pageH, wr: (sigW - 4) / pageW, hr: sigH / pageH });
             }
             y = sig1Y + 16;
+            {
+                const _coT = Array.isArray(contract.coTenants) ? contract.coTenants.filter(x => x && x.name) : [];
+                for (let _ci = 0; _ci < _coT.length; _ci++) {
+                    ensureSpace(26);
+                    const _coY = y + 14;
+                    doc.setLineWidth(0.4); doc.setDrawColor(0);
+                    doc.line(rightX, _coY, rightX + sigW, _coY);
+                    if (_coT[_ci].signature) {
+                        try { doc.addImage(_coT[_ci].signature, 'PNG', rightX, _coY - sigH + 4, sigW - 4, sigH); } catch (e) {}
+                    }
+                    doc.setFont('times', 'normal'); doc.setFontSize(10);
+                    doc.text('Il Co-conduttore: ' + _coT[_ci].name, rightX, _coY + 5);
+                    const _pgc = doc.internal.getCurrentPageInfo().pageNumber;
+                    _sigA.push({ role: 'cotenant', coIndex: _ci, page: _pgc, xr: rightX / pageW, yr: (_coY - sigH + 4) / pageH, wr: (sigW - 4) / pageW, hr: sigH / pageH });
+                    y = _coY + 10;
+                }
+            }
+
 
             // --- 1341–1342 block ---
             y += 14;
@@ -18113,6 +18215,24 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 _sigA.push(
                     { role: 'landlord', page: _pg, xr: margin / pageW, yr: (sig2Y - sigH + 4) / pageH, wr: (sigW - 4) / pageW, hr: sigH / pageH },
                     { role: 'tenant', page: _pg, xr: rightX / pageW, yr: (sig2Y - sigH + 4) / pageH, wr: (sigW - 4) / pageW, hr: sigH / pageH });
+            }
+            y = sig2Y + 16;
+            {
+                const _coT = Array.isArray(contract.coTenants) ? contract.coTenants.filter(x => x && x.name) : [];
+                for (let _ci = 0; _ci < _coT.length; _ci++) {
+                    ensureSpace(26);
+                    const _coY = y + 14;
+                    doc.setLineWidth(0.4); doc.setDrawColor(0);
+                    doc.line(rightX, _coY, rightX + sigW, _coY);
+                    if (_coT[_ci].signature) {
+                        try { doc.addImage(_coT[_ci].signature, 'PNG', rightX, _coY - sigH + 4, sigW - 4, sigH); } catch (e) {}
+                    }
+                    doc.setFont('times', 'normal'); doc.setFontSize(10);
+                    doc.text('Il Co-conduttore: ' + _coT[_ci].name, rightX, _coY + 5);
+                    const _pgc = doc.internal.getCurrentPageInfo().pageNumber;
+                    _sigA.push({ role: 'cotenant', coIndex: _ci, page: _pgc, xr: rightX / pageW, yr: (_coY - sigH + 4) / pageH, wr: (sigW - 4) / pageW, hr: sigH / pageH });
+                    y = _coY + 10;
+                }
             }
 
             // --------------- FOOTER (Pagina N di M) ---------------
@@ -18507,6 +18627,24 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     { role: 'tenant', page: _pg, xr: rightX / pageW, yr: (sig1Y - sigH + 4) / pageH, wr: (sigW - 4) / pageW, hr: sigH / pageH });
             }
             y = sig1Y + 16;
+            {
+                const _coT = Array.isArray(contract.coTenants) ? contract.coTenants.filter(x => x && x.name) : [];
+                for (let _ci = 0; _ci < _coT.length; _ci++) {
+                    ensureSpace(26);
+                    const _coY = y + 14;
+                    doc.setLineWidth(0.4); doc.setDrawColor(0);
+                    doc.line(rightX, _coY, rightX + sigW, _coY);
+                    if (_coT[_ci].signature) {
+                        try { doc.addImage(_coT[_ci].signature, 'PNG', rightX, _coY - sigH + 4, sigW - 4, sigH); } catch (e) {}
+                    }
+                    doc.setFont('times', 'normal'); doc.setFontSize(10);
+                    doc.text('Il Co-conduttore: ' + _coT[_ci].name, rightX, _coY + 5);
+                    const _pgc = doc.internal.getCurrentPageInfo().pageNumber;
+                    _sigA.push({ role: 'cotenant', coIndex: _ci, page: _pgc, xr: rightX / pageW, yr: (_coY - sigH + 4) / pageH, wr: (sigW - 4) / pageW, hr: sigH / pageH });
+                    y = _coY + 10;
+                }
+            }
+
 
             // --- 1341-1342 block (lista del contratto tipo associazione) ---
             y += 14;
@@ -18541,6 +18679,24 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 _sigA.push(
                     { role: 'landlord', page: _pg, xr: margin / pageW, yr: (sig2Y - sigH + 4) / pageH, wr: (sigW - 4) / pageW, hr: sigH / pageH },
                     { role: 'tenant', page: _pg, xr: rightX / pageW, yr: (sig2Y - sigH + 4) / pageH, wr: (sigW - 4) / pageW, hr: sigH / pageH });
+            }
+            y = sig2Y + 16;
+            {
+                const _coT = Array.isArray(contract.coTenants) ? contract.coTenants.filter(x => x && x.name) : [];
+                for (let _ci = 0; _ci < _coT.length; _ci++) {
+                    ensureSpace(26);
+                    const _coY = y + 14;
+                    doc.setLineWidth(0.4); doc.setDrawColor(0);
+                    doc.line(rightX, _coY, rightX + sigW, _coY);
+                    if (_coT[_ci].signature) {
+                        try { doc.addImage(_coT[_ci].signature, 'PNG', rightX, _coY - sigH + 4, sigW - 4, sigH); } catch (e) {}
+                    }
+                    doc.setFont('times', 'normal'); doc.setFontSize(10);
+                    doc.text('Il Co-conduttore: ' + _coT[_ci].name, rightX, _coY + 5);
+                    const _pgc = doc.internal.getCurrentPageInfo().pageNumber;
+                    _sigA.push({ role: 'cotenant', coIndex: _ci, page: _pgc, xr: rightX / pageW, yr: (_coY - sigH + 4) / pageH, wr: (sigW - 4) / pageW, hr: sigH / pageH });
+                    y = _coY + 10;
+                }
             }
 
             // --------------- FOOTER (Pagina N di M) ---------------
