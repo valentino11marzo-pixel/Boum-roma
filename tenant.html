@@ -180,6 +180,57 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
 .sddproc{margin-top:16px;padding:14px 16px;border:1px solid var(--line-gold);border-radius:14px;background:var(--gold-faint);font-size:13px;line-height:1.6}
 .sddproc small{color:var(--t3);font-size:11.5px}
 .sddfailnote{margin-top:14px;padding:10px 14px;border:1px solid rgba(255,107,107,.35);border-radius:12px;color:var(--red);font-size:12px;line-height:1.6}
+
+/* ═══ OTTIMIZZAZIONE MOBILE + DESKTOP (2026-08) ═══════════════════════
+   Telefono: tocco pieno (44px, niente zoom iOS sui campi, tap-highlight
+   spento), il below-fold non si impagina finché non serve, e la rata
+   segue il pollice in un dock fisso. Desktop: da strip di 680px a layout
+   a due colonne — i SOLDI a sinistra, la VITA della casa a destra. */
+button,a{-webkit-tap-highlight-color:transparent}
+button,.obtn,.bfc,.qnav a,.dlink,.paybtn,.svcard{touch-action:manipulation}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:6px}
+#s-man,#s-hood,#s-fix,#s-conc,#s-kit,#s-ref{content-visibility:auto;contain-intrinsic-size:auto 420px}
+
+/* dock pagamento (solo telefono): compare quando la card è fuori vista */
+.paydock{position:fixed;left:12px;right:12px;bottom:calc(10px + var(--safe));z-index:70;
+  display:flex;align-items:center;gap:12px;padding:10px 12px 10px 20px;border-radius:100px;
+  border:1px solid var(--line-gold);background:rgba(10,10,12,.9);
+  -webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);
+  box-shadow:0 14px 40px rgba(0,0,0,.55);transform:translateY(150%);transition:transform .45s var(--ease)}
+.paydock.on{transform:none}
+.paydock .pdA{flex:1;min-width:0;line-height:1.3}
+.paydock .pdA b{font-weight:400;font-size:15.5px;font-variant-numeric:tabular-nums}
+.paydock .pdA small{display:block;font-size:9px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.paydock .pdB{flex:none;background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#1a1407;
+  border-radius:100px;padding:12px 22px;font-size:10.5px;letter-spacing:2px;text-transform:uppercase;font-weight:500;min-height:44px}
+@media(prefers-reduced-motion:reduce){.paydock{transition:none}}
+
+/* tocco comodo sotto i 900px */
+@media(max-width:900px){
+  .fld select,.fld textarea{font-size:16px}
+  .bfc{padding:9px 15px;font-size:11.5px}
+  .obtn{min-height:44px}
+  .dlink{padding:14px 2px}
+}
+
+/* ═══ DESKTOP ≥1120px: due colonne ═══ */
+.cols{display:contents}
+@media(min-width:1120px){
+  .hrow{max-width:1220px}
+  main{max-width:1220px;padding:38px 42px calc(90px + var(--safe))}
+  h1.big{font-size:46px}
+  .tiles{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .tile{border-left:1px solid var(--line2);padding:20px 20px 17px}
+  .tile:first-child{border-left:none}
+  .tile:nth-child(n+3){border-top:none}
+  .qnav{top:59px;margin:10px 0 0;padding-left:0;padding-right:0}
+  .cols{display:grid;grid-template-columns:480px minmax(0,1fr);gap:0 30px;align-items:start;margin-top:2px}
+  .col{min-width:0}
+  .paydock{display:none}
+  .card{padding:24px}
+  .svcard:hover{transform:translateY(-2px)}
+  .advisor{margin-top:28px}
+}
 .bfall{width:100%;margin-top:14px;border:1px solid var(--line);background:transparent;color:var(--t2);
   border-radius:100px;padding:12px;font-size:11px;letter-spacing:1.6px;text-transform:uppercase;
   cursor:pointer;transition:.2s var(--ease);font-family:inherit}
@@ -444,7 +495,8 @@ var STR={
   sddProc:'🏦 This instalment is being collected automatically',
   sddProcSub:'The SEPA debit started on {d} and settles in ~5 working days. No action needed — paying it another way too would mean paying twice.',
   sddFailNote:'⚠ The automatic debit for this instalment did not go through — please pay by card or bank transfer below.',
-  sddOkBand:'✓ Auto-pay activated — from now on your rent takes care of itself.'},
+  sddOkBand:'✓ Auto-pay activated — from now on your rent takes care of itself.',
+  dockPay:'Pay →'},
  it:{home:'La tua casa',logout:'Esci',open:'Apro la tua casa…',active:'Contratto attivo',reserved:'Casa riservata a tuo nome',
   gm:'Buongiorno',ga:'Buon pomeriggio',ge:'Buonasera',daysToKeys:'{n} giorni alle chiavi',keysToday:'giorno delle chiavi!',
   nPay:'Pagamenti',nHist:'Storico',nDocs:'Documenti',nMan:'Manuale',nHood:'Quartiere',nFix:'Riparazioni',nConc:'Concierge',nKit:'Rome Kit',nRef:'Invita',
@@ -494,7 +546,8 @@ var STR={
   sddProc:'🏦 Questa rata si sta incassando da sola',
   sddProcSub:'L\'addebito SEPA è partito il {d} e si regola in ~5 giorni lavorativi. Non serve fare nulla — pagarla anche per altra via significherebbe pagare due volte.',
   sddFailNote:'⚠ L\'addebito automatico di questa rata non è riuscito — pagala con carta o bonifico qui sotto.',
-  sddOkBand:'✓ Addebito attivato — da ora il canone si paga da solo.'}
+  sddOkBand:'✓ Addebito attivato — da ora il canone si paga da solo.',
+  dockPay:'Paga →'}
 };
 function t(k){return (STR[LANG]&&STR[LANG][k])||STR.en[k]||k}
 function setLang(l){LANG=l;try{localStorage.setItem('boom:casa:lang',l)}catch(e){};syncLangBtn();render();}
@@ -699,13 +752,18 @@ function render(){
 
   /* ── next payment ── */
   var sdd=c.sdd||{};
+  var sddProcG=false;
+  /* Desktop ≥1120px: .cols diventa una griglia a due colonne (i SOLDI |
+     la VITA della casa); su telefono display:contents la fa sparire e
+     l'ordine resta identico a prima. */
+  html+='<div class="cols"><div class="col colA">';
   html+='<div class="card paycard rv" id="s-pay">'+secH(no(),t('s1'));
   if(next){
     var lab=next.type==='deposit-balance'?t('depositBal'):t('rentOf')+' '+esc(periodLabel(next));
     /* Addebito SEPA in volo: il bottone carta e il bonifico SPARISCONO —
        offrire una seconda via mentre la prima è in corso è invitare un
        doppio pagamento. Se l'addebito fallisce (sddStatus) tornano da soli. */
-    var sddProc=!!(next.sddPiId&&next.status==='pending'&&next.sddStatus!=='failed');
+    var sddProc=sddProcG=!!(next.sddPiId&&next.status==='pending'&&next.sddStatus!=='failed');
     html+='<div class="pm"><div class="lab">'+lab+'<b>'+(late?t('lateBy'):t('dueBy'))+' '+fmtD(next.dueDate)+'</b></div>'
       +'<div><div class="amt">'+eur(next.amount)+'</div><div class="due'+(late&&!sddProc?' late':'')+'">'+(sddProc?'auto ✓':(late?t('late'):t('dueSoon')))+'</div></div></div>';
     if(sddProc){
@@ -760,6 +818,8 @@ function render(){
   }
   html+='<a class="dlink" href="'+waMsg('Ciao BOOM! Mi serve una copia di un documento della mia casa ('+addr+').')+'" target="_blank" rel="noopener"><span class="ic">💬</span><span>'+t('needMore')+'<br><small>'+t('needMoreSub')+'</small></span><span class="go">→</span></a>';
   html+='</div>';
+
+  html+='</div><div class="col colB">';
 
   /* ── THE HOME MANUAL — the feature that kills 90% of the questions ── */
   html+='<div class="card rv" id="s-man">'+secH(no(),t('sM'))
@@ -831,7 +891,15 @@ function render(){
     +'<a class="obtn" href="/refer?code='+encodeURIComponent(refCode())+'" target="_blank" rel="noopener">'+t('refHow')+'</a>'
     +'</div>';
 
+  html+='</div></div>'; /* /colB /cols */
+
   html+='<div class="advisor rv"><span class="av"><svg viewBox="0 0 1024 1024" width="22" height="22" aria-hidden="true"><use href="#boomMark"/></svg></span><div><b>Valentino · BOOM Roma</b><span>'+t('advisor')+'</span></div><a href="'+WA+'" target="_blank" rel="noopener">WhatsApp</a></div>';
+
+  /* dock pagamento (telefono): la rata segue lo scroll, un tap riporta
+     alla card. Mai col banner SDD in volo — lì non c'è nulla da pagare. */
+  if(next&&!sddProcG){
+    html+='<div class="paydock" id="payDock"><div class="pdA"><b>'+eur(next.amount)+'</b><small>'+t('dueBy')+' '+fmtD(next.dueDate)+'</small></div><button class="pdB" id="payDockBtn">'+t('dockPay')+'</button></div>';
+  }
 
   $('app').innerHTML=html;
   wire(next,hist);
@@ -894,6 +962,20 @@ function wire(next,hist){
       throw new Error((j&&j.error)||'failed');
     }).catch(function(){sb.disabled=false;sb.textContent=t('payRetry');});
   };}
+  /* dock: compare quando la card pagamento è passata sopra la vista */
+  var pd=$('payDock'),pc=$('s-pay');
+  if(pd&&pc){
+    if('IntersectionObserver' in window){
+      var dio=new IntersectionObserver(function(es){es.forEach(function(en){
+        pd.classList.toggle('on',!en.isIntersecting&&en.boundingClientRect.top<0);
+      })},{threshold:0});
+      dio.observe(pc);
+    }
+    var pdb=$('payDockBtn');
+    if(pdb)pdb.onclick=function(){
+      pc.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});
+    };
+  }
   var sc=$('sddCancelBtn');
   if(sc){sc.onclick=function(){
     if(!confirm(t('sddStopAsk')))return;
