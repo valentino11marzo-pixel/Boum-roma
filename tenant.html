@@ -168,6 +168,17 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
   padding:5px 11px;font-size:10.5px;letter-spacing:.6px;cursor:pointer;transition:.2s var(--ease);font-family:inherit}
 .bfc:hover{border-color:var(--gold);color:var(--gold)}
 .bfc.ok{border-color:var(--gold);color:var(--gold)}
+/* ── Canone automatico (SEPA): la terza corsia — attivi una volta e sparisce
+   il pensiero. Attiva = bordo oro pieno; il banner "in volo" sostituisce il
+   bottone carta (due vie aperte insieme = invito al doppio pagamento). */
+.sddbox{display:flex;align-items:center;gap:12px;margin-top:18px;padding:14px 16px;border:1px dashed var(--line-gold);border-radius:14px}
+.sddbox.on{border-style:solid;background:var(--gold-faint)}
+.sddbox .ic{font-size:20px;flex:none}
+.sddbox b{display:block;font-size:13px;font-weight:500;letter-spacing:.3px}
+.sddbox small{display:block;font-size:11.5px;color:var(--t3);line-height:1.6;margin-top:3px}
+.sddproc{margin-top:16px;padding:14px 16px;border:1px solid var(--line-gold);border-radius:14px;background:var(--gold-faint);font-size:13px;line-height:1.6}
+.sddproc small{color:var(--t3);font-size:11.5px}
+.sddfailnote{margin-top:14px;padding:10px 14px;border:1px solid rgba(255,107,107,.35);border-radius:12px;color:var(--red);font-size:12px;line-height:1.6}
 .bfall{width:100%;margin-top:14px;border:1px solid var(--line);background:transparent;color:var(--t2);
   border-radius:100px;padding:12px;font-size:11px;letter-spacing:1.6px;text-transform:uppercase;
   cursor:pointer;transition:.2s var(--ease);font-family:inherit}
@@ -422,7 +433,17 @@ var STR={
   refCode:'Your personal code',refHow:'Refer someone →',refShare:'Share your invite',refWa:'On WhatsApp →',
   advisor:'Your advisor on this home — replies personally',
   shareMsg:'Moving to Rome? This is how I found my apartment — BOOM handles everything, contract to keys. Use my code {code} and we both get €50: https://www.boomrome.com/?ref={code}',
-  kitShareMsg:'If you are moving to Rome, save this — the survival guide for codice fiscale, residency, SIM & co: https://www.boomrome.com/welcome-to-rome'},
+  kitShareMsg:'If you are moving to Rome, save this — the survival guide for codice fiscale, residency, SIM & co: https://www.boomrome.com/welcome-to-rome',
+  sddT:'Automatic rent — set &amp; forget',
+  sddPitch:'Authorise a SEPA direct debit once and every instalment collects itself about a week before it\'s due. Receipt by email, history here, service fee ~{fee} per debit — far below any card fee. Turn it off anytime.',
+  sddBtn:'Activate auto-pay →',sddOpening:'Opening secure setup…',
+  sddActive:'Auto-pay active · IBAN ••••{iban}',
+  sddActiveSub:'Each instalment is collected automatically about a week before its due date. Nothing to remember.',
+  sddStop:'Turn off',sddStopAsk:'Turn off automatic rent collection? You can reactivate it anytime.',
+  sddProc:'🏦 This instalment is being collected automatically',
+  sddProcSub:'The SEPA debit started on {d} and settles in ~5 working days. No action needed — paying it another way too would mean paying twice.',
+  sddFailNote:'⚠ The automatic debit for this instalment did not go through — please pay by card or bank transfer below.',
+  sddOkBand:'✓ Auto-pay activated — from now on your rent takes care of itself.'},
  it:{home:'La tua casa',logout:'Esci',open:'Apro la tua casa…',active:'Contratto attivo',reserved:'Casa riservata a tuo nome',
   gm:'Buongiorno',ga:'Buon pomeriggio',ge:'Buonasera',daysToKeys:'{n} giorni alle chiavi',keysToday:'giorno delle chiavi!',
   nPay:'Pagamenti',nHist:'Storico',nDocs:'Documenti',nMan:'Manuale',nHood:'Quartiere',nFix:'Riparazioni',nConc:'Concierge',nKit:'Rome Kit',nRef:'Invita',
@@ -462,7 +483,17 @@ var STR={
   refCode:'Il tuo codice personale',refHow:'Presenta qualcuno →',refShare:'Condividi il tuo invito',refWa:'Su WhatsApp →',
   advisor:'Il tuo advisor su questa casa — risponde personalmente',
   shareMsg:'Ti trasferisci a Roma? Io ho trovato casa così — BOOM gestisce tutto, dal contratto alle chiavi. Usa il mio codice {code}: prendiamo €50 a testa — https://www.boomrome.com/?ref={code}',
-  kitShareMsg:'Se ti trasferisci a Roma salva questa — la guida per codice fiscale, residenza, SIM &amp; co: https://www.boomrome.com/welcome-to-rome'}
+  kitShareMsg:'Se ti trasferisci a Roma salva questa — la guida per codice fiscale, residenza, SIM &amp; co: https://www.boomrome.com/welcome-to-rome',
+  sddT:'Canone automatico — attivi e non ci pensi più',
+  sddPitch:'Autorizzi l\'addebito SEPA una volta e ogni rata parte da sola circa una settimana prima della scadenza. Ricevuta via email, storico qui, commissione ~{fee} ad addebito — molto meno della carta. Lo spegni quando vuoi.',
+  sddBtn:'Attiva l\'addebito →',sddOpening:'Apro l\'attivazione sicura…',
+  sddActive:'Addebito automatico attivo · IBAN ••••{iban}',
+  sddActiveSub:'Ogni rata viene incassata da sola circa una settimana prima della scadenza. Zero pensieri.',
+  sddStop:'Disattiva',sddStopAsk:'Disattivare l\'addebito automatico del canone? Puoi riattivarlo quando vuoi.',
+  sddProc:'🏦 Questa rata si sta incassando da sola',
+  sddProcSub:'L\'addebito SEPA è partito il {d} e si regola in ~5 giorni lavorativi. Non serve fare nulla — pagarla anche per altra via significherebbe pagare due volte.',
+  sddFailNote:'⚠ L\'addebito automatico di questa rata non è riuscito — pagala con carta o bonifico qui sotto.',
+  sddOkBand:'✓ Addebito attivato — da ora il canone si paga da solo.'}
 };
 function t(k){return (STR[LANG]&&STR[LANG][k])||STR.en[k]||k}
 function setLang(l){LANG=l;try{localStorage.setItem('boom:casa:lang',l)}catch(e){};syncLangBtn();render();}
@@ -661,16 +692,26 @@ function render(){
   html+='<nav class="qnav">'+navItems.map(function(x){return '<a href="#'+x[0]+'">'+t(x[1])+'</a>'}).join('')+'</nav>';
 
   if(paidId)html+='<div class="paidband">'+t('paidBand')+'</div>';
+  if(new URLSearchParams(location.search).get('sdd')==='ok')html+='<div class="paidband">'+t('sddOkBand')+'</div>';
   var bought=new URLSearchParams(location.search).get('bought');
   if(bought)html+='<div class="paidband">'+t('boughtBand').replace('{x}',esc({'movein-pack':'Move-in Pack','cleaning-premium':'Cleaning Premium'}[bought]||bought))+'</div>';
 
   /* ── next payment ── */
+  var sdd=c.sdd||{};
   html+='<div class="card paycard rv" id="s-pay">'+secH(no(),t('s1'));
   if(next){
     var lab=next.type==='deposit-balance'?t('depositBal'):t('rentOf')+' '+esc(periodLabel(next));
+    /* Addebito SEPA in volo: il bottone carta e il bonifico SPARISCONO —
+       offrire una seconda via mentre la prima è in corso è invitare un
+       doppio pagamento. Se l'addebito fallisce (sddStatus) tornano da soli. */
+    var sddProc=!!(next.sddPiId&&next.status==='pending'&&next.sddStatus!=='failed');
     html+='<div class="pm"><div class="lab">'+lab+'<b>'+(late?t('lateBy'):t('dueBy'))+' '+fmtD(next.dueDate)+'</b></div>'
-      +'<div><div class="amt">'+eur(next.amount)+'</div><div class="due'+(late?' late':'')+'">'+(late?t('late'):t('dueSoon'))+'</div></div></div>'
-      +'<button class="paybtn" id="payBtn">'
+      +'<div><div class="amt">'+eur(next.amount)+'</div><div class="due'+(late&&!sddProc?' late':'')+'">'+(sddProc?'auto ✓':(late?t('late'):t('dueSoon')))+'</div></div></div>';
+    if(sddProc){
+      html+='<div class="sddproc"><b>'+t('sddProc')+'</b><br><small>'+t('sddProcSub').replace('{d}',fmtD(next.sddInitiatedAt))+'</small></div>';
+    }else{
+      if(next.sddStatus==='failed')html+='<div class="sddfailnote">'+t('sddFailNote')+'</div>';
+      html+='<button class="paybtn" id="payBtn">'
       +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
       +t('payCard')+' — '+eur(next.amount)+' + '+eur(feePreview(Number(next.amount)))+' '+t('service')+'</button>'
       +'<div class="payfoot"><span class="lock">●</span> '+t('payFoot1')+'<br>'+t('payFoot2')+'</div>'
@@ -681,8 +722,17 @@ function render(){
          causale porti il codice della rata. Compare solo se l'IBAN è stato
          impostato: mai un IBAN inventato. */
       +bonificoBlock(next);
+    }
   }else{
     html+='<div style="font-size:13.5px;color:var(--t2)">'+t('noDue')+'</div>';
+  }
+  /* ── canone automatico (SEPA) — attivi una volta, poi si paga da solo ── */
+  if(c.id){
+    if(sdd.status==='active'){
+      html+='<div class="sddbox on"><span class="ic">🏦</span><div style="flex:1"><b>'+t('sddActive').replace('{iban}',esc(sdd.ibanLast4||'····'))+'</b><small>'+t('sddActiveSub')+'</small></div><button class="obtn" id="sddCancelBtn" style="margin:0;flex:none;padding:8px 14px">'+t('sddStop')+'</button></div>';
+    }else{
+      html+='<div class="sddbox"><span class="ic">🏦</span><div style="flex:1"><b>'+t('sddT')+'</b><small>'+t('sddPitch').replace('{fee}','€2')+'</small></div><button class="obtn" id="sddBtn" style="margin:0;flex:none;border-color:var(--line-gold);color:var(--gold)">'+t('sddBtn')+'</button></div>';
+    }
   }
   html+='</div>';
 
@@ -832,6 +882,28 @@ function wire(next,hist){
   }
   var mb=$('moreBtn');
   if(mb){mb.onclick=function(){$('histRows').innerHTML=hist.map(payRow).join('');mb.style.display='none';};}
+  /* canone automatico: attiva (Checkout mode=setup) / disattiva */
+  var sb=$('sddBtn');
+  if(sb){sb.onclick=function(){
+    sb.disabled=true;sb.textContent=t('sddOpening');
+    USER.getIdToken().then(function(tok){
+      return fetch('/api/payments/sdd-setup',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({contractId:CONTRACT.id})});
+    }).then(function(r){return r.json()}).then(function(j){
+      if(j&&j.ok&&j.url){location.href=j.url;return;}
+      throw new Error((j&&j.error)||'failed');
+    }).catch(function(){sb.disabled=false;sb.textContent=t('payRetry');});
+  };}
+  var sc=$('sddCancelBtn');
+  if(sc){sc.onclick=function(){
+    if(!confirm(t('sddStopAsk')))return;
+    sc.disabled=true;
+    USER.getIdToken().then(function(tok){
+      return fetch('/api/payments/sdd-setup',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({contractId:CONTRACT.id,action:'cancel'})});
+    }).then(function(r){return r.json()}).then(function(j){
+      if(j&&j.ok){CONTRACT.sdd=Object.assign({},CONTRACT.sdd,{status:'cancelled'});render();return;}
+      throw new Error((j&&j.error)||'failed');
+    }).catch(function(){sc.disabled=false;});
+  };}
   var ms=$('mSend');
   if(ms){
     ms.onclick=function(){

@@ -161,6 +161,15 @@ RENT_FEE_MIN                 # optional — fee floor in EUR (only with RENT_FEE
 RENT_FEE_BUFFER              # optional — margine sopra il costo Stripe misurato,
                              # in euro (default 0 = si va a pari)
 RENT_FEE_MAX_PCT             # optional — tetto di sicurezza in % (default 4)
+
+# Canone automatico SEPA (api/payments/_sdd.js, sdd-setup.js)
+SDD_FEE_EUR                  # optional — commissione flat forzata per addebito
+SDD_FEE_BUFFER               # optional — margine BOOM sopra il costo medio
+                             # misurato (default 1.50 — qui il default NON è
+                             # zero: margine richiesto esplicitamente)
+SDD_FEE_MAX_PCT              # optional — tetto in % della rata (default 1.5)
+SDD_LEAD_DAYS                # optional — anticipo addebito sulla scadenza
+                             # (default 7: SEPA regola in ~5 giorni lavorativi)
 REVIEW_URL                   # the REAL Google review link (g.page/r/…) used
                              # by the journey's T+3 and exit emails; falls
                              # back to a Google search for the profile
@@ -920,6 +929,49 @@ sugli europei e **perdeva su ogni carta estera** (−€26,50 su un canone da
   **caso peggiore** (3,3% + €0,30): partire sotto costo è il difetto che
   questa formula elimina. `/casa` mostra quel seed come **massimo**, così
   l'addebito reale può solo essere più basso.
+
+### Il canone automatico SEPA (`api/payments/_sdd.js` + `sdd-setup.js` + webhook)
+Il cerchio dei soldi chiuso: l'inquilino autorizza UNA volta e ogni rata
+parte da sola. Capability `sepa_debit_payments` attivata sull'account
+Stripe (Dashboard → Pagamenti → configurazione Default, 2026-08-05).
+- **Mandato**: card in `/casa` → `POST /api/payments/sdd-setup` (Bearer
+  tenant/admin; un tenant solo sul PROPRIO contratto) → Stripe Checkout
+  `mode:'setup'` con `sepa_debit` — l'IBAN non tocca mai i server BOOM. Il
+  webhook (`SDD_SETUP`) salva `contract.sdd` {customerId, paymentMethodId,
+  mandateRef, ibanLast4, activatedAt} — via `fsPatch` di homie/_lib, NON il
+  `patchDoc` locale del webhook che appiattisce le mappe a String(v) (e la
+  RILETTURA con `fsGet`, non col `readDoc` locale che le appiattisce a
+  null — due trappole vere trovate dai test). Il customer si persiste già
+  alla creazione della sessione (riuso sui retry). `action:'cancel'` spegne
+  e stacca il payment method.
+- **Collector** (`collectSdd()` da reminder-cron, finestra oraria): rate
+  `pending` dei contratti con mandato attivo, addebitate `SDD_LEAD_DAYS`
+  (7) prima della scadenza — SEPA regola in ~5gg lavorativi, così i soldi
+  arrivano intorno alla scadenza. UN addebito per rata PER COSTRUZIONE:
+  idempotency key Stripe `sdd_<paymentId>` + guardia `sddPiId` sul doc.
+  Solo canone (mai il saldo deposito), mai rate scadute PRIMA del mandato,
+  un PI rifiutato scrive `sddInitError` e NON si ritenta da solo (un retry
+  SEPA su fondi insufficienti brucia commissioni), Telegram avvisato.
+- **Esiti** (webhook, `payment_intent.succeeded`/`payment_failed` filtrati
+  su `metadata.service==='RENT_SDD'` — i PI delle Checkout carta passano
+  oltre): succeeded → rata `paid · paidVia:'sepa'`, ricevuta EN al cliente,
+  costo reale in `settings/sddFeeStats`; già pagata per altra via → MAI
+  sovrascritta, allarme doppio incasso (stessa disciplina della carta);
+  failed → `sddStatus:'failed'`, la rata RESTA pending e torna pagabile a
+  mano, email "paga con carta o bonifico" + Telegram alta priorità.
+- **La commissione col margine BOOM**: `sddFee()` = costo medio misurato
+  PER ADDEBITO (il costo SEPA è flat, non proporzionale — media diversa da
+  quella della carta) + `SDD_FEE_BUFFER` default **€1.50** (qui il margine
+  di default NON è zero: richiesto esplicitamente), tetto
+  `SDD_FEE_MAX_PCT` 1.5%, seed €0.50. Default ≈ €2/addebito contro ~€30
+  di carta su un canone da 900 — l'argomento di vendita è il prezzo.
+- **/casa**: terza corsia accanto a carta e bonifico — card 🏦 attiva/
+  disattiva (IBAN ••••last4), banner "si sta incassando da sola" che
+  SOSTITUISCE bottone carta e bonifico mentre l'addebito è in volo (due
+  vie aperte insieme = invito al doppio pagamento), nota rossa se
+  l'addebito è fallito, band `?sdd=ok` al ritorno da Stripe.
+- Test: `node tests/sdd/run.mjs` (38 check — fee, eligibilità, collector
+  idempotente, webhook setup/succeeded/failed/double, endpoint auth).
 
 ### Il lucchetto sull'immobile (`api/preagreement/_lock.js`)
 Due candidati potevano accettare, pagare e generare **due contratti** sullo

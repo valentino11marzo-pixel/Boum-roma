@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 import crypto from 'node:crypto';
-import { fsList, fsPatch } from './homie/_lib.js';
+import { fsList, fsPatch, fsGet } from './homie/_lib.js';
 import { sendPaEmails, shell, para, fine, btn, btn2 } from './preagreement/_notify.js';
 import { sendEmail } from './agent/_lib.js';
 import { maybeAutoConvert } from './preagreement/_auto.js';
@@ -835,11 +835,263 @@ async function handleMoneyBack(res, event) {
   return res.status(200).json({ received: true, moneyback: event.type });
 }
 
+// ─── SDD: il canone automatico SEPA (api/payments/_sdd.js) ─────────────────
+// Tre momenti, tre rami. Il mandato si attiva da una Checkout mode=setup
+// (SDD_SETUP); gli esiti degli addebiti arrivano DAYS dopo l'avvio come
+// payment_intent.succeeded / payment_failed — SEPA è asincrono per natura.
+// Esportati per i test (tests/sdd/run.mjs), come gli altri rami soldi.
+
+export async function handleSddSetup(res, session, m) {
+  const contractId = String(m.contractId || '').trim();
+  if (!contractId) return res.status(200).json({ received: true, error: 'no_contractId' });
+  const now = new Date().toISOString();
+
+  // fsGet, NON il readDoc locale: sdd è una mappa annidata e il fsValToJs di
+  // questo file la appiattirebbe a null — il replay non vedrebbe mai il
+  // mandato già attivo.
+  let contract = null;
+  try { contract = await fsGet('contracts/' + contractId); } catch (_) {}
+  if (!contract) return res.status(200).json({ received: true, error: 'contract_not_found', contractId });
+
+  // Il metodo di pagamento + mandato vivono nel SetupIntent della sessione.
+  let pm = null, mandateRef = null;
+  try {
+    const si = await stripe.setupIntents.retrieve(String(session.setup_intent), { expand: ['payment_method'] });
+    pm = si.payment_method || null;
+    mandateRef = si.mandate ? String(si.mandate) : null;
+  } catch (e) {
+    console.error('[sdd-setup] setup_intent read failed:', e.message);
+    return res.status(200).json({ received: true, error: 'setup_intent_unreadable' });
+  }
+  if (!pm || !pm.id) return res.status(200).json({ received: true, error: 'no_payment_method' });
+
+  const prev = contract.sdd || {};
+  if (prev.status === 'active' && prev.paymentMethodId === pm.id) {
+    return res.status(200).json({ received: true, duplicate: true });
+  }
+
+  const last4 = (pm.sepa_debit && pm.sepa_debit.last4) || '';
+  const email = m.email || (session.customer_details && session.customer_details.email) || contract.tenantEmail || '';
+  try {
+    // fsPatch (homie/_lib), NON il patchDoc locale: sdd è una mappa annidata
+    // e il patchDoc di questo file appiattisce gli oggetti a String(v).
+    await fsPatch('contracts/' + contractId, {
+      sdd: {
+        status: 'active',
+        customerId: String(session.customer || prev.customerId || ''),
+        paymentMethodId: pm.id,
+        mandateRef,
+        ibanLast4: last4,
+        email,
+        activatedAt: now,
+      },
+    });
+  } catch (e) {
+    console.error('[sdd-setup] contract patch:', e.message);
+    return res.status(500).json({ received: false, error: 'patch_failed' });
+  }
+
+  try {
+    await writeDoc('agentNotifications', 'sdd-on-' + contractId, {
+      type: 'payment.sdd.activated',
+      summary: `🏦 Addebito SEPA ATTIVATO — ${contract.tenantName || email || contractId} (IBAN ••••${last4}): il canone parte da solo`,
+      priority: 'normal', status: 'pending', actor: 'stripe-webhook',
+      dedupKey: 'sdd-on-' + contractId, createdAt: now, attempts: 0,
+    });
+  } catch (_) {}
+  try {
+    await tgNotify(`🏦 <b>Canone automatico attivo</b> — ${contract.tenantName || email || contractId} (IBAN ••••${last4}).\nDa ora ogni rata parte da sola ~1 settimana prima della scadenza.`);
+  } catch (_) {}
+
+  if (email) {
+    try {
+      await sendEmail({
+        to: email,
+        subject: 'Auto-pay is on ✓ — your rent now takes care of itself',
+        html: shell(
+          para(`Your SEPA direct debit is <b>active</b> (IBAN ••••${last4}). From now on each rent instalment is collected automatically about a week before its due date — nothing to remember, receipt by email every time. You can turn it off anytime from your home page.`)
+          + btn('https://www.boomrome.com/casa', 'Open La tua casa BOOM')
+          + fine('Questions? Just reply to this email or <a href="https://wa.me/393313251961" style="color:#141414">WhatsApp us</a>.', 'text-align:center'),
+          'Auto-pay active ✓'),
+      });
+    } catch (e) { console.error('[sdd-setup] tenant email:', e.message); }
+  }
+  try {
+    await sendEmail({
+      to: 'valentino@boom-rome.com',
+      subject: `🏦 SDD attivo — ${contract.tenantName || contractId}`,
+      html: shell(para(`Mandato SEPA attivato sul contratto <b>${contractId}</b> (${contract.tenantName || '—'}, IBAN ••••${last4}).<br>Il cron addebita ogni rata ~${process.env.SDD_LEAD_DAYS || 7} giorni prima della scadenza; esiti su Telegram e in /casa.`)
+        + btn2('https://www.boomrome.com/portal', 'Apri il portale')),
+    });
+  } catch (_) {}
+
+  return res.status(200).json({ received: true, sddActive: true, contractId });
+}
+
+export async function handleSddPaid(res, pi) {
+  const m = pi.metadata || {};
+  const paymentId = String(m.paymentId || '').trim();
+  if (!paymentId) return res.status(200).json({ received: true, error: 'no_paymentId' });
+  const now = new Date().toISOString();
+  const fee = Number(m.fee) || 0;
+  const amount = Number(m.amount) || Math.round(((pi.amount || 0) / 100 - fee) * 100) / 100;
+
+  let pay = null;
+  try { pay = await readDoc('payments/' + paymentId); } catch (_) {}
+  if (!pay) return res.status(200).json({ received: true, error: 'payment_not_found', paymentId });
+  if (pay.status === 'paid') {
+    if (pay.sddPiId === pi.id || pay.stripeSessionId === pi.id) {
+      return res.status(200).json({ received: true, duplicate: true, paymentId });
+    }
+    // Pagata per ALTRA via mentre l'addebito era in volo: mai sovrascrivere,
+    // allarme doppio incasso — stessa disciplina del ramo carta.
+    try {
+      await writeDoc('agentNotifications', 'rent-double-' + paymentId + '-' + String(pi.id).slice(-8), {
+        type: 'payment.rent.double',
+        summary: `🚨 POSSIBILE DOPPIO INCASSO su ${paymentId}: già ${pay.paidVia || 'paid'}, ora arrivato ANCHE l'addebito SEPA (${pi.id}) — verifica e rimborsa`,
+        priority: 'high', status: 'pending', actor: 'stripe-webhook',
+        dedupKey: 'rent-double-' + paymentId, createdAt: now, attempts: 0,
+      });
+    } catch (_) {}
+    try { await tgNotify(`🚨 <b>Possibile doppio incasso</b> su ${paymentId}: già ${pay.paidVia || 'paid'}, ora ANCHE SEPA. Verifica e rimborsa.\nhttps://dashboard.stripe.com/payments/${pi.id}`); } catch (_) {}
+    return res.status(200).json({ received: true, doublePayment: true, paymentId });
+  }
+
+  // Costo reale + ricevuta (best-effort) — alimenta settings/sddFeeStats,
+  // che fa convergere la commissione sul costo vero (media PER ADDEBITO:
+  // il costo SEPA è flat, non proporzionale).
+  let receiptUrl = null, stripeCostEur = null;
+  try {
+    const chId = typeof pi.latest_charge === 'string' ? pi.latest_charge : (pi.latest_charge && pi.latest_charge.id);
+    if (chId) {
+      const ch = await stripe.charges.retrieve(chId, { expand: ['balance_transaction'] });
+      receiptUrl = ch.receipt_url || null;
+      if (ch.balance_transaction && typeof ch.balance_transaction.fee === 'number') {
+        stripeCostEur = Math.round(ch.balance_transaction.fee) / 100;
+      }
+    }
+  } catch (e) { console.error('[sdd] costo reale non leggibile:', e.message); }
+
+  try {
+    await patchDoc('payments/' + paymentId, {
+      status: 'paid', paidAt: now, paidDate: now.slice(0, 10),
+      paidVia: 'sepa', sddStatus: 'succeeded',
+      serviceFeeEur: fee, receiptUrl: receiptUrl || '',
+      stripeCostEur,
+      marginEur: stripeCostEur == null ? null : Math.round((fee - stripeCostEur) * 100) / 100,
+    });
+  } catch (err) {
+    console.error('[sdd] payment patch:', err.message);
+    return res.status(500).json({ received: false, error: 'patch_failed' });
+  }
+
+  if (stripeCostEur != null) {
+    try {
+      const prev = (await readDoc('settings/sddFeeStats').catch(() => null)) || {};
+      await patchDoc('settings/sddFeeStats', {
+        count: (Number(prev.count) || 0) + 1,
+        volumeEur: Math.round(((Number(prev.volumeEur) || 0) + amount) * 100) / 100,
+        costEur: Math.round(((Number(prev.costEur) || 0) + stripeCostEur) * 100) / 100,
+        lastAt: now,
+      });
+    } catch (err) { console.error('[sdd] statistica costi:', err.message); }
+  }
+
+  try {
+    await writeDoc('agentNotifications', 'sdd-' + paymentId + '-' + String(pi.id).slice(-8), {
+      type: 'payment.rent',
+      summary: `🏦 Canone incassato con addebito SEPA: €${amount.toLocaleString('it-IT')} (${pay.month || paymentId}) + fee €${fee}`,
+      priority: 'normal', status: 'pending', actor: 'stripe-webhook',
+      dedupKey: 'sdd-' + paymentId, createdAt: now, attempts: 0,
+    });
+  } catch (_) {}
+
+  const eurFmt = n => '€' + Number(n || 0).toLocaleString('en-US');
+  const email = m.email || '';
+  if (email) {
+    try {
+      await sendEmail({
+        to: email,
+        subject: `Receipt — rent ${pay.month || ''} ${eurFmt(amount)} collected automatically ✓`,
+        html: shell(
+          para(`Your rent for <b>${pay.month || String(pay.dueDate || '').slice(0, 7)}</b> — <b>${eurFmt(amount)}</b> — was collected by SEPA direct debit as planned${fee ? ` (service fee ${eurFmt(fee)})` : ''}. Nothing to do: this is your receipt, and the full history lives in your home page.`)
+          + btn('https://www.boomrome.com/casa', 'Open La tua casa BOOM')
+          + (receiptUrl ? fine(`Stripe receipt: <a href="${receiptUrl}" style="color:#141414">open →</a>`, 'text-align:center') : ''),
+          `Rent ${eurFmt(amount)} collected ✓`),
+      });
+    } catch (err) { console.error('[sdd] tenant email:', err.message); }
+  }
+  try {
+    await sendEmail({
+      to: 'valentino@boom-rome.com',
+      subject: `🏦 CANONE AUTOMATICO ${eurFmt(amount)} — ${pay.month || paymentId}`,
+      html: shell(para(`Incassato con addebito SEPA: <b>${eurFmt(amount)}</b> + commissione <b>${eurFmt(fee)}</b>${stripeCostEur != null ? ` (costo Stripe ${eurFmt(stripeCostEur)} → margine ${eurFmt(fee - stripeCostEur)})` : ''}.<br>Payment <b>${paymentId}</b> · contratto ${pay.contractId || '—'} · segnato <b>paid · sepa</b>.`)
+        + btn2('https://www.boomrome.com/portal', 'Apri il portale')),
+    });
+  } catch (_) {}
+
+  return res.status(200).json({ received: true, sdd: true, paymentId });
+}
+
+export async function handleSddFailed(res, pi) {
+  const m = pi.metadata || {};
+  const paymentId = String(m.paymentId || '').trim();
+  if (!paymentId) return res.status(200).json({ received: true, error: 'no_paymentId' });
+  const now = new Date().toISOString();
+  const reason = (pi.last_payment_error && pi.last_payment_error.message) || 'addebito rifiutato';
+
+  let pay = null;
+  try { pay = await readDoc('payments/' + paymentId); } catch (_) {}
+  if (!pay) return res.status(200).json({ received: true, error: 'payment_not_found', paymentId });
+  if (pay.status === 'paid') return res.status(200).json({ received: true, alreadyPaid: true });
+
+  // La rata resta PENDING e torna pagabile a mano: sddPiId resta sul doc,
+  // quindi il collector non la ritenta mai da solo (un retry SEPA su fondi
+  // insufficienti brucia commissioni e fiducia).
+  try {
+    await patchDoc('payments/' + paymentId, { sddStatus: 'failed', sddError: String(reason).slice(0, 300) });
+  } catch (err) { console.error('[sdd-failed] patch:', err.message); }
+
+  let w = null;
+  try {
+    w = await writeDoc('agentNotifications', 'sddfail-' + paymentId + '-' + String(pi.id).slice(-8), {
+      type: 'payment.sdd.failed',
+      summary: `⚠️ Addebito SEPA FALLITO su ${paymentId} (${pay.month || '—'}): ${String(reason).slice(0, 120)} — la rata torna manuale`,
+      priority: 'high', status: 'pending', actor: 'stripe-webhook',
+      dedupKey: 'sddfail-' + paymentId, createdAt: now, attempts: 0,
+    });
+  } catch (_) {}
+  if (w && w.exists) return res.status(200).json({ received: true, duplicate: true });
+
+  try {
+    await tgNotify(`⚠️ <b>Addebito SEPA fallito</b> — rata ${pay.month || paymentId}\nMotivo: ${String(reason).slice(0, 160)}\nIl cliente è stato avvisato: può pagare con carta o bonifico da /casa.`);
+  } catch (_) {}
+
+  const email = m.email || '';
+  if (email) {
+    try {
+      await sendEmail({
+        to: email,
+        subject: `Action needed — this month's rent debit did not go through`,
+        html: shell(
+          para(`The automatic SEPA debit for your rent (<b>${pay.month || String(pay.dueDate || '').slice(0, 7)}</b>) did not go through — usually a balance or bank-side issue. No stress: you can settle it in one minute by card or free bank transfer from your home page.`)
+          + btn('https://www.boomrome.com/casa', 'Pay it now')
+          + fine('Need a hand? <a href="https://wa.me/393313251961" style="color:#141414">WhatsApp us</a> and we sort it together.', 'text-align:center'),
+          'Rent debit failed — pay manually'),
+      });
+    } catch (err) { console.error('[sdd-failed] tenant email:', err.message); }
+  }
+
+  return res.status(200).json({ received: true, sddFailed: true, paymentId });
+}
+
 const HANDLED_EVENTS = new Set([
   'checkout.session.completed',
   'charge.refunded',
   'charge.dispute.created',
   'charge.dispute.closed',
+  'payment_intent.succeeded',
+  'payment_intent.payment_failed',
 ]);
 
 export default async function handler(req, res) {
@@ -860,12 +1112,30 @@ export default async function handler(req, res) {
     return res.status(200).json({ received: true, ignored: event.type });
   }
 
+  // Gli esiti SEPA arrivano come payment_intent.* — l'addebito è asincrono
+  // (~5 giorni lavorativi dopo l'avvio). Si reagisce SOLO ai nostri addebiti
+  // automatici: i PI delle Checkout con carta non portano service RENT_SDD
+  // e restano al ramo checkout.session.completed.
+  if (event.type === 'payment_intent.succeeded' || event.type === 'payment_intent.payment_failed') {
+    const pi = event.data.object || {};
+    if ((pi.metadata || {}).service !== 'RENT_SDD') {
+      return res.status(200).json({ received: true, ignored: event.type });
+    }
+    return event.type === 'payment_intent.succeeded'
+      ? handleSddPaid(res, pi)
+      : handleSddFailed(res, pi);
+  }
+
   if (event.type !== 'checkout.session.completed') {
     return handleMoneyBack(res, event);
   }
 
   const session = event.data.object;
   const m = session.metadata || {};
+
+  if (m.service === 'SDD_SETUP') {
+    return handleSddSetup(res, session, m);
+  }
 
   if (m.service === 'DEPOSIT') {
     return handleDeposit(res, session, m);

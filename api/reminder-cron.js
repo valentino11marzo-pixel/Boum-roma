@@ -369,6 +369,17 @@ export default async function handler(req, res) {
       } catch (e) { results.errors.push(`journey: ${e.message}`); }
     }
 
+    // ── Canone automatico SEPA: avvia gli addebiti delle rate in finestra
+    // (contratti col mandato attivo, SDD_LEAD_DAYS di anticipo — SEPA regola
+    // in ~5 giorni). Idempotente per costruzione (chiave sdd_<paymentId> +
+    // guardia sddPiId): la finestra oraria è risparmio, non protezione. ──
+    if (now.getUTCMinutes() < 15) {
+      try {
+        const { collectSdd } = await import('./payments/_sdd.js');
+        results.sdd = await collectSdd();
+      } catch (e) { results.errors.push(`sdd: ${e.message}`); }
+    }
+
     // ── Viewing countdown: T-24h / T-3h / T-30m before the appointment and
     // the "how did it go?" ask after it. EVERY run (not hourly): a 30-minute
     // warning is worthless if it can fire an hour late. ──

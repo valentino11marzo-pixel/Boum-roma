@@ -47,6 +47,7 @@ const SUITES = [
   { name: 'reunion',  file: 'tests/reunion/run.mjs',      what: 'BOOM La Réunion: il lead dice sempre da che parte sta (proprietario o inquilino), e la macchina romana TACE invece di rispondere in inglese su Roma a chi scrive dall\'isola' },
   { name: 'feed',     file: 'tests/feed/run.mjs',         what: 'feed Immobiliare: solo il pubblicabile, identità e date da specifica, la precisione del pin non si spaccia, gzip vero' },
   { name: 'publisher', file: 'tests/publisher/run.mjs',   what: 'Il Pubblicista: diff guidato dallo stato, remove prima di create, fallimenti parcheggiati non a vuoto, pannello bloccato ≠ catalogo allineato' },
+  { name: 'sdd',      file: 'tests/sdd/run.mjs',          what: 'canone automatico SEPA: un addebito per rata per costruzione, mai il deposito, mai debiti pre-mandato, un fallimento non si ritenta da solo, doppio incasso mai sovrascritto' },
   { name: 'signlang', file: 'tests/sign/lang.mjs',        what: 'la pagina di firma parla la lingua di chi firma' },
   { name: 'safari',   file: 'tests/safari/boot.mjs',      what: 'nessuna pagina autenticata resta appesa' },
 ];
