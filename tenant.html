@@ -171,7 +171,8 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
 /* ── Canone automatico (SEPA): la terza corsia — attivi una volta e sparisce
    il pensiero. Attiva = bordo oro pieno; il banner "in volo" sostituisce il
    bottone carta (due vie aperte insieme = invito al doppio pagamento). */
-.sddbox{display:flex;align-items:center;gap:12px;margin-top:18px;padding:14px 16px;border:1px dashed var(--line-gold);border-radius:14px}
+.sddbox{display:flex;align-items:center;gap:12px;margin-top:18px;padding:14px 16px;border:1px dashed var(--line-gold);border-radius:14px;flex-wrap:wrap}
+.sddbox>div{flex:1 1 220px;min-width:0}
 .sddbox.on{border-style:solid;background:var(--gold-faint)}
 .sddbox .ic{font-size:20px;flex:none}
 .sddbox b{display:block;font-size:13px;font-weight:500;letter-spacing:.3px}
@@ -729,9 +730,9 @@ function render(){
   /* ── canone automatico (SEPA) — attivi una volta, poi si paga da solo ── */
   if(c.id){
     if(sdd.status==='active'){
-      html+='<div class="sddbox on"><span class="ic">🏦</span><div style="flex:1"><b>'+t('sddActive').replace('{iban}',esc(sdd.ibanLast4||'····'))+'</b><small>'+t('sddActiveSub')+'</small></div><button class="obtn" id="sddCancelBtn" style="margin:0;flex:none;padding:8px 14px">'+t('sddStop')+'</button></div>';
+      html+='<div class="sddbox on"><span class="ic">🏦</span><div><b>'+t('sddActive').replace('{iban}',esc(sdd.ibanLast4||'····'))+'</b><small>'+t('sddActiveSub')+'</small></div><button class="obtn" id="sddCancelBtn" style="margin:0;flex:none;padding:8px 14px">'+t('sddStop')+'</button></div>';
     }else{
-      html+='<div class="sddbox"><span class="ic">🏦</span><div style="flex:1"><b>'+t('sddT')+'</b><small>'+t('sddPitch').replace('{fee}','€2')+'</small></div><button class="obtn" id="sddBtn" style="margin:0;flex:none;border-color:var(--line-gold);color:var(--gold)">'+t('sddBtn')+'</button></div>';
+      html+='<div class="sddbox"><span class="ic">🏦</span><div><b>'+t('sddT')+'</b><small>'+t('sddPitch').replace('{fee}','€2')+'</small></div><button class="obtn" id="sddBtn" style="margin:0;flex:1 1 auto;border-color:var(--line-gold);color:var(--gold)">'+t('sddBtn')+'</button></div>';
     }
   }
   html+='</div>';
