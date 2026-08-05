@@ -22,12 +22,21 @@ function setCors(req, res) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 }
 
+// Relay che finisce nella casella dell'operatore: era l'unico form pubblico
+// senza rate limit né honeypot (audit 2026-08, S3) — spam diretto in inbox.
+const RL = new Map(); const RL_WINDOW = 60_000, RL_MAX = 5;
+function rateOk(ip) { const n = Date.now(); const e = RL.get(ip); if (!e || n - e.t >= RL_WINDOW) { RL.set(ip, { c: 1, t: n }); return true; } e.c++; return e.c <= RL_MAX; }
+
 export default async function handler(req, res) {
   setCors(req, res);
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   const body = req.body || {};
+  // Honeypot: un bot che compila tutto riceve un finto successo e nessuna email.
+  if (body.company) return res.status(200).json({ ok: true });
+  const ip = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || "unknown";
+  if (!rateOk(ip)) return res.status(429).json({ error: "rate_limited" });
   const safe = (k) => (body[k] || "—").toString().slice(0, 200);
 
   const subject = `[BOOM] Nuovo viewing — ${safe("clientName")} @ ${safe("listingName")} — ${safe("requestedDate")}`;

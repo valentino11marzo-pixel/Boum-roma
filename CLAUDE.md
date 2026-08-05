@@ -1058,6 +1058,45 @@ stato rimosso: email, pass e inviti iCal partono sempre dal server.
 one-tap), `?demo=landlord` (locatore IT): walkthrough senza API né
 contratti veri, come `/sign?demo=1`.
 
+### Portal 2.0 — l'esecuzione dell'audit (2026-08, vedi `PORTAL_AUDIT_2026-08.md`)
+Un giro solo, otto interventi, 33 suite verdi:
+- **`POST /api/notify/send`** — il ponte email del portal. `sendBoomEmail()`
+  (stessa firma, 16 chiamanti intatti) ora POSTa qui con Bearer admin/owner/
+  landlord; il server veste il vecchio template "notification" nel design
+  system condiviso e spedisce via Nodemailer. **EmailJS browser-side è
+  RITIRATO**: SDK rimosso da portal.html e book.html, `emailjs.*` non esiste
+  più nel portal. Rate 30/min/uid, escape HTML, time-box 12s.
+- **M1 "Portal in tasca"** (blocco in coda a `css/portal.css`): safe-area
+  ovunque (PWA standalone), header che non sfora più i 390px, footer modali
+  a 2 colonne con target 44px, patch `repeat(5/6/7)` + `.stats-grid
+  !important`, input 16px fino a 900px, colonna Azioni delle tabelle STICKY
+  a destra, sidebar `100dvh`, scroll-lock modali (`body.modal-open`),
+  bottone 🔍 che apre la ricerca globale come overlay (su mobile non
+  esisteva affatto), `#boomBridge` largo `min(360px, 100vw-32px)`.
+- **Dieta del boot** (portal-app): tetti su TUTTE le query nude (limit
+  larghi, MAI orderBy+limit — un orderBy su campo assente nasconderebbe i
+  doc legacy), i 7 step lazy in parallelo, rate scadute flippate SOLO in
+  memoria (prima: N scritture Firestore a ogni apertura), listener
+  contracts admin-only + limit, cache `boom_data_cache` estesa a tutto lo
+  stato (badge giusti al boot da cache) con stringify in idle, Chart.js
+  caricato solo sulla dashboard.
+- **Navigabile**: gruppo "Console" in sidebar (La Squadra, Banca, PFS
+  Command, Photo Lab, Manuale Casa, Salute) + Regole & Automazioni in nav.
+- **Sicurezza**: `/api/generate-pass` è operator-only (X-Firebase-Token
+  admin/owner/landlord o X-Homie-Secret — firmava .pkpass di produzione da
+  anonimo; pass-delivery legacy mostra "link expired" invece di 401 nudo);
+  `settings/company` (IBAN) escluso dalla lettura pubblica nelle rules;
+  `canone-bot` con rate limit + cap sui messaggi; `notify-viewing-created`
+  con honeypot + rate limit.
+- **CI `deploy-rules`**: push su main → `firebase deploy --only
+  firestore:rules,storage` (secret `FIREBASE_TOKEN`; senza secret il job
+  avvisa e salta). Nato dal drift che teneva `propertyLocks` spento in
+  produzione.
+- **Tabella zone canone UNICA**: `scheda-canone.html` ora carica
+  `js/canone-engine.js` e semina le zone dal motore (la copia inline che
+  poteva divergere dal Fascicolo ARPE è stata rimossa; un edit manuale
+  marca `zoneSrc='manual'` e da lì la copia salvata vince).
+
 ### Verbale di consegna chiavi (`POST /api/contracts/verbale` + `/verbale`)
 Il contratto (Art. 3 di entrambi gli Allegati) rinvia a "quanto risulta dal
 verbale di consegna" — questo lo genera davvero, SUL POSTO. `verbale.html`
@@ -1075,6 +1114,32 @@ checklist commercialista si spunta da sola) e lo invia IN ALLEGATO:
 conduttori+co-conduttori (EN), proprietario (IT), admin. Bottone 🔑 sulla
 riga contratto del portal (✓ quando esiste). Le letture fanno fede per le
 volture. Test: `node tests/verbale/run.mjs`.
+
+### Rendiconto proprietario (`GET/POST /api/owners/rendiconto`, cron 1° del mese 06:10 UTC)
+Il 1° del mese ogni proprietario riceve il rendiconto del mese CHIUSO:
+per ogni suo immobile i canoni incassati (data + via), le rate del mese
+aperte, gli ARRETRATI totali, le manutenzioni del periodo — PDF nel
+design BOOM (pdf-lib, `wa()`) su Storage `rendiconti/<ownerId>/` + email
+IT nel design system con PDF in allegato. Email risolta users →
+landlords → contract.landlordEmail; senza email → segnalato nel recap
+Telegram, MAI perso in silenzio; proprietario senza movimenti → salta.
+Idempotente per (proprietario, mese) via `rendiconti/<ownerId>_<YYYY-MM>`
+(fsCreate 409 → skip; collection admin-only in firestore.rules — la
+lezione propertyLocks). `?dry=1`, `?month=YYYY-MM`, `?ownerId=`; auth
+come i cron PFS. Heartbeat `teamHealth/rendiconto`.
+Test: `node tests/rendiconto/run.mjs`.
+
+### Conservazione (`GET/POST /api/ops/conservazione`, cron il 2 del mese 05:40 UTC)
+L'archivio legale FUORI da Firebase, senza nuovi servizi: il 2 del mese i
+contratti FINALIZZATI nel mese chiuso vengono raccolti (contratto firmato,
+certificato FES, fascicolo fiscale, marca temporale .tsr, pack
+registrazione), zippati (`api/_zip.js`, INDICE.txt in testa con l'elenco e
+gli eventuali file irraggiungibili) e spediti IN ALLEGATO alla casella
+operatore — Gmail è la copia fuori piattaforma. Volumi >20MB spezzati in
+più email. Idempotente per mese via `heartbeat/conservazione-<YYYY-MM>`
+(collection già admin-only nelle rules deployate — nessuna dipendenza da
+un deploy futuro). `?dry=1`, `?month=YYYY-MM`; heartbeat
+`teamHealth/conservazione`. Test: `node tests/conservazione/run.mjs`.
 
 ### Watchdog firme (reminder-cron)
 Due guardie: firme PARZIALI ferme >48h → re-nudge automatico alla

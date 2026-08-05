@@ -114,8 +114,22 @@ export async function finalizeContract(contract){
   // ── Contratto firmato (PDF originale + pagina delle firme) ──
   // È QUESTO il documento che viaggia in ALLEGATO alle parti: il PDF del
   // contratto con in coda la pagina firme (immagini, nomi, data/ora, hash,
-  // rinvio al certificato). Senza generatedPDF (contratti legacy) si salta
-  // senza rumore: alle email resta comunque il certificato FES.
+  // rinvio al certificato). Senza generatedPDF si salta — ma NON più in
+  // silenzio: finché il PDF nasce solo nel browser (audit 2026-08, il
+  // single point of failure noto), l'operatore DEVE sapere che questo
+  // contratto è arrivato a firma completa senza il documento, così lo
+  // rigenera e preme 🔄 Rifinalizza. La notifica va su agentNotifications
+  // → Telegram entro un minuto (notify-pending), dedupe per contratto.
+  if (!contract.generatedPDF && !contract.contractPdfUrl) {
+    try {
+      await fsCreate('agentNotifications', {
+        type: 'contract.no_pdf', status: 'pending', priority: 'high',
+        title: '⚠️ Firma completa SENZA contratto PDF',
+        body: `Il contratto ${contract.tenantName || contract.id} è firmato da tutti ma non ha il PDF sorgente: le email sono partite col solo certificato. Apri il portal → Rigenera PDF → 🔄 Rifinalizza.`,
+        contractId: contract.id, createdAt: new Date().toISOString(),
+      }, `nopdf_${contract.id}`); // id deterministico = dedupe gratis (409 al retry)
+    } catch (e) { console.warn('[finalize] no-pdf alert:', e.message); }
+  }
   let signedPdfUrl = '';
   let timestampUrl = '';
   try {

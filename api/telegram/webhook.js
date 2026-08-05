@@ -114,6 +114,22 @@ export default async function handler(req, res) {
         if (handled) return res.status(200).json({ ok: true });
       }
 
+      // ── Recensione chiesta (rvw) — così non si chiede due volte ────────
+      // Deve stare PRIMA della lettura di action_queue: un contratto non vive
+      // lì e il lookup risponderebbe "Non trovata".
+      if (verb === 'rvw') {
+        try {
+          await fsPatch('contracts/' + actionId, { reviewAskedAt: new Date().toISOString() });
+          await tgAckCallback(cq.id, '✓ Segnato come chiesto');
+          if (messageId) await tgEdit(chatId, messageId,
+            (cq.message.text || '') + '\n\n✓ Richiesta segnata — non ricomparirà.');
+        } catch (e) {
+          console.error('[telegram] rvw:', e.message);
+          await tgAckCallback(cq.id, 'Non sono riuscito a segnarlo');
+        }
+        return res.status(200).json({ ok: true });
+      }
+
       // ── Il Regista (tk*) — task fatta / rimandata, dal telefono ─────────
       if (verb === 'tkd' || verb === 'tks') {
         const handled = await handleTaskCallback(verb, data.slice(verb.length + 1), {
@@ -202,6 +218,7 @@ export default async function handler(req, res) {
           '',
           '• /queue — vedi le pending',
           '• /vendi — manda a un cliente il link di pagamento di un servizio',
+          '• /recensione — chi ringraziare oggi, con il messaggio già pronto',
           '• /visite — agenda dei prossimi 7 giorni + richieste da confermare',
           '• /giornata — il Foglio di Chiamata di oggi (visite, viaggi, task)',
           '• /calendario — il tuo Google Calendar è collegato alla griglia? Cosa blocca?',
@@ -228,6 +245,92 @@ export default async function handler(req, res) {
 
       if (text === '/queue') {
         await tgSend(chatId, await fmtSnapshot());
+        return res.status(200).json({ ok: true });
+      }
+
+      // /recensione — LE RECENSIONI, CHIESTE A CHI HA APPENA AVUTO LE CHIAVI.
+      // Il journey chiede già via email a T+3; questo copre WhatsApp, che
+      // converte molto di più. Non manda niente da solo: prepara il messaggio
+      // e l'operatore tocca, perché la regola è chiedere SOLO a chi è
+      // contento — una richiesta di massa brucia il profilo.
+      // /recensione link <url> — il collaudo del link, prima di metterlo su
+      // Vercel. Il link giusto apre la SCATOLA DELLE STELLE; quello che Google
+      // offre col bottone "Condividi" apre il profilo, e da lì metà delle
+      // persone non trova dove scrivere. Incollarlo qui dice subito quale dei
+      // due hai in mano — senza scoprirlo dal calo di recensioni fra un mese.
+      if (text.startsWith('/recensione link') || text.startsWith('/recensioni link')) {
+        const { reviewUrl } = await import('../reviews/_lib.js');
+        const cand = text.replace(/^\/recensioni?\s+link\s*/i, '').trim();
+        if (!cand) {
+          await tgSend(chatId, [
+            '<b>Collaudo del link recensione</b>', '',
+            'Uso: <code>/recensione link &lt;url&gt;</code>', '',
+            'Dove prenderlo: profilo Google Business → <b>Chiedi recensioni</b>.',
+            'Il link giusto ha una di queste due forme:',
+            '• <code>https://g.page/r/&lt;id&gt;/review</code>',
+            '• <code>https://search.google.com/local/writereview?placeid=&lt;id&gt;</code>',
+            '', '<i>Quello che esce dal bottone "Condividi" (share.google / maps.app.goo.gl) NON va bene: apre il profilo, non le stelle.</i>',
+          ].join('\n'));
+          return res.status(200).json({ ok: true });
+        }
+        const good = reviewUrl(cand);
+        await tgSend(chatId, good
+          ? ['✅ <b>Link valido</b> — apre direttamente le stelle.', '',
+             'Mettilo su Vercel come variabile <code>REVIEW_URL</code>:',
+             `<code>${esc(good)}</code>`, '',
+             '<i>Da quel momento lo usano sia le email del journey sia i messaggi di /recensione.</i>'].join('\n')
+          : ['❌ <b>Questo non è il link giusto.</b>', '',
+             `Ricevuto: <code>${esc(cand.slice(0, 120))}</code>`, '',
+             'Serve una di queste due forme:',
+             '• <code>https://g.page/r/&lt;id&gt;/review</code>',
+             '• <code>https://search.google.com/local/writereview?placeid=&lt;id&gt;</code>', '',
+             '<i>Sul profilo Google Business cerca il bottone "Chiedi recensioni": quello dà il link corto giusto. Il bottone "Condividi" dà l\'altro, che porta al profilo.</i>'].join('\n'));
+        return res.status(200).json({ ok: true });
+      }
+
+      if (text === '/recensione' || text === '/recensioni') {
+        const { reviewCandidates, reviewWaUrl, activeReviewUrl, hasRealReviewLink } =
+          await import('../reviews/_lib.js');
+        const url = activeReviewUrl();
+        let rows = [];
+        try {
+          const contracts = await fsList('contracts', { limit: 200 });
+          const enriched = [];
+          for (const row of contracts || []) {
+            const { id, ...c } = row;
+            let u = null;
+            try { if (c.tenantId) u = await fsGet('users/' + c.tenantId); } catch (_) {}
+            enriched.push({
+              id, ...c,
+              tenantName: (u && u.name) || c.tenantName || '',
+              tenantPhone: (u && (u.phone || u.tenantPhone)) || c.tenantPhone || '',
+              tenantEmail: (u && u.email) || '',
+              tenantLanguage: (u && u.language) || c.tenantLanguage || 'en',
+              propertyAddress: c.propertyAddress || '',
+            });
+          }
+          rows = reviewCandidates(enriched, new Date().toISOString().slice(0, 10));
+        } catch (e) {
+          console.error('[telegram] /recensione:', e.message);
+        }
+        if (!rows.length) {
+          await tgSend(chatId, '⭐️ Nessuno da ringraziare oggi.\n\n<i>Compaiono qui gli inquilini entrati da 2 a 45 giorni a cui non è ancora stata chiesta la recensione.</i>');
+          return res.status(200).json({ ok: true });
+        }
+        const head = hasRealReviewLink()
+          ? '⭐️ <b>Chiedi la recensione</b>'
+          : '⭐️ <b>Chiedi la recensione</b>\n<i>⚠️ REVIEW_URL non è configurato: il link apre la ricerca Google, non la scatola delle stelle. Prendi il link g.page/r/…/review dal profilo e mettilo su Vercel.</i>';
+        const lines = [head, ''];
+        const keyboard = [];
+        for (const r of rows.slice(0, 8)) {
+          lines.push(`• <b>${esc(r.name || 'inquilino')}</b>${r.property ? ' — ' + esc(r.property) : ''} · da ${r.days}gg`);
+          keyboard.push([
+            { text: `💬 ${(r.name || 'inquilino').split(' ')[0]}`, url: reviewWaUrl(r.phone, r.name, r.lang, url) },
+            { text: '✓ Chiesto', callback_data: 'rvw:' + String(r.id).slice(0, 50) },
+          ]);
+        }
+        lines.push('', '<i>Prima chiedi come va: la recensione si chiede a chi è contento.</i>');
+        await tgSend(chatId, lines.join('\n'), { reply_markup: { inline_keyboard: keyboard } });
         return res.status(200).json({ ok: true });
       }
 

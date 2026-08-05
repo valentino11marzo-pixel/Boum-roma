@@ -93,9 +93,15 @@ function pickChannel(lead) {
 }
 
   const proposals = [];
-  let firstCount = 0, followupCount = 0, aiErrors = 0;
+  let firstCount = 0, followupCount = 0, aiErrors = 0, timeBoxed = false;
+  // Deadline morbida sotto il maxDuration (60s): con molti lead nuovi le
+  // chiamate Claude in serie sfondavano il limite e la piattaforma uccideva
+  // il run a metà — i timeout visti nei log. contextHash rende idempotente
+  // riprendere al giro dopo.
+  const softDeadline = now + 48_000;
 
   for (const lead of leads) {
+    if (Date.now() > softDeadline) { timeBoxed = true; break; }
     if (!isNew(lead) || !reachable(lead)) continue;
     // La Réunion: il Commerciale TACE. Tutto ciò che lo rende bravo — il
     // SYSTEM prompt che descrive il mercato romano, il catalogo `listings`
@@ -136,8 +142,10 @@ function pickChannel(lead) {
     followups: followupCount,
     dedupSkipped: proposals.filter(p => p.dedupHit).length,
     aiErrors,
+    ...(timeBoxed ? { timeBoxed: true } : {}),
   };
-  const summary = `${firstCount} prime risposte + ${followupCount} follow-up in coda approvazione (${counts.dedupSkipped} già proposti)`;
+  const summary = `${firstCount} prime risposte + ${followupCount} follow-up in coda approvazione (${counts.dedupSkipped} già proposti)`
+    + (timeBoxed ? ' — run interrotto al time-box, riprende al prossimo giro' : '');
 
   const report = { summary, counts, proposals: proposals.filter(p => !p.dedupHit).slice(0, 15) };
   // Quiet runs keep the heartbeat (written by the handler) but skip the

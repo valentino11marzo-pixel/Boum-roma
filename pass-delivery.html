@@ -579,8 +579,17 @@ async function addToWallet(){
       })
     });
     
+    // Il conio anonimo è chiuso (audit 2026-08 S1): i link legacy a parametri
+    // non firmano più — il messaggio dice al cliente cosa fare davvero.
+    if(res.status===401){
+      btn.classList.remove('loading');
+      text.textContent='Link expired — ask BOOM for a fresh one';
+      const sub=document.getElementById('greeting-sub');
+      if(sub) sub.textContent='This pass link comes from an older email. Write us on WhatsApp and we\'ll send you a fresh one in a minute.';
+      return;
+    }
     if(!res.ok) throw new Error('Generation failed');
-    
+
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     
