@@ -43,6 +43,7 @@ const SUITES = [
   { name: 'verbale',  file: 'tests/verbale/run.mjs',      what: 'verbale consegna chiavi: PDF vero in allegato alle parti, owner solo sui propri immobili, firme mai persistite come dataURI' },
   { name: 'rendiconto', file: 'tests/rendiconto/run.mjs', what: 'rendiconto proprietario: solo il mese giusto nei numeri, PDF in allegato, un rerun non rispedisce, senza email mai perso in silenzio' },
   { name: 'conservazione', file: 'tests/conservazione/run.mjs', what: 'archivio fuori piattaforma: lo ZIP contiene i byte veri, il mancante finisce nell\'INDICE, un rerun non rispedisce' },
+  { name: 'reunion',  file: 'tests/reunion/run.mjs',      what: 'BOOM La Réunion: il lead dice sempre da che parte sta (proprietario o inquilino), e la macchina romana TACE invece di rispondere in inglese su Roma a chi scrive dall\'isola' },
   { name: 'signlang', file: 'tests/sign/lang.mjs',        what: 'la pagina di firma parla la lingua di chi firma' },
   { name: 'safari',   file: 'tests/safari/boot.mjs',      what: 'nessuna pagina autenticata resta appesa' },
 ];

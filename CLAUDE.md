@@ -610,6 +610,46 @@ cockpit schema (`status:'new'`, `source:'web'`, `intent:apply|reserve|waitlist`,
 qualification snapshot in `message` + `raw`) so every serious applicant lands
 in the pipeline even if they never open Stripe. Returns `{ ok, id }`.
 
+### BOOM La Réunion (`/reunion` + `api/reunion-lead.js` + `api/_market.js`)
+Il secondo mercato. Landing **francese** (toggle EN, `?lang=en`) che serve DUE
+pubblici a parti uguali — propriétaires e locataires — con un selettore che
+riscrive metà pagina senza ricaricare (`body[data-aud]`, CSS puro). Il
+francese **non** si deduce da `navigator.language`: servire inglese sotto una
+canonical dichiarata `fr` significa darlo anche al crawler. `?role=owner|tenant`
+apre già dal lato giusto (per condividere un link mirato).
+- `POST /api/reunion-lead` — pubblico, stesso irrigidimento di `canone-lead`
+  (honeypot, rate limit per IP, campi clippati) e **stesso schema `leads`**:
+  il lead sale nella macchina esistente (Lead Brain → notify-pending →
+  Commerciale) senza costruire nulla di nuovo. `leadType` landlord|tenant è
+  l'unica cosa che l'operatore legge prima di rispondere, quindi viene fissato
+  alla porta E ripetuto in testa al riassunto (`PROPRIÉTAIRE —` / `LOCATAIRE —`).
+  Marca `market:'reunion'`.
+- **`api/_market.js` — la macchina romana tace invece di sbagliare.** Tutta
+  l'automazione BOOM è tarata su Roma: il messaggio WhatsApp precompilato di
+  `notify-pending` è firmato "BOOM Roma" e linka `/apartments`, il Commerciale
+  scrive la prima risposta con un SYSTEM prompt che descrive il mercato romano
+  e rilancia con "stai ancora cercando casa a Roma?". Senza guardia, il primo
+  proprietario di Saint-Pierre riceve **una mail in inglese che gli propone una
+  casa a Roma**. `isReunion()` (market | sourceRef | intent) è letta da
+  `notify-pending` (card 🇷🇪 + messaggio già scritto **in francese** via
+  `reunionReplyText`, mai una firma inventata) e da `commerciale.js`, che
+  **esce prima di redigere**: un'automazione che sbaglia mercato è peggio di
+  nessuna automazione, perché l'operatore ci mette la firma sotto.
+- **L'interruttore loi Hoguet** (`<body data-legal="pending|card|partner">`):
+  in Francia gestione locativa e transazione richiedono carta professionale +
+  garanzia finanziaria. Finché lo status non è deciso la pagina **non rivendica
+  nulla** e lo dice (che è vero, ed è coerente con il resto della pagina);
+  quando la carta o il partner esistono si cambia UN attributo e compaiono le
+  frasi giuste — FAQ e mentions légales insieme, invece di una caccia alle
+  formulazioni nel file. I campi `[NUMÉRO]`/`[SIREN]`/`[PARTENAIRE]` vanno
+  riempiti PRIMA di cambiare l'attributo.
+- Test: `node tests/reunion/run.mjs` (62 check) — la porta (honeypot, rifiuti
+  che non scrivono mai un lead a metà, limite per IP), il lato che non si perde
+  mai, la lingua che non ricade sull'italiano, **il lead romano che non diventa
+  réunionnais** (la regressione più cara: risposte in francese ai clienti di
+  Roma) e le due guardie asserite sulla SORGENTE, perché conta l'ORDINE — la
+  guardia deve stare prima della chiamata che spende e spedisce.
+
 ### POST `/api/service-checkout`
 Public one-tap Stripe Checkout for the productised services (Services 2.0
 pages). Server-side catalog decides price/copy — the client only names the

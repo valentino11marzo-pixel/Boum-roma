@@ -67,12 +67,24 @@
         '@media(prefers-reduced-motion:reduce){.boomcst{transition:none}}';
       document.head.appendChild(st);
     }
+    // The banner speaks the page's language. It reads <html lang> rather than
+    // the browser's, because the page has already decided what language the
+    // reader is being served — an English cookie plate on the French /reunion
+    // page is the one element that gives away that it is a translation.
+    var T = (String(document.documentElement.lang || 'en').toLowerCase().slice(0, 2) === 'fr')
+      ? { e: 'Confidentialité',
+          p: 'Un cookie de mesure d\'audience nous aide à améliorer BOOM. Aucune publicité qui vous suit, aucune revente de données — <a href="/privacy">comment nous traitons vos données</a>.',
+          no: 'Essentiels uniquement', ok: 'Accepter', aria: 'Préférences cookies' }
+      : { e: 'Privacy',
+          p: 'One analytics cookie helps us make BOOM better. No ads following you, no data resale — <a href="/privacy">how we handle data</a>.',
+          no: 'Essential only', ok: 'Accept', aria: 'Cookie preferences' };
+
     el = document.createElement('div');
-    el.className = 'boomcst'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Cookie preferences');
+    el.className = 'boomcst'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', T.aria);
     el.innerHTML =
-      '<div class="e">Privacy</div>' +
-      '<p>One analytics cookie helps us make BOOM better. No ads following you, no data resale — <a href="/privacy">how we handle data</a>.</p>' +
-      '<div class="r"><button class="no" type="button">Essential only</button><button class="ok" type="button">Accept</button></div>';
+      '<div class="e">' + T.e + '</div>' +
+      '<p>' + T.p + '</p>' +
+      '<div class="r"><button class="no" type="button">' + T.no + '</button><button class="ok" type="button">' + T.ok + '</button></div>';
     document.body.appendChild(el);
     requestAnimationFrame(function () { requestAnimationFrame(function () {
       el.style.opacity = '1'; el.style.transform = 'none';
