@@ -18,6 +18,7 @@
 //
 // Auth: cron secret / X-Homie-Secret / admin ID token. `?dry=1` = read-only.
 
+import { knobs, rejectedLine } from '../_squadra.js';
 import { callClaude, extractJson } from '../agent/_claude.js';
 import { replyLang } from '../_lang.js';
 import { isReunion } from '../_market.js';
@@ -28,11 +29,12 @@ import {
 } from './_lib.js';
 
 const EMPLOYEE = 'commerciale';
-const HUMAN_WINDOW_MS = 20 * 60 * 1000;       // leave first move to the human
-const FOLLOWUP_AFTER_MS = 48 * 3600 * 1000;
-const MAX_LEAD_AGE_MS = 14 * 86400000;        // don't dig up archaeology
-const MAX_FIRST_PER_RUN = 5;
-const MAX_FOLLOWUP_PER_RUN = 3;
+// Finestra umana, cadenza dei follow-up e tetti per giro non sono più
+// costanti qui: vivono su `settings/squadra` e si cambiano dalla scrivania
+// (portale → La Squadra). Default e intervalli ammessi sono dichiarati in
+// js/squadra-registry.js, lo stesso file che legge la console.
+// Con maxFirstPerRun a 0 il Commerciale smette di preparare prime risposte
+// senza che nessuno debba spegnere il cron.
 
 const SYSTEM = `Sei l'assistente commerciale di BOOM Roma, agenzia premium di affitti a Roma (boomrome.com). Il pubblico è internazionale: expat, professionisti in trasferimento, studenti stranieri. Scrivi la PRIMA risposta a un lead.
 
@@ -77,6 +79,8 @@ export default async function handler(req, res) {
 }
 
 async function run({ dry }) {
+  // Le regole in vigore, non quelle di quando il file fu scritto.
+  const { k, rejected } = await knobs(EMPLOYEE);
   const now = Date.now();
   const leads = await fsList('leads', { orderBy: { field: 'createdAt', direction: 'DESCENDING' }, limit: 120 });
 
@@ -112,10 +116,10 @@ function pickChannel(lead) {
     // minuto, con il messaggio francese già scritto (api/_market.js).
     if (isReunion(lead)) continue;
     const age = ageOf(lead);
-    if (age == null || age < HUMAN_WINDOW_MS || age > MAX_LEAD_AGE_MS) continue;
+    if (age == null || age < k.humanWindowMin * 60000 || age > k.maxLeadAgeDays * 86400000) continue;
 
     // ── Prima risposta ────────────────────────────────────────────────
-    if (firstCount < MAX_FIRST_PER_RUN) {
+    if (firstCount < k.maxFirstPerRun) {
       const r = await proposeFirstReply(lead, dry).catch(e => {
         aiErrors++; console.warn('[commerciale] first reply failed:', lead.id, e.message);
         return null;
@@ -127,7 +131,7 @@ function pickChannel(lead) {
     }
 
     // ── Follow-up (una volta sola, dopo 48h ancora `new`) ─────────────
-    if (followupCount < MAX_FOLLOWUP_PER_RUN && age > FOLLOWUP_AFTER_MS) {
+    if (followupCount < k.maxFollowupPerRun && age > k.followupAfterHours * 3600000) {
       const hot = lead.grade === 'A' || lead.grade === 'B' || ['apply', 'reserve'].includes(lead.intent);
       if (!hot) continue;
       const r = await proposeFollowup(lead, dry);
@@ -145,7 +149,7 @@ function pickChannel(lead) {
     ...(timeBoxed ? { timeBoxed: true } : {}),
   };
   const summary = `${firstCount} prime risposte + ${followupCount} follow-up in coda approvazione (${counts.dedupSkipped} già proposti)`
-    + (timeBoxed ? ' — run interrotto al time-box, riprende al prossimo giro' : '');
+    + (timeBoxed ? ' — run interrotto al time-box, riprende al prossimo giro' : '') + (rejectedLine(rejected) ? ' — ' + rejectedLine(rejected) : '');
 
   const report = { summary, counts, proposals: proposals.filter(p => !p.dedupHit).slice(0, 15) };
   // Quiet runs keep the heartbeat (written by the handler) but skip the
