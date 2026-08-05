@@ -5029,11 +5029,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         } catch (e) { toast('error', 'Errore', e.message); }
     }
 
-    function editAgentAction(actionId) {
+    async function editAgentAction(actionId) {
         const a = (S.actionQueue || []).find(x => x.id === actionId);
         if (!a) return;
         const current = a.payload?.draft || '';
-        const edited = prompt('Modifica la bozza prima di approvarla:', current);
+        const edited = await askModal({ title: '✏️ Modifica bozza', message: 'Correggi il testo, poi approvala dalla card.', value: current, type: 'textarea', okLabel: 'Salva bozza' });
         if (edited === null) return;
         const trimmed = edited.trim();
         if (!trimmed) { toast('error', 'Bozza vuota'); return; }
@@ -5842,35 +5842,36 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         else if (filter === 'all') shown = all;
 
         function statusBadge(v) {
-            if (v.status === 'pending') return `<span class="badge orange">⏳ Pending</span>`;
-            if (v.status === 'confirmed') return `<span class="badge green">✅ Confirmed</span>`;
-            if (v.status === 'rescheduled') return `<span class="badge blue">↩ Rescheduled</span>`;
-            if (v.status === 'cancelled') return `<span class="badge gray">✕ Cancelled</span>`;
+            if (v.status === 'pending') return `<span class="badge orange">⏳ In attesa</span>`;
+            if (v.status === 'confirmed') return `<span class="badge green">✅ Confermata</span>`;
+            if (v.status === 'rescheduled') return `<span class="badge blue">↩ Spostata</span>`;
+            if (v.status === 'cancelled') return `<span class="badge gray">✕ Annullata</span>`;
+            if (v.status === 'completed') return `<span class="badge gray">✓ Fatta</span>`;
             return `<span class="badge gray">${v.status}</span>`;
         }
 
         function fmtProposed(v) {
             if (!v.proposedDate || !v.proposedTime) return '—';
-            try { return new Date(v.proposedDate + 'T' + v.proposedTime).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}) + ' · ' + new Date(v.proposedDate + 'T' + v.proposedTime).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}); }
+            try { return new Date(v.proposedDate + 'T' + v.proposedTime).toLocaleDateString('it-IT',{weekday:'short',day:'numeric',month:'short'}) + ' · ' + new Date(v.proposedDate + 'T' + v.proposedTime).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}); }
             catch(e){ return v.proposedDate + ' ' + v.proposedTime; }
         }
 
         function fmtConfirmed(v) {
             if (!v.confirmedDate || !v.confirmedTime) return '—';
-            try { return new Date(v.confirmedDate + 'T' + v.confirmedTime).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}) + ' · ' + new Date(v.confirmedDate + 'T' + v.confirmedTime).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}); }
+            try { return new Date(v.confirmedDate + 'T' + v.confirmedTime).toLocaleDateString('it-IT',{weekday:'short',day:'numeric',month:'short'}) + ' · ' + new Date(v.confirmedDate + 'T' + v.confirmedTime).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}); }
             catch(e){ return v.confirmedDate + ' ' + v.confirmedTime; }
         }
 
         function actionBtns(v) {
             if (v.status === 'pending') return `
-                <button class="btn btn-sm" onclick="confirmViewingModal('${v.id}')" style="background:var(--gold);color:#000;font-size:11px;padding:5px 12px">✓ Confirm</button>
-                <button class="btn btn-sm btn-secondary" onclick="rescheduleViewingModal('${v.id}')" style="font-size:11px;padding:5px 12px">↩ Reschedule</button>
+                <button class="btn btn-sm" onclick="confirmViewingModal('${v.id}')" style="background:var(--gold);color:#000;font-size:11px;padding:5px 12px">✓ Conferma</button>
+                <button class="btn btn-sm btn-secondary" onclick="rescheduleViewingModal('${v.id}')" style="font-size:11px;padding:5px 12px">↩ Sposta</button>
                 <button class="btn btn-sm btn-secondary" onclick="cancelViewing('${v.id}')" style="font-size:11px;padding:5px 12px;opacity:.5">✕</button>`;
             if (v.status === 'rescheduled') return `
-                <button class="btn btn-sm" onclick="confirmViewingModal('${v.id}')" style="background:var(--gold);color:#000;font-size:11px;padding:5px 12px">✓ Confirm</button>`;
+                <button class="btn btn-sm" onclick="confirmViewingModal('${v.id}')" style="background:var(--gold);color:#000;font-size:11px;padding:5px 12px">✓ Conferma</button>`;
             if (v.status === 'confirmed' || v.status === 'completed') {
                 let actions = `
-                <button class="btn btn-sm" onclick="generateViewingPass('${v.id}')" style="background:#000;color:#fff;font-size:11px;padding:5px 12px;border:1px solid rgba(255,255,255,.2)"> Send Pass</button>${v.passSent ? ' <span class="badge green" style="font-size:9px">Pass ✓</span>' : ''}`;
+                <button class="btn btn-sm" onclick="generateViewingPass('${v.id}')" style="background:#000;color:#fff;font-size:11px;padding:5px 12px;border:1px solid rgba(255,255,255,.2)"> Invia Pass</button>${v.passSent ? ' <span class="badge green" style="font-size:9px">Pass ✓</span>' : ''}`;
                 if (v.passSent && v.passSentUrl && (v.clientPhone || v.phone)) {
                     actions += ` <button class="btn btn-sm btn-secondary" onclick="(function(){var u=buildBoomWaLink('${(v.clientPhone || v.phone || '').replace(/'/g, '')}', 'viewing', { clientName: '${(v.clientName || '').replace(/'/g, '')}', confirmedDate: '${v.confirmedDate || ''}', confirmedTime: '${v.confirmedTime || ''}', passUrl: '${v.passSentUrl}' });if(u)window.open(u,'_blank');})()" style="font-size:11px;padding:5px 12px">💬 WA</button>`;
                 }
@@ -5879,8 +5880,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 }
                 if (v.status === 'confirmed') {
                     actions += `
-                <button class="btn btn-sm btn-secondary" onclick="rescheduleViewingModal('${v.id}')" style="font-size:11px;padding:5px 12px">↩ Reschedule</button>
-                <button class="btn btn-sm btn-secondary" onclick="cancelViewing('${v.id}')" style="font-size:11px;padding:5px 12px;color:#E88;border-color:rgba(238,136,136,.35)">✕ Cancel</button>`;
+                <button class="btn btn-sm btn-secondary" onclick="rescheduleViewingModal('${v.id}')" style="font-size:11px;padding:5px 12px">↩ Sposta</button>
+                <button class="btn btn-sm btn-secondary" onclick="cancelViewing('${v.id}')" style="font-size:11px;padding:5px 12px;color:#E88;border-color:rgba(238,136,136,.35)">✕ Annulla</button>`;
                 }
                 return actions;
             }
@@ -5890,8 +5891,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         return `
         <div class="page-header">
             <div>
-                <h1 class="page-title">📅 Viewings</h1>
-                <p class="page-subtitle">Viewing requests from boomrome.com/book</p>
+                <h1 class="page-title">📅 Visite</h1>
+                <p class="page-subtitle">Richieste di visita da boomrome.com/book</p>
             </div>
             <div class="page-actions">
                 <button class="btn btn-secondary" style="font-size:12px" onclick="openAvailabilityModal()">⚙️ Disponibilità</button>
@@ -5901,56 +5902,54 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         </div>
 
         <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
-            <div class="stat-card gold"><div class="stat-icon">⏳</div><div class="stat-value">${pending.length}</div><div class="stat-label">Pending</div></div>
-            <div class="stat-card green"><div class="stat-icon">✅</div><div class="stat-value">${confirmed.length}</div><div class="stat-label">Confirmed</div></div>
-            <div class="stat-card blue"><div class="stat-icon">↩</div><div class="stat-value">${rescheduled.length}</div><div class="stat-label">Rescheduled</div></div>
-            <div class="stat-card gray"><div class="stat-icon">📊</div><div class="stat-value">${all.length}</div><div class="stat-label">Total</div></div>
+            <div class="stat-card gold"><div class="stat-icon">⏳</div><div class="stat-value">${pending.length}</div><div class="stat-label">In attesa</div></div>
+            <div class="stat-card green"><div class="stat-icon">✅</div><div class="stat-value">${confirmed.length}</div><div class="stat-label">Confermate</div></div>
+            <div class="stat-card blue"><div class="stat-icon">↩</div><div class="stat-value">${rescheduled.length}</div><div class="stat-label">Spostate</div></div>
+            <div class="stat-card gray"><div class="stat-icon">📊</div><div class="stat-value">${all.length}</div><div class="stat-label">Totale</div></div>
         </div>
 
         <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-            <button class="btn btn-sm ${filter==='pending'?'':'btn-secondary'}" onclick="setViewingsFilter('pending')" style="${filter==='pending'?'background:var(--gold);color:#000':''}">⏳ Pending ${pending.length?`(${pending.length})`:''}</button>
-            <button class="btn btn-sm ${filter==='confirmed'?'':'btn-secondary'}" onclick="setViewingsFilter('confirmed')" style="${filter==='confirmed'?'background:var(--gold);color:#000':''}">✅ Confirmed</button>
-            <button class="btn btn-sm ${filter==='rescheduled'?'':'btn-secondary'}" onclick="setViewingsFilter('rescheduled')" style="${filter==='rescheduled'?'background:var(--gold);color:#000':''}">↩ Rescheduled</button>
-            <button class="btn btn-sm ${filter==='cancelled'?'':'btn-secondary'}" onclick="setViewingsFilter('cancelled')" style="${filter==='cancelled'?'background:var(--gold);color:#000':''}">✕ Cancelled</button>
-            <button class="btn btn-sm ${filter==='all'?'':'btn-secondary'}" onclick="setViewingsFilter('all')" style="${filter==='all'?'background:var(--gold);color:#000':''}">All</button>
+            <button class="btn btn-sm ${filter==='pending'?'':'btn-secondary'}" onclick="setViewingsFilter('pending')" style="${filter==='pending'?'background:var(--gold);color:#000':''}">⏳ In attesa ${pending.length?`(${pending.length})`:''}</button>
+            <button class="btn btn-sm ${filter==='confirmed'?'':'btn-secondary'}" onclick="setViewingsFilter('confirmed')" style="${filter==='confirmed'?'background:var(--gold);color:#000':''}">✅ Confermate</button>
+            <button class="btn btn-sm ${filter==='rescheduled'?'':'btn-secondary'}" onclick="setViewingsFilter('rescheduled')" style="${filter==='rescheduled'?'background:var(--gold);color:#000':''}">↩ Spostate</button>
+            <button class="btn btn-sm ${filter==='cancelled'?'':'btn-secondary'}" onclick="setViewingsFilter('cancelled')" style="${filter==='cancelled'?'background:var(--gold);color:#000':''}">✕ Annullate</button>
+            <button class="btn btn-sm ${filter==='all'?'':'btn-secondary'}" onclick="setViewingsFilter('all')" style="${filter==='all'?'background:var(--gold);color:#000':''}">Tutte</button>
         </div>
 
         ${shown.length === 0 ? `
         <div class="card"><div class="card-body" style="text-align:center;padding:48px 20px">
             <div style="font-size:36px;margin-bottom:12px">📅</div>
-            <div style="font-size:15px;color:var(--text-secondary)">No ${filter} viewing requests</div>
-            <div style="font-size:12px;color:var(--text-muted);margin-top:6px">Share <strong>boomrome.com/book</strong> with your clients</div>
+            <div style="font-size:15px;color:var(--text-secondary)">Nessuna visita in questo filtro</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:6px">Condividi <strong>boomrome.com/book</strong> coi clienti</div>
         </div></div>` : `
-        <div class="card"><div class="card-body flush">
-        <table class="crm-table">
-            <thead><tr>
-                <th>Client</th><th>Property</th>
-                <th>Proposed</th><th>Confirmed</th>
-                <th>Status</th><th>Actions</th>
-            </tr></thead>
-            <tbody>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px">
             ${shown.map(v => `
-                <tr>
-                    <td>
-                        <div style="font-weight:500">${esc(v.clientName||'—')}</div>
-                        <div style="font-size:11px;color:var(--text-muted)">${esc(v.clientEmail||'')}${v.clientPhone?` · ${esc(v.clientPhone)}`:''}</div>
-                        ${v.linkedLeadId ? `<div style="margin-top:4px"><span class="badge blue" style="font-size:9px;cursor:pointer" onclick="event.stopPropagation();S.leadsFilter='all';goTo('leads')">📬 From Lead</span></div>` : ''}
-                    </td>
-                    <td>
-                        <div style="font-weight:400">${esc(v.listingName||'—')}</div>
-                        ${v.listingZone?`<div style="font-size:11px;color:var(--text-muted)">${esc(v.listingZone)}</div>`:''}
-                        ${v.listingPrice?`<div style="font-size:11px;color:var(--gold)">€${v.listingPrice.toLocaleString()}/mo</div>`:''}
-                    </td>
-                    <td style="font-size:12px">${fmtProposed(v)}</td>
-                    <td style="font-size:12px">${v.status==='confirmed'?fmtConfirmed(v):'—'}</td>
-                    <td>${statusBadge(v)}</td>
-                    <td onclick="event.stopPropagation()"><div style="display:flex;gap:5px;flex-wrap:wrap">${actionBtns(v)}</div></td>
-                </tr>
-                ${v.notes?`<tr><td colspan="6" style="padding:4px 16px 10px;font-size:11px;color:var(--text-muted)">📝 ${esc(v.notes)}</td></tr>`:''}
+                <div class="card" style="margin-bottom:0">
+                    <div class="card-body" style="padding:16px">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px">
+                            <div style="min-width:0">
+                                <div style="font-weight:600;font-size:15px">${esc(v.clientName||'—')}</div>
+                                <div style="font-size:11px;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(v.clientEmail||'')}${v.clientPhone?` · ${esc(v.clientPhone)}`:''}</div>
+                            </div>
+                            ${statusBadge(v)}
+                        </div>
+                        <div style="display:flex;justify-content:space-between;gap:10px;font-size:12.5px;margin-bottom:10px">
+                            <div style="min-width:0">
+                                <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🏠 ${esc(v.listingName||'—')}${v.listingZone?` <span style="color:var(--text-muted)">· ${esc(v.listingZone)}</span>`:''}</div>
+                                ${v.listingPrice?`<div style="color:var(--gold)">€${v.listingPrice.toLocaleString()}/mese</div>`:''}
+                            </div>
+                            ${v.linkedLeadId ? `<span class="badge blue" style="font-size:9px;cursor:pointer;flex-shrink:0" onclick="S.leadsFilter='all';goTo('leads')">📬 Lead</span>` : ''}
+                        </div>
+                        <div style="display:flex;gap:14px;font-size:12px;color:var(--text-secondary);margin-bottom:12px;flex-wrap:wrap">
+                            <span>📩 ${fmtProposed(v)}</span>
+                            ${v.status==='confirmed'?`<span style="color:var(--green)">✅ ${fmtConfirmed(v)}</span>`:''}
+                        </div>
+                        ${v.notes?`<div style="font-size:11.5px;color:var(--text-muted);margin-bottom:10px">📝 ${esc(v.notes)}</div>`:''}
+                        <div style="display:flex;gap:6px;flex-wrap:wrap">${actionBtns(v)}</div>
+                    </div>
+                </div>
             `).join('')}
-            </tbody>
-        </table>
-        </div></div>`}
+        </div>`}
         `;
     }
 
@@ -6719,14 +6718,19 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const w = _newClientWizard;
         if (!w) return;
         const dot = (n) => `<div style="width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;background:${w.step >= n ? 'var(--gold)' : 'var(--bg-elevated)'};color:${w.step >= n ? '#000' : 'var(--text-muted)'}">${n}</div>`;
-        const stepper = `<div style="display:flex;align-items:center;gap:6px;padding:0 4px 14px;font-size:12px;color:var(--text-muted)">
-            ${dot(1)} <span style="${w.step===1?'color:var(--gold);font-weight:600':''}">Origine</span>
-            <span>—</span>
-            ${dot(2)} <span style="${w.step===2?'color:var(--gold);font-weight:600':''}">Anagrafica</span>
-            <span>—</span>
-            ${dot(3)} <span style="${w.step===3?'color:var(--gold);font-weight:600':''}">Immobile + canone</span>
-            <span>—</span>
-            ${dot(4)} <span style="${w.step===4?'color:var(--gold);font-weight:600':''}">Conferma & firma</span>
+        const narrow = window.innerWidth < 560;
+        const lbl = (n, t) => narrow
+            ? (w.step === n ? `<span style="color:var(--gold);font-weight:600">${t}</span>` : '')
+            : `<span style="${w.step===n?'color:var(--gold);font-weight:600':''}">${t}</span>`;
+        const sep = narrow ? '' : '<span>—</span>';
+        const stepper = `<div style="display:flex;align-items:center;gap:6px;padding:0 4px 14px;font-size:12px;color:var(--text-muted);flex-wrap:wrap">
+            ${dot(1)} ${lbl(1, 'Origine')}
+            ${sep}
+            ${dot(2)} ${lbl(2, 'Anagrafica')}
+            ${sep}
+            ${dot(3)} ${lbl(3, 'Immobile + canone')}
+            ${sep}
+            ${dot(4)} ${lbl(4, 'Conferma & firma')}
         </div>`;
 
         let body = '', footer = '';
@@ -14066,6 +14070,47 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // ═══════════════════════════════════════════════════════════════════════════
     // MODALS
     // ═══════════════════════════════════════════════════════════════════════════
+
+    // askModal — il sostituto di prompt(): stesso contratto (risolve la
+    // stringa inserita, null su annulla) ma con l'estetica del portal, un
+    // vero textarea per i testi lunghi e target comodi da telefono.
+    // Non passa da getModal/closeModal: convive con una modale già aperta
+    // (es. il dettaglio contratto) senza distruggerla.
+    function askModal({ title, message = '', placeholder = '', value = '', type = 'text', okLabel = 'Conferma' }) {
+        return new Promise((resolve) => {
+            const wrap = document.createElement('div');
+            wrap.className = 'modal-overlay active';
+            wrap.style.zIndex = '1200';
+            const field = type === 'textarea'
+                ? `<textarea class="form-textarea" id="askModalInput" rows="7" placeholder="${esc(placeholder)}" style="margin-bottom:0">${esc(value)}</textarea>`
+                : `<input class="form-input" id="askModalInput" type="${esc(type)}" placeholder="${esc(placeholder)}" value="${esc(value)}" style="margin-bottom:0">`;
+            wrap.innerHTML = `<div class="modal" style="max-width:460px">
+                <div class="modal-header"><h3 class="modal-title">${esc(title || '')}</h3><button class="modal-close" data-ask="cancel">×</button></div>
+                <div class="modal-body">${message ? `<p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;white-space:pre-line">${esc(message)}</p>` : ''}${field}</div>
+                <div class="modal-footer"><button class="btn btn-secondary" data-ask="cancel">Annulla</button><button class="btn" data-ask="ok">${esc(okLabel)}</button></div>
+            </div>`;
+            document.body.appendChild(wrap);
+            document.body.classList.add('modal-open');
+            const input = wrap.querySelector('#askModalInput');
+            const done = (v) => {
+                wrap.remove();
+                // sblocca lo scroll solo se sotto non c'è un'altra modale viva
+                if (!document.querySelector('#modals .modal-overlay.active')) document.body.classList.remove('modal-open');
+                resolve(v);
+            };
+            wrap.addEventListener('click', (e) => {
+                const b = e.target.closest('[data-ask]');
+                if (b) return done(b.dataset.ask === 'ok' ? input.value : null);
+                if (e.target === wrap) done(null);
+            });
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && type !== 'textarea') { e.preventDefault(); done(input.value); }
+                if (e.key === 'Escape') done(null);
+            });
+            setTimeout(() => input.focus(), 60);
+        });
+    }
+
     function openModal(type, data) {
         document.body.classList.add('modal-open'); // iOS: blocca lo scroll della pagina dietro
         document.getElementById('modals').innerHTML = getModal(type, data);
@@ -21683,10 +21728,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             if (!j || !j.ok) return toast('error', 'Fascicolo: ' + ((j && j.error) || 'errore'));
             const calc = j.calc || {};
             if (calc.error === 'zona_non_trovata') {
-                const z = prompt('Zona accordo non riconosciuta dall\'indirizzo.\nInserisci il codice zona ARPE (es. B14 per Trastevere, C1 Parioli, C30 Pigneto):');
+                const z = await askModal({ title: '📐 Zona ARPE', message: 'Zona accordo non riconosciuta dall\'indirizzo.\nEsempi: B14 Trastevere · C1 Parioli · C30 Pigneto', placeholder: 'Codice zona (es. B14)' });
                 if (z && z.trim()) return openFascicolo(contractId, Object.assign({}, overrides, { zonaCod: z.trim().toUpperCase() }));
             } else if (calc.error === 'mq_mancanti') {
-                const mq = prompt('Mq calpestabili dell\'immobile (manca sqm sulla property):');
+                const mq = await askModal({ title: '📐 Superficie', message: 'Mq calpestabili dell\'immobile (manca sqm sulla scheda immobile). Verranno salvati sul contratto.', placeholder: 'es. 65', type: 'number' });
                 if (mq && +mq > 0) return openFascicolo(contractId, Object.assign({}, overrides, { mq: +mq }));
             } else if (calc.fits === false) {
                 toast('error', `⚠ FUORI FASCIA (${calc.zonaCod} · fascia ${calc.fascia}, max €${Number(calc.cMax).toLocaleString('it-IT')}) — il PDF lo dettaglia`);
@@ -21732,7 +21777,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // rigenera il fascicolo così anche il PDF dice "Registrato il…".
     async function markRliRegistered(contractId) {
         const today = new Date().toISOString().slice(0, 10);
-        const when = prompt('Data di registrazione RLI (YYYY-MM-DD):', today);
+        const when = await askModal({ title: '✓ RLI registrato', message: 'Data di registrazione presso l\'Agenzia delle Entrate.', value: today, type: 'date', okLabel: 'Registra' });
         if (!when || !/^\d{4}-\d{2}-\d{2}$/.test(when.trim())) return;
         try {
             await db.collection('contracts').doc(contractId).update({ rliRegisteredAt: when.trim() });
@@ -22000,7 +22045,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     // ── Mark contract as successfully registered in AdE
     async function markRegistered(contractId) {
-        const code = prompt('Inserisci il codice di registrazione AdE (lascia vuoto se non lo hai ora):');
+        const code = await askModal({ title: '🏛️ Registrazione AdE', message: 'Codice di registrazione (lascia vuoto se non lo hai ora).', placeholder: 'es. T7X24V000123000AB' });
         if (code === null) return; // cancelled
         try {
             await db.collection('contracts').doc(contractId).update({
@@ -23710,7 +23755,7 @@ IBAN: ${l.iban || '-'}`;
     function openLandlordDetail(id) {
         var l = S.landlords.find(function(x) { return x.id === id; });
         if (!l) return;
-        document.getElementById('modals').innerHTML = '<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal" onclick="event.stopPropagation()"><div class="modal-header"><div style="display:flex;align-items:center;gap:12px"><div class="avatar lg">' + (l.name?.charAt(0) || '?') + '</div><div><h3 class="modal-title">' + esc(l.name) + '</h3><div style="color:var(--gold);margin-top:4px">' + '⭐'.repeat(l.rating || 0) + '</div></div></div><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><div class="detail-grid"><div><div class="detail-label">Phone</div><div class="detail-value">' + esc(l.phone || '-') + '</div></div><div><div class="detail-label">Email</div><div class="detail-value">' + esc(l.email || '-') + '</div></div><div><div class="detail-label">Zones</div><div class="detail-value">' + esc(l.zones || '-') + '</div></div><div><div class="detail-label">Properties</div><div class="detail-value">' + (l.propertyCount || 0) + '</div></div><div><div class="detail-label">Deals</div><div class="detail-value">' + (l.dealsCompleted || 0) + '</div></div>' + (l.iban ? '<div><div class="detail-label">IBAN</div><div class="detail-value" style="font-family:monospace;font-size:12px">' + esc(l.iban) + '</div></div>' : '') + '</div>' + (l.notes ? '<div class="info-box mt-16"><div class="info-box-title">📝 Notes</div><p>' + esc(l.notes) + '</p></div>' : '') + '</div><div class="modal-footer"><button class="btn btn-danger" onclick="deleteLandlord(\'' + id + '\')">Delete</button><button class="btn btn-secondary" onclick="closeModal()">Close</button><button class="btn btn-secondary" onclick="sendLandlordPassFromDb(\'' + id + '\')" style="background:#000;color:#fff;border:1px solid rgba(255,255,255,.2)"> Send Pass</button><button class="btn" onclick="openLandlordWhatsApp(\'' + id + '\')">💬 WhatsApp</button></div></div></div>';
+        document.getElementById('modals').innerHTML = '<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal" onclick="event.stopPropagation()"><div class="modal-header"><div style="display:flex;align-items:center;gap:12px"><div class="avatar lg">' + (l.name?.charAt(0) || '?') + '</div><div><h3 class="modal-title">' + esc(l.name) + '</h3><div style="color:var(--gold);margin-top:4px">' + '⭐'.repeat(l.rating || 0) + '</div></div></div><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><div class="detail-grid"><div><div class="detail-label">Phone</div><div class="detail-value">' + esc(l.phone || '-') + '</div></div><div><div class="detail-label">Email</div><div class="detail-value">' + esc(l.email || '-') + '</div></div><div><div class="detail-label">Zones</div><div class="detail-value">' + esc(l.zones || '-') + '</div></div><div><div class="detail-label">Properties</div><div class="detail-value">' + (l.propertyCount || 0) + '</div></div><div><div class="detail-label">Deals</div><div class="detail-value">' + (l.dealsCompleted || 0) + '</div></div>' + (l.iban ? '<div><div class="detail-label">IBAN</div><div class="detail-value" style="font-family:monospace;font-size:12px">' + esc(l.iban) + '</div></div>' : '') + '</div>' + (l.notes ? '<div class="info-box mt-16"><div class="info-box-title">📝 Notes</div><p>' + esc(l.notes) + '</p></div>' : '') + '</div><div class="modal-footer"><button class="btn btn-danger" onclick="deleteLandlord(\'' + id + '\')">Delete</button><button class="btn btn-secondary" onclick="closeModal()">Close</button><button class="btn btn-secondary" onclick="sendLandlordPassFromDb(\'' + id + '\')" style="background:#000;color:#fff;border:1px solid rgba(255,255,255,.2)"> Invia Pass</button><button class="btn" onclick="openLandlordWhatsApp(\'' + id + '\')">💬 WhatsApp</button></div></div></div>';
     }
 
     async function deleteLandlord(id) {
