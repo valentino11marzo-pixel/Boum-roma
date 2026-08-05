@@ -290,7 +290,12 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
     && (wl[0].attachments || []).some(a => a.filename === 'BOOM_Certificato_di_firma.pdf')
     && /In allegato/.test(wl[0].html));
   check('welcome landlord: cessione fabbricato per extra-UE', wl.length === 1 && /Questura/.test(wl[0].html));
-  check('design: il marchio hosted è nel masthead', wt.length === 1 && wt[0].html.includes('android-chrome-192x192.png'));
+  // Il masthead è PURAMENTE tipografico: l'anteprima in browser reale ha
+  // mostrato il PNG hosted con un artefatto chiaro sopra il wordmark, e con
+  // le immagini bloccate lasciava un buco. Il tipo non può tradire — quindi
+  // qui si asserisce che il wordmark c'è e che NESSUNA immagine è tornata.
+  check('design: masthead tipografico (wordmark oro, MAI un <img>)', wt.length === 1
+    && wt[0].html.includes('B&nbsp;O&nbsp;O&nbsp;M') && !/<img/i.test(wt[0].html.split('bp-paper')[0]));
 
   // Fascicolo Fiscale: generato dentro finalize, linkato nel CAF, snapshot
   // del calcolo canone persistito sul contratto (zona Trastevere → B14).
