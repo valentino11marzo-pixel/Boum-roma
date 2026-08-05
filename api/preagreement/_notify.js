@@ -22,17 +22,25 @@ import { buildPaPdf } from './_pdf.js';
 
 const ADMIN_EMAIL = 'valentino@boom-rome.com';
 
-// ── Palette ───────────────────────────────────────────────────────────────
-// Hard-coded: email clients have no CSS variables. Every colour is also
-// re-declared in the dark-mode block of the <style> below, so the document
-// reads as a deliberate design in dark mode instead of an inverted mess.
-const INK = '#141414';          // near-black text
-const SOFT = '#6E6A60';         // secondary text, warm grey
-const FAINT = '#98948A';        // tertiary
-const HAIR = '#E7E4DC';         // hairlines on paper
-const GOLD = '#D4AF37';         // brand gold (chips, CTA fill)
-const GOLD_DEEP = '#8A6D1D';    // gold that reads on white paper
-const PAPER_BG = '#EFEDE7';     // the desk the paper sits on
+// ── Palette — BOOM NOIR ───────────────────────────────────────────────────
+// Hard-coded: email clients have no CSS variables.
+// Le email erano l'UNICA superficie chiara del brand: portal, /casa, sito e
+// Wallet sono neri. Ora anche la posta è nativa dark — carta ossidiana su
+// nero, oro, dati in monospace: la stessa identità ovunque. Bonus tecnico:
+// un'email già scura non viene MAI invertita dai dark mode dei client
+// (Gmail/Outlook trasformano solo gli sfondi chiari), quindi il rendering
+// è identico per tutti.
+const INK = '#F2EFE7';          // testo primario — bianco caldo su ossidiana
+const SOFT = '#A8A398';         // secondario
+const FAINT = '#6E6A61';        // terziario
+const HAIR = '#26262C';         // hairline su ossidiana
+const GOLD = '#D4AF37';         // oro pieno (chip, CTA)
+const GOLD_DEEP = '#E5C558';    // l'oro che LEGGE come testo sul scuro
+const PAPER_BG = '#050506';     // il desk — il nero BOOM
+const CARD = '#101013';         // la carta, ora ossidiana
+const PANEL = '#17171B';        // pannelli interni (tiles, condizioni)
+const BAND = '#1C1710';         // banda oro profonda (hero, dovuto)
+const MONO = "'SF Mono','Segoe UI Mono',Menlo,Consolas,'Courier New',monospace";
 // Quoted family name: an unquoted multi-word font is invalid CSS and some
 // clients (notably older Outlook.com) drop the whole declaration.
 const SANS = "'Helvetica Neue',Helvetica,Arial,sans-serif";
@@ -51,9 +59,11 @@ const fmtD = s => { try { return new Date(String(s).slice(0, 10) + 'T00:00').toL
 // Exported: the CAF dossier and the signing-lifecycle emails (api/sign/
 // _notify.js) render their data with the same paper rows.
 export function row(k, v, sub) {
+  // Il VALORE in monospace: date, importi, CF e IBAN si leggono a cifre —
+  // è il dettaglio che fa "estratto conto di lusso" invece di "lettera".
   return `<tr>
-    <td style="padding:10px 0;border-bottom:1px solid ${HAIR};font-family:${SANS};font-size:9.5px;letter-spacing:1.6px;text-transform:uppercase;color:${FAINT};vertical-align:top;white-space:nowrap;padding-right:24px">${esc(k)}</td>
-    <td style="padding:10px 0;border-bottom:1px solid ${HAIR};font-family:${SANS};font-size:14px;font-weight:300;color:${INK};text-align:right">${v}${sub ? `<br><span style="font-size:11px;color:${SOFT}">${sub}</span>` : ''}</td>
+    <td class="bp-k" style="padding:11px 0;border-bottom:1px solid ${HAIR};font-family:${SANS};font-size:9.5px;letter-spacing:1.6px;text-transform:uppercase;color:${FAINT};vertical-align:top;white-space:nowrap;padding-right:24px">${esc(k)}</td>
+    <td class="bp-v" style="padding:11px 0;border-bottom:1px solid ${HAIR};font-family:${MONO};font-size:13px;font-weight:400;color:${INK};text-align:right">${v}${sub ? `<br><span style="font-family:${SANS};font-size:11px;font-weight:300;color:${SOFT}">${sub}</span>` : ''}</td>
   </tr>`;
 }
 
@@ -117,8 +127,8 @@ export function paDocumentHtml(pa, opts = {}) {
     .map(x => row(esc(x.label), `<b>${eur(x.amount)}</b>`)).join('');
 
   const dueRow = `<tr>
-    <td style="padding:12px 0 12px 14px;border-left:3px solid ${GOLD};background:#FBF8EF;font-family:${SANS};font-size:9.5px;letter-spacing:1.8px;text-transform:uppercase;color:${GOLD_DEEP};white-space:nowrap;padding-right:24px">Due at signing</td>
-    <td style="padding:12px 14px 12px 0;background:#FBF8EF;font-family:${SANS};font-size:18px;font-weight:400;color:${INK};text-align:right"><b>${eur(m.dueAtSigning)}</b>${paid ? `<br><span style="font-size:11px;font-weight:300;color:${SOFT}">paid ${opts.paidAt ? fmtD(opts.paidAt) : ''} via Stripe</span>` : ''}</td>
+    <td style="padding:12px 0 12px 14px;border-left:3px solid ${GOLD};background:#1C1710;font-family:${SANS};font-size:9.5px;letter-spacing:1.8px;text-transform:uppercase;color:${GOLD_DEEP};white-space:nowrap;padding-right:24px">Due at signing</td>
+    <td style="padding:12px 14px 12px 0;background:#1C1710;font-family:${SANS};font-size:18px;font-weight:400;color:${INK};text-align:right"><b>${eur(m.dueAtSigning)}</b>${paid ? `<br><span style="font-size:11px;font-weight:300;color:${SOFT}">paid ${opts.paidAt ? fmtD(opts.paidAt) : ''} via Stripe</span>` : ''}</td>
   </tr>`;
 
   const body = `
@@ -144,7 +154,7 @@ export function paDocumentHtml(pa, opts = {}) {
   </table>`;
 
   const conditions = `
-  <div style="margin-top:20px;padding:14px 16px;background:#F7F5F0;border-radius:10px;font-family:${SANS};font-size:11.5px;font-weight:300;color:${SOFT};line-height:1.75">
+  <div style="margin-top:20px;padding:14px 16px;background:#17171B;border-radius:10px;font-family:${SANS};font-size:11.5px;font-weight:300;color:${SOFT};line-height:1.75">
     Registered legal contract, filed with the Agenzia delle Entrate · deposit protected and returned at the end of the stay ·
     agency fee ${feeWhen} ·${tenants.length > 1 ? ' all co-tenants jointly and severally liable ·' : ''}
     this document confirms the reservation of the property under the accepted terms (general conditions of the proposal).
@@ -192,29 +202,30 @@ a[x-apple-data-detectors]{color:inherit!important;text-decoration:none!important
   .bp-tile{display:block!important;width:100%!important}
 }
 
-/* Dark mode: la carta resta un documento, non un negativo fotografico.
-   [data-ogsc] copre Outlook.com, che riscrive gli stili invece di
-   rispettare la media query. */
+/* BOOM NOIR è già scuro: qui non si "traduce" un design chiaro, si
+   INCHIODA quello unico. I client che in dark mode riscrivono i colori
+   (Outlook.com via [data-ogsc], Gmail su sfondi chiari) trovano già i
+   valori finali e non toccano nulla — light e dark identici per tutti. */
 @media (prefers-color-scheme:dark){
-  .bp-desk{background:#0B0B0D!important}
-  .bp-paper{background:#15151A!important;border-color:#2A2A31!important}
-  .bp-ink,.bp-ink b{color:#F1EFE9!important}
-  .bp-soft{color:#A7A297!important}
-  .bp-faint{color:#807B72!important}
-  .bp-hair{border-color:#2A2A31!important}
-  .bp-panel{background:#1C1C22!important}
-  .bp-goldband{background:#241E0C!important}
-  .bp-golddeep{color:${GOLD}!important}
-  .bp-foot{color:#6E6A62!important}
-  .bp-btn2 td{background:#2E2E36!important}
+  .bp-desk{background:#050506!important}
+  .bp-paper{background:#101013!important;border-color:#26262C!important}
+  .bp-ink,.bp-ink b{color:#D9D5CA!important}
+  .bp-soft{color:#A8A398!important}
+  .bp-faint{color:#6E6A61!important}
+  .bp-hair{border-color:#26262C!important}
+  .bp-panel{background:#17171B!important}
+  .bp-goldband{background:#1C1710!important}
+  .bp-golddeep{color:#E5C558!important}
+  .bp-foot{color:#5E5B53!important}
+  .bp-btn2 td{background:#1F1F24!important}
 }
-[data-ogsc] .bp-desk{background:#0B0B0D!important}
-[data-ogsc] .bp-paper{background:#15151A!important;border-color:#2A2A31!important}
-[data-ogsc] .bp-ink,[data-ogsc] .bp-ink b{color:#F1EFE9!important}
-[data-ogsc] .bp-soft{color:#A7A297!important}
-[data-ogsc] .bp-faint{color:#807B72!important}
-[data-ogsc] .bp-panel{background:#1C1C22!important}
-[data-ogsc] .bp-golddeep{color:${GOLD}!important}`;
+[data-ogsc] .bp-desk{background:#050506!important}
+[data-ogsc] .bp-paper{background:#101013!important;border-color:#26262C!important}
+[data-ogsc] .bp-ink,[data-ogsc] .bp-ink b{color:#D9D5CA!important}
+[data-ogsc] .bp-soft{color:#A8A398!important}
+[data-ogsc] .bp-faint{color:#6E6A61!important}
+[data-ogsc] .bp-panel{background:#17171B!important}
+[data-ogsc] .bp-golddeep{color:#E5C558!important}`;
 
 // ── The shell: black masthead + white paper card on a warm desk ──────────
 // Exported: this is THE email design system for the whole platform
@@ -244,7 +255,7 @@ export function shell(inner, preheader) {
 <td align="center" style="padding:30px 12px">
 
   <table role="presentation" width="640" cellpadding="0" cellspacing="0" border="0" style="max-width:640px;width:100%;border-collapse:separate">
-    <tr><td class="bp-mast" style="background:#0A0A0B;border-radius:16px 16px 0 0;border-bottom:2px solid ${GOLD};padding:30px 34px 24px;text-align:center">
+    <tr><td class="bp-mast" style="background:#0B0B0D;border:1px solid ${HAIR};border-bottom:2px solid ${GOLD};border-radius:16px 16px 0 0;padding:30px 34px 24px;text-align:center">
       <!-- Masthead PURAMENTE tipografico: il PNG hosted rendeva con un
            artefatto chiaro sopra il wordmark (visto in anteprima reale) e
            con le immagini bloccate lasciava un buco. Il tipo non può
@@ -256,12 +267,12 @@ export function shell(inner, preheader) {
       <div style="font-family:${SANS};font-size:19px;letter-spacing:11px;color:${GOLD};font-weight:300;${MSO}line-height:26px;padding-top:12px">B&nbsp;O&nbsp;O&nbsp;M</div>
       <div style="font-family:${SANS};font-size:8.5px;letter-spacing:3.6px;text-transform:uppercase;color:#8F8A7E;${MSO}line-height:14px;padding-top:6px">Premium rentals · Roma</div>
     </td></tr>
-    <tr><td class="bp-paper bp-pad" style="background:#FFFFFF;border:1px solid #E3E0D7;border-top:none;border-radius:0 0 16px 16px;padding:36px 34px 30px">${inner}</td></tr>
+    <tr><td class="bp-paper bp-pad" style="background:${CARD};border:1px solid ${HAIR};border-top:none;border-radius:0 0 16px 16px;padding:36px 34px 30px">${inner}</td></tr>
   </table>
 
   <table role="presentation" width="640" cellpadding="0" cellspacing="0" border="0" style="max-width:640px;width:100%"><tr>
-    <td class="bp-foot" style="padding:18px 6px;font-family:${SANS};font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:#A6A298;text-align:center;${MSO}line-height:16px">
-      <a href="https://www.boomrome.com" style="color:#A6A298;text-decoration:none">boomrome.com</a> &nbsp;·&nbsp; <a href="https://wa.me/393313251961" style="color:#A6A298;text-decoration:none">WhatsApp</a> &nbsp;·&nbsp; <a href="mailto:valentino@boom-rome.com" style="color:#A6A298;text-decoration:none">valentino@boom-rome.com</a><br>
+    <td class="bp-foot" style="padding:18px 6px;font-family:${SANS};font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:#5E5B53;text-align:center;${MSO}line-height:16px">
+      <a href="https://www.boomrome.com" style="color:#8A867C;text-decoration:none">boomrome.com</a> &nbsp;·&nbsp; <a href="https://wa.me/393313251961" style="color:#8A867C;text-decoration:none">WhatsApp</a> &nbsp;·&nbsp; <a href="mailto:valentino@boom-rome.com" style="color:#8A867C;text-decoration:none">valentino@boom-rome.com</a><br>
       <span style="letter-spacing:1.2px">Egidi Immobiliare S.r.l. · P.IVA 17322991005 · Roma</span>
     </td>
   </tr></table>
@@ -303,15 +314,16 @@ export function btn(href, label) {
     margin: '26px auto 0', cls: 'bp-btn',
   });
 }
-// Secondary action — quiet black pill.
+// Secondary action — quiet graphite pill (sull'ossidiana il nero pieno
+// sparirebbe: qui è un gradino sopra la carta).
 export function btn2(href, label) {
   return pill(href, String(label), {
-    bg: '#141414', fg: '#FFFFFF', size: 12, pad: 13, weight: 'normal', spacing: 1.2,
+    bg: '#1F1F24', fg: '#F2EFE7', size: 12, pad: 13, weight: 'normal', spacing: 1.2,
     margin: '12px auto 0', cls: 'bp-btn bp-btn2',
   });
 }
 
-export const para = (html, extra) => `<p class="bp-ink" style="font-family:${SANS};font-size:15px;font-weight:300;color:#33312C;line-height:1.75;margin:0 0 20px;${MSO}${extra || ''}">${html}</p>`;
+export const para = (html, extra) => `<p class="bp-ink" style="font-family:${SANS};font-size:15px;font-weight:300;color:#D9D5CA;line-height:1.75;margin:0 0 20px;${MSO}${extra || ''}">${html}</p>`;
 export const fine = (html, extra) => `<p class="bp-soft" style="font-family:${SANS};font-size:11.5px;font-weight:300;color:${SOFT};line-height:1.7;margin:14px 0 0;${MSO}${extra || ''}">${html}</p>`;
 
 // ── Nuove primitive di composizione ───────────────────────────────────────
@@ -319,7 +331,7 @@ export const fine = (html, extra) => `<p class="bp-soft" style="font-family:${SA
 // L'unico numero che conta, trattato come tale (importo dovuto, incasso,
 // saldo). Un cliente apre l'email per QUESTO: non deve cercarlo.
 export function hero({ eyebrow, value, note } = {}) {
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="bp-goldband" style="background:#FBF8EF;border-left:3px solid ${GOLD};border-radius:0 12px 12px 0;margin:0 0 24px">
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="bp-goldband" style="background:${BAND};border-left:3px solid ${GOLD};border-radius:0 12px 12px 0;margin:0 0 24px">
   <tr><td style="padding:20px 22px">
     ${eyebrow ? `<div class="bp-golddeep" style="font-family:${SANS};font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:${GOLD_DEEP};${MSO}line-height:14px">${esc(eyebrow)}</div>` : ''}
     <div class="bp-ink bp-hero" style="font-family:${SANS};font-size:38px;font-weight:200;color:${INK};letter-spacing:-1px;${MSO}line-height:46px;padding-top:4px">${value}</div>
@@ -335,7 +347,7 @@ export function tiles(items = []) {
       <div class="bp-ink" style="font-family:${SANS};font-size:17px;font-weight:400;color:${INK};${MSO}line-height:24px;padding-top:3px">${t.v}</div>
       ${t.sub ? `<div class="bp-soft" style="font-family:${SANS};font-size:11px;font-weight:300;color:${SOFT};${MSO}line-height:16px">${t.sub}</div>` : ''}
     </td>`).join('');
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="bp-panel" style="background:#F7F5F0;border-radius:12px;margin:0 0 22px"><tr>${cells}</tr></table>`;
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="bp-panel" style="background:${PANEL};border-radius:12px;margin:0 0 22px"><tr>${cells}</tr></table>`;
 }
 
 // "Cosa succede adesso" — la sequenza, numerata. Toglie l'ansia del "e poi?".

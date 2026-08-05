@@ -113,8 +113,8 @@ export function steps({ c, tenant, addrShort, addr, first, has = () => false, mi
                         'Internet activated at your address',
                         'Step-by-step residency guide, in English'])
             + btn(buyUrl('movein-pack', tenant), 'Add the Move-in Pack — €149')
-            + fine(`Rather talk first? <a href="${waMsg(`Ciao BOOM! Info sul Move-in Pack per ${addr}.`)}" style="color:#141414">Ask on WhatsApp</a> — same team, no bots.`, 'text-align:center'))
-        + fine(`Questions anytime — just reply or <a href="${WA}" style="color:#141414">WhatsApp us</a>.`, 'text-align:center'),
+            + fine(`Rather talk first? <a href="${waMsg(`Ciao BOOM! Info sul Move-in Pack per ${addr}.`)}" style="color:#E5C558">Ask on WhatsApp</a> — same team, no bots.`, 'text-align:center'))
+        + fine(`Questions anytime — just reply or <a href="${WA}" style="color:#E5C558">WhatsApp us</a>.`, 'text-align:center'),
     },
     {
       key: 't14',
@@ -133,7 +133,7 @@ export function steps({ c, tenant, addrShort, addr, first, has = () => false, mi
             ? para(`Your <b>Move-in Pack</b> is already in motion — utilities and internet are on us from here.`, 'margin-top:24px')
             : para(`And if you'd rather not think about utilities at all, the <b>Move-in Pack</b> is still the shortcut — we start the transfers the same day.`, 'margin-top:24px')
               + btn2(buyUrl('movein-pack', tenant), 'Move-in Pack — €149')
-              + fine(`Questions? <a href="${waMsg(`Ciao BOOM! Info sul Move-in Pack per ${addr}.`)}" style="color:#141414">WhatsApp us</a>.`, 'text-align:center')),
+              + fine(`Questions? <a href="${waMsg(`Ciao BOOM! Info sul Move-in Pack per ${addr}.`)}" style="color:#E5C558">WhatsApp us</a>.`, 'text-align:center')),
     },
     {
       key: 't7',
@@ -149,7 +149,7 @@ export function steps({ c, tenant, addrShort, addr, first, has = () => false, mi
                           'Done the day before your move-in',
                           'Photo report before you arrive'])
               + btn(buyUrl('cleaning-premium', tenant), 'Book Cleaning Premium — €119')
-              + fine(`Prefer to ask first? <a href="${waMsg(`Ciao BOOM! Vorrei il Cleaning Premium prima del mio arrivo a ${addr}.`)}" style="color:#141414">WhatsApp us</a>.`, 'text-align:center'))
+              + fine(`Prefer to ask first? <a href="${waMsg(`Ciao BOOM! Vorrei il Cleaning Premium prima del mio arrivo a ${addr}.`)}" style="color:#E5C558">WhatsApp us</a>.`, 'text-align:center'))
         + para(`<b>2 · The numbers, settled.</b> Any remaining balance (deposit or first payment) is one tap in your portal — card or transfer, receipt automatic.`, 'margin-top:22px')
         + casaBtns,
     },
@@ -170,7 +170,7 @@ export function steps({ c, tenant, addrShort, addr, first, has = () => false, mi
         + casaBtns
         + para(`One small favour: if the journey so far deserved it, <b>a review means the world</b> to a small team like ours — it's how the next tenant finds us. Two minutes, honestly appreciated:`, 'margin-top:24px')
         + btn2(REVIEW_URL, '★ Leave a review')
-        + fine(`Something not perfect? Tell US first — <a href="${WA}" style="color:#141414">WhatsApp</a> — and we fix it fast.`, 'text-align:center'),
+        + fine(`Something not perfect? Tell US first — <a href="${WA}" style="color:#E5C558">WhatsApp</a> — and we fix it fast.`, 'text-align:center'),
     },
     {
       key: 'r90',
@@ -190,7 +190,7 @@ export function steps({ c, tenant, addrShort, addr, first, has = () => false, mi
       key: 'exit',
       due: dEnd != null && dEnd <= -3 && dEnd >= -8,
       subject: `Thank you for calling ${addrShort} home 🤍`,
-      html: para(`Ciao ${esc(first)} — your lease at <b>${esc(addr)}</b> reached its end date on ${fmtD(end)}. If the keys are back with us: thank you, sincerely, for being a BOOM tenant — deposit return follows the timeline in your agreement. If plans changed and you're staying on, ignore this note and <a href="${WA}" style="color:#141414">ping us on WhatsApp</a> — we'll sort the renewal.`)
+      html: para(`Ciao ${esc(first)} — your lease at <b>${esc(addr)}</b> reached its end date on ${fmtD(end)}. If the keys are back with us: thank you, sincerely, for being a BOOM tenant — deposit return follows the timeline in your agreement. If plans changed and you're staying on, ignore this note and <a href="${WA}" style="color:#E5C558">ping us on WhatsApp</a> — we'll sort the renewal.`)
         + para(`Two small things before we part:`)
         + btn(REVIEW_URL, '★ Leave a review — 2 minutes')
         + para(`And if someone you know is looking for a home in Rome, introduce us — our referral thank-you is real.`, 'margin-top:20px')

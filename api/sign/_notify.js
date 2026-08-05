@@ -128,7 +128,7 @@ export async function sendSignInvite({ contract, property, role, to, name, url, 
         + btn(url, 'Review & sign your contract')
         + fine(`Your signature is a legally valid electronic signature (FES — Art. 21 CAD), recorded with a signed
           certificate. This link is personal and single-use — please don’t forward it. Questions? Just reply, or
-          <a href="https://wa.me/393313251961" style="color:#141414">WhatsApp BOOM</a>.`, 'margin-top:20px;text-align:center'),
+          <a href="https://wa.me/393313251961" style="color:#E5C558">WhatsApp BOOM</a>.`, 'margin-top:20px;text-align:center'),
         preheader);
     }
     const ok = await trySend(to, subject, html);
