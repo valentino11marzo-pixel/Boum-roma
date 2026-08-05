@@ -49,6 +49,10 @@ const SUITES = [
   { name: 'publisher', file: 'tests/publisher/run.mjs',   what: 'Il Pubblicista: diff guidato dallo stato, remove prima di create, fallimenti parcheggiati non a vuoto, pannello bloccato ≠ catalogo allineato' },
   { name: 'sdd',      file: 'tests/sdd/run.mjs',          what: 'canone automatico SEPA: un addebito per rata per costruzione, mai il deposito, mai debiti pre-mandato, un fallimento non si ritenta da solo, doppio incasso mai sovrascritto' },
   { name: 'signlang', file: 'tests/sign/lang.mjs',        what: 'la pagina di firma parla la lingua di chi firma' },
+  { name: 'market',   file: 'tests/market/engine.mjs',   what: 'il libro mastro del Perito: un blocco non e una morte, i contatti non entrano, sotto campione niente numeri' },
+  { name: 'marketwiring', file: 'tests/market/wiring.mjs', what: 'le giunzioni del Perito: tap best-effort dopo il master, verdetto solo lato server, rules e cron presenti' },
+  { name: 'squadra',  file: 'tests/squadra/registry.mjs', what: 'organigramma: nessun cron gira senza comparire, e chi agisce da solo lo dichiara' },
+  { name: 'desk',     file: 'tests/squadra/desk.mjs',     what: 'la scrivania si disegna tutta senza Firestore, coi confini di ogni agente in chiaro' },
   { name: 'safari',   file: 'tests/safari/boot.mjs',      what: 'nessuna pagina autenticata resta appesa' },
 ];
 

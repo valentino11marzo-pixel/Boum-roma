@@ -20,6 +20,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
 <script src="/js/firebase-config.js"></script>
 <script src="/js/boom-portal.js"></script>
+<script src="/js/squadra-registry.js"></script>
 
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -163,16 +164,19 @@ section > h3 { font-size: 12px; letter-spacing: 3px; color: var(--text-secondary
   document.getElementById('app').style.display = '';
   const db = firebase.firestore();
 
-  const EMPLOYEES = [
-    { key: 'contabile',   emoji: '🧮', name: 'Il Contabile',   role: 'Fisco, incassi, pacchetto commercialista', endpoint: '/api/employees/contabile' },
-    { key: 'banca',       emoji: '🏦', name: 'La Banca',       role: 'Sync conti, riconciliazione, estratti CSV', endpoint: '/api/banking/sync', link: '/banca' },
-    { key: 'gestore',     emoji: '🏢', name: 'Il Gestore',     role: 'Solleciti, firme, rinnovi, burocrazia',     endpoint: '/api/employees/gestore' },
-    { key: 'commerciale', emoji: '🤝', name: 'Il Commerciale', role: 'Prima risposta e follow-up ai lead',        endpoint: '/api/employees/commerciale' },
-    { key: 'regista',     emoji: '🎬', name: 'Il Regista',     role: 'Foglio di chiamata, task, agenda visite (Telegram 07:30)', endpoint: '/api/regista/cron' },
-    { key: 'recupero',    emoji: '♻️', name: 'Il Recupero',    role: 'Checkout Stripe abbandonati → lead nel pipeline', endpoint: '/api/payments/recover-checkouts' },
-    { key: 'smistatore',  emoji: '📥', name: 'Lo Smistatore',  role: 'Manda un doc al bot Telegram o via email → archiviato', endpoint: '/api/documents/scan-inbox' },
-    { key: 'radar',       emoji: '📡', name: 'Lo Scout (PFS)', role: 'Radar di mercato per i clienti ricerca',    link: '/pfs-command' },
-  ];
+  // L'organigramma NON vive più qui. Questa lista era scritta a mano e si era
+  // fermata a OTTO voci mentre i cron erano 23: mancavano fra gli altri il
+  // Selezionatore (archivia lead da solo), il Fotografo (di notte riscrive le
+  // foto degli annunci), il Copywriter, il Rendiconto e l'Archivista. Nessuno
+  // se n'era accorto perché niente la confrontava con la realtà.
+  // Ora la sorgente è js/squadra-registry.js — LA STESSA che legge la sezione
+  // "La Squadra" dentro il portale, e che un test confronta coi cron veri di
+  // vercel.json a ogni CI. Le due pagine non possono più divergere.
+  const SQ = window.BOOM_SQUADRA;
+  const EMPLOYEES = (SQ ? SQ.TEAM : []).map(a => ({
+    key: a.key, emoji: a.emoji, name: a.name, role: a.role,
+    endpoint: a.run || null, link: a.console || null
+  }));
 
   const grid = document.getElementById('teamGrid');
   const health = {};   // key -> teamHealth doc
@@ -273,24 +277,38 @@ section > h3 { font-size: 12px; letter-spacing: 3px; color: var(--text-secondary
     } catch { /* banner best-effort */ }
   })();
 
-  // Radar PFS heartbeats live in pfsRadarHealth — roll them up into one dot.
+  // Il battito lo dichiara il registro (`health: {col, doc}`), così un agente
+  // che cambia collection non perde il pallino in silenzio.
+  const beatFor = (col, docId) =>
+    (SQ ? SQ.TEAM : []).find(a => a.health && a.health.col === col && a.health.doc === docId);
+
   BoomPortal.listen(db.collection('teamHealth'), snap => {
-    snap.docs.forEach(d => { health[d.id] = d.data(); });
+    snap.docs.forEach(d => {
+      const a = beatFor('teamHealth', d.id);
+      health[a ? a.key : d.id] = d.data();
+    });
     render();
   });
+  // Il radar PFS tiene un battito per FONTE: per lo Scout vale il PEGGIORE,
+  // altrimenti una fonte morta sparisce dietro tre sorelle verdi.
   BoomPortal.listen(db.collection('pfsRadarHealth'), snap => {
     let worst = null;
     snap.docs.forEach(d => {
-      const h = d.data();
       if (d.id === 'needsAttention') return;
+      const h = d.data();
+      const direct = beatFor('pfsRadarHealth', d.id);
+      if (direct) { health[direct.key] = h; return; }
       if (!worst || (!h.ok && worst.ok) || (h.consecutiveErrors || 0) > (worst.consecutiveErrors || 0)) worst = h;
     });
-    if (worst) { health.radar = worst; render(); }
+    if (worst) health.scout = worst;
+    render();
   });
 
   // Pending proposals from the employees (status==pending only — single-field
   // filter, no composite index; employee filter client-side).
-  const OURS = new Set(['contabile', 'gestore', 'commerciale']);
+  // Chiunque nell'organigramma può proporre: filtrare su tre nomi scritti a
+  // mano avrebbe nascosto le proposte di un agente nuovo senza dirlo.
+  const OURS = new Set((SQ ? SQ.TEAM : []).map(a => a.key));
   BoomPortal.listen(db.collection('action_queue').where('status', '==', 'pending').limit(50), snap => {
     const items = snap.docs.map(d => ({ id: d.id, ...d.data() }))
       .filter(a => OURS.has(a.proposedBy))

@@ -1629,6 +1629,38 @@ auto-ingested (e.g. no price recoverable) land in
 `pfsRadarHealth.needsAttention` — surfaced in `pfs-command.html`, never
 silently dropped.
 
+## Il Perito (market intelligence — js/market-engine.js + api/market/*)
+
+Il "nostro Casafari" col dato che Casafari non ha (i canoni FIRMATI). Nato
+dall'obiezione dell'operatore agli alert-only: un alert email racconta le
+NASCITE degli annunci, mai le MORTI — e le morti sono metà del valore (un
+annuncio sparito con prova = affitto concluso → giorni di assorbimento per
+zona). Studio: `STUDIO_BOOM_AUTONOMA.md`. Architettura a ciclo di vita:
+- **Nascite/vita**: ogni annuncio visto da QUALSIASI porta (pfs/_ingest tap,
+  best-effort e DOPO la scrittura master — il radar non rompe mai il servizio
+  pagato) alimenta `marketListings` via `api/market/_ledger.js` →
+  `ME.observe()`: fold puro, storia prezzi solo sui cambi, rientri con vite
+  archiviate (`pastLives`), MAI contatti del privato (il motore li scarta
+  alla porta — GDPR per costruzione, testato per mutazione).
+- **Morte**: verifiche attive via il Mac di Homie (`api/homie/market.js` —
+  GET lotto secondo le manopole, POST esiti; mandato in `bot/HOMIE.md`).
+  **Il verdetto lo dà IL SERVER** (`deathVerdict`): gone SOLO con prova
+  (404/410, marker 'unavailable'/'search'); 403/429/timeout/200-ambiguo =
+  unknown, MAI gone — un pomeriggio di blocchi non è "mezza Roma affittata".
+  Heartbeat `pfsRadarHealth/perito-eyes` (allerta Telegram esistente).
+- **Statistiche**: cron `api/market/pulse.js` (05:50 UTC) → un doc
+  `marketStats/<zoneSlug>` per zona (il portal legge quello, mai il registro
+  intero): mediana/p25/p75 €/mq, assorbimento (mediana giorni, SOLO morti
+  provate), ribassi 30gg. **Sotto `minSample` non esce un numero** —
+  "campione insufficiente", mai una mediana su 3 annunci. Verdetto esplicito
+  su libro vuoto e backlog verifiche (la lezione runVerdict di pfs/eyes).
+- Manopole nel registro squadra (deathcheckBatch/enrichBatch/minSample),
+  rules `marketListings`+`marketStats` admin-only (lezione propertyLocks).
+- Test: `node tests/market/engine.mjs` (18 check; mutazioni: 403→morte,
+  contatti→dentro, campione piccolo→pubblica — tutte catturate) e
+  `node tests/market/wiring.mjs` (giunzioni sulla sorgente: ordine del tap,
+  verdetto solo server, rules, cron).
+
 ## La Squadra (AI employees — api/employees/*)
 
 Scheduled "employees" that run the back office autonomously. Same
@@ -1655,6 +1687,75 @@ close email.
 **Console**: `team.html` (`/team`, admin-only, noindex) — status dot + last
 run per employee (the PFS radar appears as "Lo Scout" rolling up
 `pfsRadarHealth`), pending proposals, latest reports, "Esegui ora" buttons.
+
+### L'ORGANIGRAMMA (`js/squadra-registry.js` + `goTo('squadra')` nel portal)
+I tre `api/employees/*` sono la punta: BOOM ha **23 cron** e ~19 processi che
+agiscono da soli su dati, clienti e soldi veri. L'unico posto che li elencava
+era una lista **scritta a mano** dentro `team.html`, ferma a **8 voci**:
+mancavano — fra gli altri — il Selezionatore (archivia lead), il Fotografo
+(alle 03:20 riscrive le foto degli annunci), il Copywriter (ne riscrive i
+testi), il Rendiconto (il 1° del mese manda un PDF a ogni proprietario) e
+l'Archivista (spedisce fuori piattaforma l'archivio legale). Nessuno se n'era
+accorto perché **niente la confrontava con la realtà**.
+- **La riga che mancava.** Di un dipendente non basta sapere se è vivo (il
+  pallino verde): serve sapere **cosa fa da solo**. Letta sul codice la
+  risposta è netta — **su ~19 agenti, DUE passano da approvazione umana** (il
+  Gestore e il Commerciale, via `proposeAction` → `action_queue`). Journey,
+  Segugio, Rendiconto e Contabile **mandano email a inquilini, iscritti e
+  proprietari senza che nessuno tocchi niente**. Va benissimo che sia così —
+  è il motivo per cui la macchina regge senza personale — ma dev'essere
+  scritto, non una scoperta archeologica nel sorgente. Il desk lo mette in
+  testa alla pagina: *"scrivono ai tuoi clienti senza chiedertelo"*.
+- **La lettera di assunzione.** Ogni agente dichiara `hired` (perché esiste),
+  `mandate[]`, e le tre liste che sono il suo contratto: `autonomy.solo` /
+  `.porta` / `.mai`. Più `reach[]` — le chiavi che gli abbiamo dato (parla ai
+  clienti · scrive a te · archivio · file · soldi · vetrina · AI) — e
+  `approval` (`mai|sempre|parziale`). `attentionOf()` non misura
+  l'importanza ma **quanto costa caro se sbaglia mentre nessuno guarda**.
+- **Non può tornare alla deriva.** `driftVsCrons()` confronta il registro coi
+  cron veri di `vercel.json`: un cron non dichiarato (*dipendente fantasma*)
+  e un agente che punta a un cron inesistente sono **entrambi errori di CI**.
+- **Una copia sola.** La sezione nel portal e `/team` leggono lo STESSO
+  registro (stessa disciplina di `_avail.js`): non possono più divergere. La
+  voce di menu 🤖 La Squadra era `window.open('/team','_blank')` — una scheda
+  nuova — ed è ora una sezione del portale.
+- **Si disegna senza Firestore.** Mansioni, autonomia e confini sono
+  conoscenza statica: la pagina è intera prima che parta una lettura, e la
+  salute arriva dopo in fire-and-forget (regola Safari — mai un await sul
+  percorso di render). Il re-render dei pallini **salta se hai un fascicolo
+  aperto**, altrimenti te lo richiuderebbe sotto gli occhi.
+- **LA DIREZIONE** (`api/_squadra.js` + `settings/squadra`): vedere un
+  dipendente e poter premere "esegui ora" non è dirigerlo. Le soglie erano
+  costanti nel sorgente — `LATE_AFTER_DAYS = 3` in gestore.js,
+  `HUMAN_WINDOW_MS = 20 min` in commerciale.js, `DAILY_AI_CALL_CAP = 12` in
+  leads/brain.js — quindi "sollecita dopo 5 giorni invece di 3" voleva dire
+  un deploy, cioè in pratica non si cambiava mai. Ora le 10 manopole dei tre
+  agenti collegati si girano dal fascicolo; i **default e gli intervalli
+  ammessi stanno nel registro**, letto sia dal browser sia dal server
+  (`api/_squadra.js` importa `js/squadra-registry.js` — pattern già in uso da
+  `compliance-rules`/`canone-engine`), così la console non può mostrare un
+  valore diverso da quello in vigore.
+  **Due severità di proposito**: alla PORTA `validateKnobs` **rifiuta** un
+  valore impossibile invece di aggiustarlo (un valore corretto in silenzio è
+  una regola che l'operatore crede di aver messo e non è quella applicata —
+  la lezione di `buildConfig`); a RUNTIME `resolveKnobs` non esplode mai —
+  torna al default e lo scrive nel report (`rejectedLine`), perché un cron
+  che muore per un refuso in un campo è il modo peggiore di scoprirlo.
+  Fail-open: Firestore irraggiungibile ⇒ default, gli stessi che vede la
+  console.
+- **Regola dura: solo manopole collegate.** Un campo che non fa niente è
+  peggio di nessun campo — lo giri, non succede nulla, e da lì in poi non ti
+  fidi più della pagina. Il test lo rende meccanico: ogni manopola dichiarata
+  dev'essere **letta davvero** (`k.<chiave>`) nel sorgente del suo agente, e
+  il browser verifica che chi non ha manopole non ne disegni.
+- Test: `node tests/squadra/registry.mjs` (anti-deriva, lettera di assunzione,
+  manopole non finte, e la **garanzia di non-regressione**: senza impostazioni
+  salvate i default sono pinnati ai valori che le costanti avevano, così il
+  deploy non cambia comportamento in silenzio su clienti veri — verificato per
+  mutazione) e `node tests/squadra/desk.mjs` (monta la sezione in un
+  **Chromium vero** con `window.db` inesistente e pretende tutti gli agenti, i
+  tre elenchi su ogni scheda, i badge veri e i campi solo dove sono collegati;
+  si auto-skippa senza playwright).
 
 ## Lo Smistatore (document intake — api/documents/_smista.js)
 

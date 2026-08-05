@@ -27,14 +27,17 @@
 //
 // Auth: cron secret / X-Homie-Secret / admin ID token. `?dry=1` read-only.
 
+import { knobs, rejectedLine } from '../_squadra.js';
 import {
   requireCronOrAdmin, fsGet, fsPatch, fsList, reportEmployeeHealth, saveReport,
 } from '../employees/_lib.js';
 
 const EMPLOYEE = 'lead-brain';
 const MODEL = 'claude-haiku-4-5-20251001';
-const BATCH_MAX = 20;
-const DAILY_AI_CALL_CAP = 12;
+// Dimensione del lotto e freno di spesa non sono piu costanti qui: vivono su
+// `settings/squadra` e si cambiano dalla scrivania (portale -> La Squadra),
+// con default e intervalli in js/squadra-registry.js. Con dailyAiCallCap a 0
+// il voto resta quello delle regole gratuite: nessuna chiamata a pagamento.
 
 const NOISE_RE = /newsletter|unsubscribe|nuovi annunci|ricerca salvata|price drop|annunci per te|conferma la tua email|verifica il tuo account/i;
 const INJECTION_RE = /ignore (all|previous|the) instructions|system prompt|\*{3,}\s*INSTRUCTIONS|<\s*(script|iframe)|BEGIN PROMPT|jailbreak/i;
@@ -101,6 +104,7 @@ export default async function handler(req, res) {
   const actor = await requireCronOrAdmin(req, res);
   if (!actor) return;
   const dry = String((req.query && req.query.dry) || '') === '1';
+  const { k, rejected } = await knobs(EMPLOYEE);
 
   const stats = { scanned: 0, ruled: 0, aiGraded: 0, aiCalls: 0, dead: 0, A: 0, B: 0, C: 0, capped: false };
   try {
@@ -140,11 +144,11 @@ export default async function handler(req, res) {
         const b = (await fsGet(BUDGET_DOC)) || {};
         used = b.day === day ? Number(b.calls || 0) : 0;
       } catch { /* first */ }
-      if (!key || used >= DAILY_AI_CALL_CAP) {
+      if (!key || used >= k.dailyAiCallCap) {
         stats.capped = true;
         for (const l of ambiguous) grades.set(l.id, { grade: 'B', reason: 'AI cap/off — banda media prudente (' + (l._why || 's0') + ')', confidence: 0.4, by: 'rules-fallback' });
       } else {
-        const batch = ambiguous.slice(0, BATCH_MAX);
+        const batch = ambiguous.slice(0, k.batchMax);
         try {
           const out = await gradeBatch(key, batch);
           stats.aiCalls = 1;
@@ -180,7 +184,7 @@ export default async function handler(req, res) {
     }
 
     await reportEmployeeHealth(EMPLOYEE, { ok: true, stats });
-    await saveReport(EMPLOYEE, { stats, at: new Date().toISOString() });
+    await saveReport(EMPLOYEE, { stats, at: new Date().toISOString(), summary: rejectedLine(rejected) || undefined });
     return res.status(200).json({ ok: true, dry, ...stats });
   } catch (err) {
     console.error('[leads/brain]', err);

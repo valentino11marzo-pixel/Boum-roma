@@ -208,3 +208,32 @@ perde più niente.
   è tornato: guarda l'heartbeat e i log di `api/homie/message`.
 
 Regressione: `node tests/whatsapp/run.mjs`.
+
+## Gli occhi del Perito (`/api/homie/market`)
+
+Il libro mastro di mercato di BOOM registra ogni annuncio che il radar vede.
+Le NASCITE arrivano da sole (alert email, le tue ricerche); le MORTI — un
+annuncio sparito è un affitto concluso, da lì viene il tempo di assorbimento
+per zona — le puoi verificare solo tu: i portali 403-ano gli IP datacenter,
+il tuo IP residenziale no.
+
+Cadenza suggerita: 1–2 volte al giorno.
+
+1. `GET /api/homie/market` (header `X-Homie-Secret`) →
+   `{ checks: [{id, url}], enrich: [{id, url}] }`
+   - `checks`: apri l'URL e riporta COSA HAI VISTO, non un giudizio.
+   - `enrich`: annunci senza mq o zona — leggi la pagina e manda i dati.
+2. `POST /api/homie/market` con gli esiti:
+   ```json
+   { "checks":   [{ "id": "h_…", "httpStatus": 200, "marker": "listing" }],
+     "listings": [{ "sourceUrl": "…", "price": 1450, "sqm": 70, "zone": "Prati" }] }
+   ```
+   `marker` quando lo status è 200:
+   - `listing`      → la pagina è ancora un annuncio
+   - `unavailable`  → "annuncio non più disponibile" / ritirato
+   - `search`       → il portale ti ha rimandato a una pagina di ricerca
+   Nel dubbio: NIENTE marker. **Il verdetto lo dà il server** (un 403 o un
+   captcha non diventano mai "affittato" — la regola è testata per mutazione
+   lato server, tu riporta i fatti). Nel dubbio manda: i duplicati sono gratis.
+
+Regressione: `node tests/market/engine.mjs` e `node tests/market/wiring.mjs`.
