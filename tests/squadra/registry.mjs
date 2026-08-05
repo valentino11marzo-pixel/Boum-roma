@@ -131,5 +131,107 @@ check('i reparti coprono tutti — nessuno finisce fuori dall\'organigramma', ()
   assert.equal(grouped, S.TEAM.length, 'un agente con reparto ignoto sparirebbe dalla pagina');
 });
 
+// ── LE MANOPOLE ───────────────────────────────────────────────────────────
+// Regola dichiarata nel registro: qui stanno SOLO manopole realmente
+// collegate. Una manopola che non fa niente è peggio di nessuna manopola — la
+// giri, non succede nulla, e da lì in poi non ti fidi più della pagina. Il
+// test la rende meccanica invece che una buona intenzione.
+
+const AGENT_SRC = {
+  gestore: 'api/employees/gestore.js',
+  commerciale: 'api/employees/commerciale.js',
+  'lead-brain': 'api/leads/brain.js'
+};
+
+check('ogni manopola dichiarata è DAVVERO letta dal codice dell\'agente', () => {
+  for (const [key, rel] of Object.entries(AGENT_SRC)) {
+    const src = readFileSync(join(root, rel), 'utf8');
+    for (const d of S.knobsFor(key)) {
+      assert.ok(src.includes('k.' + d.key),
+        `${key}: la manopola "${d.key}" è nella pagina ma ${rel} non la legge — sarebbe un comando finto`);
+    }
+  }
+});
+
+check('nessun agente espone manopole senza essere collegato', () => {
+  for (const key of Object.keys(S.KNOBS)) {
+    assert.ok(AGENT_SRC[key], `${key} dichiara manopole ma non è nella lista dei collegati`);
+    assert.ok(S.get(key), `${key} non è nemmeno nell'organigramma`);
+  }
+});
+
+// LA GARANZIA DI NON-REGRESSIONE. Prima le soglie erano costanti nel sorgente.
+// Se un default qui divergesse, la squadra cambierebbe comportamento in
+// silenzio il giorno del deploy, su clienti veri. I valori sono pinnati a
+// quelli che le costanti avevano.
+check('senza impostazioni salvate il comportamento è identico a prima', () => {
+  const g = S.resolveKnobs('gestore', undefined).values;
+  assert.equal(g.lateAfterDays, 3, 'era LATE_AFTER_DAYS = 3');
+  assert.equal(g.unsignedAfterDays, 3, 'era UNSIGNED_AFTER_DAYS = 3');
+  assert.equal(g.renewalHorizonDays, 90, 'era RENEWAL_HORIZON = 90');
+
+  const c = S.resolveKnobs('commerciale', undefined).values;
+  assert.equal(c.humanWindowMin, 20, 'era HUMAN_WINDOW_MS = 20 min');
+  assert.equal(c.followupAfterHours, 48, 'era FOLLOWUP_AFTER_MS = 48h');
+  assert.equal(c.maxLeadAgeDays, 14, 'era MAX_LEAD_AGE_MS = 14gg');
+  assert.equal(c.maxFirstPerRun, 5, 'era MAX_FIRST_PER_RUN = 5');
+  assert.equal(c.maxFollowupPerRun, 3, 'era MAX_FOLLOWUP_PER_RUN = 3');
+
+  const b = S.resolveKnobs('lead-brain', undefined).values;
+  assert.equal(b.batchMax, 20, 'era BATCH_MAX = 20');
+  assert.equal(b.dailyAiCallCap, 12, 'era DAILY_AI_CALL_CAP = 12');
+});
+
+check('alla porta un valore impossibile viene RIFIUTATO, non aggiustato', () => {
+  const tooBig = S.validateKnobs('gestore', { lateAfterDays: 999 });
+  assert.equal(tooBig.ok, false, 'un valore fuori scala deve fallire');
+  assert.match(tooBig.errors[0], /da 0 a 30/);
+
+  const frac = S.validateKnobs('commerciale', { maxFirstPerRun: 2.5 });
+  assert.equal(frac.ok, false, '2.5 bozze non esistono');
+
+  const nan = S.validateKnobs('commerciale', { humanWindowMin: 'venti' });
+  assert.equal(nan.ok, false);
+  assert.match(nan.errors[0], /non è un numero/);
+
+  const good = S.validateKnobs('gestore', { lateAfterDays: 5 });
+  assert.equal(good.ok, true);
+  assert.equal(good.values.lateAfterDays, 5);
+  assert.equal(good.values.renewalHorizonDays, 90, 'i campi non toccati restano al default');
+});
+
+check('a runtime un valore corrotto non ferma mai un cron', () => {
+  const r = S.resolveKnobs('gestore', { lateAfterDays: 'tre', renewalHorizonDays: 5000 });
+  assert.equal(r.values.lateAfterDays, 3, 'torna al default invece di esplodere');
+  assert.equal(r.values.renewalHorizonDays, 90);
+  assert.equal(r.rejected.length, 2, 'e non lo ingoia: il report lo dice');
+  assert.ok(r.rejected.every(x => x.why), 'ogni rifiuto spiega perché');
+});
+
+check('un valore valido salvato viene davvero applicato', () => {
+  const r = S.resolveKnobs('commerciale', { maxFirstPerRun: 0, humanWindowMin: 90 });
+  assert.equal(r.values.maxFirstPerRun, 0, 'a 0 il Commerciale smette di preparare prime risposte');
+  assert.equal(r.values.humanWindowMin, 90);
+  assert.deepEqual(r.rejected, []);
+});
+
+check('knobDiff elenca solo ciò che è stato davvero cambiato', () => {
+  assert.deepEqual(S.knobDiff('gestore', undefined), [], 'di fabbrica: nessuna differenza');
+  const d = S.knobDiff('gestore', { lateAfterDays: 7 });
+  assert.equal(d.length, 1);
+  assert.equal(d[0].from, 3);
+  assert.equal(d[0].to, 7);
+});
+
+check('gli intervalli sono sensati e contengono il default', () => {
+  for (const [key, defs] of Object.entries(S.KNOBS)) {
+    for (const d of defs) {
+      assert.ok(d.min < d.max, `${key}.${d.key}: intervallo vuoto`);
+      assert.ok(d.def >= d.min && d.def <= d.max, `${key}.${d.key}: il default è fuori dal proprio intervallo`);
+      assert.ok(d.label && d.unit && d.help, `${key}.${d.key}: manca l'etichetta, l'unità o la spiegazione`);
+    }
+  }
+});
+
 console.log(`\n  ${pass} passati, ${fail} falliti\n`);
 process.exit(fail ? 1 : 0);

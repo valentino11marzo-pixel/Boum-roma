@@ -159,6 +159,39 @@ await check('il fascicolo è chiuso di default e si apre', async () => {
   assert.equal(openAfter, 1);
 });
 
+// ── LE MANOPOLE IN PAGINA ────────────────────────────────────────────────
+await check('le regole modificabili compaiono per gli agenti collegati', async () => {
+  const wired = Object.keys(registry.KNOBS);
+  assert.ok(wired.length >= 3, 'attesi almeno Gestore, Commerciale e Selezionatore');
+  for (const key of wired) {
+    for (const d of registry.knobsFor(key)) {
+      const el = await page.$(`#kn-${key}-${d.key}`);
+      assert.ok(el, `manca il campo per ${key}.${d.key}`);
+      const val = await el.inputValue();
+      assert.equal(Number(val), d.def, `${key}.${d.key} non parte dal valore in vigore`);
+    }
+    assert.ok(await page.$(`#kn-err-${key}`), `${key}: manca lo spazio per l'errore`);
+  }
+});
+
+await check('nessun comando finto: chi non ha manopole non ne mostra', async () => {
+  for (const a of registry.TEAM) {
+    if (registry.knobsFor(a.key).length) continue;
+    const stray = await page.$$(`[id^="kn-${a.key}-"]`);
+    assert.equal(stray.length, 0, `${a.name} non ha manopole collegate ma la pagina ne disegna ${stray.length}`);
+  }
+});
+
+await check('i campi rispettano gli intervalli dichiarati', async () => {
+  for (const key of Object.keys(registry.KNOBS)) {
+    for (const d of registry.knobsFor(key)) {
+      const [min, max] = await page.$eval(`#kn-${key}-${d.key}`, el => [el.min, el.max]);
+      assert.equal(Number(min), d.min, `${key}.${d.key}: min in pagina ≠ registro`);
+      assert.equal(Number(max), d.max, `${key}.${d.key}: max in pagina ≠ registro`);
+    }
+  }
+});
+
 await browser.close();
 server.close();
 

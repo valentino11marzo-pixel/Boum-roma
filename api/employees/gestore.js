@@ -20,6 +20,7 @@
 
 import COMPLIANCE from '../../js/compliance-rules.js';
 import { real } from '../_demo.js';
+import { knobs, rejectedLine } from '../_squadra.js';
 import {
   requireCronOrAdmin, fsList, logActivity, tgNotify, proposeAction,
   reportEmployeeHealth, saveReport, daysUntil, isoWeek, euro, esc, propLabel,
@@ -27,9 +28,11 @@ import {
 
 const EMPLOYEE = 'gestore';
 const BASE = 'https://www.boomrome.com';
-const LATE_AFTER_DAYS = 3;      // grace period before a payment reminder
-const UNSIGNED_AFTER_DAYS = 3;  // grace period before a signature nudge
-const RENEWAL_HORIZON = 90;     // days ahead to flag expiring contracts
+// Le tre soglie del Gestore non sono più costanti qui: vivono su
+// `settings/squadra` e si cambiano dalla scrivania (portale → La Squadra),
+// con default e intervalli ammessi dichiarati in js/squadra-registry.js —
+// lo stesso file che legge la console, così non possono divergere.
+// Cambiare "sollecita dopo 5 giorni invece di 3" non richiede più un deploy.
 
 export default async function handler(req, res) {
   const actor = await requireCronOrAdmin(req, res);
@@ -48,6 +51,8 @@ export default async function handler(req, res) {
 }
 
 async function run({ dry }) {
+  // Le soglie in vigore, non quelle di quando il file fu scritto.
+  const { k, rejected } = await knobs(EMPLOYEE);
   const now = new Date();
   const week = isoWeek(now);
 
@@ -74,7 +79,7 @@ async function run({ dry }) {
   for (const p of payments) {
     if (['paid', 'cancelled'].includes(p.status)) continue;
     const d = daysUntil(p.dueDate, now.getTime());
-    if (d == null || -d < LATE_AFTER_DAYS) continue;
+    if (d == null || -d < k.lateAfterDays) continue;
     const late = -d;
     const c = contractById[p.contractId] || {};
     const tenant = tenantOf(c);
@@ -113,7 +118,7 @@ async function run({ dry }) {
   for (const c of contracts) {
     if (!liveContract(c)) continue;
     const created = Date.parse(c.createdAt || c.startDate || 0);
-    if (created && (now - created) < UNSIGNED_AFTER_DAYS * 86400000) continue;
+    if (created && (now - created) < k.unsignedAfterDays * 86400000) continue;
     const targets = [];
     if (!c.tenantSignature && c.tenantSignToken) {
       const t = tenantOf(c);
@@ -148,7 +153,7 @@ async function run({ dry }) {
   for (const c of contracts) {
     if (!liveContract(c)) continue;
     const d = daysUntil(c.endDate, now.getTime());
-    if (d != null && d >= 0 && d <= RENEWAL_HORIZON) {
+    if (d != null && d >= 0 && d <= k.renewalHorizonDays) {
       digest.push(`🔄 ${propLabel(propById, c)} — contratto scade tra ${d}gg: decidere rinnovo/ricollocamento`);
     } else if (d != null && d < 0) {
       digest.push(`🔴 ${propLabel(propById, c)} — contratto SCADUTO da ${Math.abs(d)}gg`);
@@ -178,7 +183,7 @@ async function run({ dry }) {
     proposalsSkippedDedup: proposals.length - fresh.length,
     digestItems: digest.length,
   };
-  const summary = `${fresh.length} proposte in coda (solleciti/firme) · ${digest.length} punti d'attenzione`;
+  const summary = [`${fresh.length} proposte in coda (solleciti/firme) · ${digest.length} punti d'attenzione`, rejectedLine(rejected)].filter(Boolean).join(' — ');
 
   // Telegram digest — the proposals themselves already arrive as approvable
   // cards via notify-pending; here we only summarize + list watch items.

@@ -1550,10 +1550,37 @@ accorto perché **niente la confrontava con la realtà**.
   salute arriva dopo in fire-and-forget (regola Safari — mai un await sul
   percorso di render). Il re-render dei pallini **salta se hai un fascicolo
   aperto**, altrimenti te lo richiuderebbe sotto gli occhi.
-- Test: `node tests/squadra/registry.mjs` (anti-deriva + la lettera di
-  assunzione completa, verificato per mutazione) e `node tests/squadra/desk.mjs`
-  (monta la sezione in un **Chromium vero** con `window.db` inesistente e
-  pretende tutti gli agenti, i tre elenchi su ogni scheda e i badge veri;
+- **LA DIREZIONE** (`api/_squadra.js` + `settings/squadra`): vedere un
+  dipendente e poter premere "esegui ora" non è dirigerlo. Le soglie erano
+  costanti nel sorgente — `LATE_AFTER_DAYS = 3` in gestore.js,
+  `HUMAN_WINDOW_MS = 20 min` in commerciale.js, `DAILY_AI_CALL_CAP = 12` in
+  leads/brain.js — quindi "sollecita dopo 5 giorni invece di 3" voleva dire
+  un deploy, cioè in pratica non si cambiava mai. Ora le 10 manopole dei tre
+  agenti collegati si girano dal fascicolo; i **default e gli intervalli
+  ammessi stanno nel registro**, letto sia dal browser sia dal server
+  (`api/_squadra.js` importa `js/squadra-registry.js` — pattern già in uso da
+  `compliance-rules`/`canone-engine`), così la console non può mostrare un
+  valore diverso da quello in vigore.
+  **Due severità di proposito**: alla PORTA `validateKnobs` **rifiuta** un
+  valore impossibile invece di aggiustarlo (un valore corretto in silenzio è
+  una regola che l'operatore crede di aver messo e non è quella applicata —
+  la lezione di `buildConfig`); a RUNTIME `resolveKnobs` non esplode mai —
+  torna al default e lo scrive nel report (`rejectedLine`), perché un cron
+  che muore per un refuso in un campo è il modo peggiore di scoprirlo.
+  Fail-open: Firestore irraggiungibile ⇒ default, gli stessi che vede la
+  console.
+- **Regola dura: solo manopole collegate.** Un campo che non fa niente è
+  peggio di nessun campo — lo giri, non succede nulla, e da lì in poi non ti
+  fidi più della pagina. Il test lo rende meccanico: ogni manopola dichiarata
+  dev'essere **letta davvero** (`k.<chiave>`) nel sorgente del suo agente, e
+  il browser verifica che chi non ha manopole non ne disegni.
+- Test: `node tests/squadra/registry.mjs` (anti-deriva, lettera di assunzione,
+  manopole non finte, e la **garanzia di non-regressione**: senza impostazioni
+  salvate i default sono pinnati ai valori che le costanti avevano, così il
+  deploy non cambia comportamento in silenzio su clienti veri — verificato per
+  mutazione) e `node tests/squadra/desk.mjs` (monta la sezione in un
+  **Chromium vero** con `window.db` inesistente e pretende tutti gli agenti, i
+  tre elenchi su ogni scheda, i badge veri e i campi solo dove sono collegati;
   si auto-skippa senza playwright).
 
 ## Lo Smistatore (document intake — api/documents/_smista.js)

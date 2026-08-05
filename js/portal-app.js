@@ -12185,6 +12185,36 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const bullets = (arr, col) => (arr || []).map(x =>
             `<li style="margin:0 0 5px 0;color:${col || 'var(--text-secondary)'};line-height:1.6">${esc(x)}</li>`).join('');
 
+        // LE REGOLE MODIFICABILI. Compaiono SOLO per gli agenti che hanno
+        // manopole davvero collegate a una riga di codice: un campo che non
+        // fa niente è peggio di nessun campo — lo giri, non succede nulla, e
+        // da lì in poi non ti fidi più della pagina.
+        const stored = (window.__squadraKnobs || {});
+        const knobsBlock = (a) => {
+            const defs = SQ.knobsFor(a.key);
+            if (!defs.length) return '';
+            const cur = SQ.resolveKnobs(a.key, stored[a.key]).values;
+            const changed = SQ.knobDiff(a.key, stored[a.key]);
+            return `<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+              <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:9px">
+                <span style="font-size:10px;letter-spacing:2px;color:#555;font-weight:600">COME LAVORA</span>
+                ${changed.length ? `<span style="font-size:9.5px;color:var(--gold)">${changed.length} regol${changed.length === 1 ? 'a' : 'e'} modificat${changed.length === 1 ? 'a' : 'e'}</span>` : '<span style="font-size:9.5px;color:#444">tutto ai valori di fabbrica</span>'}
+              </div>
+              ${defs.map(d => `<div style="display:flex;align-items:center;gap:9px;margin-bottom:8px;flex-wrap:wrap">
+                <label for="kn-${a.key}-${d.key}" title="${esc(d.help)}" style="flex:1;min-width:150px;font-size:11.5px;color:var(--text-secondary);line-height:1.45">${esc(d.label)}</label>
+                <input id="kn-${a.key}-${d.key}" type="number" value="${cur[d.key]}" min="${d.min}" max="${d.max}" step="1"
+                       style="width:74px;background:var(--bg-input,#1A1A1A);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:5px 8px;font-size:12px;font-family:inherit;text-align:right">
+                <span style="font-size:10.5px;color:#555;min-width:92px">${esc(d.unit)}</span>
+              </div>
+              <div style="font-size:10px;color:#444;margin:-4px 0 10px;line-height:1.5">${esc(d.help)}</div>`).join('')}
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:4px">
+                <button class="btn btn-sm" onclick="saveKnobs('${a.key}',this)" style="font-size:11px">SALVA REGOLE</button>
+                ${changed.length ? `<button class="btn btn-sm btn-secondary" onclick="resetKnobs('${a.key}',this)" style="font-size:11px">Valori di fabbrica</button>` : ''}
+                <span id="kn-err-${a.key}" style="font-size:10.5px;color:#F31260;flex:1;min-width:130px;line-height:1.4"></span>
+              </div>
+            </div>`;
+        };
+
         const agentCard = (a) => {
             const h = H[a.key];
             const st = SQ.statusOf(h);
@@ -12226,6 +12256,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                       <ul style="margin:0;padding-left:17px;font-size:11.5px">${bullets(a.autonomy.mai)}</ul>
                     </div>
                   </div>
+
+                  ${knobsBlock(a)}
 
                   <div style="font-size:10.5px;color:#555;margin-top:15px;line-height:1.7">
                     <b style="color:var(--text-secondary);font-weight:500">Orario:</b> ${a.crons.map(c => esc(c)).join(' · ') || '—'}
@@ -12291,6 +12323,58 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         btn.disabled = false; btn.textContent = old;
     }
 
+    // Salva le regole di un agente. RIFIUTA un valore impossibile invece di
+    // aggiustarlo di nascosto: un valore corretto in silenzio è una regola che
+    // l'operatore crede di aver messo e non è quella in vigore (la lezione di
+    // buildConfig in _avail.js). Dopo il salvataggio NON si ridisegna: il
+    // fascicolo aperto si richiuderebbe sotto le mani.
+    async function saveKnobs(key, btn) {
+        const SQ = window.BOOM_SQUADRA;
+        const errEl = document.getElementById('kn-err-' + key);
+        const input = {};
+        SQ.knobsFor(key).forEach(d => {
+            const el = document.getElementById('kn-' + key + '-' + d.key);
+            if (el) input[d.key] = el.value;
+        });
+        const v = SQ.validateKnobs(key, input);
+        if (!v.ok) { if (errEl) errEl.textContent = v.errors.join(' · '); return; }
+        if (errEl) errEl.textContent = '';
+
+        const old = btn.textContent;
+        btn.disabled = true; btn.textContent = 'SALVO…';
+        try {
+            await db.collection('settings').doc('squadra').set({ [key]: v.values }, { merge: true });
+            window.__squadraKnobs = window.__squadraKnobs || {};
+            window.__squadraKnobs[key] = v.values;
+            const a = SQ.get(key);
+            toast('success', 'Regole aggiornate', (a ? a.name : key) + ' lavora così dal prossimo giro');
+        } catch (e) {
+            if (errEl) errEl.textContent = 'Salvataggio fallito: ' + (e.message || e);
+        }
+        btn.disabled = false; btn.textContent = old;
+    }
+
+    async function resetKnobs(key, btn) {
+        const SQ = window.BOOM_SQUADRA;
+        const old = btn.textContent;
+        btn.disabled = true; btn.textContent = 'RIPRISTINO…';
+        try {
+            const defs = {}; SQ.knobsFor(key).forEach(d => { defs[d.key] = d.def; });
+            await db.collection('settings').doc('squadra').set({ [key]: defs }, { merge: true });
+            window.__squadraKnobs = window.__squadraKnobs || {};
+            window.__squadraKnobs[key] = defs;
+            SQ.knobsFor(key).forEach(d => {
+                const el = document.getElementById('kn-' + key + '-' + d.key);
+                if (el) el.value = d.def;
+            });
+            toast('success', 'Valori di fabbrica', 'ripristinati');
+        } catch (e) {
+            const errEl = document.getElementById('kn-err-' + key);
+            if (errEl) errEl.textContent = 'Ripristino fallito: ' + (e.message || e);
+        }
+        btn.disabled = false; btn.textContent = old;
+    }
+
     // Dati vivi della Squadra — fire-and-forget DOPO il render, mai prima:
     // la pagina è già leggibile senza, e su Safari un await sul percorso di
     // render è esattamente come nasce uno spinner infinito.
@@ -12309,6 +12393,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             if (document.querySelector('#main details[open]')) return;
             renderPage();
         };
+
+        // Le regole in vigore. Se la lettura fallisce la pagina mostra i
+        // DEFAULT, che sono anche quelli che il server applica in quel caso:
+        // console e agenti restano d'accordo anche quando Firestore non c'è.
+        db.collection('settings').doc('squadra').get().then(d => {
+            window.__squadraKnobs = (d.exists ? d.data() : {}) || {};
+            sqRefresh();
+        }).catch(() => {});
 
         db.collection('teamHealth').get().then(snap => {
             snap.docs.forEach(d => {

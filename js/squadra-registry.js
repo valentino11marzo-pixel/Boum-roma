@@ -525,11 +525,116 @@
     return null;
   }
 
+  /* ── LA DIREZIONE ──────────────────────────────────────────────────────
+   * Vedere un dipendente e potergli dire "esegui ora" non è dirigerlo. Le
+   * soglie con cui lavorano erano costanti nel sorgente: `LATE_AFTER_DAYS = 3`
+   * dentro gestore.js, `HUMAN_WINDOW_MS = 20 min` dentro commerciale.js.
+   * Cambiare "sollecita dopo 5 giorni invece di 3" voleva dire un deploy.
+   *
+   * Le manopole vivono qui — UNA definizione letta dal browser E dal server
+   * (api/_squadra.js importa questo file), così la console non può mostrare
+   * un default diverso da quello in vigore. È la lezione di _avail.js: far
+   * modificare all'operatore una regola che non è quella applicata è peggio
+   * che non fargli modificare niente.
+   *
+   * REGOLA DURA: qui stanno SOLO manopole realmente collegate a un agente.
+   * Una manopola che non fa niente è peggio di nessuna manopola — la giri,
+   * non succede nulla, e da lì in poi non ti fidi più della pagina. Un
+   * agente senza `knobs` semplicemente non ne ha ancora.
+   */
+  var KNOBS = {
+    gestore: [
+      { key: 'lateAfterDays', label: 'Sollecita il pagamento dopo', unit: 'giorni di ritardo',
+        def: 3, min: 0, max: 30, help: 'Sotto questa soglia il ritardo non produce nessuna proposta di sollecito.' },
+      { key: 'unsignedAfterDays', label: 'Sollecita la firma dopo', unit: 'giorni dall\'invito',
+        def: 3, min: 0, max: 60, help: 'Quanto aspettare prima di proporre il promemoria a chi non ha ancora firmato.' },
+      { key: 'renewalHorizonDays', label: 'Segnala i rinnovi con', unit: 'giorni di anticipo',
+        def: 90, min: 15, max: 365, help: 'I contratti che scadono entro questa finestra entrano nel digest.' }
+    ],
+    commerciale: [
+      { key: 'humanWindowMin', label: 'Lascia a te i primi', unit: 'minuti',
+        def: 20, min: 0, max: 240, help: 'Il tempo che si tiene da parte perché tu risponda a mano. Prima di questo non prepara nulla.' },
+      { key: 'followupAfterHours', label: 'Follow-up dopo', unit: 'ore di silenzio',
+        def: 48, min: 6, max: 240, help: 'Un solo follow-up, e solo per lead A/B o con intenzione di candidarsi.' },
+      { key: 'maxLeadAgeDays', label: 'Non riesumare lead più vecchi di', unit: 'giorni',
+        def: 14, min: 1, max: 90, help: 'Oltre questa età il lead è archeologia: nessuna bozza.' },
+      { key: 'maxFirstPerRun', label: 'Massimo prime risposte per giro', unit: 'bozze',
+        def: 5, min: 0, max: 20, help: 'Tetto per run (gira ogni 2h dalle 06 alle 18). A 0 smette di preparare prime risposte.' },
+      { key: 'maxFollowupPerRun', label: 'Massimo follow-up per giro', unit: 'bozze',
+        def: 3, min: 0, max: 20, help: 'Tetto per run. A 0 smette di preparare follow-up.' }
+    ],
+    'lead-brain': [
+      { key: 'batchMax', label: 'Lead per chiamata AI', unit: 'lead',
+        def: 20, min: 1, max: 50, help: 'Quanti lead ambigui entrano nella singola chiamata a Claude.' },
+      { key: 'dailyAiCallCap', label: 'Tetto chiamate AI al giorno', unit: 'chiamate',
+        def: 12, min: 0, max: 100, help: 'Il freno di spesa. A 0 il voto resta quello delle regole gratuite, senza AI.' }
+    ]
+  };
+
+  function knobsFor(key) { return KNOBS[key] || []; }
+
+  /* Legge i valori salvati e restituisce quelli DA USARE.
+   *
+   * Due severità diverse, di proposito:
+   *  • alla PORTA (console, prima di salvare) si RIFIUTA un valore impossibile
+   *    invece di aggiustarlo di nascosto — un valore aggiustato in silenzio è
+   *    una regola che l'operatore crede di aver messo e non è quella in vigore;
+   *  • a RUNTIME (server) non si esplode mai: un valore corrotto — doc
+   *    modificato a mano, campo di un'altra versione — torna al default e
+   *    finisce in `rejected`, che il chiamante può stampare nel report.
+   */
+  function resolveKnobs(agentKey, stored) {
+    var defs = knobsFor(agentKey), values = {}, rejected = [];
+    var src = (stored && typeof stored === 'object') ? stored : {};
+    defs.forEach(function (d) {
+      var raw = src[d.key];
+      if (raw === undefined || raw === null || raw === '') { values[d.key] = d.def; return; }
+      var n = typeof raw === 'number' ? raw : Number(String(raw).replace(',', '.'));
+      if (!isFinite(n)) { values[d.key] = d.def; rejected.push({ key: d.key, got: raw, why: 'non è un numero' }); return; }
+      n = Math.round(n);
+      if (n < d.min || n > d.max) {
+        values[d.key] = d.def;
+        rejected.push({ key: d.key, got: raw, why: 'fuori dall\'intervallo ' + d.min + '–' + d.max });
+        return;
+      }
+      values[d.key] = n;
+    });
+    return { values: values, rejected: rejected };
+  }
+
+  /* La porta: valida ciò che l'operatore sta per salvare. Rifiuta, non
+   * aggiusta. Restituisce { ok, values, errors[] }. */
+  function validateKnobs(agentKey, input) {
+    var defs = knobsFor(agentKey), values = {}, errors = [];
+    defs.forEach(function (d) {
+      var raw = (input || {})[d.key];
+      if (raw === undefined || raw === null || raw === '') { values[d.key] = d.def; return; }
+      var n = typeof raw === 'number' ? raw : Number(String(raw).replace(',', '.'));
+      if (!isFinite(n)) { errors.push(d.label + ': "' + raw + '" non è un numero'); return; }
+      if (n !== Math.round(n)) { errors.push(d.label + ': deve essere un numero intero'); return; }
+      if (n < d.min || n > d.max) { errors.push(d.label + ': ammesso da ' + d.min + ' a ' + d.max + ' (' + d.unit + ')'); return; }
+      values[d.key] = n;
+    });
+    return { ok: !errors.length, values: values, errors: errors };
+  }
+
+  /* Cosa è stato cambiato rispetto ai default — la pagina lo mostra così
+   * l'operatore sa quali regole ha toccato senza rileggersele tutte. */
+  function knobDiff(agentKey, stored) {
+    var r = resolveKnobs(agentKey, stored), defs = knobsFor(agentKey), out = [];
+    defs.forEach(function (d) {
+      if (r.values[d.key] !== d.def) out.push({ key: d.key, label: d.label, from: d.def, to: r.values[d.key], unit: d.unit });
+    });
+    return out;
+  }
+
   var API = {
-    TEAM: TEAM, REPARTI: REPARTI, REACH: REACH,
+    TEAM: TEAM, REPARTI: REPARTI, REACH: REACH, KNOBS: KNOBS,
     get: get, statusOf: statusOf, attentionOf: attentionOf,
     speaksToClients: speaksToClients, byReparto: byReparto,
-    rollup: rollup, driftVsCrons: driftVsCrons
+    rollup: rollup, driftVsCrons: driftVsCrons,
+    knobsFor: knobsFor, resolveKnobs: resolveKnobs,
+    validateKnobs: validateKnobs, knobDiff: knobDiff
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (root) root.BOOM_SQUADRA = API;
