@@ -3850,7 +3850,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="nav-item ${S.page==='bonifica'?'active':''}" onclick="goTo('bonifica')"><span class="nav-icon">🧹</span> Bonifica</div>
                 </div>
                 <div class="nav-section"><div class="nav-label">Console</div>
-                    <div class="nav-item" onclick="window.open('/team','_blank')"><span class="nav-icon">🤖</span> La Squadra</div>
+                    <div class="nav-item ${S.page==='squadra'?'active':''}" onclick="goTo('squadra')"><span class="nav-icon">🤖</span> La Squadra</div>
                     <div class="nav-item" onclick="window.open('/banca','_blank')"><span class="nav-icon">🏦</span> Banca &amp; Fisco</div>
                     <div class="nav-item" onclick="window.open('/pfs-command','_blank')"><span class="nav-icon">🛰️</span> PFS Command</div>
                     <div class="nav-item" onclick="window.open('/photo-lab','_blank')"><span class="nav-icon">🎞️</span> Photo Lab</div>
@@ -3945,6 +3945,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             case 'maintenance': m.innerHTML = isAdmin() ? maintenancePage() : accessDenied(); break;
             case 'rules': m.innerHTML = isAdmin() ? rulesPage() : accessDenied(); break;
             case 'documents': m.innerHTML = isAdmin() ? documentsPage() : accessDenied(); break;
+            case 'squadra': m.innerHTML = isAdmin() ? squadraPage() : accessDenied(); if (isAdmin()) setTimeout(loadSquadraLive, 0); break;
             case 'commercialista': m.innerHTML = (isAdmin() || isLandlord()) ? commercialistaPage() : accessDenied(); break;
             case 'inbox': m.innerHTML = (isAdmin() || isLandlord()) ? inboxPage() : accessDenied(); break;
             case 'photo-studio': m.innerHTML = isAdmin() ? photoStudioPage() : accessDenied(); if (isAdmin()) setTimeout(photoStudioInitDnd, 30); break;
@@ -12134,6 +12135,235 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         pdf.save(filename);
         logActivity('tenant_receipts_downloaded', 'payment', { year, count: payments.length, total });
         toast('success', 'Riepilogo scaricato', payments.length + ' canoni · €' + total);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // LA SQUADRA — la scrivania dei dipendenti automatici.
+    //
+    // Prima viveva in /team, una pagina a parte aperta in una scheda nuova,
+    // con OTTO voci scritte a mano mentre i cron erano 23. Mancavano fra gli
+    // altri il Selezionatore (archivia lead da solo), il Fotografo (di notte
+    // riscrive le foto degli annunci) e il Rendiconto (il 1° del mese manda un
+    // PDF a ogni proprietario). L'organigramma vero sta ora in
+    // js/squadra-registry.js, ed è lo STESSO che legge /team: non possono più
+    // divergere. Un test lo confronta coi cron di vercel.json a ogni CI.
+    //
+    // La pagina si disegna SUBITO: mansioni, autonomia e confini sono
+    // conoscenza statica, non hanno bisogno di Firestore. Solo i pallini di
+    // salute arrivano dopo, senza bloccare niente (regola Safari: mai un
+    // await sul percorso di render).
+    // ═══════════════════════════════════════════════════════════════════
+
+    function squadraPage() {
+        const SQ = window.BOOM_SQUADRA;
+        if (!SQ) return `<div class="page-header"><div class="page-title">La Squadra</div></div>
+            <div class="card" style="padding:20px">Registro non caricato (js/squadra-registry.js).</div>`;
+
+        const H = window.__squadraHealth || {};
+        const speakers = SQ.speaksToClients();
+        const roll = SQ.rollup(SQ.TEAM, H);
+
+        const DOT = { ok: '#00D26A', warn: '#F5A524', err: '#F31260', off: '#555' };
+        const dot = (st) => `<span title="${st}" style="width:9px;height:9px;border-radius:50%;flex-shrink:0;background:${DOT[st]};${st !== 'off' ? `box-shadow:0 0 8px ${DOT[st]}` : ''}"></span>`;
+
+        const APPROVAL = {
+            mai:      { txt: 'Agisce da solo',  col: '#F5A524' },
+            sempre:   { txt: 'Passa sempre da te', col: '#00D26A' },
+            parziale: { txt: 'In parte da solo', col: '#8AB4F8' }
+        };
+
+        const ago = (ts) => {
+            if (!ts) return 'mai';
+            const d = ts.toDate ? ts.toDate() : new Date(ts);
+            const m = Math.round((Date.now() - d.getTime()) / 60000);
+            if (m < 1) return 'adesso';
+            if (m < 60) return m + ' min fa';
+            if (m < 48 * 60) return Math.round(m / 60) + ' h fa';
+            return d.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+        };
+
+        const bullets = (arr, col) => (arr || []).map(x =>
+            `<li style="margin:0 0 5px 0;color:${col || 'var(--text-secondary)'};line-height:1.6">${esc(x)}</li>`).join('');
+
+        const agentCard = (a) => {
+            const h = H[a.key];
+            const st = SQ.statusOf(h);
+            const ap = APPROVAL[a.approval];
+            const att = SQ.attentionOf(a);
+            return `<div class="card" style="padding:0;overflow:hidden;${att >= 3 ? 'border-color:rgba(245,165,36,.35)' : ''}">
+              <details>
+                <summary style="padding:15px 16px;cursor:pointer;list-style:none;display:flex;align-items:flex-start;gap:11px">
+                  <span style="font-size:23px;line-height:1">${a.emoji}</span>
+                  <div style="flex:1;min-width:0">
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <b style="font-size:14px;letter-spacing:.5px">${esc(a.name)}</b>${dot(st)}
+                    </div>
+                    <div style="font-size:11.5px;color:var(--text-secondary);margin-top:2px;line-height:1.5">${esc(a.role)}</div>
+                    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;align-items:center">
+                      <span style="font-size:10px;font-weight:600;letter-spacing:.4px;color:${ap.col};border:1px solid ${ap.col}44;background:${ap.col}14;border-radius:20px;padding:2px 8px">${ap.txt}</span>
+                      ${a.reach.map(r => `<span title="${esc(SQ.REACH[r].note)}" style="font-size:10px;color:var(--text-secondary);border:1px solid var(--border);border-radius:20px;padding:2px 8px">${esc(SQ.REACH[r].label)}</span>`).join('')}
+                    </div>
+                    <div style="font-size:10.5px;color:#555;margin-top:7px">Ultimo run: ${ago(h && h.lastRunAt)}${h && h.consecutiveErrors ? ` · <span style="color:#F31260">${h.consecutiveErrors} errori di fila</span>` : ''} · <span style="color:var(--gold)">fascicolo ▾</span></div>
+                  </div>
+                </summary>
+                <div style="padding:2px 16px 16px;border-top:1px solid var(--border);margin-top:2px">
+                  <div style="font-size:12px;color:var(--text);line-height:1.65;margin:13px 0 15px;padding-left:11px;border-left:2px solid var(--gold)">${esc(a.hired)}</div>
+
+                  <div style="font-size:10px;letter-spacing:2px;color:#555;font-weight:600;margin-bottom:6px">MANSIONE</div>
+                  <ul style="margin:0 0 16px;padding-left:17px;font-size:12px">${bullets(a.mandate)}</ul>
+
+                  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:13px">
+                    <div>
+                      <div style="font-size:10px;letter-spacing:1.5px;color:#F5A524;font-weight:600;margin-bottom:6px">FA DA SOLO</div>
+                      <ul style="margin:0;padding-left:17px;font-size:11.5px">${bullets(a.autonomy.solo)}</ul>
+                    </div>
+                    <div>
+                      <div style="font-size:10px;letter-spacing:1.5px;color:#00D26A;font-weight:600;margin-bottom:6px">PORTA A TE</div>
+                      <ul style="margin:0;padding-left:17px;font-size:11.5px">${bullets(a.autonomy.porta)}</ul>
+                    </div>
+                    <div>
+                      <div style="font-size:10px;letter-spacing:1.5px;color:#8AB4F8;font-weight:600;margin-bottom:6px">NON FA MAI</div>
+                      <ul style="margin:0;padding-left:17px;font-size:11.5px">${bullets(a.autonomy.mai)}</ul>
+                    </div>
+                  </div>
+
+                  <div style="font-size:10.5px;color:#555;margin-top:15px;line-height:1.7">
+                    <b style="color:var(--text-secondary);font-weight:500">Orario:</b> ${a.crons.map(c => esc(c)).join(' · ') || '—'}
+                  </div>
+
+                  <div style="display:flex;gap:8px;margin-top:13px;flex-wrap:wrap">
+                    ${a.run ? `<button class="btn btn-sm" onclick="runAgent('${a.key}','${a.run}',this)" style="font-size:11px">▶ ESEGUI ORA</button>` : ''}
+                    ${a.console ? `<a class="btn btn-sm btn-secondary" href="${a.console}" style="font-size:11px;text-decoration:none">APRI CONSOLE</a>` : ''}
+                  </div>
+                </div>
+              </details>
+            </div>`;
+        };
+
+        return `
+        <div class="page-header">
+          <div>
+            <div class="page-title">La Squadra</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-top:3px">${SQ.TEAM.length} dipendenti automatici · ${roll.ok} al lavoro · ${roll.warn + roll.err} da guardare · ${roll.off} senza battito</div>
+          </div>
+        </div>
+
+        <!-- La riga che nessuna pagina diceva: chi può parlare ai clienti da solo. -->
+        <div class="card" style="padding:16px 18px;margin-bottom:18px;border-color:rgba(245,165,36,.3);background:rgba(245,165,36,.05)">
+          <div style="font-size:11px;letter-spacing:1.5px;color:#F5A524;font-weight:600;margin-bottom:8px">⚠️ SCRIVONO AI TUOI CLIENTI SENZA CHIEDERTELO</div>
+          <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:9px">
+            ${speakers.map(a => `<span style="font-size:11.5px;border:1px solid var(--border);border-radius:20px;padding:3px 11px;background:var(--bg-elevated)">${a.emoji} ${esc(a.name)}</span>`).join('')}
+          </div>
+          <div style="font-size:11.5px;color:var(--text-secondary);line-height:1.65">
+            Mandano email a inquilini, iscritti e proprietari senza passare da un'approvazione. È il motivo per cui la macchina regge senza personale — ma va saputo, non scoperto.
+            Gli unici due che ti chiedono sempre il permesso prima di scrivere sono <b style="color:var(--text)">Il Gestore</b> e <b style="color:var(--text)">Il Commerciale</b>.
+          </div>
+        </div>
+
+        ${SQ.byReparto().map(g => `
+          <div class="section-title" style="margin:22px 0 11px">${esc(g.reparto)}</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:12px">
+            ${g.agents.map(agentCard).join('')}
+          </div>`).join('')}
+
+        <div class="section-title" style="margin:26px 0 11px">In attesa del tuo ✅</div>
+        <div id="sqPending"><div class="card" style="padding:15px;color:#555;font-size:12px">Carico…</div></div>
+
+        <div class="section-title" style="margin:26px 0 11px">Ultimi report</div>
+        <div id="sqReports"><div class="card" style="padding:15px;color:#555;font-size:12px">Carico…</div></div>
+        `;
+    }
+
+    // Esegue un agente su richiesta. Il pulsante dice cosa sta succedendo:
+    // un run che gira in silenzio è indistinguibile da un bottone rotto.
+    async function runAgent(key, endpoint, btn) {
+        const old = btn.textContent;
+        btn.disabled = true; btn.textContent = 'IN CORSO…';
+        try {
+            const token = await firebase.auth().currentUser.getIdToken();
+            const r = await fetch(endpoint, { method: 'POST', headers: { Authorization: 'Bearer ' + token } });
+            const j = await r.json().catch(() => ({}));
+            if (r.ok && j.ok !== false) toast('success', 'Fatto', j.summary || key + ' ha girato');
+            else throw new Error(j.error || ('HTTP ' + r.status));
+        } catch (e) {
+            toast('error', 'Run fallito', String(e.message || e));
+        }
+        btn.disabled = false; btn.textContent = old;
+    }
+
+    // Dati vivi della Squadra — fire-and-forget DOPO il render, mai prima:
+    // la pagina è già leggibile senza, e su Safari un await sul percorso di
+    // render è esattamente come nasce uno spinner infinito.
+    function loadSquadraLive() {
+        const SQ = window.BOOM_SQUADRA;
+        if (!SQ || !window.db) return;
+        const H = window.__squadraHealth = window.__squadraHealth || {};
+
+        // Ridisegnare mentre l'operatore ha un fascicolo APERTO glielo
+        // richiuderebbe sotto gli occhi: i <details> vivono nell'HTML, un
+        // re-render li azzera. Se qualcosa è aperto si rinuncia ai pallini
+        // freschi — arrivano alla prossima apertura, e nel frattempo la
+        // pagina resta quella che l'utente stava leggendo.
+        const sqRefresh = () => {
+            if (S.page !== 'squadra') return;
+            if (document.querySelector('#main details[open]')) return;
+            renderPage();
+        };
+
+        db.collection('teamHealth').get().then(snap => {
+            snap.docs.forEach(d => {
+                const a = SQ.TEAM.find(x => x.health && x.health.col === 'teamHealth' && x.health.doc === d.id);
+                if (a) H[a.key] = d.data();
+            });
+            sqRefresh();
+        }).catch(() => {});
+
+        // Il radar PFS tiene i battiti in pfsRadarHealth, uno per fonte:
+        // per lo Scout vale il PEGGIORE, altrimenti una fonte morta sparisce
+        // dietro tre sorelle verdi.
+        db.collection('pfsRadarHealth').get().then(snap => {
+            let worst = null;
+            snap.docs.forEach(d => {
+                if (d.id === 'needsAttention') return;
+                const h = d.data();
+                const direct = SQ.TEAM.find(x => x.health && x.health.col === 'pfsRadarHealth' && x.health.doc === d.id);
+                if (direct) { H[direct.key] = h; return; }
+                if (!worst || (!h.ok && worst.ok) || (h.consecutiveErrors || 0) > (worst.consecutiveErrors || 0)) worst = h;
+            });
+            if (worst) H.scout = worst;
+            sqRefresh();
+        }).catch(() => {});
+
+        db.collection('action_queue').where('status', '==', 'pending').limit(50).get().then(snap => {
+            const el = document.getElementById('sqPending'); if (!el) return;
+            const items = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+                .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+            el.innerHTML = items.length ? items.map(a => {
+                const who = SQ.get(a.proposedBy);
+                return `<div class="card" style="padding:12px 15px;margin-bottom:8px;font-size:12.5px">
+                  <div style="color:var(--gold);font-size:10.5px;letter-spacing:1px;font-weight:600;text-transform:uppercase">${who ? who.emoji + ' ' + esc(who.name) : esc(a.proposedBy || 'sconosciuto')}</div>
+                  <div style="color:var(--text-secondary);margin-top:3px;line-height:1.55;white-space:pre-wrap">${esc(a.summary || '')}</div>
+                </div>`;
+            }).join('') : '<div class="card" style="padding:15px;color:#555;font-size:12px">Niente in attesa — la coda è vuota.</div>';
+        }).catch(() => {
+            const el = document.getElementById('sqPending');
+            if (el) el.innerHTML = '<div class="card" style="padding:15px;color:#555;font-size:12px">Coda non leggibile.</div>';
+        });
+
+        db.collection('teamReports').orderBy('runAt', 'desc').limit(12).get().then(snap => {
+            const el = document.getElementById('sqReports'); if (!el) return;
+            const items = snap.docs.map(d => d.data());
+            el.innerHTML = items.length ? items.map(r => {
+                const who = SQ.get(r.employee);
+                return `<div class="card" style="padding:12px 15px;margin-bottom:8px;font-size:12.5px">
+                  <div style="color:var(--gold);font-size:10.5px;letter-spacing:1px;font-weight:600;text-transform:uppercase">${who ? who.emoji + ' ' + esc(who.name) : esc(r.employee || '')}</div>
+                  <div style="color:var(--text-secondary);margin-top:3px;line-height:1.55;white-space:pre-wrap">${esc(r.summary || '')}</div>
+                </div>`;
+            }).join('') : '<div class="card" style="padding:15px;color:#555;font-size:12px">Ancora nessun report.</div>';
+        }).catch(() => {
+            const el = document.getElementById('sqReports');
+            if (el) el.innerHTML = '<div class="card" style="padding:15px;color:#555;font-size:12px">Report non leggibili.</div>';
+        });
     }
 
     function documentsPage() {

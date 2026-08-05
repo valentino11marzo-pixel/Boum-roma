@@ -1514,6 +1514,48 @@ close email.
 run per employee (the PFS radar appears as "Lo Scout" rolling up
 `pfsRadarHealth`), pending proposals, latest reports, "Esegui ora" buttons.
 
+### L'ORGANIGRAMMA (`js/squadra-registry.js` + `goTo('squadra')` nel portal)
+I tre `api/employees/*` sono la punta: BOOM ha **23 cron** e ~19 processi che
+agiscono da soli su dati, clienti e soldi veri. L'unico posto che li elencava
+era una lista **scritta a mano** dentro `team.html`, ferma a **8 voci**:
+mancavano — fra gli altri — il Selezionatore (archivia lead), il Fotografo
+(alle 03:20 riscrive le foto degli annunci), il Copywriter (ne riscrive i
+testi), il Rendiconto (il 1° del mese manda un PDF a ogni proprietario) e
+l'Archivista (spedisce fuori piattaforma l'archivio legale). Nessuno se n'era
+accorto perché **niente la confrontava con la realtà**.
+- **La riga che mancava.** Di un dipendente non basta sapere se è vivo (il
+  pallino verde): serve sapere **cosa fa da solo**. Letta sul codice la
+  risposta è netta — **su ~19 agenti, DUE passano da approvazione umana** (il
+  Gestore e il Commerciale, via `proposeAction` → `action_queue`). Journey,
+  Segugio, Rendiconto e Contabile **mandano email a inquilini, iscritti e
+  proprietari senza che nessuno tocchi niente**. Va benissimo che sia così —
+  è il motivo per cui la macchina regge senza personale — ma dev'essere
+  scritto, non una scoperta archeologica nel sorgente. Il desk lo mette in
+  testa alla pagina: *"scrivono ai tuoi clienti senza chiedertelo"*.
+- **La lettera di assunzione.** Ogni agente dichiara `hired` (perché esiste),
+  `mandate[]`, e le tre liste che sono il suo contratto: `autonomy.solo` /
+  `.porta` / `.mai`. Più `reach[]` — le chiavi che gli abbiamo dato (parla ai
+  clienti · scrive a te · archivio · file · soldi · vetrina · AI) — e
+  `approval` (`mai|sempre|parziale`). `attentionOf()` non misura
+  l'importanza ma **quanto costa caro se sbaglia mentre nessuno guarda**.
+- **Non può tornare alla deriva.** `driftVsCrons()` confronta il registro coi
+  cron veri di `vercel.json`: un cron non dichiarato (*dipendente fantasma*)
+  e un agente che punta a un cron inesistente sono **entrambi errori di CI**.
+- **Una copia sola.** La sezione nel portal e `/team` leggono lo STESSO
+  registro (stessa disciplina di `_avail.js`): non possono più divergere. La
+  voce di menu 🤖 La Squadra era `window.open('/team','_blank')` — una scheda
+  nuova — ed è ora una sezione del portale.
+- **Si disegna senza Firestore.** Mansioni, autonomia e confini sono
+  conoscenza statica: la pagina è intera prima che parta una lettura, e la
+  salute arriva dopo in fire-and-forget (regola Safari — mai un await sul
+  percorso di render). Il re-render dei pallini **salta se hai un fascicolo
+  aperto**, altrimenti te lo richiuderebbe sotto gli occhi.
+- Test: `node tests/squadra/registry.mjs` (anti-deriva + la lettera di
+  assunzione completa, verificato per mutazione) e `node tests/squadra/desk.mjs`
+  (monta la sezione in un **Chromium vero** con `window.db` inesistente e
+  pretende tutti gli agenti, i tre elenchi su ogni scheda e i badge veri;
+  si auto-skippa senza playwright).
+
 ## Lo Smistatore (document intake — api/documents/_smista.js)
 
 "Mando qualsiasi cosa per il commercialista e si archivia da sola." One

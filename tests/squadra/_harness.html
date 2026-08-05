@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<!-- Banco di prova per tests/squadra/desk.mjs — il minimo indispensabile per
+     montare squadraPage(): il registro e un contenitore. Nessun Firebase,
+     nessun portal-app.js: la sezione deve reggersi da sola. -->
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>harness · squadra</title>
+<style>
+  :root { --gold:#D4AF37; --bg:#000; --bg-card:#0A0A0A; --bg-elevated:#141414;
+          --border:rgba(255,255,255,0.08); --text:#FFF; --text-secondary:#999; }
+  body { background:var(--bg); color:var(--text); font-family:system-ui,sans-serif; margin:0; padding:16px; }
+  .card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; }
+  .page-header { margin-bottom:16px; }
+  .page-title { font-size:22px; font-weight:300; letter-spacing:3px; }
+  .section-title { font-size:12px; letter-spacing:3px; color:var(--text-secondary); text-transform:uppercase; }
+  .btn { background:rgba(212,175,55,.15); color:var(--gold); border:1px solid rgba(212,175,55,.35);
+         border-radius:8px; padding:7px 12px; cursor:pointer; font-family:inherit; }
+  .btn-secondary { background:var(--bg-elevated); color:var(--text-secondary); border-color:var(--border); }
+</style>
+<script src="/js/squadra-registry.js"></script>
+</head>
+<body>
+<div id="main"></div>
+</body>
+</html>
