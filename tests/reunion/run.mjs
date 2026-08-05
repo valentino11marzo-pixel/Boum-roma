@@ -303,5 +303,83 @@ console.log('\n\x1b[1m▸ la page dit la même chose que le serveur\x1b[0m');
     !/nous négocions|on négocie/i.test(page));
 }
 
+console.log('\n\x1b[1m▸ être trouvé : SEO, et être CITÉ : les moteurs de réponse\x1b[0m');
+{
+  const root = new URL('../../', import.meta.url);
+  const page = readFileSync(new URL('reunion.html', root), 'utf8');
+
+  // ── L'image sociale. La page partait avec celle de Rome : un propriétaire
+  //    réunionnais recevait sur WhatsApp une carte qui parlait d'ailleurs.
+  const og = readFileSync(new URL('og-reunion.png', root));
+  const isPng = og.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  const w = og.readUInt32BE(16), h = og.readUInt32BE(20);
+  ok('l\'image sociale existe et est un vrai PNG', isPng);
+  ok('elle est au format attendu par les réseaux (1200×630)', w === 1200 && h === 630, { w, h });
+  ok('la page la déclare (og + twitter)', (page.match(/og-reunion\.png/g) || []).length >= 2);
+  ok('elle ne partage plus la carte de Rome', !page.includes('BOOMsocialprofile.png'));
+
+  // ── Longueurs SERP : la coupe se fait à la fin, jamais au début.
+  const title = (page.match(/<title>([^<]*)<\/title>/) || [])[1] || '';
+  const desc = (page.match(/<meta name="description" content="([^"]*)"/) || [])[1] || '';
+  ok(`le titre tient dans la SERP (${title.length} car.)`, title.length > 0 && title.length <= 60, title);
+  ok(`la description aussi (${desc.length} car.)`, desc.length >= 120 && desc.length <= 165, desc.length);
+
+  // ── Données structurées : elles doivent toutes se PARSER…
+  const blocks = [...page.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map(m => m[1]);
+  ok(`la page porte plusieurs blocs de données structurées (${blocks.length})`, blocks.length >= 4);
+  let parsed = [];
+  try { parsed = blocks.map(b => JSON.parse(b)); ok('tous les blocs JSON-LD sont du JSON valide', true); }
+  catch (e) { ok('tous les blocs JSON-LD sont du JSON valide', false, e.message); }
+
+  // ── …et ne rien AFFIRMER qui ne soit pas visible sur la page. Une FAQ
+  //    balisée mais absente de l'écran, c'est du contenu masqué : Google le
+  //    sanctionne, et un moteur de réponse cite une phrase introuvable.
+  const summaries = [...page.matchAll(/<summary>([\s\S]*?)<\/summary>/g)]
+    .map(m => m[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim());
+  const faq = parsed.find(b => b && b['@type'] === 'FAQPage');
+  const norm = s => String(s).replace(/\s+/g, ' ').trim();
+  const orphans = faq ? faq.mainEntity.filter(q => !summaries.some(s => s.includes(norm(q.name)))) : ['(pas de FAQPage)'];
+  ok('chaque question balisée est réellement affichée', orphans.length === 0, orphans.map(o => o.name || o));
+  ok('les réponses balisées ne sont pas vides', faq && faq.mainEntity.every(q => (q.acceptedAnswer.text || '').length > 60));
+
+  // ── Les trois métiers déclarés séparément : c'est ce qui permet à un
+  //    moteur de répondre « oui, pour un acheteur » et pas juste « location ».
+  const graph = parsed.find(b => b && Array.isArray(b['@graph']));
+  const services = graph ? graph['@graph'].filter(n => n['@type'] === 'Service') : [];
+  ok('les trois services sont déclarés', services.length === 3, services.map(s => s.serviceType));
+  ok('chacun dit à qui il s\'adresse', services.every(s => s.audience && s.audience.audienceType));
+  ok('chacun renvoie vers son propre volet', services.every(s => /\?role=(owner|tenant|buyer)$/.test(s.url || '')));
+  ok('le service achat porte la réserve loi Hoguet dans sa description',
+    (services.find(s => /achat|acqu/i.test(s['@id'] || '')) || {}).description?.includes('Hoguet'));
+
+  // ── speakable qui pointe dans le vide = une promesse faite à un assistant
+  //    vocal qui n'a rien à lire.
+  const wp = graph ? graph['@graph'].find(n => n['@type'] === 'WebPage') : null;
+  const sels = wp?.speakable?.cssSelector || [];
+  ok('les sélecteurs speakable existent vraiment dans la page',
+    sels.length > 0 && sels.every(sel => page.includes(sel.replace(/^\./, 'class="').replace(/ .*/, '')) || page.includes(sel.split(' ').pop().replace('.', ''))), sels);
+
+  // ── Le bloc écrit pour être cité.
+  ok('le bloc « en bref » existe', page.includes('class="enbref"') && page.includes('id="enbref"'));
+  ok('il énonce la limite réglementaire au lieu de la taire', /en bref[\s\S]{0,4000}Hoguet/i.test(page));
+
+  // ── Accessibilité : ce qui a été ajouté doit être réellement atteignable.
+  ok('lien d\'évitement présent et cible existante', page.includes('class="skip"') && page.includes('id="main"'));
+  ok('les animations s\'arrêtent si on le demande', page.includes('prefers-reduced-motion'));
+  ok('le focus clavier est visible', page.includes(':focus-visible'));
+
+  // ── Les fichiers que lisent les robots et les moteurs de réponse.
+  const llms = readFileSync(new URL('llms.txt', root), 'utf8');
+  ok('llms.txt présente le second marché', llms.includes('/reunion') && /R[ée]union/.test(llms));
+  ok('...avec les trois publics', ['?role=owner', '?role=tenant', '?role=buyer'].every(r => llms.includes(r)));
+  ok('...et la note réglementaire, pour ne pas faire dire à une IA plus que ce qu\'on fait', llms.includes('Hoguet'));
+
+  const robots = readFileSync(new URL('robots.txt', root), 'utf8');
+  ok('robots.txt ne bloque pas la page', !/^\s*Disallow:\s*\/reunion/mi.test(robots));
+
+  const sitemap = readFileSync(new URL('sitemap.xml', root), 'utf8');
+  ok('sitemap.xml la liste', sitemap.includes('https://www.boomrome.com/reunion'));
+}
+
 console.log(`\n${fail === 0 ? '\x1b[32m\x1b[1m' : '\x1b[31m\x1b[1m'}La Réunion: ${pass} passed, ${fail} failed\x1b[0m\n`);
 process.exit(fail === 0 ? 0 : 1);

@@ -655,7 +655,23 @@ giusto (per condividere un link mirato).
   frasi giuste — FAQ e mentions légales insieme, invece di una caccia alle
   formulazioni nel file. I campi `[NUMÉRO]`/`[SIREN]`/`[PARTENAIRE]` vanno
   riempiti PRIMA di cambiare l'attributo.
-- Test: `node tests/reunion/run.mjs` (92 check) — la porta (honeypot, rifiuti
+- **Essere trovati e essere CITATI** (il giro SEO/GEO): immagine social
+  dedicata `og-reunion.png` **generata dal repo** (card HTML → screenshot
+  headless → crop PNG senza dipendenze, `tests/` ne asserisce i 1200×630 —
+  prima la pagina condivideva su WhatsApp la card di Roma); title 51 car. e
+  description 155; **quattro blocchi JSON-LD** (Organization, Breadcrumb,
+  FAQPage, `@graph` con WebPage+speakable e i **tre Service** con
+  `audience`/`areaServed`/`url` del proprio volet — è ciò che permette a un
+  motore di rispondere "sì, anche per un acquirente"); il blocco **« en bref »**
+  scritto per essere citato (fatti a plat, compresa la riga che dice cosa NON
+  facciamo — una fonte che dichiara i propri limiti è una fonte che si cita);
+  `llms.txt` con la sezione del secondo mercato, i tre `?role=` e la nota
+  Hoguet, così un'AI non promette per noi più di quanto facciamo.
+  **Invariante testata**: ogni domanda nel FAQPage deve esistere come
+  `<summary>` VISIBILE (markup che afferma ciò che la pagina non mostra è
+  contenuto nascosto: Google lo sanziona e un motore cita una frase
+  introvabile), e i selettori `speakable` devono puntare a nodi reali.
+- Test: `node tests/reunion/run.mjs` (117 check) — la porta (honeypot, rifiuti
   che non scrivono mai un lead a metà, limite per IP), il lato che non si perde
   mai, la lingua che non ricade sull'italiano, **il lead romano che non diventa
   réunionnais** (la regressione più cara: risposte in francese ai clienti di
