@@ -341,6 +341,22 @@ gradeReason/intent/confidence on the lead; dead → status archived (the
 Commerciale never spends tokens on them). notify-pending shows 🔥A/🟢B/🟡C,
 sorts A first, never pings dead. Heartbeat `teamHealth/lead-brain` (/team).
 
+### GET `/api/feed/immobiliare.xml?k=<feedKey>[&gz=1][&core=1]`
+Il catalogo BOOM nel formato feed di Immobiliare.it (specifiche raccolte in
+`docs/feed-immobiliare.md` — la doc del portale tecnico è pubblica ma il
+sandbox non raggiunge il dominio). Modello PULL: l'endpoint emette sempre il
+feed fresco (`?gz=1` → `feed.xml.gz` pronto per l'FTP batch); a consegnarlo
+è il Mac di Homie (Immobiliare vuole gli IP pubblici dei chiamanti e Vercel
+non ne ha di fissi). Regole implementate: identità unique-id+email agenzia,
+`date-updated` ISO (se la loro data è ≥ non aggiornano), transaction R/EUR,
+ISTAT Roma 058091, e la precisione dei pin NON si spaccia (`map="exact"` e
+indirizzo visibile solo su via+civico verificati da boom-geo). I nodi in
+attesa dell'XSD completo (superficie, locali, descrizioni) stanno nel blocco
+EXTENDED, escludibile con `?core=1`. `feedKey` derivato da HOMIE_SECRET.
+Env: `FEED_AGENCY_EMAIL` (username agenzia sul portale). Attivazione: team
+Support tecnico Immobiliare (FTP batch o credenziali REST + X-IMMO-SOURCE).
+Test: `node tests/feed/run.mjs`.
+
 ### Il ciclo visita (`/api/viewings/*` + `book.html` + Wallet pass)
 A BOOM viewing behaves like a FLIGHT: confirmed → boarding pass + calendar,
 then the system speaks at the crucial moments, then asks how it went. Two
