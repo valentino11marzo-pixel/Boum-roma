@@ -1,0 +1,472 @@
+<a class="salta" href="#case">Skip to the homes</a>
+<div class="filo-tempo" id="filoTempo" aria-hidden="true"></div>
+
+<nav class="barra" id="barra">
+  <div class="wrap barra-in">
+    <a class="marchio" href="/" aria-label="BOOM, home">LOGO_SVG<span>Boom</span></a>
+    <div class="menu">
+      <a href="#case">Homes</a>
+      <a href="#radar">The Radar</a>
+      <a href="#listino">Prices</a>
+      <a class="cerca" id="apriCerca" role="button" tabindex="0">Search <kbd>⌘K</kbd></a>
+      <a class="btn btn-oro" href="https://wa.me/393313251961" target="_blank" rel="noopener">Talk to us</a>
+    </div>
+    <button class="apri" id="apri" type="button" aria-label="Open menu"
+      aria-expanded="false" aria-controls="tenda"><i></i><i></i><i></i></button>
+  </div>
+</nav>
+<div class="tenda" id="tenda">
+  <a href="#muro">The board</a>
+  <a href="#case">Homes</a>
+  <a href="#radar">The Radar</a>
+  <a href="#catena">How it works</a>
+  <a href="#listino">Prices</a>
+  <a href="/property-finding.html">Property Finding</a>
+  <a href="/deal-assistance.html">Deal Assistance</a>
+  <a href="/virtual-viewing.html">Virtual Viewing</a>
+  <a href="/concierge.html">Concierge</a>
+  <a href="/about.html">About</a>
+  <a href="/login">Login</a>
+  <a class="btn btn-oro" href="https://wa.me/393313251961" target="_blank" rel="noopener">Talk to us</a>
+</div>
+
+<!-- la spina: i cinque capitoli, sempre sott'occhio -->
+<nav class="spina" id="spina" aria-label="Chapters">
+  <a href="#muro"><i></i><span>The board</span></a>
+  <a href="#case"><i></i><span>Homes</span></a>
+  <a href="#radar"><i></i><span>The Radar</span></a>
+  <a href="#catena"><i></i><span>The path</span></a>
+  <a href="#listino"><i></i><span>Prices</span></a>
+</nav>
+
+<!-- ══ L'ARRIVO — una frase. Il muro fa capolino sotto il bordo. ════════ -->
+<header class="arrivo">
+  <div class="wrap">
+    <span class="eti">Boom · Rome</span>
+    <h1 class="urlo">Renting in Rome is brutal. <br><em>We made it a machine.</em></h1>
+    <p class="arrivo-sotto">The good apartments go in hours, to whoever arrives
+      first. We are the side that arrives first — on a schedule, day and night.</p>
+    <div class="arrivo-azioni">
+      <a class="btn btn-oro" href="#case">See the homes</a>
+      <a class="btn btn-filo" href="#radar">See the machine →</a>
+    </div>
+    <a class="arrivo-giu" href="#muro"><i></i>Free in Rome, right now</a>
+  </div>
+</header>
+
+<!-- ══ IL MURO — il tabellone a scala monumento ══════════════════════════ -->
+<section class="muro" id="muro" aria-label="Homes free right now">
+  <div class="muro-in">
+    <div class="muro-cima">
+      <span class="muro-eti"><i></i>Free in Rome · right now</span>
+      <span id="muroOra" class="flap-scale" aria-label="Rome time"></span>
+    </div>
+    <div class="muro-quadro">
+      <div class="colonne" aria-hidden="true">
+        <span>Free</span><span>District</span><span>Beds</span><span>Rent</span><span>State</span>
+      </div>
+      <div id="righe"></div>
+      <noscript>RIGHE_STATICHE</noscript>
+      <div class="muro-piede">
+        <span><b id="muroTot">—</b> homes in catalogue · 100% filmed in person · keys 48h after signature</span>
+        <span>Click a line to open it · <b>↑ ↓</b> to browse</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ 01 · LE CASE ══════════════════════════════════════════════════════ -->
+<section class="sezione" id="case">
+  <div class="wrap">
+    <div class="testata sale">
+      <div>
+        <span class="eti">01 · The homes</span>
+        <h2 class="grido">Filmed by us. <em>All of them.</em></h2>
+        <p class="guida">One of us walked every apartment with a camera before it
+          went online — no stock photos, no wide angle that doubles a room. This
+          grid is generated from the live catalogue: when a home is taken, it
+          removes itself.</p>
+      </div>
+      <a class="btn btn-filo" href="/apartments.html">All apartments →</a>
+    </div>
+
+    <div class="mosaico">
+CASE_CARDS
+    </div>
+  </div>
+</section>
+
+<!-- ══ 02 · IL RADAR — recitato ══════════════════════════════════════════
+     Il PFS aperto, ma in sequenza: lo strumento resta in scena e lo scroll
+     lo fa passare per quattro battute. Una verità per battuta; i numeri
+     sono quelli di produzione (api/homie/_match.js, api/pfs/_ingest.js,
+     vercel.json). Il ciclo illustrato è dichiarato tale nel piede. ══════ -->
+<section class="sezione radar" id="radar">
+  <div class="wrap">
+    <div class="testata sale">
+      <div>
+        <span class="eti">02 · Property Finding</span>
+        <h2 class="grido">The Radar. <em>Our unfair advantage.</em></h2>
+        <p class="guida">Our own catalogue is a few dozen homes; Rome has thousands.
+          So €350 puts a machine on your search. Here it is, with its real
+          numbers — nothing below is a metaphor.</p>
+      </div>
+      <a class="btn btn-oro" href="/property-finding.html">Put it on my search</a>
+    </div>
+
+    <div class="teatro">
+      <div class="palco">
+        <div class="banco" id="banco" data-stato="0">
+          <span class="scia" aria-hidden="true"></span>
+          <div class="banco-cima">
+            <span id="bancoNome">Scan schedule</span>
+            <span id="bancoPasso">1 / 4</span>
+          </div>
+
+          <div class="strato strato-0">
+            <div class="turno-num"><b>96</b><span>inbox scans a day — one every fifteen minutes</span></div>
+            <div class="nastro" id="nastro" aria-hidden="true"></div>
+            <div class="turni">
+              <div><b>*/15</b><span>Inbox scan</span></div>
+              <div><b>2×/h</b><span>Market scan</span></div>
+              <div><b>04:00</b><span>Search rebuild</span></div>
+              <div><b>06:00</b><span>Daily brief</span></div>
+            </div>
+          </div>
+
+          <div class="strato strato-1">
+            <div class="trovato-cima">
+              <span class="trovato-nome">Vicolo del Cinque</span>
+              <span class="trovato-fonte">Immobiliare · 06:14</span>
+            </div>
+            <div class="trovato-riga">€1,340 /month · 2 bedrooms · 68 m² · Trastevere</div>
+            <div class="pesi">
+              <div class="peso"><small>Budget</small>
+                <span class="peso-barra"><i style="--w:100%"></i></span><b>50/50</b></div>
+              <div class="peso"><small>Bedrooms</small>
+                <span class="peso-barra"><i style="--w:100%"></i></span><b>30/30</b></div>
+              <div class="peso"><small>District</small>
+                <span class="peso-barra"><i style="--w:100%"></i></span><b>20/20</b></div>
+            </div>
+            <div class="somma">
+              <div class="somma-tot"><small>Match score</small>
+                <b><span id="tot1">100</span><em>/100</em></b></div>
+              <span class="verdetto spinto">Pushed to your deck</span>
+            </div>
+          </div>
+
+          <div class="strato strato-2">
+            <div class="trovato-cima">
+              <span class="trovato-nome">Via dei Serpenti</span>
+              <span class="trovato-fonte">Immobiliare · 11:47</span>
+            </div>
+            <div class="trovato-riga">€2,100 /month · 2 bedrooms · 74 m² · Monti</div>
+            <div class="pesi">
+              <div class="peso"><small>Budget</small>
+                <span class="peso-barra rossa"><i style="--w:4%"></i></span><b>0/50</b></div>
+              <div class="peso"><small>Bedrooms</small>
+                <span class="peso-barra"><i style="--w:100%"></i></span><b>30/30</b></div>
+              <div class="peso"><small>District</small>
+                <span class="peso-barra"><i style="--w:100%"></i></span><b>20/20</b></div>
+            </div>
+            <div class="somma">
+              <div class="somma-tot"><small>Match score</small>
+                <b><span id="tot2">50</span><em>/100</em></b></div>
+              <span class="verdetto veto">Veto · over budget</span>
+            </div>
+          </div>
+
+          <div class="strato strato-3">
+            <div class="soglia"><b>60</b><span>the push threshold, out of one hundred</span></div>
+            <div class="settimana">
+              <div class="sett"><small>Found</small><i style="--w:100%"></i><b>31</b></div>
+              <div class="sett"><small>Pushed</small><i style="--w:13%"></i><b>4</b></div>
+              <div class="sett zitta"><small>Never sent</small><i style="--w:87%"></i><b>27</b></div>
+            </div>
+          </div>
+
+          <div class="banco-piede">Illustrated week · real weights, real
+            threshold, real rules.<span class="largo"> Client brief: €1,000–1,400 ·
+            2 BR · Trastevere, Monti, San Lorenzo.</span></div>
+        </div>
+      </div>
+
+      <div class="battute" id="battute">
+        <div class="battuta" data-i="0">
+          <span class="battuta-n">Beat 1 · The schedule</span>
+          <h3>Rome is read every fifteen minutes.</h3>
+          <p>The portals' own alert mail is opened on the quarter hour, day and
+            night, and the listing behind each tracking link is rebuilt and read.
+            Your search is regenerated every night; a briefing on the last 48
+            hours is written at dawn.</p>
+          <span class="battuta-fatto">*/15 · 2×/h · 04:00 · 06:00</span>
+        </div>
+        <div class="battuta" data-i="1">
+          <span class="battuta-n">Beat 2 · The scale</span>
+          <h3>Everything found gets weighed.</h3>
+          <p>Budget carries fifty points, bedrooms thirty, district twenty. The
+            weights are printed here because a score you cannot inspect is just
+            marketing — now you can argue with the result, which is the point.</p>
+          <span class="battuta-fatto">50 + 30 + 20 = 100</span>
+        </div>
+        <div class="battuta" data-i="2">
+          <span class="battuta-n">Beat 3 · The knife</span>
+          <h3>Too far over budget? Instant no.</h3>
+          <p>Up to twenty per cent over your ceiling scores half — Roman rents are
+            negotiable, and we'd rather show you a close call than hide it. Past
+            that line it's a veto, however beautiful the flat. And agency
+            relistings are stored, never pushed: we won't send you to pay someone
+            else's commission.</p>
+          <span class="battuta-fatto">Veto past +20% · agencies never pushed</span>
+        </div>
+        <div class="battuta" data-i="3">
+          <span class="battuta-n">Beat 4 · The silence</span>
+          <h3>Most of it, you never see.</h3>
+          <p>Everything under sixty is dropped before it reaches your phone. You
+            get fewer notifications than any portal alert will ever send you —
+            that is the product, not a limitation.</p>
+          <span class="battuta-fatto">Threshold 60 / 100</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="lastra sale">
+      <div>
+        <b>€350 to put Rome's rental market on a schedule.</b>
+        <p>You give us the budget, the districts, the rooms. You swipe on what
+          clears sixty; we book the viewings and stand in the negotiation. Real
+          options within ten days, or your money back.</p>
+      </div>
+      <a class="btn btn-nero" href="/property-finding.html">Start a search</a>
+    </div>
+  </div>
+</section>
+
+<!-- ══ 03 · LA VIA ═══════════════════════════════════════════════════════ -->
+<section class="sezione" id="catena">
+  <div class="wrap">
+    <div class="testata sale">
+      <div>
+        <span class="eti">03 · How it works</span>
+        <h2 class="grido">Four moves <em>to the keys.</em></h2>
+        <p class="guida">Every price in writing before any commitment. If it is
+          not in the proposal, you do not pay it.</p>
+      </div>
+    </div>
+
+    <div class="catena sale">
+      <div class="mossa">
+        <div class="mossa-n">01</div>
+        <h3>You tell us</h3>
+        <p>Budget, districts, when you land. Ten minutes on WhatsApp with a
+          person, not a form.</p>
+        <div class="mossa-costo">Costs <b>nothing</b></div>
+      </div>
+      <div class="mossa">
+        <div class="mossa-n">02</div>
+        <h3>You see it</h3>
+        <p>From the catalogue or found by the Radar — on live video with us
+          inside, if you are abroad.</p>
+        <div class="mossa-costo">Catalogue <b>free</b> · live viewing <b>€89</b></div>
+      </div>
+      <div class="mossa">
+        <div class="mossa-n">03</div>
+        <h3>You sign</h3>
+        <p>A bilingual contract, registered with the Agenzia delle Entrate,
+          signed from your phone.</p>
+        <div class="mossa-costo">Contract check <b>€49</b></div>
+      </div>
+      <div class="mossa">
+        <div class="mossa-n">04</div>
+        <h3>You live there</h3>
+        <p>Keys in your Apple Wallet, one portal, the same person on WhatsApp
+          when the boiler stops.</p>
+        <div class="mossa-costo">Included <b>for the whole lease</b></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ 04 · IL LISTINO ═══════════════════════════════════════════════════ -->
+<section class="sezione" id="listino">
+  <div class="wrap">
+    <div class="testata sale">
+      <div>
+        <span class="eti">04 · Prices</span>
+        <h2 class="grido">Every price. <em>Before your phone number.</em></h2>
+        <p class="guida">Ask any agency in Rome for their fee and watch what
+          happens. Here is our services list. The one price not printed — our fee
+          when you rent a catalogue home — is set per deal, and you get it in
+          writing before any commitment.</p>
+      </div>
+    </div>
+
+    <div class="listino sale">
+      <a class="tariffa marcata" href="/property-finding.html">
+        <div class="tariffa-nome">Property Finding<small>The Radar · flagship</small></div>
+        <p class="tariffa-desc">The machine above, on your search: scanned every
+          fifteen minutes, scored on the printed weights, viewings booked,
+          negotiation handled. Ten days or refunded.</p>
+        <div class="tariffa-prezzo">€350<small>one-off</small></div>
+      </a>
+      <a class="tariffa" href="/deal-assistance.html">
+        <div class="tariffa-nome">Deal Assistance<small>You found it yourself</small></div>
+        <p class="tariffa-desc">Contract checked clause by clause, the owner
+          verified, the negotiation handled with you. The €49 contract check is
+          credited into this.</p>
+        <div class="tariffa-prezzo">€249<small>one-off</small></div>
+      </a>
+      <a class="tariffa" href="/virtual-viewing.html">
+        <div class="tariffa-nome">Virtual Viewing<small>You are not in Italy</small></div>
+        <p class="tariffa-desc">We go; you direct on live video — open that
+          window, show me the damp. Recorded, so you can watch it again before
+          deciding.</p>
+        <div class="tariffa-prezzo">€89<small>per viewing</small></div>
+      </a>
+      <a class="tariffa" href="/deposit-recovery.html">
+        <div class="tariffa-nome">Deposit Recovery<small>You already left</small></div>
+        <p class="tariffa-desc">The landlord kept your deposit and went quiet. We
+          take it on under art. 1590 of the civil code — nothing recovered,
+          nothing further owed.</p>
+        <div class="tariffa-prezzo">€99<small>+ 20% on success</small></div>
+      </a>
+      <a class="tariffa" href="/concierge.html">
+        <div class="tariffa-nome">Concierge<small>After the keys</small></div>
+        <p class="tariffa-desc">Cleaning, repairs, utility transfers, the plumber
+          who answers. Quoted per task, agreed before anyone moves.</p>
+        <div class="tariffa-prezzo">from €15<small>per task</small></div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ══ 05 · LE DOMANDE ═══════════════════════════════════════════════════ -->
+<section class="sezione">
+  <div class="wrap">
+    <div class="testata sale">
+      <div>
+        <span class="eti">05 · Questions</span>
+        <h2 class="grido">Asked before <em>they trust us.</em></h2>
+      </div>
+    </div>
+
+    <noscript><style>.domanda-c{grid-template-rows:1fr;visibility:visible}.domanda-t i{display:none}</style></noscript>
+    <div class="domande sale">
+      <div class="domanda">
+        <button class="domanda-t" type="button" aria-expanded="false">
+          Can I rent without being in Italy?<i></i></button>
+        <div class="domanda-c"><div><p>Yes — it is the most common case. You see the
+          home on live video with us inside it, sign a bilingual contract from your
+          phone, and pay by transfer or card. Keys on arrival, or at the airport if
+          you land outside office hours.</p></div></div>
+      </div>
+      <div class="domanda">
+        <button class="domanda-t" type="button" aria-expanded="false">
+          What are the real upfront costs?<i></i></button>
+        <div class="domanda-c"><div><p>First month's rent, the deposit — normally two
+          or three months — and our fee, in writing before any commitment. No file,
+          opening or management charges: if it is not written down, you do not pay
+          it.</p></div></div>
+      </div>
+      <div class="domanda">
+        <button class="domanda-t" type="button" aria-expanded="false">
+          Does the Radar really beat searching myself?<i></i></button>
+        <div class="domanda-c"><div><p>It finds what you could find — while you sleep,
+          work, or live in another country, every fifteen minutes, without getting
+          bored. The honest part: on a quiet week it may surface only a handful of
+          homes, because everything under sixty is dropped. Few and relevant beats
+          many and useless.</p></div></div>
+      </div>
+      <div class="domanda">
+        <button class="domanda-t" type="button" aria-expanded="false">
+          Is the contract legal and registered?<i></i></button>
+        <div class="domanda-c"><div><p>Always. Contracts compliant with Italian law —
+          including transitional leases for shorter stays — registered with the
+          Agenzia delle Entrate. Registration is your first protection: without it,
+          you do not exist as a tenant.</p></div></div>
+      </div>
+      <div class="domanda">
+        <button class="domanda-t" type="button" aria-expanded="false">
+          What happens after I move in?<i></i></button>
+        <div class="domanda-c"><div><p>You keep the same person who followed you from
+          the start. Repairs, utilities, the landlord: one message on WhatsApp. It is
+          the part of the job agencies consider finished at signing — for us it
+          starts there.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ LA PORTA ══════════════════════════════════════════════════════════ -->
+<section class="porta">
+  <div class="wrap">
+    <h2 class="grido">Tell us the budget. We'll stand in the queue.</h2>
+    <p>A person answers on WhatsApp, usually within the hour, 8am–11pm Rome
+      time. No form, no callback window, no script.</p>
+    <div class="porta-azioni">
+      <a class="btn btn-nero" href="https://wa.me/393313251961" target="_blank" rel="noopener">Talk to us</a>
+      <a class="btn btn-nero" href="#case">See the homes</a>
+    </div>
+  </div>
+</section>
+
+<!-- IL CERCATORE ─────────────────────────────────────────────────────── -->
+<div class="cercatore" id="cercatore" role="dialog" aria-modal="true" aria-label="Search">
+  <div class="cercatore-box">
+    <div class="cercatore-cima">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="9" cy="9" r="6.4"/><path d="M13.6 13.6 L18 18"/></svg>
+      <input id="cercaInput" type="search" autocomplete="off" spellcheck="false"
+        placeholder="A district, a price, a service…" aria-label="Search BOOM">
+      <kbd>Esc</kbd>
+    </div>
+    <div class="cercatore-lista" id="cercaLista" role="listbox" aria-label="Results"></div>
+    <div class="cercatore-piede">
+      <span><b>↑ ↓</b> move</span><span><b>↵</b> open</span><span><b>Esc</b> close</span>
+      <span style="margin-left:auto">Boom · Roma</span>
+    </div>
+  </div>
+</div>
+
+<footer class="piede">
+  <div class="wrap">
+    <div class="piede-griglia">
+      <div>
+        <div class="piede-marchio"><span id="logoPiede"></span>Boom</div>
+        <p class="piede-motto">Built in Rome, for Rome. If we can make Rome's rental
+          market work, we can make it work anywhere.</p>
+        <p class="piede-legale"><b>Egidi Immobiliare S.r.l.</b><br>
+          Via dei Coronari 181/184, 00186 Rome<br>
+          Registered office: Viale Liegi 42, 00198 Rome<br>
+          VAT 17322991005 · REA RM-1710623</p>
+      </div>
+      <div class="piede-col">
+        <b>Services</b>
+        <a href="/apartments.html">Apartments</a>
+        <a href="/property-finding.html">Property Finding</a>
+        <a href="/deal-assistance.html">Deal Assistance</a>
+        <a href="/virtual-viewing.html">Virtual Viewing</a>
+        <a href="/concierge.html">Concierge</a>
+      </div>
+      <div class="piede-col">
+        <b>Company</b>
+        <a href="/about.html">About</a>
+        <a href="/how-it-works.html">How It Works</a>
+        <a href="/universities.html">For Universities</a>
+        <a href="/corporate.html">For Companies</a>
+        <a href="/blog.html">Blog</a>
+      </div>
+      <div class="piede-col">
+        <b>Legal</b>
+        <a href="/terms.html">Terms</a>
+        <a href="/privacy.html">Privacy</a>
+        <a href="/faq.html">FAQ</a>
+        <a href="/contact.html">Contact</a>
+        <a href="/login">Login</a>
+      </div>
+    </div>
+    <div class="piede-fondo">
+      <span>© 2026 BOOM — All rights reserved</span>
+      <span>Rome · <span id="piedeOra">—</span></span>
+    </div>
+  </div>
+</footer>
