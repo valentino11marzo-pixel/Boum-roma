@@ -682,8 +682,8 @@ async function handleRent(res, session, m) {
         html: shell(
           para(`Pagamento ricevuto ✓ — il tuo ${label} di <b>${eurFmt(amount)}</b> è registrato${fee ? ` (commissione servizio ${eurFmt(fee)})` : ''}. La ricevuta è tua per sempre: la ritrovi anche in <b>La tua casa BOOM</b>, insieme allo storico completo.`)
           + btn('https://www.boomrome.com/casa', 'Apri La tua casa BOOM')
-          + (receiptUrl ? fine(`Ricevuta Stripe: <a href="${receiptUrl}" style="color:#E5C558">apri →</a>`, 'text-align:center') : '')
-          + fine('Domande? Rispondi a questa email o <a href="https://wa.me/393313251961" style="color:#E5C558">scrivici su WhatsApp</a>.', 'text-align:center'),
+          + (receiptUrl ? fine(`Ricevuta Stripe: <a href="${receiptUrl}" style="color:#141414">apri →</a>`, 'text-align:center') : '')
+          + fine('Domande? Rispondi a questa email o <a href="https://wa.me/393313251961" style="color:#141414">scrivici su WhatsApp</a>.', 'text-align:center'),
           `Pagamento ${eurFmt(amount)} registrato`),
       });
     } catch (err) { console.error('[rent] tenant email:', err.message); }
@@ -770,8 +770,8 @@ async function handleInvoice(res, session, m) {
         subject: `Ricevuta — fattura ${inv.number || ''} ${eurFmt(amount)} ✓`,
         html: shell(
           para(`Pagamento ricevuto ✓ — la fattura <b>${inv.number || invoiceId}</b> di <b>${eurFmt(amount)}</b> risulta saldata.`)
-          + (receiptUrl ? fine(`Ricevuta Stripe: <a href="${receiptUrl}" style="color:#E5C558">apri →</a>`, 'text-align:center') : '')
-          + fine('Domande? Rispondi a questa email o <a href="https://wa.me/393313251961" style="color:#E5C558">scrivici su WhatsApp</a>.', 'text-align:center'),
+          + (receiptUrl ? fine(`Ricevuta Stripe: <a href="${receiptUrl}" style="color:#141414">apri →</a>`, 'text-align:center') : '')
+          + fine('Domande? Rispondi a questa email o <a href="https://wa.me/393313251961" style="color:#141414">scrivici su WhatsApp</a>.', 'text-align:center'),
           `Fattura ${eurFmt(amount)} saldata`),
       });
     } catch (err) { console.error('[invoice] client email:', err.message); }
@@ -911,7 +911,7 @@ export async function handleSddSetup(res, session, m) {
         html: shell(
           para(`Your SEPA direct debit is <b>active</b> (IBAN ••••${last4}). From now on each rent instalment is collected automatically about a week before its due date — nothing to remember, receipt by email every time. You can turn it off anytime from your home page.`)
           + btn('https://www.boomrome.com/casa', 'Open La tua casa BOOM')
-          + fine('Questions? Just reply to this email or <a href="https://wa.me/393313251961" style="color:#E5C558">WhatsApp us</a>.', 'text-align:center'),
+          + fine('Questions? Just reply to this email or <a href="https://wa.me/393313251961" style="color:#141414">WhatsApp us</a>.', 'text-align:center'),
           'Auto-pay active ✓'),
       });
     } catch (e) { console.error('[sdd-setup] tenant email:', e.message); }
@@ -1016,7 +1016,7 @@ export async function handleSddPaid(res, pi) {
         html: shell(
           para(`Your rent for <b>${pay.month || String(pay.dueDate || '').slice(0, 7)}</b> — <b>${eurFmt(amount)}</b> — was collected by SEPA direct debit as planned${fee ? ` (service fee ${eurFmt(fee)})` : ''}. Nothing to do: this is your receipt, and the full history lives in your home page.`)
           + btn('https://www.boomrome.com/casa', 'Open La tua casa BOOM')
-          + (receiptUrl ? fine(`Stripe receipt: <a href="${receiptUrl}" style="color:#E5C558">open →</a>`, 'text-align:center') : ''),
+          + (receiptUrl ? fine(`Stripe receipt: <a href="${receiptUrl}" style="color:#141414">open →</a>`, 'text-align:center') : ''),
           `Rent ${eurFmt(amount)} collected ✓`),
       });
     } catch (err) { console.error('[sdd] tenant email:', err.message); }
@@ -1076,7 +1076,7 @@ export async function handleSddFailed(res, pi) {
         html: shell(
           para(`The automatic SEPA debit for your rent (<b>${pay.month || String(pay.dueDate || '').slice(0, 7)}</b>) did not go through — usually a balance or bank-side issue. No stress: you can settle it in one minute by card or free bank transfer from your home page.`)
           + btn('https://www.boomrome.com/casa', 'Pay it now')
-          + fine('Need a hand? <a href="https://wa.me/393313251961" style="color:#E5C558">WhatsApp us</a> and we sort it together.', 'text-align:center'),
+          + fine('Need a hand? <a href="https://wa.me/393313251961" style="color:#141414">WhatsApp us</a> and we sort it together.', 'text-align:center'),
           'Rent debit failed — pay manually'),
       });
     } catch (err) { console.error('[sdd-failed] tenant email:', err.message); }
