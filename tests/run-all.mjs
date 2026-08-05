@@ -40,6 +40,7 @@ const SUITES = [
   { name: 'referral', file: 'tests/referral/run.mjs',     what: 'Il referral che vale: la segnalazione diventa un lead vero con dentro chi l\'ha mandata, e un amico irraggiungibile non entra' },
   { name: 'growth',   file: 'tests/growth/run.mjs',       what: 'I due canali gratuiti: università e aziende entrano in pipeline col loro codice, e la recensione si chiede solo a chi ha già le chiavi' },
   { name: 'webforms', file: 'tests/webforms/run.mjs',     what: 'i moduli pubblici entrano in pipeline, e il datore di lavoro di un candidato non viene scambiato per un honeypot' },
+  { name: 'letter',   file: 'tests/letter/run.mjs',       what: 'la diffida per il deposito: PDF vero, art. 1590 e termine di 15 giorni, e si intima il TRATTENUTO non il deposito intero' },
   { name: 'verbale',  file: 'tests/verbale/run.mjs',      what: 'verbale consegna chiavi: PDF vero in allegato alle parti, owner solo sui propri immobili, firme mai persistite come dataURI' },
   { name: 'rendiconto', file: 'tests/rendiconto/run.mjs', what: 'rendiconto proprietario: solo il mese giusto nei numeri, PDF in allegato, un rerun non rispedisce, senza email mai perso in silenzio' },
   { name: 'conservazione', file: 'tests/conservazione/run.mjs', what: 'archivio fuori piattaforma: lo ZIP contiene i byte veri, il mancante finisce nell\'INDICE, un rerun non rispedisce' },

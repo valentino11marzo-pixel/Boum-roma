@@ -150,6 +150,11 @@
       "permanent": true
     },
     {
+      "source": "/deposit-letter.html",
+      "destination": "/deposit-letter",
+      "permanent": true
+    },
+    {
       "source": "/services.html",
       "destination": "/services",
       "permanent": true
@@ -375,6 +380,10 @@
     {
       "source": "/deposit-recovery",
       "destination": "/deposit-recovery.html"
+    },
+    {
+      "source": "/deposit-letter",
+      "destination": "/deposit-letter.html"
     },
     {
       "source": "/services",
