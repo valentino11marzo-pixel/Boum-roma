@@ -357,6 +357,50 @@ Env: `FEED_AGENCY_EMAIL` (username agenzia sul portale). Attivazione: team
 Support tecnico Immobiliare (FTP batch o credenziali REST + X-IMMO-SOURCE).
 Test: `node tests/feed/run.mjs`.
 
+### Il Pubblicista (`api/publisher/*` + `bot/PUBBLICISTA.md`)
+Il binario di pubblicazione verso i portali INDIPENDENTE dalle loro
+risposte: il feed Immobiliare è pronto ma l'attivazione dipende da un
+Support che non risponde, e Idealista apre il real-time solo ai software
+partner (Miogest/Gestim — nessuna spec pubblica; verificato 2026-08). Il
+server pensa, il Mac di Homie esegue attraverso QUALUNQUE porta sia aperta:
+- `api/publisher/_state.js` — motore puro esportato+testato. UNA funzione
+  (`coreContent`) alimenta sia `publishHash` sia il payload, quindi hash e
+  contenuto non possono divergere; i campi volatili non toccano l'hash e
+  l'ordine foto sì (la prima è la copertina). `worklist(listings, pubs)`:
+  **remove → create → update** (una casa affittata online genera lead da
+  rifiutare: si toglie PRIMA di aggiungere), fallimenti ripetuti
+  (3× sullo stesso hash) PARCHEGGIATI invece che ritentati a vuoto — e
+  l'edit dell'operatore (hash nuovo) li sblocca da solo. `payloadFor`:
+  feature umanizzate IT/EN (mai `washing_machine` grezzo — la lezione del
+  template wizard), `showExactAddress` da boom-geo (il toggle del pannello
+  segue la precisione VERA del pin), hints per portale (immobiliare:
+  typologyId+ISTAT+`xmlNodePath` del nodo REST; idealista: vocabolario),
+  MAI un campo inventato. `publishable` importata dal feed: vetrina, feed
+  e Pubblicista non possono divergere.
+- `GET/POST /api/publisher/queue` — auth come i cron PFS. GET `?portal=`
+  → worklist con payload completi (kill switch `settings/publisher`,
+  globale e per portale). POST rapporto → stato su
+  `portalPubs/<portale>_<listingId>` (admin-only in firestore.rules — la
+  lezione propertyLocks), l'hash registrato è quello ECHOED dall'azione
+  (se l'operatore edita mentre il Mac lavora, il diff se ne accorge al
+  giro dopo), heartbeat `pfsRadarHealth/publisher-<portale>` con la regola
+  degli occhi di Homie: giro a vuoto = salute, `blocked:true` (login/
+  captcha) = guasto → allerta Telegram esistente dopo 3 run. Recap
+  Telegram solo quando qualcosa è cambiato davvero.
+- **Le due porte** (`bot/PUBBLICISTA.md`, il mandato completo): Porta A =
+  feed/REST quando il Support attiva (batch `?gz=1` via FTP, oppure PUT
+  del nodo singolo `?id=<listingId>` sul feed — aggiunto apposta); Porta
+  B = OGGI, Playwright sul Mac contro i pannelli agenzia PROPRI
+  (Immobiliare/Getrix, Idealista pro) con profilo persistente: è
+  l'automazione del proprio back office, la stessa cosa che fa un
+  gestionale. Regole d'oro: mai inventare, ritmo umano, captcha/2FA =
+  STOP e rapporto `blocked` (mai aggirare), ogni esito riferito.
+  Cambiare porta = cambiare SOLO il trasporto: coda, stato e diff restano.
+- Test: `node tests/publisher/run.mjs` (33 check — hash, worklist,
+  parcheggio, payload onesto, verdetto, e il loop VERO GET→POST→GET su
+  Firestore in memoria con lo stub PATCH che rifiuta `exists=false` sui
+  doc esistenti, come il Firestore vero).
+
 ### Il ciclo visita (`/api/viewings/*` + `book.html` + Wallet pass)
 A BOOM viewing behaves like a FLIGHT: confirmed → boarding pass + calendar,
 then the system speaks at the crucial moments, then asks how it went. Two

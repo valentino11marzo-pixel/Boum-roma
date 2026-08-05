@@ -22,9 +22,11 @@
 // descrizione…) sono emessi dal blocco EXTENDED, disattivabile con
 // ?core=1 finché lo schema non è confermato.
 //
-// GET /api/feed/immobiliare.xml?k=<feedKey>[&gz=1][&core=1]
+// GET /api/feed/immobiliare.xml?k=<feedKey>[&gz=1][&core=1][&id=<listingId>]
 // feedKey derivato da HOMIE_SECRET (ruotarlo revoca l'URL), stesso pattern
 // del feed calendario visite.
+// ?id= → il SOLO <property> di quel listing (la porta REST del Pubblicista:
+// il Mac lo scarica e lo PUTta su /property/{unique-id} uno a uno).
 
 import crypto from 'node:crypto';
 import { gzipSync } from 'node:zlib';
@@ -129,7 +131,19 @@ export default async function handler(req, res) {
   }
   try {
     const listings = (await fsList('listings', { limit: 400 })).map((l) => ({ ...l }));
-    const xml = buildFeed(listings, { extended: req.query?.core !== '1' });
+    const opts = { extended: req.query?.core !== '1' };
+    const wantId = String(req.query?.id || '');
+    if (wantId) {
+      // Nodo singolo per il PUT REST: qui anche un NON pubblicabile ha senso
+      // (il Mac può doverlo leggere per capire cosa c'è) — ma se non è
+      // pubblicabile lo diciamo con un 404 esplicito, mai con un nodo vuoto.
+      const one = listings.find((l) => l.id === wantId);
+      if (!one) return res.status(404).json({ ok: false, error: 'listing_not_found' });
+      if (!publishable(one)) return res.status(409).json({ ok: false, error: 'not_publishable' });
+      res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+      return res.status(200).send('<?xml version="1.0" encoding="UTF-8"?>\n' + propertyNode(one, opts) + '\n');
+    }
+    const xml = buildFeed(listings, opts);
     if (req.query?.gz === '1') {
       res.setHeader('Content-Type', 'application/gzip');
       res.setHeader('Content-Disposition', 'attachment; filename="feed.xml.gz"');

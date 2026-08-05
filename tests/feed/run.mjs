@@ -92,6 +92,17 @@ await handler({ method: 'GET', query: { k: feedKey(), gz: '1' } }, r);
 const gz = r.body;
 check('?gz=1 → gzip vero (magic 1f8b) che si riapre', Buffer.isBuffer(gz) && gz[0] === 0x1f && gz[1] === 0x8b && gunzipSync(gz).toString().includes('<feed>'));
 
+// ═══ Nodo singolo (?id=) — la porta REST del Pubblicista ═══
+r = mkRes();
+await handler({ method: 'GET', query: { k: feedKey(), id: 'lst_pigneto' } }, r);
+check('?id= → il SOLO nodo di quel listing, senza root <feed>', r.code === 200 && String(r.body).includes('<![CDATA[lst_pigneto]]>') && !String(r.body).includes('<feed>') && !String(r.body).includes('lst_centro'));
+r = mkRes();
+await handler({ method: 'GET', query: { k: feedKey(), id: 'lst_inesistente' } }, r);
+check('?id= sconosciuto → 404 esplicito', r.code === 404);
+r = mkRes();
+await handler({ method: 'GET', query: { k: feedKey(), id: 'lst_out' } }, r);
+check('?id= su un affittato → 409, mai un nodo vuoto', r.code === 409 && r.body.error === 'not_publishable');
+
 console.log(`\nFeed Immobiliare: ${passed} passed, ${failed} failed`);
 if (failed) { console.log('FALLITI: ' + bad.join(' | ')); process.exit(1); }
 process.exit(0);
