@@ -44,6 +44,18 @@ export async function finalizeContract(contract){
   if(contract.finalizedAt) return { ok:true, skipped:true };
 
   const now = new Date();
+  // fullySignedAt lo scrive submit alla firma che completa; i contratti
+  // arrivati qui per altre strade (legacy firmati nel portal, refinalize
+  // del watchdog) non ce l'hanno — e senza, tre documenti stampavano una
+  // data vuota ("Firmato da tutte le parti il", "Stato: COMPLETO —",
+  // "Stipulato: da firmare" su un contratto firmato). Si deriva dall'ULTIMA
+  // firma apposta: la data di perfezionamento del contratto.
+  if (!contract.fullySignedAt) {
+    const stamps = [contract.tenantSignedAt, contract.landlordSignedAt,
+      ...(Array.isArray(contract.coTenants) ? contract.coTenants.map(x => x && x.signedAt) : [])]
+      .map(t => Date.parse(t || '')).filter(n => !isNaN(n));
+    if (stamps.length) contract.fullySignedAt = new Date(Math.max(...stamps)).toISOString();
+  }
   const signDate = contract.fullySignedAt ? new Date(contract.fullySignedAt) : now;
   const start = contract.startDate ? new Date(contract.startDate) : signDate;
 
@@ -273,18 +285,21 @@ async function buildSignedContract(c, property){
   const anchorBlocks = (c.sigAnchors && Array.isArray(c.sigAnchors.blocks)) ? c.sigAnchors.blocks : [];
   if (anchorBlocks.length) {
     const embFor = {};
-    for (const role of ['tenant', 'landlord']) {
-      const sig = role === 'tenant' ? c.tenantSignature : c.landlordSignature;
+    const embedSig = async (key, sig) => {
       const m = /^data:image\/(png|jpe?g);base64,(.+)$/i.exec(String(sig || ''));
-      if (!m) continue;
+      if (!m) return;
       try {
         const b = Buffer.from(m[2], 'base64');
-        embFor[role] = m[1].toLowerCase().startsWith('jp') ? await pdf.embedJpg(b) : await pdf.embedPng(b);
-      } catch (e) { console.warn('[finalize] sig embed', role, e.message); }
-    }
+        embFor[key] = m[1].toLowerCase().startsWith('jp') ? await pdf.embedJpg(b) : await pdf.embedPng(b);
+      } catch (e) { console.warn('[finalize] sig embed', key, e.message); }
+    };
+    await embedSig('tenant', c.tenantSignature);
+    await embedSig('landlord', c.landlordSignature);
+    const coT = Array.isArray(c.coTenants) ? c.coTenants : [];
+    for (let i = 0; i < coT.length; i++) if (coT[i] && coT[i].signature) await embedSig('cotenant:' + i, coT[i].signature);
     const pages = pdf.getPages();
     for (const a of anchorBlocks) {
-      const im = embFor[a.role];
+      const im = a.role === 'cotenant' ? embFor['cotenant:' + (Number(a.coIndex) || 0)] : embFor[a.role];
       const pg = pages[(Number(a.page) || 1) - 1];
       if (!im || !pg) continue;
       const { width: W, height: H } = pg.getSize();
@@ -321,8 +336,8 @@ async function buildSignedContract(c, property){
   row('Immobile', (property && (property.address || property.name)) || '');
   // Solo caratteri WinAnsi (la lezione del certificato: la freccia U+2192
   // non è codificabile con gli StandardFonts e fa fallire l'intero PDF).
-  row('Periodo', (c.startDate ? ymd(c.startDate) : '-') + '   -   ' + (c.endDate ? ymd(c.endDate) : '-'));
-  row('Firmato da entrambe le parti il', c.fullySignedAt ? new Date(c.fullySignedAt).toLocaleString('it-IT') : '');
+  row('Periodo', (c.startDate ? new Date(c.startDate).toLocaleDateString('it-IT') : '-') + '   -   ' + (c.endDate ? new Date(c.endDate).toLocaleDateString('it-IT') : '-'));
+  row('Firmato da tutte le parti il', c.fullySignedAt ? new Date(c.fullySignedAt).toLocaleString('it-IT') : '-');
   y -= 10;
 
   const block = async (title, name, cf, sig, at, x) => {
@@ -391,8 +406,8 @@ async function buildCertificate(c, property){
   row('Canone / Deposito', (money(c.rent) || '-') + '   /   ' + (money(c.deposit) || '-'));
   // Solo caratteri WinAnsi: la freccia "→" (U+2192) non è codificabile con
   // gli StandardFonts di pdf-lib e faceva fallire l'INTERO certificato.
-  row('Periodo', (c.startDate ? ymd(c.startDate) : '-') + '   -   ' + (c.endDate ? ymd(c.endDate) : '-'));
-  row('Stato', 'COMPLETO — ' + (c.fullySignedAt ? new Date(c.fullySignedAt).toLocaleString('it-IT') : ''));
+  row('Periodo', (c.startDate ? new Date(c.startDate).toLocaleDateString('it-IT') : '-') + '   -   ' + (c.endDate ? new Date(c.endDate).toLocaleDateString('it-IT') : '-'));
+  row('Stato', c.fullySignedAt ? 'COMPLETO — firmato da tutte le parti il ' + new Date(c.fullySignedAt).toLocaleString('it-IT') : 'COMPLETO');
   y -= 8;
 
   const block = async (title, name, cf, sig, at, ip, hash, x) => {

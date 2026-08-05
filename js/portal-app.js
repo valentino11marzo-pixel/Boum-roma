@@ -17713,6 +17713,24 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     { role: 'tenant', page: _pg, xr: rightX / pageW, yr: (sig1Y - sigH + 4) / pageH, wr: (sigW - 4) / pageW, hr: sigH / pageH });
             }
             y = sig1Y + 16;
+            {
+                const _coT = Array.isArray(contract.coTenants) ? contract.coTenants.filter(x => x && x.name) : [];
+                for (let _ci = 0; _ci < _coT.length; _ci++) {
+                    ensureSpace(26);
+                    const _coY = y + 14;
+                    doc.setLineWidth(0.4); doc.setDrawColor(0);
+                    doc.line(rightX, _coY, rightX + sigW, _coY);
+                    if (_coT[_ci].signature) {
+                        try { doc.addImage(_coT[_ci].signature, 'PNG', rightX, _coY - sigH + 4, sigW - 4, sigH); } catch (e) {}
+                    }
+                    doc.setFont('times', 'normal'); doc.setFontSize(10);
+                    doc.text('Il Co-conduttore: ' + _coT[_ci].name, rightX, _coY + 5);
+                    const _pgc = doc.internal.getCurrentPageInfo().pageNumber;
+                    _sigA.push({ role: 'cotenant', coIndex: _ci, page: _pgc, xr: rightX / pageW, yr: (_coY - sigH + 4) / pageH, wr: (sigW - 4) / pageW, hr: sigH / pageH });
+                    y = _coY + 10;
+                }
+            }
+
 
             // --- 1341–1342 block ---
             y += 14;
@@ -17747,6 +17765,24 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 _sigA.push(
                     { role: 'landlord', page: _pg, xr: margin / pageW, yr: (sig2Y - sigH + 4) / pageH, wr: (sigW - 4) / pageW, hr: sigH / pageH },
                     { role: 'tenant', page: _pg, xr: rightX / pageW, yr: (sig2Y - sigH + 4) / pageH, wr: (sigW - 4) / pageW, hr: sigH / pageH });
+            }
+            y = sig2Y + 16;
+            {
+                const _coT = Array.isArray(contract.coTenants) ? contract.coTenants.filter(x => x && x.name) : [];
+                for (let _ci = 0; _ci < _coT.length; _ci++) {
+                    ensureSpace(26);
+                    const _coY = y + 14;
+                    doc.setLineWidth(0.4); doc.setDrawColor(0);
+                    doc.line(rightX, _coY, rightX + sigW, _coY);
+                    if (_coT[_ci].signature) {
+                        try { doc.addImage(_coT[_ci].signature, 'PNG', rightX, _coY - sigH + 4, sigW - 4, sigH); } catch (e) {}
+                    }
+                    doc.setFont('times', 'normal'); doc.setFontSize(10);
+                    doc.text('Il Co-conduttore: ' + _coT[_ci].name, rightX, _coY + 5);
+                    const _pgc = doc.internal.getCurrentPageInfo().pageNumber;
+                    _sigA.push({ role: 'cotenant', coIndex: _ci, page: _pgc, xr: rightX / pageW, yr: (_coY - sigH + 4) / pageH, wr: (sigW - 4) / pageW, hr: sigH / pageH });
+                    y = _coY + 10;
+                }
             }
 
             // --------------- FOOTER (Pagina N di M) ---------------
@@ -18141,6 +18177,24 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     { role: 'tenant', page: _pg, xr: rightX / pageW, yr: (sig1Y - sigH + 4) / pageH, wr: (sigW - 4) / pageW, hr: sigH / pageH });
             }
             y = sig1Y + 16;
+            {
+                const _coT = Array.isArray(contract.coTenants) ? contract.coTenants.filter(x => x && x.name) : [];
+                for (let _ci = 0; _ci < _coT.length; _ci++) {
+                    ensureSpace(26);
+                    const _coY = y + 14;
+                    doc.setLineWidth(0.4); doc.setDrawColor(0);
+                    doc.line(rightX, _coY, rightX + sigW, _coY);
+                    if (_coT[_ci].signature) {
+                        try { doc.addImage(_coT[_ci].signature, 'PNG', rightX, _coY - sigH + 4, sigW - 4, sigH); } catch (e) {}
+                    }
+                    doc.setFont('times', 'normal'); doc.setFontSize(10);
+                    doc.text('Il Co-conduttore: ' + _coT[_ci].name, rightX, _coY + 5);
+                    const _pgc = doc.internal.getCurrentPageInfo().pageNumber;
+                    _sigA.push({ role: 'cotenant', coIndex: _ci, page: _pgc, xr: rightX / pageW, yr: (_coY - sigH + 4) / pageH, wr: (sigW - 4) / pageW, hr: sigH / pageH });
+                    y = _coY + 10;
+                }
+            }
+
 
             // --- 1341-1342 block (lista del contratto tipo associazione) ---
             y += 14;
@@ -18175,6 +18229,24 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 _sigA.push(
                     { role: 'landlord', page: _pg, xr: margin / pageW, yr: (sig2Y - sigH + 4) / pageH, wr: (sigW - 4) / pageW, hr: sigH / pageH },
                     { role: 'tenant', page: _pg, xr: rightX / pageW, yr: (sig2Y - sigH + 4) / pageH, wr: (sigW - 4) / pageW, hr: sigH / pageH });
+            }
+            y = sig2Y + 16;
+            {
+                const _coT = Array.isArray(contract.coTenants) ? contract.coTenants.filter(x => x && x.name) : [];
+                for (let _ci = 0; _ci < _coT.length; _ci++) {
+                    ensureSpace(26);
+                    const _coY = y + 14;
+                    doc.setLineWidth(0.4); doc.setDrawColor(0);
+                    doc.line(rightX, _coY, rightX + sigW, _coY);
+                    if (_coT[_ci].signature) {
+                        try { doc.addImage(_coT[_ci].signature, 'PNG', rightX, _coY - sigH + 4, sigW - 4, sigH); } catch (e) {}
+                    }
+                    doc.setFont('times', 'normal'); doc.setFontSize(10);
+                    doc.text('Il Co-conduttore: ' + _coT[_ci].name, rightX, _coY + 5);
+                    const _pgc = doc.internal.getCurrentPageInfo().pageNumber;
+                    _sigA.push({ role: 'cotenant', coIndex: _ci, page: _pgc, xr: rightX / pageW, yr: (_coY - sigH + 4) / pageH, wr: (sigW - 4) / pageW, hr: sigH / pageH });
+                    y = _coY + 10;
+                }
             }
 
             // --------------- FOOTER (Pagina N di M) ---------------
