@@ -1,12 +1,15 @@
 // api/reunion-lead.js
 // Public lead-capture endpoint for the /reunion landing page (BOOM La Réunion).
 //
-// The page speaks to TWO audiences on purpose — propriétaires who want their
-// home managed, and locataires looking for one — so the single thing this
-// endpoint must never lose is WHICH of the two wrote in. That lands in
-// `leadType` (the field portal.html + cockpit-preview.html already filter on)
-// and is repeated in the human summary, because the operator reading the
-// Telegram card decides what to answer from that one line.
+// The page speaks to THREE audiences on purpose — propriétaires who want their
+// home managed, locataires looking for one, and acheteurs buying from a
+// distance — so the single thing this endpoint must never lose is WHICH of the
+// three wrote in. It lands in `leadType` AND in the first words of the human
+// summary. The summary is what actually carries it: `leadType` is written by
+// several endpoints but READ by no page (portal.html and cockpit-preview.html
+// show service/zone/budget and the message), so the operator's real cue is the
+// line they see — which is why it starts with PROPRIÉTAIRE / LOCATAIRE /
+// ACHETEUR in capitals rather than hiding the side in a field.
 //
 // Same shape as /api/canone-lead: a `leads` doc with status='new',
 // source='web' — so a Réunion lead rides the EXISTING machine (Lead Brain →
@@ -70,26 +73,41 @@ export default async function handler(req, res) {
   if (rateLimited(ip)) return res.status(429).json({ ok: false, error: 'rate_limited' });
 
   // ── The one field that decides how the operator answers ──
-  const isOwner  = body.role === 'owner' || body.role === 'landlord' || body.role === 'proprietaire';
-  const leadType = isOwner ? 'landlord' : 'tenant';
+  const role = String(body.role || '').toLowerCase();
+  const side = ['buyer', 'acheteur', 'acquereur', 'acquéreur'].includes(role) ? 'buyer'
+    : ['owner', 'landlord', 'proprietaire', 'propriétaire'].includes(role) ? 'owner'
+    : 'tenant';
+  const isOwner = side === 'owner';
+  const isBuyer = side === 'buyer';
+  // `buyer` is a NEW third value. Safe to introduce: leadType is written by
+  // several endpoints and read by none — nothing filters on it today.
+  const leadType = isOwner ? 'landlord' : isBuyer ? 'buyer' : 'tenant';
 
   const commune = clip(body.commune, 80);
   const message = clip(body.message, 1000);
   const budget  = num(body.budget);
   const moveIn  = clip(body.moveIn, 40);
   const kind    = clip(body.propertyKind, 60);
+  const purpose = clip(body.purpose, 60);   // buyer only: usage du bien
 
   // Human-readable summary for the portal Leads inbox + the Telegram card.
   const parts = [];
   if (commune) parts.push(commune);
   if (isOwner) {
     if (kind) parts.push(kind);
+  } else if (isBuyer) {
+    // A purchase budget is a TOTAL, not a monthly rent: printing "€/mois"
+    // next to 320000 would read as a catastrophic misunderstanding of the
+    // one number that matters to this person.
+    if (budget) parts.push(`budget ~${budget.toLocaleString('fr-FR')} €`);
+    if (kind) parts.push(kind);
+    if (purpose) parts.push(purpose);
   } else {
     if (budget) parts.push(`budget ~${budget}€/mois`);
     if (moveIn) parts.push(`emménagement ${moveIn}`);
   }
-  const head = isOwner
-    ? 'PROPRIÉTAIRE — La Réunion'
+  const head = isOwner ? 'PROPRIÉTAIRE — La Réunion'
+    : isBuyer ? 'ACHETEUR — La Réunion'
     : 'LOCATAIRE — La Réunion';
   const summary = [
     `${head}${parts.length ? ' · ' + parts.join(' · ') : ''}.`,
@@ -114,15 +132,17 @@ export default async function handler(req, res) {
     language: lang,
     zone: commune,
     budget: isOwner ? null : budget,
-    moveIn: isOwner ? null : moveIn,
-    intent: isOwner ? 'reunion_owner' : 'reunion_tenant',
+    budgetKind: isBuyer ? 'purchase' : (isOwner ? null : 'monthly'),
+    moveIn: isOwner || isBuyer ? null : moveIn,
+    purpose: isBuyer ? purpose : null,
+    intent: isOwner ? 'reunion_owner' : isBuyer ? 'reunion_buyer' : 'reunion_tenant',
     status: 'new',
     grade: null,
     propertyAddress: isOwner ? commune : null,
     // audit
     ingestedBy: 'reunion-lead',
     sourceRef: 'reunion',
-    raw: { role: leadType, commune, budget, moveIn, propertyKind: kind, message, lang, ip },
+    raw: { role: leadType, commune, budget, moveIn, propertyKind: kind, purpose, message, lang, ip },
     createdAt: now,
     ingestedAt: now,
   };
@@ -135,7 +155,8 @@ export default async function handler(req, res) {
     // means the operator hears about it on the next pulse instead of now.
     fsCreate('agentNotifications', {
       type: 'lead.new',
-      summary: `🇷🇪 ${head} · ${name}${commune ? ' · ' + commune : ''}${budget ? ' · ' + budget + '€' : ''}`,
+      summary: `🇷🇪 ${head} · ${name}${commune ? ' · ' + commune : ''}` +
+        (budget ? ` · ${budget.toLocaleString('fr-FR')} €${isBuyer ? '' : '/mois'}` : ''),
       priority: 'high',
       ref: { collection: 'leads', id },
       payload: { name, email, phone, commune, budget, leadType, source: 'reunion-lead' },

@@ -21,7 +21,7 @@
 // Run: node tests/reunion/run.mjs
 
 import { readFileSync } from 'node:fs';
-import { isReunion, isReunionOwner, reunionReplyText, REUNION_URL } from '../../api/_market.js';
+import { isReunion, isReunionOwner, reunionSide, reunionReplyText, REUNION_URL } from '../../api/_market.js';
 
 let pass = 0, fail = 0;
 const ok = (name, cond, detail) => {
@@ -90,6 +90,7 @@ function call(body, ip) {
 
 const OWNER = { role: 'owner', name: 'Marie Payet', email: 'marie@example.re', commune: 'Saint-Pierre', propertyKind: 'T3 68 m²', message: 'Mon bien est libre depuis juin, je vis à Lyon.' };
 const TENANT = { role: 'tenant', name: 'Jean Hoarau', email: 'jean@example.re', commune: 'Saint-Denis', budget: '900', moveIn: 'septembre 2026', message: 'Je suis muté en septembre.' };
+const BUYER  = { role: 'buyer', name: 'Claire Grondin', email: 'claire@example.fr', commune: 'Saint-Gilles', budget: '320000', propertyKind: 'villa F4', purpose: 'investissement locatif', message: 'Annonce repérée, je suis à Nantes.' };
 
 console.log('\n\x1b[1m▸ la porte : ce qui entre et ce qui n\'entre pas\x1b[0m');
 {
@@ -143,6 +144,38 @@ console.log('\n\x1b[1m▸ de quel côté est cette personne\x1b[0m');
   ok('un rôle inconnu retombe côté locataire, jamais dans le vide', r.lead.leadType === 'tenant');
 }
 
+console.log('\n\x1b[1m▸ l\'acheteur : un budget de 320 000 € n\'est pas un loyer\x1b[0m');
+{
+  const r = await call(BUYER);
+  ok('acheteur → leadType buyer', r.lead.leadType === 'buyer', r.lead.leadType);
+  ok('acheteur → intent reunion_buyer', r.lead.intent === 'reunion_buyer');
+  ok('le résumé le CRIE', /^ACHETEUR/.test(r.lead.message), r.lead.message);
+  // La confusion qui ferait le plus mal : afficher « 320000 €/mois » à
+  // l'opérateur, ou pire le lire comme un loyer dans la réponse.
+  ok('le budget d\'achat est marqué comme tel', r.lead.budgetKind === 'purchase');
+  ok('...et n\'est JAMAIS écrit en €/mois', !/\/mois/.test(String(r.lead.message)), r.lead.message);
+  // toLocaleString('fr-FR') sépare les milliers avec une espace fine
+  // insécable (U+202F), pas une espace ordinaire — c'est la bonne typographie
+  // française, donc on normalise l'assertion au lieu d'abîmer l'affichage.
+  const spaces = s => String(s).replace(/[   ]/g, ' ');
+  ok('le montant est lisible pour un humain', spaces(r.lead.message).includes('320 000'), r.lead.message);
+  ok('l\'usage du bien voyage', r.lead.purpose === 'investissement locatif');
+  ok('un acheteur n\'a pas de date d\'emménagement', r.lead.moveIn === null);
+  ok('le type de bien recherché est gardé', String(r.lead.message).includes('villa'));
+  const notif = r.writes.find(w => w.url.includes('agentNotifications'));
+  ok('la notification dit ACHETEUR sans /mois', /ACHETEUR/.test(plain(notif.body.fields.summary)) && !/\/mois/.test(plain(notif.body.fields.summary)));
+}
+{
+  const r = await call({ ...TENANT, budget: '900' });
+  ok('un locataire garde bien son €/mois', /\/mois/.test(String(r.lead.message)) && r.lead.budgetKind === 'monthly');
+}
+{
+  for (const alias of ['buyer', 'acheteur', 'acquéreur', 'ACHETEUR']) {
+    const r = await call({ ...BUYER, role: alias });
+    ok(`« ${alias} » est reconnu comme acheteur`, r.lead.leadType === 'buyer');
+  }
+}
+
 console.log('\n\x1b[1m▸ le lead entre dans la machine qui existe déjà\x1b[0m');
 {
   const r = await call(OWNER);
@@ -189,6 +222,13 @@ console.log('\n\x1b[1m▸ le marché : Rome n\'écrit pas en français, La Réun
   ok('un lead WhatsApp romain non plus', !isReunion({ source: 'whatsapp', message: 'ciao cerco casa a Roma' }));
   ok('un objet vide ne casse rien', !isReunion({}) && !isReunion(null) && !isReunion(undefined));
   ok('le côté propriétaire est lisible depuis le lead', isReunionOwner({ leadType: 'landlord' }) && !isReunionOwner({ leadType: 'tenant' }));
+  ok('les trois côtés se distinguent', reunionSide({ leadType: 'landlord' }) === 'owner'
+    && reunionSide({ leadType: 'tenant' }) === 'tenant'
+    && reunionSide({ leadType: 'buyer' }) === 'buyer');
+  ok('l\'intent suffit quand leadType manque', reunionSide({ intent: 'reunion_buyer' }) === 'buyer');
+  // Un acheteur n'est PAS un bailleur : lui écrire « votre bien est libre à
+  // partir de quand ? » alors qu'il n'a encore rien acheté est absurde.
+  ok('un acheteur n\'est pas un propriétaire bailleur', !isReunionOwner({ leadType: 'buyer' }));
 }
 {
   const owner = reunionReplyText({ name: 'Marie Payet', leadType: 'landlord', zone: 'Saint-Pierre' });
@@ -205,6 +245,14 @@ console.log('\n\x1b[1m▸ le marché : Rome n\'écrit pas en français, La Réun
   // n'est pas celle qui signe les messages de Rome.
   ok('il n\'invente aucune signature', !/Valentino/.test(owner + tenant));
   ok('sans nom, la formule reste correcte', reunionReplyText({ leadType: 'tenant' }).startsWith('Bonjour, ici'));
+
+  const buyer = reunionReplyText({ name: 'Claire', leadType: 'buyer', zone: 'Saint-Gilles' });
+  ok('l\'acheteur a sa propre réponse', buyer !== owner && buyer !== tenant);
+  ok('elle est en français', buyer.startsWith('Bonjour Claire,'));
+  ok('elle répond à SA question : est-ce que quelqu\'un peut aller voir', /aller voir|visiter/.test(buyer));
+  ok('elle ne lui demande pas quand SON bien est libre', !/votre bien est libre|meublé ou vide/.test(buyer));
+  ok('elle l\'envoie du bon côté de la page', buyer.includes('?role=buyer'));
+  ok('elle ne parle pas de Rome', !/Roma|Rome/.test(buyer) && !/apartments/.test(buyer));
 }
 
 console.log('\n\x1b[1m▸ les gardes sont posées dans le code qui envoie\x1b[0m');
@@ -241,6 +289,96 @@ console.log('\n\x1b[1m▸ la page dit la même chose que le serveur\x1b[0m');
   ok('aucun numéro de carte professionnelle n\'est affirmé par défaut',
     !/carte professionnelle n° \d/.test(page.replace(/\[NUMÉRO\]/g, '')));
   ok('une porte de secours existe si le formulaire tombe', page.includes('mailto:hello@boom-rome.com'));
+  // Le troisième public existe partout ou nulle part : un sélecteur sans
+  // volet, ou un volet sans champs, laisse quelqu'un dans une impasse.
+  ok('le volet acheteur existe', page.includes('class="a-buyer" id="acheter"'));
+  ok('le sélecteur a bien trois crans', page.includes('id="segBuyer"') && page.includes('id="fBuyer"'));
+  ok('le formulaire a les champs de l\'acheteur', page.includes('id="fBBudget"') && page.includes('id="fPurpose"'));
+  ok('le budget d\'achat est envoyé séparément du loyer', page.includes("aud==='buyer'?v('fBBudget')"));
+  // La partie réglementée (recherche + négociation = carte T) ne doit JAMAIS
+  // être promise au cran prudent : c'est l'activité la plus encadrée des trois.
+  const pendingBlocks = page.split('lg-pending').length - 1;
+  ok('la réserve carte T est écrite, pas sous-entendue', page.includes('carte T') && pendingBlocks >= 3, { pendingBlocks });
+  ok('aucune promesse de négociation hors du bloc conditionnel',
+    !/nous négocions|on négocie/i.test(page));
+}
+
+console.log('\n\x1b[1m▸ être trouvé : SEO, et être CITÉ : les moteurs de réponse\x1b[0m');
+{
+  const root = new URL('../../', import.meta.url);
+  const page = readFileSync(new URL('reunion.html', root), 'utf8');
+
+  // ── L'image sociale. La page partait avec celle de Rome : un propriétaire
+  //    réunionnais recevait sur WhatsApp une carte qui parlait d'ailleurs.
+  const og = readFileSync(new URL('og-reunion.png', root));
+  const isPng = og.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  const w = og.readUInt32BE(16), h = og.readUInt32BE(20);
+  ok('l\'image sociale existe et est un vrai PNG', isPng);
+  ok('elle est au format attendu par les réseaux (1200×630)', w === 1200 && h === 630, { w, h });
+  ok('la page la déclare (og + twitter)', (page.match(/og-reunion\.png/g) || []).length >= 2);
+  ok('elle ne partage plus la carte de Rome', !page.includes('BOOMsocialprofile.png'));
+
+  // ── Longueurs SERP : la coupe se fait à la fin, jamais au début.
+  const title = (page.match(/<title>([^<]*)<\/title>/) || [])[1] || '';
+  const desc = (page.match(/<meta name="description" content="([^"]*)"/) || [])[1] || '';
+  ok(`le titre tient dans la SERP (${title.length} car.)`, title.length > 0 && title.length <= 60, title);
+  ok(`la description aussi (${desc.length} car.)`, desc.length >= 120 && desc.length <= 165, desc.length);
+
+  // ── Données structurées : elles doivent toutes se PARSER…
+  const blocks = [...page.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map(m => m[1]);
+  ok(`la page porte plusieurs blocs de données structurées (${blocks.length})`, blocks.length >= 4);
+  let parsed = [];
+  try { parsed = blocks.map(b => JSON.parse(b)); ok('tous les blocs JSON-LD sont du JSON valide', true); }
+  catch (e) { ok('tous les blocs JSON-LD sont du JSON valide', false, e.message); }
+
+  // ── …et ne rien AFFIRMER qui ne soit pas visible sur la page. Une FAQ
+  //    balisée mais absente de l'écran, c'est du contenu masqué : Google le
+  //    sanctionne, et un moteur de réponse cite une phrase introuvable.
+  const summaries = [...page.matchAll(/<summary>([\s\S]*?)<\/summary>/g)]
+    .map(m => m[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim());
+  const faq = parsed.find(b => b && b['@type'] === 'FAQPage');
+  const norm = s => String(s).replace(/\s+/g, ' ').trim();
+  const orphans = faq ? faq.mainEntity.filter(q => !summaries.some(s => s.includes(norm(q.name)))) : ['(pas de FAQPage)'];
+  ok('chaque question balisée est réellement affichée', orphans.length === 0, orphans.map(o => o.name || o));
+  ok('les réponses balisées ne sont pas vides', faq && faq.mainEntity.every(q => (q.acceptedAnswer.text || '').length > 60));
+
+  // ── Les trois métiers déclarés séparément : c'est ce qui permet à un
+  //    moteur de répondre « oui, pour un acheteur » et pas juste « location ».
+  const graph = parsed.find(b => b && Array.isArray(b['@graph']));
+  const services = graph ? graph['@graph'].filter(n => n['@type'] === 'Service') : [];
+  ok('les trois services sont déclarés', services.length === 3, services.map(s => s.serviceType));
+  ok('chacun dit à qui il s\'adresse', services.every(s => s.audience && s.audience.audienceType));
+  ok('chacun renvoie vers son propre volet', services.every(s => /\?role=(owner|tenant|buyer)$/.test(s.url || '')));
+  ok('le service achat porte la réserve loi Hoguet dans sa description',
+    (services.find(s => /achat|acqu/i.test(s['@id'] || '')) || {}).description?.includes('Hoguet'));
+
+  // ── speakable qui pointe dans le vide = une promesse faite à un assistant
+  //    vocal qui n'a rien à lire.
+  const wp = graph ? graph['@graph'].find(n => n['@type'] === 'WebPage') : null;
+  const sels = wp?.speakable?.cssSelector || [];
+  ok('les sélecteurs speakable existent vraiment dans la page',
+    sels.length > 0 && sels.every(sel => page.includes(sel.replace(/^\./, 'class="').replace(/ .*/, '')) || page.includes(sel.split(' ').pop().replace('.', ''))), sels);
+
+  // ── Le bloc écrit pour être cité.
+  ok('le bloc « en bref » existe', page.includes('class="enbref"') && page.includes('id="enbref"'));
+  ok('il énonce la limite réglementaire au lieu de la taire', /en bref[\s\S]{0,4000}Hoguet/i.test(page));
+
+  // ── Accessibilité : ce qui a été ajouté doit être réellement atteignable.
+  ok('lien d\'évitement présent et cible existante', page.includes('class="skip"') && page.includes('id="main"'));
+  ok('les animations s\'arrêtent si on le demande', page.includes('prefers-reduced-motion'));
+  ok('le focus clavier est visible', page.includes(':focus-visible'));
+
+  // ── Les fichiers que lisent les robots et les moteurs de réponse.
+  const llms = readFileSync(new URL('llms.txt', root), 'utf8');
+  ok('llms.txt présente le second marché', llms.includes('/reunion') && /R[ée]union/.test(llms));
+  ok('...avec les trois publics', ['?role=owner', '?role=tenant', '?role=buyer'].every(r => llms.includes(r)));
+  ok('...et la note réglementaire, pour ne pas faire dire à une IA plus que ce qu\'on fait', llms.includes('Hoguet'));
+
+  const robots = readFileSync(new URL('robots.txt', root), 'utf8');
+  ok('robots.txt ne bloque pas la page', !/^\s*Disallow:\s*\/reunion/mi.test(robots));
+
+  const sitemap = readFileSync(new URL('sitemap.xml', root), 'utf8');
+  ok('sitemap.xml la liste', sitemap.includes('https://www.boomrome.com/reunion'));
 }
 
 console.log(`\n${fail === 0 ? '\x1b[32m\x1b[1m' : '\x1b[31m\x1b[1m'}La Réunion: ${pass} passed, ${fail} failed\x1b[0m\n`);
