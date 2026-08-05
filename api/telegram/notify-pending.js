@@ -15,6 +15,7 @@ import { tgSend, fmtAction, actionKeyboard } from './_lib.js';
 import { fmtViewingCard, viewingKeyboard } from './_viewings.js';
 import { loadViewing } from '../viewings/_apply.js';
 import { replyLang } from '../_lang.js';
+import { isReunion, reunionReplyText } from '../_market.js';
 
 const MAX_PER_RUN = 10; // cap so a backlog doesn't spam Telegram
 const esc = s => String(s || '').replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c]));
@@ -140,7 +141,9 @@ export default async function handler(req, res) {
     try {
       // WhatsApp reads as a live thread, not as a source label — the operator
       // must see at a glance that someone is waiting on the other side.
-      const src = String(l.source || '') === 'whatsapp' ? '💬 ti ha scritto su WhatsApp' : esc(l.source || '?');
+      const src = isReunion(l) ? '🇷🇪 La Réunion'
+        : String(l.source || '') === 'whatsapp' ? '💬 ti ha scritto su WhatsApp'
+        : esc(l.source || '?');
       const head = l.grade
         ? `${GRADE_ICON[l.grade] || '🟢'} <b>${esc(l.name || 'Lead')}</b> · ${src} · ${esc(l.grade)}`
         : `🟢 <b>${esc(l.name || 'Lead')}</b> · ${src}`;
@@ -170,7 +173,10 @@ export default async function handler(req, res) {
         // outreach to someone who is looking at their own message above it.
         // Same channel, different move: answer, don't introduce yourself.
         const inThread = String(l.source || '') === 'whatsapp';
-        const msgTxt = inThread
+        // La Réunion parla francese e non ha nulla a che vedere col catalogo
+        // romano: il messaggio pronto qui sotto manderebbe a un proprietario
+        // di Saint-Pierre il link agli appartamenti di Roma, in inglese.
+        const msgTxt = isReunion(l) ? reunionReplyText(l) : inThread
           ? (en
             ? (`Hi${first ? ' ' + first : ''}, Valentino here 👋` +
                (title ? ` Here's everything on "${title}" — photos, video and details: ${link}` : ` ${link}`) +

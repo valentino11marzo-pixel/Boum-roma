@@ -67,6 +67,18 @@
   ]
 }
   </script>
+  <script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","inLanguage":"fr","mainEntity":[
+ {"@type":"Question","name":"BOOM, c'est romain ou réunionnais ?","acceptedAnswer":{"@type":"Answer","text":"Les deux, et c'est volontaire. BOOM est né à Rome, où nous gérons des locations pour des propriétaires italiens et des locataires venus du monde entier. L'antenne de La Réunion applique la même méthode et les mêmes outils, avec quelqu'un sur l'île — pas une hotline à 10 000 km."}},
+ {"@type":"Question","name":"Je suis propriétaire mais je vis en métropole. Ça marche comment ?","acceptedAnswer":{"@type":"Answer","text":"C'est notre cas d'usage principal. Vous ne vous déplacez pas : nous visitons, photographions, recevons les candidats, vérifions leurs dossiers et vous envoyons tout — y compris la vidéo du bien et l'état des lieux photo. Vous décidez à distance, avec les mêmes informations que si vous y étiez."}},
+ {"@type":"Question","name":"Je cherche depuis la métropole, je peux visiter avant d'arriver ?","acceptedAnswer":{"@type":"Answer","text":"Oui, en visio et en direct : nous entrons dans le logement avec vous au téléphone, vous demandez ce que vous voulez voir, et l'enregistrement vous reste."}},
+ {"@type":"Question","name":"Combien ça coûte ?","acceptedAnswer":{"@type":"Answer","text":"Cela dépend de ce dont vous avez besoin — une mise en location n'est pas un suivi complet. Nous vous donnons le chiffre par écrit avant tout engagement, et il ne bouge pas ensuite."}},
+ {"@type":"Question","name":"Sous combien de temps avez-vous une réponse ?","acceptedAnswer":{"@type":"Answer","text":"Le même jour ouvré dans la très grande majorité des cas. Si votre demande sort de notre périmètre, nous vous le dirons aussi, vite."}},
+ {"@type":"Question","name":"Vous parlez anglais ?","acceptedAnswer":{"@type":"Answer","text":"Oui. Toute la procédure, bail compris, peut se faire en anglais — c'est la langue de travail quotidienne de BOOM à Rome."}},
+ {"@type":"Question","name":"Faut-il être sur l'île pour signer ?","acceptedAnswer":{"@type":"Answer","text":"Non. La signature électronique est la norme chez nous : bail, état des lieux et pièces circulent en ligne. Beaucoup de nos dossiers se bouclent avant que le locataire ait posé le pied sur l'île."}},
+ {"@type":"Question","name":"Que faites-vous de mes données ?","acceptedAnswer":{"@type":"Answer","text":"Elles servent à vous répondre, et à rien d'autre. Pas de revente, pas de liste de diffusion achetée ou vendue. Vous pouvez demander leur suppression à tout moment."}}
+]}
+  </script>
 <style>
 /* ── bilingue : une seule page, deux voix. Le basculement est en CSS pur,
       donc aucun scintillement au chargement et rien à réécrire en JS. ── */
@@ -76,8 +88,41 @@ html[lang="en"] .l-fr{display:none!important}
 body[data-aud="owner"]  .a-tenant{display:none!important}
 body[data-aud="tenant"] .a-owner {display:none!important}
 
+/* ── L'INTERRUPTEUR LOI HOGUET (voir <body data-legal>) ────────────────────
+   En France, gestion locative et transaction supposent une carte
+   professionnelle. Tant que le statut de l'antenne n'est pas tranché la page
+   ne revendique RIEN : elle le dit, ce qui est à la fois vrai et cohérent
+   avec la promesse du reste de la page. Le jour où la carte (ou le partenaire
+   titulaire) existe, on change UN attribut sur <body> et les bonnes phrases
+   apparaissent — pas une chasse aux formulations dans tout le fichier. */
+.lg{display:none}
+body[data-legal="pending"] .lg-pending{display:revert}
+body[data-legal="card"]    .lg-card{display:revert}
+body[data-legal="partner"] .lg-partner{display:revert}
+
+/* ── ce que l'île a de particulier ── */
+.local{margin-top:26px;display:grid;gap:12px;grid-template-columns:minmax(0,1fr)}
+@media(min-width:700px){.local{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.loc{border:1px solid var(--line);border-radius:16px;background:var(--card);padding:20px;display:flex;gap:14px}
+.loc .n{font-size:11px;letter-spacing:2px;color:var(--gold);flex:none;padding-top:3px}
+.loc b{display:block;font-weight:400;font-size:15px}
+.loc p{font-size:12.5px;color:var(--t3);margin-top:5px}
+.loc em{font-style:normal;color:var(--t2)}
+
 main{padding-top:150px}
 .mark{width:30px;height:30px;flex:none}
+
+/* La barre du haut porte ici deux éléments que les pages romaines n'ont pas —
+   la pastille « La Réunion » et le sélecteur de langue — plus un lien de plus.
+   À 1100px la rangée se cassait en deux et le bouton d'appel à l'action
+   sortait de l'écran. On garde donc le menu complet seulement quand il tient
+   VRAIMENT, et en dessous c'est le menu hamburger (qui contient tout). */
+.nav-links{gap:20px}
+.nav-link,.place,.nav-cta{white-space:nowrap}
+@media(max-width:1199px){
+  .nav-links{display:none!important}
+  .nav-toggle{display:flex!important}
+}
 
 /* nav : la place + la langue */
 .place{font-size:10px;letter-spacing:2.4px;text-transform:uppercase;color:var(--gold);border:1px solid var(--line-gold);border-radius:100px;padding:5px 11px;margin-left:12px;white-space:nowrap}
@@ -144,7 +189,11 @@ main{padding-top:150px}
 </style>
 <script defer src="/js/boom-consent.js"></script>
 </head>
-<body data-aud="owner">
+<!-- data-legal : "pending" | "card" | "partner" — voir le bloc L'INTERRUPTEUR
+     LOI HOGUET dans <style>. Ne passer à "card"/"partner" QUE le jour où le
+     statut existe vraiment, et remplir en même temps les champs marqués
+     À COMPLÉTER (FAQ + mentions légales du pied de page). -->
+<body data-aud="owner" data-legal="pending">
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
   <linearGradient id="goldGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFE55C"/><stop offset="100%" stop-color="#E5C200"/></linearGradient>
@@ -161,6 +210,7 @@ main{padding-top:150px}
     <div class="nav-links">
       <a href="#proprietaires" class="nav-link"><span class="l-fr">Propriétaires</span><span class="l-en">Owners</span></a>
       <a href="#locataires" class="nav-link"><span class="l-fr">Locataires</span><span class="l-en">Tenants</span></a>
+      <a href="#ile" class="nav-link"><span class="l-fr">Sur place</span><span class="l-en">On the ground</span></a>
       <a href="#zones" class="nav-link"><span class="l-fr">Communes</span><span class="l-en">Areas</span></a>
       <a href="#faq" class="nav-link">FAQ</a>
       <a href="https://www.boomrome.com/" class="nav-link" target="_blank" rel="noopener">BOOM Rome ↗</a>
@@ -179,6 +229,7 @@ main{padding-top:150px}
     <a href="#proprietaires" class="mobile-menu-link"><span class="l-fr">Propriétaires</span><span class="l-en">Owners</span></a>
     <a href="#locataires" class="mobile-menu-link"><span class="l-fr">Locataires</span><span class="l-en">Tenants</span></a>
     <a href="#methode" class="mobile-menu-link"><span class="l-fr">Notre méthode</span><span class="l-en">Our method</span></a>
+    <a href="#ile" class="mobile-menu-link"><span class="l-fr">Sur place</span><span class="l-en">On the ground</span></a>
     <a href="#zones" class="mobile-menu-link"><span class="l-fr">Communes</span><span class="l-en">Areas</span></a>
     <a href="#faq" class="mobile-menu-link">FAQ</a>
     <a href="https://www.boomrome.com/" class="mobile-menu-link" target="_blank" rel="noopener">BOOM Rome ↗</a>
@@ -243,9 +294,9 @@ main{padding-top:150px}
       <h2><span class="l-fr">Vous êtes <span class="g">de quel côté ?</span></span><span class="l-en">Which <span class="g">side are you on?</span></span></h2>
     </div>
     <p class="sec-sub"><span class="l-fr">Les deux métiers n'ont rien à voir. Choisissez le vôtre — le reste de la page s'adapte.</span><span class="l-en">The two jobs have nothing in common. Pick yours — the rest of the page follows.</span></p>
-    <div class="seg" role="tablist">
-      <button type="button" id="segOwner"  role="tab" onclick="pickAud('owner','seg')"><span class="l-fr">Propriétaire</span><span class="l-en">Owner</span></button>
-      <button type="button" id="segTenant" role="tab" onclick="pickAud('tenant','seg')"><span class="l-fr">Locataire</span><span class="l-en">Tenant</span></button>
+    <div class="seg" role="group" aria-label="Propriétaire ou locataire">
+      <button type="button" id="segOwner"  aria-pressed="true"  onclick="pickAud('owner','seg')"><span class="l-fr">Propriétaire</span><span class="l-en">Owner</span></button>
+      <button type="button" id="segTenant" aria-pressed="false" onclick="pickAud('tenant','seg')"><span class="l-fr">Locataire</span><span class="l-en">Tenant</span></button>
     </div>
 
     <!-- ── PROPRIÉTAIRES ── -->
@@ -282,6 +333,10 @@ main{padding-top:150px}
         <div class="tri"><b>📊 <span class="l-fr">Tout écrit, rien d'oral</span><span class="l-en">Everything in writing</span></b><p><span class="l-fr">Prix, honoraires, délais : vous les avez par écrit avant de vous engager. Aucune ligne ne se découvre à la signature.</span><span class="l-en">Price, fees, timing: in writing before you commit. Nothing appears for the first time at signature.</span></p></div>
         <div class="tri"><b>🚪 <span class="l-fr">Sans engagement de durée</span><span class="l-en">No lock-in</span></b><p><span class="l-fr">On vous garde parce que le travail est fait, pas parce qu'une clause vous retient.</span><span class="l-en">We keep you because the work is done, not because a clause holds you.</span></p></div>
       </div>
+      <p class="sec-sub lg lg-pending" style="margin-top:16px">
+        <span class="l-fr">↳ Antenne en cours d'implantation : les mandats de gestion démarrent avec la carte professionnelle. Écrivez-nous — on vous dit franchement où on en est et ce qu'on peut faire pour votre bien dès maintenant.</span>
+        <span class="l-en">↳ The desk is being set up: management mandates start with the professional licence. Write to us — we'll tell you plainly where we stand and what we can do for your property right now.</span>
+      </p>
     </div>
 
     <!-- ── LOCATAIRES ── -->
@@ -333,6 +388,41 @@ main{padding-top:150px}
         <span class="flag"><b>⚑</b> <span class="l-fr">loyer au-dessus du marché de la commune</span><span class="l-en">rent above what the town actually pays</span></span>
         <span class="flag"><b>⚑</b> <span class="l-fr">« proche des commerces » = 25 min de route</span><span class="l-en">"close to shops" = a 25-minute drive</span></span>
       </div>
+    </div>
+  </section>
+
+  <!-- ═══ CE QUE L'ÎLE A DE PARTICULIER ═══ -->
+  <section class="rv" id="ile">
+    <div class="sec-h">
+      <span class="num"><span class="l-fr">SUR PLACE</span><span class="l-en">ON THE GROUND</span></span>
+      <h2><span class="l-fr">Ici, ce n'est pas <span class="g">la métropole.</span></span><span class="l-en">This isn't <span class="g">mainland France.</span></span></h2>
+    </div>
+    <p class="sec-sub"><span class="l-fr">Six choses qu'un dossier fait depuis Paris ne voit pas, et qui décident si une location se passe bien.</span><span class="l-en">Six things a file put together from Paris can't see, and which decide whether a tenancy goes well.</span></p>
+    <div class="local">
+      <div class="loc"><span class="n">01</span><div>
+        <b><span class="l-fr">La saison cyclonique</span><span class="l-en">Cyclone season</span></b>
+        <p><span class="l-fr">De novembre à avril. Volets, fixations, évacuation des eaux : on regarde <em>avant</em> de vous dire qu'un bien est prêt, pas après la première alerte orange.</span><span class="l-en">November to April. Shutters, fixings, water run-off: we look <em>before</em> telling you a home is ready — not after the first orange alert.</span></p>
+      </div></div>
+      <div class="loc"><span class="n">02</span><div>
+        <b><span class="l-fr">Au vent, sous le vent, les hauts</span><span class="l-en">Windward, leeward, the highlands</span></b>
+        <p><span class="l-fr">Trois climats sur une île qu'on traverse en deux heures. Moisissure derrière un meuble, linge qui ne sèche jamais : <em>ça se voit à la visite quand on sait où regarder.</em></span><span class="l-en">Three climates on an island you cross in two hours. Mould behind a wardrobe, laundry that never dries: <em>you see it on the visit if you know where to look.</em></span></p>
+      </div></div>
+      <div class="loc"><span class="n">03</span><div>
+        <b><span class="l-fr">Meublé ou vide</span><span class="l-en">Furnished or unfurnished</span></b>
+        <p><span class="l-fr">Deux baux, deux durées, deux fiscalités : trois ans pour un bail vide, un an en meublé, neuf mois pour un étudiant. Le bon choix dépend de qui vous visez.</span><span class="l-en">Two leases, two terms, two tax treatments: three years unfurnished, one year furnished, nine months for a student. The right pick depends on who you're aiming at.</span></p>
+      </div></div>
+      <div class="loc"><span class="n">04</span><div>
+        <b><span class="l-fr">Le marché a des saisons</span><span class="l-en">The market has seasons</span></b>
+        <p><span class="l-fr">Mutations et rentrée universitaire (Saint-Denis, Le Tampon) concentrent la demande. Mettre en location au bon moment, <em>c'est plusieurs semaines de vacance en moins.</em></span><span class="l-en">Job postings and the university intake (Saint-Denis, Le Tampon) concentrate demand. Listing at the right moment is <em>weeks of empty months avoided.</em></span></p>
+      </div></div>
+      <div class="loc"><span class="n">05</span><div>
+        <b><span class="l-fr">Les kilomètres mentent</span><span class="l-en">Kilometres lie</span></b>
+        <p><span class="l-fr">Nord ⇄ Sud à 7h du matin, ce n'est pas la distance qui compte, c'est la route. On vous donne le temps de trajet réel, aux heures où vous le ferez.</span><span class="l-en">North ⇄ south at 7am, distance isn't the number that matters — the road is. We give you the real journey time, at the hour you'd actually drive it.</span></p>
+      </div></div>
+      <div class="loc"><span class="n">06</span><div>
+        <b><span class="l-fr">Presque tout se fait à distance</span><span class="l-en">Almost all of it happens remotely</span></b>
+        <p><span class="l-fr">Beaucoup de propriétaires sont en métropole, beaucoup de locataires arrivent avec un billet en poche. Visio, signature électronique, état des lieux photo : <em>la procédure est construite pour ça.</em></span><span class="l-en">Many owners live in mainland France; many tenants arrive with a ticket already booked. Video, e-signature, photo inventory: <em>the process is built for exactly that.</em></span></p>
+      </div></div>
     </div>
   </section>
 
@@ -394,16 +484,33 @@ main{padding-top:150px}
         <div class="a"><span class="l-fr">Oui. Toute la procédure, bail compris, peut se faire en anglais — c'est la langue de travail quotidienne de BOOM à Rome.</span><span class="l-en">Yes. The entire process, lease included, can be run in English — it's BOOM's daily working language in Rome.</span></div>
       </details>
       <details>
+        <summary><span class="l-fr">Faut-il être sur l'île pour signer ?</span><span class="l-en">Do I need to be on the island to sign?</span></summary>
+        <div class="a"><span class="l-fr">Non. La signature électronique est la norme chez nous : bail, état des lieux et pièces circulent en ligne, chaque partie signe depuis son téléphone. Beaucoup de nos dossiers se bouclent avant que le locataire ait posé le pied sur l'île.</span><span class="l-en">No. E-signature is our normal way of working: lease, inventory and documents travel online and each party signs from their phone. Plenty of our files close before the tenant has set foot on the island.</span></div>
+      </details>
+      <details>
+        <summary><span class="l-fr">Êtes-vous une agence immobilière ?</span><span class="l-en">Are you an estate agency?</span></summary>
+        <div class="a">
+          <!-- ↓ pilotées par <body data-legal> — une seule s'affiche. -->
+          <span class="lg lg-pending">
+            <span class="l-fr">En France, la gestion locative et la transaction relèvent de la loi Hoguet : elles supposent une carte professionnelle et une garantie financière. L'antenne de La Réunion se met en place dans ce cadre, et nous vous dirons exactement où nous en sommes dès le premier échange — avec ce que nous pouvons faire pour vous dès aujourd'hui, et ce qui attend la carte. Nous préférons vous le dire nous-mêmes plutôt que vous laisser le découvrir.</span>
+            <span class="l-en">In France, letting management and property transactions fall under the loi Hoguet: they require a professional licence and a financial guarantee. The Réunion desk is being set up within that framework, and we'll tell you exactly where we stand in our first conversation — what we can do for you today, and what waits for the licence. We'd rather tell you ourselves than let you find out.</span>
+          </span>
+          <span class="lg lg-card">
+            <!-- À COMPLÉTER avec le numéro réel avant de passer data-legal="card" -->
+            <span class="l-fr">Oui. BOOM La Réunion exerce sous la carte professionnelle n° <b>[NUMÉRO]</b> délivrée par la CCI de La Réunion, avec garantie financière auprès de <b>[GARANT]</b>.</span>
+            <span class="l-en">Yes. BOOM Réunion operates under professional licence no. <b>[NUMBER]</b> issued by the CCI of Réunion, with a financial guarantee held with <b>[GUARANTOR]</b>.</span>
+          </span>
+          <span class="lg lg-partner">
+            <!-- À COMPLÉTER avec le partenaire réel avant de passer data-legal="partner" -->
+            <span class="l-fr">Les prestations relevant de la loi Hoguet (mandat de gestion, transaction) sont assurées par <b>[PARTENAIRE]</b>, titulaire de la carte professionnelle n° <b>[NUMÉRO]</b>. BOOM assure l'accompagnement, la vérification et les outils.</span>
+            <span class="l-en">Services covered by the loi Hoguet (management mandates, transactions) are carried out by <b>[PARTNER]</b>, holder of professional licence no. <b>[NUMBER]</b>. BOOM provides the guidance, the verification and the tooling.</span>
+          </span>
+        </div>
+      </details>
+      <details>
         <summary><span class="l-fr">Que faites-vous de mes données ?</span><span class="l-en">What do you do with my data?</span></summary>
         <div class="a"><span class="l-fr">Elles servent à vous répondre, et à rien d'autre. Pas de revente, pas de liste de diffusion achetée ou vendue. Vous pouvez demander leur suppression à tout moment, et nous la faisons.</span><span class="l-en">It's used to answer you, and for nothing else. No resale, no bought or sold mailing lists. You can ask us to delete it at any time and we will.</span></div>
       </details>
-      <!-- À COMPLÉTER AVANT MISE EN LIGNE : une entrée « Êtes-vous une agence ? »
-           décrivant le statut réel de l'activité en France (carte professionnelle
-           loi Hoguet n° … délivrée par la CCI de …, garantie financière, ou
-           partenariat avec un titulaire de la carte). Tant que ce point n'est pas
-           tranché, la page ne revendique aucun statut d'agence : ne pas ajouter
-           les mots « agence immobilière », « gestion locative » au sens réglementé
-           ni de barème d'honoraires avant d'avoir la réponse. -->
     </div>
   </section>
 
@@ -415,9 +522,9 @@ main{padding-top:150px}
     </div>
     <div class="formwrap">
       <form id="reForm" novalidate>
-        <div class="seg" style="margin-bottom:18px">
-          <button type="button" id="fOwner"  onclick="pickAud('owner','form')"><span class="l-fr">Je suis propriétaire</span><span class="l-en">I'm an owner</span></button>
-          <button type="button" id="fTenant" onclick="pickAud('tenant','form')"><span class="l-fr">Je cherche un logement</span><span class="l-en">I'm looking</span></button>
+        <div class="seg" style="margin-bottom:18px" role="group" aria-label="Propriétaire ou locataire">
+          <button type="button" id="fOwner"  aria-pressed="true"  onclick="pickAud('owner','form')"><span class="l-fr">Je suis propriétaire</span><span class="l-en">I'm an owner</span></button>
+          <button type="button" id="fTenant" aria-pressed="false" onclick="pickAud('tenant','form')"><span class="l-fr">Je cherche un logement</span><span class="l-en">I'm looking</span></button>
         </div>
 
         <div class="frow two">
@@ -442,19 +549,24 @@ main{padding-top:150px}
         <div class="fld"><label for="fMsg"><span class="l-fr">En deux lignes</span><span class="l-en">In two lines</span></label><textarea id="fMsg" rows="3" placeholder="…"></textarea></div>
 
         <input id="fCompany" type="text" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
-        <div class="ferr" id="fErr"></div>
+        <div class="ferr" id="fErr" role="alert" aria-live="polite"></div>
 
         <button type="submit" class="paybtn" id="fGo">
           <span class="lk">✉</span>
           <span class="tx"><b><span class="l-fr">Envoyer</span><span class="l-en">Send</span></b><small><span class="l-fr">réponse le jour même · sans engagement</span><span class="l-en">same-day reply · no commitment</span></small></span>
         </button>
         <p class="consent"><span class="l-fr">Vos coordonnées servent uniquement à vous répondre. Suppression sur simple demande — voir la <a href="/privacy">politique de confidentialité</a>.</span><span class="l-en">Your details are used only to reply to you. Deleted on request — see the <a href="/privacy">privacy policy</a>.</span></p>
+        <!-- La porte de secours : si ce formulaire tombe, la page ne doit pas
+             devenir un cul-de-sac. Une adresse écrite en clair marche même
+             quand notre JavaScript ne marche plus. -->
+        <p class="consent"><span class="l-fr">Vous préférez écrire vous-même ? <a href="mailto:hello@boom-rome.com?subject=BOOM%20La%20R%C3%A9union">hello@boom-rome.com</a></span><span class="l-en">Prefer to write yourself? <a href="mailto:hello@boom-rome.com?subject=BOOM%20R%C3%A9union">hello@boom-rome.com</a></span></p>
       </form>
 
       <div class="sent" id="fDone">
         <div class="tick">✓</div>
         <h3><span class="l-fr">C'est envoyé.</span><span class="l-en">Sent.</span></h3>
-        <p><span class="l-fr">Nous revenons vers vous aujourd'hui même, par email ou WhatsApp — celui que vous préférez, dites-le nous dans la réponse.</span><span class="l-en">We'll come back to you today, by email or WhatsApp — whichever you prefer, just say so in your reply.</span></p>
+        <p><span class="l-fr">Nous revenons vers vous <b>le jour même</b>, par email ou WhatsApp — dites-nous ce que vous préférez dans votre réponse. Ce sera une vraie personne, pas un accusé de réception automatique.</span><span class="l-en">We'll come back to you <b>the same day</b>, by email or WhatsApp — tell us which you prefer when you reply. It'll be a real person, not an autoresponder.</span></p>
+        <p style="font-size:12.5px;color:var(--t4);margin-top:14px"><span class="l-fr">Rien reçu d'ici demain ? Écrivez directement à <a href="mailto:hello@boom-rome.com" style="color:var(--gold)">hello@boom-rome.com</a> — c'est que quelque chose s'est perdu en route, et on veut le savoir.</span><span class="l-en">Nothing by tomorrow? Write straight to <a href="mailto:hello@boom-rome.com" style="color:var(--gold)">hello@boom-rome.com</a> — it means something got lost on the way, and we want to know.</span></p>
       </div>
     </div>
   </section>
@@ -475,11 +587,12 @@ main{padding-top:150px}
           <span>BOOM</span>
         </div>
         <p class="footer-tagline"><span class="l-fr">Né à Rome, désormais aussi à La Réunion. Si l'on peut faire fonctionner le marché locatif romain, on peut le faire fonctionner ici.</span><span class="l-en">Born in Rome, now on Réunion too. If we can make Rome's rental market work, we can make it work here.</span></p>
-        <!-- MENTIONS LÉGALES : à compléter avec l'entité qui exploite l'activité
-             à La Réunion (raison sociale, SIREN, adresse, carte professionnelle
-             ou partenariat) avant toute campagne. En attendant, seule l'entité
-             réelle et vérifiable de BOOM est affichée. -->
-        <div class="footer-company"><strong>Egidi Immobiliare S.r.l.</strong><br>Via dei Coronari 181/184, 00186 Roma<br>P.IVA 17322991005 · REA RM-1710623</div>
+        <div class="footer-company">
+          <strong>Egidi Immobiliare S.r.l.</strong><br>Via dei Coronari 181/184, 00186 Roma<br>P.IVA 17322991005 · REA RM-1710623
+          <span class="lg lg-pending"><br><span class="l-fr">BOOM La Réunion — antenne en cours d'implantation. Les prestations relevant de la loi Hoguet démarrent avec la carte professionnelle.</span><span class="l-en">BOOM Réunion — desk being set up. Services covered by the loi Hoguet begin with the professional licence.</span></span>
+          <span class="lg lg-card"><br>BOOM La Réunion · <span class="l-fr">carte professionnelle</span><span class="l-en">professional licence</span> n° <b>[NUMÉRO]</b> · SIREN <b>[SIREN]</b> · <b>[ADRESSE]</b></span>
+          <span class="lg lg-partner"><br><span class="l-fr">Prestations loi Hoguet assurées par</span><span class="l-en">Loi Hoguet services provided by</span> <b>[PARTENAIRE]</b> · <span class="l-fr">carte n°</span><span class="l-en">licence no.</span> <b>[NUMÉRO]</b> · SIREN <b>[SIREN]</b></span>
+        </div>
       </div>
       <div>
         <h4 class="footer-links-title"><span class="l-fr">La Réunion</span><span class="l-en">Réunion</span></h4>
@@ -564,7 +677,7 @@ function syncMsgPlaceholder(){
 (function(){
   /* Le français est la langue de la page, pas une préférence à deviner :
      l'anglais ne s'affiche que si on le DEMANDE (?lang=en ou le bouton).
-     Basculer sur navigator.language ferait servir de l'anglais sous une
+     Se caler sur la langue du navigateur ferait servir de l'anglais sous une
      URL canonique déclarée fr — y compris au robot de Google. */
   var q=new URLSearchParams(location.search).get('lang');
   var saved=null;try{saved=localStorage.getItem('boom_re_lang')}catch(e){}
@@ -580,8 +693,8 @@ function pickAud(aud,src){
   document.body.setAttribute('data-aud',aud);
   [['segOwner','segTenant'],['fOwner','fTenant']].forEach(function(pair){
     var o=document.getElementById(pair[0]),t=document.getElementById(pair[1]);
-    if(o)o.classList.toggle('on',aud==='owner');
-    if(t)t.classList.toggle('on',aud==='tenant');
+    if(o){o.classList.toggle('on',aud==='owner');o.setAttribute('aria-pressed',String(aud==='owner'));}
+    if(t){t.classList.toggle('on',aud==='tenant');t.setAttribute('aria-pressed',String(aud==='tenant'));}
   });
   syncMsgPlaceholder();
   try{localStorage.setItem('boom_re_aud',aud)}catch(e){}
@@ -592,18 +705,24 @@ function pickAud(aud,src){
   boomTrack('select_audience',{audience:aud,source:src||'',source_page:'reunion'});
 }
 (function(){
+  /* Trois façons d'arriver déjà du bon côté, par ordre de force :
+     ?role=owner|tenant dans l'URL (c'est ainsi qu'on partage un lien ciblé —
+     un post pour les propriétaires ne doit pas atterrir sur le volet
+     locataires), puis l'ancre, puis le choix précédent du visiteur. */
+  var q=(new URLSearchParams(location.search).get('role')||'').toLowerCase();
   var hash=(location.hash||'').toLowerCase();
   var saved=null;try{saved=localStorage.getItem('boom_re_aud')}catch(e){}
-  var start=(hash.indexOf('locataire')>-1||hash.indexOf('tenant')>-1)?'tenant'
+  var start=(q==='tenant'||q==='locataire')?'tenant'
+           :(q==='owner'||q==='proprietaire'||q==='landlord')?'owner'
+           :(hash.indexOf('locataire')>-1||hash.indexOf('tenant')>-1)?'tenant'
            :(hash.indexOf('proprietaire')>-1||hash.indexOf('owner')>-1)?'owner'
            :(saved||'owner');
   document.body.setAttribute('data-aud',start);
-  var o=document.getElementById('segOwner'),t=document.getElementById('segTenant'),
-      fo=document.getElementById('fOwner'),ft=document.getElementById('fTenant');
-  if(o)o.classList.toggle('on',start==='owner');
-  if(t)t.classList.toggle('on',start==='tenant');
-  if(fo)fo.classList.toggle('on',start==='owner');
-  if(ft)ft.classList.toggle('on',start==='tenant');
+  [['segOwner','segTenant'],['fOwner','fTenant']].forEach(function(pair){
+    var o=document.getElementById(pair[0]),t=document.getElementById(pair[1]);
+    if(o){o.classList.toggle('on',start==='owner');o.setAttribute('aria-pressed',String(start==='owner'));}
+    if(t){t.classList.toggle('on',start==='tenant');t.setAttribute('aria-pressed',String(start==='tenant'));}
+  });
   syncMsgPlaceholder();
 })();
 

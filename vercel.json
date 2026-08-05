@@ -55,6 +55,11 @@
       "permanent": false
     },
     {
+      "source": "/(la-reunion|reunion-island|974)",
+      "destination": "/reunion",
+      "permanent": false
+    },
+    {
       "source": "/(owner|owner.html)",
       "destination": "/owner-dashboard",
       "permanent": false
