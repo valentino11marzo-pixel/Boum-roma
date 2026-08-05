@@ -202,8 +202,19 @@ for `REVIEW_LINK`) and in the templates above.
   emails and the bot): a `share.google` / `maps` URL is refused with a warning
   rather than shipped silently inside a client message. Covered by
   `tests/growth/run.mjs` + `tests/journey/review-url.mjs`.
+- ✅ **`/recensione link <url>` on the bot** — paste the link you just copied
+  and it tells you immediately whether it's the right one, and gives you the
+  exact value to put in `REVIEW_URL`. Worth doing *before* setting it: the
+  "Share" button and the "Ask for reviews" button on the same profile hand you
+  two different links, and only one opens the star box. Without this check the
+  wrong one ships silently and you find out from a flat review count a month
+  later.
 - ⏳ **Founder TODO (the one thing software cannot do):** fetch the
   `g.page/r/.../review` one-tap link (§0) and set it as `REVIEW_URL` on Vercel.
+  *(Verified 2026-08: it cannot be fetched programmatically — the profile
+  share link 403s to non-browser clients, and both the legacy Places API and
+  Places API New are disabled on the project's Maps key. It takes you about
+  60 seconds in the Business Profile dashboard.)*
   Until then everything works but points at a Google *search* — and the bot
   says so explicitly in its header, so the gap is never invisible. Also worth
   swapping the two `REVIEW_LINK` constants (`pass-delivery.html`,
