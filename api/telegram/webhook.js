@@ -253,6 +253,41 @@ export default async function handler(req, res) {
       // converte molto di più. Non manda niente da solo: prepara il messaggio
       // e l'operatore tocca, perché la regola è chiedere SOLO a chi è
       // contento — una richiesta di massa brucia il profilo.
+      // /recensione link <url> — il collaudo del link, prima di metterlo su
+      // Vercel. Il link giusto apre la SCATOLA DELLE STELLE; quello che Google
+      // offre col bottone "Condividi" apre il profilo, e da lì metà delle
+      // persone non trova dove scrivere. Incollarlo qui dice subito quale dei
+      // due hai in mano — senza scoprirlo dal calo di recensioni fra un mese.
+      if (text.startsWith('/recensione link') || text.startsWith('/recensioni link')) {
+        const { reviewUrl } = await import('../reviews/_lib.js');
+        const cand = text.replace(/^\/recensioni?\s+link\s*/i, '').trim();
+        if (!cand) {
+          await tgSend(chatId, [
+            '<b>Collaudo del link recensione</b>', '',
+            'Uso: <code>/recensione link &lt;url&gt;</code>', '',
+            'Dove prenderlo: profilo Google Business → <b>Chiedi recensioni</b>.',
+            'Il link giusto ha una di queste due forme:',
+            '• <code>https://g.page/r/&lt;id&gt;/review</code>',
+            '• <code>https://search.google.com/local/writereview?placeid=&lt;id&gt;</code>',
+            '', '<i>Quello che esce dal bottone "Condividi" (share.google / maps.app.goo.gl) NON va bene: apre il profilo, non le stelle.</i>',
+          ].join('\n'));
+          return res.status(200).json({ ok: true });
+        }
+        const good = reviewUrl(cand);
+        await tgSend(chatId, good
+          ? ['✅ <b>Link valido</b> — apre direttamente le stelle.', '',
+             'Mettilo su Vercel come variabile <code>REVIEW_URL</code>:',
+             `<code>${esc(good)}</code>`, '',
+             '<i>Da quel momento lo usano sia le email del journey sia i messaggi di /recensione.</i>'].join('\n')
+          : ['❌ <b>Questo non è il link giusto.</b>', '',
+             `Ricevuto: <code>${esc(cand.slice(0, 120))}</code>`, '',
+             'Serve una di queste due forme:',
+             '• <code>https://g.page/r/&lt;id&gt;/review</code>',
+             '• <code>https://search.google.com/local/writereview?placeid=&lt;id&gt;</code>', '',
+             '<i>Sul profilo Google Business cerca il bottone "Chiedi recensioni": quello dà il link corto giusto. Il bottone "Condividi" dà l\'altro, che porta al profilo.</i>'].join('\n'));
+        return res.status(200).json({ ok: true });
+      }
+
       if (text === '/recensione' || text === '/recensioni') {
         const { reviewCandidates, reviewWaUrl, activeReviewUrl, hasRealReviewLink } =
           await import('../reviews/_lib.js');
