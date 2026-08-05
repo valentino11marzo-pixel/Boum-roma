@@ -266,6 +266,7 @@ section > h3 { font-size: 12px; letter-spacing: 3px; color: var(--text-secondary
         [!s.gmail, 'GMAIL_USER / GMAIL_APP_PASS mancanti — i dipendenti non possono inviare email'],
         [!s.anthropic, 'ANTHROPIC_API_KEY mancante — il Commerciale non può scrivere le bozze AI'],
         [!s.gocardless, 'Collegamento banca API disattivo (GoCardless non accetta nuove iscrizioni) — usa l\'estratto conto via email o l\'import CSV in /banca: stessa riconciliazione automatica'],
+        [s.rulesLive === false, '⛔ Le RULES Firestore deployate sono STANTIE: le collection nuove (marketListings, portalPubs, …) cadono nel default-deny e il Perito/Pubblicista non possono scrivere. Fix: `npx firebase-tools login:ci` → salva il token come secret FIREBASE_TOKEN nel repo GitHub (il job deploy-rules farà il resto a ogni push), oppure una volta `firebase deploy --only firestore:rules,storage`'],
       ].filter(f => f[0]);
       if (!FIXES.length) return;
       document.getElementById('setupBanner').innerHTML =
