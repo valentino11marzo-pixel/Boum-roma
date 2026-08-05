@@ -1,0 +1,175 @@
+<style>
+/* ══ SOLARI 4.0 — la cella a palette, precisione tipografica ══════════
+   · metà esattamente al 50%: nessun pixel del glifo sottratto
+   · cerniera DIPINTA sopra (overlay) con perni laterali
+   · glifo centrato otticamente sul cap-height (runtime, --gs)
+   · larghezza cella calibrata sul glifo più largo del rullo (--cw) */
+.fc2 {
+  --ch: 1.26em; --cw: 0.84em; --gs: 0px;
+  position:relative; display:inline-block;
+  width:var(--cw); height:var(--ch);
+  margin-right:0.07em; vertical-align:-0.20em;
+  border-radius:0.085em; background:#040404;
+  box-shadow:inset 0 0 0 1px rgba(239,235,223,0.05), 0 0.08em 0.3em rgba(0,0,0,0.6);
+  perspective:3em; color:var(--oro-flap);
+}
+.fc2 i { position:absolute; left:0; width:100%; height:50%; overflow:hidden; font-style:normal; }
+.fc2 i b { position:absolute; left:0; width:100%; height:var(--ch); line-height:var(--ch);
+  text-align:center; font-weight:inherit; transform:translateY(var(--gs)); }
+.fc2 .st { top:0; border-radius:0.085em 0.085em 0 0; background:linear-gradient(180deg,#17171A,#0E0E10); z-index:1; }
+.fc2 .sb { bottom:0; border-radius:0 0 0.085em 0.085em; background:linear-gradient(180deg,#09090B,#111114); z-index:1; }
+.fc2 .st b { top:0; }
+.fc2 .sb b { top:-100%; }
+.fc2 .lt { top:0; border-radius:0.085em 0.085em 0 0; background:linear-gradient(180deg,#17171A,#0E0E10);
+  transform-origin:center bottom; z-index:4; display:none; }
+.fc2 .lt b { top:0; }
+.fc2 .lb { bottom:0; border-radius:0 0 0.085em 0.085em; background:linear-gradient(180deg,#09090B,#111114);
+  transform-origin:center top; transform:rotateX(88deg); z-index:3; display:none; }
+.fc2 .lb b { top:-100%; }
+.fc2 s { position:absolute; left:0; right:0; top:50%; height:0.035em; min-height:1px;
+  margin-top:calc(0.035em / -2);
+  background:linear-gradient(180deg, rgba(0,0,0,0.92), rgba(0,0,0,0.5));
+  z-index:6; text-decoration:none; }
+.fc2 s::before, .fc2 s::after { content:''; position:absolute; top:50%; width:0.055em; height:0.16em;
+  transform:translateY(-50%); background:linear-gradient(180deg,#000,#1A1A1A); border-radius:0.02em; }
+.fc2 s::before { left:0; border-radius:0 0.02em 0.02em 0; }
+.fc2 s::after { right:0; border-radius:0.02em 0 0 0.02em; }
+@keyframes flTop { 0% { transform:rotateX(0); filter:brightness(1); }
+  100% { transform:rotateX(-88deg); filter:brightness(0.45); } }
+@keyframes flBot { 0% { transform:rotateX(88deg); filter:brightness(0.5); }
+  55% { filter:brightness(1.15); } 100% { transform:rotateX(0); filter:brightness(1); } }
+.flap-scale { letter-spacing:0; white-space:nowrap; }
+</style>
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   BOOM SOLARI — il motore a palette (Gino Valle, 1962), meccanica v3:
+   due mezze celle statiche + due ante 3D guidate da animationend, rulli
+   corti (mai teletrasporti), retargeting a metà giro, failsafe per la
+   scheda nascosta. Qui esporta soltanto: la regia è del Terminale.
+   ══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  function Cell(host) {
+    var el = document.createElement('span');
+    el.className = 'fc2';
+    el.innerHTML = '<i class="st"><b></b></i><i class="sb"><b></b></i><i class="lt"><b></b></i><i class="lb"><b></b></i><s></s>';
+    host.appendChild(el);
+    this.st = el.children[0].firstChild;
+    this.sb = el.children[1].firstChild;
+    this.ltEl = el.children[2]; this.lt = this.ltEl.firstChild;
+    this.lbEl = el.children[3]; this.lb = this.lbEl.firstChild;
+    this.cur = ' '; this.busy = false; this.pending = ' '; this.turns = 0;
+    this.set(' ');
+  }
+  Cell.prototype.set = function (c) {
+    this.cur = c; this.pending = c;
+    this.st.textContent = c; this.sb.textContent = c;
+  };
+  Cell.prototype.next = function (drum) {
+    var i = drum.indexOf(this.cur); if (i < 0) i = 0;
+    var j = drum.indexOf(this.pending); if (j < 0) j = 0;
+    var d = (j - i + drum.length) % drum.length;
+    if (d === 0) return null;
+    if (d > 5) return drum[(j - 4 + drum.length) % drum.length];
+    return drum[(i + 1) % drum.length];
+  };
+  Cell.prototype.step = function (nc, done) {
+    var self = this, fired = false;
+    function finishTop() {
+      if (fired) return; fired = true;
+      self.ltEl.onanimationend = null;
+      self.ltEl.style.display = 'none'; self.ltEl.style.animation = '';
+      var fired2 = false;
+      function finishBot() {
+        if (fired2) return; fired2 = true;
+        self.lbEl.onanimationend = null;
+        self.sb.textContent = nc;
+        self.lbEl.style.display = 'none'; self.lbEl.style.animation = '';
+        self.cur = nc; done();
+      }
+      self.lbEl.style.display = 'block';
+      self.lbEl.style.animation = 'flBot 150ms cubic-bezier(.3,1.35,.6,1) forwards';
+      self.lbEl.onanimationend = finishBot;
+      setTimeout(finishBot, 400);
+    }
+    this.st.textContent = nc;
+    this.lt.textContent = this.cur;
+    this.lb.textContent = nc;
+    this.ltEl.style.display = 'block';
+    this.ltEl.style.animation = 'flTop 90ms cubic-bezier(.55,0,.85,.36) forwards';
+    this.ltEl.onanimationend = finishTop;
+    setTimeout(finishTop, 300);
+  };
+  Cell.prototype.go = function (target, drum, fullTurn) {
+    this.pending = target;
+    if (fullTurn && !this.busy) this.turns = 1;
+    if (this.busy) return;
+    var self = this;
+    this.busy = true;
+    (function run() {
+      var nc = self.next(drum);
+      if (nc === null && self.turns > 0) {
+        self.turns = 0;
+        var i = drum.indexOf(self.cur);
+        nc = drum[(i + 1) % drum.length];
+        self.pending = drum[i];
+        self.step(nc, run);
+        return;
+      }
+      if (nc === null) { self.busy = false; return; }
+      self.step(nc, run);
+    })();
+  };
+
+  var measurer = document.createElement('canvas').getContext('2d');
+  function calibrate(host, drum) {
+    var cs = getComputedStyle(host);
+    var fs = parseFloat(cs.fontSize);
+    measurer.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+    var chPx = 1.26 * fs;
+    var m = measurer.measureText('H');
+    var fa = m.fontBoundingBoxAscent !== undefined ? m.fontBoundingBoxAscent : m.actualBoundingBoxAscent * 1.25;
+    var fd = m.fontBoundingBoxDescent !== undefined ? m.fontBoundingBoxDescent : m.actualBoundingBoxAscent * 0.25;
+    var baseline = (chPx + fa - fd) / 2;
+    var shift = chPx / 2 - (baseline - m.actualBoundingBoxAscent / 2);
+    var maxW = 0;
+    for (var i = 0; i < drum.length; i++) {
+      var w = measurer.measureText(drum[i]).width;
+      if (w > maxW) maxW = w;
+    }
+    host.style.setProperty('--gs', shift.toFixed(2) + 'px');
+    host.style.setProperty('--cw', ((maxW + fs * 0.24) / fs).toFixed(4) + 'em');
+  }
+
+  function Board(host, len, drum) {
+    host.textContent = '';
+    host.classList.add('flap-scale');
+    calibrate(host, drum);
+    this.cells = [];
+    this.drum = drum;
+    for (var i = 0; i < len; i++) this.cells.push(new Cell(host));
+  }
+  Board.prototype.show = function (word, stagger, spin) {
+    var self = this;
+    this.cells.forEach(function (c, i) {
+      var ch = word[i] || ' ';
+      if (!spin) { c.set(ch); return; }
+      setTimeout(function () { c.go(ch, self.drum); },
+        i * (stagger || 90) + Math.random() * 26);
+    });
+  };
+  Board.prototype.update = function (word) {   /* flippa solo le celle cambiate */
+    var self = this;
+    this.cells.forEach(function (c, i) {
+      var ch = word[i] || ' ';
+      if (c.cur !== ch || c.pending !== ch) c.go(ch, self.drum);
+    });
+  };
+  Board.prototype.flutter = function () {
+    var c = this.cells[Math.floor(Math.random() * this.cells.length)];
+    if (c && !c.busy && c.cur !== ' ') c.go(c.cur, this.drum, true);
+  };
+
+  window.BoomSolari = { Cell: Cell, Board: Board, calibrate: calibrate };
+})();
+</script>
