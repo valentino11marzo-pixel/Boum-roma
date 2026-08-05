@@ -42,6 +42,7 @@ const SUITES = [
   { name: 'webforms', file: 'tests/webforms/run.mjs',     what: 'i moduli pubblici entrano in pipeline, e il datore di lavoro di un candidato non viene scambiato per un honeypot' },
   { name: 'verbale',  file: 'tests/verbale/run.mjs',      what: 'verbale consegna chiavi: PDF vero in allegato alle parti, owner solo sui propri immobili, firme mai persistite come dataURI' },
   { name: 'rendiconto', file: 'tests/rendiconto/run.mjs', what: 'rendiconto proprietario: solo il mese giusto nei numeri, PDF in allegato, un rerun non rispedisce, senza email mai perso in silenzio' },
+  { name: 'conservazione', file: 'tests/conservazione/run.mjs', what: 'archivio fuori piattaforma: lo ZIP contiene i byte veri, il mancante finisce nell\'INDICE, un rerun non rispedisce' },
   { name: 'signlang', file: 'tests/sign/lang.mjs',        what: 'la pagina di firma parla la lingua di chi firma' },
   { name: 'safari',   file: 'tests/safari/boot.mjs',      what: 'nessuna pagina autenticata resta appesa' },
 ];

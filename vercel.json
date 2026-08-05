@@ -656,6 +656,9 @@
     },
     "api/owners/rendiconto.js": {
       "maxDuration": 60
+    },
+    "api/ops/conservazione.js": {
+      "maxDuration": 60
     }
   },
   "crons": [
@@ -746,6 +749,10 @@
     {
       "path": "/api/owners/rendiconto",
       "schedule": "10 6 1 * *"
+    },
+    {
+      "path": "/api/ops/conservazione",
+      "schedule": "40 5 2 * *"
     }
   ]
 }

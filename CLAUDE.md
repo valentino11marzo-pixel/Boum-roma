@@ -1075,6 +1075,18 @@ lezione propertyLocks). `?dry=1`, `?month=YYYY-MM`, `?ownerId=`; auth
 come i cron PFS. Heartbeat `teamHealth/rendiconto`.
 Test: `node tests/rendiconto/run.mjs`.
 
+### Conservazione (`GET/POST /api/ops/conservazione`, cron il 2 del mese 05:40 UTC)
+L'archivio legale FUORI da Firebase, senza nuovi servizi: il 2 del mese i
+contratti FINALIZZATI nel mese chiuso vengono raccolti (contratto firmato,
+certificato FES, fascicolo fiscale, marca temporale .tsr, pack
+registrazione), zippati (`api/_zip.js`, INDICE.txt in testa con l'elenco e
+gli eventuali file irraggiungibili) e spediti IN ALLEGATO alla casella
+operatore — Gmail è la copia fuori piattaforma. Volumi >20MB spezzati in
+più email. Idempotente per mese via `heartbeat/conservazione-<YYYY-MM>`
+(collection già admin-only nelle rules deployate — nessuna dipendenza da
+un deploy futuro). `?dry=1`, `?month=YYYY-MM`; heartbeat
+`teamHealth/conservazione`. Test: `node tests/conservazione/run.mjs`.
+
 ### Watchdog firme (reminder-cron)
 Due guardie: firme PARZIALI ferme >48h → re-nudge automatico alla
 controparte (max 3, cooldown 24h col promemoria manuale); inviti FREDDI
