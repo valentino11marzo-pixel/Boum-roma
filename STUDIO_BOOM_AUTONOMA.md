@@ -1,257 +1,133 @@
-# STUDIO — BOOM AUTONOMA
-### La Squadra 2.0: le sole assunzioni che contano, e come diventare ordinati davvero
+# STUDIO — BOOM AUTONOMA · v2
+### Riscritto dopo l'obiezione dell'operatore. Formato: decisioni, non opzioni.
 
-*Agosto 2026. Scritto sul codice, non sulle intenzioni: ogni "esiste già" è stato
-verificato nel repo, ogni "manca" pure.*
-
----
-
-## 0 · Il metodo: cosa rende giusta un'assunzione
-
-Oggi la squadra conta **19 agenti su 23 cron**. Non serve assumerne altri venti:
-serve un filtro. Un'assunzione è giusta solo se passa quattro porte:
-
-1. **Tocca soldi o ore vere.** Se non si misura in euro incassati o ore tue
-   restituite, è un giocattolo.
-2. **Lavora su dati già in casa.** Niente servizi nuovi da mantenere, niente
-   credenziali nuove da custodire. La nostra infrastruttura — Vercel, Firebase,
-   IMAP, Telegram, Stripe, Claude — basta per tutto ciò che segue.
-3. **Decide da sola o propone** — mai una via di mezzo ambigua. La lettera di
-   assunzione (solo / porta / mai) esiste già nel registro: ogni assunto nuovo
-   nasce con la sua, e il test anti-deriva lo costringe a dichiararsi.
-4. **È testabile senza browser e senza Firestore.** Motore puro + test per
-   mutazione: la disciplina che ha già pagato (canone-engine, dataops, avail).
-
-Con questo filtro, le assunzioni che contano sono **tre**. Poi due idee che
-sembrano lusso e non lo sono, e una lista onesta di cose da NON fare.
+*Agosto 2026. La v1 presentava alternative; questa DECIDE. Ogni "esiste già"
+è verificato nel repo. La tappa 1 non è più un piano: è costruita e testata
+(vedi §3).*
 
 ---
 
-## 1 · IL PERITO — il nostro Casafari, ma col dato che Casafari non ha
+## 1 · L'obiezione, accolta: gli alert email NON bastano
 
-**Il problema.** Ogni decisione di prezzo — quanto chiedere per un annuncio,
-quanto accettare in una proposta, quanto promettere a un proprietario nuovo —
-oggi si prende a memoria. Casafari e simili vendono comps a piattaforma: dati
-larghi, generici, cari, e SENZA la cosa che conta: i canoni *veri* firmati.
+La domanda era: *"davvero il modo migliore è impostare alert email e leggerli
+in automatico?"* Risposta onesta: **no, da soli no** — e il motivo è
+strutturale, non di gusto.
 
-**Il segreto: il magazzino esiste già.** Verificato in `api/pfs/_ingest.js`:
-il radar archivia **ogni annuncio che vede** in `pfsProperties` — prezzo, zona,
-mq, camere, arredo, inserzionista (privato/agenzia), date — anche quelli di
-agenzia, «stored for analytics». *Analytics che non sono mai state scritte.*
-Stiamo già pagando la raccolta e buttando il raccolto.
+Un alert email racconta le **nascite** (è il portale che ti annuncia un
+annuncio nuovo). Non racconterà **mai le morti** — e le morti sono metà del
+valore: un annuncio che sparisce è (proxy) un affitto concluso, e da lì
+vengono i **giorni di assorbimento per zona**, il dato che trasforma "il tuo
+prezzo è alto" in *"a questo prezzo in zona si affitta in 12 giorni; il tuo è
+fermo da 30"*.
 
-**Cosa si costruisce** (`js/market-engine.js`, puro, + sezione nel portal):
+L'architettura decisa copre il **ciclo di vita intero**:
 
-| Prodotto | Cosa fa | Da dove viene il dato |
+| Fase | Fonte | Perché questa fonte |
 |---|---|---|
-| **Comps card** | Su ogni immobile/PA: "3 comparabili entro 500m, €/mq di zona, il tuo prezzo è al 78° percentile" | `pfsProperties` + zone di `PRE_ZONES` |
-| **Il vero €/mq** | Mediana per zona dai canoni FIRMATI nostri, affiancata a quella dei portali (chiesto vs ottenuto) | `contracts` — il dato che nessun competitor ha |
-| **Giorni-a-sparire** | Un annuncio che esce dal radar è (proxy) affittato: tempo di assorbimento per zona e fascia prezzo | firstSeen/lastSeen già scritti |
-| **Price-drop radar** | Ribassi dei competitor in zona → occasioni PFS e argomenti di trattativa | diff sui re-ingest (dedupe già per URL) |
-| **Verdetto prezzo alla creazione** | Quando pubblichi o scrivi una PA: fascia di mercato + verdetto concordato (canone-engine) in un colpo solo | market-engine + `js/canone-engine.js` |
+| **Nascite** | Alert email + occhi di Homie + scan (porte ESISTENTI) | Il portale te le annuncia da solo; gratis, senza guerra di scraping |
+| **Vita** | Ri-avvistamenti dalle stesse porte | Bump di "ancora vivo", storia prezzi, ribassi dei competitor |
+| **Morte** | **Verifiche attive via il Mac di Homie** (IP residenziale, browser vero) | I portali 403-ano gli IP datacenter; il Mac no. Con la regola che regge tutto: **un blocco non è una morte** — un 403 è "non so", mai "affittato" |
+| **Verità** | I canoni **firmati** nostri | Il dato che Casafari non avrà mai: chiesto vs ottenuto |
 
-**Cosa manca perché funzioni**: oggi il radar guarda solo le ricerche dei
-clienti PFS. Si aggiungono a `radarSearches` ricerche **di copertura** per le
-zone dove operiamo (stesso meccanismo, flag `market:true`, nessun cliente
-attaccato). La fonte email-alert regge il carico — è già la fonte portante — e
-gli occhi di Homie fanno il resto.
-
-**Onestà sui limiti**: "sparito dal portale" ≠ sempre "affittato" (può essere
-ritirato). Si dichiara come proxy, mai come verità. E il GDPR: in
-`marketListings` si tengono i FATTI dell'annuncio, non i contatti del privato
-(quelli restano solo nel flusso PFS che li usa per il mandato del cliente).
-
-**Effort**: 2–3 sessioni. Motore + test prima, sezione poi. Zero servizi nuovi.
+Il tuo motto vale qui alla lettera: la parte *semplice* (leggere email) era
+già in piedi; la parte *non facile* — il ciclo di vita, il verdetto di morte
+che non si fa ingannare dai blocchi, l'onestà del campione — è esattamente
+ciò che è stato costruito.
 
 ---
 
-## 2 · IL RAGIONIERE — fattura elettronica vera, Sella in casa, e il commercialista che riceve un fascicolo invece di domande
+## 2 · Le decisioni
 
-Questa è l'assunzione più seria dello studio, e parte da una verifica onesta.
-
-**2a. La fattura oggi, e il buco.** Il portal genera fatture (`invoices`,
-`nextInvoiceNumber()`, auto-fattura sul canone pagato, PDF con i dati di
-`settings/company`, link di pagamento Stripe). Ma nel codice **non esiste da
-nessuna parte** FatturaPA, XML o SDI. In Italia la fattura B2B/B2C passa dallo
-SDI come XML — per legge, dal 2019 (2024 anche per i forfettari). Quindi o
-gli XML nascono oggi in uno strumento esterno (Fatture in Cloud, il gestionale
-del commercialista) e i nostri PDF sono copie interne — **oppure c'è un buco di
-conformità da chiudere subito**. Prima domanda per te, sotto.
-
-**2b. La fattura di BOOM come dev'essere.** Due facce, un solo motore:
-
-- **`js/invoice-engine.js`** (puro, testato per mutazione): numerazione
-  progressiva per anno senza buchi, IVA per regime, bollo €2 dove va, natura
-  operazione, e la **generazione dell'XML FatturaPA 1.2** — che è un formato
-  deterministico: perfetto per la nostra disciplina (come il canone: aritmetica
-  esatta, zero AI).
-- **La copia di cortesia** nel design system che già firma ogni email BOOM:
-  masthead nero, oro, QR al link di pagamento Stripe (già esistente:
-  `/api/payments/link`). La fattura che il cliente VEDE è bella; quella che
-  fa fede è l'XML dietro.
-- **Trasmissione SDI**: due strade. (A) **PEC → SDI**: lo SDI accetta fatture
-  via PEC, costo zero, e le ricevute (consegna/scarto) tornano per PEC — che
-  leggiamo col pattern scan-inbox già rodato su banche e lead. Serve solo una
-  casella PEC (probabilmente Egidi ce l'ha già). (B) Provider API (Acube,
-  Openapi: centesimi a fattura) se vogliamo zero manutenzione. Decisione tua.
-- **Stripe chiude il giro da solo**: il webhook già marca i pagamenti; ogni
-  incasso servizio/canone genera la fattura corrispondente senza mani (oggi
-  succede solo per il canone — si estende ai rami SERVICE/PFS/INVOICE).
-
-**2c. Banca Sella, tre livelli — dal domani al definitivo.**
-
-Verificato: `sella.it` è **già** nei domini riconosciuti dello scanner
-(`api/banking/scan-inbox.js`). Quindi:
-
-1. **Oggi, zero codice**: attivi nell'home banking Sella gli avvisi email di
-   movimento e (se disponibile) l'invio periodico dell'estratto. Lo scanner li
-   legge già, riconcilia gli accrediti contro le rate e propone i match dubbi
-   in `/banca`. In più: export CSV movimenti da Sella → import manuale già
-   esistente. *Questo si accende questa settimana.*
-2. **Il livello vero — Sella API**: Sella è storicamente LA banca italiana
-   delle API aperte (piattaforma Fabrick è del gruppo Sella). Da cliente
-   business, l'accesso API al **proprio** conto è spesso attivabile. Se il tuo
-   contratto lo consente: saldo + movimenti ogni mattina alle 04:15, senza
-   consensi PSD2 che scadono ogni 90 giorni, senza aggregatori terzi. **Da
-   verificare col tuo gestore Sella** — è la seconda domanda per te. Se sì, è
-   un adapter nel sync esistente, non un sistema nuovo.
-3. **Ripiego**: aggregatore TPP (GoCardless è chiuso ai nuovi; Enable Banking
-   o simili). Solo se 1+2 non bastano — costo e consensi a scadenza.
-
-**2d. Lo studio di commercialista interno.** Non sostituiamo il
-commercialista dove serve la firma dell'intermediario (dichiarazioni, F24
-telematici): gli togliamo tutto il resto. Il 1° del mese il Ragioniere
-compone la **chiusura**: prima nota categorizzata (esiste), estratto
-riconciliato (esiste), fatture XML del mese (nuovo), scadenzario aggiornato
-(esiste: `accounting/scadenzario`), incassi vs pendenze — un fascicolo ZIP
-col pattern dell'Archivista, in casella sua e tua. Il commercialista passa da
-"mandami le carte" a "confermo". È la differenza tra pagare uno studio per
-ricostruire e pagarlo per verificare.
-
-**Effort**: 4–5 sessioni (il grosso è l'invoice-engine + il ciclo ricevute
-SDI). Rischi dichiarati: la variante regime fiscale di Egidi cambia le regole
-dell'engine — serve la risposta prima di scrivere la prima riga.
+- **D1 — Niente censimento totale.** Il "tutto il portale" è il gioco di
+  Casafari (flotte di proxy). Il nostro: ciclo di vita **completo** del
+  sottoinsieme rilevante — ogni annuncio che le nostre porte vedono nelle
+  zone dove operiamo. Bounded, robusto, senza guerra.
+- **D2 — Un libro mastro, una porta.** `marketListings`, stesso spazio di id
+  di `pfsProperties` (sha1 dell'URL): un annuncio è lo stesso annuncio nei
+  due mondi. Ogni fonte passa dallo stesso fold puro → le regole valgono per
+  tutte insieme.
+- **D3 — Il verdetto di morte lo dà il server, mai il Mac.** Homie riporta
+  fatti (status HTTP, marker della pagina); la decisione sta nel motore,
+  dove "403 ≠ morte" è asserito per mutazione.
+- **D4 — Sotto campione non si pubblica.** Una mediana su 3 annunci è
+  un'opinione travestita: le statistiche dicono "campione insufficiente",
+  mai un numero debole.
+- **D5 — GDPR per costruzione.** Il libro mastro tiene i FATTI (prezzo, mq,
+  zona, date), mai i contatti del privato: il motore li scarta alla porta,
+  e un test fallisce se qualcuno riapre lo spiraglio.
+- **D6 — Il Perito è un dipendente come gli altri.** Registro, lettera di
+  assunzione, manopole collegate (lotto verifiche, lotto arricchimenti,
+  campione minimo), heartbeat, anti-deriva sui cron.
+- **D7 — Il Ragioniere è la tappa 2 ed è questione di conformità**, non di
+  comodità: nel codice non esiste FatturaPA/SDI da nessuna parte. XML
+  deterministico nel motore, trasmissione PEC→SDI (costo zero) o provider —
+  si decide con le tue risposte. Sella: livello 1 subito (sella.it è già
+  riconosciuta dallo scanner — attivi gli avvisi email e parte), livello API
+  da verificare col gestore.
+- **D8 — L'Ispettore compone, non inventa.** Vetrina in una pagina: voto,
+  foto, testo, data di libertà che non mente, percentile prezzo e giorni in
+  vetrina contro l'assorbimento di zona (dal Perito).
+- **D9 — Oracolo e Valutazione pubblica dopo il Perito.** Uno restituisce
+  tempo (/chiedi, sola lettura), l'altro porta mandati (la stima pubblica
+  coi dati veri → lead proprietario in pipeline).
+- **D10 — Cosa NON si fa:** niente gestionale comprato, niente guerra di
+  scraping oltre Homie, niente "commercialista sostituito" (gli si consegna
+  un fascicolo perfetto), niente rubrica di privati nel magazzino.
 
 ---
 
-## 3 · L'ISPETTORE — la vetrina sotto controllo continuo, con la data di libertà che non mente
+## 3 · Costruito e testato (questa sessione — tappa 1 server-side COMPLETA)
 
-**Il problema.** La qualità degli annunci oggi è presidiata da tre agenti
-separati (Fotografo, Copywriter, Pagella) che non si parlano, e da nessuna
-parte si risponde alla domanda commerciale: *questo annuncio, sul mercato di
-oggi, è competitivo?*
+- **`js/market-engine.js`** — il motore puro: fold delle osservazioni,
+  storia prezzi (solo sui cambi), rientri con vite archiviate, verdetto di
+  morte, coda di verifica, statistiche di zona (mediana/percentili €/mq,
+  assorbimento, ribassi 30gg), posizione prezzo, comparabili (stessa zona,
+  ±25% mq, mai un morto, mai sé stesso, lowSample dichiarato).
+  **18 test + 3 mutazioni catturate** (403→morte, contatti→dentro,
+  campione piccolo→pubblica: tutte fanno fallire la suite).
+- **`api/market/_ledger.js`** — la porta unica del libro mastro
+  (best-effort: non può mai rompere l'ingestione PFS).
+- **Tap in `api/pfs/_ingest.js`** — ogni annuncio visto da qualsiasi porta
+  alimenta il libro; anche il corto-circuito di freschezza (un
+  ri-avvistamento rimanda la verifica di morte).
+- **`api/market/pulse.js`** — cron 05:50: statistiche per zona in
+  `marketStats/<zona>` (un doc per zona — il portal leggerà quello, mai il
+  registro intero), verdetto esplicito su libro vuoto e backlog verifiche.
+- **`api/homie/market.js`** — gli occhi: GET lotto (verifiche +
+  arricchimenti, manopole del registro), POST esiti (verdetto lato server),
+  heartbeat sotto l'allerta Telegram esistente. Mandato scritto in
+  `bot/HOMIE.md`.
+- **Rules** (`marketListings`/`marketStats` admin-only — lezione
+  propertyLocks), **cron in vercel.json**, **Il Perito nell'organigramma**
+  con 3 manopole collegate e testate.
+- **`tests/market/wiring.mjs`** — le giunzioni asserite sulla sorgente
+  (ordine del tap, verdetto solo server, rules, cron).
+- **42 suite verdi.**
 
-**Cosa si costruisce**: una sezione **Vetrina** nel portal — una riga per
-annuncio, tutto insieme:
-
-- **Il voto** (motore della Pagella, esistente) + foto (Fotografo) + testo
-  (Copywriter) — finalmente in una schermata sola invece che in tre console.
-- **La data di libertà onesta**: `availableDate` nel passato è una bugia in
-  vetrina che allontana chi cerca per settembre. Flag automatico + comando
-  bot per sistemarla in un messaggio. (Oggi nessuno la controlla.)
-- **Prezzo vs mercato** (dal Perito): "sei al 78° percentile di zona, i
-  competitor a questo prezzo hanno il balcone" — il confronto coi portali che
-  chiedevi, calcolato sui dati che già raccogliamo.
-- **Giorni in vetrina vs giorni-a-sparire di zona**: se la zona assorbe in 12
-  giorni e il nostro è lì da 30, la riga diventa gialla e dice perché
-  (prezzo? foto? data?).
-- **Next best action**: ogni annuncio con UNA azione suggerita, ordinata per
-  impatto — la logica dello sweep del Fotografo (impact-first) applicata a
-  tutta la vetrina.
-
-**Effort**: 2 sessioni una volta che il Perito esiste (è composizione di
-motori già scritti + market-engine). Senza Perito, 1 sessione per la parte
-igiene (date, voto, foto, testo in una pagina).
-
----
-
-## 4 · Le due idee che sembrano lusso e non lo sono
-
-**L'ORACOLO — `/chiedi` sul bot.** "Quanto ha reso Cavour nel 2026?" "Chi è in
-ritardo?" "Quante visite ha fatto il bilocale di Pigneto prima di affittarsi?"
-Un endpoint **in sola lettura**: la domanda in linguaggio naturale, il
-contesto sono i TUOI dati (contratti, pagamenti, visite, annunci), la risposta
-è una frase con i numeri. Mai una scrittura, mai un'invenzione: se il dato non
-c'è, lo dice. È il pattern di `/api/wizard/interpret` (che già capisce il
-linguaggio naturale sul catalogo) esteso in lettura a tutto l'archivio.
-*Effort: 1–2 sessioni. È la feature che fa sembrare magico tutto il resto.*
-
-**LA VALUTAZIONE PUBBLICA — il lead magnet per i mandati.** Il rendiconto
-mensile fa RESTARE i proprietari; niente oggi ne fa ARRIVARE. Una pagina
-pubblica "Quanto affitta casa tua a Roma?" — zona, mq, camere → fascia di
-canone vera (market-engine) + verdetto concordato (canone-engine, già scritto)
-+ "vuoi il numero esatto? ti chiamiamo": lead `landlord` nella pipeline
-esistente (Lead Brain → Telegram → Commerciale). È il prodotto che Casafari
-vende alle agenzie, costruito coi nostri dati, che genera mandati invece di
-costare un abbonamento. *Effort: 1 sessione dopo il Perito.*
+Dal momento del deploy il libro si riempie DA SOLO a ogni giro del radar.
+Manca solo il lato Mac (Homie che chiama la sua porta — mandato pronto) e
+la comps card nel portal (tappa 1b).
 
 ---
 
-## 5 · La pagella della squadra attuale — cosa tenere, cosa fondere
+## 4 · La lista che resta
 
-Nessun licenziamento: la macchina regge. Ma tre razionalizzazioni:
-
-1. **Le console sparse rientrano nel portale.** `/team` è già rientrato; il
-   percorso naturale è che `/banca`, `/photo-lab` e `/pfs-command` diventino
-   sezioni (stesso pattern della Squadra: si disegnano senza await, dati poi).
-   Una app, non otto schede.
-2. **Il trio Vetrina si presenta come UN reparto** con l'Ispettore a capo:
-   stessa pagina, stessi dati, un solo posto dove guardare.
-3. **Ogni agente nuovo nasce col contratto**: registro, lettera di assunzione,
-   manopole solo se collegate, test anti-deriva. Il telaio costruito questa
-   settimana è esattamente per questo — le tre assunzioni sopra ci si
-   agganciano senza inventare niente.
+| # | Cosa | Stato / blocco |
+|---|---|---|
+| 1b | Comps card nel portal (immobile + PA) + ricerche di copertura zone | libera — prossima |
+| 2 | Ragioniere: invoice-engine + XML FatturaPA + PEC→SDI + chiusura mese | **bloccata dalle risposte 1 e 3** |
+| 2s | Sella livello 1 | **azione TUA**: attiva gli avvisi email movimento nell'home banking |
+| 3 | Ispettore: sezione Vetrina | dopo 1b |
+| 4 | Oracolo + Valutazione pubblica | dopo 1b |
 
 ---
 
-## 6 · Cosa NON fare (e perché)
+## 5 · Le 4 domande (le stesse della v1, ancora aperte)
 
-- **Non comprare un gestionale immobiliare** per poi piegarlo: la nostra
-  macchina è già più integrata di qualunque ERP orizzontale, ed è nostra.
-- **Non fare la guerra di scraping ai portali** oltre Homie: l'abbiamo già
-  scritto nel codice — l'email-alert è la fonte portante per costruzione, il
-  resto è bonus. Il Perito è disegnato per vivere di quella fonte.
-- **Non promettere "commercialista sostituito"**: dichiarazioni e F24
-  telematici restano a un intermediario abilitato. Noi gli consegniamo un
-  fascicolo perfetto e negoziamo la parcella di conseguenza.
-- **Non collezionare dati personali dei privati** nel magazzino di mercato:
-  fatti dell'annuncio sì, contatti no (quelli vivono solo nel flusso PFS che
-  ha una ragione contrattuale per usarli).
-
----
-
-## 7 · Il piano — quattro tappe, ordine obbligato
-
-| Tappa | Cosa | Perché prima | Effort |
-|---|---|---|---|
-| **1** | Perito v1: market-engine + copertura zone + comps card | Tutto il resto (Ispettore, Valutazione) beve da qui; il dato si accumula da SUBITO — ogni settimana persa è storia di mercato persa | 2–3 sessioni |
-| **2** | Ragioniere: invoice-engine + XML SDI + Sella livello 1 (email/CSV, si accende subito) | Conformità prima di tutto; il resto della contabilità esiste già | 4–5 sessioni |
-| **3** | Ispettore: sezione Vetrina + igiene date + prezzo vs mercato | Composizione di 1 + motori esistenti | 2 sessioni |
-| **4** | Oracolo + Valutazione pubblica | I moltiplicatori: uno ti restituisce il tempo, l'altro porta mandati | 2–3 sessioni |
-
-Ogni tappa: motore puro → test (mutazione compresa) → sezione → registro →
-push. Come sempre.
-
----
-
-## 8 · Le domande che servono a te (bloccano le tappe segnate)
-
-1. **[blocca tappa 2]** Le fatture di Egidi oggi passano dallo SDI tramite
-   qualche strumento esterno (commercialista, Fatture in Cloud…) o i PDF del
-   portal sono l'unica emissione? E il **regime fiscale** di Egidi
-   (ordinario/forfettario) — cambia le regole dell'engine.
-2. **[blocca tappa 2, livello Sella API]** Chiedi al tuo gestore Sella se il
-   tuo contratto business include l'accesso API al conto (piattaforma
-   Fabrick/Sella API). Se sì, la banca entra in casa senza aggregatori.
-   Intanto: attiva gli **avvisi email di movimento** nell'home banking — lo
-   scanner li legge già da oggi.
-3. **[blocca la trasmissione SDI]** Egidi ha una **PEC**? Se sì, la strada
-   PEC→SDI è a costo zero con l'infrastruttura che abbiamo.
-4. **[per il Perito]** Le zone di copertura: partiamo dalle ~10 dove avete
-   immobili e clienti, o tutta la mappa `PRE_ZONES` da subito?
-
----
-
-*Il filo di tutto lo studio: ogni pezzo nuovo beve da dati che già scorrono e
-scrive in schemi che già esistono. Non è un'espansione — è smettere di buttare
-quello che la macchina già raccoglie.*
+1. **[tappa 2]** Le fatture Egidi passano già dallo SDI da qualche parte?
+   Regime fiscale (ordinario/forfettario)?
+2. **[Sella API]** Il contratto business include l'accesso API al conto
+   (Fabrick/Sella API)? Intanto: attiva gli avvisi email di movimento.
+3. **[SDI]** Egidi ha una PEC?
+4. **[Perito]** Zone di copertura: le ~10 dove operate, o tutta la mappa?
+   (Il libro intanto si riempie con ciò che le porte già vedono.)

@@ -137,18 +137,22 @@ check('i reparti coprono tutti — nessuno finisce fuori dall\'organigramma', ()
 // giri, non succede nulla, e da lì in poi non ti fidi più della pagina. Il
 // test la rende meccanica invece che una buona intenzione.
 
+// Un agente può leggere le proprie manopole da più file (il Perito: la porta
+// di Homie legge i lotti, il cron legge il campione minimo) — la garanzia
+// resta la stessa: ogni manopola dev'essere letta da ALMENO uno dei suoi.
 const AGENT_SRC = {
-  gestore: 'api/employees/gestore.js',
-  commerciale: 'api/employees/commerciale.js',
-  'lead-brain': 'api/leads/brain.js'
+  gestore: ['api/employees/gestore.js'],
+  commerciale: ['api/employees/commerciale.js'],
+  'lead-brain': ['api/leads/brain.js'],
+  perito: ['api/homie/market.js', 'api/market/pulse.js']
 };
 
 check('ogni manopola dichiarata è DAVVERO letta dal codice dell\'agente', () => {
-  for (const [key, rel] of Object.entries(AGENT_SRC)) {
-    const src = readFileSync(join(root, rel), 'utf8');
+  for (const [key, rels] of Object.entries(AGENT_SRC)) {
+    const srcs = rels.map(rel => readFileSync(join(root, rel), 'utf8'));
     for (const d of S.knobsFor(key)) {
-      assert.ok(src.includes('k.' + d.key),
-        `${key}: la manopola "${d.key}" è nella pagina ma ${rel} non la legge — sarebbe un comando finto`);
+      assert.ok(srcs.some(src => src.includes('k.' + d.key)),
+        `${key}: la manopola "${d.key}" è nella pagina ma nessuno di [${rels.join(', ')}] la legge — sarebbe un comando finto`);
     }
   }
 });

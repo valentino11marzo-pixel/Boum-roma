@@ -1487,6 +1487,38 @@ auto-ingested (e.g. no price recoverable) land in
 `pfsRadarHealth.needsAttention` — surfaced in `pfs-command.html`, never
 silently dropped.
 
+## Il Perito (market intelligence — js/market-engine.js + api/market/*)
+
+Il "nostro Casafari" col dato che Casafari non ha (i canoni FIRMATI). Nato
+dall'obiezione dell'operatore agli alert-only: un alert email racconta le
+NASCITE degli annunci, mai le MORTI — e le morti sono metà del valore (un
+annuncio sparito con prova = affitto concluso → giorni di assorbimento per
+zona). Studio: `STUDIO_BOOM_AUTONOMA.md`. Architettura a ciclo di vita:
+- **Nascite/vita**: ogni annuncio visto da QUALSIASI porta (pfs/_ingest tap,
+  best-effort e DOPO la scrittura master — il radar non rompe mai il servizio
+  pagato) alimenta `marketListings` via `api/market/_ledger.js` →
+  `ME.observe()`: fold puro, storia prezzi solo sui cambi, rientri con vite
+  archiviate (`pastLives`), MAI contatti del privato (il motore li scarta
+  alla porta — GDPR per costruzione, testato per mutazione).
+- **Morte**: verifiche attive via il Mac di Homie (`api/homie/market.js` —
+  GET lotto secondo le manopole, POST esiti; mandato in `bot/HOMIE.md`).
+  **Il verdetto lo dà IL SERVER** (`deathVerdict`): gone SOLO con prova
+  (404/410, marker 'unavailable'/'search'); 403/429/timeout/200-ambiguo =
+  unknown, MAI gone — un pomeriggio di blocchi non è "mezza Roma affittata".
+  Heartbeat `pfsRadarHealth/perito-eyes` (allerta Telegram esistente).
+- **Statistiche**: cron `api/market/pulse.js` (05:50 UTC) → un doc
+  `marketStats/<zoneSlug>` per zona (il portal legge quello, mai il registro
+  intero): mediana/p25/p75 €/mq, assorbimento (mediana giorni, SOLO morti
+  provate), ribassi 30gg. **Sotto `minSample` non esce un numero** —
+  "campione insufficiente", mai una mediana su 3 annunci. Verdetto esplicito
+  su libro vuoto e backlog verifiche (la lezione runVerdict di pfs/eyes).
+- Manopole nel registro squadra (deathcheckBatch/enrichBatch/minSample),
+  rules `marketListings`+`marketStats` admin-only (lezione propertyLocks).
+- Test: `node tests/market/engine.mjs` (18 check; mutazioni: 403→morte,
+  contatti→dentro, campione piccolo→pubblica — tutte catturate) e
+  `node tests/market/wiring.mjs` (giunzioni sulla sorgente: ordine del tap,
+  verdetto solo server, rules, cron).
+
 ## La Squadra (AI employees — api/employees/*)
 
 Scheduled "employees" that run the back office autonomously. Same

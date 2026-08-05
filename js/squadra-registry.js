@@ -163,6 +163,27 @@
       console: null, run: '/api/payments/recover-checkouts'
     },
     {
+      key: 'perito', emoji: '📐', name: 'Il Perito', reparto: 'Commerciale',
+      role: 'Il libro mastro del mercato: prezzi veri, assorbimento, comparabili',
+      hired: 'Ogni decisione di prezzo si prendeva a memoria, mentre il radar buttava via ciò che vedeva. Un alert email racconta le nascite degli annunci — le morti, che sono metà del valore, le verifica lui.',
+      mandate: [
+        'Registra ogni annuncio visto da qualsiasi porta (alert, Homie, scan) nel libro mastro: prezzo, mq, zona, date — MAI i contatti del privato',
+        'Tiene la storia dei prezzi e segna i ribassi dei competitor',
+        'Fa verificare a Homie chi è ancora vivo: un annuncio sparito con prova (404, "non più disponibile") è un affitto concluso — tempo di assorbimento per zona',
+        'Ogni mattina scrive le statistiche di zona: mediana €/mq, percentili, giorni-a-sparire'
+      ],
+      autonomy: {
+        solo:  ['Registra e aggiorna il libro mastro', 'Dichiara morto un annuncio SOLO con prova — un 403 o un captcha è "non so", mai "affittato"', 'Pubblica le statistiche di zona (solo con campione sufficiente)'],
+        porta: ['Il report del mattino coi numeri del libro', 'L\'allarme se le verifiche si arretrano (gli occhi di Homie fermi)'],
+        mai:   ['Non contatta nessuno', 'Non tiene contatti dei privati — statistica, non rubrica', 'Non pubblica un numero su un campione piccolo', 'Non tocca gli annunci nostri']
+      },
+      reach: ['archivio', 'operatore'],
+      approval: 'mai',
+      crons: ['/api/market/pulse'],
+      health: { col: 'teamHealth', doc: 'perito' },
+      console: null, run: '/api/market/pulse'
+    },
+    {
       key: 'segugio', emoji: '🐕', name: 'Il Segugio', reparto: 'Commerciale',
       role: 'Avvisa chi ha salvato una ricerca',
       hired: 'Chi lascia la sua email su una ricerca ha alzato la mano. Va richiamato quando esce la casa giusta.',
@@ -568,6 +589,14 @@
         def: 20, min: 1, max: 50, help: 'Quanti lead ambigui entrano nella singola chiamata a Claude.' },
       { key: 'dailyAiCallCap', label: 'Tetto chiamate AI al giorno', unit: 'chiamate',
         def: 12, min: 0, max: 100, help: 'Il freno di spesa. A 0 il voto resta quello delle regole gratuite, senza AI.' }
+    ],
+    perito: [
+      { key: 'deathcheckBatch', label: 'Verifiche di vita per giro di Homie', unit: 'annunci',
+        def: 120, min: 0, max: 500, help: 'Quanti annunci il Mac verifica a ogni passaggio. A 0 le verifiche si fermano (l\'assorbimento invecchia).' },
+      { key: 'enrichBatch', label: 'Arricchimenti per giro di Homie', unit: 'annunci',
+        def: 40, min: 0, max: 200, help: 'Annunci senza mq o zona da completare leggendo la pagina — la statistica li aspetta.' },
+      { key: 'minSample', label: 'Campione minimo per pubblicare un numero', unit: 'annunci',
+        def: 5, min: 3, max: 50, help: 'Sotto questa soglia le statistiche di zona dicono "campione insufficiente" invece di un numero debole.' }
     ]
   };
 

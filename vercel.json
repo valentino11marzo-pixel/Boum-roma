@@ -767,6 +767,10 @@
     {
       "path": "/api/ops/conservazione",
       "schedule": "40 5 2 * *"
-    }
+    },
+      {
+        "path": "/api/market/pulse",
+        "schedule": "50 5 * * *"
+      }
   ]
 }

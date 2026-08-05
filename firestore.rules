@@ -275,6 +275,12 @@ service cloud.firestore {
     // Rendiconto mensile proprietari: memoria idempotenza (ownerId_YYYY-MM),
     // scritta dal cron con credenziali admin. Stessa lezione di propertyLocks.
     match /rendiconti/{x}                  { allow read, write: if isAdmin(); }
+    // IL PERITO — libro mastro del mercato (fatti degli annunci, mai contatti)
+    // e statistiche per zona. Scritti dai cron/porte con credenziali admin,
+    // letti dal portal (admin). Senza queste righe: default-deny — la lezione
+    // di propertyLocks, di nuovo.
+    match /marketListings/{x}              { allow read, write: if isAdmin(); }
+    match /marketStats/{x}                 { allow read, write: if isAdmin(); }
 
     // ─── Default deny ─────────────────────────────────────────────────
     match /{document=**} {
