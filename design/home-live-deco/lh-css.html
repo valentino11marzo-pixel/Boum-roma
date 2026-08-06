@@ -688,6 +688,49 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .footer-fondo .op i { width:7px; height:7px; border-radius:50%; background:var(--green);
   font-style:normal; animation:pulse 2.2s ease infinite; }
 
+/* ── LA COREOGRAFIA ───────────────────────────────────────────────────────
+   Tre mosse da palcoscenico, una grammatica sola (stesso easing, scala di
+   durate .7/.9/1.2s):
+   · i TITOLI si alzano da dietro un sipario (clip-path) — mai un fade
+   · i GRUPPI (.coro) entrano a cascata, figli sfalsati di 80ms
+   · le FOTO si svelano con la tenda dal basso mentre lo zoom si posa
+   Fuori vista niente si muove; reduced-motion mostra tutto fermo. */
+html.vivo .sale .titolo, html.vivo .coro .titolo {
+  clip-path:inset(-8% -8% 108% -8%); transform:translateY(34px); }
+html.vivo .sale.dentro .titolo, html.vivo .coro.dentro .titolo {
+  clip-path:inset(-8% -8% -12% -8%); transform:none;
+  transition:clip-path .9s var(--ease), transform .9s var(--ease); }
+html.vivo .coro > * { opacity:0; transform:translateY(26px); }
+html.vivo .coro.dentro > * { opacity:1; transform:none;
+  transition:opacity .8s var(--ease), transform .8s var(--ease); }
+html.vivo .coro.dentro > :nth-child(2){ transition-delay:.08s; }
+html.vivo .coro.dentro > :nth-child(3){ transition-delay:.16s; }
+html.vivo .coro.dentro > :nth-child(4){ transition-delay:.24s; }
+html.vivo .coro.dentro > :nth-child(5){ transition-delay:.32s; }
+html.vivo .coro.dentro > :nth-child(6){ transition-delay:.4s; }
+html.vivo .coro.dentro > :nth-child(7){ transition-delay:.48s; }
+html.vivo .coro.dentro > :nth-child(8){ transition-delay:.56s; }
+/* la tenda sulle foto delle case: si apre dal basso, lo zoom si posa */
+html.vivo .coro .home-foto img { clip-path:inset(100% 0 0 0);
+  transform:scale(1.14); }
+html.vivo .coro.dentro .home-foto img { clip-path:inset(0);
+  transform:scale(1);
+  transition:clip-path 1s var(--ease), transform 1.6s var(--ease); }
+html.vivo .coro.dentro > :nth-child(2) .home-foto img { transition-delay:.08s; }
+html.vivo .coro.dentro > :nth-child(3) .home-foto img { transition-delay:.16s; }
+/* la lama di luce sui bottoni d'oro */
+.btn-primary { position:relative; overflow:hidden; }
+.btn-primary::after { content:''; position:absolute; top:0; bottom:0;
+  left:-70%; width:45%; transform:skewX(-18deg);
+  background:linear-gradient(90deg, transparent,
+    rgba(255,255,255,.55), transparent); transition:none; }
+.btn-primary:hover::after { left:130%; transition:left .7s var(--ease); }
+/* il battito d'atterraggio dei contatori */
+@keyframes atterra { 0% { transform:scale(1); } 38% { transform:scale(1.02); }
+  100% { transform:scale(1); } }
+.atterra { animation:atterra .32s cubic-bezier(.34,1.56,.64,1);
+  display:inline-block; }
+
 /* ── LE ENTRATE ──────────────────────────────────────────────────────── */
 html.vivo .sale { opacity:0; transform:translateY(22px); }
 html.vivo .sale.dentro { opacity:1; transform:none;
@@ -695,6 +738,10 @@ html.vivo .sale.dentro { opacity:1; transform:none;
 @media (prefers-reduced-motion:reduce){
   html { scroll-behavior:auto; }
   html.vivo .sale { opacity:1; transform:none; transition:none; }
+  html.vivo .coro > *, html.vivo .coro .home-foto img,
+  html.vivo .sale .titolo, html.vivo .coro .titolo {
+    opacity:1; transform:none; clip-path:none; transition:none; }
+  .btn-primary::after { display:none; }
   .radar i, .radar u, .radar s, .radar b, .tech-orb, .finale-glow,
   .sc-cursor, .sc-tap, .pz, .dev-stato i,
   .finale-eco i, .pf-sweep, .hero-eyebrow b,

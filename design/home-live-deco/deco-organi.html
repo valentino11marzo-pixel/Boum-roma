@@ -30,6 +30,9 @@
     var nav = document.getElementById('nav');
     var filo = document.getElementById('scrollProgress');
     var atteso = false;
+    var orbi = [].slice.call(document.querySelectorAll('.tech-orb'));
+    var bagliori = [].slice.call(document.querySelectorAll('.hero-glow'));
+    var PASSI = [-.045, .03, -.02];
     function guarda() {
       atteso = false;
       var h = document.scrollingElement || document.documentElement;
@@ -37,6 +40,16 @@
       if (filo) {
         var tot = h.scrollHeight - innerHeight;
         filo.style.transform = 'scaleX(' + (tot > 0 ? h.scrollTop / tot : 0) + ')';
+      }
+      /* la profondita': ogni strato scivola a un passo suo */
+      if (!ridotto) {
+        var y = h.scrollTop;
+        orbi.forEach(function (el, i) {
+          el.style.translate = '0 ' + (y * PASSI[i % 3]).toFixed(1) + 'px';
+        });
+        bagliori.forEach(function (el, i) {
+          el.style.translate = '0 ' + (y * (i ? .06 : -.08)).toFixed(1) + 'px';
+        });
       }
     }
     addEventListener('scroll', function () {
@@ -84,7 +97,13 @@
 
   /* ── le entrate: una volta sola, con rete di sicurezza ───────────────── */
   (function () {
-    var voci = [].slice.call(document.querySelectorAll('.sale'));
+    var voci = [].slice.call(document.querySelectorAll('.sale, .coro'));
+    /* cio' che nasce in vista entra subito, con la sua cascata */
+    voci = voci.filter(function (v) {
+      if (!v.classList.contains('dentro-subito')) return true;
+      setTimeout(function () { v.classList.add('dentro'); }, 250);
+      return false;
+    });
     if (ridotto || !('IntersectionObserver' in window)) {
       voci.forEach(function (v) { v.classList.add('dentro'); }); return;
     }
@@ -109,6 +128,7 @@
       var p = Math.min(1, (ts - t0) / 1100);
       el.textContent = Math.round(fine_ * (1 - Math.pow(1 - p, 3))) + suff;
       if (p < 1) requestAnimationFrame(su);
+      else el.classList.add('atterra');   /* il numero si posa con un battito */
     }
     requestAnimationFrame(su);
   }
@@ -144,6 +164,25 @@
         io.disconnect();
         setTimeout(function () { v.classList.add('vista'); }, i % 6 * 110);
       }, { threshold: .5 }).observe(v);
+    });
+  })();
+
+  /* il magnete: i bottoni d'oro seguono la mano, poi si posano */
+  (function () {
+    if (!fine || ridotto) return;
+    [].forEach.call(document.querySelectorAll('.btn-primary'), function (b) {
+      b.addEventListener('mousemove', function (e) {
+        var r = b.getBoundingClientRect();
+        var dx = e.clientX - (r.left + r.width / 2);
+        var dy = e.clientY - (r.top + r.height / 2);
+        b.style.transform = 'translate(' + (dx / 90 * 6).toFixed(1) +
+          'px,' + (dy / 90 * 5 - 2).toFixed(1) + 'px)';
+      });
+      b.addEventListener('mouseleave', function () {
+        b.style.transform = '';
+        b.style.transition = 'transform .5s cubic-bezier(.34,1.56,.64,1)';
+        setTimeout(function () { b.style.transition = ''; }, 500);
+      });
     });
   })();
 

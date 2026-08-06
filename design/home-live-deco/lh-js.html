@@ -44,13 +44,22 @@
       passi.forEach(function (s, k) { s.classList.toggle('on', k === i); });
     }
     var timer = document.getElementById('scTimer');
-    var atteso = false;
-    function guarda() {
-      atteso = false;
+    /* l'inerzia: la scena non copia lo scroll, lo INSEGUE con un ritardo
+       morbido (lerp) -- la differenza tra un cursore e una macchina da
+       presa. Il rAF gira solo finche' c'e' distanza da colmare. */
+    var pMeta = 0, pOra = 0, vivoRaf = false;
+    function misura() {
       var r = wrap.getBoundingClientRect();
       var corsa = r.height - innerHeight;
       if (corsa <= 0) return;
-      var p = Math.min(.999, Math.max(0, -r.top / corsa));
+      pMeta = Math.min(.999, Math.max(0, -r.top / corsa));
+      if (!vivoRaf) { vivoRaf = true; requestAnimationFrame(rendi); }
+    }
+    function rendi() {
+      pOra += (pMeta - pOra) * (ridotto ? 1 : .16);
+      if (Math.abs(pMeta - pOra) < .0006) { pOra = pMeta; vivoRaf = false; }
+      else requestAnimationFrame(rendi);
+      var p = pOra;
       var i = Math.floor(p * 4);
       var f = Math.min(1, Math.max(0, p * 4 - i));
       stato(i);
@@ -73,10 +82,8 @@
         t.firstChild.style.width = (g * 100) + '%';
       });
     }
-    addEventListener('scroll', function () {
-      if (!atteso) { atteso = true; requestAnimationFrame(guarda); }
-    }, { passive: true });
-    guarda();
+    addEventListener('scroll', misura, { passive: true });
+    misura(); rendi();
   })();
 })();
 </script>

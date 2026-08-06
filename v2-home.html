@@ -690,6 +690,49 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .footer-fondo .op i { width:7px; height:7px; border-radius:50%; background:var(--green);
   font-style:normal; animation:pulse 2.2s ease infinite; }
 
+/* ── LA COREOGRAFIA ───────────────────────────────────────────────────────
+   Tre mosse da palcoscenico, una grammatica sola (stesso easing, scala di
+   durate .7/.9/1.2s):
+   · i TITOLI si alzano da dietro un sipario (clip-path) — mai un fade
+   · i GRUPPI (.coro) entrano a cascata, figli sfalsati di 80ms
+   · le FOTO si svelano con la tenda dal basso mentre lo zoom si posa
+   Fuori vista niente si muove; reduced-motion mostra tutto fermo. */
+html.vivo .sale .titolo, html.vivo .coro .titolo {
+  clip-path:inset(-8% -8% 108% -8%); transform:translateY(34px); }
+html.vivo .sale.dentro .titolo, html.vivo .coro.dentro .titolo {
+  clip-path:inset(-8% -8% -12% -8%); transform:none;
+  transition:clip-path .9s var(--ease), transform .9s var(--ease); }
+html.vivo .coro > * { opacity:0; transform:translateY(26px); }
+html.vivo .coro.dentro > * { opacity:1; transform:none;
+  transition:opacity .8s var(--ease), transform .8s var(--ease); }
+html.vivo .coro.dentro > :nth-child(2){ transition-delay:.08s; }
+html.vivo .coro.dentro > :nth-child(3){ transition-delay:.16s; }
+html.vivo .coro.dentro > :nth-child(4){ transition-delay:.24s; }
+html.vivo .coro.dentro > :nth-child(5){ transition-delay:.32s; }
+html.vivo .coro.dentro > :nth-child(6){ transition-delay:.4s; }
+html.vivo .coro.dentro > :nth-child(7){ transition-delay:.48s; }
+html.vivo .coro.dentro > :nth-child(8){ transition-delay:.56s; }
+/* la tenda sulle foto delle case: si apre dal basso, lo zoom si posa */
+html.vivo .coro .home-foto img { clip-path:inset(100% 0 0 0);
+  transform:scale(1.14); }
+html.vivo .coro.dentro .home-foto img { clip-path:inset(0);
+  transform:scale(1);
+  transition:clip-path 1s var(--ease), transform 1.6s var(--ease); }
+html.vivo .coro.dentro > :nth-child(2) .home-foto img { transition-delay:.08s; }
+html.vivo .coro.dentro > :nth-child(3) .home-foto img { transition-delay:.16s; }
+/* la lama di luce sui bottoni d'oro */
+.btn-primary { position:relative; overflow:hidden; }
+.btn-primary::after { content:''; position:absolute; top:0; bottom:0;
+  left:-70%; width:45%; transform:skewX(-18deg);
+  background:linear-gradient(90deg, transparent,
+    rgba(255,255,255,.55), transparent); transition:none; }
+.btn-primary:hover::after { left:130%; transition:left .7s var(--ease); }
+/* il battito d'atterraggio dei contatori */
+@keyframes atterra { 0% { transform:scale(1); } 38% { transform:scale(1.02); }
+  100% { transform:scale(1); } }
+.atterra { animation:atterra .32s cubic-bezier(.34,1.56,.64,1);
+  display:inline-block; }
+
 /* ── LE ENTRATE ──────────────────────────────────────────────────────── */
 html.vivo .sale { opacity:0; transform:translateY(22px); }
 html.vivo .sale.dentro { opacity:1; transform:none;
@@ -697,6 +740,10 @@ html.vivo .sale.dentro { opacity:1; transform:none;
 @media (prefers-reduced-motion:reduce){
   html { scroll-behavior:auto; }
   html.vivo .sale { opacity:1; transform:none; transition:none; }
+  html.vivo .coro > *, html.vivo .coro .home-foto img,
+  html.vivo .sale .titolo, html.vivo .coro .titolo {
+    opacity:1; transform:none; clip-path:none; transition:none; }
+  .btn-primary::after { display:none; }
   .radar i, .radar u, .radar s, .radar b, .tech-orb, .finale-glow,
   .sc-cursor, .sc-tap, .pz, .dev-stato i,
   .finale-eco i, .pf-sweep, .hero-eyebrow b,
@@ -776,7 +823,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       <a class="btn btn-primary" href="/v2-apartments.html">View Apartments</a>
       <a class="btn btn-secondary" href="#come">How It Works</a>
     </div>
-    <div class="hero-stats" id="heroStats">
+    <div class="hero-stats coro dentro-subito" id="heroStats">
       <div class="hero-stat"><div class="hero-stat-value" data-fine="48" data-suff="h">0h</div>
         <div class="hero-stat-label">Move-in Time</div></div>
       <div class="hero-stat"><div class="hero-stat-value" data-fine="98" data-suff="%">0%</div>
@@ -833,7 +880,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         we've got you covered.</p>
     </div>
 
-    <div class="cards4 sale">
+    <div class="cards4 sale coro">
       <a class="svc" href="/v2-apartments.html">
         <span class="svc-icona"><svg viewBox="0 0 40 40"><path d="M7 19 20 8l13 11"/><path d="M11 17v15h18V17"/><path d="M17 32v-9h6v9"/></svg></span>
         <h3>Ready Apartments</h3>
@@ -882,7 +929,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       </div>
     </div>
 
-    <div class="homes sale">
+    <div class="homes sale coro">
       <a class="home" href="/v2-listing.html#id=sr0rpLSqbpDMASkHINfx">
         <div class="home-foto">
           <img decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fsr0rpLSqbpDMASkHINfx%2Fms6y4det_00_1f4b631c.jpg?alt=media" alt="Trilocale Pigneto, Pigneto — apartment for rent in Rome with BOOM">
@@ -1100,7 +1147,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       <h2 class="titolo">Already found something?<br><span class="hl">We've got your back</span></h2>
     </div>
 
-    <div class="due sale">
+    <div class="due sale coro">
       <div class="aiuto">
         <div class="aiuto-cima"><h3>Deal Assistance</h3>
           <span class="aiuto-prezzo">€249 <small>fixed fee</small></span></div>
@@ -1142,7 +1189,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       <p class="sotto">All services available from day one. Pay only for what you use.</p>
     </div>
 
-    <div class="griglia6 sale">
+    <div class="griglia6 sale coro">
       <div class="mini">
         <span class="svc-icona"><svg viewBox="0 0 40 40"><path d="M20 6v8M20 26v8M6 20h8M26 20h8M10.2 10.2l5.6 5.6M24.2 24.2l5.6 5.6M29.8 10.2l-5.6 5.6M15.8 24.2l-5.6 5.6"/></svg></span>
         <h4>Cleaning</h4><span>€60/mo</span>
@@ -1187,7 +1234,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         English-first, on one invoice.</p>
     </div>
 
-    <div class="org3 sale">
+    <div class="org3 sale coro">
       <a class="org" href="/universities.html">
         <span class="svc-icona"><svg viewBox="0 0 40 40"><path d="M4 15L20 7l16 8-16 8z"/><path d="M11 20v8c0 2.5 4 4.5 9 4.5s9-2 9-4.5v-8M33 16v9"/></svg></span>
         <h3>Universities</h3>
@@ -1222,7 +1269,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         difficult</span>.<br>We built BOOM to change that.</h2>
     </div>
 
-    <div class="dolori sale">
+    <div class="dolori sale coro">
       <div class="dolore"><span class="svc-icona"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="13"/><path d="M20 12v8l6 4"/></svg></span>45+ days average search time</div>
       <div class="dolore"><span class="svc-icona"><svg viewBox="0 0 40 40"><rect x="5" y="12" width="30" height="17" rx="1.5"/><circle cx="20" cy="20.5" r="4.5"/><path d="M10 12v-2h20v2"/></svg></span>€8,000+ upfront costs</div>
       <div class="dolore"><span class="svc-icona"><svg viewBox="0 0 40 40"><rect x="6" y="10" width="28" height="20" rx="1.5"/><path d="M6 26l8-7 6 5 6-6 8 8M6 6l28 28"/></svg></span>Misleading photos</div>
@@ -1540,6 +1587,9 @@ html.vivo .sale.dentro { opacity:1; transform:none;
     var nav = document.getElementById('nav');
     var filo = document.getElementById('scrollProgress');
     var atteso = false;
+    var orbi = [].slice.call(document.querySelectorAll('.tech-orb'));
+    var bagliori = [].slice.call(document.querySelectorAll('.hero-glow'));
+    var PASSI = [-.045, .03, -.02];
     function guarda() {
       atteso = false;
       var h = document.scrollingElement || document.documentElement;
@@ -1547,6 +1597,16 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       if (filo) {
         var tot = h.scrollHeight - innerHeight;
         filo.style.transform = 'scaleX(' + (tot > 0 ? h.scrollTop / tot : 0) + ')';
+      }
+      /* la profondita': ogni strato scivola a un passo suo */
+      if (!ridotto) {
+        var y = h.scrollTop;
+        orbi.forEach(function (el, i) {
+          el.style.translate = '0 ' + (y * PASSI[i % 3]).toFixed(1) + 'px';
+        });
+        bagliori.forEach(function (el, i) {
+          el.style.translate = '0 ' + (y * (i ? .06 : -.08)).toFixed(1) + 'px';
+        });
       }
     }
     addEventListener('scroll', function () {
@@ -1594,7 +1654,13 @@ html.vivo .sale.dentro { opacity:1; transform:none;
 
   /* ── le entrate: una volta sola, con rete di sicurezza ───────────────── */
   (function () {
-    var voci = [].slice.call(document.querySelectorAll('.sale'));
+    var voci = [].slice.call(document.querySelectorAll('.sale, .coro'));
+    /* cio' che nasce in vista entra subito, con la sua cascata */
+    voci = voci.filter(function (v) {
+      if (!v.classList.contains('dentro-subito')) return true;
+      setTimeout(function () { v.classList.add('dentro'); }, 250);
+      return false;
+    });
     if (ridotto || !('IntersectionObserver' in window)) {
       voci.forEach(function (v) { v.classList.add('dentro'); }); return;
     }
@@ -1619,6 +1685,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       var p = Math.min(1, (ts - t0) / 1100);
       el.textContent = Math.round(fine_ * (1 - Math.pow(1 - p, 3))) + suff;
       if (p < 1) requestAnimationFrame(su);
+      else el.classList.add('atterra');   /* il numero si posa con un battito */
     }
     requestAnimationFrame(su);
   }
@@ -1654,6 +1721,25 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         io.disconnect();
         setTimeout(function () { v.classList.add('vista'); }, i % 6 * 110);
       }, { threshold: .5 }).observe(v);
+    });
+  })();
+
+  /* il magnete: i bottoni d'oro seguono la mano, poi si posano */
+  (function () {
+    if (!fine || ridotto) return;
+    [].forEach.call(document.querySelectorAll('.btn-primary'), function (b) {
+      b.addEventListener('mousemove', function (e) {
+        var r = b.getBoundingClientRect();
+        var dx = e.clientX - (r.left + r.width / 2);
+        var dy = e.clientY - (r.top + r.height / 2);
+        b.style.transform = 'translate(' + (dx / 90 * 6).toFixed(1) +
+          'px,' + (dy / 90 * 5 - 2).toFixed(1) + 'px)';
+      });
+      b.addEventListener('mouseleave', function () {
+        b.style.transform = '';
+        b.style.transition = 'transform .5s cubic-bezier(.34,1.56,.64,1)';
+        setTimeout(function () { b.style.transition = ''; }, 500);
+      });
     });
   })();
 
@@ -1752,13 +1838,22 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       passi.forEach(function (s, k) { s.classList.toggle('on', k === i); });
     }
     var timer = document.getElementById('scTimer');
-    var atteso = false;
-    function guarda() {
-      atteso = false;
+    /* l'inerzia: la scena non copia lo scroll, lo INSEGUE con un ritardo
+       morbido (lerp) -- la differenza tra un cursore e una macchina da
+       presa. Il rAF gira solo finche' c'e' distanza da colmare. */
+    var pMeta = 0, pOra = 0, vivoRaf = false;
+    function misura() {
       var r = wrap.getBoundingClientRect();
       var corsa = r.height - innerHeight;
       if (corsa <= 0) return;
-      var p = Math.min(.999, Math.max(0, -r.top / corsa));
+      pMeta = Math.min(.999, Math.max(0, -r.top / corsa));
+      if (!vivoRaf) { vivoRaf = true; requestAnimationFrame(rendi); }
+    }
+    function rendi() {
+      pOra += (pMeta - pOra) * (ridotto ? 1 : .16);
+      if (Math.abs(pMeta - pOra) < .0006) { pOra = pMeta; vivoRaf = false; }
+      else requestAnimationFrame(rendi);
+      var p = pOra;
       var i = Math.floor(p * 4);
       var f = Math.min(1, Math.max(0, p * 4 - i));
       stato(i);
@@ -1781,10 +1876,8 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         t.firstChild.style.width = (g * 100) + '%';
       });
     }
-    addEventListener('scroll', function () {
-      if (!atteso) { atteso = true; requestAnimationFrame(guarda); }
-    }, { passive: true });
-    guarda();
+    addEventListener('scroll', misura, { passive: true });
+    misura(); rendi();
   })();
 })();
 </script>
