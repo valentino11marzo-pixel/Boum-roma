@@ -686,12 +686,18 @@ function flashEl(el) {
 var SOURCES = [
     { key: 'inbox',  label: 'Inbox',   icon: '📨', freshMin: 45 },
     { key: 'market', label: 'Mercato', icon: '🌐', freshMin: 90 },
+    // Gli occhi di Homie: il Mac su IP residenziale, l'unica fonte che può
+    // guardare i portali DIRETTAMENTE (il server prende 403). Giro ogni 10',
+    // quindi 25' di tolleranza. Finché non è configurato resta grigia "mai" —
+    // che è la verità, e va vista: è la fonte veloce del servizio a pagamento.
+    { key: 'homie-eyes', label: 'Occhi Homie', icon: '👁', freshMin: 25 },
     { key: 'sync',   label: 'Sync',    icon: '🔄', freshMin: 1560 } // 26 h
 ];
 var STAT_LABELS = {
     emailsSeen: 'Email viste', alerts: 'Alert', listingsFound: 'Annunci trovati',
     ingested: 'Ingeriti', pushedTotal: 'Push totali', droppedAgency: 'Scartati (agenzia)',
-    searches: 'Ricerche', pagesOk: 'Pagine OK', pagesFailed: 'Pagine KO'
+    searches: 'Ricerche', pagesOk: 'Pagine OK', pagesFailed: 'Pagine KO',
+    found: 'Annunci visti', blocked: 'Ricerche bloccate'
 };
 var ADV = {
     'private': { label: 'Privato',      cls: 'adv-private' },
