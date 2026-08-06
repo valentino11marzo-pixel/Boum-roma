@@ -119,19 +119,17 @@ def carta(c, primo):
 
 HOMES = '\n\n'.join(carta(c, i == 0) for i, c in enumerate(vetrina))
 
-# lo schermo 1 dell'apparecchio: quattro miniature dal catalogo vero
-mini = case[:4] if len(case) >= 4 else case
-DEV = '\n'.join(
-    f'''              <div class="sc-apt{" feat" if i == 0 else ""}"><div class="sc-ph"><img loading="lazy" decoding="async"
-                src="{banca[c['id']]}" alt="">{'<span class="sc-live">● LIVE 360°</span><span class="sc-cuore">♥</span>' if i == 0 else ''}</div>
-                <div class="sc-pr">{euro(c['prezzo'])}</div></div>'''
-    for i, c in enumerate(mini))
+# la scena 1 dell'apparecchio: la passeggiata dentro UNA casa vera
+sc1 = vetrina[0]
 
 def leggi(n): return open(n, encoding='utf-8').read()
 h = '\n'.join(leggi(p) for p in ['lh-css.html','lh-body.html','solari-engine.html','lh-js.html'])
 h = h.replace('LOGO_SVG', leggi('logo-live.svg').strip())
 h = h.replace('HOMES_CARDS', HOMES)
-h = h.replace('DEV_APTS', DEV)
+h = h.replace('SC1_FOTO', banca[sc1['id']])
+h = h.replace('SC1_NOME', sc1['nome'])
+h = h.replace('SC1_PREZZO', euro(sc1['prezzo']))
+h = h.replace('SC1_TOT', euro(sc1['prezzo'] * 2))   # primo mese + 1 mese di deposito
 UNI = ['LUISS', 'Sapienza', 'Roma Tre', 'John Cabot', 'LUMSA', 'NABA', 'IED', 'RUFA']
 h = h.replace('UNI_ITEMS\nUNI_ITEMS',
     '\n'.join('    <span class="uni-item">' + u.upper() + '</span>' for u in UNI + UNI))
