@@ -34,6 +34,7 @@ const SUITES = [
   { name: 'availui',  file: 'tests/viewings/availability-ui.mjs', what: 'regola disponibilità: finestre valide, default allineati al server, avviso conflitti' },
   { name: 'regista',  file: 'tests/regista/run.mjs',      what: 'Il Regista: grammatica promemoria, id deterministici, foglio di chiamata' },
   { name: 'recupero', file: 'tests/recovery/run.mjs',     what: 'Il Recupero: checkout abbandonati → lead, mai i test dell\'operatore, lingua dal cliente' },
+  { name: 'reverse',  file: 'tests/reverse/run.mjs',      what: 'ricerca rovesciata: chi in archivio cercava questa casa — e chi non va MAI disturbato' },
   { name: 'salute',   file: 'tests/pfs/health.mjs',      what: 'allarmi radar: una fonte bloccata parla UNA volta, un guasto vero si dirada' },
   { name: 'eyes',     file: 'tests/pfs/eyes.mjs',        what: 'occhi di Homie sul radar PFS: lista di lavoro viva, e un radar cieco non sembra un mercato fermo' },
   { name: 'whatsapp', file: 'tests/whatsapp/run.mjs',     what: 'WhatsApp → lead senza AI: rumore fuori, persona vera dentro, un lead per persona' },

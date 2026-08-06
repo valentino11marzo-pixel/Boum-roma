@@ -52,17 +52,20 @@ BOT_VERSION = '3.0'          # bumped by meaningful releases; shown in /status
 START_TS = time.time()
 AI_MODE = None               # set by _secret_probe(): True = full AI brain on
 
-def wizard_post(path, payload, timeout=35):
-    """POST to a BOOM wizard endpoint with the shared secret. Returns parsed
-    JSON on success, or None on any failure so the caller can fall back."""
+def wizard_post(path, payload, timeout=35, method='POST'):
+    """Call a BOOM wizard endpoint with the shared secret. Returns parsed JSON
+    on success, or None on any failure so the caller can fall back.
+    `method='GET'` per le letture (chi cerca questa casa): stesso segreto,
+    stessa gestione degli errori, nessuna seconda funzione da tenere allineata."""
     if not WIZARD_SECRET:
         return None
     try:
-        r = http_requests.post(
-            f'{WIZARD_API_BASE}{path}',
-            headers={'Content-Type': 'application/json', 'X-Wizard-Secret': WIZARD_SECRET},
-            json=payload, timeout=timeout,
-        )
+        fn = http_requests.get if method == 'GET' else http_requests.post
+        kw = {'timeout': timeout,
+              'headers': {'Content-Type': 'application/json', 'X-Wizard-Secret': WIZARD_SECRET}}
+        if method != 'GET':
+            kw['json'] = payload
+        r = fn(f'{WIZARD_API_BASE}{path}', **kw)
         if r.status_code != 200:
             logger.warning(f'wizard api {path} -> {r.status_code}: {r.text[:200]}')
             return None
@@ -500,6 +503,17 @@ async def _do_publish(context, d, photo_ids):
     try:
         await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text="📣 Pronta da condividere (tieni premuto → copia):\n\n" + _share_kit(listing, detail_url))
     except Exception as e: logger.warning(f'share kit: {e}')
+    # PROATTIVO: chi, in archivio, stava cercando questa casa. Non si chiede —
+    # si dice, nel momento in cui serve. È la differenza fra pubblicare e
+    # aspettare, e pubblicare e raccogliere.
+    try:
+        rep = await asyncio.to_thread(who_wants, doc_id)
+        lines = _match_lines(rep)
+        if lines:
+            await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=lines,
+                                           parse_mode='Markdown', disable_web_page_preview=True)
+    except Exception as e:
+        logger.warning(f'reverse match: {e}')
     # Photo Lab: auto-curate the gallery right after publishing (reversible;
     # the listing is already live with the raw photos, this only upgrades it)
     if len(image_urls) >= 2:
@@ -683,6 +697,7 @@ _"Prati ha il video?"_ · _"da quanto è sul mercato Ostiense?"_
 /listings — annunci attivi con link
 /stats `[ID]` — candidature e giorni sul mercato
 /interessati `[ID]` — chi vuole ogni casa, i 🔥 prima
+/chicerca `ID` — chi in archivio cercava questa casa 🎯
 /fotolab `ID` — rifai le foto con l'AI
 /prezzo `ID 1300` · /deposito `ID 3` · /video `ID link`
 /modifica `ID campo valore`
@@ -694,6 +709,39 @@ _"Prati ha il video?"_ · _"da quanto è sul mercato Ostiense?"_
 
 async def cmd_help(update, context):
     await update.message.reply_text(HELP_TEXT, parse_mode='Markdown')
+
+
+# ─── Chi cercava questa casa ──────────────────────────────────────────────────
+# L'asimmetria che nessuno sfruttava: si pubblica e si ASPETTA che degli
+# sconosciuti trovino l'annuncio, mentre in archivio ci sono persone che tre
+# settimane fa cercavano esattamente quello — e a cui non lo dice nessuno.
+# Il server (api/leads/match-listing) fa il lavoro a costo zero: nessun
+# modello, solo l'aritmetica su dati che abbiamo già.
+def who_wants(listing_id, limit=6):
+    r = wizard_post(f'/api/leads/match-listing?listingId={listing_id}&limit={limit}', None, 30, method='GET')
+    return r if (r and r.get('ok')) else None
+
+def _match_lines(rep):
+    """Il messaggio Telegram: nome, perché, e il link WhatsApp col testo già
+    scritto nella LORO lingua. Un tap per persona."""
+    ms = (rep or {}).get('matches') or []
+    if not ms:
+        return None
+    L = rep.get('listing') or {}
+    head = f"🎯 *{len(ms)} in archivio cercavano questa casa*\n_{L.get('name') or ''}_\n"
+    rows = []
+    for m in ms:
+        why = ' · '.join((m.get('reasons') or [])[:2])
+        line = f"\n*{m.get('name') or '?'}* — {m.get('score')}/100"
+        if m.get('grade'): line += f" {m['grade']}"
+        line += f"\n  _{why}_"
+        if m.get('wa'): line += f"\n  [💬 Scrivigli (già pronto)]({m['wa']})"
+        elif m.get('email'): line += f"\n  ✉️ {m['email']}"
+        rows.append(line)
+    tail = ''
+    if rep.get('total', 0) > len(ms):
+        tail = f"\n\n_…e altri {rep['total'] - len(ms)}._"
+    return head + ''.join(rows) + tail
 
 # ─── Photo Lab bridge (api/photos/enhance — AI curation + enhancement) ────────
 def photos_enhance(listing_id, mode='apply'):
@@ -884,6 +932,16 @@ def _local_answer(text, listings):
         return f"📅 *{name}* — {days if days is not None else '?'} giorni sul mercato."
     if re.search(r'\b(indirizzo|dove\s|zona)\b', t):
         return f"📍 *{name}* — {d.get('address','?')}, {d.get('zone','?')}"
+    # NB: "interessati" NON entra qui. In questo bot significa già "chi ha
+    # scritto per questa casa" (/interessati), e ri-puntare una parola che ha
+    # già un significato è il modo più veloce per rendere inaffidabile uno
+    # strumento. La ricerca rovesciata risponde solo a frasi inequivocabili.
+    if re.search(r'\bchi\s+(la\s+)?(cerc\w*|vorrebbe|potrebbe volerl|vuole)', t) \
+       or re.search(r'\ba chi\b.*\b(propon|mand|offr|scriv)', t) \
+       or re.search(r'\bchi\s+in\s+archivio\b', t):
+        # la ricerca rovesciata a voce: "chi cerca Pigneto?" — la risposta la
+        # dà il server a costo zero, qui si restituisce solo il segnale
+        return f"__WHOWANTS__{doc_id}"
     if re.search(r'\b(affittat|liber[oa]|disponibil|stato|ancora)\w*', t):
         st = str(d.get('status') or 'available')
         label = {'available': '🟢 disponibile', 'rented': '🔴 affittato', 'waitlist': '🟡 lista d\'attesa'}.get(st, st)
@@ -1086,6 +1144,28 @@ def _transcribe(audio_bytes, mime):
     except Exception:
         return {'text': ''}
 
+
+async def cmd_chicerca(update, context):
+    """/chicerca <ID> — chi in archivio stava cercando questa casa."""
+    if not is_admin(update): return
+    if not context.args:
+        await update.message.reply_text('Uso: /chicerca `ID`  (vedi /listings)', parse_mode='Markdown'); return
+    doc_id = context.args[0]
+    await update.message.reply_text('🎯 Cerco in archivio…')
+    try:
+        rep = await asyncio.to_thread(who_wants, doc_id, 8)
+        lines = _match_lines(rep)
+        if lines:
+            await update.message.reply_text(lines, parse_mode='Markdown', disable_web_page_preview=True)
+        else:
+            n = (rep or {}).get('scanned', 0)
+            await update.message.reply_text(
+                f'Nessuno in archivio combacia con questa casa (su {n} lead esaminati).\n'
+                f'_Non è un errore: significa che chi ha scritto finora cercava altro._',
+                parse_mode='Markdown')
+    except Exception as e:
+        await update.message.reply_text(f'❌ {e}')
+
 async def cmd_status(update, context):
     if not is_admin(update): return
     up = int(time.time() - START_TS)
@@ -1253,6 +1333,16 @@ async def _nl_process(update, context, text):
             answer = await asyncio.to_thread(_local_answer, (prev + ' ' if prev else '') + text, listings)
         except Exception as e:
             logger.warning(f'local answer: {e}'); answer = None
+        if answer and str(answer).startswith('__WHOWANTS__'):
+            NL_STATS['free'] += 1
+            NL_CTX.pop(chat_id, None)
+            lid = answer.replace('__WHOWANTS__', '')
+            rep = await asyncio.to_thread(who_wants, lid, 8)
+            lines = _match_lines(rep)
+            await update.message.reply_text(
+                lines or f"Nessuno in archivio combacia con questa casa (su {(rep or {}).get('scanned', 0)} lead).",
+                parse_mode='Markdown', disable_web_page_preview=True)
+            return
         if answer:
             NL_STATS['free'] += 1
             NL_CTX.pop(chat_id, None)
@@ -1423,6 +1513,7 @@ def main():
     app.add_handler(CommandHandler('deposito', cmd_deposito))
     app.add_handler(CommandHandler('modifica', cmd_modifica))
     app.add_handler(CommandHandler('fotolab', cmd_fotolab))
+    app.add_handler(CommandHandler('chicerca', cmd_chicerca))
     app.add_handler(CommandHandler('status', cmd_status))
     app.add_handler(CommandHandler('stats', cmd_stats))
     app.add_handler(CommandHandler('interessati', cmd_interessati))
