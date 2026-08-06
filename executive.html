@@ -11,7 +11,7 @@
     <meta name="keywords" content="executive rentals Rome, corporate housing Rome, furnished apartment Rome 6 months, transitional lease Rome, contratto transitorio English, relocation Rome professionals, FAO WFP IFAD housing Rome, embassy housing Rome, temporary accommodation Rome work">
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
     <meta name="author" content="BOOM">
-    <meta name="theme-color" content="#08080A">
+    <meta name="theme-color" content="#050506">
     <meta name="color-scheme" content="dark">
     <meta name="format-detection" content="telephone=no">
     <meta name="apple-mobile-web-app-title" content="BOOM">
@@ -42,7 +42,6 @@
     <link rel="icon" href="/favicon.ico" sizes="any">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-    <link rel="stylesheet" href="/css/boom-2026.css">
   <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -91,126 +90,324 @@
 ]}
   </script>
 <style>
-/* ── bilingual: one page, two voices. The switch is pure CSS, so nothing
-      flickers at load and nothing needs rewriting in JS. English is the
-      language of this page — Italian is the toggle, never a guess. ── */
+/* ═══════════════════════════════════════════════════════════════════════════
+   BOOM EXECUTIVE — a dedicated design, owned by this page.
+   No shared page template: the nav, the hero, the arrivals board, the paper,
+   the flight path and the dossier form are drawn here, from zero. What is
+   shared with the rest of BOOM is the BRAND (near-black, gold, thin
+   Helvetica, wide tracking) and the bilingual mechanism: pure-CSS l-en/l-it
+   switching, so nothing flickers and nothing is rewritten in JS.
+   ═══════════════════════════════════════════════════════════════════════ */
+:root{
+  --ink:#050506; --panel:#0A0A0C; --panel2:#0E0E10;
+  --gold:#D4AF37; --gold-hi:#F0CE62; --gold-dim:rgba(212,175,55,.55);
+  --hair:rgba(255,255,255,.09); --hair-gold:rgba(212,175,55,.28);
+  --t1:#F4F2EC; --t2:#C9C6BC; --t3:#8F8D85; --t4:#5F5E58;
+  --paper:#F5F2E9; --paper-ink:#191712;
+  --serif:"Didot","Bodoni MT","Playfair Display",Georgia,"Times New Roman",serif;
+  --sans:"Helvetica Neue",Helvetica,Inter,Arial,sans-serif;
+  --mono:"SF Mono",ui-monospace,"Cascadia Mono",Menlo,Consolas,monospace;
+  --ease:cubic-bezier(.22,.61,.21,1);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
 html[lang="en"] .l-it{display:none!important}
 html[lang="it"] .l-en{display:none!important}
+body{
+  background:var(--ink);color:var(--t1);font-family:var(--sans);font-weight:300;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+}
+/* the room: a faint gold dawn top-right, a colder floor, and film grain */
+body::before{content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;
+  background:
+    radial-gradient(1100px 640px at 86% -6%, rgba(212,175,55,.13), transparent 62%),
+    radial-gradient(900px 560px at -12% 108%, rgba(212,175,55,.05), transparent 60%),
+    linear-gradient(180deg,#07070A 0%,var(--ink) 34%,#040404 100%);}
+body::after{content:"";position:fixed;inset:-50%;z-index:-1;pointer-events:none;opacity:.05;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E");}
+a{color:inherit;text-decoration:none}
+button{background:none;border:0;color:inherit;font:inherit;cursor:pointer}
+img,svg{max-width:100%}
+::selection{background:rgba(212,175,55,.32);color:#FFF}
 
-/* ── IN BRIEF — the block written to be QUOTED ─────────────────────────────
-   Answer engines lift short, dated, attributable facts — not promise prose.
-   This block lays ours flat, early, one definition per line, including the
-   legal frame most pages hide. A source that states its rules gets cited. */
-.enbref{margin-top:30px;border:1px solid var(--line);border-left:2px solid var(--gold);border-radius:0 16px 16px 0;background:linear-gradient(90deg,var(--gold-faint),transparent 55%),var(--card);padding:22px 24px}
-.enbref h2{font-size:11px;letter-spacing:2.6px;text-transform:uppercase;color:var(--gold);font-weight:400;margin-bottom:14px}
-.enbref dl{display:grid;gap:0;grid-template-columns:minmax(0,1fr)}
-@media(min-width:640px){.enbref dl{grid-template-columns:170px minmax(0,1fr);column-gap:20px}}
-.enbref dt{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t4);padding-top:11px}
-.enbref dd{font-size:13.5px;color:var(--t2);padding:2px 0 11px;border-bottom:1px solid var(--line-soft)}
-@media(min-width:640px){.enbref dt{border-bottom:1px solid var(--line-soft);padding-bottom:11px}}
-.enbref dd:last-of-type,.enbref dt:last-of-type{border-bottom:none}
+.wrap{width:min(1180px,calc(100% - 48px));margin:0 auto}
+@media(max-width:640px){.wrap{width:calc(100% - 40px)}}
+
+/* ── accessibility hooks ── */
+.skip{position:absolute;left:-9999px;top:0;z-index:300;background:var(--gold);color:#1A1407;padding:12px 18px;border-radius:0 0 12px 0;font-size:13px;font-weight:600}
+.skip:focus{left:0}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:4px}
+
+/* ═══ NAV — a masthead, not a menu bar ═══ */
+.exnav{position:fixed;inset:0 0 auto 0;z-index:100;transition:background .4s,border-color .4s;border-bottom:1px solid transparent}
+.exnav.scrolled{background:rgba(5,5,6,.86);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-color:var(--hair)}
+.exnav .wrap{display:flex;align-items:center;gap:26px;height:74px}
+.brandlock{display:flex;align-items:center;gap:13px;flex:none}
+.brandlock svg{width:30px;height:30px;flex:none}
+.brandlock .wm{font-size:19px;letter-spacing:7px;font-weight:300;color:var(--t1)}
+.brandlock .div{width:1px;height:22px;background:var(--hair-gold)}
+.brandlock .desk{font-size:9.5px;letter-spacing:3.4px;color:var(--gold);text-transform:uppercase;line-height:1.5}
+.exlinks{display:flex;align-items:center;gap:24px;margin-left:auto}
+.exlink{font-size:11px;letter-spacing:2.2px;text-transform:uppercase;color:var(--t3);transition:color .3s;white-space:nowrap}
+.exlink:hover{color:var(--gold-hi)}
+.lang{display:inline-flex;border:1px solid var(--hair);border-radius:100px;overflow:hidden}
+.lang button{font-size:10px;letter-spacing:1.6px;padding:7px 12px;color:var(--t4);transition:.25s}
+.lang button.on{color:var(--gold);background:rgba(212,175,55,.08)}
+.exlinks .cta{font-size:10.5px;letter-spacing:2.6px;text-transform:uppercase;color:#1A1407;background:linear-gradient(135deg,var(--gold-hi),var(--gold));padding:11px 20px;border-radius:2px;font-weight:500;white-space:nowrap}
+.burger{display:none;margin-left:auto;width:40px;height:40px;position:relative}
+.burger span{position:absolute;left:8px;right:8px;height:1px;background:var(--t1);transition:.35s var(--ease)}
+.burger span:nth-child(1){top:14px}.burger span:nth-child(2){top:20px}.burger span:nth-child(3){top:26px}
+.burger.active span:nth-child(1){top:20px;transform:rotate(45deg)}
+.burger.active span:nth-child(2){opacity:0}
+.burger.active span:nth-child(3){top:20px;transform:rotate(-45deg)}
+@media(max-width:1120px){.exlinks{display:none}.burger{display:block}}
+.exmenu{position:fixed;inset:0;z-index:90;background:rgba(5,5,6,.97);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);display:flex;flex-direction:column;justify-content:center;padding:0 40px;opacity:0;pointer-events:none;transition:opacity .35s}
+.exmenu.active{opacity:1;pointer-events:auto}
+.exmenu a{font-size:26px;font-weight:200;letter-spacing:1px;padding:13px 0;border-bottom:1px solid var(--hair);color:var(--t2)}
+.exmenu a em{font-family:var(--serif);font-style:italic;color:var(--gold);margin-right:14px;font-size:18px}
+.exmenu .mcta{margin-top:26px;border:0;color:var(--gold);letter-spacing:2px;text-transform:uppercase;font-size:13px}
+
+/* ═══ HERO — the arrival ═══ */
+.hero{position:relative;min-height:100svh;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden}
+.hero .wrap{position:relative;z-index:3;padding-top:150px}
+.rail{position:absolute;z-index:4;left:26px;bottom:220px;transform:rotate(180deg);writing-mode:vertical-rl;font-size:9px;letter-spacing:4.2px;color:var(--t4);text-transform:uppercase}
+@media(max-width:900px){.rail{display:none}}
+.kicker{display:flex;align-items:center;gap:14px;font-size:10.5px;letter-spacing:4px;text-transform:uppercase;color:var(--gold)}
+.kicker::before{content:"";width:44px;height:1px;background:var(--gold-dim)}
+.kicker .yr{color:var(--t4);letter-spacing:3px}
+.hero h1{margin-top:26px;font-weight:200;font-size:clamp(44px,7.2vw,96px);line-height:1.02;letter-spacing:-.01em;max-width:13ch}
+.hero h1 em{display:block;font-family:var(--serif);font-style:italic;font-weight:400;letter-spacing:.005em;
+  background:linear-gradient(100deg,var(--gold-hi) 10%,var(--gold) 55%,#A8842B 95%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;padding-right:.08em}
+.hero .sub{margin-top:28px;max-width:56ch;font-size:16px;line-height:1.75;color:var(--t2)}
+.hero .sub b{color:var(--t1);font-weight:400}
+.heroctas{display:flex;flex-wrap:wrap;align-items:center;gap:16px;margin-top:36px}
+.cta-major{display:inline-flex;align-items:center;gap:14px;background:linear-gradient(135deg,var(--gold-hi),var(--gold));color:#1A1407;padding:17px 30px;border-radius:2px;font-size:12px;letter-spacing:2.8px;text-transform:uppercase;font-weight:500;transition:transform .3s var(--ease),box-shadow .3s}
+.cta-major:hover{transform:translateY(-2px);box-shadow:0 18px 44px rgba(212,175,55,.22)}
+.cta-major .arr{font-family:var(--serif);font-style:italic;font-size:16px;letter-spacing:0}
+.cta-minor{display:inline-flex;align-items:center;gap:10px;padding:16px 6px;font-size:12px;letter-spacing:2.2px;text-transform:uppercase;color:var(--t3);border-bottom:1px solid var(--hair);transition:color .3s,border-color .3s}
+.cta-minor:hover{color:var(--gold-hi);border-color:var(--hair-gold)}
+.heroproof{display:flex;flex-wrap:wrap;gap:10px 30px;margin-top:34px;padding-top:20px;border-top:1px solid var(--hair);font-size:11.5px;letter-spacing:1.2px;color:var(--t3)}
+.heroproof .c{color:var(--gold)}
+/* the panorama: flight path descending onto a hand-drawn Rome skyline */
+.panorama{position:relative;z-index:1;margin-top:44px;height:236px}
+.panorama svg{position:absolute;inset:0;width:100%;height:100%}
+.sky-stroke{fill:none;stroke:var(--gold);stroke-width:1.3;opacity:.6}
+.sky-fill{fill:rgba(212,175,55,.05);stroke:var(--gold);stroke-width:1.1;opacity:.75}
+.sky-faint{fill:none;stroke:var(--gold);stroke-width:1;opacity:.28}
+.route{fill:none;stroke:var(--gold-hi);stroke-width:1.2;stroke-dasharray:3 7;opacity:.75}
+.route-anim{stroke-dashoffset:0;animation:route 26s linear infinite}
+@keyframes route{to{stroke-dashoffset:-200}}
+.plane{fill:var(--gold-hi)}
+.route-note{position:absolute;z-index:2;left:4%;top:2px;font-size:9.5px;letter-spacing:2.6px;text-transform:uppercase;color:var(--t4)}
+.route-note b{color:var(--gold);font-weight:400}
+@media(max-width:700px){.panorama{height:150px}.route-note{display:none}}
+
+/* ═══ chapters ═══ */
+.chapter{position:relative;padding:110px 0 0}
+.chap-head{position:relative;display:flex;align-items:baseline;gap:22px;border-bottom:1px solid var(--hair);padding-bottom:22px}
+.chap-num{font-family:var(--serif);font-style:italic;font-size:clamp(52px,6vw,84px);line-height:.8;color:transparent;-webkit-text-stroke:1px var(--gold-dim);flex:none}
+.chap-kick{font-size:10px;letter-spacing:3.6px;text-transform:uppercase;color:var(--gold)}
+.chap-title{font-weight:200;font-size:clamp(30px,4vw,52px);line-height:1.08;letter-spacing:-.01em;margin-top:8px}
+.chap-title em{font-family:var(--serif);font-style:italic;font-weight:400;color:var(--gold-hi)}
+.chap-sub{margin-top:18px;max-width:64ch;font-size:14.5px;line-height:1.75;color:var(--t3)}
+
+/* ═══ CH. I — the arrivals board ═══ */
+.board{margin-top:40px;border:1px solid var(--hair);background:linear-gradient(180deg,var(--panel),#08080A);border-radius:6px;overflow:hidden}
+.board-cap{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:15px 22px;border-bottom:1px solid var(--hair-gold);font-family:var(--mono);font-size:10.5px;letter-spacing:3px;color:var(--gold);text-transform:uppercase}
+.board-cap .blink{width:7px;height:7px;border-radius:50%;background:var(--gold-hi);animation:blk 2.2s infinite}
+@keyframes blk{0%,60%{opacity:1}80%{opacity:.15}100%{opacity:1}}
+.brow{display:grid;grid-template-columns:74px minmax(0,1fr) 210px;border-bottom:1px solid var(--hair);transition:background .3s}
+.brow:last-child{border-bottom:none}
+.brow:hover{background:rgba(212,175,55,.035)}
+.brow .idx{display:flex;align-items:flex-start;justify-content:center;padding:24px 0;font-family:var(--serif);font-style:italic;font-size:19px;color:var(--gold-dim);border-right:1px solid var(--hair)}
+.brow .body{padding:22px 26px 24px;min-width:0}
+.brow .fl{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 16px}
+.brow .fl b{font-size:17.5px;font-weight:400;letter-spacing:.2px}
+.brow .fl .at{font-family:var(--mono);font-size:10px;letter-spacing:1.6px;color:var(--t4);text-transform:uppercase}
+.brow p{margin-top:9px;font-size:13px;line-height:1.7;color:var(--t3)}
+.brow p em{font-style:normal;color:var(--t2)}
+.brow .meta{display:flex;flex-direction:column;justify-content:center;gap:9px;padding:22px 24px;border-left:1px solid var(--hair);font-family:var(--mono)}
+.brow .meta .k{font-size:8.5px;letter-spacing:2.4px;color:var(--t4);text-transform:uppercase}
+.brow .meta .v{font-size:12.5px;letter-spacing:1px;color:var(--gold)}
+@media(max-width:860px){
+  .brow{grid-template-columns:52px minmax(0,1fr)}
+  .brow .meta{display:none}
+  .brow .body{padding:18px 18px 20px}
+}
+
+/* ═══ CH. II — the flight path ═══ */
+.path{position:relative;margin-top:56px}
+.path-arc{position:absolute;inset:0;pointer-events:none}
+.path-arc svg{width:100%;height:100%}
+.path-grid{position:relative;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:18px}
+.stop{position:relative;padding-top:38px}
+.stop::before{content:"";position:absolute;top:0;left:2px;width:11px;height:11px;border-radius:50%;border:1px solid var(--gold);background:var(--ink)}
+.stop.land::before{background:var(--gold);box-shadow:0 0 0 5px rgba(212,175,55,.15)}
+.stop .d{font-family:var(--mono);font-size:9.5px;letter-spacing:2.4px;text-transform:uppercase;color:var(--gold)}
+.stop b{display:block;margin-top:8px;font-size:15.5px;font-weight:400;line-height:1.3}
+.stop p{margin-top:7px;font-size:12.5px;line-height:1.65;color:var(--t3)}
+@media(max-width:900px){
+  .path-grid{grid-template-columns:minmax(0,1fr);gap:0}
+  .stop{padding:0 0 26px 34px}
+  .stop::before{top:4px;left:0}
+  .stop:not(:last-child)::after{content:"";position:absolute;left:5px;top:18px;bottom:6px;width:1px;background:var(--hair-gold)}
+  .path-arc{display:none}
+}
+
+/* ═══ CH. III — the paper ═══ */
+.paperzone{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:44px;margin-top:52px;align-items:start}
+@media(max-width:960px){.paperzone{grid-template-columns:minmax(0,1fr)}}
+.paper{position:relative;background:var(--paper);color:var(--paper-ink);border-radius:3px;padding:38px 36px 34px;box-shadow:0 40px 90px rgba(0,0,0,.55),0 4px 18px rgba(0,0,0,.4);transform:rotate(-.5deg)}
+.paper::before{content:"";position:absolute;top:0;left:0;right:0;height:5px;background:linear-gradient(90deg,var(--gold),#B8960C)}
+.paper .ph{font-family:var(--serif);text-align:center}
+.paper .ph .t1{font-size:11px;letter-spacing:4px;text-transform:uppercase;color:#6B6353}
+.paper .ph .t2{margin-top:10px;font-size:21px;font-weight:400;letter-spacing:.4px}
+.paper .ph .t3{margin-top:5px;font-size:11.5px;font-style:italic;color:#6B6353}
+.paper hr{border:0;border-top:1px solid rgba(25,23,18,.18);margin:20px 0}
+.pline{display:flex;gap:10px;align-items:baseline;font-size:12.5px;line-height:1.8;font-family:var(--serif)}
+.pline .no{flex:none;font-style:italic;color:#8A7B4E;width:34px}
+.pline .fill{flex:1;border-bottom:1px dotted rgba(25,23,18,.35);min-width:40px}
+.pline b{font-weight:600}
+.pstamp{margin-top:24px;display:flex;justify-content:space-between;align-items:flex-end;gap:14px}
+.pstamp .sig{font-family:var(--serif);font-style:italic;font-size:17px;color:#3A3428}
+.pstamp .seal{width:74px;height:74px;border-radius:50%;border:1.5px solid #8A7B4E;display:grid;place-items:center;text-align:center;font-size:7px;letter-spacing:1.6px;text-transform:uppercase;color:#8A7B4E;transform:rotate(-8deg);line-height:1.9}
+.notes{display:flex;flex-direction:column;gap:0}
+.note{position:relative;padding:22px 0 22px 34px;border-bottom:1px solid var(--hair)}
+.note:first-child{padding-top:4px}
+.note:last-child{border-bottom:none}
+.note::before{content:"";position:absolute;left:6px;top:32px;width:8px;height:8px;border-radius:50%;background:var(--gold)}
+.note:first-child::before{top:14px}
+.note::after{content:"";position:absolute;left:9px;top:44px;bottom:-4px;width:1px;background:var(--hair-gold)}
+.note:first-child::after{top:26px}
+.note:last-child::after{display:none}
+.note b{font-size:15.5px;font-weight:400;letter-spacing:.2px}
+.note p{margin-top:8px;font-size:13px;line-height:1.72;color:var(--t3)}
+.note p em{font-style:normal;color:var(--t2)}
+
+/* ═══ fact sheet (the quotable ledger) ═══ */
+.enbref{margin-top:96px;border:1px solid var(--hair);border-left:2px solid var(--gold);background:linear-gradient(90deg,rgba(212,175,55,.06),transparent 50%),var(--panel);border-radius:0 8px 8px 0;padding:30px 34px}
+.enbref h2{display:flex;align-items:baseline;gap:16px;font-size:11px;letter-spacing:3.4px;text-transform:uppercase;color:var(--gold);font-weight:400}
+.enbref h2 .ref{margin-left:auto;font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--t4)}
+.enbref dl{display:grid;grid-template-columns:minmax(0,1fr);margin-top:16px}
+@media(min-width:680px){.enbref dl{grid-template-columns:180px minmax(0,1fr);column-gap:26px}}
+.enbref dt{font-size:10.5px;letter-spacing:2px;text-transform:uppercase;color:var(--t4);padding-top:13px}
+.enbref dd{font-size:13.5px;line-height:1.7;color:var(--t2);padding:4px 0 13px;border-bottom:1px solid var(--hair)}
+@media(min-width:680px){.enbref dt{border-bottom:1px solid var(--hair);padding-bottom:13px}}
+.enbref dt:last-of-type,.enbref dd:last-of-type{border-bottom:none}
 .enbref b{color:var(--t1);font-weight:400}
 .enbref a{color:var(--gold)}
 
-/* ── the six flows + the lease cards ── */
-.local{margin-top:26px;display:grid;gap:12px;grid-template-columns:minmax(0,1fr)}
-@media(min-width:700px){.local{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.loc{border:1px solid var(--line);border-radius:16px;background:var(--card);padding:20px;display:flex;gap:14px}
-.loc .n{font-size:11px;letter-spacing:2px;color:var(--gold);flex:none;padding-top:3px}
-.loc b{display:block;font-weight:400;font-size:15px}
-.loc p{font-size:12.5px;color:var(--t3);margin-top:5px}
-.loc em{font-style:normal;color:var(--t2)}
+/* ═══ honesty band ═══ */
+.truthband{margin-top:96px;border-top:1px solid var(--hair-gold);border-bottom:1px solid var(--hair-gold);padding:44px 0 40px;background:linear-gradient(180deg,rgba(212,175,55,.045),transparent)}
+.truthband h3{font-weight:200;font-size:clamp(24px,3vw,36px)}
+.truthband h3 em{font-family:var(--serif);font-style:italic;font-weight:400;color:var(--gold-hi)}
+.truthband>.wrap>p{margin-top:12px;max-width:62ch;font-size:14px;line-height:1.7;color:var(--t3)}
+.flags{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
+.flag{font-size:12px;letter-spacing:.4px;color:var(--t2);border:1px solid var(--hair);border-radius:100px;padding:9px 16px;background:rgba(255,255,255,.02)}
+.flag b{color:var(--gold);font-weight:400;margin-right:7px}
 
-main{padding-top:150px}
+/* ═══ CH. IV — the city, by desk ═══ */
+.geos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:48px}
+@media(max-width:960px){.geos{grid-template-columns:minmax(0,1fr)}}
+.geo{border:1px solid var(--hair);border-radius:8px;background:var(--panel);padding:26px 24px;transition:border-color .35s,transform .35s var(--ease)}
+.geo:hover{border-color:var(--hair-gold);transform:translateY(-3px)}
+.geo .tag{font-family:var(--mono);font-size:9.5px;letter-spacing:2.6px;color:var(--gold);text-transform:uppercase}
+.geo b{display:block;margin-top:10px;font-size:17px;font-weight:400}
+.geo .zl{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px}
+.geo .z{font-size:11.5px;color:var(--t2);border:1px solid var(--hair);border-radius:100px;padding:6px 12px}
+.geo p{margin-top:14px;font-size:12.5px;line-height:1.7;color:var(--t3);border-top:1px solid var(--hair);padding-top:13px}
+.geo p em{font-style:normal;color:var(--t2)}
 
-/* The top bar carries the place pill and the language switch — same space
-   arithmetic as the Réunion page: full menu only when it truly fits. */
-.nav-links{gap:20px}
-.nav-link,.place,.nav-cta{white-space:nowrap}
-@media(max-width:1199px){
-  .nav-links{display:none!important}
-  .nav-toggle{display:flex!important}
-}
-.place{font-size:10px;letter-spacing:2.4px;text-transform:uppercase;color:var(--gold);border:1px solid var(--line-gold);border-radius:100px;padding:5px 11px;margin-left:12px;white-space:nowrap}
-@media(max-width:520px){.place{display:none}}
-.lang{display:inline-flex;border:1px solid var(--line);border-radius:100px;overflow:hidden;margin-left:14px}
-.lang button{font-size:10px;letter-spacing:1.4px;padding:7px 11px;color:var(--t4);transition:.25s}
-.lang button.on{color:var(--gold);background:var(--gold-faint)}
-.lang button:hover{color:var(--t2)}
+/* ═══ corporate band ═══ */
+.corpband{margin-top:110px;position:relative;border:1px solid var(--hair-gold);border-radius:10px;overflow:hidden;background:
+  radial-gradient(700px 300px at 90% 0%,rgba(212,175,55,.13),transparent 60%),var(--panel)}
+.corpband .in{display:flex;flex-wrap:wrap;align-items:center;gap:22px 40px;padding:40px 42px}
+.corpband .tx{flex:1;min-width:260px}
+.corpband .k{font-size:10px;letter-spacing:3.4px;text-transform:uppercase;color:var(--gold)}
+.corpband h3{margin-top:10px;font-weight:200;font-size:clamp(22px,2.6vw,32px)}
+.corpband h3 em{font-family:var(--serif);font-style:italic;font-weight:400;color:var(--gold-hi)}
+.corpband p{margin-top:10px;font-size:13.5px;line-height:1.7;color:var(--t3);max-width:56ch}
 
-/* hero: one door for the professional, one band for their company */
-.picks{display:grid;gap:12px;margin-top:26px;grid-template-columns:minmax(0,1fr)}
-@media(min-width:560px){.picks{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.pick{position:relative;display:block;width:100%;text-align:left;border:1px solid var(--line);border-radius:16px;background:var(--card);padding:18px 18px 16px;transition:border-color .3s,transform .3s var(--ease)}
-.pick:hover{border-color:var(--line-gold);transform:translateY(-2px)}
-.pick .ic{font-size:20px}
-.pick b{display:block;font-weight:400;font-size:16px;margin-top:8px}
-.pick p{font-size:12.5px;color:var(--t3);margin-top:4px}
-.pick .go{display:block;margin-top:12px;font-size:12.5px;color:var(--gold)}
-@media(min-width:560px){.pick.wide{grid-column:1/-1;display:flex;align-items:center;gap:16px}
-  .pick.wide .ic{font-size:22px}.pick.wide div{flex:1}.pick.wide b{margin-top:0}
-  .pick.wide .go{margin-top:0;white-space:nowrap}}
+/* ═══ CH. V — FAQ ═══ */
+.faq{margin-top:44px;border-top:1px solid var(--hair)}
+.faq details{border-bottom:1px solid var(--hair)}
+.faq summary{list-style:none;cursor:pointer;display:flex;align-items:baseline;gap:20px;padding:22px 4px;font-size:16px;font-weight:300;color:var(--t1);transition:color .3s}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::before{content:"+";font-family:var(--serif);font-style:italic;color:var(--gold-dim);font-size:19px;flex:none;transition:transform .3s}
+.faq details[open] summary::before{content:"–";color:var(--gold)}
+.faq summary:hover{color:var(--gold-hi)}
+.faq .a{padding:0 4px 24px 39px;font-size:13.5px;line-height:1.78;color:var(--t3);max-width:74ch}
+.faq .a a{color:var(--gold)}
 
-/* the panel — the relocation as it actually runs, no invented numbers */
-.panelcard{border:1px solid var(--line);border-radius:18px;overflow:hidden;background:var(--card);box-shadow:0 30px 80px rgba(0,0,0,.5)}
-.pbar{display:flex;align-items:center;gap:6px;padding:10px 14px;border-bottom:1px solid var(--line-soft)}
-.pbar i{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.14)}
-.pbar .url{margin-left:8px;font-size:10.5px;color:var(--t4);letter-spacing:.5px}
-.pstage{padding:16px;background:linear-gradient(170deg,var(--surface),#070708)}
-.plabel{font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--t4)}
-.prow{display:flex;align-items:center;gap:12px;padding:12px 2px;border-bottom:1px solid var(--line-soft)}
-.prow:last-child{border-bottom:none}
-.prow .st{width:22px;height:22px;flex:none;border-radius:50%;display:grid;place-items:center;font-size:11px;border:1px solid var(--line);color:var(--t4)}
-.prow.done .st{border-color:rgba(61,220,151,.45);color:var(--green);background:var(--green-muted)}
-.prow.live .st{border-color:var(--line-gold);color:var(--gold);background:var(--gold-faint);animation:pp 2s infinite}
-@keyframes pp{0%{box-shadow:0 0 0 0 rgba(255,215,0,.35)}70%{box-shadow:0 0 0 10px rgba(255,215,0,0)}100%{box-shadow:0 0 0 0 rgba(255,215,0,0)}}
-.prow .tx{flex:1;min-width:0}
-.prow .tx b{display:block;font-size:13.5px;font-weight:400}
-.prow .tx small{font-size:11.5px;color:var(--t3)}
-.prow .when{font-size:10.5px;color:var(--t4);white-space:nowrap}
-
-/* zones */
-.zones{display:flex;gap:8px;flex-wrap:wrap;margin-top:22px}
-.zone{font-size:12px;color:var(--t2);border:1px solid var(--line);border-radius:100px;padding:8px 14px;background:var(--card);transition:border-color .3s,color .3s}
-.zone:hover{border-color:var(--line-gold);color:var(--t1)}
-.zone b{color:var(--gold);font-weight:400;margin-right:6px}
-
-/* contact form — the only conversion point of the page */
-.formwrap{margin-top:26px;border:1px solid var(--line-gold);border-radius:22px;background:var(--card);padding:26px}
-.frow{display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}
-@media(min-width:640px){.frow.two{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.fld select{width:100%;background:var(--input);border:1px solid var(--line);border-radius:12px;padding:13px 14px;font-size:15px;color:var(--t1);outline:none;transition:border-color .3s;-webkit-appearance:none;appearance:none;
+/* ═══ CH. VI — the dossier (contact) ═══ */
+.dossier{position:relative;margin-top:48px;border:1px solid var(--hair-gold);border-radius:10px;background:linear-gradient(180deg,var(--panel2),#09090B);padding:38px 38px 34px;overflow:hidden}
+.dossier::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold-hi),var(--gold) 40%,transparent 90%)}
+.dossier .refline{display:flex;justify-content:space-between;gap:14px;font-family:var(--mono);font-size:9.5px;letter-spacing:2.4px;text-transform:uppercase;color:var(--t4);margin-bottom:26px}
+.dossier .refline b{color:var(--gold);font-weight:400}
+@media(max-width:640px){.dossier{padding:28px 22px}}
+.frow{display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}
+@media(min-width:680px){.frow.two{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.fld{margin-bottom:16px}
+.fld label{display:block;font-size:9.5px;letter-spacing:2.6px;text-transform:uppercase;color:var(--t4);margin-bottom:9px}
+.fld input,.fld select,.fld textarea{width:100%;background:rgba(255,255,255,.028);border:1px solid var(--hair);border-radius:3px;padding:14px 15px;font-size:15px;font-family:var(--sans);font-weight:300;color:var(--t1);outline:none;transition:border-color .3s,background .3s}
+.fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(--gold-dim);background:rgba(212,175,55,.045)}
+.fld ::placeholder{color:var(--t4)}
+.fld select{-webkit-appearance:none;appearance:none;
   background-image:linear-gradient(45deg,transparent 50%,var(--t3) 50%),linear-gradient(135deg,var(--t3) 50%,transparent 50%);
-  background-position:calc(100% - 19px) 21px,calc(100% - 14px) 21px;background-size:5px 5px,5px 5px;background-repeat:no-repeat}
-.fld select:focus{border-color:var(--line-gold)}
-.formwrap .paybtn{margin-top:20px;justify-content:center}
-.formwrap .paybtn .tx{flex:none}
-.consent{font-size:11px;color:var(--t4);margin-top:12px;text-align:center;max-width:56ch;margin-left:auto;margin-right:auto}
+  background-position:calc(100% - 20px) 23px,calc(100% - 15px) 23px;background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+.ferr{display:none;margin:4px 0 14px;font-size:13px;color:#E08573}
+.ferr.on{display:block}
+.sendbtn{width:100%;display:flex;align-items:center;justify-content:center;gap:14px;background:linear-gradient(135deg,var(--gold-hi),var(--gold));color:#1A1407;padding:18px 26px;border-radius:3px;font-size:12px;letter-spacing:3px;text-transform:uppercase;font-weight:500;margin-top:8px;transition:transform .3s var(--ease),box-shadow .3s}
+.sendbtn:hover{transform:translateY(-2px);box-shadow:0 16px 40px rgba(212,175,55,.2)}
+.sendbtn small{font-weight:300;letter-spacing:.6px;text-transform:none;font-size:11.5px;opacity:.75}
+.consent{font-size:11px;color:var(--t4);margin-top:14px;text-align:center;max-width:58ch;margin-left:auto;margin-right:auto;line-height:1.6}
 .consent a{color:var(--t3);text-decoration:underline}
-/* NB: never call this state ".done" — .prow.done exists above and the shared
-   selector would hide half the journey panel (the Réunion lesson). */
-.sent{display:none;text-align:center;padding:12px 0}
+/* NB: never ".done" — kept as .sent, its own name, its own state */
+.sent{display:none;text-align:center;padding:18px 0 10px}
 .sent.on{display:block}
-.sent .tick{width:54px;height:54px;margin:0 auto;border-radius:50%;display:grid;place-items:center;font-size:24px;color:var(--green);border:1px solid rgba(61,220,151,.45);background:var(--green-muted)}
-.sent h3{font-weight:200;font-size:22px;margin-top:16px}
-.sent p{font-size:13.5px;color:var(--t2);margin-top:8px}
+.sent .tick{width:56px;height:56px;margin:0 auto;border-radius:50%;display:grid;place-items:center;font-size:24px;color:#3DDC97;border:1px solid rgba(61,220,151,.45);background:rgba(61,220,151,.08)}
+.sent h3{font-weight:200;font-size:24px;margin-top:18px}
+.sent h3 em{font-family:var(--serif);font-style:italic;color:var(--gold-hi)}
+.sent p{font-size:13.5px;line-height:1.7;color:var(--t2);margin-top:10px;max-width:56ch;margin-left:auto;margin-right:auto}
 .hidden{display:none!important}
 
-/* ── polish ── */
-.skip{position:absolute;left:-9999px;top:0;z-index:200;background:var(--gold);color:#1a1407;padding:12px 18px;border-radius:0 0 12px 0;font-size:13px;font-weight:600}
-.skip:focus{left:0}
-a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{
-  outline:2px solid var(--gold);outline-offset:3px;border-radius:6px}
-.loc{transition:border-color .3s,transform .3s var(--ease)}
-.loc:hover{border-color:var(--line-gold);transform:translateY(-2px)}
-.faq summary:hover{color:var(--gold-light)}
-.pick:active{transform:translateY(0)}
+/* ═══ footer ═══ */
+.exfoot{margin-top:130px;border-top:1px solid var(--hair);padding:64px 0 40px;background:linear-gradient(180deg,transparent,rgba(212,175,55,.03))}
+.footgrid{display:grid;grid-template-columns:minmax(0,1.6fr) repeat(3,minmax(0,1fr));gap:44px}
+@media(max-width:900px){.footgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.footgrid{grid-template-columns:minmax(0,1fr)}}
+.exfoot .brandlock .wm{font-size:17px}
+.exfoot .tagl{margin-top:16px;font-size:13px;line-height:1.7;color:var(--t3);max-width:34ch}
+.exfoot .co{margin-top:18px;font-size:11px;line-height:1.9;color:var(--t4)}
+.exfoot .co strong{color:var(--t3);font-weight:400}
+.fcol h4{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);font-weight:400;margin-bottom:16px}
+.fcol ul{list-style:none}
+.fcol li{margin-bottom:10px}
+.fcol a{font-size:13px;color:var(--t3);transition:color .3s}
+.fcol a:hover{color:var(--gold-hi)}
+.footbase{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;margin-top:52px;padding-top:22px;border-top:1px solid var(--hair);font-size:11px;color:var(--t4)}
+.footbase .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#3DDC97;margin-right:8px;vertical-align:1px}
+
+/* ═══ floating contact pill ═══ */
+.pill{position:fixed;z-index:80;left:50%;bottom:22px;transform:translate(-50%,90px);display:flex;align-items:center;gap:18px;background:rgba(10,10,12,.92);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border:1px solid var(--hair-gold);border-radius:100px;padding:10px 12px 10px 22px;transition:transform .45s var(--ease);box-shadow:0 18px 50px rgba(0,0,0,.5)}
+.pill.on{transform:translate(-50%,0)}
+.pill .t{font-size:10.5px;letter-spacing:2.4px;text-transform:uppercase;color:var(--t3)}
+.pill .t b{color:var(--t1);font-weight:400}
+.pill a{background:linear-gradient(135deg,var(--gold-hi),var(--gold));color:#1A1407;font-size:10.5px;letter-spacing:2.2px;text-transform:uppercase;font-weight:500;padding:11px 20px;border-radius:100px;white-space:nowrap}
+
+/* ═══ reveals ═══ */
+.rv{opacity:0;transform:translateY(26px);transition:opacity .9s var(--ease),transform .9s var(--ease)}
+.rv.in{opacity:1;transform:none}
 @media(prefers-reduced-motion:reduce){
-  .prow.live .st{animation:none}
-  .loc:hover,.pick:hover,.g-it:hover{transform:none}
   html{scroll-behavior:auto}
+  .rv{opacity:1;transform:none;transition:none}
+  .route-anim,.board-cap .blink{animation:none}
+  .geo:hover,.cta-major:hover,.sendbtn:hover{transform:none}
 }
 </style>
+<noscript><style>.rv{opacity:1!important;transform:none!important}</style></noscript>
 <script defer src="/js/boom-consent.js"></script>
 </head>
 <body>
@@ -221,443 +418,529 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
 </defs></svg>
 
 <a class="skip" href="#main"><span class="l-en">Skip to content</span><span class="l-it">Vai al contenuto</span></a>
-<nav class="nav" id="nav">
-  <div class="container nav-inner">
-    <a href="/" class="logo">
-      <svg class="logo-mark" aria-hidden="true"><use href="#boomMark"/></svg>
-      <span class="logo-text">BOOM</span>
-      <span class="place">Executive · Roma</span>
+
+<nav class="exnav" id="nav" aria-label="BOOM Executive">
+  <div class="wrap">
+    <a href="/" class="brandlock" aria-label="BOOM home">
+      <svg aria-hidden="true"><use href="#boomMark"/></svg>
+      <span class="wm">BOOM</span>
+      <span class="div" aria-hidden="true"></span>
+      <span class="desk">Executive<br>Roma</span>
     </a>
-    <div class="nav-links">
-      <a href="#who" class="nav-link"><span class="l-en">Who it's for</span><span class="l-it">Per chi</span></a>
-      <a href="#how" class="nav-link"><span class="l-en">How it works</span><span class="l-it">Come funziona</span></a>
-      <a href="#lease" class="nav-link"><span class="l-en">The lease</span><span class="l-it">Il contratto</span></a>
-      <a href="#zones" class="nav-link"><span class="l-en">Zones</span><span class="l-it">Zone</span></a>
-      <a href="#faq" class="nav-link">FAQ</a>
-      <a href="/corporate" class="nav-link"><span class="l-en">For companies</span><span class="l-it">Per aziende</span></a>
+    <div class="exlinks">
+      <a href="#who" class="exlink"><span class="l-en">Who arrives</span><span class="l-it">Chi arriva</span></a>
+      <a href="#how" class="exlink"><span class="l-en">The path</span><span class="l-it">Il percorso</span></a>
+      <a href="#lease" class="exlink"><span class="l-en">The paper</span><span class="l-it">Il contratto</span></a>
+      <a href="#zones" class="exlink"><span class="l-en">The city</span><span class="l-it">La città</span></a>
+      <a href="#faq" class="exlink">FAQ</a>
+      <a href="/corporate" class="exlink"><span class="l-en">For companies</span><span class="l-it">Per aziende</span></a>
       <span class="lang" role="group" aria-label="Language / Lingua">
         <button type="button" id="langEn" onclick="setLang('en')">EN</button>
         <button type="button" id="langIt" onclick="setLang('it')">IT</button>
       </span>
-      <a href="#contact" class="nav-cta"><span class="l-en">Contact</span><span class="l-it">Scrivici</span></a>
+      <a href="#contact" class="cta"><span class="l-en">Open your file</span><span class="l-it">Apri il fascicolo</span></a>
     </div>
-    <button class="nav-toggle" id="navToggle" aria-label="Menu"><span></span><span></span><span></span></button>
+    <button class="burger" id="navToggle" aria-label="Menu"><span></span><span></span><span></span></button>
   </div>
 </nav>
 
-<div class="mobile-menu" id="mobileMenu">
-  <div class="mobile-menu-links">
-    <a href="#who" class="mobile-menu-link"><span class="l-en">Who it's for</span><span class="l-it">Per chi</span></a>
-    <a href="#how" class="mobile-menu-link"><span class="l-en">How it works</span><span class="l-it">Come funziona</span></a>
-    <a href="#lease" class="mobile-menu-link"><span class="l-en">The lease</span><span class="l-it">Il contratto</span></a>
-    <a href="#zones" class="mobile-menu-link"><span class="l-en">Zones</span><span class="l-it">Zone</span></a>
-    <a href="#faq" class="mobile-menu-link">FAQ</a>
-    <a href="/corporate" class="mobile-menu-link"><span class="l-en">For companies</span><span class="l-it">Per aziende</span></a>
-    <a href="?lang=it" class="mobile-menu-link l-en" onclick="setLang('it');return false">Italiano</a>
-    <a href="?lang=en" class="mobile-menu-link l-it" onclick="setLang('en');return false">English</a>
-  </div>
-  <a href="#contact" class="mobile-menu-cta"><span class="l-en">Contact us</span><span class="l-it">Scrivici</span></a>
+<div class="exmenu" id="mobileMenu">
+  <a href="#who"><em>I</em><span class="l-en">Who arrives</span><span class="l-it">Chi arriva</span></a>
+  <a href="#how"><em>II</em><span class="l-en">The path</span><span class="l-it">Il percorso</span></a>
+  <a href="#lease"><em>III</em><span class="l-en">The paper</span><span class="l-it">Il contratto</span></a>
+  <a href="#zones"><em>IV</em><span class="l-en">The city</span><span class="l-it">La città</span></a>
+  <a href="#faq"><em>V</em>FAQ</a>
+  <a href="#contact"><em>VI</em><span class="l-en">Open your file</span><span class="l-it">Apri il fascicolo</span></a>
+  <a href="/corporate"><em>→</em><span class="l-en">For companies</span><span class="l-it">Per aziende</span></a>
+  <button type="button" class="mcta l-en" onclick="setLang('it');return false">Italiano</button>
+  <button type="button" class="mcta l-it" onclick="setLang('en');return false">English</button>
 </div>
 
 <main id="main">
+
+  <!-- ═══ HERO — l'arrivo ═══ -->
   <header class="hero">
-    <div class="rv in">
-      <span class="eyebrow"><span class="l-en">BOOM · Roma — executive &amp; professional stays</span><span class="l-it">BOOM · Roma — trasferte e incarichi</span></span>
+    <span class="rail" aria-hidden="true">BOOM EXECUTIVE · ROMA · MMXXVI</span>
+    <div class="wrap">
+      <p class="kicker"><span class="l-en">The desk for assignments</span><span class="l-it">Lo sportello degli incarichi</span>&nbsp;<span class="yr">— Roma</span></p>
       <h1>
-        <span class="l-en">Rome, for people who<br><em>come here to work.</em></span>
-        <span class="l-it">Roma, per chi<br><em>ci arriva per lavoro.</em></span>
+        <span class="l-en">Rome, for people who <em>come here to work.</em></span>
+        <span class="l-it">Roma, per chi <em>ci arriva per lavoro.</em></span>
       </h1>
       <p class="sub">
-        <span class="l-en">We spent years fixing Rome's rental market for internationals — students first, then everyone this city calls in. This is the desk for assignments: a registered lease timed to your posting, a home someone has actually walked, and every paper your employer will ask for. Most of it done before you land.</span>
-        <span class="l-it">Abbiamo passato anni a riparare il mercato degli affitti di Roma per chi arriva dall'estero — prima gli studenti, poi tutti quelli che questa città chiama. Questo è lo sportello degli incarichi: un contratto registrato tarato sulla tua trasferta, una casa che qualcuno ha visto davvero, e ogni documento che il tuo datore chiederà. Quasi tutto prima dell'atterraggio.</span>
+        <span class="l-en">We spent years fixing Rome's rental market for internationals — students first, then everyone this city calls in. This is the desk for postings of <b>1 to 18 months</b>: a registered lease timed to your assignment, a home someone has actually walked, and every paper your employer will ask for. <b>Most of it done before you land.</b></span>
+        <span class="l-it">Abbiamo passato anni a riparare il mercato degli affitti di Roma per chi arriva dall'estero — prima gli studenti, poi tutti quelli che questa città chiama. Questo è lo sportello degli incarichi da <b>1 a 18 mesi</b>: un contratto registrato tarato sulla trasferta, una casa che qualcuno ha visto davvero, ogni documento che il datore chiederà. <b>Quasi tutto prima dell'atterraggio.</b></span>
       </p>
-
-      <div class="picks">
-        <button type="button" class="pick" onclick="goHow()">
-          <span class="ic">💼</span>
-          <b><span class="l-en">I'm relocating for work</span><span class="l-it">Mi trasferisco per lavoro</span></b>
-          <p><span class="l-en">An assignment of 1–18 months: registered transitional lease, live video viewings, everything in English.</span><span class="l-it">Un incarico da 1 a 18 mesi: contratto transitorio registrato, visite video in diretta, tutto anche in inglese.</span></p>
-          <span class="go"><span class="l-en">See how →</span><span class="l-it">Vedi come →</span></span>
-        </button>
-        <a class="pick" href="/concierge">
-          <span class="ic">🧭</span>
-          <b><span class="l-en">I need the landing handled</span><span class="l-it">Mi serve l'atterraggio</span></b>
-          <p><span class="l-en">Codice fiscale, utilities, SIM, residency, healthcare — the Concierge does the Italian bureaucracy for you.</span><span class="l-it">Codice fiscale, utenze, SIM, residenza, sanità — il Concierge fa la burocrazia al posto tuo.</span></p>
-          <span class="go"><span class="l-en">Concierge →</span><span class="l-it">Concierge →</span></span>
-        </a>
-        <a class="pick wide" href="/corporate">
-          <span class="ic">🏢</span>
-          <div>
-            <b><span class="l-en">We relocate employees</span><span class="l-it">Trasferiamo dipendenti</span></b>
-            <p><span class="l-en">HR &amp; global mobility: one contact, verified homes, compliant leases, one invoice. The corporate desk takes teams end to end.</span><span class="l-it">HR e global mobility: un referente, case verificate, contratti in regola, una fattura. Lo sportello corporate segue i team dall'inizio alla fine.</span></p>
-          </div>
-          <span class="go"><span class="l-en">For companies →</span><span class="l-it">Per aziende →</span></span>
-        </a>
+      <div class="heroctas">
+        <a class="cta-major" href="#contact"><span class="l-en">Open your file</span><span class="l-it">Apri il tuo fascicolo</span><span class="arr">→</span></a>
+        <a class="cta-minor" href="/corporate"><span class="l-en">We relocate employees — the corporate desk</span><span class="l-it">Trasferiamo dipendenti — sportello aziende</span> ↗</a>
       </div>
-
-      <div class="proof">
-        <span><span class="c">✓</span> <span class="l-en">English &amp; Italian</span><span class="l-it">Inglese e italiano</span></span>
-        <span><span class="c">✓</span> <span class="l-en">Registered contracts (Agenzia delle Entrate)</span><span class="l-it">Contratti registrati (Agenzia delle Entrate)</span></span>
-        <span>★ <span class="l-en">4.9 on Google · 47 reviews</span><span class="l-it">4,9 su Google · 47 recensioni</span></span>
+      <div class="heroproof">
+        <span><span class="c">✓</span> <span class="l-en">Registered contracts — Agenzia delle Entrate</span><span class="l-it">Contratti registrati — Agenzia delle Entrate</span></span>
+        <span><span class="c">✓</span> <span class="l-en">English &amp; Italian, lease included</span><span class="l-it">Inglese e italiano, contratto compreso</span></span>
+        <span><span class="c">★</span> <span class="l-en">4.9 on Google · 47 reviews</span><span class="l-it">4,9 su Google · 47 recensioni</span></span>
       </div>
     </div>
 
-    <div class="panelcard rv in" aria-hidden="true">
-      <div class="pbar"><i></i><i></i><i></i><span class="url">boomrome.com/executive</span></div>
-      <div class="pstage">
-        <span class="plabel"><span class="l-en">The relocation, step by step</span><span class="l-it">La trasferta, passo per passo</span></span>
-        <div class="prow done"><span class="st">✓</span><span class="tx"><b><span class="l-en">Brief &amp; shortlist</span><span class="l-it">Brief e rosa di case</span></b><small><span class="l-en">Assignment dates, office area, budget — five minutes</span><span class="l-it">Date dell'incarico, zona ufficio, budget — cinque minuti</span></small></span><span class="when"><span class="l-en">Day 1</span><span class="l-it">Giorno 1</span></span></div>
-        <div class="prow done"><span class="st">✓</span><span class="tx"><b><span class="l-en">Live video viewings</span><span class="l-it">Visite video in diretta</span></b><small><span class="l-en">You direct, from wherever you are</span><span class="l-it">Le dirigi tu, da dove sei</span></small></span><span class="when"><span class="l-en">Day 2</span><span class="l-it">Giorno 2</span></span></div>
-        <div class="prow done"><span class="st">✓</span><span class="tx"><b><span class="l-en">Pre-agreement signed online</span><span class="l-it">Proposta firmata online</span></b><small><span class="l-en">Terms in writing, deposit by card or transfer</span><span class="l-it">Termini per iscritto, deposito con carta o bonifico</span></small></span><span class="when"><span class="l-en">Day 4</span><span class="l-it">Giorno 4</span></span></div>
-        <div class="prow live"><span class="st">●</span><span class="tx"><b><span class="l-en">Lease e-signed &amp; registered</span><span class="l-it">Contratto firmato e registrato</span></b><small><span class="l-en">Transitional contract, filed with the Agenzia delle Entrate</span><span class="l-it">Transitorio, registrato all'Agenzia delle Entrate</span></small></span><span class="when"><span class="l-en">Day 7</span><span class="l-it">Giorno 7</span></span></div>
-        <div class="prow"><span class="st">○</span><span class="tx"><b><span class="l-en">Landing day</span><span class="l-it">Giorno dell'arrivo</span></b><small><span class="l-en">Keys, utilities on, codice fiscale booked</span><span class="l-it">Chiavi, utenze attive, codice fiscale prenotato</span></small></span><span class="when">→</span></div>
-      </div>
+    <!-- the panorama: an assignment descending onto the city -->
+    <div class="panorama" aria-hidden="true">
+      <span class="route-note"><span class="l-en"><b>Your assignment</b> · 1–18 months · closed before landing</span><span class="l-it"><b>Il tuo incarico</b> · 1–18 mesi · chiuso prima di atterrare</span></span>
+      <svg viewBox="0 0 1440 236" preserveAspectRatio="xMidYMax slice">
+        <!-- flight path -->
+        <path class="route route-anim" d="M-20,46 Q560,-14 1052,104"/>
+        <g transform="translate(1052,104) rotate(24)"><path class="plane" d="M0,0 L-16,-5 L-11,0 L-16,5 Z"/></g>
+        <!-- horizon -->
+        <path class="sky-faint" d="M0,206 H1440"/>
+        <!-- Castel Sant'Angelo -->
+        <path class="sky-fill" d="M64,206 V158 H168 V206"/>
+        <path class="sky-stroke" d="M80,158 V140 H152 V158 M104,140 V124 H128 V140 M116,124 V108 M110,114 L116,108 L122,114"/>
+        <!-- St. Peter's -->
+        <path class="sky-fill" d="M258,206 V176 H452 V206"/>
+        <path class="sky-stroke" d="M278,176 V166 H432 V176 M312,166 V148 H398 V166 M312,148 Q355,92 398,148 M348,112 h14 M349,112 V96 H361 V112 M355,96 V84 M349,90 H361"/>
+        <!-- pines -->
+        <path class="sky-stroke" d="M520,206 V178 M492,178 Q520,148 548,178 Q520,166 492,178 Z"/>
+        <path class="sky-faint" d="M580,206 V186 M560,186 Q580,164 600,186 Q580,177 560,186 Z"/>
+        <!-- Pantheon -->
+        <path class="sky-fill" d="M660,206 V180 H704 V206"/>
+        <path class="sky-stroke" d="M654,180 L682,164 L710,180 M704,206 V180 M704,180 Q744,142 784,180 M784,180 V206"/>
+        <!-- Vittoriano -->
+        <path class="sky-fill" d="M846,206 V186 H1036 V206"/>
+        <path class="sky-stroke" d="M868,186 V166 H1014 V186 M886,166 V150 M880,156 L886,150 L892,156 M996,166 V150 M990,156 L996,150 L1002,156"/>
+        <!-- Colosseum -->
+        <path class="sky-fill" d="M1096,206 V158 Q1160,126 1224,136 L1224,152 Q1268,158 1296,174 L1296,206"/>
+        <path class="sky-stroke" d="M1116,206 V176 M1140,202 V172 M1164,200 V170 M1188,198 V170 M1212,200 V174 M1244,206 V182 M1268,206 V188"/>
+        <!-- last pine -->
+        <path class="sky-faint" d="M1372,206 V180 M1346,180 Q1372,152 1398,180 Q1372,169 1346,180 Z"/>
+      </svg>
     </div>
   </header>
 
-  <!-- ═══ IN BRIEF — the facts, flat, for a hurried reader or a machine ═══ -->
-  <section class="rv" id="enbref" style="margin-top:52px">
-    <div class="enbref">
-      <h2><span class="l-en">BOOM Executive, in brief</span><span class="l-it">BOOM Executive, in breve</span></h2>
-      <dl>
-        <dt><span class="l-en">Who</span><span class="l-it">Chi</span></dt>
-        <dd><span class="l-en">BOOM, Rome's premium mid-term rental desk — operated by <b>Egidi Immobiliare S.r.l.</b>, a registered Italian agency.</span><span class="l-it">BOOM, lo sportello romano degli affitti mid-term premium — gestito da <b>Egidi Immobiliare S.r.l.</b>, agenzia italiana registrata.</span></dd>
+  <div class="wrap">
 
-        <dt><span class="l-en">For whom</span><span class="l-it">Per chi</span></dt>
-        <dd><span class="l-en">Professionals in Rome on assignment for <b>1–18 months</b>: UN agencies (FAO, WFP, IFAD), embassies and missions, corporate secondments, visiting academics, medical staff, film productions — and the <a href="/corporate">companies that move them</a>.</span><span class="l-it">Professionisti a Roma con un incarico da <b>1 a 18 mesi</b>: agenzie ONU (FAO, WFP, IFAD), ambasciate e missioni, distacchi aziendali, visiting professor e ricercatori, personale sanitario, produzioni cinematografiche — e le <a href="/corporate">aziende che li trasferiscono</a>.</span></dd>
-
-        <dt><span class="l-en">The lease</span><span class="l-it">Il contratto</span></dt>
-        <dd><span class="l-en">The <b>contratto transitorio</b> (art. 5, law 431/98): 1–18 months, registered with the Agenzia delle Entrate, ends on its date. It needs a documented transitional reason — <b>a work assignment is the textbook case</b>. In Rome it follows the city's regulated fair-rent brackets; BOOM runs the official numbers.</span><span class="l-it">Il <b>contratto transitorio</b> (art. 5, L. 431/98): 1–18 mesi, registrato all'Agenzia delle Entrate, finisce alla sua data. Richiede un'esigenza transitoria documentata — <b>l'incarico di lavoro è il caso da manuale</b>. A Roma segue le fasce del canone concordato; BOOM calcola i numeri ufficiali.</span></dd>
-
-        <dt><span class="l-en">Remotely</span><span class="l-it">A distanza</span></dt>
-        <dd><span class="l-en">Live video viewing, online pre-agreement, e-signature, secure payment: <b>a tenancy can close before you land</b> — keys on arrival day.</span><span class="l-it">Visita video in diretta, proposta online, firma elettronica, pagamento sicuro: <b>il contratto può chiudersi prima dell'atterraggio</b> — chiavi il giorno dell'arrivo.</span></dd>
-
-        <dt><span class="l-en">The papers</span><span class="l-it">I documenti</span></dt>
-        <dd><span class="l-en">English-language registered contract, monthly rent receipts, invoiced agency fees: what expense reports, rental subsidies, visa renewals and residency registration actually require.</span><span class="l-it">Contratto registrato anche in inglese, ricevute mensili del canone, provvigioni fatturate: ciò che serve davvero a rimborsi spese, sussidi affitto, rinnovi del permesso e residenza.</span></dd>
-
-        <dt><span class="l-en">Reply time</span><span class="l-it">Tempi di risposta</span></dt>
-        <dd><span class="l-en">The same working day, in the vast majority of cases.</span><span class="l-it">In giornata lavorativa, nella stragrande maggioranza dei casi.</span></dd>
-
-        <dt><span class="l-en">Contact</span><span class="l-it">Contatto</span></dt>
-        <dd><a href="mailto:hello@boom-rome.com" style="color:var(--gold)">hello@boom-rome.com</a> · <a href="https://www.boomrome.com/executive" style="color:var(--t2)">boomrome.com/executive</a></dd>
-      </dl>
-    </div>
-  </section>
-
-  <!-- ═══ WHO ARRIVES — the six flows Rome actually receives ═══ -->
-  <section class="rv" id="who">
-    <div class="sec-h">
-      <span class="num"><span class="l-en">WHO ARRIVES</span><span class="l-it">CHI ARRIVA</span></span>
-      <h2><span class="l-en">Rome calls people in. <span class="g">We settle them.</span></span><span class="l-it">Roma chiama gente da fuori. <span class="g">Noi la sistemiamo.</span></span></h2>
-    </div>
-    <p class="sec-sub"><span class="l-en">Six flows of professionals land in this city every month. Each has its own paperwork, its own geography and its own deadline — this desk knows them by name.</span><span class="l-it">Sei flussi di professionisti atterrano in questa città ogni mese. Ognuno ha i suoi documenti, la sua geografia e la sua scadenza — questo sportello li conosce per nome.</span></p>
-    <div class="local">
-      <div class="loc" id="seg-un"><span class="n">01</span><div>
-        <b><span class="l-en">UN agencies &amp; international organisations</span><span class="l-it">Agenzie ONU e organizzazioni internazionali</span></b>
-        <p><span class="l-en">Rome is the UN's food-security capital: FAO by the Circo Massimo, WFP at Parco de' Medici, IFAD in EUR–Laurentina — and consultant contracts run 3–11 months. <em>A registered transitional lease matches the contract, and the registered lease + payment receipts are exactly what rental-subsidy files ask for.</em> From Testaccio or Ostiense, FAO is minutes away; Metro B runs straight to EUR.</span><span class="l-it">Roma è la capitale ONU della sicurezza alimentare: FAO al Circo Massimo, WFP a Parco de' Medici, IFAD in zona EUR–Laurentina — e i contratti da consulente durano 3–11 mesi. <em>Il transitorio registrato combacia col contratto di lavoro, e contratto registrato + ricevute sono esattamente ciò che chiede la pratica del sussidio affitto.</em> Da Testaccio o Ostiense la FAO è a pochi minuti; la Metro B porta dritta all'EUR.</span></p>
-      </div></div>
-      <div class="loc" id="seg-diplomatic"><span class="n">02</span><div>
-        <b><span class="l-en">Embassies &amp; diplomatic missions</span><span class="l-it">Ambasciate e missioni diplomatiche</span></b>
-        <p><span class="l-en">Rome hosts two full diplomatic corps — missions to Italy <em>and</em> to the Holy See — plus the delegations accredited to the UN agencies: hundreds of postings rotating every year. Parioli, Prati and Trieste are the classic quarters. <em>Exit terms go in writing before signature: a transfer order shouldn't turn into a dispute.</em></span><span class="l-it">Roma ospita due interi corpi diplomatici — le missioni presso l'Italia <em>e</em> presso la Santa Sede — più le delegazioni accreditate alle agenzie ONU: centinaia di incarichi che ruotano ogni anno. Parioli, Prati e Trieste sono i quartieri classici. <em>Le condizioni di uscita si scrivono prima della firma: un ordine di trasferimento non deve diventare una lite.</em></span></p>
-      </div></div>
-      <div class="loc" id="seg-corporate"><span class="n">03</span><div>
-        <b><span class="l-en">Corporate secondments</span><span class="l-it">Distacchi aziendali</span></b>
-        <p><span class="l-en">Consulting, energy, pharma, finance, tech: the 3–18 month posting with the employer paying or reimbursing. English contract, invoiced fees, receipts finance accepts. <em>When it's a whole team, the corporate desk takes it end to end.</em></span><span class="l-it">Consulenza, energia, farmaceutico, finanza, tech: la trasferta da 3–18 mesi con l'azienda che paga o rimborsa. Contratto in inglese, provvigioni fatturate, ricevute che l'amministrazione accetta. <em>Quando è un intero team, se ne occupa lo sportello corporate, dall'inizio alla fine.</em></span></p>
-      </div></div>
-      <div class="loc" id="seg-research"><span class="n">04</span><div>
-        <b><span class="l-en">Research &amp; academia</span><span class="l-it">Ricerca e accademia</span></b>
-        <p><span class="l-en">Sapienza, LUISS, Roma Tre, John Cabot, the foreign academies: visiting professors and ERC / Marie-Curie fellows on fixed-term grants. <em>Fixed-term-friendly leases, grant-invoiceable paperwork, family-ready homes near campus.</em></span><span class="l-it">Sapienza, LUISS, Roma Tre, John Cabot, le accademie straniere: visiting professor e fellow ERC / Marie-Curie con grant a termine. <em>Contratti a misura di grant, documenti fatturabili sul progetto, case adatte alle famiglie vicino al campus.</em></span></p>
-      </div></div>
-      <div class="loc" id="seg-medical"><span class="n">05</span><div>
-        <b><span class="l-en">Healthcare</span><span class="l-it">Sanità</span></b>
-        <p><span class="l-en">Visiting specialists and fellows at Gemelli, Umberto I, Bambino Gesù: intense months where the commute is the whole ballgame. <em>We shortlist by the hospital, not by the postcard.</em></span><span class="l-it">Specialisti e fellow in visita al Gemelli, all'Umberto I, al Bambino Gesù: mesi intensi dove il tragitto è tutto. <em>La rosa di case si fa sull'ospedale, non sulla cartolina.</em></span></p>
-      </div></div>
-      <div class="loc" id="seg-film"><span class="n">06</span><div>
-        <b><span class="l-en">Film &amp; media productions</span><span class="l-it">Produzioni film e media</span></b>
-        <p><span class="l-en">Cinecittà keeps international productions in town for 2–9 months, with dates that move and a production office paying. <em>A lease that ends when the wrap does — and paper a production office can process.</em></span><span class="l-it">Cinecittà tiene in città produzioni internazionali per 2–9 mesi, con date che si spostano e una produzione che paga. <em>Un contratto che finisce col fine riprese — e documenti che un ufficio produzione può processare.</em></span></p>
-      </div></div>
-    </div>
-  </section>
-
-  <!-- ═══ HOW IT WORKS ═══ -->
-  <section class="rv" id="how">
-    <div class="sec-h">
-      <span class="num"><span class="l-en">HOW IT WORKS</span><span class="l-it">COME FUNZIONA</span></span>
-      <h2><span class="l-en">From assignment letter <span class="g">to keys.</span></span><span class="l-it">Dalla lettera d'incarico <span class="g">alle chiavi.</span></span></h2>
-    </div>
-    <div class="steps">
-      <div class="step"><span class="dot"></span>
-        <div class="k">1 · <span class="l-en">Brief</span><span class="l-it">Brief</span></div>
-        <div class="v"><span class="l-en">Five minutes, not thirty fields</span><span class="l-it">Cinque minuti, non trenta campi</span></div>
-        <div class="s"><span class="l-en">Assignment dates, office location, budget, who's coming with you. We answer the same working day with real options, not a brochure.</span><span class="l-it">Date dell'incarico, sede di lavoro, budget, chi viene con te. Rispondiamo in giornata con opzioni reali, non con una brochure.</span></div>
+    <!-- ═══ CH. I — THE ARRIVALS BOARD ═══ -->
+    <section class="chapter rv" id="who">
+      <div class="chap-head">
+        <span class="chap-num" aria-hidden="true">I</span>
+        <div>
+          <p class="chap-kick"><span class="l-en">Chapter I — Who arrives</span><span class="l-it">Capitolo I — Chi arriva</span></p>
+          <h2 class="chap-title"><span class="l-en">Rome calls people in. <em>We settle them.</em></span><span class="l-it">Roma chiama gente da fuori. <em>Noi la sistemiamo.</em></span></h2>
+        </div>
       </div>
-      <div class="step"><span class="dot"></span>
-        <div class="k">2 · <span class="l-en">View</span><span class="l-it">Visita</span></div>
-        <div class="v"><span class="l-en">Live video, you direct</span><span class="l-it">Video in diretta, dirigi tu</span></div>
-        <div class="s"><span class="l-en">Verified homes, booked on real slots with instant confirmation. You open the wardrobes, you hear the street; the recording stays yours. In person works too, of course.</span><span class="l-it">Case verificate, prenotate su slot reali con conferma immediata. Apri gli armadi, senti la strada; la registrazione resta a te. Dal vivo, ovviamente, si può sempre.</span></div>
+      <p class="chap-sub"><span class="l-en">Six flows of professionals land in this city every month. Each has its own paperwork, its own geography and its own deadline — this desk knows them by name.</span><span class="l-it">Sei flussi di professionisti atterrano in questa città ogni mese. Ognuno ha i suoi documenti, la sua geografia e la sua scadenza — questo sportello li conosce per nome.</span></p>
+
+      <div class="board">
+        <div class="board-cap">
+          <span><span class="l-en">Roma · arrivals — the six flows</span><span class="l-it">Roma · arrivi — i sei flussi</span></span>
+          <span class="blink" aria-hidden="true"></span>
+        </div>
+
+        <div class="brow" id="seg-un">
+          <div class="idx" aria-hidden="true">I</div>
+          <div class="body">
+            <div class="fl"><b><span class="l-en">UN agencies &amp; international organisations</span><span class="l-it">Agenzie ONU e organizzazioni internazionali</span></b><span class="at">FAO · WFP · IFAD</span></div>
+            <p><span class="l-en">Rome is the UN's food-security capital: FAO by the Circo Massimo, WFP at Parco de' Medici, IFAD in EUR–Laurentina — and consultant contracts run 3–11 months. <em>A registered transitional lease matches the contract, and the registered lease + payment receipts are exactly what rental-subsidy files ask for.</em> From Testaccio or Ostiense, FAO is minutes away; Metro B runs straight to EUR.</span><span class="l-it">Roma è la capitale ONU della sicurezza alimentare: FAO al Circo Massimo, WFP a Parco de' Medici, IFAD in zona EUR–Laurentina — e i contratti da consulente durano 3–11 mesi. <em>Il transitorio registrato combacia col contratto di lavoro, e contratto registrato + ricevute sono esattamente ciò che chiede la pratica del sussidio affitto.</em> Da Testaccio o Ostiense la FAO è a pochi minuti; la Metro B porta dritta all'EUR.</span></p>
+          </div>
+          <div class="meta"><div><div class="k"><span class="l-en">Typical stay</span><span class="l-it">Permanenza tipica</span></div><div class="v"><span class="l-en">3–11 months</span><span class="l-it">3–11 mesi</span></div></div><div><div class="k"><span class="l-en">The paper</span><span class="l-it">Il documento</span></div><div class="v"><span class="l-en">subsidy file</span><span class="l-it">pratica sussidio</span></div></div></div>
+        </div>
+
+        <div class="brow" id="seg-diplomatic">
+          <div class="idx" aria-hidden="true">II</div>
+          <div class="body">
+            <div class="fl"><b><span class="l-en">Embassies &amp; diplomatic missions</span><span class="l-it">Ambasciate e missioni diplomatiche</span></b><span class="at"><span class="l-en">Italy + Holy See</span><span class="l-it">Italia + Santa Sede</span></span></div>
+            <p><span class="l-en">Rome hosts two full diplomatic corps — missions to Italy <em>and</em> to the Holy See — plus the delegations accredited to the UN agencies: hundreds of postings rotating every year. Parioli, Prati and Trieste are the classic quarters. <em>Exit terms go in writing before signature: a transfer order shouldn't turn into a dispute.</em></span><span class="l-it">Roma ospita due interi corpi diplomatici — le missioni presso l'Italia <em>e</em> presso la Santa Sede — più le delegazioni accreditate alle agenzie ONU: centinaia di incarichi che ruotano ogni anno. Parioli, Prati e Trieste sono i quartieri classici. <em>Le condizioni di uscita si scrivono prima della firma: un ordine di trasferimento non deve diventare una lite.</em></span></p>
+          </div>
+          <div class="meta"><div><div class="k"><span class="l-en">Typical stay</span><span class="l-it">Permanenza tipica</span></div><div class="v"><span class="l-en">6–18 months</span><span class="l-it">6–18 mesi</span></div></div><div><div class="k"><span class="l-en">The clause</span><span class="l-it">La clausola</span></div><div class="v"><span class="l-en">exit, written</span><span class="l-it">uscita scritta</span></div></div></div>
+        </div>
+
+        <div class="brow" id="seg-corporate">
+          <div class="idx" aria-hidden="true">III</div>
+          <div class="body">
+            <div class="fl"><b><span class="l-en">Corporate secondments</span><span class="l-it">Distacchi aziendali</span></b><span class="at"><span class="l-en">consulting · energy · pharma · finance</span><span class="l-it">consulenza · energia · pharma · finanza</span></span></div>
+            <p><span class="l-en">The 3–18 month posting with the employer paying or reimbursing. English contract, invoiced fees, receipts finance accepts. <em>When it's a whole team, the corporate desk takes it end to end.</em></span><span class="l-it">La trasferta da 3–18 mesi con l'azienda che paga o rimborsa. Contratto in inglese, provvigioni fatturate, ricevute che l'amministrazione accetta. <em>Quando è un intero team, se ne occupa lo sportello corporate, dall'inizio alla fine.</em></span></p>
+          </div>
+          <div class="meta"><div><div class="k"><span class="l-en">Typical stay</span><span class="l-it">Permanenza tipica</span></div><div class="v"><span class="l-en">3–18 months</span><span class="l-it">3–18 mesi</span></div></div><div><div class="k"><span class="l-en">The paper</span><span class="l-it">Il documento</span></div><div class="v"><span class="l-en">VAT invoice</span><span class="l-it">fattura</span></div></div></div>
+        </div>
+
+        <div class="brow" id="seg-research">
+          <div class="idx" aria-hidden="true">IV</div>
+          <div class="body">
+            <div class="fl"><b><span class="l-en">Research &amp; academia</span><span class="l-it">Ricerca e accademia</span></b><span class="at">Sapienza · LUISS · ERC</span></div>
+            <p><span class="l-en">Sapienza, LUISS, Roma Tre, John Cabot, the foreign academies: visiting professors and ERC / Marie-Curie fellows on fixed-term grants. <em>Fixed-term-friendly leases, grant-invoiceable paperwork, family-ready homes near campus.</em></span><span class="l-it">Sapienza, LUISS, Roma Tre, John Cabot, le accademie straniere: visiting professor e fellow ERC / Marie-Curie con grant a termine. <em>Contratti a misura di grant, documenti fatturabili sul progetto, case adatte alle famiglie vicino al campus.</em></span></p>
+          </div>
+          <div class="meta"><div><div class="k"><span class="l-en">Typical stay</span><span class="l-it">Permanenza tipica</span></div><div class="v"><span class="l-en">one term / year</span><span class="l-it">semestre / anno</span></div></div><div><div class="k"><span class="l-en">The paper</span><span class="l-it">Il documento</span></div><div class="v"><span class="l-en">grant file</span><span class="l-it">doc. di grant</span></div></div></div>
+        </div>
+
+        <div class="brow" id="seg-medical">
+          <div class="idx" aria-hidden="true">V</div>
+          <div class="body">
+            <div class="fl"><b><span class="l-en">Healthcare</span><span class="l-it">Sanità</span></b><span class="at">Gemelli · Umberto I · Bambino Gesù</span></div>
+            <p><span class="l-en">Visiting specialists and fellows: intense months where the commute is the whole ballgame. <em>We shortlist by the hospital, not by the postcard.</em></span><span class="l-it">Specialisti e fellow in visita: mesi intensi dove il tragitto è tutto. <em>La rosa di case si fa sull'ospedale, non sulla cartolina.</em></span></p>
+          </div>
+          <div class="meta"><div><div class="k"><span class="l-en">Typical stay</span><span class="l-it">Permanenza tipica</span></div><div class="v"><span class="l-en">2–12 months</span><span class="l-it">2–12 mesi</span></div></div><div><div class="k"><span class="l-en">What rules</span><span class="l-it">Cosa comanda</span></div><div class="v"><span class="l-en">the commute</span><span class="l-it">il tragitto</span></div></div></div>
+        </div>
+
+        <div class="brow" id="seg-film">
+          <div class="idx" aria-hidden="true">VI</div>
+          <div class="body">
+            <div class="fl"><b><span class="l-en">Film &amp; media productions</span><span class="l-it">Produzioni film e media</span></b><span class="at">Cinecittà</span></div>
+            <p><span class="l-en">Cinecittà keeps international productions in town for 2–9 months, with dates that move and a production office paying. <em>A lease that ends when the wrap does — and paper a production office can process.</em></span><span class="l-it">Cinecittà tiene in città produzioni internazionali per 2–9 mesi, con date che si spostano e una produzione che paga. <em>Un contratto che finisce col fine riprese — e documenti che un ufficio produzione può processare.</em></span></p>
+          </div>
+          <div class="meta"><div><div class="k"><span class="l-en">Typical stay</span><span class="l-it">Permanenza tipica</span></div><div class="v"><span class="l-en">2–9 months</span><span class="l-it">2–9 mesi</span></div></div><div><div class="k"><span class="l-en">Dates</span><span class="l-it">Le date</span></div><div class="v"><span class="l-en">they move</span><span class="l-it">si spostano</span></div></div></div>
+        </div>
       </div>
-      <div class="step"><span class="dot"></span>
-        <div class="k">3 · <span class="l-en">Sign &amp; land</span><span class="l-it">Firma e atterra</span></div>
-        <div class="v"><span class="l-en">Before the plane does</span><span class="l-it">Prima dell'aereo</span></div>
-        <div class="s"><span class="l-en">Online pre-agreement, deposit by card or transfer, lease e-signed and registered. Keys on landing day; codice fiscale and utilities lined up by the Concierge.</span><span class="l-it">Proposta online, deposito con carta o bonifico, contratto firmato elettronicamente e registrato. Chiavi il giorno dell'arrivo; codice fiscale e utenze preparati dal Concierge.</span></div>
+    </section>
+
+    <!-- ═══ CH. II — THE FLIGHT PATH ═══ -->
+    <section class="chapter rv" id="how">
+      <div class="chap-head">
+        <span class="chap-num" aria-hidden="true">II</span>
+        <div>
+          <p class="chap-kick"><span class="l-en">Chapter II — The path</span><span class="l-it">Capitolo II — Il percorso</span></p>
+          <h2 class="chap-title"><span class="l-en">From assignment letter <em>to keys.</em></span><span class="l-it">Dalla lettera d'incarico <em>alle chiavi.</em></span></h2>
+        </div>
       </div>
-    </div>
+      <p class="chap-sub"><span class="l-en">The whole journey runs remotely — a working week from brief to registered lease, keys on landing day. Every step below is the product as it already works, not a promise.</span><span class="l-it">Tutto il percorso corre a distanza — una settimana lavorativa dal brief al contratto registrato, chiavi il giorno dell'atterraggio. Ogni passo qui sotto è il prodotto come già funziona, non una promessa.</span></p>
 
-    <div class="get">
-      <div class="g-it"><span class="ic">📄</span><b><span class="l-en">A lease that ends with the assignment</span><span class="l-it">Un contratto che finisce con l'incarico</span></b><p><span class="l-en">Transitional, 1–18 months, registered with the Agenzia delle Entrate. If the posting extends, the lease extends properly — no verbal limbo.</span><span class="l-it">Transitorio, 1–18 mesi, registrato all'Agenzia delle Entrate. Se l'incarico si allunga, il contratto si allunga per bene — niente limbo verbale.</span></p></div>
-      <div class="g-it"><span class="ic">🎥</span><b><span class="l-en">Video viewings that decide</span><span class="l-it">Visite video che decidono</span></b><p><span class="l-en">Live, directed by you, with the flaws on camera too. Most of our tenancies close before the tenant lands.</span><span class="l-it">In diretta, dirette da te, coi difetti in camera. La maggior parte dei nostri contratti si chiude prima dell'atterraggio.</span></p></div>
-      <div class="g-it"><span class="ic">🧾</span><b><span class="l-en">Receipts your employer accepts</span><span class="l-it">Ricevute che il datore accetta</span></b><p><span class="l-en">Registered contract, monthly rent receipts, invoiced fees from a registered Italian agency — expense reports and subsidy files without a fight.</span><span class="l-it">Contratto registrato, ricevute mensili del canone, provvigioni fatturate da un'agenzia italiana registrata — note spese e pratiche sussidio senza battaglie.</span></p></div>
-      <div class="g-it"><span class="ic">⚡</span><b><span class="l-en">48-hour move-in</span><span class="l-it">Ingresso in 48 ore</span></b><p><span class="l-en">On an available home, approval to keys can take two days. Your start date is the deadline that matters.</span><span class="l-it">Su una casa disponibile, dall'approvazione alle chiavi possono bastare due giorni. La scadenza che conta è la tua data d'inizio.</span></p></div>
-      <div class="g-it"><span class="ic">🗣️</span><b><span class="l-en">One person, in English</span><span class="l-it">Una persona, anche in inglese</span></b><p><span class="l-en">WhatsApp, same-day answers, the same person from first call to keys. Italian handled for you — with landlords, condominiums, utilities.</span><span class="l-it">WhatsApp, risposte in giornata, la stessa persona dalla prima chiamata alle chiavi. L'italiano lo parliamo noi — con proprietari, condomini, utenze.</span></p></div>
-      <div class="g-it"><span class="ic">🧭</span><b><span class="l-en">Concierge landing</span><span class="l-it">Atterraggio col Concierge</span></b><p><span class="l-en">Codice fiscale (started remotely), utilities, SIM, residency, healthcare enrolment — in order, without you learning Italian bureaucracy.</span><span class="l-it">Codice fiscale (avviato a distanza), utenze, SIM, residenza, iscrizione sanitaria — in ordine, senza che tu debba imparare la burocrazia italiana.</span></p></div>
-    </div>
+      <div class="path">
+        <div class="path-arc" aria-hidden="true"><svg viewBox="0 0 1180 60" preserveAspectRatio="none"><path class="route" d="M8,8 Q590,60 1172,8"/></svg></div>
+        <div class="path-grid">
+          <div class="stop">
+            <span class="d"><span class="l-en">Day 1</span><span class="l-it">Giorno 1</span></span>
+            <b><span class="l-en">Brief &amp; shortlist</span><span class="l-it">Brief e rosa di case</span></b>
+            <p><span class="l-en">Assignment dates, office area, budget, who's coming with you — five minutes. Real options the same working day.</span><span class="l-it">Date dell'incarico, zona ufficio, budget, chi viene con te — cinque minuti. Opzioni reali in giornata.</span></p>
+          </div>
+          <div class="stop">
+            <span class="d"><span class="l-en">Day 2</span><span class="l-it">Giorno 2</span></span>
+            <b><span class="l-en">Live video viewings</span><span class="l-it">Visite video in diretta</span></b>
+            <p><span class="l-en">Booked on real slots, instant confirmation. You direct — wardrobes, water pressure, the street at 8am. The recording stays yours.</span><span class="l-it">Prenotate su slot reali, conferma immediata. Dirigi tu — armadi, pressione dell'acqua, la strada alle 8. La registrazione resta a te.</span></p>
+          </div>
+          <div class="stop">
+            <span class="d"><span class="l-en">Day 4</span><span class="l-it">Giorno 4</span></span>
+            <b><span class="l-en">Pre-agreement online</span><span class="l-it">Proposta online</span></b>
+            <p><span class="l-en">Every term in writing, e-signed; deposit by card or transfer. Nothing appears for the first time at signature.</span><span class="l-it">Ogni condizione per iscritto, firmata online; deposito con carta o bonifico. Niente compare per la prima volta alla firma.</span></p>
+          </div>
+          <div class="stop">
+            <span class="d"><span class="l-en">Day 7</span><span class="l-it">Giorno 7</span></span>
+            <b><span class="l-en">Lease e-signed &amp; registered</span><span class="l-it">Contratto firmato e registrato</span></b>
+            <p><span class="l-en">The transitional contract, filed with the Agenzia delle Entrate — the paper that runs residency, permits and reimbursements.</span><span class="l-it">Il transitorio, registrato all'Agenzia delle Entrate — la carta che comanda residenza, permessi e rimborsi.</span></p>
+          </div>
+          <div class="stop land">
+            <span class="d"><span class="l-en">Landing day</span><span class="l-it">Giorno dell'arrivo</span></span>
+            <b><span class="l-en">Keys in hand</span><span class="l-it">Chiavi in mano</span></b>
+            <p><span class="l-en">Utilities on, codice fiscale booked, the <a href="/concierge" style="color:var(--gold)">Concierge</a> walking the bureaucracy for you.</span><span class="l-it">Utenze attive, codice fiscale prenotato, il <a href="/concierge" style="color:var(--gold)">Concierge</a> che fa la burocrazia al posto tuo.</span></p>
+          </div>
+        </div>
+      </div>
+    </section>
 
-    <div class="trio">
-      <div class="tri"><b>⏱️ <span class="l-en">Your time is the expensive part</span><span class="l-it">La cosa costosa è il tuo tempo</span></b><p><span class="l-en">You won't learn Rome's rental market, and that's the point: we shortlist, verify and negotiate; you decide.</span><span class="l-it">Non imparerai il mercato degli affitti di Roma, ed è questo il punto: noi selezioniamo, verifichiamo e trattiamo; tu decidi.</span></p></div>
-      <div class="tri"><b>🤫 <span class="l-en">Quiet, when it needs to be</span><span class="l-it">Riservati, quando serve</span></b><p><span class="l-en">Some moves are sensitive. Search and terms travel directly between us — not broadcast across portals.</span><span class="l-it">Alcuni trasferimenti sono delicati. Ricerca e condizioni viaggiano direttamente tra noi — non sbandierati sui portali.</span></p></div>
-      <div class="tri"><b>📜 <span class="l-en">Everything in writing</span><span class="l-it">Tutto per iscritto</span></b><p><span class="l-en">Price, fees, timing, exit terms: on paper before you commit. Nothing appears for the first time at signature.</span><span class="l-it">Prezzo, provvigioni, tempi, condizioni di uscita: su carta prima dell'impegno. Niente compare per la prima volta alla firma.</span></p></div>
-    </div>
-  </section>
+    <!-- ═══ CH. III — THE PAPER ═══ -->
+    <section class="chapter rv" id="lease">
+      <div class="chap-head">
+        <span class="chap-num" aria-hidden="true">III</span>
+        <div>
+          <p class="chap-kick"><span class="l-en">Chapter III — The paper</span><span class="l-it">Capitolo III — Il contratto</span></p>
+          <h2 class="chap-title"><span class="l-en">The transitional lease is <em>the product.</em></span><span class="l-it">Il contratto transitorio è <em>il prodotto.</em></span></h2>
+        </div>
+      </div>
+      <p class="chap-sub"><span class="l-en">Most of what goes wrong in a working stay in Rome goes wrong in the contract. This is the part we're nerds about — so here it is, annotated.</span><span class="l-it">Quasi tutto ciò che va storto in una permanenza di lavoro a Roma va storto nel contratto. Questa è la parte su cui siamo maniacali — eccola, annotata.</span></p>
 
-  <!-- ═══ THE LEASE — the part we're nerds about ═══ -->
-  <section class="rv" id="lease">
-    <div class="sec-h">
-      <span class="num"><span class="l-en">THE LEASE</span><span class="l-it">IL CONTRATTO</span></span>
-      <h2><span class="l-en">The transitional contract is <span class="g">the product.</span></span><span class="l-it">Il contratto transitorio è <span class="g">il prodotto.</span></span></h2>
-    </div>
-    <p class="sec-sub"><span class="l-en">Most of what goes wrong in a working stay in Rome goes wrong in the contract. This is the part we're nerds about.</span><span class="l-it">Quasi tutto ciò che va storto in una permanenza di lavoro a Roma va storto nel contratto. Questa è la parte su cui siamo maniacali.</span></p>
-    <div class="local">
-      <div class="loc"><span class="n">01</span><div>
-        <b><span class="l-en">The default lease doesn't fit you</span><span class="l-it">Il contratto standard non ti calza</span></b>
-        <p><span class="l-en">Rome rentals default to 4+4 or 3+2 years; an assignment doesn't. The transitional contract (art. 5, law 431/98) runs 1–18 months and ends on its date — <em>built precisely for a posting, but only if the transitional reason is documented and the contract registered.</em> Your assignment letter is that reason; we draft and register.</span><span class="l-it">Gli affitti a Roma nascono 4+4 o 3+2; un incarico no. Il transitorio (art. 5, L. 431/98) va da 1 a 18 mesi e finisce alla sua data — <em>fatto apposta per una trasferta, ma solo se l'esigenza transitoria è documentata e il contratto registrato.</em> La tua lettera d'incarico è quell'esigenza; noi redigiamo e registriamo.</span></p>
-      </div></div>
-      <div class="loc"><span class="n">02</span><div>
-        <b><span class="l-en">Regulated rent, run officially</span><span class="l-it">Canone concordato, calcolato ufficialmente</span></b>
-        <p><span class="l-en">Rome's territorial agreement (2023) sets fair-rent brackets by zone, and transitional leases follow them. We compute the official numbers and handle the attestazione — <em>the rent stands on paper, not on a mood.</em></span><span class="l-it">L'accordo territoriale di Roma (2023) fissa le fasce di canone per zona, e i transitori le seguono. Noi calcoliamo i numeri ufficiali e gestiamo l'attestazione — <em>il canone sta in piedi sulla carta, non sull'umore.</em></span></p>
-      </div></div>
-      <div class="loc"><span class="n">03</span><div>
-        <b><span class="l-en">The registered contract runs everything</span><span class="l-it">Il contratto registrato comanda tutto</span></b>
-        <p><span class="l-en">Residence registration, permesso renewals, tessera sanitaria, subsidies, expense claims: all of it wants a registered lease and dated receipts. <em>An unregistered "friendly" arrangement fails you exactly when you can't afford it.</em></span><span class="l-it">Residenza, rinnovi del permesso, tessera sanitaria, sussidi, note spese: tutto vuole un contratto registrato e ricevute datate. <em>L'accordo "amichevole" non registrato ti tradisce esattamente quando non puoi permettertelo.</em></span></p>
-      </div></div>
-      <div class="loc"><span class="n">04</span><div>
-        <b><span class="l-en">Company name on the lease? Fine.</span><span class="l-it">Contratto intestato all'azienda? Si fa.</span></b>
-        <p><span class="l-en">Two clean structures: the company signs (a civil-code company let used to house staff) or the employee signs with the company as guarantor on a transitional lease. <em>Whichever your legal team prefers — in writing.</em></span><span class="l-it">Due strutture pulite: firma l'azienda (locazione codicistica a uso del personale) oppure firma il dipendente con garanzia aziendale sul transitorio. <em>Quella che preferisce il vostro ufficio legale — per iscritto.</em></span></p>
-      </div></div>
-    </div>
-  </section>
+      <div class="paperzone">
+        <div class="paper" aria-hidden="true">
+          <div class="ph">
+            <div class="t1">Contratto di locazione</div>
+            <div class="t2">AD USO TRANSITORIO</div>
+            <div class="t3">art. 5, Legge 9 dicembre 1998, n. 431 — accordo territoriale di Roma</div>
+          </div>
+          <hr>
+          <div class="pline"><span class="no">1.</span><span><b>Durata:</b> mesi</span><span class="fill"></span><span>(min. 1 — max. 18)</span></div>
+          <div class="pline"><span class="no">2.</span><span><b>Esigenza transitoria:</b> incarico di lavoro presso</span><span class="fill"></span></div>
+          <div class="pline"><span class="no">3.</span><span><b>Canone mensile:</b> €</span><span class="fill"></span><span>entro fascia d'oscillazione</span></div>
+          <div class="pline"><span class="no">4.</span><span><b>Recesso anticipato:</b> preavviso di</span><span class="fill"></span><span>mesi</span></div>
+          <div class="pline"><span class="no">5.</span><span><b>Registrazione:</b> Agenzia delle Entrate, mod. RLI</span><span class="fill"></span></div>
+          <div class="pstamp">
+            <span class="sig">Egidi Immobiliare S.r.l.</span>
+            <span class="seal">Registrato<br>·<br>Attestato</span>
+          </div>
+        </div>
 
-  <!-- ═══ HONESTY — the BOOM trademark ═══ -->
-  <section class="rv" id="method">
-    <div class="truth">
+        <div class="notes">
+          <div class="note">
+            <b><span class="l-en">It ends when the assignment ends</span><span class="l-it">Finisce quando finisce l'incarico</span></b>
+            <p><span class="l-en">Rome rentals default to 4+4 or 3+2 years; an assignment doesn't. The transitional contract runs 1–18 months and ends on its date — <em>built precisely for a posting, but only if the transitional reason is documented and the contract registered.</em> Your assignment letter is that reason; we draft and register.</span><span class="l-it">Gli affitti a Roma nascono 4+4 o 3+2; un incarico no. Il transitorio va da 1 a 18 mesi e finisce alla sua data — <em>fatto apposta per una trasferta, ma solo se l'esigenza transitoria è documentata e il contratto registrato.</em> La tua lettera d'incarico è quell'esigenza; noi redigiamo e registriamo.</span></p>
+          </div>
+          <div class="note">
+            <b><span class="l-en">Regulated rent, run officially</span><span class="l-it">Canone concordato, calcolato ufficialmente</span></b>
+            <p><span class="l-en">Rome's territorial agreement (2023) sets fair-rent brackets by zone, and transitional leases follow them. We compute the official numbers and handle the attestazione — <em>the rent stands on paper, not on a mood.</em></span><span class="l-it">L'accordo territoriale di Roma (2023) fissa le fasce di canone per zona, e i transitori le seguono. Noi calcoliamo i numeri ufficiali e gestiamo l'attestazione — <em>il canone sta in piedi sulla carta, non sull'umore.</em></span></p>
+          </div>
+          <div class="note">
+            <b><span class="l-en">The registered contract runs everything</span><span class="l-it">Il contratto registrato comanda tutto</span></b>
+            <p><span class="l-en">Residence registration, permesso renewals, tessera sanitaria, subsidies, expense claims: all of it wants a registered lease and dated receipts. <em>An unregistered "friendly" arrangement fails you exactly when you can't afford it.</em></span><span class="l-it">Residenza, rinnovi del permesso, tessera sanitaria, sussidi, note spese: tutto vuole un contratto registrato e ricevute datate. <em>L'accordo "amichevole" non registrato ti tradisce esattamente quando non puoi permettertelo.</em></span></p>
+          </div>
+          <div class="note">
+            <b><span class="l-en">Company name on the lease? Fine.</span><span class="l-it">Intestato all'azienda? Si fa.</span></b>
+            <p><span class="l-en">Two clean structures: the company signs (a civil-code company let used to house staff) or the employee signs with the company as guarantor on a transitional lease. <em>Whichever your legal team prefers — in writing.</em></span><span class="l-it">Due strutture pulite: firma l'azienda (locazione codicistica a uso del personale) oppure firma il dipendente con garanzia aziendale sul transitorio. <em>Quella che preferisce il vostro ufficio legale — per iscritto.</em></span></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ FACT SHEET — written to be quoted ═══ -->
+    <section class="rv" id="enbref-wrap">
+      <div class="enbref" id="enbref">
+        <h2><span class="l-en">BOOM Executive — fact sheet</span><span class="l-it">BOOM Executive — la scheda</span><span class="ref">REF · EXECUTIVE / ROMA</span></h2>
+        <dl>
+          <dt><span class="l-en">Who</span><span class="l-it">Chi</span></dt>
+          <dd><span class="l-en">BOOM, Rome's premium mid-term rental desk — operated by <b>Egidi Immobiliare S.r.l.</b>, a registered Italian agency.</span><span class="l-it">BOOM, lo sportello romano degli affitti mid-term premium — gestito da <b>Egidi Immobiliare S.r.l.</b>, agenzia italiana registrata.</span></dd>
+
+          <dt><span class="l-en">For whom</span><span class="l-it">Per chi</span></dt>
+          <dd><span class="l-en">Professionals in Rome on assignment for <b>1–18 months</b>: UN agencies (FAO, WFP, IFAD), embassies and missions, corporate secondments, visiting academics, medical staff, film productions — and the <a href="/corporate">companies that move them</a>.</span><span class="l-it">Professionisti a Roma con un incarico da <b>1 a 18 mesi</b>: agenzie ONU (FAO, WFP, IFAD), ambasciate e missioni, distacchi aziendali, visiting professor e ricercatori, personale sanitario, produzioni cinematografiche — e le <a href="/corporate">aziende che li trasferiscono</a>.</span></dd>
+
+          <dt><span class="l-en">The lease</span><span class="l-it">Il contratto</span></dt>
+          <dd><span class="l-en">The <b>contratto transitorio</b> (art. 5, law 431/98): 1–18 months, registered with the Agenzia delle Entrate, ends on its date. It needs a documented transitional reason — <b>a work assignment is the textbook case</b>. In Rome it follows the city's regulated fair-rent brackets; BOOM runs the official numbers.</span><span class="l-it">Il <b>contratto transitorio</b> (art. 5, L. 431/98): 1–18 mesi, registrato all'Agenzia delle Entrate, finisce alla sua data. Richiede un'esigenza transitoria documentata — <b>l'incarico di lavoro è il caso da manuale</b>. A Roma segue le fasce del canone concordato; BOOM calcola i numeri ufficiali.</span></dd>
+
+          <dt><span class="l-en">Remotely</span><span class="l-it">A distanza</span></dt>
+          <dd><span class="l-en">Live video viewing, online pre-agreement, e-signature, secure payment: <b>a tenancy can close before you land</b> — keys on arrival day.</span><span class="l-it">Visita video in diretta, proposta online, firma elettronica, pagamento sicuro: <b>il contratto può chiudersi prima dell'atterraggio</b> — chiavi il giorno dell'arrivo.</span></dd>
+
+          <dt><span class="l-en">The papers</span><span class="l-it">I documenti</span></dt>
+          <dd><span class="l-en">English-language registered contract, monthly rent receipts, invoiced agency fees: what expense reports, rental subsidies, visa renewals and residency registration actually require.</span><span class="l-it">Contratto registrato anche in inglese, ricevute mensili del canone, provvigioni fatturate: ciò che serve davvero a rimborsi spese, sussidi affitto, rinnovi del permesso e residenza.</span></dd>
+
+          <dt><span class="l-en">Reply time</span><span class="l-it">Tempi di risposta</span></dt>
+          <dd><span class="l-en">The same working day, in the vast majority of cases.</span><span class="l-it">In giornata lavorativa, nella stragrande maggioranza dei casi.</span></dd>
+
+          <dt><span class="l-en">Contact</span><span class="l-it">Contatto</span></dt>
+          <dd><a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a> · <a href="https://www.boomrome.com/executive" style="color:var(--t2)">boomrome.com/executive</a></dd>
+        </dl>
+      </div>
+    </section>
+  </div>
+
+  <!-- ═══ honesty band — full bleed ═══ -->
+  <section class="truthband rv" id="method">
+    <div class="wrap">
       <h3><span class="l-en">We'll also tell you <em>what's wrong with it.</em></span><span class="l-it">Ti diremo anche <em>cosa non va.</em></span></h3>
       <p><span class="l-en">A tenancy that goes wrong costs us more than a lost signature — so we write down what we saw, including the awkward parts.</span><span class="l-it">Un affitto che va storto ci costa più di una firma persa — quindi scriviamo quello che abbiamo visto, comprese le parti scomode.</span></p>
       <div class="flags">
-        <span class="flag"><b>⚑</b> <span class="l-en">rent above the zone's registered bracket</span><span class="l-it">canone sopra la fascia ufficiale della zona</span></span>
-        <span class="flag"><b>⚑</b> <span class="l-en">"10 minutes to the office" that's 40 at 8am</span><span class="l-it">«10 minuti dall'ufficio» che alle 8 sono 40</span></span>
-        <span class="flag"><b>⚑</b> <span class="l-en">gorgeous flat, hopeless commute</span><span class="l-it">casa splendida, tragitto impossibile</span></span>
-        <span class="flag"><b>⚑</b> <span class="l-en">building works scheduled next quarter</span><span class="l-it">lavori condominiali in arrivo il prossimo trimestre</span></span>
-        <span class="flag"><b>⚑</b> <span class="l-en">an exit clause that would cost you three months</span><span class="l-it">una clausola d'uscita che ti costerebbe tre mesi</span></span>
+        <span class="flag"><b>⚑</b><span class="l-en">rent above the zone's registered bracket</span><span class="l-it">canone sopra la fascia ufficiale della zona</span></span>
+        <span class="flag"><b>⚑</b><span class="l-en">"10 minutes to the office" that's 40 at 8am</span><span class="l-it">«10 minuti dall'ufficio» che alle 8 sono 40</span></span>
+        <span class="flag"><b>⚑</b><span class="l-en">gorgeous flat, hopeless commute</span><span class="l-it">casa splendida, tragitto impossibile</span></span>
+        <span class="flag"><b>⚑</b><span class="l-en">building works scheduled next quarter</span><span class="l-it">lavori condominiali il prossimo trimestre</span></span>
+        <span class="flag"><b>⚑</b><span class="l-en">an exit clause that would cost you three months</span><span class="l-it">una clausola d'uscita che ti costerebbe tre mesi</span></span>
       </div>
     </div>
   </section>
 
-  <!-- ═══ ZONES ═══ -->
-  <section class="rv" id="zones">
-    <div class="sec-h">
-      <span class="num"><span class="l-en">WHERE</span><span class="l-it">DOVE</span></span>
-      <h2><span class="l-en">Where a working stay <span class="g">actually works.</span></span><span class="l-it">Dove una permanenza di lavoro <span class="g">funziona davvero.</span></span></h2>
-    </div>
-    <p class="sec-sub"><span class="l-en">We cover the zones where commutes stay short and evenings don't need a car — and we'll say plainly when a beautiful home has the wrong geography for your office.</span><span class="l-it">Copriamo le zone dove i tragitti restano corti e la sera non serve l'auto — e diciamo chiaramente quando una bella casa ha la geografia sbagliata per il tuo ufficio.</span></p>
-    <div class="zones">
-      <span class="zone"><b>O</b> Prati</span>
-      <span class="zone"><b>N</b> Parioli</span>
-      <span class="zone"><b>N</b> Trieste &amp; Coppedè</span>
-      <span class="zone"><b>N</b> Flaminio</span>
-      <span class="zone"><b>N</b> Ponte Milvio</span>
-      <span class="zone"><b>N</b> Conca d'Oro</span>
-      <span class="zone"><b>C</b> Centro Storico</span>
-      <span class="zone"><b>C</b> Monti</span>
-      <span class="zone"><b>C</b> Esquilino</span>
-      <span class="zone"><b>O</b> Trastevere</span>
-      <span class="zone"><b>S</b> Testaccio</span>
-      <span class="zone"><b>S</b> Ostiense</span>
-      <span class="zone"><b>S</b> Marconi</span>
-      <span class="zone"><b>E</b> San Lorenzo</span>
-      <span class="zone"><b>E</b> Pigneto</span>
-      <span class="zone"><b>E</b> Tiburtina</span>
-    </div>
-  </section>
+  <div class="wrap">
 
-  <!-- ═══ FAQ ═══ -->
-  <section class="rv" id="faq">
-    <div class="sec-h">
-      <span class="num">FAQ</span>
-      <h2><span class="l-en">The questions <span class="g">we get asked.</span></span><span class="l-it">Le domande <span class="g">che ci fanno.</span></span></h2>
-    </div>
-    <div class="faq">
-      <details>
-        <summary><span class="l-en">What is a transitional lease (contratto transitorio)?</span><span class="l-it">Cos'è il contratto transitorio?</span></summary>
-        <div class="a"><span class="l-en">Italy's fixed-term residential lease: 1 to 18 months, under art. 5 of law 431/98, registered with the Agenzia delle Entrate, ending on its date without the 4+4 renewal machinery. It requires a documented transitional need — a work assignment, posting or project is the textbook case, and your assignment letter usually proves it. We draft it, register it and, where Rome's territorial agreement applies, run the official fair-rent numbers.</span><span class="l-it">Il contratto abitativo a termine: da 1 a 18 mesi, art. 5 della L. 431/98, registrato all'Agenzia delle Entrate, finisce alla sua data senza il meccanismo del 4+4. Richiede un'esigenza transitoria documentata — l'incarico, la trasferta o il progetto di lavoro è il caso da manuale, e la lettera d'incarico di norma basta a provarlo. Lo redigiamo, lo registriamo e, dove si applica l'accordo territoriale di Roma, calcoliamo i numeri ufficiali del canone.</span></div>
-      </details>
-      <details>
-        <summary><span class="l-en">Can everything be done before I arrive in Rome?</span><span class="l-it">Si può fare tutto prima che io arrivi a Roma?</span></summary>
-        <div class="a"><span class="l-en">Yes — that's the normal path, not the exception: live video viewing you direct, online pre-agreement with typed e-signature, deposit by card or bank transfer, contract e-signed online. Keys are handed over on landing day. Plenty of BOOM tenancies close before the tenant has set foot in Italy.</span><span class="l-it">Sì — ed è la via normale, non l'eccezione: visita video in diretta che dirigi tu, proposta online con firma elettronica, deposito con carta o bonifico, contratto firmato online. Le chiavi si consegnano il giorno dell'atterraggio. Molti contratti BOOM si chiudono prima che l'inquilino abbia messo piede in Italia.</span></div>
-      </details>
-      <details>
-        <summary><span class="l-en">My employer pays or reimburses the rent. What paperwork will they need?</span><span class="l-it">Il mio datore paga o rimborsa l'affitto. Che documenti servono?</span></summary>
-        <div class="a"><span class="l-en">A registered contract and documented payments — and that's exactly what you get: an English-language registered lease, monthly rent receipts from your tenant portal, and agency fees invoiced by a registered Italian company (Egidi Immobiliare S.r.l.). It's the file expense reports, allowances and rental-subsidy schemes ask for.</span><span class="l-it">Un contratto registrato e pagamenti documentati — ed è esattamente ciò che ricevi: contratto registrato anche in inglese, ricevute mensili del canone dal portale inquilino, provvigioni fatturate da una società italiana registrata (Egidi Immobiliare S.r.l.). È il fascicolo che chiedono note spese, indennità e sussidi affitto.</span></div>
-      </details>
-      <details>
-        <summary><span class="l-en">Can the lease be in my company's name?</span><span class="l-it">Il contratto può essere intestato alla mia azienda?</span></summary>
-        <div class="a"><span class="l-en">Yes. Two clean structures exist: the company signs a civil-code company let used to house its staff, or you sign a transitional lease with the company as guarantor. We set up whichever your employer's legal team prefers, in writing. For teams and repeated moves, our <a href="/corporate" style="color:var(--gold)">corporate desk</a> handles it end to end.</span><span class="l-it">Sì. Esistono due strutture pulite: firma l'azienda con una locazione codicistica a uso del personale, oppure firmi tu un transitorio con l'azienda come garante. Impostiamo quella che preferisce il vostro ufficio legale, per iscritto. Per team e trasferimenti ripetuti c'è lo <a href="/corporate" style="color:var(--gold)">sportello corporate</a>, dall'inizio alla fine.</span></div>
-      </details>
-      <details>
-        <summary><span class="l-en">What does it cost?</span><span class="l-it">Quanto costa?</span></summary>
-        <div class="a"><span class="l-en">The same transparent arithmetic as every BOOM home: monthly rent + refundable deposit + agency fee of 10% of one year's rent, computed to the euro before you commit — no hidden lines. Fixed-price services exist for specific jobs (Concierge landing, Property Finding for off-catalogue searches, contract review), each with its price published.</span><span class="l-it">La stessa aritmetica trasparente di ogni casa BOOM: canone mensile + deposito restituibile + provvigione del 10% di un'annualità, calcolati all'euro prima dell'impegno — nessuna riga nascosta. Per i lavori specifici ci sono servizi a prezzo fisso (atterraggio Concierge, Property Finding per ricerche fuori catalogo, revisione contratto), ognuno col prezzo pubblicato.</span></div>
-      </details>
-      <details>
-        <summary><span class="l-en">What if my assignment is extended — or cut short?</span><span class="l-it">E se il mio incarico viene prolungato — o accorciato?</span></summary>
-        <div class="a"><span class="l-en">Extensions: if the transitional need continues, the lease extends within the legal 18-month ceiling; past that, we restructure it properly instead of improvising. Early exit: the notice terms are written into your contract before you sign, in plain English — you know the exact cost of leaving early from day one.</span><span class="l-it">Prolungamenti: se l'esigenza transitoria continua, il contratto si estende entro il tetto legale dei 18 mesi; oltre, si ristruttura per bene invece di improvvisare. Uscita anticipata: i termini di preavviso sono scritti nel contratto prima della firma, in chiaro — sai dal primo giorno quanto costa esattamente andare via prima.</span></div>
-      </details>
-      <details>
-        <summary><span class="l-en">How fast can I move in?</span><span class="l-it">Quanto in fretta posso entrare?</span></summary>
-        <div class="a"><span class="l-en">On an available home, as fast as 48 hours from approval. If we're searching for you, the shortlist typically lands within days. We work to your start date — the search is calibrated on when you must be at your desk, not on our calendar.</span><span class="l-it">Su una casa disponibile, anche 48 ore dall'approvazione. Se cerchiamo per te, la rosa di case arriva in genere entro pochi giorni. Lavoriamo sulla tua data d'inizio — la ricerca è tarata su quando devi essere alla scrivania, non sul nostro calendario.</span></div>
-      </details>
-      <details>
-        <summary><span class="l-en">Do you work in English?</span><span class="l-it">Lavorate in inglese?</span></summary>
-        <div class="a"><span class="l-en">The entire process runs in English — viewings, contracts, receipts, support on WhatsApp — and in Italian whenever you prefer. With landlords, condominiums and utility companies we speak Italian so you don't have to.</span><span class="l-it">Tutto il percorso corre in inglese — visite, contratti, ricevute, assistenza su WhatsApp — e in italiano quando preferisci. Con proprietari, condomini e società delle utenze l'italiano lo parliamo noi, così non devi farlo tu.</span></div>
-      </details>
-      <details>
-        <summary><span class="l-en">What do you do with my data?</span><span class="l-it">Che fine fanno i miei dati?</span></summary>
-        <div class="a"><span class="l-en">It's used to answer you, and for nothing else. No resale, no bought or sold mailing lists. You can ask us to delete it at any time and we will.</span><span class="l-it">Servono a risponderti, e a nient'altro. Nessuna rivendita, nessuna lista comprata o venduta. Puoi chiederne la cancellazione in qualsiasi momento, e la facciamo.</span></div>
-      </details>
-    </div>
-  </section>
+    <!-- ═══ CH. IV — THE CITY, BY DESK ═══ -->
+    <section class="chapter rv" id="zones">
+      <div class="chap-head">
+        <span class="chap-num" aria-hidden="true">IV</span>
+        <div>
+          <p class="chap-kick"><span class="l-en">Chapter IV — The city</span><span class="l-it">Capitolo IV — La città</span></p>
+          <h2 class="chap-title"><span class="l-en">Live where the assignment <em>actually works.</em></span><span class="l-it">Abita dove l'incarico <em>funziona davvero.</em></span></h2>
+        </div>
+      </div>
+      <p class="chap-sub"><span class="l-en">We don't sell zones, we sell commutes: the quarter is chosen from your desk outward. Three geographies cover most working stays — and we'll say plainly when a beautiful home has the wrong one.</span><span class="l-it">Non vendiamo zone, vendiamo tragitti: il quartiere si sceglie partendo dalla tua scrivania. Tre geografie coprono quasi ogni permanenza di lavoro — e diciamo chiaramente quando una bella casa ha quella sbagliata.</span></p>
 
-  <!-- ═══ CONTACT — the only conversion point ═══ -->
-  <section class="rv" id="contact">
-    <div class="sec-h">
-      <span class="num"><span class="l-en">LET'S TALK</span><span class="l-it">PARLIAMONE</span></span>
-      <h2><span class="l-en">Send the assignment. <span class="g">We answer today.</span></span><span class="l-it">Mandaci l'incarico. <span class="g">Rispondiamo oggi.</span></span></h2>
-    </div>
-    <div class="formwrap">
-      <form id="exForm" novalidate>
-        <div class="frow two">
-          <div class="fld"><label for="fName"><span class="l-en">Your name</span><span class="l-it">Il tuo nome</span></label><input id="fName" autocomplete="name" placeholder="Anna Keller"></div>
-          <div class="fld"><label for="fEmail">Email</label><input id="fEmail" type="email" autocomplete="email" inputmode="email" placeholder="anna@company.com"></div>
+      <div class="geos">
+        <div class="geo">
+          <span class="tag"><span class="l-en">South desk · FAO — EUR</span><span class="l-it">Scrivania sud · FAO — EUR</span></span>
+          <b><span class="l-en">Aventino side &amp; the B line</span><span class="l-it">Lato Aventino e la linea B</span></b>
+          <div class="zl"><span class="z">Testaccio</span><span class="z">Ostiense</span><span class="z">Marconi</span><span class="z">San Saba</span></div>
+          <p><span class="l-en">FAO on foot or one stop from Testaccio; <em>Metro B runs straight to EUR–Laurentina for IFAD</em>, and Marconi sits between WFP and the centre. Evening life without a car.</span><span class="l-it">FAO a piedi o una fermata da Testaccio; <em>la Metro B porta dritta a EUR–Laurentina per IFAD</em>, e Marconi sta tra il WFP e il centro. La sera si vive senza auto.</span></p>
         </div>
-        <div class="frow two">
-          <div class="fld"><label for="fPhone"><span class="l-en">Phone / WhatsApp</span><span class="l-it">Telefono / WhatsApp</span></label><input id="fPhone" type="tel" autocomplete="tel" placeholder="+49 …"></div>
-          <!-- The visible employer field. The honeypot is a DIFFERENT, hidden
-               field: an executive naming their company must never be
-               swallowed as a bot (the webforms lesson). -->
-          <div class="fld"><label for="fEmployer"><span class="l-en">Company / organisation (optional)</span><span class="l-it">Azienda / ente (facoltativo)</span></label><input id="fEmployer" autocomplete="organization" placeholder="Acme GmbH / FAO / Embassy of …"></div>
+        <div class="geo">
+          <span class="tag"><span class="l-en">North desk · embassies</span><span class="l-it">Scrivania nord · ambasciate</span></span>
+          <b><span class="l-en">The diplomatic quarters</span><span class="l-it">I quartieri diplomatici</span></b>
+          <div class="zl"><span class="z">Parioli</span><span class="z">Trieste &amp; Coppedè</span><span class="z">Flaminio</span><span class="z">Ponte Milvio</span><span class="z">Prati</span></div>
+          <p><span class="l-en">Where the missions are — and where their people have always lived. <em>Prati works both corps: Italy on one bank, the Holy See behind it.</em> International schools within reach.</span><span class="l-it">Dove stanno le missioni — e dove i loro staff hanno sempre abitato. <em>Prati serve entrambi i corpi: l'Italia da un lato, la Santa Sede alle spalle.</em> Scuole internazionali a portata.</span></p>
         </div>
-        <div class="frow two">
-          <div class="fld"><label for="fSector"><span class="l-en">What brings you to Rome?</span><span class="l-it">Cosa ti porta a Roma?</span></label><select id="fSector"></select></div>
-          <div class="fld"><label for="fDuration"><span class="l-en">How long?</span><span class="l-it">Per quanto?</span></label><select id="fDuration"></select></div>
+        <div class="geo">
+          <span class="tag"><span class="l-en">Centre desk · everything else</span><span class="l-it">Scrivania centro · tutto il resto</span></span>
+          <b><span class="l-en">The walking city</span><span class="l-it">La città a piedi</span></b>
+          <div class="zl"><span class="z">Monti</span><span class="z">Centro Storico</span><span class="z">Esquilino</span><span class="z">Trastevere</span><span class="z">San Lorenzo</span><span class="z">Pigneto</span></div>
+          <p><span class="l-en">Campuses, hospitals, ministries, Termini's high-speed rail. <em>Along Metro A you fly; crosstown you crawl</em> — we check your actual commute at the hour you'd ride it.</span><span class="l-it">Campus, ospedali, ministeri, l'alta velocità da Termini. <em>Lungo la Metro A voli; in trasversale si arranca</em> — il tuo tragitto lo verifichiamo all'ora in cui lo faresti.</span></p>
         </div>
-        <div class="frow two">
-          <div class="fld"><label for="fBudget"><span class="l-en">Monthly budget (€)</span><span class="l-it">Budget mensile (€)</span></label><input id="fBudget" inputmode="numeric" placeholder="2500"></div>
-          <div class="fld"><label for="fMoveIn"><span class="l-en">Arrival / move-in</span><span class="l-it">Arrivo / ingresso</span></label><input id="fMoveIn" placeholder="October 2026"></div>
+      </div>
+
+      <!-- corporate band -->
+      <div class="corpband rv">
+        <div class="in">
+          <div class="tx">
+            <p class="k"><span class="l-en">HR &amp; global mobility</span><span class="l-it">HR &amp; global mobility</span></p>
+            <h3><span class="l-en">Moving a team, not just yourself? <em>That's the corporate desk.</em></span><span class="l-it">Trasferisci un team, non solo te? <em>C'è lo sportello aziende.</em></span></h3>
+            <p><span class="l-en">One contact, verified homes, compliant lease structures, one invoice — from a single hire to managed housing.</span><span class="l-it">Un referente, case verificate, contratti in regola, una fattura — dal singolo ingaggio alla gestione continuativa.</span></p>
+          </div>
+          <a class="cta-major" href="/corporate"><span class="l-en">For companies</span><span class="l-it">Per aziende</span><span class="arr">→</span></a>
         </div>
-        <div class="frow">
+      </div>
+    </section>
+
+    <!-- ═══ CH. V — FAQ ═══ -->
+    <section class="chapter rv" id="faq">
+      <div class="chap-head">
+        <span class="chap-num" aria-hidden="true">V</span>
+        <div>
+          <p class="chap-kick"><span class="l-en">Chapter V — Questions</span><span class="l-it">Capitolo V — Domande</span></p>
+          <h2 class="chap-title"><span class="l-en">The questions <em>we get asked.</em></span><span class="l-it">Le domande <em>che ci fanno.</em></span></h2>
+        </div>
+      </div>
+      <div class="faq">
+        <details>
+          <summary><span class="l-en">What is a transitional lease (contratto transitorio)?</span><span class="l-it">Cos'è il contratto transitorio?</span></summary>
+          <div class="a"><span class="l-en">Italy's fixed-term residential lease: 1 to 18 months, under art. 5 of law 431/98, registered with the Agenzia delle Entrate, ending on its date without the 4+4 renewal machinery. It requires a documented transitional need — a work assignment, posting or project is the textbook case, and your assignment letter usually proves it. We draft it, register it and, where Rome's territorial agreement applies, run the official fair-rent numbers.</span><span class="l-it">Il contratto abitativo a termine: da 1 a 18 mesi, art. 5 della L. 431/98, registrato all'Agenzia delle Entrate, finisce alla sua data senza il meccanismo del 4+4. Richiede un'esigenza transitoria documentata — l'incarico, la trasferta o il progetto di lavoro è il caso da manuale, e la lettera d'incarico di norma basta a provarlo. Lo redigiamo, lo registriamo e, dove si applica l'accordo territoriale di Roma, calcoliamo i numeri ufficiali del canone.</span></div>
+        </details>
+        <details>
+          <summary><span class="l-en">Can everything be done before I arrive in Rome?</span><span class="l-it">Si può fare tutto prima che io arrivi a Roma?</span></summary>
+          <div class="a"><span class="l-en">Yes — that's the normal path, not the exception: live video viewing you direct, online pre-agreement with typed e-signature, deposit by card or bank transfer, contract e-signed online. Keys are handed over on landing day. Plenty of BOOM tenancies close before the tenant has set foot in Italy.</span><span class="l-it">Sì — ed è la via normale, non l'eccezione: visita video in diretta che dirigi tu, proposta online con firma elettronica, deposito con carta o bonifico, contratto firmato online. Le chiavi si consegnano il giorno dell'atterraggio. Molti contratti BOOM si chiudono prima che l'inquilino abbia messo piede in Italia.</span></div>
+        </details>
+        <details>
+          <summary><span class="l-en">My employer pays or reimburses the rent. What paperwork will they need?</span><span class="l-it">Il mio datore paga o rimborsa l'affitto. Che documenti servono?</span></summary>
+          <div class="a"><span class="l-en">A registered contract and documented payments — and that's exactly what you get: an English-language registered lease, monthly rent receipts from your tenant portal, and agency fees invoiced by a registered Italian company (Egidi Immobiliare S.r.l.). It's the file expense reports, allowances and rental-subsidy schemes ask for.</span><span class="l-it">Un contratto registrato e pagamenti documentati — ed è esattamente ciò che ricevi: contratto registrato anche in inglese, ricevute mensili del canone dal portale inquilino, provvigioni fatturate da una società italiana registrata (Egidi Immobiliare S.r.l.). È il fascicolo che chiedono note spese, indennità e sussidi affitto.</span></div>
+        </details>
+        <details>
+          <summary><span class="l-en">Can the lease be in my company's name?</span><span class="l-it">Il contratto può essere intestato alla mia azienda?</span></summary>
+          <div class="a"><span class="l-en">Yes. Two clean structures exist: the company signs a civil-code company let used to house its staff, or you sign a transitional lease with the company as guarantor. We set up whichever your employer's legal team prefers, in writing. For teams and repeated moves, our <a href="/corporate">corporate desk</a> handles it end to end.</span><span class="l-it">Sì. Esistono due strutture pulite: firma l'azienda con una locazione codicistica a uso del personale, oppure firmi tu un transitorio con l'azienda come garante. Impostiamo quella che preferisce il vostro ufficio legale, per iscritto. Per team e trasferimenti ripetuti c'è lo <a href="/corporate">sportello corporate</a>, dall'inizio alla fine.</span></div>
+        </details>
+        <details>
+          <summary><span class="l-en">What does it cost?</span><span class="l-it">Quanto costa?</span></summary>
+          <div class="a"><span class="l-en">The same transparent arithmetic as every BOOM home: monthly rent + refundable deposit + agency fee of 10% of one year's rent, computed to the euro before you commit — no hidden lines. Fixed-price services exist for specific jobs (Concierge landing, Property Finding for off-catalogue searches, contract review), each with its price published.</span><span class="l-it">La stessa aritmetica trasparente di ogni casa BOOM: canone mensile + deposito restituibile + provvigione del 10% di un'annualità, calcolati all'euro prima dell'impegno — nessuna riga nascosta. Per i lavori specifici ci sono servizi a prezzo fisso (atterraggio Concierge, Property Finding per ricerche fuori catalogo, revisione contratto), ognuno col prezzo pubblicato.</span></div>
+        </details>
+        <details>
+          <summary><span class="l-en">What if my assignment is extended — or cut short?</span><span class="l-it">E se il mio incarico viene prolungato — o accorciato?</span></summary>
+          <div class="a"><span class="l-en">Extensions: if the transitional need continues, the lease extends within the legal 18-month ceiling; past that, we restructure it properly instead of improvising. Early exit: the notice terms are written into your contract before you sign, in plain English — you know the exact cost of leaving early from day one.</span><span class="l-it">Prolungamenti: se l'esigenza transitoria continua, il contratto si estende entro il tetto legale dei 18 mesi; oltre, si ristruttura per bene invece di improvvisare. Uscita anticipata: i termini di preavviso sono scritti nel contratto prima della firma, in chiaro — sai dal primo giorno quanto costa esattamente andare via prima.</span></div>
+        </details>
+        <details>
+          <summary><span class="l-en">How fast can I move in?</span><span class="l-it">Quanto in fretta posso entrare?</span></summary>
+          <div class="a"><span class="l-en">On an available home, as fast as 48 hours from approval. If we're searching for you, the shortlist typically lands within days. We work to your start date — the search is calibrated on when you must be at your desk, not on our calendar.</span><span class="l-it">Su una casa disponibile, anche 48 ore dall'approvazione. Se cerchiamo per te, la rosa di case arriva in genere entro pochi giorni. Lavoriamo sulla tua data d'inizio — la ricerca è tarata su quando devi essere alla scrivania, non sul nostro calendario.</span></div>
+        </details>
+        <details>
+          <summary><span class="l-en">Do you work in English?</span><span class="l-it">Lavorate in inglese?</span></summary>
+          <div class="a"><span class="l-en">The entire process runs in English — viewings, contracts, receipts, support on WhatsApp — and in Italian whenever you prefer. With landlords, condominiums and utility companies we speak Italian so you don't have to.</span><span class="l-it">Tutto il percorso corre in inglese — visite, contratti, ricevute, assistenza su WhatsApp — e in italiano quando preferisci. Con proprietari, condomini e società delle utenze l'italiano lo parliamo noi, così non devi farlo tu.</span></div>
+        </details>
+        <details>
+          <summary><span class="l-en">What do you do with my data?</span><span class="l-it">Che fine fanno i miei dati?</span></summary>
+          <div class="a"><span class="l-en">It's used to answer you, and for nothing else. No resale, no bought or sold mailing lists. You can ask us to delete it at any time and we will.</span><span class="l-it">Servono a risponderti, e a nient'altro. Nessuna rivendita, nessuna lista comprata o venduta. Puoi chiederne la cancellazione in qualsiasi momento, e la facciamo.</span></div>
+        </details>
+      </div>
+    </section>
+
+    <!-- ═══ CH. VI — THE DOSSIER ═══ -->
+    <section class="chapter rv" id="contact">
+      <div class="chap-head">
+        <span class="chap-num" aria-hidden="true">VI</span>
+        <div>
+          <p class="chap-kick"><span class="l-en">Chapter VI — Your file</span><span class="l-it">Capitolo VI — Il tuo fascicolo</span></p>
+          <h2 class="chap-title"><span class="l-en">Send the assignment. <em>We answer today.</em></span><span class="l-it">Mandaci l'incarico. <em>Rispondiamo oggi.</em></span></h2>
+        </div>
+      </div>
+
+      <div class="dossier">
+        <div class="refline"><span><span class="l-en">New file — executive · Roma</span><span class="l-it">Nuovo fascicolo — executive · Roma</span></span><b><span class="l-en">same-day reply</span><span class="l-it">risposta in giornata</span></b></div>
+        <form id="exForm" novalidate>
+          <div class="frow two">
+            <div class="fld"><label for="fName"><span class="l-en">Your name</span><span class="l-it">Il tuo nome</span></label><input id="fName" autocomplete="name" placeholder="Anna Keller"></div>
+            <div class="fld"><label for="fEmail">Email</label><input id="fEmail" type="email" autocomplete="email" inputmode="email" placeholder="anna@company.com"></div>
+          </div>
+          <div class="frow two">
+            <div class="fld"><label for="fPhone"><span class="l-en">Phone / WhatsApp</span><span class="l-it">Telefono / WhatsApp</span></label><input id="fPhone" type="tel" autocomplete="tel" placeholder="+49 …"></div>
+            <!-- The visible employer field. The honeypot is a DIFFERENT,
+                 hidden field: an executive naming their company must never
+                 be swallowed as a bot (the webforms lesson). -->
+            <div class="fld"><label for="fEmployer"><span class="l-en">Company / organisation (optional)</span><span class="l-it">Azienda / ente (facoltativo)</span></label><input id="fEmployer" autocomplete="organization" placeholder="Acme GmbH / FAO / Embassy of …"></div>
+          </div>
+          <div class="frow two">
+            <div class="fld"><label for="fSector"><span class="l-en">What brings you to Rome?</span><span class="l-it">Cosa ti porta a Roma?</span></label><select id="fSector"></select></div>
+            <div class="fld"><label for="fDuration"><span class="l-en">How long?</span><span class="l-it">Per quanto?</span></label><select id="fDuration"></select></div>
+          </div>
+          <div class="frow two">
+            <div class="fld"><label for="fBudget"><span class="l-en">Monthly budget (€)</span><span class="l-it">Budget mensile (€)</span></label><input id="fBudget" inputmode="numeric" placeholder="2500"></div>
+            <div class="fld"><label for="fMoveIn"><span class="l-en">Arrival / move-in</span><span class="l-it">Arrivo / ingresso</span></label><input id="fMoveIn" placeholder="October 2026"></div>
+          </div>
           <div class="fld"><label for="fZone"><span class="l-en">Preferred area / office location</span><span class="l-it">Zona preferita / sede di lavoro</span></label><input id="fZone" placeholder="Prati, near the office on Via Veneto…"></div>
+          <div class="fld"><label for="fMsg"><span class="l-en">In two lines</span><span class="l-it">In due righe</span></label><textarea id="fMsg" rows="3" placeholder="…"></textarea></div>
+
+          <input id="fCompany" type="text" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
+          <div class="ferr" id="fErr" role="alert" aria-live="polite"></div>
+
+          <button type="submit" class="sendbtn" id="fGo">
+            <span class="l-en">Open my file</span><span class="l-it">Apri il mio fascicolo</span>
+            <small><span class="l-en">same-day reply · no commitment</span><span class="l-it">risposta in giornata · senza impegno</span></small>
+          </button>
+          <p class="consent"><span class="l-en">Your details are used only to reply to you. Deleted on request — see the <a href="/privacy">privacy policy</a>.</span><span class="l-it">I tuoi dati servono solo a risponderti. Cancellati su richiesta — vedi la <a href="/privacy">privacy policy</a>.</span></p>
+          <!-- The escape hatch: if this form breaks, the page must not become
+               a dead end. A plain address works even when our JS doesn't. -->
+          <p class="consent"><span class="l-en">Prefer to write yourself? <a href="mailto:hello@boom-rome.com?subject=BOOM%20Executive">hello@boom-rome.com</a></span><span class="l-it">Preferisci scrivere tu? <a href="mailto:hello@boom-rome.com?subject=BOOM%20Executive">hello@boom-rome.com</a></span></p>
+        </form>
+
+        <div class="sent" id="fDone">
+          <div class="tick">✓</div>
+          <h3><span class="l-en">Your file is <em>open.</em></span><span class="l-it">Il tuo fascicolo è <em>aperto.</em></span></h3>
+          <p><span class="l-en">We'll come back to you <b>the same working day</b>, by email or WhatsApp — tell us which you prefer when you reply. It'll be a real person who has read your assignment, not an autoresponder.</span><span class="l-it">Ti ricontattiamo <b>in giornata lavorativa</b>, per email o WhatsApp — dicci tu cosa preferisci quando rispondi. Sarà una persona vera che ha letto il tuo incarico, non un risponditore automatico.</span></p>
+          <p style="font-size:12px;color:var(--t4);margin-top:14px"><span class="l-en">Nothing by tomorrow? Write straight to <a href="mailto:hello@boom-rome.com" style="color:var(--gold)">hello@boom-rome.com</a> — it means something got lost on the way, and we want to know.</span><span class="l-it">Niente entro domani? Scrivi direttamente a <a href="mailto:hello@boom-rome.com" style="color:var(--gold)">hello@boom-rome.com</a> — vuol dire che qualcosa si è perso per strada, e vogliamo saperlo.</span></p>
         </div>
-
-        <div class="fld"><label for="fMsg"><span class="l-en">In two lines</span><span class="l-it">In due righe</span></label><textarea id="fMsg" rows="3" placeholder="…"></textarea></div>
-
-        <input id="fCompany" type="text" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
-        <div class="ferr" id="fErr" role="alert" aria-live="polite"></div>
-
-        <button type="submit" class="paybtn" id="fGo">
-          <span class="lk">✉</span>
-          <span class="tx"><b><span class="l-en">Send</span><span class="l-it">Invia</span></b><small><span class="l-en">same-day reply · no commitment</span><span class="l-it">risposta in giornata · senza impegno</span></small></span>
-        </button>
-        <p class="consent"><span class="l-en">Your details are used only to reply to you. Deleted on request — see the <a href="/privacy">privacy policy</a>.</span><span class="l-it">I tuoi dati servono solo a risponderti. Cancellati su richiesta — vedi la <a href="/privacy">privacy policy</a>.</span></p>
-        <!-- The escape hatch: if this form breaks, the page must not become a
-             dead end. A plain address works even when our JavaScript doesn't. -->
-        <p class="consent"><span class="l-en">Prefer to write yourself? <a href="mailto:hello@boom-rome.com?subject=BOOM%20Executive">hello@boom-rome.com</a></span><span class="l-it">Preferisci scrivere tu? <a href="mailto:hello@boom-rome.com?subject=BOOM%20Executive">hello@boom-rome.com</a></span></p>
-      </form>
-
-      <div class="sent" id="fDone">
-        <div class="tick">✓</div>
-        <h3><span class="l-en">Sent.</span><span class="l-it">Inviato.</span></h3>
-        <p><span class="l-en">We'll come back to you <b>the same working day</b>, by email or WhatsApp — tell us which you prefer when you reply. It'll be a real person who has read your assignment, not an autoresponder.</span><span class="l-it">Ti ricontattiamo <b>in giornata lavorativa</b>, per email o WhatsApp — dicci tu cosa preferisci quando rispondi. Sarà una persona vera che ha letto il tuo incarico, non un risponditore automatico.</span></p>
-        <p style="font-size:12.5px;color:var(--t4);margin-top:14px"><span class="l-en">Nothing by tomorrow? Write straight to <a href="mailto:hello@boom-rome.com" style="color:var(--gold)">hello@boom-rome.com</a> — it means something got lost on the way, and we want to know.</span><span class="l-it">Niente entro domani? Scrivi direttamente a <a href="mailto:hello@boom-rome.com" style="color:var(--gold)">hello@boom-rome.com</a> — vuol dire che qualcosa si è perso per strada, e vogliamo saperlo.</span></p>
       </div>
-    </div>
-  </section>
-
-  <div class="band rv">
-    <h2><span class="l-en">Your assignment starts <em>before the plane lands.</em></span><span class="l-it">Il tuo incarico comincia <em>prima che l'aereo atterri.</em></span></h2>
-    <p><span class="l-en">Send two lines about the posting — dates, office, budget. Today you'll know what we'd do, what it costs and what happens next.</span><span class="l-it">Mandaci due righe sull'incarico — date, sede, budget. Oggi stesso saprai cosa faremmo, quanto costa e cosa succede dopo.</span></p>
-    <a class="paybtn" href="#contact" style="max-width:420px;margin:22px auto 0"><span class="lk">✉</span><span class="tx"><b><span class="l-en">Write to us</span><span class="l-it">Scrivici</span></b><small><span class="l-en">two lines is enough</span><span class="l-it">bastano due righe</span></small></span></a>
+    </section>
   </div>
 </main>
 
-<footer class="footer">
-  <div class="container">
-    <div class="footer-grid">
+<footer class="exfoot">
+  <div class="wrap">
+    <div class="footgrid">
       <div>
-        <div class="footer-brand-logo">
-          <svg aria-hidden="true"><use href="#boomMark"/></svg>
-          <span>BOOM</span>
-        </div>
-        <p class="footer-tagline"><span class="l-en">Born in Rome, built for the people Rome calls in. If a city runs on arrivals, someone has to make arriving work.</span><span class="l-it">Nato a Roma, costruito per chi Roma chiama. Se una città vive di arrivi, qualcuno deve far funzionare l'arrivare.</span></p>
-        <div class="footer-company">
-          <strong>Egidi Immobiliare S.r.l.</strong><br>Via dei Coronari 181/184, 00186 Roma<br>P.IVA 17322991005 · REA RM-1710623
-        </div>
+        <a href="/" class="brandlock" aria-label="BOOM home">
+          <svg aria-hidden="true" style="width:26px;height:26px"><use href="#boomMark"/></svg>
+          <span class="wm">BOOM</span>
+          <span class="div" aria-hidden="true"></span>
+          <span class="desk">Executive<br>Roma</span>
+        </a>
+        <p class="tagl"><span class="l-en">Born in Rome, built for the people Rome calls in. If a city runs on arrivals, someone has to make arriving work.</span><span class="l-it">Nato a Roma, costruito per chi Roma chiama. Se una città vive di arrivi, qualcuno deve far funzionare l'arrivare.</span></p>
+        <p class="co"><strong>Egidi Immobiliare S.r.l.</strong><br>Via dei Coronari 181/184, 00186 Roma<br>P.IVA 17322991005 · REA RM-1710623</p>
       </div>
-      <div>
-        <h4 class="footer-links-title">Executive</h4>
-        <ul class="footer-links-list">
-          <li><a href="#who"><span class="l-en">Who it's for</span><span class="l-it">Per chi</span></a></li>
-          <li><a href="#how"><span class="l-en">How it works</span><span class="l-it">Come funziona</span></a></li>
-          <li><a href="#lease"><span class="l-en">The lease</span><span class="l-it">Il contratto</span></a></li>
-          <li><a href="#zones"><span class="l-en">Zones</span><span class="l-it">Zone</span></a></li>
+      <div class="fcol">
+        <h4>Executive</h4>
+        <ul>
+          <li><a href="#who"><span class="l-en">Who arrives</span><span class="l-it">Chi arriva</span></a></li>
+          <li><a href="#how"><span class="l-en">The path</span><span class="l-it">Il percorso</span></a></li>
+          <li><a href="#lease"><span class="l-en">The paper</span><span class="l-it">Il contratto</span></a></li>
+          <li><a href="#zones"><span class="l-en">The city</span><span class="l-it">La città</span></a></li>
           <li><a href="#faq">FAQ</a></li>
-          <li><a href="#contact"><span class="l-en">Contact</span><span class="l-it">Scrivici</span></a></li>
+          <li><a href="#contact"><span class="l-en">Open your file</span><span class="l-it">Apri il fascicolo</span></a></li>
         </ul>
       </div>
-      <div>
-        <h4 class="footer-links-title">BOOM Rome</h4>
-        <ul class="footer-links-list">
+      <div class="fcol">
+        <h4>BOOM Rome</h4>
+        <ul>
           <li><a href="/"><span class="l-en">Home</span><span class="l-it">Home</span></a></li>
           <li><a href="/apartments"><span class="l-en">Apartments</span><span class="l-it">Appartamenti</span></a></li>
           <li><a href="/services"><span class="l-en">Services</span><span class="l-it">Servizi</span></a></li>
           <li><a href="/corporate"><span class="l-en">For companies</span><span class="l-it">Per aziende</span></a></li>
           <li><a href="/concierge">Concierge</a></li>
-          <li><a href="/welcome-to-rome"><span class="l-en">Welcome to Rome Kit</span><span class="l-it">Welcome to Rome Kit</span></a></li>
+          <li><a href="/welcome-to-rome">Welcome to Rome Kit</a></li>
         </ul>
       </div>
-      <div>
-        <h4 class="footer-links-title"><span class="l-en">Legal</span><span class="l-it">Legale</span></h4>
-        <ul class="footer-links-list">
+      <div class="fcol">
+        <h4><span class="l-en">Legal</span><span class="l-it">Legale</span></h4>
+        <ul>
           <li><a href="/terms"><span class="l-en">Terms</span><span class="l-it">Condizioni</span></a></li>
-          <li><a href="/privacy"><span class="l-en">Privacy</span><span class="l-it">Privacy</span></a></li>
+          <li><a href="/privacy">Privacy</a></li>
         </ul>
       </div>
     </div>
-    <div class="footer-bottom">
+    <div class="footbase">
       <span>© 2026 BOOM</span>
-      <div class="footer-status"><span class="footer-status-dot"></span><span class="l-en">Operational</span><span class="l-it">In attività</span></div>
+      <span><span class="dot" aria-hidden="true"></span><span class="l-en">Operational — same-day replies</span><span class="l-it">In attività — risposte in giornata</span></span>
     </div>
   </div>
 </footer>
 
-<div class="paybar" id="paybar">
-  <div class="pinfo">
-    <b><span class="l-en">BOOM · Executive Roma</span><span class="l-it">BOOM · Executive Roma</span></b>
-    <small><span class="l-en">same-day reply</span><span class="l-it">risposta in giornata</span></small>
-  </div>
-  <a class="go" href="#contact"><span class="l-en">Contact →</span><span class="l-it">Scrivici →</span></a>
+<div class="pill" id="paybar">
+  <span class="t"><b>BOOM</b> · Executive Roma</span>
+  <a href="#contact"><span class="l-en">Open your file</span><span class="l-it">Apri il fascicolo</span></a>
 </div>
 
-<script src="/js/boom-ambient.js"></script>
 <script>
 function boomTrack(name,params){try{if(typeof gtag==='function')gtag('event',name,params||{});}catch(e){}}
-try{if(window.BoomAmbient)BoomAmbient.mount({ink:'#060607',inkRGB:'6,6,7',palette:{a:'255,215,0',b:'255,229,160'},intensity:.55,sections:false,scene:'marmoantico',z:-3});}catch(e){}
 
 /* ── language ────────────────────────────────────────────────────────────
    Text switches in CSS (see <style>); here only what CSS can't reach: the
@@ -709,12 +992,6 @@ function setLang(l,silent){
   var saved=null;try{saved=localStorage.getItem('boom_ex_lang')}catch(e){}
   setLang(q||saved||'en',true);
 })();
-
-function goHow(){
-  var el=document.getElementById('how');
-  if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
-  boomTrack('select_audience',{audience:'professional',source:'hero',source_page:'executive'});
-}
 
 /* ── send ── */
 var ERR={
@@ -772,7 +1049,7 @@ document.getElementById('exForm').addEventListener('submit',function(ev){
   });
 });
 
-/* ── sticky bar: appears past the hero, quiet on the form ── */
+/* ── floating pill: appears past the hero, quiet on the form ── */
 (function(){
   var bar=document.getElementById('paybar'),hero=document.querySelector('.hero'),c=document.getElementById('contact');
   if(!bar||!hero||!c)return;
@@ -785,11 +1062,13 @@ document.getElementById('exForm').addEventListener('submit',function(ev){
   addEventListener('scroll',upd,{passive:true});upd();
 })();
 
-/* ── reveal on scroll ── */
+/* ── reveal on scroll (no observer → no hiding: content beats choreography) ── */
 (function(){
+  var els=document.querySelectorAll('.rv:not(.in)');
+  if(!('IntersectionObserver' in window)){els.forEach(function(el){el.classList.add('in')});return;}
   var io=new IntersectionObserver(function(es){es.forEach(function(e){
     if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{rootMargin:'0px 0px -8% 0px'});
-  document.querySelectorAll('.rv:not(.in)').forEach(function(el){io.observe(el)});
+  els.forEach(function(el){io.observe(el)});
 })();
 
 /* ── chrome ── */
