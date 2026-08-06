@@ -1090,6 +1090,135 @@ html.vivo .sale.dentro { opacity:1; transform:none;
 .foglio-esito .demo { margin-top:14px; font-size:11px; color:var(--text-4);
   letter-spacing:.06em; text-transform:uppercase; }
 
+/* ── il foglio a passi: la candidatura vera, un passo alla volta ─────── */
+.fg-rotta { display:flex; align-items:center; gap:0; margin-bottom:20px; }
+.fg-tappa { display:flex; align-items:center; gap:8px; flex:1; }
+.fg-tappa i { font-style:normal; width:26px; height:26px; flex:none;
+  display:grid; place-items:center; font-size:11.5px; font-weight:600;
+  border-radius:50%; box-shadow:inset 0 0 0 1.5px var(--line);
+  color:var(--text-3); font-variant-numeric:tabular-nums;
+  transition:all .35s var(--ease); }
+.fg-tappa span { font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--text-4); transition:color .3s; display:none; }
+@media (min-width:480px){ .fg-tappa span { display:inline; } }
+.fg-tappa::after { content:''; flex:1; height:1px; background:var(--line-0);
+  margin:0 10px; }
+.fg-tappa:last-child::after { display:none; }
+.fg-tappa.qui i { box-shadow:inset 0 0 0 1.5px var(--gold); color:var(--gold); }
+.fg-tappa.qui span { color:var(--text-2); }
+.fg-tappa.fatta i { background:var(--gold); color:var(--black);
+  box-shadow:none; }
+.fg-riass { display:flex; justify-content:space-between; align-items:baseline;
+  gap:12px; padding:12px 14px; margin-bottom:6px; background:var(--elevated);
+  box-shadow:inset 0 0 0 1px var(--line-0); font-size:12.5px;
+  color:var(--text-3); }
+.fg-riass b { color:var(--text-2); font-weight:500; }
+.fg-riass .tot { color:var(--gold); font-family:var(--display);
+  font-variant-numeric:tabular-nums; white-space:nowrap; }
+.fg-step { display:none; }
+.fg-step.qui { display:block; animation:fg-entra .35s var(--ease); }
+@keyframes fg-entra { from { opacity:0; transform:translateX(14px); } }
+.fg-seg { display:flex; gap:4px; padding:4px; background:var(--elevated);
+  box-shadow:inset 0 0 0 1px var(--line); }
+.fg-seg button { flex:1; padding:11px 6px; font-size:12.5px; color:var(--text-2);
+  cursor:pointer; transition:all .2s var(--ease); white-space:nowrap; }
+.fg-seg button:hover { color:var(--text); }
+.fg-seg button.on { background:var(--gold); color:var(--black); font-weight:600; }
+.fg-carta { display:flex; align-items:flex-start; gap:12px; padding:14px;
+  margin-top:14px; cursor:pointer; background:var(--elevated);
+  box-shadow:inset 0 0 0 1px var(--line); transition:box-shadow .25s; }
+.fg-carta:hover { box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.fg-carta input { width:18px; height:18px; margin-top:2px;
+  accent-color:var(--gold); flex:none; }
+.fg-carta b { display:block; font-size:13.5px; font-weight:500; }
+.fg-carta span { display:block; margin-top:2px; font-size:12px;
+  color:var(--text-3); line-height:1.5; }
+.fg-docs { margin-top:6px; display:grid; gap:10px; }
+.fg-doc { display:flex; align-items:flex-start; gap:11px; padding:13px 14px;
+  background:var(--elevated); box-shadow:inset 0 0 0 1px var(--line-0);
+  font-size:13px; color:var(--text-2); line-height:1.55; }
+.fg-doc i { font-style:normal; color:var(--gold); flex:none; margin-top:1px; }
+.fg-doc small { display:block; color:var(--text-4); font-size:11.5px;
+  margin-top:2px; }
+.fg-nav { display:flex; gap:10px; margin-top:22px; }
+.fg-indietro { flex:none; display:inline-flex; align-items:center; gap:8px;
+  padding:14px 18px; font-size:12.5px; color:var(--text-3);
+  box-shadow:inset 0 0 0 1px var(--line); cursor:pointer; transition:.25s; }
+.fg-indietro:hover { color:var(--text); box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.fg-avanti { flex:1; display:inline-flex; align-items:center;
+  justify-content:center; gap:10px; padding:15px 22px; font-size:13px;
+  font-weight:600; letter-spacing:.08em; text-transform:uppercase;
+  background:var(--gold); color:var(--black); cursor:pointer;
+  transition:transform .25s var(--ease), background .25s, opacity .25s,
+    box-shadow .25s; }
+.fg-avanti:hover:not(:disabled) { background:var(--gold-light);
+  transform:translateY(-1px);
+  box-shadow:0 10px 28px -14px rgba(255,215,0,.55); }
+.fg-avanti:active:not(:disabled) { transform:scale(.985); }
+.fg-avanti:disabled { opacity:.4; cursor:not-allowed; }
+.fg-avanti.manda i { font-style:normal; display:inline-block; width:14px;
+  height:14px; border:2px solid rgba(3,3,3,.35); border-top-color:var(--black);
+  border-radius:50%; animation:fg-gira .7s linear infinite; }
+@keyframes fg-gira { to { transform:rotate(1turn); } }
+.fg-errore { min-height:18px; margin-top:9px; font-size:12px; color:#FF8A8A; }
+
+/* ── l'upsell ristudiato: la rete di sicurezza, con la PFS in scena ───── */
+.rete { margin-top:6px; display:grid; gap:16px; }
+@media (min-width:860px){ .rete { grid-template-columns:1.35fr 1fr; } }
+.rete-pfs { position:relative; overflow:hidden; padding:28px 26px 26px;
+  background:linear-gradient(160deg, rgba(255,215,0,.09), rgba(255,215,0,.02) 46%),
+    var(--card);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.rete-pfs::before { content:''; position:absolute; top:0; left:-40%;
+  width:40%; height:1.5px;
+  background:linear-gradient(90deg, transparent, var(--gold), transparent);
+  animation:rete-scan 3.2s var(--ease) infinite; }
+@keyframes rete-scan { to { left:110%; } }
+.rete-eti { display:inline-flex; align-items:center; gap:8px; font-size:10px;
+  font-weight:600; letter-spacing:.22em; text-transform:uppercase;
+  color:var(--gold); }
+.rete-eti b { width:5px; height:5px; border-radius:50%; background:var(--green);
+  animation:pulse 2.2s ease infinite; }
+.rete-pfs h3 { margin-top:14px; font-family:var(--display); font-size:24px;
+  font-weight:250; letter-spacing:-.01em; }
+.rete-pfs h3 .hl { color:var(--gold); }
+.rete-pfs > p { margin-top:10px; font-size:13.5px; color:var(--text-2);
+  line-height:1.65; max-width:46ch; }
+.rete-cifre { margin-top:18px; display:flex; gap:0; flex-wrap:wrap; }
+.rete-cifra { flex:1 1 100px; padding:12px 16px 0 0; }
+.rete-cifra + .rete-cifra { padding-left:16px;
+  border-left:1px solid var(--line-0); }
+.rete-cifra b { display:block; font-family:var(--display); font-size:21px;
+  font-weight:250; color:var(--gold); font-variant-numeric:tabular-nums; }
+.rete-cifra span { display:block; margin-top:2px; font-size:10px;
+  letter-spacing:.12em; text-transform:uppercase; color:var(--text-3); }
+.rete-pfs .btn-pfs { display:inline-flex; align-items:center; gap:10px;
+  margin-top:22px; padding:14px 24px; font-size:12px; font-weight:600;
+  letter-spacing:.1em; text-transform:uppercase; background:var(--gold);
+  color:var(--black); transition:transform .25s var(--ease), box-shadow .25s; }
+.rete-pfs .btn-pfs:hover { transform:translateY(-2px);
+  box-shadow:0 14px 34px -14px rgba(255,215,0,.55); }
+.rete-pfs .rete-nota { margin-top:10px; font-size:11px; color:var(--text-4); }
+.rete-lato { display:grid; gap:16px; }
+.rete-mini { display:flex; flex-direction:column; padding:20px 22px;
+  background:var(--card); box-shadow:inset 0 0 0 1px var(--line);
+  transition:box-shadow .3s; }
+.rete-mini:hover { box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.rete-mini .rm-cima { display:flex; justify-content:space-between;
+  align-items:baseline; gap:12px; }
+.rete-mini h4 { font-family:var(--sans); font-size:14.5px; font-weight:500; }
+.rete-mini .rm-prezzo { font-family:var(--display); font-size:15px;
+  color:var(--gold); white-space:nowrap; }
+.rete-mini p { margin-top:7px; font-size:12.5px; color:var(--text-2);
+  line-height:1.6; flex:1; }
+.rete-mini b { margin-top:12px; font-size:11px; font-weight:600;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--text-3);
+  transition:color .3s; }
+.rete-mini:hover b { color:var(--gold); }
+@media (prefers-reduced-motion:reduce){
+  .rete-pfs::before { animation:none; display:none; }
+  .fg-step.qui { animation:none; } }
+
 /* honeypot: invisibile agli umani, irresistibile ai bot */
 .ditta { position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden; }
 
@@ -1332,25 +1461,42 @@ html.vivo .sale.dentro { opacity:1; transform:none;
           </div>
         </section>
 
-        <!-- UPSELL — «not the perfect one?» -->
+        <!-- UPSELL — la rete di sicurezza: la PFS in scena, DA e VV ai lati -->
         <section class="sez-casa sale">
           <div class="sez-testa">
             <div><div class="eyebrow"><i></i>More than a portal</div>
               <h2>Not the perfect one? <span class="hl">We'll find it.</span></h2></div></div>
-          <div class="cards4 tre">
-            <a class="svc quadro" href="/v2-property-finding.html"><span class="tacca"></span>
-              <h3>Property Finding</h3>
-              <p>Tell us your dates &amp; budget. We hunt, verify and bring you
-                the right home.</p>
-              <span class="svc-vai">Start a search →</span></a>
-            <a class="svc quadro" href="/virtual-viewing.html"><span class="tacca"></span>
-              <h3>Virtual Viewing</h3>
-              <p>Can't come to Rome? See it live on a video walk-through.</p>
-              <span class="svc-vai">Book a tour →</span></a>
-            <a class="svc quadro" href="/deal-assistance.html"><span class="tacca"></span>
-              <h3>Deal Assistance</h3>
-              <p>Found one elsewhere? We verify the contract and negotiate for you.</p>
-              <span class="svc-vai">Get protected →</span></a>
+          <div class="rete">
+            <div class="rete-pfs">
+              <span class="rete-eti"><b></b>Property Finding · the hunt engine</span>
+              <h3>Wrong dates? Wrong zone?<br><span class="hl">Put the machine on it.</span></h3>
+              <p>Your brief becomes a live search: our engine scans the market
+                and the off-market around the clock, a human verifies every
+                match, and you get curated options — not links.</p>
+              <div class="rete-cifre">
+                <div class="rete-cifra"><b>10</b><span>days to find</span></div>
+                <div class="rete-cifra"><b>5+</b><span>curated options</span></div>
+                <div class="rete-cifra"><b>24/7</b><span>market scan</span></div>
+                <div class="rete-cifra"><b>€0</b><span>if we fail</span></div>
+              </div>
+              <a class="btn-pfs" href="/v2-property-finding.html">Start the hunt →</a>
+              <p class="rete-nota">€350 upfront — deducted from the agency fee
+                when we find your home. Full refund if we don't deliver.</p>
+            </div>
+            <div class="rete-lato">
+              <a class="rete-mini" href="/virtual-viewing.html">
+                <div class="rm-cima"><h4>Virtual Viewing</h4>
+                  <span class="rm-prezzo">€89</span></div>
+                <p>Can't come to Rome? See this home live on a video
+                  walk-through — you direct, we film.</p>
+                <b>Book a tour →</b></a>
+              <a class="rete-mini" href="/deal-assistance.html">
+                <div class="rm-cima"><h4>Deal Assistance</h4>
+                  <span class="rm-prezzo">€249</span></div>
+                <p>Found one elsewhere? We verify the landlord, read the
+                  contract and negotiate for you.</p>
+                <b>Get protected →</b></a>
+            </div>
           </div>
         </section>
       </div>
@@ -1384,7 +1530,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
                 <span class="rv"><span id="flapTotLato" aria-label="total to move in"></span></span></div>
             </div>
             <button type="button" class="btn btn-primary" id="candidati">
-              Apply → <small>60-second check · no documents · free</small></button>
+              Apply → <small>2-minute application · no documents · free</small></button>
             <button type="button" class="lato-alt" id="blocca">⚡ Instant hold ·
               €300 — 48h, refundable</button>
             <a class="lato-alt" href="https://wa.me/393313251961" target="_blank"
@@ -1418,43 +1564,85 @@ html.vivo .sale.dentro { opacity:1; transform:none;
     <div class="foglio-testa"><h3 id="foglioTitolo">Apply</h3>
       <button type="button" id="foglioChiudi" aria-label="Close">×</button></div>
     <div class="foglio-corpo">
-      <form class="foglio-modulo" id="modulo">
-        <label for="fNome">Full name</label>
-        <input id="fNome" name="name" type="text" required autocomplete="name">
-        <div class="foglio-doppio">
-          <div><label for="fEmail">Email</label>
-            <input id="fEmail" name="email" type="email" required autocomplete="email"></div>
-          <div><label for="fTel">Phone / WhatsApp</label>
-            <input id="fTel" name="phone" type="tel" required autocomplete="tel"></div>
+      <form class="foglio-modulo" id="modulo" novalidate>
+        <div class="fg-rotta" aria-hidden="true">
+          <div class="fg-tappa qui" data-t="0"><i>1</i><span>You</span></div>
+          <div class="fg-tappa" data-t="1"><i>2</i><span>Situation</span></div>
+          <div class="fg-tappa" data-t="2"><i>3</i><span>Confirm</span></div>
         </div>
-        <div class="foglio-doppio">
-          <div><label for="fChi">Who's moving in?</label>
-            <select id="fChi" name="household">
-              <option value="solo">Just me</option>
-              <option value="couple">A couple</option>
-              <option value="family">Family</option>
-              <option value="flatmates">Flatmates</option>
-            </select></div>
-          <div><label for="fOcc">You are…</label>
-            <select id="fOcc" name="occupation">
-              <option value="employed">Employed</option>
-              <option value="self-employed">Self-employed</option>
-              <option value="student">Student</option>
-              <option value="relocating">Relocating to Rome</option>
-            </select></div>
+        <div class="fg-riass"><span>Applying for <b id="fgCasa">—</b></span>
+          <span class="tot" id="fgTot"></span></div>
+
+        <!-- passo 1 · chi sei -->
+        <div class="fg-step qui" data-s="0">
+          <label for="fNome">Full name</label>
+          <input id="fNome" name="name" type="text" required
+            autocomplete="name" placeholder="As on your ID">
+          <label for="fEmail">Email</label>
+          <input id="fEmail" name="email" type="email" required
+            autocomplete="email" inputmode="email" placeholder="you@email.com">
+          <label for="fTel">Phone / WhatsApp</label>
+          <input id="fTel" name="phone" type="tel" required autocomplete="tel"
+            inputmode="tel" placeholder="+39 …">
         </div>
-        <label for="fReddito">Net monthly income (household, €)</label>
-        <input id="fReddito" name="income" type="number" min="0" step="100"
-          placeholder="e.g. 2500">
-        <label class="foglio-spunta"><input id="fGaranzia" name="guarantor"
-          type="checkbox"> I have a guarantor (or can pay a larger deposit)</label>
+
+        <!-- passo 2 · la tua situazione -->
+        <div class="fg-step" data-s="1">
+          <label id="lChi">Who's moving in?</label>
+          <div class="fg-seg" role="group" aria-labelledby="lChi" id="segChi">
+            <button type="button" class="on" data-v="solo">Just me</button>
+            <button type="button" data-v="couple">Couple</button>
+            <button type="button" data-v="family">Family</button>
+            <button type="button" data-v="flatmates">Flatmates</button>
+          </div>
+          <label id="lOcc">You are…</label>
+          <div class="fg-seg" role="group" aria-labelledby="lOcc" id="segOcc">
+            <button type="button" class="on" data-v="employed">Employed</button>
+            <button type="button" data-v="self-employed">Self-emp.</button>
+            <button type="button" data-v="student">Student</button>
+            <button type="button" data-v="relocating">Relocating</button>
+          </div>
+          <label for="fReddito">Net monthly income — household, €</label>
+          <input id="fReddito" name="income" type="number" min="0" step="100"
+            inputmode="numeric" placeholder="e.g. 2500">
+          <label class="fg-carta" for="fGaranzia">
+            <input id="fGaranzia" name="guarantor" type="checkbox">
+            <span><b>I have a guarantor</b>
+              <span>Or I can offer a larger deposit — it strengthens the
+                application for landlords.</span></span></label>
+        </div>
+
+        <!-- passo 3 · conferma: le carte da preparare + consenso -->
+        <div class="fg-step" data-s="2">
+          <label>Have these ready — we'll ask for them only if approved</label>
+          <div class="fg-docs">
+            <div class="fg-doc"><i>▪</i><span>Valid ID or passport
+              <small>Every signer — a phone photo is fine.</small></span></div>
+            <div class="fg-doc" id="docReddito"><i>▪</i><span>Proof of income
+              <small>Last payslips or work contract; enrollment letter if
+                you're a student.</small></span></div>
+            <div class="fg-doc" id="docGaranzia" hidden><i>▪</i><span>Your
+              guarantor's documents<small>Their ID and proof of income,
+                when you sign.</small></span></div>
+          </div>
+          <label class="fg-carta" for="fConsenso">
+            <input id="fConsenso" name="consent" type="checkbox" required>
+            <span><b>I agree to the processing of my data</b>
+              <span>Only by BOOM (Egidi Immobiliare S.r.l.) to handle this
+                application — never sold, never shared.</span></span></label>
+        </div>
+
         <input class="ditta" name="company" type="text" tabindex="-1"
           autocomplete="off" aria-hidden="true">
-        <button type="submit" class="btn btn-primary" id="foglioInvia">
-          Send application →</button>
-        <p class="foglio-nota">Free, no documents needed for the check. We reply
-          within 2 hours in English or Italian. Your data goes only to BOOM
-          (Egidi Immobiliare S.r.l.) to process this request.</p>
+        <p class="fg-errore" id="fgErrore" role="alert"></p>
+        <div class="fg-nav">
+          <button type="button" class="fg-indietro" id="fgIndietro" hidden>←
+            Back</button>
+          <button type="submit" class="fg-avanti" id="foglioInvia">
+            Continue →</button>
+        </div>
+        <p class="foglio-nota">Free · no documents needed for the check ·
+          a real person replies within 2 hours, in English or Italian.</p>
       </form>
       <div class="foglio-esito">
         <div class="sigillo" aria-hidden="true">✓</div>
@@ -2227,7 +2415,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
     if (base < oggi) base = oggi;
     var cand = $('candidati');
     cand.innerHTML = c.stato === 'available'
-      ? 'Apply → <small>60-second check · no documents · free</small>'
+      ? 'Apply → <small>2-minute application · no documents · free</small>'
       : 'Join the waitlist → <small>free · first in line when it frees up</small>';
     $('railVai').textContent = c.stato === 'available' ? 'Apply' : 'Waitlist';
     $('blocca').hidden = c.stato !== 'available';
@@ -2268,14 +2456,16 @@ html.vivo .sale.dentro { opacity:1; transform:none;
     genere = k;
     var attesa = attuale && attuale.stato !== 'available';
     $('foglioTitolo').textContent = attesa ? 'Join the waitlist'
-      : k === 'reserve' ? 'Instant hold · €300' : 'Apply — 60 seconds';
+      : k === 'reserve' ? 'Instant hold · €300' : 'Apply — 2 minutes';
     $('foglioInvia').textContent = attesa ? 'Join the waitlist →'
       : k === 'reserve' ? 'Request the hold →' : 'Send application →';
     var f = document.querySelector('.foglio');
     f.classList.remove('inviato');
+    $('fgCasa').textContent = attuale.nome;
+    $('fgTot').textContent = $('railPrezzo').textContent + ' to move in';
+    mostraPasso(0);
     $('velo').classList.add('on');
     document.body.style.overflow = 'hidden';
-    setTimeout(function () { $('fNome').focus(); }, 60);
   }
   function chiudiFoglio() {
     $('velo').classList.remove('on');
@@ -2294,10 +2484,68 @@ html.vivo .sale.dentro { opacity:1; transform:none;
     if (e.key === 'Escape' && $('velo').classList.contains('on')) chiudiFoglio();
   });
 
+  /* ── il foglio a passi: un passo alla volta, mai una parete di campi ── */
+  var passoQui = 0;
+  var segChi = 'solo', segOcc = 'employed';
+  function legaSeg(id, su) {
+    [].forEach.call($(id).children, function (b) {
+      b.addEventListener('click', function () {
+        [].forEach.call($(id).children, function (x) { x.classList.remove('on'); });
+        b.classList.add('on'); su(b.dataset.v);
+      });
+    });
+  }
+  legaSeg('segChi', function (v) { segChi = v; });
+  legaSeg('segOcc', function (v) {
+    segOcc = v;
+    var d = document.querySelector('#docReddito small');
+    if (d) d.textContent = v === 'student'
+      ? 'Enrollment letter or admission — or a guarantor\'s income.'
+      : 'Last payslips or work contract; enrollment letter if you\'re a student.';
+  });
+  function mostraPasso(n) {
+    passoQui = n;
+    [].forEach.call(document.querySelectorAll('.fg-step'), function (st) {
+      st.classList.toggle('qui', +st.dataset.s === n);
+    });
+    [].forEach.call(document.querySelectorAll('.fg-tappa'), function (t) {
+      t.classList.toggle('qui', +t.dataset.t === n);
+      t.classList.toggle('fatta', +t.dataset.t < n);
+    });
+    $('fgIndietro').hidden = n === 0;
+    $('foglioInvia').innerHTML = n < 2 ? 'Continue →'
+      : (attuale && attuale.stato !== 'available'
+        ? 'Join the waitlist →'
+        : genere === 'reserve' ? 'Request the hold →' : 'Send application →');
+    $('fgErrore').textContent = '';
+    var primo = document.querySelector('.fg-step.qui input:not([type=checkbox])');
+    if (primo) setTimeout(function () { primo.focus(); }, 80);
+    /* la carta del garante appare tra i documenti solo se serve */
+    $('docGaranzia').hidden = !$('fGaranzia').checked;
+  }
+  $('fgIndietro').addEventListener('click', function () {
+    if (passoQui > 0) mostraPasso(passoQui - 1);
+  });
+  function validaPasso() {
+    var f = $('modulo');
+    if (passoQui === 0) {
+      if (!f.name.value.trim()) return 'Your full name, please.';
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email.value.trim()))
+        return 'That email doesn\'t look right.';
+      if (f.phone.value.trim().length < 6) return 'A phone we can reach you on.';
+    }
+    if (passoQui === 2 && !f.consent.checked)
+      return 'We need your consent to process the application.';
+    return '';
+  }
+
   $('modulo').addEventListener('submit', function (e) {
     e.preventDefault();
     var f = e.target;
     if (f.company.value) return;   /* miele per i bot */
+    var manca = validaPasso();
+    if (manca) { $('fgErrore').textContent = manca; return; }
+    if (passoQui < 2) { mostraPasso(passoQui + 1); return; }
     var dati = {
       name: f.name.value.trim(), email: f.email.value.trim(),
       phone: f.phone.value.trim(),
@@ -2306,7 +2554,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       kind: genere,
       waitlist: attuale.stato !== 'available',
       income: +f.income.value || 0, guarantor: f.guarantor.checked,
-      household: f.household.value, occupation: f.occupation.value,
+      household: segChi, occupation: segOcc,
       moveIn: $('dataIn').value, durationMonths: durataMesi, company: ''
     };
     var esito = $('esitoTesto');
@@ -2317,19 +2565,21 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       ? 'A real person confirms your 48h hold within 2 hours — you\'ll get the ' +
         'secure Stripe link by email. Refundable, always.'
       : 'A real person is reading it now — you\'ll hear from us within 2 hours.';
+    var btn = $('foglioInvia');
+    btn.disabled = true; btn.classList.add('manda');
+    btn.innerHTML = '<i></i> Sending…';
+    function fine() {
+      btn.disabled = false; btn.classList.remove('manda');
+      document.querySelector('.foglio').classList.add('inviato');
+    }
     if (window.MODO === 'sito') {
-      var btn = $('foglioInvia');
-      btn.disabled = true; btn.style.opacity = .6;
       fetch('/api/apply-lead', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dati)
-      }).catch(function () {}).then(function () {
-        btn.disabled = false; btn.style.opacity = '';
-        document.querySelector('.foglio').classList.add('inviato');
-      });
+      }).catch(function () {}).then(fine);
     } else {
       $('esitoDemo').hidden = false;
-      document.querySelector('.foglio').classList.add('inviato');
+      setTimeout(fine, 600);
     }
   });
 

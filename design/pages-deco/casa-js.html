@@ -324,7 +324,7 @@
     if (base < oggi) base = oggi;
     var cand = $('candidati');
     cand.innerHTML = c.stato === 'available'
-      ? 'Apply → <small>60-second check · no documents · free</small>'
+      ? 'Apply → <small>2-minute application · no documents · free</small>'
       : 'Join the waitlist → <small>free · first in line when it frees up</small>';
     $('railVai').textContent = c.stato === 'available' ? 'Apply' : 'Waitlist';
     $('blocca').hidden = c.stato !== 'available';
@@ -365,14 +365,16 @@
     genere = k;
     var attesa = attuale && attuale.stato !== 'available';
     $('foglioTitolo').textContent = attesa ? 'Join the waitlist'
-      : k === 'reserve' ? 'Instant hold · €300' : 'Apply — 60 seconds';
+      : k === 'reserve' ? 'Instant hold · €300' : 'Apply — 2 minutes';
     $('foglioInvia').textContent = attesa ? 'Join the waitlist →'
       : k === 'reserve' ? 'Request the hold →' : 'Send application →';
     var f = document.querySelector('.foglio');
     f.classList.remove('inviato');
+    $('fgCasa').textContent = attuale.nome;
+    $('fgTot').textContent = $('railPrezzo').textContent + ' to move in';
+    mostraPasso(0);
     $('velo').classList.add('on');
     document.body.style.overflow = 'hidden';
-    setTimeout(function () { $('fNome').focus(); }, 60);
   }
   function chiudiFoglio() {
     $('velo').classList.remove('on');
@@ -391,10 +393,68 @@
     if (e.key === 'Escape' && $('velo').classList.contains('on')) chiudiFoglio();
   });
 
+  /* ── il foglio a passi: un passo alla volta, mai una parete di campi ── */
+  var passoQui = 0;
+  var segChi = 'solo', segOcc = 'employed';
+  function legaSeg(id, su) {
+    [].forEach.call($(id).children, function (b) {
+      b.addEventListener('click', function () {
+        [].forEach.call($(id).children, function (x) { x.classList.remove('on'); });
+        b.classList.add('on'); su(b.dataset.v);
+      });
+    });
+  }
+  legaSeg('segChi', function (v) { segChi = v; });
+  legaSeg('segOcc', function (v) {
+    segOcc = v;
+    var d = document.querySelector('#docReddito small');
+    if (d) d.textContent = v === 'student'
+      ? 'Enrollment letter or admission — or a guarantor\'s income.'
+      : 'Last payslips or work contract; enrollment letter if you\'re a student.';
+  });
+  function mostraPasso(n) {
+    passoQui = n;
+    [].forEach.call(document.querySelectorAll('.fg-step'), function (st) {
+      st.classList.toggle('qui', +st.dataset.s === n);
+    });
+    [].forEach.call(document.querySelectorAll('.fg-tappa'), function (t) {
+      t.classList.toggle('qui', +t.dataset.t === n);
+      t.classList.toggle('fatta', +t.dataset.t < n);
+    });
+    $('fgIndietro').hidden = n === 0;
+    $('foglioInvia').innerHTML = n < 2 ? 'Continue →'
+      : (attuale && attuale.stato !== 'available'
+        ? 'Join the waitlist →'
+        : genere === 'reserve' ? 'Request the hold →' : 'Send application →');
+    $('fgErrore').textContent = '';
+    var primo = document.querySelector('.fg-step.qui input:not([type=checkbox])');
+    if (primo) setTimeout(function () { primo.focus(); }, 80);
+    /* la carta del garante appare tra i documenti solo se serve */
+    $('docGaranzia').hidden = !$('fGaranzia').checked;
+  }
+  $('fgIndietro').addEventListener('click', function () {
+    if (passoQui > 0) mostraPasso(passoQui - 1);
+  });
+  function validaPasso() {
+    var f = $('modulo');
+    if (passoQui === 0) {
+      if (!f.name.value.trim()) return 'Your full name, please.';
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email.value.trim()))
+        return 'That email doesn\'t look right.';
+      if (f.phone.value.trim().length < 6) return 'A phone we can reach you on.';
+    }
+    if (passoQui === 2 && !f.consent.checked)
+      return 'We need your consent to process the application.';
+    return '';
+  }
+
   $('modulo').addEventListener('submit', function (e) {
     e.preventDefault();
     var f = e.target;
     if (f.company.value) return;   /* miele per i bot */
+    var manca = validaPasso();
+    if (manca) { $('fgErrore').textContent = manca; return; }
+    if (passoQui < 2) { mostraPasso(passoQui + 1); return; }
     var dati = {
       name: f.name.value.trim(), email: f.email.value.trim(),
       phone: f.phone.value.trim(),
@@ -403,7 +463,7 @@
       kind: genere,
       waitlist: attuale.stato !== 'available',
       income: +f.income.value || 0, guarantor: f.guarantor.checked,
-      household: f.household.value, occupation: f.occupation.value,
+      household: segChi, occupation: segOcc,
       moveIn: $('dataIn').value, durationMonths: durataMesi, company: ''
     };
     var esito = $('esitoTesto');
@@ -414,19 +474,21 @@
       ? 'A real person confirms your 48h hold within 2 hours — you\'ll get the ' +
         'secure Stripe link by email. Refundable, always.'
       : 'A real person is reading it now — you\'ll hear from us within 2 hours.';
+    var btn = $('foglioInvia');
+    btn.disabled = true; btn.classList.add('manda');
+    btn.innerHTML = '<i></i> Sending…';
+    function fine() {
+      btn.disabled = false; btn.classList.remove('manda');
+      document.querySelector('.foglio').classList.add('inviato');
+    }
     if (window.MODO === 'sito') {
-      var btn = $('foglioInvia');
-      btn.disabled = true; btn.style.opacity = .6;
       fetch('/api/apply-lead', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dati)
-      }).catch(function () {}).then(function () {
-        btn.disabled = false; btn.style.opacity = '';
-        document.querySelector('.foglio').classList.add('inviato');
-      });
+      }).catch(function () {}).then(fine);
     } else {
       $('esitoDemo').hidden = false;
-      document.querySelector('.foglio').classList.add('inviato');
+      setTimeout(fine, 600);
     }
   });
 
