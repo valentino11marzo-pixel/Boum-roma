@@ -334,6 +334,12 @@
   R.classList.add('vivo');
 
   var CASE = 'CASE_JSON';
+  /* la porta della pagina annuncio: il link cambia per anteprima/v2,
+     la chiave dei cuori (c.url) resta /listing/<id> su tutte le pagine */
+  var CASA_BASE = 'CASA_BASE';
+  function vaiCasa(u) {
+    return CASA_BASE ? CASA_BASE + '#id=' + u.split('/').pop() : u;
+  }
   var ZONE = 'ZONE_JSON';
   var OGGI = 'OGGI_ISO';
   var VITA = {};
@@ -411,7 +417,7 @@
   if (box && BS) CASE.muro.forEach(function (h) {
     var a = document.createElement('a');
     a.className = 'riga' + (h.stato === 'NEW' ? ' nuovo' : '');
-    a.href = h.url;
+    a.href = vaiCasa(h.url);
     a.setAttribute('aria-label', h.nome + ', ' + h.zona + ', ' + h.tipo +
       ', ' + h.prezzo + ' per month');
     a.innerHTML = '<span aria-hidden="true" class="cella c-ora flap-scale"></span>' +
@@ -524,7 +530,7 @@
     return v;
   }
   function carta(c) {
-    return '<a class="home" href="' + c.url + '">' +
+    return '<a class="home" href="' + vaiCasa(c.url) + '">' +
       '<div class="home-foto"><img loading="lazy" decoding="async" src="' + c.foto +
       '" alt="' + c.nome + ', ' + c.zonaPiena + ' — apartment for rent in Rome">' +
       (c.tag ? '<span class="home-tag">' + c.tag + '</span>' : '') +
@@ -682,7 +688,7 @@
     });
     tela.addEventListener('click', function (ev) {
       var k = vicino(ev);
-      if (k >= 0) location.href = punti[k].c.url;
+      if (k >= 0) location.href = vaiCasa(punti[k].c.url);
     });
     fVi.addEventListener('click', function () {
       var su = stato.vista !== 'sky';

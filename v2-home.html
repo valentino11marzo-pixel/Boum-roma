@@ -1,0 +1,1799 @@
+<title>BOOM Rome — Premium Apartment Rentals | 48-Hour Move-In</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Verified mid-term apartment rentals in Rome for internationals — English-first, legal contracts, 48-hour move-in. Browse homes or let us find yours.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   BOOM · LA HOME — l'identità del sito live, rieseguita Déco Solari.
+
+   Qui non si inventa niente: i token sono quelli di index.html (#FFD700,
+   Inter corpo, Helvetica Neue display), le sezioni sono LE STESSE, nello
+   stesso ordine, con lo stesso copy e lo stesso scopo. Cambia soltanto
+   l'esecuzione: cornici a filo d'oro con tacche d'angolo, incisione,
+   numeri che contano, e i Solari dove un numero merita un organo meccanico
+   — il titolo, i canoni, lo schermo dell'apparecchio.
+   ══════════════════════════════════════════════════════════════════════════ */
+:root {
+  /* Brand — verbatim dal sito live */
+  --gold:        #FFD700;
+  --gold-light:  #FFE55C;
+  --gold-dark:   #E5C200;
+  --gold-muted:  rgba(255,215,0,.15);
+  --green:       #00FF88;
+  --black:       #030303;
+  --void:        #060607;
+  --surface:     #0B0B0C;
+  --elevated:    #121214;
+  --card:        #0E0E10;
+  --text:        #FAFAFA;
+  --text-2:      rgba(250,250,250,.72);
+  --text-3:      rgba(250,250,250,.5);
+  --text-4:      rgba(250,250,250,.3);
+  --line-0:      rgba(255,255,255,.04);
+  --line:        rgba(255,255,255,.08);
+  --line-gold:   rgba(255,215,0,.14);
+  --line-gold-2: rgba(255,215,0,.3);
+  --oro-flap:    #FFE55C;
+  --ease:        cubic-bezier(.16,1,.3,1);
+  --sans:        'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --display:     'Helvetica Neue', Helvetica, Arial, sans-serif;
+  color-scheme: dark;
+}
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+/* la grana di rumore del sito live: profondità premium su tutto */
+body::before { content:''; position:fixed; inset:0; opacity:.014;
+  pointer-events:none; z-index:9999;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E"); }
+/* gli orbi fluttuanti del sito live: il respiro dietro tutta la pagina */
+.tech-bg { position:fixed; inset:0; pointer-events:none; z-index:-1; overflow:hidden; }
+.tech-orb { position:absolute; border-radius:50%; filter:blur(80px);
+  opacity:.05; animation:orb-float 20s ease-in-out infinite; }
+.tech-orb-1 { width:600px; height:600px; top:-200px; right:-100px;
+  background:radial-gradient(circle, var(--gold) 0%, transparent 70%); }
+.tech-orb-2 { width:500px; height:500px; bottom:-150px; left:-100px;
+  background:radial-gradient(circle, #635BFF 0%, transparent 70%);
+  animation-delay:-7s; opacity:.03; }
+.tech-orb-3 { width:400px; height:400px; top:50%; left:50%;
+  transform:translate(-50%,-50%); animation-delay:-14s; opacity:.025;
+  background:radial-gradient(circle, var(--gold-light) 0%, transparent 70%); }
+@keyframes orb-float {
+  0%, 100% { translate:0 0; scale:1; }
+  25% { translate:30px -20px; scale:1.05; }
+  50% { translate:-20px 30px; scale:.95; }
+  75% { translate:-30px -10px; scale:1.02; } }
+html { -webkit-text-size-adjust:100%; scroll-behavior:smooth; }
+body { background:var(--black); color:var(--text); font-family:var(--sans);
+  font-weight:300; font-size:16.5px; line-height:1.6;
+  -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+img { max-width:100%; display:block; }
+a { color:inherit; text-decoration:none; }
+button, input { font:inherit; color:inherit; background:none; border:0; }
+::selection { background:var(--gold); color:var(--black); }
+:focus-visible { outline:2px solid var(--gold); outline-offset:3px; }
+.container { width:100%; max-width:1240px; margin:0 auto; padding:0 clamp(18px,3.4vw,44px); }
+
+.salta { position:fixed; top:12px; left:12px; z-index:400; padding:14px 26px;
+  background:var(--gold); color:var(--black); font-size:11px; font-weight:600;
+  letter-spacing:.2em; text-transform:uppercase; transform:translateY(-220%);
+  transition:transform .3s var(--ease); }
+.salta:focus-visible { transform:none; }
+
+/* ── la voce: display Helvetica, incisione, oro sul nero ─────────────── */
+.eyebrow { display:inline-flex; align-items:center; gap:10px;
+  font-size:11px; font-weight:600; letter-spacing:.24em; text-transform:uppercase;
+  color:var(--gold); }
+.eyebrow i { font-style:normal; width:22px; height:1px; background:var(--gold); }
+h1, h2, h3 { font-family:var(--display); }
+.titolo { margin-top:18px; font-weight:200; font-size:clamp(30px,4.2vw,58px);
+  line-height:1.06; letter-spacing:-.02em; text-wrap:balance; }
+.titolo .hl { color:var(--gold); }
+.sotto { margin-top:16px; font-size:16.5px; line-height:1.65; color:var(--text-2);
+  max-width:56ch; }
+.section { position:relative; padding:clamp(64px,8vw,116px) 0; }
+.section-dark { background:var(--surface);
+  border-top:1px solid var(--line-0); border-bottom:1px solid var(--line-0); }
+.section-dark::before { content:''; position:absolute; left:50%; top:0;
+  width:min(90vw,900px); height:280px; transform:translateX(-50%);
+  pointer-events:none;
+  background:radial-gradient(ellipse at top, rgba(255,215,0,.035), transparent 68%); }
+
+/* la cornice a tacche: il segno déco che lega tutta la pagina */
+.quadro { position:relative; }
+.quadro::before, .quadro::after,
+.quadro > .tacca::before, .quadro > .tacca::after {
+  content:''; position:absolute; width:18px; height:18px; pointer-events:none; }
+.quadro::before { top:0; left:0; border-top:1px solid var(--line-gold-2);
+  border-left:1px solid var(--line-gold-2); }
+.quadro::after { top:0; right:0; border-top:1px solid var(--line-gold-2);
+  border-right:1px solid var(--line-gold-2); }
+.quadro > .tacca::before { bottom:0; left:0; border-bottom:1px solid var(--line-gold-2);
+  border-left:1px solid var(--line-gold-2); }
+.quadro > .tacca::after { bottom:0; right:0; border-bottom:1px solid var(--line-gold-2);
+  border-right:1px solid var(--line-gold-2); }
+
+/* ── i bottoni: quelli del sito, con la molla déco ───────────────────── */
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:10px;
+  padding:16px 30px; font-size:12.5px; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; white-space:nowrap; cursor:pointer;
+  transition:transform .3s var(--ease), background .3s ease, box-shadow .3s ease,
+    color .3s ease; }
+.btn-primary { background:var(--gold); color:var(--black); }
+.btn-primary:hover { background:var(--gold-light); transform:translateY(-2px);
+  box-shadow:0 12px 36px -14px rgba(255,215,0,.5); }
+.btn-secondary { box-shadow:inset 0 0 0 1px var(--line); color:var(--text-2); }
+.btn-secondary:hover { box-shadow:inset 0 0 0 1px var(--line-gold-2);
+  color:var(--gold-light); transform:translateY(-2px); }
+.btn-ghost { padding:0; font-size:12px; letter-spacing:.12em; color:var(--gold);
+  text-transform:uppercase; font-weight:600; }
+.btn-ghost:hover { color:var(--gold-light); }
+
+/* ── il filo del progresso + il bagliore del mouse (come sul live) ───── */
+.scroll-progress { position:fixed; top:0; left:0; right:0; height:2px; z-index:130;
+  background:linear-gradient(90deg,var(--gold-dark),var(--gold));
+  transform:scaleX(0); transform-origin:left; pointer-events:none; }
+.mouse-glow { position:fixed; width:520px; height:520px; border-radius:50%;
+  pointer-events:none; z-index:1; transform:translate(-50%,-50%); opacity:0;
+  background:radial-gradient(circle, rgba(255,215,0,.05) 0%, transparent 62%);
+  transition:opacity .8s ease; }
+.mouse-glow.active { opacity:1; }
+
+/* ── LA TESTATA ──────────────────────────────────────────────────────── */
+.nav { position:fixed; top:0; left:0; right:0; z-index:100; padding:14px 0;
+  transition:background .35s ease, box-shadow .35s ease, padding .35s ease; }
+.nav.scrolled, html.aperto .nav { background:rgba(3,3,3,.88);
+  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  box-shadow:0 1px 0 var(--line-0); padding:11px 0; }
+.nav-inner { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.marchio { display:inline-flex; align-items:center; gap:11px; }
+.marchio .logo-mark { width:46px; height:46px; flex:none; }
+.marchio span { font-family:var(--display); font-size:19px; font-weight:400;
+  letter-spacing:.34em; text-indent:.34em; text-transform:uppercase; }
+.menu { display:none; align-items:center; gap:26px; }
+@media (min-width:1120px){ .menu { display:flex; } }
+.menu a { font-size:12.5px; font-weight:500; letter-spacing:.04em; color:var(--text-3);
+  transition:color .25s ease; }
+.menu a:hover { color:var(--text); }
+.menu a.btn-primary { padding:11px 20px; font-size:11px; color:var(--black); }
+.menu a.btn-primary:hover { color:var(--black); }
+.apri { display:inline-flex; flex-direction:column; gap:5px; width:42px; height:42px;
+  align-items:center; justify-content:center; cursor:pointer;
+  box-shadow:inset 0 0 0 1px var(--line); }
+@media (min-width:1120px){ .apri { display:none; } }
+.apri i { width:17px; height:1.5px; background:var(--text);
+  transition:transform .3s var(--ease), opacity .2s; }
+html.aperto .apri i:nth-child(1){ transform:translateY(6.5px) rotate(45deg); }
+html.aperto .apri i:nth-child(2){ opacity:0; }
+html.aperto .apri i:nth-child(3){ transform:translateY(-6.5px) rotate(-45deg); }
+.tenda { position:fixed; inset:0; z-index:99; padding:96px clamp(18px,3.4vw,44px) 34px;
+  background:rgba(3,3,3,.98); backdrop-filter:blur(20px); overflow-y:auto;
+  display:flex; flex-direction:column; opacity:0; visibility:hidden;
+  transform:translateY(-8px);
+  transition:opacity .3s ease, transform .4s var(--ease), visibility .3s; }
+html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
+.tenda a { padding:15px 2px; font-family:var(--display); font-size:19px;
+  font-weight:300; border-bottom:1px solid var(--line-0); }
+.tenda .btn { margin-top:22px; }
+
+/* ══ HERO — il loro manifesto, con i Solari dentro il titolo ═══════════ */
+.hero { position:relative; min-height:100svh; display:grid; align-content:center; }
+.hero > .container { position:relative; z-index:2; }
+.hero { min-height:100svh; display:grid; align-content:center;
+  padding:clamp(110px,14svh,170px) 0 clamp(40px,6svh,72px); overflow:hidden; }
+.hero-grid { position:absolute; inset:0; pointer-events:none; opacity:.5;
+  background:
+    linear-gradient(rgba(255,255,255,.017) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.017) 1px, transparent 1px);
+  background-size:72px 72px;
+  -webkit-mask-image:radial-gradient(75% 62% at 50% 40%, #000 30%, transparent 100%);
+  mask-image:radial-gradient(75% 62% at 50% 40%, #000 30%, transparent 100%); }
+.hero-glow { position:absolute; border-radius:50%; pointer-events:none; }
+.hero-glow-1 { width:60vw; height:60vw; top:-28vw; right:-18vw;
+  background:radial-gradient(circle, rgba(255,215,0,.07), transparent 62%); }
+.hero-glow-2 { width:44vw; height:44vw; bottom:-22vw; left:-14vw;
+  background:radial-gradient(circle, rgba(255,215,0,.045), transparent 62%); }
+/* il radar del live, a filo déco */
+.radar { position:absolute; left:50%; top:50%; width:0; height:0;
+  z-index:0; pointer-events:none; }
+.radar i { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+  border:1px solid var(--gold); border-radius:50%; opacity:0; font-style:normal;
+  animation:radar-pulse 6s infinite ease-out; }
+.radar i:nth-child(1){ animation-delay:0s; }
+.radar i:nth-child(2){ animation-delay:-2s; }
+.radar i:nth-child(3){ animation-delay:-4s; }
+@keyframes radar-pulse {
+  0% { width:80px; height:80px; opacity:.6; border-width:2px; }
+  50% { opacity:.3; }
+  100% { width:min(900px,130vmin); height:min(900px,130vmin);
+    opacity:0; border-width:.5px; } }
+.radar u { position:absolute; left:50%; top:50%; width:min(560px,86vmin);
+  aspect-ratio:1; border-radius:50%; transform:translate(-50%,-50%);
+  background:conic-gradient(from 0deg, transparent 82%, rgba(255,215,0,.04) 94%, rgba(255,215,0,.13) 100%);
+  animation:lama 6s linear infinite; }
+@keyframes lama { to { transform:translate(-50%,-50%) rotate(1turn); } }
+.radar b { position:absolute; left:50%; top:50%; width:12px; height:12px;
+  transform:translate(-50%,-50%); background:var(--gold); border-radius:50%;
+  animation:radar-cuore 3s infinite ease-in-out; }
+@keyframes radar-cuore {
+  0%, 100% { box-shadow:0 0 30px rgba(255,215,0,.6);
+    transform:translate(-50%,-50%) scale(1); }
+  50% { box-shadow:0 0 50px rgba(255,215,0,.9);
+    transform:translate(-50%,-50%) scale(1.3); } }
+.radar s { position:absolute; width:5px; height:5px; border-radius:50%;
+  background:var(--gold-light); opacity:0; text-decoration:none;
+  animation:blip 6s linear infinite; }
+.radar s:nth-child(6){ left:150px; top:-90px; animation-delay:-1.4s; }
+.radar s:nth-child(7){ left:-170px; top:120px; animation-delay:-3.9s; }
+@keyframes blip { 8% { opacity:.95; } 40% { opacity:.3; } 65% { opacity:0; } } }
+.hero-frame { position:absolute; inset:clamp(14px,2vw,30px); pointer-events:none; }
+.hero-eyebrow { display:inline-flex; align-items:center; gap:10px; padding:8px 16px;
+  box-shadow:inset 0 0 0 1px var(--line-gold); font-size:11px; font-weight:600;
+  letter-spacing:.22em; text-transform:uppercase; color:var(--gold); }
+.hero-eyebrow b { width:6px; height:6px; border-radius:50%; background:var(--green);
+  animation:pulse 2.2s ease infinite; }
+@keyframes pulse { 50% { opacity:.35; } }
+.hero-title { margin-top:26px; font-weight:200;
+  font-size:clamp(34px,6vw,84px); line-height:1.05; letter-spacing:-.02em; }
+.hero-title .hl { color:var(--gold); }
+.hero-title .flap-scale { vertical-align:baseline; }
+.hero-subtitle { margin-top:20px; font-size:clamp(15.5px,1.6vw,18px);
+  color:var(--text-2); letter-spacing:.01em; }
+.hero-actions { margin-top:30px; display:flex; gap:12px; flex-wrap:wrap; }
+.hero-stats { margin-top:clamp(38px,6svh,64px); display:grid;
+  grid-template-columns:repeat(2,1fr); gap:1px; background:var(--line-0);
+  max-width:760px; box-shadow:inset 0 0 0 1px var(--line-0); }
+@media (min-width:680px){ .hero-stats { grid-template-columns:repeat(4,1fr); } }
+.hero-stat { background:var(--black); padding:18px 20px; }
+.hero-stat-value { font-family:var(--display); font-size:clamp(26px,2.6vw,36px);
+  font-weight:250; letter-spacing:-.02em; color:var(--gold);
+  font-variant-numeric:tabular-nums; }
+.hero-stat-label { margin-top:5px; font-size:11px; font-weight:500;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--text-3); }
+
+/* ── LA BARRA DELLA FIDUCIA ──────────────────────────────────────────── */
+.trust { padding:18px 0; background:var(--surface);
+  border-top:1px solid var(--line-0); border-bottom:1px solid var(--line-0); }
+.trust-inner { display:flex; align-items:center; justify-content:center;
+  gap:clamp(16px,3vw,44px); flex-wrap:wrap; font-size:13.5px; color:var(--text-3); }
+.trust-inner b { color:var(--text); font-weight:600; }
+.trust-stars { color:var(--gold); letter-spacing:.18em; }
+.trust-div { width:1px; height:16px; background:var(--line); }
+@media (max-width:639px){ .trust-div { display:none; } }
+
+/* ── il nastro delle università (marchi tipografici, come sul live) ──── */
+.uni { position:relative; padding:15px 0; background:var(--black);
+  border-bottom:1px solid var(--line-0); overflow:hidden; }
+.uni::before, .uni::after { content:''; position:absolute; top:0; bottom:0;
+  width:90px; z-index:2; pointer-events:none; }
+.uni::before { left:0; background:linear-gradient(90deg,var(--black),transparent); }
+.uni::after { right:0; background:linear-gradient(-90deg,var(--black),transparent); }
+.uni-eti { position:absolute; left:50%; top:-9px; transform:translateX(-50%);
+  z-index:3; padding:3px 12px; background:var(--black); font-size:9.5px;
+  font-weight:600; letter-spacing:.2em; text-transform:uppercase;
+  color:var(--text-4); white-space:nowrap; }
+.uni-track { display:flex; align-items:center; gap:clamp(44px,6vw,84px);
+  width:max-content; padding:8px 0; animation:scorri 30s linear infinite; }
+.uni:hover .uni-track { animation-play-state:paused; }
+@keyframes scorri { to { transform:translateX(-50%); } }
+.uni-item { font-family:var(--display); font-size:16px; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--text-4); white-space:nowrap;
+  transition:color .3s ease; }
+.uni-item b { font-weight:600; } .uni-item i { font-style:italic; font-weight:300; }
+.uni-item:hover { color:var(--text-2); }
+
+/* ══ I SERVIZI — le loro quattro carte ═════════════════════════════════ */
+.cards4 { margin-top:clamp(30px,4vw,50px); display:grid; grid-template-columns:1fr;
+  gap:1px; background:var(--line-0); box-shadow:inset 0 0 0 1px var(--line-0); }
+@media (min-width:680px){ .cards4 { grid-template-columns:repeat(2,1fr); } }
+@media (min-width:1080px){ .cards4 { grid-template-columns:repeat(4,1fr); } }
+.svc { position:relative; display:flex; flex-direction:column; background:var(--card);
+  padding:26px 24px 24px; transition:background .4s var(--ease); }
+.svc:hover { background:var(--elevated); }
+.svc::before { content:''; position:absolute; left:0; right:0; top:0; height:2px;
+  background:linear-gradient(90deg,var(--gold-dark),var(--gold));
+  transform:scaleX(0); transform-origin:left; transition:transform .5s var(--ease); }
+.svc:hover::before { transform:none; }
+.svc-icona { width:40px; height:40px; color:var(--gold); }
+.svc-icona svg { width:100%; height:100%; fill:none; stroke:currentColor;
+  stroke-width:1.3; stroke-linecap:round; stroke-linejoin:round; }
+.svc h3 { margin-top:18px; font-size:19px; font-weight:400; letter-spacing:0; }
+.svc p { margin-top:10px; font-size:14px; line-height:1.62; color:var(--text-2); flex:1; }
+.svc-prezzo { margin-top:18px; padding-top:16px; border-top:1px solid var(--line-0);
+  display:flex; align-items:baseline; gap:7px; }
+.svc-prezzo b { font-family:var(--display); font-size:24px; font-weight:300;
+  color:var(--gold); letter-spacing:-.01em; font-variant-numeric:tabular-nums; }
+.svc-prezzo small { font-size:12px; color:var(--text-3); }
+.svc-vai { margin-top:14px; font-size:12px; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--text-3); transition:color .3s ease; }
+.svc:hover .svc-vai { color:var(--gold); }
+
+/* ══ DISPONIBILI ORA — dal catalogo vero, canone sui Solari ════════════ */
+.testa-riga { display:grid; grid-template-columns:1fr; gap:18px; align-items:end; }
+@media (min-width:900px){ .testa-riga { grid-template-columns:minmax(0,1fr) auto; } }
+.homes { margin-top:clamp(30px,4vw,50px); display:grid; grid-template-columns:1fr;
+  gap:clamp(16px,2vw,26px); }
+@media (min-width:840px){ .homes { grid-template-columns:repeat(3,1fr); } }
+.home { position:relative; display:block; background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--line-0);
+  transition:transform .4s var(--ease), box-shadow .4s ease; }
+.home:hover { transform:translateY(-4px); box-shadow:inset 0 0 0 1px var(--line-gold),
+  0 24px 48px -24px rgba(0,0,0,.8); }
+.home-foto { position:relative; aspect-ratio:4/3; overflow:hidden; background:var(--elevated); }
+.home-foto img { width:100%; height:100%; object-fit:cover;
+  transition:transform 1.3s var(--ease); }
+.home:hover .home-foto img { transform:scale(1.05); }
+.home-tag { position:absolute; left:12px; top:12px; padding:7px 12px;
+  background:rgba(3,3,3,.8); backdrop-filter:blur(8px); font-size:10px;
+  font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--gold-light); }
+.home-prezzo { position:absolute; right:12px; bottom:12px; display:flex;
+  align-items:baseline; gap:5px; padding:9px 12px; background:rgba(3,3,3,.86);
+  backdrop-filter:blur(8px); }
+.home-prezzo .flap-scale { font-family:var(--display); font-size:17px; font-weight:500; }
+.home-prezzo small { font-size:11px; color:var(--text-3); }
+.home-corpo { padding:18px 20px 20px; }
+.home-nome { font-family:var(--display); font-size:19px; font-weight:400; }
+.home-dati { margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; font-size:13px;
+  color:var(--text-3); }
+.home-dati i { font-style:normal; color:var(--text-4); }
+.home-vai { margin-top:14px; padding-top:14px; border-top:1px solid var(--line-0);
+  font-size:12px; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--text-3); transition:color .3s ease; }
+.home:hover .home-vai { color:var(--gold); }
+.homes-coda { margin-top:clamp(26px,3vw,40px); text-align:center; }
+.home-cuore { position:absolute; right:10px; top:10px; z-index:3; width:34px;
+  height:34px; display:grid; place-items:center; border-radius:50%;
+  background:rgba(3,3,3,.72); backdrop-filter:blur(6px); color:var(--text-3);
+  cursor:pointer; border:0; font-size:15px;
+  transition:color .25s ease, transform .25s var(--ease); }
+.home-cuore:hover { transform:scale(1.12); }
+.home-cuore.si { color:var(--gold); }
+.home-zona { display:inline-block; margin-bottom:7px; font-size:11px;
+  font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--gold); transition:color .25s ease; }
+.home-zona:hover { color:var(--gold-light); }
+.home-vita { margin-top:7px; font-size:12.5px; font-style:italic; color:var(--text-4); }
+
+/* ══ COME FUNZIONA — la loro storia pinnata, rieseguita ════════════════ */
+.how-wrap { position:relative; height:340svh; background:var(--surface);
+  border-top:1px solid var(--line-0); border-bottom:1px solid var(--line-0); }
+.how-pin { position:sticky; top:0; height:100svh; display:grid; align-content:center;
+  overflow:hidden; }
+.how-inner { display:grid; grid-template-columns:1fr; gap:clamp(22px,3vw,56px);
+  align-items:center; }
+@media (min-width:980px){ .how-inner { grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr); } }
+.how-steps { margin-top:clamp(16px,2.4vh,30px); display:grid; gap:clamp(10px,1.8vh,22px); }
+.how-step { position:relative; padding-left:64px; opacity:.34;
+  transition:opacity .5s ease; }
+.how-step.on { opacity:1; }
+.how-k { position:absolute; left:0; top:2px; font-family:var(--display);
+  font-size:clamp(26px,2.6vw,34px); font-weight:200; letter-spacing:-.02em;
+  color:var(--text-4); transition:color .5s ease; font-variant-numeric:tabular-nums; }
+.how-step.on .how-k { color:var(--gold); }
+.how-step h3 { font-size:clamp(18px,1.9vw,23px); font-weight:400; }
+.how-step p { margin-top:7px; font-size:14px; line-height:1.6; color:var(--text-2);
+  max-width:44ch; }
+@media (max-height:760px){ .how-step p { display:none; } .how-step.on p { display:block; } }
+.how-track { margin-top:clamp(16px,2.6vh,30px); display:flex; gap:8px; max-width:280px; }
+.how-track span { flex:1; height:2px; background:var(--line); overflow:hidden; }
+.how-track span i { display:block; height:100%; width:0; background:var(--gold); }
+
+/* l'apparecchio: la cornice déco attorno al loro schermo */
+.dev { position:relative; background:var(--black);
+  box-shadow:inset 0 0 0 1px var(--line-gold), 0 40px 90px -40px rgba(0,0,0,.9); }
+.dev-bar { display:flex; align-items:center; gap:7px; padding:13px 16px;
+  border-bottom:1px solid var(--line-0); }
+.dev-bar i { width:9px; height:9px; border-radius:50%; font-style:normal;
+  background:var(--elevated); box-shadow:inset 0 0 0 1px var(--line); }
+.dev-url { margin-left:10px; font-size:11.5px; letter-spacing:.06em; color:var(--text-3); }
+.dev-screen { position:relative; height:clamp(320px,44svh,440px); overflow:hidden; }
+.scene { position:absolute; inset:0; padding:clamp(16px,2.2vw,28px);
+  display:flex; flex-direction:column; justify-content:center; gap:0;
+  opacity:0; transform:translateY(26px) scale(.985); pointer-events:none;
+  transition:opacity .5s ease, transform .65s var(--ease); }
+.dev[data-step="0"] .scene-0, .dev[data-step="1"] .scene-1,
+.dev[data-step="2"] .scene-2, .dev[data-step="3"] .scene-3 {
+  opacity:1; transform:none; pointer-events:auto; }
+/* lo stato in alto: la narrazione della scena */
+.dev-stato { margin-left:auto; font-size:10.5px; font-weight:600;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--gold);
+  display:inline-flex; align-items:center; gap:7px; }
+.dev-stato i { font-style:normal; width:6px; height:6px; border-radius:50%;
+  background:var(--green); animation:pulse 2.2s ease infinite; }
+/* ══ LE SCENE SCRUB — lo scroll guida ogni fotogramma (--f: 0→1) ═════
+   Niente timer: ciò che accade, accade sotto il dito di chi scorre.
+   Le soglie usano clamp() su --f; i numeri vivi (timer 2:00) li tiene
+   la regia. Reduced-motion: --f=1, tutto già compiuto. */
+.dev { --f:0; }
+
+/* scena 1 · BROWSE — scorri e CAMMINI nel video verificato */
+.sc-walk { position:relative; height:100%; margin:calc(clamp(16px,2.2vw,28px) * -1);
+  overflow:hidden; }
+.sc-walk img { width:118%; height:100%; object-fit:cover;
+  transform:translateX(calc(var(--f) * -14%)) scale(1.06); will-change:transform; }
+.sc-walk::after { content:''; position:absolute; inset:0; pointer-events:none;
+  background:linear-gradient(180deg, rgba(3,3,3,.45), transparent 30%,
+    transparent 62%, rgba(3,3,3,.72)); }
+.sc-live { position:absolute; left:14px; top:14px; z-index:2; padding:5px 10px;
+  font-size:10px; font-weight:700; letter-spacing:.1em;
+  background:rgba(3,3,3,.82); color:var(--green); }
+.sc-live i { font-style:normal; animation:pulse 1.6s ease infinite; }
+.sc-walk-nome { position:absolute; left:16px; bottom:38px; z-index:2;
+  font-family:var(--display); font-size:19px; font-weight:500; }
+.sc-walk-prezzo { position:absolute; right:16px; bottom:38px; z-index:2;
+  font-family:var(--display); font-size:17px; font-weight:500;
+  color:var(--gold-light); font-variant-numeric:tabular-nums; }
+.sc-tempo { position:absolute; left:16px; right:16px; bottom:20px; z-index:2;
+  height:3px; background:rgba(250,250,250,.18); }
+.sc-tempo i { position:absolute; left:0; top:0; bottom:0;
+  width:calc(var(--f) * 100%); background:var(--gold); }
+.sc-tempo::after { content:''; position:absolute; top:50%; left:calc(var(--f) * 100%);
+  width:11px; height:11px; margin:-5.5px 0 0 -5.5px; border-radius:50%;
+  background:var(--gold); box-shadow:0 0 12px rgba(255,215,0,.7); }
+.sc-verif { position:absolute; right:14px; top:14px; z-index:2; display:inline-flex;
+  align-items:center; gap:7px; padding:7px 12px; font-size:10.5px; font-weight:700;
+  letter-spacing:.12em; text-transform:uppercase; color:var(--green);
+  background:rgba(0,255,136,.1); box-shadow:inset 0 0 0 1px rgba(0,255,136,.3);
+  opacity:clamp(0, (var(--f) - .68) * 6, 1);
+  transform:scale(calc(1.5 - clamp(0, (var(--f) - .68) * 6, 1) * .5)); }
+.sc-verif svg { width:13px; height:13px; fill:none; stroke:currentColor;
+  stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+
+/* scena 2 · APPLY — i due minuti li scorri tu */
+.sc-form { display:grid; gap:13px; max-width:390px; margin:0 auto; width:100%; }
+.sc-orologio { display:flex; align-items:baseline; justify-content:space-between; }
+.sc-orologio small { font-size:10px; font-weight:600; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--text-3); }
+.sc-orologio b { font-family:var(--display); font-size:22px; font-weight:400;
+  color:var(--gold); font-variant-numeric:tabular-nums; }
+.sc-field label { display:block; font-size:10px; font-weight:600; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--text-3); margin-bottom:7px; }
+.sc-inp { height:44px; background:var(--card); box-shadow:inset 0 0 0 1px var(--line);
+  display:flex; align-items:center; padding:0 12px; overflow:hidden; }
+.typed { display:inline-block; overflow:hidden; white-space:nowrap;
+  font-size:13.5px; color:var(--text-2); border-right:2px solid var(--gold); }
+.typed.t1 { max-width:calc(clamp(0, var(--f) / .38, 1) * 11ch); }
+.typed.t2 { max-width:calc(clamp(0, (var(--f) - .34) / .38, 1) * 21ch); }
+.sc-submit { margin-top:4px; padding:14px; text-align:center; background:var(--gold);
+  color:var(--black); font-size:12px; font-weight:700; letter-spacing:.12em;
+  text-transform:uppercase; transition:transform .2s var(--ease); }
+.dev.premi .sc-submit { transform:scale(.97); }
+.sc-risposta { margin-top:13px; display:flex; gap:10px; align-items:flex-start;
+  opacity:0; transform:translateY(10px);
+  transition:opacity .4s ease, transform .5s var(--ease); }
+.dev.arrivata .sc-risposta { opacity:1; transform:none; }
+.sc-risposta .punto { flex:none; width:30px; height:30px; border-radius:50%;
+  display:grid; place-items:center; background:var(--gold-muted);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); color:var(--gold);
+  font-size:11px; font-weight:700; }
+.sc-bolla { flex:1; padding:10px 13px; background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--line-0); border-radius:2px 10px 10px 10px; }
+.sc-bolla small { display:block; font-size:10px; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--text-4); }
+.sc-bolla p { margin-top:3px; font-size:13px; color:var(--text-2); }
+.sc-bolla .vv { color:var(--green); font-size:11px; margin-left:6px; }
+
+/* scena 3 · SIGN — la firma la tracci tu, il bottone si carica */
+.sc-pay { max-width:390px; margin:0 auto; width:100%; }
+.sc-doc { background:var(--card); box-shadow:inset 0 0 0 1px var(--line-0);
+  padding:18px 18px 14px; }
+.sc-doc i { display:block; height:1.5px; background:var(--line); margin:9px 0;
+  font-style:normal; }
+.sc-doc i:nth-child(2){ width:82%; } .sc-doc i:nth-child(3){ width:64%; }
+.sc-doc i:nth-child(4){ width:74%; }
+.sc-firma { margin-top:8px; height:40px; }
+.sc-firma svg { width:160px; height:40px; overflow:visible; }
+.sc-firma path { fill:none; stroke:var(--gold-light); stroke-width:1.7;
+  stroke-linecap:round; stroke-linejoin:round; stroke-dasharray:1;
+  stroke-dashoffset:calc(1 - clamp(0, var(--f) / .55, 1)); }
+.sc-tot { margin-top:14px; display:flex; align-items:center; justify-content:space-between;
+  gap:12px; padding:14px 16px; background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--line-0); font-size:13.5px; color:var(--text-2); }
+.sc-tot b { font-family:var(--display); font-size:18px; font-weight:500; color:var(--text); }
+.sc-paga { position:relative; margin-top:12px; padding:14px; text-align:center;
+  background:var(--elevated); color:var(--text-3); font-size:12px; font-weight:700;
+  letter-spacing:.12em; text-transform:uppercase; overflow:hidden;
+  box-shadow:inset 0 0 0 1px var(--line); }
+.sc-paga i { position:absolute; inset:0; font-style:normal; z-index:0;
+  transform:scaleX(clamp(0, (var(--f) - .58) / .3, 1)); transform-origin:left;
+  background:var(--gold); }
+.sc-paga span { position:relative; z-index:1;
+  color:var(--text-3); transition:color .2s ease; }
+.dev.pagato .sc-paga span { color:var(--black); }
+.sc-protetto { display:inline-flex; align-items:center; gap:8px; margin-top:12px;
+  padding:8px 13px; font-size:11px; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--green);
+  background:rgba(0,255,136,.08); box-shadow:inset 0 0 0 1px rgba(0,255,136,.25);
+  opacity:0; transform:translateY(6px);
+  transition:opacity .4s ease, transform .5s var(--ease); }
+.dev.pagato .sc-protetto { opacity:1; transform:none; }
+.sc-protetto svg { width:14px; height:14px; fill:none; stroke:currentColor;
+  stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+
+/* scena 4 · MOVE IN — la chiave la giri tu, la porta si apre di luce */
+.sc-fine { position:relative; text-align:center; height:100%;
+  display:flex; flex-direction:column; justify-content:center; }
+.sc-porta { position:absolute; inset:calc(clamp(16px,2.2vw,28px) * -1);
+  pointer-events:none;
+  background:linear-gradient(0deg, rgba(255,215,0,.14), transparent 55%);
+  opacity:clamp(0, (var(--f) - .5) / .3, 1); }
+.sc-chiave { position:relative; width:78px; height:78px; margin:0 auto;
+  border-radius:50%; display:grid; place-items:center; background:var(--gold-muted);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); color:var(--gold); }
+.sc-chiave svg { width:34px; height:34px; fill:none; stroke:currentColor;
+  stroke-width:1.4; stroke-linecap:round; stroke-linejoin:round;
+  transform:rotate(calc(clamp(0, var(--f) / .55, 1) * 90deg)); }
+.sc-chiave::before { content:''; position:absolute; inset:-6px; border-radius:50%;
+  border:1px solid var(--line-gold-2); opacity:0; }
+.dev.chiavi .sc-chiave::before { animation:onda 1.2s ease; }
+@keyframes onda { 0% { transform:scale(.72); opacity:.9; }
+  100% { transform:scale(1.55); opacity:0; } }
+.pz { position:absolute; left:50%; top:50%; width:4px; height:4px;
+  border-radius:50%; background:var(--gold-light); opacity:0; }
+.dev.chiavi .pz { animation:volo 1s var(--ease) both; }
+@keyframes volo { 0% { opacity:1; transform:translate(-50%,-50%); }
+  100% { opacity:0; transform:translate(calc(-50% + var(--dx)),
+    calc(-50% + var(--dy))); } }
+.sc-fine h4 { margin-top:16px; font-family:var(--display); font-size:21px;
+  font-weight:400; }
+.sc-fine p { margin-top:6px; font-size:13.5px; color:var(--text-3); }
+.sc-timbro { display:inline-block; margin:14px auto 0; padding:9px 16px;
+  font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase;
+  background:rgba(0,255,136,.12); color:var(--green);
+  box-shadow:inset 0 0 0 1px rgba(0,255,136,.3);
+  opacity:0; transform:scale(1.5);
+  transition:opacity .35s ease, transform .4s var(--ease); }
+.dev.chiavi .sc-timbro { opacity:1; transform:none; }
+
+/* ══ PROPERTY FINDING — «We'll hunt it.» ═══════════════════════════════ */
+.pf { display:grid; grid-template-columns:1fr; gap:clamp(26px,4vw,64px); align-items:center; }
+@media (min-width:980px){ .pf { grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr); } }
+.pf-prezzo { margin-top:22px; display:flex; align-items:baseline; gap:10px; }
+.pf-prezzo b { font-family:var(--display); font-size:clamp(44px,5vw,64px); font-weight:200;
+  letter-spacing:-.03em; color:var(--gold); font-variant-numeric:tabular-nums; }
+.pf-prezzo span { font-size:13px; color:var(--text-3); }
+.pf-nota { margin-top:8px; font-size:12.5px; color:var(--text-3); }
+.pf-lista { margin-top:22px; display:grid; gap:11px; }
+@media (min-width:640px){ .pf-lista { grid-template-columns:repeat(2,1fr); } }
+.pf-voce { display:flex; align-items:flex-start; gap:11px; font-size:14px;
+  color:var(--text-2); }
+.pf-voce i { flex:none; width:17px; height:17px; margin-top:2px; font-style:normal;
+  position:relative; box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.pf-voce i::after { content:''; position:absolute; left:5px; top:2px; width:5px;
+  height:8px; border-right:1.5px solid var(--gold); border-bottom:1.5px solid var(--gold);
+  transform:rotate(42deg) scale(0); transition:transform .4s var(--ease); }
+.pf-voce.vista i::after { transform:rotate(42deg) scale(1); }
+.pf-cta { margin-top:26px; }
+/* lo strumento: la scansione che disegna il servizio */
+.pf-banco { position:relative; background:var(--black); padding:clamp(22px,2.6vw,34px);
+  box-shadow:inset 0 0 0 1px var(--line-gold); overflow:hidden; }
+.pf-sweep { position:absolute; inset:0; pointer-events:none;
+  background:conic-gradient(from 0deg, transparent 82%, rgba(255,215,0,.06) 96%, rgba(255,215,0,.14) 100%);
+  animation:sweep 6s linear infinite; }
+@keyframes sweep { to { transform:rotate(1turn); } }
+.pf-stats { position:relative; display:grid; grid-template-columns:repeat(2,1fr);
+  gap:1px; background:var(--line-0); box-shadow:inset 0 0 0 1px var(--line-0); }
+.pf-stat { background:var(--black); padding:clamp(18px,2.2vw,28px) clamp(16px,2vw,24px); }
+.pf-stat b { display:block; font-family:var(--display); font-size:clamp(30px,3.4vw,46px);
+  font-weight:200; letter-spacing:-.02em; color:var(--gold);
+  font-variant-numeric:tabular-nums; }
+.pf-stat span { display:block; margin-top:6px; font-size:11px; font-weight:500;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--text-3); }
+
+/* ══ GLI ALTRI AIUTI + CONCIERGE + ORGANIZZAZIONI ══════════════════════ */
+.due { margin-top:clamp(30px,4vw,50px); display:grid; grid-template-columns:1fr; gap:1px;
+  background:var(--line-0); box-shadow:inset 0 0 0 1px var(--line-0); }
+@media (min-width:840px){ .due { grid-template-columns:repeat(2,1fr); } }
+.aiuto { background:var(--card); padding:clamp(24px,3vw,36px); display:flex;
+  flex-direction:column; }
+.aiuto-cima { display:flex; align-items:center; justify-content:space-between; gap:14px; }
+.aiuto-cima h3 { font-size:21px; font-weight:400; }
+.aiuto-prezzo { font-family:var(--display); font-size:22px; font-weight:300;
+  color:var(--gold); white-space:nowrap; font-variant-numeric:tabular-nums; }
+.aiuto-prezzo small { font-size:11px; color:var(--text-3); }
+.aiuto-sub { margin-top:8px; font-size:14px; color:var(--text-2); }
+.aiuto-lista { margin-top:18px; display:grid; gap:9px; flex:1; }
+.aiuto-lista .pf-voce { font-size:13.5px; }
+.aiuto .btn { margin-top:22px; align-self:flex-start; }
+
+.griglia6 { margin-top:clamp(30px,4vw,50px); display:grid; grid-template-columns:repeat(2,1fr);
+  gap:1px; background:var(--line-0); box-shadow:inset 0 0 0 1px var(--line-0); }
+@media (min-width:840px){ .griglia6 { grid-template-columns:repeat(3,1fr); } }
+.mini { background:var(--card); padding:22px 20px; transition:background .35s ease; }
+.mini:hover { background:var(--elevated); }
+.mini .svc-icona { width:30px; height:30px; }
+.mini h4 { margin-top:12px; font-size:15px; font-weight:500; }
+.mini span { display:block; margin-top:4px; font-size:13px; color:var(--gold);
+  font-variant-numeric:tabular-nums; }
+.griglia-coda { margin-top:clamp(24px,3vw,36px); display:flex; align-items:center;
+  justify-content:space-between; gap:14px; flex-wrap:wrap; font-size:14px;
+  color:var(--text-3); }
+
+.org3 { margin-top:clamp(30px,4vw,50px); display:grid; grid-template-columns:1fr; gap:1px;
+  background:var(--line-0); box-shadow:inset 0 0 0 1px var(--line-0); }
+@media (min-width:840px){ .org3 { grid-template-columns:repeat(3,1fr); } }
+.org { background:var(--card); padding:26px 24px; display:flex; flex-direction:column;
+  transition:background .35s ease; }
+.org:hover { background:var(--elevated); }
+.org h3 { margin-top:16px; font-size:18px; font-weight:400; }
+.org p { margin-top:9px; font-size:13.5px; line-height:1.62; color:var(--text-2); flex:1; }
+.org b { margin-top:16px; font-size:12px; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--text-3); transition:color .3s ease; }
+.org:hover b { color:var(--gold); }
+
+/* ══ PERCHÉ ESISTIAMO + CHI SIAMO ══════════════════════════════════════ */
+.dolori { margin-top:clamp(28px,3.6vw,46px); display:grid; grid-template-columns:repeat(2,1fr);
+  gap:1px; background:var(--line-0); box-shadow:inset 0 0 0 1px var(--line-0); }
+@media (min-width:840px){ .dolori { grid-template-columns:repeat(3,1fr); } }
+.dolore { background:var(--surface); padding:18px 18px; display:flex; align-items:center;
+  gap:13px; font-size:14px; color:var(--text-2); }
+.dolore .svc-icona { width:24px; height:24px; flex:none; color:var(--text-3); }
+.diverso { margin-top:clamp(26px,3.4vw,42px); padding:clamp(22px,2.8vw,34px);
+  background:var(--black); box-shadow:inset 0 0 0 1px var(--line-gold); }
+.diverso b { font-family:var(--display); font-size:19px; font-weight:400; color:var(--gold); }
+.diverso p { margin-top:8px; font-size:15px; color:var(--text-2); max-width:70ch; }
+
+.about { display:grid; grid-template-columns:1fr; gap:clamp(26px,4vw,64px); align-items:start; }
+@media (min-width:980px){ .about { grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr); } }
+.about p { margin-top:14px; font-size:15.5px; line-height:1.7; color:var(--text-2);
+  max-width:58ch; }
+.about p strong { color:var(--text); font-weight:500; }
+.about .btn { margin-top:24px; }
+.about-num { display:grid; grid-template-columns:repeat(2,1fr); gap:1px;
+  background:var(--line-0); box-shadow:inset 0 0 0 1px var(--line-0); }
+.about-num div { background:var(--card); padding:22px 20px; }
+.about-num b { display:block; font-family:var(--display); font-size:clamp(26px,2.8vw,36px);
+  font-weight:200; color:var(--gold); font-variant-numeric:tabular-nums; }
+.about-num span { display:block; margin-top:5px; font-size:11.5px; font-weight:500;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); }
+.citazione { grid-column:1/-1; background:var(--card); padding:22px 24px; }
+.citazione p { margin:0; font-family:var(--display); font-size:17px; font-weight:300;
+  font-style:italic; color:var(--text); max-width:none; }
+.citazione span { display:block; margin-top:10px; font-size:12px; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--text-3); }
+.citazione span b { display:inline; font-family:var(--sans); font-size:inherit;
+  color:var(--gold); font-weight:600; }
+
+/* ══ LA CHIAMATA FINALE ════════════════════════════════════════════════ */
+.finale { position:relative; text-align:center; padding:clamp(80px,11vw,150px) 0;
+  overflow:hidden; background:var(--surface); border-top:1px solid var(--line-0); }
+.finale-glow { position:absolute; left:50%; top:50%; width:70vw; height:70vw;
+  transform:translate(-50%,-50%); pointer-events:none;
+  background:radial-gradient(circle, rgba(255,215,0,.06), transparent 60%);
+  animation:respiro 7s ease-in-out infinite; }
+@keyframes respiro { 50% { opacity:.55; scale:1.06; } }
+.finale-eco { position:absolute; left:50%; top:50%; width:min(80vw,680px);
+  aspect-ratio:1; transform:translate(-50%,-50%); pointer-events:none; }
+.finale-eco i { position:absolute; inset:0; border-radius:50%; font-style:normal;
+  border:1px solid var(--line-gold); animation:radar 6.5s var(--ease) infinite; }
+.finale-eco i:nth-child(2){ animation-delay:2.1s; }
+.finale-eco i:nth-child(3){ animation-delay:4.3s; }
+.finale .titolo { margin-top:0; font-size:clamp(36px,5.4vw,72px); }
+.finale p { margin:18px auto 0; font-size:17px; color:var(--text-2); max-width:44ch; }
+.finale-azioni { margin-top:30px; display:flex; gap:12px; justify-content:center;
+  flex-wrap:wrap; }
+
+/* ══ IL PIEDE ══════════════════════════════════════════════════════════ */
+.footer { padding:clamp(52px,6vw,80px) 0 clamp(30px,4vw,44px); background:var(--void);
+  border-top:1px solid var(--line-0); }
+.footer-grid { display:grid; grid-template-columns:1fr; gap:32px; }
+@media (min-width:820px){ .footer-grid { grid-template-columns:2fr 1fr 1fr 1fr; gap:26px; } }
+.footer-marchio { display:inline-flex; align-items:center; gap:14px;
+  font-family:var(--display); font-size:22px; font-weight:300; letter-spacing:.36em;
+  text-indent:.36em; text-transform:uppercase; }
+.footer-marchio svg { width:44px; height:44px; }
+.footer-motto { margin-top:18px; font-family:var(--display); font-size:17px;
+  font-weight:300; line-height:1.6; color:var(--text-2); max-width:30ch; }
+.footer-legale { margin-top:16px; font-size:12px; line-height:1.9; color:var(--text-4); }
+.footer-legale b { color:var(--text-3); font-weight:500; }
+.footer-col b { display:block; font-size:11px; font-weight:600; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--gold); margin-bottom:14px; }
+.footer-col a { display:block; padding:4px 0; font-size:14px; color:var(--text-3);
+  transition:color .25s ease; }
+.footer-col a:hover { color:var(--gold-light); }
+.footer-fondo { margin-top:clamp(32px,4vw,50px); padding-top:20px;
+  border-top:1px solid var(--line-0); display:flex; align-items:center;
+  justify-content:space-between; gap:14px; flex-wrap:wrap; font-size:12px;
+  color:var(--text-4); }
+.footer-fondo .op { display:inline-flex; align-items:center; gap:8px; }
+.footer-fondo .op i { width:7px; height:7px; border-radius:50%; background:var(--green);
+  font-style:normal; animation:pulse 2.2s ease infinite; }
+
+/* ── LE ENTRATE ──────────────────────────────────────────────────────── */
+html.vivo .sale { opacity:0; transform:translateY(22px); }
+html.vivo .sale.dentro { opacity:1; transform:none;
+  transition:opacity .8s var(--ease), transform .8s var(--ease); }
+@media (prefers-reduced-motion:reduce){
+  html { scroll-behavior:auto; }
+  html.vivo .sale { opacity:1; transform:none; transition:none; }
+  .radar i, .radar u, .radar s, .radar b, .tech-orb, .finale-glow,
+  .sc-cursor, .sc-tap, .pz, .dev-stato i,
+  .finale-eco i, .pf-sweep, .hero-eyebrow b,
+  .footer-fondo .op i, .uni-track { animation:none; }
+  .typed { max-width:none; border-right:0; }
+  .dev { --f:1; }
+  .sc-firma path { stroke-dasharray:none; stroke-dashoffset:0; }
+  .sc-risposta, .sc-protetto, .sc-timbro { opacity:1; transform:none; }
+  .sc-walk img, .sc-chiave svg { transform:none; }
+  .dev.chiavi .pz, .dev.chiavi .sc-chiave::before { animation:none; }
+  .typed { border-right:0; }
+  .scene, .sc-firma, .sc-timbro, .sc-inp::after, .pf-voce i::after,
+  .how-track span i { transition:none; }
+  .scroll-progress, .mouse-glow { display:none; }
+}
+</style>
+
+<a class="salta" href="#servizi">Skip to content</a>
+<div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
+<div class="mouse-glow" id="mouseGlow" aria-hidden="true"></div>
+<div class="tech-bg" aria-hidden="true"><span class="tech-orb tech-orb-1"></span><span class="tech-orb tech-orb-2"></span><span class="tech-orb tech-orb-3"></span></div>
+
+<nav class="nav" id="nav">
+  <div class="container nav-inner">
+    <a class="marchio" href="/" aria-label="BOOM, home"><svg class="logo-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+                    <defs>
+                        <linearGradient id="goldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#FFE55C"/>
+                            <stop offset="100%" stop-color="#E5C200"/>
+                        </linearGradient>
+                    </defs>
+                    <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#goldGrad)">
+                        <path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/>
+                    </g>
+                </svg><span>Boom</span></a>
+    <div class="menu">
+      <a href="/v2-apartments.html">Apartments</a>
+      <a href="/v2-property-finding.html">Property Finding</a>
+      <a href="/deal-assistance.html">Deal Assistance</a>
+      <a href="/virtual-viewing.html">Virtual Viewing</a>
+      <a href="/concierge.html">Concierge</a>
+      <a href="/partners.html">Partners</a>
+      <a href="/about.html">About</a>
+      <a class="btn btn-primary" href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a>
+    </div>
+    <button class="apri" id="apri" type="button" aria-label="Open menu"
+      aria-expanded="false" aria-controls="tenda"><i></i><i></i><i></i></button>
+  </div>
+</nav>
+<div class="tenda" id="tenda">
+  <a href="/v2-apartments.html">Apartments</a>
+  <a href="/v2-property-finding.html">Property Finding</a>
+  <a href="/deal-assistance.html">Deal Assistance</a>
+  <a href="/virtual-viewing.html">Virtual Viewing</a>
+  <a href="/concierge.html">Concierge</a>
+  <a href="/partners.html">Partners</a>
+  <a href="/about.html">About</a>
+  <a href="/login">Login</a>
+  <a class="btn btn-primary" href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a>
+</div>
+
+<!-- ══ HERO — il loro manifesto: «days, not weeks», con DAYS sui Solari ══ -->
+<header class="hero">
+  <div class="hero-grid" aria-hidden="true"></div>
+  <div class="hero-glow hero-glow-1" aria-hidden="true"></div>
+  <div class="hero-glow hero-glow-2" aria-hidden="true"></div>
+  <div class="radar" aria-hidden="true"><i></i><i></i><i></i><u></u><b></b><s></s><s></s></div>
+  <div class="hero-frame quadro" aria-hidden="true"><span class="tacca"></span></div>
+
+  <div class="container">
+    <div class="hero-eyebrow"><b></b>Premium Rentals in Rome</div>
+    <h1 class="hero-title">GET YOUR <span class="hl">ROME</span> APARTMENT<br>
+      IN <span class="hl"><span id="flapDays" class="flap-scale"
+        aria-label="days">DAYS</span></span>, NOT WEEKS.</h1>
+    <p class="hero-subtitle">Video-verified. Transparent pricing. Real support.</p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="/v2-apartments.html">View Apartments</a>
+      <a class="btn btn-secondary" href="#come">How It Works</a>
+    </div>
+    <div class="hero-stats" id="heroStats">
+      <div class="hero-stat"><div class="hero-stat-value" data-fine="48" data-suff="h">0h</div>
+        <div class="hero-stat-label">Move-in Time</div></div>
+      <div class="hero-stat"><div class="hero-stat-value" data-fine="98" data-suff="%">0%</div>
+        <div class="hero-stat-label">Success Rate</div></div>
+      <div class="hero-stat"><div class="hero-stat-value" data-fine="2" data-suff="min">0min</div>
+        <div class="hero-stat-label">Response Time</div></div>
+      <div class="hero-stat"><div class="hero-stat-value">€0</div>
+        <div class="hero-stat-label">Hidden Fees</div></div>
+    </div>
+  </div>
+</header>
+
+<!-- la barra della fiducia -->
+<div class="trust">
+  <div class="container trust-inner">
+    <span><span class="trust-stars">★★★★★</span> <b>4.9</b> from 47 reviews</span>
+    <span class="trust-div" aria-hidden="true"></span>
+    <span>Secure payments · <b>Stripe</b></span>
+    <span class="trust-div" aria-hidden="true"></span>
+    <a class="btn-ghost" href="/about.html">Read Reviews →</a>
+  </div>
+</div>
+
+<!-- il nastro delle università: i marchi tipografici del sito live -->
+<div class="uni" aria-label="Trusted by students from Rome's universities">
+  <span class="uni-eti">Trusted by students from</span>
+  <div class="uni-track" aria-hidden="true">
+    <span class="uni-item">LUISS</span>
+    <span class="uni-item">SAPIENZA</span>
+    <span class="uni-item">ROMA TRE</span>
+    <span class="uni-item">JOHN CABOT</span>
+    <span class="uni-item">LUMSA</span>
+    <span class="uni-item">NABA</span>
+    <span class="uni-item">IED</span>
+    <span class="uni-item">RUFA</span>
+    <span class="uni-item">LUISS</span>
+    <span class="uni-item">SAPIENZA</span>
+    <span class="uni-item">ROMA TRE</span>
+    <span class="uni-item">JOHN CABOT</span>
+    <span class="uni-item">LUMSA</span>
+    <span class="uni-item">NABA</span>
+    <span class="uni-item">IED</span>
+    <span class="uni-item">RUFA</span>
+  </div>
+</div>
+
+<!-- ══ I SERVIZI — «Everything you need in one place» ════════════════════ -->
+<section class="section" id="servizi">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>Our Services</span>
+      <h2 class="titolo">Everything you need<br><span class="hl">in one place</span></h2>
+      <p class="sotto">Whether you know what you want or need help finding it,
+        we've got you covered.</p>
+    </div>
+
+    <div class="cards4 sale">
+      <a class="svc" href="/v2-apartments.html">
+        <span class="svc-icona"><svg viewBox="0 0 40 40"><path d="M7 19 20 8l13 11"/><path d="M11 17v15h18V17"/><path d="M17 32v-9h6v9"/></svg></span>
+        <h3>Ready Apartments</h3>
+        <p>Video-verified listings ready for immediate move-in. What you see is
+          what you get.</p>
+        <div class="svc-prezzo"><b>€1,000+</b><small>/month</small></div>
+        <span class="svc-vai">Browse All →</span>
+      </a>
+      <a class="svc" href="/v2-property-finding.html">
+        <span class="svc-icona"><svg viewBox="0 0 40 40"><circle cx="18" cy="18" r="9.5"/><path d="M25 25l8 8"/><path d="M18 13.5v9M13.5 18h9"/></svg></span>
+        <h3>Property Finding</h3>
+        <p>We search the entire Rome market to find your perfect apartment
+          within 10 days.</p>
+        <div class="svc-prezzo"><b>€350</b><small>upfront*</small></div>
+        <span class="svc-vai">Learn More →</span>
+      </a>
+      <a class="svc" href="/deal-assistance.html">
+        <span class="svc-icona"><svg viewBox="0 0 40 40"><path d="M20 6l12 5v9c0 7-5 12-12 14-7-2-12-7-12-14v-9z"/><path d="M14.5 20l4 4 7-8"/></svg></span>
+        <h3>Deal Assistance</h3>
+        <p>Found a place yourself? We handle negotiation, contracts, and
+          protect your interests.</p>
+        <div class="svc-prezzo"><b>€249</b><small>fixed fee</small></div>
+        <span class="svc-vai">Learn More →</span>
+      </a>
+      <a class="svc" href="/virtual-viewing.html">
+        <span class="svc-icona"><svg viewBox="0 0 40 40"><rect x="6" y="12" width="19" height="16" rx="1.5"/><path d="M25 18l9-5v14l-9-5"/></svg></span>
+        <h3>Virtual Viewing</h3>
+        <p>Can't visit in person? Live video tours with real-time Q&amp;A and
+          detailed reports.</p>
+        <div class="svc-prezzo"><b>€89</b><small>per viewing</small></div>
+        <span class="svc-vai">Learn More →</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ══ DISPONIBILI ORA — «Move in this week», dal catalogo vero ══════════ -->
+<section class="section section-dark" id="disponibili">
+  <div class="container">
+    <div class="testa-riga sale">
+      <div>
+        <span class="eyebrow"><i></i>Available Now</span>
+        <h2 class="titolo">Move in <span class="hl">this week</span></h2>
+        <p class="sotto">All verified. All real. All ready. This row is generated
+          from the live catalogue — when a home is taken, it removes itself.</p>
+      </div>
+    </div>
+
+    <div class="homes sale">
+      <a class="home" href="/v2-listing.html#id=sr0rpLSqbpDMASkHINfx">
+        <div class="home-foto">
+          <img decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fsr0rpLSqbpDMASkHINfx%2Fms6y4det_00_1f4b631c.jpg?alt=media" alt="Trilocale Pigneto, Pigneto — apartment for rent in Rome with BOOM">
+          <span class="home-tag">Video Tour</span>
+          <button type="button" class="home-cuore" data-u="/listing/sr0rpLSqbpDMASkHINfx"
+            aria-label="Save this home">♥</button>
+          <span class="home-prezzo"><span class="flap-prezzo flap-scale"
+            data-p="€1,600" aria-label="€1,600 per month"></span><small>/month</small></span>
+        </div>
+        <div class="home-corpo">
+          <span class="home-zona" role="link" tabindex="0"
+            data-href="/v2-apartments.html#zona=Pigneto">Pigneto →</span>
+          <div class="home-nome">Trilocale Pigneto</div>
+          <div class="home-dati">80m² <i>•</i> 2 bed <i>•</i> Floor 3</div>
+          <div class="home-vita">Rome's bohemian quarter — bars, galleries, street life.</div>
+          <div class="home-vai">View Details →</div>
+        </div>
+      </a>
+
+      <a class="home" href="/v2-listing.html#id=ttvrjazww9oe4tA0wHTf">
+        <div class="home-foto">
+          <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fttvrjazww9oe4tA0wHTf%2Fmrz6vxb9_00_18252691.jpg?alt=media" alt="Bilocale Ponte Milvio, Ponte Milvio — apartment for rent in Rome with BOOM">
+          <span class="home-tag">Free now</span>
+          <button type="button" class="home-cuore" data-u="/listing/ttvrjazww9oe4tA0wHTf"
+            aria-label="Save this home">♥</button>
+          <span class="home-prezzo"><span class="flap-prezzo flap-scale"
+            data-p="€1,250" aria-label="€1,250 per month"></span><small>/month</small></span>
+        </div>
+        <div class="home-corpo">
+          <span class="home-zona" role="link" tabindex="0"
+            data-href="/v2-apartments.html#zona=Ponte Milvio">Ponte Milvio →</span>
+          <div class="home-nome">Bilocale Ponte Milvio</div>
+          <div class="home-dati">70m² <i>•</i> 1 bed <i>•</i> Ground Floor</div>
+          <div class="home-vita">Riverside aperitivo and the north's favourite piazza.</div>
+          <div class="home-vai">View Details →</div>
+        </div>
+      </a>
+
+      <a class="home" href="/v2-listing.html#id=cezFMXTWnHUDgb1H2WWm">
+        <div class="home-foto">
+          <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FcezFMXTWnHUDgb1H2WWm%2Fmrzsxcyw_00_4d6b85f3.jpg?alt=media" alt="Bilocale Trastevere, Trastevere — apartment for rent in Rome with BOOM">
+          <span class="home-tag">Free now</span>
+          <button type="button" class="home-cuore" data-u="/listing/cezFMXTWnHUDgb1H2WWm"
+            aria-label="Save this home">♥</button>
+          <span class="home-prezzo"><span class="flap-prezzo flap-scale"
+            data-p="€1,200" aria-label="€1,200 per month"></span><small>/month</small></span>
+        </div>
+        <div class="home-corpo">
+          <span class="home-zona" role="link" tabindex="0"
+            data-href="/v2-apartments.html#zona=Trastevere">Trastevere →</span>
+          <div class="home-nome">Bilocale Trastevere</div>
+          <div class="home-dati">45m² <i>•</i> 1 bed <i>•</i> Floor 1</div>
+          <div class="home-vita">Cobblestones, trattorie, nightlife on your doorstep.</div>
+          <div class="home-vai">View Details →</div>
+        </div>
+      </a>
+    </div>
+
+    <div class="homes-coda sale">
+      <a class="btn btn-primary" href="/v2-apartments.html">View All Apartments</a>
+    </div>
+  </div>
+</section>
+
+<!-- ══ COME FUNZIONA — la loro storia pinnata, rieseguita ════════════════
+     Stessi quattro passi, stesso apparecchio a destra: la vetrina, la
+     domanda, la firma con Stripe, le chiavi. Lo scroll fa girare le scene. -->
+<section class="how-wrap" id="come" aria-label="How BOOM works">
+  <div class="how-pin">
+    <div class="container how-inner">
+      <div>
+        <span class="eyebrow"><i></i>How BOOM Works</span>
+        <div class="how-steps" id="howSteps">
+          <div class="how-step on" data-step="0">
+            <div class="how-k">01</div>
+            <h3>Browse &amp; choose</h3>
+            <p>Every apartment is video-verified with transparent pricing. What
+              you see is exactly what you get — no surprises.</p>
+          </div>
+          <div class="how-step" data-step="1">
+            <div class="how-k">02</div>
+            <h3>Apply in 2 minutes</h3>
+            <p>A simple online application and a real human on the other side.
+              You get an answer fast, not in weeks.</p>
+          </div>
+          <div class="how-step" data-step="2">
+            <div class="how-k">03</div>
+            <h3>Sign &amp; pay securely</h3>
+            <p>A proper legal contract, deposit protection and zero hidden fees.
+              Everything in order, everything clear.</p>
+          </div>
+          <div class="how-step" data-step="3">
+            <div class="how-k">04</div>
+            <h3>Move in within 48h</h3>
+            <p>Keys in your hand, utilities ready. From first click to first
+              night, in days — not months.</p>
+          </div>
+        </div>
+        <div class="how-track" id="howTrack" aria-hidden="true">
+          <span><i></i></span><span><i></i></span><span><i></i></span><span><i></i></span>
+        </div>
+      </div>
+
+      <div class="dev quadro" id="dev" data-step="0">
+        <span class="tacca"></span>
+        <div class="dev-bar"><i></i><i></i><i></i><span class="dev-url">app.boomrome.com</span><span class="dev-stato"><i></i><span id="devStato">Browsing · verified homes</span></span></div>
+        <div class="dev-screen">
+          <div class="scene scene-0">
+            <div class="sc-walk">
+              <img src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fsr0rpLSqbpDMASkHINfx%2Fms6y4det_00_1f4b631c.jpg?alt=media" alt="" decoding="async">
+              <span class="sc-live"><i>●</i> LIVE 360°</span>
+              <span class="sc-verif"><svg viewBox="0 0 16 16"><path d="M2.5 8.5l3.5 3.5 7-8"/></svg>Verified</span>
+              <span class="sc-walk-nome">Trilocale Pigneto</span>
+              <span class="sc-walk-prezzo">€1,600/mo</span>
+              <span class="sc-tempo" aria-hidden="true"><i></i></span>
+            </div>
+          </div>
+          <div class="scene scene-1">
+            <div class="sc-form">
+              <div class="sc-orologio"><small>Your application</small>
+                <b id="scTimer">0:00</b></div>
+              <div class="sc-field"><label>Full name</label>
+                <div class="sc-inp"><span class="typed t1">Anna Keller</span></div></div>
+              <div class="sc-field"><label>Email</label>
+                <div class="sc-inp"><span class="typed t2">anna.keller@gmail.com</span></div></div>
+              <div class="sc-submit">Submit application</div>
+              <div class="sc-risposta">
+                <span class="punto">B</span>
+                <div class="sc-bolla">
+                  <small>Real human · 1h 47m later</small>
+                  <p>Approved — ready to sign?<span class="vv">✓✓</span></p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="scene scene-2">
+            <div class="sc-pay">
+              <div class="sc-doc"><i></i><i></i><i></i><i></i>
+                <div class="sc-firma"><svg viewBox="0 0 200 46" aria-hidden="true">
+                  <path pathLength="1" d="M8 36 C 20 6, 34 8, 30 26 C 27 40, 40 38, 48 24
+                    M56 32 c 5 -11, 13 -11, 14 -1 c 1 8 9 5 13 -5
+                    M92 10 l -7 28 m -5 -13 l 19 0
+                    M116 30 c 4 -8, 10 -9, 11 -1 c 1 7 8 4 12 -5
+                    M146 34 l 4 -3" /></svg></div>
+              </div>
+              <div class="sc-tot">Move-in total · month + deposit + fee <b>€5,120</b></div>
+              <div class="sc-paga"><i></i><span>Pay with Stripe</span></div>
+              <span class="sc-protetto"><svg viewBox="0 0 16 16"><path d="M8 1.5l5 2v4c0 3-2 5-5 6-3-1-5-3-5-6v-4z"/><path d="M5.6 8l1.7 1.7 3-3.4"/></svg>Deposit protected</span>
+            </div>
+          </div>
+          <div class="scene scene-3">
+            <div class="sc-porta" aria-hidden="true"></div>
+            <div class="sc-fine">
+              <div class="sc-chiave"><span class="pz" style="--dx:44px;--dy:-30px"></span>
+                <span class="pz" style="--dx:-40px;--dy:-36px"></span>
+                <span class="pz" style="--dx:52px;--dy:14px"></span>
+                <span class="pz" style="--dx:-48px;--dy:20px"></span>
+                <span class="pz" style="--dx:12px;--dy:-52px"></span>
+                <span class="pz" style="--dx:-14px;--dy:48px"></span>
+                <svg viewBox="0 0 32 32"><circle cx="12" cy="12" r="6"/><path d="M16.5 16.5 L27 27M22 22l3.5-3.5M25 25l3-3"/></svg></div>
+              <h4>Trilocale Pigneto</h4>
+              <p>Keys in your hand, utilities ready.</p>
+              <span class="sc-timbro">Move-in confirmed · 48h</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══ PROPERTY FINDING — «Can't find what you need? We'll hunt it.» ═════ -->
+<section class="section" id="finding">
+  <div class="container pf">
+    <div class="sale">
+      <span class="eyebrow"><i></i>Property Finding Service</span>
+      <h2 class="titolo">Can't find what you need?<br><span class="hl">We'll hunt it.</span></h2>
+      <p class="sotto">Tell us your requirements, and within 10 days you'll have
+        curated options that match exactly what you're looking for. Access to
+        off-market properties included.</p>
+      <div class="pf-prezzo"><b>€350</b><span>upfront</span></div>
+      <p class="pf-nota">*Deducted from agency fee when we find your apartment</p>
+      <div class="pf-lista" id="pfLista">
+        <div class="pf-voce"><i></i>Custom search based on your exact requirements</div>
+        <div class="pf-voce"><i></i>Access to off-market properties</div>
+        <div class="pf-voce"><i></i>Curated options within 10 days</div>
+        <div class="pf-voce"><i></i>Video tours of all properties</div>
+        <div class="pf-voce"><i></i>Negotiation on your behalf</div>
+        <div class="pf-voce"><i></i>Full refund if we don't deliver</div>
+      </div>
+      <div class="pf-cta">
+        <a class="btn btn-primary" href="/v2-property-finding.html">Start Your Search</a>
+      </div>
+    </div>
+
+    <div class="pf-banco quadro sale" id="pfBanco">
+      <span class="tacca"></span>
+      <div class="pf-sweep" aria-hidden="true"></div>
+      <div class="pf-stats">
+        <div class="pf-stat"><b data-fine="10">0</b><span>Days To Find</span></div>
+        <div class="pf-stat"><b data-fine="5" data-suff="+">0+</b><span>Curated Properties</span></div>
+        <div class="pf-stat"><b data-fine="98" data-suff="%">0%</b><span>Success Rate</span></div>
+        <div class="pf-stat"><b>€0</b><span>If We Fail</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ GLI ALTRI AIUTI — «Already found something?» ══════════════════════ -->
+<section class="section section-dark">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>More Ways We Help</span>
+      <h2 class="titolo">Already found something?<br><span class="hl">We've got your back</span></h2>
+    </div>
+
+    <div class="due sale">
+      <div class="aiuto">
+        <div class="aiuto-cima"><h3>Deal Assistance</h3>
+          <span class="aiuto-prezzo">€249 <small>fixed fee</small></span></div>
+        <p class="aiuto-sub">Found an apartment yourself? Let us handle the risky parts.</p>
+        <div class="aiuto-lista">
+          <div class="pf-voce"><i></i>Contract review and translation</div>
+          <div class="pf-voce"><i></i>Price negotiation</div>
+          <div class="pf-voce"><i></i>Landlord verification</div>
+          <div class="pf-voce"><i></i>Red flag identification</div>
+          <div class="pf-voce"><i></i>Deposit protection advice</div>
+          <div class="pf-voce"><i></i>Move-in coordination</div>
+        </div>
+        <a class="btn btn-secondary" href="/deal-assistance.html">Learn More</a>
+      </div>
+      <div class="aiuto">
+        <div class="aiuto-cima"><h3>Virtual Viewing</h3>
+          <span class="aiuto-prezzo">€89 <small>per viewing</small></span></div>
+        <p class="aiuto-sub">Can't visit Rome? We'll be your eyes on the ground.</p>
+        <div class="aiuto-lista">
+          <div class="pf-voce"><i></i>Live video walkthrough</div>
+          <div class="pf-voce"><i></i>Real-time Q&amp;A</div>
+          <div class="pf-voce"><i></i>Neighborhood assessment</div>
+          <div class="pf-voce"><i></i>Detailed written report</div>
+          <div class="pf-voce"><i></i>Photo documentation</div>
+          <div class="pf-voce"><i></i>Honest recommendation</div>
+        </div>
+        <a class="btn btn-secondary" href="/virtual-viewing.html">Learn More</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ CONCIERGE — «Life doesn't stop at the apartment» ══════════════════ -->
+<section class="section">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>Concierge</span>
+      <h2 class="titolo">Life doesn't stop<br><span class="hl">at the apartment</span></h2>
+      <p class="sotto">All services available from day one. Pay only for what you use.</p>
+    </div>
+
+    <div class="griglia6 sale">
+      <div class="mini">
+        <span class="svc-icona"><svg viewBox="0 0 40 40"><path d="M20 6v8M20 26v8M6 20h8M26 20h8M10.2 10.2l5.6 5.6M24.2 24.2l5.6 5.6M29.8 10.2l-5.6 5.6M15.8 24.2l-5.6 5.6"/></svg></span>
+        <h4>Cleaning</h4><span>€60/mo</span>
+      </div>
+      <div class="mini">
+        <span class="svc-icona"><svg viewBox="0 0 40 40"><path d="M6 26l28-12-10 14-4-5-6 6-2-6z"/></svg></span>
+        <h4>Airport Transfer</h4><span>€50 flat</span>
+      </div>
+      <div class="mini">
+        <span class="svc-icona"><svg viewBox="0 0 40 40"><path d="M22 5L10 22h8l-2 13 12-17h-8z"/></svg></span>
+        <h4>24/7 Emergency</h4><span>Included</span>
+      </div>
+      <div class="mini">
+        <span class="svc-icona"><svg viewBox="0 0 40 40"><path d="M12 5h12l6 6v24H12z"/><path d="M24 5v6h6M17 19h8M17 24h8M17 29h5"/></svg></span>
+        <h4>Permit Help</h4><span>€150/doc</span>
+      </div>
+      <div class="mini">
+        <span class="svc-icona"><svg viewBox="0 0 40 40"><circle cx="15" cy="15" r="7"/><path d="M20 20l13 13M27 27l4-4M31 31l3-3"/></svg></span>
+        <h4>Flexible Check-in</h4><span>Any time</span>
+      </div>
+      <div class="mini">
+        <span class="svc-icona"><svg viewBox="0 0 40 40"><path d="M6 13l14-7 14 7v14l-14 7-14-7z"/><path d="M6 13l14 7 14-7M20 20v14"/></svg></span>
+        <h4>Mail Service</h4><span>€20/mo</span>
+      </div>
+    </div>
+
+    <div class="griglia-coda sale">
+      <span>Need something specific? We probably do that too.</span>
+      <a class="btn btn-secondary" href="/concierge.html">View All Services</a>
+    </div>
+  </div>
+</section>
+
+<!-- ══ ORGANIZZAZIONI — «Housing your people, handled.» ══════════════════ -->
+<section class="section section-dark" id="organisations">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>For Organisations</span>
+      <h2 class="titolo">Housing your people,<br><span class="hl">handled.</span></h2>
+      <p class="sotto">Universities, companies and research institutions trust BOOM
+        to settle their students, staff and fellows in Rome — verified,
+        English-first, on one invoice.</p>
+    </div>
+
+    <div class="org3 sale">
+      <a class="org" href="/universities.html">
+        <span class="svc-icona"><svg viewBox="0 0 40 40"><path d="M4 15L20 7l16 8-16 8z"/><path d="M11 20v8c0 2.5 4 4.5 9 4.5s9-2 9-4.5v-8M33 16v9"/></svg></span>
+        <h3>Universities</h3>
+        <p>Study-abroad &amp; international offices placing students every
+          semester. Free, no-exclusivity partnership.</p>
+        <b>For universities →</b>
+      </a>
+      <a class="org" href="/corporate.html">
+        <span class="svc-icona"><svg viewBox="0 0 40 40"><path d="M8 34V8h14v26M22 14h10v20M4 34h32"/><path d="M12 13h3M12 18h3M12 23h3M26 19h2M26 24h2"/></svg></span>
+        <h3>Companies</h3>
+        <p>Relocate employees and teams to Rome — verified homes, bureaucracy
+          and one invoice. From €990, pay on move-in.</p>
+        <b>For companies →</b>
+      </a>
+      <a class="org" href="/research.html">
+        <span class="svc-icona"><svg viewBox="0 0 40 40"><path d="M16 5h8M18 5v10L8 31c-1 2 0 4 2.5 4h19c2.5 0 3.5-2 2.5-4L22 15V5"/><path d="M13 25h14"/></svg></span>
+        <h3>Research &amp; ERC</h3>
+        <p>Settle incoming researchers and ERC / Marie-Curie fellows —
+          fixed-term-friendly, family-ready, grant-invoiceable.</p>
+        <b>For research →</b>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ══ PERCHÉ ESISTIAMO ══════════════════════════════════════════════════ -->
+<section class="section">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>Why We Exist</span>
+      <h2 class="titolo">Rome's rental market is <span class="hl">notoriously
+        difficult</span>.<br>We built BOOM to change that.</h2>
+    </div>
+
+    <div class="dolori sale">
+      <div class="dolore"><span class="svc-icona"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="13"/><path d="M20 12v8l6 4"/></svg></span>45+ days average search time</div>
+      <div class="dolore"><span class="svc-icona"><svg viewBox="0 0 40 40"><rect x="5" y="12" width="30" height="17" rx="1.5"/><circle cx="20" cy="20.5" r="4.5"/><path d="M10 12v-2h20v2"/></svg></span>€8,000+ upfront costs</div>
+      <div class="dolore"><span class="svc-icona"><svg viewBox="0 0 40 40"><rect x="6" y="10" width="28" height="20" rx="1.5"/><path d="M6 26l8-7 6 5 6-6 8 8M6 6l28 28"/></svg></span>Misleading photos</div>
+      <div class="dolore"><span class="svc-icona"><svg viewBox="0 0 40 40"><path d="M11 33V16a9 9 0 0118 0v17l-4.5-3-4.5 3-4.5-3z"/><circle cx="16.5" cy="17" r="1"/><circle cx="23.5" cy="17" r="1"/></svg></span>Agents who disappear</div>
+      <div class="dolore"><span class="svc-icona"><svg viewBox="0 0 40 40"><path d="M8 8h24v18H20l-8 7v-7H8z"/><path d="M14 15h12M14 20h8"/></svg></span>Language barriers</div>
+      <div class="dolore"><span class="svc-icona"><svg viewBox="0 0 40 40"><rect x="9" y="17" width="22" height="16" rx="1.5"/><path d="M13 17v-4a7 7 0 0114 0v4"/><circle cx="20" cy="25" r="2"/></svg></span>Deposit disputes</div>
+    </div>
+
+    <div class="diverso quadro sale"><span class="tacca"></span>
+      <b>BOOM is different.</b>
+      <p>Video-verified apartments. Transparent pricing. Real human support.
+        We're building what we wish existed when we moved here.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══ CHI SIAMO ═════════════════════════════════════════════════════════ -->
+<section class="section section-dark">
+  <div class="container about">
+    <div class="sale">
+      <span class="eyebrow"><i></i>Who We Are</span>
+      <h2 class="titolo">Built in <span class="hl">Rome</span>, by Romans,
+        for <span class="hl">you</span>.</h2>
+      <p>We're not another faceless booking platform. BOOM was born from
+        frustration — watching friends, students, and professionals get scammed,
+        ghosted, and exploited by Rome's chaotic rental market.</p>
+      <p>With 6+ years navigating these streets, we built what we wish existed
+        when we started: a service that actually gives a damn. Video-verified
+        apartments. Transparent pricing. Real humans who answer when you call.</p>
+      <p><strong>We don't just find you an apartment — we make sure you don't
+        get screwed in the process.</strong></p>
+      <a class="btn btn-secondary" href="/about.html">Read Our Full Story</a>
+    </div>
+    <div class="about-num sale" id="aboutNum">
+      <div><b data-fine="6" data-suff="+">0+</b><span>Years in Rome Real Estate</span></div>
+      <div><b data-fine="500" data-suff="+">0+</b><span>Happy Tenants Placed</span></div>
+      <div><b data-fine="48" data-suff="h">0h</b><span>Average Move-in Time</span></div>
+      <div><b>24/7</b><span>WhatsApp Support</span></div>
+      <div class="citazione">
+        <p>"If we can fix Rome's rental market, we can fix any market."</p>
+        <span><b>Valentino</b> — Founder &amp; CEO</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ LA CHIAMATA FINALE — «Ready for Rome?» ════════════════════════════ -->
+<section class="finale">
+  <div class="finale-glow" aria-hidden="true"></div>
+  <div class="finale-eco" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div class="container">
+    <h2 class="titolo">Ready for <span class="hl">Rome?</span></h2>
+    <p>Stop fighting the system. Let us handle it.</p>
+    <div class="finale-azioni">
+      <a class="btn btn-primary" href="/v2-apartments.html">View Apartments</a>
+      <a class="btn btn-secondary" href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp Us</a>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <div class="footer-marchio"><span id="logoPiede"></span>Boom</div>
+        <p class="footer-motto">Built in Rome, for Rome. If we can make Rome's
+          rental market work, we can make it work anywhere.</p>
+        <p class="footer-legale"><b>Egidi Immobiliare S.r.l.</b><br>
+          Via dei Coronari 181/184, 00186 Roma<br>
+          Sede legale: Viale Liegi 42, 00198 Roma<br>
+          P.IVA 17322991005 · REA RM-1710623</p>
+      </div>
+      <div class="footer-col">
+        <b>Services</b>
+        <a href="/v2-apartments.html">Apartments</a>
+        <a href="/v2-property-finding.html">Property Finding</a>
+        <a href="/deal-assistance.html">Deal Assistance</a>
+        <a href="/free-contract-check.html">Free Contract Check</a>
+        <a href="/virtual-viewing.html">Virtual Viewing</a>
+        <a href="/concierge.html">Concierge</a>
+        <a href="/v2-board.html">Live Board</a>
+      </div>
+      <div class="footer-col">
+        <b>Company</b>
+        <a href="/about.html">About</a>
+        <a href="/how-it-works.html">How It Works</a>
+        <a href="/universities.html">For Universities</a>
+        <a href="/corporate.html">For Companies</a>
+        <a href="/research.html">For Research</a>
+        <a href="/refer.html">Refer a Friend</a>
+        <a href="/owners.html">For Owners</a>
+        <a href="/blog.html">Blog</a>
+        <a href="/faq.html">FAQ</a>
+        <a href="/contact.html">Contact</a>
+      </div>
+      <div class="footer-col">
+        <b>Legal</b>
+        <a href="/terms.html">Terms</a>
+        <a href="/privacy.html">Privacy</a>
+        <a href="/login">Login</a>
+      </div>
+    </div>
+    <div class="footer-fondo">
+      <span>© 2026 BOOM — All Rights Reserved</span>
+      <span class="op"><i></i>Operational</span>
+    </div>
+  </div>
+</footer>
+
+<style>
+/* ══ SOLARI 4.0 — la cella a palette, precisione tipografica ══════════
+   · metà esattamente al 50%: nessun pixel del glifo sottratto
+   · cerniera DIPINTA sopra (overlay) con perni laterali
+   · glifo centrato otticamente sul cap-height (runtime, --gs)
+   · larghezza cella calibrata sul glifo più largo del rullo (--cw) */
+.fc2 {
+  --ch: 1.26em; --cw: 0.84em; --gs: 0px;
+  position:relative; display:inline-block;
+  width:var(--cw); height:var(--ch);
+  margin-right:0.07em; vertical-align:-0.20em;
+  border-radius:0.085em; background:#040404;
+  box-shadow:inset 0 0 0 1px rgba(239,235,223,0.05), 0 0.08em 0.3em rgba(0,0,0,0.6);
+  perspective:3em; color:var(--oro-flap);
+}
+.fc2 i { position:absolute; left:0; width:100%; height:50%; overflow:hidden; font-style:normal; }
+.fc2 i b { position:absolute; left:0; width:100%; height:var(--ch); line-height:var(--ch);
+  text-align:center; font-weight:inherit; transform:translateY(var(--gs)); }
+.fc2 .st { top:0; border-radius:0.085em 0.085em 0 0; background:linear-gradient(180deg,#17171A,#0E0E10); z-index:1; }
+.fc2 .sb { bottom:0; border-radius:0 0 0.085em 0.085em; background:linear-gradient(180deg,#09090B,#111114); z-index:1; }
+.fc2 .st b { top:0; }
+.fc2 .sb b { top:-100%; }
+.fc2 .lt { top:0; border-radius:0.085em 0.085em 0 0; background:linear-gradient(180deg,#17171A,#0E0E10);
+  transform-origin:center bottom; z-index:4; display:none; }
+.fc2 .lt b { top:0; }
+.fc2 .lb { bottom:0; border-radius:0 0 0.085em 0.085em; background:linear-gradient(180deg,#09090B,#111114);
+  transform-origin:center top; transform:rotateX(88deg); z-index:3; display:none; }
+.fc2 .lb b { top:-100%; }
+.fc2 s { position:absolute; left:0; right:0; top:50%; height:0.035em; min-height:1px;
+  margin-top:calc(0.035em / -2);
+  background:linear-gradient(180deg, rgba(0,0,0,0.92), rgba(0,0,0,0.5));
+  z-index:6; text-decoration:none; }
+.fc2 s::before, .fc2 s::after { content:''; position:absolute; top:50%; width:0.055em; height:0.16em;
+  transform:translateY(-50%); background:linear-gradient(180deg,#000,#1A1A1A); border-radius:0.02em; }
+.fc2 s::before { left:0; border-radius:0 0.02em 0.02em 0; }
+.fc2 s::after { right:0; border-radius:0.02em 0 0 0.02em; }
+@keyframes flTop { 0% { transform:rotateX(0); filter:brightness(1); }
+  100% { transform:rotateX(-88deg); filter:brightness(0.45); } }
+@keyframes flBot { 0% { transform:rotateX(88deg); filter:brightness(0.5); }
+  55% { filter:brightness(1.15); } 100% { transform:rotateX(0); filter:brightness(1); } }
+.flap-scale { letter-spacing:0; white-space:nowrap; }
+</style>
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   BOOM SOLARI — il motore a palette (Gino Valle, 1962), meccanica v3:
+   due mezze celle statiche + due ante 3D guidate da animationend, rulli
+   corti (mai teletrasporti), retargeting a metà giro, failsafe per la
+   scheda nascosta. Qui esporta soltanto: la regia è del Terminale.
+   ══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  function Cell(host) {
+    var el = document.createElement('span');
+    el.className = 'fc2';
+    el.innerHTML = '<i class="st"><b></b></i><i class="sb"><b></b></i><i class="lt"><b></b></i><i class="lb"><b></b></i><s></s>';
+    host.appendChild(el);
+    this.st = el.children[0].firstChild;
+    this.sb = el.children[1].firstChild;
+    this.ltEl = el.children[2]; this.lt = this.ltEl.firstChild;
+    this.lbEl = el.children[3]; this.lb = this.lbEl.firstChild;
+    this.cur = ' '; this.busy = false; this.pending = ' '; this.turns = 0;
+    this.set(' ');
+  }
+  Cell.prototype.set = function (c) {
+    this.cur = c; this.pending = c;
+    this.st.textContent = c; this.sb.textContent = c;
+  };
+  Cell.prototype.next = function (drum) {
+    var i = drum.indexOf(this.cur); if (i < 0) i = 0;
+    var j = drum.indexOf(this.pending); if (j < 0) j = 0;
+    var d = (j - i + drum.length) % drum.length;
+    if (d === 0) return null;
+    if (d > 5) return drum[(j - 4 + drum.length) % drum.length];
+    return drum[(i + 1) % drum.length];
+  };
+  Cell.prototype.step = function (nc, done) {
+    var self = this, fired = false;
+    function finishTop() {
+      if (fired) return; fired = true;
+      self.ltEl.onanimationend = null;
+      self.ltEl.style.display = 'none'; self.ltEl.style.animation = '';
+      var fired2 = false;
+      function finishBot() {
+        if (fired2) return; fired2 = true;
+        self.lbEl.onanimationend = null;
+        self.sb.textContent = nc;
+        self.lbEl.style.display = 'none'; self.lbEl.style.animation = '';
+        self.cur = nc; done();
+      }
+      self.lbEl.style.display = 'block';
+      self.lbEl.style.animation = 'flBot 150ms cubic-bezier(.3,1.35,.6,1) forwards';
+      self.lbEl.onanimationend = finishBot;
+      setTimeout(finishBot, 400);
+    }
+    this.st.textContent = nc;
+    this.lt.textContent = this.cur;
+    this.lb.textContent = nc;
+    this.ltEl.style.display = 'block';
+    this.ltEl.style.animation = 'flTop 90ms cubic-bezier(.55,0,.85,.36) forwards';
+    this.ltEl.onanimationend = finishTop;
+    setTimeout(finishTop, 300);
+  };
+  Cell.prototype.go = function (target, drum, fullTurn) {
+    this.pending = target;
+    if (fullTurn && !this.busy) this.turns = 1;
+    if (this.busy) return;
+    var self = this;
+    this.busy = true;
+    (function run() {
+      var nc = self.next(drum);
+      if (nc === null && self.turns > 0) {
+        self.turns = 0;
+        var i = drum.indexOf(self.cur);
+        nc = drum[(i + 1) % drum.length];
+        self.pending = drum[i];
+        self.step(nc, run);
+        return;
+      }
+      if (nc === null) { self.busy = false; return; }
+      self.step(nc, run);
+    })();
+  };
+
+  var measurer = document.createElement('canvas').getContext('2d');
+  function calibrate(host, drum) {
+    var cs = getComputedStyle(host);
+    var fs = parseFloat(cs.fontSize);
+    measurer.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+    var chPx = 1.26 * fs;
+    var m = measurer.measureText('H');
+    var fa = m.fontBoundingBoxAscent !== undefined ? m.fontBoundingBoxAscent : m.actualBoundingBoxAscent * 1.25;
+    var fd = m.fontBoundingBoxDescent !== undefined ? m.fontBoundingBoxDescent : m.actualBoundingBoxAscent * 0.25;
+    var baseline = (chPx + fa - fd) / 2;
+    var shift = chPx / 2 - (baseline - m.actualBoundingBoxAscent / 2);
+    var maxW = 0;
+    for (var i = 0; i < drum.length; i++) {
+      var w = measurer.measureText(drum[i]).width;
+      if (w > maxW) maxW = w;
+    }
+    host.style.setProperty('--gs', shift.toFixed(2) + 'px');
+    host.style.setProperty('--cw', ((maxW + fs * 0.24) / fs).toFixed(4) + 'em');
+  }
+
+  function Board(host, len, drum) {
+    host.textContent = '';
+    host.classList.add('flap-scale');
+    calibrate(host, drum);
+    this.cells = [];
+    this.drum = drum;
+    for (var i = 0; i < len; i++) this.cells.push(new Cell(host));
+  }
+  Board.prototype.show = function (word, stagger, spin) {
+    var self = this;
+    this.cells.forEach(function (c, i) {
+      var ch = word[i] || ' ';
+      if (!spin) { c.set(ch); return; }
+      setTimeout(function () { c.go(ch, self.drum); },
+        i * (stagger || 90) + Math.random() * 26);
+    });
+  };
+  Board.prototype.update = function (word) {   /* flippa solo le celle cambiate */
+    var self = this;
+    this.cells.forEach(function (c, i) {
+      var ch = word[i] || ' ';
+      if (c.cur !== ch || c.pending !== ch) c.go(ch, self.drum);
+    });
+  };
+  Board.prototype.flutter = function () {
+    var c = this.cells[Math.floor(Math.random() * this.cells.length)];
+    if (c && !c.busy && c.cur !== ' ') c.go(c.cur, this.drum, true);
+  };
+
+  window.BoomSolari = { Cell: Cell, Board: Board, calibrate: calibrate };
+})();
+</script>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   BOOM · GLI ORGANI CONDIVISI — il design system in movimento.
+
+   Una fonte sola per tutte le pagine Déco: testata + filo del progresso,
+   bagliore del mouse, tenda del telefono, entrate, contatori, canoni sui
+   Solari, cuori (boomSalvate) e zone-link. Ogni blocco è guardato: se la
+   pagina non ha quell'organo, il blocco non fa nulla.
+   ══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  var R = document.documentElement;
+  var ridotto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var fine = matchMedia('(hover:hover) and (pointer:fine)').matches;
+  var BS = window.BoomSolari;
+  R.classList.add('vivo');
+
+  /* ── il marchio del piede: clonato dalla testata, una fonte sola ─────── */
+  (function () {
+    var vero = document.querySelector('.nav .logo-mark');
+    var slot = document.getElementById('logoPiede');
+    if (!vero || !slot) return;
+    var c = vero.cloneNode(true);
+    c.removeAttribute('class'); c.setAttribute('aria-hidden', 'true');
+    slot.replaceWith(c);
+  })();
+
+  /* ── testata + filo del progresso: un solo ascoltatore ───────────────── */
+  (function () {
+    var nav = document.getElementById('nav');
+    var filo = document.getElementById('scrollProgress');
+    var atteso = false;
+    function guarda() {
+      atteso = false;
+      var h = document.scrollingElement || document.documentElement;
+      if (nav) nav.classList.toggle('scrolled', h.scrollTop > 24);
+      if (filo) {
+        var tot = h.scrollHeight - innerHeight;
+        filo.style.transform = 'scaleX(' + (tot > 0 ? h.scrollTop / tot : 0) + ')';
+      }
+    }
+    addEventListener('scroll', function () {
+      if (!atteso) { atteso = true; requestAnimationFrame(guarda); }
+    }, { passive: true });
+    guarda();
+  })();
+
+  /* ── il bagliore del mouse (come sul live, solo su puntatore fine) ───── */
+  (function () {
+    var glow = document.getElementById('mouseGlow');
+    if (!glow || !fine || ridotto) return;
+    var t;
+    document.addEventListener('mousemove', function (e) {
+      glow.style.left = e.clientX + 'px';
+      glow.style.top = e.clientY + 'px';
+      glow.classList.add('active');
+      clearTimeout(t);
+      t = setTimeout(function () { glow.classList.remove('active'); }, 1500);
+    }, { passive: true });
+    document.addEventListener('mouseleave', function () { glow.classList.remove('active'); });
+  })();
+
+  /* ── la tenda del telefono ───────────────────────────────────────────── */
+  (function () {
+    var apri = document.getElementById('apri');
+    var tenda = document.getElementById('tenda');
+    if (!apri || !tenda) return;
+    function chiudi() {
+      R.classList.remove('aperto');
+      apri.setAttribute('aria-expanded', 'false');
+      apri.setAttribute('aria-label', 'Open menu');
+      document.body.style.overflow = '';
+    }
+    apri.addEventListener('click', function () {
+      var ap = !R.classList.contains('aperto');
+      R.classList.toggle('aperto', ap);
+      apri.setAttribute('aria-expanded', ap ? 'true' : 'false');
+      apri.setAttribute('aria-label', ap ? 'Close menu' : 'Open menu');
+      document.body.style.overflow = ap ? 'hidden' : '';
+    });
+    [].forEach.call(tenda.querySelectorAll('a'), function (a) { a.addEventListener('click', chiudi); });
+    addEventListener('keydown', function (e) { if (e.key === 'Escape') chiudi(); });
+  })();
+
+  /* ── le entrate: una volta sola, con rete di sicurezza ───────────────── */
+  (function () {
+    var voci = [].slice.call(document.querySelectorAll('.sale'));
+    if (ridotto || !('IntersectionObserver' in window)) {
+      voci.forEach(function (v) { v.classList.add('dentro'); }); return;
+    }
+    var occhio = new IntersectionObserver(function (righe) {
+      righe.forEach(function (r, i) {
+        if (!r.isIntersecting) return;
+        var el = r.target; occhio.unobserve(el);
+        setTimeout(function () { el.classList.add('dentro'); }, i * 70);
+      });
+    }, { rootMargin: '0px 0px -10% 0px', threshold: .06 });
+    voci.forEach(function (v) { occhio.observe(v); });
+    setTimeout(function () { voci.forEach(function (v) { v.classList.add('dentro'); }); }, 4500);
+  })();
+
+  /* ── i contatori: i numeri del sito, che salgono davanti a chi legge ─── */
+  function conta(el) {
+    var fine_ = +el.dataset.fine, suff = el.dataset.suff || '';
+    if (ridotto) { el.textContent = fine_ + suff; return; }
+    var t0 = 0;
+    function su(ts) {
+      if (!t0) t0 = ts;
+      var p = Math.min(1, (ts - t0) / 1100);
+      el.textContent = Math.round(fine_ * (1 - Math.pow(1 - p, 3))) + suff;
+      if (p < 1) requestAnimationFrame(su);
+    }
+    requestAnimationFrame(su);
+  }
+  (function () {
+    var gruppi = ['heroStats', 'pfBanco', 'aboutNum'];
+    if (!('IntersectionObserver' in window)) {
+      gruppi.forEach(function (id) {
+        var g = document.getElementById(id); if (!g) return;
+        [].forEach.call(g.querySelectorAll('[data-fine]'), function (el) {
+          el.textContent = el.dataset.fine + (el.dataset.suff || '');
+        });
+      });
+      return;
+    }
+    gruppi.forEach(function (id) {
+      var g = document.getElementById(id); if (!g) return;
+      new IntersectionObserver(function (r, io) {
+        if (!r[0].isIntersecting) return;
+        io.disconnect();
+        [].forEach.call(g.querySelectorAll('[data-fine]'), conta);
+        /* le spunte del property finding si incidono in fila */
+        if (id === 'pfBanco') {
+          [].forEach.call(document.querySelectorAll('#pfLista .pf-voce'), function (v, i) {
+            setTimeout(function () { v.classList.add('vista'); }, 200 + i * 140);
+          });
+        }
+      }, { threshold: .3 }).observe(g);
+    });
+    /* le spunte degli altri aiuti: subito viste quando entrano */
+    [].forEach.call(document.querySelectorAll('.aiuto-lista .pf-voce'), function (v, i) {
+      new IntersectionObserver(function (r, io) {
+        if (!r[0].isIntersecting) return;
+        io.disconnect();
+        setTimeout(function () { v.classList.add('vista'); }, i % 6 * 110);
+      }, { threshold: .5 }).observe(v);
+    });
+  })();
+
+  /* ── i cuori: la stessa memoria di Apartments (boomSalvate) ──────────── */
+  (function () {
+    var salvate;
+    try { salvate = new Set(JSON.parse(localStorage.getItem('boomSalvate') || '[]')); }
+    catch (e) { salvate = new Set(); }
+    [].forEach.call(document.querySelectorAll('.home-cuore'), function (b) {
+      b.classList.toggle('si', salvate.has(b.dataset.u));
+      b.addEventListener('click', function (e) {
+        e.preventDefault(); e.stopPropagation();
+        var u = b.dataset.u;
+        if (salvate.has(u)) salvate.delete(u); else salvate.add(u);
+        b.classList.toggle('si', salvate.has(u));
+        try { localStorage.setItem('boomSalvate', JSON.stringify(Array.from(salvate))); }
+        catch (err) {}
+      });
+    });
+    /* la zona sulla carta apre Apartments già filtrata — è uno span-link
+       (un <a> dentro l'<a> della carta spezzerebbe il markup) */
+    [].forEach.call(document.querySelectorAll('.home-zona'), function (z) {
+      function vai(e) {
+        e.preventDefault(); e.stopPropagation();
+        location.href = z.dataset.href;
+      }
+      z.addEventListener('click', vai);
+      z.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') vai(e);
+      });
+    });
+  })();
+
+  /* ── i canoni delle case sui Solari, al primo sguardo ────────────────── */
+  (function () {
+    var voci = [].slice.call(document.querySelectorAll('.flap-prezzo'));
+    if (!voci.length || !BS) return;
+    voci.forEach(function (host) {
+      var testo = host.dataset.p || '';
+      var b = new BS.Board(host, testo.length, ' €,.0123456789');
+      if (ridotto || !('IntersectionObserver' in window)) { b.show(testo); return; }
+      new IntersectionObserver(function (r, io) {
+        if (!r[0].isIntersecting) return;
+        io.disconnect();
+        b.show(testo, 40, true);
+      }, { threshold: .4 }).observe(host);
+    });
+  })();
+
+})();
+</script>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   BOOM · LA HOME — la regia solo-home: DAYS⇄HOURS sul titolo e la storia
+   pinnata scrub-driven. Gli organi condivisi vivono in deco-organi.html.
+   ══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  var ridotto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var BS = window.BoomSolari;
+
+  /* ── DAYS sui Solari: il titolo del sito, con l'organo meccanico ─────── */
+  (function () {
+    var host = document.getElementById('flapDays');
+    if (!host || !BS) return;
+    var b = new BS.Board(host, 5, ' ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+    if (ridotto) { b.show('DAYS'); return; }
+    setTimeout(function () { b.show('DAYS', 110, true); }, 500);
+    /* la promessa si stringe da sola: giorni, anzi ore — ed è vera (48h) */
+    var giro = ['HOURS', 'DAYS'], i = 0;
+    setInterval(function () {
+      if (document.hidden) return;
+      b.update(giro[i % 2]);
+      host.setAttribute('aria-label', giro[i % 2].toLowerCase());
+      i++;
+    }, 6500);
+  })();
+
+  /* ── la storia pinnata: lo scroll è il tempo, come sul sito live ─────── */
+  (function () {
+    var wrap = document.getElementById('come');
+    var dev = document.getElementById('dev');
+    var passi = [].slice.call(document.querySelectorAll('.how-step'));
+    var tacche = [].slice.call(document.querySelectorAll('#howTrack span'));
+    if (!wrap || !dev || !passi.length) return;
+    var NOMI = ['Browsing · verified homes', 'Application sent · 2 min',
+      'Payment secured · Stripe', 'Move-in confirmed · 48h'];
+    var eti = document.getElementById('devStato');
+    var corrente = 0;
+    function stato(i) {
+      if (i === corrente) return;
+      corrente = i;
+      dev.dataset.step = i;
+      if (eti) eti.textContent = NOMI[i];
+      passi.forEach(function (s, k) { s.classList.toggle('on', k === i); });
+    }
+    var timer = document.getElementById('scTimer');
+    var atteso = false;
+    function guarda() {
+      atteso = false;
+      var r = wrap.getBoundingClientRect();
+      var corsa = r.height - innerHeight;
+      if (corsa <= 0) return;
+      var p = Math.min(.999, Math.max(0, -r.top / corsa));
+      var i = Math.floor(p * 4);
+      var f = Math.min(1, Math.max(0, p * 4 - i));
+      stato(i);
+      /* lo scrub: lo scroll è la mano che muove la scena */
+      dev.style.setProperty('--f', ridotto ? 1 : f.toFixed(4));
+      /* i due minuti li scorri tu */
+      if (timer && i === 1) {
+        var sec = Math.round(f * 120);
+        timer.textContent = Math.floor(sec / 60) + ':' +
+          ('0' + (sec % 60)).slice(-2);
+      }
+      /* le soglie: il premio scatta nel punto giusto dello scroll */
+      dev.classList.toggle('premi', i === 1 && f > .78);
+      dev.classList.toggle('arrivata', (i === 1 && f > .82) || i > 1);
+      dev.classList.toggle('pagato', (i === 2 && f > .86) || i > 2);
+      dev.classList.toggle('chiavi', i === 3 && f > .62);
+      /* le tacche si riempiono col dito, come le stories */
+      tacche.forEach(function (t, k) {
+        var g = Math.min(1, Math.max(0, p * 4 - k));
+        t.firstChild.style.width = (g * 100) + '%';
+      });
+    }
+    addEventListener('scroll', function () {
+      if (!atteso) { atteso = true; requestAnimationFrame(guarda); }
+    }, { passive: true });
+    guarda();
+  })();
+})();
+</script>

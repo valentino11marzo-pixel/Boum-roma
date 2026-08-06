@@ -1,0 +1,802 @@
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   BOOM · LA CASA — la pagina annuncio del sito live, rieseguita Déco Solari.
+
+   L'identità è quella di apartment-detail.html: galleria, titolo, fatti,
+   01 The home · 02 The money · 03 The location · 04 Proof · 05 In zona ·
+   06 FAQ, la carta della decisione e la ringhiera mobile. Cambia solo
+   l'esecuzione: i numeri vivono sui Solari — cambia la data e il totale
+   ROTOLA — il quartiere pulsa sul radar del live, i fatti sono incisi.
+   Consuma lh-css.html (il design system) e deco-organi.html.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.casa-main { padding-top:92px; }
+.casa-crumb { padding:14px 0 16px; font-size:12.5px; color:var(--text-3);
+  letter-spacing:.04em; }
+.casa-crumb a { color:var(--text-3); transition:color .25s; }
+.casa-crumb a:hover { color:var(--gold); }
+.casa-crumb b { color:var(--text-2); font-weight:500; }
+
+/* ── la galleria: carosello a scatto + filmstrip, dentro la cornice ───── */
+.galleria { position:relative; overflow:hidden; background:var(--card);
+  aspect-ratio:4/3; }
+@media (min-width:640px){ .galleria { aspect-ratio:16/9; } }
+.gal-track { display:flex; height:100%; overflow-x:auto;
+  scroll-snap-type:x mandatory; scrollbar-width:none;
+  -webkit-overflow-scrolling:touch; }
+.gal-track::-webkit-scrollbar { display:none; }
+.gal-slide { position:relative; flex:0 0 100%; height:100%;
+  scroll-snap-align:center; background:var(--elevated); }
+.gal-slide img { width:100%; height:100%; object-fit:cover; cursor:zoom-in; }
+.gal-scrim { position:absolute; inset:0; pointer-events:none;
+  background:linear-gradient(180deg, rgba(3,3,3,.36), transparent 26%,
+    transparent 58%, rgba(3,3,3,.72)); }
+.gal-sopra { position:absolute; top:14px; left:14px; right:14px; z-index:3;
+  display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+.gal-bolli { display:flex; gap:8px; flex-wrap:wrap; }
+.bollo { display:inline-flex; align-items:center; gap:7px; padding:8px 13px;
+  font-size:11px; font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+  background:rgba(3,3,3,.55); backdrop-filter:blur(10px);
+  box-shadow:inset 0 0 0 1px var(--line); }
+.bollo-verif { color:var(--green);
+  box-shadow:inset 0 0 0 1px rgba(0,255,136,.25); }
+.bollo-video { color:var(--gold);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.bollo-video:hover { background:rgba(255,215,0,.12); }
+.gal-atti { display:flex; gap:8px; }
+.gal-atti button { width:42px; height:42px; display:grid; place-items:center;
+  font-size:17px; color:var(--text-2); background:rgba(3,3,3,.55);
+  backdrop-filter:blur(10px); box-shadow:inset 0 0 0 1px var(--line);
+  cursor:pointer; transition:color .25s, box-shadow .25s; }
+.gal-atti button:hover { color:var(--gold);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.gal-atti .cuore.si { color:var(--gold); }
+.gal-freccia { position:absolute; top:50%; transform:translateY(-50%); z-index:3;
+  width:46px; height:46px; display:none; place-items:center; font-size:20px;
+  color:var(--text-2); background:rgba(3,3,3,.5); backdrop-filter:blur(8px);
+  box-shadow:inset 0 0 0 1px var(--line); cursor:pointer; transition:.25s; }
+.gal-freccia:hover { color:var(--gold); box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.gal-freccia.l { left:14px; } .gal-freccia.r { right:14px; }
+@media (min-width:760px) and (hover:hover){ .gal-freccia { display:grid; } }
+.gal-piede { position:absolute; left:16px; right:16px; bottom:13px; z-index:3;
+  display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.gal-punti { display:flex; gap:6px; }
+.gal-punti i { width:6px; height:6px; border-radius:50%;
+  background:rgba(255,255,255,.4); transition:.3s var(--ease); }
+.gal-punti i.on { background:var(--gold); width:18px; border-radius:100px; }
+.gal-conta { font-size:12px; color:var(--text-2); padding:6px 12px;
+  background:rgba(3,3,3,.55); backdrop-filter:blur(8px);
+  box-shadow:inset 0 0 0 1px var(--line); font-variant-numeric:tabular-nums;
+  cursor:pointer; }
+.gal-film { display:none; gap:8px; margin-top:10px; overflow-x:auto;
+  scrollbar-width:none; padding-bottom:2px; }
+.gal-film::-webkit-scrollbar { display:none; }
+@media (min-width:760px){ .gal-film { display:flex; } }
+.gal-film button { flex:0 0 92px; aspect-ratio:4/3; padding:0; cursor:pointer;
+  background:var(--card); opacity:.55; box-shadow:inset 0 0 0 1px var(--line);
+  transition:opacity .25s, box-shadow .25s; }
+.gal-film button.on { opacity:1; box-shadow:inset 0 0 0 1px var(--gold); }
+.gal-film img { width:100%; height:100%; object-fit:cover; }
+
+/* la vetrina a luci spente: lightbox */
+.lucebox { position:fixed; inset:0; z-index:300; background:rgba(3,3,3,.96);
+  display:none; align-items:center; justify-content:center; }
+.lucebox.on { display:flex; }
+.lucebox img { max-width:92vw; max-height:88vh; object-fit:contain; }
+.lucebox .chiudi { position:absolute; top:18px; right:18px; width:46px; height:46px;
+  display:grid; place-items:center; font-size:22px; color:var(--text-2);
+  box-shadow:inset 0 0 0 1px var(--line); cursor:pointer; }
+.lucebox .chiudi:hover { color:var(--gold); }
+.lucebox .gal-freccia { display:grid; }
+.lucebox .lb-conta { position:absolute; bottom:20px; left:50%;
+  transform:translateX(-50%); font-size:12.5px; color:var(--text-3);
+  font-variant-numeric:tabular-nums; }
+
+/* ── il titolo e il canone sui Solari ─────────────────────────────────── */
+.casa-testa { margin-top:22px; display:flex; flex-wrap:wrap; gap:14px 28px;
+  align-items:flex-end; justify-content:space-between; }
+.casa-testa h1 { font-weight:200; font-size:clamp(28px,4.6vw,50px);
+  line-height:1.06; letter-spacing:-.02em; }
+.casa-luogo { margin-top:10px; font-size:14px; color:var(--text-2);
+  display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
+.casa-luogo .sep { color:var(--gold); }
+.casa-luogo .libera { color:var(--green); }
+.casa-canone { text-align:right; }
+.casa-canone .flap-scale { font-size:clamp(24px,3vw,34px); }
+.casa-canone small { display:block; margin-top:6px; font-size:12px;
+  color:var(--text-3); letter-spacing:.04em; }
+@media (max-width:639px){ .casa-testa { flex-direction:column;
+  align-items:flex-start; } .casa-canone { text-align:left; } }
+
+/* ── i fatti, incisi sui Solari ───────────────────────────────────────── */
+.fatti { margin-top:22px; display:grid; grid-auto-flow:column;
+  grid-auto-columns:minmax(118px,1fr); gap:1px; background:var(--line-0);
+  overflow-x:auto; scrollbar-width:none;
+  box-shadow:inset 0 0 0 1px var(--line-0); }
+.fatti::-webkit-scrollbar { display:none; }
+@media (min-width:680px){ .fatti { grid-auto-flow:row;
+  grid-template-columns:repeat(5,minmax(0,1fr)); overflow:visible; } }
+.fatto { background:var(--surface); padding:16px 18px; }
+.fatto .fv { font-size:19px; min-height:28px; }
+.fatto .fk { margin-top:7px; font-size:10.5px; font-weight:500;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--text-3); }
+
+/* ── lo strato: racconto + carta della decisione ──────────────────────── */
+.strato { margin-top:34px; display:flex; flex-direction:column; gap:30px; }
+@media (min-width:1120px){ .strato { display:grid;
+  grid-template-columns:minmax(0,1fr) 372px; gap:48px; align-items:start; } }
+.casa-lato { order:-1; }
+@media (min-width:1120px){ .casa-lato { order:0; position:sticky; top:92px; } }
+
+.sez-casa { padding:26px 0; }
+.sez-casa + .sez-casa { border-top:1px solid var(--line-0); }
+.sez-testa { display:flex; align-items:baseline; gap:14px; margin-bottom:16px; }
+.sez-testa .num { font-size:11px; letter-spacing:.2em; color:var(--text-4);
+  font-variant-numeric:tabular-nums; }
+.sez-testa h2 { font-weight:200; font-size:clamp(21px,3vw,30px);
+  letter-spacing:-.01em; }
+.sez-testa h2 .hl { color:var(--gold); }
+.casa-desc { color:var(--text-2); font-size:15.5px; line-height:1.75;
+  max-width:64ch; }
+.casa-vita { margin-top:16px; padding:13px 17px; border-left:2px solid var(--gold);
+  background:rgba(255,215,0,.04); color:var(--text-2); font-size:14px;
+  line-height:1.65; font-style:italic; max-width:60ch; }
+.casa-vita b { display:block; font-style:normal; font-size:10px;
+  letter-spacing:.22em; text-transform:uppercase; color:var(--gold);
+  margin-bottom:5px; }
+.casa-feat { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
+.casa-feat span { padding:9px 14px; font-size:13px; color:var(--text-2);
+  box-shadow:inset 0 0 0 1px var(--line); }
+
+/* ── i soldi: la formula del live, che rotola quando scegli tu ────────── */
+.soldi-nota { color:var(--text-2); font-size:14px; max-width:56ch;
+  margin-bottom:18px; }
+.soldi-tavole { display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:1px; background:var(--line-0); box-shadow:inset 0 0 0 1px var(--line-0); }
+@media (min-width:640px){ .soldi-tavole {
+  grid-template-columns:repeat(4,minmax(0,1fr)); } }
+.tavola { background:var(--surface); padding:16px 18px; }
+.tavola .tk { font-size:10px; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--text-3); font-weight:500; }
+.tavola .tv { margin-top:9px; font-family:var(--display); font-size:21px;
+  font-weight:250; color:var(--text); font-variant-numeric:tabular-nums;
+  min-height:30px; }
+.tavola .ts { margin-top:5px; font-size:11px; color:var(--text-3); }
+.tavola-tot { background:linear-gradient(180deg, rgba(255,215,0,.07), transparent),
+  var(--surface); box-shadow:inset 0 0 0 1px var(--line-gold); }
+.tavola-tot .tv { color:var(--gold); }
+.decod-apri { margin-top:16px; display:inline-flex; align-items:center; gap:9px;
+  padding:12px 18px; font-size:12.5px; letter-spacing:.06em; color:var(--text-2);
+  box-shadow:inset 0 0 0 1px var(--line); cursor:pointer; transition:.25s; }
+.decod-apri:hover { color:var(--gold); box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.decod { max-height:0; overflow:hidden; transition:max-height .55s var(--ease); }
+.decod.aperto { max-height:1400px; }
+.decod-in { margin-top:14px; display:grid; gap:10px; }
+@media (min-width:640px){ .decod-in { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+.decod-carta { padding:16px 18px; background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--line); }
+.decod-carta h4 { font-family:var(--sans); font-weight:500; font-size:13.5px;
+  margin-bottom:6px; }
+.decod-carta h4 i { font-style:normal; color:var(--gold); font-size:12px;
+  margin-left:6px; }
+.decod-carta p { color:var(--text-2); font-size:13px; line-height:1.6; }
+
+/* ── il quartiere sul radar del live ──────────────────────────────────── */
+.zona-scatola { position:relative; height:300px; overflow:hidden;
+  background:radial-gradient(120% 120% at 50% 40%, var(--elevated), var(--black));
+  display:grid; place-items:center; }
+.zona-scatola .radar u { width:340px; }
+.zona-cuore { position:relative; z-index:2; text-align:center; }
+.zona-cuore .z-nome { font-family:var(--display); font-size:17px;
+  letter-spacing:.14em; text-transform:uppercase; }
+.zona-cuore .z-sotto { margin-top:4px; font-size:11px; color:var(--text-3);
+  letter-spacing:.06em; }
+.zona-anelli { position:absolute; inset:0; pointer-events:none; }
+.zona-anelli span { position:absolute; left:50%; top:50%; font-size:10px;
+  color:rgba(255,215,0,.55); letter-spacing:.08em; }
+.zona-anelli .anello { position:absolute; left:50%; top:50%;
+  transform:translate(-50%,-50%); border:1px dashed rgba(255,215,0,.16);
+  border-radius:50%; }
+.dist-lista { margin-top:14px; display:grid; gap:1px; background:var(--line-0);
+  box-shadow:inset 0 0 0 1px var(--line-0); }
+@media (min-width:640px){ .dist-lista { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+.dist { display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:13px 16px; background:var(--surface); font-size:13.5px; }
+.dist .dn { color:var(--text-2); }
+.dist .dv { color:var(--gold); font-variant-numeric:tabular-nums;
+  font-family:var(--display); white-space:nowrap; }
+.dist-nota { margin-top:9px; font-size:11.5px; color:var(--text-4); }
+.zona-vai { margin-top:14px; display:flex; flex-direction:column; gap:9px; }
+.zona-vai a { display:flex; align-items:center; gap:11px; padding:13px 17px;
+  font-size:13.5px; color:var(--gold); box-shadow:inset 0 0 0 1px var(--line-gold);
+  transition:.25s; }
+.zona-vai a small { flex:1; color:var(--text-3); font-size:11.5px; line-height:1.5; }
+.zona-vai a:hover { box-shadow:inset 0 0 0 1px var(--line-gold-2);
+  background:rgba(255,215,0,.05); }
+
+/* ── prove, non promesse ──────────────────────────────────────────────── */
+.prove { display:flex; flex-wrap:wrap; gap:9px; margin-bottom:18px; }
+.prova { display:inline-flex; align-items:center; gap:8px; padding:10px 15px;
+  font-size:12.5px; color:var(--text-2); box-shadow:inset 0 0 0 1px var(--line); }
+.prova i { font-style:normal; color:var(--green); }
+.passi { display:grid; gap:1px; background:var(--line-0);
+  box-shadow:inset 0 0 0 1px var(--line-0); }
+@media (min-width:640px){ .passi { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+.passo { background:var(--surface); padding:18px; position:relative; overflow:hidden; }
+.passo::after { content:''; position:absolute; left:0; top:0; width:2px; height:0;
+  background:linear-gradient(var(--gold), var(--gold-dark));
+  transition:height .7s var(--ease) .2s; }
+.sale.dentro .passo::after { height:100%; }
+.passo .pn { font-size:11px; letter-spacing:.2em; color:var(--gold);
+  font-variant-numeric:tabular-nums; }
+.passo h4 { font-family:var(--sans); font-weight:500; font-size:14px; margin-top:9px; }
+.passo p { font-size:12.5px; color:var(--text-2); margin-top:5px; line-height:1.55; }
+.dopo { margin-top:12px; display:flex; gap:14px; align-items:center; flex-wrap:wrap;
+  padding:18px; background:linear-gradient(180deg, rgba(255,215,0,.05), transparent),
+  var(--card); box-shadow:inset 0 0 0 1px var(--line); }
+.dopo .ico { font-size:20px; color:var(--gold); }
+.dopo h4 { font-family:var(--sans); font-weight:500; font-size:14.5px; }
+.dopo p { color:var(--text-2); font-size:13px; margin-top:3px; max-width:56ch; }
+
+/* ── altri in zona: le stesse carte della home ────────────────────────── */
+.sim-fila { display:flex; gap:14px; overflow-x:auto; scroll-snap-type:x mandatory;
+  scrollbar-width:none; padding-bottom:4px; }
+.sim-fila::-webkit-scrollbar { display:none; }
+.sim-fila .home { flex:0 0 min(78%,300px); scroll-snap-align:start; }
+
+/* ── faq ──────────────────────────────────────────────────────────────── */
+.faq-lista .qa { border-bottom:1px solid var(--line); }
+.faq-lista .qd { width:100%; display:flex; justify-content:space-between;
+  align-items:center; gap:14px; padding:17px 2px; font-size:15px;
+  text-align:left; cursor:pointer; }
+.faq-lista .qd i { font-style:normal; color:var(--gold); font-size:20px;
+  transition:transform .3s var(--ease); flex:none; }
+.faq-lista .qa.aperto .qd i { transform:rotate(45deg); }
+.faq-lista .ra { max-height:0; overflow:hidden;
+  transition:max-height .4s var(--ease); color:var(--text-2); font-size:13.5px;
+  line-height:1.7; }
+.faq-lista .qa.aperto .ra { max-height:300px; }
+.faq-lista .ra div { padding:0 2px 17px; max-width:66ch; }
+
+/* upsell: tre carte servizio (griglia da 4, ristretta a 3) */
+.cards4.tre { grid-template-columns:minmax(0,1fr); }
+@media (min-width:640px){ .cards4.tre { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+
+/* ── la carta della decisione ─────────────────────────────────────────── */
+.lato-carta { background:linear-gradient(180deg, rgba(18,18,20,.9), var(--card));
+  box-shadow:inset 0 0 0 1px var(--line-gold); }
+.lato-testa { padding:20px 22px 16px; border-bottom:1px solid var(--line-0);
+  position:relative; overflow:hidden; }
+.lato-testa::before { content:''; position:absolute; top:-60%; right:-14%;
+  width:64%; height:180%; pointer-events:none;
+  background:radial-gradient(closest-side, rgba(255,215,0,.1), transparent); }
+.lato-testa .flap-scale { font-size:27px; }
+.lato-testa small { display:block; margin-top:8px; font-size:12px;
+  color:var(--text-3); }
+.lato-corpo { padding:18px 22px 22px; }
+.lato-eti { font-size:10.5px; letter-spacing:.18em; text-transform:uppercase;
+  color:var(--gold); font-weight:600; margin-bottom:12px; }
+.campo-data { width:100%; padding:13px 14px; font-size:15px; background:var(--elevated);
+  box-shadow:inset 0 0 0 1px var(--line); color:var(--text);
+  color-scheme:dark; transition:box-shadow .25s; }
+.campo-data:focus { outline:none; box-shadow:inset 0 0 0 1px var(--gold); }
+.durata { display:flex; gap:4px; margin-top:10px; padding:4px;
+  background:var(--elevated); box-shadow:inset 0 0 0 1px var(--line); }
+.durata button { flex:1; padding:9px 4px; font-size:12px; color:var(--text-2);
+  cursor:pointer; transition:.2s var(--ease); white-space:nowrap; }
+.durata button.on { background:var(--gold); color:var(--black); font-weight:600; }
+.soggiorno { margin-top:12px; font-size:12px; color:var(--text-3);
+  line-height:1.6; min-height:18px; }
+.soggiorno b { color:var(--text-2); font-weight:500; }
+.lato-righe { margin-top:14px; display:grid; gap:1px; background:var(--line-0);
+  box-shadow:inset 0 0 0 1px var(--line-0); }
+.lato-riga { display:flex; justify-content:space-between; align-items:center;
+  gap:10px; padding:12px 14px; background:var(--card); font-size:13px; }
+.lato-riga .rk { color:var(--text-2); }
+.lato-riga .rk small { display:block; font-size:10.5px; color:var(--text-4); }
+.lato-riga .rv { font-family:var(--display); font-variant-numeric:tabular-nums; }
+.lato-riga.tot { background:linear-gradient(90deg, rgba(255,215,0,.1), transparent); }
+.lato-riga.tot .rv .flap-scale { font-size:17px; }
+.lato-carta .btn-primary { width:100%; margin-top:15px; flex-direction:column;
+  gap:3px; padding:14px 20px; }
+.lato-carta .btn-primary small { font-size:10px; letter-spacing:.08em;
+  font-weight:500; opacity:.75; text-transform:none; }
+.lato-alt { width:100%; margin-top:9px; display:flex; align-items:center;
+  justify-content:center; gap:8px; padding:12px; font-size:12.5px;
+  color:var(--text-2); box-shadow:inset 0 0 0 1px var(--line); cursor:pointer;
+  transition:.25s; text-align:center; }
+.lato-alt:hover { color:var(--gold); box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.lato-fiducia { margin-top:15px; padding-top:14px; border-top:1px solid var(--line-0);
+  display:flex; flex-wrap:wrap; gap:8px 14px; font-size:11.5px; color:var(--text-3); }
+.lato-fiducia span i { font-style:normal; color:var(--green); margin-right:5px; }
+.lato-fiducia a { color:var(--text-3); }
+.lato-fiducia a b { color:var(--gold); font-weight:600; }
+
+/* ── la ringhiera mobile ──────────────────────────────────────────────── */
+.ringhiera { position:fixed; left:0; right:0; bottom:0; z-index:120;
+  background:rgba(3,3,3,.92); backdrop-filter:blur(20px);
+  border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom, 0); }
+@media (min-width:1120px){ .ringhiera { display:none; } }
+.ringhiera .filo { height:2px; background:var(--line-0); }
+.ringhiera .filo i { display:block; height:100%; width:0;
+  background:linear-gradient(90deg, var(--gold-dark), var(--gold)); }
+.ringhiera .dentro-r { display:flex; align-items:center; gap:12px;
+  padding:10px 18px; }
+.ringhiera .rl { flex:1; min-width:0; }
+.ringhiera .rl b { font-family:var(--display); font-weight:400; font-size:15px; }
+.ringhiera .rl small { display:block; color:var(--text-3); font-size:11px; }
+.ringhiera .btn-primary { padding:13px 24px; }
+.casa-main { padding-bottom:86px; }
+@media (min-width:1120px){ .casa-main { padding-bottom:0; } }
+
+/* ── il foglio della candidatura ──────────────────────────────────────── */
+.velo { position:fixed; inset:0; z-index:250; background:rgba(3,3,3,.72);
+  backdrop-filter:blur(7px); display:none; align-items:flex-end;
+  justify-content:center; }
+@media (min-width:640px){ .velo { align-items:center; } }
+.velo.on { display:flex; }
+.foglio { width:100%; max-width:480px; max-height:88vh; overflow-y:auto;
+  background:var(--surface); box-shadow:inset 0 0 0 1px var(--line-gold); }
+.foglio-testa { position:sticky; top:0; display:flex; align-items:center;
+  justify-content:space-between; gap:12px; padding:18px 22px;
+  background:var(--surface); border-bottom:1px solid var(--line-0); }
+.foglio-testa h3 { font-weight:300; font-size:19px; }
+.foglio-testa button { width:38px; height:38px; display:grid; place-items:center;
+  font-size:19px; color:var(--text-3); box-shadow:inset 0 0 0 1px var(--line);
+  cursor:pointer; }
+.foglio-testa button:hover { color:var(--gold); }
+.foglio-corpo { padding:20px 22px 26px; }
+.foglio-corpo label { display:block; font-size:10.5px; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--text-3); margin:14px 0 6px; }
+.foglio-corpo input, .foglio-corpo select { width:100%; padding:12px 13px;
+  font-size:15px; background:var(--elevated); color:var(--text);
+  box-shadow:inset 0 0 0 1px var(--line); color-scheme:dark;
+  transition:box-shadow .25s; }
+.foglio-corpo input:focus, .foglio-corpo select:focus { outline:none;
+  box-shadow:inset 0 0 0 1px var(--gold); }
+.foglio-doppio { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.foglio-spunta { display:flex; align-items:center; gap:10px; margin-top:16px;
+  font-size:13px; color:var(--text-2); cursor:pointer; }
+.foglio-spunta input { width:18px; height:18px; accent-color:var(--gold); flex:none; }
+.foglio-corpo .btn-primary { width:100%; margin-top:20px; }
+.foglio-nota { margin-top:12px; font-size:11.5px; color:var(--text-4);
+  line-height:1.6; }
+.foglio-esito { display:none; text-align:center; padding:26px 0 12px; }
+.foglio.inviato .foglio-esito { display:block; }
+.foglio.inviato .foglio-modulo { display:none; }
+.foglio-esito .sigillo { width:64px; height:64px; margin:0 auto 16px;
+  display:grid; place-items:center; font-size:28px; color:var(--green);
+  box-shadow:inset 0 0 0 1.5px var(--green); border-radius:50%; }
+.foglio-esito h4 { font-weight:300; font-size:21px; }
+.foglio-esito p { margin-top:9px; color:var(--text-2); font-size:13.5px;
+  line-height:1.7; }
+.foglio-esito .demo { margin-top:14px; font-size:11px; color:var(--text-4);
+  letter-spacing:.06em; text-transform:uppercase; }
+
+/* honeypot: invisibile agli umani, irresistibile ai bot */
+.ditta { position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden; }
+
+@media (prefers-reduced-motion:reduce){
+  .zona-scatola .radar i, .zona-scatola .radar u,
+  .zona-scatola .radar b, .zona-scatola .radar s { animation:none; }
+  .zona-scatola .radar i { opacity:.25; width:200px; height:200px; }
+}
+</style>
+
+<a class="salta" href="#casa">Skip to content</a>
+<div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
+<div class="mouse-glow" id="mouseGlow" aria-hidden="true"></div>
+<div class="tech-bg" aria-hidden="true"><span class="tech-orb tech-orb-1"></span><span class="tech-orb tech-orb-2"></span><span class="tech-orb tech-orb-3"></span></div>
+
+<nav class="nav" id="nav">
+  <div class="container nav-inner">
+    <a class="marchio" href="/index.html" aria-label="BOOM, home">LOGO_SVG<span>Boom</span></a>
+    <div class="menu">
+      <a href="/apartments.html">Apartments</a>
+      <a href="/property-finding.html">Property Finding</a>
+      <a href="/deal-assistance.html">Deal Assistance</a>
+      <a href="/virtual-viewing.html">Virtual Viewing</a>
+      <a href="/concierge.html">Concierge</a>
+      <a href="/partners.html">Partners</a>
+      <a href="/about.html">About</a>
+      <a class="btn btn-primary" href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a>
+    </div>
+    <button class="apri" id="apri" type="button" aria-label="Open menu"
+      aria-expanded="false" aria-controls="tenda"><i></i><i></i><i></i></button>
+  </div>
+</nav>
+<div class="tenda" id="tenda">
+  <a href="/apartments.html">Apartments</a>
+  <a href="/property-finding.html">Property Finding</a>
+  <a href="/deal-assistance.html">Deal Assistance</a>
+  <a href="/virtual-viewing.html">Virtual Viewing</a>
+  <a href="/concierge.html">Concierge</a>
+  <a href="/partners.html">Partners</a>
+  <a href="/about.html">About</a>
+  <a href="/login">Login</a>
+  <a class="btn btn-primary" href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a>
+</div>
+
+<main class="casa-main" id="casa">
+  <div class="container">
+    <div class="casa-crumb"><a href="/apartments.html">Apartments</a>
+      <span aria-hidden="true">·</span> <b id="crumbZona">Rome</b></div>
+
+    <!-- ══ LA GALLERIA — quello che vedi è quello che è ══ -->
+    <div class="galleria quadro"><span class="tacca"></span>
+      <div class="gal-track" id="galTrack" aria-label="Photo gallery"></div>
+      <div class="gal-scrim" aria-hidden="true"></div>
+      <div class="gal-sopra">
+        <div class="gal-bolli">
+          <span class="bollo bollo-verif">✓ Verified</span>
+          <a class="bollo bollo-video" id="bolloVideo" href="#" target="_blank"
+            rel="noopener" hidden>▶ Video tour</a>
+        </div>
+        <div class="gal-atti">
+          <button type="button" class="cuore" id="cuoreCasa"
+            aria-label="Save this home" aria-pressed="false">♥</button>
+          <button type="button" id="condividi" aria-label="Share">↗</button>
+        </div>
+      </div>
+      <button type="button" class="gal-freccia l" id="galPrec" aria-label="Previous photo">‹</button>
+      <button type="button" class="gal-freccia r" id="galSucc" aria-label="Next photo">›</button>
+      <div class="gal-piede">
+        <div class="gal-punti" id="galPunti" aria-hidden="true"></div>
+        <button type="button" class="gal-conta" id="galConta">1 / 1</button>
+      </div>
+    </div>
+    <div class="gal-film" id="galFilm" aria-label="Photo thumbnails"></div>
+
+    <!-- ══ IL TITOLO — nome, zona, canone sui Solari ══ -->
+    <div class="casa-testa">
+      <div>
+        <h1 id="casaNome">…</h1>
+        <div class="casa-luogo"><span id="casaZona">Rome</span>
+          <span class="sep" aria-hidden="true">·</span>
+          <span id="casaLibera" class="libera"></span></div>
+      </div>
+      <div class="casa-canone">
+        <span id="flapCanone" aria-label="monthly rent"></span>
+        <small>per month · BOOM-managed</small>
+      </div>
+    </div>
+
+    <!-- ══ I FATTI, INCISI ══ -->
+    <div class="fatti" id="fatti"></div>
+
+    <div class="strato">
+      <div>
+        <!-- 01 · THE HOME -->
+        <section class="sez-casa sale" id="lacasa">
+          <div class="sez-testa"><span class="num">01</span>
+            <div><div class="eyebrow"><i></i>The home</div>
+              <h2>What you see is <span class="hl">what you get</span>.</h2></div></div>
+          <p class="casa-desc" id="casaDesc"></p>
+          <p class="casa-vita" id="casaVita" hidden><b>The neighbourhood</b><span></span></p>
+          <div class="casa-feat" id="casaFeat"></div>
+        </section>
+
+        <!-- 02 · THE MONEY -->
+        <section class="sez-casa sale" id="soldi">
+          <div class="sez-testa"><span class="num">02</span>
+            <div><div class="eyebrow"><i></i>The money</div>
+              <h2>Exactly what you <span class="hl">pay</span>. And what comes back.</h2></div></div>
+          <p class="soldi-nota">Everything to move in — computed on the dates you
+            choose in the card. No fees invented at the table.</p>
+          <div class="soldi-tavole">
+            <div class="tavola"><div class="tk">First month</div>
+              <div class="tv" id="tvPrimo">—</div><div class="ts" id="tsPrimo">full rent</div></div>
+            <div class="tavola"><div class="tk">Deposit</div>
+              <div class="tv" id="tvDeposito">—</div><div class="ts">refundable at end</div></div>
+            <div class="tavola"><div class="tk">Agency fee</div>
+              <div class="tv" id="tvFee">—</div><div class="ts">one-off · 10% of annual rent</div></div>
+            <div class="tavola tavola-tot"><div class="tk">Total to move in</div>
+              <div class="tv"><span id="flapTot" aria-label="total to move in"></span></div>
+              <div class="ts">on your dates</div></div>
+          </div>
+          <button type="button" class="decod-apri" id="decodApri"
+            aria-expanded="false">＋ See every euro, decoded</button>
+          <div class="decod" id="decod"><div class="decod-in">
+            <div class="decod-carta"><h4>The deposit <i id="dcDep"></i></h4>
+              <p>Security, not a cost: protected, returned at the end of your stay
+                net of any damage.</p></div>
+            <div class="decod-carta"><h4>Agency fee <i id="dcFee"></i></h4>
+              <p>Charged once, when you sign: 10% of the annual rent. Stated up
+                front, on the receipt — never a surprise at the table.</p></div>
+            <div class="decod-carta"><h4>First month <i id="dcPrimo"></i></h4>
+              <p>Pro-rata on your real move-in date — you never pay days you
+                don't live.</p></div>
+            <div class="decod-carta"><h4>No envelopes</h4>
+              <p>Every euro through Stripe, with a receipt. No cash, no invented
+                "check-in fees".</p></div>
+          </div></div>
+        </section>
+
+        <!-- 03 · THE LOCATION -->
+        <section class="sez-casa sale" id="luogo">
+          <div class="sez-testa"><span class="num">03</span>
+            <div><div class="eyebrow"><i></i>The location</div>
+              <h2>The block, on the <span class="hl">radar</span>.</h2></div></div>
+          <div class="zona-scatola quadro"><span class="tacca"></span>
+            <div class="radar" aria-hidden="true"><i></i><i></i><i></i><u></u><b></b><s></s><s></s></div>
+            <div class="zona-anelli" aria-hidden="true">
+              <i class="anello" style="width:152px;height:152px"></i>
+              <i class="anello" style="width:236px;height:236px"></i>
+              <i class="anello" style="width:284px;height:284px"></i>
+              <span style="transform:translate(-50%,-76px)">5 min</span>
+              <span style="transform:translate(-50%,-118px)">10 min</span>
+              <span style="transform:translate(-50%,-142px)">15 min</span>
+            </div>
+            <div class="zona-cuore">
+              <div class="z-nome" id="zonaNome">Rome</div>
+              <div class="z-sotto" id="zonaVia"></div>
+            </div>
+          </div>
+          <div class="dist-lista" id="distLista"></div>
+          <p class="dist-nota" id="distNota">Straight-line distances.</p>
+          <div class="zona-vai">
+            <a href="/apartments.html">◉ See this home on Rome's Skyline
+              <small>every BOOM home on one 3D map — distances, zones, prices</small>
+              <span aria-hidden="true">→</span></a>
+            <a id="tourVivo" href="https://wa.me/393313251961" target="_blank" rel="noopener">📹 Not in Rome?
+              <small>Book a free live video tour — you direct, we film · usually within 24h</small>
+              <span aria-hidden="true">→</span></a>
+          </div>
+        </section>
+
+        <!-- 04 · PROOF, NOT PROMISES -->
+        <section class="sez-casa sale" id="prova">
+          <div class="sez-testa"><span class="num">04</span>
+            <div><div class="eyebrow"><i></i>Safe &amp; fast</div>
+              <h2>Proof, not <span class="hl">promises</span>.</h2></div></div>
+          <div class="prove">
+            <span class="prova"><i>✓</i> Verified in person &amp; on video</span>
+            <span class="prova"><i>✓</i> ID-checked owner</span>
+            <span class="prova"><i>✓</i> Registered legal contract</span>
+            <span class="prova"><i>✓</i> Deposit protected</span>
+          </div>
+          <div class="passi">
+            <div class="passo"><div class="pn">01</div><h4>Apply</h4>
+              <p>2 minutes. We reply within 2 hours.</p></div>
+            <div class="passo"><div class="pn">02</div><h4>Sign + register</h4>
+              <p>Legal contract, fully digital.</p></div>
+            <div class="passo"><div class="pn">03</div><h4>Keys</h4>
+              <p>In as little as 48 hours.</p></div>
+          </div>
+          <div class="dopo"><div class="ico" aria-hidden="true">⌂</div>
+            <div><h4>After you move in, BOOM stays</h4>
+              <p>Rent, documents, maintenance and your deposit — all in your BOOM
+                app. An agency's care, a product's convenience.</p></div></div>
+        </section>
+
+        <!-- 05 · IN THIS ZONE -->
+        <section class="sez-casa sale" id="inzona">
+          <div class="sez-testa"><span class="num">05</span>
+            <div><div class="eyebrow"><i></i>In this zone</div>
+              <h2>Others worth <span class="hl">a look</span>.</h2></div></div>
+          <div class="sim-fila" id="simFila"></div>
+        </section>
+
+        <!-- 06 · FAQ -->
+        <section class="sez-casa sale" id="risposte">
+          <div class="sez-testa"><span class="num">06</span>
+            <div><div class="eyebrow"><i></i>Answers</div>
+              <h2>Before you even <span class="hl">ask</span>.</h2></div></div>
+          <div class="faq-lista" id="faqLista">
+            <div class="qa"><button type="button" class="qd" aria-expanded="false">
+              Is the contract legitimate?<i aria-hidden="true">＋</i></button>
+              <div class="ra"><div>Always: registered legal contract, ID-verified
+                owner, protected deposit. We're a licensed Rome agency
+                (Egidi Immobiliare S.r.l.).</div></div></div>
+            <div class="qa"><button type="button" class="qd" aria-expanded="false">
+              What do I actually pay to move in?<i aria-hidden="true">＋</i></button>
+              <div class="ra"><div>Only what you see in the card: first month +
+                refundable deposit + the one-off agency fee (10% of the annual
+                rent, stated up front). Nothing else.</div></div></div>
+            <div class="qa"><button type="button" class="qd" aria-expanded="false">
+              How fast can I really move in?<i aria-hidden="true">＋</i></button>
+              <div class="ra"><div>Apply in 2 minutes, we reply within 2 hours.
+                Once approved and signed, keys in as little as 48 hours.</div></div></div>
+            <div class="qa"><button type="button" class="qd" aria-expanded="false">
+              What happens after I move in?<i aria-hidden="true">＋</i></button>
+              <div class="ra"><div>Rent, documents, maintenance and your deposit
+                are all managed in your BOOM app — the difference between us and
+                a listings site.</div></div></div>
+          </div>
+        </section>
+
+        <!-- UPSELL — «not the perfect one?» -->
+        <section class="sez-casa sale">
+          <div class="sez-testa">
+            <div><div class="eyebrow"><i></i>More than a portal</div>
+              <h2>Not the perfect one? <span class="hl">We'll find it.</span></h2></div></div>
+          <div class="cards4 tre">
+            <a class="svc quadro" href="/property-finding.html"><span class="tacca"></span>
+              <h3>Property Finding</h3>
+              <p>Tell us your dates &amp; budget. We hunt, verify and bring you
+                the right home.</p>
+              <span class="svc-vai">Start a search →</span></a>
+            <a class="svc quadro" href="/virtual-viewing.html"><span class="tacca"></span>
+              <h3>Virtual Viewing</h3>
+              <p>Can't come to Rome? See it live on a video walk-through.</p>
+              <span class="svc-vai">Book a tour →</span></a>
+            <a class="svc quadro" href="/deal-assistance.html"><span class="tacca"></span>
+              <h3>Deal Assistance</h3>
+              <p>Found one elsewhere? We verify the contract and negotiate for you.</p>
+              <span class="svc-vai">Get protected →</span></a>
+          </div>
+        </section>
+      </div>
+
+      <!-- ══ LA CARTA DELLA DECISIONE ══ -->
+      <aside class="casa-lato">
+        <div class="lato-carta quadro"><span class="tacca"></span>
+          <div class="lato-testa">
+            <span id="flapLato" aria-label="monthly rent"></span>
+            <small id="latoSotto">per month · BOOM-managed</small>
+          </div>
+          <div class="lato-corpo">
+            <div class="lato-eti">Your stay</div>
+            <input type="date" class="campo-data" id="dataIn"
+              aria-label="Your move-in date">
+            <div class="durata" id="durata" role="group" aria-label="Stay length">
+              <button type="button" data-m="6">6 mo</button>
+              <button type="button" class="on" data-m="12">12 mo</button>
+              <button type="button" data-m="18">18 mo</button>
+              <button type="button" data-m="0">Flex</button>
+            </div>
+            <p class="soggiorno" id="soggiorno"></p>
+            <div class="lato-righe">
+              <div class="lato-riga"><span class="rk">First month
+                <small id="rkPrimo"></small></span><span class="rv" id="rvPrimo">—</span></div>
+              <div class="lato-riga"><span class="rk">Deposit
+                <small>refundable</small></span><span class="rv" id="rvDeposito">—</span></div>
+              <div class="lato-riga"><span class="rk">Agency fee
+                <small>one-off · 10% of annual rent</small></span><span class="rv" id="rvFee">—</span></div>
+              <div class="lato-riga tot"><span class="rk">Total to move in</span>
+                <span class="rv"><span id="flapTotLato" aria-label="total to move in"></span></span></div>
+            </div>
+            <button type="button" class="btn btn-primary" id="candidati">
+              Apply → <small>60-second check · no documents · free</small></button>
+            <button type="button" class="lato-alt" id="blocca">⚡ Instant hold ·
+              €300 — 48h, refundable</button>
+            <a class="lato-alt" href="https://wa.me/393313251961" target="_blank"
+              rel="noopener">Ask us anything · WhatsApp</a>
+            <div class="lato-fiducia">
+              <span><i>✓</i> English-speaking team</span>
+              <span><i>✓</i> Registered agency · deposit protected</span>
+              <span><i>✓</i> Reply in 2h</span>
+              <a href="https://share.google/xikmVxQCRuKOdWcND" target="_blank"
+                rel="noopener"><b>4.9 ★</b> · 47 Google reviews</a>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</main>
+
+<!-- la ringhiera: il canone e Apply sempre sotto il pollice -->
+<div class="ringhiera">
+  <div class="filo" aria-hidden="true"><i id="railFilo"></i></div>
+  <div class="dentro-r">
+    <div class="rl"><b id="railPrezzo">—</b><small id="railSotto">choose your dates ↑</small></div>
+    <button type="button" class="btn btn-primary" id="railVai">Apply</button>
+  </div>
+</div>
+
+<!-- il foglio: la candidatura di 60 secondi -->
+<div class="velo" id="velo">
+  <div class="foglio" role="dialog" aria-modal="true" aria-labelledby="foglioTitolo">
+    <div class="foglio-testa"><h3 id="foglioTitolo">Apply</h3>
+      <button type="button" id="foglioChiudi" aria-label="Close">×</button></div>
+    <div class="foglio-corpo">
+      <form class="foglio-modulo" id="modulo">
+        <label for="fNome">Full name</label>
+        <input id="fNome" name="name" type="text" required autocomplete="name">
+        <div class="foglio-doppio">
+          <div><label for="fEmail">Email</label>
+            <input id="fEmail" name="email" type="email" required autocomplete="email"></div>
+          <div><label for="fTel">Phone / WhatsApp</label>
+            <input id="fTel" name="phone" type="tel" required autocomplete="tel"></div>
+        </div>
+        <div class="foglio-doppio">
+          <div><label for="fChi">Who's moving in?</label>
+            <select id="fChi" name="household">
+              <option value="solo">Just me</option>
+              <option value="couple">A couple</option>
+              <option value="family">Family</option>
+              <option value="flatmates">Flatmates</option>
+            </select></div>
+          <div><label for="fOcc">You are…</label>
+            <select id="fOcc" name="occupation">
+              <option value="employed">Employed</option>
+              <option value="self-employed">Self-employed</option>
+              <option value="student">Student</option>
+              <option value="relocating">Relocating to Rome</option>
+            </select></div>
+        </div>
+        <label for="fReddito">Net monthly income (household, €)</label>
+        <input id="fReddito" name="income" type="number" min="0" step="100"
+          placeholder="e.g. 2500">
+        <label class="foglio-spunta"><input id="fGaranzia" name="guarantor"
+          type="checkbox"> I have a guarantor (or can pay a larger deposit)</label>
+        <input class="ditta" name="company" type="text" tabindex="-1"
+          autocomplete="off" aria-hidden="true">
+        <button type="submit" class="btn btn-primary" id="foglioInvia">
+          Send application →</button>
+        <p class="foglio-nota">Free, no documents needed for the check. We reply
+          within 2 hours in English or Italian. Your data goes only to BOOM
+          (Egidi Immobiliare S.r.l.) to process this request.</p>
+      </form>
+      <div class="foglio-esito">
+        <div class="sigillo" aria-hidden="true">✓</div>
+        <h4>Application sent</h4>
+        <p id="esitoTesto">A real person is reading it now — you'll hear from us
+          within 2 hours.</p>
+        <p class="demo" id="esitoDemo" hidden>Preview — nothing was sent</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- la vetrina a luci spente -->
+<div class="lucebox" id="lucebox" role="dialog" aria-modal="true" aria-label="Photo viewer">
+  <button type="button" class="chiudi" id="luceChiudi" aria-label="Close">×</button>
+  <button type="button" class="gal-freccia l" id="lucePrec" aria-label="Previous photo">‹</button>
+  <button type="button" class="gal-freccia r" id="luceSucc" aria-label="Next photo">›</button>
+  <img id="luceImg" src="" alt="">
+  <div class="lb-conta" id="luceConta"></div>
+</div>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <div class="footer-marchio"><span id="logoPiede"></span>Boom</div>
+        <p class="footer-motto">Built in Rome, for Rome. If we can make Rome's
+          rental market work, we can make it work anywhere.</p>
+        <p class="footer-legale"><b>Egidi Immobiliare S.r.l.</b><br>
+          Via dei Coronari 181/184, 00186 Roma<br>
+          Sede legale: Viale Liegi 42, 00198 Roma<br>
+          P.IVA 17322991005 · REA RM-1710623</p>
+      </div>
+      <div class="footer-col">
+        <b>Services</b>
+        <a href="/apartments.html">Apartments</a>
+        <a href="/property-finding.html">Property Finding</a>
+        <a href="/deal-assistance.html">Deal Assistance</a>
+        <a href="/free-contract-check.html">Free Contract Check</a>
+        <a href="/virtual-viewing.html">Virtual Viewing</a>
+        <a href="/concierge.html">Concierge</a>
+        <a href="/board.html">Live Board</a>
+      </div>
+      <div class="footer-col">
+        <b>Company</b>
+        <a href="/about.html">About</a>
+        <a href="/how-it-works.html">How It Works</a>
+        <a href="/universities.html">For Universities</a>
+        <a href="/corporate.html">For Companies</a>
+        <a href="/research.html">For Research</a>
+        <a href="/refer.html">Refer a Friend</a>
+        <a href="/owners.html">For Owners</a>
+        <a href="/blog.html">Blog</a>
+        <a href="/faq.html">FAQ</a>
+        <a href="/contact.html">Contact</a>
+      </div>
+      <div class="footer-col">
+        <b>Legal</b>
+        <a href="/terms.html">Terms</a>
+        <a href="/privacy.html">Privacy</a>
+        <a href="/login">Login</a>
+      </div>
+    </div>
+    <div class="footer-fondo">
+      <span>© 2026 BOOM — All Rights Reserved</span>
+      <span class="op"><i></i>Operational</span>
+    </div>
+  </div>
+</footer>
+
+<script>window.CASE = CASA_JSON; window.MODO = 'MODO_FLAG';</script>

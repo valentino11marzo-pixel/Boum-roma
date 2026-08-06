@@ -123,13 +123,14 @@ HOMES = '\n\n'.join(carta(c, i == 0) for i, c in enumerate(vetrina))
 sc1 = vetrina[0]
 
 def leggi(n): return open(n, encoding='utf-8').read()
-h = '\n'.join(leggi(p) for p in ['lh-css.html','lh-body.html','solari-engine.html','lh-js.html'])
+h = '\n'.join(leggi(p) for p in ['lh-css.html','lh-body.html','solari-engine.html','deco-organi.html','lh-js.html'])
 h = h.replace('LOGO_SVG', leggi('logo-live.svg').strip())
 h = h.replace('HOMES_CARDS', HOMES)
 h = h.replace('SC1_FOTO', banca[sc1['id']])
 h = h.replace('SC1_NOME', sc1['nome'])
 h = h.replace('SC1_PREZZO', euro(sc1['prezzo']))
-h = h.replace('SC1_TOT', euro(sc1['prezzo'] * 2))   # primo mese + 1 mese di deposito
+# la formula della pagina annuncio live: primo mese + deposito (1 mese) + fee 10% annuo
+h = h.replace('SC1_TOT', euro(sc1['prezzo'] * 2 + round(sc1['prezzo'] * 12 * .10)))
 UNI = ['LUISS', 'Sapienza', 'Roma Tre', 'John Cabot', 'LUMSA', 'NABA', 'IED', 'RUFA']
 h = h.replace('UNI_ITEMS\nUNI_ITEMS',
     '\n'.join('    <span class="uni-item">' + u.upper() + '</span>' for u in UNI + UNI))
@@ -151,6 +152,18 @@ if MODO == 'artefatto':
     }.items():
         h = h.replace('href="' + da + '"', 'href="' + a_ + '"')
         h = h.replace('data-href="' + da, 'data-href="' + a_)
+    # le carte aprono la pagina annuncio; data-u (cuori) resta /listing/<id>
+    h = h.replace('href="/listing/',
+        'href="https://claude.ai/code/artifact/a65a8cb4-bfe1-49a5-acaf-2c4a1a992321#id=')
+else:
+    for da, a_ in {
+        '/apartments.html': '/v2-apartments.html',
+        '/property-finding.html': '/v2-property-finding.html',
+        '/board.html': '/v2-board.html',
+    }.items():
+        h = h.replace('href="' + da + '"', 'href="' + a_ + '"')
+        h = h.replace('data-href="' + da, 'data-href="' + a_)
+    h = h.replace('href="/listing/', 'href="/v2-listing.html#id=')
 
 uscita = 'boom-lahome.html' if MODO == 'artefatto' else 'boom-lahome-sito.html' 
 open(uscita,'w',encoding='utf-8').write(h)

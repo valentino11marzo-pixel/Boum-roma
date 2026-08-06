@@ -115,7 +115,7 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
   <div id="righe"></div>
 </div>
 <div class="fondo">
-  <a href="https://claude.ai/code/artifact/3c0dae67-a0e6-47d4-964f-832b824ffe0f" style="color:inherit;text-decoration:none;cursor:pointer"><b>boomrome.com</b> · WhatsApp +39 331 325 1961</a>
+  <a href="KIOSK_HOME" style="color:inherit;text-decoration:none;cursor:pointer"><b>boomrome.com</b> · WhatsApp +39 331 325 1961</a>
   <span class="pagine" id="pagine"></span>
   <span>Video-verified · Keys in 48h</span>
 </div>
@@ -211,5 +211,9 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
 '''
 h = h.replace('LOGO_SVG', leggi('logo-live.svg').strip())
 h = h.replace("'CASE_JSON'", json.dumps(CASE, ensure_ascii=False))
-open('boom-kiosk.html','w',encoding='utf-8').write(h)
-print(f'boom-kiosk.html · {len(h)//1024} KB · {len(CASE)} case · {max(1,(len(CASE)+5)//6)} pagine')
+HOME = ('https://claude.ai/code/artifact/3c0dae67-a0e6-47d4-964f-832b824ffe0f'
+        if MODO == 'artefatto' else '/v2-home.html')
+h = h.replace('KIOSK_HOME', HOME)
+uscita = 'boom-kiosk.html' if MODO == 'artefatto' else 'boom-kiosk-sito.html'
+open(uscita,'w',encoding='utf-8').write(h)
+print(f'{uscita} · {len(h)//1024} KB · {len(CASE)} case · {max(1,(len(CASE)+5)//6)} pagine')

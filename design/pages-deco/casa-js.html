@@ -1,0 +1,453 @@
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   BOOM · LA CASA — la regia della pagina annuncio.
+
+   Un solo principio: i numeri sono organi meccanici. Scegli la data e la
+   durata → il pro-rata, il totale e la riga del soggiorno ROTOLANO sui
+   Solari davanti a te. Il resto è servizio: galleria a scatto, radar di
+   zona con le distanze vere, candidatura in 60 secondi. Multi-annuncio
+   via #id=<docId>: le carte della home e di Apartments atterrano qui.
+   ══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  var BS = window.BoomSolari;
+  var ridotto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var CASE = window.CASE || [];
+  if (!CASE.length) return;
+  var EURO_DRUM = ' €,.0123456789';
+  var FATTI_DRUM = ' 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ²';
+
+  function euro(n) { return '€' + Math.round(n).toLocaleString('en-US'); }
+  function $(id) { return document.getElementById(id); }
+
+  /* ── i Solari: un organo per host, ricreato solo se cambia la misura ── */
+  var organi = {};
+  function solari(host, testo, drum) {
+    if (!host) return;
+    var o = organi[host.id];
+    if (o && o.len === testo.length && o.drum === drum) { o.b.update(testo); return; }
+    host.textContent = '';
+    var b = new BS.Board(host, testo.length, drum);
+    organi[host.id] = { b: b, len: testo.length, drum: drum };
+    if (ridotto) b.show(testo); else b.show(testo, 45, true);
+  }
+
+  /* ── i cuori: la stessa memoria della home e di Apartments ───────────── */
+  var salvate;
+  try { salvate = new Set(JSON.parse(localStorage.getItem('boomSalvate') || '[]')); }
+  catch (e) { salvate = new Set(); }
+  function serba() {
+    try { localStorage.setItem('boomSalvate', JSON.stringify(Array.from(salvate))); }
+    catch (e) {}
+  }
+  function legaCuore(btn) {
+    btn.classList.toggle('si', salvate.has(btn.dataset.u));
+    btn.setAttribute('aria-pressed', salvate.has(btn.dataset.u) ? 'true' : 'false');
+    btn.addEventListener('click', function (e) {
+      e.preventDefault(); e.stopPropagation();
+      var u = btn.dataset.u;
+      if (salvate.has(u)) salvate.delete(u); else salvate.add(u);
+      btn.classList.toggle('si', salvate.has(u));
+      btn.setAttribute('aria-pressed', salvate.has(u) ? 'true' : 'false');
+      serba();
+    });
+  }
+
+  /* ── le distanze: linee d'aria vere dai luoghi che contano ───────────── */
+  var LUOGHI = [
+    ['Sapienza', 41.9019, 12.5158], ['LUISS', 41.9262, 12.5075],
+    ['Roma Tre', 41.8577, 12.4780], ['John Cabot', 41.8935, 12.4646],
+    ['LUMSA', 41.9030, 12.4600], ['Termini station', 41.9009, 12.5020]];
+  var ZONE_CENTRO = { 'Pigneto': [41.8890, 12.5230], 'Trastevere': [41.8880, 12.4700],
+    'Prati': [41.9070, 12.4640], 'Trieste': [41.9210, 12.5070],
+    'Ponte Milvio': [41.9360, 12.4670], 'Africano': [41.9190, 12.5130],
+    "Conca d'Oro": [41.9410, 12.5230], 'Centro Storico': [41.8980, 12.4760] };
+  function km(a1, o1, a2, o2) {
+    var r = Math.PI / 180, dA = (a2 - a1) * r, dO = (o2 - o1) * r;
+    var s = Math.sin(dA / 2) * Math.sin(dA / 2) +
+      Math.cos(a1 * r) * Math.cos(a2 * r) * Math.sin(dO / 2) * Math.sin(dO / 2);
+    return 6371 * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+  }
+
+  /* ── lo stato ────────────────────────────────────────────────────────── */
+  var attuale = null;
+  var durataMesi = 12;
+
+  function daHash() {
+    var m = location.hash.match(/id=([\w-]+)/);
+    var c = m && CASE.filter(function (x) { return x.id === m[1]; })[0];
+    return c || CASE[0];
+  }
+
+  /* ── la galleria ─────────────────────────────────────────────────────── */
+  var galIdx = 0;
+  function galleria(c) {
+    galIdx = 0;
+    var track = $('galTrack'), punti = $('galPunti'), film = $('galFilm');
+    track.innerHTML = c.foto.map(function (f, i) {
+      return '<div class="gal-slide"><img ' + (i ? 'loading="lazy" ' : '') +
+        'decoding="async" src="' + f + '" alt="' + c.nome + ' — photo ' +
+        (i + 1) + '"></div>';
+    }).join('');
+    punti.innerHTML = c.foto.map(function (_, i) {
+      return '<i' + (i ? '' : ' class="on"') + '></i>';
+    }).join('');
+    film.innerHTML = c.foto.length > 1 ? c.foto.map(function (f, i) {
+      return '<button type="button"' + (i ? '' : ' class="on"') +
+        ' data-i="' + i + '" aria-label="Photo ' + (i + 1) + '">' +
+        '<img loading="lazy" src="' + f + '" alt=""></button>';
+    }).join('') : '';
+    track.scrollLeft = 0;
+    aggiornaGal(c);
+    [].forEach.call(track.querySelectorAll('img'), function (im, i) {
+      im.addEventListener('click', function () { apriLuce(i); });
+    });
+    [].forEach.call(film.querySelectorAll('button'), function (b) {
+      b.addEventListener('click', function () { vaiFoto(+b.dataset.i); });
+    });
+  }
+  function aggiornaGal(c) {
+    $('galConta').textContent = (galIdx + 1) + ' / ' + c.foto.length;
+    [].forEach.call($('galPunti').children, function (p, i) {
+      p.classList.toggle('on', i === galIdx);
+    });
+    [].forEach.call($('galFilm').children, function (b, i) {
+      b.classList.toggle('on', i === galIdx);
+    });
+  }
+  function vaiFoto(i) {
+    var track = $('galTrack');
+    var n = attuale.foto.length;
+    galIdx = Math.max(0, Math.min(n - 1, i));
+    track.scrollTo({ left: galIdx * track.clientWidth,
+      behavior: ridotto ? 'instant' : 'smooth' });
+  }
+  $('galTrack').addEventListener('scroll', function () {
+    var track = $('galTrack');
+    var i = Math.round(track.scrollLeft / Math.max(1, track.clientWidth));
+    if (i !== galIdx && attuale) { galIdx = i; aggiornaGal(attuale); }
+  }, { passive: true });
+  $('galPrec').addEventListener('click', function () { vaiFoto(galIdx - 1); });
+  $('galSucc').addEventListener('click', function () { vaiFoto(galIdx + 1); });
+
+  /* la vetrina a luci spente */
+  var luceIdx = 0;
+  function apriLuce(i) {
+    luceIdx = i; mostraLuce();
+    $('lucebox').classList.add('on');
+    document.body.style.overflow = 'hidden';
+  }
+  function mostraLuce() {
+    $('luceImg').src = attuale.foto[luceIdx];
+    $('luceImg').alt = attuale.nome + ' — photo ' + (luceIdx + 1);
+    $('luceConta').textContent = (luceIdx + 1) + ' / ' + attuale.foto.length;
+  }
+  function chiudiLuce() {
+    $('lucebox').classList.remove('on');
+    document.body.style.overflow = '';
+  }
+  $('luceChiudi').addEventListener('click', chiudiLuce);
+  $('lucePrec').addEventListener('click', function () {
+    luceIdx = (luceIdx + attuale.foto.length - 1) % attuale.foto.length; mostraLuce();
+  });
+  $('luceSucc').addEventListener('click', function () {
+    luceIdx = (luceIdx + 1) % attuale.foto.length; mostraLuce();
+  });
+  $('galConta').addEventListener('click', function () { apriLuce(galIdx); });
+  addEventListener('keydown', function (e) {
+    if (!$('lucebox').classList.contains('on')) return;
+    if (e.key === 'Escape') chiudiLuce();
+    if (e.key === 'ArrowLeft') $('lucePrec').click();
+    if (e.key === 'ArrowRight') $('luceSucc').click();
+  });
+
+  /* ── i soldi: la formula della pagina live, sui Solari ───────────────── */
+  function calcola() {
+    var c = attuale; if (!c) return;
+    var v = $('dataIn').value;
+    var inizio = v ? new Date(v + 'T12:00:00') : null;
+    var giorniMese = inizio
+      ? new Date(inizio.getFullYear(), inizio.getMonth() + 1, 0).getDate() : 30;
+    var resto = inizio ? giorniMese - inizio.getDate() + 1 : giorniMese;
+    var pieno = resto === giorniMese;
+    var primo = inizio ? Math.round(c.prezzo * resto / giorniMese) : c.prezzo;
+    var deposito = c.prezzo;
+    var fee = Math.round(c.prezzo * 12 * .10);
+    var totale = primo + deposito + fee;
+
+    $('tvPrimo').textContent = euro(primo);
+    $('tsPrimo').textContent = pieno ? 'full rent'
+      : 'pro-rata · ' + resto + '/' + giorniMese + ' days';
+    $('tvDeposito').textContent = euro(deposito);
+    $('tvFee').textContent = euro(fee);
+    $('rvPrimo').textContent = euro(primo);
+    $('rkPrimo').textContent = pieno ? '' : 'pro-rata, ' + resto + '/' + giorniMese + ' d';
+    $('rvDeposito').textContent = euro(deposito);
+    $('rvFee').textContent = euro(fee);
+    $('dcDep').textContent = euro(deposito);
+    $('dcFee').textContent = euro(fee);
+    $('dcPrimo').textContent = euro(primo);
+    solari($('flapTot'), euro(totale), EURO_DRUM);
+    solari($('flapTotLato'), euro(totale), EURO_DRUM);
+
+    var s = $('soggiorno');
+    if (!inizio) s.innerHTML = 'Pick your move-in date — the first month adjusts itself.';
+    else if (!durataMesi) s.innerHTML = '<b>' + bella(inizio) +
+      '</b> → flexible end · we tailor the contract';
+    else {
+      var fineS = new Date(inizio); fineS.setMonth(fineS.getMonth() + durataMesi);
+      fineS.setDate(fineS.getDate() - 1);
+      s.innerHTML = '<b>' + bella(inizio) + '</b> → <b>' + bella(fineS) +
+        '</b> · ' + durataMesi + ' months';
+    }
+    $('railPrezzo').textContent = euro(totale);
+    $('railSotto').textContent = 'total to move in · ' + euro(c.prezzo) + '/mo';
+  }
+  function bella(d) {
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+  $('dataIn').addEventListener('change', calcola);
+  [].forEach.call($('durata').children, function (b) {
+    b.addEventListener('click', function () {
+      [].forEach.call($('durata').children, function (x) {
+        x.classList.remove('on');
+      });
+      b.classList.add('on');
+      durataMesi = +b.dataset.m;
+      calcola();
+    });
+  });
+
+  /* ── il rendering di UNA casa ────────────────────────────────────────── */
+  function scegli(c) {
+    attuale = c;
+    document.title = c.nome + ' — ' + c.zona + ', Rome | BOOM';
+    $('crumbZona').textContent = c.zona;
+    $('casaNome').textContent = c.nome;
+    $('casaZona').textContent = c.zona + ', Rome';
+    var lib = $('casaLibera');
+    if (c.stato === 'available') {
+      lib.textContent = c.libera ? 'Available ' + c.libera : '';
+      lib.style.color = '';
+    } else {
+      lib.textContent = c.stato === 'rented'
+        ? 'Currently rented — waitlist open' : 'Waitlist open';
+      lib.style.color = 'var(--gold-light)';
+    }
+    galleria(c);
+
+    var bv = $('bolloVideo');
+    if (c.video) { bv.hidden = false; bv.href = c.video; } else bv.hidden = true;
+
+    var cuore = $('cuoreCasa');
+    cuore.dataset.u = '/listing/' + c.id;
+    cuore.classList.toggle('si', salvate.has(cuore.dataset.u));
+    cuore.setAttribute('aria-pressed', salvate.has(cuore.dataset.u) ? 'true' : 'false');
+
+    solari($('flapCanone'), euro(c.prezzo), EURO_DRUM);
+    solari($('flapLato'), euro(c.prezzo), EURO_DRUM);
+
+    /* i fatti, incisi */
+    var fatti = [];
+    if (c.sqm) fatti.push([c.sqm + ' M²', 'Size']);
+    if (c.letti != null) fatti.push([c.letti === 0 ? 'STUDIO' : c.letti + ' BED', 'Bedrooms']);
+    if (c.bagni) fatti.push([c.bagni + ' BATH', 'Bathrooms']);
+    if (c.piano) fatti.push([c.piano.toUpperCase(), 'Floor']);
+    if (c.arredata != null) fatti.push([c.arredata ? 'YES' : 'NO', 'Furnished']);
+    $('fatti').innerHTML = fatti.map(function (f, i) {
+      return '<div class="fatto"><div class="fv" id="fatto' + i +
+        '"></div><div class="fk">' + f[1] + '</div></div>';
+    }).join('');
+    fatti.forEach(function (f, i) { solari($('fatto' + i), f[0], FATTI_DRUM); });
+
+    $('casaDesc').textContent = c.desc || '';
+    var vita = $('casaVita');
+    if (c.vita) { vita.hidden = false; vita.lastElementChild.textContent = c.vita; }
+    else vita.hidden = true;
+    $('casaFeat').innerHTML = (c.feat || []).map(function (f) {
+      return '<span>' + f + '</span>';
+    }).join('');
+
+    /* il radar di zona + le distanze */
+    $('zonaNome').textContent = c.zona;
+    $('zonaVia').textContent = c.via || '';
+    var qui = c.lat ? [c.lat, c.lng] : ZONE_CENTRO[c.zona];
+    var lista = $('distLista');
+    if (qui) {
+      lista.innerHTML = LUOGHI.map(function (L) {
+        var d = km(qui[0], qui[1], L[1], L[2]);
+        return [d, '<div class="dist"><span class="dn">' + L[0] +
+          '</span><span class="dv">' + (d < 9.95 ? d.toFixed(1) : Math.round(d)) +
+          ' km</span></div>'];
+      }).sort(function (a, b) { return a[0] - b[0]; })
+        .map(function (x) { return x[1]; }).join('');
+      $('distNota').textContent = 'Straight-line distances' +
+        (c.lat ? '.' : ' from the centre of ' + c.zona + ' (approximate position).');
+      lista.hidden = false; $('distNota').hidden = false;
+    } else { lista.hidden = true; $('distNota').hidden = true; }
+
+    var tv = $('tourVivo');
+    tv.href = 'https://wa.me/393313251961?text=' + encodeURIComponent(
+      'Hi! I\'d like a live video tour of "' + c.nome + '".');
+
+    /* gli altri in zona: le stesse carte della home */
+    var altri = CASE.filter(function (x) { return x.id !== c.id; });
+    altri.sort(function (a, b) {
+      var za = a.zona === c.zona ? 0 : 1, zb = b.zona === c.zona ? 0 : 1;
+      return za - zb || Math.abs(a.prezzo - c.prezzo) - Math.abs(b.prezzo - c.prezzo);
+    });
+    var fila = $('simFila');
+    fila.innerHTML = altri.slice(0, 4).map(function (x, i) {
+      var dati = [x.sqm ? x.sqm + 'm²' : '',
+        x.letti === 0 ? 'Studio' : x.letti ? x.letti + ' bed' : '', x.piano]
+        .filter(Boolean).join(' <i>•</i> ');
+      return '<a class="home" href="#id=' + x.id + '">' +
+        '<div class="home-foto"><img loading="lazy" decoding="async" src="' +
+        x.foto[0] + '" alt="' + x.nome + ', ' + x.zona + '">' +
+        '<span class="home-tag">' + x.zona + '</span>' +
+        '<button type="button" class="home-cuore" data-u="/listing/' + x.id +
+        '" aria-label="Save this home">♥</button>' +
+        '<span class="home-prezzo"><span id="simFlap' + i +
+        '" aria-label="' + euro(x.prezzo) + ' per month"></span><small>/month</small></span></div>' +
+        '<div class="home-corpo"><div class="home-nome">' + x.nome + '</div>' +
+        '<div class="home-dati">' + dati + '</div>' +
+        '<div class="home-vai">View details →</div></div></a>';
+    }).join('');
+    altri.slice(0, 4).forEach(function (x, i) {
+      solari($('simFlap' + i), euro(x.prezzo), EURO_DRUM);
+    });
+    [].forEach.call(fila.querySelectorAll('.home-cuore'), legaCuore);
+
+    /* la data di partenza: la disponibilità vera, mai nel passato */
+    var oggi = new Date(); oggi.setHours(12, 0, 0, 0);
+    var base = c.dal ? new Date(c.dal + 'T12:00:00') : oggi;
+    if (base < oggi) base = oggi;
+    var cand = $('candidati');
+    cand.innerHTML = c.stato === 'available'
+      ? 'Apply → <small>60-second check · no documents · free</small>'
+      : 'Join the waitlist → <small>free · first in line when it frees up</small>';
+    $('railVai').textContent = c.stato === 'available' ? 'Apply' : 'Waitlist';
+    $('blocca').hidden = c.stato !== 'available';
+    var din = $('dataIn');
+    din.min = oggi.toISOString().slice(0, 10);
+    din.value = base.toISOString().slice(0, 10);
+    calcola();
+  }
+
+  /* ── condividi ───────────────────────────────────────────────────────── */
+  $('condividi').addEventListener('click', function () {
+    var b = this;
+    try {
+      if (navigator.share) navigator.share({ title: document.title, url: location.href });
+      else navigator.clipboard.writeText(location.href).then(function () {
+        b.textContent = '✓';
+        setTimeout(function () { b.textContent = '↗'; }, 1100);
+      });
+    } catch (e) {}
+  });
+
+  /* ── faq + decodifica ────────────────────────────────────────────────── */
+  [].forEach.call(document.querySelectorAll('.faq-lista .qd'), function (q) {
+    q.addEventListener('click', function () {
+      var qa = q.parentNode, aperto = qa.classList.toggle('aperto');
+      q.setAttribute('aria-expanded', aperto ? 'true' : 'false');
+    });
+  });
+  $('decodApri').addEventListener('click', function () {
+    var aperto = $('decod').classList.toggle('aperto');
+    this.setAttribute('aria-expanded', aperto ? 'true' : 'false');
+    this.textContent = aperto ? '－ Close the breakdown' : '＋ See every euro, decoded';
+  });
+
+  /* ── il foglio della candidatura ─────────────────────────────────────── */
+  var genere = 'apply';
+  function apriFoglio(k) {
+    genere = k;
+    var attesa = attuale && attuale.stato !== 'available';
+    $('foglioTitolo').textContent = attesa ? 'Join the waitlist'
+      : k === 'reserve' ? 'Instant hold · €300' : 'Apply — 60 seconds';
+    $('foglioInvia').textContent = attesa ? 'Join the waitlist →'
+      : k === 'reserve' ? 'Request the hold →' : 'Send application →';
+    var f = document.querySelector('.foglio');
+    f.classList.remove('inviato');
+    $('velo').classList.add('on');
+    document.body.style.overflow = 'hidden';
+    setTimeout(function () { $('fNome').focus(); }, 60);
+  }
+  function chiudiFoglio() {
+    $('velo').classList.remove('on');
+    document.body.style.overflow = '';
+  }
+  $('candidati').addEventListener('click', function () { apriFoglio('apply'); });
+  $('railVai').addEventListener('click', function () { apriFoglio('apply'); });
+  /* la casa non libera: gli stessi bottoni diventano la lista d'attesa */
+  function inAttesa() { return attuale && attuale.stato !== 'available'; }
+  $('blocca').addEventListener('click', function () { apriFoglio('reserve'); });
+  $('foglioChiudi').addEventListener('click', chiudiFoglio);
+  $('velo').addEventListener('click', function (e) {
+    if (e.target === this) chiudiFoglio();
+  });
+  addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && $('velo').classList.contains('on')) chiudiFoglio();
+  });
+
+  $('modulo').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var f = e.target;
+    if (f.company.value) return;   /* miele per i bot */
+    var dati = {
+      name: f.name.value.trim(), email: f.email.value.trim(),
+      phone: f.phone.value.trim(),
+      listingId: attuale.id, listingName: attuale.nome,
+      listingPrice: attuale.prezzo, zone: attuale.zona,
+      kind: genere,
+      waitlist: attuale.stato !== 'available',
+      income: +f.income.value || 0, guarantor: f.guarantor.checked,
+      household: f.household.value, occupation: f.occupation.value,
+      moveIn: $('dataIn').value, durationMonths: durataMesi, company: ''
+    };
+    var esito = $('esitoTesto');
+    esito.textContent = attuale.stato !== 'available'
+      ? 'You\'re on the list for this home — the moment it frees up, ' +
+        'you\'re the first to know.'
+      : genere === 'reserve'
+      ? 'A real person confirms your 48h hold within 2 hours — you\'ll get the ' +
+        'secure Stripe link by email. Refundable, always.'
+      : 'A real person is reading it now — you\'ll hear from us within 2 hours.';
+    if (window.MODO === 'sito') {
+      var btn = $('foglioInvia');
+      btn.disabled = true; btn.style.opacity = .6;
+      fetch('/api/apply-lead', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dati)
+      }).catch(function () {}).then(function () {
+        btn.disabled = false; btn.style.opacity = '';
+        document.querySelector('.foglio').classList.add('inviato');
+      });
+    } else {
+      $('esitoDemo').hidden = false;
+      document.querySelector('.foglio').classList.add('inviato');
+    }
+  });
+
+  /* ── la ringhiera: il filo del percorso ──────────────────────────────── */
+  var attesa = false;
+  addEventListener('scroll', function () {
+    if (attesa) return; attesa = true;
+    requestAnimationFrame(function () {
+      attesa = false;
+      var h = document.scrollingElement || document.documentElement;
+      var tot = h.scrollHeight - innerHeight;
+      $('railFilo').style.width = (tot > 0 ? h.scrollTop / tot * 100 : 0) + '%';
+    });
+  }, { passive: true });
+
+  /* ── il cuore della pagina + la rotta ────────────────────────────────── */
+  legaCuore($('cuoreCasa'));
+  addEventListener('hashchange', function () {
+    var c = daHash();
+    if (c !== attuale) { scegli(c); scrollTo({ top: 0, behavior: 'instant' }); }
+  });
+  scegli(daHash());
+})();
+</script>

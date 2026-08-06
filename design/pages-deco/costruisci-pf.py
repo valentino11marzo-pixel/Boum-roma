@@ -28,6 +28,9 @@ if MODO == 'artefatto':
         'href="https://claude.ai/code/artifact/ec4d60c9-d2c0-4ec8-883f-eb7b8b4df8f6"')
     h = h.replace('<a class="marchio" href="/"',
         '<a class="marchio" href="https://claude.ai/code/artifact/3c0dae67-a0e6-47d4-964f-832b824ffe0f"')
+else:
+    h = h.replace('<a class="marchio" href="/"', '<a class="marchio" href="/v2-home.html"')
+    h = h.replace('href="/apartments.html"', 'href="/v2-apartments.html"')
 uscita = 'boom-pf.html' if MODO == 'artefatto' else 'boom-pf-sito.html'
 open(uscita, 'w', encoding='utf-8').write(h)
 print(f'{uscita} · {len(h)//1024} KB')

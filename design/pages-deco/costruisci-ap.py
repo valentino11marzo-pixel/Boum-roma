@@ -115,6 +115,10 @@ h = h.replace('RIGHE_STATICHE', STATICHE)
 h = h.replace("'CASE_JSON'", json.dumps(CASE, ensure_ascii=False))
 h = h.replace("'ZONE_JSON'", json.dumps(ZONE, ensure_ascii=False))
 h = h.replace("'OGGI_ISO'", json.dumps(oggi.strftime('%Y-%m-%d')))
+CASA = ('https://claude.ai/code/artifact/a65a8cb4-bfe1-49a5-acaf-2c4a1a992321'
+        if MODO == 'artefatto' else '/v2-listing.html')
+h = h.replace("'CASA_BASE'", json.dumps(CASA))
+h = h.replace('href="/listing/', 'href="' + CASA + '#id=')
 # l'engine dei Solari va incluso prima dello script di pagina
 h = h.replace('<script>\n(function () {', leggi('solari-engine.html') +
     '\n<script>\n(function () {', 1)
@@ -127,6 +131,9 @@ else:
 if MODO == 'artefatto':
     h = h.replace('href="/property-finding.html"', 'href="https://claude.ai/code/artifact/4186ed23-28d5-46a2-98bc-09fdf5eb7e21"')
     h = h.replace('<a class="marchio" href="/"', '<a class="marchio" href="https://claude.ai/code/artifact/3c0dae67-a0e6-47d4-964f-832b824ffe0f"')
+else:
+    h = h.replace('<a class="marchio" href="/"', '<a class="marchio" href="/v2-home.html"')
+    h = h.replace('href="/property-finding.html"', 'href="/v2-property-finding.html"')
 uscita = 'boom-ap.html' if MODO == 'artefatto' else 'boom-ap-sito.html'
 open(uscita,'w',encoding='utf-8').write(h)
 print(f'{uscita} · {len(h)//1024} KB · {len(tutte)} case · {len(muro)} sul muro · zone: {len(ZONE)}')
