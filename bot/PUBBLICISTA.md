@@ -88,6 +88,42 @@ POST /api/publisher/queue
   `remove` → `DELETE` sullo stesso path. Leggi il `ServiceResponse`: `code 0`
   = ok, tutto il resto va in `error` nel rapporto, verbatim.
 
+## Il braccio: setup in 10 minuti (`bot/boom_publisher.py`)
+
+Lo script è pronto nel repo — sul Mac mini va DEPOSITATO una volta:
+
+```bash
+mkdir -p ~/boom-publisher && cd ~/boom-publisher
+# copia boom_publisher.py dal repo + crea .env con:
+#   HOMIE_SECRET=<lo stesso del wizard>
+pip3 install requests python-dotenv playwright
+python3 -m playwright install chromium
+python3 boom_publisher.py --login    # login UNA volta su entrambi i pannelli
+python3 boom_publisher.py --dry      # guarda la worklist senza toccare nulla
+```
+
+**Prerequisito lato server (una volta)**: le rules Firestore con la riga
+`portalPubs` devono essere deployate (secret `FIREBASE_TOKEN` su GitHub o
+`npx firebase-tools deploy --only firestore:rules,storage`) — senza, il
+rapporto POST non può registrare lo stato.
+
+I modi, uno per invocazione:
+- `--dry` → stampa la worklist (zero browser, zero rapporti);
+- `--login` → apre il profilo persistente sui due pannelli, si fa login, fine;
+- `--check` → per launchd (`bot/com.boom.publisher.plist`, ogni 30′):
+  interroga le code e NOTIFICA macOS quando c'è lavoro. Mai un browser
+  senza operatore davanti;
+- `--assist` → la sessione di lavoro di OGGI: apre il pannello, stampa i
+  campi già pronti dal payload (feature umanizzate, regola del pin, foto in
+  ordine), l'operatore compila nel browser e conferma in terminale con
+  l'URL pubblico → il rapporto parte da solo. `b` = bloccato (captcha/
+  login), `s` = salta;
+- `--auto` → riservato: si accende quando i selettori dei pannelli saranno
+  mappati; oggi ricade su `--assist` (mai un click alla cieca).
+
+Test della logica pura (senza rete né browser):
+`python3 tests/publisher/runner.py`.
+
 ## Porta B — i pannelli agenzia (OGGI)
 
 Playwright/Chromium con **profilo persistente** (es.
