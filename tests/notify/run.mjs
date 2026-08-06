@@ -160,6 +160,7 @@ const mkRes = () => ({
   setHeader(k, v) { this.headers[k] = v; },
   status(c) { this.code = c; return this; },
   json(o) { this.body = o; return this; },
+  send(b) { this.body = b; return this; },
   end() { return this; },
 });
 let IP = '9.1.1.1';
@@ -581,6 +582,44 @@ IP = '9.1.1.3';
   await schedaSubmit(mkReq({ t: schedaRef('ctrP', 'tenant'), identity: ID }), r);
   check('scheda re-submit → NESSUNA seconda conferma', r.code === 200
     && mails().slice(b2).filter(m => /details are in/i.test(m.subject)).length === 0);
+}
+
+// ═══ 5. PDF della proposta: si LEGGE anche prima di accettare ═══
+// (come nel Magic Sign si legge il contratto prima di firmare) — ma in
+// anteprima è inline + filigranato, e solo l'accettato scende come
+// documento definitivo. pdf-lib REALE: il %PDF è vero.
+const paPdf = (await import('../../api/preagreement/pdf.js')).default;
+{
+  const TOK = 'ab'.repeat(16);
+  store.set('preAgreements/paV', {
+    token: TOK, status: 'sent', ref: 'BOOM-TEST1',
+    property: { address: 'Via della Lungaretta 12', type: '2-bedroom' },
+    lease: { type: 'Transitional Lease', startDate: '2026-09-01', endDate: '2027-08-31', months: 12 },
+    money: { rent: 1200, deposit: 2400, depositMonths: 2, dueAtSigning: 600, fee: 1200, feeVat: 264, feeTotal: 1464, feeMode: 'months', feeMonths: 1 },
+    tenant: { fullName: 'Test Tenant' },
+  });
+  const g = (q) => ({ method: 'GET', query: q, headers: {}, socket: {} });
+
+  let r = mkRes();
+  await paPdf(g({ t: TOK }), r);
+  const isPdf = Buffer.isBuffer(r.body) && r.body.slice(0, 4).toString() === '%PDF';
+  check('proposta NON accettata → PDF vero, inline, marcato PREVIEW', r.code === 200 && isPdf
+    && String(r.headers['Content-Disposition']).startsWith('inline') && /PREVIEW/.test(String(r.headers['Content-Disposition'])));
+
+  store.set('preAgreements/paV', { ...store.get('preAgreements/paV'), status: 'accepted' });
+  r = mkRes();
+  await paPdf(g({ t: TOK }), r);
+  check('accettata → documento definitivo in download col N°', r.code === 200
+    && String(r.headers['Content-Disposition']).startsWith('attachment') && /BOOM-TEST1/.test(String(r.headers['Content-Disposition'])));
+
+  store.set('preAgreements/paV', { ...store.get('preAgreements/paV'), status: 'revoked' });
+  r = mkRes();
+  await paPdf(g({ t: TOK }), r);
+  check('revocata → 410, mai un PDF', r.code === 410);
+
+  r = mkRes();
+  await paPdf(g({ t: 'zz'.repeat(16) }), r);
+  check('token malformato → 400', r.code === 400);
 }
 
 console.log('\n' + '─'.repeat(48));

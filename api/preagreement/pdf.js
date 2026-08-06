@@ -1,12 +1,15 @@
 // api/preagreement/pdf.js
-// Public, token-scoped download of the OFFICIAL pre-agreement PDF — the
-// faithful replica of the paper RENTAL PROPOSAL (same file attached to the
-// confirmation emails). The accepted page's "Download PDF" button points
-// here, so clients never end up printing the web page.
+// Public, token-scoped PDF of the RENTAL PROPOSAL — the faithful replica
+// of the paper document (same file attached to the confirmation emails).
 //
 // Method:  GET /api/preagreement/pdf?t=<token>
-// Only accepted/paid documents are downloadable (the draft has no
-// signatures — before that, the web page IS the document).
+//
+// PRIMA dell'accettazione il PDF si VEDE comunque (inline, come nel Magic
+// Sign si legge il contratto prima di firmare — il cliente lo gira al
+// garante, lo stampa, lo legge con calma), ma ogni pagina porta la
+// filigrana "PREVIEW — NOT YET ACCEPTED": un PDF senza firme non può
+// circolare come un affare chiuso. DOPO accettazione/pagamento arriva il
+// documento definitivo in download, come sempre.
 
 import { fsList } from '../homie/_lib.js';
 import { buildPaPdf } from './_pdf.js';
@@ -26,14 +29,17 @@ export default async function handler(req, res) {
     // A signed document IS the truth: if signatures are on it, serve the
     // artefact even if a status write lagged (never block a signed client).
     const signedEvidence = !!((pa.tenant || {}).signature || (Array.isArray(pa.tenants) && pa.tenants[0] && pa.tenants[0].signature));
-    if (pa.status !== 'accepted' && pa.status !== 'paid' && !signedEvidence) {
-      return res.status(409).json({ ok: false, error: 'not_signed_yet', status: pa.status || null });
-    }
+    const final = pa.status === 'accepted' || pa.status === 'paid' || signedEvidence;
 
-    const buf = await buildPaPdf(pa);
+    const buf = await buildPaPdf(pa, { preview: !final });
     const safeRef = String(pa.ref || 'BOOM').replace(/[^A-Za-z0-9-]/g, '');
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="BOOM_Pre-Agreement_${safeRef}.pdf"`);
+    // Anteprima: inline (si apre nel browser, come il PDF del Magic Sign);
+    // definitivo: download col nome giusto, come il bottone della pagina
+    // accettata ha sempre fatto.
+    res.setHeader('Content-Disposition', final
+      ? `attachment; filename="BOOM_Pre-Agreement_${safeRef}.pdf"`
+      : `inline; filename="BOOM_Proposal_PREVIEW.pdf"`);
     res.setHeader('Cache-Control', 'private, no-store');
     return res.status(200).send(buf);
   } catch (e) {

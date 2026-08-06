@@ -34,12 +34,17 @@ const clean = s => String(s == null ? '' : s)
   .replace(/[–—]/g, '-').replace(/→/g, '->')
   .replace(/[^\x20-\x7E\xA0-\xFF\u20AC]/g, '');
 
-export async function buildPaPdf(pa) {
+export async function buildPaPdf(pa, opts = {}) {
   const p = pa.property || {}, le = pa.lease || {}, m = pa.money || {};
   const tenants = Array.isArray(pa.tenants) && pa.tenants.length ? pa.tenants : (pa.tenant ? [pa.tenant] : []);
   const inc = m.utilities === 'included';
   const ec = inc ? 0 : (Number(m.energyCredit) || 0);
   const split = m.depositSplitPct != null ? Number(m.depositSplitPct) : 100;
+  // preview: il cliente può LEGGERE la proposta in PDF prima di accettare
+  // (come nel Magic Sign si legge il contratto prima di firmare) — ma un
+  // PDF senza firme non deve poter circolare come un affare chiuso: ogni
+  // pagina porta la dicitura in testa.
+  const preview = !!opts.preview;
 
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
@@ -47,14 +52,21 @@ export async function buildPaPdf(pa) {
   const italic = await pdf.embedFont(StandardFonts.HelveticaOblique);
   const logo = await pdf.embedPng(Buffer.from(LOGO_PNG_B64, 'base64')).catch(() => null);
 
+  const stamp = pg => {
+    if (!preview) return;
+    pg.drawText(clean('PREVIEW - PROPOSAL NOT YET ACCEPTED  ·  ANTEPRIMA - PROPOSTA NON ANCORA ACCETTATA'),
+      { x: M, y: A4[1] - 24, size: 7.5, font: bold, color: SOFT, characterSpacing: 1 });
+  };
+
   let page = pdf.addPage(A4);
   let y = A4[1] - M;
+  stamp(page);
 
   const foot = pg => {
     pg.drawText('Egidi Immobiliare S.r.l.     P.IVA 17322991005     boomrome.com', { x: M, y: 34, size: 8, font, color: SOFT });
   };
   const need = h => {
-    if (y - h < 70) { foot(page); page = pdf.addPage(A4); y = A4[1] - M; }
+    if (y - h < 70) { foot(page); page = pdf.addPage(A4); y = A4[1] - M; stamp(page); }
   };
   const wrap = (text, f, size, width) => {
     const words = clean(text).split(/\s+/); const lines = []; let cur = '';

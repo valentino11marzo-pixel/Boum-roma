@@ -729,6 +729,10 @@ function renderStep1(){
     +'</div>'
     +'<div class="card">'+secH(2,'Financial terms')+moneyRows()+'</div>'
     +'<div class="card">'+secH(3,'General conditions')+condList(null)+'</div>'
+    /* Il documento si può LEGGERE in PDF anche prima di accettare — come
+       nel Magic Sign si legge il contratto prima di firmare. Arriva con la
+       filigrana PREVIEW finché non c'è la firma. */
+    +'<div style="margin-top:14px;text-align:center"><a class="obtn" style="border-color:var(--line-gold);color:var(--gold)" href="/api/preagreement/pdf?t='+TOKEN+'" target="_blank" rel="noopener">📄 View this proposal as PDF ↗</a></div>'
     +'<div class="advisor"><span class="av">V</span><div class="who"><b>Valentino · BOOM Roma</b><span>Your advisor on this deal — replies personally</span></div><a href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a></div>'
     +'<div class="trust">'
       +'<span><span class="c">■</span> Legally valid e-signature (FES · Art. 21 CAD)</span>'
