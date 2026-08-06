@@ -15,6 +15,34 @@ def euro(n): return '€' + f'{int(n):,}'
 def quando(r):
     try: return datetime.fromisoformat(str(r['when']).replace('Z','+00:00').replace('+00:00+00:00','+00:00'))
     except Exception: return datetime(2020,1,1,tzinfo=timezone.utc)
+VITA = {
+  'Trastevere':      'Cobblestones, trattorie, nightlife on your doorstep.',
+  'Centro Storico':  'Piazzas, museums and the city at walking pace.',
+  'Centro':          'The centre at walking pace, everything downstairs.',
+  'Prati':           'Elegant streets, the Vatican, serious food shopping.',
+  'Pigneto':         "Rome's bohemian quarter — bars, galleries, street life.",
+  'Trieste':         'Liberty villas and quiet cafés, ten minutes from the centre.',
+  'Africano':        'Local Rome at honest prices, Coppedè around the corner.',
+  'Parioli':         'Embassies, parks and Rome at its most residential.',
+  'Ponte Milvio':    "Riverside aperitivo and the north's favourite piazza.",
+  "Conca d'Oro":     'Metro B1 at hand, park runs along the Aniene.',
+  'Vittorio Veneto': "La Dolce Vita's boulevard, steps from Villa Borghese.",
+}
+
+def libera_data(g, oggi):
+    s = re.sub(r'(?i)available\s+from','',str(g or '')).strip()
+    if not s: return None
+    d=None; m=re.match(r'^(\d{4})-(\d{2})-(\d{2})',s)
+    if m: d=datetime(int(m.group(1)),int(m.group(2)),int(m.group(3)),tzinfo=timezone.utc)
+    else:
+        gg=re.search(r'\b(\d{1,2})\b(?!\d)',s); me=re.search(r'(?i)\b([a-z]{3})[a-z]*\b',s)
+        an=re.search(r'\b(20\d{2})\b',s)
+        if me and me.group(1).lower() in MESI:
+            try: d=datetime(int(an.group(1)) if an else oggi.year, MESI[me.group(1).lower()],
+                            int(gg.group(1)) if gg and int(gg.group(1))<=31 else 1,tzinfo=timezone.utc)
+            except ValueError: d=None
+    return d
+
 def libera(g, oggi):
     s = re.sub(r'(?i)available\s+from','',str(g or '')).strip()
     if not s: return ''
@@ -51,7 +79,12 @@ for r in vivi:
     dati = ' <i>•</i> '.join(x for x in [
         (sqm+'m²') if sqm else '',
         ('Studio' if n == 0 else f'{n} bed' if n else '')] if x)
+    d_lib = libera_data(r.get('avail'), oggi)
     c = { 'nome': re.sub(r'\s+',' ',r['nome']).strip(),
+          'ts': quando(r).timestamp(),
+          'la': r.get('la'), 'lo': r.get('lo'),
+          'lib': (d_lib or oggi).strftime('%Y-%m-%d') if (d_lib or not attesa) else '2099-01-01',
+          'vita': VITA.get(zcorta, ''),
           'zonaPiena': zona, 'zona': zcorta.upper()[:13],
           'prezzo': euro(p), 'prezzoN': p,
           'tipo': ('STU' if n == 0 else f'{n}BR' if n else 'FLT'),
@@ -81,6 +114,7 @@ h = h.replace('LOGO_SVG', leggi('logo-live.svg').strip())
 h = h.replace('RIGHE_STATICHE', STATICHE)
 h = h.replace("'CASE_JSON'", json.dumps(CASE, ensure_ascii=False))
 h = h.replace("'ZONE_JSON'", json.dumps(ZONE, ensure_ascii=False))
+h = h.replace("'OGGI_ISO'", json.dumps(oggi.strftime('%Y-%m-%d')))
 # l'engine dei Solari va incluso prima dello script di pagina
 h = h.replace('<script>\n(function () {', leggi('solari-engine.html') +
     '\n<script>\n(function () {', 1)

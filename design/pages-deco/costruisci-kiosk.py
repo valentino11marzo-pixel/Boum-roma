@@ -60,7 +60,8 @@ h = '''<title>BOOM · Rome — Live Board</title>
   --display:'Helvetica Neue',Helvetica,Arial,sans-serif;
   --sans:'Inter',-apple-system,sans-serif; color-scheme:dark; }
 *,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }
-html,body { height:100%; }
+html,a { color:inherit; }
+body { height:100%; }
 body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
   font-weight:300; overflow:hidden; display:flex; flex-direction:column;
   cursor:none; }
@@ -114,7 +115,7 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
   <div id="righe"></div>
 </div>
 <div class="fondo">
-  <span><b>boomrome.com</b> · WhatsApp +39 331 325 1961</span>
+  <a href="https://claude.ai/code/artifact/3c0dae67-a0e6-47d4-964f-832b824ffe0f" style="color:inherit;text-decoration:none;cursor:pointer"><b>boomrome.com</b> · WhatsApp +39 331 325 1961</a>
   <span class="pagine" id="pagine"></span>
   <span>Video-verified · Keys in 48h</span>
 </div>

@@ -82,6 +82,34 @@
 .vuoto { padding:60px 0; text-align:center; color:var(--text-3); display:none; }
 .vuoto a { color:var(--gold); }
 
+/* lo Skyline: le case vere alle coordinate vere */
+.sky { display:none; position:relative; margin-top:0; background:var(--black);
+  box-shadow:inset 0 0 0 1px var(--line-gold); }
+.sky.acceso { display:block; }
+.sky canvas { display:block; width:100%; height:clamp(360px,52svh,520px); }
+.sky-eti { position:absolute; left:14px; top:12px; font-size:10px; font-weight:600;
+  letter-spacing:.18em; text-transform:uppercase; color:var(--text-4); }
+.sky-tip { position:absolute; z-index:5; padding:10px 13px; background:rgba(3,3,3,.94);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); pointer-events:none; opacity:0;
+  transition:opacity .2s ease; max-width:240px; }
+.sky-tip b { display:block; font-family:var(--display); font-size:14px; font-weight:500; }
+.sky-tip span { display:block; font-size:11.5px; color:var(--text-3); margin-top:2px; }
+.sky-tip .pr { color:var(--gold-light); font-weight:600; }
+/* il cuore sulle carte */
+.home-cuore { position:absolute; right:10px; top:10px; z-index:3; width:34px;
+  height:34px; display:grid; place-items:center; border-radius:50%;
+  background:rgba(3,3,3,.72); backdrop-filter:blur(6px); color:var(--text-3);
+  cursor:pointer; border:0; font-size:15px;
+  transition:color .25s ease, transform .25s var(--ease); }
+.home-cuore:hover { transform:scale(1.12); }
+.home-cuore.si { color:var(--gold); }
+/* la vita del quartiere sulla carta e sotto i filtri */
+.home-vita { margin-top:7px; font-size:12.5px; font-style:italic; color:var(--text-4); }
+.vita-strip { display:none; padding:10px 0 0; font-size:13.5px; font-style:italic;
+  color:var(--gold-light); }
+.vita-strip.acceso { display:block; }
+.vita-strip b { font-style:normal; font-weight:600; color:var(--gold); }
+
 /* la lastra del salva-ricerca: il servizio vero, spiegato onesto */
 .salva-ov { position:fixed; inset:0; z-index:300; display:grid; place-items:center;
   padding:18px; background:rgba(3,3,3,.8); backdrop-filter:blur(10px);
@@ -193,6 +221,24 @@
       </select>
     </label>
     <button class="f-tog" id="fVideo" type="button" aria-pressed="false">▶ Video tour</button>
+    <label class="f-sel">Move-in
+      <select id="fData">
+        <option value="">Any date</option>
+        <option value="now">Now</option>
+        <option value="2026-09-01">By 1 Sep</option>
+        <option value="2026-10-01">By 1 Oct</option>
+      </select>
+    </label>
+    <label class="f-sel">Sort
+      <select id="fSort">
+        <option value="">Recommended</option>
+        <option value="su">Price ↑</option>
+        <option value="giu">Price ↓</option>
+        <option value="nuove">Newest</option>
+      </select>
+    </label>
+    <button class="f-tog" id="fSalvati" type="button" aria-pressed="false">♥ Saved <b id="nSalvate"></b></button>
+    <button class="f-tog" id="fVista" type="button" aria-pressed="false">◉ Skyline</button>
     <span class="f-conta"><b id="conta">—</b> homes</span>
     <button class="f-salva" id="apriSalva" type="button">☆ Save search</button>
   </div>
@@ -200,6 +246,12 @@
 
 <section class="griglia-case" id="griglia">
   <div class="container">
+    <p class="vita-strip" id="vitaStrip"></p>
+    <div class="sky" id="sky" aria-label="Homes on the Rome skyline">
+      <canvas id="skyCanvas"></canvas>
+      <span class="sky-eti">Rome · real coordinates</span>
+      <div class="sky-tip" id="skyTip"></div>
+    </div>
     <div class="homes" id="homes"></div>
     <div class="vuoto" id="vuoto">No exact match. Try widening the budget —
       or <a href="/property-finding.html">let us find it for you →</a></div>
@@ -283,6 +335,9 @@
 
   var CASE = 'CASE_JSON';
   var ZONE = 'ZONE_JSON';
+  var OGGI = 'OGGI_ISO';
+  var VITA = {};
+  CASE.tutte.forEach(function (c) { if (c.vita) VITA[c.zonaPiena.split('/')[0].trim()] = c.vita; });
 
   /* nav + filo */
   (function () {
@@ -412,7 +467,17 @@
   })();
 
   /* ══ FILTRI + GRIGLIA ════════════════════════════════════════════════ */
-  var stato = { budget:'', beds:'', video:false, zona:'' };
+  var stato = { budget:'', beds:'', video:false, zona:'', data:'', sort:'',
+    salvati:false, vista:'lista' };
+  var salvate;
+  try { salvate = new Set(JSON.parse(localStorage.getItem('boomSalvate') || '[]')); }
+  catch (e) { salvate = new Set(); }
+  function tieni() {
+    try { localStorage.setItem('boomSalvate', JSON.stringify([].slice.call(salvate))); }
+    catch (e) {}
+    var n = document.getElementById('nSalvate');
+    if (n) n.textContent = salvate.size ? String(salvate.size) : '';
+  }
   var homes = document.getElementById('homes');
   var conta = document.getElementById('conta');
   var vuoto = document.getElementById('vuoto');
@@ -437,7 +502,17 @@
     if (stato.video && !c.video) return false;
     if (stato.zona && c.zonaPiena.toLowerCase().indexOf(stato.zona.toLowerCase()) < 0)
       return false;
+    if (stato.salvati && !salvate.has(c.url)) return false;
+    if (stato.data === 'now' && c.lib > OGGI) return false;
+    if (stato.data && stato.data !== 'now' && c.lib > stato.data) return false;
     return true;
+  }
+  function ordina(vs) {
+    var v = vs.slice();
+    if (stato.sort === 'su') v.sort(function (a, b) { return a.prezzoN - b.prezzoN; });
+    if (stato.sort === 'giu') v.sort(function (a, b) { return b.prezzoN - a.prezzoN; });
+    if (stato.sort === 'nuove') v.sort(function (a, b) { return b.ts - a.ts; });
+    return v;
   }
   function carta(c) {
     return '<a class="home" href="' + c.url + '">' +
@@ -446,19 +521,44 @@
       (c.tag ? '<span class="home-tag">' + c.tag + '</span>' : '') +
       '<span class="home-prezzo"><span style="font-family:var(--display);font-size:17px;font-weight:500">' +
       c.prezzo + '</span><small>/month</small></span></div>' +
+      '<button type="button" class="home-cuore' + (salvate.has(c.url) ? ' si' : '') +
+      '" data-u="' + c.url + '" aria-label="Save this home">♥</button>' +
       '<div class="home-corpo"><div class="home-nome">' + c.nome + '</div>' +
       '<div class="home-dati">' + c.dati + '</div>' +
+      (c.vita ? '<div class="home-vita">' + c.vita + '</div>' : '') +
       '<div class="home-vai">View Details →</div></div></a>';
   }
   function disegna() {
-    var viste = CASE.tutte.filter(passa);
+    var viste = ordina(CASE.tutte.filter(passa));
     homes.innerHTML = viste.map(carta).join('');
     if (conta) conta.textContent = String(viste.length);
     if (vuoto) vuoto.style.display = viste.length ? 'none' : 'block';
+    var strip = document.getElementById('vitaStrip');
+    if (strip) {
+      var v = stato.zona && VITA[stato.zona];
+      strip.classList.toggle('acceso', !!v);
+      if (v) strip.innerHTML = '<b>' + stato.zona + '</b> — ' + v;
+    }
+    if (stato.vista === 'sky' && window.cielo) window.cielo(viste);
   }
+  /* il cuore: si salva senza aprire la scheda */
+  homes.addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('.home-cuore') : null;
+    if (!b) return;
+    e.preventDefault(); e.stopPropagation();
+    var u = b.dataset.u;
+    if (salvate.has(u)) salvate.delete(u); else salvate.add(u);
+    b.classList.toggle('si', salvate.has(u));
+    tieni();
+    if (stato.salvati) disegna();
+  });
   var fB = document.getElementById('fBudget');
   var fL = document.getElementById('fBeds');
   var fV = document.getElementById('fVideo');
+  var fD = document.getElementById('fData');
+  var fS = document.getElementById('fSort');
+  var fSa = document.getElementById('fSalvati');
+  var fVi = document.getElementById('fVista');
   if (fB) fB.addEventListener('change', function () { stato.budget = fB.value; disegna(); });
   if (fL) fL.addEventListener('change', function () { stato.beds = fL.value; disegna(); });
   if (fV) fV.addEventListener('click', function () {
@@ -467,7 +567,127 @@
     fV.setAttribute('aria-pressed', stato.video ? 'true' : 'false');
     disegna();
   });
+  if (fD) fD.addEventListener('change', function () { stato.data = fD.value; disegna(); });
+  if (fS) fS.addEventListener('change', function () { stato.sort = fS.value; disegna(); });
+  if (fSa) fSa.addEventListener('click', function () {
+    stato.salvati = !stato.salvati;
+    fSa.classList.toggle('su', stato.salvati);
+    fSa.setAttribute('aria-pressed', stato.salvati ? 'true' : 'false');
+    disegna();
+  });
+  tieni();
   disegna();
+
+  /* ══ LO SKYLINE — le case vere alle coordinate vere ══════════════════
+     Niente mappa disegnata: proiezione auto-adattata dei punti del
+     catalogo. Il passaggio del mouse mostra la casa; il clic la apre. */
+  (function () {
+    var sky = document.getElementById('sky');
+    var tela = document.getElementById('skyCanvas');
+    var tip = document.getElementById('skyTip');
+    if (!sky || !tela || !fVi) return;
+    var ctx = tela.getContext('2d');
+    var punti = [], mira = -1, correnti = [];
+
+    function misura() {
+      var r = sky.getBoundingClientRect();
+      var dpr = Math.min(2, devicePixelRatio || 1);
+      tela.width = r.width * dpr; tela.height = tela.clientHeight * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { w: r.width, h: tela.clientHeight };
+    }
+    function proietta(viste) {
+      var con = viste.filter(function (c) { return c.la && c.lo; });
+      if (!con.length) return [];
+      var d = misura();
+      var la0 = Infinity, la1 = -Infinity, lo0 = Infinity, lo1 = -Infinity;
+      con.forEach(function (c) {
+        la0 = Math.min(la0, c.la); la1 = Math.max(la1, c.la);
+        lo0 = Math.min(lo0, c.lo); lo1 = Math.max(lo1, c.lo);
+      });
+      var mx = 70, my = 56;
+      var sx = (d.w - mx * 2) / Math.max(.0001, lo1 - lo0);
+      var sy = (d.h - my * 2) / Math.max(.0001, la1 - la0);
+      return con.map(function (c) {
+        return { c: c,
+          x: mx + (c.lo - lo0) * sx,
+          y: d.h - my - (c.la - la0) * sy };
+      });
+    }
+    function dipingi() {
+      var d = { w: tela.clientWidth, h: tela.clientHeight };
+      ctx.clearRect(0, 0, d.w, d.h);
+      /* il reticolo, come una carta tecnica */
+      ctx.strokeStyle = 'rgba(255,255,255,.035)'; ctx.lineWidth = 1;
+      for (var x = 0; x < d.w; x += 64) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, d.h); ctx.stroke();
+      }
+      for (var y = 0; y < d.h; y += 64) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(d.w, y); ctx.stroke();
+      }
+      punti.forEach(function (p, i) {
+        var scelto = i === mira;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, scelto ? 7 : 5, 0, Math.PI * 2);
+        ctx.fillStyle = scelto ? '#FFE55C' : '#FFD700';
+        ctx.shadowColor = 'rgba(255,215,0,.6)';
+        ctx.shadowBlur = scelto ? 22 : 10;
+        ctx.fill(); ctx.shadowBlur = 0;
+        ctx.fillStyle = scelto ? 'rgba(250,250,250,.95)' : 'rgba(250,250,250,.4)';
+        ctx.font = '10px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(p.c.prezzo, p.x, p.y - 12);
+      });
+    }
+    function cielo(viste) {
+      correnti = viste; punti = proietta(viste); mira = -1; dipingi();
+    }
+    window.cielo = cielo;
+    function vicino(ev) {
+      var r = tela.getBoundingClientRect();
+      var x = ev.clientX - r.left, y = ev.clientY - r.top;
+      var k = -1, dmin = 20 * 20;
+      punti.forEach(function (p, i) {
+        var dx = p.x - x, dy = p.y - y, dd = dx * dx + dy * dy;
+        if (dd < dmin) { dmin = dd; k = i; }
+      });
+      return k;
+    }
+    tela.addEventListener('pointermove', function (ev) {
+      var k = vicino(ev);
+      if (k === mira) return;
+      mira = k; dipingi();
+      tela.style.cursor = k >= 0 ? 'pointer' : 'default';
+      if (k >= 0) {
+        var p = punti[k];
+        tip.innerHTML = '<b>' + p.c.nome + '</b><span>' + p.c.zonaPiena +
+          ' · <span class="pr">' + p.c.prezzo + '/mo</span></span>' +
+          (p.c.vita ? '<span>' + p.c.vita + '</span>' : '');
+        tip.style.left = Math.min(tela.clientWidth - 250, Math.max(8, p.x + 14)) + 'px';
+        tip.style.top = Math.max(8, p.y - 14) + 'px';
+        tip.style.opacity = 1;
+      } else tip.style.opacity = 0;
+    });
+    tela.addEventListener('pointerleave', function () {
+      mira = -1; dipingi(); tip.style.opacity = 0;
+    });
+    tela.addEventListener('click', function (ev) {
+      var k = vicino(ev);
+      if (k >= 0) location.href = punti[k].c.url;
+    });
+    fVi.addEventListener('click', function () {
+      var su = stato.vista !== 'sky';
+      stato.vista = su ? 'sky' : 'lista';
+      fVi.classList.toggle('su', su);
+      fVi.setAttribute('aria-pressed', su ? 'true' : 'false');
+      sky.classList.toggle('acceso', su);
+      homes.style.display = su ? 'none' : '';
+      if (su) cielo(ordina(CASE.tutte.filter(passa)));
+    });
+    addEventListener('resize', function () {
+      if (stato.vista === 'sky') cielo(correnti);
+    });
+  })();
 
   /* ══ SALVA RICERCA ═══════════════════════════════════════════════════ */
   (function () {
