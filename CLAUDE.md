@@ -251,13 +251,51 @@ signature qualify (`isBoilerplate` / `copyGap` / `copyOrder`, exported +
 tested), and anything overwritten is preserved in `descriptionOriginal`.
 
 ### GET/POST `/api/wizard/health` (cron */10 min)
-Watchdog for the Telegram listing wizard bot. The bot (via
-`bot/wizard_heartbeat.py`, the launchd entry point on the Mac mini) writes
-`heartbeat/listing-wizard` every 60s; this cron alerts the admin Telegram
-chat when the heartbeat is >5 min stale (re-alert every 6h, one recovery
-message when it returns; missing doc = wrapper not deployed → silent). Auth
-like the PFS crons: Vercel cron Bearer `CRON_SECRET`, `X-Homie-Secret`, or
-admin Firebase ID token.
+Watchdog del bot Telegram sul Mac mini. **LA LEZIONE DEL 7 AGOSTO 2026**: per
+12 giorni launchd ha lanciato `boom_listing_wizard.py` DIRETTAMENTE invece di
+`wizard_heartbeat.py` — il `sed` di installazione documentato in
+`bot/README.md` non era mai stato eseguito. Risultato: auto-aggiornamento mai
+partito, codice sul Mac fermo a due settimane prima, e **questo guardiano ha
+taciuto tutto il tempo**, perché "documento heartbeat assente" era codificato
+come stato neutro ("wrapper non ancora deployato"). Il guasto peggiore e una
+macchina appena installata producevano lo stesso silenzio verde.
+Tre correzioni, tutte nello spirito di `pfs/_health.js` (dove lo stesso
+giorno abbiamo corretto il difetto OPPOSTO — una fonte bloccata che gridava
+96 volte). Regola unica: **si parla quando c'è una decisione da prendere, una
+volta sola per condizione**.
+- **Il battito non dipende più dal wrapper.** `_fallback_heartbeat()` in
+  `boom_listing_wizard.py` lo scrive comunque, e porta **`launcher`**
+  (`sys.argv[0]`, DERIVATO): se il server legge `boom_listing_wizard.py` sa
+  che il wrapper è stato saltato → **un** messaggio con il comando per
+  rimediare, poi silenzio; lo stato si azzera da solo quando è sistemato.
+- **`build` invece di `BOT_VERSION`.** La costante scritta a mano è rimasta a
+  `'3.0'` mentre il file cambiava cinque volte: come segnale di obsolescenza
+  era inservibile proprio quando serviva. `source_build()` è lo sha1 dei byte
+  veri sul disco — cambia da solo, nessuno può dimenticarsene.
+- **Il silenzio ha una scadenza.** Documento assente → si annota
+  `missingSince` e si tace per 24h (copre l'installazione nuova), poi **un**
+  messaggio. E lo stato si registra SEMPRE, non più dentro `if (sent)`: un
+  guardiano che ricorda solo quando Telegram risponde tace proprio quando il
+  canale è il problema.
+`wizardVerdict()` è pura ed esportata (decide se consumare l'attenzione
+dell'operatore, quindi si testa). Auth come i cron PFS.
+Test: `node tests/wizard/health.mjs`.
+
+**Il difetto gemello nel wrapper**: `_self_update()` girava SOLO all'avvio,
+poi `run_polling()` blocca per sempre e `KeepAlive` riavvia solo sui crash —
+cioè **un bot sano non si aggiornava mai** e la freschezza del codice
+dipendeva dai guasti. Ora il thread del battito ricontrolla ogni ora e, se è
+arrivato codice nuovo, esce con `os._exit(0)`: launchd lo rialza dopo 15s col
+codice aggiornato. Ogni ramo di `_self_update` LOGGA il proprio esito
+(`applied/same/short-download/compile-failed/net-failed`) — prima lo skip su
+download corto non lasciava traccia, quindi "non ha aggiornato" e "non ha
+potuto" erano indistinguibili.
+
+**E `salute.html` era cieco**: leggeva `h.consecutiveFailures` mentre ogni
+scrittore scrive `consecutiveErrors` (`pfs/_health.js`, `employees/_lib.js`),
+quindi il ramo "guasto" non è mai scattato — `scan-market` falliva da 1145
+giri e la pagina *Salute* lo mostrava verde. Un carattere, la pagina che
+doveva dire la verità.
 
 ### POST `/api/wizard/interpret`
 Natural-language listing edits for the wizard bot. Auth `X-Wizard-Secret`.
@@ -2002,6 +2040,7 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/regista/run.mjs` | Il Regista: grammatica dei promemoria (IT/EN, accenti, "il 16/08", range che non sono date), id deterministici ≤64B, inviti calendario dei task, foglio di chiamata (escaping, viaggi, catene, giorno vuoto) |
   | `tests/recovery/run.mjs` | Il Recupero: chi diventa lead (PFS/SERVICE/RESERVE) e chi recap (PA/DEPOSIT/RENT), i test dell'operatore mai, id deterministico, lingua dalle parole del cliente |
   | `tests/reverse/run.mjs` | La ricerca rovesciata: legge budget/taglia/zona dalle parole vere e dalla casa richiesta, e soprattutto **chi non va MAI disturbato** — morti, inquilini, chi quella casa l'aveva già chiesta, chi era già stato avvisato, chi la troverebbe fuori budget |
+  | `tests/wizard/health.mjs` | Il guardiano del bot sul Mac: il wrapper saltato lo dice UNA volta (non 96, non mai), il documento assente tace 24h e poi parla, offline batte tutto, il ritorno si sente sempre |
   | `tests/pfs/health.mjs` | Allarmi del radar: una fonte BLOCCATA all'origine parla una volta sola (200 run → 1 messaggio), un guasto vero si dirada invece di gridare ogni 6h (40 giorni → 8 promemoria), i primi due intoppi non svegliano nessuno, e il ritorno si sente sempre |
   | `tests/pfs/eyes.mjs` | Gli occhi di Homie sul radar PFS: nella lista di lavoro non entrano ricerche spente o con URL rotti, la manopola manuale (`urlOverride`) vince sempre, e — la regola che conta — un radar CIECO (403/captcha su tutte le ricerche) non passa mai per un mercato fermo |
   | `tests/whatsapp/run.mjs` | Da WhatsApp a lead senza AI: il rumore resta fuori (👍, "ok") e la persona vera entra, l'inquilino che scrive per la caldaia non inquina la pipeline, un lead per persona anche col numero archiviato in formato diverso (nazionale vs internazionale), una risposta umana zittisce il Commerciale. Guida il handler VERO su un Firestore finto in memoria |

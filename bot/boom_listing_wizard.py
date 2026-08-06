@@ -1478,8 +1478,51 @@ def _secret_probe():
         logger.warning(f'secret probe failed: {e}')
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
+# ─── Il battito non dipende più dal wrapper ───────────────────────────────────
+# IL GUASTO CHE CHIUDE: per 12 giorni launchd ha lanciato QUESTO file invece di
+# wizard_heartbeat.py. Il battito lo scriveva solo il wrapper, quindi il
+# documento heartbeat/listing-wizard non è mai esistito — e api/wizard/health.js
+# tratta il documento assente come "wrapper non ancora deployato", cioè tace.
+# Risultato: l'auto-aggiornamento era morto e nessun segnale lo diceva.
+#
+# Ora il battito parte comunque, e porta `launcher`: se il server legge
+# "boom_listing_wizard.py" sa, letteralmente, che il wrapper è stato saltato.
+def _fallback_heartbeat():
+    import hashlib
+    import sys as _sys
+    import threading as _th
+    if any(t.name == 'wizard-heartbeat' and t.is_alive() for t in _th.enumerate()):
+        return                                    # il wrapper lo fa già: non due volte
+    h = hashlib.sha1()
+    for fn in ('boom_listing_wizard.py', 'wizard_heartbeat.py'):
+        try:
+            with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), fn), 'rb') as f:
+                h.update(f.read())
+        except Exception:
+            h.update(b'?')
+    build = h.hexdigest()[:12]
+    launcher = os.path.basename(_sys.argv[0] or '?')
+    logger.warning(f'wrapper NON attivo (launcher={launcher}): auto-aggiornamento spento, '
+                   f'battito di riserva attivo · build {build}')
+
+    def beat():
+        while True:
+            try:
+                fs_update('heartbeat', 'listing-wizard', {
+                    'source': 'listing-wizard', 'status': 'live',
+                    'pid': os.getpid(), 'version': BOT_VERSION, 'build': build,
+                    'launcher': launcher, 'updateResult': 'wrapper-not-running',
+                    'lastSeenAt': datetime.now(timezone.utc).isoformat(),
+                })
+            except Exception as e:
+                logger.warning(f'heartbeat di riserva: {e}')
+            time.sleep(60)
+    _th.Thread(target=beat, daemon=True, name='wizard-heartbeat-fallback').start()
+
+
 def main():
     _secret_probe()
+    _fallback_heartbeat()
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     wizard = ConversationHandler(
         entry_points=[CommandHandler('nuovoflat', cmd_newlisting)],
