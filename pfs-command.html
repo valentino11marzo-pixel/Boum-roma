@@ -86,6 +86,9 @@ input, select, textarea { font: inherit; color: var(--text); }
 .hdot.stale { background: var(--amber); box-shadow: 0 0 0 3px var(--amber-light); }
 .hdot.err { background: var(--red); box-shadow: 0 0 0 3px var(--red-light); animation: pulse 1.2s infinite; }
 .hdot.na { background: var(--text-muted); }
+/* Bloccata all'origine: NON è un guasto lampeggiante da rincorrere — è una
+   fonte che non può funzionare da qui. Ferma, spenta, senza pulsare. */
+.hdot.blocked { background: var(--text-muted); box-shadow: 0 0 0 3px rgba(255,255,255,0.06); }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
 .hpop { margin-top: 12px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 14px; padding: 16px; font-size: 12px; max-width: 640px; animation: fadein .2s ease; }
 @keyframes fadein { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
@@ -759,6 +762,10 @@ function apiPost(path, body) {
 function healthStatus(key, freshMin) {
     var h = state.health[key];
     if (!h) return 'na';
+    // `blocked` viene prima di `err`: una fonte che NON PUÒ funzionare da qui
+    // (i portali rifiutano gli IP datacenter) non è un guasto da rincorrere, e
+    // mostrarla rossa e lampeggiante per settimane insegna a ignorare il rosso.
+    if (h.blocked) return 'blocked';
     if (h.ok === false) return 'err';
     var d = toDate(h.lastRunAt);
     if (!d) return 'stale';
@@ -788,7 +795,7 @@ function renderHealth() {
         return;
     }
     var rows = [
-        '<div class="hpop-kv"><span>Stato</span><b>' + (h.ok === false ? '⛔ Errore' : '✓ OK') + '</b></div>',
+        '<div class="hpop-kv"><span>Stato</span><b>' + (h.blocked ? '🚫 Bloccata all\'origine' : h.ok === false ? '⛔ Errore' : '✓ OK') + '</b></div>',
         '<div class="hpop-kv"><span>Ultimo run</span><b>' + esc(relTime(h.lastRunAt)) + '</b></div>',
         '<div class="hpop-kv"><span>Ultimo OK</span><b>' + esc(relTime(h.lastOkAt)) + '</b></div>',
         '<div class="hpop-kv"><span>Errori consecutivi</span><b>' + esc(h.consecutiveErrors || 0) + '</b></div>'
@@ -797,7 +804,9 @@ function renderHealth() {
     Object.keys(stats).forEach(function (k) {
         rows.push('<div class="hpop-kv"><span>' + esc(STAT_LABELS[k] || k) + '</span><b>' + esc(stats[k]) + '</b></div>');
     });
-    var errHtml = h.lastError ? '<div class="hpop-err">⚠ ' + esc(h.lastError) + '</div>' : '';
+    var errHtml = h.blocked
+        ? '<div class="hpop-err">🚫 I portali rifiutano gli IP dei datacenter: questa fonte non pu\u00f2 funzionare dal server, e non \u00e8 un guasto passeggero.<br>La fonte portante resta l\'<b>Inbox</b> (email di alert). La via d\'uscita sono gli occhi di Homie (IP residenziale, browser vero).</div>'
+        : h.lastError ? '<div class="hpop-err">\u26a0 ' + esc(h.lastError) + '</div>' : '';
     wrap.innerHTML = '<div class="hpop"><div class="hpop-title">' + esc(src.icon + ' ' + src.label) + '</div>' +
         '<div class="hpop-grid">' + rows.join('') + '</div>' + errHtml + '</div>';
 }

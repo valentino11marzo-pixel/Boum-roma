@@ -1624,7 +1624,22 @@ All three accept POST with Vercel cron secret, `X-Homie-Secret`, or an
 admin Firebase ID token (the command center's "Scansiona ora" buttons) —
 see `api/pfs/_guard.js`. Every run writes a heartbeat to
 `pfsRadarHealth/<source>`; 3+ consecutive failures → Telegram alert
-(`api/pfs/_health.js`), recovery notified once. Listings that could not be
+(`api/pfs/_health.js`), recovery notified once.
+
+**BLOCCATA ≠ GUASTA** (`alertDecision()`, esportata + testata). `scan-market`
+aveva accumulato **1145 run falliti di fila** e un allarme ogni 6h per ~3
+settimane: ~96 messaggi identici per una condizione che non può risolversi da
+sola — i portali rifiutano gli IP dei datacenter, è documentato in `_fetch.js`.
+Il danno non è il rumore: un promemoria non azionabile **abitua a scartare gli
+allarmi del radar**, e il giorno in cui muore `scan-inbox` (la fonte PORTANTE)
+quello verrebbe scartato con gli altri. Ora ci sono tre stati, non due:
+`ok` · `error` (può risolversi → promemoria che si dirada 6h→24h→72h→settimana,
+8 messaggi in 40 giorni invece di ~160) · **`blocked`** (non può funzionare da
+qui → UN messaggio, che spiega, dice cosa continua a funzionare e dà la via
+d'uscita — gli occhi di Homie — poi silenzio finché lo stato non cambia).
+`pfs-command.html` smette di mostrarla rossa e lampeggiante: pallino spento,
+"🚫 Bloccata all'origine" e la spiegazione al posto dell'errore urlato.
+Test: `node tests/pfs/health.mjs`. Listings that could not be
 auto-ingested (e.g. no price recoverable) land in
 `pfsRadarHealth.needsAttention` — surfaced in `pfs-command.html`, never
 silently dropped.
@@ -1937,6 +1952,7 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/viewings/gap.mjs` | la geometria della giornata: stesso immobile a catena (gap 0), viaggi reali tra zone (clamp 15–45'), video piatto, blocchi legacy identici a prima |
   | `tests/regista/run.mjs` | Il Regista: grammatica dei promemoria (IT/EN, accenti, "il 16/08", range che non sono date), id deterministici ≤64B, inviti calendario dei task, foglio di chiamata (escaping, viaggi, catene, giorno vuoto) |
   | `tests/recovery/run.mjs` | Il Recupero: chi diventa lead (PFS/SERVICE/RESERVE) e chi recap (PA/DEPOSIT/RENT), i test dell'operatore mai, id deterministico, lingua dalle parole del cliente |
+  | `tests/pfs/health.mjs` | Allarmi del radar: una fonte BLOCCATA all'origine parla una volta sola (200 run → 1 messaggio), un guasto vero si dirada invece di gridare ogni 6h (40 giorni → 8 promemoria), i primi due intoppi non svegliano nessuno, e il ritorno si sente sempre |
   | `tests/pfs/eyes.mjs` | Gli occhi di Homie sul radar PFS: nella lista di lavoro non entrano ricerche spente o con URL rotti, la manopola manuale (`urlOverride`) vince sempre, e — la regola che conta — un radar CIECO (403/captcha su tutte le ricerche) non passa mai per un mercato fermo |
   | `tests/whatsapp/run.mjs` | Da WhatsApp a lead senza AI: il rumore resta fuori (👍, "ok") e la persona vera entra, l'inquilino che scrive per la caldaia non inquina la pipeline, un lead per persona anche col numero archiviato in formato diverso (nazionale vs internazionale), una risposta umana zittisce il Commerciale. Guida il handler VERO su un Firestore finto in memoria |
   | `tests/wizard/local_brain.py` | Il cervello gratis del bot wizard (`python3`): cosa capisce senza modello e — più importante — cosa deve rifiutarsi di capire. Una domanda ("Levico è affittato?") non può diventare una scrittura; un annuncio nuovo dettato non può diventare la modifica di uno esistente. Estrae le funzioni pure dal bot via AST: gira senza `.env`, senza Telegram, senza rete |
