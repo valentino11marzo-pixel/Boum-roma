@@ -102,7 +102,7 @@ HOMES = '\n\n'.join(carta(c, i == 0) for i, c in enumerate(vetrina))
 # lo schermo 1 dell'apparecchio: quattro miniature dal catalogo vero
 mini = case[:4] if len(case) >= 4 else case
 DEV = '\n'.join(
-    f'''              <div class="sc-apt"><div class="sc-ph"><img loading="lazy" decoding="async"
+    f'''              <div class="sc-apt{" feat" if i == 0 else ""}"><div class="sc-ph"><img loading="lazy" decoding="async"
                 src="{banca[c['id']]}" alt="">{'<span class="sc-live">● LIVE 360°</span>' if i == 0 else ''}</div>
                 <div class="sc-pr">{euro(c['prezzo'])}</div></div>'''
     for i, c in enumerate(mini))
@@ -112,6 +112,9 @@ h = '\n'.join(leggi(p) for p in ['lh-css.html','lh-body.html','solari-engine.htm
 h = h.replace('LOGO_SVG', leggi('logo-live.svg').strip())
 h = h.replace('HOMES_CARDS', HOMES)
 h = h.replace('DEV_APTS', DEV)
+UNI = ['LUISS', 'Sapienza', 'Roma Tre', 'John Cabot', 'LUMSA', 'NABA', 'IED', 'RUFA']
+h = h.replace('UNI_ITEMS\nUNI_ITEMS',
+    '\n'.join('    <span class="uni-item">' + u.upper() + '</span>' for u in UNI + UNI))
 if MODO == 'artefatto':
     h = h.replace('FONT_INLINE', '<style>\n' + leggi('inter-inline.css') + '\n</style>')
 else:

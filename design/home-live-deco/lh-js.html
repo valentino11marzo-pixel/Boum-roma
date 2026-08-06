@@ -152,11 +152,17 @@
   (function () {
     var host = document.getElementById('flapDays');
     if (!host || !BS) return;
-    var b = new BS.Board(host, 4, ' ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+    var b = new BS.Board(host, 5, ' ABCDEFGHIJKLMNOPQRSTUVWXYZ');
     if (ridotto) { b.show('DAYS'); return; }
     setTimeout(function () { b.show('DAYS', 110, true); }, 500);
-    /* un fremito ogni tanto: il tabellone è vivo, non un'immagine */
-    setInterval(function () { if (!document.hidden) b.flutter(); }, 7000);
+    /* la promessa si stringe da sola: giorni, anzi ore — ed è vera (48h) */
+    var giro = ['HOURS', 'DAYS'], i = 0;
+    setInterval(function () {
+      if (document.hidden) return;
+      b.update(giro[i % 2]);
+      host.setAttribute('aria-label', giro[i % 2].toLowerCase());
+      i++;
+    }, 6500);
   })();
 
   /* ── i canoni delle case sui Solari, al primo sguardo ────────────────── */
