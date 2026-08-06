@@ -129,13 +129,24 @@ export default async function handler(req, res) {
     results.push({ id: search.id, ok: true, found: urls.length, new: newHere });
   }
 
-  // Health: the run is "ok" if at least one page was reachable. All pages
-  // blocked = the portals are refusing this IP — that's a real outage of
-  // this source and should count toward the Telegram alert.
+  // Health: il run è "ok" se almeno una pagina ha risposto.
+  //
+  // TUTTE le pagine irraggiungibili NON è un guasto: è la condizione
+  // permanente e documentata di questa fonte (_fetch.js — "both portals run
+  // anti-bot protection and may 403 datacenter IPs"). Trattarla come un
+  // errore ha prodotto 1145 run falliti di fila e un allarme ogni 6 ore per
+  // tre settimane: un promemoria che non si può azionare non informa, ABITUA
+  // a scartare gli allarmi del radar — e il giorno in cui muore `scan-inbox`,
+  // che è la fonte portante, quello verrebbe scartato con gli altri.
+  //
+  // Quindi: `blocked`, non `error`. Si dice una volta, con la via d'uscita
+  // (gli occhi di Homie), poi silenzio finché lo stato non cambia davvero.
   const ok = pagesOk > 0;
+  const blocked = !ok && searches.length > 0;
   await reportNeedsAttention('market', needsAttention);
   await reportHealth('market', {
     ok,
+    blocked,
     error: ok ? null : `all ${pagesFailed} search pages unreachable (anti-bot?)`,
     stats: { searches: searches.length, pagesOk, pagesFailed, ingested, droppedAgency, pushedTotal },
   });
