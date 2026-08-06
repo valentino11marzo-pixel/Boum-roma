@@ -1,0 +1,429 @@
+<title>BOOM — Rome, in days not weeks</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Renting in Rome, rebuilt: video-verified homes, transparent money, keys in as little as 48 hours. An immersive look at how BOOM works.">
+FONT_INLINE
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   BOOM · IMMERSIVA — la tesi raccontata come un lancio di prodotto.
+
+   Disciplina Apple: nero puro, UN'idea per schermo, tipografia enorme e
+   leggera, l'oro solo sulla parola che conta. Lo scroll è la regia — ogni
+   capitolo è un pin di ~3 schermi la cui posizione (--f: 0→1) guida
+   dissolvenze, zoom e il conteggio. Nessun ornamento: niente radar, niente
+   grana, niente cornici. Ogni capitolo atterra su un fatto vero e un link
+   utile. I numeri sono quelli del catalogo (Trilocale Pigneto, €1,600).
+   ══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --oro: #FFD700;
+  --nero: #000;
+  --t1: #F5F5F7;
+  --t2: rgba(245,245,247,.64);
+  --t3: rgba(245,245,247,.38);
+  --sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --disp: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --ease: cubic-bezier(.16,1,.3,1);
+  color-scheme: dark;
+}
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html { -webkit-text-size-adjust:100%; }
+body { background:var(--nero); color:var(--t1); font-family:var(--sans);
+  font-weight:300; font-size:17px; line-height:1.5;
+  -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+a { color:inherit; text-decoration:none; }
+img { display:block; max-width:100%; }
+::selection { background:var(--oro); color:#000; }
+:focus-visible { outline:2px solid var(--oro); outline-offset:3px; }
+
+/* ── la testata: quasi niente ────────────────────────────────────────── */
+.testa { position:fixed; top:0; left:0; right:0; z-index:50;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:20px clamp(20px,4vw,48px);
+  opacity:0; transform:translateY(-8px); pointer-events:none;
+  transition:opacity .6s var(--ease), transform .6s var(--ease); }
+html.svelata .testa { opacity:1; transform:none; pointer-events:auto; }
+.testa .marchio { display:inline-flex; align-items:center; gap:10px;
+  font-family:var(--disp); font-size:15px; letter-spacing:.32em;
+  text-indent:.32em; text-transform:uppercase; font-weight:400; }
+.testa .marchio svg { width:30px; height:30px; }
+.testa .vai { font-size:13px; color:var(--t2); letter-spacing:.02em;
+  transition:color .3s; }
+.testa .vai:hover { color:var(--oro); }
+
+/* ── l'impalcatura dei capitoli ──────────────────────────────────────── */
+.atto { position:relative; height:300svh; }
+.scena { position:sticky; top:0; height:100svh; overflow:hidden;
+  display:grid; place-items:center; --f:0; }
+.beat { position:absolute; inset:0; display:grid; place-items:center;
+  text-align:center; padding:0 clamp(22px,6vw,80px);
+  opacity:0; transform:translateY(26px) scale(.985);
+  transition:opacity .65s var(--ease), transform .65s var(--ease);
+  pointer-events:none; }
+.scena .beat.qui { opacity:1; transform:none; pointer-events:auto; }
+.riga-tesi { font-family:var(--disp); font-weight:200; letter-spacing:-.03em;
+  line-height:1.04; font-size:clamp(40px,8.6vw,108px); text-wrap:balance; }
+.riga-tesi .oro { color:var(--oro); }
+.riga-sotto { margin-top:26px; font-size:clamp(15px,1.8vw,20px);
+  color:var(--t2); letter-spacing:.01em; }
+.riga-min { margin-top:16px; font-size:13px; color:var(--t3);
+  letter-spacing:.08em; text-transform:uppercase; }
+.vai-cap { display:inline-flex; align-items:center; gap:9px; margin-top:34px;
+  font-size:15px; color:var(--oro); letter-spacing:.01em;
+  border-bottom:1px solid rgba(255,215,0,.35); padding-bottom:3px;
+  transition:border-color .3s; }
+.vai-cap:hover { border-color:var(--oro); }
+
+/* il suggerimento di scroll */
+.giu { position:absolute; left:50%; bottom:28px; transform:translateX(-50%);
+  width:1px; height:44px; overflow:hidden; }
+.giu i { position:absolute; left:0; top:-40%; width:1px; height:40%;
+  background:linear-gradient(180deg, transparent, var(--oro));
+  animation:giu 2.2s var(--ease) infinite; }
+@keyframes giu { 70%, 100% { top:110%; } }
+
+/* ── capitolo 1 · VEDERE: la passeggiata fotografica ─────────────────── */
+.cam { position:absolute; inset:0; }
+.cam img { position:absolute; inset:0; width:100%; height:100%;
+  object-fit:cover; opacity:0;
+  transform:scale(calc(1.02 + var(--f) * .1)); }
+/* dissolvenze a finestre: 0–.44 | .30–.72 | .66–1 (prodotti di clamp,
+   niente abs(): regge anche i Safari meno recenti) */
+.cam .c1 { opacity:clamp(0, (.44 - var(--f)) * 12, 1); }
+.cam .c2 { opacity:calc(clamp(0, (var(--f) - .30) * 9, 1)
+  * clamp(0, (.72 - var(--f)) * 9, 1)); }
+.cam .c3 { opacity:clamp(0, (var(--f) - .66) * 12, 1); }
+.cam::after { content:''; position:absolute; inset:0;
+  background:linear-gradient(180deg, rgba(0,0,0,.5), transparent 30%,
+    transparent 55%, rgba(0,0,0,.82)); }
+.chip-vera { position:absolute; top:max(74px, calc(env(safe-area-inset-top) + 64px)); left:20px; z-index:3;
+  display:inline-flex; align-items:center; gap:8px; padding:8px 13px;
+  font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--t1); background:rgba(0,0,0,.45); backdrop-filter:blur(12px);
+  border-radius:100px; border:1px solid rgba(255,255,255,.12); }
+.chip-vera b { color:var(--oro); font-weight:500; }
+.scena-vedere .beat { align-content:end; padding-bottom:12svh; }
+.scena-vedere .riga-tesi { font-size:clamp(32px,6vw,76px); }
+
+/* ── capitolo 2 · I SOLDI: i numeri si compongono ────────────────────── */
+.conto { display:grid; gap:0; text-align:center; }
+.canone-g { font-family:var(--disp); font-weight:200; letter-spacing:-.03em;
+  font-size:clamp(64px,14vw,180px); line-height:1; }
+.canone-g small { font-size:.22em; color:var(--t2); font-weight:300;
+  letter-spacing:0; }
+.voci { display:grid; gap:14px; margin-top:8px; text-align:left;
+  width:min(480px, 86vw); margin-inline:auto; }
+.voce { display:flex; justify-content:space-between; align-items:baseline;
+  gap:20px; font-size:clamp(16px,2vw,20px); opacity:0;
+  transform:translateY(14px);
+  transition:opacity .5s var(--ease), transform .5s var(--ease); }
+.beat.qui .voce:nth-child(1) { transition-delay:.05s; }
+.beat.qui .voce:nth-child(2) { transition-delay:.2s; }
+.beat.qui .voce:nth-child(3) { transition-delay:.35s; }
+.beat.qui .voce { opacity:1; transform:none; }
+.voce span { color:var(--t2); font-weight:300; }
+.voce span small { display:block; font-size:12px; color:var(--t3); }
+.voce b { font-family:var(--disp); font-weight:300;
+  font-variant-numeric:tabular-nums; }
+.filo-somma { width:min(480px,86vw); height:1px; margin:22px auto 0;
+  background:rgba(245,245,247,.22); transform:scaleX(0);
+  transition:transform .7s var(--ease) .4s; transform-origin:left; }
+.beat.qui .filo-somma { transform:none; }
+.totale-g { margin-top:18px; font-family:var(--disp); font-weight:200;
+  letter-spacing:-.03em; font-size:clamp(56px,12vw,150px); line-height:1;
+  color:var(--oro); font-variant-numeric:tabular-nums; }
+.totale-g small { display:block; margin-top:12px; font-family:var(--sans);
+  font-size:clamp(13px,1.5vw,16px); color:var(--t2); letter-spacing:.01em; }
+
+/* ── capitolo 3 · LE CHIAVI: la luce sotto la porta ──────────────────── */
+.porta-luce { position:absolute; left:0; right:0; bottom:0;
+  height:38svh; pointer-events:none;
+  background:linear-gradient(0deg, rgba(255,215,0,.16), transparent 70%);
+  opacity:var(--f); }
+.porta-filo { position:absolute; left:50%; bottom:0; height:2px;
+  transform:translateX(-50%);
+  width:calc(20vw + var(--f) * 60vw);
+  background:linear-gradient(90deg, transparent, var(--oro), transparent);
+  opacity:calc(.3 + var(--f) * .7); }
+.ore-g { font-family:var(--disp); font-weight:200; letter-spacing:-.03em;
+  font-size:clamp(72px,16vw,210px); line-height:1; }
+.sigilli { display:flex; gap:12px; justify-content:center; flex-wrap:wrap;
+  margin-top:30px; }
+.sigillo-i { display:inline-flex; align-items:center; gap:8px;
+  padding:9px 15px; font-size:12.5px; letter-spacing:.04em; color:#4ADE80;
+  border:1px solid rgba(74,222,128,.3); border-radius:100px; }
+
+/* ── capitolo 4 · DOPO: BOOM resta ───────────────────────────────────── */
+.app-carte { display:grid; gap:12px; width:min(440px,86vw);
+  margin:34px auto 0; text-align:left; }
+.app-carta { display:flex; align-items:center; gap:14px; padding:16px 18px;
+  background:rgba(255,255,255,.045); border-radius:16px;
+  border:1px solid rgba(255,255,255,.07);
+  opacity:0; transform:translateY(16px);
+  transition:opacity .5s var(--ease), transform .5s var(--ease); }
+.beat.qui .app-carta:nth-child(1) { transition-delay:.05s; }
+.beat.qui .app-carta:nth-child(2) { transition-delay:.18s; }
+.beat.qui .app-carta:nth-child(3) { transition-delay:.31s; }
+.beat.qui .app-carta { opacity:1; transform:none; }
+.app-carta i { font-style:normal; font-size:17px; width:38px; height:38px;
+  display:grid; place-items:center; background:rgba(255,215,0,.1);
+  border-radius:11px; color:var(--oro); flex:none; }
+.app-carta b { display:block; font-weight:500; font-size:14.5px; }
+.app-carta span { display:block; font-size:12.5px; color:var(--t2); }
+
+/* ── il finale in flusso: tre case vere ──────────────────────────────── */
+.prova-sez { padding:16svh 0 10svh; }
+.prova-int { width:min(1180px, 100%); margin:0 auto;
+  padding:0 clamp(20px,4vw,48px); }
+.prova-int h2 { font-family:var(--disp); font-weight:200;
+  letter-spacing:-.02em; font-size:clamp(30px,4.6vw,54px);
+  text-wrap:balance; }
+.prova-int h2 .oro { color:var(--oro); }
+.prova-sotto { margin-top:12px; color:var(--t2); font-size:16px;
+  max-width:52ch; }
+.case-tre { margin-top:44px; display:grid; gap:22px; }
+@media (min-width:760px){ .case-tre { grid-template-columns:repeat(3,1fr); } }
+.casa-min { display:block; border-radius:20px; overflow:hidden;
+  background:#0a0a0a; transition:transform .5s var(--ease); }
+.casa-min:hover { transform:translateY(-4px); }
+.casa-min .ph { aspect-ratio:4/3; overflow:hidden; }
+.casa-min img { width:100%; height:100%; object-fit:cover;
+  transition:transform .8s var(--ease); }
+.casa-min:hover img { transform:scale(1.05); }
+.casa-min .didascalia { padding:16px 18px 18px; display:flex;
+  justify-content:space-between; align-items:baseline; gap:12px; }
+.casa-min .nome { font-size:15px; font-weight:400; }
+.casa-min .nome small { display:block; margin-top:2px; font-size:12px;
+  color:var(--t3); font-weight:300; }
+.casa-min .prezzo { font-family:var(--disp); font-weight:300;
+  color:var(--oro); white-space:nowrap; font-variant-numeric:tabular-nums; }
+.azioni { margin-top:44px; display:flex; gap:12px; flex-wrap:wrap; }
+.btn-oro { display:inline-flex; align-items:center; justify-content:center;
+  padding:15px 28px; background:var(--oro); color:#000; font-weight:600;
+  font-size:14px; letter-spacing:.02em; border-radius:100px;
+  transition:transform .3s var(--ease), filter .3s; }
+.btn-oro:hover { transform:translateY(-2px); filter:brightness(1.06); }
+.btn-velo { display:inline-flex; align-items:center; justify-content:center;
+  padding:15px 28px; color:var(--t1); font-size:14px; border-radius:100px;
+  border:1px solid rgba(255,255,255,.16); transition:border-color .3s; }
+.btn-velo:hover { border-color:rgba(255,215,0,.5); }
+.piede-min { margin-top:14svh; padding:26px clamp(20px,4vw,48px);
+  border-top:1px solid rgba(255,255,255,.07); display:flex;
+  justify-content:space-between; gap:14px; flex-wrap:wrap;
+  font-size:12.5px; color:var(--t3); }
+.piede-min a { color:var(--t2); }
+.piede-min a:hover { color:var(--oro); }
+
+/* ── movimento ridotto: tutto fermo, tutto leggibile ─────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .atto { height:auto; }
+  .scena { position:relative; height:auto; min-height:60svh;
+    padding:14svh 0; }
+  .beat { position:relative; opacity:1; transform:none; pointer-events:auto;
+    padding-top:6svh; padding-bottom:6svh; }
+  .beat[hidden-rm] { display:none; }
+  .cam { position:absolute; }
+  .cam .c3 { opacity:1; }
+  .giu i { animation:none; }
+  .voce, .app-carta { opacity:1; transform:none; }
+  .filo-somma { transform:none; }
+}
+</style>
+
+<header class="testa">
+  <a class="marchio" href="#inizio" aria-label="BOOM">LOGO_SVG BOOM</a>
+  <a class="vai" href="URL_APPARTAMENTI">Browse homes →</a>
+</header>
+
+<main id="inizio">
+
+  <!-- ══ ATTO 0 · LA TESI ══ -->
+  <section class="atto" data-atto>
+    <div class="scena">
+      <div class="beat" data-da="0" data-a=".3">
+        <div>
+          <h1 class="riga-tesi">Renting in Rome<br>takes weeks.</h1>
+          <p class="riga-sotto">Queues. Cash deposits. Contracts you can't read.</p>
+        </div>
+      </div>
+      <div class="beat" data-da=".3" data-a=".62" hidden-rm>
+        <div>
+          <p class="riga-tesi" style="color:var(--t3)">It shouldn't.</p>
+        </div>
+      </div>
+      <div class="beat" data-da=".62" data-a="1.1">
+        <div>
+          <p class="riga-tesi"><span class="oro">BOOM.</span><br>Days, not weeks.</p>
+          <p class="riga-sotto">A rental you can trust — verified, legal, end to end.</p>
+        </div>
+      </div>
+      <div class="giu" aria-hidden="true"><i></i></div>
+    </div>
+  </section>
+
+  <!-- ══ ATTO 1 · VEDERE ══ -->
+  <section class="atto" data-atto>
+    <div class="scena scena-vedere">
+      <div class="cam" aria-hidden="true">
+        <img class="c1" src="IMM_F1" alt="">
+        <img class="c2" src="IMM_F2" alt="">
+        <img class="c3" src="IMM_F3" alt="">
+      </div>
+      <span class="chip-vera">Real listing · <b>CASA_NOME</b> · CASA_PREZZO/mo</span>
+      <div class="beat" data-da="0" data-a=".55">
+        <h2 class="riga-tesi">Every home,<br>filmed and verified.</h2>
+      </div>
+      <div class="beat" data-da=".55" data-a="1.1">
+        <div>
+          <h2 class="riga-tesi">You walk it<br><span class="oro">before you visit it.</span></h2>
+          <a class="vai-cap" href="URL_CASA">See this home →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ ATTO 2 · I SOLDI ══ -->
+  <section class="atto" data-atto style="height:340svh">
+    <div class="scena">
+      <div class="beat" data-da="0" data-a=".3">
+        <div class="conto">
+          <div class="canone-g">CASA_PREZZO<small> /month</small></div>
+          <p class="riga-sotto">That's the rent. Now, the whole truth.</p>
+        </div>
+      </div>
+      <div class="beat" data-da=".3" data-a=".62">
+        <div class="conto">
+          <div class="voci">
+            <div class="voce"><span>First month <small>pro-rata if you move mid-month</small></span><b>CASA_PREZZO</b></div>
+            <div class="voce"><span>Deposit <small>refundable at the end</small></span><b>CASA_PREZZO</b></div>
+            <div class="voce"><span>Agency fee <small>once · 10% of annual rent</small></span><b>CASA_FEE</b></div>
+          </div>
+          <div class="filo-somma" aria-hidden="true"></div>
+        </div>
+      </div>
+      <div class="beat" data-da=".62" data-a="1.1">
+        <div class="conto">
+          <div class="totale-g"><span id="contaTot">€0</span>
+            <small>Total to move in. Computed before you commit —<br>
+              nothing invented at the table. Every euro through Stripe.</small></div>
+          <a class="vai-cap" href="URL_CASA">See a live breakdown →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ ATTO 3 · LE CHIAVI ══ -->
+  <section class="atto" data-atto>
+    <div class="scena">
+      <div class="porta-luce" aria-hidden="true"></div>
+      <div class="porta-filo" aria-hidden="true"></div>
+      <div class="beat" data-da="0" data-a=".45">
+        <div>
+          <p class="riga-tesi">Apply in 2 minutes.<br>A person replies in 2 hours.</p>
+        </div>
+      </div>
+      <div class="beat" data-da=".45" data-a="1.1">
+        <div>
+          <div class="ore-g"><span class="oro">48h</span></div>
+          <p class="riga-sotto">from approval to keys in hand.</p>
+          <div class="sigilli">
+            <span class="sigillo-i">✓ Registered legal contract</span>
+            <span class="sigillo-i">✓ Deposit protected</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ ATTO 4 · DOPO ══ -->
+  <section class="atto" data-atto>
+    <div class="scena">
+      <div class="beat" data-da="0" data-a=".5">
+        <div>
+          <h2 class="riga-tesi">And after move-in,<br><span class="oro">BOOM stays.</span></h2>
+        </div>
+      </div>
+      <div class="beat" data-da=".5" data-a="1.1">
+        <div>
+          <p class="riga-sotto" style="margin-top:0">Your rental, in your pocket.</p>
+          <div class="app-carte">
+            <div class="app-carta"><i>€</i><div><b>Rent &amp; receipts</b>
+              <span>Every payment tracked, every receipt kept.</span></div></div>
+            <div class="app-carta"><i>⚿</i><div><b>Documents</b>
+              <span>Contract, registration, deposit — one place.</span></div></div>
+            <div class="app-carta"><i>✚</i><div><b>Maintenance</b>
+              <span>Something breaks? Report it from your phone.</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ IL FINALE · TRE CASE VERE ══ -->
+  <section class="prova-sez">
+    <div class="prova-int">
+      <h2>Not a promise.<br><span class="oro">A catalogue.</span></h2>
+      <p class="prova-sotto">Three homes you can take today — real photos, real
+        prices, verified by our team in Rome.</p>
+      <div class="case-tre">
+CASE_TRE
+      </div>
+      <div class="azioni">
+        <a class="btn-oro" href="URL_APPARTAMENTI">Browse all homes</a>
+        <a class="btn-velo" href="URL_PF">Let us find yours</a>
+        <a class="btn-velo" href="https://wa.me/393313251961" target="_blank"
+          rel="noopener">Talk to us · WhatsApp</a>
+      </div>
+    </div>
+    <footer class="piede-min">
+      <span>© 2026 BOOM — Egidi Immobiliare S.r.l., Roma</span>
+      <a href="URL_CLASSICA">Prefer the classic site? →</a>
+    </footer>
+  </section>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  var ridotto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var atti = [].slice.call(document.querySelectorAll('[data-atto]'));
+  var TOT = TOTALE_NUM;
+  var conta = document.getElementById('contaTot');
+  var euro = function (n) { return '€' + Math.round(n).toLocaleString('en-US'); };
+
+  if (ridotto) {
+    document.documentElement.classList.add('svelata');
+    if (conta) conta.textContent = euro(TOT);
+    return;
+  }
+
+  /* un solo ascoltatore: per ogni atto, --f e i beat a finestre */
+  var scene = atti.map(function (a) {
+    var s = a.querySelector('.scena');
+    return { a: a, s: s, beats: [].slice.call(s.querySelectorAll('.beat')) };
+  });
+  var attesa = false;
+  function regia() {
+    attesa = false;
+    var y = scrollY;
+    document.documentElement.classList.toggle('svelata', y > innerHeight * .5);
+    scene.forEach(function (x, k) {
+      var r = x.a.getBoundingClientRect();
+      var corsa = r.height - innerHeight;
+      var f = Math.min(1, Math.max(0, -r.top / Math.max(1, corsa)));
+      x.s.style.setProperty('--f', f.toFixed(4));
+      x.beats.forEach(function (b) {
+        b.classList.toggle('qui', f >= +b.dataset.da && f < +b.dataset.a);
+      });
+      /* il totale si conta da solo, guidato dal dito (atto 2, beat finale) */
+      if (k === 2 && conta) {
+        var g = Math.min(1, Math.max(0, (f - .62) / .24));
+        conta.textContent = euro(TOT * (1 - Math.pow(1 - g, 3)));
+      }
+    });
+  }
+  addEventListener('scroll', function () {
+    if (!attesa) { attesa = true; requestAnimationFrame(regia); }
+  }, { passive: true });
+  addEventListener('resize', regia);
+  regia();
+})();
+</script>
