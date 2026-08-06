@@ -175,7 +175,9 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .tenda .btn { margin-top:22px; }
 
 /* ══ HERO — il loro manifesto, con i Solari dentro il titolo ═══════════ */
-.hero { position:relative; min-height:100svh; display:grid; align-content:center;
+.hero { position:relative; min-height:100svh; display:grid; align-content:center; }
+.hero > .container { position:relative; z-index:2; }
+.hero { min-height:100svh; display:grid; align-content:center;
   padding:clamp(110px,14svh,170px) 0 clamp(40px,6svh,72px); overflow:hidden; }
 .hero-grid { position:absolute; inset:0; pointer-events:none; opacity:.5;
   background:
@@ -190,31 +192,38 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .hero-glow-2 { width:44vw; height:44vw; bottom:-22vw; left:-14vw;
   background:radial-gradient(circle, rgba(255,215,0,.045), transparent 62%); }
 /* il radar del live, a filo déco */
-.radar { position:absolute; top:16%; right:-32vw; width:min(88vw,460px);
-  aspect-ratio:1; pointer-events:none; opacity:.55; }
-@media (min-width:700px){ .radar { top:50%; right:-14vw;
-  width:min(52vw,540px); transform:translateY(-50%); opacity:.8; } }
-@media (min-width:1080px){ .radar { right:clamp(-120px,-3vw,10px);
-  width:min(44vw,540px); opacity:1; } }
-.radar i { position:absolute; inset:0; border-radius:50%; font-style:normal;
-  border:1px solid var(--line-gold-2); animation:radar 5.5s var(--ease) infinite; }
-.radar i:nth-child(2){ animation-delay:1.8s; }
-.radar i:nth-child(3){ animation-delay:3.6s; }
-.radar u { position:absolute; inset:0; border-radius:50%;
-  background:conic-gradient(from 0deg, transparent 84%, rgba(255,215,0,.05) 95%, rgba(255,215,0,.16) 100%);
-  animation:sweep 5s linear infinite; }
-.radar b { position:absolute; left:50%; top:50%; width:7px; height:7px;
+.radar { position:absolute; left:50%; top:50%; width:0; height:0;
+  z-index:0; pointer-events:none; }
+.radar i { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+  border:1px solid var(--gold); border-radius:50%; opacity:0; font-style:normal;
+  animation:radar-pulse 6s infinite ease-out; }
+.radar i:nth-child(1){ animation-delay:0s; }
+.radar i:nth-child(2){ animation-delay:-2s; }
+.radar i:nth-child(3){ animation-delay:-4s; }
+@keyframes radar-pulse {
+  0% { width:80px; height:80px; opacity:.6; border-width:2px; }
+  50% { opacity:.3; }
+  100% { width:min(900px,130vmin); height:min(900px,130vmin);
+    opacity:0; border-width:.5px; } }
+.radar u { position:absolute; left:50%; top:50%; width:min(560px,86vmin);
+  aspect-ratio:1; border-radius:50%; transform:translate(-50%,-50%);
+  background:conic-gradient(from 0deg, transparent 82%, rgba(255,215,0,.04) 94%, rgba(255,215,0,.13) 100%);
+  animation:lama 6s linear infinite; }
+@keyframes lama { to { transform:translate(-50%,-50%) rotate(1turn); } }
+.radar b { position:absolute; left:50%; top:50%; width:12px; height:12px;
   transform:translate(-50%,-50%); background:var(--gold); border-radius:50%;
-  box-shadow:0 0 22px 5px rgba(255,215,0,.5); animation:pulse 2.2s ease infinite; }
+  animation:radar-cuore 3s infinite ease-in-out; }
+@keyframes radar-cuore {
+  0%, 100% { box-shadow:0 0 30px rgba(255,215,0,.6);
+    transform:translate(-50%,-50%) scale(1); }
+  50% { box-shadow:0 0 50px rgba(255,215,0,.9);
+    transform:translate(-50%,-50%) scale(1.3); } }
 .radar s { position:absolute; width:5px; height:5px; border-radius:50%;
   background:var(--gold-light); opacity:0; text-decoration:none;
-  animation:blip 5s linear infinite; }
-.radar s:nth-child(6){ animation-delay:2.4s; left:62%; top:30%; }
-.radar s:nth-child(7){ animation-delay:4.1s; left:34%; top:64%; }
-@keyframes blip { 8% { opacity:.95; } 40% { opacity:.25; } 70% { opacity:0; } }
-@keyframes sweep { to { transform:rotate(1turn); } }
-@keyframes radar { 0% { transform:scale(.12); opacity:0; }
-  28% { opacity:.9; } 100% { transform:scale(1); opacity:0; } }
+  animation:blip 6s linear infinite; }
+.radar s:nth-child(6){ left:150px; top:-90px; animation-delay:-1.4s; }
+.radar s:nth-child(7){ left:-170px; top:120px; animation-delay:-3.9s; }
+@keyframes blip { 8% { opacity:.95; } 40% { opacity:.3; } 65% { opacity:0; } } }
 .hero-frame { position:absolute; inset:clamp(14px,2vw,30px); pointer-events:none; }
 .hero-eyebrow { display:inline-flex; align-items:center; gap:10px; padding:8px 16px;
   box-shadow:inset 0 0 0 1px var(--line-gold); font-size:11px; font-weight:600;
@@ -353,9 +362,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 @media (max-height:760px){ .how-step p { display:none; } .how-step.on p { display:block; } }
 .how-track { margin-top:clamp(16px,2.6vh,30px); display:flex; gap:8px; max-width:280px; }
 .how-track span { flex:1; height:2px; background:var(--line); overflow:hidden; }
-.how-track span i { display:block; height:100%; width:0; background:var(--gold);
-  transition:width .5s var(--ease); }
-.how-track span.done i { width:100%; }
+.how-track span i { display:block; height:100%; width:0; background:var(--gold); }
 
 /* l'apparecchio: la cornice déco attorno al loro schermo */
 .dev { position:relative; background:var(--black);
@@ -368,11 +375,17 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .dev-screen { position:relative; height:clamp(320px,44svh,440px); overflow:hidden; }
 .scene { position:absolute; inset:0; padding:clamp(16px,2.2vw,28px);
   display:flex; flex-direction:column; justify-content:center; gap:0;
-  opacity:0; transform:translateY(10px); pointer-events:none;
-  transition:opacity .45s ease, transform .55s var(--ease); }
+  opacity:0; transform:translateY(26px) scale(.985); pointer-events:none;
+  transition:opacity .5s ease, transform .65s var(--ease); }
 .dev[data-step="0"] .scene-0, .dev[data-step="1"] .scene-1,
 .dev[data-step="2"] .scene-2, .dev[data-step="3"] .scene-3 {
   opacity:1; transform:none; pointer-events:auto; }
+/* lo stato in alto: la narrazione della scena */
+.dev-stato { margin-left:auto; font-size:10.5px; font-weight:600;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--gold);
+  display:inline-flex; align-items:center; gap:7px; }
+.dev-stato i { font-style:normal; width:6px; height:6px; border-radius:50%;
+  background:var(--green); animation:pulse 2.2s ease infinite; }
 /* scena 1 · la vetrina */
 .sc-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
 .sc-apt { position:relative; background:var(--card); box-shadow:inset 0 0 0 1px var(--line-0); }
@@ -382,6 +395,32 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   font-weight:700; letter-spacing:.1em; background:rgba(3,3,3,.82); color:var(--green); }
 .sc-pr { padding:7px 10px; font-family:var(--display); font-size:13px; font-weight:500;
   color:var(--gold-light); font-variant-numeric:tabular-nums; }
+/* il dito che sceglie: cursore, tocco, il cuore che scatta */
+.sc-cursor { position:absolute; left:0; top:0; width:15px; height:15px;
+  border-radius:50%; z-index:4; pointer-events:none; opacity:0;
+  background:rgba(250,250,250,.95); box-shadow:0 2px 10px rgba(0,0,0,.65); }
+.dev[data-step="0"] .sc-cursor { animation:dito 2.7s var(--ease) .5s forwards; }
+@keyframes dito {
+  0% { opacity:0; transform:translate(210px,300px); }
+  20% { opacity:1; }
+  55% { transform:translate(80px,96px) scale(1); }
+  64% { transform:translate(80px,96px) scale(.72); }
+  74% { transform:translate(80px,96px) scale(1); }
+  100% { opacity:0; transform:translate(80px,96px) scale(1); } }
+.sc-tap { position:absolute; left:80px; top:96px; width:15px; height:15px;
+  border-radius:50%; border:2px solid var(--gold); opacity:0; z-index:3;
+  transform:translate(-14%,-14%); pointer-events:none; }
+.dev[data-step="0"] .sc-tap { animation:cerchio .7s ease 2.2s; }
+@keyframes cerchio { 0% { opacity:.9; scale:.6; } 100% { opacity:0; scale:2.6; } }
+.dev[data-step="0"] .sc-apt.feat { animation:accendi .6s ease .5s both,
+  scelta .5s var(--ease) 2.25s; }
+@keyframes scelta { 40% { transform:scale(1.035); } }
+.sc-cuore { position:absolute; right:8px; top:8px; z-index:3; width:24px;
+  height:24px; display:grid; place-items:center; border-radius:50%;
+  background:rgba(3,3,3,.8); color:var(--gold); font-size:12px; opacity:0;
+  transform:scale(.4); }
+.dev[data-step="0"] .sc-cuore { animation:cuore .55s var(--ease) 2.45s forwards; }
+@keyframes cuore { 60% { transform:scale(1.25); } 100% { opacity:1; transform:scale(1); } }
 /* scena 2 · la domanda */
 .sc-form { display:grid; gap:13px; max-width:380px; margin:0 auto; width:100%; }
 .sc-field label { display:block; font-size:10px; font-weight:600; letter-spacing:.16em;
@@ -400,6 +439,21 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .sc-submit { margin-top:4px; padding:14px; text-align:center; background:var(--gold);
   color:var(--black); font-size:12px; font-weight:700; letter-spacing:.12em;
   text-transform:uppercase; }
+/* la risposta umana: il premio dopo l'invio */
+.sc-risposta { margin-top:13px; display:flex; gap:10px; align-items:flex-start;
+  opacity:0; transform:translateY(10px); }
+.dev[data-step="1"] .sc-risposta { animation:arriva .55s var(--ease) 3.9s forwards; }
+@keyframes arriva { to { opacity:1; transform:none; } }
+.sc-risposta .punto { flex:none; width:30px; height:30px; border-radius:50%;
+  display:grid; place-items:center; background:var(--gold-muted);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); color:var(--gold);
+  font-size:11px; font-weight:700; }
+.sc-bolla { flex:1; padding:10px 13px; background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--line-0); border-radius:2px 10px 10px 10px; }
+.sc-bolla small { display:block; font-size:10px; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--text-4); }
+.sc-bolla p { margin-top:3px; font-size:13px; color:var(--text-2); }
+.sc-bolla .vv { color:var(--green); font-size:11px; margin-left:6px; }
 /* scena 3 · la firma e il pagamento */
 .sc-pay { max-width:380px; margin:0 auto; width:100%; }
 .sc-doc { background:var(--card); box-shadow:inset 0 0 0 1px var(--line-0);
@@ -426,8 +480,23 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.4) 50%,transparent 60%); }
 .dev[data-step="2"] .sc-paga::after { animation:lucida .9s ease 2.2s both; }
 @keyframes lucida { to { transform:translateX(130%); } }
+/* il sigillo dopo il pagamento */
+.sc-protetto { display:inline-flex; align-items:center; gap:8px; margin-top:12px;
+  padding:8px 13px; font-size:11px; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--green);
+  background:rgba(0,255,136,.08); box-shadow:inset 0 0 0 1px rgba(0,255,136,.25);
+  opacity:0; transform:translateY(6px); }
+.dev[data-step="2"] .sc-protetto { animation:arriva .5s var(--ease) 3s forwards; }
+.sc-protetto svg { width:14px; height:14px; fill:none; stroke:currentColor;
+  stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
 /* scena 4 · le chiavi */
 .sc-fine { text-align:center; }
+.pz { position:absolute; left:50%; top:50%; width:4px; height:4px;
+  border-radius:50%; background:var(--gold-light); opacity:0; }
+.dev[data-step="3"] .pz { animation:volo 1s var(--ease) .55s both; }
+@keyframes volo { 0% { opacity:1; transform:translate(-50%,-50%); }
+  100% { opacity:0; transform:translate(calc(-50% + var(--dx)),
+    calc(-50% + var(--dy))); } }
 .sc-chiave { position:relative; width:74px; height:74px; margin:0 auto;
   border-radius:50%; display:grid; place-items:center; background:var(--gold-muted);
   box-shadow:inset 0 0 0 1px var(--line-gold-2); color:var(--gold); }
@@ -613,10 +682,12 @@ html.vivo .sale.dentro { opacity:1; transform:none;
   html { scroll-behavior:auto; }
   html.vivo .sale { opacity:1; transform:none; transition:none; }
   .radar i, .radar u, .radar s, .radar b, .tech-orb, .finale-glow,
+  .sc-cursor, .sc-tap, .pz, .dev-stato i,
   .finale-eco i, .pf-sweep, .hero-eyebrow b,
   .footer-fondo .op i, .uni-track { animation:none; }
   .typed { max-width:none; border-right:0; }
   .sc-firma path, .sc-chiave svg path { stroke-dasharray:none; stroke-dashoffset:0; }
+  .sc-risposta, .sc-protetto, .sc-cuore { opacity:1; transform:none; animation:none; }
   .scene, .sc-firma, .sc-timbro, .sc-inp::after, .pf-voce i::after,
   .how-track span i { transition:none; }
   .scroll-progress, .mouse-glow { display:none; }

@@ -12,13 +12,16 @@
 /* l'apparecchio del cercatore: brief → scansione → risultati pesati */
 .finder { position:relative; background:var(--black);
   box-shadow:inset 0 0 0 1px var(--line-gold), 0 40px 90px -40px rgba(0,0,0,.9); }
-.finder-screen { position:relative; height:clamp(360px,52svh,470px); overflow:hidden; }
+.brief-bar { padding:14px 18px 4px; border-bottom:1px solid var(--line-0); }
+.brief-bar .chips { margin-top:10px; }
+.brief-bar .chip-hint { margin:10px 0 8px; }
+.finder-screen { position:relative; height:clamp(300px,42svh,400px); overflow:hidden; }
 .fase { position:absolute; inset:0; padding:clamp(18px,2.2vw,28px);
   display:flex; flex-direction:column; justify-content:center; gap:0;
   opacity:0; transform:translateY(10px); pointer-events:none;
   transition:opacity .45s ease, transform .55s var(--ease); }
 .finder[data-fase="0"] .fase-0, .finder[data-fase="1"] .fase-1,
-.finder[data-fase="2"] .fase-2 { opacity:1; transform:none; }
+.finder[data-fase="2"] .fase-2 { opacity:1; transform:none; pointer-events:auto; }
 .finder-piede { padding:11px 16px; border-top:1px solid var(--line-0);
   font-size:10.5px; line-height:1.6; letter-spacing:.04em; color:var(--text-3); }
 .fase-eti { font-size:11px; font-weight:600; letter-spacing:.2em;
@@ -28,13 +31,13 @@
   box-shadow:inset 0 0 0 1px var(--line); opacity:0; transform:translateY(6px);
   transition:opacity .4s ease, transform .45s var(--ease); }
 .chip.oro { box-shadow:inset 0 0 0 1px var(--line-gold-2); color:var(--gold-light); }
-.finder[data-fase="0"] .chip { opacity:1; transform:none; }
-.finder[data-fase="0"] .chip:nth-child(1){ transition-delay:.15s; }
-.finder[data-fase="0"] .chip:nth-child(2){ transition-delay:.3s; }
-.finder[data-fase="0"] .chip:nth-child(3){ transition-delay:.45s; }
-.finder[data-fase="0"] .chip:nth-child(4){ transition-delay:.6s; }
-.finder[data-fase="0"] .chip:nth-child(5){ transition-delay:.75s; }
-.scan { position:relative; height:150px; margin-top:18px; overflow:hidden;
+.finder.visto .chip { opacity:1; transform:none; }
+.finder.visto .chip:nth-child(1){ transition-delay:.15s; }
+.finder.visto .chip:nth-child(2){ transition-delay:.3s; }
+.finder.visto .chip:nth-child(3){ transition-delay:.45s; }
+.finder.visto .chip:nth-child(4){ transition-delay:.6s; }
+.finder.visto .chip:nth-child(5){ transition-delay:.75s; }
+.scan { position:relative; height:120px; margin-top:16px; overflow:hidden;
   box-shadow:inset 0 0 0 1px var(--line-0); }
 .scan-sweep { position:absolute; inset:-40%;
   background:conic-gradient(from 0deg, transparent 78%, rgba(255,215,0,.05) 94%, rgba(255,215,0,.16) 100%);
@@ -46,9 +49,10 @@
 @keyframes appare { 12% { opacity:.9; } 55% { opacity:.35; } 100% { opacity:0; } }
 .scan-riga { margin-top:14px; font-size:13.5px; color:var(--text-2); }
 .scan-riga i { font-style:normal; color:var(--green); }
-.esiti { margin-top:14px; display:grid; gap:10px; }
-.esito { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 14px;
-  padding:12px 14px; background:var(--card); box-shadow:inset 0 0 0 1px var(--line-0);
+.fase-2 { justify-content:flex-start; padding-top:14px; }
+.esiti { margin-top:10px; display:grid; gap:7px; }
+.esito { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:2px 14px;
+  padding:9px 12px; background:var(--card); box-shadow:inset 0 0 0 1px var(--line-0);
   opacity:0; transform:translateY(8px);
   transition:opacity .45s ease, transform .5s var(--ease); }
 .finder[data-fase="2"] .esito { opacity:1; transform:none; }
@@ -61,11 +65,20 @@
 .esito span { font-size:12.5px; color:var(--text-3); }
 .esito .pr { font-family:var(--display); font-size:16px; font-weight:500;
   color:var(--gold-light); text-align:right; font-variant-numeric:tabular-nums; }
-.esito .pesi3 { grid-column:1/-1; display:flex; gap:6px; margin-top:6px; }
+.esito .pesi3 { grid-column:1/-1; display:flex; gap:6px; margin-top:4px; }
 .esito .pesi3 i { flex:none; font-style:normal; font-size:9.5px; font-weight:600;
   letter-spacing:.08em; text-transform:uppercase; color:var(--green);
   padding:3px 7px; background:rgba(0,255,136,.08);
   box-shadow:inset 0 0 0 1px rgba(0,255,136,.22); }
+
+.chip { cursor:pointer; }
+.chip.giu { opacity:.38; box-shadow:inset 0 0 0 1px var(--line-0);
+  text-decoration:line-through; text-decoration-color:var(--text-4); }
+.chip-hint { margin-top:12px; font-size:11px; letter-spacing:.06em;
+  color:var(--text-4); }
+.esito.fuori { opacity:.28; filter:saturate(.4); }
+.esito.fuori .pesi3 i.no { color:var(--rosso,#FF6B4A);
+  background:rgba(255,107,74,.08); box-shadow:inset 0 0 0 1px rgba(255,107,74,.25); }
 
 /* il motore dietro l'esperto */
 .macchina { margin-top:clamp(30px,4vw,50px); display:grid; grid-template-columns:1fr;
@@ -189,16 +202,22 @@
     <div class="finder quadro" id="finder" data-fase="0">
       <span class="tacca"></span>
       <div class="dev-bar"><i></i><i></i><i></i><span class="dev-url">app.boomrome.com/finder</span></div>
+      <div class="brief-bar">
+        <span class="fase-eti">Your brief</span>
+        <div class="chips">
+          <button type="button" class="chip oro" data-k="area">Parioli · Trieste</button>
+          <button type="button" class="chip" data-k="budget">€1.5–2.2k</button>
+          <button type="button" class="chip" data-k="beds">2 bed</button>
+          <button type="button" class="chip" data-k="balcony">Balcony</button>
+          <button type="button" class="chip" data-k="pets">Pet-friendly</button>
+        </div>
+        <p class="chip-hint">Tap the brief — loosen the budget and watch Rome open.</p>
+      </div>
       <div class="finder-screen">
         <div class="fase fase-0">
-          <span class="fase-eti">Your brief</span>
-          <div class="chips">
-            <span class="chip oro">Parioli · Trieste</span>
-            <span class="chip">€1.5–2.2k</span>
-            <span class="chip">2 bed</span>
-            <span class="chip">Balcony</span>
-            <span class="chip">Pet-friendly</span>
-          </div>
+          <span class="fase-eti">One brief, told once</span>
+          <p class="scan-riga">Your expert and the scanner work from the same
+            five lines — nothing to repeat, nothing to chase.</p>
         </div>
         <div class="fase fase-1">
           <span class="fase-eti">Scanning</span>
@@ -215,23 +234,29 @@
         <div class="fase fase-2">
           <span class="fase-eti">Curated for you</span>
           <div class="esiti">
-            <div class="esito">
+            <div class="esito" data-ha="area budget beds balcony pets">
               <b>Corso Trieste<i>Off-market</i></b>
               <span class="pr">€1.850</span>
               <span>2 bed · 78 m² · balcony</span>
               <span class="pesi3"><i>budget ✓</i><i>beds ✓</i><i>area ✓</i></span>
             </div>
-            <div class="esito">
+            <div class="esito" data-ha="area budget beds balcony pets">
               <b>Pinciano<i>Off-market</i></b>
               <span class="pr">€2.050</span>
               <span>2 bed · 85 m² · elevator</span>
               <span class="pesi3"><i>budget ✓</i><i>beds ✓</i><i>area ✓</i></span>
             </div>
-            <div class="esito">
+            <div class="esito" data-ha="area budget beds balcony pets">
               <b>Salario<i>Curated</i></b>
               <span class="pr">€1.690</span>
               <span>2 bed · 72 m² · renovated</span>
               <span class="pesi3"><i>budget ✓</i><i>beds ✓</i><i>area ✓</i></span>
+            </div>
+            <div class="esito" data-ha="area beds balcony pets">
+              <b>Nomentano<i>Off-market</i></b>
+              <span class="pr">€2.400</span>
+              <span>2 bed · 92 m² · terrace</span>
+              <span class="pesi3"><i>beds ✓</i><i>area ✓</i><i class="no">over budget</i></span>
             </div>
           </div>
         </div>
@@ -241,6 +266,15 @@
     </div>
   </div>
 </header>
+
+<!-- il nastro delle università, anche qui (nota vocale) -->
+<div class="uni" aria-label="Trusted by students from Rome's universities">
+  <span class="uni-eti">Trusted by students from</span>
+  <div class="uni-track" aria-hidden="true">
+UNI_ITEMS
+UNI_ITEMS
+  </div>
+</div>
 
 <!-- ══ PERCHÉ FUNZIONA — verbatim ════════════════════════════════════════ -->
 <section class="section section-dark" id="perche">
@@ -557,16 +591,50 @@
     var fase = 0, giro = null, vivo = false;
     var TEMPI = [2600, 3400, 4200];
     function avanza() {
+      if (f.dataset.mano) return;         /* l'utente ha preso il controllo */
       if (!vivo || document.hidden) { giro = setTimeout(avanza, 800); return; }
       fase = (fase + 1) % 3;
       f.dataset.fase = fase;
       giro = setTimeout(avanza, TEMPI[fase]);
     }
-    if (!('IntersectionObserver' in window)) { vivo = true; giro = setTimeout(avanza, TEMPI[0]); return; }
+    if (!('IntersectionObserver' in window)) {
+      f.classList.add('visto'); vivo = true;
+      giro = setTimeout(avanza, TEMPI[0]); return;
+    }
     new IntersectionObserver(function (r) {
       var era = vivo; vivo = r[0].isIntersecting;
+      if (vivo) f.classList.add('visto');
       if (vivo && !era && giro === null) giro = setTimeout(avanza, TEMPI[0]);
     }, { threshold: .3 }).observe(f);
+  })();
+
+  /* i chip del brief: il tocco prende il controllo del cercatore */
+  (function () {
+    var f = document.getElementById('finder');
+    var chips = [].slice.call(document.querySelectorAll('.chip[data-k]'));
+    var esiti = [].slice.call(document.querySelectorAll('.esito'));
+    if (!f || !chips.length) return;
+    var attivi = {};
+    chips.forEach(function (c) { attivi[c.dataset.k] = true; });
+    function applica() {
+      esiti.forEach(function (e) {
+        var ha = (e.dataset.ha || '').split(' ');
+        var manca = Object.keys(attivi).filter(function (k) {
+          return attivi[k] && ha.indexOf(k) < 0;
+        });
+        e.classList.toggle('fuori', manca.length > 0);
+      });
+    }
+    applica();                             /* lo stato vero fin dal primo sguardo */
+    chips.forEach(function (c) {
+      c.addEventListener('click', function () {
+        f.dataset.fase = 2;               /* il controllo passa alla mano */
+        f.dataset.mano = '1';
+        attivi[c.dataset.k] = !attivi[c.dataset.k];
+        c.classList.toggle('giu', !attivi[c.dataset.k]);
+        applica();
+      });
+    });
   })();
 
   /* la macchina: le barre dei pesi al primo sguardo */

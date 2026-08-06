@@ -90,6 +90,9 @@ else:
     h = h.replace('FONT_INLINE',
         '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700'
         '&display=swap" rel="stylesheet">')
+if MODO == 'artefatto':
+    h = h.replace('href="/property-finding.html"', 'href="https://claude.ai/code/artifact/4186ed23-28d5-46a2-98bc-09fdf5eb7e21"')
+    h = h.replace('<a class="marchio" href="/"', '<a class="marchio" href="https://claude.ai/code/artifact/3c0dae67-a0e6-47d4-964f-832b824ffe0f"')
 uscita = 'boom-ap.html' if MODO == 'artefatto' else 'boom-ap-sito.html'
 open(uscita,'w',encoding='utf-8').write(h)
 print(f'{uscita} · {len(h)//1024} KB · {len(tutte)} case · {len(muro)} sul muro · zone: {len(ZONE)}')

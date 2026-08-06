@@ -19,6 +19,15 @@ else:
         '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n'
         '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700'
         '&display=swap" rel="stylesheet">')
+UNI = ['LUISS', 'Sapienza', 'Roma Tre', 'John Cabot', 'LUMSA', 'NABA', 'IED', 'RUFA']
+h = h.replace('UNI_ITEMS\nUNI_ITEMS',
+    '\n'.join('    <span class="uni-item">' + u.upper() + '</span>' for u in UNI + UNI))
+if MODO == 'artefatto':
+    # in anteprima le pagine si aprono l'una dall'altra
+    h = h.replace('href="/apartments.html"',
+        'href="https://claude.ai/code/artifact/ec4d60c9-d2c0-4ec8-883f-eb7b8b4df8f6"')
+    h = h.replace('<a class="marchio" href="/"',
+        '<a class="marchio" href="https://claude.ai/code/artifact/3c0dae67-a0e6-47d4-964f-832b824ffe0f"')
 uscita = 'boom-pf.html' if MODO == 'artefatto' else 'boom-pf-sito.html'
 open(uscita, 'w', encoding='utf-8').write(h)
 print(f'{uscita} · {len(h)//1024} KB')

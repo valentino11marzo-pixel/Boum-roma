@@ -188,15 +188,17 @@
     var passi = [].slice.call(document.querySelectorAll('.how-step'));
     var tacche = [].slice.call(document.querySelectorAll('#howTrack span'));
     if (!wrap || !dev || !passi.length) return;
+    var NOMI = ['Browsing · verified homes', 'Application sent · 2 min',
+      'Payment secured · Stripe', 'Move-in confirmed · 48h'];
+    var eti = document.getElementById('devStato');
     var corrente = 0;
     function stato(i) {
       if (i === corrente) return;
       corrente = i;
       dev.dataset.step = i;
+      if (eti) eti.textContent = NOMI[i];
       passi.forEach(function (s, k) { s.classList.toggle('on', k === i); });
-      tacche.forEach(function (t, k) { t.classList.toggle('done', k <= i); });
     }
-    tacche[0].classList.add('done');
     var atteso = false;
     function guarda() {
       atteso = false;
@@ -205,6 +207,11 @@
       if (corsa <= 0) return;
       var p = Math.min(.999, Math.max(0, -r.top / corsa));
       stato(Math.floor(p * 4));
+      /* le tacche si riempiono col dito, come le stories */
+      tacche.forEach(function (t, k) {
+        var f = Math.min(1, Math.max(0, p * 4 - k));
+        t.firstChild.style.width = (f * 100) + '%';
+      });
     }
     addEventListener('scroll', function () {
       if (!atteso) { atteso = true; requestAnimationFrame(guarda); }

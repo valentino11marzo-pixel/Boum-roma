@@ -103,7 +103,7 @@ HOMES = '\n\n'.join(carta(c, i == 0) for i, c in enumerate(vetrina))
 mini = case[:4] if len(case) >= 4 else case
 DEV = '\n'.join(
     f'''              <div class="sc-apt{" feat" if i == 0 else ""}"><div class="sc-ph"><img loading="lazy" decoding="async"
-                src="{banca[c['id']]}" alt="">{'<span class="sc-live">● LIVE 360°</span>' if i == 0 else ''}</div>
+                src="{banca[c['id']]}" alt="">{'<span class="sc-live">● LIVE 360°</span><span class="sc-cuore">♥</span>' if i == 0 else ''}</div>
                 <div class="sc-pr">{euro(c['prezzo'])}</div></div>'''
     for i, c in enumerate(mini))
 
@@ -124,7 +124,16 @@ else:
         '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700'
         '&display=swap" rel="stylesheet">')
 
-uscita = 'boom-lahome.html' if MODO == 'artefatto' else 'boom-lahome-sito.html'
+# in anteprima le pagine si aprono l'una dall'altra: un prodotto, non file
+if MODO == 'artefatto':
+    for da, a_ in {
+        '/apartments.html': 'https://claude.ai/code/artifact/ec4d60c9-d2c0-4ec8-883f-eb7b8b4df8f6',
+        '/property-finding.html': 'https://claude.ai/code/artifact/4186ed23-28d5-46a2-98bc-09fdf5eb7e21',
+        '/board.html': 'https://claude.ai/code/artifact/d5c23034-8aa4-4e33-b53a-e73809b444f2',
+    }.items():
+        h = h.replace('href="' + da + '"', 'href="' + a_ + '"')
+
+uscita = 'boom-lahome.html' if MODO == 'artefatto' else 'boom-lahome-sito.html' 
 open(uscita,'w',encoding='utf-8').write(h)
 print(f"{uscita} · {len(h)//1024} KB · {len(case)} case · {len(vetrina)} in vetrina")
 for c in vetrina: print('  ·', c['nome'][:30].ljust(30), c['zona'][:14].ljust(14),
