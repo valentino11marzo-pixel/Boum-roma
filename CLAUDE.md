@@ -1571,6 +1571,46 @@ Test: `node tests/whatsapp/run.mjs` (Firestore finto in memoria, si guida il
 handler vero; copre entrambi gli ordini della transizione, verificati per
 mutazione).
 
+### GET/POST `/api/leads/match-listing` — LA RICERCA ROVESCIATA
+L'asimmetria che nessuno sfruttava: si pubblica un annuncio e si **aspetta**
+che degli sconosciuti lo trovino, mentre in archivio ci sono persone che tre
+settimane fa cercavano esattamente quello — e a cui non lo dice nessuno. BOOM
+faceva marketing al traffico freddo avendo una lista calda. I lead sono un
+asset che si raffredda; questo lo riscuote, a **costo zero** (nessun modello,
+solo aritmetica su dati già presenti).
+**Il trucco**: un lead non ha un modulo compilato, ma ha due segnali migliori
+di qualunque form — (1) **la casa che ha chiesto È il suo briefing** (chi
+scrive per un trilocale da €1.400 a Pigneto cerca quello: zona, taglia,
+fascia ±15%), e (2) **le sue parole** ("bilocale a Trastevere sotto i 1200").
+`leadCriteria()` li deriva; `scoreLeadForListing()` punteggia con la stessa
+aritmetica di `homie/_match.js` (budget 50 · camere 30 · zona 20) così i due
+motori non danno verdetti diversi sulla stessa casa.
+**Tre mestieri tenuti separati** — mescolarli era il difetto trovato dai test:
+il **veto** decide chi è eleggibile, la **soglia** se la casa gli calza (sul
+punteggio BASE), la **freschezza** solo l'ordine. Moltiplicando tutto, un
+match perfetto di due mesi fa spariva sotto soglia, indistinguibile da uno
+mediocre.
+**I veti** (più importanti del punteggio: la casa sbagliata alla persona
+sbagliata costa la reputazione, non un'occasione, e parte dal TUO numero):
+lead morto · già inquilino · senza recapito · **la casa che aveva già
+chiesto** · già avvisato per questa casa (`notifiedListings`) · oltre
+`MAX_AGE_DAYS` 120 (a Roma una ricerca di 4 mesi fa è finita) · fuori budget
+oltre il 20%. Ogni veto **dice perché**: un'esclusione silenziosa è
+indistinguibile da un bug.
+Risposta: persone ordinate, col motivo, e **il messaggio già scritto nella
+LORO lingua** (`replyLang`) che nomina la casa che avevano chiesto — la
+differenza fra "abbiamo una novità" e "ti sei ricordato di me". POST
+`{listingId, notify:[ids]}` segna chi hai contattato, altrimenti in due
+giorni la funzione da utile diventa fastidiosa.
+**Nel bot**: parte **da sola** dopo ogni pubblicazione (proattiva: non si
+chiede, si dice quando serve), più `/chicerca <ID>` e la frase naturale "chi
+cerca Pigneto?". La parola *interessati* NON è stata riusata — significa già
+"chi ha scritto per questa casa" (`/interessati`), e ri-puntare una parola con
+un significato consolidato è il modo più rapido per rendere inaffidabile uno
+strumento; il confine è pinnato nei test da entrambi i lati.
+Auth: `X-Wizard-Secret`/`X-Homie-Secret` (il bot) o Bearer admin.
+Test: `node tests/reverse/run.mjs`.
+
 ### GET/POST `/api/homie/searches` — gli occhi di Homie sul radar PFS
 Il problema sta scritto in `api/pfs/_fetch.js`: *"both portals run anti-bot
 protection and may 403 datacenter IPs — the email-alert path is the
@@ -1952,6 +1992,7 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/viewings/gap.mjs` | la geometria della giornata: stesso immobile a catena (gap 0), viaggi reali tra zone (clamp 15–45'), video piatto, blocchi legacy identici a prima |
   | `tests/regista/run.mjs` | Il Regista: grammatica dei promemoria (IT/EN, accenti, "il 16/08", range che non sono date), id deterministici ≤64B, inviti calendario dei task, foglio di chiamata (escaping, viaggi, catene, giorno vuoto) |
   | `tests/recovery/run.mjs` | Il Recupero: chi diventa lead (PFS/SERVICE/RESERVE) e chi recap (PA/DEPOSIT/RENT), i test dell'operatore mai, id deterministico, lingua dalle parole del cliente |
+  | `tests/reverse/run.mjs` | La ricerca rovesciata: legge budget/taglia/zona dalle parole vere e dalla casa richiesta, e soprattutto **chi non va MAI disturbato** — morti, inquilini, chi quella casa l'aveva già chiesta, chi era già stato avvisato, chi la troverebbe fuori budget |
   | `tests/pfs/health.mjs` | Allarmi del radar: una fonte BLOCCATA all'origine parla una volta sola (200 run → 1 messaggio), un guasto vero si dirada invece di gridare ogni 6h (40 giorni → 8 promemoria), i primi due intoppi non svegliano nessuno, e il ritorno si sente sempre |
   | `tests/pfs/eyes.mjs` | Gli occhi di Homie sul radar PFS: nella lista di lavoro non entrano ricerche spente o con URL rotti, la manopola manuale (`urlOverride`) vince sempre, e — la regola che conta — un radar CIECO (403/captcha su tutte le ricerche) non passa mai per un mercato fermo |
   | `tests/whatsapp/run.mjs` | Da WhatsApp a lead senza AI: il rumore resta fuori (👍, "ok") e la persona vera entra, l'inquilino che scrive per la caldaia non inquina la pipeline, un lead per persona anche col numero archiviato in formato diverso (nazionale vs internazionale), una risposta umana zittisce il Commerciale. Guida il handler VERO su un Firestore finto in memoria |
