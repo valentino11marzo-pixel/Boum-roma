@@ -9,7 +9,7 @@ css = css.replace('<title>BOOM Rome — Premium Apartment Rentals | 48-Hour Move
     '<title>Property Finding in Rome — Your Personal Realtor | BOOM</title>')
 css = css.replace('content="Verified mid-term apartment rentals in Rome for internationals — English-first, legal contracts, 48-hour move-in. Browse homes or let us find yours."',
     'content="Your dedicated expert searches Rome\'s off-market properties, negotiates on your behalf and handles everything to move-in. €350 upfront, deducted on success."')
-h = css + '\n' + leggi('pf-body.html')
+h = css + '\n' + leggi('pf-body.html') + '\n' + leggi('deco-moto-lite.html')
 h = h.replace('LOGO_SVG', leggi('logo-live.svg').strip())
 if MODO == 'artefatto':
     h = h.replace('FONT_INLINE', '<style>\n' + leggi('inter-inline.css') + '\n</style>')

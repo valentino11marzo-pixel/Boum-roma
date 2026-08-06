@@ -841,6 +841,14 @@ html.vivo .sale.dentro { opacity:1; transform:none;
 .gal-film button.on { opacity:1; box-shadow:inset 0 0 0 1px var(--gold); }
 .gal-film img { width:100%; height:100%; object-fit:cover; }
 
+/* il primo sguardo: la galleria si svela con la tenda */
+@keyframes gal-svela { from { clip-path:inset(0 0 100% 0); transform:scale(1.1); }
+  to { clip-path:inset(0); transform:scale(1); } }
+html.vivo .gal-track.svela .gal-slide:first-child img {
+  animation:gal-svela 1.1s var(--ease) both; }
+@media (prefers-reduced-motion:reduce){
+  html.vivo .gal-track.svela .gal-slide:first-child img { animation:none; } }
+
 /* la vetrina a luci spente: lightbox */
 .lucebox { position:fixed; inset:0; z-index:300; background:rgba(3,3,3,.96);
   display:none; align-items:center; justify-content:center; }
@@ -1386,7 +1394,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
               <h2>Exactly what you <span class="hl">pay</span>. And what comes back.</h2></div></div>
           <p class="soldi-nota">Everything to move in — computed on the dates you
             choose in the card. No fees invented at the table.</p>
-          <div class="soldi-tavole">
+          <div class="soldi-tavole coro">
             <div class="tavola"><div class="tk">First month</div>
               <div class="tv" id="tvPrimo">—</div><div class="ts" id="tsPrimo">full rent</div></div>
             <div class="tavola"><div class="tk">Deposit</div>
@@ -1452,13 +1460,13 @@ html.vivo .sale.dentro { opacity:1; transform:none;
           <div class="sez-testa"><span class="num">04</span>
             <div><div class="eyebrow"><i></i>Safe &amp; fast</div>
               <h2>Proof, not <span class="hl">promises</span>.</h2></div></div>
-          <div class="prove">
+          <div class="prove coro">
             <span class="prova"><i>✓</i> Verified in person &amp; on video</span>
             <span class="prova"><i>✓</i> ID-checked owner</span>
             <span class="prova"><i>✓</i> Registered legal contract</span>
             <span class="prova"><i>✓</i> Deposit protected</span>
           </div>
-          <div class="passi">
+          <div class="passi coro">
             <div class="passo"><div class="pn">01</div><h4>Apply</h4>
               <p>2 minutes. We reply within 2 hours.</p></div>
             <div class="passo"><div class="pn">02</div><h4>Sign + register</h4>
@@ -1513,7 +1521,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
           <div class="sez-testa">
             <div><div class="eyebrow"><i></i>More than a portal</div>
               <h2>Not the perfect one? <span class="hl">We'll find it.</span></h2></div></div>
-          <div class="rete">
+          <div class="rete coro">
             <div class="rete-pfs">
               <span class="rete-eti"><b></b>Property Finding · the hunt engine</span>
               <h3>Wrong dates? Wrong zone?<br><span class="hl">Put the machine on it.</span></h3>
@@ -2275,6 +2283,9 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         '<img loading="lazy" src="' + f + '" alt=""></button>';
     }).join('') : '';
     track.scrollLeft = 0;
+    track.classList.remove('svela');
+    void track.offsetWidth;          /* riparte anche al cambio casa */
+    track.classList.add('svela');
     aggiornaGal(c);
     [].forEach.call(track.querySelectorAll('img'), function (im, i) {
       im.addEventListener('click', function () { apriLuce(i); });

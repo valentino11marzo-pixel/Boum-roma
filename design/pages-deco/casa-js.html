@@ -98,6 +98,9 @@
         '<img loading="lazy" src="' + f + '" alt=""></button>';
     }).join('') : '';
     track.scrollLeft = 0;
+    track.classList.remove('svela');
+    void track.offsetWidth;          /* riparte anche al cambio casa */
+    track.classList.add('svela');
     aggiornaGal(c);
     [].forEach.call(track.querySelectorAll('img'), function (im, i) {
       im.addEventListener('click', function () { apriLuce(i); });

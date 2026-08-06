@@ -109,7 +109,7 @@ def leggi(n): return open(n, encoding='utf-8').read()
 css = leggi('lh-css.html')
 css = css.replace('<title>BOOM Rome — Premium Apartment Rentals | 48-Hour Move-In</title>',
     '<title>Apartments for Rent in Rome — Verified Homes | BOOM</title>')
-h = css + '\n' + leggi('ap-body.html')
+h = css + '\n' + leggi('ap-body.html') + '\n' + leggi('deco-moto-lite.html')
 h = h.replace('LOGO_SVG', leggi('logo-live.svg').strip())
 h = h.replace('RIGHE_STATICHE', STATICHE)
 h = h.replace("'CASE_JSON'", json.dumps(CASE, ensure_ascii=False))

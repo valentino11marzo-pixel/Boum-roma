@@ -688,6 +688,49 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .footer-fondo .op i { width:7px; height:7px; border-radius:50%; background:var(--green);
   font-style:normal; animation:pulse 2.2s ease infinite; }
 
+/* ── LA COREOGRAFIA ───────────────────────────────────────────────────────
+   Tre mosse da palcoscenico, una grammatica sola (stesso easing, scala di
+   durate .7/.9/1.2s):
+   · i TITOLI si alzano da dietro un sipario (clip-path) — mai un fade
+   · i GRUPPI (.coro) entrano a cascata, figli sfalsati di 80ms
+   · le FOTO si svelano con la tenda dal basso mentre lo zoom si posa
+   Fuori vista niente si muove; reduced-motion mostra tutto fermo. */
+html.vivo .sale .titolo, html.vivo .coro .titolo {
+  clip-path:inset(-8% -8% 108% -8%); transform:translateY(34px); }
+html.vivo .sale.dentro .titolo, html.vivo .coro.dentro .titolo {
+  clip-path:inset(-8% -8% -12% -8%); transform:none;
+  transition:clip-path .9s var(--ease), transform .9s var(--ease); }
+html.vivo .coro > * { opacity:0; transform:translateY(26px); }
+html.vivo .coro.dentro > * { opacity:1; transform:none;
+  transition:opacity .8s var(--ease), transform .8s var(--ease); }
+html.vivo .coro.dentro > :nth-child(2){ transition-delay:.08s; }
+html.vivo .coro.dentro > :nth-child(3){ transition-delay:.16s; }
+html.vivo .coro.dentro > :nth-child(4){ transition-delay:.24s; }
+html.vivo .coro.dentro > :nth-child(5){ transition-delay:.32s; }
+html.vivo .coro.dentro > :nth-child(6){ transition-delay:.4s; }
+html.vivo .coro.dentro > :nth-child(7){ transition-delay:.48s; }
+html.vivo .coro.dentro > :nth-child(8){ transition-delay:.56s; }
+/* la tenda sulle foto delle case: si apre dal basso, lo zoom si posa */
+html.vivo .coro .home-foto img { clip-path:inset(100% 0 0 0);
+  transform:scale(1.14); }
+html.vivo .coro.dentro .home-foto img { clip-path:inset(0);
+  transform:scale(1);
+  transition:clip-path 1s var(--ease), transform 1.6s var(--ease); }
+html.vivo .coro.dentro > :nth-child(2) .home-foto img { transition-delay:.08s; }
+html.vivo .coro.dentro > :nth-child(3) .home-foto img { transition-delay:.16s; }
+/* la lama di luce sui bottoni d'oro */
+.btn-primary { position:relative; overflow:hidden; }
+.btn-primary::after { content:''; position:absolute; top:0; bottom:0;
+  left:-70%; width:45%; transform:skewX(-18deg);
+  background:linear-gradient(90deg, transparent,
+    rgba(255,255,255,.55), transparent); transition:none; }
+.btn-primary:hover::after { left:130%; transition:left .7s var(--ease); }
+/* il battito d'atterraggio dei contatori */
+@keyframes atterra { 0% { transform:scale(1); } 38% { transform:scale(1.02); }
+  100% { transform:scale(1); } }
+.atterra { animation:atterra .32s cubic-bezier(.34,1.56,.64,1);
+  display:inline-block; }
+
 /* ── LE ENTRATE ──────────────────────────────────────────────────────── */
 html.vivo .sale { opacity:0; transform:translateY(22px); }
 html.vivo .sale.dentro { opacity:1; transform:none;
@@ -695,6 +738,10 @@ html.vivo .sale.dentro { opacity:1; transform:none;
 @media (prefers-reduced-motion:reduce){
   html { scroll-behavior:auto; }
   html.vivo .sale { opacity:1; transform:none; transition:none; }
+  html.vivo .coro > *, html.vivo .coro .home-foto img,
+  html.vivo .sale .titolo, html.vivo .coro .titolo {
+    opacity:1; transform:none; clip-path:none; transition:none; }
+  .btn-primary::after { display:none; }
   .radar i, .radar u, .radar s, .radar b, .tech-orb, .finale-glow,
   .sc-cursor, .sc-tap, .pz, .dev-stato i,
   .finale-eco i, .pf-sweep, .hero-eyebrow b,
@@ -996,7 +1043,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       <p class="sotto">We're an agency with a tech engine. Tell us your dates and
         budget and we hunt, verify and bring you the right home.</p>
     </div>
-    <div class="org3 sale">
+    <div class="org3 sale coro">
       <a class="org" href="/v2-property-finding.html">
         <span class="svc-icona"><svg viewBox="0 0 40 40"><circle cx="18" cy="18" r="9.5"/><path d="M25 25l8 8"/><path d="M18 13.5v9M13.5 18h9"/></svg></span>
         <h3>Property Finding</h3>
@@ -1644,5 +1691,56 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         'the alert engine at /api/search/save.';
     });
   })();
+})();
+</script>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   BOOM · MOTO LITE — il magnete e la parallasse per le pagine che portano
+   la propria regia (PF, Apartments): nessun conflitto con i loro
+   ascoltatori, solo i due organi di profondità del design system.
+   ══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  var ridotto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var fine = matchMedia('(hover:hover) and (pointer:fine)').matches;
+
+  /* il magnete: i bottoni d'oro seguono la mano, poi si posano */
+  if (fine && !ridotto) {
+    [].forEach.call(document.querySelectorAll('.btn-primary'), function (b) {
+      b.addEventListener('mousemove', function (e) {
+        var r = b.getBoundingClientRect();
+        var dx = e.clientX - (r.left + r.width / 2);
+        var dy = e.clientY - (r.top + r.height / 2);
+        b.style.transform = 'translate(' + (dx / 90 * 6).toFixed(1) +
+          'px,' + (dy / 90 * 5 - 2).toFixed(1) + 'px)';
+      });
+      b.addEventListener('mouseleave', function () {
+        b.style.transform = '';
+        b.style.transition = 'transform .5s cubic-bezier(.34,1.56,.64,1)';
+        setTimeout(function () { b.style.transition = ''; }, 500);
+      });
+    });
+  }
+
+  /* la profondità: orbi e bagliori scivolano a passi diversi */
+  var orbi = [].slice.call(document.querySelectorAll('.tech-orb'));
+  var bagliori = [].slice.call(document.querySelectorAll('.hero-glow'));
+  if (ridotto || (!orbi.length && !bagliori.length)) return;
+  var PASSI = [-.045, .03, -.02], atteso = false;
+  function scivola() {
+    atteso = false;
+    var y = (document.scrollingElement || document.documentElement).scrollTop;
+    orbi.forEach(function (el, i) {
+      el.style.translate = '0 ' + (y * PASSI[i % 3]).toFixed(1) + 'px';
+    });
+    bagliori.forEach(function (el, i) {
+      el.style.translate = '0 ' + (y * (i ? .06 : -.08)).toFixed(1) + 'px';
+    });
+  }
+  addEventListener('scroll', function () {
+    if (!atteso) { atteso = true; requestAnimationFrame(scivola); }
+  }, { passive: true });
+  scivola();
 })();
 </script>
