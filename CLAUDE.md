@@ -405,6 +405,15 @@ server pensa, il Mac di Homie esegue attraverso QUALUNQUE porta sia aperta:
   gestionale. Regole d'oro: mai inventare, ritmo umano, captcha/2FA =
   STOP e rapporto `blocked` (mai aggirare), ogni esito riferito.
   Cambiare porta = cambiare SOLO il trasporto: coda, stato e diff restano.
+- **Il braccio sul Mac** (`bot/boom_publisher.py` + `com.boom.publisher.plist`):
+  `--login` (una volta, profilo persistente), `--dry`, `--check` (launchd
+  30′ → notifica macOS quando c'è lavoro; mai un browser senza operatore),
+  `--assist` (la sessione di OGGI: campi pronti dal payload, l'operatore
+  compila e conferma con l'URL pubblico → rapporto automatico),
+  `--auto` riservato ai selettori mappati (oggi ricade su assist).
+  Logica pura testata: `python3 tests/publisher/runner.py`.
+  PREREQUISITO: rules con `portalPubs` deployate (FIREBASE_TOKEN o deploy
+  manuale) — senza, il POST del rapporto non registra lo stato.
 - Test: `node tests/publisher/run.mjs` (33 check — hash, worklist,
   parcheggio, payload onesto, verdetto, e il loop VERO GET→POST→GET su
   Firestore in memoria con lo stub PATCH che rifiuta `exists=false` sui
