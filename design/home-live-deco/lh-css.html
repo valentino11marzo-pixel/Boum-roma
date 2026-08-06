@@ -40,6 +40,27 @@ FONT_INLINE
   color-scheme: dark;
 }
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+/* la grana di rumore del sito live: profondità premium su tutto */
+body::before { content:''; position:fixed; inset:0; opacity:.014;
+  pointer-events:none; z-index:9999;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E"); }
+/* gli orbi fluttuanti del sito live: il respiro dietro tutta la pagina */
+.tech-bg { position:fixed; inset:0; pointer-events:none; z-index:-1; overflow:hidden; }
+.tech-orb { position:absolute; border-radius:50%; filter:blur(80px);
+  opacity:.05; animation:orb-float 20s ease-in-out infinite; }
+.tech-orb-1 { width:600px; height:600px; top:-200px; right:-100px;
+  background:radial-gradient(circle, var(--gold) 0%, transparent 70%); }
+.tech-orb-2 { width:500px; height:500px; bottom:-150px; left:-100px;
+  background:radial-gradient(circle, #635BFF 0%, transparent 70%);
+  animation-delay:-7s; opacity:.03; }
+.tech-orb-3 { width:400px; height:400px; top:50%; left:50%;
+  transform:translate(-50%,-50%); animation-delay:-14s; opacity:.025;
+  background:radial-gradient(circle, var(--gold-light) 0%, transparent 70%); }
+@keyframes orb-float {
+  0%, 100% { translate:0 0; scale:1; }
+  25% { translate:30px -20px; scale:1.05; }
+  50% { translate:-20px 30px; scale:.95; }
+  75% { translate:-30px -10px; scale:1.02; } }
 html { -webkit-text-size-adjust:100%; scroll-behavior:smooth; }
 body { background:var(--black); color:var(--text); font-family:var(--sans);
   font-weight:300; font-size:16.5px; line-height:1.6;
@@ -71,6 +92,10 @@ h1, h2, h3 { font-family:var(--display); }
 .section { position:relative; padding:clamp(64px,8vw,116px) 0; }
 .section-dark { background:var(--surface);
   border-top:1px solid var(--line-0); border-bottom:1px solid var(--line-0); }
+.section-dark::before { content:''; position:absolute; left:50%; top:0;
+  width:min(90vw,900px); height:280px; transform:translateX(-50%);
+  pointer-events:none;
+  background:radial-gradient(ellipse at top, rgba(255,215,0,.035), transparent 68%); }
 
 /* la cornice a tacche: il segno déco che lega tutta la pagina */
 .quadro { position:relative; }
@@ -165,10 +190,12 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .hero-glow-2 { width:44vw; height:44vw; bottom:-22vw; left:-14vw;
   background:radial-gradient(circle, rgba(255,215,0,.045), transparent 62%); }
 /* il radar del live, a filo déco */
-.radar { position:absolute; top:50%; right:clamp(-120px,-3vw,10px);
-  width:min(44vw,540px); aspect-ratio:1; transform:translateY(-50%);
-  pointer-events:none; display:none; }
-@media (min-width:1080px){ .radar { display:block; } }
+.radar { position:absolute; top:16%; right:-32vw; width:min(88vw,460px);
+  aspect-ratio:1; pointer-events:none; opacity:.55; }
+@media (min-width:700px){ .radar { top:50%; right:-14vw;
+  width:min(52vw,540px); transform:translateY(-50%); opacity:.8; } }
+@media (min-width:1080px){ .radar { right:clamp(-120px,-3vw,10px);
+  width:min(44vw,540px); opacity:1; } }
 .radar i { position:absolute; inset:0; border-radius:50%; font-style:normal;
   border:1px solid var(--line-gold-2); animation:radar 5.5s var(--ease) infinite; }
 .radar i:nth-child(2){ animation-delay:1.8s; }
@@ -538,7 +565,15 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   overflow:hidden; background:var(--surface); border-top:1px solid var(--line-0); }
 .finale-glow { position:absolute; left:50%; top:50%; width:70vw; height:70vw;
   transform:translate(-50%,-50%); pointer-events:none;
-  background:radial-gradient(circle, rgba(255,215,0,.06), transparent 60%); }
+  background:radial-gradient(circle, rgba(255,215,0,.06), transparent 60%);
+  animation:respiro 7s ease-in-out infinite; }
+@keyframes respiro { 50% { opacity:.55; scale:1.06; } }
+.finale-eco { position:absolute; left:50%; top:50%; width:min(80vw,680px);
+  aspect-ratio:1; transform:translate(-50%,-50%); pointer-events:none; }
+.finale-eco i { position:absolute; inset:0; border-radius:50%; font-style:normal;
+  border:1px solid var(--line-gold); animation:radar 6.5s var(--ease) infinite; }
+.finale-eco i:nth-child(2){ animation-delay:2.1s; }
+.finale-eco i:nth-child(3){ animation-delay:4.3s; }
 .finale .titolo { margin-top:0; font-size:clamp(36px,5.4vw,72px); }
 .finale p { margin:18px auto 0; font-size:17px; color:var(--text-2); max-width:44ch; }
 .finale-azioni { margin-top:30px; display:flex; gap:12px; justify-content:center;
@@ -577,7 +612,8 @@ html.vivo .sale.dentro { opacity:1; transform:none;
 @media (prefers-reduced-motion:reduce){
   html { scroll-behavior:auto; }
   html.vivo .sale { opacity:1; transform:none; transition:none; }
-  .radar i, .radar u, .radar s, .radar b, .pf-sweep, .hero-eyebrow b,
+  .radar i, .radar u, .radar s, .radar b, .tech-orb, .finale-glow,
+  .finale-eco i, .pf-sweep, .hero-eyebrow b,
   .footer-fondo .op i, .uni-track { animation:none; }
   .typed { max-width:none; border-right:0; }
   .sc-firma path, .sc-chiave svg path { stroke-dasharray:none; stroke-dashoffset:0; }
