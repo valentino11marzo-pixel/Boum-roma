@@ -60,6 +60,11 @@
       "permanent": false
     },
     {
+      "source": "/(executive-rentals|executive-stays|relocation-rome)",
+      "destination": "/executive",
+      "permanent": false
+    },
+    {
       "source": "/(owner|owner.html)",
       "destination": "/owner-dashboard",
       "permanent": false

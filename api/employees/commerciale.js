@@ -21,7 +21,7 @@
 import { knobs, rejectedLine } from '../_squadra.js';
 import { callClaude, extractJson } from '../agent/_claude.js';
 import { replyLang } from '../_lang.js';
-import { isReunion } from '../_market.js';
+import { isReunion, isB2B } from '../_market.js';
 import { fsGet, fsList as fsListRaw } from '../homie/_lib.js';
 import {
   requireCronOrAdmin, fsList, logActivity, proposeAction,
@@ -115,6 +115,13 @@ function pickChannel(lead) {
     // che una bozza sbagliata: il lead esce comunque su Telegram entro un
     // minuto, con il messaggio francese già scritto (api/_market.js).
     if (isReunion(lead)) continue;
+    // Enti e aziende: il Commerciale TACE anche qui. La sua persona è
+    // l'assistente di chi cerca casa per sé — a un ufficio housing, a un HR
+    // o a un proprietario che si propone scriverebbe "ti andrebbe di fissare
+    // una visita?". I moduli partner pingano già Telegram alla porta
+    // (partners/submit) e notify-pending porta il messaggio business già
+    // scritto (b2bReplyText): la prima voce vera resta l'operatore.
+    if (isB2B(lead)) continue;
     const age = ageOf(lead);
     if (age == null || age < k.humanWindowMin * 60000 || age > k.maxLeadAgeDays * 86400000) continue;
 
