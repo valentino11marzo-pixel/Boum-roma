@@ -191,6 +191,9 @@ button,.obtn,.bfc,.qnav a,.dlink,.paybtn,.svcard{touch-action:manipulation}
 :focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:6px}
 #s-man,#s-hood,#s-fix,#s-conc,#s-kit,#s-ref{content-visibility:auto;contain-intrinsic-size:auto 420px}
 
+/* vista cliente (admin): la banda che non lascia dubbi su COSA stai guardando */
+.adminview{position:sticky;top:57px;z-index:45;margin:10px 0 4px;border:1px solid rgba(212,175,55,.5);background:linear-gradient(180deg,rgba(212,175,55,.16),rgba(212,175,55,.08));border-radius:12px;padding:10px 14px;font-size:12px;line-height:1.55;color:var(--gold-light);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+
 /* dock pagamento (solo telefono): compare quando la card è fuori vista */
 .paydock{position:fixed;left:12px;right:12px;bottom:calc(10px + var(--safe));z-index:70;
   display:flex;align-items:center;gap:12px;padding:10px 12px 10px 20px;border-radius:100px;
@@ -441,6 +444,12 @@ button,.obtn,.bfc,.qnav a,.dlink,.paybtn,.svcard{touch-action:manipulation}
 (function(){
 'use strict';
 var USER=null,PROFILE=null,CONTRACT=null,PROPERTY=null,PAYMENTS=[],MAINT=[];
+/* Vista cliente: un ADMIN apre /casa?as=<contractId> e vede la casa di quel
+   cliente ESATTAMENTE come la vede lui — dati veri, zero credenziali da
+   chiedere o condividere. Le regole Firestore lo permettono già (l'admin
+   legge tutto); i bottoni (paga, SDD) agiscono sui documenti VERI — è la
+   stessa assistenza telefonica che pay.js e sdd-setup.js prevedono. */
+var VIEW_AS=(function(){try{return new URLSearchParams(location.search).get('as')||null}catch(e){return null}})();
 
 /* ── Casa 2.0 i18n: ENGLISH FIRST (the BOOM tenant is an expat) with an
    Italian toggle, persisted. t(key) resolves; strings kept in one place. ── */
@@ -496,7 +505,8 @@ var STR={
   sddProcSub:'The SEPA debit started on {d} and settles in ~5 working days. No action needed — paying it another way too would mean paying twice.',
   sddFailNote:'⚠ The automatic debit for this instalment did not go through — please pay by card or bank transfer below.',
   sddOkBand:'✓ Auto-pay activated — from now on your rent takes care of itself.',
-  dockPay:'Pay →'},
+  dockPay:'Pay →',
+  adminView:'Client view (admin) — you are seeing {n}\'s home exactly as they do. Buttons act on the REAL documents.'},
  it:{home:'La tua casa',logout:'Esci',open:'Apro la tua casa…',active:'Contratto attivo',reserved:'Casa riservata a tuo nome',
   gm:'Buongiorno',ga:'Buon pomeriggio',ge:'Buonasera',daysToKeys:'{n} giorni alle chiavi',keysToday:'giorno delle chiavi!',
   nPay:'Pagamenti',nHist:'Storico',nDocs:'Documenti',nMan:'Manuale',nHood:'Quartiere',nFix:'Riparazioni',nConc:'Concierge',nKit:'Rome Kit',nRef:'Invita',
@@ -547,7 +557,8 @@ var STR={
   sddProcSub:'L\'addebito SEPA è partito il {d} e si regola in ~5 giorni lavorativi. Non serve fare nulla — pagarla anche per altra via significherebbe pagare due volte.',
   sddFailNote:'⚠ L\'addebito automatico di questa rata non è riuscito — pagala con carta o bonifico qui sotto.',
   sddOkBand:'✓ Addebito attivato — da ora il canone si paga da solo.',
-  dockPay:'Paga →'}
+  dockPay:'Paga →',
+  adminView:'Vista cliente (admin) — stai vedendo la casa di {n} esattamente come la vede. I bottoni agiscono sui documenti VERI.'}
 };
 function t(k){return (STR[LANG]&&STR[LANG][k])||STR.en[k]||k}
 function setLang(l){LANG=l;try{localStorage.setItem('boom:casa:lang',l)}catch(e){};syncLangBtn();render();}
@@ -728,7 +739,8 @@ function render(){
   try{if(c.startDate&&c.startDate>todayISO)dToKeys=Math.ceil((new Date(c.startDate+'T00:00')-new Date(todayISO+'T00:00'))/86400000);}catch(e){}
 
   var html=
-    '<span class="eyebrow">'+greet()+(firstName?', '+esc(firstName):'')+'</span>'
+    (VIEW_AS?'<div class="adminview">👁 '+t('adminView').replace('{n}',esc((c.tenantName||'').split(' ')[0]||'cliente'))+'</div>':'')
+    +'<span class="eyebrow">'+greet()+(firstName?', '+esc(firstName):'')+'</span>'
     +'<h1 class="big">'+esc(addr).replace(/,([^,]*)$/,',<em>$1</em>')+'</h1>'
     +(c.startDate?'<div class="subline">'+esc(c.type||'')+' · '+fmtD(c.startDate)+' → '+fmtD(c.endDate)+'</div>':'')
     +'<div class="chip">'+(c.signatureStatus==='completed'?t('active'):t('reserved'))+(dToKeys!=null?' · '+(dToKeys===0?t('keysToday'):t('daysToKeys').replace('{n}',dToKeys)):'')+'</div>'
@@ -994,7 +1006,11 @@ function wire(next,hist){
       var ok=$('mOk'),err=$('mErr');ok.style.display='none';err.style.display='none';
       if(desc.length<8){err.textContent=t('mShort');err.style.display='inline';return;}
       ms.disabled=true;ms.textContent='…';
-      var doc={userId:USER.uid,tenantId:USER.uid,tenantName:(PROFILE&&PROFILE.name)||USER.email||'',
+      /* in Vista cliente la segnalazione è aperta PER il cliente (le rules
+         lo prevedono: "l'admin può aprire una segnalazione per un
+         inquilino") — deve comparire nella SUA lista, non in quella admin */
+      var mUid=(VIEW_AS&&CONTRACT&&CONTRACT.tenantId)||USER.uid;
+      var doc={userId:mUid,tenantId:mUid,tenantName:(VIEW_AS&&CONTRACT&&CONTRACT.tenantName)||(PROFILE&&PROFILE.name)||USER.email||'',
         propertyId:(CONTRACT&&CONTRACT.propertyId)||(PROFILE&&PROFILE.propertyId)||'',
         propertyName:(PROPERTY&&(PROPERTY.name||PROPERTY.address))||'',
         category:$('mCat').value,priority:$('mPri').value,description:desc.slice(0,800),
@@ -1025,8 +1041,12 @@ function reveal(){
 }
 
 /* ── boot: everything REAL, from the tenant's own documents ── */
-BoomPortal.requireAuth(['tenant'],{loginUrl:'/login'}).then(function(res){
+BoomPortal.requireAuth(['tenant','admin'],{loginUrl:'/login'}).then(function(res){
   USER=res.user;PROFILE=res.profile||{};
+  // Un tenant resta sempre sui SUOI dati (ignora ?as=); un admin senza ?as=
+  // non ha niente da vedere qui → portale.
+  if(PROFILE.role!=='admin')VIEW_AS=null;
+  else if(!VIEW_AS){location.href='/portal';return;}
   var db=firebase.firestore();
   $('logout').onclick=function(){firebase.auth().signOut().then(function(){location.href='/login'})};
   $('logout').textContent=t('logout');
@@ -1038,23 +1058,38 @@ BoomPortal.requireAuth(['tenant'],{loginUrl:'/login'}).then(function(res){
   // non si risolverebbe mai → loader eterno. Meglio una sezione vuota che
   // una pagina bloccata.
   var T=function(p){return BoomPortal.withTimeout(p,9000)};
-  var qContracts=T(db.collection('contracts').where('tenantId','==',USER.uid).limit(10).get())
-    .then(function(s){var rows=[];s.forEach(function(d){var v=d.data();v.id=d.id;rows.push(v)});
-      rows.sort(function(a,b){return String(b.startDate||'').localeCompare(String(a.startDate||''))});
-      CONTRACT=rows.filter(function(c){return c.status==='active'})[0]||rows[0]||null;})
-    .catch(function(){});
-  var qPays=T(db.collection('payments').where('tenantId','==',USER.uid).limit(120).get())
-    .then(function(s){PAYMENTS=[];s.forEach(function(d){var v=d.data();v.id=d.id;PAYMENTS.push(v)});})
-    .catch(function(){});
+  var qContracts=VIEW_AS
+    ? T(db.collection('contracts').doc(VIEW_AS).get())
+        .then(function(d){if(d&&d.exists){var v=d.data();v.id=d.id;CONTRACT=v;
+          // il saluto e le firme mostrano il CLIENTE, non l'admin
+          PROFILE={name:v.tenantName||'',role:'admin'};}})
+        .catch(function(){})
+    : T(db.collection('contracts').where('tenantId','==',USER.uid).limit(10).get())
+        .then(function(s){var rows=[];s.forEach(function(d){var v=d.data();v.id=d.id;rows.push(v)});
+          rows.sort(function(a,b){return String(b.startDate||'').localeCompare(String(a.startDate||''))});
+          CONTRACT=rows.filter(function(c){return c.status==='active'})[0]||rows[0]||null;})
+        .catch(function(){});
+  var qPays=VIEW_AS
+    ? T(db.collection('payments').where('contractId','==',VIEW_AS).limit(120).get())
+        .then(function(s){PAYMENTS=[];s.forEach(function(d){var v=d.data();v.id=d.id;PAYMENTS.push(v)});})
+        .catch(function(){})
+    : T(db.collection('payments').where('tenantId','==',USER.uid).limit(120).get())
+        .then(function(s){PAYMENTS=[];s.forEach(function(d){var v=d.data();v.id=d.id;PAYMENTS.push(v)});})
+        .catch(function(){});
   // Dati per il bonifico, impostati una volta da /banca in payout/default.
   // Collezione a sé perché /settings è pubblica e un IBAN non deve esserlo. Se il doc
   // non c'è, il blocco bonifico semplicemente non compare.
   var qPayout=T(db.collection('payout').doc('default').get())
     .then(function(d){if(d&&d.exists)PAYOUT=d.data()}).catch(function(){});
-  var qMaint=T(db.collection('maintenance').where('userId','==',USER.uid).limit(20).get())
-    .then(function(s){MAINT=[];s.forEach(function(d){MAINT.push(d.data())});
-      MAINT.sort(function(a,b){return String(b.createdAt||'').localeCompare(String(a.createdAt||''))});})
-    .catch(function(){});
+  var fillMaint=function(s){MAINT=[];s.forEach(function(d){MAINT.push(d.data())});
+    MAINT.sort(function(a,b){return String(b.createdAt||'').localeCompare(String(a.createdAt||''))});};
+  var qMaint=VIEW_AS
+    // il tenantId del cliente arriva col contratto: la lettura si accoda
+    ? qContracts.then(function(){if(!CONTRACT||!CONTRACT.tenantId)return;
+        return T(db.collection('maintenance').where('userId','==',CONTRACT.tenantId).limit(20).get())
+          .then(fillMaint).catch(function(){});})
+    : T(db.collection('maintenance').where('userId','==',USER.uid).limit(20).get())
+        .then(fillMaint).catch(function(){});
 
   Promise.all([qContracts,qPays,qMaint,qPayout]).then(function(){
     var pid=(CONTRACT&&CONTRACT.propertyId)||PROFILE.propertyId||null;
