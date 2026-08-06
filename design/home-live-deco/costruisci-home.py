@@ -10,6 +10,20 @@ MESI = {'jan':1,'gen':1,'feb':2,'mar':3,'apr':4,'may':5,'mag':5,'jun':6,'giu':6,
         'jul':7,'lug':7,'aug':8,'ago':8,'sep':9,'set':9,'oct':10,'ott':10,
         'nov':11,'dec':12,'dic':12}
 
+VITA = {
+  'Trastevere':      'Cobblestones, trattorie, nightlife on your doorstep.',
+  'Centro Storico':  'Piazzas, museums and the city at walking pace.',
+  'Centro':          'The centre at walking pace, everything downstairs.',
+  'Prati':           'Elegant streets, the Vatican, serious food shopping.',
+  'Pigneto':         "Rome's bohemian quarter — bars, galleries, street life.",
+  'Trieste':         'Liberty villas and quiet cafés, ten minutes from the centre.',
+  'Africano':        'Local Rome at honest prices, Coppedè around the corner.',
+  'Parioli':         'Embassies, parks and Rome at its most residential.',
+  'Ponte Milvio':    "Riverside aperitivo and the north's favourite piazza.",
+  "Conca d'Oro":     'Metro B1 at hand, park runs along the Aniene.',
+  'Vittorio Veneto': "La Dolce Vita's boulevard, steps from Villa Borghese.",
+}
+
 def letti(r):
     for c in (r.get('beds'), r.get('bedrooms')):
         m = re.search(r'\d+', str(c or ''))
@@ -83,16 +97,22 @@ def carta(c, primo):
         c['piano']] if x]
     dentro = ' <i>•</i> '.join(dati)
     alt = f"{c['nome']}, {c['zona']} — apartment for rent in Rome with BOOM"
+    vita = VITA.get(c['zona'], '')
     return f'''      <a class="home" href="/listing/{c['id']}">
         <div class="home-foto">
           <img {'' if primo else 'loading="lazy" '}decoding="async" src="{banca[c['id']]}" alt="{alt}">
           <span class="home-tag">{tag(c)}</span>
+          <button type="button" class="home-cuore" data-u="/listing/{c['id']}"
+            aria-label="Save this home">♥</button>
           <span class="home-prezzo"><span class="flap-prezzo flap-scale"
             data-p="{euro(c['prezzo'])}" aria-label="{euro(c['prezzo'])} per month"></span><small>/month</small></span>
         </div>
         <div class="home-corpo">
+          <span class="home-zona" role="link" tabindex="0"
+            data-href="/apartments.html#zona={c['zona']}">{c['zona']} →</span>
           <div class="home-nome">{c['nome']}</div>
           <div class="home-dati">{dentro}</div>
+          {f'<div class="home-vita">{vita}</div>' if vita else ''}
           <div class="home-vai">View Details →</div>
         </div>
       </a>'''
@@ -132,6 +152,7 @@ if MODO == 'artefatto':
         '/board.html': 'https://claude.ai/code/artifact/d5c23034-8aa4-4e33-b53a-e73809b444f2',
     }.items():
         h = h.replace('href="' + da + '"', 'href="' + a_ + '"')
+        h = h.replace('data-href="' + da, 'data-href="' + a_)
 
 uscita = 'boom-lahome.html' if MODO == 'artefatto' else 'boom-lahome-sito.html' 
 open(uscita,'w',encoding='utf-8').write(h)

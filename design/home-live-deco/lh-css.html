@@ -339,6 +339,18 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   color:var(--text-3); transition:color .3s ease; }
 .home:hover .home-vai { color:var(--gold); }
 .homes-coda { margin-top:clamp(26px,3vw,40px); text-align:center; }
+.home-cuore { position:absolute; right:10px; top:10px; z-index:3; width:34px;
+  height:34px; display:grid; place-items:center; border-radius:50%;
+  background:rgba(3,3,3,.72); backdrop-filter:blur(6px); color:var(--text-3);
+  cursor:pointer; border:0; font-size:15px;
+  transition:color .25s ease, transform .25s var(--ease); }
+.home-cuore:hover { transform:scale(1.12); }
+.home-cuore.si { color:var(--gold); }
+.home-zona { display:inline-block; margin-bottom:7px; font-size:11px;
+  font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--gold); transition:color .25s ease; }
+.home-zona:hover { color:var(--gold-light); }
+.home-vita { margin-top:7px; font-size:12.5px; font-style:italic; color:var(--text-4); }
 
 /* ══ COME FUNZIONA — la loro storia pinnata, rieseguita ════════════════ */
 .how-wrap { position:relative; height:340svh; background:var(--surface);

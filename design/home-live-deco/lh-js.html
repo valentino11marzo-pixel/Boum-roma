@@ -165,6 +165,36 @@
     }, 6500);
   })();
 
+  /* ── i cuori: la stessa memoria di Apartments (boomSalvate) ──────────── */
+  (function () {
+    var salvate;
+    try { salvate = new Set(JSON.parse(localStorage.getItem('boomSalvate') || '[]')); }
+    catch (e) { salvate = new Set(); }
+    [].forEach.call(document.querySelectorAll('.home-cuore'), function (b) {
+      b.classList.toggle('si', salvate.has(b.dataset.u));
+      b.addEventListener('click', function (e) {
+        e.preventDefault(); e.stopPropagation();
+        var u = b.dataset.u;
+        if (salvate.has(u)) salvate.delete(u); else salvate.add(u);
+        b.classList.toggle('si', salvate.has(u));
+        try { localStorage.setItem('boomSalvate', JSON.stringify(Array.from(salvate))); }
+        catch (err) {}
+      });
+    });
+    /* la zona sulla carta apre Apartments già filtrata — è uno span-link
+       (un <a> dentro l'<a> della carta spezzerebbe il markup) */
+    [].forEach.call(document.querySelectorAll('.home-zona'), function (z) {
+      function vai(e) {
+        e.preventDefault(); e.stopPropagation();
+        location.href = z.dataset.href;
+      }
+      z.addEventListener('click', vai);
+      z.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') vai(e);
+      });
+    });
+  })();
+
   /* ── i canoni delle case sui Solari, al primo sguardo ────────────────── */
   (function () {
     var voci = [].slice.call(document.querySelectorAll('.flap-prezzo'));

@@ -473,7 +473,7 @@
   try { salvate = new Set(JSON.parse(localStorage.getItem('boomSalvate') || '[]')); }
   catch (e) { salvate = new Set(); }
   function tieni() {
-    try { localStorage.setItem('boomSalvate', JSON.stringify([].slice.call(salvate))); }
+    try { localStorage.setItem('boomSalvate', JSON.stringify(Array.from(salvate))); }
     catch (e) {}
     var n = document.getElementById('nSalvate');
     if (n) n.textContent = salvate.size ? String(salvate.size) : '';
@@ -483,6 +483,12 @@
   var vuoto = document.getElementById('vuoto');
   var zone = document.getElementById('zone');
 
+  /* l'ancora dalla home: #zona=Trastevere pre-seleziona il quartiere */
+  var arrivo = '';
+  try {
+    var m = decodeURIComponent(location.hash).match(/zona=([^&]+)/);
+    if (m) arrivo = m[1];
+  } catch (e) {}
   if (zone) ZONE.forEach(function (z) {
     var b = document.createElement('button');
     b.type = 'button'; b.className = 'zona-chip'; b.textContent = z;
@@ -494,6 +500,9 @@
       disegna();
     });
     zone.appendChild(b);
+    if (arrivo && z.toLowerCase() === arrivo.toLowerCase()) {
+      stato.zona = z; b.classList.add('su');
+    }
   });
 
   function passa(c) {
