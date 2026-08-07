@@ -189,6 +189,12 @@ section{margin-top:96px}
 .machine{margin-top:12px;display:flex;align-items:center;gap:9px;justify-content:center;font-family:'SF Mono',ui-monospace,Menlo,Consolas,monospace;font-size:9.5px;letter-spacing:1.4px;color:var(--t4);text-transform:uppercase;flex-wrap:wrap}
 .machine i{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px rgba(61,220,151,.7);flex:none}
 .machine b{color:var(--gold);font-weight:400}
+/* the paid fast lane: one quiet line — the door stays one */
+.fastlane{margin-top:10px;text-align:center;font-size:11.5px;color:var(--t4);line-height:1.6}
+.fastlane a{color:var(--t3);transition:color .3s}
+.fastlane a:hover{color:var(--gold)}
+.fastlane b{color:var(--t2);font-weight:400}
+.fastlane a:hover b{color:var(--gold)}
 
 /* ── who we serve: six short entries, not six essays ── */
 .flows{margin-top:26px;display:grid;gap:0;grid-template-columns:minmax(0,1fr);border:1px solid var(--line);border-radius:16px;background:var(--card);overflow:hidden}
@@ -327,7 +333,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
         <span><span class="c">✓</span> <span class="l-en"><b>Registered</b> contracts — Agenzia delle Entrate</span><span class="l-it">Contratti <b>registrati</b> — Agenzia delle Entrate</span></span>
         <span><span class="c">✓</span> <span class="l-en">English &amp; Italian</span><span class="l-it">Inglese e italiano</span></span>
       </div>
-      <p class="serving h-4"><span class="l-en">Serving people at</span><span class="l-it">Al servizio di chi lavora per</span> — <b>FAO · WFP · IFAD</b> · <span class="l-en">embassies</span><span class="l-it">ambasciate</span> · Sapienza · LUISS · Gemelli · Cinecittà</p>
+      <p class="serving h-4"><span class="l-en">Built for people at</span><span class="l-it">Costruito per chi lavora per</span> — <b>FAO · WFP · IFAD</b> · <span class="l-en">embassies</span><span class="l-it">ambasciate</span> · Sapienza · LUISS · Gemelli · Cinecittà</p>
     </div>
 
     <!-- THE DOOR: five fields, everything else folds away -->
@@ -380,6 +386,9 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
         </div>
       </div>
       <p class="machine" aria-hidden="true"><i></i><span>e-sign</span>·<b>registered · RLI</b>·<span class="l-en">receipts</span><span class="l-it">ricevute</span>·<span class="l-en">the machine behind every file</span><span class="l-it">la macchina dietro ogni fascicolo</span></p>
+      <!-- The paid fast lane: the PAGE stays free-inbox (one door), the
+           product that already exists does the selling — no new promises. -->
+      <p class="fastlane"><span class="l-en">In a hurry? <a href="/property-finding"><b>Property Finding</b> — we search the whole market for you. €350, credited on closing →</a></span><span class="l-it">Hai fretta? <a href="/property-finding"><b>Property Finding</b> — cerchiamo noi su tutto il mercato. €350, scalati alla chiusura →</a></span></p>
     </div>
   </header>
 
