@@ -216,5 +216,52 @@ console.log('\n\x1b[1m▸ la pagina è una SPA vera (mai più la statica)\x1b[0m
   ok('la porta italiana /area-proprietari porta alla dashboard', vercel.includes('area-proprietari') && /"source":\s*"\/\(owner\|owner\.html\|area-proprietari\)"/.test(vercel));
 }
 
+console.log('\n\x1b[1m▸ la landing owners: un corridoio verso UNA porta, e promesse visibili\x1b[0m');
+{
+  const { readFileSync } = await import('node:fs');
+  const root = new URL('../../', import.meta.url);
+  const page = readFileSync(new URL('owners.html', root), 'utf8');
+
+  // La porta: la valutazione. Ripetuta (hero + chiusura), mai dispersa.
+  ok('la porta primaria è /valuta (hero + chiusura)', (page.match(/href="\/valuta"/g) || []).length >= 2);
+  ok('il form quieto resta sulla pipeline esistente (partners/submit, kind owner)',
+    page.includes("fetch('/api/partners/submit'") && page.includes("kind: 'owner'"));
+  ok('honeypot presente', page.includes('name="botcheck"'));
+
+  // SERP: la coupe si fa prima del live, non dopo l'indicizzazione.
+  const title = (page.match(/<title>([^<]*)<\/title>/) || [])[1] || '';
+  const desc = (page.match(/<meta name="description" content="([^"]*)"/) || [])[1] || '';
+  ok(`titolo da SERP (${title.length} car.)`, title.length > 0 && title.length <= 60, title);
+  ok(`description da SERP (${desc.length} car.)`, desc.length >= 120 && desc.length <= 165, desc.length);
+
+  // JSON-LD: si parsa, e non AFFERMA nulla che la pagina non mostri.
+  const blocks = [...page.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map(m => m[1]);
+  let parsed = [];
+  try { parsed = blocks.map(b => JSON.parse(b)); ok('JSON-LD valido', true); }
+  catch (e) { ok('JSON-LD valido', false, e.message); }
+  const graph = (parsed[0] && parsed[0]['@graph']) || [];
+  const faq = graph.find(b => b['@type'] === 'FAQPage');
+  const summaries = [...page.matchAll(/<summary>([\s\S]*?)<\/summary>/g)].map(m => m[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim());
+  const norm = s => String(s).replace(/\s+/g, ' ').trim();
+  const orphans = faq ? faq.mainEntity.filter(q => !summaries.some(s => s.includes(norm(q.name)))) : ['(niente FAQPage)'];
+  ok('ogni domanda del markup è VISIBILE in pagina', orphans.length === 0, orphans.map(o => o.name || o));
+
+  // Le promesse commerciali del fondatore restano scritte.
+  ok('la garanzia di solvibilità NEL MANDATO c\'è', /solvibilit/i.test(page) && /mandato/i.test(page));
+  ok('lo screening 3:1 è dichiarato', page.includes('3:1'));
+  ok('la prima locazione gratuita è dichiarata', /[Pp]rima locazione/.test(page) && /[Gg]ratis|gratuita/.test(page));
+  ok('il prodotto mostrato è quello VERO (area-proprietari, non URL di fantasia)',
+    page.includes('area-proprietari') && !page.includes('app.boomrome.com'));
+
+  // La card social è un file vero, non l'immagine fantasma.
+  const og = readFileSync(new URL('og-owners.png', root));
+  const isPng = og.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  ok('og-owners.png esiste ed è un PNG 1200×630', isPng && og.readUInt32BE(16) === 1200 && og.readUInt32BE(20) === 630);
+  ok('la pagina la dichiara e non eredita la fantasma', (page.match(/og-owners\.png/g) || []).length >= 2 && !page.includes('BOOMsocialprofile.png'));
+
+  // I contenuti nascono visibili: il reveal è solo cosmesi.
+  ok('nessun contenuto nasce nascosto (reveal aggiunto via JS, non in CSS base)', !/\.rv\s*\{[^}]*opacity:\s*0/.test(page));
+}
+
 console.log(`\n${fail === 0 ? '\x1b[32m\x1b[1m' : '\x1b[31m\x1b[1m'}Owner dashboard: ${pass} passed, ${fail} failed\x1b[0m\n`);
 process.exit(fail === 0 ? 0 : 1);
