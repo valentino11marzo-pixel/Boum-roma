@@ -321,6 +321,7 @@ console.log('\n\x1b[1m▸ la pagina dice la stessa cosa del server\x1b[0m');
   ok('llms.txt la presenta (con la regola del campione)', llms.includes('/valuta') && /sample is too small/.test(llms));
   const vercel = readFileSync(new URL('vercel.json', root), 'utf8');
   ok('rewrite /valuta presente', vercel.includes('"source": "/valuta"'));
+  ok('la porta italiana /proprietari porta alla landing owners', /"source":\s*"\/proprietari",\s*\n\s*"destination":\s*"\/owners"/.test(vercel));
   const owners = readFileSync(new URL('owners.html', root), 'utf8');
   ok('owners.html manda i proprietari alla valutazione', owners.includes('href="/valuta"'));
 }

@@ -275,9 +275,12 @@
       var c = p.contract, m = p.money || {};
       var rented = c && c.status === 'active';
       var h = '<section class="prop">';
+      // Lo status arriva in inglese dal DB (available/rented/…): al
+      // proprietario si parla italiano.
+      var stIT = { available: 'Disponibile', rented: 'Affittato', reserved: 'Riservato', maintenance: 'In manutenzione', off_market: 'Fuori mercato' };
       h += '<div class="prop-head"><div><h2>' + esc(p.address || p.name || 'Immobile') + '</h2>' +
         (p.zone ? '<span class="z">' + esc(p.zone) + '</span>' : '') + '</div>' +
-        '<span class="badge ' + (rented ? 'rented' : 'free') + '">' + (rented ? 'Affittato' : esc(p.status || 'disponibile')) + '</span></div>';
+        '<span class="badge ' + (rented ? 'rented' : 'free') + '">' + (rented ? 'Affittato' : esc(stIT[String(p.status || '').toLowerCase()] || p.status || 'Disponibile')) + '</span></div>';
 
       h += '<div class="cols">';
 

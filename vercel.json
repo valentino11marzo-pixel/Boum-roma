@@ -60,8 +60,13 @@
       "permanent": false
     },
     {
-      "source": "/(owner|owner.html)",
+      "source": "/(owner|owner.html|area-proprietari)",
       "destination": "/owner-dashboard",
+      "permanent": false
+    },
+    {
+      "source": "/proprietari",
+      "destination": "/owners",
       "permanent": false
     },
     {

@@ -213,6 +213,7 @@ console.log('\n\x1b[1m▸ la pagina è una SPA vera (mai più la statica)\x1b[0m
   const vercel = readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8');
   const grpPrivate = vercel.indexOf('|owner-dashboard|owner-dashboard.html|');
   ok('vercel.json la tratta da superficie autenticata (private, no-store)', grpPrivate > -1);
+  ok('la porta italiana /area-proprietari porta alla dashboard', vercel.includes('area-proprietari') && /"source":\s*"\/\(owner\|owner\.html\|area-proprietari\)"/.test(vercel));
 }
 
 console.log(`\n${fail === 0 ? '\x1b[32m\x1b[1m' : '\x1b[31m\x1b[1m'}Owner dashboard: ${pass} passed, ${fail} failed\x1b[0m\n`);
