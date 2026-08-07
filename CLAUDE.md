@@ -760,18 +760,23 @@ Italia+Santa Sede, secondment aziendali, ricerca/ERC, sanità, produzioni
 Cinecittà), il varco competitivo, il playbook 90 giorni e le righe rosse da
 non promettere — sta in `STUDIO_EXECUTIVE_ROMA.md`.
 - **`executive.html` (`/executive`)** — landing EN-first con toggle IT
-  (`?lang=it`, mai dedotta dal browser: la canonical dichiara en), **design
-  DEDICATO disegnato da zero** (nessuna classe dei template di pagina: nav,
-  hero, css e chrome propri — del resto del sito eredita solo il BRAND e il
-  meccanismo bilingue l-en/l-it in CSS puro). Concept "l'arrivo": skyline di
-  Roma disegnata a mano in SVG inline con la rotta di volo dell'incarico,
-  capitoli in numeri romani, **tabellone ARRIVALS** per i sei flussi (con
-  ancore `#seg-un`… per l'outreach mirato), il transitorio reso come
-  DOCUMENTO di carta annotato (art. 5 L.431/98, fasce concordato,
-  attestazione — la macchina che esiste già), timeline a rotta di volo,
-  form-fascicolo. Reveal `.rv` con rete: `<noscript>` + fallback senza
-  IntersectionObserver (il contenuto batte la coreografia). Blocco "in
-  brief" citabile, FAQ visibili = FAQPage JSON-LD, @graph con DUE Service
+  (`?lang=it`, mai dedotta dal browser: la canonical dichiara en),
+  costruita **DENTRO il design system vero** dopo due tentativi bocciati
+  (v1 = layout clonato dalla Réunion, v2 = marca estranea serif/carta):
+  `css/boom-2026.css` (oro **#FFD700** — mai il #D4AF37 del portal — paybtn
+  con sheen, steps, trio, truth, faq, band, fam strip, footer classico) +
+  il layer tech di index.html (orbi oro/violetto, griglia mascherata,
+  noise, mouse-glow, scroll-progress). Lo studio delle espressioni e le
+  regole dell'elevazione stanno in **`STUDIO_EXECUTIVE_UIX.md`**. L'unico
+  elemento di marca nuovo è il lockup `BOOM │ EXECUTIVE ROMA` (nav +
+  footer). I device ultra-tech della pagina: **console boom·os** in hero
+  (la pipeline vera — slot istantanei, e-sign, REGISTERED·RLI, Wallet,
+  ricevute — con LED e monospace), **tabellone ARRIVALS** per i sei flussi
+  (ancore `#seg-un`… per l'outreach), **contratto come oggetto digitale**
+  (righe di verifica + striscia Magic Sign con hash — mai carta bianca),
+  stat con count-up rm-safe, radar sottovoce. Reveal `.rv` con rete:
+  `<noscript>` + fallback senza IntersectionObserver. Blocco "in brief"
+  citabile, FAQ visibili = FAQPage JSON-LD, @graph con DUE Service
   (persona → /executive, azienda → /corporate), og dedicata
   `og-executive.png` nella STESSA identità, generata dal repo
   (headless_shell — il chromium "vecchio" headless perde il footer a 630px
