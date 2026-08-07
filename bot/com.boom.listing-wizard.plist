@@ -16,10 +16,13 @@
     <key>Label</key>
     <string>com.boom.listing-wizard</string>
 
+    <!-- wizard_heartbeat.py wraps boom_listing_wizard.py: same bot, plus a
+         Firestore heartbeat every 60s so /api/wizard/health can alert
+         Telegram if the bot goes silently offline. -->
     <key>ProgramArguments</key>
     <array>
         <string>/Library/Frameworks/Python.framework/Versions/3.13/bin/python3</string>
-        <string>/Users/boomserver/boom-listing-wizard/boom_listing_wizard.py</string>
+        <string>/Users/boomserver/boom-listing-wizard/wizard_heartbeat.py</string>
     </array>
 
     <key>WorkingDirectory</key>

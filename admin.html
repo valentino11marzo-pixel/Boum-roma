@@ -1060,11 +1060,11 @@
         // ========== INIT ==========
         document.addEventListener('DOMContentLoaded', async () => {
             auth.onAuthStateChanged(async (user) => {
-                if (!user) { window.location.href = 'login.html'; return; }
+                if (!user) { window.location.href = '/login?next=' + encodeURIComponent(location.pathname + location.hash); return; }
 
                 const doc = await db.collection('users').doc(user.uid).get();
                 if (!doc.exists || doc.data().role !== 'admin') { 
-                    window.location.href = 'login.html'; 
+                    window.location.href = '/login'; 
                     return; 
                 }
 
@@ -1399,7 +1399,7 @@
         }
 
         // ========== LOGOUT ==========
-        function logout() { auth.signOut().then(() => window.location.href = 'login.html'); }
+        function logout() { auth.signOut().then(() => window.location.href = '/login'); }
     </script>
 </body>
 </html>

@@ -75,9 +75,15 @@ export function toFsFields(obj) {
 }
 
 // Create a new doc in a collection — Firestore auto-IDs it. Returns { id }.
-export async function fsCreate(collection, data) {
+export async function fsCreate(collection, data, docId) {
+  // docId opzionale = create idempotente: Firestore risponde 409 se il doc
+  // esiste già; l'errore lanciato porta err.exists=true così il chiamante
+  // può distinguere "già creato" da un vero fallimento.
   const token = await getAdminToken();
-  const res = await fetch(`${FS_BASE}/${collection}`, {
+  const url = docId
+    ? `${FS_BASE}/${collection}?documentId=${encodeURIComponent(docId)}`
+    : `${FS_BASE}/${collection}`;
+  const res = await fetch(url, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -87,7 +93,9 @@ export async function fsCreate(collection, data) {
   });
   if (!res.ok) {
     const txt = await res.text();
-    throw new Error(`Firestore create failed (${res.status}): ${txt}`);
+    const err = new Error(`Firestore create failed (${res.status}): ${txt}`);
+    if (res.status === 409) err.exists = true;
+    throw err;
   }
   const body = await res.json();
   // body.name = "projects/.../databases/(default)/documents/<collection>/<docId>"
@@ -97,6 +105,21 @@ export async function fsCreate(collection, data) {
 
 // Patch (update fields on) an existing doc by full path "collection/docId"
 // or "collection/parent/sub/docId". Creates the doc if it doesn't exist.
+// Cancella un documento. Usato dai lucchetti sull'immobile
+// (api/preagreement/_lock.js), dove un lucchetto preso a metà va restituito.
+// Un 404 NON è un errore: il documento non c'è più, che è il risultato voluto.
+export async function fsDelete(docPath) {
+  const token = await getAdminToken();
+  const res = await fetch(`${FS_BASE}/${docPath}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok && res.status !== 404) {
+    throw new Error(`Firestore delete failed (${res.status}): ${await res.text()}`);
+  }
+  return true;
+}
+
 export async function fsPatch(docPath, data) {
   const token = await getAdminToken();
   const fields = toFsFields(data);

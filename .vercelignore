@@ -1,0 +1,15 @@
+# Pagine legacy e studi di design: restano nel repo ma NON vengono deployate.
+# (Le superfici attive sono: portal.html, owner-dashboard.html, tenant.html,
+#  client-portal.html, login.html — vedi CLAUDE.md.)
+preview-*.html
+dashboard.html
+owner.html
+admin.html
+apartments-legacy.html
+apartment-detail-legacy.html
+# Audit 2026-08: morte verificate (zero link entranti / superate dal portal)
+setup-firebase.html
+detail-v2.html
+admin-flats.html
+tenant-registration.html
+js/boom-bg-roma.js

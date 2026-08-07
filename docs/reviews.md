@@ -188,6 +188,34 @@ for `REVIEW_LINK`) and in the templates above.
   branded `thank-you.html?review=1` landing, each firing `review_click` (GA4).
 - ✅ Fixed GA4 base missing on `thank-you.html` — `purchase`/`generate_lead`
   events now actually fire (were silent no-ops before).
-- ⏳ **Founder TODO:** fetch the `g.page/r/.../review` one-tap link (§0) and paste
-  it back so we swap the fallback in the templates + the two `REVIEW_LINK`
-  constants (`pass-delivery.html`, `thank-you.html`).
+- ✅ **`/recensione` on the Telegram bot** (2026-08-02) — the WhatsApp channel,
+  which §1 calls the best moment, is now one tap. The bot lists who moved in
+  between 2 and 45 days ago and has *not* been asked yet, each with a `wa.me`
+  button carrying the message pre-written in **their** language, plus a
+  "✓ Chiesto" button that stamps `contract.reviewAskedAt` so nobody is ever
+  asked twice. It never sends by itself: §1's rule is *ask only people you are
+  confident are happy*, so the operator reads the row and decides.
+- ✅ The message asks **how it went first** and offers the way out ("if
+  something isn't right, tell me first") — asking for a review from someone
+  with an open problem is the fastest way to earn a one-star.
+- ✅ Link validation centralised in `api/reviews/_lib.js` (shared by the journey
+  emails and the bot): a `share.google` / `maps` URL is refused with a warning
+  rather than shipped silently inside a client message. Covered by
+  `tests/growth/run.mjs` + `tests/journey/review-url.mjs`.
+- ✅ **`/recensione link <url>` on the bot** — paste the link you just copied
+  and it tells you immediately whether it's the right one, and gives you the
+  exact value to put in `REVIEW_URL`. Worth doing *before* setting it: the
+  "Share" button and the "Ask for reviews" button on the same profile hand you
+  two different links, and only one opens the star box. Without this check the
+  wrong one ships silently and you find out from a flat review count a month
+  later.
+- ⏳ **Founder TODO (the one thing software cannot do):** fetch the
+  `g.page/r/.../review` one-tap link (§0) and set it as `REVIEW_URL` on Vercel.
+  *(Verified 2026-08: it cannot be fetched programmatically — the profile
+  share link 403s to non-browser clients, and both the legacy Places API and
+  Places API New are disabled on the project's Maps key. It takes you about
+  60 seconds in the Business Profile dashboard.)*
+  Until then everything works but points at a Google *search* — and the bot
+  says so explicitly in its header, so the gap is never invisible. Also worth
+  swapping the two `REVIEW_LINK` constants (`pass-delivery.html`,
+  `thank-you.html`) once you have it.

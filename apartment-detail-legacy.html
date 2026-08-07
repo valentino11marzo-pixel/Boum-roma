@@ -75,7 +75,7 @@
         body{font-family:'Helvetica Neue',Helvetica,'Inter',-apple-system,sans-serif;background:var(--pure-black);color:var(--text-primary);font-weight:300;line-height:1.6}
 
         /* ===== NAV — matches live site ===== */
-        nav{position:fixed;width:100%;top:0;z-index:100;padding:20px 50px;background:rgba(8,8,10,0.98);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255, 215, 0,0.1)}
+        nav{position:fixed;width:100%;top:0;z-index:100;padding:20px 50px;background:rgba(8,8,10,0.98);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255, 215, 0,0.1)}
         .nav-container{max-width:1400px;margin:0 auto;display:flex;justify-content:space-between;align-items:center}
         .logo{display:flex;align-items:center;gap:15px;text-decoration:none;color:#fff}
         .logo-svg{width:80px;height:80px;filter:drop-shadow(0 0 20px rgba(255, 215, 0,0.5));transition:filter .3s}
@@ -90,7 +90,7 @@
         .hamburger.active span:nth-child(1){transform:rotate(45deg) translate(5px,5px)}
         .hamburger.active span:nth-child(2){opacity:0}
         .hamburger.active span:nth-child(3){transform:rotate(-45deg) translate(5px,-5px)}
-        .mobile-menu{display:none;position:fixed;inset:0;background:rgba(8,8,10,0.98);backdrop-filter:blur(30px);z-index:150;flex-direction:column;align-items:center;justify-content:center;gap:30px}
+        .mobile-menu{display:none;position:fixed;inset:0;background:rgba(8,8,10,0.98);-webkit-backdrop-filter:blur(30px);backdrop-filter:blur(30px);z-index:150;flex-direction:column;align-items:center;justify-content:center;gap:30px}
         .mobile-menu.active{display:flex}
         .mobile-menu a{color:rgba(255,255,255,0.7);text-decoration:none;font-size:18px;font-weight:300;letter-spacing:2px;text-transform:uppercase;transition:color .3s}
         .mobile-menu a:hover{color:var(--gold)}
@@ -159,8 +159,8 @@
         .gal-it img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .8s cubic-bezier(.16,1,.3,1)}
         .gal-it:hover img{transform:scale(1.05)}
         .gal-it.main{grid-column:span 2;grid-row:span 2}
-        .gal-more{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(8,8,10,.62);backdrop-filter:blur(3px);font-size:15px;letter-spacing:.5px;color:#fff}
-        .gal-video{position:absolute;left:12px;bottom:12px;display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:100px;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.2);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#fff;cursor:pointer;transition:all .25s}
+        .gal-more{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(8,8,10,.62);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);font-size:15px;letter-spacing:.5px;color:#fff}
+        .gal-video{position:absolute;left:12px;bottom:12px;display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:100px;background:rgba(0,0,0,.6);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.2);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#fff;cursor:pointer;transition:all .25s}
         .gal-video:hover{background:var(--gold);color:#000;border-color:var(--gold)}
         @media(max-width:760px){.gal{grid-template-columns:repeat(2,1fr);grid-auto-rows:128px}.gal-it.main{grid-column:span 2}}
         .media-placeholder{width:100%;height:400px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;background:var(--dark-void);border:1px dashed rgba(255,255,255,0.1);border-radius:16px;color:var(--text-fade)}
@@ -199,19 +199,19 @@
         /* 3D flyover */
         .map3d-facade{position:relative;height:360px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:radial-gradient(ellipse at 50% 40%,#15151B,#0A0A0C);overflow:hidden}
         .map3d-facade::before{content:'';position:absolute;inset:-40%;background-image:linear-gradient(rgba(255,215,0,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,215,0,.05) 1px,transparent 1px);background-size:46px 46px;transform:perspective(420px) rotateX(58deg);transform-origin:50% 80%;-webkit-mask-image:radial-gradient(ellipse at 50% 55%,#000 25%,transparent 72%);mask-image:radial-gradient(ellipse at 50% 55%,#000 25%,transparent 72%);pointer-events:none}
-        .map3d-go{position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;padding:16px 30px;border:1px solid rgba(255,215,0,.35);border-radius:14px;background:rgba(255,215,0,.08);color:var(--gold);font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;transition:all .3s;backdrop-filter:blur(6px)}
+        .map3d-go{position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;padding:16px 30px;border:1px solid rgba(255,215,0,.35);border-radius:14px;background:rgba(255,215,0,.08);color:var(--gold);font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;transition:all .3s;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
         .map3d-go:hover{background:var(--gold);color:#000;transform:translateY(-2px);box-shadow:0 14px 40px rgba(255,215,0,.25)}
         .map3d-go small{font-size:11px;font-weight:400;color:var(--text-secondary)}
         .map3d-go:hover small{color:rgba(0,0,0,.65)}
         .map3d-alt{position:relative;background:none;border:none;color:#666;font-size:11.5px;cursor:pointer;font-family:inherit;border-bottom:1px solid rgba(255,255,255,.15);padding:0 0 1px}
         .map3d-alt:hover{color:var(--gold)}
         .map3d{position:relative;height:540px}
-        .map3d-style{position:absolute;left:12px;top:12px;z-index:4;display:flex;gap:0;border:1px solid rgba(255,255,255,.14);border-radius:10px;overflow:hidden;background:rgba(8,8,10,.72);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+        .map3d-style{position:absolute;left:12px;top:12px;z-index:4;display:flex;gap:0;border:1px solid rgba(255,255,255,.14);border-radius:10px;overflow:hidden;background:rgba(8,8,10,.72);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
         .map3d-style button{padding:8px 14px;background:none;border:0;color:#cbcbcb;font-family:inherit;font-size:11px;letter-spacing:.6px;cursor:pointer;transition:all .2s;min-height:34px}
         .map3d-style button.on{background:var(--gold);color:#000;font-weight:600}
         .map3d-style button:not(.on):hover{color:#fff}
         .map3d-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#777;font-size:11px;letter-spacing:2.5px;text-transform:uppercase;z-index:2;pointer-events:none}
-        .map3d-legend{position:absolute;left:12px;bottom:12px;z-index:3;display:flex;flex-wrap:wrap;gap:8px 12px;max-width:calc(100% - 24px);padding:8px 12px;background:rgba(8,8,10,.72);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.1);border-radius:10px;font-size:10px;letter-spacing:.3px;color:#cbcbcb;pointer-events:none}
+        .map3d-legend{position:absolute;left:12px;bottom:12px;z-index:3;display:flex;flex-wrap:wrap;gap:8px 12px;max-width:calc(100% - 24px);padding:8px 12px;background:rgba(8,8,10,.72);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.1);border-radius:10px;font-size:10px;letter-spacing:.3px;color:#cbcbcb;pointer-events:none}
         .map3d-legend span{display:inline-flex;align-items:center;gap:5px}
         .map3d-legend i{width:8px;height:8px;border-radius:50%}
         .boom-pin{display:flex;flex-direction:column;align-items:center;gap:6px}
@@ -372,7 +372,7 @@
         .cta-outline:hover{border-color:var(--gold);color:var(--gold)}
 
         /* ===== MOBILE CTA ===== */
-        .mobile-cta{display:none;position:fixed;bottom:0;left:0;right:0;padding:14px 18px calc(14px + env(safe-area-inset-bottom));background:rgba(0,0,0,0.95);backdrop-filter:blur(20px);border-top:1px solid rgba(255, 215, 0,0.15);z-index:90;align-items:center;justify-content:space-between;gap:14px;transform:translateY(120%);transition:transform .45s cubic-bezier(.16,1,.3,1)}
+        .mobile-cta{display:none;position:fixed;bottom:0;left:0;right:0;padding:14px 18px calc(14px + env(safe-area-inset-bottom));background:rgba(0,0,0,0.95);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-top:1px solid rgba(255, 215, 0,0.15);z-index:90;align-items:center;justify-content:space-between;gap:14px;transform:translateY(120%);transition:transform .45s cubic-bezier(.16,1,.3,1)}
         .mobile-cta.in{transform:none}
         .mobile-cta-price{font-size:21px;font-weight:200;color:var(--gold);line-height:1.05}
         .mobile-cta-price small{font-size:11px;color:var(--text-fade);display:block}
@@ -440,7 +440,7 @@
 
         /* Carousel image is clickable → lightbox */
         .carousel-slide img,.single-hero-img{cursor:zoom-in}
-        .carousel-expand{position:absolute;top:14px;left:14px;z-index:5;display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,0.6);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.14);color:#fff;border-radius:100px;padding:8px 14px;font-size:11px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:all .2s}
+        .carousel-expand{position:absolute;top:14px;left:14px;z-index:5;display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,0.6);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.14);color:#fff;border-radius:100px;padding:8px 14px;font-size:11px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:all .2s}
         .carousel-expand:hover{background:var(--gold);color:#000;border-color:var(--gold)}
         .carousel-expand svg{width:13px;height:13px}
 
@@ -451,7 +451,7 @@
         .lightbox-img{max-width:92vw;max-height:86vh;object-fit:contain;border-radius:6px;box-shadow:0 30px 90px rgba(0,0,0,0.7);user-select:none}
         .lightbox-close{position:absolute;top:22px;right:26px;background:transparent;border:0;color:rgba(255,255,255,0.7);font-size:38px;line-height:1;cursor:pointer;transition:color .2s;z-index:2}
         .lightbox-close:hover{color:var(--gold)}
-        .lightbox-nav{position:absolute;top:50%;transform:translateY(-50%);width:56px;height:56px;border-radius:50%;background:rgba(0,0,0,0.45);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.14);color:#fff;font-size:30px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+        .lightbox-nav{position:absolute;top:50%;transform:translateY(-50%);width:56px;height:56px;border-radius:50%;background:rgba(0,0,0,0.45);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.14);color:#fff;font-size:30px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
         .lightbox-nav:hover{background:var(--gold);color:#000;border-color:var(--gold)}
         .lightbox-prev{left:24px}.lightbox-next{right:24px}
         .lightbox-counter{position:absolute;bottom:26px;left:50%;transform:translateX(-50%);font-size:13px;color:rgba(255,255,255,0.7);letter-spacing:2px;font-variant-numeric:tabular-nums}
@@ -606,12 +606,12 @@
                 <span class="logo-text">BOOM</span>
             </a>
             <div class="nav-links">
-                <a href="/apartments.html">Apartments</a>
-                <a href="/property-finding.html">Property Finding</a>
-                <a href="/deal-assistance.html">Deal Assistance</a>
-                <a href="/virtual-viewing.html">Virtual Viewing</a>
-                <a href="/concierge.html">Concierge</a>
-                <a href="/about.html">About</a>
+                <a href="/apartments">Apartments</a>
+                <a href="/property-finding">Property Finding</a>
+                <a href="/deal-assistance">Deal Assistance</a>
+                <a href="/virtual-viewing">Virtual Viewing</a>
+                <a href="/concierge">Concierge</a>
+                <a href="/about">About</a>
                 <a href="https://wa.me/393313251961" class="wa-link">WhatsApp</a>
             </div>
             <div class="hamburger" id="hamburger"><span></span><span></span><span></span></div>
@@ -620,13 +620,13 @@
 
     <div class="mobile-menu" id="mobileMenu">
         <a href="/">Home</a>
-        <a href="/apartments.html">Apartments</a>
-        <a href="/property-finding.html">Property Finding</a>
-        <a href="/deal-assistance.html">Deal Assistance</a>
-        <a href="/virtual-viewing.html">Virtual Viewing</a>
-        <a href="/concierge.html">Concierge</a>
-        <a href="/about.html">About</a>
-        <a href="/login.html">Login</a>
+        <a href="/apartments">Apartments</a>
+        <a href="/property-finding">Property Finding</a>
+        <a href="/deal-assistance">Deal Assistance</a>
+        <a href="/virtual-viewing">Virtual Viewing</a>
+        <a href="/concierge">Concierge</a>
+        <a href="/about">About</a>
+        <a href="/login">Login</a>
         <a href="https://wa.me/393313251961" class="wa-mob">WhatsApp Us</a>
     </div>
 
@@ -634,11 +634,11 @@
     <div class="page-loading" id="pageLoading"><div class="spinner"></div><p>Loading apartment details…</p></div>
 
     <!-- ERROR -->
-    <div class="page-error" id="pageError"><h2>Not Found</h2><p>This apartment listing could not be loaded.</p><a href="/apartments.html">Browse All Apartments</a></div>
+    <div class="page-error" id="pageError"><h2>Not Found</h2><p>This apartment listing could not be loaded.</p><a href="/apartments">Browse All Apartments</a></div>
 
     <!-- APARTMENT PAGE -->
     <div class="apartment-page" id="apartmentPage" role="main">
-        <div class="breadcrumb"><a href="/">Home</a><span class="sep">/</span><a href="/apartments.html">Apartments</a><span id="breadcrumbZoneWrap" hidden><span class="sep">/</span><a href="#" id="breadcrumbZone"></a></span><span class="sep">/</span><span class="current" id="breadcrumbName">—</span></div>
+        <div class="breadcrumb"><a href="/">Home</a><span class="sep">/</span><a href="/apartments">Apartments</a><span id="breadcrumbZoneWrap" hidden><span class="sep">/</span><a href="#" id="breadcrumbZone"></a></span><span class="sep">/</span><span class="current" id="breadcrumbName">—</span></div>
 
         <div class="apt-header">
             <div class="apt-header-top">
@@ -719,7 +719,7 @@
                         <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.125.553 4.12 1.52 5.855L.052 23.709l5.997-1.573A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.82c-1.956 0-3.83-.528-5.47-1.528l-.392-.233-4.065 1.066 1.084-3.964-.256-.407A9.787 9.787 0 012.18 12c0-5.414 4.406-9.82 9.82-9.82 5.414 0 9.82 4.406 9.82 9.82 0 5.414-4.406 9.82-9.82 9.82z"/></svg>
                         Message on WhatsApp
                     </a>
-                    <a class="sidebar-secondary" href="/property-finding.html">Not this one? Find my perfect apartment →</a>
+                    <a class="sidebar-secondary" href="/property-finding">Not this one? Find my perfect apartment →</a>
                 </div>
                 <div class="sidebar-card inquiry-card" id="inquiryCard">
                     <span class="apply-badge"><i class="apply-dot"></i> Secure this home</span>
@@ -897,7 +897,7 @@
         .pay-dots{display:flex;gap:7px;margin-top:24px}
         .pay-dots i{width:24px;height:3px;border-radius:2px;background:rgba(255,255,255,.12);transition:background .35s}
         .pay-dots i.on{background:linear-gradient(90deg,#FFD700,#FFA500)}
-        .pay-sheet{background:linear-gradient(180deg,rgba(24,24,28,.92),rgba(12,12,15,.96));border:1px solid rgba(255,255,255,.1);border-radius:26px;padding:6px 24px 22px;box-shadow:0 50px 120px -40px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.07);backdrop-filter:blur(20px)}
+        .pay-sheet{background:linear-gradient(180deg,rgba(24,24,28,.92),rgba(12,12,15,.96));border:1px solid rgba(255,255,255,.1);border-radius:26px;padding:6px 24px 22px;box-shadow:0 50px 120px -40px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.07);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
         .pay-sh{display:flex;justify-content:space-between;align-items:center;padding:16px 2px 13px;border-bottom:1px solid rgba(255,255,255,.08);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#777}
         .pay-lock{color:#00FF88;letter-spacing:.5px}
         .pay-row{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:16px 2px;border-bottom:1px solid rgba(255,255,255,.06);opacity:.16;transform:translateY(6px);transition:opacity .55s cubic-bezier(.16,1,.3,1),transform .55s cubic-bezier(.16,1,.3,1)}
@@ -1195,7 +1195,7 @@
         .bspine a.on span{opacity:1;color:var(--gold)}
         @media(prefers-reduced-motion:reduce){.bask-msg{animation:none}.bask-typing i{animation:none}.bspine a{transition:none}}
         /* Desktop sticky CTA — keeps name/price/Apply present in the lower half of the page */
-        .dsticky{position:fixed;bottom:0;left:0;right:0;z-index:80;transform:translateY(120%);transition:transform .45s cubic-bezier(.16,1,.3,1);background:rgba(8,8,10,.94);backdrop-filter:blur(18px);border-top:1px solid rgba(255,215,0,.16);display:none}
+        .dsticky{position:fixed;bottom:0;left:0;right:0;z-index:80;transform:translateY(120%);transition:transform .45s cubic-bezier(.16,1,.3,1);background:rgba(8,8,10,.94);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border-top:1px solid rgba(255,215,0,.16);display:none}
         @media(min-width:861px){.dsticky{display:block}}
         .dsticky.in{transform:none}
         .dsticky-in{max-width:1400px;margin:0 auto;padding:13px 50px;display:flex;align-items:center;justify-content:space-between;gap:24px}
@@ -1535,7 +1535,7 @@
                         </ul>
                     </div>
                     <div class="upsell-card-bottom">
-                        <a href="/property-finding.html" class="upsell-card-cta cta-gold">Start Property Finding →</a>
+                        <a href="/property-finding" class="upsell-card-cta cta-gold">Start Property Finding →</a>
                     </div>
                 </div>
 
@@ -1558,7 +1558,7 @@
                         </ul>
                     </div>
                     <div class="upsell-card-bottom">
-                        <a href="/deal-assistance.html" class="upsell-card-cta cta-outline">Learn More →</a>
+                        <a href="/deal-assistance" class="upsell-card-cta cta-outline">Learn More →</a>
                     </div>
                 </div>
 
@@ -1581,7 +1581,7 @@
                         </ul>
                     </div>
                     <div class="upsell-card-bottom">
-                        <a href="/virtual-viewing.html" class="upsell-card-cta cta-outline">Learn More →</a>
+                        <a href="/virtual-viewing" class="upsell-card-cta cta-outline">Learn More →</a>
                     </div>
                 </div>
             </div>
@@ -1630,14 +1630,14 @@
                 <h3>BOOM</h3>
                 <p>Built in Rome, for Rome. If we can make Rome's rental market work, we can make it work anywhere.<br><br><strong>Egidi Immobiliare S.r.l.</strong><br>P.IVA 17322991005<br>REA RM - 1710623<br>Rome, Italy</p>
             </div>
-            <div class="footer-links"><h4>Services</h4><ul><li><a href="/apartments.html">Apartments</a></li><li><a href="/property-finding.html">Property Finding</a></li><li><a href="/deal-assistance.html">Deal Assistance</a></li>
-                        <li><a href="/contract-check.html">Free Contract Check</a></li><li><a href="/virtual-viewing.html">Virtual Viewing</a></li><li><a href="/concierge.html">Concierge</a></li></ul></div>
-            <div class="footer-links"><h4>Company</h4><ul><li><a href="/about.html">About</a></li><li><a href="/how-it-works.html">How It Works</a></li><li><a href="/universities.html">For Universities</a></li>
-<li><a href="/corporate.html">For Companies</a></li>
-<li><a href="/research.html">For Research</a></li>
-                        <li><a href="/refer.html">Refer a Friend</a></li>
-<li><a href="/owners.html">For Owners</a></li><li><a href="/blog.html">Blog</a></li><li><a href="/faq.html">FAQ</a></li><li><a href="/contact.html">Contact</a></li></ul></div>
-            <div class="footer-links"><h4>Legal</h4><ul><li><a href="/terms.html">Terms</a></li><li><a href="/privacy.html">Privacy</a></li><li><a href="/login.html">Login</a></li></ul></div>
+            <div class="footer-links"><h4>Services</h4><ul><li><a href="/apartments">Apartments</a></li><li><a href="/property-finding">Property Finding</a></li><li><a href="/deal-assistance">Deal Assistance</a></li>
+                        <li><a href="/contract-check">Free Contract Check</a></li><li><a href="/virtual-viewing">Virtual Viewing</a></li><li><a href="/concierge">Concierge</a></li></ul></div>
+            <div class="footer-links"><h4>Company</h4><ul><li><a href="/about">About</a></li><li><a href="/how-it-works">How It Works</a></li><li><a href="/universities">For Universities</a></li>
+<li><a href="/corporate">For Companies</a></li>
+<li><a href="/research">For Research</a></li>
+                        <li><a href="/refer">Refer a Friend</a></li>
+<li><a href="/owners">For Owners</a></li><li><a href="/blog">Blog</a></li><li><a href="/faq">FAQ</a></li><li><a href="/contact">Contact</a></li></ul></div>
+            <div class="footer-links"><h4>Legal</h4><ul><li><a href="/terms">Terms</a></li><li><a href="/privacy">Privacy</a></li><li><a href="/login">Login</a></li></ul></div>
         </div>
         <div class="footer-bottom"><span>© 2025 BOOM — All Rights Reserved</span><span>Status: Operational</span></div>
     </footer>
@@ -1700,7 +1700,7 @@
     @media(max-width:860px){
       .cine-ambient{display:none!important}
       .cine-on .single-hero-img,.cine-on .carousel-slide img{animation:none!important}
-      .mobile-cta{backdrop-filter:none;-webkit-backdrop-filter:none;background:rgba(5,5,7,.97)}
+      .mobile-cta{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(5,5,7,.97)}
       .cine-cta::after,.mdx-launch::after{display:none!important}
     }
     </style>
@@ -2606,7 +2606,7 @@
     .mdx-brand{position:absolute;top:24px;left:24px;z-index:7;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:rgba(255,215,0,.85)}
     .mdx-count{position:absolute;top:24px;left:50%;transform:translateX(-50%);z-index:7;font-size:10px;letter-spacing:2.5px;color:#777;font-variant-numeric:tabular-nums}
     @media(max-width:560px){.mdx-count{display:none}}
-    .mdx-x{position:absolute;top:16px;right:18px;z-index:7;width:42px;height:42px;border-radius:50%;border:1px solid rgba(255,255,255,.16);background:rgba(0,0,0,.5);backdrop-filter:blur(8px);color:#fff;font-size:19px;cursor:pointer;transition:all .25s;font-family:inherit}
+    .mdx-x{position:absolute;top:16px;right:18px;z-index:7;width:42px;height:42px;border-radius:50%;border:1px solid rgba(255,255,255,.16);background:rgba(0,0,0,.5);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;font-size:19px;cursor:pointer;transition:all .25s;font-family:inherit}
     .mdx-x:hover{border-color:#FFD700;color:#FFD700;transform:rotate(90deg)}
     .mdx-rail{position:absolute;right:16px;top:50%;transform:translateY(-50%);z-index:7;display:flex;flex-direction:column;gap:12px}
     .mdx-rail button{position:relative;width:10px;height:10px;border-radius:50%;border:1.5px solid rgba(255,255,255,.25);background:transparent;cursor:pointer;padding:0;transition:all .3s}
@@ -2618,7 +2618,7 @@
     .mdx-scroll{position:absolute;inset:0;overflow-y:auto;scroll-snap-type:y proximity;scroll-behavior:smooth;scrollbar-width:none}
     .mdx-scroll::-webkit-scrollbar{display:none}
     .mdx-ch{min-height:100%;scroll-snap-align:start;display:flex;align-items:center;justify-content:center;padding:72px 18px}
-    .mdx-card{width:min(720px,94vw);background:rgba(14,14,16,.55);border:1px solid rgba(255,215,0,.14);border-radius:24px;padding:clamp(24px,4vw,40px);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 40px 100px -40px rgba(0,0,0,.9);opacity:0;transform:translateY(34px);transition:opacity .8s cubic-bezier(.16,1,.3,1),transform .8s cubic-bezier(.16,1,.3,1)}
+    .mdx-card{width:min(720px,94vw);background:rgba(14,14,16,.55);border:1px solid rgba(255,215,0,.14);border-radius:24px;padding:clamp(24px,4vw,40px);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);box-shadow:0 40px 100px -40px rgba(0,0,0,.9);opacity:0;transform:translateY(34px);transition:opacity .8s cubic-bezier(.16,1,.3,1),transform .8s cubic-bezier(.16,1,.3,1)}
     .mdx-ch.lit .mdx-card{opacity:1;transform:none}
     .mdx-ey{font-size:10.5px;letter-spacing:3px;text-transform:uppercase;color:#FFD700;margin-bottom:14px;display:flex;align-items:center;gap:10px}
     .mdx-ey::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(255,215,0,.4),transparent)}

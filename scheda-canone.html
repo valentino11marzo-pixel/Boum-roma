@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>BOOM · Scheda Canone — Accordo Roma 25/07/2023</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#08080A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BOOM Canone">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="/canone-manifest.json">
+<style>
+  :root{--nero:#08080A;--oro:#D4AF37;--oro2:#C9A96E;--carta:#F7F5F0;--gr:#8A8A8E;--ln:#26262B;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--nero);color:var(--carta);font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-weight:300;padding-bottom:90px;padding-top:env(safe-area-inset-top,0)}
+  .wrap{max-width:900px;margin:0 auto;padding:0 22px}
+  header{padding:40px 0 24px;border-bottom:1px solid var(--ln);margin-bottom:26px;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px}
+  h1{font-weight:300;font-size:24px;letter-spacing:.28em}
+  .tag{color:var(--oro);font-size:10px;letter-spacing:.22em;text-transform:uppercase}
+  .modi{display:flex;gap:0;border:1px solid var(--ln)}
+  .modi button{background:transparent;border:none;color:var(--gr);font:inherit;font-size:10px;letter-spacing:.18em;text-transform:uppercase;padding:9px 16px;cursor:pointer}
+  .modi button.att{background:var(--oro);color:var(--nero)}
+  h2{font-weight:300;font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--oro);margin:30px 0 14px}
+  .card{border:1px solid var(--ln);padding:20px;margin-bottom:16px}
+  label{display:block;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--gr);margin-bottom:5px}
+  input,select{width:100%;background:transparent;border:none;border-bottom:1px solid var(--ln);color:var(--carta);font:inherit;font-size:14px;padding:5px 2px;outline:none}
+  input:focus,select:focus{border-bottom-color:var(--oro)}select option{background:var(--nero)}
+  .g{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px}
+  .chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:7px;margin-top:6px}
+  .chip{display:flex;align-items:center;gap:9px;border:1px solid var(--ln);padding:8px 11px;cursor:pointer;font-size:12.5px;user-select:none}
+  .chip input{width:auto;accent-color:var(--oro)}.chip.on{border-color:var(--oro2)}
+  .magg{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:7px}
+  .verd{margin:24px 0;border:1px solid var(--ln);position:relative}
+  .verd .banda{padding:24px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+  .verd .st{font-size:12px;letter-spacing:.3em;text-transform:uppercase}
+  .verd.in .st{color:var(--oro)}.verd.out .st{color:#E08573}
+  .verd .rng{font-size:24px}.verd .rng small{font-size:11px;color:var(--gr)}
+  .det{font-size:12px;color:var(--gr);padding:0 20px 16px;line-height:1.75}.det b{color:var(--carta);font-weight:400}
+  .filo{position:absolute;left:0;right:0;bottom:0;height:2px;background:linear-gradient(90deg,transparent,var(--oro),transparent)}
+  .verd.out .filo{background:linear-gradient(90deg,transparent,#A33B2E,transparent)}
+  button.b{background:transparent;border:1px solid var(--oro);color:var(--oro);font:inherit;font-size:10px;letter-spacing:.2em;text-transform:uppercase;padding:9px 18px;cursor:pointer;transition:.25s}
+  button.b:hover{background:var(--oro);color:var(--nero)}
+  button.gh{border-color:var(--ln);color:var(--gr)}button.gh:hover{background:transparent;border-color:var(--gr);color:var(--carta)}
+  .barra{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--gr);font-weight:300;text-align:left;padding:7px 5px;border-bottom:1px solid var(--ln)}
+  td{padding:6px 5px;border-bottom:1px solid var(--ln)}td input{border-bottom:none;font-size:12.5px;padding:2px}
+  .del{color:var(--gr);cursor:pointer}.del:hover{color:#E08573}
+  details{margin-bottom:16px}summary{cursor:pointer;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gr);padding:9px 0}summary:hover{color:var(--carta)}
+  .riep{white-space:pre-wrap;font-size:12px;line-height:1.8;border:1px solid var(--ln);background:rgba(255,255,255,.02);padding:16px;margin-top:12px;display:none}
+  .avv{border:1px solid #6b5b23;background:rgba(212,175,55,.05);padding:11px 15px;font-size:11.5px;color:var(--oro2);line-height:1.6;margin-bottom:16px}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--oro);color:var(--nero);padding:9px 20px;font-size:11px;letter-spacing:.12em;opacity:0;transition:.3s;pointer-events:none;z-index:60}
+  .toast.show{opacity:1}
+  /* wizard */
+  #wiz .card{min-height:170px;display:flex;flex-direction:column;justify-content:center}
+  #wiz .q{font-size:17px;margin-bottom:16px;line-height:1.5}
+  #wiz .prog{font-size:9px;letter-spacing:.2em;color:var(--gr);text-transform:uppercase;margin-bottom:10px}
+  .salv tr:hover td{color:var(--oro2);cursor:pointer}
+
+  /* ====== SCHEDA ARPE (documento stampabile) ====== */
+  #arpeWrap{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:50;overflow-y:auto;padding:26px 12px}
+  #arpeWrap.open{display:block}
+  .paper{max-width:860px;margin:0 auto;background:#fff;color:#111;padding:46px 52px;font-family:Georgia,"Times New Roman",serif;font-size:12.5px;line-height:1.55}
+  .paper .doc-h{text-align:center;border-bottom:2px solid #111;padding-bottom:12px;margin-bottom:6px}
+  .paper .doc-h .t1{font-size:16px;font-weight:700;letter-spacing:.06em}
+  .paper .doc-h .t2{font-size:11px;margin-top:5px}
+  .paper h3{font-size:11px;letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid #111;margin:20px 0 8px;padding-bottom:3px;font-weight:700}
+  .paper .rg{display:grid;grid-template-columns:repeat(2,1fr);gap:3px 26px}
+  .paper .rg3{display:grid;grid-template-columns:repeat(3,1fr);gap:3px 22px}
+  .paper .f{padding:2.5px 0}
+  .paper .f b{font-weight:700}
+  .paper table{width:100%;border-collapse:collapse;font-size:12px;margin:6px 0}
+  .paper th{border:1px solid #111;background:#eee;color:#111;font-weight:700;font-size:10.5px;letter-spacing:.03em;text-transform:none;padding:5px 7px;text-align:left}
+  .paper td{border:1px solid #111;padding:4.5px 7px;color:#111}
+  .paper td.n{text-align:right;font-variant-numeric:tabular-nums}
+  .paper .tot td{font-weight:700;background:#f4f4f4}
+  .paper .el{columns:2;column-gap:30px;font-size:11.5px;margin:6px 0}
+  .paper .el div{break-inside:avoid;padding:1.5px 0}
+  .paper .esito{border:2px solid #111;padding:12px 16px;margin-top:14px;text-align:center;font-size:13px}
+  .paper .esito b{font-size:15px}
+  .paper .firma{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:34px}
+  .paper .firma div{border-top:1px solid #111;padding-top:5px;text-align:center;font-size:11px}
+  .paper .note{font-size:10px;color:#444;margin-top:22px;border-top:1px solid #999;padding-top:8px;line-height:1.5}
+  .arpe-bar{max-width:860px;margin:0 auto 12px;display:flex;gap:9px;justify-content:flex-end;flex-wrap:wrap}
+  .arpe-hint{max-width:860px;margin:8px auto 0;font-size:10px;color:var(--gr);letter-spacing:.05em;text-align:right}
+  @media(max-width:640px){.paper{padding:26px 20px}.paper .rg,.paper .rg3{grid-template-columns:1fr}.paper .el{columns:1}}
+
+  /* ====== ALLEGATO 2/B (replica fedele del modulo dell'Accordo) ====== */
+  .paper.a2b{font-family:"Avenir","Avenir Next","Nunito Sans","Segoe UI",Calibri,"Helvetica Neue",sans-serif;font-size:12px;line-height:1.5;padding:34px 40px}
+  .paper.a2b .alleg{text-align:right;font-size:11px;margin-bottom:6px}
+  .paper.a2b .tit{text-align:center;font-weight:700;font-size:13px;line-height:1.4;margin-bottom:12px}
+  .paper.a2b table{margin:4px 0;font-size:11.5px}
+  .paper.a2b th,.paper.a2b td{border:1px solid #111;padding:3px 6px;color:#111}
+  .paper.a2b .nb td{border:none;padding:2px 4px}
+  .paper.a2b .sez{font-weight:700;margin:10px 0 3px;font-size:11.5px}
+  .paper.a2b .cbx{font-family:inherit}
+  .paper.a2b .riga{margin:4px 0}
+  .paper.a2b .firmeA{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:30px}
+  .paper.a2b .firmeA div{border-top:1px solid #111;padding-top:4px;text-align:center;font-size:11px}
+  .paper.a2b .footdm{margin-top:26px;text-align:center;font-size:9.5px;letter-spacing:.04em;color:#333;border:none}
+  body.print-arpe .paper.a2b{font-size:8.5pt;line-height:1.5}
+  body.print-arpe .paper.a2b .tit{font-size:10pt}
+
+  /* ====== PREVENTIVO BOOM (variante brandizzata) ====== */
+  .paper.boom{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;color:#161616}
+  .paper.boom .bhead{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #B8960C;padding-bottom:14px;margin-bottom:18px}
+  .paper.boom .bhead .bl{display:flex;align-items:center;gap:14px}
+  .paper.boom .bhead .bname{font-size:24px;font-weight:300;letter-spacing:.3em}
+  .paper.boom .bhead .bsub{font-size:9px;letter-spacing:.24em;text-transform:uppercase;color:#B8960C;margin-top:4px}
+  .paper.boom .bhead .bdoc{text-align:right;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#666}
+  .paper.boom h3{border-bottom:1px solid #B8960C;color:#8a6d00;font-weight:400;letter-spacing:.18em}
+  .paper.boom .hero{border:2px solid #B8960C;padding:18px 22px;margin:16px 0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+  .paper.boom .hero .hl{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#8a6d00}
+  .paper.boom .hero .hv{font-size:30px;font-weight:300}
+  .paper.boom .hero .hv small{font-size:12px;color:#666}
+  .paper.boom table{font-size:12px}
+  .paper.boom th{background:#faf6ea;border-color:#B8960C;color:#161616}
+  .paper.boom td{border-color:#cbb87a}
+  .paper.boom .tot td{background:#faf6ea}
+  .paper.boom .risp{background:#faf6ea;border:1px solid #B8960C;padding:12px 16px;margin-top:10px;font-size:12.5px;line-height:1.7}
+  .paper.boom .note{border-top-color:#B8960C}
+
+  @page{size:A4;margin:14mm}
+  @media print{
+    body{background:#fff;color:#000;padding:0}
+    body:not(.print-arpe) header .modi,body:not(.print-arpe) .barra,body:not(.print-arpe) details,body:not(.print-arpe) .avv,body:not(.print-arpe) .salv-sec{display:none!important}
+    body:not(.print-arpe) .card,body:not(.print-arpe) .verd{border-color:#000}
+    body:not(.print-arpe) .verd .st{color:#000!important}
+    body.print-arpe #appRoot{display:none!important}
+    body.print-arpe #arpeWrap{display:block;position:static;background:#fff;padding:0;overflow:visible}
+    body.print-arpe .arpe-bar,body.print-arpe .arpe-hint{display:none!important}
+    body.print-arpe .paper{max-width:none;padding:0;font-size:10pt;line-height:1.5}
+    body.print-arpe .paper h3{page-break-after:avoid}
+    body.print-arpe .paper table,body.print-arpe .paper .esito,body.print-arpe .paper .firma{page-break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div id="appRoot">
+<div class="wrap">
+  <header>
+    <div><h1>BOOM</h1><div class="tag" id="tagAccordo">Scheda Canone · Accordo Roma 25/07/2023</div></div>
+    <div class="modi"><button id="mForm" class="att" onclick="modo('form')">Scheda</button><button id="mWiz" onclick="modo('wiz')">Guidata</button><button id="mChat" onclick="modo('chat')">Chat</button></div>
+  </header>
+
+  <div class="avv" id="avv">Valori zona integrati dalla tabella dell’Accordo 25/07/2023 (agg. 2026, fonte secondaria dellevittorie.it – 76 zone Pregio/Centrali/Semicentrali; le periferiche si aggiungono in Configurazione). Regole: normale = 4 requisiti; Fascia B da 3 parametri, C da 7; gli aumenti non superano il massimo di fascia. Confermare sempre la zona esatta con ARPE: i perimetri OMI non coincidono con i quartieri.</div>
+
+  <details>
+    <summary>Configurazione accordo — zone €/mq, soglie subfascia, accordi multipli</summary>
+    <div class="card">
+      <div class="g" style="margin-bottom:14px">
+        <div><label>Accordo attivo</label><select id="selAccordo" onchange="cambiaAccordo()"></select></div>
+        <div style="display:flex;align-items:flex-end;gap:8px"><button class="b gh" onclick="nuovoAccordo()">+ Nuovo accordo</button></div>
+      </div>
+      <h2 style="margin-top:0">Zone — fascia di oscillazione (€/mq/mese)</h2>
+      <table id="tz"><thead><tr><th>Zona</th><th>A min</th><th>A max</th><th>B min</th><th>B max</th><th>C min</th><th>C max</th><th></th></tr></thead><tbody></tbody></table>
+      <div class="barra"><button class="b gh" onclick="addZona()">+ Zona</button></div>
+      <h2>Soglie subfascia (n. parametri su 20)</h2>
+      <div class="g">
+        <div><label>Parametri minimi → FASCIA B</label><input type="number" id="sMed"></div>
+        <div><label>Parametri minimi → FASCIA C</label><input type="number" id="sMax"></div>
+        <div><label>Maggiorazione ammobiliato % (accordo)</label><input type="number" id="pArr"></div>
+        <div><label>Maggiorazione durata % (se applicabile)</label><input type="number" id="pDur"></div>
+      </div>
+      <div class="barra"><button class="b" onclick="salvaCfg()">Salva configurazione</button></div>
+    </div>
+  </details>
+
+  <!-- ============ MODALITÀ SCHEDA ============ -->
+  <div id="form">
+    <h2>Immobile e superficie</h2>
+    <div class="card">
+      <div class="g">
+        <div style="grid-column:1/-1"><label>Indirizzo / pratica</label><input id="ind" placeholder="Via ..., int. ..."></div>
+        <div><label>Zona accordo</label><select id="zona"></select></div>
+        <div><label>Tipo contratto</label><select id="tipo"><option value="stud">Studenti universitari</option><option value="trans">Transitorio (+10%)</option><option value="32">3+2</option></select></div>
+        <div><label>Alloggio “normale”? (acqua, gas/induzione, fognatura, riscaldamento)</label><select id="normale"><option value="s">Sì – tutti e 4 i requisiti</option><option value="n">No → Fascia A</option></select></div><div><label>Mq calpestabili</label><input type="number" id="mq" step="0.5"></div>
+        <div><label>Mq box/posto auto esclusivo</label><input type="number" id="mqBox" value="0" step="0.5"></div>
+        <div><label>Box in zona pregiata?</label><select id="boxPre"><option value="n">No (×0,50)</option><option value="s">Sì (×0,80)</option></select></div>
+        <div><label>Mq posto auto comune (×0,20)</label><input type="number" id="mqPC" value="0" step="0.5"></div>
+        <div><label>Mq balconi/terrazze/cantine (×0,25)</label><input type="number" id="mqBal" value="0" step="0.5"></div>
+        <div><label>Mq scoperta esclusiva (×0,15)</label><input type="number" id="mqSc" value="0" step="0.5"></div>
+        <div><label>Mq verde condominiale/quota (×0,10)</label><input type="number" id="mqVe" value="0" step="0.5"></div>
+        <div><label>Canone proposto €/mese</label><input type="number" id="prop" step="10"></div>
+      </div>
+    </div>
+
+    <details id="datiDoc">
+      <summary>Dati per la scheda ARPE — parti, catasto, contratto (facoltativi per il calcolo)</summary>
+      <div class="card">
+        <div class="g">
+          <div><label>Locatore (nome e cognome)</label><input id="locNome"></div>
+          <div><label>C.F. locatore</label><input id="locCF" style="text-transform:uppercase"></div>
+          <div><label>Conduttore (nome e cognome)</label><input id="conNome"></div>
+          <div><label>C.F. conduttore</label><input id="conCF" style="text-transform:uppercase"></div>
+          <div><label>Foglio</label><input id="catFoglio"></div>
+          <div><label>Particella</label><input id="catPart"></div>
+          <div><label>Subalterno</label><input id="catSub"></div>
+          <div><label>Categoria catastale</label><input id="catCat" placeholder="es. A/2"></div>
+          <div><label>Piano</label><input id="piano"></div>
+          <div><label>Interno</label><input id="interno"></div>
+          <div><label>Classe energetica (APE)</label><select id="apeClasse"><option value="">—</option><option>A4</option><option>A3</option><option>A2</option><option>A1</option><option>B</option><option>C</option><option>D</option><option>E</option><option>F</option><option>G</option></select></div>
+          <div><label>Decorrenza contratto</label><input type="date" id="decorrenza"></div>
+          <div><label>Stipulato il</label><input type="date" id="stipulato"></div>
+          <div><label>Registrazione</label><select id="regStato"><option value="da">Da registrare</option><option value="reg">Registrato il…</option></select></div>
+          <div><label>Data registrazione (se registrato)</label><input type="date" id="regData"></div>
+          <div><label>Durata (mesi — vuoto = da tipologia)</label><input type="number" id="durataMesi" min="1" max="72"></div>
+        </div>
+      </div>
+    </details>
+
+    <h2>Parametri descrittivi (20 ufficiali)</h2>
+    <div class="card" id="parCard"><div class="chips" id="par"></div></div>
+    <h2>Maggiorazioni / riduzioni</h2>
+    <div class="card" id="magCard"><div class="magg" id="mag"></div></div>
+  </div>
+
+  <!-- ============ MODALITÀ GUIDATA ============ -->
+  <div id="wiz" style="display:none">
+    <div class="card">
+      <div class="prog" id="wProg"></div>
+      <div class="q" id="wQ"></div>
+      <div id="wBody"></div>
+      <div class="barra"><button class="b gh" onclick="wPrev()">← Indietro</button><button class="b" id="wNext" onclick="wAvanti()">Avanti →</button></div>
+    </div>
+  </div>
+
+
+  <!-- ============ MODALITÀ CHAT (AI + motore deterministico) ============ -->
+  <div id="chat" style="display:none">
+    <div class="card" style="padding:0">
+      <div id="chLog" style="max-height:420px;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:10px"></div>
+      <div style="display:flex;border-top:1px solid var(--ln)">
+        <input id="chIn" placeholder="Es: attico 85 mq a Trieste, arredato con ascensore e balcone 8mq, vorrei chiedere 1900" style="border:none;padding:14px 16px" onkeydown="if(event.key==='Enter')chSend()">
+        <button class="b" style="border:none;border-left:1px solid var(--ln)" onclick="chSend()">Invia</button>
+      </div>
+    </div>
+    <div style="font-size:10px;color:var(--gr);letter-spacing:.06em;line-height:1.6">La chat estrae i dati e li passa al motore di calcolo ufficiale — i numeri non li inventa mai. Richiede il deploy su Vercel con api/canone-bot.js attivo; senza endpoint, usa la modalità Guidata.</div>
+  </div>
+
+  <div class="verd" id="verd" style="display:none">
+    <div class="banda">
+      <div><div class="st" id="vSt">—</div><div style="font-size:10px;color:var(--gr);margin-top:6px;letter-spacing:.1em" id="vSub"></div></div>
+      <div class="rng" id="vRng"></div>
+    </div>
+    <div class="det" id="vDet"></div><div class="filo"></div>
+  </div>
+
+  <div class="barra">
+    <button class="b" onclick="calc(true)">Calcola</button>
+    <button class="b" onclick="apriArpe()">📄 Scheda ARPE</button>
+    <button class="b" onclick="apriPreventivo()">✨ Preventivo BOOM</button>
+    <button class="b gh" onclick="copia()">Copia riepilogo</button>
+    <button class="b gh" onclick="salvaPr()">Salva pratica</button>
+    <button class="b gh" onclick="nuovaPratica()">Nuova pratica</button>
+  </div>
+  <div class="riep" id="riep"></div>
+
+  <div class="salv-sec"><h2>Pratiche salvate <span style="color:var(--gr);text-transform:none;letter-spacing:.05em">— tocca una riga per ricaricarla</span></h2>
+    <div class="card"><table class="salv" id="tp"><thead><tr><th>Pratica</th><th>Zona</th><th>Max €</th><th>Proposto</th><th>Esito</th><th></th></tr></thead><tbody></tbody></table></div>
+  </div>
+</div>
+</div><!-- /appRoot -->
+
+<!-- ============ DOCUMENTO: SCHEDA DI DETERMINAZIONE DEL CANONE ============ -->
+<div id="arpeWrap">
+  <div class="arpe-bar">
+    <button class="b" onclick="stampaArpe()">Stampa / Salva PDF</button>
+    <button class="b gh" onclick="chiudiArpe()">Chiudi</button>
+  </div>
+  <div class="paper" id="arpePaper"></div>
+  <div class="arpe-hint">Su iPhone: Stampa → Condividi per salvare in PDF. Se la stampa non parte dall’app installata, apri la pagina in Safari.</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/js/canone-engine.js"></script>
+<script>
+// Persistenza browser: stessa API window.storage del tool originale, stesse
+// chiavi ('boom-canone-v2-cfg' / 'boom-canone-v2-pr'), backend localStorage.
+if(!window.storage){window.storage={
+  async get(k){const v=localStorage.getItem(k);return v==null?null:{value:v};},
+  async set(k,v){localStorage.setItem(k,v);}
+};}
+// ====== PARAMETRI UFFICIALI (scheda ARPE 25/07/2023) ======
+const PARAMETRI = ["Posto auto","Cortile d'uso comune / area verde / impianto sportivo","Cantina","Terrazzo o balcone","Area verde di pertinenza","Aria condizionata","Stabile con ascensore","Bagno con finestra o doppi servizi","Porta blindata","Doppi vetri","Stabile con servizio di portierato","Stabile o U.I. ultimati o completamente ristrutturati","Sistema di sicurezza o allarme","Cucina abitabile con finestra","Videocitofono o videosorveglianza","Antenna centralizzata o satellitare","Riscaldamento autonomo","Stabile non superiore a 4 piani","Superamento barriere architettoniche","Terrazzo o locale condominiale ad uso comune"];
+const MAGG = [
+  {id:"arr", n:"A — Ammobiliato", p:"cfg", tip:"+"},
+  {id:"sem", n:"B — Seminterrato", p:-10},
+  {id:"asc", n:"C — Senza ascensore", p:-10},
+  {id:"att", n:"D — Attico", p:10},
+  {id:"clA", n:"E — Classe energetica A/B/C", p:10},
+  {id:"eco", n:"F — Interventi Eco Bonus", p:5},
+  {id:"sis", n:"G — Interventi Sisma Bonus", p:10},
+  {id:"clD", n:"H — Classe energetica D/E/F", p:5},
+  {id:"vin", n:"Immobile vincolato / Cat. A1–A8", p:0, custom:true},
+];
+// ====== STATO ======
+// La tabella zone vive in UN posto solo: js/canone-engine.js (la stessa
+// del Fascicolo Fiscale server-side). La copia inline che divergeva in
+// silenzio e' stata rimossa (audit 2026-08, D5.4). _engineZones() clona,
+// cosi' le modifiche manuali non mutano il motore.
+function _engineZones(){ return (window.BOOM_CANONE && window.BOOM_CANONE.ZONES || []).map(z=>({ ...z })); }
+let CFG = { accordi:[{nome:"Roma 25/07/2023 (tab. agg. 2026)", zone:_engineZones()}], attivo:0, sMed:3, sMax:7, pArr:0, pDur:0, calibrato:true };
+let pratiche=[], ultimo=null;
+
+// Campi della pratica (bozza autosalvata + snapshot nelle pratiche salvate)
+const CAMPI_IDS=['ind','zona','tipo','normale','mq','mqBox','boxPre','mqPC','mqBal','mqSc','mqVe','prop','locNome','locCF','conNome','conCF','catFoglio','catPart','catSub','catCat','piano','interno','apeClasse','decorrenza','stipulato','regStato','regData','durataMesi'];
+const DRAFT_KEY='boom-canone-v2-draft';
+
+async function load(){
+  try{const r=await window.storage.get('boom-canone-v2-cfg'); if(r&&r.value) CFG=JSON.parse(r.value);}catch(e){}
+  // La tabella del motore vince sempre sulla copia salvata, salvo edit manuale
+  if(CFG.zoneSrc!=='manual' && window.BOOM_CANONE){ CFG.accordi[CFG.attivo||0].zone=_engineZones(); }
+  try{const r=await window.storage.get('boom-canone-v2-pr'); if(r&&r.value) pratiche=JSON.parse(r.value);}catch(e){}
+  renderCfg(); renderPar(); renderMag(); renderZone(); renderPr();
+  try{const r=await window.storage.get(DRAFT_KEY); if(r&&r.value) applicaSnapshot(JSON.parse(r.value));}catch(e){}
+  document.getElementById('avv').style.display=CFG.calibrato?'none':'block';
+  document.getElementById('tagAccordo').textContent='Scheda Canone · Accordo '+CFG.accordi[CFG.attivo].nome;
+}
+async function pcfg(){try{await window.storage.set('boom-canone-v2-cfg',JSON.stringify(CFG));}catch(e){toast('Storage KO — in memoria');}}
+async function ppr(){try{await window.storage.set('boom-canone-v2-pr',JSON.stringify(pratiche));}catch(e){toast('Storage KO — pratica non persistita');}}
+
+// ====== BOZZA (autosave di tutti i campi, chips comprese) ======
+function snapshotForm(){
+  const s={v:{},par:[],mag:[]};
+  CAMPI_IDS.forEach(id=>{const el=document.getElementById(id); if(el&&el.value!=='')s.v[id]=el.value;});
+  document.querySelectorAll('#par input:checked').forEach(x=>s.par.push(+x.dataset.p));
+  MAGG.forEach(m=>{const el=document.getElementById('mg_'+m.id); if(el&&el.checked)s.mag.push(m.id);});
+  return s;
+}
+function applicaSnapshot(s){
+  if(!s)return;
+  CAMPI_IDS.forEach(id=>{const el=document.getElementById(id); if(el&&s.v&&s.v[id]!==undefined)el.value=s.v[id];});
+  document.querySelectorAll('#par input').forEach(x=>{x.checked=(s.par||[]).includes(+x.dataset.p);x.parentElement.classList.toggle('on',x.checked);});
+  MAGG.forEach(m=>{const el=document.getElementById('mg_'+m.id); if(el){el.checked=(s.mag||[]).includes(m.id);el.parentElement.classList.toggle('on',el.checked);}});
+}
+let draftT=null;
+function salvaBozza(){clearTimeout(draftT);draftT=setTimeout(async()=>{try{await window.storage.set(DRAFT_KEY,JSON.stringify(snapshotForm()));}catch(e){}},400);}
+document.addEventListener('input',e=>{if(e.target.closest('#form,#wBody'))salvaBozza();});
+document.addEventListener('change',e=>{if(e.target.closest('#form,#wBody'))salvaBozza();});
+async function nuovaPratica(){
+  CAMPI_IDS.forEach(id=>{const el=document.getElementById(id); if(!el)return; if(el.tagName==='SELECT')el.selectedIndex=0; else el.value=(['mqBox','mqPC','mqBal','mqSc','mqVe'].includes(id)?'0':'');});
+  document.querySelectorAll('#par input,#mag input').forEach(x=>{x.checked=false;x.parentElement.classList.remove('on');});
+  ultimo=null; verd.style.display='none'; riep.style.display='none';
+  try{await window.storage.set(DRAFT_KEY,'null');}catch(e){}
+  toast('Nuova pratica'); window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function renderCfg(){
+  const s=selAccordo; s.innerHTML=''; CFG.accordi.forEach((a,i)=>{const o=document.createElement('option');o.value=i;o.textContent=a.nome;s.appendChild(o);}); s.value=CFG.attivo;
+  const tb=document.querySelector('#tz tbody'); tb.innerHTML='';
+  CFG.accordi[CFG.attivo].zone.forEach((z,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td><input value="${(z.cod?z.cod+' ':'')+z.nome}" onchange="CFG.accordi[CFG.attivo].zone[${i}].nome=this.value;CFG.zoneSrc='manual'"></td>`+
+      ['aMin','aMax','bMin','bMax','cMin','cMax'].map(k=>`<td><input type="number" step="0.01" value="${z[k]}" onchange="CFG.accordi[CFG.attivo].zone[${i}].${k}=+this.value;CFG.zoneSrc='manual'"></td>`).join('')+
+      `<td><span class="del" onclick="CFG.accordi[CFG.attivo].zone.splice(${i},1);renderCfg();renderZone()">×</span></td>`;
+    tb.appendChild(tr);
+  });
+  sMed.value=CFG.sMed; sMax.value=CFG.sMax; pArr.value=CFG.pArr; pDur.value=CFG.pDur;
+}
+function addZona(){CFG.zoneSrc='manual';CFG.accordi[CFG.attivo].zone.push({cod:"",nome:"Nuova zona",aMin:0,aMax:0,bMin:0,bMax:0,cMin:0,cMax:0});renderCfg();renderZone();}
+function nuovoAccordo(){const n=prompt("Nome nuovo accordo (es. Roma 09/2026):"); if(!n)return; CFG.accordi.push({nome:n,zone:JSON.parse(JSON.stringify(CFG.accordi[CFG.attivo].zone))}); CFG.attivo=CFG.accordi.length-1; renderCfg(); renderZone(); toast('Accordo creato — zone copiate, aggiorna i valori');}
+function cambiaAccordo(){CFG.attivo=+selAccordo.value; renderCfg(); renderZone(); document.getElementById('tagAccordo').textContent='Scheda Canone · Accordo '+CFG.accordi[CFG.attivo].nome;}
+async function salvaCfg(){CFG.sMed=+sMed.value;CFG.sMax=+sMax.value;CFG.pArr=+pArr.value;CFG.pDur=+pDur.value;CFG.calibrato=true;await pcfg();document.getElementById('avv').style.display='none';toast('Configurazione salvata');}
+function renderZone(){const s=zona;const c=s.value;s.innerHTML='';CFG.accordi[CFG.attivo].zone.forEach((z,i)=>{const o=document.createElement('option');o.value=i;o.textContent=(z.cod?z.cod+' · ':'')+z.nome+` (B ${z.bMin}–${z.bMax})`;s.appendChild(o);});if(c)s.value=c;}
+function renderPar(){const b=par;b.innerHTML='';PARAMETRI.forEach((p,i)=>{const l=document.createElement('label');l.className='chip';l.innerHTML=`<input type="checkbox" data-p="${i}" onchange="this.parentElement.classList.toggle('on',this.checked)"> ${i+1}. ${p}`;b.appendChild(l);});}
+function renderMag(){const b=mag;b.innerHTML='';MAGG.forEach(m=>{const l=document.createElement('label');l.className='chip';const pct=m.p==='cfg'?`+${CFG.pArr}%`:(m.custom?'+__%':(m.p>0?'+':'')+m.p+'%');l.innerHTML=`<input type="checkbox" id="mg_${m.id}" onchange="this.parentElement.classList.toggle('on',this.checked)"> ${m.n} <span style="color:var(--gr)">${pct}</span>`;b.appendChild(l);});}
+
+// ====== MOTORE (coefficienti ufficiali) ======
+let SUP_PARTS=[]; // dettaglio superficie convenzionale per il documento (stessa aritmetica di supConv)
+function supConv(mq,box,boxPre,pc,bal,sc,ve){
+  let base, regola;
+  if(mq<46){ base=Math.min(mq*1.30,52.90); regola='×1,30 (max 52,90)'; }
+  else if(mq<=70){ base=Math.min(mq*1.15,70.00); regola='×1,15 (max 70,00)'; }
+  else { base=mq; regola='×1,00'; } // 70–120 ×1; >120: eventuale riduzione fino a −15% da concordare
+  SUP_PARTS=[{n:'Superficie utile calpestabile',mq:mq,c:regola,v:base}];
+  if(box>0)SUP_PARTS.push({n:'Box / posto auto esclusivo'+(boxPre?' (zona pregiata)':''),mq:box,c:boxPre?'×0,80':'×0,50',v:box*(boxPre?0.80:0.50)});
+  if(pc>0)SUP_PARTS.push({n:'Posto auto comune',mq:pc,c:'×0,20',v:pc*0.20});
+  if(bal>0)SUP_PARTS.push({n:'Balconi / terrazze / cantine',mq:bal,c:'×0,25',v:bal*0.25});
+  if(sc>0)SUP_PARTS.push({n:'Superficie scoperta esclusiva',mq:sc,c:'×0,15',v:sc*0.15});
+  if(ve>0)SUP_PARTS.push({n:'Verde condominiale (quota)',mq:ve,c:'×0,10',v:ve*0.10});
+  return base + box*(boxPre?0.80:0.50) + pc*0.20 + bal*0.25 + sc*0.15 + ve*0.10;
+}
+function calc(show){
+  const A=CFG.accordi[CFG.attivo]; const z=A.zone[+zona.value];
+  if(!z||!(z.aMax>0&&z.bMax>0&&z.cMax>0)){ if(show)toast('Configura la zona (€/mq min/max)'); return null; }
+  const mqv=+mq.value||0; if(mqv<=0){if(show)toast('Mq calpestabili mancanti');return null;}
+  const sc_=supConv(mqv,+mqBox.value||0,boxPre.value==='s',+mqPC.value||0,+mqBal.value||0,+mqSc.value||0,+mqVe.value||0);
+  const nP=document.querySelectorAll('#par input:checked').length;
+  const normale = document.getElementById('normale').value==='s';
+  const fascia = !normale ? 'A' : nP>=CFG.sMax ? 'C' : nP>=CFG.sMed ? 'B' : 'A';
+  const fMin = z[fascia.toLowerCase()+'Min'], fMax = z[fascia.toLowerCase()+'Max'];
+  const sub = fascia;
+  const eur = fMax; // riferimento prudenziale: massimo della fascia applicabile
+  let pct=0, note=[];
+  const on=id=>document.getElementById('mg_'+id).checked;
+  if(tipo.value==='trans'){pct+=10;note.push('transitorio +10%');}
+  if(CFG.pDur&&tipo.value==='32'){pct+=CFG.pDur;note.push('durata +'+CFG.pDur+'%');}
+  if(on('arr')){pct+=CFG.pArr;note.push('ammobiliato +'+CFG.pArr+'%');}
+  if(on('sem')){pct-=10;note.push('seminterrato −10%');}
+  if(on('asc')){pct-=10;note.push('senza ascensore −10%');}
+  if(on('att')){pct+=10;note.push('attico +10%');}
+  if(on('clA')){pct+=10;note.push('classe A/B/C +10%');}
+  if(on('eco')){pct+=5;note.push('Eco Bonus +5%');}
+  if(on('sis')){pct+=10;note.push('Sisma Bonus +10%');}
+  if(on('clD')){pct+=5;note.push('classe D/E/F +5%');}
+  const f=1+pct/100;
+  // Regola accordo: gli incrementi NON possono superare il massimo di fascia; le riduzioni sì.
+  const capMese = fMax*sc_;
+  const cMin = Math.max(0, fMin*sc_*Math.min(f,1));
+  const cMax = Math.min(fMax*sc_*f, pct>0 ? capMese : fMax*sc_*f);
+  const cApp = cMax;
+  const p=+prop.value||0; const inF = p>0 ? p<=cMax+0.005 : null;
+  const parIdx=[...document.querySelectorAll('#par input:checked')].map(x=>+x.dataset.p);
+  ultimo={ind:ind.value,zona:z.nome,zonaCod:z.cod||'',tipo:tipo.value,mq:mqv,sc:sc_,nP,sub,eur,pct,note,cMin,cApp,cMax,p,inF,
+    fMin,fMax,normale,parIdx,parts:SUP_PARTS.slice(),snap:snapshotForm()};
+  const v=verd; v.style.display='block'; v.className='verd '+(inF===false?'out':inF?'in':'');
+  vSt.textContent=inF===null?'CANONE MASSIMO CALCOLATO':inF?'IN FASCIA — ASSEVERABILE':'FUORI FASCIA';
+  vSub.textContent=`${nP} parametri · FASCIA ${fascia} (${fMin}–${fMax} €/mq) · sup. conv. ${fmt(sc_)} mq${pct?` · magg. ${pct>0?'+':''}${pct}% (cap al max di fascia)`:''}`;
+  vRng.innerHTML=`max € ${fmt(cMax)} <small>/mese</small>`;
+  let d=`Fascia applicabile ${fascia}: € ${fmt(fMin*sc_)} – <b>€ ${fmt(cMax)}</b>/mese (annuo max € ${fmt(cMax*12)}). Gli aumenti non possono superare il massimo di fascia.`;
+  if(note.length)d+=` Applicati: ${note.join(', ')}.`;
+  if(p>0)d+= inF?` Proposto <b>€ ${fmt(p)}</b>: sotto il massimo di € ${fmt(cMax-p)}.`:` Proposto <b>€ ${fmt(p)}</b>: SFORA il massimo di <b>€ ${fmt(p-cMax)}</b> — riportare a € ${fmt(cMax)} o rivedere parametri/maggiorazioni.`;
+  if(!CFG.calibrato)d+=' <span style="color:var(--oro2)">⚠ €/mq zona e soglie subfascia non ancora calibrati.</span>';
+  vDet.innerHTML=d;
+  if(show)setTimeout(()=>{try{verd.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){}},60);
+  return ultimo;
+}
+function fmt(n){return n.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2});}
+
+// ====== WIZARD ======
+const wSteps=[
+ {q:"Indirizzo della pratica?",tipo:'txt',id:'ind'},
+ {q:"Zona dell'accordo?",tipo:'sel'},
+ {q:"Tipo di contratto?",tipo:'tipo'},
+ {q:"Metri quadri calpestabili?",tipo:'num',id:'mq'},
+ {q:"Pertinenze — mq balconi/terrazze/cantine (0 se nessuna)",tipo:'num',id:'mqBal'},
+ {q:"Mq box o posto auto esclusivo (0 se nessuno)",tipo:'num',id:'mqBox'},
+ {q:"Spunta i parametri presenti (dei 20 ufficiali)",tipo:'par'},
+ {q:"Maggiorazioni applicabili?",tipo:'mag'},
+ {q:"Canone che vuoi proporre €/mese?",tipo:'num',id:'prop'},
+];
+let wI=0;
+function modo(m){riportaChips();['form','wiz','chat'].forEach(x=>document.getElementById(x).style.display=x===m?'block':'none');mForm.classList.toggle('att',m==='form');mWiz.classList.toggle('att',m==='wiz');mChat.classList.toggle('att',m==='chat');if(m==='wiz'){wI=0;wRender();}if(m==='chat'&&!chStarted){chStarted=true;chAdd('bot','Dimmi l\'immobile: zona, mq, dotazioni e canone che vuoi chiedere. Puoi dettare tutto in una frase.');}}
+function wRender(){
+  riportaChips(); // le chips tornano SEMPRE alla loro card prima di svuotare il corpo del wizard
+  const s=wSteps[wI]; wProg.textContent=`Domanda ${wI+1} di ${wSteps.length}`; wQ.textContent=s.q; const b=wBody; b.innerHTML='';
+  if(s.tipo==='txt'||s.tipo==='num'){const i=document.createElement('input');i.type=s.tipo==='num'?'number':'text';i.value=document.getElementById(s.id).value;i.oninput=()=>document.getElementById(s.id).value=i.value;b.appendChild(i);i.focus();}
+  if(s.tipo==='sel'){const o=document.getElementById('zona');const c=o.cloneNode(true);c.removeAttribute('id');c.value=o.value;c.onchange=()=>{o.value=c.value;};b.appendChild(c);}
+  if(s.tipo==='tipo'){const o=document.getElementById('tipo');const c=o.cloneNode(true);c.removeAttribute('id');c.value=o.value;c.onchange=()=>{o.value=c.value;};b.appendChild(c);}
+  if(s.tipo==='par'){b.appendChild(par);}
+  if(s.tipo==='mag'){b.appendChild(mag);}
+  wNext.textContent = wI===wSteps.length-1 ? 'Calcola ✓' : 'Avanti →';
+}
+function wAvanti(){ if(wI===wSteps.length-1){ modo('form'); calc(true); return;} wI++; wRender(); }
+function wPrev(){ if(wI>0){wI--; wRender();} }
+function riportaChips(){ // restituisce par/mag alle card originali (ancore fisse, mai distrutte)
+  const pc=document.getElementById('parCard'), mc=document.getElementById('magCard');
+  if(pc&&!pc.contains(par))pc.appendChild(par);
+  if(mc&&!mc.contains(mag))mc.appendChild(mag);
+}
+
+// ====== OUTPUT ======
+function copia(){
+  const c=ultimo||calc(true); if(!c)return;
+  const t=`SCHEDA CANONE (pre-verifica) — ${c.ind||'immobile'}
+Accordo: ${CFG.accordi[CFG.attivo].nome} — Zona: ${c.zona}
+Contratto: ${c.tipo==='stud'?'Studenti universitari':c.tipo==='trans'?'Transitorio':'3+2'}
+Mq calpestabili: ${c.mq} → Superficie convenzionale: ${fmt(c.sc)} mq
+Parametri: ${c.nP}/20 → FASCIA ${c.sub}
+Maggiorazioni: ${c.note.length?c.note.join(', '):'nessuna'} (${c.pct>0?'+':''}${c.pct}%)
+CANONE MASSIMO: € ${fmt(c.cMax)}/mese (€ ${fmt(c.cMax*12)}/anno)
+Canone proposto: € ${fmt(c.p)} → ${c.inF===null?'—':c.inF?'IN FASCIA':'FUORI FASCIA di € '+fmt(c.p-c.cMax)}
+${CFG.calibrato?'':'[parametri zona non calibrati]'}
+— BOOM · pre-verifica interna, non sostituisce l'attestazione ARPE`;
+  riep.textContent=t; riep.style.display='block';
+  navigator.clipboard&&navigator.clipboard.writeText(t).then(()=>toast('Copiato'),()=>toast('Copia manuale'));
+}
+async function salvaPr(){const c=ultimo||calc(true);if(!c)return;pratiche.unshift({...c,data:new Date().toLocaleDateString('it-IT')});pratiche=pratiche.slice(0,60);await ppr();renderPr();toast('Pratica salvata ✓');}
+function renderPr(){const tb=document.querySelector('#tp tbody');tb.innerHTML='';if(!pratiche.length){tb.innerHTML='<tr><td colspan="6" style="color:var(--gr)">Nessuna pratica salvata.</td></tr>';return;}
+ pratiche.forEach((p,i)=>{const tr=document.createElement('tr');tr.onclick=()=>caricaPr(i);tr.innerHTML=`<td>${p.ind||'—'}</td><td>${p.zona}</td><td>€ ${fmt(p.cMax)}</td><td>€ ${fmt(p.p)}</td><td style="color:${p.inF?'var(--oro)':p.inF===false?'#E08573':'var(--gr)'}">${p.inF===null?'—':p.inF?'IN':'FUORI'}</td><td><span class="del" onclick="event.stopPropagation();pratiche.splice(${i},1);ppr();renderPr()">×</span></td>`;tb.appendChild(tr);});}
+function caricaPr(i){
+  const p=pratiche[i]; if(!p)return;
+  if(!p.snap){toast('Pratica salvata con la versione precedente — ricompilare');return;}
+  modo('form'); applicaSnapshot(p.snap); salvaBozza(); calc(true); toast('Pratica ricaricata');
+}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2100);}
+
+// ====== DOCUMENTO ARPE (scheda di determinazione del canone) ======
+function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function fld(v,w){return v?esc(v):'<span style="letter-spacing:2px">'+'_'.repeat(w||14)+'</span>';}
+function tipoLabel(t){return t==='stud'?'Contratto per studenti universitari (art. 5, c. 2-3, L. 431/98)':t==='trans'?'Contratto transitorio (art. 5, c. 1, L. 431/98)':'Contratto agevolato 3+2 (art. 2, c. 3, L. 431/98)';}
+function durataLabel(t,mesi){ if(mesi>0)return mesi+' mesi'; return t==='stud'?'da 6 a 36 mesi':t==='trans'?'da 1 a 18 mesi':'3 anni + 2 di rinnovo'; }
+function dataIT(iso){ if(!iso)return ''; const d=new Date(iso+'T00:00:00'); return isNaN(d)?'':d.toLocaleDateString('it-IT'); }
+// Testi ESATTI della scheda ARPE per l'attestazione (modello reale fornito dall'operatore)
+const DOC_PARAMETRI=["Posto auto","Cortile d’uso comune, area verde o impianto sportivo","Cantina","Terrazzo o balcone","Area verde di pertinenza","Aria condizionata","Stabile con ascensore","Bagno con finestra o doppi servizi","Porta blindata","Doppi vetri","Stabile con servizio di portierato","Stabile o UI ultimati o completamente ristrutturati negli ultimi 10 anni","Sistema di sicurezza o sistema di allarme","Cucina abitabile con finestra","Videocitofono o videosorveglianza","Antenna centralizzata o impianto satellitare","Riscaldamento autonomo","Stabile non superiore a 4 piani","Strutture di superamento di barriere architettoniche","Terrazzo o locale condominiale ad uso comune"];
+function apriArpe(){
+  const c=ultimo||calc(true); if(!c){toast('Completa prima il calcolo');return;}
+  const g=id=>{const el=document.getElementById(id);return el?el.value.trim():''};
+  const X=b=>b?'☒':'☐';
+  const oggi=new Date().toLocaleDateString('it-IT');
+  const nomecf=(a,b)=>[a,b?'— C.F. '+b.toUpperCase():''].filter(Boolean).join(' ');
+  const viaTxt=(c.ind||'')+(g('piano')?' - PIANO '+g('piano'):'')+(g('interno')?' - INT '+g('interno'):'');
+  // superficie: valori netti + coefficienti del motore, layout della scheda ARPE
+  const bx=+g('mqBox')||0, pre=document.getElementById('boxPre').value==='s', pc=+g('mqPC')||0, bal=+g('mqBal')||0, scE=+g('mqSc')||0, ve=+g('mqVe')||0;
+  const baseCoef=c.mq<46?'x 1,30 (max 52,90)':c.mq<=70?'x 1,15 (max 70,00)':'';
+  const baseV=c.parts[0].v;
+  const sr=(lbl,mq,coefLbl,val)=>`<tr><td style="width:42%">${lbl}</td><td class="n" style="width:18%">= mq ${mq>0?fmt(mq):''}</td><td style="width:18%">${coefLbl}</td><td class="n" style="width:22%">= mq ${val>0?fmt(val):''}</td></tr>`;
+  const supRows=
+    sr('Superficie calpestabile appartamento:',c.mq,baseCoef,baseV)
+    +sr('Box',bx,bx>0?(pre?'x 0,80':'x 0,50'):'',bx>0?bx*(pre?0.80:0.50):0)
+    +sr('Posto auto o autorimessa comune',pc,'x 0,20',pc*0.20)
+    +sr('Balconi, terrazze, cantine e simili',bal,'x 0,25',bal*0.25)
+    +sr('Superficie scoperta in godimento esclusivo',scE,'x 0,15',scE*0.15)
+    +sr('Sup. verde condominiale (Sup. tot. cond / MM.Tab A)',ve,'x 0,10',ve*0.10);
+  const parCell=i=>`<td style="width:4%" class="n">${i+1}</td><td style="width:5%;text-align:center">${X(c.parIdx.includes(i))}</td><td style="width:41%">${esc(DOC_PARAMETRI[i])}</td>`;
+  let parRows=''; for(let i=0;i<10;i++) parRows+=`<tr>${parCell(i)}${parCell(i+10)}</tr>`;
+  const has=id=>{const el=document.getElementById('mg_'+id);return !!(el&&el.checked);};
+  const mg=(lbl,on)=>`<td style="width:27%">${lbl}</td><td style="width:6%;text-align:center">${X(on)}</td>`;
+  const magRows=
+    `<tr>${mg('A – Ammobiliato + '+(CFG.pArr||'____')+'%',has('arr'))}${mg('B – Seminterrato -10%',has('sem'))}${mg('C – Senza ascensore –10%',has('asc'))}</tr>`+
+    `<tr>${mg('D – Attico + 10%',has('att'))}${mg('E – Classe energetica A/B/C + 10%',has('clA'))}${mg('F – Interventi Eco Bonus + 5%',has('eco'))}</tr>`+
+    `<tr>${mg('G – Interventi Sisma Bonus + 10%',has('sis'))}${mg('H – Classe energetica D/E/F + 5%',has('clD'))}<td></td><td></td></tr>`;
+  const durataPct=(CFG.pDur&&c.tipo==='32')?CFG.pDur:'______';
+  const registrato=g('regStato')==='reg';
+  arpePaper.className='paper a2b';
+  arpePaper.innerHTML=`
+  <div class="tit">SCHEDA PER LA ATTESTAZIONE DI RISPONDENZA ALL’ACCORDO TERRITORIALE<br>DEL COMUNE DI ROMA DEL 25 LUGLIO 2023 E DM 16 GENNAIO 2017</div>
+
+  <div class="riga" style="text-align:center">${X(c.tipo==='32')} Contratto: _3_+2&nbsp;&nbsp;&nbsp;&nbsp;${X(c.tipo==='stud')} Studenti universitari&nbsp;&nbsp;&nbsp;&nbsp;${X(c.tipo==='trans')} Transitorio</div>
+
+  <div class="riga" style="border-bottom:1px solid #111;padding-bottom:2px"><b>LOCATORE:</b>&nbsp;&nbsp;${fld(nomecf(g('locNome'),g('locCF')),36)}</div>
+  <div class="riga" style="border-bottom:1px solid #111;padding-bottom:2px"><b>CONDUTTORE:</b>&nbsp;&nbsp;${fld(nomecf(g('conNome'),g('conCF')),36)}</div>
+
+  <table class="nb"><tbody><tr>
+    <td style="width:13%">Città: <b>ROMA</b></td>
+    <td style="width:37%">Via ${fld(viaTxt.replace(/^(via|viale|piazza|piazzale|largo|corso|vicolo|lungotevere|circonvallazione)\s+/i,''),24)}</td>
+    <td style="width:20%">COD. ZONA&nbsp;&nbsp;<b>${esc(c.zonaCod||'____')}</b></td>
+    <td style="width:30%">Id. catastale:&nbsp;&nbsp;F ${fld(g('catFoglio'),4)} &nbsp;P ${fld(g('catPart'),4)} &nbsp;S ${fld(g('catSub'),4)}</td>
+  </tr></tbody></table>
+  <table class="nb"><tbody><tr>
+    <td style="width:25%">Decorrenza:&nbsp;&nbsp;${fld(dataIT(g('decorrenza')),12)}</td>
+    <td style="width:27%">Stipulato il:&nbsp;&nbsp;${fld(dataIT(g('stipulato')),12)}</td>
+    <td style="width:28%">${X(registrato)} Registrato il:&nbsp;&nbsp;${registrato?fld(dataIT(g('regData')),12):'____________'}</td>
+    <td style="width:20%">${X(!registrato)} Da registrare</td>
+  </tr></tbody></table>
+
+  <div class="riga" style="text-align:center;margin:8px 0">Tutte le informazioni necessarie per determinare il calcolo del canone sono state fornite dalle parti.</div>
+
+  <div class="sez">CALCOLO DELLA SUPERFICIE CONVENZIONALE</div>
+  <table><thead><tr><th style="text-align:center">SUPERFICIE</th><th style="text-align:center">SUPERFICIE NETTA</th><th style="text-align:center">COEFFICIENTE</th><th style="text-align:center">SUP. CONVENZIONALE</th></tr></thead>
+  <tbody>${supRows}</tbody></table>
+  <div class="riga" style="text-align:center"><b>TOTALE SUPERFICIE CONVENZIONALE Mq. ______${fmt(c.sc)}______</b></div>
+
+  <div class="riga" style="margin-top:8px"><b><u>CARATTERISTICHE:</u></b>&nbsp;&nbsp;&nbsp;<u>Allaccio rete idrica</u> ${X(c.normale)}&nbsp;&nbsp;&nbsp;<u>Allaccio rete fognante</u> ${X(c.normale)}&nbsp;&nbsp;&nbsp;<u>Erogazione GAS o induzione</u> ${X(c.normale)}&nbsp;&nbsp;&nbsp;<u>Impianto riscaldamento</u> ${X(c.normale)}</div>
+  <div class="riga"><b><u>Appartamento normale</u></b>&nbsp;&nbsp;&nbsp;${X(c.normale)} SI&nbsp;&nbsp;&nbsp;${X(!c.normale)} NO</div>
+
+  <div class="sez">PARAMETRI</div>
+  <table><tbody>${parRows}</tbody></table>
+  <div class="riga"><b>NUMERO PARAMETRI DESCRITTIVI DELL’ALLOGGIO:&nbsp; ${c.nP}</b></div>
+
+  <div class="riga" style="margin-top:8px"><b>Maggiorazioni/Riduzioni applicabili:</b>&nbsp;&nbsp;&nbsp;<span style="border:1px solid #111;padding:1px 8px">SI</span><span style="border:1px solid #111;border-left:none;padding:1px 8px">NO</span></div>
+  <table><tbody>${magRows}</tbody></table>
+
+  <div class="riga" style="margin-top:10px"><b>Durata ${typeof durataPct==='number'?'+'+durataPct:durataPct}%;&nbsp;&nbsp;Transitorio ${c.tipo==='trans'?'+10':'______'}%;&nbsp;&nbsp;&nbsp;Importo canone mensile pattuito: € _${c.p>0?fmt(c.p):'__________'}_;</b></div>
+
+  <div class="firmeA"><div>Il locatore</div><div>Il conduttore</div></div>
+  <div class="riga" style="margin-top:16px">Roma ${oggi}</div>
+
+  <div class="riga" style="margin-top:14px">Tutto ciò premesso l’organizzazione _______________________, sotto la propria responsabilità e sulla base degli elementi oggettivi sopra forniti a cura ed assunzione di responsabilità dalle parti, anche ai fini dell’ottenimento di eventuali agevolazioni fiscali,</div>
+  <div class="riga" style="text-align:center;margin:10px 0"><b>ATTESTA</b></div>
+  <div class="riga">che i contenuti economici e normativi del contratto corrispondono a quanto previsto dall’accordo territoriale in epigrafe.</div>
+  <div style="margin-top:34px;text-align:center">L’Organizzazione sindacale<br><br><br>_______________________________<br><span style="font-size:9.5px">(timbro e firma dell’organizzazione firmataria)</span></div>`;
+  arpeWrap.classList.add('open'); document.body.classList.add('print-arpe'); arpeWrap.scrollTop=0;
+}
+
+function zonaVal(c,f){const z=CFG.accordi[CFG.attivo].zone[+zona.value]||{};return [z[f+'Min'],z[f+'Max']];}
+function fmt2(r){return (r[0]!==undefined&&r[1]!==undefined)?fmt(r[0])+'–'+fmt(r[1]):'—';}
+function stampaArpe(){window.print();}
+
+// ====== PREVENTIVO BOOM (documento brandizzato per il proprietario) ======
+const BOOM_LOGO='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" style="width:46px;height:46px"><g transform="translate(0,1024) scale(0.1,-0.1)" fill="#B8960C"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/></g></svg>';
+function apriPreventivo(){
+  const c=ultimo||calc(true); if(!c){toast('Completa prima il calcolo');return;}
+  const g=id=>{const el=document.getElementById(id);return el?el.value.trim():''};
+  const oggi=new Date().toLocaleDateString('it-IT');
+  // canone di riferimento del preventivo: il pattuito se valido e in fascia, altrimenti il massimo asseverabile
+  const rif=(c.p>0&&c.inF)?c.p:c.cMax; const rifLbl=(c.p>0&&c.inF)?'Canone pattuito':'Canone massimo asseverabile';
+  const annuo=rif*12, ced10=annuo*0.10, ced21=annuo*0.21, risparmio=ced21-ced10;
+  const supRows=c.parts.map(r=>`<tr><td>${esc(r.n)}</td><td class="n">${fmt(r.mq)}</td><td>${esc(r.c)}</td><td class="n">${fmt(r.v)}</td></tr>`).join('');
+  arpePaper.className='paper boom';
+  arpePaper.innerHTML=`
+  <div class="bhead">
+    <div class="bl">${BOOM_LOGO}<div><div class="bname">BOOM</div><div class="bsub">Premium Rentals · Roma</div></div></div>
+    <div class="bdoc">Preventivo canone concordato<br>${oggi}</div>
+  </div>
+
+  <div class="f" style="font-size:13px"><b>Immobile:</b> ${esc(c.ind||'—')} · Zona ${esc((c.zonaCod?c.zonaCod+' · ':'')+c.zona)}${g('piano')?` · Piano ${esc(g('piano'))}`:''} — ${tipoLabel(c.tipo)}</div>
+
+  <div class="hero">
+    <div><div class="hl">${rifLbl}</div><div class="hv">€ ${fmt(rif)} <small>/mese</small></div></div>
+    <div><div class="hl">Canone annuo</div><div class="hv">€ ${fmt(annuo)} <small>/anno</small></div></div>
+  </div>
+
+  <h3>Come si arriva al canone</h3>
+  <table>
+    <thead><tr><th>Componente</th><th style="text-align:right">Mq reali</th><th>Coefficiente</th><th style="text-align:right">Mq convenzionali</th></tr></thead>
+    <tbody>${supRows}<tr class="tot"><td colspan="3">Superficie convenzionale</td><td class="n">${fmt(c.sc)} mq</td></tr></tbody>
+  </table>
+  <table><tbody>
+    <tr><td>Subfascia applicabile (${c.nP} elementi su 20)</td><td class="n"><b>FASCIA ${c.sub}</b> · ${fmt(c.fMin)}–${fmt(c.fMax)} €/mq/mese</td></tr>
+    ${c.note.length?`<tr><td>Maggiorazioni / riduzioni</td><td class="n">${esc(c.note.join(', '))} (${c.pct>0?'+':''}${c.pct}%)</td></tr>`:''}
+    <tr class="tot"><td>Canone massimo asseverabile</td><td class="n">€ ${fmt(c.cMax)}/mese · € ${fmt(c.cMax*12)}/anno</td></tr>
+  </tbody></table>
+
+  <h3>Il vantaggio fiscale del concordato</h3>
+  <table>
+    <thead><tr><th></th><th style="text-align:right">Cedolare 21% (libero)</th><th style="text-align:right">Cedolare 10% (concordato)</th></tr></thead>
+    <tbody>
+      <tr><td>Imposta annua sul canone di € ${fmt(annuo)}</td><td class="n">€ ${fmt(ced21)}</td><td class="n">€ ${fmt(ced10)}</td></tr>
+      <tr class="tot"><td>RISPARMIO D'IMPOSTA</td><td class="n" colspan="2">€ ${fmt(risparmio)} / anno</td></tr>
+    </tbody>
+  </table>
+  <div class="risp">In più: <b>IMU ridotta del 25%</b> (se dovuta, per i contratti concordati a Roma), niente imposta di registro e bollo con la cedolare, e canone certificato dall'attestazione di rispondenza — requisito per tutte le agevolazioni.</div>
+
+  <h3>Cosa fa BOOM per te</h3>
+  <div class="f" style="line-height:1.8">Predisposizione del contratto a canone concordato · scheda di calcolo e pratica di attestazione di rispondenza con l'organizzazione firmataria · registrazione del contratto · gestione completa dell'affitto.</div>
+
+  <div class="note">Preventivo indicativo elaborato con i valori dell'Accordo Territoriale di Roma depositato il 25/07/2023 sui dati dichiarati dal proprietario; non costituisce consulenza fiscale. Aliquote cedolare: art. 3 D.Lgs. 23/2011. Il canone definitivo è certificato dall'attestazione di rispondenza. <b>BOOM</b> · boomrome.com · Roma</div>`;
+  arpeWrap.classList.add('open'); document.body.classList.add('print-arpe'); arpeWrap.scrollTop=0;
+}
+function chiudiArpe(){arpeWrap.classList.remove('open');document.body.classList.remove('print-arpe');}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&arpeWrap.classList.contains('open'))chiudiArpe();});
+
+// ====== CHAT (parser AI -> motore deterministico) ======
+let chMsgs=[], chStarted=false;
+function chAdd(who,txt){const d=document.createElement('div');d.style.cssText='max-width:85%;padding:10px 14px;font-size:13px;line-height:1.6;'+(who==='io'?'align-self:flex-end;border:1px solid var(--oro2);color:var(--carta)':'align-self:flex-start;border:1px solid var(--ln);color:var(--carta)');d.textContent=txt;chLog.appendChild(d);chLog.scrollTop=chLog.scrollHeight;}
+function campiNoti(){const o={};if(ind.value)o.indirizzo=ind.value;if(+mq.value)o.mq=+mq.value;if(+prop.value)o.prop=+prop.value;o.zona=CFG.accordi[CFG.attivo].zone[+zona.value]?.nome;o.tipo=tipo.value;return o;}
+async function chSend(){
+  const v=chIn.value.trim(); if(!v)return; chIn.value=''; chAdd('io',v);
+  chMsgs.push({role:'user',content:v});
+  try{
+    const zoneNomi=CFG.accordi[CFG.attivo].zone.map(z=>z.nome);
+    const r=await fetch('/api/canone-bot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:chMsgs,campiNoti:campiNoti(),zone:zoneNomi})});
+    if(!r.ok){ let code=''; try{code=(await r.json()).error||'';}catch(_){} throw new Error(code||'http-'+r.status); }
+    const j=await r.json();
+    chMsgs.push({role:'assistant',content:JSON.stringify(j)});
+    applica(j.campi||{});
+    if(j.completo){ const c=calc(false); if(c){ chAdd('bot',`Fascia ${c.sub} (${c.nP} parametri). Canone massimo € ${fmt(c.cMax)}/mese. Il tuo € ${fmt(c.p)} è ${c.inF?'IN FASCIA ✓':'FUORI FASCIA di € '+fmt(c.p-c.cMax)+' — massimo asseverabile € '+fmt(c.cMax)}.`); verd.scrollIntoView({behavior:'smooth'});} else chAdd('bot','Mi manca la configurazione della zona (€/mq). Aprila in Configurazione.'); }
+    else chAdd('bot',j.domanda||'Dimmi di più.');
+  }catch(e){
+    const m=String(e&&e.message||'');
+    if(m==='no-key') chAdd('bot','⚙️ Chat AI non configurata: manca ANTHROPIC_API_KEY nelle Environment Variables di Vercel (Settings → Environment Variables, poi redeploy). Nel frattempo le modalità Scheda e Guidata funzionano al 100% — usano lo stesso motore di calcolo, la chat serve solo a raccogliere i dati.');
+    else if(m==='http-404') chAdd('bot','⚙️ Endpoint /api/canone-bot non trovato sul server: il file api/canone-bot.js non risulta deployato. Usa la modalità Guidata: stesso risultato, zero dipendenze.');
+    else chAdd('bot','📡 La chat AI non risponde in questo momento'+(m&&m!=='Failed to fetch'?' ('+m+')':'')+'. Riprova tra poco, oppure usa la modalità Guidata: stesso motore, stesso risultato.');
+  }
+}
+function applica(c){
+  if(c.indirizzo)ind.value=c.indirizzo;
+  if(c.mq)mq.value=c.mq; if(c.mqBal!==undefined)mqBal.value=c.mqBal; if(c.mqBox!==undefined)mqBox.value=c.mqBox;
+  if(c.prop)prop.value=c.prop; if(c.tipo)tipo.value=c.tipo;
+  if(c.zona){const zs=CFG.accordi[CFG.attivo].zone;const i=zs.findIndex(z=>z.nome.toLowerCase().includes(String(c.zona).toLowerCase()));if(i>=0)zona.value=i;}
+  if(Array.isArray(c.parametri)){document.querySelectorAll('#par input').forEach(x=>{const n=+x.dataset.p+1;x.checked=c.parametri.includes(n);x.parentElement.classList.toggle('on',x.checked);});}
+  if(Array.isArray(c.maggiorazioni)){['arr','sem','asc','att','clA','eco','sis','clD'].forEach(id=>{const el=document.getElementById('mg_'+id);if(el){el.checked=c.maggiorazioni.includes(id);el.parentElement.classList.toggle('on',el.checked);}});}
+  salvaBozza();
+}
+
+load();
+</script>
+</body>
+</html>

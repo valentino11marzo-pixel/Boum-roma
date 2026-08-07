@@ -13,13 +13,17 @@
 // api/magic-sign/submit; finalize adds everything else.
 
 import crypto from 'node:crypto';
+// pdf-lib is imported statically: a lazy `await import('pdf-lib')` is not
+// traced by Vercel's bundler and fails at runtime in production.
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { fsCreate, fsPatch, fsGet, getAdminToken } from '../homie/_lib.js';
-import { sendEmail } from '../agent/_lib.js';
+import { sendWelcomeEmails, sendCafDossier } from './_notify.js';
+import { buildFascicolo } from '../fiscal/fascicolo.js';
+import { buildRegistrationPack } from './_pack.js';
 // pdf-lib is imported lazily inside buildCertificate so a load failure only
 // skips the certificate — obligations, magic link and welcome emails still run.
 
 const BASE = 'https://www.boomrome.com';
-const GOLD = '#B8860B';
 const STORAGE_BUCKET = process.env.FIREBASE_STORAGE_BUCKET || 'boom-property-dashboards.firebasestorage.app';
 const MS_CONSENT = 'I confirm my identity and accept all lease terms. This digital signature is legally valid (FES — Art. 21 CAD).';
 
@@ -40,6 +44,18 @@ export async function finalizeContract(contract){
   if(contract.finalizedAt) return { ok:true, skipped:true };
 
   const now = new Date();
+  // fullySignedAt lo scrive submit alla firma che completa; i contratti
+  // arrivati qui per altre strade (legacy firmati nel portal, refinalize
+  // del watchdog) non ce l'hanno — e senza, tre documenti stampavano una
+  // data vuota ("Firmato da tutte le parti il", "Stato: COMPLETO —",
+  // "Stipulato: da firmare" su un contratto firmato). Si deriva dall'ULTIMA
+  // firma apposta: la data di perfezionamento del contratto.
+  if (!contract.fullySignedAt) {
+    const stamps = [contract.tenantSignedAt, contract.landlordSignedAt,
+      ...(Array.isArray(contract.coTenants) ? contract.coTenants.map(x => x && x.signedAt) : [])]
+      .map(t => Date.parse(t || '')).filter(n => !isNaN(n));
+    if (stamps.length) contract.fullySignedAt = new Date(Math.max(...stamps)).toISOString();
+  }
   const signDate = contract.fullySignedAt ? new Date(contract.fullySignedAt) : now;
   const start = contract.startDate ? new Date(contract.startDate) : signDate;
 
@@ -48,7 +64,10 @@ export async function finalizeContract(contract){
   const ownerId  = property && property.ownerId;
   const landlord = ownerId ? await fsGet(`users/${ownerId}`).catch(()=>null) : null;
 
-  const cedolare = contract.cedolareSecca === true || contract.regime === 'cedolare';
+  // cedolareSecca sui contratti reali è la STRINGA 'si'/'no' (portal e
+  // convert), non un boolean: il vecchio `=== true` mandava OGNI contratto
+  // cedolare nel ramo registro+bollo (obbligazioni sbagliate a scadenzario).
+  const cedolare = !(contract.cedolareSecca === false || contract.cedolareSecca === 'no');
   const nationality = contract.tenantNationality || (tenant && tenant.nationality) || '';
   const nonEU = !isEU(nationality);
   const propLabel = (property && (property.address || property.name)) || '';
@@ -104,6 +123,63 @@ export async function finalizeContract(contract){
     certUrl = await uploadPdf(`contracts/${contract.id}/signing-certificate.pdf`, Buffer.from(bytes));
   } catch(e){ console.warn('[finalize] certificate failed:', e.message); }
 
+  // ── Contratto firmato (PDF originale + pagina delle firme) ──
+  // È QUESTO il documento che viaggia in ALLEGATO alle parti: il PDF del
+  // contratto con in coda la pagina firme (immagini, nomi, data/ora, hash,
+  // rinvio al certificato). Senza generatedPDF si salta — ma NON più in
+  // silenzio: finché il PDF nasce solo nel browser (audit 2026-08, il
+  // single point of failure noto), l'operatore DEVE sapere che questo
+  // contratto è arrivato a firma completa senza il documento, così lo
+  // rigenera e preme 🔄 Rifinalizza. La notifica va su agentNotifications
+  // → Telegram entro un minuto (notify-pending), dedupe per contratto.
+  if (!contract.generatedPDF && !contract.contractPdfUrl) {
+    try {
+      await fsCreate('agentNotifications', {
+        type: 'contract.no_pdf', status: 'pending', priority: 'high',
+        title: '⚠️ Firma completa SENZA contratto PDF',
+        body: `Il contratto ${contract.tenantName || contract.id} è firmato da tutti ma non ha il PDF sorgente: le email sono partite col solo certificato. Apri il portal → Rigenera PDF → 🔄 Rifinalizza.`,
+        contractId: contract.id, createdAt: new Date().toISOString(),
+      }, `nopdf_${contract.id}`); // id deterministico = dedupe gratis (409 al retry)
+    } catch (e) { console.warn('[finalize] no-pdf alert:', e.message); }
+  }
+  let signedPdfUrl = '';
+  let timestampUrl = '';
+  try {
+    const bytes = await buildSignedContract({
+      ...contract,
+      tenantName: contract.tenantName || (tenant && tenant.name) || '',
+      landlordName: contract.landlordName || (landlord && landlord.name) || '',
+    }, property);
+    if (bytes) {
+      const pdfBuf = Buffer.from(bytes);
+      signedPdfUrl = await uploadPdf(`contracts/${contract.id}/contratto-firmato.pdf`, pdfBuf);
+
+      // ── Marca temporale RFC3161 sull'hash del contratto firmato ──
+      // Una TSA terza attesta che QUESTI byte esistevano a QUESTA data:
+      // evidenza di data certa che rafforza la FES a costo zero. La
+      // TimeStampReq DER è a lunghezza fissa (SHA-256 + certReq=TRUE).
+      // Fail-open totale: una TSA irraggiungibile non tocca mai la firma.
+      try {
+        const pdfSha = crypto.createHash('sha256').update(pdfBuf).digest();
+        const tsq = Buffer.concat([
+          Buffer.from('30390201013031300d060960864801650304020105000420', 'hex'),
+          pdfSha,
+          Buffer.from('0101ff', 'hex'),
+        ]);
+        const r = await Promise.race([
+          fetch('https://freetsa.org/tsr', { method: 'POST', headers: { 'Content-Type': 'application/timestamp-query' }, body: tsq }),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('tsa_timeout')), 8000)),
+        ]);
+        if (r && r.ok) {
+          const tsr = Buffer.from(await r.arrayBuffer());
+          if (tsr.length > 100) {
+            timestampUrl = await uploadPdf(`contracts/${contract.id}/timestamp.tsr`, tsr, 'application/timestamp-reply');
+          }
+        }
+      } catch (e) { console.warn('[finalize] rfc3161:', e.message); }
+    }
+  } catch(e){ console.warn('[finalize] signed pdf failed:', e.message); }
+
   // ── Server-issued tenant magic link (single-use, 72h) ──
   let magicId = '';
   try {
@@ -117,93 +193,195 @@ export async function finalizeContract(contract){
   } catch(e){ console.warn('[finalize] magicLink failed:', e.message); }
   const portalLink = magicId ? `${BASE}/portal.html?postSign=1&magicToken=${magicId}` : `${BASE}/portal.html`;
 
-  // ── Welcome emails ──
-  const tenantEmail = (tenant && tenant.email) || contract.tenantEmail || '';
-  const tenantName = (tenant && tenant.name) || contract.tenantName || 'there';
-  const landlordEmail = (landlord && landlord.email) || contract.landlordEmail || '';
-  const landlordName = (landlord && landlord.name) || contract.landlordName || 'there';
-  const certLine = certUrl ? `<p style="margin:14px 0 0;font-size:13px"><a href="${esc(certUrl)}" style="color:${GOLD};text-decoration:none">⬇ Download your signing certificate (PDF)</a></p>` : '';
-  // Deposit recovery path: if the tenant closed the /sign page without paying,
-  // the welcome email carries the same Stripe checkout link.
-  const depLine = (!contract.depositPaid && contract.depositPayToken && Number(contract.deposit || 0) > 0)
-    ? `<p style="margin:16px 0 0">${btn(`${BASE}/sign?deposit=retry&pt=${encodeURIComponent(contract.depositPayToken)}`, 'Pay the deposit — €' + Number(contract.deposit).toLocaleString('it-IT'))}</p>`
-    : '';
+  // ── Fascicolo Fiscale (scheda canone + dati RLI + scadenzario) ──
+  // Dopo le obbligazioni (così lo scadenzario del PDF le vede) e prima
+  // delle email (così il CAF riceve il link). Best-effort: se zona o mq
+  // mancano, il PDF nasce comunque con le pagine RLI+scadenze e la scheda
+  // canone dice esattamente cosa impostare dalla console.
+  let fascicoloUrl = '';
+  try {
+    const fasc = await buildFascicolo(contract.id, { contract, property });
+    if (fasc && fasc.ok) fascicoloUrl = fasc.url;
+  } catch (e) { console.warn('[finalize] fascicolo:', e.message); }
 
-  // Both emails run in parallel with a hard timeout: nodemailer has no socket
-  // timeout configured, and this runs inside the signer's request — a stalled
-  // SMTP connection must never push the response past the function limit.
-  const withTimeout = (p, ms, tag) => Promise.race([
-    p, new Promise((_, rej) => setTimeout(() => rej(new Error(tag + '_timeout')), ms)),
+  // ── Pack Registrazione (ZIP: tutto il necessario per RLI + ARPE) ──
+  // Contratto firmato, certificato, fascicolo, visura/planimetria/APE/
+  // delega dal dossier immobile, documenti identità, attestazione
+  // esigenza + INDICE con checklist. Budget rigido dentro _pack.js: non
+  // allunga mai la firma; rigenerabile con 📦 Pack / POST api/fiscal/pack.
+  let pack = { url: '', missing: [] };
+  try {
+    const p = await buildRegistrationPack({
+      ...contract,
+      tenantName: contract.tenantName || (tenant && tenant.name) || '',
+      landlordName: contract.landlordName || (landlord && landlord.name) || '',
+    }, property, { signedPdfUrl, certUrl, fascicoloUrl });
+    if (p && p.ok) pack = p;
+  } catch (e) { console.warn('[finalize] pack:', e.message); }
+
+  // ── Welcome emails + fascicolo CAF (design system condiviso) ──
+  // api/sign/_notify.js — tenant EN, landlord IT, CAF → valentino@boom-rome.com.
+  // Parallel and internally time-boxed: a stalled SMTP can never push the
+  // signer's request past the function limit. The CAF dossier used to live
+  // in portal-app.js (EmailJS) and only fired from the legacy in-portal
+  // signing path — on /sign it never went out at all.
+  // IL SEMAFORO SI ALZA PRIMA DELLE EMAIL. La guardia di idempotenza è
+  // contract.finalizedAt, ma finora veniva scritto DOPO l'invio, in un
+  // try/catch best-effort: se quel PATCH falliva (rete, quota), il run
+  // successivo del watchdog rispediva welcome + fascicolo CAF a tutti.
+  // Meglio rischiare un contratto senza email (recuperabile a mano) che un
+  // cliente che riceve due volte il suo benvenuto e il CAF due fascicoli.
+  try { await fsPatch(`contracts/${contract.id}`, { finalizedAt: now }); }
+  catch (e) { console.warn('[finalize] early mark failed:', e.message); }
+
+  const [welcome, caf] = await Promise.all([
+    sendWelcomeEmails(contract, property, { portalLink, certUrl, cedolare, nonEU, signedPdfUrl }),
+    sendCafDossier(contract, property, { certUrl, fascicoloUrl, signedPdfUrl, packUrl: pack.url, packMissing: pack.missing }),
   ]);
-  const emailJobs = [];
+  const tenantEmail = !!(welcome && welcome.tenant);
+  const landlordEmail = !!(welcome && welcome.landlord);
 
-  if (tenantEmail) {
-    emailJobs.push(withTimeout(
-      sendEmail({
-        to: tenantEmail,
-        subject: '🔑 Welcome home — your BOOM contract is active',
-        html: emailShell('Welcome home', `
-          <p style="margin:0 0 14px">Hi ${esc(tenantName)},</p>
-          <p style="margin:0 0 18px">Your lease for <b>${esc(propLabel || 'your new home')}</b> is now <b style="color:${GOLD}">fully signed and active</b>. One tap and you’re in your portal — documents, payments and support in one place.</p>
-          ${btn(portalLink, 'Enter my portal')}
-          ${depLine}
-          ${certLine}
-          <p style="margin:18px 0 6px;font-size:13px;color:#666">Prefer a password? Open the portal above, then choose <b>“Set a password”</b> to make it permanent. This one‑tap link expires in 72 hours.</p>
-          <div style="margin:22px 0 6px;border-top:1px solid #eee"></div>
-          <p style="margin:16px 0 8px;font-size:13px;color:#666"><b>A couple of things on your side</b> (we’ll remind you):</p>
-          <ul style="margin:0 0 4px;padding-left:18px;font-size:13px;color:#555;line-height:1.7">
-            <li>Set up utilities (electricity, gas, water) around your move‑in</li>
-            <li>TARI (waste tax) registration with the Comune</li>
-            <li>Residence/domicile registration if you need it</li>
-          </ul>
-        `),
-      }), 15000, 'tenant_email',
-    ).catch(e => console.warn('[finalize] tenant email failed:', e.message)));
-  }
+  try { await fsPatch(`contracts/${contract.id}`, { finalizedAt: now, magicLinkId: magicId, signingCertificateUrl: certUrl, ...(signedPdfUrl ? { signedPdfUrl } : {}), ...(timestampUrl ? { timestampTsrUrl: timestampUrl } : {}) }); } catch(e){ console.warn('[finalize] mark failed:', e.message); }
 
-  if (landlordEmail) {
-    const fiscalLines = (cedolare
-      ? ['Cedolare secca: raccomandata/PEC al conduttore (rinuncia ISTAT)']
-      : ['Decision: cedolare secca vs registro+bollo', 'Imposta di registro 2% (min €67) + bollo €16'])
-      .concat(['Registrazione contratto (RLI) entro 30 giorni'])
-      .concat(nonEU ? ['Cessione di fabbricato alla Questura entro 48h (conduttore extra‑UE)'] : []);
-    emailJobs.push(withTimeout(
-      sendEmail({
-        to: landlordEmail,
-        subject: '✓ Your BOOM lease is signed — what’s next',
-        html: emailShell('Lease signed', `
-          <p style="margin:0 0 14px">Hi ${esc(landlordName)},</p>
-          <p style="margin:0 0 18px">The lease for <b>${esc(propLabel || 'your property')}</b> is <b style="color:${GOLD}">fully signed</b>. BOOM has scheduled the deadlines below in your dashboard — we handle the registration with you.</p>
-          <p style="margin:0 0 8px;font-size:13px;color:#666"><b>Upcoming fiscal steps</b></p>
-          <ul style="margin:0 0 14px;padding-left:18px;font-size:13px;color:#555;line-height:1.7">${fiscalLines.map(l=>'<li>'+esc(l)+'</li>').join('')}</ul>
-          ${btn(BASE+'/portal.html', 'Open dashboard')}
-          ${certLine}
-        `),
-      }), 15000, 'landlord_email',
-    ).catch(e => console.warn('[finalize] landlord email failed:', e.message)));
-  }
-
-  await Promise.all(emailJobs);
-
-  try { await fsPatch(`contracts/${contract.id}`, { finalizedAt: now, magicLinkId: magicId, signingCertificateUrl: certUrl }); } catch(e){ console.warn('[finalize] mark failed:', e.message); }
-
-  return { ok:true, obligations: created, certificate: !!certUrl, magicLink: !!magicId, tenantEmail: !!tenantEmail, landlordEmail: !!landlordEmail };
+  return { ok:true, obligations: created, certificate: !!certUrl, signedPdf: !!signedPdfUrl, timestamp: !!timestampUrl, pack: !!pack.url, packMissing: pack.missing, magicLink: !!magicId, tenantEmail, landlordEmail, caf: !!(caf && caf.ok) };
 }
 
 // ── Firebase Storage upload (admin token) ──
-async function uploadPdf(path, bytes){
+async function uploadPdf(path, bytes, contentType = 'application/pdf'){
   const token = await getAdminToken();
   const url = `https://firebasestorage.googleapis.com/v0/b/${STORAGE_BUCKET}/o?uploadType=media&name=${encodeURIComponent(path)}`;
-  const r = await fetch(url, { method:'POST', headers:{ Authorization:`Bearer ${token}`, 'Content-Type':'application/pdf' }, body: bytes });
+  const r = await fetch(url, { method:'POST', headers:{ Authorization:`Bearer ${token}`, 'Content-Type':contentType }, body: bytes });
   if (!r.ok) throw new Error('storage_' + r.status + ': ' + (await r.text()).slice(0,200));
   const meta = await r.json().catch(()=>({}));
   const dt = (meta.downloadTokens || '').split(',')[0];
   return `https://firebasestorage.googleapis.com/v0/b/${STORAGE_BUCKET}/o/${encodeURIComponent(path)}?alt=media${dt ? ('&token=' + dt) : ''}`;
 }
 
+// ── Contratto firmato: il PDF del contratto + la pagina delle firme ──
+// Scarica generatedPDF (creato dal portal alla creazione del contratto),
+// gli APPENDE una pagina A4 con le firme grafiche di entrambe le parti,
+// data/ora, hash e rinvio al certificato FES, e restituisce i byte del
+// documento unico. Ritorna null se il contratto non ha un PDF sorgente
+// (legacy): il chiamante allega allora solo il certificato.
+async function buildSignedContract(c, property){
+  const src = c.generatedPDF || c.contractPdfUrl || '';
+  if (!src) return null;
+  const r = await Promise.race([
+    fetch(src),
+    new Promise((_, rej) => setTimeout(() => rej(new Error('pdf_fetch_timeout')), 10000)),
+  ]);
+  if (!r || !r.ok) throw new Error('pdf_fetch_' + (r ? r.status : 'ko'));
+  const buf = Buffer.from(await r.arrayBuffer());
+  if (!buf.length) throw new Error('pdf_empty');
+
+  const pdf = await PDFDocument.load(buf, { ignoreEncryption: true });
+
+  // ── LE FIRME SUL CONTRATTO, dove il documento le aspetta ──
+  // Il generatore del portal registra le ancore delle righe-firma
+  // (sigAnchors: rapporti sulla pagina, indipendenti dall'unità jsPDF).
+  // Qui le firme grafiche si stampano ESATTAMENTE lì: la copia via email
+  // esce come un originale firmato, e la pagina firme in coda resta come
+  // addendum probatorio. PDF legacy senza ancore: solo l'addendum.
+  const anchorBlocks = (c.sigAnchors && Array.isArray(c.sigAnchors.blocks)) ? c.sigAnchors.blocks : [];
+  if (anchorBlocks.length) {
+    const embFor = {};
+    const embedSig = async (key, sig) => {
+      const m = /^data:image\/(png|jpe?g);base64,(.+)$/i.exec(String(sig || ''));
+      if (!m) return;
+      try {
+        const b = Buffer.from(m[2], 'base64');
+        embFor[key] = m[1].toLowerCase().startsWith('jp') ? await pdf.embedJpg(b) : await pdf.embedPng(b);
+      } catch (e) { console.warn('[finalize] sig embed', key, e.message); }
+    };
+    await embedSig('tenant', c.tenantSignature);
+    await embedSig('landlord', c.landlordSignature);
+    const coT = Array.isArray(c.coTenants) ? c.coTenants : [];
+    for (let i = 0; i < coT.length; i++) if (coT[i] && coT[i].signature) await embedSig('cotenant:' + i, coT[i].signature);
+    const pages = pdf.getPages();
+    for (const a of anchorBlocks) {
+      const im = a.role === 'cotenant' ? embFor['cotenant:' + (Number(a.coIndex) || 0)] : embFor[a.role];
+      const pg = pages[(Number(a.page) || 1) - 1];
+      if (!im || !pg) continue;
+      const { width: W, height: H } = pg.getSize();
+      const boxW = Math.max(20, (a.wr || 0) * W), boxH = Math.max(10, (a.hr || 0) * H);
+      // yr è misurato dal bordo ALTO (convenzione jsPDF); pdf-lib dal basso.
+      const x = (a.xr || 0) * W, yTop = (a.yr || 0) * H;
+      const ar = im.width / im.height;
+      let fw = boxW, fh = fw / ar;
+      if (fh > boxH) { fh = boxH; fw = fh * ar; }
+      try { pg.drawImage(im, { x, y: H - yTop - boxH + (boxH - fh) / 2, width: fw, height: fh }); } catch (e) {}
+    }
+  }
+
+  const page = pdf.addPage([595, 842]);
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const dark = rgb(0.05,0.05,0.06), gold = rgb(0.72,0.55,0.05), grey = rgb(0.42,0.42,0.45);
+  const T = (t,x,y,sz,f,col)=>page.drawText(String(t==null?'':t),{x,y,size:sz,font:f||font,color:col||dark});
+
+  page.drawRectangle({ x:0, y:792, width:595, height:50, color:dark });
+  T('BOOM', 40, 810, 18, bold, rgb(1,1,1));
+  T('ROMA', 96, 812, 10, font, rgb(0.91,0.78,0.41));
+  T('Signature page', 360, 818, 9, font, rgb(0.8,0.8,0.8));
+  T('Pagina delle firme', 360, 805, 9, font, rgb(0.8,0.8,0.8));
+
+  let y = 758;
+  T('PAGINA DELLE FIRME — SIGNATURE PAGE', 40, y, 13, bold, gold);
+  page.drawLine({ start:{x:40,y:y-8}, end:{x:555,y:y-8}, thickness:1, color:gold });
+  y -= 26;
+  T('Parte integrante del contratto che precede / An integral part of the preceding contract.', 40, y, 9, font, grey);
+  y -= 24;
+  const row = (label, val) => { T(label, 40, y, 9, bold, grey); T(val, 180, y, 10, font, dark); y -= 18; };
+  row('Contratto', c.id || '');
+  row('Immobile', (property && (property.address || property.name)) || '');
+  // Solo caratteri WinAnsi (la lezione del certificato: la freccia U+2192
+  // non è codificabile con gli StandardFonts e fa fallire l'intero PDF).
+  row('Periodo', (c.startDate ? new Date(c.startDate).toLocaleDateString('it-IT') : '-') + '   -   ' + (c.endDate ? new Date(c.endDate).toLocaleDateString('it-IT') : '-'));
+  row('Firmato da tutte le parti il', c.fullySignedAt ? new Date(c.fullySignedAt).toLocaleString('it-IT') : '-');
+  y -= 10;
+
+  const block = async (title, name, cf, sig, at, x) => {
+    let yy = y;
+    T(title, x, yy, 10, bold, gold); yy -= 16;
+    T('Firmatario: ' + (name || '-'), x, yy, 9); yy -= 13;
+    T('Codice Fiscale: ' + (cf || '-'), x, yy, 9); yy -= 13;
+    T('Data/ora: ' + (at ? new Date(at).toLocaleString('it-IT') : '-'), x, yy, 9); yy -= 14;
+    page.drawRectangle({ x, y: yy-58, width:230, height:56, borderColor:grey, borderWidth:0.5, color:rgb(0.99,0.99,0.98) });
+    if (sig) {
+      try {
+        const m = /^data:image\/(png|jpe?g);base64,(.+)$/i.exec(sig);
+        if (m) { const b = Buffer.from(m[2], 'base64'); const im = m[1].toLowerCase().startsWith('jp') ? await pdf.embedJpg(b) : await pdf.embedPng(b);
+          const ar = im.width / im.height; let w = 200, h = w / ar; if (h > 46) { h = 46; w = h * ar; }
+          page.drawImage(im, { x: x + (230 - w)/2, y: yy - 56 + (52 - h)/2, width: w, height: h }); }
+      } catch(e){}
+    }
+  };
+  await block('IL CONDUTTORE (Tenant)', c.tenantName, c.tenantCF, c.tenantSignature, c.tenantSignedAt, 40);
+  await block('IL LOCATORE (Landlord)', c.landlordName, c.landlordCF, c.landlordSignature, c.landlordSignedAt, 320);
+
+  // CO-FIRMA: blocchi firma anche per i co-conduttori (fino a 2 in pagina).
+  const coSigList = (Array.isArray(c.coTenants) ? c.coTenants : []).filter(x => x && x.name);
+  if (coSigList.length) {
+    y -= 150;
+    const shown = coSigList.slice(0, 2);
+    for (let i = 0; i < shown.length; i++) {
+      const cv = shown[i];
+      await block(`IL CO-CONDUTTORE ${i + 1} (Co-tenant)`, cv.name, cv.cf, cv.signature, cv.signedAt, i % 2 === 0 ? 40 : 320);
+    }
+    if (coSigList.length > 2) T('+ ' + (coSigList.length - 2) + ' ulteriori co-conduttori — firme registrate a sistema.', 40, Math.max(160, y - 150), 8, font, grey);
+  }
+
+  const docHash = sha256([c.id, c.rent, c.startDate, c.endDate, c.tenantSignedAt, c.landlordSignedAt, c.tenantConsentHash, c.landlordConsentHash, ...coSigList.map(x => (x.signedAt || '') + (x.consentHash || ''))].join('|'));
+  page.drawLine({ start:{x:40,y:150}, end:{x:555,y:150}, thickness:0.5, color:grey });
+  T('Document hash (SHA-256): ' + docHash, 40, 136, 7, font, grey);
+  T('Firma Elettronica Semplice ai sensi dell’art. 21 D.Lgs 82/2005 (CAD). Il certificato di firma con audit', 40, 122, 8, font, grey);
+  T('completo (IP, consenso, hash) accompagna questo documento / The full signing certificate travels with this document.', 40, 110, 8, font, grey);
+  T('BOOM Rome · boomrome.com · Generato il ' + new Date().toLocaleString('it-IT'), 40, 82, 7, font, grey);
+  return await pdf.save();
+}
+
 // ── FES signing certificate (one A4 page, signatures + audit trail) ──
 async function buildCertificate(c, property){
-  const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
   const pdf = await PDFDocument.create();
   const page = pdf.addPage([595, 842]);
   const font = await pdf.embedFont(StandardFonts.Helvetica);
@@ -226,8 +404,10 @@ async function buildCertificate(c, property){
   row('Immobile', (property && (property.address || property.name)) || '');
   row('Tipo', c.type === 'studenti' ? 'Per studenti' : 'Transitorio');
   row('Canone / Deposito', (money(c.rent) || '-') + '   /   ' + (money(c.deposit) || '-'));
-  row('Periodo', (c.startDate ? ymd(c.startDate) : '-') + '   →   ' + (c.endDate ? ymd(c.endDate) : '-'));
-  row('Stato', 'COMPLETO — ' + (c.fullySignedAt ? new Date(c.fullySignedAt).toLocaleString('it-IT') : ''));
+  // Solo caratteri WinAnsi: la freccia "→" (U+2192) non è codificabile con
+  // gli StandardFonts di pdf-lib e faceva fallire l'INTERO certificato.
+  row('Periodo', (c.startDate ? new Date(c.startDate).toLocaleDateString('it-IT') : '-') + '   -   ' + (c.endDate ? new Date(c.endDate).toLocaleDateString('it-IT') : '-'));
+  row('Stato', c.fullySignedAt ? 'COMPLETO — firmato da tutte le parti il ' + new Date(c.fullySignedAt).toLocaleString('it-IT') : 'COMPLETO');
   y -= 8;
 
   const block = async (title, name, cf, sig, at, ip, hash, x) => {
@@ -252,29 +432,25 @@ async function buildCertificate(c, property){
   await block('CONDUTTORE (Tenant)', c.tenantName, c.tenantCF, c.tenantSignature, c.tenantSignedAt, c.tenantSignedIP, c.tenantConsentHash, 40);
   await block('LOCATORE (Landlord)', c.landlordName, c.landlordCF, c.landlordSignature, c.landlordSignedAt, c.landlordSignedIP, c.landlordConsentHash, 320);
 
-  const docHash = sha256([c.id, c.rent, c.startDate, c.endDate, c.tenantSignedAt, c.landlordSignedAt, c.tenantConsentHash, c.landlordConsentHash].join('|'));
+  // CO-FIRMA: i co-conduttori hanno il LORO blocco (firma, CF, data/ora,
+  // IP, hash del consenso) — fino a 2 in pagina; oltre, la riga li conta
+  // e le firme restano comunque registrate a sistema.
+  const coList = (Array.isArray(c.coTenants) ? c.coTenants : []).filter(x => x && x.name);
+  if (coList.length) {
+    y -= 170;
+    const coShown = coList.slice(0, 2);
+    for (let i = 0; i < coShown.length; i++) {
+      const cv = coShown[i];
+      await block(`CO-CONDUTTORE ${i + 1} (Co-tenant)`, cv.name, cv.cf, cv.signature, cv.signedAt, cv.signedIP, cv.consentHash, i % 2 === 0 ? 40 : 320);
+    }
+    if (coList.length > 2) T('+ ' + (coList.length - 2) + ' ulteriori co-conduttori — firme registrate a sistema.', 40, Math.max(150, y - 170), 8, font, grey);
+  }
+
+  const docHash = sha256([c.id, c.rent, c.startDate, c.endDate, c.tenantSignedAt, c.landlordSignedAt, c.tenantConsentHash, c.landlordConsentHash, ...coList.map(x => (x.signedAt || '') + (x.consentHash || ''))].join('|'));
   page.drawLine({ start:{x:40,y:132}, end:{x:555,y:132}, thickness:0.5, color:grey });
   T('Document hash (SHA-256): ' + docHash, 40, 118, 7, font, grey);
   T('Consenso accettato: ' + MS_CONSENT, 40, 104, 7, font, grey);
   T('Firma Elettronica Semplice ai sensi dell’art. 21 D.Lgs 82/2005 (CAD) — BOOM Rome · boomrome.com', 40, 66, 8, font, grey);
   T('Generato il ' + new Date().toLocaleString('it-IT'), 40, 52, 7, font, grey);
   return await pdf.save();
-}
-
-// ── email helpers (inline styles for client compatibility) ──
-function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-function btn(href, label){
-  return `<a href="${esc(href)}" style="display:inline-block;background:linear-gradient(180deg,#F6E4A6,#E9C766 46%,#B98E2E);color:#1c1503;text-decoration:none;font-weight:700;font-size:14px;letter-spacing:.3px;padding:13px 26px;border-radius:11px">${esc(label)}</a>`;
-}
-function emailShell(title, inner){
-  return `<div style="margin:0;padding:24px;background:#0c0c0e;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif">
-    <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 14px 40px rgba(0,0,0,.4)">
-      <div style="background:#0c0c0e;padding:22px 28px;text-align:center">
-        <div style="font-size:18px;font-weight:300;letter-spacing:9px;color:#fff;padding-left:9px">BOOM</div>
-        <div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#B8860B;margin-top:5px">${esc(title)}</div>
-      </div>
-      <div style="padding:28px 28px 30px;color:#222;font-size:15px;line-height:1.6">${inner}</div>
-      <div style="padding:16px 28px;background:#f6f6f4;color:#999;font-size:11px;text-align:center">BOOM Rome · boomrome.com · Encrypted · FES (Art. 21 CAD)</div>
-    </div>
-  </div>`;
 }

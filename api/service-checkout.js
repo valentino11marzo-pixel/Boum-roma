@@ -15,23 +15,10 @@
 // The webhook (service:'SERVICE') writes the paid lead + sends both emails.
 
 import Stripe from 'stripe';
+import { CATALOG } from './_catalog.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-const CATALOG = {
-  'virtual-viewing': {
-    eur: 89,
-    label: 'Virtual Viewing — live video tour',
-    desc: 'We walk the apartment for you, live on video — HD photo set + honest written report, scheduled within 48 hours. Credited to your agency fee if you rent the home with BOOM; refunded in full if we cannot reach the property.',
-    cancel: '/virtual-viewing',
-  },
-  'deal-assistance': {
-    eur: 249,
-    label: 'Deal Assistance — rent safely',
-    desc: 'Clause-by-clause contract review in English, landlord & property verification, and negotiation on the apartment you found. First review within 24 hours of payment.',
-    cancel: '/deal-assistance',
-  },
-};
 
 const HITS = new Map(); // ip -> [timestamps]
 const WINDOW_MS = 10 * 60 * 1000;

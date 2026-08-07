@@ -68,7 +68,7 @@
         body{font-family:'Helvetica Neue',Helvetica,'Inter',-apple-system,sans-serif;background:var(--pure-black);color:var(--text-primary);font-weight:300;line-height:1.6;-webkit-font-smoothing:antialiased}
         a{text-decoration:none;color:inherit}
         /* NAV */
-        nav{position:fixed;width:100%;top:0;z-index:100;padding:20px 50px;background:rgba(8,8,10,0.98);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255, 215, 0,0.1)}
+        nav{position:fixed;width:100%;top:0;z-index:100;padding:20px 50px;background:rgba(8,8,10,0.98);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255, 215, 0,0.1)}
         .nav-container{max-width:1400px;margin:0 auto;display:flex;justify-content:space-between;align-items:center}
         .logo{display:flex;align-items:center;gap:15px;text-decoration:none;color:#fff}
         .logo-svg{width:80px;height:80px;filter:drop-shadow(0 0 20px rgba(255, 215, 0,0.5));transition:filter .3s}
@@ -115,7 +115,7 @@
         .card-img img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .7s cubic-bezier(.16,1,.3,1)}
         .card:hover .card-img img{transform:scale(1.06)}
         .card-badges{position:absolute;top:14px;left:14px;display:flex;gap:8px;flex-wrap:wrap}
-        .badge{padding:5px 12px;border-radius:20px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;backdrop-filter:blur(10px)}
+        .badge{padding:5px 12px;border-radius:20px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
         .badge-available{background:rgba(0,255,136,0.15);color:#00FF88;border:1px solid rgba(0,255,136,0.2)}
         .badge-waitlist{background:rgba(255,149,0,0.15);color:#FF9500;border:1px solid rgba(255,149,0,0.2)}
         .badge-verified{background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.1)}
@@ -210,7 +210,7 @@
         /* Play button */
         .vd-play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:2;background:rgba(0,0,0,0.15);transition:all .6s cubic-bezier(.25,.46,.45,.94)}
         .vd-play.hidden{opacity:0;pointer-events:none;transform:scale(.8)}
-        .vd-play-ring{width:52px;height:52px;border-radius:50%;border:2px solid rgba(255, 215, 0,0.5);display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.3);backdrop-filter:blur(8px);transition:all .4s cubic-bezier(.25,.46,.45,.94);animation:ringPulse 3s infinite ease-in-out}
+        .vd-play-ring{width:52px;height:52px;border-radius:50%;border:2px solid rgba(255, 215, 0,0.5);display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.3);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);transition:all .4s cubic-bezier(.25,.46,.45,.94);animation:ringPulse 3s infinite ease-in-out}
         @keyframes ringPulse{0%,100%{box-shadow:0 0 0 0 rgba(255, 215, 0,0.2)}50%{box-shadow:0 0 0 12px rgba(255, 215, 0,0)}}
         .video-device:hover .vd-play-ring{border-color:rgba(255, 215, 0,0.9);background:rgba(255, 215, 0,0.15);transform:scale(1.1)}
         .vd-play-ring::after{content:'';width:0;height:0;border-left:18px solid rgba(255, 215, 0,0.9);border-top:11px solid transparent;border-bottom:11px solid transparent;margin-left:4px}
@@ -222,12 +222,12 @@
         @keyframes recDot{0%,100%{opacity:1}50%{opacity:.3}}
         .vd-bar span{font-size:9px;color:rgba(255,255,255,0.7);letter-spacing:.5px;text-transform:uppercase}
         /* Cinema Modal */
-        .video-modal{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0);display:none;align-items:center;justify-content:center;backdrop-filter:blur(0px);transition:background .4s ease,backdrop-filter .4s ease}
-        .video-modal.open{display:flex;background:rgba(0,0,0,0.95);backdrop-filter:blur(16px)}
+        .video-modal{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0);display:none;align-items:center;justify-content:center;-webkit-backdrop-filter:blur(0px);backdrop-filter:blur(0px);transition:background .4s ease,backdrop-filter .4s ease}
+        .video-modal.open{display:flex;background:rgba(0,0,0,0.95);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
         .video-modal-frame{width:min(380px,88vw);aspect-ratio:9/16;border-radius:20px;overflow:hidden;position:relative;box-shadow:0 0 120px rgba(255, 215, 0,0.08),0 40px 100px rgba(0,0,0,0.7);transform:scale(.9);opacity:0;transition:all .4s cubic-bezier(.16,1,.3,1)}
         .video-modal.open .video-modal-frame{transform:scale(1);opacity:1}
         .video-modal-frame iframe{width:100%;height:100%;border:none}
-        .video-modal-close{position:absolute;top:16px;right:16px;width:36px;height:36px;background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.1);border-radius:50%;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .3s;z-index:10}
+        .video-modal-close{position:absolute;top:16px;right:16px;width:36px;height:36px;background:rgba(0,0,0,0.5);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.1);border-radius:50%;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .3s;z-index:10}
         .video-modal-close:hover{background:rgba(255, 215, 0,0.2);border-color:rgba(255, 215, 0,0.3);transform:scale(1.1)}
         @media(max-width:900px){.video-showcase{flex-direction:column;text-align:center;gap:28px;padding:28px 24px}.video-copy p{max-width:none}.video-copy .vc-stats{justify-content:center}.vd-frame{width:140px;height:248px}}
         .video-showcase.hidden{display:none}
@@ -303,7 +303,7 @@
         @media(max-width:768px){.apt-search-bar{padding:0 20px}.apt-search-wrap input{height:48px;font-size:14px}.apt-search-wrap input::placeholder{font-size:13px}}
 
         /* CONTROLS / FILTER PILLS */
-        .apt-controls{max-width:1400px;margin:30px auto 0;padding:14px 50px 0;position:sticky;top:62px;z-index:90;background:rgba(8,8,10,0.82);backdrop-filter:saturate(140%) blur(18px);-webkit-backdrop-filter:saturate(140%) blur(18px)}
+        .apt-controls{max-width:1400px;margin:30px auto 0;padding:14px 50px 0;position:sticky;top:62px;z-index:90;background:rgba(8,8,10,0.82);-webkit-backdrop-filter:saturate(140%) blur(18px);backdrop-filter:saturate(140%) blur(18px);-webkit-backdrop-filter:saturate(140%) blur(18px)}
         .apt-controls::after{content:'';position:absolute;left:0;right:0;bottom:0;height:1px;background:rgba(255,255,255,0.05);opacity:0;transition:opacity .3s}
         .apt-controls.is-stuck::after{opacity:1}
         .apt-filter-row{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-bottom:14px}
@@ -419,7 +419,7 @@
         .card-img-dot.active{background:var(--gold);width:14px;border-radius:3px}
         .card-actions{position:absolute;top:12px;right:12px;display:flex;flex-direction:column;gap:8px;opacity:0;transform:translateX(8px);transition:all .25s;z-index:3}
         .card:hover .card-actions,.card:focus-within .card-actions{opacity:1;transform:none}
-        .card-act{width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,0.6);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.12);color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+        .card-act{width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,0.6);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.12);color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
         .card-act:hover{background:var(--gold);color:#000;border-color:var(--gold);transform:scale(1.08)}
         .card-act.is-on{background:var(--gold);color:#000;border-color:var(--gold)}
         .card-act svg{width:16px;height:16px}
@@ -462,7 +462,7 @@
         .compare-modal{position:fixed;inset:0;z-index:400;display:flex;align-items:center;justify-content:center;padding:24px;opacity:0;transition:opacity .25s}
         .compare-modal[hidden]{display:none}
         .compare-modal.open{opacity:1}
-        .compare-modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,0.78);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+        .compare-modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,0.78);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
         .compare-modal-panel{position:relative;width:min(1100px,100%);max-height:88vh;display:flex;flex-direction:column;background:var(--dark-void,#0A0A0A);border:1px solid rgba(255, 215, 0,0.2);border-radius:22px;box-shadow:0 40px 100px rgba(0,0,0,0.7);overflow:hidden;transform:scale(.97);transition:transform .3s cubic-bezier(.16,1,.3,1)}
         .compare-modal.open .compare-modal-panel{transform:scale(1)}
         .compare-modal-head{display:flex;justify-content:space-between;align-items:center;padding:22px 26px;border-bottom:1px solid rgba(255,255,255,0.06);flex-shrink:0}
@@ -923,7 +923,7 @@
                             <li>Full refund if we don't deliver</li>
                         </ul>
                     </div>
-                    <div class="svc-bottom"><a href="/property-finding.html" class="svc-cta svc-cta-gold">Start Property Finding →</a></div>
+                    <div class="svc-bottom"><a href="/property-finding" class="svc-cta svc-cta-gold">Start Property Finding →</a></div>
                 </div>
                 <div class="svc-card">
                     <div class="svc-top">
@@ -939,7 +939,7 @@
                             <li>Deposit protection advice</li>
                         </ul>
                     </div>
-                    <div class="svc-bottom"><a href="/deal-assistance.html" class="svc-cta svc-cta-outline">Learn More →</a></div>
+                    <div class="svc-bottom"><a href="/deal-assistance" class="svc-cta svc-cta-outline">Learn More →</a></div>
                 </div>
                 <div class="svc-card">
                     <div class="svc-top">
@@ -955,7 +955,7 @@
                             <li>Honest go / no-go recommendation</li>
                         </ul>
                     </div>
-                    <div class="svc-bottom"><a href="/virtual-viewing.html" class="svc-cta svc-cta-outline">Learn More →</a></div>
+                    <div class="svc-bottom"><a href="/virtual-viewing" class="svc-cta svc-cta-outline">Learn More →</a></div>
                 </div>
             </div>
         </div>
@@ -992,26 +992,26 @@
             </div>
             <div class="footer-col">
                 <h4>Services</h4>
-                <a href="/apartments.html">Apartments</a>
-                <a href="/property-finding.html">Property Finding</a>
-                <a href="/deal-assistance.html">Deal Assistance</a>
-                <a href="/virtual-viewing.html">Virtual Viewing</a>
-                <a href="/concierge.html">Concierge</a>
+                <a href="/apartments">Apartments</a>
+                <a href="/property-finding">Property Finding</a>
+                <a href="/deal-assistance">Deal Assistance</a>
+                <a href="/virtual-viewing">Virtual Viewing</a>
+                <a href="/concierge">Concierge</a>
             </div>
             <div class="footer-col">
                 <h4>Company</h4>
-                <a href="/about.html">About</a>
-                <a href="/how-it-works.html">How It Works</a>
-                <a href="/owners.html">For Owners</a>
-                <a href="/blog.html">Blog</a>
-                <a href="/faq.html">FAQ</a>
-                <a href="/contact.html">Contact</a>
+                <a href="/about">About</a>
+                <a href="/how-it-works">How It Works</a>
+                <a href="/owners">For Owners</a>
+                <a href="/blog">Blog</a>
+                <a href="/faq">FAQ</a>
+                <a href="/contact">Contact</a>
             </div>
             <div class="footer-col">
                 <h4>Legal</h4>
-                <a href="/terms.html">Terms</a>
-                <a href="/privacy.html">Privacy</a>
-                <a href="/login.html">Login</a>
+                <a href="/terms">Terms</a>
+                <a href="/privacy">Privacy</a>
+                <a href="/login">Login</a>
             </div>
         </div>
         <div class="footer-bottom">© 2025 BOOM — All Rights Reserved</div>

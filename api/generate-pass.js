@@ -23,7 +23,8 @@ import crypto from "crypto";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
-import { fsPatch } from "./homie/_lib.js";
+import { fsPatch, fsGet } from "./homie/_lib.js";
+import { verifyIdToken, bearerFrom } from "./_auth.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -172,9 +173,9 @@ function buildTenantPass({
         fText("immobile", "Immobile", [propertyAddress, propertyCity].filter(Boolean).join(", ")),
         fText("periodo", "Periodo contratto", formatDateRange(contractStart, contractEnd)),
         fCurrency("canone_b", "Canone mensile", monthlyRent),
-        fLink("pay", "Paga il canone", "https://boomrome.com/portal.html", "Paga ora →"),
-        fLink("maint", "Manutenzione", "https://boomrome.com/portal.html", "Apri una richiesta →"),
-        fLink("doc", "Contratto e documenti", "https://boomrome.com/portal.html", "Apri →"),
+        fLink("pay", "Paga il canone", "https://www.boomrome.com/casa", "Paga ora →"),
+        fLink("maint", "Manutenzione", "https://www.boomrome.com/casa", "Apri una richiesta →"),
+        fLink("doc", "Contratto e documenti", "https://www.boomrome.com/casa", "Apri →"),
         { key: "support", label: "Assistenza", value: "valentino@boom-rome.com · +39 331 3251961", attributedValue: SUPPORT_LINKS },
         fText("cid", "ID Contratto", contractId),
         fText("terms", "Note", "Documento ufficiale BOOM Rome. Per i termini completi fa fede il contratto firmato."),
@@ -261,7 +262,13 @@ function buildViewingPass({
   viewingId, clientName = "", propertyAddress = "", propertyCity = "Roma",
   propertyCoords = null, confirmedDateISO, durationMinutes = 30,
   meetingPoint = "AL CITOFONO", isVoided = false,
+  mode = "person", videoUrl = null,
 }) {
+  // A video viewing is the same ticket with a different door: the back of the
+  // pass leads to the room instead of the map, and the meeting point becomes
+  // "your browser". Everything else — countdown, relevantDate, updates — is
+  // identical, so the client experience never forks.
+  const video = String(mode).toLowerCase() === "video" && !!videoUrl;
   const eventDate = safeDate(confirmedDateISO);
   const expirationDate = eventDate ? new Date(eventDate.getTime() + (durationMinutes + 60) * 60 * 1000) : null;
 
@@ -280,22 +287,24 @@ function buildViewingPass({
     authenticationToken: generateAuthToken(viewingId || clientName),
     eventTicket: {
       headerFields: clean([
-        fText("type", "VIEWING", isVoided ? "ANNULLATA" : "PRIVATA", { textAlignment: R }),
+        fText("type", "VIEWING", isVoided ? "ANNULLATA" : (video ? "VIDEO" : "PRIVATA"), { textAlignment: R }),
       ]),
       primaryFields: [],
       secondaryFields: clean([
-        fText("addr", "INDIRIZZO", propertyAddress),
+        fText("addr", video ? "VIDEOCHIAMATA" : "INDIRIZZO", video ? "Si apre nel browser" : propertyAddress),
       ]),
       auxiliaryFields: clean([
         fDate("date", "DATA", confirmedDateISO, { changeMessage: "Visita spostata: %@" }),
         eventDate ? { key: "time", label: "ORA", value: eventDate.toISOString(), dateStyle: "PKDateStyleNone", timeStyle: "PKDateStyleShort", ignoresTimeZone: true, textAlignment: R, changeMessage: "Nuovo orario: %@" } : null,
       ]),
       backFields: clean([
+        // the first back field is the ACTION: join the call, or open the map
+        video && !isVoided ? fLink("join", "Videochiamata", videoUrl, "Entra nella call →") : null,
         fText("client", "Cliente", clientName),
         fText("immobile", "Immobile", [propertyAddress, propertyCity].filter(Boolean).join(", ")),
         fText("dur", "Durata", `${durationMinutes} minuti`),
-        fText("meet", "Punto d'incontro", meetingPoint),
-        (propertyCoords && propertyCoords.lat && propertyCoords.lng)
+        fText("meet", "Punto d'incontro", video ? "Dal tuo browser — nessuna app" : meetingPoint),
+        (!video && propertyCoords && propertyCoords.lat && propertyCoords.lng)
           ? fLink("maps", "Mappa", `https://maps.apple.com/?ll=${propertyCoords.lat},${propertyCoords.lng}&q=${encodeURIComponent(propertyAddress)}`, "Apri in Mappe →")
           : null,
         fText("resched", "Riprogrammazione", isVoided ? "Visita ANNULLATA. Contattaci per riprogrammare." : "Puoi riprogrammare fino a 2 ore prima."),
@@ -308,7 +317,9 @@ function buildViewingPass({
   };
   if (eventDate) pass.relevantDate = eventDate.toISOString();
   if (expirationDate) pass.expirationDate = expirationDate.toISOString();
-  if (propertyCoords && propertyCoords.lat && propertyCoords.lng && !isVoided) {
+  // Geofence only makes sense for a physical visit: a video pass that lights
+  // up when you walk past the building would be noise.
+  if (!video && propertyCoords && propertyCoords.lat && propertyCoords.lng && !isVoided) {
     pass.locations = [{ latitude: parseFloat(propertyCoords.lat), longitude: parseFloat(propertyCoords.lng), relevantText: `La tua visita — ${propertyAddress}` }];
     pass.semantics = {
       eventType: "PKEventTypeGeneric",
@@ -368,12 +379,72 @@ function buildReferralPass({
   return pass;
 }
 
+
+// ── RESERVATION — the pre-agreement moment, in the client's Wallet ─────────
+// eventTicket so Wallet surfaces it on the lock screen on move-in day
+// (relevantDate). QR reopens the signed document. Issued by
+// api/preagreement/wallet.js the moment the deal is accepted/paid.
+function buildReservationPass({
+  paId, ref = "", address = "", city = "Roma", tenantName = "",
+  startDate, endDate, months, monthlyTotal, paidEur, status = "accepted",
+  docUrl = "https://www.boomrome.com",
+}) {
+  const shortAddr = String(address).split(",")[0];
+  const pass = {
+    formatVersion: 1,
+    passTypeIdentifier: PASS_TYPE_ID,
+    teamIdentifier: TEAM_ID,
+    organizationName: "BOOM Rome",
+    description: `BOOM Reservation — ${shortAddr}`,
+    serialNumber: `resv-${paId || crypto.randomUUID()}`,
+    backgroundColor: "rgb(8,8,10)",
+    foregroundColor: "rgb(245,245,240)",
+    labelColor: "rgb(212,175,55)",
+    logoText: "BOOM",
+    webServiceURL: WEB_SERVICE_URL,
+    authenticationToken: generateAuthToken(paId || ref),
+    sharingProhibited: true,
+    eventTicket: {
+      headerFields: clean([
+        fText("state", "STATO", status === "paid" ? "PAID ✓" : "RESERVED ✓", { textAlignment: R, changeMessage: "Stato prenotazione: %@" }),
+      ]),
+      primaryFields: clean([
+        fText("addr", "LA TUA CASA", shortAddr),
+      ]),
+      secondaryFields: clean([
+        fDate("movein", "MOVE-IN", startDate, { changeMessage: "Move-in: %@" }),
+        fCurrency("monthly", "MENSILE", monthlyTotal, { textAlignment: R }),
+      ]),
+      auxiliaryFields: clean([
+        fText("ref", "PROTOCOLLO", ref),
+        fText("term", "DURATA", months ? `${months} mesi` : null, { textAlignment: R }),
+      ]),
+      backFields: clean([
+        fText("full", "Immobile", [address, city].filter(Boolean).join(", ")),
+        fText("holder", "Intestatario", tenantName),
+        fText("periodo", "Periodo", formatDateRange(startDate, endDate)),
+        fCurrency("paid_b", "Versato alla firma", paidEur),
+        fLink("doc", "Il tuo pre-agreement", docUrl, "Apri il documento →"),
+        fLink("casa", "La tua casa BOOM", "https://www.boomrome.com/casa", "Pagamenti, documenti, richieste →"),
+        fText("next", "Prossimi passi", "1. Contratto digitale via email  2. Firma in 2 minuti  3. Chiavi al move-in"),
+        { key: "sup", label: "Il tuo advisor", value: "Valentino · BOOM Roma", attributedValue: SUPPORT_LINKS },
+      ]),
+    },
+    barcodes: [{ format: "PKBarcodeFormatQR", message: docUrl, messageEncoding: "iso-8859-1", altText: ref || "BOOM" }],
+    userInfo: { paId, type: "reservation", ref },
+  };
+  const rel = safeDate(startDate);
+  if (rel) pass.relevantDate = rel.toISOString();
+  return pass;
+}
+
 const BUILDERS = {
   tenant: buildTenantPass,
   silver: buildSilverPass,
   landlord: buildLandlordPass,
   viewing: buildViewingPass,
   referral: buildReferralPass,
+  reservation: buildReservationPass,
 };
 
 // Export builders + signer for the studio (pass-issue) and web service (pass-update)
@@ -401,8 +472,24 @@ export default async function handler(req, res) {
   if (allowedOrigins.includes(origin)) res.setHeader("Access-Control-Allow-Origin", origin);
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Firebase-Token, X-Homie-Secret, Authorization");
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+
+  // Questo endpoint FIRMA col certificato Apple Wallet di produzione: era
+  // pubblico e chiunque poteva coniare carte "BOOM" con contenuti arbitrari
+  // (audit 2026-08, S1 — i gemelli pass-issue/push/diag erano già protetti).
+  // I flussi cliente moderni non passano da qui (my-pass e viewings/pass
+  // hanno i loro token derivati): chi chiama è SEMPRE un operatore.
+  const secretOk = req.headers["x-homie-secret"] && req.headers["x-homie-secret"] === process.env.HOMIE_SECRET;
+  if (!secretOk) {
+    const tok = req.headers["x-firebase-token"] || bearerFrom(req);
+    const u = tok ? await verifyIdToken(tok).catch(() => null) : null;
+    const prof = u ? await fsGet("users/" + u.localId).catch(() => null) : null;
+    if (!prof || !["admin", "owner", "landlord"].includes(prof.role)) {
+      return res.status(401).json({ error: "auth_required", hint: "Pass signing is operator-only. Open your pass from the link BOOM sent you, or ask for a fresh one." });
+    }
+  }
 
   try {
     const { type = "tenant", data } = req.body || {};

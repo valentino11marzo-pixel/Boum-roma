@@ -14,6 +14,9 @@
 // Response: { ok, complete, signedPdfUrl? }
 
 import { fsGet, fsPatch, getAdminToken, secretEqual, FS_BASE, toFsFields } from '../../homie/_lib.js';
+// pdf-lib is imported statically: a lazy `await import('pdf-lib')` is not
+// traced by Vercel's bundler and fails at runtime in production.
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 // pdf-lib is imported lazily inside buildSignedPdf so a load failure degrades
 // to "signature recorded, PDF pending" instead of crashing the endpoint.
 
@@ -45,7 +48,6 @@ async function uploadPdf(path, bytes){
 
 // Embed every signed field into the original PDF. fields: [{page,role,kind,xr,yr,wr,hr}]
 async function buildSignedPdf(originalBytes, fields, signers){
-  const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
   const pdf = await PDFDocument.load(originalBytes);
   const pages = pdf.getPages();
   const font = await pdf.embedFont(StandardFonts.Helvetica);

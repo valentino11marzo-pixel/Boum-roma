@@ -1,0 +1,349 @@
+// tests/money/run.mjs — test dei percorsi soldi (senza rete, senza emulatore).
+// 'stripe' è mockato via loader ESM; Firestore/IdentityToolkit/EmailJS via
+// stub di global.fetch con uno store in-memory. Copre la NOSTRA logica:
+// validazione, honeypot, prezzi server-side, idempotenza su retry Stripe,
+// conversione pre-agreement idempotente.
+// Uso: node tests/money/run.mjs
+import { register } from 'node:module';
+register('./loader.mjs', import.meta.url);
+
+process.env.STRIPE_SECRET_KEY = 'sk_test_x';
+process.env.STRIPE_WEBHOOK_SECRET = 'whsec_x';
+process.env.FIREBASE_API_KEY = 'k';
+process.env.FIREBASE_ADMIN_EMAIL = 'a@b.c';
+process.env.FIREBASE_ADMIN_PASS = 'p';
+process.env.FIREBASE_PROJECT_ID = 'test-proj';
+process.env.EMAILJS_PRIVATE_KEY = 'ek';
+
+let passed = 0, failed = 0;
+const bad = [];
+const check = (name, cond) => { cond ? passed++ : (failed++, bad.push(name)); console.log((cond ? 'PASS ' : 'FAIL ') + name); };
+
+// ── Stub fetch: store Firestore in-memory ───────────────────────────────
+const store = new Map();        // 'collection/docId' → plain fields object
+const emails = [];              // template_params delle email inviate
+const queries = [];             // structuredQuery dei runQuery
+globalThis.__stripeCalls = [];
+
+const FS = 'firestore.googleapis.com';
+const okJson = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'Content-Type': 'application/json' } });
+
+// Serializzazione COMPLETA (array e mappe annidate incluse): il convert
+// scrive coTenants[]/agencyFee{} e la lib vera li gestisce — lo stub deve
+// fare altrettanto o i test mentono per difetto suo.
+function toFsV(v) {
+  if (v === null || v === undefined) return { nullValue: null };
+  if (typeof v === 'boolean') return { booleanValue: v };
+  if (typeof v === 'number') return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+  if (Array.isArray(v)) return { arrayValue: { values: v.map(toFsV) } };
+  if (typeof v === 'object') { const f = {}; for (const [k, x] of Object.entries(v)) f[k] = toFsV(x); return { mapValue: { fields: f } }; }
+  return { stringValue: String(v) };
+}
+function toFsFieldsShallow(obj) {
+  const f = {};
+  for (const [k, v] of Object.entries(obj || {})) f[k] = toFsV(v);
+  return f;
+}
+function fromFsV(v) {
+  if (!v || typeof v !== 'object') return null;
+  if ('stringValue' in v) return v.stringValue;
+  if ('booleanValue' in v) return v.booleanValue;
+  if ('integerValue' in v) return +v.integerValue;
+  if ('doubleValue' in v) return v.doubleValue;
+  if ('nullValue' in v) return null;
+  if ('timestampValue' in v) return v.timestampValue;
+  if ('arrayValue' in v) return ((v.arrayValue || {}).values || []).map(fromFsV);
+  if ('mapValue' in v) { const o = {}; for (const [k, x] of Object.entries((v.mapValue || {}).fields || {})) o[k] = fromFsV(x); return o; }
+  return null;
+}
+
+globalThis.fetch = async (url, opts = {}) => {
+  url = String(url);
+  if (url.includes('identitytoolkit')) return okJson({ idToken: 'tok', users: [{ localId: 'admin1' }] });
+  if (url.includes('api.emailjs.com')) {
+    emails.push(JSON.parse(opts.body).template_params);
+    return new Response('OK', { status: 200 });
+  }
+  if (url.includes(FS)) {
+    const path = url.split('/documents')[1] || '';
+    if (path.startsWith(':runQuery')) {
+      const q = JSON.parse(opts.body).structuredQuery;
+      queries.push(q);
+      const coll = q.from[0].collectionId;
+      const field = q.where?.fieldFilter?.field?.fieldPath;
+      const val = q.where?.fieldFilter?.value?.stringValue;
+      const rows = [];
+      for (const [key, fields] of store) {
+        if (!key.startsWith(coll + '/')) continue;
+        if (field && String(fields[field]) !== String(val)) continue;
+        rows.push({ document: { name: 'projects/p/databases/(default)/documents/' + key, fields: toFsFieldsShallow(fields) } });
+      }
+      return okJson(rows.length ? rows : [{}]);
+    }
+    const clean = path.replace(/^\//, '').split('?')[0];
+    const qs = new URL(url).searchParams;
+    if (opts.method === 'POST') {
+      const docId = qs.get('documentId') || 'auto_' + (store.size + 1);
+      const key = clean + '/' + docId;
+      if (qs.get('documentId') && store.has(key)) return new Response('conflict', { status: 409 });
+      const fields = JSON.parse(opts.body).fields || {};
+      const flat = {};
+      for (const [k, v] of Object.entries(fields)) flat[k] = fromFsV(v);
+      store.set(key, flat);
+      return okJson({ name: 'projects/p/databases/(default)/documents/' + key });
+    }
+    if (opts.method === 'PATCH') {
+      const fields = JSON.parse(opts.body).fields || {};
+      const flat = store.get(clean) || {};
+      for (const [k, v] of Object.entries(fields)) flat[k] = fromFsV(v);
+      store.set(clean, flat);
+      return okJson({ name: 'projects/p/databases/(default)/documents/' + clean });
+    }
+    // GET doc
+    const doc = store.get(clean);
+    if (!doc) return new Response('not found', { status: 404 });
+    return okJson({ name: 'projects/p/databases/(default)/documents/' + clean, fields: toFsFieldsShallow(doc) });
+  }
+  throw new Error('fetch non stubbata: ' + url);
+};
+
+// ── Helpers req/res ─────────────────────────────────────────────────────
+const mkRes = () => ({
+  code: 0, body: null, headers: {},
+  setHeader(k, v) { this.headers[k] = v; },
+  status(c) { this.code = c; return this; },
+  json(o) { this.body = o; return this; },
+  send(t) { this.body = t; return this; },
+  end() { return this; },
+});
+const mkReq = (body, headers = {}) => ({ method: 'POST', headers, body });
+const mkStreamReq = (obj) => ({
+  method: 'POST',
+  headers: { 'stripe-signature': 'sig' },
+  async *[Symbol.asyncIterator]() { yield Buffer.from(JSON.stringify(obj)); },
+});
+const sessionEvent = (metadata, over = {}) => ({
+  type: 'checkout.session.completed',
+  data: { object: { id: over.id || 'cs_live_abc123', amount_total: over.amount_total ?? 8900, currency: 'eur', customer_email: 'c@x.it', payment_intent: 'pi_1', metadata } },
+});
+
+// ═══ 1. service-checkout ═══
+const svc = (await import('../../api/service-checkout.js')).default;
+{
+  let r = mkRes();
+  await svc(mkReq({ kind: 'virtual-viewing', name: 'A', email: 'a@b.it', phone: '333', company: 'BOT' }, { 'x-forwarded-for': '1.1.1.1' }), r);
+  check('service: honeypot → finto ok, Stripe NON chiamato', r.body?.url === '/' && globalThis.__stripeCalls.length === 0);
+
+  r = mkRes();
+  await svc(mkReq({ kind: 'not-a-service', name: 'A', email: 'a@b.it', phone: '333' }, { 'x-forwarded-for': '1.1.1.2' }), r);
+  check('service: kind sconosciuto → 400', r.code === 400);
+
+  r = mkRes();
+  await svc(mkReq({ kind: 'contract-check-express', name: 'A', email: 'a@b.it', phone: '333' }, { 'x-forwarded-for': '1.1.1.3' }), r);
+  const call = globalThis.__stripeCalls.at(-1);
+  check('service: prezzo dal catalogo server (€49)', call?.line_items?.[0]?.price_data?.unit_amount === 4900);
+}
+
+// ═══ 2. create-checkout (PFS €350) ═══
+const pfs = (await import('../../api/create-checkout.js')).default;
+{
+  let r = mkRes();
+  await pfs(mkReq({ name: 'A', email: 'a@b.it', phone: '3', company: 'BOT' }, { 'x-forwarded-for': '2.2.2.1' }), r);
+  check('pfs: honeypot attivo', r.body?.url === '/');
+
+  r = mkRes();
+  await pfs(mkReq({ name: 'A', email: 'niente-chiocciola', phone: '3' }, { 'x-forwarded-for': '2.2.2.2' }), r);
+  check('pfs: email senza @ → 400', r.code === 400);
+
+  const before = globalThis.__stripeCalls.length;
+  r = mkRes();
+  await pfs(mkReq({ name: 'A', email: 'a@b.it', phone: '3' }, { 'x-forwarded-for': '2.2.2.3' }), r);
+  const c = globalThis.__stripeCalls.at(-1);
+  check('pfs: €350 hardcoded server-side', globalThis.__stripeCalls.length === before + 1 && c.line_items[0].price_data.unit_amount === 35000);
+
+  let last;
+  for (let i = 0; i < 10; i++) { last = mkRes(); await pfs(mkReq({ name: 'A', email: 'a@b.it', phone: '3' }, { 'x-forwarded-for': '9.9.9.9' }), last); }
+  check('pfs: rate-limit per IP → 429', last.code === 429);
+}
+
+// ═══ 3. reserve-checkout (clamp importo) ═══
+const rsv = (await import('../../api/reserve-checkout.js')).default;
+{
+  let r = mkRes();
+  await rsv(mkReq({ name: 'A', email: 'a@b.it', phone: '3', amount: 50 }, { 'x-forwarded-for': '3.3.3.1' }), r);
+  check('reserve: importo sotto soglia → default €300', globalThis.__stripeCalls.at(-1).line_items[0].price_data.unit_amount === 30000);
+
+  r = mkRes();
+  await rsv(mkReq({ name: 'A', email: 'a@b.it', phone: '3', amount: 99999 }, { 'x-forwarded-for': '3.3.3.2' }), r);
+  check('reserve: clamp massimo €2000', globalThis.__stripeCalls.at(-1).line_items[0].price_data.unit_amount === 200000);
+}
+
+// ═══ 4. stripe-webhook: idempotenza SERVICE ═══
+const webhook = (await import('../../api/stripe-webhook.js')).default;
+{
+  const ev = sessionEvent({ service: 'SERVICE', kind: 'virtual-viewing', name: 'Ada B', email: 'ada@x.it', phone: '333' });
+  let r = mkRes();
+  const emailsBefore = emails.length;
+  await webhook(mkStreamReq(ev), r);
+  check('webhook SERVICE: 1° evento → lead scritto', r.code === 200 && [...store.keys()].some(k => k.startsWith('leads/svc_')));
+  check('webhook SERVICE: 1° evento → 2 email (admin+cliente)', emails.length === emailsBefore + 2);
+
+  r = mkRes();
+  await webhook(mkStreamReq(ev), r);
+  check('webhook SERVICE: retry stessa sessione → duplicate, ZERO nuove email', r.body?.duplicate === true && emails.length === emailsBefore + 2);
+}
+
+// ═══ 5. stripe-webhook: idempotenza DEPOSIT ═══
+{
+  store.set('contracts/ctr1', { tenantId: 't1', propertyId: 'p1', tenantEmail: 't@x.it' });
+  const ev = sessionEvent({ service: 'DEPOSIT', contractId: 'ctr1' }, { id: 'cs_dep_1', amount_total: 120000 });
+  let r = mkRes();
+  const eb = emails.length;
+  await webhook(mkStreamReq(ev), r);
+  check('webhook DEPOSIT: 1° evento → payment dep_ scritto + contratto marcato', store.has('payments/dep_ctr1') && store.get('contracts/ctr1').depositPaid === true);
+  const firstEmails = emails.length - eb;
+
+  r = mkRes();
+  await webhook(mkStreamReq(ev), r);
+  check('webhook DEPOSIT: retry → duplicate, niente nuove email', r.body?.duplicate === true && emails.length === eb + firstEmails);
+}
+
+// ═══ 6. stripe-webhook: PREAGREEMENT pagato + duplicate ═══
+{
+  const token = 'a'.repeat(32);
+  store.set('preAgreements/pa1', { token, ref: 'BOOM-X', status: 'accepted' });
+  const ev = sessionEvent({ service: 'PREAGREEMENT', token }, { id: 'cs_pa_1', amount_total: 50000 });
+  let r = mkRes();
+  await webhook(mkStreamReq(ev), r);
+  const pa = store.get('preAgreements/pa1');
+  check('webhook PA: pagamento → status paid + paidSessionId', pa.status === 'paid' && pa.paidSessionId === 'cs_pa_1');
+
+  const eb = emails.length;
+  r = mkRes();
+  await webhook(mkStreamReq(ev), r);
+  check('webhook PA: retry → duplicate, niente nuove email', r.body?.duplicate === true && emails.length === eb);
+}
+
+// ═══ 7. convertPaToContract: idempotente su ID deterministico ═══
+{
+  const { convertPaToContract } = await import('../../api/preagreement/convert.js');
+  store.set('properties/prop9', { ownerId: 'll9', name: 'Casa', ownerName: 'Rossi' });
+  store.set('users/u9', { email: 'ten@x.it', role: 'tenant' });
+  const pa = {
+    status: 'accepted', propertyId: 'prop9', autoConvert: true, ref: 'BOOM-Y',
+    tenant: { fullName: 'Teo Neri', email: 'ten@x.it', phone: '333' },
+    money: { rent: 1200, deposit: 2400, depositMonths: 2 }, lease: { months: 12, startDate: '2026-09-01' },
+  };
+  const out1 = await convertPaToContract({ pa, paId: 'pa9' });
+  check('convert: 1ª chiamata crea contracts/pa_pa9', out1.ok && out1.contractId === 'pa_pa9' && store.has('contracts/pa_pa9'));
+  const out2 = await convertPaToContract({ pa, paId: 'pa9' });   // race/retry: back-link stantio, stesso PA
+  check('convert: 2ª chiamata → already, STESSO contratto (niente duplicati)', out2.ok && out2.already === true && out2.contractId === 'pa_pa9');
+  const contractDocs = [...store.keys()].filter(k => k.startsWith('contracts/') && store.get(k).preAgreementId === 'pa9');
+  check('convert: un solo contratto per il PA', contractDocs.length === 1);
+}
+
+// ═══ 8. Link di pagamento (token derivato + ramo INVOICE) ═══
+{
+  const { payToken, verifyPayToken, payLink, collectionFor } = await import('../../api/payments/_token.js');
+
+  check('token: stesso documento → stesso token (link stabile nel tempo)',
+    payToken('pay', 'p1') === payToken('pay', 'p1'));
+  check('token: documenti diversi → token diversi',
+    payToken('pay', 'p1') !== payToken('pay', 'p2'));
+  check('token: stesso id ma tipo diverso → token diverso (una fattura non apre una rata)',
+    payToken('pay', 'x1') !== payToken('inv', 'x1'));
+  check('token: verifica corretta', verifyPayToken('pay', 'p1', payToken('pay', 'p1')));
+  check('token: token altrui rifiutato', !verifyPayToken('pay', 'p1', payToken('pay', 'p2')));
+  check('token: token vuoto rifiutato', !verifyPayToken('pay', 'p1', ''));
+  check('token: tipo sconosciuto → nessuna collezione', collectionFor('utenti') === null);
+  check('link: contiene tipo, id e token', /k=pay&id=p1&t=[0-9a-f]{24}$/.test(payLink('pay', 'p1')));
+
+  // link-for: solo admin per le fatture, e mai per un documento già pagato
+  const linkFor = (await import('../../api/payments/link-for.js')).default;
+  store.set('invoices/inv1', { number: '2026/001', amount: 500, status: 'pending' });
+  store.set('invoices/inv2', { number: '2026/002', amount: 500, status: 'paid' });
+  store.set('users/admin1', { role: 'admin', email: 'a@b.c' });
+
+  let r = mkRes();
+  await linkFor(mkReq({ kind: 'inv', id: 'inv1' }, { authorization: 'Bearer t' }), r);
+  check('link-for: admin ottiene il link della fattura', r.code === 200 && /k=inv&id=inv1/.test(r.body?.url || ''));
+
+  r = mkRes();
+  await linkFor(mkReq({ kind: 'inv', id: 'inv2' }, { authorization: 'Bearer t' }), r);
+  check('link-for: documento già pagato → 409, nessun link', r.code === 409);
+
+  r = mkRes();
+  await linkFor(mkReq({ kind: 'inv', id: 'non-esiste' }, { authorization: 'Bearer t' }), r);
+  check('link-for: documento inesistente → 404', r.code === 404);
+
+  r = mkRes();
+  await linkFor(mkReq({ kind: 'utenti', id: 'x' }, { authorization: 'Bearer t' }), r);
+  check('link-for: tipo non consentito → 400 (non si generano link su altre collezioni)', r.code === 400);
+
+  // webhook INVOICE: incassa, è idempotente, e non sovrascrive mai un già pagato
+  const eb = emails.length;
+  let ev = sessionEvent({ service: 'INVOICE', invoiceId: 'inv1', number: '2026/001', amount: '500' }, { id: 'cs_inv_1', amount_total: 50000 });
+  r = mkRes();
+  await webhook(mkStreamReq(ev), r);
+  const inv = store.get('invoices/inv1');
+  check('webhook INVOICE: fattura segnata pagata via stripe',
+    inv?.status === 'paid' && inv?.paidVia === 'stripe' && inv?.stripeSessionId === 'cs_inv_1');
+  // NB: le email di questo ramo escono via nodemailer (non EmailJS), che qui
+  // non è stubbato — si verifica quindi ciò che tiene insieme il portale:
+  // la notifica operativa scritta su agentNotifications.
+  check('webhook INVOICE: incasso notificato nel portale',
+    [...store.keys()].some(k => k.startsWith('agentNotifications/inv-') && !k.includes('double')));
+
+  const eb2 = emails.length;
+  r = mkRes();
+  await webhook(mkStreamReq(ev), r);
+  check('webhook INVOICE: retry stessa sessione → duplicate, zero nuove email',
+    r.body?.duplicate === true && emails.length === eb2);
+
+  // Una SECONDA sessione su una fattura già pagata non deve sovrascrivere
+  // nulla: è un probabile doppio incasso e va segnalato, non nascosto.
+  r = mkRes();
+  await webhook(mkStreamReq(sessionEvent(
+    { service: 'INVOICE', invoiceId: 'inv1', amount: '500' }, { id: 'cs_inv_2', amount_total: 50000 })), r);
+  check('webhook INVOICE: seconda sessione → allarme doppio incasso, dato non sovrascritto',
+    r.body?.doublePayment === true && store.get('invoices/inv1').stripeSessionId === 'cs_inv_1');
+  check('webhook INVOICE: doppio incasso notificato all\'operatore',
+    [...store.keys()].some(k => k.startsWith('agentNotifications/inv-double-')));
+}
+
+// ═══ 9. convert: verità sul deposito + co-conduttori + provvigione ═══
+{
+  const { convertPaToContract } = await import('../../api/preagreement/convert.js');
+  store.set('properties/prop10', { ownerId: 'll10', name: 'Casa10', ownerName: 'Verdi' });
+  const pa = {
+    status: 'paid', paidEur: 3449.6, paidAt: '2026-07-10', propertyId: 'prop10', ref: 'BOOM-Z',
+    tenant: { fullName: 'Julie V', email: 'julie@x.fr', phone: '333', cf: 'VRBJLU06M44Z110V' },
+    tenants: [
+      { fullName: 'Julie V', email: 'julie@x.fr', phone: '333', cf: 'VRBJLU06M44Z110V' },
+      { fullName: 'Anouk G', email: 'anouk@x.fr', cf: 'grtnka06l65z110o', dob: '2006-07-25', birthPlace: 'Bouliac' },
+    ],
+    money: { rent: 1400, deposit: 2800, depositMonths: 2, depositAtSigning: 1400, depositAtMoveIn: 1400,
+             fee: 1680, feeVatPct: 22, feeVat: 369.6, feeTotal: 2049.6, feeDue: 'move-in', feeMode: 'pct' },
+    lease: { months: 12, startDate: '2026-09-01', endDate: '2027-08-31' },
+  };
+  const out = await convertPaToContract({ pa, paId: 'pa10' });
+  const c = store.get('contracts/pa_pa10');
+  check('convert PAID: depositAlreadyPaidEur = acconto incassato, non depositPaid (resta saldo)',
+    out.ok && c && c.depositAlreadyPaidEur === 1400 && c.depositPaid === false);
+  check('convert: rata saldo depbal_ creata per la parte al move-in',
+    store.has('payments/depbal_pa_pa10') && store.get('payments/depbal_pa_pa10').amount === 1400);
+  check('convert: co-conduttore con IDENTITÀ COMPLETA (non solo il nome)',
+    Array.isArray(c.coTenants) && c.coTenants.length === 1 && c.coTenants[0].cf === 'GRTNKA06L65Z110O'
+    && c.coTenants[0].birthPlace === 'Bouliac' && c.cohabitants.includes('C.F. GRTNKA06L65Z110O'));
+  check('convert: clausola di solidarietà dei co-conduttori nelle altre clausole',
+    /si obbligano in solido/.test(c.otherClauses) && c.otherClauses.includes('Anouk G'));
+  check('convert: la provvigione VIAGGIA sul contratto (prima spariva)',
+    c.agencyFee && c.agencyFee.totalEur === 2049.6 && c.agencyFee.due === 'move-in');
+  check('convert: scheda cliente creata anche per il co-conduttore',
+    [...store.keys()].some(k => k.startsWith('users/') && (store.get(k) || {}).name === 'Anouk G'));
+}
+
+console.log('\n' + '─'.repeat(48));
+console.log(`Money paths: ${passed} passed, ${failed} failed`);
+if (failed) { console.error('FAILED: ' + bad.join(' | ')); process.exit(1); }
+console.log('Tutti i percorsi soldi si comportano come previsto.');

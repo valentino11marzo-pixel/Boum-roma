@@ -81,6 +81,7 @@ Crawl-delay: 10
 # "User-agent: *" policy above: they may read every public page, but not the
 # internal/authenticated surfaces listed under Disallow.
 # LLM-friendly summary of the site: https://www.boomrome.com/llms.txt
+# Live rental inventory in markdown:  https://www.boomrome.com/llms-listings.txt
 
 # Sitemaps
 Sitemap: https://www.boomrome.com/sitemap.xml

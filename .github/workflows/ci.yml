@@ -1,0 +1,109 @@
+name: CI
+
+# Rete di sicurezza pre-deploy: valida la sintassi di tutti gli script del
+# sito e fa girare lo smoke test del flusso di autenticazione in un browser
+# reale. Vercel deploya comunque a prescindere (advisory): se un check è
+# rosso, il commit è già live — ma lo sai subito e fai revert in un minuto.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Avvio manuale: quando GitHub perde l'evento di una push (succede, e senza
+  # questo non esiste alcun modo di far girare i test su quel commit — niente
+  # run da ri-lanciare, nessuna verifica) la CI si riavvia da Actions → CI →
+  # "Run workflow", oppure via API.
+  workflow_dispatch:
+
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Sintassi inline JS + js/*.js + sw.js + vercel.json
+        run: node scripts/check-pages.mjs
+      - name: Sintassi moduli ESM api/
+        run: |
+          set -e
+          for f in $(find api -name '*.js'); do
+            cp "$f" /tmp/esmcheck.mjs
+            node --check /tmp/esmcheck.mjs || { echo "FAIL $f"; exit 1; }
+          done
+          echo "api/: OK"
+      - name: Test percorsi soldi (checkout + webhook + convert, tutto mockato)
+        run: node tests/money/run.mjs
+      - name: Test motori puri (fiscal + taxpack + dataops)
+        run: |
+          node tests/fiscal/test.mjs
+          node tests/taxpack/test.mjs
+          node tests/dataops/test.mjs
+
+  firestore-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # firebase-tools (non pinnato) da fine luglio 2026 rifiuta Java < 21
+      # per l'emulatore Firestore; il default del runner è più vecchio →
+      # il job era rosso su OGNI branch, main compreso, senza alcuna
+      # modifica al repo.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Installa firebase-tools + deps test
+        run: |
+          npm install --no-save firebase-tools >/dev/null
+          cd tests/rules && npm install >/dev/null
+      - name: Test firestore.rules contro emulatore
+        run: |
+          cd tests/rules
+          cp ../../firestore.rules ./firestore.rules
+          npx firebase emulators:exec --only firestore --project demo-boom-rules 'node runner.mjs'
+
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Installa Playwright + Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install --no-save playwright >/dev/null
+          npx playwright install --with-deps chromium
+      - name: Smoke test flusso auth
+        run: node tests/smoke.mjs
+
+  # Le rules di sicurezza si applicano solo quando qualcuno le DEPLOYA:
+  # nell'agosto 2026 il repo era avanti di settimane rispetto a Firebase e il
+  # lucchetto immobile (propertyLocks) falliva in produzione da giorni, in
+  # silenzio (audit 2026-08). Questo job chiude la classe di guasto: ogni
+  # push su main che tocca le rules le pubblica. Richiede il secret
+  # FIREBASE_TOKEN (una volta: `npx firebase-tools login:ci` → Settings →
+  # Secrets → FIREBASE_TOKEN); finché il secret non c'è, il job si dichiara
+  # e salta con un avviso, senza mai rompere la CI.
+  deploy-rules:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Deploy firestore.rules + storage.rules
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          if [ -z "$FIREBASE_TOKEN" ]; then
+            echo "::warning::FIREBASE_TOKEN assente — rules NON deployate. Genera il token con 'npx firebase-tools login:ci' e salvalo nei repo secrets."
+            exit 0
+          fi
+          npm install --no-save firebase-tools >/dev/null
+          npx firebase-tools deploy --only firestore:rules,storage --project boom-property-dashboards --token "$FIREBASE_TOKEN" --non-interactive

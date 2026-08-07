@@ -2,6 +2,7 @@
   "version": 2,
   "cleanUrls": true,
   "trailingSlash": false,
+  "installCommand": "npm ci",
   "images": {
     "remotePatterns": [
       {
@@ -49,6 +50,26 @@
       "permanent": true
     },
     {
+      "source": "/(dashboard|dashboard.html|admin|admin.html)",
+      "destination": "/portal",
+      "permanent": false
+    },
+    {
+      "source": "/(la-reunion|reunion-island|974)",
+      "destination": "/reunion",
+      "permanent": false
+    },
+    {
+      "source": "/(owner|owner.html)",
+      "destination": "/owner-dashboard",
+      "permanent": false
+    },
+    {
+      "source": "/(apartments-legacy|apartments-legacy.html|apartment-detail-legacy|apartment-detail-legacy.html)",
+      "destination": "/apartments",
+      "permanent": false
+    },
+    {
       "source": "/apartments.html",
       "destination": "/apartments",
       "permanent": true
@@ -76,6 +97,11 @@
     {
       "source": "/book.html",
       "destination": "/book",
+      "permanent": true
+    },
+    {
+      "source": "/viewing.html",
+      "destination": "/viewing",
       "permanent": true
     },
     {
@@ -111,6 +137,36 @@
     {
       "source": "/deal-assistance.html",
       "destination": "/deal-assistance",
+      "permanent": true
+    },
+    {
+      "source": "/deposit-recovery.html",
+      "destination": "/deposit-recovery",
+      "permanent": true
+    },
+    {
+      "source": "/contract-check-express.html",
+      "destination": "/contract-check-express",
+      "permanent": true
+    },
+    {
+      "source": "/deposit-letter.html",
+      "destination": "/deposit-letter",
+      "permanent": true
+    },
+    {
+      "source": "/services.html",
+      "destination": "/services",
+      "permanent": true
+    },
+    {
+      "source": "/remote-move-pack.html",
+      "destination": "/remote-move-pack",
+      "permanent": true
+    },
+    {
+      "source": "/pacchetto-concordato.html",
+      "destination": "/pacchetto-concordato",
       "permanent": true
     },
     {
@@ -206,8 +262,16 @@
   ],
   "rewrites": [
     {
+      "source": "/api/feed/immobiliare.xml",
+      "destination": "/api/feed/immobiliare"
+    },
+    {
       "source": "/listing/:id",
       "destination": "/api/listing"
+    },
+    {
+      "source": "/llms-listings.txt",
+      "destination": "/api/llms-listings"
     },
     {
       "source": "/listings-sitemap.xml",
@@ -216,6 +280,10 @@
     {
       "source": "/book",
       "destination": "/book.html"
+    },
+    {
+      "source": "/viewing",
+      "destination": "/viewing.html"
     },
     {
       "source": "/about",
@@ -232,6 +300,18 @@
     {
       "source": "/portal",
       "destination": "/portal.html"
+    },
+    {
+      "source": "/casa",
+      "destination": "/tenant"
+    },
+    {
+      "source": "/welcome-to-rome",
+      "destination": "/welcome-to-rome.html"
+    },
+    {
+      "source": "/manuale",
+      "destination": "/manuale.html"
     },
     {
       "source": "/owners",
@@ -278,10 +358,6 @@
       "destination": "/tenant.html"
     },
     {
-      "source": "/tenant-registration",
-      "destination": "/tenant-registration.html"
-    },
-    {
       "source": "/proppass",
       "destination": "/proppass.html"
     },
@@ -306,6 +382,30 @@
       "destination": "/deal-assistance.html"
     },
     {
+      "source": "/deposit-recovery",
+      "destination": "/deposit-recovery.html"
+    },
+    {
+      "source": "/deposit-letter",
+      "destination": "/deposit-letter.html"
+    },
+    {
+      "source": "/services",
+      "destination": "/services.html"
+    },
+    {
+      "source": "/remote-move-pack",
+      "destination": "/remote-move-pack.html"
+    },
+    {
+      "source": "/pacchetto-concordato",
+      "destination": "/pacchetto-concordato.html"
+    },
+    {
+      "source": "/contract-check-express",
+      "destination": "/contract-check-express.html"
+    },
+    {
       "source": "/client-portal",
       "destination": "/client-portal.html"
     },
@@ -314,24 +414,8 @@
       "destination": "/property-finding.html"
     },
     {
-      "source": "/dashboard",
-      "destination": "/dashboard.html"
-    },
-    {
       "source": "/thank-you",
       "destination": "/thank-you.html"
-    },
-    {
-      "source": "/admin",
-      "destination": "/admin.html"
-    },
-    {
-      "source": "/admin-flats",
-      "destination": "/admin-flats.html"
-    },
-    {
-      "source": "/owner",
-      "destination": "/owner.html"
     },
     {
       "source": "/owner-dashboard",
@@ -354,12 +438,8 @@
       "destination": "/seed-listings.html"
     },
     {
-      "source": "/setup-firebase",
-      "destination": "/setup-firebase.html"
-    },
-    {
       "source": "/boom-doc-parser",
-      "destination": "/boom_doc_parser.html"
+      "destination": "/boom_doc_parser"
     },
     {
       "source": "/cockpit-preview",
@@ -400,14 +480,6 @@
     {
       "source": "/pre-agreement-admin",
       "destination": "/pre-agreement-admin.html"
-    },
-    {
-      "source": "/apartments-legacy",
-      "destination": "/apartments-legacy.html"
-    },
-    {
-      "source": "/apartment-detail-legacy",
-      "destination": "/apartment-detail-legacy.html"
     }
   ],
   "headers": [
@@ -441,7 +513,7 @@
       ]
     },
     {
-      "source": "/(portal|admin|admin-flats|setup-firebase|seed-listings|boom-doc-parser|boom_doc_parser|cockpit-preview|portal.html|admin.html|admin-flats.html|setup-firebase.html|seed-listings.html|boom_doc_parser.html|cockpit-preview.html)(.*)",
+      "source": "/(portal|admin|admin-flats|setup-firebase|seed-listings|boom-doc-parser|boom_doc_parser|cockpit-preview|team|banca|salute|manuale|photo-lab|pfs-command|pre-agreement-admin|casa|tenant|portal.html|admin.html|admin-flats.html|setup-firebase.html|seed-listings.html|boom_doc_parser.html|cockpit-preview.html|team.html|banca.html|salute.html|manuale.html|photo-lab.html|pfs-command.html|pre-agreement-admin.html|tenant.html|viewing|viewing.html|scheda|scheda.html|sign|sign.html|pre-agreement|pre-agreement.html|verbale|verbale.html)(.*)",
       "headers": [
         {
           "key": "X-Robots-Tag",
@@ -533,6 +605,9 @@
     "api/reminder-cron.js": {
       "maxDuration": 60
     },
+    "api/contracts/verbale.js": {
+      "maxDuration": 60
+    },
     "api/listing.js": {
       "includeFiles": "apartment-detail.html"
     },
@@ -545,7 +620,62 @@
     "api/magic-sign/submit.js": {
       "maxDuration": 60
     },
+    "api/employees/contabile.js": {
+      "maxDuration": 60
+    },
+    "api/banking/sync.js": {
+      "maxDuration": 60
+    },
+    "api/banking/scan-inbox.js": {
+      "maxDuration": 60
+    },
+    "api/documents/scan-inbox.js": {
+      "maxDuration": 60
+    },
+    "api/telegram/webhook.js": {
+      "maxDuration": 60
+    },
+    "api/banking/import.js": {
+      "maxDuration": 60
+    },
+    "api/banking/export.js": {
+      "maxDuration": 60
+    },
+    "api/employees/gestore.js": {
+      "maxDuration": 60
+    },
+    "api/employees/commerciale.js": {
+      "maxDuration": 60
+    },
     "api/sign/custom/submit.js": {
+      "maxDuration": 60
+    },
+    "api/photos/enhance.js": {
+      "maxDuration": 60,
+      "memory": 1769
+    },
+    "api/wizard/describe.js": {
+      "maxDuration": 60
+    },
+    "api/profile/upload.js": {
+      "maxDuration": 60
+    },
+    "api/profile/submit.js": {
+      "maxDuration": 60
+    },
+    "api/sign/send-link.js": {
+      "maxDuration": 60
+    },
+    "api/fiscal/fascicolo.js": {
+      "maxDuration": 60
+    },
+    "api/fiscal/pack.js": {
+      "maxDuration": 60
+    },
+    "api/owners/rendiconto.js": {
+      "maxDuration": 60
+    },
+    "api/ops/conservazione.js": {
       "maxDuration": 60
     }
   },
@@ -577,6 +707,74 @@
     {
       "path": "/api/search/matcher",
       "schedule": "0 6,12,18 * * *"
-    }
+    },
+    {
+      "path": "/api/wizard/health",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/wizard/video-radar",
+      "schedule": "0 7 * * 1"
+    },
+    {
+      "path": "/api/leads/scan-inbox",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/leads/brain",
+      "schedule": "3-59/10 * * * *"
+    },
+    {
+      "path": "/api/documents/scan-inbox",
+      "schedule": "50 3 * * *"
+    },
+    {
+      "path": "/api/banking/scan-inbox",
+      "schedule": "5 4 * * *"
+    },
+    {
+      "path": "/api/banking/sync",
+      "schedule": "15 4 * * *"
+    },
+    {
+      "path": "/api/employees/contabile",
+      "schedule": "40 4 * * *"
+    },
+    {
+      "path": "/api/employees/gestore",
+      "schedule": "10 5 * * *"
+    },
+    {
+      "path": "/api/regista/cron",
+      "schedule": "30 5 * * *"
+    },
+    {
+      "path": "/api/payments/recover-checkouts",
+      "schedule": "25 */4 * * *"
+    },
+    {
+      "path": "/api/employees/commerciale",
+      "schedule": "0 6-18/2 * * *"
+    },
+    {
+      "path": "/api/photos/enhance?mode=sweep",
+      "schedule": "20 3 * * *"
+    },
+    {
+      "path": "/api/wizard/describe?mode=sweep",
+      "schedule": "35 3 * * *"
+    },
+    {
+      "path": "/api/owners/rendiconto",
+      "schedule": "10 6 1 * *"
+    },
+    {
+      "path": "/api/ops/conservazione",
+      "schedule": "40 5 2 * *"
+    },
+      {
+        "path": "/api/market/pulse",
+        "schedule": "50 5 * * *"
+      }
   ]
 }

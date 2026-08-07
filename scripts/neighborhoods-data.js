@@ -441,6 +441,60 @@ const NEIGHBORHOODS = [
     ],
   },
 
+  /* ─────────────────────────────────────── 8b. PONTE MILVIO & FLAMINIO */
+  {
+    slug: 'ponte-milvio',
+    name: 'Ponte Milvio & Flaminio',
+    eyebrow: 'Rome Neighborhood Guide',
+    shortVibe: 'Riverside north. Aperitivo capital. Loud on match days.',
+    metaTitle: 'Apartments for Rent in Ponte Milvio & Flaminio, Rome | BOOM',
+    metaDescription:
+      'Ponte Milvio & Flaminio apartments for rent — Rome\'s riverside north: aperitivo squares, MAXXI, the Auditorium, tram 2 to the centre. Verified, legal contracts.',
+    keywords: ['apartment Ponte Milvio', 'rent Flaminio Rome', 'Ponte Milvio aperitivo', 'Flaminio apartment expat'],
+    geo: { lat: 41.9349, lng: 12.4670 },
+    matchTerms: ['ponte milvio', 'flaminio', 'farnesina', 'tor di quinto', 'villaggio olimpico', 'vigna clara', 'fleming', 'fracassini'],
+    stats: {
+      rentMin: 1100, rentMax: 1900, walkScore: 7, vibeScore: 7, transitScore: 6,
+    },
+    audience: ['Young professionals', 'Couples', 'Sport lovers'],
+    summary:
+      'The Rome that Romans under 35 actually go out in. Aperitivo rows by the oldest bridge in the city, contemporary art at MAXXI — and total gridlock when Roma or Lazio play at home.',
+    whyLiveHere: [
+      'Ponte Milvio is Rome\'s northern riverside: the 2,000-year-old bridge gives its name to a square that turns into one of the city\'s densest aperitivo scenes from Thursday to Saturday. This is a locals\' nightlife — you\'ll hear far more Italian than English, which is exactly the point.',
+      'Flaminio, just south, is the culture end: MAXXI (Zaha Hadid\'s contemporary art museum), the Auditorium Parco della Musica (Renzo Piano), and the Ponte della Musica footbridge for riverside runs. Tram 2 runs straight down Via Flaminia to Piazza del Popolo in about ten minutes.',
+      'The honest catch: no metro stop in the heart of it (tram 2 + buses carry the load), and on Stadio Olimpico match days — roughly every other weekend in season — traffic locks up, parking disappears and the crowd noise carries across the river. If you love football, that\'s a feature.',
+      'Best for: young professionals who want a social life without tourist crowds, couples, and anyone whose Rome is more riverside runs and concerts than ruins. Fiumicino is 40–50 minutes by car; the centre is 10–15 by tram.',
+    ],
+    landmarks: [
+      { name: 'Ponte Milvio', blurb: 'The oldest bridge in Rome (206 BC) — and its liveliest evening square.' },
+      { name: 'MAXXI', blurb: 'Zaha Hadid\'s national museum of 21st-century art.' },
+      { name: 'Auditorium Parco della Musica', blurb: 'Renzo Piano\'s three concert halls — jazz to symphonic, all year.' },
+      { name: 'Ponte della Musica', blurb: 'Pedestrian bridge — the riverside running and cycling link.' },
+      { name: 'Mercato di Ponte Milvio', blurb: 'The covered neighbourhood market — real produce, real prices.' },
+    ],
+    insiderTips: [
+      'Aperitivo on the square gets packed after 19:30 Thu–Sat — arrive early or drink one street back at half the crush.',
+      'Check the Serie A calendar before renting street-side on the stadium axis: match days mean noise and zero parking.',
+      'Tram 2 is the spine — 10 minutes to Piazza del Popolo, then metro A. Night buses replace it after midnight.',
+      'The riverside cycle path runs from Ponte Milvio to the centre — flat, lit, and the fastest commute on two wheels.',
+      'Summer: the Lungo il Tevere stalls and the Auditorium\'s outdoor season turn the whole quarter into an open-air venue.',
+    ],
+    faqs: [
+      { q: 'Is Ponte Milvio good for expats?', a: 'Yes, if you want a Roman social life rather than an expat bubble. The aperitivo scene is genuinely local, prices are fairer than the centre, and English is less common — which most people here consider the attraction.' },
+      { q: 'How do I get to the centre from Ponte Milvio?', a: 'Tram 2 from Flaminio reaches Piazza del Popolo in ~10 minutes, where metro A takes over. Buses 32, 69 and 226 cover the rest. There is no metro stop in the neighbourhood itself.' },
+      { q: 'What about stadium match days?', a: 'The Stadio Olimpico is across the river: on Roma and Lazio home games (most weekends in season) expect road closures, full buses and crowd noise for a few hours. Streets even two blocks back stay much calmer.' },
+      { q: 'How much is rent in Ponte Milvio / Flaminio?', a: 'Mid-term verified 1–2 bedrooms typically range €1,100–€1,900/month furnished. Riverside or terrace units price at the top; the Fleming and Vigna Clara slopes above give more space per euro.' },
+      { q: 'Is the area safe?', a: 'It\'s an affluent residential quarter and among the calmer parts of the city day-to-day. The usual advice applies on crowded aperitivo evenings: watch your phone at outdoor tables.' },
+    ],
+    commute: { termini: 35, vatican: 20, colosseum: 30, pantheon: 25, fiumicino: 50 },
+    verdict: 'The most Roman nightlife in Rome, art on your doorstep, river at your feet — as long as tram 2 and the football calendar fit your life.',
+    related: [
+      { slug: 'prati', why: 'Same right-bank elegance, metro A and closer to the centre.' },
+      { slug: 'trieste-coppede', why: 'Similar leafy calm, Villa Ada instead of the river.' },
+      { slug: 'trastevere', why: 'The other riverside nightlife — tourist-facing where Ponte Milvio is local.' },
+    ],
+  },
+
   /* ─────────────────────────────────────────────────────── 9. SAN LORENZO */
   {
     slug: 'san-lorenzo',

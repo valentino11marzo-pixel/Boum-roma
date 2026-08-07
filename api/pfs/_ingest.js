@@ -15,6 +15,7 @@
 
 import crypto from 'node:crypto';
 import { fsPatch, fsGet, fsList, logActivity } from '../homie/_lib.js';
+import { recordObservation } from '../market/_ledger.js';
 import { scoreMatch, DEFAULT_THRESHOLD } from '../homie/_match.js';
 import { tgNotify } from './_health.js';
 
@@ -76,6 +77,9 @@ export async function ingestProperty(raw, opts = {}) {
       const seen = existing && (existing.lastSeenAt || existing.scrapedAt);
       if (seen && (now - new Date(seen)) < skipFreshHours * 3600 * 1000) {
         await fsPatch('pfsProperties/' + stableId, { lastSeenAt: now });
+        // Anche il corto-circuito è un RI-AVVISTAMENTO: per il libro mastro
+        // di mercato vale (l'annuncio è vivo → la verifica di morte slitta).
+        try { await recordObservation(stableId, { sourceUrl, source: raw.source, price: raw.price, zone: raw.zone }); } catch { /* mai bloccante */ }
         return { ok: true, propertyId: stableId, skippedFresh: true, pushedTo: [], skipped: [], belowThreshold: [], errors: [] };
       }
     } catch { /* fall through to full ingest */ }
@@ -108,6 +112,12 @@ export async function ingestProperty(raw, opts = {}) {
     console.error('[pfs/_ingest] master write failed:', err.message);
     // Continue — we can still push to clients even if the master write hiccupped
   }
+
+  // IL PERITO: ogni annuncio visto da QUALSIASI porta alimenta anche il
+  // libro mastro di mercato (marketListings) — solo fatti, mai contatti
+  // (il motore li scarta per costruzione). Best-effort: il radar di mercato
+  // non deve mai rompere l'ingestione PFS, che serve clienti paganti.
+  try { await recordObservation(stableId, property); } catch { /* mai bloccante */ }
 
   // ── 2. Agency policy ──────────────────────────────────────
   if (advertiser === 'agency') {
