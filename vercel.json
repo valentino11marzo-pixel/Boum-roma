@@ -318,6 +318,10 @@
       "destination": "/owners.html"
     },
     {
+      "source": "/valuta",
+      "destination": "/valuta.html"
+    },
+    {
       "source": "/deals",
       "destination": "/deals.html"
     },
@@ -513,7 +517,7 @@
       ]
     },
     {
-      "source": "/(portal|admin|admin-flats|setup-firebase|seed-listings|boom-doc-parser|boom_doc_parser|cockpit-preview|team|banca|salute|manuale|photo-lab|pfs-command|watermark-studio|media-studio|pre-agreement-admin|casa|tenant|portal.html|admin.html|admin-flats.html|setup-firebase.html|seed-listings.html|boom_doc_parser.html|cockpit-preview.html|team.html|banca.html|salute.html|manuale.html|photo-lab.html|pfs-command.html|watermark-studio.html|media-studio.html|pre-agreement-admin.html|tenant.html|viewing|viewing.html|scheda|scheda.html|sign|sign.html|pre-agreement|pre-agreement.html|verbale|verbale.html)(.*)",
+      "source": "/(portal|admin|admin-flats|setup-firebase|seed-listings|boom-doc-parser|boom_doc_parser|cockpit-preview|team|banca|salute|manuale|photo-lab|pfs-command|watermark-studio|media-studio|pre-agreement-admin|casa|tenant|owner-dashboard|owner-dashboard.html|portal.html|admin.html|admin-flats.html|setup-firebase.html|seed-listings.html|boom_doc_parser.html|cockpit-preview.html|team.html|banca.html|salute.html|manuale.html|photo-lab.html|pfs-command.html|watermark-studio.html|media-studio.html|pre-agreement-admin.html|tenant.html|viewing|viewing.html|scheda|scheda.html|sign|sign.html|pre-agreement|pre-agreement.html|verbale|verbale.html)(.*)",
       "headers": [
         {
           "key": "X-Robots-Tag",
@@ -526,7 +530,7 @@
       ]
     },
     {
-      "source": "/(dashboard|client-portal|owner-dashboard|tenant-registration|login|onboarding|pre-arrival|precheck|thank-you|proppass|pass-delivery|form-tenant|form-landlord)(.*)",
+      "source": "/(dashboard|client-portal|tenant-registration|login|onboarding|pre-arrival|precheck|thank-you|proppass|pass-delivery|form-tenant|form-landlord)(.*)",
       "headers": [
         {
           "key": "X-Robots-Tag",

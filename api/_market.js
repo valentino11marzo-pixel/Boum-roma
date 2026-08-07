@@ -15,6 +15,8 @@
 // bêtise sous sa propre signature. D'où la règle ici : on reconnaît le marché,
 // et les employés IA calibrés sur Rome S'ABSTIENNENT au lieu d'improviser.
 
+import { replyLang } from './_lang.js';
+
 export const REUNION_URL = 'https://www.boomrome.com/reunion';
 
 /**
@@ -77,4 +79,60 @@ export function reunionReplyText(lead = {}) {
   return `${hi} Merci pour votre message.\n` +
     `Pour aller vite : quelle commune, quel budget et à partir de quand ? ` +
     `Si vous n'êtes pas encore sur l'île, on peut visiter en direct en visio.\n${REUNION_URL}`;
+}
+
+// ─── L'ALTRO lato, stesso principio: non solo QUALE mercato, ma QUALE
+// mestiere. Tutta la macchina romana (SYSTEM del Commerciale, messaggio
+// WhatsApp precompilato con link ad /apartments) parla a chi CERCA casa.
+// Un proprietario che offre la sua — dal form di owners.html o dalla
+// valutazione /valuta — riceverebbe "stai ancora cercando casa a Roma?":
+// la prova, firmata, che nessuno ha letto il suo messaggio. Stessa regola
+// della Réunion: la macchina tarata sull'inquilino SI ASTIENE, e il
+// messaggio pronto in Telegram parla del SUO immobile. ───────────────────
+
+/**
+ * Questo lead è un PROPRIETARIO che offre un immobile (mercato di Roma o no)?
+ * Tre porte lo scrivono: /api/owners/valuta (leadType landlord, intent
+ * valuta_owner), il form owners.html via /api/partners/submit (intent
+ * 'owner', storicamente senza leadType) e la Réunion lato bailleur
+ * (leadType landlord — lì però parla prima isReunion, in francese).
+ * @param {object} lead
+ * @returns {boolean}
+ */
+export function isOwnerLead(lead = {}) {
+  if (!lead || typeof lead !== 'object') return false;
+  if (String(lead.leadType || '').toLowerCase() === 'landlord') return true;
+  const i = String(lead.intent || '').toLowerCase();
+  return i === 'owner' || i === 'valuta_owner';
+}
+
+/**
+ * Il messaggio WhatsApp già scritto per un proprietario ROMANO: parla del
+ * SUO immobile, mai del catalogo (un link ad /apartments qui direbbe
+ * "cercati casa da solo"). Italiano di default — il proprietario romano è
+ * quasi sempre italiano — inglese solo se le SUE parole lo sono.
+ * @param {object} lead
+ * @returns {string}
+ */
+export function ownerReplyText(lead = {}) {
+  const first = String(lead.name || '').trim().split(/\s+/)[0] || '';
+  const zone = String(lead.zone || '').trim();
+  // Default ITALIANO — l'inverso della regola di casa (inglese per gli
+  // inquilini expat): il proprietario romano è quasi sempre italiano, e un
+  // lead owner senza testo non deve cadere sul fallback inglese di
+  // replyLang. Le parole VERE della persona vincono comunque (un "Hello, I
+  // would like to rent out my flat" resta inglese).
+  const en = replyLang({ ...lead, language: lead.language || 'it' }) !== 'it';
+  if (en) {
+    return `Hi${first ? ' ' + first : ''}, Valentino from BOOM here 👋 ` +
+      `Thanks for reaching out about your property${zone ? ` in ${zone}` : ''}. ` +
+      `I have the numbers in front of me — up for a 10-minute call? ` +
+      `I'll tell you the rent I'd put it on the market at and how we manage it end to end. ` +
+      `Just tell me when suits you.`;
+  }
+  return `Ciao${first ? ' ' + first : ''}, sono Valentino di BOOM 👋 ` +
+    `Grazie per la richiesta sul tuo immobile${zone ? ` a ${zone}` : ''}. ` +
+    `Ho i numeri davanti: ti va una chiamata di 10 minuti? ` +
+    `Ti dico a che canone lo metterei a reddito e come lo gestiamo dalla A alla Z. ` +
+    `Dimmi tu quando preferisci.`;
 }

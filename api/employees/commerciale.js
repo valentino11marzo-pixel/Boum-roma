@@ -21,7 +21,7 @@
 import { knobs, rejectedLine } from '../_squadra.js';
 import { callClaude, extractJson } from '../agent/_claude.js';
 import { replyLang } from '../_lang.js';
-import { isReunion } from '../_market.js';
+import { isReunion, isOwnerLead } from '../_market.js';
 import { fsGet, fsList as fsListRaw } from '../homie/_lib.js';
 import {
   requireCronOrAdmin, fsList, logActivity, proposeAction,
@@ -115,6 +115,15 @@ function pickChannel(lead) {
     // che una bozza sbagliata: il lead esce comunque su Telegram entro un
     // minuto, con il messaggio francese già scritto (api/_market.js).
     if (isReunion(lead)) continue;
+    // Proprietari (owners.html, /valuta): stessa astensione. Il SYSTEM qui
+    // sopra parla a chi CERCA casa ("proponi la visita", "chiedi budget e
+    // data di ingresso") e il follow-up chiede "stai ancora cercando casa a
+    // Roma?" — a chi la casa la OFFRE arriverebbe la prova che nessuno l'ha
+    // letto. Il lead esce comunque su Telegram entro un minuto, col
+    // messaggio giusto già scritto (ownerReplyText in api/_market.js);
+    // la prima voce vera la mette l'operatore: è una trattativa di mandato,
+    // non un lead da template.
+    if (isOwnerLead(lead)) continue;
     const age = ageOf(lead);
     if (age == null || age < k.humanWindowMin * 60000 || age > k.maxLeadAgeDays * 86400000) continue;
 

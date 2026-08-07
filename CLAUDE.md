@@ -798,6 +798,61 @@ giusto (per condividere un link mirato).
   binario: gli alias del ruolo, il budget d'acquisto che non diventa MAI un
   canone mensile, e la riserva carte T scritta invece che sottintesa.
 
+### La macchina di acquisizione proprietari (`/valuta` + `api/owners/valuta.js`)
+Il magnete mandati: pagina pubblica ITALIANA "Quanto rende il tuo immobile?"
+(zona + mq + caratteristiche → stima immediata) che monetizza dati già in
+casa. DUE numeri, entrambi con la fonte dichiarata:
+- **canone concordato**: fascia/min/max da `js/canone-engine.js` — lo STESSO
+  motore del Fascicolo Fiscale, quindi pagina pubblica e attestazione non
+  possono divergere. La tendina delle 75 zone viene da `BOOM_CANONE.ZONES`
+  caricato client-side (mai una copia inline — la lezione scheda-canone).
+  Parametri SOLO dalle feature dichiarate (`deriveParametri`), mai inventati.
+- **mercato osservato**: `marketStats/<slug>` del Perito (letto server-side,
+  è admin-only nelle rules). €/mq mediana+p25/p75 → mensile per i SUOI mq,
+  giorni di assorbimento (solo morti provate). **Sotto `minSample` non esce
+  un numero**: `market.ok:false` + motivo, la pagina dice "campione in
+  costruzione". `zoneSlugCandidates()` prova nome pieno / senza parentesi /
+  parole singole — se nessun doc esiste il mercato TACE, mai si allarga la
+  zona di nascosto.
+- Se il proprietario dichiara il canone che ha in mente: verdetto concordato
+  (`fits`/sforamento esatto) + banda di mercato via `pricePositionFromStats`.
+
+`POST /api/owners/valuta` — pubblico. `op:'estimate'` (nessuna scrittura,
+rate limit 30/10min/IP) o `op:'lead'` (6/10min): stesso irrigidimento di
+reunion-lead (honeypot→200 senza scrivere, un rifiuto non scrive mai).
+Il lead entra nello schema `leads` esistente: `leadType:'landlord'`,
+`intent:'valuta_owner'`, `status:'new'`, riassunto che GRIDA
+"PROPRIETARIO — Valutazione · zona · mq · stima" in prima posizione,
+snapshot stima in `raw.estimate`, `language:'it'` (pagina italiana — le
+parole vere del cliente vincono comunque via replyLang). Lead scritto PRIMA
+di notifica ed email (ordine testato). Report email al proprietario nel
+design system (best-effort, time-boxed 10s). Funnel: owners.html hero →
+/valuta → lead → Brain → Telegram → operatore.
+
+**LA GUARDIA (`isOwnerLead` + `ownerReplyText` in `api/_market.js`)** — la
+stessa disciplina di `isReunion`, sull'altro asse: non QUALE mercato ma QUALE
+mestiere. Tutta la macchina lead è tarata su chi CERCA casa (il SYSTEM del
+Commerciale propone visite e chiede budget; il WhatsApp precompilato linka
+/apartments): a chi la casa la OFFRE arriverebbe "stai ancora cercando casa
+a Roma?" — la prova firmata che nessuno l'ha letto. `isOwnerLead` riconosce
+TUTTE le porte owner esistenti (leadType `landlord` ← valuta e canone-lead;
+intent `owner` ← form owners.html via partners/submit — un bug vivo fino a
+oggi) → il Commerciale SI ASTIENE (guardia prima di ogni bozza, dopo quella
+Réunion) e notify-pending mostra "🔑 PROPRIETARIO" col messaggio già scritto
+`ownerReplyText`: parla del SUO immobile, default ITALIANO (l'inverso della
+regola casa: il proprietario romano è italiano; le sue parole inglesi vere
+vincono), mai un link al catalogo. Ordine nel ternario: Réunion → owner →
+generico (un bailleur réunionnais resta in francese).
+Test: `node tests/valuta/run.mjs` (72 check — parità col motore, onestà del
+campione, porta del lead, guardie asserite sulla SORGENTE con l'ORDINE).
+
+### GET `/api/owners/summary`
+La dashboard proprietario in una chiamata (Bearer admin/owner/landlord).
+Vedi "Owner dashboard 2.0" nella sezione Portals. Aggregazione pura
+esportata (`buildOwnerView`); un landlord vede solo sé (403 sugli altri),
+admin senza target → elenco proprietari, con `?ownerId=` → anteprima
+cliente. Test: `node tests/owners/run.mjs`.
+
 ### POST `/api/service-checkout`
 Public one-tap Stripe Checkout for the productised services (Services 2.0
 pages). Server-side catalog decides price/copy — the client only names the
@@ -2054,6 +2109,8 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/whatsapp/run.mjs` | Da WhatsApp a lead senza AI: il rumore resta fuori (👍, "ok") e la persona vera entra, l'inquilino che scrive per la caldaia non inquina la pipeline, un lead per persona anche col numero archiviato in formato diverso (nazionale vs internazionale), una risposta umana zittisce il Commerciale. Guida il handler VERO su un Firestore finto in memoria |
   | `tests/wizard/local_brain.py` | Il cervello gratis del bot wizard (`python3`): cosa capisce senza modello e — più importante — cosa deve rifiutarsi di capire. Una domanda ("Levico è affittato?") non può diventare una scrittura; un annuncio nuovo dettato non può diventare la modifica di uno esistente. Estrae le funzioni pure dal bot via AST: gira senza `.env`, senza Telegram, senza rete |
   | `tests/verbale/run.mjs` | verbale consegna chiavi: il PDF vero (WinAnsi-ostile compreso) viaggia in allegato a conduttori/co-conduttori/proprietario/admin, owner solo sui contratti dei propri immobili (403 = zero scritture), firme richieste per entrambi i lati, sul contratto restano solo i NOMI mai i dataURI |
+  | `tests/valuta/run.mjs` | valutazione proprietari (/valuta): la stima restituisce ESATTAMENTE i numeri del motore canone, sotto campione il mercato non pubblica nemmeno un €/mq, il lead entra `leadType:'landlord'` col riassunto che grida il lato, e le guardie (Commerciale che tace, WhatsApp da proprietario) sono asserite sulla SORGENTE nell'ORDINE giusto |
+  | `tests/owners/run.mjs` | owner dashboard: un landlord vede SOLO il suo perimetro (403 esplicito sugli altri), incassato = solo l'anno corrente, arretrati/prossima rata/cancellate distinte, cedolareSecca 'si' stringa → boolean, admin col picker e l'anteprima cliente |
   | `tests/sign/lang.mjs` | /sign bilingue guidata in un browser vero (demo mode): default per ruolo (locatore IT, inquilino EN), toggle che ridisegna lo step corrente in entrambe le direzioni, percorso intero tradotto, Skip OTP che non blocca, link WhatsApp presenti. Si auto-skippa senza playwright |
   | `tests/safari/boot.mjs` | nessuna superficie autenticata resta appesa su un loader |
 - PWA support via `manifest.json` and `sw.js` service worker — registered on
@@ -2067,7 +2124,7 @@ loader, confirm dialog) — see `BoomPortal.*` API.
 
 | Portal | Role(s) accepted | Collections read/written |
 |---|---|---|
-| `owner-dashboard.html` | `owner`, `landlord`, `admin` | reads/writes `properties` filtered by `ownerId` |
+| `owner-dashboard.html` | `owner`, `landlord`, `admin` | SPA su `GET /api/owners/summary` (aggregato server-side, vedi sotto) — nessuna lettura Firestore diretta oltre al profilo del guard |
 | `tenant.html` | `tenant` | reads `properties` (own), writes `maintenance` |
 | `client-portal.html` | access code on `pfsClients` doc | reads/writes `pfsClients.portalProperties` |
 
@@ -2184,9 +2241,22 @@ dichiarava "nessuna superficie autenticata resta appesa": verde e cieca sulla
 pagina che si piantava davvero. Il caso *"lo script muore dopo la riga 1"*
 riproduce lo spinner infinito e pretende la card di uscita.
 
-**Nota**: `owner-dashboard.html` è oggi una pagina STATICA — non carica
-Firebase né autentica nessuno, malgrado la tabella dei portali qui sopra lo
-descriva come SPA Firestore filtrata per `ownerId`.
+**Owner dashboard 2.0 (2026-08)**: `owner-dashboard.html` è finalmente la SPA
+che la tabella descriveva (per mesi era una pagina statica senza Firebase).
+`BoomPortal.requireAuth(['owner','landlord','admin'])` → UNA chiamata a
+`GET /api/owners/summary` (Bearer) → render. Il server aggrega con le
+credenziali admin (stessa aritmetica del rendiconto, dal vivo): per immobile
+contratto attivo + inquilino, incassato anno, arretrati, prossima rata,
+storico recente con via d'incasso, manutenzioni aperte, semafori del
+fascicolo ARPE, PDF del contratto firmato. Un landlord/owner vede SOLO sé
+stesso (`?ownerId=` altrui → 403); l'ADMIN senza target riceve l'elenco
+proprietari (picker) e con `?ownerId=` apre la vista ESATTA del cliente —
+lo strumento di vendita durante il pitch del mandato (la pagina la apre con
+`/owner-dashboard?as=<ownerId>` e mostra il banner "Vista amministratore").
+Fetch col guinzaglio 15s + stato d'errore azionabile (regola Safari), pagina
+in `private, no-store` in vercel.json come le altre superfici autenticate.
+L'aggregazione è pura ed esportata (`buildOwnerView`).
+Test: `node tests/owners/run.mjs`.
 
 **Deal Link** (`/portal#deal=<base64url JSON>`): semina il wizard
 "🚀 Nuovo cliente → contratto firmato" con un deal completo — `{tenant,

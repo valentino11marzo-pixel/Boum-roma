@@ -48,6 +48,8 @@ const SUITES = [
   { name: 'rendiconto', file: 'tests/rendiconto/run.mjs', what: 'rendiconto proprietario: solo il mese giusto nei numeri, PDF in allegato, un rerun non rispedisce, senza email mai perso in silenzio' },
   { name: 'conservazione', file: 'tests/conservazione/run.mjs', what: 'archivio fuori piattaforma: lo ZIP contiene i byte veri, il mancante finisce nell\'INDICE, un rerun non rispedisce' },
   { name: 'reunion',  file: 'tests/reunion/run.mjs',      what: 'BOOM La Réunion: il lead dice sempre da che parte sta (proprietario o inquilino), e la macchina romana TACE invece di rispondere in inglese su Roma a chi scrive dall\'isola' },
+  { name: 'valuta',   file: 'tests/valuta/run.mjs',       what: 'valutazione proprietari: i numeri sono del motore, sotto campione niente numeri, e la macchina da inquilini TACE sui proprietari (valuta, canone-lead, owners.html)' },
+  { name: 'owners',   file: 'tests/owners/run.mjs',       what: 'owner dashboard: ognuno vede SOLO il suo (403 sugli altri), aritmetica del rendiconto dal vivo, admin in anteprima col picker' },
   { name: 'feed',     file: 'tests/feed/run.mjs',         what: 'feed Immobiliare: solo il pubblicabile, identità e date da specifica, la precisione del pin non si spaccia, gzip vero' },
   { name: 'publisher', file: 'tests/publisher/run.mjs',   what: 'Il Pubblicista: diff guidato dallo stato, remove prima di create, fallimenti parcheggiati non a vuoto, pannello bloccato ≠ catalogo allineato' },
   { name: 'sdd',      file: 'tests/sdd/run.mjs',          what: 'canone automatico SEPA: un addebito per rata per costruzione, mai il deposito, mai debiti pre-mandato, un fallimento non si ritenta da solo, doppio incasso mai sovrascritto' },
