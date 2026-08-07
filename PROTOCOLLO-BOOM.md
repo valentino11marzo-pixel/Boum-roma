@@ -125,18 +125,25 @@ Una risposta storta = non esce.
 
 ## Applicato a noi, oggi (brutalmente onesto, appunto)
 
-Dove il repo già incarna il protocollo: Magic Sign, pre-agreement, i pass,
-la regola dell'onestà sui sample data, il tier 2 di Homie, gli alert health
-del radar. Dove lo viola, e va sanato ad agosto:
+*Aggiornato al 7 agosto 2026.* Dove il repo già incarna il protocollo:
+Magic Sign (ora con marca temporale RFC3161, OTP, co-firma), pre-agreement,
+i pass, la regola dell'onestà sui sample data, il tier 2 di Homie, gli
+alert health del radar — e le due conquiste di questo mese: **48 suite di
+test con CI** (il salto di professionalità più grande dell'anno) e il
+**portale splittato** (shell 50KB). Dove lo viola ancora:
 
-- `portal.html` da ~21.000 righe: ultra-semplice per chi lo usa, ma non per
-  chi lo mantiene. Non si riscrive; si smette di farlo crescere.
-- ~30 pagine `preview-*` e ~50 progetti Vercel di esperimenti: la creatività
-  va bene, i residui no. Si decide, si tiene UNA versione, si cancella il resto.
-- Homie che osserva senza agire da settimane: un sistema costruito ma non
-  operante è un debito, non un asset (→ `docs/homie-claude-bridge.md`).
-- Documentazione in ritardo sul codice (CLAUDE.md non conosceva il layer
-  agent): il protocollo vale anche per i protocolli.
+- **34 pagine `preview-*`** e ~50 progetti Vercel di esperimenti: la
+  decisione design è stata presa dai fatti (le pagine nuove sono live) —
+  i residui vanno cancellati, non conservati.
+- **Homie che osserva senza agire da mesi** (2.718 heartbeat, zero azioni
+  negli ultimi 7 giorni): un sistema costruito ma non operante è un debito,
+  non un asset (→ `docs/homie-claude-bridge.md`).
+- **La Squadra senza manuale**: nove dipendenti AI operativi, ma i confini
+  umano⇄agente (chi approva, quando, cosa fare al fallimento) non sono
+  scritti. Il Manuale Operativo li mette su carta (piano, Mossa 4).
+- I percorsi che non portano ai prodotti (l'audit di agosto: /canone orfana,
+  Services 2.0 a zero vendite in 22 mesi PER I LINK, non per il prezzo):
+  la qualità di una pagina non vale nulla se nessuna strada ci arriva.
 
 ---
 

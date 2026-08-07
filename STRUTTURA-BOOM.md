@@ -36,6 +36,15 @@ nuovo arrivato eredita sistema + manuale + metrica, non un cervello altrui.
 | 5 | **Prodotto & Tecnologia** | La piattaforma stessa: costruire e mantenere i sistemi | Il repo, Vercel, Firebase | Sessioni Claude Code (il "reparto engineering") | Checklist di uscita del Protocollo, sempre |
 | 6 | **Client Care** | I momenti caldi: viewing, chiavi, benvenuto, problemi | Tenant portal, maintenance, Inbox | Homie prepara, l'umano consegna | % deal senza problemi post-firma |
 
+> **Aggiornamento 7 agosto 2026 — La Squadra.** I desk si sono incarnati:
+> il portale ha ora dipendenti AI reali con console `/team` (Contabile,
+> Gestore, Commerciale, Perito, Pubblicista, Regista, Smistatore, Recupero,
+> Lead Brain), ognuno con confini dichiarati e test dedicati. Il Manuale
+> Operativo (piano, Mossa 4) assegna formalmente ogni dipendente al suo
+> desk e scrive i confini umano⇄agente. La regola resta quella dei desk:
+> l'owner umano è uno, l'agente esegue e riporta, i desk 1 e 6 (verifica
+> case e momenti caldi) non si automatizzano mai.
+
 Regole trasversali:
 
 - **Un owner per desk, mai due.** Anche quando sono tutti la stessa persona:

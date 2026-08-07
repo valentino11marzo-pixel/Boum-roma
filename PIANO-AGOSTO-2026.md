@@ -1,248 +1,155 @@
-# BOOM · Piano Operativo Agosto 2026
+# BOOM · Piano Operativo Agosto 2026 — v2 (aggiornato al 7 agosto)
 
-**Il documento di rotta per i 15–20 giorni di definizione (1–20 agosto).**
+**Il documento di rotta della finestra di definizione (1–20 agosto).**
+La v1 (14 luglio) è nella history di git. Questa versione parte dalla
+retrospettiva di quello che è successo davvero — 350 commit su main tra il
+14 luglio e il 7 agosto — e ridisegna i giorni rimanenti (~13) su ciò che
+conta adesso.
 
-Questo è il momento in cui BOOM smette di essere "la divisione nata dentro
-un'agenzia immobiliare pura" e diventa un'azienda con sistemi propri,
-prodotti con un nome, e un metodo replicabile. L'obiettivo di questi giorni
-non è costruire di più — è **decidere, chiudere, scrivere e lanciare**.
-
-Il principio che guida tutto (e che non si negozia):
+Il principio non cambia:
 
 > **Portale e agenzia allo stesso livello.** Ogni casa su BOOM è verificata,
 > vera, sincera. Il cliente paga volentieri perché il problema sparisce.
 > Artigianale non vuol dire lento: vuol dire che niente esce senza cura.
-> Non si diventa malati per i soldi — si diventa bravissimi a meritarli.
 
 ---
 
-## 0 · Fotografia onesta — cosa esiste OGGI
+## 0 · Retrospettiva onesta (14 luglio → 7 agosto)
 
-Prima di pianificare, l'inventario. Questo è ciò che è **vivo in produzione**
-adesso (112 pagine, ~40 endpoint API, 7 cron attivi):
+Il piano v1 prevedeva quattro fasi. La realtà le ha in parte superate, in
+parte ignorate. Fase per fase:
 
-### Sistemi core (live)
+### Fase 1 «Chiudere» — ✅ in gran parte fatta, per un'altra strada
+- Redesign detail/discovery **andato live** (PR #119–#125), pagina annuncio
+  che chiude (slot visita reali, fit personale), Safari/spinner risolto,
+  portale splittato (shell 50KB), SW v10, auth unificata su /login.
+- **Nato quello che non era previsto e vale di più**: CI su GitHub + **48
+  suite di test che passano** (soldi idempotenti, rules su emulatore, smoke
+  auth). "Nessun test automatico" non è più vero: è il salto di
+  professionalità più grande del mese.
+- ❌ Non fatto: pruning delle preview (ancora 34 pagine), PFS portal v1.
 
-| Sistema | Cosa fa | Stato |
-|---|---|---|
-| **Sito + Discovery + Listing** | boomrome.com, /apartments, /listing/:id, hub Moving-to-Rome, blog cluster, /tour, GDPR Consent v2 | ✅ Live |
-| **Portale admin** (`portal.html`) | CRUD completo, pipeline lead, contratti, dashboard, analytics, archivio documentale | ✅ Live |
-| **3 portali ruolo** | owner-dashboard (proprietari), tenant (inquilini), client-portal (clienti PFS swipe) | ✅ Live |
-| **Pre-Agreement suite** | Proposta d'affitto tokenizzata: crea → link → cliente si auto-compila → accetta → Stripe → email. Console admin con edit/duplica/revoca | ✅ Live |
-| **Magic Sign** | Firma contratti via token (tenant+landlord), scrive tutto server-side: firma, RLI deadline, chiusura lead, bootstrap tenant | ✅ Live |
-| **BOOM Pass** (Apple Wallet) | 4 tipi di pass: viewing, tenant, referral, landlord + pagina delivery | ✅ Live |
-| **PFS Radar** | scan-inbox (IMAP alert Idealista/Immobiliare, */15min), scan-market, sync-searches, ingestione condivisa, scoring per cliente, push nello swipe deck, health + alert Telegram | ✅ Live |
-| **Homie / Agent layer** | 17 tool HTTP (`api/agent/*`), modello tier 1 (auto) / tier 2 (approvazione), action queue, approvazioni via Telegram, activity log completo | ✅ Live |
-| **Telegram wizard** | Bot pubblicazione annunci: publish/describe (AI bilingue)/upload foto | ✅ Live |
-| **Saved-search alerts** | Salvataggio ricerche pubblico + matcher cron 3×/giorno con digest email e unsubscribe | ✅ Live |
-| **Services 2.0** | Virtual Viewing €89, Deal Assistance €249, Property Finding €350, Concierge (WhatsApp) — pagine prodotto + Stripe checkout + webhook + email | ✅ Live |
-| **Documenti** | Share tokenizzato per il commercialista (`share.html`), OCR AI (categoria, entità, CF, IBAN) | ✅ Live |
-| **Motori fiscali** | `taxpack-engine.js` (cedolare, checklist, zip) + `fiscal-engine.js` (scadenze per immobile/contratto + società) | ✅ Live |
-| **Daily Brief AI** | Briefing operativo giornaliero in italiano su Telegram (ultime 48h: annunci, match, outreach, salute fonti), cron 06:00 | ✅ Live |
+### Fase 2 «Manuale Operativo» — ⚠️ trasformata, non scritta
+Il manuale su carta non esiste. Al suo posto è nata **La Squadra**: i
+dipendenti AI dentro il portale (Contabile, Gestore, Commerciale, poi
+Perito, Pubblicista, Regista, Smistatore, Recupero, Lead Brain) con console
+/team, confini dichiarati e test dedicati. È l'organigramma della Struttura
+**incarnato in software** — più di quanto il piano chiedesse. Ma la parte
+scritta resta necessaria: i processi che collegano Squadra + umano (chi
+approva cosa, SLA, cosa fare quando un agente sbaglia) vivono ancora solo
+nella tua testa.
 
-### Cron attivi (il battito della macchina)
+### Fase 3 «Playbook Città» — ✅ superata dai fatti
+**La Réunion è il secondo mercato reale**: landing bilingue, tre percorsi
+(affitto/gestione/acquisto con la linea rossa della carte T), SEO/GEO
+dedicata, la macchina romana che sa tacere fuori dal suo continente. Il
+playbook scritto non c'è, ma l'esperimento vivo vale di più: quando sarà il
+momento della terza città, si estrae il playbook DA La Réunion.
 
-```
-*/15  reminder-cron            promemoria email
-*     telegram/notify-pending  approvazioni pendenti → Telegram (ogni minuto)
-*/15  pfs/scan-inbox           radar da email alert (fonte load-bearing)
-2×/h  pfs/scan-market          scraping best-effort
-04:00 pfs/sync-searches        rigenerazione ricerche per cliente
-06:00 pfs/brief                briefing AI su Telegram
-3×/g  search/matcher           alert ricerche salvate
-```
+### Fase 4 «Campagna e Brand» — ⚠️ armata, non sparata
+- **Prodotti con nome: fatto oltre le attese.** Canone via BOOM, La Scheda,
+  Fascicolo Fiscale, Pack Registrazione, la 1590 Letter, Deposit Recovery
+  (€99), Contract Check Express (€49), Pacchetto Concordato, Remote Move
+  Pack — più tutta La Squadra.
+- **Università: email PRONTE** con contatti verificati
+  (`docs/outreach-settembre-2026.md`) — ma **non ancora inviate**. È l'unica
+  cosa con scadenza esterna: gli uffici decidono ORA le liste di settembre.
+- Recensioni Google collegate, partner in pipeline, percorsi di vendita dei
+  servizi riparati (l'audit ha scoperto che /canone era orfana e i Services
+  2.0 non avevano MAI venduto — non per prezzo, per percorsi).
 
-### Materiale campagna GIÀ scritto (in `docs/`)
+### I numeri veri (audit 2 agosto, `docs/audit-2026-08.md`)
+€15.232 incassati su Stripe in totale; **luglio 2026 da solo €7.732 — 5,5×**
+la media dei nove mesi precedenti. Il motore: PFS €350 (22 vendite, 22%
+conversione) + pre-agreement (5 pagati a luglio). La macchina ha svoltato,
+e la svolta ha un nome: i contratti.
 
-- `university-outreach.md` — target list completa (JCU, AUR, LUISS, IES, CIEE, Temple, Loyola, Sapienza, Roma Tre, ESN…), offerta partner, template email
-- `corporate-outreach.md` — FAO/WFP/IFAD, ambasciate, prezzi founding (€990 / €1.980, sconti volume), risk-reversal
-- `owner-outreach.md` — acquisizione lato offerta (proprietari)
-- `research-outreach.md`, `seo-conversion-audit.md`, `i18n-plan.md`, `meta-pixel.md`, `attribution.md`, `reviews.md`
-
-**La lettura onesta:** la macchina operativa c'è, ed è oltre quello che ha
-la stragrande maggioranza delle agenzie in Europa. Quello che manca non è
-software: sono **decisioni prese, processi scritti e la campagna eseguita**.
-
----
-
-## 1 · I cantieri aperti (da chiudere, non da ampliare)
-
-Ereditati da `PROJECT-STATE.md` e `BOOM_STATUS.md` — in ordine di priorità:
-
-1. **⚠️ Sicurezza: ruotare `STRIPE_WEBHOOK_SECRET`** — esposto in una
-   sessione di chat (nota in BOOM_STATUS.md). 10 minuti, va fatto il giorno 1.
-2. **Il bivio del redesign** — THE NEW GENERATION è pronta in preview:
-   **Aurea** (flagship, oro raffinato), **Notturna** (noir tech), **Meridiana**
-   (chiara, travertino). Sfondo ambient: Marmo/Guilloché/Meandro… Tutto
-   verificato, zero errori JS. **Manca solo la tua decisione** — poi cutover
-   di `/apartments` e `/listing/:id` sulle pagine nuove.
-3. **Rifiniture roadmap detail/discovery** (post-cutover): ledger
-   "money decoded" computato sul detail, compare come matrice analitica
-   (€/m², winner chips), pavimento a11y+SEO (skip-links, JSON-LD, robots).
-4. **PFS portal v1 non finito**: accesso passwordless `?pfs=TOKEN`, linea di
-   progresso a 8 stadi, tab "PFS Clients" nell'admin (aperto da aprile).
-5. **Flusso di pagamento reale mai validato in produzione** (il primo vero
-   pagamento È il test — da monitorare consapevolmente, non da scoprire).
-6. **Igiene repo**: ~30 pagine `preview-*.html` da archiviare/eliminare dopo
-   la decisione design; `CLAUDE.md` non riflette più il sistema agent.
-
-**Regola di agosto: nessun cantiere nuovo finché questi sei non sono chiusi.**
+### Quello che NON è successo (i tre buchi)
+1. **Il livello strategico non è mai andato in produzione**: Protocollo,
+   Struttura, piano e ponte Homie⇄Claude sono rimasti su questo branch.
+2. **Homie è ancora sentinella**: 2.718 heartbeat e zero azioni negli ultimi
+   7 giorni. Il ponte contesto non è mai stato acceso (mai deployato).
+3. **Il manuale scritto** — vedi Fase 2.
 
 ---
 
-## 2 · La struttura dei 20 giorni
+## 1 · I giorni rimanenti (7 → 20 agosto)
 
-Quattro fasi. Ognuna produce un risultato **finito e scritto**, non "avviato".
+Cinque mosse, in ordine. Niente sistemi nuovi: la Squadra basta e avanza.
 
-> **⏰ Unica eccezione al sequenziale — le università NON aspettano la Fase 4.**
-> Le decisioni per l'intake autunnale si prendono maggio–agosto (è scritto nel
-> nostro stesso playbook). Le prime email agli uffici housing (JCU, AUR, IES,
-> CIEE) partono **nei primi 3 giorni di agosto**, in parallelo a tutto il resto.
-> Un'ora al giorno di follow-up, ogni giorno, per tutto il mese.
+### Mossa 1 — Mergiare il livello strategico (oggi, 30 minuti)
+Questo branch è aggiornato su main (348 commit assorbiti, 48/48 suite
+verdi). Il merge porta in produzione: Protocollo + Struttura dentro
+CLAUDE.md (ogni sessione futura li eredita), il ponte `context.push`/
+`context.pack`, e questo piano.
 
-### FASE 1 — Chiudere (1–4 agosto) · "niente di nuovo, tutto finito"
+### Mossa 2 — Inviare le email università (8–9 agosto, poi 1h/giorno)
+`docs/outreach-settembre-2026.md`: AUR e LUISS hanno indirizzi verificati —
+si parte da lì; JCU e IES dopo la conferma indirizzo (10 minuti). LUISS ha
+già partner housing: non chiedi un rapporto nuovo, chiedi di entrare in una
+lista che esiste. Follow-up quotidiano fino a fine mese.
 
-- [ ] Giorno 1: rotazione Stripe webhook secret + giro completo env vars Vercel
-- [ ] Giorno 1: **email università batch 1** (JCU, AUR, IES, CIEE, Temple — template già pronto)
-- [ ] Giorni 1–2: **la decisione design** — mezza giornata su telefono e desktop
-      con Aurea/Notturna/Meridiana + sfondi; si sceglie e non si riapre
-- [ ] Giorni 2–3: cutover pagine prodotto su rotte live + smoke test completo
-      (discovery→detail→apply→pre-agreement→Stripe test)
-- [ ] Giorno 3: email università batch 2 (LUISS, Sapienza, Roma Tre, ESN, scuole di lingua)
-- [ ] Giorno 4: pruning preview + aggiornamento CLAUDE.md/PROJECT-STATE.md
-      (il repo deve raccontare la verità a settembre)
+### Mossa 3 — Accendere Homie (10–12 agosto)
+Setup dal `docs/homie-claude-bridge.md` (10 minuti sul Mac): cron serale
+`context.push` + comando Telegram "context pack". Poi, in ordine di valore:
+messaggi WhatsApp → Inbox (`/api/homie/message`), lead automatici
+(`leads.create`), proposte tier 2. La Squadra lavora DENTRO il portale;
+Homie è l'unico che vede WhatsApp — finché tace, il canale più caldo
+d'Italia resta fuori dalla macchina.
 
-**Risultato Fase 1:** produzione allineata alla visione, zero debiti di
-sicurezza, università già in moto.
+### Mossa 4 — Scrivere il Manuale Operativo, versione 2026 (13–17 agosto)
+Più facile di un mese fa: metà dei processi ORA È la Squadra. Per ognuno dei
+9 processi (lead, viewing, deal, firma, verifica casa, PFS, fiscale, tenant
+care, rituali): una pagina — trigger → chi agisce (umano / Squadra / Homie
+tier 1/2) → SLA → cosa fare quando fallisce. Assegnare ogni dipendente AI
+al suo desk della Struttura. Output: `docs/manuale-operativo.md`.
 
-### FASE 2 — Definire (5–9 agosto) · il Manuale Operativo BOOM
+### Mossa 5 — Igiene e chiusura (18–20 agosto)
+- Pruning delle 34 `preview-*` (la decisione design è già stata presa dai
+  fatti: sono live le pagine nuove — le preview sono residui).
+- Retrospettiva finale: aggiornare questo file, scrivere il piano di
+  settembre in UNA pagina (settembre = arrivi: campagna + conversione,
+  zero cantieri).
 
-Il cuore del tuo obiettivo ("definire bene tutti i sistemi operativi").
-Per ogni processo si scrive UNA pagina: **trigger → passi → chi/cosa agisce
-(tu, Homie tier 1, Homie tier 2 con approvazione) → dove vive → SLA → cosa
-può andare storto**. Non prosa: checklist eseguibili. Diventa
-`docs/manuale-operativo.md` — la base per formare chiunque, a Roma o altrove.
-
-I 9 processi da scrivere (uno-due al giorno):
-
-1. **Lead in ingresso** (web apply / Homie / WhatsApp / radar) → qualifica → risposta < 2h lavorative
-2. **Viewing** (fisico + Virtual Viewing €89) → pass Wallet → follow-up
-3. **Deal** — lead → pre-agreement (console, link, edit terms) → acconto Stripe
-4. **Contratto e firma** — portale → Magic Sign → RLI → bootstrap tenant portal
-5. **Onboarding casa nuova** (lato proprietario): verifica di persona, foto, wizard Telegram, pubblicazione — **la checklist "verificato BOOM" scritta nero su bianco** (questo È il brand)
-6. **PFS end-to-end** — pagamento → intake → radar → swipe → shortlist → chiusura
-7. **Fiscale/adempimenti** — motori taxpack+fiscal, condivisione commercialista, scadenze
-8. **Manutenzioni e tenant care** (tenant portal → maintenance)
-9. **Rituali della macchina**: cosa controlli ogni mattina (daily brief 06:00, needsAttention, action queue), cosa settimanalmente (health fonti, pipeline review)
-
-- [ ] Bonus della fase (unico sviluppo ammesso): chiudere **PFS portal v1**
-      (cantiere #4) — serve al processo 6 e sblocca l'esperienza cliente pagante
-
-**Risultato Fase 2:** il "sistema operativo" di BOOM esiste su carta come
-esiste nel codice. Chiunque potrebbe operare la macchina leggendolo.
-
-### FASE 3 — Il Playbook Città (10–13 agosto) · replicabilità autentica
-
-La domanda: **cosa serve davvero per aprire BOOM in una seconda città senza
-tradire l'artigianalità?** Si scrive `docs/playbook-citta.md`:
-
-- **Audit Roma-specifico vs universale**: i motori (radar, agent, pre-agreement,
-  Magic Sign, fiscale, pass) sono già città-agnostici; sono Roma-specifici le
-  zone hard-coded, le pagine `apartment_*`, il blog, i playbook paese.
-  Elenco preciso di cosa si parametrizza.
-- **I requisiti minimi di apertura** (proposta da validare): 10–15 case
-  verificate di persona prima del lancio · 1 persona locale formata sul
-  Manuale Operativo · pagine zona + discovery configurata · radar attivo sui
-  portali locali · convenzione con 2–3 università/istituzioni locali ·
-  fiscale: identico in Italia, da studiare per l'estero.
-- **La sequenza**: supply prima della domanda, sempre (senza case verificate
-  non c'è BOOM — vale a Roma e varrà ovunque).
-- **Il test di autenticità**: se una scelta di espansione richiede di
-  pubblicare case non viste, la risposta è no. Scritto nel playbook.
-- [ ] Scegliere le 2–3 città candidate e fare solo desk research (domanda
-      studenti/expat, portali attivi, concorrenza) — **la decisione su quando
-      si apre NON si prende ad agosto**; si prende quando Roma gira da sola
-      col manuale.
-
-**Risultato Fase 3:** l'espansione smette di essere un sogno e diventa una
-checklist con prerequisiti misurabili.
-
-### FASE 4 — Campagna e Brand (14–20 agosto) · settembre si prepara ad agosto
-
-Settembre a Roma = il picco assoluto (studenti, ricercatori, corporate).
-Tutto quello che si lancia qui deve essere **in aria entro il 25 agosto**.
-
-**Campagna clienti:**
-- [ ] Follow-up università (le email partite in Fase 1 ora si coltivano:
-      call, materiale partner, pagina dedicata `/universities` se serve)
-- [ ] Corporate batch 1: FAO/WFP/IFAD + 3 ambasciate — email col
-      risk-reversal ("paghi solo alle chiavi in mano") da `corporate-outreach.md`
-- [ ] Proprietari (il lato offerta è metà del business): eseguire
-      `owner-outreach.md` — target self-listing su Immobiliare/Idealista,
-      ex-host Airbnb in fuga dalle regole short-let
-- [ ] Attribution + Meta Pixel attivi sulle pagine servizio (docs già pronti)
-- [ ] Recensioni: sistema di raccolta post-firma (da `reviews.md`)
-
-**Brand → prodotti con un nome.** Hai ragione: il brand è forte ma i prodotti
-vanno **nominati e resi visibili**. Non serve costruire nulla — serve dare
-un nome pubblico a ciò che già esiste e che nessun'altra agenzia ha:
-
-| Prodotto (nome proposto) | Cos'è già oggi | Perché è primo-al-mondo (per un'agenzia) |
-|---|---|---|
-| **BOOM Verified** | La checklist di verifica di persona (Fase 2, processo 5) | La promessa centrale, resa esplicita e mostrata su ogni listing |
-| **Magic Sign** | Firma contratti tokenizzata | Firma in 2 minuti dal telefono, senza account |
-| **BOOM Proposal** | Pre-agreement suite | Proposta legale self-service con acconto integrato |
-| **BOOM Pass** | Apple Wallet passes | La chiave del rapporto nel telefono del cliente |
-| **Radar** | PFS radar + swipe deck | Il mercato scandagliato ogni 15 minuti per ogni cliente |
-| **Homie** | Agent layer tier 1/2 | L'operatività assistita da AI con controllo umano |
-| **TaxPack** | Motori fiscali | La cedolare e le scadenze gestite, non subite |
-
-- [ ] Una pagina `/method` (o sezione in /how-it-works) che racconta i
-      prodotti col loro nome — il "sistema BOOM" come motivo per scegliere noi
-- [ ] Giorni 19–20: **buffer + retrospettiva** — cosa è slittato, aggiornare
-      questo documento, scrivere il piano di settembre (una pagina, non venti)
-
-**Risultato Fase 4:** campagna in volo prima del rientro, brand che parla
-per prodotti e non per aggettivi.
+**Fuori scope fino a settembre**: terza città, nuovi servizi, nuovi agenti.
 
 ---
 
-## 3 · Metriche (poche, vere)
+## 2 · Metriche (aggiornate ai numeri veri)
 
-Da guardare ogni lunedì, non ogni ora:
+Da guardare ogni lunedì:
 
-- **North Star: deal chiusi/mese** e **tempo mediano lead→firma**
-- **Supply: nuove case verificate/mese** (senza questa, tutto il resto è vetrina)
-- **Pipeline: lead qualificati/settimana** per fonte (web, radar, Homie, referral)
-- **Partner: convenzioni università/corporate attive** (target: 5–6 uffici + 3 logo corporate entro dicembre)
-- **Qualità: % deal senza problemi post-firma** — la metrica dell'artigianalità
-
-Il daily brief delle 06:00 già compatta le 48h; le metriche settimanali si
-leggono dal portale. Nessuna dashboard nuova ad agosto.
-
----
-
-## 4 · Le regole d'oro del mese
-
-1. **Chiudere batte iniziare.** Ogni giorno la domanda è "cosa ho finito?",
-   non "cosa ho avviato?"
-2. **Una decisione al giorno.** Le decisioni di rotta (design, città, prezzi)
-   si prendono in fretta e per iscritto — la reversibilità è già nel sistema.
-3. **Le università non aspettano.** Un'ora al giorno, ogni giorno, da giorno 1.
-4. **Nessun sistema nuovo** salvo PFS portal v1. Se ad agosto viene un'idea
-   nuova, si scrive in fondo a questo file e si rilegge il 1° settembre.
-5. **La verifica di persona non si delega e non si salta.** Mai. È il prodotto.
-6. **Scrivere tutto come se domani dovessi formare qualcuno.** Perché è
-   esattamente quello che il playbook città richiederà.
+- **North Star: € incassati/mese** (luglio: €7.732 — battere luglio ad
+  agosto/settembre) e **tempo mediano lead→firma**
+- **Supply: nuove case verificate/mese**
+- **Pipeline: lead qualificati/settimana per fonte** — e da Mossa 3 in poi:
+  quanti arrivano da WhatsApp/Homie (oggi: zero)
+- **Partner: risposte università** (target: 3 uffici in lista entro il 15/9)
+- **Qualità: % deal senza problemi post-firma**
 
 ---
 
-## 5 · Parcheggio idee (scrivile qui, riaprile a settembre)
+## 3 · Le regole d'oro del mese (invariate)
 
-- …
+1. **Chiudere batte iniziare.**
+2. **Una decisione al giorno, per iscritto.**
+3. **Le università non aspettano** — un'ora al giorno, ogni giorno.
+4. **Nessun sistema nuovo.** Le idee si parcheggiano qui sotto e si
+   rileggono il 1° settembre.
+5. **La verifica di persona non si delega e non si salta. È il prodotto.**
+6. **Scrivere tutto come se domani dovessi formare qualcuno.**
 
 ---
 
-*Documento creato il 14 luglio 2026 sul branch `claude/boum-operational-planning-i1fi2m`.
-Fonti: stato reale del repo (112 pagine, ~40 API, 7 cron), `PROJECT-STATE.md`,
-`BOOM_STATUS.md`, `docs/*-outreach.md`. Da aggiornare a fine agosto con la retrospettiva.*
+## 4 · Parcheggio idee (riaprire a settembre)
+
+- Tenant Passport (dallo studio servizi: il sì rimandato)
+- Playbook città estratto da La Réunion
+- PFS portal v1 (8 stadi passwordless)
+
+---
+
+*v2 — 7 agosto 2026, branch `claude/boum-operational-planning-i1fi2m`,
+dopo merge di main (350 commit) e suite completa verde (48/48). Fonti:
+git log, `docs/audit-2026-08.md`, `docs/outreach-settembre-2026.md`, log
+di produzione Vercel. Prossimo aggiornamento: retrospettiva del 20 agosto.*
