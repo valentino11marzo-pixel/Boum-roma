@@ -91,7 +91,8 @@ h1, h2, h3 { font-family:var(--display); }
 .titolo .hl { color:var(--gold); }
 .sotto { margin-top:16px; font-size:16.5px; line-height:1.65; color:var(--text-2);
   max-width:56ch; }
-.section { position:relative; padding:clamp(64px,8vw,116px) 0; }
+:root { --sez:clamp(72px,9vw,124px); }
+.section { position:relative; padding:var(--sez) 0; }
 .section-dark { background:var(--surface);
   border-top:1px solid var(--line-0); border-bottom:1px solid var(--line-0); }
 .section-dark::before { content:''; position:absolute; left:50%; top:0;
@@ -263,10 +264,20 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   z-index:3; padding:3px 12px; background:var(--black); font-size:9.5px;
   font-weight:600; letter-spacing:.2em; text-transform:uppercase;
   color:var(--text-4); white-space:nowrap; }
-.uni-track { display:flex; align-items:center; gap:clamp(44px,6vw,84px);
-  width:max-content; padding:8px 0; animation:scorri 30s linear infinite; }
-.uni:hover .uni-track { animation-play-state:paused; }
-@keyframes scorri { to { transform:translateX(-50%); } }
+.uni-track { display:flex; align-items:center; justify-content:center;
+  flex-wrap:wrap; gap:10px clamp(28px,4.5vw,64px); padding:10px 0; }
+.uni-track .uni-item:nth-child(n+9) { display:none; }  /* la lista, una volta */
+/* il faro: un nome alla volta prende luce, in sequenza — vita senza nastro */
+@keyframes faro { 0%, 14%, 100% { color:var(--text-4); }
+  5%, 9% { color:var(--gold-light); } }
+.uni-item { animation:faro 12.8s ease-in-out infinite; }
+.uni-item:nth-child(2){ animation-delay:1.6s; }
+.uni-item:nth-child(3){ animation-delay:3.2s; }
+.uni-item:nth-child(4){ animation-delay:4.8s; }
+.uni-item:nth-child(5){ animation-delay:6.4s; }
+.uni-item:nth-child(6){ animation-delay:8s; }
+.uni-item:nth-child(7){ animation-delay:9.6s; }
+.uni-item:nth-child(8){ animation-delay:11.2s; }
 .uni-item { font-family:var(--display); font-size:16px; letter-spacing:.2em;
   text-transform:uppercase; color:var(--text-4); white-space:nowrap;
   transition:color .3s ease; }
@@ -317,10 +328,10 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .home-tag { position:absolute; left:12px; top:12px; padding:7px 12px;
   background:rgba(3,3,3,.8); backdrop-filter:blur(8px); font-size:10px;
   font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--gold-light); }
-.home-prezzo { position:absolute; right:12px; bottom:12px; display:flex;
-  align-items:baseline; gap:5px; padding:9px 12px; background:rgba(3,3,3,.86);
-  backdrop-filter:blur(8px); }
-.home-prezzo .flap-scale { font-family:var(--display); font-size:17px; font-weight:500; }
+.home-riga { display:flex; align-items:baseline;
+  justify-content:space-between; gap:6px 14px; flex-wrap:wrap; }
+.home-prezzo { display:flex; align-items:baseline; gap:4px; white-space:nowrap; }
+.home-prezzo .flap-scale { font-family:var(--display); font-size:16px; font-weight:500; }
 .home-prezzo small { font-size:11px; color:var(--text-3); }
 .home-corpo { padding:18px 20px 20px; }
 .home-nome { font-family:var(--display); font-size:19px; font-weight:400; }
@@ -341,8 +352,8 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .home-cuore.si { color:var(--gold); }
 .home-zona { display:inline-block; margin-bottom:7px; font-size:11px;
   font-weight:600; letter-spacing:.14em; text-transform:uppercase;
-  color:var(--gold); transition:color .25s ease; }
-.home-zona:hover { color:var(--gold-light); }
+  color:var(--text-3); transition:color .25s ease; }
+.home-zona:hover { color:var(--gold); }
 .home-vita { margin-top:7px; font-size:12.5px; font-style:italic; color:var(--text-4); }
 
 /* ══ COME FUNZIONA — la loro storia pinnata, rieseguita ════════════════ */
@@ -619,9 +630,9 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .dolore { background:var(--surface); padding:18px 18px; display:flex; align-items:center;
   gap:13px; font-size:14px; color:var(--text-2); }
 .dolore .svc-icona { width:24px; height:24px; flex:none; color:var(--text-3); }
-.diverso { margin-top:clamp(26px,3.4vw,42px); padding:clamp(22px,2.8vw,34px);
-  background:var(--black); box-shadow:inset 0 0 0 1px var(--line-gold); }
-.diverso b { font-family:var(--display); font-size:19px; font-weight:400; color:var(--gold); }
+.diverso { margin-top:clamp(26px,3.4vw,42px);
+  padding:6px 0 6px clamp(20px,2.6vw,30px); border-left:2px solid var(--gold); }
+.diverso b { font-family:var(--display); font-size:22px; font-weight:400; color:var(--gold); }
 .diverso p { margin-top:8px; font-size:15px; color:var(--text-2); max-width:70ch; }
 
 .about { display:grid; grid-template-columns:1fr; gap:clamp(26px,4vw,64px); align-items:start; }
@@ -936,13 +947,13 @@ html.vivo .sale.dentro { opacity:1; transform:none;
           <span class="home-tag">Video Tour</span>
           <button type="button" class="home-cuore" data-u="/listing/sr0rpLSqbpDMASkHINfx"
             aria-label="Save this home">♥</button>
-          <span class="home-prezzo"><span class="flap-prezzo flap-scale"
-            data-p="€1,600" aria-label="€1,600 per month"></span><small>/month</small></span>
         </div>
         <div class="home-corpo">
           <span class="home-zona" role="link" tabindex="0"
             data-href="/v2-apartments.html#zona=Pigneto">Pigneto →</span>
-          <div class="home-nome">Trilocale Pigneto</div>
+          <div class="home-riga"><div class="home-nome">Trilocale Pigneto</div>
+            <span class="home-prezzo"><span class="flap-prezzo flap-scale"
+              data-p="€1,600" aria-label="€1,600 per month"></span><small>/mo</small></span></div>
           <div class="home-dati">80m² <i>•</i> 2 bed <i>•</i> Floor 3</div>
           <div class="home-vita">Rome's bohemian quarter — bars, galleries, street life.</div>
           <div class="home-vai">View Details →</div>
@@ -955,13 +966,13 @@ html.vivo .sale.dentro { opacity:1; transform:none;
           <span class="home-tag">Free now</span>
           <button type="button" class="home-cuore" data-u="/listing/ttvrjazww9oe4tA0wHTf"
             aria-label="Save this home">♥</button>
-          <span class="home-prezzo"><span class="flap-prezzo flap-scale"
-            data-p="€1,250" aria-label="€1,250 per month"></span><small>/month</small></span>
         </div>
         <div class="home-corpo">
           <span class="home-zona" role="link" tabindex="0"
             data-href="/v2-apartments.html#zona=Ponte Milvio">Ponte Milvio →</span>
-          <div class="home-nome">Bilocale Ponte Milvio</div>
+          <div class="home-riga"><div class="home-nome">Bilocale Ponte Milvio</div>
+            <span class="home-prezzo"><span class="flap-prezzo flap-scale"
+              data-p="€1,250" aria-label="€1,250 per month"></span><small>/mo</small></span></div>
           <div class="home-dati">70m² <i>•</i> 1 bed <i>•</i> Ground Floor</div>
           <div class="home-vita">Riverside aperitivo and the north's favourite piazza.</div>
           <div class="home-vai">View Details →</div>
@@ -974,13 +985,13 @@ html.vivo .sale.dentro { opacity:1; transform:none;
           <span class="home-tag">Free now</span>
           <button type="button" class="home-cuore" data-u="/listing/cezFMXTWnHUDgb1H2WWm"
             aria-label="Save this home">♥</button>
-          <span class="home-prezzo"><span class="flap-prezzo flap-scale"
-            data-p="€1,200" aria-label="€1,200 per month"></span><small>/month</small></span>
         </div>
         <div class="home-corpo">
           <span class="home-zona" role="link" tabindex="0"
             data-href="/v2-apartments.html#zona=Trastevere">Trastevere →</span>
-          <div class="home-nome">Bilocale Trastevere</div>
+          <div class="home-riga"><div class="home-nome">Bilocale Trastevere</div>
+            <span class="home-prezzo"><span class="flap-prezzo flap-scale"
+              data-p="€1,200" aria-label="€1,200 per month"></span><small>/mo</small></span></div>
           <div class="home-dati">45m² <i>•</i> 1 bed <i>•</i> Floor 1</div>
           <div class="home-vita">Cobblestones, trattorie, nightlife on your doorstep.</div>
           <div class="home-vai">View Details →</div>
@@ -1278,7 +1289,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       <div class="dolore"><span class="svc-icona"><svg viewBox="0 0 40 40"><rect x="9" y="17" width="22" height="16" rx="1.5"/><path d="M13 17v-4a7 7 0 0114 0v4"/><circle cx="20" cy="25" r="2"/></svg></span>Deposit disputes</div>
     </div>
 
-    <div class="diverso quadro sale"><span class="tacca"></span>
+    <div class="diverso sale">
       <b>BOOM is different.</b>
       <p>Video-verified apartments. Transparent pricing. Real human support.
         We're building what we wish existed when we moved here.</p>

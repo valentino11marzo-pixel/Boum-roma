@@ -104,13 +104,13 @@ def carta(c, primo):
           <span class="home-tag">{tag(c)}</span>
           <button type="button" class="home-cuore" data-u="/listing/{c['id']}"
             aria-label="Save this home">♥</button>
-          <span class="home-prezzo"><span class="flap-prezzo flap-scale"
-            data-p="{euro(c['prezzo'])}" aria-label="{euro(c['prezzo'])} per month"></span><small>/month</small></span>
         </div>
         <div class="home-corpo">
           <span class="home-zona" role="link" tabindex="0"
             data-href="/apartments.html#zona={c['zona']}">{c['zona']} →</span>
-          <div class="home-nome">{c['nome']}</div>
+          <div class="home-riga"><div class="home-nome">{c['nome']}</div>
+            <span class="home-prezzo"><span class="flap-prezzo flap-scale"
+              data-p="{euro(c['prezzo'])}" aria-label="{euro(c['prezzo'])} per month"></span><small>/mo</small></span></div>
           <div class="home-dati">{dentro}</div>
           {f'<div class="home-vita">{vita}</div>' if vita else ''}
           <div class="home-vai">View Details →</div>
