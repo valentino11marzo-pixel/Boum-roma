@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  BOOM Pubblicista — sentinella launchd (ogni 30 minuti).
+
+  Esegue SOLO il modo --check: interroga le code del server e, se c'è
+  lavoro, manda una notifica macOS. MAI un browser senza operatore davanti:
+  la sessione di pubblicazione (--assist, e in futuro --auto) si lancia a
+  mano dal terminale. Vedi bot/PUBBLICISTA.md per l'installazione.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.boom.publisher</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Library/Frameworks/Python.framework/Versions/3.13/bin/python3</string>
+        <string>/Users/boomserver/boom-publisher/boom_publisher.py</string>
+        <string>--check</string>
+    </array>
+
+    <key>StartInterval</key>
+    <integer>1800</integer>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/boomserver/boom-publisher/publisher.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/boomserver/boom-publisher/publisher.err.log</string>
+</dict>
+</plist>

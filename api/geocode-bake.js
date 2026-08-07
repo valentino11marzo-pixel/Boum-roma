@@ -1,0 +1,152 @@
+// api/geocode-bake.js
+// Self-extinguishing coordinate backfill for the listings catalog.
+// Finds every listing that has an address but no valid lat/lng, geocodes it
+// server-side via Nominatim (Vercel egress is unrestricted; the container
+// dev environments are not), and writes lat/lng straight onto the listing
+// doc — so the Skyline map, the detail-page block map and the POI distances
+// all become building-exact with zero client changes.
+//
+// PUBLIC by design but harmless-by-design:
+//   - workload is fixed (only listings already in Firestore; no user input
+//     reaches the geocoder), and it converges to a no-op once every listing
+//     carries coordinates;
+//   - per-instance throttle: one live run per 10 minutes, everything else
+//     gets the summary of the last run;
+//   - Nominatim policy respected: 1.1s spacing, identifying UA, ≤25/run;
+//   - results sanity-checked against the Rome bounding box before writing.
+//
+// GET /api/geocode-bake            → { ok, scanned, updated:[{id,q,lat,lng}], failed:[...] }
+
+import { fsList, fsPatch, logActivity } from './homie/_lib.js';
+
+const UA = 'BOOMRome/1.0 (+https://www.boomrome.com; valentino11marzo@gmail.com)';
+const ROME = { latMin: 41.70, latMax: 42.05, lngMin: 12.25, lngMax: 12.75 };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+let LAST_RUN = 0;
+let LAST_SUMMARY = null;
+
+function validCoord(lat, lng) {
+  return isFinite(lat) && isFinite(lng)
+    && lat >= ROME.latMin && lat <= ROME.latMax
+    && lng >= ROME.lngMin && lng <= ROME.lngMax;
+}
+
+// Rome quartiere centroids — geocodes that land >2.5km from the listing's own
+// declared zone are homonym streets elsewhere in town (Via di Sant'Anna exists
+// three times); reject them rather than pin a home in the wrong quartiere.
+const ZONES = [
+  [41.8986, 12.4735, 'centro storico', 'navona', 'coronari', 'ripetta', 'pantheon', 'spagna', 'trevi', 'campo de', 'barberini', 'avignonesi', 'centro'],
+  [41.8867, 12.4692, 'trastevere', 'gianicolo', 'piscinula'],
+  [41.8946, 12.4924, 'monti', 'colosse', 'cavour'],
+  [41.9100, 12.4632, 'prati', 'mazzini', 'angelico', 'vatican', 'ottaviano', 'lepanto', 'monte zebio', 'montezebio'],
+  [41.8880, 12.5380, 'pigneto', 'centocelle', 'casilina'],
+  [41.8758, 12.4757, 'testaccio'],
+  [41.8560, 12.4690, 'marconi', 'ostiense', 'garbatella', 'piramide'],
+  [41.9230, 12.5050, 'trieste', 'copped', 'africano', 'salario', 'nomentano'],
+  [41.9000, 12.5151, 'san lorenzo', 'sapienza'],
+  [41.8950, 12.5010, 'esquilino'],
+  [41.9230, 12.4760, 'flaminio'],
+  [41.9380, 12.4680, 'ponte milvio', 'tor di quinto'],
+  [41.9230, 12.4880, 'parioli', 'petrolini'],
+  [41.9070, 12.4900, 'veneto', 'ludovisi', 'piemonte'],
+  [41.9430, 12.5300, "conca d'oro", 'conca', 'jonio', 'annibaliano', 'capri'],
+  [41.9120, 12.5230, 'tiburtina', 'bologna', 'pietralata'],
+];
+function zoneCentroid(zoneStr) {
+  const z = String(zoneStr || '').toLowerCase();
+  if (!z) return null;
+  for (const Z of ZONES) for (let k = 2; k < Z.length; k++) if (z.includes(Z[k])) return { lat: Z[0], lng: Z[1] };
+  return null;
+}
+function kmBetween(a, b) {
+  const R = 6371, r = Math.PI / 180;
+  const dy = (b.lat - a.lat) * r, dx = (b.lng - a.lng) * r;
+  const s = Math.sin(dy / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dx / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(s)));
+}
+function zoneConsistent(hit, centroid) {
+  return !centroid || kmBetween(hit, centroid) <= 2.5;
+}
+
+async function nominatim(q) {
+  const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=it&q=' + encodeURIComponent(q);
+  const r = await fetch(url, { headers: { 'User-Agent': UA, 'Accept-Language': 'it,en' } });
+  if (!r.ok) return null;
+  const arr = await r.json().catch(() => null);
+  const hit = Array.isArray(arr) && arr[0];
+  if (!hit) return null;
+  const lat = parseFloat(hit.lat), lng = parseFloat(hit.lon);
+  return validCoord(lat, lng) ? { lat, lng } : null;
+}
+
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=3600');
+  if (req.method !== 'GET') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
+
+  const now = Date.now();
+  // progress-aware throttle: while runs are still converting listings, allow
+  // a follow-up after 90s (self-pagination); once converged (or stuck), 10min.
+  const winMs = (LAST_SUMMARY && LAST_SUMMARY.updated && LAST_SUMMARY.updated.length > 0) ? 90 * 1000 : 10 * 60 * 1000;
+  if (now - LAST_RUN < winMs && LAST_SUMMARY) {
+    return res.status(200).json({ ok: true, throttled: true, lastRun: new Date(LAST_RUN).toISOString(), ...LAST_SUMMARY });
+  }
+  LAST_RUN = now;
+
+  try {
+    const rows = await fsList('listings', { limit: 200 });
+    const todo = rows.filter(l => {
+      const lat = Number(l.lat), lng = Number(l.lng);
+      const addr = String(l.address || '').trim();
+      if (addr.length <= 4) return false;
+      if (!validCoord(lat, lng)) return true;
+      // self-healing: existing coords that contradict the declared zone get
+      // re-geocoded (homonym-street hits from before validation existed)
+      const c = zoneCentroid(l.zone);
+      const src = l.geo && l.geo.src;
+      return !!(c && src !== 'zone' && !zoneConsistent({ lat, lng }, c));
+    }).slice(0, 12);   // per-run cap: stays well inside maxDuration; repeat calls continue
+
+    const updated = [], failed = [];
+    for (const l of todo) {
+      const addr = String(l.address).trim();
+      const zone = String(l.zone || '').trim();
+      const centroid = zoneCentroid(zone);
+      // full address → address without civic number (each zone-validated)
+      const attempts = [
+        /roma/i.test(addr) ? addr : addr + ', Roma',
+        (addr.replace(/\b\d+[a-zA-Z]?\b/g, '').replace(/\s+/g, ' ').trim() + ', Roma'),
+      ].filter(Boolean);
+
+      let hit = null, usedQ = null;
+      for (const q of attempts) {
+        const h = await nominatim(q);
+        await sleep(1100);
+        if (h && zoneConsistent(h, centroid)) { hit = h; usedQ = q; break; }
+      }
+      let src = 'nominatim';
+      if (!hit && centroid) { hit = { ...centroid }; usedQ = 'zone:' + zone; src = 'zone'; }
+      if (hit) {
+        try {
+          await fsPatch(`listings/${l.id}`, {
+            lat: hit.lat, lng: hit.lng,
+            geo: { src, q: usedQ, at: new Date().toISOString() },
+          });
+          updated.push({ id: l.id, q: usedQ, src, lat: hit.lat, lng: hit.lng });
+        } catch (e) { failed.push({ id: l.id, error: 'store: ' + e.message }); }
+      } else {
+        failed.push({ id: l.id, error: 'no_geocode', address: addr });
+      }
+    }
+
+    LAST_SUMMARY = { scanned: rows.length, missing: todo.length, updated, failed };
+    if (updated.length) {
+      logActivity('geocode_bake', 'listings', { updated: updated.length, failed: failed.length }, 'geocode-bake').catch(() => {});
+    }
+    return res.status(200).json({ ok: true, ...LAST_SUMMARY });
+  } catch (e) {
+    console.error('[geocode-bake]', e.message);
+    return res.status(500).json({ ok: false, error: 'bake_failed' });
+  }
+}

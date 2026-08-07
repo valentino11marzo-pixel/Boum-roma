@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Pre-Agreement Console — BOOM</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════
+   PRE-AGREEMENT CONSOLE — the admin's command deck for every deal.
+   Same identity as the public page: Helvetica Neue 300, #D4AF37 gold,
+   hairline discipline. Built to run MANY deals in parallel: KPIs at a
+   glance, search + status filters, one evident next-step per row.
+   ═══════════════════════════════════════════════════════════════════ */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--gold:#D4AF37;--gold-light:#F1DFA0;--gold-deep:#8A6D1D;
+  --void:#050506;--card:#0B0B0D;--surface:#101013;--input:#16161A;
+  --line:rgba(255,255,255,.09);--line-soft:rgba(255,255,255,.05);--line-gold:rgba(212,175,55,.32);
+  --gold-muted:rgba(212,175,55,.12);--gold-faint:rgba(212,175,55,.05);
+  --t1:#FFF;--t2:rgba(255,255,255,.72);--t3:rgba(255,255,255,.46);--t4:rgba(255,255,255,.26);
+  --green:#4ADE9E;--green-muted:rgba(74,222,158,.12);--wa:#25D366;
+  --sans:'Helvetica Neue',Helvetica,'Inter',-apple-system,sans-serif;--ease:cubic-bezier(.16,1,.3,1);--safe:env(safe-area-inset-bottom,0px)}
+body{font-family:var(--sans);background:var(--void);color:var(--t1);font-weight:300;line-height:1.55;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+::selection{background:rgba(212,175,55,.3)}
+
+nav{position:sticky;top:0;z-index:50;display:flex;justify-content:space-between;align-items:center;padding:13px 18px;background:rgba(5,5,6,.9);-webkit-backdrop-filter:blur(16px) saturate(1.5);backdrop-filter:blur(16px) saturate(1.5);border-bottom:1px solid var(--line-soft)}
+.brand{display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none}
+.brand .mark{display:block;filter:drop-shadow(0 0 8px rgba(212,175,55,.3))}
+.brand b{font-weight:300;letter-spacing:5px;font-size:14px}
+.tag{font-size:9.5px;letter-spacing:2.4px;text-transform:uppercase;color:var(--t4)}
+
+main{max-width:680px;margin:0 auto;padding:20px 16px calc(70px + var(--safe))}
+h1{font-weight:200;font-size:24px;letter-spacing:-.3px;margin-bottom:3px}
+.sub{color:var(--t3);font-size:12.5px;margin-bottom:16px}
+
+/* ── KPI strip: the whole book at a glance ── */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--line-soft);border-radius:14px;overflow:hidden;background:var(--card);margin-bottom:16px;position:relative}
+.kpis::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,var(--gold),rgba(212,175,55,.2),transparent 80%)}
+.kpi{padding:13px 12px 11px;border-left:1px solid var(--line-soft)}
+.kpi:first-child{border-left:none}
+.kpi .k{font-size:8.5px;letter-spacing:1.8px;text-transform:uppercase;color:var(--t4)}
+.kpi .v{font-size:21px;font-weight:200;margin-top:3px;font-variant-numeric:tabular-nums;letter-spacing:-.4px}
+.kpi .v small{font-size:10.5px;color:var(--t3);font-weight:300}
+.kpi.gold .v{color:var(--gold)}
+.kpi.green .v{color:var(--green)}
+
+/* ── tabs ── */
+.tabs{display:flex;gap:8px;margin-bottom:16px}
+.tabs button{flex:1;border:1px solid var(--line);border-radius:100px;padding:11px;font-size:10.5px;letter-spacing:2.2px;text-transform:uppercase;color:var(--t3);transition:.25s;font-weight:300}
+.tabs button.on{border-color:var(--gold);color:var(--gold);background:var(--gold-faint);box-shadow:0 0 18px rgba(212,175,55,.12)}
+
+/* ── deals: search + filters + rows ── */
+.dhead{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
+.search{position:relative}
+.search input{width:100%;background:var(--input);border:1px solid var(--line);border-radius:100px;color:var(--t1);font-family:inherit;font-size:14px;font-weight:300;padding:12px 16px 12px 40px;transition:border-color .25s}
+.search input:focus{outline:none;border-color:var(--line-gold)}
+.search svg{position:absolute;left:15px;top:50%;transform:translateY(-50%);color:var(--t4);pointer-events:none}
+.fchips{display:flex;gap:6px;flex-wrap:wrap}
+.fchips button{border:1px solid var(--line);border-radius:100px;padding:7px 13px;font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--t3);transition:.2s}
+.fchips button.on{border-color:var(--gold);color:var(--gold);background:var(--gold-faint)}
+.fchips button i{font-style:normal;font-family:ui-monospace,monospace;font-size:9.5px;opacity:.8;margin-left:4px}
+.empty{border:1px dashed var(--line);border-radius:16px;padding:36px 20px;text-align:center;color:var(--t3);font-size:13px}
+
+.parow{border:1px solid var(--line-soft);border-radius:16px;background:var(--card);padding:15px 16px;margin-bottom:10px;position:relative;overflow:hidden}
+.parow::before{content:"";position:absolute;top:0;left:0;bottom:0;width:2px;background:var(--line)}
+.parow.st-paid::before{background:var(--gold);box-shadow:0 0 10px rgba(212,175,55,.5)}
+.parow.st-accepted::before{background:var(--green)}
+.parow.st-viewed::before{background:var(--gold-deep)}
+.parow .top{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.parow .who{font-size:15px;color:var(--t1);font-weight:400;letter-spacing:.2px}
+.parow .when{margin-left:auto;font-size:10.5px;color:var(--t4);font-variant-numeric:tabular-nums}
+.parow .addr{font-size:12.5px;color:var(--t3);width:100%;margin-top:3px}
+.parow .meta{font-size:11.5px;color:var(--t3);margin-top:8px}
+.parow .meta b{color:var(--t2);font-weight:500}
+.parow .docs{font-size:11.5px;color:var(--t3);margin-top:5px}
+.parow .docs a{color:var(--gold-light);text-decoration:none}
+.parow .docs .miss{color:var(--gold-deep)}
+.parow .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:11px;align-items:center}
+.pbtn{border:1px solid var(--line);border-radius:100px;padding:7px 13px;font-size:11.5px;color:var(--t2);background:none;transition:.2s;text-decoration:none;display:inline-flex;align-items:center;gap:5px;font-weight:300}
+.pbtn:hover{border-color:var(--line-gold);color:var(--gold)}
+.pbtn.prim{border-color:var(--gold);color:var(--gold);font-weight:500;background:var(--gold-faint)}
+.pbtn.prim:hover{background:var(--gold-muted)}
+.pbtn.wa{border-color:rgba(37,211,102,.4);color:var(--wa)}
+.pbtn.warn:hover{border-color:rgba(255,120,90,.5);color:#ff8a70}
+.chip{font-size:9px;letter-spacing:1.4px;text-transform:uppercase;border-radius:100px;padding:4px 10px;font-weight:600}
+.chip.sent{color:var(--t2);border:1px solid var(--line)}
+.chip.viewed{color:var(--gold-light);border:1px solid var(--line-gold)}
+.chip.accepted{color:var(--green);border:1px solid rgba(74,222,158,.35)}
+.chip.paid{color:#1a1407;background:linear-gradient(180deg,var(--gold-light),var(--gold))}
+.chip.revoked{color:var(--t4);border:1px solid var(--line);text-decoration:line-through}
+.nextstep{font-size:11px;color:var(--t3);margin-top:9px;padding-top:9px;border-top:1px solid var(--line-soft);line-height:1.6}
+.nextstep b{color:var(--gold-light);font-weight:400}
+
+/* ── form ── */
+.card{border:1px solid var(--line-soft);border-radius:16px;background:var(--card);padding:18px;margin-bottom:12px;position:relative;overflow:hidden}
+.card::after{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,rgba(212,175,55,.45),rgba(212,175,55,.1),transparent 75%)}
+.card h2{display:flex;align-items:baseline;gap:10px;margin-bottom:14px}
+.card h2 .no{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:1px;color:var(--gold);border:1px solid var(--line-gold);border-radius:6px;padding:3px 7px;background:var(--gold-faint)}
+.card h2 .tt{font-size:10.5px;letter-spacing:2.6px;text-transform:uppercase;color:var(--t2);font-weight:400}
+.card h2::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent);transform:translateY(-3px)}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media(max-width:480px){.g3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.fld{display:block;margin-bottom:10px}
+.fld span{display:block;font-size:9.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--t3);margin-bottom:5px}
+.fld input,.fld select,.fld textarea{width:100%;background:var(--input);border:1px solid var(--line);border-radius:10px;color:var(--t1);font-family:inherit;font-size:14.5px;font-weight:300;padding:11px 12px;transition:border-color .25s;resize:vertical}
+.fld input:focus,.fld select:focus,.fld textarea:focus{outline:none;border-color:var(--gold)}
+.fld.req span::after{content:" *";color:var(--gold)}
+.hintline{font-size:11.5px;color:var(--t3);margin-top:-3px;margin-bottom:8px;line-height:1.6}
+.hintline b{color:var(--gold);font-weight:500}
+.presets{display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 8px}
+.presets button{border:1px dashed var(--line-gold);border-radius:100px;padding:6px 12px;font-size:10.5px;color:var(--gold-light);background:var(--gold-faint);transition:.2s}
+.presets button:hover{background:var(--gold-muted)}
+
+/* live deal summary */
+.sumcard{border:1px solid var(--line-gold);border-radius:14px;background:linear-gradient(90deg,var(--gold-faint),transparent 70%);padding:14px 16px;margin-bottom:12px;font-size:12.5px;color:var(--t2);line-height:1.7;position:relative}
+.sumcard::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);box-shadow:0 0 10px rgba(212,175,55,.5)}
+.sumcard b{color:var(--gold-light);font-weight:500}
+.sumcard .cap{font-size:9px;letter-spacing:2.2px;text-transform:uppercase;color:var(--gold);margin-bottom:5px;font-weight:400}
+
+.gbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#1a1407;font-weight:600;border-radius:100px;padding:15px;font-size:12px;letter-spacing:2px;text-transform:uppercase;margin-top:4px;transition:.25s var(--ease);box-shadow:0 8px 28px rgba(212,175,55,.15)}
+.gbtn:disabled{opacity:.5}
+.gbtn:not(:disabled):hover{filter:brightness(1.05)}
+.err{display:none;color:var(--gold-light);font-size:12.5px;margin:10px 0 0;text-align:center}
+.result{display:none;border:1px solid var(--line-gold);border-radius:16px;background:linear-gradient(180deg,var(--gold-faint),var(--card));padding:18px;margin-top:14px;text-align:center}
+.result .lnk{word-break:break-all;font-size:13px;color:var(--gold);margin:10px 0 14px;display:block}
+.rbtns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.obtn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:100px;padding:11px 18px;font-size:12.5px;background:var(--card);transition:.25s;color:var(--t1);text-decoration:none}
+.obtn:hover{border-color:var(--line-gold);color:var(--gold)}
+.obtn.wa{border-color:rgba(37,211,102,.4);color:var(--wa)}
+.load{text-align:center;padding:80px 20px;color:var(--t3)}
+.editbar{display:none;border:1px solid var(--line-gold);background:var(--gold-faint);border-radius:12px;padding:11px 14px;margin-bottom:12px;font-size:12.5px;color:var(--gold-light)}
+.editbar b{color:var(--gold)}
+.editbar button{color:var(--t2);text-decoration:underline;font-size:12px;margin-left:10px}
+@media(prefers-reduced-motion:no-preference){.gbtn:active,.obtn:active,.pbtn:active{transform:scale(.98)}}
+
+/* ── convert-to-contract sheet ── */
+.cvov{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:rgba(4,4,6,.8);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);padding:18px}
+.cvbox{width:min(480px,100%);border:1px solid var(--line-gold);border-radius:18px;background:var(--card);padding:20px;max-height:88vh;overflow-y:auto}
+.cvbox h3{font-weight:300;font-size:18px;margin-bottom:4px}
+.cvbox .sub2{font-size:12px;color:var(--t3);margin-bottom:14px;line-height:1.6}
+.cvbox .dele{display:flex;gap:10px;align-items:flex-start;font-size:12.5px;color:var(--t2);cursor:pointer;margin:12px 0;line-height:1.55}
+.cvbox .dele input{width:18px;height:18px;margin-top:1px;flex:none;accent-color:#D4AF37}
+.cvlink{border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-top:10px;font-size:12px}
+.cvlink b{display:block;font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:var(--gold);margin-bottom:5px;font-weight:600}
+.cvlink .u{word-break:break-all;color:var(--t2)}
+.cvlink .row2{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <linearGradient id="bmGold" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0%" stop-color="#F1DFA0"/><stop offset="100%" stop-color="#D4AF37"/>
+  </linearGradient>
+  <g id="boomMark"><g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#bmGold)">
+    <path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/>
+  </g></g>
+</defs></svg>
+
+<nav>
+  <a class="brand" href="/portal"><svg class="mark" viewBox="0 0 1024 1024" width="26" height="26" aria-hidden="true"><use href="#boomMark"/></svg><b>BOOM</b></a>
+  <span class="tag">Pre-Agreement Console</span>
+</nav>
+
+<main>
+  <div class="load" id="load">Verifica accesso…</div>
+  <div id="app" style="display:none">
+
+    <div class="kpis" id="kpis" style="display:none">
+      <div class="kpi"><div class="k">In corso</div><div class="v" id="kOpen">0</div></div>
+      <div class="kpi green"><div class="k">Da chiudere</div><div class="v" id="kClose">0</div></div>
+      <div class="kpi gold"><div class="k">Incassato</div><div class="v" id="kPaid">€0</div></div>
+      <div class="kpi"><div class="k">Contratti</div><div class="v" id="kContr">0</div></div>
+    </div>
+
+    <div class="tabs">
+      <button id="tabNew" onclick="showTab('new')">＋ Nuovo</button>
+      <button id="tabDeals" class="on" onclick="showTab('deals')">Deals <i id="tabN"></i></button>
+    </div>
+
+    <!-- ═══ DEALS ═══ -->
+    <section id="vDeals">
+      <div class="dhead">
+        <div class="search">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg>
+          <input id="q" placeholder="Cerca per nome, indirizzo, protocollo…" oninput="renderList()">
+        </div>
+        <div class="fchips" id="fchips">
+          <button data-f="all" class="on" onclick="setFilter('all',this)">Tutti<i></i></button>
+          <button data-f="open" onclick="setFilter('open',this)">In corso<i></i></button>
+          <button data-f="close" onclick="setFilter('close',this)">Da chiudere<i></i></button>
+          <button data-f="paid" onclick="setFilter('paid',this)">Pagati<i></i></button>
+          <button data-f="revoked" onclick="setFilter('revoked',this)">Revocati<i></i></button>
+        </div>
+      </div>
+      <div id="paRows"></div>
+      <div class="empty" id="emptyRows" style="display:none">Nessun pre-agreement qui.<br><button class="obtn" style="margin-top:14px" onclick="showTab('new')">＋ Crea il primo</button></div>
+    </section>
+
+    <!-- ═══ NUOVO / EDIT ═══ -->
+    <section id="vNew" style="display:none">
+      <h1 id="pageH">Nuovo pre-agreement</h1>
+      <p class="sub">Compili il deal — il cliente completa identità, documenti e firma dal link. Il tuo lavoro finisce qui.</p>
+
+      <div class="editbar" id="editbar">✎ Modifica <b id="editRef">—</b> — salvando si aggiorna lo <b>stesso link</b> già in mano al cliente.<button onclick="cancelEdit()">Annulla</button></div>
+
+      <div class="card"><h2><span class="no">01</span><span class="tt">Immobile &amp; proprietario</span></h2>
+        <label class="fld"><span>Prefill da listing</span><select id="fList"><option value="">— manuale —</option></select></label>
+        <label class="fld req"><span>Indirizzo</span><input id="fAddress" placeholder="Via di Sant'Anna 16, Roma"></label>
+        <div class="g3">
+          <label class="fld"><span>Piano</span><input id="fFloor" placeholder="2nd Floor"></label>
+          <label class="fld"><span>Interno</span><input id="fUnit" placeholder=""></label>
+          <label class="fld"><span>Stato</span><input id="fCondition" value="Furnished"></label>
+        </div>
+        <label class="fld req"><span>Proprietario</span><input id="fLandlord" placeholder="Mario Di Capua"></label>
+        <div class="g2">
+          <label class="fld"><span>Email proprietario (per il link firma)</span><input id="fLEmail" type="email" placeholder="facoltativa"></label>
+          <label class="fld"><span>WhatsApp proprietario</span><input id="fLPhone" type="tel" placeholder="+39 …"></label>
+        </div>
+        <label class="fld"><span>Proprietà nel portal — abilita l'auto-contratto</span><select id="fProp"><option value="">— nessuna (converto dopo a mano) —</option></select></label>
+        <p class="hintline">Con la proprietà collegata il contratto <b>si crea da solo</b> alla chiusura del deal. Il Magic Sign al cliente parte solo quando lo decidi tu; il link firma del proprietario glielo mandi con un tocco.</p>
+      </div>
+
+      <div class="card"><h2><span class="no">02</span><span class="tt">Contratto</span></h2>
+        <div class="g3">
+          <label class="fld req"><span>Inizio</span><input id="fStart" type="date"></label>
+          <label class="fld"><span>Mesi</span><input id="fMonths" type="number" value="12" min="1" max="48"></label>
+          <label class="fld"><span>Tipo</span><select id="fType"><option>Transitional Lease</option><option>4+4 Residential</option><option>3+2 Concordato</option></select></label>
+        </div>
+        <label class="fld"><span>Esigenza transitoria (clausola 5.x)</span><input id="fReason" placeholder="es. corso di studi SIOI · trasferta di lavoro fino al …"></label>
+        <label class="fld"><span>Offerta valida fino al (facoltativo)</span><input id="fValid" type="date"></label>
+        <p class="hintline">Passata la data, il link mostra "offerta scaduta" e la firma si blocca — un deal già accettato/pagato non è mai toccato. Per riattivare: ✎ Modifica e sposti la data, <b>stesso link</b>.</p>
+      </div>
+
+      <div class="card"><h2><span class="no">03</span><span class="tt">Money</span></h2>
+        <div class="g3">
+          <label class="fld req"><span>Canone base €/mese</span><input id="fRent" type="number" inputmode="numeric" placeholder="1200"></label>
+          <label class="fld"><span>Utenze</span><select id="fUtil"><option value="excluded">Escluse (a carico inquilino)</option><option value="included">Incluse nel canone</option></select></label>
+          <label class="fld"><span>Energy credit €/mese</span><input id="fEnergy" type="number" inputmode="numeric" value="0" min="0" max="1000" title="Copre l'elettricità fino a questo importo (clausola aggiunta in automatico)"></label>
+          <label class="fld"><span>Deposito (mesi)</span><input id="fDepM" type="number" value="1" min="0" max="6" step="0.5"></label>
+        </div>
+        <div class="g3">
+          <label class="fld"><span>Deposito alla firma</span><select id="fDepSplit"><option value="100">100% alla firma</option><option value="50">50% ora · 50% al move-in</option><option value="0">Tutto al move-in</option></select></label>
+          <label class="fld"><span>Fee — base di calcolo</span><select id="fFeeMode"><option value="pct">% del canone annuo</option><option value="months">Mensilità di canone</option><option value="flat">€ importo fisso</option></select></label>
+          <label class="fld" id="wrapFeePct"><span>Fee % annuo</span><input id="fFeePct" type="number" value="12" min="0" max="30" step="0.5"></label>
+          <label class="fld" id="wrapFeeMonths" style="display:none"><span>Fee (mensilità)</span><input id="fFeeMonths" type="number" value="1" min="0" max="3" step="0.5"></label>
+          <label class="fld" id="wrapFeeFlat" style="display:none"><span>Fee € (fisso)</span><input id="fFeeFlat" type="number" inputmode="numeric" value="" min="0" placeholder="800"></label>
+        </div>
+        <div class="g3">
+          <label class="fld"><span>IVA % sulla fee</span><input id="fVatPct" type="number" value="22" min="0" max="30"></label>
+          <label class="fld"><span>Fee dovuta</span><select id="fFeeDue"><option value="move-in">Al move-in</option><option value="separate">Separatamente</option><option value="signing">Alla firma</option></select></label>
+          <label class="fld"><span>Dovuto alla firma €</span><input id="fDue" type="number" inputmode="numeric" placeholder="auto"></label>
+        </div>
+        <div class="g2">
+          <label class="fld"><span>Energy credit — come si incassa</span><select id="fEcBill">
+            <option value="in">Dentro la rata (canone + energia)</option>
+            <option value="apart">A parte (rata = solo canone)</option>
+          </select></label>
+          <label class="fld"><span>Cadenza del canone</span><select id="fFreq">
+            <option value="1">Mensile</option>
+            <option value="2">Bimestrale</option>
+            <option value="3">Trimestrale</option>
+            <option value="6">Semestrale</option>
+            <option value="12">Annuale</option>
+          </select></label>
+          <div class="fld"><span>Rata risultante</span><div id="freqOut" style="background:var(--input);border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-size:14.5px;color:var(--gold-light)">—</div></div>
+        </div>
+        <p class="hintline">La cadenza vale per tutto: documento, contratto, piano rate generato alla firma, /casa e solleciti. <b>Anticipata</b> — la rata copre il periodo che inizia.</p>
+        <label class="fld"><span>Voci extra — una per riga: Etichetta = importo</span><textarea id="fExtras" rows="2" placeholder="Final cleaning (at move-in) = 120&#10;Garage parking /month = 90"></textarea></label>
+        <label class="fld"><span>Nota sul documento (facoltativa)</span><input id="fNote" placeholder="es. deposito già versato il 06/07 · IBAN …"></label>
+      </div>
+
+      <div class="card"><h2><span class="no">04</span><span class="tt">Clausole extra</span></h2>
+        <label class="fld"><span>Aggiunte al §5 Condizioni generali — una per riga (facoltative)</span><textarea id="fClauses" rows="3" placeholder="Pets are allowed subject to the Landlord's prior written approval.&#10;The apartment is delivered professionally cleaned; the Tenant returns it in the same state."></textarea></label>
+      </div>
+
+      <div class="card"><h2><span class="no">05</span><span class="tt">Documenti richiesti</span></h2>
+        <p class="hintline">L'ID/passaporto è chiesto sempre nello step Verify. Qui puoi chiedere un <b>secondo documento</b> — mai bloccante: il cliente può firmare e inviarlo dopo, dallo stesso link.</p>
+        <div class="presets">
+          <button type="button" onclick="setXDoc('Proof of the transitional need (work contract / university enrolment)')">Comprova esigenza transitoria</button>
+          <button type="button" onclick="setXDoc('Tax code card (tessera codice fiscale)')">Codice fiscale</button>
+          <button type="button" onclick="setXDoc('Last 3 payslips or proof of income')">Buste paga</button>
+        </div>
+        <label class="fld"><span>Secondo documento (facoltativo)</span><input id="fXDoc" placeholder="es. Proof of the transitional need (work contract / enrolment)"></label>
+      </div>
+
+      <div class="card"><h2><span class="no">06</span><span class="tt">Cliente (prefill facoltativo)</span></h2>
+        <div class="g3">
+          <label class="fld"><span>Nome</span><input id="fTName" placeholder="Lo compila lui"></label>
+          <label class="fld"><span>Email</span><input id="fTEmail" type="email"></label>
+          <label class="fld"><span>Telefono</span><input id="fTPhone" type="tel"></label>
+        </div>
+      </div>
+
+      <div class="sumcard" id="sumcard" style="display:none"><div class="cap">Riepilogo deal</div><div id="mathLine">—</div><div id="canoneLine" style="margin-top:7px;padding-top:7px;border-top:1px dashed rgba(212,175,55,.25)"></div></div>
+
+      <button class="gbtn" id="goBtn" onclick="createPA()">Crea il link del pre-agreement →</button>
+      <p class="err" id="fErr"></p>
+
+      <div class="result" id="result">
+        <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--gold)">Link pronto</div>
+        <a class="lnk" id="rLink" target="_blank" rel="noopener"></a>
+        <div class="rbtns">
+          <button class="obtn" onclick="copyLink()">Copia link</button>
+          <a class="obtn wa" id="rWa" target="_blank" rel="noopener">Invia su WhatsApp →</a>
+          <a class="obtn" id="rOpen" target="_blank" rel="noopener">Apri anteprima →</a>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="/js/firebase-config.js"></script>
+<script src="/js/boom-portal.js"></script>
+<script src="/js/canone-engine.js"></script>
+<script>
+(function(){
+'use strict';
+var USER=null,LISTINGS=[];
+var $=function(id){return document.getElementById(id)};
+var eur=function(n){var f=Math.round(n*100)%100!==0;return '€'+Number(n).toLocaleString('en-US',{minimumFractionDigits:f?2:0,maximumFractionDigits:2})};
+var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;')};
+
+/* Client-side mirror of api/preagreement/create.js deriveMoney() — the edit-
+   in-place flow writes these derived fields directly, so the math MUST match. */
+function deriveMoney(k){
+  var r2=function(n){return Math.round(n*100)/100};
+  var rent=+k.rent||0, ec=Math.max(0,Math.min(1000,+k.energyCredit||0));
+  var dm=Math.max(0,Math.min(6,k.depositMonths!=null?+k.depositMonths:1));
+  var deposit=r2(rent*dm);
+  var splitPct=Math.max(0,Math.min(100,k.depositSplitPct!=null?+k.depositSplitPct:100));
+  var depS=r2(deposit*splitPct/100), depM=r2(deposit-depS);
+  var feeMode=k.feeMode==='months'?'months':(k.feeMode==='flat'||(k.feeFlat!=null&&k.feeFlat!==''))?'flat':'pct';
+  var feePct=Math.max(0,Math.min(100,k.feePct!=null?+k.feePct:12));
+  var feeMonths=Math.max(0,Math.min(3,k.feeMonths!=null?+k.feeMonths:1));
+  var feeFlat=feeMode==='flat'?Math.max(0,Math.min(200000,+k.feeFlat||0)):null;
+  var fee=feeMode==='flat'?r2(feeFlat):feeMode==='months'?r2(rent*feeMonths):r2(rent*12*feePct/100);
+  var vatPct=Math.max(0,Math.min(50,k.feeVatPct!=null?+k.feeVatPct:22));
+  var feeVat=r2(fee*vatPct/100), feeTotal=r2(fee+feeVat);
+  var feeDue=['move-in','signing','separate'].indexOf(k.feeDue)>=0?k.feeDue:'separate';
+  var utilities=k.utilities==='included'?'included':'excluded';
+  var im=[1,2,3,6,12].indexOf(+k.installmentMonths)>=0?+k.installmentMonths:1;
+  var billEc=ec>0?(k.billEnergyCredit!==false):false;
+  var chargedMonthly=r2(billEc?r2(rent+ec):rent);
+  var installmentAmount=r2(chargedMonthly*im);
+  var dueDefault=r2(depS+(feeDue==='signing'?feeTotal:0));
+  var due=(k.dueAtSigning!=null&&k.dueAtSigning!=='')?Math.max(0,+k.dueAtSigning||0):dueDefault;
+  return {rent:rent,energyCredit:ec,monthlyTotal:r2(rent+ec),utilities:utilities,depositMonths:dm,deposit:deposit,
+    depositSplitPct:splitPct,depositAtSigning:depS,depositAtMoveIn:depM,
+    feeMode:feeMode,feePct:feePct,feeMonths:feeMonths,feeFlat:feeFlat,fee:fee,feeVatPct:vatPct,feeVat:feeVat,
+    feeTotal:feeTotal,feeDue:feeDue,installmentMonths:im,billEnergyCredit:billEc,
+    chargedMonthly:chargedMonthly,installmentAmount:installmentAmount,dueAtSigning:due};
+}
+function moneyKnobs(){
+  return {rent:+$('fRent').value||0,energyCredit:+$('fEnergy').value||0,utilities:$('fUtil').value,
+    depositMonths:$('fDepM').value!==''?+$('fDepM').value:1,depositSplitPct:+$('fDepSplit').value,
+    feeMode:$('fFeeMode').value,feePct:+$('fFeePct').value||0,feeMonths:+$('fFeeMonths').value||0,feeFlat:$('fFeeFlat').value!==''?+$('fFeeFlat').value:null,
+    feeVatPct:+$('fVatPct').value||0,feeDue:$('fFeeDue').value,installmentMonths:+$('fFreq').value||1,
+    billEnergyCredit:$('fEcBill').value!=='apart',
+    dueAtSigning:$('fDue').value!==''?Math.max(0,+$('fDue').value||0):null};
+}
+function feeModeUi(){
+  var v=$('fFeeMode').value;
+  $('wrapFeePct').style.display=v==='pct'?'':'none';
+  $('wrapFeeMonths').style.display=v==='months'?'':'none';
+  $('wrapFeeFlat').style.display=v==='flat'?'':'none';
+}
+function mathLine(){
+  feeModeUi();
+  var mm=deriveMoney(moneyKnobs());
+  var sc=$('sumcard');
+  if(!mm.rent){sc.style.display='none';return;}
+  sc.style.display='';
+  var FREQ={1:'mensile',2:'bimestrale',3:'trimestrale',6:'semestrale',12:'annuale'};
+  $('freqOut').innerHTML=(mm.installmentMonths===1?eur(mm.installmentAmount)+' al mese'
+    :'<b>'+eur(mm.installmentAmount)+'</b> ogni '+mm.installmentMonths+' mesi')
+    +(mm.energyCredit?(mm.billEnergyCredit?' <span style="color:var(--t3);font-size:11.5px">· energia inclusa</span>'
+      :' <span style="color:var(--t3);font-size:11.5px">· energia a parte</span>'):'');
+  $('mathLine').innerHTML=(mm.installmentMonths>1?'Canone <b>'+FREQ[mm.installmentMonths]+'</b>: '+eur(mm.installmentAmount)+' a rata · ':'')
+    +(mm.energyCredit?'Mensile totale <b>'+eur(mm.monthlyTotal)+'</b> (canone + energy) · ':'')
+    +'Deposito <b>'+eur(mm.deposit)+'</b>'+(mm.depositSplitPct<100?' ('+eur(mm.depositAtSigning)+' alla firma · '+eur(mm.depositAtMoveIn)+' al move-in)':'')
+    +' · fee <b>'+eur(mm.fee)+'</b>'+(mm.feeMode==='flat'?' (fissa)':'')+' + IVA '+eur(mm.feeVat)+' = <b>'+eur(mm.feeTotal)+'</b> ('+(mm.feeDue==='move-in'?'al move-in':mm.feeDue==='signing'?'alla firma':'separata')+')'
+    +' · <b style="color:var(--gold)">dovuto alla firma '+eur(mm.dueAtSigning)+'</b>';
+}
+['fRent','fEnergy','fDepM','fDepSplit','fFeeMode','fFeePct','fFeeMonths','fFeeFlat','fVatPct','fFeeDue','fDue','fFreq','fEcBill','fProp','fAddress'].forEach(function(id){
+  document.addEventListener('input',function(e){if(e.target.id===id)mathLine();});
+  document.addEventListener('change',function(e){if(e.target.id===id)mathLine();});
+});
+
+/* ── CANONE CONCORDATO, verdetto live ─────────────────────────────────────
+   Mentre scrivi il canone, la console dice se RIENTRA nella fascia di
+   oscillazione dell'accordo (motore condiviso js/canone-engine.js — lo
+   stesso del Fascicolo Fiscale). Onesto: senza mq o zona riconoscibile
+   dice cosa manca, mai un numero inventato. Config (pArr ammobiliato,
+   soglie) da settings/canoneAccordo — calibrabile qui con ⚙. */
+var CANONE_CFG=null;
+async function loadCanoneCfg(){
+  if(CANONE_CFG!==null)return CANONE_CFG;
+  CANONE_CFG={};
+  try{var s=await firebase.firestore().collection('settings').doc('canoneAccordo').get();if(s.exists)CANONE_CFG=s.data()||{};}catch(e){}
+  return CANONE_CFG;
+}
+function canoneLine(){
+  var el=$('canoneLine');if(!el||!window.BOOM_CANONE)return;
+  var rent=+$('fRent').value||0;
+  if(!rent){el.innerHTML='';return;}
+  var pid=$('fProp').value;
+  var p=(PROPS||[]).find(function(x){return x.id===pid})||null;
+  var zonaText=(p&&(p.canoneZonaCod||p.zone||p.address))||$('fAddress').value||'';
+  var zona=window.BOOM_CANONE.matchZone(zonaText);
+  var gear=' <a href="#" onclick="calibraAccordo();return false" title="Calibra accordo (ammobiliato %, soglie)" style="color:var(--t3);text-decoration:none">⚙</a>';
+  if(!zona){el.innerHTML='<span style="color:var(--t3)">Canone concordato: zona non riconosciuta'+(zonaText?' («'+zonaText.slice(0,28)+'»)':'')+' — verifica con ARPE</span>'+gear;return;}
+  if(!p||!p.sqm){el.innerHTML='<span style="color:var(--t3)">Zona <b>'+zona.cod+'</b> ('+zona.nome+') · fascia B '+zona.bMin+'–'+zona.bMax+' €/mq — seleziona una proprietà con mq per il verdetto</span>'+gear;return;}
+  var s=window.BOOM_CANONE.solve({zona:zona,mq:p.sqm,canone:rent,tipo:'trans',features:p.features||[],
+    furnished:p.furnished,energyClass:p.energyClass,floorText:p.floor,cfg:CANONE_CFG||{}});
+  if(!s.ok){el.innerHTML='<span style="color:var(--t3)">Canone: '+s.error+'</span>'+gear;return;}
+  var max=s.cMax.toLocaleString('it-IT',{maximumFractionDigits:0});
+  el.innerHTML=(s.fits
+    ? '<b style="color:var(--gold)">✓ IN FASCIA '+s.fascia+'</b> ('+zona.cod+' · '+s.nP+' parametri) — max asseverabile <b>€ '+max+'</b>/mese'
+    : '<b style="color:#E08573">⚠ FUORI FASCIA di € '+(s.canone-s.cMax).toLocaleString('it-IT',{maximumFractionDigits:0})+'</b> ('+zona.cod+' · fascia '+s.fascia+', max € '+max+') — riporta il canone o verifica i parametri')
+    +gear;
+}
+var _origMathLine=mathLine;
+mathLine=function(){_origMathLine();loadCanoneCfg().then(canoneLine);};
+
+/* ⚙ Calibrazione accordo → settings/canoneAccordo (l'admin può scrivere
+   settings da client per rules). Il server (Fascicolo) legge lo stesso doc:
+   una calibrazione sola, ovunque. */
+window.calibraAccordo=async function(){
+  var cfg=await loadCanoneCfg();
+  var d=window.BOOM_CANONE.DEFAULT_CFG;
+  var pArr=prompt('Maggiorazione AMMOBILIATO % (accordo Roma — 0 = non calibrata, mai applicata):',cfg.pArr!=null?cfg.pArr:d.pArr);
+  if(pArr===null)return;
+  var pDur=prompt('Maggiorazione DURATA % per contratti 3+2 (0 se non prevista):',cfg.pDur!=null?cfg.pDur:d.pDur);
+  if(pDur===null)return;
+  var out={pArr:Math.max(0,Math.min(30,+pArr||0)),pDur:Math.max(0,Math.min(20,+pDur||0)),
+    sMed:cfg.sMed!=null?cfg.sMed:d.sMed,sMax:cfg.sMax!=null?cfg.sMax:d.sMax,updatedAt:new Date().toISOString()};
+  try{
+    await firebase.firestore().collection('settings').doc('canoneAccordo').set(out,{merge:true});
+    CANONE_CFG=out;canoneLine();
+    alert('Accordo calibrato ✓ — vale per la console E per il Fascicolo Fiscale.');
+  }catch(e){alert('Salvataggio fallito: '+e.message);}
+};
+window.setXDoc=function(v){$('fXDoc').value=v;};
+
+/* ── tabs ── */
+window.showTab=function(t){
+  $('vNew').style.display=t==='new'?'':'none';
+  $('vDeals').style.display=t==='deals'?'':'none';
+  $('tabNew').classList.toggle('on',t==='new');
+  $('tabDeals').classList.toggle('on',t==='deals');
+  if(t==='new')window.scrollTo({top:0,behavior:'smooth'});
+};
+
+/* edit mode: EDIT_ID + EDIT_TOKEN set → saving PATCHES the same doc, so the
+   client's existing link shows the updated terms. Derivations (deposit, fee,
+   VAT, end date with month-end clamp) mirror api/preagreement/create.js. */
+var EDIT_ID=null,EDIT_TOKEN=null;
+function endDateISO(startISO,months){var d=new Date(startISO+'T00:00:00');var day=d.getDate();d.setMonth(d.getMonth()+months);if(d.getDate()!==day)d.setDate(0);else d.setDate(d.getDate()-1);return d.toISOString().slice(0,10);}
+function parseExtras(){
+  return $('fExtras').value.split('\n').map(function(l){
+    var m=l.match(/^(.*?)[=:]\s*€?\s*([\d.,]+)\s*$/);
+    if(!m||!m[1].trim())return null;
+    return {label:m[1].trim(),amount:parseFloat(m[2].replace(/\./g,'').replace(',','.'))||parseFloat(m[2])||0};
+  }).filter(Boolean).slice(0,8);
+}
+function parseClauses(){
+  return $('fClauses').value.split('\n').map(function(l){return l.trim()}).filter(Boolean).slice(0,10);
+}
+function readForm(){
+  var months=Math.max(1,Math.min(48,+$('fMonths').value||12)),start=$('fStart').value;
+  var knobs=moneyKnobs();
+  return{
+    listingId:$('fList').value||null,
+    propertyId:$('fProp').value||null,   // linked portal property → auto-contract on close
+    property:{address:$('fAddress').value.trim(),floor:$('fFloor').value.trim()||null,unit:$('fUnit').value.trim()||null,condition:$('fCondition').value.trim()||'Furnished',type:'Entire Apartment',use:'Residential'},
+    landlord:{name:$('fLandlord').value.trim(),email:$('fLEmail').value.trim()||null,phone:$('fLPhone').value.trim()||null},
+    extraDoc:$('fXDoc').value.trim()||null,
+    validUntil:$('fValid').value||null,
+    tenant:{fullName:$('fTName').value.trim()||null,email:$('fTEmail').value.trim()||null,phone:$('fTPhone').value.trim()||null},
+    lease:{startDate:start,months:months,endDate:start?endDateISO(start,months):null,type:$('fType').value,lawRef:'uso transitorio · L.431/98 art.5 c.1',reason:$('fReason').value.trim()||null},
+    knobs:knobs,                 // raw inputs → the create API derives server-side
+    money:deriveMoney(knobs),    // full derived object → edit-in-place + preview
+    extras:parseExtras(),
+    customClauses:parseClauses(),
+    note:$('fNote').value.trim()||null
+  };
+}
+function showLink(url,body){
+  $('rLink').textContent=url;$('rLink').href=url;$('rOpen').href=url;
+  var msg='Ciao'+(body.tenant.fullName?' '+body.tenant.fullName.split(' ')[0]:'')+'! Ecco il tuo pre-agreement BOOM per '+body.property.address+'. Leggilo e firmalo qui: '+url;
+  $('rWa').href='https://wa.me/'+(body.tenant.phone?body.tenant.phone.replace(/[^\d]/g,''):'')+'?text='+encodeURIComponent(msg);
+  $('result').style.display='block';$('result').scrollIntoView({behavior:'smooth',block:'center'});
+}
+window.createPA=async function(){
+  var err=$('fErr');err.style.display='none';
+  var body=readForm();
+  if(!body.property.address||!body.landlord.name||!body.lease.startDate||body.money.rent<=0){err.textContent='Servono indirizzo, proprietario, data di inizio e canone.';err.style.display='block';return;}
+  var btn=$('goBtn');btn.disabled=true;btn.textContent=EDIT_ID?'Salvo…':'Creo…';
+  try{
+    if(EDIT_ID){
+      /* GUARDIA: un PA già CONVERTITO in contratto non si riscrive — il
+         contratto resterebbe sui termini vecchi senza alcun avviso (drift
+         silenzioso). La strada giusta è Duplica → nuova proposta. */
+      var _cur=await firebase.firestore().collection('preAgreements').doc(EDIT_ID).get();
+      if(_cur.exists&&(_cur.data()||{}).contractId){
+        err.textContent='⛔ Questa proposta è già stata convertita in contratto ('+_cur.data().contractId+'): non si modifica. Usa Duplica per una nuova versione.';
+        err.style.display='block';btn.disabled=false;btn.textContent='Salva';return;
+      }
+      /* update in place — same token, same link, status back to sent */
+      await firebase.firestore().collection('preAgreements').doc(EDIT_ID).update({
+        listingId:body.listingId,propertyId:body.propertyId,autoConvert:!!body.propertyId,
+        property:body.property,landlord:body.landlord,extraDoc:body.extraDoc,validUntil:body.validUntil,
+        tenant:body.tenant,tenants:[body.tenant],lease:body.lease,money:body.money,
+        extras:body.extras,customClauses:body.customClauses,note:body.note,
+        status:'sent',updatedAt:new Date().toISOString(),updatedBy:USER.email||USER.uid
+      });
+      var url=location.origin+'/pre-agreement?t='+EDIT_TOKEN;
+      cancelEdit();showLink(url,body);
+    }else{
+      var tok=await USER.getIdToken();
+      var payload=JSON.parse(JSON.stringify(body));
+      delete payload.property.type;delete payload.property.use;delete payload.lease.endDate;delete payload.lease.lawRef;
+      payload.money=payload.knobs;delete payload.knobs;   // server derives the rest
+      var r=await fetch('/api/preagreement/create',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify(payload)});
+      var j=await r.json();
+      if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
+      showLink(location.origin+j.url,body);
+    }
+  }catch(e){err.textContent='Salvataggio non riuscito — '+(e.message||'riprova')+'.';err.style.display='block';}
+  btn.disabled=false;btn.textContent=EDIT_ID?'Salva le modifiche su questo link →':'Crea il link del pre-agreement →';
+};
+window.copyLink=function(){try{navigator.clipboard.writeText($('rLink').textContent);}catch(e){}};
+
+/* ── deals list ── */
+var PAS=[],FILTER='all';
+function fillForm(d){
+  $('fAddress').value=(d.property||{}).address||'';$('fFloor').value=(d.property||{}).floor||'';
+  $('fUnit').value=(d.property||{}).unit||'';$('fCondition').value=(d.property||{}).condition||'Furnished';
+  $('fLandlord').value=(d.landlord||{}).name||'';
+  $('fLEmail').value=(d.landlord||{}).email||'';$('fLPhone').value=(d.landlord||{}).phone||'';
+  $('fXDoc').value=d.extraDoc||'';
+  $('fValid').value=d.validUntil||'';
+  $('fStart').value=(d.lease||{}).startDate||'';$('fMonths').value=(d.lease||{}).months||12;
+  try{$('fType').value=(d.lease||{}).type||'Transitional Lease'}catch(e){}
+  $('fReason').value=(d.lease||{}).reason||'';
+  var mo=d.money||{};
+  $('fRent').value=mo.rent||'';$('fEnergy').value=mo.energyCredit!=null?mo.energyCredit:0;
+  $('fUtil').value=mo.utilities==='included'?'included':'excluded';
+  $('fDepM').value=mo.depositMonths!=null?mo.depositMonths:1;
+  try{$('fDepSplit').value=String(mo.depositSplitPct!=null?mo.depositSplitPct:100)}catch(e){$('fDepSplit').value='100'}
+  $('fFeeMode').value=mo.feeMode==='months'?'months':(mo.feeMode==='flat'||mo.feeFlat!=null)?'flat':'pct';
+  $('fFeePct').value=mo.feePct!=null?mo.feePct:12;$('fFeeMonths').value=mo.feeMonths!=null?mo.feeMonths:1;
+  $('fFeeFlat').value=mo.feeFlat!=null?mo.feeFlat:'';
+  $('fVatPct').value=mo.feeVatPct!=null?mo.feeVatPct:22;
+  $('fFeeDue').value=['move-in','signing','separate'].indexOf(mo.feeDue)>=0?mo.feeDue:'separate';
+  $('fDue').value=mo.dueAtSigning!=null?mo.dueAtSigning:'';
+  try{$('fFreq').value=String(mo.installmentMonths||1)}catch(e){}
+  try{$('fEcBill').value=(mo.billEnergyCredit===false)?'apart':'in'}catch(e){}
+  try{$('fProp').value=d.propertyId||''}catch(e){}
+  $('fExtras').value=(Array.isArray(d.extras)?d.extras:[]).map(function(x){return x.label+' = '+x.amount}).join('\n');
+  $('fClauses').value=(Array.isArray(d.customClauses)?d.customClauses:[]).join('\n');
+  $('fNote').value=d.note||'';
+  $('fTName').value=(d.tenant||{}).fullName||'';$('fTEmail').value=(d.tenant||{}).email||'';$('fTPhone').value=(d.tenant||{}).phone||'';
+  mathLine();window.scrollTo({top:0,behavior:'smooth'});
+}
+window.editPA=function(id){
+  var d=PAS.find(function(x){return x.id===id});if(!d)return;
+  EDIT_ID=id;EDIT_TOKEN=d.token;
+  $('editbar').style.display='block';$('editRef').textContent=d.ref||((d.tenant||{}).fullName||(d.property||{}).address||id);
+  $('pageH').textContent='Modifica pre-agreement';$('goBtn').textContent='Salva le modifiche su questo link →';
+  showTab('new');fillForm(d);
+};
+window.cancelEdit=function(){EDIT_ID=null;EDIT_TOKEN=null;$('editbar').style.display='none';$('pageH').textContent='Nuovo pre-agreement';$('goBtn').textContent='Crea il link del pre-agreement →';};
+window.dupPA=function(id){var d=PAS.find(function(x){return x.id===id});if(!d)return;cancelEdit();showTab('new');fillForm(d);};
+window.revokePA=async function(id,undo){
+  try{await firebase.firestore().collection('preAgreements').doc(id).update({status:undo?'sent':'revoked',updatedAt:new Date().toISOString()});}catch(e){alert('Aggiornamento fallito: '+e.message);}
+};
+window.copyPaLink=function(tok){try{navigator.clipboard.writeText(location.origin+'/pre-agreement?t='+tok);}catch(e){}};
+window.copyTxt=function(t){try{navigator.clipboard.writeText(t);}catch(e){}};
+
+/* 🖊 Magic Sign — one tap: contract prepared (if needed) + tenant emailed.
+   The row refreshes by itself via the realtime listener (signSentAt patch). */
+window.sendSign=async function(id,btn){
+  if(btn){btn.disabled=true;btn.textContent='Invio…';}
+  try{
+    var tok=await USER.getIdToken();
+    var r=await fetch('/api/preagreement/send-sign',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({id:id})});
+    var j=await r.json();
+    if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
+    if(btn)btn.textContent=j.emailed?'✓ Inviato':'✓ Contratto pronto (email non partita)';
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent='🖊 Riprova Magic Sign';}
+    alert('Magic Sign non inviato: '+(e.message||'riprova')+(String(e.message).indexOf('no_property')>=0?' — collega prima la proprietà con → Contratto.':''));
+  }
+};
+/* ✉ Reinvia copia — re-delivers the accepted/paid document email (recovery). */
+window.resendCopy=async function(id,btn){
+  if(btn){btn.disabled=true;btn.textContent='Invio…';}
+  try{
+    var tok=await USER.getIdToken();
+    var r=await fetch('/api/preagreement/notify',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({id:id})});
+    var j=await r.json();
+    if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
+    if(btn){btn.textContent=j.client?'✓ Copia inviata':'⚠ Email non partita';setTimeout(function(){btn.disabled=false;btn.textContent='✉ Reinvia copia';},4000);}
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent='✉ Reinvia copia';}
+    alert('Invio fallito: '+(e.message||'riprova'));
+  }
+};
+
+/* ── convert an accepted/paid PA into a rental contract ──
+   Identity + terms carry over; Magic-Sign tokens are minted server-side.
+   Default: the OWNER signs directly (their link is shareable in one tap).
+   Delega is the option, chosen deal-by-deal. */
+var PROPS=null;
+async function loadProps(){
+  if(PROPS)return PROPS;
+  PROPS=[];
+  try{
+    var snap=await firebase.firestore().collection('properties').limit(200).get();
+    snap.forEach(function(doc){var v=doc.data();PROPS.push({id:doc.id,name:v.name||v.title||doc.id,address:v.address||'',zone:v.zone||'',
+      sqm:+v.sqm||0,furnished:!!v.furnished,energyClass:v.energyClass||'',floor:v.floor||'',canoneZonaCod:v.canoneZonaCod||'',
+      features:(Array.isArray(v.features)?v.features:[]).concat(Array.isArray(v.amenities)?v.amenities:[])});});
+    PROPS.sort(function(a,b){return String(a.name).localeCompare(String(b.name))});
+  }catch(e){console.warn('properties load',e);}
+  return PROPS;
+}
+window.closeConvert=function(){var o=document.getElementById('cvov');if(o)o.remove();};
+window.convertPA=async function(id){
+  var d=PAS.find(function(x){return x.id===id});if(!d)return;
+  var props=await loadProps();
+  var t=d.tenant||{},ll=d.landlord||{},addr=((d.property||{}).address||'');
+  var norm=function(s){return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'')};
+  var guess=(d.propertyId?props.find(function(p){return p.id===d.propertyId}):null)
+    ||props.find(function(p){return p.address&&norm(addr).indexOf(norm(p.address).slice(0,14))===0})
+    ||props.find(function(p){return norm(p.address)&&norm(addr).indexOf(norm(p.address).slice(0,10))>=0});
+  var ov=document.createElement('div');ov.className='cvov';ov.id='cvov';
+  ov.innerHTML='<div class="cvbox">'
+    +'<h3>Converti in contratto</h3>'
+    +'<div class="sub2"><b style="color:var(--t1)">'+esc(t.fullName||'—')+'</b> · '+esc(addr)
+    +'<br>Identità, termini e documenti passano dal pre-agreement firmato — niente da ribattere.</div>'
+    +'<label class="fld"><span>Proprietà nel portal *</span><select id="cvProp"><option value="">Scegli la proprietà…</option>'
+    +props.map(function(p){return '<option value="'+p.id+'"'+(guess&&guess.id===p.id?' selected':'')+'>'+esc(p.name)+(p.zone?' · '+p.zone:'')+'</option>'}).join('')
+    +'</select></label>'
+    +'<label class="dele"><input type="checkbox" id="cvDelegate"><span><b>Firmo io per delega del proprietario</b> (opzione). Di default firma <b>'+esc(ll.name||'il proprietario')+'</b> direttamente: il suo link glielo mandi tu, dopo la firma dell’inquilino.</span></label>'
+    +'<button class="gbtn" id="cvGo">Crea contratto + link Magic Sign →</button>'
+    +'<p class="err" id="cvErr"></p>'
+    +'<div id="cvResult"></div>'
+    +'<div style="text-align:center;margin-top:12px"><button class="pbtn" onclick="closeConvert()">Chiudi</button></div>'
+    +'</div>';
+  ov.addEventListener('click',function(e){if(e.target===ov)closeConvert();});
+  document.body.appendChild(ov);
+  document.getElementById('cvGo').onclick=async function(){
+    var err=document.getElementById('cvErr');err.style.display='none';
+    var propertyId=document.getElementById('cvProp').value;
+    if(!propertyId){err.textContent='Scegli la proprietà del portal a cui appartiene il contratto.';err.style.display='block';return;}
+    var btn=this;btn.disabled=true;btn.textContent='Creo il contratto…';
+    try{
+      var tok=await USER.getIdToken();
+      var delegated=document.getElementById('cvDelegate').checked;
+      var r=await fetch('/api/preagreement/convert',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
+        body:JSON.stringify({id:id,propertyId:propertyId,delegate:delegated})});
+      var j=await r.json();
+      if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
+      var waT=t.phone?('https://wa.me/'+String(t.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent('Ciao'+(t.fullName?' '+t.fullName.split(' ')[0]:'')+'! Il tuo contratto per '+addr+' è pronto per la firma digitale. Firmi qui in 2 minuti: '+j.tenantSignUrl)):null;
+      var isDele=!!j.delegate;
+      var waL=(!isDele&&ll.phone)?('https://wa.me/'+String(ll.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent('Ciao'+(ll.name?' '+ll.name.split(' ')[0]:'')+'! Il contratto per '+addr+' è pronto per la sua firma digitale (si sblocca dopo la firma dell’inquilino). Può firmare qui in 2 minuti: '+j.landlordSignUrl)):null;
+      document.getElementById('cvResult').innerHTML=
+        (j.already?'<div class="sub2" style="color:var(--gold-light);margin-top:12px">Già convertito — ecco i link esistenti.</div>':'')
+        +'<div class="cvlink"><b>Firma inquilino — prima lui</b><span class="u">'+j.tenantSignUrl+'</span>'
+        +'<div class="row2"><button class="pbtn" onclick="copyTxt(\''+j.tenantSignUrl+'\')">Copia</button>'
+        +(waT?'<a class="pbtn wa" href="'+waT+'" target="_blank" rel="noopener">WhatsApp</a>':'')+'</div></div>'
+        +'<div class="cvlink"><b>'+(isDele?'La tua controfirma per delega — tienilo tu':'Firma proprietario — '+esc(ll.name||''))+'</b><span class="u">'+j.landlordSignUrl+'</span>'
+        +'<div class="row2"><button class="pbtn" onclick="copyTxt(\''+j.landlordSignUrl+'\')">Copia</button>'
+        +(waL?'<a class="pbtn wa" href="'+waL+'" target="_blank" rel="noopener">WhatsApp al proprietario</a>':'')
+        +(isDele?'<a class="pbtn" href="'+j.landlordSignUrl+'" target="_blank" rel="noopener">Apri per firmare</a>':'')+'</div>'
+        +'<div style="font-size:11px;color:var(--t3);margin-top:7px">'+(isDele
+          ?'Si sblocca dopo la firma dell’inquilino — firmi “'+esc((j.delegate||{}).name||'')+' per conto di '+esc((j.delegate||{}).onBehalfOf||'')+'”.'
+          :'Si sblocca dopo la firma dell’inquilino — mandaglielo quando è il momento.')+'</div>'
+        +'</div>';
+      btn.style.display='none';
+    }catch(e){err.textContent='Conversione fallita — '+(e.message||'riprova')+'.';err.style.display='block';btn.disabled=false;btn.textContent='Crea contratto + link Magic Sign →';}
+  };
+};
+
+/* ── 📦 FASCICOLO ARPE — everything the association needs, one ZIP ──
+   Checklist with a traffic light: signed contract + tenant IDs +
+   transitional proof come from the deal; visura/planimetria/APE/delega
+   live on the PROPERTY (uploaded once, inherited by every contract).
+   ZIP built client-side (JSZip) from the tokenized URLs. */
+var JSZIP_SRC='https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
+function loadJSZip(){return new Promise(function(ok,ko){if(window.JSZip)return ok();var s=document.createElement('script');s.src=JSZIP_SRC;s.onload=ok;s.onerror=ko;document.head.appendChild(s);});}
+var DOSSIER_SLOTS=[['visura','Visura catastale'],['planimetria','Planimetria'],['ape','APE (attestato energetico)'],['delega','Delega/incarico ARPE firmato']];
+window.closeFasc=function(){var o=document.getElementById('fascov');if(o)o.remove();};
+window.fascicoloPA=async function(id){
+  var d=PAS.find(function(x){return x.id===id});if(!d||!d.contractId)return;
+  var db=firebase.firestore();
+  var contract=null,property=null;
+  try{var cs=await db.collection('contracts').doc(d.contractId).get();if(cs.exists)contract=cs.data();}catch(e){}
+  try{var pid=(contract&&contract.propertyId)||d.propertyId;if(pid){var ps=await db.collection('properties').doc(pid).get();if(ps.exists){property=ps.data();property.__id=pid;}}}catch(e){}
+  var ups=Array.isArray(d.uploads)?d.uploads:[];
+  var ids=ups.filter(function(u){return u.kind!=='extra'});
+  var extra=ups.filter(function(u){return u.kind==='extra'});
+  var dossier=(property&&property.dossier)||{};
+  var contractPdf=contract&&(contract.signingCertificateUrl||contract.generatedPDF)||null;
+  /* the checklist — [label, ok, detailHtml, files[{folder,url,name}]] */
+  var items=[
+    ['Contratto firmato',!!contractPdf,contractPdf?'PDF con certificato di firma':'in attesa delle firme (Magic Sign)',contractPdf?[{folder:'01_Contratto',url:contractPdf,name:'Contratto_firmato.pdf'}]:[]],
+    ['Scheda Allegato 2/B',null,'<a href="/scheda-canone" target="_blank" style="color:var(--gold)">genera dalla Scheda Canone →</a> e aggiungila a mano al fascicolo',[]],
+    ['Documenti conduttore',ids.length>0,ids.length?ids.length+' file':'nessun documento caricato',ids.map(function(u,i){return {folder:'03_Conduttore',url:u.url,name:(u.name||'doc_'+(i+1))}})],
+    ['Esigenza transitoria',!!((d.lease||{}).reason&&(extra.length||!d.extraDoc)),((d.lease||{}).reason?'clausola: '+esc((d.lease||{}).reason)+' · ':'')+(extra.length?extra.length+' documento/i di supporto':(d.extraDoc?'documento di supporto in attesa':'—')),extra.map(function(u,i){return {folder:'04_Transitorieta',url:u.url,name:(u.name||'doc_'+(i+1))}})]
+  ];
+  DOSSIER_SLOTS.forEach(function(s){
+    var slot=dossier[s[0]];
+    items.push([s[1],!!slot,slot?esc(slot.name||'caricato')+' · '+String(slot.at||'').slice(0,10):'manca — caricalo qui sotto',
+      slot?[{folder:'05_Immobile',url:slot.url,name:s[0]+'_'+(slot.name||'doc')}]:[],s[0]]);
+  });
+  var okCount=items.filter(function(i){return i[1]===true}).length;
+  var reqCount=items.filter(function(i){return i[1]!==null}).length;
+  var ov=document.createElement('div');ov.className='cvov';ov.id='fascov';
+  ov.innerHTML='<div class="cvbox">'
+    +'<h3>📦 Fascicolo ARPE</h3>'
+    +'<div class="sub2"><b style="color:var(--t1)">'+esc(((d.tenant||{}).fullName||'—'))+'</b> · '+esc(((d.property||{}).address||''))
+    +'<br>Semaforo: <b style="color:'+(okCount===reqCount?'var(--green)':'var(--gold)')+'">'+okCount+'/'+reqCount+'</b> — con tutto verde, lo ZIP è pronto da inoltrare ad ARPE.</div>'
+    +items.map(function(it,ix){
+      return '<div class="cvlink"><b style="color:'+(it[1]===true?'var(--green)':it[1]===null?'var(--t3)':'var(--gold-deep)')+'">'
+        +(it[1]===true?'✓ ':it[1]===null?'· ':'⏳ ')+esc(it[0])+'</b>'
+        +'<span class="u">'+it[2]+'</span>'
+        +(it[4]?'<div class="row2"><button class="pbtn" onclick="document.getElementById(\'fsl'+it[4]+'\').click()">'+(it[1]?'Sostituisci':'Carica')+' →</button>'
+          +'<input type="file" id="fsl'+it[4]+'" accept="application/pdf,image/*" style="display:none" onchange="dossierUp(\''+(property?property.__id:'')+'\',\''+it[4]+'\',this,\''+id+'\')"></div>':'')
+        +'</div>';
+    }).join('')
+    +'<button class="gbtn" id="fzip" style="margin-top:14px">Scarica lo ZIP del fascicolo ↓</button>'
+    +'<p class="err" id="fErr2"></p>'
+    +'<div style="text-align:center;margin-top:12px"><button class="pbtn" onclick="closeFasc()">Chiudi</button></div>'
+    +'</div>';
+  ov.addEventListener('click',function(e){if(e.target===ov)closeFasc();});
+  document.body.appendChild(ov);
+  document.getElementById('fzip').onclick=async function(){
+    var btn=this,err=document.getElementById('fErr2');err.style.display='none';
+    btn.disabled=true;btn.textContent='Preparo il fascicolo…';
+    try{
+      await loadJSZip();
+      var zip=new JSZip();
+      var files=[];items.forEach(function(it){(it[3]||[]).forEach(function(f){files.push(f)})});
+      var missing=items.filter(function(i){return i[1]===false}).map(function(i){return i[0]});
+      for(var i=0;i<files.length;i++){
+        btn.textContent='Scarico '+(i+1)+'/'+files.length+'…';
+        try{
+          var r=await fetch(files[i].url);if(!r.ok)throw 0;
+          zip.folder(files[i].folder).file(files[i].name.replace(/[^a-zA-Z0-9._-]/g,'_'),await r.blob());
+        }catch(e){missing.push(files[i].folder+'/'+files[i].name+' (download fallito)');}
+      }
+      zip.file('INDICE.txt',
+        'FASCICOLO ARPE — BOOM · Egidi Immobiliare S.r.l.\n'
+        +'Deal: '+((d.tenant||{}).fullName||'')+' · '+((d.property||{}).address||'')+' · rif '+(d.ref||'')+'\n'
+        +'Contratto: '+d.contractId+' · generato '+new Date().toISOString().slice(0,10)+'\n\n'
+        +'CONTENUTO\n'+files.map(function(f){return '  '+f.folder+'/'+f.name}).join('\n')
+        +'\n\nDA AGGIUNGERE A MANO\n  02_Scheda_Allegato_2B (genera da boomrome.com/scheda-canone)\n'
+        +(missing.length?missing.map(function(m){return '  MANCA: '+m}).join('\n')+'\n':''));
+      var blob=await zip.generateAsync({type:'blob'});
+      var a=document.createElement('a');a.href=URL.createObjectURL(blob);
+      a.download='Fascicolo_ARPE_'+String(d.ref||d.contractId).replace(/[^A-Za-z0-9-]/g,'')+'.zip';
+      a.click();setTimeout(function(){URL.revokeObjectURL(a.href)},4000);
+      btn.disabled=false;btn.textContent='Scarica lo ZIP del fascicolo ↓';
+    }catch(e){btn.disabled=false;btn.textContent='Scarica lo ZIP del fascicolo ↓';err.textContent='ZIP non riuscito — '+(e.message||'riprova');err.style.display='block';}
+  };
+};
+window.dossierUp=async function(propertyId,slot,input,paId){
+  var file=input.files&&input.files[0];if(!file)return;
+  if(!propertyId){alert('Collega prima la proprietà del portal (→ Contratto).');return;}
+  var fr=new FileReader();
+  fr.onload=async function(){
+    try{
+      var tok=await USER.getIdToken();
+      var r=await fetch('/api/properties/dossier',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
+        body:JSON.stringify({propertyId:propertyId,slot:slot,base64:fr.result,name:file.name,contentType:file.type||'application/pdf'})});
+      var j=await r.json();
+      if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
+      closeFasc();fascicoloPA(paId);   // riapre col semaforo aggiornato
+    }catch(e){alert('Upload fallito: '+(e.message||'riprova'));}
+  };
+  fr.readAsDataURL(file);
+};
+
+/* mirror of api/preagreement/lookup.js paExpired() — Rome calendar day */
+function paExpiredUi(d){
+  if(!d.validUntil||d.status==='accepted'||d.status==='paid')return false;
+  try{return new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Rome'})>String(d.validUntil);}catch(e){return false;}
+}
+function paRow(d){
+  var st=(d.status||'sent'),m=d.money||{},t=d.tenant||{},ll=d.landlord||{},url=location.origin+'/pre-agreement?t='+d.token;
+  var when=(d.createdAt||'').slice(0,10);
+  var views=Array.isArray(d.views)?d.views.length:0;
+  var nTen=Array.isArray(d.tenants)?d.tenants.length:1;
+  var editable=(st==='sent'||st==='viewed'||st==='revoked');
+  var done=(st==='accepted'||st==='paid');
+  var waMsg=done
+    ?('Ciao'+(t.fullName?' '+t.fullName.split(' ')[0]:'')+'! Ecco la copia del tuo pre-agreement BOOM'+(d.ref?' '+d.ref:'')+' per '+((d.property||{}).address||'')+'. La puoi aprire, salvare e stampare qui: '+url)
+    :('Ciao'+(t.fullName?' '+t.fullName.split(' ')[0]:'')+'! Ecco il tuo pre-agreement BOOM per '+((d.property||{}).address||'')+'. Leggilo e firmalo qui: '+url);
+  var wa=t.phone?('https://wa.me/'+String(t.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent(waMsg)):null;
+  /* documents line: ID uploads + the requested second document's state */
+  var ups=Array.isArray(d.uploads)?d.uploads:[];
+  var xGot=ups.some(function(u){return u&&u.kind==='extra'});
+  var docsLine='';
+  if(ups.length||d.extraDoc){
+    docsLine='<div class="docs">📎 '
+      +(ups.length?ups.map(function(u,i){var n=(u.name||'doc '+(i+1));return '<a href="'+u.url+'" target="_blank" rel="noopener">'+esc(n.length>22?n.slice(0,20)+'…':n)+(u.kind==='extra'?' (extra)':'')+'</a>'}).join(' · '):'<span class="miss">nessun documento</span>')
+      +(d.extraDoc?(' &nbsp;·&nbsp; '+(xGot?'<span style="color:var(--green)">✓ '+esc(d.extraDoc)+'</span>':'<span class="miss">⏳ in attesa: '+esc(d.extraDoc)+'</span>')):'')
+      +'</div>';
+  }
+  /* landlord signature share (owner signs directly unless delegated) */
+  var llWa=(done&&d.signSentAt&&d.landlordSignUrl&&!d.delegated&&ll.phone)
+    ?('https://wa.me/'+String(ll.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent('Ciao'+(ll.name?' '+ll.name.split(' ')[0]:'')+'! Il contratto per '+((d.property||{}).address||'')+' è pronto per la sua firma digitale (dopo la firma dell’inquilino). Può firmare qui: '+d.landlordSignUrl)):null;
+  return '<div class="parow st-'+st+'">'
+    +'<div class="top"><span class="chip '+st+'">'+st+(st==='paid'&&d.paidEur?' '+eur(d.paidEur):'')+'</span>'
+    +'<span class="who">'+esc(t.fullName||'—')+(nTen>1?' <span style="font-size:11px;color:var(--t3);font-weight:300">+'+(nTen-1)+' co-tenant'+(nTen>2?'s':'')+'</span>':'')+'</span>'
+    +(d.ref?'<span style="font-size:11px;color:var(--t3);letter-spacing:1px">'+esc(d.ref)+'</span>':'')
+    +'<span class="when">'+when+'</span>'
+    +'<div class="addr">'+esc((d.property||{}).address||'')+'</div></div>'
+    +'<div class="meta">Canone <b>'+eur(m.rent||0)+'</b>'+(m.energyCredit?' +'+eur(m.energyCredit)+' energy':'')+' · alla firma <b>'+eur(m.dueAtSigning||0)+'</b> · '+((d.lease||{}).months||'—')+' mesi dal '+(((d.lease||{}).startDate)||'—')+(views?' · '+views+' view'+(views>1?'s':''):'')
+    +(d.propertyId&&!d.contractId?' · <span style="color:var(--gold-light)">auto-contratto ON</span>':'')
+    +(d.validUntil&&!done&&st!=='revoked'?(paExpiredUi(d)?' · <span style="color:#ff8a70;font-weight:500">⌛ OFFERTA SCADUTA — ✎ Modifica per estenderla</span>':' · <span style="color:var(--gold-light)">valida fino al '+d.validUntil+'</span>'):'')+'</div>'
+    +docsLine
+    +'<div class="acts">'
+    +(done?(
+        /* ONE evident action per deal: 🖊 Magic Sign converts (if needed) and
+           emails the tenant their signing link — nothing goes out before you
+           press it. Property link required (from creation or → Contratto). */
+        (d.contractId||d.propertyId
+          ?'<button class="pbtn prim" onclick="sendSign(\''+d.id+'\',this)">'+(d.signSentAt?'🖊 Reinvia Magic Sign':'🖊 Invia Magic Sign')+'</button>'
+          :'<button class="pbtn prim" onclick="convertPA(\''+d.id+'\')">→ Contratto</button>')
+        +(d.signSentAt&&d.tenantSignUrl&&t.phone?'<a class="pbtn wa" href="https://wa.me/'+String(t.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent('Ciao'+(t.fullName?' '+t.fullName.split(' ')[0]:'')+'! Il tuo contratto per '+((d.property||{}).address||'')+' è pronto — firmi qui in 2 minuti: '+d.tenantSignUrl)+'" target="_blank" rel="noopener">Firma su WhatsApp</a>':'')
+        +(llWa?'<a class="pbtn wa" href="'+llWa+'" target="_blank" rel="noopener">Firma proprietario su WhatsApp</a>':'')
+        +(d.landlordSignUrl?'<button class="pbtn" onclick="copyTxt(\''+d.landlordSignUrl+'\')">'+(d.delegated?'Copia link delega':'Copia link firma proprietario')+'</button>':'')
+        +'<button class="pbtn" onclick="resendCopy(\''+d.id+'\',this)">✉ Reinvia copia</button>'
+        +(d.contractId?'<button class="pbtn" onclick="fascicoloPA(\''+d.id+'\')">📦 Fascicolo ARPE</button>':'')
+      ):'')
+    +'<button class="pbtn" onclick="copyPaLink(\''+d.token+'\')">Copia link</button>'
+    +'<a class="pbtn" href="'+url+'" target="_blank" rel="noopener">Apri</a>'
+    +(wa?'<a class="pbtn" href="'+wa+'" target="_blank" rel="noopener">'+(done?'📲 Copia su WhatsApp':'WhatsApp')+'</a>':'')
+    +(editable?'<button class="pbtn" onclick="editPA(\''+d.id+'\')">✎ Modifica</button>':'')
+    +'<button class="pbtn" onclick="dupPA(\''+d.id+'\')">Duplica</button>'
+    +(st==='revoked'?'<button class="pbtn" onclick="revokePA(\''+d.id+'\',true)">Riattiva</button>'
+      :(st!=='paid'&&st!=='accepted'?'<button class="pbtn warn" onclick="revokePA(\''+d.id+'\')">Revoca</button>':''))
+    +'</div>'
+    +(done?'<div class="nextstep">'+(d.signSentAt
+        ?'🖊 Magic Sign inviato il <b>'+String(d.signSentAt).slice(0,10)+'</b> — dopo la firma dell’inquilino '+(d.delegated
+          ?'apri il <b>link delega</b> e controfirmi quando decidi tu, poi registrazione.'
+          :'manda il <b>link firma al proprietario</b> (WhatsApp/copia), poi registrazione.')
+        :(d.contractId
+          ?'Contratto pronto (identità + documenti già dentro) — <b>🖊 Magic Sign</b> quando vuoi far firmare l’inquilino.'
+          :(d.propertyId
+            ?'Tutto pronto — <b>🖊 Magic Sign</b> crea il contratto e manda il link di firma all’inquilino, in un tocco.'
+            :'Prossimo passo → <b>→ Contratto</b> collega la proprietà e prepara il contratto (identità e termini già dentro).')))
+      +(st==='accepted'&&(m.dueAtSigning||0)>0?' <span style="color:var(--gold-light)">Pagamento ancora in sospeso.</span>':'')+'</div>':'')
+    +'</div>';
+}
+
+/* filters + search + KPIs */
+window.setFilter=function(f,btn){
+  FILTER=f;
+  [].slice.call($('fchips').querySelectorAll('button')).forEach(function(b){b.classList.toggle('on',b===btn)});
+  renderList();
+};
+function matchFilter(d){
+  var st=d.status||'sent';
+  if(FILTER==='open')return st==='sent'||st==='viewed';
+  if(FILTER==='close')return st==='accepted';
+  if(FILTER==='paid')return st==='paid';
+  if(FILTER==='revoked')return st==='revoked';
+  return true;
+}
+function matchSearch(d){
+  var q=($('q').value||'').trim().toLowerCase();
+  if(!q)return true;
+  return [((d.tenant||{}).fullName||''),((d.property||{}).address||''),(d.ref||''),((d.landlord||{}).name||'')]
+    .join(' ').toLowerCase().indexOf(q)>=0;
+}
+window.renderList=function(){
+  var rows=PAS.filter(matchFilter).filter(matchSearch);
+  $('paRows').innerHTML=rows.map(paRow).join('');
+  $('emptyRows').style.display=rows.length?'none':'';
+  /* filter counts */
+  var cnt={all:PAS.length,open:0,close:0,paid:0,revoked:0};
+  PAS.forEach(function(d){var st=d.status||'sent';
+    if(st==='sent'||st==='viewed')cnt.open++;else if(st==='accepted')cnt.close++;
+    else if(st==='paid')cnt.paid++;else if(st==='revoked')cnt.revoked++;});
+  [].slice.call($('fchips').querySelectorAll('button')).forEach(function(b){
+    var f=b.getAttribute('data-f');b.querySelector('i').textContent=cnt[f]||0;});
+  $('tabN').textContent=PAS.length||'';
+  /* KPIs */
+  var paidSum=0,contr=0;
+  PAS.forEach(function(d){
+    if(d.status==='paid')paidSum+=Number(d.paidEur||((d.money||{}).dueAtSigning)||0);
+    if(d.contractId)contr++;});
+  $('kOpen').textContent=cnt.open;
+  $('kClose').textContent=cnt.close;
+  $('kPaid').innerHTML=eur(paidSum)+' <small>('+cnt.paid+')</small>';
+  $('kContr').textContent=contr;
+  $('kpis').style.display=PAS.length?'grid':'none';
+};
+// Elenco deals. Il canale realtime (WebChannel) può non stabilirsi mai —
+// proxy aziendali, Safari desktop con IndexedDB impiantato — e onSnapshot
+// in quel caso non chiama NÉ onData NÉ onError: la lista resterebbe vuota
+// senza un solo segnale. Quindi: watchdog a 6s con fallback a una get()
+// una-tantum, e stato di errore VISIBILE invece del silenzio.
+function watchPAs(){
+  var got=false;
+  var apply=function(snap){
+    got=true;
+    PAS=[];snap.forEach(function(doc){var v=doc.data();v.id=doc.id;PAS.push(v);});
+    renderList();
+  };
+  var fallback=function(why){
+    if(got)return;
+    firebase.firestore().collection('preAgreements').orderBy('createdAt','desc').limit(100)
+      .get({source:'server'}).then(apply).catch(function(e){
+        if(got)return;
+        var box=$('paRows'),em=$('emptyRows');
+        if(em)em.style.display='none';
+        if(box)box.innerHTML='<div class="empty"><b style="color:var(--t1)">Non riesco a caricare i deals</b>'
+          +'<div style="margin:8px 0 16px">'+esc(String((e&&e.message)||why||'rete non raggiungibile'))+'</div>'
+          +'<button class="obtn" onclick="BoomPortal.hardReset(false)">Riprova pulendo la cache</button></div>';
+      });
+  };
+  try{
+    firebase.firestore().collection('preAgreements').orderBy('createdAt','desc').limit(100)
+      .onSnapshot(apply,function(e){console.warn('pa list',e);fallback(e&&e.message);});
+  }catch(e){ fallback(e&&e.message); }
+  setTimeout(function(){fallback('timeout');},6000);
+}
+
+function fillFromListing(id){
+  var l=LISTINGS.find(function(x){return x.id===id});if(!l)return;
+  if(l.address)$('fAddress').value=l.address; else if(l.zone)$('fAddress').value=(l.name?l.name+', ':'')+l.zone+', Roma';
+  if(l.price)$('fRent').value=l.price;
+  if(l.floor)$('fFloor').value=l.floor;
+  if(l.ownerName)$('fLandlord').value=l.ownerName;
+  mathLine();
+}
+
+BoomPortal.requireAuth(['admin','owner','landlord'],{loginUrl:'/login'}).then(function(res){
+  USER=res.user;
+  $('load').style.display='none';$('app').style.display='';
+  watchPAs();
+  var d=new Date();d.setDate(d.getDate()+14);$('fStart').value=d.toISOString().slice(0,10);
+  loadProps().then(function(props){
+    $('fProp').innerHTML='<option value="">— nessuna (converto dopo a mano) —</option>'
+      +props.map(function(p){return '<option value="'+p.id+'">'+esc(p.name)+(p.zone?' · '+p.zone:'')+'</option>'}).join('');
+  });
+  try{
+    firebase.firestore().collection('listings').limit(100).get().then(function(snap){
+      snap.forEach(function(doc){var v=doc.data();LISTINGS.push({id:doc.id,name:v.name||v.title,zone:v.zone,price:v.price,address:v.address,floor:v.floor,ownerName:v.ownerName});});
+      LISTINGS.sort(function(a,b){return String(a.name).localeCompare(String(b.name))});
+      $('fList').innerHTML='<option value="">— manuale —</option>'+LISTINGS.map(function(l){return '<option value="'+l.id+'">'+(l.name||l.id)+(l.zone?' · '+l.zone:'')+(l.price?' · €'+l.price:'')+'</option>'}).join('');
+      $('fList').addEventListener('change',function(){fillFromListing(this.value)});
+    }).catch(function(){});
+  }catch(e){}
+}).catch(function(){/* requireAuth already redirects to login with ?next= */});
+})();
+</script>
+</body>
+</html>

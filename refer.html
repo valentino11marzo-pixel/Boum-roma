@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
-    <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-EYCD59RDVJ');</script>
+    <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied',wait_for_update:500});gtag('config','G-EYCD59RDVJ');</script>
     <link rel="icon" href="/favicon.ico" sizes="any">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -42,7 +42,7 @@
   "image": "https://www.boomrome.com/BOOMsocialprofile.png",
   "description": "Premium mid-term apartment rentals in Rome for internationals.",
   "sameAs": ["https://www.instagram.com/boomrome","https://www.linkedin.com/company/boomrome","https://wa.me/393313251961","https://share.google/xikmVxQCRuKOdWcND"],
-  "address": { "@type": "PostalAddress", "addressLocality": "Rome", "addressRegion": "Lazio", "addressCountry": "IT" },
+  "address": { "@type": "PostalAddress", "streetAddress": "Via dei Coronari 181/184", "postalCode": "00186", "addressLocality": "Rome", "addressRegion": "Lazio", "addressCountry": "IT" },
   "areaServed": { "@type": "City", "name": "Rome" },
   "priceRange": "€€-€€€"
 }
@@ -67,6 +67,7 @@
   </script>
 <!-- BOOM_JSONLD:END -->
 
+<script defer src="/js/boom-consent.js"></script>
 </head>
 <body>
 
@@ -100,14 +101,7 @@
             </a>
 
             <div class="nav-links">
-                <a href="/apartments.html" class="nav-link">Apartments</a>
-                <a href="/property-finding.html" class="nav-link">Property Finding</a>
-                <a href="/deal-assistance.html" class="nav-link">Deal Assistance</a>
-                <a href="/virtual-viewing.html" class="nav-link">Virtual Viewing</a>
-                <a href="/concierge.html" class="nav-link">Concierge</a>
-                <a href="/partners.html" class="nav-link">Partners</a>
-                <a href="/about.html" class="nav-link">About</a>
-                <a href="https://wa.me/393313251961" class="nav-cta" target="_blank">WhatsApp</a>
+                <a href="/apartments" class="nav-link">Apartments</a><a href="/services" class="nav-link">Services</a><a href="/owners" class="nav-link">For Owners</a><a href="/partners" class="nav-link">Partners</a><a href="/about" class="nav-link">About</a><a href="https://wa.me/393313251961" class="nav-cta" target="_blank">WhatsApp</a>
             </div>
 
             <button class="nav-toggle" id="navToggle" aria-label="Toggle menu">
@@ -122,16 +116,16 @@
     <div class="mobile-menu" id="mobileMenu">
         <div class="mobile-menu-links">
             <a href="/" class="mobile-menu-link">Home</a>
-            <a href="/apartments.html" class="mobile-menu-link">Apartments</a>
-            <a href="/property-finding.html" class="mobile-menu-link">Property Finding</a>
-            <a href="/deal-assistance.html" class="mobile-menu-link">Deal Assistance</a>
-            <a href="/virtual-viewing.html" class="mobile-menu-link">Virtual Viewing</a>
-            <a href="/concierge.html" class="mobile-menu-link">Concierge</a>
-            <a href="/universities.html" class="mobile-menu-link">For Universities</a>
-            <a href="/corporate.html" class="mobile-menu-link">For Companies</a>
-            <a href="/research.html" class="mobile-menu-link">For Research</a>
-            <a href="/about.html" class="mobile-menu-link">About</a>
-            <a href="/login.html" class="mobile-menu-link">Login</a>
+            <a href="/apartments" class="mobile-menu-link">Apartments</a><a href="/services" class="mobile-menu-link">All Services</a>
+            <a href="/property-finding" class="mobile-menu-link">Property Finding</a>
+            <a href="/deal-assistance" class="mobile-menu-link">Deal Assistance</a>
+            <a href="/virtual-viewing" class="mobile-menu-link">Virtual Viewing</a>
+            <a href="/concierge" class="mobile-menu-link">Concierge</a>
+            <a href="/universities" class="mobile-menu-link">For Universities</a>
+            <a href="/corporate" class="mobile-menu-link">For Companies</a>
+            <a href="/research" class="mobile-menu-link">For Research</a>
+            <a href="/about" class="mobile-menu-link">About</a>
+            <a href="/login" class="mobile-menu-link">Login</a>
         </div>
         <a href="https://wa.me/393313251961" class="mobile-menu-cta" target="_blank">WhatsApp Us</a>
     </div>
@@ -191,23 +185,28 @@
     <section class="form-section reveal" id="refer">
         <div class="form-container">
             <div class="form-header"><div class="form-tag">€50 + €50 · no limit</div><h2 class="form-title">Refer a friend</h2><p class="form-subtitle">Tell us who's moving to Rome — we'll take great care of them and reward you.</p></div>
-<form action="https://api.web3forms.com/submit" method="POST">
-                <input type="hidden" name="access_key" value="5b10beba-c7e0-4cd2-98f9-2dbb0aefe889">
-                <input type="hidden" name="subject" value="🎁 NEW REFERRAL">
-                <input type="hidden" name="from_name" value="BOOM Referral">
-                <input type="hidden" name="redirect" value="https://boom-rome.com/_thank-you.html">
+<form id="refForm" onsubmit="return sendReferral(event)">
                 <div class="form-row">
-                    <div class="form-group"><label class="form-label">Your name <span class="required">*</span></label><input type="text" name="name" class="form-input" required placeholder="Your full name"></div>
-                    <div class="form-group"><label class="form-label">Your email <span class="required">*</span></label><input type="email" name="email" class="form-input" required placeholder="you@email.com"></div>
+                    <div class="form-group"><label class="form-label" for="rfName">Your name <span class="required">*</span></label><input type="text" id="rfName" class="form-input" required placeholder="Your full name" autocomplete="name"></div>
+                    <div class="form-group"><label class="form-label" for="rfEmail">Your email <span class="required">*</span></label><input type="email" id="rfEmail" class="form-input" required placeholder="you@email.com" autocomplete="email"></div>
                 </div>
+                <div class="form-group"><label class="form-label" for="rfCode">Your BOOM code <span style="color:rgba(255,255,255,.35);font-weight:400">(optional — it's on your BOOM home page)</span></label><input type="text" id="rfCode" class="form-input" placeholder="BOOM-A1B2C3" autocomplete="off"></div>
                 <div class="form-row">
-                    <div class="form-group"><label class="form-label">Friend's name <span class="required">*</span></label><input type="text" name="friend_name" class="form-input" required placeholder="Who are you referring?"></div>
-                    <div class="form-group"><label class="form-label">Friend's email or WhatsApp <span class="required">*</span></label><input type="text" name="friend_contact" class="form-input" required placeholder="So we can welcome them"></div>
+                    <div class="form-group"><label class="form-label" for="rfFriend">Friend's name <span class="required">*</span></label><input type="text" id="rfFriend" class="form-input" required placeholder="Who are you referring?"></div>
+                    <div class="form-group"><label class="form-label" for="rfContact">Friend's email or WhatsApp <span class="required">*</span></label><input type="text" id="rfContact" class="form-input" required placeholder="So we can welcome them"></div>
                 </div>
-                <div class="form-group"><label class="form-label">Anything we should know? (optional)</label><textarea name="message" class="form-textarea" placeholder="When they're moving, budget, area..."></textarea></div>
-                <button type="submit" class="form-submit">Send referral &amp; earn €50</button>
+                <div class="form-group"><label class="form-label" for="rfNote">Anything we should know? (optional)</label><textarea id="rfNote" class="form-textarea" placeholder="When they're moving, budget, area..."></textarea></div>
+                <input type="text" id="rfCompany" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px">
+                <p id="rfErr" role="alert" style="display:none;color:#E5735F;font-size:13.5px;margin:0 0 12px"></p>
+                <button type="submit" class="form-submit" id="rfBtn">Send referral &amp; earn €50</button>
                 <p class="form-note">We'll reach out to your friend and confirm your reward once they move in.</p>
             </form>
+            <div id="rfDone" style="display:none;text-align:center;padding:22px 0">
+                <div style="width:56px;height:56px;border-radius:50%;border:1px solid #46C08A;color:#46C08A;display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 16px">✓</div>
+                <h3 style="font-size:22px;font-weight:300;margin-bottom:8px">Referral sent — thank you.</h3>
+                <p style="color:rgba(255,255,255,.6);font-size:14.5px;max-width:440px;margin:0 auto 18px">We'll welcome your friend within a day. Your €50 is confirmed the moment they move in — we'll email you.</p>
+                <a class="btn btn-primary" href="https://wa.me/393313251961?text=Hi!%20I%20just%20referred%20a%20friend%20to%20BOOM" target="_blank" rel="noopener">Tell us on WhatsApp →</a>
+            </div>
         </div>
     </section>
 
@@ -255,47 +254,49 @@
                         we can make it work anywhere.
                     </p>
                     <div class="footer-company">
-                        <strong>Egidi Immobiliare S.r.l.</strong><br>
-                        P.IVA 17322991005<br>
-                        REA RM - 1710623<br>
-                        Rome, Italy
+                        <strong>Egidi Immobiliare S.r.l.</strong><br>Via dei Coronari 181/184, 00186 Roma<br>Sede legale: Viale Liegi 42, 00198 Roma<br>P.IVA 17322991005 · REA RM-1710623
                     </div>
                 </div>
 
                 <div>
                     <h4 class="footer-links-title">Services</h4>
                     <ul class="footer-links-list">
-                        <li><a href="/apartments.html">Apartments</a></li>
-                        <li><a href="/property-finding.html">Property Finding</a></li>
-                        <li><a href="/deal-assistance.html">Deal Assistance</a></li>
-                        <li><a href="/contract-check.html">Free Contract Check</a></li>
-                        <li><a href="/virtual-viewing.html">Virtual Viewing</a></li>
-                        <li><a href="/concierge.html">Concierge</a></li>
-                    </ul>
+          <li><a href="/services">All services</a></li>
+          <li><a href="/apartments">Apartments</a></li>
+          <li><a href="/property-finding">Property Finding</a></li>
+          <li><a href="/remote-move-pack">Remote Move Pack</a></li>
+          <li><a href="/deal-assistance">Deal Assistance</a></li>
+          <li><a href="/virtual-viewing">Virtual Viewing</a></li>
+          <li><a href="/deposit-recovery">Deposit Recovery</a></li>
+          <li><a href="/contract-check-express">Contract Check Express</a></li>
+          <li><a href="/concierge">Concierge</a></li>
+          <li><a href="/canone">Canone concordato (IT)</a></li>
+          <li><a href="/pacchetto-concordato">Pacchetto Concordato (IT)</a></li>
+        </ul>
                 </div>
 
                 <div>
                     <h4 class="footer-links-title">Company</h4>
                     <ul class="footer-links-list">
-                        <li><a href="/about.html">About</a></li>
-                        <li><a href="/how-it-works.html">How It Works</a></li>
-                        <li><a href="/universities.html">For Universities</a></li>
-                        <li><a href="/corporate.html">For Companies</a></li>
-                        <li><a href="/research.html">For Research</a></li>
-                        <li><a href="/refer.html">Refer a Friend</a></li>
-                        <li><a href="/owners.html">For Owners</a></li>
-                        <li><a href="/blog.html">Blog</a></li>
-                        <li><a href="/faq.html">FAQ</a></li>
-                        <li><a href="/contact.html">Contact</a></li>
+                        <li><a href="/about">About</a></li>
+                        <li><a href="/how-it-works">How It Works</a></li>
+                        <li><a href="/universities">For Universities</a></li>
+                        <li><a href="/corporate">For Companies</a></li>
+                        <li><a href="/research">For Research</a></li>
+                        <li><a href="/refer">Refer a Friend</a></li>
+                        <li><a href="/owners">For Owners</a></li>
+                        <li><a href="/blog">Blog</a></li>
+                        <li><a href="/faq">FAQ</a></li>
+                        <li><a href="/contact">Contact</a></li>
                     </ul>
                 </div>
 
                 <div>
                     <h4 class="footer-links-title">Legal</h4>
                     <ul class="footer-links-list">
-                        <li><a href="/terms.html">Terms</a></li>
-                        <li><a href="/privacy.html">Privacy</a></li>
-                        <li><a href="/login.html">Login</a></li>
+                        <li><a href="/terms">Terms</a></li>
+                        <li><a href="/privacy">Privacy</a></li>
+                        <li><a href="/login">Login</a></li>
                     </ul>
                 </div>
             </div>
@@ -371,6 +372,55 @@
   }
 })();
 
+    </script>
+    <script>
+    /* La segnalazione diventa un LEAD vero (/api/referral/submit): da lì la
+       macchina esistente fa il resto — Lead Brain, ping su Telegram, il
+       Commerciale. Prima finiva su Web3Forms e non la vedeva nessuno. */
+    (function(){
+      // ?code=BOOM-XXXXXX dal link condiviso da /casa: chi invita non deve
+      // ricordarsi il proprio codice a memoria
+      try{
+        var c=new URLSearchParams(location.search).get('code');
+        if(c){var el=document.getElementById('rfCode');if(el)el.value=c.toUpperCase();}
+      }catch(e){}
+    })();
+    function sendReferral(e){
+      e.preventDefault();
+      var err=document.getElementById('rfErr'),btn=document.getElementById('rfBtn');
+      var contact=document.getElementById('rfContact').value.trim();
+      var isEmail=/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contact);
+      err.style.display='none';
+      btn.disabled=true;btn.textContent='Sending…';
+      fetch('/api/referral/submit',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          referrerName:document.getElementById('rfName').value.trim(),
+          referrerEmail:document.getElementById('rfEmail').value.trim(),
+          referrerCode:document.getElementById('rfCode').value.trim(),
+          friendName:document.getElementById('rfFriend').value.trim(),
+          friendEmail:isEmail?contact:'',
+          friendPhone:isEmail?'':contact,
+          note:document.getElementById('rfNote').value.trim(),
+          company:document.getElementById('rfCompany').value
+        })})
+      .then(function(r){return r.json()})
+      .then(function(j){
+        if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
+        document.getElementById('refForm').style.display='none';
+        document.getElementById('rfDone').style.display='block';
+        try{if(typeof gtag==='function')gtag('event','generate_lead',{channel:'referral',source_page:'refer'});}catch(e){}
+      })
+      .catch(function(ex){
+        btn.disabled=false;btn.textContent='Send referral & earn €50';
+        err.textContent=(ex&&ex.message==='friend_required')
+          ? 'We need your friend’s name and a way to reach them — an email or a phone number.'
+          : (ex&&ex.message==='referrer_required')
+          ? 'Your name and a valid email, so we know who to credit.'
+          : 'That didn’t go through — try again, or send us their details on WhatsApp.';
+        err.style.display='block';
+      });
+      return false;
+    }
     </script>
     <script defer src="/js/boom-motion.js"></script>
     <script defer src="/js/boom-track.js"></script>

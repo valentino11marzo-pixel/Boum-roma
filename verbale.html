@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Verbale di Consegna — BOOM Console</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════
+   VERBALE DI CONSEGNA CHIAVI — l'operatore IN CASA il giorno delle
+   chiavi: chiavi + letture contatori + stato, il conduttore firma sul
+   telefono, l'operatore controfirma → PDF ufficiale via
+   /api/contracts/verbale (Storage + email alle parti + archivio
+   documenti). Il contratto (Art. 3) rinvia a QUESTO documento.
+   Admin/owner/landlord auth. Mobile-first: si usa in piedi, in cucina.
+   ═══════════════════════════════════════════════════════════════════ */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--gold:#D4AF37;--gold-light:#F1DFA0;--void:#050506;--card:#0B0B0D;--input:#16161A;
+  --line:rgba(255,255,255,.09);--line-soft:rgba(255,255,255,.05);
+  --t1:#FFF;--t2:rgba(255,255,255,.72);--t3:rgba(255,255,255,.46);--t4:rgba(255,255,255,.26);
+  --green:#4ADE9E;--sans:'Helvetica Neue',Helvetica,'Inter',-apple-system,sans-serif;--safe:env(safe-area-inset-bottom,0px)}
+body{font-family:var(--sans);background:var(--void);color:var(--t1);font-weight:300;line-height:1.55;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+nav{position:sticky;top:0;z-index:50;display:flex;justify-content:space-between;align-items:center;padding:13px 18px;background:rgba(5,5,6,.9);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:1px solid var(--line-soft)}
+.brand{display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none}
+.brand b{font-weight:300;letter-spacing:5px;font-size:14px}
+.tag{font-size:9.5px;letter-spacing:2.4px;text-transform:uppercase;color:var(--t4)}
+main{max-width:640px;margin:0 auto;padding:20px 16px calc(80px + var(--safe))}
+h1{font-weight:200;font-size:23px;letter-spacing:-.3px;margin-bottom:3px}
+.sub{color:var(--t3);font-size:12.5px;margin-bottom:16px;line-height:1.6}
+.card{border:1px solid var(--line-soft);border-radius:16px;background:var(--card);padding:18px;margin-bottom:12px;position:relative;overflow:hidden}
+.card::after{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,rgba(212,175,55,.45),rgba(212,175,55,.1),transparent 75%)}
+.card h2{font-size:10.5px;letter-spacing:2.6px;text-transform:uppercase;color:var(--gold);font-weight:500;margin-bottom:12px}
+.fld{display:block;margin-bottom:10px}
+.fld span{display:block;font-size:9.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--t3);margin-bottom:5px}
+.fld input,.fld select,.fld textarea{width:100%;background:var(--input);border:1px solid var(--line);border-radius:10px;color:var(--t1);font-family:inherit;font-size:15px;font-weight:300;padding:11px 12px;transition:border-color .25s;resize:vertical}
+.fld input:focus,.fld select:focus,.fld textarea:focus{outline:none;border-color:var(--gold)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hint{font-size:11.5px;color:var(--t3);margin-top:-3px;margin-bottom:8px;line-height:1.55}
+.ref{font-size:13.5px;color:var(--t2);line-height:1.7}
+.ref b{color:var(--t1);font-weight:400}
+.krow{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.krow input[type=text]{flex:1;background:var(--input);border:1px solid var(--line);border-radius:10px;color:var(--t1);font-size:14.5px;font-weight:300;padding:10px 12px}
+.step{display:flex;align-items:center;gap:0;border:1px solid var(--line);border-radius:100px;overflow:hidden;background:var(--input)}
+.step button{width:38px;height:38px;font-size:18px;color:var(--gold);display:flex;align-items:center;justify-content:center}
+.step b{min-width:26px;text-align:center;font-weight:400;font-size:15px}
+.addk{font-size:12px;color:var(--gold);letter-spacing:1px;margin-top:2px}
+.pad-wrap{position:relative;border:1px dashed var(--line);border-radius:12px;background:#FDFCF9;height:130px;overflow:hidden;touch-action:none}
+.pad-wrap canvas{display:block;width:100%;height:130px}
+.pad-ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#B9B4A6;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;pointer-events:none}
+.pad-clear{position:absolute;top:7px;right:9px;font-size:11px;color:#8b8574;letter-spacing:1px;z-index:2}
+.signer{margin-bottom:16px}
+.signer .who{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
+.signer .who b{font-weight:400;font-size:14px}
+.signer .who span{font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t3)}
+.tgl{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;color:var(--t3);cursor:pointer;user-select:none}
+.tgl input{accent-color:var(--gold);width:17px;height:17px}
+.foto{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--gold);border:1px solid rgba(212,175,55,.35);border-radius:100px;padding:7px 13px;letter-spacing:.5px}
+.foto.done{color:var(--green);border-color:rgba(74,222,158,.4)}
+.gbtn{display:flex;align-items:center;justify-content:center;width:100%;background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#1a1407;font-weight:600;border-radius:100px;padding:15px;font-size:12px;letter-spacing:2px;text-transform:uppercase;margin-top:4px;transition:.25s}
+.gbtn:disabled{opacity:.5}
+.err{display:none;color:var(--gold-light);font-size:12.5px;text-align:center;margin-top:10px}
+.load{text-align:center;padding:80px 20px;color:var(--t3)}
+.done-card{border:1px solid rgba(74,222,158,.35);border-radius:16px;background:rgba(74,222,158,.05);padding:18px;margin-bottom:12px;font-size:13.5px;color:var(--t2);line-height:1.7}
+.done-card a{color:var(--green)}
+#success{display:none;text-align:center;padding:44px 16px}
+#success .big{font-size:50px;margin-bottom:14px}
+#success h2{font-weight:200;font-size:22px;margin-bottom:8px}
+#success p{color:var(--t3);font-size:13.5px;line-height:1.7;margin-bottom:20px}
+#success a.gbtn{text-decoration:none;max-width:340px;margin:0 auto 10px}
+</style>
+</head>
+<body>
+<nav><a class="brand" href="/portal"><b>BOOM</b></a><span class="tag">Verbale di Consegna</span></nav>
+<main>
+  <div class="load" id="load">Verifica accesso…</div>
+
+  <div id="app" style="display:none">
+    <h1>Consegna delle chiavi</h1>
+    <p class="sub">Compila sul posto, fai firmare sullo schermo, tocca <b style="color:var(--gold-light);font-weight:400">Genera</b>: il PDF ufficiale parte via email a conduttori e proprietario e si archivia da solo. Le letture contatori fanno fede per le volture.</p>
+
+    <div class="card" id="pickCard" style="display:none"><h2>Contratto</h2>
+      <label class="fld"><span>Scegli il contratto</span><select id="fContract"><option value="">Scegli…</option></select></label>
+    </div>
+
+    <div id="form" style="display:none">
+      <div class="done-card" id="already" style="display:none"></div>
+
+      <div class="card"><h2>Riferimento</h2><div class="ref" id="ref"></div></div>
+
+      <div class="card"><h2>1 · Chiavi consegnate</h2>
+        <div id="keys"></div>
+        <button class="addk" id="addKey">+ altra chiave</button>
+      </div>
+
+      <div class="card"><h2>2 · Letture contatori</h2>
+        <p class="hint">Leggi i numeri sul contatore. POD (luce) e PDR (gas) sono sulla bolletta — opzionali ma d'oro per le volture.</p>
+        <div class="g2">
+          <label class="fld"><span>Luce — lettura</span><input id="mLuce" inputmode="decimal" placeholder="es. 48213,7"></label>
+          <label class="fld"><span>POD</span><input id="mPod" placeholder="IT001E…"></label>
+        </div>
+        <div style="margin:-2px 0 10px"><button class="foto" data-photo="luce">📷 Foto contatore luce</button></div>
+        <div class="g2">
+          <label class="fld"><span>Gas — lettura</span><input id="mGas" inputmode="decimal" placeholder="es. 1240,551"></label>
+          <label class="fld"><span>PDR</span><input id="mPdr" placeholder="14 cifre"></label>
+        </div>
+        <div style="margin:-2px 0 10px"><button class="foto" data-photo="gas">📷 Foto contatore gas</button></div>
+        <div class="g2">
+          <label class="fld"><span>Acqua — lettura</span><input id="mAcqua" inputmode="decimal" placeholder="es. 812,44"></label>
+          <label class="fld"><span>Matricola</span><input id="mMatr" placeholder="opzionale"></label>
+        </div>
+        <div><button class="foto" data-photo="acqua">📷 Foto contatore acqua</button></div>
+      </div>
+
+      <div class="card"><h2>3 · Stato dell'immobile</h2>
+        <label class="fld"><span>Condizione alla consegna</span>
+          <select id="fCond">
+            <option value="buono">Buono stato di manutenzione</option>
+            <option value="ottimo">Ottimo stato (ristrutturato / come nuovo)</option>
+            <option value="conforme">Conforme al contratto e ai suoi allegati</option>
+          </select>
+        </label>
+        <label class="fld"><span>Annotazioni (opzionale)</span><textarea id="fNotes" rows="2" placeholder="es. lieve segno sul parquet in camera; tende della cucina da fissare…"></textarea></label>
+        <div><button class="foto" data-photo="generale">📷 Foto generale (opzionale)</button></div>
+      </div>
+
+      <div class="card"><h2>4 · Firme — qui, adesso</h2>
+        <p class="hint">Passa il telefono a chi firma. Chi non è presente: togli la spunta.</p>
+        <div id="signers"></div>
+      </div>
+
+      <button class="gbtn" id="go">🔑 Genera verbale e invia</button>
+      <p class="err" id="err"></p>
+    </div>
+  </div>
+
+  <div id="success">
+    <div class="big">🔑</div>
+    <h2>Verbale firmato e inviato</h2>
+    <p id="sMsg">Email in partenza a conduttori e proprietario, con il PDF in allegato. Copia archiviata in Documenti e agganciata al contratto.</p>
+    <a class="gbtn" id="sPdf" target="_blank" rel="noopener">Apri il PDF</a>
+  </div>
+</main>
+
+<input type="file" accept="image/*" capture="environment" id="photoInput" style="display:none">
+
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="/js/firebase-config.js"></script>
+<script src="/js/boom-portal.js"></script>
+<script>
+(function(){
+'use strict';
+var USER=null,PROFILE=null,C=null,P=null,PHOTOS={},PADS=[];
+var $=function(id){return document.getElementById(id)};
+var esc=function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})};
+var dIT=function(s){try{var d=new Date(s);return isNaN(d)?'':d.toLocaleDateString('it-IT')}catch(e){return''}};
+
+/* ── Pad firma (stessa logica di sign.html) ── */
+function initPad(canvas,ph){
+  var ctx=canvas.getContext('2d');var dpr=Math.max(1,Math.min(3,window.devicePixelRatio||1));
+  var strokes=[],cur=null,drawn=false;
+  function size(){var r=canvas.getBoundingClientRect();canvas.width=Math.round(r.width*dpr);canvas.height=Math.round(130*dpr);ctx.scale(dpr,dpr);redraw()}
+  function pos(e){var r=canvas.getBoundingClientRect();var t=e.touches?e.touches[0]:e;return{x:t.clientX-r.left,y:t.clientY-r.top}}
+  function redraw(){ctx.clearRect(0,0,canvas.width,canvas.height);ctx.lineWidth=2.4;ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#101010';
+    strokes.forEach(function(s){if(s.length<2)return;ctx.beginPath();ctx.moveTo(s[0].x,s[0].y);for(var i=1;i<s.length;i++)ctx.lineTo(s[i].x,s[i].y);ctx.stroke()})}
+  function start(e){e.preventDefault();cur=[pos(e)];strokes.push(cur);drawn=true;if(ph)ph.style.display='none'}
+  function move(e){if(!cur)return;e.preventDefault();cur.push(pos(e));redraw()}
+  function end(){cur=null}
+  canvas.addEventListener('mousedown',start);canvas.addEventListener('mousemove',move);window.addEventListener('mouseup',end);canvas.addEventListener('mouseleave',end);
+  canvas.addEventListener('touchstart',start,{passive:false});canvas.addEventListener('touchmove',move,{passive:false});canvas.addEventListener('touchend',end);
+  setTimeout(size,50);window.addEventListener('resize',size);
+  return{hasInk:function(){return drawn&&strokes.some(function(s){return s.length>3})},
+    clear:function(){strokes=[];drawn=false;redraw();if(ph)ph.style.display=''},
+    toDataURL:function(){return canvas.toDataURL('image/png')}};
+}
+
+/* ── Foto: downscale a 1600px jpeg (stesso pattern di /scheda) ── */
+var photoTarget=null;
+document.addEventListener('click',function(e){
+  var b=e.target.closest('[data-photo]');if(!b)return;
+  photoTarget=b.getAttribute('data-photo');$('photoInput').value='';$('photoInput').click();
+});
+$('photoInput').addEventListener('change',function(){
+  var f=this.files&&this.files[0];if(!f||!photoTarget)return;
+  var slot=photoTarget;var btn=document.querySelector('[data-photo="'+slot+'"]');
+  var img=new Image();var rd=new FileReader();
+  rd.onload=function(){img.onload=function(){
+    var mx=1600,w=img.width,h=img.height;if(Math.max(w,h)>mx){var k=mx/Math.max(w,h);w=Math.round(w*k);h=Math.round(h*k)}
+    var cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(img,0,0,w,h);
+    PHOTOS[slot]=cv.toDataURL('image/jpeg',.82);
+    if(btn){btn.classList.add('done');btn.textContent='✓ Foto '+slot+' ok'}
+  };img.src=rd.result};
+  rd.readAsDataURL(f);
+});
+
+/* ── Chiavi ── */
+var KEY_DEFAULTS=[{label:'Portone',qty:2},{label:'Appartamento',qty:2},{label:'Cassetta postale',qty:1}];
+function keyRow(label,qty){
+  var div=document.createElement('div');div.className='krow';
+  div.innerHTML='<input type="text" value="'+esc(label)+'" placeholder="Tipo chiave">'+
+    '<div class="step"><button type="button" class="km">−</button><b>'+qty+'</b><button type="button" class="kp">+</button></div>';
+  div.querySelector('.km').onclick=function(){var b=div.querySelector('.step b');var n=Math.max(0,+b.textContent-1);b.textContent=n;if(n===0&&$('keys').children.length>1)div.remove()};
+  div.querySelector('.kp').onclick=function(){var b=div.querySelector('.step b');b.textContent=Math.min(20,+b.textContent+1)};
+  return div;
+}
+function collectKeys(){
+  return Array.prototype.map.call($('keys').children,function(r){
+    return{label:(r.querySelector('input').value||'').trim(),qty:+r.querySelector('.step b').textContent||0};
+  }).filter(function(k){return k.label&&k.qty>0});
+}
+
+/* ── Firmatari: conduttore principale + co-conduttori + operatore ── */
+function renderSigners(){
+  var names=[{name:C.tenantName||'Conduttore',kind:'conduttore'}]
+    .concat((Array.isArray(C.coTenants)?C.coTenants:[]).map(function(x){return{name:x.name||'Co-conduttore',kind:'conduttore'}}));
+  names.push({name:(PROFILE&&PROFILE.name)||C.landlordName||'BOOM Roma',kind:'consegnante'});
+  PADS=[];
+  $('signers').innerHTML='';
+  names.forEach(function(s,i){
+    var d=document.createElement('div');d.className='signer';
+    d.innerHTML='<div class="who"><b>'+esc(s.name)+'</b>'+
+      (s.kind==='consegnante'
+        ?'<span>per la consegna</span>'
+        :'<label class="tgl"><input type="checkbox" checked> presente e firma</label>')+
+      '</div>'+
+      '<div class="pad-wrap"><canvas></canvas><div class="pad-ph">Firma qui</div><button type="button" class="pad-clear">cancella</button></div>';
+    $('signers').appendChild(d);
+    var pad=initPad(d.querySelector('canvas'),d.querySelector('.pad-ph'));
+    d.querySelector('.pad-clear').onclick=function(){pad.clear()};
+    var chk=d.querySelector('.tgl input');
+    if(chk)chk.onchange=function(){d.querySelector('.pad-wrap').style.display=chk.checked?'':'none'};
+    PADS.push({name:s.name,kind:s.kind,pad:pad,el:d,chk:chk});
+  });
+}
+
+/* ── Boot ── */
+BoomPortal.requireAuth(['admin','owner','landlord'],{loginUrl:'/login'}).then(function(res){
+  USER=res.user;PROFILE=res.profile;
+  $('load').style.display='none';$('app').style.display='';
+  var db=firebase.firestore();
+  var cid=new URLSearchParams(location.search).get('c');
+  if(cid){loadContract(db,cid);}
+  else{
+    $('pickCard').style.display='';
+    db.collection('contracts').limit(200).get().then(function(snap){
+      var rows=[];snap.forEach(function(doc){var d=doc.data();d.__id=doc.id;if(d.status!=='archived')rows.push(d)});
+      rows.sort(function(a,b){return String(b.startDate||'').localeCompare(String(a.startDate||''))});
+      $('fContract').innerHTML='<option value="">Scegli…</option>'+rows.map(function(c){
+        var done=c.verbaleConsegna?' 🔑✓':'';
+        return '<option value="'+c.__id+'">'+esc((c.tenantName||'?')+' — '+(c.propertyAddress||c.propertyId||''))+' · dal '+dIT(c.startDate)+done+'</option>'}).join('');
+      $('fContract').onchange=function(){if(this.value)loadContract(db,this.value)};
+    }).catch(function(e){showErr('Contratti non leggibili: '+e.message)});
+  }
+}).catch(function(){ /* requireAuth gestisce il redirect */ });
+
+function loadContract(db,cid){
+  db.collection('contracts').doc(cid).get().then(function(doc){
+    if(!doc.exists){showErr('Contratto non trovato');return}
+    C=doc.data();C.id=cid;
+    var pp=C.propertyId?db.collection('properties').doc(C.propertyId).get():Promise.resolve(null);
+    return pp.then(function(pd){
+      P=(pd&&pd.exists)?pd.data():{};
+      renderForm();
+    });
+  }).catch(function(e){showErr('Errore: '+e.message)});
+}
+
+function renderForm(){
+  $('pickCard').style.display='none';$('form').style.display='';
+  var names=[C.tenantName].concat((C.coTenants||[]).map(function(x){return x.name})).filter(Boolean);
+  $('ref').innerHTML='<b>'+esc(P.address||P.name||C.propertyAddress||'Immobile')+'</b><br>'+
+    'Conduttore/i: <b>'+esc(names.join(', ')||'—')+'</b><br>'+
+    'Locatore: '+esc(C.landlordName||'—')+' · Contratto dal <b>'+dIT(C.startDate)+'</b> al '+dIT(C.endDate);
+  if(C.verbaleConsegna&&C.verbaleConsegna.url){
+    $('already').style.display='';
+    $('already').innerHTML='🔑 Verbale già firmato il '+dIT(C.verbaleConsegna.at)+' — <a href="'+esc(C.verbaleConsegna.url)+'" target="_blank" rel="noopener">apri il PDF</a>.<br>Compilare di nuovo lo sostituisce (il vecchio file resta in Storage).';
+  }
+  $('keys').innerHTML='';
+  KEY_DEFAULTS.forEach(function(k){$('keys').appendChild(keyRow(k.label,k.qty))});
+  $('addKey').onclick=function(){$('keys').appendChild(keyRow('',1))};
+  renderSigners();
+}
+
+function showErr(m){$('err').style.display='block';$('err').textContent=m;setTimeout(function(){$('err').style.display='none'},6000)}
+
+$('go').addEventListener('click',function(){
+  var firme=[];
+  for(var i=0;i<PADS.length;i++){
+    var p=PADS[i];
+    if(p.chk&&!p.chk.checked)continue;            // assente: non firma
+    if(!p.pad.hasInk()){
+      showErr(p.kind==='consegnante'?'Manca la firma per la consegna.':'Manca la firma di '+p.name+' (o togli la spunta "presente").');
+      p.el.scrollIntoView({behavior:'smooth',block:'center'});return;
+    }
+    firme.push({name:p.name,kind:p.kind,sig:p.pad.toDataURL()});
+  }
+  if(!firme.some(function(f){return f.kind==='conduttore'})){showErr('Serve almeno la firma di un conduttore.');return}
+  var photos=Object.keys(PHOTOS).slice(0,4).map(function(k){return{label:'Contatore '+k,base64:PHOTOS[k]}});
+  var body={contractId:C.id,keys:collectKeys(),
+    meters:{luce:{lettura:($('mLuce').value||'').trim(),pod:($('mPod').value||'').trim()},
+            gas:{lettura:($('mGas').value||'').trim(),pdr:($('mPdr').value||'').trim()},
+            acqua:{lettura:($('mAcqua').value||'').trim(),matricola:($('mMatr').value||'').trim()}},
+    condition:$('fCond').value,notes:($('fNotes').value||'').trim(),firme:firme,photos:photos};
+  var btn=$('go');btn.disabled=true;btn.textContent='Genero il PDF…';
+  USER.getIdToken().then(function(tok){
+    return fetch('/api/contracts/verbale',{method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
+      body:JSON.stringify(body)});
+  }).then(function(r){return r.json().then(function(j){return{s:r.status,j:j}})})
+  .then(function(x){
+    if(!x.j||!x.j.ok){btn.disabled=false;btn.textContent='🔑 Genera verbale e invia';
+      showErr('Non riuscito ['+((x.j&&x.j.error)||x.s)+'] — riprova.');return}
+    $('app').style.display='none';$('success').style.display='block';
+    $('sPdf').href=x.j.url;window.scrollTo(0,0);
+  }).catch(function(e){btn.disabled=false;btn.textContent='🔑 Genera verbale e invia';showErr('Rete: '+e.message)});
+});
+})();
+</script>
+</body>
+</html>

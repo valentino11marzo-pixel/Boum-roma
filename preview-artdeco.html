@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>BOOM · Roman Deco — design direction</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --ink:#0a0906; --ink2:#141009; --gold:#C9A24A; --gold-bri:#F0CF6A; --gold-dim:rgba(201,162,74,.32);
+    --travertine:#E8DFC8; --txt:#F3ECD9; --txt2:rgba(243,236,217,.62); --txt3:rgba(243,236,217,.34);
+  }
+  html{scroll-behavior:smooth}
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--ink);color:var(--txt);font-weight:300;line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  .disp{font-family:'Cinzel',Georgia,'Times New Roman',serif}
+  a{color:inherit;text-decoration:none}
+  /* Deco background: sunburst rays + concentric arcs + fluting, from top centre */
+  .deco-bg{position:fixed;inset:0;z-index:-2;background:var(--ink);overflow:hidden}
+  .rays{position:absolute;top:-42vw;left:50%;width:150vw;height:150vw;transform:translateX(-50%);
+    background:repeating-conic-gradient(from 0deg at 50% 50%, rgba(201,162,74,.06) 0deg 0.6deg, transparent 0.6deg 6deg);
+    -webkit-mask:radial-gradient(closest-side, #000 8%, rgba(0,0,0,.5) 42%, transparent 74%);
+    mask:radial-gradient(closest-side, #000 8%, rgba(0,0,0,.5) 42%, transparent 74%);
+    animation:spin 220s linear infinite}
+  .arcs{position:absolute;top:-46vw;left:50%;width:150vw;height:150vw;transform:translateX(-50%);
+    background:repeating-radial-gradient(circle at 50% 50%, transparent 0 58px, rgba(201,162,74,.05) 58px 59px);
+    -webkit-mask:radial-gradient(closest-side,#000 20%,transparent 70%);mask:radial-gradient(closest-side,#000 20%,transparent 70%)}
+  .flute{position:absolute;inset:0;background:repeating-linear-gradient(90deg, rgba(201,162,74,.028) 0 1px, transparent 1px 46px);opacity:.5}
+  .grain{position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.06;
+    background:radial-gradient(120% 100% at 50% 0%, rgba(232,223,200,.12), transparent 55%)}
+  .cursor-glow{position:fixed;width:520px;height:520px;border-radius:50%;pointer-events:none;z-index:-1;
+    background:radial-gradient(circle, rgba(240,207,106,.10), transparent 66%);transform:translate(-50%,-50%);opacity:0;transition:opacity .5s}
+  @keyframes spin{to{transform:translateX(-50%) rotate(360deg)}}
+
+  /* nav */
+  nav{position:fixed;top:0;left:0;right:0;z-index:30;display:flex;justify-content:space-between;align-items:center;padding:20px 40px;
+      background:linear-gradient(180deg,rgba(10,9,6,.85),transparent)}
+  .mono{display:flex;align-items:center;gap:14px}
+  .mono .m{width:38px;height:38px;position:relative;display:grid;place-items:center}
+  .mono .m::before{content:"";position:absolute;inset:0;border:1.5px solid var(--gold);transform:rotate(45deg)}
+  .mono .m::after{content:"";position:absolute;inset:7px;border:1px solid var(--gold-dim);transform:rotate(45deg)}
+  .mono .mi{font-family:'Cinzel',serif;font-weight:700;font-size:15px;color:var(--gold-bri);z-index:1}
+  .mono .wd{font-family:'Cinzel',Georgia,serif;letter-spacing:8px;font-size:20px;font-weight:600}
+  .nlinks{display:flex;gap:30px;font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:var(--txt2)}
+  .nlinks a{position:relative}
+  .nlinks a::after{content:"";position:absolute;left:0;right:0;bottom:-6px;height:1px;background:var(--gold);transform:scaleX(0);transition:transform .3s;transform-origin:left}
+  .nlinks a:hover{color:var(--txt)}.nlinks a:hover::after{transform:scaleX(1)}
+  @media(max-width:760px){.nlinks{display:none}}
+
+  /* deco rule (chevron) */
+  .rule{display:flex;align-items:center;gap:14px;color:var(--gold);margin:0 auto}
+  .rule .ln{height:1px;width:60px;background:linear-gradient(90deg,transparent,var(--gold))}
+  .rule .ln.r{background:linear-gradient(90deg,var(--gold),transparent)}
+  .rule .cv{font-size:12px;letter-spacing:4px}
+
+  /* hero */
+  header{min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:120px 24px 80px;position:relative}
+  .kicker{font-size:11px;letter-spacing:7px;text-transform:uppercase;color:var(--gold);margin-bottom:26px}
+  h1{font-family:'Cinzel',Georgia,serif;font-weight:700;font-size:clamp(44px,9vw,116px);line-height:.98;letter-spacing:.02em;margin:8px 0 6px}
+  h1 .sm{display:block;font-size:.34em;letter-spacing:.5em;font-weight:400;color:var(--gold-bri);margin-top:18px}
+  .sub{max-width:52ch;color:var(--txt2);font-size:clamp(15px,2vw,19px);margin:30px auto 40px}
+  .numeral{font-family:'Cinzel',serif;color:var(--gold-dim);letter-spacing:6px;font-size:13px;margin-top:8px}
+  .cta-row{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+  /* stepped deco button */
+  .dbtn{position:relative;font-family:'Cinzel',Georgia,serif;font-weight:600;letter-spacing:3px;text-transform:uppercase;font-size:12px;
+        padding:16px 34px;color:var(--ink);background:linear-gradient(180deg,var(--gold-bri),var(--gold));cursor:pointer;border:0;
+        clip-path:polygon(10px 0,calc(100% - 10px) 0,100% 10px,100% 100%,calc(100% - 10px) 100%,10px 100%,0 100%,0 10px);transition:transform .12s, box-shadow .3s;box-shadow:0 10px 30px rgba(201,162,74,.22)}
+  .dbtn:active{transform:translateY(2px);box-shadow:0 4px 14px rgba(201,162,74,.2)}
+  .dbtn.ghost{background:transparent;color:var(--gold-bri);box-shadow:none;border:1px solid var(--gold-dim)}
+  .dbtn.ghost::before{content:"";position:absolute;inset:4px;border:1px solid var(--gold-dim);clip-path:inherit;pointer-events:none}
+
+  /* corner brackets */
+  .frame{position:relative}
+  .frame .cb{position:absolute;width:26px;height:26px;border:2px solid var(--gold)}
+  .frame .cb.tl{top:-2px;left:-2px;border-right:0;border-bottom:0}
+  .frame .cb.tr{top:-2px;right:-2px;border-left:0;border-bottom:0}
+  .frame .cb.bl{bottom:-2px;left:-2px;border-right:0;border-top:0}
+  .frame .cb.br{bottom:-2px;right:-2px;border-left:0;border-top:0}
+
+  section{max-width:1080px;margin:0 auto;padding:70px 24px}
+  .sec-head{text-align:center;margin-bottom:44px}
+  .sec-head h2{font-family:'Cinzel',Georgia,serif;font-weight:600;font-size:clamp(26px,4vw,40px);letter-spacing:.06em;margin:16px 0 6px}
+  .sec-head p{color:var(--txt3);font-size:13px;letter-spacing:2px;text-transform:uppercase}
+
+  /* listing panel — deco stepped frame + fluted flanks */
+  .listing{display:grid;grid-template-columns:1.1fr 1fr;gap:0;border:1px solid var(--gold-dim);background:linear-gradient(180deg,rgba(20,16,9,.9),rgba(10,9,6,.9));position:relative}
+  .listing::before,.listing::after{content:"";position:absolute;top:14px;bottom:14px;width:5px;background:repeating-linear-gradient(180deg,var(--gold-dim) 0 6px,transparent 6px 10px)}
+  .listing::before{left:8px}.listing::after{right:8px}
+  .listing .vis{position:relative;min-height:340px;background:
+      radial-gradient(120% 80% at 30% 0%, rgba(201,162,74,.18), transparent 55%),
+      linear-gradient(135deg,#241d10,#0d0b07);overflow:hidden}
+  .listing .vis .sun{position:absolute;top:-30%;left:50%;width:120%;height:120%;transform:translateX(-50%);
+      background:repeating-conic-gradient(from 0 at 50% 42%, rgba(240,207,106,.10) 0 .5deg, transparent .5deg 7deg);
+      -webkit-mask:radial-gradient(closest-side,#000,transparent 60%);mask:radial-gradient(closest-side,#000,transparent 60%)}
+  .listing .vis .tag{position:absolute;left:22px;bottom:20px;font-family:'Cinzel',serif;letter-spacing:4px;font-size:11px;color:var(--gold-bri)}
+  .listing .info{padding:38px 40px;display:flex;flex-direction:column;justify-content:center}
+  .listing .info .nm{font-family:'Cinzel',Georgia,serif;font-size:28px;letter-spacing:.03em;margin-bottom:8px}
+  .listing .info .mt{color:var(--txt2);font-size:14px;letter-spacing:1px;margin-bottom:26px}
+  .listing .price{font-family:'Cinzel',serif;font-size:40px;color:var(--gold-bri);letter-spacing:.02em}
+  .listing .price small{font-size:14px;color:var(--txt3);letter-spacing:2px}
+  .listing .info .hr{height:1px;background:var(--gold-dim);margin:24px 0}
+  @media(max-width:760px){.listing{grid-template-columns:1fr}}
+
+  /* stat band */
+  .stats{display:flex;justify-content:center;gap:0;flex-wrap:wrap;border-top:1px solid var(--gold-dim);border-bottom:1px solid var(--gold-dim)}
+  .stat{padding:34px 46px;text-align:center;position:relative}
+  .stat + .stat::before{content:"";position:absolute;left:0;top:22px;bottom:22px;width:4px;background:repeating-linear-gradient(180deg,var(--gold-dim) 0 5px,transparent 5px 9px)}
+  .stat .n{font-family:'Cinzel',Georgia,serif;font-size:48px;color:var(--gold-bri);line-height:1}
+  .stat .l{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--txt3);margin-top:10px}
+
+  footer{text-align:center;padding:60px 24px 120px;color:var(--txt3);font-size:12px;letter-spacing:2px}
+  /* switcher hint */
+  .badge{position:fixed;right:16px;bottom:16px;z-index:40;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--gold-dim);border:1px solid var(--gold-dim);padding:8px 14px}
+</style>
+</head>
+<body>
+  <div class="deco-bg"><div class="rays"></div><div class="arcs"></div><div class="flute"></div></div>
+  <div class="grain"></div>
+  <div class="cursor-glow" id="glow"></div>
+
+  <nav>
+    <a class="mono"><span class="m"><span class="mi">B</span></span><span class="wd">BOOM</span></a>
+    <div class="nlinks"><a>Apartments</a><a>Rioni</a><a>Concierge</a><a>Owners</a></div>
+  </nav>
+
+  <header class="frame">
+    <div class="kicker">Roman Deco · design direction</div>
+    <div class="rule"><span class="ln"></span><span class="cv">✦ ✦ ✦</span><span class="ln r"></span></div>
+    <h1 class="disp">BOOM<span class="sm">L I V E · I N · R O M E</span></h1>
+    <p class="sub">A rental house with the bearing of a monument. Geometry from the EUR, gold from the ateliers, engineered for the modern city.</p>
+    <div class="numeral">· MMXXVI ·</div>
+    <div class="cta-row" style="margin-top:30px">
+      <button class="dbtn">Browse apartments</button>
+      <button class="dbtn ghost">How it works</button>
+    </div>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <div class="rule" style="width:max-content"><span class="ln"></span><span class="cv">I</span><span class="ln r"></span></div>
+      <h2 class="disp">The Residence</h2>
+      <p>listing, as an artefact</p>
+    </div>
+    <div class="listing frame">
+      <span class="cb tl"></span><span class="cb tr"></span><span class="cb bl"></span><span class="cb br"></span>
+      <div class="vis"><div class="sun"></div><div class="tag">TRASTEVERE · RIONE XIII</div></div>
+      <div class="info">
+        <div class="nm disp">Attico sul Tevere</div>
+        <div class="mt">2 bed · 1 bath · 78 m² · terrace · available now</div>
+        <div class="price">€2.400<small> / mese</small></div>
+        <div class="hr"></div>
+        <div class="cta-row"><button class="dbtn">Reserve · hold 48h</button></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="stats">
+    <div class="stat"><div class="n" data-count="247">0</div><div class="l">Homes</div></div>
+    <div class="stat"><div class="n" data-count="22">0</div><div class="l">Rioni</div></div>
+    <div class="stat"><div class="n" data-count="0">0</div><div class="l">Agency fee</div></div>
+    <div class="stat"><div class="n" data-count="98" data-suffix="%">0</div><div class="l">Verified</div></div>
+  </div>
+
+  <section>
+    <div class="sec-head">
+      <div class="rule" style="width:max-content"><span class="ln"></span><span class="cv">II</span><span class="ln r"></span></div>
+      <h2 class="disp">Move-in, decoded</h2>
+      <p>every euro, accounted for</p>
+    </div>
+    <div class="listing frame" style="grid-template-columns:1fr;max-width:520px;margin:0 auto">
+      <span class="cb tl"></span><span class="cb tr"></span><span class="cb bl"></span><span class="cb br"></span>
+      <div class="info" style="padding:34px 40px">
+        <div style="display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--gold-dim);color:var(--txt2)"><span>First month</span><span>€2.400</span></div>
+        <div style="display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--gold-dim);color:var(--txt2)"><span>Deposit · 2 mesi</span><span>€4.800</span></div>
+        <div style="display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--gold-dim);color:var(--txt2)"><span>BOOM fee</span><span>€0</span></div>
+        <div style="display:flex;justify-content:space-between;padding:14px 0 0;color:var(--gold-bri);font-family:'Cinzel',serif;font-size:20px"><span>Due today</span><span>€7.268</span></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>BOOM · ROMA — Roman Deco study · non-production · MMXXVI</footer>
+  <div class="badge">Roman Deco · study</div>
+
+  <script>
+    (function(){
+      var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      // cursor glow (desktop pointers only)
+      var glow = document.getElementById('glow');
+      if (!reduce && matchMedia('(hover:hover)').matches) {
+        addEventListener('pointermove', function(e){ glow.style.opacity='1'; glow.style.left=e.clientX+'px'; glow.style.top=e.clientY+'px'; }, {passive:true});
+        addEventListener('pointerleave', function(){ glow.style.opacity='0'; });
+      }
+      // number roll-up on reveal
+      function roll(el){
+        var end = +el.dataset.count, suf = el.dataset.suffix||'', dur = 1400, t0 = performance.now();
+        if (reduce || end===0){ el.textContent = end + suf; return; }
+        (function tick(now){ var p=Math.min(1,(now-t0)/dur), e=1-Math.pow(1-p,3);
+          el.textContent = Math.round(end*e) + suf; if(p<1) requestAnimationFrame(tick); })(t0);
+      }
+      var io = new IntersectionObserver(function(es){ es.forEach(function(en){ if(en.isIntersecting){ roll(en.target); io.unobserve(en.target); } }); }, {threshold:.5});
+      document.querySelectorAll('[data-count]').forEach(function(el){ io.observe(el); });
+      // button press haptic
+      document.querySelectorAll('.dbtn').forEach(function(b){ b.addEventListener('pointerdown', function(){ if(navigator.vibrate) navigator.vibrate(8); }); });
+    })();
+  </script>
+</body>
+</html>

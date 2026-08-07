@@ -49,7 +49,8 @@
 // Response 500:   { ok: false, error: '<message>' }
 // ─────────────────────────────────────────────────────────────────────────
 
-import { fsCreate, requireSecret, readJson } from './_lib.js';
+import { fsCreate, fsPatch, requireSecret, readJson } from './_lib.js';
+import { normalizePhone, recentLeadByPhone, mergeMessage } from './_lead.js';
 
 const VALID_SOURCES = new Set(['immobiliare', 'idealista', 'whatsapp', 'web', 'intake', 'manual']);
 const VALID_GRADES = new Set(['A', 'B', 'C', 'dead']);
@@ -102,7 +103,9 @@ export default async function handler(req, res) {
     service: src === 'immobiliare' || src === 'idealista' ? 'Homie' : null, // legacy field used by portal
     name,
     email: body.email || null,
-    phone: body.phone || null,
+    // normalizzato alla porta come ovunque: WhatsApp consegna +39…, i portali
+    // il nazionale — archiviare forme diverse sdoppia la stessa persona
+    phone: body.phone ? (normalizePhone(body.phone) || String(body.phone).trim()) : null,
     message: body.message || null,
     language: body.language || null,
     budget: typeof body.budget === 'number' ? body.budget : null,
@@ -129,6 +132,26 @@ export default async function handler(req, res) {
   };
 
   try {
+    // ── UNA persona, UN lead — qualunque porta abbia usato ─────────────────
+    // Questo endpoint creava senza guardare. Finché Homie era l'unica fonte
+    // andava bene; ora la stessa persona può arrivare da qui E da
+    // /api/homie/message (inoltro WhatsApp) E da leads/scan-inbox (email dei
+    // portali), e l'ordine è sfavorevole: l'inoltro parte all'istante, questo
+    // dopo l'analisi — quindi il duplicato lo creerebbe proprio questo.
+    // Deduplicare QUI toglie ogni bisogno di coordinare i due lati: qualunque
+    // ordine arrivi, resta un lead solo e il messaggio si somma.
+    const prior = await recentLeadByPhone(lead.phone).catch(() => null);
+    if (prior) {
+      const patch = { lastInboundAt: now };
+      const merged = mergeMessage(prior.message, lead.message);
+      if (merged && merged !== prior.message) patch.message = merged;
+      // ciò che il precedente non sapeva ancora, senza mai sovrascrivere
+      for (const k of ['email', 'propertyId', 'propertyTitle', 'propertyPrice', 'propertyAddress', 'zone', 'budget', 'language']) {
+        if (prior[k] == null && lead[k] != null) patch[k] = lead[k];
+      }
+      await fsPatch(`leads/${prior.id}`, patch);
+      return res.status(200).json({ ok: true, id: prior.id, deduped: true });
+    }
     const { id } = await fsCreate('leads', lead);
     return res.status(200).json({ ok: true, id });
   } catch (err) {

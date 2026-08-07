@@ -1,15 +1,16 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="it">
 <head>
+<script defer src="/js/boom-err.js"></script>
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', 'G-EYCD59RDVJ');
+      gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied',wait_for_update:500});gtag('config','G-EYCD59RDVJ');
     </script>
-    
+
     <link rel="icon" href="/favicon.ico" sizes="any">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="icon" href="/favicon-32x32.png" sizes="32x32" type="image/png">
@@ -17,7 +18,7 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="manifest" href="/site.webmanifest">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Tenant Portal — Login for BOOM Tenants</title>
 <!-- BOOM_SEO:START -->
   <meta name="description" content="Secure login for BOOM tenants. View your contract, payments, maintenance requests, and documents.">
@@ -60,170 +61,263 @@
   <link rel="dns-prefetch" href="https://www.googletagmanager.com">
   <link rel="dns-prefetch" href="https://www.google-analytics.com">
 <!-- BOOM_SEO:END -->
-    
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;900&display=swap" rel="stylesheet">
-    
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
-    
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+/* ═══════════════════════════════════════════════════════════════════
+   LA TUA CASA BOOM — the tenant's home, digital. Same identity as the
+   signing experience: Helvetica Neue 300, #D4AF37, blueprint room,
+   hairline discipline. Everything REAL: the actual contract, the actual
+   installments (payable by card in one tap), the actual documents.
+   Linked from the Wallet passes and every journey email. Served at /casa.
+   ═══════════════════════════════════════════════════════════════════ */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --void:#050506;--panel:rgba(255,255,255,.022);
+  --gold:#D4AF37;--gold-light:#F1DFA0;--gold-deep:#8A6D1D;
+  --line:rgba(255,255,255,.09);--line2:rgba(255,255,255,.05);--line-gold:rgba(212,175,55,.32);
+  --gold-muted:rgba(212,175,55,.12);--gold-faint:rgba(212,175,55,.05);
+  --t1:#FFF;--t2:rgba(255,255,255,.72);--t3:rgba(255,255,255,.45);--t4:rgba(255,255,255,.25);
+  --green:#4ADE9E;--green-muted:rgba(74,222,158,.12);--wa:#25D366;--red:#FF8A70;
+  --sans:'Helvetica Neue',Helvetica,'Inter',-apple-system,sans-serif;
+  --mono:ui-monospace,'SF Mono',Menlo,monospace;
+  --ease:cubic-bezier(.16,1,.3,1);--safe:env(safe-area-inset-bottom,0px);--r:18px}
+html{scroll-behavior:smooth}
+body{font-family:var(--sans);background:var(--void);color:var(--t1);font-weight:300;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+::selection{background:rgba(212,175,55,.3)}
 
-        :root {
-            --gold: #FFD700;
-            --cyan: #00CED1;
-            --green: #00FF88;
-            --red: #FF3B3B;
-            --pure-black: #000000;
-            --dark-surface: #0A0A0A;
-            --text-primary: #FFFFFF;
-            --text-secondary: #999999;
-            --text-fade: #666666;
-        }
+/* the room */
+.bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.bg .grid{position:absolute;inset:-2px;background-image:radial-gradient(rgba(255,255,255,.05) 1px,transparent 1.5px);background-size:34px 34px;-webkit-mask-image:radial-gradient(120% 90% at 50% 0%,#000 30%,transparent 78%);mask-image:radial-gradient(120% 90% at 50% 0%,#000 30%,transparent 78%)}
+.bg .aur{position:absolute;width:120vmax;height:120vmax;border-radius:50%;filter:blur(90px);opacity:.45}
+.bg .aur.a{left:-46vmax;top:-72vmax;background:radial-gradient(circle,rgba(212,175,55,.10),transparent 58%)}
+.bg .aur.b{right:-58vmax;bottom:-74vmax;background:radial-gradient(circle,rgba(90,110,150,.10),transparent 58%)}
+.bg .scan{position:absolute;left:0;right:0;top:-12%;height:26vh;opacity:0;background:linear-gradient(180deg,transparent,rgba(212,175,55,.03) 45%,rgba(212,175,55,.06) 50%,rgba(212,175,55,.03) 55%,transparent)}
+.bg .vign{position:absolute;inset:0;background:radial-gradient(130% 100% at 50% 34%,transparent 50%,rgba(0,0,0,.62) 100%)}
+@media(prefers-reduced-motion:no-preference){
+  .bg .aur.a{animation:aurA 46s var(--ease) infinite alternate}
+  .bg .aur.b{animation:aurB 58s var(--ease) infinite alternate}
+  @keyframes aurA{to{transform:translate(9vmax,7vmax) scale(1.12)}}
+  @keyframes aurB{to{transform:translate(-8vmax,-6vmax) scale(1.08)}}
+  .bg .scan{animation:scan 26s linear infinite}
+  @keyframes scan{0%,78%{top:-28%;opacity:0}80%{opacity:1}95%{opacity:1}100%{top:112%;opacity:0}}
+}
 
-        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--pure-black); color: var(--text-primary); font-weight: 200; letter-spacing: 0.02em; }
+header{position:sticky;top:0;z-index:50;background:rgba(5,5,6,.72);-webkit-backdrop-filter:blur(20px) saturate(1.5);backdrop-filter:blur(20px) saturate(1.5);border-bottom:1px solid var(--line2)}
+.hrow{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:13px 20px;max-width:720px;margin:0 auto}
+.hl{font-size:9px;letter-spacing:2.4px;text-transform:uppercase;color:var(--t4)}
+.brand{display:flex;align-items:center;gap:10px;justify-self:center;color:inherit;text-decoration:none}
+.brand .mark{filter:drop-shadow(0 0 10px rgba(212,175,55,.35))}
+.brand b{font-weight:300;letter-spacing:6px;font-size:14px}
+.hout{justify-self:end;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);transition:.25s}
+.hout:hover{color:var(--gold)}
 
-        .dashboard-layout { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
+main{position:relative;z-index:5;max-width:680px;margin:0 auto;padding:26px 18px calc(60px + var(--safe))}
+.load{text-align:center;padding:110px 20px;color:var(--t3)}
+.load .mark{color:var(--gold)}
+@media(prefers-reduced-motion:no-preference){.load svg{animation:breath 2.6s var(--ease) infinite}@keyframes breath{0%,100%{opacity:.55;transform:scale(.97)}50%{opacity:1}}}
 
-        /* Sidebar */
-        .sidebar { background: var(--dark-surface); padding: 30px 25px; border-right: 1px solid rgba(255, 215, 0, 0.1); position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; }
-        .sidebar-logo { display: flex; align-items: center; gap: 15px; margin-bottom: 40px; text-decoration: none; color: white; }
-        .logo-svg { width: 50px; height: 50px; filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.5)); }
-        .logo-text { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 24px; font-weight: 300; letter-spacing: 4px; text-transform: uppercase; }
+.eyebrow{font-size:10px;letter-spacing:3.2px;text-transform:uppercase;color:var(--gold);font-weight:400}
+h1.big{font-weight:200;font-size:clamp(27px,6vw,38px);letter-spacing:-.6px;line-height:1.12;margin:10px 0 6px}
+h1.big em{font-style:normal;color:var(--gold);font-weight:300}
+.subline{color:var(--t3);font-size:13px}
+.chip{display:inline-flex;align-items:center;gap:8px;margin-top:14px;border:1px solid var(--line-gold);background:var(--gold-faint);border-radius:100px;padding:7px 15px;font-size:9.5px;letter-spacing:2.4px;text-transform:uppercase;color:var(--gold)}
+.chip::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 10px rgba(212,175,55,.8)}
 
-        .sidebar-user { padding: 20px; background: rgba(255, 255, 255, 0.02); margin-bottom: 30px; }
-        .user-avatar { width: 50px; height: 50px; background: linear-gradient(135deg, var(--green), var(--cyan)); border-radius: 50%; margin-bottom: 12px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 500; }
-        .user-name { font-size: 14px; font-weight: 400; margin-bottom: 3px; }
-        .user-role { font-size: 10px; color: var(--green); text-transform: uppercase; letter-spacing: 2px; }
+.tiles{position:relative;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin:22px 0 4px;border-radius:var(--r);overflow:hidden;background:var(--panel);border:1px solid var(--line2);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.tiles::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,var(--gold),rgba(212,175,55,.25),transparent 80%)}
+.tile{padding:17px 16px 14px}
+.tile:nth-child(2n){border-left:1px solid var(--line2)}
+.tile:nth-child(n+3){border-top:1px solid var(--line2)}
+.tile .k{font-size:8.5px;letter-spacing:2.4px;text-transform:uppercase;color:var(--t4)}
+.tile .v{font-size:clamp(19px,4.6vw,25px);font-weight:200;margin-top:6px;font-variant-numeric:tabular-nums;letter-spacing:-.4px;line-height:1.15}
+.tile .v small{font-size:11.5px;color:var(--t3);letter-spacing:.3px}
+.tile.hero .v{background:linear-gradient(180deg,#FFF3C4,var(--gold-light) 30%,var(--gold) 78%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
 
-        .nav-item { display: block; padding: 12px 15px; color: var(--text-secondary); text-decoration: none; font-size: 12px; font-weight: 300; transition: all 0.3s; margin-bottom: 5px; cursor: pointer; }
-        .nav-item:hover { color: var(--text-primary); background: rgba(255, 255, 255, 0.02); }
-        .nav-item.active { color: var(--gold); background: rgba(255, 215, 0, 0.05); border-left: 2px solid var(--gold); }
+.card{margin-top:16px;padding:20px;border:1px solid var(--line2);border-radius:var(--r);background:linear-gradient(180deg,rgba(255,252,240,.03),rgba(255,255,255,.015));-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);position:relative;overflow:hidden}
+.card::after{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,rgba(212,175,55,.5),rgba(212,175,55,.12),transparent 75%)}
+.card h2{display:flex;align-items:baseline;gap:11px;margin-bottom:14px}
+.card h2 .no{font-family:var(--mono);font-size:9px;color:var(--gold);border:1px solid var(--line-gold);border-radius:6px;padding:3px 7px;background:var(--gold-faint)}
+.card h2 .tt{font-size:10.5px;letter-spacing:3px;text-transform:uppercase;color:var(--t2);font-weight:300}
+.card h2::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent);transform:translateY(-3px)}
 
-        .sidebar-footer { margin-top: auto; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.05); }
-        .logout-btn { width: 100%; padding: 12px; background: transparent; border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-secondary); font-family: inherit; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; cursor: pointer; transition: all 0.3s; }
-        .logout-btn:hover { border-color: var(--red); color: var(--red); }
+/* next payment — the money moment */
+.paycard{border:1px solid var(--line-gold);background:linear-gradient(180deg,var(--gold-faint),transparent 70%)}
+.paycard .pm{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.paycard .pm .lab{font-size:13px;color:var(--t2)}
+.paycard .pm .lab b{display:block;font-size:16px;font-weight:400;color:var(--t1);letter-spacing:.2px;margin-top:2px}
+.paycard .amt{font-size:clamp(30px,7vw,40px);font-weight:200;letter-spacing:-.8px;font-variant-numeric:tabular-nums;background:linear-gradient(180deg,#FFF3C4,var(--gold));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.due{font-size:11.5px;color:var(--t3);margin-top:2px;text-align:right}
+.due.late{color:var(--red)}
+.paybtn{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;margin-top:16px;background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#1a1407;font-weight:500;border-radius:100px;padding:15px;font-size:12px;letter-spacing:2px;text-transform:uppercase;transition:.3s var(--ease);box-shadow:0 10px 30px rgba(212,175,55,.16)}
+.paybtn:not(:disabled):hover{filter:brightness(1.06);transform:translateY(-1px)}
+.paybtn:disabled{opacity:.5}
+.payfoot{font-size:11px;color:var(--t3);text-align:center;margin-top:10px;line-height:1.7}
+/* ── Bonifico: la corsia gratuita. Deliberatamente più quieta del bottone
+   carta — non è un secondo invito a pagare, è la strada per chi non vuole
+   pagare commissioni. Monospaziato sui dati, perché IBAN e causale si
+   leggono a cifre, non a parole. */
+.bfx{margin-top:18px;padding-top:18px;border-top:1px solid var(--line2)}
+.bfh{display:flex;align-items:center;gap:9px;font-size:12px;letter-spacing:1.8px;text-transform:uppercase;color:var(--t2)}
+.bffree{font-size:9.5px;letter-spacing:1.4px;color:#1a1407;background:var(--gold);border-radius:100px;padding:3px 9px;font-weight:600}
+.bfp{font-size:12.5px;color:var(--t3);line-height:1.7;margin:9px 0 14px}
+.bfr{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line2)}
+.bfk{flex:0 0 34%;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t4)}
+.bfv{flex:1;min-width:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;
+  color:var(--t1);word-break:break-all;line-height:1.5}
+.bfc{flex:none;border:1px solid var(--line);background:transparent;color:var(--t2);border-radius:100px;
+  padding:5px 11px;font-size:10.5px;letter-spacing:.6px;cursor:pointer;transition:.2s var(--ease);font-family:inherit}
+.bfc:hover{border-color:var(--gold);color:var(--gold)}
+.bfc.ok{border-color:var(--gold);color:var(--gold)}
+/* ── Canone automatico (SEPA): la terza corsia — attivi una volta e sparisce
+   il pensiero. Attiva = bordo oro pieno; il banner "in volo" sostituisce il
+   bottone carta (due vie aperte insieme = invito al doppio pagamento). */
+.sddbox{display:flex;align-items:center;gap:12px;margin-top:18px;padding:14px 16px;border:1px dashed var(--line-gold);border-radius:14px;flex-wrap:wrap}
+.sddbox>div{flex:1 1 220px;min-width:0}
+.sddbox.on{border-style:solid;background:var(--gold-faint)}
+.sddbox .ic{font-size:20px;flex:none}
+.sddbox b{display:block;font-size:13px;font-weight:500;letter-spacing:.3px}
+.sddbox small{display:block;font-size:11.5px;color:var(--t3);line-height:1.6;margin-top:3px}
+.sddproc{margin-top:16px;padding:14px 16px;border:1px solid var(--line-gold);border-radius:14px;background:var(--gold-faint);font-size:13px;line-height:1.6}
+.sddproc small{color:var(--t3);font-size:11.5px}
+.sddfailnote{margin-top:14px;padding:10px 14px;border:1px solid rgba(255,107,107,.35);border-radius:12px;color:var(--red);font-size:12px;line-height:1.6}
 
-        /* Main */
-        .main-content { padding: 40px 50px; }
-        .welcome h1 { font-size: 32px; font-weight: 200; margin-bottom: 8px; }
-        .welcome h1 span { color: var(--gold); }
-        .welcome p { color: var(--text-secondary); font-size: 14px; margin-bottom: 40px; }
+/* ═══ OTTIMIZZAZIONE MOBILE + DESKTOP (2026-08) ═══════════════════════
+   Telefono: tocco pieno (44px, niente zoom iOS sui campi, tap-highlight
+   spento), il below-fold non si impagina finché non serve, e la rata
+   segue il pollice in un dock fisso. Desktop: da strip di 680px a layout
+   a due colonne — i SOLDI a sinistra, la VITA della casa a destra. */
+button,a{-webkit-tap-highlight-color:transparent}
+button,.obtn,.bfc,.qnav a,.dlink,.paybtn,.svcard{touch-action:manipulation}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:6px}
+#s-man,#s-hood,#s-fix,#s-conc,#s-kit,#s-ref{content-visibility:auto;contain-intrinsic-size:auto 420px}
 
-        .dashboard-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 30px; }
+/* vista cliente (admin): la banda che non lascia dubbi su COSA stai guardando */
+.adminview{position:sticky;top:57px;z-index:45;margin:10px 0 4px;border:1px solid rgba(212,175,55,.5);background:linear-gradient(180deg,rgba(212,175,55,.16),rgba(212,175,55,.08));border-radius:12px;padding:10px 14px;font-size:12px;line-height:1.55;color:var(--gold-light);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
 
-        /* Home Card */
-        .home-card { background: var(--dark-surface); border: 1px solid var(--green); overflow: hidden; margin-bottom: 30px; }
-        .home-image { height: 200px; background: rgba(255, 255, 255, 0.02); }
-        .home-image img { width: 100%; height: 100%; object-fit: cover; }
-        .home-body { padding: 30px; }
-        .home-status { display: inline-block; padding: 5px 12px; background: var(--green); color: var(--pure-black); font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; }
-        .home-title { font-size: 24px; font-weight: 300; margin-bottom: 8px; }
-        .home-address { font-size: 13px; color: var(--text-secondary); margin-bottom: 25px; }
-        .home-details { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; padding-top: 25px; border-top: 1px solid rgba(255, 255, 255, 0.1); }
-        .home-detail { text-align: center; }
-        .home-detail .value { font-size: 22px; font-weight: 300; color: var(--gold); }
-        .home-detail .label { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-fade); margin-top: 5px; }
+/* dock pagamento (solo telefono): compare quando la card è fuori vista */
+.paydock{position:fixed;left:12px;right:12px;bottom:calc(10px + var(--safe));z-index:70;
+  display:flex;align-items:center;gap:12px;padding:10px 12px 10px 20px;border-radius:100px;
+  border:1px solid var(--line-gold);background:rgba(10,10,12,.9);
+  -webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);
+  box-shadow:0 14px 40px rgba(0,0,0,.55);transform:translateY(150%);transition:transform .45s var(--ease)}
+.paydock.on{transform:none}
+.paydock .pdA{flex:1;min-width:0;line-height:1.3}
+.paydock .pdA b{font-weight:400;font-size:15.5px;font-variant-numeric:tabular-nums}
+.paydock .pdA small{display:block;font-size:9px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.paydock .pdB{flex:none;background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#1a1407;
+  border-radius:100px;padding:12px 22px;font-size:10.5px;letter-spacing:2px;text-transform:uppercase;font-weight:500;min-height:44px}
+@media(prefers-reduced-motion:reduce){.paydock{transition:none}}
 
-        /* Quick Actions */
-        .quick-actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 30px; }
-        .quick-action { background: var(--dark-surface); border: 1px solid rgba(255, 255, 255, 0.05); padding: 25px; text-align: center; cursor: pointer; transition: all 0.3s; }
-        .quick-action:hover { border-color: rgba(255, 215, 0, 0.2); transform: translateY(-3px); }
-        .quick-action-icon { width: 45px; height: 45px; background: rgba(255, 215, 0, 0.1); border-radius: 50%; margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
-        .quick-action h4 { font-size: 12px; font-weight: 400; margin-bottom: 3px; }
-        .quick-action p { font-size: 10px; color: var(--text-secondary); }
+/* tocco comodo sotto i 900px */
+@media(max-width:900px){
+  .fld select,.fld textarea{font-size:16px}
+  .bfc{padding:9px 15px;font-size:11.5px}
+  .obtn{min-height:44px}
+  .dlink{padding:14px 2px}
+}
 
-        .section-title { font-size: 11px; font-weight: 400; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 2px; }
+/* ═══ DESKTOP ≥1120px: due colonne ═══ */
+.cols{display:contents}
+@media(min-width:1120px){
+  .hrow{max-width:1220px}
+  main{max-width:1220px;padding:38px 42px calc(90px + var(--safe))}
+  h1.big{font-size:46px}
+  .tiles{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .tile{border-left:1px solid var(--line2);padding:20px 20px 17px}
+  .tile:first-child{border-left:none}
+  .tile:nth-child(n+3){border-top:none}
+  .qnav{top:59px;margin:10px 0 0;padding-left:0;padding-right:0}
+  .cols{display:grid;grid-template-columns:480px minmax(0,1fr);gap:0 30px;align-items:start;margin-top:2px}
+  .col{min-width:0}
+  .paydock{display:none}
+  .card{padding:24px}
+  .svcard:hover{transform:translateY(-2px)}
+  .advisor{margin-top:28px}
+}
+.bfall{width:100%;margin-top:14px;border:1px solid var(--line);background:transparent;color:var(--t2);
+  border-radius:100px;padding:12px;font-size:11px;letter-spacing:1.6px;text-transform:uppercase;
+  cursor:pointer;transition:.2s var(--ease);font-family:inherit}
+.bfall:hover{border-color:var(--gold);color:var(--gold)}
+.bfn{font-size:11px;color:var(--t4);line-height:1.7;margin-top:12px}
+@media(max-width:460px){.bfr{flex-wrap:wrap}.bfk{flex:0 0 100%}.bfv{flex:1 1 auto}}
+.payfoot .lock{color:var(--green)}
+.paidband{border:1px solid rgba(74,222,158,.3);background:var(--green-muted);border-radius:14px;padding:13px 16px;font-size:13px;color:var(--green);text-align:center;margin-top:16px}
 
-        /* Documents */
-        .documents-list { background: var(--dark-surface); }
-        .document-item { display: flex; align-items: center; gap: 15px; padding: 18px 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); cursor: pointer; transition: background 0.3s; }
-        .document-item:last-child { border-bottom: none; }
-        .document-item:hover { background: rgba(255, 255, 255, 0.02); }
-        .document-icon { width: 36px; height: 36px; background: rgba(255, 215, 0, 0.1); display: flex; align-items: center; justify-content: center; font-size: 14px; }
-        .document-info h4 { font-size: 13px; font-weight: 300; margin-bottom: 2px; }
-        .document-info span { font-size: 10px; color: var(--text-fade); }
+/* rows */
+.rowlist{display:grid}
+.prow{display:flex;align-items:center;gap:12px;padding:12px 2px;border-top:1px solid var(--line2);font-size:13.5px}
+.prow:first-child{border-top:none}
+.prow .mo{flex:1;color:var(--t2)}
+.prow .mo small{display:block;font-size:10.5px;color:var(--t4)}
+.prow .st{font-size:9px;letter-spacing:1.4px;text-transform:uppercase;border-radius:100px;padding:4px 10px;flex:none}
+.prow .st.paid{color:var(--green);border:1px solid rgba(74,222,158,.35)}
+.prow .st.pending{color:var(--t3);border:1px solid var(--line)}
+.prow .st.late{color:var(--red);border:1px solid rgba(255,138,112,.4)}
+.prow .amt2{font-variant-numeric:tabular-nums;font-weight:400;flex:none}
+.prow a{color:var(--gold-light);text-decoration:none;font-size:11px;flex:none}
+.morebtn{width:100%;text-align:center;color:var(--t3);font-size:10.5px;letter-spacing:2px;text-transform:uppercase;padding:10px 0 2px;transition:.25s}
+.morebtn:hover{color:var(--gold)}
 
-        /* Side Column */
-        .side-column { display: flex; flex-direction: column; gap: 25px; }
+/* docs + services */
+.dlink{display:flex;align-items:center;gap:12px;padding:13px 2px;border-top:1px solid var(--line2);font-size:13.5px;color:var(--t2);text-decoration:none;transition:.2s}
+.dlink:first-of-type{border-top:none}
+.dlink:hover{color:var(--gold)}
+.dlink .ic{width:34px;height:34px;border-radius:10px;border:1px solid var(--line-gold);background:var(--gold-faint);display:grid;place-items:center;flex:none;font-size:15px}
+.dlink small{display:block;font-size:10.5px;color:var(--t4)}
+.dlink .go{margin-left:auto;color:var(--t4)}
+.svc{display:grid;gap:10px}
+.svcard{display:flex;gap:13px;align-items:center;border:1px solid var(--line2);border-radius:14px;padding:14px 15px;background:var(--panel);text-decoration:none;color:inherit;transition:.25s}
+.svcard:hover{border-color:var(--line-gold)}
+.svcard .em{font-size:20px;flex:none}
+.svcard b{display:block;font-size:14px;font-weight:400;letter-spacing:.2px}
+.svcard span span{font-size:11.5px;color:var(--t3);line-height:1.5;display:block;margin-top:2px}
+.svcard .pr{margin-left:auto;flex:none;font-size:13px;color:var(--gold);font-weight:400;white-space:nowrap}
 
-        /* Payment Card */
-        .payment-card { background: var(--dark-surface); padding: 25px; }
-        .payment-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .payment-header h3 { font-size: 11px; font-weight: 400; text-transform: uppercase; letter-spacing: 2px; }
-        .payment-badge { padding: 4px 10px; background: var(--gold); color: var(--pure-black); font-size: 8px; font-weight: 600; text-transform: uppercase; }
-        .payment-amount { font-size: 32px; font-weight: 200; color: var(--gold); margin-bottom: 8px; }
-        .payment-due { font-size: 12px; color: var(--text-secondary); margin-bottom: 20px; }
-        .payment-status { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: rgba(0, 255, 136, 0.1); color: var(--green); font-size: 11px; }
+/* maintenance */
+.fld{display:block;margin-bottom:10px}
+.fld span{display:block;font-size:9.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--t3);margin-bottom:5px}
+.fld select,.fld textarea{width:100%;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:11px;color:var(--t1);font-family:inherit;font-size:14px;font-weight:300;padding:11px 12px;resize:vertical;transition:border-color .25s}
+.fld select:focus,.fld textarea:focus{outline:none;border-color:var(--line-gold)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.obtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);border-radius:100px;padding:12px 20px;font-size:10.5px;letter-spacing:2px;text-transform:uppercase;background:rgba(255,255,255,.02);transition:.25s;color:var(--t1);text-decoration:none;margin-top:6px}
+.obtn:hover{border-color:var(--line-gold);color:var(--gold)}
+.obtn.wa{border-color:rgba(37,211,102,.4);color:var(--wa)}
+.mrow{display:flex;gap:10px;align-items:baseline;padding:10px 2px;border-top:1px solid var(--line2);font-size:12.5px;color:var(--t2)}
+.mrow .st{margin-left:auto;font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:var(--t3);border:1px solid var(--line);border-radius:100px;padding:3px 9px;flex:none}
+.mrow .st.done{color:var(--green);border-color:rgba(74,222,158,.35)}
+.ok{display:none;color:var(--green);font-size:12.5px;margin-top:10px}
+.err{display:none;color:var(--gold-light);font-size:12.5px;margin-top:10px}
 
-        /* Contact Card */
-        .contact-card { background: var(--dark-surface); padding: 25px; }
-        .contact-card h3 { font-size: 11px; font-weight: 400; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 2px; }
-        .contact-method { display: flex; align-items: center; gap: 12px; padding: 12px; background: rgba(255, 255, 255, 0.02); margin-bottom: 10px; cursor: pointer; transition: all 0.3s; text-decoration: none; color: inherit; }
-        .contact-method:last-child { margin-bottom: 0; }
-        .contact-method:hover { background: rgba(255, 215, 0, 0.05); }
-        .contact-method span { font-size: 12px; }
+.advisor{display:flex;gap:14px;align-items:center;border:1px solid var(--line2);background:var(--panel);border-radius:var(--r);padding:16px 18px;margin-top:16px}
+.advisor .av{width:42px;height:42px;border-radius:50%;border:1px solid var(--line-gold);background:var(--gold-faint);display:grid;place-items:center;color:var(--gold);flex:none}
+.advisor b{display:block;font-size:14px;font-weight:400}
+.advisor span{font-size:11.5px;color:var(--t3)}
+.advisor a{margin-left:auto;flex:none;border:1px solid rgba(37,211,102,.4);color:var(--wa);border-radius:100px;padding:9px 16px;font-size:10px;letter-spacing:1.8px;text-transform:uppercase;text-decoration:none;transition:.25s}
+.advisor a:hover{background:rgba(37,211,102,.08)}
+.foot{color:var(--t4);font-size:9px;text-align:center;margin-top:30px;letter-spacing:2.2px;text-transform:uppercase}
 
-        /* Modal */
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.9); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
-        .modal-overlay.active { display: flex; }
-        .modal { background: var(--dark-surface); border: 1px solid rgba(255, 215, 0, 0.1); width: 100%; max-width: 450px; }
-        .modal-header { padding: 25px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); display: flex; justify-content: space-between; align-items: center; }
-        .modal-header h3 { font-size: 14px; font-weight: 300; text-transform: uppercase; letter-spacing: 2px; }
-        .modal-close { width: 32px; height: 32px; background: transparent; border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-secondary); font-size: 16px; cursor: pointer; }
-        .modal-body { padding: 25px; }
-        .modal-footer { padding: 20px 25px; border-top: 1px solid rgba(255, 255, 255, 0.05); display: flex; justify-content: flex-end; gap: 10px; }
-
-        /* Homie concierge chat */
-        .chat-modal { max-width: 540px; height: min(80vh, 720px); display: flex; flex-direction: column; }
-        .chat-body { flex: 1; overflow-y: auto; padding: 20px 25px; display: flex; flex-direction: column; gap: 12px; }
-        .chat-msg { max-width: 80%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.5; white-space: pre-wrap; }
-        .chat-msg.user { align-self: flex-end; background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.18); color: #fff; border-bottom-right-radius: 4px; }
-        .chat-msg.assistant { align-self: flex-start; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: #fff; border-bottom-left-radius: 4px; }
-        .chat-msg.system { align-self: center; font-size: 11px; color: var(--text-secondary); letter-spacing: 1px; text-transform: uppercase; padding: 4px 10px; }
-        .chat-typing { align-self: flex-start; color: var(--text-secondary); font-size: 13px; font-style: italic; padding: 6px 4px; }
-        .chat-footer { padding: 14px 18px; border-top: 1px solid rgba(255,255,255,0.05); display: flex; gap: 8px; }
-        .chat-footer input { flex: 1; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: #fff; padding: 12px 14px; font-size: 14px; font-family: inherit; outline: none; }
-        .chat-footer input:focus { border-color: var(--gold); }
-        .chat-footer button { background: var(--gold); color: #000; border: none; padding: 0 22px; font-weight: 600; cursor: pointer; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; }
-        .chat-footer button:disabled { opacity: 0.5; cursor: not-allowed; }
-        .action-pill { font-size: 11px; color: var(--gold); margin-top: 4px; opacity: 0.8; }
-
-        .form-group { margin-bottom: 18px; }
-        .form-label { display: block; font-size: 10px; font-weight: 400; text-transform: uppercase; letter-spacing: 2px; color: var(--text-secondary); margin-bottom: 8px; }
-        .form-input, .form-select, .form-textarea { width: 100%; padding: 12px 15px; font-family: inherit; font-size: 14px; font-weight: 300; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-primary); transition: all 0.3s; }
-        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--gold); }
-        .form-textarea { min-height: 100px; resize: vertical; }
-        .form-select option { background: var(--dark-surface); }
-
-        .btn { padding: 12px 20px; background: transparent; border: 1px solid rgba(255, 255, 255, 0.2); color: var(--text-primary); font-family: inherit; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; cursor: pointer; transition: all 0.3s; }
-        .btn:hover { border-color: var(--gold); color: var(--gold); }
-        .btn-primary { border: 1px solid var(--gold); color: var(--gold); }
-        .btn-primary:hover { background: var(--gold); color: var(--pure-black); }
-
-        .toast-container { position: fixed; bottom: 25px; right: 25px; z-index: 2000; }
-        .toast { padding: 15px 20px; background: var(--dark-surface); border: 1px solid rgba(255, 255, 255, 0.1); margin-top: 10px; display: flex; align-items: center; gap: 12px; }
-        .toast.success { border-left: 2px solid var(--green); }
-        .toast.error { border-left: 2px solid var(--red); }
-
-        /* Mobile */
-        .mobile-header { display: none; background: var(--dark-surface); padding: 15px 20px; border-bottom: 1px solid rgba(255, 215, 0, 0.1); justify-content: space-between; align-items: center; }
-        .mobile-logo { display: flex; align-items: center; gap: 10px; }
-        .mobile-logo .logo-svg { width: 35px; height: 35px; }
-        .mobile-logo .logo-text { font-size: 18px; letter-spacing: 3px; }
-        .menu-toggle { padding: 8px 12px; background: transparent; border: 1px solid rgba(255, 255, 255, 0.2); color: var(--text-primary); cursor: pointer; }
-
-        @media (max-width: 1024px) { .dashboard-grid { grid-template-columns: 1fr; } }
-        @media (max-width: 900px) {
-            .dashboard-layout { grid-template-columns: 1fr; }
-            .sidebar { display: none; position: fixed; top: 60px; left: 0; right: 0; bottom: 0; z-index: 100; height: auto; }
-            .sidebar.open { display: flex; }
-            .mobile-header { display: flex; }
-            .main-content { padding: 25px; }
-            .quick-actions { grid-template-columns: 1fr; }
-        }
-    </style>
+/* sticky quick-nav: one thumb-reach jump to any section of the home */
+.qnav{position:sticky;top:57px;z-index:40;display:flex;gap:7px;overflow-x:auto;padding:12px 0 10px;margin:6px -18px 0;padding-left:18px;padding-right:18px;scrollbar-width:none;background:linear-gradient(180deg,rgba(5,5,6,.92) 70%,transparent);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.qnav::-webkit-scrollbar{display:none}
+.qnav a{flex:none;border:1px solid var(--line);border-radius:100px;padding:8px 14px;font-size:9.5px;letter-spacing:1.8px;text-transform:uppercase;color:var(--t3);text-decoration:none;transition:.25s;background:rgba(255,255,255,.02)}
+.qnav a:hover{border-color:var(--line-gold);color:var(--gold)}
+.card{scroll-margin-top:118px}
+/* the payment ceremony — green appears only around money */
+.payov{position:fixed;inset:0;z-index:210;display:none;place-items:center;background:rgba(4,5,4,.92);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);text-align:center}
+.payov.on{display:grid}
+.payov .amt{font-size:clamp(38px,10vw,54px);font-weight:200;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+.payov .cap{font-size:10px;letter-spacing:3.4px;text-transform:uppercase;color:var(--green);margin-top:14px}
+.payov .sub{font-size:12px;color:var(--t3);margin-top:8px}
+.payov .ring{width:72px;height:72px;border-radius:50%;border:1px solid rgba(74,222,158,.5);margin:0 auto 22px;display:grid;place-items:center;color:var(--green);position:relative}
+.payov .ring::after{content:"";position:absolute;inset:-8px;border-radius:50%;border:1px solid rgba(74,222,158,.25)}
+@media(prefers-reduced-motion:no-preference){.payov.on .ring{animation:payPulse 1.2s var(--ease) infinite alternate}@keyframes payPulse{from{box-shadow:0 0 0 rgba(74,222,158,0)}to{box-shadow:0 0 34px rgba(74,222,158,.35)}}}
+.wifiqr{display:flex;gap:14px;align-items:center;margin:6px 0 4px;padding:12px 2px;border-top:1px solid var(--line2)}
+.wifiqr img{width:92px;height:92px;border-radius:12px;border:1px solid var(--line);padding:6px;background:#fff;flex:none}
+.wifiqr small{font-size:11px;color:var(--t3);line-height:1.6}
+.rv{opacity:0;transform:translateY(16px)}
+.rv.in{opacity:1;transform:none;transition:opacity .7s var(--ease),transform .7s var(--ease)}
+@media(prefers-reduced-motion:reduce){.rv{opacity:1;transform:none}}
+</style>
 <!-- BOOM_JSONLD:START -->
   <script type="application/ld+json">
 {
@@ -244,8 +338,7 @@
   "sameAs": [
     "https://www.instagram.com/boomrome",
     "https://www.linkedin.com/company/boomrome",
-    "https://wa.me/393313251961",
-    "https://share.google/xikmVxQCRuKOdWcND"
+    "https://wa.me/393331234567"
   ],
   "address": {
     "@type": "PostalAddress",
@@ -307,335 +400,708 @@
 <!-- BOOM_JSONLD:END -->
 </head>
 <body>
-    <div class="mobile-header">
-        <div class="mobile-logo">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" class="logo-svg"><defs><linearGradient id="gM" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD54F"/><stop offset="100%" stop-color="#F5A623"/></linearGradient></defs><g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#gM)"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z"/></g></svg>
-            <span class="logo-text">BOOM</span>
-        </div>
-        <button class="menu-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
-    </div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <linearGradient id="bmGold" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0%" stop-color="#F1DFA0"/><stop offset="100%" stop-color="#D4AF37"/>
+  </linearGradient>
+  <g id="boomMark"><g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#bmGold)">
+    <path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/>
+  </g></g>
+</defs></svg>
+<div class="bg" aria-hidden="true"><span class="grid"></span><span class="aur a"></span><span class="aur b"></span><span class="scan"></span><span class="vign"></span></div>
 
-    <div class="dashboard-layout">
-        <aside class="sidebar" id="sidebar">
-            <a href="/" class="sidebar-logo">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" class="logo-svg"><defs><linearGradient id="g" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD54F"/><stop offset="100%" stop-color="#F5A623"/></linearGradient></defs><g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#g)"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z"/></g></svg>
-                <span class="logo-text">BOOM</span>
-            </a>
-            <div class="sidebar-user">
-                <div class="user-avatar" id="userAvatar">T</div>
-                <div class="user-name" id="userName">Tenant</div>
-                <div class="user-role">Tenant</div>
-            </div>
-            <a class="nav-item active">Dashboard</a>
-            <a class="nav-item">Payments</a>
-            <a class="nav-item">Documents</a>
-            <a class="nav-item" onclick="openMaintenanceModal()">Report Issue</a>
-            <a class="nav-item" href="/" target="_blank">View Website</a>
-            <div class="sidebar-footer">
-                <button class="logout-btn" onclick="auth.signOut().then(() => location.href='login.html')">Logout</button>
-            </div>
-        </aside>
+<header>
+  <div class="hrow">
+    <span class="hl">La tua casa</span>
+    <a class="brand" href="/"><svg class="mark" viewBox="0 0 1024 1024" width="28" height="28" aria-hidden="true"><use href="#boomMark"/></svg><b>BOOM</b></a>
+    <span style="justify-self:end;display:flex;gap:14px;align-items:center"><button class="hout" id="langBtn" style="letter-spacing:1.4px">IT</button><button class="hout" id="logout">Esci</button></span>
+  </div>
+</header>
 
-        <main class="main-content">
-            <div class="welcome">
-                <h1>Welcome home, <span id="welcomeName">Tenant</span></h1>
-                <p>Manage your rental and payments</p>
-            </div>
+<main>
+  <div class="load" id="load">
+    <svg class="mark" viewBox="0 0 1024 1024" width="64" height="64" aria-hidden="true"><use href="#boomMark"/></svg>
+    <div style="letter-spacing:7px;font-size:12px;margin-top:10px;color:var(--t1)">BOOM</div>
+    <div style="font-size:11px;margin-top:12px">Apro la tua casa…</div>
+  </div>
+  <div id="app" style="display:none"></div>
+  <div class="foot" id="foot" style="display:none">Egidi Immobiliare S.r.l. · P.IVA 17322991005 · boomrome.com</div>
+</main>
 
-            <div class="dashboard-grid">
-                <div class="main-column">
-                    <div class="home-card">
-                        <div class="home-image"><img id="propertyImage" src="https://via.placeholder.com/800x200/111/222?text=·" alt="Your Home"></div>
-                        <div class="home-body">
-                            <span class="home-status">Active Lease</span>
-                            <h2 class="home-title" id="propertyName">Loading...</h2>
-                            <p class="home-address" id="propertyAddress">Rome</p>
-                            <div class="home-details">
-                                <div class="home-detail"><div class="value" id="propertyBedrooms">-</div><div class="label">Bedrooms</div></div>
-                                <div class="home-detail"><div class="value" id="propertyBathrooms">-</div><div class="label">Bathrooms</div></div>
-                                <div class="home-detail"><div class="value" id="propertySize">-</div><div class="label">Size (m²)</div></div>
-                            </div>
-                        </div>
-                    </div>
+<div class="payov" id="payov" aria-hidden="true"><div>
+  <div class="ring"><svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+  <div class="amt" id="payAmt">€0</div>
+  <div class="cap">Secure payment · Stripe</div>
+  <div class="sub" id="paySub">Cards &amp; Apple Pay · automatic receipt · redirecting…</div>
+</div></div>
 
-                    <div class="quick-actions">
-                        <div class="quick-action" onclick="openConcierge()"><div class="quick-action-icon">💬</div><h4>Ask Homie</h4><p>Concierge AI 24/7</p></div>
-                        <div class="quick-action" onclick="openMaintenanceModal()"><div class="quick-action-icon">⚙</div><h4>Report Issue</h4><p>Maintenance request</p></div>
-                        <div class="quick-action"><div class="quick-action-icon">€</div><h4>Payments</h4><p>View history</p></div>
-                        <div class="quick-action"><div class="quick-action-icon">👤</div><h4>Profile</h4><p>Update info</p></div>
-                    </div>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="/js/firebase-config.js"></script>
+<script src="/js/boom-portal.js"></script>
+<script>
+(function(){
+'use strict';
+var USER=null,PROFILE=null,CONTRACT=null,PROPERTY=null,PAYMENTS=[],MAINT=[];
+/* Vista cliente: un ADMIN apre /casa?as=<contractId> e vede la casa di quel
+   cliente ESATTAMENTE come la vede lui — dati veri, zero credenziali da
+   chiedere o condividere. Le regole Firestore lo permettono già (l'admin
+   legge tutto); i bottoni (paga, SDD) agiscono sui documenti VERI — è la
+   stessa assistenza telefonica che pay.js e sdd-setup.js prevedono. */
+var VIEW_AS=(function(){try{return new URLSearchParams(location.search).get('as')||null}catch(e){return null}})();
 
-                    <h3 class="section-title">Your Documents</h3>
-                    <div class="documents-list">
-                        <div class="document-item"><div class="document-icon">📄</div><div class="document-info"><h4>Rental Contract</h4><span>Signed Dec 2024</span></div></div>
-                        <div class="document-item"><div class="document-icon">📋</div><div class="document-info"><h4>House Rules</h4><span>Building guidelines</span></div></div>
-                        <div class="document-item"><div class="document-icon">✓</div><div class="document-info"><h4>Inventory</h4><span>Move-in checklist</span></div></div>
-                    </div>
-                </div>
+/* ── Casa 2.0 i18n: ENGLISH FIRST (the BOOM tenant is an expat) with an
+   Italian toggle, persisted. t(key) resolves; strings kept in one place. ── */
+var LANG=(function(){try{return localStorage.getItem('boom:casa:lang')||((navigator.language||'').slice(0,2)==='it'?'it':'en')}catch(e){return 'en'}})();
+var STR={
+ en:{home:'Your home',logout:'Log out',open:'Opening your home…',active:'Contract active',reserved:'Reserved in your name',
+  gm:'Good morning',ga:'Good afternoon',ge:'Good evening',daysToKeys:'{n} days to your keys',keysToday:'keys day!',
+  nPay:'Payment',nHist:'History',nDocs:'Documents',nMan:'Manual',nHood:'Area',nFix:'Repairs',nConc:'Concierge',nKit:'Rome Kit',nRef:'Invite',
+  wifiScan:'Point the camera here — joins the Wi-Fi instantly. No typing, no typos.',redirect:'Cards &amp; Apple Pay · automatic receipt · redirecting…',
+  monthly:'Monthly rent',nextPay:'Next payment',due:'Due date',allGood:'all clear ✓',paidReg:'Payments on record',
+  s1:'Next payment',depositBal:'Security deposit balance',rentOf:'Rent',dueBy:'Due by',lateBy:'Overdue since',late:'overdue — settle it now',dueSoon:'coming up',
+  payCard:'Pay by card',service:'max service fee',payFoot1:'Stripe · cards & Apple Pay · automatic receipt by email and in your history',
+  payFoot2:'Or pay by bank transfer below — free, and this page updates by itself.',
+  bfTitle:'Bank transfer',bfFree:'free',
+  bfWhy:'No card fee for you, none for us. It lands in 1–2 working days and this page ticks itself off — as long as you keep the reference below.',
+  bfBene:'Beneficiary',bfIban:'IBAN',bfRef:'Reference — please keep it exactly',bfAmt:'Amount',
+  bfCopy:'Copy',bfCopied:'Copied ✓',bfAll:'Copy all details',
+  bfNote:'The reference is what lets us match your transfer automatically. Without it we still find it — it just takes a person and a day.',
+  paidBand:'✓ Payment received — your receipt is on its way by email. Thank you!',
+  boughtBand:'✓ {x} confirmed — we are on it. Details by email, and your advisor will follow up.',
+  noDue:'Nothing due — you are all set ✓',opening:'Opening secure checkout…',payRetry:'Try again — or message us on WhatsApp',
+  s2:'History &amp; receipts',histEmpty:'Your history will appear here after the first payment.',showAll:'Show all',
+  deposit:'Deposit',depBalance:'Deposit balance',paidW:'paid',byCard:'by card',byBank:'by transfer',receipt:'receipt →',paid:'✓ paid',pending:'upcoming',lateSt:'overdue',
+  s3:'Your documents',contractDoc:'Signed contract + certificate',contractSub:'official PDF with the digital signatures',yourContract:'Your contract',
+  depositDoc:'Security deposit',depPaid:'paid ✓ — protected and refundable at the end of your stay',depSettled:'settled ✓',depDueAt:'balance of {x} at move-in',
+  needMore:'Need something else?',needMoreSub:'fiscal receipts, statements, copies — ask and it arrives',
+  sM:'Your home manual',manualSub:'Everything about this apartment — always in your pocket.',
+  wifi:'Wi-Fi',copy:'copy',copied:'copied ✓',heating:'Heating & hot water',trash:'Waste & recycling',appliances:'Appliances',emergency:'Emergency contacts',rules:'House rules',checkin:'Building & access',
+  manualSoon:'Your home manual is being prepared — Wi-Fi, heating, waste days, appliances. It will appear here.',
+  sN:'Your neighbourhood',neighSub:'Picked by your advisor — the good stuff nearby.',mapIt:'map →',
+  s4:'Need a hand at home?',mCat:'What is it about',mPri:'Urgency',mDesc:'Tell us what happened',
+  cat1:'Plumbing',cat2:'Electricity',cat3:'Appliances',cat4:'Heating / AC',cat5:'Doors & locks',cat6:'Other',
+  pri1:'Whenever possible',pri2:'Urgent',pri3:'Emergency',
+  mSend:'Send the request →',mOk:'✓ Received — we will get back to you shortly.',mShort:'A few more words so we arrive prepared.',mFail:'Did not go through — try again or WhatsApp us.',statusOpen:'open',
+  s5:'BOOM Concierge',s5Sub:'Rome, handled. One message and we take care of it.',
+  svc1:'Move-in Pack',svc1d:'Electricity &amp; gas in your name, internet activated, residency guide — arrive and live.',
+  svc2:'Cleaning Premium',svc2d:'Professional deep clean — a spotless home in one afternoon.',
+  svc3:'Bespoke concierge',svc3d:'Groceries, laundry, repairs, reservations — just say it.',from:'from',
+  sK:'Welcome to Rome Kit',kitSub:'Codice fiscale, residency, SIM, bank, transport — the survival guide we wish existed when we moved here. Free, in English, made to be shared.',
+  kitBtn:'Open the guide →',kitShare:'Share it with a friend',
+  s6:'Gift BOOM to a friend',refText:'Know someone moving to Rome? Introduce us and you both get <b style="color:var(--gold-light);font-weight:400">€50</b> — them off their move, you off your next rent. Confirmed the day they move in.',
+  refCode:'Your personal code',refHow:'Refer someone →',refShare:'Share your invite',refWa:'On WhatsApp →',
+  advisor:'Your advisor on this home — replies personally',
+  shareMsg:'Moving to Rome? This is how I found my apartment — BOOM handles everything, contract to keys. Use my code {code} and we both get €50: https://www.boomrome.com/?ref={code}',
+  kitShareMsg:'If you are moving to Rome, save this — the survival guide for codice fiscale, residency, SIM & co: https://www.boomrome.com/welcome-to-rome',
+  sddT:'Automatic rent — set &amp; forget',
+  sddPitch:'Authorise a SEPA direct debit once and every instalment collects itself about a week before it\'s due. Receipt by email, history here, service fee ~{fee} per debit — far below any card fee. Turn it off anytime.',
+  sddBtn:'Activate auto-pay →',sddOpening:'Opening secure setup…',
+  sddActive:'Auto-pay active · IBAN ••••{iban}',
+  sddActiveSub:'Each instalment is collected automatically about a week before its due date. Nothing to remember.',
+  sddStop:'Turn off',sddStopAsk:'Turn off automatic rent collection? You can reactivate it anytime.',
+  sddProc:'🏦 This instalment is being collected automatically',
+  sddProcSub:'The SEPA debit started on {d} and settles in ~5 working days. No action needed — paying it another way too would mean paying twice.',
+  sddFailNote:'⚠ The automatic debit for this instalment did not go through — please pay by card or bank transfer below.',
+  sddOkBand:'✓ Auto-pay activated — from now on your rent takes care of itself.',
+  dockPay:'Pay →',
+  adminView:'Client view (admin) — you are seeing {n}\'s home exactly as they do. Buttons act on the REAL documents.'},
+ it:{home:'La tua casa',logout:'Esci',open:'Apro la tua casa…',active:'Contratto attivo',reserved:'Casa riservata a tuo nome',
+  gm:'Buongiorno',ga:'Buon pomeriggio',ge:'Buonasera',daysToKeys:'{n} giorni alle chiavi',keysToday:'giorno delle chiavi!',
+  nPay:'Pagamenti',nHist:'Storico',nDocs:'Documenti',nMan:'Manuale',nHood:'Quartiere',nFix:'Riparazioni',nConc:'Concierge',nKit:'Rome Kit',nRef:'Invita',
+  wifiScan:'Inquadra col telefono — si collega al Wi-Fi all\'istante. Zero password da battere.',redirect:'Carte &amp; Apple Pay · ricevuta automatica · reindirizzamento…',
+  monthly:'Canone mensile',nextPay:'Prossimo pagamento',due:'Scadenza',allGood:'tutto in regola ✓',paidReg:'Pagamenti registrati',
+  s1:'Il prossimo pagamento',depositBal:'Saldo deposito cauzionale',rentOf:'Canone',dueBy:'Entro il',lateBy:'Scaduto il',late:'in ritardo — sistemalo ora',dueSoon:'in scadenza',
+  payCard:'Paga con carta',service:'di servizio max',payFoot1:'Stripe · carte &amp; Apple Pay · ricevuta automatica via email e nello storico',
+  payFoot2:'Oppure paga con bonifico qui sotto — gratis, e la pagina si aggiorna da sola.',
+  bfTitle:'Bonifico bancario',bfFree:'gratis',
+  bfWhy:'Nessuna commissione per te, nessuna per noi. Arriva in 1–2 giorni lavorativi e la pagina si spunta da sola, se lasci la causale qui sotto.',
+  bfBene:'Beneficiario',bfIban:'IBAN',bfRef:'Causale — lasciala esattamente così',bfAmt:'Importo',
+  bfCopy:'Copia',bfCopied:'Copiato ✓',bfAll:'Copia tutti i dati',
+  bfNote:'La causale è ciò che ci permette di abbinare il bonifico da soli. Senza, lo troviamo comunque: ci vuole solo una persona e un giorno.',
+  paidBand:'✓ Pagamento ricevuto — la ricevuta è in arrivo via email. Grazie!',
+  boughtBand:'✓ {x} confermato — ci pensiamo noi. Dettagli via email, il tuo advisor ti scrive.',
+  noDue:'Nessun pagamento in scadenza — sei in regola ✓',opening:'Apro il checkout sicuro…',payRetry:'Riprova — o scrivici su WhatsApp',
+  s2:'Storico &amp; ricevute',histEmpty:'Lo storico apparirà qui dal primo pagamento.',showAll:'Mostra tutto',
+  deposit:'Deposito',depBalance:'Saldo deposito',paidW:'pagato',byCard:'con carta',byBank:'con bonifico',receipt:'ricevuta →',paid:'✓ pagato',pending:'in arrivo',lateSt:'in ritardo',
+  s3:'I tuoi documenti',contractDoc:'Contratto firmato + certificato',contractSub:'PDF ufficiale con le firme digitali',yourContract:'Il tuo contratto',
+  depositDoc:'Deposito cauzionale',depPaid:'versato ✓ — protetto e restituibile a fine contratto',depSettled:'saldato ✓',depDueAt:'saldo di {x} al move-in',
+  needMore:'Ti serve altro?',needMoreSub:'ricevute fiscali, attestazioni, copie — chiedi e arriva',
+  sM:'Il manuale della casa',manualSub:'Tutto di questo appartamento — sempre in tasca.',
+  wifi:'Wi-Fi',copy:'copia',copied:'copiato ✓',heating:'Riscaldamento &amp; acqua calda',trash:'Rifiuti &amp; differenziata',appliances:'Elettrodomestici',emergency:'Contatti di emergenza',rules:'Regole della casa',checkin:'Palazzo &amp; accessi',
+  manualSoon:'Il manuale della tua casa è in preparazione — Wi-Fi, caldaia, giorni dei rifiuti, elettrodomestici. Apparirà qui.',
+  sN:'Il tuo quartiere',neighSub:'Scelti dal tuo advisor — il meglio qui intorno.',mapIt:'mappa →',
+  s4:'Serve una mano in casa?',mCat:'Cosa riguarda',mPri:'Urgenza',mDesc:'Racconta il problema',
+  cat1:'Idraulica',cat2:'Elettricità',cat3:'Elettrodomestici',cat4:'Clima / riscaldamento',cat5:'Porte &amp; serrature',cat6:'Altro',
+  pri1:'Quando possibile',pri2:'Urgente',pri3:'Emergenza',
+  mSend:'Invia la richiesta →',mOk:'✓ Ricevuta — ti ricontattiamo a breve.',mShort:'Due parole in più, così arriviamo preparati.',mFail:'Non è partita — riprova o scrivici su WhatsApp.',statusOpen:'aperta',
+  s5:'BOOM Concierge',s5Sub:'La città, risolta. Un messaggio e ci pensiamo noi.',
+  svc1:'Move-in Pack',svc1d:'Volture luce &amp; gas, internet attivato, guida residenza — arrivi e vivi.',
+  svc2:'Cleaning Premium',svc2d:'Pulizia profonda professionale — casa perfetta in un pomeriggio.',
+  svc3:'Concierge su misura',svc3d:'Spesa, lavanderia, riparazioni, prenotazioni — dillo e basta.',from:'da',
+  sK:'Welcome to Rome Kit',kitSub:'Codice fiscale, residenza, SIM, banca, trasporti — la guida che avremmo voluto trovare noi. Gratuita, in inglese, fatta per essere condivisa.',
+  kitBtn:'Apri la guida →',kitShare:'Condividila con un amico',
+  s6:'Regala BOOM a un amico',refText:'Conosci qualcuno che si trasferisce a Roma? Presentacelo e prendete <b style="color:var(--gold-light);font-weight:400">€50 a testa</b> — lui sul trasloco, tu sul prossimo canone. Confermato il giorno in cui entra in casa.',
+  refCode:'Il tuo codice personale',refHow:'Presenta qualcuno →',refShare:'Condividi il tuo invito',refWa:'Su WhatsApp →',
+  advisor:'Il tuo advisor su questa casa — risponde personalmente',
+  shareMsg:'Ti trasferisci a Roma? Io ho trovato casa così — BOOM gestisce tutto, dal contratto alle chiavi. Usa il mio codice {code}: prendiamo €50 a testa — https://www.boomrome.com/?ref={code}',
+  kitShareMsg:'Se ti trasferisci a Roma salva questa — la guida per codice fiscale, residenza, SIM &amp; co: https://www.boomrome.com/welcome-to-rome',
+  sddT:'Canone automatico — attivi e non ci pensi più',
+  sddPitch:'Autorizzi l\'addebito SEPA una volta e ogni rata parte da sola circa una settimana prima della scadenza. Ricevuta via email, storico qui, commissione ~{fee} ad addebito — molto meno della carta. Lo spegni quando vuoi.',
+  sddBtn:'Attiva l\'addebito →',sddOpening:'Apro l\'attivazione sicura…',
+  sddActive:'Addebito automatico attivo · IBAN ••••{iban}',
+  sddActiveSub:'Ogni rata viene incassata da sola circa una settimana prima della scadenza. Zero pensieri.',
+  sddStop:'Disattiva',sddStopAsk:'Disattivare l\'addebito automatico del canone? Puoi riattivarlo quando vuoi.',
+  sddProc:'🏦 Questa rata si sta incassando da sola',
+  sddProcSub:'L\'addebito SEPA è partito il {d} e si regola in ~5 giorni lavorativi. Non serve fare nulla — pagarla anche per altra via significherebbe pagare due volte.',
+  sddFailNote:'⚠ L\'addebito automatico di questa rata non è riuscito — pagala con carta o bonifico qui sotto.',
+  sddOkBand:'✓ Addebito attivato — da ora il canone si paga da solo.',
+  dockPay:'Paga →',
+  adminView:'Vista cliente (admin) — stai vedendo la casa di {n} esattamente come la vede. I bottoni agiscono sui documenti VERI.'}
+};
+function t(k){return (STR[LANG]&&STR[LANG][k])||STR.en[k]||k}
+function setLang(l){LANG=l;try{localStorage.setItem('boom:casa:lang',l)}catch(e){};syncLangBtn();render();}
+function syncLangBtn(){var b=$('langBtn');if(b)b.textContent=LANG==='en'?'IT':'EN';}
 
-                <div class="side-column">
-                    <div class="payment-card">
-                        <div class="payment-header"><h3>Next Payment</h3><span class="payment-badge">Monthly</span></div>
-                        <div class="payment-amount" id="rentAmount">€0</div>
-                        <div class="payment-due">Due <strong>1st January 2025</strong></div>
-                        <div class="payment-status"><span>✓</span> Paid for December</div>
-                    </div>
+var WA='https://wa.me/393313251961';
+var $=function(id){return document.getElementById(id)};
+var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;')};
+var eur=function(n){var f=Math.round(n*100)%100!==0;return '€'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:f?2:0,maximumFractionDigits:2})};
+/* La data segue la lingua scelta: una pagina in inglese che scrive
+   "2 agosto 2026" sembra sciatta. setLang() richiama render(), quindi il
+   toggle riformatta anche le date. */
+var fmtD=function(s){try{return new Date(String(s).slice(0,10)+'T00:00')
+  .toLocaleDateString(LANG==='it'?'it-IT':'en-GB',{day:'numeric',month:'long',year:'numeric'})}catch(e){return s||''}};
+var todayISO=new Date().toISOString().slice(0,10);
+/* mirror of api/payments/pay.js rentFee defaults — preview only; the
+   Stripe page shows the exact server-side figure as its own line item */
+/* Anteprima della commissione carta. NON può conoscere il tasso misurato
+   (vive in settings/rentFeeStats, lo legge il server), quindi mostra il SEED
+   di api/payments/pay.js — il caso peggiore. Dichiarato come massimo: quando
+   la statistica converge l'addebito reale è più basso, e la sorpresa può
+   essere solo in meglio. Se cambi SEED_PCT là, cambialo anche qui. */
+function feePreview(a){return Math.round((a*3.3/100+0.30)*100)/100}
 
-                    <div class="contact-card">
-                        <h3>Need Help?</h3>
-                        <a href="https://wa.me/393313251961" class="contact-method" target="_blank"><span style="color: var(--green)">💬</span><span>WhatsApp</span></a>
-                        <a href="mailto:info@boom-rome.com" class="contact-method"><span style="color: var(--gold)">✉</span><span>Email Support</span></a>
-                        <div class="contact-method" onclick="openMaintenanceModal()"><span style="color: var(--gold)">⚙</span><span>Report Issue</span></div>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </div>
+/* ── Il codice della causale ────────────────────────────────────────────
+   Deve dare lo STESSO risultato di api/payments/_ref.js, altrimenti la
+   causale che mostriamo qui non verrebbe riconosciuta dalla banca. Stessa
+   ricetta: sha256('boom-pay-ref:'+id), primi 6 byte mappati su un alfabeto
+   senza caratteri sosia. Verificato da tests/bonifico/parity.mjs. */
+var REF_ALPHABET='23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+function payRefLocal(id){
+  if(!id)return Promise.resolve(null);
+  var enc=new TextEncoder().encode('boom-pay-ref:'+id);
+  return crypto.subtle.digest('SHA-256',enc).then(function(buf){
+    var b=new Uint8Array(buf),out='';
+    for(var i=0;i<6;i++)out+=REF_ALPHABET[b[i]%REF_ALPHABET.length];
+    return 'BOOM-'+out;
+  });
+}
 
-    <!-- Concierge Chat Modal — "Ask Homie" -->
-    <div class="modal-overlay" id="conciergeModal">
-        <div class="modal chat-modal">
-            <div class="modal-header">
-                <h3>💬 Ask Homie</h3>
-                <button class="modal-close" onclick="closeConcierge()">×</button>
-            </div>
-            <div class="chat-body" id="conciergeBody">
-                <div class="chat-msg system">CONCIERGE 24/7 · risposte in italiano</div>
-            </div>
-            <div class="chat-footer">
-                <input id="conciergeInput" type="text" placeholder="Scrivi qui... (es. la caldaia non si accende)" onkeydown="if(event.key==='Enter')sendConcierge()" />
-                <button id="conciergeSend" onclick="sendConcierge()">Invia</button>
-            </div>
-        </div>
-    </div>
+/* I dati per il bonifico: impostati una volta da te in settings/payout.
+   Senza IBAN il blocco non compare — mai un IBAN inventato. */
+var PAYOUT=null;
+function bonificoBlock(next){
+  if(!PAYOUT||!PAYOUT.iban)return '';
+  return '<div class="bfx" id="bfx" data-pid="'+esc(next.id)+'" data-amt="'+Number(next.amount)+'"></div>';
+}
+function renderBonifico(){
+  var host=document.getElementById('bfx');if(!host||!PAYOUT||!PAYOUT.iban)return;
+  var pid=host.getAttribute('data-pid'),amt=Number(host.getAttribute('data-amt'))||0;
+  payRefLocal(pid).then(function(ref){
+    var period=(PAYMENTS.filter(function(p){return p.id===pid})[0]||{});
+    var caus=[ref,'canone '+(period.month||String(period.dueDate||'').slice(0,7))].filter(Boolean).join(' ');
+    var row=function(k,v,copy){
+      return '<div class="bfr"><span class="bfk">'+k+'</span>'
+        +'<span class="bfv">'+esc(v)+'</span>'
+        +(copy?'<button class="bfc" type="button" data-copy="'+esc(v)+'">'+t('bfCopy')+'</button>':'')+'</div>';
+    };
+    host.innerHTML='<div class="bfh">'+t('bfTitle')+'<span class="bffree">'+t('bfFree')+'</span></div>'
+      +'<p class="bfp">'+t('bfWhy')+'</p>'
+      +row(t('bfBene'),PAYOUT.beneficiary||'BOOM · Egidi Immobiliare S.r.l.',1)
+      +row(t('bfIban'),PAYOUT.iban,1)
+      +row(t('bfAmt'),eur(amt),1)
+      +row(t('bfRef'),caus,1)
+      +'<button class="bfall" type="button" id="bfAll">'+t('bfAll')+'</button>'
+      +'<p class="bfn">'+t('bfNote')+'</p>';
+    var flash=function(b){var o=b.textContent;b.textContent=t('bfCopied');b.classList.add('ok');
+      setTimeout(function(){b.textContent=o;b.classList.remove('ok')},1600);};
+    var put=function(txt,b){
+      var done=function(){flash(b)};
+      if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(done,done);
+      else{try{var ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);
+        ta.select();document.execCommand('copy');ta.remove();done();}catch(e){}}
+    };
+    host.addEventListener('click',function(ev){
+      var b=ev.target.closest&&ev.target.closest('[data-copy]');
+      if(b)return put(b.getAttribute('data-copy'),b);
+      if(ev.target.id==='bfAll'){
+        put([ (PAYOUT.beneficiary||'BOOM · Egidi Immobiliare S.r.l.'),
+              'IBAN: '+PAYOUT.iban, eur(amt), caus ].join('\n'), ev.target);
+      }
+    });
+  }).catch(function(){ host.remove(); });   /* crypto.subtle assente: meglio niente che una causale sbagliata */
+}
+function waMsg(t){return WA+'?text='+encodeURIComponent(t)}
+function secH(no,t){return '<h2><span class="no">'+no+'</span><span class="tt">'+t+'</span></h2>'}
 
-    <!-- Maintenance Modal -->
-    <div class="modal-overlay" id="maintenanceModal">
-        <div class="modal">
-            <div class="modal-header"><h3>Report an Issue</h3><button class="modal-close" onclick="closeMaintenanceModal()">×</button></div>
-            <div class="modal-body">
-                <form id="maintenanceForm">
-                    <div class="form-group">
-                        <label class="form-label">Category</label>
-                        <select class="form-select" id="issueCategory" required>
-                            <option value="">Select...</option>
-                            <option value="plumbing">Plumbing</option>
-                            <option value="electrical">Electrical</option>
-                            <option value="heating">Heating / AC</option>
-                            <option value="appliances">Appliances</option>
-                            <option value="locks">Locks / Security</option>
-                            <option value="other">Other</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Priority</label>
-                        <select class="form-select" id="issuePriority" required>
-                            <option value="low">Low – Can wait</option>
-                            <option value="medium">Medium – Soon</option>
-                            <option value="high">High – Urgent</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Description</label>
-                        <textarea class="form-textarea" id="issueDescription" required placeholder="Describe the issue..."></textarea>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button class="btn" onclick="closeMaintenanceModal()">Cancel</button>
-                <button class="btn btn-primary" onclick="submitMaintenance()">Submit</button>
-            </div>
-        </div>
-    </div>
+function nextPending(){
+  var p=PAYMENTS.filter(function(x){return x.status!=='paid'&&Number(x.amount)>0});
+  p.sort(function(a,b){return String(a.dueDate||'').localeCompare(String(b.dueDate||''))});
+  return p[0]||null;
+}
 
-    <div class="toast-container" id="toastContainer"></div>
+function greet(){var h=new Date().getHours();return t(h<12?'gm':h<18?'ga':'ge')}
+function countUp(scope){
+  try{
+    if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+    [].slice.call(scope.querySelectorAll('[data-roll]')).forEach(function(el,ix){
+      var target=el.getAttribute('data-roll'),mm=target.match(/([\d.,]+)/);if(!mm)return;
+      var num=parseFloat(mm[1].replace(/,/g,''));if(!isFinite(num))return;
+      var t0=performance.now(),D=850+ix*110;
+      (function tick(now){
+        var p=Math.min(1,(now-t0)/D),e2=1-Math.pow(1-p,4);
+        el.textContent=p<1?target.replace(mm[1],Math.round(num*e2).toLocaleString('en-US')):target;
+        if(p<1)requestAnimationFrame(tick);
+      })(t0);
+    });
+  }catch(e){}
+}
+/* Il QR del Wi-Fi arriva da un CDN. L'<img> nasceva senza src — cioè un
+   rettangolo bianco vuoto — e se il CDN è lento, bloccato o giù restava così
+   per sempre, senza che nulla lo spiegasse. Ora il contenitore è nascosto
+   finché il codice non c'è, e se non arriva sparisce: la password del Wi-Fi
+   con il suo bottone di copia resta comunque lì sopra, che è ciò che serve. */
+function wifiQr(name,pass){
+  var host=document.getElementById('wifiQrImg');if(!host)return;
+  var box=host.closest?host.closest('.wifiqr'):null;
+  if(box)box.style.display='none';
+  var payload='WIFI:T:WPA;S:'+String(name).replace(/([\\;,:"])/g,'\\$1')+';P:'+String(pass).replace(/([\\;,:"])/g,'\\$1')+';;';
+  var give=function(){if(box&&box.parentNode)box.parentNode.removeChild(box)};
+  var go=function(){
+    try{
+      window.QRCode.toDataURL(payload,{margin:0,width:368,color:{dark:'#111111',light:'#ffffff'}},function(err,durl){
+        if(err||!durl)return give();
+        host.src=durl;
+        if(box)box.style.display='';
+      });
+    }catch(e){give()}
+  };
+  if(window.QRCode&&window.QRCode.toDataURL)return go();
+  var s=document.createElement('script');
+  s.src='https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js';
+  s.onload=go; s.onerror=give;
+  /* CDN che non risponde mai (né load né error): dopo 6s si rinuncia. */
+  setTimeout(function(){if(!host.src)give()},6000);
+  document.head.appendChild(s);
+}
+function refCode(){return 'BOOM-'+String(USER&&USER.uid||'ROMA').replace(/[^a-zA-Z0-9]/g,'').slice(0,6).toUpperCase()}
+function manLine(ic,label,val,copyable){
+  if(!val)return '';
+  return '<div class="dlink" style="cursor:default"><span class="ic">'+ic+'</span><span style="flex:1"><small style="letter-spacing:1.4px;text-transform:uppercase">'+label+'</small>'
+    +esc(val).replace(/\n/g,'<br>')+'</span>'
+    +(copyable?'<button class="obtn" style="margin:0;padding:8px 14px;flex:none" onclick="copyVal(this,\''+esc(String(copyable)).replace(/'/g,'')+'\')">'+t('copy')+'</button>':'')
+    +'</div>';
+}
+window.copyVal=function(btn,v){try{navigator.clipboard.writeText(v);btn.textContent=t('copied');setTimeout(function(){btn.textContent=t('copy')},2200);}catch(e){}};
+window.shareRef=function(){
+  var msg=t('shareMsg').replace(/\{code\}/g,refCode());
+  if(navigator.share){navigator.share({text:msg}).catch(function(){});}
+  else location.href='https://wa.me/?text='+encodeURIComponent(msg);
+};
+window.shareKit=function(){
+  var msg=t('kitShareMsg');
+  if(navigator.share){navigator.share({text:msg}).catch(function(){});}
+  else location.href='https://wa.me/?text='+encodeURIComponent(msg);
+};
 
-    <script src="js/firebase-config.js"></script>
-    <script>
-        let currentUser = null;
-        let tenantProperty = null;
+function render(){
+  var addr=(PROPERTY&&(PROPERTY.address||PROPERTY.name))||'La tua casa BOOM';
+  var c=CONTRACT||{};
+  var paidId=new URLSearchParams(location.search).get('paid');
+  /* returning from Stripe: the webhook may not have landed yet — treat the
+     just-paid installment as paid (optimistic) so the page NEVER shows a
+     live pay button for it under the green confirmation band */
+  if(paidId){PAYMENTS.forEach(function(p){if(p.id===paidId&&p.status!=='paid'){p.status='paid';p.paidVia='stripe';p.paidDate=todayISO;}});}
+  var next=nextPending();
+  var firstRent=PAYMENTS.filter(function(p){return p.type!=='deposit'&&p.type!=='deposit-balance'})[0];
+  var rent=Number(c.rent)||(firstRent?Number(firstRent.amount):0);
+  var paidCount=PAYMENTS.filter(function(p){return p.status==='paid'}).length;
+  var depBal=null;
+  PAYMENTS.forEach(function(p){if(p.type==='deposit-balance')depBal=p;});
+  var late=!!(next&&next.dueDate&&next.dueDate<todayISO);
+  var man=(PROPERTY&&PROPERTY.manual)||null;
+  var hood=(PROPERTY&&Array.isArray(PROPERTY.neighborhood))?PROPERTY.neighborhood.filter(function(x){return x&&x.name}):[];
+  var N=0;var no=function(){N++;return (N<10?'0':'')+N};
+  var firstName=String((PROFILE&&PROFILE.name)||'').split(' ')[0];
+  var dToKeys=null;
+  try{if(c.startDate&&c.startDate>todayISO)dToKeys=Math.ceil((new Date(c.startDate+'T00:00')-new Date(todayISO+'T00:00'))/86400000);}catch(e){}
 
-        auth.onAuthStateChanged(async (user) => {
-            if (!user) { window.location.href = 'login.html'; return; }
-            const doc = await db.collection('users').doc(user.uid).get();
-            if (!doc.exists || doc.data().role !== 'tenant') { window.location.href = 'login.html'; return; }
+  var html=
+    (VIEW_AS?'<div class="adminview">👁 '+t('adminView').replace('{n}',esc((c.tenantName||'').split(' ')[0]||'cliente'))+'</div>':'')
+    +'<span class="eyebrow">'+greet()+(firstName?', '+esc(firstName):'')+'</span>'
+    +'<h1 class="big">'+esc(addr).replace(/,([^,]*)$/,',<em>$1</em>')+'</h1>'
+    +(c.startDate?'<div class="subline">'+esc(c.type||'')+' · '+fmtD(c.startDate)+' → '+fmtD(c.endDate)+'</div>':'')
+    +'<div class="chip">'+(c.signatureStatus==='completed'?t('active'):t('reserved'))+(dToKeys!=null?' · '+(dToKeys===0?t('keysToday'):t('daysToKeys').replace('{n}',dToKeys)):'')+'</div>'
+    +'<div class="tiles">'
+      +'<div class="tile hero"><div class="k">'+t('monthly')+'</div><div class="v"><span data-roll="'+eur(rent)+'">'+eur(rent)+'</span><small> /m</small></div></div>'
+      +'<div class="tile"><div class="k">'+t('nextPay')+'</div><div class="v">'+(next?('<span data-roll="'+eur(next.amount)+'">'+eur(next.amount)+'</span>'):'—')+'</div></div>'
+      +'<div class="tile"><div class="k">'+t('due')+'</div><div class="v" style="font-size:15px;font-weight:300">'+(next?fmtD(next.dueDate):t('allGood'))+'</div></div>'
+      +'<div class="tile"><div class="k">'+t('paidReg')+'</div><div class="v">'+paidCount+'<small> ✓</small></div></div>'
+    +'</div>';
 
-            currentUser = { id: user.uid, ...doc.data() };
-            document.getElementById('userName').textContent = currentUser.name || 'Tenant';
-            document.getElementById('welcomeName').textContent = (currentUser.name || 'Tenant').split(' ')[0];
-            document.getElementById('userAvatar').textContent = (currentUser.name || 'T')[0].toUpperCase();
-            await loadProperty();
-        });
+  /* sticky quick-nav — built from the sections that actually render */
+  var navItems=[['s-pay','nPay'],['s-hist','nHist'],['s-docs','nDocs'],['s-man','nMan']];
+  if(hood.length)navItems.push(['s-hood','nHood']);
+  navItems.push(['s-fix','nFix'],['s-conc','nConc'],['s-kit','nKit'],['s-ref','nRef']);
+  html+='<nav class="qnav">'+navItems.map(function(x){return '<a href="#'+x[0]+'">'+t(x[1])+'</a>'}).join('')+'</nav>';
 
-        async function loadProperty() {
-            if (!currentUser.propertyId) {
-                document.getElementById('propertyName').textContent = 'No property assigned';
-                document.getElementById('propertyAddress').textContent = 'Contact BOOM';
-                return;
-            }
-            const doc = await db.collection('properties').doc(currentUser.propertyId).get();
-            if (!doc.exists) return;
+  if(paidId)html+='<div class="paidband">'+t('paidBand')+'</div>';
+  if(new URLSearchParams(location.search).get('sdd')==='ok')html+='<div class="paidband">'+t('sddOkBand')+'</div>';
+  var bought=new URLSearchParams(location.search).get('bought');
+  if(bought)html+='<div class="paidband">'+t('boughtBand').replace('{x}',esc({'movein-pack':'Move-in Pack','cleaning-premium':'Cleaning Premium'}[bought]||bought))+'</div>';
 
-            tenantProperty = { id: doc.id, ...doc.data() };
-            document.getElementById('propertyName').textContent = tenantProperty.name;
-            document.getElementById('propertyAddress').textContent = tenantProperty.zone || 'Rome';
-            document.getElementById('propertyBedrooms').textContent = tenantProperty.bedrooms || '-';
-            document.getElementById('propertyBathrooms').textContent = tenantProperty.bathrooms || '-';
-            document.getElementById('propertySize').textContent = tenantProperty.size || '-';
-            document.getElementById('rentAmount').textContent = '€' + (tenantProperty.price || 0).toLocaleString();
-            if (tenantProperty.image) document.getElementById('propertyImage').src = tenantProperty.image;
+  /* ── next payment ── */
+  var sdd=c.sdd||{};
+  var sddProcG=false;
+  /* Desktop ≥1120px: .cols diventa una griglia a due colonne (i SOLDI |
+     la VITA della casa); su telefono display:contents la fa sparire e
+     l'ordine resta identico a prima. */
+  html+='<div class="cols"><div class="col colA">';
+  html+='<div class="card paycard rv" id="s-pay">'+secH(no(),t('s1'));
+  if(next){
+    var lab=next.type==='deposit-balance'?t('depositBal'):t('rentOf')+' '+esc(periodLabel(next));
+    /* Addebito SEPA in volo: il bottone carta e il bonifico SPARISCONO —
+       offrire una seconda via mentre la prima è in corso è invitare un
+       doppio pagamento. Se l'addebito fallisce (sddStatus) tornano da soli. */
+    var sddProc=sddProcG=!!(next.sddPiId&&next.status==='pending'&&next.sddStatus!=='failed');
+    html+='<div class="pm"><div class="lab">'+lab+'<b>'+(late?t('lateBy'):t('dueBy'))+' '+fmtD(next.dueDate)+'</b></div>'
+      +'<div><div class="amt">'+eur(next.amount)+'</div><div class="due'+(late&&!sddProc?' late':'')+'">'+(sddProc?'auto ✓':(late?t('late'):t('dueSoon')))+'</div></div></div>';
+    if(sddProc){
+      html+='<div class="sddproc"><b>'+t('sddProc')+'</b><br><small>'+t('sddProcSub').replace('{d}',fmtD(next.sddInitiatedAt))+'</small></div>';
+    }else{
+      if(next.sddStatus==='failed')html+='<div class="sddfailnote">'+t('sddFailNote')+'</div>';
+      html+='<button class="paybtn" id="payBtn">'
+      +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
+      +t('payCard')+' — '+eur(next.amount)+' + '+eur(feePreview(Number(next.amount)))+' '+t('service')+'</button>'
+      +'<div class="payfoot"><span class="lock">●</span> '+t('payFoot1')+'<br>'+t('payFoot2')+'</div>'
+      /* ── La strada gratuita, accanto a quella comoda ──────────────────
+         La carta costa a BOOM fino al 3,25%: la commissione esiste solo per
+         coprirla. Il bonifico non costa niente a nessuno dei due, quindi è
+         gratis — e la riconciliazione la fa /banca da sola, purché la
+         causale porti il codice della rata. Compare solo se l'IBAN è stato
+         impostato: mai un IBAN inventato. */
+      +bonificoBlock(next);
+    }
+  }else{
+    html+='<div style="font-size:13.5px;color:var(--t2)">'+t('noDue')+'</div>';
+  }
+  /* ── canone automatico (SEPA) — attivi una volta, poi si paga da solo ── */
+  if(c.id){
+    if(sdd.status==='active'){
+      html+='<div class="sddbox on"><span class="ic">🏦</span><div><b>'+t('sddActive').replace('{iban}',esc(sdd.ibanLast4||'····'))+'</b><small>'+t('sddActiveSub')+'</small></div><button class="obtn" id="sddCancelBtn" style="margin:0;flex:none;padding:8px 14px">'+t('sddStop')+'</button></div>';
+    }else{
+      html+='<div class="sddbox"><span class="ic">🏦</span><div><b>'+t('sddT')+'</b><small>'+t('sddPitch').replace('{fee}','€2')+'</small></div><button class="obtn" id="sddBtn" style="margin:0;flex:1 1 auto;border-color:var(--line-gold);color:var(--gold)">'+t('sddBtn')+'</button></div>';
+    }
+  }
+  html+='</div>';
+
+  /* ── history ── */
+  var hist=PAYMENTS.slice().sort(function(a,b){return String(b.dueDate||'').localeCompare(String(a.dueDate||''))});
+  html+='<div class="card rv" id="s-hist">'+secH(no(),t('s2'))+'<div class="rowlist" id="histRows">';
+  if(!hist.length)html+='<div style="font-size:13px;color:var(--t3)">'+t('histEmpty')+'</div>';
+  html+=hist.slice(0,6).map(payRow).join('');
+  html+='</div>'
+    +(hist.length>6?'<button class="morebtn" id="moreBtn">'+t('showAll')+' ('+hist.length+') ↓</button>':'')
+    +'</div>';
+
+  /* ── documents ── */
+  html+='<div class="card rv" id="s-docs">'+secH(no(),t('s3'));
+  if(c.signingCertificateUrl){
+    html+='<a class="dlink" href="'+c.signingCertificateUrl+'" target="_blank" rel="noopener"><span class="ic">📄</span><span>'+t('contractDoc')+'<br><small>'+t('contractSub')+'</small></span><span class="go">→</span></a>';
+  }else if(c.generatedPDF){
+    html+='<a class="dlink" href="'+c.generatedPDF+'" target="_blank" rel="noopener"><span class="ic">📄</span><span>'+t('yourContract')+'<br><small>PDF</small></span><span class="go">→</span></a>';
+  }
+  if(depBal||c.depositPaid){
+    html+='<div class="dlink" style="cursor:default"><span class="ic">🛡</span><span>'+t('depositDoc')+'<br><small>'
+      +(c.depositPaid?t('depPaid'):(depBal&&depBal.status==='paid'?t('depSettled'):t('depDueAt').replace('{x}',eur((depBal||{}).amount))))
+      +'</small></span></div>';
+  }
+  html+='<a class="dlink" href="'+waMsg('Ciao BOOM! Mi serve una copia di un documento della mia casa ('+addr+').')+'" target="_blank" rel="noopener"><span class="ic">💬</span><span>'+t('needMore')+'<br><small>'+t('needMoreSub')+'</small></span><span class="go">→</span></a>';
+  html+='</div>';
+
+  html+='</div><div class="col colB">';
+
+  /* ── THE HOME MANUAL — the feature that kills 90% of the questions ── */
+  html+='<div class="card rv" id="s-man">'+secH(no(),t('sM'))
+    +'<div style="font-size:12.5px;color:var(--t3);margin:-6px 0 12px">'+t('manualSub')+'</div>';
+  if(man&&(man.wifiName||man.heating||man.trash||man.appliances||man.emergency||man.rules||man.access)){
+    if(man.wifiName)html+=manLine('📶',t('wifi'),man.wifiName+(man.wifiPass?'\n'+man.wifiPass:''),man.wifiPass||man.wifiName)
+      +(man.wifiPass?'<div class="wifiqr"><img id="wifiQrImg" alt="Wi-Fi QR"><small>'+t('wifiScan')+'</small></div>':'');
+    html+=manLine('🔥',t('heating'),man.heating)
+      +manLine('♻️',t('trash'),man.trash)
+      +manLine('🧺',t('appliances'),man.appliances)
+      +manLine('🏛',t('checkin'),man.access)
+      +manLine('🆘',t('emergency'),man.emergency)
+      +manLine('📜',t('rules'),man.rules);
+  }else{
+    html+='<div style="font-size:13px;color:var(--t3);line-height:1.7">'+t('manualSoon')+'</div>';
+  }
+  html+='</div>';
+
+  /* ── neighbourhood, curated by the advisor ── */
+  if(hood.length){
+    html+='<div class="card rv" id="s-hood">'+secH(no(),t('sN'))
+      +'<div style="font-size:12.5px;color:var(--t3);margin:-6px 0 12px">'+t('neighSub')+'</div>';
+    hood.slice(0,8).forEach(function(x){
+      var q=encodeURIComponent((x.name||'')+' Roma');
+      html+='<div class="dlink" style="cursor:default"><span class="ic">'+esc(x.icon||'📍')+'</span><span style="flex:1">'+esc(x.name)
+        +(x.note?'<br><small>'+esc(x.note)+'</small>':'')+'</span>'
+        +'<a href="https://www.google.com/maps/search/?api=1&query='+q+'" target="_blank" rel="noopener" style="color:var(--gold-light);font-size:11px;text-decoration:none;flex:none">'+t('mapIt')+'</a></div>';
+    });
+    html+='</div>';
+  }
+
+  /* ── maintenance ── */
+  html+='<div class="card rv" id="s-fix">'+secH(no(),t('s4'))
+    +'<div class="g2">'
+    +'<label class="fld"><span>'+t('mCat')+'</span><select id="mCat"><option value="idraulica">'+t('cat1')+'</option><option value="elettricita">'+t('cat2')+'</option><option value="elettrodomestici">'+t('cat3')+'</option><option value="riscaldamento">'+t('cat4')+'</option><option value="serrature">'+t('cat5')+'</option><option value="altro">'+t('cat6')+'</option></select></label>'
+    +'<label class="fld"><span>'+t('mPri')+'</span><select id="mPri"><option value="normal">'+t('pri1')+'</option><option value="high">'+t('pri2')+'</option><option value="emergency">'+t('pri3')+'</option></select></label>'
+    +'</div>'
+    +'<label class="fld"><span>'+t('mDesc')+'</span><textarea id="mDesc" rows="3" placeholder="…"></textarea></label>'
+    +'<button class="obtn" id="mSend" style="border-color:var(--line-gold);color:var(--gold)">'+t('mSend')+'</button>'
+    +'<span class="ok" id="mOk">'+t('mOk')+'</span>'
+    +'<span class="err" id="mErr"></span>'
+    +'<div id="mList">'+maintRows()+'</div>'
+    +'</div>';
+
+  /* ── concierge ── */
+  html+='<div class="card rv" id="s-conc">'+secH(no(),t('s5'))
+    +'<div style="font-size:12.5px;color:var(--t3);margin:-6px 0 12px">'+t('s5Sub')+'</div>'
+    +'<div class="svc">'
+    +'<a class="svcard" href="'+waMsg('Ciao BOOM! Vorrei il Move-in Pack per '+addr+' (volture luce/gas, internet, guida residenza).')+'" target="_blank" rel="noopener"><span class="em">🔌</span><span><b>'+t('svc1')+'</b><span>'+t('svc1d')+'</span></span><span class="pr">€149</span></a>'
+    +'<a class="svcard" href="'+waMsg('Ciao BOOM! Vorrei prenotare il Cleaning Premium per '+addr+'.')+'" target="_blank" rel="noopener"><span class="em">✨</span><span><b>'+t('svc2')+'</b><span>'+t('svc2d')+'</span></span><span class="pr">€119</span></a>'
+    +'<a class="svcard" href="'+waMsg('Ciao BOOM! Ho bisogno del concierge: ')+'" target="_blank" rel="noopener"><span class="em">🤵</span><span><b>'+t('svc3')+'</b><span>'+t('svc3d')+'</span></span><span class="pr">'+t('from')+' €15</span></a>'
+    +'</div></div>';
+
+  /* ── Welcome to Rome Kit — the viral engine, made to leave this page ── */
+  html+='<div class="card rv" id="s-kit" style="border-color:var(--line-gold)">'+secH(no(),t('sK'))
+    +'<div style="font-size:13px;color:var(--t2);line-height:1.7">'+t('kitSub')+'</div>'
+    +'<a class="obtn" href="/welcome-to-rome" style="margin-top:12px;border-color:var(--line-gold);color:var(--gold)">'+t('kitBtn')+'</a> '
+    +'<button class="obtn" onclick="shareKit()">'+t('kitShare')+'</button>'
+    +'</div>';
+
+  /* ── referral with a personal code + native share ── */
+  html+='<div class="card rv" id="s-ref">'+secH(no(),t('s6'))
+    +'<div style="font-size:13px;color:var(--t2);line-height:1.7">'+t('refText')+'</div>'
+    +'<div style="margin-top:13px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">'
+    +'<span style="border:1px dashed var(--line-gold);border-radius:10px;padding:9px 16px;font-family:var(--mono);font-size:13px;letter-spacing:2px;color:var(--gold)">'+refCode()+'</span>'
+    +'<span style="font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t4)">'+t('refCode')+'</span></div>'
+    +'<button class="obtn" onclick="shareRef()" style="margin-top:12px;border-color:var(--line-gold);color:var(--gold)">'+t('refShare')+' →</button> '
+    +'<a class="obtn wa" href="https://wa.me/?text='+encodeURIComponent(t('shareMsg').replace(/\{code\}/g,refCode()))+'" target="_blank" rel="noopener">'+t('refWa')+'</a> '
+    +'<a class="obtn" href="/refer?code='+encodeURIComponent(refCode())+'" target="_blank" rel="noopener">'+t('refHow')+'</a>'
+    +'</div>';
+
+  html+='</div></div>'; /* /colB /cols */
+
+  html+='<div class="advisor rv"><span class="av"><svg viewBox="0 0 1024 1024" width="22" height="22" aria-hidden="true"><use href="#boomMark"/></svg></span><div><b>Valentino · BOOM Roma</b><span>'+t('advisor')+'</span></div><a href="'+WA+'" target="_blank" rel="noopener">WhatsApp</a></div>';
+
+  /* dock pagamento (telefono): la rata segue lo scroll, un tap riporta
+     alla card. Mai col banner SDD in volo — lì non c'è nulla da pagare. */
+  if(next&&!sddProcG){
+    html+='<div class="paydock" id="payDock"><div class="pdA"><b>'+eur(next.amount)+'</b><small>'+t('dueBy')+' '+fmtD(next.dueDate)+'</small></div><button class="pdB" id="payDockBtn">'+t('dockPay')+'</button></div>';
+  }
+
+  $('app').innerHTML=html;
+  wire(next,hist);
+  reveal();
+  countUp($('app'));
+  if(man&&man.wifiName&&man.wifiPass)wifiQr(man.wifiName,man.wifiPass);
+}
+
+function periodLabel(p){
+  var m=p.month||String(p.dueDate||'').slice(0,7);
+  return (p.coversTo&&p.coversTo!==m)?(m+' → '+p.coversTo):m;
+}
+function payRow(p){
+  var late=p.status!=='paid'&&p.dueDate&&p.dueDate<todayISO;
+  var lab=p.type==='deposit'?t('deposit'):p.type==='deposit-balance'?t('depBalance'):periodLabel(p);
+  return '<div class="prow"><span class="mo">'+esc(lab)+'<small>'+(p.status==='paid'?(t('paidW')+(p.paidVia==='stripe'?' '+t('byCard'):p.paidVia==='bank'?' '+t('byBank'):'')+(p.paidDate?' · '+fmtD(p.paidDate):'')):(t('dueBy')+' '+fmtD(p.dueDate)))+'</small></span>'
+    +(p.receiptUrl?'<a href="'+p.receiptUrl+'" target="_blank" rel="noopener">'+t('receipt')+'</a>':'')
+    +'<span class="amt2">'+eur(p.amount)+'</span>'
+    +'<span class="st '+(p.status==='paid'?'paid':(late?'late':'pending'))+'">'+(p.status==='paid'?t('paid'):(late?t('lateSt'):t('pending')))+'</span></div>';
+}
+function maintRows(){
+  return MAINT.slice(0,4).map(function(m){
+    return '<div class="mrow"><span>'+esc((m.category||'')+(m.description?' — '+String(m.description).slice(0,60):''))+'</span><span class="st'+(m.status==='resolved'||m.status==='done'?' done':'')+'">'+esc(m.status==='pending'?t('statusOpen'):(m.status||t('statusOpen')))+'</span></div>';
+  }).join('');
+}
+
+function wire(next,hist){
+  var pb=$('payBtn');
+  if(pb&&next){
+    pb.onclick=function(){
+      pb.disabled=true;pb.textContent=t('opening');
+      USER.getIdToken().then(function(tok){
+        return fetch('/api/payments/pay',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({paymentId:next.id})});
+      }).then(function(r){return r.json()}).then(function(j){
+        if(j&&!j.ok&&j.error==='already_paid'){pb.textContent=t('paid');setTimeout(function(){location.href='/casa'},900);return;}
+        if(j&&j.ok&&j.checkoutUrl){
+          var po=$('payov'),pa=$('payAmt'),ps=$('paySub');
+          if(pa)pa.textContent=eur(j.total||next.amount);
+          if(ps)ps.innerHTML=t('redirect');
+          if(po&&!matchMedia('(prefers-reduced-motion: reduce)').matches){po.classList.add('on');setTimeout(function(){location.href=j.checkoutUrl;},1100);}
+          else location.href=j.checkoutUrl;
+          return;
         }
+        throw new Error((j&&j.error)||'failed');
+      }).catch(function(){
+        pb.disabled=false;pb.textContent=t('payRetry');
+      });
+    };
+  }
+  var mb=$('moreBtn');
+  if(mb){mb.onclick=function(){$('histRows').innerHTML=hist.map(payRow).join('');mb.style.display='none';};}
+  /* canone automatico: attiva (Checkout mode=setup) / disattiva */
+  var sb=$('sddBtn');
+  if(sb){sb.onclick=function(){
+    sb.disabled=true;sb.textContent=t('sddOpening');
+    USER.getIdToken().then(function(tok){
+      return fetch('/api/payments/sdd-setup',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({contractId:CONTRACT.id})});
+    }).then(function(r){return r.json()}).then(function(j){
+      if(j&&j.ok&&j.url){location.href=j.url;return;}
+      throw new Error((j&&j.error)||'failed');
+    }).catch(function(){sb.disabled=false;sb.textContent=t('payRetry');});
+  };}
+  /* dock: compare quando la card pagamento è passata sopra la vista */
+  var pd=$('payDock'),pc=$('s-pay');
+  if(pd&&pc){
+    if('IntersectionObserver' in window){
+      var dio=new IntersectionObserver(function(es){es.forEach(function(en){
+        pd.classList.toggle('on',!en.isIntersecting&&en.boundingClientRect.top<0);
+      })},{threshold:0});
+      dio.observe(pc);
+    }
+    var pdb=$('payDockBtn');
+    if(pdb)pdb.onclick=function(){
+      pc.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});
+    };
+  }
+  var sc=$('sddCancelBtn');
+  if(sc){sc.onclick=function(){
+    if(!confirm(t('sddStopAsk')))return;
+    sc.disabled=true;
+    USER.getIdToken().then(function(tok){
+      return fetch('/api/payments/sdd-setup',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({contractId:CONTRACT.id,action:'cancel'})});
+    }).then(function(r){return r.json()}).then(function(j){
+      if(j&&j.ok){CONTRACT.sdd=Object.assign({},CONTRACT.sdd,{status:'cancelled'});render();return;}
+      throw new Error((j&&j.error)||'failed');
+    }).catch(function(){sc.disabled=false;});
+  };}
+  var ms=$('mSend');
+  if(ms){
+    ms.onclick=function(){
+      var desc=($('mDesc').value||'').trim();
+      var ok=$('mOk'),err=$('mErr');ok.style.display='none';err.style.display='none';
+      if(desc.length<8){err.textContent=t('mShort');err.style.display='inline';return;}
+      ms.disabled=true;ms.textContent='…';
+      /* in Vista cliente la segnalazione è aperta PER il cliente (le rules
+         lo prevedono: "l'admin può aprire una segnalazione per un
+         inquilino") — deve comparire nella SUA lista, non in quella admin */
+      var mUid=(VIEW_AS&&CONTRACT&&CONTRACT.tenantId)||USER.uid;
+      var doc={userId:mUid,tenantId:mUid,tenantName:(VIEW_AS&&CONTRACT&&CONTRACT.tenantName)||(PROFILE&&PROFILE.name)||USER.email||'',
+        propertyId:(CONTRACT&&CONTRACT.propertyId)||(PROFILE&&PROFILE.propertyId)||'',
+        propertyName:(PROPERTY&&(PROPERTY.name||PROPERTY.address))||'',
+        category:$('mCat').value,priority:$('mPri').value,description:desc.slice(0,800),
+        status:'pending',createdAt:new Date().toISOString()};
+      firebase.firestore().collection('maintenance').add(doc).then(function(){
+        ok.style.display='inline';$('mDesc').value='';
+        ms.disabled=false;ms.textContent=t('mSend');
+        MAINT.unshift(doc);
+        $('mList').innerHTML=maintRows();
+        try{fetch('/api/agent/notify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'maintenance.opened',summary:'🔧 '+doc.category+' ('+doc.priority+') — '+(doc.propertyName||doc.tenantName),detail:desc.slice(0,300)})});}catch(e){}
+      }).catch(function(){
+        ms.disabled=false;ms.textContent=t('mSend');
+        err.textContent=t('mFail');err.style.display='inline';
+      });
+    };
+  }
+}
 
-        function openMaintenanceModal() { document.getElementById('maintenanceForm').reset(); document.getElementById('maintenanceModal').classList.add('active'); }
-        function closeMaintenanceModal() { document.getElementById('maintenanceModal').classList.remove('active'); }
+function reveal(){
+  try{
+    var els=[].slice.call(document.querySelectorAll('.rv'));
+    els.forEach(function(e,i){e.style.transitionDelay=((i%5)*55)+'ms'});
+    if(!('IntersectionObserver' in window)){els.forEach(function(e){e.classList.add('in')});return;}
+    var io=new IntersectionObserver(function(es){es.forEach(function(en){if(en.isIntersecting){en.target.classList.add('in');io.unobserve(en.target);}})},{threshold:.1});
+    els.forEach(function(e){io.observe(e)});
+    setTimeout(function(){els.forEach(function(e){var r=e.getBoundingClientRect();if(r.top<innerHeight)e.classList.add('in')})},60);
+  }catch(e){[].slice.call(document.querySelectorAll('.rv')).forEach(function(e){e.classList.add('in')});}
+}
 
-        // ─── Concierge "Ask Homie" chat ────────────────────────────────
-        let conciergeHistory = [];
+/* ── boot: everything REAL, from the tenant's own documents ── */
+BoomPortal.requireAuth(['tenant','admin'],{loginUrl:'/login'}).then(function(res){
+  USER=res.user;PROFILE=res.profile||{};
+  // Un tenant resta sempre sui SUOI dati (ignora ?as=); un admin senza ?as=
+  // non ha niente da vedere qui → portale.
+  if(PROFILE.role!=='admin')VIEW_AS=null;
+  else if(!VIEW_AS){location.href='/portal';return;}
+  var db=firebase.firestore();
+  $('logout').onclick=function(){firebase.auth().signOut().then(function(){location.href='/login'})};
+  $('logout').textContent=t('logout');
+  $('langBtn').onclick=function(){setLang(LANG==='en'?'it':'en')};
+  syncLangBtn();
 
-        function openConcierge() {
-            const m = document.getElementById('conciergeModal');
-            m.classList.add('active');
-            if (conciergeHistory.length === 0) {
-                appendConciergeMsg('assistant',
-                    `Ciao ${currentUser?.name?.split(' ')[0] || ''}, sono Homie. Dimmi cosa ti serve: un guasto, una domanda sul contratto, o anche solo un consiglio sul quartiere. — Homie`);
-            }
-            setTimeout(() => document.getElementById('conciergeInput').focus(), 100);
-        }
-        function closeConcierge() { document.getElementById('conciergeModal').classList.remove('active'); }
+  // Ogni lettura ha un watchdog: su Safari desktop una get() può restare
+  // sospesa per sempre (IndexedDB/WebChannel) e la Promise.all qui sotto
+  // non si risolverebbe mai → loader eterno. Meglio una sezione vuota che
+  // una pagina bloccata.
+  var T=function(p){return BoomPortal.withTimeout(p,9000)};
+  var qContracts=VIEW_AS
+    ? T(db.collection('contracts').doc(VIEW_AS).get())
+        .then(function(d){if(d&&d.exists){var v=d.data();v.id=d.id;CONTRACT=v;
+          // il saluto e le firme mostrano il CLIENTE, non l'admin
+          PROFILE={name:v.tenantName||'',role:'admin'};}})
+        .catch(function(){})
+    : T(db.collection('contracts').where('tenantId','==',USER.uid).limit(10).get())
+        .then(function(s){var rows=[];s.forEach(function(d){var v=d.data();v.id=d.id;rows.push(v)});
+          rows.sort(function(a,b){return String(b.startDate||'').localeCompare(String(a.startDate||''))});
+          CONTRACT=rows.filter(function(c){return c.status==='active'})[0]||rows[0]||null;})
+        .catch(function(){});
+  var qPays=VIEW_AS
+    ? T(db.collection('payments').where('contractId','==',VIEW_AS).limit(120).get())
+        .then(function(s){PAYMENTS=[];s.forEach(function(d){var v=d.data();v.id=d.id;PAYMENTS.push(v)});})
+        .catch(function(){})
+    : T(db.collection('payments').where('tenantId','==',USER.uid).limit(120).get())
+        .then(function(s){PAYMENTS=[];s.forEach(function(d){var v=d.data();v.id=d.id;PAYMENTS.push(v)});})
+        .catch(function(){});
+  // Dati per il bonifico, impostati una volta da /banca in payout/default.
+  // Collezione a sé perché /settings è pubblica e un IBAN non deve esserlo. Se il doc
+  // non c'è, il blocco bonifico semplicemente non compare.
+  var qPayout=T(db.collection('payout').doc('default').get())
+    .then(function(d){if(d&&d.exists)PAYOUT=d.data()}).catch(function(){});
+  var fillMaint=function(s){MAINT=[];s.forEach(function(d){MAINT.push(d.data())});
+    MAINT.sort(function(a,b){return String(b.createdAt||'').localeCompare(String(a.createdAt||''))});};
+  var qMaint=VIEW_AS
+    // il tenantId del cliente arriva col contratto: la lettura si accoda
+    ? qContracts.then(function(){if(!CONTRACT||!CONTRACT.tenantId)return;
+        return T(db.collection('maintenance').where('userId','==',CONTRACT.tenantId).limit(20).get())
+          .then(fillMaint).catch(function(){});})
+    : T(db.collection('maintenance').where('userId','==',USER.uid).limit(20).get())
+        .then(fillMaint).catch(function(){});
 
-        function appendConciergeMsg(role, text, action) {
-            const body = document.getElementById('conciergeBody');
-            const div = document.createElement('div');
-            div.className = `chat-msg ${role}`;
-            div.textContent = text;
-            body.appendChild(div);
-            if (action?.type === 'emergency') {
-                const pill = document.createElement('div');
-                pill.className = 'action-pill';
-                pill.textContent = '🚨 Avvisato il proprietario con priorità urgente';
-                body.appendChild(pill);
-            } else if (action?.type === 'issue_flagged') {
-                const pill = document.createElement('div');
-                pill.className = 'action-pill';
-                pill.textContent = '✓ Segnalazione girata al proprietario';
-                body.appendChild(pill);
-            }
-            body.scrollTop = body.scrollHeight;
-        }
-
-        async function sendConcierge() {
-            const input = document.getElementById('conciergeInput');
-            const btn = document.getElementById('conciergeSend');
-            const msg = (input.value || '').trim();
-            if (!msg) return;
-            input.value = '';
-            btn.disabled = true;
-
-            appendConciergeMsg('user', msg);
-            conciergeHistory.push({ role: 'user', content: msg });
-
-            const body = document.getElementById('conciergeBody');
-            const typing = document.createElement('div');
-            typing.className = 'chat-typing';
-            typing.id = 'conciergeTyping';
-            typing.textContent = 'Homie sta scrivendo…';
-            body.appendChild(typing);
-            body.scrollTop = body.scrollHeight;
-
-            try {
-                const token = await firebase.auth().currentUser?.getIdToken().catch(() => null);
-                const ctx = {
-                    tenantId:    currentUser?.id,
-                    tenantName:  currentUser?.name,
-                    uid:         firebase.auth().currentUser?.uid,
-                    propertyId:  currentUser?.propertyId,
-                    propertyName:tenantProperty?.name,
-                    ownerId:     tenantProperty?.ownerId,
-                    rent:        tenantProperty?.rent,
-                    contractEnd: currentUser?.contractEnd,
-                };
-                const res = await fetch('/api/agent/concierge', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        ...(token ? { 'X-Firebase-Token': token } : {}),
-                    },
-                    body: JSON.stringify({
-                        role: 'tenant',
-                        message: msg,
-                        context: ctx,
-                        history: conciergeHistory.slice(-6),
-                    }),
-                });
-                const data = await res.json();
-                document.getElementById('conciergeTyping')?.remove();
-                if (data.ok && data.reply) {
-                    appendConciergeMsg('assistant', data.reply, data.action);
-                    conciergeHistory.push({ role: 'assistant', content: data.reply });
-                } else {
-                    appendConciergeMsg('assistant', 'Mi spiace, ho un problema tecnico. Riprova tra poco o usa "Report Issue" per il proprietario.');
-                }
-            } catch (e) {
-                document.getElementById('conciergeTyping')?.remove();
-                appendConciergeMsg('assistant', 'Connessione interrotta. Riprova tra poco.');
-            } finally {
-                btn.disabled = false;
-                input.focus();
-            }
-        }
-
-        async function submitMaintenance() {
-            const category = document.getElementById('issueCategory').value;
-            const priority = document.getElementById('issuePriority').value;
-            const description = document.getElementById('issueDescription').value;
-            if (!category || !description) { toast('Fill all fields', 'error'); return; }
-
-            try {
-                const ref = await db.collection('maintenance').add({
-                    tenantId: currentUser.id,
-                    tenantName: currentUser.name,
-                    propertyId: currentUser.propertyId,
-                    propertyName: tenantProperty?.name || 'Unknown',
-                    category, priority, description,
-                    status: 'pending',
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                toast('Request submitted!', 'success');
-                closeMaintenanceModal();
-
-                // Realtime nudge: Homie wakes within ~15s instead of
-                // waiting for the next pulse. Fire-and-forget — the
-                // ticket is already saved on Firestore.
-                fetch('/api/agent/notify', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Agent-Public-Secret': window.__AGENT_PUB_SECRET || '',
-                    },
-                    body: JSON.stringify({
-                        type: 'maintenance.opened',
-                        priority: priority === 'urgent' ? 'urgent' : 'high',
-                        summary: `[${category}] ${tenantProperty?.name || 'Unknown'} · ${currentUser.name}: ${description.slice(0,140)}`,
-                        ref: { collection: 'maintenance', id: ref.id },
-                        ownerId: tenantProperty?.ownerId,
-                        payload: {
-                            ticketId: ref.id, category, priority, description,
-                            tenant: currentUser.name, property: tenantProperty?.name,
-                        },
-                        dedupKey: `maint-${ref.id}`,
-                    }),
-                }).catch(() => {/* never blocks the tenant */});
-            } catch (error) { toast('Error submitting', 'error'); }
-        }
-
-        function toast(message, type = 'success') {
-            const container = document.getElementById('toastContainer');
-            const t = document.createElement('div');
-            t.className = `toast ${type}`;
-            t.innerHTML = `<span>${type === 'success' ? '✓' : '✕'}</span> ${message}`;
-            container.appendChild(t);
-            setTimeout(() => t.remove(), 3000);
-        }
-    </script>
+  Promise.all([qContracts,qPays,qMaint,qPayout]).then(function(){
+    var pid=(CONTRACT&&CONTRACT.propertyId)||PROFILE.propertyId||null;
+    return pid?T(db.collection('properties').doc(pid).get()).then(function(d){if(d.exists)PROPERTY=d.data();}).catch(function(){}):null;
+  }).then(function(){
+    $('load').style.display='none';$('app').style.display='';$('foot').style.display='';
+    document.title='La tua casa — '+((PROPERTY&&PROPERTY.address)||'BOOM Roma');
+    render();
+    renderBonifico();
+  });
+}).catch(function(){/* requireAuth redirects */});
+})();
+</script>
 </body>
 </html>

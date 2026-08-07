@@ -56,7 +56,7 @@
 }
 html{scroll-behavior:smooth}
 body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weight:300;background:var(--bg);color:var(--t0);min-height:100dvh;-webkit-font-smoothing:antialiased;letter-spacing:-.012em}
-.hdr{position:sticky;top:0;z-index:20;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:rgba(8,8,8,0.92);border-bottom:1px solid var(--b0);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.hdr{position:sticky;top:0;z-index:20;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:rgba(8,8,8,0.92);border-bottom:1px solid var(--b0);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
 .logo{display:flex;align-items:center;gap:8px;text-decoration:none}
 .logo-svg{width:20px;height:20px;flex-shrink:0}
 .logo-wm{font-size:13px;font-weight:300;letter-spacing:.32em;color:var(--t0);text-transform:uppercase}
@@ -87,11 +87,51 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
 .err-msg{font-size:11px;color:#FF3B30;margin-top:4px;display:none}
 .div{height:1px;background:var(--b0);margin:16px 0}
 .date-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+/* viewing mode: in person vs video call */
+.mode-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mode-opt{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:13px 14px;background:var(--s2);border:1px solid var(--b1);border-radius:var(--rsm);cursor:pointer;text-align:left;transition:border-color .2s,background .2s;font-family:inherit}
+.mode-opt:hover{border-color:var(--g-line)}
+.mode-opt.on{border-color:rgba(255,215,0,.45);background:var(--g-dim)}
+.mode-ico{font-size:18px;line-height:1}
+.mode-t{font-size:13.5px;color:var(--t0);font-weight:400;letter-spacing:-.01em}
+.mode-s{font-size:11px;color:var(--t2);font-weight:300;line-height:1.35}
+.tz-hint{font-size:11px;color:var(--t2);font-weight:300;margin-top:9px;letter-spacing:-.01em}
+@media(max-width:420px){.mode-row{grid-template-columns:1fr}}
+/* availability: days as a rail, times as a grid — taken slots simply aren't there */
+.slot-load{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--t1);font-weight:300;padding:14px 2px}
+.slot-spin{width:12px;height:12px;border:1.5px solid var(--b2);border-top-color:var(--g);border-radius:50%;animation:sspin .7s linear infinite}
+@keyframes sspin{to{transform:rotate(360deg)}}
+.day-row{display:flex;gap:7px;overflow-x:auto;padding-bottom:9px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.day-row::-webkit-scrollbar{display:none}
+.day-chip{flex:0 0 auto;padding:9px 13px;background:var(--s2);border:1px solid var(--b1);border-radius:var(--rsm);cursor:pointer;font-family:inherit;font-size:12px;font-weight:300;color:var(--t1);letter-spacing:-.01em;white-space:nowrap;transition:all .18s}
+.day-chip:hover{border-color:var(--b2);color:var(--t0)}
+.day-chip.on{border-color:rgba(255,215,0,.45);background:var(--g-dim);color:var(--t0)}
+.day-chip b{display:block;font-weight:400;color:inherit}
+.day-chip .dc-n{font-size:10px;color:var(--t2);letter-spacing:.06em;text-transform:uppercase}
+.day-chip.on .dc-n{color:var(--g)}
+.time-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:7px;margin-top:4px}
+.time-slot{padding:11px 6px;background:var(--s2);border:1px solid var(--b1);border-radius:var(--rsm);cursor:pointer;font-family:inherit;font-size:13.5px;font-weight:300;color:var(--t0);letter-spacing:.01em;transition:all .16s;text-align:center}
+.time-slot:hover{border-color:var(--g-line);background:var(--s3)}
+.time-slot.on{border-color:var(--g);background:var(--g-dim);color:var(--g);font-weight:400;box-shadow:0 0 0 3px rgba(255,215,0,.06)}
+.slot-empty{font-size:12px;color:var(--t1);font-weight:300;line-height:1.6;padding:12px 0}
+.slot-empty a{color:var(--g);text-decoration:none}
+.instant{display:inline-flex;align-items:center;gap:6px;font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ok);border:1px solid rgba(52,199,89,.3);background:rgba(52,199,89,.07);padding:4px 10px;border-radius:100px;margin-top:12px}
 .inp[type="date"]::-webkit-calendar-picker-indicator,.inp[type="time"]::-webkit-calendar-picker-indicator{filter:invert(.35);cursor:pointer}
 .note-area{width:100%;min-height:70px;resize:vertical;padding:11px 13px;background:var(--s2);border:1px solid var(--b1);border-radius:var(--rsm);color:var(--t0);font-family:inherit;font-size:13px;font-weight:300;letter-spacing:-.01em;outline:none;line-height:1.55;transition:border-color .2s}
 .note-area:focus{border-color:rgba(255, 215, 0,.45);box-shadow:0 0 0 3px rgba(255, 215, 0,.06)}
 .note-area::placeholder{color:var(--t2)}
 .pc{position:relative;padding:14px 16px 12px;margin-bottom:7px;background:var(--s1);border:1px solid var(--b1);border-radius:var(--rsm);cursor:pointer;transition:border-color .18s,background .18s;overflow:hidden}
+/* la vetrina: la foto fa metà del lavoro di scelta */
+.pc-img{display:flex;gap:13px;align-items:stretch;padding:11px 16px 11px 11px}
+.pc-thumb{flex:0 0 82px;min-height:66px;border-radius:9px;background-size:cover;background-position:center;background-color:var(--s2)}
+.pc-img .pc-body{flex:1;min-width:0}
+.pc-img .pc-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.zone-row{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 13px}
+.zchip{font-size:11.5px;letter-spacing:.02em;padding:6px 12px;border-radius:100px;border:1px solid var(--b1);background:transparent;color:var(--t2);cursor:pointer;transition:.16s}
+.zchip:hover{border-color:var(--g);color:var(--t1)}
+.zchip.on{background:var(--g);border-color:var(--g);color:#0a0a0a;font-weight:600}
+.zone-note{font-size:12px;color:var(--t2);margin:0 0 12px;line-height:1.6}
+.zone-note a{color:var(--g);text-decoration:none}
 .pc::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 15% 50%,rgba(255, 215, 0,.045),transparent 65%);opacity:0;transition:opacity .22s;pointer-events:none}
 .pc:hover{border-color:var(--b2)}.pc:hover::after{opacity:1}
 .pc.sel{border-color:rgba(255, 215, 0,.4);background:rgba(255, 215, 0,.025)}.pc.sel::after{opacity:1}
@@ -144,12 +184,13 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
 .cal-btn-g:hover{border-color:rgba(66,133,244,.55);background:rgba(66,133,244,.1)}
 .cal-btn-a{background:var(--s2);border-color:var(--b2)}
 .cal-btn-a:hover{border-color:var(--b3);background:var(--s3)}
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);padding:10px 18px;border-radius:10px;font-size:12px;font-weight:400;letter-spacing:.02em;white-space:nowrap;pointer-events:none;opacity:0;transition:all .25s;z-index:100;backdrop-filter:blur(12px)}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);padding:10px 18px;border-radius:10px;font-size:12px;font-weight:400;letter-spacing:.02em;white-space:nowrap;pointer-events:none;opacity:0;transition:all .25s;z-index:100;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .toast.err{background:rgba(255,59,48,.15);border:1px solid rgba(255,59,48,.3);color:#FF6B6B}
 .toast.ok{background:rgba(52,199,89,.12);border:1px solid rgba(52,199,89,.25);color:#4CD964}
 .hidden{display:none!important}
 </style>
+    <link rel="stylesheet" href="/css/boom-cinema.css">
 <!-- BOOM_JSONLD:START -->
   <script type="application/ld+json">
 {
@@ -170,8 +211,7 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
   "sameAs": [
     "https://www.instagram.com/boomrome",
     "https://www.linkedin.com/company/boomrome",
-    "https://wa.me/393313251961",
-    "https://share.google/xikmVxQCRuKOdWcND"
+    "https://wa.me/393331234567"
   ],
   "address": {
     "@type": "PostalAddress",
@@ -231,7 +271,6 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
 }
   </script>
 <!-- BOOM_JSONLD:END -->
-    <link rel="stylesheet" href="/css/boom-cinema.css">
 </head>
 <body>
 
@@ -291,8 +330,8 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
     <div class="card-shimmer"></div>
     <div class="card-hd">
       <div class="eyebrow">Step 2 of 3</div>
-      <div class="ttl">Choose a flat.</div>
-      <div class="sub">Select the property you'd like to visit.</div>
+      <div class="ttl" id="s2-ttl">Choose a flat.</div>
+      <div class="sub" id="s2-sub">Select the property you'd like to visit.</div>
     </div>
     <div class="card-bd" id="props-list">
       <div class="pc-skel"><div class="skel" style="height:10px;width:40%;margin-bottom:8px"></div><div class="skel" style="height:14px;width:80%"></div></div>
@@ -312,17 +351,39 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
     <div class="card-shimmer"></div>
     <div class="card-hd">
       <div class="eyebrow">Step 3 of 3</div>
-      <div class="ttl">When works for you?</div>
-      <div class="sub">Propose any date and time — Valentino will confirm or suggest an alternative.</div>
+      <div class="ttl">Pick your time.</div>
+      <div class="sub" id="s3-sub">These are real openings — the slot is yours the moment you tap it.<span class="instant" id="s3-instant">⚡ Instant confirmation</span></div>
     </div>
     <div class="card-bd">
       <div class="div" style="margin-top:0"></div>
+      <!-- Mode: the same appointment, two doors. Video is a first-class
+           choice, not a fallback — most of our clients are still abroad. -->
       <div class="fg">
-        <label class="lbl">Proposed date &amp; time *</label>
-        <div class="date-row">
-          <input class="inp" type="date" id="in-date">
-          <input class="inp" type="time" id="in-time" value="10:00">
+        <label class="lbl">How would you like to visit? *</label>
+        <div class="mode-row">
+          <button type="button" class="mode-opt on" id="mode-person" onclick="pickMode('person')">
+            <span class="mode-ico">🚶</span>
+            <span class="mode-t">In person</span>
+            <span class="mode-s">We meet you at the door</span>
+          </button>
+          <button type="button" class="mode-opt" id="mode-video" onclick="pickMode('video')">
+            <span class="mode-ico">🎥</span>
+            <span class="mode-t">Video call</span>
+            <span class="mode-s">Live walk-through, from anywhere</span>
+          </button>
         </div>
+      </div>
+      <!-- Real availability. The client takes a slot; it is confirmed on the
+           spot, because these ARE the operator's open hours. -->
+      <div class="fg">
+        <label class="lbl" id="s3-lbl">Pick a time — confirmed instantly *</label>
+        <div class="slot-load" id="slot-load"><span class="slot-spin"></span> Loading availability…</div>
+        <div class="day-row" id="day-row"></div>
+        <div class="time-grid" id="time-grid"></div>
+        <div class="slot-empty hidden" id="slot-empty">
+          No open slots right now — <a href="https://wa.me/393313251961" target="_blank" rel="noopener">message us on WhatsApp</a> and we'll find a time.
+        </div>
+        <div class="tz-hint" id="tz-hint"></div>
       </div>
       <div class="fg">
         <label class="lbl">Notes (optional)</label>
@@ -343,7 +404,7 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
       <div class="btn-row">
         <button class="btn btn-s" onclick="setStep(2)">← Back</button>
         <button class="btn btn-p" id="btn-submit" onclick="submitRequest()">
-          <span class="btn-label">Send Request →</span><div class="spin"></div>
+          <span class="btn-label">Confirm booking →</span><div class="spin"></div>
         </button>
       </div>
     </div>
@@ -369,9 +430,10 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
         <div class="sc-icon">🏠</div><div><div class="sc-lbl">Property</div><div class="sc-val" id="sum-p-final">—</div></div>
       </div>
       <div class="sum-chip" style="text-align:left;margin-bottom:20px">
-        <div class="sc-icon">📅</div><div><div class="sc-lbl">Proposed</div><div class="sc-val" id="sum-t-final">—</div></div>
+        <div class="sc-icon">📅</div><div><div class="sc-lbl">Your time</div><div class="sc-val" id="sum-t-final">—</div></div>
       </div>
-      <div class="sub" style="font-size:12px;color:var(--t2)">
+      <div class="sub" style="font-size:12px;color:var(--t2);line-height:1.9">
+        <a id="pend-manage" href="#" style="color:var(--g);text-decoration:none">Change or cancel this request →</a><br>
         Questions? <a href="https://wa.me/393313251961" style="color:var(--g);opacity:.8;text-decoration:none" target="_blank">WhatsApp Valentino →</a>
       </div>
     </div>
@@ -383,8 +445,8 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
           <polyline id="conf-chk" points="6,15 12,21 24,9" stroke="#34C759" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="32" stroke-dashoffset="32"/>
         </svg>
       </div>
-      <div class="pend-title">Confirmed!</div>
-      <div class="pend-sub">Your viewing is confirmed. Add it to your calendar<br>and we'll see you there.</div>
+      <div class="pend-title">Confirmed.</div>
+      <div class="pend-sub" id="conf-sub">Your viewing is booked. Everything you need is<br>in your inbox — and on the pass below.</div>
       <div class="status-badge conf-badge"><div class="sdot-pulse conf-dot"></div>Confirmed</div>
       <div class="sum-chip" style="text-align:left;margin-bottom:5px">
         <div class="sc-icon">🏠</div><div><div class="sc-lbl">Property</div><div class="sc-val" id="conf-prop">—</div></div>
@@ -392,9 +454,15 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
       <div class="sum-chip" style="text-align:left;margin-bottom:5px">
         <div class="sc-icon">📅</div><div><div class="sc-lbl">Confirmed time</div><div class="sc-val" id="conf-time">—</div></div>
       </div>
-      <div class="sum-chip" style="text-align:left;margin-bottom:20px">
+      <div class="sum-chip" style="text-align:left;margin-bottom:16px">
         <div class="sc-icon">👤</div><div><div class="sc-lbl">Agent</div><div class="sc-val">Valentino — BOOM Rome</div></div>
       </div>
+      <!-- the one thing they'll actually tap on the day -->
+      <a class="btn btn-p" id="conf-act" href="#" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none;margin-bottom:8px">📍 Get directions</a>
+      <a class="cal-btn cal-btn-a" id="conf-pass" href="#" style="width:100%;justify-content:center;margin-bottom:14px">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+        Add to Apple Wallet
+      </a>
       <div class="cal-row">
         <a class="cal-btn cal-btn-g" id="cal-g" href="#" target="_blank">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -405,8 +473,9 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
           Apple Calendar
         </a>
       </div>
-      <div class="sub" style="font-size:12px;color:var(--t2)">
-        Bring valid ID · Arrive 5 min early<br>
+      <div class="sub" style="font-size:12px;color:var(--t2);line-height:1.7">
+        We'll remind you the day before, 3 hours and 30 minutes ahead.<br>
+        Plans change? <a href="#" id="conf-manage" style="color:var(--g);opacity:.8;text-decoration:none">Move or cancel it yourself →</a><br>
         <a href="https://wa.me/393313251961" style="color:var(--g);opacity:.8;text-decoration:none" target="_blank">WhatsApp Valentino →</a>
       </div>
     </div>
@@ -418,13 +487,93 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 <script>
 firebase.initializeApp({apiKey:"AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",authDomain:"boom-property-dashboards.firebaseapp.com",projectId:"boom-property-dashboards",messagingSenderId:"937269017440",appId:"1:937269017440:web:41c1a0b1e1633c2f373c05"});
 const db=firebase.firestore();
-emailjs.init('dnMxbtS2qDm_o7SHE');
 
-let ST={step:1,name:'',email:'',phone:'',listing:null,date:'',time:'',notes:'',reqId:null};
+let ST={step:1,name:'',email:'',phone:'',listing:null,date:'',time:'',notes:'',reqId:null,mode:'person',
+        all:[],zone:'',pre:null,approval:false};
+/* il contesto della landing (?zone=pigneto) e il link diretto (?listing=<id>) */
+try{const q=new URLSearchParams(location.search);
+  ST.zone=(q.get('zone')||q.get('z')||'').trim().toLowerCase();
+  ST.pre=(q.get('listing')||q.get('id')||'').trim()||null;
+}catch(e){}
+
+function pickMode(m){
+  ST.mode=m;
+  document.getElementById('mode-person').classList.toggle('on',m==='person');
+  document.getElementById('mode-video').classList.toggle('on',m==='video');
+  ST.when=null;ST.day=null;updateSum();
+  loadSlots();                       // video slots are shorter: the grid changes
+}
+
+/* ---- availability ------------------------------------------------------ */
+/* The server publishes only what is really bookable (open hours minus taken
+   slots minus minimum notice), so anything the client can tap is a yes.    */
+async function loadSlots(){
+  const load=document.getElementById('slot-load'),row=document.getElementById('day-row'),
+        grid=document.getElementById('time-grid'),empty=document.getElementById('slot-empty');
+  load.style.display='flex';row.innerHTML='';grid.innerHTML='';empty.classList.add('hidden');
+  try{
+    const r=await fetch('/api/viewings/slots?mode='+encodeURIComponent(ST.mode)+(ST.listing?'&listingId='+encodeURIComponent(ST.listing.id):''));
+    const j=await r.json();
+    ST.slots=(j&&j.ok&&Array.isArray(j.slots))?j.slots:[];
+    // La pagina non deve MAI promettere una certezza che il server non dà:
+    // se l'operatore conferma ogni visita, qui si parla di richiesta.
+    if(j&&j.requireApproval){ST.approval=true;applyApprovalCopy()}
+  }catch(e){ST.slots=[]}
+  load.style.display='none';
+  if(!ST.slots.length){empty.classList.remove('hidden');updateSum();return}
+  ST.day=ST.slots[0].date;
+  row.innerHTML=ST.slots.map(d=>{
+    const [wd,dnum,mon]=d.label.split(' ');
+    return `<button type="button" class="day-chip${d.date===ST.day?' on':''}" data-day="${d.date}" onclick="pickDay('${d.date}')">
+      <span class="dc-n">${wd}</span><b>${dnum} ${mon}</b></button>`;
+  }).join('');
+  paintTimes();
+}
+/* Un solo posto per le parole: se cambiassero in due punti diversi, la
+   pagina prometterebbe due cose diverse nella stessa schermata. */
+function applyApprovalCopy(){
+  const sub=document.getElementById('s3-sub'),chip=document.getElementById('s3-instant'),
+        lbl=document.getElementById('s3-lbl'),btn=document.getElementById('btn-submit');
+  if(sub)sub.firstChild.nodeValue='These are real openings — pick one and we hold it for you.';
+  if(chip){chip.textContent='✓ Confirmed within a few hours';chip.style.color='#FF9F0A';
+    chip.style.borderColor='rgba(255,159,10,.3)';chip.style.background='rgba(255,159,10,.07)'}
+  if(lbl)lbl.textContent='Pick a time — we hold it while we confirm *';
+  const bl=btn&&btn.querySelector('.btn-label');
+  if(bl)bl.textContent='Request this viewing →';
+}
+function pickDay(date){
+  ST.day=date;ST.when=null;
+  document.querySelectorAll('.day-chip').forEach(c=>c.classList.toggle('on',c.dataset.day===date));
+  paintTimes();updateSum();
+}
+function paintTimes(){
+  const day=ST.slots.find(d=>d.date===ST.day);
+  const grid=document.getElementById('time-grid');
+  if(!day){grid.innerHTML='';return}
+  grid.innerHTML=day.times.map(t=>
+    `<button type="button" class="time-slot${t.iso===ST.when?' on':''}" data-iso="${t.iso}" onclick="pickSlot('${t.iso}')">${t.label}</button>`
+  ).join('');
+}
+function pickSlot(iso){
+  ST.when=iso;
+  document.querySelectorAll('.time-slot').forEach(s=>s.classList.toggle('on',s.dataset.iso===iso));
+  updateSum();
+}
+/* Times are always Rome time — say it out loud to anyone who isn't here yet. */
+function tzHint(){
+  const el=document.getElementById('tz-hint'); if(!el) return;
+  let local='';
+  try{
+    const tz=Intl.DateTimeFormat().resolvedOptions().timeZone||'';
+    const romeNow=new Date().toLocaleString('en-US',{timeZone:'Europe/Rome',hour:'numeric',minute:'2-digit'});
+    const hereNow=new Date().toLocaleString('en-US',{hour:'numeric',minute:'2-digit'});
+    if(tz && !/Rome/.test(tz) && romeNow!==hereNow) local=` · it's ${romeNow} in Rome right now, ${hereNow} for you`;
+  }catch(e){}
+  el.textContent='All times are Rome time (CET)'+local;
+}
 const PW={1:'0%',2:'33%',3:'67%',4:'100%'};
 window._L={};
 
@@ -457,26 +606,76 @@ function toStep2(){
   setStep(2);loadListings();
 }
 
+/* Il contesto arriva dalla landing: /book?zone=pigneto apre già filtrato su
+   Pigneto. Chi stava leggendo di un quartiere non deve ricominciare da capo —
+   era il punto di caduta più costoso del sito. `?listing=<id>` salta oltre. */
+const ZSLUG=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+function zoneMatches(listingZone,slug){
+  if(!slug)return true;
+  const a=ZSLUG(listingZone),b=ZSLUG(slug);
+  if(!a)return false;
+  // Solo uguaglianza o prefisso su confine di parola: "trieste-coppede" trova
+  // "Trieste", ma "ponte-milvio" NON deve pescare "Ponte Lungo". Un falso
+  // negativo mostra tutto il catalogo con una nota onesta; un falso positivo
+  // manda il cliente in un altro quartiere — molto peggio.
+  return a===b||a.startsWith(b+'-')||b.startsWith(a+'-');
+}
+
 async function loadListings(){
   const c=document.getElementById('props-list');
   try{
     const snap=await db.collection('listings').where('status','==','available').get();
     if(snap.empty){c.innerHTML='<div class="empty-state"><span>🏠</span>No properties available right now.<br>Contact us directly — we may have unlisted options.</div>';return}
-    const list=snap.docs.map(d=>({id:d.id,...d.data()}));
-    list.forEach(l=>window._L[l.id]=l);
-    c.innerHTML=list.map(l=>`
-      <div class="pc" id="pc-${l.id}" onclick="pick('${l.id}')">
-        <div class="pc-check"><svg width="10" height="10" viewBox="0 0 14 14"><polyline class="cp" points="2,7 5.5,10.5 12,3.5"/></svg></div>
-        <div class="pc-zone">${esc(l.zone||'Rome')} · €${(l.price||0).toLocaleString()}/mo</div>
-        <div class="pc-name">${esc(l.name||l.address||'Property')}</div>
-        <div class="pc-meta">
-          ${l.bedrooms?`<span class="pc-detail">${l.bedrooms} bed${l.bedrooms>1?'s':''}</span>`:''}
-          ${l.sqm?`<span class="pc-detail">${l.sqm} m²</span>`:''}
-          ${l.file?`<a class="pc-link" href="${l.file.startsWith('http')?l.file:'https://www.boomrome.com/'+l.file}" target="_blank" onclick="event.stopPropagation()">View ↗</a>`:''}
-        </div>
-      </div>`).join('');
+    const all=snap.docs.map(d=>({id:d.id,...d.data()}));
+    all.forEach(l=>window._L[l.id]=l);
+    ST.all=all;
+    paintProps();
   }catch(e){c.innerHTML='<div class="empty-state"><span>⚠️</span>Couldn\'t load. Please refresh.</div>'}
 }
+
+function propCard(l){
+  const img=l.image||(Array.isArray(l.images)&&l.images[0])||'';
+  return `<div class="pc${img?' pc-img':''}" id="pc-${l.id}" onclick="pick('${l.id}')">
+    <div class="pc-check"><svg width="10" height="10" viewBox="0 0 14 14"><polyline class="cp" points="2,7 5.5,10.5 12,3.5"/></svg></div>
+    ${img?`<div class="pc-thumb" style="background-image:url('${esc(img)}')"></div>`:''}
+    <div class="pc-body">
+      <div class="pc-zone">${esc(l.zone||'Rome')} · €${(l.price||0).toLocaleString()}/mo</div>
+      <div class="pc-name">${esc(l.name||l.address||'Property')}</div>
+      <div class="pc-meta">
+        ${l.bedrooms?`<span class="pc-detail">${l.bedrooms} bed${l.bedrooms>1?'s':''}</span>`:''}
+        ${l.sqm?`<span class="pc-detail">${l.sqm} m²</span>`:''}
+        <a class="pc-link" href="/listing/${encodeURIComponent(l.id)}" target="_blank" onclick="event.stopPropagation()">View ↗</a>
+      </div>
+    </div>
+  </div>`;
+}
+
+function paintProps(){
+  const c=document.getElementById('props-list'),all=ST.all||[];
+  const zones=[...new Set(all.map(l=>l.zone).filter(Boolean))].sort();
+  const shown=all.filter(l=>zoneMatches(l.zone,ST.zone));
+  // Un filtro che non trova nulla non deve lasciare la pagina vuota: si dice
+  // che lì non c'è niente ORA e si mostra il resto, invece di un vicolo cieco.
+  const list=shown.length?shown:all;
+  const note=(ST.zone&&!shown.length)
+    ? `<div class="zone-note">Nothing free in <b>${esc(ST.zone.replace(/-/g,' '))}</b> right now — here's everything else available.</div>`
+    : (ST.zone?`<div class="zone-note">Showing <b>${shown.length}</b> in <b>${esc(ST.zone.replace(/-/g,' '))}</b> · <a href="#" onclick="setZone('');return false">see all ${all.length}</a></div>`:'');
+  const chips=zones.length>1?`<div class="zone-row">
+      <button type="button" class="zchip${ST.zone?'':' on'}" onclick="setZone('')">All</button>
+      ${zones.map(z=>`<button type="button" class="zchip${zoneMatches(z,ST.zone)&&ST.zone?' on':''}" onclick="setZone('${esc(ZSLUG(z))}')">${esc(z)}</button>`).join('')}
+    </div>`:'';
+  const t=document.getElementById('s2-ttl'),s=document.getElementById('s2-sub');
+  if(t&&ST.zone&&shown.length){t.textContent='Available in '+ST.zone.replace(/-/g,' ').replace(/\b\w/g,m=>m.toUpperCase())+'.';
+    if(s)s.textContent='Pick the one you\'d like to see — you choose the time next.';}
+  c.innerHTML=chips+note+list.map(propCard).join('');
+  // preselezione: un solo risultato, o l'immobile arrivato per link
+  const pre=ST.pre&&list.find(l=>l.id===ST.pre);
+  if(pre)pick(pre.id);
+  else if(list.length===1)pick(list[0].id);
+}
+
+function setZone(z){ST.zone=z;ST.listing=null;ST.pre=null;
+  document.getElementById('btn-s2-next').disabled=true;paintProps();}
 
 function pick(id){
   document.querySelectorAll('.pc').forEach(el=>el.classList.remove('sel'));
@@ -487,94 +686,119 @@ function pick(id){
 
 function toStep3(){
   if(!ST.listing){toast('err','Select a property first');return}
-  const today=new Date().toISOString().split('T')[0];
-  document.getElementById('in-date').min=today;
-  document.getElementById('in-date').value='';
   const l=ST.listing;
   document.getElementById('sum-prop').textContent=(l.name||l.address||'Property')+(l.zone?' — '+l.zone:'');
-  document.getElementById('sum-time').textContent='—';
+  ST.when=null;updateSum();
   setStep(3);
-  ['in-date','in-time'].forEach(id=>{
-    document.getElementById(id).addEventListener('change',updateSum);
-  });
+  loadSlots();
 }
 function updateSum(){
-  const d=document.getElementById('in-date').value,t=document.getElementById('in-time').value;
-  if(d&&t)document.getElementById('sum-time').textContent=fmtDT(new Date(d+'T'+t));
+  const how=ST.mode==='video'?' · 🎥 video call':' · 🚶 in person';
+  const el=document.getElementById('sum-time');
+  if(el)el.textContent=ST.when?(fmtRome(ST.when)+how):'Pick a time above';
+  const btn=document.getElementById('btn-submit');
+  if(btn)btn.disabled=!ST.when;
+  tzHint();
+}
+/* Always show Rome time explicitly — the client may be in another timezone. */
+function fmtRome(iso){
+  return new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Rome',weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(iso));
 }
 
 async function submitRequest(){
-  const d=document.getElementById('in-date').value,t=document.getElementById('in-time').value;
-  if(!d||!t){toast('err','Please select a date and time');return}
-  ST.date=d;ST.time=t;ST.notes=document.getElementById('in-notes').value.trim();
+  if(!ST.when){toast('err','Please pick a time');return}
+  ST.notes=document.getElementById('in-notes').value.trim();
   const btn=document.getElementById('btn-submit');
   btn.classList.add('loading');
+  const l=ST.listing;
   try{
-    const l=ST.listing,dt=new Date(d+'T'+t),dtStr=fmtDT(dt);
-    const ref=await db.collection('viewingRequests').add({
-      clientName:ST.name,clientEmail:ST.email,clientPhone:ST.phone,
-      listingId:l.id,listingName:l.name||l.address||'Property',listingZone:l.zone||'',listingPrice:l.price||0,
-      proposedDate:d,proposedTime:t,proposedDateTime:dt.toISOString(),
-      notes:ST.notes,status:'pending',
-      confirmedDate:null,confirmedTime:null,confirmedDateTime:null,
-      reminder3hSent:false,reminder30mSent:false,
-      agentEmail:'valentino@boomrome.com',
-      createdAt:firebase.firestore.FieldValue.serverTimestamp()
-    });
-    ST.reqId=ref.id;
-    // Server-side admin notification (cleaner than client-side EmailJS, also tolerates 4xx)
-    try {
-      await fetch('/api/notify-viewing-created', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          viewingId: ref.id,
-          clientName: ST.name,
-          clientEmail: ST.email,
-          clientPhone: ST.phone,
-          listingName: (l.name || l.address || 'Property') + (l.zone ? ' · ' + l.zone : ''),
-          requestedDate: d,
-          requestedTime: t,
-          notes: ST.notes || ''
-        })
-      });
-    } catch (notifyErr) {
-      console.warn('[book] notify-viewing-created failed (non-fatal):', notifyErr);
-    }
-    const propName=(l.name||l.address||'Property')+(l.zone?' — '+l.zone:'');
-    document.getElementById('sum-p-final').textContent=propName;
-    document.getElementById('sum-t-final').textContent=dtStr;
+    // The server re-checks the slot (the grid may be seconds stale), writes the
+    // viewing as CONFIRMED and sends the boarding pass before we even answer.
+    const r=await fetch('/api/viewings/slots',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        listingId:l.id,listingName:l.name||l.address||'Property',
+        when:ST.when,mode:ST.mode,
+        name:ST.name,email:ST.email,phone:ST.phone,notes:ST.notes,
+        language:(navigator.language||'en').toLowerCase().startsWith('it')?'it':'en',
+        company:''
+      })});
+    const j=await r.json().catch(()=>null);
     btn.classList.remove('loading');
+    if(r.status===409){
+      toast('err','That slot was just taken — pick another one');
+      loadSlots();return;
+    }
+    if(!j||!j.ok){toast('err','Something went wrong. Please try again.');return}
+    ST.reqId=j.id;
+    // Il server decide: 'pending' = l'operatore deve confermare. La schermata
+    // "Request sent" esisteva già ed era irraggiungibile — ora è la sua strada.
+    if(j.status==='pending'){
+      setStep(4);
+      showPending({listingName:l.name||l.address||'Property',listingZone:l.zone||'',
+        when:j.when,mode:j.mode,manageUrl:j.manageUrl});
+      return;
+    }
+    // admin ping (non-blocking, tolerates failure)
+    fetch('/api/notify-viewing-created',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({viewingId:j.id,clientName:ST.name,clientEmail:ST.email,clientPhone:ST.phone,
+        listingName:(l.name||l.address||'Property')+(l.zone?' · '+l.zone:''),
+        requestedDate:ST.when.slice(0,10),requestedTime:ST.when.slice(11,16),mode:ST.mode,
+        notes:(ST.mode==='video'?'[VIDEO CALL] ':'')+(ST.notes||'')})}).catch(()=>{});
     setStep(4);
-    startPolling(ref.id);
+    showConfirmed({
+      listingName:l.name||l.address||'Property',listingZone:l.zone||'',
+      confirmedDateTime:j.when,mode:j.mode,videoUrl:j.videoUrl,id:j.id,manageUrl:j.manageUrl
+    });
   }catch(e){console.error(e);btn.classList.remove('loading');toast('err','Something went wrong. Please try again.')}
 }
 
-function startPolling(id){
-  const iv=setInterval(async()=>{
-    try{
-      const doc=await db.collection('viewingRequests').doc(id).get();
-      const data=doc.data();
-      if(data?.status==='confirmed'&&data.confirmedDateTime){clearInterval(iv);showConfirmed(data)}
-    }catch(e){}
-  },15000);
-  setTimeout(()=>clearInterval(iv),7200000);
+function showPending(data){
+  const p=document.getElementById('sum-p-final');
+  if(p)p.textContent=data.listingName+(data.listingZone?' — '+data.listingZone:'');
+  const t=document.getElementById('sum-t-final');
+  if(t)t.textContent=fmtRome(data.when)+' (Rome time)';
+  const sub=document.querySelector('#pend-body .pend-sub');
+  if(sub)sub.innerHTML='That time is <b>held for you</b> while we confirm it.<br>'
+    +'You\'ll get an email as soon as it\'s confirmed — usually within a few hours.';
+  const mng=document.getElementById('pend-manage');
+  if(mng){if(data.manageUrl)mng.href=data.manageUrl;else mng.style.display='none'}
+  document.getElementById('conf-body').classList.add('hidden');
+  document.getElementById('pend-body').classList.remove('hidden');
+  try{boomTrack&&boomTrack('viewing_requested',{mode:data.mode,item_id:(ST.listing||{}).id||''})}catch(e){}
 }
 
 function showConfirmed(data){
-  const dt=new Date(data.confirmedDateTime),dtStr=fmtDT(dt);
+  const dtStr=fmtRome(data.confirmedDateTime)+' (Rome time)';
+  const video=data.mode==='video';
   document.getElementById('conf-prop').textContent=data.listingName+(data.listingZone?' — '+data.listingZone:'');
   document.getElementById('conf-time').textContent=dtStr;
-  const s=dt.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
-  const e=new Date(dt.getTime()+3600000).toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
-  const ttl=encodeURIComponent('Viewing — '+data.listingName+' (BOOM)');
-  const loc=encodeURIComponent(data.listingName+(data.listingZone?', '+data.listingZone+', Rome, Italy':''));
-  document.getElementById('cal-g').href=`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${ttl}&dates=${s}/${e}&location=${loc}&details=${encodeURIComponent('Property viewing via BOOM Rome\nContact: +39 331 325 1961')}`;
-  document.getElementById('cal-a').href=`data:text/calendar;charset=utf8,BEGIN:VCALENDAR%0AVERSION:2.0%0ABEGIN:VEVENT%0ADTSTART:${s}%0ADTEND:${e}%0ASUMMARY:${ttl}%0ALOCATION:${loc}%0AEND:VEVENT%0AEND:VCALENDAR`;
+  document.getElementById('conf-sub').innerHTML=video
+    ? 'Your video viewing is booked. The link is in your inbox<br>and in the button below — no app to install.'
+    : 'Your viewing is booked. Everything you need is<br>in your inbox — and on the pass below.';
+  // calendar: the server owns the canonical .ics (with its 3h alarm)
+  document.getElementById('cal-g').href='/api/viewings/ics?id='+encodeURIComponent(data.id)+'&g=1';
+  document.getElementById('cal-a').href='/api/viewings/ics?id='+encodeURIComponent(data.id);
+  document.getElementById('cal-g').setAttribute('download','');
+  // the one-tap action + the Wallet pass
+  const act=document.getElementById('conf-act');
+  if(video&&data.videoUrl){act.href=data.videoUrl;act.textContent='🎥 Join the video call';}
+  else{
+    const l=ST.listing||{};
+    act.href='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent([l.address||data.listingName,'Roma','Italia'].filter(Boolean).join(', '));
+    act.textContent='📍 Get directions';
+  }
+  document.getElementById('conf-pass').href='/pass-delivery?type=viewing&id='+encodeURIComponent(data.id);
+  // self-service: the client owns their appointment from here on
+  const mng=document.getElementById('conf-manage');
+  if(mng){
+    if(data.manageUrl)mng.href=data.manageUrl;
+    else mng.style.display='none';   // older server: WhatsApp stays the way out
+  }
   const chk=document.getElementById('conf-chk');
   if(chk){chk.style.animation='none';chk.offsetHeight;chk.style.animation='drawChk .5s .2s ease forwards'}
   document.getElementById('pend-body').classList.add('hidden');
   document.getElementById('conf-body').classList.remove('hidden');
+  try{boomTrack&&boomTrack('viewing_booked',{mode:data.mode,item_id:(ST.listing||{}).id||''})}catch(e){}
 }
 
 function fmtDT(dt){return dt.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})+' · '+dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}

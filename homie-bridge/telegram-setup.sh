@@ -17,7 +17,9 @@
 
 set -uo pipefail
 
-BASE_URL="${BOOM_BASE_URL:-https://boomrome.com}"
+# Use the canonical www host — the apex boomrome.com 307-redirects to www, and
+# Telegram refuses to follow redirects on webhooks ("Wrong response: 307").
+BASE_URL="${BOOM_BASE_URL:-https://www.boomrome.com}"
 bold() { printf "\033[1m%s\033[0m\n" "$*"; }
 ok()   { printf "  \033[32m✓\033[0m %s\n" "$*"; }
 warn() { printf "  \033[33m!\033[0m %s\n" "$*"; }

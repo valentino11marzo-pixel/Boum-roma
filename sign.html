@@ -115,7 +115,7 @@
 
     /* card */
     .card{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:22px;
-      padding:26px 24px;backdrop-filter:blur(22px) saturate(1.2);-webkit-backdrop-filter:blur(22px) saturate(1.2);
+      padding:26px 24px;-webkit-backdrop-filter:blur(22px) saturate(1.2);backdrop-filter:blur(22px) saturate(1.2);
       box-shadow:0 1px 0 rgba(255,255,255,.05) inset, 0 26px 60px -24px rgba(0,0,0,.85)}
     .card::before{content:'';position:absolute;top:-1px;left:22px;right:22px;height:1px;
       background:linear-gradient(90deg,transparent,rgba(246,228,166,.5),transparent)}
@@ -286,6 +286,15 @@
   <div class="vignette" aria-hidden="true"></div>
   <div class="grain" aria-hidden="true"></div>
 
+  <style>
+    .lang{position:fixed;top:14px;right:14px;z-index:60;display:flex;gap:2px;padding:3px;border-radius:999px;
+      border:1px solid var(--line);background:rgba(20,20,24,.7);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+    .lang button{border:none;background:transparent;color:var(--text-3);font-family:var(--ui);font-size:10.5px;font-weight:700;
+      letter-spacing:1px;padding:5px 10px;border-radius:999px;cursor:pointer}
+    .lang button.on{background:rgba(233,199,102,.16);color:var(--gold)}
+  </style>
+  <div class="lang" id="lang"><button data-l="en">EN</button><button data-l="it">IT</button></div>
+
   <main class="shell">
     <div class="head">
       <svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="BOOM Rome">
@@ -358,6 +367,107 @@
       return expect===cf[15];
     }
 
+    // ── i18n: la pagina parla la lingua di chi firma ──────────────────
+    // Il locatore riceve l'email in italiano: atterrare su una pagina in
+    // inglese è attrito puro. Default per ruolo (locatore IT, inquilino
+    // EN), scelta dell'utente persistita. Stesso pattern di /scheda.
+    var STR = {
+      en: {
+        kicker:'Secure Signing',
+        trust:'Encrypted · IP &amp; timestamp recorded · FES (Art. 21 CAD)',
+        rev_t:'Review your contract', rev_d:'Please review the terms before signing.',
+        rev_welcome:'Welcome', k_prop:'Property', k_rent:'Monthly rent', k_dur:'Duration',
+        k_start:'Start date', k_dep:'Deposit', k_type:'Type', k_months:'months',
+        r_landlord:'Landlord', r_tenant:'Tenant', ty_student:'Student', ty_trans:'Transitional',
+        pdf_link:'View full contract PDF', b_continue:'Continue', b_back:'Back', b_edit:'Edit',
+        b_confirm:'Confirm &amp; continue', b_skip:'Skip for now',
+        idc_t:'Confirm your details', idc_d:'We already have your information — just check it’s correct before signing.',
+        idf_t:'Verify your details', idf_d:'Required by Italian law to register the contract. Your data is encrypted.',
+        ph_t:'Verify your phone', ph_d:'We’ll text a 6-digit code to confirm it’s really you.',
+        ph_code:'Code', ph_num:'Mobile number', ph_send:'Send code',
+        ph_skip_note:'No SMS? You can skip this step — your signature stays fully valid.',
+        otp_t:'Enter the code', otp_sent:'Sent to', otp_verify:'Verify',
+        otp_fail:'We couldn’t send the code to this number — you can tap “Skip for now” and sign anyway.',
+        otp_many:'Too many attempts. Wait a few minutes, or tap “Skip for now” and sign anyway.',
+        otp_bad:'That number doesn’t look valid — check the country code, or tap “Skip for now”.',
+        sig_t:'Sign your contract', sig_d:'Draw your signature in the box below.',
+        sig_here:'Sign here', sig_undo:'Undo', sig_clear:'Clear', sig_go:'Sign contract',
+        consent:'I confirm my identity and accept all lease terms. This digital signature is legally valid <b>(FES — Art. 21 CAD)</b>.',
+        ask:'Questions before signing? Chat with BOOM on WhatsApp →',
+        ask_short:'Questions? Chat with BOOM on WhatsApp →',
+        wa_msg:'Hi! I’m signing the BOOM contract and have a question',
+        e_signed_t:'Already signed', e_signed_full:'This contract is fully signed and active.',
+        e_signed_part:'Your signature is recorded. We’re waiting for the other party to sign.',
+        e_turn_t:'Not your turn yet', e_turn_d:'The tenant signs first. The moment their signature is in, we’ll email you and this same link will open for your countersignature — nothing to do now.',
+        e_link_t:'Link not valid', e_link_d:'This link is invalid or has already been used.',
+        e_err_t:'Something went wrong', e_err_d:'We couldn’t load this contract. Please try again in a moment.',
+        e_conn_t:'Connection needed', e_conn_d:'We couldn’t reach the signing service. Check your connection and refresh.',
+        support:'Contact BOOM',
+        e_rate:'Too many attempts — wait a minute and press Sign again.',
+        e_terms:'This contract was updated after it was sent. Please ask BOOM to resend your signing link — it takes a second.',
+        e_otp:'This contract requires phone verification: go back and verify your number.',
+        e_used:'This signing link is no longer valid. Ask BOOM for a fresh one.',
+        e_consent:'Please tick the consent box again and press Sign.',
+        e_sig:'Your signature didn’t come through — clear the box, sign again with a slower stroke, and press Sign.',
+        e_generic:'We couldn’t record your signature. Try once more — if it keeps failing, tap the WhatsApp link below and we’ll sort it in a minute.',
+      },
+      it: {
+        kicker:'Firma sicura',
+        trust:'Cifrato · IP e marca temporale registrati · FES (art. 21 CAD)',
+        rev_t:'Il Suo contratto', rev_d:'Legga i termini prima di firmare.',
+        rev_welcome:'Benvenuto', k_prop:'Immobile', k_rent:'Canone mensile', k_dur:'Durata',
+        k_start:'Decorrenza', k_dep:'Deposito', k_type:'Tipo', k_months:'mesi',
+        r_landlord:'Locatore', r_tenant:'Conduttore', ty_student:'Studenti', ty_trans:'Transitorio',
+        pdf_link:'Apri il contratto completo (PDF)', b_continue:'Continua', b_back:'Indietro', b_edit:'Modifica',
+        b_confirm:'Conferma e continua', b_skip:'Salta per ora',
+        idc_t:'Conferma i Suoi dati', idc_d:'Abbiamo già le Sue informazioni — controlli che siano corrette prima di firmare.',
+        idf_t:'I Suoi dati', idf_d:'Richiesti dalla legge italiana per registrare il contratto. I dati sono cifrati.',
+        ph_t:'Verifica il telefono', ph_d:'Le inviamo un codice di 6 cifre per confermare che è davvero Lei.',
+        ph_code:'Prefisso', ph_num:'Numero di cellulare', ph_send:'Invia il codice',
+        ph_skip_note:'Nessun SMS? Può saltare questo passaggio — la firma resta pienamente valida.',
+        otp_t:'Inserisca il codice', otp_sent:'Inviato a', otp_verify:'Verifica',
+        otp_fail:'Non siamo riusciti a inviare il codice a questo numero — può premere “Salta per ora” e firmare comunque.',
+        otp_many:'Troppi tentativi. Attenda qualche minuto, oppure prema “Salta per ora” e firmi comunque.',
+        otp_bad:'Il numero non sembra valido — controlli il prefisso internazionale, oppure prema “Salta per ora”.',
+        sig_t:'Firmi il contratto', sig_d:'Tracci la firma nel riquadro qui sotto.',
+        sig_here:'Firmi qui', sig_undo:'Annulla', sig_clear:'Cancella', sig_go:'Firma il contratto',
+        consent:'Confermo la mia identità e accetto tutti i termini del contratto di locazione. Questa firma digitale è legalmente valida <b>(FES — art. 21 CAD)</b>.',
+        ask:'Domande prima di firmare? Scriva a BOOM su WhatsApp →',
+        ask_short:'Domande? Scriva a BOOM su WhatsApp →',
+        wa_msg:'Buongiorno! Sto firmando il contratto BOOM e ho una domanda',
+        e_signed_t:'Già firmato', e_signed_full:'Questo contratto è firmato da tutte le parti ed è attivo.',
+        e_signed_part:'La Sua firma è registrata. Attendiamo la firma dell’altra parte.',
+        e_turn_t:'Non è ancora il Suo turno', e_turn_d:'Firma prima il conduttore. Appena la sua firma è registrata Le scriviamo, e questo stesso link si aprirà per la Sua controfirma — per ora non deve fare nulla.',
+        e_link_t:'Link non valido', e_link_d:'Questo link non è valido o è già stato usato.',
+        e_err_t:'Qualcosa è andato storto', e_err_d:'Non riusciamo a caricare il contratto. Riprovi tra un momento.',
+        e_conn_t:'Serve la connessione', e_conn_d:'Non riusciamo a raggiungere il servizio di firma. Controlli la connessione e ricarichi.',
+        support:'Contatta BOOM',
+        e_rate:'Troppi tentativi — attenda un minuto e prema di nuovo Firma.',
+        e_terms:'Il contratto è stato aggiornato dopo l’invio. Chieda a BOOM di rimandare il link di firma — è questione di un attimo.',
+        e_otp:'Questo contratto richiede la verifica del telefono: torni indietro e verifichi il numero.',
+        e_used:'Questo link di firma non è più valido. Ne chieda uno nuovo a BOOM.',
+        e_consent:'Rimetta la spunta sul consenso e prema Firma.',
+        e_sig:'La firma non è arrivata — cancelli il riquadro, la rifaccia con un tratto più lento e prema Firma.',
+        e_generic:'Non siamo riusciti a registrare la firma. Riprovi — se continua, tocchi il link WhatsApp qui sotto e lo risolviamo in un minuto.',
+      }
+    };
+    var lang = '';
+    try { lang = localStorage.getItem('boom_sign_lang') || ''; } catch(e) {}
+    function t(k){ return (STR[lang]||STR.en)[k] || STR.en[k] || k; }
+    function waLink(txt){ return 'https://wa.me/393313251961?text='+encodeURIComponent(t('wa_msg')); }
+    function setLang(l, silent){
+      lang = (l==='it') ? 'it' : 'en';
+      try { localStorage.setItem('boom_sign_lang', lang); } catch(e) {}
+      document.documentElement.lang = lang;
+      [].forEach.call(document.querySelectorAll('#lang button'), function(b){ b.classList.toggle('on', b.dataset.l===lang); });
+      var k=document.querySelector('.kicker'); if(k) k.textContent=t('kicker');
+      var tr=document.querySelector('.trust span'); if(tr) tr.innerHTML=t('trust');
+      if(!silent && S && typeof S.view==='function') S.view();   // ridisegna lo step corrente
+    }
+    document.addEventListener('click', function(e){
+      var b=e.target.closest && e.target.closest('#lang button'); if(b) setLang(b.dataset.l);
+    });
+
     // ── Error/centered states ──
     function centered(icon,title,text,cta){
       setProgress(-1);
@@ -368,19 +478,33 @@
     var ICON_LINK='<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#E9C766" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
     var ICON_CHECK='<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#5FD08C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
     var ICON_CHECK_ANIM='<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#5FD08C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path class="draw" d="M20 6 9 17l-5-5"/></svg>';
-    var SUPPORT='<a class="btn ghost" style="display:inline-flex;width:auto;padding:0 22px;margin-top:18px;align-items:center;justify-content:center" href="https://wa.me/393313251961" target="_blank" rel="noopener noreferrer">Contact BOOM</a>';
+    function SUPPORT_(){ return '<a class="btn ghost" style="display:inline-flex;width:auto;padding:0 22px;margin-top:18px;align-items:center;justify-content:center" href="'+waLink()+'" target="_blank" rel="noopener noreferrer">'+t('support')+'</a>'; }
 
     // ═══════════════ BOOT ═══════════════
     document.addEventListener('DOMContentLoaded', function(){
+      // Stripe checkout return states (deposit-at-signature).
+      var DEP = (qs.get('deposit')||'').trim();
+      if(DEP==='success'){
+        centered(ICON_CHECK,'Deposit received','Your security deposit has been received and your home is secured. A receipt is on its way to your email — see you at key handover!',
+          '<a class="btn ghost" href="/portal" style="display:inline-flex;width:auto;padding:0 22px;margin-top:18px;align-items:center;justify-content:center;text-decoration:none">Go to portal</a>');
+        return;
+      }
+      if(DEP==='retry'){
+        var pt=(qs.get('pt')||'').trim();
+        centered(ICON_WARN,'Payment not completed','No charge was made. You can complete your security deposit whenever you’re ready — your signature is safely recorded.',
+          (pt?'<button class="btn" id="dep-pay" style="display:inline-flex;width:auto;padding:0 22px;margin-top:18px;align-items:center;justify-content:center">Pay the deposit</button>':SUPPORT_()));
+        var rb=document.getElementById('dep-pay'); if(rb) rb.onclick=function(){ startDepositCheckout(pt); };
+        return;
+      }
       // Tailored-PDF flow needs no Firebase (token-gated, no OTP/account).
       if(DEMO){ startDemo(); return; }
       if(CUSTOM){ loadCustom(); return; }
       if(typeof firebase==='undefined'){
-        centered(ICON_WARN,'Connection needed','We couldn’t load the signing service. Check your connection and refresh.', SUPPORT);
+        centered(ICON_WARN,t('e_conn_t'),t('e_conn_d'), SUPPORT_());
         return;
       }
       if(!TOKEN){
-        centered(ICON_LINK,'Invalid link','This signing link is missing or malformed. Please use the link from your email.', SUPPORT);
+        centered(ICON_LINK,'Invalid link','This signing link is missing or malformed. Please use the link from your email.', SUPPORT_());
         return;
       }
       firebase.initializeApp({ apiKey:"AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso", authDomain:"boom-property-dashboards.firebaseapp.com", projectId:"boom-property-dashboards" });
@@ -395,15 +519,32 @@
       property:{ name:'Trastevere Loft', address:'Via della Lungaretta 12, Roma', ownerId:'o' },
       signer:{ name:'Demo Tenant', email:'demo@boomrome.com', cf:'RSSMRA85T10A562S', dob:'1985-12-10', pob:'Roma, Italy', address:'Via della Lungaretta 12, Roma', docType:'passport', docNum:'YA1234567', nationality:'Italy', phone:'' },
       otherParty:{ name:'Giulia Bianchi' } };
-    function demoBadge(){ if(document.getElementById('_demoBadge')) return; document.body.appendChild(el('<div id="_demoBadge" style="position:fixed;top:14px;right:14px;z-index:60;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:rgba(20,20,24,.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-size:9.5px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold)">Demo</div>')); }
+    // Landlord variant — same contract/property, signer is the landlord.
+    var DEMO_DATA_LL = { ok:true, role:'landlord', alreadySigned:false,
+      contract: DEMO_DATA.contract,
+      property: DEMO_DATA.property,
+      signer:{ name:'Giulia Bianchi', email:'landlord@boomrome.com', cf:'RSSMRA85T10A562S', dob:'1980-01-01', pob:'Roma, Italy', address:'Via dei Coronari 8, Roma', docType:'id', docNum:'CA9988776', nationality:'Italy', phone:'' },
+      otherParty:{ name:'Demo Tenant' } };
+    function demoBadge(){ if(document.getElementById('_demoBadge')) return; document.body.appendChild(el('<div id="_demoBadge" style="position:fixed;top:14px;left:14px;z-index:60;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:rgba(20,20,24,.7);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);font-size:9.5px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold)">Demo</div>')); }
     function startDemo(){
       demoBadge();
-      if(DEMO==='custom'){
-        CUSTOM={ req:'demo', role:'tenant', token:'demo' };
-        renderCustom({ ok:true, title:'Lease Addendum', role:'tenant', pageCount:2, originalPdfUrl:'', alreadySigned:false, status:'sent', requiredRoles:['tenant','landlord'],
-          fields:[ {page:1,role:'tenant',kind:'signature',xr:0.12,yr:0.74,wr:0.34,hr:0.09}, {page:1,role:'tenant',kind:'date',xr:0.56,yr:0.75,wr:0.22,hr:0.06}, {page:2,role:'tenant',kind:'initials',xr:0.70,yr:0.10,wr:0.16,hr:0.05} ] });
+      // Role-aware demo: ?demo=1 (tenant std) | ?demo=landlord (landlord std)
+      //                  ?demo=custom (tenant PDF) | ?demo=custom-landlord (landlord PDF)
+      //                  ?demo=1&role=landlord also works.
+      var dRole = (qs.get('role')||'').trim()==='landlord' ? 'landlord' : 'tenant';
+      if(DEMO==='custom' || DEMO==='custom-landlord'){
+        var cr = (DEMO==='custom-landlord') ? 'landlord' : dRole;
+        CUSTOM={ req:'demo', role:cr, token:'demo' };
+        renderCustom({ ok:true, title:'Lease Addendum', role:cr, pageCount:2, originalPdfUrl:'', alreadySigned:false, status:'sent', requiredRoles:['tenant','landlord'],
+          fields:[ {page:1,role:cr,kind:'signature',xr:0.12,yr:0.74,wr:0.34,hr:0.09}, {page:1,role:cr,kind:'date',xr:0.56,yr:0.75,wr:0.22,hr:0.06}, {page:2,role:cr,kind:'initials',xr:0.70,yr:0.10,wr:0.16,hr:0.05} ] });
+      } else if(DEMO==='landlord' || dRole==='landlord'){
+        S.data=DEMO_DATA_LL; S.role='landlord';
+        var dl=''; try{ dl=localStorage.getItem('boom_sign_lang')||''; }catch(e){}
+        setLang(dl||'it', true); renderReview();
       } else {
-        S.data=DEMO_DATA; S.role='tenant'; renderReview();
+        S.data=DEMO_DATA; S.role='tenant';
+        var dt=''; try{ dt=localStorage.getItem('boom_sign_lang')||''; }catch(e){}
+        setLang(dt||'en', true); renderReview();
       }
     }
 
@@ -414,59 +555,98 @@
           var j=res.j;
           if(res.status===410 || j.error==='already_signed'){
             var done = j.signatureStatus==='complete';
-            return centered(ICON_CHECK,'Already signed', done?'This contract is fully signed and active.':'Your signature is recorded. We’re waiting for the other party to sign.', '');
+            return centered(ICON_CHECK,t('e_signed_t'), done?t('e_signed_full'):t('e_signed_part'), '');
           }
           if(!j.ok){
-            if(j.error==='invalid_or_used' || j.error==='missing_token') return centered(ICON_LINK,'Link not valid','This link is invalid or has already been used.', SUPPORT);
-            return centered(ICON_WARN,'Something went wrong','We couldn’t load this contract. Please try again in a moment.', SUPPORT);
+            if(j.error==='awaiting_tenant') return centered(ICON_LINK,t('e_turn_t'),t('e_turn_d'), '');
+            if(j.error==='invalid_or_used' || j.error==='missing_token') return centered(ICON_LINK,t('e_link_t'),t('e_link_d'), SUPPORT_());
+            return centered(ICON_WARN,t('e_err_t'),t('e_err_d'), SUPPORT_());
           }
           S.data=j; S.role=j.role||'tenant';
+          // Default per ruolo: il locatore è italiano, l'inquilino BOOM è
+          // un expat. La scelta esplicita dell'utente vince sempre.
+          var savedL=''; try{ savedL=localStorage.getItem('boom_sign_lang')||''; }catch(e){}
+          setLang(savedL || (S.role==='landlord'?'it':'en'), true);
           renderReview();
         })
-        .catch(function(){ centered(ICON_WARN,'Connection needed','We couldn’t reach the signing service. Check your connection and refresh.', SUPPORT); });
+        .catch(function(){ centered(ICON_WARN,t('e_conn_t'),t('e_conn_d'), SUPPORT_()); });
     }
 
     // ═══════════════ STEP 1 — REVIEW ═══════════════
     function renderReview(){
-      setProgress(1); S.step=1;
+      setProgress(1); S.step=1; S.view=renderReview;
       var c=S.data.contract||{}, p=S.data.property||{}, signer=S.data.signer||{};
       var dur = (c.startDate && c.endDate) ? Math.max(1, Math.round((new Date(c.endDate)-new Date(c.startDate))/(1000*60*60*24*30))) : null;
-      var typeLabel = c.type==='studenti' ? 'Student' : 'Transitional';
-      var otherLabel = S.role==='tenant' ? 'Landlord' : 'Tenant';
+      var typeLabel = c.type==='studenti' ? t('ty_student') : t('ty_trans');
+      var otherLabel = S.role==='tenant' ? t('r_landlord') : t('r_tenant');
       var otherName = (S.data.otherParty && S.data.otherParty.name) || '—';
       var pdf = (S.data.contract && S.data.contract.generatedPDF) || '';
+      var dele=(S.role==='landlord'&&c.landlordDelegate&&c.landlordDelegate.name)?c.landlordDelegate:null;
       FLOW.innerHTML='';
       FLOW.appendChild(el(
         '<div class="step">'+
-          '<h1 class="t">Review your contract</h1>'+
-          '<p class="sub">Welcome'+(signer.name?(', '+esc(signer.name)):'')+'. Please review the terms before signing.</p>'+
+          '<h1 class="t">'+t('rev_t')+'</h1>'+
+          '<p class="sub">'+t('rev_welcome')+(signer.name?(', '+esc(signer.name)):'')+'. '+t('rev_d')+'</p>'+
+          (dele?'<p class="sub" style="border:1px dashed rgba(212,175,55,.4);border-radius:10px;padding:10px 14px">✍️ You are countersigning as <b>'+esc(dele.name)+'</b> on behalf of <b>'+esc(dele.onBehalfOf||'the landlord')+'</b>'+(dele.basis?(' — '+esc(dele.basis)):'')+'. The signature will be recorded as a delegate signature.</p>':'')+
           '<div class="summary">'+
-            '<div class="prop"><div class="lbl">Property</div><div class="name">'+esc(p.name||p.title||'Apartment')+'</div><div class="addr">'+esc(p.address||'')+'</div></div>'+
+            '<div class="prop"><div class="lbl">'+t('k_prop')+'</div><div class="name">'+esc(p.name||p.title||'Apartment')+'</div><div class="addr">'+esc(p.address||'')+'</div></div>'+
             '<div class="grid2">'+
-              '<div class="cell"><div class="k">Monthly rent</div><div class="v gold">'+money(c.rent)+'</div></div>'+
-              '<div class="cell"><div class="k">Duration</div><div class="v">'+(dur?(dur+' months'):'—')+'</div></div>'+
-              '<div class="cell"><div class="k">Start date</div><div class="v">'+dateStr(c.startDate)+'</div></div>'+
-              '<div class="cell"><div class="k">Deposit</div><div class="v">'+money(c.deposit)+'</div></div>'+
+              '<div class="cell"><div class="k">'+t('k_rent')+'</div><div class="v gold">'+money(c.rent)+'</div></div>'+
+              '<div class="cell"><div class="k">'+t('k_dur')+'</div><div class="v">'+(dur?(dur+' '+t('k_months')):'—')+'</div></div>'+
+              '<div class="cell"><div class="k">'+t('k_start')+'</div><div class="v">'+dateStr(c.startDate)+'</div></div>'+
+              '<div class="cell"><div class="k">'+t('k_dep')+'</div><div class="v">'+money(c.deposit)+'</div></div>'+
               '<div class="cell"><div class="k">'+otherLabel+'</div><div class="v">'+esc(otherName)+'</div></div>'+
-              '<div class="cell"><div class="k">Type</div><div class="v">'+typeLabel+'</div></div>'+
+              '<div class="cell"><div class="k">'+t('k_type')+'</div><div class="v">'+typeLabel+'</div></div>'+
             '</div>'+
-            (pdf?('<a class="pdflink" href="'+esc(pdf)+'" target="_blank" rel="noopener noreferrer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg> View full contract PDF</a>'):'')+
+            (pdf?('<a class="pdflink" href="'+esc(pdf)+'" target="_blank" rel="noopener noreferrer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg> '+t('pdf_link')+'</a>'):'')+
           '</div>'+
-          '<button class="btn" id="rev-next">Continue</button>'+
+          '<button class="btn" id="rev-next">'+t('b_continue')+'</button>'+
         '</div>'
       ));
       document.getElementById('rev-next').onclick=renderIdentity;
     }
 
-    // ═══════════════ STEP 2 — IDENTITY ═══════════════
+    // ═══════════════ STEP 2 — IDENTITY (auto-staged: confirm if known, fill if not) ═══════════════
+    function idFrom(s){ return { name:s.name||'', dob:s.dob||'', pob:s.pob||'', cf:(s.cf||'').toUpperCase(), address:s.address||'', docType:s.docType||'passport', docNum:s.docNum||'', docIssuer:s.docIssuer||'', docIssueDate:s.docIssueDate||'', nationality:s.nationality||'' }; }
+    function identityComplete(s){ var d=idFrom(s); return !!(d.name&&d.dob&&d.pob&&d.address&&d.docNum&&d.nationality&&validCF(d.cf)); }
+    function docLabel(t){ return t==='id'?'Carta d’identità':(t==='permit'?'Permesso di soggiorno':'Passport'); }
     function renderIdentity(){
-      setProgress(2); S.step=2;
+      setProgress(2); S.step=2; S.view=renderIdentity;
       var s=S.data.signer||{};
+      if(identityComplete(s)) renderIdentityConfirm(s); else renderIdentityForm(s);
+    }
+    // Known client → one-tap confirm (Model C: the link arrives "ready to sign").
+    function renderIdentityConfirm(s){
+      var d=idFrom(s);
       FLOW.innerHTML='';
       FLOW.appendChild(el(
         '<div class="step">'+
-          '<h1 class="t">Verify your details</h1>'+
-          '<p class="sub">Required by Italian law to register the contract. Your data is encrypted.</p>'+
+          '<h1 class="t">'+t('idc_t')+'</h1>'+
+          '<p class="sub">'+t('idc_d')+'</p>'+
+          '<div class="summary"><div class="grid2">'+
+            '<div class="cell"><div class="k">Full name</div><div class="v">'+esc(d.name)+'</div></div>'+
+            '<div class="cell"><div class="k">Codice Fiscale</div><div class="v">'+esc(d.cf)+'</div></div>'+
+            '<div class="cell"><div class="k">Date of birth</div><div class="v">'+esc(d.dob)+'</div></div>'+
+            '<div class="cell"><div class="k">Place of birth</div><div class="v">'+esc(d.pob)+'</div></div>'+
+            '<div class="cell"><div class="k">Document</div><div class="v">'+esc(docLabel(d.docType))+' · '+esc(d.docNum)+'</div></div>'+
+            '<div class="cell"><div class="k">Nationality</div><div class="v">'+esc(d.nationality)+'</div></div>'+
+            '<div class="cell" style="grid-column:1/-1"><div class="k">Address</div><div class="v">'+esc(d.address)+'</div></div>'+
+          '</div></div>'+
+          '<div class="btnrow"><button class="btn ghost" id="i-edit">'+t('b_edit')+'</button><button class="btn" id="i-ok">'+t('b_confirm')+'</button></div>'+
+        '</div>'
+      ));
+      document.getElementById('i-edit').onclick=function(){ renderIdentityForm(s); };
+      document.getElementById('i-ok').onclick=function(){ S.id=d; renderPhone(); };
+    }
+    // Unknown / incomplete client → full form (Model C: "fill first").
+    function renderIdentityForm(s){
+      setProgress(2); S.step=2;
+      s=s||S.data.signer||{};
+      FLOW.innerHTML='';
+      FLOW.appendChild(el(
+        '<div class="step">'+
+          '<h1 class="t">'+t('idf_t')+'</h1>'+
+          '<p class="sub">'+t('idf_d')+'</p>'+
           '<div class="field"><label>Full name</label><input class="inp" id="i-name" value="'+esc(s.name||'')+'" placeholder="Name Surname" autocomplete="name"></div>'+
           '<div class="row2">'+
             '<div class="field"><label>Date of birth</label><input class="inp" id="i-dob" type="date" value="'+esc(s.dob||'')+'"></div>'+
@@ -475,11 +655,19 @@
           '<div class="field"><label>Codice Fiscale <span class="hint">— 16 characters</span></label><input class="inp mono" id="i-cf" maxlength="16" value="'+esc(s.cf||'')+'" placeholder="RSSMRA85T10A562S"><div class="err" id="e-cf">That Codice Fiscale doesn’t look valid.</div></div>'+
           '<div class="field"><label>Current address</label><input class="inp" id="i-addr" value="'+esc(s.address||'')+'" placeholder="Street, number, city" autocomplete="street-address"></div>'+
           '<div class="row2">'+
-            '<div class="field"><label>Document</label><select class="inp" id="i-doctype"><option value="passport">Passport</option><option value="id">Carta d’identità</option><option value="permit">Permesso di soggiorno</option></select></div>'+
+            '<div class="field"><label>Document</label><select class="inp" id="i-doctype">'+
+              '<option value="passport"'+(s.docType==='passport'?' selected':'')+'>Passport</option>'+
+              '<option value="id"'+(s.docType==='id'?' selected':'')+'>Carta d’identità</option>'+
+              '<option value="permit"'+(s.docType==='permit'?' selected':'')+'>Permesso di soggiorno</option>'+
+            '</select></div>'+
             '<div class="field"><label>Document no.</label><input class="inp" id="i-docnum" value="'+esc(s.docNum||'')+'" placeholder="Number"></div>'+
           '</div>'+
+          '<div class="row2">'+
+            '<div class="field"><label>Issued by <span class="hint">— optional</span></label><input class="inp" id="i-issuer" value="'+esc(s.docIssuer||'')+'" placeholder="Authority"></div>'+
+            '<div class="field"><label>Issue date <span class="hint">— optional</span></label><input class="inp" id="i-issued" type="date" value="'+esc(s.docIssueDate||'')+'"></div>'+
+          '</div>'+
           '<div class="field"><label>Nationality</label><input class="inp" id="i-nat" value="'+esc(s.nationality||'')+'" placeholder="Country"></div>'+
-          '<div class="btnrow"><button class="btn ghost" id="i-back">Back</button><button class="btn" id="i-next">Continue</button></div>'+
+          '<div class="btnrow"><button class="btn ghost" id="i-back">'+t('b_back')+'</button><button class="btn" id="i-next">'+t('b_continue')+'</button></div>'+
         '</div>'
       ));
       var cf=document.getElementById('i-cf');
@@ -487,7 +675,7 @@
       document.getElementById('i-back').onclick=renderReview;
       document.getElementById('i-next').onclick=function(){
         var g=function(id){ return (document.getElementById(id).value||'').trim(); };
-        var data={ name:g('i-name'), dob:g('i-dob'), pob:g('i-pob'), cf:g('i-cf').toUpperCase(), address:g('i-addr'), docType:g('i-doctype'), docNum:g('i-docnum'), nationality:g('i-nat') };
+        var data={ name:g('i-name'), dob:g('i-dob'), pob:g('i-pob'), cf:g('i-cf').toUpperCase(), address:g('i-addr'), docType:g('i-doctype'), docNum:g('i-docnum'), docIssuer:g('i-issuer'), docIssueDate:g('i-issued'), nationality:g('i-nat') };
         var firstBad=null;
         ['i-name','i-dob','i-pob','i-cf','i-addr','i-docnum','i-nat'].forEach(function(id){
           var inp=document.getElementById(id); var bad=!(inp.value||'').trim();
@@ -503,24 +691,47 @@
     // ═══════════════ STEP 3 — PHONE OTP ═══════════════
     var _otp={ verifier:null, confirm:null, timer:0 };
     function renderPhone(){
-      setProgress(3); S.step=3;
+      setProgress(3); S.step=3; S.view=renderPhone;
       var s=S.data.signer||{};
-      var pre=(s.phone&&/^\+/.test(s.phone))? '' : '+39';
+      // Separazione prefisso/numero robusta: i country code sono a 1-3 cifre
+      // e non si deducono a occhio — questa lista copre i paesi dei clienti
+      // BOOM; qualunque altro prefisso resta digitabile a mano.
+      var CC=['+39','+33','+44','+49','+34','+31','+32','+41','+43','+351','+353','+45','+46','+47','+358','+48','+30','+40','+420','+36','+1','+61','+81','+86','+91','+7','+971','+972','+55','+52','+27','+212','+216','+20'];
+      var raw=String(s.phone||'').replace(/[^\d+]/g,'');
+      var pre='+39', num=raw;
+      if(raw.charAt(0)==='+'){
+        var hit=CC.filter(function(c){ return raw.indexOf(c)===0; }).sort(function(a,b){ return b.length-a.length; })[0];
+        if(hit){ pre=hit; num=raw.slice(hit.length); }
+        else { var m=/^(\+\d{1,3})(\d+)$/.exec(raw); if(m){ pre=m[1]; num=m[2]; } else { pre='+39'; num=raw.replace(/\D/g,''); } }
+      } else { num=raw.replace(/\D/g,''); }
+      var ccOpts=CC.concat(CC.indexOf(pre)<0?[pre]:[]).map(function(c){
+        return '<option value="'+c+'"'+(c===pre?' selected':'')+'>'+c+'</option>'; }).join('');
       FLOW.innerHTML='';
       FLOW.appendChild(el(
         '<div class="step" id="otp-send">'+
-          '<h1 class="t">Verify your phone</h1>'+
-          '<p class="sub">We’ll text a 6-digit code to confirm it’s really you.</p>'+
+          '<h1 class="t">'+t('ph_t')+'</h1>'+
+          '<p class="sub">'+t('ph_d')+'</p>'+
           '<div class="row2" style="grid-template-columns:84px 1fr">'+
-            '<div class="field"><label>Code</label><input class="inp" id="o-pre" value="'+pre+'" style="text-align:center"></div>'+
-            '<div class="field"><label>Mobile number</label><input class="inp" id="o-num" type="tel" inputmode="tel" value="'+esc((s.phone||'').replace(/^\+39/,''))+'" placeholder="333 123 4567"></div>'+
+            '<div class="field"><label>'+t('ph_code')+'</label><select class="inp" id="o-pre" style="text-align:center">'+ccOpts+'</select></div>'+
+            '<div class="field"><label>'+t('ph_num')+'</label><input class="inp" id="o-num" type="tel" inputmode="tel" value="'+esc(num)+'" placeholder="6 12 34 56 78"></div>'+
           '</div>'+
-          '<button class="btn" id="o-send">Send code</button>'+
-          '<div class="btnrow" style="margin-top:10px"><button class="btn ghost" id="o-back">Back</button></div>'+
+          '<button class="btn" id="o-send">'+t('ph_send')+'</button>'+
+          '<div class="btnrow" style="margin-top:10px"><button class="btn ghost" id="o-back">'+t('b_back')+'</button><button class="btn ghost" id="o-skip">'+t('b_skip')+'</button></div>'+
+          '<p class="sub" style="margin-top:12px;font-size:12px">'+t('ph_skip_note')+'</p>'+
+          '<p class="sub" style="margin-top:6px;text-align:center"><a href="'+waLink()+'" target="_blank" rel="noopener noreferrer" style="color:var(--gold)">'+t('ask_short')+'</a></p>'+
         '</div>'
       ));
       document.getElementById('o-back').onclick=renderIdentity;
       document.getElementById('o-send').onclick=sendOtp;
+      // L'OTP è un rafforzativo, non un requisito (il server non lo esige):
+      // un SMS che non arriva non deve MAI costare una firma.
+      document.getElementById('o-skip').onclick=function(){
+        S.id=S.id||{};
+        var pre=(document.getElementById('o-pre').value||'').replace(/[^\d+]/g,'');
+        var num=(document.getElementById('o-num').value||'').replace(/\D/g,'');
+        if(num){ S.id.phone=((pre&&pre.charAt(0)==='+')?pre:(pre?('+'+pre):''))+num; }
+        renderSign();
+      };
     }
     function sendOtp(){
       if(DEMO){ renderOtpVerify('+39 333 012 3456'); return; }
@@ -530,23 +741,23 @@
       if(num.length<6){ document.getElementById('o-num').classList.add('bad'); return; }
       var phone=(pre.charAt(0)==='+'?pre:('+'+pre))+num;
       btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
-      try{
-        if(!_otp.verifier){ _otp.verifier=new firebase.auth.RecaptchaVerifier('recaptcha-container',{size:'invisible'}); }
-      }catch(e){}
-      var user=S.auth.currentUser;
-      var p = user ? user.linkWithPhoneNumber(phone,_otp.verifier) : S.auth.signInWithPhoneNumber(phone,_otp.verifier);
-      p.then(function(cr){ _otp.confirm=cr; renderOtpVerify(phone); })
-       .catch(function(err){
-          // phone already linked to this anon flow is fine → treat as verifiable via signIn
-          if(err && err.code==='auth/credential-already-in-use'){ S.auth.signInWithPhoneNumber(phone,_otp.verifier).then(function(cr){ _otp.confirm=cr; renderOtpVerify(phone); }).catch(otpError(btn)); return; }
-          otpError(btn)(err);
-       });
+      // Fresh invisible reCAPTCHA each send — its token is single-use; reusing
+      // the verifier silently breaks a second attempt.
+      try{ if(_otp.verifier){ _otp.verifier.clear(); _otp.verifier=null; } }catch(e){}
+      try{ _otp.verifier=new firebase.auth.RecaptchaVerifier('recaptcha-container',{size:'invisible'}); }catch(e){}
+      // signInWithPhoneNumber (NOT link): we only need to prove the signer
+      // controls this number. linkWithPhoneNumber fails with
+      // credential-already-in-use when the number was verified before (e.g. an
+      // earlier test) — which surfaced to the user as a false "wrong code".
+      S.auth.signInWithPhoneNumber(phone,_otp.verifier)
+       .then(function(cr){ _otp.confirm=cr; renderOtpVerify(phone); })
+       .catch(otpError(btn));
     }
     function otpError(btn){ return function(err){
       btn.disabled=false; btn.textContent='Send code';
-      var m='Couldn’t send the code. Check the number and try again.';
-      if(err&&err.code==='auth/too-many-requests') m='Too many attempts. Please wait a few minutes and try again.';
-      else if(err&&err.code==='auth/invalid-phone-number') m='That phone number doesn’t look valid.';
+      var m=t('otp_fail');
+      if(err&&err.code==='auth/too-many-requests') m=t('otp_many');
+      else if(err&&err.code==='auth/invalid-phone-number') m=t('otp_bad');
       flash(m);
     };}
     function renderOtpVerify(phone){
@@ -554,12 +765,12 @@
       FLOW.innerHTML='';
       FLOW.appendChild(el(
         '<div class="step">'+
-          '<h1 class="t">Enter the code</h1>'+
-          '<p class="sub">Sent to <b style="color:var(--gold)">'+esc(phone)+'</b></p>'+
+          '<h1 class="t">'+t('otp_t')+'</h1>'+
+          '<p class="sub">'+t('otp_sent')+' <b style="color:var(--gold)">'+esc(phone)+'</b></p>'+
           '<div class="otpwrap"><div class="otpboxes" id="o-boxes">'+
             '<input maxlength="1" inputmode="numeric" autocomplete="one-time-code"><input maxlength="1" inputmode="numeric"><input maxlength="1" inputmode="numeric"><input maxlength="1" inputmode="numeric"><input maxlength="1" inputmode="numeric"><input maxlength="1" inputmode="numeric">'+
           '</div></div>'+
-          '<button class="btn" id="o-verify" disabled>Verify</button>'+
+          '<button class="btn" id="o-verify" disabled>'+t('otp_verify')+'</button>'+
           '<button class="resend" id="o-resend">Change number</button>'+
         '</div>'
       ));
@@ -567,7 +778,14 @@
       function code(){ return boxes.map(function(b){return b.value;}).join(''); }
       function refresh(){ document.getElementById('o-verify').disabled = code().length!==6; }
       boxes.forEach(function(b,i){
-        b.oninput=function(){ b.value=b.value.replace(/\D/g,'').slice(0,1); if(b.value&&boxes[i+1]) boxes[i+1].focus(); refresh(); if(code().length===6) verify(); };
+        b.oninput=function(){
+          // iOS SMS QuickType inserts the whole "123456" into ONE box as an
+          // input event (not paste) — distribute it instead of truncating.
+          var v=b.value.replace(/\D/g,'');
+          if(v.length>1){ for(var k=0;k<v.length&&(i+k)<6;k++){ boxes[i+k].value=v[k]; } boxes[Math.min(i+v.length,5)].focus(); }
+          else { b.value=v; if(v&&boxes[i+1]) boxes[i+1].focus(); }
+          refresh(); if(code().length===6) verify();
+        };
         b.onkeydown=function(e){ if(e.key==='Backspace'&&!b.value&&boxes[i-1]) boxes[i-1].focus(); };
         b.onpaste=function(e){ var t=(e.clipboardData.getData('text')||'').replace(/\D/g,'').slice(0,6); if(t){ e.preventDefault(); t.split('').forEach(function(d,k){ if(boxes[k]) boxes[k].value=d; }); refresh(); if(t.length===6) verify(); } };
       });
@@ -578,31 +796,46 @@
         if(DEMO){ S.phoneVerified=true; S.id.phoneVerified=true; S.id.phoneVerifiedAt=new Date().toISOString(); renderSign(); return; }
         var c=code(); if(c.length!==6||!_otp.confirm) return;
         var btn=document.getElementById('o-verify'); btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
-        _otp.confirm.confirm(c).then(function(){
+        _otp.confirm.confirm(c).then(function(cred){
           S.phoneVerified=true; S.id.phoneVerified=true; S.id.phoneVerifiedAt=new Date().toISOString();
-          S.id.phone=esc(phone);
-          renderSign();
-        }).catch(function(){
+          S.id.phone=phone;
+          // Server-side proof: the ID token carries the verified phone
+          // credential — /api/magic-sign/submit validates it via
+          // accounts:lookup instead of trusting a client boolean.
+          var u=(cred&&cred.user)||(S.auth&&S.auth.currentUser);
+          var tp=u?u.getIdToken().catch(function(){return '';}):Promise.resolve('');
+          tp.then(function(t){ S.id.phoneIdToken=t||''; renderSign(); });
+        }).catch(function(err){
+          // A correct code can still reject if the number was previously linked
+          // to another account — the phone IS verified, so proceed.
+          if(err && err.code==='auth/credential-already-in-use'){
+            S.phoneVerified=true; S.id.phoneVerified=true; S.id.phoneVerifiedAt=new Date().toISOString(); S.id.phone=phone; renderSign(); return;
+          }
           btn.disabled=false; btn.textContent='Verify';
           boxes.forEach(function(b){b.value='';}); boxes[0].focus();
-          flash('That code didn’t match. Please try again.');
+          var m='That code didn’t match. Please try again.';
+          if(err&&err.code==='auth/code-expired') m='That code expired — tap “Change number” to get a new one.';
+          flash(m);
         });
       }
     }
 
     // ═══════════════ STEP 4 — SIGNATURE ═══════════════
     var CONSENT='I confirm my identity and accept all lease terms. This digital signature is legally valid (FES — Art. 21 CAD).';
+    // Tailored-PDF consent — must match api/sign/custom/submit.js MS_CONSENT_DOC.
+    var CONSENT_DOC='I confirm my identity and accept this document. This digital signature is legally valid (FES — Art. 21 CAD).';
     function renderSign(){
-      setProgress(4); S.step=4;
+      setProgress(4); S.step=4; S.view=renderSign;
       FLOW.innerHTML='';
       FLOW.appendChild(el(
         '<div class="step">'+
-          '<h1 class="t">Sign your contract</h1>'+
-          '<p class="sub">Draw your signature in the box below.</p>'+
-          '<div class="pad-wrap"><canvas id="pad"></canvas><div class="pad-base"></div><div class="pad-ph" id="pad-ph">Sign here</div>'+
-            '<div class="pad-tools"><button id="pad-undo" type="button">Undo</button><button id="pad-clear" type="button">Clear</button></div></div>'+
-          '<label class="consent"><input type="checkbox" id="consent"><span>I confirm my identity and accept all lease terms. This digital signature is legally valid <b>(FES — Art. 21 CAD)</b>.</span></label>'+
-          '<div class="btnrow"><button class="btn ghost" id="s-back">Back</button><button class="btn" id="s-sign" disabled>Sign contract</button></div>'+
+          '<h1 class="t">'+t('sig_t')+'</h1>'+
+          '<p class="sub">'+t('sig_d')+'</p>'+
+          '<div class="pad-wrap"><canvas id="pad"></canvas><div class="pad-base"></div><div class="pad-ph" id="pad-ph">'+t('sig_here')+'</div>'+
+            '<div class="pad-tools"><button id="pad-undo" type="button">'+t('sig_undo')+'</button><button id="pad-clear" type="button">'+t('sig_clear')+'</button></div></div>'+
+          '<label class="consent"><input type="checkbox" id="consent"><span>'+t('consent')+'</span></label>'+
+          '<div class="btnrow"><button class="btn ghost" id="s-back">'+t('b_back')+'</button><button class="btn" id="s-sign" disabled>'+t('sig_go')+'</button></div>'+
+          '<p class="sub" style="margin-top:14px;text-align:center"><a href="'+waLink()+'" target="_blank" rel="noopener noreferrer" style="color:var(--gold)">'+t('ask')+'</a></p>'+
         '</div>'
       ));
       var pad=initPad(document.getElementById('pad'), document.getElementById('pad-ph'));
@@ -610,7 +843,7 @@
       document.getElementById('pad-clear').onclick=function(){ pad.clear(); ready(); };
       var consent=document.getElementById('consent');
       consent.onchange=ready;
-      document.getElementById('s-back').onclick=renderPhone;
+      document.getElementById('s-back').onclick=function(){ return S.phoneVerified ? renderIdentity() : renderPhone(); };
       var signBtn=document.getElementById('s-sign');
       function ready(){ signBtn.disabled = !(pad.hasInk() && consent.checked); }
       pad.onChange=ready;
@@ -667,23 +900,35 @@
           signerIP: arr[1],
           signerName: S.id.name || signer.name || '',
           signerEmail: signer.email || '',
-          identity: { cf:S.id.cf||'', address:S.id.address||'', dob:S.id.dob||'', pob:S.id.pob||'', docType:S.id.docType||'', docNum:S.id.docNum||'', nationality:S.id.nationality||'' },
-          phone: { number:S.id.phone||'', verified: !!S.id.phoneVerified, verifiedAt:S.id.phoneVerifiedAt||'' },
+          identity: { cf:S.id.cf||'', address:S.id.address||'', dob:S.id.dob||'', pob:S.id.pob||'', docType:S.id.docType||'', docNum:S.id.docNum||'', docIssuer:S.id.docIssuer||'', docIssueDate:S.id.docIssueDate||'', nationality:S.id.nationality||'' },
+          phone: { number:S.id.phone||'', verified: !!S.id.phoneVerified, verifiedAt:S.id.phoneVerifiedAt||'', idToken:S.id.phoneIdToken||'' },
           consent: { text: CONSENT, hash: arr[0], at: new Date().toISOString() }
         };
         return fetch('/api/magic-sign/submit',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
       })
-      .then(function(r){ return r.json().catch(function(){return {ok:false};}); })
+      .then(function(r){ return r.text().then(function(txt){ var j; try{ j=JSON.parse(txt); }catch(e){ j={ ok:false, error:'http_'+r.status, detail:(txt||'').slice(0,140) }; } return j; }); })
       .then(function(j){
         if(!j||!j.ok){
           // A timed-out first attempt may have recorded the signature anyway —
           // the retry then gets 410 already_signed. That's success, not failure.
           if(j&&j.error==='already_signed'){ renderSuccess(j.signatureStatus==='complete'); return; }
+          try{ console.error('[sign submit] failed:', j); }catch(e){}
           var b=document.getElementById('s-sign'); if(b){ b.disabled=false; b.textContent='Sign contract'; }
-          return flash(j&&j.error==='rate_limited' ? 'Too many attempts — please wait a moment.' : 'We couldn’t record your signature. Please try again.');
+          var code=(j&&(j.error||j.detail))?String(j.error||j.detail):'';
+          if(code==='rate_limited') return flash(t('e_rate'));
+          if(code==='terms_changed') return flash(t('e_terms'));
+          if(code==='awaiting_tenant') return flash(t('e_turn_d'));
+          if(code==='otp_required') return flash(t('e_otp'));
+          if(code==='invalid_or_used') return flash(t('e_used'));
+          if(code==='invalid_consent_text'||code==='invalid_consent_hash'||code==='missing_consent') return flash(t('e_consent'));
+          if(code==='invalid_signature') return flash(t('e_sig'));
+          // Sconosciuto: si dice la verità, si offre la via umana, e il codice
+          // resta visibile (serve a noi per capire in un secondo).
+          return flash(t('e_generic')+(code?(' ['+esc(code)+']'):''));
         }
         // Obligations + FES certificate + tenant magic link + welcome emails are
         // produced server-side by /api/magic-sign/submit on full completion.
+        S.depositInfo = j.deposit || null;   // deposit-at-signature CTA data
         renderSuccess(!!j.fullySigned);
       })
       .catch(function(){ var b=document.getElementById('s-sign'); if(b){ b.disabled=false; b.textContent='Sign contract'; } flash('Connection lost. Please try again.'); });
@@ -698,19 +943,34 @@
         ? ['Your contract is now active','Rent reminders are scheduled automatically','A confirmation is on its way to your email']
         : ['The other party will be notified to sign','You’ll get a confirmation once it’s fully signed'];
       FLOW.innerHTML='';
+      // Deposit-at-signature: the moment of maximum commitment is right after
+      // signing — offer the Stripe checkout for the security deposit here.
+      var depositHtml='';
+      if(S.role==='tenant' && S.depositInfo && S.depositInfo.required){
+        depositHtml=
+          '<div class="summary" style="margin-top:18px;text-align:left;border-color:rgba(233,199,102,.45)">'+
+            '<div class="prop"><div class="lbl">Secure your home</div></div>'+
+            '<p style="font-size:12.5px;color:var(--text-3);margin:-6px 0 12px;line-height:1.6">One last step: pay the <b style="color:var(--gold)">security deposit</b> to lock in your lease. Card payment, instant receipt, held per contract terms.</p>'+
+            '<button class="btn" id="dep-pay">Pay deposit — €'+Number(S.depositInfo.amountEur).toLocaleString('it-IT')+'</button>'+
+          '</div>';
+      }
+      // Tenant activation goes through the server-issued 72h magic link that
+      // finalize emails on completion — the previous inline email+password
+      // form created an auth account with no users/{uid} doc and dead-ended
+      // at "Errore di autenticazione" in the portal.
       var accountHtml='';
       if(S.role==='tenant'){
         accountHtml=
           '<div class="summary" style="margin-top:18px;text-align:left">'+
-            '<div class="prop" style="border-color:var(--gold)"><div class="lbl">Activate your portal</div></div>'+
-            '<p style="font-size:12px;color:var(--text-3);margin:-6px 0 14px;line-height:1.5">Create a password to access your documents, payments and support.</p>'+
-            '<div class="field"><label>Email</label><input class="inp" id="ac-email" type="email" value="'+esc(email)+'" placeholder="you@email.com"></div>'+
-            '<div class="field"><label>Choose a password</label><div class="pwrap"><input class="inp" id="ac-pass" type="password" placeholder="Min. 6 characters" style="padding-right:62px"><button class="toggle" id="ac-tog" type="button">Show</button></div></div>'+
-            '<button class="btn" id="ac-create">Create my account</button>'+
-            '<button class="resend" id="ac-skip" style="margin-top:10px">Skip for now</button>'+
+            '<div class="prop" style="border-color:var(--gold)"><div class="lbl">Your portal access</div></div>'+
+            '<p style="font-size:12.5px;color:var(--text-3);margin:-6px 0 0;line-height:1.6">'+
+            (complete
+              ? 'We’ve emailed you'+(email?(' at <b style="color:var(--text-2)">'+esc(email)+'</b>'):'')+' a <b style="color:var(--gold)">one-tap activation link</b> (valid 72 hours). Open it to enter your portal — documents, payments and support in one place. You can set a password once inside.'
+              : 'As soon as the other party signs, you’ll receive a <b style="color:var(--gold)">one-tap activation link</b> by email to enter your portal.')+
+            '</p>'+
           '</div>';
       } else {
-        accountHtml='<a class="btn" href="/portal.html" style="display:flex;align-items:center;justify-content:center;text-decoration:none;margin-top:18px">Open portal</a>';
+        accountHtml='<a class="btn" href="/portal" style="display:flex;align-items:center;justify-content:center;text-decoration:none;margin-top:18px">Open portal</a>';
       }
       FLOW.appendChild(el(
         '<div class="step center" style="text-align:left">'+
@@ -722,36 +982,29 @@
             '<div class="r"><span class="k">Signed</span><span class="v">'+new Date().toLocaleString('en-GB')+'</span></div>'+
             '<div class="r"><span class="k">Role</span><span class="v">'+roleLabel+'</span></div>'+
           '</div>'+
+          depositHtml+
           accountHtml+
           '<div class="next">'+nextItems.map(function(n){return '<div class="n">'+esc(n)+'</div>';}).join('')+'</div>'+
         '</div>'
       ));
-      if(S.role==='tenant'){
-        var tog=document.getElementById('ac-tog'), pass=document.getElementById('ac-pass');
-        tog.onclick=function(){ var sh=pass.type==='password'; pass.type=sh?'text':'password'; tog.textContent=sh?'Hide':'Show'; };
-        document.getElementById('ac-skip').onclick=function(){ centered(ICON_CHECK,'All done','You can sign in anytime from boomrome.com with the credentials we set up for you.', '<a class="btn ghost" href="/portal.html" style="display:inline-flex;width:auto;padding:0 22px;margin-top:18px;align-items:center;justify-content:center;text-decoration:none">Go to portal</a>'); };
-        document.getElementById('ac-create').onclick=createAccount;
-      }
+      var payBtn=document.getElementById('dep-pay');
+      if(payBtn) payBtn.onclick=function(){ startDepositCheckout(S.depositInfo.payToken); };
     }
-    function createAccount(){
-      if(DEMO){ centered(ICON_CHECK,'Demo complete','This was a preview of the BOOM signing experience. In production this step creates your portal account.', '<a class="btn ghost" href="/sign?demo=1" style="display:inline-flex;width:auto;padding:0 22px;margin-top:18px;align-items:center;justify-content:center;text-decoration:none">Replay</a>'); return; }
-      var email=(document.getElementById('ac-email').value||'').trim();
-      var pass=(document.getElementById('ac-pass').value||'');
-      if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ document.getElementById('ac-email').classList.add('bad'); return; }
-      if(pass.length<6){ document.getElementById('ac-pass').classList.add('bad'); return; }
-      var btn=document.getElementById('ac-create'); btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
-      S.auth.signOut().catch(function(){}).then(function(){
-        return S.auth.signInWithEmailAndPassword(email,pass).catch(function(err){
-          if(err&&err.code==='auth/user-not-found') return S.auth.createUserWithEmailAndPassword(email,pass);
-          throw err;
-        });
-      }).then(function(){ location.href='/portal.html'; })
-        .catch(function(err){
-          btn.disabled=false; btn.textContent='Create my account';
-          if(err&&err.code==='auth/wrong-password') flash('That email already has an account. Use your existing password, or contact BOOM.');
-          else if(err&&err.code==='auth/email-already-in-use') flash('That email is already registered. Try signing in instead.');
-          else flash('We couldn’t create the account. Please try again.');
-        });
+
+    // Create the Stripe Checkout session for the security deposit and hand
+    // the browser over to Stripe. Completion is confirmed by the webhook.
+    function startDepositCheckout(payToken){
+      var b=document.getElementById('dep-pay');
+      if(b){ b.disabled=true; b.innerHTML='<span class="spin"></span>'; }
+      fetch('/api/sign/deposit-checkout',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ payToken: payToken }) })
+        .then(function(r){ return r.json().catch(function(){return {};}); })
+        .then(function(j){
+          if(j && j.url){ location.href=j.url; return; }
+          if(b){ b.disabled=false; b.textContent='Pay the deposit'; }
+          if(j && j.error==='already_paid') flash('Deposit already received ✓');
+          else flash('We couldn’t start the payment. Please try again.');
+        })
+        .catch(function(){ if(b){ b.disabled=false; b.textContent='Pay the deposit'; } flash('Connection lost. Please try again.'); });
     }
 
     // ═══════════════ TAILORED PDF (Magic Sign Custom) ═══════════════
@@ -762,8 +1015,8 @@
         .then(function(r){ return r.json().catch(function(){return {ok:false};}); })
         .then(function(j){
           if(!j||!j.ok){
-            if(j&&(j.error==='not_found'||j.error==='invalid_token')) return centered(ICON_LINK,'Link not valid','This document link is invalid or has expired.', SUPPORT);
-            return centered(ICON_WARN,'Something went wrong','We couldn’t load this document. Please try again.', SUPPORT);
+            if(j&&(j.error==='not_found'||j.error==='invalid_token')) return centered(ICON_LINK,'Link not valid','This document link is invalid or has expired.', SUPPORT_());
+            return centered(ICON_WARN,'Something went wrong','We couldn’t load this document. Please try again.', SUPPORT_());
           }
           if(j.alreadySigned){
             var done = j.status==='complete';
@@ -771,7 +1024,7 @@
           }
           renderCustom(j);
         })
-        .catch(function(){ centered(ICON_WARN,'Connection needed','We couldn’t reach the signing service. Check your connection and refresh.', SUPPORT); });
+        .catch(function(){ centered(ICON_WARN,t('e_conn_t'),t('e_conn_d'), SUPPORT_()); });
     }
 
     function renderCustom(d){
@@ -783,8 +1036,8 @@
           (d.originalPdfUrl?('<a class="pdflink" href="'+esc(d.originalPdfUrl)+'" target="_blank" rel="noopener noreferrer" style="margin:0 0 14px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg> Open full PDF</a>'):'')+
           '<div class="pdfview" id="pdfview"><div class="pdfloading">Loading document…</div></div>'+
           '<div style="margin-top:18px"><div class="field" style="margin-bottom:8px"><label>Your signature</label></div>'+
-            '<div class="pad-wrap"><canvas id="pad"></canvas><div class="pad-base"></div><div class="pad-ph" id="pad-ph">Sign here</div>'+
-            '<div class="pad-tools"><button id="pad-undo" type="button">Undo</button><button id="pad-clear" type="button">Clear</button></div></div></div>'+
+            '<div class="pad-wrap"><canvas id="pad"></canvas><div class="pad-base"></div><div class="pad-ph" id="pad-ph">'+t('sig_here')+'</div>'+
+            '<div class="pad-tools"><button id="pad-undo" type="button">'+t('sig_undo')+'</button><button id="pad-clear" type="button">'+t('sig_clear')+'</button></div></div></div>'+
           '<label class="consent"><input type="checkbox" id="consent"><span>I confirm my identity and accept this document. This digital signature is legally valid <b>(FES — Art. 21 CAD)</b>.</span></label>'+
           '<button class="btn" id="c-sign" disabled>Sign document</button>'+
         '</div>'
@@ -801,7 +1054,10 @@
         signBtn.disabled=true; signBtn.innerHTML='<span class="spin"></span>';
         if(DEMO){ setTimeout(function(){ customSuccess(false,''); }, 550); return; }
         var sig=pad.toDataURL();
-        fetch('/api/sign/custom/submit',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ req:CUSTOM.req, role:CUSTOM.role, token:CUSTOM.token, signature:sig }) })
+        // The consent record travels with the signature (same FES evidence
+        // model as the standard flow) — server pins text + verifies hash.
+        sha256Hex(CONSENT_DOC).then(function(h){
+        return fetch('/api/sign/custom/submit',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ req:CUSTOM.req, role:CUSTOM.role, token:CUSTOM.token, signature:sig, consent:{ text:CONSENT_DOC, hash:h, at:new Date().toISOString() } }) }); })
           .then(function(r){ return r.json().catch(function(){return {ok:false};}); })
           .then(function(j){
             if(!j||!j.ok){ signBtn.disabled=false; signBtn.textContent='Sign document'; return flash(j&&j.error==='rate_limited'?'Too many attempts — please wait a moment.':'We couldn’t record your signature. Please try again.'); }

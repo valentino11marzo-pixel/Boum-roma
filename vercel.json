@@ -2,168 +2,610 @@
   "version": 2,
   "cleanUrls": true,
   "trailingSlash": false,
+  "installCommand": "npm ci",
+  "images": {
+    "remotePatterns": [
+      {
+        "protocol": "https",
+        "hostname": "i.imgur.com"
+      },
+      {
+        "protocol": "https",
+        "hostname": "imgur.com"
+      },
+      {
+        "protocol": "https",
+        "hostname": "firebasestorage.googleapis.com"
+      },
+      {
+        "protocol": "https",
+        "hostname": "images.unsplash.com"
+      }
+    ],
+    "formats": [
+      "image/avif",
+      "image/webp"
+    ],
+    "sizes": [
+      320,
+      480,
+      640,
+      768,
+      828,
+      1080,
+      1280,
+      1920
+    ],
+    "qualities": [
+      50,
+      72,
+      75
+    ],
+    "minimumCacheTTL": 2678400
+  },
   "redirects": [
-    { "source": "/index.html", "destination": "/", "permanent": true },
-    { "source": "/apartments.html", "destination": "/apartments", "permanent": true },
-    { "source": "/about.html", "destination": "/about", "permanent": true },
-    { "source": "/contact.html", "destination": "/contact", "permanent": true },
-    { "source": "/faq.html", "destination": "/faq", "permanent": true },
-    { "source": "/how-it-works.html", "destination": "/how-it-works", "permanent": true },
-    { "source": "/book.html", "destination": "/book", "permanent": true },
-    { "source": "/concierge.html", "destination": "/concierge", "permanent": true },
-    { "source": "/blog.html", "destination": "/blog", "permanent": true },
-    { "source": "/owners.html", "destination": "/owners", "permanent": true },
-    { "source": "/deals.html", "destination": "/deals", "permanent": true },
-    { "source": "/property-finding.html", "destination": "/property-finding", "permanent": true },
-    { "source": "/virtual-viewing.html", "destination": "/virtual-viewing", "permanent": true },
-    { "source": "/deal-assistance.html", "destination": "/deal-assistance", "permanent": true },
-    { "source": "/privacy.html", "destination": "/privacy", "permanent": true },
-    { "source": "/terms.html", "destination": "/terms", "permanent": true },
-    { "source": "/apartment_navona.html", "destination": "/listing/navona", "permanent": true },
-    { "source": "/apartment_ripetta.html", "destination": "/listing/ripetta", "permanent": true },
-    { "source": "/apartment_pigneto.html", "destination": "/listing/pigneto", "permanent": true },
-    { "source": "/apartment_angelico.html", "destination": "/listing/angelico", "permanent": true },
-    { "source": "/apartment_levico.html", "destination": "/listing/levico", "permanent": true },
-    { "source": "/apartment_piemonte.html", "destination": "/listing/piemonte", "permanent": true },
-    { "source": "/apartment-marconi.html", "destination": "/listing/marconi", "permanent": true },
-    { "source": "/apartment-navona", "destination": "/listing/navona", "permanent": true },
-    { "source": "/apartment-ripetta", "destination": "/listing/ripetta", "permanent": true },
-    { "source": "/apartment-pigneto", "destination": "/listing/pigneto", "permanent": true },
-    { "source": "/apartment-angelico", "destination": "/listing/angelico", "permanent": true },
-    { "source": "/apartment-levico", "destination": "/listing/levico", "permanent": true },
-    { "source": "/apartment-piemonte", "destination": "/listing/piemonte", "permanent": true },
-    { "source": "/apartment-marconi", "destination": "/listing/marconi", "permanent": true },
-    { "source": "/faq_page.html", "destination": "/faq", "permanent": true },
-    { "source": "/faq-page", "destination": "/faq", "permanent": true }
+    {
+      "source": "/index.html",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/(dashboard|dashboard.html|admin|admin.html)",
+      "destination": "/portal",
+      "permanent": false
+    },
+    {
+      "source": "/(la-reunion|reunion-island|974)",
+      "destination": "/reunion",
+      "permanent": false
+    },
+    {
+      "source": "/(owner|owner.html)",
+      "destination": "/owner-dashboard",
+      "permanent": false
+    },
+    {
+      "source": "/(apartments-legacy|apartments-legacy.html|apartment-detail-legacy|apartment-detail-legacy.html)",
+      "destination": "/apartments",
+      "permanent": false
+    },
+    {
+      "source": "/apartments.html",
+      "destination": "/apartments",
+      "permanent": true
+    },
+    {
+      "source": "/about.html",
+      "destination": "/about",
+      "permanent": true
+    },
+    {
+      "source": "/contact.html",
+      "destination": "/contact",
+      "permanent": true
+    },
+    {
+      "source": "/faq.html",
+      "destination": "/faq",
+      "permanent": true
+    },
+    {
+      "source": "/how-it-works.html",
+      "destination": "/how-it-works",
+      "permanent": true
+    },
+    {
+      "source": "/book.html",
+      "destination": "/book",
+      "permanent": true
+    },
+    {
+      "source": "/viewing.html",
+      "destination": "/viewing",
+      "permanent": true
+    },
+    {
+      "source": "/concierge.html",
+      "destination": "/concierge",
+      "permanent": true
+    },
+    {
+      "source": "/blog.html",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/owners.html",
+      "destination": "/owners",
+      "permanent": true
+    },
+    {
+      "source": "/deals.html",
+      "destination": "/deals",
+      "permanent": true
+    },
+    {
+      "source": "/property-finding.html",
+      "destination": "/property-finding",
+      "permanent": true
+    },
+    {
+      "source": "/virtual-viewing.html",
+      "destination": "/virtual-viewing",
+      "permanent": true
+    },
+    {
+      "source": "/deal-assistance.html",
+      "destination": "/deal-assistance",
+      "permanent": true
+    },
+    {
+      "source": "/deposit-recovery.html",
+      "destination": "/deposit-recovery",
+      "permanent": true
+    },
+    {
+      "source": "/contract-check-express.html",
+      "destination": "/contract-check-express",
+      "permanent": true
+    },
+    {
+      "source": "/deposit-letter.html",
+      "destination": "/deposit-letter",
+      "permanent": true
+    },
+    {
+      "source": "/services.html",
+      "destination": "/services",
+      "permanent": true
+    },
+    {
+      "source": "/remote-move-pack.html",
+      "destination": "/remote-move-pack",
+      "permanent": true
+    },
+    {
+      "source": "/pacchetto-concordato.html",
+      "destination": "/pacchetto-concordato",
+      "permanent": true
+    },
+    {
+      "source": "/privacy.html",
+      "destination": "/privacy",
+      "permanent": true
+    },
+    {
+      "source": "/terms.html",
+      "destination": "/terms",
+      "permanent": true
+    },
+    {
+      "source": "/apartment_navona.html",
+      "destination": "/listing/navona",
+      "permanent": true
+    },
+    {
+      "source": "/apartment_ripetta.html",
+      "destination": "/listing/ripetta",
+      "permanent": true
+    },
+    {
+      "source": "/apartment_pigneto.html",
+      "destination": "/listing/pigneto",
+      "permanent": true
+    },
+    {
+      "source": "/apartment_angelico.html",
+      "destination": "/listing/angelico",
+      "permanent": true
+    },
+    {
+      "source": "/apartment_levico.html",
+      "destination": "/listing/levico",
+      "permanent": true
+    },
+    {
+      "source": "/apartment_piemonte.html",
+      "destination": "/listing/piemonte",
+      "permanent": true
+    },
+    {
+      "source": "/apartment-marconi.html",
+      "destination": "/listing/marconi",
+      "permanent": true
+    },
+    {
+      "source": "/apartment-navona",
+      "destination": "/listing/navona",
+      "permanent": true
+    },
+    {
+      "source": "/apartment-ripetta",
+      "destination": "/listing/ripetta",
+      "permanent": true
+    },
+    {
+      "source": "/apartment-pigneto",
+      "destination": "/listing/pigneto",
+      "permanent": true
+    },
+    {
+      "source": "/apartment-angelico",
+      "destination": "/listing/angelico",
+      "permanent": true
+    },
+    {
+      "source": "/apartment-levico",
+      "destination": "/listing/levico",
+      "permanent": true
+    },
+    {
+      "source": "/apartment-piemonte",
+      "destination": "/listing/piemonte",
+      "permanent": true
+    },
+    {
+      "source": "/apartment-marconi",
+      "destination": "/listing/marconi",
+      "permanent": true
+    },
+    {
+      "source": "/faq_page.html",
+      "destination": "/faq",
+      "permanent": true
+    },
+    {
+      "source": "/faq-page",
+      "destination": "/faq",
+      "permanent": true
+    }
   ],
   "rewrites": [
-    { "source": "/listing/:id", "destination": "/api/listing" },
-    { "source": "/listings-sitemap.xml", "destination": "/api/sitemap-listings" },
-    { "source": "/book", "destination": "/book.html" },
-    { "source": "/about", "destination": "/about.html" },
-    { "source": "/contact", "destination": "/contact.html" },
-    { "source": "/login", "destination": "/login.html" },
-    { "source": "/sign", "destination": "/sign.html" },
-    { "source": "/portal", "destination": "/portal.html" },
-    { "source": "/owners", "destination": "/owners.html" },
-    { "source": "/deals", "destination": "/deals.html" },
-    { "source": "/blog", "destination": "/blog.html" },
-    { "source": "/faq", "destination": "/faq.html" },
-    { "source": "/concierge", "destination": "/concierge.html" },
-    { "source": "/privacy", "destination": "/privacy.html" },
-    { "source": "/terms", "destination": "/terms.html" },
-    { "source": "/how-it-works", "destination": "/how-it-works.html" },
-    { "source": "/booking", "destination": "/booking.html" },
-    { "source": "/onboarding", "destination": "/onboarding.html" },
-    { "source": "/tenant", "destination": "/tenant.html" },
-    { "source": "/tenant-registration", "destination": "/tenant-registration.html" },
-    { "source": "/proppass", "destination": "/proppass.html" },
-    { "source": "/pass-delivery", "destination": "/pass-delivery.html" },
-    { "source": "/apartment-detail", "destination": "/apartment-detail.html" },
-    { "source": "/virtual-viewing", "destination": "/virtual-viewing.html" },
-    { "source": "/pre-arrival", "destination": "/pre-arrival.html" },
-    { "source": "/deal-assistance", "destination": "/deal-assistance.html" },
-    { "source": "/client-portal", "destination": "/client-portal.html" },
-    { "source": "/share", "destination": "/share.html" },
-    { "source": "/property-finding", "destination": "/property-finding.html" },
-    { "source": "/dashboard", "destination": "/dashboard.html" },
-    { "source": "/thank-you", "destination": "/thank-you.html" },
-    { "source": "/admin", "destination": "/admin.html" },
-    { "source": "/admin-flats", "destination": "/admin-flats.html" },
-    { "source": "/owner", "destination": "/owner.html" },
-    { "source": "/owner-dashboard", "destination": "/owner-dashboard.html" },
-    { "source": "/form-tenant", "destination": "/form-tenant.html" },
-    { "source": "/form-landlord", "destination": "/form-landlord.html" },
-    { "source": "/precheck", "destination": "/precheck.html" },
-    { "source": "/seed-listings", "destination": "/seed-listings.html" },
-    { "source": "/setup-firebase", "destination": "/setup-firebase.html" },
-    { "source": "/boom-doc-parser", "destination": "/boom_doc_parser.html" },
-    { "source": "/cockpit-preview", "destination": "/cockpit-preview.html" },
-    { "source": "/blog-47-steps", "destination": "/blog-47-steps.html" },
-    { "source": "/blog-contract-types", "destination": "/blog-contract-types.html" },
-    { "source": "/blog-cost-calculator", "destination": "/blog-cost-calculator.html" },
-    { "source": "/blog-neighborhood-guide", "destination": "/blog-neighborhood-guide.html" },
-    { "source": "/blog-scam-bible", "destination": "/blog-scam-bible.html" },
-    { "source": "/blog-tenant-rights", "destination": "/blog-tenant-rights.html" },
-    { "source": "/blog-visa-residency", "destination": "/blog-visa-residency.html" },
-    { "source": "/canone", "destination": "/canone.html" },
-    { "source": "/match", "destination": "/match.html" },
-    { "source": "/pass-studio", "destination": "/pass-studio.html" },
-    { "source": "/watermark-studio", "destination": "/watermark-studio.html" },
-    { "source": "/media-studio", "destination": "/media-studio.html" },
-    { "source": "/pass-demo", "destination": "/pass-demo.html" },
-    { "source": "/underwriting", "destination": "/underwriting.html" },
-    { "source": "/compliance", "destination": "/compliance.html" },
-    { "source": "/relet", "destination": "/relet.html" }
+    {
+      "source": "/api/feed/immobiliare.xml",
+      "destination": "/api/feed/immobiliare"
+    },
+    {
+      "source": "/listing/:id",
+      "destination": "/api/listing"
+    },
+    {
+      "source": "/llms-listings.txt",
+      "destination": "/api/llms-listings"
+    },
+    {
+      "source": "/listings-sitemap.xml",
+      "destination": "/api/sitemap-listings"
+    },
+    {
+      "source": "/book",
+      "destination": "/book.html"
+    },
+    {
+      "source": "/viewing",
+      "destination": "/viewing.html"
+    },
+    {
+      "source": "/about",
+      "destination": "/about.html"
+    },
+    {
+      "source": "/contact",
+      "destination": "/contact.html"
+    },
+    {
+      "source": "/login",
+      "destination": "/login.html"
+    },
+    {
+      "source": "/portal",
+      "destination": "/portal.html"
+    },
+    {
+      "source": "/casa",
+      "destination": "/tenant"
+    },
+    {
+      "source": "/welcome-to-rome",
+      "destination": "/welcome-to-rome.html"
+    },
+    {
+      "source": "/manuale",
+      "destination": "/manuale.html"
+    },
+    {
+      "source": "/owners",
+      "destination": "/owners.html"
+    },
+    {
+      "source": "/deals",
+      "destination": "/deals.html"
+    },
+    {
+      "source": "/blog",
+      "destination": "/blog.html"
+    },
+    {
+      "source": "/faq",
+      "destination": "/faq.html"
+    },
+    {
+      "source": "/concierge",
+      "destination": "/concierge.html"
+    },
+    {
+      "source": "/privacy",
+      "destination": "/privacy.html"
+    },
+    {
+      "source": "/terms",
+      "destination": "/terms.html"
+    },
+    {
+      "source": "/how-it-works",
+      "destination": "/how-it-works.html"
+    },
+    {
+      "source": "/booking",
+      "destination": "/booking.html"
+    },
+    {
+      "source": "/onboarding",
+      "destination": "/onboarding.html"
+    },
+    {
+      "source": "/tenant",
+      "destination": "/tenant.html"
+    },
+    {
+      "source": "/proppass",
+      "destination": "/proppass.html"
+    },
+    {
+      "source": "/pass-delivery",
+      "destination": "/pass-delivery.html"
+    },
+    {
+      "source": "/apartment-detail",
+      "destination": "/apartment-detail.html"
+    },
+    {
+      "source": "/virtual-viewing",
+      "destination": "/virtual-viewing.html"
+    },
+    {
+      "source": "/pre-arrival",
+      "destination": "/pre-arrival.html"
+    },
+    {
+      "source": "/deal-assistance",
+      "destination": "/deal-assistance.html"
+    },
+    {
+      "source": "/deposit-recovery",
+      "destination": "/deposit-recovery.html"
+    },
+    {
+      "source": "/deposit-letter",
+      "destination": "/deposit-letter.html"
+    },
+    {
+      "source": "/services",
+      "destination": "/services.html"
+    },
+    {
+      "source": "/remote-move-pack",
+      "destination": "/remote-move-pack.html"
+    },
+    {
+      "source": "/pacchetto-concordato",
+      "destination": "/pacchetto-concordato.html"
+    },
+    {
+      "source": "/contract-check-express",
+      "destination": "/contract-check-express.html"
+    },
+    {
+      "source": "/client-portal",
+      "destination": "/client-portal.html"
+    },
+    {
+      "source": "/property-finding",
+      "destination": "/property-finding.html"
+    },
+    {
+      "source": "/thank-you",
+      "destination": "/thank-you.html"
+    },
+    {
+      "source": "/owner-dashboard",
+      "destination": "/owner-dashboard.html"
+    },
+    {
+      "source": "/form-tenant",
+      "destination": "/form-tenant.html"
+    },
+    {
+      "source": "/form-landlord",
+      "destination": "/form-landlord.html"
+    },
+    {
+      "source": "/precheck",
+      "destination": "/precheck.html"
+    },
+    {
+      "source": "/seed-listings",
+      "destination": "/seed-listings.html"
+    },
+    {
+      "source": "/boom-doc-parser",
+      "destination": "/boom_doc_parser"
+    },
+    {
+      "source": "/cockpit-preview",
+      "destination": "/cockpit-preview.html"
+    },
+    {
+      "source": "/blog-47-steps",
+      "destination": "/blog-47-steps.html"
+    },
+    {
+      "source": "/blog-contract-types",
+      "destination": "/blog-contract-types.html"
+    },
+    {
+      "source": "/blog-cost-calculator",
+      "destination": "/blog-cost-calculator.html"
+    },
+    {
+      "source": "/blog-neighborhood-guide",
+      "destination": "/blog-neighborhood-guide.html"
+    },
+    {
+      "source": "/blog-scam-bible",
+      "destination": "/blog-scam-bible.html"
+    },
+    {
+      "source": "/blog-tenant-rights",
+      "destination": "/blog-tenant-rights.html"
+    },
+    {
+      "source": "/blog-visa-residency",
+      "destination": "/blog-visa-residency.html"
+    },
+    {
+      "source": "/pre-agreement",
+      "destination": "/pre-agreement.html"
+    },
+    {
+      "source": "/pre-agreement-admin",
+      "destination": "/pre-agreement-admin.html"
+    }
   ],
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(self), interest-cohort=()" },
-        { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" },
-        { "key": "X-DNS-Prefetch-Control", "value": "on" },
-        { "key": "Content-Security-Policy-Report-Only", "value": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self' https://api.web3forms.com; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://*.googleapis.com https://www.googletagmanager.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://js.stripe.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://unpkg.com; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; connect-src 'self' https://*.googleapis.com https://*.firebaseapp.com https://*.firebaseio.com https://*.firebasestorage.app https://api.emailjs.com https://api.stripe.com https://www.google-analytics.com https://*.analytics.google.com https://region1.google-analytics.com https://www.googletagmanager.com https://api.web3forms.com https://i.imgur.com https://nominatim.openstreetmap.org https://api.ipify.org https://api.anthropic.com https://corsproxy.io https://api.codetabs.com https://thingproxy.freeboard.io https://cors.eu.org https://api.allorigins.win; frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://www.youtube.com https://www.google.com https://maps.google.com https://boom-property-dashboards.firebaseapp.com; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests" }
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=(self), interest-cohort=()"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=63072000; includeSubDomains; preload"
+        },
+        {
+          "key": "X-DNS-Prefetch-Control",
+          "value": "on"
+        }
       ]
     },
     {
-      "source": "/(portal|admin|admin-flats|setup-firebase|seed-listings|boom-doc-parser|boom_doc_parser|cockpit-preview|underwriting|compliance|relet|pass-studio|watermark-studio|media-studio|portal.html|admin.html|admin-flats.html|setup-firebase.html|seed-listings.html|boom_doc_parser.html|cockpit-preview.html|underwriting.html|compliance.html|relet.html|pass-studio.html|watermark-studio.html|media-studio.html)(.*)",
+      "source": "/(portal|admin|admin-flats|setup-firebase|seed-listings|boom-doc-parser|boom_doc_parser|cockpit-preview|team|banca|salute|manuale|photo-lab|pfs-command|watermark-studio|media-studio|pre-agreement-admin|casa|tenant|portal.html|admin.html|admin-flats.html|setup-firebase.html|seed-listings.html|boom_doc_parser.html|cockpit-preview.html|team.html|banca.html|salute.html|manuale.html|photo-lab.html|pfs-command.html|watermark-studio.html|media-studio.html|pre-agreement-admin.html|tenant.html|viewing|viewing.html|scheda|scheda.html|sign|sign.html|pre-agreement|pre-agreement.html|verbale|verbale.html)(.*)",
       "headers": [
-        { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive, nosnippet" },
-        { "key": "Cache-Control", "value": "private, no-store, max-age=0" }
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "private, no-store, max-age=0"
+        }
       ]
     },
     {
-      "source": "/(dashboard|client-portal|owner-dashboard|tenant-registration|login|sign|onboarding|pre-arrival|precheck|thank-you|proppass|pass-delivery|form-tenant|form-landlord)(.*)",
+      "source": "/(dashboard|client-portal|owner-dashboard|tenant-registration|login|onboarding|pre-arrival|precheck|thank-you|proppass|pass-delivery|form-tenant|form-landlord)(.*)",
       "headers": [
-        { "key": "X-Robots-Tag", "value": "noindex, follow" }
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, follow"
+        }
       ]
     },
     {
       "source": "/(.*)\\.(png|jpg|jpeg|svg|webp|avif|ico|woff|woff2|ttf|otf)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
       ]
     },
     {
       "source": "/sitemap.xml",
       "headers": [
-        { "key": "Content-Type", "value": "application/xml; charset=utf-8" },
-        { "key": "Cache-Control", "value": "public, max-age=3600, s-maxage=86400" }
+        {
+          "key": "Content-Type",
+          "value": "application/xml; charset=utf-8"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600, s-maxage=86400"
+        }
       ]
     },
     {
       "source": "/robots.txt",
       "headers": [
-        { "key": "Content-Type", "value": "text/plain; charset=utf-8" },
-        { "key": "Cache-Control", "value": "public, max-age=86400" }
+        {
+          "key": "Content-Type",
+          "value": "text/plain; charset=utf-8"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400"
+        }
       ]
     },
     {
       "source": "/sw.js",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" },
-        { "key": "Service-Worker-Allowed", "value": "/" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        },
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/"
+        }
       ]
     },
     {
       "source": "/manifest.json",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=86400" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400"
+        }
       ]
     },
     {
       "source": "/api/(.*)",
       "headers": [
-        { "key": "X-Robots-Tag", "value": "noindex, nofollow" }
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
       ]
     }
   ],
   "functions": {
     "api/reminder-cron.js": {
+      "maxDuration": 60
+    },
+    "api/contracts/verbale.js": {
       "maxDuration": 60
     },
     "api/listing.js": {
@@ -172,10 +614,68 @@
     "api/geocode-all.js": {
       "maxDuration": 60
     },
+    "api/geocode-bake.js": {
+      "maxDuration": 60
+    },
     "api/magic-sign/submit.js": {
       "maxDuration": 60
     },
+    "api/employees/contabile.js": {
+      "maxDuration": 60
+    },
+    "api/banking/sync.js": {
+      "maxDuration": 60
+    },
+    "api/banking/scan-inbox.js": {
+      "maxDuration": 60
+    },
+    "api/documents/scan-inbox.js": {
+      "maxDuration": 60
+    },
+    "api/telegram/webhook.js": {
+      "maxDuration": 60
+    },
+    "api/banking/import.js": {
+      "maxDuration": 60
+    },
+    "api/banking/export.js": {
+      "maxDuration": 60
+    },
+    "api/employees/gestore.js": {
+      "maxDuration": 60
+    },
+    "api/employees/commerciale.js": {
+      "maxDuration": 60
+    },
     "api/sign/custom/submit.js": {
+      "maxDuration": 60
+    },
+    "api/photos/enhance.js": {
+      "maxDuration": 60,
+      "memory": 1769
+    },
+    "api/wizard/describe.js": {
+      "maxDuration": 60
+    },
+    "api/profile/upload.js": {
+      "maxDuration": 60
+    },
+    "api/profile/submit.js": {
+      "maxDuration": 60
+    },
+    "api/sign/send-link.js": {
+      "maxDuration": 60
+    },
+    "api/fiscal/fascicolo.js": {
+      "maxDuration": 60
+    },
+    "api/fiscal/pack.js": {
+      "maxDuration": 60
+    },
+    "api/owners/rendiconto.js": {
+      "maxDuration": 60
+    },
+    "api/ops/conservazione.js": {
       "maxDuration": 60
     }
   },
@@ -187,6 +687,94 @@
     {
       "path": "/api/telegram/notify-pending",
       "schedule": "* * * * *"
-    }
+    },
+    {
+      "path": "/api/pfs/scan-inbox",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/pfs/scan-market",
+      "schedule": "0,30 * * * *"
+    },
+    {
+      "path": "/api/pfs/sync-searches",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/pfs/brief",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/search/matcher",
+      "schedule": "0 6,12,18 * * *"
+    },
+    {
+      "path": "/api/wizard/health",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/wizard/video-radar",
+      "schedule": "0 7 * * 1"
+    },
+    {
+      "path": "/api/leads/scan-inbox",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/leads/brain",
+      "schedule": "3-59/10 * * * *"
+    },
+    {
+      "path": "/api/documents/scan-inbox",
+      "schedule": "50 3 * * *"
+    },
+    {
+      "path": "/api/banking/scan-inbox",
+      "schedule": "5 4 * * *"
+    },
+    {
+      "path": "/api/banking/sync",
+      "schedule": "15 4 * * *"
+    },
+    {
+      "path": "/api/employees/contabile",
+      "schedule": "40 4 * * *"
+    },
+    {
+      "path": "/api/employees/gestore",
+      "schedule": "10 5 * * *"
+    },
+    {
+      "path": "/api/regista/cron",
+      "schedule": "30 5 * * *"
+    },
+    {
+      "path": "/api/payments/recover-checkouts",
+      "schedule": "25 */4 * * *"
+    },
+    {
+      "path": "/api/employees/commerciale",
+      "schedule": "0 6-18/2 * * *"
+    },
+    {
+      "path": "/api/photos/enhance?mode=sweep",
+      "schedule": "20 3 * * *"
+    },
+    {
+      "path": "/api/wizard/describe?mode=sweep",
+      "schedule": "35 3 * * *"
+    },
+    {
+      "path": "/api/owners/rendiconto",
+      "schedule": "10 6 1 * *"
+    },
+    {
+      "path": "/api/ops/conservazione",
+      "schedule": "40 5 2 * *"
+    },
+      {
+        "path": "/api/market/pulse",
+        "schedule": "50 5 * * *"
+      }
   ]
 }

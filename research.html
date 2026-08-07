@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
-    <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-EYCD59RDVJ');</script>
+    <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied',wait_for_update:500});gtag('config','G-EYCD59RDVJ');</script>
     <link rel="icon" href="/favicon.ico" sizes="any">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -49,7 +49,7 @@
     "https://wa.me/393313251961",
     "https://share.google/xikmVxQCRuKOdWcND"
   ],
-  "address": { "@type": "PostalAddress", "addressLocality": "Rome", "addressRegion": "Lazio", "addressCountry": "IT" },
+  "address": { "@type": "PostalAddress", "streetAddress": "Via dei Coronari 181/184", "postalCode": "00186", "addressLocality": "Rome", "addressRegion": "Lazio", "addressCountry": "IT" },
   "areaServed": { "@type": "City", "name": "Rome" },
   "priceRange": "€€-€€€"
 }
@@ -98,6 +98,7 @@
   </script>
 <!-- BOOM_JSONLD:END -->
 
+<script defer src="/js/boom-consent.js"></script>
 </head>
 <body>
 
@@ -131,14 +132,7 @@
             </a>
 
             <div class="nav-links">
-                <a href="/apartments.html" class="nav-link">Apartments</a>
-                <a href="/property-finding.html" class="nav-link">Property Finding</a>
-                <a href="/deal-assistance.html" class="nav-link">Deal Assistance</a>
-                <a href="/virtual-viewing.html" class="nav-link">Virtual Viewing</a>
-                <a href="/concierge.html" class="nav-link">Concierge</a>
-                <a href="/partners.html" class="nav-link">Partners</a>
-                <a href="/about.html" class="nav-link">About</a>
-                <a href="https://wa.me/393313251961" class="nav-cta" target="_blank">WhatsApp</a>
+                <a href="/apartments" class="nav-link">Apartments</a><a href="/services" class="nav-link">Services</a><a href="/owners" class="nav-link">For Owners</a><a href="/partners" class="nav-link">Partners</a><a href="/about" class="nav-link">About</a><a href="https://wa.me/393313251961" class="nav-cta" target="_blank">WhatsApp</a>
             </div>
 
             <button class="nav-toggle" id="navToggle" aria-label="Toggle menu">
@@ -153,16 +147,16 @@
     <div class="mobile-menu" id="mobileMenu">
         <div class="mobile-menu-links">
             <a href="/" class="mobile-menu-link">Home</a>
-            <a href="/apartments.html" class="mobile-menu-link">Apartments</a>
-            <a href="/property-finding.html" class="mobile-menu-link">Property Finding</a>
-            <a href="/deal-assistance.html" class="mobile-menu-link">Deal Assistance</a>
-            <a href="/virtual-viewing.html" class="mobile-menu-link">Virtual Viewing</a>
-            <a href="/concierge.html" class="mobile-menu-link">Concierge</a>
-            <a href="/universities.html" class="mobile-menu-link">For Universities</a>
-            <a href="/corporate.html" class="mobile-menu-link">For Companies</a>
-            <a href="/research.html" class="mobile-menu-link">For Research</a>
-            <a href="/about.html" class="mobile-menu-link">About</a>
-            <a href="/login.html" class="mobile-menu-link">Login</a>
+            <a href="/apartments" class="mobile-menu-link">Apartments</a><a href="/services" class="mobile-menu-link">All Services</a>
+            <a href="/property-finding" class="mobile-menu-link">Property Finding</a>
+            <a href="/deal-assistance" class="mobile-menu-link">Deal Assistance</a>
+            <a href="/virtual-viewing" class="mobile-menu-link">Virtual Viewing</a>
+            <a href="/concierge" class="mobile-menu-link">Concierge</a>
+            <a href="/universities" class="mobile-menu-link">For Universities</a>
+            <a href="/corporate" class="mobile-menu-link">For Companies</a>
+            <a href="/research" class="mobile-menu-link">For Research</a>
+            <a href="/about" class="mobile-menu-link">About</a>
+            <a href="/login" class="mobile-menu-link">Login</a>
         </div>
         <a href="https://wa.me/393313251961" class="mobile-menu-cta" target="_blank">WhatsApp Us</a>
     </div>
@@ -389,11 +383,7 @@
     <section class="form-section reveal" id="form">
         <div class="form-container">
             <div class="form-header"><div class="form-tag">Grant-invoiceable · Free institutional partnership · Replies within 24h</div><h2 class="form-title">Settle your researchers</h2><p class="form-subtitle">Whether you're a fellow, a research office or a grant manager, tell us what you need and we'll reply with next steps and grant-ready invoicing.</p></div>
-<form action="https://api.web3forms.com/submit" method="POST">
-                <input type="hidden" name="access_key" value="5b10beba-c7e0-4cd2-98f9-2dbb0aefe889">
-                <input type="hidden" name="subject" value="🔬 NEW RESEARCH / ERC INQUIRY">
-                <input type="hidden" name="from_name" value="BOOM Research">
-                <input type="hidden" name="redirect" value="https://boom-rome.com/_thank-you.html">
+<form id="partnerForm" onsubmit="return sendPartner(event)">
                 <div class="form-row">
                     <div class="form-group"><label class="form-label">Your name <span class="required">*</span></label><input type="text" name="name" class="form-input" required placeholder="Full name"></div>
                     <div class="form-group"><label class="form-label">Email <span class="required">*</span></label><input type="email" name="email" class="form-input" required placeholder="you@institution.edu"></div>
@@ -407,7 +397,9 @@
                     <div class="form-group"><label class="form-label">Fellows per year</label><select name="cohort" class="form-select"><option value="">Select a range</option><option>Just one</option><option>2–5</option><option>6–15</option><option>15+</option></select></div>
                 </div>
                 <div class="form-group"><label class="form-label">Anything we should know?</label><textarea name="message" class="form-textarea" placeholder="Arrival dates, family situation, budget, location near the institute, invoicing requirements..."></textarea></div>
-                <button type="submit" class="form-submit">Send inquiry</button>
+                <input type="text" name="website" id="pfCompany" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px">
+                <p id="pfErr" role="alert" style="display:none;color:#E5735F;font-size:13.5px;margin:0 0 12px"></p>
+                <button type="submit" class="form-submit" id="pfBtn">Send inquiry</button>
                 <p class="form-note">We'll reply within 24 hours with next steps and grant-ready invoicing details.</p>
             </form>
         </div>
@@ -418,9 +410,9 @@
         <div class="container">
             <div class="section-header reveal"><span class="section-eyebrow">Not the full package?</span><h2 class="section-title">Just need <span class="text-gold">one piece?</span></h2><p class="section-subtitle">If a full relocation is more than a fellow needs, use any BOOM service à la carte — same verified quality, grant-invoiceable.</p></div>
             <div class="svc-xsell reveal">
-                <a class="svc-partner" href="/virtual-viewing.html"><div class="ico">📹</div><h3>Virtual Viewing</h3><p>Can’t be there? We tour any apartment live on video and report back.</p><div class="snap">€89 · per viewing</div><div class="go">Book a viewing →</div></a>
-                <a class="svc-partner" href="/deal-assistance.html"><div class="ico">🤝</div><h3>Deal Assistance</h3><p>Found a place yourself? We check the contract, deposit and landlord.</p><div class="snap">€249 · fixed fee</div><div class="go">Get assistance →</div></a>
-                <a class="svc-partner" href="/property-finding.html"><div class="ico">🔎</div><h3>Property Finding</h3><p>Just the home search for one fellow — we find, vet and negotiate it.</p><div class="snap">€350 · refundable</div><div class="go">Find a home →</div></a>
+                <a class="svc-partner" href="/virtual-viewing"><div class="ico">📹</div><h3>Virtual Viewing</h3><p>Can’t be there? We tour any apartment live on video and report back.</p><div class="snap">€89 · per viewing</div><div class="go">Book a viewing →</div></a>
+                <a class="svc-partner" href="/deal-assistance"><div class="ico">🤝</div><h3>Deal Assistance</h3><p>Found a place yourself? We check the contract, deposit and landlord.</p><div class="snap">€249 · fixed fee</div><div class="go">Get assistance →</div></a>
+                <a class="svc-partner" href="/property-finding"><div class="ico">🔎</div><h3>Property Finding</h3><p>Just the home search for one fellow — we find, vet and negotiate it.</p><div class="snap">€350 · refundable</div><div class="go">Find a home →</div></a>
             </div>
         </div>
     </section>
@@ -443,9 +435,9 @@
         <div class="container">
             <div class="section-header reveal"><span class="section-eyebrow">Also for</span><h2 class="section-title">Housing, handled —<br><span class="text-gold">for every organisation.</span></h2></div>
             <div class="svc-partners reveal">
-                <a class="svc-partner" href="/universities.html"><div class="ico">🎓</div><h3>Universities</h3><p>Study-abroad &amp; international offices placing students each semester.</p><div class="go">For universities →</div></a>
-                <a class="svc-partner" href="/corporate.html"><div class="ico">🏢</div><h3>Companies</h3><p>Relocate employees and teams to Rome — one partner, one invoice.</p><div class="go">For companies →</div></a>
-                <a class="svc-partner current" href="/research.html"><div class="ico">🔬</div><h3>Research &amp; ERC</h3><p>Host incoming researchers &amp; ERC / Marie-Curie fellows, grant-friendly.</p><div class="go">You're here</div></a>
+                <a class="svc-partner" href="/universities"><div class="ico">🎓</div><h3>Universities</h3><p>Study-abroad &amp; international offices placing students each semester.</p><div class="go">For universities →</div></a>
+                <a class="svc-partner" href="/corporate"><div class="ico">🏢</div><h3>Companies</h3><p>Relocate employees and teams to Rome — one partner, one invoice.</p><div class="go">For companies →</div></a>
+                <a class="svc-partner current" href="/research"><div class="ico">🔬</div><h3>Research &amp; ERC</h3><p>Host incoming researchers &amp; ERC / Marie-Curie fellows, grant-friendly.</p><div class="go">You're here</div></a>
             </div>
         </div>
     </section>
@@ -484,47 +476,49 @@
                         we can make it work anywhere.
                     </p>
                     <div class="footer-company">
-                        <strong>Egidi Immobiliare S.r.l.</strong><br>
-                        P.IVA 17322991005<br>
-                        REA RM - 1710623<br>
-                        Rome, Italy
+                        <strong>Egidi Immobiliare S.r.l.</strong><br>Via dei Coronari 181/184, 00186 Roma<br>Sede legale: Viale Liegi 42, 00198 Roma<br>P.IVA 17322991005 · REA RM-1710623
                     </div>
                 </div>
 
                 <div>
                     <h4 class="footer-links-title">Services</h4>
                     <ul class="footer-links-list">
-                        <li><a href="/apartments.html">Apartments</a></li>
-                        <li><a href="/property-finding.html">Property Finding</a></li>
-                        <li><a href="/deal-assistance.html">Deal Assistance</a></li>
-                        <li><a href="/contract-check.html">Free Contract Check</a></li>
-                        <li><a href="/virtual-viewing.html">Virtual Viewing</a></li>
-                        <li><a href="/concierge.html">Concierge</a></li>
-                    </ul>
+          <li><a href="/services">All services</a></li>
+          <li><a href="/apartments">Apartments</a></li>
+          <li><a href="/property-finding">Property Finding</a></li>
+          <li><a href="/remote-move-pack">Remote Move Pack</a></li>
+          <li><a href="/deal-assistance">Deal Assistance</a></li>
+          <li><a href="/virtual-viewing">Virtual Viewing</a></li>
+          <li><a href="/deposit-recovery">Deposit Recovery</a></li>
+          <li><a href="/contract-check-express">Contract Check Express</a></li>
+          <li><a href="/concierge">Concierge</a></li>
+          <li><a href="/canone">Canone concordato (IT)</a></li>
+          <li><a href="/pacchetto-concordato">Pacchetto Concordato (IT)</a></li>
+        </ul>
                 </div>
 
                 <div>
                     <h4 class="footer-links-title">Company</h4>
                     <ul class="footer-links-list">
-                        <li><a href="/about.html">About</a></li>
-                        <li><a href="/how-it-works.html">How It Works</a></li>
-                        <li><a href="/universities.html">For Universities</a></li>
-                        <li><a href="/corporate.html">For Companies</a></li>
-                        <li><a href="/research.html">For Research</a></li>
-                        <li><a href="/refer.html">Refer a Friend</a></li>
-                        <li><a href="/owners.html">For Owners</a></li>
-                        <li><a href="/blog.html">Blog</a></li>
-                        <li><a href="/faq.html">FAQ</a></li>
-                        <li><a href="/contact.html">Contact</a></li>
+                        <li><a href="/about">About</a></li>
+                        <li><a href="/how-it-works">How It Works</a></li>
+                        <li><a href="/universities">For Universities</a></li>
+                        <li><a href="/corporate">For Companies</a></li>
+                        <li><a href="/research">For Research</a></li>
+                        <li><a href="/refer">Refer a Friend</a></li>
+                        <li><a href="/owners">For Owners</a></li>
+                        <li><a href="/blog">Blog</a></li>
+                        <li><a href="/faq">FAQ</a></li>
+                        <li><a href="/contact">Contact</a></li>
                     </ul>
                 </div>
 
                 <div>
                     <h4 class="footer-links-title">Legal</h4>
                     <ul class="footer-links-list">
-                        <li><a href="/terms.html">Terms</a></li>
-                        <li><a href="/privacy.html">Privacy</a></li>
-                        <li><a href="/login.html">Login</a></li>
+                        <li><a href="/terms">Terms</a></li>
+                        <li><a href="/privacy">Privacy</a></li>
+                        <li><a href="/login">Login</a></li>
                     </ul>
                 </div>
             </div>
@@ -605,5 +599,25 @@
     <script defer src="/js/boom-track.js"></script>
     <script defer src="/js/boom-film.js"></script>
     <script defer src="/js/boom-pixel.js"></script>
+<script>
+/* Il partner diventa un LEAD (/api/partners/submit): prima finiva su
+   Web3Forms e non entrava in pipeline. */
+function sendPartner(e){e.preventDefault();
+  var M={"name":"name","email":"email","org":"institution","role":"role","volume":"cohort","message":"message","country":"grant"},F=document.getElementById("partnerForm");
+  var err=document.getElementById("pfErr"),btn=document.getElementById("pfBtn");
+  var g=function(n){var el=F.querySelector("[name=\""+n+"\"]");return el?el.value.trim():""};
+  var body={kind:"research",company:document.getElementById("pfCompany").value};
+  for(var k in M)body[k]=g(M[k]);
+  err.style.display="none";btn.disabled=true;var lbl=btn.textContent;btn.textContent="Sending…";
+  fetch("/api/partners/submit",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
+  .then(function(r){return r.json()}).then(function(j){
+    if(!j||!j.ok)throw new Error((j&&j.error)||"failed");
+    F.innerHTML="<div style=\"text-align:center;padding:26px 0\"><div style=\"width:56px;height:56px;border-radius:50%;border:1px solid #46C08A;color:#46C08A;display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 16px\">✓</div><h3 style=\"font-size:22px;font-weight:300;margin-bottom:8px\">Thank you — we have it.</h3><p style=\"color:rgba(255,255,255,.6);font-size:14.5px;max-width:460px;margin:0 auto\">We reply within 24 hours with your referral link, materials and a named contact."+(j.code?" Your partner code: <b style=\'color:#D4AF37\'>"+j.code+"</b>.":"")+"</p></div>";
+    try{if(typeof gtag==="function")gtag("event","generate_lead",{channel:"partner",partner_kind:"research"});}catch(e){}
+  }).catch(function(ex){btn.disabled=false;btn.textContent=lbl;
+    err.textContent=(ex&&ex.message==="contact_required")?"We need your name and a valid work email.":"That did not go through — try again, or email us directly.";
+    err.style.display="block";});
+  return false;}
+</script>
 </body>
 </html>

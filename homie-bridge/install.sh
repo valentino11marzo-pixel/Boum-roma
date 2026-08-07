@@ -66,11 +66,15 @@ if [ -z "${SECRET:-}" ]; then
     fail "Vuoto. Vai su Vercel → Settings → Environment Variables, copia HOMIE_SECRET, rilancia."
   fi
 fi
-# Persisti
+# Persisti. Bake node's bin dir into PATH so the launchd keep-alive (which runs
+# with a minimal PATH that omits Homebrew/nvm) can find `node` for the `boom`
+# shebang — otherwise the 30s heartbeat fails with "env: node: not found".
+NODE_BIN_DIR="$(cd "$(dirname "$(command -v node)")" 2>/dev/null && pwd)"
 cat > "${ENV_FILE}" <<EOF
 # BOOM Roma · Homie bridge env (do not commit)
 export HOMIE_SECRET="${SECRET}"
 export BOOM_BASE_URL="\${BOOM_BASE_URL:-https://boomrome.com}"
+export PATH="${NODE_BIN_DIR}:\$PATH"
 EOF
 chmod 600 "${ENV_FILE}"
 ok "Salvato in ${ENV_FILE} (chmod 600)"

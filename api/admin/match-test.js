@@ -149,9 +149,11 @@ export default async function handler(req, res) {
       email: c.email || null,
       stage: c.stage || c.portalStage || null,
       criteria: {
-        budget: c.budget || null,
+        budget: c.budget ?? null,
+        minBudget: c.minBudget ?? null,
         bedrooms: c.bedrooms || null,
         preferred_areas: c.preferred_areas || null,
+        zone: c.zone || null,
       },
       score,
       reasons,

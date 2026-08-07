@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script defer src="/js/boom-err.js"></script>
     <link rel="icon" href="/favicon.ico" sizes="any">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="icon" href="/favicon-32x32.png" sizes="32x32" type="image/png">
@@ -9,7 +10,7 @@
     <link rel="manifest" href="/site.webmanifest">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Sign In — BOOM Rome</title>
+    <title>Login — BOOM Rome</title>
 <!-- BOOM_SEO:START -->
   <meta name="description" content="Secure login for tenants, landlords and admins.">
   <meta name="robots" content="noindex, follow">
@@ -29,22 +30,26 @@
   <meta property="og:site_name" content="BOOM Rome">
   <meta property="og:locale" content="en_US">
   <meta property="og:locale:alternate" content="it_IT">
-  <meta property="og:title" content="Sign In — BOOM Rome">
+  <meta property="og:title" content="Login — BOOM Rome">
   <meta property="og:description" content="Secure login for tenants, landlords and admins.">
   <meta property="og:url" content="https://www.boomrome.com/login">
-  <meta property="og:image" content="https://www.boomrome.com/og-login.png">
-  <meta property="og:image:secure_url" content="https://www.boomrome.com/og-login.png">
+  <meta property="og:image" content="https://www.boomrome.com/BOOMsocialprofile.png">
+  <meta property="og:image:secure_url" content="https://www.boomrome.com/BOOMsocialprofile.png">
   <meta property="og:image:type" content="image/png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="BOOM Rome — Rome is yours. Run it beautifully.">
+  <meta property="og:image:alt" content="Login — BOOM Rome">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:site" content="@boomrome">
   <meta name="twitter:creator" content="@boomrome">
-  <meta name="twitter:title" content="Sign In — BOOM Rome">
+  <meta name="twitter:title" content="Login — BOOM Rome">
   <meta name="twitter:description" content="Secure login for tenants, landlords and admins.">
-  <meta name="twitter:image" content="https://www.boomrome.com/og-login.png">
-  <meta name="twitter:image:alt" content="BOOM Rome — Rome is yours. Run it beautifully.">
+  <meta name="twitter:image" content="https://www.boomrome.com/BOOMsocialprofile.png">
+  <meta name="twitter:image:alt" content="Login — BOOM Rome">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="dns-prefetch" href="https://www.googletagmanager.com">
+  <link rel="dns-prefetch" href="https://www.google-analytics.com">
 <!-- BOOM_SEO:END -->
 
   <!-- Content Security Policy — scoped hardening for the auth surface. -->
@@ -72,9 +77,12 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" media="print" onload="this.media='all'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"></noscript>
 
-  <!-- Firebase Auth — deferred so it never blocks first paint. -->
-  <script defer src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <!-- Firebase Auth — deferred so it never blocks first paint. Stessa
+       versione 10.7.0 del portale: così dopo il login il browser trova
+       app-compat e auth-compat già nella cache HTTP e il boot del portale
+       non li riscarica. -->
+  <script defer src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
 
   <style>
     *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
@@ -176,7 +184,7 @@
     .hero-inner{max-width:600px}
 
     .eyebrow{display:inline-flex;align-items:center;gap:9px;margin-bottom:26px;padding:6px 13px;border-radius:999px;
-      border:1px solid var(--line);background:rgba(255,255,255,.03);backdrop-filter:blur(6px);
+      border:1px solid var(--line);background:rgba(255,255,255,.03);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
       font-family:var(--ui);font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--text-2)}
     .eyebrow .pip{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 9px var(--gold)}
 
@@ -204,7 +212,7 @@
     /* ── Auth panel ── */
     .auth{position:relative;display:flex;align-items:center;justify-content:center;
       padding:40px clamp(28px,3.4vw,56px);background:var(--panel);
-      backdrop-filter:blur(18px) saturate(1.2);-webkit-backdrop-filter:blur(18px) saturate(1.2)}
+      -webkit-backdrop-filter:blur(18px) saturate(1.2);backdrop-filter:blur(18px) saturate(1.2);-webkit-backdrop-filter:blur(18px) saturate(1.2)}
     .auth::before{content:'';position:absolute;top:0;bottom:0;left:0;width:1px;pointer-events:none;
       background:linear-gradient(180deg, rgba(246,228,166,.45), rgba(255,255,255,.12) 20%, rgba(255,255,255,.03) 55%, transparent)}
     .auth-inner{width:100%;max-width:352px;animation:enter .7s var(--ease) both;animation-delay:.15s}
@@ -284,7 +292,7 @@
       .auth::before{display:none}
       .dome{left:50%;top:32%;width:min(640px,92vw);height:min(640px,92vw);opacity:.62}
       .dome .sweep,.dome .sweep2,.dome .beam,.dome .rim{display:none}   /* drop mix-blend layers on mobile for speed */
-      .auth{background:#0a0a0c;backdrop-filter:none;-webkit-backdrop-filter:none}  /* solid panel = cheaper paint */
+      .auth{background:#0a0a0c;-webkit-backdrop-filter:none;backdrop-filter:none;-webkit-backdrop-filter:none}  /* solid panel = cheaper paint */
       .field input{font-size:16px}                         /* 16px prevents iOS focus-zoom */
       .tint{background:radial-gradient(70% 50% at 50% 30%, rgba(8,8,10,.45), rgba(8,8,10,.92) 75%),linear-gradient(0deg, rgba(8,8,10,.9), transparent 60%)}
       .mhead{display:block;margin-bottom:6px}
@@ -310,6 +318,66 @@
       .rise,.auth-inner{opacity:1;transform:none}
     }
   </style>
+<!-- BOOM_JSONLD:START -->
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "RealEstateAgent",
+  "@id": "https://www.boomrome.com/#organization",
+  "name": "BOOM Rome",
+  "legalName": "BOOM Rome",
+  "url": "https://www.boomrome.com",
+  "logo": {
+    "@type": "ImageObject",
+    "url": "https://www.boomrome.com/android-chrome-512x512.png",
+    "width": 512,
+    "height": 512
+  },
+  "image": "https://www.boomrome.com/BOOMsocialprofile.png",
+  "description": "Premium mid-term apartment rentals in Rome with full property management, legal contracts, and 48-hour move-in.",
+  "sameAs": [
+    "https://www.instagram.com/boomrome",
+    "https://www.linkedin.com/company/boomrome",
+    "https://wa.me/393331234567"
+  ],
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "Rome",
+    "addressRegion": "Lazio",
+    "addressCountry": "IT"
+  },
+  "areaServed": {
+    "@type": "City",
+    "name": "Rome"
+  },
+  "priceRange": "€€-€€€"
+}
+  </script>
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "@id": "https://www.boomrome.com/#website",
+  "url": "https://www.boomrome.com",
+  "name": "BOOM Rome",
+  "publisher": {
+    "@id": "https://www.boomrome.com/#organization"
+  },
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": {
+      "@type": "EntryPoint",
+      "urlTemplate": "https://www.boomrome.com/apartments?q={search_term_string}"
+    },
+    "query-input": "required name=search_term_string"
+  },
+  "inLanguage": [
+    "en",
+    "it"
+  ]
+}
+  </script>
+<!-- BOOM_JSONLD:END -->
 </head>
 <body>
   <div class="scene" aria-hidden="true">
@@ -411,7 +479,7 @@
         </form>
 
         <div class="alt">
-          <a href="/apartments.html">Browse apartments</a>
+          <a href="/apartments">Browse apartments</a>
           <span class="sep">·</span>
           <a href="https://wa.me/393313251961" target="_blank" rel="noopener noreferrer">Contact support</a>
         </div>
@@ -442,24 +510,67 @@
       const auth=firebase.auth();
       const isSafari=/^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
+      // Destinazione di default '/portal' (SENZA .html): con cleanUrls attivo
+      // '/portal.html' risponde 308 → '/portal', quindi ogni login pagava un
+      // redirect in più — e il pre-warm del SW non salvava nulla, perché una
+      // risposta redirected non viene messa in cache di proposito.
       function getNextDest(){
         try{
           const raw=new URLSearchParams(location.search).get('next');
-          if(!raw) return '/portal.html';
+          if(!raw) return '/portal';
           const v=raw.trim();
-          if(v.length>512) return '/portal.html';
-          if(!v.startsWith('/')) return '/portal.html';
-          if(v.startsWith('//')||v.startsWith('/\\')) return '/portal.html';
-          if(v.includes('\\')||v.includes(':')) return '/portal.html';
+          if(v.length>512) return '/portal';
+          if(!v.startsWith('/')) return '/portal';
+          if(v.startsWith('//')||v.startsWith('/\\')) return '/portal';
+          if(v.includes('\\')||v.includes(':')) return '/portal';
           return v;
-        }catch{ return '/portal.html'; }
+        }catch{ return '/portal'; }
       }
       const NEXT_DEST=getNextDest();
+
+      // Warm-up del portale: mentre l'utente digita, il SW mette in cache la
+      // shell di portal.html (stale-while-revalidate) così il post-login è
+      // istantaneo anche alla prima visita. Salta se l'utente ha Save-Data.
+      if('serviceWorker' in navigator && !(navigator.connection&&navigator.connection.saveData)
+         && (NEXT_DEST==='/portal.html'||NEXT_DEST==='/portal'||NEXT_DEST.startsWith('/portal.html#')||NEXT_DEST.startsWith('/portal#'))){
+        navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(()=>{});
+        // '/portal' e non '/portal.html': il 308 di cleanUrls marcava la
+        // risposta come redirected e il SW (giustamente) non la salvava —
+        // il pre-warm della shell era di fatto un no-op.
+        const warm=()=>{ ['/portal','/js/portal-app.js','/css/portal.css'].forEach(u=>{ fetch(u,{credentials:'same-origin'}).catch(()=>{}); }); };
+        const start=()=>{
+          if(navigator.serviceWorker.controller) warm();
+          else navigator.serviceWorker.addEventListener('controllerchange',warm,{once:true});
+        };
+        (window.requestIdleCallback||function(f){setTimeout(f,1500)})(start);
+      }
 
       (async()=>{
         try{ await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); }
         catch{ try{ await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION); }catch{} }
       })();
+
+      // ── Rilevamento ciclo login ↔ pagina protetta ────────────────────────
+      // Se il browser non conserva la sessione (Safari in navigazione privata
+      // o con lo storage bloccato), il login riesce, la pagina protetta non
+      // trova l'utente e rimbalza qui: all'infinito, senza un solo messaggio.
+      // La pagina protetta arriva con ?b=1 — se succede 2 volte in un minuto
+      // lo diciamo, invece di far girare l'utente a vuoto.
+      function bounceCheck(){
+        try{
+          if(new URLSearchParams(location.search).get('b')!=='1') return;
+          const now=Date.now();
+          const hist=(JSON.parse(sessionStorage.getItem('boom_bounce')||'[]'))
+            .filter(t=>now-t<60000).concat(now);
+          sessionStorage.setItem('boom_bounce',JSON.stringify(hist.slice(-5)));
+          if(hist.length>=2){
+            sessionStorage.removeItem('boom_bounce');
+            showMessage('Il browser non sta conservando la sessione. Su Safari: '
+              +'esci dalla Navigazione privata e disattiva “Blocca tutti i cookie” '
+              +'in Impostazioni → Privacy, poi riprova.','error');
+          }
+        }catch(e){/* storage bloccato: niente da fare, ma nessun crash */}
+      }
 
       auth.onAuthStateChanged(u=>{ if(u) window.location.href=NEXT_DEST; });
 
@@ -509,12 +620,22 @@
         if(!email||!password){ showMessage('Please enter your email and password.','error'); return; }
         setLoading(true); clearMessage();
         try{
-          await auth.signInWithEmailAndPassword(email,password);
+          // Tetto sul sign-in. Su WebKit incastrato (IndexedDB/WebChannel)
+          // questa promise può non risolversi MAI: senza tetto il bottone
+          // restava a girare all'infinito, senza messaggio e senza uscita —
+          // l'equivalente su /login dello spinner infinito del portale.
+          // È sicuro: onAuthStateChanged qui sopra redirige comunque se il
+          // login arriva in ritardo, quindi al peggio si avvisa di troppo.
+          await Promise.race([
+            auth.signInWithEmailAndPassword(email,password),
+            new Promise((_,rej)=>setTimeout(()=>rej(new Error('boom/timeout')),20000))
+          ]);
           showMessage('Welcome back — signing you in…','success');
           setTimeout(()=>{ window.location.href=NEXT_DEST; }, isSafari?500:120);
         }catch(err){
           let msg='Incorrect email or password. Please try again.';
-          if(err.code==='auth/too-many-requests') msg='Too many attempts. Please wait a moment and try again.';
+          if(err && err.message==='boom/timeout') msg='Sign-in is taking too long — your browser may be stuck. Reload the page, or try a private window.';
+          else if(err.code==='auth/too-many-requests') msg='Too many attempts. Please wait a moment and try again.';
           else if(err.code==='auth/network-request-failed') msg='Network error. Check your connection and try again.';
           else if(err.code==='auth/user-disabled') msg='This account has been disabled. Contact support.';
           showMessage(msg,'error'); setLoading(false); pwInput.focus(); pwInput.select();
@@ -533,6 +654,8 @@
         showMessage('If an account exists for that email, a reset link is on its way.','success');
         setTimeout(()=>{ forgotBtn.disabled=false; },4000);
       });
+
+      bounceCheck();   // dopo i const del DOM: showMessage ha bisogno di messageEl
     });
   </script>
 </body>

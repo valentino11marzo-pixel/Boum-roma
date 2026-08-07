@@ -97,18 +97,28 @@ export async function loadPassData(type, entityId) {
   if (type === "viewing") {
     const v = await fsGet(`viewingRequests/${entityId}`);
     if (!v) throw new Error("viewing_not_found");
+    // book.html writes listingId (public catalog); agent-created requests use
+    // propertyId. Try both, listings first — otherwise the pass ships without
+    // the address and, worse, without the coordinates that light it up on the
+    // lock screen when the client reaches the building.
     let property = null;
-    if (v.propertyId) property = await fsGet(`properties/${v.propertyId}`).catch(() => null);
+    const pid = v.listingId || v.propertyId;
+    if (pid) {
+      property = await fsGet(`listings/${pid}`).catch(() => null)
+        || await fsGet(`properties/${pid}`).catch(() => null);
+    }
     const status = String(v.status || "").toLowerCase();
     return {
       viewingId: entityId,
       clientName: v.clientName || v.name || "",
-      propertyAddress: v.listingName || v.propertyAddress || (property && (property.address || property.name)) || "",
+      propertyAddress: (property && (property.address || property.name)) || v.listingName || v.propertyAddress || "",
       propertyCity: "Roma",
       propertyCoords: property && property.lat && property.lng ? { lat: property.lat, lng: property.lng } : null,
       confirmedDateISO: v.confirmedDateTime || v.confirmedDate || v.dateTime || null,
       durationMinutes: v.durationMinutes || 30,
       meetingPoint: v.meetingPoint || "AL CITOFONO",
+      mode: v.mode || "person",
+      videoUrl: v.videoUrl || null,
       isVoided: status.includes("cancel") || status.includes("annull") || v.voided === true,
     };
   }

@@ -89,40 +89,21 @@ const transporter = nodemailer.createTransport({
   auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASS },
 });
 
-function buildEmail({ clientName, listingName, listingZone, confirmedDateTime, isAgent, minutesBefore }) {
-  const dt = new Date(confirmedDateTime);
-  const dtStr = dt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) +
-    ' · ' + dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-  const when = minutesBefore === 180 ? '3 hours' : '30 minutes';
-  const prop = listingName + (listingZone ? ` — ${listingZone}` : '');
-  const subject = isAgent
-    ? `⏰ Viewing in ${when} — ${clientName} · ${listingName}`
-    : `⏰ Reminder: Your viewing is in ${when}`;
-  const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#0C0C0C;font-family:'Helvetica Neue',Helvetica,sans-serif">
-<div style="max-width:480px;margin:0 auto;padding:32px 24px">
-  <div style="margin-bottom:24px"><span style="font-size:11px;letter-spacing:0.3em;text-transform:uppercase;color:#888">● BOOM ROME</span></div>
-  <div style="background:#111;border:1px solid rgba(255,255,255,0.07);border-radius:14px;overflow:hidden">
-    <div style="height:2px;background:linear-gradient(90deg,#D4AF37,#F5D98B)"></div>
-    <div style="padding:24px 22px">
-      <div style="font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:#555;margin-bottom:8px">Reminder</div>
-      <div style="font-size:20px;font-weight:300;color:#F2F2F2;margin-bottom:4px">${isAgent ? `Viewing in ${when}.` : `Your viewing is in ${when}.`}</div>
-      <div style="font-size:13px;color:#888;margin-bottom:20px">${isAgent ? `${clientName} is coming to see ${prop}.` : `You're visiting ${prop}.`}</div>
-      <div style="background:#0C0C0C;border:1px solid rgba(255,255,255,0.06);border-radius:10px">
-        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.04)">
-          <div style="font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:#444;margin-bottom:2px">Property</div>
-          <div style="font-size:13px;color:#F2F2F2">${prop}</div>
-        </div>
-        <div style="padding:12px 14px">
-          <div style="font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:#444;margin-bottom:2px">When</div>
-          <div style="font-size:13px;color:#F2F2F2">${dtStr}</div>
-        </div>
-      </div>
-      ${!isAgent ? `<div style="margin-top:16px;font-size:11px;color:#555;line-height:1.8">Bring valid ID · Arrive 5 min early<br><a href="https://wa.me/393313251961" style="color:#D4AF37;text-decoration:none">WhatsApp Valentino →</a></div>` : ''}
-    </div>
-  </div>
-  <div style="margin-top:20px;font-size:10px;color:#333;text-align:center">BOOM · Egidi Immobiliare S.r.l. · Rome</div>
-</div></body></html>`;
-  return { subject, html };
+// ── Watchdog inviti freddi (puro, testato in tests/notify) ──────────────
+// Invito a firmare inviato, NESSUNA firma dopo 72h → re-invito automatico
+// al conduttore (max 2, distanza 24h dal reminder manuale). Un contratto
+// mai invitato resta una decisione umana: qui non si inventa nulla.
+export function shouldReinvite(c, nowMs) {
+  const H72 = 72 * 3600 * 1000, H24 = 24 * 3600 * 1000;
+  if (!c) return false;
+  if (c.status && c.status !== 'active') return false;
+  if (c.tenantSignature || c.landlordSignature) return false;   // partial → ci pensa l'altro nudge
+  if (!c.tenantSignToken || !c.signInviteTenantAt) return false;
+  if (nowMs - new Date(c.signInviteTenantAt).getTime() < H72) return false;
+  const last = c.lastReminderAt ? new Date(c.lastReminderAt).getTime() : 0;
+  if (last && nowMs - last < H24) return false;
+  if ((c.inviteNudgeCount || 0) >= 2) return false;
+  return true;
 }
 
 export default async function handler(req, res) {
@@ -130,7 +111,7 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   const now = new Date();
-  const results = { checked: 0, sent3h: 0, sent30m: 0, errors: [] };
+  const results = { checked: 0, errors: [] };
   try {
     const token = await getFirebaseToken();
     const queryResult = await fsQuery('viewingRequests', token, {
@@ -139,35 +120,15 @@ export default async function handler(req, res) {
     const docs = (queryResult || []).filter(r => r.document).map(r => parseDoc(r.document)).filter(Boolean);
     results.checked = docs.length;
 
-    for (const v of docs) {
-      if (!v.confirmedDateTime) continue;
-      const minsUntil = (new Date(v.confirmedDateTime).getTime() - now.getTime()) / 60000;
-      const docPath = `viewingRequests/${v.id}`;
-
-      if (!v.reminder3hSent && minsUntil >= 165 && minsUntil <= 195) {
-        try {
-          const { subject: cs, html: ch } = buildEmail({ ...v, isAgent: false, minutesBefore: 180 });
-          const { subject: as, html: ah } = buildEmail({ ...v, isAgent: true,  minutesBefore: 180 });
-          await transporter.sendMail({ from: `BOOM Rome <${process.env.GMAIL_USER}>`, to: v.clientEmail, subject: cs, html: ch });
-          await transporter.sendMail({ from: `BOOM Rome <${process.env.GMAIL_USER}>`, to: 'valentino@boomrome.com', subject: as, html: ah });
-          await fsPatch(docPath, { reminder3hSent: { booleanValue: true } }, token);
-          try { await pushPass(`viewing-${v.id}`); } catch (e) {}
-          results.sent3h++;
-        } catch (e) { results.errors.push(`3h ${v.id}: ${e.message}`); }
-      }
-
-      if (!v.reminder30mSent && minsUntil >= 15 && minsUntil <= 45) {
-        try {
-          const { subject: cs, html: ch } = buildEmail({ ...v, isAgent: false, minutesBefore: 30 });
-          const { subject: as, html: ah } = buildEmail({ ...v, isAgent: true,  minutesBefore: 30 });
-          await transporter.sendMail({ from: `BOOM Rome <${process.env.GMAIL_USER}>`, to: v.clientEmail, subject: cs, html: ch });
-          await transporter.sendMail({ from: `BOOM Rome <${process.env.GMAIL_USER}>`, to: 'valentino@boomrome.com', subject: as, html: ah });
-          await fsPatch(docPath, { reminder30mSent: { booleanValue: true } }, token);
-          try { await pushPass(`viewing-${v.id}`); } catch (e) {}
-          results.sent30m++;
-        } catch (e) { results.errors.push(`30m ${v.id}: ${e.message}`); }
-      }
-    }
+    // ── Reminder visite: UNA sola voce, quella del countdown ──
+    // Questo blocco spediva T-3h e T-30m con finestre proprie (165-195 /
+    // 15-45 min) mentre api/viewings/_moments.js — richiamato più sotto —
+    // manda T-24h, T-3h, T-30m e il "com'è andata" usando GLI STESSI flag
+    // (reminder3hSent/reminder30mSent) su finestre più larghe. Con finestre
+    // sovrapposte e un fsPatch che non controlla la risposta, lo stesso
+    // cliente poteva ricevere il promemoria due volte. _moments.js è più
+    // completo (Wallet, lingua, video/persona) ed è l'unico a parlare.
+    // Il push del pass resta suo.
 
     // ── Rent reminders → live-update the tenant Wallet pass (Prossima rata) ──
     // Pushes once per payment when it enters the 3-day window, and once when it
@@ -217,6 +178,215 @@ export default async function handler(req, res) {
       }
       results.paidPush = paidPush;
     } catch (e) { results.errors.push(`paid-push: ${e.message}`); }
+
+    // ── Stale partial signatures → auto re-nudge the missing party ──
+    // Contracts stuck at 'partial' for >48h get the counterparty their /sign
+    // link again (respecting the manual reminder's 24h cooldown, max 3 auto
+    // nudges). Closes the biggest signing-funnel leak with zero admin effort.
+    try {
+      const partQ = await fsQuery('contracts', token, {
+        field: { fieldPath: 'signatureStatus' }, op: 'EQUAL', value: { stringValue: 'partial' },
+      });
+      const parts = (partQ || []).filter(r => r.document).map(r => parseDoc(r.document)).filter(Boolean);
+      let nudged = 0;
+      const H48 = 48 * 3600 * 1000, H24 = 24 * 3600 * 1000;
+      for (const c of parts) {
+        const signedRole = c.tenantSignature ? 'tenant' : (c.landlordSignature ? 'landlord' : null);
+        if (!signedRole) continue;
+        const pendingToken = signedRole === 'tenant' ? c.landlordSignToken : c.tenantSignToken;
+        if (!pendingToken) continue;
+        const signedAt = signedRole === 'tenant' ? c.tenantSignedAt : c.landlordSignedAt;
+        if (!signedAt || (now.getTime() - new Date(signedAt).getTime()) < H48) continue;
+        const last = c.lastReminderAt ? new Date(c.lastReminderAt).getTime() : 0;
+        if (last && now.getTime() - last < H24) continue;
+        if ((c.autoNudgeCount || 0) >= 3) continue;
+        try {
+          const { notifyPartialSignature } = await import('./sign/_notify.js');
+          await notifyPartialSignature(c, signedRole, null, { nudgeOnly: true });
+          await fsPatch(`contracts/${c.id}`, {
+            lastReminderAt: { timestampValue: now.toISOString() },
+            autoNudgeCount: { integerValue: String((c.autoNudgeCount || 0) + 1) },
+          }, token);
+          nudged++;
+        } catch (e) { results.errors.push(`nudge ${c.id}: ${e.message}`); }
+      }
+      results.signNudged = nudged;
+    } catch (e) { results.errors.push(`sign-nudge: ${e.message}`); }
+
+    // ── Invito a firmare mai aperto → re-invito dopo 72h (max 2) ──
+    // Chiude l'altro buco del funnel firme: il contratto INVIATO su cui
+    // nessuno ha ancora firmato. Il re-invito parte come "Reminder —" nello
+    // stesso design system, e ogni invio resta tracciato sul contratto.
+    try {
+      const noneQ = await fsQuery('contracts', token, {
+        field: { fieldPath: 'signatureStatus' }, op: 'EQUAL', value: { stringValue: 'none' },
+      });
+      const cold = (noneQ || []).filter(r => r.document).map(r => parseDoc(r.document)).filter(Boolean);
+      let reinvited = 0;
+      for (const c of cold) {
+        if (!shouldReinvite(c, now.getTime())) continue;
+        try {
+          const { fsGet } = await import('./homie/_lib.js');
+          const { sendSignInvite } = await import('./sign/_notify.js');
+          const tenant = c.tenantId ? await fsGet('users/' + c.tenantId).catch(() => null) : null;
+          const to = (tenant && tenant.email) || c.tenantEmail || '';
+          if (!to) continue;
+          const sent = await sendSignInvite({
+            contract: c, property: null, role: 'tenant', to,
+            name: c.tenantName || (tenant && tenant.name) || '',
+            url: `https://www.boomrome.com/sign?sign=${encodeURIComponent(c.tenantSignToken)}`,
+            resend: true,
+          });
+          if (sent && sent.ok) {
+            await fsPatch(`contracts/${c.id}`, {
+              lastReminderAt: { timestampValue: now.toISOString() },
+              inviteNudgeCount: { integerValue: String((c.inviteNudgeCount || 0) + 1) },
+            }, token);
+            reinvited++;
+          }
+        } catch (e) { results.errors.push(`reinvite ${c.id}: ${e.message}`); }
+      }
+      results.inviteNudged = reinvited;
+    } catch (e) { results.errors.push(`invite-nudge: ${e.message}`); }
+
+    // ── Aperto ma NON firmato → nudge gentile dopo 24h (una volta) ──
+    // Il caso visto in produzione: 👀 link aperto, nessuna firma, nessuna
+    // domanda. Diverso dal re-invito 72h (che copre chi non ha mai aperto):
+    // qui la persona ha VISTO il contratto e si è fermata — un promemoria
+    // morbido col suo stesso link, anche per i CO-FIRMATARI (link derivato).
+    try {
+      const DAY = 24 * 3600 * 1000;
+      const seen = [];
+      for (const st of ['none', 'partial']) {
+        const q = await fsQuery('contracts', token, {
+          field: { fieldPath: 'signatureStatus' }, op: 'EQUAL', value: { stringValue: st },
+        });
+        (q || []).filter(r => r.document).map(r => parseDoc(r.document)).filter(Boolean).forEach(c => seen.push(c));
+      }
+      let viewNudged = 0;
+      for (const c of seen) {
+        if (c.status && c.status !== 'active') continue;
+        // UN SOLO sollecito al giorno per contratto, qualunque sia la
+        // sorgente: senza questa guardia il re-invito 72h, il nudge della
+        // firma parziale e questo "ha aperto e non ha firmato" potevano
+        // partire nello STESSO run, con lo stesso link, alla stessa persona.
+        if (c.lastReminderAt && (now.getTime() - new Date(c.lastReminderAt).getTime()) < DAY) continue;
+        const targets = [];
+        if (!c.tenantSignature && c.tenantSignToken && c.signViewedTenantAt && !c.viewNudgedTenantAt
+            && (now.getTime() - new Date(c.signViewedTenantAt).getTime()) > DAY) {
+          const { fsGet } = await import('./homie/_lib.js');
+          const tenant = c.tenantId ? await fsGet('users/' + c.tenantId).catch(() => null) : null;
+          targets.push({
+            to: (tenant && tenant.email) || c.tenantEmail || '',
+            name: c.tenantName || (tenant && tenant.name) || '',
+            url: `https://www.boomrome.com/sign?sign=${encodeURIComponent(c.tenantSignToken)}`,
+            stamp: 'viewNudgedTenantAt',
+          });
+        }
+        const coList = Array.isArray(c.coTenants) ? c.coTenants : [];
+        for (let i = 0; i < coList.length; i++) {
+          const cv = coList[i];
+          if (!cv || !cv.name || cv.signature || !cv.email) continue;
+          const viewed = c['signViewedCo' + i + 'At'];
+          if (!viewed || c['viewNudgedCo' + i + 'At']) continue;
+          if ((now.getTime() - new Date(viewed).getTime()) <= DAY) continue;
+          const { cosignRef } = await import('./magic-sign/_shared.js');
+          targets.push({
+            to: cv.email, name: cv.name,
+            url: `https://www.boomrome.com/sign?sign=${encodeURIComponent(cosignRef(c.id, i))}`,
+            stamp: 'viewNudgedCo' + i + 'At',
+          });
+        }
+        for (const tg of targets.slice(0, 2)) {
+          if (!tg.to) continue;
+          try {
+            const { sendSignInvite } = await import('./sign/_notify.js');
+            const sent = await sendSignInvite({ contract: c, property: null, role: 'tenant', to: tg.to, name: tg.name, url: tg.url, resend: true });
+            if (sent && sent.ok) {
+              // lastReminderAt è il semaforo condiviso con gli altri nudge
+              await fsPatch(`contracts/${c.id}`, {
+                [tg.stamp]: { timestampValue: now.toISOString() },
+                lastReminderAt: { timestampValue: now.toISOString() },
+              }, token);
+              viewNudged++;
+            }
+          } catch (e) { results.errors.push(`view-nudge ${c.id}: ${e.message}`); }
+        }
+      }
+      if (viewNudged) results.viewNudged = viewNudged;
+    } catch (e) { results.errors.push(`view-nudge: ${e.message}`); }
+
+    // ── Watchdog refinalize: contratti COMPLETI senza finalizedAt ──
+    // finalize è best-effort dentro la richiesta del firmatario: se cade
+    // (timeout, pdf-lib, SMTP) il contratto resta firmato ma SENZA
+    // certificato, contratto-firmato, pack ed email — e finora il recupero
+    // era solo manuale. Qui si ritenta da solo (max 2/run: dentro c'è PDF
+    // + email, pesa). finalizeContract è idempotente su finalizedAt.
+    try {
+      const compQ = await fsQuery('contracts', token, {
+        field: { fieldPath: 'signatureStatus' }, op: 'EQUAL', value: { stringValue: 'complete' },
+      });
+      const unfinalized = (compQ || []).filter(r => r.document).map(r => parseDoc(r.document))
+        .filter(c => c && !c.finalizedAt && c.tenantSignature && c.landlordSignature);
+      let refinalized = 0;
+      for (const c of unfinalized.slice(0, 2)) {
+        try {
+          const { finalizeContract } = await import('./sign/_finalize.js');
+          const fin = await finalizeContract(c);
+          if (fin && fin.ok && !fin.skipped) refinalized++;
+        } catch (e) { results.errors.push(`refinalize ${c.id}: ${e.message}`); }
+      }
+      if (refinalized) results.refinalized = refinalized;
+    } catch (e) { results.errors.push(`refinalize-watchdog: ${e.message}`); }
+
+// ── Pre-agreement 24h nudge: accepted + payment due + Stripe never
+    // completed → one gentle email with a resume-payment link. Lazy import,
+    // best-effort — must never take the cron down. ──
+    try {
+      const { runPaReminders } = await import('./preagreement/_remind.js');
+      results.paReminders = await runPaReminders();
+    } catch (e) { results.errors.push(`pa-remind: ${e.message}`); }
+
+    // ── Lucchetti sull'immobile: libera quelli che non hanno più diritto di
+    // tenerlo (proposta revocata dalla console con una scrittura client-side,
+    // proposta cancellata, riserva non pagata oltre la finestra). Senza questa
+    // passata un appartamento resterebbe congelato. Una volta l'ora. ──
+    if (now.getUTCMinutes() < 15) {
+      try {
+        const { sweepLocks } = await import('./preagreement/_lock.js');
+        results.propertyLocks = await sweepLocks();
+      } catch (e) { results.errors.push(`pa-locks: ${e.message}`); }
+    }
+
+    // ── Tenant journey: T-30/T-14/T-7/T-1 pre-move-in, T+3 review ask,
+    // T-90 renewal confirmation (no upsell), exit thank-you + referral.
+    // Once per step per contract (contracts.journey flags). Lazy import,
+    // best-effort. Runs at most once an hour (minute 0-14 window). ──
+    if (now.getUTCMinutes() < 15) {
+      try {
+        const { runJourney } = await import('./journey/_run.js');
+        results.journey = await runJourney();
+      } catch (e) { results.errors.push(`journey: ${e.message}`); }
+    }
+
+    // ── Canone automatico SEPA: avvia gli addebiti delle rate in finestra
+    // (contratti col mandato attivo, SDD_LEAD_DAYS di anticipo — SEPA regola
+    // in ~5 giorni). Idempotente per costruzione (chiave sdd_<paymentId> +
+    // guardia sddPiId): la finestra oraria è risparmio, non protezione. ──
+    if (now.getUTCMinutes() < 15) {
+      try {
+        const { collectSdd } = await import('./payments/_sdd.js');
+        results.sdd = await collectSdd();
+      } catch (e) { results.errors.push(`sdd: ${e.message}`); }
+    }
+
+    // ── Viewing countdown: T-24h / T-3h / T-30m before the appointment and
+    // the "how did it go?" ask after it. EVERY run (not hourly): a 30-minute
+    // warning is worthless if it can fire an hour late. ──
+    try {
+      const { runViewingMoments } = await import('./viewings/_moments.js');
+      results.viewings = await runViewingMoments();
+    } catch (e) { results.errors.push(`viewings: ${e.message}`); }
 
     return res.status(200).json({ ok: true, timestamp: now.toISOString(), ...results });
   } catch (e) {
