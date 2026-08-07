@@ -3854,6 +3854,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="nav-item" onclick="window.open('/banca','_blank')"><span class="nav-icon">🏦</span> Banca &amp; Fisco</div>
                     <div class="nav-item" onclick="window.open('/pfs-command','_blank')"><span class="nav-icon">🛰️</span> PFS Command</div>
                     <div class="nav-item" onclick="window.open('/photo-lab','_blank')"><span class="nav-icon">🎞️</span> Photo Lab</div>
+                    <div class="nav-item" onclick="window.open('/media-studio','_blank')"><span class="nav-icon">🎨</span> Media Studio</div>
                     <div class="nav-item" onclick="window.open('/manuale','_blank')"><span class="nav-icon">🏠</span> Manuale Casa</div>
                     <div class="nav-item" onclick="window.open('/salute','_blank')"><span class="nav-icon">🩺</span> Salute Sistema</div>
                 </div>
