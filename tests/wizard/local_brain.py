@@ -154,6 +154,23 @@ ok('un ordine non viene "risposto"', ask("affittato Levico") is None, ask("affit
 # un annuncio non riconoscibile non inventa risposte
 ok('nessun aggancio → nessuna risposta', ask("quanto costa quella cosa là?") is None)
 
+# ── 3b. la ricerca rovesciata NON deve rubare parole già assegnate ────────
+# "interessati" significa GIÀ "chi ha scritto per questa casa" (/interessati).
+# Ri-puntare una parola che ha un significato consolidato è il modo più veloce
+# per rendere inaffidabile uno strumento: da lì in poi non ti fidi più di
+# nessuna risposta. Quindi la ricerca rovesciata risponde SOLO a frasi
+# inequivocabili, e questo test pinna il confine da entrambi i lati.
+for q, want in [("chi cerca Pigneto?", 'l1'),
+                ("chi la cercava, Levico?", 'l2'),
+                ("a chi propongo Pigneto?", 'l1'),
+                ("chi in archivio vorrebbe Ostiense?", 'l3')]:
+    a = ask(q)
+    ok(f'ricerca rovesciata: "{q}"', a == f'__WHOWANTS__{want}', a)
+for q in ["quanti interessati ha Pigneto?", "quali persone sarebbero interessate a Levico?",
+          "quanto costa Pigneto?", "che deposito ha Ostiense?"]:
+    a = ask(q) or ''
+    ok(f'"interessati" tiene il suo significato: "{q}"', not str(a).startswith('__WHOWANTS__'), a)
+
 # ── 4. il match sugli annunci ──────────────────────────────────────────────
 ok('id esatto vince', mod._match_listing('l3', CATALOG)[0] == 'l3')
 ok('ambiguità dichiarata, non indovinata', mod._match_listing('quanto costa', CATALOG) in (None,)

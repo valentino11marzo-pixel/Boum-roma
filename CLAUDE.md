@@ -65,6 +65,8 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `apartments.html` | Property listings page. |
 | `apartment-detail.html` | Dynamic single-property page (loads from Firestore). |
 | `boom_doc_parser.html` | AI document parser UI (uses Claude API). |
+| `watermark-studio.html` | Standalone watermark tool for interns/team. 100% client-side (no Firebase): upload photos, customize the BOOM mark live (6 styles: firma, sigillo, editoriale, pattern, cornice, custom logo), drag to position, batch ZIP export. |
+| `media-studio.html` | Pro media production tool (superset of watermark-studio; photo *processing* is 100% client-side). Layered compositor: auto-enhance (histogram analysis, backlight-aware), shadows/highlights tone recovery, color grading (5 looks + manual + saveable custom looks), unsharp-mask sharpening, horizon straighten + vertical keystone (perspective) correction, live histogram, crop/aspect per channel with focal framing + composition guides, branding system (watermark + badge + listing info bar + scrim), draggable text layers, social templates, thumb reordering (order = publish order, first = cover), multi-format batch export with smart ×2 upscale, one-click **Media Kit** ZIP (all formats + AI copy + README), Ken Burns video reel generator (MediaRecorder, MP4-first, optional music track via WebAudio), AI listing copywriter (via `/api/media/caption`). **Simple/Pro UI modes** (localStorage), session autosave/restore (IndexedDB). **Catalog bridge**: browse `listings` (public read), open a listing's photos, prefill info bar from `zone/price/bedrooms/sqm`, and publish curated photos back — uploads under `listings/enhanced/<id>/` (sweep-safe per `api/photos/enhance.js` `isEnhancedUrl`), additive `imagesOriginal` union, `photosEnhancedAt/By: 'studio:<email>'`, cover = first thumb. Publishing requires admin (Firestore/Storage rules enforce). Linked from portal sidebar → Console → Media Studio. |
 | `vercel.json` | Deployment config, rewrites, cron schedule. |
 | `js/firebase-config.js` | Firebase project config (`boom-property-dashboards`). |
 | `js/boom-portal.js` | Shared portal lib — `window.BoomPortal` API. |
@@ -251,13 +253,51 @@ signature qualify (`isBoilerplate` / `copyGap` / `copyOrder`, exported +
 tested), and anything overwritten is preserved in `descriptionOriginal`.
 
 ### GET/POST `/api/wizard/health` (cron */10 min)
-Watchdog for the Telegram listing wizard bot. The bot (via
-`bot/wizard_heartbeat.py`, the launchd entry point on the Mac mini) writes
-`heartbeat/listing-wizard` every 60s; this cron alerts the admin Telegram
-chat when the heartbeat is >5 min stale (re-alert every 6h, one recovery
-message when it returns; missing doc = wrapper not deployed → silent). Auth
-like the PFS crons: Vercel cron Bearer `CRON_SECRET`, `X-Homie-Secret`, or
-admin Firebase ID token.
+Watchdog del bot Telegram sul Mac mini. **LA LEZIONE DEL 7 AGOSTO 2026**: per
+12 giorni launchd ha lanciato `boom_listing_wizard.py` DIRETTAMENTE invece di
+`wizard_heartbeat.py` — il `sed` di installazione documentato in
+`bot/README.md` non era mai stato eseguito. Risultato: auto-aggiornamento mai
+partito, codice sul Mac fermo a due settimane prima, e **questo guardiano ha
+taciuto tutto il tempo**, perché "documento heartbeat assente" era codificato
+come stato neutro ("wrapper non ancora deployato"). Il guasto peggiore e una
+macchina appena installata producevano lo stesso silenzio verde.
+Tre correzioni, tutte nello spirito di `pfs/_health.js` (dove lo stesso
+giorno abbiamo corretto il difetto OPPOSTO — una fonte bloccata che gridava
+96 volte). Regola unica: **si parla quando c'è una decisione da prendere, una
+volta sola per condizione**.
+- **Il battito non dipende più dal wrapper.** `_fallback_heartbeat()` in
+  `boom_listing_wizard.py` lo scrive comunque, e porta **`launcher`**
+  (`sys.argv[0]`, DERIVATO): se il server legge `boom_listing_wizard.py` sa
+  che il wrapper è stato saltato → **un** messaggio con il comando per
+  rimediare, poi silenzio; lo stato si azzera da solo quando è sistemato.
+- **`build` invece di `BOT_VERSION`.** La costante scritta a mano è rimasta a
+  `'3.0'` mentre il file cambiava cinque volte: come segnale di obsolescenza
+  era inservibile proprio quando serviva. `source_build()` è lo sha1 dei byte
+  veri sul disco — cambia da solo, nessuno può dimenticarsene.
+- **Il silenzio ha una scadenza.** Documento assente → si annota
+  `missingSince` e si tace per 24h (copre l'installazione nuova), poi **un**
+  messaggio. E lo stato si registra SEMPRE, non più dentro `if (sent)`: un
+  guardiano che ricorda solo quando Telegram risponde tace proprio quando il
+  canale è il problema.
+`wizardVerdict()` è pura ed esportata (decide se consumare l'attenzione
+dell'operatore, quindi si testa). Auth come i cron PFS.
+Test: `node tests/wizard/health.mjs`.
+
+**Il difetto gemello nel wrapper**: `_self_update()` girava SOLO all'avvio,
+poi `run_polling()` blocca per sempre e `KeepAlive` riavvia solo sui crash —
+cioè **un bot sano non si aggiornava mai** e la freschezza del codice
+dipendeva dai guasti. Ora il thread del battito ricontrolla ogni ora e, se è
+arrivato codice nuovo, esce con `os._exit(0)`: launchd lo rialza dopo 15s col
+codice aggiornato. Ogni ramo di `_self_update` LOGGA il proprio esito
+(`applied/same/short-download/compile-failed/net-failed`) — prima lo skip su
+download corto non lasciava traccia, quindi "non ha aggiornato" e "non ha
+potuto" erano indistinguibili.
+
+**E `salute.html` era cieco**: leggeva `h.consecutiveFailures` mentre ogni
+scrittore scrive `consecutiveErrors` (`pfs/_health.js`, `employees/_lib.js`),
+quindi il ramo "guasto" non è mai scattato — `scan-market` falliva da 1145
+giri e la pagina *Salute* lo mostrava verde. Un carattere, la pagina che
+doveva dire la verità.
 
 ### POST `/api/wizard/interpret`
 Natural-language listing edits for the wizard bot. Auth `X-Wizard-Secret`.
@@ -405,6 +445,15 @@ server pensa, il Mac di Homie esegue attraverso QUALUNQUE porta sia aperta:
   gestionale. Regole d'oro: mai inventare, ritmo umano, captcha/2FA =
   STOP e rapporto `blocked` (mai aggirare), ogni esito riferito.
   Cambiare porta = cambiare SOLO il trasporto: coda, stato e diff restano.
+- **Il braccio sul Mac** (`bot/boom_publisher.py` + `com.boom.publisher.plist`):
+  `--login` (una volta, profilo persistente), `--dry`, `--check` (launchd
+  30′ → notifica macOS quando c'è lavoro; mai un browser senza operatore),
+  `--assist` (la sessione di OGGI: campi pronti dal payload, l'operatore
+  compila e conferma con l'URL pubblico → rapporto automatico),
+  `--auto` riservato ai selettori mappati (oggi ricade su assist).
+  Logica pura testata: `python3 tests/publisher/runner.py`.
+  PREREQUISITO: rules con `portalPubs` deployate (FIREBASE_TOKEN o deploy
+  manuale) — senza, il POST del rapporto non registra lo stato.
 - Test: `node tests/publisher/run.mjs` (33 check — hash, worklist,
   parcheggio, payload onesto, verdetto, e il loop VERO GET→POST→GET su
   Firestore in memoria con lo stub PATCH che rifiuta `exists=false` sui
@@ -1493,6 +1542,12 @@ mediaType }`. Fetches the file server-side, sends to Claude (haiku), returns
 `{ category, text, entities:{ dates, amounts, codiceFiscale, iban,
 partitaIva, fiscalYear } }`. Anthropic key stays server-side.
 
+### POST `/api/media/caption`
+Public, rate-limited (8/min/IP) copywriter for media-studio.html. Body:
+`{ tipo: 'ig-post'|'ig-story'|'portale'|'breve', lingua: 'it'|'en', zona,
+prezzo, locali, mq, extra }`. The prompt is built entirely server-side from
+length-capped fields (no general proxying possible); model pinned to haiku,
+max_tokens 500. CORS: boomrome.com + *.vercel.app previews. Returns `{ text }`.
 ### Link di pagamento Stripe (`/api/payments/link` + `link-for`)
 Il portale può incassare QUALSIASI rata o fattura con carta, mandando un
 link su WhatsApp. Il link **non è** una Checkout Session (quella scade in 30
@@ -1638,6 +1693,46 @@ insieme per giorni.
 Test: `node tests/whatsapp/run.mjs` (Firestore finto in memoria, si guida il
 handler vero; copre entrambi gli ordini della transizione, verificati per
 mutazione).
+
+### GET/POST `/api/leads/match-listing` — LA RICERCA ROVESCIATA
+L'asimmetria che nessuno sfruttava: si pubblica un annuncio e si **aspetta**
+che degli sconosciuti lo trovino, mentre in archivio ci sono persone che tre
+settimane fa cercavano esattamente quello — e a cui non lo dice nessuno. BOOM
+faceva marketing al traffico freddo avendo una lista calda. I lead sono un
+asset che si raffredda; questo lo riscuote, a **costo zero** (nessun modello,
+solo aritmetica su dati già presenti).
+**Il trucco**: un lead non ha un modulo compilato, ma ha due segnali migliori
+di qualunque form — (1) **la casa che ha chiesto È il suo briefing** (chi
+scrive per un trilocale da €1.400 a Pigneto cerca quello: zona, taglia,
+fascia ±15%), e (2) **le sue parole** ("bilocale a Trastevere sotto i 1200").
+`leadCriteria()` li deriva; `scoreLeadForListing()` punteggia con la stessa
+aritmetica di `homie/_match.js` (budget 50 · camere 30 · zona 20) così i due
+motori non danno verdetti diversi sulla stessa casa.
+**Tre mestieri tenuti separati** — mescolarli era il difetto trovato dai test:
+il **veto** decide chi è eleggibile, la **soglia** se la casa gli calza (sul
+punteggio BASE), la **freschezza** solo l'ordine. Moltiplicando tutto, un
+match perfetto di due mesi fa spariva sotto soglia, indistinguibile da uno
+mediocre.
+**I veti** (più importanti del punteggio: la casa sbagliata alla persona
+sbagliata costa la reputazione, non un'occasione, e parte dal TUO numero):
+lead morto · già inquilino · senza recapito · **la casa che aveva già
+chiesto** · già avvisato per questa casa (`notifiedListings`) · oltre
+`MAX_AGE_DAYS` 120 (a Roma una ricerca di 4 mesi fa è finita) · fuori budget
+oltre il 20%. Ogni veto **dice perché**: un'esclusione silenziosa è
+indistinguibile da un bug.
+Risposta: persone ordinate, col motivo, e **il messaggio già scritto nella
+LORO lingua** (`replyLang`) che nomina la casa che avevano chiesto — la
+differenza fra "abbiamo una novità" e "ti sei ricordato di me". POST
+`{listingId, notify:[ids]}` segna chi hai contattato, altrimenti in due
+giorni la funzione da utile diventa fastidiosa.
+**Nel bot**: parte **da sola** dopo ogni pubblicazione (proattiva: non si
+chiede, si dice quando serve), più `/chicerca <ID>` e la frase naturale "chi
+cerca Pigneto?". La parola *interessati* NON è stata riusata — significa già
+"chi ha scritto per questa casa" (`/interessati`), e ri-puntare una parola con
+un significato consolidato è il modo più rapido per rendere inaffidabile uno
+strumento; il confine è pinnato nei test da entrambi i lati.
+Auth: `X-Wizard-Secret`/`X-Homie-Secret` (il bot) o Bearer admin.
+Test: `node tests/reverse/run.mjs`.
 
 ### GET/POST `/api/homie/searches` — gli occhi di Homie sul radar PFS
 Il problema sta scritto in `api/pfs/_fetch.js`: *"both portals run anti-bot
@@ -2020,6 +2115,8 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/viewings/gap.mjs` | la geometria della giornata: stesso immobile a catena (gap 0), viaggi reali tra zone (clamp 15–45'), video piatto, blocchi legacy identici a prima |
   | `tests/regista/run.mjs` | Il Regista: grammatica dei promemoria (IT/EN, accenti, "il 16/08", range che non sono date), id deterministici ≤64B, inviti calendario dei task, foglio di chiamata (escaping, viaggi, catene, giorno vuoto) |
   | `tests/recovery/run.mjs` | Il Recupero: chi diventa lead (PFS/SERVICE/RESERVE) e chi recap (PA/DEPOSIT/RENT), i test dell'operatore mai, id deterministico, lingua dalle parole del cliente |
+  | `tests/reverse/run.mjs` | La ricerca rovesciata: legge budget/taglia/zona dalle parole vere e dalla casa richiesta, e soprattutto **chi non va MAI disturbato** — morti, inquilini, chi quella casa l'aveva già chiesta, chi era già stato avvisato, chi la troverebbe fuori budget |
+  | `tests/wizard/health.mjs` | Il guardiano del bot sul Mac: il wrapper saltato lo dice UNA volta (non 96, non mai), il documento assente tace 24h e poi parla, offline batte tutto, il ritorno si sente sempre |
   | `tests/pfs/health.mjs` | Allarmi del radar: una fonte BLOCCATA all'origine parla una volta sola (200 run → 1 messaggio), un guasto vero si dirada invece di gridare ogni 6h (40 giorni → 8 promemoria), i primi due intoppi non svegliano nessuno, e il ritorno si sente sempre |
   | `tests/pfs/eyes.mjs` | Gli occhi di Homie sul radar PFS: nella lista di lavoro non entrano ricerche spente o con URL rotti, la manopola manuale (`urlOverride`) vince sempre, e — la regola che conta — un radar CIECO (403/captcha su tutte le ricerche) non passa mai per un mercato fermo |
   | `tests/whatsapp/run.mjs` | Da WhatsApp a lead senza AI: il rumore resta fuori (👍, "ok") e la persona vera entra, l'inquilino che scrive per la caldaia non inquina la pipeline, un lead per persona anche col numero archiviato in formato diverso (nazionale vs internazionale), una risposta umana zittisce il Commerciale. Guida il handler VERO su un Firestore finto in memoria |

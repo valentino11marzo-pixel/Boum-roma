@@ -135,15 +135,36 @@ imports `boom_listing_wizard`, starts a daemon thread that writes
 exactly when the bot stops — and `/api/wizard/health` (Vercel cron) alerts
 the admin Telegram chat after 5 minutes of silence.
 
+> ⚠️ **Il passo che si dimentica, e come è andata.** Dal 26 luglio al 7 agosto
+> 2026 il plist installato sul Mac lanciava `boom_listing_wizard.py`
+> **direttamente**: il `sed` qui sotto non era mai stato eseguito. Per 12
+> giorni l'auto-aggiornamento non è partito, il bot ha girato codice di due
+> settimane prima, e **nessun allarme lo ha detto** — perché il battito lo
+> scriveva solo il wrapper, e `api/wizard/health.js` trattava il documento
+> assente come "wrapper non ancora deployato", cioè taceva.
+>
+> Ora è impossibile che si ripeta in silenzio: il battito lo scrive **anche il
+> bot** (`_fallback_heartbeat`) e porta `launcher` — se il server legge
+> `boom_listing_wizard.py` sa che il wrapper è stato saltato e te lo dice una
+> volta. Verifica in qualsiasi momento con `GET /api/wizard/health`:
+> `selfUpdating: false` significa che devi rifare il passo qui sotto.
+
 Installing/upgrading the wrapper on the Mac mini:
 
 ```bash
 # copy wizard_heartbeat.py next to boom_listing_wizard.py, then point launchd
 # at it (one-time; new installs just use this repo's plist as-is):
-sed -i '' 's|boom_listing_wizard.py|wizard_heartbeat.py|' \
-    ~/Library/LaunchAgents/com.boom.listing-wizard.plist
-launchctl unload ~/Library/LaunchAgents/com.boom.listing-wizard.plist
-launchctl load   ~/Library/LaunchAgents/com.boom.listing-wizard.plist
+PL=~/Library/LaunchAgents/com.boom.listing-wizard.plist
+cp "$PL" "$PL.bak"
+# PlistBuddy e non sed: il sed riscriveva anche i commenti del plist
+/usr/libexec/PlistBuddy -c \
+  "Set :ProgramArguments:1 /Users/boomserver/boom-listing-wizard/wizard_heartbeat.py" "$PL"
+# bootout è ASINCRONO: senza l'attesa, bootstrap fallisce con "5: I/O error"
+launchctl bootout gui/$(id -u)/com.boom.listing-wizard 2>/dev/null
+sleep 8
+launchctl bootstrap gui/$(id -u) "$PL"
+# verifica: deve stampare 1
+ps aux | grep -v grep | grep -c wizard_heartbeat
 ```
 
 ## Updating the bot

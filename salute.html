@@ -110,10 +110,10 @@ h2 { font-size: 12px; font-weight: 600; letter-spacing: 2px; text-transform: upp
     const html = snap.docs.map((d) => {
       const h = d.data();
       const last = h.lastRunAt || h.lastOkAt || h.updatedAt || h.at;
-      const st = stateFor(last, h.consecutiveFailures, 26 * 60);
+      const st = stateFor(last, h.consecutiveErrors, 26 * 60);
       const lines = ['ultimo run: ' + ago(last)];
       if (h.lastStatus) lines.push('esito: ' + h.lastStatus);
-      if (h.consecutiveFailures) lines.push('fallimenti consecutivi: ' + h.consecutiveFailures);
+      if (h.consecutiveErrors) lines.push('fallimenti consecutivi: ' + h.consecutiveErrors);
       if (h.note || h.lastError) lines.push(String(h.note || h.lastError).slice(0, 90));
       return card(d.id, st, lines);
     }).join('');
@@ -126,10 +126,10 @@ h2 { font-size: 12px; font-weight: 600; letter-spacing: 2px; text-transform: upp
     const html = snap.docs.filter((d) => d.id !== 'needsAttention').map((d) => {
       const h = d.data();
       const last = h.lastRunAt || h.lastOkAt || h.updatedAt;
-      const st = stateFor(last, h.consecutiveFailures, 60);
+      const st = stateFor(last, h.consecutiveErrors, 60);
       const lines = ['ultimo run: ' + ago(last)];
       if (h.lastResult) lines.push(String(h.lastResult).slice(0, 90));
-      if (h.consecutiveFailures) lines.push('fallimenti consecutivi: ' + h.consecutiveFailures);
+      if (h.consecutiveErrors) lines.push('fallimenti consecutivi: ' + h.consecutiveErrors);
       return card(d.id, st, lines);
     }).join('');
     document.getElementById('radar').innerHTML = html || '<div class="empty">Nessuna fonte radar registrata.</div>';
