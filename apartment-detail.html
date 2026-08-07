@@ -1070,6 +1070,9 @@ const img=(id,w,q)=>'https://images.unsplash.com/photo-'+id+'?auto=format&fit=cr
 const imgSized=(u,s)=>{u=String(u||'');if(!/i\.imgur\.com/.test(u))return u;return u.replace(/(\/[A-Za-z0-9]{7})(\.(?:jpe?g|png|webp))/i,'$1'+s+'$2');};
 const imgOpt=(u,w,q)=>{u=String(u||'');if(!/^https?:\/\//.test(u))return u;return '/_vercel/image?url='+encodeURIComponent(u)+'&w='+(w||1080)+'&q='+(q||72);};
 const exYT=u=>{if(!u)return null;const m=String(u).match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/);return m?m[1]:null;};
+/* Video file diretto (reel del Media Studio su Firebase Storage): tutto ciò
+   che non è YouTube ma punta a un file video riproducibile dal browser. */
+const exVid=u=>{if(!u||exYT(u))return null;const s=String(u);let d=s;try{d=decodeURIComponent(s)}catch(_e){}return /\.(mp4|webm|mov|m4v)([?#]|$)/i.test(d)?s:null;};
 const eur=n=>'€'+Math.round(n).toLocaleString('en-US');
 const fmtD=d=>d.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
 const fmtS=d=>d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
@@ -1106,9 +1109,15 @@ function openVideo(vId){
 function closeVideo(){const ov=document.getElementById('vOv');if(!ov)return;ov.classList.remove('show');ov.querySelector('iframe').src='';document.body.style.overflow='';try{if(window.__amb)__amb.mood('browse')}catch(_e){}}
 /* ---- inline video tour (facade → player on first tap) ---- */
 function vtPlay(){
-  const vId=exYT(L.video);const box=document.getElementById('vtour');
-  if(!vId||!box||box.querySelector('iframe'))return;
-  box.innerHTML='<iframe src="https://www.youtube-nocookie.com/embed/'+vId+'?rel=0&autoplay=1&playsinline=1" title="Video tour" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>';
+  const box=document.getElementById('vtour');
+  if(!box||box.querySelector('iframe')||box.querySelector('video'))return;
+  const vId=exYT(L.video);
+  if(vId){
+    box.innerHTML='<iframe src="https://www.youtube-nocookie.com/embed/'+vId+'?rel=0&autoplay=1&playsinline=1" title="Video tour" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>';
+  }else{
+    const src=exVid(L.video);if(!src)return;
+    box.innerHTML='<video src="'+src.replace(/"/g,'&quot;')+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000" controls autoplay playsinline preload="metadata"></video>';
+  }
   try{if(window.__amb)__amb.mood('focus')}catch(_e){}
   boomTrack('video_tour_open',{item_id:PID||L.id||''});
 }
@@ -1719,21 +1728,26 @@ function paintData(){
     :`<div class="slide"><img src="${im.thumb}" alt="${im.alt}" loading="${i===0?'eager':'lazy'}" decoding="async"${i===0?' fetchpriority="high"':' data-blur-up'} onerror="if(this.dataset.f1){this.onerror=null;this.src=this.dataset.f2}else{this.dataset.f1=1;this.src=this.dataset.f1s}" data-f1s="${(im.mid||im.full).replace(/"/g,'')}" data-f2="${im.full.replace(/"/g,'')}" onclick="openLb(${i})"></div>`).join('');
   /* video tour: inline cinema in section 01 + "Play tour" chip on the gallery */
   const vId=exYT(L.video);
+  const vSrc=vId?null:exVid(L.video);
   const vb=document.querySelector('.vbadge');
-  if(vb)vb.textContent=vId?'✓ Video-verified':'✓ BOOM-verified';
+  if(vb)vb.textContent=(vId||vSrc)?'✓ Video-verified':'✓ BOOM-verified';
   let vchip=document.getElementById('vTour');
   const vtour=document.getElementById('vtour');
-  if(vId){
-    if(vtour&&!vtour.querySelector('iframe')){
+  if(vId||vSrc){
+    if(vtour&&!vtour.querySelector('iframe')&&!vtour.querySelector('video')){
       vtour.hidden=false;
       const vp=document.getElementById('vtPoster');
-      if(vp&&!vp.src){vp.onerror=function(){this.onerror=null;this.src='https://i.ytimg.com/vi/'+vId+'/hqdefault.jpg'};vp.src='https://i.ytimg.com/vi/'+vId+'/maxresdefault.jpg';vp.alt=L.name+' — video tour';}
+      if(vp&&!vp.src){
+        if(vId){vp.onerror=function(){this.onerror=null;this.src='https://i.ytimg.com/vi/'+vId+'/hqdefault.jpg'};vp.src='https://i.ytimg.com/vi/'+vId+'/maxresdefault.jpg';}
+        else{const cover=(IMGS[0]&&(IMGS[0].mid||IMGS[0].full))||'';if(cover)vp.src=cover;}
+        vp.alt=L.name+' — video tour';
+      }
     }
     if(!vchip){vchip=document.createElement('button');vchip.id='vTour';vchip.className='vbadge';vchip.style.cssText='cursor:pointer;margin-left:8px;color:var(--gold);border-color:var(--line-gold)';vchip.innerHTML='▶ Play tour';vchip.onclick=vtJump;if(vb&&vb.parentNode)vb.parentNode.insertBefore(vchip,vb.nextSibling);}
     vchip.style.display='';
   }else{
     if(vchip)vchip.style.display='none';
-    if(vtour&&!vtour.querySelector('iframe'))vtour.hidden=true;
+    if(vtour&&!vtour.querySelector('iframe')&&!vtour.querySelector('video'))vtour.hidden=true;
   }
   paintDots();
   /* desktop editorial mosaic: photos 2–3 as large tiles, the rest behind "+N photos" */

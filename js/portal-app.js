@@ -14065,7 +14065,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                             <th>Dettagli</th>
                             <th>Status</th>
                             <th>Disponibile</th>
-                            <th style="width:130px">Azioni</th>
+                            <th style="width:168px">Azioni</th>
                         </tr></thead>
                         <tbody>
                             ${S.listings.sort((a,b) => (a.price || 0) - (b.price || 0)).map(l => `
@@ -14092,6 +14092,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                                     <td>
                                         <div style="display:flex;gap:5px">
                                             <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="editListing('${l.id}')" title="Modifica">✏️</button>
+                                            <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="window.open('/media-studio?listing=${l.id}','_blank')" title="Apri nel Media Studio (foto, video, testi)">🎨</button>
                                             <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="cycleListing('${l.id}','${l.status}')" title="Cambia status">🔄</button>
                                             <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="duplicateListing('${l.id}')" title="Duplica">📋</button>
                                             <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="confirmDelete('listing','${l.id}','${l.name}')" title="Elimina">🗑️</button>

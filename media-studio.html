@@ -492,7 +492,8 @@
                 <button class="btn btn-block" id="btnAi">✍ Genera testo</button>
                 <textarea id="aiOut" readonly style="display:none;width:100%;margin-top:10px;background:var(--bg-input);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px;font-size:12.5px;font-family:inherit;line-height:1.6;min-height:120px;resize:vertical"></textarea>
                 <button class="btn btn-sm btn-block" id="btnAiCopy" style="display:none;margin-top:8px">📋 Copia testo</button>
-                <div class="hint">Usa Zona / Prezzo / Locali / Mq dalla <b>Striscia annuncio</b> (tab Brand). Solo questi campi vengono inviati al server — mai le foto.</div>
+                <button class="btn btn-sm btn-block" id="btnAiSave" style="display:none;margin-top:8px">💾 Salva come descrizione dell'annuncio</button>
+                <div class="hint">Usa Zona / Prezzo / Locali / Mq dalla <b>Striscia annuncio</b> (tab Brand). Solo questi campi vengono inviati al server — mai le foto. Con un annuncio aperto dal catalogo, il testo "Portale" si può salvare come descrizione (EN aggiorna la scheda del sito, IT il feed portali; l'originale resta conservato).</div>
             </div>
         </div>
 
@@ -511,7 +512,9 @@
             </div>
             <div class="card" id="cardCatalogSave" style="display:none">
                 <h3>Catalogo BOOM <span id="catSaveName" style="color:var(--gold);text-transform:none;letter-spacing:0.5px"></span></h3>
+                <div id="pagella" class="hint" style="margin-top:0;margin-bottom:10px"></div>
                 <button class="btn btn-gold btn-block" id="btnSaveCatalog">💾 Pubblica le foto nell'annuncio</button>
+                <div id="portalStatus" class="hint" style="display:none;margin-top:8px"></div>
                 <div id="catSaveProgress" style="display:none;margin-top:10px"><div class="bar" style="background:var(--bg-input);border-radius:4px;height:5px;overflow:hidden"><div id="catSaveFill" style="background:var(--gold);height:100%;width:0%;transition:width .2s"></div></div><div class="lbl" id="catSaveLbl" style="font-size:10.5px;color:var(--text-muted);margin-top:5px;letter-spacing:0.5px"></div></div>
                 <div class="hint">Le foto qui sopra — <b>in quest'ordine, la prima è la copertina</b> — sostituiscono quelle dell'annuncio su sito, feed e portali. Gli originali restano conservati nell'archivio e la cura notturna automatica non le toccherà.</div>
             </div>
@@ -540,6 +543,7 @@
                 </div>
                 <div class="row"><label>Musica</label><input type="file" id="reelAudio" accept="audio/*" class="filefield"></div>
                 <button class="btn btn-block" id="btnReel" disabled>🎬 Genera reel</button>
+                <button class="btn btn-sm btn-block" id="btnReelPub" style="display:none;margin-top:8px">📤 Pubblica come video tour dell'annuncio</button>
                 <div id="reelProgress"><div class="bar"><div class="fill" id="reelFill"></div></div><div class="lbl" id="reelLbl"></div></div>
                 <div class="hint">Slideshow con effetto Ken Burns, sigla BOOM in apertura e chiusura, filigrana. Tieni la scheda del browser in primo piano durante la generazione.</div>
             </div>
@@ -1777,6 +1781,7 @@ $('btnAi').addEventListener('click', async () => {
         $('aiOut').value = data.text;
         $('aiOut').style.display = 'block';
         $('btnAiCopy').style.display = '';
+        updateAiSave();
     } catch (e) {
         toast('Copywriter non disponibile: ' + e.message);
     } finally {
@@ -1968,6 +1973,8 @@ $('btnReel').addEventListener('click', async () => {
         const blob = new Blob(chunks, { type: actualMime.split(';')[0] });
         const ext = actualMime.includes('mp4') ? 'mp4' : 'webm';
         downloadBlob(blob, `BOOM_reel.${ext}`);
+        lastReel = { blob, ext };
+        updateReelPub();
         setProg(100, 'Fatto ✓');
         toast(`Reel generato (${ext.toUpperCase()}) ✓`);
     } catch (e) {
@@ -2162,13 +2169,162 @@ function fbReady() {
     if (catalogState.fb) return catalogState.fb;
     if (typeof firebase === 'undefined' || !firebase.apps || !firebase.apps.length) return null;
     catalogState.fb = { db: firebase.firestore(), auth: firebase.auth(), storage: firebase.storage() };
+    // lo stato Pubblicista è leggibile solo da admin: quando il login
+    // arriva (dopo il deep-link, per esempio) si riprova da solo
+    try { catalogState.fb.auth.onAuthStateChanged(u => { if (u && catalogState.listing) loadPortalStatus(); }); } catch (e) {}
     return catalogState.fb;
 }
 function setCatalogListing(l) {
     catalogState.listing = l;
     $('cardCatalogSave').style.display = '';
     $('catSaveName').textContent = l.name || l.id;
+    renderPagella();
+    loadPortalStatus();
+    updateReelPub();
+    updateAiSave();
 }
+
+/* ── La pagella dell'annuncio (specchio client di gradeListing,
+      api/wizard/video-radar.js — stessa aritmetica, stessi campi) ── */
+function gradeClient(l) {
+    const ph = [l.image, ...(Array.isArray(l.images) ? l.images : [])].filter(Boolean);
+    const checks = [
+        { pts: 3, ok: !!(l.videoUrl || l.youtubeUrl), miss: 'video tour' },
+        { pts: 2, ok: new Set(ph).size >= 8, miss: 'foto (min 8)' },
+        { pts: 2, ok: String(l.description || '').length >= 200, miss: 'descrizione ricca' },
+        { pts: 1, ok: !!l.availableDate, miss: 'data disponibilità' },
+        { pts: 1, ok: Number(l.depositMonths) > 0, miss: 'deposito in mesi' },
+        { pts: 1, ok: l.concordato === true || l.concordato === false, miss: 'canone concordato sì/no' },
+    ];
+    return {
+        score: checks.reduce((s, c) => s + (c.ok ? c.pts : 0), 0),
+        gaps: checks.filter(c => !c.ok).map(c => c.miss),
+    };
+}
+function renderPagella() {
+    const l = catalogState.listing;
+    if (!l) { $('pagella').textContent = ''; return; }
+    const g = gradeClient(l);
+    $('pagella').innerHTML = 'Pagella annuncio: <b>' + g.score + '/10</b>'
+        + (g.gaps.length ? ' — manca: ' + g.gaps.map(esc).join(', ') : ' — completa ✓');
+}
+
+/* ── Stato Pubblicista (portalPubs, lettura admin-only: senza permessi
+      semplicemente non compare — mai un errore in faccia) ── */
+async function loadPortalStatus() {
+    const l = catalogState.listing, el = $('portalStatus');
+    el.style.display = 'none'; el.innerHTML = '';
+    const fb = fbReady();
+    if (!l || !fb || !fb.auth.currentUser) return;
+    try {
+        const portals = [['immobiliare', 'Immobiliare'], ['idealista', 'Idealista']];
+        const snaps = await Promise.all(portals.map(p => fb.db.collection('portalPubs').doc(p[0] + '_' + l.id).get()));
+        const parts = [];
+        snaps.forEach((s, i) => {
+            if (!s.exists) return;
+            const d = s.data() || {};
+            if (d.wasLive) parts.push(portals[i][1] + ': 🟢 online' + (d.remoteUrl ? ' — <a href="' + esc(d.remoteUrl) + '" target="_blank" rel="noopener" style="color:var(--gold)">apri</a>' : ''));
+            else if (d.status === 'error') parts.push(portals[i][1] + ': ⚠ pubblicazione in errore');
+        });
+        if (parts.length) {
+            el.innerHTML = parts.join(' · ') + '<br>Foto, video e descrizione pubblicati da qui entrano da soli nel feed e nella coda del Pubblicista.';
+            el.style.display = '';
+        }
+    } catch (e) { /* non-admin o rete: silenzio */ }
+}
+
+/* ── Reel → video tour dell'annuncio ─────────────────────────────────────
+   Il video vale 3/10 in pagella ed è il buco più frequente del catalogo.
+   Solo MP4 (un WebM su iPhone non parte, e il cliente BOOM è un expat con
+   un iPhone). apartment-detail ha il ramo <video> per i file diretti. */
+let lastReel = null;
+function updateReelPub() {
+    const ok = lastReel && catalogState.listing;
+    $('btnReelPub').style.display = ok ? '' : 'none';
+    if (ok) $('btnReelPub').textContent = lastReel.ext === 'mp4'
+        ? '📤 Pubblica come video tour (' + (lastReel.blob.size / 1048576).toFixed(1) + ' MB)'
+        : '📤 Video tour: serve MP4 (rigenera da Chrome/Safari recenti)';
+}
+let savingVid = false;
+$('btnReelPub').addEventListener('click', async () => {
+    if (savingVid || !lastReel) return;
+    const l = catalogState.listing; if (!l) return;
+    if (lastReel.ext !== 'mp4') { toast('Questo browser ha prodotto WebM: su iPhone non si vede. Rigenera il reel da Chrome o Safari recenti.'); return; }
+    if (lastReel.blob.size > 95 * 1024 * 1024) { toast('Reel troppo grande (>95 MB): riduci secondi o foto'); return; }
+    const fb = fbReady();
+    if (!fb) { toast('Connessione non disponibile — ricarica la pagina'); return; }
+    const user = fb.auth.currentUser;
+    if (!user) { location.href = '/login?next=' + encodeURIComponent('/media-studio'); return; }
+    if (!confirm('Pubblico questo reel come video tour di "' + (l.name || l.id) + '"?\nComparirà nella scheda pubblica e nel feed portali.')) return;
+    savingVid = true;
+    $('btnReelPub').disabled = true;
+    try {
+        const ref = fb.storage.ref('listings/enhanced/' + l.id + '/video/reel_' + Date.now() + '.mp4');
+        await ref.put(lastReel.blob, { contentType: 'video/mp4' });
+        const url = await ref.getDownloadURL();
+        await fb.db.collection('listings').doc(l.id).update({
+            videoUrl: url,
+            videoUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+        Object.assign(l, { videoUrl: url });
+        renderPagella();
+        toast('Video tour pubblicato ✓ — ora vale 3 punti in pagella');
+    } catch (e) {
+        console.warn('[Video]', e);
+        const unauth = e && (e.code === 'storage/unauthorized' || e.code === 'permission-denied');
+        toast(unauth
+            ? 'Storage rifiuta i video: le rules aggiornate non sono ancora deployate (npx firebase-tools deploy --only storage)'
+            : 'Errore: ' + (e.message || 'pubblicazione fallita'));
+    } finally {
+        savingVid = false;
+        $('btnReelPub').disabled = false;
+    }
+});
+
+/* ── Testo AI → descrizione dell'annuncio (disciplina dello sweep:
+      l'originale si conserva SEMPRE in descriptionOriginal) ── */
+function updateAiSave() {
+    $('btnAiSave').style.display =
+        (catalogState.listing && $('aiTipo').value === 'portale' && $('aiOut').value.trim()) ? '' : 'none';
+}
+$('aiTipo').addEventListener('change', updateAiSave);
+let savingDesc = false;
+$('btnAiSave').addEventListener('click', async () => {
+    if (savingDesc) return;
+    const l = catalogState.listing, text = $('aiOut').value.trim();
+    if (!l || !text) return;
+    const fb = fbReady();
+    if (!fb) { toast('Connessione non disponibile — ricarica la pagina'); return; }
+    const user = fb.auth.currentUser;
+    if (!user) { location.href = '/login?next=' + encodeURIComponent('/media-studio'); return; }
+    const isIt = aiLangV === 'it';
+    if (!confirm(isIt
+        ? 'Salvo questo testo come descrizione ITALIANA di "' + (l.name || l.id) + '"?\n(va nel feed portali; la scheda del sito usa l\'inglese)'
+        : 'Salvo questo testo come descrizione di "' + (l.name || l.id) + '"?\n(compare sulla scheda pubblica del sito; l\'attuale resta conservata)')) return;
+    savingDesc = true;
+    $('btnAiSave').disabled = true;
+    try {
+        const patch = {
+            descriptionSource: 'studio:' + (user.email || user.uid),
+            descriptionAt: new Date().toISOString(),
+        };
+        if (isIt) patch.descriptionIt = text;
+        else {
+            patch.description = text;
+            if (String(l.description || '').trim()) patch.descriptionOriginal = l.description;
+        }
+        await fb.db.collection('listings').doc(l.id).update(patch);
+        Object.assign(l, patch);
+        renderPagella();
+        toast('Descrizione salvata ✓');
+    } catch (e) {
+        console.warn('[Descrizione]', e);
+        toast((e && (e.code === 'permission-denied')) ? 'Servono permessi admin' : 'Errore: ' + (e.message || 'salvataggio fallito'));
+    } finally {
+        savingDesc = false;
+        $('btnAiSave').disabled = false;
+    }
+});
 const esc = s => String(s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
 const enhUrl = u => { try { return decodeURIComponent(String(u)).includes('listings/enhanced/'); } catch (e) { return String(u).includes('enhanced'); } };
 
@@ -2307,8 +2463,10 @@ $('btnSaveCatalog').addEventListener('click', async () => {
         });
         Object.assign(l, { image: urls[0], coverImage: urls[0], images: urls, imagesOriginal: orig, photosEnhancedAt: nowIso });
         catLoaded = false;   // il prossimo giro di catalogo si ricarica fresco
+        renderPagella();
+        loadPortalStatus();
         prog(100, 'Fatto ✓');
-        toast(`Annuncio aggiornato: ${urls.length} foto pubblicate ✓`);
+        toast(`${urls.length} foto pubblicate ✓ — in propagazione a sito, feed e portali`);
     } catch (e) {
         console.warn('[Catalogo]', e);
         const denied = (e && (e.code === 'permission-denied' || e.code === 'storage/unauthorized')) || /permission/i.test(e && e.message || '');
