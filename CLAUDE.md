@@ -65,6 +65,8 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `apartments.html` | Property listings page. |
 | `apartment-detail.html` | Dynamic single-property page (loads from Firestore). |
 | `boom_doc_parser.html` | AI document parser UI (uses Claude API). |
+| `watermark-studio.html` | Standalone watermark tool for interns/team. 100% client-side (no Firebase): upload photos, customize the BOOM mark live (6 styles: firma, sigillo, editoriale, pattern, cornice, custom logo), drag to position, batch ZIP export. |
+| `media-studio.html` | Pro media production tool (superset of watermark-studio; photo *processing* is 100% client-side). Layered compositor: auto-enhance (histogram analysis, backlight-aware), shadows/highlights tone recovery, color grading (5 looks + manual + saveable custom looks), unsharp-mask sharpening, horizon straighten + vertical keystone (perspective) correction, live histogram, crop/aspect per channel with focal framing + composition guides, branding system (watermark + badge + listing info bar + scrim), draggable text layers, social templates, thumb reordering (order = publish order, first = cover), multi-format batch export with smart ×2 upscale, one-click **Media Kit** ZIP (all formats + AI copy + README), Ken Burns video reel generator (MediaRecorder, MP4-first, optional music track via WebAudio), AI listing copywriter (via `/api/media/caption`). **Simple/Pro UI modes** (localStorage), session autosave/restore (IndexedDB). **Catalog bridge**: browse `listings` (public read), open a listing's photos, prefill info bar from `zone/price/bedrooms/sqm`, and publish curated photos back — uploads under `listings/enhanced/<id>/` (sweep-safe per `api/photos/enhance.js` `isEnhancedUrl`), additive `imagesOriginal` union, `photosEnhancedAt/By: 'studio:<email>'`, cover = first thumb. Publishing requires admin (Firestore/Storage rules enforce). Linked from portal sidebar → Console → Media Studio. |
 | `vercel.json` | Deployment config, rewrites, cron schedule. |
 | `js/firebase-config.js` | Firebase project config (`boom-property-dashboards`). |
 | `js/boom-portal.js` | Shared portal lib — `window.BoomPortal` API. |
@@ -1472,6 +1474,12 @@ mediaType }`. Fetches the file server-side, sends to Claude (haiku), returns
 `{ category, text, entities:{ dates, amounts, codiceFiscale, iban,
 partitaIva, fiscalYear } }`. Anthropic key stays server-side.
 
+### POST `/api/media/caption`
+Public, rate-limited (8/min/IP) copywriter for media-studio.html. Body:
+`{ tipo: 'ig-post'|'ig-story'|'portale'|'breve', lingua: 'it'|'en', zona,
+prezzo, locali, mq, extra }`. The prompt is built entirely server-side from
+length-capped fields (no general proxying possible); model pinned to haiku,
+max_tokens 500. CORS: boomrome.com + *.vercel.app previews. Returns `{ text }`.
 ### Link di pagamento Stripe (`/api/payments/link` + `link-for`)
 Il portale può incassare QUALSIASI rata o fattura con carta, mandando un
 link su WhatsApp. Il link **non è** una Checkout Session (quella scade in 30
