@@ -1314,12 +1314,26 @@ cmp.addEventListener('touchstart', e => { e.preventDefault(); cmpOn(); });
 
 // ── Interazioni sul canvas (dipendono dal tab attivo) ────────────────────
 let dragging = false, dragStart = null;
+const pinchPts = new Map();   // pointerId → {x,y} — pinch-zoom a due dita
+let pinch = null;
 function evPos(e) {
     const r = canvas.getBoundingClientRect();
     return { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height };
 }
+function pinchDist() {
+    const [a, b] = [...pinchPts.values()];
+    return Math.hypot(a.x - b.x, a.y - b.y);
+}
 canvas.addEventListener('pointerdown', e => {
     const ph = photos[activeIdx]; if (!ph) return;
+    pinchPts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinchPts.size === 2) {
+        // seconda dita: qualunque trascinamento in corso diventa un pinch
+        dragging = false;
+        pinch = { d: pinchDist(), zoom: ph.frame.zoom };
+        canvas.setPointerCapture(e.pointerId);
+        return;
+    }
     const p = evPos(e);
     if (tab === 'formato') {
         dragging = 'pan'; dragStart = { p, ox: ph.frame.ox, oy: ph.frame.oy };
@@ -1333,8 +1347,21 @@ canvas.addEventListener('pointerdown', e => {
     render();
 });
 canvas.addEventListener('pointermove', e => {
-    if (!dragging) return;
     const ph = photos[activeIdx]; if (!ph) return;
+    if (pinch && pinchPts.has(e.pointerId)) {
+        pinchPts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (pinchPts.size === 2) {
+            const d = pinchDist();
+            if (d > 4 && pinch.d > 4) {
+                ph.frame.zoom = Math.min(3, Math.max(1, pinch.zoom * d / pinch.d));
+                $('frameZoom').value = Math.round(ph.frame.zoom * 100);
+                $('outZoom').textContent = Math.round(ph.frame.zoom * 100) + '%';
+                render();
+            }
+            return;
+        }
+    }
+    if (!dragging) return;
     const p = evPos(e);
     if (dragging === 'pan') {
         // sposto l'inquadratura in direzione opposta al gesto (pan naturale)
@@ -1350,7 +1377,9 @@ canvas.addEventListener('pointermove', e => {
     }
     render();
 });
-['pointerup', 'pointercancel'].forEach(ev => canvas.addEventListener(ev, () => {
+['pointerup', 'pointercancel'].forEach(ev => canvas.addEventListener(ev, e => {
+    pinchPts.delete(e.pointerId);
+    if (pinchPts.size < 2) pinch = null;
     if (dragging) { dragging = false; canvas.classList.remove('grabbing'); saveBrand(); }
 }));
 canvas.addEventListener('wheel', e => {
@@ -2084,6 +2113,7 @@ function saveSession() {
 }
 function offerRestore() {
     if (!window.indexedDB) return;
+    try { if (new URLSearchParams(location.search).get('listing')) return; } catch (e) {}
     idbGet('session').then(s => {
         if (!s || !s.photos || !s.photos.length || photos.length) return;
         if (Date.now() - (s.t || 0) > 7 * 86400e3) { idbDel('session').catch(() => {}); return; }
@@ -2218,6 +2248,24 @@ async function openListing(l) {
     renderThumbs(); syncPhotoControls(); syncBrandControls(); syncTextControls(); render();
     toast(loaded.length + ' foto caricate — ' + (l.name || l.id) + (fails ? ` (${fails} non scaricabili)` : ''));
 }
+
+/* ── Deep-link: /media-studio?listing=<id> apre subito quell'annuncio ──
+   Il portal e Photo Lab linkano qui. Firebase arriva con gli script defer,
+   quindi si riprova per qualche secondo prima di arrendersi. */
+(function deepLink() {
+    let id = null;
+    try { id = new URLSearchParams(location.search).get('listing'); } catch (e) {}
+    if (!id) return;
+    let tries = 0;
+    (function tick() {
+        const fb = fbReady();
+        if (!fb) { if (++tries < 40) setTimeout(tick, 250); else toast('Catalogo non raggiungibile'); return; }
+        fb.db.collection('listings').doc(id).get().then(d => {
+            if (!d.exists) { toast('Annuncio non trovato: ' + id); return; }
+            openListing(Object.assign({ id: d.id }, d.data()));
+        }).catch(e => toast('Catalogo non raggiungibile: ' + (e.message || e)));
+    })();
+})();
 
 let savingCat = false;
 $('btnSaveCatalog').addEventListener('click', async () => {
