@@ -759,28 +759,31 @@ i sei flussi veri di Roma (agenzie ONU FAO/WFP/IFAD, doppio corpo diplomatico
 Italia+Santa Sede, secondment aziendali, ricerca/ERC, sanità, produzioni
 Cinecittà), il varco competitivo, il playbook 90 giorni e le righe rosse da
 non promettere — sta in `STUDIO_EXECUTIVE_ROMA.md`.
-- **`executive.html` (`/executive`)** — landing EN-first con toggle IT
-  (`?lang=it`, mai dedotta dal browser: la canonical dichiara en),
-  costruita **DENTRO il design system vero** dopo due tentativi bocciati
-  (v1 = layout clonato dalla Réunion, v2 = marca estranea serif/carta):
-  `css/boom-2026.css` (oro **#FFD700** — mai il #D4AF37 del portal — paybtn
-  con sheen, steps, trio, truth, faq, band, fam strip, footer classico) +
-  il layer tech di index.html (orbi oro/violetto, griglia mascherata,
-  noise, mouse-glow, scroll-progress). Lo studio delle espressioni e le
-  regole dell'elevazione stanno in **`STUDIO_EXECUTIVE_UIX.md`**. L'unico
-  elemento di marca nuovo è il lockup `BOOM │ EXECUTIVE ROMA` (nav +
-  footer). I device ultra-tech della pagina: **console boom·os** in hero
-  (la pipeline vera — slot istantanei, e-sign, REGISTERED·RLI, Wallet,
-  ricevute — con LED e monospace), **tabellone ARRIVALS** per i sei flussi
-  (ancore `#seg-un`… per l'outreach), **contratto come oggetto digitale**
-  (righe di verifica + striscia Magic Sign con hash — mai carta bianca),
-  stat con count-up rm-safe, radar sottovoce. Reveal `.rv` con rete:
-  `<noscript>` + fallback senza IntersectionObserver. Blocco "in brief"
-  citabile, FAQ visibili = FAQPage JSON-LD, @graph con DUE Service
-  (persona → /executive, azienda → /corporate), og dedicata
-  `og-executive.png` nella STESSA identità, generata dal repo
-  (headless_shell — il chromium "vecchio" headless perde il footer a 630px
-  esatti). Alias redirect: `/executive-rentals`, `/executive-stays`,
+- **`executive.html` (`/executive`)** — EN-first con toggle IT (`?lang=it`,
+  mai dedotta dal browser: la canonical dichiara en). **Pagina di
+  CONVERSIONE, non brochure** — quarta iterazione, dopo tre bocciature del
+  fondatore (v1 = layout clonato dalla Réunion; v2 = marca estranea
+  serif/carta; v3 = stile BOOM giusto ma "chaotic, dispersive,
+  overwhelming": 2.003 parole prima del form, 3 CTA nel solo hero). I due
+  studi che la governano: **`STUDIO_EXECUTIVE_UIX.md`** (le espressioni
+  vere del brand: boom-2026.css con oro **#FFD700** — mai il #D4AF37 del
+  portal — layer tech di index, lockup `BOOM │ EXECUTIVE ROMA` unico
+  elemento di marca nuovo) e **`STUDIO_EXECUTIVE_CONVERSIONE.md`**
+  (benchmark sui convertitori veri: Blueground/Homelike/Spotahome +
+  modello relocation → UNA porta, prodotto/prova subito, ≤8 blocchi, form
+  ≤5 campi, B2B su binario separato). Architettura: **il form È l'hero**
+  ("Get options today", 5 campi visibili + "More details" a scomparsa —
+  l'attribuzione `sector` non si perde, si nasconde), ~89 parole prima del
+  form, prova subito (★4.9 · registrati · *serving people at FAO · WFP ·
+  IFAD · embassies…*), macchina sussurrata in UNA riga mono, sei flussi
+  in griglia compatta (ancore `#seg-un`…), contratto compatto con striscia
+  Magic Sign, il corporate SOLO in fam strip/footer/una riga (lezione
+  Homelike: il B2B non inquina il flusso persona). Reveal `.rv` con rete
+  `<noscript>` + fallback senza IO. GEO: blocco "in brief" citabile, FAQ
+  visibili = FAQPage JSON-LD, @graph con DUE Service (persona →
+  /executive, azienda → /corporate), og `og-executive.png` generata dal
+  repo (headless_shell — il chromium "vecchio" headless perde il footer a
+  630px esatti). Alias redirect: `/executive-rentals`, `/executive-stays`,
   `/relocation-rome`.
 - **`POST /api/executive-lead`** — porta pubblica irrigidita (honeypot
   `company`, rate limit IP, clip/num con separatori migliaia: "2.500" è
