@@ -90,12 +90,14 @@ già partner housing: non chiedi un rapporto nuovo, chiedi di entrare in una
 lista che esiste. Follow-up quotidiano fino a fine mese.
 
 ### Mossa 3 — Accendere Homie (10–12 agosto)
-Setup dal `docs/homie-claude-bridge.md` (10 minuti sul Mac): cron serale
-`context.push` + comando Telegram "context pack". Poi, in ordine di valore:
-messaggi WhatsApp → Inbox (`/api/homie/message`), lead automatici
-(`leads.create`), proposte tier 2. La Squadra lavora DENTRO il portale;
-Homie è l'unico che vede WhatsApp — finché tace, il canale più caldo
-d'Italia resta fuori dalla macchina.
+Il mandato è già scritto: **`bot/HOMIE.md`** (1° agosto — "da agente che
+pensa a braccio che agisce": inoltro grezzo di ogni WhatsApp a
+`/api/homie/message`, risposte approvate via `wa-outbox`, occhi sui
+portali). I log dicono che sul Mac non è ancora stato eseguito: attivarlo.
+In più, il ponte contesto (`docs/homie-claude-bridge.md`, 10 minuti): cron
+serale `context.push` + comando Telegram "context pack". Homie è l'unico
+che vede WhatsApp — finché tace, il canale più caldo d'Italia resta fuori
+dalla macchina.
 
 ### Mossa 4 — Scrivere il Manuale Operativo, versione 2026 (13–17 agosto)
 Più facile di un mese fa: metà dei processi ORA È la Squadra. Per ognuno dei

@@ -91,29 +91,28 @@ operativa, non alle ipotesi.
 
 ---
 
-## 4 · Accendere il resto di Homie (i flussi costruiti ma a zero chiamate)
+## 4 · Il resto di Homie: il mandato è `bot/HOMIE.md` (aggiornamento 7 agosto)
 
-In ordine di valore, i compiti da aggiungere a OpenClaw:
+La diagnosi di luglio (sopra) è stata risolta alla radice il 1° agosto:
+**`bot/HOMIE.md` è ora la fonte di verità del mandato** — "da agente che
+pensa a braccio che agisce". In sintesi: Homie inoltra **ogni** messaggio
+WhatsApp **grezzo** a `POST /api/homie/message` (**senza** compilare
+`analysis` — è esattamente il pensiero che il mandato toglie: il lead nasce
+deterministico lato server via `_lead.js`, il Lead Brain lo valuta in batch,
+il Commerciale scrive la risposta), manda le risposte approvate via
+`/api/homie/wa-outbox`, e tiene gli occhi sui portali (`/api/homie/searches`).
+Questo documento **non duplica quel mandato**: aggiunge solo il ponte
+contesto. I suggerimenti pre-mandato (compilare `analysis`, usare
+`leads.create` per i WhatsApp) sono superati — vale `bot/HOMIE.md`.
 
-1. **Inbox WhatsApp nel portale** — dopo ogni scansione di WhatsApp, per ogni
-   messaggio nuovo rilevante: `POST /api/homie/message` (idempotente su
-   `messageId`) con `analysis{summary,intent,needsReply,urgency,suggestedReply}`.
-   Risultato: l'Inbox del portale diventa la verità unica, col banner 🤖 e il
-   flag "da rispondere".
-2. **Riconciliazione** — a fine scansione completa: `POST /api/homie/inbox-sync`
-   con il batch di aggiornamenti stato/urgenza/tag. Chiude il dimenticato.
-3. **Lead automatici** — quando su WhatsApp/portali arriva una richiesta nuova
-   qualificabile: `POST /api/agent/leads.create` (con `sourceRef` per il
-   dedup). Oggi i lead nascono solo dal web: la strada WhatsApp è spenta.
-4. **Proposte tier 2** — bozze di risposta pronte da approvare:
-   `POST /api/homie/action` (kind `reply`) → approvazione con un tap da
-   Telegram (il cron `notify-pending` gira già ogni minuto).
-5. **Digest mattutino** — alle 07:30: `POST /api/agent/digest` e posta il
-   `text` su Telegram (il PFS brief delle 06:00 copre il radar; questo copre
-   lead+rischi del portale).
+**Il cron serale di `context.push` è coerente col mandato**: non è analisi
+per-messaggio (vietata perché il server la fa gratis), è UNA riflessione al
+giorno sulla giornata dell'operatore — ritmo, frizioni, abitudini: l'unica
+cosa che nessun server può vedere, perché vive sul telefono e nella stanza.
 
-Ognuno di questi usa endpoint **già in produzione e già documentati** in
-`api/agent/README.md` + `GET /api/agent/spec` — Homie li può scoprire da solo.
+Nota di stato (log Vercel, 7 agosto): il mandato esiste sulla carta ma
+l'esecuzione sul Mac non è ancora partita — `/api/homie/message` è ancora a
+zero chiamate. L'attivazione è il passo 1 del mandato stesso.
 
 ---
 
