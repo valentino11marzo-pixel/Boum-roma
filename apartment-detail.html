@@ -1044,6 +1044,7 @@ a.blkchip:hover{border-color:var(--line-gold);color:var(--gold)}
 <script src="/js/boom-geo.js"></script>
 <script src="/js/roma-transit.js"></script>
 <script src="/js/tempo-engine.js"></script>
+<script src="/js/tempo-place.js"></script>
 <script src="/js/neighborhoods.js"></script>
 <script>
 /* MATERIA: living stone under the whole visit — develops in as the price lands */
@@ -1449,6 +1450,14 @@ function holdPay(){
 window.holdPay=holdPay;
 /* commute anchors: where our applicants actually go every morning */
 var COMMUTE=[['LUISS',41.9269,12.4917],['Sapienza',41.9038,12.5135],['Roma Tre',41.8564,12.4790],['John Cabot',41.8937,12.4664],['LUMSA',41.9032,12.4593],['Termini / centre office',41.9009,12.5018],['Vatican / Prati office',41.9022,12.4534]];
+function _destOpts(){
+  var PP=(window.BOOM_PLACE&&BOOM_PLACE.primary())||null;
+  var esc=function(s){return String(s).replace(/</g,'&lt;').replace(/"/g,'&quot;')};
+  /* "Termini" salvato non deve raddoppiare "Termini / centre office" */
+  var dup=PP&&COMMUTE.some(function(c){var base=c[0].split('/')[0].trim();return c[0]===PP.name||PP.name.indexOf(base)===0;});
+  var extra=(PP&&!dup)?'<option>'+esc(PP.name)+'</option>':'';
+  return extra+COMMUTE.map(function(c){return '<option>'+c[0]+'</option>'}).join('');
+}
 /* the time engine (js/tempo-engine.js): real door-to-door on the metro·tram·
    rail graph. The crow-flies formula survives ONLY as the no-engine fallback,
    and says "rough" instead of pretending to be door-to-door. */
@@ -1459,7 +1468,9 @@ function _tg(){
   return _TG;
 }
 function commuteFor(place){
-  var c=COMMUTE.filter(function(x){return x[0]===place})[0];
+  /* il posto salvato dal cliente ("your places") vale quanto le mete storiche */
+  var PP=(window.BOOM_PLACE&&BOOM_PLACE.primary())||null;
+  var c=(PP&&PP.name===place)?[PP.name,PP.lat,PP.lng]:COMMUTE.filter(function(x){return x[0]===place})[0];
   if(!c||!L.lat||!L.lng)return null;
   var g=_tg();
   if(g){
@@ -1549,7 +1560,7 @@ function renderRes(){
       +'<label style="display:block"><span style="display:block;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--t3);margin-bottom:6px">Who’s moving in</span><select id="rqWho" style="width:100%;background:var(--input);border:1px solid var(--line);border-radius:11px;color:var(--t1);font-family:inherit;font-size:15px;padding:12px 13px;appearance:none"><option value="">Select…</option><option value="solo">Just me</option><option value="couple">A couple</option><option value="family">Family</option><option value="flatmates">Flatmates</option></select></label>'
       +'<label style="display:block"><span style="display:block;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--t3);margin-bottom:6px">You are</span><select id="rqOcc" style="width:100%;background:var(--input);border:1px solid var(--line);border-radius:11px;color:var(--t1);font-family:inherit;font-size:15px;padding:12px 13px;appearance:none"><option value="">Select…</option><option value="employed">Employed</option><option value="self-employed">Self-employed</option><option value="student">Student</option><option value="relocating">Relocating for work</option></select></label>'
       +'</div>'
-      +'<label style="display:block"><span style="display:block;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--t3);margin-bottom:6px">Where will you work / study? <span style="text-transform:none;letter-spacing:0;color:var(--t4)">(optional — we’ll check your commute)</span></span><select id="rqDest" style="width:100%;background:var(--input);border:1px solid var(--line);border-radius:11px;color:var(--t1);font-family:inherit;font-size:15px;padding:12px 13px;appearance:none"><option value="">Select…</option>'+COMMUTE.map(function(c){return '<option>'+c[0]+'</option>'}).join('')+'<option>Remote / other</option></select></label>'
+      +'<label style="display:block"><span style="display:block;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--t3);margin-bottom:6px">Where will you work / study? <span style="text-transform:none;letter-spacing:0;color:var(--t4)">(optional — we’ll check your commute)</span></span><select id="rqDest" style="width:100%;background:var(--input);border:1px solid var(--line);border-radius:11px;color:var(--t1);font-family:inherit;font-size:15px;padding:12px 13px;appearance:none"><option value="">Select…</option>'+_destOpts()+'<option>Remote / other</option></select></label>'
       +'<label style="display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--t2);cursor:pointer"><input id="rqGuar" type="checkbox" style="accent-color:var(--gold);width:18px;height:18px"> I have a guarantor (or can pay a larger deposit)</label>'
       +'</div>'
       +'<p id="rqErr" style="display:none;color:var(--gold-light);font-size:12.5px;margin-top:10px"></p>'
@@ -1558,9 +1569,13 @@ function renderRes(){
     if(RES.who)try{document.getElementById('rqWho').value=RES.who}catch(e){}
     if(RES.occ)try{document.getElementById('rqOcc').value=RES.occ}catch(e){}
     if(RES.dest)try{document.getElementById('rqDest').value=RES.dest}catch(e){}
+    else try{var _pp=window.BOOM_PLACE&&BOOM_PLACE.primary();
+      if(_pp){var _sel=document.getElementById('rqDest');_sel.value=_pp.name;
+        if(!_sel.value){var _m=COMMUTE.filter(function(c){return _pp.name.indexOf(c[0].split('/')[0].trim())===0;})[0];if(_m)_sel.value=_m[0];}}}catch(e){}
   } else if(RES.step===2){
     var ok=RES.approved;
-    var cmt=RES.commute?'<div style="display:flex;align-items:center;gap:8px;margin-top:10px;padding:10px 13px;border:1px solid var(--line-gold);background:var(--gold-faint);border-radius:11px;font-size:12.5px;color:var(--gold-light)"><span>📍</span><span><b style="color:var(--gold)">'+RES.commute.label+'</b> from '+RES.commute.place+' — checked on the real map</span></div>':'';
+    /* il nome del posto arriva dal geocoder (dato aperto OSM): SEMPRE escapato al sink */
+    var cmt=RES.commute?'<div style="display:flex;align-items:center;gap:8px;margin-top:10px;padding:10px 13px;border:1px solid var(--line-gold);background:var(--gold-faint);border-radius:11px;font-size:12.5px;color:var(--gold-light)"><span>📍</span><span><b style="color:var(--gold)">'+sbEsc(RES.commute.label)+'</b> from '+sbEsc(RES.commute.place)+' — checked on the real map</span></div>':'';
     var verdict=ok
       ? '<div style="display:flex;align-items:center;gap:9px;color:var(--green);font-weight:500;font-size:15px"><span style="width:26px;height:26px;border-radius:50%;background:var(--green-muted);display:grid;place-items:center">✓</span> Pre-approved</div><p style="color:var(--t2);font-size:13.5px;margin-top:8px">On these numbers, '+L.name+' can be yours. We’ve drawn up your pre-agreement — read it, accept, and lock the home.</p>'
       : '<div style="display:flex;align-items:center;gap:9px;color:var(--gold-light);font-weight:500;font-size:15px"><span style="width:26px;height:26px;border-radius:50%;background:var(--gold-muted);display:grid;place-items:center">!</span> One step to go</div><p style="color:var(--t2);font-size:13.5px;margin-top:8px">'+(RES.low?'Income is below the usual 2.5× rent (≈ '+eur(RES.need)+'/mo) on its own.':'Income is just under the usual 2.5× rent (≈ '+eur(RES.need)+'/mo).')+' A guarantor or a larger deposit usually solves it — we’ll guide you.</p>';
@@ -1636,25 +1651,38 @@ const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.targ
 document.querySelectorAll('.reveal,.step').forEach(el=>io.observe(el));
 
 /* ---- YOUR PLACES: geocode once, get distances on every home ---- */
+/* one truth for the whole site: js/tempo-place.js (window.BOOM_PLACE) owns
+   'boom:pois' — the catalog and the Skyline read the same list */
 const POI_KEY='boom:pois';
-function poiLoad(){try{return JSON.parse(localStorage.getItem(POI_KEY)||'[]')}catch(e){return[]}}
-function poiStore(a){try{localStorage.setItem(POI_KEY,JSON.stringify(a.slice(0,4)))}catch(e){}}
+function poiLoad(){if(window.BOOM_PLACE)return BOOM_PLACE.load();try{return JSON.parse(localStorage.getItem(POI_KEY)||'[]')}catch(e){return[]}}
+function poiStore(a){if(window.BOOM_PLACE)return BOOM_PLACE.store(a);try{localStorage.setItem(POI_KEY,JSON.stringify(a.slice(0,4)))}catch(e){}}
 function havKm(a1,o1,a2,o2){const R=6371,dA=(a2-a1)*Math.PI/180,dO=(o2-o1)*Math.PI/180;
   const s=Math.sin(dA/2)**2+Math.cos(a1*Math.PI/180)*Math.cos(a2*Math.PI/180)*Math.sin(dO/2)**2;
   return 2*R*Math.asin(Math.sqrt(s));}
 function poiRows(){
   const host=document.getElementById('poiRows');if(!host)return;
   const lat=+L.lat||41.8902,lng=+L.lng||12.4922;
+  /* i tempi coi mezzi solo su coordinate VERE: dal centroide-fallback
+     uscirebbe un numero inventato con l'aria di uno vero */
+  const g=(+L.lat&&+L.lng)?_tg():null;
   host.innerHTML=poiLoad().map((p,i)=>{
     const km=havKm(lat,lng,p.lat,p.lng)*1.3;                      // ×1.3 ≈ street routing
     const walk=Math.max(1,Math.round(km/4.7*60)),bike=Math.max(1,Math.round(km/14*60));
     const dist=km<1?(Math.round(km*1000/50)*50)+' m':km.toFixed(1)+' km';
-    return `<div class="poi-row"><span class="nm">${p.name.replace(/</g,'&lt;')}</span><span class="dist">${dist}</span><span class="modes">~${walk} min walk · ${bike} min bike</span><button type="button" class="rm" onclick="poiDel(${i})" aria-label="Remove place">✕</button></div>`;
+    /* col motore del tempo la riga risponde coi MEZZI veri quando servono */
+    let modes=`~${walk} min walk · ${bike} min bike`;
+    if(g){try{
+      const t=window.BOOM_TEMPO.plan({lat,lng},{lat:p.lat,lng:p.lng},g);
+      if(t.mode==='transit')modes=`≈${t.min}′ ${t.rides.map(r=>r.short).join('+')} · ~${walk} min walk`;
+      else modes=`~${t.min} min walk · ${bike} min bike`;
+    }catch(e){}}
+    return `<div class="poi-row"><span class="nm">${p.name.replace(/</g,'&lt;')}</span><span class="dist">${dist}</span><span class="modes">${modes}</span><button type="button" class="rm" onclick="poiDel(${i})" aria-label="Remove place">✕</button></div>`;
   }).join('');
 }
 function poiDel(i){const a=poiLoad();a.splice(i,1);poiStore(a);poiRows();}
-function poiAdd(name,lat,lng){const a=poiLoad();
-  if(!a.some(p=>p.name===name)){a.unshift({name,lat,lng});poiStore(a);}
+function poiAdd(name,lat,lng){
+  if(window.BOOM_PLACE)BOOM_PLACE.add({name,lat,lng}); /* una porta sola: dedupe + sanificazione lì */
+  else{const a=poiLoad();if(!a.some(p=>p.name===name)){a.unshift({name,lat,lng});poiStore(a);}}
   poiRows();
   const q=document.getElementById('poiQ');q.value='';document.getElementById('poiSug').classList.remove('show');}
 let _poiT=null,_poiSeq=0;
@@ -1851,8 +1879,7 @@ function realNearby(){
   }).sort(function(a,b){return a.km-b.km}).slice(0,4).map(function(x){return x.row});
   L.nearby=rows;
   var nbEl=document.getElementById('nearby');
-  nbEl.innerHTML=rows.map(function(a){return '<div class="nb"><div class="ico">'+(SVGI[NBICO[a[0]]]||a[0])+'</div><div class="tx"><div class="n">'+a[1]+'</div><div class="m">'+a[2]+'</div></div><div class="t">'+a[3]+'</div></div>'}).join('')+
-    '<a class="nb" href="/tempo?home='+encodeURIComponent(L.id||PID||'')+'" style="text-decoration:none;cursor:pointer"><div class="ico">⏱</div><div class="tx"><div class="n">Your whole Rome from here</div><div class="m">The time map — pick YOUR places</div></div><div class="t" style="color:var(--gold,#D4AF37)">Open →</div></a>';
+  nbEl.innerHTML=rows.map(function(a){return '<div class="nb"><div class="ico">'+(SVGI[NBICO[a[0]]]||a[0])+'</div><div class="tx"><div class="n">'+a[1]+'</div><div class="m">'+a[2]+'</div></div><div class="t">'+a[3]+'</div></div>'}).join('');
   nbEl.style.display='';
 }
 function realSimilar(){

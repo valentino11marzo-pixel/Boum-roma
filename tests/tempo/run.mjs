@@ -151,18 +151,66 @@ const exp = wk.per[0].plan.min * 10 + wk.per[1].plan.min * 2;
 ok(wk.weekMin === exp, `Σ andata+ritorno × frequenza (${T.fmtWeekly(wk.weekMin)}/sett)`);
 ok(wk.per.every((x) => x.plan && x.weekMin > 0), 'ogni ancora porta il suo piano e il suo peso');
 
-console.log('\n▸ le pagine sono cablate sul motore — e la vecchia formula non esiste più');
+console.log('\n▸ I TUOI POSTI (boom:pois) — una copia sola per tutto il sito');
+/* localStorage finto: tempo-place gira anche in node, come le altre pure */
+globalThis.localStorage = (() => {
+  let m = {};
+  return { getItem: (k) => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, removeItem: (k) => { delete m[k]; } };
+})();
+const P = require('../../js/tempo-place.js');
+ok(P.KEY === 'boom:pois', 'la chiave è quella che la scheda casa usa da sempre (nessuna migrazione)');
+const pres = P.presets(PACK);
+ok(pres.length >= 10, `preset dalle anchors del pack, mai una lista duplicata (${pres.length})`);
+['Sapienza', 'LUISS', 'Termini', 'EUR business', 'Fiumicino FCO'].forEach((n) =>
+  ok(pres.some((p) => p.name === n), `…c'è "${n}"`));
+ok(!pres.some((p) => /Ostia|Trastevere night|Colosseo/.test(p.name)), 'fuori le mete da tempo libero: nessuno va a Ostia "tutte le mattine"');
+P.store([]);
+P.add({ name: 'Il mio ufficio', lat: 41.9, lng: 12.5 });
+P.add({ name: 'Sapienza', lat: 41.9038, lng: 12.5135 });
+ok(P.primary().name === 'Sapienza', 'l\'ultimo aggiunto diventa il posto PRINCIPALE');
+P.add({ name: 'Il mio ufficio', lat: 41.9, lng: 12.5 });
+ok(P.load().length === 2 && P.primary().name === 'Il mio ufficio', 'stesso nome = riordina in testa, MAI un duplicato');
+P.add({ name: 'A', lat: 41.9, lng: 12.5 }); P.add({ name: 'B', lat: 41.9, lng: 12.5 }); P.add({ name: 'C', lat: 41.9, lng: 12.5 });
+ok(P.load().length <= P.MAX, `mai più di ${P.MAX} posti`);
+ok(P.add({ name: '', lat: 1, lng: 2 }).length <= P.MAX && !P.load().some((p) => p.name === ''), 'un posto senza nome o coordinate non entra');
+P.remove('C');
+ok(!P.load().some((p) => p.name === 'C'), 'remove per nome');
+P.store([]);
+P.add({ name: '<img src=x onerror=alert(1)>', lat: 41.9, lng: 12.5 });
+ok(P.load().every((p) => !/[<>]/.test(p.name)), 'il nome dal geocoder perde i caratteri HTML ALLA PORTA (la lezione della review: XSS via nome OSM)');
+P.store([]);
+
+console.log('\n▸ il tempo vive DOVE la gente guarda le case — non su una pagina a parte');
 const src = (f) => (existsSync(new URL(`../../${f}`, import.meta.url)) ? readFileSync(new URL(`../../${f}`, import.meta.url), 'utf8') : '');
-['skyline.html', 'apartments.html', 'apartment-detail.html', 'match.html', 'tempo.html'].forEach((f) => {
+['skyline.html', 'apartments.html', 'apartment-detail.html', 'match.html'].forEach((f) => {
   const s = src(f);
   ok(s.includes('/js/roma-transit.js') && s.includes('/js/tempo-engine.js'), `${f} carica pack + motore`);
   ok(s.includes('BOOM_TEMPO'), `${f} usa BOOM_TEMPO`);
+  ok(s.includes('/js/tempo-place.js') && s.includes('BOOM_PLACE'), `${f} legge I TUOI POSTI dalla copia unica`);
 });
-ok(!src('apartment-detail.html').includes('4.2+10'), 'apartment-detail: km×4.2+10 rimosso dalla sorgente');
-ok(!src('match.html').includes('12 + km/18*60') || src('match.html').includes('BOOM_TEMPO'), 'match: la stima piatta resta solo come paracadute dietro il motore');
-const tempoSrc = src('tempo.html');
-ok(tempoSrc.includes('/api/listings') && tempoSrc.includes('reachFrom'), 'tempo.html: catalogo vero + aloni di raggiungibilità');
-ok(src('sitemap.xml').includes('boomrome.com/tempo'), 'la Mappa del Tempo è nel sitemap');
+const apt = src('apartments.html');
+ok(apt.includes('placesBar') && apt.includes('tchip('), 'catalogo: barra "Your places" + chip oro dei minuti su ogni card');
+ok(apt.includes('sortTempo'), 'catalogo: ordinamento "⏱ Near your place" (nodo creato/tolto — `hidden` su <option> non esiste per iOS)');
+ok(/_pmLabel[\s\S]{0,260}≈/.test(apt), 'catalogo: i minuti sui pin portano ≈ quando sono una stima (mai spacciati per esatti)');
+ok(src('apartment-detail.html').includes('sbEsc(RES.commute.place)'), 'scheda: il nome del posto è escapato al sink del funnel apply (la XSS trovata dalla review non torna)');
+ok(/tempo:\(a,b\)=>_pMin\(a\)-_pMin\(b\)/.test(apt), 'catalogo: il sort tempo ordina per minuti veri');
+ok(/S\.sort==='tempo'&&!plPrimary\(\)/.test(apt), 'catalogo: "tempo" senza un posto salvato ricade su Recommended, mai un ordine a caso');
+const det = src('apartment-detail.html');
+ok(det.includes('_destOpts()') && det.includes('BOOM_PLACE.primary'), 'scheda: il posto del cliente entra nel selettore commute del funnel apply');
+ok(/function poiRows[\s\S]{0,1100}BOOM_TEMPO\.plan/.test(det), 'scheda: le righe "your places" rispondono coi MEZZI veri, non solo a piedi');
+const sky = src('skyline.html');
+ok(sky.includes('togglePlace'), 'skyline: tap su un\'ancora = diventa il tuo posto');
+ok(sky.includes('class="pt"') || sky.includes("class=\\'pt\\'") || /'<span class="pt">/.test(sky), 'skyline: ogni pin porta lo slot dei minuti');
+ok(src('match.html').includes('BOOM_PLACE.add'), 'quiz: l\'università scelta diventa il posto di tutto il sito');
+ok(!src('apartment-detail.html').includes('4.2+10'), 'apartment-detail: km×4.2+10 resta estinto');
+
+console.log('\n▸ la pagina-dashboard è MORTA: /tempo riporta al catalogo');
+ok(!existsSync(new URL('../../tempo.html', import.meta.url)), 'tempo.html non esiste più');
+['skyline.html', 'apartments.html', 'apartment-detail.html', 'match.html'].forEach((f) =>
+  ok(!/href=["']\/tempo/.test(src(f)), `${f}: nessun link verso /tempo`));
+ok(/"source":\s*"\/\(tempo\|tempo\.html\)"[\s\S]{0,80}"destination":\s*"\/apartments"/.test(src('vercel.json')), 'vercel.json: /tempo → /apartments (il vecchio link di chi l\'ha salvato non muore)');
+ok(!src('sitemap.xml').includes('boomrome.com/tempo'), 'sitemap: /tempo non è più dichiarato');
+ok(!src('llms.txt').includes('boomrome.com/tempo') && src('llms.txt').includes('Your places'), 'llms.txt: si raccomanda il catalogo coi TUOI posti, non la pagina morta');
 
 console.log(`\n${fail ? '✗' : '✓'} ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

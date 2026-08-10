@@ -2035,25 +2035,44 @@ giusta: lungo la metro A voli, in trasversale no, e adesso si vede.
   `weekly(G,home,anchors)` (Σ andata+ritorno × frequenza = ore di vita a
   settimana), `label`/`trace`/`fmtWeekly`. Zero DOM, zero fetch: gira
   identico nel browser e nei test node.
-- **`tempo.html` (`/tempo`)** — LA MAPPA DEL TEMPO, pubblica e indicizzata:
-  l'inquilino sceglie le SUE ancore (università/uffici/FCO/Ostia + "Add your
-  place" toccando la mappa, frequenza ×N a settimana), fissa il budget
-  ("everything within 30′") e il catalogo si ri-ordina per **ore della sua
-  settimana** — con l'alone d'oro dell'INTERSEZIONE (dove vivi per avere
-  tutto entro il budget), le linee del trasporto nei colori veri disegnate
-  dallo stesso pack, i pin col tempo peggiore, e `?home=<id>` come scheda
-  focus (linkata da skyline e apartment-detail). Stato nel FRAGMENT
-  (mai al server — la lezione Deal Link) + localStorage; share via
-  navigator.share. Il pannello vive SOPRA il loader e il catalogo si carica
-  indipendente dalla mappa con watchdog 12s (regola Safari: mai una
-  superficie appesa a uno spinner). Pin di zona → `≈` e nota "approximate
-  position" via boom-geo.
-- **Cablaggio**: `skyline.html` e il blocco skyline di `apartments.html`
-  (etichette ancore = minuti veri del grafo + layer linee/stazioni),
-  `apartment-detail.html` (`commuteFor` per il lead qualification e
-  `realNearby` + riga-ponte "⏱ Your whole Rome from here"), `match.html`
-  (il quiz stima col motore e stampa la linea: "~24 min mezzi · linea A").
-  Fallback ovunque se il motore non carica.
+- **LA LEZIONE DEL PIAZZAMENTO (2026-08-10, stesso giorno)**: la prima
+  versione era una pagina a parte (`/tempo`, dashboard con ancore multiple,
+  frequenze, slider, aloni) — tecnicamente giusta, **piazzata male**:
+  complicata da leggere e in un posto dove nessuno passa. L'operatore l'ha
+  bocciata a vista. Il tool NON è una pagina: è **UNA domanda — "dove
+  passerai le tue giornate?" — fatta una volta e risposta ovunque**. E la
+  domanda esisteva già: il box "your places · set them once, every home
+  answers" della scheda casa (`localStorage 'boom:pois'`, max 4, il primo è
+  il principale). La v2 mantiene quella promessa in tutto il sito.
+  `tempo.html` è ELIMINATA; `/tempo` → redirect a `/apartments`
+  (vercel.json — il link di chi l'aveva salvata non muore).
+- **`js/tempo-place.js`** (`window.BOOM_PLACE`) — la copia UNICA dei posti:
+  `load/store/add/remove/primary` su `boom:pois` (add = in testa, dedupe per
+  nome, mai più di 4; localStorage con guardia Safari-privato) +
+  `presets(pack)` — i quick-pick filtrati dalle anchors del city pack
+  (uni/work/hub/travel + Vaticano; MAI una lista duplicata: un'ancora
+  aggiunta al pack compare ovunque da sola).
+- **Dove vive il tempo** (superfici esistenti, zero pagine nuove):
+  - **`/apartments`** — barra "⏱ Your places" sopra la griglia: quick-pick
+    dai preset + ricerca libera (Photon, stesso geocoder della scheda).
+    Scelto un posto: **ogni card porta il chip oro** "⏱ ≈36′ · C+B ·
+    Sapienza", il sort passa da solo a "⏱ Near your place" (opzione nascosta
+    finché non c'è un posto; senza posti ricade su Recommended, mai un
+    ordine a caso), i pin dello Skyline embedded appendono "· 24′", il posto
+    CUSTOM (ufficio) ha il suo segnaposto 📍, e il chip 🚇 accende le linee
+    del pack (spente di default — lo Skyline resta cinematografico).
+  - **`/skyline`** — tap su un'ancora = diventa il tuo posto (`.sel` oro,
+    boom:pois): ogni pin risponde in minuti sotto il prezzo; secondo tap la
+    toglie. I fili d'oro al tap sulla casa mostrano i minuti VERI del grafo
+    ("≈18′ · C"). Chip 🚇 Metro come sopra.
+  - **`apartment-detail.html`** — le righe "your places" rispondono coi
+    MEZZI veri (`≈24′ A+B · ~52 min walk`); `commuteFor`/`rqDest` del funnel
+    apply accettano e pre-selezionano il posto salvato (il snapshot commute
+    nel lead usa il posto VERO del cliente); `poiLoad/poiStore` delegano a
+    BOOM_PLACE.
+  - **`/match`** — il quiz salva l'università come posto del sito
+    all'uscita: il cliente arriva su /apartments col catalogo già ordinato
+    per la SUA vita.
 
 ## Conventions
 
@@ -2090,7 +2109,7 @@ giusta: lungo la metro A voli, in trasversale no, e adesso si vede.
   | `tests/photos/sweep.mjs` | photo-lab: chi è candidato allo sweep, quali foto contano come sorgente (i nostri output enhanced mai), e l'ordine con cui le 3 notti si spendono — le gallerie vere prima degli annunci da una foto. Si auto-skippa senza `sharp` |
   | `tests/copy/run.mjs` | descrizioni: lo sweep riscrive i template del bot e le schede mute, ma **mai** le parole di un umano — verificato sulle stringhe vere del catalogo, dove il testo scritto a mano è più CORTO del template |
   | `tests/geo/run.mjs` | precisione dei pin (`js/boom-geo.js`): portone (via+civico), strada, quartiere o niente — sulle stringhe `geo.q` vere del catalogo, incluso il caso insidioso `src:'nominatim'` su `q:'Prati, Roma'` |
-  | `tests/tempo/run.mjs` | il tempo vero: city pack sano (bbox, tratte plausibili, interscambi veri — Colosseo B+C dal 16/12/2025 — rete CONNESSA al 100% da Termini), verità note tolleranti (Termini→FCO col Leonardo, Pigneto→Colosseo sulla C, il corto SEMPRE a piedi), determinismo, ogni stima transit con `≈`, e le pagine cablate sul motore con `km×4.2+10` estinto dalla sorgente |
+  | `tests/tempo/run.mjs` | il tempo vero: city pack sano (bbox, tratte plausibili, interscambi veri — Colosseo B+C dal 16/12/2025 — rete CONNESSA al 100% da Termini), verità note tolleranti (Termini→FCO col Leonardo, Pigneto→Colosseo sulla C, il corto SEMPRE a piedi), determinismo, ogni stima transit con `≈`; poi I TUOI POSTI: boom:pois una copia sola (dedupe, cap 4, preset dal pack), catalogo con chip+sort collegati davvero, il sort senza posti che ricade su Recommended, e la pagina `/tempo` MORTA: file assente, redirect in vercel.json, nessun link superstite |
   | `tests/scheda/run.mjs` | La Scheda: token derivati (ruolo nella derivazione, timing-safe), precedenza prefill contratto→sign→wizard, lock post-firma, sync profilo su ENTRAMBI gli schemi users, upload con OCR che non blocca mai, /api/profile/link autorizzato |
   | `tests/notify/run.mjs` | ciclo email contratto (pdf-lib REALE, nodemailer mockato): fascicolo CAF a valentino@boom-rome.com esattamente una volta con anagrafica di entrambe le parti, welcome nella lingua del lettore, invito firma col link giusto e 409 sul locatore sequenziale, conferma scheda one-shot |
   | `tests/viewings/avail.mjs` | griglia slot: passi, gap 15', preavviso, orizzonte, maxPerDay, DST, token del link cliente |

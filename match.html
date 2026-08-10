@@ -108,6 +108,7 @@
 <!-- ENGINE (pure, testable) -->
 <script src="/js/roma-transit.js"></script>
 <script src="/js/tempo-engine.js"></script>
+<script src="/js/tempo-place.js"></script>
 <script>
 (function(root){
   'use strict';
@@ -274,6 +275,18 @@ function showResults(){
   const ranked = M.rankZones(A).slice(0,4);
   document.getElementById('quizCard').style.display='none';
   const uni = M.UNIS.find(u=>u.id===A.uni);
+  /* l'università diventa il "your place" di tutto il sito (boom:pois):
+     /apartments arriverà già ordinato per la SUA vita, /skyline coi minuti */
+  try{
+    const SHORT={sapienza:'Sapienza',luiss:'LUISS',romatre:'Roma Tre',jcu:'John Cabot',aur:'AUR (Gianicolo)',lumsa:'LUMSA',cattolica:'Cattolica · Gemelli',ied:'IED (Trastevere)',torvergata:'Tor Vergata',biomedico:'Campus Bio-Medico'};
+    if(window.BOOM_PLACE&&uni){
+      const nm=SHORT[A.uni]||uni.n;
+      /* se il pack conosce questa meta, si usano LE SUE coordinate: una
+         copia sola, i minuti identici su catalogo, skyline e scheda */
+      const pre=(window.ROMA_TRANSIT?BOOM_PLACE.presets(ROMA_TRANSIT.PACK):[]).find(p=>p.name===nm);
+      BOOM_PLACE.add(pre?{name:pre.name,lat:pre.lat,lng:pre.lng}:{name:nm,lat:uni.lat,lng:uni.lng});
+    }
+  }catch(e){}
   const box = document.getElementById('results');
   box.style.display='block';
   if(!ranked.length){
@@ -286,7 +299,7 @@ function showResults(){
     <div class="res-sub">A misura di ${uni.n}, nel tuo budget${A.budget?` di €${A.budget}`:''}.</div>
     ${ranked.map((r,i)=>zoneHTML(r,i)).join('')}
     ${leadHTML()}
-    <div class="disclaim">Tempi ≈ stimati sul grafo reale di metro·tram·FL (attese medie incluse), non orari ufficiali ATAC. Costruisci la tua mappa completa su <a href="/tempo" style="color:var(--gold)">boomrome.com/tempo</a>.</div>`;
+    <div class="disclaim">Tempi ≈ stimati sul grafo reale di metro·tram·FL (attese medie incluse), non orari ufficiali ATAC. Su <a href="/apartments" style="color:var(--gold)">/apartments</a> ogni casa ora mostra i minuti dalla tua università.</div>`;
   bindLead();
 }
 function zoneHTML(r,i){

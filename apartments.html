@@ -438,6 +438,26 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
 .skel .l3{height:12px;width:55%;border-radius:6px;margin-top:12px}
 @keyframes skshine{to{background-position:-200% 0}}
 @media(prefers-reduced-motion:reduce){.skel .ph,.skel .l1,.skel .l2,.skel .l3{animation:none}}
+/* ── YOUR PLACES: minutes from your life, on every card ── */
+.places{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 18px;padding:11px 14px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(135deg,rgba(255,215,0,.05),rgba(255,215,0,.015))}
+.places .plbl{font-size:10.5px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);white-space:nowrap}
+.pchip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line-gold);background:rgba(255,215,0,.08);border-radius:100px;padding:7px 12px;font-size:12.5px;color:var(--t1)}
+.pchip.pri{box-shadow:0 0 0 1px var(--line-gold)}
+.pchip .rm{cursor:pointer;border:none;background:none;color:var(--t3);font-size:12px;padding:0 0 0 2px;font-family:inherit}
+.pchip .rm:hover{color:var(--gold)}
+.pchip.qk{border-color:var(--line);background:var(--card);color:var(--t2);cursor:pointer;transition:border-color .2s,color .2s;font-size:12px}
+.pchip.qk:hover{border-color:var(--line-gold);color:var(--gold)}
+.pfield{position:relative;flex:1;min-width:170px;max-width:270px}
+.pfield input{width:100%;background:var(--input);border:1px solid var(--line);border-radius:100px;color:var(--t1);font-family:inherit;font-size:13px;padding:8px 14px}
+.pfield input:focus{outline:none;border-color:var(--line-gold)}
+.psug{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:60;background:var(--elev);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:none;box-shadow:var(--sh)}
+.psug.show{display:block}
+.psug button{display:block;width:100%;text-align:left;background:none;border:none;color:var(--t1);font-family:inherit;font-size:13px;padding:9px 13px;cursor:pointer}
+.psug button:hover{background:rgba(255,215,0,.07)}
+.psug small{display:block;color:var(--t3);font-size:11px}
+.psug .none{padding:9px 13px;font-size:12px;color:var(--t3)}
+.tchip{display:inline-flex;align-items:center;gap:6px;margin-top:9px;border:1px solid var(--line-gold);background:rgba(255,215,0,.07);border-radius:100px;padding:4px 11px;font-size:12px;color:var(--gold);font-variant-numeric:tabular-nums;width:fit-content}
+.tchip small{color:var(--t3);font-size:10.5px;font-weight:400}
 </style>
 <script type="application/ld+json">
 {
@@ -661,6 +681,15 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
     </div>
   </div>
 
+  <!-- YOUR PLACES — the promise written on the listing page ("set them once,
+       every home answers"), kept here: save where your days happen and every
+       card shows real door-to-door minutes; sorting follows your life. -->
+  <div class="places" id="placesBar" hidden>
+    <span class="plbl">⏱ Your places</span>
+    <span id="plChips" style="display:contents"></span>
+    <span class="pfield"><input id="plQ" type="text" placeholder="Your office, university, a metro stop…" autocomplete="off" aria-label="Search a place in Rome"><span class="psug" id="plSug" role="listbox"></span></span>
+  </div>
+
   <div class="grid" id="grid"></div>
   <div class="mapview" id="mapview"></div>
   <div class="empty" id="empty" style="display:none"><h3>No exact match</h3><p>Try widening the budget or dates — or <a href="#" onclick="saveSearchAct();return false">let us find it for you →</a></p>
@@ -747,6 +776,7 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
 <script src="/js/boom-geo.js"></script>
 <script src="/js/roma-transit.js"></script>
 <script src="/js/tempo-engine.js"></script>
+<script src="/js/tempo-place.js"></script>
 <script src="/js/neighborhoods.js"></script>
 <script>
 /* The page's ambience: Marmo Antico — living stone. Soft gold clouds and
@@ -907,12 +937,19 @@ function cardHTML(l){
       <div class="fitx" onclick="event.preventDefault();event.stopPropagation()"><b>Why this fit</b>${(sp.parts.length?sp.parts:['solid baseline']).map(p=>`<span class="${p.includes('−')?'neg':'pos'}">${p}</span>`).join('')}</div>`:''}</div>
     <div class="b"><div class="z">${l.zone}</div><div class="n">${l.name}</div>
       <div class="specs"><span>${SVGI.bed} ${l.beds||'Studio'}</span><span>${SVGI.bath} ${l.baths}</span><span>${SVGI.ruler} ${l.sqm} m²</span></div>
+      ${tchip(l)}
       ${av}
       <div class="foot"><div class="pr">${eur(l.price)} <small>/mo</small>${over?'<span class="ov">'+eur(l.price-S.budgetMax)+' over budget</span>':''}</div><span class="view">View →</span></div>
     </div></a>`;
 }
-function currentList(){return L.filter(pass).sort({match:(a,b)=>score(b)-score(a),priceA:(a,b)=>a.price-b.price,priceD:(a,b)=>b.price-a.price,new:(a,b)=>(b.createdAt>1e12?b.createdAt:-b.createdAt)-(a.createdAt>1e12?a.createdAt:-a.createdAt),avail:(a,b)=>parseD(a.availableFrom)-parseD(b.availableFrom)}[S.sort]);}
+function currentList(){
+  const cmps={match:(a,b)=>score(b)-score(a),priceA:(a,b)=>a.price-b.price,priceD:(a,b)=>b.price-a.price,new:(a,b)=>(b.createdAt>1e12?b.createdAt:-b.createdAt)-(a.createdAt>1e12?a.createdAt:-a.createdAt),avail:(a,b)=>parseD(a.availableFrom)-parseD(b.availableFrom),tempo:(a,b)=>_pMin(a)-_pMin(b)};
+  /* 'tempo' senza un posto salvato non ha una domanda a cui rispondere */
+  const key=(S.sort==='tempo'&&!plPrimary())?'match':S.sort;
+  return L.filter(pass).sort(cmps[key]||cmps.match);
+}
 function render(){
+  try{placesUI();}catch(e){}
   const list=currentList(), grid=document.getElementById('grid'), empty=document.getElementById('empty');
   document.getElementById('count').textContent=list.length;
   document.getElementById('ctx').textContent=(S.zones.length?('in '+S.zones.join(', ')):'')+(S.moveIn?(' · by '+fmtS(S.moveIn)):'')+(S.savedOnly?' · saved':'');
@@ -977,6 +1014,110 @@ function _al(co,A,km){
   if(_TT&&_TG){try{return _TT.label(_TT.plan({lat:co[1],lng:co[0]},{lat:A[1],lng:A[0]},_TG));}catch(e){}}
   return _dl(km);
 }
+/* ── YOUR PLACES — the listing page's promise ("set them once, every home
+   answers"), kept on the catalog. Same store (boom:pois), same engine as
+   the pins: add a place → every card answers in minutes, the sort follows
+   your life, the Skyline pin carries the number too. ── */
+var PL=window.BOOM_PLACE||null;
+function esc2(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]});}
+function plList(){return PL?PL.load():[];}
+function plPrimary(){return plList()[0]||null;}
+var _pmC={};
+function _pPlan(l,p){
+  if(!p||!l||!l.lat||!l.lng||!_TT||!_TG)return null;
+  var k=l.id+'|'+p.name+'|'+p.lat;
+  if(!(k in _pmC)){try{_pmC[k]=_TT.plan({lat:l.lat,lng:l.lng},{lat:p.lat,lng:p.lng},_TG);}catch(e){_pmC[k]=null;}}
+  return _pmC[k];
+}
+function _pMin(l){var t=_pPlan(l,plPrimary());return t?t.min:9e9;}
+/* stesse parole dello skyline pieno: la camminata è misurata (🚶), i mezzi
+   sono una stima e portano ≈ — due skyline non possono contraddirsi */
+function _pmLabel(l){var t=_pPlan(l,plPrimary());return t?(t.mode==='walk'?(t.min+'′ 🚶'):('≈'+t.min+'′')):'';}
+function tchip(l){
+  var p=plPrimary();if(!p)return '';
+  var t=_pPlan(l,p);if(!t)return '';
+  var lbl=t.mode==='walk'?(t.min+'′ walk'):('≈'+t.min+'′'+(t.rides&&t.rides.length?' · '+t.rides.map(function(r){return r.short}).join('+'):''));
+  return '<span class="tchip">⏱ '+lbl+'<small>'+esc2(p.name)+'</small></span>';
+}
+var _presShown=[];
+function placesUI(){
+  var bar=document.getElementById('placesBar');if(!bar||!PL)return;
+  bar.hidden=false;
+  var cur=plList(),have={};cur.forEach(function(p){have[p.name]=1;});
+  var prio={uni:0,work:1,hub:2,travel:3};
+  _presShown=(window.ROMA_TRANSIT?PL.presets(ROMA_TRANSIT.PACK):[])
+    .filter(function(p){return !have[p.name];})
+    .sort(function(a,b){return (prio[a.kind]||9)-(prio[b.kind]||9);})
+    .slice(0,cur.length?3:7);
+  document.getElementById('plChips').innerHTML=
+    cur.map(function(p,i){
+      return '<span class="pchip'+(i===0?' pri':'')+'"'+(i===0?' title="Your primary place — cards and pins show minutes to it"':'')+'>'+(i===0?'★ ':'')+esc2(p.name)+'<button type="button" class="rm" aria-label="Remove '+esc2(p.name)+'" onclick="plDelIdx('+i+')">✕</button></span>';
+    }).join('')+
+    _presShown.map(function(p,j){
+      return '<button type="button" class="pchip qk" onclick="plAddPreset('+j+')">'+p.emoji+' '+esc2(p.name)+'</button>';
+    }).join('');
+  /* l'opzione ⏱ ESISTE solo quando c'è un posto: `hidden` su <option> è
+     ignorato dal picker di iOS Safari, quindi si aggiunge/toglie il nodo */
+  try{
+    var sel=document.getElementById('sort'),so=document.getElementById('sortTempo');
+    if(cur.length&&!so){so=document.createElement('option');so.id='sortTempo';so.value='tempo';so.textContent='⏱ Near your place';sel.appendChild(so);}
+    else if(!cur.length&&so){so.remove();if(S.sort==='tempo')S.sort='match';}
+    sel.value=S.sort;
+  }catch(e){}
+}
+function plAdd(p){
+  if(!PL)return;PL.add(p);S.sort='tempo';
+  placesUI();render();
+  try{boomTrack('place_add',{name:p.name});}catch(e){}
+}
+function plAddPreset(j){var p=_presShown[j];if(p)plAdd({name:p.name,lat:p.lat,lng:p.lng});}
+function plDelIdx(i){
+  var p=plList()[i];if(!p||!PL)return;
+  PL.remove(p.name);placesUI();render();
+  try{boomTrack('place_remove',{name:p.name});}catch(e){}
+}
+/* la ricerca libera: stesso geocoder della scheda casa (Photon, bbox Roma) */
+var _plT=null,_plSeq=0,_sugCache=[];
+async function plSearch(q){
+  var sug=document.getElementById('plSug');if(!sug)return;
+  if(q.length<3){sug.classList.remove('show');return;}
+  var seq=++_plSeq;
+  try{
+    var r=await fetch('https://photon.komoot.io/api/?q='+encodeURIComponent(q)+'&lat=41.893&lon=12.483&limit=4&lang=en&zoom=12');
+    var j=await r.json();if(seq!==_plSeq)return;
+    _sugCache=(j.features||[]).filter(function(f){var c=f.geometry&&f.geometry.coordinates;return c&&_hav([12.483,41.893],[c[0],c[1]])<40;})
+      .map(function(f){var p=f.properties||{},c=f.geometry.coordinates;
+        var nm=(p.name||p.street||'').slice(0,40);
+        return {name:nm,lat:c[1],lng:c[0],sub:[p.street,p.district,p.city].filter(Boolean).filter(function(x){return x!==nm;}).slice(0,2).join(' · ')};});
+    sug.innerHTML=_sugCache.length?_sugCache.map(function(s,i){
+      return '<button type="button" role="option" onclick="plPick('+i+')">'+esc2(s.name)+'<small>'+esc2(s.sub)+'</small></button>';
+    }).join(''):'<div class="none">Nothing found in Rome — try the street or landmark name.</div>';
+    sug.classList.add('show');
+  }catch(e){if(seq===_plSeq){sug.innerHTML='<div class="none">Couldn’t search — check your connection and retry.</div>';sug.classList.add('show');}}
+}
+function plPick(i){
+  var s=_sugCache[i];if(!s)return;
+  plAdd({name:s.name,lat:s.lat,lng:s.lng});
+  var q=document.getElementById('plQ');if(q)q.value='';
+  var sug=document.getElementById('plSug');if(sug)sug.classList.remove('show');
+}
+(function(){
+  var q=document.getElementById('plQ');if(!q)return;
+  q.addEventListener('input',function(){clearTimeout(_plT);var v=q.value.trim();_plT=setTimeout(function(){plSearch(v);},320);});
+  q.addEventListener('keydown',function(e){if(e.key==='Escape'){var s=document.getElementById('plSug');if(s)s.classList.remove('show');}});
+  document.addEventListener('click',function(e){if(!e.target.closest('.pfield')){var s=document.getElementById('plSug');if(s)s.classList.remove('show');}});
+})();
+/* il posto PERSONALIZZATO (ufficio, palestra) merita il suo segnaposto sulla
+   mappa — le 9 ancore classiche esistono già come pill */
+var _plMk=null;
+function placeMark(){
+  if(_plMk){try{_plMk.remove();}catch(e){}_plMk=null;}
+  var p=plPrimary();if(!p||!_dmap)return;
+  if(ANCHORS.some(function(A){return A[2]===p.name;}))return;
+  var el=document.createElement('div');el.className='sky-anchor lit';
+  el.innerHTML='<span class="ic">📍</span><span>'+esc2(p.name)+'</span>';
+  _plMk=new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([p.lng,p.lat]).addTo(_dmap);
+}
 function showLinks(co){
   if(!_dmap||!_dmap.getSource('links'))return;
   /* only the six nearest anchors thread up — nine lines is noise, six is a story */
@@ -1006,14 +1147,15 @@ function skylineDress(map){
     map.setTerrain({source:'d-dem',exaggeration:1.15});
   }catch(e){}
   try{if(map.setSky)map.setSky({'sky-color':'#8FB8E8','horizon-color':'#F2DEB6','fog-color':'#E8E0CE','sky-horizon-blend':.55,'horizon-fog-blend':.5,'fog-ground-blend':.35});}catch(e){}
-  /* the network the estimates ride on — same pack as the engine, one truth */
+  /* the network the estimates ride on — same pack as the engine, one truth.
+     OFF by default: the Skyline stays cinematic; the 🚇 chip lights it up. */
   try{
     if(window.ROMA_TRANSIT){
       var _gj=window.ROMA_TRANSIT.toGeoJSON();
       map.addSource('rt-lines',{type:'geojson',data:_gj.lines});
       map.addSource('rt-st',{type:'geojson',data:_gj.stations});
-      map.addLayer({id:'rt-lines-l',type:'line',source:'rt-lines',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':['get','color'],'line-width':['case',['==',['get','kind'],'metro'],1.9,1],'line-opacity':.5}});
-      map.addLayer({id:'rt-st-l',type:'circle',source:'rt-st',minzoom:11.6,paint:{'circle-radius':['interpolate',['linear'],['zoom'],12,1.5,15,3],'circle-color':'#0E0E12','circle-stroke-color':'#D9D9DE','circle-stroke-width':1,'circle-opacity':.9}});
+      map.addLayer({id:'rt-lines-l',type:'line',source:'rt-lines',layout:{'line-cap':'round','line-join':'round',visibility:'none'},paint:{'line-color':['get','color'],'line-width':['case',['==',['get','kind'],'metro'],1.9,1],'line-opacity':.55}});
+      map.addLayer({id:'rt-st-l',type:'circle',source:'rt-st',minzoom:11.6,layout:{visibility:'none'},paint:{'circle-radius':['interpolate',['linear'],['zoom'],12,1.5,15,3],'circle-color':'#0E0E12','circle-stroke-color':'#D9D9DE','circle-stroke-width':1,'circle-opacity':.9}});
     }
   }catch(e){}
   try{
@@ -1035,10 +1177,16 @@ function skylineDress(map){
     var mv=document.getElementById('mapview');
     if(mv&&!mv.querySelector('.map-chips')){
       var wrap=document.createElement('div');wrap.className='map-chips';
-      wrap.innerHTML='<button type="button" class="mchip" data-m="map">Map</button><button type="button" class="mchip on" data-m="sat">Satellite</button><a class="mchip go" href="/skyline" title="Full-screen Rome">Full screen ↗</a>';
+      wrap.innerHTML='<button type="button" class="mchip" data-m="map">Map</button><button type="button" class="mchip on" data-m="sat">Satellite</button><button type="button" class="mchip" data-m="rt" title="Metro, tram and rail lines">🚇</button><a class="mchip go" href="/skyline" title="Full-screen Rome">Full screen ↗</a>';
       wrap.addEventListener('click',function(ev){
-        var b=ev.target.closest('button.mchip');if(!b||b.classList.contains('on'))return;
-        wrap.querySelectorAll('button.mchip').forEach(function(x){x.classList.toggle('on',x===b)});
+        var b=ev.target.closest('button.mchip');if(!b)return;
+        if(b.dataset.m==='rt'){ /* toggle indipendente: le linee sopra QUALSIASI skin */
+          var on=b.classList.toggle('on');
+          try{map.setLayoutProperty('rt-lines-l','visibility',on?'visible':'none');map.setLayoutProperty('rt-st-l','visibility',on?'visible':'none');}catch(e){}
+          return;
+        }
+        if(b.classList.contains('on'))return;
+        wrap.querySelectorAll('button.mchip:not([data-m="rt"])').forEach(function(x){x.classList.toggle('on',x===b)});
         var sat=b.dataset.m==='sat';
         try{map.setLayoutProperty('d-sat-l','visibility',sat?'visible':'none');}catch(e){}
         try{map.setPaintProperty('b3d','fill-extrusion-opacity',sat?0.45:0.9);}catch(e){}
@@ -1122,14 +1270,16 @@ function plotMarks(list){_marks.forEach(m=>m.remove());_marks=[];closeBlock(true
     var el=document.createElement('a');
     el.className='mpin2'+(saved.has(l.id)?' sv':'')+(l.status==='waitlist'?' wl':'')+(p.exact?'':' zn');
     el.href='/listing/'+encodeURIComponent(l.id);
-    el.textContent=(p.exact?(l.status==='waitlist'?'◌ ':''):'≈ ')+eur(l.price);
-    el.setAttribute('aria-label',l.name+', '+eur(l.price)+' per month'+(p.exact?'':' — approximate zone position'));
+    var _pm=_pmLabel(l);
+    el.textContent=(p.exact?(l.status==='waitlist'?'◌ ':''):'≈ ')+eur(l.price)+(_pm?' · '+_pm:'');
+    el.setAttribute('aria-label',l.name+', '+eur(l.price)+' per month'+(_pm?', about '+_pm+' from your place':'')+(p.exact?'':' — approximate zone position'));
     el.title=p.exact?l.name:(l.name+' · in the '+l.zone+' area');
     el.addEventListener('mouseenter',function(){showLinks(p.co)});
     el.addEventListener('focus',function(){showLinks(p.co)});
     el.addEventListener('click',function(ev){ev.preventDefault();showBlock(p,el);});
     p.el=el;
     var mk=new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat(p.co).addTo(_dmap);_marks.push(mk);b.extend(p.co);});
+  try{placeMark();}catch(e){}
   _ovBounds=b;
   /* Con un solo risultato il bounds ha area zero, quindi fitBounds va diretto
      a maxZoom: a 15.5 con pitch 55 si vedono i tetti e nient'altro — nessuna

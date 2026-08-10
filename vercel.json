@@ -258,6 +258,11 @@
       "source": "/faq-page",
       "destination": "/faq",
       "permanent": true
+    },
+    {
+      "source": "/(tempo|tempo.html)",
+      "destination": "/apartments",
+      "permanent": false
     }
   ],
   "rewrites": [
