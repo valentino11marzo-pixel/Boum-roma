@@ -331,6 +331,7 @@
         </div>
         <div class="stage-bar">
             <button class="btn btn-sm" id="btnAdd">+ Aggiungi foto</button>
+            <button class="btn btn-sm" id="btnAiOrder" style="display:none" title="Il cervello foto BOOM classifica le stanze e propone ordine e copertina — poi ritocchi a mano">✨ Ordina con l'AI</button>
             <button class="btn btn-sm" id="btnCompare" disabled>👁 Tieni premuto: originale</button>
             <button class="btn btn-sm" id="btnGuides">▦ Guide</button>
             <button class="btn btn-sm" id="btnClear" disabled>Svuota</button>
@@ -493,6 +494,7 @@
                 <textarea id="aiOut" readonly style="display:none;width:100%;margin-top:10px;background:var(--bg-input);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px;font-size:12.5px;font-family:inherit;line-height:1.6;min-height:120px;resize:vertical"></textarea>
                 <button class="btn btn-sm btn-block" id="btnAiCopy" style="display:none;margin-top:8px">📋 Copia testo</button>
                 <button class="btn btn-sm btn-block" id="btnAiSave" style="display:none;margin-top:8px">💾 Salva come descrizione dell'annuncio</button>
+                <button class="btn btn-sm btn-block" id="btnAiSaveBoth" style="display:none;margin-top:8px">🌐 Genera e salva descrizione EN + IT</button>
                 <div class="hint">Usa Zona / Prezzo / Locali / Mq dalla <b>Striscia annuncio</b> (tab Brand). Solo questi campi vengono inviati al server — mai le foto. Con un annuncio aperto dal catalogo, il testo "Portale" si può salvare come descrizione (EN aggiorna la scheda del sito, IT il feed portali; l'originale resta conservato).</div>
             </div>
         </div>
@@ -1144,6 +1146,7 @@ function renderNow() {
     $('btnExportAll').disabled = !photos.length;
     $('btnReel').disabled = !photos.length;
     $('btnKit').disabled = !photos.length;
+    $('btnAiOrder').style.display = catalogState.listing ? '' : 'none';
     if (photos.length) scheduleSession();
     if (!has) { $('specs').textContent = ''; return; }
 
@@ -2115,7 +2118,7 @@ function saveSession() {
             imagesOriginal: Array.isArray(L.imagesOriginal) ? L.imagesOriginal.slice() : [],
             photosEnhancedAt: L.photosEnhancedAt || null,
         } : null,
-        photos: photos.map(p => ({ name: p.name, dataUrl: p.dataUrl, adj: Object.assign({}, p.adj), frame: Object.assign({}, p.frame) })),
+        photos: photos.map(p => ({ name: p.name, dataUrl: p.dataUrl, srcUrl: p.srcUrl || null, adj: Object.assign({}, p.adj), frame: Object.assign({}, p.frame) })),
     }).catch(() => {});
 }
 function offerRestore() {
@@ -2137,7 +2140,7 @@ function restoreSession(s) {
         const img = new Image();
         const done = ok => {
             if (ok) slots[i] = {
-                img, name: sp.name, dataUrl: sp.dataUrl,
+                img, name: sp.name, dataUrl: sp.dataUrl, srcUrl: sp.srcUrl || null,
                 adj: Object.assign({}, DEFAULT_ADJ, sp.adj),
                 frame: Object.assign(JSON.parse(JSON.stringify(DEFAULT_FRAME)), sp.frame),
             };
@@ -2284,9 +2287,119 @@ $('btnReelPub').addEventListener('click', async () => {
 /* ── Testo AI → descrizione dell'annuncio (disciplina dello sweep:
       l'originale si conserva SEMPRE in descriptionOriginal) ── */
 function updateAiSave() {
-    $('btnAiSave').style.display =
-        (catalogState.listing && $('aiTipo').value === 'portale' && $('aiOut').value.trim()) ? '' : 'none';
+    const l = catalogState.listing, isPortale = $('aiTipo').value === 'portale';
+    $('btnAiSave').style.display = (l && isPortale && $('aiOut').value.trim()) ? '' : 'none';
+    $('btnAiSaveBoth').style.display = (l && isPortale) ? '' : 'none';
 }
+
+/* ── EN + IT in un colpo: due chiamate al copywriter, un solo salvataggio.
+      EN è la scheda del sito, IT il feed portali — l'annuncio si completa
+      in una mossa e la pagella guadagna i 2 punti della descrizione. ── */
+let savingBoth = false;
+$('btnAiSaveBoth').addEventListener('click', async () => {
+    if (savingBoth) return;
+    const l = catalogState.listing; if (!l) return;
+    const fb = fbReady();
+    if (!fb) { toast('Connessione non disponibile — ricarica la pagina'); return; }
+    const user = fb.auth.currentUser;
+    if (!user) { location.href = '/login?next=' + encodeURIComponent('/media-studio'); return; }
+    if (!confirm('Genero la descrizione in INGLESE (scheda del sito) e ITALIANO (feed portali) e le salvo su "' + (l.name || l.id) + '"?\nL\'attuale resta conservata in descriptionOriginal.')) return;
+    savingBoth = true;
+    const btn = $('btnAiSaveBoth');
+    btn.disabled = true;
+    try {
+        const ask = async lingua => {
+            btn.textContent = '🌐 Scrivo ' + lingua.toUpperCase() + '…';
+            const res = await fetch('/api/media/caption', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tipo: 'portale', lingua,
+                    zona: brand.info.zona, prezzo: brand.info.prezzo,
+                    locali: brand.info.locali, mq: brand.info.mq,
+                    extra: $('aiExtra').value,
+                }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.text) throw new Error(data.error || 'copywriter non disponibile');
+            return data.text.trim();
+        };
+        const en = await ask('en');
+        const it = await ask('it');
+        btn.textContent = '🌐 Salvo…';
+        const patch = {
+            description: en,
+            descriptionIt: it,
+            descriptionSource: 'studio:' + (user.email || user.uid),
+            descriptionAt: new Date().toISOString(),
+        };
+        if (String(l.description || '').trim()) patch.descriptionOriginal = l.description;
+        await fb.db.collection('listings').doc(l.id).update(patch);
+        Object.assign(l, patch);
+        renderPagella();
+        $('aiOut').value = en + '\n\n— IT —\n\n' + it;
+        $('aiOut').style.display = 'block';
+        $('btnAiCopy').style.display = '';
+        toast('Descrizione EN + IT salvata ✓');
+    } catch (e) {
+        console.warn('[Desc EN+IT]', e);
+        toast((e && e.code === 'permission-denied') ? 'Servono permessi admin' : 'Errore: ' + (e.message || e));
+    } finally {
+        savingBoth = false;
+        btn.disabled = false;
+        btn.textContent = '🌐 Genera e salva descrizione EN + IT';
+        updateAiSave();
+    }
+});
+
+/* ── Ordina con l'AI: il piano del cervello foto (api/photos/enhance,
+      audit = zero scritture) applicato alle miniature. L'AI propone,
+      l'operatore rifinisce, la pubblicazione resta un gesto suo. ── */
+let aiOrderBusy = false;
+$('btnAiOrder').addEventListener('click', async () => {
+    if (aiOrderBusy) return;
+    const l = catalogState.listing;
+    if (!l || !photos.length) return;
+    const fb = fbReady();
+    const user = fb && fb.auth.currentUser;
+    if (!user) { location.href = '/login?next=' + encodeURIComponent('/media-studio'); return; }
+    const withSrc = photos.filter(p => p.srcUrl);
+    if (withSrc.length < 2) { toast('L\'ordinamento AI lavora sulle foto aperte dal catalogo'); return; }
+    aiOrderBusy = true;
+    const btn = $('btnAiOrder');
+    btn.disabled = true;
+    btn.textContent = '✨ L\'AI guarda le foto…';
+    try {
+        const tok = await user.getIdToken();
+        const res = await fetch('/api/photos/enhance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+            body: JSON.stringify({ listingId: l.id, mode: 'audit', urls: withSrc.map(p => p.srcUrl) }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok || !data.plan || !Array.isArray(data.plan.order)) {
+            throw new Error((data && (data.error || data.note)) || 'audit non disponibile');
+        }
+        const bySrc = new Map(photos.filter(p => p.srcUrl).map(p => [p.srcUrl, p]));
+        const ordered = data.plan.order.map(o => bySrc.get(o.url)).filter(Boolean);
+        const dupUrls = new Set((data.plan.dropped || []).map(d => d.url));
+        const dupes = photos.filter(p => p.srcUrl && dupUrls.has(p.srcUrl));
+        const rest = photos.filter(p => !ordered.includes(p) && !dupes.includes(p));
+        photos = [...ordered, ...rest, ...dupes];   // mai cancellare: i doppioni vanno in coda
+        activeIdx = 0;
+        renderThumbs(); syncPhotoControls(); render();
+        const cov = data.plan.order.find(o => o.isCover);
+        toast('Ordine AI applicato — copertina: ' + ((cov && cov.room) || 'scelta')
+            + (dupes.length ? ' · ' + dupes.length + ' probabili doppioni in coda' : '')
+            + ' — ritocca pure con le frecce');
+    } catch (e) {
+        console.warn('[AI order]', e);
+        toast('Ordinamento AI non riuscito: ' + (e.message || e));
+    } finally {
+        aiOrderBusy = false;
+        btn.disabled = !photos.length;
+        btn.textContent = '✨ Ordina con l\'AI';
+    }
+});
 $('aiTipo').addEventListener('change', updateAiSave);
 let savingDesc = false;
 $('btnAiSave').addEventListener('click', async () => {
@@ -2384,7 +2497,7 @@ async function openListing(l) {
             const dataUrl = await new Promise((ok, ko) => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.onerror = ko; fr.readAsDataURL(blob); });
             const img = await new Promise((ok, ko) => { const im = new Image(); im.onload = () => ok(im); im.onerror = ko; im.src = dataUrl; });
             slots[i] = {
-                img, dataUrl,
+                img, dataUrl, srcUrl: u,
                 name: safeName(l.name || l.id) + '_' + String(i + 1).padStart(2, '0'),
                 adj: Object.assign({}, DEFAULT_ADJ),
                 frame: JSON.parse(JSON.stringify(DEFAULT_FRAME)),
