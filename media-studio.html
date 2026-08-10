@@ -2326,6 +2326,7 @@ $('btnAiSaveBoth').addEventListener('click', async () => {
         const en = await ask('en');
         const it = await ask('it');
         btn.textContent = '🌐 Salvo…';
+        try { const fd = await fb.db.collection('listings').doc(l.id).get(); if (fd.exists) Object.assign(l, fd.data()); } catch (e) {}
         const patch = {
             description: en,
             descriptionIt: it,
@@ -2417,6 +2418,7 @@ $('btnAiSave').addEventListener('click', async () => {
     savingDesc = true;
     $('btnAiSave').disabled = true;
     try {
+        try { const fd = await fb.db.collection('listings').doc(l.id).get(); if (fd.exists) Object.assign(l, fd.data()); } catch (e) {}
         const patch = {
             descriptionSource: 'studio:' + (user.email || user.uid),
             descriptionAt: new Date().toISOString(),
@@ -2446,19 +2448,43 @@ $('btnCatalog').addEventListener('click', () => { $('catModal').classList.add('o
 $('btnCatClose').addEventListener('click', () => $('catModal').classList.remove('open'));
 $('catModal').addEventListener('click', e => { if (e.target.id === 'catModal') $('catModal').classList.remove('open'); });
 $('catSearch').addEventListener('input', () => renderCatalog());
+// fetch con scadenza: una richiesta che non risponde non deve mai
+// trasformarsi in un "Caricamento…" eterno (lezione Safari del portal)
+function fetchT(url, ms, opts) {
+    const o = Object.assign({}, opts);
+    try { if (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) o.signal = AbortSignal.timeout(ms); } catch (e) {}
+    return fetch(url, o);
+}
+function keepRows(list) {
+    return list
+        .filter(l => (Array.isArray(l.images) && l.images.length) || l.image)
+        .sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id)));
+}
+/* Il catalogo si legge da /api/listings — stesso dominio, niente SDK,
+   fallback admin server-side, edge cache: è la stessa strada del Photo
+   Lab, che non si pianta mai. Firestore diretto resta solo come
+   paracadute se l'endpoint è giù. */
 async function loadCatalog() {
-    const fb = fbReady();
-    if (!fb) { $('catList').innerHTML = '<div class="hint" style="padding:20px;text-align:center">Connessione al catalogo non disponibile — ricarica la pagina e riprova.</div>'; return; }
     if (catLoaded) { renderCatalog(); return; }
+    $('catList').innerHTML = '<div class="hint" style="padding:20px;text-align:center">Caricamento catalogo…</div>';
     try {
-        const snap = await fb.db.collection('listings').limit(300).get();
-        catRows = snap.docs.map(d => Object.assign({ id: d.id }, d.data()))
-            .filter(l => (Array.isArray(l.images) && l.images.length) || l.image)
-            .sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id)));
+        const res = await fetchT('/api/listings', 12000);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok || !Array.isArray(data.listings)) throw new Error(data.error || ('HTTP ' + res.status));
+        catRows = keepRows(data.listings);
         catLoaded = true;
         renderCatalog();
     } catch (e) {
-        $('catList').innerHTML = '<div class="hint" style="padding:20px;text-align:center">Catalogo non raggiungibile: ' + esc(e.message || e) + '</div>';
+        try {
+            const fb = fbReady();
+            if (!fb) throw e;
+            const snap = await fb.db.collection('listings').limit(300).get();
+            catRows = keepRows(snap.docs.map(d => Object.assign({ id: d.id }, d.data())));
+            catLoaded = true;
+            renderCatalog();
+        } catch (e2) {
+            $('catList').innerHTML = '<div class="hint" style="padding:20px;text-align:center">Catalogo non raggiungibile (' + esc(e.message || e) + ') — controlla la connessione e riprova.</div>';
+        }
     }
 }
 function renderCatalog() {
@@ -2519,20 +2545,21 @@ async function openListing(l) {
 }
 
 /* ── Deep-link: /media-studio?listing=<id> apre subito quell'annuncio ──
-   Il portal e Photo Lab linkano qui. Firebase arriva con gli script defer,
-   quindi si riprova per qualche secondo prima di arrendersi. */
+   Il portal e Photo Lab linkano qui. Legge da /api/listings (niente
+   dipendenza dall'SDK, l'endpoint ha già il suo fallback admin). */
 (function deepLink() {
     let id = null;
     try { id = new URLSearchParams(location.search).get('listing'); } catch (e) {}
     if (!id) return;
-    let tries = 0;
-    (function tick() {
-        const fb = fbReady();
-        if (!fb) { if (++tries < 40) setTimeout(tick, 250); else toast('Catalogo non raggiungibile'); return; }
-        fb.db.collection('listings').doc(id).get().then(d => {
-            if (!d.exists) { toast('Annuncio non trovato: ' + id); return; }
-            openListing(Object.assign({ id: d.id }, d.data()));
-        }).catch(e => toast('Catalogo non raggiungibile: ' + (e.message || e)));
+    (async () => {
+        try {
+            const res = await fetchT('/api/listings?id=' + encodeURIComponent(id), 12000);
+            const data = await res.json().catch(() => ({}));
+            if (res.ok && data.ok && data.listing) { openListing(data.listing); return; }
+            throw new Error((data && data.error) || 'annuncio non trovato');
+        } catch (e) {
+            toast('Annuncio non caricabile: ' + (e.message || e));
+        }
     })();
 })();
 
@@ -2551,6 +2578,9 @@ $('btnSaveCatalog').addEventListener('click', async () => {
     $('catSaveProgress').style.display = 'block';
     const prog = (p, t) => { $('catSaveFill').style.width = p + '%'; $('catSaveLbl').textContent = t; };
     try {
+        // l'elenco arriva dall'edge cache: la scrittura si basa sul
+        // documento com'è ADESSO (originali e foto correnti freschi)
+        try { const fd = await fb.db.collection('listings').doc(l.id).get(); if (fd.exists) Object.assign(l, fd.data()); } catch (e) {}
         const stamp = Date.now();
         const urls = [];
         for (let i = 0; i < photos.length; i++) {
