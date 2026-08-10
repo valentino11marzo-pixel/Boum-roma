@@ -1767,6 +1767,48 @@ quindi il contratto col Mac è "nel dubbio manda". Test:
 ### POST `/api/homie/property`
 Homie → PFS bridge. Homie scrapes a property (Immobiliare/Idealista/etc.), calls this with the listing data. Validates, then delegates to the shared ingestion pipeline `api/pfs/_ingest.js` (dedupe on `pfsProperties/<sha1(sourceUrl)>`, agency filter, scoring via `api/homie/_match.js`, push score ≥ 60 into each active client's `portalProperties` swipe deck). Client-portal.html already listens and triggers a "New Property!" alert on the client's phone. Auth via `X-Homie-Secret`. See file header for payload schema.
 
+### GET/POST `/api/homie/miniera` — LA MINIERA (lo storico diventa un verdetto)
+La risposta a "come rendiamo Homie game changer?": **si misura prima di
+scegliere** (studio completo: `STUDIO_HOMIE_GAME_CHANGER.md`). Sul Mac ci
+sono MESI di conversazioni WhatsApp (wacli); in Firestore ci sono gli ESITI
+(lead → visite → contratti firmati) e le APPROVAZIONI (`action_queue`).
+Uniti per telefono sono il dataset conversazione→esito che nessun
+competitor ha — e il VERDETTO che ne esce decide quale potere costruire.
+- **Lato Mac** (`homie-bridge/agent-os/bin/miniera.sh` +
+  `miniera_extract.py`): estrae TUTTO lo storico wacli (tollerante alle
+  varianti di campo), riduce ogni conversazione a UNA riga — conteggi,
+  tempi, latenza di prima risposta, direzione dell'ultima parola, campioni
+  corti (≤240/1200 char) — **mai l'archivio integrale** (D2); gruppi
+  esclusi alla porta; salta gli invariati (hash `msgCount:lastTs`, parità
+  cross-linguaggio testata); POSTa a lotti da 100. Il Mac fa SESSIONE,
+  ogni giudizio sta nel motore server (regola di `bot/HOMIE.md`).
+  **Trappola vera trovata dai test**: la parte utente di un JID WhatsApp è
+  un internazionale SENZA `+` (`393331234567@…`) — nuda dentro
+  `normalizePhone` raddoppiava il prefisso (`+39393…`) e il join mancava
+  la persona; guarita a entrambe le porte.
+- **Motore** `js/miniera-engine.js` (UMD `BOOM_MINIERA`, puro): join per
+  telefono in TUTTE le forme (parità con `homie/_lead.js` testata),
+  precedenza ruoli (chi ha firmato è un tenant, non più un lead), funnel,
+  conversione per bucket di latenza (tassi SOLO dove il campione regge —
+  lezione D4 del Perito), lingue via `replyLang`, orari Roma, obiezioni,
+  **libro dei silenzi** (unanswered: l'ultima parola è del cliente, chiunque
+  sia, col ruolo in chiaro; coldOpen: re-ingaggio con i VETI prima del
+  punteggio — mai inquilini/proprietari/PFS, mai firmati, mai lead morti,
+  mai oltre 120gg, mai senza un segnale vero), thread d'oro,
+  `approvalStats` (la materia prima della scala della fiducia),
+  `verdict()`: classifica motivata dei poteri candidati (Segugio, visite
+  auto, velocità, playbook, dossier; radar-proprietari dichiarato NON
+  misurabile dalle chat), `tgSummary` HTML-escapato.
+- **Porta** (auth `X-Homie-Secret`): GET → stato + mappa id→hash (sync
+  incrementale); POST `op:'threads'` → upsert idempotente in
+  `minieraThreads` (id = sha1(chatId), admin-only in firestore.rules — la
+  lezione propertyLocks); POST `op:'study'` → legge gli esiti reali,
+  esegue il motore, scrive `teamReports/miniera-<data>`, recap Telegram
+  col podio. Heartbeat `pfsRadarHealth/miniera` (allerta esistente dopo 3
+  run falliti). maxDuration 60.
+- Lancio dal Mac: `bash homie-bridge/agent-os/bin/miniera.sh` (`--dry`
+  conta senza mandare). Test: `node tests/miniera/run.mjs`.
+
 ## PFS Radar (automated market scan — api/pfs/*)
 
 The PFS pipeline finds rental listings for paying search clients with no
@@ -2120,6 +2162,7 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/pfs/health.mjs` | Allarmi del radar: una fonte BLOCCATA all'origine parla una volta sola (200 run → 1 messaggio), un guasto vero si dirada invece di gridare ogni 6h (40 giorni → 8 promemoria), i primi due intoppi non svegliano nessuno, e il ritorno si sente sempre |
   | `tests/pfs/eyes.mjs` | Gli occhi di Homie sul radar PFS: nella lista di lavoro non entrano ricerche spente o con URL rotti, la manopola manuale (`urlOverride`) vince sempre, e — la regola che conta — un radar CIECO (403/captcha su tutte le ricerche) non passa mai per un mercato fermo |
   | `tests/whatsapp/run.mjs` | Da WhatsApp a lead senza AI: il rumore resta fuori (👍, "ok") e la persona vera entra, l'inquilino che scrive per la caldaia non inquina la pipeline, un lead per persona anche col numero archiviato in formato diverso (nazionale vs internazionale), una risposta umana zittisce il Commerciale. Guida il handler VERO su un Firestore finto in memoria |
+  | `tests/miniera/run.mjs` | La Miniera: il join aggancia la persona in OGNI forma del numero (parità con `_lead.js`, JID senza `+` guarito), i veti del libro dei silenzi (inquilini/firmati/morti/oltre 120gg MAI nel re-ingaggio), sotto campione NIENTE percentuali (per mutazione), il verdetto motivato coi numeri, parità cross-linguaggio con l'estrattore Python, handler vero su Firestore in memoria |
   | `tests/wizard/local_brain.py` | Il cervello gratis del bot wizard (`python3`): cosa capisce senza modello e — più importante — cosa deve rifiutarsi di capire. Una domanda ("Levico è affittato?") non può diventare una scrittura; un annuncio nuovo dettato non può diventare la modifica di uno esistente. Estrae le funzioni pure dal bot via AST: gira senza `.env`, senza Telegram, senza rete |
   | `tests/executive/run.mjs` | BOOM Executive: il professionista in trasferta resta un TENANT nella macchina piena, il datore dichiarato (`employer`) non viene scambiato per l'honeypot (`company`), la voce B2B tace col tenant e parla con l'ente — con la guardia PRIMA della spesa, asserita sull'ordine nel sorgente |
   | `tests/verbale/run.mjs` | verbale consegna chiavi: il PDF vero (WinAnsi-ostile compreso) viaggia in allegato a conduttori/co-conduttori/proprietario/admin, owner solo sui contratti dei propri immobili (403 = zero scritture), firme richieste per entrambi i lati, sul contratto restano solo i NOMI mai i dataURI |

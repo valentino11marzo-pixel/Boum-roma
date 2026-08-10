@@ -285,6 +285,10 @@ service cloud.firestore {
     // un doc per (portale, listing) con l'hash del contenuto pubblicato.
     // Scritti solo server-side con credenziali admin — stessa lezione.
     match /portalPubs/{x}                  { allow read, write: if isAdmin(); }
+    // LA MINIERA — righe per-thread dello storico WhatsApp (feature +
+    // campioni corti, mai l'archivio integrale — api/homie/miniera.js).
+    // Scritte solo server-side con credenziali admin — stessa lezione.
+    match /minieraThreads/{x}              { allow read, write: if isAdmin(); }
 
     // ─── Default deny ─────────────────────────────────────────────────
     match /{document=**} {
