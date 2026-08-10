@@ -132,6 +132,34 @@ device 3 → **1**.
 
 ---
 
+## 5. Audit pre-live (globale e multinazionale) — 2026-08-10
+
+L'ultimo giro prima del merge, con un criterio solo: **la pagina deve
+leggersi come l'azienda vera** — P.IVA, persone, canali reali — mai come un
+sito generato. Interventi:
+
+- **Il canale vero in pagina**: WhatsApp (wa.me/393313251961, lo stesso di
+  tutto il sito) nella riga sotto il form e nel footer; `contactPoint` con
+  telefono ed email nel JSON-LD Organization — un'azienda seria si può
+  chiamare, e lo dichiara anche alle macchine.
+- **Chi risponde ha un nome**: lo stato "fascicolo aperto" dice *Valentino
+  or the team* — è vero (è chi firma già i messaggi WhatsApp del sistema)
+  ed è il segnale anti-sito-AI più forte che abbiamo.
+- **Onestà dell'hero**: "Serving people at" → **"Built for people at"** —
+  posizionamento, non track record non provabile. Si torna a "Serving"
+  quando ci sono clienti reali di quei flussi da citare.
+- **Ancore sotto la nav fissa**: `scroll-margin-top` su tutte le sezioni e
+  sul form; `#contact` ora punta al FORM (su mobile la CTA atterrava a
+  inizio hero, non sulla porta).
+- **Italiano da madrelingua**: ripassate le stringhe IT (es. "Progettato
+  per chi lavora per — FAO…").
+- **Allineamento a main del giorno**: merge di 560 commit, zero conflitti,
+  batteria completa (49 suite) verde sul risultato; `lastmod` sitemap
+  aggiornato.
+- Multinazionale: EN canonico + IT via `?lang=it` con hreflang corretti;
+  valute e date localizzate nei placeholder; en/it dichiarate in ogni
+  Service e nel contactPoint.
+
 Fonti benchmark: [Blueground](https://www.theblueground.com/) ·
 [Blueground corporate](https://www.theblueground.com/furnished-corporate-apartments) ·
 [Blueground — funding/press](https://www.prnewswire.com/news-releases/blueground-tops-28-million-in-funding-to-expand-its-network-of-beautifully-designed-tech-powered-apartments-300807146.html) ·
