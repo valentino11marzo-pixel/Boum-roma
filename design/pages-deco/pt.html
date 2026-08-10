@@ -166,10 +166,10 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   align-items:center; grid-template-columns:1fr; }
 @media (min-width:1080px){ .hero-int {
   grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr); } }
-.hero-eyebrow { display:inline-flex; align-items:center; gap:10px; padding:8px 15px;
+.hero-eyebrow { display:inline-flex; align-items:center; gap:9px; padding:7px 14px;
   box-shadow:inset 0 0 0 1px var(--line-gold); border-radius:100px;
-  font-size:10.5px; font-weight:600; letter-spacing:.22em;
-  text-transform:uppercase; color:var(--gold); }
+  font-size:10px; font-weight:600; letter-spacing:.22em;
+  text-transform:uppercase; color:var(--gold); line-height:1.2; }
 .hero-eyebrow b { width:6px; height:6px; border-radius:50%; background:var(--green);
   animation:pulse 2.2s ease infinite; }
 @keyframes pulse { 50% { opacity:.35; } }
@@ -183,15 +183,75 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   align-items:center; }
 
 /* «when do you land?» — l'atterraggio è il primo gesto del funnel */
-.atterro { margin-top:18px; display:inline-flex; align-items:center; gap:0;
-  background:var(--card); box-shadow:inset 0 0 0 1px var(--line);
-  border-radius:100px; padding:5px 5px 5px 18px; max-width:100%; }
-.atterro label { font-size:11px; letter-spacing:.14em; text-transform:uppercase;
-  color:var(--text-3); white-space:nowrap; margin-right:12px; }
-.atterro input { color-scheme:dark; font-size:14px; padding:9px 4px;
-  min-width:0; width:150px; }
-.atterro input:focus { outline:none; }
-.atterro .btn { padding:11px 20px; font-size:11px; }
+.atterro { position:relative; margin-top:20px; display:inline-flex;
+  align-items:center; gap:0; background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--line); border-radius:100px;
+  padding:5px 5px 5px 20px; max-width:100%;
+  transition:box-shadow .3s ease; }
+.atterro:focus-within { box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.atterro label { font-size:10px; font-weight:600; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--text-3); white-space:nowrap;
+  margin-right:14px; }
+.atterro-data { display:inline-flex; align-items:center; gap:9px;
+  padding:10px 6px; font-size:14px; color:var(--text-2); cursor:pointer;
+  min-width:132px; transition:color .25s; }
+.atterro-data:hover { color:var(--text); }
+.atterro-data.scelta { color:var(--text); font-weight:400; }
+.atterro-data svg { width:15px; height:15px; flex:none; color:var(--text-4);
+  fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; }
+.atterro-data.scelta svg { color:var(--gold); }
+.atterro .btn { padding:12px 22px; font-size:11px; }
+
+/* il calendario BOOM: lo strumento, non il picker del browser */
+.cal { position:absolute; left:0; top:calc(100% + 10px); z-index:80;
+  width:314px; max-width:calc(100vw - 36px); padding:16px 16px 13px;
+  background:var(--void);
+  box-shadow:inset 0 0 0 1px var(--line-gold), 0 34px 80px -30px rgba(0,0,0,.95);
+  opacity:0; visibility:hidden; transform:translateY(-6px);
+  transition:opacity .28s var(--ease), transform .28s var(--ease),
+    visibility .28s; }
+.cal.aperto { opacity:1; visibility:visible; transform:none; }
+.cal-testa { display:flex; align-items:center; justify-content:space-between;
+  gap:10px; margin-bottom:11px; }
+.cal-testa b { font-family:var(--display); font-size:14px; font-weight:400;
+  letter-spacing:.06em; }
+.cal-fx { display:flex; gap:6px; }
+.cal-fx button { width:30px; height:30px; display:grid; place-items:center;
+  font-size:15px; color:var(--text-3);
+  box-shadow:inset 0 0 0 1px var(--line); cursor:pointer;
+  transition:color .2s, box-shadow .2s; }
+.cal-fx button:hover { color:var(--gold);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.cal-sett { display:grid; grid-template-columns:repeat(7,1fr); gap:2px;
+  margin-bottom:3px; }
+.cal-sett span { text-align:center; font-size:8.5px; font-weight:600;
+  letter-spacing:.14em; color:var(--text-4); text-transform:uppercase;
+  padding:4px 0; }
+.cal-giorni { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+.cal-giorni button { position:relative; height:36px; display:grid;
+  place-items:center; font-size:12.5px; color:var(--text-2);
+  font-variant-numeric:tabular-nums; cursor:pointer;
+  transition:background .15s, color .15s; }
+.cal-giorni button:hover:not(:disabled) { background:rgba(255,215,0,.09);
+  color:var(--text); }
+.cal-giorni button:disabled { color:var(--text-4); opacity:.45;
+  cursor:default; }
+.cal-giorni button.fuori { color:var(--text-4); }
+.cal-giorni button.oggi::after { content:''; position:absolute; bottom:4px;
+  left:50%; transform:translateX(-50%); width:3px; height:3px;
+  border-radius:50%; background:var(--gold); }
+.cal-giorni button.sel { background:var(--gold); color:var(--black);
+  font-weight:600; }
+.cal-giorni button.sel.oggi::after { background:var(--black); }
+.cal-piede { margin-top:10px; padding-top:10px;
+  border-top:1px solid var(--line-0); display:flex; align-items:center;
+  justify-content:space-between; gap:8px; }
+.cal-piede .hint { font-size:10.5px; color:var(--text-4); }
+.cal-piede button { font-size:10px; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--text-3); padding:6px 10px;
+  box-shadow:inset 0 0 0 1px var(--line); cursor:pointer; transition:.2s; }
+.cal-piede button:hover { color:var(--gold);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
 @media (max-width:640px){
   .atterro { display:flex; flex-wrap:wrap; gap:8px; width:100%;
     border-radius:22px; padding:12px 14px; }
@@ -239,6 +299,18 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   box-shadow:inset 0 -1px 0 var(--line-gold); }
 .scalo-tag b { display:block; font-family:var(--display); font-size:28px;
   font-weight:300; letter-spacing:.22em; text-indent:.22em; color:var(--gold); }
+/* la destinazione ti chiama: due anelli quieti che nascono dal cartellino */
+.scalo-eco { position:absolute; left:50%; top:50%; width:0; height:0;
+  pointer-events:none; }
+.scalo-eco i { position:absolute; left:50%; top:50%;
+  transform:translate(-50%,-50%); border:1px solid rgba(255,215,0,.4);
+  border-radius:50%; opacity:0; font-style:normal;
+  animation:eco-rom 5.5s ease-out infinite; }
+.scalo-eco i:nth-child(2){ animation-delay:-2.75s; }
+@keyframes eco-rom {
+  0% { width:26px; height:26px; opacity:.34; border-width:1px; }
+  100% { width:190px; height:190px; opacity:0; border-width:.5px; } }
+@media (prefers-reduced-motion:reduce){ .scalo-eco { display:none; } }
 .scalo-tag span { display:block; margin-top:3px; font-size:9.5px;
   letter-spacing:.26em; text-transform:uppercase; color:var(--text-3); }
 
@@ -269,9 +341,9 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   gap:12px; padding:14px 18px; border-bottom:1px solid var(--line-0); }
 .board-testa b { font-size:10.5px; font-weight:600; letter-spacing:.24em;
   text-transform:uppercase; color:var(--text-2); }
-.board-live { display:inline-flex; align-items:center; gap:7px; padding:5px 11px;
-  box-shadow:inset 0 0 0 1px rgba(0,255,136,.3);
-  font-size:9.5px; font-weight:700; letter-spacing:.18em; color:var(--green); }
+.board-live { display:inline-flex; align-items:center; gap:7px; height:22px;
+  padding:0 10px; box-shadow:inset 0 0 0 1px rgba(0,255,136,.3);
+  font-size:9px; font-weight:700; letter-spacing:.18em; color:var(--green); }
 .board-live i { font-style:normal; width:5px; height:5px; border-radius:50%;
   background:var(--green); animation:pulse 1.8s ease infinite; }
 .tab-righe { padding:6px 0 2px; }
@@ -367,7 +439,8 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .casa-p .home-foto img { width:100%; height:100%; object-fit:cover;
   transition:transform 1.3s var(--ease); }
 .casa-p:hover .home-foto img { transform:scale(1.05); }
-.casa-chip { position:absolute; left:10px; top:10px; padding:5px 9px;
+.casa-chip { position:absolute; left:10px; top:10px; height:22px;
+  display:inline-flex; align-items:center; padding:0 9px;
   border-radius:5px; background:rgba(3,3,3,.78); backdrop-filter:blur(8px);
   font-size:8.5px; font-weight:700; letter-spacing:.16em;
   text-transform:uppercase; color:var(--gold-light);
@@ -413,6 +486,14 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   place-items:center; border-radius:50%;
   box-shadow:inset 0 0 0 1.5px var(--line-gold-2); font-family:var(--display);
   font-size:12.5px; color:var(--gold); font-variant-numeric:tabular-nums; }
+.tappa > div { flex:1; min-width:0; }
+.tappa .tempo { flex:none; align-self:flex-start; margin-top:3px; height:20px;
+  display:inline-flex; align-items:center; padding:0 8px; font-size:8.5px;
+  font-weight:700; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--text-3); box-shadow:inset 0 0 0 1px var(--line);
+  border-radius:5px; white-space:nowrap; }
+.tappa .tempo.oro { color:var(--gold-light);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
 .tappa h3 { font-size:14.5px; font-weight:400; }
 .tappa p { margin-top:3px; font-size:12px; line-height:1.55;
   color:var(--text-3); max-width:38ch; }
@@ -565,7 +646,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       <path d="M330 8 C 240 18, 120 44, 8 108"/>
     </svg>
     <span class="scalo-punto"></span>
-    <span class="scalo-tag"><b>ROM</b><span>Rome · Italy</span></span>
+    <span class="scalo-tag"><span class="scalo-eco" aria-hidden="true"><i></i><i></i></span><b>ROM</b><span>Rome · Italy</span></span>
   </div>
 
   <div class="container hero-int">
@@ -580,9 +661,26 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         <a class="btn btn-secondary" href="COME_URL">How It Works</a>
       </div>
       <form class="atterro" id="atterro">
-        <label for="quando">When do you land?</label>
-        <input type="date" id="quando" aria-label="Your arrival date">
-        <button type="submit" class="btn btn-primary">Find homes</button>
+        <label id="quandoEti">When do you land?</label>
+        <button type="button" class="atterro-data" id="quandoBtn"
+          aria-haspopup="dialog" aria-expanded="false"
+          aria-labelledby="quandoEti">
+          <svg viewBox="0 0 24 24"><path d="M5 6h14a1.5 1.5 0 0 1 1.5 1.5V19a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 19V7.5A1.5 1.5 0 0 1 5 6zM8 3.5v5m8-5v5M3.5 11h17"/></svg>
+          <span id="quandoTesto">Pick a date</span></button>
+        <button type="submit" class="btn btn-primary" id="quandoVai">Find homes</button>
+        <div class="cal" id="cal" role="dialog" aria-label="Choose your arrival date">
+          <div class="cal-testa"><b id="calMese">—</b>
+            <div class="cal-fx">
+              <button type="button" id="calPrec" aria-label="Previous month">‹</button>
+              <button type="button" id="calSucc" aria-label="Next month">›</button>
+            </div></div>
+          <div class="cal-sett" aria-hidden="true"><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span></div>
+          <div class="cal-giorni" id="calGiorni"></div>
+          <div class="cal-piede">
+            <span class="hint" id="calHint">Any date — we'll match availability.</span>
+            <button type="button" id="calSubito">ASAP</button>
+          </div>
+        </div>
       </form>
       <div class="hero-stats" id="heroStats">
         <div class="hero-stat"><div class="hero-stat-value" data-fine="48" data-suff="h">0h</div>
@@ -680,16 +778,20 @@ CASE_TRE
       <div class="tappe">
         <div class="tappa"><span class="n">1</span>
           <div><h3>Browse &amp; choose</h3>
-            <p>Every home video-verified, transparent pricing.</p></div></div>
+            <p>Every home video-verified, transparent pricing.</p></div>
+          <span class="tempo">Video</span></div>
         <div class="tappa"><span class="n">2</span>
-          <div><h3>Apply in 2 minutes</h3>
-            <p>A real human answers, fast — not in weeks.</p></div></div>
+          <div><h3>Apply</h3>
+            <p>A real human answers, fast — not in weeks.</p></div>
+          <span class="tempo oro">2 min</span></div>
         <div class="tappa"><span class="n">3</span>
           <div><h3>Sign &amp; pay securely</h3>
-            <p>Registered contract, deposit protected, Stripe.</p></div></div>
+            <p>Registered contract, deposit protected.</p></div>
+          <span class="tempo">Stripe</span></div>
         <div class="tappa"><span class="n">4</span>
-          <div><h3>Move in within 48h</h3>
-            <p>Keys in hand, utilities ready.</p></div></div>
+          <div><h3>Move in</h3>
+            <p>Keys in hand, utilities ready.</p></div>
+          <span class="tempo oro">48h</span></div>
       </div>
       <a class="vedi" href="COME_URL">See it live, step by step →</a>
     </div>
@@ -856,18 +958,88 @@ CASE_TRE
   }
   batti(); setInterval(batti, 20000);
 
-  /* «when do you land?» → Apartments con la data nell'ancora */
-  var forma = document.getElementById('atterro');
-  if (forma) {
-    var dentro = forma.querySelector('input');
+  /* «when do you land?» — il calendario BOOM, millimetrico */
+  (function () {
+    var forma = document.getElementById('atterro');
+    if (!forma) return;
+    var btn = document.getElementById('quandoBtn');
+    var testo = document.getElementById('quandoTesto');
+    var vai = document.getElementById('quandoVai');
+    var cal = document.getElementById('cal');
+    var mesEti = document.getElementById('calMese');
+    var griglia = document.getElementById('calGiorni');
     var oggi = new Date(); oggi.setHours(12, 0, 0, 0);
-    dentro.min = oggi.toISOString().slice(0, 10);
+    var vista = new Date(oggi.getFullYear(), oggi.getMonth(), 1, 12);
+    var scelta = null;
+    var MESI = ['January','February','March','April','May','June','July',
+      'August','September','October','November','December'];
+    function iso(d) { return d.toISOString().slice(0, 10); }
+    function bella(d) {
+      return d.toLocaleDateString('en-GB',
+        { weekday: 'short', day: 'numeric', month: 'short' });
+    }
+    function dipingi() {
+      mesEti.textContent = MESI[vista.getMonth()] + ' ' + vista.getFullYear();
+      var prima = new Date(vista);
+      var slitta = (prima.getDay() + 6) % 7;   /* lunedì in testa */
+      prima.setDate(1 - slitta);
+      var h = '';
+      for (var i = 0; i < 42; i++) {
+        var d = new Date(prima); d.setDate(prima.getDate() + i);
+        var fuori = d.getMonth() !== vista.getMonth();
+        var passato = d < oggi;
+        var cls = (fuori ? ' fuori' : '')
+          + (iso(d) === iso(oggi) ? ' oggi' : '')
+          + (scelta && iso(d) === iso(scelta) ? ' sel' : '');
+        h += '<button type="button" data-d="' + iso(d) + '"'
+          + (passato ? ' disabled' : '') + (cls ? ' class="' + cls.trim() + '"' : '')
+          + '>' + d.getDate() + '</button>';
+      }
+      griglia.innerHTML = h;
+    }
+    function apri(si) {
+      cal.classList.toggle('aperto', si);
+      btn.setAttribute('aria-expanded', si ? 'true' : 'false');
+      if (si) dipingi();
+    }
+    btn.addEventListener('click', function () {
+      apri(!cal.classList.contains('aperto'));
+    });
+    document.getElementById('calPrec').addEventListener('click', function () {
+      vista.setMonth(vista.getMonth() - 1); dipingi();
+    });
+    document.getElementById('calSucc').addEventListener('click', function () {
+      vista.setMonth(vista.getMonth() + 1); dipingi();
+    });
+    griglia.addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-d]');
+      if (!b || b.disabled) return;
+      scelta = new Date(b.dataset.d + 'T12:00:00');
+      testo.textContent = bella(scelta);
+      btn.classList.add('scelta');
+      vai.textContent = 'Find homes · ' + scelta.toLocaleDateString('en-GB',
+        { day: 'numeric', month: 'short' });
+      apri(false);
+    });
+    document.getElementById('calSubito').addEventListener('click', function () {
+      scelta = new Date(oggi);
+      testo.textContent = 'ASAP — ' + bella(scelta);
+      btn.classList.add('scelta');
+      vai.textContent = 'Find homes · now';
+      apri(false);
+    });
+    addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') apri(false);
+    });
+    document.addEventListener('click', function (e) {
+      if (!forma.contains(e.target)) apri(false);
+    });
     forma.addEventListener('submit', function (e) {
       e.preventDefault();
       var base = 'AP_URL';
-      location.href = dentro.value ? base + '#dal=' + dentro.value : base;
+      location.href = scelta ? base + '#dal=' + iso(scelta) : base;
     });
-  }
+  })();
   }
   if (document.readyState === 'complete') via();
   else addEventListener('load', via);
