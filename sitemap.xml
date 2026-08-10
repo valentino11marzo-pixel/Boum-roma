@@ -45,6 +45,14 @@
     <xhtml:link rel="alternate" hreflang="en" href="https://www.boomrome.com/reunion?lang=en"/>
   </url>
   <url>
+    <loc>https://www.boomrome.com/executive</loc>
+    <lastmod>2026-08-10</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.88</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.boomrome.com/executive"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://www.boomrome.com/executive?lang=it"/>
+  </url>
+  <url>
     <loc>https://www.boomrome.com/remote-move-pack</loc>
     <lastmod>2026-08-02</lastmod>
     <changefreq>monthly</changefreq>

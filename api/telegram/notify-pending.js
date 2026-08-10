@@ -15,7 +15,7 @@ import { tgSend, fmtAction, actionKeyboard } from './_lib.js';
 import { fmtViewingCard, viewingKeyboard } from './_viewings.js';
 import { loadViewing } from '../viewings/_apply.js';
 import { replyLang } from '../_lang.js';
-import { isReunion, reunionReplyText } from '../_market.js';
+import { isReunion, reunionReplyText, isB2B, b2bReplyText } from '../_market.js';
 
 const MAX_PER_RUN = 10; // cap so a backlog doesn't spam Telegram
 const esc = s => String(s || '').replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c]));
@@ -142,6 +142,7 @@ export default async function handler(req, res) {
       // WhatsApp reads as a live thread, not as a source label — the operator
       // must see at a glance that someone is waiting on the other side.
       const src = isReunion(l) ? '🇷🇪 La Réunion'
+        : isB2B(l) ? '🏢 ente / azienda'
         : String(l.source || '') === 'whatsapp' ? '💬 ti ha scritto su WhatsApp'
         : esc(l.source || '?');
       const head = l.grade
@@ -176,7 +177,10 @@ export default async function handler(req, res) {
         // La Réunion parla francese e non ha nulla a che vedere col catalogo
         // romano: il messaggio pronto qui sotto manderebbe a un proprietario
         // di Saint-Pierre il link agli appartamenti di Roma, in inglese.
-        const msgTxt = isReunion(l) ? reunionReplyText(l) : inThread
+        // Un ente/azienda (B2B) invece parla di PERSONE DA SISTEMARE, non di
+        // una casa per sé: la voce inquilino ("ti andrebbe una visita?") a un
+        // HR è la stessa figuraccia in un altro vestito.
+        const msgTxt = isReunion(l) ? reunionReplyText(l) : isB2B(l) ? b2bReplyText(l) : inThread
           ? (en
             ? (`Hi${first ? ' ' + first : ''}, Valentino here 👋` +
                (title ? ` Here's everything on "${title}" — photos, video and details: ${link}` : ` ${link}`) +

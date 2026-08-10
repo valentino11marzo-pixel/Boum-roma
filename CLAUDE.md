@@ -798,6 +798,74 @@ giusto (per condividere un link mirato).
   binario: gli alias del ruolo, il budget d'acquisto che non diventa MAI un
   canone mensile, e la riserva carte T scritta invece che sottintesa.
 
+### BOOM Executive (`/executive` + `api/executive-lead.js` + `STUDIO_EXECUTIVE_ROMA.md`)
+La nuova stagione: sfondare oltre gli studenti sui **lavoratori stranieri di
+alto livello in trasferta a Roma** (transitori 1–18 mesi) e, di conseguenza,
+sulle aziende. La Réunion resta il laboratorio del PATTERN (pagina bilingue →
+lead nello schema esistente → guardia che zittisce la macchina sbagliata);
+questo è il pattern applicato al mercato primario. Lo studio di settore —
+i sei flussi veri di Roma (agenzie ONU FAO/WFP/IFAD, doppio corpo diplomatico
+Italia+Santa Sede, secondment aziendali, ricerca/ERC, sanità, produzioni
+Cinecittà), il varco competitivo, il playbook 90 giorni e le righe rosse da
+non promettere — sta in `STUDIO_EXECUTIVE_ROMA.md`.
+- **`executive.html` (`/executive`)** — EN-first con toggle IT (`?lang=it`,
+  mai dedotta dal browser: la canonical dichiara en). **Pagina di
+  CONVERSIONE, non brochure** — quarta iterazione, dopo tre bocciature del
+  fondatore (v1 = layout clonato dalla Réunion; v2 = marca estranea
+  serif/carta; v3 = stile BOOM giusto ma "chaotic, dispersive,
+  overwhelming": 2.003 parole prima del form, 3 CTA nel solo hero). I due
+  studi che la governano: **`STUDIO_EXECUTIVE_UIX.md`** (le espressioni
+  vere del brand: boom-2026.css con oro **#FFD700** — mai il #D4AF37 del
+  portal — layer tech di index, lockup `BOOM │ EXECUTIVE ROMA` unico
+  elemento di marca nuovo) e **`STUDIO_EXECUTIVE_CONVERSIONE.md`**
+  (benchmark sui convertitori veri: Blueground/Homelike/Spotahome +
+  modello relocation → UNA porta, prodotto/prova subito, ≤8 blocchi, form
+  ≤5 campi, B2B su binario separato). Architettura: **il form È l'hero**
+  ("Get options today", 5 campi visibili + "More details" a scomparsa —
+  l'attribuzione `sector` non si perde, si nasconde), ~89 parole prima del
+  form, prova subito (★4.9 · registrati · *serving people at FAO · WFP ·
+  IFAD · embassies…*), macchina sussurrata in UNA riga mono, sei flussi
+  in griglia compatta (ancore `#seg-un`…), contratto compatto con striscia
+  Magic Sign, il corporate SOLO in fam strip/footer/una riga (lezione
+  Homelike: il B2B non inquina il flusso persona). Reveal `.rv` con rete
+  `<noscript>` + fallback senza IO. GEO: blocco "in brief" citabile, FAQ
+  visibili = FAQPage JSON-LD, @graph con DUE Service (persona →
+  /executive, azienda → /corporate), og `og-executive.png` generata dal
+  repo (headless_shell — il chromium "vecchio" headless perde il footer a
+  630px esatti). Alias redirect: `/executive-rentals`, `/executive-stays`,
+  `/relocation-rome`.
+- **`POST /api/executive-lead`** — porta pubblica irrigidita (honeypot
+  `company`, rate limit IP, clip/num con separatori migliaia: "2.500" è
+  2500, mai due euro e mezzo — e formattazione €2.500 deterministica, MAI
+  toLocaleString che con small-ICU degrada in silenzio). Il professionista È
+  un tenant: `leadType:'tenant'`, `intent:'executive_relocation'`,
+  `market:'roma'`, lingua default **en** — la macchina esistente (Brain →
+  notify-pending → Commerciale) lo lavora al completo. In testa al riassunto:
+  `EXECUTIVE — Roma · <settore> · <datore> · zona · ~€X/mese · arrivo ·
+  durata` (settore da select chiusa `SECTORS`, mai testo libero inventato —
+  l'attribuzione per flusso è gratis dal giorno uno). **Il campo visibile del
+  datore si chiama `employer`**: la lezione webforms, un executive che
+  dichiara l'azienda non è un bot.
+- **La voce B2B (`api/_market.js`: `isB2B`/`b2bSide`/`b2bReplyText`)** —
+  l'ALTRO asse rispetto a isReunion: non "che mercato" ma "che voce". I
+  moduli partner (università/aziende/ricerca/proprietari, source `partner`),
+  leadType `company` e intent `partner-*` sono enti: il **Commerciale TACE**
+  (guardia PRIMA di proposeFirstReply, come la guardia Réunion — la persona
+  "ti va una visita?" a un HR è la figuraccia che brucia il canale) e
+  **notify-pending** porta la card 🏢 col messaggio business già scritto
+  (EN/IT da replyLang, org vs owner — al proprietario non si chiede "quante
+  persone", firmato Valentino perché qui il mercato È Roma). Il lead
+  executive NON è B2B per costruzione: la macchina inquilino resta accesa.
+- Agganci: sitemap (hreflang en/it), llms.txt (sezione BOOM Executive per i
+  motori di risposta), index (card For Organisations + footer), rimando
+  reciproco `/corporate` ⇄ `/executive` (niente doppioni: la persona su
+  /executive, l'azienda su /corporate).
+- Test: `node tests/executive/run.mjs` (95 check — porta, employer ≠
+  honeypot, schema tenant, testa del riassunto, budget coi separatori,
+  lingua che non ricade sull'italiano, isB2B/b2bReplyText, guardie asserite
+  sull'ORDINE nel sorgente, invarianti SEO/GEO della pagina, reciprocità dei
+  link).
+
 ### POST `/api/service-checkout`
 Public one-tap Stripe Checkout for the productised services (Services 2.0
 pages). Server-side catalog decides price/copy — the client only names the
@@ -2053,6 +2121,7 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/pfs/eyes.mjs` | Gli occhi di Homie sul radar PFS: nella lista di lavoro non entrano ricerche spente o con URL rotti, la manopola manuale (`urlOverride`) vince sempre, e — la regola che conta — un radar CIECO (403/captcha su tutte le ricerche) non passa mai per un mercato fermo |
   | `tests/whatsapp/run.mjs` | Da WhatsApp a lead senza AI: il rumore resta fuori (👍, "ok") e la persona vera entra, l'inquilino che scrive per la caldaia non inquina la pipeline, un lead per persona anche col numero archiviato in formato diverso (nazionale vs internazionale), una risposta umana zittisce il Commerciale. Guida il handler VERO su un Firestore finto in memoria |
   | `tests/wizard/local_brain.py` | Il cervello gratis del bot wizard (`python3`): cosa capisce senza modello e — più importante — cosa deve rifiutarsi di capire. Una domanda ("Levico è affittato?") non può diventare una scrittura; un annuncio nuovo dettato non può diventare la modifica di uno esistente. Estrae le funzioni pure dal bot via AST: gira senza `.env`, senza Telegram, senza rete |
+  | `tests/executive/run.mjs` | BOOM Executive: il professionista in trasferta resta un TENANT nella macchina piena, il datore dichiarato (`employer`) non viene scambiato per l'honeypot (`company`), la voce B2B tace col tenant e parla con l'ente — con la guardia PRIMA della spesa, asserita sull'ordine nel sorgente |
   | `tests/verbale/run.mjs` | verbale consegna chiavi: il PDF vero (WinAnsi-ostile compreso) viaggia in allegato a conduttori/co-conduttori/proprietario/admin, owner solo sui contratti dei propri immobili (403 = zero scritture), firme richieste per entrambi i lati, sul contratto restano solo i NOMI mai i dataURI |
   | `tests/sign/lang.mjs` | /sign bilingue guidata in un browser vero (demo mode): default per ruolo (locatore IT, inquilino EN), toggle che ridisegna lo step corrente in entrambe le direzioni, percorso intero tradotto, Skip OTP che non blocca, link WhatsApp presenti. Si auto-skippa senza playwright |
   | `tests/safari/boot.mjs` | nessuna superficie autenticata resta appesa su un loader |

@@ -15,6 +15,8 @@
 // bêtise sous sa propre signature. D'où la règle ici : on reconnaît le marché,
 // et les employés IA calibrés sur Rome S'ABSTIENNENT au lieu d'improviser.
 
+import { replyLang } from './_lang.js';
+
 export const REUNION_URL = 'https://www.boomrome.com/reunion';
 
 /**
@@ -77,4 +79,87 @@ export function reunionReplyText(lead = {}) {
   return `${hi} Merci pour votre message.\n` +
     `Pour aller vite : quelle commune, quel budget et à partir de quand ? ` +
     `Si vous n'êtes pas encore sur l'île, on peut visiter en direct en visio.\n${REUNION_URL}`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// L'ALTRO ASSE: non da quale MERCATO viene il lead, ma con quale VOCE gli si
+// risponde. Stessa disciplina della guardia Réunion, difetto diverso.
+//
+// Il Commerciale ha UNA persona: l'assistente che risponde a chi cerca casa
+// ("ti andrebbe di fissare una visita?"). I moduli partner (università,
+// aziende, centri di ricerca, proprietari — api/partners/submit) e la porta
+// corporate scrivono nello stesso `leads`, quindi senza guardia l'ufficio
+// housing di una università o l'HR di un'azienda riceve una bozza che gli
+// propone di visitare un bilocale. Non è goffaggine: è la prova, mandata al
+// canale che vale una coorte di inquilini l'anno, che nessuno l'ha letto.
+//
+// La regola è la stessa di isReunion: la macchina calibrata sull'inquilino
+// SI ASTIENE, il lead esce comunque su Telegram entro un minuto con il
+// messaggio giusto già scritto (b2bReplyText), e la prima voce vera è
+// l'operatore. Meglio nessuna bozza che una bozza con la voce sbagliata.
+
+export const CORPORATE_URL   = 'https://www.boomrome.com/corporate';
+export const EXECUTIVE_URL   = 'https://www.boomrome.com/executive';
+export const UNIVERSITIES_URL = 'https://www.boomrome.com/universities';
+export const RESEARCH_URL    = 'https://www.boomrome.com/research';
+
+/**
+ * Questo lead è un ente, non una persona che cerca casa per sé?
+ * Tre indizi perché tre porte scrivono: i quattro moduli partner
+ * (source 'partner'), qualunque porta futura che marchi leadType 'company',
+ * e gli intent partner-*. Il professionista della pagina /executive NON è
+ * B2B: cerca casa per sé, la macchina inquilino è quella giusta per lui.
+ * @param {object} lead
+ * @returns {boolean}
+ */
+export function isB2B(lead = {}) {
+  if (!lead || typeof lead !== 'object') return false;
+  if (String(lead.source || '').toLowerCase() === 'partner') return true;
+  if (String(lead.leadType || '').toLowerCase() === 'company') return true;
+  return /^partner-/.test(String(lead.intent || '').toLowerCase());
+}
+
+/**
+ * Da che parte sta l'ente: un ufficio che sistema le SUE persone (org) o un
+ * proprietario che offre il SUO immobile (owner). Due conversazioni opposte —
+ * chiedere "quante persone dovete alloggiare?" a chi offre una casa è
+ * l'equivalente romano del "votre bien est libre quand ?" all'acheteur.
+ * @returns {'org'|'owner'}
+ */
+export function b2bSide(lead = {}) {
+  const intent = String(lead && lead.intent || '').toLowerCase();
+  const kind = String(lead && lead.partner && lead.partner.kind || '').toLowerCase();
+  if (intent === 'owner' || kind === 'owner' || String(lead && lead.leadType || '') === 'landlord') return 'owner';
+  return 'org';
+}
+
+/**
+ * Il messaggio WhatsApp già scritto per un lead B2B, nella lingua delle SUE
+ * parole (replyLang — la casa parla inglese, l'italiano è l'eccezione vera).
+ * Firmato Valentino: qui il mercato È Roma, la firma è quella giusta.
+ * @param {object} lead
+ * @returns {string}
+ */
+export function b2bReplyText(lead = {}) {
+  const first = String(lead.name || '').trim().split(/\s+/)[0] || '';
+  const en = replyLang(lead) !== 'it';
+  const kind = String(lead && lead.partner && lead.partner.kind || '').toLowerCase();
+  const url = kind === 'university' ? UNIVERSITIES_URL : kind === 'research' ? RESEARCH_URL : CORPORATE_URL;
+
+  if (b2bSide(lead) === 'owner') {
+    return en
+      ? (`Hi${first ? ' ' + first : ''}, Valentino here from BOOM Roma 👋 Thanks for telling us about your property.\n` +
+         `To give you a straight answer: which zone, when does it free up, furnished or not? ` +
+         `I'll come back today with what we'd do and the numbers in writing.`)
+      : (`Ciao${first ? ' ' + first : ''}, sono Valentino di BOOM Roma 👋 Grazie per averci scritto del tuo immobile.\n` +
+         `Per darti una risposta seria: che zona, da quando è libero, arredato o no? ` +
+         `Ti torno in giornata con cosa faremmo e i numeri per iscritto.`);
+  }
+  return en
+    ? (`Hi${first ? ' ' + first : ''}, Valentino here from BOOM Roma 👋 Thanks for reaching out about housing for your people.\n` +
+       `To move fast: how many people, from when, and for roughly how long? ` +
+       `I'll come back today with real options and the right lease setup for each stay.\n${url}`)
+    : (`Ciao${first ? ' ' + first : ''}, sono Valentino di BOOM Roma 👋 Grazie per il contatto: sistemare le vostre persone a Roma è esattamente il nostro lavoro.\n` +
+       `Per fare presto: quante persone, da quando e per quanto tempo? ` +
+       `Ti torno in giornata con opzioni reali e la forma contrattuale giusta per ogni soggiorno.\n${url}`);
 }
