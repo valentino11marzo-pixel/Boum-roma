@@ -1,0 +1,146 @@
+#!/usr/bin/env python3
+# BOOM · IL PORTALE — l'impostazione da azienda internazionale, dati veri.
+#   python3 costruisci-portale.py artefatto | sito
+import json, re, sys
+from datetime import datetime, timezone
+
+MODO = sys.argv[1] if len(sys.argv) > 1 else 'artefatto'
+def euro(n): return '€' + f'{int(n):,}'
+def leggi(n): return open(n, encoding='utf-8').read()
+def quando(r):
+    try: return datetime.fromisoformat(str(r['when']).replace('Z','+00:00')
+        .replace('+00:00+00:00','+00:00'))
+    except Exception: return datetime(2020,1,1,tzinfo=timezone.utc)
+
+rows = json.load(open('live-rows.json'))
+oggi = datetime.now(timezone.utc)
+uri = json.load(open('foto-uri.json')); rem = json.load(open('foto-map.json'))
+banca = uri if MODO == 'artefatto' else rem
+
+tutti = [r for r in rows if r.get('nome') and r.get('price')
+         and r.get('status') in ('available','reserved','rented','waitlist')]
+tutti.sort(key=quando, reverse=True)
+
+# ── il tabellone: righe VERE, stati veri, chip solo se veri ──────────────
+def chip(r):
+    if r.get('video'): return ('VERIFIED', 'verde')
+    if (oggi - quando(r)).days < 21: return ('NEW', '')
+    return None
+def stato(r):
+    s = r['status']
+    if s == 'available': return ('Available', 'si')
+    if s in ('reserved','waitlist'): return ('Reserved', 'ni')
+    return ('Rented', 'no')
+
+vivi = [r for r in tutti if r['status'] == 'available'][:4]
+altri = [r for r in tutti if r['status'] != 'available'][:2]
+board = vivi + altri
+def riga_board(r):
+    zona = re.sub(r'\s+', ' ', (r.get('zona') or 'Roma')).split('/')[0].strip()
+    c = chip(r)
+    eti = f'<span class="board-chip {c[1]}">{c[0]}</span>' if c else '<span></span>'
+    s = stato(r)
+    return (f'      <div class="board-riga">\n'
+            f'        <span class="board-zona">{zona}</span>\n'
+            f'        {eti}\n'
+            f'        <span class="board-stato"><i class="{s[1]}"></i>{s[0]}</span>\n'
+            f'      </div>')
+RIGHE = '\n'.join(riga_board(r) for r in board)
+
+ultimo = max(quando(r) for r in tutti)
+giorni = (oggi - ultimo).days
+AGG = 'today' if giorni == 0 else 'yesterday' if giorni == 1 else \
+      ultimo.strftime('%-d %b')
+
+# ── le tre case della settimana (stessa vetrina della home) ──────────────
+def letti(r):
+    for c in (r.get('beds'), r.get('bedrooms')):
+        m = re.search(r'\d+', str(c or ''))
+        if m: return int(m.group())
+    return None
+case = []
+for r in tutti:
+    if r['status'] != 'available' or not banca.get(r['id']): continue
+    p = int(re.sub(r'[^\d]','',str(r['price'])) or 0)
+    if not p: continue
+    case.append({'id': r['id'], 'nome': re.sub(r'\s+',' ',r['nome']).strip(),
+        'zona': re.sub(r'\s+',' ',(r.get('zona') or 'Roma')).split('/')[0].strip(),
+        'prezzo': p, 'sqm': re.sub(r'[^\d]','',str(r.get('sqm') or '')) or '',
+        'letti': letti(r), 'video': bool(r.get('video')),
+        'nuova': (oggi - quando(r)).days < 21})
+tre, zone = [], set()
+for giro in (1, 2):
+    for c in case:
+        if len(tre) == 3: break
+        if c in tre or (giro == 1 and c['zona'].lower() in zone): continue
+        tre.append(c); zone.add(c['zona'].lower())
+
+def carta(c):
+    ch = ('VERIFIED', 'verde') if c['video'] else \
+         ('NEW', '') if c['nuova'] else ('FREE NOW', 'verde')
+    dati = ' <i>·</i> '.join(x for x in [
+        f'<span class="home-zona" role="link" tabindex="0" '
+        f'data-href="/apartments.html#zona={c["zona"]}">{c["zona"]}</span>',
+        f"{c['sqm']} m²" if c['sqm'] else '',
+        'Studio' if c['letti'] == 0 else f"{c['letti']} bed" if c['letti'] else ''] if x)
+    return f'''        <a class="casa-p" href="/listing/{c['id']}">
+          <div class="home-foto">
+            <img loading="lazy" decoding="async" src="{banca[c['id']]}"
+              alt="{c['nome']}, {c['zona']} — apartment for rent in Rome with BOOM">
+            <span class="casa-chip {ch[1]}">{ch[0]}</span>
+            <button type="button" class="home-cuore" data-u="/listing/{c['id']}"
+              aria-label="Save this home">♥</button>
+          </div>
+          <div class="corpo">
+            <div class="riga1"><span class="nome">{c['nome']}</span>
+              <span class="canone"><span class="flap-prezzo flap-scale"
+                data-p="{euro(c['prezzo'])}" aria-label="{euro(c['prezzo'])} per month"></span><small>/mo</small></span></div>
+            <div class="riga2">{dati}</div>
+          </div>
+        </a>'''
+TRE = '\n'.join(carta(c) for c in tre)
+
+h = '\n'.join([leggi('pt.html'), leggi('solari-engine.html'),
+               leggi('deco-organi.html')])
+h = h.replace('LOGO_SVG', leggi('logo-live.svg').strip())
+h = h.replace('BOARD_RIGHE', RIGHE)
+h = h.replace('AGGIORNATO', AGG)
+h = h.replace('CASE_TRE', TRE)
+if MODO == 'artefatto':
+    h = h.replace('FONT_INLINE', '<style>\n' + leggi('inter-inline.css') + '\n</style>')
+else:
+    h = h.replace('FONT_INLINE',
+        '<link rel="preconnect" href="https://fonts.googleapis.com">\n'
+        '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n'
+        '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700'
+        '&display=swap" rel="stylesheet">')
+
+if MODO == 'artefatto':
+    HOME = 'https://claude.ai/code/artifact/3c0dae67-a0e6-47d4-964f-832b824ffe0f'
+    AP = 'https://claude.ai/code/artifact/ec4d60c9-d2c0-4ec8-883f-eb7b8b4df8f6'
+    CASA = 'https://claude.ai/code/artifact/a65a8cb4-bfe1-49a5-acaf-2c4a1a992321'
+    h = h.replace('COME_URL', HOME + '#come').replace('AP_URL', AP)
+    for da, a_ in {'/index.html': HOME, '/apartments.html': AP,
+        '/property-finding.html': 'https://claude.ai/code/artifact/4186ed23-28d5-46a2-98bc-09fdf5eb7e21',
+        '/board.html': 'https://claude.ai/code/artifact/d5c23034-8aa4-4e33-b53a-e73809b444f2',
+    }.items():
+        h = h.replace('href="' + da + '"', 'href="' + a_ + '"')
+        h = h.replace('data-href="' + da, 'data-href="' + a_)
+    h = h.replace('href="/listing/', 'href="' + CASA + '#id=')
+    h = re.sub(r'href="/([a-z-]+)\.html"',
+               r'href="https://www.boomrome.com/\1"', h)
+    h = h.replace('href="/login"', 'href="https://www.boomrome.com/login"')
+else:
+    h = h.replace('COME_URL', '/v2-home.html#come').replace('AP_URL', '/v2-apartments.html')
+    for da, a_ in {'/index.html': '/v2-home.html',
+        '/apartments.html': '/v2-apartments.html',
+        '/property-finding.html': '/v2-property-finding.html',
+        '/board.html': '/v2-board.html'}.items():
+        h = h.replace('href="' + da + '"', 'href="' + a_ + '"')
+        h = h.replace('data-href="' + da, 'data-href="' + a_)
+    h = h.replace('href="/listing/', 'href="/v2-listing.html#id=')
+
+uscita = 'boom-portale.html' if MODO == 'artefatto' else 'boom-portale-sito.html'
+open(uscita, 'w', encoding='utf-8').write(h)
+print(f'{uscita} · {len(h)//1024} KB · board {len(board)} righe · '
+      f'aggiornato {AGG} · vetrina {len(tre)}')
