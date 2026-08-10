@@ -78,7 +78,8 @@ function load(){
       return '<div class="apt" data-id="'+esc(l.id)+'"><div class="top"><b>'+esc(l.name||l.id)+'</b>'
         +'<small>'+esc(l.zone||'')+' · '+n+' foto</small>'
         +(l.photosEnhancedAt?'<span class="done">✓ curato '+esc(String(l.photosEnhancedAt).slice(0,10))+'</span>':'')
-        +'<span class="btns"><button class="b" onclick="runA(\''+esc(l.id)+'\',\'audit\')">Audit</button>'
+        +'<span class="btns"><button class="b" onclick="window.open(\'/media-studio?listing='+esc(l.id)+'\',\'_blank\')" title="Cura manuale: foto, video, testi">🎨 Studio</button>'
+        +'<button class="b" onclick="runA(\''+esc(l.id)+'\',\'audit\')">Audit</button>'
         +'<button class="b solid" onclick="runA(\''+esc(l.id)+'\',\'apply\')">Applica</button></span></div>'
         +'<div class="plan" id="plan-'+esc(l.id)+'"></div></div>';
     }).join('')||'<p class="note">Nessun annuncio.</p>';
