@@ -2122,7 +2122,10 @@ giusta: lungo la metro A voli, in trasversale no, e adesso si vede.
   aggiunta al pack compare ovunque da sola).
 - **Dove vive il tempo** (superfici esistenti, zero pagine nuove):
   - **`/apartments`** — barra "⏱ Your places" sopra la griglia: quick-pick
-    dai preset + ricerca libera (Photon, stesso geocoder della scheda).
+    dai preset + ricerca libera (Photon, stesso geocoder della scheda); su
+    mobile due righe compatte (chip scorrevoli + ricerca larga). Il listing
+    del catalogo PORTA `geo` (mapReal lo passa): boom-geo giudica dalla
+    provenienza vera, e sui chip con origine di zona anche la camminata è ≈.
     Scelto un posto: **ogni card porta il chip oro** "⏱ ≈36′ · C+B ·
     Sapienza", il sort passa da solo a "⏱ Near your place" (opzione nascosta
     finché non c'è un posto; senza posti ricade su Recommended, mai un
@@ -2141,6 +2144,13 @@ giusta: lungo la metro A voli, in trasversale no, e adesso si vede.
   - **`/match`** — il quiz salva l'università come posto del sito
     all'uscita: il cliente arriva su /apartments col catalogo già ordinato
     per la SUA vita.
+- **RENTS AHEAD (waitlist)**: lo standby-ticket. Una casa occupata che si
+  prenota mesi prima non è un "esaurito" — è il cliente migliore (zero
+  vuoto tra inquilini). Marchio dedicato `WLRING` (anello che avanza,
+  animato, `prefers-reduced-motion` rispettato) + tratteggio da carta
+  d'imbarco + la DATA quando si conosce ("free ~1 Oct"); identico su card,
+  pin del catalogo (◌ anche sui pin di zona), blockcard, hero della scheda
+  e skyline. Il pill anonimo "◌ Waitlist" è morto, pinnato nei test.
 
 ## Conventions
 

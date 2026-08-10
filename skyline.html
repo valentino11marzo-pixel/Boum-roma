@@ -33,6 +33,8 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:Inter,sys
 .sky-pin:hover{transform:translateY(-3px);z-index:50}
 .sky-pin .p{background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-weight:700;font-size:12px;padding:5px 11px;border-radius:100px;white-space:nowrap;box-shadow:0 5px 16px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.18)}
 .sky-pin .p.rented{background:#26262c;color:#9a9aa2;box-shadow:0 4px 12px rgba(0,0,0,.5)}
+/* RENTS AHEAD (waitlist): lo standby-ticket — tratteggio, mai un pill pieno */
+.sky-pin .p.wl{background:linear-gradient(180deg,rgba(26,21,8,.92),rgba(10,10,12,.92));color:#F3E5B4;border:1px dashed rgba(255,215,0,.6);box-shadow:0 5px 16px rgba(0,0,0,.55)}
 .sky-pin::after{content:'';width:2px;height:9px;background:linear-gradient(#FFA500,transparent)}
 .sky-pin.dim{opacity:.16;filter:grayscale(.7)}
 .maplibregl-popup-content{background:var(--card)!important;border:1px solid var(--line)!important;border-radius:16px!important;padding:0!important;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.6)!important;width:230px}
@@ -232,7 +234,8 @@ function paintPlace(){
     if(!p||!TT||!TG||!el.__co){el.classList.remove('hasT');pt.textContent='';return;}
     try{
       var pl=TT.plan({lat:el.__co[1],lng:el.__co[0]},{lat:p.lat,lng:p.lng},TG);
-      pt.textContent=(pl.mode==='walk'?pl.min+'′ 🚶':'≈'+pl.min+'′');
+      /* origine di zona: anche la camminata è ≈, e lo si dice */
+      pt.textContent=(pl.mode==='walk'?((el.__zn?'≈':'')+pl.min+'′ 🚶'):'≈'+pl.min+'′');
       el.classList.add('hasT');
     }catch(e){el.classList.remove('hasT');pt.textContent='';}
   });
@@ -296,11 +299,13 @@ function gradeColor(){
   }catch(e){}
 }
 
-function makePin(l,co){
+function makePin(l,co,zn){
   var price=num(l.price);
-  var rented=/rented|affittato|off_market/.test(String(l.status||'available').toLowerCase());
-  var el=document.createElement('div'); el.className='sky-pin'; el.__price=price||0; el.__rented=rented; el.__co=co;
-  el.innerHTML='<span class="p'+(rented?' rented':'')+'">'+(price?fmt(price):'—')+'</span><span class="pt"></span>';
+  var st=String(l.status||'available').toLowerCase();
+  var rented=/rented|affittato|off_market/.test(st);
+  var wl=/waitlist/.test(st);
+  var el=document.createElement('div'); el.className='sky-pin'; el.__price=price||0; el.__rented=rented; el.__co=co; el.__zn=!!zn;
+  el.innerHTML='<span class="p'+(rented?' rented':(wl?' wl':''))+'">'+(wl?'◌ ':'')+(zn?'≈ ':'')+(price?fmt(price):'—')+'</span><span class="pt"></span>';
   var img=l.image||(l.images&&l.images[0])||'';
   var pop=new maplibregl.Popup({offset:18,closeButton:true,maxWidth:'240px'}).setHTML(
     '<div class="pc-img"'+(img?' style="background-image:url(\''+img.replace(/'/g,'')+'\')"':'')+'></div>'+
@@ -343,7 +348,7 @@ async function boot(){
     if(la&&ln) base=[ln,la]; else base=zoneCoord(l);
     if(!base) return;
     var co=spread(base);
-    makePin(l,co); bounds.extend(co); placed++;
+    makePin(l,co,!(la&&ln)); bounds.extend(co); placed++;
   });
   if(placed){ try{ map.fitBounds(bounds,{padding:90,maxZoom:14.5,duration:1500,pitch:55}); }catch(e){} applyFilter(); try{paintPlace();}catch(e){} }
   else { msg('No mappable homes yet — try the list view.'); $('load').classList.remove('off'); }

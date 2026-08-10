@@ -303,7 +303,10 @@ body.chapters .proofs.stamped .proof:nth-child(4){transition-delay:.36s}
 .avail.ok{color:var(--green);border-color:var(--green-muted)}.avail.ok .pin{background:var(--green-muted)}
 .avail.after{color:var(--gold-light);border-color:var(--line-gold)}.avail.after .pin{background:var(--gold-muted)}
 .avail.none{color:var(--t2)}.avail.none .pin{background:var(--gold-muted);color:var(--gold)}
-.avail.wl{color:var(--gold-light);border-color:var(--line-gold);background:rgba(255,215,0,.045)}.avail.wl .pin{background:var(--gold-muted);color:var(--gold)}
+.avail.wl{color:var(--gold-light);border-color:var(--line-gold);background:rgba(255,215,0,.045);border-style:dashed}.avail.wl .pin{background:transparent;border:1px dashed rgba(255,215,0,.5)}
+.wlring{animation:wlspin 9s linear infinite;transform-origin:50% 50%}
+@keyframes wlspin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.wlring{animation:none}}
 .avail small{display:block;color:var(--t3);font-size:11px;margin-top:2px}
 .srows{display:grid;gap:1px;background:var(--line);border-radius:11px;overflow:hidden;border:1px solid var(--line)}
 .srow{display:flex;justify-content:space-between;align-items:center;background:var(--card);padding:12px 14px;font-size:13px}
@@ -1147,7 +1150,7 @@ function countUp(el,to){const from=parseInt(el.dataset.cur||'0',10);const t0=per
   if(matchMedia('(prefers-reduced-motion:reduce)').matches){el.textContent=eur(to);el.dataset.cur=to;return;}
   (function step(t){const p=Math.min(1,(t-t0)/480);const e=1-Math.pow(1-p,3);el.textContent=eur(Math.round(from+(to-from)*e));if(p<1)requestAnimationFrame(step);else{el.dataset.cur=to;if(from!==to){el.classList.add('landed');setTimeout(()=>el.classList.remove('landed'),420);}}})(performance.now());}
 function render(){const s=computeStay();const wl=L.status==='waitlist';let av;
-  if(wl)av=`<div class="avail wl"><span class="pin">◌</span><div>Occupied — waitlist open, be first in line<small>${s.avail>new Date()?('Expected free from '+fmtD(s.avail)):'Portfolio home · rents ahead, often months in advance'}</small></div></div>`;
+  if(wl)av=`<div class="avail wl"><span class="pin">${WLRING}</span><div>Occupied — rents ahead, be first in line<small>${s.avail>new Date()?('Expected free from '+fmtD(s.avail)):'Portfolio home · rents ahead, often months in advance'}</small></div></div>`;
   else if(s.fit==='none')av=`<div class="avail none"><span class="pin"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 6h14a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2zM8 3v5m8-5v5M3 11h18"/></svg></span><div>Pick a date for real availability &amp; exact cost<small>Free from ${fmtD(s.avail)}</small></div></div>`;
   else if(s.fit==='ok')av=`<div class="avail ok"><span class="pin">✓</span><div>Free for your date<small>You move in ${fmtD(s.start)}</small></div></div>`;
   else av=`<div class="avail after"><span class="pin">!</span><div>Free from ${fmtS(s.avail)} — ${s.gap} days after you'd like<small>We can alert you if it frees sooner</small></div></div>`;
@@ -1719,6 +1722,9 @@ async function poiSearch(q){
 })();
 
 /* ---- icon system: hairline SVG, currentColor — never OS color emoji ---- */
+/* l'anello della fila che avanza — il marchio RENTS AHEAD (waitlist),
+   identico a quello del catalogo: un marchio, una forma */
+const WLRING='<svg class="wlring" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="rgba(255,215,0,.25)" stroke-width="1.7"/><path d="M8 2a6 6 0 1 1-5.68 7.9" fill="none" stroke="#FFD700" stroke-width="1.7" stroke-linecap="round"/><circle cx="2.32" cy="9.9" r="1.6" fill="#FFD700"/></svg>';
 const _svg=p=>'<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+p+'</svg>';
 const SVGI={
   bed:_svg('<path d="M3 7v11m0-4h18v4m0-4v-3a3 3 0 0 0-3-3h-8v6"/><circle cx="6.5" cy="9.5" r="1.5"/>'),
