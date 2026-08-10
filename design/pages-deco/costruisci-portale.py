@@ -45,7 +45,9 @@ for r in sorted(tutti, key=lambda x: (x['status'] != 'available'),):
 def riga_json(r):
     s = stato(r)
     p = int(re.sub(r'[^\d]', '', str(r['price'])) or 0)
-    return {'z': zona_di(r), 'p': euro(p), 's': s[0].upper(), 'c': s[1]}
+    # allineati a destra sulle celle: le cifre incolonnano
+    return {'z': zona_di(r), 'p': euro(p).rjust(6), 's': s[0].upper(),
+            'c': s[1]}
 BOARD_JSON = json.dumps([riga_json(r) for r in board], ensure_ascii=False)
 DISPONIBILI = sum(1 for r in tutti if r['status'] == 'available')
 
@@ -107,8 +109,25 @@ h = '\n'.join([leggi('pt.html'), leggi('solari-engine.html'),
 h = h.replace('LOGO_SVG', leggi('logo-live.svg').strip())
 h = h.replace('PT_BOARD', BOARD_JSON)
 h = h.replace('DISPONIBILI', str(DISPONIBILI))
+# «From €X/mo» viene dal catalogo, non da un numero scritto a mano
+minimo = min(int(re.sub(r'[^\d]', '', str(r['price'])) or 10**9)
+             for r in tutti if r['status'] == 'available')
+h = h.replace('From €1,000/mo', 'From ' + euro(minimo) + '/mo')
 h = h.replace('AGGIORNATO', AGG)
 h = h.replace('CASE_TRE', TRE)
+# la scena 1 dell'apparecchio: il flagship vero (foto, nome, canone, totale)
+flag_foto = json.load(open('foto-casa.json'))
+sc = tre[0]
+h = h.replace('SC_FOTO', flag_foto[0] if MODO == 'artefatto' else banca[sc['id']])
+h = h.replace('SC_NOME', sc['nome'])
+h = h.replace('SC_PREZZO', euro(sc['prezzo']))
+h = h.replace('SC_TOT', euro(sc['prezzo'] * 2 + round(sc['prezzo'] * 12 * .10)))
+h = h.replace('PASS_LOGO', leggi('logo-live.svg').strip())
+# il QR del pass: una texture decorativa dichiarata (aria-hidden), non un QR vero
+import random as _rnd
+_rnd.seed(7)
+h = h.replace('PASS_QR', ''.join('<i' + (' class="v"' if _rnd.random() < .42
+    else '') + '></i>' for _ in range(25)))
 if MODO == 'artefatto':
     h = h.replace('FONT_INLINE', '<style>\n' + leggi('inter-inline.css') + '\n</style>')
 else:
