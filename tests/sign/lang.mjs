@@ -41,7 +41,18 @@ const srv = http.createServer((req, res) => {
 const PORT = srv.address().port;
 const URL_ = (q) => `http://127.0.0.1:${PORT}/sign.html?${q}`;
 
-const browser = await chromium.launch();
+/* stesso pattern della suite safari: il Chromium dell'ambiente remoto vive
+   fuori dalla registry di playwright — un launch() nudo lì fallisce sempre. */
+const BROWSER = process.env.BOOM_CHROMIUM
+  || (fs.existsSync('/opt/pw-browsers/chromium-1194/chrome-linux/chrome')
+    ? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' : undefined);
+let browser;
+try {
+  browser = await chromium.launch(BROWSER ? { executablePath: BROWSER, args: ['--no-sandbox'] } : {});
+} catch (e) {
+  console.log('SKIP: browser non lanciabile — ' + String(e && e.message).split('\n')[0]);
+  process.exit(0);
+}
 const errs = [];
 const newPage = async () => {
   const pg = await browser.newPage({ viewport: { width: 390, height: 844 } });

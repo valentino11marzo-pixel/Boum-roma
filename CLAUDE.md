@@ -1998,10 +1998,62 @@ Con ≤2 risultati il bounds si allarga fino all'ancora più vicina (Termini,
 LUISS, …) e i fili d'oro si accendono da soli dopo 700ms — su una casa sola non
 c'è nulla su cui passare col mouse, e su telefono l'hover non esiste.
 
-**Ancora falso**: i tempi mostrati come "door-to-door" sono `km_in_linea_d_aria
-× 4.2 + 10`, senza rete né orari (`apartment-detail.html`, `apartments.html`
-`_dl()`). Sbagliati a caso — Roma è anisotropa, lungo la metro A voli e in
-trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
+**Il falso è stato sostituito (2026-08)**: i tempi "door-to-door" erano
+`km_in_linea_d_aria × 4.2 + 10`, senza rete né orari — sbagliati a caso, Roma
+è anisotropa. Ora li calcola il motore del tempo (sezione seguente); la
+vecchia formula sopravvive SOLO come paracadute no-engine e dice "(rough)"
+invece di spacciarsi per door-to-door.
+
+## Il Tempo vero (js/tempo-engine.js + js/roma-transit.js + `/tempo`)
+
+Il tempo porta-a-porta si CALCOLA sul grafo vero, non si inventa più:
+🚶 fermata d'ingresso → attesa media (headway/2) → corsa (velocità di linea ×
+distanza reale tra fermate) → cambi (penalità di stazione + attesa nuova
+linea) → 🚶 porta. È una stima e lo dice sempre — ogni etichetta transit
+comincia con `≈` e nomina la linea ("≈18′ · C") — ma la geometria è quella
+giusta: lungo la metro A voli, in trasversale no, e adesso si vede.
+
+- **`js/roma-transit.js`** — il CITY PACK (`window.ROMA_TRANSIT`): la rete su
+  cui si muove una vita romana come DATI puri. Metro A/B/B1/**C fino a
+  Colosseo** (Colosseo·Fori Imperiali + Porta Metronia aperte il 16/12/2025 —
+  interscambio B+C, Pigneto ha la sua fermata), tram principali 2/3/8/19/5-14
+  (`sampled:true` = fermate principali; velocità da BUS SOSTITUTIVO finché la
+  rete tram non rientra, 7 set → 23 nov 2026 — l'avviso sta nei dati, non nel
+  codice), FL1/FL3, Leonardo Express, Metromare. Stazioni condivise = stesso
+  id (l'interscambio nasce dai dati); corrispondenze a piedi dichiarate
+  (`links`) + automatiche sotto 260m. **Niente autobus urbani**: dove il bus è
+  l'unica via (es. Trastevere→LUISS) la stima è prudente per costruzione —
+  scritto nei `notices`, che le pagine mostrano. Lo SCHEMA È UNIVERSALE
+  (documentato in testa al file): Milano o Lisbona sono "solo" un altro file
+  con le stesse chiavi; l'evoluzione naturale è generare il pack dal GTFS di
+  Roma Mobilità (bus inclusi) senza toccare il motore.
+- **`js/tempo-engine.js`** — il MOTORE (`window.BOOM_TEMPO`), puro e
+  deterministico: `buildGraph(pack)` (nodi stazione§linea, Dijkstra),
+  `plan(from,to,G)` → `{mode:'walk'|'transit', min, legs[], rides[]}` col
+  meglio tra camminata e grafo (il corto si fa SEMPRE a piedi),
+  `reachFrom(G,origin)` (minuti d'arrivo a ogni stazione — gli aloni),
+  `weekly(G,home,anchors)` (Σ andata+ritorno × frequenza = ore di vita a
+  settimana), `label`/`trace`/`fmtWeekly`. Zero DOM, zero fetch: gira
+  identico nel browser e nei test node.
+- **`tempo.html` (`/tempo`)** — LA MAPPA DEL TEMPO, pubblica e indicizzata:
+  l'inquilino sceglie le SUE ancore (università/uffici/FCO/Ostia + "Add your
+  place" toccando la mappa, frequenza ×N a settimana), fissa il budget
+  ("everything within 30′") e il catalogo si ri-ordina per **ore della sua
+  settimana** — con l'alone d'oro dell'INTERSEZIONE (dove vivi per avere
+  tutto entro il budget), le linee del trasporto nei colori veri disegnate
+  dallo stesso pack, i pin col tempo peggiore, e `?home=<id>` come scheda
+  focus (linkata da skyline e apartment-detail). Stato nel FRAGMENT
+  (mai al server — la lezione Deal Link) + localStorage; share via
+  navigator.share. Il pannello vive SOPRA il loader e il catalogo si carica
+  indipendente dalla mappa con watchdog 12s (regola Safari: mai una
+  superficie appesa a uno spinner). Pin di zona → `≈` e nota "approximate
+  position" via boom-geo.
+- **Cablaggio**: `skyline.html` e il blocco skyline di `apartments.html`
+  (etichette ancore = minuti veri del grafo + layer linee/stazioni),
+  `apartment-detail.html` (`commuteFor` per il lead qualification e
+  `realNearby` + riga-ponte "⏱ Your whole Rome from here"), `match.html`
+  (il quiz stima col motore e stampa la linea: "~24 min mezzi · linea A").
+  Fallback ovunque se il motore non carica.
 
 ## Conventions
 
@@ -2038,6 +2090,7 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/photos/sweep.mjs` | photo-lab: chi è candidato allo sweep, quali foto contano come sorgente (i nostri output enhanced mai), e l'ordine con cui le 3 notti si spendono — le gallerie vere prima degli annunci da una foto. Si auto-skippa senza `sharp` |
   | `tests/copy/run.mjs` | descrizioni: lo sweep riscrive i template del bot e le schede mute, ma **mai** le parole di un umano — verificato sulle stringhe vere del catalogo, dove il testo scritto a mano è più CORTO del template |
   | `tests/geo/run.mjs` | precisione dei pin (`js/boom-geo.js`): portone (via+civico), strada, quartiere o niente — sulle stringhe `geo.q` vere del catalogo, incluso il caso insidioso `src:'nominatim'` su `q:'Prati, Roma'` |
+  | `tests/tempo/run.mjs` | il tempo vero: city pack sano (bbox, tratte plausibili, interscambi veri — Colosseo B+C dal 16/12/2025 — rete CONNESSA al 100% da Termini), verità note tolleranti (Termini→FCO col Leonardo, Pigneto→Colosseo sulla C, il corto SEMPRE a piedi), determinismo, ogni stima transit con `≈`, e le pagine cablate sul motore con `km×4.2+10` estinto dalla sorgente |
   | `tests/scheda/run.mjs` | La Scheda: token derivati (ruolo nella derivazione, timing-safe), precedenza prefill contratto→sign→wizard, lock post-firma, sync profilo su ENTRAMBI gli schemi users, upload con OCR che non blocca mai, /api/profile/link autorizzato |
   | `tests/notify/run.mjs` | ciclo email contratto (pdf-lib REALE, nodemailer mockato): fascicolo CAF a valentino@boom-rome.com esattamente una volta con anagrafica di entrambe le parti, welcome nella lingua del lettore, invito firma col link giusto e 409 sul locatore sequenziale, conferma scheda one-shot |
   | `tests/viewings/avail.mjs` | griglia slot: passi, gap 15', preavviso, orizzonte, maxPerDay, DST, token del link cliente |

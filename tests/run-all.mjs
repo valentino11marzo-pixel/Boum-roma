@@ -25,6 +25,7 @@ const SUITES = [
   { name: 'photos',   file: 'tests/photos/sweep.mjs',     what: 'sweep notturno: chi si cura e in che ordine' },
   { name: 'copy',     file: 'tests/copy/run.mjs',         what: 'descrizioni: riscrive i template, mai le parole di un umano' },
   { name: 'geo',      file: 'tests/geo/run.mjs',          what: 'precisione dei pin: portone, strada o quartiere — mai spacciati' },
+  { name: 'tempo',    file: 'tests/tempo/run.mjs',        what: 'il tempo vero: grafo metro·tram·FL connesso, stime oneste con ≈, km×4.2+10 estinto' },
   { name: 'scheda',   file: 'tests/scheda/run.mjs',       what: 'La Scheda: token derivati, prefill, lock post-firma, doppio schema' },
   { name: 'notify',   file: 'tests/notify/run.mjs',       what: 'ciclo email contratto: CAF una volta sola, inviti per ruolo e lingua' },
   { name: 'viewings', file: 'tests/viewings/avail.mjs',   what: 'griglia slot: passi, gap, preavviso, orizzonte, DST, link cliente' },

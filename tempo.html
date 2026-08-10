@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>BOOM Tempo — the Rome time map. How far is your life?</title>
+<meta name="description" content="Pick your places — university, office, gym, the airport — and see every BOOM home ranked by hours of your life per week. Real metro·tram·rail graph, honest estimates, no login.">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://www.boomrome.com/tempo">
+<meta name="theme-color" content="#08080A">
+<meta property="og:title" content="BOOM Tempo — how far is your life?">
+<meta property="og:description" content="The Rome time map: your places, real transit times, homes ranked by hours of your week.">
+<meta property="og:url" content="https://www.boomrome.com/tempo">
+<meta property="og:image" content="https://www.boomrome.com/android-chrome-512x512.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=optional" rel="stylesheet" media="print" onload="this.media='all'">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebApplication","name":"BOOM Tempo — the Rome time map","url":"https://www.boomrome.com/tempo","applicationCategory":"LifestyleApplication","operatingSystem":"Web","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},"provider":{"@type":"RealEstateAgent","name":"BOOM Rome","areaServed":"Roma, Italia"},"description":"Pick your places in Rome and see every verified rental ranked by weekly commute time on the real metro, tram and rail network."}
+</script>
+<style>
+:root{--gold:#FFD700;--gold2:#FFA500;--boomgold:#D4AF37;--bg:#08080A;--card:#0E0E12;--line:rgba(255,255,255,.09);--t1:#fff;--t2:#aaa;--t3:#777;--green:#46C08A;--disp:'Helvetica Neue',Helvetica,Inter,Arial,sans-serif}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;background:var(--bg);color:var(--t1);font-family:Inter,system-ui,sans-serif;font-weight:300;overflow:hidden;-webkit-font-smoothing:antialiased}
+#map{position:absolute;inset:0}
+.maplibregl-ctrl-attrib{font-size:9px!important;opacity:.45}
+a{color:inherit}
+
+.bar{position:absolute;top:0;left:0;right:0;z-index:32;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px clamp(14px,3vw,28px);background:linear-gradient(180deg,rgba(8,8,10,.92),rgba(8,8,10,0));pointer-events:none}
+.bar>*{pointer-events:auto}
+.brand{display:flex;align-items:baseline;gap:12px;text-decoration:none}
+.brand .logo{font-family:var(--disp);font-weight:200;font-size:21px;letter-spacing:6px}
+.brand .logo b{color:var(--gold);font-weight:300}
+.brand .ttl{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--t2)}
+@media(max-width:700px){.brand .ttl{display:none}}
+.bar-l{display:flex;gap:8px}
+.bar-back{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t2);text-decoration:none;border:1px solid var(--line);border-radius:100px;padding:8px 14px;background:rgba(14,14,18,.6);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);transition:all .25s}
+.bar-back:hover{border-color:var(--gold);color:var(--gold)}
+
+/* ── the life panel ── */
+/* z 31: the panel must stay ABOVE the map loader — the tools live even while
+   tiles arrive (the repo's Safari rule: no surface may hang on a spinner). */
+.panel{position:absolute;z-index:31;left:14px;top:70px;bottom:14px;width:min(360px,calc(100vw - 28px));display:flex;flex-direction:column;background:rgba(10,10,13,.86);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border:1px solid var(--line);border-radius:20px;overflow:hidden}
+.panel-h{padding:14px 16px 10px;border-bottom:1px solid var(--line);cursor:default}
+.panel-h .k{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--gold)}
+.panel-h .t{font-family:var(--disp);font-weight:200;font-size:19px;margin-top:3px;letter-spacing:.4px}
+.panel-h .s{font-size:11.5px;color:var(--t3);margin-top:3px;line-height:1.45}
+.panel-b{flex:1;overflow-y:auto;padding:12px 14px 16px;overscroll-behavior:contain}
+.grab{display:none}
+.sec{font-size:10px;letter-spacing:2.5px;text-transform:uppercase;color:var(--t3);margin:14px 2px 8px}
+.sec:first-child{margin-top:2px}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--t2);background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:100px;padding:7px 12px;cursor:pointer;transition:all .18s;user-select:none;-webkit-user-select:none}
+.chip:hover{border-color:rgba(255,215,0,.4);color:#fff}
+.chip.on{background:linear-gradient(135deg,rgba(255,215,0,.16),rgba(255,165,0,.10));border-color:rgba(255,215,0,.55);color:#fff}
+.chip .fx{display:none;font-size:10.5px;font-weight:600;color:var(--gold);background:rgba(255,215,0,.12);border:1px solid rgba(255,215,0,.3);border-radius:100px;padding:1px 7px;margin-left:2px}
+.chip.on .fx{display:inline-block}
+.chip.add{border-style:dashed;color:var(--t3)}
+.chip.add.armed{border-color:var(--gold);color:var(--gold);animation:pl 1.2s ease-in-out infinite}
+@keyframes pl{50%{box-shadow:0 0 0 6px rgba(255,215,0,.08)}}
+.hint{font-size:11px;color:var(--t3);line-height:1.5;margin-top:8px}
+.slider{display:flex;align-items:center;gap:12px;margin-top:4px}
+.slider input{flex:1;accent-color:var(--gold)}
+.slider .v{font-family:var(--disp);font-weight:200;font-size:22px;color:var(--gold);min-width:52px;text-align:right}
+.slider .v small{font-size:11px;color:var(--t3)}
+
+.rk{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:14px;padding:12px 13px;margin-bottom:9px;cursor:pointer;transition:border-color .2s}
+.rk:hover{border-color:rgba(255,215,0,.4)}
+.rk.out{opacity:.45}
+.rk-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.rk-n{font-size:13.5px;font-weight:500;letter-spacing:-.01em}
+.rk-w{font-family:var(--disp);font-weight:200;font-size:17px;color:var(--gold);white-space:nowrap}
+.rk-w i{font-style:normal;font-size:10px;color:var(--t3)}
+.rk-m{font-size:11px;color:var(--t3);margin-top:2px}
+.rk-a{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.rk-a span{font-size:10.5px;color:var(--t2);background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:7px;padding:3px 7px}
+.rk-a span.slow{color:#E8A0A0}
+.rk-go{display:inline-block;margin-top:9px;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--gold);text-decoration:none}
+.rk-note{font-size:10.5px;color:var(--t3);margin-top:6px}
+.empty{font-size:12px;color:var(--t3);line-height:1.6;padding:6px 2px}
+
+.focus{background:linear-gradient(135deg,rgba(255,215,0,.10),rgba(255,165,0,.04));border:1px solid rgba(255,215,0,.45);border-radius:16px;padding:13px 14px;margin-bottom:12px}
+.focus .fz{font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--gold)}
+.focus .fn{font-family:var(--disp);font-weight:300;font-size:17px;margin:3px 0 2px}
+.focus .fm{font-size:11px;color:var(--t2)}
+.focus .fr{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:var(--t2);border-top:1px solid rgba(255,255,255,.07);padding:7px 0 0;margin-top:8px}
+.focus .fr b{color:#fff;font-weight:500}
+.focus .fr .lbl{display:flex;gap:6px;align-items:center}
+.focus .approx{font-size:10.5px;color:var(--t3);margin-top:8px}
+.focus a.fgo{display:block;text-align:center;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#000;font-size:12.5px;font-weight:600;text-decoration:none;padding:9px;border-radius:10px;margin-top:11px}
+
+.foot{padding:10px 14px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line);font-size:10px;color:var(--t3);line-height:1.5}
+.foot .wa{color:var(--green);text-decoration:none;font-weight:500}
+.foot .sh{float:right;color:var(--t2);cursor:pointer;border:1px solid var(--line);border-radius:100px;padding:2px 9px;font-size:10px}
+.foot .sh:hover{color:var(--gold);border-color:var(--gold)}
+
+/* custom-anchor mini form */
+.cust{display:none;background:rgba(255,215,0,.06);border:1px solid rgba(255,215,0,.35);border-radius:12px;padding:10px;margin-top:9px}
+.cust.show{display:block}
+.cust input{width:100%;background:rgba(0,0,0,.4);border:1px solid var(--line);border-radius:8px;color:#fff;font-family:inherit;font-size:13px;padding:8px 10px}
+.cust .row{display:flex;gap:8px;margin-top:8px}
+.cust button{flex:1;border:none;border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;padding:8px;cursor:pointer}
+.cust .okb{background:var(--gold);color:#000}
+.cust .nob{background:transparent;border:1px solid var(--line);color:var(--t2)}
+
+/* pins */
+.t-pin{display:inline-flex;flex-direction:column;align-items:center;cursor:pointer;transition:transform .2s,opacity .3s}
+.t-pin:hover{transform:translateY(-3px);z-index:50}
+.t-pin .p{background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-weight:700;font-size:11.5px;padding:4px 10px;border-radius:100px;white-space:nowrap;box-shadow:0 5px 16px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.18)}
+.t-pin .tm{display:none;margin-top:3px;font-size:10px;font-weight:600;color:var(--gold);background:rgba(8,8,10,.85);border:1px solid rgba(255,215,0,.4);border-radius:100px;padding:1px 8px}
+.t-pin.hasT .tm{display:inline-block}
+.t-pin.out{opacity:.28;filter:grayscale(.6)}
+.t-pin.out .tm{color:var(--t3);border-color:var(--line)}
+.t-pin::after{content:'';width:2px;height:8px;background:linear-gradient(#FFA500,transparent)}
+.a-pin{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--t1);background:rgba(14,14,18,.85);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(255,215,0,.5);border-radius:100px;padding:5px 11px;white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,.5)}
+.a-pin .e{font-size:13px}
+
+.maplibregl-popup-content{background:var(--card)!important;border:1px solid var(--line)!important;border-radius:16px!important;padding:0!important;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.6)!important;width:236px}
+.maplibregl-popup-close-button{color:#fff!important;font-size:20px!important;padding:2px 8px!important;z-index:2}
+.maplibregl-popup-tip{border-top-color:var(--card)!important;border-bottom-color:var(--card)!important}
+.pc-img{height:118px;background:linear-gradient(135deg,#17171c,#0e0e12) center/cover no-repeat}
+.pc-body{padding:12px 14px 14px}
+.pc-zone{font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3)}
+.pc-name{font-size:14.5px;font-weight:500;margin:3px 0 5px;letter-spacing:-.01em}
+.pc-price{font-family:var(--disp);font-weight:200;font-size:20px;color:var(--gold)}
+.pc-price small{font-size:11px;color:var(--t3)}
+.pc-times{margin-top:8px;display:flex;flex-wrap:wrap;gap:5px}
+.pc-times span{font-size:10.5px;color:var(--t2);background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:7px;padding:3px 7px}
+.pc-approx{font-size:10px;color:var(--t3);margin-top:7px}
+.pc-go{display:block;margin-top:10px;text-align:center;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#000;font-size:12.5px;font-weight:600;text-decoration:none;padding:9px;border-radius:10px}
+
+.load{position:absolute;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg);transition:opacity .5s,visibility .5s}
+.load.off{opacity:0;visibility:hidden}
+.load .dot{width:10px;height:10px;border-radius:50%;background:var(--gold);animation:p 1.4s ease-in-out infinite}
+@keyframes p{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(255,215,0,.4)}50%{transform:scale(1.25);box-shadow:0 0 0 14px rgba(255,215,0,0)}}
+.load .t{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--t3)}
+.load .s{font-size:11px;color:var(--t3);max-width:300px;text-align:center;line-height:1.6}
+
+@media(max-width:740px){
+  .panel{left:0;right:0;top:auto;bottom:0;width:100%;max-height:52vh;border-radius:20px 20px 0 0;border-left:none;border-right:none;border-bottom:none;transition:max-height .3s ease}
+  .panel.min{max-height:118px}
+  .panel.min .panel-b,.panel.min .foot{display:none}
+  .grab{display:block;width:44px;height:4px;border-radius:3px;background:rgba(255,255,255,.22);margin:8px auto 0;cursor:pointer}
+  .panel-h{cursor:pointer;padding-top:8px}
+}
+@media(prefers-reduced-motion:reduce){.load .dot{animation:none}.t-pin{transition:none}.chip.add.armed{animation:none}}
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div class="bar">
+  <a class="brand" href="/"><span class="logo">BO<b>O</b>M</span><span class="ttl">Tempo · How far is your life?</span></a>
+  <div class="bar-l">
+    <a class="bar-back" href="/skyline">◆ Skyline</a>
+    <a class="bar-back" href="/apartments">☰ Homes</a>
+  </div>
+</div>
+
+<div class="panel" id="panel">
+  <div class="grab" id="grab"></div>
+  <div class="panel-h" id="panelH">
+    <div class="k">La tua Roma</div>
+    <div class="t">Your places, your minutes</div>
+    <div class="s" id="panelSub">Pick where your life happens — every home re-ranks by hours of YOUR week.</div>
+  </div>
+  <div class="panel-b" id="panelB">
+    <div id="focusBox"></div>
+    <div class="sec">Your places · tap ×N to change how often</div>
+    <div class="chips" id="chips"></div>
+    <div class="cust" id="cust">
+      <input type="text" id="custName" placeholder="Name this place (e.g. My office)" maxlength="28">
+      <div class="row"><button class="okb" id="custOk">Add place</button><button class="nob" id="custNo">Cancel</button></div>
+    </div>
+    <div class="hint" id="addHint" style="display:none">Now tap the map where your place is.</div>
+    <div class="sec">Everything within</div>
+    <div class="slider">
+      <input type="range" id="budget" min="15" max="45" step="5" value="30">
+      <div class="v"><span id="budgetV">30</span>′<small> door-to-door</small></div>
+    </div>
+    <div class="hint">The gold halo = where you can live and reach <b>all</b> your places in time. Estimates on the real metro·tram·rail graph.</div>
+    <div class="sec" id="rankSec">Homes by hours of your week</div>
+    <div id="rank"><div class="empty">Pick at least one place above — the whole catalog re-ranks around your life. No login, nothing saved on our side.</div></div>
+  </div>
+  <div class="foot" id="foot">
+    <span class="sh" id="shareBtn">↗ share</span>
+    <span id="footNotice">≈ Estimates, not timetables.</span>
+    Want us to shortlist homes that fit your time? <a class="wa" target="_blank" rel="noopener" href="https://wa.me/393313251961?text=Ciao%20BOOM!%20I%20built%20my%20time%20map%20on%20/tempo%20—%20can%20you%20help%20me%20find%20a%20home%20that%20fits?">WhatsApp us</a>
+  </div>
+</div>
+
+<div class="load" id="load">
+  <div class="dot"></div>
+  <div class="t">BOOM · Tempo</div>
+  <div class="s" id="loadMsg">Building Rome's time graph…</div>
+</div>
+
+<script src="/js/boom-geo.js"></script>
+<script src="/js/roma-transit.js"></script>
+<script src="/js/tempo-engine.js"></script>
+<script>
+(function(){
+'use strict';
+var ROME=[12.4924,41.8902];
+var $=function(id){return document.getElementById(id);};
+var msg=function(t){var m=$('loadMsg');if(m)m.textContent=t;};
+var fmt=function(n){return '€'+Math.round(n).toLocaleString('en-US');};
+var num=function(v){v=Number(v);return isFinite(v)?v:null;};
+var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
+
+var TT=window.BOOM_TEMPO||null, RT=window.ROMA_TRANSIT||null, GEO=window.BOOM_GEO||null;
+var PACK=RT?RT.PACK:null, TG=null;
+try{ if(TT&&PACK) TG=TT.buildGraph(PACK); }catch(e){ TT=null; }
+
+var map=null, LISTINGS=[], PINS={}, BUDGET=30, FOCUS=null, ARMED=false, PENDING=null;
+var FREQ_CYCLE=[1,2,3,5,7];
+/* anchors: preset (from the pack) + custom (yours, in the URL fragment only) */
+var ANCH=(PACK?PACK.anchors:[]).map(function(a){return {id:a.id,label:a.label,emoji:a.emoji,kind:a.kind,lat:a.lat,lng:a.lng,perWeek:a.perWeek||1,on:false,custom:false};});
+var planCache={}, reachCache={};
+
+function activeAnchors(){return ANCH.filter(function(a){return a.on;});}
+function planFor(l,a){
+  if(!TT||!TG||!l.lat||!l.lng)return null;
+  var k=(l.id||l.name)+'|'+(a.id||a.lat+','+a.lng);
+  if(!planCache[k])planCache[k]=TT.plan({lat:l.lat,lng:l.lng},{lat:a.lat,lng:a.lng},TG);
+  return planCache[k];
+}
+function reachFor(a){
+  var k=a.id||a.lat+','+a.lng;
+  if(!reachCache[k])reachCache[k]=TT.reachFrom(TG,{lat:a.lat,lng:a.lng});
+  return reachCache[k];
+}
+
+/* ── state ⇄ URL fragment (privacy: the fragment never reaches a server) ── */
+function encodeState(){
+  var p=[];
+  var pre=ANCH.filter(function(a){return a.on&&!a.custom;}).map(function(a){return a.id+'.'+a.perWeek;});
+  if(pre.length)p.push('a='+pre.join('_'));
+  var cus=ANCH.filter(function(a){return a.on&&a.custom;}).map(function(a){return a.lat.toFixed(4)+'~'+a.lng.toFixed(4)+'~'+encodeURIComponent(a.label)+'~'+a.perWeek;});
+  if(cus.length)p.push('c='+cus.join('_'));
+  p.push('b='+BUDGET);
+  if(FOCUS)p.push('home='+encodeURIComponent(FOCUS));
+  return '#'+p.join('&');
+}
+function saveState(){
+  var h=encodeState();
+  try{history.replaceState(null,'',h);}catch(e){}
+  try{localStorage.setItem('boom_tempo',h);}catch(e){}
+}
+function parseState(){
+  var h=location.hash&&location.hash.length>1?location.hash.slice(1):'';
+  if(!h){try{var s=localStorage.getItem('boom_tempo');if(s&&s.charAt(0)==='#')h=s.slice(1);}catch(e){}}
+  var q=new URLSearchParams(location.search);
+  if(q.get('home'))FOCUS=q.get('home');
+  if(!h)return;
+  h.split('&').forEach(function(kv){
+    var i=kv.indexOf('=');if(i<0)return;
+    var k=kv.slice(0,i),v=kv.slice(i+1);
+    if(k==='b'){var b=parseInt(v,10);if(b>=15&&b<=45)BUDGET=b;}
+    else if(k==='home'&&!FOCUS)FOCUS=decodeURIComponent(v);
+    else if(k==='a')v.split('_').forEach(function(t){var m=t.split('.');var a=ANCH.filter(function(x){return x.id===m[0];})[0];if(a){a.on=true;var f=parseInt(m[1],10);if(f>=1&&f<=14)a.perWeek=f;}});
+    else if(k==='c')v.split('_').forEach(function(t,ix){var m=t.split('~');var la=+m[0],ln=+m[1];if(!la||!ln)return;
+      ANCH.push({id:'c'+ix+'_'+m[0],label:decodeURIComponent(m[2]||'My place'),emoji:'📍',kind:'custom',lat:la,lng:ln,perWeek:Math.max(1,parseInt(m[3],10)||5),on:true,custom:true});});
+  });
+}
+
+/* ── panel ── */
+function paintChips(){
+  var box=$('chips');box.innerHTML='';
+  ANCH.forEach(function(a,i){
+    var c=document.createElement('span');c.className='chip'+(a.on?' on':'');
+    c.innerHTML='<span>'+a.emoji+'</span><span>'+esc(a.label)+'</span><span class="fx">×'+a.perWeek+'/wk</span>';
+    c.addEventListener('click',function(ev){
+      if(a.on&&ev.target.classList.contains('fx')){
+        var ix=FREQ_CYCLE.indexOf(a.perWeek);a.perWeek=FREQ_CYCLE[(ix+1)%FREQ_CYCLE.length];
+      }else{a.on=!a.on;}
+      refresh();
+    });
+    box.appendChild(c);
+  });
+  var add=document.createElement('span');add.className='chip add'+(ARMED?' armed':'');add.id='addChip';
+  add.innerHTML='<span>＋</span><span>'+(ARMED?'tap the map…':'Add your place')+'</span>';
+  add.addEventListener('click',function(){ARMED=!ARMED;$('addHint').style.display=ARMED?'block':'none';$('cust').classList.remove('show');paintChips();});
+  box.appendChild(add);
+}
+function anchorChipTimes(l){
+  return activeAnchors().map(function(a){
+    var p=planFor(l,a);if(!p)return '';
+    var slow=p.min>BUDGET;
+    return '<span'+(slow?' class="slow"':'')+'>'+a.emoji+' '+(p.mode==='walk'?p.min+'′🚶':'≈'+p.min+'′')+'</span>';
+  }).join('');
+}
+function paintRank(){
+  var box=$('rank'), act=activeAnchors();
+  if(!act.length){box.innerHTML='<div class="empty">Pick at least one place above — the whole catalog re-ranks around your life. No login, nothing saved on our side.</div>';$('rankSec').textContent='Homes by hours of your week';return;}
+  var rows=LISTINGS.filter(function(l){return l.lat&&l.lng;}).map(function(l){
+    var wk=0,worst=0,okAll=true;
+    act.forEach(function(a){var p=planFor(l,a);if(!p){okAll=false;return;}wk+=p.min*2*a.perWeek;if(p.min>worst)worst=p.min;});
+    return {l:l,wk:wk,worst:worst,ok:okAll};
+  }).filter(function(r){return r.ok;}).sort(function(a,b){return a.wk-b.wk;});
+  $('rankSec').textContent='Homes by hours of your week ('+rows.length+')';
+  box.innerHTML=rows.map(function(r){
+    var l=r.l, within=r.worst<=BUDGET;
+    var zoneNote=l._geoLevel==='zone'?'<div class="rk-note">≈ approximate position (zone)</div>':'';
+    return '<div class="rk'+(within?'':' out')+'" data-id="'+esc(l.id)+'">'+
+      '<div class="rk-h"><span class="rk-n">'+esc(l.name||'Apartment')+'</span><span class="rk-w">'+TT.fmtWeekly(r.wk)+'<i>/wk</i></span></div>'+
+      '<div class="rk-m">'+esc(l.zone||'Rome')+(l.price?' · '+fmt(l.price)+'/mo':'')+'</div>'+
+      '<div class="rk-a">'+anchorChipTimes(l)+'</div>'+zoneNote+
+      '<a class="rk-go" href="/listing/'+encodeURIComponent(l.id)+'">View this home →</a></div>';
+  }).join('')||'<div class="empty">No mappable homes right now.</div>';
+  [].forEach.call(box.querySelectorAll('.rk'),function(el){
+    el.addEventListener('click',function(ev){
+      if(ev.target.tagName==='A')return;
+      var l=LISTINGS.filter(function(x){return x.id===el.getAttribute('data-id');})[0];
+      if(l&&map){map.flyTo({center:[l.lng,l.lat],zoom:14.2,pitch:45});var mk=PINS[l.id];if(mk&&mk.getPopup()&&!mk.getPopup().isOpen())mk.togglePopup();}
+    });
+  });
+}
+function paintFocus(){
+  var box=$('focusBox');
+  if(!FOCUS){box.innerHTML='';return;}
+  var l=LISTINGS.filter(function(x){return x.id===FOCUS;})[0];
+  if(!l||!l.lat||!l.lng){box.innerHTML='';return;}
+  var act=activeAnchors();
+  var list=act.length?act:ANCH.filter(function(a){return ['termini','colosseo','vaticano','sapienza','luiss'].indexOf(a.id)>=0;});
+  var rows=list.map(function(a){
+    var p=planFor(l,a);if(!p)return '';
+    return '<div class="fr"><span class="lbl">'+a.emoji+' '+esc(a.label)+'</span><b>'+(p.mode==='walk'?p.min+'′ walk':TT.label(p))+'</b></div>';
+  }).join('');
+  var zn=l._geoLevel==='zone'?'<div class="approx">≈ times from the zone area — exact address after booking</div>':'';
+  box.innerHTML='<div class="focus"><div class="fz">Your home on the clock</div>'+
+    '<div class="fn">'+esc(l.name||'Apartment')+'</div>'+
+    '<div class="fm">'+esc(l.zone||'Rome')+(l.price?' · '+fmt(l.price)+'/mo':'')+'</div>'+rows+zn+
+    (act.length?'':'<div class="approx">Pick your own places below to make this YOUR map.</div>')+
+    '<a class="fgo" href="/listing/'+encodeURIComponent(l.id)+'">View this home →</a></div>';
+}
+
+/* ── map layers ── */
+function circlePoly(lat,lng,km,n){
+  n=n||22;var pts=[],cl=Math.cos(lat*Math.PI/180)||1e-6;
+  for(var i=0;i<=n;i++){var a=i/n*2*Math.PI;pts.push([lng+km*Math.sin(a)/(111.320*cl),lat+km*Math.cos(a)/110.574]);}
+  return pts;
+}
+function paintReach(){
+  if(!map||!map.getSource('reach')||!TT||!TG)return;
+  var act=activeAnchors(),feats=[];
+  if(act.length){
+    var per=act.map(reachFor);
+    for(var id in TG.stations){
+      var worst=0,okAll=true;
+      for(var i=0;i<per.length;i++){var t=per[i].arrive[id];if(t==null){okAll=false;break;}if(t>worst)worst=t;}
+      if(!okAll||worst>BUDGET)continue;
+      var rem=BUDGET-worst;
+      var km=Math.min(rem*(PACK.walking.speedKmh/60)/PACK.walking.detour,1.15);
+      if(km<0.12)continue;
+      var s=TG.stations[id];
+      feats.push({type:'Feature',geometry:{type:'Polygon',coordinates:[circlePoly(s.lat,s.lng,km)]}});
+    }
+    if(act.length===1){
+      var a0=act[0],km0=Math.min(BUDGET*(PACK.walking.speedKmh/60)/PACK.walking.detour,1.6);
+      feats.push({type:'Feature',geometry:{type:'Polygon',coordinates:[circlePoly(a0.lat,a0.lng,km0)]}});
+    }
+  }
+  map.getSource('reach').setData({type:'FeatureCollection',features:feats});
+}
+function paintAnchorPins(){
+  ANCH.forEach(function(a){
+    if(a.on&&!a._mk&&map){
+      var el=document.createElement('div');el.className='a-pin';
+      el.innerHTML='<span class="e">'+a.emoji+'</span><span>'+esc(a.label)+'</span>';
+      a._mk=new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([a.lng,a.lat]).addTo(map);
+    }else if(!a.on&&a._mk){a._mk.remove();a._mk=null;}
+  });
+}
+function paintPins(){
+  var act=activeAnchors();
+  LISTINGS.forEach(function(l){
+    var mk=PINS[l.id];if(!mk)return;
+    var el=mk.getElement(),tmEl=el.querySelector('.tm');
+    if(!act.length){el.classList.remove('hasT','out');tmEl.textContent='';return;}
+    var worst=0;
+    act.forEach(function(a){var p=planFor(l,a);if(p&&p.min>worst)worst=p.min;});
+    el.classList.add('hasT');
+    tmEl.textContent=(l._geoLevel==='zone'?'≈':'')+worst+'′';
+    el.classList.toggle('out',worst>BUDGET);
+  });
+}
+function refresh(){
+  paintChips();paintRank();paintFocus();paintReach();paintAnchorPins();paintPins();saveState();
+}
+
+function makePin(l){
+  var price=num(l.price);
+  var el=document.createElement('div');el.className='t-pin';
+  el.innerHTML='<span class="p">'+(price?fmt(price):'—')+'</span><span class="tm"></span>';
+  var img=l.image||(l.images&&l.images[0])||'';
+  var approx=l._geoLevel==='zone'?'<div class="pc-approx">≈ approximate position in '+esc(l.zone||'this zone')+'</div>':'';
+  var pop=new maplibregl.Popup({offset:18,closeButton:true,maxWidth:'246px'}).setHTML(
+    '<div class="pc-img"'+(img?' style="background-image:url(\''+img.replace(/'/g,'')+'\')"':'')+'></div>'+
+    '<div class="pc-body"><div class="pc-zone">'+esc(l.zone||'Rome')+'</div>'+
+    '<div class="pc-name">'+esc(l.name||'Apartment')+'</div>'+
+    '<span class="pc-price">'+(price?fmt(price):'On request')+(price?'<small> /mo</small>':'')+'</span>'+
+    '<div class="pc-times" id="pt-'+esc(l.id)+'"></div>'+approx+
+    '<a class="pc-go" href="/listing/'+encodeURIComponent(l.id)+'">View this home →</a></div>'
+  );
+  pop.on('open',function(){
+    var box=document.getElementById('pt-'+l.id);
+    if(box)box.innerHTML=anchorChipTimes(l)||'<span>Pick your places in the panel →</span>';
+  });
+  PINS[l.id]=new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat([l.lng,l.lat]).setPopup(pop).addTo(map);
+}
+
+function dressMap(){
+  try{
+    map.getStyle().layers.forEach(function(L){try{
+      if(L.type==='symbol'&&/poi|housenumber|aeroway|airport/.test(L.id))map.setLayoutProperty(L.id,'visibility','none');
+    }catch(e){}});
+    var srcs=Object.keys(map.getStyle().sources||{});
+    var src=srcs.find(function(s){return /openmaptiles|vector|planet/i.test(s);})||srcs[0];
+    if(src)map.addLayer({id:'t-3d',type:'fill-extrusion',source:src,'source-layer':'building',minzoom:13,paint:{'fill-extrusion-color':['interpolate',['linear'],['coalesce',['get','render_height'],10],0,'#B8AD97',32,'#D6CBB2',110,'#EFE6CF'],'fill-extrusion-height':['coalesce',['get','render_height'],12],'fill-extrusion-base':['coalesce',['get','render_min_height'],0],'fill-extrusion-opacity':.88}});
+  }catch(e){}
+  try{ if(map.setSky)map.setSky({'sky-color':'#8FB8E8','horizon-color':'#F2DEB6','fog-color':'#E8E0CE','sky-horizon-blend':.55,'horizon-fog-blend':.5,'fog-ground-blend':.35}); }catch(e){}
+  /* the real network, drawn from the same pack the engine rides */
+  try{
+    if(RT){
+      var gj=RT.toGeoJSON();
+      map.addSource('rt-lines',{type:'geojson',data:gj.lines});
+      map.addSource('rt-st',{type:'geojson',data:gj.stations});
+      map.addLayer({id:'rt-lines-glow',type:'line',source:'rt-lines',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':['get','color'],'line-width':['case',['==',['get','kind'],'metro'],5,3],'line-blur':4,'line-opacity':.16}});
+      map.addLayer({id:'rt-lines-l',type:'line',source:'rt-lines',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':['get','color'],'line-width':['case',['==',['get','kind'],'metro'],2,1.1],'line-opacity':.6}});
+      map.addLayer({id:'rt-st-l',type:'circle',source:'rt-st',minzoom:11.2,paint:{'circle-radius':['interpolate',['linear'],['zoom'],11.5,1.4,15,3.4],'circle-color':'#0E0E12','circle-stroke-color':'#D9D9DE','circle-stroke-width':1,'circle-opacity':.92}});
+    }
+  }catch(e){}
+  map.addSource('reach',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+  map.addLayer({id:'reach-fill',type:'fill',source:'reach',paint:{'fill-color':'#FFD700','fill-opacity':.10}});
+  map.addLayer({id:'reach-line',type:'line',source:'reach',paint:{'line-color':'#FFD700','line-width':1,'line-opacity':.28}});
+}
+
+/* ── boot ── the catalog loads INDEPENDENTLY of the map: if tiles or the CDN
+   are slow, the ranking still works and a 12s watchdog lifts the loader. */
+var BOOTED=false;
+var LREADY=(async function(){
+  var listings=[];
+  try{var r=await fetch('/api/listings',{cache:'no-store'});var j=await r.json();listings=(j&&Array.isArray(j.listings))?j.listings:[];}catch(e){}
+  LISTINGS=listings.filter(function(l){
+    var s=String(l.status||'available').toLowerCase();
+    return l.name&&!/rented|affittato|off_market|draft|hidden/.test(s);
+  }).map(function(l){
+    l.lat=num(l.lat);l.lng=num(l.lng);
+    l._geoLevel=GEO?GEO.pinPrecision(l).level:(l.lat&&l.lng?'street':'none');
+    return l;
+  });
+  return LISTINGS;
+})();
+function degrade(reason){
+  if(BOOTED)return;
+  $('load').classList.add('off');
+  $('panelSub').textContent=reason+' The list below still works — pick your places.';
+  LREADY.then(function(){paintRank();paintFocus();});
+}
+setTimeout(function(){degrade('The map is taking too long.');},12000);
+async function boot(){
+  if(!TT||!TG){msg('The time engine could not load — open /skyline for the classic map.');degrade('The time engine could not load.');return;}
+  await LREADY;
+  map=new maplibregl.Map({container:'map',style:'https://tiles.openfreemap.org/styles/liberty',center:ROME,zoom:11.6,pitch:45,bearing:-8,antialias:true});
+  map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'bottom-right');
+  await new Promise(function(res){map.on('load',res);});
+  BOOTED=true;
+  dressMap();
+  var bounds=new maplibregl.LngLatBounds(),placed=0;
+  LISTINGS.forEach(function(l){if(l.lat&&l.lng){makePin(l);bounds.extend([l.lng,l.lat]);placed++;}});
+  if(placed&&!FOCUS){try{map.fitBounds(bounds,{padding:{top:90,left:window.innerWidth>740?400:40,right:40,bottom:window.innerWidth>740?40:window.innerHeight*.45},maxZoom:13.6,duration:1200,pitch:45});}catch(e){}}
+  map.on('click',function(ev){
+    if(!ARMED)return;
+    PENDING={lat:ev.lngLat.lat,lng:ev.lngLat.lng};
+    ARMED=false;$('addHint').style.display='none';
+    $('cust').classList.add('show');$('custName').value='';$('custName').focus();
+    paintChips();
+  });
+  if(PACK&&PACK.notices&&PACK.notices.length)$('footNotice').textContent=PACK.notices.join(' ')+' '+(PACK.service&&PACK.service.note||'');
+  $('load').classList.add('off');
+  if(FOCUS){
+    var fl=LISTINGS.filter(function(x){return x.id===FOCUS;})[0];
+    if(fl&&fl.lat){map.jumpTo({center:[fl.lng,fl.lat],zoom:13.8,pitch:45});}
+    else FOCUS=null;
+  }
+  refresh();
+}
+
+/* custom place form */
+$('custOk').addEventListener('click',function(){
+  if(!PENDING)return;
+  var name=$('custName').value.trim()||'My place';
+  ANCH.push({id:'c'+Date.now().toString(36),label:name,emoji:'📍',kind:'custom',lat:PENDING.lat,lng:PENDING.lng,perWeek:5,on:true,custom:true});
+  PENDING=null;$('cust').classList.remove('show');refresh();
+});
+$('custNo').addEventListener('click',function(){PENDING=null;$('cust').classList.remove('show');});
+
+$('budget').addEventListener('input',function(){
+  BUDGET=+this.value;$('budgetV').textContent=BUDGET;
+  paintRank();paintFocus();paintReach();paintPins();saveState();
+});
+$('shareBtn').addEventListener('click',function(){
+  var url=location.origin+'/tempo'+encodeState();
+  if(navigator.share){navigator.share({title:'My Rome time map — BOOM Tempo',url:url}).catch(function(){});}
+  else{try{navigator.clipboard.writeText(url);$('shareBtn').textContent='✓ copied';setTimeout(function(){$('shareBtn').textContent='↗ share';},1600);}catch(e){prompt('Copy your map link:',url);}}
+});
+var collapse=function(){if(window.innerWidth<=740)$('panel').classList.toggle('min');};
+$('grab').addEventListener('click',collapse);
+$('panelH').addEventListener('click',collapse);
+
+parseState();
+$('budget').value=BUDGET;$('budgetV').textContent=BUDGET;
+/* the panel lives BEFORE the map: chips paint now, the map joins when ready
+   (the repo's Safari rule — no surface may hang on a loader) */
+paintChips();
+
+(function loadMapLibre(){
+  if(window.maplibregl)return boot();
+  var css=document.createElement('link');css.rel='stylesheet';css.href='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css';document.head.appendChild(css);
+  var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.min.js';
+  s.onload=function(){boot().catch(function(e){console.error('Tempo:',e);msg('Something went wrong — try /skyline or the list view.');degrade('The map hit a snag.');});};
+  s.onerror=function(){msg('Map engine unavailable — open the list view at /apartments.');degrade('The map engine is unreachable.');};
+  document.head.appendChild(s);
+})();
+})();
+</script>
+</body>
+</html>

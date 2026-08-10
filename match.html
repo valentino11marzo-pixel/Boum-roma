@@ -106,6 +106,8 @@
 <footer><div class="wrap">BOOM Rome · Affitti premium per studenti ed expat a Roma · <a href="https://www.boomrome.com">boomrome.com</a></div></footer>
 
 <!-- ENGINE (pure, testable) -->
+<script src="/js/roma-transit.js"></script>
+<script src="/js/tempo-engine.js"></script>
 <script>
 (function(root){
   'use strict';
@@ -140,10 +142,27 @@
     const s=Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
     return 2*R*Math.asin(Math.min(1,Math.sqrt(s)));
   }
-  // Rome door-to-door estimates (no external API): walk 5km/h; transit 18km/h + 12min overhead.
+  // Door-to-door on the REAL transit graph (js/tempo-engine.js) when loaded;
+  // the flat 18km/h heuristic survives only as the no-engine fallback.
+  let _tg, _tgTried = false;
+  function tempoGraph(){
+    if(_tgTried) return _tg;
+    _tgTried = true;
+    try{ if(root && root.BOOM_TEMPO && root.ROMA_TRANSIT) _tg = root.BOOM_TEMPO.buildGraph(root.ROMA_TRANSIT.PACK); }catch(e){}
+    return _tg;
+  }
   function commute(zone, uni){
     const km = haversine(zone, uni);
     const walk = Math.round(km/5*60);
+    const G = tempoGraph();
+    if(G){
+      try{
+        const p = root.BOOM_TEMPO.plan({lat:zone.lat,lng:zone.lng},{lat:uni.lat,lng:uni.lng},G);
+        const transit = p.min;
+        const via = (p.rides && p.rides.length) ? p.rides.map(r=>r.short).join('+') : null;
+        return { km:Math.round(km*10)/10, walk, transit, reach: Math.min(walk, transit), via };
+      }catch(e){}
+    }
     const transit = Math.round(12 + km/18*60);
     return { km:Math.round(km*10)/10, walk, transit, reach: Math.min(walk, transit) };
   }
@@ -267,7 +286,7 @@ function showResults(){
     <div class="res-sub">A misura di ${uni.n}, nel tuo budget${A.budget?` di €${A.budget}`:''}.</div>
     ${ranked.map((r,i)=>zoneHTML(r,i)).join('')}
     ${leadHTML()}
-    <div class="disclaim">I tempi sono stime porta-a-porta (a piedi 5 km/h · mezzi ~18 km/h, +12 min di attesa/accesso), non orari ufficiali ATAC.</div>`;
+    <div class="disclaim">Tempi ≈ stimati sul grafo reale di metro·tram·FL (attese medie incluse), non orari ufficiali ATAC. Costruisci la tua mappa completa su <a href="/tempo" style="color:var(--gold)">boomrome.com/tempo</a>.</div>`;
   bindLead();
 }
 function zoneHTML(r,i){
@@ -278,7 +297,7 @@ function zoneHTML(r,i){
     <div class="zone-vibe">${z.vibeTxt}</div>
     <div class="zone-meta">
       <span class="pill">🚶 <b>~${c.walk} min</b> a piedi</span>
-      <span class="pill">🚇 <b>~${c.transit} min</b> mezzi</span>
+      <span class="pill">🚇 <b>~${c.transit} min</b> mezzi${c.via?` · linea ${c.via}`:''}</span>
       <span class="pill">💶 <b>€${z.rmin}–${z.rmax}</b>/mese</span>
     </div>
     <div class="zone-why">${r.why.slice(0,4).join(' · ')}.</div>

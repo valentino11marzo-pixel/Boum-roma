@@ -1042,6 +1042,8 @@ a.blkchip:hover{border-color:var(--line-gold);color:var(--gold)}
 <script src="/js/boom-ambient.js"></script>
 <script src="/js/boom-fondali.js"></script>
 <script src="/js/boom-geo.js"></script>
+<script src="/js/roma-transit.js"></script>
+<script src="/js/tempo-engine.js"></script>
 <script src="/js/neighborhoods.js"></script>
 <script>
 /* MATERIA: living stone under the whole visit — develops in as the price lands */
@@ -1447,13 +1449,29 @@ function holdPay(){
 window.holdPay=holdPay;
 /* commute anchors: where our applicants actually go every morning */
 var COMMUTE=[['LUISS',41.9269,12.4917],['Sapienza',41.9038,12.5135],['Roma Tre',41.8564,12.4790],['John Cabot',41.8937,12.4664],['LUMSA',41.9032,12.4593],['Termini / centre office',41.9009,12.5018],['Vatican / Prati office',41.9022,12.4534]];
+/* the time engine (js/tempo-engine.js): real door-to-door on the metro·tram·
+   rail graph. The crow-flies formula survives ONLY as the no-engine fallback,
+   and says "rough" instead of pretending to be door-to-door. */
+var _TG;
+function _tg(){
+  if(_TG!==undefined)return _TG;
+  try{_TG=(window.BOOM_TEMPO&&window.ROMA_TRANSIT)?window.BOOM_TEMPO.buildGraph(window.ROMA_TRANSIT.PACK):null;}catch(e){_TG=null;}
+  return _TG;
+}
 function commuteFor(place){
   var c=COMMUTE.filter(function(x){return x[0]===place})[0];
   if(!c||!L.lat||!L.lng)return null;
+  var g=_tg();
+  if(g){
+    try{
+      var p=window.BOOM_TEMPO.plan({lat:L.lat,lng:L.lng},{lat:c[1],lng:c[2]},g);
+      return {place:place,min:p.min,km:p.km||null,label:window.BOOM_TEMPO.label(p)};
+    }catch(e){}
+  }
   var R=6371,r=Math.PI/180,dy=(c[1]-L.lat)*r,dx=(c[2]-L.lng)*r;
   var s=Math.pow(Math.sin(dy/2),2)+Math.cos(L.lat*r)*Math.cos(c[1]*r)*Math.pow(Math.sin(dx/2),2);
   var km=2*R*Math.asin(Math.min(1,Math.sqrt(s)))*1.3;   // street factor
-  var label=km<2.2?(Math.round(km/4.7*60)+'′ walk'):('≈'+Math.round(km*4.2+10)+'′ door-to-door');
+  var label=km<2.2?(Math.round(km/4.7*60)+'′ walk'):('~'+Math.round(km*4+12)+'′ (rough)');
   return {place:place,km:Math.round(km*10)/10,label:label};
 }
 function startRes(kind){boomTrack('begin_checkout',{item_id:PID||L.id||'sample',kind:kind});try{navigator.vibrate&&navigator.vibrate(8)}catch(e){}RES={kind:kind,step:1,approved:null,need:0,email:RES.email||'',name:RES.name||'',phone:RES.phone||''};document.getElementById('applyTitle').textContent=(L.status==='waitlist')?(kind==='reserve'?'Priority hold — first in line':'Join the waitlist'):(kind==='reserve'?'Secure this home':'Apply for this home');renderRes();openOv('applyOv');_mood('convert');}
@@ -1817,16 +1835,24 @@ var ANCHORS=[['🚇','Termini','Trains + Metro A/B',41.9009,12.5018],['🏛','Co
 function realNearby(){
   if(!L.real||!L.lat||!L.lng)return;
   var SPOTS=ANCHORS;
-  var R=6371,r=Math.PI/180;
+  var R=6371,r=Math.PI/180,g=_tg();
   var rows=SPOTS.map(function(s){
     var dy=(s[3]-L.lat)*r,dx=(s[4]-L.lng)*r;
     var km=2*R*Math.asin(Math.min(1,Math.sqrt(Math.pow(Math.sin(dy/2),2)+Math.cos(L.lat*r)*Math.cos(s[3]*r)*Math.pow(Math.sin(dx/2),2))))*1.3;
-    var t=km<2.6?(Math.round(km/4.7*60)+' min walk'):('≈'+Math.round(km*4.2+10)+' min');
+    var t;
+    if(g){
+      try{
+        var p=window.BOOM_TEMPO.plan({lat:L.lat,lng:L.lng},{lat:s[3],lng:s[4]},g);
+        t=p.mode==='walk'?(p.min+' min walk'):window.BOOM_TEMPO.label(p);
+      }catch(e){}
+    }
+    if(!t)t=km<2.6?(Math.round(km/4.7*60)+' min walk'):('~'+Math.round(km*4+12)+' min (rough)');
     return {km:km,row:[s[0],s[1],s[2],t]};
   }).sort(function(a,b){return a.km-b.km}).slice(0,4).map(function(x){return x.row});
   L.nearby=rows;
   var nbEl=document.getElementById('nearby');
-  nbEl.innerHTML=rows.map(function(a){return '<div class="nb"><div class="ico">'+(SVGI[NBICO[a[0]]]||a[0])+'</div><div class="tx"><div class="n">'+a[1]+'</div><div class="m">'+a[2]+'</div></div><div class="t">'+a[3]+'</div></div>'}).join('');
+  nbEl.innerHTML=rows.map(function(a){return '<div class="nb"><div class="ico">'+(SVGI[NBICO[a[0]]]||a[0])+'</div><div class="tx"><div class="n">'+a[1]+'</div><div class="m">'+a[2]+'</div></div><div class="t">'+a[3]+'</div></div>'}).join('')+
+    '<a class="nb" href="/tempo?home='+encodeURIComponent(L.id||PID||'')+'" style="text-decoration:none;cursor:pointer"><div class="ico">⏱</div><div class="tx"><div class="n">Your whole Rome from here</div><div class="m">The time map — pick YOUR places</div></div><div class="t" style="color:var(--gold,#D4AF37)">Open →</div></a>';
   nbEl.style.display='';
 }
 function realSimilar(){

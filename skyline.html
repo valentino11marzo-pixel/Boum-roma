@@ -45,6 +45,8 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:Inter,sys
 .pc-price{font-family:var(--disp);font-weight:200;font-size:22px;color:var(--gold)}
 .pc-price small{font-size:11px;color:var(--t3)}
 .pc-go{display:block;margin-top:11px;text-align:center;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#000;font-size:13px;font-weight:600;text-decoration:none;padding:10px;border-radius:10px}
+.pc-tempo{display:block;margin-top:7px;text-align:center;font-size:11px;letter-spacing:.3px;color:var(--t2);text-decoration:none;border:1px solid var(--line);border-radius:10px;padding:7px}
+.pc-tempo:hover{color:var(--gold);border-color:rgba(255,215,0,.4)}
 .load{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg);transition:opacity .5s,visibility .5s}
 .load.off{opacity:0;visibility:hidden}
 .load .dot{width:10px;height:10px;border-radius:50%;background:var(--gold);animation:p 1.4s ease-in-out infinite}
@@ -66,7 +68,10 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:Inter,sys
 
 <div class="bar">
   <a class="brand" href="/"><span class="logo">BO<b>O</b>M</span><span class="ttl">Skyline · Rent Rome from the sky</span></a>
-  <a class="bar-back" href="/apartments">☰ List view</a>
+  <div style="display:flex;gap:8px">
+    <a class="bar-back" href="/tempo">⏱ Time map</a>
+    <a class="bar-back" href="/apartments">☰ List view</a>
+  </div>
 </div>
 
 <div class="filters" id="filters">
@@ -84,6 +89,8 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:Inter,sys
   <div class="s" id="loadMsg">Mapping Rome…</div>
 </div>
 
+<script src="/js/roma-transit.js"></script>
+<script src="/js/tempo-engine.js"></script>
 <script>
 (function(){
 'use strict';
@@ -93,6 +100,10 @@ var msg=function(t){var m=$('loadMsg');if(m)m.textContent=t;};
 var fmt=function(n){return '€'+Math.round(n).toLocaleString('en-US');};
 var num=function(v){v=Number(v);return isFinite(v)?v:null;};
 var map=null, MARKERS=[], MAXFILTER=0;
+/* the time engine: real door-to-door estimates on the metro·tram·rail graph
+   (js/tempo-engine.js). Crow-flies survives only as the no-engine fallback. */
+var TT=window.BOOM_TEMPO||null, TG=null;
+try{ if(TT&&window.ROMA_TRANSIT) TG=TT.buildGraph(window.ROMA_TRANSIT.PACK); }catch(e){ TT=null; }
 
 /* Rome neighbourhood centres [lng,lat,...keywords] — instant, zero geocoding.
    Building-exact location lives in each listing's own 3D flyover. */
@@ -150,6 +161,11 @@ function arc(a,b,bow,n){ // quadratic-bezier bowed line → many coordinates (an
   return pts;
 }
 function distLabel(km){return km<2.6 ? Math.round(km/4.8*60)+'′ walk' : (km<10?km.toFixed(1):Math.round(km))+' km';}
+/* real minutes on the graph when the engine is up; distance as fallback */
+function anchorLabel(co,A,km){
+  if(TT&&TG){try{return TT.label(TT.plan({lat:co[1],lng:co[0]},{lat:A[1],lng:A[0]},TG));}catch(e){}}
+  return distLabel(km);
+}
 function showLinks(co){
   if(!map.getSource('links'))return;
   /* thread only the six nearest anchors — nine lines is noise, six is a story */
@@ -159,10 +175,21 @@ function showLinks(co){
   var feats=near.map(function(n){return {type:'Feature',geometry:{type:'LineString',coordinates:arc(co,[n.A[0],n.A[1]],0.12,44)}}});
   ANCHORS.forEach(function(A,i){
     var m=ANCHOR_MK[i]; if(!m)return;
-    if(i in nearSet){m.el.classList.add('lit');m.el.style.opacity='';m.dEl.textContent=distLabel(nearSet[i]);}
+    if(i in nearSet){m.el.classList.add('lit');m.el.style.opacity='';m.dEl.textContent=anchorLabel(co,A,nearSet[i]);}
     else{m.el.classList.remove('lit');m.el.style.opacity='.22';m.dEl.textContent='';}
   });
   map.getSource('links').setData({type:'FeatureCollection',features:feats});
+}
+/* the network the estimates ride on, drawn from the SAME pack (one truth) */
+function buildTransit(){
+  if(!window.ROMA_TRANSIT||!map)return;
+  try{
+    var gj=window.ROMA_TRANSIT.toGeoJSON();
+    map.addSource('rt-lines',{type:'geojson',data:gj.lines});
+    map.addSource('rt-st',{type:'geojson',data:gj.stations});
+    map.addLayer({id:'rt-lines-l',type:'line',source:'rt-lines',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':['get','color'],'line-width':['case',['==',['get','kind'],'metro'],1.9,1],'line-opacity':.5}});
+    map.addLayer({id:'rt-st-l',type:'circle',source:'rt-st',minzoom:11.6,paint:{'circle-radius':['interpolate',['linear'],['zoom'],12,1.5,15,3],'circle-color':'#0E0E12','circle-stroke-color':'#D9D9DE','circle-stroke-width':1,'circle-opacity':.9}});
+  }catch(e){}
 }
 function clearLinks(){
   if(map.getSource('links'))map.getSource('links').setData({type:'FeatureCollection',features:[]});
@@ -231,7 +258,8 @@ function makePin(l,co){
     '<div class="pc-body"><div class="pc-zone">'+(l.zone||l.neighborhood||'Rome')+'</div>'+
     '<div class="pc-name">'+(l.name||'Apartment')+'</div>'+
     '<span class="pc-price">'+(price?fmt(price):'On request')+(price?'<small> /mo</small>':'')+'</span>'+
-    '<a class="pc-go" href="/listing/'+encodeURIComponent(l.id)+'">View this home →</a></div>'
+    '<a class="pc-go" href="/listing/'+encodeURIComponent(l.id)+'">View this home →</a>'+
+    '<a class="pc-tempo" href="/tempo?home='+encodeURIComponent(l.id)+'">⏱ Your whole Rome from here →</a></div>'
   );
   el.addEventListener('click',function(){showLinks(co);});
   MARKERS.push(new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat(co).setPopup(pop).addTo(map));
@@ -256,6 +284,7 @@ async function boot(){
   map.addControl(new maplibregl.FullscreenControl(),'bottom-right');
   await new Promise(function(res){ map.on('load',res); });
   gradeColor();
+  buildTransit();
   buildAnchors();
   $('load').classList.add('off');
   var bounds=new maplibregl.LngLatBounds(), placed=0;
