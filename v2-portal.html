@@ -194,6 +194,12 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   min-width:0; width:150px; }
 .atterro input:focus { outline:none; }
 .atterro .btn { padding:11px 20px; font-size:11px; }
+@media (max-width:640px){
+  .atterro { display:flex; flex-wrap:wrap; gap:8px; width:100%;
+    border-radius:22px; padding:12px 14px; }
+  .atterro label { flex:1 1 100%; margin:0 0 2px 4px; }
+  .atterro input { flex:1 1 auto; width:auto; min-width:0; }
+  .atterro .btn { flex:none; } }
 /* le cifre del sito, in riga a filetti */
 .hero-stats { margin-top:clamp(24px,3vw,36px); display:flex; flex-wrap:wrap;
   border-top:1px solid var(--line); max-width:640px; }
@@ -233,47 +239,66 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   width:26px; height:8px; transform:translateX(-50%);
   background:var(--black); border-radius:0 0 8px 8px;
   box-shadow:inset 0 -1px 0 var(--line-gold); }
-.scalo-tag b { display:block; font-family:var(--display); font-size:30px;
+.scalo-tag b { display:block; font-family:var(--display); font-size:28px;
   font-weight:300; letter-spacing:.22em; text-indent:.22em; color:var(--gold); }
 .scalo-tag span { display:block; margin-top:3px; font-size:9.5px;
   letter-spacing:.26em; text-transform:uppercase; color:var(--text-3); }
 
-/* il tabellone: le partenze di casa — dal catalogo vero */
-.board { position:relative; background:var(--void); border-radius:18px;
-  box-shadow:inset 0 0 0 1px var(--line-gold), 0 40px 90px -40px rgba(0,0,0,.9);
-  overflow:hidden; }
+/* la cornice a tacche: riservata agli apparecchi — e questo LO è */
+.quadro { position:relative; }
+.quadro::before, .quadro::after,
+.quadro > .tacca::before, .quadro > .tacca::after {
+  content:''; position:absolute; width:18px; height:18px; pointer-events:none;
+  z-index:4; }
+.quadro::before { top:-1px; left:-1px; border-top:1px solid var(--line-gold-2);
+  border-left:1px solid var(--line-gold-2); }
+.quadro::after { top:-1px; right:-1px; border-top:1px solid var(--line-gold-2);
+  border-right:1px solid var(--line-gold-2); }
+.quadro > .tacca::before { bottom:-1px; left:-1px;
+  border-bottom:1px solid var(--line-gold-2);
+  border-left:1px solid var(--line-gold-2); }
+.quadro > .tacca::after { bottom:-1px; right:-1px;
+  border-bottom:1px solid var(--line-gold-2);
+  border-right:1px solid var(--line-gold-2); }
+
+/* IL TABELLONE — l'apparecchio Solari delle partenze di casa.
+   Non un pannello con delle righe: un organo meccanico. Le zone si
+   COMPONGONO a scatti, lo stato ha i colori di scalo (verde=boarding),
+   ogni tanto una cella freme come sui tabelloni veri. */
+.board { position:relative; background:var(--void);
+  box-shadow:inset 0 0 0 1px var(--line-gold), 0 40px 90px -40px rgba(0,0,0,.9); }
 .board-testa { display:flex; align-items:center; justify-content:space-between;
-  gap:12px; padding:15px 20px; border-bottom:1px solid var(--line-0); }
-.board-testa b { font-size:11px; font-weight:600; letter-spacing:.22em;
+  gap:12px; padding:14px 18px; border-bottom:1px solid var(--line-0); }
+.board-testa b { font-size:10.5px; font-weight:600; letter-spacing:.24em;
   text-transform:uppercase; color:var(--text-2); }
 .board-live { display:inline-flex; align-items:center; gap:7px; padding:5px 11px;
-  border-radius:100px; box-shadow:inset 0 0 0 1px rgba(0,255,136,.3);
+  box-shadow:inset 0 0 0 1px rgba(0,255,136,.3);
   font-size:9.5px; font-weight:700; letter-spacing:.18em; color:var(--green); }
 .board-live i { font-style:normal; width:5px; height:5px; border-radius:50%;
   background:var(--green); animation:pulse 1.8s ease infinite; }
-.board-riga { display:grid; grid-template-columns:minmax(0,1fr) auto auto;
-  gap:8px 14px; align-items:center; padding:13px 20px;
+.tab-righe { padding:6px 0 2px; }
+.tab-riga { display:grid;
+  grid-template-columns:minmax(0,1fr) auto auto;
+  gap:6px 12px; align-items:center; padding:9px 18px;
   border-bottom:1px solid var(--line-0); }
-.board-riga:hover { background:rgba(255,215,0,.03); }
-.board-zona { font-family:var(--display); font-size:15px; font-weight:400;
-  letter-spacing:.04em; white-space:nowrap; overflow:hidden;
-  text-overflow:ellipsis; }
-.board-chip { justify-self:start; padding:5px 10px; font-size:9px;
-  font-weight:700; letter-spacing:.16em; text-transform:uppercase;
-  border-radius:5px; box-shadow:inset 0 0 0 1px var(--line-gold-2);
-  color:var(--gold-light); white-space:nowrap; }
-.board-chip.verde { color:var(--green);
-  box-shadow:inset 0 0 0 1px rgba(0,255,136,.3); }
-.board-stato { display:inline-flex; align-items:center; gap:8px; font-size:12px;
-  color:var(--text-2); white-space:nowrap; }
-.board-stato i { font-style:normal; width:7px; height:7px; border-radius:50%; }
-.board-stato .si { background:var(--green);
-  box-shadow:0 0 8px rgba(0,255,136,.6); }
-.board-stato .ni { background:var(--gold);
-  box-shadow:0 0 8px rgba(255,215,0,.5); }
-.board-stato .no { background:var(--text-4); }
+.tab-riga:last-child { border-bottom:0; }
+.tab-zona { font-size:13.5px; overflow:hidden; }
+.tab-prezzo { font-size:12.5px; }
+.tab-stato { font-size:9px; }
+.tab-stato.si { --oro-flap:#5CFFAE; }
+.tab-stato.ni { --oro-flap:var(--gold-light); }
+.tab-stato.no { --oro-flap:rgba(250,250,250,.42); }
+@media (max-width:640px){
+  /* come sui departure board veri: destinazione e stato; il prezzo
+     vive nelle carte qui sotto */
+  .tab-riga { grid-template-columns:minmax(0,1fr) auto;
+    padding:9px 12px; gap:5px 8px; }
+  .tab-prezzo { display:none; }
+  .tab-zona { font-size:10.5px; }
+  .tab-stato { font-size:7.5px; } }
 .board-piede { display:flex; align-items:center; justify-content:space-between;
-  gap:12px; padding:12px 20px; font-size:11px; color:var(--text-4); }
+  gap:12px; padding:11px 18px; font-size:11px; color:var(--text-4);
+  border-top:1px solid var(--line-0); }
 .board-piede b { color:var(--text-3); font-weight:500;
   font-variant-numeric:tabular-nums; }
 
@@ -583,40 +608,12 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       </div>
     </div>
 
-    <aside class="board" aria-label="Live move-in board">
+    <aside class="board quadro" aria-label="Live move-in board">
+      <span class="tacca"></span>
       <div class="board-testa"><b>Live move-in board</b>
         <span class="board-live"><i></i>LIVE</span></div>
-      <div class="board-riga">
-        <span class="board-zona">Pigneto</span>
-        <span class="board-chip verde">VERIFIED</span>
-        <span class="board-stato"><i class="si"></i>Available</span>
-      </div>
-      <div class="board-riga">
-        <span class="board-zona">Pigneto</span>
-        <span class="board-chip ">NEW</span>
-        <span class="board-stato"><i class="si"></i>Available</span>
-      </div>
-      <div class="board-riga">
-        <span class="board-zona">Ponte Milvio</span>
-        <span></span>
-        <span class="board-stato"><i class="si"></i>Available</span>
-      </div>
-      <div class="board-riga">
-        <span class="board-zona">Trastevere</span>
-        <span></span>
-        <span class="board-stato"><i class="si"></i>Available</span>
-      </div>
-      <div class="board-riga">
-        <span class="board-zona">Centro</span>
-        <span class="board-chip ">NEW</span>
-        <span class="board-stato"><i class="ni"></i>Reserved</span>
-      </div>
-      <div class="board-riga">
-        <span class="board-zona">Centro</span>
-        <span class="board-chip ">NEW</span>
-        <span class="board-stato"><i class="no"></i>Rented</span>
-      </div>
-      <div class="board-piede"><span>Real availability across Rome</span>
+      <div class="tab-righe" id="tabRighe" aria-live="off"></div>
+      <div class="board-piede"><span><b>9</b> homes available now</span>
         <span>Catalogue updated <b>31 Jul</b></span></div>
     </aside>
   </div>
@@ -833,9 +830,11 @@ html.vivo .sale.dentro { opacity:1; transform:none;
 </footer>
 
 <script>
-/* la regia solo-portale: DAYS sui Solari, l'ora di Roma, l'atterraggio */
+/* la regia solo-portale: DAYS sui Solari, il tabellone, l'ora di Roma.
+   Parte al load: il motore Solari è concatenato DOPO questo script. */
 (function () {
   'use strict';
+  function via() {
   var ridotto = matchMedia('(prefers-reduced-motion: reduce)').matches;
   var BS = window.BoomSolari;
 
@@ -854,6 +853,52 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       }, 8000);
     }
   }
+
+  /* IL TABELLONE: le righe si compongono a scatti, poi vivono di fremiti */
+  var RIGHE = [{"z": "Pigneto", "p": "€1,600", "s": "AVAILABLE", "c": "si"}, {"z": "Ponte Milvio", "p": "€1,250", "s": "AVAILABLE", "c": "si"}, {"z": "Trastevere", "p": "€1,200", "s": "AVAILABLE", "c": "si"}, {"z": "Trieste", "p": "€1,200", "s": "AVAILABLE", "c": "si"}, {"z": "Africano", "p": "€900", "s": "AVAILABLE", "c": "si"}, {"z": "Prati", "p": "€1,500", "s": "AVAILABLE", "c": "si"}];
+  (function () {
+    var casa = document.getElementById('tabRighe');
+    if (!casa || !BS || !RIGHE.length) return;
+    var LZ = Math.min(12, Math.max.apply(null, RIGHE.map(function (r) {
+      return r.z.length; })));
+    var organi = [];
+    RIGHE.forEach(function (r) {
+      var riga = document.createElement('div');
+      riga.className = 'tab-riga';
+      var z = document.createElement('span'); z.className = 'tab-zona';
+      var p = document.createElement('span'); p.className = 'tab-prezzo';
+      var t = document.createElement('span');
+      t.className = 'tab-stato ' + r.c;
+      riga.appendChild(z); riga.appendChild(p); riga.appendChild(t);
+      riga.setAttribute('aria-label',
+        r.z + ', ' + r.p + ' per month, ' + r.s.toLowerCase());
+      casa.appendChild(riga);
+      organi.push({
+        z: new BS.Board(z, LZ, ' ABCDEFGHIJKLMNOPQRSTUVWXYZ\''),
+        p: new BS.Board(p, 6, ' €,.0123456789'),
+        t: new BS.Board(t, 9, ' ABCDEFGHIJKLMNOPQRSTUVWXYZ'),
+        d: r });
+    });
+    function accendi() {
+      organi.forEach(function (o, i) {
+        setTimeout(function () {
+          if (ridotto) { o.z.show(o.d.z.toUpperCase().slice(0, LZ));
+            o.p.show(o.d.p); o.t.show(o.d.s); return; }
+          o.z.show(o.d.z.toUpperCase().slice(0, LZ), 55, true);
+          o.p.show(o.d.p, 45, true);
+          o.t.show(o.d.s, 60, true);
+        }, ridotto ? 0 : i * 170);
+      });
+    }
+    setTimeout(accendi, 700);
+    /* il fremito: ogni tanto una cella trema, come sui tabelloni veri */
+    if (!ridotto) setInterval(function () {
+      if (document.hidden) return;
+      var o = organi[Math.floor(Math.random() * organi.length)];
+      var quale = ['z', 'p', 't'][Math.floor(Math.random() * 3)];
+      if (o[quale].flutter) o[quale].flutter();
+    }, 8000);
+  })();
 
   /* l'ora vera di Roma: la prova del «siamo qui adesso» */
   var ora = document.getElementById('oraRoma');
@@ -879,6 +924,9 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       location.href = dentro.value ? base + '#dal=' + dentro.value : base;
     });
   }
+  }
+  if (document.readyState === 'complete') via();
+  else addEventListener('load', via);
 })();
 </script>
 

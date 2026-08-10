@@ -32,20 +32,22 @@ def stato(r):
     if s in ('reserved','waitlist'): return ('Reserved', 'ni')
     return ('Rented', 'no')
 
-vivi = [r for r in tutti if r['status'] == 'available'][:4]
-altri = [r for r in tutti if r['status'] != 'available'][:2]
-board = vivi + altri
-def riga_board(r):
-    zona = re.sub(r'\s+', ' ', (r.get('zona') or 'Roma')).split('/')[0].strip()
-    c = chip(r)
-    eti = f'<span class="board-chip {c[1]}">{c[0]}</span>' if c else '<span></span>'
+# il tabellone elenca DESTINAZIONI: una zona, una volta (l'annuncio più
+# recente di quella zona), prima le disponibili
+def zona_di(r):
+    return re.sub(r'\s+', ' ', (r.get('zona') or 'Roma')).split('/')[0].strip()
+viste, board = set(), []
+for r in sorted(tutti, key=lambda x: (x['status'] != 'available'),):
+    z = zona_di(r)
+    if z.lower() in viste: continue
+    viste.add(z.lower()); board.append(r)
+    if len(board) == 6: break
+def riga_json(r):
     s = stato(r)
-    return (f'      <div class="board-riga">\n'
-            f'        <span class="board-zona">{zona}</span>\n'
-            f'        {eti}\n'
-            f'        <span class="board-stato"><i class="{s[1]}"></i>{s[0]}</span>\n'
-            f'      </div>')
-RIGHE = '\n'.join(riga_board(r) for r in board)
+    p = int(re.sub(r'[^\d]', '', str(r['price'])) or 0)
+    return {'z': zona_di(r), 'p': euro(p), 's': s[0].upper(), 'c': s[1]}
+BOARD_JSON = json.dumps([riga_json(r) for r in board], ensure_ascii=False)
+DISPONIBILI = sum(1 for r in tutti if r['status'] == 'available')
 
 ultimo = max(quando(r) for r in tutti)
 giorni = (oggi - ultimo).days
@@ -103,7 +105,8 @@ TRE = '\n'.join(carta(c) for c in tre)
 h = '\n'.join([leggi('pt.html'), leggi('solari-engine.html'),
                leggi('deco-organi.html')])
 h = h.replace('LOGO_SVG', leggi('logo-live.svg').strip())
-h = h.replace('BOARD_RIGHE', RIGHE)
+h = h.replace('PT_BOARD', BOARD_JSON)
+h = h.replace('DISPONIBILI', str(DISPONIBILI))
 h = h.replace('AGGIORNATO', AGG)
 h = h.replace('CASE_TRE', TRE)
 if MODO == 'artefatto':
