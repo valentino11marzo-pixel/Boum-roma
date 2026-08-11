@@ -251,7 +251,8 @@ export function shell(inner, preheader) {
 
   <table role="presentation" width="640" cellpadding="0" cellspacing="0" border="0" style="max-width:640px;width:100%"><tr>
     <td class="bp-foot" style="padding:18px 6px;font-family:${SANS};font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:#A6A298;text-align:center;${MSO}line-height:16px">
-      Egidi Immobiliare S.r.l. · P.IVA 17322991005 · <a href="https://www.boomrome.com" style="color:#A6A298;text-decoration:none">boomrome.com</a> · <a href="mailto:valentino@boom-rome.com" style="color:#A6A298;text-decoration:none">valentino@boom-rome.com</a>
+      Egidi Immobiliare S.r.l. · Via dei Coronari 181/184, 00186 Roma · Registered office: Viale Liegi 42, 00198 Roma · P.IVA 17322991005 · <a href="https://www.boomrome.com" style="color:#A6A298;text-decoration:none">boomrome.com</a> · <a href="mailto:valentino@boom-rome.com" style="color:#A6A298;text-decoration:none">valentino@boom-rome.com</a>
+      <div style="font-family:${SANS};font-size:9px;letter-spacing:0.6px;text-transform:none;color:#8F8A7E;font-weight:300;${MSO}line-height:14px;padding-top:8px">BOOM&reg; is a registered European Union trade mark (EUTM 019317594) of Egidi Immobiliare S.r.l.</div>
     </td>
   </tr></table>
 

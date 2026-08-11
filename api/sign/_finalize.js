@@ -377,6 +377,8 @@ async function buildSignedContract(c, property){
   T('Firma Elettronica Semplice ai sensi dell’art. 21 D.Lgs 82/2005 (CAD). Il certificato di firma con audit', 40, 122, 8, font, grey);
   T('completo (IP, consenso, hash) accompagna questo documento / The full signing certificate travels with this document.', 40, 110, 8, font, grey);
   T('BOOM Rome · boomrome.com · Generato il ' + new Date().toLocaleString('it-IT'), 40, 82, 7, font, grey);
+  T('BOOM® è un marchio dell\'Unione europea registrato (MUE 019317594) di Egidi Immobiliare S.r.l.', 40, 68, 7, font, grey);
+  T('Egidi Immobiliare S.r.l. - Via dei Coronari 181/184, 00186 Roma - Sede legale: Viale Liegi 42, 00198 Roma - P.IVA 17322991005', 40, 56, 7, font, grey);
   return await pdf.save();
 }
 
@@ -452,5 +454,7 @@ async function buildCertificate(c, property){
   T('Consenso accettato: ' + MS_CONSENT, 40, 104, 7, font, grey);
   T('Firma Elettronica Semplice ai sensi dell’art. 21 D.Lgs 82/2005 (CAD) — BOOM Rome · boomrome.com', 40, 66, 8, font, grey);
   T('Generato il ' + new Date().toLocaleString('it-IT'), 40, 52, 7, font, grey);
+  T('BOOM® è un marchio dell\'Unione europea registrato (MUE 019317594) di Egidi Immobiliare S.r.l.', 40, 38, 7, font, grey);
+  T('Egidi Immobiliare S.r.l. - Via dei Coronari 181/184, 00186 Roma - Sede legale: Viale Liegi 42, 00198 Roma - P.IVA 17322991005', 40, 28, 7, font, grey);
   return await pdf.save();
 }

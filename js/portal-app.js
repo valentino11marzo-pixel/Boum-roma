@@ -175,8 +175,8 @@ window.__portalAppLoaded = true; // sentinella per la via d'uscita anti-spinner-
     const COMPANY = {
         name: 'BOOM',
         legal: 'Egidi Immobiliare S.r.l.',
-        address: 'Roma, Italia',
-        piva: '17546591000',
+        address: 'Via dei Coronari 181/184, 00186 Roma — Sede legale: Viale Liegi 42, 00198 Roma',
+        piva: '17322991005',
         email: 'info@boomrome.com',
         phone: '+39 331 325 1961',
         website: 'www.boomrome.com',
@@ -3854,6 +3854,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="nav-item" onclick="window.open('/banca','_blank')"><span class="nav-icon">🏦</span> Banca &amp; Fisco</div>
                     <div class="nav-item" onclick="window.open('/pfs-command','_blank')"><span class="nav-icon">🛰️</span> PFS Command</div>
                     <div class="nav-item" onclick="window.open('/photo-lab','_blank')"><span class="nav-icon">🎞️</span> Photo Lab</div>
+                    <div class="nav-item" onclick="window.open('/media-studio','_blank')"><span class="nav-icon">🎨</span> Media Studio</div>
                     <div class="nav-item" onclick="window.open('/manuale','_blank')"><span class="nav-icon">🏠</span> Manuale Casa</div>
                     <div class="nav-item" onclick="window.open('/salute','_blank')"><span class="nav-icon">🩺</span> Salute Sistema</div>
                 </div>
@@ -14064,7 +14065,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                             <th>Dettagli</th>
                             <th>Status</th>
                             <th>Disponibile</th>
-                            <th style="width:130px">Azioni</th>
+                            <th style="width:168px">Azioni</th>
                         </tr></thead>
                         <tbody>
                             ${S.listings.sort((a,b) => (a.price || 0) - (b.price || 0)).map(l => `
@@ -14091,6 +14092,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                                     <td>
                                         <div style="display:flex;gap:5px">
                                             <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="editListing('${l.id}')" title="Modifica">✏️</button>
+                                            <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="window.open('/media-studio?listing=${l.id}','_blank')" title="Apri nel Media Studio (foto, video, testi)">🎨</button>
                                             <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="cycleListing('${l.id}','${l.status}')" title="Cambia status">🔄</button>
                                             <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="duplicateListing('${l.id}')" title="Duplica">📋</button>
                                             <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="confirmDelete('listing','${l.id}','${l.name}')" title="Elimina">🗑️</button>

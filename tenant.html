@@ -295,6 +295,10 @@ button,.obtn,.bfc,.qnav a,.dlink,.paybtn,.svcard{touch-action:manipulation}
 .advisor a{margin-left:auto;flex:none;border:1px solid rgba(37,211,102,.4);color:var(--wa);border-radius:100px;padding:9px 16px;font-size:10px;letter-spacing:1.8px;text-transform:uppercase;text-decoration:none;transition:.25s}
 .advisor a:hover{background:rgba(37,211,102,.08)}
 .foot{color:var(--t4);font-size:9px;text-align:center;margin-top:30px;letter-spacing:2.2px;text-transform:uppercase}
+/* Menzione di marchio + indirizzi: dentro #foot (ne segue lo show/hide), ma
+   annulla maiuscolo e spaziatura del padre — una frase lunga in 2.2px di
+   letter-spacing urlerebbe invece di stare in fondo. */
+.foot-tm{display:block;margin-top:8px;text-transform:none;letter-spacing:.02em;font-weight:300;line-height:1.6;opacity:.72}
 
 /* sticky quick-nav: one thumb-reach jump to any section of the home */
 .qnav{position:sticky;top:57px;z-index:40;display:flex;gap:7px;overflow-x:auto;padding:12px 0 10px;margin:6px -18px 0;padding-left:18px;padding-right:18px;scrollbar-width:none;background:linear-gradient(180deg,rgba(5,5,6,.92) 70%,transparent);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
@@ -425,7 +429,7 @@ button,.obtn,.bfc,.qnav a,.dlink,.paybtn,.svcard{touch-action:manipulation}
     <div style="font-size:11px;margin-top:12px">Apro la tua casa…</div>
   </div>
   <div id="app" style="display:none"></div>
-  <div class="foot" id="foot" style="display:none">Egidi Immobiliare S.r.l. · P.IVA 17322991005 · boomrome.com</div>
+  <div class="foot" id="foot" style="display:none">Egidi Immobiliare S.r.l. · P.IVA 17322991005 · boomrome.com<span class="foot-tm" id="footTm"></span></div>
 </main>
 
 <div class="payov" id="payov" aria-hidden="true"><div>
@@ -506,7 +510,9 @@ var STR={
   sddFailNote:'⚠ The automatic debit for this instalment did not go through — please pay by card or bank transfer below.',
   sddOkBand:'✓ Auto-pay activated — from now on your rent takes care of itself.',
   dockPay:'Pay →',
-  adminView:'Client view (admin) — you are seeing {n}\'s home exactly as they do. Buttons act on the REAL documents.'},
+  adminView:'Client view (admin) — you are seeing {n}\'s home exactly as they do. Buttons act on the REAL documents.',
+  tmAddr:'Via dei Coronari 181/184, 00186 Roma · Registered office: Viale Liegi 42, 00198 Roma',
+  tm:'BOOM® is a registered European Union trade mark (EUTM 019317594) of Egidi Immobiliare S.r.l.'},
  it:{home:'La tua casa',logout:'Esci',open:'Apro la tua casa…',active:'Contratto attivo',reserved:'Casa riservata a tuo nome',
   gm:'Buongiorno',ga:'Buon pomeriggio',ge:'Buonasera',daysToKeys:'{n} giorni alle chiavi',keysToday:'giorno delle chiavi!',
   nPay:'Pagamenti',nHist:'Storico',nDocs:'Documenti',nMan:'Manuale',nHood:'Quartiere',nFix:'Riparazioni',nConc:'Concierge',nKit:'Rome Kit',nRef:'Invita',
@@ -558,11 +564,14 @@ var STR={
   sddFailNote:'⚠ L\'addebito automatico di questa rata non è riuscito — pagala con carta o bonifico qui sotto.',
   sddOkBand:'✓ Addebito attivato — da ora il canone si paga da solo.',
   dockPay:'Paga →',
-  adminView:'Vista cliente (admin) — stai vedendo la casa di {n} esattamente come la vede. I bottoni agiscono sui documenti VERI.'}
+  adminView:'Vista cliente (admin) — stai vedendo la casa di {n} esattamente come la vede. I bottoni agiscono sui documenti VERI.',
+  tmAddr:'Via dei Coronari 181/184, 00186 Roma · Sede legale: Viale Liegi 42, 00198 Roma',
+  tm:'BOOM® è un marchio dell\'Unione europea registrato (MUE 019317594) di Egidi Immobiliare S.r.l.'}
 };
 function t(k){return (STR[LANG]&&STR[LANG][k])||STR.en[k]||k}
 function setLang(l){LANG=l;try{localStorage.setItem('boom:casa:lang',l)}catch(e){};syncLangBtn();render();}
-function syncLangBtn(){var b=$('langBtn');if(b)b.textContent=LANG==='en'?'IT':'EN';}
+function syncLangBtn(){var b=$('langBtn');if(b)b.textContent=LANG==='en'?'IT':'EN';
+  var f=$('footTm');if(f)f.innerHTML=t('tmAddr')+'<br>'+t('tm');}
 
 var WA='https://wa.me/393313251961';
 var $=function(id){return document.getElementById(id)};
