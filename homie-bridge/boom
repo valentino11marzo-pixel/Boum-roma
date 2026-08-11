@@ -195,47 +195,26 @@ function out(o) { process.stdout.write(JSON.stringify(o, null, 2) + '\n'); }
     case 'spec':
       return out(await call('agent/spec', null, 'GET'));
 
-    case 'message': {
-      // Mirror ONE WhatsApp/email message into the portal Inbox (Tier 1).
-      // Idempotent on --message-id. Analysis flags drive the 🤖 banner.
+    case 'context-push': {
+      // Homie's nightly "what I saw today" → operatorContext (Tier 1).
+      // Idempotent per day: morning + evening pushes compose field by field.
       const body = stdin || {
-        direction: a.direction || 'in',
-        channel: a.channel || 'whatsapp',
-        body: a.body || a.text || '',
-        contactType: a['contact-type'], contactId: a['contact-id'],
-        phone: a.phone, email: a.email, name: a.name,
-        contactUid: a['contact-uid'], assignedLandlordId: a['assigned-landlord-id'],
-        messageId: a['message-id'], timestamp: a.timestamp,
+        day: a.day,
+        observations: a.observations || a.obs,
+        notes: a.notes,
+        painPoints: a.pain ? String(a.pain).split('|').map(s => s.trim()).filter(Boolean) : undefined,
+        wins: a.wins ? String(a.wins).split('|').map(s => s.trim()).filter(Boolean) : undefined,
       };
-      if (!stdin) {
-        const analysis = {};
-        if (a.summary != null) analysis.summary = a.summary;
-        if (a.intent != null) analysis.intent = a.intent;
-        if (a['needs-reply'] != null) analysis.needsReply = (a['needs-reply'] === true || a['needs-reply'] === 'true');
-        if (a.urgency != null) analysis.urgency = a.urgency;
-        if (a['suggested-reply'] != null) analysis.suggestedReply = a['suggested-reply'];
-        if (Object.keys(analysis).length) body.analysis = analysis;
-        if (a.media) body.mediaUrls = String(a.media).split(',').map(s => s.trim()).filter(Boolean);
+      if (!stdin && a.whatsapp) {
+        try { body.whatsapp = JSON.parse(a.whatsapp); } catch { die('--whatsapp must be valid JSON'); }
       }
-      if (!body.body) die('--body required (the message text)');
-      return out(await call('homie/message', body));
+      return out(await call('agent/context.push', body));
     }
 
-    case 'inbox-sync': {
-      // Reconcile conversation statuses after a full WhatsApp sweep.
-      // Batch via stdin: { updates: [...] }. Single via flags.
-      const body = stdin || {
-        updates: [{
-          conversationId: a['conversation-id'], contactType: a['contact-type'],
-          contactId: a['contact-id'], phone: a.phone,
-          status: a.status,
-          needsReply: a['needs-reply'] != null ? (a['needs-reply'] === true || a['needs-reply'] === 'true') : undefined,
-          urgency: a.urgency, aiSummary: a.summary, suggestedReply: a['suggested-reply'],
-        }],
-      };
-      if (!body.updates || !body.updates.length) die('provide --status/--needs-reply/... or pipe { updates: [...] }');
-      return out(await call('homie/inbox-sync', body));
-    }
+    case 'context-pack':
+      // Compiled operator context (observations + rhythm + portal state) —
+      // the grounding block to paste into a Claude planning session.
+      return out(await call('agent/context.pack', { days: num(a.days), window: num(a.window) }));
 
     default:
       process.stdout.write(`boom — Homie ↔ BOOM Roma portal bridge
@@ -255,11 +234,9 @@ Commands:
               --phone .. --status open|snoozed|closed [--needs-reply ..] | or pipe {updates:[..]}
   action      PROPOSE a Tier-2 action (needs approval)  --kind reply|schedule_viewing|...
   ai-reply    get a Claude-drafted reply       --lead ...
-  message     mirror a WhatsApp/email message into the Inbox (Tier 1)
-              --direction in|out|note --phone ... --body "..." [--message-id ..]
-              [--summary .. --needs-reply true --urgency med --suggested-reply ..]
-  inbox-sync  reconcile conversation status after scanning WhatsApp
-              --phone .. --status open|snoozed|closed [--needs-reply ..]  | or pipe {updates:[..]}
+  context-push  push tonight's operator observations (Tier 1, once per day)
+              --observations ".." [--pain "a|b"] [--wins "a|b"] [--whatsapp '{"conversations":41}'] | or pipe JSON
+  context-pack  compiled operator context for planning sessions  [--days 7] [--window 14]
   spec        list available portal tools
 
 Env: HOMIE_SECRET (required), BOOM_BASE_URL (default https://boomrome.com)

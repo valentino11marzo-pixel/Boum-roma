@@ -67,8 +67,10 @@ e la svolta ha un nome: i contratti.
 ### Quello che NON è successo (i tre buchi)
 1. **Il livello strategico non è mai andato in produzione**: Protocollo,
    Struttura, piano e ponte Homie⇄Claude sono rimasti su questo branch.
-2. **Homie è ancora sentinella**: 2.718 heartbeat e zero azioni negli ultimi
-   7 giorni. Il ponte contesto non è mai stato acceso (mai deployato).
+2. ~~**Homie è ancora sentinella**~~ → **RISOLTO tra l'8 e l'11 agosto**: i
+   log mostrano 389 chiamate a `/api/homie/message` e 428 a `wa-outbox` in
+   4 giorni — i WhatsApp scorrono nella macchina e le risposte approvate
+   partono da sole. Resta spento solo il ponte contesto (mai deployato).
 3. **Il manuale scritto** — vedi Fase 2.
 
 ---
@@ -89,15 +91,13 @@ si parte da lì; JCU e IES dopo la conferma indirizzo (10 minuti). LUISS ha
 già partner housing: non chiedi un rapporto nuovo, chiedi di entrare in una
 lista che esiste. Follow-up quotidiano fino a fine mese.
 
-### Mossa 3 — Accendere Homie (10–12 agosto)
-Il mandato è già scritto: **`bot/HOMIE.md`** (1° agosto — "da agente che
-pensa a braccio che agisce": inoltro grezzo di ogni WhatsApp a
-`/api/homie/message`, risposte approvate via `wa-outbox`, occhi sui
-portali). I log dicono che sul Mac non è ancora stato eseguito: attivarlo.
-In più, il ponte contesto (`docs/homie-claude-bridge.md`, 10 minuti): cron
-serale `context.push` + comando Telegram "context pack". Homie è l'unico
-che vede WhatsApp — finché tace, il canale più caldo d'Italia resta fuori
-dalla macchina.
+### Mossa 3 — Accendere Homie → ✅ FATTA (verificata l'11 agosto), resta il ponte
+Il mandato `bot/HOMIE.md` è in esecuzione: 389 messaggi inoltrati e 428
+giri di outbox in 4 giorni. Il pacchetto `homie-bridge/` (installer, CLI
+`boom`) è su main. **Resta solo il ponte contesto**, dopo il merge di
+questo branch: cron serale `boom context-push` + comando Telegram
+"context pack" (`docs/homie-claude-bridge.md`, 5 minuti — la CLI ha già i
+due comandi).
 
 ### Mossa 4 — Scrivere il Manuale Operativo, versione 2026 (13–17 agosto)
 Più facile di un mese fa: metà dei processi ORA È la Squadra. Per ognuno dei

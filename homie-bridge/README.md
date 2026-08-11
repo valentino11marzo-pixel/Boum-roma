@@ -5,7 +5,10 @@ Homie sa già leggere WhatsApp e ha una CLI; questi file gli danno (1) una **pol
 
 ## File
 
-- **`HOMIE.md`** — il manuale operativo di Homie. Caricalo come *system prompt* dell'agente. Lì vivono "qualità non quantità", Tier-1 (auto) vs Tier-2 (proponi) e le **regole di proattività**.
+- **`HOMIE.md`** — il manuale operativo storico (giugno). ⚠️ Come *system
+  prompt* usa invece il prompt in **`bot/HOMIE.md`** (il mandato del 1° agosto:
+  inoltro grezzo, niente analisi lato Mac — il server pensa gratis). Il file
+  qui resta come riferimento della ferramenta Tier-1/Tier-2.
 - **`boom`** — la CLI Node che Homie chiama (`boom heartbeat`, `boom message`, `boom action` …). Wrapper sopra `https://boomrome.com/api/agent/*` + `/api/homie/*`.
 - **`install.sh`** — setup turnkey (30s) per il Mac: verifica Node, configura `HOMIE_SECRET`, abilita launchd keep-alive, smoke-test.
 - **`test.sh`** — diagnostica end-to-end. Esegue ogni endpoint una volta e dice cosa è OK/KO.

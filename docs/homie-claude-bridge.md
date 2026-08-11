@@ -8,7 +8,7 @@ costruite ma spente.
 
 ---
 
-## 1 · La diagnosi (log di produzione Vercel, ultimi 7 giorni)
+## 1 · La diagnosi di LUGLIO 2026 (storica — risolta ad agosto, vedi §4)
 
 | Endpoint | Chiamate 7g | Lettura |
 |---|---|---|
@@ -58,7 +58,12 @@ Autenticazione: le stesse di tutto il layer — `X-Homie-Secret` (Mac) o
 
 ---
 
-## 3 · Setup su OpenClaw / Homie (10 minuti, una volta sola)
+## 3 · Setup sul Mac (la ferramenta esiste già: `homie-bridge/`)
+
+Da agosto il repo contiene il pacchetto turnkey **`homie-bridge/`**
+(installer, CLI `boom`, launchd, diagnostica) — la connessione si fa col
+walkthrough copia/incolla di **`homie-bridge/CONNECT.md`**, e la CLI ha i
+due comandi del ponte:
 
 ### a) Il cron serale "osserva e racconta" (21:30, ogni giorno)
 
@@ -68,19 +73,16 @@ Aggiungi a Homie un job schedulato con questo compito:
 > Conta le conversazioni attive, quante aspettano risposta, stima il tempo
 > medio di risposta di Valentino, annota i 3–5 temi ricorrenti, le frizioni
 > che hai notato (cose fatte a mano, ripetute, dimenticate) e le vittorie.
-> Poi chiama `POST https://boomrome.com/api/agent/context.push` con header
-> `X-Homie-Secret` (il segreto che già usi) e il JSON dei campi
-> observations / whatsapp / painPoints / wins / notes. Non incollare chat
-> grezze: sintetizza. Massimo 40KB.
+> Poi esegui:
+> `boom context-push --observations "…" --pain "…|…" --wins "…|…"
+>  --whatsapp '{"conversations":41,"needingReply":6,"avgResponseMin":22}'`
+> Non incollare chat grezze: sintetizza. Massimo 40KB.
 
 ### b) Il comando Telegram "context pack"
 
 Insegna a Homie che quando Valentino scrive **"context pack"** (o "brief per
-Claude") deve:
-
-> Chiamare `POST https://boomrome.com/api/agent/context.pack` con
-> `X-Homie-Secret` e body `{}`, prendere il campo `text` della risposta e
-> incollarlo in chat come blocco di testo, senza commenti.
+Claude") deve eseguire `boom context-pack`, prendere il campo `text` della
+risposta e incollarlo in chat come blocco di testo, senza commenti.
 
 ### c) Come si usa nelle sessioni di pianificazione
 
@@ -110,9 +112,11 @@ per-messaggio (vietata perché il server la fa gratis), è UNA riflessione al
 giorno sulla giornata dell'operatore — ritmo, frizioni, abitudini: l'unica
 cosa che nessun server può vedere, perché vive sul telefono e nella stanza.
 
-Nota di stato (log Vercel, 7 agosto): il mandato esiste sulla carta ma
-l'esecuzione sul Mac non è ancora partita — `/api/homie/message` è ancora a
-zero chiamate. L'attivazione è il passo 1 del mandato stesso.
+Nota di stato (log Vercel, 11 agosto): **il mandato è in esecuzione** —
+389 chiamate a `/api/homie/message` e 428 a `wa-outbox` in 4 giorni. La
+diagnosi di luglio (§1) resta come storia: Homie non è più una sentinella.
+Manca solo il ponte contesto, attivabile in 5 minuti con la CLI:
+`boom context-push` la sera, `boom context-pack` a domanda.
 
 ---
 
