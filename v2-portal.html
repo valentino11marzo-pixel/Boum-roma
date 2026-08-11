@@ -164,13 +164,6 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   padding:clamp(104px,12svh,150px) 0 clamp(28px,3vw,40px); }
 .hero-velo { position:absolute; inset:0; overflow:hidden;
   pointer-events:none; }
-.hero-griglia { position:absolute; inset:0; pointer-events:none; opacity:.5;
-  background:
-    linear-gradient(rgba(255,255,255,.016) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.016) 1px, transparent 1px);
-  background-size:72px 72px;
-  -webkit-mask-image:radial-gradient(80% 70% at 50% 30%, #000 30%, transparent 100%);
-  mask-image:radial-gradient(80% 70% at 50% 30%, #000 30%, transparent 100%); }
 .hero-glow { position:absolute; border-radius:50%; pointer-events:none;
   width:56vw; height:56vw; top:-24vw; right:-12vw;
   background:radial-gradient(circle, rgba(255,215,0,.06), transparent 62%);
@@ -178,32 +171,16 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 @keyframes aurora {
   from { transform:translate(0,0) scale(1); }
   to   { transform:translate(-4vw,3vw) scale(1.12); } }
-/* il radar del motore: anelli lentissimi dietro il tabellone — la
-   macchina che scansiona Roma, sentita più che vista */
-.radar-quieto { position:absolute; right:16%; top:42%; width:0; height:0;
-  display:none; }
-@media (min-width:1080px){ .radar-quieto { display:block; } }
-.radar-quieto i { position:absolute; left:50%; top:50%;
-  transform:translate(-50%,-50%); border:1px solid rgba(255,215,0,.16);
-  border-radius:50%; opacity:0; font-style:normal;
-  animation:radar-respiro 7.5s ease-out infinite; }
-.radar-quieto i:nth-child(2){ animation-delay:-2.5s; }
-.radar-quieto i:nth-child(3){ animation-delay:-5s; }
-@keyframes radar-respiro {
-  0% { width:60px; height:60px; opacity:.32; }
-  100% { width:560px; height:560px; opacity:0; border-width:.5px; } }
-/* le luci di pista: l'avvicinamento, in fondo all'hero */
-.pista { position:absolute; left:0; right:0; bottom:0; height:1px;
-  background-image:linear-gradient(90deg, rgba(255,215,0,.5) 0 10px,
-    transparent 10px 64px);
-  background-size:64px 1px; opacity:.10;
-  -webkit-mask-image:linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
-  mask-image:linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
-  animation:pista-luci 7s linear infinite; }
-@keyframes pista-luci { to { background-position:-64px 0; } }
+#cartaRoma { position:absolute; inset:0; width:100%; height:100%;
+  opacity:.92;
+  -webkit-mask-image:radial-gradient(120% 105% at 66% 42%, #000 42%, transparent 78%);
+  mask-image:radial-gradient(120% 105% at 66% 42%, #000 42%, transparent 78%); }
+@media (max-width:640px){
+  #cartaRoma {
+    -webkit-mask-image:radial-gradient(140% 90% at 50% 30%, #000 40%, transparent 82%);
+    mask-image:radial-gradient(140% 90% at 50% 30%, #000 40%, transparent 82%); } }
 @media (prefers-reduced-motion:reduce){
-  .hero-glow { animation:none; }
-  .radar-quieto, .pista { display:none; } }
+  .hero-glow { animation:none; } }
 .hero-int { position:relative; z-index:2; display:grid; gap:clamp(24px,3vw,44px);
   align-items:center; grid-template-columns:1fr; }
 @media (min-width:1080px){ .hero-int {
@@ -1100,10 +1077,8 @@ html.vivo .sale.dentro { opacity:1; transform:none;
 <!-- ══ HERO — la voce · lo scalo · il tabellone ══════════════════════════ -->
 <header class="hero">
   <div class="hero-velo" aria-hidden="true">
-  <div class="hero-griglia"></div>
   <div class="hero-glow"></div>
-  <div class="radar-quieto"><i></i><i></i><i></i></div>
-  <div class="pista"></div>
+  <canvas id="cartaRoma"></canvas>
   <div class="scalo">
     <svg class="scalo-rotta" viewBox="0 0 340 120">
       <path d="M330 8 C 240 18, 120 44, 8 108"/>
@@ -1670,6 +1645,8 @@ html.vivo .sale.dentro { opacity:1; transform:none;
 
   /* IL TABELLONE: le righe si compongono a scatti, poi vivono di fremiti */
   var RIGHE = [{"z": "Pigneto", "p": "€1,600", "s": "AVAILABLE", "c": "si"}, {"z": "Ponte Milvio", "p": "€1,250", "s": "AVAILABLE", "c": "si"}, {"z": "Trastevere", "p": "€1,200", "s": "AVAILABLE", "c": "si"}, {"z": "Trieste", "p": "€1,200", "s": "AVAILABLE", "c": "si"}, {"z": "Africano", "p": "  €900", "s": "AVAILABLE", "c": "si"}, {"z": "Prati", "p": "€1,500", "s": "AVAILABLE", "c": "si"}];
+  window.__zoneVive = RIGHE.map(function (r) {
+    return { z: r.z, viva: r.c === 'si' }; });
   (function () {
     var casa = document.getElementById('tabRighe');
     if (!casa || !BS || !RIGHE.length) return;
@@ -1904,6 +1881,248 @@ html.vivo .sale.dentro { opacity:1; transform:none;
     });
   })();
   }
+  /* ══ LA CARTA DI ROMA ══════════════════════════════════════════════
+     Il GRA come anello, le consolari come raggi, il Tevere in oro con
+     l'isola, le zone vere del tabellone come destinazioni pulsanti, e
+     ogni pochi secondi un ARRIVO che plana su una di loro. Due strati:
+     la carta (disegnata una volta) e la vita (rAF, spenta quando l'hero
+     esce dallo schermo o la tab è nascosta). */
+  function cartaRoma() {
+    var tela = document.getElementById('cartaRoma');
+    if (!tela || !tela.getContext) return;
+    var ridotto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var mob = matchMedia('(max-width: 640px)').matches;
+    var ctx = tela.getContext('2d');
+    var base = document.createElement('canvas');
+    var bctx = base.getContext('2d');
+    var W = 0, H = 0, DPR = 1, CX = 0, CY = 0, R = 0;
+    var ORO = '255,215,0', LATTE = '250,248,240', VERDE = '92,255,174';
+
+    /* le coordinate (unitarie, nord in alto) — Roma stilizzata */
+    var TEVERE = [[-.03,-.46],[-.05,-.34],[-.13,-.20],[-.145,-.075],
+      [-.055,-.015],[-.10,.075],[-.135,.16],[-.075,.26],[-.045,.36],[-.06,.47]];
+    var ZONE = { 'prati':[-.155,-.115], 'trastevere':[-.115,.125],
+      'monti':[.045,.015], 'parioli':[.035,-.215], 'pigneto':[.205,.075],
+      'san giovanni':[.135,.155], 'testaccio':[-.075,.215],
+      'trieste':[.105,-.185], 'africano':[.15,-.15], 'nomentano':[.16,-.09],
+      'ponte milvio':[-.045,-.315], 'aventino':[-.02,.16], 'eur':[.01,.40],
+      'salario':[.075,-.14], 'flaminio':[-.06,-.22], 'appio':[.18,.24] };
+    var vive = (window.__zoneVive || []).map(function (r) {
+      return { nome: r.z, chiave: r.z.toLowerCase().trim(), viva: r.viva }; });
+    var nodi = [];   /* {x,y,nome,viva,fase} in unità */
+    Object.keys(ZONE).forEach(function (k) {
+      var hit = null;
+      vive.forEach(function (v) {
+        if (v.chiave.indexOf(k) === 0 || k.indexOf(v.chiave) === 0) hit = v; });
+      nodi.push({ u: ZONE[k][0], v: ZONE[k][1],
+        nome: hit ? hit.nome.toUpperCase() : '',
+        viva: hit ? hit.viva : false, sul: !!hit,
+        fase: Math.random() * 6.28 });
+    });
+
+    function u2x(u) { return CX + u * R * 2.6; }
+    function v2y(v) { return CY + v * R * 2.6; }
+
+    function misura() {
+      var r = tela.getBoundingClientRect();
+      DPR = Math.min(devicePixelRatio || 1, mob ? 1.5 : 2);
+      W = Math.round(r.width * DPR); H = Math.round(r.height * DPR);
+      tela.width = W; tela.height = H;
+      base.width = W; base.height = H;
+      CX = W * (mob ? .5 : .66); CY = H * (mob ? .34 : .45);
+      R = Math.min(W, H) * (mob ? .30 : .335);
+      carta();
+    }
+
+    /* ── strato 1: LA CARTA (una volta sola) ───────────────────────── */
+    function carta() {
+      var c = bctx; c.clearRect(0, 0, W, H);
+      c.lineCap = 'round';
+      /* il GRA: anello a tratti, con un fremito di mano */
+      c.strokeStyle = 'rgba(' + ORO + ',.19)'; c.lineWidth = DPR;
+      c.setLineDash([DPR * 2, DPR * 7]);
+      c.beginPath();
+      for (var a = 0; a <= 360; a += 2) {
+        var t = a * Math.PI / 180;
+        var rr = R * (1 + .012 * Math.sin(a * .13) + .008 * Math.sin(a * .31));
+        var x = CX + Math.cos(t) * rr, y = CY + Math.sin(t) * rr * .96;
+        a ? c.lineTo(x, y) : c.moveTo(x, y);
+      }
+      c.stroke();
+      /* le mura: mezzo anello interno, più flebile */
+      c.strokeStyle = 'rgba(' + LATTE + ',.10)';
+      c.setLineDash([DPR, DPR * 5]);
+      c.beginPath();
+      for (var a2 = -30; a2 <= 210; a2 += 3) {
+        var t2 = a2 * Math.PI / 180;
+        var x2 = CX + Math.cos(t2) * R * .46,
+            y2 = CY + Math.sin(t2) * R * .44;
+        a2 > -30 ? c.lineTo(x2, y2) : c.moveTo(x2, y2);
+      }
+      c.stroke();
+      /* le consolari: 8 raggi puntinati che escono dall'anello */
+      c.setLineDash([DPR, DPR * 6]);
+      c.strokeStyle = 'rgba(' + LATTE + ',.13)';
+      for (var i = 0; i < 8; i++) {
+        var ang = i * Math.PI / 4 + .28;
+        c.beginPath();
+        c.moveTo(CX + Math.cos(ang) * R * .1, CY + Math.sin(ang) * R * .1);
+        c.quadraticCurveTo(
+          CX + Math.cos(ang + .08) * R * .6, CY + Math.sin(ang + .08) * R * .58,
+          CX + Math.cos(ang) * R * 1.28, CY + Math.sin(ang) * R * 1.22);
+        c.stroke();
+      }
+      c.setLineDash([]);
+      /* la tacca del nord */
+      c.strokeStyle = 'rgba(' + ORO + ',.4)'; c.lineWidth = DPR;
+      c.beginPath(); c.moveTo(CX, CY - R * .985);
+      c.lineTo(CX, CY - R * 1.05); c.stroke();
+      c.fillStyle = 'rgba(' + LATTE + ',.4)';
+      c.font = '500 ' + 8.5 * DPR + 'px Inter, sans-serif';
+      c.textAlign = 'center';
+      c.fillText('N', CX, CY - R * 1.09);
+      /* le etichette delle zone del tabellone */
+      if (!mob) nodi.forEach(function (n) {
+        if (!n.nome) return;
+        var x = u2x(n.u), y = v2y(n.v);
+        c.font = '600 ' + 8 * DPR + 'px Inter, sans-serif';
+        c.textAlign = 'left';
+        var testo = n.nome.length > 12 ? n.nome.slice(0, 12) : n.nome;
+        c.fillStyle = n.viva ? 'rgba(' + ORO + ',.55)'
+                             : 'rgba(' + LATTE + ',.30)';
+        var sp = testo.split('').join('\u200a\u200a');
+        c.fillText(sp, x + 7 * DPR, y + 3 * DPR);
+      });
+    }
+
+    /* ── strato 2: LA VITA ─────────────────────────────────────────── */
+    var arrivo = null, prossimo = 2200;
+    function nuovoArrivo(t) {
+      var mete = nodi.filter(function (n) { return n.sul; });
+      if (!mete.length) mete = nodi;
+      var m = mete[Math.floor(Math.random() * mete.length)];
+      var ang = Math.random() * 6.28;
+      arrivo = { x0: CX + Math.cos(ang) * R * 1.9,
+        y0: CY + Math.sin(ang) * R * 1.9,
+        x1: u2x(m.u), y1: v2y(m.v),
+        cx: CX + Math.cos(ang + 1.1) * R * 1.1,
+        cy: CY + Math.sin(ang + 1.1) * R * 1.1,
+        via: t, durata: 2400, meta: m };
+    }
+    function vita(t) {
+      ctx.clearRect(0, 0, W, H);
+      ctx.drawImage(base, 0, 0);
+      ctx.lineCap = 'round';
+      /* IL TEVERE: il filo d'oro che respira */
+      var fase = ridotto ? 0 : t * .00045;
+      ctx.strokeStyle = 'rgba(' + ORO + ',.34)';
+      ctx.lineWidth = 1.6 * DPR;
+      ctx.shadowColor = 'rgba(' + ORO + ',.5)';
+      ctx.shadowBlur = 7 * DPR;
+      ctx.beginPath();
+      TEVERE.forEach(function (p, i) {
+        var x = u2x(p[0]) + Math.sin(fase + i * .9) * 1.3 * DPR;
+        var y = v2y(p[1]);
+        i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      });
+      ctx.stroke();
+      /* l'Isola Tiberina: una lente nel fiume */
+      var ix = u2x(-.108), iy = v2y(.10);
+      ctx.fillStyle = 'rgba(' + ORO + ',.5)';
+      ctx.beginPath();
+      ctx.ellipse(ix, iy, 3.4 * DPR, 1.5 * DPR, -.7, 0, 6.29);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      /* le zone: puntini che respirano; le vive pulsano in verde-oro */
+      nodi.forEach(function (n) {
+        var x = u2x(n.u), y = v2y(n.v);
+        var battito = .5 + .5 * Math.sin((ridotto ? 0 : t * .0016) + n.fase);
+        ctx.fillStyle = n.sul
+          ? 'rgba(' + ORO + ',' + (.55 + battito * .4) + ')'
+          : 'rgba(' + LATTE + ',.22)';
+        ctx.beginPath();
+        ctx.arc(x, y, (n.sul ? 2.1 : 1.3) * DPR, 0, 6.29);
+        ctx.fill();
+        if (n.viva && !ridotto) {
+          var pr = ((t * .0004 + n.fase) % 1);
+          ctx.strokeStyle = 'rgba(' + VERDE + ',' + (.34 * (1 - pr)) + ')';
+          ctx.lineWidth = DPR;
+          ctx.beginPath();
+          ctx.arc(x, y, (3 + pr * 17) * DPR, 0, 6.29);
+          ctx.stroke();
+        }
+      });
+      /* L'ARRIVO: la cometa che plana sulla zona */
+      if (!ridotto) {
+        if (!arrivo && t > prossimo) nuovoArrivo(t);
+        if (arrivo) {
+          var p = (t - arrivo.via) / arrivo.durata;
+          if (p >= 1) {
+            /* il bloom dell'atterraggio */
+            var pb = (t - arrivo.via - arrivo.durata) / 700;
+            if (pb < 1) {
+              ctx.strokeStyle = 'rgba(' + ORO + ',' + (.5 * (1 - pb)) + ')';
+              ctx.lineWidth = 1.2 * DPR;
+              ctx.beginPath();
+              ctx.arc(arrivo.x1, arrivo.y1, (2 + pb * 22) * DPR, 0, 6.29);
+              ctx.stroke();
+            } else { arrivo = null; prossimo = t + 2600 + Math.random() * 2600; }
+          } else {
+            var e = 1 - Math.pow(1 - p, 3);   /* plana, non piomba */
+            var qx = function (tt) { return (1-tt)*(1-tt)*arrivo.x0
+              + 2*(1-tt)*tt*arrivo.cx + tt*tt*arrivo.x1; };
+            var qy = function (tt) { return (1-tt)*(1-tt)*arrivo.y0
+              + 2*(1-tt)*tt*arrivo.cy + tt*tt*arrivo.y1; };
+            /* la scia */
+            for (var k = 0; k < 14; k++) {
+              var tk = Math.max(0, e - k * .022);
+              ctx.fillStyle = 'rgba(' + ORO + ',' + (.5 * (1 - k / 14) * p) + ')';
+              ctx.beginPath();
+              ctx.arc(qx(tk), qy(tk), (1.7 - k * .09) * DPR, 0, 6.29);
+              ctx.fill();
+            }
+            /* la testa */
+            ctx.fillStyle = 'rgba(255,251,235,.95)';
+            ctx.beginPath();
+            ctx.arc(qx(e), qy(e), 1.9 * DPR, 0, 6.29);
+            ctx.fill();
+          }
+        }
+      }
+    }
+    /* la regia: gira solo se l'hero si vede e la tab è viva */
+    var girando = false, visibile = true;
+    function giro(t) {
+      if (!girando) return;
+      vita(t); requestAnimationFrame(giro);
+    }
+    function accendi() {
+      if (girando || !visibile || document.hidden) return;
+      girando = true; requestAnimationFrame(giro);
+    }
+    function spegni() { girando = false; }
+    misura();
+    if (ridotto) { vita(0); }
+    else {
+      new IntersectionObserver(function (vs) {
+        visibile = vs[0].isIntersecting;
+        visibile ? accendi() : spegni();
+      }, { threshold: .04 }).observe(tela);
+      document.addEventListener('visibilitychange', function () {
+        document.hidden ? spegni() : accendi();
+      });
+      accendi();
+    }
+    var attesa;
+    addEventListener('resize', function () {
+      clearTimeout(attesa); attesa = setTimeout(function () {
+        misura(); if (ridotto) vita(0); }, 180);
+    }, { passive: true });
+  }
+  /* parte DOPO via(): il tabellone ha già dichiarato le zone vive */
+  if (document.readyState === 'complete') setTimeout(cartaRoma, 0);
+  else addEventListener('load', function () { setTimeout(cartaRoma, 0); });
+
   if (document.readyState === 'complete') via();
   else addEventListener('load', via);
 })();
