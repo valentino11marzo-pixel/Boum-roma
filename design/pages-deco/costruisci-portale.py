@@ -134,7 +134,26 @@ for z, rr in quante.items():
     SKY.append({'z': z, 'lng': round(_st.mean(coord[z]), 5), 'n': len(rr),
                 'da': euro(min(pr)), 'si': bool(disp)})
 SKY.sort(key=lambda x: x['lng'])
-h = h.replace("'SKY_JSON'", json.dumps(SKY, ensure_ascii=False))
+# la Skyline vuole le CASE, non le zone: ognuna alle sue coordinate
+SKYCASE = []
+for r in piene:
+    if r.get('status') not in ('available','reserved','waitlist'): continue
+    if not r.get('lat') or not r.get('lng') or not r.get('name'): continue
+    p = int(re.sub(r'[^\d]','',str(r.get('price') or '')) or 0)
+    if not p: continue
+    SKYCASE.append({
+        'id': r.get('_id') or r.get('id'),
+        'nome': re.sub(r'\s+',' ',r['name']).strip(),
+        'zona': re.sub(r'\s+',' ',str(r.get('zone') or 'Roma')).split('/')[0].strip(),
+        'lat': float(r['lat']), 'lng': float(r['lng']),
+        'da': euro(p), 'si': r['status'] == 'available',
+        'stato': 'reserved' if r['status'] in ('reserved','waitlist') else 'rented'})
+h = h.replace("'SKY_JSON'", json.dumps(SKYCASE, ensure_ascii=False))
+CASA_ART = 'https://claude.ai/code/artifact/db7c3240-a12d-4734-9eb7-06a780584231'
+h = h.replace('CASA_BASE', (CASA_ART + '#id=') if MODO == 'artefatto'
+    else '/v2-listing.html#id=')
+h = h.replace('RECENSIONI_URL',
+    'https://www.google.com/maps?q=Egidi+Immobiliare+Via+dei+Coronari+Roma')
 h = h.replace('CASE_TRE', TRE)
 # la scena 1 dell'apparecchio: il flagship vero (foto, nome, canone, totale)
 flag_foto = json.load(open('foto-casa.json'))
@@ -181,7 +200,7 @@ else:
 if MODO == 'artefatto':
     HOME = 'https://claude.ai/code/artifact/3c0dae67-a0e6-47d4-964f-832b824ffe0f'
     AP = 'https://claude.ai/code/artifact/12798611-3d8a-498f-a043-c6f10b6856cd'
-    CASA = 'https://claude.ai/code/artifact/a65a8cb4-bfe1-49a5-acaf-2c4a1a992321'
+    CASA = CASA_ART
     h = h.replace('COME_URL', HOME + '#come').replace('AP_URL', AP)
     for da, a_ in {'/index.html': HOME, '/apartments.html': AP,
         '/property-finding.html': 'https://claude.ai/code/artifact/4186ed23-28d5-46a2-98bc-09fdf5eb7e21',

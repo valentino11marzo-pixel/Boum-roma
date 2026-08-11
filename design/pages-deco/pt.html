@@ -125,12 +125,13 @@ h1, h2, h3 { font-family:var(--display); }
 .nav-inner { display:flex; align-items:center; justify-content:space-between;
   gap:16px; }
 .marchio { display:inline-flex; align-items:center; gap:11px; }
-.marchio .logo-mark { width:48px; height:48px; flex:none; }
-.marchio span { font-family:var(--display); font-size:19.5px; font-weight:400;
-  letter-spacing:.34em; text-indent:.34em; text-transform:uppercase; }
+.marchio .logo-mark { width:56px; height:56px; flex:none; }
+.marchio span { font-family:var(--display); font-size:23px; font-weight:400;
+  letter-spacing:.36em; text-indent:.36em; text-transform:uppercase; }
 @media (max-width:640px){
-  .marchio .logo-mark { width:47px; height:47px; }
-  .marchio span { font-size:19.5px; } }
+  .marchio { gap:9px; }
+  .marchio .logo-mark { width:52px; height:52px; }
+  .marchio span { font-size:21px; letter-spacing:.3em; text-indent:.3em; } }
 .menu { display:none; align-items:center; gap:26px; }
 @media (min-width:1080px){ .menu { display:flex; } }
 .menu a { font-size:13px; font-weight:400; letter-spacing:.02em;
@@ -429,6 +430,18 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   border-top:1px solid var(--line-0); }
 .board-piede b { color:var(--text-3); font-weight:500;
   font-variant-numeric:tabular-nums; }
+
+/* le recensioni: un filo sotto il tabellone, mai un cartello */
+.recensioni { display:flex; align-items:center; gap:10px; margin-top:10px;
+  padding:11px 14px; background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--line-0); transition:.3s ease; }
+.recensioni:hover { box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.recensioni svg { width:15px; height:15px; flex:none; fill:var(--gold);
+  opacity:.85; }
+.recensioni span { flex:1; min-width:0; font-size:12px; color:var(--text-3); }
+.recensioni i { font-style:normal; font-size:9.5px; font-weight:600;
+  letter-spacing:.12em; text-transform:uppercase; color:var(--gold);
+  white-space:nowrap; }
 
 /* la strip d'imbarco: quattro fatti, onesti */
 .imbarco { margin-top:clamp(20px,2.4vw,30px); display:grid;
@@ -969,15 +982,16 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 
 /* ══ LO SKYLINE — la città disegnata, e usabile ════════════════════════ */
 .sky { position:relative; margin-top:clamp(20px,2.6vw,32px); }
-.sky canvas { display:block; width:100%; height:clamp(190px,26vw,340px); }
+.sky canvas { display:block; width:100%; height:clamp(250px,34vw,430px);
+  background:linear-gradient(180deg, #050506, #08080B); }
 .sky-tasti { position:absolute; left:0; right:0; top:0;
-  height:clamp(190px,26vw,340px); }
-.sky-tasti button { position:absolute; bottom:0; width:34px; height:64%;
-  transform:translateX(-50%); padding:0; border:0; background:none;
+  height:clamp(250px,34vw,430px); }
+.sky-tasti button { position:absolute; width:30px; height:30px;
+  transform:translate(-50%,-50%); padding:0; border:0; background:none;
   cursor:pointer; }
-.sky-tasti button::after { content:''; position:absolute; left:50%; bottom:14%;
-  width:7px; height:7px; margin-left:-3.5px; border-radius:50%;
-  background:var(--gold); opacity:.5; transition:opacity .3s ease,
+.sky-tasti button::after { content:''; position:absolute; left:50%; top:50%;
+  width:9px; height:9px; margin:-4.5px 0 0 -4.5px; border-radius:50%;
+  background:var(--gold); opacity:.62; transition:opacity .3s ease,
     transform .3s var(--ease); }
 .sky-tasti button:hover::after, .sky-tasti button.on::after,
 .sky-tasti button:focus-visible::after { opacity:1; transform:scale(1.5); }
@@ -1016,6 +1030,10 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   cursor:pointer; white-space:nowrap; transition:.25s; }
 .sky-fila button.on { color:var(--gold);
   box-shadow:inset 0 0 0 1px var(--line-gold); }
+.sky-bussola { position:absolute; top:12px; right:14px; width:26px;
+  height:26px; display:grid; place-items:center; border-radius:50%;
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); font-size:9px;
+  font-weight:600; letter-spacing:.1em; color:var(--gold); }
 @media (hover:none), (pointer:coarse), (max-width:900px){
   .sky-tasti { display:none; }
   .sky-fila { display:flex; } }
@@ -1427,6 +1445,11 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       <div class="board-piede"><span><b>DISPONIBILI</b> homes available now</span>
         <span>Catalogue updated <b>AGGIORNATO</b></span></div>
     </aside>
+    <a class="recensioni" href="RECENSIONI_URL" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 9.8l6.1-.7z"/></svg>
+      <span>What our tenants write about us</span>
+      <i>Google reviews ↗</i>
+    </a>
   </div>
 
   <!-- la strip d'imbarco: quattro fatti veri -->
@@ -1545,34 +1568,38 @@ CASE_TRE
   </div>
 </section>
 
-<!-- ══ LO SKYLINE — la città come strumento ═════════════════════════════ -->
+<!-- ══ LO SKYLINE 3D — la sezione del sito, in home come magnete ════════ -->
 <section class="sezione" id="skyline">
   <div class="container">
     <div class="testa-fila sale">
       <div>
-        <span class="eyebrow"><i></i>The city, as an instrument</span>
-        <h2 class="titolo">Where do you want to <span class="hl">wake up</span>?</h2>
-        <p class="sotto">Rome, drawn to scale: every district sits at its real
-          place on the map. Touch one.</p>
+        <span class="eyebrow"><i></i>Skyline 3D · Satellite</span>
+        <h2 class="titolo">Every home on Rome's <span class="hl">real
+          skyline</span>.</h2>
+        <p class="sotto">Not pins on a flat map: the city in relief, with each
+          of our homes standing where it actually stands. Orbit the block,
+          check the distances, then open the full Skyline.</p>
       </div>
+      <a class="vai-testa" href="/skyline">Open the Skyline ↗</a>
     </div>
 
     <div class="sky sale">
       <canvas id="skyTela" aria-hidden="true"></canvas>
       <div class="sky-tasti" id="skyTasti"></div>
+      <span class="sky-bussola" aria-hidden="true">N</span>
       <div class="sky-fila" id="skyFila" role="group"
-        aria-label="Districts"></div>
+        aria-label="Homes on the skyline"></div>
       <div class="sky-carta" id="skyCarta" aria-live="polite">
         <div class="sky-vuota" id="skyVuota">
-          <b>Pick a district</b>
-          <span>Or let the board choose for you.</span>
+          <b>DISPONIBILI homes standing in Rome right now</b>
+          <span>Touch a tower to see which one.</span>
         </div>
         <a class="sky-piena" id="skyPiena" href="/apartments.html">
           <div>
             <b id="skyNome">—</b>
             <span id="skyDati">—</span>
           </div>
-          <i>See homes →</i>
+          <i>Open this home →</i>
         </a>
       </div>
     </div>
@@ -1826,8 +1853,10 @@ CASE_TRE
         <div class="footer-marchio"><span id="logoPiede"></span>Boom</div>
         <p class="piede-motto">Built in Rome, for Rome. If we can make Rome's
           rental market work, we can make it work anywhere.</p>
-        <p class="piede-legale"><b>Egidi Immobiliare S.r.l.</b><br>
-          Via dei Coronari 181/184, 00186 Roma · P.IVA 17322991005</p>
+        <p class="piede-legale"><b>BOOM®</b> is a registered trademark of
+          <b>Egidi Immobiliare S.r.l.</b><br>
+          Via dei Coronari 181/184, 00186 Roma · P.IVA 17322991005 ·
+          Licensed real-estate agency</p>
       </div>
       <div class="piede-col">
         <b>Services</b>
@@ -2310,269 +2339,210 @@ CASE_TRE
     }, { passive: true });
   }
   function skylineRoma() {
-    /* LO SKYLINE — Roma dal codice. I monumenti alla loro longitudine
-       vera, i quartieri del catalogo dove stanno davvero. Lo strato
-       della città si posa una volta; solo il fascio di luce vive. */
+    /* LA SKYLINE 3D — la sezione del sito live, portata in home: Roma in
+       assonometria disegnata dal codice, e OGNI CASA alle sue coordinate
+       vere, in piedi sul suo isolato. Lo strato città si posa una volta. */
     var tela = document.getElementById('skyTela');
     if (!tela || !tela.getContext) return;
-    var ZONE = 'SKY_JSON';
-    if (!ZONE.length) return;
+    var CASE = 'SKY_JSON';
+    if (!CASE.length) return;
     var ridotto = matchMedia('(prefers-reduced-motion: reduce)').matches;
     var mob = matchMedia('(max-width: 640px)').matches;
     var ctx = tela.getContext('2d');
     var ORO = '255,215,0', LATTE = '250,248,240';
-    var W, H, DPR, suolo, citta, luci;
-    /* i monumenti, alla loro longitudine reale */
-    var MONUMENTI = [
-      { lng: 12.4534, tipo: 'sanpietro', h: 1.00, w: .52, nome: 'San Pietro' },
-      { lng: 12.4663, tipo: 'castello',  h: .52, nome: "Castel Sant'Angelo" },
-      { lng: 12.4768, tipo: 'pantheon',  h: .46, nome: 'Pantheon' },
-      { lng: 12.4828, tipo: 'vittoriano', h: .66, w: .50, nome: 'Vittoriano' },
-      { lng: 12.4922, tipo: 'colosseo',  h: .62, w: .72, nome: 'Colosseo' },
-      { lng: 12.5060, tipo: 'pino',      h: .58, nome: '' },
-      { lng: 12.4600, tipo: 'pino',      h: .50, nome: '' },
-      { lng: 12.5230, tipo: 'pino',      h: .54, nome: '' },
-    ];
-    var LNG0 = 12.446, LNG1 = 12.537;
-    function ax(lng) { return ((lng - LNG0) / (LNG1 - LNG0)) * W; }
-
+    var W, H, DPR, citta, isolati, K, CX, CY;
+    /* il centro della scena: la media delle nostre case */
+    var LAT = CASE.reduce(function (a, c) { return a + c.lat; }, 0) / CASE.length;
+    var LNG = CASE.reduce(function (a, c) { return a + c.lng; }, 0) / CASE.length;
+    /* il Tevere, per punti veri (nord → sud) */
+    var TEVERE = [[41.951,12.470],[41.933,12.466],[41.918,12.470],
+      [41.906,12.466],[41.895,12.474],[41.884,12.470],[41.872,12.478]];
+    var COS = Math.cos(Math.PI / 6), SIN = Math.sin(Math.PI / 6);
+    function proietta(lat, lng) {
+      /* metri approssimati, poi assonometria a 30° */
+      var mx = (lng - LNG) * 111320 * Math.cos(LAT * Math.PI / 180);
+      var my = (lat - LAT) * 110540;
+      return { x: CX + (mx - my * .35) * K, y: CY - (my * .55 + mx * .28) * K };
+    }
     function misura() {
       var r = tela.getBoundingClientRect();
       DPR = Math.min(devicePixelRatio || 1, 2);
       W = Math.round(r.width * DPR); H = Math.round(r.height * DPR);
       tela.width = W; tela.height = H;
-      suolo = H * .87;
-      disegna();
-      piazza();
+      CX = W * .5; CY = H * .60;
+      /* la scala: tutte le case dentro il quadro, con aria attorno */
+      K = 1;
+      var prova = CASE.map(function (c) { return proietta(c.lat, c.lng); });
+      var xs = prova.map(function (p) { return p.x - CX; });
+      var ys = prova.map(function (p) { return p.y - CY; });
+      var mx = Math.max.apply(null, xs.map(Math.abs)) || 1;
+      var my = Math.max.apply(null, ys.map(Math.abs)) || 1;
+      K = Math.min(W * .46 / mx, H * .34 / my);
+      disegna(); piazza();
     }
-
-    /* ── i mattoni del disegno ─────────────────────────────────────── */
-    function cupola(g, x, base, raggio, tamburo) {
-      g.beginPath(); g.arc(x, base - tamburo, raggio, Math.PI, 0); g.stroke();
+    /* un blocco in rilievo: la faccia alta e i due fianchi */
+    function blocco(g, p, w, d, h, forza) {
+      var x = p.x, y = p.y;
+      var ax = w * COS, ay = w * SIN, bx = -d * COS, by = d * SIN;
+      g.fillStyle = 'rgba(' + LATTE + ',' + (forza * .085) + ')';
       g.beginPath();
-      g.moveTo(x - raggio, base - tamburo); g.lineTo(x - raggio, base);
-      g.moveTo(x + raggio, base - tamburo); g.lineTo(x + raggio, base);
+      g.moveTo(x, y - h);
+      g.lineTo(x + ax, y + ay - h);
+      g.lineTo(x + ax + bx, y + ay + by - h);
+      g.lineTo(x + bx, y + by - h);
+      g.closePath(); g.fill();
+      g.strokeStyle = 'rgba(' + LATTE + ',' + (forza * .26) + ')';
+      g.lineWidth = DPR; g.stroke();
+      g.beginPath();
+      g.moveTo(x, y - h); g.lineTo(x, y);
+      g.moveTo(x + ax, y + ay - h); g.lineTo(x + ax, y + ay);
+      g.moveTo(x + bx, y + by - h); g.lineTo(x + bx, y + by);
       g.stroke();
-      /* la lanterna */
       g.beginPath();
-      g.moveTo(x, base - tamburo - raggio);
-      g.lineTo(x, base - tamburo - raggio - raggio * .34);
-      g.stroke();
-      g.beginPath();
-      g.arc(x, base - tamburo - raggio - raggio * .4, raggio * .11, 0, 6.29);
-      g.stroke();
-    }
-    function colonne(g, x0, x1, base, alto, n) {
-      for (var i = 0; i <= n; i++) {
-        var x = x0 + (x1 - x0) * (i / n);
-        g.beginPath(); g.moveTo(x, base); g.lineTo(x, base - alto); g.stroke();
-      }
-      g.beginPath();
-      g.moveTo(x0 - 2 * DPR, base - alto); g.lineTo(x1 + 2 * DPR, base - alto);
+      g.moveTo(x, y); g.lineTo(x + ax, y + ay);
+      g.moveTo(x, y); g.lineTo(x + bx, y + by);
       g.stroke();
     }
-    function monumento(g, m, alt) {
-      var x = ax(m.lng), a = alt * m.h, w = a * (m.w || .58);
-      if (m.tipo === 'sanpietro') {
-        colonne(g, x - w * .95, x - w * .42, suolo, a * .26, 5);
-        colonne(g, x + w * .42, x + w * .95, suolo, a * .26, 5);
-        g.beginPath();
-        g.moveTo(x - w * .34, suolo); g.lineTo(x - w * .34, suolo - a * .40);
-        g.lineTo(x + w * .34, suolo - a * .40); g.lineTo(x + w * .34, suolo);
-        g.stroke();
-        cupola(g, x, suolo - a * .40, w * .34, a * .16);
-      } else if (m.tipo === 'castello') {
-        g.beginPath();
-        g.moveTo(x - w * .62, suolo); g.lineTo(x - w * .62, suolo - a * .34);
-        g.lineTo(x + w * .62, suolo - a * .34); g.lineTo(x + w * .62, suolo);
-        g.stroke();
-        g.beginPath();
-        g.moveTo(x - w * .34, suolo - a * .34);
-        g.lineTo(x - w * .34, suolo - a * .78);
-        g.lineTo(x + w * .34, suolo - a * .78);
-        g.lineTo(x + w * .34, suolo - a * .34);
-        g.stroke();
-        g.beginPath();
-        g.moveTo(x, suolo - a * .78); g.lineTo(x, suolo - a);
-        g.stroke();
-      } else if (m.tipo === 'pantheon') {
-        colonne(g, x - w * .58, x + w * .58, suolo, a * .52, 7);
-        cupola(g, x, suolo - a * .52, w * .5, 0);
-      } else if (m.tipo === 'vittoriano') {
-        g.beginPath();
-        g.moveTo(x - w * .9, suolo); g.lineTo(x - w * .78, suolo - a * .22);
-        g.lineTo(x + w * .78, suolo - a * .22); g.lineTo(x + w * .9, suolo);
-        g.stroke();
-        colonne(g, x - w * .62, x + w * .62, suolo - a * .22, a * .5, 9);
-        g.beginPath();
-        g.moveTo(x - w * .70, suolo - a * .72);
-        g.lineTo(x + w * .70, suolo - a * .72); g.stroke();
-      } else if (m.tipo === 'colosseo') {
-        for (var p = 0; p < 3; p++) {
-          var y = suolo - a * (.30 + p * .26);
-          g.beginPath();
-          g.moveTo(x - w * .72, y); g.lineTo(x + w * .72, y); g.stroke();
-        }
-        g.beginPath();
-        g.moveTo(x - w * .72, suolo); g.lineTo(x - w * .72, suolo - a * .82);
-        g.moveTo(x + w * .72, suolo); g.lineTo(x + w * .72, suolo - a * .82);
-        g.stroke();
-        for (var i2 = -2; i2 <= 2; i2++) {
-          var ax2 = x + i2 * w * .28;
-          g.beginPath();
-          g.arc(ax2, suolo - a * .30, w * .1, Math.PI, 0); g.stroke();
-          g.beginPath();
-          g.arc(ax2, suolo - a * .56, w * .1, Math.PI, 0); g.stroke();
-        }
-      } else if (m.tipo === 'pino') {
-        g.beginPath();
-        g.moveTo(x, suolo); g.lineTo(x - w * .06, suolo - a * .62); g.stroke();
-        g.beginPath();
-        g.ellipse(x - w * .06, suolo - a * .72, w * .46, a * .19, 0, 0, 6.29);
-        g.stroke();
-      }
-    }
-
-    /* ── la città si posa una volta sola ───────────────────────────── */
     function disegna() {
       citta = document.createElement('canvas');
       citta.width = W; citta.height = H;
       var g = citta.getContext('2d');
-      /* il cielo di Roma, appena caldo all'orizzonte */
-      var cielo = g.createLinearGradient(0, suolo - H * .5, 0, suolo);
-      cielo.addColorStop(0, 'rgba(255,215,0,0)');
-      cielo.addColorStop(1, 'rgba(255,190,90,.07)');
-      g.fillStyle = cielo;
-      g.fillRect(0, 0, W, suolo);
-      /* i palazzi: bassi, fitti, con qualche finestra accesa */
-      luci = [];
-      var seme = 7;
+      g.lineCap = 'round'; g.lineJoin = 'round';
+      /* l'alone del centro: la città che si accende sotto */
+      var al = g.createRadialGradient(CX, CY, 0, CX, CY, Math.max(W, H) * .5);
+      al.addColorStop(0, 'rgba(255,205,90,.055)');
+      al.addColorStop(1, 'rgba(255,205,90,0)');
+      g.fillStyle = al; g.fillRect(0, 0, W, H);
+      /* il Tevere: il filo d'oro che attraversa il rilievo */
+      g.strokeStyle = 'rgba(' + ORO + ',.24)';
+      g.lineWidth = 2.4 * DPR;
+      g.beginPath();
+      TEVERE.forEach(function (t, i) {
+        var p = proietta(t[0], t[1]);
+        i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y);
+      });
+      g.stroke();
+      /* gli isolati: una maglia in assonometria, più densa al centro */
+      isolati = [];
+      var seme = 11;
       function caso() { seme = (seme * 1103515245 + 12345) % 2147483648;
         return seme / 2147483648; }
-      g.strokeStyle = 'rgba(' + LATTE + ',.11)';
-      g.lineWidth = DPR;
-      var x = -20 * DPR;
-      while (x < W + 20 * DPR) {
-        var w = (26 + caso() * 46) * DPR;
-        var alt = (16 + caso() * 52) * DPR;
-        g.strokeRect(x, suolo - alt, w, alt);
-        if (caso() < .5) {
-          var fx = x + w * (.25 + caso() * .5), fy = suolo - alt * (.3 + caso() * .5);
-          luci.push({ x: fx, y: fy, fase: caso() * 9 });
-        }
-        x += w + 3 * DPR;
+      var passo = (mob ? 540 : 430);   /* metri per isolato */
+      for (var gy = -8; gy <= 8; gy++) for (var gx = -9; gx <= 9; gx++) {
+        var lat = LAT + (gy * passo) / 110540;
+        var lng = LNG + (gx * passo) / (111320 * Math.cos(LAT * Math.PI / 180));
+        var p = proietta(lat, lng);
+        if (p.x < -60 * DPR || p.x > W + 60 * DPR) continue;
+        if (p.y < -40 * DPR || p.y > H + 60 * DPR) continue;
+        var d = Math.sqrt(gx * gx + gy * gy);
+        var vicino = Math.max(.16, 1 - d / 9);
+        var h = (7 + caso() * 34 * vicino * vicino) * DPR * (mob ? .8 : 1);
+        isolati.push({ p: p, w: passo * .62 * K, d: passo * .62 * K,
+          h: h, forza: vicino });
       }
-      /* i monumenti, in oro */
-      g.strokeStyle = 'rgba(' + ORO + ',.45)';
-      g.lineWidth = 1.3 * DPR;
-      g.lineCap = 'round'; g.lineJoin = 'round';
-      var alt2 = H * (mob ? .60 : .68);
-      MONUMENTI.forEach(function (m) { monumento(g, m, alt2); });
-      /* la linea di terra */
-      g.strokeStyle = 'rgba(' + ORO + ',.3)';
-      g.lineWidth = DPR;
-      g.beginPath(); g.moveTo(0, suolo); g.lineTo(W, suolo); g.stroke();
-      /* le tacche dei quartieri */
-      ZONE.forEach(function (z) {
-        var zx = ax(z.lng);
-        g.strokeStyle = 'rgba(' + ORO + ',' + (z.si ? .34 : .16) + ')';
-        g.beginPath();
-        g.moveTo(zx, suolo); g.lineTo(zx, suolo + 9 * DPR); g.stroke();
-      });
+      /* dal fondo al davanti: la profondità si costruisce così */
+      isolati.sort(function (a, b) { return a.p.y - b.p.y; });
+      isolati.forEach(function (b) {
+        blocco(g, b.p, b.w, b.d, b.h, b.forza); });
     }
-
-    /* ── i tasti veri, sopra il disegno: tocco e tastiera ───────────── */
+    /* ── i pin: una casa, una torre d'oro ─────────────────────────────── */
     var tasti = document.getElementById('skyTasti');
     var fila = document.getElementById('skyFila');
     var sky = tela.closest('.sky');
     var scelta = null, faro = 0;
     function piazza() {
-      if (tasti.children.length === ZONE.length && fila.children.length) {
-        [].slice.call(tasti.children).forEach(function (b, i) {
-          b.style.left = (ax(ZONE[i].lng) / DPR) + 'px'; });
-        return;
-      }
-      tasti.innerHTML = ''; fila.innerHTML = '';
-      ZONE.forEach(function (z, i) {
-        var b = document.createElement('button');
-        b.type = 'button';
-        b.style.left = (ax(z.lng) / DPR) + 'px';
-        b.setAttribute('aria-label', z.z + ' — ' + z.n
-          + (z.n === 1 ? ' home' : ' homes') + ', from ' + z.da);
-        var c = document.createElement('button');
-        c.type = 'button'; c.textContent = z.z;
-        c.setAttribute('aria-label', z.z + ' — ' + z.n
-          + (z.n === 1 ? ' home' : ' homes') + ', from ' + z.da);
+      var rifai = tasti.children.length !== CASE.length;
+      if (rifai) { tasti.innerHTML = ''; fila.innerHTML = ''; }
+      CASE.forEach(function (c, i) {
+        var p = proietta(c.lat, c.lng);
+        c._p = p;
+        var b = rifai ? document.createElement('button') : tasti.children[i];
+        if (rifai) {
+          b.type = 'button';
+          b.setAttribute('aria-label', c.nome + ' — ' + c.zona + ', ' + c.da
+            + (c.si ? ', available now' : ''));
+        }
+        b.style.left = (p.x / DPR) + 'px';
+        b.style.top = ((p.y - c.alt) / DPR) + 'px';
+        if (!rifai) return;
+        var c2 = document.createElement('button');
+        c2.type = 'button'; c2.textContent = c.zona;
+        c2.setAttribute('aria-label', c.nome + ' — ' + c.zona + ', ' + c.da);
         var scegli = function () {
-          scelta = z; faro = performance.now();
+          scelta = c; faro = performance.now();
           [].slice.call(tasti.children).forEach(function (x, k) {
             x.classList.toggle('on', k === i); });
           [].slice.call(fila.children).forEach(function (x, k) {
             x.classList.toggle('on', k === i); });
           sky.classList.add('scelto');
-          document.getElementById('skyNome').textContent = z.z;
+          document.getElementById('skyNome').textContent = c.nome;
           document.getElementById('skyDati').textContent =
-            z.n + (z.n === 1 ? ' home' : ' homes') + ' · from ' + z.da
-            + (z.si ? ' · available now' : '');
-          document.getElementById('skyPiena').setAttribute('href',
-            AP_ZONA + encodeURIComponent(z.z));
+            c.zona + ' · ' + c.da + (c.si ? ' · available now' : ' · ' + c.stato);
+          document.getElementById('skyPiena').setAttribute('href', CASA_URL + c.id);
           accendi();
         };
         b.addEventListener('mouseenter', scegli);
         b.addEventListener('focus', scegli);
         b.addEventListener('click', function () {
-          scegli();
-          location.href = AP_ZONA + encodeURIComponent(z.z);
-        });
-        tasti.appendChild(b);
-        /* la fila: il primo tocco accende, il secondo porta alle case */
-        c.addEventListener('click', function () {
-          if (scelta === z) location.href = AP_ZONA + encodeURIComponent(z.z);
-          else { scegli(); c.scrollIntoView({ inline: 'center',
+          scegli(); location.href = CASA_URL + c.id; });
+        c2.addEventListener('click', function () {
+          if (scelta === c) location.href = CASA_URL + c.id;
+          else { scegli(); c2.scrollIntoView({ inline: 'center',
             block: 'nearest', behavior: 'smooth' }); }
         });
-        fila.appendChild(c);
+        tasti.appendChild(b); fila.appendChild(c2);
       });
     }
-    var AP_ZONA = 'AP_URL' + '#zona=';
-
-    /* ── la vita: il fascio di luce e qualche finestra ──────────────── */
+    var CASA_URL = 'CASA_BASE';
     function vita(t) {
       ctx.clearRect(0, 0, W, H);
       ctx.drawImage(citta, 0, 0);
-      /* le finestre accese, lentissime */
-      if (!ridotto) luci.forEach(function (l) {
-        var b = .12 + .12 * Math.sin(t * .0007 + l.fase);
-        ctx.fillStyle = 'rgba(255,225,150,' + b + ')';
-        ctx.fillRect(l.x, l.y, 1.6 * DPR, 2.2 * DPR);
+      /* le torri delle case: dal fondo al davanti */
+      var ord = CASE.slice().sort(function (a, b) { return a._p.y - b._p.y; });
+      ord.forEach(function (c) {
+        var p = c._p, viva = c.si;
+        var scelto = scelta === c;
+        var respiro = ridotto ? 0 : .5 + .5 * Math.sin(t * .0016 + c.fase);
+        var h = c.alt * (scelto ? 1.18 : 1);
+        /* il fusto */
+        var gr = ctx.createLinearGradient(p.x, p.y, p.x, p.y - h);
+        gr.addColorStop(0, 'rgba(' + ORO + ',0)');
+        gr.addColorStop(1, 'rgba(' + ORO + ',' + (viva ? .55 : .22)
+          + (scelto ? '' : '') + ')');
+        ctx.strokeStyle = gr;
+        ctx.lineWidth = (scelto ? 2.6 : 1.6) * DPR;
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y); ctx.lineTo(p.x, p.y - h); ctx.stroke();
+        /* la luce in punta */
+        var raggio = (scelto ? 4.6 : 3) * DPR;
+        ctx.fillStyle = viva
+          ? 'rgba(255,248,220,' + (.55 + respiro * .45) + ')'
+          : 'rgba(' + LATTE + ',.4)';
+        ctx.beginPath(); ctx.arc(p.x, p.y - h, raggio, 0, 6.29); ctx.fill();
+        if (viva && !ridotto) {
+          var pr = ((t * .00035 + c.fase) % 1);
+          ctx.strokeStyle = 'rgba(' + ORO + ',' + (.3 * (1 - pr)) + ')';
+          ctx.lineWidth = DPR;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y - h, (3 + pr * 16) * DPR, 0, 6.29); ctx.stroke();
+        }
+        /* l'ombra sull'isolato */
+        ctx.fillStyle = 'rgba(' + ORO + ',' + (scelto ? .3 : .12) + ')';
+        ctx.beginPath();
+        ctx.ellipse(p.x, p.y, 5 * DPR, 2.4 * DPR, 0, 0, 6.29); ctx.fill();
       });
-      /* il fascio sul quartiere scelto */
+      /* il nome, solo per la casa scelta */
       if (scelta) {
-        var p = ridotto ? 1 : Math.min(1, (t - faro) / 520);
-        var e = 1 - Math.pow(1 - p, 3);
-        var zx = ax(scelta.lng);
-        var g2 = ctx.createLinearGradient(0, suolo, 0, suolo - H * .9 * e);
-        g2.addColorStop(0, 'rgba(' + ORO + ',.28)');
-        g2.addColorStop(1, 'rgba(' + ORO + ',0)');
-        ctx.fillStyle = g2;
-        ctx.fillRect(zx - 13 * DPR, suolo - H * .9 * e, 26 * DPR, H * .9 * e);
-        ctx.strokeStyle = 'rgba(' + ORO + ',' + (.5 * e) + ')';
-        ctx.lineWidth = DPR;
-        ctx.beginPath();
-        ctx.moveTo(zx, suolo); ctx.lineTo(zx, suolo - H * .82 * e);
-        ctx.stroke();
-        ctx.fillStyle = 'rgba(255,248,220,' + (.85 * e) + ')';
-        ctx.beginPath();
-        ctx.arc(zx, suolo, 3 * DPR, 0, 6.29); ctx.fill();
-        /* il nome arriva col fascio, e solo per lui */
-        var testo = scelta.z.toUpperCase().split('').join('\u200a');
+        var e = ridotto ? 1 : Math.min(1, (t - faro) / 380);
+        var p2 = scelta._p;
+        var testo = scelta.zona.toUpperCase().split('').join('\u200a');
         ctx.font = '600 ' + (mob ? 8 : 9) * DPR + 'px Inter, sans-serif';
         ctx.textAlign = 'center';
         var lar = ctx.measureText(testo).width;
         var tx = Math.max(lar / 2 + 6 * DPR,
-          Math.min(W - lar / 2 - 6 * DPR, zx));
-        ctx.fillStyle = 'rgba(' + ORO + ',' + (.9 * e) + ')';
-        ctx.fillText(testo, tx, suolo + 21 * DPR);
+          Math.min(W - lar / 2 - 6 * DPR, p2.x));
+        ctx.fillStyle = 'rgba(' + ORO + ',' + (.92 * e) + ')';
+        ctx.fillText(testo, tx, p2.y - scelta.alt * 1.18 - 12 * DPR);
       }
     }
     var girando = false, visibile = false, ultimo = 0;
@@ -2586,8 +2556,36 @@ CASE_TRE
       girando = true; requestAnimationFrame(giro);
     }
     function spegni() { girando = false; }
+    CASE.forEach(function (c, i) {
+      c.fase = (i * 2.4) % 6.28;
+      c.alt = 0;   /* misurata dopo, in misura() */
+    });
+    /* le torri: chi sta vicino sull'isolato sale più in alto, così due
+       case a cento metri restano due bersagli distinti — la geografia
+       non si tocca, cambia solo l'altezza (come in una città vera) */
+    function torri() {
+      var base = (mob ? 38 : 46) * DPR, passo = (mob ? 22 : 26) * DPR;
+      var messe = [];
+      CASE.slice().sort(function (a, b) { return a._p.y - b._p.y; })
+        .forEach(function (c) {
+          var alt = base * (c.si ? 1 : .72);
+          var sicuro = false, giri = 0;
+          while (!sicuro && giri < 8) {
+            sicuro = true;
+            for (var i = 0; i < messe.length; i++) {
+              var o = messe[i];
+              if (Math.abs(o._p.x - c._p.x) < 30 * DPR
+                  && Math.abs((o._p.y - o.alt) - (c._p.y - alt)) < 26 * DPR) {
+                alt += passo; sicuro = false; break;
+              }
+            }
+            giri++;
+          }
+          c.alt = alt; messe.push(c);
+        });
+    }
     misura();
-    vita(0);
+    torri(); piazza(); vita(0);
     if (!ridotto) {
       new IntersectionObserver(function (vs) {
         visibile = vs[0].isIntersecting;
@@ -2599,7 +2597,9 @@ CASE_TRE
     var attesa;
     addEventListener('resize', function () {
       clearTimeout(attesa);
-      attesa = setTimeout(function () { misura(); vita(performance.now()); }, 200);
+      attesa = setTimeout(function () {
+        misura(); torri(); piazza(); vita(performance.now());
+      }, 200);
     }, { passive: true });
   }
   if (document.readyState === 'complete') setTimeout(skylineRoma, 0);
