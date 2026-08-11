@@ -1,0 +1,268 @@
+<script>
+/* LA REGIA DELLA DISCOVERY — il tabellone è il filtro.
+   Parte al load: il motore Solari è concatenato DOPO questo script. */
+(function () {
+  'use strict';
+  function via() {
+  var ridotto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var BS = window.BoomSolari;
+
+  /* ── lo stato della ricerca ─────────────────────────────────────────── */
+  var stato = { zona: '', budget: 0, chi: '', dal: null, ordine: 'nuove' };
+  var carte = [].slice.call(document.querySelectorAll('#muro .casa-p'));
+  var muro = document.getElementById('muro');
+  var vuoto = document.getElementById('vuoto');
+  var conto = document.getElementById('conto');
+  var contoZona = document.getElementById('contoZona');
+
+  function iso(d) { return d.toISOString().slice(0, 10); }
+  function passa(c) {
+    if (stato.zona && (c.dataset.zona || '').toLowerCase() !== stato.zona) return false;
+    if (stato.budget && +c.dataset.prezzo > stato.budget) return false;
+    /* chi atterra: famiglia e coinquilini vogliono almeno due camere */
+    if ((stato.chi === 'family' || stato.chi === 'flatmates')
+        && +(c.dataset.letti || 0) < 2) return false;
+    /* la data: mostriamo solo ciò che è libero entro il tuo atterraggio */
+    if (stato.dal && c.dataset.dal && c.dataset.dal > stato.dal) return false;
+    return true;
+  }
+  function ordina() {
+    var vive = carte.filter(function (c) { return !c.classList.contains('via'); });
+    vive.sort(function (a, b) {
+      if (stato.ordine === 'prezzo') return +a.dataset.prezzo - +b.dataset.prezzo;
+      if (stato.ordine === 'grandi') return +b.dataset.mq - +a.dataset.mq;
+      return b.dataset.quando.localeCompare(a.dataset.quando);
+    });
+    vive.forEach(function (c) { muro.appendChild(c); });
+  }
+  function aggiorna() {
+    var n = 0;
+    carte.forEach(function (c) {
+      var ok = passa(c);
+      c.classList.toggle('via', !ok);
+      if (ok) n++;
+    });
+    ordina();
+    conto.textContent = n;
+    contoZona.textContent = stato.zona
+      ? ' in ' + stato.zona.replace(/\b\w/g, function (x) { return x.toUpperCase(); })
+      : '';
+    vuoto.classList.toggle('si', n === 0);
+    /* il muro riappare con la sua cascata quando cambia il taglio */
+    muro.classList.remove('dentro');
+    requestAnimationFrame(function () { muro.classList.add('dentro'); });
+  }
+
+  /* ── IL TABELLONE DELLE ZONE: righe Solari che filtrano ────────────── */
+  (function () {
+    var casa = document.getElementById('zoneRighe');
+    if (!casa || !BS) return;
+    var ZONE = 'ZONE_JSON';
+    var LZ = Math.min(14, Math.max.apply(null,
+      ZONE.map(function (z) { return z.z.length; })));
+    var organi = [];
+    ZONE.forEach(function (z) {
+      var riga = document.createElement('button');
+      riga.type = 'button'; riga.className = 'zona-riga';
+      riga.setAttribute('aria-pressed', 'false');
+      riga.dataset.zona = z.z.toLowerCase();
+      var n1 = document.createElement('span'); n1.className = 'zona-nome';
+      var q = document.createElement('span'); q.className = 'zona-quante';
+      var d = document.createElement('span');
+      d.className = 'zona-da ' + (z.si ? 'si' : 'no');
+      riga.appendChild(n1); riga.appendChild(q); riga.appendChild(d);
+      riga.setAttribute('aria-label', z.z + ', ' + z.n
+        + (z.n === 1 ? ' home' : ' homes') + ', from ' + z.da);
+      casa.appendChild(riga);
+      organi.push({
+        z: new BS.Board(n1, LZ, ' ABCDEFGHIJKLMNOPQRSTUVWXYZ\''),
+        q: new BS.Board(q, 2, ' 0123456789'),
+        d: new BS.Board(d, 6, ' €,.0123456789'),
+        dati: z, el: riga });
+      riga.addEventListener('click', function () {
+        var mia = z.z.toLowerCase();
+        stato.zona = (stato.zona === mia) ? '' : mia;
+        organi.forEach(function (o) {
+          var on = o.dati.z.toLowerCase() === stato.zona;
+          o.el.classList.toggle('on', on);
+          o.el.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+        if (!ridotto && o_flutter(z)) { /* il colpo di flap alla scelta */ }
+        aggiorna();
+      });
+    });
+    function o_flutter(z) {
+      var o = organi.filter(function (x) { return x.dati === z; })[0];
+      if (o && o.d.flutter) o.d.flutter();
+      return true;
+    }
+    function accendi() {
+      organi.forEach(function (o, i) {
+        setTimeout(function () {
+          var nome = o.dati.z.toUpperCase().slice(0, LZ);
+          if (ridotto) { o.z.show(nome); o.q.show(String(o.dati.n));
+            o.d.show(o.dati.da); return; }
+          o.z.show(nome, 55, true);
+          o.q.show(String(o.dati.n), 45, true);
+          o.d.show(o.dati.da, 60, true);
+        }, ridotto ? 0 : i * 150);
+      });
+    }
+    setTimeout(accendi, 600);
+    var tutte = document.getElementById('zoneTutte');
+    if (tutte) tutte.addEventListener('click', function () {
+      stato.zona = '';
+      organi.forEach(function (o) { o.el.classList.remove('on');
+        o.el.setAttribute('aria-pressed', 'false'); });
+      aggiorna();
+    });
+    if (!ridotto) setInterval(function () {
+      if (document.hidden || !organi.length) return;
+      var o = organi[Math.floor(Math.random() * organi.length)];
+      var quale = ['z', 'q', 'd'][Math.floor(Math.random() * 3)];
+      if (o[quale].flutter) o[quale].flutter();
+    }, 14000);
+  })();
+
+  /* ── L'ORDINE ───────────────────────────────────────────────────────── */
+  [].slice.call(document.querySelectorAll('.muro-ordine button'))
+    .forEach(function (b) {
+      b.addEventListener('click', function () {
+        document.querySelectorAll('.muro-ordine button')
+          .forEach(function (x) { x.classList.remove('on'); });
+        b.classList.add('on');
+        stato.ordine = b.dataset.o;
+        aggiorna();
+      });
+    });
+
+  /* ── IL CHECK-IN: budget, chi, e il calendario BOOM ─────────────────── */
+  var bud = document.getElementById('quantoBudget');
+  var chi = document.getElementById('chiAtterra');
+  bud.addEventListener('change', function () {
+    stato.budget = +bud.value || 0;
+    bud.classList.toggle('scelto', !!bud.value);
+    aggiorna();
+  });
+  chi.addEventListener('change', function () {
+    stato.chi = chi.value;
+    chi.classList.toggle('scelto', !!chi.value);
+    aggiorna();
+  });
+
+  (function () {
+    var forma = document.getElementById('atterro');
+    var btn = document.getElementById('quandoBtn');
+    var cal = document.getElementById('cal');
+    var testo = document.getElementById('quandoTesto');
+    var griglia = document.getElementById('calGiorni');
+    var eti = document.getElementById('calMese');
+    if (!forma || !cal) return;
+    var oggi = new Date(); oggi.setHours(12, 0, 0, 0);
+    var vista = new Date(oggi.getFullYear(), oggi.getMonth(), 1, 12);
+    var scelta = null;
+    var MESI = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
+      'August', 'September', 'October', 'November', 'December'];
+    function bella(d) {
+      return d.toLocaleDateString('en-GB',
+        { weekday: 'short', day: 'numeric', month: 'short' });
+    }
+    function dipingi() {
+      eti.textContent = MESI[vista.getMonth()] + ' ' + vista.getFullYear();
+      var primo = new Date(vista);
+      var salta = (primo.getDay() + 6) % 7;
+      var h = '';
+      for (var i = 0; i < 42; i++) {
+        var d = new Date(vista.getFullYear(), vista.getMonth(), 1 - salta + i, 12);
+        var fuori = d.getMonth() !== vista.getMonth();
+        var passata = d < oggi;
+        var cls = (fuori ? ' fuori' : '') + (passata ? ' passata' : '')
+          + (iso(d) === iso(oggi) ? ' oggi' : '')
+          + (scelta && iso(d) === iso(scelta) ? ' sel' : '');
+        h += '<button type="button" data-d="' + iso(d) + '"'
+          + (passata ? ' disabled' : '') + ' class="' + cls.trim() + '">'
+          + d.getDate() + '</button>';
+      }
+      griglia.innerHTML = h;
+    }
+    function apri(si) {
+      cal.classList.toggle('aperto', si);
+      btn.setAttribute('aria-expanded', si ? 'true' : 'false');
+      if (si) { dipingi();
+        setTimeout(function () {
+          if (innerWidth > 640)
+            cal.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }, 60); }
+    }
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      apri(!cal.classList.contains('aperto'));
+    });
+    griglia.addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-d]');
+      if (!b || b.disabled) return;
+      scelta = new Date(b.dataset.d + 'T12:00:00');
+      testo.textContent = bella(scelta);
+      btn.classList.add('scelta');
+      stato.dal = iso(scelta);
+      var fra = Math.round((scelta - oggi) / 864e5);
+      document.getElementById('calHint').textContent = fra <= 2
+        ? 'Tight — and enough. 48h is our craft.'
+        : 'Landing in ' + fra + ' days.';
+      dipingi(); aggiorna(); apri(false);
+    });
+    document.getElementById('calPrec').addEventListener('click', function () {
+      vista.setMonth(vista.getMonth() - 1); dipingi(); });
+    document.getElementById('calSucc').addEventListener('click', function () {
+      vista.setMonth(vista.getMonth() + 1); dipingi(); });
+    document.getElementById('calSubito').addEventListener('click', function () {
+      scelta = new Date(oggi);
+      testo.textContent = 'ASAP — ' + bella(scelta);
+      btn.classList.add('scelta');
+      stato.dal = iso(scelta);
+      dipingi(); aggiorna(); apri(false);
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') apri(false); });
+    document.addEventListener('click', function (e) {
+      if (!forma.contains(e.target)) apri(false); });
+    forma.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var prima = document.querySelector('#muro .casa-p:not(.via)');
+      if (prima) location.href = prima.getAttribute('href');
+      else location.href = '/property-finding.html';
+    });
+
+    /* ── ciò che arrivi dalla home viaggia con te ─────────────────────── */
+    var h = location.hash.replace('#', '');
+    if (h) h.split('&').forEach(function (p) {
+      var k = p.split('=')[0], v = decodeURIComponent(p.split('=')[1] || '');
+      if (k === 'dal' && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
+        scelta = new Date(v + 'T12:00:00');
+        stato.dal = v; testo.textContent = bella(scelta);
+        btn.classList.add('scelta');
+        vista = new Date(scelta.getFullYear(), scelta.getMonth(), 1, 12);
+      }
+      if (k === 'budget') { bud.value = v; stato.budget = +v || 0;
+        bud.classList.toggle('scelto', !!v); }
+      if (k === 'chi') { chi.value = v; stato.chi = v;
+        chi.classList.toggle('scelto', !!v); }
+      if (k === 'zona') {
+        stato.zona = v.toLowerCase();
+        setTimeout(function () {
+          document.querySelectorAll('.zona-riga').forEach(function (r) {
+            var on = r.dataset.zona === stato.zona;
+            r.classList.toggle('on', on);
+            r.setAttribute('aria-pressed', on ? 'true' : 'false');
+          });
+        }, 80);
+      }
+    });
+  })();
+
+  aggiorna();
+  }
+  if (document.readyState === 'complete') via();
+  else addEventListener('load', via);
+})();
+</script>

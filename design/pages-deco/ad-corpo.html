@@ -1,0 +1,230 @@
+<style>
+/* ══ LA DISCOVERY — il tabellone È il filtro ═══════════════════════════ */
+.disco { position:relative; padding:clamp(96px,11svh,132px) 0 clamp(20px,2.4vw,30px); }
+.disco-velo { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+.disco-velo::after { content:''; position:absolute; inset:0;
+  background:linear-gradient(100deg, rgba(3,3,3,.92) 0%, rgba(3,3,3,.66) 34%,
+    rgba(3,3,3,.12) 62%, transparent 78%); }
+@media (max-width:1080px){
+  .disco-velo::after {
+    background:linear-gradient(180deg, rgba(3,3,3,.55), rgba(3,3,3,.86) 46%,
+      rgba(3,3,3,.94)); } }
+.disco-int { position:relative; z-index:2; }
+.disco-testa { display:grid; gap:clamp(20px,2.6vw,38px);
+  grid-template-columns:1fr; align-items:end; }
+@media (min-width:1080px){ .disco-testa {
+  grid-template-columns:minmax(0,1fr) minmax(0,.92fr); } }
+.disco h1 { margin-top:18px; font-weight:200;
+  font-size:clamp(34px,4.2vw,54px); line-height:1.07; letter-spacing:-.02em;
+  text-wrap:balance; }
+.disco h1 .hl { color:var(--gold); }
+.disco-sotto { margin-top:14px; font-size:clamp(14px,1.4vw,16px);
+  color:var(--text-2); max-width:46ch; }
+@media (max-width:640px){
+  .disco h1 { font-size:clamp(32px,9vw,40px); font-weight:250; }
+  .disco-sotto { font-size:15px; } }
+
+/* il quadro del catalogo: le zone come destinazioni, e sono i filtri */
+.zone-quadro { position:relative; background:var(--void);
+  box-shadow:inset 0 0 0 1px var(--line-gold), 0 40px 90px -40px rgba(0,0,0,.9); }
+.zone-testa { display:flex; align-items:center; justify-content:space-between;
+  gap:12px; padding:13px 18px; border-bottom:1px solid var(--line-0); }
+.zone-testa b { font-size:10.5px; font-weight:600; letter-spacing:.24em;
+  text-transform:uppercase; color:var(--text-2); }
+.zone-righe { padding:2px 0; }
+.zona-riga { width:100%; display:grid;
+  grid-template-columns:minmax(0,1fr) auto auto; gap:6px 12px;
+  align-items:center; padding:9px 18px; text-align:left;
+  border-bottom:1px solid var(--line-0); background:none; border-left:0;
+  border-right:0; border-top:0; color:inherit; font:inherit; cursor:pointer;
+  transition:background .25s ease, box-shadow .25s ease; }
+.zona-riga:last-child { border-bottom:0; }
+.zona-riga:hover { background:rgba(255,215,0,.045); }
+.zona-riga.on { background:rgba(255,215,0,.09);
+  box-shadow:inset 2px 0 0 var(--gold); }
+.zona-nome { font-size:13.5px; overflow:hidden; }
+.zona-quante { font-size:12.5px; }
+.zona-da { font-size:9px; }
+.zona-da.si { --oro-flap:#5CFFAE; }
+.zona-da.no { --oro-flap:rgba(250,250,250,.42); }
+@media (max-width:640px){
+  .zona-riga { grid-template-columns:minmax(0,1fr) auto; padding:9px 12px; }
+  .zona-quante { display:none; }
+  .zona-nome { font-size:10.5px; }
+  .zona-da { font-size:7.5px; } }
+.zone-piede { display:flex; align-items:center; justify-content:space-between;
+  gap:12px; padding:11px 18px; font-size:11px; color:var(--text-4);
+  border-top:1px solid var(--line-0); }
+.zone-piede b { color:var(--text-3); font-weight:500;
+  font-variant-numeric:tabular-nums; }
+.zone-piede button { font-size:10px; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--text-3); padding:6px 10px;
+  background:none; border:0; box-shadow:inset 0 0 0 1px var(--line);
+  cursor:pointer; transition:.2s; }
+.zone-piede button:hover { color:var(--gold);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+
+/* la barra di ricerca: la stessa del check-in di casa */
+.cerca { margin-top:clamp(20px,2.4vw,30px); }
+
+/* ══ IL MURO DELLE CASE ════════════════════════════════════════════════ */
+.muro-testa { display:flex; align-items:baseline; justify-content:space-between;
+  gap:14px; flex-wrap:wrap; margin-bottom:16px; }
+.muro-conto { font-size:12.5px; color:var(--text-3); }
+.muro-conto b { color:var(--text); font-weight:500;
+  font-variant-numeric:tabular-nums; }
+.muro-ordine { display:flex; gap:6px; }
+.muro-ordine button { font-size:10px; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--text-3); padding:8px 12px;
+  background:none; border:0; box-shadow:inset 0 0 0 1px var(--line);
+  border-radius:100px; cursor:pointer; transition:.25s; }
+.muro-ordine button:hover { color:var(--text); }
+.muro-ordine button.on { color:var(--gold);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.muro { display:grid; gap:clamp(14px,1.6vw,20px);
+  grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); }
+.muro .casa-p.via { display:none; }
+.casa-p .home-foto .casa-stato { position:absolute; left:8px; bottom:8px;
+  padding:5px 9px; background:rgba(3,3,3,.72); backdrop-filter:blur(6px);
+  font-size:8.5px; font-weight:700; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--text-3); }
+.casa-p .home-foto .casa-stato.si { color:var(--green); }
+
+/* niente risultati: la macchina si mette al lavoro */
+.vuoto { display:none; padding:clamp(28px,3.4vw,44px);
+  background:var(--card); box-shadow:inset 0 0 0 1px var(--line-gold-2);
+  text-align:center; }
+.vuoto.si { display:block; }
+.vuoto b { display:block; font-family:var(--display); font-weight:300;
+  font-size:clamp(19px,2.2vw,26px); }
+.vuoto p { margin:10px auto 0; max-width:52ch; font-size:14px;
+  color:var(--text-2); line-height:1.65; }
+.vuoto .btn { margin-top:18px; }
+</style>
+
+<section class="disco">
+  <div class="disco-velo" aria-hidden="true">
+    <canvas id="cartaRoma"></canvas>
+  </div>
+
+  <div class="container disco-int">
+    <div class="disco-testa">
+      <div class="coro dentro-subito">
+        <div class="hero-eyebrow"><b></b>DISPONIBILI homes available now</div>
+        <h1>Every home here has been <span class="hl">walked in person</span>.</h1>
+        <p class="disco-sotto">No stock photos, no ghost listings. Pick a zone
+          on the board — or tell us when you land and we'll shape the list
+          around you.</p>
+
+        <form class="atterro cerca" id="atterro">
+          <div class="atterro-campo ac-data">
+          <span id="quandoEti">When do you land?</span>
+          <button type="button" class="atterro-data" id="quandoBtn"
+            aria-haspopup="dialog" aria-expanded="false"
+            aria-labelledby="quandoEti">
+            <svg viewBox="0 0 24 24"><path d="M5 6h14a1.5 1.5 0 0 1 1.5 1.5V19a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 19V7.5A1.5 1.5 0 0 1 5 6zM8 3.5v5m8-5v5M3.5 11h17"/></svg>
+            <span id="quandoTesto">Any date</span></button>
+          </div>
+          <span class="atterro-divisa" aria-hidden="true"></span>
+          <label class="atterro-campo">
+            <span>Budget</span>
+            <select id="quantoBudget" aria-label="Monthly budget">
+              <option value="">Any</option>
+              <option value="1000">up to €1,000</option>
+              <option value="1500">€1,000–1,500</option>
+              <option value="2000">€1,500–2,000</option>
+              <option value="9999">€2,000+</option>
+            </select></label>
+          <span class="atterro-divisa" aria-hidden="true"></span>
+          <label class="atterro-campo">
+            <span>Who's landing?</span>
+            <select id="chiAtterra" aria-label="Who is moving in">
+              <option value="">—</option>
+              <option value="solo">Just me</option>
+              <option value="couple">Couple</option>
+              <option value="family">Family</option>
+              <option value="flatmates">Flatmates</option>
+            </select></label>
+          <button type="submit" class="btn btn-primary" id="quandoVai">Apply</button>
+          <div class="cal" id="cal" role="dialog" aria-label="Choose your arrival date">
+            <div class="cal-testa"><b id="calMese">—</b>
+              <div class="cal-fx">
+                <button type="button" id="calPrec" aria-label="Previous month">‹</button>
+                <button type="button" id="calSucc" aria-label="Next month">›</button>
+              </div></div>
+            <div class="cal-sett" aria-hidden="true"><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span></div>
+            <div class="cal-giorni" id="calGiorni"></div>
+            <div class="cal-piede">
+              <span class="hint" id="calHint">Any date — we'll match availability.</span>
+              <button type="button" id="calSubito">ASAP</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <aside class="zone-quadro quadro sale" aria-label="Zones board">
+        <span class="tacca"></span>
+        <div class="zone-testa"><b>ROME · Destinations</b>
+          <span class="board-live"><i></i>LIVE</span></div>
+        <div class="tab-colonne" aria-hidden="true"><span>Zone</span>
+          <span class="tc-p">Homes</span><span>From</span></div>
+        <div class="zone-righe" id="zoneRighe"></div>
+        <div class="zone-piede"><span><b>DISPONIBILI</b> available now ·
+          ALTRE_ZONE · updated <b>AGGIORNATO</b></span>
+          <button type="button" id="zoneTutte">All zones</button></div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- ══ IL MURO ═══════════════════════════════════════════════════════════ -->
+<section class="sezione" style="padding-top:clamp(18px,2vw,26px)">
+  <div class="container">
+    <div class="muro-testa">
+      <p class="muro-conto"><b id="conto">0</b> homes<span id="contoZona"></span></p>
+      <div class="muro-ordine" role="group" aria-label="Sort homes">
+        <button type="button" class="on" data-o="nuove">Newest</button>
+        <button type="button" data-o="prezzo">Price</button>
+        <button type="button" data-o="grandi">Size</button>
+      </div>
+    </div>
+    <div class="muro coro" id="muro">
+CASE_MURO
+    </div>
+    <div class="vuoto" id="vuoto">
+      <b>Nothing here matches — yet.</b>
+      <p>Our catalogue is small on purpose: every home is walked and checked
+        before it goes up. What you're looking for probably exists in Rome
+        right now — it just isn't on a portal yet. That's what the hunt
+        engine is for.</p>
+      <a class="btn btn-primary" href="/property-finding.html">Put the machine on it</a>
+    </div>
+  </div>
+</section>
+
+<!-- ══ LA RETE — se la casa giusta non c'è ═══════════════════════════════ -->
+<section class="sezione">
+  <div class="container">
+    <div class="rete coro">
+      <div class="rete-pfs">
+        <span class="rete-eti"><b></b>Property Finding · the hunt engine</span>
+        <h3>Not on this page?<br><span class="hl">It doesn't mean it doesn't exist.</span></h3>
+        <p>Your brief becomes a live search: our engine scans the market and
+          the off-market around the clock, a human verifies every match, and
+          you get curated options — not links.</p>
+        <div class="rete-cifre">
+          <div class="rete-cifra"><b>1:1</b><span>tailored hunt</span></div>
+          <div class="rete-cifra"><b>5+</b><span>curated options</span></div>
+          <div class="rete-cifra"><b>24/7</b><span>market scan</span></div>
+          <div class="rete-cifra"><b>€0</b><span>if we fail</span></div>
+        </div>
+        <div class="rete-motore" aria-label="The engine behind the hunt">
+          <span>RADAR — 96 scans/day</span><span>HUMAN-VERIFIED</span>
+          <span>OFF-MARKET INCLUDED</span></div>
+        <a class="btn btn-primary" href="/property-finding.html">Start the hunt</a>
+        <p class="rete-nota">€350 upfront — deducted from the agency fee when
+          we find your home. Full refund if we don't deliver.</p>
+      </div>
+    </div>
+  </div>
+</section>

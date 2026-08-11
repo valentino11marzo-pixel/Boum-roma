@@ -159,7 +159,7 @@ else:
 
 if MODO == 'artefatto':
     HOME = 'https://claude.ai/code/artifact/3c0dae67-a0e6-47d4-964f-832b824ffe0f'
-    AP = 'https://claude.ai/code/artifact/ec4d60c9-d2c0-4ec8-883f-eb7b8b4df8f6'
+    AP = 'https://claude.ai/code/artifact/12798611-3d8a-498f-a043-c6f10b6856cd'
     CASA = 'https://claude.ai/code/artifact/a65a8cb4-bfe1-49a5-acaf-2c4a1a992321'
     h = h.replace('COME_URL', HOME + '#come').replace('AP_URL', AP)
     for da, a_ in {'/index.html': HOME, '/apartments.html': AP,
