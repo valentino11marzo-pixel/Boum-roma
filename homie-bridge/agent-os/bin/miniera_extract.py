@@ -30,9 +30,19 @@ import sys, json, os, re, hashlib, argparse
 CLIP_TEXT, CLIP_SAMPLE, BATCH = 240, 1200, 100
 
 def field(m, *keys, default=''):
+    """Tollerante al CASE oltre che al nome: il wacli in produzione emette
+    PascalCase (ChatJID, FromMe, Text, Timestamp, PushName) — scoperto al
+    primo run vero, quando Homie ha dovuto normalizzare a mano."""
+    if not isinstance(m, dict):
+        return default
     for k in keys:
-        if isinstance(m, dict) and k in m and m[k] not in (None, ''):
+        if k in m and m[k] not in (None, ''):
             return m[k]
+    low = {str(kk).lower(): vv for kk, vv in m.items() if vv not in (None, '')}
+    for k in keys:
+        v = low.get(k.lower())
+        if v is not None:
+            return v
     return default
 
 def to_ms(v):
@@ -57,10 +67,13 @@ def ts_of(m):
     return to_ms(field(m, 'timestamp', 'time', 'sentAt', 'at', 'ts', 'date', 'createdAt', default=None))
 
 def is_out(m):
-    """Il messaggio l'abbiamo mandato NOI? Tollerante alle varianti wacli."""
-    for k in ('fromMe', 'from_me', 'isFromMe', 'isOutgoing', 'sent', 'outgoing'):
-        if k in m:
-            return bool(m[k])
+    """Il messaggio l'abbiamo mandato NOI? Tollerante alle varianti wacli.
+    Qui serve la PRESENZA della chiave, non il valore (FromMe=False conta),
+    quindi il lookup case-insensitive è fatto a parte da field()."""
+    low = {str(k).lower(): v for k, v in m.items()}
+    for k in ('fromme', 'from_me', 'isfromme', 'isoutgoing', 'sent', 'outgoing'):
+        if k in low and low[k] is not None:
+            return bool(low[k])
     d = str(field(m, 'direction', default='')).lower()
     if d in ('out', 'outgoing', 'sent'):
         return True
@@ -75,7 +88,7 @@ def body_of(m):
     return re.sub(r'\s+', ' ', str(b)).strip()
 
 def chat_of(m):
-    c = field(m, 'chatId', 'chat', 'remoteJid', 'jid', 'peer', 'chatName', default='')
+    c = field(m, 'chatId', 'chatJid', 'chat', 'remoteJid', 'jid', 'peer', 'chatName', default='')
     return str(c) or str(field(m, 'from', 'sender', 'phone', 'name', default=''))
 
 def clip(s, n):

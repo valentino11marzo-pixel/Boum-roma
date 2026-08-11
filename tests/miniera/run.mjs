@@ -266,6 +266,19 @@ for (const p of ['+393331234567', '3331234567', '00393331234567', '333 123-4567'
     ok('report locale: intestazione e silenzi presenti', /primo sguardo LOCALE/.test(rout) && /I SILENZI/.test(rout), rout.slice(0, 200));
     ok('report locale: dichiara che mancano gli esiti', /senza gli esiti/.test(rout));
     ok('report locale: il nome sopravvive all\'ultimo messaggio nostro', /Sophie/.test(rout));
+
+    // Il wacli VERO emette PascalCase (ChatJID, FromMe, Text, Timestamp,
+    // PushName) — scoperto al primo run in produzione, quando Homie ha
+    // dovuto normalizzare a mano. L'estrattore deve leggerlo nativamente.
+    const wacliPascal = [
+      { ChatJID: '393335556677@s.whatsapp.net', FromMe: true, Timestamp: nowSec - 2 * 86400, Text: 'Ciao! Ecco i dettagli' },
+      { ChatJID: '393335556677@s.whatsapp.net', FromMe: false, Timestamp: nowSec - 86400, Text: 'Posso visitare il bilocale?', PushName: 'Piero' },
+      { ChatJID: '9912036302@g.us', FromMe: false, Timestamp: nowSec - 3600, Text: 'group noise' },
+    ];
+    const rpp = spawnSync('python3', [script, '--report'], { input: JSON.stringify(wacliPascal), encoding: 'utf8' });
+    const pout = rpp.stdout || '';
+    ok('PascalCase: il thread si legge (1 conversazione, gruppo escluso)', /Conversazioni 1-a-1: 1\b/.test(pout), pout.slice(0, 200));
+    ok('PascalCase: FromMe/Text/PushName letti — Piero aspetta una risposta', /Piero — 1\.0g.*Posso visitare/.test(pout), pout);
   }
   rmSync(knownFile, { force: true });
 }
