@@ -175,8 +175,8 @@ window.__portalAppLoaded = true; // sentinella per la via d'uscita anti-spinner-
     const COMPANY = {
         name: 'BOOM',
         legal: 'Egidi Immobiliare S.r.l.',
-        address: 'Roma, Italia',
-        piva: '17546591000',
+        address: 'Via dei Coronari 181/184, 00186 Roma — Sede legale: Viale Liegi 42, 00198 Roma',
+        piva: '17322991005',
         email: 'info@boomrome.com',
         phone: '+39 331 325 1961',
         website: 'www.boomrome.com',

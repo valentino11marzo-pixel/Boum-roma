@@ -208,10 +208,17 @@ export default async function handler(req, res) {
     // ── piè di pagina su ogni pagina: il disclaimer che tiene onesto il tutto
     const pages = pdf.getPages();
     for (const pg of pages) {
+      // Il corpo si ferma a y = M + 40 (102): sotto è tutto libero, quindi il
+      // blocco sale invece di spingere l'ultima riga fuori pagina. Le due righe
+      // legali stanno su DUE righe: unite misurerebbero 585pt su 471 di luce.
       pg.drawText(wa('Modello fornito gratuitamente da BOOM Rome (Egidi Immobiliare S.r.l.) - www.boomrome.com'),
-        { x: M, y: 40, size: 7.5, font, color: grey });
+        { x: M, y: 52, size: 7.5, font, color: grey });
       pg.drawText(wa('Non costituisce parere legale. BOOM e\' un\'agenzia immobiliare autorizzata, non uno studio legale.'),
-        { x: M, y: 30, size: 7.5, font, color: grey });
+        { x: M, y: 42, size: 7.5, font, color: grey });
+      pg.drawText(wa('BOOM® e\' un marchio dell\'Unione europea registrato (MUE 019317594) di Egidi Immobiliare S.r.l.'),
+        { x: M, y: 30, size: 6.5, font, color: grey });
+      pg.drawText(wa('Via dei Coronari 181/184, 00186 Roma - Sede legale: Viale Liegi 42, 00198 Roma - P.IVA 17322991005'),
+        { x: M, y: 20, size: 6.5, font, color: grey });
     }
 
     const buf = Buffer.from(await pdf.save());

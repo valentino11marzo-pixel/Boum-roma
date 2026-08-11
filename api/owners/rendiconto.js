@@ -203,7 +203,8 @@ export async function buildPdf({ ownerName, label, month, sections, collected, e
   need(30);
   y -= 6;
   T('Importi lordi come da contratto. Documento generato automaticamente da BOOM Roma — per ogni dettaglio: valentino@boom-rome.com', M, y, 7.5, font, grey);
-  T('BOOM Real Estate S.r.l. - EGIDI - boomrome.com', M, 34, 7, font, grey);
+  T('BOOM® è un marchio dell\'Unione europea registrato (MUE 019317594) di Egidi Immobiliare S.r.l.', M, 44, 7, font, grey);
+  T('Egidi Immobiliare S.r.l. — Via dei Coronari 181/184, 00186 Roma — Sede legale: Viale Liegi 42, 00198 Roma — P.IVA 17322991005 — boomrome.com', M, 34, 7, font, grey);
   return Buffer.from(await pdf.save());
 }
 
