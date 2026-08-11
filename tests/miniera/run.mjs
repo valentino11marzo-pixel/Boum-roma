@@ -251,6 +251,21 @@ for (const p of ['+393331234567', '3331234567', '00393331234567', '333 123-4567'
     const out = (py.stdout || '').trim();
     ok('estrattore: il gruppo non entra, il thread sì', /rows=1\b/.test(out), out);
     ok('estrattore: hash combacia col motore JS → invariato non riparte', /changed=0\b/.test(out), out);
+
+    // --report: il primo sguardo locale esiste, dichiara i propri limiti e
+    // recupera il NOME anche quando i messaggi recenti non lo portano.
+    // Timestamp FRESCHI: il report usa l'orologio vero e taglia a 120 giorni.
+    const nowSec = Math.floor(Date.now() / 1000);
+    const wacliFresh = [
+      { chatId: '393331234567@s.whatsapp.net', fromMe: false, timestamp: nowSec - 2 * 86400, body: 'Hello, is the flat available?', pushName: 'Sophie' },
+      { chatId: '393331234567@s.whatsapp.net', fromMe: true, timestamp: nowSec - 2 * 86400 + 600, body: 'Yes! Want a viewing?' },
+      { chatId: '393331234567@s.whatsapp.net', fromMe: false, timestamp: nowSec - 86400, body: 'Yes please, Thursday?' },
+    ];
+    const rp = spawnSync('python3', [script, '--report'], { input: JSON.stringify(wacliFresh), encoding: 'utf8' });
+    const rout = rp.stdout || '';
+    ok('report locale: intestazione e silenzi presenti', /primo sguardo LOCALE/.test(rout) && /I SILENZI/.test(rout), rout.slice(0, 200));
+    ok('report locale: dichiara che mancano gli esiti', /senza gli esiti/.test(rout));
+    ok('report locale: il nome sopravvive all\'ultimo messaggio nostro', /Sophie/.test(rout));
   }
   rmSync(knownFile, { force: true });
 }

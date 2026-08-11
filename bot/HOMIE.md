@@ -218,7 +218,27 @@ lavoro qui è di pura SESSIONE: estrarre e spedire. Lo script manda solo
 feature e campioni corti, mai l'archivio integrale; il giudizio, come
 sempre, sta nel motore del server.
 
-Il prompt da incollare:
+**Il primo sguardo, PRIMA di ogni deploy** — quando si vogliono solo i
+numeri in mano, senza server: i due file si prendono dal branch con `git
+show` (il checkout del Mac non cambia) e `--report` stampa il rapporto
+locale — silenzi, latenza, lingue, orari, parole ricorrenti — dichiarando
+ciò che NON può sapere (esiti e ruoli stanno in Firestore). Niente parte
+verso il server, niente arriva ai clienti. Il prompt:
+
+> Homie, PRIMO SGUARDO ALLA MINIERA — tutto locale, niente server, niente
+> messaggi a nessuno. Esegui questi comandi e incollami l'output: non
+> leggere le chat con un modello, non riassumere, non scrivere a clienti.
+>
+> 1. `cd ~/Boum-roma && git fetch origin claude/homie-game-changer-innovation-w1ve8y`
+> 2. `mkdir -p ~/miniera-local && git show origin/claude/homie-game-changer-innovation-w1ve8y:homie-bridge/agent-os/bin/miniera_extract.py > ~/miniera-local/extract.py`
+> 3. `wacli messages list --json --limit 100000 > ~/miniera-local/storico.json`
+>    (se `--limit` non è supportato: `wacli messages list --json`)
+> 4. `python3 ~/miniera-local/extract.py --report < ~/miniera-local/storico.json`
+> 5. Incollami il rapporto INTERO, così com'è. Un comando fallisce →
+>    incolla l'errore esatto e fermati.
+> 6. Alla fine: `rm -rf ~/miniera-local` (lo storico non deve restare in giro).
+
+Il prompt del ciclo COMPLETO (dopo il merge su main):
 
 > Homie, compito LA MINIERA (una tantum, poi quando ti dico "aggiorna la
 > miniera"). Tu non analizzi niente: estrai e spedisci, il giudizio è del

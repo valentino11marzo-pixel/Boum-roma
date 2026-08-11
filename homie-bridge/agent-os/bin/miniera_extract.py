@@ -16,8 +16,14 @@ Uso (orchestrato da miniera.sh):
   --batches DIR   scrive lì batch_NNN.json già nel formato del POST
                   ({"op":"threads","rows":[...]}), 100 righe l'uno
   --dry           solo il riassunto, nessun file
+  --report        PRIMO SGUARDO LOCALE: stampa il rapporto leggibile e non
+                  scrive né manda NIENTE. È la via per avere i dati in mano
+                  prima che il server sia pronto — senza gli esiti Firestore
+                  (visite, contratti) qui non ci sono conversioni né thread
+                  d'oro, e il rapporto lo dice invece di fingere.
 
 Stampa su stdout una riga di riassunto: rows=N changed=M batches=K
+(oppure il rapporto, con --report)
 """
 import sys, json, os, re, hashlib, argparse
 
@@ -114,11 +120,16 @@ def extract(msgs):
             phone = phone_raw
         else:
             phone = str(field(items[-1], 'phone', 'senderPhone', default=''))
+        # Il nome sta sul messaggio del CLIENTE (pushName): se l'ultimo è
+        # nostro andrebbe perso — si prende dall'ultimo che ne porta uno.
+        name = next((str(field(m, 'pushName', 'senderName', 'name', 'chatName',
+                               'notifyName', default='')) for m in reversed(items)
+                     if field(m, 'pushName', 'senderName', 'name', 'chatName',
+                              'notifyName', default='')), '')
         rows.append({
             'chatId': chat,
             'phone': phone,
-            'name': clip(str(field(items[-1], 'pushName', 'senderName', 'name',
-                                   'chatName', 'notifyName', default='')), 80),
+            'name': clip(name, 80),
             'msgCount': len(items),
             'inCount': len(ins),
             'outCount': len(outs),
@@ -138,11 +149,121 @@ def content_hash(row):
     # DEVE combaciare con rowHash() di js/miniera-engine.js: msgCount:lastTs
     return f"{row.get('msgCount', 0)}:{row.get('lastTs', 0)}"
 
+# ── il primo sguardo locale (--report) ──────────────────────────────────
+# Stessa filosofia del motore server ma DICHIARATAMENTE parziale: qui non
+# ci sono gli esiti (chi ha visitato, chi ha firmato, chi è un inquilino),
+# quindi niente conversioni, niente veti sui ruoli — e lo si scrive.
+IT_WORDS = re.compile(r'\b(sono|vorrei|salve|buongiorno|buonasera|grazie|disponibile|disponibilit|appartamento|affitto|visitare|visita|cerco|abbiamo|possibile|quando|quanto|anche|molto|ciao)\b', re.I)
+EN_WORDS = re.compile(r'\b(hello|hi|dear|thanks|thank you|available|availability|apartment|flat|rent|viewing|interested|looking for|would like|could you|please|when|how much|i am|we are)\b', re.I)
+KEYWORDS = [
+    ('visita',   re.compile(r'\b(visit|vedere|vederlo|viewing|appuntamento|quando posso)\b', re.I)),
+    ('prezzo',   re.compile(r'\b(troppo car|expensive|budget|trattabil|negoti)\b', re.I)),
+    ('deposito', re.compile(r'\b(deposito|deposit|cauzione|caparra|mensilit)\b', re.I)),
+    ('date',     re.compile(r'\b(disponibil|available from|da quando|settembre|ottobre|september|october)\b', re.I)),
+    ('arredo',   re.compile(r'\b(arredat|furnish|mobili)\b', re.I)),
+    ('garanzie', re.compile(r'\b(garant|guarantor|busta paga|payslip)\b', re.I)),
+]
+
+def rome_hour(ms):
+    from datetime import datetime, timezone
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.fromtimestamp(ms / 1000, ZoneInfo('Europe/Rome')).hour
+    except Exception:
+        return datetime.fromtimestamp(ms / 1000, timezone.utc).hour
+
+def report(rows, now_ms):
+    H, D = 3600 * 1000, 24 * 3600 * 1000
+    out = ['⛏ LA MINIERA — primo sguardo LOCALE (senza gli esiti del server)', '']
+    if not rows:
+        out.append('Nessuna conversazione leggibile da wacli.')
+        return '\n'.join(out)
+    msgs = sum(r['msgCount'] for r in rows)
+    a30 = sum(1 for r in rows if now_ms - r['lastTs'] <= 30 * D)
+    a90 = sum(1 for r in rows if now_ms - r['lastTs'] <= 90 * D)
+    out.append(f"Conversazioni 1-a-1: {len(rows)} (gruppi esclusi) · messaggi: {msgs}")
+    out.append(f"Attive negli ultimi 30 giorni: {a30} · 90 giorni: {a90}")
+
+    out += ['', '— I SILENZI —']
+    unanswered = sorted(
+        (r for r in rows
+         if r['lastDirection'] == 'in'
+         and (now_ms - r['lastTs']) >= 6 * H
+         and (now_ms - r['lastTs']) <= 120 * D),
+        key=lambda r: now_ms - r['lastTs'])
+    out.append(f"Ultima parola del CLIENTE, senza risposta da ≥6h (ultimi 120g): {len(unanswered)}")
+    for r in unanswered[:15]:
+        days = round((now_ms - r['lastTs']) / D, 1)
+        snippet = (r['lastInText'] or r['firstInText'])[:60]
+        out.append(f"  · {r['name'] or r['phone'] or r['chatId']} — {days}g fa: \"{snippet}\"")
+    cold = sorted(
+        (r for r in rows
+         if r['lastDirection'] == 'out'
+         and (now_ms - r['lastTs']) >= 48 * H
+         and (now_ms - r['lastTs']) <= 120 * D
+         and (r['inCount'] >= 3
+              or KEYWORDS[0][1].search(r['inSample'] or '')
+              or re.search(r'\d{3,5}\s*(€|euro|eur)', r['inSample'] or '', re.I))),
+        key=lambda r: now_ms - r['lastTs'])
+    out.append(f"Ultima parola NOSTRA, thread freddo ≥48h con un segnale vero: {len(cold)}")
+    out.append('  (ATTENZIONE: senza il server qui NON c\'è il filtro ruoli — dentro possono')
+    out.append('   esserci inquilini, proprietari o gente che ha già firmato. Non scrivere')
+    out.append('   a nessuno da questa lista: serve solo a misurare quanto vale il Segugio.)')
+    for r in cold[:10]:
+        days = round((now_ms - r['lastTs']) / D, 1)
+        out.append(f"  · {r['name'] or r['phone'] or r['chatId']} — fermo da {days}g")
+
+    out += ['', '— LA VELOCITÀ DI PRIMA RISPOSTA —']
+    lat = sorted(r['firstReplyMinutes'] for r in rows if r['firstReplyMinutes'] is not None)
+    never = sum(1 for r in rows if r['firstReplyMinutes'] is None and r['inCount'] > 0)
+    if lat:
+        med = lat[len(lat) // 2]
+        q30 = round(100 * sum(1 for m in lat if m <= 30) / len(lat))
+        q24 = round(100 * sum(1 for m in lat if m > 1440) / len(lat))
+        out.append(f"Mediana: {med}′ · entro 30′: {q30}% · oltre 24h: {q24}% · mai risposto: {never}")
+    else:
+        out.append(f"Nessuna latenza misurabile · mai risposto: {never}")
+
+    out += ['', '— LINGUE (stima dalle parole del cliente) —']
+    it = en = na = 0
+    for r in rows:
+        s = r['inSample'] or ''
+        if len(s) < 12: na += 1
+        elif IT_WORDS.search(s) and not EN_WORDS.search(s): it += 1
+        elif EN_WORDS.search(s) and not IT_WORDS.search(s): en += 1
+        else: na += 1
+    out.append(f"it: {it} · en: {en} · incerte: {na}")
+
+    out += ['', '— QUANDO SCRIVONO (primo messaggio, ora di Roma) —']
+    hours = {}
+    for r in rows:
+        if r['firstInTs']:
+            h = rome_hour(r['firstInTs'])
+            hours[h] = hours.get(h, 0) + 1
+    top = sorted(hours.items(), key=lambda kv: -kv[1])[:4]
+    out.append(' · '.join(f"{h:02d}:00 → {n}" for h, n in top) if top else 'nessun dato')
+
+    out += ['', '— PAROLE CHE RICORRONO —']
+    counts = []
+    for name, rx in KEYWORDS:
+        n = sum(1 for r in rows if rx.search(
+            ' '.join([r['firstInText'] or '', r['inSample'] or '', r['lastInText'] or ''])))
+        if n:
+            counts.append(f"{name}: {n}")
+    out.append(' · '.join(counts) if counts else 'niente di rilevante')
+
+    out += ['', 'NOTA: senza gli esiti in Firestore (visite, contratti, ruoli) qui non',
+            'esistono tassi di conversione, thread d\'oro né veti: quelli escono solo',
+            'dallo studio lato server (STUDIO_HOMIE_GAME_CHANGER.md). Questo rapporto',
+            'serve a decidere se vale la pena accenderlo.']
+    return '\n'.join(out)
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--known', default=None)
     ap.add_argument('--batches', default=None)
     ap.add_argument('--dry', action='store_true')
+    ap.add_argument('--report', action='store_true')
     args = ap.parse_args()
 
     try:
@@ -155,6 +276,11 @@ def main():
         return 1
 
     rows = extract(msgs)
+
+    if args.report:
+        import time
+        print(report(rows, int(time.time() * 1000)))
+        return 0
 
     known = {}
     if args.known and os.path.exists(args.known):
