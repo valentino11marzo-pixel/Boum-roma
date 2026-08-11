@@ -107,6 +107,8 @@ h1, h2, h3 { font-family:var(--display); }
   background:linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent); }
 .btn-primary:hover::after { left:130%; transition:left .7s var(--ease); }
 .btn-primary:hover { background:var(--gold-light); }
+.btn-primary:active { filter:brightness(.82); transition:filter .06s; }
+.btn-secondary:active { filter:brightness(1.4); transition:filter .06s; }
 .btn-secondary { box-shadow:inset 0 0 0 1px var(--line); color:var(--text-2);
   border-radius:100px; }
 .btn-secondary:hover { box-shadow:inset 0 0 0 1px var(--line-gold-2);
@@ -738,8 +740,6 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 
 /* ══ LA RETE — il motore PFS in scena, DA e VV ai lati ═════════════════ */
 .rete { display:grid; gap:16px; grid-template-columns:1fr; }
-@media (min-width:1080px){ .rete {
-  grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); } }
 .rete-pfs { position:relative; overflow:hidden; padding:26px 26px 24px;
   background:linear-gradient(160deg, rgba(255,215,0,.09),
     rgba(255,215,0,.02) 46%), var(--card);
@@ -823,6 +823,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   font-weight:400; letter-spacing:.04em; }
 .fond-firma span { display:block; margin-top:3px; font-size:11px;
   color:var(--text-3); }
+.fond .chi-num { margin-top:20px; }
 
 /* ══ CONCIERGE — sei voci a tavola ═════════════════════════════════════ */
 .griglia6 { margin-top:clamp(22px,2.6vw,34px); display:grid;
@@ -1375,20 +1376,6 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         <p class="rete-nota">€350 upfront — deducted from the agency fee when
           we find your home. Full refund if we don't deliver.</p>
       </div>
-      <div class="rete-lato">
-        <a class="rete-mini" href="/virtual-viewing.html">
-          <div class="rm-cima"><h4>Virtual Viewing</h4>
-            <span class="rm-prezzo">€89</span></div>
-          <p>Can't come to Rome? See a home live on a video walk-through —
-            you direct, we film.</p>
-          <b>Book a tour →</b></a>
-        <a class="rete-mini" href="/deal-assistance.html">
-          <div class="rm-cima"><h4>Deal Assistance</h4>
-            <span class="rm-prezzo">€249</span></div>
-          <p>Found one elsewhere? We verify the landlord, read the contract
-            and negotiate for you.</p>
-          <b>Get protected →</b></a>
-      </div>
     </div>
   </div>
 </section>
@@ -1484,31 +1471,10 @@ html.vivo .sale.dentro { opacity:1; transform:none;
     </div>
     <div class="diverso sale">
       <b>BOOM is different.</b>
-      <p>Video-verified apartments. Transparent pricing. Real human support.
-        We're building what we wish existed when we moved here.</p>
-    </div>
-  </div>
-</section>
-
-<!-- ══ CHI SIAMO ═════════════════════════════════════════════════════════ -->
-<section class="sezione">
-  <div class="container chi">
-    <div class="sale">
-      <span class="eyebrow"><i></i>Who we are</span>
-      <h2 class="titolo">Built in <span class="hl">Rome</span>, by Romans,
-        for <span class="hl">you</span>.</h2>
-      <p>We're not another faceless booking platform. BOOM was born from
-        frustration — watching friends, students, and professionals get
-        scammed, ghosted, and exploited by Rome's chaotic rental market.</p>
-      <p><strong>We don't just find you an apartment — we make sure you
-        don't get screwed in the process.</strong></p>
-      <a class="btn btn-secondary" href="/about.html">Read our full story</a>
-    </div>
-    <div class="chi-num coro" id="aboutNum">
-      <div><b data-fine="6" data-suff="+">0+</b><span>Years in Rome Real Estate</span></div>
-      <div><b data-fine="500" data-suff="+">0+</b><span>Happy Tenants Placed</span></div>
-      <div><b data-fine="48" data-suff="h">0h</b><span>Average Move-in Time</span></div>
-      <div><b>24/7</b><span>WhatsApp Support</span></div>
+      <p>One company: the agency, the portal and the tech engine — no
+        hand-offs, no middlemen. Video-verified apartments, transparent
+        pricing, real human support. We're building what we wish existed
+        when we moved here.</p>
     </div>
   </div>
 </section>
@@ -1531,6 +1497,12 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         Mumbai infrastructure. That gap is why BOOM exists."</blockquote>
       <div class="fond-firma"><b>Valentino</b><span>Founder — BOOM ·
         Egidi Immobiliare S.r.l., Via dei Coronari 181, Roma</span></div>
+      <div class="chi-num coro" id="aboutNum">
+        <div><b data-fine="6" data-suff="+">0+</b><span>Years in Rome Real Estate</span></div>
+        <div><b data-fine="500" data-suff="+">0+</b><span>Happy Tenants Placed</span></div>
+        <div><b data-fine="48" data-suff="h">0h</b><span>Average Move-in Time</span></div>
+        <div><b>24/7</b><span>WhatsApp Support</span></div>
+      </div>
       <div class="hero-azioni" style="margin-top:20px">
         <a class="btn btn-primary" href="https://wa.me/393313251961"
           target="_blank" rel="noopener">Message me on WhatsApp</a>
@@ -1677,6 +1649,14 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         p: new BS.Board(p, 6, ' €,.0123456789'),
         t: new BS.Board(t, 9, ' ABCDEFGHIJKLMNOPQRSTUVWXYZ'),
         d: r });
+      /* il fremito al passaggio: la riga che guardi si sente viva */
+      (function (org) {
+        riga.addEventListener('mouseenter', function () {
+          if (ridotto) return;
+          if (org.t.flutter) org.t.flutter();
+          if (org.p.flutter) setTimeout(function () { org.p.flutter(); }, 90);
+        });
+      })(organi[organi.length - 1]);
     });
     function accendi() {
       organi.forEach(function (o, i) {
@@ -1903,7 +1883,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
     var W, H, DPR, MIN, cw, ch, gap, cols, rows, E, AU;
     function misura() {
       var r = tela.getBoundingClientRect();
-      DPR = Math.min(devicePixelRatio || 1, mob ? 1.5 : 2);
+      DPR = Math.min(devicePixelRatio || 1, 2);
       W = Math.round(r.width * DPR); H = Math.round(r.height * DPR);
       tela.width = W; tela.height = H; MIN = Math.min(W, H);
       cw = Math.round((mob ? 30 : 40) * DPR); ch = Math.round(cw * .68);
@@ -1928,8 +1908,13 @@ html.vivo .sale.dentro { opacity:1; transform:none;
     }
     function vita(t) {
       ctx.clearRect(0, 0, W, H);
-      var f1 = ridotto ? W * .6 : ((t * .00009) % 1.6) * (W + H) - H * .4;
-      var f2 = ridotto ? -1 : (1 - (t * .00005) % 1.6) * (W + H) - H * .4;
+      /* i tempi giusti: su mobile lo schermo è corto — l'onda cammina
+         più svelta perché il viaggio duri uguale all'occhio */
+      var vel = mob ? 1.45 : 1;
+      var f1 = ridotto ? W * .6
+        : ((t * .00009 * vel) % 1.6) * (W + H) - H * .4;
+      var f2 = ridotto ? -1
+        : (1 - (t * .00005 * vel) % 1.6) * (W + H) - H * .4;
       for (var r = 0; r < rows; r++) for (var c = 0; c < cols; c++) {
         var x = c * (cw + gap) + cw / 2, y = r * (ch + gap) + ch / 2;
         var i = r * cols + c;
