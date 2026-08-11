@@ -1,0 +1,336 @@
+<title>Studio Marchio BOOM</title>
+<style>
+  :root{
+    --oro:#FFD700; --oro-2:#E5C200;
+    --nero:#030303; --carta:#0A0A0B; --alto:#101012;
+    --linea:rgba(255,255,255,.09); --linea-2:rgba(255,255,255,.05);
+    --testo:#F5F5F4; --testo-2:#9A9A97; --testo-3:#6E6E6B;
+    --display:"Helvetica Neue",Inter,system-ui,-apple-system,sans-serif;
+    --e:cubic-bezier(.16,1,.3,1);
+  }
+  :root[data-theme="light"]{ --nero:#030303; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--nero);color:var(--testo);
+    font-family:Inter,system-ui,-apple-system,"Helvetica Neue",sans-serif;
+    font-weight:300;-webkit-font-smoothing:antialiased;line-height:1.6}
+  a{color:inherit;text-decoration:none}
+  .w{max-width:1060px;margin:0 auto;padding:0 24px}
+  .eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:11.5px;
+    font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--oro)}
+  .eyebrow i{width:26px;height:1px;background:var(--oro);display:block}
+  h1{font-family:var(--display);font-weight:300;font-size:clamp(32px,6vw,52px);
+    line-height:1.08;letter-spacing:-.02em;margin:14px 0 0}
+  h2{font-family:var(--display);font-weight:300;font-size:clamp(24px,4vw,34px);
+    line-height:1.12;letter-spacing:-.015em;margin:0}
+  .hl{color:var(--oro)}
+  p{color:var(--testo-2);font-size:15.5px;max-width:66ch}
+  .cima{padding:72px 0 40px;border-bottom:1px solid var(--linea-2)}
+  section{padding:54px 0;border-bottom:1px solid var(--linea-2)}
+
+  /* ── diagnosi ─────────────────────────────────────────── */
+  .diag{display:grid;gap:14px;margin-top:26px}
+  @media(min-width:820px){.diag{grid-template-columns:repeat(3,1fr)}}
+  .dg{background:var(--carta);border:1px solid var(--linea);border-radius:14px;
+    padding:20px}
+  .dg b{display:block;font-family:var(--display);font-weight:400;font-size:15px;
+    letter-spacing:.02em;color:var(--testo);margin-bottom:7px}
+  .dg span{font-size:13.5px;color:var(--testo-2);line-height:1.55}
+
+  /* ── la barra viva ────────────────────────────────────── */
+  .opt{margin-top:34px}
+  .opt-cap{display:flex;align-items:baseline;justify-content:space-between;
+    gap:16px;flex-wrap:wrap;margin-bottom:14px}
+  .opt-cap h3{margin:0;font-family:var(--display);font-weight:400;font-size:19px;
+    letter-spacing:.03em}
+  .opt-cap h3 em{font-style:normal;color:var(--testo-3);font-size:12px;
+    letter-spacing:.18em;text-transform:uppercase;margin-left:10px}
+  .num{font-size:12px;color:var(--testo-3);letter-spacing:.04em;
+    font-variant-numeric:tabular-nums}
+  .num b{color:var(--oro);font-weight:400}
+  .telaio{background:var(--carta);border:1px solid var(--linea);border-radius:14px;
+    overflow:hidden}
+  .telaio-eti{display:flex;align-items:center;gap:8px;padding:9px 14px;
+    border-bottom:1px solid var(--linea-2);font-size:10px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--testo-3)}
+  .telaio-eti b{width:6px;height:6px;border-radius:50%;
+    background:rgba(255,255,255,.14);display:block}
+  .barra{padding:13px 22px;background:rgba(3,3,3,.9);display:flex;
+    align-items:center;justify-content:space-between;gap:16px}
+  .marchio{display:inline-flex;align-items:center;gap:11px}
+  .marchio svg{flex:none;width:56px;height:56px;display:block}
+  .marchio span{font-family:var(--display);font-weight:400;font-size:23px;
+    letter-spacing:.36em;text-indent:.36em;text-transform:uppercase;
+    color:var(--testo);white-space:nowrap}
+  .menu{display:flex;align-items:center;gap:22px}
+  .menu a{font-size:13px;color:var(--testo-3)}
+  .wa{padding:9px 16px;border-radius:100px;background:var(--oro);color:#000;
+    font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
+  .hamb{display:none;flex-direction:column;gap:5px;width:36px;align-items:flex-end}
+  .hamb i{display:block;height:1.5px;background:var(--testo);width:22px}
+  .hamb i:nth-child(2){width:15px}
+
+  /* colonna mobile */
+  .paio{display:grid;gap:14px}
+  .paio .tel-mob{max-width:390px}
+  .tel-mob .barra{padding:11px 16px}
+  .tel-mob .menu{display:none}
+  .tel-mob .hamb{display:flex}
+  .tel-mob .marchio{gap:9px}
+  .tel-mob .marchio svg{width:52px;height:52px}
+  .tel-mob .marchio span{font-size:21px;letter-spacing:.3em;text-indent:.3em}
+
+  /* ── le quattro taglie ────────────────────────────────── */
+  /* A = attuale: nessun override */
+  /* B — PESO: stessa impronta, piu massa */
+  .tB .marchio svg{width:58px;height:58px}
+  .tB .marchio span{font-size:26px;letter-spacing:.28em;text-indent:.28em;
+    font-weight:500}
+  .tB.tel-mob .marchio svg{width:54px;height:54px}
+  .tB.tel-mob .marchio span{font-size:23px;letter-spacing:.24em;text-indent:.24em}
+  /* C — INSEGNA: il lockup diventa architettura */
+  .tC .barra{padding:16px 22px}
+  .tC .marchio{gap:13px}
+  .tC .marchio svg{width:66px;height:66px;
+    filter:drop-shadow(0 0 12px rgba(255,215,0,.18))}
+  .tC .marchio span{font-size:30px;letter-spacing:.26em;text-indent:.26em;
+    font-weight:400}
+  .tC.tel-mob .barra{padding:13px 16px}
+  .tC.tel-mob .marchio{gap:10px}
+  .tC.tel-mob .marchio svg{width:58px;height:58px}
+  .tC.tel-mob .marchio span{font-size:25px;letter-spacing:.22em;text-indent:.22em}
+  /* D — MONOGRAMMA: il segno solo, grande */
+  .tD .marchio svg{width:74px;height:74px}
+  .tD .marchio span{font-size:22px;letter-spacing:.34em;text-indent:.34em;
+    color:var(--testo-2)}
+  .tD.tel-mob .marchio svg{width:64px;height:64px}
+  .tD.tel-mob .marchio span{display:none}
+
+  .nota{margin-top:13px;font-size:13px;color:var(--testo-3);max-width:70ch}
+  .nota b{color:var(--testo-2);font-weight:400}
+
+  /* ── scala ─────────────────────────────────────────────── */
+  .scala{display:grid;gap:0;margin-top:26px;background:var(--carta);
+    border:1px solid var(--linea);border-radius:14px;overflow:hidden}
+  .sr{display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr 1fr;gap:10px;
+    padding:13px 18px;border-bottom:1px solid var(--linea-2);font-size:13px;
+    align-items:center}
+  .sr:last-child{border-bottom:0}
+  .sr.testa{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--testo-3)}
+  .sr b{font-weight:400;color:var(--testo)}
+  .sr span{color:var(--testo-2);font-variant-numeric:tabular-nums}
+  .sr .ok{color:var(--oro)}
+  .scala-scorri{overflow-x:auto}
+  .scala-scorri .scala{min-width:600px}
+
+  /* ── consiglio ────────────────────────────────────────── */
+  .cons{background:linear-gradient(180deg,rgba(255,215,0,.05),transparent);
+    border:1px solid rgba(255,215,0,.2);border-radius:16px;padding:26px;
+    margin-top:26px}
+  .cons h3{margin:0 0 10px;font-family:var(--display);font-weight:400;
+    font-size:20px;letter-spacing:.01em}
+  .cons p{margin:0 0 12px}
+  .cons code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:12.5px;color:var(--oro);background:rgba(255,215,0,.07);
+    border:1px solid rgba(255,215,0,.14);border-radius:6px;padding:1px 6px}
+  pre{background:#08080A;border:1px solid var(--linea);border-radius:12px;
+    padding:16px 18px;overflow-x:auto;font-family:ui-monospace,SFMono-Regular,
+    Menlo,monospace;font-size:12.5px;line-height:1.7;color:var(--testo-2);
+    margin:16px 0 0}
+  pre .c{color:var(--testo-3)}
+  pre .g{color:var(--oro)}
+  .piede{padding:40px 0 70px;color:var(--testo-3);font-size:12.5px;
+    letter-spacing:.04em}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <linearGradient id="og" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0%" stop-color="#FFE55C"/><stop offset="100%" stop-color="#E5C200"/>
+  </linearGradient>
+  <symbol id="bm" viewBox="0 0 1024 1024">
+    <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#og)">
+      <path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/>
+    </g>
+  </symbol>
+</defs></svg>
+
+<div class="cima"><div class="w">
+  <span class="eyebrow"><i></i>Studio marchio · nav</span>
+  <h1>Quanto deve essere grande <span class="hl">BOOM</span>.</h1>
+  <p style="margin-top:16px">Quattro taglie reali, rese vive nella barra vera —
+    barra desktop sopra, iPhone sotto. Stessa pagina, stesso font, stesso
+    sfondo. Guardale a schermo intero e poi sul telefono: la scelta si fa
+    guardando, non leggendo i numeri.</p>
+</div></div>
+
+<section><div class="w">
+  <span class="eyebrow"><i></i>Diagnosi onesta</span>
+  <h2 style="margin-top:12px">Il problema non è la <span class="hl">taglia</span>.
+    È il <span class="hl">peso</span>.</h2>
+  <p style="margin-top:14px">Oggi il segno è già a 56px in una barra alta ~82px:
+    in proporzione occupa più di quasi tutte le agenzie premium. Se ti sembra
+    piccolo è per tre ragioni misurabili, e nessuna delle tre si risolve
+    ingrandendo il box.</p>
+  <div class="diag">
+    <div class="dg"><b>1 · Il tratto è sottile</b><span>Il marchio è fatto di
+      anelli concentrici a filo. A 56px quei fili scendono sotto il pixel:
+      il browser li smorza e il segno diventa una macchia pallida invece di
+      un oggetto. Ingrandire il box senza ingrossare il tratto peggiora —
+      lo rende grande <em>e</em> vuoto.</span></div>
+    <div class="dg"><b>2 · La parola è dispersa</b><span>BOOM a 23px con
+      spaziatura .36em: le quattro lettere sono lontane, in peso 400.
+      Occupano molto spazio ma non fanno <em>massa</em>. Chi guarda legge
+      quattro lettere separate, non un logotipo.</span></div>
+    <div class="dg"><b>3 · Manca l'aria attorno</b><span>Il lockup tocca quasi
+      il bordo della barra. Un marchio sembra importante quando ha vuoto
+      attorno, non quando è grande. È il trucco di Apple: il segno è
+      piccolissimo, ma isolato.</span></div>
+  </div>
+</div></section>
+
+<section><div class="w">
+  <span class="eyebrow"><i></i>Le quattro taglie</span>
+  <h2 style="margin-top:12px">Vive, non mockup.</h2>
+
+  <!-- A -->
+  <div class="opt">
+    <div class="opt-cap">
+      <h3>A · Attuale<em>quello che c'è ora</em></h3>
+      <span class="num">segno <b>56/52</b> · parola <b>23/21</b> · tracking .36em · peso 400</span>
+    </div>
+    <div class="paio">
+      <div class="telaio"><div class="telaio-eti"><b></b><b></b><b></b>barra desktop</div>
+        <div class="barra"><a class="marchio"><svg><use href="#bm"/></svg><span>Boom</span></a>
+          <div class="menu"><a>Apartments</a><a>Services</a><a>For Owners</a><a>About</a><a class="wa">WhatsApp</a></div></div></div>
+      <div class="telaio tel-mob"><div class="telaio-eti"><b></b><b></b><b></b>barra iPhone · 390px</div>
+        <div class="barra"><a class="marchio"><svg><use href="#bm"/></svg><span>Boom</span></a>
+          <div class="hamb"><i></i><i></i><i></i></div></div></div>
+    </div>
+    <p class="nota"><b>Verdetto —</b> corretto ma timido. Su iPhone la parola si
+      sfilaccia e il segno sparisce sul fondo scuro. È la taglia che ti ha
+      fatto scrivere «troppo piccolo».</p>
+  </div>
+
+  <!-- B -->
+  <div class="opt">
+    <div class="opt-cap">
+      <h3>B · Peso<em>stessa impronta, più massa</em></h3>
+      <span class="num">segno <b>58/54</b> · parola <b>26/23</b> · tracking .28em · peso 500</span>
+    </div>
+    <div class="paio">
+      <div class="telaio tB"><div class="telaio-eti"><b></b><b></b><b></b>barra desktop</div>
+        <div class="barra"><a class="marchio"><svg><use href="#bm"/></svg><span>Boom</span></a>
+          <div class="menu"><a>Apartments</a><a>Services</a><a>For Owners</a><a>About</a><a class="wa">WhatsApp</a></div></div></div>
+      <div class="telaio tel-mob tB"><div class="telaio-eti"><b></b><b></b><b></b>barra iPhone · 390px</div>
+        <div class="barra"><a class="marchio"><svg><use href="#bm"/></svg><span>Boom</span></a>
+          <div class="hamb"><i></i><i></i><i></i></div></div></div>
+    </div>
+    <p class="nota"><b>Verdetto —</b> il logotipo si compatta e diventa una parola
+      sola. Costo zero: la barra non cambia altezza, nessuna pagina si rompe.
+      È il minimo indispensabile — ma da solo non fa «insegna».</p>
+  </div>
+
+  <!-- C -->
+  <div class="opt">
+    <div class="opt-cap">
+      <h3>C · Insegna<em>il lockup diventa architettura</em></h3>
+      <span class="num">segno <b>66/58</b> · parola <b>30/25</b> · tracking .26em · barra +3px · <b>alone acceso</b></span>
+    </div>
+    <div class="paio">
+      <div class="telaio tC"><div class="telaio-eti"><b></b><b></b><b></b>barra desktop</div>
+        <div class="barra"><a class="marchio"><svg><use href="#bm"/></svg><span>Boom</span></a>
+          <div class="menu"><a>Apartments</a><a>Services</a><a>For Owners</a><a>About</a><a class="wa">WhatsApp</a></div></div></div>
+      <div class="telaio tel-mob tC"><div class="telaio-eti"><b></b><b></b><b></b>barra iPhone · 390px</div>
+        <div class="barra"><a class="marchio"><svg><use href="#bm"/></svg><span>Boom</span></a>
+          <div class="hamb"><i></i><i></i><i></i></div></div></div>
+    </div>
+    <p class="nota"><b>Verdetto —</b> questa è la taglia da marchio registrato.
+      Il segno ha diametro sufficiente perché gli anelli si leggano davvero,
+      e BOOM ha la mole del titolo di sezione. Su iPhone resta comodo:
+      58+25 chiude a 173px e lascia 180px di vuoto prima dell'hamburger.</p>
+  </div>
+
+  <!-- D -->
+  <div class="opt">
+    <div class="opt-cap">
+      <h3>D · Monogramma<em>il segno solo, su mobile</em></h3>
+      <span class="num">segno <b>74/64</b> · parola 22 desktop · <b>nessuna parola su mobile</b></span>
+    </div>
+    <div class="paio">
+      <div class="telaio tD"><div class="telaio-eti"><b></b><b></b><b></b>barra desktop</div>
+        <div class="barra"><a class="marchio"><svg><use href="#bm"/></svg><span>Boom</span></a>
+          <div class="menu"><a>Apartments</a><a>Services</a><a>For Owners</a><a>About</a><a class="wa">WhatsApp</a></div></div></div>
+      <div class="telaio tel-mob tD"><div class="telaio-eti"><b></b><b></b><b></b>barra iPhone · 390px</div>
+        <div class="barra"><a class="marchio"><svg><use href="#bm"/></svg><span>Boom</span></a>
+          <div class="hamb"><i></i><i></i><i></i></div></div></div>
+    </div>
+    <p class="nota"><b>Verdetto —</b> è la mossa dei marchi già noti (Nike, Apple,
+      Airbnb). Bellissima, ma prematura: a Roma nessuno riconosce ancora
+      l'anello senza la parola accanto. Ti costa riconoscibilità proprio ora
+      che ne hai bisogno. La terrei in cassaforte per il 2027.</p>
+  </div>
+</div></section>
+
+<section><div class="w">
+  <span class="eyebrow"><i></i>Confronto</span>
+  <h2 style="margin-top:12px">In numeri.</h2>
+  <div class="scala-scorri"><div class="scala">
+    <div class="sr testa"><b>Taglia</b><span>Segno desk/mob</span>
+      <span>Parola desk/mob</span><span>Larghezza lockup</span><span>Rischio</span></div>
+    <div class="sr"><b>A · Attuale</b><span>56 / 52</span><span>23 / 21</span>
+      <span>180 / 158 px</span><span class="ok">nessuno</span></div>
+    <div class="sr"><b>B · Peso</b><span>58 / 54</span><span>26 / 23</span>
+      <span>186 / 162 px</span><span class="ok">nessuno</span></div>
+    <div class="sr"><b>C · Insegna</b><span>66 / 58</span><span>30 / 25</span>
+      <span>211 / 173 px</span><span class="ok">barra +3px</span></div>
+    <div class="sr"><b>D · Monogramma</b><span>74 / 64</span><span>22 / —</span>
+      <span>191 / 64 px</span><span>riconoscibilità</span></div>
+  </div></div>
+  <p class="nota" style="margin-top:14px">Larghezze <b>misurate</b> a schermo,
+    non stimate. Su barra iPhone · 390px il vincolo vero è l'hamburger: il lockup deve
+    stare sotto i ~230px per lasciare aria. Tutte e quattro passano — anche C,
+    la più grande, chiude a 173px e lascia 180px di respiro.</p>
+</div></section>
+
+<section><div class="w">
+  <span class="eyebrow"><i></i>Il mio consiglio</span>
+  <div class="cons">
+    <h3>C · Insegna — con una correzione al segno.</h3>
+    <p>Prendi <b style="color:var(--testo);font-weight:400">C</b>, ma non basta
+      ingrandire: il marchio è a filo sottile e ingrandirlo lo rende grande e
+      vuoto. Va accompagnato da due micro-interventi che valgono più dei pixel:</p>
+    <p><b style="color:var(--testo);font-weight:400">1.</b> Sull'anello esterno
+      alzo l'opacità del gradiente e aggiungo un alone oro appena percettibile
+      (<code>filter: drop-shadow(0 0 12px rgba(255,215,0,.18))</code>): il segno
+      smette di essere una macchia e diventa un oggetto illuminato.<br>
+      <b style="color:var(--testo);font-weight:400">2.</b> BOOM passa da tracking
+      .36em a .26em. Sembra un dettaglio: è la differenza tra quattro lettere
+      e una parola.</p>
+    <p style="margin-bottom:0">Non tocco A e non vado su D. A è la ragione per
+      cui mi hai scritto; D ti toglie il nome proprio adesso che devi farlo
+      imparare a Roma.</p>
+    <pre><span class="c">/* la taglia definitiva — da propagare a tutte le pagine */</span>
+.marchio { display:inline-flex; align-items:center; gap:<span class="g">13px</span>; }
+.marchio .logo-mark { width:<span class="g">66px</span>; height:<span class="g">66px</span>; flex:none;
+  filter:<span class="g">drop-shadow(0 0 12px rgba(255,215,0,.18))</span>; }
+.marchio span { font-family:var(--display); font-size:<span class="g">30px</span>;
+  font-weight:400; letter-spacing:<span class="g">.26em</span>; text-indent:.26em;
+  text-transform:uppercase; }
+.nav { padding:<span class="g">16px 0</span>; }
+.nav.scrolled { padding:<span class="g">11px 0</span>; }
+
+@media (max-width:640px) {
+  .marchio { gap:<span class="g">10px</span>; }
+  .marchio .logo-mark { width:<span class="g">58px</span>; height:<span class="g">58px</span>; }
+  .marchio span { font-size:<span class="g">25px</span>; letter-spacing:<span class="g">.22em</span>;
+    text-indent:.22em; }
+}</pre>
+    <p class="nota" style="margin-top:14px">Le stesse tre righe vanno poi in
+      <code>css/boom-core.css</code> e nelle 56 pagine che dichiarano il marchio
+      inline — è una sostituzione meccanica, la faccio in un colpo su tutto il
+      sito appena mi dici quale taglia.</p>
+  </div>
+</div></section>
+
+<div class="piede"><div class="w">BOOM Roma · studio interno · nulla di questo è
+  in produzione</div></div>
