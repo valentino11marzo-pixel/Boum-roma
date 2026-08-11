@@ -959,6 +959,12 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .rete-mini:hover b { color:var(--gold); }
 
 /* ══ IL FONDATORE ══════════════════════════════════════════════════════ */
+.fond-sezione { position:relative; }
+.mosaico-fondo { position:absolute; inset:0; width:100%; height:100%;
+  pointer-events:none; opacity:.9;
+  -webkit-mask-image:radial-gradient(115% 95% at 50% 48%, #000 48%, transparent 92%);
+  mask-image:radial-gradient(115% 95% at 50% 48%, #000 48%, transparent 92%); }
+.fond-sezione .container { position:relative; z-index:2; }
 .fond { display:grid; gap:clamp(26px,3.4vw,54px); align-items:center;
   grid-template-columns:1fr; }
 @media (min-width:920px){ .fond {
@@ -1598,7 +1604,8 @@ CASE_TRE
 </section>
 
 <!-- ══ IL FONDATORE ══════════════════════════════════════════════════════ -->
-<section class="sezione">
+<section class="sezione fond-sezione">
+  <canvas class="mosaico-fondo" id="mosaicoFond" aria-hidden="true"></canvas>
   <div class="container fond">
     <div class="fond-foto quadro sale"><span class="tacca"></span>
       FOUNDER_IMG
@@ -2107,6 +2114,89 @@ CASE_TRE
       attesa = setTimeout(function () { misura(); if (ridotto) vita(0); }, 180);
     }, { passive: true });
   }
+  function mosaicoRomano() {
+    /* IL MOSAICO ROMANO — tessere quiete, e un anello d'oro che si
+       allarga dal cuore della sezione, come un sasso nell'arte. */
+    var tela = document.getElementById('mosaicoFond');
+    if (!tela || !tela.getContext) return;
+    var ridotto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var mob = matchMedia('(max-width: 640px)').matches;
+    var ctx = tela.getContext('2d');
+    var ORO = '255,215,0', LATTE = '250,248,240';
+    var W, H, DPR, MIN, fondo, tessere;
+    function misura() {
+      var r = tela.getBoundingClientRect();
+      DPR = Math.min(devicePixelRatio || 1, mob ? 1.5 : 2);
+      W = Math.round(r.width * DPR); H = Math.round(r.height * DPR);
+      tela.width = W; tela.height = H; MIN = Math.min(W, H);
+      fondo = document.createElement('canvas');
+      fondo.width = W; fondo.height = H;
+      var g = fondo.getContext('2d');
+      var lato = Math.round((mob ? 12 : 15) * DPR);
+      var passo = lato + Math.round(4 * DPR);
+      tessere = [];
+      for (var y = 0; y < H + passo; y += passo)
+        for (var x = 0; x < W + passo; x += passo) {
+          var rot = (Math.random() - .5) * .16;
+          var dx = (Math.random() - .5) * 3 * DPR,
+              dy = (Math.random() - .5) * 3 * DPR;
+          tessere.push({ x: x + dx, y: y + dy, rot: rot, lato: lato });
+          g.save(); g.translate(x + dx + lato / 2, y + dy + lato / 2);
+          g.rotate(rot);
+          g.fillStyle = 'rgba(' + LATTE + ','
+            + (.022 + Math.random() * .02) + ')';
+          g.fillRect(-lato / 2, -lato / 2, lato, lato);
+          g.restore();
+        }
+    }
+    function vita(t) {
+      ctx.clearRect(0, 0, W, H);
+      ctx.drawImage(fondo, 0, 0);
+      var ciclo = 5600;
+      var p = ridotto ? .42 : ((t % ciclo) / ciclo);
+      var raggio = p * Math.max(W, H) * .62;
+      var cx = W * .5, cy = H * .46;
+      for (var i = 0; i < tessere.length; i++) {
+        var ss = tessere[i];
+        var d = Math.abs(Math.hypot(ss.x - cx, ss.y - cy) - raggio);
+        var v = Math.max(0, 1 - d / (MIN * .09));
+        if (v < .05) continue;
+        ctx.save();
+        ctx.translate(ss.x + ss.lato / 2, ss.y + ss.lato / 2);
+        ctx.rotate(ss.rot);
+        ctx.fillStyle = 'rgba(' + ORO + ','
+          + (v * .3 * (1 - p * .55)) + ')';
+        ctx.fillRect(-ss.lato / 2, -ss.lato / 2, ss.lato, ss.lato);
+        ctx.restore();
+      }
+    }
+    var girando = false, visibile = false;
+    function giro(t) { if (!girando) return; vita(t); requestAnimationFrame(giro); }
+    function accendi() {
+      if (girando || !visibile || document.hidden || ridotto) return;
+      girando = true; requestAnimationFrame(giro);
+    }
+    function spegni() { girando = false; }
+    misura();
+    if (ridotto) { vita(0); }
+    else {
+      new IntersectionObserver(function (vs) {
+        visibile = vs[0].isIntersecting;
+        visibile ? accendi() : spegni();
+      }, { threshold: .06 }).observe(tela);
+      document.addEventListener('visibilitychange', function () {
+        document.hidden ? spegni() : accendi();
+      });
+    }
+    var attesa;
+    addEventListener('resize', function () {
+      clearTimeout(attesa);
+      attesa = setTimeout(function () { misura(); if (ridotto) vita(0); }, 200);
+    }, { passive: true });
+  }
+  if (document.readyState === 'complete') setTimeout(mosaicoRomano, 0);
+  else addEventListener('load', function () { setTimeout(mosaicoRomano, 0); });
+
   /* parte DOPO via(): il tabellone ha già dichiarato le zone vive */
   if (document.readyState === 'complete') setTimeout(cartaRoma, 0);
   else addEventListener('load', function () { setTimeout(cartaRoma, 0); });
