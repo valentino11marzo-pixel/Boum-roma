@@ -27,7 +27,12 @@ FONT_INLINE
   --text:        #FAFAFA;
   --text-2:      rgba(250,250,250,.72);
   --text-3:      rgba(250,250,250,.5);
-  --text-4:      rgba(250,250,250,.3);
+  --text-4:      rgba(250,250,250,.48);  /* 4.77:1 su nero — sopra AA.
+                                            Era .3 = 2.44:1, e portava le
+                                            etichette dei campi e il footer. */
+  --text-eti:    rgba(250,250,250,.48);  /* alias storico di --text-4 */
+  --deco:        rgba(250,250,250,.26);  /* SOLO segni: frecce, punti,
+                                            separatori. Mai testo. */
   --line-0:      rgba(255,255,255,.04);
   --line:        rgba(255,255,255,.08);
   --line-gold:   rgba(255,215,0,.14);
@@ -209,7 +214,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   padding:11px 11px 11px 20px; max-width:100%;
   transition:box-shadow .3s ease; }
 .atterro:focus-within { box-shadow:inset 0 0 0 1px var(--line-gold-2); }
-.atterro .ac-data > span { display:block; font-size:8.5px; font-weight:600;
+.atterro .ac-data > span { display:block; font-size:10px; font-weight:600;
   letter-spacing:.16em; text-transform:uppercase; color:var(--text-4); }
 .atterro-data { display:inline-flex; align-items:center; gap:8px;
   padding:2px 0 1px; font-size:13.5px; color:var(--text-2); cursor:pointer;
@@ -224,7 +229,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   margin:0 14px; flex:none; }
 .atterro-campo { display:flex; flex-direction:column; gap:2px;
   margin-right:2px; }
-.atterro-campo > span { font-size:8.5px; font-weight:600;
+.atterro-campo > span { font-size:10px; font-weight:600;
   letter-spacing:.16em; text-transform:uppercase; color:var(--text-4); }
 .atterro-campo select { appearance:none; -webkit-appearance:none;
   background:transparent url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="8" height="5"><path d="M1 1l3 3 3-3" fill="none" stroke="%23888" stroke-width="1.2" stroke-linecap="round"/></svg>') right center no-repeat;
@@ -262,7 +267,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   box-shadow:inset 0 0 0 1px var(--line-gold-2); }
 .cal-sett { display:grid; grid-template-columns:repeat(7,1fr); gap:2px;
   margin-bottom:3px; }
-.cal-sett span { text-align:center; font-size:8.5px; font-weight:600;
+.cal-sett span { text-align:center; font-size:10px; font-weight:600;
   letter-spacing:.14em; color:var(--text-4); text-transform:uppercase;
   padding:4px 0; }
 .cal-giorni { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
@@ -360,7 +365,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   0% { width:26px; height:26px; opacity:.34; border-width:1px; }
   100% { width:190px; height:190px; opacity:0; border-width:.5px; } }
 @media (prefers-reduced-motion:reduce){ .scalo-eco { display:none; } }
-.scalo-tag span { display:block; margin-top:3px; font-size:9.5px;
+.scalo-tag span { display:block; margin-top:3px; font-size:10px;
   letter-spacing:.26em; text-transform:uppercase; color:var(--text-3); }
 
 /* la cornice a tacche: riservata agli apparecchi — e questo LO è */
@@ -393,12 +398,12 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .board-live { display:inline-flex; align-items:center; gap:7px; height:24px;
   padding:0 12px; border-radius:100px; background:rgba(0,32,18,.6);
   box-shadow:inset 0 0 0 1px rgba(0,255,136,.38);
-  font-size:9.5px; font-weight:700; letter-spacing:.2em; color:var(--green); }
+  font-size:10px; font-weight:700; letter-spacing:.2em; color:var(--green); }
 .board-live i { font-style:normal; width:5px; height:5px; border-radius:50%;
   background:var(--green); animation:pulse 1.8s ease infinite; }
 .tab-colonne { display:grid; grid-template-columns:minmax(0,1fr) auto auto;
   gap:6px 12px; padding:8px 18px 0; }
-.tab-colonne span { font-size:8px; font-weight:600; letter-spacing:.2em;
+.tab-colonne span { font-size:10px; font-weight:600; letter-spacing:.2em;
   text-transform:uppercase; color:var(--text-4); }
 .tab-colonne span:last-child { justify-self:end; }
 @media (max-width:640px){
@@ -440,7 +445,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .recensioni svg { width:15px; height:15px; flex:none; fill:var(--gold);
   opacity:.85; }
 .recensioni span { flex:1; min-width:0; font-size:12px; color:var(--text-3); }
-.recensioni i { font-style:normal; font-size:9.5px; font-weight:600;
+.recensioni i { font-style:normal; font-size:10px; font-weight:600;
   letter-spacing:.12em; text-transform:uppercase; color:var(--gold);
   white-space:nowrap; }
 
@@ -547,14 +552,14 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .casa-chip { position:absolute; left:10px; top:10px; height:25px;
   display:inline-flex; align-items:center; padding:0 11px;
   border-radius:100px; background:rgba(3,3,3,.82); backdrop-filter:blur(10px);
-  font-size:9.5px; font-weight:700; letter-spacing:.16em;
+  font-size:10px; font-weight:700; letter-spacing:.16em;
   text-transform:uppercase; color:var(--gold-light);
   box-shadow:inset 0 0 0 1px var(--line-gold-2); }
 /* il verde è uno stato, non un vezzo: solo dove la casa è davvero libera */
 .casa-chip.verde { color:var(--green); background:rgba(0,32,18,.72);
   box-shadow:inset 0 0 0 1px rgba(0,255,136,.42); }
-.home-cuore { position:absolute; right:8px; top:8px; z-index:3; width:36px;
-  height:36px; display:grid; place-items:center; border-radius:50%;
+.home-cuore { position:absolute; right:6px; top:6px; z-index:3; width:40px;
+  height:40px; display:grid; place-items:center; border-radius:50%;
   background:rgba(3,3,3,.72); backdrop-filter:blur(6px); color:var(--text-3);
   cursor:pointer; border:0; font-size:14px;
   transition:color .25s ease, transform .25s var(--ease); }
@@ -632,7 +637,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   padding:8px 14px; border-bottom:1px solid var(--line-0); }
 .app-vetro i { width:7px; height:7px; border-radius:50%;
   background:var(--line); font-style:normal; }
-.app-vetro span { margin-left:8px; font-size:8.5px; letter-spacing:.18em;
+.app-vetro span { margin-left:8px; font-size:10px; letter-spacing:.18em;
   text-transform:uppercase; color:var(--text-4); }
 
 /* ═ scena 1 · lo sfoglio: il catalogo si usa da solo ═ */
@@ -695,7 +700,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 /* ═ scena 2 · le verifiche ═ */
 .s2-vagli { display:flex; gap:7px; margin:10px 0 12px; }
 .s2-vagli span { position:relative; padding:5px 9px 5px 20px;
-  font-size:8.5px; font-weight:600; letter-spacing:.12em;
+  font-size:10px; font-weight:600; letter-spacing:.12em;
   text-transform:uppercase; color:var(--text-3);
   box-shadow:inset 0 0 0 1px var(--line-0); border-radius:100px; opacity:.4; }
 .s2-vagli span::before { content:''; position:absolute; left:8px; top:8px;
@@ -804,13 +809,13 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .sc-vivo { position:absolute; top:16px; left:16px; z-index:2;
   display:inline-flex; align-items:center; gap:7px; height:22px;
   padding:0 10px; background:rgba(3,3,3,.6); backdrop-filter:blur(8px);
-  font-size:8.5px; font-weight:700; letter-spacing:.16em; color:#FF6B6B; }
+  font-size:10px; font-weight:700; letter-spacing:.16em; color:#FF6B6B; }
 .sc-vivo i { font-style:normal; width:5px; height:5px; border-radius:50%;
   background:#FF6B6B; animation:pulse 1.4s ease infinite; }
 .sc-verificata { position:absolute; top:16px; right:16px; z-index:2;
   display:inline-flex; align-items:center; gap:6px; height:22px;
   padding:0 10px; background:rgba(3,3,3,.6); backdrop-filter:blur(8px);
-  font-size:8.5px; font-weight:700; letter-spacing:.16em;
+  font-size:10px; font-weight:700; letter-spacing:.16em;
   color:var(--green); box-shadow:inset 0 0 0 1px rgba(0,255,136,.35);
   opacity:0; transform:scale(1.4); }
 .scena-p.attiva .sc-verificata {
@@ -824,7 +829,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 
 /* scena 2 · la domanda che si batte da sola */
 .sc-modulo { max-width:300px; margin:auto; width:100%; }
-.sc-modulo label { display:block; font-size:8.5px; font-weight:600;
+.sc-modulo label { display:block; font-size:10px; font-weight:600;
   letter-spacing:.16em; text-transform:uppercase; color:var(--text-4);
   margin:12px 0 5px; }
 .sc-campo { padding:10px 12px; background:var(--elevated);
@@ -921,7 +926,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .sc-chiavi h4 { font-family:var(--display); font-size:17px; font-weight:400; }
 .sc-chiavi p { margin-top:4px; font-size:11.5px; color:var(--text-3); }
 .sc-timbro { display:inline-flex; align-items:center; gap:7px; margin-top:13px;
-  height:24px; padding:0 12px; font-size:9px; font-weight:700;
+  height:24px; padding:0 12px; font-size:10px; font-weight:700;
   letter-spacing:.16em; text-transform:uppercase; color:var(--green);
   box-shadow:inset 0 0 0 1.5px rgba(0,255,136,.4); opacity:0;
   transform:scale(1.3); }
@@ -939,7 +944,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   background:linear-gradient(90deg, transparent, var(--gold), transparent);
   animation:rete-scan 3.2s var(--ease) infinite; }
 @keyframes rete-scan { to { left:110%; } }
-.rete-eti { display:inline-flex; align-items:center; gap:8px; font-size:9.5px;
+.rete-eti { display:inline-flex; align-items:center; gap:8px; font-size:10px;
   font-weight:600; letter-spacing:.22em; text-transform:uppercase;
   color:var(--gold); }
 .rete-eti b { width:5px; height:5px; border-radius:50%;
@@ -962,10 +967,10 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
     padding-left:16px; } }
 .rete-cifra b { display:block; font-family:var(--display); font-size:20px;
   font-weight:250; color:var(--gold); font-variant-numeric:tabular-nums; }
-.rete-cifra span { display:block; margin-top:2px; font-size:9px;
+.rete-cifra span { display:block; margin-top:3px; font-size:10.5px;
   letter-spacing:.12em; text-transform:uppercase; color:var(--text-3); }
 .rete-motore { margin-top:16px; display:flex; flex-wrap:wrap; gap:7px; }
-.rete-motore span { font-size:8.5px; font-weight:600; letter-spacing:.16em;
+.rete-motore span { font-size:10px; font-weight:600; letter-spacing:.16em;
   color:var(--text-3); padding:6px 10px;
   box-shadow:inset 0 0 0 1px var(--line-0); border-radius:100px; }
 .rete-motore span:first-child { color:var(--gold);
@@ -1069,11 +1074,11 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   font-family:var(--display); font-size:12px; letter-spacing:.28em;
   text-indent:.28em; text-transform:uppercase; }
 .pass-cima .marchietto svg { width:22px; height:22px; }
-.pass-cima span { font-size:8.5px; font-weight:700; letter-spacing:.18em;
+.pass-cima span { font-size:10px; font-weight:700; letter-spacing:.18em;
   text-transform:uppercase; color:var(--text-4); }
 .pass-mezzo { display:grid; grid-template-columns:1fr 1fr; gap:12px 16px;
   padding:16px 18px; }
-.pass-campo b { display:block; font-size:8.5px; font-weight:600;
+.pass-campo b { display:block; font-size:10px; font-weight:600;
   letter-spacing:.16em; text-transform:uppercase; color:var(--text-4); }
 .pass-campo span { display:block; margin-top:3px; font-family:var(--display);
   font-size:14px; color:var(--text); }
@@ -1219,7 +1224,7 @@ html.vivo .sale.dentro .pass-qr i {
 .piede-motto { margin-top:14px; font-size:13px; line-height:1.7;
   color:var(--text-3); max-width:32ch; }
 .piede-legale { margin-top:14px; font-size:11.5px; line-height:1.8;
-  color:var(--text-4); }
+  color:var(--text-eti); }
 .piede-legale b { color:var(--text-3); font-weight:500; }
 .piede-col b { display:block; font-size:10.5px; font-weight:600;
   letter-spacing:.2em; text-transform:uppercase; color:var(--gold);
@@ -1311,7 +1316,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
   .cielo-c.sat { position:absolute; right:11px; top:11px; margin-left:0;
     box-shadow:0 6px 20px rgba(3,3,3,.7); } }
 .cielo-t { font-size:10px; font-weight:600; letter-spacing:.2em;
-  text-transform:uppercase; color:var(--text-4); margin-right:3px; }
+  text-transform:uppercase; color:var(--text-eti); margin-right:3px; }
 .cielo-c { font-family:var(--sans); font-size:11.5px; font-weight:400;
   letter-spacing:.03em; color:var(--text-2); background:rgba(14,14,16,.76);
   backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
@@ -1375,8 +1380,8 @@ html.vivo .sale.dentro { opacity:1; transform:none;
   border-bottom-color:var(--card)!important; }
 .pk-foto { height:122px; background:var(--elevated) center/cover no-repeat; }
 .pk-corpo { padding:12px 14px 14px; }
-.pk-zona { font-size:9px; font-weight:600; letter-spacing:.18em;
-  text-transform:uppercase; color:var(--text-4); }
+.pk-zona { font-size:10px; font-weight:600; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--text-eti); }
 .pk-nome { font-size:14.5px; font-weight:400; color:var(--text); margin:4px 0 7px;
   letter-spacing:-.01em; }
 .pk-canone { font-family:var(--display); font-weight:300; font-size:21px;
@@ -1398,7 +1403,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
   0%,100% { transform:scale(1); box-shadow:0 0 0 0 rgba(255,215,0,.36); }
   50% { transform:scale(1.22); box-shadow:0 0 0 15px rgba(255,215,0,0); } }
 .cielo-velo .eti { font-size:10px; font-weight:600; letter-spacing:.28em;
-  text-transform:uppercase; color:var(--text-4); }
+  text-transform:uppercase; color:var(--text-eti); }
 .cielo-velo .dice { font-size:13.5px; color:var(--text-2); max-width:36ch;
   line-height:1.65; }
 .cielo-velo .fuori { display:none; margin-top:4px; }
@@ -1418,6 +1423,21 @@ html.vivo .sale.dentro { opacity:1; transform:none;
 .cielo-pieno:hover { color:var(--gold); border-color:var(--line-gold-2);
   transform:translateY(-1px); }
 .cielo-pieno svg { width:13px; height:13px; }
+
+
+/* ── bersagli: nessun comando sotto il polpastrello (44×44 su touch) ──── */
+#calPrec, #calSucc { min-width:40px; min-height:40px; display:inline-flex;
+  align-items:center; justify-content:center; }
+/* i link di coda erano alti 18px: il testo resta, l'area cresce */
+.settimana-testa .btn-vai, .vai-testa { padding:11px 2px; margin:-11px 0; }
+.cielo-c { min-height:38px; }
+@media (pointer:coarse){
+  .settimana-testa .btn-vai, .vai-testa { padding:13px 4px; margin:-13px -4px; }
+  .cielo-c { min-height:40px; } }
+
+/* ── immagini: proporzione dichiarata = nessun salto mentre caricano ──── */
+.s1-casa img, .home-foto img { aspect-ratio:4/3; }
+.fond-foto img { aspect-ratio:4/5; }
 
 </style>
 
@@ -1603,14 +1623,14 @@ CASE_TRE
         <div class="scena-p attiva" data-s="0" id="appScena0" role="tabpanel" aria-labelledby="appTab0">
           <div class="s1-palco" aria-hidden="true">
             <div class="s1-fila">
-              <figure class="s1-casa"><img src="SC_FOTO2" alt=""
+              <figure class="s1-casa"><img loading="lazy" decoding="async" src="SC_FOTO2" alt=""
                 decoding="async"><figcaption>SC_ZONA2</figcaption></figure>
-              <figure class="s1-casa s1-eletta"><img src="SC_FOTO" alt=""
+              <figure class="s1-casa s1-eletta"><img loading="lazy" decoding="async" src="SC_FOTO" alt=""
                 decoding="async">
                 <span class="s1-cuore">♥</span>
                 <span class="s1-vaglio">✓ Video-verified</span>
                 <figcaption>SC_NOME · SC_PREZZO/mo</figcaption></figure>
-              <figure class="s1-casa"><img src="SC_FOTO3" alt=""
+              <figure class="s1-casa"><img loading="lazy" decoding="async" src="SC_FOTO3" alt=""
                 decoding="async"><figcaption>SC_ZONA3</figcaption></figure>
             </div>
             <span class="s1-dito"></span>
