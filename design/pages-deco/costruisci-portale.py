@@ -145,8 +145,9 @@ h = h.replace('FOUNDER_IMG', FOND)
 # il QR del pass: una texture decorativa dichiarata (aria-hidden), non un QR vero
 import random as _rnd
 _rnd.seed(7)
-h = h.replace('PASS_QR', ''.join('<i' + (' class="v"' if _rnd.random() < .42
-    else '') + '></i>' for _ in range(25)))
+h = h.replace('PASS_QR', ''.join(
+    '<i style="--i:' + str(i) + '"' + (' class="v"' if _rnd.random() < .42
+    else '') + '></i>' for i in range(25)))
 if MODO == 'artefatto':
     h = h.replace('FONT_INLINE', '<style>\n' + leggi('inter-inline.css') + '\n</style>')
 else:

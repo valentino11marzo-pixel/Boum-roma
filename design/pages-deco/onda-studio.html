@@ -85,7 +85,10 @@ h1 .flap { display:inline-block; padding:.04em .18em; margin:0 .06em;
   var ctx = tela.getContext('2d');
   var ridotto = matchMedia('(prefers-reduced-motion: reduce)').matches;
   var W, H, DPR, MIN;
-  var ORO = '255,215,0', LATTE = '250,248,240', VERDE = '92,255,174';
+  var LATTE = '250,248,240', VERDE = '92,255,174';
+  var TINTE = { oro: '255,215,0', verde: '92,255,174',
+    rame: '255,145,90', ghiaccio: '170,215,255' };
+  var ORO = TINTE.oro;   /* la tinta dei brilli: cambiabile dalla regia */
 
   /* ── IL TELAIO: la griglia di celle flap, condivisa da tutte le vie ──
      Ogni cella ha un'energia 0..1 che decade; ogni via decide come
@@ -459,6 +462,26 @@ h1 .flap { display:inline-block; padding:.04em .18em; margin:0 .06em;
     if (document.hidden) girando = false;
     else if (!girando && !ridotto) { girando = true; requestAnimationFrame(giro); }
   });
+  /* la tavolozza: prova i brilli in altre tinte */
+  var tav = document.createElement('div');
+  tav.style.cssText = 'display:flex;gap:6px;align-items:center;flex:none;'
+    + 'padding-left:10px;border-left:1px solid rgba(255,255,255,.1)';
+  Object.keys(TINTE).forEach(function (k, i) {
+    var c = document.createElement('button');
+    c.type = 'button'; c.title = k;
+    c.style.cssText = 'width:30px;height:30px;border-radius:50%;cursor:pointer;'
+      + 'border:0;background:rgb(' + TINTE[k] + ');opacity:.85;'
+      + 'box-shadow:' + (i ? 'none' : '0 0 0 2px rgba(255,255,255,.6)');
+    c.addEventListener('click', function () {
+      ORO = TINTE[k];
+      [].slice.call(tav.children).forEach(function (x) {
+        x.style.boxShadow = 'none'; });
+      c.style.boxShadow = '0 0 0 2px rgba(255,255,255,.6)';
+      if (attiva) { attiva.su && attiva.su(); if (ridotto) attiva.dip(0); }
+    });
+    tav.appendChild(c);
+  });
+  regia.appendChild(tav);
   var da = location.hash.replace('#', '');
   var idx = Math.max(0, VIE.findIndex(function (v) { return v.id === da; }));
   scegli(idx);

@@ -127,9 +127,9 @@ h1, h2, h3 { font-family:var(--display); }
 .nav-inner { display:flex; align-items:center; justify-content:space-between;
   gap:16px; }
 .marchio { display:inline-flex; align-items:center; gap:11px; }
-.marchio .logo-mark { width:42px; height:42px; flex:none; }
-.marchio span { font-family:var(--display); font-size:18px; font-weight:400;
-  letter-spacing:.32em; text-indent:.32em; text-transform:uppercase; }
+.marchio .logo-mark { width:48px; height:48px; flex:none; }
+.marchio span { font-family:var(--display); font-size:19.5px; font-weight:400;
+  letter-spacing:.34em; text-indent:.34em; text-transform:uppercase; }
 @media (max-width:640px){
   .marchio .logo-mark { width:47px; height:47px; }
   .marchio span { font-size:19.5px; } }
@@ -357,7 +357,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .scalo-eco i { position:absolute; left:50%; top:50%;
   transform:translate(-50%,-50%); border:1px solid rgba(255,215,0,.4);
   border-radius:50%; opacity:0; font-style:normal;
-  animation:eco-rom 5.5s ease-out infinite; }
+  animation:eco-rom 8s ease-out infinite; }
 .scalo-eco i:nth-child(2){ animation-delay:-2.75s; }
 @keyframes eco-rom {
   0% { width:26px; height:26px; opacity:.34; border-width:1px; }
@@ -443,7 +443,20 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   background:var(--surface); }
 .imbarco-v svg .acc { opacity:.55; }
 .imbarco-v svg .pieno, .porta svg .pieno { fill:var(--gold); stroke:none; }
-.porta svg .acc { opacity:.55; }
+.porta svg .acc { opacity:.55; transition:opacity .3s; }
+.porta:hover svg { transform:translateY(-2px); }
+.porta:hover svg .acc { opacity:1; }
+.porta svg { transition:transform .35s var(--ease); }
+/* firme per porta: il radar spazza, la campana suona, il check si segna */
+.porta:nth-child(2):hover svg { animation:porta-radar .9s var(--ease); }
+@keyframes porta-radar { 50% { transform:translateY(-2px) rotate(14deg); }
+  100% { transform:translateY(-2px) rotate(0); } }
+.porta:nth-child(5):hover svg { animation:porta-campana .7s ease; }
+@keyframes porta-campana {
+  25% { transform:translateY(-2px) rotate(7deg); }
+  55% { transform:translateY(-2px) rotate(-6deg); }
+  80% { transform:translateY(-2px) rotate(3deg); }
+  100% { transform:translateY(-2px) rotate(0); } }
 .imbarco-v svg { width:26px; height:26px; flex:none; color:var(--gold);
   fill:none; stroke:currentColor; stroke-width:1.5; stroke-linecap:round;
   stroke-linejoin:round; }
@@ -1029,6 +1042,11 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .pass-qr { width:44px; height:44px; flex:none; display:grid;
   grid-template-columns:repeat(5,1fr); gap:2px; opacity:.85; }
 .pass-qr i { font-style:normal; background:var(--text-3); border-radius:1px; }
+html.vivo .sale .pass-qr i { opacity:0; }
+html.vivo .sale.dentro .pass-qr i {
+  animation:qr-pixel .32s var(--ease) calc(var(--i) * 36ms) both; }
+@keyframes qr-pixel { from { opacity:0; transform:scale(.3); }
+  to { opacity:1; transform:none; } }
 .pass-qr i.v { background:transparent; }
 
 /* ══ WHY WE EXIST — i dolori a tavola + la dichiarazione a filo ════════ */
@@ -1623,7 +1641,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
           <div class="pass-campo"><b>Support</b><span>24/7 WhatsApp</span></div>
         </div>
         <div class="pass-fondo"><small>Boarding: your new home</small>
-          <span class="pass-qr" aria-hidden="true"><i class="v"></i><i class="v"></i><i></i><i class="v"></i><i></i><i class="v"></i><i class="v"></i><i></i><i class="v"></i><i></i><i class="v"></i><i class="v"></i><i></i><i></i><i class="v"></i><i class="v"></i><i></i><i></i><i></i><i class="v"></i><i></i><i class="v"></i><i></i><i class="v"></i><i class="v"></i></span></div>
+          <span class="pass-qr" aria-hidden="true"><i style="--i:0" class="v"></i><i style="--i:1" class="v"></i><i style="--i:2"></i><i style="--i:3" class="v"></i><i style="--i:4"></i><i style="--i:5" class="v"></i><i style="--i:6" class="v"></i><i style="--i:7"></i><i style="--i:8" class="v"></i><i style="--i:9"></i><i style="--i:10" class="v"></i><i style="--i:11" class="v"></i><i style="--i:12"></i><i style="--i:13"></i><i style="--i:14" class="v"></i><i style="--i:15" class="v"></i><i style="--i:16"></i><i style="--i:17"></i><i style="--i:18"></i><i style="--i:19" class="v"></i><i style="--i:20"></i><i style="--i:21" class="v"></i><i style="--i:22"></i><i style="--i:23" class="v"></i><i style="--i:24" class="v"></i></span></div>
       </div>
     </div>
   </div>
@@ -1852,7 +1870,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       var o = organi[Math.floor(Math.random() * organi.length)];
       var quale = ['z', 'p', 't'][Math.floor(Math.random() * 3)];
       if (o[quale].flutter) o[quale].flutter();
-    }, 8000);
+    }, 14000);
   })();
 
   /* L'APPARECCHIO: le scene si avvicendano; il passaggio del mouse le
@@ -2106,7 +2124,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         var fs = H * .3 + scorsa * DPR * .85;
         var vs = spinta * Math.max(0, 1 - Math.abs(y - fs) / (MIN * .16));
         E[i] = Math.max(E[i], v1 * v1 * .9, v2 * v2 * .35, vm * vm, vs);
-        if (v1 > .96 && Math.random() < .01) AU[i] = .9;
+        if (v1 > .96 && Math.random() < .005) AU[i] = .9;
         for (var oi = 0; oi < onde.length; oi++) {
           var od = onde[oi]; var eta = (t - od.via) / 900;
           if (eta > 1.4) continue;
