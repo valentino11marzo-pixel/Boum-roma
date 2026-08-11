@@ -1,0 +1,467 @@
+<title>BOOM — L'Onda Solari: sei declinazioni</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root { --oro:#FFD700; --nero:#030303; --line:rgba(255,255,255,.08);
+  --line-oro:rgba(255,215,0,.22); --t1:#FAFAF8; --t2:rgba(250,250,248,.62);
+  --t3:rgba(250,250,248,.4);
+  --display:'Helvetica Neue',Helvetica,'Inter',-apple-system,Arial,sans-serif;
+  --sans:'Inter','Helvetica Neue',-apple-system,BlinkMacSystemFont,sans-serif; }
+* { margin:0; padding:0; box-sizing:border-box; }
+html,body { height:100%; }
+body { background:var(--nero); color:var(--t1); font:300 15px/1.6 var(--sans);
+  overflow:hidden; -webkit-font-smoothing:antialiased; }
+#tela { position:fixed; inset:0; width:100%; height:100%; }
+.velo { position:fixed; inset:0; pointer-events:none;
+  background:radial-gradient(120% 90% at 50% 110%, rgba(3,3,3,.94), transparent 44%); }
+.palco { position:fixed; inset:0; display:grid; place-items:center;
+  padding:24px; pointer-events:none; }
+.voce { max-width:760px; text-align:center; transform:translateY(-4vh); }
+.occhio { display:inline-flex; align-items:center; gap:9px; padding:8px 15px;
+  box-shadow:inset 0 0 0 1px var(--line-oro); border-radius:100px;
+  font-size:10px; font-weight:600; letter-spacing:.22em; text-transform:uppercase;
+  color:var(--oro); }
+.occhio b { width:6px; height:6px; border-radius:50%; background:#5CFFAE;
+  animation:batti 2.2s ease infinite; }
+@keyframes batti { 50% { opacity:.3; } }
+h1 { margin-top:22px; font-family:var(--display); font-weight:200;
+  font-size:clamp(37px,7.2vw,64px); line-height:1.07; letter-spacing:-.02em; }
+h1 .hl { color:var(--oro); }
+h1 .flap { display:inline-block; padding:.04em .18em; margin:0 .06em;
+  background:#101012; box-shadow:inset 0 0 0 1px rgba(255,255,255,.1),
+    inset 0 -1.2em 0 rgba(0,0,0,.3); border-radius:.12em; color:var(--oro);
+  letter-spacing:.14em; }
+.sotto { margin-top:16px; font-size:clamp(14px,1.6vw,16.5px); color:var(--t2); }
+.azioni { margin-top:26px; display:flex; gap:12px; justify-content:center;
+  flex-wrap:wrap; }
+.btn { display:inline-block; padding:15px 28px; font-size:11px; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase; text-decoration:none;
+  border-radius:100px; }
+.btn-oro { background:var(--oro); color:#000; }
+.btn-filo { color:var(--t2); box-shadow:inset 0 0 0 1px var(--line); }
+.regia { position:fixed; left:0; right:0; bottom:0; z-index:10;
+  padding:14px clamp(12px,3vw,28px) calc(14px + env(safe-area-inset-bottom));
+  display:flex; gap:8px; overflow-x:auto; -webkit-overflow-scrolling:touch;
+  scrollbar-width:none; background:linear-gradient(transparent, rgba(3,3,3,.88) 40%); }
+.regia::-webkit-scrollbar { display:none; }
+.scelta { flex:none; display:flex; flex-direction:column; gap:2px;
+  padding:11px 16px 10px; background:rgba(10,10,12,.82);
+  box-shadow:inset 0 0 0 1px var(--line); border-radius:14px; color:var(--t2);
+  font:inherit; cursor:pointer; text-align:left; transition:.25s;
+  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); }
+.scelta b { font-size:10px; font-weight:600; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--t3); transition:.25s; }
+.scelta span { font-size:12.5px; color:var(--t2); white-space:nowrap; }
+.scelta.on { box-shadow:inset 0 0 0 1px var(--oro); color:var(--t1); }
+.scelta.on b { color:var(--oro); }
+.titolo-studio { position:fixed; top:0; left:0; right:0; z-index:10;
+  display:flex; justify-content:space-between; align-items:center;
+  padding:calc(14px + env(safe-area-inset-top)) clamp(14px,3vw,28px) 12px;
+  background:linear-gradient(rgba(3,3,3,.8), transparent); }
+.titolo-studio b { font-family:var(--display); font-weight:300; font-size:15px;
+  letter-spacing:.4em; }
+.titolo-studio span { font-size:9.5px; letter-spacing:.22em;
+  text-transform:uppercase; color:var(--t3); }
+</style>
+
+<canvas id="tela"></canvas>
+<div class="velo"></div>
+<div class="palco">
+  <div class="voce">
+    <span class="occhio"><b></b>Premium Rentals in Rome</span>
+    <h1>GET YOUR <span class="hl">ROME</span> APARTMENT<br>
+      IN <span class="flap">DAYS</span>, NOT WEEKS.</h1>
+    <p class="sotto">Video-verified. Transparent pricing. Real support.</p>
+    <div class="azioni"><a class="btn btn-oro">View Apartments</a>
+      <a class="btn btn-filo">How It Works</a></div>
+  </div>
+</div>
+<div class="titolo-studio"><b>BOOM</b><span id="nomeVia">L'Onda Solari</span></div>
+<div class="regia" id="regia"></div>
+
+<script>
+(function () {
+  'use strict';
+  var tela = document.getElementById('tela');
+  var ctx = tela.getContext('2d');
+  var ridotto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var W, H, DPR, MIN;
+  var ORO = '255,215,0', LATTE = '250,248,240', VERDE = '92,255,174';
+
+  /* ── IL TELAIO: la griglia di celle flap, condivisa da tutte le vie ──
+     Ogni cella ha un'energia 0..1 che decade; ogni via decide come
+     l'energia nasce (onde, tocco, parole, righe, prospettiva). */
+  function Telaio(op) {
+    var o = Object.assign({ cw: 40, aspetto: .68, gap: 7, base: .028,
+      forza: .13, tondo: 3 }, op);
+    var t = { cw: 0, ch: 0, gap: 0, cols: 0, rows: 0, e: null, oro: null };
+    t.misura = function () {
+      t.cw = Math.round((innerWidth < 640 ? o.cw * .74 : o.cw) * DPR);
+      t.ch = Math.round(t.cw * o.aspetto);
+      t.gap = Math.round(o.gap * DPR);
+      t.cols = Math.ceil(W / (t.cw + t.gap)) + 1;
+      t.rows = Math.ceil(H / (t.ch + t.gap)) + 1;
+      t.e = new Float32Array(t.cols * t.rows);
+      t.oro = new Float32Array(t.cols * t.rows);
+    };
+    t.decadi = function (k) {
+      k = k || .93;
+      for (var i = 0; i < t.e.length; i++) {
+        t.e[i] *= k; t.oro[i] *= k;
+        if (t.e[i] < .003) t.e[i] = 0;
+        if (t.oro[i] < .003) t.oro[i] = 0;
+      }
+    };
+    t.dip = function () {
+      for (var r = 0; r < t.rows; r++) for (var c = 0; c < t.cols; c++) {
+        var i = r * t.cols + c;
+        var e = t.e[i], au = t.oro[i];
+        var x = c * (t.cw + t.gap), y = r * (t.ch + t.gap);
+        var a = o.base + e * o.forza;
+        ctx.fillStyle = au > .04
+          ? 'rgba(' + ORO + ',' + (au * .55) + ')'
+          : 'rgba(' + LATTE + ',' + a + ')';
+        ctx.beginPath();
+        ctx.roundRect(x, y, t.cw, t.ch, o.tondo * DPR);
+        ctx.fill();
+        /* la battuta del flap: la linea a metà, visibile quando gira */
+        if (e > .12 || au > .1) {
+          ctx.fillStyle = 'rgba(3,3,3,.55)';
+          ctx.fillRect(x, y + t.ch * .48, t.cw, Math.max(1, DPR));
+        }
+      }
+    };
+    return t;
+  }
+
+  /* ══ 01 · L'ONDA — la base, perfezionata: due maree che si incrociano ══ */
+  function Onda() {
+    var T = Telaio({});
+    this.su = function () { T.misura(); };
+    this.dip = function (t) {
+      ctx.clearRect(0, 0, W, H);
+      var f1 = ridotto ? W * .6 : ((t * .00011) % 1.55) * (W + H) - H * .4;
+      var f2 = ridotto ? -1 : (1 - (t * .00006) % 1.55) * (W + H) - H * .4;
+      for (var r = 0; r < T.rows; r++) for (var c = 0; c < T.cols; c++) {
+        var x = c * (T.cw + T.gap), y = r * (T.ch + T.gap);
+        var d1 = Math.abs((x + y * .82) - f1);
+        var d2 = Math.abs((x - y * .6 + H * .6) - f2);
+        var v1 = Math.max(0, 1 - d1 / (MIN * .2));
+        var v2 = Math.max(0, 1 - d2 / (MIN * .3));
+        var i = r * T.cols + c;
+        T.e[i] = Math.max(T.e[i], v1 * v1, v2 * v2 * .4);
+        /* il brillo d'oro nasce SULLA cresta, non a caso */
+        if (v1 > .96 && Math.random() < .012) T.oro[i] = 1;
+      }
+      T.decadi(.9); T.dip();
+    };
+  }
+
+  /* ══ 02 · LA MAREA — il tabellone ti sente: tocco e scia ══════════════ */
+  function Marea() {
+    var T = Telaio({ forza: .15 });
+    var px = -1e4, py = -1e4, onde = [];
+    var muovi = function (e) {
+      var p = e.touches ? e.touches[0] : e;
+      px = p.clientX * DPR; py = p.clientY * DPR;
+    };
+    var tocca = function (e) {
+      var p = e.touches ? e.touches[0] : e;
+      onde.push({ x: p.clientX * DPR, y: p.clientY * DPR,
+        via: performance.now() });
+      if (onde.length > 4) onde.shift();
+    };
+    this.su = function () {
+      T.misura();
+      addEventListener('pointermove', muovi, { passive: true });
+      addEventListener('pointerdown', tocca, { passive: true });
+    };
+    this.giu = function () {
+      removeEventListener('pointermove', muovi);
+      removeEventListener('pointerdown', tocca);
+    };
+    this.dip = function (t) {
+      ctx.clearRect(0, 0, W, H);
+      /* la marea di fondo, lenta, così il campo non è mai morto */
+      var f = ridotto ? W * .5 : ((t * .00007) % 1.6) * (W + H) - H * .4;
+      for (var r = 0; r < T.rows; r++) for (var c = 0; c < T.cols; c++) {
+        var x = c * (T.cw + T.gap) + T.cw / 2,
+            y = r * (T.ch + T.gap) + T.ch / 2;
+        var i = r * T.cols + c;
+        var vf = Math.max(0, 1 - Math.abs((x + y * .82) - f) / (MIN * .22));
+        var dm = Math.hypot(x - px, y - py);
+        var vm = Math.max(0, 1 - dm / (MIN * .17));
+        T.e[i] = Math.max(T.e[i], vf * vf * .55, vm * vm);
+        onde.forEach(function (o) {
+          var eta = (t - o.via) / 900;
+          if (eta > 1.4) return;
+          var raggio = eta * MIN * .38;
+          var da = Math.abs(Math.hypot(x - o.x, y - o.y) - raggio);
+          var vo = Math.max(0, 1 - da / (MIN * .06));
+          T.e[i] = Math.max(T.e[i], vo * (1.2 - eta));
+          if (vo > .9 && Math.random() < .02) T.oro[i] = .9;
+        });
+      }
+      T.decadi(.9); T.dip();
+    };
+  }
+
+  /* ══ 03 · IL MESSAGGIO — il fondo parla, a lettere di tabellone ═══════ */
+  function Messaggio() {
+    var T = Telaio({ cw: 34, forza: .11 });
+    /* il font 5×7 delle sole lettere che ci servono */
+    var FONT = {
+      'B': ['1111.','1...1','1...1','1111.','1...1','1...1','1111.'],
+      'O': ['.111.','1...1','1...1','1...1','1...1','1...1','.111.'],
+      'M': ['1...1','11.11','1.1.1','1.1.1','1...1','1...1','1...1'],
+      'R': ['1111.','1...1','1...1','1111.','1.1..','1..1.','1...1'],
+      'A': ['.111.','1...1','1...1','11111','1...1','1...1','1...1'],
+      '4': ['...1.','..11.','.1.1.','1..1.','11111','...1.','...1.'],
+      '8': ['.111.','1...1','1...1','.111.','1...1','1...1','.111.'],
+      'H': ['1...1','1...1','1...1','11111','1...1','1...1','1...1'],
+      'D': ['1111.','1...1','1...1','1...1','1...1','1...1','1111.'],
+      'Y': ['1...1','1...1','.1.1.','..1..','..1..','..1..','..1..'],
+      'S': ['.1111','1....','1....','.111.','....1','....1','1111.'],
+    };
+    var PAROLE = ['BOOM', 'ROMA', '48H', 'DAYS'];
+    var quale = 0, stampa = null, prossima = 1600;
+    function stampa_nuova(t) {
+      var parola = PAROLE[quale % PAROLE.length]; quale++;
+      var largh = parola.length * 6 - 1;
+      var c0 = Math.max(1, Math.floor(Math.random() * (T.cols - largh - 2)));
+      /* mai dietro al titolo: la parola vive nelle fasce alte o basse */
+      var alto = Math.random() < .5;
+      var r0 = alto ? 1 + Math.floor(Math.random() * Math.max(1, T.rows * .18))
+        : Math.floor(T.rows * .66
+            + Math.random() * Math.max(1, T.rows * .2 - 8));
+      r0 = Math.max(1, Math.min(T.rows - 8, r0));
+      var celle = [];
+      for (var li = 0; li < parola.length; li++) {
+        var gl = FONT[parola[li]];
+        if (!gl) continue;
+        for (var rr = 0; rr < 7; rr++) for (var cc = 0; cc < 5; cc++)
+          if (gl[rr][cc] === '1')
+            celle.push({ c: c0 + li * 6 + cc, r: r0 + rr,
+              ritardo: (li * 5 + cc) * 26 });
+      }
+      stampa = { celle: celle, via: t };
+    }
+    this.su = function () { T.misura(); };
+    this.dip = function (t) {
+      ctx.clearRect(0, 0, W, H);
+      /* la marea quieta sotto */
+      var f = ridotto ? W * .5 : ((t * .00006) % 1.7) * (W + H) - H * .4;
+      for (var r = 0; r < T.rows; r++) for (var c = 0; c < T.cols; c++) {
+        var x = c * (T.cw + T.gap), y = r * (T.ch + T.gap);
+        var v = Math.max(0, 1 - Math.abs((x + y * .82) - f) / (MIN * .24));
+        var i = r * T.cols + c;
+        T.e[i] = Math.max(T.e[i], v * v * .4);
+      }
+      /* la parola: si accende a cascata, tiene, si scioglie */
+      if (!ridotto) {
+        if (!stampa && t > prossima) stampa_nuova(t);
+        if (stampa) {
+          var eta = t - stampa.via;
+          stampa.celle.forEach(function (cl) {
+            var mio = eta - cl.ritardo;
+            if (mio < 0) return;
+            var i2 = cl.r * T.cols + cl.c;
+            if (i2 < 0 || i2 >= T.oro.length) return;
+            if (mio < 1900) T.oro[i2] = Math.min(1, mio / 140);
+          });
+          if (eta > 3400) { stampa = null; prossima = t + 3800; }
+        }
+      } else if (!stampa) { stampa_nuova(0);
+        stampa.celle.forEach(function (cl) {
+          var i3 = cl.r * T.cols + cl.c;
+          if (i3 >= 0 && i3 < T.oro.length) T.oro[i3] = .9; });
+      }
+      T.decadi(.94); T.dip();
+    };
+  }
+
+  /* ══ 04 · LA PARTENZA — le righe si aggiornano, come al gate ══════════ */
+  function Partenza() {
+    var T = Telaio({ cw: 44, aspetto: .6 });
+    var corse = [];
+    this.su = function () { T.misura(); corse = []; };
+    this.dip = function (t) {
+      ctx.clearRect(0, 0, W, H);
+      if (!ridotto && (!corse.length || t - corse[corse.length - 1].via > 1500)) {
+        corse.push({ r: Math.floor(Math.random() * T.rows),
+          via: t, verde: Math.random() < .22 });
+        if (corse.length > 6) corse.shift();
+      }
+      corse.forEach(function (k) {
+        var p = (t - k.via) / 1100;
+        if (p > 1.4) return;
+        var fronte = p * (W + MIN * .3) - MIN * .15;
+        for (var c = 0; c < T.cols; c++) {
+          var x = c * (T.cw + T.gap);
+          var v = Math.max(0, 1 - Math.abs(x - fronte) / (MIN * .13));
+          var i = k.r * T.cols + c;
+          if (i >= 0 && i < T.e.length) {
+            T.e[i] = Math.max(T.e[i], v * v);
+            if (k.verde && v > .85) T.oro[i] = Math.max(T.oro[i], .001);
+          }
+        }
+      });
+      if (ridotto) { for (var c2 = 0; c2 < T.cols; c2++) {
+        var im = Math.floor(T.rows / 2) * T.cols + c2;
+        T.e[im] = .6; } }
+      T.decadi(.9);
+      /* le righe verdi «boarding» si dipingono a parte */
+      for (var r = 0; r < T.rows; r++) for (var c3 = 0; c3 < T.cols; c3++) {
+        var i4 = r * T.cols + c3;
+        if (T.oro[i4] > 0 && T.e[i4] > .1) {
+          T.oro[i4] = 0;
+          var x4 = c3 * (T.cw + T.gap), y4 = r * (T.ch + T.gap);
+          ctx.fillStyle = 'rgba(' + VERDE + ',' + (T.e[i4] * .3) + ')';
+          ctx.beginPath();
+          ctx.roundRect(x4, y4, T.cw, T.ch, 3 * DPR); ctx.fill();
+        }
+      }
+      T.dip();
+    };
+  }
+
+  /* ══ 05 · IL MOSAICO — le tessere romane, l'onda nell'arte ════════════ */
+  function Mosaico() {
+    var fondo, tessere;
+    this.su = function () {
+      /* il mosaico si posa una volta: tessere piccole, storte quel poco */
+      fondo = document.createElement('canvas');
+      fondo.width = W; fondo.height = H;
+      var g = fondo.getContext('2d');
+      var lato = Math.round((innerWidth < 640 ? 13 : 16) * DPR);
+      var passo = lato + Math.round(4 * DPR);
+      tessere = [];
+      for (var y = 0; y < H + passo; y += passo)
+        for (var x = 0; x < W + passo; x += passo) {
+          var rot = (Math.random() - .5) * .16;
+          var dx = (Math.random() - .5) * 3 * DPR,
+              dy = (Math.random() - .5) * 3 * DPR;
+          tessere.push({ x: x + dx, y: y + dy, rot: rot, lato: lato });
+          g.save(); g.translate(x + dx + lato / 2, y + dy + lato / 2);
+          g.rotate(rot);
+          g.fillStyle = 'rgba(' + LATTE + ',' + (.03 + Math.random() * .025) + ')';
+          g.fillRect(-lato / 2, -lato / 2, lato, lato);
+          g.restore();
+        }
+    };
+    this.dip = function (t) {
+      ctx.clearRect(0, 0, W, H);
+      ctx.drawImage(fondo, 0, 0);
+      /* l'onda: un sasso nel mosaico, dal centro, ogni tanto */
+      var ciclo = 5200;
+      var p = ridotto ? .45 : ((t % ciclo) / ciclo);
+      var raggio = p * MIN * .75;
+      var cx = W * .5, cy = H * .42;
+      tessere.forEach(function (s) {
+        var d = Math.abs(Math.hypot(s.x - cx, s.y - cy) - raggio);
+        var v = Math.max(0, 1 - d / (MIN * .07));
+        if (v < .04) return;
+        ctx.save();
+        ctx.translate(s.x + s.lato / 2, s.y + s.lato / 2);
+        ctx.rotate(s.rot);
+        ctx.fillStyle = 'rgba(' + ORO + ',' + (v * .34 * (1 - p * .6)) + ')';
+        ctx.fillRect(-s.lato / 2, -s.lato / 2, s.lato, s.lato);
+        ctx.restore();
+      });
+    };
+  }
+
+  /* ══ 06 · LA PROFONDITÀ — il soffitto del terminal, in prospettiva ════ */
+  function Profondita() {
+    var righe;
+    this.su = function () {
+      righe = [];
+      var n = innerWidth < 640 ? 16 : 20;
+      var y = H * .12;
+      for (var i = 0; i < n; i++) {
+        var scala = .28 + Math.pow(i / (n - 1), 1.5) * 1.05;
+        var ch = 26 * DPR * scala;
+        righe.push({ y: y, ch: ch, scala: scala, i: i });
+        y += ch + 6 * DPR * scala;
+      }
+    };
+    this.dip = function (t) {
+      ctx.clearRect(0, 0, W, H);
+      var n = righe.length;
+      var fronte = ridotto ? n * .55 : ((t * .00022) % 1.5) * n;
+      righe.forEach(function (r) {
+        var cw = 46 * DPR * r.scala, gap = 7 * DPR * r.scala;
+        var cols = Math.ceil(W / (cw + gap)) + 1;
+        var scarto = (W - cols * (cw + gap)) / 2;
+        var v = Math.max(0, 1 - Math.abs(r.i - fronte) / 3.2);
+        for (var c = 0; c < cols; c++) {
+          var x = scarto + c * (cw + gap);
+          var centro = Math.abs((x + cw / 2) - W / 2) / (W / 2);
+          var a = (.02 + v * v * .12) * (1 - centro * .4) * (0.45 + r.scala * .5);
+          ctx.fillStyle = 'rgba(' + LATTE + ',' + a + ')';
+          ctx.beginPath();
+          ctx.roundRect(x, r.y, cw, r.ch, 3 * DPR); ctx.fill();
+          if (v > .55) {
+            ctx.fillStyle = 'rgba(3,3,3,.5)';
+            ctx.fillRect(x, r.y + r.ch * .48, cw, Math.max(1, DPR));
+          }
+        }
+      });
+    };
+  }
+
+  /* ── la regia ──────────────────────────────────────────────────────── */
+  function misura() {
+    DPR = Math.min(devicePixelRatio || 1, 2);
+    W = Math.round(innerWidth * DPR); H = Math.round(innerHeight * DPR);
+    tela.width = W; tela.height = H; MIN = Math.min(W, H);
+  }
+  misura();
+  var VIE = [
+    { id: 'onda', nome: '01', dida: 'L\'onda — due maree', fac: Onda },
+    { id: 'marea', nome: '02', dida: 'La marea — ti sente', fac: Marea },
+    { id: 'messaggio', nome: '03', dida: 'Il messaggio — parla', fac: Messaggio },
+    { id: 'partenza', nome: '04', dida: 'La partenza — righe al gate', fac: Partenza },
+    { id: 'mosaico', nome: '05', dida: 'Il mosaico romano', fac: Mosaico },
+    { id: 'fuga', nome: '06', dida: 'La profondità — il terminal', fac: Profondita },
+  ];
+  var attiva = null, girando = false;
+  var regia = document.getElementById('regia');
+  var nomeVia = document.getElementById('nomeVia');
+  VIE.forEach(function (v, i) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'scelta';
+    b.innerHTML = '<b>' + v.nome + '</b><span>' + v.dida + '</span>';
+    b.addEventListener('click', function () { scegli(i); });
+    regia.appendChild(b); v.el = b;
+  });
+  function scegli(i) {
+    if (attiva && attiva.giu) attiva.giu();
+    VIE.forEach(function (v) { v.el.classList.remove('on'); });
+    VIE[i].el.classList.add('on');
+    nomeVia.textContent = VIE[i].dida;
+    attiva = new VIE[i].fac(); attiva.su();
+    try { history.replaceState(null, '', '#' + VIE[i].id); } catch (e) {}
+    if (ridotto) attiva.dip(0);
+  }
+  addEventListener('keydown', function (e) {
+    var n = parseInt(e.key, 10);
+    if (n >= 1 && n <= VIE.length) scegli(n - 1);
+  });
+  addEventListener('resize', function () {
+    misura(); if (attiva) attiva.su(); if (ridotto && attiva) attiva.dip(0);
+  });
+  function giro(t) {
+    if (!girando) return;
+    if (attiva && !ridotto) attiva.dip(t);
+    requestAnimationFrame(giro);
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) girando = false;
+    else if (!girando && !ridotto) { girando = true; requestAnimationFrame(giro); }
+  });
+  var da = location.hash.replace('#', '');
+  var idx = Math.max(0, VIE.findIndex(function (v) { return v.id === da; }));
+  scegli(idx);
+  if (!ridotto) { girando = true; requestAnimationFrame(giro); }
+})();
+</script>

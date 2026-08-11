@@ -173,12 +173,8 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   to   { transform:translate(-4vw,3vw) scale(1.12); } }
 #cartaRoma { position:absolute; inset:0; width:100%; height:100%;
   opacity:.92;
-  -webkit-mask-image:radial-gradient(120% 105% at 66% 42%, #000 42%, transparent 78%);
-  mask-image:radial-gradient(120% 105% at 66% 42%, #000 42%, transparent 78%); }
-@media (max-width:640px){
-  #cartaRoma {
-    -webkit-mask-image:radial-gradient(140% 90% at 50% 30%, #000 40%, transparent 82%);
-    mask-image:radial-gradient(140% 90% at 50% 30%, #000 40%, transparent 82%); } }
+  -webkit-mask-image:linear-gradient(#000 0%, #000 72%, transparent 98%);
+  mask-image:linear-gradient(#000 0%, #000 72%, transparent 98%); }
 @media (prefers-reduced-motion:reduce){
   .hero-glow { animation:none; } }
 .hero-int { position:relative; z-index:2; display:grid; gap:clamp(24px,3vw,44px);
@@ -1894,222 +1890,95 @@ html.vivo .sale.dentro { opacity:1; transform:none;
      la carta (disegnata una volta) e la vita (rAF, spenta quando l'hero
      esce dallo schermo o la tab è nascosta). */
   function cartaRoma() {
+    /* L'ONDA SOLARI — il tabellone infinito che respira dietro l'hero.
+       Due maree si incrociano sul campo di celle flap; il puntatore lo
+       sveglia dove passa; un tocco apre un'onda; i brilli d'oro nascono
+       solo sulla cresta. Spento fuori viewport / tab nascosta / ridotto. */
     var tela = document.getElementById('cartaRoma');
     if (!tela || !tela.getContext) return;
     var ridotto = matchMedia('(prefers-reduced-motion: reduce)').matches;
     var mob = matchMedia('(max-width: 640px)').matches;
     var ctx = tela.getContext('2d');
-    var base = document.createElement('canvas');
-    var bctx = base.getContext('2d');
-    var W = 0, H = 0, DPR = 1, CX = 0, CY = 0, R = 0;
-    var ORO = '255,215,0', LATTE = '250,248,240', VERDE = '92,255,174';
-
-    /* le coordinate (unitarie, nord in alto) — Roma stilizzata */
-    var TEVERE = [[-.03,-.46],[-.05,-.34],[-.13,-.20],[-.145,-.075],
-      [-.055,-.015],[-.10,.075],[-.135,.16],[-.075,.26],[-.045,.36],[-.06,.47]];
-    var ZONE = { 'prati':[-.155,-.115], 'trastevere':[-.115,.125],
-      'monti':[.045,.015], 'parioli':[.035,-.215], 'pigneto':[.205,.075],
-      'san giovanni':[.135,.155], 'testaccio':[-.075,.215],
-      'trieste':[.105,-.185], 'africano':[.15,-.15], 'nomentano':[.16,-.09],
-      'ponte milvio':[-.045,-.315], 'aventino':[-.02,.16], 'eur':[.01,.40],
-      'salario':[.075,-.14], 'flaminio':[-.06,-.22], 'appio':[.18,.24] };
-    var vive = (window.__zoneVive || []).map(function (r) {
-      return { nome: r.z, chiave: r.z.toLowerCase().trim(), viva: r.viva }; });
-    var nodi = [];   /* {x,y,nome,viva,fase} in unità */
-    Object.keys(ZONE).forEach(function (k) {
-      var hit = null;
-      vive.forEach(function (v) {
-        if (v.chiave.indexOf(k) === 0 || k.indexOf(v.chiave) === 0) hit = v; });
-      nodi.push({ u: ZONE[k][0], v: ZONE[k][1],
-        nome: hit ? hit.nome.toUpperCase() : '',
-        viva: hit ? hit.viva : false, sul: !!hit,
-        fase: Math.random() * 6.28 });
-    });
-
-    function u2x(u) { return CX + u * R * 2.6; }
-    function v2y(v) { return CY + v * R * 2.6; }
-
+    var ORO = '255,215,0', LATTE = '250,248,240';
+    var W, H, DPR, MIN, cw, ch, gap, cols, rows, E, AU;
     function misura() {
       var r = tela.getBoundingClientRect();
       DPR = Math.min(devicePixelRatio || 1, mob ? 1.5 : 2);
       W = Math.round(r.width * DPR); H = Math.round(r.height * DPR);
-      tela.width = W; tela.height = H;
-      base.width = W; base.height = H;
-      CX = W * (mob ? .5 : .66); CY = H * (mob ? .34 : .45);
-      R = Math.min(W, H) * (mob ? .30 : .335);
-      carta();
+      tela.width = W; tela.height = H; MIN = Math.min(W, H);
+      cw = Math.round((mob ? 30 : 40) * DPR); ch = Math.round(cw * .68);
+      gap = Math.round(7 * DPR);
+      cols = Math.ceil(W / (cw + gap)) + 1;
+      rows = Math.ceil(H / (ch + gap)) + 1;
+      E = new Float32Array(cols * rows);
+      AU = new Float32Array(cols * rows);
     }
-
-    /* ── strato 1: LA CARTA (una volta sola) ───────────────────────── */
-    function carta() {
-      var c = bctx; c.clearRect(0, 0, W, H);
-      c.lineCap = 'round';
-      /* il GRA: anello a tratti, con un fremito di mano */
-      c.strokeStyle = 'rgba(' + ORO + ',.19)'; c.lineWidth = DPR;
-      c.setLineDash([DPR * 2, DPR * 7]);
-      c.beginPath();
-      for (var a = 0; a <= 360; a += 2) {
-        var t = a * Math.PI / 180;
-        var rr = R * (1 + .012 * Math.sin(a * .13) + .008 * Math.sin(a * .31));
-        var x = CX + Math.cos(t) * rr, y = CY + Math.sin(t) * rr * .96;
-        a ? c.lineTo(x, y) : c.moveTo(x, y);
-      }
-      c.stroke();
-      /* le mura: mezzo anello interno, più flebile */
-      c.strokeStyle = 'rgba(' + LATTE + ',.10)';
-      c.setLineDash([DPR, DPR * 5]);
-      c.beginPath();
-      for (var a2 = -30; a2 <= 210; a2 += 3) {
-        var t2 = a2 * Math.PI / 180;
-        var x2 = CX + Math.cos(t2) * R * .46,
-            y2 = CY + Math.sin(t2) * R * .44;
-        a2 > -30 ? c.lineTo(x2, y2) : c.moveTo(x2, y2);
-      }
-      c.stroke();
-      /* le consolari: 8 raggi puntinati che escono dall'anello */
-      c.setLineDash([DPR, DPR * 6]);
-      c.strokeStyle = 'rgba(' + LATTE + ',.13)';
-      for (var i = 0; i < 8; i++) {
-        var ang = i * Math.PI / 4 + .28;
-        c.beginPath();
-        c.moveTo(CX + Math.cos(ang) * R * .1, CY + Math.sin(ang) * R * .1);
-        c.quadraticCurveTo(
-          CX + Math.cos(ang + .08) * R * .6, CY + Math.sin(ang + .08) * R * .58,
-          CX + Math.cos(ang) * R * 1.28, CY + Math.sin(ang) * R * 1.22);
-        c.stroke();
-      }
-      c.setLineDash([]);
-      /* la tacca del nord */
-      c.strokeStyle = 'rgba(' + ORO + ',.4)'; c.lineWidth = DPR;
-      c.beginPath(); c.moveTo(CX, CY - R * .985);
-      c.lineTo(CX, CY - R * 1.05); c.stroke();
-      c.fillStyle = 'rgba(' + LATTE + ',.4)';
-      c.font = '500 ' + 8.5 * DPR + 'px Inter, sans-serif';
-      c.textAlign = 'center';
-      c.fillText('N', CX, CY - R * 1.09);
-      /* le etichette delle zone del tabellone */
-      if (!mob) nodi.forEach(function (n) {
-        if (!n.nome) return;
-        var x = u2x(n.u), y = v2y(n.v);
-        c.font = '600 ' + 8 * DPR + 'px Inter, sans-serif';
-        c.textAlign = 'left';
-        var testo = n.nome.length > 12 ? n.nome.slice(0, 12) : n.nome;
-        c.fillStyle = n.viva ? 'rgba(' + ORO + ',.55)'
-                             : 'rgba(' + LATTE + ',.30)';
-        var sp = testo.split('').join('\u200a\u200a');
-        c.fillText(sp, x + 7 * DPR, y + 3 * DPR);
-      });
+    var px = -1e4, py = -1e4, onde = [];
+    function localizza(e) {
+      var r = tela.getBoundingClientRect();
+      var p = e.touches ? e.touches[0] : e;
+      return { x: (p.clientX - r.left) * DPR, y: (p.clientY - r.top) * DPR };
     }
-
-    /* ── strato 2: LA VITA ─────────────────────────────────────────── */
-    var arrivo = null, prossimo = 2200;
-    function nuovoArrivo(t) {
-      var mete = nodi.filter(function (n) { return n.sul; });
-      if (!mete.length) mete = nodi;
-      var m = mete[Math.floor(Math.random() * mete.length)];
-      var ang = Math.random() * 6.28;
-      arrivo = { x0: CX + Math.cos(ang) * R * 1.9,
-        y0: CY + Math.sin(ang) * R * 1.9,
-        x1: u2x(m.u), y1: v2y(m.v),
-        cx: CX + Math.cos(ang + 1.1) * R * 1.1,
-        cy: CY + Math.sin(ang + 1.1) * R * 1.1,
-        via: t, durata: 2400, meta: m };
+    function muovi(e) { var p = localizza(e); px = p.x; py = p.y; }
+    function tocca(e) {
+      var p = localizza(e);
+      if (p.y < -H * .1 || p.y > H * 1.1) return;
+      onde.push({ x: p.x, y: p.y, via: performance.now() });
+      if (onde.length > 4) onde.shift();
     }
     function vita(t) {
       ctx.clearRect(0, 0, W, H);
-      ctx.drawImage(base, 0, 0);
-      ctx.lineCap = 'round';
-      /* IL TEVERE: il filo d'oro che respira */
-      var fase = ridotto ? 0 : t * .00045;
-      ctx.strokeStyle = 'rgba(' + ORO + ',.34)';
-      ctx.lineWidth = 1.6 * DPR;
-      ctx.shadowColor = 'rgba(' + ORO + ',.5)';
-      ctx.shadowBlur = 7 * DPR;
-      ctx.beginPath();
-      TEVERE.forEach(function (p, i) {
-        var x = u2x(p[0]) + Math.sin(fase + i * .9) * 1.3 * DPR;
-        var y = v2y(p[1]);
-        i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
-      });
-      ctx.stroke();
-      /* l'Isola Tiberina: una lente nel fiume */
-      var ix = u2x(-.108), iy = v2y(.10);
-      ctx.fillStyle = 'rgba(' + ORO + ',.5)';
-      ctx.beginPath();
-      ctx.ellipse(ix, iy, 3.4 * DPR, 1.5 * DPR, -.7, 0, 6.29);
-      ctx.fill();
-      ctx.shadowBlur = 0;
-      /* le zone: puntini che respirano; le vive pulsano in verde-oro */
-      nodi.forEach(function (n) {
-        var x = u2x(n.u), y = v2y(n.v);
-        var battito = .5 + .5 * Math.sin((ridotto ? 0 : t * .0016) + n.fase);
-        ctx.fillStyle = n.sul
-          ? 'rgba(' + ORO + ',' + (.55 + battito * .4) + ')'
-          : 'rgba(' + LATTE + ',.22)';
-        ctx.beginPath();
-        ctx.arc(x, y, (n.sul ? 2.1 : 1.3) * DPR, 0, 6.29);
-        ctx.fill();
-        if (n.viva && !ridotto) {
-          var pr = ((t * .0004 + n.fase) % 1);
-          ctx.strokeStyle = 'rgba(' + VERDE + ',' + (.34 * (1 - pr)) + ')';
-          ctx.lineWidth = DPR;
-          ctx.beginPath();
-          ctx.arc(x, y, (3 + pr * 17) * DPR, 0, 6.29);
-          ctx.stroke();
+      var f1 = ridotto ? W * .6 : ((t * .00009) % 1.6) * (W + H) - H * .4;
+      var f2 = ridotto ? -1 : (1 - (t * .00005) % 1.6) * (W + H) - H * .4;
+      for (var r = 0; r < rows; r++) for (var c = 0; c < cols; c++) {
+        var x = c * (cw + gap) + cw / 2, y = r * (ch + gap) + ch / 2;
+        var i = r * cols + c;
+        var v1 = Math.max(0, 1 - Math.abs((x + y * .82) - f1) / (MIN * .34));
+        var v2 = Math.max(0, 1 - Math.abs((x - y * .6 + H * .6) - f2) / (MIN * .5));
+        var vm = Math.max(0, 1 - Math.hypot(x - px, y - py) / (MIN * .26));
+        E[i] = Math.max(E[i], v1 * v1 * .9, v2 * v2 * .35, vm * vm);
+        if (v1 > .96 && Math.random() < .01) AU[i] = .9;
+        for (var oi = 0; oi < onde.length; oi++) {
+          var od = onde[oi]; var eta = (t - od.via) / 900;
+          if (eta > 1.4) continue;
+          var da = Math.abs(Math.hypot(x - od.x, y - od.y) - eta * MIN * .5);
+          var vo = Math.max(0, 1 - da / (MIN * .09));
+          E[i] = Math.max(E[i], vo * (1.2 - eta));
+          if (vo > .9 && Math.random() < .02) AU[i] = .8;
         }
-      });
-      /* L'ARRIVO: la cometa che plana sulla zona */
-      if (!ridotto) {
-        if (!arrivo && t > prossimo) nuovoArrivo(t);
-        if (arrivo) {
-          var p = (t - arrivo.via) / arrivo.durata;
-          if (p >= 1) {
-            /* il bloom dell'atterraggio */
-            var pb = (t - arrivo.via - arrivo.durata) / 700;
-            if (pb < 1) {
-              ctx.strokeStyle = 'rgba(' + ORO + ',' + (.5 * (1 - pb)) + ')';
-              ctx.lineWidth = 1.2 * DPR;
-              ctx.beginPath();
-              ctx.arc(arrivo.x1, arrivo.y1, (2 + pb * 22) * DPR, 0, 6.29);
-              ctx.stroke();
-            } else { arrivo = null; prossimo = t + 2600 + Math.random() * 2600; }
-          } else {
-            var e = 1 - Math.pow(1 - p, 3);   /* plana, non piomba */
-            var qx = function (tt) { return (1-tt)*(1-tt)*arrivo.x0
-              + 2*(1-tt)*tt*arrivo.cx + tt*tt*arrivo.x1; };
-            var qy = function (tt) { return (1-tt)*(1-tt)*arrivo.y0
-              + 2*(1-tt)*tt*arrivo.cy + tt*tt*arrivo.y1; };
-            /* la scia */
-            for (var k = 0; k < 14; k++) {
-              var tk = Math.max(0, e - k * .022);
-              ctx.fillStyle = 'rgba(' + ORO + ',' + (.5 * (1 - k / 14) * p) + ')';
-              ctx.beginPath();
-              ctx.arc(qx(tk), qy(tk), (1.7 - k * .09) * DPR, 0, 6.29);
-              ctx.fill();
-            }
-            /* la testa */
-            ctx.fillStyle = 'rgba(255,251,235,.95)';
-            ctx.beginPath();
-            ctx.arc(qx(e), qy(e), 1.9 * DPR, 0, 6.29);
-            ctx.fill();
-          }
+      }
+      for (var k = 0; k < E.length; k++) {
+        E[k] *= .9; AU[k] *= .9;
+        if (E[k] < .003) E[k] = 0;
+        if (AU[k] < .003) AU[k] = 0;
+      }
+      for (var r2 = 0; r2 < rows; r2++) for (var c2 = 0; c2 < cols; c2++) {
+        var i2 = r2 * cols + c2;
+        var x2 = c2 * (cw + gap), y2 = r2 * (ch + gap);
+        ctx.fillStyle = AU[i2] > .05
+          ? 'rgba(' + ORO + ',' + (AU[i2] * .5) + ')'
+          : 'rgba(' + LATTE + ',' + (.024 + E[i2] * .11) + ')';
+        ctx.beginPath();
+        ctx.roundRect(x2, y2, cw, ch, 3 * DPR);
+        ctx.fill();
+        if (E[i2] > .14 || AU[i2] > .1) {
+          ctx.fillStyle = 'rgba(3,3,3,.55)';
+          ctx.fillRect(x2, y2 + ch * .48, cw, Math.max(1, DPR));
         }
       }
     }
-    /* la regia: gira solo se l'hero si vede e la tab è viva */
     var girando = false, visibile = true;
-    function giro(t) {
-      if (!girando) return;
-      vita(t); requestAnimationFrame(giro);
-    }
+    function giro(t) { if (!girando) return; vita(t); requestAnimationFrame(giro); }
     function accendi() {
-      if (girando || !visibile || document.hidden) return;
+      if (girando || !visibile || document.hidden || ridotto) return;
       girando = true; requestAnimationFrame(giro);
     }
     function spegni() { girando = false; }
     misura();
     if (ridotto) { vita(0); }
     else {
+      addEventListener('pointermove', muovi, { passive: true });
+      addEventListener('pointerdown', tocca, { passive: true });
       new IntersectionObserver(function (vs) {
         visibile = vs[0].isIntersecting;
         visibile ? accendi() : spegni();
@@ -2121,8 +1990,8 @@ html.vivo .sale.dentro { opacity:1; transform:none;
     }
     var attesa;
     addEventListener('resize', function () {
-      clearTimeout(attesa); attesa = setTimeout(function () {
-        misura(); if (ridotto) vita(0); }, 180);
+      clearTimeout(attesa);
+      attesa = setTimeout(function () { misura(); if (ridotto) vita(0); }, 180);
     }, { passive: true });
   }
   /* parte DOPO via(): il tabellone ha già dichiarato le zone vive */
