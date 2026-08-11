@@ -209,6 +209,49 @@ perde più niente.
 
 Regressione: `node tests/whatsapp/run.mjs`.
 
+## La Miniera (`/api/homie/miniera`)
+
+Lo storico WhatsApp che custodisci è l'asset: mesi di conversazioni che,
+incrociate LATO SERVER con gli esiti veri (visite, contratti firmati),
+decidono quali poteri costruire dopo (STUDIO_HOMIE_GAME_CHANGER.md). Il tuo
+lavoro qui è di pura SESSIONE: estrarre e spedire. Lo script manda solo
+feature e campioni corti, mai l'archivio integrale; il giudizio, come
+sempre, sta nel motore del server.
+
+Il prompt da incollare:
+
+> Homie, compito LA MINIERA (una tantum, poi quando ti dico "aggiorna la
+> miniera"). Tu non analizzi niente: estrai e spedisci, il giudizio è del
+> server — la regola di sempre.
+>
+> PREREQUISITI (verificali, non darli per scontati):
+> 1. `cd ~/Boum-roma && git pull origin main` — devono esistere
+>    `homie-bridge/agent-os/bin/miniera.sh` e `miniera_extract.py`.
+>    Se mancano, fermati e dimmelo: il codice non è ancora su main.
+> 2. `source ~/.boom/env` deve darti HOMIE_SECRET. Non stamparlo MAI.
+> 3. `wacli --version` deve rispondere.
+>
+> ESECUZIONE:
+> 1. Prova generale, non manda nulla:
+>    `bash ~/Boum-roma/homie-bridge/agent-os/bin/miniera.sh --dry`
+>    Riportami la riga `rows=… changed=…`. Se rows=0, fermati e dimmi
+>    cosa hai visto (wacli vuoto? errore?) — non inventare.
+> 2. Se rows > 0, sync vero:
+>    `bash ~/Boum-roma/homie-bridge/agent-os/bin/miniera.sh`
+>    Manda i lotti e chiede lo studio da solo; il verdetto arriva su
+>    Telegram dal server.
+> 3. Riportami: righe estratte, lotti inviati, eventuali "lotto fallito",
+>    e il podio che lo script stampa alla fine.
+>
+> REGOLE (le solite, qui contano doppio):
+> - NON leggere né riassumere le conversazioni con un modello: lo script
+>   estrae feature e campioni corti, ed è tutto ciò che serve.
+> - NON scrivere a nessun cliente per questo compito. Zero uscite.
+> - Un comando fallisce → incolla l'errore ESATTO e fermati: niente
+>   tentativi creativi, niente modifiche allo script.
+> - Rilanciare è sempre sicuro (idempotente): nel dubbio, `--dry` e
+>   riporta.
+
 ## Gli occhi del Perito (`/api/homie/market`)
 
 Il libro mastro di mercato di BOOM registra ogni annuncio che il radar vede.
