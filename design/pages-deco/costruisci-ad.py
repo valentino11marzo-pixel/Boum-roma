@@ -36,6 +36,18 @@ def libera(g):
     return ''
 
 rows = json.load(open('live-rows.json'))
+piene = {(r.get('_id') or r.get('id')): r for r in json.load(open('case-full.json'))}
+DOTE_NOMI = {'ac': 'A/C', 'wifi': 'Wi-Fi', 'wi-fi': 'Wi-Fi',
+             'washing_machine': 'Washer', 'double_glazing': 'Double glazing',
+             'dishwasher': 'Dishwasher', 'balcony': 'Balcony',
+             'elevator': 'Elevator', 'doorman': 'Doorman', 'parking': 'Parking'}
+def dote_di(ide):
+    p = piene.get(ide) or {}
+    fuori = []
+    for f in (p.get('features') or p.get('tags') or []):
+        k = re.sub(r'\s+', ' ', str(f)).strip().lower()
+        if k in DOTE_NOMI and DOTE_NOMI[k] not in fuori: fuori.append(DOTE_NOMI[k])
+    return fuori
 uri = json.load(open('foto-uri.json')); rem = json.load(open('foto-map.json'))
 banca = uri if MODO == 'artefatto' else rem
 
@@ -71,10 +83,20 @@ def carta(r):
         f'{mq} m²' if mq else '',
         'Studio' if b == 0 else f'{b} bed' if b else ''] if x)
     chip = (f'<span class="casa-chip {ch[1]}">{ch[0]}</span>' if ch else '')
+    piena = piene.get(r['id']) or {}
+    bagni = re.sub(r'[^\d]', '', str(piena.get('bathrooms') or '')) or '0'
+    arred = '1' if str(piena.get('furnished') or '').lower() in ('yes','true','si','sì') else '0'
+    vid = '1' if (r.get('video') or piena.get('videoUrl') or piena.get('youtubeUrl')) else '0'
+    dote = dote_di(r['id'])
+    cerca = ' '.join([n, z, str(r.get('address') or ''),
+                      str(r.get('type') or '')]).lower()
     return f'''      <a class="casa-p" href="/listing/{r['id']}"
         data-zona="{z}" data-prezzo="{p}" data-letti="{b or 0}"
         data-mq="{mq or 0}" data-quando="{quando(r).strftime('%Y-%m-%d')}"
-        data-dal="{libera(r.get('avail'))}">
+        data-dal="{libera(r.get('avail'))}" data-bagni="{bagni}"
+        data-arredata="{arred}" data-video="{vid}"
+        data-dote="|{'|'.join(dote)}|" data-chiave="/listing/{r['id']}"
+        data-cerca="{cerca}">
         <div class="home-foto">
           <img loading="lazy" decoding="async" src="{banca.get(r['id'], '')}"
             alt="{n}, {z} — apartment for rent in Rome with BOOM">
@@ -135,6 +157,13 @@ h = h.replace('<title>BOOM Rome — Premium Apartment Rentals | 48-Hour Move-In<
     '<title>Apartments in Rome — walked in person, ready to move in | BOOM</title>')
 h = h.replace('LOGO_SVG', leggi('logo-live.svg').strip())
 h = h.replace('CASE_MURO', MURO)
+conta_dote = {}
+for r in mostrate:
+    for d in dote_di(r['id']): conta_dote[d] = conta_dote.get(d, 0) + 1
+scelte = sorted(conta_dote.items(), key=lambda x: -x[1])[:6]
+h = h.replace('DOTE_TASTI', '\n          '.join(
+    f'<button type="button" data-f="dote" data-v="{d}">{d}</button>'
+    for d, _ in scelte))
 h = h.replace("'ZONE_JSON'", json.dumps(ZONE, ensure_ascii=False))
 h = h.replace('DISPONIBILI', str(DISPONIBILI))
 h = h.replace('AGGIORNATO', AGG)

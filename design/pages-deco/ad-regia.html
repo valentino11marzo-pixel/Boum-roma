@@ -8,7 +8,13 @@
   var BS = window.BoomSolari;
 
   /* ── lo stato della ricerca ─────────────────────────────────────────── */
-  var stato = { zona: '', budget: 0, chi: '', dal: null, ordine: 'nuove' };
+  var stato = { zona: '', budget: 0, chi: '', dal: null, ordine: 'nuove',
+    q: '', letti: '', bagni: '', arredata: false, video: false,
+    salvate: false, dote: [] };
+  function salvate() {
+    try { return JSON.parse(localStorage.getItem('boomSalvate') || '[]'); }
+    catch (e) { return []; }
+  }
   var carte = [].slice.call(document.querySelectorAll('#muro .casa-p'));
   var muro = document.getElementById('muro');
   var vuoto = document.getElementById('vuoto');
@@ -19,6 +25,17 @@
   function passa(c) {
     if (stato.zona && (c.dataset.zona || '').toLowerCase() !== stato.zona) return false;
     if (stato.budget && +c.dataset.prezzo > stato.budget) return false;
+    if (stato.q && (c.dataset.cerca || '').indexOf(stato.q) < 0) return false;
+    if (stato.letti !== '') {
+      var l = +(c.dataset.letti || 0);
+      if (stato.letti === '0' ? l !== 0 : l < +stato.letti) return false;
+    }
+    if (stato.bagni !== '' && +(c.dataset.bagni || 0) < +stato.bagni) return false;
+    if (stato.arredata && c.dataset.arredata !== '1') return false;
+    if (stato.video && c.dataset.video !== '1') return false;
+    if (stato.salvate && salvate().indexOf(c.dataset.chiave) < 0) return false;
+    for (var i = 0; i < stato.dote.length; i++)
+      if ((c.dataset.dote || '').indexOf('|' + stato.dote[i] + '|') < 0) return false;
     /* chi atterra: famiglia e coinquilini vogliono almeno due camere */
     if ((stato.chi === 'family' || stato.chi === 'flatmates')
         && +(c.dataset.letti || 0) < 2) return false;
@@ -122,6 +139,116 @@
       var quale = ['z', 'q', 'd'][Math.floor(Math.random() * 3)];
       if (o[quale].flutter) o[quale].flutter();
     }, 14000);
+  })();
+
+  /* ── IL SETACCIO: i filtri veri ─────────────────────────────────────── */
+  (function () {
+    var q = document.getElementById('fq');
+    var attesa;
+    q.addEventListener('input', function () {
+      clearTimeout(attesa);
+      attesa = setTimeout(function () {
+        stato.q = q.value.trim().toLowerCase(); aggiorna();
+      }, 160);
+    });
+    [].slice.call(document.querySelectorAll('.gruppo button')).forEach(function (b) {
+      b.addEventListener('click', function () {
+        var f = b.dataset.f, v = b.dataset.v;
+        if (f === 'dote') {
+          var k = stato.dote.indexOf(v);
+          k < 0 ? stato.dote.push(v) : stato.dote.splice(k, 1);
+          b.classList.toggle('on', k < 0);
+        } else if (f === 'arredata' || f === 'video' || f === 'salvate') {
+          stato[f] = !stato[f];
+          b.classList.toggle('on', stato[f]);
+        } else {
+          stato[f] = v;
+          b.parentNode.querySelectorAll('button').forEach(function (x) {
+            x.classList.toggle('on', x === b && v !== ''); });
+        }
+        aggiorna();
+      });
+    });
+    document.getElementById('pulisci').addEventListener('click', function () {
+      stato.q = ''; stato.letti = ''; stato.bagni = ''; stato.zona = '';
+      stato.arredata = false; stato.video = false; stato.salvate = false;
+      stato.dote = []; stato.budget = 0; stato.chi = ''; stato.dal = null;
+      q.value = '';
+      document.querySelectorAll('.gruppo button, .zona-riga')
+        .forEach(function (x) { x.classList.remove('on');
+          if (x.classList.contains('zona-riga'))
+            x.setAttribute('aria-pressed', 'false'); });
+      var bud = document.getElementById('quantoBudget');
+      var chi = document.getElementById('chiAtterra');
+      bud.value = ''; chi.value = '';
+      bud.classList.remove('scelto'); chi.classList.remove('scelto');
+      document.getElementById('quandoTesto').textContent = 'Any date';
+      document.getElementById('quandoBtn').classList.remove('scelta');
+      aggiorna();
+    });
+    /* quante ne hai messe da parte */
+    function conteggio() {
+      var n = salvate().length;
+      document.getElementById('quanteSalvate').textContent = n ? ' ' + n : '';
+    }
+    conteggio();
+    addEventListener('storage', conteggio);
+    document.addEventListener('click', function (e) {
+      if (e.target.closest('.home-cuore')) setTimeout(function () {
+        conteggio(); if (stato.salvate) aggiorna(); }, 60);
+    });
+  })();
+
+  /* ── SALVA QUESTA RICERCA — la forma vera di /api/search/save ───────── */
+  (function () {
+    var velo = document.getElementById('serbaVelo');
+    var forma = document.getElementById('serbaForma');
+    function criteri() {
+      return { q: stato.q, budgetMax: stato.budget || null,
+        moveIn: stato.dal, beds: stato.letti === '' ? null : +stato.letti,
+        baths: stato.bagni === '' ? null : +stato.bagni,
+        furnished: stato.arredata, video: stato.video,
+        zones: stato.zona ? [stato.zona] : [], feats: stato.dote.slice() };
+    }
+    function sunto() {
+      var c = criteri(), p = [];
+      if (c.zones.length) p.push(c.zones[0].replace(/\b\w/g,
+        function (x) { return x.toUpperCase(); }));
+      if (c.beds !== null) p.push(c.beds === 0 ? 'studio' : c.beds + '+ beds');
+      if (c.baths !== null) p.push(c.baths + '+ baths');
+      if (c.budgetMax) p.push('up to €' + c.budgetMax.toLocaleString('en-US'));
+      if (c.furnished) p.push('furnished');
+      if (c.video) p.push('video-verified');
+      if (c.feats.length) p.push(c.feats.join(', '));
+      if (c.moveIn) p.push('from ' + c.moveIn);
+      return p.length ? p.join(' · ') : 'Any home in Rome';
+    }
+    document.getElementById('serba').addEventListener('click', function () {
+      document.getElementById('serbaSunto').textContent = sunto();
+      document.getElementById('serbaNome').value = sunto().slice(0, 40);
+      velo.hidden = false;
+      setTimeout(function () { document.getElementById('serbaMail').focus(); }, 60);
+    });
+    function chiudi() { velo.hidden = true; }
+    document.getElementById('serbaChiudi').addEventListener('click', chiudi);
+    velo.addEventListener('click', function (e) {
+      if (e.target === velo) chiudi(); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !velo.hidden) chiudi(); });
+    forma.addEventListener('submit', function (e) {
+      e.preventDefault();
+      /* la richiesta che il sito vero manda — qui dichiarata, non spedita */
+      var corpo = { email: document.getElementById('serbaMail').value.trim(),
+        label: document.getElementById('serbaNome').value.trim(),
+        criteria: criteri(),
+        resultCount: +document.getElementById('conto').textContent,
+        company: document.getElementById('serbaEsca').value };
+      if (window.console) console.log('POST /api/search/save', corpo);
+      forma.innerHTML = '<p class="serba-nota" style="font-size:13px;'
+        + 'color:var(--gold);margin-top:0">Saved — PREVIEW. On the live site '
+        + 'you would now get an email the moment a matching home appears.</p>';
+      setTimeout(chiudi, 2200);
+    });
   })();
 
   /* ── L'ORDINE ───────────────────────────────────────────────────────── */

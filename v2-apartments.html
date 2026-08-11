@@ -969,6 +969,62 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   transition:color .3s; }
 .rete-mini:hover b { color:var(--gold); }
 
+/* ══ LO SKYLINE — la città disegnata, e usabile ════════════════════════ */
+.sky { position:relative; margin-top:clamp(20px,2.6vw,32px); }
+.sky canvas { display:block; width:100%; height:clamp(190px,26vw,340px); }
+.sky-tasti { position:absolute; left:0; right:0; top:0;
+  height:clamp(190px,26vw,340px); }
+.sky-tasti button { position:absolute; bottom:0; width:34px; height:64%;
+  transform:translateX(-50%); padding:0; border:0; background:none;
+  cursor:pointer; }
+.sky-tasti button::after { content:''; position:absolute; left:50%; bottom:14%;
+  width:7px; height:7px; margin-left:-3.5px; border-radius:50%;
+  background:var(--gold); opacity:.5; transition:opacity .3s ease,
+    transform .3s var(--ease); }
+.sky-tasti button:hover::after, .sky-tasti button.on::after,
+.sky-tasti button:focus-visible::after { opacity:1; transform:scale(1.5); }
+.sky-tasti button:focus-visible { outline:2px solid var(--gold);
+  outline-offset:2px; border-radius:6px; }
+.sky-carta { margin-top:14px; min-height:74px; }
+.sky-vuota { display:flex; flex-direction:column; gap:3px; padding:16px 18px;
+  box-shadow:inset 0 0 0 1px var(--line-0); }
+.sky-vuota b { font-family:var(--display); font-size:16px; font-weight:300;
+  color:var(--text-2); }
+.sky-vuota span { font-size:12px; color:var(--text-4); }
+.sky-piena { display:none; align-items:center; justify-content:space-between;
+  gap:16px; padding:16px 18px; background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2);
+  transition:box-shadow .3s ease, background .3s ease; }
+.sky-piena:hover { background:var(--elevated);
+  box-shadow:inset 0 0 0 1px var(--line-gold); }
+.sky.scelto .sky-vuota { display:none; }
+.sky.scelto .sky-piena { display:flex; }
+.sky-piena b { display:block; font-family:var(--display); font-size:20px;
+  font-weight:300; letter-spacing:.02em; }
+.sky-piena span { display:block; margin-top:3px; font-size:12px;
+  color:var(--text-3); font-variant-numeric:tabular-nums; }
+.sky-piena i { font-style:normal; font-size:10.5px; font-weight:600;
+  letter-spacing:.12em; text-transform:uppercase; color:var(--gold);
+  white-space:nowrap; transition:transform .3s var(--ease); }
+.sky-piena:hover i { transform:translateX(4px); }
+/* dove si tocca, i quartieri hanno una fila tutta loro: mai bersagli
+   sovrapposti solo perché due zone sono vicine sulla mappa */
+.sky-fila { display:none; gap:7px; margin-top:12px; overflow-x:auto;
+  scrollbar-width:none; padding-bottom:2px; }
+.sky-fila::-webkit-scrollbar { display:none; }
+.sky-fila button { flex:none; padding:10px 14px; font:inherit;
+  font-size:12px; color:var(--text-3); background:none; border:0;
+  box-shadow:inset 0 0 0 1px var(--line); border-radius:100px;
+  cursor:pointer; white-space:nowrap; transition:.25s; }
+.sky-fila button.on { color:var(--gold);
+  box-shadow:inset 0 0 0 1px var(--line-gold); }
+@media (hover:none), (pointer:coarse), (max-width:900px){
+  .sky-tasti { display:none; }
+  .sky-fila { display:flex; } }
+@media (max-width:640px){
+  .sky canvas, .sky-tasti { height:200px; }
+  .sky-piena b { font-size:17px; } }
+
 /* ══ IL FONDATORE ══════════════════════════════════════════════════════ */
 .fond-sezione { position:relative; }
 .mosaico-fondo { position:absolute; inset:0; width:100%; height:100%;
@@ -1357,6 +1413,70 @@ html.vivo .sale.dentro { opacity:1; transform:none;
 /* la barra di ricerca: la stessa del check-in di casa */
 .cerca { margin-top:clamp(20px,2.4vw,30px); }
 
+/* ══ IL SETACCIO — i filtri veri, nella grammatica del portale ═════════ */
+.setaccio { background:var(--card); box-shadow:inset 0 0 0 1px var(--line-0);
+  padding:16px 18px 14px; }
+.setaccio-cerca { display:flex; align-items:center; gap:11px;
+  padding-bottom:13px; border-bottom:1px solid var(--line-0); }
+.setaccio-cerca svg { width:17px; height:17px; flex:none; fill:none;
+  stroke:var(--text-4); stroke-width:1.6; stroke-linecap:round; }
+.setaccio-cerca input { flex:1; min-width:0; background:none; border:0;
+  color:var(--text); font:inherit; font-size:14.5px; }
+.setaccio-cerca input::placeholder { color:var(--text-4); }
+.setaccio-cerca input:focus { outline:none; }
+.setaccio-cerca:focus-within svg { stroke:var(--gold); }
+.setaccio-gruppi { display:flex; gap:20px; flex-wrap:wrap; margin-top:13px; }
+.gruppo { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.gruppo > span { font-size:9px; font-weight:600; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--text-4); margin-right:2px; }
+.gruppo button { padding:7px 12px; font:inherit; font-size:11.5px;
+  color:var(--text-3); background:none; border:0;
+  box-shadow:inset 0 0 0 1px var(--line); border-radius:100px;
+  cursor:pointer; transition:.22s; }
+.gruppo button:hover { color:var(--text); }
+.gruppo button.on { color:var(--gold);
+  box-shadow:inset 0 0 0 1px var(--line-gold); }
+.gruppo button i { font-style:normal; font-variant-numeric:tabular-nums; }
+.setaccio-piede { display:flex; align-items:center; justify-content:space-between;
+  gap:12px; flex-wrap:wrap; margin-top:14px; padding-top:12px;
+  border-top:1px solid var(--line-0); }
+.pulisci, .serba { font:inherit; font-size:10.5px; font-weight:600;
+  letter-spacing:.12em; text-transform:uppercase; background:none; border:0;
+  cursor:pointer; padding:8px 12px; transition:.25s; }
+.pulisci { color:var(--text-4); }
+.pulisci:hover { color:var(--text-2); }
+.serba { color:var(--gold); box-shadow:inset 0 0 0 1px var(--line-gold-2);
+  border-radius:100px; }
+.serba:hover { box-shadow:inset 0 0 0 1px var(--gold); }
+@media (max-width:640px){
+  .setaccio { padding:14px 14px 12px; }
+  .setaccio-gruppi { gap:14px; }
+  .gruppo { width:100%; } }
+
+/* il foglio della ricerca salvata */
+.serba-velo { position:fixed; inset:0; z-index:150; display:grid;
+  place-items:center; padding:20px; background:rgba(3,3,3,.86);
+  backdrop-filter:blur(10px); }
+.serba-velo[hidden] { display:none; }
+.serba-foglio { width:100%; max-width:420px; padding:26px;
+  background:var(--void); box-shadow:inset 0 0 0 1px var(--line-gold),
+    0 40px 90px -40px rgba(0,0,0,.9); }
+.serba-foglio > b { display:block; font-family:var(--display); font-weight:300;
+  font-size:20px; line-height:1.25; }
+.serba-foglio > p { margin-top:8px; font-size:12.5px; color:var(--text-3); }
+.campo-serba { display:block; margin-top:14px; }
+.campo-serba span { display:block; font-size:9.5px; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--text-3); }
+.campo-serba input { width:100%; margin-top:6px; padding:12px 14px;
+  background:var(--input); border:0; box-shadow:inset 0 0 0 1px var(--line);
+  color:var(--text); font:inherit; font-size:14px; }
+.campo-serba input:focus { outline:none; box-shadow:inset 0 0 0 1px var(--gold); }
+#serbaEsca { position:absolute; left:-9999px; width:1px; height:1px; }
+.serba-azioni { display:flex; align-items:center; justify-content:flex-end;
+  gap:10px; margin-top:18px; }
+.serba-nota { margin-top:12px; font-size:11px; line-height:1.6;
+  color:var(--text-4); }
+
 /* ══ IL MURO DELLE CASE ════════════════════════════════════════════════ */
 .muro-testa { display:flex; align-items:baseline; justify-content:space-between;
   gap:14px; flex-wrap:wrap; margin-bottom:16px; }
@@ -1467,8 +1587,56 @@ html.vivo .sale.dentro { opacity:1; transform:none;
   </div>
 </section>
 
+<!-- ══ I FILTRI — quelli veri del sito ═══════════════════════════════════ -->
+<section class="sezione" style="padding-top:clamp(14px,1.6vw,20px)">
+  <div class="container">
+    <div class="setaccio">
+      <div class="setaccio-cerca">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg>
+        <input id="fq" type="search" placeholder="Search by name, zone or street"
+          aria-label="Search homes">
+      </div>
+      <div class="setaccio-gruppi">
+        <div class="gruppo" role="group" aria-label="Bedrooms">
+          <span>Beds</span>
+          <button type="button" data-f="letti" data-v="">Any</button>
+          <button type="button" data-f="letti" data-v="0">Studio</button>
+          <button type="button" data-f="letti" data-v="1">1+</button>
+          <button type="button" data-f="letti" data-v="2">2+</button>
+          <button type="button" data-f="letti" data-v="3">3+</button>
+        </div>
+        <div class="gruppo" role="group" aria-label="Bathrooms">
+          <span>Baths</span>
+          <button type="button" data-f="bagni" data-v="">Any</button>
+          <button type="button" data-f="bagni" data-v="1">1+</button>
+          <button type="button" data-f="bagni" data-v="2">2+</button>
+        </div>
+        <div class="gruppo" role="group" aria-label="Extras">
+          <span>Only</span>
+          <button type="button" data-f="arredata" data-v="1">Furnished</button>
+          <button type="button" data-f="video" data-v="1">Video-verified</button>
+          <button type="button" data-f="salvate" data-v="1">Saved <i id="quanteSalvate"></i></button>
+        </div>
+        <div class="gruppo dotazioni" role="group" aria-label="Features">
+          <span>Features</span>
+          <button type="button" data-f="dote" data-v="A/C">A/C</button>
+          <button type="button" data-f="dote" data-v="Wi-Fi">Wi-Fi</button>
+          <button type="button" data-f="dote" data-v="Balcony">Balcony</button>
+          <button type="button" data-f="dote" data-v="Dishwasher">Dishwasher</button>
+          <button type="button" data-f="dote" data-v="Washer">Washer</button>
+          <button type="button" data-f="dote" data-v="Double glazing">Double glazing</button>
+        </div>
+      </div>
+      <div class="setaccio-piede">
+        <button type="button" class="pulisci" id="pulisci">Clear all</button>
+        <button type="button" class="serba" id="serba">Save this search →</button>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ══ IL MURO ═══════════════════════════════════════════════════════════ -->
-<section class="sezione" style="padding-top:clamp(18px,2vw,26px)">
+<section class="sezione" style="padding-top:clamp(10px,1.2vw,16px)">
   <div class="container">
     <div class="muro-testa">
       <p class="muro-conto"><b id="conto">0</b> homes<span id="contoZona"></span></p>
@@ -1482,7 +1650,10 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       <a class="casa-p" href="/v2-listing.html#id=OLLVsiKhPrhpT1fx8XmB"
         data-zona="Centro" data-prezzo="1500" data-letti="3"
         data-mq="60" data-quando="2026-07-31"
-        data-dal="2027-01-31">
+        data-dal="2027-01-31" data-bagni="1"
+        data-arredata="1" data-video="0"
+        data-dote="|A/C|Balcony|Dishwasher|Washer|Double glazing|Doorman|Wi-Fi|" data-chiave="/listing/OLLVsiKhPrhpT1fx8XmB"
+        data-cerca="bilocale centro centro via dei cappellari 4 bilocale">
         <div class="home-foto">
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FOLLVsiKhPrhpT1fx8XmB%2Fmrydgy70_00_5083a1a3.jpg?alt=media"
             alt="Bilocale Centro, Centro — apartment for rent in Rome with BOOM">
@@ -1501,7 +1672,10 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       <a class="casa-p" href="/v2-listing.html#id=aZ3EnMYBDy7c2upKRnnA"
         data-zona="Centro" data-prezzo="1200" data-letti="1"
         data-mq="50" data-quando="2026-07-31"
-        data-dal="2026-09-01">
+        data-dal="2026-09-01" data-bagni="1"
+        data-arredata="1" data-video="0"
+        data-dote="|A/C|Elevator|Washer|Dishwasher|Parking|Double glazing|Wi-Fi|" data-chiave="/listing/aZ3EnMYBDy7c2upKRnnA"
+        data-cerca="bilocale centro centro via di s.anna 16 bilocale">
         <div class="home-foto">
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FaZ3EnMYBDy7c2upKRnnA%2Fmrydhloq_00_2d041ed5.jpg?alt=media"
             alt="Bilocale Centro, Centro — apartment for rent in Rome with BOOM">
@@ -1520,7 +1694,10 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       <a class="casa-p" href="/v2-listing.html#id=sr0rpLSqbpDMASkHINfx"
         data-zona="Pigneto" data-prezzo="1600" data-letti="2"
         data-mq="80" data-quando="2026-07-23"
-        data-dal="2026-08-01">
+        data-dal="2026-08-01" data-bagni="2"
+        data-arredata="1" data-video="1"
+        data-dote="|A/C|Balcony|Elevator|Dishwasher|Wi-Fi|Double glazing|Doorman|Washer|" data-chiave="/listing/sr0rpLSqbpDMASkHINfx"
+        data-cerca="trilocale pigneto pigneto piazzale prenestino 42 trilocale">
         <div class="home-foto">
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fsr0rpLSqbpDMASkHINfx%2Fms6y4det_00_1f4b631c.jpg?alt=media"
             alt="Trilocale Pigneto, Pigneto — apartment for rent in Rome with BOOM">
@@ -1539,7 +1716,10 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       <a class="casa-p" href="/v2-listing.html#id=hwnkDcXvs7Q0EW99xV7O"
         data-zona="Pigneto" data-prezzo="2000" data-letti="3"
         data-mq="100" data-quando="2026-07-22"
-        data-dal="2027-01-01">
+        data-dal="2027-01-01" data-bagni="1"
+        data-arredata="1" data-video="0"
+        data-dote="||" data-chiave="/listing/hwnkDcXvs7Q0EW99xV7O"
+        data-cerca="trilocale pigneto pigneto via montecuccoli 26 trilocale">
         <div class="home-foto">
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FhwnkDcXvs7Q0EW99xV7O%2Fms18dq0y_00_8cd440e9.jpg?alt=media"
             alt="Trilocale Pigneto, Pigneto — apartment for rent in Rome with BOOM">
@@ -1558,7 +1738,10 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       <a class="casa-p" href="/v2-listing.html#id=ttvrjazww9oe4tA0wHTf"
         data-zona="Ponte Milvio" data-prezzo="1250" data-letti="1"
         data-mq="70" data-quando="2026-05-25"
-        data-dal="2026-07-01">
+        data-dal="2026-07-01" data-bagni="1"
+        data-arredata="1" data-video="0"
+        data-dote="|A/C|Dishwasher|Parking|Wi-Fi|Washer|Double glazing|Doorman|" data-chiave="/listing/ttvrjazww9oe4tA0wHTf"
+        data-cerca="bilocale ponte milvio ponte milvio via di tor di quinto 39 bilocale">
         <div class="home-foto">
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fttvrjazww9oe4tA0wHTf%2Fmrz6vxb9_00_18252691.jpg?alt=media"
             alt="Bilocale Ponte Milvio, Ponte Milvio — apartment for rent in Rome with BOOM">
@@ -1577,7 +1760,10 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       <a class="casa-p" href="/v2-listing.html#id=cezFMXTWnHUDgb1H2WWm"
         data-zona="Trastevere" data-prezzo="1200" data-letti="1"
         data-mq="45" data-quando="2026-05-15"
-        data-dal="2026-07-01">
+        data-dal="2026-07-01" data-bagni="1"
+        data-arredata="1" data-video="0"
+        data-dote="||" data-chiave="/listing/cezFMXTWnHUDgb1H2WWm"
+        data-cerca="bilocale trastevere trastevere via in piscinula bilocale">
         <div class="home-foto">
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FcezFMXTWnHUDgb1H2WWm%2Fmrzsxcyw_00_4d6b85f3.jpg?alt=media"
             alt="Bilocale Trastevere, Trastevere — apartment for rent in Rome with BOOM">
@@ -1596,7 +1782,10 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       <a class="casa-p" href="/v2-listing.html#id=levico"
         data-zona="Trieste" data-prezzo="1200" data-letti="1"
         data-mq="40" data-quando="2026-05-04"
-        data-dal="2027-07-31">
+        data-dal="2027-07-31" data-bagni="0"
+        data-arredata="0" data-video="0"
+        data-dote="|Wi-Fi|" data-chiave="/listing/levico"
+        data-cerca="levico trieste via levico, trieste/coppedè garden floor">
         <div class="home-foto">
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Flevico%2Fms438q5f_00_a4e03314.jpg?alt=media"
             alt="Levico, Trieste — apartment for rent in Rome with BOOM">
@@ -1615,7 +1804,10 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       <a class="casa-p" href="/v2-listing.html#id=FHeEHIFbil6QG8Jcccxc"
         data-zona="Trieste" data-prezzo="2000" data-letti="1"
         data-mq="55" data-quando="2026-04-17"
-        data-dal="2026-07-01">
+        data-dal="2026-07-01" data-bagni="1"
+        data-arredata="1" data-video="0"
+        data-dote="|A/C|Elevator|Balcony|" data-chiave="/listing/FHeEHIFbil6QG8Jcccxc"
+        data-cerca="bilocale trieste trieste via appennini 33 bilocale">
         <div class="home-foto">
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FFHeEHIFbil6QG8Jcccxc%2Fmrwy1a3g_00_d2ee0ce1.jpg?alt=media"
             alt="Bilocale Trieste, Trieste — apartment for rent in Rome with BOOM">
@@ -1634,7 +1826,10 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       <a class="casa-p" href="/v2-listing.html#id=Kz9bXztv5QXmQrNhAcoU"
         data-zona="Ponte Milvio" data-prezzo="1200" data-letti="1"
         data-mq="55" data-quando="2026-04-03"
-        data-dal="2027-05-01">
+        data-dal="2027-05-01" data-bagni="0"
+        data-arredata="0" data-video="0"
+        data-dote="|A/C|Wi-Fi|" data-chiave="/listing/Kz9bXztv5QXmQrNhAcoU"
+        data-cerca="ponte milvio duplex ponte milvio via di tor di quinto 39 duplex">
         <div class="home-foto">
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FKz9bXztv5QXmQrNhAcoU%2Fmrwy1jgh_00_3edcb767.jpg?alt=media"
             alt="Ponte Milvio Duplex, Ponte Milvio — apartment for rent in Rome with BOOM">
@@ -1653,7 +1848,10 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       <a class="casa-p" href="/v2-listing.html#id=angelico"
         data-zona="Prati" data-prezzo="2000" data-letti="1"
         data-mq="65" data-quando="2026-03-10"
-        data-dal="2027-07-01">
+        data-dal="2027-07-01" data-bagni="0"
+        data-arredata="0" data-video="0"
+        data-dote="||" data-chiave="/listing/angelico"
+        data-cerca="angelico loft prati viale angelico, mazzini loft style">
         <div class="home-foto">
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fangelico%2Fmrzsx85w_00_e5bf052c.jpg?alt=media"
             alt="Angelico Loft, Prati — apartment for rent in Rome with BOOM">
@@ -1672,7 +1870,10 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       <a class="casa-p" href="/v2-listing.html#id=qRRRV7BjXDPqgTpVchnz"
         data-zona="Parioli" data-prezzo="1000" data-letti="1"
         data-mq="45" data-quando="2026-03-10"
-        data-dal="2026-08-01">
+        data-dal="2026-08-01" data-bagni="0"
+        data-arredata="0" data-video="1"
+        data-dote="|A/C|Wi-Fi|" data-chiave="/listing/qRRRV7BjXDPqgTpVchnz"
+        data-cerca="parioli double room with garden parioli via ettore petrolini 30 garden floor">
         <div class="home-foto">
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FqRRRV7BjXDPqgTpVchnz%2Fms8dk1ui_00_6b014a15.jpg?alt=media"
             alt="Parioli Double Room with Garden, Parioli — apartment for rent in Rome with BOOM">
@@ -1691,7 +1892,10 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       <a class="casa-p" href="/v2-listing.html#id=ilW5lAxnNn5M2TjsSHx2"
         data-zona="Africano" data-prezzo="900" data-letti="1"
         data-mq="30" data-quando="2026-03-05"
-        data-dal="2027-07-01">
+        data-dal="2027-07-01" data-bagni="0"
+        data-arredata="0" data-video="0"
+        data-dote="|A/C|Wi-Fi|" data-chiave="/listing/ilW5lAxnNn5M2TjsSHx2"
+        data-cerca="africano premium room africano via endertà 9 room">
         <div class="home-foto">
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FilW5lAxnNn5M2TjsSHx2%2Fms438muu_00_25bd2cd0.jpg?alt=media"
             alt="Africano Premium Room, Africano — apartment for rent in Rome with BOOM">
@@ -1710,7 +1914,10 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       <a class="casa-p" href="/v2-listing.html#id=pigneto"
         data-zona="Pigneto" data-prezzo="1700" data-letti="2"
         data-mq="80" data-quando="2026-02-19"
-        data-dal="2027-06-01">
+        data-dal="2027-06-01" data-bagni="0"
+        data-arredata="0" data-video="0"
+        data-dote="|Balcony|" data-chiave="/listing/pigneto"
+        data-cerca="pigneto terrace pigneto via ascoli piceno, pigneto bohemian">
         <div class="home-foto">
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fpigneto%2Fms8dkk6z_00_9f8dcbd0.jpg?alt=media"
             alt="Pigneto Terrace, Pigneto — apartment for rent in Rome with BOOM">
@@ -1729,7 +1936,10 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       <a class="casa-p" href="/v2-listing.html#id=piemonte"
         data-zona="Vittorio Veneto" data-prezzo="1300" data-letti="1"
         data-mq="55" data-quando="2026-02-19"
-        data-dal="2026-09-01">
+        data-dal="2026-09-01" data-bagni="0"
+        data-arredata="0" data-video="0"
+        data-dote="|A/C|" data-chiave="/listing/piemonte"
+        data-cerca="piemonte attic vittorio veneto via piemonte, vittorio veneto attic">
         <div class="home-foto">
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fpiemonte%2Fms5ioi4l_00_cd31173f.jpg?alt=media"
             alt="Piemonte Attic, Vittorio Veneto — apartment for rent in Rome with BOOM">
@@ -1748,7 +1958,10 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       <a class="casa-p" href="/v2-listing.html#id=esFhjFMVfZtkIrhkx0PR"
         data-zona="Prati" data-prezzo="1500" data-letti="1"
         data-mq="65" data-quando="2026-02-12"
-        data-dal="2027-03-01">
+        data-dal="2027-03-01" data-bagni="0"
+        data-arredata="0" data-video="0"
+        data-dote="|A/C|Wi-Fi|" data-chiave="/listing/esFhjFMVfZtkIrhkx0PR"
+        data-cerca="prati cozy prati via montezebio  loft ">
         <div class="home-foto">
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FesFhjFMVfZtkIrhkx0PR%2Fms18d3o8_00_27bce535.jpg?alt=media"
             alt="Prati cozy, Prati — apartment for rent in Rome with BOOM">
@@ -1767,7 +1980,10 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       <a class="casa-p" href="/v2-listing.html#id=wvX0h0lBoNKOMuTuHkVI"
         data-zona="Conca d'Oro" data-prezzo="1750" data-letti="1"
         data-mq="80" data-quando="2026-01-26"
-        data-dal="2027-05-15">
+        data-dal="2027-05-15" data-bagni="0"
+        data-arredata="0" data-video="0"
+        data-dote="|Wi-Fi|" data-chiave="/listing/wvX0h0lBoNKOMuTuHkVI"
+        data-cerca="capri 2 bed conca d'oro piazza capri 46  spacious 2 bedroom flat ">
         <div class="home-foto">
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FwvX0h0lBoNKOMuTuHkVI%2Fms9szt8z_00_7f38f3a7.jpg?alt=media"
             alt="Capri 2 Bed, Conca d'Oro — apartment for rent in Rome with BOOM">
@@ -1786,7 +2002,10 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       <a class="casa-p" href="/v2-listing.html#id=navona"
         data-zona="Centro Storico" data-prezzo="1800" data-letti="1"
         data-mq="70" data-quando="2026-01-12"
-        data-dal="2027-03-01">
+        data-dal="2027-03-01" data-bagni="0"
+        data-arredata="0" data-video="0"
+        data-dote="|Elevator|" data-chiave="/listing/navona"
+        data-cerca="coronari classic centro storico via dei coronari, piazza navona historic">
         <div class="home-foto">
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fnavona%2Fms5ioeyr_00_d08009e6.jpg?alt=media"
             alt="Coronari Classic, Centro Storico — apartment for rent in Rome with BOOM">
@@ -1805,7 +2024,10 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       <a class="casa-p" href="/v2-listing.html#id=ripetta"
         data-zona="Centro Storico" data-prezzo="2300" data-letti="1"
         data-mq="100" data-quando="2026-01-12"
-        data-dal="2026-09-01">
+        data-dal="2026-09-01" data-bagni="0"
+        data-arredata="0" data-video="0"
+        data-dote="||" data-chiave="/listing/ripetta"
+        data-cerca="ripetta terrace centro storico passeggiata di ripetta, centro premium terrace">
         <div class="home-foto">
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fripetta%2Fms9sznst_00_7fc18043.jpg?alt=media"
             alt="Ripetta Terrace, Centro Storico — apartment for rent in Rome with BOOM">
@@ -1832,6 +2054,31 @@ html.vivo .sale.dentro { opacity:1; transform:none;
     </div>
   </div>
 </section>
+
+<!-- ══ SALVA LA RICERCA ══════════════════════════════════════════════════ -->
+<div class="serba-velo" id="serbaVelo" hidden>
+  <div class="serba-foglio" role="dialog" aria-modal="true"
+    aria-labelledby="serbaTit">
+    <b id="serbaTit">Get an email when a home like this appears</b>
+    <p id="serbaSunto">—</p>
+    <form id="serbaForma">
+      <label class="campo-serba"><span>Name this search</span>
+        <input id="serbaNome" placeholder="e.g. Trastevere, 2 beds"></label>
+      <label class="campo-serba"><span>Your email</span>
+        <input id="serbaMail" type="email" required
+          placeholder="you@email.com"></label>
+      <input id="serbaEsca" name="company" tabindex="-1" autocomplete="off"
+        aria-hidden="true">
+      <div class="serba-azioni">
+        <button type="button" class="pulisci" id="serbaChiudi">Not now</button>
+        <button type="submit" class="btn btn-primary">Save search</button>
+      </div>
+      <p class="serba-nota">PREVIEW — nothing is sent from this page. On the
+        live site this becomes a saved search: you only hear from us when a
+        home that matches actually appears.</p>
+    </form>
+  </div>
+</div>
 
 <!-- ══ LA RETE — se la casa giusta non c'è ═══════════════════════════════ -->
 <section class="sezione">
@@ -1911,7 +2158,13 @@ html.vivo .sale.dentro { opacity:1; transform:none;
   var BS = window.BoomSolari;
 
   /* ── lo stato della ricerca ─────────────────────────────────────────── */
-  var stato = { zona: '', budget: 0, chi: '', dal: null, ordine: 'nuove' };
+  var stato = { zona: '', budget: 0, chi: '', dal: null, ordine: 'nuove',
+    q: '', letti: '', bagni: '', arredata: false, video: false,
+    salvate: false, dote: [] };
+  function salvate() {
+    try { return JSON.parse(localStorage.getItem('boomSalvate') || '[]'); }
+    catch (e) { return []; }
+  }
   var carte = [].slice.call(document.querySelectorAll('#muro .casa-p'));
   var muro = document.getElementById('muro');
   var vuoto = document.getElementById('vuoto');
@@ -1922,6 +2175,17 @@ html.vivo .sale.dentro { opacity:1; transform:none;
   function passa(c) {
     if (stato.zona && (c.dataset.zona || '').toLowerCase() !== stato.zona) return false;
     if (stato.budget && +c.dataset.prezzo > stato.budget) return false;
+    if (stato.q && (c.dataset.cerca || '').indexOf(stato.q) < 0) return false;
+    if (stato.letti !== '') {
+      var l = +(c.dataset.letti || 0);
+      if (stato.letti === '0' ? l !== 0 : l < +stato.letti) return false;
+    }
+    if (stato.bagni !== '' && +(c.dataset.bagni || 0) < +stato.bagni) return false;
+    if (stato.arredata && c.dataset.arredata !== '1') return false;
+    if (stato.video && c.dataset.video !== '1') return false;
+    if (stato.salvate && salvate().indexOf(c.dataset.chiave) < 0) return false;
+    for (var i = 0; i < stato.dote.length; i++)
+      if ((c.dataset.dote || '').indexOf('|' + stato.dote[i] + '|') < 0) return false;
     /* chi atterra: famiglia e coinquilini vogliono almeno due camere */
     if ((stato.chi === 'family' || stato.chi === 'flatmates')
         && +(c.dataset.letti || 0) < 2) return false;
@@ -2025,6 +2289,116 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       var quale = ['z', 'q', 'd'][Math.floor(Math.random() * 3)];
       if (o[quale].flutter) o[quale].flutter();
     }, 14000);
+  })();
+
+  /* ── IL SETACCIO: i filtri veri ─────────────────────────────────────── */
+  (function () {
+    var q = document.getElementById('fq');
+    var attesa;
+    q.addEventListener('input', function () {
+      clearTimeout(attesa);
+      attesa = setTimeout(function () {
+        stato.q = q.value.trim().toLowerCase(); aggiorna();
+      }, 160);
+    });
+    [].slice.call(document.querySelectorAll('.gruppo button')).forEach(function (b) {
+      b.addEventListener('click', function () {
+        var f = b.dataset.f, v = b.dataset.v;
+        if (f === 'dote') {
+          var k = stato.dote.indexOf(v);
+          k < 0 ? stato.dote.push(v) : stato.dote.splice(k, 1);
+          b.classList.toggle('on', k < 0);
+        } else if (f === 'arredata' || f === 'video' || f === 'salvate') {
+          stato[f] = !stato[f];
+          b.classList.toggle('on', stato[f]);
+        } else {
+          stato[f] = v;
+          b.parentNode.querySelectorAll('button').forEach(function (x) {
+            x.classList.toggle('on', x === b && v !== ''); });
+        }
+        aggiorna();
+      });
+    });
+    document.getElementById('pulisci').addEventListener('click', function () {
+      stato.q = ''; stato.letti = ''; stato.bagni = ''; stato.zona = '';
+      stato.arredata = false; stato.video = false; stato.salvate = false;
+      stato.dote = []; stato.budget = 0; stato.chi = ''; stato.dal = null;
+      q.value = '';
+      document.querySelectorAll('.gruppo button, .zona-riga')
+        .forEach(function (x) { x.classList.remove('on');
+          if (x.classList.contains('zona-riga'))
+            x.setAttribute('aria-pressed', 'false'); });
+      var bud = document.getElementById('quantoBudget');
+      var chi = document.getElementById('chiAtterra');
+      bud.value = ''; chi.value = '';
+      bud.classList.remove('scelto'); chi.classList.remove('scelto');
+      document.getElementById('quandoTesto').textContent = 'Any date';
+      document.getElementById('quandoBtn').classList.remove('scelta');
+      aggiorna();
+    });
+    /* quante ne hai messe da parte */
+    function conteggio() {
+      var n = salvate().length;
+      document.getElementById('quanteSalvate').textContent = n ? ' ' + n : '';
+    }
+    conteggio();
+    addEventListener('storage', conteggio);
+    document.addEventListener('click', function (e) {
+      if (e.target.closest('.home-cuore')) setTimeout(function () {
+        conteggio(); if (stato.salvate) aggiorna(); }, 60);
+    });
+  })();
+
+  /* ── SALVA QUESTA RICERCA — la forma vera di /api/search/save ───────── */
+  (function () {
+    var velo = document.getElementById('serbaVelo');
+    var forma = document.getElementById('serbaForma');
+    function criteri() {
+      return { q: stato.q, budgetMax: stato.budget || null,
+        moveIn: stato.dal, beds: stato.letti === '' ? null : +stato.letti,
+        baths: stato.bagni === '' ? null : +stato.bagni,
+        furnished: stato.arredata, video: stato.video,
+        zones: stato.zona ? [stato.zona] : [], feats: stato.dote.slice() };
+    }
+    function sunto() {
+      var c = criteri(), p = [];
+      if (c.zones.length) p.push(c.zones[0].replace(/\b\w/g,
+        function (x) { return x.toUpperCase(); }));
+      if (c.beds !== null) p.push(c.beds === 0 ? 'studio' : c.beds + '+ beds');
+      if (c.baths !== null) p.push(c.baths + '+ baths');
+      if (c.budgetMax) p.push('up to €' + c.budgetMax.toLocaleString('en-US'));
+      if (c.furnished) p.push('furnished');
+      if (c.video) p.push('video-verified');
+      if (c.feats.length) p.push(c.feats.join(', '));
+      if (c.moveIn) p.push('from ' + c.moveIn);
+      return p.length ? p.join(' · ') : 'Any home in Rome';
+    }
+    document.getElementById('serba').addEventListener('click', function () {
+      document.getElementById('serbaSunto').textContent = sunto();
+      document.getElementById('serbaNome').value = sunto().slice(0, 40);
+      velo.hidden = false;
+      setTimeout(function () { document.getElementById('serbaMail').focus(); }, 60);
+    });
+    function chiudi() { velo.hidden = true; }
+    document.getElementById('serbaChiudi').addEventListener('click', chiudi);
+    velo.addEventListener('click', function (e) {
+      if (e.target === velo) chiudi(); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !velo.hidden) chiudi(); });
+    forma.addEventListener('submit', function (e) {
+      e.preventDefault();
+      /* la richiesta che il sito vero manda — qui dichiarata, non spedita */
+      var corpo = { email: document.getElementById('serbaMail').value.trim(),
+        label: document.getElementById('serbaNome').value.trim(),
+        criteria: criteri(),
+        resultCount: +document.getElementById('conto').textContent,
+        company: document.getElementById('serbaEsca').value };
+      if (window.console) console.log('POST /api/search/save', corpo);
+      forma.innerHTML = '<p class="serba-nota" style="font-size:13px;'
+        + 'color:var(--gold);margin-top:0">Saved — PREVIEW. On the live site '
+        + 'you would now get an email the moment a matching home appears.</p>';
+      setTimeout(chiudi, 2200);
+    });
   })();
 
   /* ── L'ORDINE ───────────────────────────────────────────────────────── */
@@ -2344,6 +2718,302 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       attesa = setTimeout(function () { misura(); if (ridotto) vita(0); }, 180);
     }, { passive: true });
   }
+  function skylineRoma() {
+    /* LO SKYLINE — Roma dal codice. I monumenti alla loro longitudine
+       vera, i quartieri del catalogo dove stanno davvero. Lo strato
+       della città si posa una volta; solo il fascio di luce vive. */
+    var tela = document.getElementById('skyTela');
+    if (!tela || !tela.getContext) return;
+    var ZONE = 'SKY_JSON';
+    if (!ZONE.length) return;
+    var ridotto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var mob = matchMedia('(max-width: 640px)').matches;
+    var ctx = tela.getContext('2d');
+    var ORO = '255,215,0', LATTE = '250,248,240';
+    var W, H, DPR, suolo, citta, luci;
+    /* i monumenti, alla loro longitudine reale */
+    var MONUMENTI = [
+      { lng: 12.4534, tipo: 'sanpietro', h: 1.00, w: .52, nome: 'San Pietro' },
+      { lng: 12.4663, tipo: 'castello',  h: .52, nome: "Castel Sant'Angelo" },
+      { lng: 12.4768, tipo: 'pantheon',  h: .46, nome: 'Pantheon' },
+      { lng: 12.4828, tipo: 'vittoriano', h: .66, w: .50, nome: 'Vittoriano' },
+      { lng: 12.4922, tipo: 'colosseo',  h: .62, w: .72, nome: 'Colosseo' },
+      { lng: 12.5060, tipo: 'pino',      h: .58, nome: '' },
+      { lng: 12.4600, tipo: 'pino',      h: .50, nome: '' },
+      { lng: 12.5230, tipo: 'pino',      h: .54, nome: '' },
+    ];
+    var LNG0 = 12.446, LNG1 = 12.537;
+    function ax(lng) { return ((lng - LNG0) / (LNG1 - LNG0)) * W; }
+
+    function misura() {
+      var r = tela.getBoundingClientRect();
+      DPR = Math.min(devicePixelRatio || 1, 2);
+      W = Math.round(r.width * DPR); H = Math.round(r.height * DPR);
+      tela.width = W; tela.height = H;
+      suolo = H * .87;
+      disegna();
+      piazza();
+    }
+
+    /* ── i mattoni del disegno ─────────────────────────────────────── */
+    function cupola(g, x, base, raggio, tamburo) {
+      g.beginPath(); g.arc(x, base - tamburo, raggio, Math.PI, 0); g.stroke();
+      g.beginPath();
+      g.moveTo(x - raggio, base - tamburo); g.lineTo(x - raggio, base);
+      g.moveTo(x + raggio, base - tamburo); g.lineTo(x + raggio, base);
+      g.stroke();
+      /* la lanterna */
+      g.beginPath();
+      g.moveTo(x, base - tamburo - raggio);
+      g.lineTo(x, base - tamburo - raggio - raggio * .34);
+      g.stroke();
+      g.beginPath();
+      g.arc(x, base - tamburo - raggio - raggio * .4, raggio * .11, 0, 6.29);
+      g.stroke();
+    }
+    function colonne(g, x0, x1, base, alto, n) {
+      for (var i = 0; i <= n; i++) {
+        var x = x0 + (x1 - x0) * (i / n);
+        g.beginPath(); g.moveTo(x, base); g.lineTo(x, base - alto); g.stroke();
+      }
+      g.beginPath();
+      g.moveTo(x0 - 2 * DPR, base - alto); g.lineTo(x1 + 2 * DPR, base - alto);
+      g.stroke();
+    }
+    function monumento(g, m, alt) {
+      var x = ax(m.lng), a = alt * m.h, w = a * (m.w || .58);
+      if (m.tipo === 'sanpietro') {
+        colonne(g, x - w * .95, x - w * .42, suolo, a * .26, 5);
+        colonne(g, x + w * .42, x + w * .95, suolo, a * .26, 5);
+        g.beginPath();
+        g.moveTo(x - w * .34, suolo); g.lineTo(x - w * .34, suolo - a * .40);
+        g.lineTo(x + w * .34, suolo - a * .40); g.lineTo(x + w * .34, suolo);
+        g.stroke();
+        cupola(g, x, suolo - a * .40, w * .34, a * .16);
+      } else if (m.tipo === 'castello') {
+        g.beginPath();
+        g.moveTo(x - w * .62, suolo); g.lineTo(x - w * .62, suolo - a * .34);
+        g.lineTo(x + w * .62, suolo - a * .34); g.lineTo(x + w * .62, suolo);
+        g.stroke();
+        g.beginPath();
+        g.moveTo(x - w * .34, suolo - a * .34);
+        g.lineTo(x - w * .34, suolo - a * .78);
+        g.lineTo(x + w * .34, suolo - a * .78);
+        g.lineTo(x + w * .34, suolo - a * .34);
+        g.stroke();
+        g.beginPath();
+        g.moveTo(x, suolo - a * .78); g.lineTo(x, suolo - a);
+        g.stroke();
+      } else if (m.tipo === 'pantheon') {
+        colonne(g, x - w * .58, x + w * .58, suolo, a * .52, 7);
+        cupola(g, x, suolo - a * .52, w * .5, 0);
+      } else if (m.tipo === 'vittoriano') {
+        g.beginPath();
+        g.moveTo(x - w * .9, suolo); g.lineTo(x - w * .78, suolo - a * .22);
+        g.lineTo(x + w * .78, suolo - a * .22); g.lineTo(x + w * .9, suolo);
+        g.stroke();
+        colonne(g, x - w * .62, x + w * .62, suolo - a * .22, a * .5, 9);
+        g.beginPath();
+        g.moveTo(x - w * .70, suolo - a * .72);
+        g.lineTo(x + w * .70, suolo - a * .72); g.stroke();
+      } else if (m.tipo === 'colosseo') {
+        for (var p = 0; p < 3; p++) {
+          var y = suolo - a * (.30 + p * .26);
+          g.beginPath();
+          g.moveTo(x - w * .72, y); g.lineTo(x + w * .72, y); g.stroke();
+        }
+        g.beginPath();
+        g.moveTo(x - w * .72, suolo); g.lineTo(x - w * .72, suolo - a * .82);
+        g.moveTo(x + w * .72, suolo); g.lineTo(x + w * .72, suolo - a * .82);
+        g.stroke();
+        for (var i2 = -2; i2 <= 2; i2++) {
+          var ax2 = x + i2 * w * .28;
+          g.beginPath();
+          g.arc(ax2, suolo - a * .30, w * .1, Math.PI, 0); g.stroke();
+          g.beginPath();
+          g.arc(ax2, suolo - a * .56, w * .1, Math.PI, 0); g.stroke();
+        }
+      } else if (m.tipo === 'pino') {
+        g.beginPath();
+        g.moveTo(x, suolo); g.lineTo(x - w * .06, suolo - a * .62); g.stroke();
+        g.beginPath();
+        g.ellipse(x - w * .06, suolo - a * .72, w * .46, a * .19, 0, 0, 6.29);
+        g.stroke();
+      }
+    }
+
+    /* ── la città si posa una volta sola ───────────────────────────── */
+    function disegna() {
+      citta = document.createElement('canvas');
+      citta.width = W; citta.height = H;
+      var g = citta.getContext('2d');
+      /* il cielo di Roma, appena caldo all'orizzonte */
+      var cielo = g.createLinearGradient(0, suolo - H * .5, 0, suolo);
+      cielo.addColorStop(0, 'rgba(255,215,0,0)');
+      cielo.addColorStop(1, 'rgba(255,190,90,.07)');
+      g.fillStyle = cielo;
+      g.fillRect(0, 0, W, suolo);
+      /* i palazzi: bassi, fitti, con qualche finestra accesa */
+      luci = [];
+      var seme = 7;
+      function caso() { seme = (seme * 1103515245 + 12345) % 2147483648;
+        return seme / 2147483648; }
+      g.strokeStyle = 'rgba(' + LATTE + ',.11)';
+      g.lineWidth = DPR;
+      var x = -20 * DPR;
+      while (x < W + 20 * DPR) {
+        var w = (26 + caso() * 46) * DPR;
+        var alt = (16 + caso() * 52) * DPR;
+        g.strokeRect(x, suolo - alt, w, alt);
+        if (caso() < .5) {
+          var fx = x + w * (.25 + caso() * .5), fy = suolo - alt * (.3 + caso() * .5);
+          luci.push({ x: fx, y: fy, fase: caso() * 9 });
+        }
+        x += w + 3 * DPR;
+      }
+      /* i monumenti, in oro */
+      g.strokeStyle = 'rgba(' + ORO + ',.45)';
+      g.lineWidth = 1.3 * DPR;
+      g.lineCap = 'round'; g.lineJoin = 'round';
+      var alt2 = H * (mob ? .60 : .68);
+      MONUMENTI.forEach(function (m) { monumento(g, m, alt2); });
+      /* la linea di terra */
+      g.strokeStyle = 'rgba(' + ORO + ',.3)';
+      g.lineWidth = DPR;
+      g.beginPath(); g.moveTo(0, suolo); g.lineTo(W, suolo); g.stroke();
+      /* le tacche dei quartieri */
+      ZONE.forEach(function (z) {
+        var zx = ax(z.lng);
+        g.strokeStyle = 'rgba(' + ORO + ',' + (z.si ? .34 : .16) + ')';
+        g.beginPath();
+        g.moveTo(zx, suolo); g.lineTo(zx, suolo + 9 * DPR); g.stroke();
+      });
+    }
+
+    /* ── i tasti veri, sopra il disegno: tocco e tastiera ───────────── */
+    var tasti = document.getElementById('skyTasti');
+    var fila = document.getElementById('skyFila');
+    var sky = tela.closest('.sky');
+    var scelta = null, faro = 0;
+    function piazza() {
+      if (tasti.children.length === ZONE.length && fila.children.length) {
+        [].slice.call(tasti.children).forEach(function (b, i) {
+          b.style.left = (ax(ZONE[i].lng) / DPR) + 'px'; });
+        return;
+      }
+      tasti.innerHTML = ''; fila.innerHTML = '';
+      ZONE.forEach(function (z, i) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.style.left = (ax(z.lng) / DPR) + 'px';
+        b.setAttribute('aria-label', z.z + ' — ' + z.n
+          + (z.n === 1 ? ' home' : ' homes') + ', from ' + z.da);
+        var c = document.createElement('button');
+        c.type = 'button'; c.textContent = z.z;
+        c.setAttribute('aria-label', z.z + ' — ' + z.n
+          + (z.n === 1 ? ' home' : ' homes') + ', from ' + z.da);
+        var scegli = function () {
+          scelta = z; faro = performance.now();
+          [].slice.call(tasti.children).forEach(function (x, k) {
+            x.classList.toggle('on', k === i); });
+          [].slice.call(fila.children).forEach(function (x, k) {
+            x.classList.toggle('on', k === i); });
+          sky.classList.add('scelto');
+          document.getElementById('skyNome').textContent = z.z;
+          document.getElementById('skyDati').textContent =
+            z.n + (z.n === 1 ? ' home' : ' homes') + ' · from ' + z.da
+            + (z.si ? ' · available now' : '');
+          document.getElementById('skyPiena').setAttribute('href',
+            AP_ZONA + encodeURIComponent(z.z));
+          accendi();
+        };
+        b.addEventListener('mouseenter', scegli);
+        b.addEventListener('focus', scegli);
+        b.addEventListener('click', function () {
+          scegli();
+          location.href = AP_ZONA + encodeURIComponent(z.z);
+        });
+        tasti.appendChild(b);
+        /* la fila: il primo tocco accende, il secondo porta alle case */
+        c.addEventListener('click', function () {
+          if (scelta === z) location.href = AP_ZONA + encodeURIComponent(z.z);
+          else { scegli(); c.scrollIntoView({ inline: 'center',
+            block: 'nearest', behavior: 'smooth' }); }
+        });
+        fila.appendChild(c);
+      });
+    }
+    var AP_ZONA = 'AP_URL' + '#zona=';
+
+    /* ── la vita: il fascio di luce e qualche finestra ──────────────── */
+    function vita(t) {
+      ctx.clearRect(0, 0, W, H);
+      ctx.drawImage(citta, 0, 0);
+      /* le finestre accese, lentissime */
+      if (!ridotto) luci.forEach(function (l) {
+        var b = .12 + .12 * Math.sin(t * .0007 + l.fase);
+        ctx.fillStyle = 'rgba(255,225,150,' + b + ')';
+        ctx.fillRect(l.x, l.y, 1.6 * DPR, 2.2 * DPR);
+      });
+      /* il fascio sul quartiere scelto */
+      if (scelta) {
+        var p = ridotto ? 1 : Math.min(1, (t - faro) / 520);
+        var e = 1 - Math.pow(1 - p, 3);
+        var zx = ax(scelta.lng);
+        var g2 = ctx.createLinearGradient(0, suolo, 0, suolo - H * .9 * e);
+        g2.addColorStop(0, 'rgba(' + ORO + ',.28)');
+        g2.addColorStop(1, 'rgba(' + ORO + ',0)');
+        ctx.fillStyle = g2;
+        ctx.fillRect(zx - 13 * DPR, suolo - H * .9 * e, 26 * DPR, H * .9 * e);
+        ctx.strokeStyle = 'rgba(' + ORO + ',' + (.5 * e) + ')';
+        ctx.lineWidth = DPR;
+        ctx.beginPath();
+        ctx.moveTo(zx, suolo); ctx.lineTo(zx, suolo - H * .82 * e);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(255,248,220,' + (.85 * e) + ')';
+        ctx.beginPath();
+        ctx.arc(zx, suolo, 3 * DPR, 0, 6.29); ctx.fill();
+        /* il nome arriva col fascio, e solo per lui */
+        var testo = scelta.z.toUpperCase().split('').join('\u200a');
+        ctx.font = '600 ' + (mob ? 8 : 9) * DPR + 'px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        var lar = ctx.measureText(testo).width;
+        var tx = Math.max(lar / 2 + 6 * DPR,
+          Math.min(W - lar / 2 - 6 * DPR, zx));
+        ctx.fillStyle = 'rgba(' + ORO + ',' + (.9 * e) + ')';
+        ctx.fillText(testo, tx, suolo + 21 * DPR);
+      }
+    }
+    var girando = false, visibile = false, ultimo = 0;
+    function giro(t) {
+      if (!girando) return;
+      if (t - ultimo < 28) { requestAnimationFrame(giro); return; }
+      ultimo = t; vita(t); requestAnimationFrame(giro);
+    }
+    function accendi() {
+      if (girando || !visibile || document.hidden || ridotto) return;
+      girando = true; requestAnimationFrame(giro);
+    }
+    function spegni() { girando = false; }
+    misura();
+    vita(0);
+    if (!ridotto) {
+      new IntersectionObserver(function (vs) {
+        visibile = vs[0].isIntersecting;
+        visibile ? accendi() : spegni();
+      }, { threshold: .1 }).observe(tela);
+      document.addEventListener('visibilitychange', function () {
+        document.hidden ? spegni() : accendi(); });
+    }
+    var attesa;
+    addEventListener('resize', function () {
+      clearTimeout(attesa);
+      attesa = setTimeout(function () { misura(); vita(performance.now()); }, 200);
+    }, { passive: true });
+  }
+  if (document.readyState === 'complete') setTimeout(skylineRoma, 0);
+  else addEventListener('load', function () { setTimeout(skylineRoma, 0); });
+
   function mosaicoRomano() {
     /* IL MOSAICO ROMANO — tessere quiete, e un anello d'oro che si
        allarga dal cuore della sezione, come un sasso nell'arte. */

@@ -67,6 +67,70 @@
 /* la barra di ricerca: la stessa del check-in di casa */
 .cerca { margin-top:clamp(20px,2.4vw,30px); }
 
+/* ══ IL SETACCIO — i filtri veri, nella grammatica del portale ═════════ */
+.setaccio { background:var(--card); box-shadow:inset 0 0 0 1px var(--line-0);
+  padding:16px 18px 14px; }
+.setaccio-cerca { display:flex; align-items:center; gap:11px;
+  padding-bottom:13px; border-bottom:1px solid var(--line-0); }
+.setaccio-cerca svg { width:17px; height:17px; flex:none; fill:none;
+  stroke:var(--text-4); stroke-width:1.6; stroke-linecap:round; }
+.setaccio-cerca input { flex:1; min-width:0; background:none; border:0;
+  color:var(--text); font:inherit; font-size:14.5px; }
+.setaccio-cerca input::placeholder { color:var(--text-4); }
+.setaccio-cerca input:focus { outline:none; }
+.setaccio-cerca:focus-within svg { stroke:var(--gold); }
+.setaccio-gruppi { display:flex; gap:20px; flex-wrap:wrap; margin-top:13px; }
+.gruppo { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.gruppo > span { font-size:9px; font-weight:600; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--text-4); margin-right:2px; }
+.gruppo button { padding:7px 12px; font:inherit; font-size:11.5px;
+  color:var(--text-3); background:none; border:0;
+  box-shadow:inset 0 0 0 1px var(--line); border-radius:100px;
+  cursor:pointer; transition:.22s; }
+.gruppo button:hover { color:var(--text); }
+.gruppo button.on { color:var(--gold);
+  box-shadow:inset 0 0 0 1px var(--line-gold); }
+.gruppo button i { font-style:normal; font-variant-numeric:tabular-nums; }
+.setaccio-piede { display:flex; align-items:center; justify-content:space-between;
+  gap:12px; flex-wrap:wrap; margin-top:14px; padding-top:12px;
+  border-top:1px solid var(--line-0); }
+.pulisci, .serba { font:inherit; font-size:10.5px; font-weight:600;
+  letter-spacing:.12em; text-transform:uppercase; background:none; border:0;
+  cursor:pointer; padding:8px 12px; transition:.25s; }
+.pulisci { color:var(--text-4); }
+.pulisci:hover { color:var(--text-2); }
+.serba { color:var(--gold); box-shadow:inset 0 0 0 1px var(--line-gold-2);
+  border-radius:100px; }
+.serba:hover { box-shadow:inset 0 0 0 1px var(--gold); }
+@media (max-width:640px){
+  .setaccio { padding:14px 14px 12px; }
+  .setaccio-gruppi { gap:14px; }
+  .gruppo { width:100%; } }
+
+/* il foglio della ricerca salvata */
+.serba-velo { position:fixed; inset:0; z-index:150; display:grid;
+  place-items:center; padding:20px; background:rgba(3,3,3,.86);
+  backdrop-filter:blur(10px); }
+.serba-velo[hidden] { display:none; }
+.serba-foglio { width:100%; max-width:420px; padding:26px;
+  background:var(--void); box-shadow:inset 0 0 0 1px var(--line-gold),
+    0 40px 90px -40px rgba(0,0,0,.9); }
+.serba-foglio > b { display:block; font-family:var(--display); font-weight:300;
+  font-size:20px; line-height:1.25; }
+.serba-foglio > p { margin-top:8px; font-size:12.5px; color:var(--text-3); }
+.campo-serba { display:block; margin-top:14px; }
+.campo-serba span { display:block; font-size:9.5px; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--text-3); }
+.campo-serba input { width:100%; margin-top:6px; padding:12px 14px;
+  background:var(--input); border:0; box-shadow:inset 0 0 0 1px var(--line);
+  color:var(--text); font:inherit; font-size:14px; }
+.campo-serba input:focus { outline:none; box-shadow:inset 0 0 0 1px var(--gold); }
+#serbaEsca { position:absolute; left:-9999px; width:1px; height:1px; }
+.serba-azioni { display:flex; align-items:center; justify-content:flex-end;
+  gap:10px; margin-top:18px; }
+.serba-nota { margin-top:12px; font-size:11px; line-height:1.6;
+  color:var(--text-4); }
+
 /* ══ IL MURO DELLE CASE ════════════════════════════════════════════════ */
 .muro-testa { display:flex; align-items:baseline; justify-content:space-between;
   gap:14px; flex-wrap:wrap; margin-bottom:16px; }
@@ -177,8 +241,51 @@
   </div>
 </section>
 
+<!-- ══ I FILTRI — quelli veri del sito ═══════════════════════════════════ -->
+<section class="sezione" style="padding-top:clamp(14px,1.6vw,20px)">
+  <div class="container">
+    <div class="setaccio">
+      <div class="setaccio-cerca">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg>
+        <input id="fq" type="search" placeholder="Search by name, zone or street"
+          aria-label="Search homes">
+      </div>
+      <div class="setaccio-gruppi">
+        <div class="gruppo" role="group" aria-label="Bedrooms">
+          <span>Beds</span>
+          <button type="button" data-f="letti" data-v="">Any</button>
+          <button type="button" data-f="letti" data-v="0">Studio</button>
+          <button type="button" data-f="letti" data-v="1">1+</button>
+          <button type="button" data-f="letti" data-v="2">2+</button>
+          <button type="button" data-f="letti" data-v="3">3+</button>
+        </div>
+        <div class="gruppo" role="group" aria-label="Bathrooms">
+          <span>Baths</span>
+          <button type="button" data-f="bagni" data-v="">Any</button>
+          <button type="button" data-f="bagni" data-v="1">1+</button>
+          <button type="button" data-f="bagni" data-v="2">2+</button>
+        </div>
+        <div class="gruppo" role="group" aria-label="Extras">
+          <span>Only</span>
+          <button type="button" data-f="arredata" data-v="1">Furnished</button>
+          <button type="button" data-f="video" data-v="1">Video-verified</button>
+          <button type="button" data-f="salvate" data-v="1">Saved <i id="quanteSalvate"></i></button>
+        </div>
+        <div class="gruppo dotazioni" role="group" aria-label="Features">
+          <span>Features</span>
+          DOTE_TASTI
+        </div>
+      </div>
+      <div class="setaccio-piede">
+        <button type="button" class="pulisci" id="pulisci">Clear all</button>
+        <button type="button" class="serba" id="serba">Save this search →</button>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ══ IL MURO ═══════════════════════════════════════════════════════════ -->
-<section class="sezione" style="padding-top:clamp(18px,2vw,26px)">
+<section class="sezione" style="padding-top:clamp(10px,1.2vw,16px)">
   <div class="container">
     <div class="muro-testa">
       <p class="muro-conto"><b id="conto">0</b> homes<span id="contoZona"></span></p>
@@ -201,6 +308,31 @@ CASE_MURO
     </div>
   </div>
 </section>
+
+<!-- ══ SALVA LA RICERCA ══════════════════════════════════════════════════ -->
+<div class="serba-velo" id="serbaVelo" hidden>
+  <div class="serba-foglio" role="dialog" aria-modal="true"
+    aria-labelledby="serbaTit">
+    <b id="serbaTit">Get an email when a home like this appears</b>
+    <p id="serbaSunto">—</p>
+    <form id="serbaForma">
+      <label class="campo-serba"><span>Name this search</span>
+        <input id="serbaNome" placeholder="e.g. Trastevere, 2 beds"></label>
+      <label class="campo-serba"><span>Your email</span>
+        <input id="serbaMail" type="email" required
+          placeholder="you@email.com"></label>
+      <input id="serbaEsca" name="company" tabindex="-1" autocomplete="off"
+        aria-hidden="true">
+      <div class="serba-azioni">
+        <button type="button" class="pulisci" id="serbaChiudi">Not now</button>
+        <button type="submit" class="btn btn-primary">Save search</button>
+      </div>
+      <p class="serba-nota">PREVIEW — nothing is sent from this page. On the
+        live site this becomes a saved search: you only hear from us when a
+        home that matches actually appears.</p>
+    </form>
+  </div>
+</div>
 
 <!-- ══ LA RETE — se la casa giusta non c'è ═══════════════════════════════ -->
 <section class="sezione">
