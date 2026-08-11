@@ -152,6 +152,10 @@ h = h.replace("'SKY_JSON'", json.dumps(SKYCASE, ensure_ascii=False))
 CASA_ART = 'https://claude.ai/code/artifact/db7c3240-a12d-4734-9eb7-06a780584231'
 h = h.replace('CASA_BASE', (CASA_ART + '#id=') if MODO == 'artefatto'
     else '/v2-listing.html#id=')
+h = h.replace('SKYLINE_URL', 'https://www.boomrome.com/skyline'
+    if MODO == 'artefatto' else '/skyline')
+h = h.replace('<span class="varco-conta" id="varcoConta"></span>',
+    f'<span class="varco-conta" id="varcoConta">{len(SKYCASE)}</span>')
 h = h.replace('RECENSIONI_URL',
     'https://www.google.com/maps?q=Egidi+Immobiliare+Via+dei+Coronari+Roma')
 h = h.replace('CASE_TRE', TRE)
