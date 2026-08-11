@@ -1,0 +1,301 @@
+<style>
+/* ══ LA CASA — la scena, il denaro in chiaro, la strada ════════════════ */
+.casa { position:relative; padding:clamp(88px,10svh,116px) 0 0; }
+.casa-briciole { display:flex; align-items:center; gap:9px; font-size:11px;
+  color:var(--text-3); flex-wrap:wrap; }
+.casa-briciole a { color:var(--text-3); transition:color .25s; }
+.casa-briciole a:hover { color:var(--gold); }
+.casa-briciole i { font-style:normal; color:var(--text-4); }
+
+/* la scena: la foto grande e il rullino */
+.scena-casa { position:relative; margin-top:16px; display:grid;
+  gap:clamp(12px,1.4vw,16px); grid-template-columns:1fr; }
+@media (min-width:900px){ .scena-casa {
+  grid-template-columns:minmax(0,1fr) 112px; } }
+.telaio { position:relative; overflow:hidden; background:var(--void);
+  aspect-ratio:16/10; box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.telaio img { width:100%; height:100%; object-fit:cover; display:block;
+  opacity:0; transition:opacity .5s ease; }
+.telaio img.qui { opacity:1; }
+.telaio::after { content:''; position:absolute; inset:0; pointer-events:none;
+  background:linear-gradient(180deg, rgba(3,3,3,.5), transparent 30%,
+    transparent 58%, rgba(3,3,3,.82)); }
+.telaio-alto { position:absolute; z-index:2; top:14px; left:14px; right:14px;
+  display:flex; align-items:flex-start; justify-content:space-between;
+  gap:12px; }
+.telaio-basso { position:absolute; z-index:2; left:16px; right:16px;
+  bottom:14px; display:flex; align-items:flex-end;
+  justify-content:space-between; gap:14px; flex-wrap:wrap; }
+.telaio-basso h1 { font-weight:250; font-size:clamp(24px,3vw,40px);
+  line-height:1.1; letter-spacing:-.015em; }
+.telaio-basso .dove { margin-top:5px; font-size:12.5px; color:var(--text-2); }
+.canone-grande { text-align:right; }
+.canone-grande .flap-prezzo { font-size:clamp(17px,2vw,24px); }
+.canone-grande small { display:block; margin-top:3px; font-size:10px;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--text-3); }
+.rullino { display:flex; gap:10px; overflow-x:auto; scrollbar-width:none;
+  padding-bottom:2px; }
+.rullino::-webkit-scrollbar { display:none; }
+@media (min-width:900px){ .rullino { flex-direction:column; overflow-y:auto;
+  max-height:100%; } }
+.rullino button { flex:none; width:96px; aspect-ratio:4/3; padding:0;
+  border:0; background:none; cursor:pointer; overflow:hidden;
+  box-shadow:inset 0 0 0 1px var(--line-0); opacity:.5;
+  transition:opacity .3s ease, box-shadow .3s ease; }
+.rullino button img { width:100%; height:100%; object-fit:cover; }
+.rullino button:hover { opacity:.85; }
+.rullino button.qui { opacity:1; box-shadow:inset 0 0 0 1px var(--gold); }
+.stato-grande { padding:6px 11px; background:rgba(3,3,3,.7);
+  backdrop-filter:blur(8px); font-size:9px; font-weight:700;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--text-2); }
+.stato-grande.si { color:var(--green); }
+
+/* i fatti: la riga Solari della casa */
+.fatti { margin-top:clamp(18px,2.2vw,26px); display:grid; gap:1px;
+  grid-template-columns:repeat(2,1fr); background:var(--line-0);
+  box-shadow:inset 0 0 0 1px var(--line-0); }
+@media (min-width:760px){ .fatti { grid-template-columns:repeat(5,1fr); } }
+.fatto { background:var(--card); padding:15px 16px; }
+.fatto b { display:block; font-family:var(--display); font-size:19px;
+  font-weight:300; color:var(--gold); }
+.fatto span { display:block; margin-top:3px; font-size:9.5px;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--text-3); }
+
+/* ══ IL DENARO IN CHIARO ═══════════════════════════════════════════════ */
+.soldi { display:grid; gap:clamp(20px,2.6vw,34px); grid-template-columns:1fr;
+  align-items:start; }
+@media (min-width:1000px){ .soldi {
+  grid-template-columns:minmax(0,1fr) minmax(0,.86fr); } }
+.conto { position:relative; background:var(--void); padding:24px 24px 20px;
+  box-shadow:inset 0 0 0 1px var(--line-gold),
+    0 40px 90px -40px rgba(0,0,0,.9); }
+.conto-riga { display:flex; align-items:baseline; justify-content:space-between;
+  gap:14px; padding:12px 0; border-bottom:1px solid var(--line-0);
+  font-size:13.5px; color:var(--text-2); }
+.conto-riga:first-of-type { padding-top:2px; }
+.conto-riga em { display:block; font-style:normal; margin-top:3px;
+  font-size:11px; color:var(--text-4); }
+.conto-riga b { font-family:var(--display); font-size:16px; font-weight:300;
+  color:var(--text); white-space:nowrap;
+  font-variant-numeric:tabular-nums; }
+.conto-tot { display:flex; align-items:baseline; justify-content:space-between;
+  gap:14px; margin-top:14px; padding-top:14px;
+  border-top:1px solid var(--line-gold-2); }
+.conto-tot span { font-size:11px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--text-3); }
+.conto-tot b { font-family:var(--display); font-size:clamp(24px,3vw,34px);
+  font-weight:250; color:var(--gold); font-variant-numeric:tabular-nums; }
+.conto-nota { margin-top:12px; font-size:11.5px; line-height:1.6;
+  color:var(--text-3); }
+.conto-scudo { margin-top:14px; display:inline-flex; align-items:center;
+  gap:8px; padding:8px 12px; font-size:10px; font-weight:600;
+  letter-spacing:.12em; text-transform:uppercase; color:var(--green);
+  box-shadow:inset 0 0 0 1px rgba(0,255,136,.28); }
+
+/* la descrizione e ciò che c'è dentro */
+.racconto p { font-size:14.5px; line-height:1.75; color:var(--text-2); }
+.dote { margin-top:18px; display:flex; gap:8px; flex-wrap:wrap; }
+.dote span { padding:7px 12px; font-size:11.5px; color:var(--text-2);
+  box-shadow:inset 0 0 0 1px var(--line-0); border-radius:100px; }
+.dote span::before { content:'✓'; margin-right:7px; color:var(--gold); }
+
+/* ══ COSA SUCCEDE DOPO — la promessa in quattro tempi ══════════════════ */
+.dopo { margin-top:clamp(22px,2.6vw,34px); display:grid; gap:1px;
+  grid-template-columns:1fr; background:var(--line-0);
+  box-shadow:inset 0 0 0 1px var(--line-0); }
+@media (min-width:760px){ .dopo { grid-template-columns:repeat(4,1fr); } }
+.tempo { position:relative; background:var(--card); padding:18px 18px 16px; }
+.tempo b { display:block; font-size:9.5px; font-weight:700;
+  letter-spacing:.18em; color:var(--gold); }
+.tempo h4 { margin-top:8px; font-size:14px; font-weight:400; }
+.tempo p { margin-top:5px; font-size:12px; line-height:1.6;
+  color:var(--text-3); }
+.tempo::after { content:''; position:absolute; left:0; top:0; height:2px;
+  width:100%; background:var(--gold); transform:scaleX(0);
+  transform-origin:left; }
+html.vivo .coro.dentro .tempo::after {
+  animation:tempo-corsa .7s var(--ease) forwards; }
+.coro.dentro .tempo:nth-child(1)::after { animation-delay:.1s; }
+.coro.dentro .tempo:nth-child(2)::after { animation-delay:.3s; }
+.coro.dentro .tempo:nth-child(3)::after { animation-delay:.5s; }
+.coro.dentro .tempo:nth-child(4)::after { animation-delay:.7s; }
+@keyframes tempo-corsa { to { transform:scaleX(1); } }
+
+/* ══ L'APPLY — il gesto, non un modulo ═════════════════════════════════ */
+.applica { position:relative; background:var(--void); padding:26px;
+  box-shadow:inset 0 0 0 1px var(--line-gold); }
+.applica h3 { font-family:var(--display); font-weight:300;
+  font-size:clamp(19px,2.2vw,24px); }
+.applica > p { margin-top:8px; font-size:13px; color:var(--text-2); }
+.passi { margin-top:18px; display:flex; gap:6px; }
+.passo-eti { flex:1; height:2px; background:var(--line-0); overflow:hidden; }
+.passo-eti i { display:block; height:100%; width:0; background:var(--gold);
+  transition:width .5s var(--ease); }
+.passo-eti.fatto i, .passo-eti.ora i { width:100%; }
+.campo { margin-top:14px; }
+.campo label { display:block; font-size:9.5px; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--text-3); }
+.campo input, .campo select { width:100%; margin-top:6px; padding:12px 14px;
+  background:var(--input); border:0; box-shadow:inset 0 0 0 1px var(--line);
+  color:var(--text); font:inherit; font-size:14px;
+  transition:box-shadow .25s ease; }
+.campo input:focus, .campo select:focus { outline:none;
+  box-shadow:inset 0 0 0 1px var(--gold); }
+.applica .btn { margin-top:18px; width:100%; justify-content:center;
+  text-align:center; }
+.applica-nota { margin-top:12px; font-size:11px; line-height:1.6;
+  color:var(--text-4); }
+.applica-fatto { display:none; text-align:center; padding:14px 0 4px; }
+.applica-fatto.si { display:block; }
+.applica-fatto b { display:block; font-family:var(--display);
+  font-size:20px; font-weight:300; color:var(--gold); }
+.applica-fatto p { margin-top:8px; font-size:12.5px; color:var(--text-2); }
+
+/* le altre case */
+.altre { display:grid; gap:clamp(14px,1.6vw,20px);
+  grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); }
+</style>
+
+<section class="casa">
+  <div class="container">
+    <nav class="casa-briciole" aria-label="Breadcrumb">
+      <a href="/index.html">Home</a><i>›</i>
+      <a href="/apartments.html">Apartments</a><i>›</i>
+      <a href="/apartments.html" id="briZona">Rome</a>
+    </nav>
+
+    <div class="scena-casa">
+      <div class="telaio" id="telaio">
+        <div class="telaio-alto">
+          <span class="stato-grande" id="statoCasa">—</span>
+          <button type="button" class="home-cuore" id="cuoreCasa"
+            data-u="" aria-label="Save this home" style="position:static">♥</button>
+        </div>
+        <div class="telaio-basso">
+          <div>
+            <h1 id="nomeCasa">—</h1>
+            <p class="dove" id="doveCasa">—</p>
+          </div>
+          <div class="canone-grande">
+            <span class="flap-prezzo flap-scale" id="canoneCasa" data-p=""></span>
+            <small>per month</small>
+          </div>
+        </div>
+      </div>
+      <div class="rullino" id="rullino"></div>
+    </div>
+
+    <div class="fatti coro" id="fatti"></div>
+  </div>
+</section>
+
+<!-- ══ IL DENARO IN CHIARO ═══════════════════════════════════════════════ -->
+<section class="sezione">
+  <div class="container soldi">
+    <div class="sale">
+      <span class="eyebrow"><i></i>The money, in the open</span>
+      <h2 class="titolo">What you pay to get the keys — <span class="hl">all of
+        it</span>.</h2>
+      <p class="sotto">No agency surprise on signing day. This is the whole
+        move-in figure, written down before you pay anything.</p>
+
+      <div class="racconto" style="margin-top:20px">
+        <p id="raccontoCasa">—</p>
+        <div class="dote" id="dentroCasa"></div>
+      </div>
+    </div>
+
+    <div class="conto quadro sale"><span class="tacca"></span>
+      <div class="conto-riga"><span>First month's rent
+        <em id="contoQuando">—</em></span><b id="contoCanone">—</b></div>
+      <div class="conto-riga"><span>Security deposit
+        <em>Held for you — returned after the final walkthrough</em></span>
+        <b id="contoCauzione">—</b></div>
+      <div class="conto-riga"><span>Agency fee
+        <em>10% of the annual rent — our only fee</em></span>
+        <b id="contoOnorario">—</b></div>
+      <div class="conto-tot"><span>Move-in total</span>
+        <b id="contoTotale">—</b></div>
+      <p class="conto-nota">Utilities and the registration tax are not included
+        — they're paid to the providers and to the State, never to us. Every
+        figure is confirmed in writing in your pre-agreement before any
+        payment is taken.</p>
+      <span class="conto-scudo">✓ Paid with Stripe · receipts on everything</span>
+    </div>
+  </div>
+</section>
+
+<!-- ══ COSA SUCCEDE DOPO ═════════════════════════════════════════════════ -->
+<section class="sezione">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>From here to the keys</span>
+      <h2 class="titolo">Four steps, and <span class="hl">nothing hidden
+        between them</span>.</h2>
+    </div>
+    <div class="dopo coro">
+      <div class="tempo"><b>01</b><h4>You apply</h4>
+        <p>Two minutes. We reply in person — no automated maybe.</p></div>
+      <div class="tempo"><b>02</b><h4>We agree the terms</h4>
+        <p>A written pre-agreement: rent, deposit, fee, dates. You read it
+          before anything is paid.</p></div>
+      <div class="tempo"><b>03</b><h4>You sign from your phone</h4>
+        <p>Magic-link signature, legally valid, no printer. We register the
+          contract with the Agenzia delle Entrate.</p></div>
+      <div class="tempo"><b>04</b><h4>You get the keys</h4>
+        <p>Your tenant pass lands in Apple Wallet. Rent, documents and
+          maintenance live in your pocket.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ APPLY + ALTRE CASE ════════════════════════════════════════════════ -->
+<section class="sezione">
+  <div class="container soldi">
+    <div class="applica quadro sale" id="applica"><span class="tacca"></span>
+      <h3>Apply for <span class="hl" id="applicaNome">this home</span></h3>
+      <p id="applicaSotto">Tell us when you land and who's coming. We'll come
+        back to you in person.</p>
+      <div class="passi" aria-hidden="true">
+        <span class="passo-eti ora"><i></i></span>
+        <span class="passo-eti"><i></i></span>
+        <span class="passo-eti"><i></i></span>
+      </div>
+      <form id="modApplica">
+        <div class="campo"><label for="apNome">Full name</label>
+          <input id="apNome" name="nome" autocomplete="name" required></div>
+        <div class="campo"><label for="apMail">Email</label>
+          <input id="apMail" name="email" type="email"
+            autocomplete="email" required></div>
+        <div class="campo"><label for="apQuando">Move-in date</label>
+          <input id="apQuando" name="quando" type="date"></div>
+        <div class="campo"><label for="apChi">Who's landing?</label>
+          <select id="apChi" name="chi">
+            <option value="">—</option>
+            <option value="solo">Just me</option>
+            <option value="couple">Couple</option>
+            <option value="family">Family</option>
+            <option value="flatmates">Flatmates</option>
+          </select></div>
+        <button class="btn btn-primary" type="submit">Send application</button>
+        <p class="applica-nota">PREVIEW — nothing is sent from this page. On
+          the live site your application reaches a person, and you get a
+          written confirmation with a reference number.</p>
+      </form>
+      <div class="applica-fatto" id="applicaFatto">
+        <b>That's all we need for now.</b>
+        <p>PREVIEW — nothing was sent. On the live site you'd have a reply
+          from a person, with your reference.</p>
+      </div>
+    </div>
+
+    <div class="sale">
+      <span class="eyebrow"><i></i>Not this one?</span>
+      <h2 class="titolo">Three more, <span class="hl">walked the same way</span>.</h2>
+      <div class="altre coro" id="altre" style="margin-top:20px"></div>
+      <p class="sotto" style="margin-top:16px">Nothing here?
+        <a href="/property-finding.html" style="color:var(--gold)">Put the hunt
+        engine on it →</a></p>
+    </div>
+  </div>
+</section>

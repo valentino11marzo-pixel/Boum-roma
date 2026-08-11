@@ -1,0 +1,177 @@
+<script>
+/* LA REGIA DELLA CASA — una casa alla volta, dal catalogo vero.
+   Parte al load: il motore Solari è concatenato DOPO questo script. */
+(function () {
+  'use strict';
+  function via() {
+  var CASE = 'CASE_JSON';
+  var BS = window.BoomSolari;
+  var ridotto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function euro(n) { return '€' + Math.round(n).toLocaleString('en-US'); }
+  function per(sel) { return document.querySelector(sel); }
+
+  /* quale casa: quella dell'indirizzo, o la prima disponibile */
+  var ide = (location.hash.match(/id=([^&]+)/) || [])[1];
+  var c = CASE.filter(function (x) { return x.id === ide; })[0] || CASE[0];
+
+  /* ── la scena: la foto grande e il rullino ──────────────────────────── */
+  var telaio = document.getElementById('telaio');
+  var rullino = document.getElementById('rullino');
+  var immagini = c.foto && c.foto.length ? c.foto : [c.cover];
+  immagini = immagini.filter(Boolean);
+  var img = document.createElement('img');
+  img.alt = c.nome + ', ' + c.zona + ' — apartment for rent in Rome with BOOM';
+  img.decoding = 'async';
+  telaio.insertBefore(img, telaio.firstChild);
+  function mostra(i) {
+    img.classList.remove('qui');
+    var pre = new Image();
+    pre.onload = function () { img.src = pre.src; img.classList.add('qui'); };
+    pre.src = immagini[i];
+    [].slice.call(rullino.children).forEach(function (b, k) {
+      b.classList.toggle('qui', k === i); });
+  }
+  immagini.forEach(function (u, i) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('aria-label', 'Photo ' + (i + 1) + ' of ' + immagini.length);
+    var t = document.createElement('img');
+    t.src = u; t.alt = ''; t.loading = 'lazy'; t.decoding = 'async';
+    b.appendChild(t);
+    b.addEventListener('click', function () { mostra(i); });
+    rullino.appendChild(b);
+  });
+  if (immagini.length < 2) rullino.style.display = 'none';
+  mostra(0);
+
+  /* ── l'anagrafica ───────────────────────────────────────────────────── */
+  per('#nomeCasa').textContent = c.nome;
+  per('#doveCasa').textContent = [c.zona, c.indirizzo].filter(Boolean).join(' · ');
+  per('#briZona').textContent = c.zona;
+  per('#briZona').setAttribute('href', '/apartments.html#zona=' + encodeURIComponent(c.zona));
+  document.title = c.nome + ' — ' + c.zona + ', Rome | BOOM';
+  var st = per('#statoCasa');
+  st.textContent = c.stato; st.className = 'stato-grande ' + (c.libera ? 'si' : '');
+  per('#cuoreCasa').dataset.u = '/listing/' + c.id;
+  per('#applicaNome').textContent = c.nome;
+
+  /* il canone sui Solari, come ovunque nel sito */
+  var canone = per('#canoneCasa');
+  canone.dataset.p = euro(c.prezzo);
+  canone.setAttribute('aria-label', euro(c.prezzo) + ' per month');
+  if (BS) {
+    var bo = new BS.Board(canone, euro(c.prezzo).length, ' €,.0123456789');
+    setTimeout(function () {
+      ridotto ? bo.show(euro(c.prezzo)) : bo.show(euro(c.prezzo), 60, true);
+    }, 500);
+  } else canone.textContent = euro(c.prezzo);
+
+  /* ── i fatti ────────────────────────────────────────────────────────── */
+  var FATTI = [
+    [c.mq ? c.mq + ' m²' : null, 'Size'],
+    [c.letti === 0 ? 'Studio' : (c.letti ? c.letti + ' bed' : null), 'Bedrooms'],
+    [c.bagni ? c.bagni : null, 'Bathrooms'],
+    [c.piano ? c.piano : null, 'Floor'],
+    [c.arredata ? 'Furnished' : (c.tipo || null), c.arredata ? 'Interior' : 'Type'],
+  ].filter(function (f) { return f[0]; });
+  per('#fatti').innerHTML = FATTI.map(function (f) {
+    return '<div class="fatto"><b>' + f[0] + '</b><span>' + f[1] + '</span></div>';
+  }).join('');
+
+  /* ── il racconto e ciò che c'è dentro ───────────────────────────────── */
+  per('#raccontoCasa').textContent = c.racconto
+    || 'Walked and checked by us. Ask for the full walkthrough — we filmed it.';
+  per('#dentroCasa').innerHTML = (c.dentro || []).slice(0, 10)
+    .map(function (x) { return '<span>' + x + '</span>'; }).join('');
+
+  /* ── IL DENARO IN CHIARO ────────────────────────────────────────────── */
+  var mesiCauzione = c.cauzioneMesi || 1;
+  var cauzione = c.prezzo * mesiCauzione;
+  var onorario = Math.round(c.prezzo * 12 * .10);
+  per('#contoCanone').textContent = euro(c.prezzo);
+  per('#contoQuando').textContent = c.dal
+    ? 'Available from ' + new Date(c.dal + 'T12:00:00')
+        .toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })
+    : 'Paid on move-in day';
+  per('#contoCauzione').textContent = euro(cauzione);
+  per('#contoCauzione').previousElementSibling;
+  document.querySelectorAll('.conto-riga')[1].querySelector('em').textContent =
+    mesiCauzione + (mesiCauzione === 1 ? ' month' : ' months')
+    + ' — returned after the final walkthrough';
+  per('#contoOnorario').textContent = euro(onorario);
+  var totale = c.prezzo + cauzione + onorario;
+  per('#contoTotale').textContent = euro(totale);
+
+  /* ── L'APPLY: i tre passi si accendono mentre scrivi ────────────────── */
+  (function () {
+    var forma = document.getElementById('modApplica');
+    var fatto = document.getElementById('applicaFatto');
+    var eti = [].slice.call(document.querySelectorAll('.passo-eti'));
+    var nome = document.getElementById('apNome');
+    var mail = document.getElementById('apMail');
+    var quando = document.getElementById('apQuando');
+    var chi = document.getElementById('apChi');
+    function stato() {
+      var n = 0;
+      if (nome.value.trim()) n = 1;
+      if (n === 1 && mail.value.trim()) n = 2;
+      if (n === 2 && (quando.value || chi.value)) n = 3;
+      eti.forEach(function (e, i) {
+        e.classList.toggle('fatto', i < n);
+        e.classList.toggle('ora', i === n);
+      });
+    }
+    [nome, mail, quando, chi].forEach(function (x) {
+      x.addEventListener('input', stato); x.addEventListener('change', stato);
+    });
+    stato();
+    forma.addEventListener('submit', function (e) {
+      e.preventDefault();
+      forma.style.display = 'none';
+      fatto.classList.add('si');
+      eti.forEach(function (x) { x.classList.add('fatto'); });
+    });
+    /* ciò che hai detto in home o nella ricerca arriva fin qui */
+    var h = location.hash.replace('#', '');
+    h.split('&').forEach(function (p) {
+      var k = p.split('=')[0], v = decodeURIComponent(p.split('=')[1] || '');
+      if (k === 'dal' && /^\d{4}-\d{2}-\d{2}$/.test(v)) quando.value = v;
+      if (k === 'chi' && v) chi.value = v;
+    });
+    stato();
+  })();
+
+  /* ── le altre case: tre, della stessa mano ──────────────────────────── */
+  var altre = CASE.filter(function (x) {
+    return x.id !== c.id && x.cover;
+  }).sort(function (a, b) {
+    /* prima quelle libere, poi quelle della stessa zona */
+    var pa = (a.libera ? 0 : 2) + (a.zona === c.zona ? 0 : 1);
+    var pb = (b.libera ? 0 : 2) + (b.zona === c.zona ? 0 : 1);
+    return pa - pb;
+  }).slice(0, 3);
+  document.getElementById('altre').innerHTML = altre.map(function (a) {
+    var dati = [a.zona, a.mq ? a.mq + ' m²' : '',
+      a.letti === 0 ? 'Studio' : (a.letti ? a.letti + ' bed' : '')]
+      .filter(Boolean).join(' <i>·</i> ');
+    return '<a class="casa-p" href="/listing/' + a.id + '">'
+      + '<div class="home-foto"><img loading="lazy" decoding="async" src="'
+      + a.cover + '" alt="' + a.nome + ', ' + a.zona + '">'
+      + '<span class="casa-stato ' + (a.libera ? 'si' : '') + '">'
+      + a.stato + '</span></div>'
+      + '<div class="corpo"><div class="riga1"><span class="nome">'
+      + a.nome + '</span><span class="canone"><span class="flap-prezzo '
+      + 'flap-scale" data-p="' + euro(a.prezzo) + '" aria-label="'
+      + euro(a.prezzo) + ' per month"></span><small>/mo</small></span></div>'
+      + '<div class="riga2">' + dati + '</div></div></a>';
+  }).join('');
+
+  /* cambiando casa dall'indirizzo, la pagina si rifà */
+  addEventListener('hashchange', function () {
+    if (/id=/.test(location.hash)) location.reload();
+  });
+  }
+  if (document.readyState === 'complete') via();
+  else addEventListener('load', via);
+})();
+</script>

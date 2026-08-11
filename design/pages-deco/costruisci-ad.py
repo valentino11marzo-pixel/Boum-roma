@@ -151,7 +151,7 @@ else:
 
 if MODO == 'artefatto':
     HOME = 'https://claude.ai/code/artifact/5e7c6222-9a91-4052-a4d7-f31255ed4478'
-    CASA = 'https://claude.ai/code/artifact/a65a8cb4-bfe1-49a5-acaf-2c4a1a992321'
+    CASA = 'https://claude.ai/code/artifact/db7c3240-a12d-4734-9eb7-06a780584231'
     h = h.replace('href="/index.html"', 'href="' + HOME + '"')
     h = h.replace('href="/listing/', 'href="' + CASA + '#id=')
     h = re.sub(r'href="/([a-z-]+)\.html"', r'href="https://www.boomrome.com/\1"', h)
