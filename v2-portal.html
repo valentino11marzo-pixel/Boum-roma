@@ -2131,7 +2131,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       onde.push({ x: p.x, y: p.y, via: performance.now() });
       if (onde.length > 4) onde.shift();
     }
-    var battito = 2600;
+    var battito = 700;
     function vita(t) {
       ctx.clearRect(0, 0, W, H);
       /* il battito del mosaico, anche in cima: l'anello dal cuore */
@@ -2139,7 +2139,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         onde.push({ x: W * (mob ? .5 : .56), y: H * .42,
           via: t, batte: true });
         if (onde.length > 4) onde.shift();
-        battito = t + 7200;
+        battito = t + 8200;
       }
       /* i tempi giusti: su mobile lo schermo è corto — l'onda cammina
          più svelta perché il viaggio duri uguale all'occhio */
@@ -2160,12 +2160,19 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         E[i] = Math.max(E[i], v1 * v1 * .9, v2 * v2 * .35, vm * vm, vs);
         if (v1 > .96 && Math.random() < .005) AU[i] = .9;
         for (var oi = 0; oi < onde.length; oi++) {
-          var od = onde[oi]; var eta = (t - od.via) / 900;
+          var od = onde[oi];
+          /* il battito ha il passo del mosaico: lento, maestoso */
+          var eta = (t - od.via) / (od.batte ? 2600 : 900);
           if (eta > 1.4) continue;
-          var da = Math.abs(Math.hypot(x - od.x, y - od.y) - eta * MIN * .5);
+          var da = Math.abs(Math.hypot(x - od.x, y - od.y)
+            - eta * MIN * (od.batte ? .72 : .5));
           var vo = Math.max(0, 1 - da / (MIN * .09));
           E[i] = Math.max(E[i], vo * (1.2 - eta));
-          if (vo > .9 && Math.random() < (od.batte ? .022 : .015)) AU[i] = .8;
+          if (od.batte) {
+            /* la banda piena del mosaico: ogni cella sulla cresta si
+               accende d'oro, e l'anello sfuma mentre si allarga */
+            AU[i] = Math.max(AU[i], vo * vo * (1 - eta * .5) * .85);
+          } else if (vo > .9 && Math.random() < .015) AU[i] = .8;
         }
       }
       var dtv = Math.min(80, t - (vita.prima || t)); vita.prima = t;
