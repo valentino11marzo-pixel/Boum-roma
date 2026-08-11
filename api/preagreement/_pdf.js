@@ -63,7 +63,9 @@ export async function buildPaPdf(pa, opts = {}) {
   stamp(page);
 
   const foot = pg => {
-    pg.drawText('Egidi Immobiliare S.r.l.     P.IVA 17322991005     boomrome.com', { x: M, y: 34, size: 8, font, color: SOFT });
+    // 6.5pt sulla riga lunga: a 7pt misura 485pt e la luce è 483 (A4 - 2*M).
+    pg.drawText('BOOM® is a registered European Union trade mark (EUTM 019317594) of Egidi Immobiliare S.r.l.', { x: M, y: 44, size: 7, font, color: SOFT });
+    pg.drawText('Egidi Immobiliare S.r.l. - Via dei Coronari 181/184, 00186 Roma - Registered office: Viale Liegi 42, 00198 Roma - P.IVA 17322991005 - boomrome.com', { x: M, y: 34, size: 6.5, font, color: SOFT });
   };
   const need = h => {
     if (y - h < 70) { foot(page); page = pdf.addPage(A4); y = A4[1] - M; stamp(page); }

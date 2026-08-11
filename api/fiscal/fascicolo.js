@@ -251,6 +251,10 @@ async function buildPdf({ contract, property, calc, input, deadlines }) {
   });
   y -= 10; need(14);
   T('Generato automaticamente da BOOM - boomrome.com - non costituisce consulenza fiscale.', M, y, 7.5, font, grey);
+  y -= 11; need(12);
+  T('BOOM® è un marchio dell\'Unione europea registrato (MUE 019317594) di Egidi Immobiliare S.r.l.', M, y, 7, font, grey);
+  y -= 10; need(11);
+  T('Egidi Immobiliare S.r.l. - Via dei Coronari 181/184, 00186 Roma - Sede legale: Viale Liegi 42, 00198 Roma - P.IVA 17322991005', M, y, 7, font, grey);
 
   return await pdf.save();
 }
