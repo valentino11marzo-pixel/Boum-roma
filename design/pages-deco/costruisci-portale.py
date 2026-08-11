@@ -114,6 +114,27 @@ minimo = min(int(re.sub(r'[^\d]', '', str(r['price'])) or 10**9)
              for r in tutti if r['status'] == 'available')
 h = h.replace('From €1,000/mo', 'From ' + euro(minimo) + '/mo')
 h = h.replace('AGGIORNATO', AGG)
+# ── LO SKYLINE: i quartieri alla loro longitudine reale ────────────────
+import statistics as _st
+piene = json.load(open('case-full.json'))
+coord, quante = {}, {}
+for r in piene:
+    if r.get('status') not in ('available','reserved','rented','waitlist'): continue
+    if not r.get('nome') and not r.get('name'): continue
+    z = re.sub(r'\s+',' ',str(r.get('zone') or 'Roma')).split('/')[0].strip()
+    quante.setdefault(z, []).append(r)
+    if r.get('lng'): coord.setdefault(z, []).append(float(r['lng']))
+SKY = []
+for z, rr in quante.items():
+    if z not in coord: continue
+    pr = [int(re.sub(r'[^\d]','',str(x.get('price') or '')) or 0) for x in rr]
+    pr = [p for p in pr if p]
+    disp = [x for x in rr if x['status'] == 'available']
+    if not pr: continue
+    SKY.append({'z': z, 'lng': round(_st.mean(coord[z]), 5), 'n': len(rr),
+                'da': euro(min(pr)), 'si': bool(disp)})
+SKY.sort(key=lambda x: x['lng'])
+h = h.replace("'SKY_JSON'", json.dumps(SKY, ensure_ascii=False))
 h = h.replace('CASE_TRE', TRE)
 # la scena 1 dell'apparecchio: il flagship vero (foto, nome, canone, totale)
 flag_foto = json.load(open('foto-casa.json'))
