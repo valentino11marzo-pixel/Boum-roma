@@ -123,6 +123,20 @@ h = h.replace('SC_NOME', sc['nome'])
 h = h.replace('SC_PREZZO', euro(sc['prezzo']))
 h = h.replace('SC_TOT', euro(sc['prezzo'] * 2 + round(sc['prezzo'] * 12 * .10)))
 h = h.replace('PASS_LOGO', leggi('logo-live.svg').strip())
+# la foto del fondatore: se c'è founder.jpg la incastoniamo, altrimenti
+# un'attesa elegante (monogramma) finché Valentino non la manda come file
+import os as _os, base64 as _b64
+if _os.path.exists('founder.jpg'):
+    if MODO == 'artefatto':
+        _src = ('data:image/jpeg;base64,'
+                + _b64.b64encode(open('founder.jpg', 'rb').read()).decode())
+    else:
+        _src = '/img/founder.jpg'
+    FOND = ('<img src="' + _src + '" alt="Valentino, founder of BOOM, '
+            'in Rome" loading="lazy" decoding="async">')
+else:
+    FOND = '<div class="fond-attesa" aria-hidden="true">V</div>'
+h = h.replace('FOUNDER_IMG', FOND)
 # il QR del pass: una texture decorativa dichiarata (aria-hidden), non un QR vero
 import random as _rnd
 _rnd.seed(7)

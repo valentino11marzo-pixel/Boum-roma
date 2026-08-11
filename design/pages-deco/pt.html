@@ -80,8 +80,13 @@ button, input { font:inherit; color:inherit; background:none; border:0; }
   color:var(--gold); }
 .eyebrow i { font-style:normal; width:22px; height:1px; background:var(--gold); }
 h1, h2, h3 { font-family:var(--display); }
-.titolo { margin-top:14px; font-weight:200; font-size:clamp(24px,2.6vw,36px);
+.titolo { margin-top:14px; font-weight:200; font-size:clamp(26px,2.6vw,36px);
   line-height:1.1; letter-spacing:-.015em; text-wrap:balance; }
+@media (max-width:640px){
+  .titolo { font-size:clamp(27px,7.6vw,31px); font-weight:250;
+    line-height:1.14; }
+  .sotto { font-size:15px; }
+  .eyebrow { font-size:11.5px; } }
 .titolo .hl { color:var(--gold); }
 .sotto { margin-top:12px; font-size:14.5px; line-height:1.65;
   color:var(--text-2); max-width:56ch; }
@@ -121,6 +126,9 @@ h1, h2, h3 { font-family:var(--display); }
 .marchio .logo-mark { width:42px; height:42px; flex:none; }
 .marchio span { font-family:var(--display); font-size:18px; font-weight:400;
   letter-spacing:.32em; text-indent:.32em; text-transform:uppercase; }
+@media (max-width:640px){
+  .marchio .logo-mark { width:47px; height:47px; }
+  .marchio span { font-size:19.5px; } }
 .menu { display:none; align-items:center; gap:26px; }
 @media (min-width:1080px){ .menu { display:flex; } }
 .menu a { font-size:13px; font-weight:400; letter-spacing:.02em;
@@ -176,7 +184,13 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   animation:pulse 2.2s ease infinite; }
 @keyframes pulse { 50% { opacity:.35; } }
 .hero-title { margin-top:22px; font-weight:200;
-  font-size:clamp(32px,4.6vw,62px); line-height:1.06; letter-spacing:-.02em; }
+  font-size:clamp(38px,4.6vw,62px); line-height:1.06; letter-spacing:-.02em; }
+@media (max-width:640px){
+  .hero-title { margin-top:18px; font-size:clamp(38px,10.4vw,46px);
+    font-weight:250; line-height:1.08; letter-spacing:-.015em; }
+  .hero-sub { font-size:15.5px; }
+  .hero-azioni .btn { flex:1 1 auto; justify-content:center;
+    text-align:center; padding:15px 18px; } }
 .hero-title .hl { color:var(--gold); }
 .hero-title .flap-scale { vertical-align:baseline; }
 .hero-sub { margin-top:16px; font-size:clamp(14.5px,1.4vw,17px);
@@ -186,23 +200,35 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 
 /* «when do you land?» — l'atterraggio è il primo gesto del funnel */
 .atterro { position:relative; margin-top:20px; display:inline-flex;
-  align-items:center; gap:0; background:var(--card);
-  box-shadow:inset 0 0 0 1px var(--line); border-radius:100px;
-  padding:5px 5px 5px 20px; max-width:100%;
+  align-items:center; flex-wrap:wrap; gap:8px 0; background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--line); border-radius:24px;
+  padding:11px 11px 11px 20px; max-width:100%;
   transition:box-shadow .3s ease; }
 .atterro:focus-within { box-shadow:inset 0 0 0 1px var(--line-gold-2); }
-.atterro label { font-size:10px; font-weight:600; letter-spacing:.18em;
-  text-transform:uppercase; color:var(--text-3); white-space:nowrap;
-  margin-right:14px; }
-.atterro-data { display:inline-flex; align-items:center; gap:9px;
-  padding:10px 6px; font-size:14px; color:var(--text-2); cursor:pointer;
-  min-width:132px; transition:color .25s; }
+.atterro .ac-data > span { display:block; font-size:8.5px; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--text-4); }
+.atterro-data { display:inline-flex; align-items:center; gap:8px;
+  padding:2px 0 1px; font-size:13.5px; color:var(--text-2); cursor:pointer;
+  min-width:128px; transition:color .25s; }
 .atterro-data:hover { color:var(--text); }
 .atterro-data.scelta { color:var(--text); font-weight:400; }
 .atterro-data svg { width:15px; height:15px; flex:none; color:var(--text-4);
   fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; }
 .atterro-data.scelta svg { color:var(--gold); }
-.atterro .btn { padding:12px 22px; font-size:11px; }
+.atterro .btn { padding:12px 20px; font-size:11px; margin-left:12px; }
+.atterro-divisa { width:1px; height:28px; background:var(--line-0);
+  margin:0 14px; flex:none; }
+.atterro-campo { display:flex; flex-direction:column; gap:2px;
+  margin-right:2px; }
+.atterro-campo > span { font-size:8.5px; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--text-4); }
+.atterro-campo select { appearance:none; -webkit-appearance:none;
+  background:transparent url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="8" height="5"><path d="M1 1l3 3 3-3" fill="none" stroke="%23888" stroke-width="1.2" stroke-linecap="round"/></svg>') right center no-repeat;
+  border:0; padding:1px 14px 1px 0; font:inherit; font-size:13.5px;
+  color:var(--text-2); cursor:pointer; max-width:130px; }
+.atterro-campo select:focus-visible { outline:none; color:var(--gold); }
+.atterro-campo select.scelto { color:var(--text); }
+.atterro-campo select option { background:#101012; color:#eee; }
 
 /* il calendario BOOM: lo strumento, non il picker del browser */
 .cal { position:absolute; left:0; top:calc(100% + 10px); z-index:80;
@@ -236,7 +262,9 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   letter-spacing:.14em; color:var(--text-4); text-transform:uppercase;
   padding:4px 0; }
 .cal-giorni { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
-.cal-giorni button { position:relative; height:36px; display:grid;
+.cal-giorni { transition:opacity .18s ease, transform .18s ease; }
+.cal-giorni.gira { opacity:0; transform:translateX(6px); }
+.cal-giorni button { position:relative; height:38px; display:grid;
   place-items:center; font-size:12.5px; color:var(--text-2);
   font-variant-numeric:tabular-nums; cursor:pointer;
   transition:background .15s, color .15s; }
@@ -249,7 +277,8 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   left:50%; transform:translateX(-50%); width:3px; height:3px;
   border-radius:50%; background:var(--gold); }
 .cal-giorni button.sel { background:var(--gold); color:var(--black);
-  font-weight:600; }
+  font-weight:600; animation:cal-scatto .32s var(--ease); }
+@keyframes cal-scatto { 40% { transform:scale(1.14); } }
 .cal-giorni button.sel.oggi::after { background:var(--black); }
 .cal-piede { margin-top:10px; padding-top:10px;
   border-top:1px solid var(--line-0); display:flex; align-items:center;
@@ -261,21 +290,29 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .cal-piede button:hover { color:var(--gold);
   box-shadow:inset 0 0 0 1px var(--line-gold-2); }
 @media (max-width:640px){
-  .atterro { display:flex; flex-wrap:wrap; gap:8px; width:100%;
-    border-radius:22px; padding:12px 14px; }
-  .atterro label { flex:1 1 100%; margin:0 0 2px 4px; }
-  .atterro input { flex:1 1 auto; width:auto; min-width:0; }
-  .atterro .btn { flex:none; } }
+  .atterro { display:grid; grid-template-columns:1fr 1fr; gap:10px 14px;
+    width:100%; border-radius:22px; padding:14px 16px; }
+  .atterro .ac-data { grid-column:1/-1; }
+  .atterro .ac-data > span { font-size:9.5px; }
+  .atterro-data { width:100%; min-width:0; padding:9px 4px 11px;
+    font-size:15.5px; box-shadow:inset 0 -1px 0 var(--line-0); }
+  .atterro .btn { margin-left:0; }
+  .atterro-divisa { display:none; }
+  .atterro-campo { margin:0; }
+  .atterro-campo select { max-width:none; width:100%; font-size:14px;
+    padding:6px 14px 6px 0; }
+  .atterro .btn { grid-column:1/-1; justify-content:center;
+    text-align:center; padding:15px 18px; } }
 /* le cifre del sito, in riga a filetti */
 .hero-stats { margin-top:clamp(24px,3vw,36px); display:flex; flex-wrap:wrap;
   border-top:1px solid var(--line); max-width:640px; }
 .hero-stat { flex:1 1 130px; padding:16px 22px 0 0; }
 .hero-stat + .hero-stat { padding-left:22px; border-left:1px solid var(--line-0); }
-.hero-stat-value { font-family:var(--display); font-size:clamp(22px,2vw,28px);
+.hero-stat-value { font-family:var(--display); font-size:clamp(25px,2vw,28px);
   font-weight:250; letter-spacing:-.02em; color:var(--gold);
   font-variant-numeric:tabular-nums; }
 .hero-stat-label { margin-top:3px; font-size:10px; font-weight:500;
-  letter-spacing:.14em; text-transform:uppercase; color:var(--text-3); }
+  letter-spacing:.14em; text-transform:uppercase; color:var(--text-2); }
 @media (max-width:560px){
   .hero-stats { display:grid; grid-template-columns:1fr 1fr; }
   .hero-stat + .hero-stat { border-left:0; padding-left:0; }
@@ -354,7 +391,17 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   font-size:9px; font-weight:700; letter-spacing:.18em; color:var(--green); }
 .board-live i { font-style:normal; width:5px; height:5px; border-radius:50%;
   background:var(--green); animation:pulse 1.8s ease infinite; }
-.tab-righe { padding:6px 0 2px; }
+.tab-colonne { display:grid; grid-template-columns:minmax(0,1fr) auto auto;
+  gap:6px 12px; padding:8px 18px 0; }
+.tab-colonne span { font-size:8px; font-weight:600; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--text-4); }
+.tab-colonne span:last-child { justify-self:end; }
+@media (max-width:640px){
+  .tab-colonne { grid-template-columns:minmax(0,1fr) auto; padding:8px 12px 0; }
+  .tab-colonne .tc-p { display:none; } }
+.tab-righe { padding:2px 0; }
+.tab-riga { cursor:pointer; transition:background .25s ease; }
+.tab-riga:hover { background:rgba(255,215,0,.045); }
 .tab-riga { display:grid;
   grid-template-columns:minmax(0,1fr) auto auto;
   gap:6px 12px; align-items:center; padding:9px 18px;
@@ -387,6 +434,9 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 @media (min-width:840px){ .imbarco { grid-template-columns:repeat(4,1fr); } }
 .imbarco-v { display:flex; align-items:center; gap:14px; padding:16px 20px;
   background:var(--surface); }
+.imbarco-v svg .acc { opacity:.55; }
+.imbarco-v svg .pieno, .porta svg .pieno { fill:var(--gold); stroke:none; }
+.porta svg .acc { opacity:.55; }
 .imbarco-v svg { width:26px; height:26px; flex:none; color:var(--gold);
   fill:none; stroke:currentColor; stroke-width:1.5; stroke-linecap:round;
   stroke-linejoin:round; }
@@ -534,6 +584,12 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .app-tab i { content:''; position:absolute; left:0; right:100%; bottom:-1px;
   height:2px; background:var(--gold); font-style:normal; }
 .app-tab.on i { animation:app-corsa var(--app-durata,4.6s) linear forwards; }
+.app-vetro { display:flex; align-items:center; gap:5px;
+  padding:8px 14px; border-bottom:1px solid var(--line-0); }
+.app-vetro i { width:7px; height:7px; border-radius:50%;
+  background:var(--line); font-style:normal; }
+.app-vetro span { margin-left:8px; font-size:8.5px; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--text-4); }
 @keyframes app-corsa { to { right:0; } }
 .app-scena { position:relative; flex:1; min-height:290px; }
 .scena-p { position:absolute; inset:0; padding:22px; opacity:0;
@@ -581,6 +637,10 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   margin:12px 0 5px; }
 .sc-campo { padding:10px 12px; background:var(--elevated);
   box-shadow:inset 0 0 0 1px var(--line); font-size:12.5px; min-height:37px; }
+.scena-p.attiva .sc-battuta::after { content:''; display:inline-block;
+  width:1px; height:.9em; margin-left:1px; vertical-align:-.12em;
+  background:var(--gold); animation:sc-caret 1s steps(2) infinite; }
+@keyframes sc-caret { 50% { opacity:0; } }
 .sc-battuta { display:inline-block; white-space:nowrap; overflow:hidden;
   vertical-align:bottom; max-width:0;
   border-right:2px solid var(--gold); }
@@ -709,6 +769,12 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   font-weight:250; color:var(--gold); font-variant-numeric:tabular-nums; }
 .rete-cifra span { display:block; margin-top:2px; font-size:9px;
   letter-spacing:.12em; text-transform:uppercase; color:var(--text-3); }
+.rete-motore { margin-top:16px; display:flex; flex-wrap:wrap; gap:7px; }
+.rete-motore span { font-size:8.5px; font-weight:600; letter-spacing:.16em;
+  color:var(--text-3); padding:6px 10px;
+  box-shadow:inset 0 0 0 1px var(--line-0); border-radius:100px; }
+.rete-motore span:first-child { color:var(--gold);
+  box-shadow:inset 0 0 0 1px var(--line-gold); }
 .rete-pfs .btn { margin-top:20px; }
 .rete-pfs .rete-nota { margin-top:9px; font-size:11.5px; color:var(--text-3); }
 .rete-lato { display:grid; gap:16px; }
@@ -727,6 +793,30 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   letter-spacing:.1em; text-transform:uppercase; color:var(--text-3);
   transition:color .3s; }
 .rete-mini:hover b { color:var(--gold); }
+
+/* ══ IL FONDATORE ══════════════════════════════════════════════════════ */
+.fond { display:grid; gap:clamp(26px,3.4vw,54px); align-items:center;
+  grid-template-columns:1fr; }
+@media (min-width:920px){ .fond {
+  grid-template-columns:minmax(0,.72fr) minmax(0,1fr); } }
+.fond-foto { position:relative; max-width:420px; width:100%;
+  background:var(--void);
+  box-shadow:inset 0 0 0 1px var(--line-gold), 0 40px 90px -40px rgba(0,0,0,.9); }
+.fond-foto img { display:block; width:100%; aspect-ratio:4/5;
+  object-fit:cover; filter:saturate(.92) contrast(1.04); }
+.fond-attesa { display:grid; place-items:center; aspect-ratio:4/5;
+  font-family:var(--display); font-size:110px; font-weight:200;
+  color:var(--gold); background:
+    radial-gradient(70% 55% at 50% 38%, rgba(255,215,0,.07), transparent 70%); }
+.fond-quote { margin:18px 0 0; padding-left:16px;
+  border-left:2px solid var(--line-gold-2); font-family:var(--display);
+  font-size:clamp(16px,1.6vw,19px); font-weight:300; font-style:italic;
+  color:var(--text-2); }
+.fond-firma { margin-top:14px; }
+.fond-firma b { display:block; font-family:var(--display); font-size:17px;
+  font-weight:400; letter-spacing:.04em; }
+.fond-firma span { display:block; margin-top:3px; font-size:11px;
+  color:var(--text-3); }
 
 /* ══ CONCIERGE — sei voci a tavola ═════════════════════════════════════ */
 .griglia6 { margin-top:clamp(22px,2.6vw,34px); display:grid;
@@ -991,12 +1081,34 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         <a class="btn btn-secondary" href="COME_URL">How It Works</a>
       </div>
       <form class="atterro" id="atterro">
-        <label id="quandoEti">When do you land?</label>
+        <div class="atterro-campo ac-data">
+        <span id="quandoEti">When do you land?</span>
         <button type="button" class="atterro-data" id="quandoBtn"
           aria-haspopup="dialog" aria-expanded="false"
           aria-labelledby="quandoEti">
           <svg viewBox="0 0 24 24"><path d="M5 6h14a1.5 1.5 0 0 1 1.5 1.5V19a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 19V7.5A1.5 1.5 0 0 1 5 6zM8 3.5v5m8-5v5M3.5 11h17"/></svg>
           <span id="quandoTesto">Pick a date</span></button>
+        </div>
+        <span class="atterro-divisa" aria-hidden="true"></span>
+        <label class="atterro-campo">
+          <span>Budget</span>
+          <select id="quantoBudget" aria-label="Monthly budget">
+            <option value="">Any</option>
+            <option value="1000">up to €1,000</option>
+            <option value="1500">€1,000–1,500</option>
+            <option value="2000">€1,500–2,000</option>
+            <option value="9999">€2,000+</option>
+          </select></label>
+        <span class="atterro-divisa" aria-hidden="true"></span>
+        <label class="atterro-campo">
+          <span>Who's landing?</span>
+          <select id="chiAtterra" aria-label="Who is moving in">
+            <option value="">—</option>
+            <option value="solo">Just me</option>
+            <option value="couple">Couple</option>
+            <option value="family">Family</option>
+            <option value="flatmates">Flatmates</option>
+          </select></label>
         <button type="submit" class="btn btn-primary" id="quandoVai">Find homes</button>
         <div class="cal" id="cal" role="dialog" aria-label="Choose your arrival date">
           <div class="cal-testa"><b id="calMese">—</b>
@@ -1017,8 +1129,8 @@ html.vivo .sale.dentro { opacity:1; transform:none;
           <div class="hero-stat-label">Move-in Time</div></div>
         <div class="hero-stat"><div class="hero-stat-value" data-fine="98" data-suff="%">0%</div>
           <div class="hero-stat-label">Success Rate</div></div>
-        <div class="hero-stat"><div class="hero-stat-value" data-fine="2" data-suff="min">0min</div>
-          <div class="hero-stat-label">Response Time</div></div>
+        <div class="hero-stat"><div class="hero-stat-value">Stripe</div>
+          <div class="hero-stat-label">Protected Payments</div></div>
         <div class="hero-stat"><div class="hero-stat-value">€0</div>
           <div class="hero-stat-label">Hidden Fees</div></div>
       </div>
@@ -1026,8 +1138,10 @@ html.vivo .sale.dentro { opacity:1; transform:none;
 
     <aside class="board quadro" aria-label="Live move-in board">
       <span class="tacca"></span>
-      <div class="board-testa"><b>Live move-in board</b>
+      <div class="board-testa"><b>ROME · Move-in board</b>
         <span class="board-live"><i></i>LIVE</span></div>
+      <div class="tab-colonne" aria-hidden="true"><span>Destination</span>
+        <span class="tc-p">€/mo</span><span>Status</span></div>
       <div class="tab-righe" id="tabRighe" aria-live="off"></div>
       <div class="board-piede"><span><b>DISPONIBILI</b> homes available now</span>
         <span>Catalogue updated <b>AGGIORNATO</b></span></div>
@@ -1037,14 +1151,14 @@ html.vivo .sale.dentro { opacity:1; transform:none;
   <!-- la strip d'imbarco: quattro fatti veri -->
   <div class="container">
     <div class="imbarco coro dentro-subito">
-      <div class="imbarco-v"><svg viewBox="0 0 40 40"><path d="M6 26l28-12-10 14-4-5-6 6-2-6z"/></svg>
+      <div class="imbarco-v"><svg viewBox="0 0 40 40"><path d="M5 30h30M8 25.5l17.5-9a3.4 3.4 0 0 1 4.6 1.3c.8 1.6.2 3.5-1.4 4.4L16 28l-8-2.5z"/><path d="M12 18l6 4.5M28 12.5l4-2" class="acc"/><circle cx="33.5" cy="9.5" r="1.4" class="pieno"/></svg>
         <div><b>ROM</b><span>Your landing, handled</span></div></div>
-      <div class="imbarco-v"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="12"/><path d="M20 12v8l6 4"/></svg>
+      <div class="imbarco-v"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="12.5"/><path d="M20 13.5V20l5 3"/><path d="M20 4.5v3M35.5 20h-3M20 35.5v-3M4.5 20h3" class="acc"/><circle cx="20" cy="20" r="1.3" class="pieno"/></svg>
         <div><b class="orologio-roma" id="oraRoma">—:—</b><span>In Rome now · we reply in 2h</span></div></div>
-      <div class="imbarco-v"><svg viewBox="0 0 40 40"><path d="M20 6l12 5v9c0 7-5 12-12 14-7-2-12-7-12-14v-9z"/><path d="M14.5 20l4 4 7-8"/></svg>
+      <div class="imbarco-v"><svg viewBox="0 0 40 40"><path d="M20 5.5l12.5 5v9.5c0 7.2-5.2 12.4-12.5 14.5C12.7 32.4 7.5 27.2 7.5 20v-9.5z"/><path d="M14.5 20.2l4 4 7.5-8.5" class="acc"/></svg>
         <div><b>VERIFIED</b><span>Video-checked homes</span></div></div>
-      <div class="imbarco-v"><svg viewBox="0 0 40 40"><path d="M13 24l-6 6m21-21l6-6M12 28l-2 8 8-2m4-24l8-2-2 8M15 25l10-10"/><circle cx="27" cy="13" r="4"/><circle cx="13" cy="27" r="4"/></svg>
-        <div><b>48H</b><span>Move-in, in as little as</span></div></div>
+      <div class="imbarco-v"><svg viewBox="0 0 40 40"><rect x="5.5" y="11" width="29" height="19" rx="2.5"/><path d="M5.5 17h29"/><path d="M10.5 24.5h7" class="acc"/><path d="M25 24.5l2.6 2.6 5-5.6" class="acc"/></svg>
+        <div><b>SECURE PAY</b><span>Stripe · receipts on everything</span></div></div>
     </div>
   </div>
 </header>
@@ -1060,27 +1174,27 @@ html.vivo .sale.dentro { opacity:1; transform:none;
     </div>
     <div class="porte coro">
       <a class="porta" href="/apartments.html">
-        <svg viewBox="0 0 40 40"><path d="M7 19 20 8l13 11"/><path d="M11 17v15h18V17"/><path d="M17 32v-9h6v9"/></svg>
+        <svg viewBox="0 0 40 40"><path d="M7 19 20 8l13 11"/><path d="M11 17v15h18V17"/><path d="M17 32v-9h6v9" class="acc"/><circle cx="20" cy="14.5" r="1.3" class="pieno"/></svg>
         <h3>Ready Apartments</h3>
         <p>Move-in ready homes, video-verified. From €1,000/mo.</p><i>→</i></a>
       <a class="porta" href="/property-finding.html">
-        <svg viewBox="0 0 40 40"><circle cx="18" cy="18" r="9.5"/><path d="M25 25l8 8"/><path d="M18 13.5v9M13.5 18h9"/></svg>
+        <svg viewBox="0 0 40 40"><circle cx="18" cy="18" r="9.5"/><path d="M25 25l8 8"/><path d="M18 18L23 13" class="acc"/><circle cx="18" cy="18" r="1.3" class="pieno"/><path d="M18 8.5v-3M27.5 18h3" class="acc"/></svg>
         <h3>Property Finding</h3>
         <p>We hunt the whole market for you. €350, deducted on success.</p><i>→</i></a>
       <a class="porta" href="/deal-assistance.html">
-        <svg viewBox="0 0 40 40"><path d="M20 6l12 5v9c0 7-5 12-12 14-7-2-12-7-12-14v-9z"/><path d="M14.5 20l4 4 7-8"/></svg>
+        <svg viewBox="0 0 40 40"><path d="M20 5.5l12.5 5v9.5c0 7.2-5.2 12.4-12.5 14.5C12.7 32.4 7.5 27.2 7.5 20v-9.5z"/><path d="M14.5 20.2l4 4 7.5-8.5" class="acc"/></svg>
         <h3>Deal Assistance</h3>
         <p>Found one yourself? We verify and negotiate. €249 fixed.</p><i>→</i></a>
       <a class="porta" href="/virtual-viewing.html">
-        <svg viewBox="0 0 40 40"><rect x="6" y="12" width="19" height="16" rx="1.5"/><path d="M25 18l9-5v14l-9-5"/></svg>
+        <svg viewBox="0 0 40 40"><rect x="6" y="12" width="19" height="16" rx="2.5"/><path d="M25 18.5l9-5.5v14l-9-5.5"/><path d="M13.5 17.5l5 2.5-5 2.5z" class="acc"/></svg>
         <h3>Virtual Viewing</h3>
         <p>Live video tours with our team — anywhere. €89.</p><i>→</i></a>
       <a class="porta" href="/concierge.html">
-        <svg viewBox="0 0 40 40"><path d="M8 28h24M20 28v-3M10 28a10 10 0 0 1 20 0"/><path d="M17 12h6"/></svg>
+        <svg viewBox="0 0 40 40"><path d="M7 29h26M10 29a10 10 0 0 1 20 0"/><path d="M20 19v-4M18 13h4" class="acc"/><circle cx="20" cy="19" r="1.2" class="pieno"/><path d="M31 33h2.5" class="acc"/></svg>
         <h3>Concierge</h3>
         <p>Cleaning, transfers, permits — from day one.</p><i>→</i></a>
       <a class="porta" href="/free-contract-check.html">
-        <svg viewBox="0 0 40 40"><path d="M12 5h12l6 6v24H12z"/><path d="M24 5v6h6M17 19h8M17 24h8M17 29h5"/></svg>
+        <svg viewBox="0 0 40 40"><path d="M12 5h12l6 6v24H12z"/><path d="M24 5v6h6"/><path d="M17 19h8M17 24h8" class="acc"/><path d="M16.5 29.5l2.4 2.4 4.6-5" class="acc"/></svg>
         <h3>Contract Check</h3>
         <p>Your contract, read by us before you sign.</p><i>→</i></a>
     </div>
@@ -1119,6 +1233,8 @@ CASE_TRE
           id="appTab3" aria-controls="appScena3" tabindex="-1"
           aria-selected="false"><b>04</b><span>Move in · 48h</span><i></i></button>
       </div>
+      <div class="app-vetro" aria-hidden="true"><i></i><i></i><i></i>
+        <span>boomrome.com — live product</span></div>
       <div class="app-scena">
         <div class="scena-p attiva" data-s="0" id="appScena0" role="tabpanel" aria-labelledby="appTab0">
           <div class="sc-passeggiata" aria-hidden="true">
@@ -1187,11 +1303,14 @@ CASE_TRE
           the off-market around the clock, a human verifies every match, and
           you get curated options — not links.</p>
         <div class="rete-cifre">
-          <div class="rete-cifra"><b>10</b><span>days to find</span></div>
+          <div class="rete-cifra"><b>1:1</b><span>tailored hunt</span></div>
           <div class="rete-cifra"><b>5+</b><span>curated options</span></div>
           <div class="rete-cifra"><b>24/7</b><span>market scan</span></div>
           <div class="rete-cifra"><b>€0</b><span>if we fail</span></div>
         </div>
+        <div class="rete-motore" aria-label="The engine behind the hunt">
+          <span>RADAR — 96 scans/day</span><span>HUMAN-VERIFIED</span>
+          <span>OFF-MARKET INCLUDED</span></div>
         <a class="btn btn-primary" href="/property-finding.html">Start the hunt</a>
         <p class="rete-nota">€350 upfront — deducted from the agency fee when
           we find your home. Full refund if we don't deliver.</p>
@@ -1252,6 +1371,8 @@ CASE_TRE
       <div class="pass-lista">
         <div class="pass-voce"><i></i>Your tenant pass in Apple Wallet —
           issued with your contract</div>
+        <div class="pass-voce"><i></i>Sign your contract from your phone —
+          magic-link, no printer, legally valid</div>
         <div class="pass-voce"><i></i>Rent, receipts and documents in one place</div>
         <div class="pass-voce"><i></i>Maintenance? Report it from your phone</div>
         <div class="pass-voce"><i></i>Your deposit, tracked to the day it
@@ -1318,9 +1439,30 @@ CASE_TRE
       <div><b data-fine="500" data-suff="+">0+</b><span>Happy Tenants Placed</span></div>
       <div><b data-fine="48" data-suff="h">0h</b><span>Average Move-in Time</span></div>
       <div><b>24/7</b><span>WhatsApp Support</span></div>
-      <div class="citazione">
-        <p>"If we can fix Rome's rental market, we can fix any market."</p>
-        <span><b>Valentino</b> — Founder &amp; CEO</span>
+    </div>
+  </div>
+</section>
+
+<!-- ══ IL FONDATORE ══════════════════════════════════════════════════════ -->
+<section class="sezione">
+  <div class="container fond">
+    <div class="fond-foto quadro sale"><span class="tacca"></span>
+      FOUNDER_IMG
+    </div>
+    <div class="sale">
+      <span class="eyebrow"><i></i>The founder</span>
+      <h2 class="titolo">A face, <span class="hl">not a booking platform.</span></h2>
+      <p class="sotto">BOOM is run by a person you can name, meet in Rome and
+        message directly. Every home on this site has been walked by us;
+        every promise here has my name under it.</p>
+      <blockquote class="fond-quote">"If we can fix Rome's rental market,
+        we can fix any market."</blockquote>
+      <div class="fond-firma"><b>Valentino</b><span>Founder — BOOM ·
+        Egidi Immobiliare S.r.l., Via dei Coronari 181, Roma</span></div>
+      <div class="hero-azioni" style="margin-top:20px">
+        <a class="btn btn-primary" href="https://wa.me/393313251961"
+          target="_blank" rel="noopener">Message me on WhatsApp</a>
+        <a class="btn btn-secondary" href="/about.html">Our story</a>
       </div>
     </div>
   </div>
@@ -1446,6 +1588,12 @@ CASE_TRE
       riga.appendChild(z); riga.appendChild(p); riga.appendChild(t);
       riga.setAttribute('aria-label',
         r.z + ', ' + r.p + ' per month, ' + r.s.toLowerCase());
+      riga.setAttribute('role', 'link'); riga.tabIndex = 0;
+      var vaiZona = function () {
+        location.href = 'AP_URL' + '#zona=' + encodeURIComponent(r.z); };
+      riga.addEventListener('click', vaiZona);
+      riga.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); vaiZona(); } });
       casa.appendChild(riga);
       organi.push({
         z: new BS.Board(z, LZ, ' ABCDEFGHIJKLMNOPQRSTUVWXYZ\''),
@@ -1482,7 +1630,7 @@ CASE_TRE
     if (!app) return;
     var tabs = [].slice.call(app.querySelectorAll('.app-tab'));
     var scene = [].slice.call(app.querySelectorAll('.scena-p'));
-    var DUR = 4600, qui = 0, giro = null;
+    var DUR = 3800, qui = 0, giro = null;
     app.style.setProperty('--app-durata', DUR + 'ms');
     function mostra(n) {
       qui = n;
@@ -1623,8 +1771,12 @@ CASE_TRE
       scelta = new Date(b.dataset.d + 'T12:00:00');
       testo.textContent = bella(scelta);
       if (window.__passData) window.__passData(bella(scelta));
+      var fra = Math.round((scelta - oggi) / 864e5);
+      document.getElementById('calHint').textContent = fra <= 2
+        ? 'Tight — and enough. 48h is our craft.'
+        : 'Landing in ' + fra + ' days — plenty for a 48h move-in.';
       btn.classList.add('scelta');
-      vai.textContent = 'Find homes · ' + scelta.toLocaleDateString('en-GB',
+      var _ignora = scelta.toLocaleDateString('en-GB',
         { day: 'numeric', month: 'short' });
       apri(false);
     });
@@ -1633,7 +1785,7 @@ CASE_TRE
       testo.textContent = 'ASAP — ' + bella(scelta);
       if (window.__passData) window.__passData(bella(scelta));
       btn.classList.add('scelta');
-      vai.textContent = 'Find homes · now';
+      /* la CTA resta «Find homes»: la scelta vive nel campo data */
       apri(false);
     });
     addEventListener('keydown', function (e) {
@@ -1644,8 +1796,13 @@ CASE_TRE
     });
     forma.addEventListener('submit', function (e) {
       e.preventDefault();
-      var base = 'AP_URL';
-      location.href = scelta ? base + '#dal=' + iso(scelta) : base;
+      var base = 'AP_URL', pezzi = [];
+      if (scelta) pezzi.push('dal=' + iso(scelta));
+      var b = document.getElementById('quantoBudget').value;
+      var c = document.getElementById('chiAtterra').value;
+      if (b) pezzi.push('budget=' + b);
+      if (c) pezzi.push('chi=' + c);
+      location.href = pezzi.length ? base + '#' + pezzi.join('&') : base;
     });
   })();
   }
