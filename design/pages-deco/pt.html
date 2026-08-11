@@ -172,9 +172,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   from { transform:translate(0,0) scale(1); }
   to   { transform:translate(-4vw,3vw) scale(1.12); } }
 #cartaRoma { position:absolute; inset:0; width:100%; height:100%;
-  opacity:.92;
-  -webkit-mask-image:linear-gradient(#000 0%, #000 72%, transparent 98%);
-  mask-image:linear-gradient(#000 0%, #000 72%, transparent 98%); }
+  opacity:.92; }
 @media (prefers-reduced-motion:reduce){
   .hero-glow { animation:none; } }
 .hero-int { position:relative; z-index:2; display:grid; gap:clamp(24px,3vw,44px);
@@ -961,9 +959,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 /* ══ IL FONDATORE ══════════════════════════════════════════════════════ */
 .fond-sezione { position:relative; }
 .mosaico-fondo { position:absolute; inset:0; width:100%; height:100%;
-  pointer-events:none; opacity:.9;
-  -webkit-mask-image:radial-gradient(115% 95% at 50% 48%, #000 48%, transparent 92%);
-  mask-image:radial-gradient(115% 95% at 50% 48%, #000 48%, transparent 92%); }
+  pointer-events:none; opacity:.9; }
 .fond-sezione .container { position:relative; z-index:2; }
 .fond { display:grid; gap:clamp(26px,3.4vw,54px); align-items:center;
   grid-template-columns:1fr; }
@@ -2005,10 +2001,17 @@ CASE_TRE
     var mob = matchMedia('(max-width: 640px)').matches;
     var ctx = tela.getContext('2d');
     var ORO = '255,215,0', LATTE = '250,248,240';
-    var W, H, DPR, MIN, cw, ch, gap, cols, rows, E, AU;
+    var W, H, DPR, MIN, cw, ch, gap, cols, rows, E, AU, basetela;
+    /* il velo verticale, cotto nell'alpha: niente mask-image al compositor */
+    function velo(y) {
+      var q = y / H;
+      return q < .72 ? 1 : Math.max(0, (0.98 - q) / .26);
+    }
     function misura() {
       var r = tela.getBoundingClientRect();
-      DPR = Math.min(devicePixelRatio || 1, 2);
+      /* tetto d'area: nitido dove serve, mai un canvas mostruoso */
+      DPR = Math.min(devicePixelRatio || 1, 2,
+        Math.max(1, Math.sqrt(2.3e6 / Math.max(1, r.width * r.height))));
       W = Math.round(r.width * DPR); H = Math.round(r.height * DPR);
       tela.width = W; tela.height = H; MIN = Math.min(W, H);
       cw = Math.round((mob ? 30 : 40) * DPR); ch = Math.round(cw * .68);
@@ -2017,6 +2020,19 @@ CASE_TRE
       rows = Math.ceil(H / (ch + gap)) + 1;
       E = new Float32Array(cols * rows);
       AU = new Float32Array(cols * rows);
+      /* lo strato base è un canvas SOTTO, composto dal browser:
+         non si ricopia mai — ogni frame disegna solo le celle accese */
+      basetela = document.createElement('canvas');
+      basetela.width = W; basetela.height = H;
+      var bg = basetela.getContext('2d');
+      for (var r2 = 0; r2 < rows; r2++) for (var c2 = 0; c2 < cols; c2++) {
+        var vy = velo(r2 * (ch + gap));
+        if (vy <= 0) continue;
+        bg.fillStyle = 'rgba(' + LATTE + ',' + (.024 * vy) + ')';
+        bg.beginPath();
+        bg.roundRect(c2 * (cw + gap), r2 * (ch + gap), cw, ch, 3 * DPR);
+        bg.fill();
+      }
     }
     var px = -1e4, py = -1e4, onde = [];
     function localizza(e) {
@@ -2024,14 +2040,17 @@ CASE_TRE
       var p = e.touches ? e.touches[0] : e;
       return { x: (p.clientX - r.left) * DPR, y: (p.clientY - r.top) * DPR };
     }
-    function muovi(e) { var p = localizza(e); px = p.x; py = p.y; }
+    var fretta = 0;
+    function muovi(e) { var p = localizza(e); px = p.x; py = p.y;
+      fretta = performance.now(); }
     var scorsa = 0, spinta = 0;
     function scorri() {
+      fretta = performance.now();
       spinta = Math.min(1, Math.abs(scrollY - scorsa) / 130);
       scorsa = scrollY;
     }
     function tocca(e) {
-      var p = localizza(e);
+      var p = localizza(e); fretta = performance.now();
       if (p.y < -H * .1 || p.y > H * 1.1) return;
       onde.push({ x: p.x, y: p.y, via: performance.now() });
       if (onde.length > 4) onde.shift();
@@ -2070,21 +2089,27 @@ CASE_TRE
           var da = Math.abs(Math.hypot(x - od.x, y - od.y) - eta * MIN * .5);
           var vo = Math.max(0, 1 - da / (MIN * .09));
           E[i] = Math.max(E[i], vo * (1.2 - eta));
-          if (vo > .9 && Math.random() < (od.batte ? .06 : .02)) AU[i] = .8;
+          if (vo > .9 && Math.random() < (od.batte ? .022 : .015)) AU[i] = .8;
         }
       }
-      spinta *= .9;
+      var dtv = Math.min(80, t - (vita.prima || t)); vita.prima = t;
+      var kdec = Math.pow(.9, dtv / 16.7);
+      spinta *= kdec;
       for (var k = 0; k < E.length; k++) {
-        E[k] *= .9; AU[k] *= .9;
+        E[k] *= kdec; AU[k] *= kdec;
         if (E[k] < .003) E[k] = 0;
         if (AU[k] < .003) AU[k] = 0;
       }
+      ctx.drawImage(basetela, 0, 0);
       for (var r2 = 0; r2 < rows; r2++) for (var c2 = 0; c2 < cols; c2++) {
         var i2 = r2 * cols + c2;
+        if (E[i2] < .02 && AU[i2] < .05) continue;   /* dorme: è già base */
         var x2 = c2 * (cw + gap), y2 = r2 * (ch + gap);
+        var vy2 = velo(y2);
+        if (vy2 <= 0) continue;
         ctx.fillStyle = AU[i2] > .05
-          ? 'rgba(' + ORO + ',' + (AU[i2] * .5) + ')'
-          : 'rgba(' + LATTE + ',' + (.024 + E[i2] * .11) + ')';
+          ? 'rgba(' + ORO + ',' + (AU[i2] * .45 * vy2) + ')'
+          : 'rgba(' + LATTE + ',' + (E[i2] * .11 * vy2) + ')';
         ctx.beginPath();
         ctx.roundRect(x2, y2, cw, ch, 3 * DPR);
         ctx.fill();
@@ -2094,8 +2119,15 @@ CASE_TRE
         }
       }
     }
-    var girando = false, visibile = true;
-    function giro(t) { if (!girando) return; vita(t); requestAnimationFrame(giro); }
+    var girando = false, visibile = true, ultimo = 0;
+    function giro(t) {
+      if (!girando) return;
+      /* da quieto il campo respira a 30fps; sotto il gesto torna a 60 */
+      if (t - fretta > 500 && t - ultimo < 28) {
+        requestAnimationFrame(giro); return;
+      }
+      ultimo = t; vita(t); requestAnimationFrame(giro);
+    }
     function accendi() {
       if (girando || !visibile || document.hidden || ridotto) return;
       girando = true; requestAnimationFrame(giro);
@@ -2132,9 +2164,16 @@ CASE_TRE
     var ctx = tela.getContext('2d');
     var ORO = '255,215,0', LATTE = '250,248,240';
     var W, H, DPR, MIN, fondo, tessere;
+    /* il velo radiale, cotto nell'alpha delle tessere */
+    function veloR(x, y) {
+      var dx = (x - W * .5) / (W * 1.15), dy = (y - H * .48) / (H * .95);
+      var d = Math.sqrt(dx * dx + dy * dy) * 2;
+      return d < .48 ? 1 : Math.max(0, (0.92 - d) / .44);
+    }
     function misura() {
       var r = tela.getBoundingClientRect();
-      DPR = Math.min(devicePixelRatio || 1, mob ? 1.5 : 2);
+      DPR = Math.min(devicePixelRatio || 1, mob ? 1.5 : 2,
+        Math.max(1, Math.sqrt(2.3e6 / Math.max(1, r.width * r.height))));
       W = Math.round(r.width * DPR); H = Math.round(r.height * DPR);
       tela.width = W; tela.height = H; MIN = Math.min(W, H);
       fondo = document.createElement('canvas');
@@ -2145,14 +2184,16 @@ CASE_TRE
       tessere = [];
       for (var y = 0; y < H + passo; y += passo)
         for (var x = 0; x < W + passo; x += passo) {
+          var vr = veloR(x, y);
+          if (vr <= 0.01) continue;
           var rot = (Math.random() - .5) * .16;
           var dx = (Math.random() - .5) * 3 * DPR,
               dy = (Math.random() - .5) * 3 * DPR;
-          tessere.push({ x: x + dx, y: y + dy, rot: rot, lato: lato });
+          tessere.push({ x: x + dx, y: y + dy, rot: rot, lato: lato, vr: vr });
           g.save(); g.translate(x + dx + lato / 2, y + dy + lato / 2);
           g.rotate(rot);
           g.fillStyle = 'rgba(' + LATTE + ','
-            + (.022 + Math.random() * .02) + ')';
+            + ((.022 + Math.random() * .02) * vr) + ')';
           g.fillRect(-lato / 2, -lato / 2, lato, lato);
           g.restore();
         }
@@ -2173,13 +2214,17 @@ CASE_TRE
         ctx.translate(ss.x + ss.lato / 2, ss.y + ss.lato / 2);
         ctx.rotate(ss.rot);
         ctx.fillStyle = 'rgba(' + ORO + ','
-          + (v * .3 * (1 - p * .55)) + ')';
+          + (v * .3 * (1 - p * .55) * ss.vr) + ')';
         ctx.fillRect(-ss.lato / 2, -ss.lato / 2, ss.lato, ss.lato);
         ctx.restore();
       }
     }
-    var girando = false, visibile = false;
-    function giro(t) { if (!girando) return; vita(t); requestAnimationFrame(giro); }
+    var girando = false, visibile = false, ultimo = 0;
+    function giro(t) {
+      if (!girando) return;
+      if (t - ultimo < 28) { requestAnimationFrame(giro); return; }
+      ultimo = t; vita(t); requestAnimationFrame(giro);
+    }
     function accendi() {
       if (girando || !visibile || document.hidden || ridotto) return;
       girando = true; requestAnimationFrame(giro);
