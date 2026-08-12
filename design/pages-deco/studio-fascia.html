@@ -1,0 +1,481 @@
+<title>Studio Fascia Fiducia</title>
+<style>
+  :root{
+    --gold:#FFD700; --gold-l:#FFE55C; --gold-d:#E5C200; --green:#00FF88;
+    --black:#030303; --void:#060607; --surface:#0B0B0C; --elevated:#121214;
+    --card:#0E0E10;
+    --text:#FAFAFA; --text-2:rgba(250,250,250,.72); --text-3:rgba(250,250,250,.5);
+    --text-4:rgba(250,250,250,.48); --deco:rgba(250,250,250,.26);
+    --line-0:rgba(255,255,255,.04); --line:rgba(255,255,255,.08);
+    --line-gold:rgba(255,215,0,.14); --line-gold-2:rgba(255,215,0,.3);
+    --ease:cubic-bezier(.16,1,.3,1);
+    --display:'Helvetica Neue',Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--black);color:var(--text);
+    font-family:Inter,system-ui,-apple-system,'Helvetica Neue',sans-serif;
+    font-weight:300;line-height:1.62;-webkit-font-smoothing:antialiased;
+    overflow-wrap:anywhere}
+  a{color:inherit;text-decoration:none}
+  .w{max-width:1040px;margin:0 auto;padding:0 22px}
+  .eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:11.5px;
+    font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--gold)}
+  .eyebrow i{width:26px;height:1px;background:var(--gold)}
+  h1{font-family:var(--display);font-weight:300;font-size:clamp(31px,5.6vw,50px);
+    line-height:1.08;letter-spacing:-.02em;margin:14px 0 0}
+  h2{font-family:var(--display);font-weight:300;font-size:clamp(23px,3.6vw,31px);
+    line-height:1.14;letter-spacing:-.015em;margin:0}
+  p{color:var(--text-2);font-size:15.5px;max-width:70ch}
+  .hl{color:var(--gold)}
+  .cima{padding:68px 0 36px;border-bottom:1px solid var(--line-0)}
+  section{padding:50px 0;border-bottom:1px solid var(--line-0)}
+
+  .capo{display:flex;align-items:baseline;justify-content:space-between;gap:14px;
+    flex-wrap:wrap;margin:34px 0 14px}
+  .capo h3{margin:0;font-family:var(--display);font-weight:400;font-size:19px;
+    letter-spacing:.03em}
+  .capo h3 em{font-style:normal;color:var(--text-4);font-size:12px;
+    letter-spacing:.17em;text-transform:uppercase;margin-left:10px}
+  .num{font-size:12px;color:var(--text-4);font-variant-numeric:tabular-nums}
+  .num b{color:var(--gold);font-weight:400}
+  .telaio{border:1px solid var(--line);border-radius:14px;overflow:hidden;
+    background:var(--void)}
+  .telaio-eti{display:flex;align-items:center;gap:8px;padding:9px 14px;
+    border-bottom:1px solid var(--line-0);font-size:10px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--text-4)}
+  .telaio-eti b{width:6px;height:6px;border-radius:50%;
+    background:rgba(255,255,255,.13);display:block}
+  .palco{padding:20px}
+  .paio{display:grid;gap:14px;margin-top:6px}
+  .mob{max-width:390px}
+  .nota{margin-top:12px;font-size:13px;color:var(--text-3);max-width:74ch}
+  .nota b{color:var(--text-2);font-weight:400}
+
+  svg.ic{width:24px;height:24px;flex:none;color:var(--gold);fill:none;
+    stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+  svg.ic .acc{opacity:.55}
+  svg.ic .pieno{fill:var(--gold);stroke:none}
+
+  /* ══ 0 · L'ATTUALE ══════════════════════════════════════════════ */
+  .imbarco{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;
+    background:var(--line-0);box-shadow:inset 0 0 0 1px var(--line-0);
+    border-radius:14px;overflow:hidden}
+  .telaio:not(.mob) .imbarco{grid-template-columns:repeat(4,1fr)}
+  .imbarco-v{display:flex;align-items:center;gap:14px;padding:16px 20px;
+    background:var(--surface)}
+  .imbarco-v b{display:block;font-family:var(--display);font-size:16px;
+    font-weight:400;letter-spacing:.16em;color:var(--text)}
+  .imbarco-v span{display:block;font-size:10.5px;letter-spacing:.08em;
+    color:var(--text-2);margin-top:3px}
+  .imbarco-v .oro{font-variant-numeric:tabular-nums;letter-spacing:.14em;
+    color:var(--gold)}
+
+  /* ══ A · LA FASCIA DELLE OBIEZIONI ══════════════════════════════ */
+  .fascia{border:1px solid var(--line);border-radius:16px;overflow:hidden;
+    background:var(--surface)}
+  /* il capofila: l'unica cosa comprabile in questo istante */
+  .fa-capo{display:flex;align-items:center;gap:15px;padding:16px 18px;
+    background:linear-gradient(100deg,rgba(255,215,0,.075),rgba(255,215,0,.012) 62%,transparent);
+    border-bottom:1px solid var(--line-0);position:relative;
+    transition:background .3s var(--ease)}
+  .fa-capo:hover{background:linear-gradient(100deg,rgba(255,215,0,.12),rgba(255,215,0,.02) 62%,transparent)}
+  .fa-capo svg.ic{width:28px;height:28px}
+  .fa-testo{flex:1;min-width:0}
+  .fa-testo b{display:block;font-family:var(--display);font-size:16.5px;
+    font-weight:400;letter-spacing:.005em;color:var(--text)}
+  .fa-testo span{display:block;font-size:12.5px;color:var(--text-2);margin-top:3px;
+    line-height:1.5}
+  .fa-agisci{display:inline-flex;align-items:center;gap:9px;flex:none}
+  .prezzo{font-family:var(--display);font-size:15px;font-weight:400;
+    letter-spacing:.04em;color:#000;background:var(--gold);border-radius:100px;
+    padding:7px 14px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .fa-vai{width:32px;height:32px;border-radius:50%;border:1px solid var(--line);
+    display:inline-flex;align-items:center;justify-content:center;
+    color:var(--text-3);transition:all .28s var(--ease);flex:none}
+  .fa-capo:hover .fa-vai{border-color:var(--line-gold-2);color:var(--gold);
+    transform:translateX(3px)}
+  .fa-vai svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.9;
+    stroke-linecap:round;stroke-linejoin:round}
+  /* i fatti: compatti, tutti visibili, nessuno nascosto da uno scroll */
+  .fa-fatti{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;
+    background:var(--line-0)}
+  .telaio:not(.mob) .fa-fatti{grid-template-columns:repeat(4,1fr)}
+  .fa-f{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;
+    background:var(--surface)}
+  .fa-f svg.ic{width:19px;height:19px;margin-top:1px}
+  .fa-f b{display:block;font-size:12.5px;font-weight:500;letter-spacing:.01em;
+    color:var(--text);line-height:1.35}
+  .fa-f span{display:block;font-size:11px;color:var(--text-4);margin-top:2px;
+    line-height:1.45}
+  /* la riga viva in coda: l'orologio sopravvive, la mattonella no */
+  .fa-coda{display:flex;align-items:center;justify-content:space-between;gap:14px;
+    flex-wrap:wrap;padding:10px 18px;border-top:1px solid var(--line-0);
+    background:var(--void);font-size:11.5px;color:var(--text-4)}
+  .fa-coda .viva{display:inline-flex;align-items:center;gap:8px}
+  .fa-coda .pt{width:6px;height:6px;border-radius:50%;background:var(--green);
+    box-shadow:0 0 0 0 rgba(0,255,136,.5);animation:pulsa 2.8s ease-out infinite}
+  @keyframes pulsa{0%{box-shadow:0 0 0 0 rgba(0,255,136,.45)}
+    70%{box-shadow:0 0 0 8px rgba(0,255,136,0)}100%{box-shadow:0 0 0 0 rgba(0,255,136,0)}}
+  .fa-coda .ora{color:var(--gold);font-variant-numeric:tabular-nums;
+    letter-spacing:.1em}
+  .fa-coda .sec{display:inline-flex;align-items:center;gap:7px;color:var(--text-4)}
+  .fa-coda .sec b{color:var(--text-2);font-weight:400}
+  @media(prefers-reduced-motion:reduce){.fa-coda .pt{animation:none}}
+
+  /* ══ B · IL PANNELLO DEL DUBBIO ═════════════════════════════════ */
+  .dubbio{display:grid;gap:1px;background:var(--line-0);border:1px solid var(--line);
+    border-radius:16px;overflow:hidden}
+  .telaio:not(.mob) .dubbio{grid-template-columns:1.25fr 1fr}
+  .du-sx{background:var(--surface);padding:20px}
+  .du-sx h4{margin:0 0 13px;font-family:var(--display);font-weight:400;
+    font-size:16px;letter-spacing:.005em}
+  .du-o{display:flex;align-items:center;gap:11px;padding:7px 0;font-size:13px;
+    color:var(--text-2)}
+  .du-o i{width:17px;height:17px;border-radius:50%;flex:none;
+    background:rgba(0,255,136,.11);border:1px solid rgba(0,255,136,.3);
+    display:inline-flex;align-items:center;justify-content:center;
+    color:var(--green);font-style:normal;font-size:10px}
+  .du-dx{background:linear-gradient(160deg,rgba(255,215,0,.09),rgba(255,215,0,.02));
+    padding:20px;display:flex;flex-direction:column;justify-content:center}
+  .du-dx .et{font-size:10px;font-weight:600;letter-spacing:.2em;
+    text-transform:uppercase;color:var(--gold)}
+  .du-dx b{display:block;font-family:var(--display);font-weight:300;font-size:23px;
+    letter-spacing:-.01em;margin:9px 0 6px}
+  .du-dx p{font-size:12.5px;color:var(--text-2);margin:0 0 15px}
+  .du-btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;
+    background:var(--gold);color:#000;font-size:12.5px;font-weight:600;
+    letter-spacing:.08em;text-transform:uppercase;border-radius:100px;
+    padding:12px 20px;transition:transform .25s var(--ease)}
+  .du-btn:hover{transform:translateY(-1px)}
+
+  /* ══ C · LA RIGA SOTTILE ════════════════════════════════════════ */
+  .riga{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:12px 16px;
+    border:1px solid var(--line);border-radius:100px;background:var(--surface)}
+  .riga .ch{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;
+    color:var(--text-2);white-space:nowrap}
+  .riga .ch i{width:5px;height:5px;border-radius:50%;background:var(--gold);
+    flex:none}
+  .riga .sep{width:1px;height:14px;background:var(--line);flex:none}
+  .riga .cta{margin-left:auto;display:inline-flex;align-items:center;gap:9px;
+    background:var(--gold);color:#000;font-size:11.5px;font-weight:600;
+    letter-spacing:.05em;border-radius:100px;padding:8px 15px;white-space:nowrap}
+
+  /* ── confronto ── */
+  .scorri{overflow-x:auto;margin-top:22px;border:1px solid var(--line);
+    border-radius:14px;background:var(--card)}
+  table{border-collapse:collapse;width:100%;min-width:640px;font-size:13.5px}
+  th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line-0)}
+  th{font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--text-4);font-weight:500}
+  tr:last-child td{border-bottom:0}
+  td{color:var(--text-2);font-variant-numeric:tabular-nums}
+  td b{color:var(--text);font-weight:400}
+  .ok{color:var(--green)} .ko{color:#FF6B5C}
+  .cons{background:linear-gradient(180deg,rgba(255,215,0,.05),transparent);
+    border:1px solid var(--line-gold-2);border-radius:16px;padding:24px;margin-top:24px}
+  .cons h3{margin:0 0 10px;font-family:var(--display);font-weight:400;font-size:20px}
+  .cons p{margin:0 0 11px}
+  .piede{padding:38px 0 68px;color:var(--text-4);font-size:12.5px}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <g id="i-video"><rect x="3.5" y="6.5" width="12" height="11" rx="2"/><path d="M15.5 11l5-2.6v7.2l-5-2.6z"/><circle cx="7.2" cy="10.2" r="1.1" class="pieno"/></g>
+  <g id="i-scudo"><path d="M12 3l7 2.8v5.4c0 4.1-3 7.1-7 8.3-4-1.2-7-4.2-7-8.3V5.8z"/><path d="M8.6 11.6l2.3 2.3 4.3-4.9" class="acc"/></g>
+  <g id="i-euro"><circle cx="12" cy="12" r="8.6"/><path d="M15.2 8.7a4.4 4.4 0 0 0-6.3 1.6M8.9 13.7a4.4 4.4 0 0 0 6.3 1.6M6.9 10.8h5.4M6.9 13.2h4.6" class="acc"/></g>
+  <g id="i-carta"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/><path d="M6.4 14.4h4"/><path d="M15.4 14.4l1.6 1.6 3-3.4" class="acc"/></g>
+  <g id="i-timbro"><path d="M12 3.2l7.6 3v5.4c0 4.4-3.2 7.6-7.6 8.9-4.4-1.3-7.6-4.5-7.6-8.9V6.2z"/><path d="M9.4 11.9h5.2M12 9.3v5.2" class="acc"/></g>
+  <g id="i-doc"><path d="M6 3.2h7.4L18.6 8v12.8H6z"/><path d="M13.2 3.2V8h5.2" class="acc"/><path d="M9 12.6h6.4M9 15.8h4.4" class="acc"/></g>
+  <g id="i-orolo"><circle cx="12" cy="12" r="8.2"/><path d="M12 7.4V12l3.2 1.9"/></g>
+</defs></svg>
+
+<div class="cima"><div class="w">
+  <span class="eyebrow"><i></i>Studio · la fascia sotto l'hero</span>
+  <h1>Quattro mattonelle che non <span class="hl">vendono niente</span>.</h1>
+  <p style="margin-top:15px">Hai ragione: quella fascia è il punto più
+    sprecato della home. Occupa <b style="color:var(--text);font-weight:400">215px
+    su iPhone</b> e 77 su desktop — misurati nella pagina vera, non nello
+    screenshot — per dire quattro cose, e una di quelle («ROM · Your landing,
+    handled») non è un'informazione: è un codice aeroportuale. Non porta da
+    nessuna parte. Ecco cosa può diventare, in tre declinazioni vive.</p>
+  <p class="nota" style="margin-top:14px"><b>Una correzione onesta prima di
+    cominciare.</b> Guardando il tuo screenshot avevo stimato 630px e stavo
+    per venderti queste declinazioni come un risparmio di spazio. Poi ho
+    misurato: il tuo screenshot è a 3×, la fascia vera è 215px. Quindi il
+    ragionamento cambia, e te lo dico prima del resto: <b>A e B non
+    comprimono, costano</b> — circa 120px in più. Non è una compressione,
+    è uno scambio: paghi mezza schermata e in cambio quella fascia comincia
+    a vendere. Solo C fa risparmiare spazio, e paga con la corposità.</p>
+</div></section>
+
+<section><div class="w">
+  <span class="eyebrow"><i></i>Il momento</span>
+  <h2 style="margin-top:11px">Cosa passa per la testa a chi sta lì.</h2>
+  <p style="margin-top:13px">Ha appena letto «48 ore, non settimane», forse ha
+    scelto una data, e sta per scorrere verso le case. Quella fascia è
+    l'ultima cosa prima del catalogo. Il suo mestiere è togliere i motivi
+    per <b style="color:var(--text);font-weight:400">non</b> continuare — e
+    offrire l'unica cosa che si può comprare in quell'istante preciso.</p>
+  <p>Le obiezioni di chi affitta a Roma dall'estero, in ordine di quanto
+    bloccano la vendita: <span class="hl">1.</span> «è una truffa?» —
+    la paura numero uno del mercato romano. <span class="hl">2.</span>
+    «devo volare fin lì per vederlo?» — il blocco pratico numero uno, ed è
+    esattamente il servizio da €89. <span class="hl">3.</span> «quanto mi
+    costa davvero il giorno uno?» <span class="hl">4.</span> «con chi sto
+    parlando, un'agenzia o un profilo Facebook?» <span class="hl">5.</span>
+    «mi risponderà qualcuno?»</p>
+  <p class="nota">Tutte le cifre e le frasi qui sotto sono <b>prese dal sito
+    live</b> — «Be there, without being there» e «Sign it, fix it, or walk
+    away» sono i titoli veri delle due pagine servizio, €89 e €49 i prezzi
+    veri del catalogo server-side. Non ho inventato niente.</p>
+</div></section>
+
+<section class="big"><div class="w">
+  <span class="eyebrow"><i></i>Oggi</span>
+  <div class="capo"><h3>0 · L'attuale<em>quattro mattonelle</em></h3>
+    <span class="num">iPhone <b>215px</b> · desktop <b>77px</b> · zero azioni</span></div>
+  <div class="paio">
+    <div class="telaio"><div class="telaio-eti"><b></b><b></b><b></b>desktop</div>
+      <div class="palco"><div class="imbarco">
+        <div class="imbarco-v"><svg class="ic" viewBox="0 0 24 24"><path d="M3 18h18M4.8 15.3l10.5-5.4a2 2 0 0 1 2.8.8c.5 1 .1 2.1-.8 2.6L9.6 16.8z"/><circle cx="20" cy="5.7" r="1" class="pieno"/></svg>
+          <div><b>ROM</b><span>Your landing, handled</span></div></div>
+        <div class="imbarco-v"><svg class="ic" viewBox="0 0 24 24"><use href="#i-orolo"/></svg>
+          <div><b class="oro" data-ora>—:—</b><span>In Rome now · we reply in 2h</span></div></div>
+        <div class="imbarco-v"><svg class="ic" viewBox="0 0 24 24"><use href="#i-scudo"/></svg>
+          <div><b>VERIFIED</b><span>Video-checked homes</span></div></div>
+        <div class="imbarco-v"><svg class="ic" viewBox="0 0 24 24"><use href="#i-carta"/></svg>
+          <div><b>SECURE PAY</b><span>Stripe · receipts on everything</span></div></div>
+      </div></div></div>
+    <div class="telaio mob"><div class="telaio-eti"><b></b><b></b><b></b>iPhone 390</div>
+      <div class="palco"><div class="imbarco">
+        <div class="imbarco-v"><svg class="ic" viewBox="0 0 24 24"><path d="M3 18h18M4.8 15.3l10.5-5.4a2 2 0 0 1 2.8.8c.5 1 .1 2.1-.8 2.6L9.6 16.8z"/><circle cx="20" cy="5.7" r="1" class="pieno"/></svg>
+          <div><b>ROM</b><span>Your landing, handled</span></div></div>
+        <div class="imbarco-v"><svg class="ic" viewBox="0 0 24 24"><use href="#i-orolo"/></svg>
+          <div><b class="oro" data-ora>—:—</b><span>In Rome now · we reply in 2h</span></div></div>
+        <div class="imbarco-v"><svg class="ic" viewBox="0 0 24 24"><use href="#i-scudo"/></svg>
+          <div><b>VERIFIED</b><span>Video-checked homes</span></div></div>
+        <div class="imbarco-v"><svg class="ic" viewBox="0 0 24 24"><use href="#i-carta"/></svg>
+          <div><b>SECURE PAY</b><span>Stripe · receipts on everything</span></div></div>
+      </div></div></div>
+  </div>
+  <p class="nota"><b>Il difetto —</b> sono quattro affermazioni su di voi, e
+    nessuna porta da nessuna parte. Chi ha appena pensato «non posso volare a
+    Roma a vederlo» qui non trova risposta, anche se la risposta esiste e
+    costa €89.</p>
+</div></section>
+
+<section class="big"><div class="w">
+  <span class="eyebrow"><i></i>Declinazione A</span>
+  <div class="capo"><h3>A · La fascia delle obiezioni<em>consigliata</em></h3>
+    <span class="num">nella pagina vera: iPhone <b>294px</b> (+79) · desktop <b>181px</b> (+104) · 2 azioni</span></div>
+  <div class="paio">
+    <div class="telaio"><div class="telaio-eti"><b></b><b></b><b></b>desktop</div>
+      <div class="palco">
+        <div class="fascia">
+          <a class="fa-capo" href="#">
+            <svg class="ic" viewBox="0 0 24 24"><use href="#i-video"/></svg>
+            <span class="fa-testo"><b>Can't fly to Rome to see it?</b>
+              <span>Be there, without being there — a live video tour of that
+                exact flat, HD photos, and the red flags said out loud.</span></span>
+            <span class="fa-agisci"><span class="prezzo">€89</span>
+              <span class="fa-vai"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></span>
+          </a>
+          <div class="fa-fatti">
+            <div class="fa-f"><svg class="ic" viewBox="0 0 24 24"><use href="#i-scudo"/></svg>
+              <span><b>Walked in person</b><span>Every home video-checked before it is listed</span></span></div>
+            <div class="fa-f"><svg class="ic" viewBox="0 0 24 24"><use href="#i-euro"/></svg>
+              <span><b>Move-in total, upfront</b><span>Rent, deposit and fee added up before you pay a cent</span></span></div>
+            <div class="fa-f"><svg class="ic" viewBox="0 0 24 24"><use href="#i-carta"/></svg>
+              <span><b>Stripe · €0 hidden fees</b><span>Receipts on everything, refundable until you sign</span></span></div>
+            <div class="fa-f"><svg class="ic" viewBox="0 0 24 24"><use href="#i-timbro"/></svg>
+              <span><b>A licensed agency</b><span>Egidi Immobiliare S.r.l. · BOOM® registered mark</span></span></div>
+          </div>
+          <div class="fa-coda">
+            <span class="viva"><span class="pt"></span>Rome
+              <span class="ora" data-ora>—:—</span> · we reply within 2h</span>
+            <a class="sec" href="#">Already have a contract?
+              <b>Have it checked · €49 →</b></a>
+          </div>
+        </div>
+      </div></div>
+
+    <div class="telaio mob"><div class="telaio-eti"><b></b><b></b><b></b>iPhone 390</div>
+      <div class="palco">
+        <div class="fascia">
+          <a class="fa-capo" href="#">
+            <svg class="ic" viewBox="0 0 24 24"><use href="#i-video"/></svg>
+            <span class="fa-testo"><b>Can't fly to Rome?</b>
+              <span>A live video tour of that exact flat — the red flags said
+                out loud.</span></span>
+            <span class="fa-agisci"><span class="prezzo">€89</span></span>
+          </a>
+          <div class="fa-fatti">
+            <div class="fa-f"><svg class="ic" viewBox="0 0 24 24"><use href="#i-scudo"/></svg>
+              <span><b>Walked in person</b><span>Video-checked before listing</span></span></div>
+            <div class="fa-f"><svg class="ic" viewBox="0 0 24 24"><use href="#i-euro"/></svg>
+              <span><b>Move-in total upfront</b><span>Before you pay a cent</span></span></div>
+            <div class="fa-f"><svg class="ic" viewBox="0 0 24 24"><use href="#i-carta"/></svg>
+              <span><b>Stripe · €0 hidden</b><span>Receipts on everything</span></span></div>
+            <div class="fa-f"><svg class="ic" viewBox="0 0 24 24"><use href="#i-timbro"/></svg>
+              <span><b>Licensed agency</b><span>Egidi S.r.l. · BOOM®</span></span></div>
+          </div>
+          <div class="fa-coda">
+            <span class="viva"><span class="pt"></span>Rome
+              <span class="ora" data-ora>—:—</span> · reply in 2h</span>
+          </div>
+        </div>
+      </div></div>
+  </div>
+  <p class="nota"><b>Cosa fa —</b> il capofila è l'unica cosa acquistabile in
+    quell'istante, e ha il peso visivo di un titolo, non di un badge. Sotto,
+    quattro fatti che rispondono alle quattro obiezioni residue: sono
+    <b>tutti visibili</b>, nessuno nascosto dietro uno scorrimento — la
+    fiducia non si mette in un carosello. In coda l'orologio sopravvive come
+    riga viva (perde la mattonella, tiene il fascino) e il secondo upsell
+    entra in punta di piedi, per chi <b>ha già un contratto in mano</b> e
+    quindi è la persona più vicina a pagare di tutta la pagina.</p>
+</div></section>
+
+<section class="big"><div class="w">
+  <span class="eyebrow"><i></i>Declinazione B</span>
+  <div class="capo"><h3>B · Il pannello del dubbio<em>una sola leva</em></h3>
+    <span class="num">iPhone <b>430px</b> (+215) · desktop <b>230px</b> · 1 azione</span></div>
+  <div class="paio">
+    <div class="telaio"><div class="telaio-eti"><b></b><b></b><b></b>desktop</div>
+      <div class="palco"><div class="dubbio">
+        <div class="du-sx">
+          <h4>Renting Rome from 2,000 km away?</h4>
+          <div class="du-o"><i>✓</i>«Is the flat even real?» — walked and filmed by us</div>
+          <div class="du-o"><i>✓</i>«What does day one cost?» — the total, before you pay</div>
+          <div class="du-o"><i>✓</i>«Who am I paying?» — Egidi Immobiliare S.r.l., via Stripe</div>
+          <div class="du-o"><i>✓</i>«Will anyone answer?» — a named human, within 2h</div>
+        </div>
+        <div class="du-dx">
+          <span class="et">Virtual viewing</span>
+          <b>Be there, without being there.</b>
+          <p>A live video tour of that exact apartment, with you asking the
+            questions. €89 — credited to your agency fee if you take it.</p>
+          <a class="du-btn" href="#">Book a viewing · €89</a>
+        </div>
+      </div></div></div>
+
+    <div class="telaio mob"><div class="telaio-eti"><b></b><b></b><b></b>iPhone 390</div>
+      <div class="palco"><div class="dubbio">
+        <div class="du-sx">
+          <h4>Renting Rome from 2,000 km away?</h4>
+          <div class="du-o"><i>✓</i>«Is the flat even real?»</div>
+          <div class="du-o"><i>✓</i>«What does day one cost?»</div>
+          <div class="du-o"><i>✓</i>«Who am I paying?»</div>
+          <div class="du-o"><i>✓</i>«Will anyone answer?»</div>
+        </div>
+        <div class="du-dx">
+          <span class="et">Virtual viewing</span>
+          <b>Be there, without being there.</b>
+          <p>A live video tour of that exact flat. €89, credited to your
+            agency fee if you take it.</p>
+          <a class="du-btn" href="#">Book · €89</a>
+        </div>
+      </div></div></div>
+  </div>
+  <p class="nota"><b>Cosa fa —</b> converte più forte perché c'è una sola cosa
+    da fare. Ma le obiezioni diventano domande <b>scritte in bocca al
+    cliente</b>, e questo è un registro da copywriter americano: funziona,
+    e non è la tua voce. In più butta via i marchi di fiducia come oggetti
+    autonomi e li riduce a testo.</p>
+</div></section>
+
+<section class="big"><div class="w">
+  <span class="eyebrow"><i></i>Declinazione C</span>
+  <div class="capo"><h3>C · La riga sottile<em>massima economia</em></h3>
+    <span class="num">iPhone <b>122px</b> (−93) · desktop <b>61px</b> (−16) · 1 azione</span></div>
+  <div class="paio">
+    <div class="telaio"><div class="telaio-eti"><b></b><b></b><b></b>desktop</div>
+      <div class="palco"><div class="riga">
+        <span class="ch"><i></i>48h move-in</span><span class="sep"></span>
+        <span class="ch"><i></i>Video-checked</span><span class="sep"></span>
+        <span class="ch"><i></i>Stripe · €0 hidden</span><span class="sep"></span>
+        <span class="ch"><i></i>Reply in 2h</span>
+        <a class="cta" href="#">See it today from where you are · €89</a>
+      </div></div></div>
+    <div class="telaio mob"><div class="telaio-eti"><b></b><b></b><b></b>iPhone 390</div>
+      <div class="palco"><div class="riga" style="border-radius:16px">
+        <span class="ch"><i></i>48h move-in</span><span class="sep"></span>
+        <span class="ch"><i></i>Video-checked</span>
+        <span class="ch"><i></i>Stripe · €0 hidden</span><span class="sep"></span>
+        <span class="ch"><i></i>Reply in 2h</span>
+        <a class="cta" style="margin:6px 0 0" href="#">See it today · €89</a>
+      </div></div></div>
+  </div>
+  <p class="nota"><b>Cosa fa —</b> restituisce mezza schermata alla vetrina,
+    che è l'uso migliore dei pixel di tutta la home. Ma i fatti diventano
+    chip minuscoli: perdono esattamente quella corposità «ultra pagante» che
+    mi hai chiesto due volte. La terrei per la <b>discovery e la pagina
+    casa</b>, dove la fiducia va ricordata e non costruita da zero.</p>
+</div></section>
+
+<section><div class="w">
+  <span class="eyebrow"><i></i>Confronto</span>
+  <div class="scorri"><table>
+    <tr><th>&nbsp;</th><th>Altezza iPhone / desktop</th><th>Azioni comprabili</th>
+      <th>Segnali di fiducia</th><th>Voce</th></tr>
+    <tr><td><b>0 · Attuale</b></td><td>215 / 77 px</td><td class="ko">0</td>
+      <td>3 (di cui 1 vuoto)</td><td>vostra</td></tr>
+    <tr><td><b>A · Obiezioni</b> <span style="color:var(--green)">· in
+      pagina</span></td><td>294 / 181 px</td>
+      <td class="ok">2</td><td class="ok">5</td><td class="ok">vostra</td></tr>
+    <tr><td><b>B · Dubbio</b></td><td class="ko">430 / 230 px</td><td>1</td>
+      <td>4 (come testo)</td><td class="ko">da funnel USA</td></tr>
+    <tr><td><b>C · Riga</b></td><td class="ok">122 / 61 px</td><td>1</td>
+      <td class="ko">4 (minuscoli)</td><td class="ok">vostra</td></tr>
+  </table></div>
+
+  <div class="cons">
+    <h3>A · La fascia delle obiezioni.</h3>
+    <p>Non perché risparmi spazio — abbiamo visto che ne costa 117 su iPhone.
+      La scelgo perché quei 117px comprano due cose che oggi la home non ha
+      in cima: <b style="color:var(--text);font-weight:400">una cosa
+      acquistabile nell'istante esatto del dubbio</b>, e i segnali di fiducia
+      che in un mercato con la reputazione di Roma valgono più di qualunque
+      titolo. Oggi i servizi aspettano a 4.036px, cioè cinque schermate più
+      in basso: quasi nessuno arriva lì con il dubbio ancora acceso.</p>
+    <p>Se invece la priorità è accorciare la home, la risposta è
+      <b style="color:var(--text);font-weight:400">C</b>, che restituisce 93px
+      e tiene un solo gancio. Sono due strategie diverse e vanno scelte, non
+      mediate: A vende, C libera. Fare metà e metà darebbe il peggio delle
+      due.</p>
+    <p>La ragione vera per cui scelgo A e non B: il Virtual Viewing non è un
+      accessorio, è <b style="color:var(--text);font-weight:400">l'unico
+      modo</b> in cui uno che sta a Berlino può fare il passo successivo
+      stasera. Metterlo lì non è vendere di più — è togliere l'ultimo
+      ostacolo prima del catalogo. E il secondo gancio («hai già un contratto?
+      fattelo controllare, €49») pesca la persona più vicina al pagamento di
+      tutta la home, quella che sta per firmare qualcosa scritto in una lingua
+      che non parla.</p>
+    <p><b style="color:var(--text);font-weight:400">A è già montata nella
+      home</b> — nel build del ramo, non in produzione. Nella pagina vera
+      misura 294px su iPhone e 181 su desktop: costa 79px in più
+      dell'attuale sul telefono, meno di quanto temessi, perché su schermo
+      stretto le stesse frasi sono dette più corte (nessun JavaScript: le due
+      versioni convivono nel markup e il breakpoint sceglie).</p>
+    <p style="margin-bottom:0">Una cosa da decidere tu: nel copy di B ho
+      scritto «€89 credited to your agency fee if you take it» perché è
+      quello che dice la pagina live. Se vale ancora, va detto anche in A —
+      <b style="color:var(--text);font-weight:400">«se poi affitti con noi,
+      gli €89 te li riprendi»</b> trasforma un costo in un anticipo, ed è la
+      frase più forte che avete.</p>
+  </div>
+</div></section>
+
+<div class="piede"><div class="w">BOOM Roma · studio interno · niente in
+  produzione</div></div>
+
+<script>
+(function () {
+  function ora() {
+    var d = new Date().toLocaleTimeString('en-GB', { timeZone: 'Europe/Rome',
+      hour: '2-digit', minute: '2-digit' });
+    [].forEach.call(document.querySelectorAll('[data-ora]'), function (e) {
+      e.textContent = d; });
+  }
+  ora(); setInterval(ora, 20000);
+})();
+</script>
