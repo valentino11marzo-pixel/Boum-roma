@@ -313,6 +313,8 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
 .gbtn:not(:disabled):hover{filter:brightness(1.06);transform:translateY(-1px);box-shadow:0 16px 44px rgba(212,175,55,.28)}
 .gbtn:not(:disabled):active{transform:scale(.985)}
 .foot{color:var(--t4);font-size:9px;text-align:center;margin-top:30px;letter-spacing:2.2px;text-transform:uppercase;font-weight:300}
+/* Menzione di marchio + indirizzi: annulla maiuscolo e spaziatura del padre. */
+.foot-tm{display:block;margin-top:8px;text-transform:none;letter-spacing:.02em;line-height:1.6;opacity:.72}
 
 /* ── payment trust zone: the green appears ONLY around money moments ── */
 .paylock{display:inline-flex;align-items:center;gap:7px}
@@ -468,7 +470,7 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
   <section class="panel" id="p4"></section>
   <section class="panel" id="pAcc"></section>
 
-  <div class="foot" id="foot" style="display:none">Egidi Immobiliare S.r.l. · P.IVA 17322991005 · boomrome.com</div>
+  <div class="foot" id="foot" style="display:none">Egidi Immobiliare S.r.l. · P.IVA 17322991005 · boomrome.com<span class="foot-tm">Via dei Coronari 181/184, 00186 Roma · Registered office: Viale Liegi 42, 00198 Roma<br>BOOM&reg; is a registered European Union trade mark (EUTM 019317594) of Egidi Immobiliare S.r.l.</span></div>
 </main>
 
 <div class="abar" id="abar" style="display:none">

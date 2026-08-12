@@ -610,6 +610,34 @@ def _edit_listing(doc_id, updates):
     updates['updatedAt'] = datetime.now(timezone.utc).isoformat() + 'Z'
     fs_update('listings', doc_id, updates)
 
+async def cmd_disponibilita(update, context):
+    """Il quadro completo delle date, e chi tace. La lista di lavoro sta in
+    testa: un annuncio senza data mostra "Ask us" in vetrina — onesto, ma una
+    data vera converte di più."""
+    if not is_admin(update): return
+    rep = await asyncio.to_thread(wizard_post, '/api/listings-availability', None, 25, 'GET')
+    if not rep or not rep.get('ok'):
+        await update.message.reply_text('❌ Non riesco a leggere le disponibilità.'); return
+    a = rep.get('audit') or {}
+    rows = []
+    for l in (rep.get('listings') or [])[:30]:
+        if l.get('status') == 'rented': continue
+        mark = '❓' if l.get('kind') == 'unknown' else '🟢' if l.get('kind') == 'now' else '📅'
+        when = 'da concordare' if l.get('kind') == 'unknown' else 'subito' if l.get('kind') == 'now' else l.get('iso')
+        rows.append(f"{mark} *{l.get('name')}* — {when}")
+    gaps = a.get('gaps') or []
+    tail = ''
+    if gaps:
+        tail = (f"\n\n⚠️ *{len(gaps)} senza data.* In vetrina dicono \"Ask us\".\n"
+                f"Rispondi in un messaggio solo, es:\n"
+                f"`{gaps[0].get('name')} dal 1 settembre" +
+                (f", {gaps[1].get('name')} subito" if len(gaps) > 1 else '') + "`")
+    await update.message.reply_text(
+        f"📅 *DISPONIBILITÀ* — {a.get('now', 0)} subito · {a.get('date', 0)} con data · "
+        f"{a.get('unknown', 0)} da concordare\n\n" + '\n'.join(rows) + tail,
+        parse_mode='Markdown', disable_web_page_preview=True)
+
+
 async def cmd_video(update, context):
     if not is_admin(update): return
     if len(context.args) < 2: await update.message.reply_text("Uso: `/video LISTING_ID link-youtube`", parse_mode='Markdown'); return
@@ -1357,6 +1385,40 @@ async def _nl_process(update, context, text):
             NL_STATS['free'] += 1
             plan = local
 
+    # 2-bis. PIÙ CASE IN UN MESSAGGIO SOLO — "Levico dal 1 settembre, Cavour
+    #        subito, Pigneto 15/10". Il parser locale aggancia UN immobile per
+    #        messaggio: con due nomi `_match_listing` dà AMBIG e la frase
+    #        finiva al modello, che ne aggiornava una sola. Il cervello sta sul
+    #        server (js/dispo-engine.js via /api/listings-availability) perché
+    #        così vive anche quando questo bot è giù, ed è LO STESSO che usano
+    #        vetrina, feed e portal: non possono divergere.
+    #        Costo zero (nessun modello), e la scrittura resta un tap.
+    if plan is None and not _is_question(text.lower()):
+        rep = await asyncio.to_thread(
+            wizard_post, '/api/listings-availability', {'text': text}, 25)
+        p = (rep or {}).get('plan') or {}
+        if p.get('ok') and len(p.get('updates') or []) >= 2:
+            NL_STATS['free'] += 1
+            NL_CTX.pop(chat_id, None)
+            PENDING_NL[chat_id] = {'action': 'availability', 'updates': p['updates']}
+            rows = '\n'.join(
+                f"• *{u.get('name')}*: {u.get('was') or '—'} → "
+                f"{'subito' if u.get('kind') == 'now' else 'da concordare' if u.get('kind') == 'unknown' else u.get('iso')}"
+                for u in p['updates'])
+            extra = ''
+            if p.get('mode') == 'broadcast':
+                extra = f"\n_una data sola per {len(p['updates'])} immobili_"
+            for n in (p.get('noDate') or []):
+                extra += f"\n⚠️ {n.get('name')}: nessuna data in quel pezzo, lo lascio com'è"
+            for a in (p.get('ambiguous') or []):
+                extra += f"\n⚠️ “{a.get('seg')}”: quale fra {', '.join(a.get('names') or [])}?"
+            kb0 = InlineKeyboardMarkup([[InlineKeyboardButton('✅ Conferma', callback_data='nl_ok'),
+                                         InlineKeyboardButton('✖️ Annulla', callback_data='nl_no')]])
+            await update.message.reply_text(
+                f"📅 *DISPONIBILITÀ*\n{rows}{extra}\n\nScrivo? Vetrina, feed e portali si allineano da soli.",
+                parse_mode='Markdown', reply_markup=kb0)
+            return
+
     # 3. tutto il resto sale al modello: refusi nei nomi, case nuove dettate
     #    a voce, frasi che nessuna regex onesta può coprire
     if plan is None:
@@ -1427,6 +1489,23 @@ async def nl_confirm_cb(update, context):
         except Exception as e:
             logger.error(f'quick create: {e}')
             await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=f'❌ Pubblicazione fallita: {e}')
+        return
+    if plan.get('action') == 'availability':
+        # La scrittura passa dalla porta unica: qui non si tocca Firestore a
+        # mano, altrimenti il bot tornerebbe a essere una sorgente di verità
+        # parallela — e ogni voce ripassa comunque dal motore lato server.
+        ups = [{'id': u['id'], 'kind': u.get('kind'), 'iso': u.get('iso'),
+                'phrase': u.get('phrase')} for u in plan['updates']]
+        rep = await asyncio.to_thread(
+            wizard_post, '/api/listings-availability', {'updates': ups}, 45)
+        if not rep or not rep.get('ok'):
+            failed = (rep or {}).get('failed') or []
+            await q.edit_message_text(
+                '❌ Non ho potuto scrivere.' + (f"\n{failed[0].get('error')}" if failed else ''))
+            return
+        done = '\n'.join(f"• {a.get('name')} → {a.get('to')}" for a in rep.get('applied') or [])
+        await q.edit_message_text(f"📅 *Fatto — {len(rep.get('applied') or [])} date aggiornate*\n{done}",
+                                  parse_mode='Markdown')
         return
     if plan.get('action') == 'photos':
         await q.edit_message_text('⏳ Foto in lavorazione… (1-2 min)')
@@ -1556,6 +1635,8 @@ def main():
     app.add_handler(CommandHandler('deposito', cmd_deposito))
     app.add_handler(CommandHandler('modifica', cmd_modifica))
     app.add_handler(CommandHandler('fotolab', cmd_fotolab))
+    app.add_handler(CommandHandler('disponibilita', cmd_disponibilita))
+    app.add_handler(CommandHandler('disponibilità', cmd_disponibilita))
     app.add_handler(CommandHandler('chicerca', cmd_chicerca))
     app.add_handler(CommandHandler('status', cmd_status))
     app.add_handler(CommandHandler('stats', cmd_stats))

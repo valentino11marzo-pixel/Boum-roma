@@ -74,6 +74,8 @@ h1 em{font-style:normal;color:var(--gold);font-weight:300}
 .obtn:hover{border-color:var(--line-gold);color:var(--gold)}
 .obtn.wa{border-color:rgba(37,211,102,.4);color:var(--wa)}
 .foot{color:var(--t4);font-size:9px;text-align:center;margin-top:36px;letter-spacing:2.2px;text-transform:uppercase}
+/* Menzione di marchio + indirizzi: annulla maiuscolo e spaziatura del padre. */
+.foot-tm{display:block;margin-top:8px;text-transform:none;letter-spacing:.02em;font-weight:300;line-height:1.6;opacity:.72}
 .sharebar{position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:60}
 .sharebar button{display:flex;align-items:center;gap:8px;background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#1a1407;font-weight:600;border-radius:100px;padding:13px 20px;font-size:10.5px;letter-spacing:1.8px;text-transform:uppercase;box-shadow:0 12px 34px rgba(0,0,0,.5),0 6px 20px rgba(212,175,55,.25)}
 </style>
@@ -184,7 +186,7 @@ h1 em{font-style:normal;color:var(--gold);font-weight:300}
   </div>
 
   <p class="fine" style="text-align:center;margin-top:26px">Procedures and prices change — always double-check the official sources. This guide is practical orientation, not legal advice. Updated July 2026.</p>
-  <div class="foot">Egidi Immobiliare S.r.l. · P.IVA 17322991005 · boomrome.com</div>
+  <div class="foot">Egidi Immobiliare S.r.l. · P.IVA 17322991005 · boomrome.com<span class="foot-tm">Via dei Coronari 181/184, 00186 Roma · Registered office: Viale Liegi 42, 00198 Roma<br>BOOM&reg; is a registered European Union trade mark (EUTM 019317594) of Egidi Immobiliare S.r.l.</span></div>
 </main>
 
 <div class="sharebar"><button onclick="shareKit()">↗ Share the kit</button></div>

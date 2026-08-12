@@ -43,6 +43,10 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
   boom-geo.js             How true is this pin — exact (street+number) /
                           street / zone / none, read from listing.geo.
                           window.BOOM_GEO. See "Precisione dei pin".
+  dispo-engine.js         Quando è DAVVERO libera questa casa: now / date /
+                          unknown, più il cervello del messaggio unico
+                          (più immobili in una frase). window.BOOM_DISPO.
+                          Vedi "Le date di disponibilità".
 firestore.rules           Firestore security rules (role-based)
 storage.rules             Storage security rules (role-based file access)
 firebase.json             Firebase deploy config (firestore + storage rules)
@@ -2078,6 +2082,11 @@ One pipeline, three doors:
 floorplan/document, room, needed rotation, quality, coverScore, watermark) →
 plan: best real photo as cover, gallery reordered living→kitchen→bedrooms→
 bath→exterior with floorplans last, exact duplicates dropped. Zero writes.
+Audit accepts an optional `urls[]` override (capped, http(s) only): the Media
+Studio's "✨ Ordina con l'AI" asks for a plan over the photos it actually has
+on screen — which differ from `sourceUrls()` once a listing was already
+enhanced. The studio applies the plan to its thumbs (duplicates moved to the
+END, never deleted); the operator refines and publishes.
 `apply` = sharp enhancement (EXIF+AI rotation, contrast stretch, per-photo
 preset; floorplans never saturated), uploads to `listings/enhanced/<id>/`,
 patches `image`/`images`/`photosEnhancedAt`/`photosEnhancedBy`.
@@ -2093,6 +2102,72 @@ Admin test harness + manual-ingest endpoint (Firebase ID token, role
 admin/owner/landlord). `dryRun:true` scores a hypothetical listing against
 every active client without writing; `dryRun:false` ingests + pushes for
 real. Backs the "Aggiungi annuncio" modal in `pfs-command.html`.
+
+## Le date di disponibilità (`js/dispo-engine.js` + `/api/listings-availability`)
+
+**Il difetto era in produzione dal primo giorno.** `listings.availableDate` è
+sempre stato testo LIBERO, il portal ne suggeriva i formati nel placeholder
+(*"Es: Feb 1, Sep 2026, Immediate"*) e la vetrina faceva
+`/^\d{4}-\d{2}-\d{2}/.test(raw) ? raw.slice(0,10) : day(0)` — cioè
+**trasformava in OGGI tutto ciò che non era ISO, compresi i tre esempi del
+placeholder**, e la card stampava *"Available now"* su case libere a
+settembre. Lo stesso fallback stava in `api/listing.js` (JSON-LD +
+baseline no-JS) e in `api/llms-listings.js`, dove è peggio: un motore di
+risposta cita il fatto e lo ripete a chi il sito non l'ha ancora visto. E il
+campo che quel codice legge per PRIMO, `availableFrom`, non lo scriveva
+nessuna delle tre porte (portal · `/modifica … disponibile` · parser NL).
+
+`js/dispo-engine.js` (UMD → `window.BOOM_DISPO`, importato anche dai file ESM
+in `api/**` come boom-geo) è l'unica lettura, condivisa da vetrina, scheda,
+JSON-LD, llms, feed Immobiliare, Pubblicista, portal e bot. **Le due regole
+dure**, entrambe pinnate nei test:
+1. **Ambiguo non diventa MAI "libera ora".** Tre stati (`now`/`date`/
+   `unknown`) invece di una data finta; `unknown` in pagina è *"Ask us"*.
+   Dire "non lo so" costa una domanda, dire "libera adesso" costa il cliente.
+2. **Quando è impreciso si arrotonda TARDI.** *"fine agosto"* → 31, mai il 1°.
+   Gli errori non sono simmetrici: sbagliare in avanti fa aspettare, sbagliare
+   all'indietro mette in vetrina una casa ancora occupata. Un mese NUDO vale
+   solo con preposizione (*"libero da settembre"*) o se è tutta la stringa
+   (il campo del portal) — altrimenti *"may be free"* diventerebbe maggio.
+
+**Il messaggio unico** (`parseBatch`): *"Levico dal 1 settembre, Cavour
+subito, Pigneto 15/10"* aggiorna tre case in un colpo, IT+EN, costo zero
+(nessun modello). Una data sola per più case si **trasmette** solo quando nel
+messaggio non c'è una seconda lettura possibile; un messaggio MISTO (due date
+esplicite + una casa nuda) **non spalma niente** — la casa senza data resta
+indietro e lo dice. Una DOMANDA (*"quali sono liberi a settembre?"*) non
+diventa mai una scrittura di massa.
+
+**`/api/listings-availability`** è la porta unica (Bearer CRON_SECRET ·
+X-Homie-Secret · X-Wizard-Secret · Bearer admin). `GET` → il quadro completo
+coi buchi in testa; `POST {text}` → il PIANO (non scrive senza `apply:true`);
+`POST {updates[]}` → scrive. Ogni voce ripassa comunque dal motore: nessun
+client può depositare una stringa che le pagine non sanno rileggere. La frase
+originale resta in `availableRaw` (disciplina `descriptionOriginal`).
+
+**Il cervello sta sul server, non nel bot.** Il wizard Telegram gira sul Mac
+mini e può essere giù (lo è stato): se il multi-annuncio vivesse nel Python,
+la funzione sarebbe nata già spenta. Così è viva subito dal portal (modale
+**📅 Disponibilità** sulla pagina Listings: stesso box messaggio, stesso
+piano→conferma, più la tabella con date editabili) e il bot la eredita — nel
+router NL entra **prima** di `/api/wizard/interpret`, quindi il multi-annuncio
+non paga il modello; più `/disponibilita` per il quadro.
+
+**La data che si scrive da sola**: alla firma completa `magic-sign/submit`
+scriveva solo `status:'rented'` sul listing, buttando via il dato più
+affidabile del sistema — il contratto sa `endDate`. Ora stampa
+`availableFrom = endDate + 1g`, così una casa affittata porta con sé il giorno
+in cui si rilibera (la corsia waitlist della vetrina esisteva già e restava
+vuota). Il feed Immobiliare emette `<available-from>` **solo su data certa**
+(nodo nel blocco EXTENDED, da confermare sull'XSD) e `availableFrom` entra in
+`coreContent` del Pubblicista → l'hash cambia → l'update si mette in coda da
+sé per ogni portale.
+
+Test: `node tests/dispo/run.mjs` (112 check — le stringhe vere del catalogo,
+le trappole della lingua, la trasmissione e la sua guardia, le giunzioni
+asserite sulla sorgente, e il handler VERO su un Firestore in memoria: senza
+credenziali 401, `{text}` senza apply non scrive, una data illeggibile viene
+RIFIUTATA alla porta invece di essere scritta a caso).
 
 ## Precisione dei pin + perché non c'è il 3D di Google (`js/boom-geo.js`)
 
@@ -2178,6 +2253,7 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/dossier/run.mjs` | fascicolo ARPE: un landlord non può scrivere nel fascicolo di un immobile altrui, path sotto `property-docs/<id>/`, slot già pieni non sovrascritti |
   | `tests/photos/sweep.mjs` | photo-lab: chi è candidato allo sweep, quali foto contano come sorgente (i nostri output enhanced mai), e l'ordine con cui le 3 notti si spendono — le gallerie vere prima degli annunci da una foto. Si auto-skippa senza `sharp` |
   | `tests/copy/run.mjs` | descrizioni: lo sweep riscrive i template del bot e le schede mute, ma **mai** le parole di un umano — verificato sulle stringhe vere del catalogo, dove il testo scritto a mano è più CORTO del template |
+  | `tests/dispo/run.mjs` | date di disponibilità: una data illeggibile non diventa MAI "libera ora" (il difetto che metteva "Available now" su case libere a settembre), un messaggio aggiorna tutte le case, una data sola non si spalma su chi non è stato nominato, e la porta rifiuta ciò che le pagine non saprebbero rileggere |
   | `tests/geo/run.mjs` | precisione dei pin (`js/boom-geo.js`): portone (via+civico), strada, quartiere o niente — sulle stringhe `geo.q` vere del catalogo, incluso il caso insidioso `src:'nominatim'` su `q:'Prati, Roma'` |
   | `tests/scheda/run.mjs` | La Scheda: token derivati (ruolo nella derivazione, timing-safe), precedenza prefill contratto→sign→wizard, lock post-firma, sync profilo su ENTRAMBI gli schemi users, upload con OCR che non blocca mai, /api/profile/link autorizzato |
   | `tests/notify/run.mjs` | ciclo email contratto (pdf-lib REALE, nodemailer mockato): fascicolo CAF a valentino@boom-rome.com esattamente una volta con anagrafica di entrambe le parti, welcome nella lingua del lettore, invito firma col link giusto e 409 sul locatore sequenziale, conferma scheda one-shot |

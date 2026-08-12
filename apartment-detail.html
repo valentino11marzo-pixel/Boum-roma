@@ -400,6 +400,8 @@ body.chapters .proofs.stamped .proof:nth-child(4){transition-delay:.36s}
 footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
 .fg{max-width:var(--maxw);margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px}@media(min-width:820px){.fg{grid-template-columns:minmax(0,1.6fr) repeat(3,minmax(0,1fr))}}
 .fb h3{font-family:var(--disp);font-size:22px;letter-spacing:4px}.fb p{color:var(--t3);font-size:12px;line-height:1.8;margin-top:12px}.fb strong{color:var(--t2)}
+/* Menzione di marchio: un gradino sotto .fb p per corpo e opacità. */
+.fb p.ftm{font-size:11px;font-weight:300;opacity:.7;margin-top:10px;line-height:1.6}
 .fl h4{font-size:10.5px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:14px}.fl ul{list-style:none}.fl li{margin-bottom:9px}.fl a{color:var(--t3);font-size:13px}.fl a:hover{color:var(--gold)}
 .fbot{max-width:var(--maxw);margin:36px auto 0;padding-top:20px;border-top:1px solid var(--line-soft);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;color:var(--t4);font-size:12px}.fbot .op{color:var(--green)}
 
@@ -998,7 +1000,7 @@ a.blkchip:hover{border-color:var(--line-gold);color:var(--gold)}
 
 <footer>
   <div class="fg">
-    <div class="fb"><h3>BOOM</h3><p>Built in Rome, for Rome. If we can make Rome's rental market work, we can make it work anywhere.<br><br><strong>Egidi Immobiliare S.r.l.</strong><br>Via dei Coronari 181/184, 00186 Roma<br>Sede legale: Viale Liegi 42, 00198 Roma<br>P.IVA 17322991005 · REA RM-1710623</p></div>
+    <div class="fb"><h3>BOOM</h3><p>Built in Rome, for Rome. If we can make Rome's rental market work, we can make it work anywhere.<br><br><strong>Egidi Immobiliare S.r.l.</strong><br>Via dei Coronari 181/184, 00186 Roma<br>Sede legale: Viale Liegi 42, 00198 Roma<br>P.IVA 17322991005 · REA RM-1710623</p><p class="ftm">BOOM&reg; is a registered European Union trade mark (EUTM 019317594) of Egidi Immobiliare S.r.l.</p></div>
     <div class="fl"><h4>Services</h4><ul><li><a href="/apartments">Apartments</a></li><li><a href="/services">Services</a><a href="/property-finding">Property Finding</a></li><li><a href="/deal-assistance">Deal Assistance</a></li><li><a href="/virtual-viewing">Virtual Viewing</a></li><li><a href="/deposit-recovery">Deposit Recovery</a></li><li><a href="/contract-check-express">Contract Check</a></li><li><a href="/concierge">Concierge</a></li></ul></div>
     <div class="fl"><h4>Company</h4><ul><li><a href="/about">About</a></li><li><a href="/how-it-works">How It Works</a></li><li><a href="/owners">For Owners</a></li><li><a href="/blog">Blog</a></li></ul></div>
     <div class="fl"><h4>Legal</h4><ul><li><a href="/terms">Terms</a></li><li><a href="/privacy">Privacy</a></li><li><a href="/login">Login</a></li></ul></div>
@@ -1042,6 +1044,7 @@ a.blkchip:hover{border-color:var(--line-gold);color:var(--gold)}
 <script src="/js/boom-ambient.js"></script>
 <script src="/js/boom-fondali.js"></script>
 <script src="/js/boom-geo.js"></script>
+<script src="/js/dispo-engine.js"></script>
 <script src="/js/neighborhoods.js"></script>
 <script>
 /* MATERIA: living stone under the whole visit — develops in as the price lands */
@@ -1213,7 +1216,9 @@ function calShift(n){CALM.setMonth(CALM.getMonth()+n);
   if(CALM<floor)CALM=floor;                          // nothing to pick in the past
   calPaint();}
 function calHint(ds){const el=document.getElementById('calHint');if(!el)return;
-  if(!ds){el.innerHTML='Free from <b>'+fmtD(new Date(L.availableFrom+'T00:00'))+'</b> — hover a day for its exact cost';return;}
+  if(!ds){el.innerHTML=(L.availKnown===false)
+    ?'Ask us for the exact free-from date — hover a day for its cost'
+    :'Free from <b>'+fmtD(new Date(L.availableFrom+'T00:00'))+'</b> — hover a day for its exact cost';return;}
   const s=computeStay(ds);
   el.innerHTML=(s.fit==='after')
     ?('Free '+fmtS(s.avail)+' — <b>'+s.gap+' days</b> after this date')
@@ -1790,7 +1795,7 @@ function paintData(){
       +(_gs?' <a href="/apartments-in/'+_gs+'" style="color:var(--gold);border-bottom:1px solid var(--line-gold);white-space:nowrap" onclick="try{boomTrack(\'guide_click\',{slug:\''+_gs+'\'})}catch(e){}">Read the honest guide →</a>':'');}
   document.getElementById('simZone').textContent=L.zone;
   document.getElementById('hPrice').textContent=eur(L.price);
-  const af=L.availableFrom;
+  const af=(L.availKnown===false)?'':L.availableFrom;   // ignota = nessuna data da annunciare
   const _wl=L.status==='waitlist';
   const _now=af&&af<=new Date().toISOString().slice(0,10);
   document.getElementById('hAvail').textContent=_wl?'Occupied · waitlist open':(_now?'Available now':(af?('Available '+fmtS(new Date(af+'T00:00'))):'Ask availability'));
@@ -1818,11 +1823,18 @@ function paintData(){
 function mapReal(d){
   const imgs=(Array.isArray(d.images)&&d.images.length)?d.images:(d.image?[d.image]:[]);
   const feat=Array.isArray(d.features)?d.features:(Array.isArray(d.amenities)?d.amenities:[]);
-  const rawAf=d.availableFrom||d.availableDate;const _ISO=/^\d{4}-\d{2}-\d{2}/;const af=(typeof rawAf==='string'&&_ISO.test(rawAf))?rawAf.slice(0,10):new Date().toISOString().slice(0,10);
+  /* La data si legge con js/dispo-engine.js — la stessa regola della vetrina.
+     Qui c'era un fallback a OGGI per qualunque testo non-ISO: la scheda
+     annunciava "Available now" su case libere mesi dopo.
+     Due valori distinti di proposito: `af` serve al CALENDARIO (che ha
+     bisogno di un mese da cui aprirsi) e `_known` serve alle PAROLE. Quando
+     non sappiamo, il calendario resta usabile ma la pagina lo dice. */
+  const _av=(window.BOOM_DISPO?window.BOOM_DISPO.resolve(d):{kind:'unknown',iso:null});
+  const _known=_av.kind!=='unknown';const af=_av.iso||new Date().toISOString().slice(0,10);
   const zone=d.zone||d.neighborhood||d.address||'Rome';
   /* real listings NEVER borrow the sample's nearby/similar — both are
      computed from real data after paint (coords → anchors, catalog → picks) */
-  return {id:d.id||PID||'',name:d.name||d.title||'Apartment in Rome',zone:zone,price:+d.price||0,deposit:+d.deposit||+d.price||0,depositMonths:+d.depositMonths||0,agencyFee:d.agencyFee!=null?(+d.agencyFee||0):Math.round((+d.price||0)*1.2),beds:(d.beds!=null?d.beds:(d.bedrooms!=null?d.bedrooms:0)),baths:(d.bathrooms!=null?d.bathrooms:(d.baths!=null?d.baths:1)),sqm:d.sqm||d.size||0,floor:d.floor||1,furnished:(d.furnished===true)||/furnish/i.test(feat.join(' ')+' '+(d.description||'')),real:true,status:((d.status||d.availabilityStatus||'available')+'').toLowerCase(),availableFrom:af,images:imgs,features:feat,description:(typeof d.description==='string'&&d.description.trim())?d.description.trim():'',nearby:[],similar:[],lat:+d.lat||0,lng:+d.lng||0,video:(d.videoUrl||d.youtubeUrl||null)};
+  return {id:d.id||PID||'',name:d.name||d.title||'Apartment in Rome',zone:zone,price:+d.price||0,deposit:+d.deposit||+d.price||0,depositMonths:+d.depositMonths||0,agencyFee:d.agencyFee!=null?(+d.agencyFee||0):Math.round((+d.price||0)*1.2),beds:(d.beds!=null?d.beds:(d.bedrooms!=null?d.bedrooms:0)),baths:(d.bathrooms!=null?d.bathrooms:(d.baths!=null?d.baths:1)),sqm:d.sqm||d.size||0,floor:d.floor||1,furnished:(d.furnished===true)||/furnish/i.test(feat.join(' ')+' '+(d.description||'')),real:true,status:((d.status||d.availabilityStatus||'available')+'').toLowerCase(),availableFrom:af,availKnown:_known,images:imgs,features:feat,description:(typeof d.description==='string'&&d.description.trim())?d.description.trim():'',nearby:[],similar:[],lat:+d.lat||0,lng:+d.lng||0,video:(d.videoUrl||d.youtubeUrl||null)};
 }
 /* ── REAL recommendations: the catalog itself decides what's similar ── */
 /* the anchors that decide a life in Rome — one list, used by the nearby
@@ -2041,7 +2053,7 @@ function initFit(){
   var c=rec&&rec.s?rec.s:null;if(!c)return;
   var hits=[],checks=0,lz=String(L.zone||'').toLowerCase();
   if(+c.budgetMax>0&&+c.budgetMax<4000){checks++;if(L.price<=+c.budgetMax)hits.push('within your €'+(+c.budgetMax).toLocaleString('en-US')+' budget');}
-  if(c.moveIn&&/^\d{4}-\d{2}-\d{2}$/.test(c.moveIn)){checks++;if(L.status!=='waitlist'&&L.availableFrom&&L.availableFrom<=c.moveIn)hits.push('free for your '+fmtS(new Date(c.moveIn+'T00:00'))+' date');}
+  if(c.moveIn&&/^\d{4}-\d{2}-\d{2}$/.test(c.moveIn)){checks++;if(L.status!=='waitlist'&&L.availKnown!==false&&L.availableFrom&&L.availableFrom<=c.moveIn)hits.push('free for your '+fmtS(new Date(c.moveIn+'T00:00'))+' date');}
   if(+c.beds>0){checks++;if((+L.beds||0)>=+c.beds)hits.push(c.beds+'+ bedrooms');}
   if(c.video){checks++;if(L.video)hits.push('video tour');}
   if(Array.isArray(c.zones)&&c.zones.length){checks++;if(c.zones.some(function(z){z=String(z).toLowerCase();return z&&(lz.indexOf(z)!==-1||z.indexOf(lz)!==-1)}))hits.push('your zone');}

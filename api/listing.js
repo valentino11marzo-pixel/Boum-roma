@@ -15,6 +15,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import DISPO from '../js/dispo-engine.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT = process.env.FIREBASE_PROJECT_ID || 'boom-property-dashboards';
@@ -131,9 +132,11 @@ function injectSeo(html, d, id) {
       priceSpecification: { '@type': 'UnitPriceSpecification', price, priceCurrency: 'EUR', unitText: 'MONTH' },
       seller: { '@id': 'https://www.boomrome.com/#organization' },
     };
-    const af = String(d.availableFrom || d.availableDate || '');
-    if (/^\d{4}-\d{2}-\d{2}/.test(af) && af.slice(0, 10) > new Date().toISOString().slice(0, 10)) {
-      ld.offers.availabilityStarts = af.slice(0, 10);
+    // availabilityStarts solo su una data CERTA: un dato strutturato sbagliato
+    // finisce nei rich result di Google, dove non lo corregge nessuno.
+    const avr = DISPO.resolve(d);
+    if (avr.kind === 'date' && avr.iso > new Date().toISOString().slice(0, 10)) {
+      ld.offers.availabilityStarts = avr.iso;
     }
   }
   // Video tour → VideoObject JSON-LD (video badge in search results). Same
@@ -189,12 +192,13 @@ function injectSeo(html, d, id) {
   // without this a non-executing crawler reads an empty page. Hidden whenever
   // JS runs — the hydrated page replaces it for humans.
   const waitlist = String(d.status || '').toLowerCase() === 'waitlist';
-  const af2 = String(d.availableFrom || d.availableDate || '');
+  const av2 = DISPO.resolve(d);
   const avail = waitlist
     ? 'Currently occupied — can be reserved ahead via waitlist.'
-    : (/^\d{4}-\d{2}-\d{2}/.test(af2) && af2.slice(0, 10) > new Date().toISOString().slice(0, 10)
-        ? 'Available from ' + af2.slice(0, 10) + '.'
-        : 'Available now.');
+    : av2.kind === 'date' ? 'Available from ' + av2.iso + '.'
+      : av2.kind === 'now' ? 'Available now.'
+        // il ramo che mancava: senza, ogni data illeggibile diceva "now"
+        : 'Availability on request — ask BOOM for the exact date.';
   const facts = [];
   if (price) facts.push('<li>Monthly rent (all-in): €' + price.toLocaleString('en-US') + '</li>');
   facts.push('<li>' + esc(avail) + '</li>');
