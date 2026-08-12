@@ -42,6 +42,43 @@
     rullino.appendChild(b);
   });
   if (immagini.length < 2) rullino.style.display = 'none';
+
+  /* ── sfogliare: frecce, tastiera, contatore ──────────────────────────
+     Mancavano: su una pagina casa la foto successiva e il gesto piu
+     ripetuto che ci sia. */
+  (function () {
+    var prec = document.getElementById('foPrec'),
+        succ = document.getElementById('foSucc'),
+        conta = document.getElementById('contaFoto');
+    if (!prec || !succ) return;
+    if (immagini.length < 2) {
+      prec.style.display = succ.style.display = 'none';
+      if (conta) conta.style.display = 'none'; return;
+    }
+    var qui = 0;
+    function vai(d) {
+      qui = (qui + d + immagini.length) % immagini.length;
+      mostra(qui);
+      if (conta) conta.textContent = (qui + 1) + ' / ' + immagini.length;
+      var b = rullino.children[qui]; if (b && b.scrollIntoView)
+        b.scrollIntoView({ block:'nearest', inline:'center', behavior:'smooth' });
+    }
+    prec.addEventListener('click', function () { vai(-1); });
+    succ.addEventListener('click', function () { vai(1); });
+    [].slice.call(rullino.children).forEach(function (b, k) {
+      b.addEventListener('click', function () {
+        qui = k; if (conta) conta.textContent = (k + 1) + ' / ' + immagini.length;
+      });
+    });
+    addEventListener('keydown', function (e) {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      var t = e.target.tagName;
+      if (t === 'INPUT' || t === 'TEXTAREA' || t === 'SELECT') return;
+      if (e.key === 'ArrowLeft') { e.preventDefault(); vai(-1); }
+      if (e.key === 'ArrowRight') { e.preventDefault(); vai(1); }
+    });
+    if (conta) conta.textContent = '1 / ' + immagini.length;
+  })();
   mostra(0);
 
   /* ── l'anagrafica ───────────────────────────────────────────────────── */
@@ -51,7 +88,10 @@
   per('#briZona').setAttribute('href', '/apartments.html#zona=' + encodeURIComponent(c.zona));
   document.title = c.nome + ' — ' + c.zona + ', Rome | BOOM';
   var st = per('#statoCasa');
-  st.textContent = c.stato; st.className = 'stato-grande ' + (c.libera ? 'si' : '');
+  /* lo stato e l'informazione piu volatile della pagina: si vede che e viva */
+  st.textContent = c.stato;
+  st.className = 'stato-grande ' + (c.libera ? 'libera'
+    : /wait/i.test(c.stato) ? 'attesa' : 'presa');
   per('#cuoreCasa').dataset.u = '/listing/' + c.id;
   per('#applicaNome').textContent = c.nome;
 
@@ -91,23 +131,23 @@
   var mesiCauzione = c.cauzioneMesi || 1;
   var cauzione = c.prezzo * mesiCauzione;
   var onorario = Math.round(c.prezzo * 12 * .10);
-  var totale = c.prezzo + cauzione + onorario;
-  per('#contoCanone').textContent = euro(c.prezzo);
-  per('#contoQuando').textContent = c.dal
-    ? 'Available from ' + new Date(c.dal + 'T12:00:00')
+  var totale = c.prezzo + cauzione + onorario;   /* il giorno uno intero, per le domande */
+  /* la cifra grande e quella PER LE CHIAVI: primo canone + onorario.
+     La cauzione sta fuori e lo dice — non e un costo, e trattenuta. */
+  var chiavi = c.prezzo + onorario;
+  per('#chiaviCauzione').textContent = euro(cauzione);
+  per('#chiaviOnorario').textContent = euro(onorario);
+  per('#chiaviSomma').innerHTML = 'First month <b>' + euro(c.prezzo)
+    + '</b> + agency fee <b>' + euro(onorario) + '</b>'
+    + (c.dal ? ' · keys from <b>' + new Date(c.dal + 'T12:00:00')
         .toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })
-    : 'Paid on move-in day';
-  per('#contoCauzione').textContent = euro(cauzione);
-  document.querySelectorAll('.conto-riga')[1].querySelector('em').textContent =
-    mesiCauzione + (mesiCauzione === 1 ? ' month' : ' months')
-    + ' — returned after the final walkthrough';
-  per('#contoOnorario').textContent = euro(onorario);
+        + '</b>' : '');
 
   /* il totale gira sui Solari: e la cifra che conta piu di ogni altra */
   (function () {
     var host = document.getElementById('totFlap');
     if (!host) return;
-    var testo = euro(totale);
+    var testo = euro(chiavi);
     var quadro = null;
     var BS = window.BoomSolari;
     if (BS && BS.Board) {
