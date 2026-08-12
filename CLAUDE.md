@@ -2005,6 +2005,11 @@ One pipeline, three doors:
 floorplan/document, room, needed rotation, quality, coverScore, watermark) →
 plan: best real photo as cover, gallery reordered living→kitchen→bedrooms→
 bath→exterior with floorplans last, exact duplicates dropped. Zero writes.
+Audit accepts an optional `urls[]` override (capped, http(s) only): the Media
+Studio's "✨ Ordina con l'AI" asks for a plan over the photos it actually has
+on screen — which differ from `sourceUrls()` once a listing was already
+enhanced. The studio applies the plan to its thumbs (duplicates moved to the
+END, never deleted); the operator refines and publishes.
 `apply` = sharp enhancement (EXIF+AI rotation, contrast stretch, per-photo
 preset; floorplans never saturated), uploads to `listings/enhanced/<id>/`,
 patches `image`/`images`/`photosEnhancedAt`/`photosEnhancedBy`.

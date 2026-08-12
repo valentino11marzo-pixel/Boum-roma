@@ -210,14 +210,20 @@ async function uploadJpeg(token, path, buf) {
 }
 
 // ── the single-listing pipeline (shared by all three doors) ─────────────────
-async function processListing(token, id, mode, actor) {
+// urlsOverride (audit only): the Media Studio asks for a plan over the photos
+// it actually has on screen — which can differ from sourceUrls() when the
+// listing was already enhanced (current images are our outputs, sourceUrls
+// returns the raw originals). Admin/wizard-authed callers only, capped, http(s).
+async function processListing(token, id, mode, actor, urlsOverride) {
   const dr = await fetch(`${FS_BASE}/listings/${encodeURIComponent(id)}`, { headers: { Authorization: `Bearer ${token}` } });
   if (!dr.ok) return { ok: false, error: 'listing_not_found' };
   const doc = await dr.json();
   const f = doc.fields || {};
   const js = {}; for (const k in f) js[k] = fsValToJs(f[k]);
 
-  const urls = sourceUrls(js);
+  const urls = (mode === 'audit' && Array.isArray(urlsOverride) && urlsOverride.length)
+    ? [...new Set(urlsOverride.map(String).filter(u => /^https?:\/\//.test(u)))].slice(0, MAX_PHOTOS)
+    : sourceUrls(js);
   if (!urls.length) return { ok: true, plan: null, note: 'no_photos' };
 
   // Download in small parallel chunks with a guarded per-photo timeout.
@@ -362,7 +368,7 @@ export default async function handler(req, res) {
     }
     const id = String(b.listingId || '').trim();
     if (!id) return res.status(400).json({ ok: false, error: 'no_listing' });
-    const out = await processListing(token, id, mode, who.actor);
+    const out = await processListing(token, id, mode, who.actor, mode === 'audit' ? b.urls : null);
     return res.status(out.ok ? 200 : 404).json(out);
   } catch (err) {
     console.error('[photos/enhance]', err.message);
