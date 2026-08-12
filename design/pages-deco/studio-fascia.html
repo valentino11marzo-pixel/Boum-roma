@@ -160,6 +160,89 @@
     background:var(--gold);color:#000;font-size:11.5px;font-weight:600;
     letter-spacing:.05em;border-radius:100px;padding:8px 15px;white-space:nowrap}
 
+  .v{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:20px 22px;margin-top:14px;position:relative;overflow:hidden}
+  .v::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;
+    background:var(--text-4)}
+  .v.propongo::before{background:var(--gold)}
+  .v-capo{display:flex;align-items:baseline;justify-content:space-between;
+    gap:14px;flex-wrap:wrap;margin-bottom:9px}
+  .v h3{margin:0;font-family:var(--display);font-weight:400;font-size:17px}
+  .v p{margin:0;font-size:14.5px;color:var(--text-2)}
+  .v p+p{margin-top:9px}
+  .v p b{color:var(--text);font-weight:500}
+  .tag{font-size:9.5px;font-weight:600;letter-spacing:.18em;
+    text-transform:uppercase;border-radius:100px;padding:4px 10px;flex:none}
+  .tag.p{background:rgba(46,36,0,.6);color:var(--gold);
+    border:1px solid rgba(255,215,0,.28)}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;
+    color:var(--gold);background:rgba(255,215,0,.07);
+    border:1px solid rgba(255,215,0,.13);border-radius:5px;padding:1px 6px}
+
+  /* ══ D · LA BANCHINA ════════════════════════════════════════════ */
+  .banchina{border:1px solid var(--line);border-radius:16px;overflow:hidden;
+    background:var(--surface)}
+  .ba-capo{display:flex;align-items:baseline;justify-content:space-between;
+    gap:14px;padding:14px 18px 12px}
+  .ba-capo b{flex:1;min-width:0;font-family:var(--display);font-size:15.5px;
+    font-weight:400;color:var(--text)}
+  .ba-capo b em{font-style:normal;color:var(--gold)}
+  .ba-tutti{font-size:11px;font-weight:600;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--text-4);white-space:nowrap}
+  .ba-porte{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;
+    background:var(--line-0);border-top:1px solid var(--line-0)}
+  .mob .ba-porte{display:flex;overflow-x:auto;scrollbar-width:none}
+  .mob .ba-porte::-webkit-scrollbar{display:none}
+  .mob .ba-p{flex:0 0 232px}
+  .mob .ba-capo b{font-size:14px}
+  .mob .ba-tutti{display:none}
+  .ba-p{position:relative;display:block;background:var(--surface);
+    padding:14px 15px 15px;transition:background .3s var(--ease)}
+  .ba-p::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;
+    background:var(--gold);transform:scaleX(0);transform-origin:left;
+    transition:transform .42s var(--ease)}
+  .ba-p:hover{background:var(--elevated)}
+  .ba-p:hover::before{transform:scaleX(1)}
+  .ba-p svg.ic{width:19px;height:19px}
+  .ba-p .caso{display:block;margin-top:9px;font-size:13.5px;font-weight:500;
+    color:var(--text);line-height:1.35}
+  .ba-p .fa{display:block;margin-top:3px;font-size:11.5px;line-height:1.45;
+    color:var(--text-4)}
+  .ba-p .costo{display:flex;align-items:baseline;gap:7px;margin-top:9px;
+    flex-wrap:wrap}
+  .ba-p .costo b{font-family:var(--display);font-size:17px;font-weight:400;
+    color:var(--gold);font-variant-numeric:tabular-nums}
+  .ba-p .costo i{font-style:normal;font-size:10.5px;color:var(--text-4)}
+  .ba-p.prima{background:linear-gradient(165deg,rgba(255,215,0,.07),
+    rgba(255,215,0,.01) 70%,transparent)}
+  .ba-soldi{display:flex;align-items:center;gap:15px;padding:14px 18px;
+    border-top:1px solid var(--line-0);
+    background:linear-gradient(100deg,rgba(0,255,136,.045),
+      rgba(0,255,136,.008) 58%,transparent)}
+  .ba-scudo{width:34px;height:34px;flex:none;border-radius:50%;display:grid;
+    place-items:center;background:rgba(0,255,136,.09);
+    border:1px solid rgba(0,255,136,.26)}
+  .ba-scudo svg{width:17px;height:17px;color:var(--green);fill:none;
+    stroke:currentColor;stroke-width:1.6;stroke-linecap:round;
+    stroke-linejoin:round}
+  .ba-soldi .dice{flex:1;min-width:0;font-size:12.5px;line-height:1.55;
+    color:var(--text-2)}
+  .ba-soldi .dice b{color:var(--text);font-weight:500}
+  .ba-soldi .dice em{font-style:normal;color:var(--green);font-weight:500}
+  .ba-coda{display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+    padding:10px 18px;border-top:1px solid var(--line-0);background:var(--void);
+    font-size:11.5px;color:var(--text-4)}
+  .mob .ba-coda{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px}
+  .mob .ba-coda .sep,.mob .ba-coda .terzo{display:none}
+  .mob .ba-coda .viva{grid-column:1/-1}
+  .ba-coda .ch{display:inline-flex;align-items:flex-start;gap:6px}
+  .ba-coda .ch svg{width:13px;height:13px;color:var(--gold);flex:none;
+    fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;
+    stroke-linejoin:round;margin-top:2px}
+  .ba-coda .sep{width:1px;height:12px;background:var(--line);flex:none}
+  .ba-coda .viva{display:inline-flex;align-items:center;gap:7px;margin-left:auto}
+  .mob .ba-coda .viva{margin-left:0}
+
   /* ── confronto ── */
   .scorri{overflow-x:auto;margin-top:22px;border:1px solid var(--line);
     border-radius:14px;background:var(--card)}
@@ -412,6 +495,109 @@
     casa</b>, dove la fiducia va ricordata e non costruita da zero.</p>
 </div></section>
 
+<section class="big"><div class="w">
+  <span class="eyebrow"><i></i>Declinazione D</span>
+  <div class="capo"><h3>D · La banchina<em>in pagina</em></h3>
+    <span class="num">iPhone <b>404px</b> · desktop <b>309px</b> ·
+      <b>4 porte</b> + la garanzia</span></div>
+  <div class="paio">
+    <div class="telaio"><div class="telaio-eti"><b></b><b></b><b></b>barra desktop</div>
+      <div class="palco"><div class="banchina">
+        <div class="ba-capo"><b>Wherever you are in this, <em>there's a door</em>.</b>
+          <a class="ba-tutti" href="#">All services →</a></div>
+        <div class="ba-porte">
+          <a class="ba-p prima" href="#"><svg class="ic" viewBox="0 0 24 24"><use href="#i-video"/></svg>
+            <span class="caso">Can't fly over to see it?</span>
+            <span class="fa">A live video tour of that exact flat — the red flags said out loud.</span>
+            <span class="costo"><b>€89</b><i>credited if you rent with us</i></span></a>
+          <a class="ba-p" href="#"><svg class="ic" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.6"/><path d="M15.6 15.6L20.5 20.5"/><path d="M8 10.8h5.6M10.8 8v5.6" class="acc"/></svg>
+            <span class="caso">Nothing in the catalogue fits?</span>
+            <span class="fa">We hunt the whole market for you, off-market included.</span>
+            <span class="costo"><b>€350</b><i>deducted on success</i></span></a>
+          <a class="ba-p" href="#"><svg class="ic" viewBox="0 0 24 24"><use href="#i-scudo"/></svg>
+            <span class="caso">Found one yourself?</span>
+            <span class="fa">We verify the landlord, the papers and the price — then negotiate.</span>
+            <span class="costo"><b>€249</b><i>fixed · saves €600+ on average</i></span></a>
+          <a class="ba-p" href="#"><svg class="ic" viewBox="0 0 24 24"><use href="#i-doc"/></svg>
+            <span class="caso">About to sign something?</span>
+            <span class="fa">A written traffic-light verdict in 24h: what's fine, what's unfair, what's missing.</span>
+            <span class="costo"><b>€49</b><i>credited on Deal Assistance</i></span></a>
+        </div>
+        <div class="ba-soldi">
+          <span class="ba-scudo"><svg viewBox="0 0 24 24"><path d="M12 3l7 2.8v5.4c0 4.1-3 7.1-7 8.3-4-1.2-7-4.2-7-8.3V5.8z"/><path d="M8.6 11.6l2.3 2.3 4.3-4.9"/></svg></span>
+          <span class="dice"><b>Every euro goes through BOOM, never to a stranger.</b>
+            First month, deposit and agency fee on Stripe — <em>no bank-transfer
+            circus</em>, a receipt for each one, and a full refund if we don't
+            deliver. Your deposit is legally protected and filmed in and out.</span>
+        </div>
+        <div class="ba-coda">
+          <span class="ch"><svg viewBox="0 0 24 24"><path d="M4.5 12.5l5 5 10-11"/></svg>Walked and filmed by us</span>
+          <span class="sep"></span>
+          <span class="ch"><svg viewBox="0 0 24 24"><path d="M4.5 12.5l5 5 10-11"/></svg>Move-in total before you pay</span>
+          <span class="sep"></span>
+          <span class="ch terzo"><svg viewBox="0 0 24 24"><path d="M4.5 12.5l5 5 10-11"/></svg>Licensed agency · BOOM® EU 019317594</span>
+          <span class="viva"><span class="pt"></span>Rome <span class="ora" data-ora>—:—</span> · we reply within 2h</span>
+        </div>
+      </div></div></div>
+    <div class="telaio mob"><div class="telaio-eti"><b></b><b></b><b></b>barra iPhone · 390px</div>
+      <div class="palco"><div class="banchina">
+        <div class="ba-capo"><b>Wherever you are in this, <em>there's a door</em>.</b>
+          <a class="ba-tutti" href="#">All services →</a></div>
+        <div class="ba-porte">
+          <a class="ba-p prima" href="#"><svg class="ic" viewBox="0 0 24 24"><use href="#i-video"/></svg>
+            <span class="caso">Can't fly over to see it?</span>
+            <span class="fa">A live video tour of that exact flat — the red flags said out loud.</span>
+            <span class="costo"><b>€89</b><i>credited if you rent with us</i></span></a>
+          <a class="ba-p" href="#"><svg class="ic" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.6"/><path d="M15.6 15.6L20.5 20.5"/><path d="M8 10.8h5.6M10.8 8v5.6" class="acc"/></svg>
+            <span class="caso">Nothing in the catalogue fits?</span>
+            <span class="fa">We hunt the whole market for you, off-market included.</span>
+            <span class="costo"><b>€350</b><i>deducted on success</i></span></a>
+          <a class="ba-p" href="#"><svg class="ic" viewBox="0 0 24 24"><use href="#i-scudo"/></svg>
+            <span class="caso">Found one yourself?</span>
+            <span class="fa">We verify the landlord, the papers and the price — then negotiate.</span>
+            <span class="costo"><b>€249</b><i>fixed · saves €600+ on average</i></span></a>
+          <a class="ba-p" href="#"><svg class="ic" viewBox="0 0 24 24"><use href="#i-doc"/></svg>
+            <span class="caso">About to sign something?</span>
+            <span class="fa">A written traffic-light verdict in 24h: what's fine, what's unfair, what's missing.</span>
+            <span class="costo"><b>€49</b><i>credited on Deal Assistance</i></span></a>
+        </div>
+        <div class="ba-soldi">
+          <span class="ba-scudo"><svg viewBox="0 0 24 24"><path d="M12 3l7 2.8v5.4c0 4.1-3 7.1-7 8.3-4-1.2-7-4.2-7-8.3V5.8z"/><path d="M8.6 11.6l2.3 2.3 4.3-4.9"/></svg></span>
+          <span class="dice"><b>Every euro goes through BOOM, never to a stranger.</b>
+            First month, deposit and agency fee on Stripe — <em>no bank-transfer
+            circus</em>, a receipt for each one, and a full refund if we don't
+            deliver. Your deposit is legally protected and filmed in and out.</span>
+        </div>
+        <div class="ba-coda">
+          <span class="ch"><svg viewBox="0 0 24 24"><path d="M4.5 12.5l5 5 10-11"/></svg>Walked and filmed by us</span>
+          <span class="sep"></span>
+          <span class="ch"><svg viewBox="0 0 24 24"><path d="M4.5 12.5l5 5 10-11"/></svg>Move-in total before you pay</span>
+          <span class="sep"></span>
+          <span class="ch terzo"><svg viewBox="0 0 24 24"><path d="M4.5 12.5l5 5 10-11"/></svg>Licensed agency · BOOM® EU 019317594</span>
+          <span class="viva"><span class="pt"></span>Rome <span class="ora" data-ora>—:—</span> · we reply within 2h</span>
+        </div>
+      </div></div></div>
+  </div>
+  <p class="nota"><b>Perché A non bastava —</b> avevi ragione: vendeva un
+    servizio solo, e chi non ha quel problema resta a mani vuote. Qui ogni
+    cella è una <b>situazione</b>, non un prodotto: nessuno compra «Deal
+    Assistance», uno compra «ho trovato casa da solo e ho paura di farmi
+    fregare». Il prezzo è la risposta, e ognuno ha la sua condizione scritta
+    accanto (accreditato, dedotto, rimborsato).</p>
+  <p class="nota">Su schermo stretto le porte diventano una fila che scorre
+    con lo scatto. Qui il carosello è onesto: le porte sono
+    <b>alternative</b> — ne scegli una — mentre i segnali di fiducia devono
+    restare tutti visibili, ed è per questo che stanno in coda e non dentro
+    lo scorrimento.</p>
+  <p class="nota">La barra verde è la parte che mi hai chiesto: dove
+    finiscono i soldi. Ogni parola viene dal sito live —
+    <b>«no bank-transfer circus»</b> è di how-it-works, «full refund if we
+    don't deliver» e «legally protected, video inventory at move-in and
+    move-out» pure. Non ho scritto «assicurato»: senza una polizza vera
+    quella parola è una bugia, e il resto della fascia perderebbe credito
+    insieme a lei.</p>
+</div></section>
+
 <section><div class="w">
   <span class="eyebrow"><i></i>Confronto</span>
   <div class="scorri"><table>
@@ -419,49 +605,108 @@
       <th>Segnali di fiducia</th><th>Voce</th></tr>
     <tr><td><b>0 · Attuale</b></td><td>215 / 77 px</td><td class="ko">0</td>
       <td>3 (di cui 1 vuoto)</td><td>vostra</td></tr>
-    <tr><td><b>A · Obiezioni</b> <span style="color:var(--green)">· in
-      pagina</span></td><td>294 / 181 px</td>
+    <tr><td><b>A · Obiezioni</b></td><td>294 / 181 px</td>
       <td class="ok">2</td><td class="ok">5</td><td class="ok">vostra</td></tr>
     <tr><td><b>B · Dubbio</b></td><td class="ko">430 / 230 px</td><td>1</td>
       <td>4 (come testo)</td><td class="ko">da funnel USA</td></tr>
     <tr><td><b>C · Riga</b></td><td class="ok">122 / 61 px</td><td>1</td>
       <td class="ko">4 (minuscoli)</td><td class="ok">vostra</td></tr>
+    <tr><td><b>D · Banchina</b> <span style="color:var(--green)">· in
+      pagina</span></td><td class="ko">404 / 309 px</td>
+      <td class="ok">4</td><td class="ok">6 + la garanzia</td>
+      <td class="ok">vostra</td></tr>
   </table></div>
 
   <div class="cons">
-    <h3>A · La fascia delle obiezioni.</h3>
-    <p>Non perché risparmi spazio — abbiamo visto che ne costa 117 su iPhone.
-      La scelgo perché quei 117px comprano due cose che oggi la home non ha
-      in cima: <b style="color:var(--text);font-weight:400">una cosa
-      acquistabile nell'istante esatto del dubbio</b>, e i segnali di fiducia
-      che in un mercato con la reputazione di Roma valgono più di qualunque
-      titolo. Oggi i servizi aspettano a 4.036px, cioè cinque schermate più
-      in basso: quasi nessuno arriva lì con il dubbio ancora acceso.</p>
-    <p>Se invece la priorità è accorciare la home, la risposta è
-      <b style="color:var(--text);font-weight:400">C</b>, che restituisce 93px
-      e tiene un solo gancio. Sono due strategie diverse e vanno scelte, non
-      mediate: A vende, C libera. Fare metà e metà darebbe il peggio delle
-      due.</p>
-    <p>La ragione vera per cui scelgo A e non B: il Virtual Viewing non è un
-      accessorio, è <b style="color:var(--text);font-weight:400">l'unico
-      modo</b> in cui uno che sta a Berlino può fare il passo successivo
-      stasera. Metterlo lì non è vendere di più — è togliere l'ultimo
-      ostacolo prima del catalogo. E il secondo gancio («hai già un contratto?
-      fattelo controllare, €49») pesca la persona più vicina al pagamento di
-      tutta la home, quella che sta per firmare qualcosa scritto in una lingua
-      che non parla.</p>
-    <p><b style="color:var(--text);font-weight:400">A è già montata nella
-      home</b> — nel build del ramo, non in produzione. Nella pagina vera
-      misura 294px su iPhone e 181 su desktop: costa 79px in più
-      dell'attuale sul telefono, meno di quanto temessi, perché su schermo
-      stretto le stesse frasi sono dette più corte (nessun JavaScript: le due
-      versioni convivono nel markup e il breakpoint sceglie).</p>
-    <p style="margin-bottom:0">Una cosa da decidere tu: nel copy di B ho
-      scritto «€89 credited to your agency fee if you take it» perché è
-      quello che dice la pagina live. Se vale ancora, va detto anche in A —
-      <b style="color:var(--text);font-weight:400">«se poi affitti con noi,
-      gli €89 te li riprendi»</b> trasforma un costo in un anticipo, ed è la
-      frase più forte che avete.</p>
+    <h3>D · La banchina.</h3>
+    <p>La tua obiezione era giusta e la scrivo com'è: A vendeva
+      <b style="color:var(--text);font-weight:400">un servizio solo</b>. Chi
+      non ha quel problema — chi a Roma ci vive già, chi una casa l'ha
+      trovata, chi sta per firmare — passava oltre senza che la fascia gli
+      dicesse niente. Una porta sola in un edificio con cinque stanze.</p>
+    <p>Ora ogni cella è una <b style="color:var(--text);font-weight:400">situazione</b>,
+      non un prodotto. È la differenza che conta: nessuno cerca «Deal
+      Assistance», uno cerca «ho trovato casa da solo e ho paura di farmi
+      fregare». Il prezzo diventa la risposta, e ciascuno porta la sua
+      condizione scritta accanto — accreditato, dedotto, rimborsato — perché
+      un prezzo senza condizione è un ostacolo, un prezzo con la condizione
+      è un anticipo.</p>
+    <p>Sui soldi ti ho preso in parola ma non alla lettera. Ho scritto
+      <b style="color:var(--text);font-weight:400">«Every euro goes through
+      BOOM, never to a stranger»</b> e sotto le parole che il tuo sito usa
+      già: Stripe, «no bank-transfer circus», ricevuta per ogni movimento,
+      rimborso pieno se non consegnate, deposito legalmente protetto e
+      filmato in entrata e in uscita. Non ho scritto <b style="color:var(--text);
+      font-weight:400">«assicurato»</b>: senza una polizza vera quella parola
+      è una bugia, e una bugia in una fascia sulla fiducia porta giù con sé
+      anche tutto il resto. Se una polizza c'è, dimmi qual è e la scrivo
+      subito — è più forte di tutto quello che c'è lì adesso.</p>
+    <p style="margin-bottom:0">Costo: 404px su iPhone contro i 215 della
+      fascia vecchia. È la cosa più cara della parte alta della home, e la
+      pago volentieri, perché è l'unico punto della pagina dove un visitatore
+      può <b style="color:var(--text);font-weight:400">comprare qualcosa
+      stasera</b> invece di scorrere.</p>
+  </div>
+</div>
+</div></section>
+
+<section><div class="w">
+  <span class="eyebrow"><i></i>Cose nuove</span>
+  <h2 style="margin-top:11px">Quattro idee che mi sono venute
+    <span class="hl">costruendo questa</span>.</h2>
+  <p style="margin-top:13px">Non riempitivi: quattro cose che esistono già
+    dentro BOOM e che la home non usa.</p>
+
+  <div class="v propongo"><div class="v-capo"><h3>1 · La banchina cambia porte a
+    seconda di dove sei</h3><span class="tag p">la più forte</span></div>
+    <p>Lo stesso componente, sulla pagina di una casa, non deve dire «Can't
+      fly over to see it?» in astratto: deve dire <b>«Can't fly over to see
+      <em style="font-style:normal;color:var(--gold)">Bilocale Trastevere</em>?»</b>
+      con quella casa già selezionata nel checkout. E la porta «Nothing fits?»
+      lì non serve — al suo posto va <b>«Hold this one»</b>.</p>
+    <p>Sulla discovery, quando una ricerca non dà risultati, la porta giusta
+      è Property Finding, e deve arrivare <b>con i criteri già compilati</b>.
+      Una fascia che sa dove ti trovi vale il doppio di una che recita la
+      stessa frase ovunque — ed è codice che ho già scritto, va solo
+      parametrizzato.</p>
+  </div>
+
+  <div class="v propongo"><div class="v-capo"><h3>2 · Il blocco da €300 non è in
+    home</h3><span class="tag p">c'è già, invisibile</span></div>
+    <p>Su <code>apartment-detail</code> c'è scritto <b>«Instant hold · €300 —
+      one tap, 48h, refundable»</b>. È il vostro strumento di conversione più
+      potente e in home non compare da nessuna parte: chi vede una casa che
+      gli piace alle due di notte non può fare niente per tenerla.</p>
+    <p>Andrebbe sulle carte della vetrina — un secondo bottone accanto al
+      cuore — e come quinta porta della banchina: <b>«Found the one? Hold it
+      for 48h · €300, refundable.»</b> Nessuno in Italia fa un hold
+      rimborsabile con un tap. È un vantaggio che avete e non dite.</p>
+  </div>
+
+  <div class="v propongo"><div class="v-capo"><h3>3 · Il conto del giorno uno,
+    nell'hero</h3><span class="tag p">nessuno in Italia lo fa</span></div>
+    <p>La paura numero due dopo la truffa è: <em>quanto mi svuota il conto il
+      primo giorno?</em> Voi quel numero lo calcolate già — la sezione «Il
+      denaro in chiaro» sulla pagina casa somma primo canone, cauzione e
+      onorario. In home non c'è.</p>
+    <p>Nel check-in, accanto a «Budget», una riga viva: scegli €1.500 e
+      compare <b>«day one: €1.500 + €3.000 deposit + €1.800 fee =
+      €6.300»</b>, con la nota su cosa non è incluso. È scomodo, ed è
+      esattamente per questo che funziona: nessun portale italiano ti dice il
+      totale prima che tu abbia dato la mail.</p>
+  </div>
+
+  <div class="v propongo"><div class="v-capo"><h3>4 · Una pagina sola: «dove
+    finiscono i tuoi soldi»</h3><span class="tag p">chiude il cerchio</span></div>
+    <p>La barra verde promette molto in tre righe. Chi è diffidente vuole
+      leggere il resto, e oggi quel resto è sparso fra how-it-works, le
+      pagine servizio e il footer. Una pagina unica —
+      <code>/your-money</code> — con il flusso Stripe, chi tiene la cauzione
+      e per quanto, cosa succede se salta l'affitto, il video-inventario, i
+      tempi di rimborso. Linkata dalla barra con un discreto <b>«How your
+      money is handled →»</b>.</p>
+    <p>È la pagina che nessuna agenzia romana ha, e per uno che sta a 2.000
+      km è quella che chiude la decisione.</p>
   </div>
 </div></section>
 

@@ -449,73 +449,121 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   letter-spacing:.12em; text-transform:uppercase; color:var(--gold);
   white-space:nowrap; }
 
-/* ── LA FASCIA — l'ultima cosa prima del catalogo, e la prima che vende ──
-   Regola: un solo oggetto acquistabile, col peso di un titolo; i segnali di
-   fiducia tutti visibili (la fiducia non si mette in un carosello); e in
-   coda la riga viva, dove l'orologio di Roma sopravvive senza mattonella. */
-.fascia { margin-top:clamp(20px,2.4vw,30px); border:1px solid var(--line);
+/* ── LA BANCHINA — dove chi arriva viene smistato ──────────────────────
+   Non «i nostri servizi»: la situazione in cui uno si trova, col prezzo
+   della risposta. Nessuno compra «Deal Assistance»; uno compra «ho trovato
+   casa da solo e ho paura di farmi fregare». Sotto, la garanzia sui
+   pagamenti — con le parole che il sito usa gia, nessuna promessa nuova. */
+.banchina { margin-top:clamp(20px,2.4vw,30px); border:1px solid var(--line);
   border-radius:16px; overflow:hidden; background:var(--surface); }
 
-/* il capofila: chi non puo volare a Roma trova qui la sua risposta */
-.fa-capo { display:flex; align-items:center; gap:15px; padding:16px 18px;
-  border-bottom:1px solid var(--line-0); position:relative;
-  background:linear-gradient(100deg, rgba(255,215,0,.075),
-    rgba(255,215,0,.012) 62%, transparent);
-  transition:background .3s var(--ease); }
-.fa-capo:hover { background:linear-gradient(100deg, rgba(255,215,0,.12),
-  rgba(255,215,0,.02) 62%, transparent); }
-.fa-capo > svg { width:28px; height:28px; flex:none; color:var(--gold);
-  fill:none; stroke:currentColor; stroke-width:1.5; stroke-linecap:round;
+.ba-capo { display:flex; align-items:baseline; justify-content:space-between;
+  gap:14px; padding:14px 18px 12px; }
+.ba-capo b { flex:1; min-width:0; }
+@media (max-width:640px){
+  .ba-capo { padding:13px 15px 11px; }
+  .ba-capo b { font-size:14px; }
+  .ba-tutti { font-size:10px; letter-spacing:.1em; } }
+.ba-capo b { font-family:var(--display); font-size:15.5px; font-weight:400;
+  letter-spacing:.005em; color:var(--text); }
+.ba-capo b em { font-style:normal; color:var(--gold); }
+.ba-tutti { display:inline-flex; align-items:center; gap:7px; font-size:11px;
+  font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--text-4); padding:10px 2px; margin:-10px 0;
+  transition:color .25s var(--ease); }
+.ba-tutti:hover { color:var(--gold); }
+
+/* le porte: una situazione per cella, il prezzo come risposta */
+.ba-porte { display:grid; grid-template-columns:repeat(4,1fr); gap:1px;
+  background:var(--line-0); border-top:1px solid var(--line-0); }
+.ba-p { position:relative; display:block; background:var(--surface);
+  padding:14px 15px 15px; transition:background .3s var(--ease); }
+.ba-p::before { content:''; position:absolute; top:0; left:0; right:0;
+  height:1px; background:var(--gold); transform:scaleX(0);
+  transform-origin:left; transition:transform .42s var(--ease); }
+.ba-p:hover { background:var(--elevated); }
+.ba-p:hover::before { transform:scaleX(1); }
+.ba-p svg.sg { width:19px; height:19px; color:var(--gold); fill:none;
+  stroke:currentColor; stroke-width:1.5; stroke-linecap:round;
+  stroke-linejoin:round; transition:transform .4s var(--ease); }
+.ba-p svg.sg .acc { opacity:.55; }
+.ba-p svg.sg .pieno { fill:var(--gold); stroke:none; }
+.ba-p:hover svg.sg { transform:translateY(-2px); }
+.ba-p .caso { display:block; margin-top:9px; font-size:13.5px; font-weight:500;
+  letter-spacing:.005em; color:var(--text); line-height:1.35; }
+.ba-p .fa { display:block; margin-top:3px; font-size:11.5px; line-height:1.45;
+  color:var(--text-4); }
+.ba-p .costo { display:flex; align-items:baseline; gap:7px; margin-top:9px;
+  flex-wrap:wrap; }
+.ba-p .costo b { font-family:var(--display); font-size:17px; font-weight:400;
+  letter-spacing:.02em; color:var(--gold); font-variant-numeric:tabular-nums; }
+.ba-p .costo i { font-style:normal; font-size:10.5px; color:var(--text-4);
+  line-height:1.3; }
+.ba-p .costo i .breve { display:none; }
+@media (max-width:860px){
+  .ba-p .costo i .lungo { display:none; }
+  .ba-p .costo i .breve { display:inline; } }
+/* la porta che vale di piu per chi e appena atterrato */
+.ba-p.prima { background:linear-gradient(165deg, rgba(255,215,0,.07),
+  rgba(255,215,0,.01) 70%, transparent); }
+.ba-p.prima:hover { background:linear-gradient(165deg, rgba(255,215,0,.12),
+  rgba(255,215,0,.02) 70%, transparent); }
+
+/* su schermo stretto: una fila che scorre. Le porte sono alternative —
+   scegliene una — quindi il carosello qui e onesto (a differenza della
+   fiducia, che va sempre tutta visibile). */
+@media (max-width:860px){
+  .ba-porte { display:flex; overflow-x:auto; scroll-snap-type:x mandatory;
+    scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+  .ba-porte::-webkit-scrollbar { display:none; }
+  .ba-p { flex:0 0 min(72vw,232px); scroll-snap-align:start;
+    border-right:1px solid var(--line-0); }
+  .ba-p:last-child { border-right:0; } }
+
+/* la garanzia: dove finiscono i soldi, detta con le parole del sito */
+.ba-soldi { display:flex; align-items:center; gap:15px; padding:14px 18px;
+  border-top:1px solid var(--line-0);
+  background:linear-gradient(100deg, rgba(0,255,136,.045),
+    rgba(0,255,136,.008) 58%, transparent); }
+.ba-scudo { width:34px; height:34px; flex:none; border-radius:50%;
+  display:grid; place-items:center; background:rgba(0,255,136,.09);
+  border:1px solid rgba(0,255,136,.26); }
+.ba-scudo svg { width:17px; height:17px; color:var(--green); fill:none;
+  stroke:currentColor; stroke-width:1.6; stroke-linecap:round;
   stroke-linejoin:round; }
-.fa-capo > svg .pieno { fill:var(--gold); stroke:none; }
-.fa-testo { flex:1; min-width:0; }
-.fa-testo b { display:block; font-family:var(--display); font-size:16.5px;
-  font-weight:400; letter-spacing:.005em; color:var(--text); }
-.fa-testo span { display:block; margin-top:3px; font-size:12.5px;
-  line-height:1.5; color:var(--text-2); }
-.fa-agisci { display:inline-flex; align-items:center; gap:9px; flex:none; }
-.fa-prezzo { font-family:var(--display); font-size:15px; font-weight:400;
-  letter-spacing:.04em; color:#000; background:var(--gold); border-radius:100px;
-  padding:7px 14px; font-variant-numeric:tabular-nums; white-space:nowrap; }
-.fa-vai { width:32px; height:32px; border-radius:50%; flex:none;
-  border:1px solid var(--line); display:inline-flex; align-items:center;
-  justify-content:center; color:var(--text-3);
-  transition:border-color .28s var(--ease), color .28s var(--ease),
-    transform .28s var(--ease); }
-.fa-capo:hover .fa-vai { border-color:var(--line-gold-2); color:var(--gold);
-  transform:translateX(3px); }
-.fa-vai svg { width:13px; height:13px; fill:none; stroke:currentColor;
-  stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; }
-@media (max-width:520px){ .fa-capo .fa-vai { display:none; } }
+.ba-soldi .dice { flex:1; min-width:0; font-size:12.5px; line-height:1.55;
+  color:var(--text-2); }
+.ba-soldi .breve { display:none; }
+@media (max-width:640px){
+  .ba-soldi { gap:12px; padding:13px 15px; align-items:flex-start; }
+  .ba-soldi .lungo { display:none; }
+  .ba-soldi .breve { display:inline; }
+  .ba-scudo { width:30px; height:30px; margin-top:1px; } }
+.ba-soldi .dice b { color:var(--text); font-weight:500; }
+.ba-soldi .dice em { font-style:normal; color:var(--green); font-weight:500; }
+.ba-stripe { width:46px; height:auto; flex:none; opacity:.85; }
+@media (max-width:640px){ .ba-stripe { display:none; } }
 
-/* i fatti: una risposta per obiezione, tutte visibili */
-.fa-fatti { display:grid; grid-template-columns:repeat(2,1fr); gap:1px;
-  background:var(--line-0); }
-@media (min-width:840px){ .fa-fatti { grid-template-columns:repeat(4,1fr); } }
-.fa-f { display:flex; align-items:flex-start; gap:10px; padding:12px 14px;
-  background:var(--surface); }
-.fa-f svg { width:19px; height:19px; flex:none; margin-top:1px;
-  color:var(--gold); fill:none; stroke:currentColor; stroke-width:1.5;
-  stroke-linecap:round; stroke-linejoin:round; }
-.fa-f svg .acc { opacity:.55; }
-.fa-f svg .pieno { fill:var(--gold); stroke:none; }
-.fa-f b { display:block; font-size:12.5px; font-weight:500; letter-spacing:.01em;
-  line-height:1.35; color:var(--text); }
-.fa-f i { display:block; margin-top:2px; font-style:normal; font-size:11px;
-  line-height:1.45; color:var(--text-4); }
-/* la stessa cosa, detta piu corta dove lo schermo e stretto.
-   Specificita allineata a .fa-f i, altrimenti si vedono entrambe. */
-.fa-f i.breve, .fa-testo span.breve { display:none; }
-@media (max-width:840px){
-  .fa-f i.lungo, .fa-testo span.lungo { display:none; }
-  .fa-f i.breve, .fa-testo span.breve { display:block; } }
-
-/* la coda viva: l'ora di Roma e il secondo gancio */
-.fa-coda { display:flex; align-items:center; justify-content:space-between;
-  gap:14px; flex-wrap:wrap; padding:10px 18px; background:var(--void);
-  border-top:1px solid var(--line-0); font-size:11.5px; color:var(--text-4); }
-.fa-viva { display:inline-flex; align-items:center; gap:8px; }
-.fa-viva .pt { width:6px; height:6px; border-radius:50%; background:var(--green);
+/* la coda: i fatti che restano veri comunque, e l'ora di Roma */
+.ba-coda { display:flex; align-items:center; gap:9px; flex-wrap:wrap;
+  padding:10px 18px; border-top:1px solid var(--line-0); background:var(--void);
+  font-size:11.5px; color:var(--text-4); }
+.ba-coda .ch { display:inline-flex; align-items:center; gap:6px;
+  white-space:nowrap; }
+.ba-coda .ch svg { width:13px; height:13px; color:var(--gold); flex:none;
+  fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round;
+  stroke-linejoin:round; }
+.ba-coda .sep { width:1px; height:12px; background:var(--line); flex:none; }
+@media (max-width:860px){
+  .ba-coda .sep { display:none; }
+  .ba-coda { display:grid; grid-template-columns:1fr 1fr; gap:8px 12px;
+    padding:11px 15px; }
+  .ba-coda .ch { font-size:10.5px; white-space:normal; align-items:flex-start; }
+  .ba-coda .ch svg { margin-top:2px; }
+  .ba-coda .ba-viva { grid-column:1 / -1; } }
+.ba-viva { display:inline-flex; align-items:center; gap:7px; margin-left:auto; }
+@media (max-width:860px){ .ba-viva { margin-left:0; } }
+.ba-viva .pt { width:6px; height:6px; border-radius:50%; background:var(--green);
   animation:fa-pulsa 2.8s ease-out infinite; }
 @keyframes fa-pulsa {
   0%   { box-shadow:0 0 0 0 rgba(0,255,136,.45); }
@@ -523,13 +571,14 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   100% { box-shadow:0 0 0 0 rgba(0,255,136,0); } }
 .orologio-roma { color:var(--gold); font-variant-numeric:tabular-nums;
   letter-spacing:.1em; }
-.fa-sec { display:inline-flex; align-items:center; gap:7px; color:var(--text-4);
-  transition:color .25s var(--ease); }
-.fa-sec b { color:var(--text-2); font-weight:400;
-  transition:color .25s var(--ease); }
-.fa-sec:hover, .fa-sec:hover b { color:var(--gold); }
-@media (max-width:520px){ .fa-coda .fa-sec { display:none; } }
-@media (prefers-reduced-motion:reduce){ .fa-viva .pt { animation:none; } }
+@media (prefers-reduced-motion:reduce){ .ba-viva .pt { animation:none; } }
+/* le ultime strette, in coda al blocco perche vincano sulle base */
+@media (max-width:560px){
+  /* la sezione servizi completa e in pagina e «Services» sta nel menu:
+     qui il link costa una riga di titolo e non aggiunge niente */
+  .ba-tutti { display:none; }
+  /* «licensed agency» e gia dentro la garanzia verde e nel footer legale */
+  .ba-coda .ch.terzo { display:none; } }
 
 .porta svg .pieno { fill:var(--gold); stroke:none; }
 .porta svg .acc { opacity:.55; transition:opacity .3s; }
@@ -1640,55 +1689,87 @@ html.vivo .sale.dentro { opacity:1; transform:none;
     </a>
   </div>
 
-  <!-- la fascia: una cosa da comprare, quattro fatti, la riga viva -->
+  <!-- la banchina: dove chi arriva viene smistato, col prezzo scritto -->
   <div class="container">
-    <div class="fascia coro dentro-subito">
+    <div class="banchina coro dentro-subito">
 
-      <a class="fa-capo" href="/virtual-viewing.html">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="6.5"
-          width="12" height="11" rx="2"/><path d="M15.5 11l5-2.6v7.2l-5-2.6z"/>
-          <circle cx="7.2" cy="10.2" r="1.1" class="pieno"/></svg>
-        <span class="fa-testo">
-          <b>Can't fly to Rome to see it?</b>
-          <span class="lungo">Be there, without being there — a live video tour of
-            that exact flat, HD photos, and the red flags said out loud.</span>
-          <span class="breve">A live video tour of that exact flat — the red
-            flags said out loud.</span>
-        </span>
-        <span class="fa-agisci">
-          <span class="fa-prezzo">€89</span>
-          <span class="fa-vai" aria-hidden="true"><svg viewBox="0 0 24 24">
-            <path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-        </span>
-      </a>
-
-      <div class="fa-fatti">
-        <div class="fa-f"><svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M12 3l7 2.8v5.4c0 4.1-3 7.1-7 8.3-4-1.2-7-4.2-7-8.3V5.8z"/>
-          <path d="M8.6 11.6l2.3 2.3 4.3-4.9" class="acc"/></svg>
-          <span><b>Walked in person</b><i class="lungo">Every home video-checked before it is listed</i><i class="breve">Video-checked before listing</i></span></div>
-        <div class="fa-f"><svg viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="12" cy="12" r="8.6"/><path d="M15.2 8.7a4.4 4.4 0 0
-          0-6.3 1.6M8.9 13.7a4.4 4.4 0 0 0 6.3 1.6M6.9 10.8h5.4M6.9 13.2h4.6"
-          class="acc"/></svg>
-          <span><b>Move-in total, upfront</b><i class="lungo">Rent, deposit and fee added up before you pay a cent</i><i class="breve">Before you pay a cent</i></span></div>
-        <div class="fa-f"><svg viewBox="0 0 24 24" aria-hidden="true">
-          <rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/>
-          <path d="M6.4 14.4h4" class="acc"/>
-          <path d="M15.4 14.4l1.6 1.6 3-3.4" class="acc"/></svg>
-          <span><b>Stripe · €0 hidden fees</b><i class="lungo">Receipts on everything, refundable until you sign</i><i class="breve">Receipts on everything</i></span></div>
-        <div class="fa-f"><svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M12 3.2l7.6 3v5.4c0 4.4-3.2 7.6-7.6 8.9-4.4-1.3-7.6-4.5-7.6-8.9V6.2z"/>
-          <path d="M9.4 11.9h5.2M12 9.3v5.2" class="acc"/></svg>
-          <span><b>A licensed agency</b><i class="lungo">Egidi Immobiliare S.r.l. · BOOM® EU trade mark 019317594</i><i class="breve">Egidi S.r.l. · BOOM® 019317594</i></span></div>
+      <div class="ba-capo">
+        <b>Wherever you are in this, <em>there's a door</em>.</b>
+        <a class="ba-tutti" href="#porte">All services →</a>
       </div>
 
-      <div class="fa-coda">
-        <span class="fa-viva"><span class="pt"></span>Rome
+      <div class="ba-porte">
+        <a class="ba-p prima" href="/virtual-viewing.html">
+          <svg class="sg" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5"
+            y="6.5" width="12" height="11" rx="2"/>
+            <path d="M15.5 11l5-2.6v7.2l-5-2.6z"/>
+            <circle cx="7.2" cy="10.2" r="1.1" class="pieno"/></svg>
+          <span class="caso">Can't fly over to see it?</span>
+          <span class="fa">A live video tour of that exact flat — the red
+            flags said out loud.</span>
+          <span class="costo"><b>€89</b><i><span class="lungo">credited to your fee if you rent with us</span><span class="breve">credited if you rent with us</span></i></span>
+        </a>
+
+        <a class="ba-p" href="/property-finding.html">
+          <svg class="sg" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="10.8" cy="10.8" r="6.6"/><path d="M15.6 15.6L20.5 20.5"/>
+            <path d="M8 10.8h5.6M10.8 8v5.6" class="acc"/></svg>
+          <span class="caso">Nothing in the catalogue fits?</span>
+          <span class="fa">We hunt the whole market for you, off-market
+            included.</span>
+          <span class="costo"><b>€350</b><i><span class="lungo">deducted on success · refunded if we don't deliver</span><span class="breve">deducted on success</span></i></span>
+        </a>
+
+        <a class="ba-p" href="/deal-assistance.html">
+          <svg class="sg" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3.4l7.2 2.9v5.1c0 4.2-3 7.2-7.2 8.4-4.2-1.2-7.2-4.2-7.2-8.4V6.3z"/>
+            <path d="M9.1 11.6l2.2 2.2 4.1-4.7" class="acc"/></svg>
+          <span class="caso">Found one yourself?</span>
+          <span class="fa">We verify the landlord, the papers and the price
+            — then negotiate.</span>
+          <span class="costo"><b>€249</b><i><span class="lungo">fixed · avg saving €600+</span><span class="breve">fixed · saves €600+ on average</span></i></span>
+        </a>
+
+        <a class="ba-p" href="/contract-check-express.html">
+          <svg class="sg" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 3.2h7.4L18.6 8v12.8H6z"/>
+            <path d="M13.2 3.2V8h5.2" class="acc"/>
+            <path d="M9 12.6h6.4M9 15.8h4.4" class="acc"/></svg>
+          <span class="caso">About to sign something?</span>
+          <span class="fa">A written traffic-light verdict in 24h: what's
+            fine, what's unfair, what's missing.</span>
+          <span class="costo"><b>€49</b><i><span class="lungo">credited on Deal Assistance</span><span class="breve">credited on Deal Assistance</span></i></span>
+        </a>
+      </div>
+
+      <div class="ba-soldi">
+        <span class="ba-scudo" aria-hidden="true"><svg viewBox="0 0 24 24">
+          <path d="M12 3l7 2.8v5.4c0 4.1-3 7.1-7 8.3-4-1.2-7-4.2-7-8.3V5.8z"/>
+          <path d="M8.6 11.6l2.3 2.3 4.3-4.9"/></svg></span>
+        <span class="dice"><b>Every euro goes through BOOM, never to a
+          stranger.</b><span class="lungo"> First month, deposit and agency
+          fee on Stripe — <em>no bank-transfer circus</em>, a receipt for
+          each one, and a full refund if we don't deliver. Your deposit is
+          legally protected and filmed in and out.</span><span class="breve">
+          Rent, deposit and fee on Stripe — <em>no bank transfers to
+          strangers</em>, receipts, full refund if we don't deliver.</span></span>
+        <svg class="ba-stripe" aria-label="Stripe" viewBox="0 0 468 222.5" xmlns="http://www.w3.org/2000/svg"> <path fill="#635BFF" d="M414 113.4c0-25.6-12.4-45.8-36.1-45.8-23.8 0-38.2 20.2-38.2 45.6 0 30.1 17 45.3 41.4 45.3 11.9 0 20.9-2.7 27.7-6.5v-20c-6.8 3.4-14.6 5.5-24.5 5.5-9.7 0-18.3-3.4-19.4-15.2h48.9c0-1.3.2-6.5.2-8.9zm-49.4-9.5c0-11.3 6.9-16 13.2-16 6.1 0 12.6 4.7 12.6 16h-25.8zm-63.5-36.3c-9.8 0-16.1 4.6-19.6 7.8l-1.3-6.2h-22v116.6l25-5.3.1-28.3c3.6 2.6 8.9 6.3 17.7 6.3 17.9 0 34.2-14.4 34.2-46.1-.1-29-16.6-44.8-34.1-44.8zm-6 68.9c-5.9 0-9.4-2.1-11.8-4.7l-.1-37.1c2.6-2.9 6.2-4.9 11.9-4.9 9.1 0 15.4 10.2 15.4 23.3 0 13.4-6.2 23.4-15.4 23.4zm-71.3-74.8l25.1-5.4V36l-25.1 5.3zm0 7.6h25.1v87.5h-25.1zm-26.9 7.4l-1.6-7.4h-21.6v87.5h25V97.5c5.9-7.7 15.9-6.3 19-5.2v-23c-3.2-1.2-14.9-3.4-20.8 7.4zm-50-29.8l-24.4 5.2-.1 80.1c0 14.8 11.1 25.7 25.9 25.7 8.2 0 14.2-1.5 17.5-3.3V135c-3.2 1.3-19 5.9-19-8.9V90.6h19V69.3h-19l.1-21.7zM79.3 94.7c0-3.9 3.2-5.4 8.5-5.4 7.6 0 17.2 2.3 24.8 6.4V72.2c-8.3-3.3-16.5-4.6-24.8-4.6C67.5 67.6 54 78.2 54 95.9c0 27.6 38 23.2 38 35.1 0 4.6-4 6.1-9.6 6.1-8.3 0-18.9-3.4-27.3-8v23.8c9.3 4 18.7 5.7 27.3 5.7 20.8 0 35.1-10.3 35.1-28.2-.1-29.8-38.2-24.5-38.2-35.7z"/> </svg>
+      </div>
+
+      <div class="ba-coda">
+        <span class="ch"><svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4.5 12.5l5 5 10-11"/></svg>Walked and filmed by us</span>
+        <span class="sep"></span>
+        <span class="ch"><svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4.5 12.5l5 5 10-11"/></svg>Move-in total before you
+          pay</span>
+        <span class="sep"></span>
+        <span class="ch terzo"><svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4.5 12.5l5 5 10-11"/></svg>Licensed agency · BOOM® EU
+          019317594</span>
+        <span class="ba-viva"><span class="pt"></span>Rome
           <span class="orologio-roma" id="oraRoma">—:—</span>
           · we reply within 2h</span>
-        <a class="fa-sec" href="/contract-check-express.html">Already have a
-          contract? <b>Have it checked · €49 →</b></a>
       </div>
 
     </div>
