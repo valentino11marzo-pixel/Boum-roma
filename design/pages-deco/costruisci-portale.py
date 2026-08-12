@@ -49,7 +49,9 @@ def riga_json(r):
     return {'z': zona_di(r), 'p': euro(p).rjust(6), 's': s[0].upper(),
             'c': s[1]}
 BOARD_JSON = json.dumps([riga_json(r) for r in board], ensure_ascii=False)
-DISPONIBILI = sum(1 for r in tutti if r['status'] == 'available')
+# stessa regola della discovery: si conta cio che si puo mostrare
+DISPONIBILI = sum(1 for r in tutti
+                  if r['status'] == 'available' and banca.get(r['id']))
 
 ultimo = max(quando(r) for r in tutti)
 giorni = (oggi - ultimo).days
@@ -81,7 +83,7 @@ for giro in (1, 2):
 
 def carta(c):
     ch = ('VERIFIED', 'verde') if c['video'] else \
-         ('NEW', '') if c['nuova'] else ('FREE NOW', 'verde')
+         ('NEW', '') if c['nuova'] else ('AVAILABLE NOW', 'verde')
     dati = ' <i>·</i> '.join(x for x in [
         f'<span class="home-zona" role="link" tabindex="0" '
         f'data-href="/apartments.html#zona={c["zona"]}">{c["zona"]}</span>',
@@ -167,11 +169,13 @@ h = h.replace('SC_FOTO3', banca.get(tre[2]['id'], ''))
 h = h.replace('SC_ZONA2', tre[1]['zona'])
 h = h.replace('SC_ZONA3', tre[2]['zona'])
 h = h.replace('SC_FOTO', flag_foto[0] if MODO == 'artefatto' else banca[sc['id']])
-h = h.replace('PASS_MINI', leggi('logo-live.svg').strip())
+h = h.replace('PASS_MINI', leggi('logo-live.svg').strip()
+    .replace('goldGrad', 'goldGradMini'))
 h = h.replace('SC_NOME', sc['nome'])
 h = h.replace('SC_PREZZO', euro(sc['prezzo']))
 h = h.replace('SC_TOT', euro(sc['prezzo'] * 2 + round(sc['prezzo'] * 12 * .10)))
-h = h.replace('PASS_LOGO', leggi('logo-live.svg').strip())
+h = h.replace('PASS_LOGO', leggi('logo-live.svg').strip()
+    .replace('goldGrad', 'goldGradPass'))
 # la foto del fondatore: se c'è founder.jpg la incastoniamo, altrimenti
 # un'attesa elegante (monogramma) finché Valentino non la manda come file
 import os as _os, base64 as _b64
@@ -205,7 +209,7 @@ if MODO == 'artefatto':
     HOME = 'https://claude.ai/code/artifact/3c0dae67-a0e6-47d4-964f-832b824ffe0f'
     AP = 'https://claude.ai/code/artifact/12798611-3d8a-498f-a043-c6f10b6856cd'
     CASA = CASA_ART
-    h = h.replace('COME_URL', HOME + '#come').replace('AP_URL', AP)
+    h = h.replace('COME_URL', '#apparecchio').replace('AP_URL', AP)
     for da, a_ in {'/index.html': HOME, '/apartments.html': AP,
         '/property-finding.html': 'https://claude.ai/code/artifact/4186ed23-28d5-46a2-98bc-09fdf5eb7e21',
         '/board.html': 'https://claude.ai/code/artifact/d5c23034-8aa4-4e33-b53a-e73809b444f2',
@@ -217,7 +221,7 @@ if MODO == 'artefatto':
                r'href="https://www.boomrome.com/\1"', h)
     h = h.replace('href="/login"', 'href="https://www.boomrome.com/login"')
 else:
-    h = h.replace('COME_URL', '/v2-home.html#come').replace('AP_URL', '/v2-apartments.html')
+    h = h.replace('COME_URL', '#apparecchio').replace('AP_URL', '/v2-apartments.html')
     for da, a_ in {'/index.html': '/v2-home.html',
         '/apartments.html': '/v2-apartments.html',
         '/property-finding.html': '/v2-property-finding.html',
@@ -226,7 +230,24 @@ else:
         h = h.replace('data-href="' + da, 'data-href="' + a_)
     h = h.replace('href="/listing/', 'href="/v2-listing.html#id=')
 
-uscita = 'boom-portale.html' if MODO == 'artefatto' else 'boom-portale-sito.html'
+# la testa della home: description propria, e in modalita sito lo scheletro
+# HTML completo con lang, canonical e og — come le altre due pagine
+if MODO == 'sito':
+    OG = ('<link rel="canonical" href="https://www.boomrome.com/v2-home.html">\n'
+          '<meta property="og:title" content="BOOM Rome — Premium Apartment '
+          'Rentals | 48-Hour Move-In">\n'
+          '<meta property="og:description" content="Verified mid-term '
+          'apartment rentals in Rome for internationals — English-first, '
+          'legal contracts, 48-hour move-in. Your landing in Rome, '
+          'handled.">\n'
+          '<meta property="og:type" content="website">\n'
+          '<meta property="og:url" content="https://www.boomrome.com/v2-home.html">\n')
+    i = h.index('</title>') + len('</title>')
+    h = h[:i] + '\n' + OG + h[i:]
+    h = ('<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
+         + h.replace('</style>', '</style>\n</head>\n<body>', 1)
+         + '\n</body>\n</html>')
+uscita = 'boom-portale.html' if MODO == 'artefatto' else 'boom-portale-sito.html' 
 open(uscita, 'w', encoding='utf-8').write(h)
 print(f'{uscita} · {len(h)//1024} KB · board {len(board)} righe · '
       f'aggiornato {AGG} · vetrina {len(tre)}')

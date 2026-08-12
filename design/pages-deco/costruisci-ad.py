@@ -65,8 +65,16 @@ def letti(r):
     return None
 def stato(r):
     s = r['status']
-    if s == 'available': return ('Available now', 'si')
-    # la waitlist non e «Reserved»: la lista e aperta, e uno stato suo
+    if s == 'available':
+        # libera si, ma DA QUANDO: se la data e nel futuro, il badge la dice.
+        # «Available now» con ingresso nel 2027 era una promessa falsa.
+        d = libera(r.get('avail'))
+        if d and d > oggi.strftime('%Y-%m-%d'):
+            dt = datetime.fromisoformat(d)
+            eti = 'From ' + str(int(dt.strftime('%d'))) + dt.strftime(' %b')
+            if dt.year != oggi.year: eti += dt.strftime(' %Y')
+            return (eti, 'poi')
+        return ('Available now', 'si')
     if s == 'waitlist': return ('Waitlist open', 'fila')
     if s == 'reserved': return ('Reserved', '')
     return ('Rented', '')
@@ -79,8 +87,9 @@ def carta(r):
     nuova = (oggi - quando(r)).days < 21
     # niente FREE NOW: lo stato lo dice gia la striscia sulla stessa foto.
     # Il chip resta per cio che AGGIUNGE: il video e la novita.
-    ch = ('VERIFIED', 'verde') if r.get('video') else \
-         ('NEW', '') if nuova else None
+    vivo = r['status'] in ('available', 'waitlist')
+    ch = ('VERIFIED', 'verde') if r.get('video') and vivo else \
+         ('NEW', '') if nuova and vivo else None
     dati = ' <i>·</i> '.join(x for x in [
         f'<span class="home-zona" role="link" tabindex="0" '
         f'data-href="/apartments.html#zona={z}">{z}</span>',
@@ -160,6 +169,7 @@ h = '\n'.join([testa, nav, leggi('ad-corpo.html'), piede,
 h = h.replace('<title>BOOM Rome — Premium Apartment Rentals | 48-Hour Move-In</title>',
     '<title>Apartments in Rome — walked in person, ready to move in | BOOM</title>')
 h = h.replace('LOGO_SVG', leggi('logo-live.svg').strip())
+h = h.replace('href="#banchina"', 'href="' + ('https://claude.ai/code/artifact/5e7c6222-9a91-4052-a4d7-f31255ed4478' if MODO == 'artefatto' else '/v2-home.html') + '#banchina"')
 h = h.replace('CASE_MURO', MURO)
 conta_dote = {}
 for r in mostrate:
@@ -191,11 +201,35 @@ if MODO == 'artefatto':
     h = h.replace('href="/login"', 'href="https://www.boomrome.com/login"')
     h = h.replace('data-href="/apartments.html#zona=', 'data-href="#zona=')
 else:
-    h = h.replace('href="/index.html"', 'href="/v2-home.html"')
-    h = h.replace('href="/apartments.html"', 'href="/v2-apartments.html"')
+    for da, a_ in {'/index.html': '/v2-home.html',
+        '/apartments.html': '/v2-apartments.html',
+        '/property-finding.html': '/v2-property-finding.html'}.items():
+        h = h.replace('href="' + da + '"', 'href="' + a_ + '"')
     h = h.replace('href="/listing/', 'href="/v2-listing.html#id=')
     h = h.replace('data-href="/apartments.html#zona=', 'data-href="#zona=')
 
+DESCR = ('Browse ' + str(len(mostrate)) + ' verified apartments for rent in '
+         'Rome — every home walked in person by BOOM. Filter by zone, budget '
+         'and move-in date; ' + str(DISPONIBILI) + ' available now.')
+h = h.replace(
+    '<meta name="description" content="Verified mid-term apartment rentals in '
+    'Rome for internationals — English-first, legal contracts, 48-hour '
+    'move-in. Your landing in Rome, handled.">',
+    '<meta name="description" content="' + DESCR + '">')
+if MODO == 'sito':
+    OG = ('<link rel="canonical" href="https://www.boomrome.com/v2-apartments.html">\n'
+          '<meta property="og:title" content="Apartments in Rome — walked in person | BOOM">\n'
+          '<meta property="og:description" content="' + DESCR + '">\n'
+          '<meta property="og:type" content="website">\n'
+          '<meta property="og:url" content="https://www.boomrome.com/v2-apartments.html">\n'
+          + (('<meta property="og:image" content="' + rem.get(mostrate[0]['id'], '') + '">\n'
+              '<meta name="twitter:card" content="summary_large_image">\n')
+             if rem.get(mostrate[0]['id']) else ''))
+    i = h.index('</title>') + len('</title>')
+    h = h[:i] + '\n' + OG + h[i:]
+    h = ('<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
+         + h.replace('</style>', '</style>\n</head>\n<body>', 1)
+         + '\n</body>\n</html>')
 uscita = 'boom-discovery.html' if MODO == 'artefatto' else 'boom-discovery-sito.html'
 open(uscita, 'w', encoding='utf-8').write(h)
 print(f'{uscita} · {len(h)//1024} KB · {len(mostrate)} case · '

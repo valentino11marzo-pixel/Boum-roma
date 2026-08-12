@@ -92,8 +92,18 @@
   st.textContent = c.stato;
   st.className = 'stato-grande ' + (c.libera ? 'libera'
     : /wait/i.test(c.stato) ? 'attesa' : 'presa');
-  per('#cuoreCasa').dataset.u = '/listing/' + c.id;
+  /* la chiave dei preferiti e la stessa delle altre due pagine:
+     il segnaposto sopravvive al replace di navigazione del builder */
+  per('#cuoreCasa').dataset.u = 'CHIAVE_CASA' + c.id;
   per('#applicaNome').textContent = c.nome;
+  /* se la casa non e libera, la CTA non finge: si entra in lista */
+  if (!c.libera) {
+    var bAp = document.querySelector('#modApplica button[type="submit"]');
+    if (bAp) bAp.textContent = 'Join the waitlist';
+    var sAp = document.getElementById('applicaSotto');
+    if (sAp) sAp.textContent = 'This home is taken for now. Join the '
+      + 'waitlist and you hear first — from a person — the moment it frees up.';
+  }
 
   /* il canone sui Solari, come ovunque nel sito */
   var canone = per('#canoneCasa');
@@ -127,24 +137,17 @@
     var pel = document.getElementById('pellicola');
     if (!pel) return;
     var n = immagini.length;
-    var v = [];
-    v.push('<div class="pel-v"><svg viewBox="0 0 24 24" aria-hidden="true">'
+    /* un badge solo: due dicevano quasi la stessa cosa e il secondo
+       confondeva. La cura delle foto e mezza riga, non un cartello. */
+    var dett = n + ' photo' + (n === 1 ? '' : 's')
+      + ' of this exact flat — nothing borrowed, nothing rendered'
+      + (c.fotoCurate ? ', ordered room by room so the first one is the '
+        + 'one you care about.' : '.');
+    pel.innerHTML = '<div class="pel-fila uno">'
+      + '<div class="pel-v"><svg viewBox="0 0 24 24" aria-hidden="true">'
       + '<path d="M12 3l7 2.8v5.4c0 4.1-3 7.1-7 8.3-4-1.2-7-4.2-7-8.3V5.8z"/>'
       + '<path d="M8.6 11.6l2.3 2.3 4.3-4.9"/></svg><span><b>Walked and '
-      + 'photographed by us</b><span>' + n + ' photo' + (n === 1 ? '' : 's')
-      + ' of this exact flat — nothing borrowed from a portal, nothing from '
-      + 'a render.</span></span></div>');
-    if (c.fotoCurate) {
-      v.push('<div class="pel-v"><svg viewBox="0 0 24 24" aria-hidden="true">'
-        + '<path d="M4 16l5-6 4 4.5L16 11l4 5"/><rect x="3" y="4.5" '
-        + 'width="18" height="15" rx="2"/><circle cx="8.6" cy="9" r="1.2" '
-        + 'class="pieno"/></svg><span><b>Ordered by room, not by upload '
-        + 'date</b><span>Straightened, colour-corrected and de-duplicated, '
-        + 'then sorted living → kitchen → bedrooms → bathroom, floor plans '
-        + 'last. So the first photo is the room you actually care '
-        + 'about.</span></span></div>');
-    }
-    pel.innerHTML = '<div class="pel-fila">' + v.join('') + '</div>';
+      + 'photographed by us</b><span>' + dett + '</span></span></div></div>';
 
     if (c.video) {
       var id = (c.video.match(/(?:shorts\/|v=|youtu\.be\/|embed\/)([\w-]{6,})/)
@@ -166,9 +169,15 @@
         pel.appendChild(box);
       }
     } else {
+      /* casa NOSTRA: fartela vedere e il nostro lavoro, la visita in
+         video dal vivo e GRATIS. Il Virtual Viewing a €89 esiste per le
+         case degli altri portali, non qui. */
       var a = document.createElement('a');
       a.className = 'pel-v azione';
-      a.href = 'VIRTUAL_URL';
+      a.href = 'https://wa.me/393313251961?text='
+        + encodeURIComponent('Hi! I\'d like a live video viewing of "'
+            + c.nome + '" — when is the next slot?');
+      a.target = '_blank'; a.rel = 'noopener';
       a.style.marginTop = '12px';
       a.style.borderRadius = '14px';
       a.style.boxShadow = 'inset 0 0 0 1px var(--line-gold)';
@@ -176,10 +185,10 @@
         + '<rect x="3.5" y="6.5" width="12" height="11" rx="2"/>'
         + '<path d="M15.5 11l5-2.6v7.2l-5-2.6z"/>'
         + '<circle cx="7.2" cy="10.2" r="1.1" class="pieno"/></svg>'
-        + '<span><b>No walkthrough video for this one yet — have a better '
-        + 'one.</b><span>A live tour of this exact flat, with you asking the '
-        + 'questions and the red flags said out loud. <em>€89</em>, credited '
-        + 'to your fee if you rent it.</span></span>';
+        + '<span><b>See it live from where you are — free.</b>'
+        + '<span>A BOOM agent walks this exact flat on live video, with you '
+        + 'asking the questions. <em>Our home, our job — no charge.</em> '
+        + 'Book a slot on WhatsApp.</span></span>';
       pel.appendChild(a);
     }
   })();
@@ -198,16 +207,14 @@
   var cauzione = c.prezzo * mesiCauzione;
   var onorario = Math.round(c.prezzo * 12 * .10);
   var totale = c.prezzo + cauzione + onorario;   /* il giorno uno intero, per le domande */
-  /* la cifra grande e quella PER LE CHIAVI: primo canone + onorario.
-     La cauzione sta fuori e lo dice — non e un costo, e trattenuta. */
-  var chiavi = c.prezzo + onorario;
-  per('#chiaviCauzione').textContent = euro(cauzione);
+  /* la cifra grande e il giorno uno INTERO: canone + deposito + onorario.
+     Nessuna voce a margine — il deposito e un pagamento vero, e torna,
+     ed e scritto in verde sulla sua riga. Un numero, una storia. */
+  var chiavi = totale;
+  per('#voceCanone').textContent = euro(c.prezzo);
+  per('#voceOnorario').textContent = euro(onorario);
+  per('#voceCauzione').textContent = euro(cauzione);
   per('#chiaviOnorario').textContent = euro(onorario);
-  per('#chiaviSomma').innerHTML = 'First month <b>' + euro(c.prezzo)
-    + '</b> + agency fee <b>' + euro(onorario) + '</b>'
-    + (c.dal ? ' · keys from <b>' + new Date(c.dal + 'T12:00:00')
-        .toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })
-        + '</b>' : '');
 
   /* il totale gira sui Solari: e la cifra che conta piu di ogni altra */
   (function () {
@@ -237,10 +244,10 @@
       per('#durCanoni').textContent = euro(canoni) + '  ';
       per('#durOnorario').textContent = euro(onorario);
       per('#durTotale').textContent = euro(canoni + onorario);
-      per('#durNota').innerHTML = '<b>' + euro(cauzione) + '</b> of deposit sits '
-        + 'on top of this and comes back to you at the end — it is held, not '
-        + 'spent. Utilities and the registration tax are paid to the providers '
-        + 'and to the State, never to us.';
+      per('#durNota').innerHTML = 'Your <b>' + euro(cauzione) + '</b> deposit '
+        + 'is not counted here: you pay it on day one and it comes back at '
+        + 'the end. Utilities and the registration tax are paid to the '
+        + 'providers and to the State, never to us.';
       tasti.forEach(function (t) {
         t.classList.toggle('on', Number(t.dataset.m) === m); });
       /* chi ha scelto la durata qui non deve ridirla nell'apply */
@@ -260,9 +267,10 @@
     if (!lista) return;
     var D = [
       ['Can I see it without flying to Rome?',
-       'Yes. A BOOM agent walks this exact flat on live video with you asking '
-       + 'the questions, plus HD photos and the red flags said out loud. '
-       + '<em>€89</em> — credited to your agency fee if you then rent with us.'],
+       'Yes — and for our homes it costs nothing: a BOOM agent walks this '
+       + 'exact flat on live video with you asking the questions. Book a '
+       + 'slot on WhatsApp. (The paid €89 Virtual Viewing is for homes on '
+       + 'OTHER portals — this one is ours.)'],
       ['What exactly do I pay on day one?',
        '<em>' + euro(totale) + '</em>: first month ' + euro(c.prezzo)
        + ', deposit ' + euro(cauzione) + ' and the agency fee '
@@ -277,9 +285,11 @@
        + 'Immobiliare S.r.l.</em>, a licensed agency — BOOM® is its EU trade '
        + 'mark 019317594.'],
       ['What kind of contract is it?',
-       'A transitional lease under L. 431/98 art. 5 c. 1, in English and '
-       + 'Italian, explained line by line before you sign. Registration with '
-       + 'the Agenzia delle Entrate is handled by us.'],
+       'A registered lease under L. 431/98 — typically transitional '
+       + '(art. 5 c. 1); some homes offer a rent-controlled option, and the '
+       + 'listing says so. In English and Italian, explained line by line '
+       + 'before you sign. Registration with the Agenzia delle Entrate is '
+       + 'handled by us.'],
       ['Do I have to be in Rome to sign?',
        'No. You sign from your phone with a private link, and the landlord '
        + 'countersigns after you. The keys are the only thing that needs you '
@@ -292,7 +302,8 @@
        'As little as <em>48 hours</em> from a signed pre-agreement, if the '
        + 'flat is free. This one'
        + (c.dal ? ' is available from <em>' + new Date(c.dal + 'T12:00:00')
-            .toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })
+            .toLocaleDateString('en-GB', { day: 'numeric', month: 'long',
+              year: 'numeric' })
             + '</em>.' : ' is available now.')],
       ['Can I hold it while I decide?',
        'Yes — a <em>€300</em> hold takes it off the market for 48 hours, one '

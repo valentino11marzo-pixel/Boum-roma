@@ -241,25 +241,23 @@ html.vivo .coro.dentro .tempo::after {
   background:linear-gradient(165deg, rgba(255,215,0,.06),
     rgba(255,215,0,.01) 52%), var(--card);
   box-shadow:inset 0 0 0 1px var(--line-gold-2); }
-.chiavi-cima { display:grid; gap:clamp(18px,2.4vw,34px); align-items:start;
-  grid-template-columns:1fr; }
-@media (min-width:820px){ .chiavi-cima {
-  grid-template-columns:minmax(0,auto) minmax(0,1fr); } }
+.chiavi-cima { max-width:560px; }
 .chiavi-eti { display:block; font-size:10.5px; font-weight:600;
   letter-spacing:.2em; text-transform:uppercase; color:var(--gold); }
 .chiavi-flap { margin-top:12px; }
 .flap-tot { display:inline-flex; font-size:clamp(28px,4vw,42px); }
-.chiavi-somma { margin:10px 0 0; font-size:12.5px; line-height:1.6;
-  color:var(--text-2); }
-.chiavi-somma b { color:var(--text); font-weight:500;
-  font-variant-numeric:tabular-nums; }
-.chiavi-cauzione { padding:14px 16px; border-radius:12px;
-  background:var(--surface); box-shadow:inset 0 0 0 1px var(--line-0); }
-.chiavi-cauzione > span { display:block; font-size:13.5px; color:var(--text-2); }
-.chiavi-cauzione b { font-family:var(--display); font-size:18px;
-  font-weight:400; color:var(--text); font-variant-numeric:tabular-nums; }
-.chiavi-cauzione em { display:block; margin-top:6px; font-style:normal;
-  font-size:11.5px; line-height:1.6; color:var(--text-4); }
+/* le tre voci sotto il numero: stessa gerarchia, nessuna nascosta.
+   Il deposito e un pagamento vero del giorno uno — e torna, ed e scritto
+   in verde sulla sua riga, non in un riquadro a parte. */
+.voci { margin-top:14px; }
+.voce { display:flex; align-items:baseline; justify-content:space-between;
+  gap:14px; padding:9px 0; border-top:1px solid var(--line-0);
+  font-size:13px; color:var(--text-2); }
+.voce b { font-family:var(--display); font-size:16px; font-weight:400;
+  color:var(--text); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.voce em { display:block; font-style:normal; font-size:11px; line-height:1.5;
+  color:var(--green); margin-top:2px; }
+.voce.torna b { color:var(--green); }
 
 /* cosa compra l'onorario: e la parte che toglie la paura al numero */
 .chiavi-compra { margin-top:clamp(20px,2.4vw,28px); padding-top:20px;
@@ -342,7 +340,7 @@ html.vivo .coro.dentro .tempo::after {
 .pel-fila { display:grid; gap:1px; background:var(--line-0);
   box-shadow:inset 0 0 0 1px var(--line-0); border-radius:14px;
   overflow:hidden; }
-@media (min-width:820px){ .pel-fila { grid-template-columns:1fr 1fr; } }
+@media (min-width:820px){ .pel-fila:not(.uno) { grid-template-columns:1fr 1fr; } }
 .pel-v { display:flex; align-items:flex-start; gap:12px; padding:15px 17px;
   background:var(--card); }
 .pel-v svg { width:19px; height:19px; flex:none; margin-top:1px;
@@ -479,17 +477,17 @@ html.vivo .coro.dentro .tempo::after {
     <div class="chiavi quadro sale"><span class="tacca"></span>
 
       <div class="chiavi-cima">
-        <div>
-          <span class="chiavi-eti">To get the keys</span>
-          <div class="chiavi-flap"><span class="flap-tot" id="totFlap"
-            data-p="" aria-live="polite"></span></div>
-          <p class="chiavi-somma" id="chiaviSomma">—</p>
-        </div>
-        <div class="chiavi-cauzione">
-          <span>+ <b id="chiaviCauzione">—</b> security deposit</span>
-          <em>Not a cost. It is held for you and comes back after the final
-            walkthrough — the flat is filmed in and out, so its state is a
-            recording, not an argument.</em>
+        <span class="chiavi-eti">Due on day one — all of it, in writing</span>
+        <div class="chiavi-flap"><span class="flap-tot" id="totFlap"
+          data-p="" aria-live="polite"></span></div>
+        <div class="voci">
+          <div class="voce"><span>First month's rent</span>
+            <b id="voceCanone">—</b></div>
+          <div class="voce"><span>Agency fee — our only fee, once</span>
+            <b id="voceOnorario">—</b></div>
+          <div class="voce torna"><span>Security deposit
+            <em>comes back to you at the end — held, filmed in and out</em></span>
+            <b id="voceCauzione">—</b></div>
         </div>
       </div>
 
@@ -498,9 +496,10 @@ html.vivo .coro.dentro .tempo::after {
           <span id="chiaviOnorario">—</span> is what the whole thing costs,
           once, and this is what it buys:</p>
         <ul class="chiavi-lista">
-          <li><b>The contract, in English and Italian</b><span>A transitional
-            lease under L. 431/98 art. 5 c. 1, explained line by line before
-            you sign anything.</span></li>
+          <li><b>The contract, in English and Italian</b><span>A registered
+            lease under L. 431/98 — transitional or rent-controlled, depending
+            on the home — explained line by line before you sign
+            anything.</span></li>
           <li><b>Registration with the Agenzia delle Entrate</b><span>We file
             it. The registration tax itself goes to the State — that part is
             not ours and never passes through us.</span></li>

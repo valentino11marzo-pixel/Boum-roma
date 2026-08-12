@@ -467,25 +467,10 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .banchina { margin-top:clamp(20px,2.4vw,30px); border:1px solid var(--line);
   border-radius:16px; overflow:hidden; background:var(--surface); }
 
-.ba-capo { display:flex; align-items:baseline; justify-content:space-between;
-  gap:14px; padding:14px 18px 12px; }
-.ba-capo b { flex:1; min-width:0; }
-@media (max-width:640px){
-  .ba-capo { padding:13px 15px 11px; }
-  .ba-capo b { font-size:14px; }
-  .ba-tutti { font-size:10px; letter-spacing:.1em; } }
-.ba-capo b { font-family:var(--display); font-size:15.5px; font-weight:400;
-  letter-spacing:.005em; color:var(--text); }
-.ba-capo b em { font-style:normal; color:var(--gold); }
-.ba-tutti { display:inline-flex; align-items:center; gap:7px; font-size:11px;
-  font-weight:600; letter-spacing:.14em; text-transform:uppercase;
-  color:var(--text-4); padding:10px 2px; margin:-10px 0;
-  transition:color .25s var(--ease); }
-.ba-tutti:hover { color:var(--gold); }
 
 /* le porte: una situazione per cella, il prezzo come risposta */
 .ba-porte { display:grid; grid-template-columns:repeat(4,1fr); gap:1px;
-  background:var(--line-0); border-top:1px solid var(--line-0); }
+  background:var(--line-0); }
 .ba-p { position:relative; display:block; background:var(--surface);
   padding:14px 15px 15px; transition:background .3s var(--ease); }
 .ba-p::before { content:''; position:absolute; top:0; left:0; right:0;
@@ -559,16 +544,22 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
    reale non si mischiano. */
 .ba-cifre { display:grid; grid-template-columns:repeat(4,1fr); gap:1px;
   background:var(--line-0); border-top:1px solid var(--line-0); }
-.ba-cifre > div { background:var(--void); padding:13px 16px 14px; }
-.ba-cifre b { display:block; font-family:var(--display); font-size:19px;
-  font-weight:400; letter-spacing:.02em; color:var(--gold);
+.ba-cifre > div { position:relative; background:var(--void);
+  padding:16px 18px 17px; overflow:hidden; }
+/* il filo d'oro in testa a ogni cifra: sono risultati, non note a margine */
+.ba-cifre > div::before { content:''; position:absolute; top:0; left:18px;
+  width:26px; height:2px; background:var(--gold); opacity:.55; }
+.ba-cifre b { display:block; font-family:var(--display); font-size:24px;
+  font-weight:300; letter-spacing:.01em; color:var(--gold);
   font-variant-numeric:tabular-nums; }
-.ba-cifre span { display:block; margin-top:2px; font-size:10.5px;
-  line-height:1.35; color:var(--text-4); }
+.ba-cifre span { display:block; margin-top:4px; font-size:10px;
+  font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+  line-height:1.4; color:var(--text-4); }
 @media (max-width:640px){
   .ba-cifre { grid-template-columns:1fr 1fr; }
-  .ba-cifre > div { padding:11px 14px 12px; }
-  .ba-cifre b { font-size:17px; } }
+  .ba-cifre > div { padding:13px 15px 14px; }
+  .ba-cifre > div::before { left:15px; }
+  .ba-cifre b { font-size:20px; } }
 
 /* l'ora di Roma: una riga sottile, non una mattonella */
 .ba-ora { display:flex; align-items:center; gap:8px; flex-wrap:wrap;
@@ -594,10 +585,6 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 @media (prefers-reduced-motion:reduce){ .ba-viva .pt { animation:none; } }
 /* le ultime strette, in coda al blocco perche vincano sulle base */
 @media (max-width:560px){
-  /* la sezione servizi completa e in pagina e «Services» sta nel menu:
-     qui il link costa una riga di titolo e non aggiunge niente */
-  .ba-tutti { display:none; }
-  /* «licensed agency» e gia dentro la garanzia verde e nel footer legale */
   .ba-coda .ch.terzo { display:none; } }
 
 .porta svg .pieno { fill:var(--gold); stroke:none; }
@@ -1156,7 +1143,8 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   stroke:currentColor; stroke-width:1.4; stroke-linecap:round;
   stroke-linejoin:round; transition:transform .45s var(--ease); }
 .mini6:hover svg { transform:translateY(-2px) scale(1.06); }
-.mini6 h4 { margin-top:10px; font-size:12.5px; font-weight:500; }
+.mini6 .mini6-nome { margin:10px 0 0; font-family:var(--sans);
+  font-size:12.5px; font-weight:500; letter-spacing:0; }
 .mini6 span { display:block; margin-top:3px;
   font-family:var(--display); font-size:14px; font-weight:300;
   color:var(--gold); font-variant-numeric:tabular-nums;
@@ -1789,12 +1777,16 @@ CASE_TRE
      catalogo l'hai visto. -->
 <section class="sezione" id="banchina">
   <div class="container">
-    <div class="banchina coro">
+    <div class="sale">
+      <span class="eyebrow"><i></i>Services · flat prices</span>
+      <h2 class="titolo">Pick the door that matches
+        <span class="hl">your situation</span>.</h2>
+      <p class="sotto">Every price is flat and written here — and most of it
+        comes back: credited to your agency fee when you rent with us, or
+        refunded if we don't deliver.</p>
+    </div>
 
-      <div class="ba-capo">
-        <b>Wherever you are in this, <em>there's a door</em>.</b>
-        <a class="ba-tutti" href="#banchina">All services →</a>
-      </div>
+    <div class="banchina coro" style="margin-top:clamp(22px,2.6vw,34px)">
 
       <div class="ba-porte">
         <a class="ba-p prima" href="/virtual-viewing.html">
@@ -1803,9 +1795,12 @@ CASE_TRE
             <path d="M15.5 11l5-2.6v7.2l-5-2.6z"/>
             <circle cx="7.2" cy="10.2" r="1.1" class="pieno"/></svg>
           <span class="caso">Can't fly over to see it?</span>
-          <span class="fa">A live video tour of that exact flat — the red
-            flags said out loud.</span>
-          <span class="costo"><b>€89</b><i><span class="lungo">credited to your fee if you rent with us</span><span class="breve">credited if you rent with us</span></i></span>
+          <span class="fa">A live video tour with you asking the questions —
+            the red flags said out loud. <b style="color:var(--text-2);
+            font-weight:500">Our homes: free, always.</b></span>
+          <span class="costo"><b>€89</b><i><span class="lungo">for homes on
+            other portals · credited if you rent with us</span><span
+            class="breve">for other portals' homes</span></i></span>
         </a>
 
         <a class="ba-p" href="/property-finding.html">
@@ -1855,7 +1850,7 @@ CASE_TRE
       </div>
 
       <div class="ba-cifre">
-        <div><b>48h</b><span>average move-in</span></div>
+        <div><b>48h</b><span>fastest move-in</span></div>
         <div><b>98%</b><span>success rate</span></div>
         <div><b>100%</b><span>walked in person</span></div>
         <div><b>€0</b><span>hidden fees</span></div>
@@ -1967,17 +1962,17 @@ CASE_TRE
     </div>
     <div class="griglia6 coro">
       <div class="mini6"><svg viewBox="0 0 40 40"><path d="M20 6v8M20 26v8M6 20h8M26 20h8M10.2 10.2l5.6 5.6M24.2 24.2l5.6 5.6M29.8 10.2l-5.6 5.6M15.8 24.2l-5.6 5.6"/></svg>
-        <h4>Cleaning</h4><span>€60/mo</span></div>
+        <h3 class="mini6-nome">Cleaning</h3><span>€60/mo</span></div>
       <div class="mini6"><svg viewBox="0 0 40 40"><path d="M6 26l28-12-10 14-4-5-6 6-2-6z"/></svg>
-        <h4>Airport Transfer</h4><span>€50 flat</span></div>
+        <h3 class="mini6-nome">Airport Transfer</h3><span>€50 flat</span></div>
       <div class="mini6"><svg viewBox="0 0 40 40"><path d="M22 5L10 22h8l-2 13 12-17h-8z"/></svg>
-        <h4>24/7 Emergency</h4><span>Included</span></div>
+        <h3 class="mini6-nome">24/7 Emergency</h3><span>Included</span></div>
       <div class="mini6"><svg viewBox="0 0 40 40"><path d="M12 5h12l6 6v24H12z"/><path d="M24 5v6h6M17 19h8M17 24h8M17 29h5"/></svg>
-        <h4>Permit Help</h4><span>€150/doc</span></div>
+        <h3 class="mini6-nome">Permit Help</h3><span>€150/doc</span></div>
       <div class="mini6"><svg viewBox="0 0 40 40"><circle cx="15" cy="15" r="7"/><path d="M20 20l13 13M27 27l4-4M31 31l3-3"/></svg>
-        <h4>Flexible Check-in</h4><span>Any time</span></div>
+        <h3 class="mini6-nome">Flexible Check-in</h3><span>Any time</span></div>
       <div class="mini6"><svg viewBox="0 0 40 40"><path d="M6 13l14-7 14 7v14l-14 7-14-7z"/><path d="M6 13l14 7 14-7M20 20v14"/></svg>
-        <h4>Mail Service</h4><span>€20/mo</span></div>
+        <h3 class="mini6-nome">Mail Service</h3><span>€20/mo</span></div>
     </div>
   </div>
 </section>
@@ -2082,7 +2077,7 @@ CASE_TRE
     <div class="chi-num coro" id="aboutNum">
       <div><b data-fine="6" data-suff="+">0+</b><span>Years in Rome Real Estate</span></div>
       <div><b data-fine="500" data-suff="+">0+</b><span>Happy Tenants Placed</span></div>
-      <div><b data-fine="48" data-suff="h">0h</b><span>Average Move-in Time</span></div>
+      <div><b data-fine="48" data-suff="h">0h</b><span>Fastest Move-in</span></div>
       <div><b>24/7</b><span>WhatsApp Support</span></div>
     </div>
 
@@ -2135,8 +2130,7 @@ CASE_TRE
     <div class="piede-int">
       <div>
         <div class="footer-marchio"><span id="logoPiede"></span>Boom</div>
-        <p class="piede-motto">Built in Rome, for Rome. If we can make Rome's
-          rental market work, we can make it work anywhere.</p>
+        <p class="piede-motto">Built in Rome, for Rome.</p>
         <p class="piede-legale"><b>BOOM®</b> is a registered trademark of
           <b>Egidi Immobiliare S.r.l.</b> — EU trade mark
           <b>019317594</b>, class 36.<br>
@@ -2150,7 +2144,7 @@ CASE_TRE
         <a href="/deal-assistance.html">Deal Assistance</a>
         <a href="/virtual-viewing.html">Virtual Viewing</a>
         <a href="/concierge.html">Concierge</a>
-        <a href="/board.html">Live Board</a>
+        <a href="/v2-board.html">Live Board</a>
       </div>
       <div class="piede-col">
         <b>Company</b>

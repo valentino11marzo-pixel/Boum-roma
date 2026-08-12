@@ -355,12 +355,14 @@
       if (!forma.contains(e.target)) apri(false); });
     forma.addEventListener('submit', function (e) {
       e.preventDefault();
-      var prima = document.querySelector('#muro .casa-p:not(.via)');
-      if (prima) location.href = prima.getAttribute('href');
-      else location.href = '/property-finding.html';
+      /* un filtro mostra i risultati: non decide lui quale casa aprire */
+      apri(false);
+      var muro = document.getElementById('muro');
+      if (muro) muro.scrollIntoView({ block: 'start', behavior: 'smooth' });
     });
 
     /* ── ciò che arrivi dalla home viaggia con te ─────────────────────── */
+    function leggiHash() {
     var h = location.hash.replace('#', '');
     if (h) h.split('&').forEach(function (p) {
       var k = p.split('=')[0], v = decodeURIComponent(p.split('=')[1] || '');
@@ -385,6 +387,10 @@
         }, 80);
       }
     });
+  }
+  leggiHash();
+  /* le zone sulle carte cambiano l'hash della stessa pagina: si riascolta */
+  addEventListener('hashchange', function () { leggiHash(); aggiorna(); });
   })();
 
   aggiorna();

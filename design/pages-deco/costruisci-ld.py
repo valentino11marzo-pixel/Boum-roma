@@ -35,9 +35,20 @@ uri = json.load(open('foto-uri.json')); rem = json.load(open('foto-map.json'))
 gall = json.load(open('foto-galleria.json')) if os.path.exists('foto-galleria.json') else {}
 banca = uri if MODO == 'artefatto' else rem
 
-def stato(s):
-    if s == 'available': return ('Available now', True)
-    if s in ('reserved', 'waitlist'): return ('Reserved', False)
+def stato(s, dal=None):
+    if s == 'available':
+        # se l'ingresso e nel futuro, il badge dice la data — mai
+        # «Available now» per una casa libera nel 2027
+        oggi = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+        if dal and dal > oggi:
+            d = datetime.fromisoformat(dal)
+            eti = 'From ' + str(int(d.strftime('%d'))) + d.strftime(' %b')
+            if d.year != datetime.now(timezone.utc).year:
+                eti += d.strftime(' %Y')
+            return (eti, True)
+        return ('Available now', True)
+    if s == 'waitlist': return ('Waitlist open', False)
+    if s == 'reserved': return ('Reserved', False)
     return ('Rented', False)
 
 CASE = []
@@ -51,13 +62,21 @@ for r in piene:
     else:
         foto = (r.get('images') or [])[:8] or ([cover] if cover else [])
     if not foto: continue
-    st = stato(r['status'])
+    st = stato(r['status'], libera(r.get('availableDate')))
     ACRONIMI = {'ac': 'A/C', 'tv': 'TV', 'wi-fi': 'Wi-Fi', 'wifi': 'Wi-Fi',
                 'no gas': 'No gas', 'ng': 'No gas'}
     def bella_dote(x):
         s = re.sub(r'\s+', ' ', str(x)).strip()
         return ACRONIMI.get(s.lower(), s[:1].upper() + s[1:])
-    dentro = [bella_dote(x) for x in (r.get('features') or r.get('tags') or []) if x]
+    TRADUCI = {'balcone': 'Balcony', 'aria condizionata': 'A/C',
+               'lavatrice': 'Washer', 'lavastoviglie': 'Dishwasher',
+               'ascensore': 'Elevator', 'arredato': 'Furnished',
+               'washing_machine': 'Washer', 'double_glazing': 'Double glazing',
+               'concordato': 'Rent-controlled option'}
+    def normale(x):
+        b = bella_dote(x)
+        return TRADUCI.get(b.lower().replace('_', ' '), b)
+    dentro = [normale(x) for x in (r.get('features') or r.get('tags') or []) if x]
     CASE.append({
         'id': ide,
         'nome': re.sub(r'\s+', ' ', r['name']).strip(),
@@ -100,6 +119,7 @@ h = h.replace('<title>BOOM Rome — Premium Apartment Rentals | 48-Hour Move-In<
     '<title>' + CASE[0]['nome'] + ' — ' + CASE[0]['zona'] + ', Rome | BOOM</title>')
 h = h.replace('VIRTUAL_URL', 'https://www.boomrome.com/virtual-viewing'
     if MODO == 'artefatto' else '/virtual-viewing.html')
+h = h.replace('href="#banchina"', 'href="' + ('https://claude.ai/code/artifact/5e7c6222-9a91-4052-a4d7-f31255ed4478' if MODO == 'artefatto' else '/v2-home.html') + '#banchina"')
 h = h.replace('LOGO_SVG', leggi('logo-live.svg').strip())
 h = h.replace("'CASE_JSON'", json.dumps(CASE, ensure_ascii=False))
 if MODO == 'artefatto':
@@ -117,13 +137,70 @@ if MODO == 'artefatto':
     h = h.replace('href="/index.html"', 'href="' + HOME + '"')
     h = h.replace('/apartments.html', AP)
     h = h.replace("'/listing/'", "'#id='")
+    h = h.replace('CHIAVE_CASA', '/listing/')
     h = re.sub(r'href="/([a-z-]+)\.html"', r'href="https://www.boomrome.com/\1"', h)
     h = h.replace('href="/login"', 'href="https://www.boomrome.com/login"')
 else:
-    h = h.replace('href="/index.html"', 'href="/v2-home.html"')
+    for da, a_ in {'/index.html': '/v2-home.html',
+        '/property-finding.html': '/v2-property-finding.html'}.items():
+        h = h.replace('href="' + da + '"', 'href="' + a_ + '"')
     h = h.replace('/apartments.html', '/v2-apartments.html')
     h = h.replace("'/listing/'", "'/v2-listing.html#id='")
+    h = h.replace('CHIAVE_CASA', '/listing/')
 
+C0 = CASE[0]
+h = h.replace('<h1 id="nomeCasa">—</h1>',
+    '<h1 id="nomeCasa">' + C0['nome'] + '</h1>')
+h = h.replace('<p class="dove" id="doveCasa">—</p>',
+    '<p class="dove" id="doveCasa">' + C0['zona'] + ' · Rome</p>')
+DESCR = (C0['nome'] + ' — ' + C0['zona'] + ', Rome. '
+         + ('€' + format(C0['prezzo'], ',') + '/month, ' if C0['prezzo'] else '')
+         + 'walked in person and video-checked by BOOM. Transparent move-in '
+         'costs, sign from your phone, keys in as little as 48 hours.')
+h = h.replace(
+    '<meta name="description" content="Verified mid-term apartment rentals in '
+    'Rome for internationals — English-first, legal contracts, 48-hour '
+    'move-in. Your landing in Rome, handled.">',
+    '<meta name="description" content="' + DESCR + '">')
+if MODO == 'sito':
+    LD = {'@context': 'https://schema.org', '@type': 'Apartment',
+          'name': C0['nome'],
+          'address': {'@type': 'PostalAddress', 'addressLocality': 'Rome',
+                      'addressRegion': 'RM', 'addressCountry': 'IT',
+                      'streetAddress': C0.get('indirizzo') or C0['zona']},
+          'numberOfBedrooms': C0.get('letti'),
+          'numberOfBathroomsTotal': C0.get('bagni')}
+    if C0.get('mq'):
+        LD['floorSize'] = {'@type': 'QuantitativeValue',
+                           'value': C0['mq'], 'unitCode': 'MTK'}
+    LD = {k: v for k, v in LD.items() if v is not None}
+    OFFER = {'@context': 'https://schema.org', '@type': 'Offer',
+             'price': C0['prezzo'], 'priceCurrency': 'EUR',
+             'availability': 'https://schema.org/InStock' if C0['libera']
+                 else 'https://schema.org/SoldOut',
+             'url': 'https://www.boomrome.com/listing/' + C0['id'],
+             'itemOffered': LD,
+             'seller': {'@type': 'RealEstateAgent',
+                        'name': 'BOOM — Egidi Immobiliare S.r.l.',
+                        'url': 'https://www.boomrome.com'}}
+    OG = ('<link rel="canonical" href="https://www.boomrome.com/listing/'
+          + C0['id'] + '">\n'
+          '<meta property="og:title" content="' + C0['nome'] + ' — '
+          + C0['zona'] + ', Rome | BOOM">\n'
+          '<meta property="og:description" content="' + DESCR + '">\n'
+          '<meta property="og:type" content="website">\n'
+          '<meta property="og:url" content="https://www.boomrome.com/listing/'
+          + C0['id'] + '">\n'
+          + (('<meta property="og:image" content="' + C0['cover'] + '">\n'
+              '<meta name="twitter:card" content="summary_large_image">\n')
+             if C0.get('cover', '').startswith('http') else '')
+          + '<script type="application/ld+json">'
+          + json.dumps(OFFER, ensure_ascii=False) + '</script>\n')
+    i = h.index('</title>') + len('</title>')
+    h = h[:i] + '\n' + OG + h[i:]
+    h = ('<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
+         + h.replace('</style>', '</style>\n</head>\n<body>', 1)
+         + '\n</body>\n</html>')
 uscita = 'boom-casa-p.html' if MODO == 'artefatto' else 'boom-casa-p-sito.html'
 open(uscita, 'w', encoding='utf-8').write(h)
 print(f'{uscita} · {len(h)//1024} KB · {len(CASE)} case · '
