@@ -29,7 +29,12 @@
   --text:        #FAFAFA;
   --text-2:      rgba(250,250,250,.72);
   --text-3:      rgba(250,250,250,.5);
-  --text-4:      rgba(250,250,250,.3);
+  --text-4:      rgba(250,250,250,.48);  /* 4.77:1 su nero — sopra AA.
+                                            Era .3 = 2.44:1, e portava le
+                                            etichette dei campi e il footer. */
+  --text-eti:    rgba(250,250,250,.48);  /* alias storico di --text-4 */
+  --deco:        rgba(250,250,250,.26);  /* SOLO segni: frecce, punti,
+                                            separatori. Mai testo. */
   --line-0:      rgba(255,255,255,.04);
   --line:        rgba(255,255,255,.08);
   --line-gold:   rgba(255,215,0,.14);
@@ -77,7 +82,7 @@ button, input { font:inherit; color:inherit; background:none; border:0; }
   transition:transform .3s var(--ease); }
 .salta:focus-visible { transform:none; }
 
-.eyebrow { display:inline-flex; align-items:center; gap:10px; font-size:11px;
+.eyebrow { display:inline-flex; align-items:center; gap:10px; font-size:11.5px;
   font-weight:600; letter-spacing:.24em; text-transform:uppercase;
   color:var(--gold); }
 .eyebrow i { font-style:normal; width:22px; height:1px; background:var(--gold); }
@@ -127,12 +132,13 @@ h1, h2, h3 { font-family:var(--display); }
 .nav-inner { display:flex; align-items:center; justify-content:space-between;
   gap:16px; }
 .marchio { display:inline-flex; align-items:center; gap:11px; }
-.marchio .logo-mark { width:48px; height:48px; flex:none; }
-.marchio span { font-family:var(--display); font-size:19.5px; font-weight:400;
-  letter-spacing:.34em; text-indent:.34em; text-transform:uppercase; }
+.marchio .logo-mark { width:56px; height:56px; flex:none; }
+.marchio span { font-family:var(--display); font-size:23px; font-weight:400;
+  letter-spacing:.36em; text-indent:.36em; text-transform:uppercase; }
 @media (max-width:640px){
-  .marchio .logo-mark { width:47px; height:47px; }
-  .marchio span { font-size:19.5px; } }
+  .marchio { gap:9px; }
+  .marchio .logo-mark { width:52px; height:52px; }
+  .marchio span { font-size:21px; letter-spacing:.3em; text-indent:.3em; } }
 .menu { display:none; align-items:center; gap:26px; }
 @media (min-width:1080px){ .menu { display:flex; } }
 .menu a { font-size:13px; font-weight:400; letter-spacing:.02em;
@@ -210,7 +216,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   padding:11px 11px 11px 20px; max-width:100%;
   transition:box-shadow .3s ease; }
 .atterro:focus-within { box-shadow:inset 0 0 0 1px var(--line-gold-2); }
-.atterro .ac-data > span { display:block; font-size:8.5px; font-weight:600;
+.atterro .ac-data > span { display:block; font-size:10px; font-weight:600;
   letter-spacing:.16em; text-transform:uppercase; color:var(--text-4); }
 .atterro-data { display:inline-flex; align-items:center; gap:8px;
   padding:2px 0 1px; font-size:13.5px; color:var(--text-2); cursor:pointer;
@@ -225,7 +231,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   margin:0 14px; flex:none; }
 .atterro-campo { display:flex; flex-direction:column; gap:2px;
   margin-right:2px; }
-.atterro-campo > span { font-size:8.5px; font-weight:600;
+.atterro-campo > span { font-size:10px; font-weight:600;
   letter-spacing:.16em; text-transform:uppercase; color:var(--text-4); }
 .atterro-campo select { appearance:none; -webkit-appearance:none;
   background:transparent url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="8" height="5"><path d="M1 1l3 3 3-3" fill="none" stroke="%23888" stroke-width="1.2" stroke-linecap="round"/></svg>') right center no-repeat;
@@ -263,7 +269,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   box-shadow:inset 0 0 0 1px var(--line-gold-2); }
 .cal-sett { display:grid; grid-template-columns:repeat(7,1fr); gap:2px;
   margin-bottom:3px; }
-.cal-sett span { text-align:center; font-size:8.5px; font-weight:600;
+.cal-sett span { text-align:center; font-size:10px; font-weight:600;
   letter-spacing:.14em; color:var(--text-4); text-transform:uppercase;
   padding:4px 0; }
 .cal-giorni { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
@@ -289,7 +295,8 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   border-top:1px solid var(--line-0); display:flex; align-items:center;
   justify-content:space-between; gap:8px; }
 .cal-piede .hint { font-size:10.5px; color:var(--text-3); }
-.cal-piede button { font-size:10px; font-weight:600; letter-spacing:.1em;
+.cal-piede button { min-height:36px; padding:0 10px;
+  font-size:10px; font-weight:600; letter-spacing:.1em;
   text-transform:uppercase; color:var(--text-3); padding:6px 10px;
   box-shadow:inset 0 0 0 1px var(--line); cursor:pointer; transition:.2s; }
 .cal-piede button:hover { color:var(--gold);
@@ -309,19 +316,8 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   .atterro .btn { grid-column:1/-1; justify-content:center;
     text-align:center; padding:15px 18px; } }
 /* le cifre del sito, in riga a filetti */
-.hero-stats { margin-top:clamp(24px,3vw,36px); display:flex; flex-wrap:wrap;
-  border-top:1px solid var(--line); max-width:640px; }
-.hero-stat { flex:1 1 130px; padding:16px 22px 0 0; }
-.hero-stat + .hero-stat { padding-left:22px; border-left:1px solid var(--line-0); }
-.hero-stat-value { font-family:var(--display); font-size:clamp(25px,2vw,28px);
-  font-weight:250; letter-spacing:-.02em; color:var(--gold);
-  font-variant-numeric:tabular-nums; }
-.hero-stat-label { margin-top:3px; font-size:10px; font-weight:500;
-  letter-spacing:.14em; text-transform:uppercase; color:var(--text-2); }
 @media (max-width:560px){
-  .hero-stats { display:grid; grid-template-columns:1fr 1fr; }
-  .hero-stat + .hero-stat { border-left:0; padding-left:0; }
-  .hero-stat:nth-child(even){ padding-left:22px;
+    .hero-stat +   .hero-stat:nth-child(even){ padding-left:22px;
     border-left:1px solid var(--line-0); } }
 
 /* lo scalo: il cartellino ROM e la rotta che arriva */
@@ -361,7 +357,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   0% { width:26px; height:26px; opacity:.34; border-width:1px; }
   100% { width:190px; height:190px; opacity:0; border-width:.5px; } }
 @media (prefers-reduced-motion:reduce){ .scalo-eco { display:none; } }
-.scalo-tag span { display:block; margin-top:3px; font-size:9.5px;
+.scalo-tag span { display:block; margin-top:3px; font-size:10px;
   letter-spacing:.26em; text-transform:uppercase; color:var(--text-3); }
 
 /* la cornice a tacche: riservata agli apparecchi — e questo LO è */
@@ -391,14 +387,15 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   gap:12px; padding:14px 18px; border-bottom:1px solid var(--line-0); }
 .board-testa b { font-size:10.5px; font-weight:600; letter-spacing:.24em;
   text-transform:uppercase; color:var(--text-2); }
-.board-live { display:inline-flex; align-items:center; gap:7px; height:22px;
-  padding:0 10px; box-shadow:inset 0 0 0 1px rgba(0,255,136,.3);
-  font-size:9px; font-weight:700; letter-spacing:.18em; color:var(--green); }
+.board-live { display:inline-flex; align-items:center; gap:7px; height:24px;
+  padding:0 12px; border-radius:100px; background:rgba(0,32,18,.6);
+  box-shadow:inset 0 0 0 1px rgba(0,255,136,.38);
+  font-size:10px; font-weight:700; letter-spacing:.2em; color:var(--green); }
 .board-live i { font-style:normal; width:5px; height:5px; border-radius:50%;
   background:var(--green); animation:pulse 1.8s ease infinite; }
 .tab-colonne { display:grid; grid-template-columns:minmax(0,1fr) auto auto;
   gap:6px 12px; padding:8px 18px 0; }
-.tab-colonne span { font-size:8px; font-weight:600; letter-spacing:.2em;
+.tab-colonne span { font-size:10px; font-weight:600; letter-spacing:.2em;
   text-transform:uppercase; color:var(--text-4); }
 .tab-colonne span:last-child { justify-self:end; }
 @media (max-width:640px){
@@ -432,15 +429,165 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .board-piede b { color:var(--text-3); font-weight:500;
   font-variant-numeric:tabular-nums; }
 
-/* la strip d'imbarco: quattro fatti, onesti */
-.imbarco { margin-top:clamp(20px,2.4vw,30px); display:grid;
-  grid-template-columns:repeat(2,1fr); gap:1px; background:var(--line-0);
-  box-shadow:inset 0 0 0 1px var(--line-0); border-radius:14px; overflow:hidden; }
-@media (min-width:840px){ .imbarco { grid-template-columns:repeat(4,1fr); } }
-.imbarco-v { display:flex; align-items:center; gap:14px; padding:16px 20px;
-  background:var(--surface); }
-.imbarco-v svg .acc { opacity:.55; }
-.imbarco-v svg .pieno, .porta svg .pieno { fill:var(--gold); stroke:none; }
+/* la riga di fiducia nell'hero: una sola, sottile. Il discorso lungo sui
+   soldi vive nella banchina, dove si parla di prezzi. */
+.hero-fede { display:flex; align-items:center; gap:11px;
+  margin-top:clamp(16px,2vw,22px); padding:11px 15px; border-radius:100px;
+  background:var(--surface); box-shadow:inset 0 0 0 1px var(--line-0);
+  max-width:max-content; }
+.hero-fede .hf-stripe { width:40px; height:auto; flex:none; opacity:.85; }
+.hero-fede span { font-size:11.5px; line-height:1.5; color:var(--text-4); }
+.hero-fede span b { color:var(--text-2); font-weight:500; }
+@media (max-width:640px){
+  .hero-fede { border-radius:14px; padding:11px 13px; align-items:flex-start; }
+  .hero-fede .hf-stripe { margin-top:2px; } }
+
+/* le recensioni: un filo sotto il tabellone, mai un cartello */
+.recensioni { display:flex; align-items:center; gap:10px;
+  margin-top:clamp(26px,3vw,40px);
+  padding:11px 14px; background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--line-0); transition:.3s ease; }
+.recensioni:hover { box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.recensioni svg { width:15px; height:15px; flex:none; fill:var(--gold);
+  opacity:.85; }
+.recensioni span { flex:1; min-width:0; font-size:12px; color:var(--text-3); }
+.recensioni i { font-style:normal; font-size:10px; font-weight:600;
+  letter-spacing:.12em; text-transform:uppercase; color:var(--gold);
+  white-space:nowrap; }
+
+/* ── LA BANCHINA — dove chi arriva viene smistato ──────────────────────
+   Non «i nostri servizi»: la situazione in cui uno si trova, col prezzo
+   della risposta. Nessuno compra «Deal Assistance»; uno compra «ho trovato
+   casa da solo e ho paura di farmi fregare». Sotto, la garanzia sui
+   pagamenti — con le parole che il sito usa gia, nessuna promessa nuova. */
+.banchina { margin-top:clamp(20px,2.4vw,30px); border:1px solid var(--line);
+  border-radius:16px; overflow:hidden; background:var(--surface); }
+
+.ba-capo { display:flex; align-items:baseline; justify-content:space-between;
+  gap:14px; padding:14px 18px 12px; }
+.ba-capo b { flex:1; min-width:0; }
+@media (max-width:640px){
+  .ba-capo { padding:13px 15px 11px; }
+  .ba-capo b { font-size:14px; }
+  .ba-tutti { font-size:10px; letter-spacing:.1em; } }
+.ba-capo b { font-family:var(--display); font-size:15.5px; font-weight:400;
+  letter-spacing:.005em; color:var(--text); }
+.ba-capo b em { font-style:normal; color:var(--gold); }
+.ba-tutti { display:inline-flex; align-items:center; gap:7px; font-size:11px;
+  font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--text-4); padding:10px 2px; margin:-10px 0;
+  transition:color .25s var(--ease); }
+.ba-tutti:hover { color:var(--gold); }
+
+/* le porte: una situazione per cella, il prezzo come risposta */
+.ba-porte { display:grid; grid-template-columns:repeat(4,1fr); gap:1px;
+  background:var(--line-0); border-top:1px solid var(--line-0); }
+.ba-p { position:relative; display:block; background:var(--surface);
+  padding:14px 15px 15px; transition:background .3s var(--ease); }
+.ba-p::before { content:''; position:absolute; top:0; left:0; right:0;
+  height:1px; background:var(--gold); transform:scaleX(0);
+  transform-origin:left; transition:transform .42s var(--ease); }
+.ba-p:hover { background:var(--elevated); }
+.ba-p:hover::before { transform:scaleX(1); }
+.ba-p svg.sg { width:19px; height:19px; color:var(--gold); fill:none;
+  stroke:currentColor; stroke-width:1.5; stroke-linecap:round;
+  stroke-linejoin:round; transition:transform .4s var(--ease); }
+.ba-p svg.sg .acc { opacity:.55; }
+.ba-p svg.sg .pieno { fill:var(--gold); stroke:none; }
+.ba-p:hover svg.sg { transform:translateY(-2px); }
+.ba-p .caso { display:block; margin-top:9px; font-size:13.5px; font-weight:500;
+  letter-spacing:.005em; color:var(--text); line-height:1.35; }
+.ba-p .fa { display:block; margin-top:3px; font-size:11.5px; line-height:1.45;
+  color:var(--text-4); }
+.ba-p .costo { display:flex; align-items:baseline; gap:7px; margin-top:9px;
+  flex-wrap:wrap; }
+.ba-p .costo b { font-family:var(--display); font-size:17px; font-weight:400;
+  letter-spacing:.02em; color:var(--gold); font-variant-numeric:tabular-nums; }
+.ba-p .costo i { font-style:normal; font-size:10.5px; color:var(--text-4);
+  line-height:1.3; }
+.ba-p .costo i .breve { display:none; }
+@media (max-width:860px){
+  .ba-p .costo i .lungo { display:none; }
+  .ba-p .costo i .breve { display:inline; } }
+/* la porta che vale di piu per chi e appena atterrato */
+.ba-p.prima { background:linear-gradient(165deg, rgba(255,215,0,.07),
+  rgba(255,215,0,.01) 70%, transparent); }
+.ba-p.prima:hover { background:linear-gradient(165deg, rgba(255,215,0,.12),
+  rgba(255,215,0,.02) 70%, transparent); }
+
+/* su schermo stretto: una fila che scorre. Le porte sono alternative —
+   scegliene una — quindi il carosello qui e onesto (a differenza della
+   fiducia, che va sempre tutta visibile). */
+@media (max-width:860px){
+  .ba-porte { display:flex; overflow-x:auto; scroll-snap-type:x mandatory;
+    scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+  .ba-porte::-webkit-scrollbar { display:none; }
+  .ba-p { flex:0 0 min(72vw,232px); scroll-snap-align:start;
+    border-right:1px solid var(--line-0); }
+  .ba-p:last-child { border-right:0; } }
+
+/* la garanzia: dove finiscono i soldi, detta con le parole del sito */
+.ba-soldi { display:flex; align-items:center; gap:15px; padding:14px 18px;
+  border-top:1px solid var(--line-0);
+  background:linear-gradient(100deg, rgba(0,255,136,.045),
+    rgba(0,255,136,.008) 58%, transparent); }
+.ba-scudo { width:34px; height:34px; flex:none; border-radius:50%;
+  display:grid; place-items:center; background:rgba(0,255,136,.09);
+  border:1px solid rgba(0,255,136,.26); }
+.ba-scudo svg { width:17px; height:17px; color:var(--green); fill:none;
+  stroke:currentColor; stroke-width:1.6; stroke-linecap:round;
+  stroke-linejoin:round; }
+.ba-soldi .dice { flex:1; min-width:0; font-size:12.5px; line-height:1.55;
+  color:var(--text-2); }
+.ba-soldi .breve { display:none; }
+@media (max-width:640px){
+  .ba-soldi { gap:12px; padding:13px 15px; align-items:flex-start; }
+  .ba-soldi .lungo { display:none; }
+  .ba-soldi .breve { display:inline; }
+  .ba-scudo { width:30px; height:30px; margin-top:1px; } }
+.ba-soldi .dice b { color:var(--text); font-weight:500; }
+.ba-soldi .dice em { font-style:normal; color:var(--green); font-weight:500; }
+.ba-stripe { width:46px; height:auto; flex:none; opacity:.85; }
+@media (max-width:640px){ .ba-stripe { display:none; } }
+
+/* la coda: i fatti che restano veri comunque, e l'ora di Roma */
+.ba-coda { display:flex; align-items:center; gap:9px; flex-wrap:wrap;
+  padding:10px 18px; border-top:1px solid var(--line-0); background:var(--void);
+  font-size:11.5px; color:var(--text-4); }
+.ba-coda .ch { display:inline-flex; align-items:baseline; gap:7px;
+  white-space:nowrap; }
+/* le quattro cifre che stavano nell'hero: qui non fanno doppione con
+   niente, perche la garanzia sopra parla di soldi e loro di risultati */
+.ba-coda .ch b { font-family:var(--display); font-size:15px; font-weight:400;
+  letter-spacing:.02em; color:var(--gold); font-variant-numeric:tabular-nums; }
+.ba-coda .sep { width:1px; height:12px; background:var(--line); flex:none; }
+@media (max-width:860px){
+  .ba-coda .sep { display:none; }
+  .ba-coda { display:grid; grid-template-columns:1fr 1fr; gap:8px 12px;
+    padding:11px 15px; }
+  .ba-coda .ch { font-size:10.5px; white-space:normal; align-items:flex-start; }
+  .ba-coda .ch svg { margin-top:2px; }
+  .ba-coda .ba-viva { grid-column:1 / -1; } }
+.ba-viva { display:inline-flex; align-items:center; gap:7px; margin-left:auto; }
+@media (max-width:860px){ .ba-viva { margin-left:0; } }
+.ba-viva .pt { width:6px; height:6px; border-radius:50%; background:var(--green);
+  animation:fa-pulsa 2.8s ease-out infinite; }
+@keyframes fa-pulsa {
+  0%   { box-shadow:0 0 0 0 rgba(0,255,136,.45); }
+  70%  { box-shadow:0 0 0 8px rgba(0,255,136,0); }
+  100% { box-shadow:0 0 0 0 rgba(0,255,136,0); } }
+.orologio-roma { color:var(--gold); font-variant-numeric:tabular-nums;
+  letter-spacing:.1em; }
+@media (prefers-reduced-motion:reduce){ .ba-viva .pt { animation:none; } }
+/* le ultime strette, in coda al blocco perche vincano sulle base */
+@media (max-width:560px){
+  /* la sezione servizi completa e in pagina e «Services» sta nel menu:
+     qui il link costa una riga di titolo e non aggiunge niente */
+  .ba-tutti { display:none; }
+  /* «licensed agency» e gia dentro la garanzia verde e nel footer legale */
+  .ba-coda .ch.terzo { display:none; } }
+
+.porta svg .pieno { fill:var(--gold); stroke:none; }
 .porta svg .acc { opacity:.55; transition:opacity .3s; }
 .porta:hover svg { transform:translateY(-2px); }
 .porta:hover svg .acc { opacity:1; }
@@ -455,14 +602,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   55% { transform:translateY(-2px) rotate(-6deg); }
   80% { transform:translateY(-2px) rotate(3deg); }
   100% { transform:translateY(-2px) rotate(0); } }
-.imbarco-v svg { width:26px; height:26px; flex:none; color:var(--gold);
-  fill:none; stroke:currentColor; stroke-width:1.5; stroke-linecap:round;
-  stroke-linejoin:round; }
-.imbarco-v b { display:block; font-family:var(--display); font-size:14px;
-  font-weight:500; letter-spacing:.12em; }
-.imbarco-v span { display:block; font-size:10px; letter-spacing:.12em;
-  text-transform:uppercase; color:var(--text-3); margin-top:1px; }
-.imbarco-v .orologio-roma { font-variant-numeric:tabular-nums; }
+/* l'ora di Roma è un quadrante: cifre d'oro, passo fisso */
 
 /* ══ SERVIZI — sei porte, una fila ═════════════════════════════════════ */
 .testa-fila { display:flex; align-items:flex-end; justify-content:space-between;
@@ -530,16 +670,17 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .home-cuore:active { transform:scale(.86); }
 .casa-p .casa-chip { transition:transform .4s var(--ease); }
 .casa-p:hover .casa-chip { transform:translateY(-2px); }
-.casa-chip { position:absolute; left:10px; top:10px; height:22px;
-  display:inline-flex; align-items:center; padding:0 9px;
-  border-radius:5px; background:rgba(3,3,3,.78); backdrop-filter:blur(8px);
-  font-size:8.5px; font-weight:700; letter-spacing:.16em;
+.casa-chip { position:absolute; left:10px; top:10px; height:25px;
+  display:inline-flex; align-items:center; padding:0 11px;
+  border-radius:100px; background:rgba(3,3,3,.82); backdrop-filter:blur(10px);
+  font-size:10px; font-weight:700; letter-spacing:.16em;
   text-transform:uppercase; color:var(--gold-light);
   box-shadow:inset 0 0 0 1px var(--line-gold-2); }
-.casa-chip.verde { color:var(--green);
-  box-shadow:inset 0 0 0 1px rgba(0,255,136,.35); }
-.home-cuore { position:absolute; right:8px; top:8px; z-index:3; width:36px;
-  height:36px; display:grid; place-items:center; border-radius:50%;
+/* il verde è uno stato, non un vezzo: solo dove la casa è davvero libera */
+.casa-chip.verde { color:var(--green); background:rgba(0,32,18,.72);
+  box-shadow:inset 0 0 0 1px rgba(0,255,136,.42); }
+.home-cuore { position:absolute; right:6px; top:6px; z-index:3; width:40px;
+  height:40px; display:grid; place-items:center; border-radius:50%;
   background:rgba(3,3,3,.72); backdrop-filter:blur(6px); color:var(--text-3);
   cursor:pointer; border:0; font-size:14px;
   transition:color .25s ease, transform .25s var(--ease); }
@@ -617,7 +758,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   padding:8px 14px; border-bottom:1px solid var(--line-0); }
 .app-vetro i { width:7px; height:7px; border-radius:50%;
   background:var(--line); font-style:normal; }
-.app-vetro span { margin-left:8px; font-size:8.5px; letter-spacing:.18em;
+.app-vetro span { margin-left:8px; font-size:10px; letter-spacing:.18em;
   text-transform:uppercase; color:var(--text-4); }
 
 /* ═ scena 1 · lo sfoglio: il catalogo si usa da solo ═ */
@@ -680,7 +821,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 /* ═ scena 2 · le verifiche ═ */
 .s2-vagli { display:flex; gap:7px; margin:10px 0 12px; }
 .s2-vagli span { position:relative; padding:5px 9px 5px 20px;
-  font-size:8.5px; font-weight:600; letter-spacing:.12em;
+  font-size:10px; font-weight:600; letter-spacing:.12em;
   text-transform:uppercase; color:var(--text-3);
   box-shadow:inset 0 0 0 1px var(--line-0); border-radius:100px; opacity:.4; }
 .s2-vagli span::before { content:''; position:absolute; left:8px; top:8px;
@@ -789,13 +930,13 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .sc-vivo { position:absolute; top:16px; left:16px; z-index:2;
   display:inline-flex; align-items:center; gap:7px; height:22px;
   padding:0 10px; background:rgba(3,3,3,.6); backdrop-filter:blur(8px);
-  font-size:8.5px; font-weight:700; letter-spacing:.16em; color:#FF6B6B; }
+  font-size:10px; font-weight:700; letter-spacing:.16em; color:#FF6B6B; }
 .sc-vivo i { font-style:normal; width:5px; height:5px; border-radius:50%;
   background:#FF6B6B; animation:pulse 1.4s ease infinite; }
 .sc-verificata { position:absolute; top:16px; right:16px; z-index:2;
   display:inline-flex; align-items:center; gap:6px; height:22px;
   padding:0 10px; background:rgba(3,3,3,.6); backdrop-filter:blur(8px);
-  font-size:8.5px; font-weight:700; letter-spacing:.16em;
+  font-size:10px; font-weight:700; letter-spacing:.16em;
   color:var(--green); box-shadow:inset 0 0 0 1px rgba(0,255,136,.35);
   opacity:0; transform:scale(1.4); }
 .scena-p.attiva .sc-verificata {
@@ -809,7 +950,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 
 /* scena 2 · la domanda che si batte da sola */
 .sc-modulo { max-width:300px; margin:auto; width:100%; }
-.sc-modulo label { display:block; font-size:8.5px; font-weight:600;
+.sc-modulo label { display:block; font-size:10px; font-weight:600;
   letter-spacing:.16em; text-transform:uppercase; color:var(--text-4);
   margin:12px 0 5px; }
 .sc-campo { padding:10px 12px; background:var(--elevated);
@@ -853,11 +994,16 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .sc-doc i { display:block; height:3px; background:rgba(250,250,250,.14);
   margin-bottom:7px; font-style:normal; }
 .sc-doc i:nth-child(2){ width:86%; } .sc-doc i:nth-child(3){ width:70%; }
-.sc-firma svg { width:130px; height:30px; margin-top:8px; }
-.sc-firma path { fill:none; stroke:var(--gold); stroke-width:1.6;
-  stroke-linecap:round; stroke-dasharray:1; stroke-dashoffset:1; }
-.scena-p.attiva .sc-firma path {
-  animation:sc-scrivi 1.6s var(--ease) .5s forwards; }
+.sc-firma svg { width:168px; height:40px; margin-top:8px; overflow:visible; }
+.sc-firma path { fill:none; stroke:var(--gold); stroke-linecap:round;
+  stroke-linejoin:round; stroke-dasharray:1; stroke-dashoffset:1; }
+.sc-firma .f-corpo { stroke-width:2.1; }
+.sc-firma .f-svolo { stroke-width:1.2; opacity:.6; }
+/* la penna scrive: il corpo con la sua cadenza, lo svolazzo dopo */
+.scena-p.attiva .sc-firma .f-corpo {
+  animation:sc-scrivi 1.5s cubic-bezier(.5,.02,.32,1) .45s forwards; }
+.scena-p.attiva .sc-firma .f-svolo {
+  animation:sc-scrivi .5s cubic-bezier(.3,.8,.4,1) 1.85s forwards; }
 @keyframes sc-scrivi { to { stroke-dashoffset:0; } }
 .sc-totale { display:flex; justify-content:space-between; align-items:baseline;
   gap:10px; padding:10px 12px; margin-top:10px; background:var(--elevated);
@@ -901,7 +1047,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .sc-chiavi h4 { font-family:var(--display); font-size:17px; font-weight:400; }
 .sc-chiavi p { margin-top:4px; font-size:11.5px; color:var(--text-3); }
 .sc-timbro { display:inline-flex; align-items:center; gap:7px; margin-top:13px;
-  height:24px; padding:0 12px; font-size:9px; font-weight:700;
+  height:24px; padding:0 12px; font-size:10px; font-weight:700;
   letter-spacing:.16em; text-transform:uppercase; color:var(--green);
   box-shadow:inset 0 0 0 1.5px rgba(0,255,136,.4); opacity:0;
   transform:scale(1.3); }
@@ -919,7 +1065,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   background:linear-gradient(90deg, transparent, var(--gold), transparent);
   animation:rete-scan 3.2s var(--ease) infinite; }
 @keyframes rete-scan { to { left:110%; } }
-.rete-eti { display:inline-flex; align-items:center; gap:8px; font-size:9.5px;
+.rete-eti { display:inline-flex; align-items:center; gap:8px; font-size:10px;
   font-weight:600; letter-spacing:.22em; text-transform:uppercase;
   color:var(--gold); }
 .rete-eti b { width:5px; height:5px; border-radius:50%;
@@ -942,10 +1088,10 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
     padding-left:16px; } }
 .rete-cifra b { display:block; font-family:var(--display); font-size:20px;
   font-weight:250; color:var(--gold); font-variant-numeric:tabular-nums; }
-.rete-cifra span { display:block; margin-top:2px; font-size:9px;
+.rete-cifra span { display:block; margin-top:3px; font-size:10.5px;
   letter-spacing:.12em; text-transform:uppercase; color:var(--text-3); }
 .rete-motore { margin-top:16px; display:flex; flex-wrap:wrap; gap:7px; }
-.rete-motore span { font-size:8.5px; font-weight:600; letter-spacing:.16em;
+.rete-motore span { font-size:10px; font-weight:600; letter-spacing:.16em;
   color:var(--text-3); padding:6px 10px;
   box-shadow:inset 0 0 0 1px var(--line-0); border-radius:100px; }
 .rete-motore span:first-child { color:var(--gold);
@@ -969,61 +1115,8 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   transition:color .3s; }
 .rete-mini:hover b { color:var(--gold); }
 
-/* ══ LO SKYLINE — la città disegnata, e usabile ════════════════════════ */
-.sky { position:relative; margin-top:clamp(20px,2.6vw,32px); }
-.sky canvas { display:block; width:100%; height:clamp(190px,26vw,340px); }
-.sky-tasti { position:absolute; left:0; right:0; top:0;
-  height:clamp(190px,26vw,340px); }
-.sky-tasti button { position:absolute; bottom:0; width:34px; height:64%;
-  transform:translateX(-50%); padding:0; border:0; background:none;
-  cursor:pointer; }
-.sky-tasti button::after { content:''; position:absolute; left:50%; bottom:14%;
-  width:7px; height:7px; margin-left:-3.5px; border-radius:50%;
-  background:var(--gold); opacity:.5; transition:opacity .3s ease,
-    transform .3s var(--ease); }
-.sky-tasti button:hover::after, .sky-tasti button.on::after,
-.sky-tasti button:focus-visible::after { opacity:1; transform:scale(1.5); }
-.sky-tasti button:focus-visible { outline:2px solid var(--gold);
-  outline-offset:2px; border-radius:6px; }
-.sky-carta { margin-top:14px; min-height:74px; }
-.sky-vuota { display:flex; flex-direction:column; gap:3px; padding:16px 18px;
-  box-shadow:inset 0 0 0 1px var(--line-0); }
-.sky-vuota b { font-family:var(--display); font-size:16px; font-weight:300;
-  color:var(--text-2); }
-.sky-vuota span { font-size:12px; color:var(--text-4); }
-.sky-piena { display:none; align-items:center; justify-content:space-between;
-  gap:16px; padding:16px 18px; background:var(--card);
-  box-shadow:inset 0 0 0 1px var(--line-gold-2);
-  transition:box-shadow .3s ease, background .3s ease; }
-.sky-piena:hover { background:var(--elevated);
-  box-shadow:inset 0 0 0 1px var(--line-gold); }
-.sky.scelto .sky-vuota { display:none; }
-.sky.scelto .sky-piena { display:flex; }
-.sky-piena b { display:block; font-family:var(--display); font-size:20px;
-  font-weight:300; letter-spacing:.02em; }
-.sky-piena span { display:block; margin-top:3px; font-size:12px;
-  color:var(--text-3); font-variant-numeric:tabular-nums; }
-.sky-piena i { font-style:normal; font-size:10.5px; font-weight:600;
-  letter-spacing:.12em; text-transform:uppercase; color:var(--gold);
-  white-space:nowrap; transition:transform .3s var(--ease); }
-.sky-piena:hover i { transform:translateX(4px); }
-/* dove si tocca, i quartieri hanno una fila tutta loro: mai bersagli
-   sovrapposti solo perché due zone sono vicine sulla mappa */
-.sky-fila { display:none; gap:7px; margin-top:12px; overflow-x:auto;
-  scrollbar-width:none; padding-bottom:2px; }
-.sky-fila::-webkit-scrollbar { display:none; }
-.sky-fila button { flex:none; padding:10px 14px; font:inherit;
-  font-size:12px; color:var(--text-3); background:none; border:0;
-  box-shadow:inset 0 0 0 1px var(--line); border-radius:100px;
-  cursor:pointer; white-space:nowrap; transition:.25s; }
-.sky-fila button.on { color:var(--gold);
-  box-shadow:inset 0 0 0 1px var(--line-gold); }
-@media (hover:none), (pointer:coarse), (max-width:900px){
-  .sky-tasti { display:none; }
-  .sky-fila { display:flex; } }
-@media (max-width:640px){
-  .sky canvas, .sky-tasti { height:200px; }
-  .sky-piena b { font-size:17px; } }
+/* ══ IL VARCO VERSO LA SKYLINE — un invito, non una finta mappa ════════ */
+
 
 /* ══ IL FONDATORE ══════════════════════════════════════════════════════ */
 .fond-sezione { position:relative; }
@@ -1044,16 +1137,21 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   font-family:var(--display); font-size:110px; font-weight:200;
   color:var(--gold); background:
     radial-gradient(70% 55% at 50% 38%, rgba(255,215,0,.07), transparent 70%); }
-.fond-quote { margin:18px 0 0; padding-left:16px;
-  border-left:2px solid var(--line-gold-2); font-family:var(--display);
-  font-size:clamp(16px,1.6vw,19px); font-weight:300; font-style:italic;
-  color:var(--text-2); }
 .fond-firma { margin-top:14px; }
 .fond-firma b { display:block; font-family:var(--display); font-size:17px;
   font-weight:400; letter-spacing:.04em; }
 .fond-firma span { display:block; margin-top:3px; font-size:11px;
   color:var(--text-3); }
-.fond .chi-num { margin-top:20px; }
+/* la fusione: i dolori e i numeri escono dalla colonna e prendono
+   tutta la larghezza — la faccia parla, poi arriva la prova */
+.dolori-capo { margin:clamp(30px,3.4vw,46px) 0 0; font-size:14.5px;
+  color:var(--text-3); }
+.dolori-capo b { font-family:var(--display); font-size:17px; font-weight:400;
+  letter-spacing:.005em; color:var(--text); }
+.fond-sezione .dolori { margin-top:clamp(14px,1.6vw,20px); }
+.fond-sezione .chi-num { margin-top:clamp(22px,2.6vw,32px); }
+@media (min-width:760px){
+  .fond-sezione .chi-num { grid-template-columns:repeat(4,1fr); } }
 
 /* ══ CONCIERGE — sei voci a tavola ═════════════════════════════════════ */
 .griglia6 { margin-top:clamp(22px,2.6vw,34px); display:grid;
@@ -1102,11 +1200,11 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   font-family:var(--display); font-size:12px; letter-spacing:.28em;
   text-indent:.28em; text-transform:uppercase; }
 .pass-cima .marchietto svg { width:22px; height:22px; }
-.pass-cima span { font-size:8.5px; font-weight:700; letter-spacing:.18em;
+.pass-cima span { font-size:10px; font-weight:700; letter-spacing:.18em;
   text-transform:uppercase; color:var(--text-4); }
 .pass-mezzo { display:grid; grid-template-columns:1fr 1fr; gap:12px 16px;
   padding:16px 18px; }
-.pass-campo b { display:block; font-size:8.5px; font-weight:600;
+.pass-campo b { display:block; font-size:10px; font-weight:600;
   letter-spacing:.16em; text-transform:uppercase; color:var(--text-4); }
 .pass-campo span { display:block; margin-top:3px; font-family:var(--display);
   font-size:14px; color:var(--text); }
@@ -1209,7 +1307,8 @@ html.vivo .sale.dentro .pass-qr i {
 .org-v:hover svg { transform:scale(1.08); }
 .org-nota { margin-top:14px; display:flex; align-items:center; gap:10px;
   flex-wrap:wrap; font-size:12px; color:var(--text-3); }
-.org-nota a { color:var(--gold); border-bottom:1px solid var(--line-gold-2);
+.org-nota a { padding:9px 0; margin:-9px 0; color:var(--gold);
+  border-bottom:1px solid var(--line-gold-2);
   transition:border-color .25s; }
 .org-nota a:hover { border-color:var(--gold); }
 .org-v > div { flex:1; min-width:0; }
@@ -1252,7 +1351,7 @@ html.vivo .sale.dentro .pass-qr i {
 .piede-motto { margin-top:14px; font-size:13px; line-height:1.7;
   color:var(--text-3); max-width:32ch; }
 .piede-legale { margin-top:14px; font-size:11.5px; line-height:1.8;
-  color:var(--text-4); }
+  color:var(--text-eti); }
 .piede-legale b { color:var(--text-3); font-weight:500; }
 .piede-col b { display:block; font-size:10.5px; font-weight:600;
   letter-spacing:.2em; text-transform:uppercase; color:var(--gold);
@@ -1305,6 +1404,168 @@ html.vivo .sale.dentro { opacity:1; transform:none;
   .btn-primary::after, .scalo-punto, .pronto::before { display:none; }
   .tech-orb { animation:none; }
   html { scroll-behavior:auto; } }
+
+/* ── LA SKYLINE, dentro ── lo strumento vero, non una sua figura ──────── */
+.cielo { position:relative; margin-top:clamp(26px,3vw,40px);
+  border:1px solid var(--line); border-radius:16px; overflow:hidden;
+  background:var(--void); height:min(76vh,700px);
+  box-shadow:0 30px 90px rgba(0,0,0,.5); isolation:isolate; }
+@media (max-width:760px){ .cielo { height:min(72vh,560px); border-radius:14px; } }
+.cielo-mappa { position:absolute; inset:0; }
+.cielo-mappa canvas { outline:none; }
+.cielo .maplibregl-ctrl-attrib { font-size:9px!important; opacity:.4;
+  background:rgba(6,6,7,.7)!important; }
+.cielo .maplibregl-ctrl-attrib a { color:var(--text-3)!important; }
+.cielo .maplibregl-ctrl-group { background:rgba(14,14,16,.82)!important;
+  border:1px solid var(--line)!important; box-shadow:none!important;
+  backdrop-filter:blur(10px); }
+.cielo .maplibregl-ctrl-group button+button { border-top-color:var(--line)!important; }
+.cielo .maplibregl-ctrl-icon { filter:invert(1) brightness(1.6) contrast(.85); }
+.cielo .maplibregl-cooperative-gesture-screen { background:rgba(3,3,3,.72);
+  font-family:var(--sans); font-weight:300; letter-spacing:.02em; }
+
+/* la pulsantiera: filtri di prezzo + satellite, in alto */
+.cielo-hud { position:absolute; top:0; left:0; right:0; z-index:6;
+  display:flex; gap:7px; align-items:center;
+  padding:13px clamp(13px,2vw,18px) 30px; pointer-events:none;
+  background:linear-gradient(180deg,rgba(6,6,7,.86),rgba(6,6,7,0)); }
+.cielo-hud > * { pointer-events:auto; flex:none; }
+/* su schermo stretto la pulsantiera e UNA fila che scorre, mai tre che
+   mangiano la mappa: il satellite resta ancorato a destra, sempre visibile */
+@media (max-width:760px){
+  .cielo-hud { padding:11px 0 26px 11px; overflow-x:auto; overflow-y:hidden;
+    scrollbar-width:none; -webkit-overflow-scrolling:touch;
+    scroll-padding-right:104px; }
+  .cielo-hud::-webkit-scrollbar { display:none; }
+  .cielo-hud::after { content:''; flex:none; width:104px; }
+  .cielo-t { display:none; }
+  .cielo-c { padding:7px 12px; font-size:11px; }
+  .cielo-c.sat { position:absolute; right:11px; top:11px; margin-left:0;
+    box-shadow:0 6px 20px rgba(3,3,3,.7); } }
+.cielo-t { font-size:10px; font-weight:600; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--text-eti); margin-right:3px; }
+.cielo-c { font-family:var(--sans); font-size:11.5px; font-weight:400;
+  letter-spacing:.03em; color:var(--text-2); background:rgba(14,14,16,.76);
+  backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+  border:1px solid var(--line); border-radius:100px; padding:7px 14px;
+  cursor:pointer; transition:color .22s var(--ease), border-color .22s var(--ease),
+    background .22s var(--ease); font-variant-numeric:tabular-nums; }
+.cielo-c:hover { color:var(--text); border-color:var(--line-gold-2); }
+.cielo-c.on { background:var(--gold); border-color:transparent; color:#000;
+  font-weight:600; }
+.cielo-c.sat { margin-left:auto; }
+.cielo-c.sat.on { background:rgba(0,32,18,.72); border-color:rgba(0,255,136,.32);
+  color:var(--green); font-weight:500; }
+
+/* il conteggio: in basso, come nello strumento a schermo intero */
+.cielo-conta { position:absolute; left:50%; bottom:16px; z-index:6;
+  transform:translateX(-50%); font-size:11.5px; letter-spacing:.02em;
+  color:var(--text-2); background:rgba(14,14,16,.82);
+  backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+  border:1px solid var(--line); border-radius:100px; padding:8px 17px;
+  white-space:nowrap; max-width:calc(100% - 32px); overflow:hidden;
+  text-overflow:ellipsis; opacity:0; transition:opacity .5s var(--ease); }
+.cielo-conta.viva { opacity:1; }
+.cielo-conta b { color:var(--gold); font-weight:500; }
+.cielo-conta i { font-style:normal; color:var(--text-4); }
+@media (max-width:520px){ .cielo-conta i { display:none; } }
+
+/* i segnaposto: il canone, in piedi sul palazzo */
+.cielo-pin { display:inline-flex; flex-direction:column; align-items:center;
+  cursor:pointer; transition:transform .2s var(--ease); }
+.cielo-pin:hover { transform:translateY(-3px); z-index:50; }
+.cielo-pin .p { background:var(--gold); color:#000; font-weight:700;
+  font-size:11.5px; letter-spacing:.01em; padding:5px 11px; border-radius:100px;
+  white-space:nowrap; font-variant-numeric:tabular-nums;
+  box-shadow:0 5px 16px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.16); }
+.cielo-pin .p.presa { background:#26262c; color:#9a9aa2;
+  box-shadow:0 4px 12px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.07); }
+.cielo-pin::after { content:''; width:2px; height:9px;
+  background:linear-gradient(var(--gold-dark),transparent); }
+.cielo-pin.spenta { opacity:.15; filter:grayscale(.7); pointer-events:none; }
+
+/* le ancore: Sapienza, LUISS, Termini… si accendono quando tocchi una casa */
+.cielo-anc { display:flex; align-items:center; gap:6px; font-size:10.5px;
+  letter-spacing:.01em; color:var(--text-2); background:rgba(14,14,16,.8);
+  backdrop-filter:blur(8px); border:1px solid var(--line); border-radius:100px;
+  padding:5px 10px; white-space:nowrap; opacity:.45; pointer-events:none;
+  transition:opacity .35s var(--ease), border-color .35s var(--ease); }
+.cielo-anc .d { color:var(--gold); font-weight:600; display:none;
+  font-variant-numeric:tabular-nums; }
+.cielo-anc.accesa { opacity:1; border-color:var(--line-gold-2); }
+.cielo-anc.accesa .d { display:inline; }
+.cielo-anc.accesa .d::before { content:'· '; color:var(--text-4); }
+
+/* la scheda che si apre sul segnaposto */
+.cielo .maplibregl-popup-content { background:var(--card)!important;
+  border:1px solid var(--line)!important; border-radius:14px!important;
+  padding:0!important; overflow:hidden; width:224px;
+  box-shadow:0 24px 60px rgba(0,0,0,.65)!important; }
+.cielo .maplibregl-popup-close-button { color:var(--text-2)!important;
+  font-size:19px!important; padding:2px 8px!important; z-index:2; }
+.cielo .maplibregl-popup-tip { border-top-color:var(--card)!important;
+  border-bottom-color:var(--card)!important; }
+.pk-foto { height:122px; background:var(--elevated) center/cover no-repeat; }
+.pk-corpo { padding:12px 14px 14px; }
+.pk-zona { font-size:10px; font-weight:600; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--text-eti); }
+.pk-nome { font-size:14.5px; font-weight:400; color:var(--text); margin:4px 0 7px;
+  letter-spacing:-.01em; }
+.pk-canone { font-family:var(--display); font-weight:300; font-size:21px;
+  color:var(--gold); font-variant-numeric:tabular-nums; }
+.pk-canone small { font-size:10.5px; color:var(--text-4); }
+.pk-vai { display:block; margin-top:11px; text-align:center; background:var(--gold);
+  color:#000; font-size:12px; font-weight:600; letter-spacing:.02em;
+  padding:9px; border-radius:9px; }
+
+/* il velo: attesa onesta prima, verita onesta se il motore non arriva */
+.cielo-velo { position:absolute; inset:0; z-index:8; display:flex;
+  flex-direction:column; align-items:center; justify-content:center; gap:15px;
+  padding:26px; text-align:center; background:var(--void);
+  transition:opacity .55s var(--ease), visibility .55s var(--ease); }
+.cielo-velo.via { opacity:0; visibility:hidden; }
+.cielo-velo .punto { width:9px; height:9px; border-radius:50%;
+  background:var(--gold); animation:cielo-batti 1.5s ease-in-out infinite; }
+@keyframes cielo-batti {
+  0%,100% { transform:scale(1); box-shadow:0 0 0 0 rgba(255,215,0,.36); }
+  50% { transform:scale(1.22); box-shadow:0 0 0 15px rgba(255,215,0,0); } }
+.cielo-velo .eti { font-size:10px; font-weight:600; letter-spacing:.28em;
+  text-transform:uppercase; color:var(--text-eti); }
+.cielo-velo .dice { font-size:13.5px; color:var(--text-2); max-width:36ch;
+  line-height:1.65; }
+.cielo-velo .fuori { display:none; margin-top:4px; }
+.cielo-velo.muta .punto { display:none; }
+.cielo-velo.muta .fuori { display:inline-flex; }
+@media (prefers-reduced-motion:reduce){ .cielo-velo .punto { animation:none; } }
+
+/* la testata della sezione: titolo a sinistra, uscita a schermo intero a destra */
+.cielo-capo { display:flex; align-items:flex-end; justify-content:space-between;
+  gap:20px; flex-wrap:wrap; }
+.cielo-capo .sotto { max-width:52ch; margin-top:10px; }
+.cielo-pieno { display:inline-flex; align-items:center; gap:9px; flex:none;
+  font-size:11.5px; font-weight:500; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--text-2); border:1px solid var(--line); border-radius:100px;
+  padding:11px 19px; transition:color .25s var(--ease),
+    border-color .25s var(--ease), transform .25s var(--ease); }
+.cielo-pieno:hover { color:var(--gold); border-color:var(--line-gold-2);
+  transform:translateY(-1px); }
+.cielo-pieno svg { width:13px; height:13px; }
+
+
+/* ── bersagli: nessun comando sotto il polpastrello (44×44 su touch) ──── */
+#calPrec, #calSucc { min-width:40px; min-height:40px; display:inline-flex;
+  align-items:center; justify-content:center; }
+/* i link di coda erano alti 18px: il testo resta, l'area cresce */
+.settimana-testa .btn-vai, .vai-testa { padding:11px 2px; margin:-11px 0; }
+.cielo-c { min-height:38px; }
+@media (pointer:coarse){
+  .settimana-testa .btn-vai, .vai-testa { padding:13px 4px; margin:-13px -4px; }
+  .cielo-c { min-height:40px; } }
+
+/* ── immagini: proporzione dichiarata = nessun salto mentre caricano ──── */
+.s1-casa img, .home-foto img { aspect-ratio:4/3; }
+.fond-foto img { aspect-ratio:4/5; }
+
 </style>
 <nav class="nav" id="nav">
   <div class="container nav-inner">
@@ -2114,8 +2375,11 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         <div class="footer-marchio"><span id="logoPiede"></span>Boom</div>
         <p class="piede-motto">Built in Rome, for Rome. If we can make Rome's
           rental market work, we can make it work anywhere.</p>
-        <p class="piede-legale"><b>Egidi Immobiliare S.r.l.</b><br>
-          Via dei Coronari 181/184, 00186 Roma · P.IVA 17322991005</p>
+        <p class="piede-legale"><b>BOOM®</b> is a registered trademark of
+          <b>Egidi Immobiliare S.r.l.</b> — EU trade mark
+          <b>019317594</b>, class 36.<br>
+          Via dei Coronari 181/184, 00186 Roma · P.IVA 17322991005 ·
+          Licensed real-estate agency</p>
       </div>
       <div class="piede-col">
         <b>Services</b>
@@ -2718,301 +2982,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       attesa = setTimeout(function () { misura(); if (ridotto) vita(0); }, 180);
     }, { passive: true });
   }
-  function skylineRoma() {
-    /* LO SKYLINE — Roma dal codice. I monumenti alla loro longitudine
-       vera, i quartieri del catalogo dove stanno davvero. Lo strato
-       della città si posa una volta; solo il fascio di luce vive. */
-    var tela = document.getElementById('skyTela');
-    if (!tela || !tela.getContext) return;
-    var ZONE = 'SKY_JSON';
-    if (!ZONE.length) return;
-    var ridotto = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    var mob = matchMedia('(max-width: 640px)').matches;
-    var ctx = tela.getContext('2d');
-    var ORO = '255,215,0', LATTE = '250,248,240';
-    var W, H, DPR, suolo, citta, luci;
-    /* i monumenti, alla loro longitudine reale */
-    var MONUMENTI = [
-      { lng: 12.4534, tipo: 'sanpietro', h: 1.00, w: .52, nome: 'San Pietro' },
-      { lng: 12.4663, tipo: 'castello',  h: .52, nome: "Castel Sant'Angelo" },
-      { lng: 12.4768, tipo: 'pantheon',  h: .46, nome: 'Pantheon' },
-      { lng: 12.4828, tipo: 'vittoriano', h: .66, w: .50, nome: 'Vittoriano' },
-      { lng: 12.4922, tipo: 'colosseo',  h: .62, w: .72, nome: 'Colosseo' },
-      { lng: 12.5060, tipo: 'pino',      h: .58, nome: '' },
-      { lng: 12.4600, tipo: 'pino',      h: .50, nome: '' },
-      { lng: 12.5230, tipo: 'pino',      h: .54, nome: '' },
-    ];
-    var LNG0 = 12.446, LNG1 = 12.537;
-    function ax(lng) { return ((lng - LNG0) / (LNG1 - LNG0)) * W; }
 
-    function misura() {
-      var r = tela.getBoundingClientRect();
-      DPR = Math.min(devicePixelRatio || 1, 2);
-      W = Math.round(r.width * DPR); H = Math.round(r.height * DPR);
-      tela.width = W; tela.height = H;
-      suolo = H * .87;
-      disegna();
-      piazza();
-    }
-
-    /* ── i mattoni del disegno ─────────────────────────────────────── */
-    function cupola(g, x, base, raggio, tamburo) {
-      g.beginPath(); g.arc(x, base - tamburo, raggio, Math.PI, 0); g.stroke();
-      g.beginPath();
-      g.moveTo(x - raggio, base - tamburo); g.lineTo(x - raggio, base);
-      g.moveTo(x + raggio, base - tamburo); g.lineTo(x + raggio, base);
-      g.stroke();
-      /* la lanterna */
-      g.beginPath();
-      g.moveTo(x, base - tamburo - raggio);
-      g.lineTo(x, base - tamburo - raggio - raggio * .34);
-      g.stroke();
-      g.beginPath();
-      g.arc(x, base - tamburo - raggio - raggio * .4, raggio * .11, 0, 6.29);
-      g.stroke();
-    }
-    function colonne(g, x0, x1, base, alto, n) {
-      for (var i = 0; i <= n; i++) {
-        var x = x0 + (x1 - x0) * (i / n);
-        g.beginPath(); g.moveTo(x, base); g.lineTo(x, base - alto); g.stroke();
-      }
-      g.beginPath();
-      g.moveTo(x0 - 2 * DPR, base - alto); g.lineTo(x1 + 2 * DPR, base - alto);
-      g.stroke();
-    }
-    function monumento(g, m, alt) {
-      var x = ax(m.lng), a = alt * m.h, w = a * (m.w || .58);
-      if (m.tipo === 'sanpietro') {
-        colonne(g, x - w * .95, x - w * .42, suolo, a * .26, 5);
-        colonne(g, x + w * .42, x + w * .95, suolo, a * .26, 5);
-        g.beginPath();
-        g.moveTo(x - w * .34, suolo); g.lineTo(x - w * .34, suolo - a * .40);
-        g.lineTo(x + w * .34, suolo - a * .40); g.lineTo(x + w * .34, suolo);
-        g.stroke();
-        cupola(g, x, suolo - a * .40, w * .34, a * .16);
-      } else if (m.tipo === 'castello') {
-        g.beginPath();
-        g.moveTo(x - w * .62, suolo); g.lineTo(x - w * .62, suolo - a * .34);
-        g.lineTo(x + w * .62, suolo - a * .34); g.lineTo(x + w * .62, suolo);
-        g.stroke();
-        g.beginPath();
-        g.moveTo(x - w * .34, suolo - a * .34);
-        g.lineTo(x - w * .34, suolo - a * .78);
-        g.lineTo(x + w * .34, suolo - a * .78);
-        g.lineTo(x + w * .34, suolo - a * .34);
-        g.stroke();
-        g.beginPath();
-        g.moveTo(x, suolo - a * .78); g.lineTo(x, suolo - a);
-        g.stroke();
-      } else if (m.tipo === 'pantheon') {
-        colonne(g, x - w * .58, x + w * .58, suolo, a * .52, 7);
-        cupola(g, x, suolo - a * .52, w * .5, 0);
-      } else if (m.tipo === 'vittoriano') {
-        g.beginPath();
-        g.moveTo(x - w * .9, suolo); g.lineTo(x - w * .78, suolo - a * .22);
-        g.lineTo(x + w * .78, suolo - a * .22); g.lineTo(x + w * .9, suolo);
-        g.stroke();
-        colonne(g, x - w * .62, x + w * .62, suolo - a * .22, a * .5, 9);
-        g.beginPath();
-        g.moveTo(x - w * .70, suolo - a * .72);
-        g.lineTo(x + w * .70, suolo - a * .72); g.stroke();
-      } else if (m.tipo === 'colosseo') {
-        for (var p = 0; p < 3; p++) {
-          var y = suolo - a * (.30 + p * .26);
-          g.beginPath();
-          g.moveTo(x - w * .72, y); g.lineTo(x + w * .72, y); g.stroke();
-        }
-        g.beginPath();
-        g.moveTo(x - w * .72, suolo); g.lineTo(x - w * .72, suolo - a * .82);
-        g.moveTo(x + w * .72, suolo); g.lineTo(x + w * .72, suolo - a * .82);
-        g.stroke();
-        for (var i2 = -2; i2 <= 2; i2++) {
-          var ax2 = x + i2 * w * .28;
-          g.beginPath();
-          g.arc(ax2, suolo - a * .30, w * .1, Math.PI, 0); g.stroke();
-          g.beginPath();
-          g.arc(ax2, suolo - a * .56, w * .1, Math.PI, 0); g.stroke();
-        }
-      } else if (m.tipo === 'pino') {
-        g.beginPath();
-        g.moveTo(x, suolo); g.lineTo(x - w * .06, suolo - a * .62); g.stroke();
-        g.beginPath();
-        g.ellipse(x - w * .06, suolo - a * .72, w * .46, a * .19, 0, 0, 6.29);
-        g.stroke();
-      }
-    }
-
-    /* ── la città si posa una volta sola ───────────────────────────── */
-    function disegna() {
-      citta = document.createElement('canvas');
-      citta.width = W; citta.height = H;
-      var g = citta.getContext('2d');
-      /* il cielo di Roma, appena caldo all'orizzonte */
-      var cielo = g.createLinearGradient(0, suolo - H * .5, 0, suolo);
-      cielo.addColorStop(0, 'rgba(255,215,0,0)');
-      cielo.addColorStop(1, 'rgba(255,190,90,.07)');
-      g.fillStyle = cielo;
-      g.fillRect(0, 0, W, suolo);
-      /* i palazzi: bassi, fitti, con qualche finestra accesa */
-      luci = [];
-      var seme = 7;
-      function caso() { seme = (seme * 1103515245 + 12345) % 2147483648;
-        return seme / 2147483648; }
-      g.strokeStyle = 'rgba(' + LATTE + ',.11)';
-      g.lineWidth = DPR;
-      var x = -20 * DPR;
-      while (x < W + 20 * DPR) {
-        var w = (26 + caso() * 46) * DPR;
-        var alt = (16 + caso() * 52) * DPR;
-        g.strokeRect(x, suolo - alt, w, alt);
-        if (caso() < .5) {
-          var fx = x + w * (.25 + caso() * .5), fy = suolo - alt * (.3 + caso() * .5);
-          luci.push({ x: fx, y: fy, fase: caso() * 9 });
-        }
-        x += w + 3 * DPR;
-      }
-      /* i monumenti, in oro */
-      g.strokeStyle = 'rgba(' + ORO + ',.45)';
-      g.lineWidth = 1.3 * DPR;
-      g.lineCap = 'round'; g.lineJoin = 'round';
-      var alt2 = H * (mob ? .60 : .68);
-      MONUMENTI.forEach(function (m) { monumento(g, m, alt2); });
-      /* la linea di terra */
-      g.strokeStyle = 'rgba(' + ORO + ',.3)';
-      g.lineWidth = DPR;
-      g.beginPath(); g.moveTo(0, suolo); g.lineTo(W, suolo); g.stroke();
-      /* le tacche dei quartieri */
-      ZONE.forEach(function (z) {
-        var zx = ax(z.lng);
-        g.strokeStyle = 'rgba(' + ORO + ',' + (z.si ? .34 : .16) + ')';
-        g.beginPath();
-        g.moveTo(zx, suolo); g.lineTo(zx, suolo + 9 * DPR); g.stroke();
-      });
-    }
-
-    /* ── i tasti veri, sopra il disegno: tocco e tastiera ───────────── */
-    var tasti = document.getElementById('skyTasti');
-    var fila = document.getElementById('skyFila');
-    var sky = tela.closest('.sky');
-    var scelta = null, faro = 0;
-    function piazza() {
-      if (tasti.children.length === ZONE.length && fila.children.length) {
-        [].slice.call(tasti.children).forEach(function (b, i) {
-          b.style.left = (ax(ZONE[i].lng) / DPR) + 'px'; });
-        return;
-      }
-      tasti.innerHTML = ''; fila.innerHTML = '';
-      ZONE.forEach(function (z, i) {
-        var b = document.createElement('button');
-        b.type = 'button';
-        b.style.left = (ax(z.lng) / DPR) + 'px';
-        b.setAttribute('aria-label', z.z + ' — ' + z.n
-          + (z.n === 1 ? ' home' : ' homes') + ', from ' + z.da);
-        var c = document.createElement('button');
-        c.type = 'button'; c.textContent = z.z;
-        c.setAttribute('aria-label', z.z + ' — ' + z.n
-          + (z.n === 1 ? ' home' : ' homes') + ', from ' + z.da);
-        var scegli = function () {
-          scelta = z; faro = performance.now();
-          [].slice.call(tasti.children).forEach(function (x, k) {
-            x.classList.toggle('on', k === i); });
-          [].slice.call(fila.children).forEach(function (x, k) {
-            x.classList.toggle('on', k === i); });
-          sky.classList.add('scelto');
-          document.getElementById('skyNome').textContent = z.z;
-          document.getElementById('skyDati').textContent =
-            z.n + (z.n === 1 ? ' home' : ' homes') + ' · from ' + z.da
-            + (z.si ? ' · available now' : '');
-          document.getElementById('skyPiena').setAttribute('href',
-            AP_ZONA + encodeURIComponent(z.z));
-          accendi();
-        };
-        b.addEventListener('mouseenter', scegli);
-        b.addEventListener('focus', scegli);
-        b.addEventListener('click', function () {
-          scegli();
-          location.href = AP_ZONA + encodeURIComponent(z.z);
-        });
-        tasti.appendChild(b);
-        /* la fila: il primo tocco accende, il secondo porta alle case */
-        c.addEventListener('click', function () {
-          if (scelta === z) location.href = AP_ZONA + encodeURIComponent(z.z);
-          else { scegli(); c.scrollIntoView({ inline: 'center',
-            block: 'nearest', behavior: 'smooth' }); }
-        });
-        fila.appendChild(c);
-      });
-    }
-    var AP_ZONA = 'AP_URL' + '#zona=';
-
-    /* ── la vita: il fascio di luce e qualche finestra ──────────────── */
-    function vita(t) {
-      ctx.clearRect(0, 0, W, H);
-      ctx.drawImage(citta, 0, 0);
-      /* le finestre accese, lentissime */
-      if (!ridotto) luci.forEach(function (l) {
-        var b = .12 + .12 * Math.sin(t * .0007 + l.fase);
-        ctx.fillStyle = 'rgba(255,225,150,' + b + ')';
-        ctx.fillRect(l.x, l.y, 1.6 * DPR, 2.2 * DPR);
-      });
-      /* il fascio sul quartiere scelto */
-      if (scelta) {
-        var p = ridotto ? 1 : Math.min(1, (t - faro) / 520);
-        var e = 1 - Math.pow(1 - p, 3);
-        var zx = ax(scelta.lng);
-        var g2 = ctx.createLinearGradient(0, suolo, 0, suolo - H * .9 * e);
-        g2.addColorStop(0, 'rgba(' + ORO + ',.28)');
-        g2.addColorStop(1, 'rgba(' + ORO + ',0)');
-        ctx.fillStyle = g2;
-        ctx.fillRect(zx - 13 * DPR, suolo - H * .9 * e, 26 * DPR, H * .9 * e);
-        ctx.strokeStyle = 'rgba(' + ORO + ',' + (.5 * e) + ')';
-        ctx.lineWidth = DPR;
-        ctx.beginPath();
-        ctx.moveTo(zx, suolo); ctx.lineTo(zx, suolo - H * .82 * e);
-        ctx.stroke();
-        ctx.fillStyle = 'rgba(255,248,220,' + (.85 * e) + ')';
-        ctx.beginPath();
-        ctx.arc(zx, suolo, 3 * DPR, 0, 6.29); ctx.fill();
-        /* il nome arriva col fascio, e solo per lui */
-        var testo = scelta.z.toUpperCase().split('').join('\u200a');
-        ctx.font = '600 ' + (mob ? 8 : 9) * DPR + 'px Inter, sans-serif';
-        ctx.textAlign = 'center';
-        var lar = ctx.measureText(testo).width;
-        var tx = Math.max(lar / 2 + 6 * DPR,
-          Math.min(W - lar / 2 - 6 * DPR, zx));
-        ctx.fillStyle = 'rgba(' + ORO + ',' + (.9 * e) + ')';
-        ctx.fillText(testo, tx, suolo + 21 * DPR);
-      }
-    }
-    var girando = false, visibile = false, ultimo = 0;
-    function giro(t) {
-      if (!girando) return;
-      if (t - ultimo < 28) { requestAnimationFrame(giro); return; }
-      ultimo = t; vita(t); requestAnimationFrame(giro);
-    }
-    function accendi() {
-      if (girando || !visibile || document.hidden || ridotto) return;
-      girando = true; requestAnimationFrame(giro);
-    }
-    function spegni() { girando = false; }
-    misura();
-    vita(0);
-    if (!ridotto) {
-      new IntersectionObserver(function (vs) {
-        visibile = vs[0].isIntersecting;
-        visibile ? accendi() : spegni();
-      }, { threshold: .1 }).observe(tela);
-      document.addEventListener('visibilitychange', function () {
-        document.hidden ? spegni() : accendi(); });
-    }
-    var attesa;
-    addEventListener('resize', function () {
-      clearTimeout(attesa);
-      attesa = setTimeout(function () { misura(); vita(performance.now()); }, 200);
-    }, { passive: true });
-  }
-  if (document.readyState === 'complete') setTimeout(skylineRoma, 0);
-  else addEventListener('load', function () { setTimeout(skylineRoma, 0); });
 
   function mosaicoRomano() {
     /* IL MOSAICO ROMANO — tessere quiete, e un anello d'oro che si

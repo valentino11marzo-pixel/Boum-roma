@@ -295,7 +295,8 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   border-top:1px solid var(--line-0); display:flex; align-items:center;
   justify-content:space-between; gap:8px; }
 .cal-piede .hint { font-size:10.5px; color:var(--text-3); }
-.cal-piede button { font-size:10px; font-weight:600; letter-spacing:.1em;
+.cal-piede button { min-height:36px; padding:0 10px;
+  font-size:10px; font-weight:600; letter-spacing:.1em;
   text-transform:uppercase; color:var(--text-3); padding:6px 10px;
   box-shadow:inset 0 0 0 1px var(--line); cursor:pointer; transition:.2s; }
 .cal-piede button:hover { color:var(--gold);
@@ -315,19 +316,8 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   .atterro .btn { grid-column:1/-1; justify-content:center;
     text-align:center; padding:15px 18px; } }
 /* le cifre del sito, in riga a filetti */
-.hero-stats { margin-top:clamp(24px,3vw,36px); display:flex; flex-wrap:wrap;
-  border-top:1px solid var(--line); max-width:640px; }
-.hero-stat { flex:1 1 130px; padding:16px 22px 0 0; }
-.hero-stat + .hero-stat { padding-left:22px; border-left:1px solid var(--line-0); }
-.hero-stat-value { font-family:var(--display); font-size:clamp(25px,2vw,28px);
-  font-weight:250; letter-spacing:-.02em; color:var(--gold);
-  font-variant-numeric:tabular-nums; }
-.hero-stat-label { margin-top:3px; font-size:10px; font-weight:500;
-  letter-spacing:.14em; text-transform:uppercase; color:var(--text-2); }
 @media (max-width:560px){
-  .hero-stats { display:grid; grid-template-columns:1fr 1fr; }
-  .hero-stat + .hero-stat { border-left:0; padding-left:0; }
-  .hero-stat:nth-child(even){ padding-left:22px;
+    .hero-stat +   .hero-stat:nth-child(even){ padding-left:22px;
     border-left:1px solid var(--line-0); } }
 
 /* lo scalo: il cartellino ROM e la rotta che arriva */
@@ -439,8 +429,22 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .board-piede b { color:var(--text-3); font-weight:500;
   font-variant-numeric:tabular-nums; }
 
+/* la riga di fiducia nell'hero: una sola, sottile. Il discorso lungo sui
+   soldi vive nella banchina, dove si parla di prezzi. */
+.hero-fede { display:flex; align-items:center; gap:11px;
+  margin-top:clamp(16px,2vw,22px); padding:11px 15px; border-radius:100px;
+  background:var(--surface); box-shadow:inset 0 0 0 1px var(--line-0);
+  max-width:max-content; }
+.hero-fede .hf-stripe { width:40px; height:auto; flex:none; opacity:.85; }
+.hero-fede span { font-size:11.5px; line-height:1.5; color:var(--text-4); }
+.hero-fede span b { color:var(--text-2); font-weight:500; }
+@media (max-width:640px){
+  .hero-fede { border-radius:14px; padding:11px 13px; align-items:flex-start; }
+  .hero-fede .hf-stripe { margin-top:2px; } }
+
 /* le recensioni: un filo sotto il tabellone, mai un cartello */
-.recensioni { display:flex; align-items:center; gap:10px; margin-top:10px;
+.recensioni { display:flex; align-items:center; gap:10px;
+  margin-top:clamp(26px,3vw,40px);
   padding:11px 14px; background:var(--card);
   box-shadow:inset 0 0 0 1px var(--line-0); transition:.3s ease; }
 .recensioni:hover { box-shadow:inset 0 0 0 1px var(--line-gold-2); }
@@ -550,11 +554,12 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .ba-coda { display:flex; align-items:center; gap:9px; flex-wrap:wrap;
   padding:10px 18px; border-top:1px solid var(--line-0); background:var(--void);
   font-size:11.5px; color:var(--text-4); }
-.ba-coda .ch { display:inline-flex; align-items:center; gap:6px;
+.ba-coda .ch { display:inline-flex; align-items:baseline; gap:7px;
   white-space:nowrap; }
-.ba-coda .ch svg { width:13px; height:13px; color:var(--gold); flex:none;
-  fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round;
-  stroke-linejoin:round; }
+/* le quattro cifre che stavano nell'hero: qui non fanno doppione con
+   niente, perche la garanzia sopra parla di soldi e loro di risultati */
+.ba-coda .ch b { font-family:var(--display); font-size:15px; font-weight:400;
+  letter-spacing:.02em; color:var(--gold); font-variant-numeric:tabular-nums; }
 .ba-coda .sep { width:1px; height:12px; background:var(--line); flex:none; }
 @media (max-width:860px){
   .ba-coda .sep { display:none; }
@@ -1302,7 +1307,8 @@ html.vivo .sale.dentro .pass-qr i {
 .org-v:hover svg { transform:scale(1.08); }
 .org-nota { margin-top:14px; display:flex; align-items:center; gap:10px;
   flex-wrap:wrap; font-size:12px; color:var(--text-3); }
-.org-nota a { color:var(--gold); border-bottom:1px solid var(--line-gold-2);
+.org-nota a { padding:9px 0; margin:-9px 0; color:var(--gold);
+  border-bottom:1px solid var(--line-gold-2);
   transition:border-color .25s; }
 .org-nota a:hover { border-color:var(--gold); }
 .org-v > div { flex:1; min-width:0; }
@@ -1672,15 +1678,10 @@ html.vivo .sale.dentro { opacity:1; transform:none;
           </div>
         </div>
       </form>
-      <div class="hero-stats" id="heroStats">
-        <div class="hero-stat"><div class="hero-stat-value" data-fine="48" data-suff="h">0h</div>
-          <div class="hero-stat-label">Move-in Time</div></div>
-        <div class="hero-stat"><div class="hero-stat-value" data-fine="98" data-suff="%">0%</div>
-          <div class="hero-stat-label">Success Rate</div></div>
-        <div class="hero-stat"><div class="hero-stat-value">Stripe</div>
-          <div class="hero-stat-label">Protected Payments</div></div>
-        <div class="hero-stat"><div class="hero-stat-value">€0</div>
-          <div class="hero-stat-label">Hidden Fees</div></div>
+      <div class="hero-fede">
+        <svg class="hf-stripe" aria-label="Stripe" viewBox="0 0 468 222.5" xmlns="http://www.w3.org/2000/svg"> <path fill="#635BFF" d="M414 113.4c0-25.6-12.4-45.8-36.1-45.8-23.8 0-38.2 20.2-38.2 45.6 0 30.1 17 45.3 41.4 45.3 11.9 0 20.9-2.7 27.7-6.5v-20c-6.8 3.4-14.6 5.5-24.5 5.5-9.7 0-18.3-3.4-19.4-15.2h48.9c0-1.3.2-6.5.2-8.9zm-49.4-9.5c0-11.3 6.9-16 13.2-16 6.1 0 12.6 4.7 12.6 16h-25.8zm-63.5-36.3c-9.8 0-16.1 4.6-19.6 7.8l-1.3-6.2h-22v116.6l25-5.3.1-28.3c3.6 2.6 8.9 6.3 17.7 6.3 17.9 0 34.2-14.4 34.2-46.1-.1-29-16.6-44.8-34.1-44.8zm-6 68.9c-5.9 0-9.4-2.1-11.8-4.7l-.1-37.1c2.6-2.9 6.2-4.9 11.9-4.9 9.1 0 15.4 10.2 15.4 23.3 0 13.4-6.2 23.4-15.4 23.4zm-71.3-74.8l25.1-5.4V36l-25.1 5.3zm0 7.6h25.1v87.5h-25.1zm-26.9 7.4l-1.6-7.4h-21.6v87.5h25V97.5c5.9-7.7 15.9-6.3 19-5.2v-23c-3.2-1.2-14.9-3.4-20.8 7.4zm-50-29.8l-24.4 5.2-.1 80.1c0 14.8 11.1 25.7 25.9 25.7 8.2 0 14.2-1.5 17.5-3.3V135c-3.2 1.3-19 5.9-19-8.9V90.6h19V69.3h-19l.1-21.7zM79.3 94.7c0-3.9 3.2-5.4 8.5-5.4 7.6 0 17.2 2.3 24.8 6.4V72.2c-8.3-3.3-16.5-4.6-24.8-4.6C67.5 67.6 54 78.2 54 95.9c0 27.6 38 23.2 38 35.1 0 4.6-4 6.1-9.6 6.1-8.3 0-18.9-3.4-27.3-8v23.8c9.3 4 18.7 5.7 27.3 5.7 20.8 0 35.1-10.3 35.1-28.2-.1-29.8-38.2-24.5-38.2-35.7z"/> </svg>
+        <span><b>Every euro through BOOM</b>, never to a stranger ·
+          every home walked in person · we reply within 2h</span>
       </div>
     </div>
 
@@ -1694,98 +1695,8 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       <div class="board-piede"><span><b>9</b> homes available now</span>
         <span>Catalogue updated <b>31 Jul</b></span></div>
     </aside>
-    <a class="recensioni" href="https://www.google.com/maps?q=Egidi+Immobiliare+Via+dei+Coronari+Roma" target="_blank" rel="noopener">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 9.8l6.1-.7z"/></svg>
-      <span>What our tenants write about us</span>
-      <i>Google reviews ↗</i>
-    </a>
   </div>
 
-  <!-- la banchina: dove chi arriva viene smistato, col prezzo scritto -->
-  <div class="container">
-    <div class="banchina coro dentro-subito">
-
-      <div class="ba-capo">
-        <b>Wherever you are in this, <em>there's a door</em>.</b>
-        <a class="ba-tutti" href="#porte">All services →</a>
-      </div>
-
-      <div class="ba-porte">
-        <a class="ba-p prima" href="/virtual-viewing.html">
-          <svg class="sg" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5"
-            y="6.5" width="12" height="11" rx="2"/>
-            <path d="M15.5 11l5-2.6v7.2l-5-2.6z"/>
-            <circle cx="7.2" cy="10.2" r="1.1" class="pieno"/></svg>
-          <span class="caso">Can't fly over to see it?</span>
-          <span class="fa">A live video tour of that exact flat — the red
-            flags said out loud.</span>
-          <span class="costo"><b>€89</b><i><span class="lungo">credited to your fee if you rent with us</span><span class="breve">credited if you rent with us</span></i></span>
-        </a>
-
-        <a class="ba-p" href="/v2-property-finding.html">
-          <svg class="sg" viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="10.8" cy="10.8" r="6.6"/><path d="M15.6 15.6L20.5 20.5"/>
-            <path d="M8 10.8h5.6M10.8 8v5.6" class="acc"/></svg>
-          <span class="caso">Nothing in the catalogue fits?</span>
-          <span class="fa">We hunt the whole market for you, off-market
-            included.</span>
-          <span class="costo"><b>€350</b><i><span class="lungo">deducted on success · refunded if we don't deliver</span><span class="breve">deducted on success</span></i></span>
-        </a>
-
-        <a class="ba-p" href="/deal-assistance.html">
-          <svg class="sg" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 3.4l7.2 2.9v5.1c0 4.2-3 7.2-7.2 8.4-4.2-1.2-7.2-4.2-7.2-8.4V6.3z"/>
-            <path d="M9.1 11.6l2.2 2.2 4.1-4.7" class="acc"/></svg>
-          <span class="caso">Found one yourself?</span>
-          <span class="fa">We verify the landlord, the papers and the price
-            — then negotiate.</span>
-          <span class="costo"><b>€249</b><i><span class="lungo">fixed · avg saving €600+</span><span class="breve">fixed · saves €600+ on average</span></i></span>
-        </a>
-
-        <a class="ba-p" href="/contract-check-express.html">
-          <svg class="sg" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M6 3.2h7.4L18.6 8v12.8H6z"/>
-            <path d="M13.2 3.2V8h5.2" class="acc"/>
-            <path d="M9 12.6h6.4M9 15.8h4.4" class="acc"/></svg>
-          <span class="caso">About to sign something?</span>
-          <span class="fa">A written traffic-light verdict in 24h: what's
-            fine, what's unfair, what's missing.</span>
-          <span class="costo"><b>€49</b><i><span class="lungo">credited on Deal Assistance</span><span class="breve">credited on Deal Assistance</span></i></span>
-        </a>
-      </div>
-
-      <div class="ba-soldi">
-        <span class="ba-scudo" aria-hidden="true"><svg viewBox="0 0 24 24">
-          <path d="M12 3l7 2.8v5.4c0 4.1-3 7.1-7 8.3-4-1.2-7-4.2-7-8.3V5.8z"/>
-          <path d="M8.6 11.6l2.3 2.3 4.3-4.9"/></svg></span>
-        <span class="dice"><b>Every euro goes through BOOM, never to a
-          stranger.</b><span class="lungo"> First month, deposit and agency
-          fee on Stripe — <em>no bank-transfer circus</em>, a receipt for
-          each one, and a full refund if we don't deliver. Your deposit is
-          legally protected and filmed in and out.</span><span class="breve">
-          Rent, deposit and fee on Stripe — <em>no bank transfers to
-          strangers</em>, receipts, full refund if we don't deliver.</span></span>
-        <svg class="ba-stripe" aria-label="Stripe" viewBox="0 0 468 222.5" xmlns="http://www.w3.org/2000/svg"> <path fill="#635BFF" d="M414 113.4c0-25.6-12.4-45.8-36.1-45.8-23.8 0-38.2 20.2-38.2 45.6 0 30.1 17 45.3 41.4 45.3 11.9 0 20.9-2.7 27.7-6.5v-20c-6.8 3.4-14.6 5.5-24.5 5.5-9.7 0-18.3-3.4-19.4-15.2h48.9c0-1.3.2-6.5.2-8.9zm-49.4-9.5c0-11.3 6.9-16 13.2-16 6.1 0 12.6 4.7 12.6 16h-25.8zm-63.5-36.3c-9.8 0-16.1 4.6-19.6 7.8l-1.3-6.2h-22v116.6l25-5.3.1-28.3c3.6 2.6 8.9 6.3 17.7 6.3 17.9 0 34.2-14.4 34.2-46.1-.1-29-16.6-44.8-34.1-44.8zm-6 68.9c-5.9 0-9.4-2.1-11.8-4.7l-.1-37.1c2.6-2.9 6.2-4.9 11.9-4.9 9.1 0 15.4 10.2 15.4 23.3 0 13.4-6.2 23.4-15.4 23.4zm-71.3-74.8l25.1-5.4V36l-25.1 5.3zm0 7.6h25.1v87.5h-25.1zm-26.9 7.4l-1.6-7.4h-21.6v87.5h25V97.5c5.9-7.7 15.9-6.3 19-5.2v-23c-3.2-1.2-14.9-3.4-20.8 7.4zm-50-29.8l-24.4 5.2-.1 80.1c0 14.8 11.1 25.7 25.9 25.7 8.2 0 14.2-1.5 17.5-3.3V135c-3.2 1.3-19 5.9-19-8.9V90.6h19V69.3h-19l.1-21.7zM79.3 94.7c0-3.9 3.2-5.4 8.5-5.4 7.6 0 17.2 2.3 24.8 6.4V72.2c-8.3-3.3-16.5-4.6-24.8-4.6C67.5 67.6 54 78.2 54 95.9c0 27.6 38 23.2 38 35.1 0 4.6-4 6.1-9.6 6.1-8.3 0-18.9-3.4-27.3-8v23.8c9.3 4 18.7 5.7 27.3 5.7 20.8 0 35.1-10.3 35.1-28.2-.1-29.8-38.2-24.5-38.2-35.7z"/> </svg>
-      </div>
-
-      <div class="ba-coda">
-        <span class="ch"><svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M4.5 12.5l5 5 10-11"/></svg>Walked and filmed by us</span>
-        <span class="sep"></span>
-        <span class="ch"><svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M4.5 12.5l5 5 10-11"/></svg>Move-in total before you
-          pay</span>
-        <span class="sep"></span>
-        <span class="ch terzo"><svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M4.5 12.5l5 5 10-11"/></svg>Licensed agency · BOOM® EU
-          019317594</span>
-        <span class="ba-viva"><span class="pt"></span>Rome
-          <span class="orologio-roma" id="oraRoma">—:—</span>
-          · we reply within 2h</span>
-      </div>
-
-    </div>
-  </div>
 </header>
 
 <!-- ══ CASE DELLA SETTIMANA + COME FUNZIONA ══════════════════════════════ -->
@@ -1949,6 +1860,129 @@ html.vivo .sale.dentro { opacity:1; transform:none;
   </div>
 </section>
 
+<!-- ══ LA BANCHINA — dopo il catalogo, non prima ═════════════════════════
+     Sta qui per una ragione logica prima che estetica: chiede «nothing
+     in the catalogue fits?», e quella domanda ha senso solo dopo che il
+     catalogo l'hai visto. -->
+<section class="sezione" id="banchina">
+  <div class="container">
+    <div class="banchina coro">
+
+      <div class="ba-capo">
+        <b>Wherever you are in this, <em>there's a door</em>.</b>
+        <a class="ba-tutti" href="#porte">All services →</a>
+      </div>
+
+      <div class="ba-porte">
+        <a class="ba-p prima" href="/virtual-viewing.html">
+          <svg class="sg" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5"
+            y="6.5" width="12" height="11" rx="2"/>
+            <path d="M15.5 11l5-2.6v7.2l-5-2.6z"/>
+            <circle cx="7.2" cy="10.2" r="1.1" class="pieno"/></svg>
+          <span class="caso">Can't fly over to see it?</span>
+          <span class="fa">A live video tour of that exact flat — the red
+            flags said out loud.</span>
+          <span class="costo"><b>€89</b><i><span class="lungo">credited to your fee if you rent with us</span><span class="breve">credited if you rent with us</span></i></span>
+        </a>
+
+        <a class="ba-p" href="/v2-property-finding.html">
+          <svg class="sg" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="10.8" cy="10.8" r="6.6"/><path d="M15.6 15.6L20.5 20.5"/>
+            <path d="M8 10.8h5.6M10.8 8v5.6" class="acc"/></svg>
+          <span class="caso">Nothing in the catalogue fits?</span>
+          <span class="fa">We hunt the whole market for you, off-market
+            included.</span>
+          <span class="costo"><b>€350</b><i><span class="lungo">deducted on success · refunded if we don't deliver</span><span class="breve">deducted on success</span></i></span>
+        </a>
+
+        <a class="ba-p" href="/deal-assistance.html">
+          <svg class="sg" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3.4l7.2 2.9v5.1c0 4.2-3 7.2-7.2 8.4-4.2-1.2-7.2-4.2-7.2-8.4V6.3z"/>
+            <path d="M9.1 11.6l2.2 2.2 4.1-4.7" class="acc"/></svg>
+          <span class="caso">Found one yourself?</span>
+          <span class="fa">We verify the landlord, the papers and the price
+            — then negotiate.</span>
+          <span class="costo"><b>€249</b><i><span class="lungo">fixed · avg saving €600+</span><span class="breve">fixed · saves €600+ on average</span></i></span>
+        </a>
+
+        <a class="ba-p" href="/contract-check-express.html">
+          <svg class="sg" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 3.2h7.4L18.6 8v12.8H6z"/>
+            <path d="M13.2 3.2V8h5.2" class="acc"/>
+            <path d="M9 12.6h6.4M9 15.8h4.4" class="acc"/></svg>
+          <span class="caso">About to sign something?</span>
+          <span class="fa">A written traffic-light verdict in 24h: what's
+            fine, what's unfair, what's missing.</span>
+          <span class="costo"><b>€49</b><i><span class="lungo">credited on Deal Assistance</span><span class="breve">credited on Deal Assistance</span></i></span>
+        </a>
+      </div>
+
+      <div class="ba-soldi">
+        <span class="ba-scudo" aria-hidden="true"><svg viewBox="0 0 24 24">
+          <path d="M12 3l7 2.8v5.4c0 4.1-3 7.1-7 8.3-4-1.2-7-4.2-7-8.3V5.8z"/>
+          <path d="M8.6 11.6l2.3 2.3 4.3-4.9"/></svg></span>
+        <span class="dice"><b>Every euro goes through BOOM, never to a
+          stranger.</b><span class="lungo"> First month, deposit and agency
+          fee on Stripe — <em>no bank-transfer circus</em>, a receipt for
+          each one, and a full refund if we don't deliver. Your deposit is
+          legally protected and filmed in and out.</span><span class="breve">
+          Rent, deposit and fee on Stripe — <em>no bank transfers to
+          strangers</em>, receipts, full refund if we don't deliver.</span></span>
+        <svg class="ba-stripe" aria-label="Stripe" viewBox="0 0 468 222.5" xmlns="http://www.w3.org/2000/svg"> <path fill="#635BFF" d="M414 113.4c0-25.6-12.4-45.8-36.1-45.8-23.8 0-38.2 20.2-38.2 45.6 0 30.1 17 45.3 41.4 45.3 11.9 0 20.9-2.7 27.7-6.5v-20c-6.8 3.4-14.6 5.5-24.5 5.5-9.7 0-18.3-3.4-19.4-15.2h48.9c0-1.3.2-6.5.2-8.9zm-49.4-9.5c0-11.3 6.9-16 13.2-16 6.1 0 12.6 4.7 12.6 16h-25.8zm-63.5-36.3c-9.8 0-16.1 4.6-19.6 7.8l-1.3-6.2h-22v116.6l25-5.3.1-28.3c3.6 2.6 8.9 6.3 17.7 6.3 17.9 0 34.2-14.4 34.2-46.1-.1-29-16.6-44.8-34.1-44.8zm-6 68.9c-5.9 0-9.4-2.1-11.8-4.7l-.1-37.1c2.6-2.9 6.2-4.9 11.9-4.9 9.1 0 15.4 10.2 15.4 23.3 0 13.4-6.2 23.4-15.4 23.4zm-71.3-74.8l25.1-5.4V36l-25.1 5.3zm0 7.6h25.1v87.5h-25.1zm-26.9 7.4l-1.6-7.4h-21.6v87.5h25V97.5c5.9-7.7 15.9-6.3 19-5.2v-23c-3.2-1.2-14.9-3.4-20.8 7.4zm-50-29.8l-24.4 5.2-.1 80.1c0 14.8 11.1 25.7 25.9 25.7 8.2 0 14.2-1.5 17.5-3.3V135c-3.2 1.3-19 5.9-19-8.9V90.6h19V69.3h-19l.1-21.7zM79.3 94.7c0-3.9 3.2-5.4 8.5-5.4 7.6 0 17.2 2.3 24.8 6.4V72.2c-8.3-3.3-16.5-4.6-24.8-4.6C67.5 67.6 54 78.2 54 95.9c0 27.6 38 23.2 38 35.1 0 4.6-4 6.1-9.6 6.1-8.3 0-18.9-3.4-27.3-8v23.8c9.3 4 18.7 5.7 27.3 5.7 20.8 0 35.1-10.3 35.1-28.2-.1-29.8-38.2-24.5-38.2-35.7z"/> </svg>
+      </div>
+
+      <div class="ba-coda">
+        <span class="ch"><b>48h</b>average move-in</span>
+        <span class="sep"></span>
+        <span class="ch"><b>98%</b>success rate</span>
+        <span class="sep"></span>
+        <span class="ch terzo"><b>€0</b>hidden fees</span>
+        <span class="sep"></span>
+        <span class="ch"><b>100%</b>walked in person</span>
+        <span class="ba-viva"><span class="pt"></span>Rome
+          <span class="orologio-roma" id="oraRoma">—:—</span>
+          · we reply within 2h</span>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══ LA RETE — «not the perfect one? we'll find it.» ═══════════════════ -->
+<section class="sezione">
+  <div class="container">
+    <div class="testa-fila sale">
+      <div>
+        <span class="eyebrow"><i></i>More than a portal</span>
+        <h2 class="titolo">Not the perfect one? <span class="hl">We'll find it.</span></h2>
+        <p class="sotto">We're an agency with a tech engine, not a listings
+          wall. Wrong dates, wrong zone? Put us to work.</p>
+      </div>
+    </div>
+    <div class="rete coro" style="margin-top:clamp(22px,2.6vw,34px)">
+      <div class="rete-pfs">
+        <span class="rete-eti"><b></b>Property Finding · the hunt engine</span>
+        <h3>Wrong dates? Wrong zone?<br><span class="hl">Put the machine on it.</span></h3>
+        <p>Your brief becomes a live search: our engine scans the market and
+          the off-market around the clock, a human verifies every match, and
+          you get curated options — not links.</p>
+        <div class="rete-cifre">
+          <div class="rete-cifra"><b>1:1</b><span>tailored hunt</span></div>
+          <div class="rete-cifra"><b>5+</b><span>curated options</span></div>
+          <div class="rete-cifra"><b>24/7</b><span>market scan</span></div>
+          <div class="rete-cifra"><b>€0</b><span>if we fail</span></div>
+        </div>
+        <div class="rete-motore" aria-label="The engine behind the hunt">
+          <span>RADAR — 96 scans/day</span><span>HUMAN-VERIFIED</span>
+          <span>OFF-MARKET INCLUDED</span></div>
+        <a class="btn btn-primary" href="/v2-property-finding.html">Start the hunt</a>
+        <p class="rete-nota">€350 upfront — deducted from the agency fee when
+          we find your home. Full refund if we don't deliver.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ══ LA SKYLINE — lo strumento vero, dentro la pagina ════════════════ -->
 <section class="sezione" id="skyline">
   <div class="container">
@@ -2033,41 +2067,6 @@ html.vivo .sale.dentro { opacity:1; transform:none;
   </div>
 </section>
 
-<!-- ══ LA RETE — «not the perfect one? we'll find it.» ═══════════════════ -->
-<section class="sezione">
-  <div class="container">
-    <div class="testa-fila sale">
-      <div>
-        <span class="eyebrow"><i></i>More than a portal</span>
-        <h2 class="titolo">Not the perfect one? <span class="hl">We'll find it.</span></h2>
-        <p class="sotto">We're an agency with a tech engine, not a listings
-          wall. Wrong dates, wrong zone? Put us to work.</p>
-      </div>
-    </div>
-    <div class="rete coro" style="margin-top:clamp(22px,2.6vw,34px)">
-      <div class="rete-pfs">
-        <span class="rete-eti"><b></b>Property Finding · the hunt engine</span>
-        <h3>Wrong dates? Wrong zone?<br><span class="hl">Put the machine on it.</span></h3>
-        <p>Your brief becomes a live search: our engine scans the market and
-          the off-market around the clock, a human verifies every match, and
-          you get curated options — not links.</p>
-        <div class="rete-cifre">
-          <div class="rete-cifra"><b>1:1</b><span>tailored hunt</span></div>
-          <div class="rete-cifra"><b>5+</b><span>curated options</span></div>
-          <div class="rete-cifra"><b>24/7</b><span>market scan</span></div>
-          <div class="rete-cifra"><b>€0</b><span>if we fail</span></div>
-        </div>
-        <div class="rete-motore" aria-label="The engine behind the hunt">
-          <span>RADAR — 96 scans/day</span><span>HUMAN-VERIFIED</span>
-          <span>OFF-MARKET INCLUDED</span></div>
-        <a class="btn btn-primary" href="/v2-property-finding.html">Start the hunt</a>
-        <p class="rete-nota">€350 upfront — deducted from the agency fee when
-          we find your home. Full refund if we don't deliver.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- ══ CONCIERGE — «life doesn't stop at the apartment» ══════════════════ -->
 <section class="sezione">
   <div class="container">
@@ -2140,6 +2139,15 @@ html.vivo .sale.dentro { opacity:1; transform:none;
     </div>
   </div>
 </section>
+
+<!-- il banner delle recensioni sta dove parla la persona -->
+<div class="container">
+<a class="recensioni" href="https://www.google.com/maps?q=Egidi+Immobiliare+Via+dei+Coronari+Roma" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 9.8l6.1-.7z"/></svg>
+      <span>What our tenants write about us</span>
+      <i>Google reviews ↗</i>
+    </a>
+</div>
 
 <!-- ══ PERCHÉ ESISTIAMO — una voce sola: la sua ═════════════════════════
      Erano due sezioni che dicevano la stessa cosa da due angoli. Ora il
