@@ -19,6 +19,7 @@ import { fsGet, fsPatch, fsList, readJson } from '../homie/_lib.js';
 import { tgSend, tgEdit, tgAckCallback, requireWebhookSecret, isAuthorizedChat, fmtAction } from './_lib.js';
 import { handleViewingCallback, sendAgenda } from './_viewings.js';
 import { handleTaskCallback, handleTaskText, sendBrief } from '../regista/_telegram.js';
+import { handleRichiamoCallback, handleRichiamaCommand } from './_richiamo.js';
 
 // Canonical public host for self-calls (the executor). VERCEL_URL deployment
 // URLs can be auth-gated / unreliable for server-to-server self-fetches, which
@@ -133,6 +134,15 @@ export default async function handler(req, res) {
       // ── Il Regista (tk*) — task fatta / rimandata, dal telefono ─────────
       if (verb === 'tkd' || verb === 'tks') {
         const handled = await handleTaskCallback(verb, data.slice(verb.length + 1), {
+          chatId, messageId, callbackId: cq.id,
+        });
+        if (handled) return res.status(200).json({ ok: true });
+      }
+
+      // ── Il Richiamo (rk/rx) — la firma a un tap su una campagna ─────────
+      // Prima della lettura di action_queue: una campagna non vive lì.
+      if (verb === 'rk' || verb === 'rx') {
+        const handled = await handleRichiamoCallback(verb, actionId, {
           chatId, messageId, callbackId: cq.id,
         });
         if (handled) return res.status(200).json({ ok: true });
@@ -376,6 +386,13 @@ export default async function handler(req, res) {
           '', url, '',
           '<i>Copia e incolla al cliente. Paga da telefono in un minuto; quando paga arriva il lead e partono le email.</i>',
         ].filter(Boolean).join('\n'));
+        return res.status(200).json({ ok: true });
+      }
+
+      // /richiama — la campagna che ricontatta i lead senza perderne uno:
+      // anteprima con esclusi e motivo, poi UN tap (✅) e parte tutto.
+      if (text === '/richiama' || text.startsWith('/richiama ')) {
+        await handleRichiamaCommand(chatId, text.slice(9).trim());
         return res.status(200).json({ ok: true });
       }
 

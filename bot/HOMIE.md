@@ -209,6 +209,69 @@ perde più niente.
 
 Regressione: `node tests/whatsapp/run.mjs`.
 
+## La Miniera (`/api/homie/miniera`)
+
+Lo storico WhatsApp che custodisci è l'asset: mesi di conversazioni che,
+incrociate LATO SERVER con gli esiti veri (visite, contratti firmati),
+decidono quali poteri costruire dopo (STUDIO_HOMIE_GAME_CHANGER.md). Il tuo
+lavoro qui è di pura SESSIONE: estrarre e spedire. Lo script manda solo
+feature e campioni corti, mai l'archivio integrale; il giudizio, come
+sempre, sta nel motore del server.
+
+**Il primo sguardo, PRIMA di ogni deploy** — quando si vogliono solo i
+numeri in mano, senza server: i due file si prendono dal branch con `git
+show` (il checkout del Mac non cambia) e `--report` stampa il rapporto
+locale — silenzi, latenza, lingue, orari, parole ricorrenti — dichiarando
+ciò che NON può sapere (esiti e ruoli stanno in Firestore). Niente parte
+verso il server, niente arriva ai clienti. Il prompt:
+
+> Homie, PRIMO SGUARDO ALLA MINIERA — tutto locale, niente server, niente
+> messaggi a nessuno. Esegui questi comandi e incollami l'output: non
+> leggere le chat con un modello, non riassumere, non scrivere a clienti.
+>
+> 1. `cd ~/Boum-roma && git fetch origin claude/homie-game-changer-innovation-w1ve8y`
+> 2. `mkdir -p ~/miniera-local && git show origin/claude/homie-game-changer-innovation-w1ve8y:homie-bridge/agent-os/bin/miniera_extract.py > ~/miniera-local/extract.py`
+> 3. `wacli messages list --json --limit 100000 > ~/miniera-local/storico.json`
+>    (se `--limit` non è supportato: `wacli messages list --json`)
+> 4. `python3 ~/miniera-local/extract.py --report < ~/miniera-local/storico.json`
+> 5. Incollami il rapporto INTERO, così com'è. Un comando fallisce →
+>    incolla l'errore esatto e fermati.
+> 6. Alla fine: `rm -rf ~/miniera-local` (lo storico non deve restare in giro).
+
+Il prompt del ciclo COMPLETO (dopo il merge su main):
+
+> Homie, compito LA MINIERA (una tantum, poi quando ti dico "aggiorna la
+> miniera"). Tu non analizzi niente: estrai e spedisci, il giudizio è del
+> server — la regola di sempre.
+>
+> PREREQUISITI (verificali, non darli per scontati):
+> 1. `cd ~/Boum-roma && git pull origin main` — devono esistere
+>    `homie-bridge/agent-os/bin/miniera.sh` e `miniera_extract.py`.
+>    Se mancano, fermati e dimmelo: il codice non è ancora su main.
+> 2. `source ~/.boom/env` deve darti HOMIE_SECRET. Non stamparlo MAI.
+> 3. `wacli --version` deve rispondere.
+>
+> ESECUZIONE:
+> 1. Prova generale, non manda nulla:
+>    `bash ~/Boum-roma/homie-bridge/agent-os/bin/miniera.sh --dry`
+>    Riportami la riga `rows=… changed=…`. Se rows=0, fermati e dimmi
+>    cosa hai visto (wacli vuoto? errore?) — non inventare.
+> 2. Se rows > 0, sync vero:
+>    `bash ~/Boum-roma/homie-bridge/agent-os/bin/miniera.sh`
+>    Manda i lotti e chiede lo studio da solo; il verdetto arriva su
+>    Telegram dal server.
+> 3. Riportami: righe estratte, lotti inviati, eventuali "lotto fallito",
+>    e il podio che lo script stampa alla fine.
+>
+> REGOLE (le solite, qui contano doppio):
+> - NON leggere né riassumere le conversazioni con un modello: lo script
+>   estrae feature e campioni corti, ed è tutto ciò che serve.
+> - NON scrivere a nessun cliente per questo compito. Zero uscite.
+> - Un comando fallisce → incolla l'errore ESATTO e fermati: niente
+>   tentativi creativi, niente modifiche allo script.
+> - Rilanciare è sempre sicuro (idempotente): nel dubbio, `--dry` e
+>   riporta.
+
 ## Gli occhi del Perito (`/api/homie/market`)
 
 Il libro mastro di mercato di BOOM registra ogni annuncio che il radar vede.
