@@ -1,0 +1,287 @@
+<style>
+/* ══ YOUR MONEY — una pagina, nessun asterisco ═════════════════════════ */
+.soldi-capo { padding:clamp(120px,14svh,168px) 0 clamp(28px,3.4vw,44px); }
+.soldi-capo h1 { font-weight:200; font-size:clamp(34px,4.6vw,58px);
+  line-height:1.07; letter-spacing:-.02em; text-wrap:balance; max-width:22ch; }
+.soldi-capo h1 .hl { color:var(--gold); }
+.soldi-capo .sotto { margin-top:16px; max-width:56ch; }
+@media (max-width:640px){
+  .soldi-capo h1 { font-size:clamp(32px,9vw,40px); font-weight:250; } }
+
+/* il quadro del giorno uno: i preset sono case vere, coi loro nomi */
+.soldi-quadro { padding:clamp(20px,2.6vw,30px); }
+.soldi-preset { display:flex; gap:8px; flex-wrap:wrap; }
+.soldi-preset button { flex:1 1 180px; text-align:left; padding:12px 15px;
+  background:var(--input); border:0; box-shadow:inset 0 0 0 1px var(--line);
+  color:var(--text-3); font:inherit; cursor:pointer; transition:.22s;
+  min-height:36px; }
+.soldi-preset button b { display:block; color:var(--text); font-weight:500;
+  font-size:13.5px; }
+.soldi-preset button span { display:block; margin-top:2px; font-size:11px;
+  color:var(--text-4); }
+.soldi-preset button.on { box-shadow:inset 0 0 0 1px var(--gold);
+  background:rgba(255,215,0,.05); }
+.soldi-flap { margin:clamp(18px,2.4vw,26px) 0 6px; }
+.soldi-flap .flap-tot { font-size:clamp(26px,4vw,44px); }
+.soldi-eti { display:block; font-size:10px; font-weight:600;
+  letter-spacing:.22em; text-transform:uppercase; color:var(--text-3);
+  margin-bottom:10px; }
+.soldi-voci { margin-top:14px; border-top:1px solid var(--line-0); }
+.soldi-voce { display:flex; align-items:baseline; justify-content:space-between;
+  gap:14px; padding:12px 2px; border-bottom:1px solid var(--line-0);
+  font-size:13.5px; color:var(--text-2); }
+.soldi-voce b { font-variant-numeric:tabular-nums; font-weight:500;
+  color:var(--text); }
+.soldi-voce em { display:block; font-style:normal; font-size:11px;
+  color:var(--text-4); margin-top:2px; }
+.soldi-voce.torna { color:var(--green); }
+.soldi-voce.torna b, .soldi-voce.torna em { color:var(--green); }
+.soldi-regola { margin-top:14px; font-size:11.5px; line-height:1.7;
+  color:var(--text-4); max-width:70ch; }
+
+/* il registro di cio che torna */
+.torna-tavola { margin-top:clamp(20px,2.6vw,30px); border-top:1px solid var(--line-0); }
+.torna-riga { display:grid; grid-template-columns:minmax(0,.9fr) auto minmax(0,1.4fr);
+  gap:8px 18px; align-items:baseline; padding:15px 2px;
+  border-bottom:1px solid var(--line-0); }
+.torna-riga > b { font-size:14px; font-weight:500; }
+.torna-riga > b em { font-style:normal; color:var(--gold);
+  font-variant-numeric:tabular-nums; }
+.torna-freccia { font-size:12px; color:var(--green); white-space:nowrap; }
+.torna-riga > span { font-size:12.5px; line-height:1.6; color:var(--text-3); }
+@media (max-width:760px){
+  .torna-riga { grid-template-columns:1fr; gap:4px; }
+  .torna-freccia { order:2; } .torna-riga > span { order:3; } }
+
+/* i binari e la linea del tempo */
+.binari { display:grid; gap:clamp(14px,1.8vw,20px);
+  grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));
+  margin-top:clamp(20px,2.6vw,30px); }
+.binario { padding:clamp(16px,2vw,22px); background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--line-0); }
+.binario b { display:block; font-family:var(--display); font-weight:300;
+  font-size:17px; line-height:1.3; }
+.binario p { margin-top:8px; font-size:12.5px; line-height:1.65;
+  color:var(--text-3); }
+.tempo { margin-top:clamp(20px,2.6vw,30px); display:grid; gap:0; }
+.tempo-passo { display:grid; grid-template-columns:22px minmax(0,1fr);
+  gap:0 14px; }
+.tempo-passo .filo { position:relative; }
+.tempo-passo .filo::before { content:''; position:absolute; left:10px;
+  top:22px; bottom:-4px; width:1px; background:var(--line-0); }
+.tempo-passo:last-child .filo::before { display:none; }
+.tempo-passo .filo i { position:absolute; left:6px; top:7px; width:9px;
+  height:9px; border-radius:50%; background:var(--void);
+  box-shadow:inset 0 0 0 1.5px var(--gold); }
+.tempo-passo.verde .filo i { box-shadow:inset 0 0 0 1.5px var(--green); }
+.tempo-corpo { padding:4px 0 22px; }
+.tempo-corpo b { font-size:14px; font-weight:500; }
+.tempo-corpo b small { font-size:10px; font-weight:600; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--text-4); margin-left:8px; }
+.tempo-corpo p { margin-top:4px; font-size:12.5px; line-height:1.6;
+  color:var(--text-3); max-width:64ch; }
+
+/* la coda: dove andare da qui */
+.soldi-coda { display:flex; gap:12px; flex-wrap:wrap;
+  margin-top:clamp(22px,2.8vw,32px); }
+</style>
+
+<section class="soldi-capo">
+  <div class="container">
+    <span class="eyebrow dentro-subito"><i></i>Your money · in the open</span>
+    <h1>Where every euro goes — <span class="hl">and which ones come
+      back</span>.</h1>
+    <p class="sotto">One page, no asterisks: what you pay, when you pay it,
+      who holds it, and what returns to your pocket. The same arithmetic
+      every home's page uses — never two versions of the truth.</p>
+  </div>
+</section>
+
+<!-- ══ IL GIORNO UNO ═════════════════════════════════════════════════════ -->
+<section class="sezione" id="giornouno">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>Day one</span>
+      <h2 class="titolo">Three lines. <span class="hl">One of them comes
+        back.</span></h2>
+      <p class="sotto">Pick a real home from the catalogue — the figures are
+        its own, not an example.</p>
+    </div>
+    <div class="soldi-quadro quadro sale"><span class="tacca"></span>
+      <div class="soldi-preset" role="group" aria-label="Pick a real home">
+        PRESET_TASTI
+      </div>
+      <div class="soldi-flap">
+        <span class="soldi-eti">Due on day one — all of it, in writing</span>
+        <span class="flap-tot" id="soldiFlap" aria-live="polite"></span>
+      </div>
+      <div class="soldi-voci">
+        <div class="soldi-voce"><span>First month's rent</span>
+          <b id="sCanone">—</b></div>
+        <div class="soldi-voce"><span>Agency fee — our only fee, once
+          <em>10% of the annual rent — it does not grow with your stay</em></span>
+          <b id="sOnorario">—</b></div>
+        <div class="soldi-voce torna"><span>Security deposit
+          <em id="sCauzioneEm">comes back at the end — held, filmed at
+            move-in and move-out</em></span>
+          <b id="sCauzione">—</b></div>
+      </div>
+      <p class="soldi-regola">The deposit is a number of months of rent —
+        each home declares its own on its page (this one:
+        <span id="sMesi">—</span>). The fee is 10% of the annual rent,
+        charged once. There is no fourth line, and there never will be one
+        at the table.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══ QUELLO CHE TORNA ══════════════════════════════════════════════════ -->
+<section class="sezione" id="torna">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>The way back</span>
+      <h2 class="titolo">The euros that <span class="hl">come back</span>.</h2>
+      <p class="sotto">Most of what you hand us is either returned or
+        credited. This is the full list — if it's not here, it doesn't
+        come back, and we say so.</p>
+    </div>
+    <div class="torna-tavola sale">
+      <div class="torna-riga">
+        <b>Security deposit <em>1–2 months of rent</em></b>
+        <span class="torna-freccia">→ returns</span>
+        <span>Held, never spent. The flat is filmed at move-in and move-out,
+          so its state is a recording, not an argument. Returned after the
+          final walkthrough.</span>
+      </div>
+      <div class="torna-riga">
+        <b>Instant hold <em>€300</em></b>
+        <span class="torna-freccia">→ deducted or refunded</span>
+        <span>Takes a home off the market for 48 hours while you decide.
+          Deducted from your first month if you move in; fully refunded if
+          you're not approved. Cancel free within 48 hours.</span>
+      </div>
+      <div class="torna-riga">
+        <b>Property finding <em>€350</em></b>
+        <span class="torna-freccia">→ deducted or refunded</span>
+        <span>The hunt engine, off-market included. Deducted from the agency
+          fee when we find your home — refunded in full if we don't
+          deliver.</span>
+      </div>
+      <div class="torna-riga">
+        <b>Virtual viewing <em>€89</em></b>
+        <span class="torna-freccia">→ credited</span>
+        <span>For homes on <b style="font-weight:500">other portals</b> — a
+          live video tour with the red flags said out loud. Credited to your
+          fee if you rent with us. Viewing our own homes is free,
+          always.</span>
+      </div>
+      <div class="torna-riga">
+        <b>Contract check express <em>€49</em></b>
+        <span class="torna-freccia">→ credited</span>
+        <span>A lease read line by line within hours. Credited if you
+          upgrade to Deal Assistance.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ I BINARI E IL TEMPO ═══════════════════════════════════════════════ -->
+<section class="sezione" id="binari">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>The rails</span>
+      <h2 class="titolo">How the money <span class="hl">travels</span>.</h2>
+    </div>
+    <div class="binari sale">
+      <div class="binario"><b>Stripe, with a receipt for every line</b>
+        <p>Card checkout, never a bank transfer to a private person, never
+          cash in an office. Each payment lands with its own receipt in
+          your inbox.</p></div>
+      <div class="binario"><b>A licensed counterparty</b>
+        <p>The company on the receipt is Egidi Immobiliare S.r.l., a
+          licensed Rome agency — BOOM® is its EU trade mark 019317594.
+          You always know who holds your money.</p></div>
+      <div class="binario"><b>What never passes through us</b>
+        <p>Utilities (electricity, gas, water, internet) and the
+          registration tax. Both go to the providers and to the State —
+          we never touch them, and we never mark them up.</p></div>
+    </div>
+    <div class="tempo sale">
+      <div class="tempo-passo">
+        <span class="filo"><i></i></span>
+        <div class="tempo-corpo"><b>The hold <small>optional · €300</small></b>
+          <p>Only if you need the home to stop moving while you decide.
+            48 hours off-market, one tap, refundable.</p></div>
+      </div>
+      <div class="tempo-passo">
+        <span class="filo"><i></i></span>
+        <div class="tempo-corpo"><b>Day one <small>at the
+          pre-agreement</small></b>
+          <p>First month + deposit + fee, through Stripe, with every figure
+            already written into the document you sign. Any hold you paid
+            is deducted here.</p></div>
+      </div>
+      <div class="tempo-passo">
+        <span class="filo"><i></i></span>
+        <div class="tempo-corpo"><b>Every month <small>rent</small></b>
+          <p>Rent as agreed in the registered contract. Utilities go to the
+            providers, not to us.</p></div>
+      </div>
+      <div class="tempo-passo verde">
+        <span class="filo"><i></i></span>
+        <div class="tempo-corpo"><b>The end <small>deposit back</small></b>
+          <p>Final walkthrough against the move-in footage, keys back,
+            deposit returned. The way it should always have worked.</p></div>
+      </div>
+    </div>
+    <div class="soldi-coda sale">
+      <a class="btn btn-primary" href="/apartments.html">Browse the homes</a>
+      <a class="btn btn-secondary" href="/index.html#banchina">Pick a
+        service door</a>
+    </div>
+  </div>
+</section>
+
+<script>
+/* LA REGIA DEI SOLDI — i preset sono case vere; l'aritmetica e la stessa
+   della pagina casa: cauzione = mesi × canone, onorario = 10% dell'anno. */
+(function () {
+  'use strict';
+  function via() {
+    var PRESET = 'PRESET_JSON';
+    if (typeof PRESET === 'string' || !PRESET.length) return;
+    var BS = window.BoomSolari;
+    var ridotto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function euro(n) { return '€' + Math.round(n).toLocaleString('en-US'); }
+    var host = document.getElementById('soldiFlap');
+    var tasti = [].slice.call(document.querySelectorAll('.soldi-preset button'));
+    var quadro = null, largo = 0;
+    PRESET.forEach(function (p) {
+      var t = p.p + p.p * p.m + Math.round(p.p * 12 * .10);
+      largo = Math.max(largo, euro(t).length);
+    });
+    if (BS && BS.Board) quadro = new BS.Board(host, largo, ' €,.0123456789');
+    function conta(i, subito) {
+      var p = PRESET[i];
+      var cauzione = p.p * p.m, fee = Math.round(p.p * 12 * .10);
+      var tot = p.p + cauzione + fee;
+      document.getElementById('sCanone').textContent = euro(p.p);
+      document.getElementById('sOnorario').textContent = euro(fee);
+      document.getElementById('sCauzione').textContent = euro(cauzione);
+      document.getElementById('sMesi').textContent = p.m + ' month'
+        + (p.m === 1 ? '' : 's');
+      if (quadro) {
+        (ridotto || subito) ? quadro.show(euro(tot))
+                            : quadro.show(euro(tot), 46, true);
+      } else host.textContent = euro(tot);
+      tasti.forEach(function (t, k) { t.classList.toggle('on', k === i); });
+    }
+    tasti.forEach(function (t, i) {
+      t.addEventListener('click', function () { conta(i); });
+    });
+    conta(Math.min(1, PRESET.length - 1), true);
+  }
+  if (document.readyState === 'complete') via();
+  else addEventListener('load', via);
+})();
+</script>

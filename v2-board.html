@@ -1,0 +1,343 @@
+<title>BOOM · Rome — Live Board</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+/* ══ IL KIOSK — il tabellone da vetrina. Nessuna nav: solo il teatro. ══ */
+:root { --gold:#FFD700; --gold-light:#FFE55C; --green:#00FF88; --black:#030303;
+  --oro-flap:#FFE55C; --line:rgba(255,255,255,.08); --line-0:rgba(255,255,255,.04);
+  --line-gold:rgba(255,215,0,.14);
+  --display:'Helvetica Neue',Helvetica,Arial,sans-serif;
+  --sans:'Inter',-apple-system,sans-serif; color-scheme:dark; }
+*,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }
+html,a { color:inherit; }
+body { height:100%; }
+body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
+  font-weight:300; overflow:hidden; display:flex; flex-direction:column;
+  cursor:none; }
+.cima { display:flex; align-items:center; justify-content:space-between;
+  padding:clamp(18px,3vh,34px) clamp(22px,3.5vw,60px);
+  border-bottom:1px solid var(--line-0); }
+.marchio { display:flex; align-items:center; gap:16px; }
+.marchio svg { width:clamp(34px,4.5vh,52px); height:clamp(34px,4.5vh,52px); }
+.marchio span { font-family:var(--display); font-size:clamp(17px,2.4vh,26px);
+  font-weight:500; letter-spacing:.32em; text-indent:.32em; text-transform:uppercase; }
+.cima-eti { display:flex; align-items:center; gap:12px; font-size:clamp(11px,1.5vh,14px);
+  font-weight:600; letter-spacing:.22em; text-transform:uppercase; color:var(--gold); }
+.cima-eti i { font-style:normal; width:9px; height:9px; border-radius:50%;
+  background:var(--green); animation:pulse 2.2s ease infinite; }
+@keyframes pulse { 50% { opacity:.3; } }
+#ora { font-family:var(--display); font-size:clamp(16px,2.6vh,26px); }
+.sala { flex:1; display:grid; align-content:center;
+  padding:0 clamp(22px,3.5vw,60px); }
+.colonne, .riga { display:grid; align-items:center;
+  grid-template-columns:clamp(80px,9vw,150px) minmax(0,1fr) clamp(64px,6vw,110px)
+    clamp(120px,12vw,200px) clamp(90px,9vw,150px);
+  gap:clamp(10px,2vw,34px); padding:0 clamp(8px,1vw,20px); }
+.colonne { padding-bottom:1.4vh; font-size:clamp(10px,1.4vh,13px); font-weight:600;
+  letter-spacing:.2em; text-transform:uppercase; color:rgba(250,250,250,.3); }
+.riga { font-size:clamp(17px,3.4vh,34px);
+  padding-top:clamp(10px,1.9vh,20px); padding-bottom:clamp(10px,1.9vh,20px);
+  border-top:1px solid var(--line-0); }
+.cella { overflow:hidden; }
+.c-stato { color:var(--green); }
+.riga.nuovo .c-stato { color:var(--gold-light); }
+.fondo { display:flex; align-items:center; justify-content:space-between;
+  gap:16px; padding:clamp(16px,2.6vh,30px) clamp(22px,3.5vw,60px);
+  border-top:1px solid var(--line-0); font-size:clamp(12px,1.7vh,16px);
+  letter-spacing:.14em; text-transform:uppercase; color:rgba(250,250,250,.5); }
+.fondo b { color:var(--gold); font-weight:600; }
+.pagine { display:flex; gap:8px; }
+.pagine i { width:26px; height:3px; background:var(--line); font-style:normal;
+  transition:background .4s ease; }
+.pagine i.qui { background:var(--gold); }
+.flap-scale { letter-spacing:0; white-space:nowrap; }
+</style>
+<div class="cima">
+  <div class="marchio"><svg class="logo-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+                    <defs>
+                        <linearGradient id="goldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#FFE55C"/>
+                            <stop offset="100%" stop-color="#E5C200"/>
+                        </linearGradient>
+                    </defs>
+                    <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#goldGrad)">
+                        <path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/>
+                    </g>
+                </svg><span>Boom</span></div>
+  <div class="cima-eti"><i></i>Homes in Rome · Live</div>
+  <div id="ora" class="flap-scale"></div>
+</div>
+<div class="sala">
+  <div class="colonne">
+    <span>Free</span><span>District</span><span>Beds</span><span>Rent /mo</span><span>State</span>
+  </div>
+  <div id="righe"></div>
+</div>
+<div class="fondo">
+  <a href="/v2-home.html" style="color:inherit;text-decoration:none;cursor:pointer"><b>boomrome.com</b> · WhatsApp +39 331 325 1961</a>
+  <span class="pagine" id="pagine"></span>
+  <span>Video-verified · Keys in 48h</span>
+</div>
+<style>
+/* ══ SOLARI 4.0 — la cella a palette, precisione tipografica ══════════
+   · metà esattamente al 50%: nessun pixel del glifo sottratto
+   · cerniera DIPINTA sopra (overlay) con perni laterali
+   · glifo centrato otticamente sul cap-height (runtime, --gs)
+   · larghezza cella calibrata sul glifo più largo del rullo (--cw) */
+.fc2 {
+  --ch: 1.26em; --cw: 0.84em; --gs: 0px;
+  position:relative; display:inline-block;
+  width:var(--cw); height:var(--ch);
+  margin-right:0.07em; vertical-align:-0.20em;
+  border-radius:0.085em; background:#040404;
+  box-shadow:inset 0 0 0 1px rgba(239,235,223,0.05), 0 0.08em 0.3em rgba(0,0,0,0.6);
+  perspective:3em; color:var(--oro-flap);
+}
+.fc2 i { position:absolute; left:0; width:100%; height:50%; overflow:hidden; font-style:normal; }
+.fc2 i b { position:absolute; left:0; width:100%; height:var(--ch); line-height:var(--ch);
+  text-align:center; font-weight:inherit; transform:translateY(var(--gs)); }
+.fc2 .st { top:0; border-radius:0.085em 0.085em 0 0; background:linear-gradient(180deg,#17171A,#0E0E10); z-index:1; }
+.fc2 .sb { bottom:0; border-radius:0 0 0.085em 0.085em; background:linear-gradient(180deg,#09090B,#111114); z-index:1; }
+.fc2 .st b { top:0; }
+.fc2 .sb b { top:-100%; }
+.fc2 .lt { top:0; border-radius:0.085em 0.085em 0 0; background:linear-gradient(180deg,#17171A,#0E0E10);
+  transform-origin:center bottom; z-index:4; display:none; }
+.fc2 .lt b { top:0; }
+.fc2 .lb { bottom:0; border-radius:0 0 0.085em 0.085em; background:linear-gradient(180deg,#09090B,#111114);
+  transform-origin:center top; transform:rotateX(88deg); z-index:3; display:none; }
+.fc2 .lb b { top:-100%; }
+.fc2 s { position:absolute; left:0; right:0; top:50%; height:0.035em; min-height:1px;
+  margin-top:calc(0.035em / -2);
+  background:linear-gradient(180deg, rgba(0,0,0,0.92), rgba(0,0,0,0.5));
+  z-index:6; text-decoration:none; }
+.fc2 s::before, .fc2 s::after { content:''; position:absolute; top:50%; width:0.055em; height:0.16em;
+  transform:translateY(-50%); background:linear-gradient(180deg,#000,#1A1A1A); border-radius:0.02em; }
+.fc2 s::before { left:0; border-radius:0 0.02em 0.02em 0; }
+.fc2 s::after { right:0; border-radius:0.02em 0 0 0.02em; }
+@keyframes flTop { 0% { transform:rotateX(0); filter:brightness(1); }
+  100% { transform:rotateX(-88deg); filter:brightness(0.45); } }
+@keyframes flBot { 0% { transform:rotateX(88deg); filter:brightness(0.5); }
+  55% { filter:brightness(1.15); } 100% { transform:rotateX(0); filter:brightness(1); } }
+.flap-scale { letter-spacing:0; white-space:nowrap; }
+</style>
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   BOOM SOLARI — il motore a palette (Gino Valle, 1962), meccanica v3:
+   due mezze celle statiche + due ante 3D guidate da animationend, rulli
+   corti (mai teletrasporti), retargeting a metà giro, failsafe per la
+   scheda nascosta. Qui esporta soltanto: la regia è del Terminale.
+   ══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  function Cell(host) {
+    var el = document.createElement('span');
+    el.className = 'fc2';
+    el.innerHTML = '<i class="st"><b></b></i><i class="sb"><b></b></i><i class="lt"><b></b></i><i class="lb"><b></b></i><s></s>';
+    host.appendChild(el);
+    this.st = el.children[0].firstChild;
+    this.sb = el.children[1].firstChild;
+    this.ltEl = el.children[2]; this.lt = this.ltEl.firstChild;
+    this.lbEl = el.children[3]; this.lb = this.lbEl.firstChild;
+    this.cur = ' '; this.busy = false; this.pending = ' '; this.turns = 0;
+    this.set(' ');
+  }
+  Cell.prototype.set = function (c) {
+    this.cur = c; this.pending = c;
+    this.st.textContent = c; this.sb.textContent = c;
+  };
+  Cell.prototype.next = function (drum) {
+    var i = drum.indexOf(this.cur); if (i < 0) i = 0;
+    var j = drum.indexOf(this.pending); if (j < 0) j = 0;
+    var d = (j - i + drum.length) % drum.length;
+    if (d === 0) return null;
+    if (d > 5) return drum[(j - 4 + drum.length) % drum.length];
+    return drum[(i + 1) % drum.length];
+  };
+  Cell.prototype.step = function (nc, done) {
+    var self = this, fired = false;
+    function finishTop() {
+      if (fired) return; fired = true;
+      self.ltEl.onanimationend = null;
+      self.ltEl.style.display = 'none'; self.ltEl.style.animation = '';
+      var fired2 = false;
+      function finishBot() {
+        if (fired2) return; fired2 = true;
+        self.lbEl.onanimationend = null;
+        self.sb.textContent = nc;
+        self.lbEl.style.display = 'none'; self.lbEl.style.animation = '';
+        self.cur = nc; done();
+      }
+      self.lbEl.style.display = 'block';
+      self.lbEl.style.animation = 'flBot 150ms cubic-bezier(.3,1.35,.6,1) forwards';
+      self.lbEl.onanimationend = finishBot;
+      setTimeout(finishBot, 400);
+    }
+    this.st.textContent = nc;
+    this.lt.textContent = this.cur;
+    this.lb.textContent = nc;
+    this.ltEl.style.display = 'block';
+    this.ltEl.style.animation = 'flTop 90ms cubic-bezier(.55,0,.85,.36) forwards';
+    this.ltEl.onanimationend = finishTop;
+    setTimeout(finishTop, 300);
+  };
+  Cell.prototype.go = function (target, drum, fullTurn) {
+    this.pending = target;
+    if (fullTurn && !this.busy) this.turns = 1;
+    if (this.busy) return;
+    var self = this;
+    this.busy = true;
+    (function run() {
+      var nc = self.next(drum);
+      if (nc === null && self.turns > 0) {
+        self.turns = 0;
+        var i = drum.indexOf(self.cur);
+        nc = drum[(i + 1) % drum.length];
+        self.pending = drum[i];
+        self.step(nc, run);
+        return;
+      }
+      if (nc === null) { self.busy = false; return; }
+      self.step(nc, run);
+    })();
+  };
+
+  var measurer = document.createElement('canvas').getContext('2d');
+  function calibrate(host, drum) {
+    var cs = getComputedStyle(host);
+    var fs = parseFloat(cs.fontSize);
+    measurer.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+    var chPx = 1.26 * fs;
+    var m = measurer.measureText('H');
+    var fa = m.fontBoundingBoxAscent !== undefined ? m.fontBoundingBoxAscent : m.actualBoundingBoxAscent * 1.25;
+    var fd = m.fontBoundingBoxDescent !== undefined ? m.fontBoundingBoxDescent : m.actualBoundingBoxAscent * 0.25;
+    var baseline = (chPx + fa - fd) / 2;
+    var shift = chPx / 2 - (baseline - m.actualBoundingBoxAscent / 2);
+    var maxW = 0;
+    for (var i = 0; i < drum.length; i++) {
+      var w = measurer.measureText(drum[i]).width;
+      if (w > maxW) maxW = w;
+    }
+    host.style.setProperty('--gs', shift.toFixed(2) + 'px');
+    host.style.setProperty('--cw', ((maxW + fs * 0.24) / fs).toFixed(4) + 'em');
+  }
+
+  function Board(host, len, drum) {
+    host.textContent = '';
+    host.classList.add('flap-scale');
+    calibrate(host, drum);
+    this.cells = [];
+    this.drum = drum;
+    for (var i = 0; i < len; i++) this.cells.push(new Cell(host));
+  }
+  Board.prototype.show = function (word, stagger, spin) {
+    var self = this;
+    this.cells.forEach(function (c, i) {
+      var ch = word[i] || ' ';
+      if (!spin) { c.set(ch); return; }
+      setTimeout(function () { c.go(ch, self.drum); },
+        i * (stagger || 90) + Math.random() * 26);
+    });
+  };
+  Board.prototype.update = function (word) {   /* flippa solo le celle cambiate */
+    var self = this;
+    this.cells.forEach(function (c, i) {
+      var ch = word[i] || ' ';
+      if (c.cur !== ch || c.pending !== ch) c.go(ch, self.drum);
+    });
+  };
+  Board.prototype.flutter = function () {
+    var c = this.cells[Math.floor(Math.random() * this.cells.length)];
+    if (c && !c.busy && c.cur !== ' ') c.go(c.cur, this.drum, true);
+  };
+
+  window.BoomSolari = { Cell: Cell, Board: Board, calibrate: calibrate };
+})();
+</script>
+
+<script>
+(function () {
+  'use strict';
+  var BS = window.BoomSolari;
+  var DRUM = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789€.,:·+/';
+  var CASE = [{"ora": "31JAN", "zona": "CENTRO", "tipo": "3BR", "prezzo": "€1,500", "stato": "LIST"}, {"ora": "NOW", "zona": "PIGNETO", "tipo": "2BR", "prezzo": "€1,600", "stato": "NEW"}, {"ora": "1JAN", "zona": "PIGNETO", "tipo": "3BR", "prezzo": "€2,000", "stato": "LIST"}, {"ora": "NOW", "zona": "PIGNETO", "tipo": "2BR", "prezzo": "€1,500", "stato": "NEW"}, {"ora": "NOW", "zona": "PONTE MILVIO", "tipo": "1BR", "prezzo": "€1,250", "stato": "FREE"}, {"ora": "NOW", "zona": "TRASTEVERE", "tipo": "1BR", "prezzo": "€1,200", "stato": "FREE"}, {"ora": "NOW", "zona": "TRIESTE", "tipo": "1BR", "prezzo": "€1,200", "stato": "FREE"}, {"ora": "NOW", "zona": "TRIESTE", "tipo": "1BR", "prezzo": "€2,000", "stato": "FREE"}, {"ora": "NOW", "zona": "PONTE MILVIO", "tipo": "1BR", "prezzo": "€1,200", "stato": "FREE"}, {"ora": "NOW", "zona": "PRATI", "tipo": "1BR", "prezzo": "€2,000", "stato": "LIST"}, {"ora": "NOW", "zona": "PARIOLI", "tipo": "1BR", "prezzo": "€1,000", "stato": "LIST"}, {"ora": "NOW", "zona": "AFRICANO", "tipo": "1BR", "prezzo": "€900", "stato": "FREE"}, {"ora": "NOW", "zona": "PIGNETO", "tipo": "2BR", "prezzo": "€1,700", "stato": "LIST"}, {"ora": "1SEP", "zona": "VITTORIO VENE", "tipo": "1BR", "prezzo": "€1,300", "stato": "LIST"}, {"ora": "NOW", "zona": "PRATI", "tipo": "1BR", "prezzo": "€1,500", "stato": "FREE"}, {"ora": "NOW", "zona": "CONCA D'ORO", "tipo": "1BR", "prezzo": "€1,750", "stato": "LIST"}, {"ora": "NOW", "zona": "CENTRO STORIC", "tipo": "1BR", "prezzo": "€1,800", "stato": "LIST"}, {"ora": "1SEP", "zona": "CENTRO STORIC", "tipo": "1BR", "prezzo": "€2,300", "stato": "LIST"}];
+  var PER = 6, GIRO = 14000;
+  var pagine = Math.max(1, Math.ceil(CASE.length / PER));
+  var box = document.getElementById('righe');
+  var nav = document.getElementById('pagine');
+  var righe = [];
+  for (var i = 0; i < Math.min(PER, CASE.length); i++) {
+    var d = document.createElement('div');
+    d.className = 'riga';
+    d.innerHTML = '<span class="cella c-ora flap-scale"></span>' +
+      '<span class="cella c-zona flap-scale"></span>' +
+      '<span class="cella c-tipo flap-scale"></span>' +
+      '<span class="cella c-prezzo flap-scale"></span>' +
+      '<span class="cella c-stato flap-scale"></span>';
+    box.appendChild(d);
+    righe.push({ el:d, celle:{
+      ora:   new BS.Board(d.querySelector('.c-ora'),    5,  DRUM),
+      zona:  new BS.Board(d.querySelector('.c-zona'),   13, DRUM),
+      tipo:  new BS.Board(d.querySelector('.c-tipo'),   3,  DRUM),
+      prezzo:new BS.Board(d.querySelector('.c-prezzo'), 6,  DRUM),
+      stato: new BS.Board(d.querySelector('.c-stato'),  5,  DRUM)
+    }});
+  }
+  for (var k = 0; k < pagine; k++) {
+    var t = document.createElement('i');
+    if (k === 0) t.className = 'qui';
+    nav.appendChild(t);
+  }
+  var pagina = 0;
+  function mostra(p, sbatti) {
+    pagina = p;
+    [].forEach.call(nav.children, function (x, k) {
+      x.classList.toggle('qui', k === p);
+    });
+    righe.forEach(function (r, i) {
+      var h = CASE[p * PER + i];
+      r.el.classList.toggle('nuovo', !!h && h.stato === 'NEW');
+      var mostraR = function () {
+        r.celle.ora.update(h ? h.ora : '');
+        r.celle.zona.update(h ? h.zona : '');
+        r.celle.tipo.update(h ? h.tipo : '');
+        r.celle.prezzo.update(h ? h.prezzo : '');
+        r.celle.stato.update(h ? h.stato : '');
+      };
+      if (sbatti) setTimeout(mostraR, i * 140); else mostraR();
+    });
+  }
+  /* prima stampa col giro completo */
+  righe.forEach(function (r, i) {
+    var h = CASE[i];
+    setTimeout(function () {
+      if (!h) return;
+      r.celle.ora.show(h.ora, 24, true);
+      r.celle.zona.show(h.zona, 18, true);
+      r.celle.tipo.show(h.tipo, 24, true);
+      r.celle.prezzo.show(h.prezzo, 22, true);
+      r.celle.stato.show(h.stato, 22, true);
+      r.el.classList.toggle('nuovo', h.stato === 'NEW');
+    }, 400 + i * 160);
+  });
+  if (pagine > 1) setInterval(function () {
+    if (document.hidden) return;
+    mostra((pagina + 1) % pagine, true);
+  }, GIRO);
+  /* l'orologio */
+  function oraRoma() {
+    try {
+      return new Intl.DateTimeFormat('en-GB', { timeZone:'Europe/Rome',
+        hour:'2-digit', minute:'2-digit', hour12:false }).format(new Date());
+    } catch (e) { return new Date().toTimeString().slice(0, 5); }
+  }
+  var oro = new BS.Board(document.getElementById('ora'), 5, ' 0123456789:');
+  oro.show(oraRoma());
+  setInterval(function () { if (!document.hidden) oro.update(oraRoma()); }, 20000);
+  /* ogni tanto un fremito, come i tabelloni veri */
+  setInterval(function () {
+    if (document.hidden) return;
+    var r = righe[Math.floor(Math.random() * righe.length)];
+    var quali = ['zona','prezzo','stato'];
+    r.celle[quali[Math.floor(Math.random() * 3)]].flutter();
+  }, 9000);
+})();
+</script>

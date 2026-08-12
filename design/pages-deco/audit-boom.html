@@ -1,0 +1,336 @@
+<title>Audit BOOM Portale</title>
+<style>
+  :root{
+    --oro:#FFD700; --verde:#00FF88; --rosso:#FF6B5C;
+    --nero:#030303; --carta:#0A0A0B; --alto:#101012;
+    --linea:rgba(255,255,255,.09); --linea-2:rgba(255,255,255,.05);
+    --t1:#F6F6F5; --t2:rgba(246,246,245,.72); --t3:rgba(246,246,245,.5);
+    --t4:rgba(246,246,245,.34);
+    --disp:"Helvetica Neue",Inter,system-ui,-apple-system,sans-serif;
+    --e:cubic-bezier(.16,1,.3,1);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--nero);color:var(--t1);
+    font-family:Inter,system-ui,-apple-system,"Helvetica Neue",sans-serif;
+    font-weight:300;line-height:1.62;-webkit-font-smoothing:antialiased;
+    overflow-wrap:anywhere}
+  a{color:var(--oro);text-decoration:none;border-bottom:1px solid rgba(255,215,0,.28)}
+  a:hover{border-bottom-color:var(--oro)}
+  .w{max-width:1000px;margin:0 auto;padding:0 22px}
+  .eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:11.5px;
+    font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--oro)}
+  .eyebrow i{width:26px;height:1px;background:var(--oro)}
+  h1{font-family:var(--disp);font-weight:300;font-size:clamp(31px,5.6vw,50px);
+    line-height:1.08;letter-spacing:-.02em;margin:14px 0 0}
+  h2{font-family:var(--disp);font-weight:300;font-size:clamp(23px,3.6vw,32px);
+    line-height:1.14;letter-spacing:-.015em;margin:0}
+  h3{font-family:var(--disp);font-weight:400;font-size:17px;letter-spacing:.01em;
+    margin:0 0 8px}
+  p{color:var(--t2);font-size:15.5px;max-width:70ch}
+  .hl{color:var(--oro)}
+  .cima{padding:70px 0 38px;border-bottom:1px solid var(--linea-2)}
+  section{padding:52px 0;border-bottom:1px solid var(--linea-2)}
+  .sotto{margin-top:12px}
+
+  /* ── voci ─────────────────────────────────────────── */
+  .v{background:var(--carta);border:1px solid var(--linea);border-radius:14px;
+    padding:20px 22px;margin-top:14px;position:relative;overflow:hidden}
+  .v::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;
+    background:var(--t4)}
+  .v.fatto::before{background:var(--verde)}
+  .v.propongo::before{background:var(--oro)}
+  .v-capo{display:flex;align-items:baseline;justify-content:space-between;
+    gap:14px;flex-wrap:wrap;margin-bottom:9px}
+  .tag{font-size:9.5px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;
+    border-radius:100px;padding:4px 10px;flex:none}
+  .tag.f{background:rgba(0,32,18,.7);color:var(--verde);
+    border:1px solid rgba(0,255,136,.3)}
+  .tag.p{background:rgba(46,36,0,.6);color:var(--oro);
+    border:1px solid rgba(255,215,0,.28)}
+  .v p{margin:0;font-size:14.5px}
+  .v p+p{margin-top:9px}
+  .mis{display:inline-flex;align-items:center;gap:7px;margin-top:11px;
+    font-size:12px;color:var(--t3);font-variant-numeric:tabular-nums;
+    background:rgba(255,255,255,.03);border:1px solid var(--linea-2);
+    border-radius:8px;padding:6px 11px}
+  .mis b{color:var(--t1);font-weight:400}
+  .mis .giu{color:var(--rosso)}
+  .mis .su{color:var(--verde)}
+
+  /* ── tabella scroll ───────────────────────────────── */
+  .scorri{overflow-x:auto;margin-top:20px;border:1px solid var(--linea);
+    border-radius:14px;background:var(--carta)}
+  table{border-collapse:collapse;width:100%;min-width:620px;font-size:13.5px}
+  th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--linea-2)}
+  th{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--t4);
+    font-weight:500}
+  tr:last-child td{border-bottom:0}
+  td b{font-weight:400;color:var(--t1)}
+  td{color:var(--t2);font-variant-numeric:tabular-nums}
+  .ko{color:var(--rosso)} .ok{color:var(--verde)}
+
+  /* ── la mappa della pagina ────────────────────────── */
+  .mappa{margin-top:22px;display:grid;gap:3px}
+  .ms{display:grid;grid-template-columns:150px 1fr 62px;gap:12px;align-items:center;
+    font-size:13px}
+  .ms .nm{color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ms .ba{height:22px;border-radius:5px;background:rgba(255,255,255,.06);
+    position:relative;overflow:hidden}
+  .ms .ba i{position:absolute;left:0;top:0;bottom:0;display:block;
+    background:linear-gradient(90deg,rgba(255,215,0,.5),rgba(255,215,0,.13))}
+  .ms .px{color:var(--t4);font-size:11.5px;text-align:right;
+    font-variant-numeric:tabular-nums}
+  .ms.oro .nm{color:var(--oro)}
+  .ms.oro .ba i{background:linear-gradient(90deg,var(--oro),rgba(255,215,0,.3))}
+  @media(max-width:600px){.ms{grid-template-columns:104px 1fr 54px;font-size:12px}}
+
+  .nota{margin-top:12px;font-size:13px;color:var(--t3);max-width:74ch}
+  .nota b{color:var(--t2);font-weight:400}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;
+    color:var(--oro);background:rgba(255,215,0,.07);
+    border:1px solid rgba(255,215,0,.13);border-radius:5px;padding:1px 6px}
+  .piede{padding:38px 0 70px;color:var(--t4);font-size:12.5px;letter-spacing:.03em}
+  ol{color:var(--t2);font-size:15px;padding-left:20px;max-width:70ch}
+  ol li{margin-bottom:11px}
+  ol li b{color:var(--t1);font-weight:400}
+</style>
+
+<div class="cima"><div class="w">
+  <span class="eyebrow"><i></i>Audit · home portale · 11 agosto</span>
+  <h1>Quello che ho <span class="hl">misurato</span>, quello che ho
+    <span class="hl">corretto</span>, quello che <span class="hl">farei</span>.</h1>
+  <p class="sotto">Numeri presi a schermo con Playwright: iPhone 390 con CPU
+    rallentata 4×, desktop 1440 a piena velocità. Niente stime. Dove scrivo
+    un numero, l'ho letto dal browser.</p>
+</div></div>
+
+<section><div class="w">
+  <span class="eyebrow"><i></i>Corretto in questa sessione</span>
+  <h2 style="margin-top:11px">Quattro difetti reali, tutti verificati
+    dopo.</h2>
+
+  <div class="v fatto">
+    <div class="v-capo"><h3>Il contrasto era sotto la soglia — sulle
+      etichette, non sulla decorazione</h3><span class="tag f">fatto</span></div>
+    <p><code>--text-4</code> era <code>rgba(250,250,250,.3)</code>: su nero fa
+      <b style="color:var(--t1);font-weight:400">2,44:1</b>, contro un minimo
+      WCAG AA di 4,5. Il problema non è accademico — quel token portava le
+      etichette dei campi del check-in («When do you land?», «Budget»,
+      «Who's landing?»), i numeri dei quattro passi, «homes available now», e
+      la riga del marchio registrato nel footer. Testo che deve essere letto,
+      a un terzo di opacità.</p>
+    <p>Portato a <code>.48</code> = 4,77:1. È nato <code>--deco</code> a .26
+      per i segni che testo non ne portano davvero: frecce, punti,
+      separatori.</p>
+    <span class="mis">elementi sotto AA · <b class="giu">20</b> → <b class="su">0</b>
+      · su iPhone e desktop</span>
+  </div>
+
+  <div class="v fatto">
+    <div class="v-capo"><h3>Diciannove etichette stavano a 8–9px</h3>
+      <span class="tag f">fatto</span></div>
+    <p>Maiuscole spaziate a 8px: illeggibili e in contraddizione diretta con
+      quello che mi hai chiesto — badge «ultra paganti». Pavimento a 10px, le
+      cifre della rete PFS da 9 a 10,5.</p>
+    <p>Restano sotto i 10px solo le scritte <b style="color:var(--t1);
+      font-weight:400">dentro i mockup di telefono</b> delle quattro scene:
+      lì il corpo piccolo è corretto, perché sta ritraendo uno schermo in
+      scala. Confonderli sarebbe stato un errore.</p>
+    <span class="mis">testo più piccolo fuori dai mockup · <b class="giu">8px</b>
+      → <b class="su">10px</b></span>
+  </div>
+
+  <div class="v fatto">
+    <div class="v-capo"><h3>Sette bersagli sotto il polpastrello</h3>
+      <span class="tag f">fatto</span></div>
+    <p>Il cuore «salva» era 36×36. Le frecce del calendario 30×30 — trenta
+      pixel, su un iPhone, per cambiare mese. E i link di coda («View all →»,
+      «All 30 services →») erano alti <b style="color:var(--t1);
+      font-weight:400">18px</b>: il testo era leggibile, l'area toccabile no.</p>
+    <p>Cuore 40, frecce 40, e sui link il testo resta identico mentre l'area
+      cresce a 40 con padding negativo — nessuno spostamento visivo, un
+      bersaglio che esiste.</p>
+    <span class="mis">bersagli sotto 44×36 su iPhone · <b class="giu">14</b>
+      → <b class="su">6</b> (i sei restanti sono select native e
+      l'hamburger a 42×42)</span>
+  </div>
+
+  <div class="v fatto">
+    <div class="v-capo"><h3>Immagini senza alt, senza lazy, senza
+      proporzione</h3><span class="tag f">fatto</span></div>
+    <p>Tre foto senza testo alternativo e caricate subito; e nessuna immagine
+      dichiarava la propria proporzione — cioè la pagina saltava mentre
+      caricavano. Ora tutte con <code>aspect-ratio</code>, alt e
+      <code>loading="lazy"</code>.</p>
+  </div>
+</div></section>
+
+<section><div class="w">
+  <span class="eyebrow"><i></i>Stato di salute</span>
+  <h2 style="margin-top:11px">I numeri, oggi.</h2>
+  <div class="scorri"><table>
+    <tr><th>Misura</th><th>iPhone 390 · CPU 4×</th><th>Desktop 1440</th>
+      <th>Giudizio</th></tr>
+    <tr><td><b>Caricamento</b></td><td>822 ms</td><td>~640 ms</td>
+      <td class="ok">buono</td></tr>
+    <tr><td><b>Nodi DOM</b></td><td>2 630</td><td>2 630</td>
+      <td class="ok">sotto le 3 000, sano</td></tr>
+    <tr><td><b>Errori JavaScript</b></td><td>0</td><td>0</td>
+      <td class="ok">puliti</td></tr>
+    <tr><td><b>Scroll orizzontale</b></td><td>nessuno</td><td>nessuno</td>
+      <td class="ok">pulito</td></tr>
+    <tr><td><b>Altezza pagina</b></td><td>11 329 px</td><td>6 685 px</td>
+      <td class="ko">13,4 schermate su iPhone</td></tr>
+    <tr><td><b>Canvas animate</b></td><td>2</td><td>2</td>
+      <td class="ok">onda + mosaico, entrambe gated</td></tr>
+    <tr><td><b>Contrasto sotto AA</b></td><td>0</td><td>0</td>
+      <td class="ok">risolto oggi</td></tr>
+  </table></div>
+  <p class="nota">L'unico numero in rosso è la lunghezza. Su iPhone la home
+    è alta <b>tredici schermate e mezzo</b>. Non è di per sé un difetto — è
+    un difetto se le sezioni che vendono stanno in fondo. Ed è esattamente
+    quello che succede.</p>
+</div></section>
+
+<section><div class="w">
+  <span class="eyebrow"><i></i>Dove sta cosa</span>
+  <h2 style="margin-top:11px">La mappa della pagina, su iPhone.</h2>
+  <div class="mappa">
+    <div class="ms oro"><span class="nm">Hero + check-in</span>
+      <span class="ba"><i style="width:14%"></i></span><span class="px">0</span></div>
+    <div class="ms oro"><span class="nm">Move in this week</span>
+      <span class="ba"><i style="width:14%"></i></span><span class="px">1 538</span></div>
+    <div class="ms oro"><span class="nm">Skyline 3D</span>
+      <span class="ba"><i style="width:8%"></i></span><span class="px">3 101</span></div>
+    <div class="ms"><span class="nm">Servizi (6 porte)</span>
+      <span class="ba"><i style="width:7%"></i></span><span class="px">4 036</span></div>
+    <div class="ms"><span class="nm">Rete PFS</span>
+      <span class="ba"><i style="width:7%"></i></span><span class="px">4 822</span></div>
+    <div class="ms"><span class="nm">Concierge</span>
+      <span class="ba"><i style="width:5%"></i></span><span class="px">5 657</span></div>
+    <div class="ms"><span class="nm">Landing Pass</span>
+      <span class="ba"><i style="width:7%"></i></span><span class="px">6 237</span></div>
+    <div class="ms"><span class="nm">Why we exist</span>
+      <span class="ba"><i style="width:8%"></i></span><span class="px">6 980</span></div>
+    <div class="ms"><span class="nm">Il fondatore</span>
+      <span class="ba"><i style="width:12%"></i></span><span class="px">7 930</span></div>
+    <div class="ms"><span class="nm">Organizzazioni</span>
+      <span class="ba"><i style="width:8%"></i></span><span class="px">9 255</span></div>
+  </div>
+  <p class="nota" style="margin-top:16px">Tre letture oneste da questa mappa:
+    <b>(1)</b> le case arrivano presto — giusto. <b>(2)</b> I servizi
+    a pagamento cominciano a 4 036px, cioè quasi <b>cinque schermate</b>
+    dentro: chi paga il conto della pagina lo incontra a metà strada.
+    <b>(3)</b> Il fondatore occupa 1 326px, la sezione più lunga dopo la
+    vetrina — molto spazio per una foto che, come ti ho detto, non è ancora
+    quella giusta.</p>
+</div></section>
+
+<section><div class="w">
+  <span class="eyebrow"><i></i>Cosa farei adesso</span>
+  <h2 style="margin-top:11px">In ordine di ritorno, non di gusto.</h2>
+
+  <div class="v propongo">
+    <div class="v-capo"><h3>1 · La Skyline anche sulla discovery, come
+      vista</h3><span class="tag p">proposta</span></div>
+    <p>Il modulo che ho appena costruito è già riusabile. Sulla pagina
+      apartments diventa un interruttore <b style="color:var(--t1);
+      font-weight:400">Lista ⇄ Mappa</b> in cui i filtri già attivi
+      (zona, budget, camere, arredata, video) pilotano i segnaposto:
+      togli una zona e le case spariscono dalla mappa. È la funzione che sul
+      sito live è un link, e che nei portali seri è una vista.</p>
+    <p>Non l'ho fatta subito di proposito: da questo ambiente la mappa non
+      posso vederla — meglio che tu guardi prima quella in home sul preview
+      Vercel, e poi la replico su due pagine sapendo che è giusta.</p>
+  </div>
+
+  <div class="v propongo">
+    <div class="v-capo"><h3>2 · I servizi salgono, e si presentano come
+      prezzo</h3><span class="tag p">proposta</span></div>
+    <p>Oggi le sei porte stanno a 4 036px e sono icone con un nome. Chi
+      atterra qui non sa che <b style="color:var(--t1);font-weight:400">Virtual
+      Viewing costa €89</b>, che il Contract Check è €49 e che viene
+      accreditato sulla Deal Assistance. Quel dettaglio — «lo scali su un
+      altro servizio» — è il migliore argomento di vendita che avete e non
+      compare.</p>
+    <p>Cosa cambierei: il prezzo <b style="color:var(--t1);font-weight:400">sulla
+      porta</b>, non dietro; una riga di esito accanto al nome («la vedi oggi,
+      da dove sei»); e una fascia sottile <b style="color:var(--t1);
+      font-weight:400">subito sotto la vetrina</b> — non l'intera sezione,
+      solo i due servizi che si comprano prima di una casa (Virtual Viewing,
+      Contract Check). Il momento in cui uno guarda un appartamento è il
+      momento in cui compra la visita virtuale. A cinque schermate di
+      distanza è troppo tardi.</p>
+  </div>
+
+  <div class="v propongo">
+    <div class="v-capo"><h3>3 · I quattro passi devono raccontare i dati
+      veri</h3><span class="tag p">proposta</span></div>
+    <p>Me l'hai chiesto e non l'ho ancora fatto: le quattro scene sono
+      un'animazione fissa. Dovrebbero leggere il catalogo — la casa che
+      sfogli nella scena 1 è la stessa che sta in vetrina sopra, il totale
+      nella scena 3 è il suo move-in reale, la data nella scena 4 è
+      +48h da oggi. Costa poco: i dati sono già nella pagina.</p>
+  </div>
+
+  <div class="v fatto">
+    <div class="v-capo"><h3>4 · La foto del fondatore</h3>
+      <span class="tag f">provvisoria</span></div>
+    <p>Sostituita con quella dell'ufficio di Via dei Coronari: ritagliata
+      più stretta su di lui e con la dominante tungsteno corretta. È più
+      debole come ritratto — non sorride, è di tre quarti — ma più forte
+      come prova: alla finestra si leggono le targhe <b style="color:var(--t1);
+      font-weight:400">Idealista Partner 2023</b> e <b style="color:var(--t1);
+      font-weight:400">casa.it 2023</b>, e nella sezione fusa serve mostrare
+      l'agenzia, non solo l'uomo. Resta un segnaposto: la foto giusta ha
+      occhi in camera, bocca visibile, luce naturale in ombra aperta.</p>
+  </div>
+
+  <div class="v propongo">
+    <div class="v-capo"><h3>5 · Il logo, poi tutto il sito</h3>
+      <span class="tag p">aspetto la scelta</span></div>
+    <p>Lo <a href="https://claude.ai/code/artifact/21dd481c-f81b-42e0-817f-25a621b700af">studio
+      del marchio</a> è pronto con quattro taglie vive. Il mio consiglio resta
+      <b style="color:var(--t1);font-weight:400">C · Insegna</b> (66/58 il
+      segno, 30/25 la parola, tracking .26em, alone acceso). Appena scegli,
+      la stessa regola va in <code>css/boom-core.css</code> e nelle pagine che
+      dichiarano il marchio inline: una passata meccanica su tutto il sito.</p>
+  </div>
+
+  <div class="v fatto">
+    <div class="v-capo"><h3>6 · Le due sezioni sono diventate una</h3>
+      <span class="tag f">fatto</span></div>
+    <p>«Why we exist» (949px) e «Il fondatore» (1 326px) dicevano la stessa
+      cosa da due angoli. Ora sono una sezione sola, e il tuo motto —
+      <b style="color:var(--t1);font-weight:400">«Rome runs on New York prices
+      over Mumbai infrastructure»</b> — è salito da citazione sepolta a
+      titolo. I sei dolori non sono più una griglia con un titolo proprio:
+      sono la prova sotto la tua affermazione. I quattro numeri chiudono a
+      tutta larghezza.</p>
+    <span class="mis">2 275px in due sezioni → <b class="su">2 147px</b> in
+      una · <b class="su">9 → 8</b> sezioni</span>
+  </div>
+</div></section>
+
+<section><div class="w">
+  <span class="eyebrow"><i></i>Onestà</span>
+  <h2 style="margin-top:11px">Due cose che non posso verificare da qui.</h2>
+  <ol style="margin-top:16px">
+    <li><b>La mappa.</b> Questo ambiente blocca tutti gli host cartografici
+      (openfreemap, jsdelivr, ArcGIS, OSM, Overpass: 403 in CONNECT) e
+      l'anteprima artefatto blocca per sicurezza ogni host esterno. Il codice
+      è quello dello Skyline che già gira in produzione, ma
+      <b>non l'ho visto muoversi</b>. Guardala sul preview Vercel del ramo,
+      non nell'artefatto: nell'artefatto vedrai il messaggio onesto di
+      fallback, che è il comportamento corretto, non un guasto.</li>
+    <li><b>Le prestazioni della mappa su telefono vero.</b> Una mappa 3D con
+      terreno su un iPhone di quattro anni è la cosa più pesante di tutta la
+      pagina. Ho fatto quello che si deve — non parte finché non entri nella
+      sezione, non ruba lo scroll — ma il costo reale in batteria e fluidità
+      lo dirà solo il tuo telefono. Se scalda, la prima leva è togliere il
+      terreno (<code>setTerrain</code>), che costa molto e si nota poco.</li>
+  </ol>
+</div></section>
+
+<div class="piede"><div class="w">BOOM Roma · audit interno · ramo
+  claude/boom-home-background-wqektx · nulla di questo è in produzione</div></div>

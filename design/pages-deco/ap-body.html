@@ -1,0 +1,743 @@
+<style>
+/* ── innesti Apartments: il muro Solari coi token del sito live ────────── */
+.ap-hero { position:relative; padding:clamp(108px,13svh,150px) 0 clamp(26px,3.4vw,44px);
+  overflow:hidden; }
+.ap-trust { margin-top:18px; display:flex; flex-wrap:wrap; gap:9px; }
+.ap-trust span { display:inline-flex; align-items:center; gap:8px; padding:8px 13px;
+  font-size:12.5px; color:var(--text-2); box-shadow:inset 0 0 0 1px var(--line); }
+.ap-trust i { font-style:normal; color:var(--gold); }
+.zone { margin-top:18px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.zona-chip { padding:8px 13px; font-size:12.5px; color:var(--text-3); cursor:pointer;
+  box-shadow:inset 0 0 0 1px var(--line-0); transition:color .25s, box-shadow .25s; }
+.zona-chip:hover { color:var(--text); }
+.zona-chip.su { color:var(--gold-light); box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+
+/* il muro — l'atrio della pagina */
+.muro { background:var(--surface); border-top:2px solid var(--gold);
+  border-bottom:1px solid var(--line-0); padding:clamp(22px,3vw,40px) 0; }
+.muro-in { max-width:1460px; margin:0 auto; padding:0 clamp(14px,4vw,70px); }
+.muro-cima { display:flex; align-items:center; justify-content:space-between;
+  gap:14px; padding:0 4px 14px; }
+.muro-eti { display:inline-flex; align-items:center; gap:10px; font-size:11.5px;
+  font-weight:600; letter-spacing:.2em; text-transform:uppercase; color:var(--gold); }
+.muro-eti i { font-style:normal; width:7px; height:7px; border-radius:50%;
+  background:var(--green); animation:pulse 2.2s ease infinite; }
+#muroOra { font-family:var(--display); font-size:clamp(13px,1.3vw,17px); }
+.muro-quadro { background:var(--black); box-shadow:inset 0 0 0 1px var(--line-gold); }
+.colonne, .riga, .riga-ferma { display:grid; align-items:center;
+  grid-template-columns:clamp(66px,7vw,110px) minmax(0,1fr) clamp(50px,5vw,82px)
+    clamp(92px,10vw,150px) clamp(68px,7vw,106px);
+  gap:clamp(8px,1.6vw,22px); padding:0 clamp(12px,2vw,26px); }
+.colonne { padding-top:15px; padding-bottom:10px; font-size:clamp(9px,.9vw,10.5px);
+  font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:var(--text-4); }
+.riga, .riga-ferma { position:relative; width:100%; text-align:left; cursor:pointer;
+  font-size:clamp(13px,1.4vw,19px);
+  padding-top:clamp(12px,1.4vw,18px); padding-bottom:clamp(12px,1.4vw,18px);
+  border-top:1px solid var(--line-0); transition:background .3s var(--ease); }
+.riga::before { content:''; position:absolute; left:0; top:-1px; bottom:0; width:3px;
+  background:var(--gold); transform:scaleY(0); transform-origin:top;
+  transition:transform .4s var(--ease); }
+.riga:hover, .riga:focus-visible { background:rgba(255,215,0,.05); }
+.riga:hover::before, .riga:focus-visible::before { transform:scaleY(1); }
+.cella { overflow:hidden; }
+.c-stato { color:var(--green); }
+.riga.nuovo .c-stato { color:var(--gold-light); }
+.muro-piede { display:flex; align-items:center; justify-content:space-between; gap:12px;
+  flex-wrap:wrap; padding:13px clamp(12px,2vw,26px); border-top:1px solid var(--line-0);
+  font-size:clamp(9px,.95vw,11px); letter-spacing:.1em; text-transform:uppercase;
+  color:var(--text-4); }
+.muro-piede b { color:var(--gold); font-weight:600; }
+@media (max-width:880px){
+  .colonne, .riga, .riga-ferma {
+    grid-template-columns:clamp(54px,14vw,68px) minmax(0,1fr) clamp(80px,21vw,96px);
+    gap:10px; }
+  .colonne span:nth-child(3), .riga .c-tipo, .riga-ferma span:nth-child(3),
+  .colonne span:nth-child(5), .riga .c-stato, .riga-ferma span:nth-child(5) { display:none; }
+}
+
+/* la barra dei filtri */
+.fbar { position:sticky; top:57px; z-index:60; background:rgba(3,3,3,.92);
+  backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--line-0); padding:12px 0; }
+.fbar-in { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.f-sel { display:inline-flex; align-items:center; gap:8px; padding:10px 13px;
+  font-size:12.5px; color:var(--text-2); box-shadow:inset 0 0 0 1px var(--line);
+  background:var(--black); cursor:pointer; }
+.f-sel select { background:var(--black); color:inherit; border:0; outline:none;
+  font:inherit; cursor:pointer; }
+.f-tog { display:inline-flex; align-items:center; gap:8px; padding:10px 13px;
+  font-size:12.5px; color:var(--text-3); box-shadow:inset 0 0 0 1px var(--line);
+  cursor:pointer; transition:color .25s, box-shadow .25s; }
+.f-tog.su { color:var(--gold-light); box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.f-conta { margin-left:auto; font-size:13px; color:var(--text-3); }
+.f-conta b { color:var(--text); font-weight:600; }
+.f-salva { padding:10px 16px; font-size:11.5px; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; background:var(--gold); color:var(--black); cursor:pointer; }
+
+/* la griglia (le carte de LA HOME) */
+.griglia-case { padding:clamp(30px,4vw,54px) 0 clamp(56px,7vw,96px); }
+.homes { display:grid; grid-template-columns:1fr; gap:clamp(16px,2vw,24px); }
+@media (min-width:680px){ .homes { grid-template-columns:repeat(2,1fr); } }
+@media (min-width:1080px){ .homes { grid-template-columns:repeat(3,1fr); } }
+.vuoto { padding:60px 0; text-align:center; color:var(--text-3); display:none; }
+.vuoto a { color:var(--gold); }
+
+/* lo Skyline: le case vere alle coordinate vere */
+.sky { display:none; position:relative; margin-top:0; background:var(--black);
+  box-shadow:inset 0 0 0 1px var(--line-gold); }
+.sky.acceso { display:block; }
+.sky canvas { display:block; width:100%; height:clamp(360px,52svh,520px); }
+.sky-eti { position:absolute; left:14px; top:12px; font-size:10px; font-weight:600;
+  letter-spacing:.18em; text-transform:uppercase; color:var(--text-4); }
+.sky-tip { position:absolute; z-index:5; padding:10px 13px; background:rgba(3,3,3,.94);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); pointer-events:none; opacity:0;
+  transition:opacity .2s ease; max-width:240px; }
+.sky-tip b { display:block; font-family:var(--display); font-size:14px; font-weight:500; }
+.sky-tip span { display:block; font-size:11.5px; color:var(--text-3); margin-top:2px; }
+.sky-tip .pr { color:var(--gold-light); font-weight:600; }
+/* il cuore sulle carte */
+.home-cuore { position:absolute; right:10px; top:10px; z-index:3; width:34px;
+  height:34px; display:grid; place-items:center; border-radius:50%;
+  background:rgba(3,3,3,.72); backdrop-filter:blur(6px); color:var(--text-3);
+  cursor:pointer; border:0; font-size:15px;
+  transition:color .25s ease, transform .25s var(--ease); }
+.home-cuore:hover { transform:scale(1.12); }
+.home-cuore.si { color:var(--gold); }
+/* la vita del quartiere sulla carta e sotto i filtri */
+.home-vita { margin-top:7px; font-size:12.5px; font-style:italic; color:var(--text-4); }
+.vita-strip { display:none; padding:10px 0 0; font-size:13.5px; font-style:italic;
+  color:var(--gold-light); }
+.vita-strip.acceso { display:block; }
+.vita-strip b { font-style:normal; font-weight:600; color:var(--gold); }
+
+/* la lastra del salva-ricerca: il servizio vero, spiegato onesto */
+.salva-ov { position:fixed; inset:0; z-index:300; display:grid; place-items:center;
+  padding:18px; background:rgba(3,3,3,.8); backdrop-filter:blur(10px);
+  opacity:0; visibility:hidden; transition:opacity .25s ease, visibility .25s; }
+.salva-ov.aperto { opacity:1; visibility:visible; }
+.salva-box { width:min(560px,100%); background:var(--surface);
+  box-shadow:inset 0 0 0 1px var(--line-gold), 0 50px 100px -40px rgba(0,0,0,1);
+  padding:clamp(24px,3vw,36px); }
+.salva-box h3 { font-size:22px; font-weight:400; }
+.salva-box .hl { color:var(--gold); }
+.salva-come { margin-top:14px; display:grid; gap:9px; }
+.salva-box .pf-voce { font-size:13.5px; }
+.salva-campi { margin-top:18px; display:grid; gap:10px; }
+.salva-campi input { padding:13px 14px; background:var(--black); color:var(--text);
+  box-shadow:inset 0 0 0 1px var(--line); font-size:14px; outline:none; }
+.salva-campi input:focus { box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.salva-azioni { margin-top:16px; display:flex; gap:10px; align-items:center;
+  flex-wrap:wrap; }
+.salva-nota { font-size:11.5px; color:var(--text-4); }
+</style>
+
+<a class="salta" href="#griglia">Skip to the homes</a>
+<div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
+<div class="tech-bg" aria-hidden="true"><span class="tech-orb tech-orb-1"></span><span class="tech-orb tech-orb-2"></span><span class="tech-orb tech-orb-3"></span></div>
+
+<nav class="nav" id="nav">
+  <div class="container nav-inner">
+    <a class="marchio" href="/" aria-label="BOOM, home">LOGO_SVG<span>Boom</span></a>
+    <div class="menu">
+      <a href="/apartments.html">Apartments</a>
+      <a href="/property-finding.html">Property Finding</a>
+      <a href="/deal-assistance.html">Deal Assistance</a>
+      <a href="/virtual-viewing.html">Virtual Viewing</a>
+      <a href="/about.html">About</a>
+      <a class="btn btn-primary" href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a>
+    </div>
+    <button class="apri" id="apri" type="button" aria-label="Open menu"
+      aria-expanded="false" aria-controls="tenda"><i></i><i></i><i></i></button>
+  </div>
+</nav>
+<div class="tenda" id="tenda">
+  <a href="/apartments.html">Apartments</a>
+  <a href="/property-finding.html">Property Finding</a>
+  <a href="/deal-assistance.html">Deal Assistance</a>
+  <a href="/virtual-viewing.html">Virtual Viewing</a>
+  <a href="/about.html">About</a>
+  <a class="btn btn-primary" href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a>
+</div>
+
+<!-- ══ L'ARRIVO — il loro annuncio, asciutto ═════════════════════════════ -->
+<header class="ap-hero">
+  <div class="hero-grid" aria-hidden="true"></div>
+  <div class="container">
+    <div class="hero-eyebrow"><b></b>BOOM · Verified homes in Rome</div>
+    <h1 class="titolo">Find your home in Rome,<br><span class="hl">for your dates.</span></h1>
+    <p class="sotto">Every home filmed and verified in person. Every price
+      computed to the euro. Tell us your dates — we rank the city by how well
+      it fits your life.</p>
+    <div class="ap-trust">
+      <span><i>✓</i> English-speaking team</span>
+      <span><i>✓</i> Registered Italian agency</span>
+      <span><i>✓</i> Stripe-secured payments</span>
+      <span><i>★</i> 4.9 on Google · 47 reviews</span>
+    </div>
+    <div class="zone" id="zone" aria-label="Filter by neighbourhood"></div>
+  </div>
+</header>
+
+<!-- ══ IL MURO — libere adesso, dal catalogo ═════════════════════════════ -->
+<section class="muro" id="muro" aria-label="Homes free right now">
+  <div class="muro-in">
+    <div class="muro-cima">
+      <span class="muro-eti"><i></i>Free right now</span>
+      <span id="muroOra" class="flap-scale" aria-label="Rome time"></span>
+    </div>
+    <div class="muro-quadro">
+      <div class="colonne" aria-hidden="true">
+        <span>Free</span><span>District</span><span>Beds</span><span>Rent</span><span>State</span>
+      </div>
+      <div id="righe"></div>
+      <noscript>RIGHE_STATICHE</noscript>
+      <div class="muro-piede">
+        <span><b id="muroTot">—</b> homes in catalogue · 100% filmed in person</span>
+        <span>Click a line to open it</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ I FILTRI + LA GRIGLIA ═════════════════════════════════════════════ -->
+<div class="fbar" id="fbar">
+  <div class="container fbar-in">
+    <label class="f-sel">Max budget
+      <select id="fBudget">
+        <option value="">Any</option>
+        <option value="1000">€1,000</option>
+        <option value="1500">€1,500</option>
+        <option value="2000">€2,000</option>
+        <option value="2500">€2,500</option>
+        <option value="3000">€3,000</option>
+      </select>
+    </label>
+    <label class="f-sel">Bedrooms
+      <select id="fBeds">
+        <option value="">Any</option>
+        <option value="1">1+</option>
+        <option value="2">2+</option>
+        <option value="3">3+</option>
+      </select>
+    </label>
+    <button class="f-tog" id="fVideo" type="button" aria-pressed="false">▶ Video tour</button>
+    <label class="f-sel">Move-in
+      <select id="fData">
+        <option value="">Any date</option>
+        <option value="now">Now</option>
+        <option value="2026-09-01">By 1 Sep</option>
+        <option value="2026-10-01">By 1 Oct</option>
+      </select>
+    </label>
+    <label class="f-sel">Sort
+      <select id="fSort">
+        <option value="">Recommended</option>
+        <option value="su">Price ↑</option>
+        <option value="giu">Price ↓</option>
+        <option value="nuove">Newest</option>
+      </select>
+    </label>
+    <button class="f-tog" id="fSalvati" type="button" aria-pressed="false">♥ Saved <b id="nSalvate"></b></button>
+    <button class="f-tog" id="fVista" type="button" aria-pressed="false">◉ Skyline</button>
+    <span class="f-conta"><b id="conta">—</b> homes</span>
+    <button class="f-salva" id="apriSalva" type="button">☆ Save search</button>
+  </div>
+</div>
+
+<section class="griglia-case" id="griglia">
+  <div class="container">
+    <p class="vita-strip" id="vitaStrip"></p>
+    <div class="sky" id="sky" aria-label="Homes on the Rome skyline">
+      <canvas id="skyCanvas"></canvas>
+      <span class="sky-eti">Rome · real coordinates</span>
+      <div class="sky-tip" id="skyTip"></div>
+    </div>
+    <div class="homes" id="homes"></div>
+    <div class="vuoto" id="vuoto">No exact match. Try widening the budget —
+      or <a href="/property-finding.html">let us find it for you →</a></div>
+  </div>
+</section>
+
+<!-- ══ NON LA VEDI? — verbatim dal fondo della pagina live ═══════════════ -->
+<section class="section section-dark">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>More than a portal</span>
+      <h2 class="titolo">Not seeing the one?<br><span class="hl">We'll find it.</span></h2>
+      <p class="sotto">We're an agency with a tech engine. Tell us your dates and
+        budget and we hunt, verify and bring you the right home.</p>
+    </div>
+    <div class="org3 sale coro">
+      <a class="org" href="/property-finding.html">
+        <span class="svc-icona"><svg viewBox="0 0 40 40"><circle cx="18" cy="18" r="9.5"/><path d="M25 25l8 8"/><path d="M18 13.5v9M13.5 18h9"/></svg></span>
+        <h3>Property Finding</h3>
+        <p>We search, verify and negotiate for your exact brief.</p>
+        <b>Start a search →</b>
+      </a>
+      <a class="org" href="/virtual-viewing.html">
+        <span class="svc-icona"><svg viewBox="0 0 40 40"><rect x="6" y="12" width="19" height="16" rx="1.5"/><path d="M25 18l9-5v14l-9-5"/></svg></span>
+        <h3>Virtual Viewing</h3>
+        <p>Found a place on another portal? We walk it for you, live on video —
+          €89. BOOM homes? Always free.</p>
+        <b>How it works →</b>
+      </a>
+      <a class="org" href="/deal-assistance.html">
+        <span class="svc-icona"><svg viewBox="0 0 40 40"><path d="M20 6l12 5v9c0 7-5 12-12 14-7-2-12-7-12-14v-9z"/><path d="M14.5 20l4 4 7-8"/></svg></span>
+        <h3>Deal Assistance</h3>
+        <p>Found one elsewhere? We verify the contract for you.</p>
+        <b>Get protected →</b>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ══ SALVA RICERCA — il servizio vero, spiegato onesto ═════════════════ -->
+<div class="salva-ov" id="salvaOv" role="dialog" aria-modal="true" aria-label="Save search">
+  <div class="salva-box quadro"><span class="tacca"></span>
+    <h3>Save this search. <span class="hl">Rome reports to you.</span></h3>
+    <div class="salva-come">
+      <div class="pf-voce vista"><i></i>Checked against new listings three times a day</div>
+      <div class="pf-voce vista"><i></i>You only hear about homes that appear <b>after</b> saving</div>
+      <div class="pf-voce vista"><i></i>A digest of six homes max — never spam</div>
+      <div class="pf-voce vista"><i></i>One-click unsubscribe in every email</div>
+    </div>
+    <div class="salva-campi">
+      <input type="text" id="sLabel" placeholder="Name this search (optional)">
+      <input type="email" id="sEmail" placeholder="Your email">
+    </div>
+    <div class="salva-azioni">
+      <button class="btn btn-primary" id="salvaVai" type="button">Save search</button>
+      <button class="btn btn-secondary" id="salvaChiudi" type="button">Close</button>
+      <span class="salva-nota" id="salvaNota">Design preview — on the live site
+        this saves to your alert engine.</span>
+    </div>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-fondo" style="margin-top:0;border-top:0;padding-top:0">
+      <span>© 2026 BOOM — All Rights Reserved · Egidi Immobiliare S.r.l. ·
+        P.IVA 17322991005</span>
+      <span class="op"><i></i>Operational</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+  var R = document.documentElement;
+  var ridotto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var BS = window.BoomSolari;
+  var DRUM = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789€.,:·+/';
+  R.classList.add('vivo');
+
+  var CASE = 'CASE_JSON';
+  /* la porta della pagina annuncio: il link cambia per anteprima/v2,
+     la chiave dei cuori (c.url) resta /listing/<id> su tutte le pagine */
+  var CASA_BASE = 'CASA_BASE';
+  function vaiCasa(u) {
+    return CASA_BASE ? CASA_BASE + '#id=' + u.split('/').pop() : u;
+  }
+  var ZONE = 'ZONE_JSON';
+  var OGGI = 'OGGI_ISO';
+  var VITA = {};
+  CASE.tutte.forEach(function (c) { if (c.vita) VITA[c.zonaPiena.split('/')[0].trim()] = c.vita; });
+
+  /* nav + filo */
+  (function () {
+    var nav = document.getElementById('nav');
+    var filo = document.getElementById('scrollProgress');
+    var atteso = false;
+    function guarda() {
+      atteso = false;
+      var h = document.scrollingElement || document.documentElement;
+      if (nav) nav.classList.toggle('scrolled', h.scrollTop > 24);
+      if (filo) {
+        var tot = h.scrollHeight - innerHeight;
+        filo.style.transform = 'scaleX(' + (tot > 0 ? h.scrollTop / tot : 0) + ')';
+      }
+    }
+    addEventListener('scroll', function () {
+      if (!atteso) { atteso = true; requestAnimationFrame(guarda); }
+    }, { passive: true });
+    guarda();
+  })();
+
+  /* tenda */
+  (function () {
+    var apri = document.getElementById('apri');
+    var tenda = document.getElementById('tenda');
+    if (!apri || !tenda) return;
+    function chiudi() {
+      R.classList.remove('aperto');
+      apri.setAttribute('aria-expanded', 'false');
+      document.body.style.overflow = '';
+    }
+    apri.addEventListener('click', function () {
+      var ap = !R.classList.contains('aperto');
+      R.classList.toggle('aperto', ap);
+      apri.setAttribute('aria-expanded', ap ? 'true' : 'false');
+      document.body.style.overflow = ap ? 'hidden' : '';
+    });
+    [].forEach.call(tenda.querySelectorAll('a'), function (a) { a.addEventListener('click', chiudi); });
+    addEventListener('keydown', function (e) { if (e.key === 'Escape') chiudi(); });
+  })();
+
+  /* entrate */
+  (function () {
+    var voci = [].slice.call(document.querySelectorAll('.sale'));
+    if (ridotto || !('IntersectionObserver' in window)) {
+      voci.forEach(function (v) { v.classList.add('dentro'); }); return;
+    }
+    var occhio = new IntersectionObserver(function (righe) {
+      righe.forEach(function (r, i) {
+        if (!r.isIntersecting) return;
+        var el = r.target; occhio.unobserve(el);
+        setTimeout(function () { el.classList.add('dentro'); }, i * 70);
+      });
+    }, { rootMargin: '0px 0px -10% 0px', threshold: .06 });
+    voci.forEach(function (v) { occhio.observe(v); });
+    setTimeout(function () { voci.forEach(function (v) { v.classList.add('dentro'); }); }, 4500);
+  })();
+
+  function oraRoma() {
+    try {
+      return new Intl.DateTimeFormat('en-GB', { timeZone:'Europe/Rome',
+        hour:'2-digit', minute:'2-digit', hour12:false }).format(new Date());
+    } catch (e) { return new Date().toTimeString().slice(0, 5); }
+  }
+
+  /* ══ IL MURO ═════════════════════════════════════════════════════════ */
+  var box = document.getElementById('righe');
+  var tot = document.getElementById('muroTot');
+  if (tot) tot.textContent = String(CASE.totale);
+  var righe = [];
+  if (box && BS) CASE.muro.forEach(function (h) {
+    var a = document.createElement('a');
+    a.className = 'riga' + (h.stato === 'NEW' ? ' nuovo' : '');
+    a.href = vaiCasa(h.url);
+    a.setAttribute('aria-label', h.nome + ', ' + h.zona + ', ' + h.tipo +
+      ', ' + h.prezzo + ' per month');
+    a.innerHTML = '<span aria-hidden="true" class="cella c-ora flap-scale"></span>' +
+      '<span aria-hidden="true" class="cella c-zona flap-scale"></span>' +
+      '<span aria-hidden="true" class="cella c-tipo flap-scale"></span>' +
+      '<span aria-hidden="true" class="cella c-prezzo flap-scale"></span>' +
+      '<span aria-hidden="true" class="cella c-stato flap-scale"></span>';
+    box.appendChild(a);
+    righe.push({ casa:h, celle:{
+      ora:   new BS.Board(a.querySelector('.c-ora'),    5,  DRUM),
+      zona:  new BS.Board(a.querySelector('.c-zona'),   13, DRUM),
+      tipo:  new BS.Board(a.querySelector('.c-tipo'),   3,  DRUM),
+      prezzo:new BS.Board(a.querySelector('.c-prezzo'), 6,  DRUM),
+      stato: new BS.Board(a.querySelector('.c-stato'),  5,  DRUM)
+    }});
+  });
+  (function () {
+    if (!righe.length) return;
+    var stampato = false;
+    function stampa(sbatti) {
+      if (stampato) return; stampato = true;
+      righe.forEach(function (r, i) {
+        var h = r.casa;
+        setTimeout(function () {
+          r.celle.ora.show(h.ora, 24, sbatti);
+          r.celle.zona.show(h.zona, 18, sbatti);
+          r.celle.tipo.show(h.tipo, 24, sbatti);
+          r.celle.prezzo.show(h.prezzo, 22, sbatti);
+          r.celle.stato.show(h.stato, 22, sbatti);
+        }, sbatti ? 140 + i * 120 : 0);
+      });
+    }
+    if (ridotto || !('IntersectionObserver' in window)) { stampa(false); return; }
+    new IntersectionObserver(function (r, io) {
+      if (!r[0].isIntersecting) return;
+      io.disconnect(); stampa(true);
+    }, { threshold: .15 }).observe(box);
+    setTimeout(function rete() {
+      if (stampato) return;
+      var r = box.getBoundingClientRect();
+      var visto = Math.min(r.bottom, innerHeight) - Math.max(r.top, 0);
+      if (r.height > 0 && visto / r.height >= 0.15) stampa(false);
+      else setTimeout(rete, 3000);
+    }, 6000);
+  })();
+  (function () {
+    var host = document.getElementById('muroOra');
+    if (!host || !BS) return;
+    var b = new BS.Board(host, 5, ' 0123456789:');
+    b.show(oraRoma());
+    if (ridotto) return;
+    setInterval(function () { if (!document.hidden) b.update(oraRoma()); }, 20000);
+  })();
+
+  /* ══ FILTRI + GRIGLIA ════════════════════════════════════════════════ */
+  var stato = { budget:'', beds:'', video:false, zona:'', data:'', sort:'',
+    salvati:false, vista:'lista' };
+  var salvate;
+  try { salvate = new Set(JSON.parse(localStorage.getItem('boomSalvate') || '[]')); }
+  catch (e) { salvate = new Set(); }
+  function tieni() {
+    try { localStorage.setItem('boomSalvate', JSON.stringify(Array.from(salvate))); }
+    catch (e) {}
+    var n = document.getElementById('nSalvate');
+    if (n) n.textContent = salvate.size ? String(salvate.size) : '';
+  }
+  var homes = document.getElementById('homes');
+  var conta = document.getElementById('conta');
+  var vuoto = document.getElementById('vuoto');
+  var zone = document.getElementById('zone');
+
+  /* l'ancora dalla home: #zona=Trastevere pre-seleziona il quartiere */
+  var arrivo = '';
+  try {
+    var m = decodeURIComponent(location.hash).match(/zona=([^&]+)/);
+    if (m) arrivo = m[1];
+  } catch (e) {}
+  if (zone) ZONE.forEach(function (z) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'zona-chip'; b.textContent = z;
+    b.addEventListener('click', function () {
+      stato.zona = stato.zona === z ? '' : z;
+      [].forEach.call(zone.children, function (x) {
+        x.classList.toggle('su', x.textContent === stato.zona);
+      });
+      disegna();
+    });
+    zone.appendChild(b);
+    if (arrivo && z.toLowerCase() === arrivo.toLowerCase()) {
+      stato.zona = z; b.classList.add('su');
+    }
+  });
+
+  function passa(c) {
+    if (stato.budget && c.prezzoN > +stato.budget) return false;
+    if (stato.beds && (c.letti == null || c.letti < +stato.beds)) return false;
+    if (stato.video && !c.video) return false;
+    if (stato.zona && c.zonaPiena.toLowerCase().indexOf(stato.zona.toLowerCase()) < 0)
+      return false;
+    if (stato.salvati && !salvate.has(c.url)) return false;
+    if (stato.data === 'now' && c.lib > OGGI) return false;
+    if (stato.data && stato.data !== 'now' && c.lib > stato.data) return false;
+    return true;
+  }
+  function ordina(vs) {
+    var v = vs.slice();
+    if (stato.sort === 'su') v.sort(function (a, b) { return a.prezzoN - b.prezzoN; });
+    if (stato.sort === 'giu') v.sort(function (a, b) { return b.prezzoN - a.prezzoN; });
+    if (stato.sort === 'nuove') v.sort(function (a, b) { return b.ts - a.ts; });
+    return v;
+  }
+  function carta(c) {
+    return '<a class="home" href="' + vaiCasa(c.url) + '">' +
+      '<div class="home-foto"><img loading="lazy" decoding="async" src="' + c.foto +
+      '" alt="' + c.nome + ', ' + c.zonaPiena + ' — apartment for rent in Rome">' +
+      (c.tag ? '<span class="home-tag">' + c.tag + '</span>' : '') +
+      '<span class="home-prezzo"><span style="font-family:var(--display);font-size:17px;font-weight:500">' +
+      c.prezzo + '</span><small>/month</small></span></div>' +
+      '<button type="button" class="home-cuore' + (salvate.has(c.url) ? ' si' : '') +
+      '" data-u="' + c.url + '" aria-label="Save this home">♥</button>' +
+      '<div class="home-corpo"><div class="home-nome">' + c.nome + '</div>' +
+      '<div class="home-dati">' + c.dati + '</div>' +
+      (c.vita ? '<div class="home-vita">' + c.vita + '</div>' : '') +
+      '<div class="home-vai">View Details →</div></div></a>';
+  }
+  function disegna() {
+    var viste = ordina(CASE.tutte.filter(passa));
+    homes.innerHTML = viste.map(carta).join('');
+    if (conta) conta.textContent = String(viste.length);
+    if (vuoto) vuoto.style.display = viste.length ? 'none' : 'block';
+    var strip = document.getElementById('vitaStrip');
+    if (strip) {
+      var v = stato.zona && VITA[stato.zona];
+      strip.classList.toggle('acceso', !!v);
+      if (v) strip.innerHTML = '<b>' + stato.zona + '</b> — ' + v;
+    }
+    if (stato.vista === 'sky' && window.cielo) window.cielo(viste);
+  }
+  /* il cuore: si salva senza aprire la scheda */
+  homes.addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('.home-cuore') : null;
+    if (!b) return;
+    e.preventDefault(); e.stopPropagation();
+    var u = b.dataset.u;
+    if (salvate.has(u)) salvate.delete(u); else salvate.add(u);
+    b.classList.toggle('si', salvate.has(u));
+    tieni();
+    if (stato.salvati) disegna();
+  });
+  var fB = document.getElementById('fBudget');
+  var fL = document.getElementById('fBeds');
+  var fV = document.getElementById('fVideo');
+  var fD = document.getElementById('fData');
+  var fS = document.getElementById('fSort');
+  var fSa = document.getElementById('fSalvati');
+  var fVi = document.getElementById('fVista');
+  if (fB) fB.addEventListener('change', function () { stato.budget = fB.value; disegna(); });
+  if (fL) fL.addEventListener('change', function () { stato.beds = fL.value; disegna(); });
+  if (fV) fV.addEventListener('click', function () {
+    stato.video = !stato.video;
+    fV.classList.toggle('su', stato.video);
+    fV.setAttribute('aria-pressed', stato.video ? 'true' : 'false');
+    disegna();
+  });
+  if (fD) fD.addEventListener('change', function () { stato.data = fD.value; disegna(); });
+  if (fS) fS.addEventListener('change', function () { stato.sort = fS.value; disegna(); });
+  if (fSa) fSa.addEventListener('click', function () {
+    stato.salvati = !stato.salvati;
+    fSa.classList.toggle('su', stato.salvati);
+    fSa.setAttribute('aria-pressed', stato.salvati ? 'true' : 'false');
+    disegna();
+  });
+  tieni();
+  disegna();
+
+  /* ══ LO SKYLINE — le case vere alle coordinate vere ══════════════════
+     Niente mappa disegnata: proiezione auto-adattata dei punti del
+     catalogo. Il passaggio del mouse mostra la casa; il clic la apre. */
+  (function () {
+    var sky = document.getElementById('sky');
+    var tela = document.getElementById('skyCanvas');
+    var tip = document.getElementById('skyTip');
+    if (!sky || !tela || !fVi) return;
+    var ctx = tela.getContext('2d');
+    var punti = [], mira = -1, correnti = [];
+
+    function misura() {
+      var r = sky.getBoundingClientRect();
+      var dpr = Math.min(2, devicePixelRatio || 1);
+      tela.width = r.width * dpr; tela.height = tela.clientHeight * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { w: r.width, h: tela.clientHeight };
+    }
+    function proietta(viste) {
+      var con = viste.filter(function (c) { return c.la && c.lo; });
+      if (!con.length) return [];
+      var d = misura();
+      var la0 = Infinity, la1 = -Infinity, lo0 = Infinity, lo1 = -Infinity;
+      con.forEach(function (c) {
+        la0 = Math.min(la0, c.la); la1 = Math.max(la1, c.la);
+        lo0 = Math.min(lo0, c.lo); lo1 = Math.max(lo1, c.lo);
+      });
+      var mx = 70, my = 56;
+      var sx = (d.w - mx * 2) / Math.max(.0001, lo1 - lo0);
+      var sy = (d.h - my * 2) / Math.max(.0001, la1 - la0);
+      return con.map(function (c) {
+        return { c: c,
+          x: mx + (c.lo - lo0) * sx,
+          y: d.h - my - (c.la - la0) * sy };
+      });
+    }
+    function dipingi() {
+      var d = { w: tela.clientWidth, h: tela.clientHeight };
+      ctx.clearRect(0, 0, d.w, d.h);
+      /* il reticolo, come una carta tecnica */
+      ctx.strokeStyle = 'rgba(255,255,255,.035)'; ctx.lineWidth = 1;
+      for (var x = 0; x < d.w; x += 64) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, d.h); ctx.stroke();
+      }
+      for (var y = 0; y < d.h; y += 64) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(d.w, y); ctx.stroke();
+      }
+      punti.forEach(function (p, i) {
+        var scelto = i === mira;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, scelto ? 7 : 5, 0, Math.PI * 2);
+        ctx.fillStyle = scelto ? '#FFE55C' : '#FFD700';
+        ctx.shadowColor = 'rgba(255,215,0,.6)';
+        ctx.shadowBlur = scelto ? 22 : 10;
+        ctx.fill(); ctx.shadowBlur = 0;
+        ctx.fillStyle = scelto ? 'rgba(250,250,250,.95)' : 'rgba(250,250,250,.4)';
+        ctx.font = '10px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(p.c.prezzo, p.x, p.y - 12);
+      });
+    }
+    function cielo(viste) {
+      correnti = viste; punti = proietta(viste); mira = -1; dipingi();
+    }
+    window.cielo = cielo;
+    function vicino(ev) {
+      var r = tela.getBoundingClientRect();
+      var x = ev.clientX - r.left, y = ev.clientY - r.top;
+      var k = -1, dmin = 20 * 20;
+      punti.forEach(function (p, i) {
+        var dx = p.x - x, dy = p.y - y, dd = dx * dx + dy * dy;
+        if (dd < dmin) { dmin = dd; k = i; }
+      });
+      return k;
+    }
+    tela.addEventListener('pointermove', function (ev) {
+      var k = vicino(ev);
+      if (k === mira) return;
+      mira = k; dipingi();
+      tela.style.cursor = k >= 0 ? 'pointer' : 'default';
+      if (k >= 0) {
+        var p = punti[k];
+        tip.innerHTML = '<b>' + p.c.nome + '</b><span>' + p.c.zonaPiena +
+          ' · <span class="pr">' + p.c.prezzo + '/mo</span></span>' +
+          (p.c.vita ? '<span>' + p.c.vita + '</span>' : '');
+        tip.style.left = Math.min(tela.clientWidth - 250, Math.max(8, p.x + 14)) + 'px';
+        tip.style.top = Math.max(8, p.y - 14) + 'px';
+        tip.style.opacity = 1;
+      } else tip.style.opacity = 0;
+    });
+    tela.addEventListener('pointerleave', function () {
+      mira = -1; dipingi(); tip.style.opacity = 0;
+    });
+    tela.addEventListener('click', function (ev) {
+      var k = vicino(ev);
+      if (k >= 0) location.href = vaiCasa(punti[k].c.url);
+    });
+    fVi.addEventListener('click', function () {
+      var su = stato.vista !== 'sky';
+      stato.vista = su ? 'sky' : 'lista';
+      fVi.classList.toggle('su', su);
+      fVi.setAttribute('aria-pressed', su ? 'true' : 'false');
+      sky.classList.toggle('acceso', su);
+      homes.style.display = su ? 'none' : '';
+      if (su) cielo(ordina(CASE.tutte.filter(passa)));
+    });
+    addEventListener('resize', function () {
+      if (stato.vista === 'sky') cielo(correnti);
+    });
+  })();
+
+  /* ══ SALVA RICERCA ═══════════════════════════════════════════════════ */
+  (function () {
+    var ov = document.getElementById('salvaOv');
+    var apri = document.getElementById('apriSalva');
+    var chiudiB = document.getElementById('salvaChiudi');
+    var vai = document.getElementById('salvaVai');
+    var nota = document.getElementById('salvaNota');
+    if (!ov || !apri) return;
+    var torna = null;
+    function su() {
+      torna = document.activeElement;
+      ov.classList.add('aperto'); document.body.style.overflow = 'hidden';
+      setTimeout(function () { document.getElementById('sEmail').focus(); }, 60);
+    }
+    function giu() {
+      ov.classList.remove('aperto'); document.body.style.overflow = '';
+      if (torna && torna.focus) torna.focus();
+    }
+    apri.addEventListener('click', su);
+    chiudiB.addEventListener('click', giu);
+    ov.addEventListener('click', function (e) { if (e.target === ov) giu(); });
+    addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && ov.classList.contains('aperto')) giu();
+    });
+    vai.addEventListener('click', function () {
+      var email = document.getElementById('sEmail').value.trim();
+      if (!/.+@.+\..+/.test(email)) {
+        nota.textContent = 'Enter a valid email to save the search.';
+        return;
+      }
+      /* anteprima: sul sito vivo questo POST va a /api/search/save */
+      nota.textContent = 'Saved (preview) — on the live site this reaches ' +
+        'the alert engine at /api/search/save.';
+    });
+  })();
+})();
+</script>

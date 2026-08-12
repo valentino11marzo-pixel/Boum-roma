@@ -1,0 +1,236 @@
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   BOOM · GLI ORGANI CONDIVISI — il design system in movimento.
+
+   Una fonte sola per tutte le pagine Déco: testata + filo del progresso,
+   bagliore del mouse, tenda del telefono, entrate, contatori, canoni sui
+   Solari, cuori (boomSalvate) e zone-link. Ogni blocco è guardato: se la
+   pagina non ha quell'organo, il blocco non fa nulla.
+   ══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  var R = document.documentElement;
+  var ridotto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var fine = matchMedia('(hover:hover) and (pointer:fine)').matches;
+  var BS = window.BoomSolari;
+  R.classList.add('vivo');
+
+  /* ── il marchio del piede: clonato dalla testata, una fonte sola ─────── */
+  (function () {
+    var vero = document.querySelector('.nav .logo-mark');
+    var slot = document.getElementById('logoPiede');
+    if (!vero || !slot) return;
+    var c = vero.cloneNode(true);
+    c.removeAttribute('class'); c.setAttribute('aria-hidden', 'true');
+    slot.replaceWith(c);
+  })();
+
+  /* ── testata + filo del progresso: un solo ascoltatore ───────────────── */
+  (function () {
+    var nav = document.getElementById('nav');
+    var filo = document.getElementById('scrollProgress');
+    var atteso = false;
+    var orbi = [].slice.call(document.querySelectorAll('.tech-orb'));
+    var bagliori = [].slice.call(document.querySelectorAll('.hero-glow'));
+    var PASSI = [-.045, .03, -.02];
+    function guarda() {
+      atteso = false;
+      var h = document.scrollingElement || document.documentElement;
+      if (nav) nav.classList.toggle('scrolled', h.scrollTop > 24);
+      if (filo) {
+        var tot = h.scrollHeight - innerHeight;
+        filo.style.transform = 'scaleX(' + (tot > 0 ? h.scrollTop / tot : 0) + ')';
+      }
+      /* la profondita': ogni strato scivola a un passo suo */
+      if (!ridotto) {
+        var y = h.scrollTop;
+        orbi.forEach(function (el, i) {
+          el.style.translate = '0 ' + (y * PASSI[i % 3]).toFixed(1) + 'px';
+        });
+        bagliori.forEach(function (el, i) {
+          el.style.translate = '0 ' + (y * (i ? .06 : -.08)).toFixed(1) + 'px';
+        });
+      }
+    }
+    addEventListener('scroll', function () {
+      if (!atteso) { atteso = true; requestAnimationFrame(guarda); }
+    }, { passive: true });
+    guarda();
+  })();
+
+  /* ── il bagliore del mouse (come sul live, solo su puntatore fine) ───── */
+  (function () {
+    var glow = document.getElementById('mouseGlow');
+    if (!glow || !fine || ridotto) return;
+    var t;
+    document.addEventListener('mousemove', function (e) {
+      glow.style.left = e.clientX + 'px';
+      glow.style.top = e.clientY + 'px';
+      glow.classList.add('active');
+      clearTimeout(t);
+      t = setTimeout(function () { glow.classList.remove('active'); }, 1500);
+    }, { passive: true });
+    document.addEventListener('mouseleave', function () { glow.classList.remove('active'); });
+  })();
+
+  /* ── la tenda del telefono ───────────────────────────────────────────── */
+  (function () {
+    var apri = document.getElementById('apri');
+    var tenda = document.getElementById('tenda');
+    if (!apri || !tenda) return;
+    function chiudi() {
+      R.classList.remove('aperto');
+      apri.setAttribute('aria-expanded', 'false');
+      apri.setAttribute('aria-label', 'Open menu');
+      document.body.style.overflow = '';
+    }
+    apri.addEventListener('click', function () {
+      var ap = !R.classList.contains('aperto');
+      R.classList.toggle('aperto', ap);
+      apri.setAttribute('aria-expanded', ap ? 'true' : 'false');
+      apri.setAttribute('aria-label', ap ? 'Close menu' : 'Open menu');
+      document.body.style.overflow = ap ? 'hidden' : '';
+    });
+    [].forEach.call(tenda.querySelectorAll('a'), function (a) { a.addEventListener('click', chiudi); });
+    addEventListener('keydown', function (e) { if (e.key === 'Escape') chiudi(); });
+  })();
+
+  /* ── le entrate: una volta sola, con rete di sicurezza ───────────────── */
+  (function () {
+    var voci = [].slice.call(document.querySelectorAll('.sale, .coro'));
+    /* cio' che nasce in vista entra subito, con la sua cascata */
+    voci = voci.filter(function (v) {
+      if (!v.classList.contains('dentro-subito')) return true;
+      setTimeout(function () { v.classList.add('dentro'); }, 250);
+      return false;
+    });
+    if (ridotto || !('IntersectionObserver' in window)) {
+      voci.forEach(function (v) { v.classList.add('dentro'); }); return;
+    }
+    var occhio = new IntersectionObserver(function (righe) {
+      righe.forEach(function (r, i) {
+        if (!r.isIntersecting) return;
+        var el = r.target; occhio.unobserve(el);
+        setTimeout(function () { el.classList.add('dentro'); }, i * 70);
+      });
+    }, { rootMargin: '0px 0px -10% 0px', threshold: .06 });
+    voci.forEach(function (v) { occhio.observe(v); });
+    setTimeout(function () { voci.forEach(function (v) { v.classList.add('dentro'); }); }, 4500);
+  })();
+
+  /* ── i contatori: i numeri del sito, che salgono davanti a chi legge ─── */
+  function conta(el) {
+    var fine_ = +el.dataset.fine, suff = el.dataset.suff || '';
+    if (ridotto) { el.textContent = fine_ + suff; return; }
+    var t0 = 0;
+    function su(ts) {
+      if (!t0) t0 = ts;
+      var p = Math.min(1, (ts - t0) / 1100);
+      el.textContent = Math.round(fine_ * (1 - Math.pow(1 - p, 3))) + suff;
+      if (p < 1) requestAnimationFrame(su);
+      else el.classList.add('atterra');   /* il numero si posa con un battito */
+    }
+    requestAnimationFrame(su);
+  }
+  (function () {
+    var gruppi = ['heroStats', 'pfBanco', 'aboutNum'];
+    if (!('IntersectionObserver' in window)) {
+      gruppi.forEach(function (id) {
+        var g = document.getElementById(id); if (!g) return;
+        [].forEach.call(g.querySelectorAll('[data-fine]'), function (el) {
+          el.textContent = el.dataset.fine + (el.dataset.suff || '');
+        });
+      });
+      return;
+    }
+    gruppi.forEach(function (id) {
+      var g = document.getElementById(id); if (!g) return;
+      new IntersectionObserver(function (r, io) {
+        if (!r[0].isIntersecting) return;
+        io.disconnect();
+        [].forEach.call(g.querySelectorAll('[data-fine]'), conta);
+        /* le spunte del property finding si incidono in fila */
+        if (id === 'pfBanco') {
+          [].forEach.call(document.querySelectorAll('#pfLista .pf-voce'), function (v, i) {
+            setTimeout(function () { v.classList.add('vista'); }, 200 + i * 140);
+          });
+        }
+      }, { threshold: .3 }).observe(g);
+    });
+    /* le spunte degli altri aiuti: subito viste quando entrano */
+    [].forEach.call(document.querySelectorAll('.aiuto-lista .pf-voce'), function (v, i) {
+      new IntersectionObserver(function (r, io) {
+        if (!r[0].isIntersecting) return;
+        io.disconnect();
+        setTimeout(function () { v.classList.add('vista'); }, i % 6 * 110);
+      }, { threshold: .5 }).observe(v);
+    });
+  })();
+
+  /* il magnete: i bottoni d'oro seguono la mano, poi si posano */
+  (function () {
+    if (!fine || ridotto) return;
+    [].forEach.call(document.querySelectorAll('.btn-primary'), function (b) {
+      b.addEventListener('mousemove', function (e) {
+        var r = b.getBoundingClientRect();
+        var dx = e.clientX - (r.left + r.width / 2);
+        var dy = e.clientY - (r.top + r.height / 2);
+        b.style.transform = 'translate(' + (dx / 90 * 6).toFixed(1) +
+          'px,' + (dy / 90 * 5 - 2).toFixed(1) + 'px)';
+      });
+      b.addEventListener('mouseleave', function () {
+        b.style.transform = '';
+        b.style.transition = 'transform .5s cubic-bezier(.34,1.56,.64,1)';
+        setTimeout(function () { b.style.transition = ''; }, 500);
+      });
+    });
+  })();
+
+  /* ── i cuori: la stessa memoria di Apartments (boomSalvate) ──────────── */
+  (function () {
+    var salvate;
+    try { salvate = new Set(JSON.parse(localStorage.getItem('boomSalvate') || '[]')); }
+    catch (e) { salvate = new Set(); }
+    [].forEach.call(document.querySelectorAll('.home-cuore'), function (b) {
+      b.classList.toggle('si', salvate.has(b.dataset.u));
+      b.addEventListener('click', function (e) {
+        e.preventDefault(); e.stopPropagation();
+        var u = b.dataset.u;
+        if (salvate.has(u)) salvate.delete(u); else salvate.add(u);
+        b.classList.toggle('si', salvate.has(u));
+        try { localStorage.setItem('boomSalvate', JSON.stringify(Array.from(salvate))); }
+        catch (err) {}
+      });
+    });
+    /* la zona sulla carta apre Apartments già filtrata — è uno span-link
+       (un <a> dentro l'<a> della carta spezzerebbe il markup) */
+    [].forEach.call(document.querySelectorAll('.home-zona'), function (z) {
+      function vai(e) {
+        e.preventDefault(); e.stopPropagation();
+        location.href = z.dataset.href;
+      }
+      z.addEventListener('click', vai);
+      z.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') vai(e);
+      });
+    });
+  })();
+
+  /* ── i canoni delle case sui Solari, al primo sguardo ────────────────── */
+  (function () {
+    var voci = [].slice.call(document.querySelectorAll('.flap-prezzo'));
+    if (!voci.length || !BS) return;
+    voci.forEach(function (host) {
+      var testo = host.dataset.p || '';
+      var b = new BS.Board(host, testo.length, ' €,.0123456789');
+      if (ridotto || !('IntersectionObserver' in window)) { b.show(testo); return; }
+      new IntersectionObserver(function (r, io) {
+        if (!r[0].isIntersecting) return;
+        io.disconnect();
+        b.show(testo, 40, true);
+      }, { threshold: .4 }).observe(host);
+    });
+  })();
+
+})();
+</script>

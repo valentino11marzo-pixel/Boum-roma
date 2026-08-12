@@ -1,0 +1,573 @@
+<style>
+/* ══ LA DISCOVERY — il tabellone È il filtro ═══════════════════════════ */
+.disco { position:relative; padding:clamp(96px,11svh,132px) 0 clamp(20px,2.4vw,30px); }
+.disco-velo { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+.disco-velo::after { content:''; position:absolute; inset:0;
+  background:linear-gradient(100deg, rgba(3,3,3,.92) 0%, rgba(3,3,3,.66) 34%,
+    rgba(3,3,3,.12) 62%, transparent 78%); }
+@media (max-width:1080px){
+  .disco-velo::after {
+    background:linear-gradient(180deg, rgba(3,3,3,.55), rgba(3,3,3,.86) 46%,
+      rgba(3,3,3,.94)); } }
+.disco-int { position:relative; z-index:2; }
+.disco-testa { display:grid; gap:clamp(20px,2.6vw,38px);
+  grid-template-columns:1fr; align-items:end; }
+@media (min-width:1080px){ .disco-testa {
+  grid-template-columns:minmax(0,1fr) minmax(0,.92fr); } }
+.disco h1 { margin-top:18px; font-weight:200;
+  font-size:clamp(34px,4.2vw,54px); line-height:1.07; letter-spacing:-.02em;
+  text-wrap:balance; }
+.disco h1 .hl { color:var(--gold); }
+.disco-sotto { margin-top:14px; font-size:clamp(14px,1.4vw,16px);
+  color:var(--text-2); max-width:46ch; }
+@media (max-width:640px){
+  .disco h1 { font-size:clamp(32px,9vw,40px); font-weight:250; }
+  .disco-sotto { font-size:15px; } }
+
+/* il quadro del catalogo: le zone come destinazioni, e sono i filtri */
+.zone-quadro { position:relative; background:var(--void);
+  box-shadow:inset 0 0 0 1px var(--line-gold), 0 40px 90px -40px rgba(0,0,0,.9); }
+.zone-testa { display:flex; align-items:center; justify-content:space-between;
+  gap:12px; padding:13px 18px; border-bottom:1px solid var(--line-0); }
+.zone-testa b { font-size:10.5px; font-weight:600; letter-spacing:.24em;
+  text-transform:uppercase; color:var(--text-2); }
+.zone-righe { padding:2px 0; }
+.zona-riga { width:100%; display:grid;
+  grid-template-columns:minmax(0,1fr) auto auto; gap:6px 12px;
+  align-items:center; padding:9px 18px; text-align:left;
+  border-bottom:1px solid var(--line-0); background:none; border-left:0;
+  border-right:0; border-top:0; color:inherit; font:inherit; cursor:pointer;
+  transition:background .25s ease, box-shadow .25s ease; }
+.zona-riga:last-child { border-bottom:0; }
+.zona-riga:hover { background:rgba(255,215,0,.045); }
+.zona-riga.on { background:rgba(255,215,0,.09);
+  box-shadow:inset 2px 0 0 var(--gold); }
+.zona-nome { font-size:13.5px; overflow:hidden; }
+.zona-quante { font-size:12.5px; }
+.zona-da { font-size:9px; }
+.zona-da.si { --oro-flap:#5CFFAE; }
+.zona-da.no { --oro-flap:rgba(250,250,250,.42); }
+@media (max-width:640px){
+  .zona-riga { grid-template-columns:minmax(0,1fr) auto; padding:9px 12px; }
+  .zona-quante { display:none; }
+  .zona-nome { font-size:10.5px; }
+  .zona-da { font-size:7.5px; } }
+.zone-piede { display:flex; align-items:center; justify-content:space-between;
+  gap:12px; padding:11px 18px; font-size:11px; color:var(--text-4);
+  border-top:1px solid var(--line-0); }
+.zone-piede b { color:var(--text-3); font-weight:500;
+  font-variant-numeric:tabular-nums; }
+.zone-piede button { font-size:10px; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--text-3); padding:6px 10px;
+  background:none; border:0; box-shadow:inset 0 0 0 1px var(--line);
+  cursor:pointer; transition:.2s; }
+.zone-piede button:hover { color:var(--gold);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+
+/* la barra di ricerca: la stessa del check-in di casa */
+.cerca { margin-top:clamp(20px,2.4vw,30px); }
+
+/* ══ LA STECCA + IL FOGLIO — i comandi in una riga, la coda in un foglio ═ */
+.gruppo { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.gruppo > span { font-size:9px; font-weight:600; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--text-4); margin-right:2px; }
+.gruppo button { padding:7px 12px; font:inherit; font-size:11.5px;
+  color:var(--text-3); background:none; border:0;
+  box-shadow:inset 0 0 0 1px var(--line); border-radius:100px;
+  cursor:pointer; transition:.22s; }
+.gruppo button:hover { color:var(--text); }
+.gruppo button.on { color:var(--gold);
+  box-shadow:inset 0 0 0 1px var(--line-gold); }
+.gruppo button i { font-style:normal; font-variant-numeric:tabular-nums; }
+.pulisci, .serba { font:inherit; font-size:10.5px; font-weight:600;
+  letter-spacing:.12em; text-transform:uppercase; background:none; border:0;
+  cursor:pointer; padding:8px 12px; transition:.25s; }
+.pulisci { color:var(--text-4); }
+.pulisci:hover { color:var(--text-2); }
+.serba { color:var(--gold); box-shadow:inset 0 0 0 1px var(--line-gold-2);
+  border-radius:100px; }
+.serba:hover { box-shadow:inset 0 0 0 1px var(--gold); }
+@media (max-width:640px){
+  #foglioVelo .gruppo { width:100%; } }
+
+/* il foglio della ricerca salvata */
+.serba-velo { position:fixed; inset:0; z-index:150; display:grid;
+  place-items:center; padding:20px; background:rgba(3,3,3,.86);
+  backdrop-filter:blur(10px); }
+.serba-velo[hidden] { display:none; }
+.serba-foglio { width:100%; max-width:420px; padding:26px;
+  background:var(--void); box-shadow:inset 0 0 0 1px var(--line-gold),
+    0 40px 90px -40px rgba(0,0,0,.9); }
+.serba-foglio > b { display:block; font-family:var(--display); font-weight:300;
+  font-size:20px; line-height:1.25; }
+.serba-foglio > p { margin-top:8px; font-size:12.5px; color:var(--text-3); }
+.campo-serba { display:block; margin-top:14px; }
+.campo-serba span { display:block; font-size:9.5px; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--text-3); }
+.campo-serba input { width:100%; margin-top:6px; padding:12px 14px;
+  background:var(--input); border:0; box-shadow:inset 0 0 0 1px var(--line);
+  color:var(--text); font:inherit; font-size:14px; }
+.campo-serba input:focus { outline:none; box-shadow:inset 0 0 0 1px var(--gold); }
+#serbaEsca { position:absolute; left:-9999px; width:1px; height:1px; }
+.serba-azioni { display:flex; align-items:center; justify-content:flex-end;
+  gap:10px; margin-top:18px; }
+.serba-nota { margin-top:12px; font-size:11px; line-height:1.6;
+  color:var(--text-4); }
+
+/* ══ IL MURO DELLE CASE ════════════════════════════════════════════════ */
+.muro-testa { display:flex; align-items:baseline; justify-content:space-between;
+  gap:14px; flex-wrap:wrap; margin-bottom:16px; }
+.muro-conto { font-size:12.5px; color:var(--text-3); }
+.muro-conto b { color:var(--text); font-weight:500;
+  font-variant-numeric:tabular-nums; }
+.muro-ordine { display:flex; gap:6px; }
+.muro-ordine button { font-size:10px; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--text-3); padding:8px 12px;
+  background:none; border:0; box-shadow:inset 0 0 0 1px var(--line);
+  border-radius:100px; cursor:pointer; transition:.25s; }
+.muro-ordine button:hover { color:var(--text); }
+.muro-ordine button.on { color:var(--gold);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.muro { display:grid; gap:clamp(14px,1.6vw,20px);
+  grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); }
+.muro .casa-p.via { display:none; }
+/* lo stato, una volta sola e vivo: il punto respira dove la casa e
+   libera, pulsa in oro dove la lista e aperta, sta fermo dov'e presa */
+.casa-p .home-foto .casa-stato { position:absolute; left:8px; bottom:8px;
+  display:inline-flex; align-items:center; gap:6px; padding:6px 10px;
+  border-radius:100px; background:rgba(3,3,3,.78); backdrop-filter:blur(8px);
+  font-size:10px; font-weight:600; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--text-3);
+  box-shadow:inset 0 0 0 1px var(--line-0); }
+.casa-p .home-foto .casa-stato::before { content:''; width:6px; height:6px;
+  border-radius:50%; background:currentColor; flex:none; }
+.casa-p .home-foto .casa-stato.si { color:var(--green);
+  box-shadow:inset 0 0 0 1px rgba(0,255,136,.3); }
+.casa-p .home-foto .casa-stato.si::before {
+  animation:stato-respira 2.8s ease-out infinite; }
+@keyframes stato-respira {
+  0%   { box-shadow:0 0 0 0 rgba(0,255,136,.5); }
+  70%  { box-shadow:0 0 0 8px rgba(0,255,136,0); }
+  100% { box-shadow:0 0 0 0 rgba(0,255,136,0); } }
+.casa-p .home-foto .casa-stato.poi { color:var(--text-2); }
+.casa-p .home-foto .casa-stato.fila { color:var(--gold);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.casa-p .home-foto .casa-stato.fila::before {
+  animation:stato-attesa 1.6s ease-in-out infinite; }
+@keyframes stato-attesa { 0%,100% { opacity:1; } 50% { opacity:.25; } }
+@media (prefers-reduced-motion:reduce){
+  .casa-p .home-foto .casa-stato::before { animation:none!important; } }
+
+/* niente risultati: la macchina si mette al lavoro */
+.vuoto { display:none; padding:clamp(28px,3.4vw,44px);
+  background:var(--card); box-shadow:inset 0 0 0 1px var(--line-gold-2);
+  text-align:center; }
+.vuoto.si { display:block; }
+.vuoto .vuoto-titolo, .vuoto b { display:block; font-family:var(--display); font-weight:300;
+  font-size:clamp(19px,2.2vw,26px); }
+.vuoto p { margin:10px auto 0; max-width:52ch; font-size:14px;
+  color:var(--text-2); line-height:1.65; }
+.vuoto .btn { margin-top:18px; }
+
+/* ══ LA STECCA — appesa sotto la barra, mai un centimetro di troppo ════ */
+.stecca { position:sticky; top:var(--stecca-top, 76px); z-index:80;
+  background:rgba(3,3,3,.94); backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line-0); }
+.stecca-int { display:flex; align-items:center; gap:8px; padding:9px 0;
+  overflow-x:auto; scrollbar-width:none; }
+.stecca-int::-webkit-scrollbar { display:none; }
+.stecca-int > * { flex:none; }
+.stecca .gruppo { flex-wrap:nowrap; }
+.stecca button, #foglioVelo .gruppo button, #foglioVelo .pulisci {
+  min-height:36px; }
+.stecca-cerca { display:flex; align-items:center; gap:8px; flex:0 1 240px;
+  min-width:150px; padding:8px 12px; background:var(--input);
+  box-shadow:inset 0 0 0 1px var(--line); border-radius:100px; }
+.stecca-cerca svg { width:15px; height:15px; flex:none; fill:none;
+  stroke:var(--text-4); stroke-width:1.6; stroke-linecap:round; }
+.stecca-cerca input { flex:1; min-width:0; background:none; border:0;
+  color:var(--text); font:inherit; font-size:13px; }
+.stecca-cerca input::placeholder { color:var(--text-4); }
+.stecca-cerca input:focus { outline:none; }
+.stecca-cerca:focus-within { box-shadow:inset 0 0 0 1px var(--line-gold); }
+.stecca-piu { display:inline-flex; align-items:center; gap:7px;
+  padding:8px 14px; font:inherit; font-size:11.5px; color:var(--text-2);
+  background:none; border:0; box-shadow:inset 0 0 0 1px var(--line);
+  border-radius:100px; cursor:pointer; transition:.22s; min-height:36px; }
+.stecca-piu:hover { color:var(--gold);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.stecca-piu svg { width:14px; height:14px; fill:none; stroke:currentColor;
+  stroke-width:1.7; stroke-linecap:round; }
+.stecca-piu i[hidden] { display:none; }
+.stecca-piu i { font-style:normal; min-width:17px; height:17px; padding:0 4px;
+  display:inline-grid; place-items:center; border-radius:100px;
+  background:var(--gold); color:#141005; font-size:10px; font-weight:700; }
+.vista-tog { display:inline-flex; border-radius:100px; overflow:hidden;
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.vista-tog button { position:relative; padding:9px 14px; font:inherit;
+  font-size:10.5px; font-weight:600; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--text-3); background:none; border:0;
+  cursor:pointer; transition:.25s; min-height:36px; }
+.vista-tog button.on { color:#141005; background:var(--gold); }
+.vista-tog button:not(.on):hover { color:var(--gold); }
+@media (prefers-reduced-motion:no-preference){
+  .vista-tog button.pulsa::after { content:''; position:absolute; top:6px;
+    right:7px; width:5px; height:5px; border-radius:50%;
+    background:var(--gold); animation:sky-ping 2s var(--ease) infinite; }
+  @keyframes sky-ping {
+    0%,100% { box-shadow:0 0 0 0 rgba(255,215,0,.5); }
+    50% { box-shadow:0 0 0 6px rgba(255,215,0,0); } } }
+.muro-conto { margin-bottom:12px; }
+#muro, #catalogo, #vistaCielo {
+  scroll-margin-top:calc(var(--stecca-top, 76px) + 62px); }
+.vista-cielo[hidden] { display:none; }
+.vista-cielo .cielo { margin-top:clamp(10px,1.2vw,16px); }
+
+/* ══ LA SKYCARTA — la mappa si vende da dentro la griglia ══════════════ */
+.skycarta { position:relative; display:flex; flex-direction:column;
+  justify-content:flex-end; gap:8px; min-height:100%; padding:20px 18px;
+  text-align:left; font:inherit; color:var(--text); cursor:pointer; border:0;
+  background:
+    radial-gradient(2px 2px at 24% 28%, var(--gold) 40%, transparent 60%),
+    radial-gradient(2px 2px at 64% 20%, var(--gold) 40%, transparent 60%),
+    radial-gradient(2px 2px at 44% 50%, var(--gold) 40%, transparent 60%),
+    radial-gradient(2px 2px at 79% 42%, rgba(255,215,0,.5) 40%, transparent 60%),
+    radial-gradient(2px 2px at 32% 64%, rgba(255,215,0,.5) 40%, transparent 60%),
+    radial-gradient(120% 90% at 70% 8%, rgba(255,215,0,.09), transparent 55%),
+    linear-gradient(160deg, #101017 0%, #08080D 55%, var(--void) 100%);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2),
+    0 30px 70px -40px rgba(0,0,0,.9);
+  transition:box-shadow .3s ease; }
+.skycarta::before { content:''; position:absolute; inset:0;
+  pointer-events:none; background-image:
+    repeating-linear-gradient(0deg, transparent 0 34px,
+      rgba(255,255,255,.03) 34px 35px),
+    repeating-linear-gradient(90deg, transparent 0 34px,
+      rgba(255,255,255,.03) 34px 35px); }
+.skycarta:hover { box-shadow:inset 0 0 0 1px var(--line-gold),
+  0 30px 70px -40px rgba(0,0,0,.9); }
+.sk-eti { display:inline-flex; align-items:center; gap:7px; font-size:9.5px;
+  font-weight:600; letter-spacing:.24em; text-transform:uppercase;
+  color:var(--gold); }
+.sk-eti i { width:5px; height:5px; border-radius:50%; background:var(--gold); }
+.sk-tit { font-family:var(--display); font-weight:300; font-size:20px;
+  line-height:1.3; }
+.skycarta p { font-size:12px; line-height:1.6; color:var(--text-3); }
+.sk-cta { display:inline-flex; width:max-content; margin-top:6px;
+  padding:9px 15px; font-size:11px; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--gold);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); border-radius:100px;
+  transition:.25s; }
+.skycarta:hover .sk-cta { background:var(--gold); color:#141005; }
+
+/* ══ IL FOGLIO DEI FILTRI ══════════════════════════════════════════════ */
+.foglio-filtri { width:100%; max-width:460px; padding:22px 22px 18px;
+  background:var(--void); box-shadow:inset 0 0 0 1px var(--line-gold),
+    0 40px 90px -40px rgba(0,0,0,.9);
+  display:flex; flex-direction:column; gap:16px;
+  max-height:min(82vh, 560px); overflow:auto; }
+.foglio-testa { display:flex; align-items:center;
+  justify-content:space-between; gap:12px; }
+.foglio-testa b { font-family:var(--display); font-weight:300;
+  font-size:19px; }
+.foglio-x { width:36px; height:36px; flex:none; display:grid;
+  place-items:center; background:none; border:0; color:var(--text-3);
+  font-size:14px; cursor:pointer; box-shadow:inset 0 0 0 1px var(--line);
+  border-radius:50%; transition:.2s; }
+.foglio-x:hover { color:var(--text);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.foglio-piede { display:flex; align-items:center;
+  justify-content:space-between; gap:12px; padding-top:14px;
+  border-top:1px solid var(--line-0); }
+
+/* ══ IL PARAGONE ═══════════════════════════════════════════════════════ */
+.home-para { position:absolute; right:6px; top:50px; z-index:3; width:40px;
+  height:40px; display:grid; place-items:center; border-radius:50%;
+  background:rgba(3,3,3,.72); backdrop-filter:blur(6px);
+  color:var(--text-3); cursor:pointer; border:0; font-size:13px;
+  transition:color .25s ease, transform .25s var(--ease),
+    background .25s ease; }
+.home-para:hover { transform:scale(1.12); }
+.home-para.on { color:#141005; background:var(--gold); }
+.para-tray { position:fixed; left:50%; bottom:16px;
+  transform:translateX(-50%); z-index:120; display:flex; align-items:center;
+  gap:12px; max-width:min(94vw, 560px); padding:10px 12px;
+  background:rgba(3,3,3,.94); backdrop-filter:blur(16px);
+  box-shadow:inset 0 0 0 1px var(--line-gold), 0 24px 60px rgba(0,0,0,.6); }
+.para-tray[hidden] { display:none; }
+.para-fotine { display:flex; gap:6px; }
+.para-fotine img, .para-fotine span { width:44px; height:34px;
+  object-fit:cover; background:var(--input);
+  box-shadow:inset 0 0 0 1px var(--line-0); display:block; }
+.para-dice { font-size:11.5px; color:var(--text-3); }
+.para-svuota { width:36px; height:36px; flex:none; display:grid;
+  place-items:center; background:none; border:0; color:var(--text-4);
+  font-size:13px; cursor:pointer; border-radius:50%;
+  box-shadow:inset 0 0 0 1px var(--line); transition:.2s; }
+.para-svuota:hover { color:var(--text); }
+.para-foglio { width:100%; min-width:0;
+  max-width:min(860px, calc(100vw - 40px)); padding:22px;
+  background:var(--void); box-shadow:inset 0 0 0 1px var(--line-gold),
+    0 40px 90px -40px rgba(0,0,0,.9);
+  max-height:88vh; display:flex; flex-direction:column; gap:14px; }
+.para-scroll { overflow:auto; min-width:0; max-width:100%; }
+.para-tavola { width:100%; border-collapse:collapse; font-size:12.5px; }
+.para-tavola th { text-align:left; font-size:9.5px; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--text-4);
+  padding:9px 12px 9px 0; white-space:nowrap; vertical-align:middle; }
+.para-tavola td { padding:9px 12px; border-top:1px solid var(--line-0);
+  vertical-align:middle; min-width:150px; color:var(--text-2); }
+.para-tavola tr:first-child td { border-top:0; }
+.para-tavola td b { color:var(--text); font-weight:500; }
+.para-tavola .verde { color:var(--green); }
+.pt-capo { position:relative; }
+.pt-capo img { width:100%; max-width:190px; aspect-ratio:16/10;
+  object-fit:cover; display:block;
+  box-shadow:inset 0 0 0 1px var(--line-0); }
+.pt-capo b { display:block; margin-top:8px; font-family:var(--display);
+  font-weight:300; font-size:15px; color:var(--text); }
+.pt-capo span { font-size:11px; color:var(--text-3); }
+.pt-x { position:absolute; top:6px; right:6px; width:36px; height:36px;
+  display:grid; place-items:center; border:0; border-radius:50%;
+  background:rgba(3,3,3,.72); color:var(--text-2); cursor:pointer;
+  font-size:12px; }
+.para-nota { font-size:11px; color:var(--text-4); line-height:1.6; }
+</style>
+
+<section class="disco">
+  <div class="disco-velo" aria-hidden="true">
+    <canvas id="cartaRoma"></canvas>
+  </div>
+
+  <div class="container disco-int">
+    <div class="disco-testa">
+      <div class="coro dentro-subito">
+        <div class="hero-eyebrow"><b></b>DISPONIBILI homes available now</div>
+        <h1>Every home here has been <span class="hl">walked in person</span>.</h1>
+        <p class="disco-sotto">No stock photos, no ghost listings. Pick a zone
+          on the board — or tell us when you land and we'll shape the list
+          around you.</p>
+
+        <form class="atterro cerca" id="atterro">
+          <div class="atterro-campo ac-data">
+          <span id="quandoEti">When do you land?</span>
+          <button type="button" class="atterro-data" id="quandoBtn"
+            aria-haspopup="dialog" aria-expanded="false"
+            aria-labelledby="quandoEti">
+            <svg viewBox="0 0 24 24"><path d="M5 6h14a1.5 1.5 0 0 1 1.5 1.5V19a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 19V7.5A1.5 1.5 0 0 1 5 6zM8 3.5v5m8-5v5M3.5 11h17"/></svg>
+            <span id="quandoTesto">Any date</span></button>
+          </div>
+          <span class="atterro-divisa" aria-hidden="true"></span>
+          <label class="atterro-campo">
+            <span>Budget</span>
+            <select id="quantoBudget" aria-label="Monthly budget">
+              <option value="">Any</option>
+              <option value="1000">up to €1,000</option>
+              <option value="1500">€1,000–1,500</option>
+              <option value="2000">€1,500–2,000</option>
+              <option value="9999">€2,000+</option>
+            </select></label>
+          <span class="atterro-divisa" aria-hidden="true"></span>
+          <label class="atterro-campo">
+            <span>Who's landing?</span>
+            <select id="chiAtterra" aria-label="Who is moving in">
+              <option value="">—</option>
+              <option value="solo">Just me</option>
+              <option value="couple">Couple</option>
+              <option value="family">Family</option>
+              <option value="flatmates">Flatmates</option>
+            </select></label>
+          <button type="submit" class="btn btn-primary" id="quandoVai">Find homes</button>
+          <div class="cal" id="cal" role="dialog" aria-label="Choose your arrival date">
+            <div class="cal-testa"><b id="calMese">—</b>
+              <div class="cal-fx">
+                <button type="button" id="calPrec" aria-label="Previous month">‹</button>
+                <button type="button" id="calSucc" aria-label="Next month">›</button>
+              </div></div>
+            <div class="cal-sett" aria-hidden="true"><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span></div>
+            <div class="cal-giorni" id="calGiorni"></div>
+            <div class="cal-piede">
+              <span class="hint" id="calHint">Any date — we'll match availability.</span>
+              <button type="button" id="calSubito">ASAP</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <aside class="zone-quadro quadro sale" aria-label="Zones board">
+        <span class="tacca"></span>
+        <div class="zone-testa"><b>ROME · Destinations</b>
+          <span class="board-live"><i></i>LIVE</span></div>
+        <div class="tab-colonne" aria-hidden="true"><span>Zone</span>
+          <span class="tc-p">Homes</span><span>From</span></div>
+        <div class="zone-righe" id="zoneRighe"></div>
+        <div class="zone-piede"><span><b>DISPONIBILI</b> available now ·
+          ALTRE_ZONE · updated <b>AGGIORNATO</b></span>
+          <button type="button" id="zoneTutte">All zones</button></div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- ══ LA STECCA — tutti i comandi, in una riga sola ═════════════════════ -->
+<div class="stecca" id="stecca">
+  <div class="container stecca-int">
+    <div class="stecca-cerca">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg>
+      <input id="fq" type="search" placeholder="Name, zone or street"
+        aria-label="Search homes">
+    </div>
+    <div class="gruppo" role="group" aria-label="Bedrooms">
+      <button type="button" data-f="letti" data-v="">Any</button>
+      <button type="button" data-f="letti" data-v="0">Studio</button>
+      <button type="button" data-f="letti" data-v="1">1+</button>
+      <button type="button" data-f="letti" data-v="2">2+</button>
+      <button type="button" data-f="letti" data-v="3">3+ beds</button>
+    </div>
+    <button type="button" class="stecca-piu" id="apriFiltri"
+      aria-haspopup="dialog">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+      Filters<i id="filtriConta" hidden></i></button>
+    <div class="muro-ordine" role="group" aria-label="Sort homes">
+      <button type="button" class="on" data-o="nuove">Newest</button>
+      <button type="button" data-o="prezzo">Price</button>
+      <button type="button" data-o="grandi">Size</button>
+    </div>
+    <button type="button" class="serba" id="serba">Save this search →</button>
+    <div class="vista-tog" role="group" aria-label="View">
+      <button type="button" class="on" id="vGriglia">Grid</button>
+      <button type="button" id="vCielo" class="pulsa">◆ Skyline</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ IL MURO ═══════════════════════════════════════════════════════════ -->
+<section class="sezione" style="padding-top:clamp(10px,1.2vw,16px)" id="catalogo">
+  <div class="container">
+    <p class="muro-conto"><b id="conto">0</b> homes<span id="contoZona"></span></p>
+    <div class="muro coro" id="muro">
+CASE_MURO
+      <button type="button" class="skycarta" id="skyCarta">
+        <span class="sk-eti"><i></i>Rome's Skyline · live 3D</span>
+        <span class="sk-tit">Every home, standing on the real city.</span>
+        <p>Satellite view and 3D buildings — tap a home and it measures its
+          own walk to Sapienza, LUISS, Termini and the Vatican.</p>
+        <span class="sk-cta">Open the map view →</span>
+      </button>
+    </div>
+    <div class="vuoto" id="vuoto">
+      <b>Nothing here matches — yet.</b>
+      <p>Our catalogue is small on purpose: every home is walked and checked
+        before it goes up. What you're looking for probably exists in Rome
+        right now — it just isn't on a portal yet. That's what the hunt
+        engine is for.</p>
+      <a class="btn btn-primary" href="/property-finding.html">Put the machine on it</a>
+    </div>
+    <div class="vista-cielo" id="vistaCielo" hidden>
+VISTA_CIELO
+    </div>
+  </div>
+</section>
+
+<!-- ══ SALVA LA RICERCA ══════════════════════════════════════════════════ -->
+<div class="serba-velo" id="serbaVelo" hidden>
+  <div class="serba-foglio" role="dialog" aria-modal="true"
+    aria-labelledby="serbaTit">
+    <b id="serbaTit">Get an email when a home like this appears</b>
+    <p id="serbaSunto">—</p>
+    <form id="serbaForma">
+      <label class="campo-serba"><span>Name this search</span>
+        <input id="serbaNome" placeholder="e.g. Trastevere, 2 beds"></label>
+      <label class="campo-serba"><span>Your email</span>
+        <input id="serbaMail" type="email" required
+          placeholder="you@email.com"></label>
+      <input id="serbaEsca" name="company" tabindex="-1" autocomplete="off"
+        aria-hidden="true">
+      <div class="serba-azioni">
+        <button type="button" class="pulisci" id="serbaChiudi">Not now</button>
+        <button type="submit" class="btn btn-primary">Save search</button>
+      </div>
+      <p class="serba-nota">PREVIEW — nothing is sent from this page. On the
+        live site this becomes a saved search: you only hear from us when a
+        home that matches actually appears.</p>
+    </form>
+  </div>
+</div>
+
+<!-- ══ IL FOGLIO DEI FILTRI — la coda lunga, in un posto solo ════════════ -->
+<div class="serba-velo" id="foglioVelo" hidden>
+  <div class="foglio-filtri" role="dialog" aria-modal="true"
+    aria-labelledby="foglioTit">
+    <div class="foglio-testa"><b id="foglioTit">Fine-tune the list</b>
+      <button type="button" class="foglio-x" id="foglioChiudi"
+        aria-label="Close filters">✕</button></div>
+    <div class="gruppo" role="group" aria-label="Bathrooms">
+      <span>Baths</span>
+      <button type="button" data-f="bagni" data-v="">Any</button>
+      <button type="button" data-f="bagni" data-v="1">1+</button>
+      <button type="button" data-f="bagni" data-v="2">2+</button>
+    </div>
+    <div class="gruppo" role="group" aria-label="Extras">
+      <span>Only</span>
+      <button type="button" data-f="arredata" data-v="1">Furnished</button>
+      <button type="button" data-f="video" data-v="1">Video-verified</button>
+      <button type="button" data-f="salvate" data-v="1">Saved <i id="quanteSalvate"></i></button>
+    </div>
+    <div class="gruppo dotazioni" role="group" aria-label="Features">
+      <span>Features</span>
+      DOTE_TASTI
+    </div>
+    <div class="foglio-piede">
+      <button type="button" class="pulisci" id="pulisci">Clear all</button>
+      <button type="button" class="btn btn-primary" id="foglioFatto">Show
+        <span id="foglioConto">all</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ IL PARAGONE — fino a tre case, fianco a fianco ════════════════════ -->
+<div class="para-tray" id="paraTray" hidden>
+  <div class="para-fotine" id="paraFotine"></div>
+  <span class="para-dice" id="paraDice">Pick another home to compare</span>
+  <button type="button" class="btn btn-primary" id="paraApri" disabled>Compare</button>
+  <button type="button" class="para-svuota" id="paraSvuota"
+    aria-label="Clear comparison">✕</button>
+</div>
+<div class="serba-velo" id="paraVelo" hidden>
+  <div class="para-foglio" role="dialog" aria-modal="true"
+    aria-label="Compare homes side by side">
+    <div class="foglio-testa"><b>Side by side</b>
+      <button type="button" class="foglio-x" id="paraChiudi"
+        aria-label="Close comparison">✕</button></div>
+    <div class="para-scroll"><table class="para-tavola" id="paraTavola"></table></div>
+    <p class="para-nota">Day one = first month + deposit + agency fee — the
+      same number each home's page shows. The deposit comes back at the end.</p>
+  </div>
+</div>
+
+<!-- ══ LA RETE — se la casa giusta non c'è ═══════════════════════════════ -->
+<section class="sezione">
+  <div class="container">
+    <div class="rete coro">
+      <div class="rete-pfs">
+        <span class="rete-eti"><b></b>Property Finding · the hunt engine</span>
+        <h2 class="vuoto-titolo">Not on this page?<br><span class="hl">It doesn't mean it doesn't exist.</span></h2>
+        <p>Your brief becomes a live search: our engine scans the market and
+          the off-market around the clock, a human verifies every match, and
+          you get curated options — not links.</p>
+        <div class="rete-cifre">
+          <div class="rete-cifra"><b>1:1</b><span>tailored hunt</span></div>
+          <div class="rete-cifra"><b>5+</b><span>curated options</span></div>
+          <div class="rete-cifra"><b>24/7</b><span>market scan</span></div>
+          <div class="rete-cifra"><b>€0</b><span>if we fail</span></div>
+        </div>
+        <div class="rete-motore" aria-label="The engine behind the hunt">
+          <span>RADAR — 96 scans/day</span><span>HUMAN-VERIFIED</span>
+          <span>OFF-MARKET INCLUDED</span></div>
+        <a class="btn btn-primary" href="/property-finding.html">Start the hunt</a>
+        <p class="rete-nota">€350 upfront — deducted from the agency fee when
+          we find your home. Full refund if we don't deliver.</p>
+      </div>
+    </div>
+  </div>
+</section>

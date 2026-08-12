@@ -1,0 +1,25 @@
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   BOOM · LA HOME QUIETA — la sola meccanica di firma: DAYS ⇄ HOURS sui
+   Solari, lenta. Tutto il resto (testata, tenda, entrate, contatori,
+   cuori, zone-link) vive negli organi condivisi (deco-organi.html).
+   ══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  var ridotto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var BS = window.BoomSolari;
+  var host = document.getElementById('flapDays');
+  if (!host || !BS) return;
+  var b = new BS.Board(host, 5, ' ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+  if (ridotto) { b.show('DAYS'); return; }
+  setTimeout(function () { b.show('DAYS', 110, true); }, 600);
+  /* la promessa si stringe da sola: giorni, anzi ore — ed è vera (48h) */
+  var giro = ['HOURS', 'DAYS'], i = 0;
+  setInterval(function () {
+    if (document.hidden) return;
+    b.update(giro[i % 2]);
+    host.setAttribute('aria-label', giro[i % 2].toLowerCase());
+    i++;
+  }, 8000);
+})();
+</script>

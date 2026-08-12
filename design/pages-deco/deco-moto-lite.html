@@ -1,0 +1,50 @@
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   BOOM · MOTO LITE — il magnete e la parallasse per le pagine che portano
+   la propria regia (PF, Apartments): nessun conflitto con i loro
+   ascoltatori, solo i due organi di profondità del design system.
+   ══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  var ridotto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var fine = matchMedia('(hover:hover) and (pointer:fine)').matches;
+
+  /* il magnete: i bottoni d'oro seguono la mano, poi si posano */
+  if (fine && !ridotto) {
+    [].forEach.call(document.querySelectorAll('.btn-primary'), function (b) {
+      b.addEventListener('mousemove', function (e) {
+        var r = b.getBoundingClientRect();
+        var dx = e.clientX - (r.left + r.width / 2);
+        var dy = e.clientY - (r.top + r.height / 2);
+        b.style.transform = 'translate(' + (dx / 90 * 6).toFixed(1) +
+          'px,' + (dy / 90 * 5 - 2).toFixed(1) + 'px)';
+      });
+      b.addEventListener('mouseleave', function () {
+        b.style.transform = '';
+        b.style.transition = 'transform .5s cubic-bezier(.34,1.56,.64,1)';
+        setTimeout(function () { b.style.transition = ''; }, 500);
+      });
+    });
+  }
+
+  /* la profondità: orbi e bagliori scivolano a passi diversi */
+  var orbi = [].slice.call(document.querySelectorAll('.tech-orb'));
+  var bagliori = [].slice.call(document.querySelectorAll('.hero-glow'));
+  if (ridotto || (!orbi.length && !bagliori.length)) return;
+  var PASSI = [-.045, .03, -.02], atteso = false;
+  function scivola() {
+    atteso = false;
+    var y = (document.scrollingElement || document.documentElement).scrollTop;
+    orbi.forEach(function (el, i) {
+      el.style.translate = '0 ' + (y * PASSI[i % 3]).toFixed(1) + 'px';
+    });
+    bagliori.forEach(function (el, i) {
+      el.style.translate = '0 ' + (y * (i ? .06 : -.08)).toFixed(1) + 'px';
+    });
+  }
+  addEventListener('scroll', function () {
+    if (!atteso) { atteso = true; requestAnimationFrame(scivola); }
+  }, { passive: true });
+  scivola();
+})();
+</script>

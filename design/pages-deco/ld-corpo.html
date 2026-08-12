@@ -1,0 +1,1002 @@
+<style>
+/* ══ LA CASA — la scena, il denaro in chiaro, la strada ════════════════ */
+.casa { position:relative; padding:clamp(88px,10svh,116px) 0 0; }
+.casa-briciole { display:flex; align-items:center; gap:9px; font-size:11px;
+  color:var(--text-3); flex-wrap:wrap; }
+.casa-briciole a { padding:9px 4px; margin:-9px -4px;
+  color:var(--text-3); transition:color .25s; }
+.casa-briciole a:hover { color:var(--gold); }
+.casa-briciole i { font-style:normal; color:var(--text-4); }
+
+/* la scena: la foto grande e il rullino */
+.scena-casa { position:relative; margin-top:16px; display:grid;
+  gap:clamp(12px,1.4vw,16px); grid-template-columns:1fr; }
+@media (min-width:900px){ .scena-casa {
+  grid-template-columns:minmax(0,1fr) 112px; } }
+.telaio { position:relative; overflow:hidden; background:var(--void);
+  aspect-ratio:16/10; box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.telaio img { width:100%; height:100%; object-fit:cover; display:block;
+  opacity:0; transition:opacity .5s ease; }
+.telaio img.qui { opacity:1; }
+.telaio::after { content:''; position:absolute; inset:0; pointer-events:none;
+  background:linear-gradient(180deg, rgba(3,3,3,.5), transparent 30%,
+    transparent 58%, rgba(3,3,3,.82)); }
+.telaio-alto { position:absolute; z-index:2; top:14px; left:14px; right:14px;
+  display:flex; align-items:flex-start; justify-content:space-between;
+  gap:12px; }
+.telaio-basso { position:absolute; z-index:2; left:16px; right:16px;
+  bottom:14px; display:flex; align-items:flex-end;
+  justify-content:space-between; gap:14px; flex-wrap:wrap; }
+.telaio-basso h1 { font-weight:250; font-size:clamp(24px,3vw,40px);
+  line-height:1.1; letter-spacing:-.015em; }
+.telaio-basso .dove { margin-top:5px; font-size:12.5px; color:var(--text-2); }
+.canone-grande { text-align:right; }
+.canone-grande .flap-prezzo { font-size:clamp(17px,2vw,24px); }
+.canone-grande small { display:block; margin-top:3px; font-size:10px;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--text-3); }
+.rullino { display:flex; gap:10px; overflow-x:auto; scrollbar-width:none;
+  padding-bottom:2px; }
+.rullino::-webkit-scrollbar { display:none; }
+@media (min-width:900px){ .rullino { flex-direction:column; overflow-y:auto;
+  max-height:100%; } }
+.rullino button { flex:none; width:96px; aspect-ratio:4/3; padding:0;
+  border:0; background:none; cursor:pointer; overflow:hidden;
+  box-shadow:inset 0 0 0 1px var(--line-0); opacity:.5;
+  transition:opacity .3s ease, box-shadow .3s ease; }
+.rullino button img { width:100%; height:100%; object-fit:cover; }
+.rullino button:hover { opacity:.85; }
+.rullino button.qui { opacity:1; box-shadow:inset 0 0 0 1px var(--gold); }
+.stato-grande { padding:6px 11px; background:rgba(3,3,3,.7);
+  backdrop-filter:blur(8px); font-size:9px; font-weight:700;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--text-2); }
+.stato-grande.si { color:var(--green); }
+
+/* i fatti: la riga Solari della casa */
+.fatti { margin-top:clamp(18px,2.2vw,26px); display:grid; gap:1px;
+  grid-template-columns:repeat(2,1fr); background:var(--line-0);
+  box-shadow:inset 0 0 0 1px var(--line-0); }
+@media (min-width:760px){ .fatti { grid-template-columns:repeat(5,1fr); } }
+.fatto { background:var(--card); padding:15px 16px; }
+.fatto b { display:block; font-family:var(--display); font-size:19px;
+  font-weight:300; color:var(--gold); }
+.fatto span { display:block; margin-top:3px; font-size:9.5px;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--text-3); }
+
+/* ══ IL DENARO IN CHIARO ═══════════════════════════════════════════════ */
+.soldi { display:grid; gap:clamp(20px,2.6vw,34px); grid-template-columns:1fr;
+  align-items:start; }
+@media (min-width:1000px){ .soldi {
+  grid-template-columns:minmax(0,1fr) minmax(0,.86fr); } }
+.conto { position:relative; background:var(--void); padding:24px 24px 20px;
+  box-shadow:inset 0 0 0 1px var(--line-gold),
+    0 40px 90px -40px rgba(0,0,0,.9); }
+.conto-riga { display:flex; align-items:baseline; justify-content:space-between;
+  gap:14px; padding:12px 0; border-bottom:1px solid var(--line-0);
+  font-size:13.5px; color:var(--text-2); }
+.conto-riga:first-of-type { padding-top:2px; }
+.conto-riga em { display:block; font-style:normal; margin-top:3px;
+  font-size:11px; color:var(--text-4); }
+.conto-riga b { font-family:var(--display); font-size:16px; font-weight:300;
+  color:var(--text); white-space:nowrap;
+  font-variant-numeric:tabular-nums; }
+.conto-tot { display:flex; align-items:baseline; justify-content:space-between;
+  gap:14px; margin-top:14px; padding-top:14px;
+  border-top:1px solid var(--line-gold-2); }
+.conto-tot span { font-size:11px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--text-3); }
+.conto-tot b { font-family:var(--display); font-size:clamp(24px,3vw,34px);
+  font-weight:250; color:var(--gold); font-variant-numeric:tabular-nums; }
+.conto-nota { margin-top:12px; font-size:11.5px; line-height:1.6;
+  color:var(--text-3); }
+.conto-scudo { margin-top:14px; display:inline-flex; align-items:center;
+  gap:8px; padding:8px 12px; font-size:10px; font-weight:600;
+  letter-spacing:.12em; text-transform:uppercase; color:var(--green);
+  box-shadow:inset 0 0 0 1px rgba(0,255,136,.28); }
+
+/* la descrizione e ciò che c'è dentro */
+.racconto p { font-size:14.5px; line-height:1.75; color:var(--text-2); }
+.dote { margin-top:18px; display:flex; gap:8px; flex-wrap:wrap; }
+.dote span { padding:7px 12px; font-size:11.5px; color:var(--text-2);
+  box-shadow:inset 0 0 0 1px var(--line-0); border-radius:100px; }
+.dote span::before { content:'✓'; margin-right:7px; color:var(--gold); }
+
+/* ══ COSA SUCCEDE DOPO — la promessa in quattro tempi ══════════════════ */
+.dopo { margin-top:clamp(22px,2.6vw,34px); display:grid; gap:1px;
+  grid-template-columns:1fr; background:var(--line-0);
+  box-shadow:inset 0 0 0 1px var(--line-0); }
+@media (min-width:760px){ .dopo { grid-template-columns:repeat(4,1fr); } }
+.tempo { position:relative; background:var(--card); padding:18px 18px 16px; }
+.tempo b { display:block; font-size:9.5px; font-weight:700;
+  letter-spacing:.18em; color:var(--gold); }
+.tempo h4 { margin-top:8px; font-size:14px; font-weight:400; }
+.tempo p { margin-top:5px; font-size:12px; line-height:1.6;
+  color:var(--text-3); }
+.tempo::after { content:''; position:absolute; left:0; top:0; height:2px;
+  width:100%; background:var(--gold); transform:scaleX(0);
+  transform-origin:left; }
+html.vivo .coro.dentro .tempo::after {
+  animation:tempo-corsa .7s var(--ease) forwards; }
+.coro.dentro .tempo:nth-child(1)::after { animation-delay:.1s; }
+.coro.dentro .tempo:nth-child(2)::after { animation-delay:.3s; }
+.coro.dentro .tempo:nth-child(3)::after { animation-delay:.5s; }
+.coro.dentro .tempo:nth-child(4)::after { animation-delay:.7s; }
+@keyframes tempo-corsa { to { transform:scaleX(1); } }
+
+/* ══ L'APPLY — il gesto, non un modulo ═════════════════════════════════ */
+.applica { position:relative; background:var(--void); padding:26px;
+  box-shadow:inset 0 0 0 1px var(--line-gold); }
+.applica h3 { font-family:var(--display); font-weight:300;
+  font-size:clamp(19px,2.2vw,24px); }
+.applica > p { margin-top:8px; font-size:13px; color:var(--text-2); }
+.passi { margin-top:18px; display:flex; gap:6px; }
+.passo-eti { flex:1; height:2px; background:var(--line-0); overflow:hidden; }
+.passo-eti i { display:block; height:100%; width:0; background:var(--gold);
+  transition:width .5s var(--ease); }
+.passo-eti.fatto i, .passo-eti.ora i { width:100%; }
+.campo { margin-top:14px; }
+.campo label { display:block; font-size:9.5px; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--text-3); }
+.campo input, .campo select { width:100%; margin-top:6px; padding:12px 14px;
+  background:var(--input); border:0; box-shadow:inset 0 0 0 1px var(--line);
+  color:var(--text); font:inherit; font-size:14px;
+  transition:box-shadow .25s ease; }
+.campo input:focus, .campo select:focus { outline:none;
+  box-shadow:inset 0 0 0 1px var(--gold); }
+.applica .btn { margin-top:18px; width:100%; justify-content:center;
+  text-align:center; }
+.applica-nota { margin-top:12px; font-size:11px; line-height:1.6;
+  color:var(--text-4); }
+.applica-fatto { display:none; padding:14px 0 4px; }
+.applica-fatto.si { display:block; }
+.applica-fatto b { display:block; font-family:var(--display);
+  font-size:20px; font-weight:300; color:var(--gold); }
+.applica-fatto p { margin-top:8px; font-size:12.5px; color:var(--text-2); }
+
+/* le altre case */
+.altre { display:grid; gap:clamp(14px,1.6vw,20px);
+  grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); }
+
+/* ── IL DENARO: il conto a sinistra, IL numero a destra ───────────────── */
+.denaro-corpo { margin-top:clamp(22px,2.6vw,32px); display:grid; gap:16px;
+  grid-template-columns:1fr; align-items:start; }
+@media (min-width:920px){ .denaro-corpo {
+  grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr); } }
+
+.totale { padding:22px 24px 24px; background:
+  linear-gradient(165deg, rgba(255,215,0,.075), rgba(255,215,0,.012) 58%),
+  var(--card); box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.tot-eti { display:block; font-size:10.5px; font-weight:600; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--gold); }
+.tot-flap { margin-top:13px; }
+.tot-scudo { display:inline-flex; align-items:flex-start; gap:8px;
+  margin-top:14px; font-size:11.5px; line-height:1.5; color:var(--text-4); }
+.tot-scudo svg { width:15px; height:15px; flex:none; margin-top:1px;
+  color:var(--green); fill:none; stroke:currentColor; stroke-width:1.6;
+  stroke-linecap:round; stroke-linejoin:round; }
+
+/* la durata: non cambia il giorno uno, cambia quanto costa restarci */
+.durata { margin-top:20px; padding-top:18px;
+  border-top:1px solid var(--line-gold); }
+.durata-eti { display:block; font-size:12.5px; color:var(--text-2); }
+.durata-tasti { margin-top:10px; display:flex; gap:7px; flex-wrap:wrap; }
+.durata-tasti button { flex:1 1 auto; min-height:38px; padding:9px 14px;
+  font-family:var(--sans); font-size:12px; font-weight:400; letter-spacing:.02em;
+  color:var(--text-2); background:var(--surface); border:1px solid var(--line);
+  border-radius:100px; cursor:pointer;
+  transition:color .22s var(--ease), border-color .22s var(--ease),
+    background .22s var(--ease); }
+.durata-tasti button:hover { color:var(--text); border-color:var(--line-gold-2); }
+.durata-tasti button.on { background:var(--gold); border-color:transparent;
+  color:#000; font-weight:600; }
+.durata-conto { margin-top:15px; }
+.durata-conto > div { display:flex; align-items:baseline;
+  justify-content:space-between; gap:14px; padding:7px 0; font-size:13px;
+  color:var(--text-2); }
+.durata-conto > div b { font-family:var(--display); font-size:15px;
+  font-weight:400; color:var(--text); font-variant-numeric:tabular-nums;
+  white-space:nowrap; }
+.durata-tot { border-top:1px solid var(--line-0); margin-top:4px;
+  padding-top:11px!important; }
+.durata-tot span { color:var(--text); }
+.durata-tot b { color:var(--gold)!important; font-size:19px!important; }
+.durata-nota { margin-top:9px; font-size:11.5px; line-height:1.55;
+  color:var(--text-4); }
+.durata-nota b { color:var(--text-2); font-weight:400; }
+
+/* IL numero sui Solari: e l'anima del marchio, e questa e la cifra che
+   conta piu di ogni altra nel sito */
+/* l'engine dimensiona le celle dal font-size dell'ospite, come il canone
+   nella scena: qui la cifra deve pesare piu di ogni altra della pagina */
+.flap-tot { display:inline-flex; font-size:clamp(26px,3.4vw,38px); }
+
+/* ── QUELLO CHE CI CHIEDERESTI ────────────────────────────────────────── */
+.chiedi-lista { margin-top:clamp(22px,2.6vw,32px); display:grid; gap:1px;
+  background:var(--line-0); box-shadow:inset 0 0 0 1px var(--line-0);
+  border-radius:14px; overflow:hidden; }
+@media (min-width:900px){ .chiedi-lista { grid-template-columns:1fr 1fr; } }
+.chiedi-v { background:var(--card); padding:17px 19px 18px;
+  transition:background .3s var(--ease); }
+.chiedi-v:hover { background:var(--elevated); }
+.chiedi-v b { display:block; font-size:13.5px; font-weight:500;
+  letter-spacing:.005em; color:var(--text); line-height:1.4; }
+.chiedi-v p { margin:6px 0 0; font-size:12.5px; line-height:1.6;
+  color:var(--text-2); }
+.chiedi-v p em { font-style:normal; color:var(--gold); }
+.chiedi-wa { display:inline-flex; align-items:center; gap:11px;
+  margin-top:clamp(16px,2vw,22px); padding:13px 20px; border-radius:100px;
+  background:var(--surface); box-shadow:inset 0 0 0 1px var(--line);
+  font-size:12.5px; color:var(--text-2);
+  transition:box-shadow .25s var(--ease), transform .25s var(--ease); }
+.chiedi-wa:hover { box-shadow:inset 0 0 0 1px var(--line-gold-2);
+  transform:translateY(-1px); }
+.chiedi-wa b { color:var(--gold); font-weight:500; }
+.chiedi-wa svg { width:19px; height:19px; flex:none; color:var(--green);
+  fill:none; stroke:currentColor; stroke-width:1.5; stroke-linecap:round;
+  stroke-linejoin:round; }
+.chiedi-wa svg .acc { opacity:.7; }
+
+
+/* ── PER LE CHIAVI: un blocco solo. Il numero non arriva da solo, arriva
+   con quello che compra — un onorario senza elenco e un pedaggio. ────── */
+.chiavi { margin-top:clamp(22px,2.6vw,32px); padding:clamp(22px,2.6vw,30px);
+  background:linear-gradient(165deg, rgba(255,215,0,.06),
+    rgba(255,215,0,.01) 52%), var(--card);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.chiavi-cima { max-width:560px; }
+.chiavi-eti { display:block; font-size:10.5px; font-weight:600;
+  letter-spacing:.2em; text-transform:uppercase; color:var(--gold); }
+.chiavi-flap { margin-top:12px; }
+.flap-tot { display:inline-flex; font-size:clamp(28px,4vw,42px); }
+/* le tre voci sotto il numero: stessa gerarchia, nessuna nascosta.
+   Il deposito e un pagamento vero del giorno uno — e torna, ed e scritto
+   in verde sulla sua riga, non in un riquadro a parte. */
+.voci { margin-top:14px; }
+.voce { display:flex; align-items:baseline; justify-content:space-between;
+  gap:14px; padding:9px 0; border-top:1px solid var(--line-0);
+  font-size:13px; color:var(--text-2); }
+.voce b { font-family:var(--display); font-size:16px; font-weight:400;
+  color:var(--text); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.voce em { display:block; font-style:normal; font-size:11px; line-height:1.5;
+  color:var(--green); margin-top:2px; }
+.voce.torna b { color:var(--green); }
+
+/* cosa compra l'onorario: e la parte che toglie la paura al numero */
+.chiavi-compra { margin-top:clamp(20px,2.4vw,28px); padding-top:20px;
+  border-top:1px solid var(--line-gold); }
+.chiavi-capo { margin:0; font-size:14px; line-height:1.6; color:var(--text-2); }
+.chiavi-capo b { display:block; font-family:var(--display); font-size:17px;
+  font-weight:400; letter-spacing:.005em; color:var(--text); margin-bottom:4px; }
+.chiavi-capo span { color:var(--gold); font-variant-numeric:tabular-nums; }
+.chiavi-lista { list-style:none; margin:16px 0 0; padding:0; display:grid;
+  gap:1px; background:var(--line-0); box-shadow:inset 0 0 0 1px var(--line-0);
+  border-radius:12px; overflow:hidden; }
+@media (min-width:760px){ .chiavi-lista {
+  grid-template-columns:1fr 1fr; } }
+.chiavi-lista li { position:relative; background:var(--card);
+  padding:14px 16px 15px 38px; transition:background .3s var(--ease); }
+.chiavi-lista li:hover { background:var(--elevated); }
+.chiavi-lista li::before { content:''; position:absolute; left:16px; top:17px;
+  width:11px; height:6px; border-left:1.6px solid var(--gold);
+  border-bottom:1.6px solid var(--gold); transform:rotate(-45deg); }
+.chiavi-lista b { display:block; font-size:13px; font-weight:500;
+  letter-spacing:.005em; color:var(--text); line-height:1.4; }
+.chiavi-lista span { display:block; margin-top:4px; font-size:11.5px;
+  line-height:1.55; color:var(--text-4); }
+
+.chiavi-fondo { margin-top:18px; padding-top:16px;
+  border-top:1px solid var(--line-0); }
+.chiavi-scudo { display:inline-flex; align-items:flex-start; gap:9px;
+  font-size:12px; line-height:1.5; color:var(--text-2); }
+.chiavi-scudo svg { width:16px; height:16px; flex:none; margin-top:1px;
+  color:var(--green); fill:none; stroke:currentColor; stroke-width:1.6;
+  stroke-linecap:round; stroke-linejoin:round; }
+.chiavi-fuori { margin:10px 0 0; font-size:11.5px; line-height:1.6;
+  color:var(--text-4); }
+.chiavi-fuori b { color:var(--text-2); font-weight:500; }
+.chiavi .durata { margin-top:20px; padding-top:18px;
+  border-top:1px solid var(--line-gold); }
+
+/* ── LA GALLERIA SI SFOGLIA ──────────────────────────────────────────── */
+.sfoglia { position:absolute; top:50%; z-index:4; width:46px; height:46px;
+  transform:translateY(-50%); display:grid; place-items:center;
+  border-radius:50%; border:1px solid var(--line);
+  background:rgba(6,6,7,.62); backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px); color:var(--text-2); cursor:pointer;
+  opacity:0; transition:opacity .3s var(--ease), color .25s var(--ease),
+    border-color .25s var(--ease), background .25s var(--ease); }
+.telaio:hover .sfoglia, .sfoglia:focus-visible { opacity:1; }
+@media (hover:none), (pointer:coarse){ .sfoglia { opacity:1; } }
+.sfoglia:hover { color:var(--gold); border-color:var(--line-gold-2);
+  background:rgba(6,6,7,.82); }
+.sfoglia svg { width:19px; height:19px; fill:none; stroke:currentColor;
+  stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.sfoglia.prec { left:14px; } .sfoglia.succ { right:14px; }
+.sfoglia[disabled] { opacity:0!important; pointer-events:none; }
+.conta-foto { position:absolute; right:14px; bottom:14px; z-index:4;
+  font-size:11px; letter-spacing:.08em; color:var(--text-2);
+  background:rgba(6,6,7,.7); backdrop-filter:blur(8px);
+  border:1px solid var(--line); border-radius:100px; padding:5px 12px;
+  font-variant-numeric:tabular-nums; }
+
+/* ── LO STATO, VIVO ──────────────────────────────────────────────────── */
+.stato-grande { display:inline-flex; align-items:center; gap:8px; }
+.stato-grande::before { content:''; width:7px; height:7px; border-radius:50%;
+  background:currentColor; flex:none; }
+.stato-grande.libera { color:var(--green); }
+.stato-grande.libera::before { animation:stato-respira 2.8s ease-out infinite; }
+@keyframes stato-respira {
+  0%   { box-shadow:0 0 0 0 rgba(0,255,136,.5); }
+  70%  { box-shadow:0 0 0 9px rgba(0,255,136,0); }
+  100% { box-shadow:0 0 0 0 rgba(0,255,136,0); } }
+.stato-grande.attesa { color:var(--gold); }
+.stato-grande.attesa::before { animation:stato-attesa 1.6s ease-in-out infinite; }
+@keyframes stato-attesa { 0%,100% { opacity:1; } 50% { opacity:.25; } }
+.stato-grande.presa { color:var(--text-3); }
+@media (prefers-reduced-motion:reduce){
+  .stato-grande::before { animation:none!important; } }
+
+
+/* ── LA PELLICOLA: il video dove c'e, la verita dove non c'e ─────────── */
+.pellicola { margin-top:clamp(14px,1.8vw,20px); }
+.pel-fila { display:grid; gap:1px; background:var(--line-0);
+  box-shadow:inset 0 0 0 1px var(--line-0); border-radius:14px;
+  overflow:hidden; }
+@media (min-width:820px){ .pel-fila:not(.uno) { grid-template-columns:1fr 1fr; } }
+.pel-v { display:flex; align-items:flex-start; gap:12px; padding:15px 17px;
+  background:var(--card); }
+.pel-v svg { width:19px; height:19px; flex:none; margin-top:1px;
+  color:var(--gold); fill:none; stroke:currentColor; stroke-width:1.5;
+  stroke-linecap:round; stroke-linejoin:round; }
+.pel-v svg .pieno { fill:var(--gold); stroke:none; }
+.pel-v b { display:block; font-size:12.5px; font-weight:500; color:var(--text);
+  line-height:1.4; }
+.pel-v span { display:block; margin-top:3px; font-size:11.5px; line-height:1.55;
+  color:var(--text-4); }
+.pel-v.azione { background:linear-gradient(150deg, rgba(255,215,0,.07),
+  rgba(255,215,0,.012) 64%), var(--card);
+  transition:background .3s var(--ease); }
+.pel-v.azione:hover { background:linear-gradient(150deg, rgba(255,215,0,.13),
+  rgba(255,215,0,.02) 64%), var(--card); }
+.pel-v.azione em { font-style:normal; color:var(--gold); font-weight:500; }
+
+/* il video: si carica solo quando lo chiedi — niente iframe a tradimento */
+.pel-video { position:relative; margin-top:12px; border-radius:14px;
+  overflow:hidden; background:var(--void); aspect-ratio:16/9;
+  box-shadow:inset 0 0 0 1px var(--line); }
+@media (max-width:640px){ .pel-video { aspect-ratio:4/3; } }
+.pel-video iframe { position:absolute; inset:0; width:100%; height:100%;
+  border:0; }
+.pel-play { position:absolute; inset:0; display:grid; place-items:center;
+  gap:12px; align-content:center; cursor:pointer; border:0; width:100%;
+  background:radial-gradient(60% 60% at 50% 45%, rgba(255,215,0,.09),
+    transparent 70%), var(--void); }
+.pel-play i { width:62px; height:62px; border-radius:50%; display:grid;
+  place-items:center; border:1px solid var(--line-gold-2);
+  background:rgba(255,215,0,.08); transition:transform .3s var(--ease),
+    background .3s var(--ease); }
+.pel-play:hover i { transform:scale(1.06); background:rgba(255,215,0,.16); }
+.pel-play i::after { content:''; width:0; height:0; margin-left:4px;
+  border-left:15px solid var(--gold); border-top:9px solid transparent;
+  border-bottom:9px solid transparent; }
+.pel-play b { font-size:12.5px; font-weight:500; color:var(--text); }
+.pel-play span { font-size:11px; color:var(--text-4); }
+
+/* ── L'APPLY ──────────────────────────────────────────────────────────── */
+.ap-gruppo { padding-top:16px; margin-top:16px;
+  border-top:1px solid var(--line-0); }
+.ap-gruppo:first-of-type { padding-top:0; margin-top:14px; border-top:0; }
+.ap-eti { display:block; margin-bottom:10px; font-size:10px; font-weight:600;
+  letter-spacing:.2em; text-transform:uppercase; color:var(--gold); }
+.ap-due { display:grid; gap:0; }
+@media (min-width:520px){ .ap-due { grid-template-columns:1fr 1fr;
+  gap:0 14px; } }
+.ap-perche { margin:-2px 0 10px; font-size:11.5px; line-height:1.55;
+  color:var(--text-4); }
+.ap-perche b { color:var(--text-2); font-weight:500; }
+.ap-esca { position:absolute; left:-9999px; width:1px; height:1px;
+  opacity:0; pointer-events:none; }
+
+/* cosa succede dopo: ogni riga e un messaggio che non va piu scritto */
+.ap-dopo { list-style:none; margin:14px 0 0; padding:0; counter-reset:d; }
+.ap-dopo li { position:relative; padding:0 0 14px 34px; counter-increment:d; }
+.ap-dopo li::before { content:counter(d); position:absolute; left:0; top:-1px;
+  width:22px; height:22px; border-radius:50%; display:grid; place-items:center;
+  font-size:10.5px; font-weight:600; color:var(--gold);
+  background:rgba(255,215,0,.09); border:1px solid var(--line-gold-2); }
+.ap-dopo li::after { content:''; position:absolute; left:11px; top:24px;
+  bottom:4px; width:1px; background:var(--line-gold); }
+.ap-dopo li:last-child { padding-bottom:0; }
+.ap-dopo li:last-child::after { display:none; }
+.ap-dopo b { display:block; font-size:12.5px; font-weight:500;
+  color:var(--text); }
+.ap-dopo span { display:block; margin-top:3px; font-size:11.5px;
+  line-height:1.55; color:var(--text-4); }
+
+
+/* ══ LA LENTE ══════════════════════════════════════════════════════════ */
+#telaio > img { cursor:zoom-in; }
+.lente { position:fixed; inset:0; z-index:200; background:rgba(3,3,3,.97);
+  display:grid; place-items:center; }
+.lente[hidden] { display:none; }
+.lente img { max-width:min(96vw, 1400px); max-height:88vh;
+  object-fit:contain; box-shadow:0 40px 120px rgba(0,0,0,.8); }
+.lente-x { position:absolute; top:18px; right:18px; width:44px; height:44px;
+  display:grid; place-items:center; background:rgba(3,3,3,.72); border:0;
+  border-radius:50%; color:var(--text-2); font-size:16px; cursor:pointer;
+  box-shadow:inset 0 0 0 1px var(--line); transition:.2s; }
+.lente-x:hover { color:var(--text);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.lente-b { position:absolute; top:50%; transform:translateY(-50%);
+  width:44px; height:44px; display:grid; place-items:center;
+  background:rgba(3,3,3,.72); border:0; border-radius:50%;
+  color:var(--text-2); font-size:22px; cursor:pointer;
+  box-shadow:inset 0 0 0 1px var(--line); transition:.2s; }
+.lente-b:hover { color:var(--gold);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.lente-b.prec { left:14px; }
+.lente-b.succ { right:14px; }
+.lente-conta { position:absolute; bottom:18px; left:50%;
+  transform:translateX(-50%); font-size:11px; letter-spacing:.14em;
+  color:var(--text-3); font-variant-numeric:tabular-nums; }
+
+/* ══ LA PRESA ══════════════════════════════════════════════════════════ */
+.presa { margin-top:clamp(16px,2vw,22px); padding:clamp(18px,2.4vw,26px);
+  display:grid; gap:14px; }
+.presa-testa b { display:block; font-family:var(--display); font-weight:300;
+  font-size:clamp(19px,2.2vw,24px); line-height:1.25; }
+.presa-testa p { margin-top:8px; font-size:13.5px; line-height:1.65;
+  color:var(--text-2); max-width:64ch; }
+.presa-testa p b { color:var(--gold); font-weight:600; }
+.presa-forma { display:grid; gap:10px;
+  grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); }
+.presa-forma input { padding:13px 14px; background:var(--input); border:0;
+  box-shadow:inset 0 0 0 1px var(--line); color:var(--text); font:inherit;
+  font-size:14px; min-width:0; }
+.presa-forma input:focus { outline:none;
+  box-shadow:inset 0 0 0 1px var(--gold); }
+.presa-nota { font-size:11px; color:var(--text-4); }
+.presa-nota a { color:var(--gold); }
+
+/* ══ IL POSTO ══════════════════════════════════════════════════════════ */
+.blocco3d { position:relative; margin-top:clamp(16px,2vw,24px);
+  height:min(56vh, 460px); background:var(--void);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2),
+    0 40px 90px -40px rgba(0,0,0,.9); overflow:hidden; }
+#bloccoMappa { position:absolute; inset:0; }
+#bloccoMappa canvas { outline:none; }
+.blocco3d .maplibregl-ctrl-attrib { font-size:9px!important; opacity:.4; }
+.blocco3d .maplibregl-ctrl-group { background:rgba(14,14,16,.82)!important; }
+.blocco3d .maplibregl-ctrl-icon {
+  filter:invert(1) brightness(1.6) contrast(.85); }
+.blocco-facciata { position:absolute; inset:0; display:grid;
+  place-items:center; align-content:center; gap:8px; border:0;
+  color:var(--text); font:inherit; cursor:pointer; text-align:center;
+  padding:20px; background:
+    radial-gradient(2px 2px at 26% 30%, var(--gold) 40%, transparent 60%),
+    radial-gradient(2px 2px at 66% 22%, var(--gold) 40%, transparent 60%),
+    radial-gradient(2px 2px at 44% 56%, rgba(255,215,0,.5) 40%, transparent 60%),
+    radial-gradient(120% 90% at 70% 8%, rgba(255,215,0,.08), transparent 55%),
+    linear-gradient(160deg, #101017 0%, #08080D 55%, var(--void) 100%); }
+.blocco-facciata b { font-family:var(--display); font-weight:300;
+  font-size:clamp(19px,2.4vw,26px); }
+.bf-sotto { font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--text-3); }
+.bf-anelli { position:absolute; inset:0; display:grid; place-items:center;
+  pointer-events:none; }
+.bf-anelli i { position:absolute; border-radius:50%; opacity:.5;
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.bf-anelli i:nth-child(1) { width:120px; height:120px; }
+.bf-anelli i:nth-child(2) { width:220px; height:220px; opacity:.32; }
+.bf-anelli i:nth-child(3) { width:330px; height:330px; opacity:.18; }
+.blocco-pin span { display:inline-block; padding:6px 11px;
+  background:var(--gold); color:#141005; font-size:12px; font-weight:700;
+  border-radius:100px; box-shadow:0 10px 30px rgba(0,0,0,.5);
+  font-variant-numeric:tabular-nums; }
+.blocco-spento { position:absolute; inset:0; display:grid;
+  place-items:center; align-content:center; gap:10px; padding:24px;
+  text-align:center; }
+.blocco-spento b { font-family:var(--display); font-weight:300;
+  font-size:19px; }
+.blocco-spento span { font-size:12.5px; color:var(--text-3); max-width:44ch;
+  line-height:1.6; }
+.vicini { margin-top:clamp(14px,1.8vw,18px); display:grid; gap:10px;
+  grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); }
+.vicino { display:flex; align-items:baseline; gap:8px; padding:13px 15px;
+  background:var(--card); box-shadow:inset 0 0 0 1px var(--line-0); }
+.vicino b { font-weight:500; font-size:13.5px; white-space:nowrap; }
+.vicino span { flex:1; font-size:11px; color:var(--text-4);
+  overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.vicino i { font-style:normal; font-size:12px; color:var(--gold);
+  font-variant-numeric:tabular-nums; white-space:nowrap; }
+.luoghi { margin-top:clamp(14px,1.8vw,18px); padding:clamp(16px,2vw,22px);
+  background:var(--card); box-shadow:inset 0 0 0 1px var(--line-0); }
+.luoghi-testa { display:flex; flex-wrap:wrap; align-items:baseline;
+  gap:6px 14px; }
+.luoghi-testa b { font-family:var(--display); font-weight:300;
+  font-size:18px; }
+.luoghi-testa span { font-size:11.5px; color:var(--text-4); }
+.luoghi-cerca { position:relative; margin-top:12px; }
+.luoghi-cerca input { width:100%; padding:13px 14px; background:var(--input);
+  border:0; box-shadow:inset 0 0 0 1px var(--line); color:var(--text);
+  font:inherit; font-size:14px; }
+.luoghi-cerca input:focus { outline:none;
+  box-shadow:inset 0 0 0 1px var(--gold); }
+.luoghi-sug { position:absolute; left:0; right:0; top:calc(100% + 6px);
+  z-index:20; background:var(--void);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2),
+    0 24px 60px rgba(0,0,0,.7); }
+.luoghi-sug:empty { display:none; }
+.luoghi-sug button { display:block; width:100%; text-align:left;
+  padding:11px 14px; background:none; border:0;
+  border-bottom:1px solid var(--line-0); color:var(--text-2); font:inherit;
+  cursor:pointer; min-height:40px; }
+.luoghi-sug button:last-child { border-bottom:0; }
+.luoghi-sug button:hover { background:rgba(255,215,0,.06); }
+.luoghi-sug button b { display:block; color:var(--text); font-weight:500;
+  font-size:13.5px; }
+.luoghi-sug button span { font-size:11px; color:var(--text-4); }
+.luoghi-sug .luoghi-vuota { padding:11px 14px; }
+.luoghi-righe { margin-top:12px; display:grid; gap:8px; }
+.luogo { display:flex; align-items:center; gap:10px; padding:10px 12px;
+  background:var(--void); box-shadow:inset 0 0 0 1px var(--line-0); }
+.luogo b { flex:1; font-weight:500; font-size:13px; overflow:hidden;
+  white-space:nowrap; text-overflow:ellipsis; }
+.luogo i { font-style:normal; font-size:12px; color:var(--gold);
+  font-variant-numeric:tabular-nums; white-space:nowrap; }
+.luogo button { width:36px; height:36px; flex:none; display:grid;
+  place-items:center; background:none; border:0; color:var(--text-4);
+  cursor:pointer; font-size:12px; border-radius:50%;
+  box-shadow:inset 0 0 0 1px var(--line); transition:.2s; }
+.luogo button:hover { color:var(--text); }
+.luoghi-vuota { font-size:12px; color:var(--text-4); padding:8px 2px; }
+.luoghi-nota { margin-top:12px; font-size:10.5px; color:var(--text-4);
+  line-height:1.6; }
+
+/* ══ LE PORTICINE ══════════════════════════════════════════════════════ */
+.porticine { margin-top:clamp(18px,2.2vw,26px); display:grid; gap:1px;
+  background:var(--line-0); box-shadow:inset 0 0 0 1px var(--line-0);
+  grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); }
+.porticina { position:relative; display:flex; flex-direction:column;
+  gap:6px; padding:17px 18px 16px; background:var(--surface);
+  transition:background .3s var(--ease); }
+.porticina::before { content:''; position:absolute; top:0; left:0; right:0;
+  height:1px; background:var(--gold); transform:scaleX(0);
+  transform-origin:left; transition:transform .42s var(--ease); }
+.porticina:hover { background:var(--elevated); }
+.porticina:hover::before { transform:scaleX(1); }
+.porticina b { font-size:13.5px; font-weight:500; color:var(--text);
+  line-height:1.35; }
+.porticina span { font-size:11.5px; line-height:1.55; color:var(--text-4); }
+.porticina i { margin-top:4px; font-style:normal; font-size:11px;
+  font-weight:600; letter-spacing:.05em; color:var(--gold); }
+.porticina i.verde { color:var(--green); }
+</style>
+
+<section class="casa">
+  <div class="container">
+    <nav class="casa-briciole" aria-label="Breadcrumb">
+      <a href="/index.html">Home</a><i>›</i>
+      <a href="/apartments.html">Apartments</a><i>›</i>
+      <a href="/apartments.html" id="briZona">Rome</a>
+    </nav>
+
+    <div class="scena-casa">
+      <div class="telaio" id="telaio">
+        <button type="button" class="sfoglia prec" id="foPrec"
+          aria-label="Previous photo"><svg viewBox="0 0 24 24"
+          aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <button type="button" class="sfoglia succ" id="foSucc"
+          aria-label="Next photo"><svg viewBox="0 0 24 24"
+          aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+        <span class="conta-foto" id="contaFoto" aria-hidden="true"></span>
+        <div class="telaio-alto">
+          <span class="stato-grande" id="statoCasa">—</span>
+          <button type="button" class="home-cuore" id="cuoreCasa"
+            data-u="" aria-label="Save this home" style="position:static">♥</button>
+        </div>
+        <div class="telaio-basso">
+          <div>
+            <h1 id="nomeCasa">—</h1>
+            <p class="dove" id="doveCasa">—</p>
+          </div>
+          <div class="canone-grande">
+            <span class="flap-prezzo flap-scale" id="canoneCasa" data-p=""></span>
+            <small>per month</small>
+          </div>
+        </div>
+      </div>
+      <div class="rullino" id="rullino"></div>
+    </div>
+
+    <div class="pellicola coro" id="pellicola"></div>
+
+    <div class="fatti coro" id="fatti"></div>
+  </div>
+</section>
+
+<!-- ══ IL DENARO IN CHIARO ═══════════════════════════════════════════════
+     Il numero piu importante del sito gira sui Solari. Accanto, la durata:
+     non cambia il giorno uno, cambia l'intero soggiorno — ed e la domanda
+     che arriva ogni volta su WhatsApp. -->
+<section class="sezione" id="denaro">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>The money, in the open</span>
+      <h2 class="titolo">What you pay to get the keys — <span class="hl">all of
+        it</span>.</h2>
+      <p class="sotto">No agency surprise on signing day. Every figure below is
+        written into your pre-agreement before a single euro moves.</p>
+    </div>
+
+    <div class="racconto sale" style="margin-top:20px">
+      <p id="raccontoCasa">—</p>
+      <div class="dote" id="dentroCasa"></div>
+    </div>
+
+    <div class="chiavi quadro sale"><span class="tacca"></span>
+
+      <div class="chiavi-cima">
+        <span class="chiavi-eti">Due on day one — all of it, in writing</span>
+        <div class="chiavi-flap"><span class="flap-tot" id="totFlap"
+          data-p="" aria-live="polite"></span></div>
+        <div class="voci">
+          <div class="voce"><span>First month's rent</span>
+            <b id="voceCanone">—</b></div>
+          <div class="voce"><span>Agency fee — our only fee, once</span>
+            <b id="voceOnorario">—</b></div>
+          <div class="voce torna"><span>Security deposit
+            <em>comes back to you at the end — held, filmed in and out</em></span>
+            <b id="voceCauzione">—</b></div>
+        </div>
+      </div>
+
+      <div class="chiavi-compra">
+        <p class="chiavi-capo"><b>The agency fee is not a door charge.</b>
+          <span id="chiaviOnorario">—</span> is what the whole thing costs,
+          once, and this is what it buys:</p>
+        <ul class="chiavi-lista">
+          <li><b>The contract, in English and Italian</b><span>A registered
+            lease under L. 431/98 — transitional or rent-controlled, depending
+            on the home — explained line by line before you sign
+            anything.</span></li>
+          <li><b>Registration with the Agenzia delle Entrate</b><span>We file
+            it. The registration tax itself goes to the State — that part is
+            not ours and never passes through us.</span></li>
+          <li><b>Signing from your phone</b><span>A private link: you sign,
+            the landlord countersigns after you. No notary, no flight, no
+            printer.</span></li>
+          <li><b>Your keys in Apple Wallet</b><span>The Landing Pass: address,
+            entry details and your contact, on the lock screen the day you
+            arrive.</span></li>
+          <li><b>A tenant portal, not an inbox</b><span>Rent, receipts,
+            documents and maintenance requests in one place, for the whole
+            stay.</span></li>
+          <li><b>One named human on WhatsApp</b><span>The same person from the
+            first message to the day you hand the keys back. Not a rota, not
+            a form.</span></li>
+        </ul>
+      </div>
+
+      <div class="chiavi-fondo">
+        <span class="chiavi-scudo"><svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 3l7 2.8v5.4c0 4.1-3 7.1-7 8.3-4-1.2-7-4.2-7-8.3V5.8z"/>
+          <path d="M8.6 11.6l2.3 2.3 4.3-4.9"/></svg>Paid through BOOM on
+          Stripe · a receipt for every line · never a transfer to a
+          stranger</span>
+        <p class="chiavi-fuori"><b>What is not included:</b> utilities
+          (electricity, gas, water, internet) and the registration tax. Both
+          are paid to the providers and to the State. We never touch them and
+          we never mark them up.
+          <a class="sotto-vai" href="/your-money.html">The full money story —
+            every euro, in and out →</a></p>
+      </div>
+
+      <div class="durata">
+        <span class="durata-eti">And if you stay longer — how long?</span>
+        <div class="durata-tasti" role="group" aria-label="Length of stay">
+          <button type="button" data-m="3">3 months</button>
+          <button type="button" data-m="6">6 months</button>
+          <button type="button" data-m="12" class="on">12 months</button>
+        </div>
+        <div class="durata-conto">
+          <div><span>Rent for the whole stay</span><b id="durCanoni">—</b></div>
+          <div><span>Agency fee, once</span><b id="durOnorario">—</b></div>
+          <div class="durata-tot"><span>What the stay costs you</span>
+            <b id="durTotale">—</b></div>
+          <p class="durata-nota" id="durNota">—</p>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="presa quadro sale" id="presaCasa"><span class="tacca"></span>
+      <div class="presa-testa">
+        <b id="presaTitolo">Seen enough? Take it off the market.</b>
+        <p>A refundable <b>€300</b> hold reserves this exact home while we
+          process your application: fully refunded if you're not approved,
+          deducted from your first month if you move in. Cancel free within
+          48 hours.</p>
+      </div>
+      <form class="presa-forma" id="presaForma">
+        <input id="prNome" name="nome" placeholder="Full name"
+          autocomplete="name" required>
+        <input id="prMail" name="email" type="email" placeholder="Email"
+          autocomplete="email" required>
+        <input id="prTel" name="telefono" type="tel"
+          placeholder="Phone / WhatsApp" autocomplete="tel" required>
+        <button type="submit" class="btn btn-primary" id="prVai">Hold this
+          home · €300</button>
+      </form>
+      <p class="presa-nota" id="presaNota">Card via Stripe · a receipt by
+        email · a human replies within 2 hours.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══ IL POSTO — il blocco vero, le distanze vere ═══════════════════════
+     Mai una mappa finta: il motore arriva solo se lo chiami, e se non
+     arriva lo dice. Le distanze sono stime oneste (linea d'aria ×1.3),
+     dichiarate come tali. -->
+<section class="sezione" id="posto">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>The place</span>
+      <h2 class="titolo">See the <span class="hl">block</span> — before you
+        cross town.</h2>
+      <p class="sotto">The real map and the real distances, measured from
+        this door — not from the zone's name.</p>
+    </div>
+
+    <div class="blocco3d sale" id="blocco3d">
+      <button type="button" class="blocco-facciata" id="bloccoVia">
+        <span class="bf-anelli" aria-hidden="true"><i></i><i></i><i></i></span>
+        <b>◆ Explore the block in 3D</b>
+        <span class="bf-sotto">Real map · 3D buildings · 5 / 10 / 15-minute
+          walk rings</span>
+      </button>
+    </div>
+
+    <div class="vicini sale" id="vicini"></div>
+
+    <div class="luoghi sale" id="luoghi">
+      <div class="luoghi-testa"><b>Distance from <span class="hl">your
+        places</span></b><span>Set them once — every home answers.</span></div>
+      <div class="luoghi-cerca">
+        <input id="luogoQ" type="text"
+          placeholder="Your office, university, a metro stop…"
+          autocomplete="off" aria-label="Search a place in Rome">
+        <div class="luoghi-sug" id="luogoSug" role="listbox"></div>
+      </div>
+      <div class="luoghi-righe" id="luogoRighe"></div>
+      <p class="luoghi-nota">Times are honest estimates — straight line ×1.3
+        for real streets, walking at 4.7 km/h — not turn-by-turn routes.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══ QUELLO CHE CI CHIEDERESTI SU WHATSAPP ═════════════════════════════
+     Ogni domanda che si ripete in chat e una cosa che questa pagina non
+     diceva. Scritte una volta, qui. -->
+<section class="sezione" id="chiedi">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>Before you ask</span>
+      <h2 class="titolo">Everything people ask us <span class="hl">on
+        WhatsApp</span>.</h2>
+      <p class="sotto">Answered here so you don't have to ask — and so the
+        answer is the same one, every time, in writing.</p>
+    </div>
+    <div class="chiedi-lista coro" id="chiediLista"></div>
+    <a class="chiedi-wa" href="https://wa.me/393313251961" target="_blank"
+      rel="noopener">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 3.5A10.4 10.4 0
+        0 0 3.6 16.1L2.5 21.5l5.5-1.1A10.4 10.4 0 1 0 20.5 3.5z"/>
+        <path d="M8.3 7.6c.3-.1.6 0 .8.3l1 1.7c.2.3.1.6-.1.8l-.7.7c.6 1.3 1.6
+        2.3 2.9 2.9l.7-.7c.2-.2.5-.3.8-.1l1.7 1c.3.2.4.5.3.8-.4 1.1-1.6
+        1.7-2.7 1.4-2.9-.8-5.1-3-5.9-5.9-.3-1.1.3-2.3 1.2-2.9z"
+        class="acc"/></svg>
+      Something we haven't answered? <b>Ask a person →</b></a>
+  </div>
+</section>
+
+<!-- ══ COSA SUCCEDE DOPO ═════════════════════════════════════════════════ -->
+<section class="sezione">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>From here to the keys</span>
+      <h2 class="titolo">Four steps, and <span class="hl">nothing hidden
+        between them</span>.</h2>
+    </div>
+    <div class="dopo coro">
+      <div class="tempo"><b>01</b><h4>You apply</h4>
+        <p>Two minutes. We reply in person — no automated maybe.</p></div>
+      <div class="tempo"><b>02</b><h4>We agree the terms</h4>
+        <p>A written pre-agreement: rent, deposit, fee, dates. You read it
+          before anything is paid.</p></div>
+      <div class="tempo"><b>03</b><h4>You sign from your phone</h4>
+        <p>Magic-link signature, legally valid, no printer. We register the
+          contract with the Agenzia delle Entrate.</p></div>
+      <div class="tempo"><b>04</b><h4>You get the keys</h4>
+        <p>Your tenant pass lands in Apple Wallet. Rent, documents and
+          maintenance live in your pocket.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ APPLY + ALTRE CASE ════════════════════════════════════════════════ -->
+<!-- ══ LE PORTICINE — i servizi, dove servono e senza rumore ═════════════ -->
+<section class="sezione" id="porticine">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>Services · flat prices</span>
+      <h2 class="titolo">Three ways we can <span class="hl">step in</span>.</h2>
+    </div>
+    <div class="porticine sale">
+      <a class="porticina" id="portaVideo" href="#" target="_blank"
+        rel="noopener">
+        <b>See this flat live, from anywhere</b>
+        <span>A BOOM agent walks it on live video — you direct, you ask,
+          we answer on camera.</span>
+        <i class="verde">Free — our home, our job</i>
+      </a>
+      <a class="porticina" href="/property-finding.html">
+        <b>Let the machine hunt for you</b>
+        <span>Your brief becomes a live search: the whole market,
+          off-market included, human-verified.</span>
+        <i>€350 · deducted on success — refunded if we fail</i>
+      </a>
+      <a class="porticina" href="/deal-assistance.html">
+        <b>Found one on a portal?</b>
+        <span>We verify the landlord, the papers and the price — then
+          negotiate. Start with an €89 live viewing of their listing,
+          credited if you rent through us.</span>
+        <i>€249 · flat</i>
+      </a>
+    </div>
+  </div>
+</section>
+
+<section class="sezione">
+  <div class="container soldi">
+    <div class="applica quadro sale" id="applica"><span class="tacca"></span>
+      <h3>Apply for <span class="hl" id="applicaNome">this home</span></h3>
+      <p id="applicaSotto">Tell us when you land and who's coming. We'll come
+        back to you in person.</p>
+      <div class="passi" aria-hidden="true">
+        <span class="passo-eti ora"><i></i></span>
+        <span class="passo-eti"><i></i></span>
+        <span class="passo-eti"><i></i></span>
+      </div>
+      <form id="modApplica" novalidate>
+
+        <div class="ap-gruppo">
+          <span class="ap-eti">1 · You</span>
+          <div class="campo"><label for="apNome">Full name</label>
+            <input id="apNome" name="nome" autocomplete="name" required></div>
+          <div class="ap-due">
+            <div class="campo"><label for="apMail">Email</label>
+              <input id="apMail" name="email" type="email"
+                autocomplete="email" required></div>
+            <div class="campo"><label for="apTel">Phone (WhatsApp)</label>
+              <input id="apTel" name="telefono" type="tel"
+                autocomplete="tel" inputmode="tel"></div>
+          </div>
+        </div>
+
+        <div class="ap-gruppo">
+          <span class="ap-eti">2 · The stay</span>
+          <div class="ap-due">
+            <div class="campo"><label for="apQuando">Move-in date</label>
+              <input id="apQuando" name="quando" type="date"></div>
+            <div class="campo"><label for="apMesi">How long</label>
+              <select id="apMesi" name="mesi">
+                <option value="3">3 months</option>
+                <option value="6">6 months</option>
+                <option value="12" selected>12 months</option>
+                <option value="18">18 months</option>
+                <option value="24">24 months or more</option>
+              </select></div>
+          </div>
+          <div class="ap-due">
+            <div class="campo"><label for="apChi">Who's landing</label>
+              <select id="apChi" name="chi">
+                <option value="">—</option>
+                <option value="solo">Just me</option>
+                <option value="couple">Couple</option>
+                <option value="family">Family</option>
+                <option value="flatmates">Flatmates</option>
+              </select></div>
+            <div class="campo"><label for="apFirme">People who will sign</label>
+              <select id="apFirme" name="firmatari">
+                <option value="1">1</option><option value="2">2</option>
+                <option value="3">3</option><option value="4">4</option>
+                <option value="5">5 or more</option>
+              </select></div>
+          </div>
+        </div>
+
+        <div class="ap-gruppo">
+          <span class="ap-eti">3 · The part landlords ask about</span>
+          <p class="ap-perche">We ask now so we can tell you where you stand
+            <b>before</b> you apply — not after you've hoped for two weeks.</p>
+          <div class="ap-due">
+            <div class="campo"><label for="apLavoro">Your situation</label>
+              <select id="apLavoro" name="occupazione">
+                <option value="">—</option>
+                <option value="employed">Employed</option>
+                <option value="self-employed">Self-employed</option>
+                <option value="student">Student</option>
+                <option value="relocating">Relocating for work</option>
+              </select></div>
+            <div class="campo"><label for="apReddito">Monthly income, net</label>
+              <select id="apReddito" name="reddito">
+                <option value="">Prefer not to say</option>
+                <option value="under-1500">Under €1,500</option>
+                <option value="1500-2500">€1,500 – €2,500</option>
+                <option value="2500-4000">€2,500 – €4,000</option>
+                <option value="over-4000">Over €4,000</option>
+              </select></div>
+          </div>
+          <div class="campo"><label for="apGarante">Can you provide a
+            guarantor?</label>
+            <select id="apGarante" name="garante">
+              <option value="">—</option>
+              <option value="yes-italy">Yes, in Italy</option>
+              <option value="yes-abroad">Yes, abroad</option>
+              <option value="no">No</option>
+              <option value="prepay">No — but I can prepay months</option>
+            </select></div>
+        </div>
+
+        <input type="text" name="company" tabindex="-1" autocomplete="off"
+          aria-hidden="true" class="ap-esca">
+
+        <button class="btn btn-primary" type="submit">Send application</button>
+        <p class="applica-nota">PREVIEW — nothing is sent from this page. On
+          the live site this reaches a person and becomes your written
+          pre-agreement.</p>
+      </form>
+
+      <div class="applica-fatto" id="applicaFatto">
+        <b>Sent. Here is exactly what happens now.</b>
+        <ol class="ap-dopo">
+          <li><b>Within 2 hours</b><span>A person — with a name — reads it and
+            replies. If something rules you out for this landlord, you hear it
+            straight away, not in two weeks.</span></li>
+          <li><b>Your pre-agreement</b><span>A private link with these exact
+            figures written into it: rent, deposit, fee, dates. Nothing new
+            appears later.</span></li>
+          <li><b>Your details, once</b><span>You fill them in on that page —
+            you and any co-signers — and upload an ID. You never send documents
+            over chat again.</span></li>
+          <li><b>You sign from your phone</b><span>The landlord countersigns
+            after you. We file the registration. Keys, and the pass in your
+            Wallet.</span></li>
+        </ol>
+        <p class="applica-nota">PREVIEW — nothing was sent from this page.</p>
+      </div>
+    </div>
+
+    <div class="sale">
+      <span class="eyebrow"><i></i>Not this one?</span>
+      <h2 class="titolo">Three more, <span class="hl">walked the same way</span>.</h2>
+      <div class="altre coro" id="altre" style="margin-top:20px"></div>
+      <p class="sotto" style="margin-top:16px">Nothing here?
+        <a href="/property-finding.html" style="color:var(--gold)">Put the hunt
+        engine on it →</a></p>
+    </div>
+  </div>
+</section>
+
+<!-- ══ LA LENTE — la foto a tutto schermo ════════════════════════════════ -->
+<div class="lente" id="lente" hidden role="dialog" aria-modal="true"
+  aria-label="Photo viewer">
+  <button type="button" class="lente-x" id="lenteX"
+    aria-label="Close photo viewer">✕</button>
+  <button type="button" class="lente-b prec" id="lentePrec"
+    aria-label="Previous photo">‹</button>
+  <img id="lenteFoto" alt="" decoding="async">
+  <button type="button" class="lente-b succ" id="lenteSucc"
+    aria-label="Next photo">›</button>
+  <span class="lente-conta" id="lenteConta" aria-hidden="true"></span>
+</div>

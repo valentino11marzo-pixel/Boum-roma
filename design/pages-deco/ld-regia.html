@@ -1,0 +1,820 @@
+<script>
+/* LA REGIA DELLA CASA — una casa alla volta, dal catalogo vero.
+   Parte al load: il motore Solari è concatenato DOPO questo script. */
+(function () {
+  'use strict';
+  function via() {
+  var CASE = 'CASE_JSON';
+  /* sito = le API vere partono davvero; artefatto = PREVIEW in console */
+  var VERO = 'MODO_QUI' === 'sito';
+  var BS = window.BoomSolari;
+  var ridotto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function euro(n) { return '€' + Math.round(n).toLocaleString('en-US'); }
+  function per(sel) { return document.querySelector(sel); }
+
+  /* quale casa: quella dell'indirizzo, o la prima disponibile */
+  var ide = (location.hash.match(/id=([^&]+)/) || [])[1];
+  var c = CASE.filter(function (x) { return x.id === ide; })[0] || CASE[0];
+
+  /* ── la scena: la foto grande e il rullino ──────────────────────────── */
+  var telaio = document.getElementById('telaio');
+  var rullino = document.getElementById('rullino');
+  var immagini = c.foto && c.foto.length ? c.foto : [c.cover];
+  immagini = immagini.filter(Boolean);
+  var img = document.createElement('img');
+  img.alt = c.nome + ', ' + c.zona + ' — apartment for rent in Rome with BOOM';
+  img.decoding = 'async';
+  telaio.insertBefore(img, telaio.firstChild);
+  function mostra(i) {
+    img.classList.remove('qui');
+    var pre = new Image();
+    pre.onload = function () { img.src = pre.src; img.classList.add('qui'); };
+    pre.src = immagini[i];
+    [].slice.call(rullino.children).forEach(function (b, k) {
+      b.classList.toggle('qui', k === i); });
+  }
+  immagini.forEach(function (u, i) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('aria-label', 'Photo ' + (i + 1) + ' of ' + immagini.length);
+    var t = document.createElement('img');
+    t.src = u; t.alt = ''; t.loading = 'lazy'; t.decoding = 'async';
+    b.appendChild(t);
+    b.addEventListener('click', function () { mostra(i); });
+    rullino.appendChild(b);
+  });
+  if (immagini.length < 2) rullino.style.display = 'none';
+
+  /* ── sfogliare: frecce, tastiera, contatore ──────────────────────────
+     Mancavano: su una pagina casa la foto successiva e il gesto piu
+     ripetuto che ci sia. */
+  (function () {
+    var prec = document.getElementById('foPrec'),
+        succ = document.getElementById('foSucc'),
+        conta = document.getElementById('contaFoto');
+    if (!prec || !succ) return;
+    if (immagini.length < 2) {
+      prec.style.display = succ.style.display = 'none';
+      if (conta) conta.style.display = 'none'; return;
+    }
+    var qui = 0;
+    function vai(d) {
+      qui = (qui + d + immagini.length) % immagini.length;
+      mostra(qui);
+      if (conta) conta.textContent = (qui + 1) + ' / ' + immagini.length;
+      var b = rullino.children[qui]; if (b && b.scrollIntoView)
+        b.scrollIntoView({ block:'nearest', inline:'center', behavior:'smooth' });
+    }
+    prec.addEventListener('click', function () { vai(-1); });
+    succ.addEventListener('click', function () { vai(1); });
+    [].slice.call(rullino.children).forEach(function (b, k) {
+      b.addEventListener('click', function () {
+        qui = k; if (conta) conta.textContent = (k + 1) + ' / ' + immagini.length;
+      });
+    });
+    addEventListener('keydown', function (e) {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      var t = e.target.tagName;
+      if (t === 'INPUT' || t === 'TEXTAREA' || t === 'SELECT') return;
+      var l = document.getElementById('lente');
+      if (l && !l.hidden) return;   /* la lente ha le sue frecce */
+      if (e.key === 'ArrowLeft') { e.preventDefault(); vai(-1); }
+      if (e.key === 'ArrowRight') { e.preventDefault(); vai(1); }
+    });
+    if (conta) conta.textContent = '1 / ' + immagini.length;
+  })();
+  mostra(0);
+
+  /* ── l'anagrafica ───────────────────────────────────────────────────── */
+  per('#nomeCasa').textContent = c.nome;
+  per('#doveCasa').textContent = [c.zona, c.indirizzo].filter(Boolean).join(' · ');
+  per('#briZona').textContent = c.zona;
+  per('#briZona').setAttribute('href', '/apartments.html#zona=' + encodeURIComponent(c.zona));
+  document.title = c.nome + ' — ' + c.zona + ', Rome | BOOM';
+  var st = per('#statoCasa');
+  /* lo stato e l'informazione piu volatile della pagina: si vede che e viva */
+  function scriviStato() {
+    st.textContent = c.stato;
+    st.className = 'stato-grande ' + (c.libera ? 'libera'
+      : /wait/i.test(c.stato) ? 'attesa' : 'presa');
+  }
+  scriviStato();
+  var rifaiDurata = function () {}, rifaiPresa = function () {},
+      rifaiPorte = function () {};
+  /* la chiave dei preferiti e la stessa delle altre due pagine:
+     il segnaposto sopravvive al replace di navigazione del builder */
+  per('#cuoreCasa').dataset.u = 'CHIAVE_CASA' + c.id;
+  per('#applicaNome').textContent = c.nome;
+  /* se la casa non e libera, la CTA non finge: si entra in lista */
+  if (!c.libera) {
+    var bAp = document.querySelector('#modApplica button[type="submit"]');
+    if (bAp) bAp.textContent = 'Join the waitlist';
+    var sAp = document.getElementById('applicaSotto');
+    if (sAp) sAp.textContent = 'This home is taken for now. Join the '
+      + 'waitlist and you hear first — from a person — the moment it frees up.';
+  }
+
+  /* il canone sui Solari, come ovunque nel sito */
+  var canone = per('#canoneCasa');
+  var mostraCanone = (function () {
+    var bo = null, largo = 0;
+    return function (subito) {
+      var t = euro(c.prezzo);
+      canone.dataset.p = t;
+      canone.setAttribute('aria-label', t + ' per month');
+      if (!BS) { canone.textContent = t; return; }
+      if (!bo || t.length !== largo) {
+        canone.innerHTML = ''; largo = t.length;
+        bo = new BS.Board(canone, largo, ' €,.0123456789');
+      }
+      (ridotto || subito) ? bo.show(t) : bo.show(t, 60, true);
+    };
+  })();
+  setTimeout(function () { mostraCanone(false); }, 500);
+
+  /* ── i fatti ────────────────────────────────────────────────────────── */
+  var FATTI = [
+    [c.mq ? c.mq + ' m²' : null, 'Size'],
+    [c.letti === 0 ? 'Studio' : (c.letti ? c.letti + ' bed' : null), 'Bedrooms'],
+    [c.bagni ? c.bagni : null, 'Bathrooms'],
+    [c.piano ? c.piano : null, 'Floor'],
+    [c.arredata ? 'Furnished' : (c.tipo || null), c.arredata ? 'Interior' : 'Type'],
+  ].filter(function (f) { return f[0]; });
+  per('#fatti').innerHTML = FATTI.map(function (f) {
+    return '<div class="fatto"><b>' + f[0] + '</b><span>' + f[1] + '</span></div>';
+  }).join('');
+
+  /* ── LA PELLICOLA ────────────────────────────────────────────────────
+     Il video esiste per due case su ventisei. Dove c'e si guarda; dove
+     non c'e la pagina lo dice e offre la visita dal vivo — mai un
+     riquadro vuoto che finge. Il distintivo sulle foto si accende solo
+     per le case passate davvero dalla pipeline di /api/photos/enhance. */
+  (function () {
+    var pel = document.getElementById('pellicola');
+    if (!pel) return;
+    var n = immagini.length;
+    /* un badge solo: due dicevano quasi la stessa cosa e il secondo
+       confondeva. La cura delle foto e mezza riga, non un cartello. */
+    var dett = n + ' photo' + (n === 1 ? '' : 's')
+      + ' of this exact flat — nothing borrowed, nothing rendered'
+      + (c.fotoCurate ? ', ordered room by room so the first one is the '
+        + 'one you care about.' : '.');
+    pel.innerHTML = '<div class="pel-fila uno">'
+      + '<div class="pel-v"><svg viewBox="0 0 24 24" aria-hidden="true">'
+      + '<path d="M12 3l7 2.8v5.4c0 4.1-3 7.1-7 8.3-4-1.2-7-4.2-7-8.3V5.8z"/>'
+      + '<path d="M8.6 11.6l2.3 2.3 4.3-4.9"/></svg><span><b>Walked and '
+      + 'photographed by us</b><span>' + dett + '</span></span></div></div>';
+
+    if (c.video) {
+      var id = (c.video.match(/(?:shorts\/|v=|youtu\.be\/|embed\/)([\w-]{6,})/)
+                || [])[1];
+      if (id) {
+        var box = document.createElement('div');
+        box.className = 'pel-video';
+        box.innerHTML = '<button type="button" class="pel-play">'
+          + '<i aria-hidden="true"></i><b>Watch the walkthrough</b>'
+          + '<span>Filmed inside this flat · loads only when you press</span>'
+          + '</button>';
+        box.querySelector('.pel-play').addEventListener('click', function () {
+          box.innerHTML = '<iframe src="https://www.youtube-nocookie.com/embed/'
+            + id + '?autoplay=1&rel=0&modestbranding=1" title="Video tour of '
+            + (c.nome || 'this apartment') + '" allow="accelerometer; '
+            + 'autoplay; encrypted-media; picture-in-picture" '
+            + 'allowfullscreen></iframe>';
+        });
+        pel.appendChild(box);
+      }
+    }
+    /* la visita video gratis non e un upsell da riquadro: sta con i
+       servizi, nelle porticine in fondo — e nelle FAQ, come sempre */
+  })();
+
+  /* ── il racconto e ciò che c'è dentro ───────────────────────────────── */
+  per('#raccontoCasa').textContent = c.racconto
+    || 'Walked and checked by us. Ask for the full walkthrough — we filmed it.';
+  per('#dentroCasa').innerHTML = (c.dentro || []).slice(0, 10)
+    .map(function (x) { return '<span>' + x + '</span>'; }).join('');
+
+  /* ── IL DENARO IN CHIARO ────────────────────────────────────────────
+     Regole dichiarate, aritmetica visibile: la cauzione e N mensilita,
+     l'onorario il 10% del canone ANNUO (quindi non cambia con la durata,
+     e per questo il giorno uno resta uguale mentre il soggiorno no). */
+  /* la cifra grande e il giorno uno INTERO: canone + deposito + onorario.
+     Nessuna voce a margine — il deposito e un pagamento vero, e torna,
+     ed e scritto in verde sulla sua riga. Un numero, una storia. */
+  var cauzione, onorario, totale;
+  function contiSoldi() {
+    var mesi = c.cauzioneMesi || 1;
+    cauzione = c.prezzo * mesi;
+    onorario = Math.round(c.prezzo * 12 * .10);
+    totale = c.prezzo + cauzione + onorario;
+    per('#voceCanone').textContent = euro(c.prezzo);
+    per('#voceOnorario').textContent = euro(onorario);
+    per('#voceCauzione').textContent = euro(cauzione);
+    per('#chiaviOnorario').textContent = euro(onorario);
+  }
+  contiSoldi();
+
+  /* il totale gira sui Solari: e la cifra che conta piu di ogni altra */
+  var mostraTotale = function () {};
+  (function () {
+    var host = document.getElementById('totFlap');
+    if (!host) return;
+    var quadro = null, largo = 0;
+    function scrivi(subito) {
+      var testo = euro(totale);
+      if (!BS || !BS.Board) { host.textContent = testo; return; }
+      if (!quadro || testo.length !== largo) {
+        host.innerHTML = ''; largo = testo.length;
+        quadro = new BS.Board(host, largo, ' €,.0123456789');
+      }
+      (ridotto || subito) ? quadro.show(testo) : quadro.show(testo, 46, true);
+    }
+    mostraTotale = scrivi;
+    if (ridotto || !('IntersectionObserver' in window)) scrivi(true);
+    else new IntersectionObserver(function (v, io) {
+      if (!v[0].isIntersecting) return;
+      io.disconnect(); scrivi(false);
+    }, { threshold: .35 }).observe(host);
+  })();
+
+  /* la durata: il giorno uno non cambia, il soggiorno si — ed e la
+     domanda che arriva ogni volta in chat */
+  (function () {
+    var tasti = [].slice.call(document.querySelectorAll('.durata-tasti button'));
+    if (!tasti.length) return;
+    var mScelto = 12;
+    function conta(m) {
+      mScelto = m;
+      var canoni = c.prezzo * m;
+      per('#durCanoni').textContent = euro(canoni) + '  ';
+      per('#durOnorario').textContent = euro(onorario);
+      per('#durTotale').textContent = euro(canoni + onorario);
+      per('#durNota').innerHTML = 'Your <b>' + euro(cauzione) + '</b> deposit '
+        + 'is not counted here: you pay it on day one and it comes back at '
+        + 'the end. Utilities and the registration tax are paid to the '
+        + 'providers and to the State, never to us.';
+      tasti.forEach(function (t) {
+        t.classList.toggle('on', Number(t.dataset.m) === m); });
+      /* chi ha scelto la durata qui non deve ridirla nell'apply */
+      document.dispatchEvent(new CustomEvent('boom:durata', { detail: m }));
+    }
+    tasti.forEach(function (t) {
+      t.addEventListener('click', function () { conta(Number(t.dataset.m)); });
+    });
+    conta(12);
+    rifaiDurata = function () { conta(mScelto); };
+  })();
+
+  /* ── QUELLO CHE CI CHIEDERESTI SU WHATSAPP ──────────────────────────
+     Dieci risposte, ognuna vera per quello che il sito e i documenti gia
+     dicono. Le cifre vengono dalla casa aperta, non da un testo fisso. */
+  function scriviChiedi() {
+    var lista = document.getElementById('chiediLista');
+    if (!lista) return;
+    var D = [
+      ['Can I see it without flying to Rome?',
+       'Yes — and for our homes it costs nothing: a BOOM agent walks this '
+       + 'exact flat on live video with you asking the questions. Book a '
+       + 'slot on WhatsApp. (The paid €89 Virtual Viewing is for homes on '
+       + 'OTHER portals — this one is ours.)'],
+      ['What exactly do I pay on day one?',
+       '<em>' + euro(totale) + '</em>: first month ' + euro(c.prezzo)
+       + ', deposit ' + euro(cauzione) + ' and the agency fee '
+       + euro(onorario) + '. Nothing else is charged by us, ever.'],
+      ['Is the deposit really coming back?',
+       'It is held, not spent, and returned after the final walkthrough. '
+       + 'The flat is filmed at move-in and at move-out, so the state of it '
+       + 'is a recording and not an argument.'],
+      ['How do I pay — and to whom?',
+       'Through BOOM on Stripe, with a receipt for each line. Never a bank '
+       + 'transfer to a private person. The counterparty is <em>Egidi '
+       + 'Immobiliare S.r.l.</em>, a licensed agency — BOOM® is its EU trade '
+       + 'mark 019317594.'],
+      ['What kind of contract is it?',
+       'A registered lease under L. 431/98 — typically transitional '
+       + '(art. 5 c. 1); some homes offer a rent-controlled option, and the '
+       + 'listing says so. In English and Italian, explained line by line '
+       + 'before you sign. Registration with the Agenzia delle Entrate is '
+       + 'handled by us.'],
+      ['Do I have to be in Rome to sign?',
+       'No. You sign from your phone with a private link, and the landlord '
+       + 'countersigns after you. The keys are the only thing that needs you '
+       + 'in the city.'],
+      ['Do I need an Italian guarantor?',
+       'Not by default. We look at your situation — employed, self-employed, '
+       + 'student, relocating — and tell you what this particular landlord '
+       + 'asks for before you apply, not after.'],
+      ['How fast can I actually move in?',
+       'As little as <em>48 hours</em> from a signed pre-agreement, if the '
+       + 'flat is free. This one'
+       + (c.dal ? ' is available from <em>' + new Date(c.dal + 'T12:00:00')
+            .toLocaleDateString('en-GB', { day: 'numeric', month: 'long',
+              year: 'numeric' })
+            + '</em>.' : ' is available now.')],
+      ['Can I hold it while I decide?',
+       'Yes — a <em>€300</em> hold takes it off the market for 48 hours, one '
+       + 'tap, fully refundable. It is the only way to stop someone else '
+       + 'taking it while you think.'],
+      ['What is not included in the figures above?',
+       'Utilities (electricity, gas, water, internet) and the registration '
+       + 'tax. Both are paid to the providers and to the State — we never '
+       + 'touch them, and we never mark them up.']
+    ];
+    lista.innerHTML = D.map(function (q) {
+      return '<div class="chiedi-v"><b>' + q[0] + '</b><p>' + q[1] + '</p></div>';
+    }).join('');
+    /* per i motori: le STESSE dieci risposte — mai due verita */
+    try {
+      var ld = { '@context': 'https://schema.org', '@type': 'FAQPage',
+        mainEntity: D.map(function (q) { return { '@type': 'Question',
+          name: q[0], acceptedAnswer: { '@type': 'Answer',
+            text: q[1].replace(/<[^>]+>/g, '') } }; }) };
+      var sc = document.getElementById('faqLd');
+      if (!sc) {
+        sc = document.createElement('script');
+        sc.type = 'application/ld+json'; sc.id = 'faqLd';
+        document.head.appendChild(sc);
+      }
+      sc.textContent = JSON.stringify(ld);
+    } catch (err) {}
+  }
+  scriviChiedi();
+
+  /* ── L'APPLY ─────────────────────────────────────────────────────────
+     Raccoglie il corpo ESATTO di /api/apply-lead — la porta del pipeline
+     vero — piu le due cose che alla console servono per creare il
+     pre-accordo senza richiamare nessuno: quanti firmano e per quanto.
+     Dichiarato PREVIEW: la richiesta si vede in console, non parte. */
+  (function () {
+    var f = document.getElementById('modApplica');
+    if (!f) return;
+    var eti = [].slice.call(document.querySelectorAll('.passi .passo-eti'));
+    var gruppi = [].slice.call(f.querySelectorAll('.ap-gruppo'));
+    function pieno(g) {
+      return [].slice.call(g.querySelectorAll('input, select')).some(
+        function (x) { return String(x.value || '').trim(); });
+    }
+    function stato() {
+      gruppi.forEach(function (g, i) {
+        var e = eti[i]; if (!e) return;
+        e.classList.toggle('fatto', pieno(g));
+        e.classList.toggle('ora', !pieno(g)
+          && (i === 0 || pieno(gruppi[i - 1])));
+      });
+    }
+    f.addEventListener('input', stato); f.addEventListener('change', stato);
+    /* la durata scelta nel conto arriva gia compilata qui */
+    document.addEventListener('boom:durata', function (e) {
+      var m = f.querySelector('#apMesi');
+      if (m) { m.value = String(e.detail); stato(); }
+    });
+    if (c.dal) { var q = f.querySelector('#apQuando'); if (q) q.value = c.dal; }
+    stato();
+
+    f.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (!f.querySelector('#apNome').value.trim()
+          || !f.querySelector('#apMail').value.trim()) {
+        (f.querySelector('#apNome').value.trim()
+          ? f.querySelector('#apMail') : f.querySelector('#apNome')).focus();
+        return;
+      }
+      var d = new FormData(f);
+      /* il corpo di /api/apply-lead, campo per campo */
+      var corpo = {
+        name: d.get('nome'), email: d.get('email'), phone: d.get('telefono'),
+        listingId: c.id, listingName: c.nome, listingPrice: c.prezzo,
+        zone: c.zona, kind: c.libera ? 'apply' : 'waitlist',
+        waitlist: !c.libera,
+        income: d.get('reddito'), guarantor: d.get('garante'),
+        household: d.get('chi'), occupation: d.get('occupazione'),
+        moveIn: d.get('quando'), durationMonths: Number(d.get('mesi')) || null,
+        /* in piu, per il pre-accordo: quante firme ci saranno */
+        signers: Number(d.get('firmatari')) || 1,
+        company: d.get('company')          /* esca per i robot */
+      };
+      if (VERO) {
+        /* la porta vera del pipeline: parte e non blocca, come dal vivo */
+        try { fetch('/api/apply-lead', { method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(corpo) }); } catch (err) {}
+      } else console.info('[PREVIEW] POST /api/apply-lead →', corpo);
+      f.style.display = 'none';
+      var sotto = document.getElementById('applicaSotto');
+      if (sotto) sotto.style.display = 'none';
+      var fatto = document.getElementById('applicaFatto');
+      if (fatto) {
+        fatto.classList.add('si');
+        fatto.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
+    });
+  })();
+
+  /* ── LA LENTE: la foto a tutto schermo ─────────────────────────────── */
+  (function () {
+    var lente = document.getElementById('lente');
+    if (!lente || !immagini.length) return;
+    var foto = document.getElementById('lenteFoto'),
+        conta = document.getElementById('lenteConta');
+    var qui = 0, aperta = false;
+    function apri(i) {
+      qui = (i + immagini.length) % immagini.length;
+      foto.src = immagini[qui];
+      foto.alt = c.nome + ' — photo ' + (qui + 1) + ' of ' + immagini.length;
+      if (conta) conta.textContent = (qui + 1) + ' / ' + immagini.length;
+      lente.hidden = false; aperta = true;
+      document.documentElement.style.overflow = 'hidden';
+    }
+    function chiudi() {
+      lente.hidden = true; aperta = false;
+      document.documentElement.style.overflow = '';
+    }
+    telaio.addEventListener('click', function (e) {
+      if (e.target.closest('button')) return;  /* frecce e cuore sono loro */
+      var k = 0;
+      [].slice.call(rullino.children).forEach(function (b, i) {
+        if (b.classList.contains('qui')) k = i; });
+      apri(k);
+    });
+    document.getElementById('lenteX').addEventListener('click', chiudi);
+    document.getElementById('lentePrec').addEventListener('click',
+      function () { apri(qui - 1); });
+    document.getElementById('lenteSucc').addEventListener('click',
+      function () { apri(qui + 1); });
+    lente.addEventListener('click', function (e) {
+      if (e.target === lente) chiudi(); });
+    addEventListener('keydown', function (e) {
+      if (!aperta) return;
+      if (e.key === 'Escape') chiudi();
+      if (e.key === 'ArrowLeft') apri(qui - 1);
+      if (e.key === 'ArrowRight') apri(qui + 1);
+    });
+    var x0 = null;
+    lente.addEventListener('touchstart', function (e) {
+      x0 = e.touches[0].clientX; }, { passive: true });
+    lente.addEventListener('touchend', function (e) {
+      if (x0 === null) return;
+      var dx = e.changedTouches[0].clientX - x0; x0 = null;
+      if (Math.abs(dx) > 40) apri(qui + (dx < 0 ? 1 : -1));
+    }, { passive: true });
+    if (immagini.length < 2) {
+      document.getElementById('lentePrec').style.display = 'none';
+      document.getElementById('lenteSucc').style.display = 'none';
+    }
+  })();
+
+  /* ── IL POSTO: il blocco vero, i vicini, i tuoi luoghi ──────────────── */
+  (function () {
+    var sez = document.getElementById('posto');
+    if (!sez) return;
+    if (!c.lat || !c.lng) { sez.style.display = 'none'; return; }
+    var RAD = Math.PI / 180;
+    function km(a1, o1, a2, o2) {
+      var R = 6371, dy = (a2 - a1) * RAD, dx = (o2 - o1) * RAD;
+      var q = Math.pow(Math.sin(dy / 2), 2) + Math.cos(a1 * RAD)
+        * Math.cos(a2 * RAD) * Math.pow(Math.sin(dx / 2), 2);
+      /* onesto: linea d'aria ×1.3 per le strade vere, non un percorso */
+      return 2 * R * Math.asin(Math.min(1, Math.sqrt(q))) * 1.3;
+    }
+    function tempo(d) {
+      return d < 2.6 ? Math.round(d / 4.7 * 60) + ' min walk'
+                     : '≈' + Math.round(d * 4.2 + 10) + ' min';
+    }
+    /* i vicini fissi: stazioni e atenei veri, i 4 piu vicini a QUESTA porta */
+    var POSTI = [
+      ['Termini', 'Trains + Metro A/B', 41.9009, 12.5018],
+      ['Colosseo', 'The ancient centre', 41.8902, 12.4924],
+      ['Vatican', 'St Peter\'s & museums', 41.9022, 12.4534],
+      ['Sapienza', 'Main campus', 41.9038, 12.5135],
+      ['LUISS', 'Viale Romania campus', 41.9269, 12.4917],
+      ['Roma Tre', 'Ostiense campus', 41.8564, 12.4790],
+      ['John Cabot', 'Trastevere campus', 41.8937, 12.4664]
+    ];
+    document.getElementById('vicini').innerHTML = POSTI.map(function (p) {
+      var d = km(c.lat, c.lng, p[2], p[3]);
+      return { d: d, h: '<div class="vicino"><b>' + p[0] + '</b><span>'
+        + p[1] + '</span><i>' + tempo(d) + '</i></div>' };
+    }).sort(function (a, b) { return a.d - b.d; }).slice(0, 4)
+      .map(function (x) { return x.h; }).join('');
+
+    /* la mappa del blocco: solo se la chiami, e se non arriva lo dice */
+    var via = document.getElementById('bloccoVia'),
+        box = document.getElementById('blocco3d');
+    var mappaB = null, spenta = false;
+    function spengo() {
+      if (spenta) return; spenta = true;
+      box.innerHTML = '<div class="blocco-spento"><b>The map engine could '
+        + 'not be reached from here.</b><span>No fake map in its place — '
+        + 'see the exact spot on Google Maps instead.</span>'
+        + '<a class="btn btn-primary" target="_blank" rel="noopener" '
+        + 'href="https://maps.google.com/?q=' + c.lat + ',' + c.lng + '">'
+        + 'Open in Google Maps ↗</a></div>';
+    }
+    function accendi() {
+      var telo = document.createElement('div');
+      telo.id = 'bloccoMappa'; box.innerHTML = ''; box.appendChild(telo);
+      try {
+        mappaB = new maplibregl.Map({ container: 'bloccoMappa',
+          style: 'https://tiles.openfreemap.org/styles/liberty',
+          center: [c.lng, c.lat], zoom: 15.7, pitch: 55, bearing: -17,
+          antialias: true, attributionControl: { compact: true },
+          cooperativeGestures: {
+            windowsHelpText: 'Use Ctrl + scroll to zoom the map',
+            macHelpText: 'Use ⌘ + scroll to zoom the map',
+            mobileHelpText: 'Use two fingers to move the map' } });
+      } catch (e) { spengo(); return; }
+      mappaB.addControl(new maplibregl.NavigationControl(
+        { visualizePitch: true }), 'bottom-right');
+      mappaB.on('error', function (e) {
+        if (e && e.error
+            && /style|Failed to fetch/i.test(String(e.error.message || '')))
+          spengo();
+      });
+      mappaB.on('load', function () {
+        try {
+          var f = null, st2 = mappaB.getStyle();
+          (st2.layers || []).forEach(function (l) {
+            if (!f && l['source-layer'] === 'building') f = l.source; });
+          if (f) mappaB.addLayer({ id: 'blocco-3d', type: 'fill-extrusion',
+            source: f, 'source-layer': 'building', minzoom: 13, paint: {
+              'fill-extrusion-color': '#C8BDA5',
+              'fill-extrusion-height':
+                ['coalesce', ['get', 'render_height'], 12],
+              'fill-extrusion-base':
+                ['coalesce', ['get', 'render_min_height'], 0],
+              'fill-extrusion-opacity': .9 } });
+        } catch (e) {}
+        /* gli anelli del passo: 5/10/15 minuti a 4.8 km/h */
+        [400, 800, 1200].forEach(function (r, i) {
+          var co = [], dLat = r / 111320,
+              dLng = r / (111320 * Math.cos(c.lat * RAD));
+          for (var k = 0; k <= 72; k++) {
+            var a = k / 72 * 2 * Math.PI;
+            co.push([c.lng + dLng * Math.cos(a),
+                     c.lat + dLat * Math.sin(a)]);
+          }
+          try {
+            mappaB.addSource('anello' + i, { type: 'geojson', data: {
+              type: 'Feature', properties: {},
+              geometry: { type: 'LineString', coordinates: co } } });
+            mappaB.addLayer({ id: 'anello' + i, type: 'line',
+              source: 'anello' + i, paint: { 'line-color': '#FFD700',
+                'line-width': 1.2, 'line-opacity': .55 - i * .14,
+                'line-dasharray': [1, 2] } });
+          } catch (e) {}
+        });
+        var el = document.createElement('div');
+        el.className = 'blocco-pin';
+        el.innerHTML = '<span>' + euro(c.prezzo) + '</span>';
+        new maplibregl.Marker({ element: el, anchor: 'bottom' })
+          .setLngLat([c.lng, c.lat]).addTo(mappaB);
+      });
+    }
+    via.addEventListener('click', function () {
+      if (window.maplibregl) return accendi();
+      via.querySelector('b').textContent = 'Waking the map engine…';
+      var css = document.createElement('link'); css.rel = 'stylesheet';
+      css.href =
+        'https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css';
+      document.head.appendChild(css);
+      var js = document.createElement('script');
+      js.src =
+        'https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.min.js';
+      js.onload = function () { try { accendi(); } catch (e) { spengo(); } };
+      js.onerror = spengo;
+      document.head.appendChild(js);
+      setTimeout(function () { if (!mappaB) spengo(); }, 12000);
+    });
+
+    /* i tuoi luoghi: scritti una volta, ogni casa risponde. Stessa chiave
+       del sito live (boom:pois): quello che salvi qui vale anche la. */
+    var CHIAVE = 'boom:pois';
+    function letti() {
+      try { return JSON.parse(localStorage.getItem(CHIAVE) || '[]'); }
+      catch (e) { return []; }
+    }
+    function serba(a) {
+      try { localStorage.setItem(CHIAVE, JSON.stringify(a.slice(0, 4))); }
+      catch (e) {}
+    }
+    var righe = document.getElementById('luogoRighe'),
+        cerca = document.getElementById('luogoQ'),
+        sug = document.getElementById('luogoSug');
+    function righeGiu() {
+      var a = letti();
+      righe.innerHTML = a.length ? a.map(function (p, i) {
+        return '<div class="luogo"><b>' + p.name + '</b><i>'
+          + tempo(km(c.lat, c.lng, p.lat, p.lng)) + '</i>'
+          + '<button type="button" data-i="' + i + '" aria-label="Remove '
+          + p.name + '">✕</button></div>';
+      }).join('') : '<p class="luoghi-vuota">Nothing saved yet — type your '
+        + 'office or campus above, once.</p>';
+    }
+    righe.addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-i]'); if (!b) return;
+      var a = letti(); a.splice(+b.dataset.i, 1); serba(a); righeGiu();
+    });
+    var attesa = null;
+    cerca.addEventListener('input', function () {
+      clearTimeout(attesa);
+      var q = cerca.value.trim();
+      if (q.length < 3) { sug.innerHTML = ''; return; }
+      attesa = setTimeout(function () {
+        fetch('https://photon.komoot.io/api/?q=' + encodeURIComponent(q)
+            + '&lat=41.893&lon=12.483&limit=4&lang=en&zoom=12')
+          .then(function (r) { return r.json(); })
+          .then(function (j) {
+            sug.innerHTML = (j.features || []).slice(0, 4)
+              .map(function (ft) {
+                var p = ft.properties || {};
+                var nome = p.name || p.street || 'Place';
+                var dove = [p.suburb || p.district, p.city]
+                  .filter(Boolean).join(', ');
+                return '<button type="button" data-lat="'
+                  + ft.geometry.coordinates[1] + '" data-lng="'
+                  + ft.geometry.coordinates[0] + '" data-n="'
+                  + String(nome).replace(/"/g, '') + '"><b>' + nome
+                  + '</b><span>' + dove + '</span></button>';
+              }).join('')
+              || '<p class="luoghi-vuota">Nothing found — try the street '
+              + 'or the campus name.</p>';
+          })
+          .catch(function () {
+            /* niente rete da qui: lo diciamo, non lo nascondiamo */
+            sug.innerHTML = '<p class="luoghi-vuota">The place search '
+              + 'needs the live site — it can\'t run from this '
+              + 'preview.</p>';
+          });
+      }, 320);
+    });
+    sug.addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-n]'); if (!b) return;
+      var a = letti();
+      if (!a.some(function (p) { return p.name === b.dataset.n; })) {
+        a.unshift({ name: b.dataset.n, lat: +b.dataset.lat,
+          lng: +b.dataset.lng });
+        serba(a);
+      }
+      sug.innerHTML = ''; cerca.value = ''; righeGiu();
+    });
+    righeGiu();
+  })();
+
+  /* ── LA PRESA: €300 rimborsabili via Stripe — l'API vera del sito ───── */
+  (function () {
+    var f = document.getElementById('presaForma');
+    if (!f) return;
+    var card = document.getElementById('presaCasa');
+    rifaiPresa = function () {
+      var attesa2 = /wait/i.test(c.stato);
+      /* casa presa: niente finta corsia di prenotazione */
+      if (card) card.style.display = (!c.libera && !attesa2) ? 'none' : '';
+      document.getElementById('presaTitolo').textContent = attesa2
+        ? 'Priority hold — first in line when it frees up.'
+        : 'Seen enough? Take it off the market.';
+    };
+    rifaiPresa();
+    f.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var nome = f.querySelector('#prNome').value.trim(),
+          mail = f.querySelector('#prMail').value.trim(),
+          tel = f.querySelector('#prTel').value.trim();
+      if (!nome || !mail || !tel) return;
+      var corpo = { listingId: c.id, listingName: c.nome, amount: 300,
+        name: nome, email: mail, phone: tel, move_in_date: c.dal || '' };
+      var b = document.getElementById('prVai'),
+          nota = document.getElementById('presaNota');
+      if (!VERO) {
+        console.info('[PREVIEW] POST /api/reserve-checkout →', corpo);
+        if (nota) nota.textContent = 'PREVIEW — on the live site this '
+          + 'opens Stripe checkout for the refundable €300 hold.';
+        return;
+      }
+      b.disabled = true; b.textContent = 'Opening Stripe…';
+      fetch('/api/reserve-checkout', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(corpo) })
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          if (j && j.url) { location.href = j.url; return; }
+          throw new Error('senza url');
+        })
+        .catch(function () {
+          b.disabled = false; b.textContent = 'Hold this home · €300';
+          if (nota) nota.innerHTML = 'Checkout didn\'t open — try again, '
+            + 'or <a href="https://wa.me/393313251961" target="_blank" '
+            + 'rel="noopener">message us on WhatsApp</a> and we\'ll hold '
+            + 'it manually.';
+        });
+    });
+  })();
+
+  /* ── le porticine: il video live di QUESTA casa, coi suoi dati ──────── */
+  (function () {
+    var pv = document.getElementById('portaVideo');
+    if (!pv) return;
+    rifaiPorte = function () {
+      var vivo = c.libera || /wait/i.test(c.stato);
+      pv.style.display = vivo ? '' : 'none';
+      pv.href = 'https://wa.me/393313251961?text=' + encodeURIComponent(
+        'Hi! I\'d like a live video viewing of "' + c.nome
+        + '" — when is the next slot?');
+    };
+    rifaiPorte();
+  })();
+
+  /* ── L'IDRANTE: la pagina resta viva sui dati del bot ─────────────────
+     Il builder fotografa il catalogo, ma Firestore cambia in ogni
+     momento — il bot aggiorna deposito, prezzo, stato. In modalita sito
+     la pagina rilegge il SUO documento e, se i numeri sono cambiati,
+     riscrive stato, denaro, durata, FAQ, presa e porticine da sola.
+     Una verita sola: quella vera. Se la rete manca, restano i numeri
+     del builder — mai una pagina rotta. */
+  if (VERO) setTimeout(function () {
+    fetch('https://firestore.googleapis.com/v1/projects/'
+        + 'boom-property-dashboards/databases/(default)/documents/listings/'
+        + encodeURIComponent(c.id))
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j || !j.fields) return;
+        var f = j.fields;
+        function nume(k) {
+          var v = f[k]; if (!v) return null;
+          var n = parseFloat(v.integerValue || v.doubleValue
+            || v.stringValue);
+          return isFinite(n) && n > 0 ? n : null;
+        }
+        function testo(k) {
+          var v = f[k]; return v ? String(v.stringValue || '') : '';
+        }
+        var cambia = false;
+        var p2 = nume('price');
+        if (p2 && p2 !== c.prezzo) { c.prezzo = p2; cambia = true; }
+        var m2 = nume('depositMonths');
+        if (m2 && m2 !== c.cauzioneMesi) {
+          c.cauzioneMesi = m2; cambia = true;
+        }
+        var s2 = testo('status').toLowerCase();
+        if (s2) {
+          var d2 = (testo('availableDate')
+            .match(/^\d{4}-\d{2}-\d{2}/) || [])[0] || c.dal;
+          var oggi2 = new Date().toISOString().slice(0, 10);
+          var eti, lib;
+          if (s2 === 'available') {
+            if (d2 && d2 > oggi2) {
+              var dt = new Date(d2 + 'T12:00:00');
+              eti = 'From ' + dt.getDate() + ' ' + dt.toLocaleDateString(
+                'en-GB', { month: 'short' });
+              if (dt.getFullYear() !== new Date().getFullYear())
+                eti += ' ' + dt.getFullYear();
+            } else eti = 'Available now';
+            lib = true;
+          } else if (s2 === 'waitlist') { eti = 'Waitlist open'; lib = false; }
+          else if (s2 === 'reserved') { eti = 'Reserved'; lib = false; }
+          else { eti = 'Rented'; lib = false; }
+          if (eti !== c.stato || lib !== c.libera || d2 !== c.dal) {
+            c.stato = eti; c.libera = lib; c.dal = d2; cambia = true;
+          }
+        }
+        if (!cambia) return;
+        scriviStato(); contiSoldi(); mostraTotale(true); mostraCanone(true);
+        rifaiDurata(); scriviChiedi(); rifaiPresa(); rifaiPorte();
+      })
+      .catch(function () { /* niente rete: restano i numeri del builder */ });
+  }, 600);
+
+  /* ── le altre case: tre, della stessa mano ──────────────────────────── */
+  var altre = CASE.filter(function (x) {
+    return x.id !== c.id && x.cover;
+  }).sort(function (a, b) {
+    /* prima quelle libere, poi quelle della stessa zona */
+    var pa = (a.libera ? 0 : 2) + (a.zona === c.zona ? 0 : 1);
+    var pb = (b.libera ? 0 : 2) + (b.zona === c.zona ? 0 : 1);
+    return pa - pb;
+  }).slice(0, 3);
+  document.getElementById('altre').innerHTML = altre.map(function (a) {
+    var dati = [a.zona, a.mq ? a.mq + ' m²' : '',
+      a.letti === 0 ? 'Studio' : (a.letti ? a.letti + ' bed' : '')]
+      .filter(Boolean).join(' <i>·</i> ');
+    return '<a class="casa-p" href="/listing/' + a.id + '">'
+      + '<div class="home-foto"><img loading="lazy" decoding="async" src="'
+      + a.cover + '" alt="' + a.nome + ', ' + a.zona + '">'
+      + '<span class="casa-stato ' + (a.libera ? 'si' : '') + '">'
+      + a.stato + '</span></div>'
+      + '<div class="corpo"><div class="riga1"><span class="nome">'
+      + a.nome + '</span><span class="canone"><span class="flap-prezzo '
+      + 'flap-scale" data-p="' + euro(a.prezzo) + '" aria-label="'
+      + euro(a.prezzo) + ' per month"></span><small>/mo</small></span></div>'
+      + '<div class="riga2">' + dati + '</div></div></a>';
+  }).join('');
+
+  /* cambiando casa dall'indirizzo, la pagina si rifà */
+  addEventListener('hashchange', function () {
+    if (/id=/.test(location.hash)) location.reload();
+  });
+  }
+  if (document.readyState === 'complete') via();
+  else addEventListener('load', via);
+})();
+</script>

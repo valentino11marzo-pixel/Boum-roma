@@ -1,0 +1,89 @@
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   BOOM · LA HOME — la regia solo-home: DAYS⇄HOURS sul titolo e la storia
+   pinnata scrub-driven. Gli organi condivisi vivono in deco-organi.html.
+   ══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  var ridotto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var BS = window.BoomSolari;
+
+  /* ── DAYS sui Solari: il titolo del sito, con l'organo meccanico ─────── */
+  (function () {
+    var host = document.getElementById('flapDays');
+    if (!host || !BS) return;
+    var b = new BS.Board(host, 5, ' ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+    if (ridotto) { b.show('DAYS'); return; }
+    setTimeout(function () { b.show('DAYS', 110, true); }, 500);
+    /* la promessa si stringe da sola: giorni, anzi ore — ed è vera (48h) */
+    var giro = ['HOURS', 'DAYS'], i = 0;
+    setInterval(function () {
+      if (document.hidden) return;
+      b.update(giro[i % 2]);
+      host.setAttribute('aria-label', giro[i % 2].toLowerCase());
+      i++;
+    }, 6500);
+  })();
+
+  /* ── la storia pinnata: lo scroll è il tempo, come sul sito live ─────── */
+  (function () {
+    var wrap = document.getElementById('come');
+    var dev = document.getElementById('dev');
+    var passi = [].slice.call(document.querySelectorAll('.how-step'));
+    var tacche = [].slice.call(document.querySelectorAll('#howTrack span'));
+    if (!wrap || !dev || !passi.length) return;
+    var NOMI = ['Browsing · verified homes', 'Application sent · 2 min',
+      'Payment secured · Stripe', 'Move-in confirmed · 48h'];
+    var eti = document.getElementById('devStato');
+    var corrente = 0;
+    function stato(i) {
+      if (i === corrente) return;
+      corrente = i;
+      dev.dataset.step = i;
+      if (eti) eti.textContent = NOMI[i];
+      passi.forEach(function (s, k) { s.classList.toggle('on', k === i); });
+    }
+    var timer = document.getElementById('scTimer');
+    /* l'inerzia: la scena non copia lo scroll, lo INSEGUE con un ritardo
+       morbido (lerp) -- la differenza tra un cursore e una macchina da
+       presa. Il rAF gira solo finche' c'e' distanza da colmare. */
+    var pMeta = 0, pOra = 0, vivoRaf = false;
+    function misura() {
+      var r = wrap.getBoundingClientRect();
+      var corsa = r.height - innerHeight;
+      if (corsa <= 0) return;
+      pMeta = Math.min(.999, Math.max(0, -r.top / corsa));
+      if (!vivoRaf) { vivoRaf = true; requestAnimationFrame(rendi); }
+    }
+    function rendi() {
+      pOra += (pMeta - pOra) * (ridotto ? 1 : .16);
+      if (Math.abs(pMeta - pOra) < .0006) { pOra = pMeta; vivoRaf = false; }
+      else requestAnimationFrame(rendi);
+      var p = pOra;
+      var i = Math.floor(p * 4);
+      var f = Math.min(1, Math.max(0, p * 4 - i));
+      stato(i);
+      /* lo scrub: lo scroll è la mano che muove la scena */
+      dev.style.setProperty('--f', ridotto ? 1 : f.toFixed(4));
+      /* i due minuti li scorri tu */
+      if (timer && i === 1) {
+        var sec = Math.round(f * 120);
+        timer.textContent = Math.floor(sec / 60) + ':' +
+          ('0' + (sec % 60)).slice(-2);
+      }
+      /* le soglie: il premio scatta nel punto giusto dello scroll */
+      dev.classList.toggle('premi', i === 1 && f > .78);
+      dev.classList.toggle('arrivata', (i === 1 && f > .82) || i > 1);
+      dev.classList.toggle('pagato', (i === 2 && f > .86) || i > 2);
+      dev.classList.toggle('chiavi', i === 3 && f > .62);
+      /* le tacche si riempiono col dito, come le stories */
+      tacche.forEach(function (t, k) {
+        var g = Math.min(1, Math.max(0, p * 4 - k));
+        t.firstChild.style.width = (g * 100) + '%';
+      });
+    }
+    addEventListener('scroll', misura, { passive: true });
+    misura(); rendi();
+  })();
+})();
+</script>

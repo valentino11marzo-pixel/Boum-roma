@@ -1,0 +1,680 @@
+<style>
+/* ── innesti Property Finding sopra i token de LA HOME ─────────────────── */
+.pf-hero { position:relative; min-height:92svh; display:grid; align-content:center;
+  padding:clamp(110px,14svh,160px) 0 clamp(44px,6svh,72px); overflow:hidden; }
+.pf-hero-in { display:grid; grid-template-columns:1fr; gap:clamp(26px,3.4vw,60px);
+  align-items:center; }
+@media (min-width:1020px){ .pf-hero-in { grid-template-columns:minmax(0,1fr) minmax(430px,.92fr); } }
+.pf-trust { margin-top:22px; font-size:13.5px; color:var(--text-3); }
+.pf-trust .trust-stars { color:var(--gold); letter-spacing:.16em; }
+.pf-trust b { color:var(--text); font-weight:600; }
+
+/* l'apparecchio del cercatore: brief → scansione → risultati pesati */
+.finder { position:relative; background:var(--black);
+  box-shadow:inset 0 0 0 1px var(--line-gold), 0 40px 90px -40px rgba(0,0,0,.9); }
+.brief-bar { padding:14px 18px 4px; border-bottom:1px solid var(--line-0); }
+.brief-bar .chips { margin-top:10px; }
+.brief-bar .chip-hint { margin:10px 0 8px; }
+.finder-screen { position:relative; height:clamp(300px,42svh,400px); overflow:hidden; }
+.fase { position:absolute; inset:0; padding:clamp(18px,2.2vw,28px);
+  display:flex; flex-direction:column; justify-content:center; gap:0;
+  opacity:0; transform:translateY(10px); pointer-events:none;
+  transition:opacity .45s ease, transform .55s var(--ease); }
+.finder[data-fase="0"] .fase-0, .finder[data-fase="1"] .fase-1,
+.finder[data-fase="2"] .fase-2 { opacity:1; transform:none; pointer-events:auto; }
+.finder-piede { padding:11px 16px; border-top:1px solid var(--line-0);
+  font-size:10.5px; line-height:1.6; letter-spacing:.04em; color:var(--text-3); }
+.fase-eti { font-size:11px; font-weight:600; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--gold); }
+.chips { margin-top:16px; display:flex; flex-wrap:wrap; gap:9px; }
+.chip { padding:9px 14px; font-size:13px; color:var(--text-2);
+  box-shadow:inset 0 0 0 1px var(--line); opacity:0; transform:translateY(6px);
+  transition:opacity .4s ease, transform .45s var(--ease); }
+.chip.oro { box-shadow:inset 0 0 0 1px var(--line-gold-2); color:var(--gold-light); }
+.finder.visto .chip { opacity:1; transform:none; }
+.finder.visto .chip:nth-child(1){ transition-delay:.15s; }
+.finder.visto .chip:nth-child(2){ transition-delay:.3s; }
+.finder.visto .chip:nth-child(3){ transition-delay:.45s; }
+.finder.visto .chip:nth-child(4){ transition-delay:.6s; }
+.finder.visto .chip:nth-child(5){ transition-delay:.75s; }
+.scan { position:relative; height:120px; margin-top:16px; overflow:hidden;
+  box-shadow:inset 0 0 0 1px var(--line-0); }
+.scan-sweep { position:absolute; inset:-40%;
+  background:conic-gradient(from 0deg, transparent 78%, rgba(255,215,0,.05) 94%, rgba(255,215,0,.16) 100%);
+  animation:sweep 3.2s linear infinite; animation-play-state:paused; }
+.finder[data-fase="1"] .scan-sweep { animation-play-state:running; }
+.scan-dot { position:absolute; width:5px; height:5px; border-radius:50%;
+  background:var(--gold); opacity:0; }
+.finder[data-fase="1"] .scan-dot { animation:appare 2.6s ease infinite; }
+@keyframes appare { 12% { opacity:.9; } 55% { opacity:.35; } 100% { opacity:0; } }
+.scan-riga { margin-top:14px; font-size:13.5px; color:var(--text-2); }
+.scan-riga i { font-style:normal; color:var(--green); }
+.fase-2 { justify-content:flex-start; padding-top:14px; }
+.esiti { margin-top:10px; display:grid; gap:7px; }
+.esito { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:2px 14px;
+  padding:9px 12px; background:var(--card); box-shadow:inset 0 0 0 1px var(--line-0);
+  opacity:0; transform:translateY(8px);
+  transition:opacity .45s ease, transform .5s var(--ease); }
+.finder[data-fase="2"] .esito { opacity:1; transform:none; }
+.finder[data-fase="2"] .esito:nth-child(2){ transition-delay:.18s; }
+.finder[data-fase="2"] .esito:nth-child(3){ transition-delay:.36s; }
+.esito b { font-family:var(--display); font-size:15.5px; font-weight:500; }
+.esito b i { font-style:normal; margin-left:8px; padding:3px 8px; font-family:var(--sans);
+  font-size:9.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+  background:var(--gold-muted); color:var(--gold-light); }
+.esito span { font-size:12.5px; color:var(--text-3); }
+.esito .pr { font-family:var(--display); font-size:16px; font-weight:500;
+  color:var(--gold-light); text-align:right; font-variant-numeric:tabular-nums; }
+.esito .pesi3 { grid-column:1/-1; display:flex; gap:6px; margin-top:4px; }
+.esito .pesi3 i { flex:none; font-style:normal; font-size:9.5px; font-weight:600;
+  letter-spacing:.08em; text-transform:uppercase; color:var(--green);
+  padding:3px 7px; background:rgba(0,255,136,.08);
+  box-shadow:inset 0 0 0 1px rgba(0,255,136,.22); }
+
+.chip { cursor:pointer; }
+.chip.giu { opacity:.38; box-shadow:inset 0 0 0 1px var(--line-0);
+  text-decoration:line-through; text-decoration-color:var(--text-4); }
+.chip-hint { margin-top:12px; font-size:11px; letter-spacing:.06em;
+  color:var(--text-4); }
+.esito.fuori { opacity:.28; filter:saturate(.4); }
+.esito.fuori .pesi3 i.no { color:var(--rosso,#FF6B4A);
+  background:rgba(255,107,74,.08); box-shadow:inset 0 0 0 1px rgba(255,107,74,.25); }
+
+/* il motore dietro l'esperto */
+.macchina { margin-top:clamp(30px,4vw,50px); display:grid; grid-template-columns:1fr;
+  gap:1px; background:var(--line-0); box-shadow:inset 0 0 0 1px var(--line-0); }
+@media (min-width:980px){ .macchina { grid-template-columns:1.05fr .95fr; } }
+.macchina > div { background:var(--card); padding:clamp(22px,2.8vw,34px); }
+.orari { display:grid; grid-template-columns:repeat(2,1fr); gap:1px;
+  background:var(--line-0); box-shadow:inset 0 0 0 1px var(--line-0); }
+.orari div { background:var(--card); padding:14px 16px; }
+.orari b { display:block; font-family:var(--display); font-size:19px; font-weight:400;
+  color:var(--gold); font-variant-numeric:tabular-nums; }
+.orari span { display:block; margin-top:3px; font-size:11px; font-weight:500;
+  letter-spacing:.12em; text-transform:uppercase; color:var(--text-3); }
+.pesiG { margin-top:20px; display:grid; gap:12px; }
+.pesoG { display:grid; grid-template-columns:92px minmax(0,1fr) 46px; gap:12px;
+  align-items:center; }
+.pesoG small { font-size:10.5px; font-weight:600; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--text-3); }
+.pesoG-b { position:relative; height:8px; background:rgba(255,255,255,.06); }
+.pesoG-b i { position:absolute; left:0; top:0; bottom:0; width:0;
+  background:linear-gradient(90deg,var(--gold-dark),var(--gold));
+  transition:width .9s var(--ease) .2s; }
+.macchina.viva .pesoG-b i { width:var(--w); }
+.pesoG b { font-size:13px; font-weight:600; text-align:right; color:var(--text);
+  font-variant-numeric:tabular-nums; }
+.soglia-r { margin-top:18px; padding-top:16px; border-top:1px solid var(--line-0);
+  display:flex; align-items:baseline; gap:12px; }
+.soglia-r b { font-family:var(--display); font-size:38px; font-weight:200; color:var(--gold); }
+.soglia-r span { font-size:13.5px; color:var(--text-2); }
+.regoleP { display:grid; gap:14px; }
+.regolaP b { font-size:15px; font-weight:500; }
+.regolaP p { margin-top:5px; font-size:13.5px; line-height:1.6; color:var(--text-2); }
+
+/* i quattro mini passi */
+.passi4 { margin-top:clamp(30px,4vw,50px); display:grid; grid-template-columns:1fr;
+  gap:1px; background:var(--line-0); box-shadow:inset 0 0 0 1px var(--line-0); }
+@media (min-width:840px){ .passi4 { grid-template-columns:repeat(4,1fr); } }
+.passo4 { background:var(--card); padding:22px 20px; }
+.passo4 b { display:block; font-family:var(--display); font-size:24px; font-weight:250;
+  color:var(--gold); font-variant-numeric:tabular-nums; }
+.passo4 span { display:block; margin-top:8px; font-size:14px; color:var(--text-2); }
+
+/* il pannello del prezzo */
+.prezzoP { margin-top:clamp(30px,4vw,50px); display:grid; grid-template-columns:1fr;
+  gap:clamp(22px,3vw,44px); background:var(--black); padding:clamp(24px,3vw,40px);
+  box-shadow:inset 0 0 0 1px var(--line-gold); align-items:center; }
+@media (min-width:900px){ .prezzoP { grid-template-columns:minmax(0,1fr) auto; } }
+.prezzoP-big { display:flex; align-items:baseline; gap:10px; }
+.prezzoP-big b { font-family:var(--display); font-size:clamp(48px,6vw,76px); font-weight:200;
+  letter-spacing:-.03em; color:var(--gold); }
+.prezzoP-big span { font-size:13px; color:var(--text-3); }
+.prezzoP-sub { margin-top:6px; font-size:14.5px; color:var(--text-2); }
+.prezzoP-stats { margin-top:20px; display:grid; grid-template-columns:repeat(2,1fr);
+  gap:1px; background:var(--line-0); box-shadow:inset 0 0 0 1px var(--line-0);
+  max-width:520px; }
+@media (min-width:640px){ .prezzoP-stats { grid-template-columns:repeat(4,1fr); } }
+.prezzoP-stats div { background:var(--black); padding:13px 15px; }
+.prezzoP-stats b { display:block; font-family:var(--display); font-size:20px;
+  font-weight:300; color:var(--gold); font-variant-numeric:tabular-nums; }
+.prezzoP-stats span { display:block; margin-top:3px; font-size:10.5px; font-weight:500;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); }
+.prezzoP-cta { display:grid; gap:12px; justify-items:start; }
+.prezzoP-cta .pf-voce { font-size:13.5px; }
+</style>
+
+<a class="salta" href="#perche">Skip to content</a>
+<div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
+<div class="mouse-glow" id="mouseGlow" aria-hidden="true"></div>
+<div class="tech-bg" aria-hidden="true"><span class="tech-orb tech-orb-1"></span><span class="tech-orb tech-orb-2"></span><span class="tech-orb tech-orb-3"></span></div>
+
+<nav class="nav" id="nav">
+  <div class="container nav-inner">
+    <a class="marchio" href="/" aria-label="BOOM, home">LOGO_SVG<span>Boom</span></a>
+    <div class="menu">
+      <a href="/apartments.html">Apartments</a>
+      <a href="/property-finding.html">Property Finding</a>
+      <a href="/deal-assistance.html">Deal Assistance</a>
+      <a href="/virtual-viewing.html">Virtual Viewing</a>
+      <a href="/concierge.html">Concierge</a>
+      <a href="/partners.html">Partners</a>
+      <a href="/about.html">About</a>
+      <a class="btn btn-primary" href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a>
+    </div>
+    <button class="apri" id="apri" type="button" aria-label="Open menu"
+      aria-expanded="false" aria-controls="tenda"><i></i><i></i><i></i></button>
+  </div>
+</nav>
+<div class="tenda" id="tenda">
+  <a href="/apartments.html">Apartments</a>
+  <a href="/property-finding.html">Property Finding</a>
+  <a href="/deal-assistance.html">Deal Assistance</a>
+  <a href="/virtual-viewing.html">Virtual Viewing</a>
+  <a href="/concierge.html">Concierge</a>
+  <a href="/about.html">About</a>
+  <a href="/login">Login</a>
+  <a class="btn btn-primary" href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a>
+</div>
+
+<!-- ══ HERO — il loro annuncio, con l'apparecchio che mostra il motore ══ -->
+<header class="pf-hero">
+  <div class="hero-grid" aria-hidden="true"></div>
+  <div class="hero-glow hero-glow-1" aria-hidden="true"></div>
+  <div class="radar" aria-hidden="true"><i></i><i></i><i></i><u></u><b></b><s></s><s></s></div>
+  <div class="container pf-hero-in">
+    <div>
+      <div class="hero-eyebrow"><b></b>Your personal Rome realtor</div>
+      <h1 class="titolo" style="margin-top:24px">Can't find the right place?<br>
+        <span class="hl">We'll find it for you.</span></h1>
+      <p class="sotto">Your dedicated expert searches off-market properties,
+        negotiates on your behalf, handles viewings and manages everything from
+        contracts to utilities. €350 upfront — deducted from your first month
+        when we succeed.</p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="#prezzo">Get your expert</a>
+        <a class="btn btn-secondary" href="#macchina">See the machine →</a>
+      </div>
+      <p class="pf-trust"><span class="trust-stars">★★★★★</span>
+        <b>4.9</b> · trusted by 500+ expats</p>
+    </div>
+
+    <div class="finder quadro" id="finder" data-fase="0">
+      <span class="tacca"></span>
+      <div class="dev-bar"><i></i><i></i><i></i><span class="dev-url">app.boomrome.com/finder</span></div>
+      <div class="brief-bar">
+        <span class="fase-eti">Your brief</span>
+        <div class="chips">
+          <button type="button" class="chip oro" data-k="area">Parioli · Trieste</button>
+          <button type="button" class="chip" data-k="budget">€1.5–2.2k</button>
+          <button type="button" class="chip" data-k="beds">2 bed</button>
+          <button type="button" class="chip" data-k="balcony">Balcony</button>
+          <button type="button" class="chip" data-k="pets">Pet-friendly</button>
+        </div>
+        <p class="chip-hint">Tap the brief — loosen the budget and watch Rome open.</p>
+      </div>
+      <div class="finder-screen">
+        <div class="fase fase-0">
+          <span class="fase-eti">One brief, told once</span>
+          <p class="scan-riga">Your expert and the scanner work from the same
+            five lines — nothing to repeat, nothing to chase.</p>
+        </div>
+        <div class="fase fase-1">
+          <span class="fase-eti">Scanning</span>
+          <div class="scan">
+            <div class="scan-sweep" aria-hidden="true"></div>
+            <span class="scan-dot" style="left:22%;top:30%"></span>
+            <span class="scan-dot" style="left:64%;top:52%;animation-delay:.5s"></span>
+            <span class="scan-dot" style="left:44%;top:72%;animation-delay:1.1s"></span>
+            <span class="scan-dot" style="left:78%;top:24%;animation-delay:1.6s"></span>
+          </div>
+          <p class="scan-riga"><i>●</i> Scanning off-market network… the public
+            market is watched every fifteen minutes, day and night.</p>
+        </div>
+        <div class="fase fase-2">
+          <span class="fase-eti">Curated for you</span>
+          <div class="esiti">
+            <div class="esito" data-ha="area budget beds balcony pets">
+              <b>Corso Trieste<i>Off-market</i></b>
+              <span class="pr">€1.850</span>
+              <span>2 bed · 78 m² · balcony</span>
+              <span class="pesi3"><i>budget ✓</i><i>beds ✓</i><i>area ✓</i></span>
+            </div>
+            <div class="esito" data-ha="area budget beds balcony pets">
+              <b>Pinciano<i>Off-market</i></b>
+              <span class="pr">€2.050</span>
+              <span>2 bed · 85 m² · elevator</span>
+              <span class="pesi3"><i>budget ✓</i><i>beds ✓</i><i>area ✓</i></span>
+            </div>
+            <div class="esito" data-ha="area budget beds balcony pets">
+              <b>Salario<i>Curated</i></b>
+              <span class="pr">€1.690</span>
+              <span>2 bed · 72 m² · renovated</span>
+              <span class="pesi3"><i>budget ✓</i><i>beds ✓</i><i>area ✓</i></span>
+            </div>
+            <div class="esito" data-ha="area beds balcony pets">
+              <b>Nomentano<i>Off-market</i></b>
+              <span class="pr">€2.400</span>
+              <span>2 bed · 92 m² · terrace</span>
+              <span class="pesi3"><i>beds ✓</i><i>area ✓</i><i class="no">over budget</i></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="finder-piede">Illustrated brief · matches are scored on our
+        production weights — budget 50, bedrooms 30, district 20.</div>
+    </div>
+  </div>
+</header>
+
+<!-- il nastro delle università, anche qui (nota vocale) -->
+<div class="uni" aria-label="Trusted by students from Rome's universities">
+  <span class="uni-eti">Trusted by students from</span>
+  <div class="uni-track" aria-hidden="true">
+UNI_ITEMS
+UNI_ITEMS
+  </div>
+</div>
+
+<!-- ══ PERCHÉ FUNZIONA — verbatim ════════════════════════════════════════ -->
+<section class="section section-dark" id="perche">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>Why it works</span>
+      <h2 class="titolo">An unfair advantage,<br><span class="hl">on your side.</span></h2>
+    </div>
+    <div class="org3 sale coro">
+      <div class="org">
+        <span class="svc-icona"><svg viewBox="0 0 40 40"><rect x="9" y="17" width="22" height="16" rx="1.5"/><path d="M13 17v-4a7 7 0 0114 0v4"/><circle cx="20" cy="25" r="2"/></svg></span>
+        <h3>Off-market access</h3>
+        <p>Properties never listed online. Direct landlord connections built
+          over 6+ years in Rome.</p>
+      </div>
+      <div class="org">
+        <span class="svc-icona"><svg viewBox="0 0 40 40"><path d="M20 6l12 5v9c0 7-5 12-12 14-7-2-12-7-12-14v-9z"/><path d="M14.5 20l4 4 7-8"/></svg></span>
+        <h3>Personal negotiator</h3>
+        <p>We handle viewings, negotiate terms and secure better prices. You
+          skip the stress.</p>
+      </div>
+      <div class="org">
+        <span class="svc-icona"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="13"/><path d="M7 20h26M20 7c-8 8-8 18 0 26 8-8 8-18 0-26z"/></svg></span>
+        <h3>Foreign-friendly setup</h3>
+        <p>Contracts, utilities, codice fiscale, residency support. Everything
+          handled in English.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ LA MACCHINA — il PFS aperto: la sola sezione nuova ════════════════ -->
+<section class="section" id="macchina">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>The engine behind your expert</span>
+      <h2 class="titolo">One human. <span class="hl">One machine.</span><br>Rome
+        doesn't get past both.</h2>
+      <p class="sotto">Your expert isn't refreshing portals by hand. A scanner
+        reads the market on a schedule and scores everything against your brief
+        — these are its real numbers, not marketing.</p>
+    </div>
+
+    <div class="macchina sale" id="macchinaBox">
+      <div>
+        <div class="orari">
+          <div><b>*/15</b><span>Inbox scan</span></div>
+          <div><b>2×/h</b><span>Market scan</span></div>
+          <div><b>04:00</b><span>Search rebuild</span></div>
+          <div><b>06:00</b><span>Daily brief</span></div>
+        </div>
+        <div class="pesiG">
+          <div class="pesoG"><small>Budget</small>
+            <span class="pesoG-b"><i style="--w:100%"></i></span><b>50</b></div>
+          <div class="pesoG"><small>Bedrooms</small>
+            <span class="pesoG-b"><i style="--w:60%"></i></span><b>30</b></div>
+          <div class="pesoG"><small>District</small>
+            <span class="pesoG-b"><i style="--w:40%"></i></span><b>20</b></div>
+        </div>
+        <div class="soglia-r"><b>60</b><span>the push threshold — anything
+          scoring below sixty out of a hundred never reaches your phone.</span></div>
+      </div>
+      <div>
+        <div class="regoleP">
+          <div class="regolaP"><b>Most of what we find, you never see.</b>
+            <p>Fewer notifications than any portal alert — few and relevant
+              beats many and useless. That is the product.</p></div>
+          <div class="regolaP"><b>Agency relistings are stored, never pushed.</b>
+            <p>We won't send you to pay someone else's commission on a home
+              you're already paying us to find.</p></div>
+          <div class="regolaP"><b>Too far over budget is a veto.</b>
+            <p>Up to 20% over your ceiling scores half — Roman rents are
+              negotiable. Past that line, it's out, however beautiful.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ COME FUNZIONA — verbatim ══════════════════════════════════════════ -->
+<section class="section section-dark">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>How it works</span>
+      <h2 class="titolo">One expert.<br><span class="hl">Your apartment.</span></h2>
+    </div>
+    <div class="passi4 sale coro">
+      <div class="passo4"><b>01</b><span>Share your requirements</span></div>
+      <div class="passo4"><b>24h</b><span>We activate the search</span></div>
+      <div class="passo4"><b>02</b><span>Curated options &amp; viewings</span></div>
+      <div class="passo4"><b>03</b><span>Secure &amp; move in</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ COSA OTTIENI — verbatim ═══════════════════════════════════════════ -->
+<section class="section">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>What you actually get</span>
+      <h2 class="titolo">Experience meets<br><span class="hl">execution.</span></h2>
+    </div>
+    <div class="griglia6 sale coro">
+      <div class="mini">
+        <span class="svc-icona"><svg viewBox="0 0 40 40"><circle cx="20" cy="14" r="6"/><path d="M8 33c1.5-7 6-10 12-10s10.5 3 12 10"/></svg></span>
+        <h4>Dedicated expert</h4>
+        <p class="sotto" style="margin-top:6px;font-size:13px">One person. Your
+          contact. They know your needs, budget and timeline. No automated
+          systems.</p>
+      </div>
+      <div class="mini">
+        <span class="svc-icona"><svg viewBox="0 0 40 40"><path d="M8 34V8h14v26M22 14h10v20M4 34h32"/><path d="M12 13h3M12 18h3M12 23h3M26 19h2M26 24h2"/></svg></span>
+        <h4>Off-market properties</h4>
+        <p class="sotto" style="margin-top:6px;font-size:13px">Apartments that
+          aren't publicly listed. Less competition. Better options. Real
+          advantage.</p>
+      </div>
+      <div class="mini">
+        <span class="svc-icona"><svg viewBox="0 0 40 40"><rect x="6" y="12" width="19" height="16" rx="1.5"/><path d="M25 18l9-5v14l-9-5"/></svg></span>
+        <h4>We do the viewings</h4>
+        <p class="sotto" style="margin-top:6px;font-size:13px">Abroad or busy? We
+          visit apartments, shoot videos, ask the right questions. You decide
+          remotely.</p>
+      </div>
+      <div class="mini">
+        <span class="svc-icona"><svg viewBox="0 0 40 40"><path d="M8 8h24v18H20l-8 7v-7H8z"/><path d="M14 15h12M14 20h8"/></svg></span>
+        <h4>Expert negotiation</h4>
+        <p class="sotto" style="margin-top:6px;font-size:13px">We know what's
+          fair. We negotiate rent, deposit terms and contract flexibility. You
+          get better deals.</p>
+      </div>
+      <div class="mini">
+        <span class="svc-icona"><svg viewBox="0 0 40 40"><path d="M12 5h12l6 6v24H12z"/><path d="M24 5v6h6M17 19h8M17 24h8M17 29h5"/></svg></span>
+        <h4>Full setup support</h4>
+        <p class="sotto" style="margin-top:6px;font-size:13px">Contracts.
+          Utilities. Codice fiscale. Residency registration. Everything to live
+          legally in Rome.</p>
+      </div>
+      <div class="mini">
+        <span class="svc-icona"><svg viewBox="0 0 40 40"><rect x="5" y="12" width="30" height="17" rx="1.5"/><circle cx="20" cy="20.5" r="4.5"/><path d="M10 12v-2h20v2"/></svg></span>
+        <h4>Fee deducted on success</h4>
+        <p class="sotto" style="margin-top:6px;font-size:13px">When we secure
+          your apartment, the €350 comes off your first month's rent. You end up
+          saving.</p>
+      </div>
+    </div>
+
+    <div class="diverso quadro sale" style="margin-top:clamp(26px,3.4vw,42px)"><span class="tacca"></span>
+      <b>Honest timeline</b>
+      <p>Finding your perfect apartment takes time — sometimes days, sometimes
+        weeks. Rome's market is complex, competitive and chaotic. What we
+        promise: relentless effort, expert guidance and honest communication.
+        We don't stop until you're settled.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══ IL PREZZO — verbatim ══════════════════════════════════════════════ -->
+<section class="section section-dark" id="prezzo">
+  <div class="container">
+    <div class="prezzoP quadro sale" id="prezzoBox"><span class="tacca"></span>
+      <div>
+        <div class="prezzoP-big"><b>€350</b><span>Upfront fee</span></div>
+        <p class="prezzoP-sub">Deducted from first month when we succeed</p>
+        <div class="prezzoP-stats">
+          <div><b data-fine="24" data-suff="h">0h</b><span>Search starts</span></div>
+          <div><b>1:1</b><span>Dedicated expert</span></div>
+          <div><b data-fine="6" data-suff="+">0+</b><span>Years network</span></div>
+          <div><b>€0</b><span>Net cost*</span></div>
+        </div>
+      </div>
+      <div class="prezzoP-cta">
+        <a class="btn btn-primary" href="https://wa.me/393313251961" target="_blank" rel="noopener">Get your expert</a>
+        <div class="pf-voce vista"><i></i>Fee deducted on success</div>
+        <div class="pf-voce vista"><i></i>Off-market access included</div>
+        <div class="pf-voce vista"><i></i>Remote viewing support</div>
+        <div class="pf-voce vista"><i></i>Complete move-in setup</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <div class="footer-marchio"><span id="logoPiede"></span>Boom</div>
+        <p class="footer-motto">Built in Rome, for Rome. If we can make Rome's
+          rental market work, we can make it work anywhere.</p>
+        <p class="footer-legale"><b>Egidi Immobiliare S.r.l.</b><br>
+          Via dei Coronari 181/184, 00186 Roma<br>
+          P.IVA 17322991005 · REA RM-1710623</p>
+      </div>
+      <div class="footer-col">
+        <b>Services</b>
+        <a href="/apartments.html">Apartments</a>
+        <a href="/property-finding.html">Property Finding</a>
+        <a href="/deal-assistance.html">Deal Assistance</a>
+        <a href="/virtual-viewing.html">Virtual Viewing</a>
+        <a href="/concierge.html">Concierge</a>
+      </div>
+      <div class="footer-col">
+        <b>Company</b>
+        <a href="/about.html">About</a>
+        <a href="/how-it-works.html">How It Works</a>
+        <a href="/blog.html">Blog</a>
+        <a href="/faq.html">FAQ</a>
+        <a href="/contact.html">Contact</a>
+      </div>
+      <div class="footer-col">
+        <b>Legal</b>
+        <a href="/terms.html">Terms</a>
+        <a href="/privacy.html">Privacy</a>
+        <a href="/login">Login</a>
+      </div>
+    </div>
+    <div class="footer-fondo">
+      <span>© 2026 BOOM — All Rights Reserved</span>
+      <span class="op"><i></i>Operational</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ── la regia del cercatore + gli innesti di pagina ──────────────────── */
+(function () {
+  'use strict';
+  var R = document.documentElement;
+  var ridotto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var fine = matchMedia('(hover:hover) and (pointer:fine)').matches;
+  R.classList.add('vivo');
+
+  (function () {
+    var vero = document.querySelector('.nav .logo-mark');
+    var slot = document.getElementById('logoPiede');
+    if (!vero || !slot) return;
+    var c = vero.cloneNode(true);
+    c.removeAttribute('class'); c.setAttribute('aria-hidden', 'true');
+    slot.replaceWith(c);
+  })();
+
+  (function () {
+    var nav = document.getElementById('nav');
+    var filo = document.getElementById('scrollProgress');
+    var atteso = false;
+    function guarda() {
+      atteso = false;
+      var h = document.scrollingElement || document.documentElement;
+      if (nav) nav.classList.toggle('scrolled', h.scrollTop > 24);
+      if (filo) {
+        var tot = h.scrollHeight - innerHeight;
+        filo.style.transform = 'scaleX(' + (tot > 0 ? h.scrollTop / tot : 0) + ')';
+      }
+    }
+    addEventListener('scroll', function () {
+      if (!atteso) { atteso = true; requestAnimationFrame(guarda); }
+    }, { passive: true });
+    guarda();
+  })();
+
+  (function () {
+    var glow = document.getElementById('mouseGlow');
+    if (!glow || !fine || ridotto) return;
+    var t;
+    document.addEventListener('mousemove', function (e) {
+      glow.style.left = e.clientX + 'px'; glow.style.top = e.clientY + 'px';
+      glow.classList.add('active');
+      clearTimeout(t);
+      t = setTimeout(function () { glow.classList.remove('active'); }, 1500);
+    }, { passive: true });
+  })();
+
+  (function () {
+    var apri = document.getElementById('apri');
+    var tenda = document.getElementById('tenda');
+    if (!apri || !tenda) return;
+    function chiudi() {
+      R.classList.remove('aperto');
+      apri.setAttribute('aria-expanded', 'false');
+      document.body.style.overflow = '';
+    }
+    apri.addEventListener('click', function () {
+      var ap = !R.classList.contains('aperto');
+      R.classList.toggle('aperto', ap);
+      apri.setAttribute('aria-expanded', ap ? 'true' : 'false');
+      document.body.style.overflow = ap ? 'hidden' : '';
+    });
+    [].forEach.call(tenda.querySelectorAll('a'), function (a) { a.addEventListener('click', chiudi); });
+    addEventListener('keydown', function (e) { if (e.key === 'Escape') chiudi(); });
+  })();
+
+  (function () {
+    var voci = [].slice.call(document.querySelectorAll('.sale'));
+    if (ridotto || !('IntersectionObserver' in window)) {
+      voci.forEach(function (v) { v.classList.add('dentro'); }); return;
+    }
+    var occhio = new IntersectionObserver(function (righe) {
+      righe.forEach(function (r, i) {
+        if (!r.isIntersecting) return;
+        var el = r.target; occhio.unobserve(el);
+        setTimeout(function () { el.classList.add('dentro'); }, i * 70);
+      });
+    }, { rootMargin: '0px 0px -10% 0px', threshold: .06 });
+    voci.forEach(function (v) { occhio.observe(v); });
+    setTimeout(function () { voci.forEach(function (v) { v.classList.add('dentro'); }); }, 4500);
+  })();
+
+  /* il cercatore: brief → scansione → risultati, in ciclo. Fermo fuori
+     vista; in reduced-motion resta sulla fase dei risultati, completa. */
+  (function () {
+    var f = document.getElementById('finder');
+    if (!f) return;
+    if (ridotto) { f.dataset.fase = 2; return; }
+    var fase = 0, giro = null, vivo = false;
+    var TEMPI = [2600, 3400, 4200];
+    function avanza() {
+      if (f.dataset.mano) return;         /* l'utente ha preso il controllo */
+      if (!vivo || document.hidden) { giro = setTimeout(avanza, 800); return; }
+      fase = (fase + 1) % 3;
+      f.dataset.fase = fase;
+      giro = setTimeout(avanza, TEMPI[fase]);
+    }
+    if (!('IntersectionObserver' in window)) {
+      f.classList.add('visto'); vivo = true;
+      giro = setTimeout(avanza, TEMPI[0]); return;
+    }
+    new IntersectionObserver(function (r) {
+      var era = vivo; vivo = r[0].isIntersecting;
+      if (vivo) f.classList.add('visto');
+      if (vivo && !era && giro === null) giro = setTimeout(avanza, TEMPI[0]);
+    }, { threshold: .3 }).observe(f);
+  })();
+
+  /* i chip del brief: il tocco prende il controllo del cercatore */
+  (function () {
+    var f = document.getElementById('finder');
+    var chips = [].slice.call(document.querySelectorAll('.chip[data-k]'));
+    var esiti = [].slice.call(document.querySelectorAll('.esito'));
+    if (!f || !chips.length) return;
+    var attivi = {};
+    chips.forEach(function (c) { attivi[c.dataset.k] = true; });
+    function applica() {
+      esiti.forEach(function (e) {
+        var ha = (e.dataset.ha || '').split(' ');
+        var manca = Object.keys(attivi).filter(function (k) {
+          return attivi[k] && ha.indexOf(k) < 0;
+        });
+        e.classList.toggle('fuori', manca.length > 0);
+      });
+    }
+    applica();                             /* lo stato vero fin dal primo sguardo */
+    chips.forEach(function (c) {
+      c.addEventListener('click', function () {
+        f.dataset.fase = 2;               /* il controllo passa alla mano */
+        f.dataset.mano = '1';
+        attivi[c.dataset.k] = !attivi[c.dataset.k];
+        c.classList.toggle('giu', !attivi[c.dataset.k]);
+        applica();
+      });
+    });
+  })();
+
+  /* la macchina: le barre dei pesi al primo sguardo */
+  (function () {
+    var box = document.getElementById('macchinaBox');
+    if (!box) return;
+    if (ridotto || !('IntersectionObserver' in window)) { box.classList.add('viva'); return; }
+    new IntersectionObserver(function (r, io) {
+      if (!r[0].isIntersecting) return;
+      io.disconnect(); box.classList.add('viva');
+    }, { threshold: .3 }).observe(box);
+  })();
+
+  /* i contatori del pannello prezzo */
+  (function () {
+    var box = document.getElementById('prezzoBox');
+    if (!box) return;
+    function conta(el) {
+      var fine_ = +el.dataset.fine, suff = el.dataset.suff || '';
+      if (ridotto) { el.textContent = fine_ + suff; return; }
+      var t0 = 0;
+      function su(ts) {
+        if (!t0) t0 = ts;
+        var p = Math.min(1, (ts - t0) / 1000);
+        el.textContent = Math.round(fine_ * (1 - Math.pow(1 - p, 3))) + suff;
+        if (p < 1) requestAnimationFrame(su);
+      }
+      requestAnimationFrame(su);
+    }
+    if (!('IntersectionObserver' in window)) {
+      [].forEach.call(box.querySelectorAll('[data-fine]'), function (el) {
+        el.textContent = el.dataset.fine + (el.dataset.suff || '');
+      });
+      return;
+    }
+    new IntersectionObserver(function (r, io) {
+      if (!r[0].isIntersecting) return;
+      io.disconnect();
+      [].forEach.call(box.querySelectorAll('[data-fine]'), conta);
+    }, { threshold: .3 }).observe(box);
+  })();
+})();
+</script>
