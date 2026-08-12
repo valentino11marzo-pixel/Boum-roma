@@ -66,7 +66,9 @@ def letti(r):
 def stato(r):
     s = r['status']
     if s == 'available': return ('Available now', 'si')
-    if s in ('reserved', 'waitlist'): return ('Reserved', '')
+    # la waitlist non e «Reserved»: la lista e aperta, e uno stato suo
+    if s == 'waitlist': return ('Waitlist open', 'fila')
+    if s == 'reserved': return ('Reserved', '')
     return ('Rented', '')
 
 # ── le carte: la grammatica del portale, con i dati per i filtri ────────
@@ -75,8 +77,10 @@ def carta(r):
     mq = re.sub(r'[^\d]', '', str(r.get('sqm') or '')) or ''
     b = letti(r); st = stato(r)
     nuova = (oggi - quando(r)).days < 21
+    # niente FREE NOW: lo stato lo dice gia la striscia sulla stessa foto.
+    # Il chip resta per cio che AGGIUNGE: il video e la novita.
     ch = ('VERIFIED', 'verde') if r.get('video') else \
-         ('NEW', '') if nuova else ('FREE NOW', 'verde') if st[1] == 'si' else None
+         ('NEW', '') if nuova else None
     dati = ' <i>·</i> '.join(x for x in [
         f'<span class="home-zona" role="link" tabindex="0" '
         f'data-href="/apartments.html#zona={z}">{z}</span>',

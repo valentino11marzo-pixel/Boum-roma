@@ -1744,11 +1744,31 @@ html.vivo .sale.dentro { opacity:1; transform:none;
 .muro { display:grid; gap:clamp(14px,1.6vw,20px);
   grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); }
 .muro .casa-p.via { display:none; }
+/* lo stato, una volta sola e vivo: il punto respira dove la casa e
+   libera, pulsa in oro dove la lista e aperta, sta fermo dov'e presa */
 .casa-p .home-foto .casa-stato { position:absolute; left:8px; bottom:8px;
-  padding:5px 9px; background:rgba(3,3,3,.72); backdrop-filter:blur(6px);
-  font-size:8.5px; font-weight:700; letter-spacing:.12em;
-  text-transform:uppercase; color:var(--text-3); }
-.casa-p .home-foto .casa-stato.si { color:var(--green); }
+  display:inline-flex; align-items:center; gap:6px; padding:6px 10px;
+  border-radius:100px; background:rgba(3,3,3,.78); backdrop-filter:blur(8px);
+  font-size:10px; font-weight:600; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--text-3);
+  box-shadow:inset 0 0 0 1px var(--line-0); }
+.casa-p .home-foto .casa-stato::before { content:''; width:6px; height:6px;
+  border-radius:50%; background:currentColor; flex:none; }
+.casa-p .home-foto .casa-stato.si { color:var(--green);
+  box-shadow:inset 0 0 0 1px rgba(0,255,136,.3); }
+.casa-p .home-foto .casa-stato.si::before {
+  animation:stato-respira 2.8s ease-out infinite; }
+@keyframes stato-respira {
+  0%   { box-shadow:0 0 0 0 rgba(0,255,136,.5); }
+  70%  { box-shadow:0 0 0 8px rgba(0,255,136,0); }
+  100% { box-shadow:0 0 0 0 rgba(0,255,136,0); } }
+.casa-p .home-foto .casa-stato.fila { color:var(--gold);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.casa-p .home-foto .casa-stato.fila::before {
+  animation:stato-attesa 1.6s ease-in-out infinite; }
+@keyframes stato-attesa { 0%,100% { opacity:1; } 50% { opacity:.25; } }
+@media (prefers-reduced-motion:reduce){
+  .casa-p .home-foto .casa-stato::before { animation:none!important; } }
 
 /* niente risultati: la macchina si mette al lavoro */
 .vuoto { display:none; padding:clamp(28px,3.4vw,44px);
@@ -1908,7 +1928,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FOLLVsiKhPrhpT1fx8XmB%2Fmrydgy70_00_5083a1a3.jpg?alt=media"
             alt="Bilocale Centro, Centro — apartment for rent in Rome with BOOM">
           <span class="casa-chip ">NEW</span>
-          <span class="casa-stato ">Reserved</span>
+          <span class="casa-stato fila">Waitlist open</span>
           <button type="button" class="home-cuore" data-u="/listing/OLLVsiKhPrhpT1fx8XmB"
             aria-label="Save this home">♥</button>
         </div>
@@ -1973,8 +1993,8 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         <div class="home-foto">
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FhwnkDcXvs7Q0EW99xV7O%2Fms18dq0y_00_8cd440e9.jpg?alt=media"
             alt="Trilocale Pigneto, Pigneto — apartment for rent in Rome with BOOM">
-          <span class="casa-chip ">NEW</span>
-          <span class="casa-stato ">Reserved</span>
+          
+          <span class="casa-stato fila">Waitlist open</span>
           <button type="button" class="home-cuore" data-u="/listing/hwnkDcXvs7Q0EW99xV7O"
             aria-label="Save this home">♥</button>
         </div>
@@ -1995,7 +2015,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         <div class="home-foto">
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fttvrjazww9oe4tA0wHTf%2Fmrz6vxb9_00_18252691.jpg?alt=media"
             alt="Bilocale Ponte Milvio, Ponte Milvio — apartment for rent in Rome with BOOM">
-          <span class="casa-chip verde">FREE NOW</span>
+          
           <span class="casa-stato si">Available now</span>
           <button type="button" class="home-cuore" data-u="/listing/ttvrjazww9oe4tA0wHTf"
             aria-label="Save this home">♥</button>
@@ -2017,7 +2037,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         <div class="home-foto">
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FcezFMXTWnHUDgb1H2WWm%2Fmrzsxcyw_00_4d6b85f3.jpg?alt=media"
             alt="Bilocale Trastevere, Trastevere — apartment for rent in Rome with BOOM">
-          <span class="casa-chip verde">FREE NOW</span>
+          
           <span class="casa-stato si">Available now</span>
           <button type="button" class="home-cuore" data-u="/listing/cezFMXTWnHUDgb1H2WWm"
             aria-label="Save this home">♥</button>
@@ -2039,7 +2059,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         <div class="home-foto">
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Flevico%2Fms438q5f_00_a4e03314.jpg?alt=media"
             alt="Levico, Trieste — apartment for rent in Rome with BOOM">
-          <span class="casa-chip verde">FREE NOW</span>
+          
           <span class="casa-stato si">Available now</span>
           <button type="button" class="home-cuore" data-u="/listing/levico"
             aria-label="Save this home">♥</button>
@@ -2061,7 +2081,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         <div class="home-foto">
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FFHeEHIFbil6QG8Jcccxc%2Fmrwy1a3g_00_d2ee0ce1.jpg?alt=media"
             alt="Bilocale Trieste, Trieste — apartment for rent in Rome with BOOM">
-          <span class="casa-chip verde">FREE NOW</span>
+          
           <span class="casa-stato si">Available now</span>
           <button type="button" class="home-cuore" data-u="/listing/FHeEHIFbil6QG8Jcccxc"
             aria-label="Save this home">♥</button>
@@ -2083,7 +2103,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         <div class="home-foto">
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FKz9bXztv5QXmQrNhAcoU%2Fmrwy1jgh_00_3edcb767.jpg?alt=media"
             alt="Ponte Milvio Duplex, Ponte Milvio — apartment for rent in Rome with BOOM">
-          <span class="casa-chip verde">FREE NOW</span>
+          
           <span class="casa-stato si">Available now</span>
           <button type="button" class="home-cuore" data-u="/listing/Kz9bXztv5QXmQrNhAcoU"
             aria-label="Save this home">♥</button>
@@ -2106,7 +2126,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fangelico%2Fmrzsx85w_00_e5bf052c.jpg?alt=media"
             alt="Angelico Loft, Prati — apartment for rent in Rome with BOOM">
           
-          <span class="casa-stato ">Reserved</span>
+          <span class="casa-stato fila">Waitlist open</span>
           <button type="button" class="home-cuore" data-u="/listing/angelico"
             aria-label="Save this home">♥</button>
         </div>
@@ -2128,7 +2148,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FqRRRV7BjXDPqgTpVchnz%2Fms8dk1ui_00_6b014a15.jpg?alt=media"
             alt="Parioli Double Room with Garden, Parioli — apartment for rent in Rome with BOOM">
           <span class="casa-chip verde">VERIFIED</span>
-          <span class="casa-stato ">Reserved</span>
+          <span class="casa-stato fila">Waitlist open</span>
           <button type="button" class="home-cuore" data-u="/listing/qRRRV7BjXDPqgTpVchnz"
             aria-label="Save this home">♥</button>
         </div>
@@ -2149,7 +2169,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         <div class="home-foto">
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FilW5lAxnNn5M2TjsSHx2%2Fms438muu_00_25bd2cd0.jpg?alt=media"
             alt="Africano Premium Room, Africano — apartment for rent in Rome with BOOM">
-          <span class="casa-chip verde">FREE NOW</span>
+          
           <span class="casa-stato si">Available now</span>
           <button type="button" class="home-cuore" data-u="/listing/ilW5lAxnNn5M2TjsSHx2"
             aria-label="Save this home">♥</button>
@@ -2172,7 +2192,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fpigneto%2Fms8dkk6z_00_9f8dcbd0.jpg?alt=media"
             alt="Pigneto Terrace, Pigneto — apartment for rent in Rome with BOOM">
           
-          <span class="casa-stato ">Reserved</span>
+          <span class="casa-stato fila">Waitlist open</span>
           <button type="button" class="home-cuore" data-u="/listing/pigneto"
             aria-label="Save this home">♥</button>
         </div>
@@ -2194,7 +2214,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fpiemonte%2Fms5ioi4l_00_cd31173f.jpg?alt=media"
             alt="Piemonte Attic, Vittorio Veneto — apartment for rent in Rome with BOOM">
           
-          <span class="casa-stato ">Reserved</span>
+          <span class="casa-stato fila">Waitlist open</span>
           <button type="button" class="home-cuore" data-u="/listing/piemonte"
             aria-label="Save this home">♥</button>
         </div>
@@ -2215,7 +2235,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         <div class="home-foto">
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FesFhjFMVfZtkIrhkx0PR%2Fms18d3o8_00_27bce535.jpg?alt=media"
             alt="Prati cozy, Prati — apartment for rent in Rome with BOOM">
-          <span class="casa-chip verde">FREE NOW</span>
+          
           <span class="casa-stato si">Available now</span>
           <button type="button" class="home-cuore" data-u="/listing/esFhjFMVfZtkIrhkx0PR"
             aria-label="Save this home">♥</button>
@@ -2238,7 +2258,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FwvX0h0lBoNKOMuTuHkVI%2Fms9szt8z_00_7f38f3a7.jpg?alt=media"
             alt="Capri 2 Bed, Conca d'Oro — apartment for rent in Rome with BOOM">
           
-          <span class="casa-stato ">Reserved</span>
+          <span class="casa-stato fila">Waitlist open</span>
           <button type="button" class="home-cuore" data-u="/listing/wvX0h0lBoNKOMuTuHkVI"
             aria-label="Save this home">♥</button>
         </div>
@@ -2260,7 +2280,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fnavona%2Fms5ioeyr_00_d08009e6.jpg?alt=media"
             alt="Coronari Classic, Centro Storico — apartment for rent in Rome with BOOM">
           
-          <span class="casa-stato ">Reserved</span>
+          <span class="casa-stato fila">Waitlist open</span>
           <button type="button" class="home-cuore" data-u="/listing/navona"
             aria-label="Save this home">♥</button>
         </div>
@@ -2282,7 +2302,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
           <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fripetta%2Fms9sznst_00_7fc18043.jpg?alt=media"
             alt="Ripetta Terrace, Centro Storico — apartment for rent in Rome with BOOM">
           
-          <span class="casa-stato ">Reserved</span>
+          <span class="casa-stato fila">Waitlist open</span>
           <button type="button" class="home-cuore" data-u="/listing/ripetta"
             aria-label="Save this home">♥</button>
         </div>
