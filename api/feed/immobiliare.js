@@ -32,6 +32,7 @@ import crypto from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import { fsList } from '../homie/_lib.js';
 import GEO from '../../js/boom-geo.js';
+import DISPO from '../../js/dispo-engine.js';
 
 const ISTAT_ROMA = '058091';
 const AGENCY_EMAIL = process.env.FEED_AGENCY_EMAIL || process.env.GMAIL_USER || '';
@@ -110,6 +111,13 @@ export function propertyNode(l, { extended = true, agencyEmail = AGENCY_EMAIL } 
     const baths = Number(l.bathrooms || l.baths) || 0;
     if (baths) out.push(`  <bathrooms>${baths}</bathrooms>`);
     if (l.energyClass) out.push(`  <energy-class>${esc(l.energyClass)}</energy-class>`);
+    // Disponibilità: il feed non la portava affatto, quindi su Immobiliare
+    // ogni casa BOOM sembrava libera adesso. Si emette SOLO su data certa —
+    // `unknown` non produce nodo, perché un portale non ha modo di sapere
+    // che quel valore era un'ipotesi nostra. (Nome nodo da confermare
+    // sull'XSD completo: sta qui, nel blocco EXTENDED, apposta.)
+    const av = DISPO.resolve(l);
+    if (av.kind === 'date') out.push(`  <available-from>${av.iso}</available-from>`);
     const desc = l.description || l.descriptionIt || '';
     if (desc) out.push(`  <description language="it">${cdata(String(desc).slice(0, 4000))}</description>`);
     if (l.descriptionEn || l.description) out.push(`  <description language="en">${cdata(String(l.descriptionEn || l.description).slice(0, 4000))}</description>`);

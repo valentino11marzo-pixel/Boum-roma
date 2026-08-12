@@ -530,7 +530,28 @@ export default async function handler(req, res) {
           filter: { field: 'propertyId', op: 'EQUAL', value: fullContract.propertyId },
           limit: 1,
         });
-        if (listings[0]) await fsPatch('listings/' + listings[0].id, { status: 'rented' });
+        // LA DATA PIÙ AFFIDABILE DEL SISTEMA, che finora si buttava via.
+        // Qui si scriveva solo `status:'rented'`: il contratto sapeva
+        // ESATTAMENTE quando quella casa torna libera (endDate) e nessuno lo
+        // registrava. Ora la casa affittata porta con sé il giorno in cui si
+        // rilibera, così la vetrina può prenotarla in anticipo (la corsia
+        // waitlist esisteva già e restava vuota) e i portali la ricevono.
+        if (listings[0]) {
+          const patch = { status: 'rented' };
+          const end = String(fullContract.endDate || '');
+          if (/^\d{4}-\d{2}-\d{2}/.test(end)) {
+            const free = new Date(end.slice(0, 10) + 'T00:00:00Z');
+            free.setUTCDate(free.getUTCDate() + 1);      // libera il giorno DOPO la scadenza
+            const iso = free.toISOString().slice(0, 10);
+            patch.availableFrom = iso;
+            patch.availableDate = iso;
+            patch.availableKind = 'date';
+            patch.availableRaw = 'fine contratto ' + end.slice(0, 10);
+            patch.availabilityUpdatedAt = new Date().toISOString();
+            patch.availabilityUpdatedBy = 'contract:' + contractId;
+          }
+          await fsPatch('listings/' + listings[0].id, patch);
+        }
       } catch (e) { console.warn('[magic-sign/submit] listing sync:', e.message); }
     }
 

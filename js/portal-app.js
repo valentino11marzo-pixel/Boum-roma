@@ -14053,7 +14053,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div class="card">
                 <div class="card-header">
                     <h3 class="card-title">📋 Tutti gli Appartamenti</h3>
-                    <span class="badge gray">${S.listings.length} listings</span>
+                    <div style="display:flex;gap:8px;align-items:center">
+                        ${(() => {
+                            if (!window.BOOM_DISPO) return '';
+                            const a = BOOM_DISPO.audit(S.listings);
+                            return a.gaps.length
+                                ? `<span class="badge orange" title="${esc(a.gaps.map(g => g.name).join(', '))}">❓ ${a.gaps.length} senza data</span>`
+                                : `<span class="badge green">📅 tutte con data</span>`;
+                        })()}
+                        <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px" onclick="openModal('availability')">📅 Disponibilità</button>
+                        <span class="badge gray">${S.listings.length} listings</span>
+                    </div>
                 </div>
                 <div class="card-body flush">
                     ${S.listings.length > 0 ? `<div class="table-wrapper"><table>
@@ -14174,7 +14184,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             tags: tagsArray,
             features: featuresArray,
             status: data.status || 'available',
-            availableDate: data.availableDate || '',
+            // La disponibilità passa SEMPRE dal motore, anche da qui: il portal
+            // non può depositare una stringa che la vetrina non sa rileggere.
+            // È lo stesso writePatch() che usa la porta /api/listings/availability.
+            ...(window.BOOM_DISPO
+                ? BOOM_DISPO.writePatch(
+                    BOOM_DISPO.parseAvailability(
+                        data.availableMode === 'now' ? 'Subito'
+                            : data.availableMode === 'unknown' ? 'da concordare'
+                                : (data.availableFromDate || '')),
+                    'portal:' + (S.user?.email || ''))
+                : { availableDate: data.availableFromDate || '' }),
             description: data.description || '',
             file: data.file || '',
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -14206,6 +14226,81 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const l = S.listings.find(x => x.id === id);
         if (!l) return toast('error', 'Listing non trovato');
         openModal('editListing', l);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // 📅 DISPONIBILITÀ — il messaggio unico, dal portal
+    //
+    // Legge in LOCALE (js/dispo-engine.js, zero rete, zero AI) e mostra il
+    // piano; scrive solo su conferma, e scrive passando dalla porta unica
+    // /api/listings/availability — mai con un update Firestore diretto, o
+    // il portal tornerebbe a essere una quarta sorgente di verità.
+    // ═══════════════════════════════════════════════════════════════════
+    let AVAIL_PLAN = null;
+
+    function planAvailability() {
+        const box = document.getElementById('availMsg');
+        const out = document.getElementById('availPlan');
+        const btn = document.getElementById('availApply');
+        if (!box || !out || !window.BOOM_DISPO) return;
+
+        const live = (S.listings || []).filter(l => String(l.status || '').toLowerCase() !== 'rented');
+        const plan = BOOM_DISPO.parseBatch(box.value, live);
+        AVAIL_PLAN = plan.ok ? plan : null;
+        btn.style.display = plan.ok ? '' : 'none';
+
+        const line = (u) => `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+            <span style="color:var(--text)">${esc(u.name)}</span>
+            <span style="color:var(--text-muted)">${esc(u.was)} → <b style="color:var(--gold)">${u.kind === 'now' ? 'subito' : u.kind === 'unknown' ? 'da concordare' : u.iso}</b></span></div>`;
+
+        const problems = []
+            .concat(plan.ambiguous.map(a => `“${esc(a.seg)}” → quale? ${esc(a.names.join(', '))}`))
+            .concat(plan.noDate.map(n => `${esc(n.name)} → nessuna data in questo pezzo`))
+            .concat(plan.noListing.map(n => `“${esc(n.seg)}” → non ho capito quale casa`));
+
+        out.innerHTML = `
+            ${plan.ok ? `<div style="background:var(--bg-elevated);border-radius:10px;padding:12px;margin-bottom:12px">
+                ${plan.mode === 'broadcast' ? `<div style="font-size:11px;color:var(--gold);margin-bottom:8px">Una data sola per ${plan.updates.length} immobili</div>` : ''}
+                ${plan.updates.map(line).join('')}</div>` : ''}
+            ${problems.length ? `<div class="alert warning"><span class="alert-icon">⚠️</span><div class="alert-content"><div class="alert-title">Questi li lascio stare</div><div class="alert-text">${problems.join('<br>')}</div></div></div>` : ''}
+            ${!plan.ok && !problems.length ? `<div class="alert"><span class="alert-icon">💬</span><div class="alert-content"><div class="alert-text">${esc(plan.note || 'Non ho capito.')}</div></div></div>` : ''}`;
+    }
+
+    async function applyAvailability() {
+        if (!AVAIL_PLAN) return;
+        const btn = document.getElementById('availApply');
+        if (btn) { btn.disabled = true; btn.textContent = 'Scrivo…'; }
+        try {
+            const idToken = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/listings/availability', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + idToken },
+                body: JSON.stringify({ updates: AVAIL_PLAN.updates.map(u => ({ id: u.id, kind: u.kind, iso: u.iso, phrase: u.phrase })) })
+            });
+            const j = await r.json();
+            if (!r.ok || !j.ok) throw new Error(j.error || 'errore');
+            toast('success', `${j.applied.length} date aggiornate`, 'Vetrina, feed e portali si allineano da soli');
+            closeModal();
+            await refresh();
+        } catch (e) {
+            toast('error', 'Non è andata', e.message);
+            if (btn) { btn.disabled = false; btn.textContent = '✓ Conferma e scrivi'; }
+        }
+    }
+
+    async function setAvailability(id, iso) {
+        try {
+            const idToken = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/listings/availability', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + idToken },
+                body: JSON.stringify({ updates: [iso ? { id, iso } : { id, kind: 'unknown' }] })
+            });
+            const j = await r.json();
+            if (!r.ok || !j.ok) throw new Error(j.error || (j.failed && j.failed[0] && j.failed[0].error) || 'errore');
+            toast('success', 'Data aggiornata');
+            await refresh();
+        } catch (e) { toast('error', 'Non è andata', e.message); }
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -14599,6 +14694,36 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     function getModal(type, data) {
+        // ── 📅 DISPONIBILITÀ — un messaggio, tutte le date ────────────────
+        // La stessa cosa che si scriverà al bot Telegram, qui dentro: stesso
+        // motore (js/dispo-engine.js), stessa porta (/api/listings/availability),
+        // stesso ritmo piano→conferma. Il bot è una tastiera in più, non un
+        // secondo cervello — così quando è giù (e lo è stato) la funzione resta.
+        if (type === 'availability') {
+            const a = window.BOOM_DISPO ? BOOM_DISPO.audit(S.listings) : { gaps: [], total: 0 };
+            const rows = (S.listings || [])
+                .filter(l => String(l.status || '').toLowerCase() !== 'rented')
+                .map(l => ({ l, r: BOOM_DISPO.resolve(l) }))
+                .sort((x, y) => (x.r.kind === 'unknown' ? 0 : 1) - (y.r.kind === 'unknown' ? 0 : 1)
+                    || String(x.l.name || '').localeCompare(String(y.l.name || '')))
+                .map(({ l, r }) => `<tr>
+                    <td><strong style="color:var(--text)">${esc(l.name || l.id)}</strong><br><small style="color:var(--text-muted)">${esc(l.zone || '')}</small></td>
+                    <td><span class="badge ${r.kind === 'unknown' ? 'orange' : r.kind === 'now' ? 'green' : 'gray'}">${r.kind === 'unknown' ? '❓ da concordare' : r.kind === 'now' ? '🟢 subito' : '📅 ' + r.iso}</span></td>
+                    <td><input type="date" class="form-input" style="padding:6px;font-size:12px" value="${r.iso || ''}" onchange="setAvailability('${l.id}', this.value)"></td>
+                </tr>`).join('');
+            return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">📅 Disponibilità</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Scrivilo in un messaggio</label>
+                    <textarea class="form-textarea" id="availMsg" rows="3" placeholder="Levico dal 1 settembre, Cavour subito, Pigneto 15/10"></textarea>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:6px">Capisce più immobili per messaggio, italiano e inglese, "fine agosto", "15/10", "subito", "da concordare". Mostra sempre il piano <b>prima</b> di scrivere. Nessun costo AI.</div>
+                </div>
+                <div style="display:flex;gap:8px;margin-bottom:16px"><button class="btn" onclick="planAvailability()">Leggi il messaggio</button><button class="btn btn-secondary" id="availApply" style="display:none" onclick="applyAvailability()">✓ Conferma e scrivi</button></div>
+                <div id="availPlan"></div>
+                ${a.gaps.length ? `<div class="alert warning mb-8"><span class="alert-icon">❓</span><div class="alert-content"><div class="alert-title">${a.gaps.length} senza data</div><div class="alert-text">Su queste la vetrina dice "Ask us" — onesto, ma una data reale converte di più.</div></div></div>` : ''}
+                <div class="table-wrapper"><table><thead><tr><th>Appartamento</th><th>Oggi</th><th>Cambia</th></tr></thead><tbody>${rows}</tbody></table></div>
+            </div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Chiudi</button></div></div></div>`;
+        }
+
         if (type === 'notifications') return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">🔔 Notifiche</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body">${S.notifications.map(n => `<div class="alert ${n.type} mb-8"><span class="alert-icon">${n.type === 'danger' ? '⚠️' : '📋'}</span><div class="alert-content"><div class="alert-title">${n.title}</div><div class="alert-text">${n.text}</div></div></div>`).join('')}</div><div class="modal-footer"><button class="btn" onclick="closeModal()">Chiudi</button></div></div></div>`;
 
         if (type === 'addClient') return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">💼 Nuovo Cliente CRM</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveClient(event)"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required></div><div class="form-group"><label class="form-label">Servizio *</label><select class="form-select" name="service" required><option value="PFS">🏠 PFS €350</option><option value="DAS">📝 DAS €249</option><option value="VV">👁️ VV €89</option></select></div></div><div class="form-row"><div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" name="email" required></div><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" name="phone"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Budget €</label><input type="number" class="form-input" name="budget"></div><div class="form-group"><label class="form-label">Zona</label><input type="text" class="form-input" name="zone"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Data Arrivo</label><input type="date" class="form-input" name="arrivalDate"></div><div class="form-group"><label class="form-label">Durata</label><input type="text" class="form-input" name="duration" placeholder="6 mesi"></div></div><div class="form-group"><label class="form-label">Source</label><select class="form-select" name="source"><option value="google">Google</option><option value="instagram">Instagram</option><option value="referral">Referral</option><option value="website">Website</option><option value="other">Altro</option></select></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes"></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Salva</button></div></div></div>`;
@@ -14740,7 +14865,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">💰 Prezzo & Disponibilità</h4>
                 <div class="form-row"><div class="form-group"><label class="form-label">Prezzo €/mese *</label><input type="number" class="form-input" name="price" required placeholder="1200"></div><div class="form-group"><label class="form-label">Status *</label><select class="form-select" name="status"><option value="available">🟢 Disponibile</option><option value="waitlist">🟡 Waitlist</option><option value="rented">🔴 Affittato</option></select></div></div>
-                <div class="form-group"><label class="form-label">Disponibile da</label><input type="text" class="form-input" name="availableDate" placeholder="Es: Feb 1, Sep 2026, Immediate"></div>
+                <div class="form-row"><div class="form-group"><label class="form-label">Disponibile da</label><input type="date" class="form-input" name="availableFromDate"></div><div class="form-group"><label class="form-label">…oppure</label><select class="form-select" name="availableMode"><option value="date">📅 Dalla data indicata</option><option value="now">🟢 Subito</option><option value="unknown">❓ Da concordare</option></select></div></div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:-8px">Il campo era testo libero e suggeriva "Feb 1, Sep 2026, Immediate": formati che la vetrina non sapeva leggere e mostrava come <b>disponibile oggi</b>. Ora la data è una data — e "da concordare" si dice, non si finge.</div>
             </div>
             <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">🏠 Caratteristiche</h4>
@@ -14792,7 +14918,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">💰 Prezzo & Disponibilità</h4>
                 <div class="form-row"><div class="form-group"><label class="form-label">Prezzo €/mese *</label><input type="number" class="form-input" name="price" value="${data.price || ''}" required></div><div class="form-group"><label class="form-label">Status</label><select class="form-select" name="status"><option value="available" ${data.status === 'available' ? 'selected' : ''}>🟢 Disponibile</option><option value="waitlist" ${data.status === 'waitlist' ? 'selected' : ''}>🟡 Waitlist</option><option value="rented" ${data.status === 'rented' ? 'selected' : ''}>🔴 Affittato</option></select></div></div>
-                <div class="form-group"><label class="form-label">Disponibile da</label><input type="text" class="form-input" name="availableDate" value="${data.availableDate || ''}"></div>
+                ${(() => { const r = (window.BOOM_DISPO ? BOOM_DISPO.resolve(data) : { kind: 'unknown', iso: null }); const mode = r.kind; return `
+                <div class="form-row"><div class="form-group"><label class="form-label">Disponibile da</label><input type="date" class="form-input" name="availableFromDate" value="${r.iso || ''}"></div><div class="form-group"><label class="form-label">…oppure</label><select class="form-select" name="availableMode"><option value="date" ${mode === 'date' ? 'selected' : ''}>📅 Dalla data indicata</option><option value="now" ${mode === 'now' ? 'selected' : ''}>🟢 Subito</option><option value="unknown" ${mode === 'unknown' ? 'selected' : ''}>❓ Da concordare</option></select></div></div>
+                ${data.availableRaw ? `<div style="font-size:11px;color:var(--text-muted);margin-top:-8px">Parole originali: “${esc(data.availableRaw)}”</div>` : ''}`; })()}
             </div>
             <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">🏠 Caratteristiche</h4>
