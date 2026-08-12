@@ -118,6 +118,72 @@
     return '<div class="fatto"><b>' + f[0] + '</b><span>' + f[1] + '</span></div>';
   }).join('');
 
+  /* ── LA PELLICOLA ────────────────────────────────────────────────────
+     Il video esiste per due case su ventisei. Dove c'e si guarda; dove
+     non c'e la pagina lo dice e offre la visita dal vivo — mai un
+     riquadro vuoto che finge. Il distintivo sulle foto si accende solo
+     per le case passate davvero dalla pipeline di /api/photos/enhance. */
+  (function () {
+    var pel = document.getElementById('pellicola');
+    if (!pel) return;
+    var n = immagini.length;
+    var v = [];
+    v.push('<div class="pel-v"><svg viewBox="0 0 24 24" aria-hidden="true">'
+      + '<path d="M12 3l7 2.8v5.4c0 4.1-3 7.1-7 8.3-4-1.2-7-4.2-7-8.3V5.8z"/>'
+      + '<path d="M8.6 11.6l2.3 2.3 4.3-4.9"/></svg><span><b>Walked and '
+      + 'photographed by us</b><span>' + n + ' photo' + (n === 1 ? '' : 's')
+      + ' of this exact flat — nothing borrowed from a portal, nothing from '
+      + 'a render.</span></span></div>');
+    if (c.fotoCurate) {
+      v.push('<div class="pel-v"><svg viewBox="0 0 24 24" aria-hidden="true">'
+        + '<path d="M4 16l5-6 4 4.5L16 11l4 5"/><rect x="3" y="4.5" '
+        + 'width="18" height="15" rx="2"/><circle cx="8.6" cy="9" r="1.2" '
+        + 'class="pieno"/></svg><span><b>Ordered by room, not by upload '
+        + 'date</b><span>Straightened, colour-corrected and de-duplicated, '
+        + 'then sorted living → kitchen → bedrooms → bathroom, floor plans '
+        + 'last. So the first photo is the room you actually care '
+        + 'about.</span></span></div>');
+    }
+    pel.innerHTML = '<div class="pel-fila">' + v.join('') + '</div>';
+
+    if (c.video) {
+      var id = (c.video.match(/(?:shorts\/|v=|youtu\.be\/|embed\/)([\w-]{6,})/)
+                || [])[1];
+      if (id) {
+        var box = document.createElement('div');
+        box.className = 'pel-video';
+        box.innerHTML = '<button type="button" class="pel-play">'
+          + '<i aria-hidden="true"></i><b>Watch the walkthrough</b>'
+          + '<span>Filmed inside this flat · loads only when you press</span>'
+          + '</button>';
+        box.querySelector('.pel-play').addEventListener('click', function () {
+          box.innerHTML = '<iframe src="https://www.youtube-nocookie.com/embed/'
+            + id + '?autoplay=1&rel=0&modestbranding=1" title="Video tour of '
+            + (c.nome || 'this apartment') + '" allow="accelerometer; '
+            + 'autoplay; encrypted-media; picture-in-picture" '
+            + 'allowfullscreen></iframe>';
+        });
+        pel.appendChild(box);
+      }
+    } else {
+      var a = document.createElement('a');
+      a.className = 'pel-v azione';
+      a.href = 'VIRTUAL_URL';
+      a.style.marginTop = '12px';
+      a.style.borderRadius = '14px';
+      a.style.boxShadow = 'inset 0 0 0 1px var(--line-gold)';
+      a.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true">'
+        + '<rect x="3.5" y="6.5" width="12" height="11" rx="2"/>'
+        + '<path d="M15.5 11l5-2.6v7.2l-5-2.6z"/>'
+        + '<circle cx="7.2" cy="10.2" r="1.1" class="pieno"/></svg>'
+        + '<span><b>No walkthrough video for this one yet — have a better '
+        + 'one.</b><span>A live tour of this exact flat, with you asking the '
+        + 'questions and the red flags said out loud. <em>€89</em>, credited '
+        + 'to your fee if you rent it.</span></span>';
+      pel.appendChild(a);
+    }
+  })();
+
   /* ── il racconto e ciò che c'è dentro ───────────────────────────────── */
   per('#raccontoCasa').textContent = c.racconto
     || 'Walked and checked by us. Ask for the full walkthrough — we filmed it.';
@@ -177,6 +243,8 @@
         + 'and to the State, never to us.';
       tasti.forEach(function (t) {
         t.classList.toggle('on', Number(t.dataset.m) === m); });
+      /* chi ha scelto la durata qui non deve ridirla nell'apply */
+      document.dispatchEvent(new CustomEvent('boom:durata', { detail: m }));
     }
     tasti.forEach(function (t) {
       t.addEventListener('click', function () { conta(Number(t.dataset.m)); });
@@ -240,43 +308,69 @@
     }).join('');
   })();
 
-  /* ── L'APPLY: i tre passi si accendono mentre scrivi ────────────────── */
+  /* ── L'APPLY ─────────────────────────────────────────────────────────
+     Raccoglie il corpo ESATTO di /api/apply-lead — la porta del pipeline
+     vero — piu le due cose che alla console servono per creare il
+     pre-accordo senza richiamare nessuno: quanti firmano e per quanto.
+     Dichiarato PREVIEW: la richiesta si vede in console, non parte. */
   (function () {
-    var forma = document.getElementById('modApplica');
-    var fatto = document.getElementById('applicaFatto');
-    var eti = [].slice.call(document.querySelectorAll('.passo-eti'));
-    var nome = document.getElementById('apNome');
-    var mail = document.getElementById('apMail');
-    var quando = document.getElementById('apQuando');
-    var chi = document.getElementById('apChi');
+    var f = document.getElementById('modApplica');
+    if (!f) return;
+    var eti = [].slice.call(document.querySelectorAll('.passi .passo-eti'));
+    var gruppi = [].slice.call(f.querySelectorAll('.ap-gruppo'));
+    function pieno(g) {
+      return [].slice.call(g.querySelectorAll('input, select')).some(
+        function (x) { return String(x.value || '').trim(); });
+    }
     function stato() {
-      var n = 0;
-      if (nome.value.trim()) n = 1;
-      if (n === 1 && mail.value.trim()) n = 2;
-      if (n === 2 && (quando.value || chi.value)) n = 3;
-      eti.forEach(function (e, i) {
-        e.classList.toggle('fatto', i < n);
-        e.classList.toggle('ora', i === n);
+      gruppi.forEach(function (g, i) {
+        var e = eti[i]; if (!e) return;
+        e.classList.toggle('fatto', pieno(g));
+        e.classList.toggle('ora', !pieno(g)
+          && (i === 0 || pieno(gruppi[i - 1])));
       });
     }
-    [nome, mail, quando, chi].forEach(function (x) {
-      x.addEventListener('input', stato); x.addEventListener('change', stato);
+    f.addEventListener('input', stato); f.addEventListener('change', stato);
+    /* la durata scelta nel conto arriva gia compilata qui */
+    document.addEventListener('boom:durata', function (e) {
+      var m = f.querySelector('#apMesi');
+      if (m) { m.value = String(e.detail); stato(); }
     });
+    if (c.dal) { var q = f.querySelector('#apQuando'); if (q) q.value = c.dal; }
     stato();
-    forma.addEventListener('submit', function (e) {
+
+    f.addEventListener('submit', function (e) {
       e.preventDefault();
-      forma.style.display = 'none';
-      fatto.classList.add('si');
-      eti.forEach(function (x) { x.classList.add('fatto'); });
+      if (!f.querySelector('#apNome').value.trim()
+          || !f.querySelector('#apMail').value.trim()) {
+        (f.querySelector('#apNome').value.trim()
+          ? f.querySelector('#apMail') : f.querySelector('#apNome')).focus();
+        return;
+      }
+      var d = new FormData(f);
+      /* il corpo di /api/apply-lead, campo per campo */
+      var corpo = {
+        name: d.get('nome'), email: d.get('email'), phone: d.get('telefono'),
+        listingId: c.id, listingName: c.nome, listingPrice: c.prezzo,
+        zone: c.zona, kind: c.libera ? 'apply' : 'waitlist',
+        waitlist: !c.libera,
+        income: d.get('reddito'), guarantor: d.get('garante'),
+        household: d.get('chi'), occupation: d.get('occupazione'),
+        moveIn: d.get('quando'), durationMonths: Number(d.get('mesi')) || null,
+        /* in piu, per il pre-accordo: quante firme ci saranno */
+        signers: Number(d.get('firmatari')) || 1,
+        company: d.get('company')          /* esca per i robot */
+      };
+      console.info('[PREVIEW] POST /api/apply-lead →', corpo);
+      f.style.display = 'none';
+      var sotto = document.getElementById('applicaSotto');
+      if (sotto) sotto.style.display = 'none';
+      var fatto = document.getElementById('applicaFatto');
+      if (fatto) {
+        fatto.classList.add('si');
+        fatto.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
     });
-    /* ciò che hai detto in home o nella ricerca arriva fin qui */
-    var h = location.hash.replace('#', '');
-    h.split('&').forEach(function (p) {
-      var k = p.split('=')[0], v = decodeURIComponent(p.split('=')[1] || '');
-      if (k === 'dal' && /^\d{4}-\d{2}-\d{2}$/.test(v)) quando.value = v;
-      if (k === 'chi' && v) chi.value = v;
-    });
-    stato();
   })();
 
   /* ── le altre case: tre, della stessa mano ──────────────────────────── */

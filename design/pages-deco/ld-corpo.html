@@ -145,7 +145,7 @@ html.vivo .coro.dentro .tempo::after {
   text-align:center; }
 .applica-nota { margin-top:12px; font-size:11px; line-height:1.6;
   color:var(--text-4); }
-.applica-fatto { display:none; text-align:center; padding:14px 0 4px; }
+.applica-fatto { display:none; padding:14px 0 4px; }
 .applica-fatto.si { display:block; }
 .applica-fatto b { display:block; font-family:var(--display);
   font-size:20px; font-weight:300; color:var(--gold); }
@@ -336,6 +336,83 @@ html.vivo .coro.dentro .tempo::after {
 @media (prefers-reduced-motion:reduce){
   .stato-grande::before { animation:none!important; } }
 
+
+/* ── LA PELLICOLA: il video dove c'e, la verita dove non c'e ─────────── */
+.pellicola { margin-top:clamp(14px,1.8vw,20px); }
+.pel-fila { display:grid; gap:1px; background:var(--line-0);
+  box-shadow:inset 0 0 0 1px var(--line-0); border-radius:14px;
+  overflow:hidden; }
+@media (min-width:820px){ .pel-fila { grid-template-columns:1fr 1fr; } }
+.pel-v { display:flex; align-items:flex-start; gap:12px; padding:15px 17px;
+  background:var(--card); }
+.pel-v svg { width:19px; height:19px; flex:none; margin-top:1px;
+  color:var(--gold); fill:none; stroke:currentColor; stroke-width:1.5;
+  stroke-linecap:round; stroke-linejoin:round; }
+.pel-v svg .pieno { fill:var(--gold); stroke:none; }
+.pel-v b { display:block; font-size:12.5px; font-weight:500; color:var(--text);
+  line-height:1.4; }
+.pel-v span { display:block; margin-top:3px; font-size:11.5px; line-height:1.55;
+  color:var(--text-4); }
+.pel-v.azione { background:linear-gradient(150deg, rgba(255,215,0,.07),
+  rgba(255,215,0,.012) 64%), var(--card);
+  transition:background .3s var(--ease); }
+.pel-v.azione:hover { background:linear-gradient(150deg, rgba(255,215,0,.13),
+  rgba(255,215,0,.02) 64%), var(--card); }
+.pel-v.azione em { font-style:normal; color:var(--gold); font-weight:500; }
+
+/* il video: si carica solo quando lo chiedi — niente iframe a tradimento */
+.pel-video { position:relative; margin-top:12px; border-radius:14px;
+  overflow:hidden; background:var(--void); aspect-ratio:16/9;
+  box-shadow:inset 0 0 0 1px var(--line); }
+@media (max-width:640px){ .pel-video { aspect-ratio:4/3; } }
+.pel-video iframe { position:absolute; inset:0; width:100%; height:100%;
+  border:0; }
+.pel-play { position:absolute; inset:0; display:grid; place-items:center;
+  gap:12px; align-content:center; cursor:pointer; border:0; width:100%;
+  background:radial-gradient(60% 60% at 50% 45%, rgba(255,215,0,.09),
+    transparent 70%), var(--void); }
+.pel-play i { width:62px; height:62px; border-radius:50%; display:grid;
+  place-items:center; border:1px solid var(--line-gold-2);
+  background:rgba(255,215,0,.08); transition:transform .3s var(--ease),
+    background .3s var(--ease); }
+.pel-play:hover i { transform:scale(1.06); background:rgba(255,215,0,.16); }
+.pel-play i::after { content:''; width:0; height:0; margin-left:4px;
+  border-left:15px solid var(--gold); border-top:9px solid transparent;
+  border-bottom:9px solid transparent; }
+.pel-play b { font-size:12.5px; font-weight:500; color:var(--text); }
+.pel-play span { font-size:11px; color:var(--text-4); }
+
+/* ── L'APPLY ──────────────────────────────────────────────────────────── */
+.ap-gruppo { padding-top:16px; margin-top:16px;
+  border-top:1px solid var(--line-0); }
+.ap-gruppo:first-of-type { padding-top:0; margin-top:14px; border-top:0; }
+.ap-eti { display:block; margin-bottom:10px; font-size:10px; font-weight:600;
+  letter-spacing:.2em; text-transform:uppercase; color:var(--gold); }
+.ap-due { display:grid; gap:0; }
+@media (min-width:520px){ .ap-due { grid-template-columns:1fr 1fr;
+  gap:0 14px; } }
+.ap-perche { margin:-2px 0 10px; font-size:11.5px; line-height:1.55;
+  color:var(--text-4); }
+.ap-perche b { color:var(--text-2); font-weight:500; }
+.ap-esca { position:absolute; left:-9999px; width:1px; height:1px;
+  opacity:0; pointer-events:none; }
+
+/* cosa succede dopo: ogni riga e un messaggio che non va piu scritto */
+.ap-dopo { list-style:none; margin:14px 0 0; padding:0; counter-reset:d; }
+.ap-dopo li { position:relative; padding:0 0 14px 34px; counter-increment:d; }
+.ap-dopo li::before { content:counter(d); position:absolute; left:0; top:-1px;
+  width:22px; height:22px; border-radius:50%; display:grid; place-items:center;
+  font-size:10.5px; font-weight:600; color:var(--gold);
+  background:rgba(255,215,0,.09); border:1px solid var(--line-gold-2); }
+.ap-dopo li::after { content:''; position:absolute; left:11px; top:24px;
+  bottom:4px; width:1px; background:var(--line-gold); }
+.ap-dopo li:last-child { padding-bottom:0; }
+.ap-dopo li:last-child::after { display:none; }
+.ap-dopo b { display:block; font-size:12.5px; font-weight:500;
+  color:var(--text); }
+.ap-dopo span { display:block; margin-top:3px; font-size:11.5px;
+  line-height:1.55; color:var(--text-4); }
+
 </style>
 
 <section class="casa">
@@ -373,6 +450,8 @@ html.vivo .coro.dentro .tempo::after {
       </div>
       <div class="rullino" id="rullino"></div>
     </div>
+
+    <div class="pellicola coro" id="pellicola"></div>
 
     <div class="fatti coro" id="fatti"></div>
   </div>
@@ -533,31 +612,113 @@ html.vivo .coro.dentro .tempo::after {
         <span class="passo-eti"><i></i></span>
         <span class="passo-eti"><i></i></span>
       </div>
-      <form id="modApplica">
-        <div class="campo"><label for="apNome">Full name</label>
-          <input id="apNome" name="nome" autocomplete="name" required></div>
-        <div class="campo"><label for="apMail">Email</label>
-          <input id="apMail" name="email" type="email"
-            autocomplete="email" required></div>
-        <div class="campo"><label for="apQuando">Move-in date</label>
-          <input id="apQuando" name="quando" type="date"></div>
-        <div class="campo"><label for="apChi">Who's landing?</label>
-          <select id="apChi" name="chi">
-            <option value="">—</option>
-            <option value="solo">Just me</option>
-            <option value="couple">Couple</option>
-            <option value="family">Family</option>
-            <option value="flatmates">Flatmates</option>
-          </select></div>
+      <form id="modApplica" novalidate>
+
+        <div class="ap-gruppo">
+          <span class="ap-eti">1 · You</span>
+          <div class="campo"><label for="apNome">Full name</label>
+            <input id="apNome" name="nome" autocomplete="name" required></div>
+          <div class="ap-due">
+            <div class="campo"><label for="apMail">Email</label>
+              <input id="apMail" name="email" type="email"
+                autocomplete="email" required></div>
+            <div class="campo"><label for="apTel">Phone (WhatsApp)</label>
+              <input id="apTel" name="telefono" type="tel"
+                autocomplete="tel" inputmode="tel"></div>
+          </div>
+        </div>
+
+        <div class="ap-gruppo">
+          <span class="ap-eti">2 · The stay</span>
+          <div class="ap-due">
+            <div class="campo"><label for="apQuando">Move-in date</label>
+              <input id="apQuando" name="quando" type="date"></div>
+            <div class="campo"><label for="apMesi">How long</label>
+              <select id="apMesi" name="mesi">
+                <option value="3">3 months</option>
+                <option value="6">6 months</option>
+                <option value="12" selected>12 months</option>
+                <option value="18">18 months</option>
+                <option value="24">24 months or more</option>
+              </select></div>
+          </div>
+          <div class="ap-due">
+            <div class="campo"><label for="apChi">Who's landing</label>
+              <select id="apChi" name="chi">
+                <option value="">—</option>
+                <option value="solo">Just me</option>
+                <option value="couple">Couple</option>
+                <option value="family">Family</option>
+                <option value="flatmates">Flatmates</option>
+              </select></div>
+            <div class="campo"><label for="apFirme">People who will sign</label>
+              <select id="apFirme" name="firmatari">
+                <option value="1">1</option><option value="2">2</option>
+                <option value="3">3</option><option value="4">4</option>
+                <option value="5">5 or more</option>
+              </select></div>
+          </div>
+        </div>
+
+        <div class="ap-gruppo">
+          <span class="ap-eti">3 · The part landlords ask about</span>
+          <p class="ap-perche">We ask now so we can tell you where you stand
+            <b>before</b> you apply — not after you've hoped for two weeks.</p>
+          <div class="ap-due">
+            <div class="campo"><label for="apLavoro">Your situation</label>
+              <select id="apLavoro" name="occupazione">
+                <option value="">—</option>
+                <option value="employed">Employed</option>
+                <option value="self-employed">Self-employed</option>
+                <option value="student">Student</option>
+                <option value="relocating">Relocating for work</option>
+              </select></div>
+            <div class="campo"><label for="apReddito">Monthly income, net</label>
+              <select id="apReddito" name="reddito">
+                <option value="">Prefer not to say</option>
+                <option value="under-1500">Under €1,500</option>
+                <option value="1500-2500">€1,500 – €2,500</option>
+                <option value="2500-4000">€2,500 – €4,000</option>
+                <option value="over-4000">Over €4,000</option>
+              </select></div>
+          </div>
+          <div class="campo"><label for="apGarante">Can you provide a
+            guarantor?</label>
+            <select id="apGarante" name="garante">
+              <option value="">—</option>
+              <option value="yes-italy">Yes, in Italy</option>
+              <option value="yes-abroad">Yes, abroad</option>
+              <option value="no">No</option>
+              <option value="prepay">No — but I can prepay months</option>
+            </select></div>
+        </div>
+
+        <input type="text" name="company" tabindex="-1" autocomplete="off"
+          aria-hidden="true" class="ap-esca">
+
         <button class="btn btn-primary" type="submit">Send application</button>
         <p class="applica-nota">PREVIEW — nothing is sent from this page. On
-          the live site your application reaches a person, and you get a
-          written confirmation with a reference number.</p>
+          the live site this reaches a person and becomes your written
+          pre-agreement.</p>
       </form>
+
       <div class="applica-fatto" id="applicaFatto">
-        <b>That's all we need for now.</b>
-        <p>PREVIEW — nothing was sent. On the live site you'd have a reply
-          from a person, with your reference.</p>
+        <b>Sent. Here is exactly what happens now.</b>
+        <ol class="ap-dopo">
+          <li><b>Within 2 hours</b><span>A person — with a name — reads it and
+            replies. If something rules you out for this landlord, you hear it
+            straight away, not in two weeks.</span></li>
+          <li><b>Your pre-agreement</b><span>A private link with these exact
+            figures written into it: rent, deposit, fee, dates. Nothing new
+            appears later.</span></li>
+          <li><b>Your details, once</b><span>You fill them in on that page —
+            you and any co-signers — and upload an ID. You never send documents
+            over chat again.</span></li>
+          <li><b>You sign from your phone</b><span>The landlord countersigns
+            after you. We file the registration. Keys, and the pass in your
+            Wallet.</span></li>
+        </ol>
+        <p class="applica-nota">PREVIEW — nothing was sent from this page.</p>
       </div>
     </div>
 

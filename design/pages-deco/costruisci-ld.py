@@ -76,6 +76,13 @@ for r in piene:
         'dentro': dentro,
         'cauzioneMesi': numero(r.get('depositMonths')) or 1,
         'cover': cover, 'foto': foto,
+        # il video esiste solo per due case su ventisei: la pagina deve
+        # saperlo e proporre la visita dal vivo dove manca, non fingere
+        'video': (str(r.get('videoUrl') or r.get('youtubeUrl') or '').strip()
+                  or None),
+        # 18 case su 26 sono passate dalla pipeline di /api/photos/enhance:
+        # il distintivo si accende solo per quelle, mai per le altre
+        'fotoCurate': bool(r.get('photosEnhancedAt')),
     })
 # prima le libere, e con più foto: la casa che apre dev'essere la migliore
 CASE.sort(key=lambda x: (not x['libera'], -len(x['foto'])))
@@ -91,6 +98,8 @@ h = '\n'.join([testa, nav, leggi('ld-corpo.html'), piede,
                leggi('solari-engine.html'), leggi('deco-organi.html')])
 h = h.replace('<title>BOOM Rome — Premium Apartment Rentals | 48-Hour Move-In</title>',
     '<title>' + CASE[0]['nome'] + ' — ' + CASE[0]['zona'] + ', Rome | BOOM</title>')
+h = h.replace('VIRTUAL_URL', 'https://www.boomrome.com/virtual-viewing'
+    if MODO == 'artefatto' else '/virtual-viewing.html')
 h = h.replace('LOGO_SVG', leggi('logo-live.svg').strip())
 h = h.replace("'CASE_JSON'", json.dumps(CASE, ensure_ascii=False))
 if MODO == 'artefatto':
