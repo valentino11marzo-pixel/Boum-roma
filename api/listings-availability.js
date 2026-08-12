@@ -1,4 +1,4 @@
-// api/listings/availability.js — LA PORTA UNICA DELLE DATE DI DISPONIBILITÀ.
+// api/listings-availability.js — LA PORTA UNICA DELLE DATE DI DISPONIBILITÀ.
 //
 // Prima esistevano tre porte di scrittura e nessuna si parlava:
 //   • il portal, con un campo di TESTO LIBERO il cui placeholder suggeriva
@@ -26,7 +26,7 @@
 // Auth: Bearer CRON_SECRET · X-Homie-Secret · X-Wizard-Secret · Bearer
 //       Firebase ID token di un admin/owner/landlord.
 //
-// GET  /api/listings/availability
+// GET  /api/listings-availability
 //      → { ok, listings:[{id,name,zone,status,kind,iso,label,raw}],
 //          audit:{now,date,unknown,rented,waitlist,total,gaps[]} }
 //        Il quadro completo: chi ha una data, chi tace. Alimenta
@@ -41,8 +41,8 @@
 //
 // Risposta di scrittura: { ok, applied:[{id,name,from,to}], failed:[], plan }
 
-import DISPO from '../../js/dispo-engine.js';
-import { fsList, fsPatch, fsGet, readJson, secretEqual, logActivity } from '../homie/_lib.js';
+import DISPO from '../js/dispo-engine.js';
+import { fsList, fsPatch, fsGet, readJson, secretEqual, logActivity } from './homie/_lib.js';
 
 const ADMIN_ROLES = new Set(['admin', 'owner', 'landlord']);
 const MAX_UPDATES = 60;          // il catalogo vero è ~20: largo, ma non infinito
@@ -87,7 +87,7 @@ async function requireActor(req, res) {
         return null;
       }
     } catch (e) {
-      console.error('[listings/availability] token verify failed:', e.message);
+      console.error('[listings-availability] token verify failed:', e.message);
     }
   }
 
@@ -240,7 +240,7 @@ export default async function handler(req, res) {
 
     return res.status(400).json({ ok: false, error: 'nothing_to_do' });
   } catch (e) {
-    console.error('[listings/availability]', e);
+    console.error('[listings-availability]', e);
     return res.status(500).json({ ok: false, error: e.message });
   }
 }

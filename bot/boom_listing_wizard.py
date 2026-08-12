@@ -615,7 +615,7 @@ async def cmd_disponibilita(update, context):
     testa: un annuncio senza data mostra "Ask us" in vetrina — onesto, ma una
     data vera converte di più."""
     if not is_admin(update): return
-    rep = await asyncio.to_thread(wizard_post, '/api/listings/availability', None, 25, 'GET')
+    rep = await asyncio.to_thread(wizard_post, '/api/listings-availability', None, 25, 'GET')
     if not rep or not rep.get('ok'):
         await update.message.reply_text('❌ Non riesco a leggere le disponibilità.'); return
     a = rep.get('audit') or {}
@@ -1389,13 +1389,13 @@ async def _nl_process(update, context, text):
     #        subito, Pigneto 15/10". Il parser locale aggancia UN immobile per
     #        messaggio: con due nomi `_match_listing` dà AMBIG e la frase
     #        finiva al modello, che ne aggiornava una sola. Il cervello sta sul
-    #        server (js/dispo-engine.js via /api/listings/availability) perché
+    #        server (js/dispo-engine.js via /api/listings-availability) perché
     #        così vive anche quando questo bot è giù, ed è LO STESSO che usano
     #        vetrina, feed e portal: non possono divergere.
     #        Costo zero (nessun modello), e la scrittura resta un tap.
     if plan is None and not _is_question(text.lower()):
         rep = await asyncio.to_thread(
-            wizard_post, '/api/listings/availability', {'text': text}, 25)
+            wizard_post, '/api/listings-availability', {'text': text}, 25)
         p = (rep or {}).get('plan') or {}
         if p.get('ok') and len(p.get('updates') or []) >= 2:
             NL_STATS['free'] += 1
@@ -1497,7 +1497,7 @@ async def nl_confirm_cb(update, context):
         ups = [{'id': u['id'], 'kind': u.get('kind'), 'iso': u.get('iso'),
                 'phrase': u.get('phrase')} for u in plan['updates']]
         rep = await asyncio.to_thread(
-            wizard_post, '/api/listings/availability', {'updates': ups}, 45)
+            wizard_post, '/api/listings-availability', {'updates': ups}, 45)
         if not rep or not rep.get('ok'):
             failed = (rep or {}).get('failed') or []
             await q.edit_message_text(

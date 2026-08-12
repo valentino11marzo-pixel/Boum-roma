@@ -240,7 +240,7 @@ ok(/dispo-engine|DISPO/.test(feed), 'il feed Immobiliare conosce la disponibilit
 const state = src('api/publisher/_state.js');
 ok(/availableFrom/.test(state), 'il Pubblicista porta la data normalizzata nel contenuto (→ hash → update in coda)');
 
-const api = src('api/listings/availability.js');
+const api = src('api/listings-availability.js');
 ok(/requireCronOrAdmin|x-wizard-secret/i.test(api), 'la porta di scrittura è autenticata');
 ok(/parseBatch/.test(api), 'la porta usa lo stesso cervello del bot');
 
@@ -249,8 +249,8 @@ ok(/availableFrom/.test(sign) && /endDate/.test(sign),
   'alla firma il listing registra QUANDO torna libero (prima si scriveva solo status:rented)');
 
 const bot = src('bot/boom_listing_wizard.py');
-ok(/api\/listings\/availability/.test(bot), 'il bot chiama la porta, non scrive Firestore per conto suo');
-ok(bot.indexOf("wizard_post, '/api/listings/availability', {'text'") < bot.indexOf("'/api/wizard/interpret'"),
+ok(/api\/listings-availability/.test(bot), 'il bot chiama la porta, non scrive Firestore per conto suo');
+ok(bot.indexOf("wizard_post, '/api/listings-availability', {'text'") < bot.indexOf("'/api/wizard/interpret'"),
   'e la chiama PRIMA del modello a pagamento (il multi-annuncio costa zero)');
 
 const portal = src('js/portal-app.js');
@@ -261,7 +261,7 @@ ok(!/placeholder="Es: Feb 1, Sep 2026, Immediate"/.test(portal),
 /* ─────────────────────────────────────────────────────────────────────────
    7. LA PORTA, guidata davvero (Firestore finto in memoria)
    ───────────────────────────────────────────────────────────────────── */
-console.log('\n▸ /api/listings/availability — il handler vero');
+console.log('\n▸ /api/listings-availability — il handler vero');
 
 const DB = new Map([
   ['listings/levico', { name: 'Levico', zone: 'Trieste', status: 'available', availableDate: 'Sep 2026' }],
@@ -301,7 +301,7 @@ process.env.FIREBASE_API_KEY = 'k';
 process.env.FIREBASE_ADMIN_EMAIL = 'a@b.c';
 process.env.FIREBASE_ADMIN_PASS = 'p';
 
-const { default: handler } = await import('../../api/listings/availability.js');
+const { default: handler } = await import('../../api/listings-availability.js');
 const call = async (method, body, headers = { 'x-wizard-secret': 'test-secret' }) => {
   let code = 0, payload = null;
   const res = { status(c) { code = c; return this; }, json(o) { payload = o; return this; }, setHeader() { } };

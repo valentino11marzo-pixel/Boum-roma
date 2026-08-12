@@ -2030,7 +2030,7 @@ admin/owner/landlord). `dryRun:true` scores a hypothetical listing against
 every active client without writing; `dryRun:false` ingests + pushes for
 real. Backs the "Aggiungi annuncio" modal in `pfs-command.html`.
 
-## Le date di disponibilità (`js/dispo-engine.js` + `/api/listings/availability`)
+## Le date di disponibilità (`js/dispo-engine.js` + `/api/listings-availability`)
 
 **Il difetto era in produzione dal primo giorno.** `listings.availableDate` è
 sempre stato testo LIBERO, il portal ne suggeriva i formati nel placeholder
@@ -2065,7 +2065,7 @@ esplicite + una casa nuda) **non spalma niente** — la casa senza data resta
 indietro e lo dice. Una DOMANDA (*"quali sono liberi a settembre?"*) non
 diventa mai una scrittura di massa.
 
-**`/api/listings/availability`** è la porta unica (Bearer CRON_SECRET ·
+**`/api/listings-availability`** è la porta unica (Bearer CRON_SECRET ·
 X-Homie-Secret · X-Wizard-Secret · Bearer admin). `GET` → il quadro completo
 coi buchi in testa; `POST {text}` → il PIANO (non scrive senza `apply:true`);
 `POST {updates[]}` → scrive. Ogni voce ripassa comunque dal motore: nessun

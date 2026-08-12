@@ -37,7 +37,7 @@
  *
  * Usato da: apartments.html · apartment-detail.html · api/listing.js ·
  * api/llms-listings.js · api/feed/immobiliare.js · api/publisher/_state.js ·
- * api/listings/availability.js (la porta di scrittura) · il portal.
+ * api/listings-availability.js (la porta di scrittura) · il portal.
  */
 (function (root) {
   'use strict';

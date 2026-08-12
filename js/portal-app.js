@@ -14186,7 +14186,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             status: data.status || 'available',
             // La disponibilità passa SEMPRE dal motore, anche da qui: il portal
             // non può depositare una stringa che la vetrina non sa rileggere.
-            // È lo stesso writePatch() che usa la porta /api/listings/availability.
+            // È lo stesso writePatch() che usa la porta /api/listings-availability.
             ...(window.BOOM_DISPO
                 ? BOOM_DISPO.writePatch(
                     BOOM_DISPO.parseAvailability(
@@ -14233,7 +14233,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     //
     // Legge in LOCALE (js/dispo-engine.js, zero rete, zero AI) e mostra il
     // piano; scrive solo su conferma, e scrive passando dalla porta unica
-    // /api/listings/availability — mai con un update Firestore diretto, o
+    // /api/listings-availability — mai con un update Firestore diretto, o
     // il portal tornerebbe a essere una quarta sorgente di verità.
     // ═══════════════════════════════════════════════════════════════════
     let AVAIL_PLAN = null;
@@ -14272,7 +14272,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (btn) { btn.disabled = true; btn.textContent = 'Scrivo…'; }
         try {
             const idToken = await auth.currentUser.getIdToken();
-            const r = await fetch('/api/listings/availability', {
+            const r = await fetch('/api/listings-availability', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + idToken },
                 body: JSON.stringify({ updates: AVAIL_PLAN.updates.map(u => ({ id: u.id, kind: u.kind, iso: u.iso, phrase: u.phrase })) })
@@ -14291,7 +14291,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     async function setAvailability(id, iso) {
         try {
             const idToken = await auth.currentUser.getIdToken();
-            const r = await fetch('/api/listings/availability', {
+            const r = await fetch('/api/listings-availability', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + idToken },
                 body: JSON.stringify({ updates: [iso ? { id, iso } : { id, kind: 'unknown' }] })
@@ -14696,7 +14696,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function getModal(type, data) {
         // ── 📅 DISPONIBILITÀ — un messaggio, tutte le date ────────────────
         // La stessa cosa che si scriverà al bot Telegram, qui dentro: stesso
-        // motore (js/dispo-engine.js), stessa porta (/api/listings/availability),
+        // motore (js/dispo-engine.js), stessa porta (/api/listings-availability),
         // stesso ritmo piano→conferma. Il bot è una tastiera in più, non un
         // secondo cervello — così quando è giù (e lo è stato) la funzione resta.
         if (type === 'availability') {
