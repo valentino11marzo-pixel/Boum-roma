@@ -511,36 +511,28 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
    scegliene una — quindi il carosello qui e onesto (a differenza della
    fiducia, che va sempre tutta visibile). */
 @media (max-width:860px){
-  .ba-porte { display:flex; overflow-x:auto; scroll-snap-type:x mandatory;
-    scrollbar-width:none; -webkit-overflow-scrolling:touch; }
-  .ba-porte::-webkit-scrollbar { display:none; }
-  .ba-p { flex:0 0 min(72vw,232px); scroll-snap-align:start;
-    border-right:1px solid var(--line-0); }
-  .ba-p:last-child { border-right:0; } }
+  /* quattro pulsanti, tutti visibili in un colpo d'occhio: la porta che
+     devi scorrere per vedere e una porta che non esiste */
+  .ba-porte { grid-template-columns:1fr 1fr; }
+  .ba-p { padding:12px 13px 13px; }
+  .ba-p .fa { display:none; }
+  .ba-p .caso { margin-top:7px; font-size:12.5px; }
+  .ba-p .costo { margin-top:7px; }
+  .ba-p .costo b { font-size:16px; } }
 
-/* la garanzia: dove finiscono i soldi, detta con le parole del sito */
-.ba-soldi { display:flex; align-items:center; gap:15px; padding:14px 18px;
-  border-top:1px solid var(--line-0);
-  background:linear-gradient(100deg, rgba(0,255,136,.045),
-    rgba(0,255,136,.008) 58%, transparent); }
-.ba-scudo { width:34px; height:34px; flex:none; border-radius:50%;
-  display:grid; place-items:center; background:rgba(0,255,136,.09);
-  border:1px solid rgba(0,255,136,.26); }
-.ba-scudo svg { width:17px; height:17px; color:var(--green); fill:none;
-  stroke:currentColor; stroke-width:1.6; stroke-linecap:round;
-  stroke-linejoin:round; }
-.ba-soldi .dice { flex:1; min-width:0; font-size:12.5px; line-height:1.55;
-  color:var(--text-2); }
-.ba-soldi .breve { display:none; }
+/* le garanzie: badge piccoli, tutti veri — i fatti istituzionali vivono
+   qui e nel footer, una volta sola */
+.ba-garanzie { display:flex; flex-wrap:wrap; gap:7px; padding:12px 18px;
+  border-top:1px solid var(--line-0); background:var(--void); }
+.ba-g { display:inline-flex; align-items:center; gap:7px; padding:7px 11px;
+  font-size:10.5px; font-weight:500; letter-spacing:.04em;
+  color:var(--text-3); box-shadow:inset 0 0 0 1px var(--line);
+  border-radius:100px; }
+.ba-g::before { content:''; width:4px; height:4px; border-radius:50%;
+  background:var(--gold); opacity:.8; flex:none; }
 @media (max-width:640px){
-  .ba-soldi { gap:12px; padding:13px 15px; align-items:flex-start; }
-  .ba-soldi .lungo { display:none; }
-  .ba-soldi .breve { display:inline; }
-  .ba-scudo { width:30px; height:30px; margin-top:1px; } }
-.ba-soldi .dice b { color:var(--text); font-weight:500; }
-.ba-soldi .dice em { font-style:normal; color:var(--green); font-weight:500; }
-.ba-stripe { width:46px; height:auto; flex:none; opacity:.85; }
-@media (max-width:640px){ .ba-stripe { display:none; } }
+  .ba-garanzie { padding:11px 15px; gap:6px; }
+  .ba-g { font-size:10px; padding:6px 10px; } }
 
 /* le quattro cifre: una fila propria, incolonnate. Prima stavano sulla
    stessa riga dell'orologio, in due registri diversi — numeri e tempo
@@ -1551,20 +1543,6 @@ html.vivo .sale.dentro { opacity:1; transform:none;
 .giorno-uno b { color:var(--gold); font-weight:600;
   font-variant-numeric:tabular-nums; }
 
-/* ══ LA FILA DEI FATTI ═════════════════════════════════════════════════ */
-.fede-fila { border-top:1px solid var(--line-0);
-  border-bottom:1px solid var(--line-0); background:var(--surface); }
-.fede-int { display:flex; align-items:center; justify-content:center;
-  flex-wrap:wrap; gap:8px 14px; padding:12px 0; }
-.fede-int span { font-size:10px; font-weight:600; letter-spacing:.16em;
-  text-transform:uppercase; color:var(--text-4); text-align:center;
-  line-height:1.5; }
-.fede-int i { width:4px; height:4px; border-radius:50%;
-  background:var(--line-gold-2); flex:none; }
-@media (max-width:640px){
-  .fede-int { gap:7px 12px; padding:11px 0; }
-  .fede-int i { display:none; } }
-
 /* ══ LA PRESA IN BANCHINA ══════════════════════════════════════════════ */
 .ba-presa { display:flex; align-items:center; gap:14px; padding:14px 18px;
   border-top:1px solid var(--line-0); background:var(--void); }
@@ -1711,16 +1689,6 @@ html.vivo .sale.dentro { opacity:1; transform:none;
   </div>
 
 </header>
-
-<!-- ══ LA FILA DEI FATTI — istituzionali, veri, una volta sola ═══════════ -->
-<div class="fede-fila" aria-label="Company facts">
-  <div class="container fede-int">
-    <span>Egidi Immobiliare S.r.l. — licensed Rome agency</span><i></i>
-    <span>BOOM® · EU trade mark 019317594</span><i></i>
-    <span>Contracts registered with the Agenzia delle Entrate</span><i></i>
-    <span>Deposits held — filmed at move-in and move-out</span>
-  </div>
-</div>
 
 <!-- ══ CASE DELLA SETTIMANA + COME FUNZIONA ══════════════════════════════ -->
 <section class="sezione">
@@ -1895,18 +1863,12 @@ CASE_TRE
         </a>
       </div>
 
-      <div class="ba-soldi">
-        <span class="ba-scudo" aria-hidden="true"><svg viewBox="0 0 24 24">
-          <path d="M12 3l7 2.8v5.4c0 4.1-3 7.1-7 8.3-4-1.2-7-4.2-7-8.3V5.8z"/>
-          <path d="M8.6 11.6l2.3 2.3 4.3-4.9"/></svg></span>
-        <span class="dice"><b>Every euro goes through BOOM, never to a
-          stranger.</b><span class="lungo"> First month, deposit and agency
-          fee on Stripe — <em>no bank-transfer circus</em>, a receipt for
-          each one, and a full refund if we don't deliver. Your deposit is
-          legally protected and filmed in and out.</span><span class="breve">
-          Rent, deposit and fee on Stripe — <em>no bank transfers to
-          strangers</em>, receipts, full refund if we don't deliver.</span></span>
-        <svg class="ba-stripe" aria-label="Stripe" viewBox="0 0 468 222.5" xmlns="http://www.w3.org/2000/svg"> <path fill="#635BFF" d="M414 113.4c0-25.6-12.4-45.8-36.1-45.8-23.8 0-38.2 20.2-38.2 45.6 0 30.1 17 45.3 41.4 45.3 11.9 0 20.9-2.7 27.7-6.5v-20c-6.8 3.4-14.6 5.5-24.5 5.5-9.7 0-18.3-3.4-19.4-15.2h48.9c0-1.3.2-6.5.2-8.9zm-49.4-9.5c0-11.3 6.9-16 13.2-16 6.1 0 12.6 4.7 12.6 16h-25.8zm-63.5-36.3c-9.8 0-16.1 4.6-19.6 7.8l-1.3-6.2h-22v116.6l25-5.3.1-28.3c3.6 2.6 8.9 6.3 17.7 6.3 17.9 0 34.2-14.4 34.2-46.1-.1-29-16.6-44.8-34.1-44.8zm-6 68.9c-5.9 0-9.4-2.1-11.8-4.7l-.1-37.1c2.6-2.9 6.2-4.9 11.9-4.9 9.1 0 15.4 10.2 15.4 23.3 0 13.4-6.2 23.4-15.4 23.4zm-71.3-74.8l25.1-5.4V36l-25.1 5.3zm0 7.6h25.1v87.5h-25.1zm-26.9 7.4l-1.6-7.4h-21.6v87.5h25V97.5c5.9-7.7 15.9-6.3 19-5.2v-23c-3.2-1.2-14.9-3.4-20.8 7.4zm-50-29.8l-24.4 5.2-.1 80.1c0 14.8 11.1 25.7 25.9 25.7 8.2 0 14.2-1.5 17.5-3.3V135c-3.2 1.3-19 5.9-19-8.9V90.6h19V69.3h-19l.1-21.7zM79.3 94.7c0-3.9 3.2-5.4 8.5-5.4 7.6 0 17.2 2.3 24.8 6.4V72.2c-8.3-3.3-16.5-4.6-24.8-4.6C67.5 67.6 54 78.2 54 95.9c0 27.6 38 23.2 38 35.1 0 4.6-4 6.1-9.6 6.1-8.3 0-18.9-3.4-27.3-8v23.8c9.3 4 18.7 5.7 27.3 5.7 20.8 0 35.1-10.3 35.1-28.2-.1-29.8-38.2-24.5-38.2-35.7z"/> </svg>
+      <div class="ba-garanzie" aria-label="Guarantees">
+        <span class="ba-g">Stripe — a receipt for every line</span>
+        <span class="ba-g">Deposit filmed in &amp; out</span>
+        <span class="ba-g">Refunded or credited if we don't deliver</span>
+        <span class="ba-g">Egidi Immobiliare S.r.l. — licensed agency</span>
+        <span class="ba-g">BOOM® · EU trade mark 019317594</span>
       </div>
 
       <div class="ba-presa">

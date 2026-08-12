@@ -551,6 +551,25 @@ html.vivo .coro.dentro .tempo::after {
 .luoghi-vuota { font-size:12px; color:var(--text-4); padding:8px 2px; }
 .luoghi-nota { margin-top:12px; font-size:10.5px; color:var(--text-4);
   line-height:1.6; }
+
+/* ══ LE PORTICINE ══════════════════════════════════════════════════════ */
+.porticine { margin-top:clamp(18px,2.2vw,26px); display:grid; gap:1px;
+  background:var(--line-0); box-shadow:inset 0 0 0 1px var(--line-0);
+  grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); }
+.porticina { position:relative; display:flex; flex-direction:column;
+  gap:6px; padding:17px 18px 16px; background:var(--surface);
+  transition:background .3s var(--ease); }
+.porticina::before { content:''; position:absolute; top:0; left:0; right:0;
+  height:1px; background:var(--gold); transform:scaleX(0);
+  transform-origin:left; transition:transform .42s var(--ease); }
+.porticina:hover { background:var(--elevated); }
+.porticina:hover::before { transform:scaleX(1); }
+.porticina b { font-size:13.5px; font-weight:500; color:var(--text);
+  line-height:1.35; }
+.porticina span { font-size:11.5px; line-height:1.55; color:var(--text-4); }
+.porticina i { margin-top:4px; font-style:normal; font-size:11px;
+  font-weight:600; letter-spacing:.05em; color:var(--gold); }
+.porticina i.verde { color:var(--green); }
 </style>
 
 <section class="casa">
@@ -805,6 +824,38 @@ html.vivo .coro.dentro .tempo::after {
 </section>
 
 <!-- ══ APPLY + ALTRE CASE ════════════════════════════════════════════════ -->
+<!-- ══ LE PORTICINE — i servizi, dove servono e senza rumore ═════════════ -->
+<section class="sezione" id="porticine">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>Services · flat prices</span>
+      <h2 class="titolo">Three ways we can <span class="hl">step in</span>.</h2>
+    </div>
+    <div class="porticine sale">
+      <a class="porticina" id="portaVideo" href="#" target="_blank"
+        rel="noopener">
+        <b>See this flat live, from anywhere</b>
+        <span>A BOOM agent walks it on live video — you direct, you ask,
+          we answer on camera.</span>
+        <i class="verde">Free — our home, our job</i>
+      </a>
+      <a class="porticina" href="/property-finding.html">
+        <b>Let the machine hunt for you</b>
+        <span>Your brief becomes a live search: the whole market,
+          off-market included, human-verified.</span>
+        <i>€350 · deducted on success — refunded if we fail</i>
+      </a>
+      <a class="porticina" href="/deal-assistance.html">
+        <b>Found one on a portal?</b>
+        <span>We verify the landlord, the papers and the price — then
+          negotiate. Start with an €89 live viewing of their listing,
+          credited if you rent through us.</span>
+        <i>€249 · flat</i>
+      </a>
+    </div>
+  </div>
+</section>
+
 <section class="sezione">
   <div class="container soldi">
     <div class="applica quadro sale" id="applica"><span class="tacca"></span>
