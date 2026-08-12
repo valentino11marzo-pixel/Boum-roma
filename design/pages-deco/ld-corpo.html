@@ -154,6 +154,86 @@ html.vivo .coro.dentro .tempo::after {
 /* le altre case */
 .altre { display:grid; gap:clamp(14px,1.6vw,20px);
   grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); }
+
+/* ── IL DENARO: il conto a sinistra, IL numero a destra ───────────────── */
+.denaro-corpo { margin-top:clamp(22px,2.6vw,32px); display:grid; gap:16px;
+  grid-template-columns:1fr; align-items:start; }
+@media (min-width:920px){ .denaro-corpo {
+  grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr); } }
+
+.totale { padding:22px 24px 24px; background:
+  linear-gradient(165deg, rgba(255,215,0,.075), rgba(255,215,0,.012) 58%),
+  var(--card); box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.tot-eti { display:block; font-size:10.5px; font-weight:600; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--gold); }
+.tot-flap { margin-top:13px; }
+.tot-scudo { display:inline-flex; align-items:flex-start; gap:8px;
+  margin-top:14px; font-size:11.5px; line-height:1.5; color:var(--text-4); }
+.tot-scudo svg { width:15px; height:15px; flex:none; margin-top:1px;
+  color:var(--green); fill:none; stroke:currentColor; stroke-width:1.6;
+  stroke-linecap:round; stroke-linejoin:round; }
+
+/* la durata: non cambia il giorno uno, cambia quanto costa restarci */
+.durata { margin-top:20px; padding-top:18px;
+  border-top:1px solid var(--line-gold); }
+.durata-eti { display:block; font-size:12.5px; color:var(--text-2); }
+.durata-tasti { margin-top:10px; display:flex; gap:7px; flex-wrap:wrap; }
+.durata-tasti button { flex:1 1 auto; min-height:38px; padding:9px 14px;
+  font-family:var(--sans); font-size:12px; font-weight:400; letter-spacing:.02em;
+  color:var(--text-2); background:var(--surface); border:1px solid var(--line);
+  border-radius:100px; cursor:pointer;
+  transition:color .22s var(--ease), border-color .22s var(--ease),
+    background .22s var(--ease); }
+.durata-tasti button:hover { color:var(--text); border-color:var(--line-gold-2); }
+.durata-tasti button.on { background:var(--gold); border-color:transparent;
+  color:#000; font-weight:600; }
+.durata-conto { margin-top:15px; }
+.durata-conto > div { display:flex; align-items:baseline;
+  justify-content:space-between; gap:14px; padding:7px 0; font-size:13px;
+  color:var(--text-2); }
+.durata-conto > div b { font-family:var(--display); font-size:15px;
+  font-weight:400; color:var(--text); font-variant-numeric:tabular-nums;
+  white-space:nowrap; }
+.durata-tot { border-top:1px solid var(--line-0); margin-top:4px;
+  padding-top:11px!important; }
+.durata-tot span { color:var(--text); }
+.durata-tot b { color:var(--gold)!important; font-size:19px!important; }
+.durata-nota { margin-top:9px; font-size:11.5px; line-height:1.55;
+  color:var(--text-4); }
+.durata-nota b { color:var(--text-2); font-weight:400; }
+
+/* IL numero sui Solari: e l'anima del marchio, e questa e la cifra che
+   conta piu di ogni altra nel sito */
+/* l'engine dimensiona le celle dal font-size dell'ospite, come il canone
+   nella scena: qui la cifra deve pesare piu di ogni altra della pagina */
+.flap-tot { display:inline-flex; font-size:clamp(26px,3.4vw,38px); }
+
+/* ── QUELLO CHE CI CHIEDERESTI ────────────────────────────────────────── */
+.chiedi-lista { margin-top:clamp(22px,2.6vw,32px); display:grid; gap:1px;
+  background:var(--line-0); box-shadow:inset 0 0 0 1px var(--line-0);
+  border-radius:14px; overflow:hidden; }
+@media (min-width:900px){ .chiedi-lista { grid-template-columns:1fr 1fr; } }
+.chiedi-v { background:var(--card); padding:17px 19px 18px;
+  transition:background .3s var(--ease); }
+.chiedi-v:hover { background:var(--elevated); }
+.chiedi-v b { display:block; font-size:13.5px; font-weight:500;
+  letter-spacing:.005em; color:var(--text); line-height:1.4; }
+.chiedi-v p { margin:6px 0 0; font-size:12.5px; line-height:1.6;
+  color:var(--text-2); }
+.chiedi-v p em { font-style:normal; color:var(--gold); }
+.chiedi-wa { display:inline-flex; align-items:center; gap:11px;
+  margin-top:clamp(16px,2vw,22px); padding:13px 20px; border-radius:100px;
+  background:var(--surface); box-shadow:inset 0 0 0 1px var(--line);
+  font-size:12.5px; color:var(--text-2);
+  transition:box-shadow .25s var(--ease), transform .25s var(--ease); }
+.chiedi-wa:hover { box-shadow:inset 0 0 0 1px var(--line-gold-2);
+  transform:translateY(-1px); }
+.chiedi-wa b { color:var(--gold); font-weight:500; }
+.chiedi-wa svg { width:19px; height:19px; flex:none; color:var(--green);
+  fill:none; stroke:currentColor; stroke-width:1.5; stroke-linecap:round;
+  stroke-linejoin:round; }
+.chiedi-wa svg .acc { opacity:.7; }
+
 </style>
 
 <section class="casa">
@@ -189,39 +269,92 @@ html.vivo .coro.dentro .tempo::after {
   </div>
 </section>
 
-<!-- ══ IL DENARO IN CHIARO ═══════════════════════════════════════════════ -->
-<section class="sezione">
-  <div class="container soldi">
+<!-- ══ IL DENARO IN CHIARO ═══════════════════════════════════════════════
+     Il numero piu importante del sito gira sui Solari. Accanto, la durata:
+     non cambia il giorno uno, cambia l'intero soggiorno — ed e la domanda
+     che arriva ogni volta su WhatsApp. -->
+<section class="sezione" id="denaro">
+  <div class="container">
     <div class="sale">
       <span class="eyebrow"><i></i>The money, in the open</span>
       <h2 class="titolo">What you pay to get the keys — <span class="hl">all of
         it</span>.</h2>
-      <p class="sotto">No agency surprise on signing day. This is the whole
-        move-in figure, written down before you pay anything.</p>
+      <p class="sotto">No agency surprise on signing day. Every figure below is
+        written into your pre-agreement before a single euro moves.</p>
+    </div>
 
-      <div class="racconto" style="margin-top:20px">
-        <p id="raccontoCasa">—</p>
-        <div class="dote" id="dentroCasa"></div>
+    <div class="racconto sale" style="margin-top:20px">
+      <p id="raccontoCasa">—</p>
+      <div class="dote" id="dentroCasa"></div>
+    </div>
+
+    <div class="denaro-corpo">
+      <div class="conto quadro sale"><span class="tacca"></span>
+        <div class="conto-riga"><span>First month's rent
+          <em id="contoQuando">—</em></span><b id="contoCanone">—</b></div>
+        <div class="conto-riga"><span>Security deposit
+          <em>Held for you — returned after the final walkthrough</em></span>
+          <b id="contoCauzione">—</b></div>
+        <div class="conto-riga"><span>Agency fee
+          <em>10% of the annual rent — our only fee</em></span>
+          <b id="contoOnorario">—</b></div>
+        <p class="conto-nota">Utilities and the registration tax are not
+          included — they're paid to the providers and to the State, never to
+          us. <b>The deposit is not a cost:</b> it is held and comes back to
+          you after the final walkthrough, filmed in and out.</p>
       </div>
-    </div>
 
-    <div class="conto quadro sale"><span class="tacca"></span>
-      <div class="conto-riga"><span>First month's rent
-        <em id="contoQuando">—</em></span><b id="contoCanone">—</b></div>
-      <div class="conto-riga"><span>Security deposit
-        <em>Held for you — returned after the final walkthrough</em></span>
-        <b id="contoCauzione">—</b></div>
-      <div class="conto-riga"><span>Agency fee
-        <em>10% of the annual rent — our only fee</em></span>
-        <b id="contoOnorario">—</b></div>
-      <div class="conto-tot"><span>Move-in total</span>
-        <b id="contoTotale">—</b></div>
-      <p class="conto-nota">Utilities and the registration tax are not included
-        — they're paid to the providers and to the State, never to us. Every
-        figure is confirmed in writing in your pre-agreement before any
-        payment is taken.</p>
-      <span class="conto-scudo">✓ Paid with Stripe · receipts on everything</span>
+      <aside class="totale quadro sale"><span class="tacca"></span>
+        <span class="tot-eti">Move-in total · due on day one</span>
+        <div class="tot-flap"><span class="flap-tot" id="totFlap"
+          data-p="" aria-live="polite"></span></div>
+        <span class="tot-scudo"><svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 3l7 2.8v5.4c0 4.1-3 7.1-7 8.3-4-1.2-7-4.2-7-8.3V5.8z"/>
+          <path d="M8.6 11.6l2.3 2.3 4.3-4.9"/></svg>Paid through BOOM on
+          Stripe · a receipt for each line</span>
+
+        <div class="durata">
+          <span class="durata-eti">How long are you staying?</span>
+          <div class="durata-tasti" role="group" aria-label="Length of stay">
+            <button type="button" data-m="3">3 months</button>
+            <button type="button" data-m="6">6 months</button>
+            <button type="button" data-m="12" class="on">12 months</button>
+          </div>
+          <div class="durata-conto">
+            <div><span>Rent for the whole stay</span><b id="durCanoni">—</b></div>
+            <div><span>Agency fee, once</span><b id="durOnorario">—</b></div>
+            <div class="durata-tot"><span>What the stay costs you</span>
+              <b id="durTotale">—</b></div>
+            <p class="durata-nota" id="durNota">—</p>
+          </div>
+        </div>
+      </aside>
     </div>
+  </div>
+</section>
+
+<!-- ══ QUELLO CHE CI CHIEDERESTI SU WHATSAPP ═════════════════════════════
+     Ogni domanda che si ripete in chat e una cosa che questa pagina non
+     diceva. Scritte una volta, qui. -->
+<section class="sezione" id="chiedi">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>Before you ask</span>
+      <h2 class="titolo">Everything people ask us <span class="hl">on
+        WhatsApp</span>.</h2>
+      <p class="sotto">Answered here so you don't have to ask — and so the
+        answer is the same one, every time, in writing.</p>
+    </div>
+    <div class="chiedi-lista coro" id="chiediLista"></div>
+    <a class="chiedi-wa" href="https://wa.me/393313251961" target="_blank"
+      rel="noopener">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 3.5A10.4 10.4 0
+        0 0 3.6 16.1L2.5 21.5l5.5-1.1A10.4 10.4 0 1 0 20.5 3.5z"/>
+        <path d="M8.3 7.6c.3-.1.6 0 .8.3l1 1.7c.2.3.1.6-.1.8l-.7.7c.6 1.3 1.6
+        2.3 2.9 2.9l.7-.7c.2-.2.5-.3.8-.1l1.7 1c.3.2.4.5.3.8-.4 1.1-1.6
+        1.7-2.7 1.4-2.9-.8-5.1-3-5.9-5.9-.3-1.1.3-2.3 1.2-2.9z"
+        class="acc"/></svg>
+      Something we haven't answered? <b>Ask a person →</b></a>
   </div>
 </section>
 

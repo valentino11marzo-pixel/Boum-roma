@@ -84,23 +84,121 @@
   per('#dentroCasa').innerHTML = (c.dentro || []).slice(0, 10)
     .map(function (x) { return '<span>' + x + '</span>'; }).join('');
 
-  /* ── IL DENARO IN CHIARO ────────────────────────────────────────────── */
+  /* ── IL DENARO IN CHIARO ────────────────────────────────────────────
+     Regole dichiarate, aritmetica visibile: la cauzione e N mensilita,
+     l'onorario il 10% del canone ANNUO (quindi non cambia con la durata,
+     e per questo il giorno uno resta uguale mentre il soggiorno no). */
   var mesiCauzione = c.cauzioneMesi || 1;
   var cauzione = c.prezzo * mesiCauzione;
   var onorario = Math.round(c.prezzo * 12 * .10);
+  var totale = c.prezzo + cauzione + onorario;
   per('#contoCanone').textContent = euro(c.prezzo);
   per('#contoQuando').textContent = c.dal
     ? 'Available from ' + new Date(c.dal + 'T12:00:00')
         .toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })
     : 'Paid on move-in day';
   per('#contoCauzione').textContent = euro(cauzione);
-  per('#contoCauzione').previousElementSibling;
   document.querySelectorAll('.conto-riga')[1].querySelector('em').textContent =
     mesiCauzione + (mesiCauzione === 1 ? ' month' : ' months')
     + ' — returned after the final walkthrough';
   per('#contoOnorario').textContent = euro(onorario);
-  var totale = c.prezzo + cauzione + onorario;
-  per('#contoTotale').textContent = euro(totale);
+
+  /* il totale gira sui Solari: e la cifra che conta piu di ogni altra */
+  (function () {
+    var host = document.getElementById('totFlap');
+    if (!host) return;
+    var testo = euro(totale);
+    var quadro = null;
+    var BS = window.BoomSolari;
+    if (BS && BS.Board) {
+      quadro = new BS.Board(host, testo.length, ' €,.0123456789');
+      var ridotto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (ridotto || !('IntersectionObserver' in window)) quadro.show(testo);
+      else new IntersectionObserver(function (v, io) {
+        if (!v[0].isIntersecting) return;
+        io.disconnect(); quadro.show(testo, 46, true);
+      }, { threshold: .35 }).observe(host);
+    } else { host.textContent = testo; }
+  })();
+
+  /* la durata: il giorno uno non cambia, il soggiorno si — ed e la
+     domanda che arriva ogni volta in chat */
+  (function () {
+    var tasti = [].slice.call(document.querySelectorAll('.durata-tasti button'));
+    if (!tasti.length) return;
+    function conta(m) {
+      var canoni = c.prezzo * m;
+      per('#durCanoni').textContent = euro(canoni) + '  ';
+      per('#durOnorario').textContent = euro(onorario);
+      per('#durTotale').textContent = euro(canoni + onorario);
+      per('#durNota').innerHTML = '<b>' + euro(cauzione) + '</b> of deposit sits '
+        + 'on top of this and comes back to you at the end — it is held, not '
+        + 'spent. Utilities and the registration tax are paid to the providers '
+        + 'and to the State, never to us.';
+      tasti.forEach(function (t) {
+        t.classList.toggle('on', Number(t.dataset.m) === m); });
+    }
+    tasti.forEach(function (t) {
+      t.addEventListener('click', function () { conta(Number(t.dataset.m)); });
+    });
+    conta(12);
+  })();
+
+  /* ── QUELLO CHE CI CHIEDERESTI SU WHATSAPP ──────────────────────────
+     Dieci risposte, ognuna vera per quello che il sito e i documenti gia
+     dicono. Le cifre vengono dalla casa aperta, non da un testo fisso. */
+  (function () {
+    var lista = document.getElementById('chiediLista');
+    if (!lista) return;
+    var D = [
+      ['Can I see it without flying to Rome?',
+       'Yes. A BOOM agent walks this exact flat on live video with you asking '
+       + 'the questions, plus HD photos and the red flags said out loud. '
+       + '<em>€89</em> — credited to your agency fee if you then rent with us.'],
+      ['What exactly do I pay on day one?',
+       '<em>' + euro(totale) + '</em>: first month ' + euro(c.prezzo)
+       + ', deposit ' + euro(cauzione) + ' and the agency fee '
+       + euro(onorario) + '. Nothing else is charged by us, ever.'],
+      ['Is the deposit really coming back?',
+       'It is held, not spent, and returned after the final walkthrough. '
+       + 'The flat is filmed at move-in and at move-out, so the state of it '
+       + 'is a recording and not an argument.'],
+      ['How do I pay — and to whom?',
+       'Through BOOM on Stripe, with a receipt for each line. Never a bank '
+       + 'transfer to a private person. The counterparty is <em>Egidi '
+       + 'Immobiliare S.r.l.</em>, a licensed agency — BOOM® is its EU trade '
+       + 'mark 019317594.'],
+      ['What kind of contract is it?',
+       'A transitional lease under L. 431/98 art. 5 c. 1, in English and '
+       + 'Italian, explained line by line before you sign. Registration with '
+       + 'the Agenzia delle Entrate is handled by us.'],
+      ['Do I have to be in Rome to sign?',
+       'No. You sign from your phone with a private link, and the landlord '
+       + 'countersigns after you. The keys are the only thing that needs you '
+       + 'in the city.'],
+      ['Do I need an Italian guarantor?',
+       'Not by default. We look at your situation — employed, self-employed, '
+       + 'student, relocating — and tell you what this particular landlord '
+       + 'asks for before you apply, not after.'],
+      ['How fast can I actually move in?',
+       'As little as <em>48 hours</em> from a signed pre-agreement, if the '
+       + 'flat is free. This one'
+       + (c.dal ? ' is available from <em>' + new Date(c.dal + 'T12:00:00')
+            .toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })
+            + '</em>.' : ' is available now.')],
+      ['Can I hold it while I decide?',
+       'Yes — a <em>€300</em> hold takes it off the market for 48 hours, one '
+       + 'tap, fully refundable. It is the only way to stop someone else '
+       + 'taking it while you think.'],
+      ['What is not included in the figures above?',
+       'Utilities (electricity, gas, water, internet) and the registration '
+       + 'tax. Both are paid to the providers and to the State — we never '
+       + 'touch them, and we never mark them up.']
+    ];
+    lista.innerHTML = D.map(function (q) {
+      return '<div class="chiedi-v"><b>' + q[0] + '</b><p>' + q[1] + '</p></div>';
+    }).join('');
+  })();
 
   /* ── L'APPLY: i tre passi si accendono mentre scrivi ────────────────── */
   (function () {
