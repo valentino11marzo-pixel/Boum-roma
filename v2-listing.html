@@ -160,7 +160,10 @@ h1, h2, h3 { font-family:var(--display); }
 .nav.scrolled, html.aperto .nav { padding:11px 0; }
 .menu { display:none; align-items:center; gap:26px; }
 @media (min-width:1080px){ .menu { display:flex; } }
-.menu a { font-size:13px; font-weight:400; letter-spacing:.02em;
+/* area di tocco 41px senza spostare un pixel: padding pareggiato dal
+   margine negativo */
+.menu a { padding:10px 3px; margin:-10px -3px;
+  font-size:13px; font-weight:400; letter-spacing:.02em;
   color:var(--text-3); transition:color .25s ease; }
 .menu a:hover { color:var(--text); }
 .menu .m-login { display:inline-flex; align-items:center; gap:7px; }
@@ -1556,6 +1559,50 @@ html.vivo .sale.dentro { opacity:1; transform:none;
 .s1-casa img, .home-foto img { aspect-ratio:4/3; }
 .fond-foto img { aspect-ratio:4/5; }
 
+
+/* ══ IL GIORNO UNO NEL CHECK-IN ════════════════════════════════════════ */
+.giorno-uno { margin-top:10px; font-size:11.5px; line-height:1.6;
+  color:var(--text-4); max-width:56ch; }
+.giorno-uno b { color:var(--gold); font-weight:600;
+  font-variant-numeric:tabular-nums; }
+
+/* ══ LA FILA DEI FATTI ═════════════════════════════════════════════════ */
+.fede-fila { border-top:1px solid var(--line-0);
+  border-bottom:1px solid var(--line-0); background:var(--surface); }
+.fede-int { display:flex; align-items:center; justify-content:center;
+  flex-wrap:wrap; gap:8px 14px; padding:12px 0; }
+.fede-int span { font-size:10px; font-weight:600; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--text-4); text-align:center;
+  line-height:1.5; }
+.fede-int i { width:4px; height:4px; border-radius:50%;
+  background:var(--line-gold-2); flex:none; }
+@media (max-width:640px){
+  .fede-int { gap:7px 12px; padding:11px 0; }
+  .fede-int i { display:none; } }
+
+/* ══ LA PRESA IN BANCHINA ══════════════════════════════════════════════ */
+.ba-presa { display:flex; align-items:center; gap:14px; padding:14px 18px;
+  border-top:1px solid var(--line-0); background:var(--void); }
+.ba-presa svg { width:20px; height:20px; flex:none; fill:none;
+  stroke:var(--gold); stroke-width:1.5; stroke-linecap:round;
+  stroke-linejoin:round; }
+.bp-dice { flex:1; font-size:12.5px; line-height:1.6; color:var(--text-3); }
+.bp-dice b { color:var(--text-2); font-weight:500; }
+.bp-vai { flex:none; display:inline-flex; align-items:center;
+  min-height:36px; font-size:10.5px; font-weight:600; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--gold); padding:0 15px;
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); border-radius:100px;
+  transition:.25s; }
+.bp-vai:hover { background:var(--gold); color:#141005; }
+@media (max-width:640px){
+  .ba-presa { flex-wrap:wrap; padding:13px 15px; }
+  .bp-vai { margin-left:34px; } }
+
+.sotto-vai { display:inline; margin-left:6px; color:var(--gold);
+  font-size:inherit; text-decoration:none;
+  border-bottom:1px solid var(--line-gold-2); padding-bottom:1px;
+  transition:border-color .25s; }
+.sotto-vai:hover { border-color:var(--gold); }
 </style>
 </head>
 <body>
@@ -1602,7 +1649,8 @@ html.vivo .sale.dentro { opacity:1; transform:none;
 .casa { position:relative; padding:clamp(88px,10svh,116px) 0 0; }
 .casa-briciole { display:flex; align-items:center; gap:9px; font-size:11px;
   color:var(--text-3); flex-wrap:wrap; }
-.casa-briciole a { color:var(--text-3); transition:color .25s; }
+.casa-briciole a { padding:9px 4px; margin:-9px -4px;
+  color:var(--text-3); transition:color .25s; }
 .casa-briciole a:hover { color:var(--gold); }
 .casa-briciole i { font-style:normal; color:var(--text-4); }
 
@@ -2010,6 +2058,145 @@ html.vivo .coro.dentro .tempo::after {
 .ap-dopo span { display:block; margin-top:3px; font-size:11.5px;
   line-height:1.55; color:var(--text-4); }
 
+
+/* ══ LA LENTE ══════════════════════════════════════════════════════════ */
+#telaio > img { cursor:zoom-in; }
+.lente { position:fixed; inset:0; z-index:200; background:rgba(3,3,3,.97);
+  display:grid; place-items:center; }
+.lente[hidden] { display:none; }
+.lente img { max-width:min(96vw, 1400px); max-height:88vh;
+  object-fit:contain; box-shadow:0 40px 120px rgba(0,0,0,.8); }
+.lente-x { position:absolute; top:18px; right:18px; width:44px; height:44px;
+  display:grid; place-items:center; background:rgba(3,3,3,.72); border:0;
+  border-radius:50%; color:var(--text-2); font-size:16px; cursor:pointer;
+  box-shadow:inset 0 0 0 1px var(--line); transition:.2s; }
+.lente-x:hover { color:var(--text);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.lente-b { position:absolute; top:50%; transform:translateY(-50%);
+  width:44px; height:44px; display:grid; place-items:center;
+  background:rgba(3,3,3,.72); border:0; border-radius:50%;
+  color:var(--text-2); font-size:22px; cursor:pointer;
+  box-shadow:inset 0 0 0 1px var(--line); transition:.2s; }
+.lente-b:hover { color:var(--gold);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.lente-b.prec { left:14px; }
+.lente-b.succ { right:14px; }
+.lente-conta { position:absolute; bottom:18px; left:50%;
+  transform:translateX(-50%); font-size:11px; letter-spacing:.14em;
+  color:var(--text-3); font-variant-numeric:tabular-nums; }
+
+/* ══ LA PRESA ══════════════════════════════════════════════════════════ */
+.presa { margin-top:clamp(16px,2vw,22px); padding:clamp(18px,2.4vw,26px);
+  display:grid; gap:14px; }
+.presa-testa b { display:block; font-family:var(--display); font-weight:300;
+  font-size:clamp(19px,2.2vw,24px); line-height:1.25; }
+.presa-testa p { margin-top:8px; font-size:13.5px; line-height:1.65;
+  color:var(--text-2); max-width:64ch; }
+.presa-testa p b { color:var(--gold); font-weight:600; }
+.presa-forma { display:grid; gap:10px;
+  grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); }
+.presa-forma input { padding:13px 14px; background:var(--input); border:0;
+  box-shadow:inset 0 0 0 1px var(--line); color:var(--text); font:inherit;
+  font-size:14px; min-width:0; }
+.presa-forma input:focus { outline:none;
+  box-shadow:inset 0 0 0 1px var(--gold); }
+.presa-nota { font-size:11px; color:var(--text-4); }
+.presa-nota a { color:var(--gold); }
+
+/* ══ IL POSTO ══════════════════════════════════════════════════════════ */
+.blocco3d { position:relative; margin-top:clamp(16px,2vw,24px);
+  height:min(56vh, 460px); background:var(--void);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2),
+    0 40px 90px -40px rgba(0,0,0,.9); overflow:hidden; }
+#bloccoMappa { position:absolute; inset:0; }
+#bloccoMappa canvas { outline:none; }
+.blocco3d .maplibregl-ctrl-attrib { font-size:9px!important; opacity:.4; }
+.blocco3d .maplibregl-ctrl-group { background:rgba(14,14,16,.82)!important; }
+.blocco3d .maplibregl-ctrl-icon {
+  filter:invert(1) brightness(1.6) contrast(.85); }
+.blocco-facciata { position:absolute; inset:0; display:grid;
+  place-items:center; align-content:center; gap:8px; border:0;
+  color:var(--text); font:inherit; cursor:pointer; text-align:center;
+  padding:20px; background:
+    radial-gradient(2px 2px at 26% 30%, var(--gold) 40%, transparent 60%),
+    radial-gradient(2px 2px at 66% 22%, var(--gold) 40%, transparent 60%),
+    radial-gradient(2px 2px at 44% 56%, rgba(255,215,0,.5) 40%, transparent 60%),
+    radial-gradient(120% 90% at 70% 8%, rgba(255,215,0,.08), transparent 55%),
+    linear-gradient(160deg, #101017 0%, #08080D 55%, var(--void) 100%); }
+.blocco-facciata b { font-family:var(--display); font-weight:300;
+  font-size:clamp(19px,2.4vw,26px); }
+.bf-sotto { font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--text-3); }
+.bf-anelli { position:absolute; inset:0; display:grid; place-items:center;
+  pointer-events:none; }
+.bf-anelli i { position:absolute; border-radius:50%; opacity:.5;
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.bf-anelli i:nth-child(1) { width:120px; height:120px; }
+.bf-anelli i:nth-child(2) { width:220px; height:220px; opacity:.32; }
+.bf-anelli i:nth-child(3) { width:330px; height:330px; opacity:.18; }
+.blocco-pin span { display:inline-block; padding:6px 11px;
+  background:var(--gold); color:#141005; font-size:12px; font-weight:700;
+  border-radius:100px; box-shadow:0 10px 30px rgba(0,0,0,.5);
+  font-variant-numeric:tabular-nums; }
+.blocco-spento { position:absolute; inset:0; display:grid;
+  place-items:center; align-content:center; gap:10px; padding:24px;
+  text-align:center; }
+.blocco-spento b { font-family:var(--display); font-weight:300;
+  font-size:19px; }
+.blocco-spento span { font-size:12.5px; color:var(--text-3); max-width:44ch;
+  line-height:1.6; }
+.vicini { margin-top:clamp(14px,1.8vw,18px); display:grid; gap:10px;
+  grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); }
+.vicino { display:flex; align-items:baseline; gap:8px; padding:13px 15px;
+  background:var(--card); box-shadow:inset 0 0 0 1px var(--line-0); }
+.vicino b { font-weight:500; font-size:13.5px; white-space:nowrap; }
+.vicino span { flex:1; font-size:11px; color:var(--text-4);
+  overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.vicino i { font-style:normal; font-size:12px; color:var(--gold);
+  font-variant-numeric:tabular-nums; white-space:nowrap; }
+.luoghi { margin-top:clamp(14px,1.8vw,18px); padding:clamp(16px,2vw,22px);
+  background:var(--card); box-shadow:inset 0 0 0 1px var(--line-0); }
+.luoghi-testa { display:flex; flex-wrap:wrap; align-items:baseline;
+  gap:6px 14px; }
+.luoghi-testa b { font-family:var(--display); font-weight:300;
+  font-size:18px; }
+.luoghi-testa span { font-size:11.5px; color:var(--text-4); }
+.luoghi-cerca { position:relative; margin-top:12px; }
+.luoghi-cerca input { width:100%; padding:13px 14px; background:var(--input);
+  border:0; box-shadow:inset 0 0 0 1px var(--line); color:var(--text);
+  font:inherit; font-size:14px; }
+.luoghi-cerca input:focus { outline:none;
+  box-shadow:inset 0 0 0 1px var(--gold); }
+.luoghi-sug { position:absolute; left:0; right:0; top:calc(100% + 6px);
+  z-index:20; background:var(--void);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2),
+    0 24px 60px rgba(0,0,0,.7); }
+.luoghi-sug:empty { display:none; }
+.luoghi-sug button { display:block; width:100%; text-align:left;
+  padding:11px 14px; background:none; border:0;
+  border-bottom:1px solid var(--line-0); color:var(--text-2); font:inherit;
+  cursor:pointer; min-height:40px; }
+.luoghi-sug button:last-child { border-bottom:0; }
+.luoghi-sug button:hover { background:rgba(255,215,0,.06); }
+.luoghi-sug button b { display:block; color:var(--text); font-weight:500;
+  font-size:13.5px; }
+.luoghi-sug button span { font-size:11px; color:var(--text-4); }
+.luoghi-sug .luoghi-vuota { padding:11px 14px; }
+.luoghi-righe { margin-top:12px; display:grid; gap:8px; }
+.luogo { display:flex; align-items:center; gap:10px; padding:10px 12px;
+  background:var(--void); box-shadow:inset 0 0 0 1px var(--line-0); }
+.luogo b { flex:1; font-weight:500; font-size:13px; overflow:hidden;
+  white-space:nowrap; text-overflow:ellipsis; }
+.luogo i { font-style:normal; font-size:12px; color:var(--gold);
+  font-variant-numeric:tabular-nums; white-space:nowrap; }
+.luogo button { width:36px; height:36px; flex:none; display:grid;
+  place-items:center; background:none; border:0; color:var(--text-4);
+  cursor:pointer; font-size:12px; border-radius:50%;
+  box-shadow:inset 0 0 0 1px var(--line); transition:.2s; }
+.luogo button:hover { color:var(--text); }
+.luoghi-vuota { font-size:12px; color:var(--text-4); padding:8px 2px; }
+.luoghi-nota { margin-top:12px; font-size:10.5px; color:var(--text-4);
+  line-height:1.6; }
 </style>
 
 <section class="casa">
@@ -2126,7 +2313,9 @@ html.vivo .coro.dentro .tempo::after {
         <p class="chiavi-fuori"><b>What is not included:</b> utilities
           (electricity, gas, water, internet) and the registration tax. Both
           are paid to the providers and to the State. We never touch them and
-          we never mark them up.</p>
+          we never mark them up.
+          <a class="sotto-vai" href="/v2-money.html">The full money story —
+            every euro, in and out →</a></p>
       </div>
 
       <div class="durata">
@@ -2145,6 +2334,69 @@ html.vivo .coro.dentro .tempo::after {
         </div>
       </div>
 
+    </div>
+
+    <div class="presa quadro sale" id="presaCasa"><span class="tacca"></span>
+      <div class="presa-testa">
+        <b id="presaTitolo">Seen enough? Take it off the market.</b>
+        <p>A refundable <b>€300</b> hold reserves this exact home while we
+          process your application: fully refunded if you're not approved,
+          deducted from your first month if you move in. Cancel free within
+          48 hours.</p>
+      </div>
+      <form class="presa-forma" id="presaForma">
+        <input id="prNome" name="nome" placeholder="Full name"
+          autocomplete="name" required>
+        <input id="prMail" name="email" type="email" placeholder="Email"
+          autocomplete="email" required>
+        <input id="prTel" name="telefono" type="tel"
+          placeholder="Phone / WhatsApp" autocomplete="tel" required>
+        <button type="submit" class="btn btn-primary" id="prVai">Hold this
+          home · €300</button>
+      </form>
+      <p class="presa-nota" id="presaNota">Card via Stripe · a receipt by
+        email · a human replies within 2 hours.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══ IL POSTO — il blocco vero, le distanze vere ═══════════════════════
+     Mai una mappa finta: il motore arriva solo se lo chiami, e se non
+     arriva lo dice. Le distanze sono stime oneste (linea d'aria ×1.3),
+     dichiarate come tali. -->
+<section class="sezione" id="posto">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>The place</span>
+      <h2 class="titolo">See the <span class="hl">block</span> — before you
+        cross town.</h2>
+      <p class="sotto">The real map and the real distances, measured from
+        this door — not from the zone's name.</p>
+    </div>
+
+    <div class="blocco3d sale" id="blocco3d">
+      <button type="button" class="blocco-facciata" id="bloccoVia">
+        <span class="bf-anelli" aria-hidden="true"><i></i><i></i><i></i></span>
+        <b>◆ Explore the block in 3D</b>
+        <span class="bf-sotto">Real map · 3D buildings · 5 / 10 / 15-minute
+          walk rings</span>
+      </button>
+    </div>
+
+    <div class="vicini sale" id="vicini"></div>
+
+    <div class="luoghi sale" id="luoghi">
+      <div class="luoghi-testa"><b>Distance from <span class="hl">your
+        places</span></b><span>Set them once — every home answers.</span></div>
+      <div class="luoghi-cerca">
+        <input id="luogoQ" type="text"
+          placeholder="Your office, university, a metro stop…"
+          autocomplete="off" aria-label="Search a place in Rome">
+        <div class="luoghi-sug" id="luogoSug" role="listbox"></div>
+      </div>
+      <div class="luoghi-righe" id="luogoRighe"></div>
+      <p class="luoghi-nota">Times are honest estimates — straight line ×1.3
+        for real streets, walking at 4.7 km/h — not turn-by-turn routes.</p>
     </div>
   </div>
 </section>
@@ -2331,6 +2583,19 @@ html.vivo .coro.dentro .tempo::after {
   </div>
 </section>
 
+<!-- ══ LA LENTE — la foto a tutto schermo ════════════════════════════════ -->
+<div class="lente" id="lente" hidden role="dialog" aria-modal="true"
+  aria-label="Photo viewer">
+  <button type="button" class="lente-x" id="lenteX"
+    aria-label="Close photo viewer">✕</button>
+  <button type="button" class="lente-b prec" id="lentePrec"
+    aria-label="Previous photo">‹</button>
+  <img id="lenteFoto" alt="" decoding="async">
+  <button type="button" class="lente-b succ" id="lenteSucc"
+    aria-label="Next photo">›</button>
+  <span class="lente-conta" id="lenteConta" aria-hidden="true"></span>
+</div>
+
 <footer class="piede">
   <div class="container">
     <div class="piede-int">
@@ -2355,6 +2620,7 @@ html.vivo .coro.dentro .tempo::after {
       <div class="piede-col">
         <b>Company</b>
         <a href="/about.html">About</a>
+        <a href="/v2-money.html">Your Money</a>
         <a href="/how-it-works.html">How It Works</a>
         <a href="/universities.html">For Universities</a>
         <a href="/corporate.html">For Companies</a>
@@ -2380,7 +2646,9 @@ html.vivo .coro.dentro .tempo::after {
 (function () {
   'use strict';
   function via() {
-  var CASE = [{"id": "cezFMXTWnHUDgb1H2WWm", "nome": "Bilocale Trastevere", "zona": "Trastevere", "indirizzo": "Via in Piscinula", "prezzo": 1200, "mq": 45, "letti": 1, "bagni": 1, "piano": "1", "tipo": "Bilocale", "arredata": true, "stato": "Available now", "libera": true, "dal": "2026-07-01", "racconto": "This 45 sqm one-bedroom apartment on the ground floor of Via in Piscinula offers straightforward comfort in Trastevere. Fully furnished with one bathroom, it's available from July 2026 with the option of a rent-controlled contract. The location puts you within walking distance of local trattorias, bookshops, and the Tiber's riverside paths. Trastevere works well for those who value authenticity over tourist crowds—genuine neighbourhood life, independent shops, and easy access to central Rome.", "dentro": ["Trastevere", "Bilocale", "Rent-controlled option", "Furnished"], "cauzioneMesi": 1, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FcezFMXTWnHUDgb1H2WWm%2Fmrzsxcyw_00_4d6b85f3.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FcezFMXTWnHUDgb1H2WWm%2Fmrzsxcyw_00_4d6b85f3.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FcezFMXTWnHUDgb1H2WWm%2Fmrzsxcyw_01_faa0aead.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FcezFMXTWnHUDgb1H2WWm%2Fmrzsxcyw_02_b0d2b486.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FcezFMXTWnHUDgb1H2WWm%2Fmrzsxcyw_03_6daaa199.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FcezFMXTWnHUDgb1H2WWm%2Fmrzsxcyw_04_2357b599.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FcezFMXTWnHUDgb1H2WWm%2Fmrzsxcyw_05_b9f54cdb.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FcezFMXTWnHUDgb1H2WWm%2Fmrzsxcyw_06_54c85323.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FcezFMXTWnHUDgb1H2WWm%2Fmrzsxcyw_07_9187c4cd.jpg?alt=media"], "video": null, "fotoCurate": true}, {"id": "esFhjFMVfZtkIrhkx0PR", "nome": "Prati cozy", "zona": "Prati", "indirizzo": "Via Montezebio", "prezzo": 1500, "mq": 65, "letti": 1, "bagni": null, "piano": "2", "tipo": "Loft", "arredata": false, "stato": "From 1 Mar 2027", "libera": true, "dal": "2027-03-01", "racconto": "This 65 sqm loft on the second floor of Via Montezebio offers a flexible open-plan layout with one bedroom, living area, bathroom and entrance. Unfurnished, it's a blank canvas for a tenant who wants to shape the space to their needs. Available from 1 March at €1500/month. Prati is a residential neighbourhood with local shops, markets and easy access across the city.", "dentro": ["A/C", "Wi-Fi", "Central location", "High end zone"], "cauzioneMesi": 1, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FesFhjFMVfZtkIrhkx0PR%2Fms18d3o8_00_27bce535.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FesFhjFMVfZtkIrhkx0PR%2Fms18d3o8_00_27bce535.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FesFhjFMVfZtkIrhkx0PR%2Fms18d3o8_01_36b7d49a.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FesFhjFMVfZtkIrhkx0PR%2Fms18d3o8_02_016137cc.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FesFhjFMVfZtkIrhkx0PR%2Fms18d3o8_03_46eb0053.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FesFhjFMVfZtkIrhkx0PR%2Fms18d3o8_04_aae693c7.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FesFhjFMVfZtkIrhkx0PR%2Fms18d3o8_05_8b2783da.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FesFhjFMVfZtkIrhkx0PR%2Fms18d3o8_06_b12dfceb.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FesFhjFMVfZtkIrhkx0PR%2Fms18d3o8_07_2790a6eb.jpg?alt=media"], "video": null, "fotoCurate": true}, {"id": "sr0rpLSqbpDMASkHINfx", "nome": "Trilocale Pigneto", "zona": "Pigneto", "indirizzo": "Piazzale Prenestino 42", "prezzo": 1600, "mq": 80, "letti": 2, "bagni": 2, "piano": "3", "tipo": "Trilocale", "arredata": true, "stato": "Available now", "libera": true, "dal": "2026-08-01", "racconto": "This 80 sqm trilocale on the third floor of Piazzale Prenestino offers two bedrooms, two bathrooms, and a balcony with air conditioning and double glazing throughout. Fully furnished and move-in ready, it includes a dishwasher, washing machine, WiFi, and elevator access, with a doorman on-site. Available from August 1st, 2026 at €1,600/month, with a rent-controlled contract option. Pigneto is a vibrant neighbourhood with independent galleries, vintage shops, and a strong creative community—ideal for those seeking authentic Roman life beyond the tourist centre.", "dentro": ["A/C", "Balcony", "Elevator", "Dishwasher", "Wi-Fi", "Double_glazing", "Doorman", "Washing_machine"], "cauzioneMesi": 2, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fsr0rpLSqbpDMASkHINfx%2Fms6y4det_00_1f4b631c.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fsr0rpLSqbpDMASkHINfx%2Fms6y4det_00_1f4b631c.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fsr0rpLSqbpDMASkHINfx%2Fms6y4det_01_57bedc39.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fsr0rpLSqbpDMASkHINfx%2Fms6y4det_02_dc30e976.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fsr0rpLSqbpDMASkHINfx%2Fms6y4det_03_826acc4a.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fsr0rpLSqbpDMASkHINfx%2Fms6y4det_04_613c5cd8.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fsr0rpLSqbpDMASkHINfx%2Fms6y4det_05_9cb69bdb.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fsr0rpLSqbpDMASkHINfx%2Fms6y4det_06_bf85165f.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fsr0rpLSqbpDMASkHINfx%2Fms6y4det_07_e8dd9a85.jpg?alt=media"], "video": "https://youtube.com/shorts/ecWEt-ao0mY?si=og7stlcM_RmOp2HD", "fotoCurate": true}, {"id": "ttvrjazww9oe4tA0wHTf", "nome": "Bilocale Ponte Milvio", "zona": "Ponte Milvio", "indirizzo": "Via Di Tor Di Quinto 39", "prezzo": 1250, "mq": 70, "letti": 1, "bagni": 1, "piano": "0", "tipo": "Bilocale", "arredata": true, "stato": "Available now", "libera": true, "dal": "2026-07-01", "racconto": "This 70-sqm one-bedroom apartment on the ground floor of Via Di Tor Di Quinto offers practical, everyday comfort. Fully furnished with air conditioning, dishwasher, washing machine, and double glazing, it comes with a parking space and WiFi included—essentials for remote work. A doorman is on-site, and a rent-controlled contract is available. Ponte Milvio is accessible and residential, with local shops and transport links that make getting around straightforward.", "dentro": ["A/C", "Dishwasher", "Parking", "Wi-Fi", "Washing_machine", "Double_glazing", "Doorman"], "cauzioneMesi": 1, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fttvrjazww9oe4tA0wHTf%2Fmrz6vxb9_00_18252691.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fttvrjazww9oe4tA0wHTf%2Fmrz6vxb9_00_18252691.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fttvrjazww9oe4tA0wHTf%2Fmrz6vxb9_01_0a86bca5.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fttvrjazww9oe4tA0wHTf%2Fmrz6vxb9_02_cbc99b72.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fttvrjazww9oe4tA0wHTf%2Fmrz6vxb9_03_aeab6dec.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fttvrjazww9oe4tA0wHTf%2Fmrz6vxb9_04_0cf9a316.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fttvrjazww9oe4tA0wHTf%2Fmrz6vxb9_05_06a6faa1.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fttvrjazww9oe4tA0wHTf%2Fmrz6vxb9_06_f24ea8c3.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fttvrjazww9oe4tA0wHTf%2Fmrz6vxb9_07_6527dc71.jpg?alt=media"], "video": null, "fotoCurate": true}, {"id": "FHeEHIFbil6QG8Jcccxc", "nome": "Bilocale Trieste", "zona": "Trieste", "indirizzo": "Via Appennini 33", "prezzo": 2000, "mq": 55, "letti": 1, "bagni": 1, "piano": "3", "tipo": "Bilocale", "arredata": true, "stato": "Available now", "libera": true, "dal": "2026-07-01", "racconto": "A 55 sqm bilocale on the third floor with one bedroom and bathroom, fully furnished and ready to move in. The apartment features air conditioning, an elevator, and a balcony overlooking the neighbourhood. Available from July 1st, 2026, with rent-controlled contract options available. Trieste offers a mix of Central European charm and Mediterranean atmosphere, with excellent public transport and a strong community of remote workers and international residents.", "dentro": ["A/C", "Elevator", "Balcony"], "cauzioneMesi": 1, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FFHeEHIFbil6QG8Jcccxc%2Fmrwy1a3g_00_d2ee0ce1.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FFHeEHIFbil6QG8Jcccxc%2Fmrwy1a3g_00_d2ee0ce1.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FFHeEHIFbil6QG8Jcccxc%2Fmrwy1a3g_01_f5206849.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FFHeEHIFbil6QG8Jcccxc%2Fmrwy1a3g_02_a9eff724.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FFHeEHIFbil6QG8Jcccxc%2Fmrwy1a3g_03_5c4429c8.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FFHeEHIFbil6QG8Jcccxc%2Fmrwy1a3g_04_cf702ac9.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FFHeEHIFbil6QG8Jcccxc%2Fmrwy1a3g_05_5d1aaf47.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FFHeEHIFbil6QG8Jcccxc%2Fmrwy1a3g_06_db038bf6.jpg?alt=media"], "video": null, "fotoCurate": true}, {"id": "Kz9bXztv5QXmQrNhAcoU", "nome": "Ponte Milvio Duplex", "zona": "Ponte Milvio", "indirizzo": "Via Di Tor Di quinto 39", "prezzo": 1200, "mq": 55, "letti": 1, "bagni": null, "piano": "Ground Floor + upper plan", "tipo": "Duplex", "arredata": false, "stato": "From 1 May 2027", "libera": true, "dal": "2027-05-01", "racconto": "Inside a Condo we manage from Years , located in heart of services and experience like the Olimpic stadium , max 1 of May will be ready this new unit that is possible to visit from now even if under work", "dentro": ["A/C", "Wi-Fi"], "cauzioneMesi": 1, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FKz9bXztv5QXmQrNhAcoU%2Fmrwy1jgh_00_3edcb767.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FKz9bXztv5QXmQrNhAcoU%2Fmsf8rosp_00_3edcb767.jpg?alt=media"], "video": null, "fotoCurate": true}, {"id": "ilW5lAxnNn5M2TjsSHx2", "nome": "Africano Premium Room", "zona": "Africano", "indirizzo": "Via Endertà 9", "prezzo": 900, "mq": 30, "letti": 1, "bagni": null, "piano": "5 floor", "tipo": "Room", "arredata": false, "stato": "From 1 Jul 2027", "libera": true, "dal": "2027-07-01", "racconto": "A 30 sqm room on the 5th floor of Via Endertà 9, unfurnished and ready from 1 July. It includes air conditioning and Wi-Fi, giving you the essentials for comfortable remote work. The Africano/Trieste neighbourhood offers a genuine residential feel with local shops and transport links, away from tourist crowds.", "dentro": ["A/C", "Wi-Fi"], "cauzioneMesi": 1, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FilW5lAxnNn5M2TjsSHx2%2Fms438muu_00_25bd2cd0.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FilW5lAxnNn5M2TjsSHx2%2Fmsf8r96a_00_25bd2cd0.jpg?alt=media"], "video": null, "fotoCurate": true}, {"id": "levico", "nome": "Levico", "zona": "Trieste", "indirizzo": "Via Levico, Trieste/Coppedè", "prezzo": 1200, "mq": 40, "letti": 1, "bagni": null, "piano": "Ground Floor", "tipo": "Garden Floor", "arredata": false, "stato": "From 31 Jul 2027", "libera": true, "dal": "2027-07-31", "racconto": "This 40 sqm garden floor apartment on Via Levico offers a calm ground-level living space in the Coppedè area. The single bedroom and open layout provide straightforward, efficient living for one person or a couple. Unfurnished, it's ready for you to make it your own. The neighbourhood is quiet and residential, with easy access to local shops and transport.", "dentro": ["All Inclusive", "Garden", "Wi-Fi"], "cauzioneMesi": 1, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Flevico%2Fms438q5f_00_a4e03314.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Flevico%2Fms438q5f_00_a4e03314.jpg?alt=media"], "video": null, "fotoCurate": true}, {"id": "OLLVsiKhPrhpT1fx8XmB", "nome": "Bilocale Centro", "zona": "Centro", "indirizzo": "Via Dei Cappellari 4", "prezzo": 1500, "mq": 60, "letti": 3, "bagni": 1, "piano": "1", "tipo": "Bilocale", "arredata": true, "stato": "Waitlist open", "libera": false, "dal": "2027-01-31", "racconto": "This 60 sqm bilocale on the first floor of Via Dei Cappellari offers three bedrooms and one bathroom, fully furnished and ready to move into. It comes with air conditioning, a balcony, dishwasher, washing machine, double glazing, and WiFi included, plus the security of a doorman in the building. A rent-controlled contract (canone concordato) is available. Centro is where you'll find Rome's everyday rhythm—local shops, trattorias, and the kind of neighbourhoods Romans actually live in.", "dentro": ["A/C", "Balcony", "Dishwasher", "Washing_machine", "Double_glazing", "Doorman", "Wi-Fi"], "cauzioneMesi": 1, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FOLLVsiKhPrhpT1fx8XmB%2Fmrydgy70_00_5083a1a3.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FOLLVsiKhPrhpT1fx8XmB%2Fmsf8rgbx_00_5083a1a3.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FOLLVsiKhPrhpT1fx8XmB%2Fmsf8rgbx_01_9ec77229.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FOLLVsiKhPrhpT1fx8XmB%2Fmsf8rgbx_02_ee69fe1e.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FOLLVsiKhPrhpT1fx8XmB%2Fmsf8rgbx_03_c184c0f5.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FOLLVsiKhPrhpT1fx8XmB%2Fmsf8rgbx_04_f6706750.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FOLLVsiKhPrhpT1fx8XmB%2Fmsf8rgbx_05_89aebdee.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FOLLVsiKhPrhpT1fx8XmB%2Fmsf8rgbx_06_4f7a7969.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FOLLVsiKhPrhpT1fx8XmB%2Fmsf8rgbx_07_89ef2214.jpg?alt=media"], "video": null, "fotoCurate": true}, {"id": "aZ3EnMYBDy7c2upKRnnA", "nome": "Bilocale Centro", "zona": "Centro", "indirizzo": "Via Di S.Anna 16", "prezzo": 1200, "mq": 50, "letti": 1, "bagni": 1, "piano": "3", "tipo": "Bilocale", "arredata": true, "stato": "Rented", "libera": false, "dal": "2026-09-01", "racconto": "This 50 sqm bilocale on the third floor of Via Di S.Anna offers a complete setup for remote work and daily living. You'll find air conditioning, a washing machine, dishwasher, and WiFi included, plus a parking space—practical essentials in the centro. Fully furnished with double glazing windows and elevator access, it's ready to move into on September 1st, 2026. A rent-controlled contract is available at €1200/month. Centro living means walking to shops, restaurants, and transport links without the tourist crowds of the very core.", "dentro": ["A/C", "Elevator", "Washing_machine", "Dishwasher", "Parking", "Double_glazing", "Wi-Fi"], "cauzioneMesi": 1, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FaZ3EnMYBDy7c2upKRnnA%2Fmrydhloq_00_2d041ed5.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FaZ3EnMYBDy7c2upKRnnA%2Fmrydhloq_00_2d041ed5.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FaZ3EnMYBDy7c2upKRnnA%2Fmrydhloq_01_c34b6e46.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FaZ3EnMYBDy7c2upKRnnA%2Fmrydhloq_02_4e6d5619.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FaZ3EnMYBDy7c2upKRnnA%2Fmrydhloq_03_338f7058.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FaZ3EnMYBDy7c2upKRnnA%2Fmrydhloq_04_7c8e7001.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FaZ3EnMYBDy7c2upKRnnA%2Fmrydhloq_05_7f246c08.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FaZ3EnMYBDy7c2upKRnnA%2Fmrydhloq_06_4a27d948.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FaZ3EnMYBDy7c2upKRnnA%2Fmrydhloq_07_c900024a.jpg?alt=media"], "video": null, "fotoCurate": true}, {"id": "hwnkDcXvs7Q0EW99xV7O", "nome": "Trilocale Pigneto", "zona": "Pigneto", "indirizzo": "Via MonteCuccoli 26", "prezzo": 2000, "mq": 100, "letti": 3, "bagni": 1, "piano": "5", "tipo": "Trilocale", "arredata": true, "stato": "Waitlist open", "libera": false, "dal": "2027-01-01", "racconto": "This 100 sqm trilocale on the fifth floor of Via MonteCuccoli offers three bedrooms and one bathroom, fully furnished and ready to move into. The rent-controlled contract option makes it an accessible choice for longer stays. Pigneto appeals to those seeking a neighbourhood with independent shops, street art, and a local feel away from the tourist centre.", "dentro": ["Pigneto", "Trilocale", "Rent-controlled option", "Furnished"], "cauzioneMesi": 1, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FhwnkDcXvs7Q0EW99xV7O%2Fms18dq0y_00_8cd440e9.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FhwnkDcXvs7Q0EW99xV7O%2Fms2nst8c_00_8cd440e9.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FhwnkDcXvs7Q0EW99xV7O%2Fms2nst8c_01_62ba981b.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FhwnkDcXvs7Q0EW99xV7O%2Fms2nst8c_02_3cf47e1d.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FhwnkDcXvs7Q0EW99xV7O%2Fms2nst8c_03_c532b335.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FhwnkDcXvs7Q0EW99xV7O%2Fms2nst8c_04_decc244e.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FhwnkDcXvs7Q0EW99xV7O%2Fms2nst8c_05_a3ae726d.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FhwnkDcXvs7Q0EW99xV7O%2Fms2nst8c_06_d2a4e96f.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FhwnkDcXvs7Q0EW99xV7O%2Fms2nst8c_07_bca36ef4.jpg?alt=media"], "video": null, "fotoCurate": true}, {"id": "qRRRV7BjXDPqgTpVchnz", "nome": "Parioli Double Room with Garden", "zona": "Parioli", "indirizzo": "Via Ettore Petrolini 30", "prezzo": 1000, "mq": 45, "letti": 1, "bagni": null, "piano": "floor", "tipo": "Garden Floor", "arredata": false, "stato": "Waitlist open", "libera": false, "dal": "2026-08-01", "racconto": "Delicious and ultra spacious Bedroom with Private Bath in Parioli Heart , perfect for Luiss students . Direct garden acess , all inclusive .", "dentro": ["A/C", "Wi-Fi", "Premium space", "Private bath", "Shared Kitchen"], "cauzioneMesi": 1, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FqRRRV7BjXDPqgTpVchnz%2Fms8dk1ui_00_6b014a15.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FqRRRV7BjXDPqgTpVchnz%2Fms8dk1ui_00_6b014a15.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FqRRRV7BjXDPqgTpVchnz%2Fms8dk1ui_01_7f69a3fa.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FqRRRV7BjXDPqgTpVchnz%2Fms8dk1ui_02_3f72f987.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FqRRRV7BjXDPqgTpVchnz%2Fms8dk1ui_03_062949eb.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FqRRRV7BjXDPqgTpVchnz%2Fms8dk1ui_04_33489110.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FqRRRV7BjXDPqgTpVchnz%2Fms8dk1ui_05_ebd2f684.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FqRRRV7BjXDPqgTpVchnz%2Fms8dk1ui_06_9923fe80.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FqRRRV7BjXDPqgTpVchnz%2Fms8dk1ui_07_777db0d8.jpg?alt=media"], "video": "https://youtube.com/shorts/QX0bn9NwJ20?feature=share", "fotoCurate": true}, {"id": "zL4h3VusgV1qnoNQK5Dc", "nome": "Trilocale Trieste", "zona": "Trieste", "indirizzo": "Via Calabria 29", "prezzo": 2200, "mq": 90, "letti": 2, "bagni": 1, "piano": "2", "tipo": "Trilocale", "arredata": true, "stato": "Rented", "libera": false, "dal": "2026-06-01", "racconto": "Beautiful trilocale in Trieste, 90sqm on floor 2, fully furnished. 2 beds, 1 bathroom. Features include ac, elevator, dishwasher, double_glazing, doorman, wifi, washing_machine, storage. €2,200/month.", "dentro": ["A/C", "Elevator", "Dishwasher", "Double_glazing", "Doorman", "Wi-Fi", "Washing_machine", "Storage"], "cauzioneMesi": 1, "cover": "", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776869792457_photo_0.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776869795443_photo_1.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776869797793_photo_2.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776869799799_photo_3.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776869802177_photo_4.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776869804454_photo_5.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776869807405_photo_6.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776869809618_photo_7.jpg?alt=media"], "video": null, "fotoCurate": false}, {"id": "yGBx17OFlSgD0Kowk9jK", "nome": "Bilocale Trieste", "zona": "Trieste", "indirizzo": "Via Dei Laghi 14 Roma", "prezzo": 1200, "mq": 60, "letti": 1, "bagni": 1, "piano": "1", "tipo": "Bilocale", "arredata": true, "stato": "Rented", "libera": false, "dal": "2026-06-01", "racconto": "Beautiful bilocale in Trieste, 60sqm on floor 1, fully furnished. 1 beds, 1 bathroom. Features include ac, washing_machine, double_glazing, doorman, wifi, dishwasher. €1,200/month.", "dentro": ["A/C", "Washing_machine", "Double_glazing", "Doorman", "Wi-Fi", "Dishwasher"], "cauzioneMesi": 1, "cover": "", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776875681289_photo_0.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776875683667_photo_1.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776875685382_photo_2.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776875687128_photo_3.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776875688835_photo_4.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776875690906_photo_5.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776875692445_photo_6.jpg?alt=media"], "video": null, "fotoCurate": false}, {"id": "G8tzBej0f8JyBP0oAqRS", "nome": "Bilocale Flaminio", "zona": "Flaminio", "indirizzo": "Via Fracassini 10", "prezzo": 1800, "mq": 55, "letti": 1, "bagni": 1, "piano": "5", "tipo": "Bilocale", "arredata": true, "stato": "Rented", "libera": false, "dal": "2026-06-01", "racconto": "Beautiful bilocale in Flaminio, 55sqm on floor 5, fully furnished. 1 beds, 1 bathroom. Features include ac, elevator, balcony, washing_machine, double_glazing, doorman, wifi, dishwasher. €1,800/month.", "dentro": ["A/C", "Elevator", "Balcony", "Washing_machine", "Double_glazing", "Doorman", "Wi-Fi", "Dishwasher"], "cauzioneMesi": 1, "cover": "", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776440137128_photo_0.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776440139230_photo_1.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776440141703_photo_2.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776440143690_photo_3.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776440145837_photo_4.jpg?alt=media"], "video": null, "fotoCurate": false}, {"id": "angelico", "nome": "Angelico Loft", "zona": "Prati", "indirizzo": "Viale Angelico, Mazzini", "prezzo": 2000, "mq": 65, "letti": 2, "bagni": null, "piano": "2nd Floor", "tipo": "Loft Style", "arredata": false, "stato": "Waitlist open", "libera": false, "dal": "2027-07-01", "racconto": "A 65 sqm loft-style apartment on the 2nd floor of Viale Angelico, combining an open-plan living area with a sleeping loft. The unfurnished space gives you freedom to create your own layout and aesthetic. Available from 1 July at €2000/month. Prati is a quiet, residential neighbourhood with tree-lined streets, neighbourhood restaurants, and easy access to the Tiber and central Rome.", "dentro": ["All Inclusive", "Modern", "Sep 2026"], "cauzioneMesi": 1, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fangelico%2Fmrzsx85w_00_e5bf052c.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fangelico%2Fmrzsx85w_00_e5bf052c.jpg?alt=media"], "video": null, "fotoCurate": true}, {"id": "navona", "nome": "Coronari Classic", "zona": "Centro Storico", "indirizzo": "Via dei Coronari, Piazza Navona", "prezzo": 1800, "mq": 70, "letti": 1, "bagni": null, "piano": "1st Floor", "tipo": "Historic", "arredata": false, "stato": "Waitlist open", "libera": false, "dal": "2027-03-01", "racconto": "This 70-square-meter apartment sits on the first floor of a historic building on Via dei Coronari, steps from Piazza Navona. The unfurnished one-bedroom offers the chance to make the space entirely your own while living in one of Rome's most distinctive areas. Available from March 1st at €1,800 per month. Centro Storico rewards those who settle here with walkable access to galleries, trattorias, and centuries of architecture—plus the neighbourhood's calm early mornings before the crowds arrive.", "dentro": ["Historic Center", "Elevator", "Fireplace"], "cauzioneMesi": 1, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fnavona%2Fms5ioeyr_00_d08009e6.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fnavona%2Fms5ioeyr_00_d08009e6.jpg?alt=media"], "video": null, "fotoCurate": true}, {"id": "piemonte", "nome": "Piemonte Attic", "zona": "Vittorio Veneto", "indirizzo": "Via Piemonte, Vittorio Veneto", "prezzo": 1300, "mq": 55, "letti": 1, "bagni": null, "piano": "5th Floor", "tipo": "Attic", "arredata": false, "stato": "Waitlist open", "libera": false, "dal": "2026-09-01", "racconto": "A 55 sqm attic on the 5th floor of Via Piemonte with one bedroom, unfurnished and ready for you to make it your own. Natural light floods this compact space, ideal for a single professional or couple working remotely. Available from 1 September 2026 at €1,300 per month. Vittorio Veneto is a quiet, residential neighbourhood with reliable transport links and local shops—the kind of place where you can actually focus on work.", "dentro": ["Renovated", "A/C", "Central"], "cauzioneMesi": 1, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fpiemonte%2Fms5ioi4l_00_cd31173f.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fpiemonte%2Fms5ioi4l_00_cd31173f.jpg?alt=media"], "video": null, "fotoCurate": true}, {"id": "pigneto", "nome": "Pigneto Terrace", "zona": "Pigneto", "indirizzo": "Via Ascoli Piceno, Pigneto", "prezzo": 1700, "mq": 80, "letti": 2, "bagni": null, "piano": "2nd Floor", "tipo": "Bohemian", "arredata": false, "stato": "Waitlist open", "libera": false, "dal": "2027-06-01", "racconto": "This 80 sqm apartment on the 2nd floor of Via Ascoli Piceno offers two bedrooms in unfurnished condition, giving you the freedom to design your own space. Located in Pigneto, a neighbourhood known for its creative energy and local character, it's an ideal base for those seeking authentic Roman life away from tourist crowds. Street-level cafés, independent shops, and a genuine community spirit define the area. Available from June 1st at €1,700/month.", "dentro": ["All Inclusive", "Terrace", "Balcony"], "cauzioneMesi": 1, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fpigneto%2Fms8dkk6z_00_9f8dcbd0.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fpigneto%2Fmsf8rlg4_00_9f8dcbd0.jpg?alt=media"], "video": null, "fotoCurate": true}, {"id": "ripetta", "nome": "Ripetta Terrace", "zona": "Centro Storico", "indirizzo": "Passeggiata di Ripetta, Centro", "prezzo": 2300, "mq": 100, "letti": 1, "bagni": null, "piano": "1st Floor", "tipo": "Premium Terrace", "arredata": false, "stato": "Waitlist open", "libera": false, "dal": "2026-09-01", "racconto": "This 100 sqm apartment offers a peaceful retreat on the first floor of Passeggiata di Ripetta, with direct access to a private terrace. The unfurnished space gives you freedom to design your own home in one of Rome's most walkable districts. Available from September 2026 at €2,300/month. Centro Storico puts you steps from galleries, restaurants, and the river—everything is within reach on foot.", "dentro": ["Panoramic Terrace", "River View", "Sep 2026"], "cauzioneMesi": 1, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fripetta%2Fms9sznst_00_7fc18043.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fripetta%2Fms9sznst_00_7fc18043.jpg?alt=media"], "video": null, "fotoCurate": true}, {"id": "wvX0h0lBoNKOMuTuHkVI", "nome": "Capri 2 Bed", "zona": "Conca d'Oro", "indirizzo": "Piazza Capri 46", "prezzo": 1750, "mq": 80, "letti": 2, "bagni": null, "piano": "2nd Floor", "tipo": "Spacious 2 Bedroom Flat", "arredata": false, "stato": "Waitlist open", "libera": false, "dal": "2027-05-15", "racconto": "Spacious 2bed in front of the Metro B of piazza Annibaliano , bath , kitchen , all inclusive .", "dentro": ["Balcony", "A/C", "Washer", "Dishwasher", "Wi-Fi"], "cauzioneMesi": 1, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FwvX0h0lBoNKOMuTuHkVI%2Fms9szt8z_00_7f38f3a7.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FwvX0h0lBoNKOMuTuHkVI%2Fms9szt8z_00_7f38f3a7.jpg?alt=media"], "video": null, "fotoCurate": true}];
+  var CASE = [{"id": "cezFMXTWnHUDgb1H2WWm", "nome": "Bilocale Trastevere", "zona": "Trastevere", "indirizzo": "Via in Piscinula", "prezzo": 1200, "mq": 45, "letti": 1, "bagni": 1, "piano": "1", "tipo": "Bilocale", "arredata": true, "stato": "Available now", "libera": true, "dal": "2026-07-01", "racconto": "This 45 sqm one-bedroom apartment on the ground floor of Via in Piscinula offers straightforward comfort in Trastevere. Fully furnished with one bathroom, it's available from July 2026 with the option of a rent-controlled contract. The location puts you within walking distance of local trattorias, bookshops, and the Tiber's riverside paths. Trastevere works well for those who value authenticity over tourist crowds—genuine neighbourhood life, independent shops, and easy access to central Rome.", "dentro": ["Trastevere", "Bilocale", "Rent-controlled option", "Furnished"], "cauzioneMesi": 1, "lat": 41.8886622, "lng": 12.4769693, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FcezFMXTWnHUDgb1H2WWm%2Fmrzsxcyw_00_4d6b85f3.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FcezFMXTWnHUDgb1H2WWm%2Fmrzsxcyw_00_4d6b85f3.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FcezFMXTWnHUDgb1H2WWm%2Fmrzsxcyw_01_faa0aead.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FcezFMXTWnHUDgb1H2WWm%2Fmrzsxcyw_02_b0d2b486.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FcezFMXTWnHUDgb1H2WWm%2Fmrzsxcyw_03_6daaa199.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FcezFMXTWnHUDgb1H2WWm%2Fmrzsxcyw_04_2357b599.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FcezFMXTWnHUDgb1H2WWm%2Fmrzsxcyw_05_b9f54cdb.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FcezFMXTWnHUDgb1H2WWm%2Fmrzsxcyw_06_54c85323.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FcezFMXTWnHUDgb1H2WWm%2Fmrzsxcyw_07_9187c4cd.jpg?alt=media"], "video": null, "fotoCurate": true}, {"id": "esFhjFMVfZtkIrhkx0PR", "nome": "Prati cozy", "zona": "Prati", "indirizzo": "Via Montezebio", "prezzo": 1500, "mq": 65, "letti": 1, "bagni": null, "piano": "2", "tipo": "Loft", "arredata": false, "stato": "From 1 Mar 2027", "libera": true, "dal": "2027-03-01", "racconto": "This 65 sqm loft on the second floor of Via Montezebio offers a flexible open-plan layout with one bedroom, living area, bathroom and entrance. Unfurnished, it's a blank canvas for a tenant who wants to shape the space to their needs. Available from 1 March at €1500/month. Prati is a residential neighbourhood with local shops, markets and easy access across the city.", "dentro": ["A/C", "Wi-Fi", "Central location", "High end zone"], "cauzioneMesi": 1, "lat": 41.9081381, "lng": 12.4644964, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FesFhjFMVfZtkIrhkx0PR%2Fms18d3o8_00_27bce535.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FesFhjFMVfZtkIrhkx0PR%2Fms18d3o8_00_27bce535.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FesFhjFMVfZtkIrhkx0PR%2Fms18d3o8_01_36b7d49a.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FesFhjFMVfZtkIrhkx0PR%2Fms18d3o8_02_016137cc.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FesFhjFMVfZtkIrhkx0PR%2Fms18d3o8_03_46eb0053.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FesFhjFMVfZtkIrhkx0PR%2Fms18d3o8_04_aae693c7.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FesFhjFMVfZtkIrhkx0PR%2Fms18d3o8_05_8b2783da.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FesFhjFMVfZtkIrhkx0PR%2Fms18d3o8_06_b12dfceb.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FesFhjFMVfZtkIrhkx0PR%2Fms18d3o8_07_2790a6eb.jpg?alt=media"], "video": null, "fotoCurate": true}, {"id": "sr0rpLSqbpDMASkHINfx", "nome": "Trilocale Pigneto", "zona": "Pigneto", "indirizzo": "Piazzale Prenestino 42", "prezzo": 1600, "mq": 80, "letti": 2, "bagni": 2, "piano": "3", "tipo": "Trilocale", "arredata": true, "stato": "Available now", "libera": true, "dal": "2026-08-01", "racconto": "This 80 sqm trilocale on the third floor of Piazzale Prenestino offers two bedrooms, two bathrooms, and a balcony with air conditioning and double glazing throughout. Fully furnished and move-in ready, it includes a dishwasher, washing machine, WiFi, and elevator access, with a doorman on-site. Available from August 1st, 2026 at €1,600/month, with a rent-controlled contract option. Pigneto is a vibrant neighbourhood with independent galleries, vintage shops, and a strong creative community—ideal for those seeking authentic Roman life beyond the tourist centre.", "dentro": ["A/C", "Balcony", "Elevator", "Dishwasher", "Wi-Fi", "Double_glazing", "Doorman", "Washing_machine"], "cauzioneMesi": 2, "lat": null, "lng": null, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fsr0rpLSqbpDMASkHINfx%2Fms6y4det_00_1f4b631c.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fsr0rpLSqbpDMASkHINfx%2Fms6y4det_00_1f4b631c.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fsr0rpLSqbpDMASkHINfx%2Fms6y4det_01_57bedc39.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fsr0rpLSqbpDMASkHINfx%2Fms6y4det_02_dc30e976.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fsr0rpLSqbpDMASkHINfx%2Fms6y4det_03_826acc4a.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fsr0rpLSqbpDMASkHINfx%2Fms6y4det_04_613c5cd8.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fsr0rpLSqbpDMASkHINfx%2Fms6y4det_05_9cb69bdb.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fsr0rpLSqbpDMASkHINfx%2Fms6y4det_06_bf85165f.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fsr0rpLSqbpDMASkHINfx%2Fms6y4det_07_e8dd9a85.jpg?alt=media"], "video": "https://youtube.com/shorts/ecWEt-ao0mY?si=og7stlcM_RmOp2HD", "fotoCurate": true}, {"id": "ttvrjazww9oe4tA0wHTf", "nome": "Bilocale Ponte Milvio", "zona": "Ponte Milvio", "indirizzo": "Via Di Tor Di Quinto 39", "prezzo": 1250, "mq": 70, "letti": 1, "bagni": 1, "piano": "0", "tipo": "Bilocale", "arredata": true, "stato": "Available now", "libera": true, "dal": "2026-07-01", "racconto": "This 70-sqm one-bedroom apartment on the ground floor of Via Di Tor Di Quinto offers practical, everyday comfort. Fully furnished with air conditioning, dishwasher, washing machine, and double glazing, it comes with a parking space and WiFi included—essentials for remote work. A doorman is on-site, and a rent-controlled contract is available. Ponte Milvio is accessible and residential, with local shops and transport links that make getting around straightforward.", "dentro": ["A/C", "Dishwasher", "Parking", "Wi-Fi", "Washing_machine", "Double_glazing", "Doorman"], "cauzioneMesi": 1, "lat": 41.9494622, "lng": 12.4840019, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fttvrjazww9oe4tA0wHTf%2Fmrz6vxb9_00_18252691.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fttvrjazww9oe4tA0wHTf%2Fmrz6vxb9_00_18252691.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fttvrjazww9oe4tA0wHTf%2Fmrz6vxb9_01_0a86bca5.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fttvrjazww9oe4tA0wHTf%2Fmrz6vxb9_02_cbc99b72.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fttvrjazww9oe4tA0wHTf%2Fmrz6vxb9_03_aeab6dec.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fttvrjazww9oe4tA0wHTf%2Fmrz6vxb9_04_0cf9a316.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fttvrjazww9oe4tA0wHTf%2Fmrz6vxb9_05_06a6faa1.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fttvrjazww9oe4tA0wHTf%2Fmrz6vxb9_06_f24ea8c3.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fttvrjazww9oe4tA0wHTf%2Fmrz6vxb9_07_6527dc71.jpg?alt=media"], "video": null, "fotoCurate": true}, {"id": "FHeEHIFbil6QG8Jcccxc", "nome": "Bilocale Trieste", "zona": "Trieste", "indirizzo": "Via Appennini 33", "prezzo": 2000, "mq": 55, "letti": 1, "bagni": 1, "piano": "3", "tipo": "Bilocale", "arredata": true, "stato": "Available now", "libera": true, "dal": "2026-07-01", "racconto": "A 55 sqm bilocale on the third floor with one bedroom and bathroom, fully furnished and ready to move in. The apartment features air conditioning, an elevator, and a balcony overlooking the neighbourhood. Available from July 1st, 2026, with rent-controlled contract options available. Trieste offers a mix of Central European charm and Mediterranean atmosphere, with excellent public transport and a strong community of remote workers and international residents.", "dentro": ["A/C", "Elevator", "Balcony"], "cauzioneMesi": 1, "lat": 41.9181441, "lng": 12.5099, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FFHeEHIFbil6QG8Jcccxc%2Fmrwy1a3g_00_d2ee0ce1.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FFHeEHIFbil6QG8Jcccxc%2Fmrwy1a3g_00_d2ee0ce1.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FFHeEHIFbil6QG8Jcccxc%2Fmrwy1a3g_01_f5206849.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FFHeEHIFbil6QG8Jcccxc%2Fmrwy1a3g_02_a9eff724.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FFHeEHIFbil6QG8Jcccxc%2Fmrwy1a3g_03_5c4429c8.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FFHeEHIFbil6QG8Jcccxc%2Fmrwy1a3g_04_cf702ac9.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FFHeEHIFbil6QG8Jcccxc%2Fmrwy1a3g_05_5d1aaf47.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FFHeEHIFbil6QG8Jcccxc%2Fmrwy1a3g_06_db038bf6.jpg?alt=media"], "video": null, "fotoCurate": true}, {"id": "Kz9bXztv5QXmQrNhAcoU", "nome": "Ponte Milvio Duplex", "zona": "Ponte Milvio", "indirizzo": "Via Di Tor Di quinto 39", "prezzo": 1200, "mq": 55, "letti": 1, "bagni": null, "piano": "Ground Floor + upper plan", "tipo": "Duplex", "arredata": false, "stato": "From 1 May 2027", "libera": true, "dal": "2027-05-01", "racconto": "Inside a Condo we manage from Years , located in heart of services and experience like the Olimpic stadium , max 1 of May will be ready this new unit that is possible to visit from now even if under work", "dentro": ["A/C", "Wi-Fi"], "cauzioneMesi": 1, "lat": 41.9494622, "lng": 12.4840019, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FKz9bXztv5QXmQrNhAcoU%2Fmrwy1jgh_00_3edcb767.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FKz9bXztv5QXmQrNhAcoU%2Fmsf8rosp_00_3edcb767.jpg?alt=media"], "video": null, "fotoCurate": true}, {"id": "ilW5lAxnNn5M2TjsSHx2", "nome": "Africano Premium Room", "zona": "Africano", "indirizzo": "Via Endertà 9", "prezzo": 900, "mq": 30, "letti": 1, "bagni": null, "piano": "5 floor", "tipo": "Room", "arredata": false, "stato": "From 1 Jul 2027", "libera": true, "dal": "2027-07-01", "racconto": "A 30 sqm room on the 5th floor of Via Endertà 9, unfurnished and ready from 1 July. It includes air conditioning and Wi-Fi, giving you the essentials for comfortable remote work. The Africano/Trieste neighbourhood offers a genuine residential feel with local shops and transport links, away from tourist crowds.", "dentro": ["A/C", "Wi-Fi"], "cauzioneMesi": 1, "lat": 41.9300498, "lng": 12.5249351, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FilW5lAxnNn5M2TjsSHx2%2Fms438muu_00_25bd2cd0.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FilW5lAxnNn5M2TjsSHx2%2Fmsf8r96a_00_25bd2cd0.jpg?alt=media"], "video": null, "fotoCurate": true}, {"id": "levico", "nome": "Levico", "zona": "Trieste", "indirizzo": "Via Levico, Trieste/Coppedè", "prezzo": 1200, "mq": 40, "letti": 1, "bagni": null, "piano": "Ground Floor", "tipo": "Garden Floor", "arredata": false, "stato": "From 31 Jul 2027", "libera": true, "dal": "2027-07-31", "racconto": "This 40 sqm garden floor apartment on Via Levico offers a calm ground-level living space in the Coppedè area. The single bedroom and open layout provide straightforward, efficient living for one person or a couple. Unfurnished, it's ready for you to make it your own. The neighbourhood is quiet and residential, with easy access to local shops and transport.", "dentro": ["All Inclusive", "Garden", "Wi-Fi"], "cauzioneMesi": 1, "lat": 41.9278853, "lng": 12.5157767, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Flevico%2Fms438q5f_00_a4e03314.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Flevico%2Fms438q5f_00_a4e03314.jpg?alt=media"], "video": null, "fotoCurate": true}, {"id": "OLLVsiKhPrhpT1fx8XmB", "nome": "Bilocale Centro", "zona": "Centro", "indirizzo": "Via Dei Cappellari 4", "prezzo": 1500, "mq": 60, "letti": 3, "bagni": 1, "piano": "1", "tipo": "Bilocale", "arredata": true, "stato": "Waitlist open", "libera": false, "dal": "2027-01-31", "racconto": "This 60 sqm bilocale on the first floor of Via Dei Cappellari offers three bedrooms and one bathroom, fully furnished and ready to move into. It comes with air conditioning, a balcony, dishwasher, washing machine, double glazing, and WiFi included, plus the security of a doorman in the building. A rent-controlled contract (canone concordato) is available. Centro is where you'll find Rome's everyday rhythm—local shops, trattorias, and the kind of neighbourhoods Romans actually live in.", "dentro": ["A/C", "Balcony", "Dishwasher", "Washing_machine", "Double_glazing", "Doorman", "Wi-Fi"], "cauzioneMesi": 1, "lat": null, "lng": null, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FOLLVsiKhPrhpT1fx8XmB%2Fmrydgy70_00_5083a1a3.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FOLLVsiKhPrhpT1fx8XmB%2Fmsf8rgbx_00_5083a1a3.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FOLLVsiKhPrhpT1fx8XmB%2Fmsf8rgbx_01_9ec77229.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FOLLVsiKhPrhpT1fx8XmB%2Fmsf8rgbx_02_ee69fe1e.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FOLLVsiKhPrhpT1fx8XmB%2Fmsf8rgbx_03_c184c0f5.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FOLLVsiKhPrhpT1fx8XmB%2Fmsf8rgbx_04_f6706750.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FOLLVsiKhPrhpT1fx8XmB%2Fmsf8rgbx_05_89aebdee.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FOLLVsiKhPrhpT1fx8XmB%2Fmsf8rgbx_06_4f7a7969.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FOLLVsiKhPrhpT1fx8XmB%2Fmsf8rgbx_07_89ef2214.jpg?alt=media"], "video": null, "fotoCurate": true}, {"id": "aZ3EnMYBDy7c2upKRnnA", "nome": "Bilocale Centro", "zona": "Centro", "indirizzo": "Via Di S.Anna 16", "prezzo": 1200, "mq": 50, "letti": 1, "bagni": 1, "piano": "3", "tipo": "Bilocale", "arredata": true, "stato": "Rented", "libera": false, "dal": "2026-09-01", "racconto": "This 50 sqm bilocale on the third floor of Via Di S.Anna offers a complete setup for remote work and daily living. You'll find air conditioning, a washing machine, dishwasher, and WiFi included, plus a parking space—practical essentials in the centro. Fully furnished with double glazing windows and elevator access, it's ready to move into on September 1st, 2026. A rent-controlled contract is available at €1200/month. Centro living means walking to shops, restaurants, and transport links without the tourist crowds of the very core.", "dentro": ["A/C", "Elevator", "Washing_machine", "Dishwasher", "Parking", "Double_glazing", "Wi-Fi"], "cauzioneMesi": 1, "lat": 41.8986, "lng": 12.4735, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FaZ3EnMYBDy7c2upKRnnA%2Fmrydhloq_00_2d041ed5.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FaZ3EnMYBDy7c2upKRnnA%2Fmrydhloq_00_2d041ed5.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FaZ3EnMYBDy7c2upKRnnA%2Fmrydhloq_01_c34b6e46.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FaZ3EnMYBDy7c2upKRnnA%2Fmrydhloq_02_4e6d5619.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FaZ3EnMYBDy7c2upKRnnA%2Fmrydhloq_03_338f7058.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FaZ3EnMYBDy7c2upKRnnA%2Fmrydhloq_04_7c8e7001.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FaZ3EnMYBDy7c2upKRnnA%2Fmrydhloq_05_7f246c08.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FaZ3EnMYBDy7c2upKRnnA%2Fmrydhloq_06_4a27d948.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FaZ3EnMYBDy7c2upKRnnA%2Fmrydhloq_07_c900024a.jpg?alt=media"], "video": null, "fotoCurate": true}, {"id": "hwnkDcXvs7Q0EW99xV7O", "nome": "Trilocale Pigneto", "zona": "Pigneto", "indirizzo": "Via MonteCuccoli 26", "prezzo": 2000, "mq": 100, "letti": 3, "bagni": 1, "piano": "5", "tipo": "Trilocale", "arredata": true, "stato": "Waitlist open", "libera": false, "dal": "2027-01-01", "racconto": "This 100 sqm trilocale on the fifth floor of Via MonteCuccoli offers three bedrooms and one bathroom, fully furnished and ready to move into. The rent-controlled contract option makes it an accessible choice for longer stays. Pigneto appeals to those seeking a neighbourhood with independent shops, street art, and a local feel away from the tourist centre.", "dentro": ["Pigneto", "Trilocale", "Rent-controlled option", "Furnished"], "cauzioneMesi": 1, "lat": 41.8925477, "lng": 12.5272269, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FhwnkDcXvs7Q0EW99xV7O%2Fms18dq0y_00_8cd440e9.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FhwnkDcXvs7Q0EW99xV7O%2Fms2nst8c_00_8cd440e9.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FhwnkDcXvs7Q0EW99xV7O%2Fms2nst8c_01_62ba981b.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FhwnkDcXvs7Q0EW99xV7O%2Fms2nst8c_02_3cf47e1d.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FhwnkDcXvs7Q0EW99xV7O%2Fms2nst8c_03_c532b335.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FhwnkDcXvs7Q0EW99xV7O%2Fms2nst8c_04_decc244e.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FhwnkDcXvs7Q0EW99xV7O%2Fms2nst8c_05_a3ae726d.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FhwnkDcXvs7Q0EW99xV7O%2Fms2nst8c_06_d2a4e96f.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FhwnkDcXvs7Q0EW99xV7O%2Fms2nst8c_07_bca36ef4.jpg?alt=media"], "video": null, "fotoCurate": true}, {"id": "qRRRV7BjXDPqgTpVchnz", "nome": "Parioli Double Room with Garden", "zona": "Parioli", "indirizzo": "Via Ettore Petrolini 30", "prezzo": 1000, "mq": 45, "letti": 1, "bagni": null, "piano": "floor", "tipo": "Garden Floor", "arredata": false, "stato": "Waitlist open", "libera": false, "dal": "2026-08-01", "racconto": "Delicious and ultra spacious Bedroom with Private Bath in Parioli Heart , perfect for Luiss students . Direct garden acess , all inclusive .", "dentro": ["A/C", "Wi-Fi", "Premium space", "Private bath", "Shared Kitchen"], "cauzioneMesi": 1, "lat": 41.9306798, "lng": 12.4950028, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FqRRRV7BjXDPqgTpVchnz%2Fms8dk1ui_00_6b014a15.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FqRRRV7BjXDPqgTpVchnz%2Fms8dk1ui_00_6b014a15.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FqRRRV7BjXDPqgTpVchnz%2Fms8dk1ui_01_7f69a3fa.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FqRRRV7BjXDPqgTpVchnz%2Fms8dk1ui_02_3f72f987.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FqRRRV7BjXDPqgTpVchnz%2Fms8dk1ui_03_062949eb.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FqRRRV7BjXDPqgTpVchnz%2Fms8dk1ui_04_33489110.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FqRRRV7BjXDPqgTpVchnz%2Fms8dk1ui_05_ebd2f684.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FqRRRV7BjXDPqgTpVchnz%2Fms8dk1ui_06_9923fe80.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FqRRRV7BjXDPqgTpVchnz%2Fms8dk1ui_07_777db0d8.jpg?alt=media"], "video": "https://youtube.com/shorts/QX0bn9NwJ20?feature=share", "fotoCurate": true}, {"id": "zL4h3VusgV1qnoNQK5Dc", "nome": "Trilocale Trieste", "zona": "Trieste", "indirizzo": "Via Calabria 29", "prezzo": 2200, "mq": 90, "letti": 2, "bagni": 1, "piano": "2", "tipo": "Trilocale", "arredata": true, "stato": "Rented", "libera": false, "dal": "2026-06-01", "racconto": "Beautiful trilocale in Trieste, 90sqm on floor 2, fully furnished. 2 beds, 1 bathroom. Features include ac, elevator, dishwasher, double_glazing, doorman, wifi, washing_machine, storage. €2,200/month.", "dentro": ["A/C", "Elevator", "Dishwasher", "Double_glazing", "Doorman", "Wi-Fi", "Washing_machine", "Storage"], "cauzioneMesi": 1, "lat": 41.909757, "lng": 12.497432, "cover": "", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776869792457_photo_0.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776869795443_photo_1.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776869797793_photo_2.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776869799799_photo_3.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776869802177_photo_4.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776869804454_photo_5.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776869807405_photo_6.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776869809618_photo_7.jpg?alt=media"], "video": null, "fotoCurate": false}, {"id": "yGBx17OFlSgD0Kowk9jK", "nome": "Bilocale Trieste", "zona": "Trieste", "indirizzo": "Via Dei Laghi 14 Roma", "prezzo": 1200, "mq": 60, "letti": 1, "bagni": 1, "piano": "1", "tipo": "Bilocale", "arredata": true, "stato": "Rented", "libera": false, "dal": "2026-06-01", "racconto": "Beautiful bilocale in Trieste, 60sqm on floor 1, fully furnished. 1 beds, 1 bathroom. Features include ac, washing_machine, double_glazing, doorman, wifi, dishwasher. €1,200/month.", "dentro": ["A/C", "Washing_machine", "Double_glazing", "Doorman", "Wi-Fi", "Dishwasher"], "cauzioneMesi": 1, "lat": 41.923, "lng": 12.505, "cover": "", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776875681289_photo_0.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776875683667_photo_1.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776875685382_photo_2.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776875687128_photo_3.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776875688835_photo_4.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776875690906_photo_5.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776875692445_photo_6.jpg?alt=media"], "video": null, "fotoCurate": false}, {"id": "G8tzBej0f8JyBP0oAqRS", "nome": "Bilocale Flaminio", "zona": "Flaminio", "indirizzo": "Via Fracassini 10", "prezzo": 1800, "mq": 55, "letti": 1, "bagni": 1, "piano": "5", "tipo": "Bilocale", "arredata": true, "stato": "Rented", "libera": false, "dal": "2026-06-01", "racconto": "Beautiful bilocale in Flaminio, 55sqm on floor 5, fully furnished. 1 beds, 1 bathroom. Features include ac, elevator, balcony, washing_machine, double_glazing, doorman, wifi, dishwasher. €1,800/month.", "dentro": ["A/C", "Elevator", "Balcony", "Washing_machine", "Double_glazing", "Doorman", "Wi-Fi", "Dishwasher"], "cauzioneMesi": 1, "lat": 41.9235086, "lng": 12.4699386, "cover": "", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776440137128_photo_0.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776440139230_photo_1.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776440141703_photo_2.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776440143690_photo_3.jpg?alt=media", "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1776440145837_photo_4.jpg?alt=media"], "video": null, "fotoCurate": false}, {"id": "angelico", "nome": "Angelico Loft", "zona": "Prati", "indirizzo": "Viale Angelico, Mazzini", "prezzo": 2000, "mq": 65, "letti": 2, "bagni": null, "piano": "2nd Floor", "tipo": "Loft Style", "arredata": false, "stato": "Waitlist open", "libera": false, "dal": "2027-07-01", "racconto": "A 65 sqm loft-style apartment on the 2nd floor of Viale Angelico, combining an open-plan living area with a sleeping loft. The unfurnished space gives you freedom to create your own layout and aesthetic. Available from 1 July at €2000/month. Prati is a quiet, residential neighbourhood with tree-lined streets, neighbourhood restaurants, and easy access to the Tiber and central Rome.", "dentro": ["All Inclusive", "Modern", "Sep 2026"], "cauzioneMesi": 1, "lat": 41.9081381, "lng": 12.4644964, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fangelico%2Fmrzsx85w_00_e5bf052c.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fangelico%2Fmrzsx85w_00_e5bf052c.jpg?alt=media"], "video": null, "fotoCurate": true}, {"id": "navona", "nome": "Coronari Classic", "zona": "Centro Storico", "indirizzo": "Via dei Coronari, Piazza Navona", "prezzo": 1800, "mq": 70, "letti": 1, "bagni": null, "piano": "1st Floor", "tipo": "Historic", "arredata": false, "stato": "Waitlist open", "libera": false, "dal": "2027-03-01", "racconto": "This 70-square-meter apartment sits on the first floor of a historic building on Via dei Coronari, steps from Piazza Navona. The unfurnished one-bedroom offers the chance to make the space entirely your own while living in one of Rome's most distinctive areas. Available from March 1st at €1,800 per month. Centro Storico rewards those who settle here with walkable access to galleries, trattorias, and centuries of architecture—plus the neighbourhood's calm early mornings before the crowds arrive.", "dentro": ["Historic Center", "Elevator", "Fireplace"], "cauzioneMesi": 1, "lat": 41.8986, "lng": 12.4735, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fnavona%2Fms5ioeyr_00_d08009e6.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fnavona%2Fms5ioeyr_00_d08009e6.jpg?alt=media"], "video": null, "fotoCurate": true}, {"id": "piemonte", "nome": "Piemonte Attic", "zona": "Vittorio Veneto", "indirizzo": "Via Piemonte, Vittorio Veneto", "prezzo": 1300, "mq": 55, "letti": 1, "bagni": null, "piano": "5th Floor", "tipo": "Attic", "arredata": false, "stato": "Waitlist open", "libera": false, "dal": "2026-09-01", "racconto": "A 55 sqm attic on the 5th floor of Via Piemonte with one bedroom, unfurnished and ready for you to make it your own. Natural light floods this compact space, ideal for a single professional or couple working remotely. Available from 1 September 2026 at €1,300 per month. Vittorio Veneto is a quiet, residential neighbourhood with reliable transport links and local shops—the kind of place where you can actually focus on work.", "dentro": ["Renovated", "A/C", "Central"], "cauzioneMesi": 1, "lat": 41.907, "lng": 12.49, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fpiemonte%2Fms5ioi4l_00_cd31173f.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fpiemonte%2Fms5ioi4l_00_cd31173f.jpg?alt=media"], "video": null, "fotoCurate": true}, {"id": "pigneto", "nome": "Pigneto Terrace", "zona": "Pigneto", "indirizzo": "Via Ascoli Piceno, Pigneto", "prezzo": 1700, "mq": 80, "letti": 2, "bagni": null, "piano": "2nd Floor", "tipo": "Bohemian", "arredata": false, "stato": "Waitlist open", "libera": false, "dal": "2027-06-01", "racconto": "This 80 sqm apartment on the 2nd floor of Via Ascoli Piceno offers two bedrooms in unfurnished condition, giving you the freedom to design your own space. Located in Pigneto, a neighbourhood known for its creative energy and local character, it's an ideal base for those seeking authentic Roman life away from tourist crowds. Street-level cafés, independent shops, and a genuine community spirit define the area. Available from June 1st at €1,700/month.", "dentro": ["All Inclusive", "Terrace", "Balcony"], "cauzioneMesi": 1, "lat": 41.8898545, "lng": 12.5257962, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fpigneto%2Fms8dkk6z_00_9f8dcbd0.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fpigneto%2Fmsf8rlg4_00_9f8dcbd0.jpg?alt=media"], "video": null, "fotoCurate": true}, {"id": "ripetta", "nome": "Ripetta Terrace", "zona": "Centro Storico", "indirizzo": "Passeggiata di Ripetta, Centro", "prezzo": 2300, "mq": 100, "letti": 1, "bagni": null, "piano": "1st Floor", "tipo": "Premium Terrace", "arredata": false, "stato": "Waitlist open", "libera": false, "dal": "2026-09-01", "racconto": "This 100 sqm apartment offers a peaceful retreat on the first floor of Passeggiata di Ripetta, with direct access to a private terrace. The unfurnished space gives you freedom to design your own home in one of Rome's most walkable districts. Available from September 2026 at €2,300/month. Centro Storico puts you steps from galleries, restaurants, and the river—everything is within reach on foot.", "dentro": ["Panoramic Terrace", "River View", "Sep 2026"], "cauzioneMesi": 1, "lat": 41.8986, "lng": 12.4735, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fripetta%2Fms9sznst_00_7fc18043.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fripetta%2Fms9sznst_00_7fc18043.jpg?alt=media"], "video": null, "fotoCurate": true}, {"id": "wvX0h0lBoNKOMuTuHkVI", "nome": "Capri 2 Bed", "zona": "Conca d'Oro", "indirizzo": "Piazza Capri 46", "prezzo": 1750, "mq": 80, "letti": 2, "bagni": null, "piano": "2nd Floor", "tipo": "Spacious 2 Bedroom Flat", "arredata": false, "stato": "Waitlist open", "libera": false, "dal": "2027-05-15", "racconto": "Spacious 2bed in front of the Metro B of piazza Annibaliano , bath , kitchen , all inclusive .", "dentro": ["Balcony", "A/C", "Washer", "Dishwasher", "Wi-Fi"], "cauzioneMesi": 1, "lat": 41.9436264, "lng": 12.528937, "cover": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FwvX0h0lBoNKOMuTuHkVI%2Fms9szt8z_00_7f38f3a7.jpg?alt=media", "foto": ["https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FwvX0h0lBoNKOMuTuHkVI%2Fms9szt8z_00_7f38f3a7.jpg?alt=media"], "video": null, "fotoCurate": true}];
+  /* sito = le API vere partono davvero; artefatto = PREVIEW in console */
+  var VERO = 'sito' === 'sito';
   var BS = window.BoomSolari;
   var ridotto = matchMedia('(prefers-reduced-motion: reduce)').matches;
   function euro(n) { return '€' + Math.round(n).toLocaleString('en-US'); }
@@ -2450,6 +2718,8 @@ html.vivo .coro.dentro .tempo::after {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       var t = e.target.tagName;
       if (t === 'INPUT' || t === 'TEXTAREA' || t === 'SELECT') return;
+      var l = document.getElementById('lente');
+      if (l && !l.hidden) return;   /* la lente ha le sue frecce */
       if (e.key === 'ArrowLeft') { e.preventDefault(); vai(-1); }
       if (e.key === 'ArrowRight') { e.preventDefault(); vai(1); }
     });
@@ -2693,6 +2963,20 @@ html.vivo .coro.dentro .tempo::after {
     lista.innerHTML = D.map(function (q) {
       return '<div class="chiedi-v"><b>' + q[0] + '</b><p>' + q[1] + '</p></div>';
     }).join('');
+    /* per i motori: le STESSE dieci risposte — mai due verita */
+    try {
+      var ld = { '@context': 'https://schema.org', '@type': 'FAQPage',
+        mainEntity: D.map(function (q) { return { '@type': 'Question',
+          name: q[0], acceptedAnswer: { '@type': 'Answer',
+            text: q[1].replace(/<[^>]+>/g, '') } }; }) };
+      var sc = document.getElementById('faqLd');
+      if (!sc) {
+        sc = document.createElement('script');
+        sc.type = 'application/ld+json'; sc.id = 'faqLd';
+        document.head.appendChild(sc);
+      }
+      sc.textContent = JSON.stringify(ld);
+    } catch (err) {}
   })();
 
   /* ── L'APPLY ─────────────────────────────────────────────────────────
@@ -2748,7 +3032,12 @@ html.vivo .coro.dentro .tempo::after {
         signers: Number(d.get('firmatari')) || 1,
         company: d.get('company')          /* esca per i robot */
       };
-      console.info('[PREVIEW] POST /api/apply-lead →', corpo);
+      if (VERO) {
+        /* la porta vera del pipeline: parte e non blocca, come dal vivo */
+        try { fetch('/api/apply-lead', { method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(corpo) }); } catch (err) {}
+      } else console.info('[PREVIEW] POST /api/apply-lead →', corpo);
       f.style.display = 'none';
       var sotto = document.getElementById('applicaSotto');
       if (sotto) sotto.style.display = 'none';
@@ -2757,6 +3046,304 @@ html.vivo .coro.dentro .tempo::after {
         fatto.classList.add('si');
         fatto.scrollIntoView({ block: 'center', behavior: 'smooth' });
       }
+    });
+  })();
+
+  /* ── LA LENTE: la foto a tutto schermo ─────────────────────────────── */
+  (function () {
+    var lente = document.getElementById('lente');
+    if (!lente || !immagini.length) return;
+    var foto = document.getElementById('lenteFoto'),
+        conta = document.getElementById('lenteConta');
+    var qui = 0, aperta = false;
+    function apri(i) {
+      qui = (i + immagini.length) % immagini.length;
+      foto.src = immagini[qui];
+      foto.alt = c.nome + ' — photo ' + (qui + 1) + ' of ' + immagini.length;
+      if (conta) conta.textContent = (qui + 1) + ' / ' + immagini.length;
+      lente.hidden = false; aperta = true;
+      document.documentElement.style.overflow = 'hidden';
+    }
+    function chiudi() {
+      lente.hidden = true; aperta = false;
+      document.documentElement.style.overflow = '';
+    }
+    telaio.addEventListener('click', function (e) {
+      if (e.target.closest('button')) return;  /* frecce e cuore sono loro */
+      var k = 0;
+      [].slice.call(rullino.children).forEach(function (b, i) {
+        if (b.classList.contains('qui')) k = i; });
+      apri(k);
+    });
+    document.getElementById('lenteX').addEventListener('click', chiudi);
+    document.getElementById('lentePrec').addEventListener('click',
+      function () { apri(qui - 1); });
+    document.getElementById('lenteSucc').addEventListener('click',
+      function () { apri(qui + 1); });
+    lente.addEventListener('click', function (e) {
+      if (e.target === lente) chiudi(); });
+    addEventListener('keydown', function (e) {
+      if (!aperta) return;
+      if (e.key === 'Escape') chiudi();
+      if (e.key === 'ArrowLeft') apri(qui - 1);
+      if (e.key === 'ArrowRight') apri(qui + 1);
+    });
+    var x0 = null;
+    lente.addEventListener('touchstart', function (e) {
+      x0 = e.touches[0].clientX; }, { passive: true });
+    lente.addEventListener('touchend', function (e) {
+      if (x0 === null) return;
+      var dx = e.changedTouches[0].clientX - x0; x0 = null;
+      if (Math.abs(dx) > 40) apri(qui + (dx < 0 ? 1 : -1));
+    }, { passive: true });
+    if (immagini.length < 2) {
+      document.getElementById('lentePrec').style.display = 'none';
+      document.getElementById('lenteSucc').style.display = 'none';
+    }
+  })();
+
+  /* ── IL POSTO: il blocco vero, i vicini, i tuoi luoghi ──────────────── */
+  (function () {
+    var sez = document.getElementById('posto');
+    if (!sez) return;
+    if (!c.lat || !c.lng) { sez.style.display = 'none'; return; }
+    var RAD = Math.PI / 180;
+    function km(a1, o1, a2, o2) {
+      var R = 6371, dy = (a2 - a1) * RAD, dx = (o2 - o1) * RAD;
+      var q = Math.pow(Math.sin(dy / 2), 2) + Math.cos(a1 * RAD)
+        * Math.cos(a2 * RAD) * Math.pow(Math.sin(dx / 2), 2);
+      /* onesto: linea d'aria ×1.3 per le strade vere, non un percorso */
+      return 2 * R * Math.asin(Math.min(1, Math.sqrt(q))) * 1.3;
+    }
+    function tempo(d) {
+      return d < 2.6 ? Math.round(d / 4.7 * 60) + ' min walk'
+                     : '≈' + Math.round(d * 4.2 + 10) + ' min';
+    }
+    /* i vicini fissi: stazioni e atenei veri, i 4 piu vicini a QUESTA porta */
+    var POSTI = [
+      ['Termini', 'Trains + Metro A/B', 41.9009, 12.5018],
+      ['Colosseo', 'The ancient centre', 41.8902, 12.4924],
+      ['Vatican', 'St Peter\'s & museums', 41.9022, 12.4534],
+      ['Sapienza', 'Main campus', 41.9038, 12.5135],
+      ['LUISS', 'Viale Romania campus', 41.9269, 12.4917],
+      ['Roma Tre', 'Ostiense campus', 41.8564, 12.4790],
+      ['John Cabot', 'Trastevere campus', 41.8937, 12.4664]
+    ];
+    document.getElementById('vicini').innerHTML = POSTI.map(function (p) {
+      var d = km(c.lat, c.lng, p[2], p[3]);
+      return { d: d, h: '<div class="vicino"><b>' + p[0] + '</b><span>'
+        + p[1] + '</span><i>' + tempo(d) + '</i></div>' };
+    }).sort(function (a, b) { return a.d - b.d; }).slice(0, 4)
+      .map(function (x) { return x.h; }).join('');
+
+    /* la mappa del blocco: solo se la chiami, e se non arriva lo dice */
+    var via = document.getElementById('bloccoVia'),
+        box = document.getElementById('blocco3d');
+    var mappaB = null, spenta = false;
+    function spengo() {
+      if (spenta) return; spenta = true;
+      box.innerHTML = '<div class="blocco-spento"><b>The map engine could '
+        + 'not be reached from here.</b><span>No fake map in its place — '
+        + 'see the exact spot on Google Maps instead.</span>'
+        + '<a class="btn btn-primary" target="_blank" rel="noopener" '
+        + 'href="https://maps.google.com/?q=' + c.lat + ',' + c.lng + '">'
+        + 'Open in Google Maps ↗</a></div>';
+    }
+    function accendi() {
+      var telo = document.createElement('div');
+      telo.id = 'bloccoMappa'; box.innerHTML = ''; box.appendChild(telo);
+      try {
+        mappaB = new maplibregl.Map({ container: 'bloccoMappa',
+          style: 'https://tiles.openfreemap.org/styles/liberty',
+          center: [c.lng, c.lat], zoom: 15.7, pitch: 55, bearing: -17,
+          antialias: true, attributionControl: { compact: true },
+          cooperativeGestures: {
+            windowsHelpText: 'Use Ctrl + scroll to zoom the map',
+            macHelpText: 'Use ⌘ + scroll to zoom the map',
+            mobileHelpText: 'Use two fingers to move the map' } });
+      } catch (e) { spengo(); return; }
+      mappaB.addControl(new maplibregl.NavigationControl(
+        { visualizePitch: true }), 'bottom-right');
+      mappaB.on('error', function (e) {
+        if (e && e.error
+            && /style|Failed to fetch/i.test(String(e.error.message || '')))
+          spengo();
+      });
+      mappaB.on('load', function () {
+        try {
+          var f = null, st2 = mappaB.getStyle();
+          (st2.layers || []).forEach(function (l) {
+            if (!f && l['source-layer'] === 'building') f = l.source; });
+          if (f) mappaB.addLayer({ id: 'blocco-3d', type: 'fill-extrusion',
+            source: f, 'source-layer': 'building', minzoom: 13, paint: {
+              'fill-extrusion-color': '#C8BDA5',
+              'fill-extrusion-height':
+                ['coalesce', ['get', 'render_height'], 12],
+              'fill-extrusion-base':
+                ['coalesce', ['get', 'render_min_height'], 0],
+              'fill-extrusion-opacity': .9 } });
+        } catch (e) {}
+        /* gli anelli del passo: 5/10/15 minuti a 4.8 km/h */
+        [400, 800, 1200].forEach(function (r, i) {
+          var co = [], dLat = r / 111320,
+              dLng = r / (111320 * Math.cos(c.lat * RAD));
+          for (var k = 0; k <= 72; k++) {
+            var a = k / 72 * 2 * Math.PI;
+            co.push([c.lng + dLng * Math.cos(a),
+                     c.lat + dLat * Math.sin(a)]);
+          }
+          try {
+            mappaB.addSource('anello' + i, { type: 'geojson', data: {
+              type: 'Feature', properties: {},
+              geometry: { type: 'LineString', coordinates: co } } });
+            mappaB.addLayer({ id: 'anello' + i, type: 'line',
+              source: 'anello' + i, paint: { 'line-color': '#FFD700',
+                'line-width': 1.2, 'line-opacity': .55 - i * .14,
+                'line-dasharray': [1, 2] } });
+          } catch (e) {}
+        });
+        var el = document.createElement('div');
+        el.className = 'blocco-pin';
+        el.innerHTML = '<span>' + euro(c.prezzo) + '</span>';
+        new maplibregl.Marker({ element: el, anchor: 'bottom' })
+          .setLngLat([c.lng, c.lat]).addTo(mappaB);
+      });
+    }
+    via.addEventListener('click', function () {
+      if (window.maplibregl) return accendi();
+      via.querySelector('b').textContent = 'Waking the map engine…';
+      var css = document.createElement('link'); css.rel = 'stylesheet';
+      css.href =
+        'https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css';
+      document.head.appendChild(css);
+      var js = document.createElement('script');
+      js.src =
+        'https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.min.js';
+      js.onload = function () { try { accendi(); } catch (e) { spengo(); } };
+      js.onerror = spengo;
+      document.head.appendChild(js);
+      setTimeout(function () { if (!mappaB) spengo(); }, 12000);
+    });
+
+    /* i tuoi luoghi: scritti una volta, ogni casa risponde. Stessa chiave
+       del sito live (boom:pois): quello che salvi qui vale anche la. */
+    var CHIAVE = 'boom:pois';
+    function letti() {
+      try { return JSON.parse(localStorage.getItem(CHIAVE) || '[]'); }
+      catch (e) { return []; }
+    }
+    function serba(a) {
+      try { localStorage.setItem(CHIAVE, JSON.stringify(a.slice(0, 4))); }
+      catch (e) {}
+    }
+    var righe = document.getElementById('luogoRighe'),
+        cerca = document.getElementById('luogoQ'),
+        sug = document.getElementById('luogoSug');
+    function righeGiu() {
+      var a = letti();
+      righe.innerHTML = a.length ? a.map(function (p, i) {
+        return '<div class="luogo"><b>' + p.name + '</b><i>'
+          + tempo(km(c.lat, c.lng, p.lat, p.lng)) + '</i>'
+          + '<button type="button" data-i="' + i + '" aria-label="Remove '
+          + p.name + '">✕</button></div>';
+      }).join('') : '<p class="luoghi-vuota">Nothing saved yet — type your '
+        + 'office or campus above, once.</p>';
+    }
+    righe.addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-i]'); if (!b) return;
+      var a = letti(); a.splice(+b.dataset.i, 1); serba(a); righeGiu();
+    });
+    var attesa = null;
+    cerca.addEventListener('input', function () {
+      clearTimeout(attesa);
+      var q = cerca.value.trim();
+      if (q.length < 3) { sug.innerHTML = ''; return; }
+      attesa = setTimeout(function () {
+        fetch('https://photon.komoot.io/api/?q=' + encodeURIComponent(q)
+            + '&lat=41.893&lon=12.483&limit=4&lang=en&zoom=12')
+          .then(function (r) { return r.json(); })
+          .then(function (j) {
+            sug.innerHTML = (j.features || []).slice(0, 4)
+              .map(function (ft) {
+                var p = ft.properties || {};
+                var nome = p.name || p.street || 'Place';
+                var dove = [p.suburb || p.district, p.city]
+                  .filter(Boolean).join(', ');
+                return '<button type="button" data-lat="'
+                  + ft.geometry.coordinates[1] + '" data-lng="'
+                  + ft.geometry.coordinates[0] + '" data-n="'
+                  + String(nome).replace(/"/g, '') + '"><b>' + nome
+                  + '</b><span>' + dove + '</span></button>';
+              }).join('')
+              || '<p class="luoghi-vuota">Nothing found — try the street '
+              + 'or the campus name.</p>';
+          })
+          .catch(function () {
+            /* niente rete da qui: lo diciamo, non lo nascondiamo */
+            sug.innerHTML = '<p class="luoghi-vuota">The place search '
+              + 'needs the live site — it can\'t run from this '
+              + 'preview.</p>';
+          });
+      }, 320);
+    });
+    sug.addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-n]'); if (!b) return;
+      var a = letti();
+      if (!a.some(function (p) { return p.name === b.dataset.n; })) {
+        a.unshift({ name: b.dataset.n, lat: +b.dataset.lat,
+          lng: +b.dataset.lng });
+        serba(a);
+      }
+      sug.innerHTML = ''; cerca.value = ''; righeGiu();
+    });
+    righeGiu();
+  })();
+
+  /* ── LA PRESA: €300 rimborsabili via Stripe — l'API vera del sito ───── */
+  (function () {
+    var f = document.getElementById('presaForma');
+    if (!f) return;
+    var attesa2 = /wait/i.test(c.stato);
+    if (!c.libera && !attesa2) {
+      /* casa presa: niente finta corsia di prenotazione */
+      var card = document.getElementById('presaCasa');
+      if (card) card.style.display = 'none';
+      return;
+    }
+    if (attesa2) document.getElementById('presaTitolo').textContent =
+      'Priority hold — first in line when it frees up.';
+    f.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var nome = f.querySelector('#prNome').value.trim(),
+          mail = f.querySelector('#prMail').value.trim(),
+          tel = f.querySelector('#prTel').value.trim();
+      if (!nome || !mail || !tel) return;
+      var corpo = { listingId: c.id, listingName: c.nome, amount: 300,
+        name: nome, email: mail, phone: tel, move_in_date: c.dal || '' };
+      var b = document.getElementById('prVai'),
+          nota = document.getElementById('presaNota');
+      if (!VERO) {
+        console.info('[PREVIEW] POST /api/reserve-checkout →', corpo);
+        if (nota) nota.textContent = 'PREVIEW — on the live site this '
+          + 'opens Stripe checkout for the refundable €300 hold.';
+        return;
+      }
+      b.disabled = true; b.textContent = 'Opening Stripe…';
+      fetch('/api/reserve-checkout', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(corpo) })
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          if (j && j.url) { location.href = j.url; return; }
+          throw new Error('senza url');
+        })
+        .catch(function () {
+          b.disabled = false; b.textContent = 'Hold this home · €300';
+          if (nota) nota.innerHTML = 'Checkout didn\'t open — try again, '
+            + 'or <a href="https://wa.me/393313251961" target="_blank" '
+            + 'rel="noopener">message us on WhatsApp</a> and we\'ll hold '
+            + 'it manually.';
+        });
     });
   })();
 

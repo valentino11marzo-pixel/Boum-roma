@@ -94,6 +94,8 @@ for r in piene:
         'racconto': re.sub(r'\s+', ' ', str(r.get('description') or '')).strip(),
         'dentro': dentro,
         'cauzioneMesi': numero(r.get('depositMonths')) or 1,
+        'lat': (float(r['lat']) if r.get('lat') else None),
+        'lng': (float(r['lng']) if r.get('lng') else None),
         'cover': cover, 'foto': foto,
         # il video esiste solo per due case su ventisei: la pagina deve
         # saperlo e proporre la visita dal vivo dove manca, non fingere
@@ -120,6 +122,7 @@ h = h.replace('<title>BOOM Rome — Premium Apartment Rentals | 48-Hour Move-In<
 h = h.replace('VIRTUAL_URL', 'https://www.boomrome.com/virtual-viewing'
     if MODO == 'artefatto' else '/virtual-viewing.html')
 h = h.replace('href="#banchina"', 'href="' + ('https://claude.ai/code/artifact/5e7c6222-9a91-4052-a4d7-f31255ed4478' if MODO == 'artefatto' else '/v2-home.html') + '#banchina"')
+h = h.replace('MODO_QUI', MODO)
 h = h.replace('LOGO_SVG', leggi('logo-live.svg').strip())
 h = h.replace("'CASE_JSON'", json.dumps(CASE, ensure_ascii=False))
 if MODO == 'artefatto':
@@ -138,10 +141,12 @@ if MODO == 'artefatto':
     h = h.replace('/apartments.html', AP)
     h = h.replace("'/listing/'", "'#id='")
     h = h.replace('CHIAVE_CASA', '/listing/')
+    h = h.replace('href="/your-money.html"', 'href="https://claude.ai/code/artifact/bd225367-85f2-4aa5-871d-9653827c078b"')
     h = re.sub(r'href="/([a-z-]+)\.html"', r'href="https://www.boomrome.com/\1"', h)
     h = h.replace('href="/login"', 'href="https://www.boomrome.com/login"')
 else:
     for da, a_ in {'/index.html': '/v2-home.html',
+        '/your-money.html': '/v2-money.html',
         '/property-finding.html': '/v2-property-finding.html'}.items():
         h = h.replace('href="' + da + '"', 'href="' + a_ + '"')
     h = h.replace('/apartments.html', '/v2-apartments.html')

@@ -157,7 +157,10 @@ h1, h2, h3 { font-family:var(--display); }
 .nav.scrolled, html.aperto .nav { padding:11px 0; }
 .menu { display:none; align-items:center; gap:26px; }
 @media (min-width:1080px){ .menu { display:flex; } }
-.menu a { font-size:13px; font-weight:400; letter-spacing:.02em;
+/* area di tocco 41px senza spostare un pixel: padding pareggiato dal
+   margine negativo */
+.menu a { padding:10px 3px; margin:-10px -3px;
+  font-size:13px; font-weight:400; letter-spacing:.02em;
   color:var(--text-3); transition:color .25s ease; }
 .menu a:hover { color:var(--text); }
 .menu .m-login { display:inline-flex; align-items:center; gap:7px; }
@@ -1553,6 +1556,50 @@ html.vivo .sale.dentro { opacity:1; transform:none;
 .s1-casa img, .home-foto img { aspect-ratio:4/3; }
 .fond-foto img { aspect-ratio:4/5; }
 
+
+/* ══ IL GIORNO UNO NEL CHECK-IN ════════════════════════════════════════ */
+.giorno-uno { margin-top:10px; font-size:11.5px; line-height:1.6;
+  color:var(--text-4); max-width:56ch; }
+.giorno-uno b { color:var(--gold); font-weight:600;
+  font-variant-numeric:tabular-nums; }
+
+/* ══ LA FILA DEI FATTI ═════════════════════════════════════════════════ */
+.fede-fila { border-top:1px solid var(--line-0);
+  border-bottom:1px solid var(--line-0); background:var(--surface); }
+.fede-int { display:flex; align-items:center; justify-content:center;
+  flex-wrap:wrap; gap:8px 14px; padding:12px 0; }
+.fede-int span { font-size:10px; font-weight:600; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--text-4); text-align:center;
+  line-height:1.5; }
+.fede-int i { width:4px; height:4px; border-radius:50%;
+  background:var(--line-gold-2); flex:none; }
+@media (max-width:640px){
+  .fede-int { gap:7px 12px; padding:11px 0; }
+  .fede-int i { display:none; } }
+
+/* ══ LA PRESA IN BANCHINA ══════════════════════════════════════════════ */
+.ba-presa { display:flex; align-items:center; gap:14px; padding:14px 18px;
+  border-top:1px solid var(--line-0); background:var(--void); }
+.ba-presa svg { width:20px; height:20px; flex:none; fill:none;
+  stroke:var(--gold); stroke-width:1.5; stroke-linecap:round;
+  stroke-linejoin:round; }
+.bp-dice { flex:1; font-size:12.5px; line-height:1.6; color:var(--text-3); }
+.bp-dice b { color:var(--text-2); font-weight:500; }
+.bp-vai { flex:none; display:inline-flex; align-items:center;
+  min-height:36px; font-size:10.5px; font-weight:600; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--gold); padding:0 15px;
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); border-radius:100px;
+  transition:.25s; }
+.bp-vai:hover { background:var(--gold); color:#141005; }
+@media (max-width:640px){
+  .ba-presa { flex-wrap:wrap; padding:13px 15px; }
+  .bp-vai { margin-left:34px; } }
+
+.sotto-vai { display:inline; margin-left:6px; color:var(--gold);
+  font-size:inherit; text-decoration:none;
+  border-bottom:1px solid var(--line-gold-2); padding-bottom:1px;
+  transition:border-color .25s; }
+.sotto-vai:hover { border-color:var(--gold); }
 </style>
 </head>
 <body>
@@ -1667,6 +1714,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
           </div>
         </div>
       </form>
+      <p class="giorno-uno" id="giornoUno" hidden></p>
       <div class="hero-fede">
         <svg class="hf-stripe" aria-label="Stripe" viewBox="0 0 468 222.5" xmlns="http://www.w3.org/2000/svg"> <path fill="#635BFF" d="M414 113.4c0-25.6-12.4-45.8-36.1-45.8-23.8 0-38.2 20.2-38.2 45.6 0 30.1 17 45.3 41.4 45.3 11.9 0 20.9-2.7 27.7-6.5v-20c-6.8 3.4-14.6 5.5-24.5 5.5-9.7 0-18.3-3.4-19.4-15.2h48.9c0-1.3.2-6.5.2-8.9zm-49.4-9.5c0-11.3 6.9-16 13.2-16 6.1 0 12.6 4.7 12.6 16h-25.8zm-63.5-36.3c-9.8 0-16.1 4.6-19.6 7.8l-1.3-6.2h-22v116.6l25-5.3.1-28.3c3.6 2.6 8.9 6.3 17.7 6.3 17.9 0 34.2-14.4 34.2-46.1-.1-29-16.6-44.8-34.1-44.8zm-6 68.9c-5.9 0-9.4-2.1-11.8-4.7l-.1-37.1c2.6-2.9 6.2-4.9 11.9-4.9 9.1 0 15.4 10.2 15.4 23.3 0 13.4-6.2 23.4-15.4 23.4zm-71.3-74.8l25.1-5.4V36l-25.1 5.3zm0 7.6h25.1v87.5h-25.1zm-26.9 7.4l-1.6-7.4h-21.6v87.5h25V97.5c5.9-7.7 15.9-6.3 19-5.2v-23c-3.2-1.2-14.9-3.4-20.8 7.4zm-50-29.8l-24.4 5.2-.1 80.1c0 14.8 11.1 25.7 25.9 25.7 8.2 0 14.2-1.5 17.5-3.3V135c-3.2 1.3-19 5.9-19-8.9V90.6h19V69.3h-19l.1-21.7zM79.3 94.7c0-3.9 3.2-5.4 8.5-5.4 7.6 0 17.2 2.3 24.8 6.4V72.2c-8.3-3.3-16.5-4.6-24.8-4.6C67.5 67.6 54 78.2 54 95.9c0 27.6 38 23.2 38 35.1 0 4.6-4 6.1-9.6 6.1-8.3 0-18.9-3.4-27.3-8v23.8c9.3 4 18.7 5.7 27.3 5.7 20.8 0 35.1-10.3 35.1-28.2-.1-29.8-38.2-24.5-38.2-35.7z"/> </svg>
         <span><b>Every euro through BOOM</b>, never to a stranger ·
@@ -1687,6 +1735,16 @@ html.vivo .sale.dentro { opacity:1; transform:none;
   </div>
 
 </header>
+
+<!-- ══ LA FILA DEI FATTI — istituzionali, veri, una volta sola ═══════════ -->
+<div class="fede-fila" aria-label="Company facts">
+  <div class="container fede-int">
+    <span>Egidi Immobiliare S.r.l. — licensed Rome agency</span><i></i>
+    <span>BOOM® · EU trade mark 019317594</span><i></i>
+    <span>Contracts registered with the Agenzia delle Entrate</span><i></i>
+    <span>Deposits held — filmed at move-in and move-out</span>
+  </div>
+</div>
 
 <!-- ══ CASE DELLA SETTIMANA + COME FUNZIONA ══════════════════════════════ -->
 <section class="sezione">
@@ -1861,7 +1919,9 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         <span class="hl">your situation</span>.</h2>
       <p class="sotto">Every price is flat and written here — and most of it
         comes back: credited to your agency fee when you rent with us, or
-        refunded if we don't deliver.</p>
+        refunded if we don't deliver.
+        <a class="sotto-vai" href="/v2-money.html">How your money
+          moves →</a></p>
     </div>
 
     <div class="banchina coro" style="margin-top:clamp(22px,2.6vw,34px)">
@@ -1925,6 +1985,15 @@ html.vivo .sale.dentro { opacity:1; transform:none;
           Rent, deposit and fee on Stripe — <em>no bank transfers to
           strangers</em>, receipts, full refund if we don't deliver.</span></span>
         <svg class="ba-stripe" aria-label="Stripe" viewBox="0 0 468 222.5" xmlns="http://www.w3.org/2000/svg"> <path fill="#635BFF" d="M414 113.4c0-25.6-12.4-45.8-36.1-45.8-23.8 0-38.2 20.2-38.2 45.6 0 30.1 17 45.3 41.4 45.3 11.9 0 20.9-2.7 27.7-6.5v-20c-6.8 3.4-14.6 5.5-24.5 5.5-9.7 0-18.3-3.4-19.4-15.2h48.9c0-1.3.2-6.5.2-8.9zm-49.4-9.5c0-11.3 6.9-16 13.2-16 6.1 0 12.6 4.7 12.6 16h-25.8zm-63.5-36.3c-9.8 0-16.1 4.6-19.6 7.8l-1.3-6.2h-22v116.6l25-5.3.1-28.3c3.6 2.6 8.9 6.3 17.7 6.3 17.9 0 34.2-14.4 34.2-46.1-.1-29-16.6-44.8-34.1-44.8zm-6 68.9c-5.9 0-9.4-2.1-11.8-4.7l-.1-37.1c2.6-2.9 6.2-4.9 11.9-4.9 9.1 0 15.4 10.2 15.4 23.3 0 13.4-6.2 23.4-15.4 23.4zm-71.3-74.8l25.1-5.4V36l-25.1 5.3zm0 7.6h25.1v87.5h-25.1zm-26.9 7.4l-1.6-7.4h-21.6v87.5h25V97.5c5.9-7.7 15.9-6.3 19-5.2v-23c-3.2-1.2-14.9-3.4-20.8 7.4zm-50-29.8l-24.4 5.2-.1 80.1c0 14.8 11.1 25.7 25.9 25.7 8.2 0 14.2-1.5 17.5-3.3V135c-3.2 1.3-19 5.9-19-8.9V90.6h19V69.3h-19l.1-21.7zM79.3 94.7c0-3.9 3.2-5.4 8.5-5.4 7.6 0 17.2 2.3 24.8 6.4V72.2c-8.3-3.3-16.5-4.6-24.8-4.6C67.5 67.6 54 78.2 54 95.9c0 27.6 38 23.2 38 35.1 0 4.6-4 6.1-9.6 6.1-8.3 0-18.9-3.4-27.3-8v23.8c9.3 4 18.7 5.7 27.3 5.7 20.8 0 35.1-10.3 35.1-28.2-.1-29.8-38.2-24.5-38.2-35.7z"/> </svg>
+      </div>
+
+      <div class="ba-presa">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg>
+        <span class="bp-dice"><b>Already found it in our catalogue?</b>
+          Hold it from its page — a refundable <b>€300</b> takes it off the
+          market for 48 hours while you decide.</span>
+        <a class="bp-vai" href="/v2-apartments.html">Browse the homes →</a>
       </div>
 
       <div class="ba-cifre">
@@ -2237,6 +2306,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       <div class="piede-col">
         <b>Company</b>
         <a href="/about.html">About</a>
+        <a href="/v2-money.html">Your Money</a>
         <a href="/how-it-works.html">How It Works</a>
         <a href="/universities.html">For Universities</a>
         <a href="/corporate.html">For Companies</a>
@@ -2807,6 +2877,34 @@ html.vivo .sale.dentro { opacity:1; transform:none;
   if (document.readyState === 'complete') setTimeout(cartaRoma, 0);
   else addEventListener('load', function () { setTimeout(cartaRoma, 0); });
 
+  /* il giorno uno, al volo: scegli il budget e l'hero risponde con la
+     forchetta VERA del catalogo — canone + deposito + onorario, esatti,
+     con la STESSA aritmetica della pagina casa */
+  (function () {
+    var CASE_G = [{"p": 2000, "m": 1}, {"p": 1200, "m": 1}, {"p": 1200, "m": 1}, {"p": 1500, "m": 1}, {"p": 900, "m": 1}, {"p": 1200, "m": 1}, {"p": 1600, "m": 2}, {"p": 1250, "m": 1}];
+    var sel = document.getElementById('quantoBudget'),
+        riga = document.getElementById('giornoUno');
+    if (!sel || !riga || !CASE_G.length || typeof CASE_G === 'string') return;
+    function euro2(n) { return '€' + Math.round(n).toLocaleString('en-US'); }
+    sel.addEventListener('change', function () {
+      var b = Number(sel.value) || 0;
+      if (!b) { riga.hidden = true; return; }
+      var giu = b === 1000 ? 0 : b === 1500 ? 1000 : b === 2000 ? 1500 : 2000;
+      var dentro = CASE_G.filter(function (x) {
+        return x.p > giu && (b === 9999 ? true : x.p <= b); });
+      if (!dentro.length) { riga.hidden = true; return; }
+      var conti = dentro.map(function (x) {
+        return x.p + x.p * x.m + Math.round(x.p * 12 * .10); });
+      var minimo = Math.min.apply(null, conti),
+          massimo = Math.max.apply(null, conti);
+      riga.innerHTML = 'Day one for these homes: <b>' + euro2(minimo)
+        + (massimo > minimo ? '\u2013' + euro2(massimo) : '')
+        + '</b> all-in \u2014 first month + deposit (comes back) + our '
+        + 'fee. The exact figure is on every home\'s page.';
+      riga.hidden = false;
+    });
+  })();
+
   if (document.readyState === 'complete') via();
   else addEventListener('load', via);
 })();
@@ -2946,6 +3044,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
     el.className = 'cielo-pin';
     el.__p = parseInt(String(c.da).replace(/[^\d]/g, ''), 10) || 0;
     el.__presa = !c.si;
+    el.__id = c.id;
     el.innerHTML = '<span class="p' + (c.si ? '' : ' presa') + '">' + c.da + '</span>';
     var foto = c.foto || '';
     var scheda = new maplibregl.Popup({ offset: 17, closeButton: true,
@@ -2966,7 +3065,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
     var viste = 0;
     PIN.forEach(function (m) {
       var el = m.getElement();
-      var ok = el.__presa ? false : (TETTO === 0 || (el.__p > 0 && el.__p <= TETTO));
+      var ok = (el.__presa || el.__fuori) ? false : (TETTO === 0 || (el.__p > 0 && el.__p <= TETTO));
       el.classList.toggle('spenta', !ok); if (ok) viste++;
     });
     if (conta) {
@@ -2976,6 +3075,14 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         '<i> · tap one to measure its walks</i>';
     }
   }
+
+  /* il gancio per la discovery: la mappa tiene solo le case che il
+     setaccio della pagina tiene — nessun secondo stato, una verita sola */
+  window.BoomCielo = { tieni: function (ids) {
+    PIN.forEach(function (m) { var el = m.getElement();
+      el.__fuori = !!(ids && ids.indexOf(el.__id) < 0); });
+    if (mappa) filtra();
+  } };
 
   /* ── l'accensione ── */
   function accendi() {

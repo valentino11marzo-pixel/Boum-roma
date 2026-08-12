@@ -67,19 +67,7 @@
 /* la barra di ricerca: la stessa del check-in di casa */
 .cerca { margin-top:clamp(20px,2.4vw,30px); }
 
-/* ══ IL SETACCIO — i filtri veri, nella grammatica del portale ═════════ */
-.setaccio { background:var(--card); box-shadow:inset 0 0 0 1px var(--line-0);
-  padding:16px 18px 14px; }
-.setaccio-cerca { display:flex; align-items:center; gap:11px;
-  padding-bottom:13px; border-bottom:1px solid var(--line-0); }
-.setaccio-cerca svg { width:17px; height:17px; flex:none; fill:none;
-  stroke:var(--text-4); stroke-width:1.6; stroke-linecap:round; }
-.setaccio-cerca input { flex:1; min-width:0; background:none; border:0;
-  color:var(--text); font:inherit; font-size:14.5px; }
-.setaccio-cerca input::placeholder { color:var(--text-4); }
-.setaccio-cerca input:focus { outline:none; }
-.setaccio-cerca:focus-within svg { stroke:var(--gold); }
-.setaccio-gruppi { display:flex; gap:20px; flex-wrap:wrap; margin-top:13px; }
+/* ══ LA STECCA + IL FOGLIO — i comandi in una riga, la coda in un foglio ═ */
 .gruppo { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
 .gruppo > span { font-size:9px; font-weight:600; letter-spacing:.16em;
   text-transform:uppercase; color:var(--text-4); margin-right:2px; }
@@ -91,9 +79,6 @@
 .gruppo button.on { color:var(--gold);
   box-shadow:inset 0 0 0 1px var(--line-gold); }
 .gruppo button i { font-style:normal; font-variant-numeric:tabular-nums; }
-.setaccio-piede { display:flex; align-items:center; justify-content:space-between;
-  gap:12px; flex-wrap:wrap; margin-top:14px; padding-top:12px;
-  border-top:1px solid var(--line-0); }
 .pulisci, .serba { font:inherit; font-size:10.5px; font-weight:600;
   letter-spacing:.12em; text-transform:uppercase; background:none; border:0;
   cursor:pointer; padding:8px 12px; transition:.25s; }
@@ -103,9 +88,7 @@
   border-radius:100px; }
 .serba:hover { box-shadow:inset 0 0 0 1px var(--gold); }
 @media (max-width:640px){
-  .setaccio { padding:14px 14px 12px; }
-  .setaccio-gruppi { gap:14px; }
-  .gruppo { width:100%; } }
+  #foglioVelo .gruppo { width:100%; } }
 
 /* il foglio della ricerca salvata */
 .serba-velo { position:fixed; inset:0; z-index:150; display:grid;
@@ -185,6 +168,170 @@
 .vuoto p { margin:10px auto 0; max-width:52ch; font-size:14px;
   color:var(--text-2); line-height:1.65; }
 .vuoto .btn { margin-top:18px; }
+
+/* ══ LA STECCA — appesa sotto la barra, mai un centimetro di troppo ════ */
+.stecca { position:sticky; top:var(--stecca-top, 76px); z-index:80;
+  background:rgba(3,3,3,.94); backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line-0); }
+.stecca-int { display:flex; align-items:center; gap:8px; padding:9px 0;
+  overflow-x:auto; scrollbar-width:none; }
+.stecca-int::-webkit-scrollbar { display:none; }
+.stecca-int > * { flex:none; }
+.stecca .gruppo { flex-wrap:nowrap; }
+.stecca button, #foglioVelo .gruppo button, #foglioVelo .pulisci {
+  min-height:36px; }
+.stecca-cerca { display:flex; align-items:center; gap:8px; flex:0 1 240px;
+  min-width:150px; padding:8px 12px; background:var(--input);
+  box-shadow:inset 0 0 0 1px var(--line); border-radius:100px; }
+.stecca-cerca svg { width:15px; height:15px; flex:none; fill:none;
+  stroke:var(--text-4); stroke-width:1.6; stroke-linecap:round; }
+.stecca-cerca input { flex:1; min-width:0; background:none; border:0;
+  color:var(--text); font:inherit; font-size:13px; }
+.stecca-cerca input::placeholder { color:var(--text-4); }
+.stecca-cerca input:focus { outline:none; }
+.stecca-cerca:focus-within { box-shadow:inset 0 0 0 1px var(--line-gold); }
+.stecca-piu { display:inline-flex; align-items:center; gap:7px;
+  padding:8px 14px; font:inherit; font-size:11.5px; color:var(--text-2);
+  background:none; border:0; box-shadow:inset 0 0 0 1px var(--line);
+  border-radius:100px; cursor:pointer; transition:.22s; min-height:36px; }
+.stecca-piu:hover { color:var(--gold);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.stecca-piu svg { width:14px; height:14px; fill:none; stroke:currentColor;
+  stroke-width:1.7; stroke-linecap:round; }
+.stecca-piu i[hidden] { display:none; }
+.stecca-piu i { font-style:normal; min-width:17px; height:17px; padding:0 4px;
+  display:inline-grid; place-items:center; border-radius:100px;
+  background:var(--gold); color:#141005; font-size:10px; font-weight:700; }
+.vista-tog { display:inline-flex; border-radius:100px; overflow:hidden;
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.vista-tog button { position:relative; padding:9px 14px; font:inherit;
+  font-size:10.5px; font-weight:600; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--text-3); background:none; border:0;
+  cursor:pointer; transition:.25s; min-height:36px; }
+.vista-tog button.on { color:#141005; background:var(--gold); }
+.vista-tog button:not(.on):hover { color:var(--gold); }
+@media (prefers-reduced-motion:no-preference){
+  .vista-tog button.pulsa::after { content:''; position:absolute; top:6px;
+    right:7px; width:5px; height:5px; border-radius:50%;
+    background:var(--gold); animation:sky-ping 2s var(--ease) infinite; }
+  @keyframes sky-ping {
+    0%,100% { box-shadow:0 0 0 0 rgba(255,215,0,.5); }
+    50% { box-shadow:0 0 0 6px rgba(255,215,0,0); } } }
+.muro-conto { margin-bottom:12px; }
+#muro, #catalogo, #vistaCielo {
+  scroll-margin-top:calc(var(--stecca-top, 76px) + 62px); }
+.vista-cielo[hidden] { display:none; }
+.vista-cielo .cielo { margin-top:clamp(10px,1.2vw,16px); }
+
+/* ══ LA SKYCARTA — la mappa si vende da dentro la griglia ══════════════ */
+.skycarta { position:relative; display:flex; flex-direction:column;
+  justify-content:flex-end; gap:8px; min-height:100%; padding:20px 18px;
+  text-align:left; font:inherit; color:var(--text); cursor:pointer; border:0;
+  background:
+    radial-gradient(2px 2px at 24% 28%, var(--gold) 40%, transparent 60%),
+    radial-gradient(2px 2px at 64% 20%, var(--gold) 40%, transparent 60%),
+    radial-gradient(2px 2px at 44% 50%, var(--gold) 40%, transparent 60%),
+    radial-gradient(2px 2px at 79% 42%, rgba(255,215,0,.5) 40%, transparent 60%),
+    radial-gradient(2px 2px at 32% 64%, rgba(255,215,0,.5) 40%, transparent 60%),
+    radial-gradient(120% 90% at 70% 8%, rgba(255,215,0,.09), transparent 55%),
+    linear-gradient(160deg, #101017 0%, #08080D 55%, var(--void) 100%);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2),
+    0 30px 70px -40px rgba(0,0,0,.9);
+  transition:box-shadow .3s ease; }
+.skycarta::before { content:''; position:absolute; inset:0;
+  pointer-events:none; background-image:
+    repeating-linear-gradient(0deg, transparent 0 34px,
+      rgba(255,255,255,.03) 34px 35px),
+    repeating-linear-gradient(90deg, transparent 0 34px,
+      rgba(255,255,255,.03) 34px 35px); }
+.skycarta:hover { box-shadow:inset 0 0 0 1px var(--line-gold),
+  0 30px 70px -40px rgba(0,0,0,.9); }
+.sk-eti { display:inline-flex; align-items:center; gap:7px; font-size:9.5px;
+  font-weight:600; letter-spacing:.24em; text-transform:uppercase;
+  color:var(--gold); }
+.sk-eti i { width:5px; height:5px; border-radius:50%; background:var(--gold); }
+.sk-tit { font-family:var(--display); font-weight:300; font-size:20px;
+  line-height:1.3; }
+.skycarta p { font-size:12px; line-height:1.6; color:var(--text-3); }
+.sk-cta { display:inline-flex; width:max-content; margin-top:6px;
+  padding:9px 15px; font-size:11px; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--gold);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); border-radius:100px;
+  transition:.25s; }
+.skycarta:hover .sk-cta { background:var(--gold); color:#141005; }
+
+/* ══ IL FOGLIO DEI FILTRI ══════════════════════════════════════════════ */
+.foglio-filtri { width:100%; max-width:460px; padding:22px 22px 18px;
+  background:var(--void); box-shadow:inset 0 0 0 1px var(--line-gold),
+    0 40px 90px -40px rgba(0,0,0,.9);
+  display:flex; flex-direction:column; gap:16px;
+  max-height:min(82vh, 560px); overflow:auto; }
+.foglio-testa { display:flex; align-items:center;
+  justify-content:space-between; gap:12px; }
+.foglio-testa b { font-family:var(--display); font-weight:300;
+  font-size:19px; }
+.foglio-x { width:36px; height:36px; flex:none; display:grid;
+  place-items:center; background:none; border:0; color:var(--text-3);
+  font-size:14px; cursor:pointer; box-shadow:inset 0 0 0 1px var(--line);
+  border-radius:50%; transition:.2s; }
+.foglio-x:hover { color:var(--text);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.foglio-piede { display:flex; align-items:center;
+  justify-content:space-between; gap:12px; padding-top:14px;
+  border-top:1px solid var(--line-0); }
+
+/* ══ IL PARAGONE ═══════════════════════════════════════════════════════ */
+.home-para { position:absolute; right:6px; top:50px; z-index:3; width:40px;
+  height:40px; display:grid; place-items:center; border-radius:50%;
+  background:rgba(3,3,3,.72); backdrop-filter:blur(6px);
+  color:var(--text-3); cursor:pointer; border:0; font-size:13px;
+  transition:color .25s ease, transform .25s var(--ease),
+    background .25s ease; }
+.home-para:hover { transform:scale(1.12); }
+.home-para.on { color:#141005; background:var(--gold); }
+.para-tray { position:fixed; left:50%; bottom:16px;
+  transform:translateX(-50%); z-index:120; display:flex; align-items:center;
+  gap:12px; max-width:min(94vw, 560px); padding:10px 12px;
+  background:rgba(3,3,3,.94); backdrop-filter:blur(16px);
+  box-shadow:inset 0 0 0 1px var(--line-gold), 0 24px 60px rgba(0,0,0,.6); }
+.para-tray[hidden] { display:none; }
+.para-fotine { display:flex; gap:6px; }
+.para-fotine img, .para-fotine span { width:44px; height:34px;
+  object-fit:cover; background:var(--input);
+  box-shadow:inset 0 0 0 1px var(--line-0); display:block; }
+.para-dice { font-size:11.5px; color:var(--text-3); }
+.para-svuota { width:36px; height:36px; flex:none; display:grid;
+  place-items:center; background:none; border:0; color:var(--text-4);
+  font-size:13px; cursor:pointer; border-radius:50%;
+  box-shadow:inset 0 0 0 1px var(--line); transition:.2s; }
+.para-svuota:hover { color:var(--text); }
+.para-foglio { width:100%; min-width:0;
+  max-width:min(860px, calc(100vw - 40px)); padding:22px;
+  background:var(--void); box-shadow:inset 0 0 0 1px var(--line-gold),
+    0 40px 90px -40px rgba(0,0,0,.9);
+  max-height:88vh; display:flex; flex-direction:column; gap:14px; }
+.para-scroll { overflow:auto; min-width:0; max-width:100%; }
+.para-tavola { width:100%; border-collapse:collapse; font-size:12.5px; }
+.para-tavola th { text-align:left; font-size:9.5px; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--text-4);
+  padding:9px 12px 9px 0; white-space:nowrap; vertical-align:middle; }
+.para-tavola td { padding:9px 12px; border-top:1px solid var(--line-0);
+  vertical-align:middle; min-width:150px; color:var(--text-2); }
+.para-tavola tr:first-child td { border-top:0; }
+.para-tavola td b { color:var(--text); font-weight:500; }
+.para-tavola .verde { color:var(--green); }
+.pt-capo { position:relative; }
+.pt-capo img { width:100%; max-width:190px; aspect-ratio:16/10;
+  object-fit:cover; display:block;
+  box-shadow:inset 0 0 0 1px var(--line-0); }
+.pt-capo b { display:block; margin-top:8px; font-family:var(--display);
+  font-weight:300; font-size:15px; color:var(--text); }
+.pt-capo span { font-size:11px; color:var(--text-3); }
+.pt-x { position:absolute; top:6px; right:6px; width:36px; height:36px;
+  display:grid; place-items:center; border:0; border-radius:50%;
+  background:rgba(3,3,3,.72); color:var(--text-2); cursor:pointer;
+  font-size:12px; }
+.para-nota { font-size:11px; color:var(--text-4); line-height:1.6; }
 </style>
 
 <section class="disco">
@@ -262,62 +409,51 @@
   </div>
 </section>
 
-<!-- ══ I FILTRI — quelli veri del sito ═══════════════════════════════════ -->
-<section class="sezione" style="padding-top:clamp(14px,1.6vw,20px)">
-  <div class="container">
-    <div class="setaccio">
-      <div class="setaccio-cerca">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg>
-        <input id="fq" type="search" placeholder="Search by name, zone or street"
-          aria-label="Search homes">
-      </div>
-      <div class="setaccio-gruppi">
-        <div class="gruppo" role="group" aria-label="Bedrooms">
-          <span>Beds</span>
-          <button type="button" data-f="letti" data-v="">Any</button>
-          <button type="button" data-f="letti" data-v="0">Studio</button>
-          <button type="button" data-f="letti" data-v="1">1+</button>
-          <button type="button" data-f="letti" data-v="2">2+</button>
-          <button type="button" data-f="letti" data-v="3">3+</button>
-        </div>
-        <div class="gruppo" role="group" aria-label="Bathrooms">
-          <span>Baths</span>
-          <button type="button" data-f="bagni" data-v="">Any</button>
-          <button type="button" data-f="bagni" data-v="1">1+</button>
-          <button type="button" data-f="bagni" data-v="2">2+</button>
-        </div>
-        <div class="gruppo" role="group" aria-label="Extras">
-          <span>Only</span>
-          <button type="button" data-f="arredata" data-v="1">Furnished</button>
-          <button type="button" data-f="video" data-v="1">Video-verified</button>
-          <button type="button" data-f="salvate" data-v="1">Saved <i id="quanteSalvate"></i></button>
-        </div>
-        <div class="gruppo dotazioni" role="group" aria-label="Features">
-          <span>Features</span>
-          DOTE_TASTI
-        </div>
-      </div>
-      <div class="setaccio-piede">
-        <button type="button" class="pulisci" id="pulisci">Clear all</button>
-        <button type="button" class="serba" id="serba">Save this search →</button>
-      </div>
+<!-- ══ LA STECCA — tutti i comandi, in una riga sola ═════════════════════ -->
+<div class="stecca" id="stecca">
+  <div class="container stecca-int">
+    <div class="stecca-cerca">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg>
+      <input id="fq" type="search" placeholder="Name, zone or street"
+        aria-label="Search homes">
+    </div>
+    <div class="gruppo" role="group" aria-label="Bedrooms">
+      <button type="button" data-f="letti" data-v="">Any</button>
+      <button type="button" data-f="letti" data-v="0">Studio</button>
+      <button type="button" data-f="letti" data-v="1">1+</button>
+      <button type="button" data-f="letti" data-v="2">2+</button>
+      <button type="button" data-f="letti" data-v="3">3+ beds</button>
+    </div>
+    <button type="button" class="stecca-piu" id="apriFiltri"
+      aria-haspopup="dialog">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+      Filters<i id="filtriConta" hidden></i></button>
+    <div class="muro-ordine" role="group" aria-label="Sort homes">
+      <button type="button" class="on" data-o="nuove">Newest</button>
+      <button type="button" data-o="prezzo">Price</button>
+      <button type="button" data-o="grandi">Size</button>
+    </div>
+    <button type="button" class="serba" id="serba">Save this search →</button>
+    <div class="vista-tog" role="group" aria-label="View">
+      <button type="button" class="on" id="vGriglia">Grid</button>
+      <button type="button" id="vCielo" class="pulsa">◆ Skyline</button>
     </div>
   </div>
-</section>
+</div>
 
 <!-- ══ IL MURO ═══════════════════════════════════════════════════════════ -->
-<section class="sezione" style="padding-top:clamp(10px,1.2vw,16px)">
+<section class="sezione" style="padding-top:clamp(10px,1.2vw,16px)" id="catalogo">
   <div class="container">
-    <div class="muro-testa">
-      <p class="muro-conto"><b id="conto">0</b> homes<span id="contoZona"></span></p>
-      <div class="muro-ordine" role="group" aria-label="Sort homes">
-        <button type="button" class="on" data-o="nuove">Newest</button>
-        <button type="button" data-o="prezzo">Price</button>
-        <button type="button" data-o="grandi">Size</button>
-      </div>
-    </div>
+    <p class="muro-conto"><b id="conto">0</b> homes<span id="contoZona"></span></p>
     <div class="muro coro" id="muro">
 CASE_MURO
+      <button type="button" class="skycarta" id="skyCarta">
+        <span class="sk-eti"><i></i>Rome's Skyline · live 3D</span>
+        <span class="sk-tit">Every home, standing on the real city.</span>
+        <p>Satellite view and 3D buildings — tap a home and it measures its
+          own walk to Sapienza, LUISS, Termini and the Vatican.</p>
+        <span class="sk-cta">Open the map view →</span>
+      </button>
     </div>
     <div class="vuoto" id="vuoto">
       <b>Nothing here matches — yet.</b>
@@ -326,6 +462,9 @@ CASE_MURO
         right now — it just isn't on a portal yet. That's what the hunt
         engine is for.</p>
       <a class="btn btn-primary" href="/property-finding.html">Put the machine on it</a>
+    </div>
+    <div class="vista-cielo" id="vistaCielo" hidden>
+VISTA_CIELO
     </div>
   </div>
 </section>
@@ -352,6 +491,57 @@ CASE_MURO
         live site this becomes a saved search: you only hear from us when a
         home that matches actually appears.</p>
     </form>
+  </div>
+</div>
+
+<!-- ══ IL FOGLIO DEI FILTRI — la coda lunga, in un posto solo ════════════ -->
+<div class="serba-velo" id="foglioVelo" hidden>
+  <div class="foglio-filtri" role="dialog" aria-modal="true"
+    aria-labelledby="foglioTit">
+    <div class="foglio-testa"><b id="foglioTit">Fine-tune the list</b>
+      <button type="button" class="foglio-x" id="foglioChiudi"
+        aria-label="Close filters">✕</button></div>
+    <div class="gruppo" role="group" aria-label="Bathrooms">
+      <span>Baths</span>
+      <button type="button" data-f="bagni" data-v="">Any</button>
+      <button type="button" data-f="bagni" data-v="1">1+</button>
+      <button type="button" data-f="bagni" data-v="2">2+</button>
+    </div>
+    <div class="gruppo" role="group" aria-label="Extras">
+      <span>Only</span>
+      <button type="button" data-f="arredata" data-v="1">Furnished</button>
+      <button type="button" data-f="video" data-v="1">Video-verified</button>
+      <button type="button" data-f="salvate" data-v="1">Saved <i id="quanteSalvate"></i></button>
+    </div>
+    <div class="gruppo dotazioni" role="group" aria-label="Features">
+      <span>Features</span>
+      DOTE_TASTI
+    </div>
+    <div class="foglio-piede">
+      <button type="button" class="pulisci" id="pulisci">Clear all</button>
+      <button type="button" class="btn btn-primary" id="foglioFatto">Show
+        <span id="foglioConto">all</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ IL PARAGONE — fino a tre case, fianco a fianco ════════════════════ -->
+<div class="para-tray" id="paraTray" hidden>
+  <div class="para-fotine" id="paraFotine"></div>
+  <span class="para-dice" id="paraDice">Pick another home to compare</span>
+  <button type="button" class="btn btn-primary" id="paraApri" disabled>Compare</button>
+  <button type="button" class="para-svuota" id="paraSvuota"
+    aria-label="Clear comparison">✕</button>
+</div>
+<div class="serba-velo" id="paraVelo" hidden>
+  <div class="para-foglio" role="dialog" aria-modal="true"
+    aria-label="Compare homes side by side">
+    <div class="foglio-testa"><b>Side by side</b>
+      <button type="button" class="foglio-x" id="paraChiudi"
+        aria-label="Close comparison">✕</button></div>
+    <div class="para-scroll"><table class="para-tavola" id="paraTavola"></table></div>
+    <p class="para-nota">Day one = first month + deposit + agency fee — the
+      same number each home's page shows. The deposit comes back at the end.</p>
   </div>
 </div>
 

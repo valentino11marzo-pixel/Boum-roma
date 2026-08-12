@@ -399,3 +399,205 @@
   else addEventListener('load', via);
 })();
 </script>
+
+<script>
+/* LA STECCA, IL FOGLIO, LA VISTA, IL PARAGONE — il secondo atto della
+   discovery. Non tocca lo stato dei filtri: lo osserva (il conto cambia
+   a ogni aggiorna) e ci si sincronizza sopra. */
+(function () {
+  'use strict';
+  var per = function (s, c) { return (c || document).querySelector(s); };
+  var tutti = function (s, c) {
+    return [].slice.call((c || document).querySelectorAll(s)); };
+  var muro = per('#muro'); if (!muro) return;
+  var nav = per('.nav');
+
+  /* ── la stecca si appende sotto la barra: misura vera, non magia ── */
+  function quota() {
+    var h = nav ? nav.offsetHeight : 76;
+    document.documentElement.style.setProperty('--stecca-top', (h - 1) + 'px');
+  }
+  quota();
+  addEventListener('resize', quota);
+  addEventListener('scroll', function () { requestAnimationFrame(quota); },
+    { passive: true });
+
+  /* ── la scheda di una casa, letta dalla sua carta: una verita sola ── */
+  function eu(n) { return '€' + Math.round(n).toLocaleString('en-US'); }
+  function scheda(id) {
+    var c = tutti('.casa-p', muro).filter(function (x) {
+      return x.dataset.id === id; })[0];
+    if (!c) return null;
+    var img = per('img', c), st = per('.casa-stato', c);
+    var p = +c.dataset.prezzo || 0, mesi = +c.dataset.cauzione || 1;
+    /* la STESSA aritmetica della pagina casa: onorario 10% del canone
+       annuo, deposito = mesi di cauzione — mai due versioni dei soldi */
+    var fee = Math.round(p * 12 * .10);
+    return { id: id, href: c.getAttribute('href'),
+      nome: (per('.nome', c) || {}).textContent || '',
+      zona: c.dataset.zona || '', foto: img ? img.src : '',
+      prezzo: p, cauzione: mesi * p, mesi: mesi, fee: fee,
+      giornouno: p + mesi * p + fee,
+      letti: +c.dataset.letti || 0, bagni: +c.dataset.bagni || 0,
+      mq: +c.dataset.mq || 0, piano: c.dataset.piano || '',
+      arredata: c.dataset.arredata === '1', video: c.dataset.video === '1',
+      stato: st ? st.textContent : '',
+      dote: (c.dataset.dote || '').split('|').filter(Boolean) };
+  }
+  function visibili() {
+    return tutti('.casa-p', muro).filter(function (c) {
+      return !c.classList.contains('via'); });
+  }
+
+  /* ── la sincronia: parte da sola ogni volta che il conto cambia ── */
+  var sky = per('#skyCarta');
+  function sincronia() {
+    var vis = visibili();
+    if (sky) {
+      if (vis.length > 6) muro.insertBefore(sky, vis[6]);
+      else muro.appendChild(sky);
+      sky.style.display = vis.length ? '' : 'none';
+    }
+    var acc = tutti('#foglioVelo .gruppo button.on').filter(function (b) {
+      return b.dataset.v !== ''; }).length;
+    var fc = per('#filtriConta');
+    if (fc) { fc.hidden = !acc; fc.textContent = acc; }
+    var fg = per('#foglioConto'), ct = per('#conto');
+    if (fg && ct) fg.textContent = ct.textContent + ' home' +
+      (ct.textContent === '1' ? '' : 's');
+    if (window.BoomCielo) window.BoomCielo.tieni(vis.map(function (c) {
+      return c.dataset.id; }));
+  }
+  var conto = per('#conto');
+  if (conto) new MutationObserver(sincronia)
+    .observe(conto, { childList: true });
+  sincronia();
+
+  /* ── il foglio dei filtri ── */
+  var foglio = per('#foglioVelo');
+  var apriF = per('#apriFiltri');
+  if (apriF) apriF.addEventListener('click', function () {
+    foglio.hidden = false; });
+  [per('#foglioChiudi'), per('#foglioFatto')].forEach(function (b) {
+    if (b) b.addEventListener('click', function () { foglio.hidden = true; });
+  });
+  if (foglio) foglio.addEventListener('click', function (e) {
+    if (e.target === foglio) foglio.hidden = true; });
+
+  /* ── la vista: griglia ⇄ skyline ── */
+  var cieloBox = per('#vistaCielo'), vg = per('#vGriglia'), vc = per('#vCielo');
+  var contoRiga = per('.muro-conto'), vuoto = per('#vuoto');
+  function vista(mappa) {
+    if (!cieloBox) return;
+    cieloBox.hidden = !mappa;
+    muro.style.display = mappa ? 'none' : '';
+    if (contoRiga) contoRiga.style.display = mappa ? 'none' : '';
+    if (vuoto) vuoto.style.display = mappa ? 'none' : '';
+    if (vg) vg.classList.toggle('on', !mappa);
+    if (vc) { vc.classList.toggle('on', mappa); vc.classList.remove('pulsa'); }
+    if (mappa) sincronia();
+  }
+  if (vg) vg.addEventListener('click', function () { vista(false); });
+  if (vc) vc.addEventListener('click', function () { vista(true); });
+  if (sky) sky.addEventListener('click', function () {
+    vista(true);
+    try { cieloBox.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    catch (e) {}
+  });
+
+  /* ── il paragone ── */
+  var PARA = [];
+  var tray = per('#paraTray'), fotine = per('#paraFotine'),
+      dice = per('#paraDice'), apriP = per('#paraApri'),
+      svuota = per('#paraSvuota'), velaP = per('#paraVelo'),
+      tavola = per('#paraTavola');
+  function paraSegna() {
+    tutti('.home-para', muro).forEach(function (b) {
+      b.classList.toggle('on', PARA.indexOf(b.dataset.id) >= 0); });
+    if (!tray) return;
+    tray.hidden = !PARA.length;
+    fotine.innerHTML = PARA.map(function (id) {
+      var sc = scheda(id);
+      return sc && sc.foto ? '<img src="' + sc.foto + '" alt="">'
+                           : '<span></span>';
+    }).join('');
+    apriP.disabled = PARA.length < 2;
+    apriP.textContent = 'Compare' +
+      (PARA.length > 1 ? ' ' + PARA.length : '');
+    dice.textContent = PARA.length < 2 ? 'Pick another home to compare'
+      : PARA.length + ' homes side by side';
+  }
+  muro.addEventListener('click', function (e) {
+    var b = e.target.closest('.home-para'); if (!b) return;
+    e.preventDefault(); e.stopPropagation();
+    var id = b.dataset.id, k = PARA.indexOf(id);
+    if (k >= 0) PARA.splice(k, 1);
+    else if (PARA.length >= 3) {
+      if (dice) dice.textContent = 'Three is the limit — remove one first.';
+      if (tray) tray.hidden = false;
+      return;
+    } else PARA.push(id);
+    paraSegna();
+  });
+  function segno(v) { return v ? '<b>✓</b>' : '—'; }
+  function tabella() {
+    var ss = PARA.map(scheda).filter(Boolean);
+    function fila(eti, f) {
+      return '<tr><th scope="row">' + eti + '</th>' + ss.map(function (x) {
+        return '<td>' + f(x) + '</td>'; }).join('') + '</tr>';
+    }
+    tavola.innerHTML =
+      '<tr><th></th>' + ss.map(function (x) {
+        return '<td class="pt-capo">' +
+          (x.foto ? '<img src="' + x.foto + '" alt="">' : '') +
+          '<button type="button" class="pt-x" data-id="' + x.id +
+          '" aria-label="Remove from comparison">✕</button>' +
+          '<b>' + x.nome + '</b><span>' + x.zona + '</span></td>';
+      }).join('') + '</tr>' +
+      fila('Monthly rent', function (x) {
+        return '<b>' + eu(x.prezzo) + '</b>/mo'; }) +
+      fila('Day one, all-in', function (x) {
+        return '<b>' + eu(x.giornouno) + '</b>'; }) +
+      fila('of which deposit', function (x) {
+        return '<span class="verde">' + eu(x.cauzione) +
+          '</span> · comes back'; }) +
+      fila('Agency fee', function (x) { return eu(x.fee); }) +
+      fila('Status', function (x) { return x.stato || '—'; }) +
+      fila('Beds', function (x) {
+        return x.letti === 0 ? 'Studio' : x.letti; }) +
+      fila('Baths', function (x) { return x.bagni || '—'; }) +
+      fila('Size', function (x) {
+        return x.mq ? x.mq + ' m²' : '—'; }) +
+      fila('Floor', function (x) { return x.piano || '—'; }) +
+      fila('Furnished', function (x) { return segno(x.arredata); }) +
+      fila('Video tour', function (x) { return segno(x.video); }) +
+      fila('Features', function (x) {
+        return x.dote.length ? x.dote.join(', ') : '—'; }) +
+      fila('', function (x) {
+        return '<a class="btn btn-primary" href="' + x.href +
+          '">See this home</a>'; });
+  }
+  if (apriP) apriP.addEventListener('click', function () {
+    if (PARA.length < 2) return;
+    tabella(); velaP.hidden = false;
+  });
+  if (svuota) svuota.addEventListener('click', function () {
+    PARA = []; paraSegna(); });
+  if (per('#paraChiudi')) per('#paraChiudi')
+    .addEventListener('click', function () { velaP.hidden = true; });
+  if (velaP) velaP.addEventListener('click', function (e) {
+    if (e.target === velaP) velaP.hidden = true; });
+  if (tavola) tavola.addEventListener('click', function (e) {
+    var b = e.target.closest('.pt-x'); if (!b) return;
+    var k = PARA.indexOf(b.dataset.id);
+    if (k >= 0) PARA.splice(k, 1);
+    paraSegna();
+    if (PARA.length < 2) velaP.hidden = true; else tabella();
+  });
+  addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    if (foglio) foglio.hidden = true;
+    if (velaP) velaP.hidden = true;
+  });
+})();
+</script>

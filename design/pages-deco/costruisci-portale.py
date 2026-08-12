@@ -150,6 +150,16 @@ for r in piene:
         'lat': float(r['lat']), 'lng': float(r['lng']),
         'da': euro(p), 'si': r['status'] == 'available',
         'stato': 'reserved' if r['status'] in ('reserved','waitlist') else 'rented'})
+GIORNO = []
+for r in piene:
+    if r.get('status') != 'available': continue
+    ide = r.get('_id') or r.get('id')
+    if not banca.get(ide): continue
+    p = int(re.sub(r'[^\d]', '', str(r.get('price') or '')) or 0)
+    if not p: continue
+    m = re.search(r'\d+', str(r.get('depositMonths') or ''))
+    GIORNO.append({'p': p, 'm': int(m.group()) if m else 1})
+h = h.replace("'GIORNO_JSON'", json.dumps(GIORNO))
 h = h.replace("'SKY_JSON'", json.dumps(SKYCASE, ensure_ascii=False))
 CASA_ART = 'https://claude.ai/code/artifact/db7c3240-a12d-4734-9eb7-06a780584231'
 h = h.replace('CASA_BASE', (CASA_ART + '#id=') if MODO == 'artefatto'
@@ -211,6 +221,7 @@ if MODO == 'artefatto':
     CASA = CASA_ART
     h = h.replace('COME_URL', '#apparecchio').replace('AP_URL', AP)
     for da, a_ in {'/index.html': HOME, '/apartments.html': AP,
+        '/your-money.html': 'https://claude.ai/code/artifact/bd225367-85f2-4aa5-871d-9653827c078b',
         '/property-finding.html': 'https://claude.ai/code/artifact/4186ed23-28d5-46a2-98bc-09fdf5eb7e21',
         '/board.html': 'https://claude.ai/code/artifact/d5c23034-8aa4-4e33-b53a-e73809b444f2',
     }.items():
@@ -224,6 +235,7 @@ else:
     h = h.replace('COME_URL', '#apparecchio').replace('AP_URL', '/v2-apartments.html')
     for da, a_ in {'/index.html': '/v2-home.html',
         '/apartments.html': '/v2-apartments.html',
+        '/your-money.html': '/v2-money.html',
         '/property-finding.html': '/v2-property-finding.html',
         '/board.html': '/v2-board.html'}.items():
         h = h.replace('href="' + da + '"', 'href="' + a_ + '"')

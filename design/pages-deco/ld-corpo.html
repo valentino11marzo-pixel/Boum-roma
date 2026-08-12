@@ -3,7 +3,8 @@
 .casa { position:relative; padding:clamp(88px,10svh,116px) 0 0; }
 .casa-briciole { display:flex; align-items:center; gap:9px; font-size:11px;
   color:var(--text-3); flex-wrap:wrap; }
-.casa-briciole a { color:var(--text-3); transition:color .25s; }
+.casa-briciole a { padding:9px 4px; margin:-9px -4px;
+  color:var(--text-3); transition:color .25s; }
 .casa-briciole a:hover { color:var(--gold); }
 .casa-briciole i { font-style:normal; color:var(--text-4); }
 
@@ -411,6 +412,145 @@ html.vivo .coro.dentro .tempo::after {
 .ap-dopo span { display:block; margin-top:3px; font-size:11.5px;
   line-height:1.55; color:var(--text-4); }
 
+
+/* ══ LA LENTE ══════════════════════════════════════════════════════════ */
+#telaio > img { cursor:zoom-in; }
+.lente { position:fixed; inset:0; z-index:200; background:rgba(3,3,3,.97);
+  display:grid; place-items:center; }
+.lente[hidden] { display:none; }
+.lente img { max-width:min(96vw, 1400px); max-height:88vh;
+  object-fit:contain; box-shadow:0 40px 120px rgba(0,0,0,.8); }
+.lente-x { position:absolute; top:18px; right:18px; width:44px; height:44px;
+  display:grid; place-items:center; background:rgba(3,3,3,.72); border:0;
+  border-radius:50%; color:var(--text-2); font-size:16px; cursor:pointer;
+  box-shadow:inset 0 0 0 1px var(--line); transition:.2s; }
+.lente-x:hover { color:var(--text);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.lente-b { position:absolute; top:50%; transform:translateY(-50%);
+  width:44px; height:44px; display:grid; place-items:center;
+  background:rgba(3,3,3,.72); border:0; border-radius:50%;
+  color:var(--text-2); font-size:22px; cursor:pointer;
+  box-shadow:inset 0 0 0 1px var(--line); transition:.2s; }
+.lente-b:hover { color:var(--gold);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.lente-b.prec { left:14px; }
+.lente-b.succ { right:14px; }
+.lente-conta { position:absolute; bottom:18px; left:50%;
+  transform:translateX(-50%); font-size:11px; letter-spacing:.14em;
+  color:var(--text-3); font-variant-numeric:tabular-nums; }
+
+/* ══ LA PRESA ══════════════════════════════════════════════════════════ */
+.presa { margin-top:clamp(16px,2vw,22px); padding:clamp(18px,2.4vw,26px);
+  display:grid; gap:14px; }
+.presa-testa b { display:block; font-family:var(--display); font-weight:300;
+  font-size:clamp(19px,2.2vw,24px); line-height:1.25; }
+.presa-testa p { margin-top:8px; font-size:13.5px; line-height:1.65;
+  color:var(--text-2); max-width:64ch; }
+.presa-testa p b { color:var(--gold); font-weight:600; }
+.presa-forma { display:grid; gap:10px;
+  grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); }
+.presa-forma input { padding:13px 14px; background:var(--input); border:0;
+  box-shadow:inset 0 0 0 1px var(--line); color:var(--text); font:inherit;
+  font-size:14px; min-width:0; }
+.presa-forma input:focus { outline:none;
+  box-shadow:inset 0 0 0 1px var(--gold); }
+.presa-nota { font-size:11px; color:var(--text-4); }
+.presa-nota a { color:var(--gold); }
+
+/* ══ IL POSTO ══════════════════════════════════════════════════════════ */
+.blocco3d { position:relative; margin-top:clamp(16px,2vw,24px);
+  height:min(56vh, 460px); background:var(--void);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2),
+    0 40px 90px -40px rgba(0,0,0,.9); overflow:hidden; }
+#bloccoMappa { position:absolute; inset:0; }
+#bloccoMappa canvas { outline:none; }
+.blocco3d .maplibregl-ctrl-attrib { font-size:9px!important; opacity:.4; }
+.blocco3d .maplibregl-ctrl-group { background:rgba(14,14,16,.82)!important; }
+.blocco3d .maplibregl-ctrl-icon {
+  filter:invert(1) brightness(1.6) contrast(.85); }
+.blocco-facciata { position:absolute; inset:0; display:grid;
+  place-items:center; align-content:center; gap:8px; border:0;
+  color:var(--text); font:inherit; cursor:pointer; text-align:center;
+  padding:20px; background:
+    radial-gradient(2px 2px at 26% 30%, var(--gold) 40%, transparent 60%),
+    radial-gradient(2px 2px at 66% 22%, var(--gold) 40%, transparent 60%),
+    radial-gradient(2px 2px at 44% 56%, rgba(255,215,0,.5) 40%, transparent 60%),
+    radial-gradient(120% 90% at 70% 8%, rgba(255,215,0,.08), transparent 55%),
+    linear-gradient(160deg, #101017 0%, #08080D 55%, var(--void) 100%); }
+.blocco-facciata b { font-family:var(--display); font-weight:300;
+  font-size:clamp(19px,2.4vw,26px); }
+.bf-sotto { font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--text-3); }
+.bf-anelli { position:absolute; inset:0; display:grid; place-items:center;
+  pointer-events:none; }
+.bf-anelli i { position:absolute; border-radius:50%; opacity:.5;
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.bf-anelli i:nth-child(1) { width:120px; height:120px; }
+.bf-anelli i:nth-child(2) { width:220px; height:220px; opacity:.32; }
+.bf-anelli i:nth-child(3) { width:330px; height:330px; opacity:.18; }
+.blocco-pin span { display:inline-block; padding:6px 11px;
+  background:var(--gold); color:#141005; font-size:12px; font-weight:700;
+  border-radius:100px; box-shadow:0 10px 30px rgba(0,0,0,.5);
+  font-variant-numeric:tabular-nums; }
+.blocco-spento { position:absolute; inset:0; display:grid;
+  place-items:center; align-content:center; gap:10px; padding:24px;
+  text-align:center; }
+.blocco-spento b { font-family:var(--display); font-weight:300;
+  font-size:19px; }
+.blocco-spento span { font-size:12.5px; color:var(--text-3); max-width:44ch;
+  line-height:1.6; }
+.vicini { margin-top:clamp(14px,1.8vw,18px); display:grid; gap:10px;
+  grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); }
+.vicino { display:flex; align-items:baseline; gap:8px; padding:13px 15px;
+  background:var(--card); box-shadow:inset 0 0 0 1px var(--line-0); }
+.vicino b { font-weight:500; font-size:13.5px; white-space:nowrap; }
+.vicino span { flex:1; font-size:11px; color:var(--text-4);
+  overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.vicino i { font-style:normal; font-size:12px; color:var(--gold);
+  font-variant-numeric:tabular-nums; white-space:nowrap; }
+.luoghi { margin-top:clamp(14px,1.8vw,18px); padding:clamp(16px,2vw,22px);
+  background:var(--card); box-shadow:inset 0 0 0 1px var(--line-0); }
+.luoghi-testa { display:flex; flex-wrap:wrap; align-items:baseline;
+  gap:6px 14px; }
+.luoghi-testa b { font-family:var(--display); font-weight:300;
+  font-size:18px; }
+.luoghi-testa span { font-size:11.5px; color:var(--text-4); }
+.luoghi-cerca { position:relative; margin-top:12px; }
+.luoghi-cerca input { width:100%; padding:13px 14px; background:var(--input);
+  border:0; box-shadow:inset 0 0 0 1px var(--line); color:var(--text);
+  font:inherit; font-size:14px; }
+.luoghi-cerca input:focus { outline:none;
+  box-shadow:inset 0 0 0 1px var(--gold); }
+.luoghi-sug { position:absolute; left:0; right:0; top:calc(100% + 6px);
+  z-index:20; background:var(--void);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2),
+    0 24px 60px rgba(0,0,0,.7); }
+.luoghi-sug:empty { display:none; }
+.luoghi-sug button { display:block; width:100%; text-align:left;
+  padding:11px 14px; background:none; border:0;
+  border-bottom:1px solid var(--line-0); color:var(--text-2); font:inherit;
+  cursor:pointer; min-height:40px; }
+.luoghi-sug button:last-child { border-bottom:0; }
+.luoghi-sug button:hover { background:rgba(255,215,0,.06); }
+.luoghi-sug button b { display:block; color:var(--text); font-weight:500;
+  font-size:13.5px; }
+.luoghi-sug button span { font-size:11px; color:var(--text-4); }
+.luoghi-sug .luoghi-vuota { padding:11px 14px; }
+.luoghi-righe { margin-top:12px; display:grid; gap:8px; }
+.luogo { display:flex; align-items:center; gap:10px; padding:10px 12px;
+  background:var(--void); box-shadow:inset 0 0 0 1px var(--line-0); }
+.luogo b { flex:1; font-weight:500; font-size:13px; overflow:hidden;
+  white-space:nowrap; text-overflow:ellipsis; }
+.luogo i { font-style:normal; font-size:12px; color:var(--gold);
+  font-variant-numeric:tabular-nums; white-space:nowrap; }
+.luogo button { width:36px; height:36px; flex:none; display:grid;
+  place-items:center; background:none; border:0; color:var(--text-4);
+  cursor:pointer; font-size:12px; border-radius:50%;
+  box-shadow:inset 0 0 0 1px var(--line); transition:.2s; }
+.luogo button:hover { color:var(--text); }
+.luoghi-vuota { font-size:12px; color:var(--text-4); padding:8px 2px; }
+.luoghi-nota { margin-top:12px; font-size:10.5px; color:var(--text-4);
+  line-height:1.6; }
 </style>
 
 <section class="casa">
@@ -527,7 +667,9 @@ html.vivo .coro.dentro .tempo::after {
         <p class="chiavi-fuori"><b>What is not included:</b> utilities
           (electricity, gas, water, internet) and the registration tax. Both
           are paid to the providers and to the State. We never touch them and
-          we never mark them up.</p>
+          we never mark them up.
+          <a class="sotto-vai" href="/your-money.html">The full money story —
+            every euro, in and out →</a></p>
       </div>
 
       <div class="durata">
@@ -546,6 +688,69 @@ html.vivo .coro.dentro .tempo::after {
         </div>
       </div>
 
+    </div>
+
+    <div class="presa quadro sale" id="presaCasa"><span class="tacca"></span>
+      <div class="presa-testa">
+        <b id="presaTitolo">Seen enough? Take it off the market.</b>
+        <p>A refundable <b>€300</b> hold reserves this exact home while we
+          process your application: fully refunded if you're not approved,
+          deducted from your first month if you move in. Cancel free within
+          48 hours.</p>
+      </div>
+      <form class="presa-forma" id="presaForma">
+        <input id="prNome" name="nome" placeholder="Full name"
+          autocomplete="name" required>
+        <input id="prMail" name="email" type="email" placeholder="Email"
+          autocomplete="email" required>
+        <input id="prTel" name="telefono" type="tel"
+          placeholder="Phone / WhatsApp" autocomplete="tel" required>
+        <button type="submit" class="btn btn-primary" id="prVai">Hold this
+          home · €300</button>
+      </form>
+      <p class="presa-nota" id="presaNota">Card via Stripe · a receipt by
+        email · a human replies within 2 hours.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══ IL POSTO — il blocco vero, le distanze vere ═══════════════════════
+     Mai una mappa finta: il motore arriva solo se lo chiami, e se non
+     arriva lo dice. Le distanze sono stime oneste (linea d'aria ×1.3),
+     dichiarate come tali. -->
+<section class="sezione" id="posto">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>The place</span>
+      <h2 class="titolo">See the <span class="hl">block</span> — before you
+        cross town.</h2>
+      <p class="sotto">The real map and the real distances, measured from
+        this door — not from the zone's name.</p>
+    </div>
+
+    <div class="blocco3d sale" id="blocco3d">
+      <button type="button" class="blocco-facciata" id="bloccoVia">
+        <span class="bf-anelli" aria-hidden="true"><i></i><i></i><i></i></span>
+        <b>◆ Explore the block in 3D</b>
+        <span class="bf-sotto">Real map · 3D buildings · 5 / 10 / 15-minute
+          walk rings</span>
+      </button>
+    </div>
+
+    <div class="vicini sale" id="vicini"></div>
+
+    <div class="luoghi sale" id="luoghi">
+      <div class="luoghi-testa"><b>Distance from <span class="hl">your
+        places</span></b><span>Set them once — every home answers.</span></div>
+      <div class="luoghi-cerca">
+        <input id="luogoQ" type="text"
+          placeholder="Your office, university, a metro stop…"
+          autocomplete="off" aria-label="Search a place in Rome">
+        <div class="luoghi-sug" id="luogoSug" role="listbox"></div>
+      </div>
+      <div class="luoghi-righe" id="luogoRighe"></div>
+      <p class="luoghi-nota">Times are honest estimates — straight line ×1.3
+        for real streets, walking at 4.7 km/h — not turn-by-turn routes.</p>
     </div>
   </div>
 </section>
@@ -731,3 +936,16 @@ html.vivo .coro.dentro .tempo::after {
     </div>
   </div>
 </section>
+
+<!-- ══ LA LENTE — la foto a tutto schermo ════════════════════════════════ -->
+<div class="lente" id="lente" hidden role="dialog" aria-modal="true"
+  aria-label="Photo viewer">
+  <button type="button" class="lente-x" id="lenteX"
+    aria-label="Close photo viewer">✕</button>
+  <button type="button" class="lente-b prec" id="lentePrec"
+    aria-label="Previous photo">‹</button>
+  <img id="lenteFoto" alt="" decoding="async">
+  <button type="button" class="lente-b succ" id="lenteSucc"
+    aria-label="Next photo">›</button>
+  <span class="lente-conta" id="lenteConta" aria-hidden="true"></span>
+</div>

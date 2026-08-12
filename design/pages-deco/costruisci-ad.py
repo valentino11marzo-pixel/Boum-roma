@@ -48,7 +48,8 @@ def dote_di(ide):
         k = re.sub(r'\s+', ' ', str(f)).strip().lower()
         if k in DOTE_NOMI and DOTE_NOMI[k] not in fuori: fuori.append(DOTE_NOMI[k])
     return fuori
-uri = json.load(open('foto-uri.json')); rem = json.load(open('foto-map.json'))
+uri = json.load(open('foto-uri.json'))
+rem = json.load(open('foto-map.json'))
 banca = uri if MODO == 'artefatto' else rem
 
 tutti = [r for r in rows if r.get('nome') and r.get('price')
@@ -103,13 +104,17 @@ def carta(r):
     dote = dote_di(r['id'])
     cerca = ' '.join([n, z, str(r.get('address') or ''),
                       str(r.get('type') or '')]).lower()
+    czm = re.search(r'\d+', str(piena.get('depositMonths') or ''))
+    czm = int(czm.group()) if czm else 1
+    piano = re.sub(r'[\s"]+', ' ', str(piena.get('floor') or '')).strip()[:12]
     return f'''      <a class="casa-p" href="/listing/{r['id']}"
         data-zona="{z}" data-prezzo="{p}" data-letti="{b or 0}"
         data-mq="{mq or 0}" data-quando="{quando(r).strftime('%Y-%m-%d')}"
         data-dal="{libera(r.get('avail'))}" data-bagni="{bagni}"
         data-arredata="{arred}" data-video="{vid}"
         data-dote="|{'|'.join(dote)}|" data-chiave="/listing/{r['id']}"
-        data-cerca="{cerca}">
+        data-cerca="{cerca}" data-id="{r['id']}" data-cauzione="{czm}"
+        data-piano="{piano}">
         <div class="home-foto">
           <img loading="lazy" decoding="async" src="{banca.get(r['id'], '')}"
             alt="{n}, {z} — apartment for rent in Rome with BOOM">
@@ -117,6 +122,8 @@ def carta(r):
           <span class="casa-stato {st[1]}">{st[0]}</span>
           <button type="button" class="home-cuore" data-u="/listing/{r['id']}"
             aria-label="Save this home">♥</button>
+          <button type="button" class="home-para" data-id="{r['id']}"
+            aria-label="Compare this home">⇄</button>
         </div>
         <div class="corpo">
           <div class="riga1"><span class="nome">{n}</span>
@@ -163,14 +170,43 @@ onda = ('<script>\n(function () {\n  \'use strict\';\n' + pt[a:b]
         + "  else addEventListener('load', function () { setTimeout(cartaRoma, 0); });\n"
         + '})();\n</script>')
 
+# la Skyline della home, per intero: il blocco e la sua macchina.
+# Nessuna copia a mano — se la home migliora, la discovery la segue.
+ci_a = pt.index('<div class="cielo sale" id="cielo">')
+ci_b = pt.index('</section>', ci_a)
+cielo_blocco = pt[ci_a:ci_b].rstrip()
+assert cielo_blocco.endswith('</div>'), 'blocco cielo'
+cielo_blocco = cielo_blocco[:-6].rstrip()  # cade il </div> del container
+sc_a = pt.index("var CASE = 'SKY_JSON';")
+sc_a = pt.rindex('<script>', 0, sc_a)
+sc_b = pt.index('</script>', sc_a) + len('</script>')
+cielo_js = pt[sc_a:sc_b]
+
 h = '\n'.join([testa, nav, leggi('ad-corpo.html'), piede,
-               leggi('ad-regia.html'), onda,
+               leggi('ad-regia.html'), onda, cielo_js,
                leggi('solari-engine.html'), leggi('deco-organi.html')])
 h = h.replace('<title>BOOM Rome — Premium Apartment Rentals | 48-Hour Move-In</title>',
     '<title>Apartments in Rome — walked in person, ready to move in | BOOM</title>')
 h = h.replace('LOGO_SVG', leggi('logo-live.svg').strip())
 h = h.replace('href="#banchina"', 'href="' + ('https://claude.ai/code/artifact/5e7c6222-9a91-4052-a4d7-f31255ed4478' if MODO == 'artefatto' else '/v2-home.html') + '#banchina"')
 h = h.replace('CASE_MURO', MURO)
+h = h.replace('VISTA_CIELO', cielo_blocco)
+SKYD = []
+for r in mostrate:
+    p = piene.get(r['id']) or {}
+    if not p.get('lat') or not p.get('lng'): continue
+    if r['status'] not in ('available', 'reserved', 'waitlist'): continue
+    SKYD.append({'id': r['id'], 'nome': re.sub(r'\s+', ' ', r['nome']).strip(),
+        'zona': zona_di(r), 'lat': float(p['lat']), 'lng': float(p['lng']),
+        'da': euro(prezzo(r)), 'si': r['status'] == 'available',
+        'foto': (rem.get(r['id'], '') if MODO == 'sito' else ''),
+        'stato': 'reserved' if r['status'] in ('reserved', 'waitlist') else 'rented'})
+h = h.replace("'SKY_JSON'", json.dumps(SKYD, ensure_ascii=False))
+h = h.replace('SKYLINE_URL', 'https://www.boomrome.com/skyline'
+    if MODO == 'artefatto' else '/skyline')
+h = h.replace('CASA_BASE',
+    ('https://claude.ai/code/artifact/db7c3240-a12d-4734-9eb7-06a780584231#id=')
+    if MODO == 'artefatto' else '/v2-listing.html#id=')
 conta_dote = {}
 for r in mostrate:
     for d in dote_di(r['id']): conta_dote[d] = conta_dote.get(d, 0) + 1
@@ -197,12 +233,14 @@ if MODO == 'artefatto':
     CASA = 'https://claude.ai/code/artifact/db7c3240-a12d-4734-9eb7-06a780584231'
     h = h.replace('href="/index.html"', 'href="' + HOME + '"')
     h = h.replace('href="/listing/', 'href="' + CASA + '#id=')
+    h = h.replace('href="/your-money.html"', 'href="https://claude.ai/code/artifact/bd225367-85f2-4aa5-871d-9653827c078b"')
     h = re.sub(r'href="/([a-z-]+)\.html"', r'href="https://www.boomrome.com/\1"', h)
     h = h.replace('href="/login"', 'href="https://www.boomrome.com/login"')
     h = h.replace('data-href="/apartments.html#zona=', 'data-href="#zona=')
 else:
     for da, a_ in {'/index.html': '/v2-home.html',
         '/apartments.html': '/v2-apartments.html',
+        '/your-money.html': '/v2-money.html',
         '/property-finding.html': '/v2-property-finding.html'}.items():
         h = h.replace('href="' + da + '"', 'href="' + a_ + '"')
     h = h.replace('href="/listing/', 'href="/v2-listing.html#id=')
