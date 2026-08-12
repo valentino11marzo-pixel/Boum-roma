@@ -1734,6 +1734,37 @@ strumento; il confine è pinnato nei test da entrambi i lati.
 Auth: `X-Wizard-Secret`/`X-Homie-Secret` (il bot) o Bearer admin.
 Test: `node tests/reverse/run.mjs`.
 
+### GET/POST `/api/leads/richiamo` + `/richiama` — IL RICHIAMO
+Lo scenario dell'operatore: *"sparisco una settimana, poi dico: ricontatta
+tutti quei numeri con gli orari — e non perdo neanche un lead"*. La Miniera
+ha misurato il buco (544 ultime parole del cliente senza risposta); questo
+lo chiude SU ORDINE. `/richiama <casa|ID>` (Telegram, webhook server) →
+tutti quelli che hanno chiesto QUELLA casa (+ gli affini via `_reverse.js`,
+coi suoi veti); `/richiama recenti [gg]` → i lead recenti senza seguito.
+Anteprima su Telegram con i numeri, il messaggio tipo e gli ESCLUSI col
+motivo; **UN tap (✅) = la firma sull'intera campagna**: WhatsApp a chi ha
+un numero (via il postino `wa-outbox`, ~10 ogni 5′ — ritmo umano), email
+agli altri (Nodemailer, personale, mai un template marketing), ognuno nella
+SUA lingua (`replyLang`), con il link `book?listing=` con gli slot VERI.
+- `api/leads/_richiamo.js` — motore + operazioni in un posto solo (pattern
+  `_apply.js`): `vetoRichiamo` (morti, archiviati, convertiti, contatti
+  BOOM veri da contracts/users/pfsClients in TUTTE le forme del numero, chi
+  ha già una visita in agenda, cooldown 7gg, oltre 120gg — ogni esclusione
+  DICE perché), `channelFor` (numero→WhatsApp, altrimenti email),
+  `buildCampaign` (interessati + affini senza sovrapposizioni, tetto 60),
+  `prepareCampaign`/`sendCampaign`/`cancelCampaign`. Idempotenza per
+  costruzione: `pending→sending→sent`, un secondo tap → 409, MAI un doppio
+  invio; il cooldown nasce sul lead a invio riuscito (`lastRichiamoAt`).
+- `api/leads/richiamo.js` — porta HTTP sottile (auth come match-listing;
+  maxDuration 60). `api/telegram/_richiamo.js` — comando + callback
+  `rk:`/`rx:` (≤64B) nel webhook; casa risolta per nome SENZA indovinare
+  (ambiguo → elenco, mai un match a caso — la lezione di interpret).
+- `richiamoCampaigns` admin-only in firestore.rules (lezione propertyLocks).
+- Test: `node tests/richiamo/run.mjs` — veti per mutazione, 401 senza
+  scritture, giro VERO prepare→tap→`wa-outbox` (handler reale)→email
+  (nodemailer mockato via loader), idempotenza, cooldown che protegge dal
+  secondo richiamo, comando che non indovina mai.
+
 ### GET/POST `/api/homie/searches` — gli occhi di Homie sul radar PFS
 Il problema sta scritto in `api/pfs/_fetch.js`: *"both portals run anti-bot
 protection and may 403 datacenter IPs — the email-alert path is the

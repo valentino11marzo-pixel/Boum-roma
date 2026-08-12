@@ -613,6 +613,9 @@
     "api/homie/miniera.js": {
       "maxDuration": 60
     },
+    "api/leads/richiamo.js": {
+      "maxDuration": 60
+    },
     "api/contracts/verbale.js": {
       "maxDuration": 60
     },

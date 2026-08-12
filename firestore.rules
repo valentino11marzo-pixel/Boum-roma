@@ -289,6 +289,10 @@ service cloud.firestore {
     // campioni corti, mai l'archivio integrale — api/homie/miniera.js).
     // Scritte solo server-side con credenziali admin — stessa lezione.
     match /minieraThreads/{x}              { allow read, write: if isAdmin(); }
+    // IL RICHIAMO — campagne di ricontatto lead (api/leads/_richiamo.js):
+    // audience, esclusi col motivo, stato pending→sent. Solo server-side
+    // con credenziali admin — stessa lezione.
+    match /richiamoCampaigns/{x}           { allow read, write: if isAdmin(); }
 
     // ─── Default deny ─────────────────────────────────────────────────
     match /{document=**} {

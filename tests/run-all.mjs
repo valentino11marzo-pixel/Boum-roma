@@ -40,6 +40,7 @@ const SUITES = [
   { name: 'eyes',     file: 'tests/pfs/eyes.mjs',        what: 'occhi di Homie sul radar PFS: lista di lavoro viva, e un radar cieco non sembra un mercato fermo' },
   { name: 'whatsapp', file: 'tests/whatsapp/run.mjs',     what: 'WhatsApp → lead senza AI: rumore fuori, persona vera dentro, un lead per persona' },
   { name: 'miniera',  file: 'tests/miniera/run.mjs',      what: 'La Miniera: lo storico wacli diventa un verdetto onesto — join per telefono in ogni forma, veti prima del punteggio, sotto campione niente numeri' },
+  { name: 'richiamo', file: 'tests/richiamo/run.mjs',     what: 'Il Richiamo: una campagna, un tap — i veti prima di tutto (inquilini/prenotati/cooldown MAI), un secondo tap non rimanda niente, il postino consegna davvero' },
   { name: 'sell',     file: 'tests/sell/run.mjs',         what: 'Il Link che Vende: la firma sblocca il catalogo, il link nudo resta ai due sicuri, e un servizio ambiguo non si indovina' },
   { name: 'referral', file: 'tests/referral/run.mjs',     what: 'Il referral che vale: la segnalazione diventa un lead vero con dentro chi l\'ha mandata, e un amico irraggiungibile non entra' },
   { name: 'growth',   file: 'tests/growth/run.mjs',       what: 'I due canali gratuiti: università e aziende entrano in pipeline col loro codice, e la recensione si chiede solo a chi ha già le chiavi' },
