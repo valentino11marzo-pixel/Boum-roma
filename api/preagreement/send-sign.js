@@ -38,11 +38,13 @@ export default async function handler(req, res) {
     return res.status(409).json({ ok: false, error: 'not_accepted_yet', status: pa.status });
   }
 
-  // Ensure the contract exists (idempotent — returns existing links if so).
+  // Ensure the contract exists (idempotent — returns existing links if so;
+  // an already-converted contract keeps its own delegate setting). Owner
+  // signs directly unless the caller explicitly asks for delega.
   const out = await convertPaToContract({
     pa, paId,
     propertyId: b.propertyId || pa.propertyId,
-    delegate: true,
+    delegate: b.delegate === true,
     actor: auth.email || auth.uid,
   });
   if (!out.ok) {
@@ -68,6 +70,15 @@ export default async function handler(req, res) {
     signSentBy: auth.email || auth.uid,
     tenantSignUrl, landlordSignUrl,
   }).catch(() => {});
+  // L'invito va STAMPATO ANCHE SUL CONTRATTO: journeyEligible tace il
+  // ciclo casa sui contratti invitati-non-firmati, e il watchdog re-inviti
+  // del reminder-cron riparte da signInviteTenantAt — senza questo stamp
+  // il rail PA restava invisibile a entrambi.
+  if (out.contractId && emailed) {
+    fsPatch('contracts/' + out.contractId, {
+      signInviteTenantAt: new Date().toISOString(),
+    }).catch(() => {});
+  }
   logActivity('preagreement_sign_sent', 'contract',
     { paId, ref: pa.ref || '', contractId: out.contractId, emailed }, auth.email || 'admin')
     .catch(() => {});

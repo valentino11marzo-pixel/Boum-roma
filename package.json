@@ -1,9 +1,10 @@
 {
   "name": "boum-roma",
-  "version": "1.0.0",
-  "description": "BOOM Rome \u2013 premium rental management platform",
+  "version": "1.0.1",
+  "description": "BOOM Rome – premium rental management platform",
   "scripts": {
-    "dev": "vercel dev"
+    "dev": "vercel dev",
+    "test": "node tests/run-all.mjs"
   },
   "repository": {
     "type": "git",

@@ -276,8 +276,8 @@
 
         .nav.scrolled {
             background: rgba(3, 3, 3, 1);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            -webkit-backdrop-filter:blur(20px);backdrop-filter: blur(20px);
+            
             border-bottom: 1px solid var(--border-subtle);
             padding: var(--space-md) 0;
         }
@@ -1280,7 +1280,7 @@
             left: var(--space-md);
             padding: 6px 12px;
             background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter:blur(10px);backdrop-filter: blur(10px);
             font-size: 9px;
             font-weight: 600;
             letter-spacing: 1px;
@@ -2182,6 +2182,16 @@
 
         .footer-company strong {
             color: var(--text-secondary);
+        }
+
+        /* Menzione di marchio: sta sotto i dati societari e non compete con
+           nulla — un gradino sotto .footer-company per corpo e opacità. */
+        .footer-tm {
+            font-size: 11px;
+            font-weight: 300;
+            color: rgba(250, 250, 250, 0.30);
+            line-height: 1.7;
+            margin-top: 10px;
         }
 
         .footer-links-title {

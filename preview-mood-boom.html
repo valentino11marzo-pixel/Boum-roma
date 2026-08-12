@@ -47,7 +47,7 @@ h1 b{font-weight:400;color:var(--gold)}
 
 .drawer{position:fixed;inset:0;z-index:90;display:none}
 .drawer.on{display:block}
-.drawer .bg{position:absolute;inset:0;background:rgba(0,0,0,.62);backdrop-filter:blur(6px);opacity:0;transition:opacity .32s var(--ease)}
+.drawer .bg{position:absolute;inset:0;background:rgba(0,0,0,.62);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);opacity:0;transition:opacity .32s var(--ease)}
 .drawer.in .bg{opacity:1}
 .panel{position:absolute;right:0;top:0;bottom:0;width:min(420px,94vw);background:#0C0C0F;border-left:1px solid rgba(255,215,0,.18);padding:36px 32px;transform:translateX(103%);transition:transform .44s cubic-bezier(.65,0,.35,1)}
 .drawer.in .panel{transform:none}

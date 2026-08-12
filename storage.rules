@@ -96,6 +96,18 @@ service firebase.storage {
       allow delete: if isAdmin();
     }
 
+    // Reel video del Media Studio pubblicati come video tour dell'annuncio.
+    // Path dedicato perché i video superano il tetto immagini di
+    // validUpload(): qui solo video/*, fino a 100 MB. Public read (il tour
+    // è in pagina pubblica), admin write.
+    match /listings/enhanced/{listingId}/video/{file} {
+      allow read:  if true;
+      allow write: if isAdmin()
+                   && request.resource.size < 100 * 1024 * 1024
+                   && request.resource.contentType.matches('video/.*');
+      allow delete: if isAdmin();
+    }
+
     // ─── passes/** ────────────────────────────────────────────────────
     // Generated .pkpass files delivered via tokenized download URL. Public
     // read (URL carries an unguessable token); any signed-in user may write
@@ -129,6 +141,24 @@ service firebase.storage {
     // Signed tailored-PDF outputs (api/sign/custom/submit.js), uploaded with
     // the same admin ID token. Same tokenized-URL delivery for signers.
     match /signRequests/{reqId}/{allPaths=**} {
+      allow read, write: if isAdmin();
+    }
+
+    // ─── property-docs/{propId}/** ────────────────────────────────────
+    // The property DOSSIER for the Fascicolo ARPE (visura, planimetria,
+    // APE, delega ARPE) — uploaded once per property from the console via
+    // api/properties/dossier.js (admin creds server-side); tokenized URLs
+    // stored on properties/{id}.dossier are the read credential.
+    match /property-docs/{propId}/{allPaths=**} {
+      allow read, write: if isAdmin();
+    }
+
+    // ─── smistatore/{fiscalYear}/** ───────────────────────────────────
+    // Lo Smistatore's filed documents (api/documents/_smista.js): photos/PDFs
+    // sent via Telegram or forwarded email, uploaded server-side with the
+    // admin ID token. Admin-only; the portal opens them via the tokenized
+    // ?alt=media&token= URL stored on the `documents` doc.
+    match /smistatore/{fiscalYear}/{allPaths=**} {
       allow read, write: if isAdmin();
     }
 

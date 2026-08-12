@@ -34,12 +34,16 @@ export default async function handler(req, res) {
 
   let to = body.to || null, phone = body.phone || null, leadName = null;
   if (body.leadId) {
-    const lead = await fsGet(`leads/${body.leadId}`);
-    if (lead) {
-      if (!to) to = lead.email;
-      if (!phone) phone = lead.phone;
-      leadName = lead.name;
-    }
+    // enrichment only: to/phone usually travel in the payload already, so a
+    // transient Firestore error here must not kill an otherwise-ready send
+    try {
+      const lead = await fsGet(`leads/${body.leadId}`);
+      if (lead) {
+        if (!to) to = lead.email;
+        if (!phone) phone = lead.phone;
+        leadName = lead.name;
+      }
+    } catch (e) { console.warn('[messages.send] lead lookup failed:', e.message); }
   }
 
   const replace = { ...(body.replace || {}), name: leadName || (body.replace && body.replace.name) || '' };

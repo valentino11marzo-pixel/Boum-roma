@@ -257,7 +257,7 @@
         .avatar{width:40px;height:40px;background:linear-gradient(135deg,var(--gold),var(--gold-dark));border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;color:#000;flex-shrink:0}
         .avatar.lg{width:56px;height:56px;font-size:18px}.avatar.xl{width:72px;height:72px;font-size:24px}
         .avatar.blue{background:linear-gradient(135deg,var(--blue),#0055b3);color:#fff}.avatar.purple{background:linear-gradient(135deg,var(--purple),#8e44ad);color:#fff}
-        .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.9);backdrop-filter:blur(8px);display:none;align-items:flex-start;justify-content:center;z-index:300;padding:24px;overflow-y:auto}
+        .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.9);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);display:none;align-items:flex-start;justify-content:center;z-index:300;padding:24px;overflow-y:auto}
         .modal-overlay.active{display:flex}
         .modal{background:var(--bg-card);border:1px solid var(--border);border-radius:20px;width:100%;max-width:560px;margin:auto;overflow:hidden;animation:modalIn .2s ease}
         .modal.lg{max-width:720px}.modal.xl{max-width:900px}
@@ -869,8 +869,8 @@
 
 /* — .modal: deeper backdrop blur + ring shadow — */
 .modal-overlay{
-    backdrop-filter:blur(14px) saturate(120%);
-    -webkit-backdrop-filter:blur(14px) saturate(120%);
+    -webkit-backdrop-filter:blur(14px) saturate(120%);backdrop-filter:blur(14px) saturate(120%);
+    
     background:rgba(0,0,0,0.78);
 }
 .modal{
@@ -915,8 +915,8 @@
 
 /* — Toast polish — */
 .toast{
-    backdrop-filter:blur(20px) saturate(130%);
-    -webkit-backdrop-filter:blur(20px) saturate(130%);
+    -webkit-backdrop-filter:blur(20px) saturate(130%);backdrop-filter:blur(20px) saturate(130%);
+    
     background:rgba(20,20,24,0.88);
     box-shadow:var(--shadow-md);
     border-radius:14px;
@@ -1200,3 +1200,77 @@
 .an-donut-legend{display:flex;flex-direction:column;gap:8px;font-size:12px}
 .an-leg-row{display:flex;align-items:center;gap:8px;color:var(--text-secondary)}
 .an-leg-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+
+        /* ═══════════════════════════════════════════════════════════════
+           M1 · PORTAL IN TASCA — pacchetto mobile (audit 2026-08)
+           Un blocco solo, in coda: override espliciti, il desktop non
+           cambia di un pixel (le variabili safe-area valgono 0 fuori
+           da iOS standalone). Ogni regola risponde a un difetto
+           documentato nell'audit con file:riga.
+           ═══════════════════════════════════════════════════════════ */
+        :root{--safe-b:env(safe-area-inset-bottom,0px);--safe-t:env(safe-area-inset-top,0px)}
+        /* Il body poteva scrollare di lato (header più largo dello schermo,
+           griglie inline): l'asse X si chiude alla radice. */
+        html,body{overflow-x:hidden;max-width:100vw}
+        /* PWA standalone: l'header sticky finiva SOTTO la Dynamic Island,
+           i toast sotto la home indicator. */
+        .header{padding-top:var(--safe-t)}
+        .toast-container{bottom:calc(24px + var(--safe-b))}
+        /* Lo scroll dietro le modali (iOS scroll chaining): bloccato via
+           classe messa da openModal/closeModal. */
+        body.modal-open{overflow:hidden}
+        /* Sidebar: 100vh su iOS lasciava Impostazioni/Esci sotto la chrome
+           di Safari. dvh + respiro safe-area in fondo. */
+        @media(max-width:1000px){
+            .sidebar{height:100dvh;padding-bottom:calc(20px + var(--safe-b))}
+        }
+        /* Header compatto sotto i 600px: via il badge ruolo, logo più
+           stretto — il contenuto torna dentro 390px senza overflow. */
+        @media(max-width:600px){
+            .header{padding-left:12px;padding-right:12px}
+            .header-left{gap:10px}
+            .header-right{gap:8px}
+            .header-badge{display:none}
+            .logo-text{font-size:16px;letter-spacing:2px}
+        }
+        /* La ricerca globale su mobile NON ESISTEVA (header-center
+           display:none ≤800). Bottone 🔍 che apre la stessa search come
+           overlay sotto l'header. */
+        .search-btn{display:none;position:relative;width:40px;height:40px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:17px;cursor:pointer;align-items:center;justify-content:center}
+        @media(max-width:800px){
+            .search-btn:not([hidden]){display:flex}
+            .header.search-open .header-center{display:block;position:absolute;top:100%;left:0;right:0;max-width:none;margin:0;padding:10px 12px;background:var(--bg-card);border-bottom:1px solid var(--border);box-shadow:0 12px 30px rgba(0,0,0,.5)}
+        }
+        /* Modali: footer con 15 bottoni a bandiera → griglia a 2 colonne,
+           target 44px (Apple HIG), respiro safe-area. */
+        @media(max-width:600px){
+            .modal-footer{flex-wrap:wrap;justify-content:stretch;padding-bottom:calc(18px + var(--safe-b))}
+            .modal-footer .btn{flex:1 1 calc(50% - 5px);min-height:44px;justify-content:center;text-align:center}
+            .btn-sm{min-height:44px}
+            .btn-xs{min-height:44px;padding:10px 14px;font-size:12px}
+        }
+        /* Le griglie inline repeat(5/6/7,1fr) (stats Contratti/Pagamenti…)
+           non erano coperte dal patch che si fermava a repeat(4). */
+        @media(max-width:768px){
+            [style*="grid-template-columns:repeat(5"],
+            [style*="grid-template-columns:repeat(6"],
+            [style*="grid-template-columns:repeat(7"]{grid-template-columns:repeat(2,1fr)!important}
+        }
+        @media(max-width:500px){
+            [style*="grid-template-columns:repeat(5"],
+            [style*="grid-template-columns:repeat(6"],
+            [style*="grid-template-columns:repeat(7"]{grid-template-columns:1fr!important}
+        }
+        /* Lo stile inline .stats-grid batteva la media query senza !important. */
+        @media(max-width:600px){.stats-grid{grid-template-columns:1fr!important}}
+        /* Lo zoom iOS al focus scatta con font <16px: la soglia valeva solo
+           ≤500px — iPhone in landscape e iPad mini restavano fuori. */
+        @media(max-width:900px){input,select,textarea{font-size:16px!important}}
+        /* Tabelle: nowrap ereditato rendeva ogni riga ~1100px e la colonna
+           Azioni (l'ultima) richiedeva uno scroll per OGNI riga. Le prime
+           due colonne tornano a capo, l'ultima resta INCOLLATA a destra. */
+        @media(max-width:768px){
+            td:nth-child(1),th:nth-child(1),td:nth-child(2),th:nth-child(2){white-space:normal;min-width:120px}
+            td:last-child,th:last-child{position:sticky;right:0;background:var(--bg-card);box-shadow:-8px 0 12px -6px rgba(0,0,0,.55)}
+            tr:hover td:last-child{background:var(--bg-elevated)}
+        }

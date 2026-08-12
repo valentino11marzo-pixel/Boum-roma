@@ -7,6 +7,18 @@
 //                money, note, createdAt, acceptedAt?, ref?} }
 
 import { fsList, fsPatch, readJson } from '../homie/_lib.js';
+import { offeredAddons } from './_addons.js';
+
+// Offer expiry gates NEW acceptances only — never an accepted/paid deal.
+// "Today" is Rome's calendar day, so the offer dies at midnight in Rome.
+export function paExpired(data) {
+  if (!data || !data.validUntil) return false;
+  if (data.status === 'accepted' || data.status === 'paid') return false;
+  try {
+    const todayRome = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Rome' });
+    return todayRome > String(data.validUntil);
+  } catch { return false; }
+}
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -43,9 +55,20 @@ export default async function handler(req, res) {
         // uploads stay private (their URLs carry the read token) — the page
         // only needs how many arrived, to restore the Verify step's state
         uploadsCount: Array.isArray(data.uploads) ? data.uploads.length : 0,
+        // the optional second requested document (e.g. proof of transitional
+        // need) — label + whether it already arrived (never blocking)
+        extraDoc: data.extraDoc || null,
+        extraDocCount: Array.isArray(data.uploads) ? data.uploads.filter(u => u && u.kind === 'extra').length : 0,
         contractReady: !!data.contractId,
+        // Gli add-on proponibili alla firma (prezzo dal catalogo server-side,
+        // mai dal browser) + quelli già scelti, così un rientro sulla pagina
+        // ritrova le sue spunte.
+        addonsOffered: offeredAddons(data),
+        addons: Array.isArray(data.addons) ? data.addons : null,
         note: data.note || null, createdAt: data.createdAt,
         acceptedAt: data.acceptedAt || null, ref: data.ref || null,
+        validUntil: data.validUntil || null,
+        expired: paExpired(data),
       },
     });
   } catch (e) {

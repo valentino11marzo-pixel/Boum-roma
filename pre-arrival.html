@@ -63,7 +63,7 @@
         .reveal { opacity: 0; transform: translateY(60px); transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
         .reveal.active { opacity: 1; transform: translateY(0); }
         .reveal-delay-1 { transition-delay: 0.1s; } .reveal-delay-2 { transition-delay: 0.2s; } .reveal-delay-3 { transition-delay: 0.3s; }
-        nav { position: fixed; width: 100%; top: 0; z-index: 100; padding: 20px 50px; background: rgba(0,0,0,0.98); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255, 215, 0, 0.1); }
+        nav { position: fixed; width: 100%; top: 0; z-index: 100; padding: 20px 50px; background: rgba(0,0,0,0.98); -webkit-backdrop-filter:blur(20px);backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255, 215, 0, 0.1); }
         .nav-container { max-width: 1400px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
         .logo { display: flex; align-items: center; gap: 15px; text-decoration: none; color: white; }
         .logo-svg { width: 80px; height: 80px; filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.5)); transition: filter 0.3s ease; }
@@ -147,6 +147,7 @@
         @media (max-width: 1024px) { .nav-links { display: none; } .hero { padding: 150px 30px 80px; } .checklist-grid { grid-template-columns: 1fr; } .pricing-grid { grid-template-columns: 1fr; } .footer-grid { grid-template-columns: 1fr 1fr; } }
         @media (max-width: 768px) { nav { padding: 15px 20px; } .logo-svg { width: 50px; height: 50px; } .logo-text { font-size: 24px; } .hero { min-height: 80vh; } .form-row { grid-template-columns: 1fr; } .footer-grid { grid-template-columns: 1fr; gap: 40px; } }
     </style>
+<script defer src="/js/boom-consent.js"></script>
 <!-- BOOM_JSONLD:START -->
   <script type="application/ld+json">
 {
@@ -167,13 +168,10 @@
   "sameAs": [
     "https://www.instagram.com/boomrome",
     "https://www.linkedin.com/company/boomrome",
-    "https://wa.me/393313251961",
-    "https://share.google/xikmVxQCRuKOdWcND"
+    "https://wa.me/393331234567"
   ],
   "address": {
     "@type": "PostalAddress",
-    "streetAddress": "Via dei Coronari 181/184",
-    "postalCode": "00186",
     "addressLocality": "Rome",
     "addressRegion": "Lazio",
     "addressCountry": "IT"
@@ -210,7 +208,6 @@
 }
   </script>
 <!-- BOOM_JSONLD:END -->
-<script defer src="/js/boom-consent.js"></script>
 </head>
 <body>
     <nav>
@@ -225,11 +222,8 @@
                 <span class="logo-text">BOOM</span>
             </a>
             <div class="nav-links">
-                <a href="/apartments.html" class="nav-link">Apartments</a>
-                <a href="/property-finding.html" class="nav-link">Property Finding</a>
-                <a href="/deal-assistance.html" class="nav-link">Deal Assistance</a>
-                <a href="/pre-arrival.html" class="nav-link active">Pre-Arrival Setup</a>
-                <a href="/concierge.html" class="nav-link">Concierge</a>
+                <a href="/apartments" class="nav-link">Apartments</a><a href="/services" class="nav-link">Services</a><a href="/owners" class="nav-link">For Owners</a><a href="/partners" class="nav-link">Partners</a><a href="/about" class="nav-link">About</a><a href="/pre-arrival" class="nav-link active">Pre-Arrival Setup</a>
+                <a href="/concierge" class="nav-link">Concierge</a>
                 <a href="https://wa.me/393313251961" class="nav-cta">WhatsApp</a>
             </div>
         </div>
@@ -320,11 +314,7 @@
     <section class="form-section" id="form">
         <div class="form-container reveal">
             <div class="form-header"><h2 class="form-title">Questions First?</h2><p class="form-subtitle">Tell us about your move and we'll reach out within 24 hours</p></div>
-            <form action="https://api.web3forms.com/submit" method="POST">
-                <input type="hidden" name="access_key" value="5b10beba-c7e0-4cd2-98f9-2dbb0aefe889">
-                <input type="hidden" name="subject" value="✈️ NEW PASP INQUIRY - Pre-Arrival Setup">
-                <input type="hidden" name="from_name" value="BOOM Pre-Arrival">
-                <input type="hidden" name="redirect" value="https://boom-rome.com/_thank-you.html">
+            <form  data-boomform="pre-arrival">
                 <div class="form-row">
                     <div class="form-group"><label class="form-label">Full Name <span class="required">*</span></label><input type="text" name="name" class="form-input" required placeholder="John Smith"></div>
                     <div class="form-group"><label class="form-label">Email <span class="required">*</span></label><input type="email" name="email" class="form-input" required placeholder="john@email.com"></div>
@@ -359,14 +349,38 @@
                     </svg>
                     <h3>BOOM</h3>
                 </div><p>Premium apartment rentals and relocation services in Rome. We make moving to the Eternal City simple.</p></div>
-            <div class="footer-links"><h4>Services</h4><ul><li><a href="/apartments.html">Apartments</a></li><li><a href="/property-finding.html">Property Finding</a>
-                <a href="/deal-assistance.html" class="nav-link">Deal Assistance</a></li><li><a href="/pre-arrival.html">Pre-Arrival Setup</a></li><li><a href="/concierge.html">Concierge</a></li></ul></div>
-            <div class="footer-links"><h4>Company</h4><ul><li><a href="/about.html">About</a></li><li><a href="/how-it-works.html">How It Works</a></li><li><a href="/faq.html">FAQ</a></li><li><a href="/contact.html">Contact</a></li></ul></div>
-            <div class="footer-links"><h4>Legal</h4><ul><li><a href="/terms.html">Terms</a></li><li><a href="/privacy.html">Privacy</a></li></ul></div>
+            <div class="footer-links"><h4>Services</h4><ul><li><a href="/apartments">Apartments</a></li><li><a href="/property-finding">Property Finding</a>
+                <a href="/deal-assistance" class="nav-link">Deal Assistance</a></li><li><a href="/pre-arrival">Pre-Arrival Setup</a></li><li><a href="/concierge">Concierge</a></li></ul></div>
+            <div class="footer-links"><h4>Company</h4><ul><li><a href="/about">About</a></li><li><a href="/how-it-works">How It Works</a></li><li><a href="/faq">FAQ</a></li><li><a href="/contact">Contact</a></li></ul></div>
+            <div class="footer-links"><h4>Legal</h4><ul><li><a href="/terms">Terms</a></li><li><a href="/privacy">Privacy</a></li></ul></div>
         </div>
         <div class="footer-bottom"><span>© 2025 BOOM — Rome, Italy</span></div>
     </footer>
 
     <script>const reveals = document.querySelectorAll('.reveal'); const revealOnScroll = () => { reveals.forEach(el => { const top = el.getBoundingClientRect().top; if (top < window.innerHeight - 100) { el.classList.add('active'); } }); }; window.addEventListener('scroll', revealOnScroll); revealOnScroll();</script>
+<script>
+/* I moduli pubblici entrano in pipeline (/api/leads/web): prima
+   finivano su Web3Forms e nessuno li vedeva. */
+(function boomFormWire(){
+  document.addEventListener("submit",function(e){
+    var F=e.target;if(!F||!F.getAttribute||!F.getAttribute("data-boomform"))return;
+    e.preventDefault();
+    var btn=F.querySelector("[type=submit]"),lbl=btn?btn.textContent:"";
+    if(btn){btn.disabled=true;btn.textContent="Sending…";}
+    var body={form:F.getAttribute("data-boomform")};
+    new FormData(F).forEach(function(v,k){body[k]=v;});
+    if(body.botcheck){body.company=body.botcheck;}
+    fetch("/api/leads/web",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
+    .then(function(r){return r.json()}).then(function(j){
+      if(!j||!j.ok)throw new Error((j&&j.error)||"failed");
+      F.innerHTML="<div style=\"text-align:center;padding:26px 4px\"><div style=\"width:54px;height:54px;border-radius:50%;border:1px solid #46C08A;color:#46C08A;display:flex;align-items:center;justify-content:center;font-size:25px;margin:0 auto 14px\">✓</div><h3 style=\"font-size:20px;font-weight:400;margin-bottom:6px\">Got it — thank you.</h3><p style=\"opacity:.65;font-size:14px;margin:0\">A human replies within a few hours. Urgent? WhatsApp us.</p></div>";
+      try{if(typeof gtag==="function")gtag("event","generate_lead",{channel:"form",form:body.form});}catch(_){}
+    }).catch(function(){
+      if(btn){btn.disabled=false;btn.textContent=lbl;}
+      alert("That did not go through — please try again, or message us on WhatsApp.");
+    });
+  },true);
+})();
+</script>
 </body>
 </html>

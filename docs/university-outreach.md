@@ -129,6 +129,26 @@ rental scams — and it costs you nothing. Worth a quick call?
 
 ---
 
+## Cosa fa già il sistema (2026-08-02)
+
+Il modulo su `/universities` (e quelli su `/corporate`, `/research`, `/owners`)
+**non finisce più su un servizio esterno**: va a `POST /api/partners/submit`,
+che scrive un lead nello schema che leggono già portale, Lead Brain e
+Commerciale. Quindi un ufficio housing che si propone di domenica sera viene
+gradato, ti arriva su Telegram entro un minuto e resta nel funnel — prima
+diventava una email in una casella e nient'altro.
+
+Ogni ente riceve un **codice convenzione deterministico** (`JC-2026`,
+`LUISS-2026`, `BOLOGNA-2026`) e il link tracciato
+`…/apartments?utm_source=partner&utm_medium=referral&utm_campaign=<codice>`.
+Serve a rispondere alla sola domanda che conta a fine stagione: *quale ufficio
+ha davvero portato studenti?* Un canale che non si misura non si difende — e
+lo stesso ente ricontattato l'anno dopo ottiene lo stesso codice, così i numeri
+non si sparpagliano su due etichette.
+
+**Resta umano** (ed è il punto): scrivere ai 5–6 uffici, mandare il one-pager,
+tenere la relazione. Il software fa in modo che nessuna risposta si perda.
+
 ## Execution checklist
 - [ ] Build the **one-page PDF flyer** (logo, 4 value props, student discount, QR → tagged link).
 - [ ] Generate a **per-partner UTM link** (see `docs/attribution.md`): `…?utm_source=university&utm_medium=referral&utm_campaign=<office>`.

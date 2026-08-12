@@ -2,6 +2,18 @@ import Stripe from 'stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
+// Stessa protezione di service-checkout: honeypot + rate-limit per IP.
+const HITS = new Map();
+const WINDOW_MS = 10 * 60 * 1000, MAX_PER_WINDOW = 8;
+function rateLimited(ip) {
+  const now = Date.now();
+  if (HITS.size > 5000) HITS.clear();
+  const h = HITS.get(ip);
+  if (!h || now - h.t > WINDOW_MS) { HITS.set(ip, { n: 1, t: now }); return false; }
+  h.n++;
+  return h.n > MAX_PER_WINDOW;
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -12,13 +24,19 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
+  if (rateLimited(ip)) return res.status(429).json({ error: 'too_many_requests' });
+
   try {
     const {
       name, email, phone, move_in_date, budget, bedrooms,
-      preferred_areas, must_haves, additional_info
-    } = req.body;
+      preferred_areas, must_haves, additional_info, company
+    } = req.body || {};
 
-    if (!name || !email || !phone) {
+    // Honeypot: i bot compilano il campo nascosto → risposta finta, niente Stripe.
+    if (company) return res.status(200).json({ url: '/' });
+
+    if (!name || !email || !phone || !String(email).includes('@')) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -58,6 +76,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ url: session.url });
   } catch (err) {
     console.error('Stripe checkout error:', err);
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: 'stripe_failed' });
   }
 }

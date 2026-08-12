@@ -86,7 +86,7 @@
             z-index: 100;
             padding: 14px 50px;
             background: rgba(0,0,0,0.98);
-            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter:blur(20px);backdrop-filter: blur(20px);
             border-bottom: 1px solid rgba(255, 215, 0, 0.1);
         }
 
@@ -139,7 +139,7 @@
             width: 300px;
             height: 100vh;
             background: rgba(0, 0, 0, 0.98);
-            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter:blur(20px);backdrop-filter: blur(20px);
             z-index: 999;
             padding: 100px 40px 40px;
             transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -446,6 +446,12 @@
             }
         }
     </style>
+
+    <style data-boom-polish>
+    .contact-form input,.contact-form select,.contact-form textarea{transition:border-color .25s ease,box-shadow .25s ease,background .25s ease}
+    .contact-form input:focus,.contact-form select:focus,.contact-form textarea:focus{outline:none;border-color:#FFD700!important;box-shadow:0 0 0 4px rgba(255,215,0,.14)}
+    .contact-form select{cursor:pointer}
+    </style>
 <!-- BOOM_JSONLD:START -->
   <script type="application/ld+json">
 {
@@ -466,13 +472,10 @@
   "sameAs": [
     "https://www.instagram.com/boomrome",
     "https://www.linkedin.com/company/boomrome",
-    "https://wa.me/393313251961",
-    "https://share.google/xikmVxQCRuKOdWcND"
+    "https://wa.me/393331234567"
   ],
   "address": {
     "@type": "PostalAddress",
-    "streetAddress": "Via dei Coronari 181/184",
-    "postalCode": "00186",
     "addressLocality": "Rome",
     "addressRegion": "Lazio",
     "addressCountry": "IT"
@@ -540,12 +543,6 @@
 }
   </script>
 <!-- BOOM_JSONLD:END -->
-
-    <style data-boom-polish>
-    .contact-form input,.contact-form select,.contact-form textarea{transition:border-color .25s ease,box-shadow .25s ease,background .25s ease}
-    .contact-form input:focus,.contact-form select:focus,.contact-form textarea:focus{outline:none;border-color:#FFD700!important;box-shadow:0 0 0 4px rgba(255,215,0,.14)}
-    .contact-form select{cursor:pointer}
-    </style>
 </head>
 <body>
     <!-- Nav -->
@@ -576,15 +573,15 @@
     <div class="mobile-menu" id="mobileMenu">
         <div class="mobile-menu-links">
             <a href="/" class="mobile-menu-link">Home</a>
-            <a href="/apartments.html" class="mobile-menu-link">Apartments</a>
-            <a href="/property-finding.html" class="mobile-menu-link">Property Finding</a>
-            <a href="/concierge.html" class="mobile-menu-link">Concierge</a>
-            <a href="/how-it-works.html" class="mobile-menu-link">How It Works</a>
-            <a href="/universities.html" class="mobile-menu-link">For Universities</a>
-            <a href="/corporate.html" class="mobile-menu-link">For Companies</a>
-            <a href="/research.html" class="mobile-menu-link">For Research</a>
-            <a href="/about.html" class="mobile-menu-link">About</a>
-            <a href="/contact.html" class="mobile-menu-link">Contact</a>
+            <a href="/apartments" class="mobile-menu-link">Apartments</a><a href="/services" class="mobile-menu-link">All Services</a>
+            <a href="/property-finding" class="mobile-menu-link">Property Finding</a>
+            <a href="/concierge" class="mobile-menu-link">Concierge</a>
+            <a href="/how-it-works" class="mobile-menu-link">How It Works</a>
+            <a href="/universities" class="mobile-menu-link">For Universities</a>
+            <a href="/corporate" class="mobile-menu-link">For Companies</a>
+            <a href="/research" class="mobile-menu-link">For Research</a>
+            <a href="/about" class="mobile-menu-link">About</a>
+            <a href="/contact" class="mobile-menu-link">Contact</a>
         </div>
         <a href="https://wa.me/393313251961" class="mobile-menu-cta">WhatsApp Us</a>
     </div>
@@ -645,18 +642,15 @@
             <div class="form-wrapper">
                 <div id="formAlert"></div>
 
-                <form id="contactForm" class="contact-form" action="https://api.web3forms.com/submit" method="POST">
+                <form id="contactForm" class="contact-form">
                     <!-- Web3Forms Access Key -->
-                    <input type="hidden" name="access_key" value="5b10beba-c7e0-4cd2-98f9-2dbb0aefe889">
                     
                     <!-- Custom Subject -->
-                    <input type="hidden" name="subject" value="📞 BOOM - New Contact Form Message">
                     
                     <!-- Form Type -->
                     <input type="hidden" name="form_type" value="contact-page">
                     
                     <!-- Redirect -->
-                    <input type="hidden" name="redirect" value="https://boom-rome.vercel.app/thank-you.html">
                     
                     <div class="form-row">
                         <div class="form-group">
@@ -762,16 +756,23 @@
             const formData = new FormData(contactForm);
 
             try {
-                const response = await fetch('https://api.web3forms.com/submit', {
+                /* Il contatto entra in pipeline (/api/leads/web): prima
+                   finiva su Web3Forms e non lo vedeva né il portale né il
+                   Commerciale. */
+                const body = { form: 'contact' };
+                formData.forEach((v, k) => { body[k] = v; });
+                if (body.botcheck) body.company = body.botcheck;
+
+                const response = await fetch('/api/leads/web', {
                     method: 'POST',
-                    body: formData
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
                 });
 
                 const data = await response.json();
 
-                if (data.success) {
-                    // Redirect to thank you page
-                    window.location.href = 'https://boom-rome.vercel.app/thank-you.html';
+                if (data.ok) {
+                    window.location.href = '/thank-you';
                 } else {
                     formAlert.innerHTML = `
                         <div class="form-alert error">

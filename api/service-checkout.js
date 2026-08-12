@@ -15,35 +15,10 @@
 // The webhook (service:'SERVICE') writes the paid lead + sends both emails.
 
 import Stripe from 'stripe';
+import { CATALOG } from './_catalog.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-const CATALOG = {
-  'virtual-viewing': {
-    eur: 89,
-    label: 'Virtual Viewing — live video tour',
-    desc: 'We walk the apartment for you, live on video — HD photo set + honest written report, scheduled within 48 hours. Credited to your agency fee if you rent the home with BOOM; refunded in full if we cannot reach the property.',
-    cancel: '/virtual-viewing',
-  },
-  'deal-assistance': {
-    eur: 249,
-    label: 'Deal Assistance — rent safely',
-    desc: 'Clause-by-clause contract review in English, landlord & property verification, and negotiation on the apartment you found. First review within 24 hours of payment.',
-    cancel: '/deal-assistance',
-  },
-  'deposit-recovery': {
-    eur: 99,
-    label: 'Deposit Recovery — we get it back',
-    desc: 'Formal demand under Italian law (art. 1590 c.c.), negotiation with the landlord and escalation path for your withheld deposit. €99 to start; success fee of 20% only on what we actually recover.',
-    cancel: '/deposit-recovery',
-  },
-  'contract-check-express': {
-    eur: 49,
-    label: 'Contract Check Express — verdict in 24h',
-    desc: 'A written traffic-light verdict on your rental contract within 24 hours: what is fine, what is unfair, what is missing. Credited in full if you upgrade to Deal Assistance.',
-    cancel: '/contract-check-express',
-  },
-};
 
 const HITS = new Map(); // ip -> [timestamps]
 const WINDOW_MS = 10 * 60 * 1000;

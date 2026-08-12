@@ -43,7 +43,7 @@ h1,h2,h3{font-family:var(--disp);font-weight:200;letter-spacing:-.5px;line-heigh
 #bg .grain{position:absolute;inset:0;opacity:.22;mix-blend-mode:overlay}
 
 /* ===== nav ===== */
-nav{position:fixed;top:0;width:100%;z-index:100;background:rgba(6,6,7,.62);backdrop-filter:blur(20px);border-bottom:1px solid transparent;transition:.4s var(--ease)}
+nav{position:fixed;top:0;width:100%;z-index:100;background:rgba(6,6,7,.62);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-bottom:1px solid transparent;transition:.4s var(--ease)}
 nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 .nav-c{max-width:1320px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;padding:13px 20px}
 @media(min-width:781px){.nav-c{padding:14px 40px}}
@@ -78,7 +78,7 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 .btn-gold::after{bottom:5px;right:5px;border-width:0 1px 1px 0}
 .btn-gold:hover{box-shadow:0 16px 50px rgba(255,215,0,.30),inset 0 1px 0 rgba(255,255,255,.6)}
 .btn-gold .ar{transition:transform .3s var(--ease)}.btn-gold:hover .ar{transform:translateX(4px)}
-.btn-ghost{display:inline-flex;align-items:center;gap:9px;border:1px solid var(--line-gold);color:var(--t1);font-size:14px;padding:14px 22px;border-radius:3px;background:rgba(20,20,24,.5);backdrop-filter:blur(6px);transition:.25s var(--ease);font-family:var(--mono);letter-spacing:1px;text-transform:uppercase;font-size:12px}
+.btn-ghost{display:inline-flex;align-items:center;gap:9px;border:1px solid var(--line-gold);color:var(--t1);font-size:14px;padding:14px 22px;border-radius:3px;background:rgba(20,20,24,.5);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);transition:.25s var(--ease);font-family:var(--mono);letter-spacing:1px;text-transform:uppercase;font-size:12px}
 .btn-ghost:hover{border-color:var(--gold);color:var(--gold)}
 
 /* fluted (reeded) divider — light moves across the machined flutes following the cursor */
@@ -118,7 +118,7 @@ section.block{padding:64px 0;border-top:1px solid var(--line2)}
 
 /* component gallery */
 .gal{display:grid;gap:18px;grid-template-columns:1fr}@media(min-width:760px){.gal{grid-template-columns:1.1fr .9fr}}
-.panel{border:1px solid var(--line);border-radius:8px;background:linear-gradient(180deg,rgba(20,20,24,.6),rgba(11,11,13,.6));backdrop-filter:blur(10px);padding:24px;position:relative}
+.panel{border:1px solid var(--line);border-radius:8px;background:linear-gradient(180deg,rgba(20,20,24,.6),rgba(11,11,13,.6));-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);padding:24px;position:relative}
 .panel .corner{position:absolute;width:10px;height:10px;border:1px solid var(--line-gold)}
 .panel .corner.tl{top:9px;left:9px;border-width:1px 0 0 1px}.panel .corner.tr{top:9px;right:9px;border-width:1px 1px 0 0}
 .panel .corner.bl{bottom:9px;left:9px;border-width:0 0 1px 1px}.panel .corner.br{bottom:9px;right:9px;border-width:0 1px 1px 0}
@@ -148,7 +148,7 @@ section.block{padding:64px 0;border-top:1px solid var(--line2)}
 .lcard .ph img{width:100%;height:100%;object-fit:cover;transition:transform 1s var(--ease)}.lcard:hover .ph img{transform:scale(1.05)}
 .lcard .ph .scrim{position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,rgba(6,6,7,.85))}
 .lcard .tags{position:absolute;top:12px;left:12px;display:flex;gap:7px}
-.lcard .vac{position:absolute;top:12px;right:12px;font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--bone);background:rgba(0,0,0,.5);backdrop-filter:blur(6px);padding:6px 9px;border-radius:3px}
+.lcard .vac{position:absolute;top:12px;right:12px;font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--bone);background:rgba(0,0,0,.5);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);padding:6px 9px;border-radius:3px}
 .lcard .head{position:absolute;left:16px;right:16px;bottom:14px}
 .lcard .zone{font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--gold)}
 .lcard .nm{font-family:var(--disp);font-size:22px;font-weight:200;margin-top:5px}
@@ -176,7 +176,7 @@ footer{border-top:1px solid var(--line);padding:46px 20px;margin-top:30px}
 .f-c .wm{font-family:var(--disp);font-size:20px;letter-spacing:5px}
 .f-c .m{font-family:var(--mono);font-size:11px;color:var(--t3);letter-spacing:1px}
 
-.proto{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:120;font-family:var(--mono);font-size:10.5px;letter-spacing:1px;color:var(--t2);background:rgba(8,8,10,.85);backdrop-filter:blur(12px);border:1px solid var(--line-gold);border-radius:100px;padding:7px 15px}
+.proto{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:120;font-family:var(--mono);font-size:10.5px;letter-spacing:1px;color:var(--t2);background:rgba(8,8,10,.85);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid var(--line-gold);border-radius:100px;padding:7px 15px}
 .proto b{color:var(--gold)}
 </style>
 </head>
@@ -283,7 +283,7 @@ footer{border-top:1px solid var(--line);padding:46px 20px;margin-top:30px}
     <div style="max-width:440px">
       <article class="lcard tilt">
         <div class="ph"><img src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=900&q=72" alt="Bright attic in Trastevere" loading="lazy" onerror="this.style.opacity=0"><div class="scrim"></div>
-          <div class="tags"><span class="bdg gold" style="background:rgba(0,0,0,.45);backdrop-filter:blur(6px)">▶ Video</span></div>
+          <div class="tags"><span class="bdg gold" style="background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)">▶ Video</span></div>
           <div class="vac">⌖ FILMED 12.06</div>
           <div class="head"><div class="zone">Trastevere</div><div class="nm">Bright Attic w/ Terrace</div></div>
         </div>

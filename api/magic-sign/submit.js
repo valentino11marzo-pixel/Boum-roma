@@ -22,7 +22,26 @@
 // Response 4xx: { ok:false, error }
 
 import { fsGet, fsPatch, fsList, readJson, logActivity } from '../homie/_lib.js';
-import { findContractByToken, commitWrites, setCors, rateOk } from './_shared.js';
+import { findContractByToken, commitWrites, fsGetWithTime, tenantSideComplete, setCors, rateOk } from './_shared.js';
+
+// ── TERMS FREEZE ──────────────────────────────────────────────────────────
+// L'impronta dei termini ECONOMICI del contratto. La prima firma la congela
+// sul documento (signedTermsHash + snapshot leggibile); ogni firma
+// successiva la ricalcola sui valori CORRENTI e rifiuta con 409
+// terms_changed se qualcuno ha toccato canone/date/deposito nel mezzo —
+// nessuno controfirma mai condizioni diverse da quelle già firmate.
+// Esportata e testata.
+export function termsFingerprint(c) {
+  return [
+    'rent:' + Number(c.rent || 0),
+    'deposit:' + Number(c.deposit || 0),
+    'start:' + String(c.startDate || ''),
+    'end:' + String(c.endDate || ''),
+    'cadence:' + ([1, 2, 3, 6, 12].includes(Number(c.installmentMonths)) ? Number(c.installmentMonths) : 1),
+    'type:' + String(c.type || ''),
+    'cedolare:' + (((c.cedolareSecca || 'si') !== 'no' && c.cedolareSecca !== false) ? 'si' : 'no'),
+  ].join('|');
+}
 
 // Canonical consent — MUST equal sign.html's CONSENT and _finalize.js's
 // MS_CONSENT: the certificate attests exactly this text.
@@ -40,6 +59,26 @@ function isValidSignature(s) {
     && s.length < SIG_MAX_LEN;
 }
 
+// Una firma che fallisce non deve restare muta sul telefono del cliente:
+// l'operatore la vede subito e può intervenire mentre la persona è ancora
+// davanti allo schermo. Best-effort, mai bloccante, deduplicato per
+// contratto+motivo (un cliente che riprova 5 volte non fa 5 allarmi).
+async function alertSignFailure(contractId, role, reason, extra) {
+  try {
+    const { fsCreate } = await import('../homie/_lib.js');
+    await fsCreate('agentNotifications', {
+      type: 'contract.sign_failed',
+      summary: `⛔ FIRMA FALLITA · ${contractId || 'token sconosciuto'} · ${role || '?'} · motivo: ${reason}${extra ? ' — ' + extra : ''}`,
+      priority: 'urgent',
+      ref: { collection: 'contracts', id: contractId || '' },
+      payload: { contractId: contractId || '', role: role || '', reason: String(reason || '') },
+      dedupKey: `sign-failed-${contractId || 'na'}-${reason}`,
+      status: 'pending', actor: 'magic-sign',
+      createdAt: new Date().toISOString(), attempts: 0,
+    });
+  } catch (e) { console.warn('[magic-sign/submit] alert:', e.message); }
+}
+
 export default async function handler(req, res) {
   setCors(req, res);
   if (req.method === 'OPTIONS') return res.status(204).end();
@@ -53,7 +92,10 @@ export default async function handler(req, res) {
 
   const token = typeof body.token === 'string' ? body.token.trim() : '';
   if (!token) return res.status(400).json({ ok: false, error: 'missing_token' });
-  if (!isValidSignature(body.signature)) return res.status(400).json({ ok: false, error: 'invalid_signature' });
+  if (!isValidSignature(body.signature)) {
+    alertSignFailure('', '', 'invalid_signature', 'lunghezza ' + String((body.signature || '').length));
+    return res.status(400).json({ ok: false, error: 'invalid_signature' });
+  }
   if (!body.consent || typeof body.consent.text !== 'string' || typeof body.consent.hash !== 'string') {
     return res.status(400).json({ ok: false, error: 'missing_consent' });
   }
@@ -65,23 +107,31 @@ export default async function handler(req, res) {
     console.error('[magic-sign/submit] lookup:', e.message);
     return res.status(500).json({ ok: false, error: 'lookup_failed' });
   }
-  if (!hit) return res.status(404).json({ ok: false, error: 'invalid_or_used' });
+  if (!hit) { alertSignFailure('', '', 'invalid_or_used', 'token non riconosciuto'); return res.status(404).json({ ok: false, error: 'invalid_or_used' }); }
 
-  const { contract, role } = hit;
+  const { contract, role, coIndex } = hit;
   const contractId = contract.id;
 
-  // Sequential signing guard (mirrors lookup — API can't bypass the order).
-  if (role === 'landlord' && !contract.tenantSignature && contract.signingOrder !== 'any') {
+  // Sequential signing guard (mirrors lookup — API can't bypass the order):
+  // il locatore controfirma solo a LATO CONDUTTORI completo (principale +
+  // tutti i co-conduttori). I co-conduttori firmano in parallelo tra loro.
+  if (role === 'landlord' && !tenantSideComplete(contract) && contract.signingOrder !== 'any') {
     return res.status(409).json({ ok: false, error: 'awaiting_tenant' });
   }
 
-  const already = role === 'tenant' ? !!contract.tenantSignature : !!contract.landlordSignature;
+  const already = role === 'tenant' ? !!contract.tenantSignature
+    : role === 'cotenant' ? !!(((contract.coTenants || [])[coIndex] || {}).signature)
+    : !!contract.landlordSignature;
   // signatureStatus lets a retrying signer (e.g. after a timed-out first
   // attempt that DID record the signature) render the right success state.
   if (already) return res.status(410).json({ ok: false, error: 'already_signed', role, signatureStatus: contract.signatureStatus || 'partial' });
 
   // ── 2. Build the signature update for the contract ──────
   const id = body.identity || {};
+  // Il CF entra normalizzato (maiuscolo, senza spazi) — la validazione
+  // checksum resta permissiva (expat con CF provvisori), ma il dato che
+  // finisce su contratto/certificato/RLI è sempre in forma canonica.
+  if (id.cf) id.cf = String(id.cf).toUpperCase().replace(/\s+/g, '').slice(0, 16);
   const phone = body.phone || {};
   const consent = body.consent;
 
@@ -122,6 +172,14 @@ export default async function handler(req, res) {
     } catch (e) { console.warn('[magic-sign/submit] phone token verify:', e.message); }
   }
 
+  // OTP OBBLIGATORIO (flag `otpRequired` sul contratto): la firma esige il
+  // telefono verificato via Firebase — il fattore in più che avvicina la
+  // FES alla FEA. Default assente = off: nessun contratto esistente cambia.
+  if (contract.otpRequired === true && !phoneVerified) {
+    alertSignFailure(contract.id, role, 'otp_required', 'telefono non verificato');
+    return res.status(428).json({ ok: false, error: 'otp_required' });
+  }
+
   const nowISO = new Date().toISOString();
 
   const upd = {};
@@ -133,6 +191,8 @@ export default async function handler(req, res) {
     upd.tenantPob = id.pob || '';
     upd.tenantDocType = id.docType || '';
     upd.tenantDocNum = id.docNum || '';
+    upd.tenantDocIssuer = id.docIssuer || '';
+    upd.tenantDocIssueDate = id.docIssueDate || '';
     upd.tenantNationality = id.nationality || '';
     upd.tenantSignature = body.signature;
     upd.tenantSignedAt = nowISO;
@@ -141,7 +201,10 @@ export default async function handler(req, res) {
     upd.tenantConsentText = consent.text;
     upd.tenantConsentHash = consent.hash;
     upd.tenantConsentAt = nowISO;
-    upd.tenantSignToken = null;
+    // Il token NON si azzera più: chi riapre il proprio link deve vedere
+    // "Hai già firmato ✓" (lookup 410), non "Link not valid". La firma
+    // registrata blocca comunque ogni ri-uso (check already qui e in lookup).
+    upd.tenantSignTokenUsedAt = nowISO;
     if (phoneVerified) {
       upd.tenantPhoneVerified = true;
       upd.tenantPhoneVerifiedAt = phone.verifiedAt || nowISO;
@@ -150,6 +213,11 @@ export default async function handler(req, res) {
       upd.tenantPhone = String(phone.number).slice(0, 30);
       upd.tenantPhoneVerified = false;
     }
+  } else if (role === 'cotenant') {
+    // La firma del co-conduttore vive DENTRO coTenants[idx]: l'array viene
+    // riscritto dal dato FRESCO più avanti (dopo la rilettura), così la
+    // precondizione updateTime protegge il read-modify-write anche da due
+    // co-firmatari concorrenti.
   } else {
     upd.landlordCF = id.cf || '';
     upd.landlordAddress = id.address || '';
@@ -157,6 +225,8 @@ export default async function handler(req, res) {
     upd.landlordPob = id.pob || '';
     upd.landlordDocType = id.docType || '';
     upd.landlordDocNum = id.docNum || '';
+    upd.landlordDocIssuer = id.docIssuer || '';
+    upd.landlordDocIssueDate = id.docIssueDate || '';
     upd.landlordNationality = id.nationality || '';
     upd.landlordSignature = body.signature;
     upd.landlordSignedAt = nowISO;
@@ -165,7 +235,7 @@ export default async function handler(req, res) {
     upd.landlordConsentText = consent.text;
     upd.landlordConsentHash = consent.hash;
     upd.landlordConsentAt = nowISO;
-    upd.landlordSignToken = null;
+    upd.landlordSignTokenUsedAt = nowISO;
     if (phoneVerified) {
       upd.landlordPhoneVerified = true;
       upd.landlordPhoneVerifiedAt = phone.verifiedAt || nowISO;
@@ -189,30 +259,130 @@ export default async function handler(req, res) {
   // The tenant's success screen offers Stripe checkout for the security
   // deposit the moment they sign. The payToken is the credential for
   // /api/sign/deposit-checkout (the sign token is nulled by this request).
+  // Il dovuto via Stripe è il SALDO: deposito pattuito meno quanto già
+  // versato (es. alla firma della proposta) — mai il deposito pieno.
+  // UN SOLO PADRONE per ogni incasso: se il saldo vive già come rata
+  // depbal_ (rail pre-agreement: pagabile da /casa, promemoria T-7,
+  // riconciliazione bancaria), il CTA Stripe alla firma NON lo chiede una
+  // seconda volta.
+  const depositBalance = Math.max(0, Number(contract.deposit || 0) - Number(contract.depositAlreadyPaidEur || 0));
   let depositPayToken = '';
-  if (role === 'tenant' && Number(contract.deposit || 0) > 0 && !contract.depositPaid) {
-    depositPayToken = contract.depositPayToken || crypto.randomBytes(24).toString('hex');
-    upd.depositPayToken = depositPayToken;
+  if (role === 'tenant' && depositBalance > 0 && !contract.depositPaid) {
+    let depbalOwned = false;
+    try { depbalOwned = !!(await fsGet('payments/depbal_' + contractId)); } catch (_) {}
+    if (!depbalOwned) {
+      depositPayToken = contract.depositPayToken || crypto.randomBytes(24).toString('hex');
+      upd.depositPayToken = depositPayToken;
+    }
   }
 
-  // ── 3. Re-read contract to determine combined signature status ──
-  let fresh;
-  try { fresh = await fsGet('contracts/' + contractId); }
-  catch (e) { return res.status(500).json({ ok: false, error: 'reread_failed' }); }
+  // ── 3. Re-read FRESH (dati + updateTime per la precondizione) ──
+  let fresh = null, freshTime = null;
+  try {
+    const pre = await fsGetWithTime('contracts/' + contractId);
+    if (pre) { fresh = pre.data; freshTime = pre.updateTime; }
+  } catch (e) { return res.status(500).json({ ok: false, error: 'reread_failed' }); }
   if (!fresh) return res.status(404).json({ ok: false, error: 'contract_vanished' });
 
-  const otherSigned = role === 'tenant' ? !!fresh.landlordSignature : !!fresh.tenantSignature;
-  let fullySigned = otherSigned;
+  // Anti-doppione sul dato FRESCO (il check iniziale usava la query per
+  // token, che può essere stantia di qualche secondo).
+  const freshAlready = role === 'tenant' ? !!fresh.tenantSignature
+    : role === 'cotenant' ? !!(((fresh.coTenants || [])[coIndex] || {}).signature)
+    : !!fresh.landlordSignature;
+  if (freshAlready) {
+    return res.status(410).json({ ok: false, error: 'already_signed', role, signatureStatus: fresh.signatureStatus || 'partial' });
+  }
+
+  // TERMS FREEZE: verifica sui valori CORRENTI, congelamento alla prima firma.
+  const currentTermsHash = sha256(termsFingerprint(fresh));
+  if (fresh.signedTermsHash && fresh.signedTermsHash !== currentTermsHash) {
+    try {
+      const { fsCreate } = await import('../homie/_lib.js');
+      fsCreate('agentNotifications', {
+        type: 'contract.terms_changed',
+        summary: `⚠ Termini modificati DOPO una firma · ${contractId} — controfirma BLOCCATA (serve nuova versione del contratto)`,
+        priority: 'urgent',
+        ref: { collection: 'contracts', id: contractId },
+        payload: { contractId, role },
+        dedupKey: `terms-changed-${contractId}`,
+        status: 'pending', actor: 'magic-sign',
+        createdAt: new Date().toISOString(), attempts: 0,
+      }).catch(() => {});
+    } catch (_) {}
+    alertSignFailure(contractId, role, 'terms_changed', 'i termini sono cambiati dopo la prima firma — rimanda il link');
+    return res.status(409).json({ ok: false, error: 'terms_changed' });
+  }
+  if (!fresh.signedTermsHash) {
+    upd.signedTermsHash = currentTermsHash;
+    upd.signedTermsAt = nowISO;
+    upd.signedTerms = {
+      rent: Number(fresh.rent || 0),
+      deposit: Number(fresh.deposit || 0),
+      startDate: String(fresh.startDate || ''),
+      endDate: String(fresh.endDate || ''),
+      installmentMonths: [1, 2, 3, 6, 12].includes(Number(fresh.installmentMonths)) ? Number(fresh.installmentMonths) : 1,
+      type: String(fresh.type || ''),
+      cedolareSecca: ((fresh.cedolareSecca || 'si') !== 'no' && fresh.cedolareSecca !== false) ? 'si' : 'no',
+    };
+  }
+
+  // CO-FIRMA: riscrittura di coTenants[idx] dal dato fresco (identità
+  // fill-only + firma + consenso). Fatta QUI, dopo la rilettura, così la
+  // precondizione updateTime del write copre anche questo array.
+  if (role === 'cotenant') {
+    const list = (Array.isArray(fresh.coTenants) ? fresh.coTenants : []).map(x => ({ ...x }));
+    if (!list[coIndex] || !list[coIndex].name) return res.status(404).json({ ok: false, error: 'invalid_or_used' });
+    Object.assign(list[coIndex], {
+      cf: id.cf || list[coIndex].cf || '',
+      address: id.address || list[coIndex].address || '',
+      dob: id.dob || list[coIndex].dob || '',
+      birthPlace: id.pob || list[coIndex].birthPlace || '',
+      idDoc: id.docNum || list[coIndex].idDoc || '',
+      nationality: id.nationality || list[coIndex].nationality || '',
+      signature: body.signature, signedAt: nowISO,
+      signedIP: reqIP || body.signerIP || '',
+      signedUA: reqUA || (body.signerUA || '').slice(0, 200),
+      consentText: consent.text, consentHash: consent.hash, consentAt: nowISO,
+      ...(phoneVerified ? { phone: phoneNumber, phoneVerified: true }
+        : (phone.number ? { phone: String(phone.number).slice(0, 30) } : {})),
+    });
+    upd.coTenants = list;
+  }
+
+  // Firma completa = locatore + LATO CONDUTTORI al completo (questa firma
+  // inclusa): principale e tutti i co-conduttori.
+  const afterMine = { ...fresh, ...upd };
+  let fullySigned = tenantSideComplete(afterMine) && !!afterMine.landlordSignature;
   upd.signatureStatus = fullySigned ? 'complete' : 'partial';
   if (fullySigned) {
     upd.status = 'active';
     upd.fullySignedAt = nowISO;
   }
 
-  // ── 4. Write contract update ───────────────────────────
-  try { await fsPatch('contracts/' + contractId, upd); }
-  catch (e) {
+  // ── 4. Write contract update (precondizione ottimistica) ──
+  // Il patch è condizionato all'updateTime appena letto: se un altro submit
+  // scrive nel mezzo (doppio tap, seconda scheda), Firestore risponde
+  // FAILED_PRECONDITION — si rilegge e, se questo ruolo risulta già
+  // firmato, si risponde 410 invece di sovrascrivere firma, IP e timestamp
+  // del primo submit.
+  try {
+    if (freshTime) {
+      try {
+        await commitWrites([{ docPath: 'contracts/' + contractId, fields: upd, precondition: { updateTime: freshTime } }]);
+      } catch (e) {
+        if (/FAILED_PRECONDITION|precondition/i.test(String(e.message || ''))) {
+          const again = await fsGet('contracts/' + contractId).catch(() => null);
+          const nowSigned = again && (role === 'tenant' ? again.tenantSignature : again.landlordSignature);
+          if (nowSigned) return res.status(410).json({ ok: false, error: 'already_signed', role, signatureStatus: (again && again.signatureStatus) || 'partial' });
+          await fsPatch('contracts/' + contractId, upd);   // conflitto su ALTRI campi: riprova secca
+        } else { throw e; }
+      }
+    } else {
+      await fsPatch('contracts/' + contractId, upd);
+    }
+  } catch (e) {
     console.error('[magic-sign/submit] contract write:', e.message);
+    alertSignFailure(contractId, role, 'contract_write_failed', String(e.message || '').slice(0, 160));
     return res.status(500).json({ ok: false, error: 'contract_write_failed' });
   }
 
@@ -224,7 +394,7 @@ export default async function handler(req, res) {
   if (!fullySigned) {
     try {
       const after = await fsGet('contracts/' + contractId);
-      if (after && after.tenantSignature && after.landlordSignature && after.signatureStatus !== 'complete') {
+      if (after && tenantSideComplete(after) && after.landlordSignature && after.signatureStatus !== 'complete') {
         fullySigned = true;
         upd.signatureStatus = 'complete';
         await fsPatch('contracts/' + contractId, { signatureStatus: 'complete', status: 'active', fullySignedAt: nowISO });
@@ -254,7 +424,17 @@ export default async function handler(req, res) {
           pob: id.pob || '',
           docType: id.docType || '',
           docNum: id.docNum || '',
+          docIssuer: id.docIssuer || '',
+          docIssueDate: id.docIssueDate || '',
           nationality: id.nationality || '',
+          // Wizard-schema mirror: the Allegato B/C generators and parts of
+          // the portal still read codiceFiscale/birthDate/… — without this,
+          // identity collected at signing never reached a regenerated PDF.
+          codiceFiscale: id.cf || '',
+          birthDate: id.dob || '',
+          birthPlace: id.pob || '',
+          idDocType: id.docType || '',
+          idDocNumber: id.docNum || '',
         };
         // First-time tenant signer: ensure base profile fields are seeded
         // so the post-signature account-activation flow has email/role/name.
@@ -263,7 +443,10 @@ export default async function handler(req, res) {
           if (!existing) {
             patch.role = 'tenant';
             patch.name = body.signerName || '';
-            patch.email = body.signerEmail || '';
+            // L'email del profilo (a cui parte il magic-link del portale)
+            // preferisce quella GIÀ nota al sistema (deal/PA/invito) — il
+            // campo digitato in pagina è solo il fallback.
+            patch.email = contract.tenantEmail || body.signerEmail || '';
             patch.linkedContractId = contractId;
             patch.createdBy = 'magic_sign';
           }
@@ -347,42 +530,94 @@ export default async function handler(req, res) {
           filter: { field: 'propertyId', op: 'EQUAL', value: fullContract.propertyId },
           limit: 1,
         });
-        if (listings[0]) await fsPatch('listings/' + listings[0].id, { status: 'rented' });
+        // LA DATA PIÙ AFFIDABILE DEL SISTEMA, che finora si buttava via.
+        // Qui si scriveva solo `status:'rented'`: il contratto sapeva
+        // ESATTAMENTE quando quella casa torna libera (endDate) e nessuno lo
+        // registrava. Ora la casa affittata porta con sé il giorno in cui si
+        // rilibera, così la vetrina può prenotarla in anticipo (la corsia
+        // waitlist esisteva già e restava vuota) e i portali la ricevono.
+        if (listings[0]) {
+          const patch = { status: 'rented' };
+          const end = String(fullContract.endDate || '');
+          if (/^\d{4}-\d{2}-\d{2}/.test(end)) {
+            const free = new Date(end.slice(0, 10) + 'T00:00:00Z');
+            free.setUTCDate(free.getUTCDate() + 1);      // libera il giorno DOPO la scadenza
+            const iso = free.toISOString().slice(0, 10);
+            patch.availableFrom = iso;
+            patch.availableDate = iso;
+            patch.availableKind = 'date';
+            patch.availableRaw = 'fine contratto ' + end.slice(0, 10);
+            patch.availabilityUpdatedAt = new Date().toISOString();
+            patch.availabilityUpdatedBy = 'contract:' + contractId;
+          }
+          await fsPatch('listings/' + listings[0].id, patch);
+        }
       } catch (e) { console.warn('[magic-sign/submit] listing sync:', e.message); }
     }
 
-    // (e) Payment schedule — only if none exists yet
+    // (e) Payment schedule — only if the MONTHLY schedule doesn't exist yet.
+    // Deposit docs (dep_/depbal_, type 'deposit'/'deposit-balance') don't
+    // count: the PA convert step writes depbal_<contractId> BEFORE signing,
+    // and it must never suppress the rent installments.
     if (fullContract.startDate && fullContract.endDate && fullContract.rent) {
       try {
-        const existing = await fsList('payments', {
+        const existing = (await fsList('payments', {
           filter: { field: 'contractId', op: 'EQUAL', value: contractId },
-          limit: 1,
-        });
+          limit: 10,
+        })).filter(p => !String(p.type || '').startsWith('deposit'));
         if (!existing.length) {
           const writes = [];
           const pStart = new Date(fullContract.startDate);
           const pEnd = new Date(fullContract.endDate);
           const payDay = parseInt(fullContract.paymentDay, 10) || 5;
-          let cur = new Date(pStart.getFullYear(), pStart.getMonth(), payDay);
-          if (cur < pStart) cur.setMonth(cur.getMonth() + 1);
-          let safety = 0;
-          while (cur <= pEnd && safety++ < 60) {
-            const month = cur.toISOString().slice(0, 7);
-            const dueDate = cur.toISOString().split('T')[0];
+          // Cadence: 1 = monthly (default), 2/3/6/12 = bimonthly…annual.
+          // The unit is a LEASE month (start day → day before the next
+          // anniversary), not a calendar month, so a lease that begins on the
+          // 10th is billed in full from day one and never loses its first
+          // period. Each instalment is paid in advance and covers `step`
+          // lease months — the last one is clamped and prorated to whatever
+          // the lease actually has left.
+          const step = [1, 2, 3, 6, 12].includes(Number(fullContract.installmentMonths))
+            ? Number(fullContract.installmentMonths) : 1;
+          const addMonths = (d, n) => {
+            const x = new Date(d.getFullYear(), d.getMonth() + n, d.getDate());
+            // month-end clamp: 31 Jan + 1 month = 28/29 Feb, never 3 March
+            if (x.getDate() !== d.getDate()) x.setDate(0);
+            return x;
+          };
+          // how many whole lease months the contract really spans
+          let monthsTotal = 0;
+          while (monthsTotal < 600 && addMonths(pStart, monthsTotal) <= pEnd) monthsTotal++;
+          const perMonth = Math.round(
+            ((Number(fullContract.installmentAmount) || fullContract.rent * step) / step) * 100
+          ) / 100;
+
+          for (let i = 0; i < monthsTotal; i += step) {
+            const periodStart = addMonths(pStart, i);
+            const covered = Math.min(step, monthsTotal - i);
+            // due on the pay day of the period's month, never before the
+            // period itself begins
+            let due = new Date(periodStart.getFullYear(), periodStart.getMonth(), payDay);
+            if (due < periodStart) due = periodStart;
+            const month = `${periodStart.getFullYear()}-${String(periodStart.getMonth() + 1).padStart(2, '0')}`;
+            const lastCovered = addMonths(pStart, i + covered - 1);
+            const coversTo = `${lastCovered.getFullYear()}-${String(lastCovered.getMonth() + 1).padStart(2, '0')}`;
+            const dueDate = `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, '0')}-${String(due.getDate()).padStart(2, '0')}`;
             writes.push({
               docPath: 'payments/pay_' + contractId + '_' + month,
               fields: {
                 contractId,
                 tenantId: fullContract.tenantId || '',
                 propertyId: fullContract.propertyId || '',
-                amount: fullContract.rent,
+                amount: Math.round(perMonth * covered * 100) / 100,
                 month,
                 dueDate,
                 status: 'pending',
+                installmentMonths: covered,
+                coversTo,
               },
               serverTimestampFields: ['createdAt'],
             });
-            cur.setMonth(cur.getMonth() + 1);
           }
           if (writes.length) await commitWrites(writes);
         }
@@ -409,7 +644,7 @@ export default async function handler(req, res) {
     const _n = await import('../sign/_notify.js');
     const fullC = { ...fresh, ...upd, id: contractId };
     if (fullySigned) { await _n.notifyAdminContractSigned(fullC, propertyDoc); }
-    else { await _n.notifyPartialSignature(fullC, role, propertyDoc); }
+    else { await _n.notifyPartialSignature(fullC, role, propertyDoc, role === 'cotenant' ? { coIndex } : {}); }
   } catch (e) { console.warn('[magic-sign/submit] stage notify:', e.message); }
 
   // ── 7. Audit ───────────────────────────────────────────
@@ -429,11 +664,11 @@ export default async function handler(req, res) {
       type: 'contract.signed',
       summary: fullySigned
         ? `Contratto firmato da TUTTI · ${contractId} (chiudere il flow)`
-        : `Contratto firmato da ${role} · ${contractId} (manca l'altra parte)`,
+        : `Contratto firmato da ${role === 'cotenant' ? ('co-conduttore ' + ((((contract.coTenants || [])[coIndex]) || {}).name || (coIndex + 1))) : role} · ${contractId} (mancano altre firme)`,
       priority: fullySigned ? 'urgent' : 'low',
       ref: { collection: 'contracts', id: contractId },
       payload: { contractId, role, fullySigned },
-      dedupKey: `contract-signed-${contractId}-${role}`,
+      dedupKey: `contract-signed-${contractId}-${role}${role === 'cotenant' ? coIndex : ''}`,
       status: 'pending',
       actor: 'magic-sign',
       createdAt: new Date().toISOString(),
@@ -442,9 +677,8 @@ export default async function handler(req, res) {
   } catch (e) { /* never block the response */ }
 
   // Deposit info for the tenant's success screen (Stripe checkout CTA).
-  const depositAmt = Number(contract.deposit || 0);
-  const deposit = (role === 'tenant' && depositAmt > 0 && !fresh.depositPaid && depositPayToken)
-    ? { required: true, amountEur: depositAmt, payToken: depositPayToken }
+  const deposit = (role === 'tenant' && depositBalance > 0 && !fresh.depositPaid && depositPayToken)
+    ? { required: true, amountEur: depositBalance, payToken: depositPayToken }
     : null;
 
   return res.status(200).json({

@@ -137,13 +137,10 @@ body{font-family:'Helvetica Neue',-apple-system,sans-serif;background:var(--blac
   "sameAs": [
     "https://www.instagram.com/boomrome",
     "https://www.linkedin.com/company/boomrome",
-    "https://wa.me/393313251961",
-    "https://share.google/xikmVxQCRuKOdWcND"
+    "https://wa.me/393331234567"
   ],
   "address": {
     "@type": "PostalAddress",
-    "streetAddress": "Via dei Coronari 181/184",
-    "postalCode": "00186",
     "addressLocality": "Rome",
     "addressRegion": "Lazio",
     "addressCountry": "IT"
@@ -260,7 +257,7 @@ body{font-family:'Helvetica Neue',-apple-system,sans-serif;background:var(--blac
 // with user-facing pass delivery, so the gate lives here, not on the API.)
 (async () => {
   try {
-    const { user } = await BoomPortal.requireAuth(['admin'], { loginUrl: '/login.html' });
+    const { user } = await BoomPortal.requireAuth(['admin'], { loginUrl: '/login' });
     void user;
     const s = document.getElementById('ppAuthShield'); if (s) s.remove();
   } catch (e) { console.warn('[proppass] auth gate:', e && e.message); }
@@ -388,7 +385,8 @@ document.getElementById('genBtn').addEventListener('click',async()=>{
   btn.disabled=true;btn.textContent='Generating...';st.textContent='';st.className='status-bar';del.classList.remove('show');
   lastData=collectData();
   try{
-    const res=await fetch('/api/generate-pass',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:activeType,data:lastData})});
+    const idTok=await firebase.auth().currentUser.getIdToken();
+    const res=await fetch('/api/generate-pass',{method:'POST',headers:{'Content-Type':'application/json','X-Firebase-Token':idTok},body:JSON.stringify({type:activeType,data:lastData})});
     if(!res.ok){const e=await res.json();throw new Error(e.error||'Generation failed')}
     lastBlob=await res.blob();
     st.textContent='Pass generated successfully';st.className='status-bar ok';

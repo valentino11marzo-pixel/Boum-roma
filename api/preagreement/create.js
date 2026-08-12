@@ -86,6 +86,19 @@ export function deriveMoney(m) {
   // The energy-credit knob only applies when utilities are excluded.
   const utilities = m.utilities === 'included' ? 'included' : 'excluded';
 
+  // Instalment frequency: rent can be collected every 1 (monthly), 2, 3, 6
+  // or 12 months — Italian leases routinely use trimestrale/semestrale, and
+  // the whole chain (document, contract, payment schedule, /casa, reminders)
+  // follows this one number.
+  const installmentMonths = [1, 2, 3, 6, 12].includes(num(m.installmentMonths, 1))
+    ? num(m.installmentMonths, 1) : 1;
+  // Is the energy allowance COLLECTED with the rent, or settled apart
+  // (against the real bills)? Default: with the rent, as on the paper
+  // proposals. Only meaningful when there IS an allowance.
+  const billEnergyCredit = energyCredit > 0 ? m.billEnergyCredit !== false : false;
+  const chargedMonthly = r2(billEnergyCredit ? monthlyTotal : rent);
+  const installmentAmount = r2(chargedMonthly * installmentMonths);
+
   const dueDefault = r2(depositAtSigning + (feeDue === 'signing' ? feeTotal : 0));
   const dueAtSigning = m.dueAtSigning != null && m.dueAtSigning !== ''
     ? Math.max(0, num(m.dueAtSigning))
@@ -95,6 +108,7 @@ export function deriveMoney(m) {
     rent, energyCredit, monthlyTotal, utilities,
     depositMonths, deposit, depositSplitPct, depositAtSigning, depositAtMoveIn,
     feeMode, feePct, feeMonths, feeFlat, fee, feeVatPct, feeVat, feeTotal, feeDue,
+    installmentMonths, billEnergyCredit, chargedMonthly, installmentAmount,
     dueAtSigning,
   };
 }
@@ -121,6 +135,13 @@ export default async function handler(req, res) {
   }
 
   const token = crypto.randomBytes(16).toString('hex');
+  // Optional landlord contact — lets the console share the owner's sign link
+  // directly (most contracts are signed by the owner; delega is the option).
+  const landlord = {
+    name: landlordName,
+    email: clip((b.landlord || {}).email, 160),
+    phone: clip((b.landlord || {}).phone, 60),
+  };
   const tenant = {
     fullName: clip((b.tenant || {}).fullName, 120),
     email: clip((b.tenant || {}).email, 160),
@@ -146,7 +167,15 @@ export default async function handler(req, res) {
       floor: clip(p.floor, 40),
       unit: clip(p.unit, 40),
     },
-    landlord: { name: landlordName },
+    landlord,
+    // Optional SECOND document requested in the Verify step (besides the ID)
+    // — e.g. proof of the transitional need. Never blocking: the client can
+    // sign without it and send it later from the accepted page (same link).
+    extraDoc: clip(b.extraDoc, 160),
+    // Offer expiry (YYYY-MM-DD, end of that day Rome time). Gates NEW
+    // acceptances only — an accepted/paid deal is never voided. Extend it
+    // any time from the console's Edit (same link revives).
+    validUntil: /^\d{4}-\d{2}-\d{2}$/.test(String(b.validUntil || '')) ? String(b.validUntil) : null,
     tenant,                    // primary tenant (compat + prefill)
     tenants: [tenant],         // full parties list — the page appends co-tenants
     lease: {

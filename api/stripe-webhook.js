@@ -1,8 +1,10 @@
 import Stripe from 'stripe';
 import crypto from 'node:crypto';
-import { fsList, fsPatch } from './homie/_lib.js';
-import { sendPaEmails } from './preagreement/_notify.js';
+import { fsList, fsPatch, fsGet } from './homie/_lib.js';
+import { sendPaEmails, shell, para, fine, btn, btn2 } from './preagreement/_notify.js';
+import { sendEmail } from './agent/_lib.js';
 import { maybeAutoConvert } from './preagreement/_auto.js';
+import { tgNotify } from './pfs/_health.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -173,8 +175,9 @@ async function handleDeposit(res, session, m) {
   let c = null;
   try { c = await readDoc(`contracts/${contractId}`); } catch (_) {}
 
+  let depW = null;
   try {
-    await writeDoc('payments', 'dep_' + contractId, {
+    depW = await writeDoc('payments', 'dep_' + contractId, {
       type: 'deposit',
       contractId,
       tenantId: (c && c.tenantId) || '',
@@ -184,10 +187,17 @@ async function handleDeposit(res, session, m) {
       dueDate: now.slice(0, 10),
       status: 'paid',
       paidAt: now,
+      paidDate: now.slice(0, 10),   // consumed by /casa rows + portal revenue stats
+      paidVia: 'stripe',
       stripeSessionId: session.id,
       createdAt: now,
     });
   } catch (err) { console.error('[deposit] payment write:', err.message); }
+
+  if (depW && depW.exists) {
+    // Retry di Stripe: pagamento già registrato, notifiche ed email già partite.
+    return res.status(200).json({ received: true, duplicate: true, contractId });
+  }
 
   try {
     await writeDoc('agentNotifications', 'deposit-' + contractId, {
@@ -277,13 +287,47 @@ const SERVICE_META = {
     next3: ['Verdict within 24 hours', 'Green / amber / red, in writing'],
     next4: ['Need the full shield?', '€49 credited on Deal Assistance'],
   },
+  'movein-pack': {
+    title: 'Move-in Pack', emoji: '🔌',
+    next1: ['We take over your utilities', 'Electricity & gas transfers started today'],
+    next2: ['Internet activated', 'Best available line at your address'],
+    next3: ['Residency guide', 'Step-by-step for the anagrafe'],
+    next4: ['You arrive, everything works', 'Status updates on WhatsApp'],
+  },
+  'cleaning-premium': {
+    title: 'Cleaning Premium', emoji: '✨',
+    next1: ['We schedule the team', 'The day before your move-in'],
+    next2: ['Professional deep clean', 'Kitchen, bathrooms, floors, windows'],
+    next3: ['Photo report when done', 'So you see it before you arrive'],
+    next4: ['Keys to a spotless home', 'Hotel-fresh, guaranteed'],
+  },
+  'remote-move-pack': {
+    title: 'Remote Move Pack', emoji: '🧳',
+    next1: ['Send your shortlist', 'Reply with 1–2 listings — or ask us to point you'],
+    next2: ['Live video viewings ×2', 'Scheduled within 48h, you join from anywhere'],
+    next3: ['Contract checked & negotiated', 'Clause-by-clause in English, verdict in 24h'],
+    next4: ['You land ready', 'Keys plan + utilities guidance before your flight'],
+  },
+  // lang:'it' → the client confirmation email switches to Italian (the
+  // concordato buyer is a Rome landlord — same reader-language rule as _lang.js).
+  'concordato-pack': {
+    title: 'Pacchetto Concordato', emoji: '🏛️', lang: 'it',
+    next1: ['Inviaci i dati dell\'immobile', 'Rispondi a questa email: visura o vecchio contratto'],
+    next2: ['Verifica ufficiale del canone', 'Entro 48h: fascia, massimo asseverabile e bozza contratto'],
+    next3: ['Attestazione di rispondenza', 'Pratica gestita con l\'organizzazione firmataria'],
+    next4: ['Registrazione RLI', 'Da lì in poi cedolare al 10% — fascicolo completo in PDF'],
+  },
 };
 
 async function handleService(res, session, m) {
   const docId = session.id.replace(/[^a-zA-Z0-9]/g, '').substring(0, 30);
   const now = new Date().toISOString();
   const amountEur = (session.amount_total || 0) / 100;
-  const email = m.email || session.customer_email || '';
+  // customer_details.email is what the buyer TYPED on the Stripe page — it
+  // wins over anything we guessed at session creation (a one-tap email link
+  // may carry no address at all).
+  const email = (session.customer_details && session.customer_details.email)
+    || m.email || session.customer_email || '';
   const meta = SERVICE_META[m.kind] || { title: m.kind || 'Service', emoji: '✓' };
   const lead = {
     type: 'service',
@@ -305,8 +349,17 @@ async function handleService(res, session, m) {
     paid_at: now,
     createdAt: now,
   };
-  try { await writeDoc('leads', 'svc_' + docId, lead); }
-  catch (err) { console.error('Firestore service lead write error:', err); }
+  let w = null;
+  try { w = await writeDoc('leads', 'svc_' + docId, lead); }
+  catch (err) {
+    // Soldi incassati ma lead non persistito → 500 così Stripe ritenta.
+    console.error('Firestore service lead write error:', err);
+    return res.status(500).json({ error: 'lead_write_failed' });
+  }
+  if (w && w.exists) {
+    // Retry di Stripe su una sessione già processata: email già inviate.
+    return res.status(200).json({ received: true, duplicate: true, serviceLeadId: 'svc_' + docId });
+  }
 
   const firstName = (m.name || '').split(' ')[0] || 'there';
   try {
@@ -329,21 +382,26 @@ async function handleService(res, session, m) {
   } catch (err) { console.error('Admin service email error:', err); }
 
   try {
+    const it = meta.lang === 'it';
     if (email) await sendEmailJS({
       to_email: email,
-      heading: `Your ${meta.title} is confirmed`,
-      subheading: 'BOOM Rome — paid & scheduled',
+      heading: it ? `${meta.title} — confermato` : `Your ${meta.title} is confirmed`,
+      subheading: it ? 'BOOM Rome — pagato, in lavorazione' : 'BOOM Rome — paid & scheduled',
       name: firstName,
-      intro: `Payment received — €${amountEur}, Stripe-secured. Here's exactly what happens next:`,
+      intro: it
+        ? `Pagamento ricevuto — €${amountEur}, via Stripe. Ecco esattamente cosa succede adesso:`
+        : `Payment received — €${amountEur}, Stripe-secured. Here's exactly what happens next:`,
       card_color: '#D4AF37',
-      card_title: 'What happens next',
+      card_title: it ? 'I prossimi passi' : 'What happens next',
       r1_icon: '✓', r1_label: (meta.next1 || ['We take it from here'])[0], r1_value: (meta.next1 || ['', 'Right away'])[1],
       r2_icon: '✓', r2_label: (meta.next2 || ['—'])[0], r2_value: (meta.next2 || ['', ''])[1],
       r3_icon: '✓', r3_label: (meta.next3 || ['—'])[0], r3_value: (meta.next3 || ['', ''])[1],
       r4_icon: '✓', r4_label: (meta.next4 || ['—'])[0], r4_value: (meta.next4 || ['', ''])[1],
-      closing: 'Anything at all — reply to this email or message us on WhatsApp. A human answers within 2 hours.',
-      cta_text: 'Back to BOOM',
-      portal_link: 'https://www.boomrome.com/apartments.html',
+      closing: it
+        ? 'Per qualsiasi cosa rispondi a questa email o scrivici su WhatsApp — risponde una persona, entro 2 ore.'
+        : 'Anything at all — reply to this email or message us on WhatsApp. A human answers within 2 hours.',
+      cta_text: it ? 'Torna su BOOM' : 'Back to BOOM',
+      portal_link: it ? 'https://www.boomrome.com/canone' : 'https://www.boomrome.com/apartments.html',
     });
   } catch (err) { console.error('Client service email error:', err); }
 
@@ -354,7 +412,11 @@ async function handleReserve(res, session, m) {
   const docId = session.id.replace(/[^a-zA-Z0-9]/g, '').substring(0, 30);
   const now = new Date().toISOString();
   const amountEur = (session.amount_total || 0) / 100;
-  const email = m.email || session.customer_email || '';
+  // customer_details.email is what the buyer TYPED on the Stripe page — it
+  // wins over anything we guessed at session creation (a one-tap email link
+  // may carry no address at all).
+  const email = (session.customer_details && session.customer_details.email)
+    || m.email || session.customer_email || '';
   const lead = {
     type: 'reservation',
     service: 'RESERVE',
@@ -376,8 +438,15 @@ async function handleReserve(res, session, m) {
   };
 
   // Surface it in the existing lead pipeline (cockpit/portal read `leads`)
-  try { await writeDoc('leads', 'res_' + docId, lead); }
-  catch (err) { console.error('Firestore reservation write error:', err); }
+  let w = null;
+  try { w = await writeDoc('leads', 'res_' + docId, lead); }
+  catch (err) {
+    console.error('Firestore reservation write error:', err);
+    return res.status(500).json({ error: 'reservation_write_failed' });
+  }
+  if (w && w.exists) {
+    return res.status(200).json({ received: true, duplicate: true, reservationId: 'res_' + docId });
+  }
 
   const firstName = (m.name || '').split(' ')[0] || 'there';
 
@@ -441,7 +510,14 @@ async function handlePreagreement(res, session, m) {
   const { id, ...pa } = hit;   // fsList returns flat rows: {id, ...fields}
 
   if (pa.paidSessionId === session.id) {
-    return res.status(200).json({ received: true, duplicate: true });   // retry — emails already sent
+    // Retry — email già inviate. MA se la conversione in contratto era fallita
+    // al primo giro (paid senza contractId), questo retry è l'occasione per
+    // riprovarla invece di scartarla per sempre.
+    if (!pa.contractId) {
+      const reconverted = await maybeAutoConvert({ pa: { ...pa }, paId: id });
+      return res.status(200).json({ received: true, duplicate: true, contractId: (reconverted && reconverted.contractId) || null });
+    }
+    return res.status(200).json({ received: true, duplicate: true });
   }
 
   const paidEur = (session.amount_total || 0) / 100;
@@ -453,6 +529,15 @@ async function handlePreagreement(res, session, m) {
       stripePaymentIntent: String(session.payment_intent || ''),
     });
   } catch (e) { console.error('[webhook/pa] patch failed:', e.message); }
+
+  // Il dovuto alla firma è arrivato: il lucchetto sull'immobile diventa
+  // DEFINITIVO. Prima scadeva dopo 48h, perché una riserva che non paga non
+  // deve congelare l'appartamento; ora che i soldi ci sono, nessun altro
+  // candidato può più subentrare.
+  try {
+    const { confirmLock } = await import('./preagreement/_lock.js');
+    await confirmLock({ pa, paId: id });
+  } catch (e) { console.error('[webhook/pa] lucchetto non confermato:', e.message); }
 
   // Stripe receipt link (best-effort)
   let receiptUrl = null;
@@ -477,6 +562,538 @@ async function handlePreagreement(res, session, m) {
   return res.status(200).json({ received: true, preAgreementId: id, contractId: (converted && converted.contractId) || null });
 }
 
+// RENT — Canone via BOOM: a tenant paid a scheduled installment (or the
+// deposit balance) by card from /casa (api/payments/pay.js). Marks the
+// payment doc paid (paidVia:'stripe') and emails the receipt with the
+// platform's design system. Idempotent on stripeSessionId.
+async function handleRent(res, session, m) {
+  const paymentId = String(m.paymentId || '').trim();
+  if (!paymentId) return res.status(200).json({ received: true, error: 'no_paymentId' });
+  const now = new Date().toISOString();
+  const amount = Number(m.amount) || Math.round(((session.amount_total || 0) / 100) - (Number(m.fee) || 0));
+  const fee = Number(m.fee) || 0;
+
+  let pay = null;
+  try { pay = await readDoc(`payments/${paymentId}`); } catch (_) {}
+  if (!pay) return res.status(200).json({ received: true, error: 'payment_not_found', paymentId });
+  if (pay.status === 'paid') {
+    // Same session retried by Stripe → simple ack.
+    if (pay.stripeSessionId === session.id) {
+      return res.status(200).json({ received: true, duplicate: true, paymentId });
+    }
+    // Paid by ANOTHER route (bank reconciliation, or a second checkout
+    // session that survived): NEVER overwrite the record — this charge is
+    // a probable double payment. Alarm the operator for a refund.
+    const dupNow = new Date().toISOString();
+    try {
+      await writeDoc('agentNotifications', 'rent-double-' + paymentId + '-' + session.id.slice(-8), {
+        type: 'payment.rent.double',
+        summary: `🚨 POSSIBILE DOPPIO INCASSO su ${paymentId}: già ${pay.paidVia || 'paid'}${pay.paidDate ? ' il ' + pay.paidDate : ''}, ora ricevuto ANCHE via Stripe (${session.id}) — verifica e rimborsa`,
+        priority: 'high', status: 'pending', actor: 'stripe-webhook',
+        dedupKey: 'rent-double-' + paymentId, createdAt: dupNow, attempts: 0,
+      });
+    } catch (_) {}
+    try {
+      await sendEmail({
+        to: 'valentino@boom-rome.com',
+        subject: `🚨 Possibile doppio incasso — ${paymentId}`,
+        html: shell(para(`La rata <b>${paymentId}</b> risultava già pagata (${pay.paidVia || '—'}${pay.paidDate ? ' · ' + pay.paidDate : ''}) ma è appena arrivato ANCHE un pagamento Stripe (sessione ${session.id}, €${((session.amount_total || 0) / 100).toLocaleString('it-IT')}).<br><b>Verifica su Stripe e rimborsa l'incasso doppio.</b> Il record originale non è stato toccato.`)
+          + btn2('https://dashboard.stripe.com/payments', 'Apri Stripe')),
+      });
+    } catch (_) {}
+    return res.status(200).json({ received: true, doublePayment: true, paymentId });
+  }
+
+  // Ricevuta Stripe + COSTO REALE dell'incasso (best-effort).
+  //
+  // Stripe dice, su ogni addebito, quanto gli è costato: balance_transaction
+  // .fee. Finora quel dato lo buttavamo via e la commissione al cliente era
+  // una percentuale decisa al buio — che sulle carte estere (3,25%) va in
+  // perdita e su quelle europee (1,5%) sovrapprezza. Salvandolo, la
+  // commissione può regolarsi sul misurato invece che sul listino.
+  let receiptUrl = null, stripeCostEur = null, cardCountry = null, cardBrand = null;
+  try {
+    if (session.payment_intent) {
+      const pi = await stripe.paymentIntents.retrieve(String(session.payment_intent),
+        { expand: ['latest_charge.balance_transaction'] });
+      const ch = pi.latest_charge || null;
+      receiptUrl = (ch && ch.receipt_url) || null;
+      const bt = ch && ch.balance_transaction;
+      if (bt && typeof bt.fee === 'number') stripeCostEur = Math.round(bt.fee) / 100;
+      const card = ch && ch.payment_method_details && ch.payment_method_details.card;
+      if (card) { cardCountry = card.country || null; cardBrand = card.brand || null; }
+    }
+  } catch (e) { console.error('[rent] costo reale non leggibile:', e.message); }
+
+  try {
+    await patchDoc(`payments/${paymentId}`, {
+      status: 'paid', paidAt: now, paidDate: now.slice(0, 10),
+      paidVia: 'stripe', stripeSessionId: session.id,
+      serviceFeeEur: fee, receiptUrl: receiptUrl || '',
+      // Il conto vero di questo incasso: quanto abbiamo chiesto, quanto ci è
+      // costato, cosa ci resta. Con il paese della carta, che è la ragione per
+      // cui lo stesso incasso costa il doppio.
+      stripeCostEur, cardCountry, cardBrand,
+      marginEur: stripeCostEur == null ? null : Math.round((fee - stripeCostEur) * 100) / 100,
+    });
+  } catch (err) {
+    console.error('[rent] payment patch:', err.message);
+    return res.status(500).json({ received: false, error: 'patch_failed' });
+  }
+
+  // La statistica che fa scendere la commissione da sola: volume incassato,
+  // costo realmente sostenuto, numero di incassi. pay.js la legge alla
+  // creazione della sessione successiva, quindi il prezzo converge sul costo
+  // vero senza che nessuno decida una percentuale a mano.
+  if (stripeCostEur != null) {
+    try {
+      const prev = (await readDoc('settings/rentFeeStats').catch(() => null)) || {};
+      await patchDoc('settings/rentFeeStats', {
+        count: (Number(prev.count) || 0) + 1,
+        volumeEur: Math.round(((Number(prev.volumeEur) || 0) + amount) * 100) / 100,
+        costEur: Math.round(((Number(prev.costEur) || 0) + stripeCostEur) * 100) / 100,
+        // Parte fissa: Stripe ne applica una per addebito (~€0,25). Tenerla
+        // separata evita di gonfiare la percentuale sui canoni piccoli.
+        fixedEur: Math.round(((Number(prev.fixedEur) || 0) + 0.25) * 100) / 100,
+        lastAt: now,
+        lastCardCountry: cardCountry || null,
+      });
+    } catch (err) { console.error('[rent] statistica costi:', err.message); }
+  }
+
+  try {
+    await writeDoc('agentNotifications', 'rent-' + paymentId + '-' + session.id.slice(-8), {
+      type: 'payment.rent',
+      summary: `💶 Canone incassato via BOOM: €${amount.toLocaleString('it-IT')} (${pay.month || paymentId}) + fee €${fee}`,
+      priority: 'normal', status: 'pending', actor: 'stripe-webhook',
+      dedupKey: 'rent-' + paymentId, createdAt: now, attempts: 0,
+    });
+  } catch (err) { console.error('[rent] notify write:', err.message); }
+
+  const isDeposit = pay.type === 'deposit-balance';
+  const label = isDeposit ? 'saldo del deposito cauzionale' : `canone di ${pay.month || String(pay.dueDate || '').slice(0, 7)}`;
+  const email = session.customer_email || '';
+  const eurFmt = n => '€' + Number(n || 0).toLocaleString('en-US');
+  if (email) {
+    try {
+      await sendEmail({
+        to: email,
+        subject: `Ricevuta — ${isDeposit ? 'saldo deposito' : 'canone ' + (pay.month || '')} ${eurFmt(amount)} ✓`,
+        html: shell(
+          para(`Pagamento ricevuto ✓ — il tuo ${label} di <b>${eurFmt(amount)}</b> è registrato${fee ? ` (commissione servizio ${eurFmt(fee)})` : ''}. La ricevuta è tua per sempre: la ritrovi anche in <b>La tua casa BOOM</b>, insieme allo storico completo.`)
+          + btn('https://www.boomrome.com/casa', 'Apri La tua casa BOOM')
+          + (receiptUrl ? fine(`Ricevuta Stripe: <a href="${receiptUrl}" style="color:#141414">apri →</a>`, 'text-align:center') : '')
+          + fine('Domande? Rispondi a questa email o <a href="https://wa.me/393313251961" style="color:#141414">scrivici su WhatsApp</a>.', 'text-align:center'),
+          `Pagamento ${eurFmt(amount)} registrato`),
+      });
+    } catch (err) { console.error('[rent] tenant email:', err.message); }
+  }
+  try {
+    await sendEmail({
+      to: 'valentino@boom-rome.com',
+      subject: `💶 CANONE VIA BOOM ${eurFmt(amount)} — ${pay.month || paymentId}`,
+      html: shell(
+        para(`Incassato via Stripe: <b>${eurFmt(amount)}</b> (${label}) + commissione servizio <b>${eurFmt(fee)}</b>.<br>Payment <b>${paymentId}</b> · contratto ${pay.contractId || '—'} · segnato <b>paid · stripe</b> — la riconciliazione bancaria lo salta in automatico.`)
+        + btn2('https://www.boomrome.com/portal', 'Apri il portale')),
+    });
+  } catch (err) { console.error('[rent] admin email:', err.message); }
+
+  return res.status(200).json({ received: true, rent: true, paymentId });
+}
+
+// INVOICE — una fattura BOOM pagata con carta dal link mandato su WhatsApp.
+// Stessa disciplina del canone: idempotente sul retry di Stripe, e se il
+// documento risultava già saldato per altra via NON lo sovrascrive mai —
+// segnala un possibile doppio incasso invece di nasconderlo.
+async function handleInvoice(res, session, m) {
+  const invoiceId = String(m.invoiceId || '').trim();
+  if (!invoiceId) return res.status(200).json({ received: true, error: 'no_invoiceId' });
+  const now = new Date().toISOString();
+  const amount = Number(m.amount) || Math.round((session.amount_total || 0) / 100);
+
+  let inv = null;
+  try { inv = await readDoc(`invoices/${invoiceId}`); } catch (_) {}
+  if (!inv) return res.status(200).json({ received: true, error: 'invoice_not_found', invoiceId });
+
+  if (inv.status === 'paid') {
+    if (inv.stripeSessionId === session.id) {
+      return res.status(200).json({ received: true, duplicate: true, invoiceId });
+    }
+    try {
+      await writeDoc('agentNotifications', 'inv-double-' + invoiceId + '-' + session.id.slice(-8), {
+        type: 'payment.invoice.double',
+        summary: `🚨 POSSIBILE DOPPIO INCASSO sulla fattura ${inv.number || invoiceId}: già pagata${inv.paidDate ? ' il ' + inv.paidDate : ''}, ora ricevuto ANCHE via Stripe.`,
+        priority: 'high', status: 'pending', actor: 'stripe-webhook',
+        dedupKey: 'inv-double-' + invoiceId, createdAt: now, attempts: 0,
+      });
+    } catch (_) {}
+    return res.status(200).json({ received: true, doublePayment: true, invoiceId });
+  }
+
+  let receiptUrl = null;
+  try {
+    if (session.payment_intent) {
+      const pi = await stripe.paymentIntents.retrieve(String(session.payment_intent), { expand: ['latest_charge'] });
+      receiptUrl = (pi.latest_charge && pi.latest_charge.receipt_url) || null;
+    }
+  } catch (_) {}
+
+  try {
+    await patchDoc(`invoices/${invoiceId}`, {
+      status: 'paid', paidAt: now, paidDate: now.slice(0, 10),
+      paidVia: 'stripe', stripeSessionId: session.id, receiptUrl: receiptUrl || '',
+    });
+  } catch (err) {
+    console.error('[invoice] patch:', err.message);
+    return res.status(500).json({ received: false, error: 'patch_failed' });
+  }
+
+  try {
+    await writeDoc('agentNotifications', 'inv-' + invoiceId + '-' + session.id.slice(-8), {
+      type: 'payment.invoice.paid',
+      summary: `🧾 Fattura ${inv.number || invoiceId} incassata: €${amount}${inv.recipientName ? ' — ' + inv.recipientName : ''}.`,
+      priority: 'normal', status: 'pending', actor: 'stripe-webhook',
+      dedupKey: 'inv-' + invoiceId, createdAt: now, attempts: 0,
+    });
+  } catch (err) { console.error('[invoice] notify:', err.message); }
+
+  const eurFmt = n => '€' + Number(n || 0).toLocaleString('it-IT');
+  // Il link si manda anche a chi non ha l'email in archivio: in quel caso
+  // Stripe non riceve customer_email e l'indirizzo è quello DIGITATO dal
+  // pagante — senza questo la ricevuta non partirebbe proprio a chi ha pagato.
+  const email = (session.customer_details && session.customer_details.email)
+    || session.customer_email || inv.recipientEmail || '';
+  if (email) {
+    try {
+      await sendEmail({
+        to: email,
+        subject: `Ricevuta — fattura ${inv.number || ''} ${eurFmt(amount)} ✓`,
+        html: shell(
+          para(`Pagamento ricevuto ✓ — la fattura <b>${inv.number || invoiceId}</b> di <b>${eurFmt(amount)}</b> risulta saldata.`)
+          + (receiptUrl ? fine(`Ricevuta Stripe: <a href="${receiptUrl}" style="color:#141414">apri →</a>`, 'text-align:center') : '')
+          + fine('Domande? Rispondi a questa email o <a href="https://wa.me/393313251961" style="color:#141414">scrivici su WhatsApp</a>.', 'text-align:center'),
+          `Fattura ${eurFmt(amount)} saldata`),
+      });
+    } catch (err) { console.error('[invoice] client email:', err.message); }
+  }
+  try {
+    await sendEmail({
+      to: 'valentino@boom-rome.com',
+      subject: `🧾 FATTURA INCASSATA ${eurFmt(amount)} — ${inv.number || invoiceId}`,
+      html: shell(
+        para(`Incassata via Stripe: <b>${eurFmt(amount)}</b> — fattura <b>${inv.number || invoiceId}</b>${inv.recipientName ? ' a ' + inv.recipientName : ''}.`)
+        + btn2('https://www.boomrome.com/portal', 'Apri il portale')),
+    });
+  } catch (err) { console.error('[invoice] admin email:', err.message); }
+
+  return res.status(200).json({ received: true, invoice: true, invoiceId });
+}
+
+// ── Soldi che tornano indietro: MAI in silenzio ────────────────────────────
+// Un rimborso o una CONTESTAZIONE (dispute) finora arrivavano solo nella
+// dashboard Stripe: su una dispute non risposta entro la scadenza l'importo
+// è perso per sempre. Ora ogni evento suona sul Telegram dell'operatore e
+// lascia una notifica in agentNotifications (che fa anche da idempotenza:
+// il retry di Stripe trova il doc già scritto e non suona due volte).
+async function handleMoneyBack(res, event) {
+  const o = event.data.object || {};
+  const eur = n => '€' + (Math.round(n || 0) / 100).toLocaleString('it-IT');
+  const when = e => e ? new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', day: 'numeric', month: 'long' }).format(new Date(e * 1000)) : '—';
+
+  let text = '';
+  let priority = 'normal';
+  if (event.type === 'charge.refunded') {
+    const who = (o.billing_details && (o.billing_details.name || o.billing_details.email)) || '—';
+    const full = (o.amount_refunded || 0) >= (o.amount || 0);
+    text = `↩️ <b>RIMBORSO ${full ? 'totale' : 'parziale'}: ${eur(o.amount_refunded)}</b>\n`
+      + `${who} · addebito ${eur(o.amount)}\n`
+      + `https://dashboard.stripe.com/payments/${o.payment_intent || o.id}`;
+  } else if (event.type === 'charge.dispute.created') {
+    priority = 'high';
+    const dueBy = o.evidence_details && o.evidence_details.due_by;
+    text = `🚨 <b>CONTESTAZIONE (dispute): ${eur(o.amount)}</b>\n`
+      + `Motivo: ${o.reason || '—'}\n`
+      + `⏰ Rispondi con le prove <b>entro il ${when(dueBy)}</b> — senza risposta l'importo è perso.\n`
+      + `https://dashboard.stripe.com/disputes/${o.id}`;
+  } else {
+    const esito = o.status === 'won' ? 'VINTA ✓' : o.status === 'lost' ? 'PERSA ✗' : (o.status || 'chiusa');
+    text = `⚖️ Dispute ${esito} — ${eur(o.amount)}\nhttps://dashboard.stripe.com/disputes/${o.id}`;
+  }
+
+  let w = null;
+  try {
+    w = await writeDoc('agentNotifications', 'stripe-' + String(event.id).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40), {
+      type: 'stripe.' + event.type,
+      summary: text.replace(/<[^>]+>/g, '').split('\n').slice(0, 2).join(' · '),
+      priority, status: 'pending', actor: 'stripe-webhook',
+      dedupKey: 'stripe-' + event.id, createdAt: new Date().toISOString(), attempts: 0,
+    });
+  } catch (e) { console.error('[moneyback] notify write:', e.message); }
+  if (w && w.exists) return res.status(200).json({ received: true, duplicate: true });
+
+  try { await tgNotify(text); } catch (e) { console.error('[moneyback] telegram:', e.message); }
+  return res.status(200).json({ received: true, moneyback: event.type });
+}
+
+// ─── SDD: il canone automatico SEPA (api/payments/_sdd.js) ─────────────────
+// Tre momenti, tre rami. Il mandato si attiva da una Checkout mode=setup
+// (SDD_SETUP); gli esiti degli addebiti arrivano DAYS dopo l'avvio come
+// payment_intent.succeeded / payment_failed — SEPA è asincrono per natura.
+// Esportati per i test (tests/sdd/run.mjs), come gli altri rami soldi.
+
+export async function handleSddSetup(res, session, m) {
+  const contractId = String(m.contractId || '').trim();
+  if (!contractId) return res.status(200).json({ received: true, error: 'no_contractId' });
+  const now = new Date().toISOString();
+
+  // fsGet, NON il readDoc locale: sdd è una mappa annidata e il fsValToJs di
+  // questo file la appiattirebbe a null — il replay non vedrebbe mai il
+  // mandato già attivo.
+  let contract = null;
+  try { contract = await fsGet('contracts/' + contractId); } catch (_) {}
+  if (!contract) return res.status(200).json({ received: true, error: 'contract_not_found', contractId });
+
+  // Il metodo di pagamento + mandato vivono nel SetupIntent della sessione.
+  let pm = null, mandateRef = null;
+  try {
+    const si = await stripe.setupIntents.retrieve(String(session.setup_intent), { expand: ['payment_method'] });
+    pm = si.payment_method || null;
+    mandateRef = si.mandate ? String(si.mandate) : null;
+  } catch (e) {
+    console.error('[sdd-setup] setup_intent read failed:', e.message);
+    return res.status(200).json({ received: true, error: 'setup_intent_unreadable' });
+  }
+  if (!pm || !pm.id) return res.status(200).json({ received: true, error: 'no_payment_method' });
+
+  const prev = contract.sdd || {};
+  if (prev.status === 'active' && prev.paymentMethodId === pm.id) {
+    return res.status(200).json({ received: true, duplicate: true });
+  }
+
+  const last4 = (pm.sepa_debit && pm.sepa_debit.last4) || '';
+  const email = m.email || (session.customer_details && session.customer_details.email) || contract.tenantEmail || '';
+  try {
+    // fsPatch (homie/_lib), NON il patchDoc locale: sdd è una mappa annidata
+    // e il patchDoc di questo file appiattisce gli oggetti a String(v).
+    await fsPatch('contracts/' + contractId, {
+      sdd: {
+        status: 'active',
+        customerId: String(session.customer || prev.customerId || ''),
+        paymentMethodId: pm.id,
+        mandateRef,
+        ibanLast4: last4,
+        email,
+        activatedAt: now,
+      },
+    });
+  } catch (e) {
+    console.error('[sdd-setup] contract patch:', e.message);
+    return res.status(500).json({ received: false, error: 'patch_failed' });
+  }
+
+  try {
+    await writeDoc('agentNotifications', 'sdd-on-' + contractId, {
+      type: 'payment.sdd.activated',
+      summary: `🏦 Addebito SEPA ATTIVATO — ${contract.tenantName || email || contractId} (IBAN ••••${last4}): il canone parte da solo`,
+      priority: 'normal', status: 'pending', actor: 'stripe-webhook',
+      dedupKey: 'sdd-on-' + contractId, createdAt: now, attempts: 0,
+    });
+  } catch (_) {}
+  try {
+    await tgNotify(`🏦 <b>Canone automatico attivo</b> — ${contract.tenantName || email || contractId} (IBAN ••••${last4}).\nDa ora ogni rata parte da sola ~1 settimana prima della scadenza.`);
+  } catch (_) {}
+
+  if (email) {
+    try {
+      await sendEmail({
+        to: email,
+        subject: 'Auto-pay is on ✓ — your rent now takes care of itself',
+        html: shell(
+          para(`Your SEPA direct debit is <b>active</b> (IBAN ••••${last4}). From now on each rent instalment is collected automatically about a week before its due date — nothing to remember, receipt by email every time. You can turn it off anytime from your home page.`)
+          + btn('https://www.boomrome.com/casa', 'Open La tua casa BOOM')
+          + fine('Questions? Just reply to this email or <a href="https://wa.me/393313251961" style="color:#141414">WhatsApp us</a>.', 'text-align:center'),
+          'Auto-pay active ✓'),
+      });
+    } catch (e) { console.error('[sdd-setup] tenant email:', e.message); }
+  }
+  try {
+    await sendEmail({
+      to: 'valentino@boom-rome.com',
+      subject: `🏦 SDD attivo — ${contract.tenantName || contractId}`,
+      html: shell(para(`Mandato SEPA attivato sul contratto <b>${contractId}</b> (${contract.tenantName || '—'}, IBAN ••••${last4}).<br>Il cron addebita ogni rata ~${process.env.SDD_LEAD_DAYS || 7} giorni prima della scadenza; esiti su Telegram e in /casa.`)
+        + btn2('https://www.boomrome.com/portal', 'Apri il portale')),
+    });
+  } catch (_) {}
+
+  return res.status(200).json({ received: true, sddActive: true, contractId });
+}
+
+export async function handleSddPaid(res, pi) {
+  const m = pi.metadata || {};
+  const paymentId = String(m.paymentId || '').trim();
+  if (!paymentId) return res.status(200).json({ received: true, error: 'no_paymentId' });
+  const now = new Date().toISOString();
+  const fee = Number(m.fee) || 0;
+  const amount = Number(m.amount) || Math.round(((pi.amount || 0) / 100 - fee) * 100) / 100;
+
+  let pay = null;
+  try { pay = await readDoc('payments/' + paymentId); } catch (_) {}
+  if (!pay) return res.status(200).json({ received: true, error: 'payment_not_found', paymentId });
+  if (pay.status === 'paid') {
+    if (pay.sddPiId === pi.id || pay.stripeSessionId === pi.id) {
+      return res.status(200).json({ received: true, duplicate: true, paymentId });
+    }
+    // Pagata per ALTRA via mentre l'addebito era in volo: mai sovrascrivere,
+    // allarme doppio incasso — stessa disciplina del ramo carta.
+    try {
+      await writeDoc('agentNotifications', 'rent-double-' + paymentId + '-' + String(pi.id).slice(-8), {
+        type: 'payment.rent.double',
+        summary: `🚨 POSSIBILE DOPPIO INCASSO su ${paymentId}: già ${pay.paidVia || 'paid'}, ora arrivato ANCHE l'addebito SEPA (${pi.id}) — verifica e rimborsa`,
+        priority: 'high', status: 'pending', actor: 'stripe-webhook',
+        dedupKey: 'rent-double-' + paymentId, createdAt: now, attempts: 0,
+      });
+    } catch (_) {}
+    try { await tgNotify(`🚨 <b>Possibile doppio incasso</b> su ${paymentId}: già ${pay.paidVia || 'paid'}, ora ANCHE SEPA. Verifica e rimborsa.\nhttps://dashboard.stripe.com/payments/${pi.id}`); } catch (_) {}
+    return res.status(200).json({ received: true, doublePayment: true, paymentId });
+  }
+
+  // Costo reale + ricevuta (best-effort) — alimenta settings/sddFeeStats,
+  // che fa convergere la commissione sul costo vero (media PER ADDEBITO:
+  // il costo SEPA è flat, non proporzionale).
+  let receiptUrl = null, stripeCostEur = null;
+  try {
+    const chId = typeof pi.latest_charge === 'string' ? pi.latest_charge : (pi.latest_charge && pi.latest_charge.id);
+    if (chId) {
+      const ch = await stripe.charges.retrieve(chId, { expand: ['balance_transaction'] });
+      receiptUrl = ch.receipt_url || null;
+      if (ch.balance_transaction && typeof ch.balance_transaction.fee === 'number') {
+        stripeCostEur = Math.round(ch.balance_transaction.fee) / 100;
+      }
+    }
+  } catch (e) { console.error('[sdd] costo reale non leggibile:', e.message); }
+
+  try {
+    await patchDoc('payments/' + paymentId, {
+      status: 'paid', paidAt: now, paidDate: now.slice(0, 10),
+      paidVia: 'sepa', sddStatus: 'succeeded',
+      serviceFeeEur: fee, receiptUrl: receiptUrl || '',
+      stripeCostEur,
+      marginEur: stripeCostEur == null ? null : Math.round((fee - stripeCostEur) * 100) / 100,
+    });
+  } catch (err) {
+    console.error('[sdd] payment patch:', err.message);
+    return res.status(500).json({ received: false, error: 'patch_failed' });
+  }
+
+  if (stripeCostEur != null) {
+    try {
+      const prev = (await readDoc('settings/sddFeeStats').catch(() => null)) || {};
+      await patchDoc('settings/sddFeeStats', {
+        count: (Number(prev.count) || 0) + 1,
+        volumeEur: Math.round(((Number(prev.volumeEur) || 0) + amount) * 100) / 100,
+        costEur: Math.round(((Number(prev.costEur) || 0) + stripeCostEur) * 100) / 100,
+        lastAt: now,
+      });
+    } catch (err) { console.error('[sdd] statistica costi:', err.message); }
+  }
+
+  try {
+    await writeDoc('agentNotifications', 'sdd-' + paymentId + '-' + String(pi.id).slice(-8), {
+      type: 'payment.rent',
+      summary: `🏦 Canone incassato con addebito SEPA: €${amount.toLocaleString('it-IT')} (${pay.month || paymentId}) + fee €${fee}`,
+      priority: 'normal', status: 'pending', actor: 'stripe-webhook',
+      dedupKey: 'sdd-' + paymentId, createdAt: now, attempts: 0,
+    });
+  } catch (_) {}
+
+  const eurFmt = n => '€' + Number(n || 0).toLocaleString('en-US');
+  const email = m.email || '';
+  if (email) {
+    try {
+      await sendEmail({
+        to: email,
+        subject: `Receipt — rent ${pay.month || ''} ${eurFmt(amount)} collected automatically ✓`,
+        html: shell(
+          para(`Your rent for <b>${pay.month || String(pay.dueDate || '').slice(0, 7)}</b> — <b>${eurFmt(amount)}</b> — was collected by SEPA direct debit as planned${fee ? ` (service fee ${eurFmt(fee)})` : ''}. Nothing to do: this is your receipt, and the full history lives in your home page.`)
+          + btn('https://www.boomrome.com/casa', 'Open La tua casa BOOM')
+          + (receiptUrl ? fine(`Stripe receipt: <a href="${receiptUrl}" style="color:#141414">open →</a>`, 'text-align:center') : ''),
+          `Rent ${eurFmt(amount)} collected ✓`),
+      });
+    } catch (err) { console.error('[sdd] tenant email:', err.message); }
+  }
+  try {
+    await sendEmail({
+      to: 'valentino@boom-rome.com',
+      subject: `🏦 CANONE AUTOMATICO ${eurFmt(amount)} — ${pay.month || paymentId}`,
+      html: shell(para(`Incassato con addebito SEPA: <b>${eurFmt(amount)}</b> + commissione <b>${eurFmt(fee)}</b>${stripeCostEur != null ? ` (costo Stripe ${eurFmt(stripeCostEur)} → margine ${eurFmt(fee - stripeCostEur)})` : ''}.<br>Payment <b>${paymentId}</b> · contratto ${pay.contractId || '—'} · segnato <b>paid · sepa</b>.`)
+        + btn2('https://www.boomrome.com/portal', 'Apri il portale')),
+    });
+  } catch (_) {}
+
+  return res.status(200).json({ received: true, sdd: true, paymentId });
+}
+
+export async function handleSddFailed(res, pi) {
+  const m = pi.metadata || {};
+  const paymentId = String(m.paymentId || '').trim();
+  if (!paymentId) return res.status(200).json({ received: true, error: 'no_paymentId' });
+  const now = new Date().toISOString();
+  const reason = (pi.last_payment_error && pi.last_payment_error.message) || 'addebito rifiutato';
+
+  let pay = null;
+  try { pay = await readDoc('payments/' + paymentId); } catch (_) {}
+  if (!pay) return res.status(200).json({ received: true, error: 'payment_not_found', paymentId });
+  if (pay.status === 'paid') return res.status(200).json({ received: true, alreadyPaid: true });
+
+  // La rata resta PENDING e torna pagabile a mano: sddPiId resta sul doc,
+  // quindi il collector non la ritenta mai da solo (un retry SEPA su fondi
+  // insufficienti brucia commissioni e fiducia).
+  try {
+    await patchDoc('payments/' + paymentId, { sddStatus: 'failed', sddError: String(reason).slice(0, 300) });
+  } catch (err) { console.error('[sdd-failed] patch:', err.message); }
+
+  let w = null;
+  try {
+    w = await writeDoc('agentNotifications', 'sddfail-' + paymentId + '-' + String(pi.id).slice(-8), {
+      type: 'payment.sdd.failed',
+      summary: `⚠️ Addebito SEPA FALLITO su ${paymentId} (${pay.month || '—'}): ${String(reason).slice(0, 120)} — la rata torna manuale`,
+      priority: 'high', status: 'pending', actor: 'stripe-webhook',
+      dedupKey: 'sddfail-' + paymentId, createdAt: now, attempts: 0,
+    });
+  } catch (_) {}
+  if (w && w.exists) return res.status(200).json({ received: true, duplicate: true });
+
+  try {
+    await tgNotify(`⚠️ <b>Addebito SEPA fallito</b> — rata ${pay.month || paymentId}\nMotivo: ${String(reason).slice(0, 160)}\nIl cliente è stato avvisato: può pagare con carta o bonifico da /casa.`);
+  } catch (_) {}
+
+  const email = m.email || '';
+  if (email) {
+    try {
+      await sendEmail({
+        to: email,
+        subject: `Action needed — this month's rent debit did not go through`,
+        html: shell(
+          para(`The automatic SEPA debit for your rent (<b>${pay.month || String(pay.dueDate || '').slice(0, 7)}</b>) did not go through — usually a balance or bank-side issue. No stress: you can settle it in one minute by card or free bank transfer from your home page.`)
+          + btn('https://www.boomrome.com/casa', 'Pay it now')
+          + fine('Need a hand? <a href="https://wa.me/393313251961" style="color:#141414">WhatsApp us</a> and we sort it together.', 'text-align:center'),
+          'Rent debit failed — pay manually'),
+      });
+    } catch (err) { console.error('[sdd-failed] tenant email:', err.message); }
+  }
+
+  return res.status(200).json({ received: true, sddFailed: true, paymentId });
+}
+
+const HANDLED_EVENTS = new Set([
+  'checkout.session.completed',
+  'charge.refunded',
+  'charge.dispute.created',
+  'charge.dispute.closed',
+  'payment_intent.succeeded',
+  'payment_intent.payment_failed',
+]);
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).send('Method not allowed');
 
@@ -491,12 +1108,34 @@ export default async function handler(req, res) {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  if (event.type !== 'checkout.session.completed') {
+  if (!HANDLED_EVENTS.has(event.type)) {
     return res.status(200).json({ received: true, ignored: event.type });
+  }
+
+  // Gli esiti SEPA arrivano come payment_intent.* — l'addebito è asincrono
+  // (~5 giorni lavorativi dopo l'avvio). Si reagisce SOLO ai nostri addebiti
+  // automatici: i PI delle Checkout con carta non portano service RENT_SDD
+  // e restano al ramo checkout.session.completed.
+  if (event.type === 'payment_intent.succeeded' || event.type === 'payment_intent.payment_failed') {
+    const pi = event.data.object || {};
+    if ((pi.metadata || {}).service !== 'RENT_SDD') {
+      return res.status(200).json({ received: true, ignored: event.type });
+    }
+    return event.type === 'payment_intent.succeeded'
+      ? handleSddPaid(res, pi)
+      : handleSddFailed(res, pi);
+  }
+
+  if (event.type !== 'checkout.session.completed') {
+    return handleMoneyBack(res, event);
   }
 
   const session = event.data.object;
   const m = session.metadata || {};
+
+  if (m.service === 'SDD_SETUP') {
+    return handleSddSetup(res, session, m);
+  }
 
   if (m.service === 'DEPOSIT') {
     return handleDeposit(res, session, m);
@@ -512,6 +1151,14 @@ export default async function handler(req, res) {
 
   if (m.service === 'PREAGREEMENT') {
     return handlePreagreement(res, session, m);
+  }
+
+  if (m.service === 'RENT') {
+    return handleRent(res, session, m);
+  }
+
+  if (m.service === 'INVOICE') {
+    return handleInvoice(res, session, m);
   }
 
   if (m.service !== 'PFS') {
@@ -555,7 +1202,18 @@ export default async function handler(req, res) {
   };
 
   try { await writePfsClient(docId, doc); }
-  catch (err) { console.error('Firestore error:', err); }
+  catch (err) {
+    if (String(err.message || '').includes(' 409')) {
+      // Retry di Stripe: cliente già creato al primo giro con il SUO codice
+      // portale (quello nelle email già inviate). Non rigenerare nulla,
+      // non rimandare email.
+      return res.status(200).json({ received: true, duplicate: true, pfsClientId: docId });
+    }
+    // Scrittura fallita: niente email con un codice mai persistito.
+    // 500 → Stripe ritenta e il prossimo giro scrive davvero.
+    console.error('Firestore error:', err);
+    return res.status(500).json({ error: 'pfs_client_write_failed' });
+  }
 
   const firstName = (m.name || '').split(' ')[0] || 'there';
   const portalLink = `https://www.boomrome.com/portal.html?pfs=${portalToken}`; // admin deep-link

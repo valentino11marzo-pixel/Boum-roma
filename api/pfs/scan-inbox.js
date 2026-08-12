@@ -50,7 +50,11 @@ export default async function handler(req, res) {
   }
 
   const since = new Date(Date.now() - LOOKBACK_DAYS * 24 * 3600 * 1000);
-  const stats = { emailsSeen: 0, alerts: 0, listingsFound: 0, ingested: 0, pushedTotal: 0, droppedAgency: 0, skippedFresh: 0 };
+  // Deadline morbida: la piattaforma uccide la funzione a 60s A METÀ LAVORO
+  // (58 timeout in 7gg tra i cron IMAP) — meglio fermarsi puliti con margine:
+  // il re-scan è stateless e il dedupe rende gratis riprendere al giro dopo.
+  const softDeadline = Date.now() + 48_000;
+  const stats = { emailsSeen: 0, alerts: 0, listingsFound: 0, ingested: 0, pushedTotal: 0, droppedAgency: 0, skippedFresh: 0, timeBoxed: 0 };
   const needsAttention = [];
   const results = [];
   let detailBudget = MAX_DETAIL_FETCHES;
@@ -81,6 +85,11 @@ export default async function handler(req, res) {
       const uids = [...uidSet].sort((a, b) => a - b).slice(-MAX_MESSAGES);
 
       for (const uid of uids) {
+        if (Date.now() > softDeadline) {
+          stats.timeBoxed = uids.length - stats.emailsSeen;
+          console.warn('[pfs/scan-inbox] soft deadline: restano', stats.timeBoxed, 'email al prossimo giro');
+          break;
+        }
         let parsed;
         try {
           const msg = await client.fetchOne(String(uid), { source: true }, { uid: true });

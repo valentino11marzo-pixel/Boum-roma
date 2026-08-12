@@ -12,7 +12,7 @@
 // hold the identity documents with zero admin re-collection.
 //
 // Method: POST
-// Body: { token, base64, name?, contentType?, tenantIndex? }
+// Body: { token, base64, name?, contentType?, tenantIndex?, kind?('id'|'extra') }
 // Response 200: { ok:true, count } | 4xx/5xx { ok:false, error }
 // (Deliberately does NOT return the storage URL — the token in the URL is
 // the read credential and belongs to the admin side only.)
@@ -76,6 +76,10 @@ export default async function handler(req, res) {
     uploads.push({
       url, path, name: safeName, contentType,
       bytes: buf.length,
+      // kind: 'id' (default) | 'extra' — the optional second requested
+      // document (e.g. proof of transitional need), uploadable even after
+      // acceptance from the same page/link.
+      kind: body.kind === 'extra' ? 'extra' : 'id',
       tenantIndex: Math.max(0, Math.min(5, Number(body.tenantIndex) || 0)),
       at: new Date().toISOString(),
       ip: (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown',

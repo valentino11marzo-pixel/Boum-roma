@@ -72,7 +72,7 @@
       "author": {"@type": "Organization", "name": "BOOM by Egidi Immobiliare S.r.l."},
       "publisher": {"@type": "Organization", "name": "BOOM Rome Rentals", "url": "https://boomrome.com"},
       "datePublished": "2026-02-26",
-      "mainEntityOfPage": "https://boomrome.com/blog-scam-bible.html"
+      "mainEntityOfPage": "https://www.boomrome.com/blog-scam-bible"
     }
     </script>
 
@@ -111,12 +111,11 @@
 
         /* Nav */
         .bnav { position:fixed; top:0; left:0; right:0; z-index:1000; padding:14px 0;
-            background:rgba(3,3,3,0.95); backdrop-filter:blur(20px); border-bottom:1px solid var(--border); }
+            background:rgba(3,3,3,0.95); -webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px); border-bottom:1px solid var(--border); }
         .bnav-in { max-width:1200px; margin:0 auto; padding:0 24px; display:flex; align-items:center; justify-content:space-between; }
-        .marchio{display:inline-flex;align-items:center;gap:13px;text-decoration:none;color:#fff}
-        .marchio .logo-mark{width:66px;height:66px;flex:none}
-        .marchio span{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:30px;font-weight:400;letter-spacing:.26em;text-indent:.26em;text-transform:uppercase}
-        @media(max-width:640px){.marchio{gap:10px}.marchio .logo-mark{width:58px;height:58px}.marchio span{font-size:25px;letter-spacing:.22em;text-indent:.22em}}
+        .bnav-logo { display:flex; align-items:center; gap:12px; transition:transform 0.3s var(--ease); }
+        .bnav-logo:hover { transform:scale(1.02); }
+        .bnav-logo span { font-family:var(--font); font-size:28px; font-weight:300; letter-spacing:4px; text-transform:uppercase; color:var(--text-1); }
         .bnav-links { display:flex; gap:20px; align-items:center; }
         .bnav-link { font-size:11px; font-weight:500; letter-spacing:1.5px; text-transform:uppercase; color:var(--text-3); transition:color 0.3s; }
         .bnav-link:hover { color:var(--text-1); }
@@ -125,7 +124,7 @@
         @media(max-width:768px) { .bnav-link { display:none; } }
 
         /* Back */
-        .back { max-width:900px; margin:0 auto; padding:98px 24px 0; position:relative; z-index:1; }
+        .back { max-width:900px; margin:0 auto; padding:88px 24px 0; position:relative; z-index:1; }
         .back a { font-size:12px; color:var(--text-4); letter-spacing:0.1em; text-transform:uppercase; transition:color 0.3s; }
         .back a:hover { color:var(--gold); }
 
@@ -233,7 +232,7 @@
         .boom-upsell-inner {
             position:relative; z-index:1; border-radius:15px; overflow:hidden;
             background: linear-gradient(165deg, rgba(12,12,14,0.97), rgba(18,18,22,0.99));
-            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter:blur(20px);backdrop-filter: blur(20px);
         }
         .boom-upsell-inner::before {
             content:''; position:absolute; inset:0; pointer-events:none; opacity:0.025;
@@ -430,8 +429,25 @@
         .related-card span { font-size:12px; color:var(--text-4); }
 
         /* Footer */
+        
+        .bconv{max-width:760px;margin:56px auto 8px;padding:32px 28px;border:1px solid var(--border-h);border-radius:16px;background:linear-gradient(150deg,rgba(245,166,35,.07),rgba(255,255,255,.012))}
+        .bconv .eb{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);margin-bottom:12px}
+        .bconv h3{font-family:var(--font-accent);font-size:clamp(21px,3.4vw,29px);font-weight:400;color:var(--text-1);line-height:1.22;margin:0 0 12px}
+        .bconv p{font-size:14.5px;color:var(--text-2);line-height:1.62;margin:0 0 22px;max-width:60ch}
+        .bconv .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+        .bconv .go{display:inline-block;background:var(--gold);color:#0A0A0A;font-size:13.5px;font-weight:600;letter-spacing:.02em;padding:13px 22px;border-radius:10px;text-decoration:none;transition:transform .2s var(--ease)}
+        .bconv .go:hover{transform:translateY(-1px)}
+        .bconv .go2{display:inline-block;color:var(--text-2);font-size:13.5px;padding:13px 4px;text-decoration:none;border-bottom:1px solid var(--border-h)}
+        .bconv .go2:hover{color:var(--gold)}
+        .bmore{max-width:760px;margin:26px auto 0;padding-top:20px;border-top:1px solid var(--border);display:flex;gap:8px 18px;flex-wrap:wrap;font-size:12.5px}
+        .bmore span{color:var(--text-4);letter-spacing:.08em;text-transform:uppercase;font-size:10.5px;width:100%}
+        .bmore a{color:var(--text-3);text-decoration:none}
+        .bmore a:hover{color:var(--gold)}
         .bfoot { border-top:1px solid var(--border); padding:22px 24px; text-align:center; font-size:11px; color:var(--text-4); letter-spacing:0.1em; }
+        /* Menzione di marchio: un gradino sotto .bfoot, non compete con nulla. */
+        .bfoot-tm { display:block; margin-top:8px; font-size:10px; font-weight:300; letter-spacing:0.04em; opacity:0.62; }
     </style>
+<script defer src="/js/boom-consent.js"></script>
 <!-- BOOM_JSONLD:START -->
   <script type="application/ld+json">
 {
@@ -452,13 +468,10 @@
   "sameAs": [
     "https://www.instagram.com/boomrome",
     "https://www.linkedin.com/company/boomrome",
-    "https://wa.me/393313251961",
-    "https://share.google/xikmVxQCRuKOdWcND"
+    "https://wa.me/393331234567"
   ],
   "address": {
     "@type": "PostalAddress",
-    "streetAddress": "Via dei Coronari 181/184",
-    "postalCode": "00186",
     "addressLocality": "Rome",
     "addressRegion": "Lazio",
     "addressCountry": "IT"
@@ -545,7 +558,6 @@
 }
   </script>
 <!-- BOOM_JSONLD:END -->
-<script defer src="/js/boom-consent.js"></script>
 </head>
 <body>
 
@@ -563,26 +575,21 @@
 
 <nav class="bnav">
     <div class="bnav-in">
-        <a href="https://www.boomrome.com" class="marchio" aria-label="BOOM — home"><svg class="logo-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" shape-rendering="geometricPrecision">
-                    <defs>
-                        <linearGradient id="goldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stop-color="#FFE55C"/>
-                            <stop offset="100%" stop-color="#E5C200"/>
-                        </linearGradient>
-                    </defs>
-                    <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#goldGrad)">
-                        <path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/>
-                    </g>
-                </svg><span>BOOM</span></a>
+        <a href="/" class="bnav-logo"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="56" height="56" style="filter:drop-shadow(0 0 12px rgba(245,166,35,0.4));">
+  <defs><linearGradient id="gN" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD54F"/><stop offset="100%" stop-color="#F5A623"/></linearGradient></defs>
+  <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#gN)">
+    <path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/>
+  </g>
+</svg><span>BOOM</span></a>
         <div class="bnav-links">
-            <a href="https://www.boomrome.com" class="bnav-link">Home</a>
-            <a href="https://www.boomrome.com/apartments.html" class="bnav-link">Apartments</a>
-            <a href="https://www.boomrome.com/blog.html" class="bnav-link">Blog</a>
+            <a href="/" class="bnav-link">Home</a>
+            <a href="/apartments" class="bnav-link">Apartments</a><a href="/services" class="bnav-link">Services</a>
+            <a href="/blog" class="bnav-link">Blog</a>
             <a href="https://wa.me/393313251961" target="_blank" class="bnav-cta">WhatsApp</a>
         </div>
     </div>
 </nav>
-<div class="back"><a href="https://www.boomrome.com/blog.html">&larr; Back to Blog</a></div>
+<div class="back"><a href="/blog">&larr; Back to Blog</a></div>
 
 <header class="hero">
     <div class="hero-ey"><div class="hero-line"></div><span class="hero-tag">BOOM Protection Series</span></div>
@@ -624,7 +631,7 @@
                         <span class="upsell-chip">Price Negotiation</span>
                     </div>
                     <div class="upsell-cta-row">
-                        <a href="https://www.boomrome.com/deal-assistance.html" class="upsell-cta">Get Protected <span class="cta-arrow">&rarr;</span></a>
+                        <a href="/deal-assistance" class="upsell-cta">Get Protected <span class="cta-arrow">&rarr;</span></a>
                         <a href="https://wa.me/393313251961" class="upsell-alt-link">or WhatsApp us</a>
                     </div>
                 </div>
@@ -654,7 +661,7 @@
                         <span class="upsell-chip">Money-Back Guarantee</span>
                     </div>
                     <div class="upsell-cta-row">
-                        <a href="https://www.boomrome.com/property-finding.html" class="upsell-cta">Start Search <span class="cta-arrow">&rarr;</span></a>
+                        <a href="/property-finding" class="upsell-cta">Start Search <span class="cta-arrow">&rarr;</span></a>
                         <a href="https://wa.me/393313251961" class="upsell-alt-link">or WhatsApp us</a>
                     </div>
                 </div>
@@ -669,9 +676,9 @@
         <p>Zero exceptions. That's not marketing &mdash; it's what we do every single day.</p>
         <div class="bottom-cta-actions">
             <a href="https://wa.me/393313251961" target="_blank" class="cta-btn cta-wa">WhatsApp Us</a>
-            <a href="https://www.boomrome.com/apartments.html" class="cta-btn-outline">Browse Apartments</a>
-            <a href="https://www.boomrome.com/property-finding.html" class="cta-btn-outline">Property Finding</a>
-            <a href="https://www.boomrome.com/deal-assistance.html" class="cta-btn-outline">Deal Assistance</a>
+            <a href="/apartments" class="cta-btn-outline">Browse Apartments</a>
+            <a href="/property-finding" class="cta-btn-outline">Property Finding</a>
+            <a href="/deal-assistance" class="cta-btn-outline">Deal Assistance</a>
         </div>
     </div>
 </div>
@@ -690,12 +697,7 @@
                 </div>
                 <p style="font-size:12px;color:var(--text-4);">Or message us directly: <a href="https://wa.me/393313251961" style="color:var(--gold);">WhatsApp &rarr;</a></p>
             </div>
-            <form class="contact-form" action="https://api.web3forms.com/submit" method="POST">
-                <input type="hidden" name="access_key" value="5b10beba-c7e0-4cd2-98f9-2dbb0aefe889">
-                <input type="hidden" name="subject" value="BOOM Blog — Scam Bible Inquiry">
-                <input type="hidden" name="from_name" value="BOOM Scam Bible">
-                <input type="hidden" name="to" value="Valentino@boom-rome.com">
-                <input type="hidden" name="redirect" value="https://www.boomrome.com/blog-scam-bible.html">
+            <form class="contact-form"  data-boomform="blog-scam-bible">
                 <div class="form-row">
                     <div class="form-field">
                         <label for="cf-name">Name</label>
@@ -730,11 +732,11 @@
 <div class="related">
     <div class="related-title">More from BOOM</div>
     <div class="related-grid">
-        <a href="https://www.boomrome.com/blog-neighborhood-guide.html" class="related-card"><h4>The Real Rome Neighborhood Guide</h4><span>Interactive map of 12 zones &rarr;</span></a>
-        <a href="https://www.boomrome.com/blog-scam-bible.html" class="related-card"><h4>The Rome Rental Scam Bible</h4><span>Every trick they'll try on you &rarr;</span></a>
-        <a href="https://www.boomrome.com/blog-cost-calculator.html" class="related-card"><h4>What Renting Actually Costs</h4><span>Interactive cost calculator &rarr;</span></a>
-        <a href="https://www.boomrome.com/blog-47-steps.html" class="related-card"><h4>47 Steps to Your Keys</h4><span>The complete rental journey &rarr;</span></a>
-        <a href="https://www.boomrome.com/blog-tenant-rights.html" class="related-card"><h4>Your Rights as a Tenant</h4><span>Italian law cheat sheet &rarr;</span></a>
+        <a href="/blog-neighborhood-guide" class="related-card"><h4>The Real Rome Neighborhood Guide</h4><span>Interactive map of 12 zones &rarr;</span></a>
+        <a href="/blog-scam-bible" class="related-card"><h4>The Rome Rental Scam Bible</h4><span>Every trick they'll try on you &rarr;</span></a>
+        <a href="/blog-cost-calculator" class="related-card"><h4>What Renting Actually Costs</h4><span>Interactive cost calculator &rarr;</span></a>
+        <a href="/blog-47-steps" class="related-card"><h4>47 Steps to Your Keys</h4><span>The complete rental journey &rarr;</span></a>
+        <a href="/blog-tenant-rights" class="related-card"><h4>Your Rights as a Tenant</h4><span>Italian law cheat sheet &rarr;</span></a>
     </div>
 </div>
 
@@ -743,7 +745,17 @@
   <div style="font-size:10px;letter-spacing:2.4px;text-transform:uppercase;color:#FFD700">Part of the guide</div>
   <p style="margin:8px 0 0;font-size:14px;color:rgba(255,255,255,.75);font-weight:300;line-height:1.6">This article is one chapter of <a href="/moving-to-rome" style="color:#FFE5A0;text-decoration:none;border-bottom:1px solid rgba(255,215,0,.4)">Moving to Rome — the complete relocation guide</a>: real costs, the 90-day timeline, neighbourhoods, and how to land with keys in hand.</p>
 </div>
-<footer class="bfoot">&copy; 2026 BOOM by Egidi Immobiliare S.r.l. &mdash; Via dei Coronari 181/184, 00186 Roma &mdash; P.IVA 17322991005</footer>
+<section class="bconv">
+  <div class="eb">Before you send a deposit</div>
+  <h3>Never sign what you haven't had checked.</h3>
+  <p>Every scam in this article dies the moment someone reads the contract and verifies who owns the apartment. That is a €49 verdict, not a leap of faith.</p>
+  <div class="row"><a class="go" href="/contract-check-express">Contract Check — €49, verdict in 24h</a><a class="go2" href="/virtual-viewing">Or have us view it live — €89</a></div>
+</section>
+<nav class="bmore" aria-label="More from BOOM">
+  <span>More from BOOM</span>
+  <a href="/apartments">Verified apartments</a><a href="/services">All services &amp; prices</a><a href="/how-it-works">How it works</a><a href="/blog">All articles</a><a href="/canone">Canone concordato (IT)</a><a href="/owners">For landlords</a>
+</nav>
+<footer class="bfoot">&copy; 2026 BOOM by Egidi Immobiliare S.r.l. &mdash; Via dei Coronari 181/184, 00186 Roma &mdash; Registered office: Viale Liegi 42, 00198 Roma &mdash; P.IVA 17322991005<span class="bfoot-tm">BOOM&reg; is a registered European Union trade mark (EUTM 019317594) of Egidi Immobiliare S.r.l.</span></footer>
 
 <script>
 var scams = [
@@ -875,5 +887,29 @@ function toggleCase(id, e) {
     <script defer src="/js/boom-track.js"></script>
     <script defer src="/js/boom-read.js"></script>
     <script defer src="/js/boom-pixel.js"></script>
+<script>
+/* I moduli pubblici entrano in pipeline (/api/leads/web): prima
+   finivano su Web3Forms e nessuno li vedeva. */
+(function boomFormWire(){
+  document.addEventListener("submit",function(e){
+    var F=e.target;if(!F||!F.getAttribute||!F.getAttribute("data-boomform"))return;
+    e.preventDefault();
+    var btn=F.querySelector("[type=submit]"),lbl=btn?btn.textContent:"";
+    if(btn){btn.disabled=true;btn.textContent="Sending…";}
+    var body={form:F.getAttribute("data-boomform")};
+    new FormData(F).forEach(function(v,k){body[k]=v;});
+    if(body.botcheck){body.company=body.botcheck;}
+    fetch("/api/leads/web",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
+    .then(function(r){return r.json()}).then(function(j){
+      if(!j||!j.ok)throw new Error((j&&j.error)||"failed");
+      F.innerHTML="<div style=\"text-align:center;padding:26px 4px\"><div style=\"width:54px;height:54px;border-radius:50%;border:1px solid #46C08A;color:#46C08A;display:flex;align-items:center;justify-content:center;font-size:25px;margin:0 auto 14px\">✓</div><h3 style=\"font-size:20px;font-weight:400;margin-bottom:6px\">Got it — thank you.</h3><p style=\"opacity:.65;font-size:14px;margin:0\">A human replies within a few hours. Urgent? WhatsApp us.</p></div>";
+      try{if(typeof gtag==="function")gtag("event","generate_lead",{channel:"form",form:body.form});}catch(_){}
+    }).catch(function(){
+      if(btn){btn.disabled=false;btn.textContent=lbl;}
+      alert("That did not go through — please try again, or message us on WhatsApp.");
+    });
+  },true);
+})();
+</script>
 </body>
 </html>

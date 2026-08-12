@@ -60,9 +60,13 @@ var USER=null;
 var $=function(id){return document.getElementById(id)};
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 
-BoomPortal.requireAuth(['admin','owner','landlord'],{loginUrl:'/login.html?next=%2Fphoto-lab'}).then(function(res){
-  USER=res.user;load();
-}).catch(function(){});
+/* The catalog is public data — render it IMMEDIATELY, no auth gate.
+   Auth is resolved in the background and only required when a button
+   is pressed (the API enforces the admin role anyway). */
+load();
+try{
+  firebase.auth().onAuthStateChanged(function(u){if(u)USER=u;});
+}catch(e){}
 
 function load(){
   fetch('/api/listings',{cache:'no-store'}).then(function(r){return r.json()}).then(function(j){
@@ -74,7 +78,8 @@ function load(){
       return '<div class="apt" data-id="'+esc(l.id)+'"><div class="top"><b>'+esc(l.name||l.id)+'</b>'
         +'<small>'+esc(l.zone||'')+' · '+n+' foto</small>'
         +(l.photosEnhancedAt?'<span class="done">✓ curato '+esc(String(l.photosEnhancedAt).slice(0,10))+'</span>':'')
-        +'<span class="btns"><button class="b" onclick="runA(\''+esc(l.id)+'\',\'audit\')">Audit</button>'
+        +'<span class="btns"><button class="b" onclick="window.open(\'/media-studio?listing='+esc(l.id)+'\',\'_blank\')" title="Cura manuale: foto, video, testi">🎨 Studio</button>'
+        +'<button class="b" onclick="runA(\''+esc(l.id)+'\',\'audit\')">Audit</button>'
         +'<button class="b solid" onclick="runA(\''+esc(l.id)+'\',\'apply\')">Applica</button></span></div>'
         +'<div class="plan" id="plan-'+esc(l.id)+'"></div></div>';
     }).join('')||'<p class="note">Nessun annuncio.</p>';
@@ -82,6 +87,7 @@ function load(){
 }
 
 window.runA=function(id,mode){
+  if(!USER){location.href='/login?next=%2Fphoto-lab';return;}
   var box=$('plan-'+id);box.classList.add('on');
   if(mode==='apply'&&!confirm('Applico la curatela AI a questo annuncio?\nGli originali restano salvati (reversibile).'))return;
   box.innerHTML='<p class="note"><span class="spin"></span>'+(mode==='apply'?'Miglioro, carico e aggiorno — può volerci fino a un minuto…':'L\'AI sta guardando ogni foto…')+'</p>';

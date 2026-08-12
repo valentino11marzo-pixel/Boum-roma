@@ -508,8 +508,7 @@
   "sameAs": [
     "https://www.instagram.com/boomrome",
     "https://www.linkedin.com/company/boomrome",
-    "https://wa.me/393313251961",
-    "https://share.google/xikmVxQCRuKOdWcND"
+    "https://wa.me/393331234567"
   ],
   "address": {
     "@type": "PostalAddress",
@@ -565,7 +564,7 @@
         </div>
 
         <!-- WEB3FORMS - HIDDEN FORM (collects all data at the end) -->
-        <form id="web3Form" action="https://api.web3forms.com/submit" method="POST" style="display: none;">
+        <form id="web3Form" style="display:none" aria-hidden="true">
             <input type="hidden" name="access_key" value="5b10beba-c7e0-4cd2-98f9-2dbb0aefe889">
             <input type="hidden" name="subject" value="🏠 New BOOM Application">
             <input type="hidden" name="from_name" value="BOOM Platform">
@@ -1040,52 +1039,48 @@
             submitBtn.textContent = 'Sending...';
 
             try {
-                // Build Web3Forms payload
-                const web3FormData = new FormData();
-                web3FormData.append('access_key', '5b10beba-c7e0-4cd2-98f9-2dbb0aefe889');
-                web3FormData.append('subject', '🏠 New BOOM Application');
-                web3FormData.append('from_name', 'BOOM Platform');
-                
-                // Apartment Info
-                web3FormData.append('Apartment', apartmentData.name);
-                web3FormData.append('Price', '€' + apartmentData.price);
-                web3FormData.append('Location', apartmentData.location);
-                
-                // Personal Info
-                web3FormData.append('Name', formData.firstName + ' ' + formData.lastName);
-                web3FormData.append('Email', formData.email);
-                web3FormData.append('Phone', formData.phone);
-                
-                // Move-in Details
-                web3FormData.append('Move-in Date', formData.moveInDate);
-                web3FormData.append('Duration', formData.duration);
-                
-                // Employment
-                web3FormData.append('Employment', formData.employment);
-                web3FormData.append('Company', formData.company);
-                
-                // Income & Payment
-                web3FormData.append('Income Type', formData.incomeType);
-                if (formData.income) web3FormData.append('Income Range', formData.income);
-                if (formData.payment) web3FormData.append('Payment Frequency', formData.payment);
-                if (formData.upfrontMonths) web3FormData.append('Upfront Months', formData.upfrontMonths);
-                if (formData.guarantorName) web3FormData.append('Guarantor Name', formData.guarantorName);
-                if (formData.guarantorRelation) web3FormData.append('Guarantor Relation', formData.guarantorRelation);
-                
-                // Documents
-                web3FormData.append('Has Passport', formData.passport ? 'Yes' : 'No');
-                web3FormData.append('Has Codice Fiscale', formData.codice ? 'Yes' : 'No');
-                web3FormData.append('Has Income Proof', formData['income-proof'] ? 'Yes' : 'No');
+                /* La candidatura entra in pipeline (/api/leads/web): prima
+                   finiva su Web3Forms, quindi un candidato che aveva appena
+                   dichiarato reddito, garante e documenti non arrivava né al
+                   portale né al Commerciale.
+                   NOTA: `formData.company` qui è il DATORE DI LAVORO, mentre
+                   `company` sull'endpoint è l'honeypot — va mandato con un
+                   altro nome, altrimenti ogni candidatura verrebbe scartata
+                   come spam. */
+                const payload = {
+                    form: 'precheck',
+                    name: (formData.firstName || '') + ' ' + (formData.lastName || ''),
+                    email: formData.email,
+                    phone: formData.phone,
+                    listing_url: apartmentData.name || '',
+                    budget: apartmentData.price ? '€' + apartmentData.price : '',
+                    zone: apartmentData.location || '',
+                    move_in_date: formData.moveInDate || '',
+                    additional_info: [
+                        formData.duration ? 'durata ' + formData.duration : '',
+                        formData.employment || '',
+                        formData.company ? 'presso ' + formData.company : '',
+                        formData.incomeType || '',
+                        formData.income ? 'reddito ' + formData.income : '',
+                        formData.payment ? 'pagamento ' + formData.payment : '',
+                        formData.upfrontMonths ? formData.upfrontMonths + ' mesi anticipati' : '',
+                        formData.guarantorName ? 'garante ' + formData.guarantorName
+                            + (formData.guarantorRelation ? ' (' + formData.guarantorRelation + ')' : '') : '',
+                        'passaporto ' + (formData.passport ? 'sì' : 'no'),
+                        'CF ' + (formData.codice ? 'sì' : 'no'),
+                        'prova reddito ' + (formData['income-proof'] ? 'sì' : 'no'),
+                    ].filter(Boolean).join(' · '),
+                };
 
-                // Send to Web3Forms
-                const response = await fetch('https://api.web3forms.com/submit', {
+                const response = await fetch('/api/leads/web', {
                     method: 'POST',
-                    body: web3FormData
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
                 });
 
                 const data = await response.json();
 
-                if (data.success) {
+                if (data.ok) {
                     // Show success screen
                     document.getElementById('stepsContainer').style.display = 'none';
                     document.querySelector('.progress-bar').style.display = 'none';

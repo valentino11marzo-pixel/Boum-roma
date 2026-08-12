@@ -4,13 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Pass Delivery — BOOM Rome</title>
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied',wait_for_update:500});gtag('config','G-EYCD59RDVJ');
-</script>
 <!-- BOOM_SEO:START -->
   <meta name="description" content="Your BOOM pass.">
   <meta name="robots" content="noindex, follow">
@@ -51,6 +44,13 @@
   <link rel="dns-prefetch" href="https://www.googletagmanager.com">
   <link rel="dns-prefetch" href="https://www.google-analytics.com">
 <!-- BOOM_SEO:END -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied',wait_for_update:500});gtag('config','G-EYCD59RDVJ');
+</script>
 <style>
 @font-face{font-family:'HN';src:local('Helvetica Neue Light'),local('HelveticaNeue-Light');font-weight:300}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -308,6 +308,7 @@ body{
   .logo-img{width:48px;height:48px}
 }
 </style>
+<script defer src="/js/boom-consent.js"></script>
 <!-- BOOM_JSONLD:START -->
   <script type="application/ld+json">
 {
@@ -328,13 +329,10 @@ body{
   "sameAs": [
     "https://www.instagram.com/boomrome",
     "https://www.linkedin.com/company/boomrome",
-    "https://wa.me/393313251961",
-    "https://share.google/xikmVxQCRuKOdWcND"
+    "https://wa.me/393331234567"
   ],
   "address": {
     "@type": "PostalAddress",
-    "streetAddress": "Via dei Coronari 181/184",
-    "postalCode": "00186",
     "addressLocality": "Rome",
     "addressRegion": "Lazio",
     "addressCountry": "IT"
@@ -371,7 +369,6 @@ body{
 }
   </script>
 <!-- BOOM_JSONLD:END -->
-<script defer src="/js/boom-consent.js"></script>
 </head>
 <body>
 
@@ -395,8 +392,14 @@ body{
 <div class="content" id="content">
   
   <div class="logo-wrap">
-    <div class="logo-img">
-      <img src="BOOM-logo-gold-hires-1024.png" alt="BOOM" width="64" height="64" style="border-radius:50%;">
+    <!-- Inline mark: the old <img> pointed at a file that does not exist in
+         the repo, so every visitor met a broken-image badge. Inline SVG can
+         never 404, needs no request and stays crisp at any density. -->
+    <div class="logo-img" aria-label="BOOM">
+      <svg viewBox="0 0 1024 1024" width="64" height="64" role="img" aria-label="BOOM">
+        <defs><linearGradient id="boomG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD54F"/><stop offset="100%" stop-color="#F5A623"/></linearGradient></defs>
+        <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#boomG)"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z"/></g>
+      </svg>
     </div>
     <div class="logo-text">BOOM</div>
   </div>
@@ -500,13 +503,50 @@ if(passType === 'tenant'){
   });
 }
 
-// Add to Wallet action
+/* ── LIVE viewing pass ────────────────────────────────────────────────────
+   With ?id=<viewingId> the pass is built server-side from the real record
+   (address, coordinates, confirmed time, video room) and served from a REAL
+   url — iOS only hands a .pkpass to Wallet when it arrives with the right
+   Content-Type from a normal navigation. Fetch + blob: is exactly what used
+   to fail silently on iPhone. */
+if (passType === 'viewing' && passId) {
+  const passHref = '/api/viewings/pass?id=' + encodeURIComponent(passId);
+  const ctaBtn = document.getElementById('cta-btn');   // this script runs after the markup
+  if (ctaBtn) {
+    ctaBtn.removeAttribute('onclick');
+    ctaBtn.addEventListener('click', () => {
+      const t = document.getElementById('cta-text');
+      if (t) t.textContent = 'Opening Wallet…';
+      window.location.href = passHref;                 // real navigation, not blob:
+      setTimeout(() => { if (t) t.textContent = 'Add to Apple Wallet'; }, 4000);
+    });
+  }
+  // fill the on-screen mockup with the actual appointment
+  fetch(passHref + '&meta=1').then(r => r.ok ? r.json() : null).then(m => {
+    if (!m || !m.ok) return;
+    const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.textContent = val; };
+    set('pm-address', m.address || (m.mode === 'video' ? 'Video call' : ''));
+    if (m.whenLabel) {
+      const parts = m.whenLabel.split(/,\s*/);
+      set('pm-v1', parts[0] || m.whenLabel);
+      const t = (m.when || '').slice(11, 16);
+      set('pm-v2', t);
+    }
+    set('pm-v3', m.mode === 'video' ? 'Video' : (m.meetingPoint || 'Rome'));
+    if (m.mode === 'video') {
+      const sub = document.getElementById('greeting-sub');
+      if (sub) sub.textContent = 'Your video viewing is in the pass — tap it on the day to join the call.';
+    }
+  }).catch(() => {});
+}
+
+// Add to Wallet action (legacy param-based flow: tenant / referral / landlord)
 async function addToWallet(){
   const btn = document.getElementById('cta-btn');
   const text = document.getElementById('cta-text');
   btn.classList.add('loading');
   text.textContent = 'Generating...';
-  
+
   try {
     // Fetch the .pkpass from the API
     const res = await fetch('/api/generate-pass', {
@@ -539,8 +579,17 @@ async function addToWallet(){
       })
     });
     
+    // Il conio anonimo è chiuso (audit 2026-08 S1): i link legacy a parametri
+    // non firmano più — il messaggio dice al cliente cosa fare davvero.
+    if(res.status===401){
+      btn.classList.remove('loading');
+      text.textContent='Link expired — ask BOOM for a fresh one';
+      const sub=document.getElementById('greeting-sub');
+      if(sub) sub.textContent='This pass link comes from an older email. Write us on WhatsApp and we\'ll send you a fresh one in a minute.';
+      return;
+    }
     if(!res.ok) throw new Error('Generation failed');
-    
+
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     

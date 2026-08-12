@@ -1,30 +1,43 @@
 // api/photos/enhance.js
-// AI photo curation + enhancement for the public catalog, one listing per call.
+// THE unified photo brain: AI curation + enhancement for the catalog.
+// One pipeline, three doors:
+//   1. photo-lab.html console → Authorization: Bearer <Firebase ID token>
+//      (role admin/owner/landlord)
+//   2. the Telegram listing wizard bot → X-Wizard-Secret (same shared secret
+//      as every other wizard→server call; X-Homie-Secret accepted too)
+//   3. the nightly sweep cron → GET ?mode=sweep with Bearer CRON_SECRET —
+//      finds listings that were never curated OR whose curation was clobbered
+//      by a wizard re-publish, and re-applies. Nothing stays raw forever.
 //
-// The catalog's real problems (audited on live data): floorplan scans used as
-// covers, the cover duplicated into the gallery, renders with baked-in UI
-// frames, real photos that are simply dim. So this does BRAIN first, then
-// polish:
-//   1. Claude vision classifies every photo (real photo / floorplan / render /
-//      document, room, rotation, quality, cover-worthiness, watermark).
-//   2. A plan is built: best real photo becomes the cover, gallery reordered
-//      into a viewing narrative (living → kitchen → bedrooms → bath →
-//      exterior), exact duplicates dropped, floorplans moved to the end.
-//   3. sharp enhances each kept photo (EXIF+detected rotation, contrast
-//      stretch, per-photo preset chosen from the AI quality grade), uploads
-//      to Storage under listings/enhanced/<id>/ and updates the listing.
+// What it does (brain first, polish second):
+//   audit  — Claude Vision classifies every photo (photo/render/floorplan/
+//            document, room, needed rotation, quality, coverScore, watermark)
+//            and returns the plan: best real photo as cover, gallery reordered
+//            living→kitchen→bedrooms→bath→exterior, duplicates dropped,
+//            floorplans last. Zero writes.
+//   apply  — enhances via sharp (EXIF+AI rotation, contrast stretch, per-photo
+//            preset from the AI grade; floorplans never saturated), uploads to
+//            Storage listings/enhanced/<id>/ and patches the listing.
+//   sweep  — batch: up to `limit` uncurated/clobbered listings per run.
 //
-// Originals are NEVER deleted; the first apply saves the original URL list to
-// `imagesOriginal` and every later run re-plans from those, so the pipeline
-// is repeatable and reversible.
+// Reversibility & re-publish healing: enhanced outputs live under
+// listings/enhanced/ and are recognizable; the plan source is always
+// imagesOriginal ∪ {current photos that are neither enhanced outputs nor
+// already tracked} — so a wizard re-publish that overwrites `images` (its
+// updateMask replaces the whole array) simply makes the listing a sweep
+// candidate again, and NEW photos added later join the originals additively.
+// Originals are never deleted from Storage.
 //
-// Method: POST  · auth: Firebase ID token, role admin/owner/landlord
-// Body: { listingId, mode: 'audit' | 'apply' }
-// audit → { ok, plan } (no writes) · apply → { ok, plan, applied:{cover,images} }
+// Robustness (prod-tested): HEIC/HEIF uploads are detected by magic bytes and
+// skipped (prebuilt sharp can't decode them — one took the endpoint down on
+// 2026-07-22); downloads are parallel with an 8s per-photo timeout; a single
+// photo failing enhancement keeps its ORIGINAL url instead of killing the run.
+//
+// Method: POST { listingId, mode:'audit'|'apply' }  ·  GET ?mode=sweep[&limit=N]
 
 import sharp from 'sharp';
 import crypto from 'node:crypto';
-import { getAdminToken, FS_BASE, fsPatch, readJson, fsValToJs } from '../homie/_lib.js';
+import { getAdminToken, FS_BASE, fsPatch, fsList, readJson, fsValToJs, secretEqual } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
 
 const BUCKET = process.env.FIREBASE_BUCKET || 'boom-property-dashboards.firebasestorage.app';
@@ -32,6 +45,62 @@ const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
 const MODEL = 'claude-haiku-4-5-20251001';
 const MAX_PHOTOS = 40;
 const ROOM_ORDER = ['living', 'kitchen', 'bedroom', 'bathroom', 'balcony', 'exterior', 'view', 'other'];
+
+// ── auth: one endpoint, three doors ─────────────────────────────────────────
+async function authAny(req, res) {
+  const ws = req.headers['x-wizard-secret'] || req.headers['x-homie-secret'];
+  const wexp = process.env.WIZARD_SECRET || process.env.HOMIE_SECRET;
+  if (ws && wexp && secretEqual(String(ws), wexp)) return { actor: 'wizard' };
+
+  const authHeader = req.headers.authorization || '';
+  const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (bearer && process.env.CRON_SECRET && secretEqual(bearer, process.env.CRON_SECRET)) {
+    return { actor: 'cron' };
+  }
+
+  const auth = await requireRole(req, res, ['admin', 'owner', 'landlord']); // writes 401/403 itself
+  return auth ? { actor: 'admin:' + (auth.email || auth.uid) } : null;
+}
+
+// ── pure helpers (exported for tests) ───────────────────────────────────────
+export function isEnhancedUrl(u) {
+  try { return decodeURIComponent(String(u)).includes('listings/enhanced/'); }
+  catch { return String(u).includes('enhanced'); }
+}
+
+// The true photo set to plan from: tracked originals plus any genuinely new
+// uploads, never our own enhanced outputs.
+export function sourceUrls(js) {
+  const current = [js.image, ...(Array.isArray(js.images) ? js.images : [])].filter(Boolean);
+  const orig = Array.isArray(js.imagesOriginal) ? js.imagesOriginal.filter(Boolean) : [];
+  if (!orig.length) return [...new Set(current.filter(u => !isEnhancedUrl(u)))].slice(0, MAX_PHOTOS);
+  const fresh = current.filter(u => !isEnhancedUrl(u) && !orig.includes(u));
+  return [...new Set([...orig, ...fresh])].slice(0, MAX_PHOTOS);
+}
+
+// Sweep predicate: never curated, or curation clobbered / new raw photos.
+export function needsCuration(js) {
+  const status = String(js.status || 'available').toLowerCase();
+  if (status !== 'available' && status !== 'waitlist') return false;
+  const current = [js.image, ...(Array.isArray(js.images) ? js.images : [])].filter(Boolean);
+  if (!current.length) return false;
+  if (!js.photosEnhancedAt) return true;
+  return current.some(u => !isEnhancedUrl(u));   // raw photo visible post-curation
+}
+
+// Formats the prebuilt sharp/libvips CANNOT decode (HEIC/HEIF from iPhones —
+// HEVC-compressed, patent-encumbered, not in the prebuilt binaries). One such
+// photo used to 500 the whole run ("Input buffer has corrupt header: heif:
+// ... security limits", prod 2026-07-22). Detect by magic bytes and skip.
+const HEIF_BRANDS = ['heic', 'heix', 'hevc', 'hevx', 'heim', 'heis', 'hevm', 'hevs', 'mif1', 'msf1'];
+export function isUnsupportedImage(buf) {
+  if (!buf || buf.length < 12) return true;
+  if (buf.slice(4, 8).toString('ascii') === 'ftyp') {
+    const brand = buf.slice(8, 12).toString('ascii').toLowerCase();
+    if (HEIF_BRANDS.includes(brand)) return true;
+  }
+  return false;
+}
 
 // preset by AI quality grade: already-good photos get a whisper, dim ones more
 export function presetFor(kind, quality) {
@@ -43,7 +112,8 @@ export function presetFor(kind, quality) {
 }
 
 export async function enhanceBuffer(buf, { rotateDeg = 0, preset }) {
-  let p = sharp(buf).rotate();                      // EXIF first
+  // failOn none: a truncated-but-decodable JPEG gets enhanced, not rejected
+  let p = sharp(buf, { failOn: 'none' }).rotate();  // EXIF first
   if (rotateDeg) p = p.rotate(rotateDeg);           // then AI-detected
   p = p.resize({ width: 1920, height: 1920, fit: 'inside', withoutEnlargement: true });
   if (!preset.gray) p = p.normalise({ lower: 1, upper: 99.5 });
@@ -73,13 +143,17 @@ export function buildPlan(photos) {
 }
 
 async function classify(photos) {
-  // downscale for the vision call; grade what the tenant would actually see
+  // downscale for the vision call; grade what the tenant would actually see.
+  // A photo sharp can't decode must not kill the batch: mark and move on.
   const content = [];
   for (const p of photos) {
-    const small = await sharp(p.buf).rotate().resize({ width: 560, fit: 'inside' }).jpeg({ quality: 70 }).toBuffer();
+    let small;
+    try { small = await sharp(p.buf, { failOn: 'none' }).rotate().resize({ width: 560, fit: 'inside' }).jpeg({ quality: 70 }).toBuffer(); }
+    catch { p.action = 'skip-undecodable'; continue; }
     content.push({ type: 'text', text: `PHOTO ${p.i}:` });
     content.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: small.toString('base64') } });
   }
+  if (!content.length) throw new Error('no_decodable_photos');
   content.push({ type: 'text', text:
 `You are auditing the photo set of a Rome rental listing. For EVERY photo above answer as a JSON array (same order, one object per photo), no prose:
 [{"i":<n>,"kind":"photo|render|floorplan|document|other","room":"living|kitchen|bedroom|bathroom|balcony|exterior|view|other","rotateDeg":0|90|180|270,"quality":1-10,"coverScore":0-100,"watermark":true|false}]
@@ -99,6 +173,7 @@ async function classify(photos) {
   const arr = JSON.parse(text.slice(text.indexOf('['), text.lastIndexOf(']') + 1));
   const byI = new Map(arr.map(a => [a.i, a]));
   for (const p of photos) {
+    if (p.action) continue;
     const a = byI.get(p.i) || {};
     p.kind = ['photo', 'render', 'floorplan', 'document', 'other'].includes(a.kind) ? a.kind : 'photo';
     p.room = a.room || 'other';
@@ -109,11 +184,17 @@ async function classify(photos) {
   }
 }
 
-// no-AI fallback: everything is a photo, grade by brightness stats
+// no-AI fallback: everything is a photo, grade by brightness stats.
+// stats() throws on undecodable buffers — that must skip the photo, not
+// the run (this exact path took the endpoint down on a HEIC upload).
 async function classifyHeuristic(photos) {
   for (const p of photos) {
-    const st = await sharp(p.buf).stats();
-    const lum = st.channels.slice(0, 3).reduce((s, c) => s + c.mean, 0) / 3;
+    if (p.action) continue;
+    let lum = 120;
+    try {
+      const st = await sharp(p.buf, { failOn: 'none' }).stats();
+      lum = st.channels.slice(0, 3).reduce((s, c) => s + c.mean, 0) / 3;
+    } catch { p.action = 'skip-undecodable'; continue; }
     p.kind = 'photo'; p.room = 'other'; p.rotateDeg = 0;
     p.quality = lum > 150 ? 8 : lum > 100 ? 6 : 4;
     p.coverScore = Math.round(Math.min(100, lum / 2.2));
@@ -128,74 +209,167 @@ async function uploadJpeg(token, path, buf) {
   return `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o/${encodeURIComponent(path)}?alt=media`;
 }
 
-export default async function handler(req, res) {
-  setCors(req, res);
-  if (req.method === 'OPTIONS') return res.status(204).end();
-  if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
-  const auth = await requireRole(req, res, ['admin', 'owner', 'landlord']);
-  if (!auth) return;
+// ── the single-listing pipeline (shared by all three doors) ─────────────────
+// urlsOverride (audit only): the Media Studio asks for a plan over the photos
+// it actually has on screen — which can differ from sourceUrls() when the
+// listing was already enhanced (current images are our outputs, sourceUrls
+// returns the raw originals). Admin/wizard-authed callers only, capped, http(s).
+async function processListing(token, id, mode, actor, urlsOverride) {
+  const dr = await fetch(`${FS_BASE}/listings/${encodeURIComponent(id)}`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!dr.ok) return { ok: false, error: 'listing_not_found' };
+  const doc = await dr.json();
+  const f = doc.fields || {};
+  const js = {}; for (const k in f) js[k] = fsValToJs(f[k]);
 
-  const b = await readJson(req);
-  const id = String((b && b.listingId) || '').trim();
-  const mode = (b && b.mode) === 'apply' ? 'apply' : 'audit';
-  if (!id) return res.status(400).json({ ok: false, error: 'no_listing' });
+  const urls = (mode === 'audit' && Array.isArray(urlsOverride) && urlsOverride.length)
+    ? [...new Set(urlsOverride.map(String).filter(u => /^https?:\/\//.test(u)))].slice(0, MAX_PHOTOS)
+    : sourceUrls(js);
+  if (!urls.length) return { ok: true, plan: null, note: 'no_photos' };
 
-  try {
-    const token = await getAdminToken();
-    const dr = await fetch(`${FS_BASE}/listings/${encodeURIComponent(id)}`, { headers: { Authorization: `Bearer ${token}` } });
-    if (!dr.ok) return res.status(404).json({ ok: false, error: 'listing_not_found' });
-    const doc = await dr.json();
-    const f = doc.fields || {};
-    const js = {}; for (const k in f) js[k] = fsValToJs(f[k]);
-
-    // plan from the true originals when a previous apply already ran
-    const source = (Array.isArray(js.imagesOriginal) && js.imagesOriginal.length)
-      ? js.imagesOriginal
-      : [js.image, ...(Array.isArray(js.images) ? js.images : [])].filter(Boolean);
-    const urls = [...new Set(source)].slice(0, MAX_PHOTOS);
-    if (!urls.length) return res.status(200).json({ ok: true, plan: null, note: 'no_photos' });
-
-    const photos = [];
-    for (let i = 0; i < urls.length; i++) {
+  // Download in small parallel chunks with a guarded per-photo timeout.
+  // AbortSignal.timeout is used only when the runtime's fetch supports it —
+  // never assume: an instrumented fetch that chokes on the signal would turn
+  // EVERY photo into 'unfetchable'. And when a download fails, LOG WHY and
+  // carry the reason into the response: no more blind 'no_fetchable_photos'.
+  const canSignal = typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function';
+  const photos = [];
+  const CHUNK = 6;
+  for (let s = 0; s < urls.length; s += CHUNK) {
+    const part = await Promise.all(urls.slice(s, s + CHUNK).map(async (url, k) => {
+      const i = s + k;
       try {
-        const r = await fetch(urls[i]);
-        if (!r.ok) { photos.push({ i, url: urls[i], action: 'skip-unfetchable' }); continue; }
+        let r;
+        try {
+          r = canSignal ? await fetch(url, { signal: AbortSignal.timeout(8000) }) : await fetch(url);
+        } catch (e) {
+          // retry once WITHOUT the signal: rules out signal-related failures
+          r = await fetch(url);
+        }
+        if (!r.ok) return { i, url, action: 'skip-unfetchable', err: 'http_' + r.status };
         const buf = Buffer.from(await r.arrayBuffer());
-        if (buf.length > 10 * 1024 * 1024) { photos.push({ i, url: urls[i], action: 'skip-too-large' }); continue; }
-        photos.push({ i, url: urls[i], buf, sha1: crypto.createHash('sha1').update(buf).digest('hex') });
-      } catch { photos.push({ i, url: urls[i], action: 'skip-unfetchable' }); }
-    }
-    const fetchable = photos.filter(p => p.buf);
-    if (!fetchable.length) return res.status(200).json({ ok: true, plan: null, note: 'no_fetchable_photos' });
+        if (buf.length > 10 * 1024 * 1024) return { i, url, action: 'skip-too-large' };
+        if (isUnsupportedImage(buf)) return { i, url, action: 'skip-unsupported-format' };
+        return { i, url, buf, sha1: crypto.createHash('sha1').update(buf).digest('hex') };
+      } catch (e) {
+        const err = String((e && e.message) || e).slice(0, 100);
+        console.error('[photos/enhance] fetch fail', i, err);
+        return { i, url, action: 'skip-unfetchable', err };
+      }
+    }));
+    photos.push(...part);
+  }
+  let fetchable = photos.filter(p => p.buf && !p.action);
+  if (!fetchable.length) {
+    const reasons = photos.slice(0, 8).map(p => `#${p.i} ${p.action}${p.err ? ' (' + p.err + ')' : ''}`);
+    console.error('[photos/enhance]', id, 'no fetchable photos:', reasons.join(' | '));
+    return { ok: true, plan: null, note: 'no_fetchable_photos: ' + reasons.join(' · ') };
+  }
 
-    let ai = true;
-    if (ANTHROPIC_KEY) { try { await classify(fetchable); } catch (e) { ai = false; await classifyHeuristic(fetchable); } }
-    else { ai = false; await classifyHeuristic(fetchable); }
+  let ai = true;
+  if (ANTHROPIC_KEY) { try { await classify(fetchable); } catch { ai = false; await classifyHeuristic(fetchable); } }
+  else { ai = false; await classifyHeuristic(fetchable); }
 
-    const plan = buildPlan(fetchable);
-    const report = {
-      ai, count: urls.length,
-      cover: plan.cover ? { url: plan.cover.url, room: plan.cover.room, coverScore: plan.cover.coverScore } : null,
-      order: plan.ordered.map(p => ({ i: p.i, url: p.url, kind: p.kind, room: p.room, rotateDeg: p.rotateDeg, quality: p.quality, coverScore: p.coverScore, watermark: p.watermark, isCover: !!p.isCover })),
-      dropped: plan.dropped.map(p => ({ i: p.i, url: p.url, reason: 'duplicate' })),
-      skipped: photos.filter(p => p.action && p.action.startsWith('skip')).map(p => ({ i: p.i, url: p.url, reason: p.action })),
-    };
-    if (mode === 'audit') return res.status(200).json({ ok: true, plan: report });
+  // photos neither pipeline could decode are skipped, never fatal
+  fetchable = fetchable.filter(p => !p.action);
+  if (!fetchable.length) return { ok: true, plan: null, note: 'no_decodable_photos' };
 
-    // APPLY: enhance + upload + update the doc
-    const stamp = Date.now().toString(36);
-    const newUrls = [];
-    for (let k = 0; k < plan.ordered.length; k++) {
-      const p = plan.ordered[k];
+  const plan = buildPlan(fetchable);
+  const report = {
+    ai, count: urls.length,
+    cover: plan.cover ? { url: plan.cover.url, room: plan.cover.room, coverScore: plan.cover.coverScore } : null,
+    order: plan.ordered.map(p => ({ i: p.i, url: p.url, kind: p.kind, room: p.room, rotateDeg: p.rotateDeg, quality: p.quality, coverScore: p.coverScore, watermark: p.watermark, isCover: !!p.isCover })),
+    dropped: plan.dropped.map(p => ({ i: p.i, url: p.url, reason: 'duplicate' })),
+    skipped: photos.filter(p => p.action && p.action.startsWith('skip')).map(p => ({ i: p.i, url: p.url, reason: p.action })),
+  };
+  if (mode !== 'apply') return { ok: true, plan: report };
+
+  // APPLY: enhance + upload + update the doc. One photo failing here keeps
+  // its ORIGINAL url in the gallery instead of killing the whole run.
+  const stamp = Date.now().toString(36);
+  const newUrls = [];
+  for (let k = 0; k < plan.ordered.length; k++) {
+    const p = plan.ordered[k];
+    try {
       const out = await enhanceBuffer(p.buf, { rotateDeg: p.rotateDeg, preset: presetFor(p.kind, p.quality) });
       const path = `listings/enhanced/${id}/${stamp}_${String(k).padStart(2, '0')}_${p.sha1.slice(0, 8)}.jpg`;
       newUrls.push(await uploadJpeg(token, path, out));
+    } catch (e) {
+      console.error('[photos/enhance] photo', p.i, 'kept original:', e.message);
+      report.skipped.push({ i: p.i, url: p.url, reason: 'enhance-failed-kept-original' });
+      newUrls.push(p.url);
     }
-    const patch = { image: newUrls[0], images: newUrls, photosEnhancedAt: new Date().toISOString(), photosEnhancedBy: auth.email || auth.uid };
-    if (!Array.isArray(js.imagesOriginal) || !js.imagesOriginal.length) patch.imagesOriginal = urls;
-    await fsPatch(`listings/${id}`, patch);
+    p.buf = null; // release: up to 40×10MB would otherwise sit in memory
+  }
+  // valid-but-oversized photos stay in the gallery untouched (only truly
+  // unfetchable/undecodable ones are excluded — browsers can't show HEIC)
+  for (const p of photos) if (p.action === 'skip-too-large') newUrls.push(p.url);
 
-    return res.status(200).json({ ok: true, plan: report, applied: { cover: newUrls[0], images: newUrls } });
+  const patch = {
+    image: newUrls[0], images: newUrls,
+    imagesOriginal: urls,   // additive union computed by sourceUrls — new raw photos join, enhanced outputs never do
+    photosEnhancedAt: new Date().toISOString(), photosEnhancedBy: actor,
+  };
+  await fsPatch(`listings/${id}`, patch);
+  return { ok: true, plan: report, applied: { cover: newUrls[0], images: newUrls } };
+}
+
+// Sweep order: the nightly slots are scarce (3 per run, 42s of budget), and
+// fsList hands them over in document-ID order — pure alphabet, zero relation
+// to impact. On a one-photo listing the brain has NOTHING to decide: no cover
+// to pick, no gallery to reorder, no duplicate to drop, only a cosmetic pass.
+// Ordering by ID once left a 25-photo listing raw for three nights while three
+// single-photo ones took the slots. Richest galleries first; ties keep the
+// document order (Array#sort is stable) so a run stays reproducible.
+export function sweepOrder(candidates) {
+  return [...candidates].sort((a, b) => sourceUrls(b.js).length - sourceUrls(a.js).length);
+}
+
+// ── the nightly sweep: nothing stays raw ────────────────────────────────────
+async function sweep(token, limit, actor) {
+  const started = Date.now();
+  const rows = await fsList('listings', { limit: 300 });
+  const candidates = sweepOrder((Array.isArray(rows) ? rows : [])
+    .map(r => ({ id: r.id, js: r }))
+    .filter(c => c.id && needsCuration(c.js)));
+  const processed = [], failed = [];
+  for (const c of candidates) {
+    if (processed.length >= limit) break;
+    if (Date.now() - started > 42000) break;   // leave headroom in the 60s budget
+    try {
+      const r = await processListing(token, c.id, 'apply', actor);
+      (r.ok && r.applied ? processed : failed).push({ id: c.id, note: r.note || r.error });
+    } catch (e) { failed.push({ id: c.id, note: String(e.message || '').slice(0, 80) }); }
+  }
+  return {
+    ok: true, mode: 'sweep', checked: (Array.isArray(rows) ? rows : []).length,
+    candidates: candidates.map(c => c.id), processed, failed,
+    remaining: Math.max(0, candidates.length - processed.length - failed.length),
+  };
+}
+
+export default async function handler(req, res) {
+  setCors(req, res);
+  if (req.method === 'OPTIONS') return res.status(204).end();
+  const q = req.query || {};
+  const isSweepGet = req.method === 'GET' && q.mode === 'sweep';
+  if (req.method !== 'POST' && !isSweepGet) return res.status(405).json({ ok: false, error: 'method_not_allowed' });
+
+  const who = await authAny(req, res);
+  if (!who) return;
+
+  const b = isSweepGet ? q : ((await readJson(req)) || {});
+  const mode = b.mode === 'apply' ? 'apply' : b.mode === 'sweep' ? 'sweep' : 'audit';
+
+  try {
+    const token = await getAdminToken();
+    if (mode === 'sweep') {
+      const limit = Math.max(1, Math.min(3, parseInt(b.limit, 10) || 2));
+      return res.status(200).json(await sweep(token, limit, who.actor));
+    }
+    const id = String(b.listingId || '').trim();
+    if (!id) return res.status(400).json({ ok: false, error: 'no_listing' });
+    const out = await processListing(token, id, mode, who.actor, mode === 'audit' ? b.urls : null);
+    return res.status(out.ok ? 200 : 404).json(out);
   } catch (err) {
     console.error('[photos/enhance]', err.message);
     return res.status(500).json({ ok: false, error: 'internal', detail: String(err.message || '').slice(0, 120) });

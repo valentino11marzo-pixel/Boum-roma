@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Your viewing — BOOM Rome</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#08080A">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BOOM">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --g:#FFD700;--g-dim:rgba(255,215,0,0.10);--g-line:rgba(255,215,0,0.22);--g-glow:rgba(255,215,0,0.07);
+  --bg:#080808;--s0:#0C0C0C;--s1:#101010;--s2:#141414;--s3:#1A1A1A;
+  --b0:rgba(255,255,255,0.04);--b1:rgba(255,255,255,0.07);--b2:rgba(255,255,255,0.11);--b3:rgba(255,255,255,0.16);
+  --t0:#F2F2F2;--t1:#888;--t2:#444;--ok:#34C759;--warn:#FF9F0A;--err:#FF3B30;
+  --r:16px;--rsm:10px;--rxs:7px;
+}
+body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weight:300;background:var(--bg);color:var(--t0);min-height:100dvh;-webkit-font-smoothing:antialiased;letter-spacing:-.012em}
+.hdr{position:sticky;top:0;z-index:20;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:rgba(8,8,8,0.92);border-bottom:1px solid var(--b0);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
+.logo{display:flex;align-items:center;gap:8px;text-decoration:none}
+.logo-svg{width:20px;height:20px;flex-shrink:0}
+.logo-wm{font-size:13px;font-weight:300;letter-spacing:.32em;color:var(--t0);text-transform:uppercase}
+.hdr-r{display:flex;align-items:center;gap:9px}
+.hdr-pill{font-size:9px;font-weight:400;letter-spacing:.1em;text-transform:uppercase;color:var(--g);padding:3px 10px;border-radius:100px;border:1px solid var(--g-line);background:var(--g-glow)}
+.lang{background:none;border:none;font-family:inherit;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--t2);cursor:pointer;padding:4px}
+.lang:hover{color:var(--t0)}
+.wrap{max-width:430px;margin:0 auto;padding:20px 14px 100px}
+.card{background:var(--s0);border:1px solid var(--b1);border-radius:var(--r);overflow:hidden;animation:fadeUp .38s both;margin-bottom:14px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.card-bd{padding:20px}
+.eyebrow{font-size:9px;font-weight:400;letter-spacing:.12em;text-transform:uppercase;color:var(--t2);margin-bottom:7px}
+.ttl{font-size:22px;font-weight:300;letter-spacing:-.022em;line-height:1.2;color:var(--t0)}
+.sub{font-size:13px;font-weight:300;color:var(--t1);line-height:1.6}
+/* the ticket */
+.tk{position:relative;background:linear-gradient(160deg,#0E0E0E,#0A0A0A);border:1px solid var(--b1);border-radius:var(--r);overflow:hidden}
+.tk::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 12% 0%,rgba(255,215,0,.055),transparent 62%);pointer-events:none}
+.tk-top{padding:20px 20px 16px;position:relative}
+.tk-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:100px;font-size:9.5px;font-weight:400;letter-spacing:.09em;text-transform:uppercase;margin-bottom:14px}
+.tk-badge.ok{background:rgba(52,199,89,.08);border:1px solid rgba(52,199,89,.25);color:var(--ok)}
+.tk-badge.pend{background:rgba(255,159,10,.08);border:1px solid rgba(255,159,10,.25);color:var(--warn)}
+.tk-badge.off{background:rgba(255,255,255,.04);border:1px solid var(--b2);color:var(--t1)}
+.pip{width:5px;height:5px;border-radius:50%;background:currentColor}
+.tk-mode{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--t2);margin-bottom:5px}
+.tk-name{font-size:20px;font-weight:300;letter-spacing:-.02em;line-height:1.25;margin-bottom:3px}
+.tk-price{font-size:12.5px;color:var(--g);letter-spacing:.01em}
+.tk-when{padding:16px 20px;border-top:1px dashed var(--b2);border-bottom:1px dashed var(--b2);background:rgba(255,255,255,.012);position:relative}
+.tk-when::before,.tk-when::after{content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:var(--bg);top:-8px}
+.tk-when::before{left:-9px}.tk-when::after{right:-9px}
+.tk-big{font-size:17px;font-weight:300;letter-spacing:-.015em;color:var(--t0);line-height:1.35}
+.tk-tz{font-size:11px;color:var(--t2);margin-top:4px}
+.tk-rows{padding:14px 20px 18px}
+.tk-row{display:flex;gap:11px;padding:9px 0;border-bottom:1px solid var(--b0)}
+.tk-row:last-child{border-bottom:none}
+.tk-k{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--t2);width:88px;flex-shrink:0;padding-top:2px}
+.tk-v{font-size:13.5px;color:var(--t0);font-weight:300;line-height:1.45}
+/* buttons */
+.btn{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:48px;border:none;border-radius:12px;font-family:inherit;font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:transform .15s,box-shadow .15s;text-decoration:none;-webkit-appearance:none}
+.btn:disabled{opacity:.45;pointer-events:none}
+.btn-p{background:var(--g);color:#050505;box-shadow:0 2px 14px rgba(255,215,0,.18)}
+.btn-p:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(255,215,0,.28)}
+.btn-s{background:var(--s2);color:var(--t1);border:1px solid var(--b1)}
+.btn-s:hover{border-color:var(--b2);color:var(--t0)}
+.btn-d{background:transparent;color:var(--t2);border:1px solid var(--b1)}
+.btn-d:hover{border-color:rgba(255,59,48,.35);color:#FF6B6B}
+.btn-row{display:flex;gap:8px}.btn-row .btn{flex:1}
+.stack>*{margin-bottom:8px}.stack>*:last-child{margin-bottom:0}
+.spin{width:16px;height:16px;border:2px solid rgba(0,0,0,.2);border-top-color:#000;border-radius:50%;animation:spin .6s linear infinite;display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.btn.loading .btn-label{display:none}.btn.loading .spin{display:block}
+.btn-s .spin,.btn-d .spin{border-color:rgba(255,255,255,.2);border-top-color:var(--t0)}
+/* slot picker (same grammar as /book) */
+.mode-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.mode-opt{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:13px 14px;background:var(--s2);border:1px solid var(--b1);border-radius:var(--rsm);cursor:pointer;text-align:left;transition:border-color .2s,background .2s;font-family:inherit}
+.mode-opt.on{border-color:rgba(255,215,0,.45);background:var(--g-dim)}
+.mode-ico{font-size:17px;line-height:1}
+.mode-t{font-size:13px;color:var(--t0);font-weight:400;letter-spacing:-.01em}
+.mode-s{font-size:10.5px;color:var(--t2);font-weight:300;line-height:1.35}
+.day-row{display:flex;gap:7px;overflow-x:auto;padding-bottom:9px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.day-row::-webkit-scrollbar{display:none}
+.day-chip{flex:0 0 auto;padding:9px 13px;background:var(--s2);border:1px solid var(--b1);border-radius:var(--rsm);cursor:pointer;font-family:inherit;font-size:12px;font-weight:300;color:var(--t1);letter-spacing:-.01em;white-space:nowrap;transition:all .18s;text-align:center}
+.day-chip.on{border-color:rgba(255,215,0,.45);background:var(--g-dim);color:var(--t0)}
+.day-chip b{display:block;font-weight:400;color:inherit}
+.day-chip .dc-n{font-size:10px;color:var(--t2);letter-spacing:.06em;text-transform:uppercase}
+.day-chip.on .dc-n{color:var(--g)}
+.time-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:7px;margin-top:4px}
+.time-slot{padding:11px 6px;background:var(--s2);border:1px solid var(--b1);border-radius:var(--rsm);cursor:pointer;font-family:inherit;font-size:13.5px;font-weight:300;color:var(--t0);letter-spacing:.01em;transition:all .16s;text-align:center}
+.time-slot.on{border-color:var(--g);background:var(--g-dim);color:var(--g);font-weight:400;box-shadow:0 0 0 3px rgba(255,215,0,.06)}
+.slot-load{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--t1);padding:14px 2px}
+.slot-spin{width:12px;height:12px;border:1.5px solid var(--b2);border-top-color:var(--g);border-radius:50%;animation:spin .7s linear infinite}
+.slot-empty{font-size:12.5px;color:var(--t1);line-height:1.6;padding:12px 0}
+.slot-empty a{color:var(--g);text-decoration:none}
+.note-area{width:100%;min-height:64px;resize:vertical;padding:11px 13px;background:var(--s2);border:1px solid var(--b1);border-radius:var(--rsm);color:var(--t0);font-family:inherit;font-size:13px;font-weight:300;outline:none;line-height:1.55;transition:border-color .2s}
+.note-area:focus{border-color:rgba(255,215,0,.45);box-shadow:0 0 0 3px rgba(255,215,0,.06)}
+.note-area::placeholder{color:var(--t2)}
+.sect-t{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--t2);margin-bottom:11px}
+.hint{font-size:11.5px;color:var(--t2);line-height:1.55;margin-top:11px}
+.hint a{color:var(--g);text-decoration:none}
+/* states */
+.center{text-align:center;padding:36px 20px}
+.big-ico{width:68px;height:68px;border-radius:50%;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;font-size:28px;animation:iconIn .5s cubic-bezier(.175,.885,.32,1.275) both}
+@keyframes iconIn{from{transform:scale(.2);opacity:0}to{transform:scale(1);opacity:1}}
+.big-ico.ok{background:rgba(52,199,89,.08);border:1px solid rgba(52,199,89,.3)}
+.big-ico.off{background:rgba(255,255,255,.03);border:1px solid var(--b2)}
+.big-ico.err{background:rgba(255,59,48,.07);border:1px solid rgba(255,59,48,.28)}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);padding:10px 18px;border-radius:10px;font-size:12px;white-space:nowrap;pointer-events:none;opacity:0;transition:all .25s;z-index:100;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.err{background:rgba(255,59,48,.15);border:1px solid rgba(255,59,48,.3);color:#FF6B6B}
+.toast.ok{background:rgba(52,199,89,.12);border:1px solid rgba(52,199,89,.25);color:#4CD964}
+.hidden{display:none!important}
+.skel{background:var(--s2);border-radius:6px;animation:sk 1.2s ease-in-out infinite alternate}
+@keyframes sk{from{opacity:.35}to{opacity:.75}}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <a class="logo" href="https://www.boomrome.com">
+    <svg class="logo-svg" viewBox="0 0 1024 1024" aria-hidden="true">
+      <defs><linearGradient id="lg" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD54F"/><stop offset="100%" stop-color="#F5A623"/></linearGradient></defs>
+      <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#lg)"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z"/></g>
+    </svg>
+    <span class="logo-wm">BOOM</span>
+  </a>
+  <div class="hdr-r">
+    <span class="hdr-pill" id="pill">Your viewing</span>
+    <button class="lang" id="langBtn" type="button">IT</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <!-- loading -->
+  <div id="vLoad" class="card"><div class="card-bd">
+    <div class="skel" style="height:14px;width:40%;margin-bottom:14px"></div>
+    <div class="skel" style="height:26px;width:75%;margin-bottom:10px"></div>
+    <div class="skel" style="height:54px;margin-bottom:10px"></div>
+    <div class="skel" style="height:120px"></div>
+  </div></div>
+
+  <!-- broken link -->
+  <div id="vBad" class="card hidden"><div class="card-bd center">
+    <div class="big-ico err">🔗</div>
+    <div class="ttl" style="margin-bottom:8px" data-t="badT">This link isn't valid</div>
+    <p class="sub" data-t="badS">It may have expired, or been copied incompletely. Message us and we'll sort it in seconds.</p>
+    <div style="margin-top:22px"><a class="btn btn-p" id="badWa" href="#"><span class="btn-label">💬 <span data-t="waBtn">Message BOOM</span></span></a></div>
+  </div></div>
+
+  <!-- the ticket -->
+  <div id="vMain" class="hidden">
+    <div class="tk" id="tk">
+      <div class="tk-top">
+        <div class="tk-badge" id="tkBadge"><span class="pip"></span><span id="tkBadgeT"></span></div>
+        <div class="tk-mode" id="tkMode"></div>
+        <div class="tk-name" id="tkName"></div>
+        <div class="tk-price" id="tkPrice"></div>
+      </div>
+      <div class="tk-when">
+        <div class="tk-big" id="tkWhen"></div>
+        <div class="tk-tz" id="tkTz"></div>
+      </div>
+      <div class="tk-rows" id="tkRows"></div>
+    </div>
+
+    <div class="stack" id="actions" style="margin:14px 0 22px"></div>
+
+    <!-- change / cancel -->
+    <div class="card" id="changeCard"><div class="card-bd">
+      <div class="sect-t" data-t="planT">Plans changed?</div>
+      <p class="sub" style="margin-bottom:14px" data-t="planS">Pick another time yourself, or switch between video and in person. Everything — calendar, Wallet pass, reminders — updates on its own.</p>
+      <div class="btn-row">
+        <button class="btn btn-s" id="btnMove"><span class="btn-label">🔁 <span data-t="moveBtn">Move it</span></span><div class="spin"></div></button>
+        <button class="btn btn-d" id="btnCancelOpen"><span class="btn-label">✖️ <span data-t="cancelBtn">Cancel</span></span></button>
+      </div>
+      <p class="hint" data-t="planH"></p>
+    </div></div>
+
+    <!-- move panel -->
+    <div class="card hidden" id="movePanel"><div class="card-bd">
+      <div class="sect-t" data-t="pickT">Choose a new time</div>
+      <div class="mode-row">
+        <button class="mode-opt" data-mode="person" type="button">
+          <span class="mode-ico">🚶</span>
+          <span class="mode-t" data-t="mPerson">In person</span>
+          <span class="mode-s" data-t="mPersonS">We meet you there</span>
+        </button>
+        <button class="mode-opt" data-mode="video" type="button">
+          <span class="mode-ico">🎥</span>
+          <span class="mode-t" data-t="mVideo">Live video</span>
+          <span class="mode-s" data-t="mVideoS">From wherever you are</span>
+        </button>
+      </div>
+      <div id="slotBox"></div>
+      <div style="margin-top:16px" class="stack">
+        <button class="btn btn-p" id="btnMoveGo" disabled><span class="btn-label" data-t="confirmMove">Confirm new time</span><div class="spin"></div></button>
+        <button class="btn btn-s" id="btnMoveBack"><span class="btn-label" data-t="back">Back</span></button>
+      </div>
+    </div></div>
+
+    <!-- cancel panel -->
+    <div class="card hidden" id="cancelPanel"><div class="card-bd">
+      <div class="sect-t" data-t="cxT">Cancel this viewing</div>
+      <p class="sub" style="margin-bottom:12px" data-t="cxS">If it's just the time that doesn't work, moving it is one tap — we'd rather see you than not.</p>
+      <textarea class="note-area" id="cxReason" maxlength="300"></textarea>
+      <div style="margin-top:14px" class="stack">
+        <button class="btn btn-d" id="btnCancelGo"><span class="btn-label" data-t="cxGo">Cancel the viewing</span><div class="spin"></div></button>
+        <button class="btn btn-s" id="btnCancelBack"><span class="btn-label" data-t="cxKeep">Keep it</span></button>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- cancelled -->
+  <div id="vGone" class="card hidden"><div class="card-bd center">
+    <div class="big-ico off">🗓</div>
+    <div class="ttl" style="margin-bottom:8px" data-t="goneT">This viewing is cancelled</div>
+    <p class="sub" data-t="goneS">No hard feelings — Rome isn't going anywhere. Whenever you want another look, we're one message away.</p>
+    <div style="margin-top:22px" class="stack">
+      <a class="btn btn-p" id="goneWa" href="#"><span class="btn-label">💬 <span data-t="waBtn2">Book another viewing</span></span></a>
+      <a class="btn btn-s" href="https://www.boomrome.com/apartments"><span class="btn-label" data-t="browse">Browse apartments</span></a>
+    </div>
+  </div></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+var $=function(s){return document.querySelector(s)};
+var $$=function(s){return Array.prototype.slice.call(document.querySelectorAll(s))};
+var REF=new URLSearchParams(location.search).get('t')||'';
+var ST={v:null,slots:[],mode:'person',day:null,pick:null,lang:'en',canChange:false};
+
+/* ── copy: English is the house language, Italian one tap away ─────────── */
+var T={
+ en:{pill:'Your viewing',badT:"This link isn't valid",badS:'It may have expired, or been copied incompletely. Message us and we’ll sort it in seconds.',waBtn:'Message BOOM',
+   planT:'Plans changed?',planS:'Pick another time yourself, or switch between video and in person. Everything — calendar, Wallet pass, reminders — updates on its own.',
+   moveBtn:'Move it',cancelBtn:'Cancel',planH:'',pickT:'Choose a new time',mPerson:'In person',mPersonS:'We meet you there',mVideo:'Live video',mVideoS:'From wherever you are',
+   confirmMove:'Confirm new time',back:'Back',cxT:'Cancel this viewing',cxS:"If it's just the time that doesn't work, moving it is one tap — we'd rather see you than not.",
+   cxPlaceholder:'Anything we should know? (optional)',cxGo:'Cancel the viewing',cxKeep:'Keep it',
+   goneT:'This viewing is cancelled',goneS:"No hard feelings — Rome isn't going anywhere. Whenever you want another look, we're one message away.",waBtn2:'Book another viewing',browse:'Browse apartments',
+   kWhere:'Where',kMeet:'Meeting point',kDur:'Duration',kLink:'Video link',kName:'Booked for',min:'minutes',
+   bConf:'Confirmed',bPend:'To be confirmed',bDone:'Completed',bOff:'Cancelled',
+   mIn:'In person',mVid:'Live video call',romeTime:'Rome time',yourTime:'your time',
+   wallet:'🎟 Add to Apple Wallet',gcal:'📅 Add to Google Calendar',ics:'📅 Apple / Outlook (.ics)',
+   loading:'Finding free times…',noSlots:'No free slots in the next two weeks.',waAsk:'Message us and we’ll open one for you →',
+   past:'This viewing has already taken place. Message us if you’d like another look.',
+   okMoved:'Moved — check your email',okCancel:'Cancelled',errTaken:'That slot was just taken — pick another',errGeneric:'Something went wrong — try again',
+   tooLate:'It’s too close to the appointment to change it here — message us and we’ll handle it.'},
+ it:{pill:'La tua visita',badT:'Questo link non è valido',badS:'Potrebbe essere scaduto, o copiato a metà. Scrivici e lo risolviamo in un attimo.',waBtn:'Scrivi a BOOM',
+   planT:'Cambiato programma?',planS:'Scegli un altro orario da solo, o passa da videochiamata a visita di persona. Calendario, pass nel Wallet e promemoria si aggiornano da sé.',
+   moveBtn:'Sposta',cancelBtn:'Annulla',planH:'',pickT:'Scegli il nuovo orario',mPerson:'Di persona',mPersonS:'Ci vediamo lì',mVideo:'Videochiamata',mVideoS:'Da dove sei',
+   confirmMove:'Conferma il nuovo orario',back:'Indietro',cxT:'Annulla la visita',cxS:'Se è solo l’orario a non andare, spostarla è un tap — preferiamo vederti.',
+   cxPlaceholder:'Vuoi dirci qualcosa? (facoltativo)',cxGo:'Annulla la visita',cxKeep:'Tienila',
+   goneT:'Visita annullata',goneS:'Nessun problema — Roma non scappa. Quando vuoi rivederla, siamo a un messaggio di distanza.',waBtn2:'Prenota un’altra visita',browse:'Vedi gli appartamenti',
+   kWhere:'Dove',kMeet:'Punto d’incontro',kDur:'Durata',kLink:'Link video',kName:'Intestata a',min:'minuti',
+   bConf:'Confermata',bPend:'Da confermare',bDone:'Completata',bOff:'Annullata',
+   mIn:'Di persona',mVid:'Videochiamata',romeTime:'ora di Roma',yourTime:'ora tua',
+   wallet:'🎟 Aggiungi ad Apple Wallet',gcal:'📅 Aggiungi a Google Calendar',ics:'📅 Apple / Outlook (.ics)',
+   loading:'Cerco gli orari liberi…',noSlots:'Nessuno slot libero nelle prossime due settimane.',waAsk:'Scrivici e te ne apriamo uno →',
+   past:'Questa visita è già avvenuta. Scrivici se vuoi rivedere casa.',
+   okMoved:'Spostata — controlla l’email',okCancel:'Annullata',errTaken:'Quello slot è appena stato preso — scegline un altro',errGeneric:'Qualcosa è andato storto — riprova',
+   tooLate:'Manca troppo poco all’appuntamento per cambiarlo da qui — scrivici e ci pensiamo noi.'}
+};
+var t=function(k){return (T[ST.lang]&&T[ST.lang][k])||T.en[k]||k};
+
+function paint(){
+  $$('[data-t]').forEach(function(el){var k=el.getAttribute('data-t');if(T[ST.lang][k]!==undefined)el.textContent=T[ST.lang][k]});
+  $('#pill').textContent=t('pill');
+  $('#langBtn').textContent=ST.lang==='it'?'EN':'IT';
+  $('#cxReason').placeholder=t('cxPlaceholder');
+  document.documentElement.lang=ST.lang;
+  if(ST.v)render();
+}
+$('#langBtn').addEventListener('click',function(){ST.lang=ST.lang==='it'?'en':'it';try{localStorage.setItem('boom_view_lang',ST.lang)}catch(e){}paint()});
+
+function toast(msg,kind){var el=$('#toast');el.textContent=msg;el.className='toast show '+(kind||'ok');setTimeout(function(){el.className='toast'},3400)}
+function busy(sel,on){var b=$(sel);if(b)b.classList.toggle('loading',!!on),b.disabled=!!on}
+function esc(s){return String(s==null?'':s).replace(/[<>&]/g,function(c){return{'<':'&lt;','>':'&gt;','&':'&amp;'}[c]})}
+
+function api(op,extra){
+  return fetch('/api/viewings/manage',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(Object.assign({t:REF,op:op},extra||{}))}).then(function(r){
+      return r.json().then(function(j){return{status:r.status,j:j}})});
+}
+
+/* ── Rome time + the visitor's own clock, side by side ──────────────────── */
+function fmtRome(iso,opts){return new Intl.DateTimeFormat(ST.lang==='it'?'it-IT':'en-GB',Object.assign({timeZone:'Europe/Rome'},opts)).format(new Date(iso))}
+function localLine(iso){
+  var tz=Intl.DateTimeFormat().resolvedOptions().timeZone||'';
+  var romeH=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Rome',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(iso));
+  var mineH=new Intl.DateTimeFormat('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(iso));
+  if(!tz||tz==='Europe/Rome'||romeH===mineH)return t('romeTime');
+  return t('romeTime')+' · '+mineH+' '+t('yourTime');
+}
+
+function render(){
+  var v=ST.v;
+  $('#vLoad').classList.add('hidden');
+  $('#vMain').classList.remove('hidden');
+
+  var st=String(v.status||'pending').toLowerCase();
+  var badge=$('#tkBadge'),bt=$('#tkBadgeT');
+  badge.className='tk-badge '+(st==='confirmed'?'ok':st==='pending'?'pend':'off');
+  bt.textContent=st==='confirmed'?t('bConf'):st==='pending'?t('bPend'):st==='completed'?t('bDone'):t('bOff');
+
+  $('#tkMode').textContent=v.mode==='video'?t('mVid'):t('mIn');
+  $('#tkName').textContent=v.listingName||'BOOM Rome';
+  $('#tkPrice').textContent=v.listingPrice?('€'+Number(v.listingPrice).toLocaleString(ST.lang==='it'?'it-IT':'en-GB')+(ST.lang==='it'?'/mese':'/month')):'';
+
+  if(v.when){
+    $('#tkWhen').textContent=fmtRome(v.when,{weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'});
+    $('#tkTz').textContent=localLine(v.when);
+  }else{$('#tkWhen').textContent='—';$('#tkTz').textContent=''}
+
+  var rows=[];
+  if(v.mode==='video'){
+    if(v.videoUrl)rows.push([t('kLink'),'<a href="'+esc(v.videoUrl)+'" style="color:#FFD700;text-decoration:none">'+esc(v.videoUrl.replace(/^https?:\/\//,''))+'</a>']);
+  }else{
+    if(v.listingAddress)rows.push([t('kWhere'),esc(v.listingAddress)+', Roma']);
+    rows.push([t('kMeet'),esc(v.meetingPoint||(ST.lang==='it'?'Al citofono':'At the intercom'))]);
+  }
+  rows.push([t('kDur'),v.durationMinutes+' '+t('min')]);
+  if(v.clientName)rows.push([t('kName'),esc(v.clientName)]);
+  $('#tkRows').innerHTML=rows.map(function(r){return '<div class="tk-row"><div class="tk-k">'+r[0]+'</div><div class="tk-v">'+r[1]+'</div></div>'}).join('');
+
+  // the one thing they'll tap on the day, then the quiet extras
+  var acts='';
+  if(st==='confirmed'&&v.action)acts+='<a class="btn btn-p" href="'+esc(v.action.href)+'"'+(v.mode==='video'?' target="_blank" rel="noopener"':'')+'><span class="btn-label">'+esc(v.action.label)+'</span></a>';
+  if(st==='confirmed'){
+    acts+='<a class="btn btn-s" href="'+esc(v.passUrl)+'"><span class="btn-label">'+t('wallet')+'</span></a>';
+    acts+='<a class="btn btn-s" href="/api/viewings/ics?id='+encodeURIComponent(v.id)+'"><span class="btn-label">'+t('ics')+'</span></a>';
+  }
+  $('#actions').innerHTML=acts;
+
+  $('#changeCard').classList.toggle('hidden',!ST.canChange);
+  if(!ST.canChange&&st!=='cancelled'){
+    $('#actions').insertAdjacentHTML('beforeend','<p class="hint" style="text-align:center">'+t(ST.v.past?'past':'tooLate')+' <a href="'+esc(v.whatsapp)+'">WhatsApp</a></p>');
+  }
+  if(st==='cancelled'){
+    $('#vMain').classList.add('hidden');
+    $('#vGone').classList.remove('hidden');
+    $('#goneWa').href=v.whatsapp;
+  }
+}
+
+/* ── the picker ─────────────────────────────────────────────────────────── */
+function paintModes(){$$('.mode-opt').forEach(function(b){b.classList.toggle('on',b.dataset.mode===ST.mode)})}
+function paintSlots(){
+  var box=$('#slotBox');
+  if(!ST.slots.length){
+    box.innerHTML='<div class="slot-empty">'+t('noSlots')+'<br><a href="'+esc(ST.v.whatsapp)+'">'+t('waAsk')+'</a></div>';
+    $('#btnMoveGo').disabled=true;return;
+  }
+  if(!ST.slots.some(function(d){return d.date===ST.day}))ST.day=ST.slots[0].date;
+  var days=ST.slots.map(function(d){
+    var dt=new Date(d.times[0].iso);
+    return '<button type="button" class="day-chip'+(d.date===ST.day?' on':'')+'" data-day="'+d.date+'">'+
+      '<span class="dc-n">'+fmtRome(dt,{weekday:'short'})+'</span><b>'+fmtRome(dt,{day:'numeric',month:'short'})+'</b></button>';
+  }).join('');
+  var day=ST.slots.filter(function(d){return d.date===ST.day})[0];
+  var times=day.times.map(function(x){
+    return '<button type="button" class="time-slot'+(x.iso===ST.pick?' on':'')+'" data-iso="'+x.iso+'">'+x.label+'</button>';
+  }).join('');
+  box.innerHTML='<div class="day-row">'+days+'</div><div class="time-grid">'+times+'</div>';
+  box.querySelectorAll('.day-chip').forEach(function(b){b.addEventListener('click',function(){ST.day=b.dataset.day;ST.pick=null;$('#btnMoveGo').disabled=true;paintSlots()})});
+  box.querySelectorAll('.time-slot').forEach(function(b){b.addEventListener('click',function(){ST.pick=b.dataset.iso;paintSlots();$('#btnMoveGo').disabled=false})});
+}
+function loadSlots(){
+  $('#slotBox').innerHTML='<div class="slot-load"><div class="slot-spin"></div>'+t('loading')+'</div>';
+  ST.pick=null;$('#btnMoveGo').disabled=true;
+  return api('slots',{mode:ST.mode}).then(function(r){
+    ST.slots=(r.j&&r.j.slots)||[];paintSlots();
+  }).catch(function(){$('#slotBox').innerHTML='<div class="slot-empty">'+t('errGeneric')+'</div>'});
+}
+
+$('#btnMove').addEventListener('click',function(){
+  ST.mode=ST.v.mode||'person';paintModes();
+  $('#changeCard').classList.add('hidden');
+  $('#movePanel').classList.remove('hidden');
+  $('#movePanel').scrollIntoView({behavior:'smooth',block:'start'});
+  loadSlots();
+});
+$('#btnMoveBack').addEventListener('click',function(){$('#movePanel').classList.add('hidden');$('#changeCard').classList.remove('hidden')});
+$$('.mode-opt').forEach(function(b){b.addEventListener('click',function(){ST.mode=b.dataset.mode;paintModes();loadSlots()})});
+
+$('#btnMoveGo').addEventListener('click',function(){
+  if(!ST.pick)return;
+  busy('#btnMoveGo',true);
+  api('reschedule',{when:ST.pick,mode:ST.mode}).then(function(r){
+    busy('#btnMoveGo',false);
+    if(r.j&&r.j.ok){
+      ST.v=r.j.viewing;ST.canChange=true;
+      $('#movePanel').classList.add('hidden');$('#changeCard').classList.remove('hidden');
+      render();toast(t('okMoved'),'ok');
+      window.scrollTo({top:0,behavior:'smooth'});
+    }else if(r.j&&r.j.error==='slot_taken'){toast(t('errTaken'),'err');loadSlots()}
+    else if(r.j&&r.j.error==='too_late'){toast(t('tooLate'),'err')}
+    else toast(t('errGeneric'),'err');
+  }).catch(function(){busy('#btnMoveGo',false);toast(t('errGeneric'),'err')});
+});
+
+$('#btnCancelOpen').addEventListener('click',function(){
+  $('#changeCard').classList.add('hidden');$('#movePanel').classList.add('hidden');
+  $('#cancelPanel').classList.remove('hidden');
+  $('#cancelPanel').scrollIntoView({behavior:'smooth',block:'center'});
+});
+$('#btnCancelBack').addEventListener('click',function(){$('#cancelPanel').classList.add('hidden');$('#changeCard').classList.remove('hidden')});
+$('#btnCancelGo').addEventListener('click',function(){
+  busy('#btnCancelGo',true);
+  api('cancel',{reason:$('#cxReason').value||''}).then(function(r){
+    busy('#btnCancelGo',false);
+    if(r.j&&r.j.ok){
+      $('#vMain').classList.add('hidden');$('#vGone').classList.remove('hidden');
+      $('#goneWa').href=(ST.v&&ST.v.whatsapp)||'https://wa.me/393313251961';
+      window.scrollTo({top:0,behavior:'smooth'});
+    }else toast(t('errGeneric'),'err');
+  }).catch(function(){busy('#btnCancelGo',false);toast(t('errGeneric'),'err')});
+});
+
+/* ── boot ───────────────────────────────────────────────────────────────── */
+var savedLang=null;
+try{savedLang=localStorage.getItem('boom_view_lang')}catch(e){}
+if(savedLang==='it'||savedLang==='en')ST.lang=savedLang;
+paint();
+if(!REF){$('#vLoad').classList.add('hidden');$('#vBad').classList.remove('hidden');$('#badWa').href='https://wa.me/393313251961'}
+else api('lookup').then(function(r){
+  if(!r.j||!r.j.ok){
+    $('#vLoad').classList.add('hidden');$('#vBad').classList.remove('hidden');
+    $('#badWa').href='https://wa.me/393313251961';return;
+  }
+  ST.v=r.j.viewing;ST.slots=r.j.slots||[];ST.canChange=!!r.j.canChange;ST.v.past=!!r.j.past;
+  // the client's own language wins over the browser default: it's the one
+  // they wrote in, and the one every BOOM email to them already uses
+  if(!savedLang&&(ST.v.lang==='it'||ST.v.lang==='en'))ST.lang=ST.v.lang;
+  ST.mode=ST.v.mode||'person';
+  paint();
+}).catch(function(){
+  $('#vLoad').classList.add('hidden');$('#vBad').classList.remove('hidden');
+  $('#badWa').href='https://wa.me/393313251961';
+});
+})();
+</script>
+</body>
+</html>

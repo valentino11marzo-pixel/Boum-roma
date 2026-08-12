@@ -15,6 +15,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import DISPO from '../js/dispo-engine.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT = process.env.FIREBASE_PROJECT_ID || 'boom-property-dashboards';
@@ -131,11 +132,34 @@ function injectSeo(html, d, id) {
       priceSpecification: { '@type': 'UnitPriceSpecification', price, priceCurrency: 'EUR', unitText: 'MONTH' },
       seller: { '@id': 'https://www.boomrome.com/#organization' },
     };
-    const af = String(d.availableFrom || d.availableDate || '');
-    if (/^\d{4}-\d{2}-\d{2}/.test(af) && af.slice(0, 10) > new Date().toISOString().slice(0, 10)) {
-      ld.offers.availabilityStarts = af.slice(0, 10);
+    // availabilityStarts solo su una data CERTA: un dato strutturato sbagliato
+    // finisce nei rich result di Google, dove non lo corregge nessuno.
+    const avr = DISPO.resolve(d);
+    if (avr.kind === 'date' && avr.iso > new Date().toISOString().slice(0, 10)) {
+      ld.offers.availabilityStarts = avr.iso;
     }
   }
+  // Video tour → VideoObject JSON-LD (video badge in search results). Same
+  // YouTube-id extraction as the client's exYT().
+  const ytm = String(d.videoUrl || d.youtubeUrl || '')
+    .match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/);
+  let videoLd = null;
+  if (ytm) {
+    videoLd = {
+      '@context': 'https://schema.org', '@type': 'VideoObject',
+      name: name + ' — video tour',
+      description: 'Video tour of ' + name + (zone ? ' in ' + zone : '') + ', Rome — verified by BOOM.',
+      thumbnailUrl: [
+        'https://i.ytimg.com/vi/' + ytm[1] + '/maxresdefault.jpg',
+        'https://i.ytimg.com/vi/' + ytm[1] + '/hqdefault.jpg',
+      ],
+      contentUrl: 'https://www.youtube.com/watch?v=' + ytm[1],
+      embedUrl: 'https://www.youtube-nocookie.com/embed/' + ytm[1],
+    };
+    const up = String(d.createdAt || '').match(/^\d{4}-\d{2}-\d{2}/);
+    if (up) videoLd.uploadDate = up[0];
+  }
+
   const breadcrumb = {
     '@context': 'https://schema.org', '@type': 'BreadcrumbList',
     itemListElement: [
@@ -158,7 +182,9 @@ function injectSeo(html, d, id) {
   const dataScript = '<script>window.__LISTING=' + safe(d) + ';window.__LISTING_ID=' + JSON.stringify(id) + ';</script>\n';
   const scripts = preload + dataScript +
     '<script type="application/ld+json" data-seo-dynamic>' + safe(ld) + '</script>\n' +
-    '<script type="application/ld+json" data-seo-dynamic>' + safe(breadcrumb) + '</script>\n</head>';
+    '<script type="application/ld+json" data-seo-dynamic>' + safe(breadcrumb) + '</script>\n' +
+    (videoLd ? '<script type="application/ld+json" data-seo-dynamic>' + safe(videoLd) + '</script>\n' : '') +
+    '</head>';
   html = html.replace('</head>', scripts);
 
   // No-JS baseline for AI crawlers (GPTBot, ClaudeBot, PerplexityBot…) and
@@ -166,12 +192,13 @@ function injectSeo(html, d, id) {
   // without this a non-executing crawler reads an empty page. Hidden whenever
   // JS runs — the hydrated page replaces it for humans.
   const waitlist = String(d.status || '').toLowerCase() === 'waitlist';
-  const af2 = String(d.availableFrom || d.availableDate || '');
+  const av2 = DISPO.resolve(d);
   const avail = waitlist
     ? 'Currently occupied — can be reserved ahead via waitlist.'
-    : (/^\d{4}-\d{2}-\d{2}/.test(af2) && af2.slice(0, 10) > new Date().toISOString().slice(0, 10)
-        ? 'Available from ' + af2.slice(0, 10) + '.'
-        : 'Available now.');
+    : av2.kind === 'date' ? 'Available from ' + av2.iso + '.'
+      : av2.kind === 'now' ? 'Available now.'
+        // il ramo che mancava: senza, ogni data illeggibile diceva "now"
+        : 'Availability on request — ask BOOM for the exact date.';
   const facts = [];
   if (price) facts.push('<li>Monthly rent (all-in): €' + price.toLocaleString('en-US') + '</li>');
   facts.push('<li>' + esc(avail) + '</li>');
@@ -249,6 +276,8 @@ export default async function handler(req, res) {
 
   res.statusCode = 200;
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=600, stale-while-revalidate=86400');
+  // s-maxage bounded + short SWR: the page self-refreshes from live data on
+  // load, but the SSR snapshot itself shouldn't serve day-old numbers either
+  res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=300, stale-while-revalidate=3600');
   res.end(out);
 }

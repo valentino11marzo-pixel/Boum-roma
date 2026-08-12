@@ -208,8 +208,8 @@
     display: flex; align-items: center; justify-content: space-between;
     padding: 0 20px;
     background: rgba(8, 8, 10, 0.85);
-    backdrop-filter: saturate(180%) blur(16px);
-    -webkit-backdrop-filter: saturate(180%) blur(16px);
+    -webkit-backdrop-filter:saturate(180%) blur(16px);backdrop-filter: saturate(180%) blur(16px);
+    
     border-bottom: 1px solid var(--border);
     position: relative;
     z-index: 50;
@@ -554,7 +554,7 @@
   .lead-search:focus { outline: none; border-color: var(--gold); }
 
   /* ── Detail drawer ── */
-  .drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(3px); opacity: 0; pointer-events: none; transition: opacity .22s ease; z-index: 200; }
+  .drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); -webkit-backdrop-filter:blur(3px);backdrop-filter: blur(3px); opacity: 0; pointer-events: none; transition: opacity .22s ease; z-index: 200; }
   .drawer-backdrop.is-open { opacity: 1; pointer-events: auto; }
   .drawer { position: absolute; top: 0; right: 0; height: 100%; width: min(440px, 92vw); background: var(--bg-card, #0A0A0A); border-left: 1px solid var(--border-gold, rgba(212,175,55,0.25)); box-shadow: -20px 0 60px rgba(0,0,0,0.5); transform: translateX(100%); transition: transform .26s cubic-bezier(.4,0,.2,1); display: flex; flex-direction: column; }
   .drawer-backdrop.is-open .drawer { transform: translateX(0); }
@@ -579,8 +579,8 @@
   #cmdk-overlay {
     position: fixed; inset: 0;
     background: var(--bg-overlay);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    -webkit-backdrop-filter:blur(8px);backdrop-filter: blur(8px);
+    
     display: flex; align-items: flex-start; justify-content: center;
     padding-top: 12vh;
     z-index: 1000;

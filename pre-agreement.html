@@ -7,7 +7,7 @@
 <title>Rental Proposal — BOOM Roma</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Pinyon+Script&display=swap" rel="stylesheet">
 <style>
 /* ═══════════════════════════════════════════════════════════════════
    PROTOCOL 2030 — the pre-agreement as a precision instrument.
@@ -27,7 +27,7 @@
   --green:#4ADE9E;--green-muted:rgba(74,222,158,.12);--wa:#25D366;
   --sans:'Helvetica Neue',Helvetica,'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
   --mono:ui-monospace,'SF Mono',Menlo,'Roboto Mono','Cascadia Mono',monospace;
-  --script:'Great Vibes','Snell Roundhand','Segoe Script',cursive;
+  --script:'Pinyon Script','Snell Roundhand','Savoye LET',cursive;
   --ease:cubic-bezier(.16,1,.3,1);--spring:cubic-bezier(.34,1.45,.64,1);--safe:env(safe-area-inset-bottom,0px);
   --r:18px}
 html{overflow-x:hidden;scroll-behavior:smooth}
@@ -61,12 +61,14 @@ input{font-family:inherit}
 }
 
 /* ── chrome: HUD header ── */
-header{position:fixed;top:0;left:0;right:0;z-index:60;background:rgba(5,5,6,.66);backdrop-filter:blur(22px) saturate(1.6);-webkit-backdrop-filter:blur(22px) saturate(1.6);border-bottom:1px solid var(--line2)}
+header{position:fixed;top:0;left:0;right:0;z-index:60;background:rgba(5,5,6,.66);-webkit-backdrop-filter:blur(22px) saturate(1.6);backdrop-filter:blur(22px) saturate(1.6);border-bottom:1px solid var(--line2)}
 .hprog{position:absolute;left:0;bottom:-1px;height:1px;width:0;background:linear-gradient(90deg,var(--gold),var(--gold-light));box-shadow:0 0 12px rgba(212,175,55,.55);transition:width .7s var(--ease)}
-.hrow{display:flex;justify-content:space-between;align-items:center;padding:14px 20px 10px;max-width:760px;margin:0 auto}
-.brand{display:flex;align-items:center;gap:12px;color:inherit;text-decoration:none}
-.brand .mark{display:block;filter:drop-shadow(0 0 12px rgba(212,175,55,.45))}
-.brand b{font-weight:300;letter-spacing:6px;font-size:15px;transform:translateY(.5px)}
+.hrow{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:13px 20px 9px;max-width:760px;margin:0 auto}
+.hrow .hl{font-size:9px;letter-spacing:2.4px;text-transform:uppercase;color:var(--t4);font-weight:300}
+.hrow .hwa{justify-self:end}
+.brand{display:flex;flex-direction:row;align-items:center;gap:11px;color:inherit;text-decoration:none;justify-self:center}
+.brand .mark{display:block;filter:drop-shadow(0 0 10px rgba(212,175,55,.35))}
+.brand b{font-weight:300;letter-spacing:7px;font-size:14px;transform:translateY(.5px)}
 .hwa{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);text-decoration:none;transition:color .25s}
 .hwa:hover{color:var(--gold)}
 .segs{display:flex;align-items:center;max-width:560px;margin:0 auto;padding:2px 18px 13px}
@@ -81,7 +83,7 @@ header{position:fixed;top:0;left:0;right:0;z-index:60;background:rgba(5,5,6,.66)
 @media(max-width:460px){.segs button span{display:none}.segs button.on span{display:inline}}
 
 main{position:relative;z-index:5;max-width:640px;margin:0 auto;padding:126px 20px calc(128px + var(--safe))}
-main.wide{max-width:780px}
+main.wide{max-width:860px}
 .eyebrow{font-size:10px;letter-spacing:3.4px;text-transform:uppercase;color:var(--gold);font-weight:400}
 
 /* ── loader: secure session establishing ── */
@@ -106,7 +108,7 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
 .chip.acc::before{background:var(--green);box-shadow:0 0 10px rgba(74,222,158,.8)}
 
 /* the fact panel — one clean plate, a single gold hairline crowning it */
-.tiles{position:relative;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin:28px 0 4px;border-radius:var(--r);overflow:hidden;background:var(--panel);border:1px solid var(--line2);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.tiles{position:relative;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin:28px 0 4px;border-radius:var(--r);overflow:hidden;background:var(--panel);border:1px solid var(--line2);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .tiles::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;pointer-events:none;background:linear-gradient(90deg,var(--gold),rgba(212,175,55,.25),transparent 80%)}
 .tile{padding:20px 18px 17px;position:relative}
 .tile:nth-child(2n){border-left:1px solid var(--line2)}
@@ -117,7 +119,7 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
 .tile.hero .v{background:linear-gradient(180deg,#FFF3C4 0%,var(--gold-light) 30%,var(--gold) 78%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 22px rgba(212,175,55,.3))}
 
 /* content sections — quiet glass, hairline discipline */
-.card{margin-top:16px;padding:22px;border:1px solid var(--line2);border-radius:var(--r);background:linear-gradient(180deg,rgba(255,252,240,.035),rgba(255,255,255,.015));backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);position:relative;overflow:hidden}
+.card{margin-top:16px;padding:22px;border:1px solid var(--line2);border-radius:var(--r);background:linear-gradient(180deg,rgba(255,252,240,.035),rgba(255,255,255,.015));-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);position:relative;overflow:hidden}
 .card::after{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,rgba(212,175,55,.5),rgba(212,175,55,.12),transparent 75%)}
 .rv{opacity:0;transform:translateY(18px);filter:blur(6px)}
 .rv.in{opacity:1;transform:none;filter:blur(0);transition:opacity .8s var(--ease),transform .8s var(--ease),filter .8s var(--ease)}
@@ -136,6 +138,18 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
 .total::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);box-shadow:0 0 12px rgba(212,175,55,.6)}
 .total .k{font-size:9.5px;letter-spacing:2.6px;text-transform:uppercase;color:var(--gold);font-weight:400}
 .total .v{font-size:27px;font-weight:200;font-variant-numeric:tabular-nums;letter-spacing:-.5px;background:linear-gradient(180deg,#FFF3C4,var(--gold));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.adxn{font-size:12.5px;color:var(--t3);line-height:1.6;margin:0 0 14px;font-weight:300}
+.adx{display:flex;align-items:center;gap:13px;padding:14px 15px;border:1px solid var(--line);border-radius:12px;margin-bottom:9px;cursor:pointer;transition:border-color .25s var(--spring),background .25s}
+.adx:hover{border-color:var(--line-gold)}
+.adx:has(input:checked){border-color:var(--gold);background:rgba(212,175,55,.05)}
+.adx input{appearance:none;-webkit-appearance:none;width:21px;height:21px;border:1px solid var(--line-gold);border-radius:7px;background:transparent;position:relative;flex:none;cursor:pointer;transition:all .3s var(--spring)}
+.adx input:checked{background:linear-gradient(180deg,var(--gold-light),var(--gold));border-color:var(--gold)}
+.adx input::after{content:"";position:absolute;left:5px;top:4px;width:9px;height:5px;border:solid #1a1407;border-width:0 0 2px 2px;transform:rotate(-45deg) scale(0);transition:transform .25s var(--spring) .05s}
+.adx input:checked::after{transform:rotate(-45deg) scale(1)}
+.adxb{flex:1;min-width:0}
+.adxb b{display:block;font-size:14px;font-weight:400;color:var(--t1)}
+.adxb small{display:block;font-size:12px;color:var(--t3);line-height:1.5;margin-top:3px;font-weight:300}
+.adxp{color:var(--gold);font-size:14.5px;font-weight:400;white-space:nowrap}
 .feenote{margin-top:13px;border:1px dashed var(--line-gold);border-radius:12px;padding:12px 15px;font-size:12.5px;color:var(--t2);line-height:1.68;font-weight:300}
 .feenote b{color:var(--t1);font-weight:400}
 .conds{list-style:none;display:grid;gap:10px}
@@ -243,7 +257,7 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
 .signwrap{margin:2px 0 14px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.015);padding:16px 18px 13px;position:relative;overflow:hidden}
 .signwrap::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:linear-gradient(180deg,var(--gold),transparent)}
 .signwrap .cap{font-size:8.5px;letter-spacing:2.4px;text-transform:uppercase;color:var(--t3);display:flex;justify-content:space-between;gap:10px;font-weight:400}
-.signature{font-family:var(--script);font-size:clamp(28px,5.6vw,38px);line-height:1.25;color:var(--gold-light);min-height:52px;display:flex;align-items:flex-end;padding:6px 2px;text-shadow:0 0 22px rgba(212,175,55,.2);word-break:break-word}
+.signature{font-family:var(--script);font-size:clamp(24px,4.8vw,32px);line-height:1.3;color:#F2E9D5;min-height:50px;display:flex;align-items:flex-end;padding:6px 2px 4px;letter-spacing:.5px;text-shadow:0 1px 0 rgba(0,0,0,.4);word-break:break-word}
 .signature.empty{color:var(--t4);font-size:13px;font-family:var(--sans);text-shadow:none;font-weight:300}
 .sigflr{display:block;width:min(240px,70%);height:12px;margin-top:-4px}
 .sigflr path{stroke:var(--gold);stroke-width:1;fill:none;stroke-linecap:round;stroke-dasharray:260;stroke-dashoffset:260;transition:stroke-dashoffset 1.1s var(--ease)}
@@ -259,7 +273,7 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
 .consent input:checked::after{transform:rotate(-45deg) scale(1)}
 
 /* ── accepted / timeline ── */
-.issued{text-align:center;padding:38px 26px 34px}
+.issued{text-align:center;padding:44px 30px 40px}
 .issued .seal{margin:0 auto 18px;width:84px;height:84px}
 .issued h2{font-weight:200;font-size:clamp(23px,5vw,30px);letter-spacing:-.4px;display:block;text-transform:none}
 .issued h2::after{display:none}
@@ -267,12 +281,12 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
 .refchip{display:inline-block;margin-top:16px;border:1px solid var(--line-gold);background:var(--gold-faint);border-radius:10px;padding:10px 20px;font-family:var(--mono);font-size:12px;letter-spacing:2.4px;color:var(--gold)}
 .paidband{margin:0 0 16px;border:1px solid rgba(74,222,158,.3);background:var(--green-muted);border-radius:14px;padding:13px 16px;font-size:13px;letter-spacing:.3px;color:var(--green);text-align:center;font-weight:300}
 .prq{margin:18px auto 0;width:max-content;text-align:center}
-.prq img{width:92px;height:92px;border:1px solid var(--line);border-radius:12px;padding:6px;background:#fff;display:block;margin:0 auto}
+.prq img{width:132px;height:132px;border:1px solid var(--line);border-radius:14px;padding:8px;background:#fff;display:block;margin:0 auto}
 .prq small{display:block;font-size:8.5px;letter-spacing:1.8px;text-transform:uppercase;color:var(--t4);margin-top:8px}
 .obtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);border-radius:100px;padding:12px 21px;font-size:10.5px;letter-spacing:2.2px;text-transform:uppercase;margin:14px 4px 0;background:rgba(255,255,255,.02);transition:.25s;color:var(--t1);text-decoration:none;font-weight:300}
 .obtn:hover{border-color:var(--line-gold);color:var(--gold)}
 .obtn.wa{border-color:rgba(37,211,102,.4);color:var(--wa)}
-.timeline{max-width:430px;margin:28px auto 0;text-align:left;display:grid;gap:0}
+.timeline{max-width:470px;margin:30px auto 0;text-align:left;display:grid;gap:0}
 .tstep{display:flex;gap:15px;position:relative;padding-bottom:22px}
 .tstep::before{content:"";position:absolute;left:11px;top:28px;bottom:2px;width:1px;background:var(--line2)}
 .tstep:last-child{padding-bottom:0}
@@ -287,7 +301,7 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
 .tstep.now b{color:var(--gold)}
 
 /* ── bottom action bar ── */
-.abar{position:fixed;left:0;right:0;bottom:0;z-index:55;background:rgba(5,5,6,.78);backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);border-top:1px solid var(--line2);padding:12px 18px calc(12px + var(--safe))}
+.abar{position:fixed;left:0;right:0;bottom:0;z-index:55;background:rgba(5,5,6,.78);-webkit-backdrop-filter:blur(24px) saturate(1.6);backdrop-filter:blur(24px) saturate(1.6);border-top:1px solid var(--line2);padding:12px 18px calc(12px + var(--safe))}
 .abar .inner{max-width:560px;margin:0 auto}
 .abar .hint{font-size:11px;color:var(--t3);text-align:center;margin-bottom:9px;letter-spacing:.4px;font-weight:300}
 .abar .hint b{color:var(--t2);font-weight:400}
@@ -299,9 +313,41 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
 .gbtn:not(:disabled):hover{filter:brightness(1.06);transform:translateY(-1px);box-shadow:0 16px 44px rgba(212,175,55,.28)}
 .gbtn:not(:disabled):active{transform:scale(.985)}
 .foot{color:var(--t4);font-size:9px;text-align:center;margin-top:30px;letter-spacing:2.2px;text-transform:uppercase;font-weight:300}
+/* Menzione di marchio + indirizzi: annulla maiuscolo e spaziatura del padre. */
+.foot-tm{display:block;margin-top:8px;text-transform:none;letter-spacing:.02em;line-height:1.6;opacity:.72}
+
+/* ── payment trust zone: the green appears ONLY around money moments ── */
+.paylock{display:inline-flex;align-items:center;gap:7px}
+.paylock svg{flex:none}
+.payov{position:fixed;inset:0;z-index:210;display:none;place-items:center;background:rgba(4,5,4,.9);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);text-align:center}
+.payov.on{display:grid}
+.payov .amt{font-size:clamp(40px,10vw,56px);font-weight:200;letter-spacing:-1px;color:var(--t1);font-variant-numeric:tabular-nums}
+.payov .cap{font-size:10px;letter-spacing:3.4px;text-transform:uppercase;color:var(--green);margin-top:14px;display:flex;gap:8px;align-items:center;justify-content:center}
+.payov .sub{font-size:12px;color:var(--t3);margin-top:8px;font-weight:300}
+.payov .ring{width:74px;height:74px;border-radius:50%;border:1px solid rgba(74,222,158,.5);margin:0 auto 22px;display:grid;place-items:center;color:var(--green);position:relative}
+.payov .ring::after{content:"";position:absolute;inset:-8px;border-radius:50%;border:1px solid rgba(74,222,158,.25)}
+@media(prefers-reduced-motion:no-preference){
+  .payov.on .ring{animation:payPulse 1.2s var(--ease) infinite alternate}
+  @keyframes payPulse{from{box-shadow:0 0 0 rgba(74,222,158,0)}to{box-shadow:0 0 34px rgba(74,222,158,.35)}}
+}
+/* paid hero — the celebration, then the countdown to the keys */
+.paidhero{text-align:center;padding:34px 20px 30px;border:1px solid rgba(74,222,158,.28);border-radius:var(--r);background:linear-gradient(180deg,rgba(74,222,158,.07),transparent 70%);margin-bottom:18px}
+.paidhero .pk{width:58px;height:58px;border-radius:50%;border:1px solid rgba(74,222,158,.55);margin:0 auto 14px;display:grid;place-items:center;color:var(--green);box-shadow:0 0 30px rgba(74,222,158,.25)}
+.paidhero h2{font-weight:200;font-size:clamp(22px,4.8vw,28px);letter-spacing:-.4px}
+.paidhero p{color:var(--t2);font-size:13.5px;margin-top:8px;font-weight:300}
+.paidhero .cd{margin-top:14px;font-variant-numeric:tabular-nums}
+.paidhero .cd b{font-size:clamp(30px,7vw,40px);font-weight:200;color:var(--green);letter-spacing:-.5px}
+.paidhero .cd span{display:block;font-size:9.5px;letter-spacing:2.6px;text-transform:uppercase;color:var(--t3);margin-top:2px}
+/* Add to Apple Wallet — the badge, placed like a trophy under the protocol */
+.wallet{display:inline-flex;align-items:center;gap:10px;background:#000;border:1px solid rgba(255,255,255,.28);border-radius:12px;padding:12px 22px;margin-top:18px;color:#fff;text-decoration:none;transition:.25s;font-weight:400}
+.wallet:hover{border-color:rgba(255,255,255,.55);transform:translateY(-1px)}
+.wallet svg{flex:none}
+.wallet .wt{text-align:left;line-height:1.15}
+.wallet .wt small{display:block;font-size:9px;letter-spacing:.6px;color:rgba(255,255,255,.65);font-weight:300}
+.wallet .wt b{font-size:14.5px;font-weight:500;letter-spacing:.1px}
 
 /* stamp overlay */
-.stampov{position:fixed;inset:0;z-index:200;display:none;place-items:center;background:rgba(4,4,5,.84);backdrop-filter:blur(12px)}
+.stampov{position:fixed;inset:0;z-index:200;display:none;place-items:center;background:rgba(4,4,5,.84);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
 .stampov.on{display:grid}
 .stamp{position:relative;color:var(--gold);text-align:center}
 .stamp .ring2{position:absolute;left:50%;top:50%;width:120px;height:120px;border-radius:50%;border:1px solid var(--gold);transform:translate(-50%,-50%);opacity:0}
@@ -344,13 +390,13 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
     --gold-muted:rgba(138,109,0,.08);--gold-faint:rgba(138,109,0,.04);
     --green:#1a7a4d;--green-muted:rgba(26,122,77,.14);--panel:transparent;--panel2:transparent;--void:#fff}
   body{background:#fff;color:#000}
-  header,.bg,.abar,.gbtn,.consent,.obtn,.stampov,.prq small,.timeline,.addcot,.cot .cothead button,.doc .grain,.doc .wm,.cm{display:none!important}
+  header,.bg,.abar,.gbtn,.consent,.obtn,.stampov,.prq small,.timeline,.addcot,.cot .cothead button,.doc .grain,.doc .wm,.cm,.upcard{display:none!important}
   .docwrap::before,.docwrap::after{display:none}
   .rv{opacity:1!important;transform:none!important;filter:none!important}
   .doc .doc-h,.doc .sec{opacity:1!important;animation:none!important;transform:none!important}
   .sec .ghost{-webkit-text-stroke:1px #eee}
-  .doc{border-color:#bbb;box-shadow:none;background:#fff;backdrop-filter:none}
-  .card,.tiles{background:#fff;border-color:#ddd;backdrop-filter:none}
+  .doc{border-color:#bbb;box-shadow:none;background:#fff;-webkit-backdrop-filter:none;backdrop-filter:none}
+  .card,.tiles{background:#fff;border-color:#ddd;-webkit-backdrop-filter:none;backdrop-filter:none}
   .tiles::before{display:none}
   .panel,.panel.on>*{animation:none!important;opacity:1!important;transform:none!important;filter:none!important}
   .signature{color:#222;text-shadow:none}.signwrap{border-color:#ccc;background:#fff}.sigflr path{stroke:#8a6d00}
@@ -374,11 +420,10 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
         <path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/>
       </g>
     </g>
-    <!-- Instrument seal: fine tick bezel + the real mark at centre -->
+    <!-- The seal: the pure mark within a single fine ring — nothing else -->
     <g id="boomSeal">
-      <circle cx="512" cy="512" r="486" fill="none" stroke="url(#bmGold)" stroke-width="10"/>
-      <circle cx="512" cy="512" r="452" fill="none" stroke="url(#bmGold)" stroke-width="6" stroke-dasharray="4 44" opacity=".85"/>
-      <use href="#boomMark" transform="translate(206,206) scale(0.6)"/>
+      <circle cx="512" cy="512" r="492" fill="none" stroke="url(#bmGold)" stroke-width="7" opacity=".9"/>
+      <use href="#boomMark" transform="translate(179,179) scale(0.65)"/>
     </g>
   </defs>
 </svg>
@@ -391,8 +436,9 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
 
 <header id="hdr" style="display:none">
   <div class="hrow">
-    <a class="brand" href="/"><svg class="mark" viewBox="0 0 1024 1024" width="31" height="31" aria-hidden="true"><use href="#boomMark"/></svg><b>BOOM</b></a>
-    <a class="hwa" href="https://wa.me/393313251961" target="_blank" rel="noopener">Questions? WhatsApp us</a>
+    <span class="hl">Rental&nbsp;Proposal</span>
+    <a class="brand" href="/"><svg class="mark" viewBox="0 0 1024 1024" width="30" height="30" aria-hidden="true"><use href="#boomMark"/></svg><b>BOOM</b></a>
+    <a class="hwa" href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a>
   </div>
   <div class="segs" id="segs" role="tablist">
     <button data-s="1" onclick="tryStep(1)"><i>01</i><span>Review</span></button><span class="ln"></span>
@@ -405,7 +451,9 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
 
 <main id="main">
   <div class="load" id="load">
-    <div class="lseal"><svg viewBox="0 0 1024 1024" width="64" height="64" aria-hidden="true"><use href="#boomMark"/></svg></div>
+    <div class="lseal"><svg viewBox="0 0 1024 1024" width="72" height="72" aria-hidden="true"><use href="#boomMark"/></svg></div>
+    <div style="letter-spacing:8px;font-size:13px;font-weight:300;color:var(--t1);margin-top:2px">BOOM</div>
+    <div style="width:44px;height:1px;background:var(--gold);opacity:.5;margin:14px auto 6px"></div>
     <div class="ll">Establishing secure session</div>
     <div class="ll">Retrieving your terms</div>
     <div class="ll" style="color:var(--gold)">Preparing the document</div>
@@ -422,13 +470,22 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
   <section class="panel" id="p4"></section>
   <section class="panel" id="pAcc"></section>
 
-  <div class="foot" id="foot" style="display:none">Egidi Immobiliare S.r.l. · P.IVA 17322991005 · boomrome.com</div>
+  <div class="foot" id="foot" style="display:none">Egidi Immobiliare S.r.l. · P.IVA 17322991005 · boomrome.com<span class="foot-tm">Via dei Coronari 181/184, 00186 Roma · Registered office: Viale Liegi 42, 00198 Roma<br>BOOM&reg; is a registered European Union trade mark (EUTM 019317594) of Egidi Immobiliare S.r.l.</span></div>
 </main>
 
 <div class="abar" id="abar" style="display:none">
   <div class="inner">
     <div class="hint" id="abarHint"></div>
     <button class="gbtn" id="abarBtn"></button>
+  </div>
+</div>
+
+<div class="payov" id="payov" aria-hidden="true">
+  <div>
+    <div class="ring"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+    <div class="amt" id="payAmt">€0</div>
+    <div class="cap"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Pagamento sicuro · Stripe</div>
+    <div class="sub">Carte &amp; Apple Pay · rimborsabile entro 48h · reindirizzamento…</div>
   </div>
 </div>
 
@@ -469,6 +526,41 @@ function sealSVG(){return '<svg viewBox="0 0 1024 1024" width="100%" height="100
 function secH(no,title){return '<h2><span class="no">§'+(no<10?'0'+no:no)+'</span><span class="tt">'+title+'</span></h2>';}
 
 /* ═══ shared builders: money rows + conditions (used in step 1 AND the deed) ═══ */
+/* ── Add to your move ───────────────────────────────────────────────────────
+   Il momento in cui il cliente ha già deciso è il momento in cui un servizio
+   utile si vende da solo. I prezzi arrivano dal catalogo SERVER-side
+   (lookup → addonsOffered): qui si mostrano soltanto. Spuntare aggiorna il
+   totale dovuto; il server ricalcola comunque da capo alla firma. */
+var ADDONS=[];
+function addonsBlock(){
+  var off=(PA.addonsOffered||[]);
+  if(!off.length||PA.status==='accepted'||PA.status==='paid')return '';
+  var rows=off.map(function(a){
+    return '<label class="adx" for="adx_'+a.kind+'">'
+      +'<input type="checkbox" id="adx_'+a.kind+'" value="'+esc(a.kind)+'" onchange="toggleAddon(this)">'
+      +'<span class="adxb"><b>'+esc(a.label)+'</b><small>'+esc(a.pitch)+'</small></span>'
+      +'<span class="adxp">+'+eur(a.eur)+'</span></label>';
+  }).join('');
+  return '<div class="sec"><span class="ghost">04b</span><h2>Add to your move</h2>'
+    +'<p class="adxn">Optional — tick what you want and it is added to the amount due at signing. '
+    +'Nothing here is required to rent the apartment.</p>'
+    +rows+'</div>';
+}
+function toggleAddon(el){
+  var k=el.value;
+  ADDONS=ADDONS.filter(function(x){return x!==k});
+  if(el.checked)ADDONS.push(k);
+  var off=(PA.addonsOffered||[]);
+  var extra=ADDONS.reduce(function(s,k){
+    var a=off.find(function(o){return o.kind===k});return s+(a?a.eur:0);},0);
+  var base=Number((PA.money||{}).dueAtSigning)||0;
+  var tot=$('dueTot');
+  if(tot){tot.textContent=eur(base+extra);tot.setAttribute('data-roll',eur(base+extra));}
+  // la barra d'azione dice quanto si sta per pagare: se cambia il totale e lei
+  // resta ferma, il cliente scopre l'importo nuovo solo su Stripe
+  var hint=$('abarHint');
+  if(hint&&extra>0)hint.textContent='Due at signing '+eur(base+extra)+' · incl. '+ADDONS.length+' add-on'+(ADDONS.length>1?'s':'');
+}
 function moneyRows(){
   var m=PA.money||{};
   var inc=m.utilities==='included';
@@ -479,12 +571,16 @@ function moneyRows(){
   if(split>0&&split<100)depSub=depM+' — '+split+'% ('+eur(m.depositAtSigning!=null?m.depositAtSigning:m.deposit*split/100)+') due at signing, '+(100-split)+'% ('+eur(m.depositAtMoveIn!=null?m.depositAtMoveIn:m.deposit*(100-split)/100)+') upon move-in';
   var html=(ec>0
       ? kv('Monthly base rent',eur(m.rent))
-        +kv('Energy credit','+ '+eur(ec),'included · covers electricity up to '+eur(ec)+'/month')
-        +kv('Monthly total',eur(m.monthlyTotal!=null?m.monthlyTotal:m.rent+ec),'all-in as above · other utilities excluded')
+        +kv('Energy credit','+ '+eur(ec),(m.billEnergyCredit===false?'settled separately against the actual bills':'included in the monthly payment')+' · covers electricity up to '+eur(ec)+'/month')
+        +kv('Monthly total',eur(m.monthlyTotal!=null?m.monthlyTotal:m.rent+ec),(m.billEnergyCredit===false?'rent '+eur(m.rent)+' billed + energy '+eur(ec)+' settled apart':'all-in as above')+' · other utilities excluded')
       : kv('Monthly rent',eur(m.rent),inc?'all utilities included':'utilities excluded'))
+    +((m.installmentMonths||1)>1
+      ? kv('Rent instalment',eur(m.installmentAmount!=null?m.installmentAmount:(m.chargedMonthly||m.monthlyTotal||m.rent)*m.installmentMonths),
+          'paid '+({2:'every two months',3:'quarterly',6:'every six months',12:'annually'}[m.installmentMonths]||'monthly')+' in advance · '+eur(m.chargedMonthly!=null?m.chargedMonthly:(m.monthlyTotal||m.rent))+'/month × '+m.installmentMonths)
+      : '')
     +kv('Security deposit',eur(m.deposit),depSub);
   (PA.extras||[]).forEach(function(x){html+=kv(esc(x.label),eur(x.amount));});
-  html+='<div class="total"><span class="k">Total due at signing</span><span class="v"><span data-roll="'+eur(m.dueAtSigning)+'">'+eur(m.dueAtSigning)+'</span></span></div>';
+  html+='<div class="total"><span class="k">Total due at signing</span><span class="v"><span id="dueTot" data-roll="'+eur(m.dueAtSigning)+'">'+eur(m.dueAtSigning)+'</span></span></div>';
   var feeAmt=(m.feeMode==='months')
     ?(m.feeMonths||1)+((m.feeMonths||1)===1?' month’s':' months’')+' base rent = '+eur(m.fee)
     :(m.feeMode==='flat'||m.feeFlat!=null)?eur(m.fee)+' (fixed)'
@@ -507,9 +603,13 @@ function condList(nTenants){
     'The security deposit shall be returned at the end of the lease (within 15 days after move-out / keys handover), subject to verification of the property’s condition and settlement of any outstanding utility balance. Normal wear and tear caused by ordinary and reasonable use of the property shall not be deemed damage and shall not be deducted from the security deposit.',
     'The security deposit shall be fully returned if the Landlord cancels the agreement for any reason, or if the Tenant cancels with justified cause.',
     'The Tenant shall maintain the property in good condition and promptly report any defects or issues.',
-    'Monthly rent shall be paid by the 5th of each month via bank transfer.'
+    ((PA.money||{}).installmentMonths||1)>1
+      ? 'Rent shall be paid in advance every '+(PA.money.installmentMonths)+' months (instalment of '+eur(PA.money.installmentAmount)+'), by the 5th day of the first month of each period, via bank transfer or card from the tenant portal.'
+      : 'Monthly rent shall be paid by the 5th of each month via bank transfer or card from the tenant portal.'
   ];
-  if(ec>0)conds.push('The monthly payment of '+eur(m.monthlyTotal!=null?m.monthlyTotal:m.rent+ec)+' consists of: (a) base rent of '+eur(m.rent)+' and (b) an energy allowance of '+eur(ec)+' included in the monthly fee. The energy allowance covers electricity consumption up to '+eur(ec)+'/month; should monthly electricity costs exceed it, the Tenant shall pay only the surplus directly to the Landlord upon presentation of the utility bill. If consumption is equal to or below the allowance, no additional charge applies.');
+  if(ec>0)conds.push(m.billEnergyCredit===false
+    ? 'In addition to the rent of '+eur(m.rent)+'/month, an energy allowance of '+eur(ec)+'/month applies and is settled SEPARATELY from the rent instalments, against the actual utility bills. The allowance covers electricity consumption up to '+eur(ec)+'/month; should monthly electricity costs exceed it, the Tenant shall pay only the surplus upon presentation of the bill. If consumption is equal to or below the allowance, no additional charge applies.'
+    : 'The monthly payment of '+eur(m.monthlyTotal!=null?m.monthlyTotal:m.rent+ec)+' consists of: (a) base rent of '+eur(m.rent)+' and (b) an energy allowance of '+eur(ec)+' included in the monthly fee. The energy allowance covers electricity consumption up to '+eur(ec)+'/month; should monthly electricity costs exceed it, the Tenant shall pay only the surplus directly to the Landlord upon presentation of the utility bill. If consumption is equal to or below the allowance, no additional charge applies.');
   if(le.reason)conds.push('Transitional need: '+le.reason+'.');
   conds.push(inc
     ?'All utilities (electricity, gas, water, internet) are included in the monthly rent, within fair and ordinary use of the property.'
@@ -547,6 +647,68 @@ function countUp(scope){
   }catch(e){}
 }
 
+/* the reservation chip carries the offer's validity when one is set */
+function validityChip(){
+  if(!PA.validUntil||PA.expired)return 'Reserved for you — awaiting your signature';
+  var dl=null;
+  try{dl=Math.ceil((new Date(PA.validUntil+'T23:59:59')-new Date())/86400000);}catch(e){}
+  return 'Reserved for you — offer valid until '+fmtD(PA.validUntil)
+    +(dl!=null&&dl<=5?' · '+(dl<=0?'last day':dl+' day'+(dl===1?'':'s')+' left'):'');
+}
+
+/* ═══ EXPIRED — the offer window closed (acceptance only; nothing is lost:
+   the console's Edit extends the SAME link) ═══ */
+function renderExpired(){
+  var p=PA.property||{};
+  var wa='https://wa.me/393313251961?text='+encodeURIComponent('Ciao BOOM! Il mio pre-agreement per '+((p.address||'').split(',')[0])+' è scaduto — possiamo aggiornarlo?');
+  $('pAcc').innerHTML=
+    '<div class="docwrap"><div class="doc"><span class="foil"></span><span class="grain"></span>'
+    +'<span class="cm tl"></span><span class="cm tr"></span><span class="cm bl"></span><span class="cm br"></span>'
+    +'<div class="sec issued"><span class="seal" style="opacity:.45">'+sealSVG()+'</span>'
+    +'<h2>This offer has expired</h2>'
+    +'<p>'+esc(p.address||'')+' — the reserved terms were valid until <b>'+fmtD(PA.validUntil)+'</b>.<br>'
+    +'The apartment may still be available: one message and we refresh your offer in minutes.</p>'
+    +'<div><a class="obtn wa" href="'+wa+'" target="_blank" rel="noopener">Request an updated offer →</a> '
+    +'<a class="obtn" href="/apartments">Browse available homes →</a></div>'
+    +'</div></div></div>';
+  [].slice.call(document.querySelectorAll('.panel')).forEach(function(x){x.classList.remove('on')});
+  $('pAcc').classList.add('on');
+  $('segs').style.display='none';$('hprog').style.width='100%';$('abar').style.display='none';
+}
+
+/* Qualcun altro ha chiuso questo appartamento mentre il cliente firmava.
+   È il momento peggiore per una porta in faccia: ha appena caricato documento
+   e identità. Quindi si dice la verità, si conferma che è registrato come
+   riserva, e gli si danno le due mosse utili. */
+function renderTaken(reserved){
+  var p=PA.property||{};
+  var short=(p.address||'').split(',')[0];
+  var wa='https://wa.me/393313251961?text='+encodeURIComponent(
+    'Ciao BOOM! Ho firmato per '+short+' ma era già stato riservato. '
+    +'Potete tenermi come riserva e propormi un\'alternativa simile?');
+  $('pAcc').innerHTML=
+    '<div class="docwrap"><div class="doc"><span class="foil"></span><span class="grain"></span>'
+    +'<span class="cm tl"></span><span class="cm tr"></span><span class="cm bl"></span><span class="cm br"></span>'
+    +'<div class="sec issued"><span class="seal" style="opacity:.45">'+sealSVG()+'</span>'
+    +'<h2>This home was just reserved</h2>'
+    +'<p><b>'+esc(p.address||'')+'</b> was closed by another applicant minutes before you.<br>'
+    +'We’re sorry — that is genuinely bad timing, and we know how much you just put in.</p>'
+    +(reserved
+      ? '<div class="paidband" style="margin:18px 0">✓ Your signed application is saved — '
+        +'you are first in line if this one falls through</div>'
+      : '')
+    +'<p>Your advisor has already been notified and will call you. Rome moves fast: '
+    +'tell us your dates and budget and we’ll put the next right home in front of you first, '
+    +'before it goes public.</p>'
+    +'<div><a class="obtn wa" href="'+wa+'" target="_blank" rel="noopener">Talk to your advisor →</a> '
+    +'<a class="obtn" href="/apartments">See available homes →</a></div>'
+    +'</div></div></div>';
+  [].slice.call(document.querySelectorAll('.panel')).forEach(function(x){x.classList.remove('on')});
+  $('pAcc').classList.add('on');
+  $('segs').style.display='none';$('hprog').style.width='100%';$('abar').style.display='none';
+  try{window.scrollTo({top:0,behavior:'smooth'})}catch(e){window.scrollTo(0,0)}
+}
+
 /* ═══ STEP 1 — REVIEW ═══ */
 function renderStep1(){
   var p=PA.property,le=PA.lease,m=PA.money;
@@ -555,7 +717,7 @@ function renderStep1(){
     '<span class="eyebrow">Rental proposal · Pre-agreement'+(PA.ref?' · <span class="mono" style="letter-spacing:1px">'+esc(PA.ref)+'</span>':'')+'</span>'
     +'<h1 class="big">'+esc(p.address).replace(/,([^,]*)$/,',<em>$1</em>')+'</h1>'
     +'<div class="subline">'+esc(le.type)+' · '+esc(le.lawRef)+'</div>'
-    +'<div class="chip">Reserved for you — awaiting your signature</div>'
+    +'<div class="chip">'+validityChip()+'</div>'
     +'<div class="tiles">'
       +'<div class="tile hero"><div class="k">Monthly'+((ec>0||(PA.money||{}).utilities==='included')?' all-in':'')+'</div><div class="v"><span data-roll="'+eur(m.monthlyTotal!=null?m.monthlyTotal:m.rent)+'">'+eur(m.monthlyTotal!=null?m.monthlyTotal:m.rent)+'</span><small> /month</small></div></div>'
       +'<div class="tile"><div class="k">Due today to lock it</div><div class="v"><span data-roll="'+eur(m.dueAtSigning)+'">'+eur(m.dueAtSigning)+'</span></div></div>'
@@ -569,6 +731,10 @@ function renderStep1(){
     +'</div>'
     +'<div class="card">'+secH(2,'Financial terms')+moneyRows()+'</div>'
     +'<div class="card">'+secH(3,'General conditions')+condList(null)+'</div>'
+    /* Il documento si può LEGGERE in PDF anche prima di accettare — come
+       nel Magic Sign si legge il contratto prima di firmare. Arriva con la
+       filigrana PREVIEW finché non c'è la firma. */
+    +'<div style="margin-top:14px;text-align:center"><a class="obtn" style="border-color:var(--line-gold);color:var(--gold)" href="/api/preagreement/pdf?t='+TOKEN+'" target="_blank" rel="noopener">📄 View this proposal as PDF ↗</a></div>'
     +'<div class="advisor"><span class="av">V</span><div class="who"><b>Valentino · BOOM Roma</b><span>Your advisor on this deal — replies personally</span></div><a href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a></div>'
     +'<div class="trust">'
       +'<span><span class="c">■</span> Legally valid e-signature (FES · Art. 21 CAD)</span>'
@@ -702,33 +868,51 @@ function renderStep3(){
       +'<input type="file" id="upin'+i+'" accept="image/*,application/pdf" style="display:none" onchange="onDoc('+i+',this)">'
       +'</div>';
   });
+  // the optional SECOND requested document (e.g. proof of transitional
+  // need) — never blocking: the client can sign now and send it later
+  // from this same page.
+  if(PA.extraDoc){
+    var gotX=!!UP.x||(Number(PA.extraDocCount)||0)>0;
+    html+='<div class="upcard'+(gotX?' done':'')+'" id="upcx">'
+      +'<div class="uphead"><b>'+esc(PA.extraDoc)+'</b><span class="ubadge">✓ Received</span></div>'
+      +'<div class="uptile" id="uptilex" onclick="pickDoc(\'x\')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></svg><span id="uplblx">Photograph or upload it</span></div>'
+      +'<div class="upchips" id="upchipsx"></div>'
+      +'<input type="file" id="upinx" accept="image/*,application/pdf" style="display:none" onchange="onDoc(\'x\',this)">'
+      +'<div class="jointnote" style="margin-top:11px">Requested for your contract — <b style="color:var(--t2);font-weight:400">not required to sign today</b>. You can send it later from this same page, or on WhatsApp.</div>'
+      +'</div>';
+  }
   html+='<div class="upnote"><b>Encrypted &amp; private.</b> Your document travels over TLS, is stored on Google Cloud with access restricted to your BOOM advisor, and is used only to prepare your rental contract and the mandatory Agenzia delle Entrate registration (GDPR).</div>'
     +'<p class="err" id="p3Err" role="alert"></p>';
   $('p3').innerHTML=html;
   wireReveal($('p3'));
 }
 window.pickDoc=function(i){var e=$('upin'+i);if(e)e.click();};
+/* i is a tenant index (0..5) for IDs, or 'x' for the optional extra
+   requested document. Works on the Verify step AND on the accepted page
+   (late upload — same token, same endpoint). */
 window.onDoc=function(i,input){
   var file=input.files&&input.files[0];if(!file)return;
+  var isX=i==='x';
   var tile=$('uptile'+i),lbl=$('uplbl'+i),err=$('p3Err');
-  err.style.display='none';
+  if(err)err.style.display='none';
   tile.classList.add('busy');
   lbl.innerHTML='';var sp=document.createElement('span');sp.className='spin';lbl.appendChild(sp);lbl.appendChild(document.createTextNode(' Encrypting & uploading…'));
   shrink(file).then(function(payload){
     return fetch('/api/preagreement/upload',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({token:TOKEN,base64:payload.base64,contentType:payload.type,name:file.name,tenantIndex:i})});
+      body:JSON.stringify({token:TOKEN,base64:payload.base64,contentType:payload.type,name:file.name,tenantIndex:isX?0:i,kind:isX?'extra':'id'})});
   }).then(function(r){return r.json()}).then(function(j){
     if(!j||!j.ok)throw 0;
     UP[i]=(UP[i]||0)+1;
+    if(isX)PA.extraDocCount=(Number(PA.extraDocCount)||0)+1;
     var card=$('upc'+i);if(card)card.classList.add('done');
     var chips=$('upchips'+i);
     if(chips){var s=document.createElement('span');s.textContent='✓ '+(file.name.length>26?file.name.slice(0,24)+'…':file.name);chips.appendChild(s);}
-    tile.classList.remove('busy');lbl.textContent='Add another document (e.g. back side)';
+    tile.classList.remove('busy');lbl.textContent=isX?'Add another file':'Add another document (e.g. back side)';
     input.value='';
-    barSync();
+    try{barSync();}catch(_e){}
   }).catch(function(){
-    tile.classList.remove('busy');lbl.textContent='Photograph or upload ID / passport';
-    err.textContent='Upload didn’t go through — try again, or send it later on WhatsApp.';err.style.display='block';
+    tile.classList.remove('busy');lbl.textContent=isX?'Photograph or upload it':'Photograph or upload ID / passport';
+    if(err){err.textContent='Upload didn’t go through — try again, or send it later on WhatsApp.';err.style.display='block';}
     input.value='';
   });
 };
@@ -770,7 +954,7 @@ function renderStep4(){
       +(issued?'<span>Issued<b>'+fmtD(issued)+'</b></span>':'')
       +'<span>Property<b>'+esc((p.address||'').split(',')[0])+'</b></span>'
       +(PA.ref?'<span>Protocol<b class="mono">'+esc(PA.ref)+'</b></span>':'')
-    +'</div></div><span class="seal">'+sealSVG()+'</span></div>';
+    +'</div></div><span class="seal"><svg viewBox="0 0 1024 1024" width="100%" height="100%" aria-hidden="true"><use href="#boomMark"/></svg></span></div>';
   // §1 parties
   html+='<div class="sec"><span class="ghost">01</span><h2>Parties</h2>'
     +'<div class="party">Landlord</div><div class="pname">'+esc(PA.landlord.name)+'</div>'
@@ -799,6 +983,7 @@ function renderStep4(){
     +kv('Initial duration',le.months+' months',esc(le.lawRef))
     +kv('End date',fmtD(le.endDate))+'</div>';
   html+='<div class="sec"><span class="ghost">04</span><h2>Financial terms</h2>'+moneyRows()+'</div>';
+  html+=addonsBlock();
   html+='<div class="sec"><span class="ghost">05</span><h2>General conditions</h2>'+condList(TS.length)+'</div>';
   // §6 signature + visible audit trail
   html+='<div class="sec" id="sec6"><span class="ghost">06</span><h2>Acceptance &amp; signature</h2>'
@@ -863,12 +1048,24 @@ function wireReveal(scope){
 
 /* ═══ ACCEPTED ═══ */
 function renderAccepted(){
+  /* the accepted view REPLACES the flow — clear the step panels so their
+     hidden DOM (e.g. the Verify upload cards) can't shadow the accepted
+     view's ids (#upcx late-upload card) */
+  ['p1','p2','p3','p4'].forEach(function(id){var e=$(id);if(e)e.innerHTML='';});
   var p=PA.property,m=PA.money||{},t=PA.tenant||{};
   var TS=Array.isArray(PA.tenants)&&PA.tenants.length?PA.tenants:[t];
   var paid=PA.status==='paid'||PAID;
   var whoAll=TS.map(function(x){return x.fullName}).filter(Boolean);
   var stillDue=PA.status==='accepted'&&Number(m.dueAtSigning)>0&&!PAID;
-  var html=(paid?'<div class="paidband">✓ Payment received — your place is locked. Your receipt is in your email.</div>':'')
+  var days=null;
+  try{var ms=new Date(String((PA.lease||{}).startDate).slice(0,10)+'T00:00')-new Date();days=Math.max(0,Math.ceil(ms/86400000));}catch(e){}
+  var html=(paid
+    ?'<div class="paidhero"><div class="pk"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>'
+      +'<h2>Payment received — la casa è tua</h2>'
+      +'<p>'+esc(p.address.split(',')[0])+' è riservata a tuo nome. Ricevuta e documento sono nella tua email.</p>'
+      +(days!=null?'<div class="cd"><b>'+days+'</b><span>giorni al move-in · '+fmtD((PA.lease||{}).startDate)+'</span></div>':'')
+      +'</div>'
+    :'')
     +'<div class="docwrap"><div class="doc"><span class="foil"></span><span class="grain"></span>'
     +'<svg class="wm" viewBox="0 0 1024 1024" aria-hidden="true"><use href="#boomMark"/></svg>'
     +'<span class="cm tl"></span><span class="cm tr"></span><span class="cm bl"></span><span class="cm br"></span>'
@@ -884,6 +1081,17 @@ function renderAccepted(){
     html+='<div style="max-width:430px;margin:20px auto 0"><button class="gbtn" id="payNowBtn" onclick="payNow()">Complete your reservation — '+eur(m.dueAtSigning)+' via Stripe →</button>'
       +'<p style="font-size:11px;color:var(--t3);margin-top:9px">Secured by Stripe · credited to your first month · refunded in full within 48h</p></div>';
   }
+  // the requested second document, still missing → late upload right here
+  // (same link, same endpoint — zero friction, never a blocker)
+  if(PA.extraDoc&&!(Number(PA.extraDocCount)||0)&&!UP.x){
+    html+='<div class="upcard" id="upcx" style="max-width:430px;margin:24px auto 0;text-align:left">'
+      +'<div class="uphead"><b>One more document</b><span class="ubadge">✓ Received</span></div>'
+      +'<div style="font-size:12.5px;color:var(--t3);margin-bottom:11px;line-height:1.6">'+esc(PA.extraDoc)+' — whenever you’re ready. Upload it here or send it on <a href="https://wa.me/393313251961" style="color:var(--gold)">WhatsApp</a>.</div>'
+      +'<div class="uptile" id="uptilex" onclick="pickDoc(\'x\')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></svg><span id="uplblx">Photograph or upload it</span></div>'
+      +'<div class="upchips" id="upchipsx"></div>'
+      +'<input type="file" id="upinx" accept="image/*,application/pdf" style="display:none" onchange="onDoc(\'x\',this)">'
+      +'</div>';
+  }
   var contractReady=!!PA.contractReady;
   html+='<div class="timeline">'
     +'<div class="tstep don"><span class="td"><i>✓</i></span><div><b>Pre-agreement signed</b><span>'+esc(p.address.split(',')[0])+' is reserved under your name.</span></div></div>'
@@ -895,7 +1103,7 @@ function renderAccepted(){
     +'<div class="tstep"><span class="td"><i>•</i></span><div><b>Keys &amp; your tenant portal</b><span>Move-in day: keys, contacts and payments — all in one place.</span></div></div>'
     +'</div>'
     +'<div class="prq" id="paQr" aria-hidden="true"></div>'
-    +'<div><button class="obtn" onclick="window.print()">Print / save PDF</button> '
+    +'<div><a class="obtn" style="border-color:var(--line-gold);color:var(--gold)" href="/api/preagreement/pdf?t='+TOKEN+'">Download the document (PDF) ↓</a> '
     +'<a class="obtn wa" href="https://wa.me/?text='+encodeURIComponent('BOOM pre-agreement '+(PA.ref||'')+' — '+((p.address||'').split(',')[0])+'. My copy of the accepted document: '+location.origin+'/pre-agreement?t='+TOKEN)+'" target="_blank" rel="noopener">Get it on WhatsApp →</a> '
     +'<a class="obtn" href="https://wa.me/393313251961" target="_blank" rel="noopener">Talk to BOOM →</a></div>'
     +'</div></div></div>';
@@ -913,14 +1121,21 @@ window.payNow=function(){
   var b=$('payNowBtn');if(b){b.disabled=true;b.textContent='Opening secure checkout…';}
   fetch('/api/preagreement/pay',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN})})
     .then(function(r){return r.json()})
-    .then(function(j){if(j&&j.ok&&j.checkoutUrl){location.href=j.checkoutUrl;return;}throw 0;})
+    .then(function(j){
+      if(j&&j.ok&&j.checkoutUrl){
+        var po=$('payov'),pa=$('payAmt');
+        if(pa)pa.textContent=eur(Number((PA.money||{}).dueAtSigning)||0);
+        if(po&&!matchMedia('(prefers-reduced-motion: reduce)').matches){po.classList.add('on');setTimeout(function(){location.href=j.checkoutUrl;},1100);}
+        else location.href=j.checkoutUrl;
+        return;
+      }throw 0;})
     .catch(function(){if(b){b.disabled=false;b.textContent='Complete your reservation →';}});
 };
 function paintQr(){
   var host=$('paQr');if(!host||host.__done)return;host.__done=1;
   var url=location.origin+'/pre-agreement?t='+TOKEN;
   var go=function(){
-    try{window.QRCode.toDataURL(url,{margin:0,width:184,color:{dark:'#111111',light:'#ffffff'}},function(err,durl){
+    try{window.QRCode.toDataURL(url,{margin:0,width:512,color:{dark:'#111111',light:'#ffffff'}},function(err,durl){
       if(err||!durl)return;
       host.innerHTML='<img src="'+durl+'" alt=""><small>Scan to reopen this document</small>';
     });}catch(e){}
@@ -974,8 +1189,12 @@ function barSync(){
   }else if(STEP===4){
     var ok=$('paOk');
     btn.disabled=!(ok&&ok.checked);
-    btn.textContent=Number(m.dueAtSigning)>0?('Accept & sign — '+eur(m.dueAtSigning)+' due now'):'Accept & sign';
-    hint.innerHTML=ok&&ok.checked?'Stripe-secured · deposit protected · legally recorded':'Tick the consent box above to enable signing';
+    btn.innerHTML=Number(m.dueAtSigning)>0
+      ?('<span class="paylock"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Accept &amp; sign — '+eur(m.dueAtSigning)+' due now</span>')
+      :'Accept & sign';
+    hint.innerHTML=ok&&ok.checked
+      ?'<span style="color:var(--green)">●</span> Stripe · carte &amp; Apple Pay · rimborsabile entro 48h · legalmente registrato'
+      :'Tick the consent box above to enable signing';
   }
 }
 window.barSync=barSync;   // inline handlers (consent checkbox) reach it globally
@@ -1011,12 +1230,28 @@ function accept(){
   err.style.display='none';
   var btn=$('abarBtn');btn.disabled=true;btn.textContent='Signing…';
   fetch('/api/preagreement/submit',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({token:TOKEN,tenant:tenant,tenants:tenants,accept:true})})
+    body:JSON.stringify({token:TOKEN,tenant:tenant,tenants:tenants,accept:true,addons:ADDONS})})
   .then(function(r){return r.json()})
   .then(function(j){
+    /* L'appartamento è stato chiuso da un altro candidato mentre questa
+       persona compilava. Non la respingiamo: documento, identità e firma sono
+       salvati come riserva. Glielo diciamo con onestà e le diamo la mossa
+       successiva, invece di un errore generico. */
+    if(j&&j.error==='property_taken'){
+      try{localStorage.removeItem(DKEY)}catch(e){}
+      renderTaken(j.reserved);
+      return;
+    }
     if(!j||!j.ok)throw 0;
     try{localStorage.removeItem(DKEY)}catch(e){}
-    if(j.checkoutUrl){btn.textContent='Opening secure checkout…';location.href=j.checkoutUrl;return;}
+    if(j.checkoutUrl){
+      btn.textContent='Opening secure checkout…';
+      var po=$('payov'),pa=$('payAmt');
+      if(pa)pa.textContent=eur(Number((PA.money||{}).dueAtSigning)||0);
+      if(po&&!matchMedia('(prefers-reduced-motion: reduce)').matches){po.classList.add('on');setTimeout(function(){location.href=j.checkoutUrl;},1100);}
+      else location.href=j.checkoutUrl;
+      return;
+    }
     PA.status='accepted';PA.ref=j.ref;PA.tenant=tenant;PA.tenants=tenants;
     var ov=$('stampov');
     var done=function(){if(ov)ov.classList.remove('on');renderAccepted();};
@@ -1033,6 +1268,7 @@ function boot(){
   document.title='Pre-Agreement — '+(PA.property.address||'BOOM Roma');
   var accepted=PA.status==='accepted'||PA.status==='paid';
   if(accepted){$('hdr').style.display='';$('segs').style.display='none';renderAccepted();return;}
+  if(PA.expired){$('hdr').style.display='';renderExpired();return;}
   $('hdr').style.display='';$('abar').style.display='';
   renderStep1();
   goStep(1);

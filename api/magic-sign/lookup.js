@@ -13,8 +13,8 @@
 //            410 { ok:false, error:'already_signed', role }
 //            400 { ok:false, error:'missing_token' }
 
-import { fsGet, readJson } from '../homie/_lib.js';
-import { findContractByToken, setCors, rateOk } from './_shared.js';
+import { fsGet, fsPatch, fsCreate, readJson } from '../homie/_lib.js';
+import { findContractByToken, tenantSideComplete, setCors, rateOk } from './_shared.js';
 
 export default async function handler(req, res) {
   setCors(req, res);
@@ -36,24 +36,50 @@ export default async function handler(req, res) {
   }
   if (!hit) return res.status(404).json({ ok: false, error: 'invalid_or_used' });
 
-  const { contract, role } = hit;
+  const { contract, role, coIndex } = hit;
+  const coT = role === 'cotenant' ? (contract.coTenants || [])[coIndex] || {} : null;
 
-  // Sequential signing (BOOM protocol): the tenant commits first; the
-  // landlord's countersignature is the acceptance. The landlord's link stays
-  // parked until the tenant has signed — the partial-signature nudge emails it
-  // again automatically at that moment. Escape hatch: signingOrder:'any'.
-  if (role === 'landlord' && !contract.tenantSignature && contract.signingOrder !== 'any') {
+  // Sequential signing (BOOM protocol): il LATO CONDUTTORI firma per primo
+  // (principale + tutti i co-conduttori, in qualunque ordine tra loro); la
+  // controfirma del locatore è l'accettazione e resta parcheggiata finché
+  // il lato conduttori non è completo. Escape hatch: signingOrder:'any'.
+  if (role === 'landlord' && !tenantSideComplete(contract) && contract.signingOrder !== 'any') {
     return res.status(409).json({ ok: false, error: 'awaiting_tenant' });
   }
 
-  const alreadySigned = role === 'tenant'
-    ? !!contract.tenantSignature
+  const alreadySigned = role === 'tenant' ? !!contract.tenantSignature
+    : role === 'cotenant' ? !!(coT && coT.signature)
     : !!contract.landlordSignature;
   if (alreadySigned) {
     return res.status(410).json({
       ok: false, error: 'already_signed', role,
       signatureStatus: contract.signatureStatus || 'partial',
+      signedAt: (role === 'tenant' ? contract.tenantSignedAt
+        : role === 'cotenant' ? (coT && coT.signedAt)
+        : contract.landlordSignedAt) || null,
     });
+  }
+
+  // ── Prima apertura: stampata sul contratto + ping all'operatore ──
+  // "Ha aperto il contratto" è il segnale che prima non esisteva: nessuno
+  // sapeva se il cliente avesse mai visto il link. Best-effort, una volta
+  // sola per ruolo, mai bloccante.
+  const viewedField = role === 'tenant' ? 'signViewedTenantAt'
+    : role === 'cotenant' ? ('signViewedCo' + coIndex + 'At')
+    : 'signViewedLandlordAt';
+  if (!contract[viewedField]) {
+    const nowISO = new Date().toISOString();
+    fsPatch('contracts/' + contract.id, { [viewedField]: nowISO }).catch(() => {});
+    fsCreate('agentNotifications', {
+      type: 'contract.sign_opened',
+      summary: `👀 ${role === 'tenant' ? "L'inquilino" : role === 'cotenant' ? ('Il co-conduttore ' + ((coT && coT.name) || '')) : 'Il locatore'} ha APERTO il contratto · ${contract.id}`,
+      priority: 'low',
+      ref: { collection: 'contracts', id: contract.id },
+      payload: { contractId: contract.id, role },
+      dedupKey: `sign-opened-${contract.id}-${role}${role === 'cotenant' ? coIndex : ''}`,
+      status: 'pending', actor: 'magic-sign',
+      createdAt: nowISO, attempts: 0,
+    }).catch(() => {});
   }
 
   // Fetch related docs server-side.
@@ -62,12 +88,29 @@ export default async function handler(req, res) {
     try { property = (await fsGet('properties/' + contract.propertyId)) || {}; }
     catch (e) { console.warn('[magic-sign/lookup] property fetch:', e.message); }
   }
-  const signerId = role === 'tenant' ? contract.tenantId : (property.ownerId || '');
-  const otherId = role === 'tenant' ? (property.ownerId || '') : contract.tenantId;
+  const tenantSide = role === 'tenant' || role === 'cotenant';
+  const signerId = role === 'tenant' ? contract.tenantId : role === 'cotenant' ? '' : (property.ownerId || '');
+  const otherId = tenantSide ? (property.ownerId || '') : contract.tenantId;
 
   let signer = {}, otherParty = {};
   try { if (signerId) signer = (await fsGet('users/' + signerId)) || {}; } catch (_) {}
   try { if (otherId)  otherParty = (await fsGet('users/' + otherId))  || {}; } catch (_) {}
+  // Co-conduttore: il prefill viene dalla SUA identità sul contratto
+  // (raccolta dal pre-agreement / Deal Link), mappata sullo schema sign.
+  if (role === 'cotenant' && coT) {
+    signer = {
+      name: coT.name || '', email: coT.email || '', phone: coT.phone || '',
+      cf: coT.cf || '', dob: coT.dob || '', pob: coT.birthPlace || '',
+      address: coT.address || '', docNum: coT.idDoc || '', nationality: coT.nationality || '',
+    };
+  }
+
+  // Landlord-name fallback: PA-converted contracts carry the landlord's
+  // real identity (contract.landlordName) even when the property has no
+  // ownerId/users doc — never show the counterpart as "—".
+  const llName = contract.landlordName || (contract.landlordDelegate || {}).onBehalfOf || property.ownerName || '';
+  if (tenantSide && !otherParty.name && llName) otherParty = { ...otherParty, name: llName };
+  if (role === 'landlord' && !signer.name && llName) signer = { ...signer, name: llName, email: signer.email || contract.landlordEmail || '' };
 
   // Sanitize: the signing UI needs the signer's name (to greet them), the
   // other party's name (to display), property summary, and contract
@@ -115,13 +158,19 @@ export default async function handler(req, res) {
     address: u.address || '',
     docType: u.docType || u.idDocType || '',
     docNum: u.docNum || u.idDocNumber || '',
+    docIssuer: u.docIssuer || '',
+    docIssueDate: u.docIssueDate || '',
     nationality: u.nationality || '',
     phone: u.phone || '',
   });
 
   return res.status(200).json({
     ok: true,
-    role,
+    // Il co-conduttore RENDE come un tenant (saluto, vista lato-conduttore):
+    // il ruolo vero lo rideriva il server dal token al submit — la pagina
+    // non è mai autorità sul ruolo.
+    role: role === 'cotenant' ? 'tenant' : role,
+    ...(role === 'cotenant' ? { cosign: { index: coIndex, name: (coT && coT.name) || '' } } : {}),
     contract: sanitizedContract,
     property: sanitizedProperty,
     signer: signerIdentity(signer),
