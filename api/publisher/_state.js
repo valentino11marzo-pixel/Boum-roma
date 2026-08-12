@@ -35,6 +35,7 @@ import crypto from 'node:crypto';
 import { publishable, typologyId, feedKey } from '../feed/immobiliare.js';
 import { FEATURE_LABELS } from '../wizard/describe.js';
 import GEO from '../../js/boom-geo.js';
+import DISPO from '../../js/dispo-engine.js';
 
 export { publishable }; // UNA regola di pubblicabilità: vetrina, feed e Pubblicista non possono divergere
 
@@ -78,6 +79,11 @@ export function coreContent(l) {
     bathrooms: num(l.bathrooms || l.baths),
     floor: str(l.floor),
     furnished: typeof l.furnished === 'boolean' ? l.furnished : null,
+    // La data NORMALIZZATA entra nel contenuto: il pannello del portale
+    // riceve "2026-09-01", non "Sep 2026". Aggiungerla qui cambia l'hash di
+    // ogni annuncio e rimette in coda un update per portale — che è
+    // esattamente ciò che deve succedere, perché il contenuto è cambiato.
+    availableFrom: str(DISPO.resolve(l).iso || (DISPO.resolve(l).kind === 'now' ? 'Subito' : '')),
     availableDate: str(l.availableDate),
     energyClass: str(l.energyClass),
     concordato: typeof l.concordato === 'boolean' ? l.concordato : null,

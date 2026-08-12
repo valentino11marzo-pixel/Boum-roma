@@ -10,6 +10,8 @@
 // llms.txt and robots.txt. Same resilient Firestore read as /api/listings
 // (public first, admin fallback), edge-cached 10 minutes.
 
+import DISPO from '../js/dispo-engine.js';
+
 const PROJECT = process.env.FIREBASE_PROJECT_ID || 'boom-property-dashboards';
 const API_KEY = process.env.FIREBASE_API_KEY || 'AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso';
 const FS = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents`;
@@ -92,12 +94,14 @@ function availability(l, today) {
   if (String(l.status || '').toLowerCase() === 'waitlist') {
     return 'waitlist — currently occupied, can be reserved ahead';
   }
-  const af = String(l.availableFrom || l.availableDate || '');
-  if (/^\d{4}-\d{2}-\d{2}/.test(af)) {
-    const d = af.slice(0, 10);
-    return d <= today ? 'available now' : 'available from ' + d;
-  }
-  return 'available now';
+  // Prima qui c'era `return 'available now'` come fallback: un annuncio con
+  // la data scritta a mano ("Sep 2026", "da concordare") veniva dichiarato
+  // LIBERO ORA ai motori di risposta. Su questa superficie è più grave che in
+  // pagina: un'AI cita il fatto e lo ripete a chi non ha ancora visto il sito.
+  const r = DISPO.resolve(l, today);
+  if (r.kind === 'now') return 'available now';
+  if (r.kind === 'date') return 'available from ' + r.iso;
+  return 'availability on request — ask BOOM for the exact date';
 }
 
 export default async function handler(req, res) {

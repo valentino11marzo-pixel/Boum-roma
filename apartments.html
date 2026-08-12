@@ -266,6 +266,9 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 .pc .n{font-family:var(--disp);font-size:17px;margin-top:5px;line-height:1.2}
 .pc .specs{display:flex;gap:12px;margin-top:9px;color:var(--t3);font-size:12px}.pc .specs span{display:inline-flex;align-items:center;gap:4px}
 .pc .avail{margin-top:9px;font-size:11.5px;color:var(--t2)}.pc .avail.after{color:var(--gold-light)}.pc .avail.now{color:var(--green)}
+/* data ignota: si dice, in tono neutro. Prima questa casella non esisteva e
+   il caso finiva dentro .now — cioè "Available now" su una casa occupata. */
+.pc .avail.ask{color:var(--t2);font-style:italic}
 .pc .specs svg{color:var(--gold);opacity:.8}
 .pc .foot{margin-top:auto;padding-top:12px;display:flex;align-items:baseline;justify-content:space-between}
 .pc .pr{font-family:var(--disp);font-size:21px;font-weight:200;color:var(--gold)}.pc .pr small{font-size:12px;color:var(--t3)}
@@ -747,6 +750,7 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
 <script src="/js/boom-ambient.js"></script>
 <script src="/js/boom-fondali.js"></script>
 <script src="/js/boom-geo.js"></script>
+<script src="/js/dispo-engine.js"></script>
 <script src="/js/neighborhoods.js"></script>
 <script>
 /* The page's ambience: Marmo Antico — living stone. Soft gold clouds and
@@ -788,19 +792,24 @@ const SAMPLE=[
  ['Grand Apartment, Centro','Centro Storico',2800,3,2,110,70,['Furnished','Lift','Dishwasher','Washer','Air conditioning'],0,0],
  ['Charming One-Bed, Testaccio','Testaccio',1250,1,1,48,4,['Furnished','Terrace','Wifi','Washer'],1,0],
  ['Penthouse with Roof Terrace','Prati',3200,3,3,130,90,['Furnished','Terrace','Lift','Parking','Dishwasher','Air conditioning'],0,1]
-].map((r,i)=>({id:'sample'+(i+1),status:'available',name:r[0],zone:r[1],price:r[2],beds:r[3],baths:r[4],sqm:r[5],availableFrom:day(r[6]),features:r[7],videoUrl:!!r[8],isNew:!!r[9],img:uimg(UIMG[i%UIMG.length]),createdAt:100-i,lat:41.86+(i%5)*0.01-0.02,lng:12.47+(i%4)*0.012-0.018}));
+].map((r,i)=>({id:'sample'+(i+1),status:'available',name:r[0],zone:r[1],price:r[2],beds:r[3],baths:r[4],sqm:r[5],availableFrom:day(r[6]),availKind:r[6]?'date':'now',features:r[7],videoUrl:!!r[8],isNew:!!r[9],img:uimg(UIMG[i%UIMG.length]),createdAt:100-i,lat:41.86+(i%5)*0.01-0.02,lng:12.47+(i%4)*0.012-0.018}));
 let L=SAMPLE;
 
 function mapReal(d,i){
   const imgs=(Array.isArray(d.images)&&d.images.length)?d.images:(d.image?[d.image]:[]);
   const feat=Array.isArray(d.features)?d.features:(Array.isArray(d.amenities)?d.amenities:[]);
-  const rawAf=d.availableFrom||d.availableDate;const af=(typeof rawAf==='string'&&/^\d{4}-\d{2}-\d{2}/.test(rawAf))?rawAf.slice(0,10):day(0);
+  /* LA DATA NON SI INVENTA PIÙ. Qui c'era `: day(0)` — tutto ciò che non era
+     ISO diventava OGGI, e la card stampava "Available now" su una casa libera
+     a settembre. Ora legge js/dispo-engine.js: se la data è illeggibile lo
+     stato è 'unknown' e la pagina dice "Ask us", mai "now". */
+  const _av=(window.BOOM_DISPO?window.BOOM_DISPO.resolve(d):{kind:'unknown',iso:null});
+  const af=_av.iso||'';
   const blob=(feat.join(' ')+' '+(d.description||'')).toLowerCase();
   const has=w=>feat.some(f=>(''+f).toLowerCase().includes(w))||blob.includes(w);
   const _cms=(function(c){if(!c)return 0;if(c.seconds)return c.seconds*1000;if(typeof c==='string'){var t=Date.parse(c);return isFinite(t)?t:0;}if(typeof c==='number')return c>1e12?c:c*1000;return 0;})(d.createdAt);
   return {id:d.id||('r'+i),name:d.name||d.title||'Apartment in Rome',zone:d.zone||d.neighborhood||d.address||'Rome',
     price:+d.price||0,beds:(d.beds!=null?+d.beds:(d.bedrooms!=null?+d.bedrooms:0)),baths:(d.bathrooms!=null?+d.bathrooms:(d.baths!=null?+d.baths:1)),
-    sqm:+d.sqm||+d.size||0,availableFrom:af,features:feat.length?feat:(has('furnish')?['Furnished']:[]),
+    sqm:+d.sqm||+d.size||0,availableFrom:af,availKind:_av.kind,features:feat.length?feat:(has('furnish')?['Furnished']:[]),
     status:((d.status||d.availabilityStatus||'available')+'').toLowerCase(),videoUrl:!!(d.videoUrl||d.youtubeUrl),createdAt:_cms,isNew:_cms>1e12&&(Date.now()-_cms)<14*86400,img:imgs[0]||'',
     lat:+d.lat||0,lng:+d.lng||0,geoZone:!!(d.geo&&d.geo.src==='zone')};
 }
@@ -814,6 +823,12 @@ try{cmp=new Set(JSON.parse(localStorage.getItem('boom:cmp')||'[]'));}catch(e){}
 const persist=()=>{try{localStorage.setItem('boom:saved',JSON.stringify([...saved]));localStorage.setItem('boom:cmp',JSON.stringify([...cmp]));}catch(e){}};
 const eur=n=>'€'+Math.round(n).toLocaleString('en-US');
 const parseD=s=>new Date(s+'T00:00');
+/* Una data illeggibile NON è una data: non conta come "libera ora" in nessuno
+   dei posti che seguono (punteggio, card, ordinamento, contatore del
+   calendario). Prima cadeva tutto su `day(0)` e ogni casa senza data
+   parseabile risultava disponibile oggi. */
+const isUnk=l=>(l.availKind==='unknown')||!l.availableFrom;
+const freeBy=(l,ds)=>!isUnk(l)&&parseD(l.availableFrom)<=parseD(ds);
 const fmtS=s=>parseD(s).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
 const imgOpt=(u,w,q)=>{u=String(u||'');if(!/^https?:\/\//.test(u))return u;return '/_vercel/image?url='+encodeURIComponent(u)+'&w='+(w||640)+'&q='+(q||72);};
 const imgSized=(u,s)=>{u=String(u||'');if(!/i\.imgur\.com/.test(u))return u;return u.replace(/(\/[A-Za-z0-9]{7})(\.(?:jpe?g|png|webp))/i,'$1'+s+'$2');};
@@ -854,7 +869,7 @@ function scoreParts(l){
   let s=86, parts=[];   // 86 baseline: bonuses have to be earned, so the numbers differentiate
   if(l.price>S.budgetMax){const pen=Math.min(45,(l.price-S.budgetMax)/S.budgetMax*120);s-=pen;parts.push('over budget −'+Math.round(pen));}
   else if(S.budgetMax<4000){s+=4;parts.push('in budget +4');}
-  if(S.moveIn){const g=Math.round((parseD(l.availableFrom)-parseD(S.moveIn))/864e5);if(g>0){const pen=Math.min(28,g*0.5);s-=pen;parts.push(g+'d after date −'+Math.round(pen));}else{s+=4;parts.push('free for your date +4');}}
+  if(S.moveIn&&!isUnk(l)){const g=Math.round((parseD(l.availableFrom)-parseD(S.moveIn))/864e5);if(g>0){const pen=Math.min(28,g*0.5);s-=pen;parts.push(g+'d after date −'+Math.round(pen));}else{s+=4;parts.push('free for your date +4');}}
   if(S.zones.length){if(S.zones.includes(l.zone)){s+=8;parts.push('zone match +8');}else{s-=22;parts.push('other zone −22');}}
   if(l.videoUrl){s+=3;parts.push('video +3');} if(l.features.includes('Furnished')){s+=2;} if(l.isNew){s+=2;parts.push('new +2');}
   if(l.createdAt>1e12){s-=Math.min(6,Math.max(0,(Date.now()-l.createdAt)/864e5*0.03));}else{s-=Math.min(6,(+l.createdAt||0)*0.04);}
@@ -893,10 +908,13 @@ function toggleFit(btn){
 }
 document.addEventListener('click',e=>{if(!e.target.closest('.fit')&&!e.target.closest('.fitx'))document.querySelectorAll('.fitx.show').forEach(x=>x.classList.remove('show'));});
 function cardHTML(l){
-  const over=l.price>S.budgetMax, sp=scoreParts(l), gap=S.moveIn?Math.round((parseD(l.availableFrom)-parseD(S.moveIn))/864e5):0;
-  const now=parseD(l.availableFrom)<=Date.now();
+  const unk=isUnk(l);
+  const over=l.price>S.budgetMax, sp=scoreParts(l), gap=(S.moveIn&&!unk)?Math.round((parseD(l.availableFrom)-parseD(S.moveIn))/864e5):0;
+  const now=!unk&&parseD(l.availableFrom)<=Date.now();
   const wl=l.status==='waitlist';
-  const av=wl?`<div class="avail wl">Occupied now · rents ahead — join the waitlist</div>`:gap>0?`<div class="avail after">Free ${fmtS(l.availableFrom)} · ${gap}d after your date</div>`:`<div class="avail${now?' now':''}">${now?'Available now':'Available '+fmtS(l.availableFrom)}</div>`;
+  /* l'ordine conta: waitlist → data ignota → dopo la tua data → data → ora.
+     "Ask us" è la casella che prima non esisteva e che assorbiva in "now". */
+  const av=wl?`<div class="avail wl">Occupied now · rents ahead — join the waitlist</div>`:unk?`<div class="avail ask">Ask us for the date</div>`:gap>0?`<div class="avail after">Free ${fmtS(l.availableFrom)} · ${gap}d after your date</div>`:`<div class="avail${now?' now':''}">${now?'Available now':'Available '+fmtS(l.availableFrom)}</div>`;
   const showFit=(S.sort==='match'||S.budgetMax<4000||S.moveIn||S.zones.length);
   const alt=(l.name+' — '+l.zone).replace(/"/g,'');
   return `<a class="pc" data-id="${l.id}" href="/listing/${encodeURIComponent(l.id)}" aria-label="${alt}, ${eur(l.price)} per month">
@@ -911,7 +929,7 @@ function cardHTML(l){
       <div class="foot"><div class="pr">${eur(l.price)} <small>/mo</small>${over?'<span class="ov">'+eur(l.price-S.budgetMax)+' over budget</span>':''}</div><span class="view">View →</span></div>
     </div></a>`;
 }
-function currentList(){return L.filter(pass).sort({match:(a,b)=>score(b)-score(a),priceA:(a,b)=>a.price-b.price,priceD:(a,b)=>b.price-a.price,new:(a,b)=>(b.createdAt>1e12?b.createdAt:-b.createdAt)-(a.createdAt>1e12?a.createdAt:-a.createdAt),avail:(a,b)=>parseD(a.availableFrom)-parseD(b.availableFrom)}[S.sort]);}
+function currentList(){return L.filter(pass).sort({match:(a,b)=>score(b)-score(a),priceA:(a,b)=>a.price-b.price,priceD:(a,b)=>b.price-a.price,new:(a,b)=>(b.createdAt>1e12?b.createdAt:-b.createdAt)-(a.createdAt>1e12?a.createdAt:-a.createdAt),avail:(a,b)=>(isUnk(a)-isUnk(b))||(isUnk(a)?0:parseD(a.availableFrom)-parseD(b.availableFrom))}[S.sort]);}
 function render(){
   const list=currentList(), grid=document.getElementById('grid'), empty=document.getElementById('empty');
   document.getElementById('count').textContent=list.length;
@@ -1349,7 +1367,7 @@ function calClear(){S.moveIn='';setCalLabel();render();buildCal();calHintFor(nul
 function calHintFor(ds){const el=document.getElementById('calHint');if(!el)return;
   if(!ds){el.innerHTML=S.moveIn?'':'Hover a day — we’ll count what’s free.';return;}
   const tot=L.filter(isRentable).length;
-  const free=L.filter(l=>isRentable(l)&&parseD(l.availableFrom)<=parseD(ds)).length;
+  const free=L.filter(l=>isRentable(l)&&freeBy(l,ds)).length;
   el.innerHTML='<b>'+free+'</b> of '+tot+' homes free by '+parseD(ds).toLocaleDateString('en-GB',{day:'numeric',month:'short'});}
 document.getElementById('calGrid').addEventListener('pointerover',e=>{const b=e.target.closest('.cal-d');if(b&&!b.classList.contains('pad')&&!b.disabled){const m=b.getAttribute('onclick').match(/'([\d-]+)'/);if(m)calHintFor(m[1]);}});
 document.getElementById('calGrid').addEventListener('pointerleave',()=>calHintFor(S.moveIn||null));
@@ -1487,7 +1505,7 @@ function seoItemList(){
 }
 function trustPulse(){try{
   const rent=L.filter(isRentable);if(!rent.length)return;
-  const nowN=rent.filter(l=>l.status!=='waitlist'&&parseD(l.availableFrom)<=Date.now()).length;
+  const nowN=rent.filter(l=>l.status!=='waitlist'&&!isUnk(l)&&parseD(l.availableFrom)<=Date.now()).length;
   const wlN=rent.filter(l=>l.status==='waitlist').length;
   const newN=rent.filter(l=>l.isNew).length;
   const avg=Math.round(rent.reduce((s,l)=>s+(+l.price||0),0)/rent.length/50)*50;
