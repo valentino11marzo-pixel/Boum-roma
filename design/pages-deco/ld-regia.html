@@ -816,7 +816,7 @@
     var dati = [a.zona, a.mq ? a.mq + ' m²' : '',
       a.letti === 0 ? 'Studio' : (a.letti ? a.letti + ' bed' : '')]
       .filter(Boolean).join(' <i>·</i> ');
-    return '<a class="casa-p" href="/listing/' + a.id + '">'
+    return '<a class="casa-p" href="' + '/listing/' + a.id + '">'
       + '<div class="home-foto"><img loading="lazy" decoding="async" src="'
       + a.cover + '" alt="' + a.nome + ', ' + a.zona + '">'
       + '<span class="casa-stato ' + (a.libera ? 'si' : '') + '">'
