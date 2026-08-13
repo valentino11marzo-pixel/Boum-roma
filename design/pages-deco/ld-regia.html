@@ -95,7 +95,8 @@
   /* lo stato e l'informazione piu volatile della pagina: si vede che e viva */
   function scriviStato() {
     st.textContent = c.stato;
-    st.className = 'stato-grande ' + (c.libera ? 'libera'
+    st.className = 'stato-grande ' + (/^Free from/i.test(c.stato) ? 'dopo'
+      : c.libera ? 'libera'
       : /wait/i.test(c.stato) ? 'attesa' : 'presa');
   }
   scriviStato();
@@ -782,8 +783,8 @@
           if (s2 === 'available') {
             if (d2 && d2 > oggi2) {
               var dt = new Date(d2 + 'T12:00:00');
-              eti = 'From ' + dt.getDate() + ' ' + dt.toLocaleDateString(
-                'en-GB', { month: 'short' });
+              eti = 'Free from ' + dt.getDate() + ' '
+                + dt.toLocaleDateString('en-GB', { month: 'short' });
               if (dt.getFullYear() !== new Date().getFullYear())
                 eti += ' ' + dt.getFullYear();
             } else eti = 'Available now';

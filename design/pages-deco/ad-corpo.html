@@ -64,8 +64,23 @@
 .zone-piede button:hover { color:var(--gold);
   box-shadow:inset 0 0 0 1px var(--line-gold-2); }
 
-/* la barra di ricerca: la stessa del check-in di casa */
-.cerca { margin-top:clamp(20px,2.4vw,30px); }
+/* il check-in, sgonfiato: tre pill sottili in una riga — niente
+   scatola, niente bottone. I filtri sono vivi, questo e un ritocco. */
+.cerca { margin-top:clamp(16px,2vw,24px); }
+.disco .atterro { background:none; box-shadow:none; padding:0;
+  gap:10px 18px; flex-wrap:wrap; border-radius:0; }
+.disco .atterro:focus-within { box-shadow:none; }
+.disco .atterro .atterro-divisa { display:none; }
+.disco .atterro .atterro-campo,
+.disco .atterro .ac-data { padding:8px 13px;
+  box-shadow:inset 0 0 0 1px var(--line); border-radius:100px; }
+.disco .atterro .atterro-campo:focus-within,
+.disco .atterro .ac-data:focus-within {
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+@media (max-width:640px){
+  .disco .atterro { gap:8px; }
+  .disco .atterro .atterro-campo,
+  .disco .atterro .ac-data { padding:7px 11px; } }
 
 /* ══ LA STECCA + IL FOGLIO — i comandi in una riga, la coda in un foglio ═ */
 .gruppo { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
@@ -149,7 +164,8 @@
   0%   { box-shadow:0 0 0 0 rgba(0,255,136,.5); }
   70%  { box-shadow:0 0 0 8px rgba(0,255,136,0); }
   100% { box-shadow:0 0 0 0 rgba(0,255,136,0); } }
-.casa-p .home-foto .casa-stato.poi { color:var(--text-2); }
+.casa-p .home-foto .casa-stato.poi { color:#FF9C8A;
+  box-shadow:inset 0 0 0 1px rgba(255,110,90,.32); }
 .casa-p .home-foto .casa-stato.fila { color:var(--gold);
   box-shadow:inset 0 0 0 1px var(--line-gold-2); }
 .casa-p .home-foto .casa-stato.fila::before {
@@ -377,7 +393,6 @@
               <option value="family">Family</option>
               <option value="flatmates">Flatmates</option>
             </select></label>
-          <button type="submit" class="btn btn-primary" id="quandoVai">Find homes</button>
           <div class="cal" id="cal" role="dialog" aria-label="Choose your arrival date">
             <div class="cal-testa"><b id="calMese">—</b>
               <div class="cal-fx">
