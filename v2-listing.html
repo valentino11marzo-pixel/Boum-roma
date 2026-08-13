@@ -14,6 +14,8 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Bilocale Trastevere — Trastevere, Rome. €1,200/month, walked in person and video-checked by BOOM. Transparent move-in costs, sign from your phone, keys in as little as 48 hours.">
+<link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
+<link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -149,7 +151,7 @@ h1, h2, h3 { font-family:var(--display); }
    .36 a .26: e la differenza fra quattro lettere e una parola. */
 .marchio { display:inline-flex; align-items:center; gap:13px; }
 .marchio .logo-mark { width:66px; height:66px; flex:none; }
-.marchio span { font-family:var(--display); font-size:30px; font-weight:400;
+.marchio span { font-family:var(--display); font-size:30px; font-weight:300;
   letter-spacing:.26em; text-indent:.26em; text-transform:uppercase; }
 @media (max-width:640px){
   .marchio { gap:10px; }
@@ -3172,7 +3174,21 @@ html.vivo .coro.dentro .tempo::after {
     /* la mappa del blocco: solo se la chiami, e se non arriva lo dice */
     var via = document.getElementById('bloccoVia'),
         box = document.getElementById('blocco3d');
-    var mappaB = null, spenta = false;
+    var mappaB = null, spenta = false, carico = false, satellite = false;
+    function stileSat() {
+      return { version: 8, sources: { sat: { type: 'raster', tileSize: 256,
+        maxzoom: 19,
+        attribution: 'Imagery © Esri, Maxar, Earthstar Geographics',
+        tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'] } },
+        layers: [{ id: 'sat', type: 'raster', source: 'sat' }] };
+    }
+    function ripiegoB() {
+      /* vettoriale muto → satellite puro; muto anche lui → carta onesta */
+      if (carico || spenta || satellite || !mappaB) return;
+      satellite = true;
+      try { mappaB.setStyle(stileSat()); } catch (e) { spengo(); return; }
+      setTimeout(function () { if (!carico) spengo(); }, 8000);
+    }
     function spengo() {
       if (spenta) return; spenta = true;
       box.innerHTML = '<div class="blocco-spento"><b>The map engine could '
@@ -3200,9 +3216,11 @@ html.vivo .coro.dentro .tempo::after {
       mappaB.on('error', function (e) {
         if (e && e.error
             && /style|Failed to fetch/i.test(String(e.error.message || '')))
-          spengo();
+          ripiegoB();
       });
+      setTimeout(ripiegoB, 9000);
       mappaB.on('load', function () {
+        carico = true;
         try {
           var f = null, st2 = mappaB.getStyle();
           (st2.layers || []).forEach(function (l) {
@@ -3235,11 +3253,13 @@ html.vivo .coro.dentro .tempo::after {
                 'line-dasharray': [1, 2] } });
           } catch (e) {}
         });
-        var el = document.createElement('div');
-        el.className = 'blocco-pin';
-        el.innerHTML = '<span>' + euro(c.prezzo) + '</span>';
-        new maplibregl.Marker({ element: el, anchor: 'bottom' })
-          .setLngLat([c.lng, c.lat]).addTo(mappaB);
+        if (!document.querySelector('#bloccoMappa .blocco-pin')) {
+          var el = document.createElement('div');
+          el.className = 'blocco-pin';
+          el.innerHTML = '<span>' + euro(c.prezzo) + '</span>';
+          new maplibregl.Marker({ element: el, anchor: 'bottom' })
+            .setLngLat([c.lng, c.lat]).addTo(mappaB);
+        }
       });
     }
     via.addEventListener('click', function () {

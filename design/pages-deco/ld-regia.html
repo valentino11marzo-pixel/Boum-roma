@@ -501,7 +501,21 @@
     /* la mappa del blocco: solo se la chiami, e se non arriva lo dice */
     var via = document.getElementById('bloccoVia'),
         box = document.getElementById('blocco3d');
-    var mappaB = null, spenta = false;
+    var mappaB = null, spenta = false, carico = false, satellite = false;
+    function stileSat() {
+      return { version: 8, sources: { sat: { type: 'raster', tileSize: 256,
+        maxzoom: 19,
+        attribution: 'Imagery © Esri, Maxar, Earthstar Geographics',
+        tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'] } },
+        layers: [{ id: 'sat', type: 'raster', source: 'sat' }] };
+    }
+    function ripiegoB() {
+      /* vettoriale muto → satellite puro; muto anche lui → carta onesta */
+      if (carico || spenta || satellite || !mappaB) return;
+      satellite = true;
+      try { mappaB.setStyle(stileSat()); } catch (e) { spengo(); return; }
+      setTimeout(function () { if (!carico) spengo(); }, 8000);
+    }
     function spengo() {
       if (spenta) return; spenta = true;
       box.innerHTML = '<div class="blocco-spento"><b>The map engine could '
@@ -529,9 +543,11 @@
       mappaB.on('error', function (e) {
         if (e && e.error
             && /style|Failed to fetch/i.test(String(e.error.message || '')))
-          spengo();
+          ripiegoB();
       });
+      setTimeout(ripiegoB, 9000);
       mappaB.on('load', function () {
+        carico = true;
         try {
           var f = null, st2 = mappaB.getStyle();
           (st2.layers || []).forEach(function (l) {
@@ -564,11 +580,13 @@
                 'line-dasharray': [1, 2] } });
           } catch (e) {}
         });
-        var el = document.createElement('div');
-        el.className = 'blocco-pin';
-        el.innerHTML = '<span>' + euro(c.prezzo) + '</span>';
-        new maplibregl.Marker({ element: el, anchor: 'bottom' })
-          .setLngLat([c.lng, c.lat]).addTo(mappaB);
+        if (!document.querySelector('#bloccoMappa .blocco-pin')) {
+          var el = document.createElement('div');
+          el.className = 'blocco-pin';
+          el.innerHTML = '<span>' + euro(c.prezzo) + '</span>';
+          new maplibregl.Marker({ element: el, anchor: 'bottom' })
+            .setLngLat([c.lng, c.lat]).addTo(mappaB);
+        }
       });
     }
     via.addEventListener('click', function () {
