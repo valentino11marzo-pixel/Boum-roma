@@ -85,6 +85,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `tenant.html` | Tenant SPA. Realtime property + maintenance feed. |
 | `client-portal.html` | PFS client swipe app. Reads `pfsClients` collection. |
 | `pfs-command.html` | PFS Command Center (admin). Radar feed, per-client match scores, outreach tracking, source health, search management. Backed by `api/pfs/*`. |
+| `chiamate.html` | Il Centralino (admin, `/chiamate`). Ogni chiamata deviata in segreteria: audio, trascrizione, azione consigliata, WhatsApp one-tap con bozza. Backed by `api/phone/*`. |
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
 
 ## Brand & Design
@@ -210,6 +211,11 @@ BUSY_ICS_URLS                # optional — ICS address(es) of the operator's
                              # copre gli UID anonimizzati di quella modalità
 TELEGRAM_BOT_TOKEN           # already used by api/telegram/*; pfs health alerts
 TELEGRAM_CHAT_ID
+
+# Il Centralino (api/phone/*)
+TWILIO_ACCOUNT_SID           # download audio segreteria (basic auth) + lookup
+TWILIO_AUTH_TOKEN            # chiamata; senza, si tenta il download nudo e
+                             # l'eventuale 401 finisce ANNOTATO sul doc
 ```
 
 ## API Endpoints
@@ -1714,6 +1720,53 @@ Test: `node tests/whatsapp/run.mjs` (Firestore finto in memoria, si guida il
 handler vero; copre entrambi gli ordini della transizione, verificati per
 mutazione).
 
+### Il Centralino (`api/phone/*` + `/chiamate`) — la segreteria che lavora
+Su iPhone nessuna app può rispondere a una chiamata al posto dell'operatore —
+e non serve: la segreteria È già una **deviazione condizionale di rete**.
+Puntandola a un numero Twilio (`**004*<numero>#` dal tastierino: occupato +
+nessuna risposta + irraggiungibile in un colpo; `##004#` per tornare
+indietro; MAI `**21*` o l'inoltro di iOS, che devierebbero tutto), l'AI
+risponde SOLO quando l'operatore non può o rifiuta apposta (rifiuto =
+"occupato" per la rete). Rispondere di persona resta sempre possibile.
+- `POST /api/phone/inbound` — webhook Voice di Twilio. Auth `?k=<chiave
+  DERIVATA da HOMIE_SECRET>` (`phoneKey()` — nessun nuovo env, ruotare il
+  secret revoca il webhook) o X-Homie-Secret. Saluto bilingue che DICHIARA
+  l'assistente automatico e la registrazione (disclosure pinnata nei test),
+  poi `<Record>`; il doc `phoneCalls/<CallSid>` nasce SUBITO, così anche chi
+  riaggancia al bip resta visibile come chiamata persa. QUALSIASI intoppo
+  interno non impedisce mai di rispondere (il TwiML esce comunque).
+  `?setup=1` con Bearer admin → gli URL esatti da incollare su Twilio (la
+  chiave non si calcola a mano e non si regala: senza auth, 401).
+- `POST /api/phone/recording` (maxDuration 60) — recordingStatusCallback:
+  scarica l'audio (basic auth TWILIO_*), lo mette su Storage `phone-calls/`
+  (URL tokenizzato = credenziale di lettura della dashboard), trascrive
+  (Whisper, lingua AUTO — mai forzare 'it': i clienti parlano inglese),
+  riconosce il chiamante (`phoneVariants` su leads/users/pfsClients/clients:
+  un inquilino che chiama per la caldaia NON diventa un lead), analisi haiku
+  field-whitelisted (riassunto IT per l'operatore, intent, urgenza, azione
+  consigliata, bozza WhatsApp nella lingua VERA del chiamante via replyLang
+  — le parole battono la dichiarazione del modello), e per lo sconosciuto
+  vero un doc `leads` `source:'phone'` nello schema condiviso (dedupe per
+  persona con recentLeadByPhone) → da lì Brain → notify-pending →
+  Commerciale, gratis. Idempotente per costruzione (`processedAt` sul doc:
+  i retry di Twilio non duplicano lead né ping). Ogni anello è best-effort
+  TRANNE la scrittura del doc: Whisper/AI/Telegram giù → il doc esce
+  comunque con scritto cosa manca ("trascrizione non configurata" è
+  un'informazione, il silenzio è un bug). Senza trascrizione il placeholder
+  del lead è in INGLESE di proposito (replyLang legge lead.message — la
+  lezione di leads/scan-inbox). Ping Telegram DOPO il dato, mai al suo posto.
+- **`chiamate.html` (`/chiamate`)** — la dashboard admin (noindex,
+  no-store; nel portal: Console → 📞 Centralino): live su `phoneCalls`,
+  filtri (da gestire / lead / clienti / senza messaggio), per ogni chiamata
+  player audio, trascrizione, riassunto + azione consigliata, bottone
+  WhatsApp con la bozza già scritta, tel:, ✓ Gestita. Il pannello ⚙️
+  Attivazione contiene i codici GSM e recupera l'URL webhook dal server.
+  Una 'in-progress' vecchia di 5' è mostrata come "riagganciata senza
+  messaggio" — quello che sappiamo, senza inventare.
+- Rules: `phoneCalls` admin-only (firestore) + `phone-calls/` (storage —
+  senza il match, l'upload admin 403a: la lezione contracts/).
+- Test: `node tests/phone/run.mjs`.
+
 ### GET/POST `/api/leads/match-listing` — LA RICERCA ROVESCIATA
 L'asimmetria che nessuno sfruttava: si pubblica un annuncio e si **aspetta**
 che degli sconosciuti lo trovino, mentre in archivio ci sono persone che tre
@@ -2285,6 +2338,7 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/pfs/health.mjs` | Allarmi del radar: una fonte BLOCCATA all'origine parla una volta sola (200 run → 1 messaggio), un guasto vero si dirada invece di gridare ogni 6h (40 giorni → 8 promemoria), i primi due intoppi non svegliano nessuno, e il ritorno si sente sempre |
   | `tests/pfs/eyes.mjs` | Gli occhi di Homie sul radar PFS: nella lista di lavoro non entrano ricerche spente o con URL rotti, la manopola manuale (`urlOverride`) vince sempre, e — la regola che conta — un radar CIECO (403/captcha su tutte le ricerche) non passa mai per un mercato fermo |
   | `tests/whatsapp/run.mjs` | Da WhatsApp a lead senza AI: il rumore resta fuori (👍, "ok") e la persona vera entra, l'inquilino che scrive per la caldaia non inquina la pipeline, un lead per persona anche col numero archiviato in formato diverso (nazionale vs internazionale), una risposta umana zittisce il Commerciale. Guida il handler VERO su un Firestore finto in memoria |
+  | `tests/phone/run.mjs` | Il Centralino: chiave derivata mai regalata (setup senza admin → 401), disclosure GDPR pinnata nel saluto, il doc nasce al primo squillo, un inquilino che chiama non diventa lead, un retry Twilio non duplica niente, Whisper/AI/Telegram giù non perdono MAI la chiamata, la lingua della bozza dalle parole vere. Handler veri su Firestore in memoria + giunzioni (rules, vercel, portal) asserite sui file |
   | `tests/miniera/run.mjs` | La Miniera: il join aggancia la persona in OGNI forma del numero (parità con `_lead.js`, JID senza `+` guarito), i veti del libro dei silenzi (inquilini/firmati/morti/oltre 120gg MAI nel re-ingaggio), sotto campione NIENTE percentuali (per mutazione), il verdetto motivato coi numeri, parità cross-linguaggio con l'estrattore Python, handler vero su Firestore in memoria |
   | `tests/wizard/local_brain.py` | Il cervello gratis del bot wizard (`python3`): cosa capisce senza modello e — più importante — cosa deve rifiutarsi di capire. Una domanda ("Levico è affittato?") non può diventare una scrittura; un annuncio nuovo dettato non può diventare la modifica di uno esistente. Estrae le funzioni pure dal bot via AST: gira senza `.env`, senza Telegram, senza rete |
   | `tests/executive/run.mjs` | BOOM Executive: il professionista in trasferta resta un TENANT nella macchina piena, il datore dichiarato (`employer`) non viene scambiato per l'honeypot (`company`), la voce B2B tace col tenant e parla con l'ente — con la guardia PRIMA della spesa, asserita sull'ordine nel sorgente |

@@ -40,6 +40,7 @@ const SUITES = [
   { name: 'salute',   file: 'tests/pfs/health.mjs',      what: 'allarmi radar: una fonte bloccata parla UNA volta, un guasto vero si dirada' },
   { name: 'eyes',     file: 'tests/pfs/eyes.mjs',        what: 'occhi di Homie sul radar PFS: lista di lavoro viva, e un radar cieco non sembra un mercato fermo' },
   { name: 'whatsapp', file: 'tests/whatsapp/run.mjs',     what: 'WhatsApp → lead senza AI: rumore fuori, persona vera dentro, un lead per persona' },
+  { name: 'phone',    file: 'tests/phone/run.mjs',        what: 'Il Centralino: la segreteria risponde solo quando l\'operatore non può, il messaggio diventa lead (mai un inquilino), Whisper/AI giù non perdono MAI la chiamata' },
   { name: 'miniera',  file: 'tests/miniera/run.mjs',      what: 'La Miniera: lo storico wacli diventa un verdetto onesto — join per telefono in ogni forma, veti prima del punteggio, sotto campione niente numeri' },
   { name: 'richiamo', file: 'tests/richiamo/run.mjs',     what: 'Il Richiamo: una campagna, un tap — i veti prima di tutto (inquilini/prenotati/cooldown MAI), un secondo tap non rimanda niente, il postino consegna davvero' },
   { name: 'sell',     file: 'tests/sell/run.mjs',         what: 'Il Link che Vende: la firma sblocca il catalogo, il link nudo resta ai due sicuri, e un servizio ambiguo non si indovina' },

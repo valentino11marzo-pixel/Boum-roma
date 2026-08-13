@@ -293,6 +293,11 @@ service cloud.firestore {
     // audience, esclusi col motivo, stato pending→sent. Solo server-side
     // con credenziali admin — stessa lezione.
     match /richiamoCampaigns/{x}           { allow read, write: if isAdmin(); }
+    // IL CENTRALINO — un doc per chiamata deviata in segreteria
+    // (api/phone/inbound.js + recording.js: audio, trascrizione, azione
+    // consigliata, leadId). Scritti server-side con credenziali admin, letti
+    // e gestiti da /chiamate (admin). Stessa lezione di propertyLocks.
+    match /phoneCalls/{x}                  { allow read, write: if isAdmin(); }
 
     // ─── Default deny ─────────────────────────────────────────────────
     match /{document=**} {
