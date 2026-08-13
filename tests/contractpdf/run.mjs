@@ -19,7 +19,15 @@
 // Uso: node tests/contractpdf/run.mjs
 
 import { register } from 'node:module';
-register('../money/loader.mjs', import.meta.url);
+register('./loader.mjs', import.meta.url);
+
+// jspdf VERO è il soggetto del test: senza node_modules (macchina appena
+// clonata, CI a zero deps) la suite si dichiara SKIP, mai un falso rosso.
+try { await import('jspdf'); }
+catch {
+  console.log('SKIP: jspdf non installato (npm install per abilitare questa suite)');
+  process.exit(0);
+}
 
 process.env.FIREBASE_API_KEY = 'k';
 process.env.FIREBASE_ADMIN_EMAIL = 'a@b.c';
