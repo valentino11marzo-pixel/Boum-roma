@@ -188,7 +188,7 @@ h = '\n'.join([testa, nav, leggi('ad-corpo.html'), piede,
 h = h.replace('<title>BOOM Rome — Premium Apartment Rentals | 48-Hour Move-In</title>',
     '<title>Apartments in Rome — walked in person, ready to move in | BOOM</title>')
 h = h.replace('LOGO_SVG', leggi('logo-live.svg').strip())
-h = h.replace('href="#banchina"', 'href="' + ('https://claude.ai/code/artifact/5e7c6222-9a91-4052-a4d7-f31255ed4478' if MODO == 'artefatto' else '/v2-home.html') + '#banchina"')
+h = h.replace('href="#banchina"', 'href="' + ('https://claude.ai/code/artifact/5e7c6222-9a91-4052-a4d7-f31255ed4478' if MODO == 'artefatto' else '/') + '#banchina"')
 h = h.replace('CASE_MURO', MURO)
 h = h.replace('VISTA_CIELO', cielo_blocco)
 SKYD = []
@@ -206,7 +206,7 @@ h = h.replace('SKYLINE_URL', 'https://www.boomrome.com/skyline'
     if MODO == 'artefatto' else '/skyline')
 h = h.replace('CASA_BASE',
     ('https://claude.ai/code/artifact/db7c3240-a12d-4734-9eb7-06a780584231#id=')
-    if MODO == 'artefatto' else '/v2-listing.html#id=')
+    if MODO == 'artefatto' else '/listing/')
 conta_dote = {}
 for r in mostrate:
     for d in dote_di(r['id']): conta_dote[d] = conta_dote.get(d, 0) + 1
@@ -238,12 +238,12 @@ if MODO == 'artefatto':
     h = h.replace('href="/login"', 'href="https://www.boomrome.com/login"')
     h = h.replace('data-href="/apartments.html#zona=', 'data-href="#zona=')
 else:
-    for da, a_ in {'/index.html': '/v2-home.html',
-        '/apartments.html': '/v2-apartments.html',
-        '/your-money.html': '/v2-money.html',
+    # CABLATO: la discovery vive su /apartments, le card su /listing/<id>
+    for da, a_ in {'/index.html': '/',
+        '/apartments.html': '/apartments',
+        '/your-money.html': '/your-money',
         '/property-finding.html': '/v2-property-finding.html'}.items():
         h = h.replace('href="' + da + '"', 'href="' + a_ + '"')
-    h = h.replace('href="/listing/', 'href="/v2-listing.html#id=')
     h = h.replace('data-href="/apartments.html#zona=', 'data-href="#zona=')
 
 DESCR = ('Browse ' + str(len(mostrate)) + ' verified apartments for rent in '
@@ -255,14 +255,11 @@ h = h.replace(
     'move-in. Your landing in Rome, handled.">',
     '<meta name="description" content="' + DESCR + '">')
 if MODO == 'sito':
-    OG = ('<link rel="canonical" href="https://www.boomrome.com/v2-apartments.html">\n'
-          '<meta property="og:title" content="Apartments in Rome — walked in person | BOOM">\n'
-          '<meta property="og:description" content="' + DESCR + '">\n'
-          '<meta property="og:type" content="website">\n'
-          '<meta property="og:url" content="https://www.boomrome.com/v2-apartments.html">\n'
-          + (('<meta property="og:image" content="' + rem.get(mostrate[0]['id'], '') + '">\n'
-              '<meta name="twitter:card" content="summary_large_image">\n')
-             if rem.get(mostrate[0]['id']) else ''))
+    import testa as TESTA
+    OG = TESTA.blocco_discovery(
+        'Apartments in Rome — walked in person | BOOM', DESCR,
+        len(mostrate),
+        immagine=rem.get(mostrate[0]['id']) or TESTA.IMG_SOCIAL) + '\n'
     i = h.index('</title>') + len('</title>')
     h = h[:i] + '\n' + OG + h[i:]
     h = ('<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'

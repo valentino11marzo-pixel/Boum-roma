@@ -72,18 +72,17 @@ else:
         '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n'
         '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700'
         '&display=swap" rel="stylesheet">')
-    h = h.replace('href="#banchina"', 'href="/v2-home.html#banchina"')
-    h = h.replace('href="/index.html#banchina"', 'href="/v2-home.html#banchina"')
-    for da, a_ in {'/index.html': '/v2-home.html',
-        '/apartments.html': '/v2-apartments.html',
+    h = h.replace('href="#banchina"', 'href="/#banchina"')
+    h = h.replace('href="/index.html#banchina"', 'href="/#banchina"')
+    for da, a_ in {'/index.html': '/',
+        '/apartments.html': '/apartments',
         '/your-money.html': '#giornouno',
         '/property-finding.html': '/v2-property-finding.html'}.items():
         h = h.replace('href="' + da + '"', 'href="' + a_ + '"')
-    OG = ('<link rel="canonical" href="https://www.boomrome.com/v2-money.html">\n'
-          '<meta property="og:title" content="Your money at BOOM — every euro, in the open">\n'
-          '<meta property="og:description" content="' + DESCR + '">\n'
-          '<meta property="og:type" content="website">\n'
-          '<meta property="og:url" content="https://www.boomrome.com/v2-money.html">\n')
+    import testa as TESTA
+    OG = TESTA.blocco_money(
+        'Your money at BOOM — every euro, in the open | BOOM Rome',
+        DESCR) + '\n'
     i = h.index('</title>') + len('</title>')
     h = h[:i] + '\n' + OG + h[i:]
     h = ('<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'

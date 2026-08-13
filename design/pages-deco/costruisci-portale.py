@@ -163,7 +163,7 @@ h = h.replace("'GIORNO_JSON'", json.dumps(GIORNO))
 h = h.replace("'SKY_JSON'", json.dumps(SKYCASE, ensure_ascii=False))
 CASA_ART = 'https://claude.ai/code/artifact/db7c3240-a12d-4734-9eb7-06a780584231'
 h = h.replace('CASA_BASE', (CASA_ART + '#id=') if MODO == 'artefatto'
-    else '/v2-listing.html#id=')
+    else '/listing/')
 h = h.replace('SKYLINE_URL', 'https://www.boomrome.com/skyline'
     if MODO == 'artefatto' else '/skyline')
 h = h.replace('<span class="varco-conta" id="varcoConta"></span>',
@@ -232,33 +232,32 @@ if MODO == 'artefatto':
                r'href="https://www.boomrome.com/\1"', h)
     h = h.replace('href="/login"', 'href="https://www.boomrome.com/login"')
 else:
-    h = h.replace('COME_URL', '#apparecchio').replace('AP_URL', '/v2-apartments.html')
-    for da, a_ in {'/index.html': '/v2-home.html',
-        '/apartments.html': '/v2-apartments.html',
-        '/your-money.html': '/v2-money.html',
+    # CABLATO: la home vive su /, i link vanno alle route canoniche —
+    # gli URL non cambiano mai, cambia solo il contenuto (regola SEO)
+    h = h.replace('COME_URL', '#apparecchio').replace('AP_URL', '/apartments')
+    for da, a_ in {'/index.html': '/',
+        '/apartments.html': '/apartments',
+        '/your-money.html': '/your-money',
         '/property-finding.html': '/v2-property-finding.html',
         '/board.html': '/v2-board.html'}.items():
         h = h.replace('href="' + da + '"', 'href="' + a_ + '"')
         h = h.replace('data-href="' + da, 'data-href="' + a_)
-    h = h.replace('href="/listing/', 'href="/v2-listing.html#id=')
+    # href="/listing/<id>" resta: E la route canonica prerender
 
 # la testa della home: description propria, e in modalita sito lo scheletro
 # HTML completo con lang, canonical e og — come le altre due pagine
 if MODO == 'sito':
-    OG = ('<link rel="canonical" href="https://www.boomrome.com/v2-home.html">\n'
-          '<meta property="og:title" content="BOOM Rome — Premium Apartment '
-          'Rentals | 48-Hour Move-In">\n'
-          '<meta property="og:description" content="Verified mid-term '
-          'apartment rentals in Rome for internationals — English-first, '
-          'legal contracts, 48-hour move-in. Your landing in Rome, '
-          'handled.">\n'
-          '<meta property="og:type" content="website">\n'
-          '<meta property="og:url" content="https://www.boomrome.com/v2-home.html">\n')
+    import testa as TESTA
+    OG = TESTA.blocco_home(
+        'BOOM Rome — Premium Apartment Rentals | 48-Hour Move-In',
+        'Verified mid-term apartment rentals in Rome for internationals — '
+        'English-first, legal contracts, 48-hour move-in. Your landing in '
+        'Rome, handled.') + '\n'
     i = h.index('</title>') + len('</title>')
     h = h[:i] + '\n' + OG + h[i:]
     h = ('<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
          + h.replace('</style>', '</style>\n</head>\n<body>', 1)
-         + '\n</body>\n</html>')
+         + '\n' + TESTA.SW + '\n</body>\n</html>')
 uscita = 'boom-portale.html' if MODO == 'artefatto' else 'boom-portale-sito.html' 
 open(uscita, 'w', encoding='utf-8').write(h)
 print(f'{uscita} · {len(h)//1024} KB · board {len(board)} righe · '
