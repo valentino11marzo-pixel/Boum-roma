@@ -571,8 +571,13 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .ba-g::before { content:''; width:4px; height:4px; border-radius:50%;
   background:var(--gold); opacity:.8; flex:none; }
 @media (max-width:640px){
-  .ba-garanzie { padding:11px 15px; gap:6px; }
-  .ba-g { font-size:10px; padding:6px 10px; } }
+  /* pillole di larghezze casuali = lista sfrangiata: su mobile le
+     garanzie sono righe quiete a tutta larghezza, una checklist */
+  .ba-garanzie { display:block; padding:6px 17px 8px; }
+  .ba-g { display:flex; width:100%; box-shadow:none; border-radius:0;
+    padding:9px 0; font-size:10.5px;
+    border-bottom:1px solid var(--line-0); }
+  .ba-g:last-child { border-bottom:0; } }
 
 /* le quattro cifre: una fila propria, incolonnate. Prima stavano sulla
    stessa riga dell'orologio, in due registri diversi — numeri e tempo
@@ -1390,6 +1395,11 @@ html.vivo .sale.dentro .pass-qr i {
 .piede { border-top:1px solid var(--line-0);
   padding:clamp(36px,4vw,56px) 0 28px; }
 .piede-int { display:grid; gap:28px; grid-template-columns:1fr; }
+@media (max-width:839px){
+  /* una colonna sola era un footer da 1500px: il brand resta a tutta
+     larghezza, le colonne di link vanno a due a due */
+  .piede-int { grid-template-columns:1fr 1fr; gap:6px 24px; }
+  .piede-int > div:first-child { grid-column:1 / -1; margin-bottom:14px; } }
 @media (min-width:840px){ .piede-int {
   grid-template-columns:1.5fr 1fr 1fr 1.15fr .8fr; } }
 .piede-mercati { margin-top:12px; font-size:10px; font-weight:600;
