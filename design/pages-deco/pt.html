@@ -438,28 +438,22 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .board-piede b { color:var(--text-3); font-weight:500;
   font-variant-numeric:tabular-nums; }
 
-/* le porte-mini: i quattro servizi, sintetici, gia dal primo schermo.
-   La fiducia Stripe vive nella banchina, dove si parla di prezzi —
-   ogni cosa detta una volta sola. */
-.porte-mini { display:flex; align-items:stretch; flex-wrap:wrap; gap:8px;
-  margin-top:clamp(16px,2vw,22px); }
-.porte-mini .pm-eti { align-self:center; font-size:10px; font-weight:600;
-  letter-spacing:.22em; text-transform:uppercase; color:var(--text-4);
-  padding-right:3px; }
-.porte-mini a { display:flex; flex-direction:column; gap:2px;
-  padding:10px 14px; border-radius:12px; background:var(--surface);
-  box-shadow:inset 0 0 0 1px var(--line-0);
-  transition:box-shadow .3s, transform .3s; }
-.porte-mini a:hover { box-shadow:inset 0 0 0 1px var(--line-gold-2);
-  transform:translateY(-1px); }
-.porte-mini b { font-size:12px; font-weight:500; color:var(--text);
-  white-space:nowrap; }
-.porte-mini span { font-size:10.5px; color:var(--text-4);
+/* il richiamo ai servizi: UNA riga che parla la situazione, non il
+   prodotto. Il menu vero vive nella banchina — detto una volta sola. */
+.porte-eco { display:flex; align-items:center; gap:12px;
+  margin-top:clamp(16px,2vw,22px); padding:11px 16px; border-radius:100px;
+  background:var(--surface); box-shadow:inset 0 0 0 1px var(--line-0);
+  max-width:max-content; transition:box-shadow .3s var(--ease); }
+.porte-eco:hover { box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.porte-eco .pe-eti { font-size:10px; font-weight:600; letter-spacing:.22em;
+  text-transform:uppercase; color:var(--gold); flex:none; }
+.porte-eco .pe-dice { font-size:11.5px; line-height:1.5;
+  color:var(--text-4); }
+.porte-eco .pe-dice b { color:var(--text-2); font-weight:500;
   white-space:nowrap; }
 @media (max-width:640px){
-  .porte-mini { display:grid; grid-template-columns:1fr 1fr; }
-  .porte-mini .pm-eti { grid-column:1/-1; padding:0; }
-  .porte-mini b, .porte-mini span { white-space:normal; } }
+  .porte-eco { border-radius:14px; align-items:flex-start; }
+  .porte-eco .pe-eti { margin-top:2px; } }
 
 /* le recensioni: un filo sotto il tabellone, mai un cartello */
 .recensioni { display:flex; align-items:center; gap:10px;
@@ -486,8 +480,15 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 /* le porte: una situazione per cella, il prezzo come risposta */
 .ba-porte { display:grid; grid-template-columns:repeat(4,1fr); gap:1px;
   background:var(--line-0); }
-.ba-p { position:relative; display:block; background:var(--surface);
-  padding:14px 15px 15px; transition:background .3s var(--ease); }
+.ba-p { position:relative; display:flex; flex-direction:column;
+  background:var(--surface); padding:16px 17px;
+  transition:background .3s var(--ease); }
+.ba-gate { display:flex; align-items:center; justify-content:space-between;
+  gap:10px; }
+.ba-gate b { font-size:9.5px; font-weight:600; letter-spacing:.24em;
+  text-transform:uppercase; color:var(--text-4);
+  transition:color .3s var(--ease); }
+.ba-p:hover .ba-gate b { color:var(--gold); }
 .ba-p::before { content:''; position:absolute; top:0; left:0; right:0;
   height:1px; background:var(--gold); transform:scaleX(0);
   transform-origin:left; transition:transform .42s var(--ease); }
@@ -499,12 +500,18 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .ba-p svg.sg .acc { opacity:.55; }
 .ba-p svg.sg .pieno { fill:var(--gold); stroke:none; }
 .ba-p:hover svg.sg { transform:translateY(-2px); }
-.ba-p .caso { display:block; margin-top:9px; font-size:13.5px; font-weight:500;
-  letter-spacing:.005em; color:var(--text); line-height:1.35; }
-.ba-p .fa { display:block; margin-top:3px; font-size:11.5px; line-height:1.45;
+.ba-p .caso { display:block; margin-top:12px;
+  font-family:var(--display); font-size:17.5px; font-weight:300;
+  letter-spacing:-.005em; color:var(--text); line-height:1.28; }
+.ba-p .fa { display:block; margin-top:6px; font-size:11.5px; line-height:1.45;
   color:var(--text-4); }
-.ba-p .costo { display:flex; align-items:baseline; gap:7px; margin-top:9px;
-  flex-wrap:wrap; }
+.ba-serv { display:flex; align-items:center; gap:6px; margin-top:11px;
+  font-size:10.5px; font-weight:600; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--gold); }
+.ba-serv i { font-style:normal; transition:transform .35s var(--ease); }
+.ba-p:hover .ba-serv i { transform:translateX(4px); }
+.ba-p .costo { display:flex; align-items:baseline; gap:7px;
+  margin-top:auto; padding-top:10px; flex-wrap:wrap; }
 .ba-p .costo b { font-family:var(--display); font-size:17px; font-weight:400;
   letter-spacing:.02em; color:var(--gold); font-variant-numeric:tabular-nums; }
 .ba-p .costo i { font-style:normal; font-size:10.5px; color:var(--text-4);
@@ -526,10 +533,11 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   /* quattro pulsanti, tutti visibili in un colpo d'occhio: la porta che
      devi scorrere per vedere e una porta che non esiste */
   .ba-porte { grid-template-columns:1fr 1fr; }
-  .ba-p { padding:12px 13px 13px; }
+  .ba-p { padding:13px 14px; }
   .ba-p .fa { display:none; }
-  .ba-p .caso { margin-top:7px; font-size:12.5px; }
-  .ba-p .costo { margin-top:7px; }
+  .ba-p .caso { margin-top:9px; font-size:14.5px; }
+  .ba-serv { margin-top:8px; font-size:9.5px; }
+  .ba-p .costo { padding-top:8px; }
   .ba-p .costo b { font-size:16px; } }
 
 /* le garanzie: badge piccoli, tutti veri — i fatti istituzionali vivono
@@ -1721,17 +1729,11 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         </div>
       </form>
       <p class="giorno-uno" id="giornoUno" hidden></p>
-      <nav class="porte-mini" aria-label="BOOM services">
-        <span class="pm-eti">Services</span>
-        <a href="/property-finding.html"><b>Property Finding</b>
-          <span>€350 · refunded if we fail</span></a>
-        <a href="/deal-assistance.html"><b>Deal Assistance</b>
-          <span>€249 · we close your deal</span></a>
-        <a href="/virtual-viewing.html"><b>Virtual Viewing</b>
-          <span>€89 · we walk it live for you</span></a>
-        <a href="/concierge.html"><b>Concierge</b>
-          <span>move-in, utilities, done</span></a>
-      </nav>
+      <a class="porte-eco" href="#banchina">
+        <span class="pe-eti">Services</span>
+        <span class="pe-dice">Can't be there? Found one on your own? About
+          to sign? <b>There's a flat-price door for each →</b></span>
+      </a>
     </div>
 
     <aside class="board quadro" aria-label="Live move-in board">
@@ -1876,47 +1878,55 @@ CASE_TRE
 
       <div class="ba-porte">
         <a class="ba-p prima" href="/virtual-viewing.html">
+          <span class="ba-gate"><b>Gate 01</b>
           <svg class="sg" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5"
             y="6.5" width="12" height="11" rx="2"/>
             <path d="M15.5 11l5-2.6v7.2l-5-2.6z"/>
-            <circle cx="7.2" cy="10.2" r="1.1" class="pieno"/></svg>
+            <circle cx="7.2" cy="10.2" r="1.1" class="pieno"/></svg></span>
           <span class="caso">Can't fly over to see it?</span>
           <span class="fa">A live video tour with you asking the questions —
             the red flags said out loud. <b style="color:var(--text-2);
             font-weight:500">Our homes: free, always.</b></span>
+          <span class="ba-serv">Virtual Viewing<i>→</i></span>
           <span class="costo"><b>€89</b><i><span class="lungo">for homes on
             other portals · credited if you rent with us</span><span
             class="breve">for other portals' homes</span></i></span>
         </a>
 
         <a class="ba-p" href="/property-finding.html">
+          <span class="ba-gate"><b>Gate 02</b>
           <svg class="sg" viewBox="0 0 24 24" aria-hidden="true">
             <circle cx="10.8" cy="10.8" r="6.6"/><path d="M15.6 15.6L20.5 20.5"/>
-            <path d="M8 10.8h5.6M10.8 8v5.6" class="acc"/></svg>
+            <path d="M8 10.8h5.6M10.8 8v5.6" class="acc"/></svg></span>
           <span class="caso">Nothing in the catalogue fits?</span>
           <span class="fa">We hunt the whole market for you, off-market
             included.</span>
+          <span class="ba-serv">Property Finding<i>→</i></span>
           <span class="costo"><b>€350</b><i><span class="lungo">deducted on success · refunded if we don't deliver</span><span class="breve">deducted on success</span></i></span>
         </a>
 
         <a class="ba-p" href="/deal-assistance.html">
+          <span class="ba-gate"><b>Gate 03</b>
           <svg class="sg" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M12 3.4l7.2 2.9v5.1c0 4.2-3 7.2-7.2 8.4-4.2-1.2-7.2-4.2-7.2-8.4V6.3z"/>
-            <path d="M9.1 11.6l2.2 2.2 4.1-4.7" class="acc"/></svg>
+            <path d="M9.1 11.6l2.2 2.2 4.1-4.7" class="acc"/></svg></span>
           <span class="caso">Found one yourself?</span>
           <span class="fa">We verify the landlord, the papers and the price
             — then negotiate.</span>
+          <span class="ba-serv">Deal Assistance<i>→</i></span>
           <span class="costo"><b>€249</b><i><span class="lungo">fixed · avg saving €600+</span><span class="breve">fixed · saves €600+ on average</span></i></span>
         </a>
 
         <a class="ba-p" href="/contract-check-express.html">
+          <span class="ba-gate"><b>Gate 04</b>
           <svg class="sg" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M6 3.2h7.4L18.6 8v12.8H6z"/>
             <path d="M13.2 3.2V8h5.2" class="acc"/>
-            <path d="M9 12.6h6.4M9 15.8h4.4" class="acc"/></svg>
+            <path d="M9 12.6h6.4M9 15.8h4.4" class="acc"/></svg></span>
           <span class="caso">About to sign something?</span>
           <span class="fa">A written traffic-light verdict in 24h: what's
             fine, what's unfair, what's missing.</span>
+          <span class="ba-serv">Contract Check Express<i>→</i></span>
           <span class="costo"><b>€49</b><i><span class="lungo">credited on Deal Assistance</span><span class="breve">credited on Deal Assistance</span></i></span>
         </a>
       </div>
