@@ -293,6 +293,13 @@ service cloud.firestore {
     // audience, esclusi col motivo, stato pending→sent. Solo server-side
     // con credenziali admin — stessa lezione.
     match /richiamoCampaigns/{x}           { allow read, write: if isAdmin(); }
+    // IL RADAR 2.0 (La Centrale — /radar): le vedette (ricerche libere con
+    // coda per il digest email, api/radar/digest.js + _tap.js) e lo stato
+    // del radar (indice gemelli cross-portale, feed occasioni, card
+    // mandati). Scritti da tap e cron con credenziali admin, letti e
+    // gestiti dalla console (admin). Stessa lezione di propertyLocks.
+    match /radarWatchers/{x}               { allow read, write: if isAdmin(); }
+    match /radarState/{x}                  { allow read, write: if isAdmin(); }
 
     // ─── Default deny ─────────────────────────────────────────────────
     match /{document=**} {

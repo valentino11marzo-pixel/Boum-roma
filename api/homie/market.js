@@ -33,8 +33,7 @@ import { knobs } from '../_squadra.js';
 import { fsList, fsPatch, fsGet, requireSecret, readJson } from './_lib.js';
 import { recordObservation } from '../market/_ledger.js';
 import { stableIdFromUrl } from '../pfs/_ingest.js';
-
-const HEARTBEAT = 'pfsRadarHealth/perito-eyes';
+import { reportHealth } from '../pfs/_health.js';
 
 export default async function handler(req, res) {
   if (!requireSecret(req, res)) return;
@@ -45,13 +44,12 @@ export default async function handler(req, res) {
     return res.status(405).json({ ok: false, error: 'method_not_allowed' });
   } catch (e) {
     console.error('[homie/market]', e);
-    try {
-      const prev = (await fsGet(HEARTBEAT)) || {};
-      await fsPatch(HEARTBEAT, {
-        ok: false, lastError: e.message, lastRunAt: new Date(),
-        consecutiveErrors: (prev.consecutiveErrors || 0) + 1,
-      });
-    } catch { /* il battito non deve uccidere la risposta */ }
+    // reportHealth, non una scrittura diretta: il commento in testa a questo
+    // file PROMETTEVA "l'allerta Telegram esistente (3 run falliti)" ma il
+    // battito scritto a mano bypassava alertDecision — gli occhi del Perito
+    // potevano morire in silenzio per sempre. Ora la promessa è vera.
+    try { await reportHealth('perito-eyes', { ok: false, error: e.message }); }
+    catch { /* il battito non deve uccidere la risposta */ }
     return res.status(500).json({ ok: false, error: e.message });
   }
 }
@@ -104,8 +102,8 @@ async function handlePost(req, res) {
     }
   }
 
-  await fsPatch(HEARTBEAT, {
-    ok: true, lastRunAt: new Date(), consecutiveErrors: 0,
+  await reportHealth('perito-eyes', {
+    ok: true,
     stats: { checks: checks.length, gone: goneN, alive: aliveN, unknown: unknownN, enriched },
   }).catch(() => {});
 

@@ -47,6 +47,11 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
                           unknown, più il cervello del messaggio unico
                           (più immobili in una frase). window.BOOM_DISPO.
                           Vedi "Le date di disponibilità".
+  radar-engine.js         Il Radar 2.0, puro: impronta (gemelli cross-portale),
+                          fiuto (punteggio occasione), vedette (ricerche
+                          libere), valutatore (fascia canone sui FIRMATI),
+                          inferZone (zona dedotta dal titolo, mai indovinata).
+                          window.BOOM_RADAR. Vedi "Il Radar 2.0 — La Centrale".
   contract-pdf.js         L'impaginato del CONTRATTO (Allegato B transitorio +
                           Allegato C studenti, modelli CAF verbatim) in UNA
                           copia: window.BOOM_CONTRACT_PDF nel portal (jsPDF
@@ -85,6 +90,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `tenant.html` | Tenant SPA. Realtime property + maintenance feed. |
 | `client-portal.html` | PFS client swipe app. Reads `pfsClients` collection. |
 | `pfs-command.html` | PFS Command Center (admin). Radar feed, per-client match scores, outreach tracking, source health, search management. Backed by `api/pfs/*`. |
+| `radar.html` | **La Centrale del Radar** (`/radar`, admin). Polso del mercato per zona, feed 💎 occasioni, candidati mandato, vedette (CRUD), Valutatore, gemelli cross-portale, salute fonti. Vedi "Il Radar 2.0". |
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
 
 ## Brand & Design
@@ -1932,6 +1938,75 @@ zona). Studio: `STUDIO_BOOM_AUTONOMA.md`. Architettura a ciclo di vita:
   `node tests/market/wiring.mjs` (giunzioni sulla sorgente: ordine del tap,
   verdetto solo server, rules, cron).
 
+## Il Radar 2.0 — La Centrale (js/radar-engine.js + api/radar/* + /radar)
+
+I quattro poteri di un Casafari, costruiti sul ciclo di vita del Perito e sul
+dato che Casafari non ha (i canoni FIRMATI). Studio: `STUDIO_RADAR_CENTRALE.md`.
+Il giudizio vive nel motore puro `js/radar-engine.js` (`BOOM_RADAR`, UMD,
+riusa `normalizeZone` di market-engine — UNA copia); l'I/O nelle porte.
+
+- **L'IMPRONTA** — la stessa casa vista da due porte è UNA casa.
+  `api/radar/_tap.js` (chiamato da `_ingest` DOPO master + libro mastro,
+  best-effort: col radar rotto il servizio pagato non si ferma — asserito
+  nei test) gemella l'annuncio contro l'indice dei recenti
+  (`radarState/index`, UN doc compatto, cap 800/90g — cache della verità:
+  una voce persa degrada, non rompe). Regole dure, testate per mutazione:
+  vie diverse = MAI gemelli; stessa fonte = soglia più alta + segnale
+  identitario obbligatorio (le dieci unità gemelle della stessa agenzia);
+  il segnale titoli esige ≥2 token significativi. Cluster additivo su
+  `pfsProperties.radar` (clusterId = capostipite), MAI cancellazioni.
+  Effetti: il mazzo del cliente NON riceve due volte la stessa casa da due
+  portali; il cluster dichiara `privateAndAgency`/`multiPortal`/`repost`.
+- **IL FIUTO** — punteggio occasione 0-100 contro `marketStats/<zona>` +
+  libro mastro (ribassi 14g, rientri 30g, privato, appena uscito). Sotto
+  campione NIENTE verdetto; prezzo irrealistico = 'sospetto', mai
+  'occasione' (le truffe vivono sotto p25). verdict='occasione' → feed
+  `radarState/occasioni` (cap 60, la stessa CASA una volta sola anche via
+  gemelli) + card Telegram 💎. Un ri-avvistamento non è una notizia; un
+  RIBASSO sì (`priceJustDropped` dal ramo skipFresh, che ora aggiorna
+  anche il prezzo sul doc — prima restava stantio).
+- **LE VEDETTE** (`radarWatchers`, CRUD dalla Centrale) — le ricerche
+  libere, slegate dai clienti PFS: zone/prezzo/mq/camere/solo-privati/solo
+  occasioni; canale Telegram ISTANTANEO (nel tap) e canale email come
+  DIGEST (`api/radar/digest.js`, cron 3×/giorno, disciplina Segugio: max 6
+  case, notifiedIds DOPO l'invio, un rerun non rispedisce). Una vedetta
+  vede solo il FUTURO (annunci nati dopo la sua creazione); il de-dup di
+  cluster è per canale e per vedetta (il gemello PRIVATO di un annuncio
+  d'agenzia passa dalla vedetta "solo privati"); criterio dichiarato +
+  dato mancante = NO che dice perché. Heartbeat `teamHealth/vedetta`.
+- **IL VALUTATORE** (`POST /api/radar/valuta` {zone,sqm,rooms}, auth come
+  i cron PFS) — fascia canone dai quantili del CHIESTO di zona, CORRETTA
+  sul rapporto chiesto→FIRMATO dei contratti BOOM della zona (≥3 firme,
+  cap [−20%,+10%], sempre dichiarata) + comparabili vivi dal libro.
+  Sotto campione: 'small_sample', mai un numero debole.
+- **IL RADAR MANDATI** — `pulse.js` (il Perito) compila
+  `radarState/mandati`: privati fermi oltre 1.5× l'assorbimento di zona
+  (o 60g fissi dichiarati) = candidati "proponigli la gestione BOOM".
+  CARD per l'operatore, MAI contatti automatici (la D5 del Perito non si
+  tocca: solo fatti + URL pubblico).
+- **LA ZONA DEDOTTA, MAI INDOVINATA** (`inferZone`) — il difetto che
+  affamava tutto: scan-inbox (fonte portante) non passava zone,
+  scan-market passava la LABEL della ricerca come zona → slug spazzatura
+  che frammentava marketStats. Ora: lessico curato di ~38 zone romane su
+  titolo+indirizzo (mai la descrizione — "a due passi da Trastevere" è
+  marketing), parole intere, l'alias lungo batte il corto contenuto
+  ('monti tiburtini' → Tiburtino), ambiguo → null; provenienza dichiarata
+  (`zoneInferred`). `_searchurls` emette la zona pulita → `sync-searches`
+  la persiste (`zoneName`) → `scan-market` passa quella.
+- **Due battiti guariti**: `pfsRadarHealth/sync` era letto ma MAI scritto
+  (ora `reportHealth('sync')` in sync-searches); gli occhi del Perito
+  (`homie/market.js`) scrivevano il battito a mano bypassando
+  `alertDecision` — l'allerta promessa nel commento non esisteva. Ora vera.
+- **Console** `/radar` (admin, noindex+no-store, gruppo Console del
+  portal): salute fonti, polso per zona, occasioni, mandati, vedette,
+  valutatore, gemelli. La Vedetta è nell'organigramma (driftVsCrons);
+  Perito.console = /radar. Rules: `radarWatchers` + `radarState`
+  admin-only (lezione propertyLocks).
+- Test: `node tests/radar/run.mjs` (102 check — motore per mutazione,
+  giunzioni sulla sorgente, giro vero su Firestore in memoria col digest
+  email reale via nodemailer mockato, e il contenimento: radar giù →
+  cliente servito comunque).
+
 ## La Squadra (AI employees — api/employees/*)
 
 Scheduled "employees" that run the back office autonomously. Same
@@ -2284,6 +2359,7 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/wizard/health.mjs` | Il guardiano del bot sul Mac: il wrapper saltato lo dice UNA volta (non 96, non mai), il documento assente tace 24h e poi parla, offline batte tutto, il ritorno si sente sempre |
   | `tests/pfs/health.mjs` | Allarmi del radar: una fonte BLOCCATA all'origine parla una volta sola (200 run → 1 messaggio), un guasto vero si dirada invece di gridare ogni 6h (40 giorni → 8 promemoria), i primi due intoppi non svegliano nessuno, e il ritorno si sente sempre |
   | `tests/pfs/eyes.mjs` | Gli occhi di Homie sul radar PFS: nella lista di lavoro non entrano ricerche spente o con URL rotti, la manopola manuale (`urlOverride`) vince sempre, e — la regola che conta — un radar CIECO (403/captcha su tutte le ricerche) non passa mai per un mercato fermo |
+  | `tests/radar/run.mjs` | Il Radar 2.0: vie diverse non si fondono MAI (il falso gemello nasconde una casa al cliente), stessa-fonte esige un segnale identitario, il fiuto tace senza campione e chiama 'sospetto' le truffe, le vedette vedono solo il futuro e mai due volte la stessa casa, il Valutatore corregge sui canoni FIRMATI e dichiara le basi, e col radar ROTTO l'ingestione PFS spinge comunque — il giro vero su Firestore in memoria, digest email compreso |
   | `tests/whatsapp/run.mjs` | Da WhatsApp a lead senza AI: il rumore resta fuori (👍, "ok") e la persona vera entra, l'inquilino che scrive per la caldaia non inquina la pipeline, un lead per persona anche col numero archiviato in formato diverso (nazionale vs internazionale), una risposta umana zittisce il Commerciale. Guida il handler VERO su un Firestore finto in memoria |
   | `tests/miniera/run.mjs` | La Miniera: il join aggancia la persona in OGNI forma del numero (parità con `_lead.js`, JID senza `+` guarito), i veti del libro dei silenzi (inquilini/firmati/morti/oltre 120gg MAI nel re-ingaggio), sotto campione NIENTE percentuali (per mutazione), il verdetto motivato coi numeri, parità cross-linguaggio con l'estrattore Python, handler vero su Firestore in memoria |
   | `tests/wizard/local_brain.py` | Il cervello gratis del bot wizard (`python3`): cosa capisce senza modello e — più importante — cosa deve rifiutarsi di capire. Una domanda ("Levico è affittato?") non può diventare una scrittura; un annuncio nuovo dettato non può diventare la modifica di uno esistente. Estrae le funzioni pure dal bot via AST: gira senza `.env`, senza Telegram, senza rete |
