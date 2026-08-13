@@ -45,6 +45,26 @@
   },
   "redirects": [
     {
+      "source": "/(v2-home|v2-home.html|v2-portal|v2-portal.html)",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/(v2-apartments|v2-apartments.html)",
+      "destination": "/apartments",
+      "permanent": true
+    },
+    {
+      "source": "/(v2-money|v2-money.html)",
+      "destination": "/your-money",
+      "permanent": true
+    },
+    {
+      "source": "/(v2-listing|v2-listing.html)",
+      "destination": "/apartments",
+      "permanent": true
+    },
+    {
       "source": "/index.html",
       "destination": "/",
       "permanent": true
@@ -783,9 +803,9 @@
       "path": "/api/ops/conservazione",
       "schedule": "40 5 2 * *"
     },
-      {
-        "path": "/api/market/pulse",
-        "schedule": "50 5 * * *"
-      }
+    {
+      "path": "/api/market/pulse",
+      "schedule": "50 5 * * *"
+    }
   ]
 }

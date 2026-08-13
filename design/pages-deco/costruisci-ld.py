@@ -117,11 +117,19 @@ piede = pt[pt.index('<footer class="piede">'):
 h = '\n'.join([testa, nav, leggi('ld-corpo.html'), piede,
                leggi('ld-regia.html'),
                leggi('solari-engine.html'), leggi('deco-organi.html')])
-h = h.replace('<title>BOOM Rome — Premium Apartment Rentals | 48-Hour Move-In</title>',
-    '<title>' + CASE[0]['nome'] + ' — ' + CASE[0]['zona'] + ', Rome | BOOM</title>')
+# artefatto: il titolo della casa aperta. Sito: GENERICO — /listing/:id
+# lo riscrive api/listing.js per annuncio (regex su <title>), e il
+# template nudo (/apartment-detail) non deve fingere una casa precisa.
+if MODO == 'artefatto':
+    h = h.replace('<title>BOOM Rome — Premium Apartment Rentals | 48-Hour Move-In</title>',
+        '<title>' + CASE[0]['nome'] + ' — ' + CASE[0]['zona'] + ', Rome | BOOM</title>')
+else:
+    import testa as TESTA
+    h = h.replace('<title>BOOM Rome — Premium Apartment Rentals | 48-Hour Move-In</title>',
+        '<title>' + TESTA.TITOLO_LISTING + '</title>')
 h = h.replace('VIRTUAL_URL', 'https://www.boomrome.com/virtual-viewing'
     if MODO == 'artefatto' else '/virtual-viewing.html')
-h = h.replace('href="#banchina"', 'href="' + ('https://claude.ai/code/artifact/5e7c6222-9a91-4052-a4d7-f31255ed4478' if MODO == 'artefatto' else '/v2-home.html') + '#banchina"')
+h = h.replace('href="#banchina"', 'href="' + ('https://claude.ai/code/artifact/5e7c6222-9a91-4052-a4d7-f31255ed4478' if MODO == 'artefatto' else '/') + '#banchina"')
 h = h.replace('MODO_QUI', MODO)
 h = h.replace('LOGO_SVG', leggi('logo-live.svg').strip())
 h = h.replace("'CASE_JSON'", json.dumps(CASE, ensure_ascii=False))
@@ -145,12 +153,12 @@ if MODO == 'artefatto':
     h = re.sub(r'href="/([a-z-]+)\.html"', r'href="https://www.boomrome.com/\1"', h)
     h = h.replace('href="/login"', 'href="https://www.boomrome.com/login"')
 else:
-    for da, a_ in {'/index.html': '/v2-home.html',
-        '/your-money.html': '/v2-money.html',
+    # CABLATO: route canoniche — /listing/<id> resta se stesso
+    for da, a_ in {'/index.html': '/',
+        '/your-money.html': '/your-money',
         '/property-finding.html': '/v2-property-finding.html'}.items():
         h = h.replace('href="' + da + '"', 'href="' + a_ + '"')
-    h = h.replace('/apartments.html', '/v2-apartments.html')
-    h = h.replace("'/listing/'", "'/v2-listing.html#id='")
+    h = h.replace('/apartments.html', '/apartments')
     h = h.replace('CHIAVE_CASA', '/listing/')
 
 C0 = CASE[0]
@@ -166,41 +174,12 @@ h = h.replace(
     '<meta name="description" content="Verified mid-term apartment rentals in '
     'Rome for internationals — English-first, legal contracts, 48-hour '
     'move-in. Your landing in Rome, handled.">',
-    '<meta name="description" content="' + DESCR + '">')
+    '<meta name="description" content="'
+    + (DESCR if MODO == 'artefatto' else TESTA.DESCR_LISTING) + '">')
 if MODO == 'sito':
-    LD = {'@context': 'https://schema.org', '@type': 'Apartment',
-          'name': C0['nome'],
-          'address': {'@type': 'PostalAddress', 'addressLocality': 'Rome',
-                      'addressRegion': 'RM', 'addressCountry': 'IT',
-                      'streetAddress': C0.get('indirizzo') or C0['zona']},
-          'numberOfBedrooms': C0.get('letti'),
-          'numberOfBathroomsTotal': C0.get('bagni')}
-    if C0.get('mq'):
-        LD['floorSize'] = {'@type': 'QuantitativeValue',
-                           'value': C0['mq'], 'unitCode': 'MTK'}
-    LD = {k: v for k, v in LD.items() if v is not None}
-    OFFER = {'@context': 'https://schema.org', '@type': 'Offer',
-             'price': C0['prezzo'], 'priceCurrency': 'EUR',
-             'availability': 'https://schema.org/InStock' if C0['libera']
-                 else 'https://schema.org/SoldOut',
-             'url': 'https://www.boomrome.com/listing/' + C0['id'],
-             'itemOffered': LD,
-             'seller': {'@type': 'RealEstateAgent',
-                        'name': 'BOOM — Egidi Immobiliare S.r.l.',
-                        'url': 'https://www.boomrome.com'}}
-    OG = ('<link rel="canonical" href="https://www.boomrome.com/listing/'
-          + C0['id'] + '">\n'
-          '<meta property="og:title" content="' + C0['nome'] + ' — '
-          + C0['zona'] + ', Rome | BOOM">\n'
-          '<meta property="og:description" content="' + DESCR + '">\n'
-          '<meta property="og:type" content="website">\n'
-          '<meta property="og:url" content="https://www.boomrome.com/listing/'
-          + C0['id'] + '">\n'
-          + (('<meta property="og:image" content="' + C0['cover'] + '">\n'
-              '<meta name="twitter:card" content="summary_large_image">\n')
-             if C0.get('cover', '').startswith('http') else '')
-          + '<script type="application/ld+json">'
-          + json.dumps(OFFER, ensure_ascii=False) + '</script>\n')
+    # il TEMPLATE di /listing/:id — testa generica di parita (og/twitter/
+    # robots/icone/gtag/JSON-LD): api/listing.js la riscrive per annuncio
+    OG = TESTA.blocco_listing() + '\n'
     i = h.index('</title>') + len('</title>')
     h = h[:i] + '\n' + OG + h[i:]
     h = ('<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'

@@ -1857,6 +1857,52 @@ CASE_TRE
   </div>
 </section>
 
+<!-- ══ LA SKYLINE — lo strumento vero, dentro la pagina ════════════════ -->
+<section class="sezione" id="skyline">
+  <div class="container">
+    <div class="cielo-capo coro">
+      <div>
+        <span class="eyebrow dentro-subito"><i></i>Skyline 3D · live</span>
+        <h2 class="titolo">Every home on Rome's <span class="hl">real
+          skyline</span>.</h2>
+        <p class="sotto">The actual city in three dimensions — buildings,
+          terrain, satellite. Tap a home and it draws its own lines to
+          Sapienza, LUISS, Termini and the Vatican, with the walk measured
+          from that door.</p>
+      </div>
+      <a class="cielo-pieno" href="SKYLINE_URL">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+          aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-8 8M3 21l8-8"/>
+        </svg>Full screen</a>
+    </div>
+
+    <div class="cielo sale" id="cielo">
+      <div class="cielo-mappa" id="cieloMappa"></div>
+
+      <div class="cielo-hud">
+        <span class="cielo-t">Budget</span>
+        <button type="button" class="cielo-c on" data-max="0">All</button>
+        <button type="button" class="cielo-c" data-max="1500">≤ €1,500</button>
+        <button type="button" class="cielo-c" data-max="2000">≤ €2,000</button>
+        <button type="button" class="cielo-c" data-max="2500">≤ €2,500</button>
+        <button type="button" class="cielo-c sat" id="cieloSat"
+          aria-pressed="false">Satellite</button>
+      </div>
+
+      <div class="cielo-conta" id="cieloConta" aria-live="polite"></div>
+
+      <div class="cielo-velo" id="cieloVelo">
+        <span class="punto"></span>
+        <span class="eti">BOOM · Skyline</span>
+        <p class="dice" id="cieloDice">Mapping Rome…</p>
+        <a class="cielo-pieno fuori" href="SKYLINE_URL">Open the full
+          Skyline</a>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ══ LA BANCHINA — dopo il catalogo, non prima ═════════════════════════
      Sta qui per una ragione logica prima che estetica: chiede «nothing
      in the catalogue fits?», e quella domanda ha senso solo dopo che il
@@ -1961,29 +2007,12 @@ CASE_TRE
       </div>
 
     </div>
-  </div>
-</section>
-
-<!-- ══ LA RETE — «not the perfect one? we'll find it.» ═══════════════════ -->
-<section class="sezione">
-  <div class="container">
-    <div class="testa-fila sale">
-      <div>
-        <span class="eyebrow"><i></i>The engine</span>
-        <h2 class="titolo">While you read this, <span class="hl">it's already
-          looking</span>.</h2>
-        <p class="sotto">Every agency says it will look for you. Ours is a
-          machine that scans Rome's portals and the off-market ninety-six
-          times a day, and a human who opens every match before you ever
-          see it.</p>
-      </div>
-    </div>
-    <div class="rete coro" style="margin-top:clamp(22px,2.6vw,34px)">
+<div class="rete coro" style="margin-top:clamp(22px,2.6vw,34px)">
       <div class="rete-pfs">
         <div class="rete-corpo">
           <div>
             <span class="rete-eti"><b></b>Property Finding · the hunt engine</span>
-            <h3 class="rete-titolo">Your brief becomes<br><span class="hl">a live search.</span></h3>
+            <h3 class="rete-titolo">While you read this,<br><span class="hl">it's already looking.</span></h3>
             <p>You describe the home; we turn it into a standing query. The
               radar watches Immobiliare, Idealista and the listings that never
               reach a portal. Every hit is opened, checked and walked by a
@@ -2013,52 +2042,7 @@ CASE_TRE
         </div>
       </div>
     </div>
-  </div>
-</section>
 
-<!-- ══ LA SKYLINE — lo strumento vero, dentro la pagina ════════════════ -->
-<section class="sezione" id="skyline">
-  <div class="container">
-    <div class="cielo-capo coro">
-      <div>
-        <span class="eyebrow dentro-subito"><i></i>Skyline 3D · live</span>
-        <h2 class="titolo">Every home on Rome's <span class="hl">real
-          skyline</span>.</h2>
-        <p class="sotto">The actual city in three dimensions — buildings,
-          terrain, satellite. Tap a home and it draws its own lines to
-          Sapienza, LUISS, Termini and the Vatican, with the walk measured
-          from that door.</p>
-      </div>
-      <a class="cielo-pieno" href="SKYLINE_URL">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
-          aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-8 8M3 21l8-8"/>
-        </svg>Full screen</a>
-    </div>
-
-    <div class="cielo sale" id="cielo">
-      <div class="cielo-mappa" id="cieloMappa"></div>
-
-      <div class="cielo-hud">
-        <span class="cielo-t">Budget</span>
-        <button type="button" class="cielo-c on" data-max="0">All</button>
-        <button type="button" class="cielo-c" data-max="1500">≤ €1,500</button>
-        <button type="button" class="cielo-c" data-max="2000">≤ €2,000</button>
-        <button type="button" class="cielo-c" data-max="2500">≤ €2,500</button>
-        <button type="button" class="cielo-c sat" id="cieloSat"
-          aria-pressed="false">Satellite</button>
-      </div>
-
-      <div class="cielo-conta" id="cieloConta" aria-live="polite"></div>
-
-      <div class="cielo-velo" id="cieloVelo">
-        <span class="punto"></span>
-        <span class="eti">BOOM · Skyline</span>
-        <p class="dice" id="cieloDice">Mapping Rome…</p>
-        <a class="cielo-pieno fuori" href="SKYLINE_URL">Open the full
-          Skyline</a>
-      </div>
-    </div>
   </div>
 </section>
 
@@ -2067,7 +2051,7 @@ CASE_TRE
   <div class="container">
     <div class="testa-fila sale">
       <div>
-        <span class="eyebrow"><i></i>Concierge</span>
+        <span class="eyebrow"><i></i>After you move in</span>
         <h2 class="titolo">Life doesn't stop <span class="hl">at the apartment</span></h2>
       </div>
       <a class="vai-testa" href="/concierge.html">All 30 services →</a>
