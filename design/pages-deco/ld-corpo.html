@@ -243,6 +243,11 @@ html.vivo .coro.dentro .tempo::after {
     rgba(255,215,0,.01) 52%), var(--card);
   box-shadow:inset 0 0 0 1px var(--line-gold-2); }
 .chiavi-cima { max-width:560px; }
+@media (min-width:920px){
+  .chiavi-cima { max-width:none; display:grid;
+    grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);
+    gap:clamp(28px,4.5vw,64px); align-items:center; }
+  .chiavi-cima .voci { margin-top:0; } }
 .chiavi-eti { display:block; font-size:10.5px; font-weight:600;
   letter-spacing:.2em; text-transform:uppercase; color:var(--gold); }
 .chiavi-flap { margin-top:12px; }
@@ -312,9 +317,10 @@ html.vivo .coro.dentro .tempo::after {
   stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
 .sfoglia.prec { left:14px; } .sfoglia.succ { right:14px; }
 .sfoglia[disabled] { opacity:0!important; pointer-events:none; }
-.conta-foto { position:absolute; right:14px; bottom:14px; z-index:4;
+.conta-foto { position:absolute; right:64px; top:21px; z-index:4;
   font-size:11px; letter-spacing:.08em; color:var(--text-2);
   background:rgba(6,6,7,.7); backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
   border:1px solid var(--line); border-radius:100px; padding:5px 12px;
   font-variant-numeric:tabular-nums; }
 
@@ -571,8 +577,8 @@ html.vivo .coro.dentro .tempo::after {
   font-weight:600; letter-spacing:.05em; color:var(--gold); }
 .porticina i.verde { color:var(--green); }
 
-.stato-grande.dopo { color:#FF9C8A;
-  box-shadow:inset 0 0 0 1px rgba(255,110,90,.32); }
+.stato-grande.dopo { color:#FF6B57;
+  box-shadow:inset 0 0 0 1px rgba(255,107,87,.38); }
 </style>
 
 <section class="casa">
@@ -639,9 +645,11 @@ html.vivo .coro.dentro .tempo::after {
     <div class="chiavi quadro sale"><span class="tacca"></span>
 
       <div class="chiavi-cima">
-        <span class="chiavi-eti">Due on day one — all of it, in writing</span>
-        <div class="chiavi-flap"><span class="flap-tot" id="totFlap"
-          data-p="" aria-live="polite"></span></div>
+        <div class="chiavi-numero">
+          <span class="chiavi-eti">Due on day one — all of it, in writing</span>
+          <div class="chiavi-flap"><span class="flap-tot" id="totFlap"
+            data-p="" aria-live="polite"></span></div>
+        </div>
         <div class="voci">
           <div class="voce"><span>First month's rent</span>
             <b id="voceCanone">—</b></div>

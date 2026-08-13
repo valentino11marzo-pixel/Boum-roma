@@ -453,18 +453,28 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .board-piede b { color:var(--text-3); font-weight:500;
   font-variant-numeric:tabular-nums; }
 
-/* la riga di fiducia nell'hero: una sola, sottile. Il discorso lungo sui
-   soldi vive nella banchina, dove si parla di prezzi. */
-.hero-fede { display:flex; align-items:center; gap:11px;
-  margin-top:clamp(16px,2vw,22px); padding:11px 15px; border-radius:100px;
-  background:var(--surface); box-shadow:inset 0 0 0 1px var(--line-0);
-  max-width:max-content; }
-.hero-fede .hf-stripe { width:40px; height:auto; flex:none; opacity:.85; }
-.hero-fede span { font-size:11.5px; line-height:1.5; color:var(--text-4); }
-.hero-fede span b { color:var(--text-2); font-weight:500; }
+/* le porte-mini: i quattro servizi, sintetici, gia dal primo schermo.
+   La fiducia Stripe vive nella banchina, dove si parla di prezzi —
+   ogni cosa detta una volta sola. */
+.porte-mini { display:flex; align-items:stretch; flex-wrap:wrap; gap:8px;
+  margin-top:clamp(16px,2vw,22px); }
+.porte-mini .pm-eti { align-self:center; font-size:10px; font-weight:600;
+  letter-spacing:.22em; text-transform:uppercase; color:var(--text-4);
+  padding-right:3px; }
+.porte-mini a { display:flex; flex-direction:column; gap:2px;
+  padding:10px 14px; border-radius:12px; background:var(--surface);
+  box-shadow:inset 0 0 0 1px var(--line-0);
+  transition:box-shadow .3s, transform .3s; }
+.porte-mini a:hover { box-shadow:inset 0 0 0 1px var(--line-gold-2);
+  transform:translateY(-1px); }
+.porte-mini b { font-size:12px; font-weight:500; color:var(--text);
+  white-space:nowrap; }
+.porte-mini span { font-size:10.5px; color:var(--text-4);
+  white-space:nowrap; }
 @media (max-width:640px){
-  .hero-fede { border-radius:14px; padding:11px 13px; align-items:flex-start; }
-  .hero-fede .hf-stripe { margin-top:2px; } }
+  .porte-mini { display:grid; grid-template-columns:1fr 1fr; }
+  .porte-mini .pm-eti { grid-column:1/-1; padding:0; }
+  .porte-mini b, .porte-mini span { white-space:normal; } }
 
 /* le recensioni: un filo sotto il tabellone, mai un cartello */
 .recensioni { display:flex; align-items:center; gap:10px;
@@ -1046,19 +1056,56 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   background:linear-gradient(160deg, rgba(255,215,0,.09),
     rgba(255,215,0,.02) 46%), var(--card);
   box-shadow:inset 0 0 0 1px var(--line-gold-2); }
-.rete-pfs::before { content:''; position:absolute; top:0; left:-40%;
-  width:40%; height:1.5px;
-  background:linear-gradient(90deg, transparent, var(--gold), transparent);
-  animation:rete-scan 3.2s var(--ease) infinite; }
-@keyframes rete-scan { to { left:110%; } }
+.rete-corpo { display:grid; grid-template-columns:1fr auto;
+  gap:clamp(20px,3.4vw,48px); align-items:center; }
+@media (max-width:760px){
+  .rete-corpo { grid-template-columns:1fr; }
+  .radar-colonna { order:-1; justify-self:center; } }
+/* IL RADAR — la caccia che si vede: anelli, spazzata, i portali come
+   blip che si accendono quando il fascio li tocca */
+.radar { position:relative; width:clamp(190px,20vw,242px); aspect-ratio:1;
+  border-radius:50%; flex:none;
+  background:
+    radial-gradient(circle, rgba(255,215,0,.08), rgba(255,215,0,.015) 56%,
+      transparent 72%),
+    repeating-radial-gradient(circle at 50% 50%, transparent 0,
+      transparent 23%, rgba(250,248,240,.09) 23.5%, transparent 24%);
+  box-shadow:inset 0 0 0 1px rgba(255,215,0,.18); }
+.radar::before { content:''; position:absolute; inset:0; border-radius:50%;
+  background:conic-gradient(from 0deg, rgba(255,215,0,.32),
+    rgba(255,215,0,.06) 55deg, transparent 85deg, transparent);
+  animation:radar-giro 4.8s linear infinite; }
+@keyframes radar-giro { to { transform:rotate(360deg); } }
+.radar-io { position:absolute; left:50%; top:50%; width:7px; height:7px;
+  margin:-3.5px 0 0 -3.5px; border-radius:50%; background:var(--gold);
+  box-shadow:0 0 14px rgba(255,215,0,.85); }
+.radar i { position:absolute; width:5px; height:5px; margin:-2.5px 0 0 -2.5px;
+  border-radius:50%; background:#FAF8F0; color:#FAF8F0; opacity:.3;
+  animation:radar-blip 4.8s linear infinite; }
+.radar i.oro { background:var(--gold); color:var(--gold); }
+.radar i::after { content:attr(data-n); position:absolute; left:10px;
+  top:-4px; font-size:9px; font-weight:600; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--text-3); white-space:nowrap; }
+@keyframes radar-blip {
+  0%, 3% { opacity:1; box-shadow:0 0 10px currentColor; }
+  40%, 100% { opacity:.3; box-shadow:none; } }
+.radar-dida { margin-top:12px; text-align:center; font-size:10px;
+  font-weight:600; letter-spacing:.2em; text-transform:uppercase;
+  color:var(--text-3); }
+.radar-dida b { color:var(--gold); font-weight:600;
+  font-variant-numeric:tabular-nums; }
+@media (prefers-reduced-motion:reduce){
+  .radar::before { animation:none; opacity:.4; }
+  .radar i { animation:none; opacity:.85; } }
 .rete-eti { display:inline-flex; align-items:center; gap:8px; font-size:10px;
   font-weight:600; letter-spacing:.22em; text-transform:uppercase;
   color:var(--gold); }
 .rete-eti b { width:5px; height:5px; border-radius:50%;
   background:var(--green); animation:pulse 2.2s ease infinite; }
-.rete-pfs h3 { margin-top:13px; font-family:var(--display); font-size:23px;
-  font-weight:250; letter-spacing:-.01em; }
-.rete-pfs h3 .hl { color:var(--gold); }
+.rete-titolo { margin-top:13px; font-family:var(--display);
+  font-size:clamp(20px,2.2vw,25px); font-weight:250; letter-spacing:-.01em;
+  line-height:1.22; }
+.rete-titolo .hl { color:var(--gold); }
 .rete-pfs > p { margin-top:9px; font-size:13px; color:var(--text-2);
   line-height:1.65; max-width:48ch; }
 .rete-cifre { margin-top:16px; display:flex; flex-wrap:wrap;
@@ -1076,12 +1123,6 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   font-weight:250; color:var(--gold); font-variant-numeric:tabular-nums; }
 .rete-cifra span { display:block; margin-top:3px; font-size:10.5px;
   letter-spacing:.12em; text-transform:uppercase; color:var(--text-3); }
-.rete-motore { margin-top:16px; display:flex; flex-wrap:wrap; gap:7px; }
-.rete-motore span { font-size:10px; font-weight:600; letter-spacing:.16em;
-  color:var(--text-3); padding:6px 10px;
-  box-shadow:inset 0 0 0 1px var(--line-0); border-radius:100px; }
-.rete-motore span:first-child { color:var(--gold);
-  box-shadow:inset 0 0 0 1px var(--line-gold); }
 .rete-pfs .btn { margin-top:20px; }
 .rete-pfs .rete-nota { margin-top:9px; font-size:11.5px; color:var(--text-3); }
 .rete-lato { display:grid; gap:16px; }
@@ -1878,6 +1919,11 @@ html.vivo .coro.dentro .tempo::after {
     rgba(255,215,0,.01) 52%), var(--card);
   box-shadow:inset 0 0 0 1px var(--line-gold-2); }
 .chiavi-cima { max-width:560px; }
+@media (min-width:920px){
+  .chiavi-cima { max-width:none; display:grid;
+    grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);
+    gap:clamp(28px,4.5vw,64px); align-items:center; }
+  .chiavi-cima .voci { margin-top:0; } }
 .chiavi-eti { display:block; font-size:10.5px; font-weight:600;
   letter-spacing:.2em; text-transform:uppercase; color:var(--gold); }
 .chiavi-flap { margin-top:12px; }
@@ -1947,9 +1993,10 @@ html.vivo .coro.dentro .tempo::after {
   stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
 .sfoglia.prec { left:14px; } .sfoglia.succ { right:14px; }
 .sfoglia[disabled] { opacity:0!important; pointer-events:none; }
-.conta-foto { position:absolute; right:14px; bottom:14px; z-index:4;
+.conta-foto { position:absolute; right:64px; top:21px; z-index:4;
   font-size:11px; letter-spacing:.08em; color:var(--text-2);
   background:rgba(6,6,7,.7); backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
   border:1px solid var(--line); border-radius:100px; padding:5px 12px;
   font-variant-numeric:tabular-nums; }
 
@@ -2206,8 +2253,8 @@ html.vivo .coro.dentro .tempo::after {
   font-weight:600; letter-spacing:.05em; color:var(--gold); }
 .porticina i.verde { color:var(--green); }
 
-.stato-grande.dopo { color:#FF9C8A;
-  box-shadow:inset 0 0 0 1px rgba(255,110,90,.32); }
+.stato-grande.dopo { color:#FF6B57;
+  box-shadow:inset 0 0 0 1px rgba(255,107,87,.38); }
 </style>
 
 <section class="casa">
@@ -2274,9 +2321,11 @@ html.vivo .coro.dentro .tempo::after {
     <div class="chiavi quadro sale"><span class="tacca"></span>
 
       <div class="chiavi-cima">
-        <span class="chiavi-eti">Due on day one — all of it, in writing</span>
-        <div class="chiavi-flap"><span class="flap-tot" id="totFlap"
-          data-p="" aria-live="polite"></span></div>
+        <div class="chiavi-numero">
+          <span class="chiavi-eti">Due on day one — all of it, in writing</span>
+          <div class="chiavi-flap"><span class="flap-tot" id="totFlap"
+            data-p="" aria-live="polite"></span></div>
+        </div>
         <div class="voci">
           <div class="voce"><span>First month's rent</span>
             <b id="voceCanone">—</b></div>
@@ -3511,7 +3560,7 @@ html.vivo .coro.dentro .tempo::after {
     var dati = [a.zona, a.mq ? a.mq + ' m²' : '',
       a.letti === 0 ? 'Studio' : (a.letti ? a.letti + ' bed' : '')]
       .filter(Boolean).join(' <i>·</i> ');
-    return '<a class="casa-p" href="/listing/' + a.id + '">'
+    return '<a class="casa-p" href="' + '/v2-listing.html#id=' + a.id + '">'
       + '<div class="home-foto"><img loading="lazy" decoding="async" src="'
       + a.cover + '" alt="' + a.nome + ', ' + a.zona + '">'
       + '<span class="casa-stato ' + (a.libera ? 'si' : '') + '">'

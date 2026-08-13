@@ -3,11 +3,11 @@
 .disco { position:relative; padding:clamp(96px,11svh,132px) 0 clamp(20px,2.4vw,30px); }
 .disco-velo { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
 .disco-velo::after { content:''; position:absolute; inset:0;
-  background:linear-gradient(100deg, rgba(3,3,3,.92) 0%, rgba(3,3,3,.66) 34%,
-    rgba(3,3,3,.12) 62%, transparent 78%); }
+  background:linear-gradient(100deg, rgba(3,3,3,.9) 0%, rgba(3,3,3,.58) 32%,
+    rgba(3,3,3,.08) 56%, transparent 72%); }
 @media (max-width:1080px){
   .disco-velo::after {
-    background:linear-gradient(180deg, rgba(3,3,3,.55), rgba(3,3,3,.86) 46%,
+    background:linear-gradient(180deg, rgba(3,3,3,.42), rgba(3,3,3,.84) 46%,
       rgba(3,3,3,.94)); } }
 .disco-int { position:relative; z-index:2; }
 .disco-testa { display:grid; gap:clamp(20px,2.6vw,38px);
@@ -164,8 +164,8 @@
   0%   { box-shadow:0 0 0 0 rgba(0,255,136,.5); }
   70%  { box-shadow:0 0 0 8px rgba(0,255,136,0); }
   100% { box-shadow:0 0 0 0 rgba(0,255,136,0); } }
-.casa-p .home-foto .casa-stato.poi { color:#FF9C8A;
-  box-shadow:inset 0 0 0 1px rgba(255,110,90,.32); }
+.casa-p .home-foto .casa-stato.poi { color:#FF6B57;
+  box-shadow:inset 0 0 0 1px rgba(255,107,87,.38); }
 .casa-p .home-foto .casa-stato.fila { color:var(--gold);
   box-shadow:inset 0 0 0 1px var(--line-gold-2); }
 .casa-p .home-foto .casa-stato.fila::before {
@@ -565,23 +565,35 @@ VISTA_CIELO
   <div class="container">
     <div class="rete coro">
       <div class="rete-pfs">
-        <span class="rete-eti"><b></b>Property Finding · the hunt engine</span>
-        <h2 class="vuoto-titolo">Not on this page?<br><span class="hl">It doesn't mean it doesn't exist.</span></h2>
-        <p>Your brief becomes a live search: our engine scans the market and
-          the off-market around the clock, a human verifies every match, and
-          you get curated options — not links.</p>
-        <div class="rete-cifre">
-          <div class="rete-cifra"><b>1:1</b><span>tailored hunt</span></div>
-          <div class="rete-cifra"><b>5+</b><span>curated options</span></div>
-          <div class="rete-cifra"><b>24/7</b><span>market scan</span></div>
-          <div class="rete-cifra"><b>€0</b><span>if we fail</span></div>
+        <div class="rete-corpo">
+          <div>
+            <span class="rete-eti"><b></b>Property Finding · the hunt engine</span>
+            <h2 class="rete-titolo">Not on this page?<br><span class="hl">It doesn't mean it doesn't exist.</span></h2>
+            <p>Your brief becomes a live search: our radar scans the portals
+              and the off-market ninety-six times a day, a human verifies
+              every match, and you get curated options — not links.</p>
+            <div class="rete-cifre">
+              <div class="rete-cifra"><b>1:1</b><span>tailored hunt</span></div>
+              <div class="rete-cifra"><b>5+</b><span>curated options</span></div>
+              <div class="rete-cifra"><b>24/7</b><span>market scan</span></div>
+              <div class="rete-cifra"><b>€0</b><span>if we fail</span></div>
+            </div>
+            <a class="btn btn-primary" href="/property-finding.html">Start the hunt</a>
+            <p class="rete-nota">€350 upfront — deducted from the agency fee when
+              we find your home. Full refund if we don't deliver.</p>
+          </div>
+          <div class="radar-colonna" aria-hidden="true">
+            <div class="radar">
+              <i style="left:62%;top:26%;animation-delay:.35s" data-n="Immobiliare"></i>
+              <i style="left:74%;top:58%;animation-delay:1.45s" data-n="Idealista"></i>
+              <i style="left:30%;top:70%;animation-delay:3s" data-n="Casa.it"></i>
+              <i style="left:22%;top:38%;animation-delay:3.9s" data-n="Subito"></i>
+              <i class="oro" style="left:48%;top:14%;animation-delay:4.72s" data-n="Off-market"></i>
+              <span class="radar-io"></span>
+            </div>
+            <p class="radar-dida"><b>96</b> scans · every day</p>
+          </div>
         </div>
-        <div class="rete-motore" aria-label="The engine behind the hunt">
-          <span>RADAR — 96 scans/day</span><span>HUMAN-VERIFIED</span>
-          <span>OFF-MARKET INCLUDED</span></div>
-        <a class="btn btn-primary" href="/property-finding.html">Start the hunt</a>
-        <p class="rete-nota">€350 upfront — deducted from the agency fee when
-          we find your home. Full refund if we don't deliver.</p>
       </div>
     </div>
   </div>
