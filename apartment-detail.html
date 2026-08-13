@@ -383,7 +383,10 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 
 /* lo scalo: il cartellino ROM e la rotta che arriva */
 .scalo { position:absolute; z-index:1; pointer-events:none;
-  left:46.5%; top:30%; display:none; }
+  /* ancorato al CENTRO (offset fisso), non al viewport: su uno schermo
+     largo la percentuale derivava e il quadrato ROM galleggiava nel
+     vuoto tra titolo e tabellone */
+  left:calc(50% - 50px); top:30%; display:none; }
 @media (min-width:1280px){ .scalo { display:block; } }
 .scalo-rotta { position:absolute; right:36px; top:34px; width:340px; height:120px;
   overflow:visible; }
