@@ -47,6 +47,13 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
                           unknown, più il cervello del messaggio unico
                           (più immobili in una frase). window.BOOM_DISPO.
                           Vedi "Le date di disponibilità".
+  contract-pdf.js         L'impaginato del CONTRATTO (Allegato B transitorio +
+                          Allegato C studenti, modelli CAF verbatim) in UNA
+                          copia: window.BOOM_CONTRACT_PDF nel portal (jsPDF
+                          CDN 2.5.1) e import ESM in api/sign/_contractpdf.js
+                          (jsPDF npm, STESSA versione pinnata). build() →
+                          { doc, sigAnchors, hashSeed }; upload/hash/patch
+                          restano ai chiamanti.
 firestore.rules           Firestore security rules (role-based)
 storage.rules             Storage security rules (role-based file access)
 firebase.json             Firebase deploy config (firestore + storage rules)
@@ -940,7 +947,16 @@ annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
   ADMIN who countersigns per delega after the tenant signs (sign.html
   shows "signing as X on behalf of Y"; magic-sign submit stamps
   `landlordSignedByDelegate`). The choice is echoed on `pa.delegated`.
-  Idempotent via `pa.contractId`.
+  Idempotent via `pa.contractId`. **Il PDF del contratto nasce QUI,
+  server-side** (`api/sign/_contractpdf.js` → `js/contract-pdf.js`, lo
+  stesso impaginato del portal): `generatedPDF` + `sigAnchors` +
+  `clauseVersion` scritti alla conversione, così sign.html mostra "View
+  full contract PDF" PRIMA della firma e `_finalize` costruisce il
+  contratto firmato in allegato anche sul rail PA. Generazione fallita →
+  promemoria Telegram `contract.pdf_missing` (solo in quel caso); reti di
+  recupero: send-sign rigenera prima dell'invito, la prima apertura di
+  /sign genera dal lookup. MAI sotto una firma viva (guardia in
+  `ensureContractPdf`, testata per mutazione).
 - `POST /api/preagreement/upload` — public, PA-token-scoped. The Verify
   step's ID/passport upload: base64 (client downscales photos to ~1800px
   JPEG) → Firebase Storage `preagreements/<paId>/…` under ADMIN creds
@@ -2273,6 +2289,7 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/wizard/local_brain.py` | Il cervello gratis del bot wizard (`python3`): cosa capisce senza modello e — più importante — cosa deve rifiutarsi di capire. Una domanda ("Levico è affittato?") non può diventare una scrittura; un annuncio nuovo dettato non può diventare la modifica di uno esistente. Estrae le funzioni pure dal bot via AST: gira senza `.env`, senza Telegram, senza rete |
   | `tests/executive/run.mjs` | BOOM Executive: il professionista in trasferta resta un TENANT nella macchina piena, il datore dichiarato (`employer`) non viene scambiato per l'honeypot (`company`), la voce B2B tace col tenant e parla con l'ente — con la guardia PRIMA della spesa, asserita sull'ordine nel sorgente |
   | `tests/verbale/run.mjs` | verbale consegna chiavi: il PDF vero (WinAnsi-ostile compreso) viaggia in allegato a conduttori/co-conduttori/proprietario/admin, owner solo sui contratti dei propri immobili (403 = zero scritture), firme richieste per entrambi i lati, sul contratto restano solo i NOMI mai i dataURI |
+  | `tests/contractpdf/run.mjs` | il PDF del contratto in UNA copia (jsPDF REALE): l'impaginato condiviso produce Allegato B/C con le ancore firma, la conversione PA lo scrive da sola (e con Storage giù il contratto nasce comunque), send-sign sana i pre-fix PRIMA dell'email (ordine asserito sulla sorgente), la prima apertura di /sign è l'ultima rete, e MAI una rigenerazione sotto una firma viva (mutazione) |
   | `tests/sign/lang.mjs` | /sign bilingue guidata in un browser vero (demo mode): default per ruolo (locatore IT, inquilino EN), toggle che ridisegna lo step corrente in entrambe le direzioni, percorso intero tradotto, Skip OTP che non blocca, link WhatsApp presenti. Si auto-skippa senza playwright |
   | `tests/safari/boot.mjs` | nessuna superficie autenticata resta appesa su un loader |
 - PWA support via `manifest.json` and `sw.js` service worker — registered on
@@ -2336,7 +2353,7 @@ pages on their loader with no signal at all):
   visible error with a recovery button instead of an empty page.
 - `BoomPortal.registerServiceWorker()` calls `reg.update()` — Safari does
   not re-check `sw.js` as eagerly as Chrome, so a stale worker could serve
-  an old shell for days. Cache version is `boom-v13`. portal.html's inline
+  an old shell for days. Cache version is `boom-v16`. portal.html's inline
   registration does the same.
 - `vercel.json` now sends `private, no-store` + `noindex` on every
   logged-in surface (`casa`, `tenant`, `manuale`, `pre-agreement-admin`,

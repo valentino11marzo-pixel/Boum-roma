@@ -36,6 +36,7 @@
 import crypto from 'node:crypto';
 import { fsGet, fsList, fsCreate, fsPatch, readJson, logActivity } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
+import { ensureContractPdf } from '../sign/_contractpdf.js';
 
 const BASE = 'https://www.boomrome.com';
 const clip = (v, n = 200) => (v == null ? null : String(v).trim().slice(0, n) || null);
@@ -323,16 +324,26 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
   logActivity('preagreement_converted', 'contract',
     { paId, ref: pa.ref || '', contractId, tenant: t.fullName, delegate: delegateOn, auto: actor === 'auto' }, actor)
     .catch(() => {});
-  // Il rail PA non può generare il PDF del contratto (jsPDF vive nel
-  // portal): promemoria operativo su Telegram — senza generatedPDF la
-  // copia firmata in allegato alla firma completa viene saltata.
-  fsCreate('agentNotifications', {
-    type: 'contract.pdf_missing',
-    summary: `📄 Contratto ${contractId} creato dal pre-agreement: genera il PDF dal portal (🔄 Rigenera PDF) prima dell'invito a firmare`,
-    priority: 'low', ref: { collection: 'contracts', id: contractId },
-    dedupKey: 'pdf-missing-' + contractId, status: 'pending',
-    actor: 'preagreement-convert', createdAt: new Date().toISOString(), attempts: 0,
-  }).catch(() => {});
+  // Il PDF del contratto nasce QUI, server-side (js/contract-pdf.js — lo
+  // STESSO impaginato Allegato B/C del portal, jsPDF su Node): sign.html
+  // mostra "View full contract PDF" PRIMA della firma e _finalize.js può
+  // costruire il contratto firmato in allegato anche sul rail PA. Il
+  // promemoria Telegram "genera dal portal" resta solo come fallback se la
+  // generazione fallisce — e comunque send-sign e la prima apertura del
+  // link riprovano da soli.
+  let pdfUrl = null;
+  try {
+    pdfUrl = await ensureContractPdf(contractId, { ...contract });
+  } catch (e) { console.error('[preagreement/convert] contract pdf:', e.message); }
+  if (!pdfUrl) {
+    fsCreate('agentNotifications', {
+      type: 'contract.pdf_missing',
+      summary: `📄 Contratto ${contractId} creato dal pre-agreement: PDF non generato automaticamente — genera dal portal (🔄 Rigenera PDF) o ripremi 🖊 Magic Sign`,
+      priority: 'low', ref: { collection: 'contracts', id: contractId },
+      dedupKey: 'pdf-missing-' + contractId, status: 'pending',
+      actor: 'preagreement-convert', createdAt: new Date().toISOString(), attempts: 0,
+    }).catch(() => {});
+  }
 
   return {
     ok: true, contractId, tenantId,

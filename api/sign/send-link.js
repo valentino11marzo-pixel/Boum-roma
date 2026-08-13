@@ -23,6 +23,7 @@ import crypto from 'node:crypto';
 import { fsGet, fsPatch, readJson, logActivity } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
 import { sendSignInvite } from './_notify.js';
+import { ensureContractPdf } from './_contractpdf.js';
 
 const BASE = 'https://www.boomrome.com';
 
@@ -72,6 +73,18 @@ export default async function handler(req, res) {
     catch (e) { return res.status(500).json({ ok: false, error: 'token_backfill_failed' }); }
   }
   const url = `${BASE}/sign?sign=${encodeURIComponent(token)}`;
+
+  // PDF backfill, stessa cintura di preagreement/send-sign: l'invito non
+  // parte senza che il contratto abbia il suo PDF (il portal lo rigenera
+  // client-side prima di chiamare qui, ma questo endpoint serve anche il
+  // watchdog del cron e i contratti nati fuori dal portal). Idempotente,
+  // mai sotto una firma viva, mai bloccante per l'invito.
+  if (!contract.generatedPDF) {
+    try {
+      const pdfUrl = await ensureContractPdf(contractId, { ...contract, id: contractId });
+      if (pdfUrl) contract.generatedPDF = pdfUrl;
+    } catch (e) { console.warn('[send-link] contract pdf:', e.message); }
+  }
 
   // Recipient: users profile first, contract fields as fallback.
   let to = '', name = '';
