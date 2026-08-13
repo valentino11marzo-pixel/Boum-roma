@@ -202,10 +202,22 @@ async function classifyHeuristic(photos) {
   }
 }
 
+// Enhanced outputs are immutable by construction (every re-enhance mints a
+// NEW object name), so they deserve an immutable cache header. Without it
+// Storage serves `private, max-age=0` and every visitor re-downloads every
+// photo on every visit — the single worst byte-waster on the public site.
+const CACHE_LUNGA = 'public,max-age=31536000,immutable';
+
 async function uploadJpeg(token, path, buf) {
   const up = await fetch(`https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o?name=${encodeURIComponent(path)}`,
     { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'image/jpeg' }, body: buf });
   if (!up.ok) throw new Error('storage_' + up.status);
+  try {
+    await fetch(`https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o/${encodeURIComponent(path)}`,
+      { method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cacheControl: CACHE_LUNGA }) });
+  } catch { /* best-effort: the photo still serves, just without long cache */ }
   return `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o/${encodeURIComponent(path)}?alt=media`;
 }
 
@@ -324,6 +336,45 @@ export function sweepOrder(candidates) {
   return [...candidates].sort((a, b) => sourceUrls(b.js).length - sourceUrls(a.js).length);
 }
 
+// ── cache healing: objects born before CACHE_LUNGA existed ─────────────────
+// A bounded pass inside the nightly sweep: list listings/enhanced/, read each
+// object's metadata, PATCH the long header where it's missing. Fully
+// best-effort and deadline-boxed — whatever a night doesn't reach, the next
+// one picks up; once the backlog is healed the pass is metadata GETs only.
+async function healCache(token, deadline) {
+  let visti = 0, curati = 0, errori = 0, pageToken = '';
+  const base = `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o`;
+  try {
+    while (Date.now() < deadline) {
+      const lr = await fetch(base + '?prefix=' + encodeURIComponent('listings/enhanced/')
+        + '&maxResults=1000' + (pageToken ? '&pageToken=' + encodeURIComponent(pageToken) : ''),
+        { headers: { Authorization: `Bearer ${token}` } });
+      if (!lr.ok) break;
+      const j = await lr.json();
+      const items = Array.isArray(j.items) ? j.items : [];
+      for (let i = 0; i < items.length && Date.now() < deadline; i += 6) {
+        await Promise.all(items.slice(i, i + 6).map(async (it) => {
+          visti++;
+          const o = base + '/' + encodeURIComponent(it.name);
+          try {
+            const mr = await fetch(o, { headers: { Authorization: `Bearer ${token}` } });
+            if (!mr.ok) { errori++; return; }
+            const m = await mr.json();
+            if (m.cacheControl === CACHE_LUNGA) return;
+            const pr = await fetch(o, { method: 'PATCH',
+              headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ cacheControl: CACHE_LUNGA }) });
+            pr.ok ? curati++ : errori++;
+          } catch { errori++; }
+        }));
+      }
+      pageToken = j.nextPageToken || '';
+      if (!pageToken) break;
+    }
+  } catch { /* best-effort: la prossima notte riprende */ }
+  return { visti, curati, errori };
+}
+
 // ── the nightly sweep: nothing stays raw ────────────────────────────────────
 async function sweep(token, limit, actor) {
   const started = Date.now();
@@ -340,10 +391,13 @@ async function sweep(token, limit, actor) {
       (r.ok && r.applied ? processed : failed).push({ id: c.id, note: r.note || r.error });
     } catch (e) { failed.push({ id: c.id, note: String(e.message || '').slice(0, 80) }); }
   }
+  // the leftover budget heals cache headers on already-published photos
+  const cache = await healCache(token, started + 50000);
   return {
     ok: true, mode: 'sweep', checked: (Array.isArray(rows) ? rows : []).length,
     candidates: candidates.map(c => c.id), processed, failed,
     remaining: Math.max(0, candidates.length - processed.length - failed.length),
+    cache,
   };
 }
 
