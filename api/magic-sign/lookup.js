@@ -15,6 +15,7 @@
 
 import { fsGet, fsPatch, fsCreate, readJson } from '../homie/_lib.js';
 import { findContractByToken, tenantSideComplete, setCors, rateOk } from './_shared.js';
+import { ensureContractPdf } from '../sign/_contractpdf.js';
 
 export default async function handler(req, res) {
   setCors(req, res);
@@ -80,6 +81,21 @@ export default async function handler(req, res) {
       status: 'pending', actor: 'magic-sign',
       createdAt: nowISO, attempts: 0,
     }).catch(() => {});
+  }
+
+  // ── L'ultima rete del PDF pre-firma ──────────────────────────────────
+  // "View full contract PDF" sulla pagina di firma esiste solo se il
+  // contratto porta generatedPDF. I contratti del portal lo hanno dalla
+  // creazione; quelli del rail PA dal convert (server-side); ma un
+  // contratto pre-fix, o un link condiviso via WhatsApp senza passare da
+  // 🖊 Magic Sign, poteva ancora arrivare qui senza. La PRIMA apertura
+  // genera (una volta sola: ensureContractPdf è idempotente e non tocca
+  // MAI un contratto con una firma viva); un errore non blocca il lookup.
+  if (!contract.generatedPDF) {
+    try {
+      const url = await ensureContractPdf(contract.id, contract);
+      if (url) contract.generatedPDF = url;
+    } catch (e) { console.warn('[magic-sign/lookup] contract pdf:', e.message); }
   }
 
   // Fetch related docs server-side.

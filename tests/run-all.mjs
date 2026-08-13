@@ -60,6 +60,7 @@ const SUITES = [
   { name: 'marketwiring', file: 'tests/market/wiring.mjs', what: 'le giunzioni del Perito: tap best-effort dopo il master, verdetto solo lato server, rules e cron presenti' },
   { name: 'squadra',  file: 'tests/squadra/registry.mjs', what: 'organigramma: nessun cron gira senza comparire, e chi agisce da solo lo dichiara' },
   { name: 'desk',     file: 'tests/squadra/desk.mjs',     what: 'la scrivania si disegna tutta senza Firestore, coi confini di ogni agente in chiaro' },
+  { name: 'contractpdf', file: 'tests/contractpdf/run.mjs', what: 'il PDF del contratto in UNA copia: nasce anche dal rail PA (convert/send-sign/lookup), mai sotto una firma viva, jspdf pinnato nei due manifest' },
   { name: 'safari',   file: 'tests/safari/boot.mjs',      what: 'nessuna pagina autenticata resta appesa' },
 ];
 

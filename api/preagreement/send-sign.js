@@ -15,6 +15,7 @@ import { fsGet, fsPatch, readJson, logActivity } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
 import { convertPaToContract } from './convert.js';
 import { sendContractSignEmail } from './_notify.js';
+import { ensureContractPdf } from '../sign/_contractpdf.js';
 
 const BASE = 'https://www.boomrome.com';
 
@@ -56,6 +57,16 @@ export default async function handler(req, res) {
   const tenantSignUrl = out.tenantSignUrl || pa.tenantSignUrl || null;
   const landlordSignUrl = out.landlordSignUrl || pa.landlordSignUrl || null;
   if (!tenantSignUrl) return res.status(409).json({ ok: false, error: 'already_signed' });
+
+  // Cintura e bretelle, PRIMA che il link parta: un contratto PA rimasto
+  // senza generatedPDF (convertito prima di questo fix, o generazione
+  // fallita al convert) lo ottiene qui — il cliente non deve mai aprire
+  // /sign senza "View full contract PDF". Idempotente e mai bloccante:
+  // a PDF già presente non fa nulla, e un errore non ferma l'invito.
+  if (out.contractId) {
+    try { await ensureContractPdf(out.contractId); }
+    catch (e) { console.error('[pa/send-sign] contract pdf:', e.message); }
+  }
 
   let emailed = false;
   try {
