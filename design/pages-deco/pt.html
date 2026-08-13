@@ -1254,6 +1254,29 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
     0 40px 80px -34px rgba(0,0,0,.95); border-radius:16px; overflow:hidden;
   transform:rotate(-2deg); transition:transform .5s var(--ease); }
 .pass-carta:hover { transform:rotate(0deg) translateY(-4px); }
+/* il pass viene EMESSO, non appare: sale e si assesta con la molla —
+   il gesto di Wallet, cioe il prodotto vero */
+html.vivo .sale .pass-carta { opacity:0;
+  transform:translateY(38px) rotate(-5deg) scale(.97); }
+html.vivo .sale.dentro .pass-carta { opacity:1; transform:rotate(-2deg);
+  transition:opacity .6s var(--ease) .2s,
+    transform .85s cubic-bezier(.3,1.45,.5,1) .2s; }
+/* le luci d'imbarco: i Gate si accendono in sequenza al reveal */
+@keyframes gate-tick {
+  0% { color:var(--text-4); } 35% { color:var(--gold); }
+  100% { color:var(--text-4); } }
+html.vivo .banchina.dentro .ba-p:nth-child(1) .ba-gate b {
+  animation:gate-tick .55s ease .25s both; }
+html.vivo .banchina.dentro .ba-p:nth-child(2) .ba-gate b {
+  animation:gate-tick .55s ease .43s both; }
+html.vivo .banchina.dentro .ba-p:nth-child(3) .ba-gate b {
+  animation:gate-tick .55s ease .61s both; }
+html.vivo .banchina.dentro .ba-p:nth-child(4) .ba-gate b {
+  animation:gate-tick .55s ease .79s both; }
+@media (prefers-reduced-motion:reduce){
+  html.vivo .sale .pass-carta { opacity:1;
+    transform:rotate(-2deg); transition:none; }
+  html.vivo .banchina.dentro .ba-gate b { animation:none; } }
 .pass-cima { display:flex; align-items:center; justify-content:space-between;
   gap:10px; padding:15px 18px; border-bottom:1px dashed rgba(255,215,0,.2); }
 .pass-cima .marchietto { display:inline-flex; align-items:center; gap:8px;
