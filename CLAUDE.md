@@ -89,7 +89,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `owner-dashboard.html` | Landlord/owner SPA. Firestore-backed, filtered by `ownerId`. |
 | `tenant.html` | Tenant SPA. Realtime property + maintenance feed. |
 | `client-portal.html` | PFS client swipe app. Reads `pfsClients` collection. |
-| `pfs-command.html` | PFS Command Center (admin). Radar feed, per-client match scores, outreach tracking, source health, search management. Backed by `api/pfs/*`. |
+| `pfs-command.html` | **La plancia unica del PFS** (admin): TUTTO il flusso Property Finding in una pagina. Pipeline per stage (giorni-in-stage, chip lenti in ambra) → fascicolo cliente a drawer (criteri, ricerche, mazzo con esiti/rimozione, attività, link portale con codice BM…, WhatsApp, cambio stage con la STESSA scrittura del portal) → creazione cliente (nasce col portale attivo) → feed radar con fiuto 💎/badge cluster/filtro occasioni + azione «→ Proponi a…» (push curato via `api/casafari/import`, conferma sulle agenzie) → strip occasioni (radarState) → ricerche automatiche + **vedette** (stessa collection della Centrale) → triage swipe, ⌘K, brief AI, salute fonti. |
 | `radar.html` | **La Centrale del Radar** (`/radar`, admin). Polso del mercato per zona, feed 💎 occasioni, candidati mandato, vedette (CRUD), Valutatore, gemelli cross-portale, salute fonti. Vedi "Il Radar 2.0". |
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
 

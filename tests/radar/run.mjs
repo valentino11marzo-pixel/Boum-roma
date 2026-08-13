@@ -252,6 +252,27 @@ console.log('\n── B. Le giunzioni (asserite sulla sorgente) ─────�
   const iNotified = digest.indexOf('notifiedIds: notified');
   ok('digest: notifiedIds si scrive SOLO DOPO l\'invio riuscito (mai "notificato" senza email)',
     iSend > -1 && iNotified > iSend, { iSend, iNotified });
+
+  // ── LA PLANCIA UNICA (pfs-command come cockpit del flusso PFS) ──────────
+  const cmd = src('pfs-command.html');
+  ok('plancia: la pipeline esiste (colonne per stage, in ordine di flusso)',
+    cmd.includes('STAGE_FLOW') && cmd.includes('pipe-board'));
+  ok('plancia: il cambio stage scrive come il portal (stageEnteredAt + placedDate alla chiusura)',
+    cmd.includes('stageEnteredAt') && cmd.includes('placedDate') && /newStage === 'placed'/.test(cmd));
+  ok('plancia: «Proponi a…» passa dalla porta curata ESISTENTE (casafari/import, force)',
+    cmd.includes('/api/casafari/import') && /force:\s*true/.test(cmd));
+  ok('plancia: il push di un annuncio di AGENZIA chiede conferma (doppia commissione)',
+    /AGENZIA[\s\S]{0,120}Proporlo comunque/.test(cmd));
+  ok('plancia: il feed mostra il fiuto del radar (💎 sul doc, mai ricalcolato in pagina)',
+    cmd.includes('p.radar') && cmd.includes('fiuto-badge'));
+  ok('plancia: le vedette si gestiscono da qui (stessa collection della Centrale)',
+    cmd.includes("collection('radarWatchers')"));
+  ok('plancia: il feed 💎 legge radarState/occasioni (un doc, mai il registro)',
+    /radarState'\)\.doc\('occasioni'\)/.test(cmd));
+  ok('plancia: la vecchia lista clienti piatta è sparita (il flusso è UNO)',
+    !cmd.includes('clients-list') && !cmd.includes('sec-clients'));
+  ok('plancia: il cliente creato qui nasce col portale attivo (codice BM…)',
+    cmd.includes('portalAccessCode') && cmd.includes('portalEnabled: true'));
 }
 
 console.log('\n── C. Il giro vero (Firestore in memoria) ────────────────────');
