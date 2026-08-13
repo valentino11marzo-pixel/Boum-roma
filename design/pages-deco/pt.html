@@ -438,6 +438,20 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .board-piede b { color:var(--text-3); font-weight:500;
   font-variant-numeric:tabular-nums; }
 
+/* la fiducia Stripe sotto il form: il MARCHIO visivo, una riga sola.
+   Le parole non ripetono il sotto-hero — il logo e la prova. */
+.hero-fede { display:flex; align-items:center; gap:11px;
+  margin-top:clamp(14px,1.8vw,20px); padding:10px 15px;
+  border-radius:100px; background:var(--surface);
+  box-shadow:inset 0 0 0 1px var(--line-0); max-width:max-content; }
+.hero-fede .hf-stripe { width:38px; height:auto; flex:none; opacity:.85; }
+.hero-fede span { font-size:11.5px; line-height:1.5; color:var(--text-4); }
+.hero-fede span b { color:var(--text-2); font-weight:500; }
+@media (max-width:640px){
+  .hero-fede { border-radius:14px; padding:10px 13px;
+    align-items:flex-start; }
+  .hero-fede .hf-stripe { margin-top:2px; } }
+
 /* il richiamo ai servizi: UNA riga che parla la situazione, non il
    prodotto — ma da PORTA, non da didascalia: puntino vivo, velo d'oro,
    l'azione in oro e la freccia nel cerchietto che scivola. */
@@ -1705,11 +1719,11 @@ html.vivo .sale.dentro { opacity:1; transform:none;
 
   <div class="container hero-int">
     <div class="coro dentro-subito">
-      <div class="hero-eyebrow"><b></b>Premium Rentals in Rome</div>
+      <div class="hero-eyebrow"><b></b>Rome rentals for internationals</div>
       <h1 class="hero-title">GET YOUR <span class="hl">ROME</span> APARTMENT<br>
         IN <span class="hl"><span id="flapDays" class="flap-scale"
           aria-label="days">DAYS</span></span>, NOT WEEKS.</h1>
-      <p class="hero-sub">Video-verified. Transparent pricing. Real support.</p>
+      <p class="hero-sub">A registered contract you sign from your phone. Every euro through Stripe, receipted. A named person who answers.</p>
       <div class="hero-azioni">
         <a class="btn btn-primary" href="/apartments.html">View Apartments</a>
         <a class="btn btn-secondary" href="COME_URL">How It Works</a>
@@ -1759,6 +1773,11 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         </div>
       </form>
       <p class="giorno-uno" id="giornoUno" hidden></p>
+      <div class="hero-fede">
+        <svg class="hf-stripe" aria-label="Stripe" viewBox="0 0 468 222.5" xmlns="http://www.w3.org/2000/svg"> <path fill="#635BFF" d="M414 113.4c0-25.6-12.4-45.8-36.1-45.8-23.8 0-38.2 20.2-38.2 45.6 0 30.1 17 45.3 41.4 45.3 11.9 0 20.9-2.7 27.7-6.5v-20c-6.8 3.4-14.6 5.5-24.5 5.5-9.7 0-18.3-3.4-19.4-15.2h48.9c0-1.3.2-6.5.2-8.9zm-49.4-9.5c0-11.3 6.9-16 13.2-16 6.1 0 12.6 4.7 12.6 16h-25.8zm-63.5-36.3c-9.8 0-16.1 4.6-19.6 7.8l-1.3-6.2h-22v116.6l25-5.3.1-28.3c3.6 2.6 8.9 6.3 17.7 6.3 17.9 0 34.2-14.4 34.2-46.1-.1-29-16.6-44.8-34.1-44.8zm-6 68.9c-5.9 0-9.4-2.1-11.8-4.7l-.1-37.1c2.6-2.9 6.2-4.9 11.9-4.9 9.1 0 15.4 10.2 15.4 23.3 0 13.4-6.2 23.4-15.4 23.4zm-71.3-74.8l25.1-5.4V36l-25.1 5.3zm0 7.6h25.1v87.5h-25.1zm-26.9 7.4l-1.6-7.4h-21.6v87.5h25V97.5c5.9-7.7 15.9-6.3 19-5.2v-23c-3.2-1.2-14.9-3.4-20.8 7.4zm-50-29.8l-24.4 5.2-.1 80.1c0 14.8 11.1 25.7 25.9 25.7 8.2 0 14.2-1.5 17.5-3.3V135c-3.2 1.3-19 5.9-19-8.9V90.6h19V69.3h-19l.1-21.7zM79.3 94.7c0-3.9 3.2-5.4 8.5-5.4 7.6 0 17.2 2.3 24.8 6.4V72.2c-8.3-3.3-16.5-4.6-24.8-4.6C67.5 67.6 54 78.2 54 95.9c0 27.6 38 23.2 38 35.1 0 4.6-4 6.1-9.6 6.1-8.3 0-18.9-3.4-27.3-8v23.8c9.3 4 18.7 5.7 27.3 5.7 20.8 0 35.1-10.3 35.1-28.2-.1-29.8-38.2-24.5-38.2-35.7z"/> </svg>
+        <span><b>Every euro through BOOM</b> — never to a stranger ·
+          every home walked in person</span>
+      </div>
       <a class="porte-eco" href="#banchina">
         <span class="pe-eti"><b></b>Services</span>
         <span class="pe-dice">Can't be there? Found one on your own? About
@@ -2110,8 +2129,9 @@ CASE_TRE
     <div class="sale">
       <span class="eyebrow"><i></i>After you sign</span>
       <h2 class="titolo">Travel light. Your rental<br><span class="hl">lives in your pocket.</span></h2>
-      <p class="sotto">Every BOOM tenant gets a digital pass and a home in the
-        BOOM app — because the service doesn't end at the keys.</p>
+      <p class="sotto">Most agencies disappear at the keys. That's where
+        we clock in: your pass, your rent, your receipts and a named person
+        — in your pocket for the whole stay.</p>
       <div class="pass-lista">
         <div class="pass-voce"><i></i>Your tenant pass in Apple Wallet —
           issued with your contract</div>
@@ -2528,7 +2548,36 @@ CASE_TRE
             scrollBy({ top: r.top - 84, behavior: 'smooth' });
         }, 300); }
     }
-    btn.addEventListener('click', function () {
+    /* su touch il calendario e quello del SISTEMA (la ruota Apple):
+       un campo data nativo invisibile copre il bottone. Su desktop
+       resta il calendario BOOM. */
+    var nativo = null;
+    if (matchMedia('(pointer:coarse)').matches) {
+      nativo = document.createElement('input');
+      nativo.type = 'date';
+      nativo.min = iso(oggi);
+      nativo.setAttribute('aria-label', 'Arrival date');
+      nativo.style.cssText = 'position:absolute;inset:0;width:100%;'
+        + 'height:100%;opacity:0;border:0;padding:0;';
+      btn.style.position = 'relative';
+      btn.appendChild(nativo);
+      nativo.addEventListener('change', function () {
+        if (!nativo.value) return;
+        scelta = new Date(nativo.value + 'T12:00:00');
+        testo.textContent = bella(scelta);
+        if (window.__passData) window.__passData(bella(scelta));
+        btn.classList.add('scelta');
+      });
+    }
+    btn.addEventListener('click', function (e) {
+      if (nativo) {
+        if (e.target !== nativo) {
+          try { if (nativo.showPicker) { nativo.showPicker(); return; } }
+          catch (er) {}
+          nativo.focus();
+        }
+        return;
+      }
       apri(!cal.classList.contains('aperto'));
     });
     document.getElementById('calPrec').addEventListener('click', function () {
