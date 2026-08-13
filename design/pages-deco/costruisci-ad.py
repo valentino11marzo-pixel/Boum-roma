@@ -72,7 +72,7 @@ def stato(r):
         d = libera(r.get('avail'))
         if d and d > oggi.strftime('%Y-%m-%d'):
             dt = datetime.fromisoformat(d)
-            eti = 'From ' + str(int(dt.strftime('%d'))) + dt.strftime(' %b')
+            eti = 'Free from ' + str(int(dt.strftime('%d'))) + dt.strftime(' %b')
             if dt.year != oggi.year: eti += dt.strftime(' %Y')
             return (eti, 'poi')
         return ('Available now', 'si')

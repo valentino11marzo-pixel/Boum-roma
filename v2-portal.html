@@ -1225,20 +1225,27 @@ html.vivo .sale.dentro .pass-qr i {
 .dolore span { position:absolute; left:48px; right:16px;
   color:var(--gold-light); opacity:0; transform:translateY(9px);
   transition:opacity .3s ease, transform .35s var(--ease); }
-/* la risposta prende il posto del problema */
+/* la risposta prende il posto del problema — al passaggio del mouse,
+   o quando l'onda arriva sulla carta (mobile non ha il mouse) */
 @media (hover:hover) and (pointer:fine){
   .dolore:hover { background:var(--elevated); }
   .dolore:hover svg { color:var(--gold); }
   .dolore:hover b { opacity:0; transform:translateY(-9px); }
   .dolore:hover span { opacity:1; transform:none; } }
+.dolore.viva { background:var(--elevated); }
+.dolore.viva svg { color:var(--gold); }
+.dolore.viva b { opacity:0; transform:translateY(-9px); }
+.dolore.viva span { opacity:1; transform:none; }
 /* dove non c'è il passaggio del mouse, la risposta sta sempre sotto */
 @media (hover:none), (pointer:coarse){
+  .dolore { min-height:56px; } }
+/* con reduced-motion su touch l'onda non gira: la risposta resta
+   scritta sotto, come prima — mai un contenuto irraggiungibile */
+@media (prefers-reduced-motion: reduce) and (hover:none){
   .dolore { flex-wrap:wrap; align-items:flex-start; padding:14px 16px 13px; }
-  .dolore svg { margin-top:1px; }
-  .dolore b { flex:1; }
-  .dolore span { position:static; left:auto; right:auto; opacity:1;
-    transform:none; width:100%; padding-left:32px; margin-top:5px;
-    font-size:12px; } }
+  .dolore b { flex:1; opacity:1; transform:none; }
+  .dolore span { position:static; opacity:1; transform:none; width:100%;
+    padding-left:32px; margin-top:5px; font-size:12px; } }
 .diverso { margin-top:clamp(20px,2.6vw,30px);
   padding:4px 0 4px clamp(18px,2.4vw,26px); border-left:2px solid var(--gold);
   max-width:64ch; }
@@ -1327,7 +1334,9 @@ html.vivo .sale.dentro .pass-qr i {
   padding:clamp(36px,4vw,56px) 0 28px; }
 .piede-int { display:grid; gap:28px; grid-template-columns:1fr; }
 @media (min-width:840px){ .piede-int {
-  grid-template-columns:1.4fr 1fr 1fr 1fr; } }
+  grid-template-columns:1.5fr 1fr 1fr 1.15fr .8fr; } }
+.piede-mercati { margin-top:12px; font-size:10px; font-weight:600;
+  letter-spacing:.22em; text-transform:uppercase; color:var(--text-4); }
 .footer-marchio { display:inline-flex; align-items:center; gap:12px;
   font-family:var(--display); font-size:19px; font-weight:300;
   letter-spacing:.34em; text-indent:.34em; text-transform:uppercase; }
@@ -2255,25 +2264,35 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         <p class="piede-legale"><b>BOOM®</b> is a registered trademark of
           <b>Egidi Immobiliare S.r.l.</b> — EU trade mark
           <b>019317594</b>, class 36.<br>
-          Via dei Coronari 181/184, 00186 Roma · P.IVA 17322991005 ·
+          Via dei Coronari 181/184, 00186 Roma<br>
+          P.IVA 17322991005 · REA RM-1710623 ·
           Licensed real-estate agency</p>
+        <p class="piede-mercati">Rome · La Réunion</p>
+      </div>
+      <div class="piede-col">
+        <b>Homes</b>
+        <a href="/v2-apartments.html">Apartments</a>
+        <a href="/v2-money.html">Your Money</a>
+        <a href="/v2-board.html">Live Board</a>
+        <a href="/book.html">Book a Viewing</a>
+        <a href="/welcome-to-rome.html">Welcome to Rome</a>
       </div>
       <div class="piede-col">
         <b>Services</b>
-        <a href="/v2-apartments.html">Apartments</a>
         <a href="/v2-property-finding.html">Property Finding</a>
         <a href="/deal-assistance.html">Deal Assistance</a>
         <a href="/virtual-viewing.html">Virtual Viewing</a>
+        <a href="/contract-check-express.html">Contract Check</a>
         <a href="/concierge.html">Concierge</a>
-        <a href="/v2-board.html">Live Board</a>
       </div>
       <div class="piede-col">
-        <b>Company</b>
+        <b>Company &amp; Markets</b>
         <a href="/about.html">About</a>
-        <a href="/v2-money.html">Your Money</a>
         <a href="/how-it-works.html">How It Works</a>
-        <a href="/universities.html">For Universities</a>
+        <a href="/executive.html">BOOM Executive</a>
+        <a href="/reunion.html">BOOM La Réunion</a>
         <a href="/corporate.html">For Companies</a>
+        <a href="/universities.html">For Universities</a>
         <a href="/owners.html">For Owners</a>
         <a href="/blog.html">Blog</a>
       </div>
@@ -2840,6 +2859,35 @@ html.vivo .sale.dentro { opacity:1; transform:none;
   /* parte DOPO via(): il tabellone ha già dichiarato le zone vive */
   if (document.readyState === 'complete') setTimeout(cartaRoma, 0);
   else addEventListener('load', function () { setTimeout(cartaRoma, 0); });
+
+  /* L'ONDA SUI DOLORI: una carta alla volta mostra la risposta in oro,
+     da sola — su mobile nessuno passa il mouse. Il passaggio del mouse
+     la ferma (stai leggendo tu), reduced-motion la spegne. */
+  (function () {
+    var carte = [].slice.call(document.querySelectorAll('.dolore'));
+    if (carte.length < 2) return;
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var qui = -1, fermo = false, giro = null;
+    function passa() {
+      if (fermo || document.hidden) return;
+      if (qui >= 0) carte[qui].classList.remove('viva');
+      qui = (qui + 1) % carte.length;
+      carte[qui].classList.add('viva');
+    }
+    var zona = carte[0].parentElement;
+    zona.addEventListener('mouseenter', function () {
+      fermo = true;
+      if (qui >= 0) carte[qui].classList.remove('viva');
+    });
+    zona.addEventListener('mouseleave', function () { fermo = false; });
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (v, io) {
+        if (!v[0].isIntersecting) return;
+        io.disconnect();
+        passa(); giro = setInterval(passa, 2600);
+      }, { threshold: .3 }).observe(zona);
+    } else giro = setInterval(passa, 2600);
+  })();
 
   /* il giorno uno, al volo: scegli il budget e l'hero risponde con la
      forchetta VERA del catalogo — canone + deposito + onorario, esatti,
