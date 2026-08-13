@@ -42,7 +42,7 @@ def stato(s, dal=None):
         oggi = datetime.now(timezone.utc).strftime('%Y-%m-%d')
         if dal and dal > oggi:
             d = datetime.fromisoformat(dal)
-            eti = 'From ' + str(int(d.strftime('%d'))) + d.strftime(' %b')
+            eti = 'Free from ' + str(int(d.strftime('%d'))) + d.strftime(' %b')
             if d.year != datetime.now(timezone.utc).year:
                 eti += d.strftime(' %Y')
             return (eti, True)
