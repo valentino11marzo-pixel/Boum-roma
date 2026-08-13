@@ -608,11 +608,18 @@
       mappaB.addControl(new maplibregl.NavigationControl(
         { visualizePitch: true }), 'bottom-right');
       mappaB.on('error', function (e) {
-        if (e && e.error
+        if (e && e.error && !e.tile
+            && !(mappaB.isStyleLoaded && mappaB.isStyleLoaded())
             && /style|Failed to fetch/i.test(String(e.error.message || '')))
           ripiegoB();
       });
-      setTimeout(ripiegoB, 9000);
+      function guardiaB(giri) {
+        if (carico || spenta || satellite || !mappaB) return;
+        if (mappaB.isStyleLoaded && mappaB.isStyleLoaded() && giri < 3)
+          return void setTimeout(function () { guardiaB(giri + 1); }, 5000);
+        ripiegoB();
+      }
+      setTimeout(function () { guardiaB(0); }, 9000);
       mappaB.on('load', function () {
         carico = true;
         try {

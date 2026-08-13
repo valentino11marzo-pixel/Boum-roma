@@ -55,7 +55,8 @@
 <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"></noscript>
 <style>
 /* ══════════════════════════════════════════════════════════════════════════
    BOOM · IL PORTALE — l'impostazione da azienda internazionale, sui binari
@@ -3276,9 +3277,12 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       'bottom-right');
     mappa.addControl(new maplibregl.FullscreenControl(), 'bottom-right');
     mappa.on('error', function (e) {
-      /* un tile che manca non e un fallimento; uno stile che manca lo e —
-         e il piano B e il satellite, non il buio */
-      if (e && e.error && /style|Failed to fetch/i.test(String(e.error.message || '')))
+      /* un tile che manca NON e un fallimento (l'errore porta e.tile, e
+         lo standalone li ignora da sempre): si degrada solo se l'errore
+         non riguarda un tile E lo stile non e ancora in piedi */
+      if (e && e.error && !e.tile
+          && !(mappa.isStyleLoaded && mappa.isStyleLoaded())
+          && /style|Failed to fetch/i.test(String(e.error.message || '')))
         ripiego();
     });
     var attrezzata = false;
@@ -3323,8 +3327,16 @@ html.vivo .sale.dentro { opacity:1; transform:none;
     /* 'idle' = primo quadro COMPLETO: se 'load' tarda ma il render
        arriva, il velo si alza comunque — mai il nero su una mappa viva */
     mappa.once('idle', eccola);
-    /* e se in 9s non e arrivato niente, si passa al satellite */
-    setTimeout(ripiego, 9000);
+    /* il cane da guardia ha due orecchie: a 9s, se lo STILE e in piedi
+       e i tile stanno solo scendendo, si aspetta ('idle' arrivera) —
+       si degrada un quadro MORTO, mai uno vivo e lento */
+    function guardia(giri) {
+      if (carico || morto || satellite || !mappa) return;
+      if (mappa.isStyleLoaded && mappa.isStyleLoaded() && giri < 3)
+        return void setTimeout(function () { guardia(giri + 1); }, 5000);
+      ripiego();
+    }
+    setTimeout(function () { guardia(0); }, 9000);
   }
 
   /* i filtri di prezzo */
