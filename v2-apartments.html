@@ -13,6 +13,8 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Browse 18 verified apartments for rent in Rome — every home walked in person by BOOM. Filter by zone, budget and move-in date; 8 available now.">
+<link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
+<link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -148,7 +150,7 @@ h1, h2, h3 { font-family:var(--display); }
    .36 a .26: e la differenza fra quattro lettere e una parola. */
 .marchio { display:inline-flex; align-items:center; gap:13px; }
 .marchio .logo-mark { width:66px; height:66px; flex:none; }
-.marchio span { font-family:var(--display); font-size:30px; font-weight:400;
+.marchio span { font-family:var(--display); font-size:30px; font-weight:300;
   letter-spacing:.26em; text-indent:.26em; text-transform:uppercase; }
 @media (max-width:640px){
   .marchio { gap:10px; }
@@ -3614,6 +3616,26 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       conta = document.getElementById('cieloConta'),
       sat   = document.getElementById('cieloSat');
   var ROMA = [12.4924, 41.8902], mappa = null, PIN = [], TETTO = 0, morto = false;
+  var carico = false, satellite = false;
+  /* il piano B non scarica niente: lo stile e scritto qui dentro */
+  function stileSatellite() {
+    return { version: 8, sources: { sat: { type: 'raster', tileSize: 256,
+      maxzoom: 19, attribution: 'Imagery © Esri, Maxar, Earthstar Geographics',
+      tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'] } },
+      layers: [{ id: 'sat', type: 'raster', source: 'sat' }] };
+  }
+  function ripiego() {
+    /* il vettoriale non e arrivato: si passa al satellite puro. Se entro
+       8s non arriva neanche lui, la carta onesta. */
+    if (carico || morto || satellite || !mappa) return;
+    satellite = true;
+    dico('Switching to satellite…');
+    try { mappa.setStyle(stileSatellite()); } catch (e) { spengo(
+      'The map engine could not start here. The full Skyline still works.'); return; }
+    setTimeout(function () { if (!carico) spengo(
+      'The map engine is not reachable from here. The full Skyline still works.'); },
+      8000);
+  }
 
   function dico(t, muto) {
     if (dice) dice.textContent = t;
@@ -3786,22 +3808,29 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       'bottom-right');
     mappa.addControl(new maplibregl.FullscreenControl(), 'bottom-right');
     mappa.on('error', function (e) {
-      /* un tile che manca non e un fallimento; uno stile che manca lo e */
+      /* un tile che manca non e un fallimento; uno stile che manca lo e —
+         e il piano B e il satellite, non il buio */
       if (e && e.error && /style|Failed to fetch/i.test(String(e.error.message || '')))
-        spengo('The map engine could not be reached from here. The full Skyline still works.');
+        ripiego();
     });
-    mappa.on('load', function () {
-      grana();
-      mappa.addSource('fili', { type: 'geojson',
-        data: { type: 'FeatureCollection', features: [] } });
-      mappa.addLayer({ id: 'fili-alone', type: 'line', source: 'fili',
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': '#FFD700', 'line-width': 6, 'line-blur': 6,
-          'line-opacity': .22 } });
-      mappa.addLayer({ id: 'fili-filo', type: 'line', source: 'fili',
-        layout: { 'line-cap': 'round' },
-        paint: { 'line-color': '#FFE680', 'line-width': 1.6, 'line-opacity': .9,
-          'line-dasharray': [1, 1.6] } });
+    var attrezzata = false;
+    function attrezza() {
+      /* tutto cio che uno setStyle spazza via: fili, ancore, pin */
+      if (!satellite) grana();
+      try {
+        mappa.addSource('fili', { type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] } });
+        mappa.addLayer({ id: 'fili-alone', type: 'line', source: 'fili',
+          layout: { 'line-cap': 'round', 'line-join': 'round' },
+          paint: { 'line-color': '#FFD700', 'line-width': 6, 'line-blur': 6,
+            'line-opacity': .22 } });
+        mappa.addLayer({ id: 'fili-filo', type: 'line', source: 'fili',
+          layout: { 'line-cap': 'round' },
+          paint: { 'line-color': '#FFE680', 'line-width': 1.6,
+            'line-opacity': .9, 'line-dasharray': [1, 1.6] } });
+      } catch (e) {}
+      if (attrezzata) return;
+      attrezzata = true;
       ANCORE.forEach(function (A) {
         var el = document.createElement('div'); el.className = 'cielo-anc';
         var nm = document.createElement('span'); nm.textContent = A[2];
@@ -3811,14 +3840,23 @@ html.vivo .sale.dentro { opacity:1; transform:none;
           anchor: 'center' }).setLngLat([A[0], A[1]]).addTo(mappa) });
       });
       mappa.on('click', sciogli);
-
       var box = new maplibregl.LngLatBounds();
       CASE.forEach(function (c) { segnaposto(c); box.extend([c.lng, c.lat]); });
-      try { mappa.fitBounds(box, { padding: 84, maxZoom: 14.2, duration: 1600,
-        pitch: 55 }); } catch (e) {}
+      try { mappa.fitBounds(box, { padding: 84, maxZoom: 14.2,
+        duration: 1600, pitch: 55 }); } catch (e) {}
       filtra();
+    }
+    function eccola() {
+      carico = true;
+      attrezza();
       if (velo) velo.classList.add('via');
-    });
+    }
+    mappa.on('load', eccola);
+    /* 'idle' = primo quadro COMPLETO: se 'load' tarda ma il render
+       arriva, il velo si alza comunque — mai il nero su una mappa viva */
+    mappa.once('idle', eccola);
+    /* e se in 9s non e arrivato niente, si passa al satellite */
+    setTimeout(ripiego, 9000);
   }
 
   /* i filtri di prezzo */
@@ -3857,9 +3895,9 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       spengo('The map engine is not reachable from this preview. The full Skyline still works.');
     };
     document.head.appendChild(js);
-    /* se in dodici secondi non e successo niente, lo diciamo */
+    /* se in dodici secondi il motore non e neanche arrivato, lo diciamo */
     setTimeout(function () { if (!mappa) spengo(
-      'The map engine is not reachable from this preview. The full Skyline still works.'); },
+      'The map engine is not reachable from here. The full Skyline still works.'); },
       12000);
   }
   if ('IntersectionObserver' in window) {
