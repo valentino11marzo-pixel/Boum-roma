@@ -715,6 +715,9 @@
     },
     "api/phone/recording.js": {
       "maxDuration": 60
+    },
+    "api/phone/elevenlabs.js": {
+      "maxDuration": 60
     }
   },
   "crons": [

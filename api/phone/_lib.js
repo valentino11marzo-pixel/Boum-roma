@@ -26,8 +26,8 @@
 //     riassunto e bozza, il dato che conta (la chiamata) non si perde mai.
 
 import crypto from 'node:crypto';
-import { secretEqual, fsList } from '../homie/_lib.js';
-import { phoneVariants } from '../homie/_lead.js';
+import { secretEqual, fsList, fsPatch, fsCreate, getAdminToken, logActivity } from '../homie/_lib.js';
+import { phoneVariants, isNoise, mergeMessage, buildLead, recentLeadByPhone } from '../homie/_lead.js';
 import { replyLang } from '../_lang.js';
 
 // ── la chiave del webhook: derivata, mai coniata ───────────────────────────
@@ -189,4 +189,166 @@ export function callerLabel(resolved, phone) {
   return e.name
     || ((e.firstName ? (e.firstName + ' ' + (e.lastName || '')).trim() : ''))
     || e.email || phone || 'Contatto';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LA PIPELINE CONDIVISA — una copia sola (la disciplina di viewings/_apply.js).
+// Due porte consegnano chiamate: la segreteria che registra (recording.js,
+// callback Twilio-style) e la receptionist conversazionale (elevenlabs.js,
+// webhook post-chiamata). Audio→Storage, analisi, lead e card Telegram vivono
+// QUI una volta: le due porte non possono divergere su come si tratta un
+// chiamante.
+// ═══════════════════════════════════════════════════════════════════════════
+
+export const MODEL = 'claude-haiku-4-5-20251001';
+export const BUCKET = process.env.FIREBASE_BUCKET || 'boom-property-dashboards.firebasestorage.app';
+export const BOOM_CONTACT_TYPES = new Set(['tenant', 'landlord', 'pfs', 'client']);
+
+// Il placeholder senza trascrizione è in INGLESE di proposito: replyLang
+// legge lead.message, e un placeholder italiano farebbe scrivere in italiano
+// a un expat (la lezione di leads/scan-inbox).
+export const NO_TRANSCRIPT_MSG = '[voicemail] Voice message left on the BOOM phone line — listen from /chiamate.';
+
+/** Audio della chiamata → Storage phone-calls/, URL tokenizzato (= la
+ *  credenziale di lettura della dashboard; le rules restano admin-only). */
+export async function storeCallAudio(name, buf, contentType = 'audio/mpeg') {
+  const path = `phone-calls/${name}.mp3`;
+  try {
+    const token = await getAdminToken();
+    const up = await fetch(
+      `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o?name=${encodeURIComponent(path)}`,
+      { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': contentType }, body: buf }
+    );
+    if (!up.ok) return { url: null, path: null, error: 'storage_' + up.status };
+    const meta = await up.json().catch(() => ({}));
+    const dl = String(meta.downloadTokens || '').split(',')[0];
+    return {
+      url: `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o/${encodeURIComponent(path)}?alt=media${dl ? '&token=' + dl : ''}`,
+      path,
+    };
+  } catch (e) {
+    return { url: null, path: null, error: 'storage_failed: ' + String(e.message).slice(0, 80) };
+  }
+}
+
+/**
+ * L'analisi haiku, field-whitelisted. `transcript` sono le parole del
+ * CHIAMANTE (mai quelle dell'assistente: replyLang deve vedere solo lui).
+ * `providerSummary` è il riassunto che il fornitore ha già calcolato
+ * (ElevenLabs): entra SOLO come fallback quando la nostra AI non c'è.
+ */
+export async function analyzeTranscript({ transcript, callerType, resolved, from, catalog, listing, providerSummary }) {
+  if (!transcript || !process.env.ANTHROPIC_API_KEY) {
+    return sanitizeAnalysis(providerSummary ? { summary: providerSummary } : {}, transcript);
+  }
+
+  const who = resolved
+    ? `già in archivio come ${callerType} ("${callerLabel(resolved, from)}")`
+    : 'un numero NON in archivio';
+  const names = (catalog || []).slice(0, 40).map((l) => l.name).filter(Boolean);
+  const prompt = [
+    'Sei il centralino di BOOM Roma (affitti a Roma, clientela internazionale).',
+    'Un chiamante ha parlato con la nostra linea. Chi chiama è ' + who + '.',
+    names.length ? 'Annunci attivi (solo per capire di quale casa parla): ' + names.join(' · ') : '',
+    listing ? `Il testo sembra riferirsi all'annuncio "${listing.name}".` : '',
+    '',
+    'PAROLE DEL CHIAMANTE:',
+    '"""' + String(transcript).slice(0, 2500) + '"""',
+    '',
+    'Rispondi SOLO con un oggetto JSON, nessun altro testo:',
+    '{',
+    ' "callerName": string|null,       // SOLO se detto nel messaggio, MAI inventato',
+    ' "language": "it"|"en",           // lingua in cui parla il chiamante',
+    ' "summary": string,               // 1-2 frasi IN ITALIANO per l\'operatore: chi è, cosa vuole',
+    ' "intent": "nuova-richiesta"|"visita"|"inquilino"|"proprietario"|"fornitore"|"spam"|"altro",',
+    ' "urgency": "low"|"medium"|"high",',
+    ' "suggestedAction": "whatsapp"|"richiama"|"visita"|"manutenzione"|"niente",',
+    ' "draftReply": string             // risposta WhatsApp pronta da inviare, NELLA LINGUA del chiamante, breve e concreta, che risponde a ciò che ha chiesto, firmata "Valentino · BOOM"',
+    '}',
+    'Non inventare MAI dati non presenti nel messaggio.',
+  ].filter(Boolean).join('\n');
+
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ model: MODEL, max_tokens: 700, messages: [{ role: 'user', content: prompt }] }),
+    });
+    if (!r.ok) {
+      console.warn('[phone/_lib] anthropic', r.status, (await r.text()).slice(0, 120));
+      return sanitizeAnalysis(providerSummary ? { summary: providerSummary } : {}, transcript);
+    }
+    const data = await r.json();
+    const text = (data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
+    const m = text.match(/\{[\s\S]*\}/);
+    const parsed = m ? JSON.parse(m[0]) : null;
+    return sanitizeAnalysis(parsed, transcript);
+  } catch (e) {
+    console.warn('[phone/_lib] analyze:', e.message);
+    return sanitizeAnalysis(providerSummary ? { summary: providerSummary } : {}, transcript);
+  }
+}
+
+/**
+ * Il lead da una chiamata — stesse regole di homie/message.js: contatti BOOM
+ * veri MAI in pipeline, un lead esistente si arricchisce, il nuovo nasce
+ * nello schema condiviso (source 'phone' per ENTRAMBE le porte: a valle
+ * conta il canale, non il fornitore).
+ */
+export async function syncLeadFromCall({ resolved, callerType, from, transcript, listing, callerName, durationSec, sourceRef, via, now }) {
+  if (!from) return null;                                  // anonimo: nessuno da richiamare
+  if (BOOM_CONTACT_TYPES.has(callerType)) return null;     // inquilini & co: non è un lead
+  if (transcript && isNoise(transcript)) return null;      // un colpo di tosse non è un cliente
+
+  const text = transcript || NO_TRANSCRIPT_MSG;
+
+  // già in pipeline (risolto come lead, o stesso numero da un'altra porta)
+  const prior = (callerType === 'lead' && resolved) ? resolved.entity : await recentLeadByPhone(from, now.getTime());
+  if (prior) {
+    try {
+      await fsPatch(`leads/${prior.id}`, {
+        message: mergeMessage(prior.message, text),
+        lastInboundAt: now,
+        ...(prior.phone ? {} : { phone: from }),
+        ...(prior.propertyId || !listing ? {} : { propertyId: listing.id, propertyTitle: listing.name || null, propertyPrice: listing.price || null }),
+      });
+    } catch { /* non-fatale */ }
+    return { leadId: prior.id, leadCreated: false };
+  }
+
+  const lead = {
+    ...buildLead({ text, phone: from, name: callerName || '', listing, at: now }),
+    source: 'phone',
+    sourceRef: sourceRef || null,
+    raw: { via: via || 'phone', channel: 'phone', durationSec: durationSec || null },
+  };
+  const { id } = await fsCreate('leads', lead);
+  await logActivity('lead_from_phone', 'lead', { leadId: id, sourceRef: sourceRef || null, listing: lead.propertyTitle }, 'centralino');
+  return { leadId: id, leadCreated: true };
+}
+
+/** La card Telegram — kind 'voicemail' (messaggio registrato) o 'agent'
+ *  (conversazione gestita dalla receptionist). */
+export function tgCallCard({ callerName, callerType, from, durationSec, analysis, transcript, leadCreated, kind = 'voicemail' }) {
+  const esc = (s) => String(s || '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  const TYPE_BADGE = { tenant: '🏠 inquilino', landlord: '🔑 proprietario', pfs: '🎯 cliente PFS', client: '👤 cliente', lead: '📇 lead esistente' };
+  const header = kind === 'agent'
+    ? '🤖 <b>Receptionist BOOM</b> — chiamata gestita'
+    : '📞 <b>Segreteria BOOM</b> — nuovo messaggio';
+  const lines = [
+    header,
+    `👤 ${esc(callerName)}${TYPE_BADGE[callerType] ? ' · ' + TYPE_BADGE[callerType] : ''}${leadCreated ? ' · 🆕 lead creato' : ''}`,
+    `${from ? '📱 ' + esc(from) + ' · ' : ''}⏱ ${durationSec != null ? durationSec + 's' : '?'}`,
+    `🧠 ${esc(analysis.summary)}`,
+  ];
+  if (transcript) lines.push(`<blockquote>${esc(String(transcript).slice(0, 350))}${transcript.length > 350 ? '…' : ''}</blockquote>`);
+  if (from && analysis.suggestedAction === 'whatsapp') {
+    lines.push(`💬 Rispondi: https://wa.me/${from.replace(/\D/g, '')}?text=${encodeURIComponent(analysis.draftReply)}`);
+  }
+  lines.push('🎛 Tutte le chiamate: https://boomrome.com/chiamate');
+  return lines.join('\n');
 }

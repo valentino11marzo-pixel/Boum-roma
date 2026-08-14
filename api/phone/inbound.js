@@ -45,9 +45,15 @@ export default async function handler(req, res) {
     const base = baseUrl(req);
     return res.status(200).json({
       ok: true,
+      // Via A — segreteria che registra (Twilio-style):
       voiceUrl: `${base}/api/phone/inbound?k=${key}`,
       voiceMethod: 'POST',
-      note: 'Twilio → numero → Voice Configuration → "A call comes in" = Webhook con questo URL (POST). Il callback della registrazione è già dentro il TwiML. Poi sull’iPhone: **004*<numero Twilio># per attivare le deviazioni condizionali.',
+      // Via B — receptionist conversazionale (ElevenLabs Agents, vedi
+      // bot/RECEPTIONIST.md): webhook post-chiamata + tools in chiamata.
+      elevenlabsWebhookUrl: `${base}/api/phone/elevenlabs`,
+      toolCatalogUrl: `${base}/api/phone/agent-tools?k=${key}&op=catalog`,
+      toolSlotsUrl: `${base}/api/phone/agent-tools?k=${key}&op=slots`,
+      note: 'Via A (Twilio): incolla voiceUrl come webhook Voice del numero. Via B (ElevenLabs): webhook firmato HMAC (env ELEVENLABS_WEBHOOK_SECRET) + i due tool URL nell’agente — mandato completo in bot/RECEPTIONIST.md. Poi sull’iPhone: **004*<numero># per le deviazioni condizionali.',
     });
   }
 

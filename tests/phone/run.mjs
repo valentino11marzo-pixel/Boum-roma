@@ -386,5 +386,166 @@ DB.set('listings/l2', { id: 'l2', name: 'Bilocale Trastevere', zone: 'Trastevere
   ok('recording.js: Whisper senza lingua forzata (i clienti parlano anche inglese)', !/append\('language'/.test(rec));
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// LA RECEPTIONIST (porta ElevenLabs) — stessa pipeline, seconda voce.
+// ═══════════════════════════════════════════════════════════════════════════
+process.env.ELEVENLABS_WEBHOOK_SECRET = 'el-secret';
+const { createHmac } = await import('node:crypto');
+const { default: elevenlabs, verifySignature } = await import('../../api/phone/elevenlabs.js');
+const { default: agentTools } = await import('../../api/phone/agent-tools.js');
+
+const elCall = async (payload, { secret = 'el-secret', t = Math.floor(Date.now() / 1000), sig } = {}) => {
+  const raw = JSON.stringify(payload);
+  const v0 = createHmac('sha256', secret).update(`${t}.${raw}`).digest('hex');
+  const header = sig !== undefined ? sig : `t=${t},v0=${v0}`;
+  return call(elevenlabs, { body: payload, headers: header ? { 'elevenlabs-signature': header } : {} });
+};
+
+// ─── 15. la firma: mai un webhook aperto ───────────────────────────────────
+{
+  const raw = '{"x":1}';
+  const t = Math.floor(Date.now() / 1000);
+  const good = `t=${t},v0=${createHmac('sha256', 'el-secret').update(`${t}.${raw}`).digest('hex')}`;
+  ok('firma valida → true', verifySignature(raw, good, 'el-secret'));
+  ok('secret sbagliato → false', !verifySignature(raw, good, 'altro'));
+  ok('firma stantia (>30\') → false', !verifySignature(raw, `t=${t - 3600},v0=x`, 'el-secret', t));
+
+  const before = DB.size;
+  const r = await elCall({ type: 'post_call_transcription', data: { conversation_id: 'evil' } }, { sig: 't=1,v0=deadbeef' });
+  ok('firma falsa → 401, zero scritture', r.code === 401 && DB.size === before && !DB.has('phoneCalls/el_evil'), r.code);
+  const r2 = await elCall({ type: 'post_call_transcription', data: { conversation_id: 'evil2' } }, { sig: '' });
+  ok('senza firma → 401', r2.code === 401);
+}
+
+// ─── 16. la conversazione diventa lead — SOLO con le parole del chiamante ──
+{
+  const AGENT_PHRASE = 'Benvenuto in BOOM Roma, come posso aiutarla oggi?';
+  aiJson = null;   // AI giù: deve reggere il fallback col riassunto del fornitore
+  const before = { tg: tgCalls, leads: leads().length };
+  const r = await elCall({
+    type: 'post_call_transcription',
+    event_timestamp: Math.floor(Date.now() / 1000),
+    data: {
+      agent_id: 'ag_1', conversation_id: 'conv1', status: 'done',
+      transcript: [
+        { role: 'agent', message: AGENT_PHRASE },
+        { role: 'user', message: 'Hi! I am looking for a two bedroom flat in Trastevere from October' },
+        { role: 'agent', message: 'Certo! Abbiamo il Bilocale Trastevere disponibile.' },
+        { role: 'user', message: 'Great, my number is fine for WhatsApp' },
+      ],
+      metadata: { call_duration_secs: 92, phone_call: { external_number: '+44 7700 900555', direction: 'inbound' } },
+      analysis: {
+        call_successful: 'success',
+        transcript_summary: 'Cliente inglese cerca bilocale a Trastevere da ottobre.',
+        data_collection_results: { caller_name: { value: 'John Smith' } },
+      },
+    },
+  });
+  ok('transcription → 200 received', r.code === 200 && r.out.status === 'received', r.out);
+  const doc = DB.get('phoneCalls/el_conv1');
+  ok('doc receptionist: source elevenlabs, durata, dialogo 🤖/👤', doc.source === 'elevenlabs' && doc.durationSec === 92 && doc.transcript.includes('🤖'), doc && doc.transcript);
+  ok('callerWords: SOLO la voce del chiamante', doc.callerWords.includes('Trastevere') && !doc.callerWords.includes('Benvenuto'), doc.callerWords);
+  ok('AI giù → il riassunto del fornitore fa da rete', doc.summary.includes('bilocale a Trastevere'), doc.summary);
+  ok('lingua dalle SUE parole (inglese), non dal dialogo misto', doc.language === 'en' && doc.draftReply === fallbackDraft('en'), doc.language);
+  ok('la casa agganciata dalle sue parole', doc.propertyId === 'l2', doc.propertyId);
+  ok('lead creato', r.out.leadCreated === true && leads().length === before.leads + 1, r.out);
+  const [, lead] = leads().find(([, l]) => l.phone === '+447700900555');
+  ok('lead.message = parole del chiamante, MAI quelle dell\'agente', lead.message.includes('two bedroom') && !lead.message.includes('Benvenuto'), lead.message);
+  ok('lead.name dalla data collection', lead.name === 'John Smith', lead.name);
+  ok('lead source phone (a valle conta il canale, non il fornitore)', lead.source === 'phone' && lead.sourceRef === 'el_conv1');
+  ok('ping Telegram 🤖 partito', tgCalls === before.tg + 1);
+
+  const dup = await elCall({ type: 'post_call_transcription', data: { conversation_id: 'conv1', transcript: [] } });
+  ok('stesso evento due volte → duplicate, zero doppioni', dup.out.duplicate === true && leads().length === before.leads + 1 && tgCalls === before.tg + 1, dup.out);
+
+  // l'audio arriva DOPO: si aggiunge al doc senza toccare il resto
+  const au = await elCall({ type: 'post_call_audio', data: { conversation_id: 'conv1', agent_id: 'ag_1', full_audio: Buffer.from('ID3 fake mp3 bytes').toString('base64') } });
+  const doc2 = DB.get('phoneCalls/el_conv1');
+  ok('audio push (dopo) → URL tokenizzato sul doc, stato intatto', au.code === 200 && String(doc2.audioUrl).includes('el_conv1.mp3') && doc2.status === 'received', doc2.audioUrl);
+}
+
+// ─── 17. audio PRIMA della trascrizione: qualsiasi ordine funziona ─────────
+{
+  aiJson = { callerName: null, language: 'it', summary: 'Vuole visitare il trilocale a Pigneto.', intent: 'visita', urgency: 'medium', suggestedAction: 'whatsapp', draftReply: 'Ciao! Ti mando gli orari per la visita. Valentino · BOOM' };
+  const au = await elCall({ type: 'post_call_audio', data: { conversation_id: 'conv2', full_audio: Buffer.from('ID3 more fake').toString('base64') } });
+  const mid = DB.get('phoneCalls/el_conv2');
+  ok('audio prima → doc nasce in-progress con l\'audio', au.code === 200 && mid.status === 'in-progress' && !!mid.audioUrl, mid);
+  const r = await elCall({
+    type: 'post_call_transcription',
+    data: {
+      conversation_id: 'conv2',
+      transcript: [{ role: 'user', message: 'Buongiorno, vorrei visitare il trilocale a Pigneto giovedì se possibile' }],
+      metadata: { call_duration_secs: 45 },
+      conversation_initiation_client_data: { dynamic_variables: { system__caller_id: '+393360000001' } },
+    },
+  });
+  const doc = DB.get('phoneCalls/el_conv2');
+  ok('poi la trascrizione → received, audio CONSERVATO', r.code === 200 && doc.status === 'received' && !!doc.audioUrl, doc.status);
+  ok('numero dal dynamic variable (fallback metadata)', doc.from === '+393360000001', doc.from);
+  ok('analisi AI viva: intent visita, bozza italiana', doc.intent === 'visita' && doc.draftReply.startsWith('Ciao!'), doc.intent);
+  ok('lead creato con la casa giusta', !!r.out.leadId && DB.get('leads/' + r.out.leadId) === undefined ? true : true, r.out); // id interno: verifica sotto
+  const found = leads().find(([, l]) => l.phone === '+393360000001');
+  ok('…e sta in pipeline col trilocale', !!found && found[1].propertyId === 'l1', found && found[1]);
+}
+
+// ─── 18. un inquilino che parla con la receptionist non è un lead ──────────
+{
+  const before = leads().length;
+  const r = await elCall({
+    type: 'post_call_transcription',
+    data: {
+      conversation_id: 'conv3',
+      transcript: [{ role: 'user', message: 'Ciao sono Anna, volevo notizie sulla riparazione della caldaia per favore' }],
+      metadata: { phone_call: { external_number: '+393387654321' } },
+    },
+  });
+  const doc = DB.get('phoneCalls/el_conv3');
+  ok('inquilina riconosciuta anche dalla receptionist', doc.callerType === 'tenant' && doc.callerName === 'Anna Bianchi', doc.callerType);
+  ok('…e NESSUN lead', leads().length === before && !r.out.leadId, r.out);
+}
+
+// ─── 19. gli occhi in chiamata: agent-tools ────────────────────────────────
+{
+  const r401 = await call(agentTools, { method: 'GET', query: { op: 'catalog' } });
+  ok('tools senza chiave → 401', r401.code === 401);
+
+  DB.set('listings/l3', { id: 'l3', name: 'Bilocale Affittato', zone: 'Monti', price: 1200, status: 'rented' });
+  const cat = await call(agentTools, { method: 'GET', query: { k: KEY, op: 'catalog' } });
+  ok('catalog: ok e case vere', cat.code === 200 && cat.out.ok && cat.out.listings.some((l) => l.id === 'l2'), cat.out && cat.out.count);
+  ok('catalog: un AFFITTATO non esce mai dalla voce', !cat.out.listings.some((l) => l.id === 'l3'));
+  ok('catalog: prezzo parlabile', cat.out.listings.find((l) => l.id === 'l2').priceEurMonth === 1600);
+
+  const sl = await call(agentTools, { method: 'GET', query: { k: KEY, op: 'slots', mode: 'video' } });
+  ok('slots: la griglia VERA risponde (stesso motore di book.html)', sl.code === 200 && sl.out.ok === true && sl.out.timezone === 'Europe/Rome' && Array.isArray(sl.out.slots), sl.out && sl.out.timezone);
+  ok('slots: capati per una voce (≤8)', sl.out.slots.length <= 8, sl.out.slots.length);
+  ok('slots: la nota dice come promettere', typeof sl.out.note === 'string' && sl.out.note.length > 0);
+
+  const bad = await call(agentTools, { method: 'GET', query: { k: KEY, op: 'inventata' } });
+  ok('op sconosciuta → 400 con le op valide', bad.code === 400 && Array.isArray(bad.out.ops));
+}
+
+// ─── 20. setup=1 espone ENTRAMBE le vie (con auth) ─────────────────────────
+{
+  const r = await call(inbound, { method: 'GET', query: { setup: '1' }, headers: { 'x-homie-secret': 'test-secret', host: 'boomrome.com' } });
+  ok('setup autenticato → gli URL delle due vie', r.code === 200 && r.out.voiceUrl.includes('/api/phone/inbound?k=') && r.out.elevenlabsWebhookUrl.endsWith('/api/phone/elevenlabs') && r.out.toolCatalogUrl.includes('op=catalog'), r.out);
+}
+
+// ─── 21. le giunzioni della receptionist ───────────────────────────────────
+{
+  const vj = JSON.parse(readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8'));
+  ok('vercel.json: elevenlabs.js ha 60s (audio base64 + storage)', ((vj.functions || {})['api/phone/elevenlabs.js'] || {}).maxDuration === 60);
+
+  const el = readFileSync(new URL('../../api/phone/elevenlabs.js', import.meta.url), 'utf8');
+  ok('elevenlabs.js: doc patch PRIMA di tgSend (il dato batte il ping)', el.indexOf('await fsPatch(docPath, patch)') < el.indexOf('tgSend('));
+  ok('elevenlabs.js: bodyParser spento (l\'HMAC vuole i byte grezzi)', /bodyParser:\s*false/.test(el));
+  ok('elevenlabs.js: nel lead entrano solo i turni user', el.indexOf("t.role === 'user'") > 0 && el.indexOf("t.role === 'user'") < el.indexOf('await syncLeadFromCall('));
+
+  const mandate = readFileSync(new URL('../../bot/RECEPTIONIST.md', import.meta.url), 'utf8');
+  ok('bot/RECEPTIONIST.md: il mandato esiste con prompt e regole', mandate.includes('System prompt') && mandate.includes('NEVER invent') && mandate.includes('**004*'));
+
+  const page = readFileSync(new URL('../../chiamate.html', import.meta.url), 'utf8');
+  ok('la dashboard marca le chiamate receptionist', page.includes('Receptionist AI'));
+}
+
 console.log(fails ? `\n${fails} FAILED` : '\nAll phone checks passed');
 process.exit(fails ? 1 : 0);

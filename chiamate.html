@@ -84,7 +84,7 @@ details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-le
     <h1><b>BOOM</b> · CENTRALINO</h1>
     <nav><a href="/portal">← Portal</a> &nbsp;·&nbsp; <a href="/team">Squadra</a> &nbsp;·&nbsp; <a href="/salute">Salute</a></nav>
   </header>
-  <p class="sub">Ogni chiamata deviata in segreteria: audio, trascrizione, azione consigliata. Il lead nasce da solo — qui si ascolta e si risponde con un tocco. Live.</p>
+  <p class="sub">Ogni chiamata deviata: segreteria che registra o receptionist AI che conversa — audio, trascrizione, azione consigliata. Il lead nasce da solo; qui si ascolta e si risponde con un tocco. Live.</p>
 
   <div id="loading">Caricamento…</div>
   <div id="content" style="display:none">
@@ -173,6 +173,7 @@ details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-le
       const cls = c.handled ? 'done' : (st === 'no-message' ? 'nomsg' : (c.leadCreated ? 'lead' : 'new'));
       const name = c.callerName || c.from || 'Numero nascosto';
       const badges = [];
+      if (c.source === 'elevenlabs') badges.push('<span class="badge gold">🤖 Receptionist AI</span>');
       if (TYPE_BADGE[c.callerType]) badges.push('<span class="badge">' + TYPE_BADGE[c.callerType] + '</span>');
       if (c.leadCreated) badges.push('<span class="badge green">🆕 Lead creato</span>');
       else if (c.leadId) badges.push('<span class="badge green">↺ Lead aggiornato</span>');

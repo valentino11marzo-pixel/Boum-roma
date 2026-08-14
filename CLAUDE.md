@@ -213,9 +213,12 @@ TELEGRAM_BOT_TOKEN           # already used by api/telegram/*; pfs health alerts
 TELEGRAM_CHAT_ID
 
 # Il Centralino (api/phone/*)
-TWILIO_ACCOUNT_SID           # download audio segreteria (basic auth) + lookup
-TWILIO_AUTH_TOKEN            # chiamata; senza, si tenta il download nudo e
-                             # l'eventuale 401 finisce ANNOTATO sul doc
+TWILIO_ACCOUNT_SID           # via A (segreteria): download audio (basic auth)
+TWILIO_AUTH_TOKEN            # + lookup chiamata; senza, si tenta il download
+                             # nudo e l'eventuale 401 finisce ANNOTATO sul doc
+ELEVENLABS_WEBHOOK_SECRET    # via B (receptionist): signing secret del
+                             # post-call webhook ElevenLabs (HMAC t=,v0= sui
+                             # byte grezzi). Senza, la porta rifiuta tutto.
 ```
 
 ## API Endpoints
@@ -1755,12 +1758,31 @@ risponde SOLO quando l'operatore non può o rifiuta apposta (rifiuto =
   un'informazione, il silenzio è un bug). Senza trascrizione il placeholder
   del lead è in INGLESE di proposito (replyLang legge lead.message — la
   lezione di leads/scan-inbox). Ping Telegram DOPO il dato, mai al suo posto.
+- **LA RECEPTIONIST (via B — ElevenLabs Agents, `bot/RECEPTIONIST.md`)**:
+  la chiamata non finisce in segreteria, l'agente RISPONDE e conversa
+  (bilingue, disclosure in apertura). In chiamata usa
+  `GET /api/phone/agent-tools?k=&op=catalog|slots` — catalogo vero e slot da
+  `viewings/_avail.js`, la STESSA griglia di book.html/Telegram (una copia
+  sola: la voce non può promettere uno slot che la pagina negherebbe). NON
+  prenota a voce (una visita senza email = kit che non parte): propone lo
+  slot e promette il link su WhatsApp. A fine chiamata
+  `POST /api/phone/elevenlabs` (firma HMAC `elevenlabs-signature` t=,v0=
+  sui byte grezzi, bodyParser off, tolleranza 30′; `verifySignature`
+  esportata+testata) riceve `post_call_transcription` + `post_call_audio`
+  (audio PUSH base64 → Storage, eventi in QUALSIASI ordine, doc
+  `phoneCalls/el_<conversationId>` idempotente su processedAt) e consegna
+  alla STESSA pipeline di _lib.js. **La regola della lingua, qui doppia**:
+  nel transcript ci sono due voci — nel lead e in replyLang entrano SOLO i
+  turni del CHIAMANTE (l'agente parla anche italiano a un inglese: le sue
+  parole dentro lead.message farebbero rispondere il Commerciale nella
+  lingua sbagliata). Il riassunto ElevenLabs entra solo come fallback.
 - **`chiamate.html` (`/chiamate`)** — la dashboard admin (noindex,
   no-store; nel portal: Console → 📞 Centralino): live su `phoneCalls`,
   filtri (da gestire / lead / clienti / senza messaggio), per ogni chiamata
-  player audio, trascrizione, riassunto + azione consigliata, bottone
-  WhatsApp con la bozza già scritta, tel:, ✓ Gestita. Il pannello ⚙️
-  Attivazione contiene i codici GSM e recupera l'URL webhook dal server.
+  player audio, trascrizione (o dialogo 🤖/👤 per le chiamate receptionist,
+  badge 🤖), riassunto + azione consigliata, bottone WhatsApp con la bozza
+  già scritta, tel:, ✓ Gestita. Il pannello ⚙️ Attivazione contiene i
+  codici GSM e recupera dal server gli URL di ENTRAMBE le vie (`?setup=1`).
   Una 'in-progress' vecchia di 5' è mostrata come "riagganciata senza
   messaggio" — quello che sappiamo, senza inventare.
 - Rules: `phoneCalls` admin-only (firestore) + `phone-calls/` (storage —
@@ -2338,7 +2360,7 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/pfs/health.mjs` | Allarmi del radar: una fonte BLOCCATA all'origine parla una volta sola (200 run → 1 messaggio), un guasto vero si dirada invece di gridare ogni 6h (40 giorni → 8 promemoria), i primi due intoppi non svegliano nessuno, e il ritorno si sente sempre |
   | `tests/pfs/eyes.mjs` | Gli occhi di Homie sul radar PFS: nella lista di lavoro non entrano ricerche spente o con URL rotti, la manopola manuale (`urlOverride`) vince sempre, e — la regola che conta — un radar CIECO (403/captcha su tutte le ricerche) non passa mai per un mercato fermo |
   | `tests/whatsapp/run.mjs` | Da WhatsApp a lead senza AI: il rumore resta fuori (👍, "ok") e la persona vera entra, l'inquilino che scrive per la caldaia non inquina la pipeline, un lead per persona anche col numero archiviato in formato diverso (nazionale vs internazionale), una risposta umana zittisce il Commerciale. Guida il handler VERO su un Firestore finto in memoria |
-  | `tests/phone/run.mjs` | Il Centralino: chiave derivata mai regalata (setup senza admin → 401), disclosure GDPR pinnata nel saluto, il doc nasce al primo squillo, un inquilino che chiama non diventa lead, un retry Twilio non duplica niente, Whisper/AI/Telegram giù non perdono MAI la chiamata, la lingua della bozza dalle parole vere. Handler veri su Firestore in memoria + giunzioni (rules, vercel, portal) asserite sui file |
+  | `tests/phone/run.mjs` | Il Centralino, entrambe le porte. Segreteria: chiave derivata mai regalata, disclosure GDPR pinnata nel saluto, retry Twilio senza doppioni, Whisper/AI/Telegram giù non perdono MAI la chiamata. Receptionist ElevenLabs: firma HMAC rifiutata (anche stantia) senza scritture, nel lead SOLO le parole del CHIAMANTE (mai quelle dell'agente — la lingua della bozza esce dalle sue parole), audio e trascrizione in QUALSIASI ordine, tools in chiamata con auth e catalogo che esclude gli affittati. Handler veri su Firestore in memoria + giunzioni asserite sui file |
   | `tests/miniera/run.mjs` | La Miniera: il join aggancia la persona in OGNI forma del numero (parità con `_lead.js`, JID senza `+` guarito), i veti del libro dei silenzi (inquilini/firmati/morti/oltre 120gg MAI nel re-ingaggio), sotto campione NIENTE percentuali (per mutazione), il verdetto motivato coi numeri, parità cross-linguaggio con l'estrattore Python, handler vero su Firestore in memoria |
   | `tests/wizard/local_brain.py` | Il cervello gratis del bot wizard (`python3`): cosa capisce senza modello e — più importante — cosa deve rifiutarsi di capire. Una domanda ("Levico è affittato?") non può diventare una scrittura; un annuncio nuovo dettato non può diventare la modifica di uno esistente. Estrae le funzioni pure dal bot via AST: gira senza `.env`, senza Telegram, senza rete |
   | `tests/executive/run.mjs` | BOOM Executive: il professionista in trasferta resta un TENANT nella macchina piena, il datore dichiarato (`employer`) non viene scambiato per l'honeypot (`company`), la voce B2B tace col tenant e parla con l'ente — con la guardia PRIMA della spesa, asserita sull'ordine nel sorgente |
