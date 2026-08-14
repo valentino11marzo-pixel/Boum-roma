@@ -234,6 +234,43 @@ if MODO == 'artefatto':
                r'href="https://www.boomrome.com/\1"', h)
     h = h.replace('href="/login"', 'href="https://www.boomrome.com/login"')
 else:
+    # LA FINESTRA SUL VERO SKYLINE — l'embed ricostruiva la mappa e
+    # poteva tradire dove lo standalone funzionava: ora la home APRE
+    # /skyline?embed=1 (stessa origine) dentro la cornice esistente.
+    # Il velo si alza al load dell'iframe; i comandi del modulo (hud,
+    # conta) spariscono: la finestra ha i suoi.
+    h = h.replace(
+        "      if (v[0].isIntersecting) { o.disconnect(); carica(); }",
+        "      if (v[0].isIntersecting) { o.disconnect(); finestra(); }")
+    h = h.replace(
+        "  if ('IntersectionObserver' in window) {\n"
+        "    new IntersectionObserver(function (v, o) {\n"
+        "      if (v[0].isIntersecting) { o.disconnect(); finestra(); }",
+        "  function finestra() {\n"
+        "    var posto = document.getElementById('cieloMappa');\n"
+        "    if (!posto) return;\n"
+        "    var fr = document.createElement('iframe');\n"
+        "    fr.src = '/skyline?embed=1';\n"
+        "    fr.title = 'BOOM Skyline 3D — Rome';\n"
+        "    fr.setAttribute('allow', 'fullscreen');\n"
+        "    fr.style.cssText = 'position:absolute;inset:0;width:100%;"
+        "height:100%;border:0;';\n"
+        "    fr.addEventListener('load', function () {\n"
+        "      if (velo) velo.classList.add('via');\n"
+        "    });\n"
+        "    /* rete: se il load tarda, meglio il loader dello skyline "
+        "che il nostro velo */\n"
+        "    setTimeout(function () {\n"
+        "      if (velo) velo.classList.add('via');\n"
+        "    }, 4000);\n"
+        "    posto.appendChild(fr);\n"
+        "    var hud = telaio.querySelector('.cielo-hud');\n"
+        "    if (hud) hud.remove();\n"
+        "    if (conta) conta.remove();\n"
+        "  }\n"
+        "  if ('IntersectionObserver' in window) {\n"
+        "    new IntersectionObserver(function (v, o) {\n"
+        "      if (v[0].isIntersecting) { o.disconnect(); finestra(); }")
     # CABLATO: la home vive su /, i link vanno alle route canoniche —
     # gli URL non cambiano mai, cambia solo il contenuto (regola SEO)
     h = h.replace('COME_URL', '#apparecchio').replace('AP_URL', '/apartments')
