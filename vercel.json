@@ -45,6 +45,16 @@
   },
   "redirects": [
     {
+      "source": "/(v2-property-finding|v2-property-finding.html)",
+      "destination": "/property-finding",
+      "permanent": true
+    },
+    {
+      "source": "/(v2-board|v2-board.html)",
+      "destination": "/board",
+      "permanent": true
+    },
+    {
       "source": "/(v2-home|v2-home.html|v2-portal|v2-portal.html)",
       "destination": "/",
       "permanent": true

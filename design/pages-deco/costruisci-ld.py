@@ -157,8 +157,7 @@ if MODO == 'artefatto':
 else:
     # CABLATO: route canoniche — /listing/<id> resta se stesso
     for da, a_ in {'/index.html': '/',
-        '/your-money.html': '/your-money',
-        '/property-finding.html': '/v2-property-finding.html'}.items():
+        '/your-money.html': '/your-money'}.items():
         h = h.replace('href="' + da + '"', 'href="' + a_ + '"')
     h = h.replace('/apartments.html', '/apartments')
     h = h.replace('CHIAVE_CASA', '/listing/')

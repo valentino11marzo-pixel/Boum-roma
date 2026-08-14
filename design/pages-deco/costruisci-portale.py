@@ -240,8 +240,7 @@ else:
     for da, a_ in {'/index.html': '/',
         '/apartments.html': '/apartments',
         '/your-money.html': '/your-money',
-        '/property-finding.html': '/v2-property-finding.html',
-        '/board.html': '/v2-board.html'}.items():
+                }.items():
         h = h.replace('href="' + da + '"', 'href="' + a_ + '"')
         h = h.replace('data-href="' + da, 'data-href="' + a_)
     # href="/listing/<id>" resta: E la route canonica prerender
@@ -259,6 +258,7 @@ if MODO == 'sito':
     h = h[:i] + '\n' + OG + h[i:]
     h = ('<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
          + h.replace('</style>', '</style>\n</head>\n<body>', 1)
+         + '\n' + leggi('vetrina-idrante.html')
          + '\n' + TESTA.SW + '\n</body>\n</html>')
 uscita = 'boom-portale.html' if MODO == 'artefatto' else 'boom-portale-sito.html' 
 open(uscita, 'w', encoding='utf-8').write(h)
