@@ -30,6 +30,26 @@ def numero(v):
     m = re.search(r'\d+', str(v or ''))
     return int(m.group()) if m else None
 
+# port fedele di js/boom-geo.js pinPrecision — stessa regola, a build time:
+# mai «exact» su un centroide, mai un civico letto dentro un CAP
+STRADA = re.compile(r'\b(via|viale|v\.le|piazza|p\.zza|piazzale|largo|vicolo'
+                    r'|lungotevere|corso|borgo|salita|clivo|circonvallazione'
+                    r'|passeggiata|ponte)\b', re.I)
+CIVICO = re.compile(r'\b\d{1,4}[a-zA-Z]?\b')
+def precisione(r):
+    if not r.get('lat') or not r.get('lng'): return 'none'
+    g = r.get('geo') or {}
+    if str(g.get('src') or '').lower() == 'zone': return 'zone'
+    q = str(g.get('q') or '').strip()
+    if q.lower().startswith('zone:'): return 'zone'
+    if q:
+        if STRADA.search(q) and CIVICO.search(re.sub(r'\broma\b', '', q, flags=re.I)):
+            return 'exact'
+        return 'street' if STRADA.search(q) else 'zone'
+    def dec(v):
+        s = str(v); return len(s.split('.')[1]) if '.' in s else 0
+    return 'zone' if max(dec(r['lat']), dec(r['lng'])) <= 4 else 'street'
+
 piene = json.load(open('case-full.json'))
 uri = json.load(open('foto-uri.json')); rem = json.load(open('foto-map.json'))
 gall = json.load(open('foto-galleria.json')) if os.path.exists('foto-galleria.json') else {}
@@ -104,6 +124,7 @@ for r in piene:
         # 18 case su 26 sono passate dalla pipeline di /api/photos/enhance:
         # il distintivo si accende solo per quelle, mai per le altre
         'fotoCurate': bool(r.get('photosEnhancedAt')),
+        'prec': precisione(r),
     })
 # prima le libere, e con più foto: la casa che apre dev'essere la migliore
 CASE.sort(key=lambda x: (not x['libera'], -len(x['foto'])))
@@ -160,6 +181,8 @@ else:
         '/your-money.html': '/your-money'}.items():
         h = h.replace('href="' + da + '"', 'href="' + a_ + '"')
     h = h.replace('/apartments.html', '/apartments')
+    h = h.replace('</footer>',
+        '</footer>\n<script src="/js/boom-geo.js"></script>', 1)
     h = h.replace('CHIAVE_CASA', '/listing/')
 
 C0 = CASE[0]

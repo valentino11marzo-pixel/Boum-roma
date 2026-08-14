@@ -388,7 +388,6 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
      largo la percentuale derivava e il quadrato ROM galleggiava nel
      vuoto tra titolo e tabellone */
   left:calc(50% - 50px); top:30%; display:none; }
-@media (min-width:1280px){ .scalo { display:block; } }
 .scalo-rotta { position:absolute; right:36px; top:34px; width:340px; height:120px;
   overflow:visible; }
 .scalo-rotta path { fill:none; stroke:rgba(255,215,0,.22);
@@ -1794,18 +1793,11 @@ html.vivo .sale.dentro { opacity:1; transform:none;
   <a class="btn btn-primary" href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a>
 </div>
 
-<!-- ══ HERO — la voce · lo scalo · il tabellone ══════════════════════════ -->
+<!-- ══ HERO — la voce · il tabellone ══════════════════════════ -->
 <header class="hero">
   <div class="hero-velo" aria-hidden="true">
   <div class="hero-glow"></div>
   <canvas id="cartaRoma"></canvas>
-  <div class="scalo">
-    <svg class="scalo-rotta" viewBox="0 0 340 120">
-      <path d="M330 8 C 240 18, 120 44, 8 108"/>
-    </svg>
-    <span class="scalo-punto"></span>
-    <span class="scalo-tag"><span class="scalo-eco"><i></i><i></i></span><b>ROM</b><span>Rome · Italy</span></span>
-  </div>
   </div>
 
   <div class="container hero-int">

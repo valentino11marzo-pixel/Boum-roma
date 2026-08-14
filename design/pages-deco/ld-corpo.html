@@ -506,6 +506,18 @@ html.vivo .coro.dentro .tempo::after {
   font-size:19px; }
 .blocco-spento span { font-size:12.5px; color:var(--text-3); max-width:44ch;
   line-height:1.6; }
+/* i tasti del blocco — sempre visibili col pin: la mappa e un invito,
+   Street View e Directions sono la porta diretta (come il vecchio live) */
+.blocco-azioni { margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; }
+.blocco-azioni[hidden] { display:none; }
+.blkchip { display:inline-flex; align-items:center; gap:7px;
+  border:1px solid var(--line); background:var(--card); border-radius:100px;
+  padding:10px 15px; font-size:11.5px; color:var(--text-2);
+  text-decoration:none; transition:border-color .2s ease, color .2s ease; }
+a.blkchip:hover { border-color:var(--line-gold); color:var(--gold); }
+.blkchip.coords { font-variant-numeric:tabular-nums; letter-spacing:.4px;
+  color:var(--gold); border-color:var(--line-gold); }
+.blkchip[hidden] { display:none; }
 .vicini { margin-top:clamp(14px,1.8vw,18px); display:grid; gap:10px;
   grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); }
 .vicino { display:flex; align-items:baseline; gap:8px; padding:13px 15px;
@@ -766,6 +778,14 @@ html.vivo .coro.dentro .tempo::after {
         <span class="bf-sotto">Real map · 3D buildings · 5 / 10 / 15-minute
           walk rings</span>
       </button>
+    </div>
+
+    <div class="blocco-azioni sale" id="bloccoAzioni" hidden>
+      <span class="blkchip coords" id="blkCoords">◈ —</span>
+      <a class="blkchip" id="blkSv" href="#" target="_blank"
+        rel="noopener" hidden>⟲ Street View</a>
+      <a class="blkchip" id="blkDir" href="#" target="_blank"
+        rel="noopener">➤ Directions</a>
     </div>
 
     <div class="vicini sale" id="vicini"></div>
