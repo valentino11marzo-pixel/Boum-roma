@@ -3465,9 +3465,29 @@ html.vivo .sale.dentro { opacity:1; transform:none;
       'The map engine is not reachable from here. The full Skyline still works.'); },
       12000);
   }
+  function finestra() {
+    var posto = document.getElementById('cieloMappa');
+    if (!posto) return;
+    var fr = document.createElement('iframe');
+    fr.src = '/skyline?embed=1';
+    fr.title = 'BOOM Skyline 3D — Rome';
+    fr.setAttribute('allow', 'fullscreen');
+    fr.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;';
+    fr.addEventListener('load', function () {
+      if (velo) velo.classList.add('via');
+    });
+    /* rete: se il load tarda, meglio il loader dello skyline che il nostro velo */
+    setTimeout(function () {
+      if (velo) velo.classList.add('via');
+    }, 4000);
+    posto.appendChild(fr);
+    var hud = telaio.querySelector('.cielo-hud');
+    if (hud) hud.remove();
+    if (conta) conta.remove();
+  }
   if ('IntersectionObserver' in window) {
     new IntersectionObserver(function (v, o) {
-      if (v[0].isIntersecting) { o.disconnect(); carica(); }
+      if (v[0].isIntersecting) { o.disconnect(); finestra(); }
     }, { rootMargin: '260px 0px' }).observe(telaio);
   } else { addEventListener('load', carica); }
 })();
