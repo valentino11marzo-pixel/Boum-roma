@@ -243,8 +243,7 @@ else:
     # CABLATO: la discovery vive su /apartments, le card su /listing/<id>
     for da, a_ in {'/index.html': '/',
         '/apartments.html': '/apartments',
-        '/your-money.html': '/your-money',
-        '/property-finding.html': '/v2-property-finding.html'}.items():
+        '/your-money.html': '/your-money'}.items():
         h = h.replace('href="' + da + '"', 'href="' + a_ + '"')
     h = h.replace('data-href="/apartments.html#zona=', 'data-href="#zona=')
 
@@ -266,6 +265,7 @@ if MODO == 'sito':
     h = h[:i] + '\n' + OG + h[i:]
     h = ('<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
          + h.replace('</style>', '</style>\n</head>\n<body>', 1)
+         + '\n' + leggi('vetrina-idrante.html')
          + '\n</body>\n</html>')
 uscita = 'boom-discovery.html' if MODO == 'artefatto' else 'boom-discovery-sito.html'
 open(uscita, 'w', encoding='utf-8').write(h)

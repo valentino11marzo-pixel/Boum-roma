@@ -78,8 +78,7 @@ else:
     h = h.replace('href="/index.html#banchina"', 'href="/#banchina"')
     for da, a_ in {'/index.html': '/',
         '/apartments.html': '/apartments',
-        '/your-money.html': '#giornouno',
-        '/property-finding.html': '/v2-property-finding.html'}.items():
+        '/your-money.html': '#giornouno'}.items():
         h = h.replace('href="' + da + '"', 'href="' + a_ + '"')
     import testa as TESTA
     OG = TESTA.blocco_money(
