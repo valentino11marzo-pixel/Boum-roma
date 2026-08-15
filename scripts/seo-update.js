@@ -65,7 +65,11 @@ function organizationJsonLd() {
     '@type': 'RealEstateAgent',
     '@id': SITE.ORIGIN + '/#organization',
     name: SITE.BRAND,
-    legalName: 'BOOM Rome',
+    // La ragione sociale VERA. 'BOOM Rome' è il marchio, non l'entità: dirlo
+    // a Google significava dichiarare titolare un soggetto inesistente —
+    // e da 08/2026 BOOM® è marchio UE di questa società (MUE 019317594).
+    legalName: 'Egidi Immobiliare S.r.l.',
+    vatID: 'IT17322991005',
     url: SITE.ORIGIN,
     logo: {
       '@type': 'ImageObject',
@@ -79,7 +83,9 @@ function organizationJsonLd() {
     sameAs: [
       'https://www.instagram.com/boomrome',
       'https://www.linkedin.com/company/boomrome',
-      'https://wa.me/393331234567',
+      // Il numero VERO. Qui stava un segnaposto mai sostituito, che mandava
+      // da uno sconosciuto chiunque arrivasse dal pannello di Google.
+      'https://wa.me/393313251961',
     ],
     address: {
       '@type': 'PostalAddress',
@@ -134,14 +140,17 @@ function localBusinessJsonLd() {
     name: SITE.BRAND,
     image: SITE.DEFAULT_OG_IMAGE,
     url: SITE.ORIGIN,
-    telephone: '+39 333 123 4567',
+    // Recapito e sede VERI. Qui stavano un numero segnaposto e "Via del Corso",
+    // che non è un indirizzo di questa società: pubblicare a Google un recapito
+    // inventato manda i clienti da qualcun altro.
+    telephone: '+39 331 325 1961',
     priceRange: '€€-€€€',
     address: {
       '@type': 'PostalAddress',
-      streetAddress: 'Via del Corso',
+      streetAddress: 'Via dei Coronari 181/184',
       addressLocality: 'Rome',
       addressRegion: 'Lazio',
-      postalCode: '00187',
+      postalCode: '00186',
       addressCountry: 'IT',
     },
     geo: { '@type': 'GeoCoordinates', latitude: 41.9028, longitude: 12.4964 },

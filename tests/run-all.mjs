@@ -25,6 +25,7 @@ const SUITES = [
   { name: 'photos',   file: 'tests/photos/sweep.mjs',     what: 'sweep notturno: chi si cura e in che ordine' },
   { name: 'copy',     file: 'tests/copy/run.mjs',         what: 'descrizioni: riscrive i template, mai le parole di un umano' },
   { name: 'geo',      file: 'tests/geo/run.mjs',          what: 'precisione dei pin: portone, strada o quartiere — mai spacciati' },
+  { name: 'consent',  file: 'tests/consent/run.mjs',      what: 'GDPR: chi carica Analytics nega il consenso di default E carica il banner; e il JSON-LD dice la ragione sociale vera' },
   { name: 'dispo',    file: 'tests/dispo/run.mjs',        what: 'date di disponibilità: una data illeggibile non diventa MAI "libera ora", un messaggio aggiorna tutte le case, e una data sola non si spalma su chi non è stato nominato' },
   { name: 'scheda',   file: 'tests/scheda/run.mjs',       what: 'La Scheda: token derivati, prefill, lock post-firma, doppio schema' },
   { name: 'notify',   file: 'tests/notify/run.mjs',       what: 'ciclo email contratto: CAF una volta sola, inviti per ruolo e lingua' },

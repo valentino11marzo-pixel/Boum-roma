@@ -397,7 +397,7 @@ function pageHtml(n, allNeighborhoods) {
 
   <!-- Google tag -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
-  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-EYCD59RDVJ')</script>
+  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied',wait_for_update:500});gtag('config','G-EYCD59RDVJ')</script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -581,6 +581,8 @@ function injectItemListJsonLd(items){
 }
 </script>
 
+<script defer src="/js/boom-consent.js"></script>
+
 </body>
 </html>`;
 }
@@ -619,7 +621,7 @@ function hubHtml() {
   <!-- BOOM_SEO:placeholder — populated by scripts/seo-update.js -->
 
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
-  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-EYCD59RDVJ')</script>
+  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied',wait_for_update:500});gtag('config','G-EYCD59RDVJ')</script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -684,6 +686,8 @@ ${footerHtml()}
   m.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{h.classList.remove('active');m.classList.remove('active')}));
 })();
 </script>
+
+<script defer src="/js/boom-consent.js"></script>
 
 </body>
 </html>`;
