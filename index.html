@@ -2496,13 +2496,13 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         setTimeout(function () {
           if (ridotto) { o.z.show(o.d.z.toUpperCase().slice(0, LZ));
             o.p.show(o.d.p); o.t.show(o.d.s); return; }
-          o.z.show(o.d.z.toUpperCase().slice(0, LZ), 55, true);
-          o.p.show(o.d.p, 45, true);
-          o.t.show(o.d.s, 60, true);
-        }, ridotto ? 0 : i * 170);
+          o.z.show(o.d.z.toUpperCase().slice(0, LZ), 28, true);
+          o.p.show(o.d.p, 24, true);
+          o.t.show(o.d.s, 30, true);
+        }, ridotto ? 0 : i * 55);
       });
     }
-    setTimeout(accendi, 700);
+    setTimeout(accendi, 150);
     /* il fremito: ogni tanto una cella trema, come sui tabelloni veri */
     if (!ridotto) setInterval(function () {
       if (document.hidden) return;
@@ -3508,7 +3508,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
     var j = drum.indexOf(this.pending); if (j < 0) j = 0;
     var d = (j - i + drum.length) % drum.length;
     if (d === 0) return null;
-    if (d > 5) return drum[(j - 4 + drum.length) % drum.length];
+    if (d > 2) return drum[(j - 1 + drum.length) % drum.length];
     return drum[(i + 1) % drum.length];
   };
   Cell.prototype.step = function (nc, done) {

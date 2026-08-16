@@ -4210,7 +4210,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
     var j = drum.indexOf(this.pending); if (j < 0) j = 0;
     var d = (j - i + drum.length) % drum.length;
     if (d === 0) return null;
-    if (d > 5) return drum[(j - 4 + drum.length) % drum.length];
+    if (d > 2) return drum[(j - 1 + drum.length) % drum.length];
     return drum[(i + 1) % drum.length];
   };
   Cell.prototype.step = function (nc, done) {
