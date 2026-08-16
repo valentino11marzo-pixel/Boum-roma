@@ -63,7 +63,7 @@
       hired: 'Il cliente paga €350 perché qualcuno guardi il mercato prima di lui. Questo è quel qualcuno.',
       mandate: [
         'Legge gli alert email di Idealista e Immobiliare via IMAP e ricostruisce l\'annuncio vero dal link tracciato',
-        'Raschia le ricerche salvate sui portali quando lo lasciano passare',
+        'Il braccio sul Mac (LO SCATTO, bot/boom_scout.py) apre le ricerche dei clienti col browser VERO ogni ~10 minuti — la scansione costante che il server non può fare (i portali 403-ano i datacenter)',
         'Rigenera ogni giorno le ricerche dai criteri reali di ogni cliente attivo',
         'Assegna un punteggio annuncio↔cliente e spinge i match ≥60 nel mazzo di swipe',
         'Riconosce la STESSA casa su più portali (l\'impronta) e deduce la zona dal titolo quando la fonte non la dichiara',
@@ -185,6 +185,30 @@
       crons: ['/api/market/pulse'],
       health: { col: 'teamHealth', doc: 'perito' },
       console: '/radar', run: '/api/market/pulse'
+    },
+    {
+      key: 'contatto', emoji: '📨', name: 'Il Contatto', reparto: 'Commerciale',
+      role: 'Il messaggio approvato arriva nella chat del portale',
+      hired: 'Il primo contatto decide chi prende la visita, e un privato senza numero si raggiunge solo nella chat del portale. Scriverli a mano uno per uno teneva la qualità alta e la quantità impossibile.',
+      mandate: [
+        'L\'operatore rivede l\'annuncio in plancia, sceglie stile e voce, LEGGE il testo e tocca Approva: quel tap è la firma',
+        'Il Mac (bot/boom_contatto.py) consegna il testo INTATTO nella chat/form del portale, a ritmo umano, max 6 per giro',
+        'Un contatto per annuncio PER COSTRUZIONE: due clienti sulla stessa casa = una conversazione sola',
+        'Esito incerto = parcheggio immediato (mai un retry cieco che rischia il doppio messaggio); captcha = STOP e rapporto blocked'
+      ],
+      autonomy: {
+        solo:  ['Consegna il messaggio già approvato', 'Aggiorna da solo l\'outreach dell\'annuncio a "contattato" quando ha la prova dell\'invio'],
+        porta: ['Il recap Telegram degli invii', 'I parcheggiati (falliti/incerti) restano visibili in plancia con il motivo'],
+        mai:   ['Non scrive MAI a nessuno senza un\'approvazione umana per singolo messaggio', 'Non cambia una parola del testo approvato', 'Mai dati personali del cliente nel testo (il motore rifiuta i telefoni alla porta)']
+      },
+      // reach SENZA 'clienti': quella chiave marca chi scrive a qualcuno
+      // SENZA passare da te — qui ogni singolo messaggio è un tuo tap
+      // (stessa semantica del Commerciale, che propone e non spedisce).
+      reach: ['archivio'],
+      approval: 'sempre',
+      crons: [],
+      health: { col: 'pfsRadarHealth', doc: 'contatto' },
+      console: '/pfs-command', run: null
     },
     {
       key: 'vedetta', emoji: '📡', name: 'La Vedetta', reparto: 'Commerciale',

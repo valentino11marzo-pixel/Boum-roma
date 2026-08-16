@@ -300,6 +300,10 @@ service cloud.firestore {
     // gestiti dalla console (admin). Stessa lezione di propertyLocks.
     match /radarWatchers/{x}               { allow read, write: if isAdmin(); }
     match /radarState/{x}                  { allow read, write: if isAdmin(); }
+    // IL CONTATTO — la coda dei messaggi al proprietario (api/outreach/*):
+    // creati dalla plancia (admin) col tap che È l'approvazione, eseguiti
+    // dal Mac via server con credenziali admin. Stessa lezione.
+    match /outreachQueue/{x}               { allow read, write: if isAdmin(); }
 
     // ─── Default deny ─────────────────────────────────────────────────
     match /{document=**} {

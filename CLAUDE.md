@@ -2007,6 +2007,55 @@ riusa `normalizeZone` di market-engine — UNA copia); l'I/O nelle porte.
   email reale via nodemailer mockato, e il contenimento: radar giù →
   cliente servito comunque).
 
+## Lo Scatto + Il Contatto (bot/boom_scout.py · bot/boom_contatto.py · api/outreach/*)
+
+Il ciclo PFS chiuso per intero, coi due bracci sul Mac che mancavano
+(mandato completo: `bot/SCATTO_CONTATTO.md`). La scoperta che li ha fatti
+nascere: il ciclo "apri le ricerche → estrai → manda al server" esisteva
+solo come PROMPT in `bot/HOMIE.md` — nessuno script deterministico lo
+eseguiva, e il radar viveva dei soli alert email. Regola invariata: il
+server pensa, il Mac esegue (IP residenziale, browser vero — i portali
+403-ano i datacenter, `api/pfs/_fetch.js`).
+
+- **LO SCATTO** (`bot/boom_scout.py` + `com.boom.scout.plist`, ogni 10'):
+  GET `/api/homie/searches` (che ora porta anche la `zone` pulita) → apre
+  ogni ricerca nel profilo persistente → estrae gli URL (stessi pattern di
+  `_fetch.js`), registro locale dei già visti (il dedupe VERO è del server)
+  → apre le schede nuove (JSON-LD prima, regex poi, mai inventare) →
+  inserzionista SOLO con prova: `/da-privati/` → private per costruzione,
+  marker → quello che dicono, altrimenti **`unknown` ESPLICITO** (il server
+  a campo mancante assume private — un'agenzia spacciata per privato
+  finirebbe nel mazzo) → POST `/api/homie/property` (ora con
+  `skipFreshHours`: i ri-avvistamenti non ripunteggiano tutti i clienti) →
+  rapporto = battito (`pfsRadarHealth/homie-eyes`, `blocked` è il campo che
+  conta). Priorità totale al privato per costruzione: le agenzie si
+  archiviano, mai nei mazzi.
+- **IL CONTATTO** (`js/outreach-engine.js` + `api/outreach/*` +
+  `bot/boom_contatto.py` + `com.boom.contatto.plist`, ogni 5'): il primo
+  messaggio al proprietario nella CHAT DEL PORTALE (quando non c'è un
+  numero), approvato UNO PER UNO. In plancia: 📨 sul feed/triage → modale
+  con 4 stili (sobrio/caloroso/deciso/english) × 2 voci (chi cerca casa /
+  BOOM trasparente), anteprima ISTANTANEA dal motore condiviso (UMD:
+  stessa copia browser e server), ✨ rifinitura AI opzionale
+  (`api/outreach/draft.js`, haiku sui SOLI fatti dell'annuncio, fallback
+  template su qualunque errore), testo editabile → il tap Approva È la
+  firma: doc `outreachQueue/out_<listingId>` (id deterministico = **un
+  contatto per annuncio per costruzione**). `api/outreach/queue.js`: lease
+  anti doppio-invio (GET marca 'sending', orfani oltre 45' tornano in
+  coda), 3 fallimenti = parcheggio, **esito_incerto = parcheggio
+  IMMEDIATO** (un retry cieco rischia il doppio messaggio allo stesso
+  proprietario), `blocked` rilascia i job e il battito lo dice
+  (`pfsRadarHealth/contatto`, riportato anche a coda vuota), a invio
+  riuscito l'annuncio passa da solo a `contattato` (channel portal-chat).
+  Guardie del motore: mai un telefono nel testo, mai dati del cliente
+  (solo ingresso/durata generici), `?peek=1` per guardare senza prendere.
+  Kill switch `settings/outreach {enabled:false}`. MAI il bottone sulle
+  agenzie. Nell'organigramma: approval **'sempre'** (ogni messaggio è un
+  tap), il terzo agente ad approvazione umana accanto a Gestore e
+  Commerciale (pinnato nei test del registro).
+- Test: `node tests/outreach/run.mjs` (47) · `python3 tests/scout/runner.py`
+  (29) · `python3 tests/contatto/runner.py` (16).
+
 ## La Squadra (AI employees — api/employees/*)
 
 Scheduled "employees" that run the back office autonomously. Same

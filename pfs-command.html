@@ -20,6 +20,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
 <script src="/js/firebase-config.js"></script>
 <script src="/js/boom-portal.js"></script>
+<script src="/js/outreach-engine.js"></script>
 
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -679,6 +680,37 @@ body.triage-lock { overflow: hidden; }
     </div>
 </div>
 
+<div id="outreach-modal-overlay" hidden style="position:fixed;inset:0;background:rgba(0,0,0,0.85);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);z-index:8650;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Contatta il proprietario">
+        <div class="modal-head">
+            <div class="modal-title">📨 Contatta il proprietario</div>
+            <button class="modal-close" id="om-close" aria-label="Chiudi">✕</button>
+        </div>
+        <div class="modal-src" id="om-listing-note"></div>
+        <div class="mgrid">
+            <div class="mfield"><label for="om-style">Stile</label><select id="om-style">
+                <option value="sobrio">Sobrio (professionale)</option>
+                <option value="caloroso">Caloroso</option>
+                <option value="deciso">Deciso (visita subito)</option>
+                <option value="english">English</option>
+            </select></div>
+            <div class="mfield"><label for="om-voice">Voce</label><select id="om-voice">
+                <option value="personale">Chi cerca casa</option>
+                <option value="boom">BOOM (trasparente)</option>
+            </select></div>
+            <div class="mfield full"><label for="om-client">Cliente (facoltativo — porta ingresso/durata nel testo, mai il nome)</label><select id="om-client"><option value="">—</option></select></div>
+            <div class="mfield full"><label for="om-extra">Nota extra (facoltativa)</label><input type="text" id="om-extra" placeholder="Es: disponibile anche a visita video da subito"></div>
+            <div class="mfield full"><label for="om-msg">Il messaggio — parte ESATTAMENTE così (modificabile)</label><textarea id="om-msg" style="min-height:130px"></textarea></div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn-ghost" id="om-regen">↺ Rigenera</button>
+            <button class="btn-ghost" id="om-ai">✨ Rifinisci con AI</button>
+            <button class="btn" id="om-send">📨 Approva e metti in coda</button>
+        </div>
+        <p class="hint">Il tap su Approva è la firma: il Mac lo consegna nella chat del portale entro pochi minuti, a ritmo umano. Un solo contatto per annuncio, per costruzione — un secondo cliente interessato non genera un secondo messaggio.</p>
+    </div>
+</div>
+
 <script>
 (function () {
 'use strict';
@@ -812,6 +844,9 @@ var SOURCES = [
     // quindi 25' di tolleranza. Finché non è configurato resta grigia "mai" —
     // che è la verità, e va vista: è la fonte veloce del servizio a pagamento.
     { key: 'homie-eyes', label: 'Occhi Homie', icon: '👁', freshMin: 25 },
+    // Il Contatto: il postino dei messaggi approvati (Mac, giro ogni 5' —
+    // riporta anche a coda vuota, quindi 20' di tolleranza bastano).
+    { key: 'contatto', label: 'Contatto', icon: '📨', freshMin: 20 },
     { key: 'sync',   label: 'Sync',    icon: '🔄', freshMin: 1560 } // 26 h
 ];
 var STAT_LABELS = {
@@ -867,6 +902,9 @@ var state = {
     editSearchVal: null,
     occ: [],                  // radarState/occasioni (più recente in testa)
     watchers: [],             // radarWatchers — le vedette
+    outreachById: {},         // outreachQueue — i messaggi al proprietario
+    outreachModal: null,      // listingId col modale 📨 aperto
+    outreachDirty: false,     // l'operatore ha editato l'anteprima a mano
     drawerClient: null,       // id del cliente col fascicolo aperto
     clientModal: null,        // null · 'new' · id cliente in modifica
     knownIds: null,           // Set di id già visti (per rilevare nuovi arrivi realtime)
@@ -977,6 +1015,7 @@ function feedCard(p) {
     var url = safeUrl(p.sourceUrl);
     var radar = p.radar || {};
     var fiuto = radar.fiuto || {};
+    var oj = window.BOOM_OUTREACH ? state.outreachById[BOOM_OUTREACH.outreachKey(p.id)] : null;
     var ms = p.matchSummary || {};
     var pushed = Array.isArray(ms.pushedTo) ? ms.pushedTo : [];
     var had = Array.isArray(ms.alreadyHad) ? ms.alreadyHad : [];
@@ -1054,6 +1093,7 @@ function feedCard(p) {
             (waBtns ? '<div class="fc-wa">' + waBtns + '</div>' : '') +
             '<div class="fc-actions">' +
                 (url ? '<a class="abtn" href="' + esc(url) + '" target="_blank" rel="noopener">Apri annuncio ↗</a>' : '') +
+                outreachActionBtn(p, oj) +
                 '<button class="abtn" data-action="toggle-outreach">📞 Outreach ' + (outreachOpen ? '▴' : '▾') + '</button>' +
                 '<button class="abtn" data-action="copy-owner">📋 Copia messaggio proprietario</button>' +
             '</div>' +
@@ -1452,6 +1492,160 @@ function activeClientOpts() {
         .join('');
 }
 
+/* ── 📨 IL CONTATTO: dal feed alla chat del portale ──────────── */
+// Il tap su "Approva" È l'approvazione: il doc entra in outreachQueue con
+// status 'approved' e il Mac (boom_contatto.py) lo consegna nella chat del
+// portale. Il messaggio si compone col motore CONDIVISO (BOOM_OUTREACH,
+// stessa copia del server): l'anteprima qui e il testo validato là non
+// possono divergere. Un contatto per annuncio, per costruzione (id =
+// outreachKey), e mai su annunci di AGENZIA (priorità totale al privato).
+
+var OUTREACH_PORTALS = ['immobiliare', 'idealista', 'subito']; // dove esiste una chat/form da compilare
+
+function outreachActionBtn(p, oj) {
+    if (!window.BOOM_OUTREACH) return '';
+    var advKey = (p.advertiser === 'private' || p.advertiser === 'agency') ? p.advertiser : 'unknown';
+    if (advKey === 'agency') return '';
+    // Un annuncio arrivato da WhatsApp o inserito a mano non ha una pagina
+    // portale con la chat: il bottone sarebbe una promessa che il Mac non
+    // può mantenere (validateJob lo rifiuterebbe comunque, ma tardi).
+    if (OUTREACH_PORTALS.indexOf(p.source) < 0) return '';
+    if (oj) {
+        if (oj.status === 'sent') return '<span class="abtn" style="pointer-events:none;color:var(--green)">📨 Inviato via portale</span>';
+        if (oj.status === 'approved') return '<button class="abtn" data-action="cancel-outreach" style="color:var(--gold)" title="In coda per l\'invio — tocca per annullare">📨 In coda · ✕ annulla</button>';
+        if (oj.status === 'sending') return '<span class="abtn" style="pointer-events:none;color:var(--gold)">📨 Invio in corso…</span>';
+        if (oj.status === 'failed') return '<button class="abtn" data-action="contact-owner" style="color:var(--amber)" title="Invio non riuscito o esito incerto: rivedi e riprova">📨 Da verificare — riprova</button>';
+    }
+    return '<button class="abtn" data-action="contact-owner">📨 Contatta (AI)</button>';
+}
+
+function omSelectedClient() {
+    var id = $('om-client').value;
+    return id ? state.clientsById[id] || null : null;
+}
+
+function omRegen() {
+    var p = findProp(state.outreachModal);
+    if (!p || !window.BOOM_OUTREACH) return;
+    $('om-msg').value = BOOM_OUTREACH.buildMessage(p, {
+        style: $('om-style').value,
+        voice: $('om-voice').value,
+        client: omSelectedClient(),
+        note: $('om-extra').value.trim(),
+    });
+    state.outreachDirty = false;
+}
+
+function openOutreachModal(listingId) {
+    var p = findProp(listingId);
+    if (!p) { BoomPortal.toast('Annuncio non più nel feed', { type: 'info' }); return; }
+    state.outreachModal = listingId;
+    state.outreachDirty = false;
+    $('om-listing-note').textContent = (p.title || p.address || p.sourceUrl || '') +
+        ' · €' + fmtPrice(p.price) + '/mese · ' + (p.source || '?') +
+        (p.advertiser === 'unknown' ? ' · ⚠ inserzionista da verificare' : '');
+    // clienti attivi nel select; pre-scelto il primo del matchSummary
+    var pushed = (p.matchSummary && p.matchSummary.pushedTo) || [];
+    var pre = pushed.length ? pushed[0].clientId : '';
+    $('om-client').innerHTML = '<option value="">—</option>' + state.clients.filter(isActiveClient)
+        .sort(function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); })
+        .map(function (c) { return '<option value="' + esc(c.id) + '"' + (c.id === pre ? ' selected' : '') + '>' + esc(c.name || c.id) + '</option>'; })
+        .join('');
+    $('om-extra').value = '';
+    omRegen();
+    $('outreach-modal-overlay').hidden = false;
+}
+
+function closeOutreachModal() {
+    state.outreachModal = null;
+    $('outreach-modal-overlay').hidden = true;
+}
+
+function omAi() {
+    var p = findProp(state.outreachModal);
+    if (!p) { BoomPortal.toast('Annuncio non più nel feed', { type: 'warning' }); closeOutreachModal(); return; }
+    var btn = $('om-ai');
+    btn.disabled = true;
+    apiPost('/api/outreach/draft', {
+        listingId: p.id,
+        style: $('om-style').value,
+        voice: $('om-voice').value,
+        clientId: $('om-client').value || null,
+        note: $('om-extra').value.trim(),
+        ai: true,
+    }).then(function (r) {
+        if (r.message) {
+            $('om-msg').value = r.message;
+            state.outreachDirty = true; // l'AI conta come edit: i selettori non lo sovrascrivono
+            BoomPortal.toast(r.source === 'ai' ? '✨ Rifinito sui dettagli veri dell\'annuncio' : 'AI non disponibile: template', { type: 'info' });
+        }
+    }).catch(function (err) {
+        BoomPortal.toast('Errore AI: ' + (err && err.message ? err.message : err), { type: 'error' });
+    }).then(function () { btn.disabled = false; });
+}
+
+function omSend() {
+    var p = findProp(state.outreachModal);
+    if (!p || !window.BOOM_OUTREACH) {
+        BoomPortal.toast('Annuncio non più nel feed', { type: 'warning' });
+        closeOutreachModal();
+        return;
+    }
+    var message = $('om-msg').value.trim();
+    var job = {
+        listingId: p.id,
+        sourceUrl: p.sourceUrl,
+        portal: p.source || null,
+        message: message,
+        style: $('om-style').value,
+        voice: $('om-voice').value,
+        clientId: $('om-client').value || null,
+        clientName: (omSelectedClient() || {}).name || null,
+        status: 'approved',
+        attempts: 0,
+        createdAt: new Date().toISOString(),
+        createdBy: 'plancia',
+    };
+    var v = BOOM_OUTREACH.validateJob(job);
+    if (!v.ok) { BoomPortal.toast(v.errors[0], { type: 'warning', duration: 5000 }); return; }
+    var key = BOOM_OUTREACH.outreachKey(p.id);
+    var alreadyMsg = 'Questo annuncio è già stato contattato (o è in coda): un proprietario, un messaggio.';
+    var existing = state.outreachById[key];
+    if (existing && (existing.status === 'sent' || existing.status === 'approved' || existing.status === 'sending')) {
+        BoomPortal.toast(alreadyMsg, { type: 'warning', duration: 5000 });
+        return;
+    }
+    var btn = $('om-send');
+    btn.disabled = true;
+    // La verità la dice FIRESTORE, non la cache del listener (che su un
+    // canale morto resta vuota per sempre): si rilegge il doc PRIMA di
+    // scrivere — un doc 'sent' sovrascritto sarebbe un secondo messaggio
+    // allo stesso proprietario.
+    db.collection('outreachQueue').doc(key).get().then(function (snap) {
+        var cur = snap.exists ? snap.data() : null;
+        if (cur && ['sent', 'approved', 'sending'].indexOf(cur.status) >= 0) {
+            BoomPortal.toast(alreadyMsg, { type: 'warning', duration: 5000 });
+            return null;
+        }
+        return db.collection('outreachQueue').doc(key).set(job).then(function () {
+            BoomPortal.toast('📨 In coda: il Mac lo consegna nella chat del portale entro pochi minuti', { type: 'success', duration: 5000 });
+            closeOutreachModal();
+        });
+    }).catch(function (err) {
+        BoomPortal.toast('Errore: ' + (err && err.message ? err.message : err), { type: 'error' });
+    }).then(function () { btn.disabled = false; });
+}
+
+function cancelOutreach(listingId) {
+    var key = BOOM_OUTREACH.outreachKey(listingId);
+    BoomPortal.confirm('Annullare il messaggio in coda per questo annuncio?').then(function (yes) {
+        if (!yes) return;
+        db.collection('outreachQueue').doc(key).set({ status: 'cancelled', cancelledAt: new Date().toISOString() }, { merge: true })
+            .then(function () { BoomPortal.toast('Messaggio annullato — non partirà'); })
+            .catch(function (err) { BoomPortal.toast('Errore: ' + (err && err.message ? err.message : err), { type: 'error' }); });
+    });
+}
+
 /* ── Occasioni (💎 strip nel feed) ───────────────────────────── */
 function renderOccStrip() {
     var el = $('occ-strip');
@@ -1803,6 +1997,7 @@ function triageFootHtml(p) {
         return '<button class="wa-btn" data-taction="wa" data-idx="' + i + '">💬 → ' + esc(first) + '</button>';
     }).join('');
     return '<div class="tg-wa-row">' + wa +
+            '<button class="abtn" data-taction="contact">📨 Contatta</button>' +
             '<button class="abtn" data-taction="owner">📋 Proprietario</button></div>' +
         '<div class="tg-btn-row">' +
             '<button class="tg-skip" data-taction="skip">↷ Dopo</button>' +
@@ -2277,7 +2472,11 @@ function bindUI() {
         for (var i = 0; i < state.properties.length; i++) if (state.properties[i].id === id) prop = state.properties[i];
         if (!prop) return;
 
-        if (action === 'toggle-below') {
+        if (action === 'contact-owner') {
+            openOutreachModal(id);
+        } else if (action === 'cancel-outreach') {
+            cancelOutreach(id);
+        } else if (action === 'toggle-below') {
             var bx = card.querySelector('.fc-below');
             if (bx) {
                 bx.hidden = !bx.hidden;
@@ -2430,6 +2629,29 @@ function bindUI() {
         if (mini) revealProp(mini.getAttribute('data-oid'));
     });
 
+    // 📨 Il Contatto (modale)
+    $('om-close').addEventListener('click', closeOutreachModal);
+    $('om-regen').addEventListener('click', omRegen);
+    $('om-ai').addEventListener('click', omAi);
+    $('om-send').addEventListener('click', omSend);
+    $('outreach-modal-overlay').addEventListener('click', function (e) { if (e.target === this) closeOutreachModal(); });
+    // Dopo un edit a mano (o l'AI) l'anteprima NON si rigenera da sola —
+    // ma va DETTO, non taciuto: un selettore girato a vuoto insegna a non
+    // fidarsi del modale (la lezione delle manopole finte).
+    function omDirtyHint() {
+        if (state.outreachDirty) {
+            BoomPortal.toast('Anteprima bloccata dalle tue modifiche: ↺ Rigenera per riapplicare stile e campi', { type: 'info', duration: 4000 });
+            return true;
+        }
+        return false;
+    }
+    ['om-style', 'om-voice', 'om-client'].forEach(function (id) {
+        $(id).addEventListener('change', function () { if (!omDirtyHint()) omRegen(); });
+    });
+    $('om-extra').addEventListener('change', function () { if (!omDirtyHint()) omRegen(); });
+    $('om-extra').addEventListener('input', function () { if (!state.outreachDirty) omRegen(); });
+    $('om-msg').addEventListener('input', function () { state.outreachDirty = true; });
+
     // Searches
     $('searches-list').addEventListener('click', function (e) {
         var actEl = e.target.closest('[data-action]');
@@ -2501,6 +2723,7 @@ function bindUI() {
     $('modal-overlay').addEventListener('click', function (e) { if (e.target === this) closeModal(); });
     document.addEventListener('keydown', function (e) {
         if (e.key !== 'Escape') return;
+        if (!$('outreach-modal-overlay').hidden) { closeOutreachModal(); return; }
         if (!$('modal-overlay').hidden) { closeModal(); return; }
         if (!$('client-modal-overlay').hidden) { closeClientModal(); return; }
         if (!$('client-drawer').hidden && !palette.open && !triage.open) closeDrawer();
@@ -2522,6 +2745,10 @@ function bindUI() {
                 if (ok) BoomPortal.toast('Messaggio per il proprietario copiato 📋');
                 else BoomPortal.toast('Copia non riuscita — copia manualmente', { type: 'warning' });
             });
+        } else if (act === 'contact') {
+            buzz();
+            closeTriage();
+            openOutreachModal(p.id);
         } else if (act === 'wa') {
             triageWa(p, parseInt(b.getAttribute('data-idx'), 10) || 0);
         }
@@ -2707,6 +2934,14 @@ function startListeners() {
         state.occ = items.slice().reverse(); // più recente in testa
         renderOccStrip();
     }, function () { /* rules non deployate → la strip resta vuota, mai un errore urlato */ });
+
+    // 📨 Il Contatto — lo stato di ogni messaggio al proprietario, live.
+    BoomPortal.listen(db.collection('outreachQueue'), function (snap) {
+        var map = {};
+        snap.forEach(function (d) { map[d.id] = Object.assign({ id: d.id }, d.data()); });
+        state.outreachById = map;
+        renderFeed(); // i bottoni 📨 riflettono lo stato vero
+    }, function () { /* rules non deployate → i bottoni restano, la coda no */ });
 
     // Le vedette (radarWatchers) — le ricerche libere gestite da qui.
     BoomPortal.listen(db.collection('radarWatchers'), function (snap) {
