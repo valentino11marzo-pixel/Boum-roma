@@ -224,7 +224,7 @@ if MODO == 'sito':
     h = h[:i] + '\n' + OG + h[i:]
     h = ('<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
          + h.replace('</style>', '</style>\n</head>\n<body>', 1)
-         + '\n</body>\n</html>')
+         + '\n' + TESTA.CONSENSO + '\n</body>\n</html>')
 uscita = 'boom-casa-p.html' if MODO == 'artefatto' else 'boom-casa-p-sito.html'
 open(uscita, 'w', encoding='utf-8').write(h)
 print(f'{uscita} · {len(h)//1024} KB · {len(CASE)} case · '

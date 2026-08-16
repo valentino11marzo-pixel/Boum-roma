@@ -12,7 +12,14 @@ GTAG = (
     '<script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>\n'
     '<script>window.dataLayer=window.dataLayer||[];'
     'function gtag(){dataLayer.push(arguments);}'
-    "gtag('js', new Date());gtag('config','G-EYCD59RDVJ');</script>")
+    "gtag('js', new Date());"
+    "gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',"
+    "ad_personalization:'denied',analytics_storage:'denied',"
+    "wait_for_update:500});"
+    "gtag('config','G-EYCD59RDVJ');</script>")
+
+# il banner che scioglie il consent-mode: va in coda al body, defer
+CONSENSO = '<script defer src="/js/boom-consent.js"></script>'
 
 ICONE = (
     '<link rel="icon" href="/favicon.ico" sizes="any">\n'
