@@ -19,7 +19,11 @@
 //         moveIn('YYYY-MM-DD'), durationMonths(number) }
 // Response 200: { ok: true, id } | 4xx/5xx: { ok: false, error }
 
-import { fsCreate, logActivity } from './homie/_lib.js';
+import { fsCreate, fsPatch, logActivity } from './homie/_lib.js';
+// statici, mai lazy: il bundler Vercel traccia solo gli import top-level
+// (la lezione nodemailer del 2026-07)
+import { sendEmail } from './agent/_lib.js';
+import { shell, para, fine, btn } from './preagreement/_notify.js';
 
 const HITS = new Map(); // ip -> [timestamps]
 const WINDOW_MS = 10 * 60 * 1000;
@@ -133,6 +137,38 @@ export default async function handler(req, res) {
         'apply-lead'
       );
     } catch { /* activity log is best-effort */ }
+
+    // La pagina promette «a person replies within 2 hours»: intanto il
+    // candidato riceve SUBITO la conferma scritta che la domanda è
+    // arrivata e cosa succede ora. Best-effort e time-boxed: un SMTP
+    // lento non deve mai far fallire la candidatura già salvata.
+    if (lead.email) {
+      try {
+        const primo = name.split(' ')[0] || 'there';
+        const casa = lead.propertyTitle || 'the home you chose';
+        const cosa = waitlist ? 'waitlist request' : (kind === 'reserve' ? 'reservation request' : 'application');
+        const html = shell(
+          para(`Hi ${primo},`)
+          + para(`your ${cosa} for <b>${casa}</b> just reached us — a person
+              with a name reads it and replies within 2 hours (office hours,
+              Rome time).`)
+          + para(`If it moves forward, the next step is your written
+              pre-agreement: a private link with the exact figures — rent,
+              deposit, fee, dates — before a single euro moves.`)
+          + btn('https://wa.me/393313251961', 'Questions? WhatsApp us')
+          + fine('BOOM Rome · Egidi Immobiliare S.r.l. — you received this '
+              + 'because you applied on boomrome.com.'),
+          `Your ${cosa} reached us`);
+        await Promise.race([
+          sendEmail({ to: lead.email,
+            subject: waitlist ? 'You are on the list — BOOM Rome'
+              : 'Received — your ' + cosa + ' at BOOM Rome',
+            html }),
+          new Promise((r) => setTimeout(r, 8000)),
+        ]);
+        try { await fsPatch('leads/' + id, { ackEmailAt: new Date().toISOString() }); } catch {}
+      } catch (err) { console.error('[apply-lead] ack:', err && err.message); }
+    }
     return res.status(200).json({ ok: true, id });
   } catch (err) {
     console.error('[apply-lead]', err && err.message);

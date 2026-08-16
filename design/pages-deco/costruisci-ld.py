@@ -77,6 +77,15 @@ for r in piene:
     if not r.get('name') or not r.get('price'): continue
     if r.get('status') not in ('available', 'reserved', 'rented', 'waitlist'): continue
     cover = banca.get(ide, '')
+    if MODO == 'sito' and not cover:
+        # il banco foto non ha l'id (es. cover .HEIC scartata dal bake):
+        # una casa in catalogo non sparisce dalla vetrina per una foto
+        cover = str(((r.get('images') or [None])[0]) or r.get('image') or '')
+        # solo host nostri (Storage o file del sito): un host morto o
+        # estraneo (imgur) non rientra dalla finestra, e nemmeno un .HEIC
+        if not (cover.startswith('/') or 'firebasestorage' in cover) \
+           or cover.lower().endswith('.heic'):
+            cover = ''
     if MODO == 'artefatto':
         foto = gall.get(ide) or ([cover] if cover else [])
     else:
@@ -181,6 +190,13 @@ else:
         '/your-money.html': '/your-money'}.items():
         h = h.replace('href="' + da + '"', 'href="' + a_ + '"')
     h = h.replace('/apartments.html', '/apartments')
+    # le note PREVIEW dicevano il vero solo nell'artefatto (dove il form
+    # non spedisce); sul sito spedisce davvero — la nota fa la promessa
+    # che la home già fa: una persona con un nome risponde entro 2 ore
+    h = h.replace('PREVIEW — nothing is sent from this page. On\n          the live site this reaches a person and becomes your written\n          pre-agreement.',
+        'Your application goes straight to a person — a named human\n          replies within 2 hours and it becomes your written\n          pre-agreement.')
+    h = h.replace('PREVIEW — nothing was sent from this page.',
+        'Sent — a named human replies within 2 hours.')
     h = h.replace('</footer>',
         '</footer>\n<script src="/js/boom-geo.js"></script>', 1)
     h = h.replace('CHIAVE_CASA', '/listing/')

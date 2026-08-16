@@ -358,6 +358,18 @@ export default async function handler(req, res) {
       } catch (e) { results.errors.push(`pa-locks: ${e.message}`); }
     }
 
+    // ── Hold €300: la riserva scaduta (48h) libera la casa e Telegram
+    // ricorda all'operatore il rimborso. Nello stesso giro, il one-shot
+    // Lotto 12 sana i dati del catalogo UNA volta (marker heartbeat —
+    // i rerun sono no-op per costruzione). ──
+    if (now.getUTCMinutes() < 15) {
+      try {
+        const { sweepHolds, runOnceLotto12 } = await import('./ops/_lotto12.js');
+        results.holds = await sweepHolds();
+        results.lotto12 = await runOnceLotto12();
+      } catch (e) { results.errors.push(`holds: ${e.message}`); }
+    }
+
     // ── Tenant journey: T-30/T-14/T-7/T-1 pre-move-in, T+3 review ask,
     // T-90 renewal confirmation (no upsell), exit thank-you + referral.
     // Once per step per contract (contracts.journey flags). Lazy import,
