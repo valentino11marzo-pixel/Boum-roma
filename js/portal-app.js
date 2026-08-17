@@ -3856,6 +3856,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="nav-item" onclick="window.open('/photo-lab','_blank')"><span class="nav-icon">🎞️</span> Photo Lab</div>
                     <div class="nav-item" onclick="window.open('/media-studio','_blank')"><span class="nav-icon">🎨</span> Media Studio</div>
                     <div class="nav-item" onclick="window.open('/manuale','_blank')"><span class="nav-icon">🏠</span> Manuale Casa</div>
+                    <div class="nav-item" onclick="window.open('/risposte','_blank')"><span class="nav-icon">💬</span> Risposte WhatsApp</div>
                     <div class="nav-item" onclick="window.open('/salute','_blank')"><span class="nav-icon">🩺</span> Salute Sistema</div>
                 </div>
                 <div class="nav-section"><div class="nav-label">Sistema</div>

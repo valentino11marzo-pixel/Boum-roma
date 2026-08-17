@@ -76,6 +76,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `apartments.html` | Property listings page. |
 | `apartment-detail.html` | Dynamic single-property page (loads from Firestore). |
 | `boom_doc_parser.html` | AI document parser UI (uses Claude API). |
+| `risposte.html` | Le risposte rapide di WhatsApp Business (`/risposte`, admin, noindex): 48 messaggi pronti col tasto Copia, i due messaggi automatici, le etichette e la libreria link. Rende `js/whatsapp-replies.js` — nessun testo duplicato nella pagina. |
 | `watermark-studio.html` | Standalone watermark tool for interns/team. 100% client-side (no Firebase): upload photos, customize the BOOM mark live (6 styles: firma, sigillo, editoriale, pattern, cornice, custom logo), drag to position, batch ZIP export. |
 | `media-studio.html` | Pro media production tool (superset of watermark-studio; photo *processing* is 100% client-side). Layered compositor: auto-enhance (histogram analysis, backlight-aware), shadows/highlights tone recovery, color grading (5 looks + manual + saveable custom looks), unsharp-mask sharpening, horizon straighten + vertical keystone (perspective) correction, live histogram, crop/aspect per channel with focal framing + composition guides, branding system (watermark + badge + listing info bar + scrim), draggable text layers, social templates, thumb reordering (order = publish order, first = cover), multi-format batch export with smart ×2 upscale, one-click **Media Kit** ZIP (all formats + AI copy + README), Ken Burns video reel generator (MediaRecorder, MP4-first, optional music track via WebAudio), AI listing copywriter (via `/api/media/caption`). **Simple/Pro UI modes** (localStorage), session autosave/restore (IndexedDB). **Catalog bridge**: browse `listings` (public read), open a listing's photos (`?listing=<id>` deep-link from portal rows 🎨 + photo-lab), prefill info bar from `zone/price/bedrooms/sqm`, and publish curated photos back — uploads under `listings/enhanced/<id>/` (sweep-safe per `api/photos/enhance.js` `isEnhancedUrl`), additive `imagesOriginal` union, `photosEnhancedAt/By: 'studio:<email>'`, cover = first thumb. **Publish rails**: reel → `videoUrl` (MP4 only, upload `listings/enhanced/<id>/video/` — dedicated storage.rules match, video/* <100MB; apartment-detail renders non-YouTube urls via its `<video>` branch/`exVid()`); AI copy (tipo portale) → `description`/`descriptionIt` with sweep discipline (`descriptionOriginal` preserved, `descriptionSource:'studio:<email>'`); live **pagella** chip mirrors `gradeListing()`; portalPubs status shown to admins (photos/video/description are in the Pubblicista's `coreContent` → updates queue themselves). Publishing requires admin (Firestore/Storage rules enforce). Linked from portal sidebar → Console → Media Studio. |
 | `vercel.json` | Deployment config, rewrites, cron schedule. |
@@ -1785,6 +1786,38 @@ SUA lingua (`replyLang`), con il link `book?listing=` con gli slot VERI.
   (nodemailer mockato via loader), idempotenza, cooldown che protegge dal
   secondo richiamo, comando che non indovina mai.
 
+### Le risposte rapide di WhatsApp (`js/whatsapp-replies.js` + `/risposte`)
+La conversazione resta l'unico pezzo che la macchina non fa: il Commerciale
+propone la PRIMA risposta, il Gestore i solleciti, il journey le email — ma
+tutto quello che viene dopo si scrive a mano, di corsa, dal telefono. Queste
+sono le **48 risposte rapide** di WhatsApp Business (`/scorciatoia` in chat),
+più i due messaggi automatici e le etichette. Coprono l'intero giro: cliente
+EN e IT, inquilino in casa, proprietario, aziende/enti, La Réunion, e i
+messaggi che accompagnano un link personale.
+- **Una copia sola**: i testi vivono in `js/whatsapp-replies.js` (UMD →
+  `window.BOOM_WA`, come boom-geo). `risposte.html` (`/risposte`, in sidebar
+  Console, noindex+no-store) li mostra col tasto **Copia**, la ricerca, il
+  filtro ⭐ prima fila e il segno "già caricata" (localStorage avvolto: Safari
+  privato LANCIA). `docs/WHATSAPP_RISPOSTE_RAPIDE.md` si **genera**
+  (`node scripts/wa-export.mjs`) — un documento riscritto a mano divergerebbe
+  al primo cambio di prezzo, e un documento vecchio è peggio di nessuno perché
+  sembra vero.
+- **Le regole dure** (`tests/whatsapp/replies.mjs`, 78 check): un link dentro
+  una risposta salvata deve essere una rotta VERA del sito — dedotta dal repo
+  (file, cartella, rewrite/redirect, sitemap), non da una lista a mano; i
+  prezzi citati sono agganciati a `api/_catalog.js` (se il Virtual Viewing
+  passa a €99 il test si accorge che WhatsApp promette ancora €89); il link
+  recensione passa la STESSA validazione delle email (`api/reviews/_lib.js`:
+  la scatola delle stelle, non la scheda Maps); i segnaposto sono
+  `[MAIUSCOLO]` — uno minuscolo si mimetizza in una frase e parte così.
+- **Cosa NON entra**: i link personali (visita, Scheda, Magic Sign,
+  pre-accordo, pagamento) sono per una persona sola e li genera il portale;
+  nelle risposte `/op…` stanno come `[LINK]`. E niente che la macchina già
+  faccia da sola, altrimenti si scrive in due sulla stessa conversazione.
+- Da verificare a mano una volta: il link recensione in `/enrev` (deve essere
+  lo stesso di `REVIEW_URL`) e `settings/payout`, senza cui il bonifico
+  citato in `/enpay` non compare in `/casa`.
+
 ### GET/POST `/api/homie/searches` — gli occhi di Homie sul radar PFS
 Il problema sta scritto in `api/pfs/_fetch.js`: *"both portals run anti-bot
 protection and may 403 datacenter IPs — the email-alert path is the
@@ -2284,6 +2317,7 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/wizard/health.mjs` | Il guardiano del bot sul Mac: il wrapper saltato lo dice UNA volta (non 96, non mai), il documento assente tace 24h e poi parla, offline batte tutto, il ritorno si sente sempre |
   | `tests/pfs/health.mjs` | Allarmi del radar: una fonte BLOCCATA all'origine parla una volta sola (200 run → 1 messaggio), un guasto vero si dirada invece di gridare ogni 6h (40 giorni → 8 promemoria), i primi due intoppi non svegliano nessuno, e il ritorno si sente sempre |
   | `tests/pfs/eyes.mjs` | Gli occhi di Homie sul radar PFS: nella lista di lavoro non entrano ricerche spente o con URL rotti, la manopola manuale (`urlOverride`) vince sempre, e — la regola che conta — un radar CIECO (403/captcha su tutte le ricerche) non passa mai per un mercato fermo |
+  | `tests/whatsapp/replies.mjs` | Le risposte rapide di WhatsApp: un messaggio che si manda a occhi chiusi mille volte non può contenere un link morto (le rotte si deducono dal repo, non da una lista), i prezzi non possono divergere da `api/_catalog.js`, il link recensione apre le stelline e non la scheda Maps, e il documento in `docs/` non può restare indietro |
   | `tests/whatsapp/run.mjs` | Da WhatsApp a lead senza AI: il rumore resta fuori (👍, "ok") e la persona vera entra, l'inquilino che scrive per la caldaia non inquina la pipeline, un lead per persona anche col numero archiviato in formato diverso (nazionale vs internazionale), una risposta umana zittisce il Commerciale. Guida il handler VERO su un Firestore finto in memoria |
   | `tests/miniera/run.mjs` | La Miniera: il join aggancia la persona in OGNI forma del numero (parità con `_lead.js`, JID senza `+` guarito), i veti del libro dei silenzi (inquilini/firmati/morti/oltre 120gg MAI nel re-ingaggio), sotto campione NIENTE percentuali (per mutazione), il verdetto motivato coi numeri, parità cross-linguaggio con l'estrattore Python, handler vero su Firestore in memoria |
   | `tests/wizard/local_brain.py` | Il cervello gratis del bot wizard (`python3`): cosa capisce senza modello e — più importante — cosa deve rifiutarsi di capire. Una domanda ("Levico è affittato?") non può diventare una scrittura; un annuncio nuovo dettato non può diventare la modifica di uno esistente. Estrae le funzioni pure dal bot via AST: gira senza `.env`, senza Telegram, senza rete |
