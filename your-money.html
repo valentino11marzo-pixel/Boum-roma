@@ -1485,6 +1485,29 @@ html.vivo .sale.dentro .titolo, html.vivo .coro.dentro .titolo {
   clip-path:inset(-8% -8% -12% -8%); transform:none;
   transition:clip-path .9s var(--ease), transform .9s var(--ease); }
 html.vivo .coro > * { opacity:0; transform:translateY(24px); }
+/* il primo quadro entra DA SOLO, in puro CSS: col sipario armato in testa
+   non puo' dipendere dagli organi in coda al documento (Safari li
+   raggiunge tardi). Le animazioni vincono sulle dichiarazioni normali,
+   quindi questi keyframes scavalcano il nascondiglio del sipario. */
+@keyframes vieniSu { from { opacity:0; transform:translateY(24px); }
+  to { opacity:1; transform:none; } }
+@keyframes titoloSu {
+  from { clip-path:inset(-8% -8% 108% -8%); transform:translateY(30px); }
+  to { clip-path:inset(-8% -8% -12% -8%); transform:none; } }
+html.vivo .coro.dentro-subito > * {
+  animation:vieniSu .8s var(--ease) .12s both; }
+html.vivo .coro.dentro-subito > :nth-child(2){ animation-delay:.19s; }
+html.vivo .coro.dentro-subito > :nth-child(3){ animation-delay:.26s; }
+html.vivo .coro.dentro-subito > :nth-child(4){ animation-delay:.33s; }
+html.vivo .coro.dentro-subito > :nth-child(5){ animation-delay:.4s; }
+html.vivo .coro.dentro-subito > :nth-child(6){ animation-delay:.47s; }
+html.vivo .coro.dentro-subito .titolo, html.vivo .coro.dentro-subito .hero-title {
+  animation:titoloSu .9s var(--ease) .12s both; }
+@media (prefers-reduced-motion:reduce){
+  html.vivo .coro.dentro-subito > *,
+  html.vivo .coro.dentro-subito .titolo,
+  html.vivo .coro.dentro-subito .hero-title { animation:none; opacity:1;
+    transform:none; clip-path:none; } }
 html.vivo .coro.dentro > * { opacity:1; transform:none;
   transition:opacity .8s var(--ease), transform .8s var(--ease); }
 html.vivo .coro.dentro > :nth-child(2){ transition-delay:.07s; }
@@ -1710,6 +1733,18 @@ html.vivo .sale.dentro { opacity:1; transform:none;
 </head>
 <body>
 <nav class="nav" id="nav">
+<script>
+/* Il sipario si arma PRIMA del primo paint. Aggiunto in coda (deco-organi)
+   arrivava DOPO su Safari, che dipinge progressivamente: pagina intera →
+   nascosta → rientrata animata = «doppio caricamento». Senza JS la classe
+   non nasce e tutto resta visibile; se gli organi in coda non si armano
+   entro 3s il sipario si riapre da solo. */
+document.documentElement.classList.add('vivo');
+setTimeout(function () {
+  if (!window.__decoArmato)
+    document.documentElement.classList.remove('vivo');
+}, 3000);
+</script>
   <div class="container nav-inner">
     <a class="marchio" href="/" aria-label="BOOM, home"><svg class="logo-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" shape-rendering="geometricPrecision">
                     <defs>
@@ -2181,17 +2216,24 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         self.cur = nc; done();
       }
       self.lbEl.style.display = 'block';
+      /* Safari spesso NON spara animationend quando l'animazione nasce
+         nello stesso frame del display:block: reflow forzato, e il timer
+         di riserva va al passo VERO dell'animazione (prima 400ms: ogni
+         flip su Safari durava il triplo, e il tabellone «caricava due
+         volte») */
+      void self.lbEl.offsetWidth;
       self.lbEl.style.animation = 'flBot 150ms cubic-bezier(.3,1.35,.6,1) forwards';
       self.lbEl.onanimationend = finishBot;
-      setTimeout(finishBot, 400);
+      setTimeout(finishBot, 210);
     }
     this.st.textContent = nc;
     this.lt.textContent = this.cur;
     this.lb.textContent = nc;
     this.ltEl.style.display = 'block';
+    void this.ltEl.offsetWidth;
     this.ltEl.style.animation = 'flTop 90ms cubic-bezier(.55,0,.85,.36) forwards';
     this.ltEl.onanimationend = finishTop;
-    setTimeout(finishTop, 300);
+    setTimeout(finishTop, 140);
   };
   Cell.prototype.go = function (target, drum, fullTurn) {
     this.pending = target;
@@ -2283,6 +2325,8 @@ html.vivo .sale.dentro { opacity:1; transform:none;
   var fine = matchMedia('(hover:hover) and (pointer:fine)').matches;
   var BS = window.BoomSolari;
   R.classList.add('vivo');
+  /* letto dalla rete di sicurezza del sipario in testa alla pagina */
+  window.__decoArmato = true;
 
   /* ── il marchio del piede: clonato dalla testata, una fonte sola ─────── */
   (function () {

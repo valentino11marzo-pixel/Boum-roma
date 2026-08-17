@@ -88,17 +88,24 @@
         self.cur = nc; done();
       }
       self.lbEl.style.display = 'block';
+      /* Safari spesso NON spara animationend quando l'animazione nasce
+         nello stesso frame del display:block: reflow forzato, e il timer
+         di riserva va al passo VERO dell'animazione (prima 400ms: ogni
+         flip su Safari durava il triplo, e il tabellone «caricava due
+         volte») */
+      void self.lbEl.offsetWidth;
       self.lbEl.style.animation = 'flBot 150ms cubic-bezier(.3,1.35,.6,1) forwards';
       self.lbEl.onanimationend = finishBot;
-      setTimeout(finishBot, 400);
+      setTimeout(finishBot, 210);
     }
     this.st.textContent = nc;
     this.lt.textContent = this.cur;
     this.lb.textContent = nc;
     this.ltEl.style.display = 'block';
+    void this.ltEl.offsetWidth;
     this.ltEl.style.animation = 'flTop 90ms cubic-bezier(.55,0,.85,.36) forwards';
     this.ltEl.onanimationend = finishTop;
-    setTimeout(finishTop, 300);
+    setTimeout(finishTop, 140);
   };
   Cell.prototype.go = function (target, drum, fullTurn) {
     this.pending = target;
