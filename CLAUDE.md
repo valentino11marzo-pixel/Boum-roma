@@ -1883,6 +1883,32 @@ competitor ha — e il VERDETTO che ne esce decide quale potere costruire.
   `verdict()`: classifica motivata dei poteri candidati (Segugio, visite
   auto, velocità, playbook, dossier; radar-proprietari dichiarato NON
   misurabile dalle chat), `tgSummary` HTML-escapato.
+- **Il misuratore della domanda** (`js/wa-demand-engine.js`, `BOOM_WADEMAND`,
+  dentro lo stesso `op:'study'`): gli STESSI dati, seconda domanda — non
+  "che potere costruire" ma **quali risposte rapide servono davvero**. 22
+  intenzioni a grammatica chiusa (IT/EN, zero token) sui messaggi dei
+  clienti: thread ridotti dal Mac (che portano l'esito) + `leads.message`
+  (che esistono anche a Mac spento). Le nostre uscite (`action_queue`)
+  stanno in un corpus SEPARATO: misurare la domanda con le nostre parole la
+  gonfierebbe. **Si ordina per TEMPO RISPARMIATO, non per frequenza** — una
+  domanda che arriva 40 volte e si liquida in dieci secondi vale meno di una
+  che arriva 12 volte e ogni volta costa quattro minuti; il costo non si
+  inventa, è la lunghezza VERA della risposta che la copre (~200 car/minuto
+  col pollice, e fra due risposte si prende la più lunga, mai la somma).
+  Conta per CONVERSAZIONE (tre "deposito" nella stessa chat = una risposta
+  che avresti mandato una volta). Sotto 30 conversazioni classificate escono
+  i conteggi e NESSUNA percentuale (lezione D4). Due uscite che valgono
+  quanto la classifica: le **buche** (intenzione con volume e nessuna
+  scorciatoia che la copra → una risposta DA SCRIVERE: oggi residenza,
+  arredo/servizi, chi abita, trattativa) e l'**ignoto** (`unmatched`, con le
+  frasi vere — una classificazione silenziosa è indistinguibile da un
+  difetto). Finisce in `teamReports/miniera-<data>.domanda` e in un secondo
+  messaggio Telegram dopo il podio. **La guardia che tiene in piedi tutto**
+  (`tests/whatsapp/demand.mjs`): ogni intenzione deve dimostrare di matchare
+  una frase vera — due difetti reali di questo tipo sono già stati presi
+  così, un `\b` in coda a una radice tronca (`residenz`) e un `\\b` scritto
+  in un pattern: entrambi non matchano MAI e sotto-contano in silenzio,
+  cioè il rapporto esce sano e dice che nessuno chiede quella cosa.
 - **Porta** (auth `X-Homie-Secret`): GET → stato + mappa id→hash (sync
   incrementale); POST `op:'threads'` → upsert idempotente in
   `minieraThreads` (id = sha1(chatId), admin-only in firestore.rules — la
@@ -2319,6 +2345,7 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/pfs/eyes.mjs` | Gli occhi di Homie sul radar PFS: nella lista di lavoro non entrano ricerche spente o con URL rotti, la manopola manuale (`urlOverride`) vince sempre, e — la regola che conta — un radar CIECO (403/captcha su tutte le ricerche) non passa mai per un mercato fermo |
   | `tests/whatsapp/replies.mjs` | Le risposte rapide di WhatsApp: un messaggio che si manda a occhi chiusi mille volte non può contenere un link morto (le rotte si deducono dal repo, non da una lista), i prezzi non possono divergere da `api/_catalog.js`, il link recensione apre le stelline e non la scheda Maps, e il documento in `docs/` non può restare indietro |
   | `tests/whatsapp/run.mjs` | Da WhatsApp a lead senza AI: il rumore resta fuori (👍, "ok") e la persona vera entra, l'inquilino che scrive per la caldaia non inquina la pipeline, un lead per persona anche col numero archiviato in formato diverso (nazionale vs internazionale), una risposta umana zittisce il Commerciale. Guida il handler VERO su un Firestore finto in memoria |
+  | `tests/whatsapp/demand.mjs` | Il misuratore della domanda: ogni intenzione dimostra di saper riconoscere una frase vera (un pattern inerte sotto-conta in SILENZIO), "business" non diventa una domanda sui bus, la classifica è per tempo risparmiato e non per frequenza, sotto campione niente percentuali, e ciò che il motore non sa nominare esce con le parole vere |
   | `tests/miniera/run.mjs` | La Miniera: il join aggancia la persona in OGNI forma del numero (parità con `_lead.js`, JID senza `+` guarito), i veti del libro dei silenzi (inquilini/firmati/morti/oltre 120gg MAI nel re-ingaggio), sotto campione NIENTE percentuali (per mutazione), il verdetto motivato coi numeri, parità cross-linguaggio con l'estrattore Python, handler vero su Firestore in memoria |
   | `tests/wizard/local_brain.py` | Il cervello gratis del bot wizard (`python3`): cosa capisce senza modello e — più importante — cosa deve rifiutarsi di capire. Una domanda ("Levico è affittato?") non può diventare una scrittura; un annuncio nuovo dettato non può diventare la modifica di uno esistente. Estrae le funzioni pure dal bot via AST: gira senza `.env`, senza Telegram, senza rete |
   | `tests/executive/run.mjs` | BOOM Executive: il professionista in trasferta resta un TENANT nella macchina piena, il datore dichiarato (`employer`) non viene scambiato per l'honeypot (`company`), la voce B2B tace col tenant e parla con l'ente — con la guardia PRIMA della spesa, asserita sull'ordine nel sorgente |
