@@ -266,7 +266,11 @@ if MODO == 'sito':
     h = ('<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
          + h.replace('</style>', '</style>\n</head>\n<body>', 1)
          + '\n' + leggi('vetrina-idrante.html')
+<<<<<<< HEAD
          + '\n' + TESTA.CONSENSO + '\n</body>\n</html>')
+=======
+         + '\n</body>\n</html>')
+>>>>>>> origin/main
 uscita = 'boom-discovery.html' if MODO == 'artefatto' else 'boom-discovery-sito.html'
 open(uscita, 'w', encoding='utf-8').write(h)
 print(f'{uscita} · {len(h)//1024} KB · {len(mostrate)} case · '

@@ -982,6 +982,31 @@ annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
 - `POST /api/preagreement/notify` — console "✉ Reinvia copia". Admin auth.
   Re-sends the accepted/paid document email to the client (recovery path
   for failed sends / "non l'ho ricevuta").
+- **Lo stato è il FATTO, non l'etichetta** (`_state.js` + `resolve.js`).
+  LA LEZIONE DEL 16 AGOSTO 2026: `submit.js` trattava come terminale il solo
+  stato `accepted`, quindi un **secondo invio del modulo su una proposta già
+  PAGATA** — pagina rimasta aperta con la bozza in localStorage, tasto
+  indietro da Stripe, tap ripetuto su rete lenta — la riscriveva ad
+  `accepted` con un protocollo nuovo e **apriva una seconda Checkout**; e se
+  nel frattempo il lucchetto dell'immobile era passato a un'altra proposta,
+  la ributtava in **`reserve`**, stato da cui → Contratto, Magic Sign e
+  ✉ Reinvia copia rispondono tutti 409 `not_accepted_yet`. In console il
+  deal risultava da pagare e il passo successivo spariva: due sintomi, una
+  causa. `paidOnRecord()` (esportata, condivisa da submit · pay · resolve ·
+  console) guarda la PROVA — `paidAt`/`paidSessionId`/`paidEur` — non lo
+  status, così anche un documento già degradato viene riconosciuto pagato.
+  `POST /api/preagreement/resolve` (admin) è la via d'uscita: cerca la prova
+  sul documento e, se manca, **su Stripe per il token di QUELLA proposta**
+  (metadata `token`, non l'id sessione che il giro rotto sovrascriveva);
+  con la prova riporta a `paid`, rende definitivo il lucchetto e converte;
+  senza prova **non dichiara mai pagato** e lo dice. Sblocca anche una
+  riserva quando l'immobile si è liberato (il lucchetto è l'unica autorità:
+  ancora tenuto → nessuna scrittura e il nome di chi lo tiene).
+  In console: chip oro **✓ incassato** su qualunque etichetta, riga che
+  spiega riserva e disallineamento, bottoni **⚠ Sistema lo stato** /
+  **✅ Sblocca la riserva** / **🔎 Ha pagato?**, filtro Riserve, e la KPI
+  incassato conta i soldi VERI (prima sommava solo `status==='paid'`).
+  Test: `node tests/preagreement/state.mjs`.
 - **Email transport warning**: `nodemailer` and `pdf-lib` MUST be imported
   statically (top-level `import`). Lazy `await import('pkg')` is not traced
   by Vercel's bundler → "Cannot find package" at runtime in production
@@ -2267,6 +2292,7 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/journey/steps.mjs` | **le regole commerciali dell'operatore**: quando parte ogni email e cosa NON deve contenere (T-90 e uscita non vendono, le chiavi non si vendono mai, un prodotto già comprato non si ripropone, il rinnovo non arriva prima del move-in su un transitorio breve) |
   | `tests/journey/review-url.mjs` | solo un vero link "scrivi recensione" (`g.page/r/<id>/review`) entra nelle email; un link Maps "Condividi" viene rifiutato con warning |
   | `tests/dossier/run.mjs` | fascicolo ARPE: un landlord non può scrivere nel fascicolo di un immobile altrui, path sotto `property-docs/<id>/`, slot già pieni non sovrascritti |
+  | `tests/preagreement/state.mjs` | stato della proposta: un deal PAGATO non torna mai indietro (né ad `accepted` né a `reserve`) e non apre una seconda Checkout, il link "completa il pagamento" non incassa due volte, la riparazione dalla console non dichiara MAI pagato senza prova (checkout abbandonata ≠ pagamento, sessione di un'altra proposta ≠ pagamento) e la riserva si sblocca solo se il lucchetto è davvero libero. Verificato per mutazione: rimessa la vecchia guardia, 7 check cadono |
   | `tests/photos/sweep.mjs` | photo-lab: chi è candidato allo sweep, quali foto contano come sorgente (i nostri output enhanced mai), e l'ordine con cui le 3 notti si spendono — le gallerie vere prima degli annunci da una foto. Si auto-skippa senza `sharp` |
   | `tests/copy/run.mjs` | descrizioni: lo sweep riscrive i template del bot e le schede mute, ma **mai** le parole di un umano — verificato sulle stringhe vere del catalogo, dove il testo scritto a mano è più CORTO del template |
   | `tests/dispo/run.mjs` | date di disponibilità: una data illeggibile non diventa MAI "libera ora" (il difetto che metteva "Available now" su case libere a settembre), un messaggio aggiorna tutte le case, una data sola non si spalma su chi non è stato nominato, e la porta rifiuta ciò che le pagine non saprebbero rileggere |

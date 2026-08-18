@@ -67,6 +67,7 @@ h1{font-weight:200;font-size:24px;letter-spacing:-.3px;margin-bottom:3px}
 .parow.st-paid::before{background:var(--gold);box-shadow:0 0 10px rgba(212,175,55,.5)}
 .parow.st-accepted::before{background:var(--green)}
 .parow.st-viewed::before{background:var(--gold-deep)}
+.parow.st-reserve::before{background:#ff965a}
 .parow .top{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
 .parow .who{font-size:15px;color:var(--t1);font-weight:400;letter-spacing:.2px}
 .parow .when{margin-left:auto;font-size:10.5px;color:var(--t4);font-variant-numeric:tabular-nums}
@@ -89,6 +90,12 @@ h1{font-weight:200;font-size:24px;letter-spacing:-.3px;margin-bottom:3px}
 .chip.accepted{color:var(--green);border:1px solid rgba(74,222,158,.35)}
 .chip.paid{color:#1a1407;background:linear-gradient(180deg,var(--gold-light),var(--gold))}
 .chip.revoked{color:var(--t4);border:1px solid var(--line);text-decoration:line-through}
+/* riserva: ha firmato ma l'immobile era tenuto da un'altra proposta */
+.chip.reserve{color:#ffb27a;border:1px solid rgba(255,150,90,.4);background:rgba(255,150,90,.08)}
+/* i soldi sono un FATTO, non uno stato: si vedono su qualunque etichetta */
+.chip.money{color:#1a1407;background:linear-gradient(180deg,var(--gold-light),var(--gold))}
+.alertline{font-size:11.5px;color:#ffb27a;margin-top:8px;line-height:1.6;border-left:2px solid rgba(255,150,90,.45);padding-left:9px}
+.alertline b{color:#ffd0ac;font-weight:400}
 .nextstep{font-size:11px;color:var(--t3);margin-top:9px;padding-top:9px;border-top:1px solid var(--line-soft);line-height:1.6}
 .nextstep b{color:var(--gold-light);font-weight:400}
 
@@ -191,6 +198,7 @@ h1{font-weight:200;font-size:24px;letter-spacing:-.3px;margin-bottom:3px}
           <button data-f="open" onclick="setFilter('open',this)">In corso<i></i></button>
           <button data-f="close" onclick="setFilter('close',this)">Da chiudere<i></i></button>
           <button data-f="paid" onclick="setFilter('paid',this)">Pagati<i></i></button>
+          <button data-f="reserve" onclick="setFilter('reserve',this)">Riserve<i></i></button>
           <button data-f="revoked" onclick="setFilter('revoked',this)">Revocati<i></i></button>
         </div>
       </div>
@@ -599,6 +607,32 @@ window.sendSign=async function(id,btn){
     alert('Magic Sign non inviato: '+(e.message||'riprova')+(String(e.message).indexOf('no_property')>=0?' — collega prima la proprietà con → Contratto.':''));
   }
 };
+/* ⚠ Sistema lo stato · ✅ Sblocca la riserva · 🔎 Ha pagato?
+   Un solo endpoint: guarda i soldi (sul documento e, se serve, su Stripe per
+   il token di QUESTA proposta) e rimette in pari lo stato, oppure libera una
+   riserva se l'immobile non è più tenuto. Non dichiara mai pagato senza
+   prova. La riga si ridisegna da sola col listener realtime. */
+window.resolvePA=async function(id,btn){
+  var was=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='Verifico…';}
+  try{
+    var tok=await USER.getIdToken();
+    var r=await fetch('/api/preagreement/resolve',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({id:id})});
+    var j=await r.json();
+    if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
+    var msg=j.verdict==='payment_restored'?'✓ Pagamento confermato — deal riportato a PAGATO'+(j.contractId?', contratto pronto.':'.')
+      :j.verdict==='reserve_promoted'?'✓ Riserva sbloccata — ora è accettata'+(j.due>0?': manca solo il pagamento di '+eur(j.due)+'.':'.')
+      :j.verdict==='still_held'?'L\'immobile è ancora tenuto da un\'altra proposta'+(j.blocked&&j.blocked.byRef?' ('+j.blocked.byRef+')':'')+'. Chiudi o revoca quella prima.'
+      :j.verdict==='no_payment_found'?'Su Stripe non risulta nessun pagamento per questa proposta: non ha ancora pagato.'
+      :'Stato già in pari, niente da sistemare.';
+    if((j.actions||[]).indexOf('stripe_unreachable')>=0)msg+=' (Stripe non raggiungibile: verificato solo il documento.)';
+    alert(msg);
+    if(btn){btn.disabled=false;btn.textContent=was;}
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent=was;}
+    alert('Non riesco a verificare: '+(e.message||'riprova'));
+  }
+};
 /* ✉ Reinvia copia — re-delivers the accepted/paid document email (recovery). */
 window.resendCopy=async function(id,btn){
   if(btn){btn.disabled=true;btn.textContent='Invio…';}
@@ -794,6 +828,15 @@ function paExpiredUi(d){
   if(!d.validUntil||d.status==='accepted'||d.status==='paid')return false;
   try{return new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Rome'})>String(d.validUntil);}catch(e){return false;}
 }
+/* mirror of api/preagreement/_state.js paidOnRecord() — I SOLDI SONO UN
+   FATTO, NON UNO STATO. Un documento che porta paidAt/paidSessionId è
+   pagato qualunque cosa dica lo status: prima di questa riga un deal
+   incassato ma con l'etichetta rimasta indietro appariva "da pagare", e i
+   passi successivi restavano chiusi senza che nulla lo spiegasse. */
+function paidOf(d){
+  d=d||{};
+  return !!(d.paidAt||d.paidSessionId||d.status==='paid'||Number(d.paidEur)>0);
+}
 function paRow(d){
   var st=(d.status||'sent'),m=d.money||{},t=d.tenant||{},ll=d.landlord||{},url=location.origin+'/pre-agreement?t='+d.token;
   var when=(d.createdAt||'').slice(0,10);
@@ -801,6 +844,19 @@ function paRow(d){
   var nTen=Array.isArray(d.tenants)?d.tenants.length:1;
   var editable=(st==='sent'||st==='viewed'||st==='revoked');
   var done=(st==='accepted'||st==='paid');
+  var gotMoney=paidOf(d),mismatch=gotMoney&&st!=='paid';
+  var dueNow=Math.round(Number(m.dueAtSigning)||0)+Math.round(Number(d.addonsEur)||0);
+  /* la riga che mancava: cosa c'è che non va, e la mossa per uscirne */
+  var alertLine='';
+  if(mismatch){
+    alertLine='<div class="alertline"><b>Pagamento incassato, stato fermo su «'+esc(st)+'»</b> — '
+      +(d.paidEur?eur(d.paidEur)+' ':'')+(d.paidAt?'ricevuti il '+String(d.paidAt).slice(0,10)+'. ':'ricevuti. ')
+      +'Finché lo stato non torna in pari ogni passo successivo risponde “non ancora accettata”: premi <b>⚠ Sistema lo stato</b>.</div>';
+  }else if(st==='reserve'){
+    alertLine='<div class="alertline"><b>🅿️ Riserva — ha firmato, non ha pagato nulla</b>: quando ha accettato, l\'immobile era già tenuto da un\'altra proposta'
+      +(d.reserveAt?' (dal '+String(d.reserveAt).slice(0,10)+')':'')+'. '
+      +'Identità, documenti e firma sono salvati. Se la prima chiusura è saltata, <b>✅ Sblocca</b> la rimette in corsa senza farle rifare nulla.</div>';
+  }
   var waMsg=done
     ?('Ciao'+(t.fullName?' '+t.fullName.split(' ')[0]:'')+'! Ecco la copia del tuo pre-agreement BOOM'+(d.ref?' '+d.ref:'')+' per '+((d.property||{}).address||'')+'. La puoi aprire, salvare e stampare qui: '+url)
     :('Ciao'+(t.fullName?' '+t.fullName.split(' ')[0]:'')+'! Ecco il tuo pre-agreement BOOM per '+((d.property||{}).address||'')+'. Leggilo e firmalo qui: '+url);
@@ -820,6 +876,7 @@ function paRow(d){
     ?('https://wa.me/'+String(ll.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent('Ciao'+(ll.name?' '+ll.name.split(' ')[0]:'')+'! Il contratto per '+((d.property||{}).address||'')+' è pronto per la sua firma digitale (dopo la firma dell’inquilino). Può firmare qui: '+d.landlordSignUrl)):null;
   return '<div class="parow st-'+st+'">'
     +'<div class="top"><span class="chip '+st+'">'+st+(st==='paid'&&d.paidEur?' '+eur(d.paidEur):'')+'</span>'
+    +(mismatch?'<span class="chip money">✓ incassato'+(d.paidEur?' '+eur(d.paidEur):'')+'</span>':'')
     +'<span class="who">'+esc(t.fullName||'—')+(nTen>1?' <span style="font-size:11px;color:var(--t3);font-weight:300">+'+(nTen-1)+' co-tenant'+(nTen>2?'s':'')+'</span>':'')+'</span>'
     +(d.ref?'<span style="font-size:11px;color:var(--t3);letter-spacing:1px">'+esc(d.ref)+'</span>':'')
     +'<span class="when">'+when+'</span>'
@@ -828,7 +885,13 @@ function paRow(d){
     +(d.propertyId&&!d.contractId?' · <span style="color:var(--gold-light)">auto-contratto ON</span>':'')
     +(d.validUntil&&!done&&st!=='revoked'?(paExpiredUi(d)?' · <span style="color:#ff8a70;font-weight:500">⌛ OFFERTA SCADUTA — ✎ Modifica per estenderla</span>':' · <span style="color:var(--gold-light)">valida fino al '+d.validUntil+'</span>'):'')+'</div>'
     +docsLine
+    +alertLine
     +'<div class="acts">'
+    /* la via d'uscita, dove serve: stato da riparare · riserva da sbloccare ·
+       "ha pagato?" quando il dovuto risulta ancora aperto (chiede a Stripe) */
+    +(mismatch?'<button class="pbtn prim" onclick="resolvePA(\''+d.id+'\',this)">⚠ Sistema lo stato</button>':'')
+    +(st==='reserve'?'<button class="pbtn prim" onclick="resolvePA(\''+d.id+'\',this)">✅ Sblocca la riserva</button>':'')
+    +(st==='accepted'&&dueNow>0&&!gotMoney?'<button class="pbtn" onclick="resolvePA(\''+d.id+'\',this)">🔎 Ha pagato?</button>':'')
     +(done?(
         /* ONE evident action per deal: 🖊 Magic Sign converts (if needed) and
            emails the tenant their signing link — nothing goes out before you
@@ -872,8 +935,9 @@ window.setFilter=function(f,btn){
 function matchFilter(d){
   var st=d.status||'sent';
   if(FILTER==='open')return st==='sent'||st==='viewed';
-  if(FILTER==='close')return st==='accepted';
-  if(FILTER==='paid')return st==='paid';
+  if(FILTER==='close')return st==='accepted'&&!paidOf(d);
+  if(FILTER==='paid')return paidOf(d);          /* l'incasso, non l'etichetta */
+  if(FILTER==='reserve')return st==='reserve';
   if(FILTER==='revoked')return st==='revoked';
   return true;
 }
@@ -888,17 +952,18 @@ window.renderList=function(){
   $('paRows').innerHTML=rows.map(paRow).join('');
   $('emptyRows').style.display=rows.length?'none':'';
   /* filter counts */
-  var cnt={all:PAS.length,open:0,close:0,paid:0,revoked:0};
+  var cnt={all:PAS.length,open:0,close:0,paid:0,reserve:0,revoked:0};
   PAS.forEach(function(d){var st=d.status||'sent';
-    if(st==='sent'||st==='viewed')cnt.open++;else if(st==='accepted')cnt.close++;
-    else if(st==='paid')cnt.paid++;else if(st==='revoked')cnt.revoked++;});
+    if(paidOf(d))cnt.paid++;
+    else if(st==='sent'||st==='viewed')cnt.open++;else if(st==='accepted')cnt.close++;
+    else if(st==='reserve')cnt.reserve++;else if(st==='revoked')cnt.revoked++;});
   [].slice.call($('fchips').querySelectorAll('button')).forEach(function(b){
     var f=b.getAttribute('data-f');b.querySelector('i').textContent=cnt[f]||0;});
   $('tabN').textContent=PAS.length||'';
   /* KPIs */
   var paidSum=0,contr=0;
   PAS.forEach(function(d){
-    if(d.status==='paid')paidSum+=Number(d.paidEur||((d.money||{}).dueAtSigning)||0);
+    if(paidOf(d))paidSum+=Number(d.paidEur||((d.money||{}).dueAtSigning)||0);
     if(d.contractId)contr++;});
   $('kOpen').textContent=cnt.open;
   $('kClose').textContent=cnt.close;

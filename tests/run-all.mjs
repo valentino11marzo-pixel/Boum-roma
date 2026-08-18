@@ -17,6 +17,7 @@ const SUITES = [
   { name: 'review',   file: 'tests/journey/review-url.mjs', what: 'link recensione Google' },
   { name: 'dossier',  file: 'tests/dossier/run.mjs',      what: 'fascicolo ARPE: autorizzazione e upload' },
   { name: 'lock',     file: 'tests/lock/run.mjs',         what: 'lucchetto immobile: due candidati non chiudono lo stesso' },
+  { name: 'pastate',  file: 'tests/preagreement/state.mjs', what: 'stato proposta: un deal pagato non torna mai indietro, e la riserva si sblocca' },
   { name: 'bonifico', file: 'tests/bonifico/run.mjs',     what: 'bonifico gratuito: causale, abbinamento certo' },
   { name: 'fee',      file: 'tests/bonifico/fee.mjs',     what: 'commissione misurata sul costo reale Stripe' },
   { name: 'parity',   file: 'tests/bonifico/parity.mjs',  what: 'la causale mostrata = quella che la banca riconosce' },
