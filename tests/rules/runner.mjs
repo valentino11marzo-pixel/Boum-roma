@@ -141,8 +141,12 @@ console.log('\nAnonymous (not signed in)');
 await check('CANNOT read any contract', assertFails(getDoc(doc(anon, 'contracts/contractA'))));
 await check('CANNOT read any property', assertFails(getDoc(doc(anon, 'properties/propA'))));
 await check('CANNOT read users',        assertFails(getDoc(doc(anon, 'users/tA'))));
-await check('CAN create a viewingRequest (public form)',
-  assertSucceeds(setDoc(doc(anon, 'viewingRequests/vr1'), { name: 'Walk-in', email: 'a@b.com' })));
+// Audit 2026-08-18 P0.4: la prenotazione pubblica entra da /api/viewings/slots
+// (credenziali admin), MAI da un client — `create: if true` era un vettore XSS.
+await check('anon CANNOT create a viewingRequest directly (only /api/viewings/slots does)',
+  assertFails(setDoc(doc(anon, 'viewingRequests/vr1'), { name: 'Walk-in', email: 'a@b.com' })));
+await check('admin CAN create a viewingRequest (the server path)',
+  assertSucceeds(setDoc(doc(admin, 'viewingRequests/vr1'), { name: 'Walk-in', email: 'a@b.com' })));
 
 // ── documentShares + taxPacks (commercialista) ──────────────────────────
 console.log('\ndocumentShares + taxPacks');
@@ -154,6 +158,15 @@ await check('landlord A creates a share for SELF', assertSucceeds(setDoc(doc(llA
 await check('landlord A CANNOT create a share owned by B', assertFails(setDoc(doc(llA, 'documentShares/share3'), { token:'t3', ownerId:'llB', docIds:['d1'] })));
 await check('landlord A reads OWN taxPack', assertSucceeds(getDoc(doc(llA, 'taxPacks/pack1'))));
 await check('landlord B CANNOT read A taxPack', assertFails(getDoc(doc(llB, 'taxPacks/pack1'))));
+
+// ── documents: l'admin archivia per conto di terzi (audit P0.3) ─────────
+console.log('\ndocuments — admin archives for others (post-firma)');
+await check('admin CAN create a document for a tenant (signed contract archiving)',
+  assertSucceeds(setDoc(doc(admin, 'documents/docForTenant'), { userId: 'tA', name: 'Contratto firmato', category: 'contract' })));
+await check('tenant still creates a document only for SELF',
+  assertSucceeds(setDoc(doc(tA, 'documents/docSelf'), { userId: 'tA', name: 'My upload' })));
+await check('tenant CANNOT create a document for ANOTHER user',
+  assertFails(setDoc(doc(tA, 'documents/docSpoof'), { userId: 'tB', name: 'Spoof' })));
 
 // ── Sessioni anonime: niente notifiche né audit log ─────────────────────
 console.log('\nAnonymous PROVIDER session (magic-link/intake)');
@@ -168,8 +181,11 @@ await check('tenant CAN still append to activityLog',
 
 // ── registrations / deals / pass studio ─────────────────────────────────
 console.log('\nregistrations + deals + pass studio');
-await check('unauthenticated CAN create a registration (public onboarding)',
-  assertSucceeds(setDoc(doc(anon, 'registrations/r1'), { name: 'Walk-in', email: 'a@b.com' })));
+await check('unauthenticated CAN create a registration with known fields (public onboarding)',
+  assertSucceeds(setDoc(doc(anon, 'registrations/r1'), { name: 'Walk-in', email: 'a@b.com', status: 'pending', source: 'onboarding' })));
+// Audit 2026-08-18 P0.4: un campo ESTRANEO (vettore d'iniezione) è rifiutato alla porta.
+await check('unauthenticated CANNOT inject an arbitrary field into a registration',
+  assertFails(setDoc(doc(anon, 'registrations/rEvil'), { name: 'x', evilPayload: '<img src=x onerror=alert(1)>' })));
 await check('unauthenticated CANNOT read registrations',
   assertFails(getDoc(doc(anon, 'registrations/r1'))));
 await check('admin reads registrations',
