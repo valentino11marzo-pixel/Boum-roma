@@ -3476,8 +3476,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="reminder-item" style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:center;cursor:pointer;transition:background .2s" onclick="${r.action};closeModal()" onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background='transparent'">
                         <div style="width:40px;height:40px;border-radius:10px;background:var(--${r.color}-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px">${r.icon}</div>
                         <div style="flex:1;min-width:0">
-                            <div style="font-weight:500;margin-bottom:2px;display:flex;align-items:center;gap:8px">${r.title} ${r.priority === 'high' ? '<span class="badge red" style="font-size:9px">URGENTE</span>' : ''}</div>
-                            <div style="font-size:13px;color:var(--text-muted)">${r.text}</div>
+                            <div style="font-weight:500;margin-bottom:2px;display:flex;align-items:center;gap:8px">${esc(r.title)} ${r.priority === 'high' ? '<span class="badge red" style="font-size:9px">URGENTE</span>' : ''}</div>
+                            <div style="font-size:13px;color:var(--text-muted)">${esc(r.text)}</div>
                         </div>
                         <div style="color:var(--text-dim);font-size:20px">→</div>
                     </div>
@@ -6405,7 +6405,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                             ${l.intakeForm && l.notes ? `<div style="margin-top:6px;font-size:12px;color:var(--text-secondary);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:500px">"${esc(l.notes.substring(0, 120))}"</div>` : ''}
                             ${!l.intakeForm && (l.message || l.leadMessage) ? `<div style="margin-top:6px;font-size:12px;color:var(--text-secondary);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:500px">"${esc((l.message || l.leadMessage).substring(0, 120))}"</div>` : ''}
                             <div style="margin-top:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-                                ${l.email || l.leadEmail ? `<a href="mailto:${l.email || l.leadEmail}" class="btn btn-xs btn-secondary" onclick="event.stopPropagation()">📧 Email</a>` : ''}
+                                ${l.email || l.leadEmail ? `<a href="mailto:${esc(l.email || l.leadEmail)}" class="btn btn-xs btn-secondary" onclick="event.stopPropagation()">📧 Email</a>` : ''}
                                 ${l.phone || l.leadPhone ? `<a href="https://wa.me/${(l.phone || l.leadPhone || '').replace(/[^0-9+]/g, '')}" target="_blank" class="btn btn-xs btn-success" onclick="event.stopPropagation()">💬 WhatsApp</a>` : ''}
                                 ${isNew || isResponded ? `<button class="btn btn-xs" onclick="event.stopPropagation();convertLeadToClient('${l.id}')">→ Converti in Client</button>` : ''}
                                 ${isNew || isResponded ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();scheduleViewingFromLead('${l.id}')">📅 Schedule Viewing</button>` : ''}
@@ -6455,11 +6455,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 (l.zone ? '<div><div class="detail-label">Zone</div><div class="detail-value">' + esc(l.zone) + '</div></div>' : '') +
                 (l.situation ? '<div><div class="detail-label">Status</div><div class="detail-value" style="text-transform:capitalize">' + (l.situation === 'worker' ? '\uD83D\uDCBC Worker' : l.situation === 'student' ? '\uD83C\uDF93 Student' : '\u2708\uFE0F Other') + '</div></div>' : '') +
                 (l.duration || l.months ? '<div><div class="detail-label">Duration</div><div class="detail-value">' + esc(l.duration || (l.months + ' months')) + '</div></div>' : '') +
-                (l.arrivalDate ? '<div><div class="detail-label">Move-in</div><div class="detail-value">' + l.arrivalDate + '</div></div>' : '') +
-                (l.furnished ? '<div><div class="detail-label">Furnished</div><div class="detail-value" style="text-transform:capitalize">' + l.furnished + '</div></div>' : '') +
-                (l.pets && l.pets !== 'no' ? '<div><div class="detail-label">Pets</div><div class="detail-value" style="text-transform:capitalize">' + l.pets + '</div></div>' : '') +
-                (l.service ? '<div><div class="detail-label">Service</div><div class="detail-value"><span class="badge gold">' + l.service + '</span></div></div>' : '') +
-                (l.source ? '<div><div class="detail-label">Source</div><div class="detail-value" style="text-transform:capitalize">' + l.source + '</div></div>' : '') +
+                (l.arrivalDate ? '<div><div class="detail-label">Move-in</div><div class="detail-value">' + esc(l.arrivalDate) + '</div></div>' : '') +
+                (l.furnished ? '<div><div class="detail-label">Furnished</div><div class="detail-value" style="text-transform:capitalize">' + esc(l.furnished) + '</div></div>' : '') +
+                (l.pets && l.pets !== 'no' ? '<div><div class="detail-label">Pets</div><div class="detail-value" style="text-transform:capitalize">' + esc(l.pets) + '</div></div>' : '') +
+                (l.service ? '<div><div class="detail-label">Service</div><div class="detail-value"><span class="badge gold">' + esc(l.service) + '</span></div></div>' : '') +
+                (l.source ? '<div><div class="detail-label">Source</div><div class="detail-value" style="text-transform:capitalize">' + esc(l.source) + '</div></div>' : '') +
             '</div>' +
             (l.mustHaves ? '<div style="margin-top:14px"><div class="detail-label">Must-haves</div><p style="background:var(--bg);padding:10px 12px;border-radius:8px;margin-top:4px;font-size:13px;color:var(--text-secondary)">' + esc(l.mustHaves) + '</p></div>' : '') +
             (l.notes ? '<div style="margin-top:10px"><div class="detail-label">Notes</div><p style="background:var(--bg);padding:10px 12px;border-radius:8px;margin-top:4px;font-size:13px;color:var(--text-secondary);font-style:italic">"' + esc(l.notes) + '"</p></div>' : '');
@@ -6474,7 +6474,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             '<div class="modal-body">' +
                 '<div class="detail-header"><div class="avatar xl">' + initials(name) + '</div>' +
                     '<div class="detail-info"><h2 class="detail-title">' + esc(name) + '</h2><p class="detail-subtitle">' + esc(l.email || l.leadEmail || '') + (l.phone ? ' \u00B7 ' + esc(l.phone) : '') + '</p>' +
-                    '<div class="detail-badges">' + statusBadge + (isIntake ? ' <span class="badge purple">INTAKE FORM</span>' : '') + (l.intakeType && l.intakeType !== 'general' ? ' <span class="badge blue">' + l.intakeType.toUpperCase() + '</span>' : '') + '</div></div>' +
+                    '<div class="detail-badges">' + statusBadge + (isIntake ? ' <span class="badge purple">INTAKE FORM</span>' : '') + (l.intakeType && l.intakeType !== 'general' ? ' <span class="badge blue">' + esc(l.intakeType.toUpperCase()) + '</span>' : '') + '</div></div>' +
                 '</div>' +
                 details +
                 '<div style="margin-top:16px;font-size:11px;color:var(--text-muted)">Received: ' + fmtDate(l.createdAt) + '</div>' +
@@ -7251,7 +7251,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         // ── Quick-action buttons depending on kind / phase ────────────────────
         const wa = phone ? `https://wa.me/${String(phone).replace(/\D/g, '')}` : null;
-        const mailto = email ? `mailto:${email}` : null;
+        const mailto = email ? `mailto:${esc(email)}` : null; // esc: l'email finisce in href (audit P0.4/A2)
         const quickActions = [];
         if (wa) quickActions.push(`<a class="btn btn-sm" href="${wa}" target="_blank">💬 WhatsApp</a>`);
         if (mailto) quickActions.push(`<a class="btn btn-sm btn-secondary" href="${mailto}">📧 Email</a>`);
@@ -7278,19 +7278,19 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const days = daysUntil(c.endDate);
             const exp = days !== null ? (days < 0 ? `<span class="badge red" style="font-size:10px">scaduto ${Math.abs(days)}gg</span>` : days <= 30 ? `<span class="badge orange" style="font-size:10px">scade tra ${days}gg</span>` : '') : '';
             const sigOk = c.tenantSignature && c.landlordSignature;
-            return `<div class="list-item clickable" onclick="viewContract('${c.id}')"><div class="list-icon">📋</div><div class="list-content"><div class="list-title">${prop?.name || 'Immobile'} ${sigOk ? '<span class="badge green" style="font-size:9px">✓ firmato</span>' : '<span class="badge orange" style="font-size:9px">in attesa firma</span>'} ${exp}</div><div class="list-subtitle">${c.type || 'contratto'} · €${c.rent}/mo · ${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}</div></div><button class="btn btn-xs" style="background:var(--gold);color:#000;font-weight:600;margin-right:8px" onclick="event.stopPropagation();openShareHub('${c.id}')" title="Tutti i link condivisibili">🔗</button></div>`;
+            return `<div class="list-item clickable" onclick="viewContract('${c.id}')"><div class="list-icon">📋</div><div class="list-content"><div class="list-title">${esc(prop?.name || 'Immobile')} ${sigOk ? '<span class="badge green" style="font-size:9px">✓ firmato</span>' : '<span class="badge orange" style="font-size:9px">in attesa firma</span>'} ${exp}</div><div class="list-subtitle">${esc(c.type || 'contratto')} · €${c.rent}/mo · ${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}</div></div><button class="btn btn-xs" style="background:var(--gold);color:#000;font-weight:600;margin-right:8px" onclick="event.stopPropagation();openShareHub('${c.id}')" title="Tutti i link condivisibili">🔗</button></div>`;
         }).join('') : null;
 
         const paymentsBody = payments.length ? payments.slice(0, 8).map(p => {
             const overdue = p.status === 'pending' && isOverdue(p.dueDate);
-            return `<div class="list-item clickable" onclick="openModal('editPayment',S.payments.find(x=>x.id==='${p.id}'))"><div class="list-icon">${p.status === 'paid' ? '✓' : overdue ? '⚠️' : '⏳'}</div><div class="list-content"><div class="list-title">${p.month || ''} · €${p.amount}</div><div class="list-subtitle">${p.status === 'paid' ? 'Pagato il ' + fmtDate(p.paidDate) : 'Scadenza ' + fmtDate(p.dueDate)}${overdue ? ' · in ritardo' : ''}</div></div></div>`;
+            return `<div class="list-item clickable" onclick="openModal('editPayment',S.payments.find(x=>x.id==='${p.id}'))"><div class="list-icon">${p.status === 'paid' ? '✓' : overdue ? '⚠️' : '⏳'}</div><div class="list-content"><div class="list-title">${esc(p.month || '')} · €${p.amount}</div><div class="list-subtitle">${p.status === 'paid' ? 'Pagato il ' + fmtDate(p.paidDate) : 'Scadenza ' + fmtDate(p.dueDate)}${overdue ? ' · in ritardo' : ''}</div></div></div>`;
         }).join('') + (payments.length > 8 ? `<div style="padding:8px 16px;color:var(--text-muted);font-size:12px">+${payments.length - 8} altri</div>` : '') : null;
 
-        const invoicesBody = invoices.length ? invoices.slice(0, 6).map(i => `<div class="list-item clickable" onclick="viewInvoice('${i.id}')"><div class="list-icon">🧾</div><div class="list-content"><div class="list-title">${i.number} · €${i.amount} <span class="badge ${i.status === 'paid' ? 'green' : 'orange'}" style="font-size:9px">${i.status === 'paid' ? 'pagata' : 'in attesa'}</span></div><div class="list-subtitle">${i.service || ''} · ${fmtDate(i.date || i.createdAt)}</div></div></div>`).join('') : null;
+        const invoicesBody = invoices.length ? invoices.slice(0, 6).map(i => `<div class="list-item clickable" onclick="viewInvoice('${i.id}')"><div class="list-icon">🧾</div><div class="list-content"><div class="list-title">${esc(i.number)} · €${i.amount} <span class="badge ${i.status === 'paid' ? 'green' : 'orange'}" style="font-size:9px">${i.status === 'paid' ? 'pagata' : 'in attesa'}</span></div><div class="list-subtitle">${esc(i.service || '')} · ${fmtDate(i.date || i.createdAt)}</div></div></div>`).join('') : null;
 
-        const documentsBody = documents.length ? documents.slice(0, 6).map(d => `<div class="list-item clickable" onclick="${d.fileUrl ? `window.open('${d.fileUrl}','_blank')` : `editDocModal('${d.id}')`}"><div class="list-icon">${docIcon(d.type)}</div><div class="list-content"><div class="list-title">${d.name}</div><div class="list-subtitle">${d.type || ''} · ${fmtDate(d.createdAt)}</div></div></div>`).join('') : null;
+        const documentsBody = documents.length ? documents.slice(0, 6).map(d => `<div class="list-item clickable" onclick="${d.fileUrl ? `window.open('${encodeURI(d.fileUrl)}','_blank')` : `editDocModal('${d.id}')`}"><div class="list-icon">${docIcon(d.type)}</div><div class="list-content"><div class="list-title">${esc(d.name)}</div><div class="list-subtitle">${esc(d.type || '')} · ${fmtDate(d.createdAt)}</div></div></div>`).join('') : null;
 
-        const maintBody = maintenance.length ? maintenance.slice(0, 6).map(m => `<div class="list-item clickable" onclick="viewMaintenance('${m.id}')"><div class="list-icon">🔧</div><div class="list-content"><div class="list-title">${m.title} <span class="badge ${m.status === 'resolved' ? 'green' : m.priority === 'urgent' ? 'red' : 'orange'}" style="font-size:9px">${m.status}</span></div><div class="list-subtitle">${fmtDate(m.createdAt)}</div></div></div>`).join('') : null;
+        const maintBody = maintenance.length ? maintenance.slice(0, 6).map(m => `<div class="list-item clickable" onclick="viewMaintenance('${m.id}')"><div class="list-icon">🔧</div><div class="list-content"><div class="list-title">${esc(m.title)} <span class="badge ${m.status === 'resolved' ? 'green' : m.priority === 'urgent' ? 'red' : 'orange'}" style="font-size:9px">${esc(m.status)}</span></div><div class="list-subtitle">${fmtDate(m.createdAt)}</div></div></div>`).join('') : null;
 
         const timelineBody = events.length ? `<div style="padding:0 16px">${events.slice(0, 30).map(ev => `<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px"><span style="flex-shrink:0">${ev.icon}</span><div style="flex:1"><div>${esc(ev.text)}</div><div style="font-size:11px;color:var(--text-muted)">${fmtDate(ev.ts)}</div></div>${ev.link ? `<a class="btn btn-xs btn-secondary" onclick="event.stopPropagation()">apri</a>` : ''}</div>`).join('')}</div>` : null;
 
@@ -9047,7 +9047,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <div class="list-icon" style="background:var(--${s.bg});font-size:16px">${m.priority === 'urgent' && m.status !== 'resolved' ? '🚨' : s.icon}</div>
                 <div class="list-content" style="flex:1;min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                        <span style="font-weight:600">${m.title}</span>
+                        <span style="font-weight:600">${esc(m.title)}</span>
                         <span class="badge ${pr.color}" style="font-size:9px">${pr.icon} ${pr.text}</span>
                         <span class="badge ${s.color}">${s.text}</span>
                         ${isOld ? `<span class="badge red" style="font-size:9px">⏰ ${ageInDays}gg</span>` : ''}
@@ -9057,7 +9057,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         <span style="margin-left:8px">👤 ${u?.name || 'N/A'}</span>
                         <span style="margin-left:8px">📅 ${fmtDate(m.createdAt)}</span>
                     </div>
-                    ${m.description ? `<div style="font-size:12px;color:var(--text-muted);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:400px">${m.description}</div>` : ''}
+                    ${m.description ? `<div style="font-size:12px;color:var(--text-muted);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:400px">${esc(m.description)}</div>` : ''}
                 </div>
                 <div style="display:flex;align-items:center;gap:6px">
                     ${m.status === 'open' ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();updateMaintenanceStatus('${m.id}','in_progress')" title="Inizia lavoro">▶️</button>` : ''}
@@ -16635,7 +16635,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div><div class="detail-label">Deposito</div><div class="detail-value">€${activeContract.deposit || 0}</div></div>` : ''}
                     <div><div class="detail-label">Incassato Totale</div><div class="detail-value text-green">€${totalPaid.toLocaleString('it-IT')}</div></div>
                 </div>
-                ${tenant ? `<div class="contact-card mt-16"><div class="avatar">${initials(tenant.name)}</div><div class="contact-info"><div class="contact-name">${tenant.name}</div><div class="contact-role">Inquilino attuale</div><div class="contact-details">${tenant.email}${tenant.phone ? '<br>' + tenant.phone : ''}</div></div><div class="contact-actions"><a href="mailto:${tenant.email}" class="btn btn-sm btn-secondary">📧</a>${tenant.phone ? `<a href="tel:${tenant.phone}" class="btn btn-sm btn-secondary">📞</a><a href="https://wa.me/${(tenant?.phone || '').replace(/\D/g,'')}" class="btn btn-sm btn-success" target="_blank">💬</a>` : ''}</div></div>` : ''}
+                ${tenant ? `<div class="contact-card mt-16"><div class="avatar">${initials(tenant.name)}</div><div class="contact-info"><div class="contact-name">${esc(tenant.name)}</div><div class="contact-role">Inquilino attuale</div><div class="contact-details">${esc(tenant.email)}${tenant.phone ? '<br>' + esc(tenant.phone) : ''}</div></div><div class="contact-actions"><a href="mailto:${esc(tenant.email)}" class="btn btn-sm btn-secondary">📧</a>${tenant.phone ? `<a href="tel:${esc(tenant.phone)}" class="btn btn-sm btn-secondary">📞</a><a href="https://wa.me/${(tenant?.phone || '').replace(/\D/g,'')}" class="btn btn-sm btn-success" target="_blank">💬</a>` : ''}</div></div>` : ''}
             </div>
             <div class="modal-footer"><button class="btn" onclick="closeModal()">Chiudi</button></div>
         </div></div>`;
@@ -16786,7 +16786,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const p = S.properties.find(x => x.id === m.propertyId);
         const u = S.users.find(x => x.id === m.userId);
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal lg">
-            <div class="modal-header"><h3 class="modal-title">🔧 ${m.title}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-header"><h3 class="modal-title">🔧 ${esc(m.title)}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body">
                 <div class="detail-badges mb-16"><span class="badge ${statusColor(m.status)}">${statusLabel(m.status)}</span><span class="badge ${priorityColor(m.priority)}">${priorityLabel(m.priority)}</span></div>
                 <div class="detail-grid">
@@ -16798,7 +16798,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     ${m.technician ? `<div><div class="detail-label">Tecnico</div><div class="detail-value">${m.technician}</div></div>` : ''}
                     ${m.resolvedAt ? `<div><div class="detail-label">Risolto il</div><div class="detail-value">${fmtDate(m.resolvedAt)}</div></div>` : ''}
                 </div>
-                ${m.description ? `<div class="mt-16"><div class="detail-label">Descrizione</div><p style="background:var(--surface);padding:12px;border-radius:8px;margin-top:6px;font-size:13px">${m.description}</p></div>` : ''}
+                ${m.description ? `<div class="mt-16"><div class="detail-label">Descrizione</div><p style="background:var(--surface);padding:12px;border-radius:8px;margin-top:6px;font-size:13px">${esc(m.description)}</p></div>` : ''}
                 ${m.resolutionNotes ? `<div class="mt-16"><div class="detail-label">Note Risoluzione</div><p style="background:var(--green-light);padding:12px;border-radius:8px;margin-top:6px;font-size:13px">${m.resolutionNotes}</p></div>` : ''}
                 ${isAdmin() ? `<div class="mt-16"><div class="detail-label">Cambia Stato Rapido</div><div style="display:flex;gap:6px;margin-top:8px"><button class="btn btn-xs ${m.status==='pending'||m.status==='open'?'':'btn-secondary'}" onclick="updateMaintStatus('${m.id}','pending')">🟡 In Attesa</button><button class="btn btn-xs ${m.status==='in_progress'?'':'btn-secondary'}" onclick="updateMaintStatus('${m.id}','in_progress')">🔵 In Corso</button><button class="btn btn-xs ${m.status==='resolved'?'btn-success':'btn-secondary'}" onclick="updateMaintStatus('${m.id}','resolved')">🟢 Risolto</button></div></div>` : ''}
             </div>
