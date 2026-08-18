@@ -134,6 +134,37 @@ const vendite = SERVIZI.map((s) => ({
 
 /* ── rapporto ──────────────────────────────────────────────────────────── */
 const CORTO = !!process.env.CORTO;
+const VENDITA = !!process.env.VENDITA;
+
+/* ── modo VENDITA: le frasi INTERE con cui vendi davvero ─────────────────
+ * I due modi precedenti tagliavano gli esempi a 130 caratteri — scelta giusta
+ * per la privacy e per far entrare il rapporto in un incollaggio, sbagliata
+ * per riscrivere: con mezzo messaggio si RICOSTRUISCE il tuo modo di dire, non
+ * si COPIA. E la parte che serviva di più — come proponi un servizio a
+ * pagamento, con quali parole, dopo quale frase del cliente — non usciva
+ * affatto. Qui esce intera (fino a 600 caratteri), sempre passata da scrub. */
+if (VENDITA) {
+  const V = [];
+  V.push('=== COME VENDI, PAROLE TUE ===');
+  V.push(`${chats.size} conversazioni · ${mine.length} tuoi messaggi · ultimi ${DAYS} giorni`);
+  for (const s of SERVIZI) {
+    if (s.key === 'link del sito') continue;
+    const hit = vere.filter((m) => s.re.test(m.body) && m.body.length > 60)
+      .sort((a, b) => b.body.length - a.body.length);
+    V.push('');
+    V.push(`### ${s.key.toUpperCase()} — ${vere.filter((m) => s.re.test(m.body)).length} volte`);
+    if (!hit.length) { V.push('  (mai proposto con parole tue — da scrivere da zero)'); continue; }
+    hit.slice(0, 3).forEach((m) => V.push('  · ' + scrub(m.body).slice(0, 600)));
+  }
+  V.push('');
+  V.push('### I MESSAGGI CHE RIPETI, PER INTERO');
+  ripetuti.slice(0, 10).forEach((r, n) => {
+    V.push(`  ${n + 1}) ${r.volte}× — ${scrub(r.esempio).slice(0, 600)}`);
+  });
+  console.log(V.join('\n'));
+  process.exit(0);
+}
+
 
 if (CORTO) {
   const C = [];

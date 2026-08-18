@@ -293,6 +293,12 @@ recapiti oscurati. Il prompt:
 > Se l'output è troppo lungo per essere incollato, rilancia il passo 8 con
 > `CORTO=1` davanti: escono 11 righe, ed è quello che serve davvero.
 >
+> Per riscrivere l'UPSELL serve un terzo modo, `VENDITA=1`: stampa per
+> intero (fino a 600 caratteri, sempre oscurati i recapiti) le frasi con
+> cui l'operatore propone ciascun servizio, e i messaggi ripetuti non
+> troncati. Gli altri due modi tagliano a 130 caratteri: con mezzo
+> messaggio si ricostruisce il modo di dire, non si copia.
+>
 > Un comando fallisce → incolla l'errore esatto e fermati.
 
 Dopo il merge su main il branch diventa `main` in tutti i comandi, e la stessa
