@@ -176,8 +176,12 @@ console.log('\n\x1b[1m8. Il misuratore locale (quello che lancia Homie)\x1b[0m')
     { chatId: '120363@g.us', body: 'gruppo: quanto costa il deposito?', timestamp: t },
     { chatId: '39333@c.us', body: 'te lo dico io quanto costa il deposito', fromMe: true, timestamp: t },
   ];
+  // LA FORMA VERA di wacli, vista sul Mac in produzione (2026-08): i messaggi
+  // NON stanno al primo livello ma dentro data.messages. La prima versione del
+  // lettore si fermava con un errore e scaricava sull'operatore un lavoro che
+  // è del codice — qui la forma resta pinnata.
   const f = path.join(os.tmpdir(), 'boom-wa-domanda-test.json');
-  fs.writeFileSync(f, JSON.stringify(msgs));
+  fs.writeFileSync(f, JSON.stringify({ success: true, data: { fts: true, messages: msgs } }));
   const out = execFileSync(process.execPath,
     [new URL('../../scripts/wa-domanda-locale.mjs', import.meta.url).pathname, f],
     { encoding: 'utf8' });
@@ -191,6 +195,31 @@ console.log('\n\x1b[1m8. Il misuratore locale (quello che lancia Homie)\x1b[0m')
   let parsed = null;
   try { parsed = JSON.parse(json); } catch (e) { /* resta null */ }
   ok(parsed && Array.isArray(parsed.classifica), 'in coda c\'è un JSON valido, incollabile così com\'è');
+  // e le altre forme che wacli può usare a seconda della versione
+  const alt = path.join(os.tmpdir(), 'boom-wa-domanda-baileys.json');
+  fs.writeFileSync(alt, JSON.stringify({ data: { messages: [
+    { key: { remoteJid: '39331@c.us', fromMe: false }, message: { conversation: 'quanto costa tutto incluso?' }, timestamp: t },
+    { key: { remoteJid: '39331@c.us', fromMe: true }, message: { conversation: 'te lo dico io' }, timestamp: t },
+  ] } }));
+  const outAlt = execFileSync(process.execPath,
+    [new URL('../../scripts/wa-domanda-locale.mjs', import.meta.url).pathname, alt], { encoding: 'utf8' });
+  ok(/conversazioni lette: 1/.test(outAlt), 'legge anche la forma key.remoteJid / message.conversation');
+  fs.unlinkSync(alt);
+
+  // Una forma che NON riconosce deve insegnare, non lasciare indovinare: nei
+  // nomi dei campi c'è tutto ciò che serve per aggiustarla in un giro solo.
+  const bad = path.join(os.tmpdir(), 'boom-wa-domanda-ignota.json');
+  fs.writeFileSync(bad, JSON.stringify({ data: { messages: [{ weirdText: 'ciao', weirdChat: 'x@c.us' }] } }));
+  let err = '';
+  try { execFileSync(process.execPath,
+    [new URL('../../scripts/wa-domanda-locale.mjs', import.meta.url).pathname, bad],
+    { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  } catch (e) { err = String(e.stderr || ''); }
+  ok(/weirdText/.test(err) && /weirdChat/.test(err),
+    'una forma sconosciuta stampa i nomi VERI dei campi trovati',
+    'senza, il giro dopo è un altro tentativo alla cieca');
+  fs.unlinkSync(bad);
+
   fs.unlinkSync(f);
 }
 

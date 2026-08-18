@@ -28,14 +28,61 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WAD = require(path.join(HERE, '..', 'js', 'wa-demand-engine.js'));
 const WA = require(path.join(HERE, '..', 'js', 'whatsapp-replies.js'));
 
-/* ── lettura dell'export wacli ─────────────────────────────────────────── */
+/* ── lettura dell'export wacli ─────────────────────────────────────────────
+ * Il formato VERO di wacli (visto in produzione sul Mac, 2026-08) annida:
+ *   {"success":true,"data":{"fts":true,"messages":[…]}}
+ * La prima versione guardava un livello solo e si fermava con un errore. Un
+ * lettore che pretende UNA forma esatta trasferisce all'operatore un lavoro
+ * che è del codice — e la forma cambia da sola alla prossima versione di
+ * wacli. Quindi non si indovina e non si pretende: si CERCA la prima lista
+ * fatta di cose che somigliano a messaggi, e se non c'è si dice quali chiavi
+ * sono state trovate, così il passo dopo è ovvio. */
+function looksLikeMessage(x) {
+  if (!x || typeof x !== 'object') return false;
+  const hasText = ['body', 'text', 'content', 'message', 'caption'].some(k => x[k] != null);
+  const hasWho = ['chatId', 'chat', 'jid', 'from', 'conversationId', 'key', 'remoteJid'].some(k => x[k] != null);
+  return hasText && hasWho;
+}
+function findMessages(node, depth) {
+  if (depth > 4 || node == null) return null;
+  if (Array.isArray(node)) return node.some(looksLikeMessage) ? node : null;
+  if (typeof node !== 'object') return null;
+  // prima le chiavi che di solito la portano, poi tutto il resto
+  const keys = Object.keys(node);
+  const first = ['messages', 'data', 'items', 'result', 'rows', 'records'].filter(k => keys.includes(k));
+  for (const k of first.concat(keys.filter(k => !first.includes(k)))) {
+    const found = findMessages(node[k], depth + 1);
+    if (found) return found;
+  }
+  return null;
+}
+function findAnyArray(node, depth) {
+  if (depth > 4 || node == null || typeof node !== 'object') return null;
+  if (Array.isArray(node)) return node.length ? node : null;
+  let best = null;
+  for (const k of Object.keys(node)) {
+    const f = findAnyArray(node[k], depth + 1);
+    if (f && (!best || f.length > best.length)) best = f;
+  }
+  return best;
+}
 function readInput() {
   const arg = process.argv[2];
   const raw = arg && arg !== '-' ? fs.readFileSync(arg, 'utf8') : fs.readFileSync(0, 'utf8');
   const j = JSON.parse(raw);
-  if (Array.isArray(j)) return j;
-  for (const k of ['messages', 'data', 'items', 'result']) if (Array.isArray(j[k])) return j[k];
-  throw new Error('non trovo la lista dei messaggi nel JSON (attesi: array, o .messages/.data/.items)');
+  const found = findMessages(j, 0);
+  if (found) return found;
+  const keys = j && typeof j === 'object' ? Object.keys(j).slice(0, 12).join(', ') : typeof j;
+  // Se una lista c'è ma i suoi oggetti non somigliano a messaggi, il dato che
+  // serve sono i NOMI DEI CAMPI: senza, il giro dopo è un altro tentativo.
+  const any = findAnyArray(j, 0);
+  const hint = any && any.length && typeof any[0] === 'object'
+    ? ' Ho trovato una lista di ' + any.length + ' elementi con questi campi: '
+      + Object.keys(any[0]).slice(0, 15).join(', ') + '.'
+    : '';
+  throw new Error('non trovo una lista di messaggi in questo JSON. Chiavi al primo livello: '
+    + keys + '.' + hint
+    + ' Serve un array di oggetti con un testo (body/text/content) e una chat (chatId/jid/from).');
 }
 
 /* I nomi dei campi cambiano fra versioni di wacli: si prova in ordine, come
@@ -45,15 +92,22 @@ const field = (o, ...ks) => {
   return '';
 };
 function bodyOf(m) {
-  let b = field(m, 'body', 'text', 'content', 'message');
-  if (b && typeof b === 'object') b = field(b, 'text', 'caption', 'conversation');
+  let b = field(m, 'body', 'text', 'content', 'message', 'caption');
+  // stile Baileys: { message: { conversation | extendedTextMessage: { text } } }
+  if (b && typeof b === 'object') {
+    b = field(b, 'text', 'caption', 'conversation')
+      || field(b.extendedTextMessage || {}, 'text')
+      || field(b.imageMessage || b.videoMessage || {}, 'caption');
+  }
   return typeof b === 'string' ? b : '';
 }
 const isOut = (m) => {
-  const v = field(m, 'fromMe', 'isFromMe', 'outgoing', 'direction');
+  const v = field(m, 'fromMe', 'isFromMe', 'outgoing', 'direction') || field(m.key || {}, 'fromMe');
   return v === true || v === 'out' || v === 'outgoing' || v === 1 || v === '1';
 };
-const chatOf = (m) => String(field(m, 'chatId', 'chat', 'jid', 'conversationId', 'from') || '');
+const chatOf = (m) => String(
+  field(m, 'chatId', 'chat', 'jid', 'conversationId', 'remoteJid', 'from')
+  || field(m.key || {}, 'remoteJid', 'chatId') || '');
 const tsOf = (m) => {
   const t = field(m, 'timestamp', 'ts', 'time', 'date', 'createdAt');
   const n = typeof t === 'string' ? Date.parse(t) : Number(t);
@@ -99,9 +153,23 @@ const costOf = (covers) => {
 };
 
 /* ── esecuzione ────────────────────────────────────────────────────────── */
-let items;
-try { items = reduce(readInput()); }
+let items, msgs;
+try { msgs = readInput(); items = reduce(msgs); }
 catch (e) { console.error('ERRORE: ' + e.message); process.exit(1); }
+
+// "0 conversazioni" su un archivio pieno NON è una misura: è un lettore che
+// non ha riconosciuto i campi. Meglio fermarsi mostrando la forma vera del
+// primo messaggio — si aggiusta in un giro invece che in tre.
+if (!items.length) {
+  const sample = msgs.find(Boolean) || {};
+  console.error('ERRORE: ho letto ' + msgs.length + ' messaggi ma nessuna conversazione in ingresso.');
+  console.error('Campi del primo messaggio: ' + Object.keys(sample).join(', '));
+  console.error('Struttura (valori accorciati, nessun testo intero):');
+  console.error(JSON.stringify(sample, (k, v) =>
+    (typeof v === 'string' ? scrub(v).slice(0, 40) : v), 1).slice(0, 900));
+  console.error('\nIncolla queste righe: servono i nomi veri dei campi (testo, chat, direzione).');
+  process.exit(1);
+}
 
 const days = Number(process.env.GIORNI || 180);
 const m = WAD.measure(items, { costOf, defaultMinutes: 3, minSample: 30, days });
