@@ -290,6 +290,9 @@ recapiti oscurati. Il prompt:
 > 9. Incollami l'output INTERO, compreso il JSON in coda.
 > 10. `rm -rf ~/boom-voce`
 >
+> Se l'output è troppo lungo per essere incollato, rilancia il passo 8 con
+> `CORTO=1` davanti: escono 11 righe, ed è quello che serve davvero.
+>
 > Un comando fallisce → incolla l'errore esatto e fermati.
 
 Dopo il merge su main il branch diventa `main` in tutti i comandi, e la stessa

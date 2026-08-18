@@ -133,6 +133,28 @@ const vendite = SERVIZI.map((s) => ({
 })).sort((a, b) => b.volte - a.volte);
 
 /* ── rapporto ──────────────────────────────────────────────────────────── */
+const CORTO = !!process.env.CORTO;
+
+if (CORTO) {
+  const C = [];
+  C.push('=== LA TUA VOCE (estratto) ===');
+  C.push(`${chats.size} conversazioni · ${mine.length} tuoi messaggi · ultimi ${DAYS} giorni`);
+  C.push(`LUNGHEZZA: metà sotto ${pct(0.5)} car · 3 su 4 sotto ${pct(0.75)} · max ${lens[lens.length - 1]} · link nel ${Math.round((conLink / vere.length) * 100)}%`);
+  C.push('RIPETUTI:');
+  if (!ripetuti.length) C.push('  (nessuno: riscrivi ogni volta da zero)');
+  ripetuti.slice(0, 6).forEach((r, n) => C.push(`  ${n + 1}) ${r.volte}× ${scrub(r.esempio).slice(0, 130)}`));
+  C.push('VENDI: ' + vendite.filter((v) => v.volte > 0).map((v) => `${v.key} ${v.volte}`).join(' · ')
+    + (vendite.every((v) => !v.volte) ? 'mai nominato nessun servizio' : ''));
+  C.push('MAI NOMINATI: ' + (vendite.filter((v) => !v.volte).map((v) => v.key).join(', ') || 'nessuno'));
+  C.push('TUE RISPOSTE TIPO:');
+  [...perIntent.entries()].sort((a, b) => b[1].length - a[1].length).slice(0, 5).forEach(([k, v]) => {
+    const it = WAD.INTENTS.find((x) => x.key === k);
+    C.push(`  [${it ? it.label : k}] ${scrub(v[0]).slice(0, 120)}`);
+  });
+  console.log(C.join('\n'));
+  process.exit(0);
+}
+
 const L = [];
 L.push('=== LA TUA VOCE — misura locale ===');
 L.push(`finestra: ultimi ${DAYS} giorni · conversazioni: ${chats.size} · tuoi messaggi: ${mine.length}`);
