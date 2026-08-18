@@ -268,6 +268,30 @@ Il prompt:
 > Un comando fallisce → incolla l'errore esatto e fermati. Per allargare la
 > finestra: `GIORNI=365 node ~/boom-domanda/scripts/...`.
 
+### LA VOCE — come scrive l'operatore (per riscrivere le risposte con le SUE parole)
+
+Il primo scanner conta cosa chiedono i clienti; questo legge l'altro lato, i
+messaggi che manda LUI. Serve perché delle risposte scritte "da fuori" sono
+risultate inutili all'operatore: lunghezza sbagliata, tono non suo, e nessuna
+traccia di come vende davvero. Stesse regole: tutto locale, nessun modello,
+recapiti oscurati. Il prompt:
+
+> Homie, compito LA VOCE — locale, nessun server, nessun messaggio a nessuno.
+> Esegui e incolla, non riassumere.
+>
+> 1. `cd ~/Boum-roma && git fetch origin claude/whatsapp-business-quick-replies-46l5v2`
+> 2. `mkdir -p ~/boom-voce/js ~/boom-voce/scripts`
+> 3. `git show origin/claude/whatsapp-business-quick-replies-46l5v2:js/wa-demand-engine.js > ~/boom-voce/js/wa-demand-engine.js`
+> 4. `git show origin/claude/whatsapp-business-quick-replies-46l5v2:js/whatsapp-replies.js > ~/boom-voce/js/whatsapp-replies.js`
+> 5. `git show origin/claude/whatsapp-business-quick-replies-46l5v2:scripts/_wacli.mjs > ~/boom-voce/scripts/_wacli.mjs`
+> 6. `git show origin/claude/whatsapp-business-quick-replies-46l5v2:scripts/wa-voce-locale.mjs > ~/boom-voce/scripts/wa-voce-locale.mjs`
+> 7. `wacli messages list --json --limit 100000 > ~/boom-voce/storico.json`
+> 8. `node ~/boom-voce/scripts/wa-voce-locale.mjs ~/boom-voce/storico.json`
+> 9. Incollami l'output INTERO, compreso il JSON in coda.
+> 10. `rm -rf ~/boom-voce`
+>
+> Un comando fallisce → incolla l'errore esatto e fermati.
+
 Dopo il merge su main il branch diventa `main` in tutti i comandi, e la stessa
 misura gira **da sola** dentro `op:'study'` della Miniera (recap su Telegram):
 questo prompt resta la via per averla PRIMA del deploy, o per una finestra

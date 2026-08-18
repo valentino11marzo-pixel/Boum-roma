@@ -245,6 +245,42 @@ console.log('\n\x1b[1m8. Il misuratore locale (quello che lancia Homie)\x1b[0m')
   fs.unlinkSync(f);
 }
 
+// ---------------------------------------------------------------------------
+// Lo scanner della VOCE: legge i messaggi dell'operatore, non quelli dei
+// clienti. Serve a scrivere le risposte con le SUE parole invece che con le
+// nostre — il difetto per cui le prime quattordici gli sono sembrate inutili.
+console.log('\n\x1b[1m9. Lo scanner della tua voce\x1b[0m');
+{
+  const os = await import('node:os');
+  const { execFileSync } = await import('node:child_process');
+  const path = await import('node:path');
+  const t = Math.floor(Date.now() / 1000) - 3600;
+  const M = [];
+  const add = (c, txt, out, dt) => M.push({ ChatJID: c, Timestamp: t + (dt || 0), FromMe: !!out, Text: txt });
+  add('a@s.whatsapp.net', 'Hi, is it still available? how much all in?', false, 0);
+  add('a@s.whatsapp.net', 'Ciao! Si e libero da settembre, 1.250 tutto incluso. Vuoi vederlo? scrivimi a mario@gmail.com', true, 60);
+  add('b@s.whatsapp.net', 'quanto costa in tutto?', false, 0);
+  add('b@s.whatsapp.net', 'Ciao! Si e libero da ottobre, 1.100 tutto incluso. Vuoi vederlo? scrivimi a mario@gmail.com', true, 60);
+  add('g@g.us', 'messaggio di gruppo lunghissimo che non deve entrare nella misura', true, 0);
+  const f = path.join(os.tmpdir(), 'boom-wa-voce-test.json');
+  fs.writeFileSync(f, JSON.stringify({ success: true, data: { messages: M } }));
+  const out = execFileSync(process.execPath,
+    [new URL('../../scripts/wa-voce-locale.mjs', import.meta.url).pathname, f], { encoding: 'utf8' });
+
+  ok(/tuoi messaggi: 2/.test(out), 'conta solo i TUOI messaggi, e il gruppo resta fuori');
+  // Il difetto trovato provandolo: due messaggi identici tranne il mese non
+  // venivano riconosciuti come lo stesso template — cioè proprio la cosa che
+  // lo scanner esiste per trovare.
+  ok(/1\. 2×/.test(out),
+    'due messaggi uguali tranne il mese contano come UN template mandato 2 volte',
+    'la firma esatta li separava: serve la somiglianza');
+  ok(/COSA RISPONDI/.test(out) && /libero da/.test(out),
+    'accoppia la domanda del cliente con la TUA risposta');
+  ok(!/mario@gmail\.com/.test(out), 'anche qui i recapiti non escono in chiaro');
+  ok(/COME VENDI OGGI/.test(out), 'dice quante volte nomini ciascun servizio');
+  fs.unlinkSync(f);
+}
+
 console.log('\n────────────────────────────────────────────────');
 console.log(`\x1b[1mResult: ${pass} passed, ${fail} failed\x1b[0m`);
 if (fail) process.exit(1);
