@@ -1363,6 +1363,29 @@ Un giro solo, otto interventi, 33 suite verdi:
   a destra, sidebar `100dvh`, scroll-lock modali (`body.modal-open`),
   bottone 🔍 che apre la ricerca globale come overlay (su mobile non
   esisteva affatto), `#boomBridge` largo `min(360px, 100vw-32px)`.
+- **M2 "Portal App"** (`css/portal-mobile.css` + `js/portal-mobile.js`,
+  studio in `STUDIO_PORTAL_MOBILE.md`): M1 toglieva il dolore, M2 cambia il
+  MODELLO — su telefono (≤920px) il portale si usa come un'app. Tab bar in
+  basso (4 sezioni del ruolo + Menu, badge specchiati dalla sidebar VERA —
+  mai una seconda lista che diverge), bottom sheet per il menu/le azioni
+  riga/i footer-modale da 15 bottoni (righe 52px con l'etichetta vera),
+  liste `.list-item`→card con primaria etichettata + ⋯, le 6 `<table>` vere
+  →card con data-label, modali lunghe full-screen con tastiere giuste
+  (inputmode), e **il wizard sereno dei contratti**: addContract (che è GIÀ
+  un wizard, #cPage0..3) ristrutturato con progress+barra fissa che proxy-a
+  i bottoni originali (validazione LORO), i modali piatti (editContract 15
+  campi, property 22, user 16-19) spezzati in capitoli semantici con
+  riepilogo finale e campo ignoto MAI perso ("Altro"). Regole dure: ogni
+  azione è un `.click()` sull'originale (zero fork di logica), i nodi si
+  SPOSTANO dentro `#mForm` (FormData integra), lo stato visivo vive SOLO in
+  classi gated `body.pm-on` (ruotare un iPad oltre i 920px = il modale
+  torna desktop da solo), desktop a zero pixel. Kill switch `?classic=1` /
+  `?app=1`. Aggancio: MutationObserver su `#main`/`#modals`/`#sidebar` (~60
+  modali bypassano openModal — la classe body.modal-open NON è affidabile).
+  Test: `node tests/mobile/run.mjs` (151 check sulla sorgente: nomi campo
+  WIZ pinnati su portal-app.js, CSS gated, sw, -webkit-) + `node
+  tests/mobile/ui.mjs` (35 check in Chromium vero a 390px col
+  contractWizardNav REALE estratto).
 - **Dieta del boot** (portal-app): tetti su TUTTE le query nude (limit
   larghi, MAI orderBy+limit — un orderBy su campo assente nasconderebbe i
   doc legacy), i 7 step lazy in parallelo, rate scadute flippate SOLO in
