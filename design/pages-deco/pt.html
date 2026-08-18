@@ -471,133 +471,125 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .banchina { margin-top:clamp(20px,2.4vw,30px); border:1px solid var(--line);
   border-radius:16px; overflow:hidden; background:var(--surface); }
 
-/* LA CARTA D'IMBARCO — il materiale racconta il prodotto: BOOM emette
-   carte Wallet vere, e ogni servizio E' un boarding pass. Perforazione
-   coi fori che tagliano davvero, stub col prezzo su tessere Solari,
-   codice volo; l'ammiraglia porta la rotta FROM -> TO e il manifest.
-   Verdetto del laboratorio A/B/C — vedi design/pages-deco/esplora-banchina. */
-.imb-griglia { display:grid; grid-template-columns:1.22fr 1fr;
-  gap:clamp(16px,2.2vw,26px); align-items:stretch; }
-@media (max-width:900px){ .imb-griglia { grid-template-columns:1fr; } }
-.imb-pila { display:grid; gap:clamp(12px,1.6vw,16px); }
-.imb { position:relative; display:flex; flex-direction:column;
-  background:linear-gradient(155deg,#141418,#09090B);
-  border-radius:18px; overflow:hidden;
-  box-shadow:inset 0 0 0 1px var(--line-gold),
-    0 34px 70px -32px rgba(0,0,0,.95);
-  transition:transform .5s var(--ease), box-shadow .5s var(--ease); }
-.imb:hover { transform:translateY(-5px);
-  box-shadow:inset 0 0 0 1px var(--line-gold-2),
-    0 44px 80px -30px rgba(0,0,0,.95); }
-.imb-testa { display:flex; align-items:center; justify-content:space-between;
-  gap:10px; padding:14px 18px 12px; }
-.imb-testa .marchio { display:inline-flex; align-items:center; gap:9px;
-  font-family:var(--display); font-size:10.5px; font-weight:400;
-  letter-spacing:.26em; text-indent:.26em; text-transform:uppercase;
-  color:var(--text-3); }
-.imb-corpo { padding:6px 18px 16px; display:flex; flex-direction:column;
+/* LO SCAFFALE — il servizio come PRODOTTO, non come scheda: un oggetto
+   da desiderare (la carta BOOM in 3D che fluttua e si inclina verso il
+   cursore), un bottone che COMPRA (verbo + prezzo) e la garanzia con la
+   spunta subito sotto — desiderio, azione, rischio azzerato.
+   La firma cromatica: UN materiale nero-vetro, quattro luci — oro
+   ammiraglia · verde live · violetto protezione · ciano verdetto. */
+.pr-fila { --c-vv:#00FF88; --c-pf:#FFD700; --c-da:#9D8CFF; --c-cc:#3ED3FF;
+  display:grid; grid-template-columns:1.5fr 1fr 1fr 1fr;
+  gap:clamp(12px,1.6vw,18px); align-items:stretch; }
+@media (max-width:1020px){
+  .pr-fila { grid-template-columns:1fr 1fr; }
+  .pr.eroe { grid-column:1/-1; } }
+@media (max-width:580px){ .pr-fila { grid-template-columns:1fr; } }
+.pr { position:relative; display:flex; flex-direction:column;
+  border-radius:22px; overflow:hidden;
+  background:linear-gradient(180deg,#0F0F12,#080809 70%);
+  box-shadow:inset 0 0 0 1px var(--line), 0 30px 60px -36px rgba(0,0,0,.9);
+  padding:0 20px 20px; transition:box-shadow .45s var(--ease); }
+.pr:hover { box-shadow:inset 0 0 0 1px
+  color-mix(in srgb, var(--c) 35%, transparent),
+  0 40px 80px -36px rgba(0,0,0,.95); }
+.pr .retro { position:absolute; inset:0 0 auto; height:240px;
+  pointer-events:none; opacity:.75; transition:opacity .5s var(--ease);
+  background:radial-gradient(60% 78% at 50% 8%, var(--ca), transparent 72%); }
+.pr:hover .retro { opacity:1; }
+/* il palcoscenico: l'oggetto fluttua in prospettiva, l'ombra respira */
+.palcosc { position:relative; height:200px; display:grid;
+  place-items:center; perspective:900px; }
+.pr .ombra { position:absolute; bottom:14px; left:50%; width:58%;
+  height:22px; transform:translateX(-50%); border-radius:50%;
+  background:radial-gradient(50% 50% at 50% 50%, rgba(0,0,0,.8),
+    transparent 72%); filter:blur(7px);
+  animation:ombraRespira 5.5s ease-in-out infinite; }
+@keyframes ombraRespira { 50% { transform:translateX(-50%) scaleX(.88);
+  opacity:.75; } }
+.oggetto { --rx:0deg; --ry:0deg; position:relative; width:min(196px,72%);
+  aspect-ratio:1.586; border-radius:13px; overflow:hidden;
+  transform:rotateX(calc(13deg + var(--ry))) rotateY(calc(-15deg + var(--rx)));
+  background:linear-gradient(148deg,#1D1D23,#0B0B0E 62%);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--c) 34%, transparent),
+    inset 0 1px 0 rgba(255,255,255,.14),
+    22px 30px 44px -18px rgba(0,0,0,.85);
+  animation:galleggia 5.5s ease-in-out infinite;
+  transition:transform .5s cubic-bezier(.3,1.45,.5,1); }
+.pr:hover .oggetto { animation-play-state:paused; }
+@keyframes galleggia { 50% { translate:0 -7px; } }
+.oggetto::before { content:''; position:absolute; inset:0;
+  border-radius:13px; pointer-events:none;
+  background:linear-gradient(calc(115deg + var(--rx) * 3),
+    transparent 30%, rgba(255,255,255,.13) 47%, transparent 62%); }
+.oggetto .fbrand { position:absolute; top:11px; left:13px; right:13px;
+  display:flex; align-items:center; justify-content:space-between;
+  font-family:var(--display); font-size:9px; font-weight:500;
+  letter-spacing:.28em; text-transform:uppercase; color:var(--text-2); }
+.oggetto .fbrand small { font-family:ui-monospace,Menlo,monospace;
+  font-size:7.5px; letter-spacing:.2em; color:var(--text-4); }
+.oggetto .banda { position:absolute; top:34px; left:0; right:0; height:3px;
+  background:var(--c); box-shadow:0 0 14px var(--ca); }
+.oggetto .ficon { position:absolute; left:13px; bottom:12px; width:30px;
+  height:30px; border-radius:9px; display:grid; place-items:center;
+  color:var(--c); background:color-mix(in srgb, var(--c) 9%, transparent);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--c) 32%, transparent); }
+.oggetto .ficon svg { width:16px; height:16px; fill:none;
+  stroke:currentColor; stroke-width:1.6; stroke-linecap:round;
+  stroke-linejoin:round; }
+.oggetto .fprezzo { position:absolute; right:13px; bottom:11px;
+  font-family:var(--display); font-weight:400; font-size:21px;
+  letter-spacing:-.01em; color:var(--c);
+  font-variant-numeric:tabular-nums; text-shadow:0 0 18px var(--ca); }
+.oggetto .fnome { position:absolute; left:13px; top:46px;
+  font-family:var(--display); font-weight:300; font-size:12.5px;
+  letter-spacing:.02em; color:var(--text); }
+.oggetto .fsotto { position:absolute; left:13px; top:64px; font-size:8.5px;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--text-4); }
+/* sulle card piccole la faccia respira: niente sottotitolo */
+.pr:not(.eroe) .oggetto .fsotto { display:none; }
+.pr:not(.eroe) .oggetto .fnome { top:50%; transform:translateY(-70%); }
+/* il nastro sull'angolo: segnale di prodotto (full refund), intagliato */
+.oggetto .nastro { position:absolute; top:14px; right:-34px;
+  transform:rotate(38deg); width:120px; text-align:center;
+  background:var(--c); color:#0A0903; font-size:7.5px; font-weight:800;
+  letter-spacing:.16em; text-transform:uppercase; padding:4px 0;
+  box-shadow:0 4px 14px rgba(0,0,0,.4); }
+/* la vendita: nome, promessa, il bottone che compra, la garanzia */
+.pr .vendita { position:relative; display:flex; flex-direction:column;
   flex:1; }
-.imb-corpo .caso { font-family:var(--display); font-weight:300;
-  font-size:18px; line-height:1.26; letter-spacing:-.005em; }
-.imb-corpo .fa { margin-top:6px; font-size:11.5px; line-height:1.5;
-  color:var(--text-4); }
-.imb-serv { margin-top:10px; font-size:10px; font-weight:600;
-  letter-spacing:.16em; text-transform:uppercase; color:var(--gold); }
-.imb-serv i { display:inline-block; font-style:normal; margin-left:6px;
-  transition:transform .35s var(--ease); }
-.imb:hover .imb-serv i { transform:translateX(4px); }
-/* la tessera del gate + il chip segnale (fatti veri, mai promesse nuove) */
-.tess { display:inline-flex; gap:3px; }
-.tess i { font-style:normal; width:16px; height:20px; display:grid;
-  place-items:center; border-radius:4px; background:#040404;
-  color:var(--gold); font-size:11px; font-weight:500; letter-spacing:0;
-  font-variant-numeric:tabular-nums; position:relative;
-  box-shadow:inset 0 0 0 1px rgba(239,235,223,.07),
-    0 1px 3px rgba(0,0,0,.5); }
-.tess i::after { content:''; position:absolute; left:1px; right:1px;
-  top:50%; height:1px; background:rgba(3,3,3,.85); }
-.ba-chip { display:inline-flex; align-items:center; gap:5px;
-  padding:4px 9px; border-radius:100px; font-size:8.5px; font-weight:700;
-  letter-spacing:.15em; text-transform:uppercase; color:var(--text-3);
-  box-shadow:inset 0 0 0 1px var(--line); white-space:nowrap; flex:none; }
-.ba-chip.viva { color:var(--green);
-  box-shadow:inset 0 0 0 1px rgba(0,255,136,.28); }
-.ba-chip.viva b { width:5px; height:5px; border-radius:50%;
-  background:var(--green); animation:pulse 2.2s ease infinite; }
-.ba-chip.oro { color:#141005; background:var(--gold); box-shadow:none; }
-/* la perforazione: il pass si strappa qui — i fori tagliano davvero
-   (overflow:hidden sul pass li rende intagli, non cerchi appoggiati) */
-.imb-perfo { position:relative; height:1px; margin-top:2px;
-  border-top:1.5px dashed rgba(255,215,0,.22); }
-.imb-perfo::before, .imb-perfo::after { content:''; position:absolute;
-  top:-10px; width:20px; height:20px; border-radius:50%;
-  background:var(--black); box-shadow:inset 0 0 0 1px var(--line-gold); }
-.imb-perfo::before { left:-10px; } .imb-perfo::after { right:-10px; }
-.imb-stub { display:flex; align-items:center; justify-content:space-between;
-  gap:12px; padding:13px 18px 15px; }
-.imb-stub .dice { font-size:10.5px; line-height:1.45; color:var(--text-4);
-  flex:1; min-width:0; }
-.imb-stub .codice { font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-  font-size:9px; letter-spacing:.22em; color:var(--text-4); opacity:.7; }
-/* il prezzo su tessere: numeri da tabellone, non note a margine */
-.pflap { display:inline-flex; align-items:center; gap:2.5px; }
-.pflap em { font-style:normal; font-family:var(--display); font-size:13px;
-  font-weight:400; color:var(--gold); opacity:.9; margin-right:2px; }
-.pflap i { font-style:normal; font-family:var(--display); width:22px;
-  height:30px; display:grid; place-items:center; border-radius:5px;
-  background:#040404; color:var(--oro-flap); font-size:18px;
-  font-weight:400; font-variant-numeric:tabular-nums; position:relative;
-  box-shadow:inset 0 0 0 1px rgba(239,235,223,.07),
-    0 2px 5px rgba(0,0,0,.55); }
-.pflap i::after { content:''; position:absolute; left:1px; right:1px;
-  top:50%; height:1px; background:rgba(3,3,3,.85); }
-/* l'ammiraglia: il pass grande, emesso storto come un biglietto vero */
-.imb.eroe { transform:rotate(-1.4deg);
-  background:linear-gradient(150deg,#17150c 0%,#121214 42%,#09090B 100%);
-  box-shadow:inset 0 0 0 1px var(--line-gold-2),
-    0 50px 100px -36px rgba(0,0,0,.98),
-    0 0 90px -40px rgba(255,215,0,.28); }
-.imb.eroe:hover { transform:rotate(0deg) translateY(-5px); }
-.imb.eroe .imb-testa { padding:18px 24px 14px; }
-.imb.eroe .imb-corpo { padding:8px 24px 22px; }
-.imb.eroe .imb-stub { padding:16px 24px 18px; }
-.imb.eroe .caso { font-size:clamp(26px,2.9vw,36px); max-width:16ch; }
-.imb.eroe .fa { font-size:12.5px; color:var(--text-3); max-width:46ch; }
-.imb.eroe .imb-serv { margin-top:18px; }
-.imb.eroe .pflap i { width:27px; height:37px; font-size:23px; }
-.imb.eroe .pflap em { font-size:16px; }
-/* il manifest di bordo: tre fatti, tre spunte */
-.imb-lista { margin-top:18px; display:grid; gap:9px; }
-.imb-lista span { position:relative; padding-left:22px; font-size:12.5px;
-  line-height:1.5; color:var(--text-2); }
-.imb-lista span::before { content:'✓'; position:absolute; left:0; top:0;
-  color:var(--gold); font-size:12px; }
-/* la rotta del biglietto: FROM -> TO, i campi veri */
-.imb-rotta { margin-top:auto; padding-top:18px; display:flex;
-  align-items:flex-end; gap:16px; }
-.imb-rotta .campo { min-width:0; }
-.imb-rotta .campo b { display:block; font-size:8.5px; font-weight:600;
-  letter-spacing:.2em; text-transform:uppercase; color:var(--text-4);
-  margin-bottom:3px; }
-.imb-rotta .campo span { font-family:var(--display); font-weight:300;
-  font-size:16px; line-height:1.2; white-space:nowrap; }
-.imb-rotta .campo:last-child { text-align:right; }
-.imb-rotta .campo:last-child span { color:var(--gold); }
-.imb-rotta .aereo { flex:1; position:relative; height:1px;
-  border-top:1px dashed rgba(255,215,0,.3); margin-bottom:9px; }
-.imb-rotta .aereo i { position:absolute; top:-8px; left:50%;
-  transform:translateX(-50%); font-style:normal; color:var(--gold);
-  font-size:11px; line-height:1; padding:0 6px; }
-/* la fascia della garanzia: solo sull'ammiraglia, solo un fatto */
-.imb-fascia { margin-top:auto; padding:9px 24px; background:var(--gold);
-  color:#141005; font-size:10px; font-weight:700; letter-spacing:.18em;
-  text-transform:uppercase; display:flex; align-items:center; gap:8px; }
-.imb-fascia::before { content:'✓'; font-size:11px; }
-@media (max-width:900px){
-  .imb.eroe { transform:none; }
-  .imb.eroe:hover { transform:translateY(-5px); }
-  .imb.eroe .caso { font-size:21px; }
-  .imb-rotta .campo span { font-size:14px; } }
+.pr .pnome { display:flex; align-items:baseline; gap:9px; }
+.pr .pnome .pn { font-family:var(--display); font-weight:350;
+  font-size:18.5px; letter-spacing:-.005em; color:var(--text); }
+.pr .pnome .pkind { font-size:8.5px; font-weight:700; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--c); }
+.pr .promessa { margin-top:7px; font-size:12.5px; line-height:1.55;
+  color:var(--text-3); }
+.pr .promessa b { color:var(--text-2); font-weight:500; }
+.pr .compra { margin-top:14px; display:inline-flex; align-items:center;
+  justify-content:center; gap:9px; min-height:44px; padding:0 18px;
+  border-radius:100px; background:var(--c); color:#0A0A05;
+  font-size:12.5px; font-weight:700; letter-spacing:.02em;
+  transition:transform .3s var(--ease), box-shadow .3s var(--ease);
+  box-shadow:0 10px 26px -12px var(--cb); }
+.pr .compra i { font-style:normal; transition:transform .3s var(--ease); }
+.pr:hover .compra { transform:translateY(-1px);
+  box-shadow:0 16px 34px -12px var(--cb); }
+.pr:hover .compra i { transform:translateX(4px); }
+.pr .rassicura { margin-top:11px; display:flex; align-items:flex-start;
+  gap:8px; font-size:10.5px; line-height:1.5; color:var(--text-4); }
+.pr .rassicura::before { content:'✓'; color:var(--c); font-size:11px;
+  line-height:1.4; }
+.pr .rassicura b { color:var(--text-3); font-weight:600; }
+/* l'ammiraglia */
+.pr.eroe .palcosc { height:244px; }
+.pr.eroe .oggetto { width:min(250px,80%); }
+.pr.eroe .oggetto .fprezzo { font-size:26px; }
+.pr.eroe .oggetto .fnome { font-size:15px; top:50px; }
+.pr.eroe .oggetto .fsotto { top:71px; }
+.pr.eroe .pnome .pn { font-size:23px; }
+.pr.eroe .promessa { font-size:13.5px; max-width:52ch; }
+.pr.eroe .compra { align-self:flex-start; padding:0 24px; }
+@media (max-width:1020px){ .pr.eroe .compra { align-self:stretch; } }
 
 /* le garanzie: badge piccoli, tutti veri — i fatti istituzionali vivono
    qui e nel footer, una volta sola */
@@ -1285,25 +1277,22 @@ html.vivo .sale .pass-carta { opacity:0;
 html.vivo .sale.dentro .pass-carta { opacity:1; transform:rotate(-2deg);
   transition:opacity .6s var(--ease) .2s,
     transform .85s cubic-bezier(.3,1.45,.5,1) .2s; }
-/* l'emissione: i pass vengono STAMPATI in sequenza al reveal — la
-   stessa molla di Wallet del pass in hero: il gesto del biglietto */
-@keyframes imb-emesso {
-  from { opacity:0; transform:translateY(34px) scale(.97); }
+/* l'arrivo: i prodotti CALANO sullo scaffale in sequenza, con la molla */
+@keyframes pr-arriva {
+  from { opacity:0; transform:translateY(30px); }
   to { opacity:1; } }
-html.vivo .imb-griglia .imb { opacity:0; }
-html.vivo .imb-griglia.dentro .imb {
-  animation:imb-emesso .8s cubic-bezier(.3,1.45,.5,1) both; }
-html.vivo .imb-griglia.dentro .imb.eroe { animation-delay:.08s; }
-html.vivo .imb-griglia.dentro .imb-pila .imb:nth-child(1) {
-  animation-delay:.22s; }
-html.vivo .imb-griglia.dentro .imb-pila .imb:nth-child(2) {
-  animation-delay:.34s; }
-html.vivo .imb-griglia.dentro .imb-pila .imb:nth-child(3) {
-  animation-delay:.46s; }
+html.vivo .pr-fila .pr { opacity:0; }
+html.vivo .pr-fila.dentro .pr {
+  animation:pr-arriva .75s cubic-bezier(.3,1.45,.5,1) both; }
+html.vivo .pr-fila.dentro .pr:nth-child(1) { animation-delay:.05s; }
+html.vivo .pr-fila.dentro .pr:nth-child(2) { animation-delay:.17s; }
+html.vivo .pr-fila.dentro .pr:nth-child(3) { animation-delay:.29s; }
+html.vivo .pr-fila.dentro .pr:nth-child(4) { animation-delay:.41s; }
 @media (prefers-reduced-motion:reduce){
   html.vivo .sale .pass-carta { opacity:1;
     transform:rotate(-2deg); transition:none; }
-  html.vivo .imb-griglia .imb { opacity:1; animation:none; } }
+  html.vivo .pr-fila .pr { opacity:1; animation:none; }
+  .oggetto, .pr .ombra { animation:none !important; } }
 .pass-cima { display:flex; align-items:center; justify-content:space-between;
   gap:10px; padding:15px 18px; border-bottom:1px dashed rgba(255,215,0,.2); }
 .pass-cima .marchietto { display:inline-flex; align-items:center; gap:8px;
@@ -2042,94 +2031,130 @@ CASE_TRE
           moves →</a></p>
     </div>
 
-    <div class="imb-griglia coro" style="margin-top:clamp(22px,2.6vw,34px)">
-      <a class="imb eroe" href="/property-finding.html">
-        <span class="imb-testa">
-          <span class="marchio">BOOM · Gate <span class="tess"><i>0</i><i>2</i></span></span>
-          <span class="ba-chip oro">Full refund</span>
-        </span>
-        <span class="imb-corpo">
-          <span class="caso">Nothing in the catalogue fits?</span>
-          <span class="fa">Our flagship: we hunt the whole market for you —
-            and walk every shortlist in person.</span>
-          <span class="imb-lista">
-            <span>Off-market included — homes that never reach the
-              portals</span>
-            <span>Every shortlist walked in person before you see it</span>
-            <span>Video tours from anywhere — you ask, we walk</span>
-          </span>
-          <span class="imb-serv">Property Finding<i>→</i></span>
-          <span class="imb-rotta">
-            <span class="campo"><b>From</b><span>The whole market</span></span>
-            <span class="aereo"><i>✈</i></span>
-            <span class="campo"><b>To</b><span>Your front door</span></span>
+    <div class="pr-fila coro" id="prScaffale" style="margin-top:clamp(22px,2.6vw,34px)">
+
+      <a class="pr eroe" href="/property-finding.html" style="--c:var(--c-pf);--ca:rgba(255,215,0,.16);--cb:rgba(255,215,0,.45)">
+        <span class="retro"></span>
+        <span class="palcosc">
+          <span class="ombra"></span>
+          <span class="oggetto">
+            <span class="fbrand">BOOM<small>PF·0350·ROME</small></span>
+            <span class="banda"></span>
+            <span class="fnome">Property Finding</span>
+            <span class="fsotto">The private hunt</span>
+            <span class="nastro">Full refund</span>
+            <span class="ficon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.6"/><path d="M15.6 15.6L20.5 20.5"/></svg></span>
+            <span class="fprezzo">€350</span>
           </span>
         </span>
-        <span class="imb-perfo"></span>
-        <span class="imb-stub">
-          <span class="pflap"><em>€</em><i>3</i><i>5</i><i>0</i></span>
-          <span class="dice">deducted on success · refunded in full if we
-            don't deliver</span>
-          <span class="codice">PF·350</span>
+        <span class="vendita">
+          <span class="pnome"><span class="pn">Property Finding</span>
+            <span class="pkind">Flagship</span></span>
+          <span class="promessa">Your private hunter on the whole Rome
+            market — <b>off-market included</b>, every shortlist walked
+            in person before you see it.</span>
+          <span class="compra">Start the hunt · €350<i>→</i></span>
+          <span class="rassicura"><span><b>Zero risk:</b> deducted on
+            success, refunded in full if we don't deliver.</span></span>
         </span>
-        <span class="imb-fascia">Refunded in full if we don't deliver</span>
       </a>
-      <div class="imb-pila">
-        <a class="imb" href="/virtual-viewing.html">
-          <span class="imb-testa">
-            <span class="marchio">Gate <span class="tess"><i>0</i><i>1</i></span></span>
-            <span class="ba-chip viva"><b></b>Live video</span>
+
+      <a class="pr" href="/virtual-viewing.html" style="--c:var(--c-vv);--ca:rgba(0,255,136,.14);--cb:rgba(0,255,136,.4)">
+        <span class="retro"></span>
+        <span class="palcosc">
+          <span class="ombra"></span>
+          <span class="oggetto">
+            <span class="fbrand">BOOM<small>VV·0089·ROME</small></span>
+            <span class="banda"></span>
+            <span class="fnome">Virtual Viewing</span>
+            <span class="ficon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="6.5" width="12" height="11" rx="2"/><path d="M15.5 11l5-2.6v7.2l-5-2.6z"/></svg></span>
+            <span class="fprezzo">€89</span>
           </span>
-          <span class="imb-corpo">
-            <span class="caso">Can't fly over to see it?</span>
-            <span class="imb-serv">Virtual Viewing<i>→</i></span>
+        </span>
+        <span class="vendita">
+          <span class="pnome"><span class="pn">Virtual Viewing</span>
+            <span class="pkind">Live</span></span>
+          <span class="promessa">See any home <b>live on video</b> before
+            you fly — the red flags said out loud.</span>
+          <span class="compra">Book a live tour · €89<i>→</i></span>
+          <span class="rassicura"><span><b>Credited</b> if you rent with
+            us · BOOM homes: free, always.</span></span>
+        </span>
+      </a>
+
+      <a class="pr" href="/deal-assistance.html" style="--c:var(--c-da);--ca:rgba(157,140,255,.15);--cb:rgba(157,140,255,.4)">
+        <span class="retro"></span>
+        <span class="palcosc">
+          <span class="ombra"></span>
+          <span class="oggetto">
+            <span class="fbrand">BOOM<small>DA·0249·ROME</small></span>
+            <span class="banda"></span>
+            <span class="fnome">Deal Assistance</span>
+            <span class="ficon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.4l7.2 2.9v5.1c0 4.2-3 7.2-7.2 8.4-4.2-1.2-7.2-4.2-7.2-8.4V6.3z"/></svg></span>
+            <span class="fprezzo">€249</span>
           </span>
-          <span class="imb-perfo"></span>
-          <span class="imb-stub">
-            <span class="pflap"><em>€</em><i>8</i><i>9</i></span>
-            <span class="dice">other portals' homes · credited if you rent
-              with us — ours: free, always</span>
-            <span class="codice">VV·89</span>
+        </span>
+        <span class="vendita">
+          <span class="pnome"><span class="pn">Deal Assistance</span>
+            <span class="pkind">Protection</span></span>
+          <span class="promessa">Found a home yourself? We <b>verify the
+            landlord and the papers</b> — then negotiate for you.</span>
+          <span class="compra">Protect the deal · €249<i>→</i></span>
+          <span class="rassicura"><span><b>Fixed fee</b> — deposit and
+            clauses negotiated, no percentages.</span></span>
+        </span>
+      </a>
+
+      <a class="pr" href="/contract-check-express.html" style="--c:var(--c-cc);--ca:rgba(62,211,255,.13);--cb:rgba(62,211,255,.4)">
+        <span class="retro"></span>
+        <span class="palcosc">
+          <span class="ombra"></span>
+          <span class="oggetto">
+            <span class="fbrand">BOOM<small>CC·0049·ROME</small></span>
+            <span class="banda"></span>
+            <span class="fnome">Contract Check</span>
+            <span class="ficon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.2h7.4L18.6 8v12.8H6z"/><path d="M13.2 3.2V8h5.2"/></svg></span>
+            <span class="fprezzo">€49</span>
           </span>
-        </a>
-        <a class="imb" href="/deal-assistance.html">
-          <span class="imb-testa">
-            <span class="marchio">Gate <span class="tess"><i>0</i><i>3</i></span></span>
-            <span class="ba-chip">Fixed fee</span>
-          </span>
-          <span class="imb-corpo">
-            <span class="caso">Found one yourself?</span>
-            <span class="imb-serv">Deal Assistance<i>→</i></span>
-          </span>
-          <span class="imb-perfo"></span>
-          <span class="imb-stub">
-            <span class="pflap"><em>€</em><i>2</i><i>4</i><i>9</i></span>
-            <span class="dice">fixed · we verify the landlord and the
-              papers, then negotiate</span>
-            <span class="codice">DA·249</span>
-          </span>
-        </a>
-        <a class="imb" href="/contract-check-express.html">
-          <span class="imb-testa">
-            <span class="marchio">Gate <span class="tess"><i>0</i><i>4</i></span></span>
-            <span class="ba-chip">In 24h</span>
-          </span>
-          <span class="imb-corpo">
-            <span class="caso">About to sign something?</span>
-            <span class="imb-serv">Contract Check Express<i>→</i></span>
-          </span>
-          <span class="imb-perfo"></span>
-          <span class="imb-stub">
-            <span class="pflap"><em>€</em><i>4</i><i>9</i></span>
-            <span class="dice">a traffic-light verdict in 24h · credited
-              on Deal Assistance</span>
-            <span class="codice">CC·49</span>
-          </span>
-        </a>
-      </div>
+        </span>
+        <span class="vendita">
+          <span class="pnome"><span class="pn">Contract Check</span>
+            <span class="pkind">Express</span></span>
+          <span class="promessa">About to sign? A <b>written traffic-light
+            verdict in 24h</b>: fine, unfair, missing.</span>
+          <span class="compra">Check my contract · €49<i>→</i></span>
+          <span class="rassicura"><span><b>Credited</b> in full on Deal
+            Assistance.</span></span>
+        </span>
+      </a>
     </div>
 
-    <div class="banchina sale" style="margin-top:clamp(16px,2vw,24px)">
+    <script>
+    /* IL TILT dello scaffale: l'oggetto si inclina verso il cursore — il
+       gesto di prenderlo in mano. Solo con un mouse vero; molla al
+       rilascio. Best-effort: senza elementi non fa nulla. */
+    (function () {
+      if (!(window.matchMedia
+        && matchMedia('(hover:hover) and (pointer:fine)').matches)) return;
+      document.querySelectorAll('#prScaffale .pr').forEach(function (pr) {
+        var og = pr.querySelector('.oggetto');
+        if (!og) return;
+        pr.addEventListener('pointermove', function (e) {
+          var r = pr.getBoundingClientRect();
+          var x = (e.clientX - r.left) / r.width - .5;
+          var y = (e.clientY - r.top) / r.height - .5;
+          og.style.setProperty('--rx', (x * 16) + 'deg');
+          og.style.setProperty('--ry', (-y * 12) + 'deg');
+        });
+        pr.addEventListener('pointerleave', function () {
+          og.style.setProperty('--rx', '0deg');
+          og.style.setProperty('--ry', '0deg');
+        });
+      });
+    })();
+    </script>
+
+    <div class="banchina sale" style="margin-top:clamp(16px,2vw,24px)"><div class="banchina sale" style="margin-top:clamp(16px,2vw,24px)">
 
       <div class="ba-garanzie" aria-label="Guarantees">
         <span class="ba-g">Stripe — a receipt for every line</span>

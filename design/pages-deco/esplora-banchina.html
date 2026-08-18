@@ -19,9 +19,6 @@
   --ease:cubic-bezier(.16,1,.3,1); --molla:cubic-bezier(.3,1.45,.5,1);
   --sans:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
   --display:'Helvetica Neue',Helvetica,Arial,sans-serif;
-  /* LA FIRMA CROMATICA — quattro luci, un solo materiale nero-vetro:
-     verde = LIVE (il pallino vivo del brand) · oro = l'ammiraglia ·
-     violetto = protezione/negoziato · ciano = il verdetto che legge */
   --c-vv:#00FF88; --c-pf:#FFD700; --c-da:#9D8CFF; --c-cc:#3ED3FF;
   color-scheme:dark;
 }
@@ -33,7 +30,6 @@ body::before { content:''; position:fixed; inset:0; opacity:.014;
   pointer-events:none; z-index:9999;
   background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E"); }
 a { color:inherit; text-decoration:none; }
-button { font:inherit; color:inherit; background:none; border:0; cursor:pointer; }
 .container { width:100%; max-width:1360px; margin:0 auto;
   padding:0 clamp(18px,3vw,40px); }
 :focus-visible { outline:2px solid var(--gold); outline-offset:3px; }
@@ -45,634 +41,325 @@ button { font:inherit; color:inherit; background:none; border:0; cursor:pointer;
   font-size:clamp(30px,4.4vw,52px); line-height:1.08; letter-spacing:-.02em;
   max-width:26ch; }
 .lab-capo h1 b { color:var(--gold); font-weight:300; }
-.lab-capo p { margin-top:14px; max-width:70ch; font-size:14px;
+.lab-capo p { margin-top:14px; max-width:72ch; font-size:14px;
   color:var(--text-3); }
-.lab-capo .luci { margin-top:18px; display:flex; gap:18px; flex-wrap:wrap; }
-.lab-capo .luci span { display:inline-flex; align-items:center; gap:8px;
-  font-size:10.5px; font-weight:600; letter-spacing:.14em;
-  text-transform:uppercase; color:var(--text-3); }
-.lab-capo .luci i { width:10px; height:10px; border-radius:50%; }
 .palco { padding:clamp(40px,5.5vw,72px) 0; border-top:1px solid var(--line-0); }
-.palco-testa { display:flex; align-items:baseline; gap:16px; flex-wrap:wrap;
-  margin-bottom:8px; }
-.palco-testa .lettera { font-family:var(--display); font-weight:200;
-  font-size:clamp(34px,4vw,48px); color:var(--gold); line-height:1; }
-.palco-testa h2 { font-family:var(--display); font-weight:250;
-  font-size:clamp(21px,2.6vw,30px); letter-spacing:-.01em; }
-.palco-testa .regola { width:100%; font-size:12.5px; color:var(--text-3);
-  max-width:80ch; line-height:1.65; }
-.palco-testa .regola b { color:var(--text-2); font-weight:500; }
-.verdetto { margin-top:clamp(18px,2.4vw,26px); display:grid; gap:6px 22px;
+.verdetto { margin-top:clamp(20px,2.6vw,30px); display:grid; gap:6px 22px;
   grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); font-size:12px;
   color:var(--text-3); line-height:1.6; }
 .verdetto b { color:var(--gold); font-weight:600; font-size:10px;
   letter-spacing:.18em; text-transform:uppercase; display:block;
   margin-bottom:2px; }
-.demo { margin-top:clamp(20px,2.8vw,32px); }
 
-/* mattoni condivisi */
-.pflap { display:inline-flex; align-items:center; gap:2.5px; }
-.pflap em { font-style:normal; font-family:var(--display); font-size:13px;
-  font-weight:400; color:var(--c,var(--gold)); opacity:.9; margin-right:2px; }
-.pflap i { font-style:normal; font-family:var(--display); width:22px;
-  height:30px; display:grid; place-items:center; border-radius:5px;
-  background:#040404; color:var(--c,var(--oro-flap)); font-size:18px;
-  font-weight:400; font-variant-numeric:tabular-nums; position:relative;
-  box-shadow:inset 0 0 0 1px rgba(239,235,223,.07),
-    0 2px 5px rgba(0,0,0,.55); }
-.pflap i::after { content:''; position:absolute; left:1px; right:1px;
-  top:50%; height:1px; background:rgba(3,3,3,.85); }
-.sg { width:20px; height:20px; fill:none; stroke:currentColor;
-  stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; }
-.sg .acc { opacity:.55; } .sg .pieno { fill:currentColor; stroke:none; }
-
-/* ══ D · I GATE ILLUMINATI ════════════════════════════════════════════ */
-.gt-fila { display:grid; grid-template-columns:1.45fr 1fr 1fr 1fr;
+/* ══ G · LO SCAFFALE — il servizio come OGGETTO che si compra ═════════ */
+.pr-fila { display:grid; grid-template-columns:1.5fr 1fr 1fr 1fr;
   gap:clamp(12px,1.6vw,18px); align-items:stretch; }
-@media (max-width:980px){
-  .gt-fila { grid-template-columns:1fr 1fr; }
-  .gt.eroe { grid-column:1/-1; } }
-@media (max-width:560px){ .gt-fila { grid-template-columns:1fr; } }
-.gt { position:relative; display:flex; flex-direction:column;
-  border-radius:18px; background:linear-gradient(178deg,#101013,#08080A 55%);
-  box-shadow:inset 0 0 0 1px var(--line), 0 30px 60px -34px rgba(0,0,0,.95);
-  padding:0 0 18px; overflow:hidden; min-height:340px;
-  transition:transform .45s var(--ease), box-shadow .45s var(--ease); }
-.gt:hover { transform:translateY(-5px); }
-/* l'architrave luminoso: la luce del gate, il SUO colore */
-.gt .architrave { height:4px; background:var(--c); border-radius:18px 18px 0 0;
-  box-shadow:0 2px 18px var(--ca), 0 6px 42px var(--ca);
-  transition:box-shadow .45s var(--ease); }
-.gt:hover .architrave { box-shadow:0 2px 22px var(--cb), 0 10px 60px var(--ca); }
-/* il cono di luce che scende dall'architrave */
-.gt .cono { position:absolute; inset:4px 0 auto; height:220px;
-  pointer-events:none; opacity:.5; transition:opacity .5s var(--ease);
-  background:linear-gradient(180deg, var(--ca), transparent 78%); }
-.gt:hover .cono { opacity:.95; }
-.gt .gt-testa { position:relative; display:flex; align-items:flex-start;
-  justify-content:space-between; gap:10px; padding:18px 18px 0; }
-.gt .numero { font-family:var(--display); font-weight:200;
-  font-size:clamp(40px,4vw,54px); line-height:.95; letter-spacing:-.02em;
-  color:var(--c); text-shadow:0 0 26px var(--ca); }
-.gt .numero small { display:block; font-size:8.5px; font-weight:600;
-  letter-spacing:.3em; text-transform:uppercase; color:var(--text-4);
-  text-shadow:none; margin-bottom:5px; }
-.gt .stato { display:inline-flex; align-items:center; gap:6px;
-  padding:5px 10px; border-radius:100px; font-size:8.5px; font-weight:700;
-  letter-spacing:.15em; text-transform:uppercase; color:var(--c);
-  box-shadow:inset 0 0 0 1px var(--cb); white-space:nowrap; }
-.gt .stato i { width:5px; height:5px; border-radius:50%; background:var(--c);
-  animation:pulse 2.2s ease infinite; }
-@keyframes pulse { 50% { opacity:.35; } }
-.gt .gt-corpo { position:relative; padding:16px 18px 0; display:flex;
-  flex-direction:column; flex:1; }
-.gt .disco { width:44px; height:44px; border-radius:50%; display:grid;
-  place-items:center; color:var(--c);
-  background:color-mix(in srgb, var(--c) 7%, transparent);
-  box-shadow:inset 0 0 0 1px var(--cb); }
-.gt .caso { margin-top:14px; font-family:var(--display); font-weight:300;
-  font-size:18.5px; line-height:1.25; letter-spacing:-.005em; }
-.gt .fa { margin-top:7px; font-size:11.5px; line-height:1.5;
+@media (max-width:1020px){
+  .pr-fila { grid-template-columns:1fr 1fr; }
+  .pr.eroe { grid-column:1/-1; } }
+@media (max-width:580px){ .pr-fila { grid-template-columns:1fr; } }
+.pr { position:relative; display:flex; flex-direction:column;
+  border-radius:22px; overflow:hidden;
+  background:linear-gradient(180deg,#0F0F12,#080809 70%);
+  box-shadow:inset 0 0 0 1px var(--line), 0 30px 60px -36px rgba(0,0,0,.9);
+  padding:0 20px 20px; transition:box-shadow .45s var(--ease); }
+.pr:hover { box-shadow:inset 0 0 0 1px
+  color-mix(in srgb, var(--c) 35%, transparent),
+  0 40px 80px -36px rgba(0,0,0,.95); }
+/* il retro-palco: la luce del prodotto, dal SUO colore */
+.pr .retro { position:absolute; inset:0 0 auto; height:240px;
+  pointer-events:none; opacity:.75; transition:opacity .5s var(--ease);
+  background:radial-gradient(60% 78% at 50% 8%, var(--ca), transparent 72%); }
+.pr:hover .retro { opacity:1; }
+
+/* IL PALCOSCENICO: l'oggetto fluttua in prospettiva, con l'ombra a terra */
+.palcosc { position:relative; height:206px; display:grid; place-items:center;
+  perspective:900px; }
+.pr .ombra { position:absolute; bottom:16px; left:50%; width:58%;
+  height:22px; transform:translateX(-50%); border-radius:50%;
+  background:radial-gradient(50% 50% at 50% 50%, rgba(0,0,0,.8),
+    transparent 72%); filter:blur(7px);
+  animation:ombraRespira 5.5s ease-in-out infinite; }
+@keyframes ombraRespira { 50% { transform:translateX(-50%) scaleX(.88);
+  opacity:.75; } }
+.oggetto { --rx:0deg; --ry:0deg; position:relative; width:min(196px,72%);
+  aspect-ratio:1.586; border-radius:13px; transform-style:preserve-3d;
+  overflow:hidden;
+  transform:rotateX(calc(13deg + var(--ry))) rotateY(calc(-15deg + var(--rx)));
+  background:linear-gradient(148deg,#1D1D23,#0B0B0E 62%);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--c) 34%, transparent),
+    inset 0 1px 0 rgba(255,255,255,.14),
+    22px 30px 44px -18px rgba(0,0,0,.85);
+  animation:galleggia 5.5s ease-in-out infinite;
+  transition:transform .5s var(--molla), box-shadow .5s var(--ease); }
+.pr:hover .oggetto { animation-play-state:paused; }
+@keyframes galleggia { 50% { translate:0 -7px; } }
+/* la luce speculare che scivola sull'oggetto quando lo inclini */
+.oggetto::before { content:''; position:absolute; inset:0; border-radius:13px;
+  background:linear-gradient(calc(115deg + var(--rx) * 3),
+    transparent 30%, rgba(255,255,255,.13) 47%, transparent 62%);
+  pointer-events:none; }
+/* la faccia del prodotto: marchio, banda colore, icona, prezzo inciso */
+.oggetto .fbrand { position:absolute; top:11px; left:13px; right:13px;
+  display:flex; align-items:center; justify-content:space-between;
+  font-family:var(--display); font-size:9px; font-weight:500;
+  letter-spacing:.28em; text-transform:uppercase; color:var(--text-2); }
+.oggetto .fbrand small { font-family:ui-monospace,Menlo,monospace;
+  font-size:7.5px; letter-spacing:.2em; color:var(--text-4); }
+.oggetto .banda { position:absolute; top:34px; left:0; right:0; height:3px;
+  background:var(--c); box-shadow:0 0 14px var(--ca); }
+.oggetto .ficon { position:absolute; left:13px; bottom:12px; width:30px;
+  height:30px; border-radius:9px; display:grid; place-items:center;
+  color:var(--c); background:color-mix(in srgb, var(--c) 9%, transparent);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--c) 32%, transparent); }
+.oggetto .ficon svg { width:16px; height:16px; fill:none;
+  stroke:currentColor; stroke-width:1.6; stroke-linecap:round;
+  stroke-linejoin:round; }
+.oggetto .fprezzo { position:absolute; right:13px; bottom:11px;
+  font-family:var(--display); font-weight:400; font-size:21px;
+  letter-spacing:-.01em; color:var(--c);
+  font-variant-numeric:tabular-nums; text-shadow:0 0 18px var(--ca); }
+.oggetto .fnome { position:absolute; left:13px; top:46px;
+  font-family:var(--display); font-weight:300; font-size:12.5px;
+  letter-spacing:.02em; color:var(--text); }
+.oggetto .fsotto { position:absolute; left:13px; top:64px; font-size:8.5px;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--text-4); }
+/* sulle card piccole il sottotitolo NON c'e': una faccia respirata vende,
+   una affollata informa */
+.pr:not(.eroe) .oggetto .fsotto { display:none; }
+.pr:not(.eroe) .oggetto .fnome { top:50%; transform:translateY(-70%); }
+/* il nastro-badge sull'angolo: il segnale di prodotto, non decorazione */
+.oggetto .nastro { position:absolute; top:14px; right:-34px;
+  transform:rotate(38deg); width:120px; text-align:center;
+  background:var(--c); color:#0A0903; font-size:7.5px; font-weight:800;
+  letter-spacing:.16em; text-transform:uppercase; padding:4px 0;
+  box-shadow:0 4px 14px rgba(0,0,0,.4); }
+
+/* LA VENDITA: nome prodotto, promessa, bottone che COMPRA, garanzia */
+.pr .vendita { position:relative; display:flex; flex-direction:column;
+  flex:1; }
+.pr .pnome { display:flex; align-items:baseline; gap:9px; }
+.pr .pnome h3 { font-family:var(--display); font-weight:350;
+  font-size:18.5px; letter-spacing:-.005em; }
+.pr .pnome .pkind { font-size:8.5px; font-weight:700; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--c); }
+.pr .promessa { margin-top:7px; font-size:12.5px; line-height:1.55;
   color:var(--text-3); }
-.gt .serv { margin-top:12px; font-size:10px; font-weight:600;
-  letter-spacing:.16em; text-transform:uppercase; color:var(--c); }
-.gt .serv i { display:inline-block; font-style:normal; margin-left:6px;
-  transition:transform .35s var(--ease); }
-.gt:hover .serv i { transform:translateX(4px); }
-.gt .fondo { margin-top:auto; padding:14px 18px 0;
-  border-top:1px solid var(--line-0); display:flex; align-items:center;
-  justify-content:space-between; gap:10px; margin-left:18px;
-  margin-right:18px; padding-left:0; padding-right:0; }
-.gt .fondo .dice { font-size:10px; line-height:1.4; color:var(--text-4);
-  flex:1; min-width:0; }
-.gt.eroe { min-height:380px;
-  background:linear-gradient(178deg,#15130a,#0A0908 55%); }
-.gt.eroe .caso { font-size:clamp(22px,2.2vw,28px); max-width:18ch; }
-.gt.eroe .fa { font-size:12.5px; max-width:44ch; }
-.gt.eroe .architrave { height:5px; }
-.gt.eroe .pflap i { width:26px; height:35px; font-size:21px; }
-.gt .garanzia { margin:14px 18px 0; padding:8px 12px; border-radius:9px;
-  background:color-mix(in srgb, var(--c) 12%, transparent);
-  box-shadow:inset 0 0 0 1px var(--cb); font-size:10px; font-weight:700;
-  letter-spacing:.14em; text-transform:uppercase; color:var(--c);
-  display:flex; align-items:center; gap:8px; }
-.gt .garanzia::before { content:'✓'; }
+.pr .promessa b { color:var(--text-2); font-weight:500; }
+.pr .compra { margin-top:14px; display:inline-flex; align-items:center;
+  justify-content:center; gap:9px; min-height:44px; padding:0 18px;
+  border-radius:100px; background:var(--c); color:#0A0A05;
+  font-size:12.5px; font-weight:700; letter-spacing:.02em;
+  transition:transform .3s var(--ease), box-shadow .3s var(--ease);
+  box-shadow:0 10px 26px -12px var(--cb); }
+.pr .compra i { font-style:normal; transition:transform .3s var(--ease); }
+.pr:hover .compra { transform:translateY(-1px);
+  box-shadow:0 16px 34px -12px var(--cb); }
+.pr:hover .compra i { transform:translateX(4px); }
+.pr .rassicura { margin-top:11px; display:flex; align-items:flex-start;
+  gap:8px; font-size:10.5px; line-height:1.5; color:var(--text-4); }
+.pr .rassicura::before { content:'✓'; color:var(--c); font-size:11px;
+  line-height:1.4; }
+.pr .rassicura b { color:var(--text-3); font-weight:600; }
 
-/* ══ E · LE CARTE LOUNGE ══════════════════════════════════════════════ */
-.cl-scena { position:relative; display:flex; justify-content:center;
-  align-items:flex-end; padding:clamp(10px,2vw,26px) 0 clamp(16px,2.4vw,30px); }
-.cl { position:relative; width:min(340px,78vw); aspect-ratio:1.586;
-  border-radius:18px; padding:20px 22px; display:flex; flex-direction:column;
-  box-shadow:0 30px 70px -28px rgba(0,0,0,.95),
-    inset 0 1px 0 rgba(255,255,255,.28), inset 0 -1px 0 rgba(0,0,0,.5);
-  transition:transform .5s var(--ease), box-shadow .5s var(--ease);
-  color:#0d0c08; overflow:hidden; }
-/* la spazzolatura del metallo + il riflesso diagonale */
-.cl::before { content:''; position:absolute; inset:0; opacity:.5;
-  background:repeating-linear-gradient(100deg, rgba(255,255,255,.09) 0 1px,
-    transparent 1px 3px); mix-blend-mode:overlay; }
-.cl::after { content:''; position:absolute; inset:-60% -20%;
-  background:linear-gradient(115deg, transparent 42%,
-    rgba(255,255,255,.34) 50%, transparent 58%);
-  transform:translateX(-46%); transition:transform .8s var(--ease); }
-.cl:hover::after { transform:translateX(38%); }
-.cl:hover { transform:translateY(-10px) rotate(0deg) !important; z-index:9; }
-.cl .cl-cima { display:flex; align-items:center;
-  justify-content:space-between; gap:10px; }
-.cl .insegna { font-family:var(--display); font-size:11px; font-weight:500;
-  letter-spacing:.3em; text-indent:.3em; text-transform:uppercase; }
-.cl .tier { font-size:8.5px; font-weight:700; letter-spacing:.22em;
-  text-transform:uppercase; opacity:.8; }
-.cl .chip { margin-top:14px; width:38px; height:28px; border-radius:6px;
-  background:linear-gradient(140deg, rgba(255,255,255,.65),
-    rgba(255,255,255,.15) 45%, rgba(0,0,0,.15));
-  box-shadow:inset 0 0 0 1px rgba(0,0,0,.25); position:relative; }
-.cl .chip::before { content:''; position:absolute; inset:6px 8px;
-  border:1px solid rgba(0,0,0,.28); border-radius:3px; }
-.cl .caso { margin-top:12px; font-family:var(--display); font-weight:400;
-  font-size:17.5px; line-height:1.22; letter-spacing:-.005em;
-  text-shadow:0 1px 0 rgba(255,255,255,.3); max-width:19ch; }
-.cl .cl-fondo { margin-top:auto; display:flex; align-items:flex-end;
-  justify-content:space-between; gap:10px; }
-.cl .serv { font-size:9.5px; font-weight:700; letter-spacing:.18em;
-  text-transform:uppercase; }
-.cl .serv small { display:block; margin-top:3px;
-  font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:8.5px;
-  letter-spacing:.24em; opacity:.7; font-weight:400; }
-.cl .prezzo { font-family:var(--display); font-weight:400; font-size:26px;
-  letter-spacing:-.01em; font-variant-numeric:tabular-nums;
-  text-shadow:0 1px 0 rgba(255,255,255,.3); }
-.cl .prezzo small { font-size:11px; opacity:.75; }
-/* i quattro metalli */
-.cl.oro { background:linear-gradient(135deg,#8a6d1f,#f6e27a 26%,#c29a1a 52%,
-  #ffec8b 76%,#7a5f1a); }
-.cl.smeraldo { background:linear-gradient(135deg,#0b3f2c,#43e0a6 26%,
-  #0f6b49 52%,#8df5cd 78%,#0a3524); color:#04150e; }
-.cl.zaffiro { background:linear-gradient(135deg,#232a66,#98a4ff 26%,
-  #3d478f 52%,#c3cbff 78%,#1a2050); color:#0b0e26; }
-.cl.ghiaccio { background:linear-gradient(135deg,#5c6670,#eef3f8 26%,
-  #98a4ae 52%,#f8fbff 78%,#525c66); color:#10161b; }
-.cl-griglia { display:grid; grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:clamp(14px,1.8vw,22px); align-items:stretch; }
-.cl-griglia .posto { display:flex; flex-direction:column; gap:12px;
-  align-items:center; }
-.cl-griglia .posto .cl { width:100%; }
-.cl-griglia .posto.primo .cl { transform:rotate(-2deg); }
-.cl-griglia .posto:nth-child(3) .cl { transform:rotate(1.2deg); }
-.cl-griglia .posto .dice { font-size:10.5px; line-height:1.5;
-  color:var(--text-4); text-align:center; max-width:30ch; }
-.cl-griglia .posto .dice b { color:var(--text-3); font-weight:600; }
-@media (max-width:980px){ .cl-griglia { grid-template-columns:1fr 1fr; } }
-@media (max-width:560px){ .cl-griglia { grid-template-columns:1fr; } }
+/* l'ammiraglia: palco più alto, oggetto più grande, doppia riga vendita */
+.pr.eroe .palcosc { height:250px; }
+.pr.eroe .oggetto { width:min(250px,80%); }
+.pr.eroe .oggetto .fprezzo { font-size:26px; }
+.pr.eroe .oggetto .fnome { font-size:15px; top:50px; }
+.pr.eroe .oggetto .fsotto { top:71px; }
+.pr.eroe .pnome h3 { font-size:23px; }
+.pr.eroe .promessa { font-size:13.5px; max-width:52ch; }
+.pr.eroe .compra { align-self:flex-start; padding:0 24px; }
+@media (max-width:1020px){ .pr.eroe .compra { align-self:stretch; } }
 
-/* ══ F · LA CONSOLE ═══════════════════════════════════════════════════ */
-.cn { display:grid; grid-template-columns:minmax(0,.9fr) minmax(0,1.6fr);
-  gap:1px; background:var(--line-0); border:1px solid var(--line-0);
-  border-radius:20px; overflow:hidden; min-height:430px; }
-@media (max-width:900px){ .cn { grid-template-columns:1fr; } }
-.cn-rail { background:var(--void); display:flex; flex-direction:column; }
-.cn-tab { position:relative; flex:1; display:flex; align-items:center;
-  gap:14px; padding:18px 20px; text-align:left; border-bottom:1px solid
-  var(--line-0); transition:background .3s var(--ease); min-height:64px; }
-.cn-tab:last-child { border-bottom:0; }
-.cn-tab::before { content:''; position:absolute; left:0; top:0; bottom:0;
-  width:3px; background:var(--c); transform:scaleY(0);
-  transition:transform .35s var(--ease); }
-.cn-tab:hover { background:rgba(255,255,255,.02); }
-.cn-tab[aria-selected="true"] { background:var(--surface); }
-.cn-tab[aria-selected="true"]::before { transform:scaleY(1); }
-.cn-tab .led { width:38px; height:38px; border-radius:11px; display:grid;
-  place-items:center; color:var(--c); flex:none;
-  background:color-mix(in srgb, var(--c) 8%, transparent);
-  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--c) 30%, transparent); }
-.cn-tab .t { min-width:0; }
-.cn-tab .t b { display:block; font-size:13px; font-weight:500;
-  line-height:1.3; }
-.cn-tab .t span { display:block; margin-top:2px; font-size:10px;
-  font-weight:600; letter-spacing:.14em; text-transform:uppercase;
-  color:var(--c); }
-.cn-tab .pr { margin-left:auto; font-family:var(--display); font-size:15px;
-  color:var(--text-3); font-variant-numeric:tabular-nums; flex:none; }
-.cn-scena { position:relative; background:var(--surface);
-  padding:clamp(24px,3vw,40px); overflow:hidden; display:flex;
-  flex-direction:column; }
-.cn-scena .alone { position:absolute; inset:-30%; pointer-events:none;
-  opacity:.9; transition:background 1s var(--ease);
-  background:radial-gradient(42% 40% at 78% 10%, var(--ca), transparent 70%); }
-.cn-scena .sc-eti { position:relative; display:flex; align-items:center;
-  gap:12px; }
-.cn-scena .sc-eti .gatechip { font-size:9px; font-weight:700;
-  letter-spacing:.22em; text-transform:uppercase; color:var(--c);
-  padding:5px 10px; border-radius:100px;
-  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--c) 35%, transparent); }
-.cn-scena .sc-eti .quando { font-size:9.5px; font-weight:600;
-  letter-spacing:.18em; text-transform:uppercase; color:var(--text-4); }
-.cn-scena h3 { position:relative; margin-top:16px;
-  font-family:var(--display); font-weight:250;
-  font-size:clamp(24px,2.9vw,38px); line-height:1.12; letter-spacing:-.015em;
-  max-width:17ch; }
-.cn-scena .sc-fa { position:relative; margin-top:12px; font-size:13.5px;
-  line-height:1.65; color:var(--text-2); max-width:52ch; }
-.cn-scena .sc-lista { position:relative; margin-top:16px; display:grid;
-  gap:8px; }
-.cn-scena .sc-lista span { position:relative; padding-left:22px;
-  font-size:12.5px; line-height:1.5; color:var(--text-3); }
-.cn-scena .sc-lista span::before { content:'✓'; position:absolute; left:0;
-  top:0; color:var(--c); font-size:12px; }
-.cn-scena .sc-riga { position:relative; margin-top:auto; padding-top:22px;
-  display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
-.cn-scena .sc-vai { display:inline-flex; align-items:center; gap:9px;
-  min-height:42px; padding:0 20px; border-radius:100px; background:var(--c);
-  color:#08080A; font-size:12px; font-weight:700; letter-spacing:.04em;
-  transition:transform .3s var(--ease); }
-.cn-scena .sc-vai:hover { transform:scale(1.04); }
-.cn-scena .sc-dice { font-size:10.5px; color:var(--text-4); flex:1;
-  min-width:180px; line-height:1.45; }
-.cn-avanza { position:absolute; right:clamp(24px,3vw,40px);
-  top:clamp(22px,2.8vw,36px); display:flex; gap:5px; }
-.cn-avanza i { width:16px; height:3px; border-radius:2px;
-  background:var(--line); overflow:hidden; position:relative; }
-.cn-avanza i.on::after { content:''; position:absolute; inset:0;
-  background:var(--c); transform-origin:left; animation:avanza 5s linear; }
-@keyframes avanza { from { transform:scaleX(0); } to { transform:scaleX(1); } }
-@media (prefers-reduced-motion:reduce){ .cn-avanza i.on::after {
-  animation:none; transform:none; } }
-.sc-quadro[hidden] { display:none; }
+/* l'ingresso: i prodotti CALANO sullo scaffale, in sequenza */
+.vivo .pr { opacity:0; }
+.vivo.dentro .pr { animation:arriva .75s var(--molla) both; }
+.vivo.dentro .pr:nth-child(1) { animation-delay:.05s; }
+.vivo.dentro .pr:nth-child(2) { animation-delay:.17s; }
+.vivo.dentro .pr:nth-child(3) { animation-delay:.29s; }
+.vivo.dentro .pr:nth-child(4) { animation-delay:.41s; }
+@keyframes arriva { from { opacity:0; transform:translateY(30px); }
+  to { opacity:1; } }
+@media (prefers-reduced-motion:reduce){
+  .vivo .pr { opacity:1; animation:none !important; }
+  .oggetto, .pr .ombra { animation:none !important; } }
 </style>
 </head>
 <body>
 
 <header class="lab-capo">
   <div class="container">
-    <span class="eti">— Banchina Lab · vol. 2 — la firma cromatica</span>
-    <h1>Quattro servizi, quattro <b>luci</b>. Un solo materiale.</h1>
-    <p>La richiesta: differenziazione chiara per servizio, percezione premium
-      per ognuno, impatto. La disciplina: MAI un arcobaleno — un solo
-      materiale nero-vetro, e a ogni servizio la sua LUCE, scelta per quello
-      che il servizio fa davvero. Tre esecuzioni complete della stessa
-      firma.</p>
-    <div class="luci">
-      <span><i style="background:var(--c-vv);box-shadow:0 0 12px rgba(0,255,136,.7)"></i>Verde · Virtual Viewing — è LIVE</span>
-      <span><i style="background:var(--c-pf);box-shadow:0 0 12px rgba(255,215,0,.7)"></i>Oro · Property Finding — l'ammiraglia</span>
-      <span><i style="background:var(--c-da);box-shadow:0 0 12px rgba(157,140,255,.7)"></i>Violetto · Deal Assistance — la protezione</span>
-      <span><i style="background:var(--c-cc);box-shadow:0 0 12px rgba(62,211,255,.7)"></i>Ciano · Contract Check — il verdetto che legge</span>
-    </div>
+    <span class="eti">— Banchina Lab · vol. 3 — il prodotto, non l'informazione</span>
+    <h1>Quattro <b>prodotti</b> sullo scaffale. Non quattro schede.</h1>
+    <p>La critica era giusta: le versioni precedenti INFORMAVANO. Un badge di
+      prodotto che converte fa tre cose che quelle non facevano: mostra un
+      OGGETTO che potresti prendere in mano (non un layout), mette un bottone
+      che COMPRA (verbo + prezzo, come ogni commerce globale), e chiude col
+      risk-reversal (✓ la garanzia sotto il bottone). Qui ogni servizio è la
+      sua carta BOOM — resa come oggetto: fluttua, si inclina sotto il mouse,
+      prende la luce. Sotto, la meccanica di vendita, non la descrizione.</p>
   </div>
 </header>
 
-<!-- ══ D ══ -->
-<section class="palco" id="d">
+<section class="palco" id="g">
   <div class="container">
-    <div class="palco-testa">
-      <span class="lettera">D</span>
-      <h2>I Gate Illuminati</h2>
-      <p class="regola"><b>La segnaletica di scalo, di notte.</b> Quattro
-        portali di vetro nero; sopra ognuno l'ARCHITRAVE acceso nel colore
-        del servizio, e il numero di gate gigante che prende la stessa luce.
-        Il cono di luce scende dal bordo e si accende al passaggio — il gate
-        ti sta chiamando. L'ammiraglia è più larga, oro, con la garanzia
-        in fascia.</p>
+    <div class="demo pr-fila vivo" id="scaffale">
+
+      <a class="pr eroe" href="#" style="--c:var(--c-pf);--ca:rgba(255,215,0,.16);--cb:rgba(255,215,0,.45)">
+        <span class="retro"></span>
+        <span class="palcosc">
+          <span class="ombra"></span>
+          <span class="oggetto">
+            <span class="fbrand">BOOM<small>PF·0350·ROME</small></span>
+            <span class="banda"></span>
+            <span class="fnome">Property Finding</span>
+            <span class="fsotto">The private hunt</span>
+            <span class="nastro">Full refund</span>
+            <span class="ficon"><svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.6"/><path d="M15.6 15.6L20.5 20.5"/></svg></span>
+            <span class="fprezzo">€350</span>
+          </span>
+        </span>
+        <span class="vendita">
+          <span class="pnome"><h3>Property Finding</h3>
+            <span class="pkind">Flagship</span></span>
+          <span class="promessa">Your private hunter on the whole Rome
+            market — <b>off-market included</b>, every shortlist walked in
+            person before you see it.</span>
+          <span class="compra">Start the hunt · €350<i>→</i></span>
+          <span class="rassicura"><span><b>Zero risk:</b> deducted on
+            success, refunded in full if we don't deliver.</span></span>
+        </span>
+      </a>
+
+      <a class="pr" href="#" style="--c:var(--c-vv);--ca:rgba(0,255,136,.14);--cb:rgba(0,255,136,.4)">
+        <span class="retro"></span>
+        <span class="palcosc">
+          <span class="ombra"></span>
+          <span class="oggetto">
+            <span class="fbrand">BOOM<small>VV·0089·ROME</small></span>
+            <span class="banda"></span>
+            <span class="fnome">Virtual Viewing</span>
+            <span class="fsotto">Live · you ask, we walk</span>
+            <span class="ficon"><svg viewBox="0 0 24 24"><rect x="3.5" y="6.5" width="12" height="11" rx="2"/><path d="M15.5 11l5-2.6v7.2l-5-2.6z"/></svg></span>
+            <span class="fprezzo">€89</span>
+          </span>
+        </span>
+        <span class="vendita">
+          <span class="pnome"><h3>Virtual Viewing</h3>
+            <span class="pkind">Live</span></span>
+          <span class="promessa">See any home <b>live on video</b> before
+            you fly — the red flags said out loud.</span>
+          <span class="compra">Book a live tour · €89<i>→</i></span>
+          <span class="rassicura"><span><b>Credited</b> if you rent with us
+            · BOOM homes: free, always.</span></span>
+        </span>
+      </a>
+
+      <a class="pr" href="#" style="--c:var(--c-da);--ca:rgba(157,140,255,.15);--cb:rgba(157,140,255,.4)">
+        <span class="retro"></span>
+        <span class="palcosc">
+          <span class="ombra"></span>
+          <span class="oggetto">
+            <span class="fbrand">BOOM<small>DA·0249·ROME</small></span>
+            <span class="banda"></span>
+            <span class="fnome">Deal Assistance</span>
+            <span class="fsotto">Verified &amp; negotiated</span>
+            <span class="ficon"><svg viewBox="0 0 24 24"><path d="M12 3.4l7.2 2.9v5.1c0 4.2-3 7.2-7.2 8.4-4.2-1.2-7.2-4.2-7.2-8.4V6.3z"/></svg></span>
+            <span class="fprezzo">€249</span>
+          </span>
+        </span>
+        <span class="vendita">
+          <span class="pnome"><h3>Deal Assistance</h3>
+            <span class="pkind">Protection</span></span>
+          <span class="promessa">Found a home yourself? We <b>verify the
+            landlord and the papers</b> — then negotiate for you.</span>
+          <span class="compra">Protect the deal · €249<i>→</i></span>
+          <span class="rassicura"><span><b>Fixed fee</b> — deposit and
+            clauses negotiated, no percentages.</span></span>
+        </span>
+      </a>
+
+      <a class="pr" href="#" style="--c:var(--c-cc);--ca:rgba(62,211,255,.13);--cb:rgba(62,211,255,.4)">
+        <span class="retro"></span>
+        <span class="palcosc">
+          <span class="ombra"></span>
+          <span class="oggetto">
+            <span class="fbrand">BOOM<small>CC·0049·ROME</small></span>
+            <span class="banda"></span>
+            <span class="fnome">Contract Check</span>
+            <span class="fsotto">Verdict in 24h</span>
+            <span class="ficon"><svg viewBox="0 0 24 24"><path d="M6 3.2h7.4L18.6 8v12.8H6z"/><path d="M13.2 3.2V8h5.2"/></svg></span>
+            <span class="fprezzo">€49</span>
+          </span>
+        </span>
+        <span class="vendita">
+          <span class="pnome"><h3>Contract Check</h3>
+            <span class="pkind">Express</span></span>
+          <span class="promessa">About to sign? A <b>written traffic-light
+            verdict in 24h</b>: fine, unfair, missing.</span>
+          <span class="compra">Check my contract · €49<i>→</i></span>
+          <span class="rassicura"><span><b>Credited</b> in full on Deal
+            Assistance.</span></span>
+        </span>
+      </a>
     </div>
-    <div class="demo gt-fila">
-      <a class="gt eroe" href="#" style="--c:var(--c-pf);--ca:rgba(255,215,0,.22);--cb:rgba(255,215,0,.45)">
-        <span class="architrave"></span><span class="cono"></span>
-        <span class="gt-testa">
-          <span class="numero"><small>Gate</small>02</span>
-          <span class="stato">Full refund</span>
-        </span>
-        <span class="gt-corpo">
-          <span class="disco"><svg class="sg" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.6"/><path d="M15.6 15.6L20.5 20.5"/><path d="M8 10.8h5.6M10.8 8v5.6" class="acc"/></svg></span>
-          <span class="caso">Nothing in the catalogue fits?</span>
-          <span class="fa">Our flagship: we hunt the whole market for you —
-            off-market included — and walk every shortlist in person.</span>
-          <span class="serv">Property Finding<i>→</i></span>
-          <span class="garanzia">Refunded in full if we don't deliver</span>
-        </span>
-        <span class="fondo">
-          <span class="pflap"><em>€</em><i>3</i><i>5</i><i>0</i></span>
-          <span class="dice">deducted on success</span>
-        </span>
-      </a>
-      <a class="gt" href="#" style="--c:var(--c-vv);--ca:rgba(0,255,136,.18);--cb:rgba(0,255,136,.4)">
-        <span class="architrave"></span><span class="cono"></span>
-        <span class="gt-testa">
-          <span class="numero"><small>Gate</small>01</span>
-          <span class="stato"><i></i>Live</span>
-        </span>
-        <span class="gt-corpo">
-          <span class="disco"><svg class="sg" viewBox="0 0 24 24"><rect x="3.5" y="6.5" width="12" height="11" rx="2"/><path d="M15.5 11l5-2.6v7.2l-5-2.6z"/><circle cx="7.2" cy="10.2" r="1.1" class="pieno"/></svg></span>
-          <span class="caso">Can't fly over to see it?</span>
-          <span class="fa">A live video tour — you ask, we walk. Ours:
-            free, always.</span>
-          <span class="serv">Virtual Viewing<i>→</i></span>
-        </span>
-        <span class="fondo">
-          <span class="pflap"><em>€</em><i>8</i><i>9</i></span>
-          <span class="dice">other portals · credited with us</span>
-        </span>
-      </a>
-      <a class="gt" href="#" style="--c:var(--c-da);--ca:rgba(157,140,255,.18);--cb:rgba(157,140,255,.4)">
-        <span class="architrave"></span><span class="cono"></span>
-        <span class="gt-testa">
-          <span class="numero"><small>Gate</small>03</span>
-          <span class="stato">Fixed fee</span>
-        </span>
-        <span class="gt-corpo">
-          <span class="disco"><svg class="sg" viewBox="0 0 24 24"><path d="M12 3.4l7.2 2.9v5.1c0 4.2-3 7.2-7.2 8.4-4.2-1.2-7.2-4.2-7.2-8.4V6.3z"/><path d="M9.1 11.6l2.2 2.2 4.1-4.7" class="acc"/></svg></span>
-          <span class="caso">Found one yourself?</span>
-          <span class="fa">We verify the landlord, the papers, the price —
-            then negotiate.</span>
-          <span class="serv">Deal Assistance<i>→</i></span>
-        </span>
-        <span class="fondo">
-          <span class="pflap"><em>€</em><i>2</i><i>4</i><i>9</i></span>
-          <span class="dice">deposit &amp; clauses negotiated</span>
-        </span>
-      </a>
-      <a class="gt" href="#" style="--c:var(--c-cc);--ca:rgba(62,211,255,.16);--cb:rgba(62,211,255,.4)">
-        <span class="architrave"></span><span class="cono"></span>
-        <span class="gt-testa">
-          <span class="numero"><small>Gate</small>04</span>
-          <span class="stato">In 24h</span>
-        </span>
-        <span class="gt-corpo">
-          <span class="disco"><svg class="sg" viewBox="0 0 24 24"><path d="M6 3.2h7.4L18.6 8v12.8H6z"/><path d="M13.2 3.2V8h5.2" class="acc"/><path d="M9 12.6h6.4M9 15.8h4.4" class="acc"/></svg></span>
-          <span class="caso">About to sign something?</span>
-          <span class="fa">A written traffic-light verdict: fine, unfair,
-            missing.</span>
-          <span class="serv">Contract Check<i>→</i></span>
-        </span>
-        <span class="fondo">
-          <span class="pflap"><em>€</em><i>4</i><i>9</i></span>
-          <span class="dice">credited on Deal Assistance</span>
-        </span>
-      </a>
-    </div>
+
     <div class="verdetto">
-      <div><b>Perché vince</b>Il colore è DENTRO la metafora (ogni gate ha
-        la sua luce, come in aeroporto): differenziazione fortissima senza
-        uscire dal materiale. Scala benissimo su mobile.</div>
-      <div><b>Il limite</b>Quattro luci accese chiedono disciplina nel resto
-        della pagina: la sezione diventa il punto più saturo della home.</div>
-      <div><b>Motion</b>Il cono di luce che si accende al hover = il gate ti
-        chiama. Architrave che pulsa più forte. Sobrio ma teatrale.</div>
-    </div>
-  </div>
-</section>
-
-<!-- ══ E ══ -->
-<section class="palco" id="e">
-  <div class="container">
-    <div class="palco-testa">
-      <span class="lettera">E</span>
-      <h2>Le Carte Lounge</h2>
-      <p class="regola"><b>Il materiale più premium che esista in tasca: la
-        carta metallica.</b> Quattro metalli veri — oro per l'ammiraglia,
-        smeraldo per il live, zaffiro per la protezione, ghiaccio per il
-        verdetto — spazzolatura, chip, riflesso che attraversa la carta al
-        passaggio. Il prezzo è INCISO, il codice è il numero della carta.
-        Ogni servizio è un livello di appartenenza, non una voce di
-        listino.</p>
-    </div>
-    <div class="demo cl-griglia">
-      <div class="posto primo">
-        <a class="cl oro" href="#">
-          <span class="cl-cima"><span class="insegna">BOOM</span>
-            <span class="tier">Flagship · Full refund</span></span>
-          <span class="chip"></span>
-          <span class="caso">Nothing in the catalogue fits? We hunt the
-            whole market.</span>
-          <span class="cl-fondo">
-            <span class="serv">Property Finding<small>PF · 0350 · ROME</small></span>
-            <span class="prezzo">€350</span>
-          </span>
-        </a>
-        <span class="dice"><b>deducted on success</b> · refunded in full if
-          we don't deliver</span>
-      </div>
-      <div class="posto">
-        <a class="cl smeraldo" href="#">
-          <span class="cl-cima"><span class="insegna">BOOM</span>
-            <span class="tier">Live video</span></span>
-          <span class="chip"></span>
-          <span class="caso">Can't fly over to see it?</span>
-          <span class="cl-fondo">
-            <span class="serv">Virtual Viewing<small>VV · 0089 · ROME</small></span>
-            <span class="prezzo">€89</span>
-          </span>
-        </a>
-        <span class="dice">other portals' homes · <b>credited if you rent
-          with us</b> — ours free, always</span>
-      </div>
-      <div class="posto">
-        <a class="cl zaffiro" href="#">
-          <span class="cl-cima"><span class="insegna">BOOM</span>
-            <span class="tier">Fixed fee</span></span>
-          <span class="chip"></span>
-          <span class="caso">Found one yourself?</span>
-          <span class="cl-fondo">
-            <span class="serv">Deal Assistance<small>DA · 0249 · ROME</small></span>
-            <span class="prezzo">€249</span>
-          </span>
-        </a>
-        <span class="dice">we verify landlord, papers, price — <b>then
-          negotiate</b></span>
-      </div>
-      <div class="posto">
-        <a class="cl ghiaccio" href="#">
-          <span class="cl-cima"><span class="insegna">BOOM</span>
-            <span class="tier">In 24h</span></span>
-          <span class="chip"></span>
-          <span class="caso">About to sign something?</span>
-          <span class="cl-fondo">
-            <span class="serv">Contract Check<small>CC · 0049 · ROME</small></span>
-            <span class="prezzo">€49</span>
-          </span>
-        </a>
-        <span class="dice">traffic-light verdict in 24h · <b>credited on
-          Deal Assistance</b></span>
-      </div>
-    </div>
-    <div class="verdetto">
-      <div><b>Perché vince</b>La percezione di valore più alta dei tre: il
-        metallo È il lusso, e ogni servizio ha il SUO metallo. Zero
-        spiegazioni necessarie.</div>
-      <div><b>Il limite</b>Testo scuro su metallo = meno spazio per le
-        parole (la risposta vive sotto la carta). E il metallo verde/viola
-        è una scelta di gusto forte: o conquista o stona.</div>
-      <div><b>Motion</b>Il riflesso che attraversa la carta al hover — il
-        gesto di girarla alla luce. La carta si raddrizza e sale.</div>
-    </div>
-  </div>
-</section>
-
-<!-- ══ F ══ -->
-<section class="palco" id="f">
-  <div class="container">
-    <div class="palco-testa">
-      <span class="lettera">F</span>
-      <h2>La Console</h2>
-      <p class="regola"><b>Ultra-chiarezza: un servizio alla volta, in
-        grande.</b> A sinistra i quattro binari, ognuno con la sua luce; a
-        destra il PALCO: la domanda enorme, la risposta intera, i fatti con
-        le spunte, il bottone nel colore del servizio. Avanza da sola ogni
-        5 secondi finché non la tocchi (poi comanda l'utente). L'unica
-        delle tre che dà a OGNI servizio lo spazio dell'ammiraglia.</p>
-    </div>
-    <div class="demo cn" id="console">
-      <div class="cn-rail" role="tablist" aria-label="Services">
-        <button class="cn-tab" role="tab" data-s="pf" aria-selected="true"
-          style="--c:var(--c-pf)">
-          <span class="led"><svg class="sg" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.6"/><path d="M15.6 15.6L20.5 20.5"/></svg></span>
-          <span class="t"><b>Nothing fits?</b><span>Property Finding</span></span>
-          <span class="pr">€350</span>
-        </button>
-        <button class="cn-tab" role="tab" data-s="vv" aria-selected="false"
-          style="--c:var(--c-vv)">
-          <span class="led"><svg class="sg" viewBox="0 0 24 24"><rect x="3.5" y="6.5" width="12" height="11" rx="2"/><path d="M15.5 11l5-2.6v7.2l-5-2.6z"/></svg></span>
-          <span class="t"><b>Can't fly over?</b><span>Virtual Viewing</span></span>
-          <span class="pr">€89</span>
-        </button>
-        <button class="cn-tab" role="tab" data-s="da" aria-selected="false"
-          style="--c:var(--c-da)">
-          <span class="led"><svg class="sg" viewBox="0 0 24 24"><path d="M12 3.4l7.2 2.9v5.1c0 4.2-3 7.2-7.2 8.4-4.2-1.2-7.2-4.2-7.2-8.4V6.3z"/></svg></span>
-          <span class="t"><b>Found one yourself?</b><span>Deal Assistance</span></span>
-          <span class="pr">€249</span>
-        </button>
-        <button class="cn-tab" role="tab" data-s="cc" aria-selected="false"
-          style="--c:var(--c-cc)">
-          <span class="led"><svg class="sg" viewBox="0 0 24 24"><path d="M6 3.2h7.4L18.6 8v12.8H6z"/><path d="M13.2 3.2V8h5.2" class="acc"/></svg></span>
-          <span class="t"><b>About to sign?</b><span>Contract Check</span></span>
-          <span class="pr">€49</span>
-        </button>
-      </div>
-      <div class="cn-scena" id="scena" style="--c:var(--c-pf);--ca:rgba(255,215,0,.14)">
-        <span class="alone"></span>
-        <span class="cn-avanza" aria-hidden="true"><i class="on"></i><i></i><i></i><i></i></span>
-
-        <div class="sc-quadro" data-s="pf">
-          <span class="sc-eti"><span class="gatechip">Gate 02 · flagship</span>
-            <span class="quando">Full refund</span></span>
-          <h3>Nothing in the catalogue fits? We hunt the whole market.</h3>
-          <p class="sc-fa">Off-market included. Every shortlist walked in
-            person before you see it, video tours from anywhere.</p>
-          <div class="sc-lista">
-            <span>Homes that never reach the portals</span>
-            <span>Every shortlist walked in person</span>
-            <span>Deducted on success — refunded in full if we don't
-              deliver</span>
-          </div>
-          <div class="sc-riga">
-            <a class="sc-vai" href="#">€350 · Start the hunt →</a>
-            <span class="sc-dice">deducted on success · refunded if we
-              don't deliver</span>
-          </div>
-        </div>
-
-        <div class="sc-quadro" data-s="vv" hidden>
-          <span class="sc-eti"><span class="gatechip">Gate 01</span>
-            <span class="quando">Live video</span></span>
-          <h3>Can't fly over to see it?</h3>
-          <p class="sc-fa">A live video tour with you asking the questions —
-            the red flags said out loud, the pressure off.</p>
-          <div class="sc-lista">
-            <span>Our homes: free, always</span>
-            <span>Other portals' homes: €89, credited if you rent with
-              us</span>
-            <span>You ask, we walk — nothing staged</span>
-          </div>
-          <div class="sc-riga">
-            <a class="sc-vai" href="#">€89 · Book the tour →</a>
-            <span class="sc-dice">credited if you rent with us</span>
-          </div>
-        </div>
-
-        <div class="sc-quadro" data-s="da" hidden>
-          <span class="sc-eti"><span class="gatechip">Gate 03</span>
-            <span class="quando">Fixed fee</span></span>
-          <h3>Found one yourself? Don't sign alone.</h3>
-          <p class="sc-fa">We verify the landlord, the papers and the
-            price — then we negotiate the deposit and the clauses for
-            you.</p>
-          <div class="sc-lista">
-            <span>Landlord and papers verified</span>
-            <span>Deposit and clauses negotiated</span>
-            <span>€249 fixed — no percentages, no surprises</span>
-          </div>
-          <div class="sc-riga">
-            <a class="sc-vai" href="#">€249 · Protect the deal →</a>
-            <span class="sc-dice">fixed fee · we negotiate for you</span>
-          </div>
-        </div>
-
-        <div class="sc-quadro" data-s="cc" hidden>
-          <span class="sc-eti"><span class="gatechip">Gate 04</span>
-            <span class="quando">In 24h</span></span>
-          <h3>About to sign something?</h3>
-          <p class="sc-fa">A written traffic-light verdict within 24 hours:
-            what's fine, what's unfair, what's missing.</p>
-          <div class="sc-lista">
-            <span>Every clause read, line by line</span>
-            <span>A written verdict you can forward</span>
-            <span>€49 — credited on Deal Assistance</span>
-          </div>
-          <div class="sc-riga">
-            <a class="sc-vai" href="#">€49 · Check it →</a>
-            <span class="sc-dice">credited on Deal Assistance</span>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="verdetto">
-      <div><b>Perché vince</b>La più chiara in assoluto: ogni servizio ha
-        titolo enorme, risposta intera e CTA — lo spazio dell'ammiraglia
-        per tutti, a turno. La più «app» delle tre.</div>
-      <div><b>Il limite</b>Tre servizi su quattro sono nascosti in ogni
-        istante: chi scrolla veloce vede solo il primo. L'auto-avanzamento
-        mitiga ma consuma attenzione.</div>
-      <div><b>Motion</b>Il palco che cambia luce col servizio, la barra di
-        avanzamento nel colore attivo. Auto-cycle 5s, si ferma alla prima
-        interazione e con reduced-motion.</div>
+      <div><b>Perché ora converte</b>C'è un oggetto da desiderare (la carta
+        che fluttua e si inclina sotto il mouse), un bottone che COMPRA
+        (verbo + prezzo) e la garanzia subito sotto: desiderio → azione →
+        rischio azzerato. La grammatica dei commerce globali.</div>
+      <div><b>La firma cromatica resta</b>Un materiale solo, quattro luci:
+        oro ammiraglia · verde live · violetto protezione · ciano verdetto.
+        Il colore sta nel bottone e nell'oggetto, dove converte.</div>
+      <div><b>Motion</b>Fluttuazione + tilt 3D verso il cursore + speculare
+        che scivola: il gesto di prendere in mano il prodotto. Ingresso a
+        caduta sullo scaffale. Tutto spento con reduced-motion.</div>
     </div>
   </div>
 </section>
 
 <script>
-/* LA CONSOLE: tab + auto-avanzamento che si arrende all'utente */
+/* IL TILT: l'oggetto si inclina verso il cursore — il gesto di prenderlo
+   in mano. Solo dove c'è un mouse; molla al rilascio. */
 (function () {
-  var COLORI = { pf: ['var(--c-pf)', 'rgba(255,215,0,.14)'],
-                 vv: ['var(--c-vv)', 'rgba(0,255,136,.12)'],
-                 da: ['var(--c-da)', 'rgba(157,140,255,.13)'],
-                 cc: ['var(--c-cc)', 'rgba(62,211,255,.12)'] };
-  var ORDINE = ['pf', 'vv', 'da', 'cc'];
-  var tabs = [].slice.call(document.querySelectorAll('.cn-tab'));
-  var quadri = [].slice.call(document.querySelectorAll('.sc-quadro'));
-  var scena = document.getElementById('scena');
-  var tacche = [].slice.call(document.querySelectorAll('.cn-avanza i'));
-  var manuale = false, giro = null;
-  function mostra(s) {
-    tabs.forEach(function (t) {
-      t.setAttribute('aria-selected', String(t.dataset.s === s)); });
-    quadri.forEach(function (q) { q.hidden = q.dataset.s !== s; });
-    scena.style.setProperty('--c', COLORI[s][0]);
-    scena.style.setProperty('--ca', COLORI[s][1]);
-    tacche.forEach(function (i, k) {
-      i.classList.remove('on');
-      if (ORDINE[k] === s) { void i.offsetWidth; i.classList.add('on'); }
+  if (!matchMedia('(hover:hover) and (pointer:fine)').matches) return;
+  document.querySelectorAll('.pr').forEach(function (pr) {
+    var og = pr.querySelector('.oggetto');
+    pr.addEventListener('pointermove', function (e) {
+      var r = pr.getBoundingClientRect();
+      var x = (e.clientX - r.left) / r.width - .5;
+      var y = (e.clientY - r.top) / r.height - .5;
+      og.style.setProperty('--rx', (x * 16) + 'deg');
+      og.style.setProperty('--ry', (-y * 12) + 'deg');
     });
-  }
-  tabs.forEach(function (t) {
-    t.addEventListener('click', function () {
-      manuale = true; if (giro) clearInterval(giro);
-      mostra(t.dataset.s);
+    pr.addEventListener('pointerleave', function () {
+      og.style.setProperty('--rx', '0deg');
+      og.style.setProperty('--ry', '0deg');
     });
   });
-  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    var i = 0;
-    giro = setInterval(function () {
-      if (manuale) return clearInterval(giro);
-      i = (i + 1) % ORDINE.length; mostra(ORDINE[i]);
-    }, 5000);
+  var sc = document.getElementById('scaffale');
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (x) { if (x.isIntersecting) {
+        sc.classList.add('dentro'); io.disconnect(); } });
+    }, { threshold: .18 });
+    io.observe(sc);
+  } else sc.classList.add('dentro');
+})();
+/* senza mouse: lo scaffale si accende comunque */
+(function () {
+  var sc = document.getElementById('scaffale');
+  if (!matchMedia('(hover:hover) and (pointer:fine)').matches) {
+    if ('IntersectionObserver' in window) {
+      var io = new IntersectionObserver(function (es) {
+        es.forEach(function (x) { if (x.isIntersecting) {
+          sc.classList.add('dentro'); io.disconnect(); } });
+      }, { threshold: .18 });
+      io.observe(sc);
+    } else sc.classList.add('dentro');
   }
 })();
 </script>
