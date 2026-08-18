@@ -53,7 +53,7 @@
    */
   var INTENTS = [
     { key: 'disponibilita', side: 'client', label: 'È ancora libero? da quando?',
-      covers: ['enhomes', 'itcase'],
+      covers: ['enlead', 'engone'],
       re: /\b(ancora (libero|disponibil)|still available|is it available|availability|disponibil|libero da|available from|da quando|when.*(free|available)|move[- ]in date)/i },
 
     { key: 'prezzo_totale', side: 'client', label: 'Quanto costa in tutto (spese incluse)',
@@ -61,27 +61,27 @@
       re: /\b(quanto cost|how much|prezzo|price|all[- ]?in|spese (comprese|incluse|condominial)|bollette|utilities included|bills included|total cost|monthly cost)/i },
 
     { key: 'commissione', side: 'client', label: 'Commissione di agenzia',
-      covers: ['enprice', 'itcosti'],
+      covers: ['enprice'],
       re: /\b(commission|agency fee|provvigion|quanto prendete|fee.*(agency|agenzia)|costi di agenzia)/i },
 
     { key: 'deposito', side: 'client', label: 'Deposito: quanto, e quando torna',
-      covers: ['enprice', 'itcosti', 'endep'],
+      covers: ['enprice', 'endep'],
       re: /\b(deposito|deposit|cauzion|caparra|security deposit|quante mensilit|months.*deposit)/i },
 
     { key: 'visita', side: 'client', label: 'Voglio vederlo — quando?',
-      covers: ['enbook', 'itvisita'],
+      covers: ['enbook'],
       re: /\b(visit(a|are|arlo|e)?|vedere|vederlo|vederla|viewing|see (it|the (flat|apartment|place))|appuntament|quando posso|can i (see|visit|come)|schedule a (viewing|visit))/i },
 
     { key: 'video_foto', side: 'client', label: 'Foto, video, visita a distanza',
-      covers: ['envideo', 'enbook'],
+      covers: ['enabroad', 'enbook'],
       re: /\b(altre foto|more photos|foto|photos?|video|virtual (tour|viewing)|videochiamat|video call|facetime|planimetri|floor ?plan)/i },
 
     { key: 'documenti', side: 'client', label: 'Che documenti servono / garanzie',
-      covers: ['endocs', 'itdoc'],
+      covers: ['endocs'],
       re: /\b(documenti|documents|garante|guarantor|busta paga|payslip|proof of income|contratto di lavoro|employment contract|requisiti|requirements|cosa (vi )?serve|what do you need)/i },
 
     { key: 'contratto', side: 'client', label: 'Che contratto è, durata, registrazione',
-      covers: ['enapply', 'encheck'],
+      covers: ['encheck', 'enblock'],
       re: /\b(contratt|contract|transitorio|cedolare|registrat|registered|durata|lease|minimo (di )?mesi|minimum stay|how many months|rinnovabil|renewable)/i },
 
     { key: 'residenza', side: 'client', label: 'Posso prendere la residenza?',
@@ -89,11 +89,11 @@
       re: /\b(residenz|residency|residence (registration|permit)|anagrafe|iscrizione anagrafic|register.*(residence|address)|permesso di soggiorno)/i },
 
     { key: 'burocrazia', side: 'client', label: 'Codice fiscale, utenze, SIM, banca',
-      covers: ['enconc', 'enguide'],
+      covers: ['enconc'],
       re: /\b(codice fiscale|tax code|utenze|utilities|allacci|sim card|conto (in banca|corrente)|bank account|tessera sanitaria|health card)/i },
 
     { key: 'zona_distanza', side: 'client', label: 'Dov\'è, quanto dista da università/lavoro',
-      covers: ['enstud', 'enhomes'],
+      covers: ['enlink', 'enlead'],
       re: /\b(quanto dista|how far|distanza|distance|vicino a|close to|metro|autobus|\bbus\b|minuti da|minutes (from|to)|indirizzo|address|quale zona|which (area|zone)|luiss|sapienza|john cabot|roma tre|lumsa)/i },
 
     { key: 'arredo_servizi', side: 'client', label: 'Arredato? lavatrice, wifi, aria, ascensore',
@@ -123,25 +123,25 @@
       re: /\b(non funziona|doesn'?t work|is broken|rotto|guast|perdita d'acqua|leak|caldaia|boiler|no hot water|senza (acqua|luce|gas)|no (power|water|heating)|riparazion|repair|idraulic|plumber)/i },
 
     { key: 'uscita', side: 'tenant', label: 'Disdetta, uscita, deposito indietro',
-      covers: ['enend', 'endep'],
+      covers: ['endep'],
       re: /\b(disdetta|preavviso|notice period|move out|moving out|lascio (la casa|l'appartamento)|fine contratto|end of (the )?(lease|contract)|riavere il deposito|deposit back)/i },
 
     { key: 'rinnovo', side: 'tenant', label: 'Voglio restare / rinnovare',
-      covers: ['enend'],
+      covers: ['enlead'],
       re: /\b(rinnov|renew|extend (my|the) (stay|lease|contract)|restare (ancora|altri)|stay longer|proroga)/i },
 
     /* ── proprietari ───────────────────────────────────────────────── */
     { key: 'prop_gestione', side: 'owner', label: 'Proprietario: come lavorate, quanto costa',
-      covers: ['prciao', 'prgest'],
+      covers: ['prciao'],
       re: /\b(ho un (appartamento|immobile|bilocale|trilocale)|sono (il )?proprietari|my (apartment|property) (to rent|is empty)|affittare il mio|gestione (del mio )?immobile|quanto prendete di provvigione|vostre condizioni)/i },
 
     { key: 'prop_canone', side: 'owner', label: 'Proprietario: quanto posso chiedere',
-      covers: ['prcanone', 'prpack'],
+      covers: ['prciao', 'prpack'],
       re: /\b(quanto posso (chiedere|affittarlo)|a quanto si affitta|valutazione|quanto rende|canone concordato|cedolare secca|how much (can i|could i) (rent|get))/i },
 
     /* ── aziende ed enti ───────────────────────────────────────────── */
     { key: 'b2b', side: 'b2b', label: 'Azienda/ente: alloggi per persone nostre',
-      covers: ['azimpresa', 'azuni', 'azric'],
+      covers: ['azimpresa'],
       re: /\b(our (\w+ )?(employee|staff|team|people|students|researchers)|relocat\w+ (our|their|an employee)|nostri (dipendenti|studenti|ricercatori)|azienda|company (housing|let|name)|fattura (alla|intestata)|invoice.*(company|vat)|università|university|ricercator|researcher|\berc\b|marie[- ]curie|hr manager|relocation (of|for) (our|an) )/i },
   ];
 

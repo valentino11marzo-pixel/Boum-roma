@@ -99,10 +99,9 @@ for (const url of external) {
 // sulla pagina di pagamento — dopo aver deciso di fidarsi.
 console.log('\n\x1b[1m4. I prezzi non possono divergere dal catalogo\x1b[0m');
 const QUOTED = {
-  envideo: ['virtual-viewing'],
+  enabroad: ['virtual-viewing'],
   encheck: ['contract-check-express', 'deal-assistance'],
   endep: ['deposit-recovery'],
-  enremote: ['remote-move-pack'],
   prpack: ['concordato-pack'],
 };
 for (const [sc, kinds] of Object.entries(QUOTED)) {

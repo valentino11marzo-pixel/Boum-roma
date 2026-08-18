@@ -1790,7 +1790,7 @@ SUA lingua (`replyLang`), con il link `book?listing=` con gli slot VERI.
 La conversazione resta l'unico pezzo che la macchina non fa: il Commerciale
 propone la PRIMA risposta, il Gestore i solleciti, il journey le email — ma
 tutto quello che viene dopo si scrive a mano, di corsa, dal telefono. Queste
-sono **14 risposte rapide da caricare** in WhatsApp Business, più 38 nel mazzo (`/scorciatoia` in chat),
+sono **15 risposte rapide da caricare** in WhatsApp Business, più 15 nel mazzo (`/scorciatoia` in chat),
 più i due messaggi automatici e le etichette. Coprono l'intero giro: cliente
 EN e IT, inquilino in casa, proprietario, aziende/enti, La Réunion, e i
 messaggi che accompagnano un link personale.
@@ -1817,12 +1817,31 @@ messaggi che accompagnano un link personale.
   trattativa (20); `/enres` residenza (17). Il catalogo scritto a
   ragionamento non le aveva: è il motivo per cui si misura prima di
   installare.
-- **Quattordici, non cinquanta** (`bench: true` su tutto il resto). L'app ne
+- **RISCRITTE SULLA VOCE VERA** (`scripts/wa-voce-locale.mjs`, agosto 2026 —
+  29.255 messaggi dell'operatore). Le prime versioni erano scritte con la voce
+  di chi le redige, non di chi le manda, e l'operatore le ha bocciate: «sono
+  inutili». I numeri gli hanno dato ragione — **metà dei suoi messaggi sta
+  sotto 17 caratteri**, 3 su 4 sotto 38, e **un link compare nell'1%**: testi
+  da 800 caratteri pieni di link non erano risposte, erano muri. Ora si sta
+  sotto i 400 (mediana 262) e il link è un'eccezione che deve valere il tap.
+  La mossa che chiude è **chiamare** (11 volte fra i messaggi ripetuti), quindi
+  la proposta di chiamata sta nelle risposte d'apertura. I **sei messaggi che
+  già riscriveva a mano** ogni volta sono diventati sei scorciatoie
+  (`enlead` 11× · `engone` 13× · `enlink` 15× · `enserv` 18× · `enblock` 11×),
+  e i servizi quasi mai proposti — Virtual Viewing 1×, Deal Assistance 1×,
+  Contract Check 2× su 180 giorni — hanno la loro occasione naturale
+  (`enabroad`, `encheck`) invece di restare nel listino.
+  **Avvertenza sul campione**: l'archivio wacli è il WhatsApp PERSONALE
+  dell'operatore, quindi i conteggi delle intenzioni sono gonfiati dalle chat
+  private (il `chi_abita 255×` vale meno di quanto sembra); i messaggi
+  RIPETUTI, invece, sono inequivocabilmente lavoro.
+- **Quindici, non cinquanta** (`bench: true` su tutto il resto). L'app ne
   accetta 50, ed è esattamente la trappola: cinquanta scorciatoie non si
   ricordano, quindi non si usano, quindi lo strumento muore nel telefono.
-  Si installa ciò che serve QUESTA settimana — apertura, costi, chi può
-  abitarci, documenti, visita, arredo, fiducia, catalogo, canone, guasti,
-  più italiano e proprietario — e le altre 38 restano nel mazzo: la pagina
+  Si installa ciò che serve QUESTA settimana — le sei che già riscrivevi a
+  mano, più costi, documenti, chi può abitarci, arredo, visita, estero,
+  contratto altrui, ricerca su misura, italiano e proprietario — e le altre
+  restano nel mazzo: la pagina
   si apre già filtrata sulle 14, le rare si cercano e si copiano al volo.
   La promozione è un attributo, non una riscrittura: se una del mazzo torna
   spesso, si toglie `bench` e si carica.
