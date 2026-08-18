@@ -118,7 +118,7 @@ ${SITE}/book
 The slot is held for you and I confirm within a few hours. If you want a specific home, open its page and book from there.`,
     },
     {
-      sc: 'envideo', fam: 'en',
+      sc: 'envideo', fam: 'en', bench: true,
       title: 'Visita video su una casa NON nostra (€89)',
       when: 'Ha trovato un annuncio altrove e non è a Roma. Si vende da sé: la sola alternativa è fidarsi delle foto del proprietario.',
       text: `If the apartment isn't ours we can still go and see it for you: live video tour with you directing, a full HD photo set, and an honest written report — red flags included.
@@ -143,7 +143,7 @@ Send me the listing link and I'll tell you if we can reach it this week.`,
 Phone photos are fine, send them here whenever you like. And nothing is paid before you've read the contract.`,
     },
     {
-      sc: 'enapply', fam: 'en',
+      sc: 'enapply', fam: 'en', bench: true,
       title: 'Come si chiude — i quattro passi',
       when: 'Gli piace una casa e chiede "e adesso?". Togli l\'ansia mostrando che è tutto online e in ordine.',
       text: `How it works from here — four steps, all online:
@@ -189,7 +189,7 @@ Most of our homes are furnished and ready to live in, and the listing says exact
 The three that vary most from flat to flat are air conditioning, lift and washing machine. Which of them are must-haves for you? I'll filter on those before you spend time on a viewing.`,
     },
     {
-      sc: 'endeal', fam: 'en',
+      sc: 'endeal', fam: 'en', bench: true,
       title: 'Si può trattare sul prezzo',
       when: '20 conversazioni. Una risposta netta e uguale per tutti vale più di uno sconto: dice che il prezzo non dipende da quanto insisti.',
       text: `Straight with you: on our own homes the listed price is what the owner agreed to publish, so there is rarely room on the rent itself — and I'd rather be boring than quote you one number and the next person another.
@@ -201,7 +201,7 @@ Tell me your real budget and your dates, and I'll tell you honestly whether anyt
 And if the flat is someone else's listing, negotiating it is exactly what we do for you: ${SITE}/deal-assistance`,
     },
     {
-      sc: 'enres', fam: 'en',
+      sc: 'enres', fam: 'en', bench: true,
       title: 'Posso prendere la residenza?',
       when: '17 conversazioni, e per chi la chiede è spesso decisiva (tessera sanitaria, permesso, vita normale). Meglio dirlo prima della firma che scoprirlo dopo.',
       text: `Short answer: yes, and it's worth doing — residency is what opens the tessera sanitaria (public health card) and a lot of ordinary life here.
@@ -213,7 +213,7 @@ If residency is essential for you, tell me now: on a few flats the owner's own s
 The whole bureaucracy, step by step: ${SITE}/welcome-to-rome`,
     },
     {
-      sc: 'enfind', fam: 'en',
+      sc: 'enfind', fam: 'en', bench: true,
       title: 'Property Finding — cerchiamo noi (€350)',
       when: 'Quando il catalogo non basta. Da usare SEMPRE prima di lasciarlo andare: è la differenza fra un no e un incarico.',
       text: `If nothing in our portfolio fits, we hunt the whole city for you.
@@ -227,7 +227,7 @@ ${SITE}/property-finding
 Want me to set up your brief now?`,
     },
     {
-      sc: 'enremote', fam: 'en',
+      sc: 'enremote', fam: 'en', bench: true,
       title: 'Chiudere da fuori Italia (€299)',
       when: 'Arriva a settembre e vuole la casa prima di atterrare. Il pacchetto che risolve la paura di firmare a distanza.',
       text: `Closing from abroad is how we normally work, not the exception.
@@ -244,7 +244,7 @@ Bought separately those services are €427+. Credited toward the agency fee if 
 ${SITE}/remote-move-pack`,
     },
     {
-      sc: 'encheck', fam: 'en',
+      sc: 'encheck', fam: 'en', bench: true,
       title: 'Controllo del contratto (gratis · €49 · €249)',
       when: 'Ha un contratto in mano, di chiunque. Il livello gratuito apre la porta: molti tornano per il resto.',
       text: `Never sign an Italian lease nobody has read for you. Three levels:
@@ -256,7 +256,7 @@ ${SITE}/remote-move-pack`,
 Send the PDF here and I'll tell you which one you actually need.`,
     },
     {
-      sc: 'endep', fam: 'en',
+      sc: 'endep', fam: 'en', bench: true,
       title: 'Deposito trattenuto — lettera gratis o €99',
       when: 'Anche a chi non è mai stato cliente. È il servizio che genera passaparola: risolvi un torto che nessuno gli risolve.',
       text: `Landlord keeping your deposit? Italian law is on your side — art. 1590 of the Civil Code, with a formal 15-day deadline.
@@ -270,7 +270,7 @@ We're a licensed agency, not a law firm; for court we bring lawyers in.
 How much are they holding, and what's their reason?`,
     },
     {
-      sc: 'enconc', fam: 'en',
+      sc: 'enconc', fam: 'en', bench: true,
       title: 'Burocrazia e arrivo (da €15 · pacchetto da €390)',
       when: 'La parte che spaventa più dell\'affitto. Da mandare anche a chi la casa l\'ha già trovata altrove.',
       text: `The bureaucracy is the part that breaks people. We do it for you:
@@ -287,7 +287,7 @@ ${SITE}/concierge
 Which of these do you need first?`,
     },
     {
-      sc: 'enguide', fam: 'en', star: true,
+      sc: 'enguide', fam: 'en', bench: true,
       title: 'Le guide gratuite (fiducia, zero costo)',
       when: 'Chi è ancora freddo, o chiede consigli senza comprare. Regalare valore vero è il modo più economico di restare in testa.',
       text: `Free, no strings — this is what we'd tell a friend moving here:
@@ -300,7 +300,7 @@ Real costs by neighbourhood and the documents timeline: ${SITE}/moving-to-rome
 Read them before you talk to any agency, including us.`,
     },
     {
-      sc: 'ennone', fam: 'en',
+      sc: 'ennone', fam: 'en', bench: true,
       title: 'Non abbiamo niente per lui (le tre uscite)',
       when: 'Mai dire solo "no". Un no nudo chiude la conversazione, un no con tre porte la tiene aperta per mesi.',
       text: `Being straight with you: nothing we have right now matches what you asked for.
@@ -313,7 +313,7 @@ Three options, pick any:
 Which one?`,
     },
     {
-      sc: 'enstud', fam: 'en',
+      sc: 'enstud', fam: 'en', bench: true,
       title: 'Studenti internazionali',
       when: 'LUISS, Sapienza, John Cabot, Roma Tre, LUMSA. Parla di tragitto e di contratto, che sono le due cose che contano.',
       text: `For a student in Rome, two things decide everything: the commute and the contract.
@@ -326,7 +326,7 @@ Contracts are registered and in English, with your enrolment letter as the docum
 Which university, and from when?`,
     },
     {
-      sc: 'enexec', fam: 'en',
+      sc: 'enexec', fam: 'en', bench: true,
       title: 'Professionista in trasferta (ONU, ambasciate, aziende)',
       when: 'Chi arriva per lavoro 1–18 mesi. Qui la casa è il minimo: quello che compra è la carta che il datore accetta.',
       text: `Posted to Rome for work — that's the desk you're writing to.
@@ -354,7 +354,7 @@ And the rule that protects you: nothing is paid before you've read the terms in 
 ${SITE}/about`,
     },
     {
-      sc: 'enwait', fam: 'en',
+      sc: 'enwait', fam: 'en', bench: true,
       title: '"Ci sto lavorando" — il messaggio che compra tempo',
       when: 'Quando non puoi rispondere bene adesso. Un\'attesa annunciata non è un\'attesa: il silenzio sì.',
       text: `Got it, [NOME] — give me [TEMPO] and I'll come back with a real answer instead of a guess. I need to check with the owner / on the ground.
@@ -364,7 +364,7 @@ If it's urgent, just write "urgent" and I'll jump it up the queue.`,
 
     // ==================== INQUILINO IN CASA · ENGLISH =======================
     {
-      sc: 'enpay', fam: 'casa',
+      sc: 'enpay', fam: 'casa', star: true,
       title: 'Come si paga il canone (le tre vie)',
       when: 'Primo mese e ogni volta che qualcuno chiede. Spingi il bonifico o l\'addebito automatico: ti costano meno e non si dimenticano.',
       text: `Everything about your rent lives in your own page — invoices, receipts, and the button to pay:
@@ -379,7 +379,7 @@ Three ways, all fine:
 Cheapest is the transfer, calmest is the direct debit. Want me to set the automatic one up?`,
     },
     {
-      sc: 'enlate', fam: 'casa',
+      sc: 'enlate', fam: 'casa', bench: true,
       title: 'Sollecito gentile (canone in ritardo)',
       when: 'Dopo qualche giorno. Il tono è tutto: chiedere invece di accusare tiene il rapporto e fa arrivare i soldi comunque.',
       text: `Hi [NOME], quick one — the [MESE] rent hasn't landed yet. It's probably already on its way or just late; I'd rather ask than assume.
@@ -389,7 +389,7 @@ You can settle it in a tap here: ${SITE}/casa
 And if something has come up, tell me now: there's almost always a way to arrange it, and it's always better than silence.`,
     },
     {
-      sc: 'enfix', fam: 'casa',
+      sc: 'enfix', fam: 'casa', star: true,
       title: 'Guasto o manutenzione',
       when: 'Prima segnalazione. Le tre domande evitano il ping-pong e ti dicono subito se devi muoverti oggi.',
       text: `Sorry about that. So it gets fixed fast, send me:
@@ -402,7 +402,7 @@ You can also file it from your page, so it enters our system with a ticket: ${SI
 If it's urgent, call me. Don't wait for a reply here.`,
     },
     {
-      sc: 'enkeys', fam: 'casa',
+      sc: 'enkeys', fam: 'casa', bench: true,
       title: 'Giorno delle chiavi — cosa succede',
       when: 'Il giorno prima della consegna. Anticipare il verbale evita ogni discussione sul deposito, un anno dopo.',
       text: `Move-in day: [DATA] at [ORA], [INDIRIZZO].
@@ -412,7 +412,7 @@ What happens, in about 30 minutes: keys handed over with every copy listed, mete
 Bring your ID. Anything you want checked before we sign?`,
     },
     {
-      sc: 'enhome', fam: 'casa',
+      sc: 'enhome', fam: 'casa', bench: true,
       title: 'Manuale della casa (wifi, rifiuti, quartiere)',
       when: 'Subito dopo le chiavi, e ogni volta che chiedono la password del wifi o il giorno della differenziata.',
       text: `Everything about your flat is in one place: Wi-Fi password with a copy button, heating, which day the bins go out, appliances, emergency numbers, and the neighbourhood places we actually use:
@@ -424,7 +424,7 @@ And the survival guide to the city itself: ${SITE}/welcome-to-rome
 If something isn't in there, ask me and I'll add it.`,
     },
     {
-      sc: 'enrev', fam: 'casa', star: true,
+      sc: 'enrev', fam: 'casa', bench: true,
       title: 'Chiedere la recensione Google',
       when: 'Da mandare quando è contento e ha già le chiavi: dopo il primo mese, o dopo che gli hai risolto un problema.',
       text: `[NOME], one small favour — worth more to us than any advertising.
@@ -436,7 +436,7 @@ https://g.page/r/CfcpUptbNnvZEBM/review
 It takes a minute. And if something wasn't right, tell me first — I'd much rather fix it than read it.`,
     },
     {
-      sc: 'enrefer', fam: 'casa',
+      sc: 'enrefer', fam: 'casa', bench: true,
       title: 'Referral — €50 a te, €50 a chi arriva',
       when: 'Nella stessa settimana della recensione, non nello stesso messaggio. Gli inquilini contenti sono il canale che costa zero.',
       text: `Know anyone else moving to Rome? Send them to us and you both get €50 when they rent:
@@ -448,7 +448,7 @@ Your personal code and a share button are in your page as well: ${SITE}/casa
 No catch, no expiry — and they get exactly the treatment you got.`,
     },
     {
-      sc: 'enend', fam: 'casa',
+      sc: 'enend', fam: 'casa', bench: true,
       title: 'Fine contratto, uscita e deposito',
       when: 'Da mandare tu, prima che lo chieda lui. Chi sa come uscirà è anche chi rinnova più volentieri.',
       text: `Your lease ends on [DATA]. What happens, so nothing is a surprise:
@@ -464,7 +464,7 @@ Or would you rather renew? Tell me now and I'll hold it for you.`,
 
     // ======================== CLIENTE · ITALIANO ============================
     {
-      sc: 'itciao', fam: 'it',
+      sc: 'itciao', fam: 'it', star: true,
       title: 'Prima risposta in italiano',
       when: 'Chi scrive in italiano. Stessa struttura dell\'inglese: chiudi chiedendo le tre informazioni.',
       text: `Ciao [NOME], sono Valentino di BOOM Rome.
@@ -481,7 +481,7 @@ Quelle libere adesso: ${SITE}/apartments
 Mi dici le tue tre?`,
     },
     {
-      sc: 'itcase', fam: 'it',
+      sc: 'itcase', fam: 'it', bench: true,
       title: 'Il catalogo in italiano',
       when: '"Cosa avete disponibile?" — manda le pagine, non gli screenshot.',
       text: `Questo è tutto quello che abbiamo davvero libero adesso, con prezzi e date reali:
@@ -497,7 +497,7 @@ Ogni casa l'abbiamo vista di persona: le foto sono nostre, non del proprietario.
 Dimmi quali due ti interessano e controllo gli orari.`,
     },
     {
-      sc: 'itcosti', fam: 'it',
+      sc: 'itcosti', fam: 'it', star: true,
       title: 'I costi, tutti',
       when: 'La domanda che decide. Rispondi con ogni voce: quello che nascondi oggi diventa una lite fra due mesi.',
       text: `I numeri, senza sorprese:
@@ -512,7 +512,7 @@ Il dettaglio euro per euro: ${SITE}/your-money
 Le visite sono gratuite. Nessun costo di pratica, nessun canone di servizio.`,
     },
     {
-      sc: 'itvisita', fam: 'it',
+      sc: 'itvisita', fam: 'it', bench: true,
       title: 'Prenota la visita (italiano)',
       when: 'Appena c\'è interesse. Gli orari nel link sono quelli davvero liberi della tua settimana.',
       text: `La visita è gratuita e dura una mezz'ora: di persona con me, oppure in video in diretta se non sei a Roma (la telecamera la muovo io dove dici tu).
@@ -523,7 +523,7 @@ ${SITE}/book
 Lo slot resta tenuto per te e ti confermo entro poche ore.`,
     },
     {
-      sc: 'itdoc', fam: 'it',
+      sc: 'itdoc', fam: 'it', bench: true,
       title: 'Documenti richiesti (italiano)',
       when: 'Darla per intero e in anticipo: nessuna richiesta a sorpresa dopo il sì.',
       text: `Cosa ci serve per approvarti — la stessa lista per tutti, e dopo non compare nient'altro:
@@ -550,7 +550,7 @@ Come lavoriamo e a quali condizioni: ${SITE}/owners
 Mi dice dov'è l'immobile, quanti metri quadri e se è arredato? Le dico a quanto si affitta davvero.`,
     },
     {
-      sc: 'prgest', fam: 'pr',
+      sc: 'prgest', fam: 'pr', bench: true,
       title: 'Cosa facciamo per lui (la gestione)',
       when: 'Quando chiede "ma voi cosa fate esattamente?". Ogni riga è una cosa che altrimenti farebbe lui.',
       text: `Come lavoriamo, in breve:
@@ -577,7 +577,7 @@ ${SITE}/canone
 Mi manda zona, metri quadri e piano e glielo calcolo io in due minuti.`,
     },
     {
-      sc: 'prpack', fam: 'pr',
+      sc: 'prpack', fam: 'pr', bench: true,
       title: 'Pacchetto concordato chiavi in mano (€349)',
       when: 'Dopo il calcolo, quando ha visto il risparmio ma non ha voglia della pratica. Che è sempre.',
       text: `Il concordato conviene, ma la pratica è noiosa: verifica del canone, contratto conforme, attestazione di rispondenza con un'organizzazione firmataria, registrazione RLI.
@@ -589,7 +589,7 @@ ${SITE}/pacchetto-concordato
 Di solito il risparmio del primo anno supera il costo: se vuole glielo calcolo sui suoi numeri.`,
     },
     {
-      sc: 'prdoc', fam: 'pr',
+      sc: 'prdoc', fam: 'pr', bench: true,
       title: 'Documenti dell\'immobile',
       when: 'Dopo il sì. Chiederli tutti in una volta, spiegando che le foto col telefono bastano, li fa arrivare davvero.',
       text: `Per pubblicare e affittare in regola mi servono, quando ha un momento:
@@ -603,7 +603,7 @@ Di solito il risparmio del primo anno supera il costo: se vuole glielo calcolo s
 Le foto dei documenti fatte col telefono vanno bene. Li carico io nel fascicolo dell'immobile: da lì escono contratto e registrazione senza chiederle più niente.`,
     },
     {
-      sc: 'prfoto', fam: 'pr',
+      sc: 'prfoto', fam: 'pr', bench: true,
       title: 'Sopralluogo, foto e video',
       when: 'Per fissare la visita tecnica. La frase sullo sfitto è quella che convince a preparare la casa come si deve.',
       text: `Per il sopralluogo mi bastano 45 minuti: foto professionali, video per le visite a distanza, misure e letture dei contatori.
@@ -613,7 +613,7 @@ Come dovrebbe essere la casa quel giorno: libera da oggetti personali, tapparell
 Le va bene [DATA] alle [ORA]?`,
     },
     {
-      sc: 'prconto', fam: 'pr',
+      sc: 'prconto', fam: 'pr', bench: true,
       title: 'Rendiconto e scadenze fiscali',
       when: 'Da mandare al primo mese di gestione: è ciò che trasforma un proprietario diffidente in uno che ti lascia fare.',
       text: `Ogni primo del mese le arriva per email il rendiconto del mese chiuso, in PDF: canoni incassati con data e modalità, rate ancora aperte, eventuali arretrati, manutenzioni fatte.
@@ -625,7 +625,7 @@ Se le serve un documento in qualsiasi momento me lo chieda qui: glielo mando in 
 
     // ========================= AZIENDE ED ENTI ==============================
     {
-      sc: 'azimpresa', fam: 'az',
+      sc: 'azimpresa', fam: 'az', bench: true,
       title: 'Aziende che spostano personale',
       when: 'HR o mobility manager. Voce business: nessun "ti va una visita?", si parla di fattura e di persone che atterrano.',
       text: `For companies moving people to Rome: one contact, verified homes, compliant leases, one invoice.
@@ -640,7 +640,7 @@ ${SITE}/corporate
 How many people, and when do they land? (Possiamo parlarne in italiano, se preferite.)`,
     },
     {
-      sc: 'azuni', fam: 'az',
+      sc: 'azuni', fam: 'az', bench: true,
       title: 'Università e international office',
       when: 'Il canale che costa zero e porta studenti a ondate. Il valore per loro è non essere quelli che hanno consigliato un truffatore.',
       text: `For international offices and student services: we're the English-first, anti-scam housing partner you can recommend without risk — verified homes, remote viewings, registered contracts, and free to partner with.
@@ -652,7 +652,7 @@ Everything we do for organisations: ${SITE}/partners
 Happy to send a one-page PDF your students can read, and to be the name you give when someone gets scammed in September.`,
     },
     {
-      sc: 'azric', fam: 'az', bench: true,
+      sc: 'azric', fam: 'az', bench: true, bench: true,
       title: 'Ricercatori ERC / Marie-Curie',
       when: 'Dipartimenti e centri di ricerca. Qui la parola che conta è "grant-invoiceable": possono pagarci col progetto.',
       text: `For incoming researchers and ERC / MSCA fellows: verified housing in Rome, support for families, the bureaucracy handled, and fees that are grant-invoiceable. From €690.
@@ -664,7 +664,7 @@ Tell me how many fellows and their arrival window, and I'll come back with what 
 
     // ======================= LA RÉUNION · FRANÇAIS ==========================
     {
-      sc: 'frbonjour', fam: 'fr', bench: true,
+      sc: 'frbonjour', fam: 'fr', bench: true, bench: true,
       title: 'Premier contact La Réunion',
       when: 'Chi scrive dall\'isola. Prima cosa: capire da che lato sta — proprietario, inquilino o acquirente.',
       text: `Bonjour [NOM], Valentino de BOOM.
@@ -676,7 +676,7 @@ Tout est expliqué ici : ${SITE}/reunion
 Vous êtes de quel côté — propriétaire, locataire ou acheteur ? Je vous réponds dans la journée.`,
     },
     {
-      sc: 'frachat', fam: 'fr', bench: true,
+      sc: 'frachat', fam: 'fr', bench: true, bench: true,
       title: 'Acquirente in metropole (visita + rapporto)',
       when: 'La richiesta più comune sull\'isola. La riga sulla carte T non è un limite da nascondere: è il motivo per cui ti credono.',
       text: `Vous avez trouvé un bien à La Réunion mais vous êtes en métropole.
@@ -692,7 +692,7 @@ Envoyez-moi l'annonce.`,
 
     // ========================= LINK PERSONALI ===============================
     {
-      sc: 'opvisit', fam: 'op',
+      sc: 'opvisit', fam: 'op', bench: true,
       title: 'Visita confermata + link personale',
       when: 'Dopo aver confermato dal portale o da Telegram. Il [LINK] è la pagina della visita del cliente.',
       text: `[NOME], your viewing is set: [DATA] at [ORA] — [INDIRIZZO O LINK VIDEO].
@@ -703,7 +703,7 @@ Your own page for this appointment — address, directions, Wallet pass, and the
 If you're running late just write here. Ten minutes is never a problem; silence is.`,
     },
     {
-      sc: 'opsched', fam: 'op',
+      sc: 'opsched', fam: 'op', bench: true,
       title: 'Link della Scheda (anagrafica + documento)',
       when: 'Per raccogliere dati e documento senza rincorrere nessuno. Il link lo generi dal portale (Share Hub).',
       text: `[NOME], one link and the paperwork is done: your details and a photo of your ID, straight from your phone. Two minutes — the form fills itself from the photo.
@@ -713,7 +713,7 @@ If you're running late just write here. Ten minutes is never a problem; silence 
 Nothing is published and nothing is shared: it goes into your file with us, and it's what lets me prepare the contract without asking you the same questions twice.`,
     },
     {
-      sc: 'opsign', fam: 'op',
+      sc: 'opsign', fam: 'op', bench: true,
       title: 'Invito alla firma (English)',
       when: 'Con il link Magic Sign dell\'inquilino. La riga finale ti evita le correzioni dopo la registrazione.',
       text: `[NOME], the contract is ready to sign — no printer, no appointment:
@@ -725,7 +725,7 @@ Open it, read it (it's in English, and the terms are exactly the ones we agreed)
 If anything in there should change, tell me BEFORE you sign: afterwards it's a registered act.`,
     },
     {
-      sc: 'opfirma', fam: 'op',
+      sc: 'opfirma', fam: 'op', bench: true,
       title: 'Invito alla firma (italiano, proprietario)',
       when: 'Con il link di firma del locatore. Lui firma dopo l\'inquilino: il link gli arriva quando tocca a lui.',
       text: `[NOME], il contratto è pronto per la firma, senza stampante e senza appuntamento:
@@ -737,7 +737,7 @@ Apre il link, legge e firma dal telefono. Appena hanno firmato entrambe le parti
 Se c'è qualcosa da correggere me lo dica PRIMA di firmare: dopo è un atto registrato.`,
     },
     {
-      sc: 'oppay', fam: 'op',
+      sc: 'oppay', fam: 'op', bench: true,
       title: 'Link di pagamento',
       when: 'Per una rata o una fattura. Il link si genera dal portale (💳 sulla riga) e resta valido nel tempo.',
       text: `[NOME], here's the secure link to pay [COSA] — [IMPORTO]:

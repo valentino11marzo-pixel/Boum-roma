@@ -32,14 +32,12 @@ export function renderDoc() {
   L.push('');
   const inst = WA.installed();
   const bench = WA.REPLIES.filter((r) => r.bench);
-  L.push(`**${WA.REPLIES.length} risposte**, di cui **${inst.length} da installare** nell'app`
-    + ` (il tetto è ${WA.LIMITS.total}: restano ${WA.LIMITS.total - inst.length} slot liberi).`);
-  if (bench.length) {
-    L.push('');
-    L.push(`Le altre ${bench.length} sono **in panchina**: vivono qui e su \`/risposte\`, si copiano`);
-    L.push('quando servono, e non occupano uno slot — sono i casi rari, che non meritano un posto');
-    L.push('nel telefono ma nemmeno di sparire.');
-  }
+  L.push(`**${inst.length} risposte da caricare nell'app** — circa 10 minuti, una volta sola.`);
+  L.push('');
+  L.push(`Le altre ${bench.length} restano nel mazzo: vivono qui e su \`/risposte\`, si cercano e si`);
+  L.push('copiano quando capita il caso raro, senza occupare uno slot nel telefono. L\'app ne accetta');
+  L.push(`${WA.LIMITS.total} in tutto, ma installarne 50 significa non trovare più quella giusta:`);
+  L.push('meglio poche, sapute a memoria.');
   L.push('');
 
   // ---------------------------------------------------------------- il metodo
@@ -89,12 +87,12 @@ export function renderDoc() {
   L.push('');
   L.push('Apri **`/risposte`** sul telefono (o sul computer, è la stessa pagina): ogni risposta ha');
   L.push('il tasto **Copia**. Copia → incolla nell\'app → scorciatoia → avanti.');
-  L.push('Sono ~25 minuti per tutte; se non li hai adesso, installa solo la prima fila qui sotto');
-  L.push('e il resto quando capita.');
   L.push('');
-  L.push('### La prima fila (se ne installi solo poche, queste)');
+  L.push(`### Le ${inst.length} da caricare`);
   L.push('');
-  for (const r of star) L.push(`- \`/${r.sc}\` — ${r.title}`);
+  for (const r of inst) L.push(`- \`/${r.sc}\` — ${r.title}`);
+  L.push('');
+  L.push('Tutto il resto è nel mazzo qui sotto: si copia dalla pagina quando serve.');
   L.push('');
 
   // ------------------------------------------------------------- le risposte

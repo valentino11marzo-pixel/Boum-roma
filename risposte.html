@@ -117,8 +117,9 @@
   <header>
     <div class="mark">BOOM · WhatsApp Business</div>
     <h1>Risposte rapide</h1>
-    <p class="lead">Tutto quello che ti serve dire, già scritto. In chat digiti <b>/</b> e la
-      scorciatoia. Qui copi il testo e lo incolli nell'app una volta sola — poi non ci pensi più.
+    <p class="lead"><b>Carichi 14 risposte nell'app, una volta sola.</b> Poi in chat digiti
+      <b>/</b> e la scorciatoia, e il messaggio è già scritto. Le altre restano qui: quando
+      serve un caso raro, cerchi e copi al volo — senza occupare uno slot nel telefono.
       <span id="hdr-n"></span></p>
   </header>
 
@@ -143,12 +144,13 @@
       <li><b>Desktop o Web</b> → ⚙️ → <i>Strumenti per l'attività</i> → <b>Risposte rapide</b>.
         È la via più veloce per caricarle tutte: si incolla con Ctrl+V invece di digitare sul telefono,
         e si sincronizzano poi sul telefono da sole.</li>
-      <li>Per ognuna: <b>Copia</b> qui → incolla il messaggio → scrivi la scorciatoia (senza la barra) → salva.</li>
+      <li>Per ognuna: <b>Copia</b> qui → incolla il messaggio → scrivi la scorciatoia (senza la barra) → salva.
+        <b>Sono 14</b>, circa 10 minuti in tutto.</li>
     </ol>
     <div class="note">
-      <b>Non farle tutte adesso.</b> Installa le <span style="color:var(--gold)">⭐ prima fila</span>
-      (il filtro è nella barra qui sopra): sono quelle che userai ogni giorno. Il tasto ✓ su ogni
-      scheda ricorda quali hai già caricato, così puoi finire in un secondo momento senza ricominciare.
+      <b>Ne carichi 14, non 50.</b> Sono quelle che useresti questa settimana — le altre 38 vivono
+      qui e si copiano quando capita il caso raro (Réunion, ricercatori, link di firma…). Il tasto ✓
+      su ogni scheda ricorda quali hai già caricato, così puoi finire in un secondo momento.
     </div>
     <div class="note">
       <b>Le tre regole che le rendono universali.</b>
@@ -223,14 +225,14 @@
   }
 
   /* ---------------- filtri ---------------- */
-  var fam = 'all', q = '';
+  var fam = 'install', q = '';
   var chips = document.getElementById('chips');
-  var defs = [{k:'all',l:'Tutte'},{k:'star',l:'⭐ Prima fila'}].concat(
+  var defs = [{k:'install',l:'🔧 Da installare'},{k:'all',l:'Tutte'}].concat(
     WA.FAMILIES.map(function(f){ return {k:f.key, l:f.label.split(' · ')[0], full:f.label}; })
   );
   defs.forEach(function(d){
     var b = document.createElement('button');
-    b.className = 'chip' + (d.k === 'all' ? ' on' : '');
+    b.className = 'chip' + (d.k === 'install' ? ' on' : '');
     b.textContent = d.l; b.dataset.k = d.k;
     b.onclick = function(){
       fam = d.k;
@@ -244,7 +246,7 @@
   });
 
   function matches(r){
-    if (fam === 'star' ? !r.star : (fam !== 'all' && r.fam !== fam)) return false;
+    if (fam === 'install' ? !!r.bench : (fam !== 'all' && r.fam !== fam)) return false;
     if (!q) return true;
     return (r.sc + ' ' + r.title + ' ' + r.when + ' ' + r.text).toLowerCase().indexOf(q) >= 0;
   }
@@ -289,9 +291,10 @@
     var caricate = WA.REPLIES.filter(function(r){ return done[r.sc]; }).length;
     var daInstallare = WA.installed().length;
     document.getElementById('count').textContent =
-      shown.length + ' di ' + WA.REPLIES.length + ' risposte'
-      + (caricate ? ' · ' + caricate + ' già caricate' : '')
-      + ' · ' + (WA.LIMITS.total - daInstallare) + ' slot liberi nell\'app';
+      (fam === 'install'
+        ? daInstallare + ' da caricare nell\'app · ~10 minuti in tutto'
+        : shown.length + ' di ' + WA.REPLIES.length + ' nel mazzo')
+      + (caricate ? ' · ' + caricate + ' fatte' : '');
     if (!shown.length) { list.innerHTML = '<div class="empty">Nessuna risposta per questa ricerca.</div>'; return; }
 
     WA.FAMILIES.forEach(function(f){

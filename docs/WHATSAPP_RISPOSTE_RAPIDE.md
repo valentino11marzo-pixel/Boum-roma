@@ -5,11 +5,12 @@
 > I testi vivono in una copia sola, letta anche dalla pagina `/risposte`
 > (da cui si copiano col pollice) e dai test.
 
-**52 risposte**, di cui **49 da installare** nell'app (il tetto è 50: restano 1 slot liberi).
+**14 risposte da caricare nell'app** — circa 10 minuti, una volta sola.
 
-Le altre 3 sono **in panchina**: vivono qui e su `/risposte`, si copiano
-quando servono, e non occupano uno slot — sono i casi rari, che non meritano un posto
-nel telefono ma nemmeno di sparire.
+Le altre 38 restano nel mazzo: vivono qui e su `/risposte`, si cercano e si
+copiano quando capita il caso raro, senza occupare uno slot nel telefono. L'app ne accetta
+50 in tutto, ma installarne 50 significa non trovare più quella giusta:
+meglio poche, sapute a memoria.
 
 ## Come funzionano (il minimo da sapere)
 
@@ -59,10 +60,8 @@ Si sincronizzano poi sul telefono da sole.
 
 Apri **`/risposte`** sul telefono (o sul computer, è la stessa pagina): ogni risposta ha
 il tasto **Copia**. Copia → incolla nell'app → scorciatoia → avanti.
-Sono ~25 minuti per tutte; se non li hai adesso, installa solo la prima fila qui sotto
-e il resto quando capita.
 
-### La prima fila (se ne installi solo poche, queste)
+### Le 14 da caricare
 
 - `/enhi` — Prima risposta a chi scrive per una casa
 - `/enhomes` — Il catalogo — tre modi di guardarlo
@@ -71,11 +70,15 @@ e il resto quando capita.
 - `/endocs` — Che documenti servono
 - `/enwho` — Chi può abitarci: coppia, amici, figli, animali
 - `/enfeat` — Arredato? lavatrice, aria condizionata, ascensore
-- `/enguide` — Le guide gratuite (fiducia, zero costo)
 - `/entrust` — "Come faccio a fidarmi?" — la verifica in 2 minuti
-- `/enrev` — Chiedere la recensione Google
+- `/enpay` — Come si paga il canone (le tre vie)
+- `/enfix` — Guasto o manutenzione
+- `/itciao` — Prima risposta in italiano
+- `/itcosti` — I costi, tutti
 - `/prciao` — Primo contatto col proprietario
 - `/prcanone` — Canone concordato — il calcolo gratis
+
+Tutto il resto è nel mazzo qui sotto: si copia dalla pagina quando serve.
 
 ---
 
@@ -156,7 +159,7 @@ The slot is held for you and I confirm within a few hours. If you want a specifi
 ```
 <sub>Pronta così com'è — 332 caratteri</sub>
 
-#### `/envideo` · Visita video su una casa NON nostra (€89)
+#### `/envideo` · Visita video su una casa NON nostra (€89) · 🪑 panchina
 
 **Quando:** Ha trovato un annuncio altrove e non è a Roma. Si vende da sé: la sola alternativa è fidarsi delle foto del proprietario.
 
@@ -187,7 +190,7 @@ Phone photos are fine, send them here whenever you like. And nothing is paid bef
 ```
 <sub>Pronta così com'è — 459 caratteri</sub>
 
-#### `/enapply` · Come si chiude — i quattro passi
+#### `/enapply` · Come si chiude — i quattro passi · 🪑 panchina
 
 **Quando:** Gli piace una casa e chiede "e adesso?". Togli l'ansia mostrando che è tutto online e in ordine.
 
@@ -238,7 +241,7 @@ The three that vary most from flat to flat are air conditioning, lift and washin
 ```
 <sub>Pronta così com'è — 560 caratteri</sub>
 
-#### `/endeal` · Si può trattare sul prezzo
+#### `/endeal` · Si può trattare sul prezzo · 🪑 panchina
 
 **Quando:** 20 conversazioni. Una risposta netta e uguale per tutti vale più di uno sconto: dice che il prezzo non dipende da quanto insisti.
 
@@ -253,7 +256,7 @@ And if the flat is someone else's listing, negotiating it is exactly what we do 
 ```
 <sub>Pronta così com'è — 613 caratteri</sub>
 
-#### `/enres` · Posso prendere la residenza?
+#### `/enres` · Posso prendere la residenza? · 🪑 panchina
 
 **Quando:** 17 conversazioni, e per chi la chiede è spesso decisiva (tessera sanitaria, permesso, vita normale). Meglio dirlo prima della firma che scoprirlo dopo.
 
@@ -268,7 +271,7 @@ The whole bureaucracy, step by step: https://www.boomrome.com/welcome-to-rome
 ```
 <sub>Pronta così com'è — 675 caratteri</sub>
 
-#### `/enfind` · Property Finding — cerchiamo noi (€350)
+#### `/enfind` · Property Finding — cerchiamo noi (€350) · 🪑 panchina
 
 **Quando:** Quando il catalogo non basta. Da usare SEMPRE prima di lasciarlo andare: è la differenza fra un no e un incarico.
 
@@ -285,7 +288,7 @@ Want me to set up your brief now?
 ```
 <sub>Pronta così com'è — 458 caratteri</sub>
 
-#### `/enremote` · Chiudere da fuori Italia (€299)
+#### `/enremote` · Chiudere da fuori Italia (€299) · 🪑 panchina
 
 **Quando:** Arriva a settembre e vuole la casa prima di atterrare. Il pacchetto che risolve la paura di firmare a distanza.
 
@@ -305,7 +308,7 @@ https://www.boomrome.com/remote-move-pack
 ```
 <sub>Pronta così com'è — 463 caratteri</sub>
 
-#### `/encheck` · Controllo del contratto (gratis · €49 · €249)
+#### `/encheck` · Controllo del contratto (gratis · €49 · €249) · 🪑 panchina
 
 **Quando:** Ha un contratto in mano, di chiunque. Il livello gratuito apre la porta: molti tornano per il resto.
 
@@ -320,7 +323,7 @@ Send the PDF here and I'll tell you which one you actually need.
 ```
 <sub>Pronta così com'è — 479 caratteri</sub>
 
-#### `/endep` · Deposito trattenuto — lettera gratis o €99
+#### `/endep` · Deposito trattenuto — lettera gratis o €99 · 🪑 panchina
 
 **Quando:** Anche a chi non è mai stato cliente. È il servizio che genera passaparola: risolvi un torto che nessuno gli risolve.
 
@@ -337,7 +340,7 @@ How much are they holding, and what's their reason?
 ```
 <sub>Pronta così com'è — 581 caratteri</sub>
 
-#### `/enconc` · Burocrazia e arrivo (da €15 · pacchetto da €390)
+#### `/enconc` · Burocrazia e arrivo (da €15 · pacchetto da €390) · 🪑 panchina
 
 **Quando:** La parte che spaventa più dell'affitto. Da mandare anche a chi la casa l'ha già trovata altrove.
 
@@ -357,7 +360,7 @@ Which of these do you need first?
 ```
 <sub>Pronta così com'è — 427 caratteri</sub>
 
-#### `/enguide` · Le guide gratuite (fiducia, zero costo) ⭐
+#### `/enguide` · Le guide gratuite (fiducia, zero costo) · 🪑 panchina
 
 **Quando:** Chi è ancora freddo, o chiede consigli senza comprare. Regalare valore vero è il modo più economico di restare in testa.
 
@@ -373,7 +376,7 @@ Read them before you talk to any agency, including us.
 ```
 <sub>Pronta così com'è — 428 caratteri</sub>
 
-#### `/ennone` · Non abbiamo niente per lui (le tre uscite)
+#### `/ennone` · Non abbiamo niente per lui (le tre uscite) · 🪑 panchina
 
 **Quando:** Mai dire solo "no". Un no nudo chiude la conversazione, un no con tre porte la tiene aperta per mesi.
 
@@ -389,7 +392,7 @@ Which one?
 ```
 <sub>Da riempire: [ZONA / CASA] — 477 caratteri</sub>
 
-#### `/enstud` · Studenti internazionali
+#### `/enstud` · Studenti internazionali · 🪑 panchina
 
 **Quando:** LUISS, Sapienza, John Cabot, Roma Tre, LUMSA. Parla di tragitto e di contratto, che sono le due cose che contano.
 
@@ -405,7 +408,7 @@ Which university, and from when?
 ```
 <sub>Pronta così com'è — 517 caratteri</sub>
 
-#### `/enexec` · Professionista in trasferta (ONU, ambasciate, aziende)
+#### `/enexec` · Professionista in trasferta (ONU, ambasciate, aziende) · 🪑 panchina
 
 **Quando:** Chi arriva per lavoro 1–18 mesi. Qui la casa è il minimo: quello che compra è la carta che il datore accetta.
 
@@ -439,7 +442,7 @@ https://www.boomrome.com/about
 ```
 <sub>Pronta così com'è — 512 caratteri</sub>
 
-#### `/enwait` · "Ci sto lavorando" — il messaggio che compra tempo
+#### `/enwait` · "Ci sto lavorando" — il messaggio che compra tempo · 🪑 panchina
 
 **Quando:** Quando non puoi rispondere bene adesso. Un'attesa annunciata non è un'attesa: il silenzio sì.
 
@@ -454,7 +457,7 @@ If it's urgent, just write "urgent" and I'll jump it up the queue.
 
 *Dopo le chiavi: canone, guasti, manuale, recensione, uscita.*
 
-#### `/enpay` · Come si paga il canone (le tre vie)
+#### `/enpay` · Come si paga il canone (le tre vie) ⭐
 
 **Quando:** Primo mese e ogni volta che qualcuno chiede. Spingi il bonifico o l'addebito automatico: ti costano meno e non si dimenticano.
 
@@ -472,7 +475,7 @@ Cheapest is the transfer, calmest is the direct debit. Want me to set the automa
 ```
 <sub>Pronta così com'è — 494 caratteri</sub>
 
-#### `/enlate` · Sollecito gentile (canone in ritardo)
+#### `/enlate` · Sollecito gentile (canone in ritardo) · 🪑 panchina
 
 **Quando:** Dopo qualche giorno. Il tono è tutto: chiedere invece di accusare tiene il rapporto e fa arrivare i soldi comunque.
 
@@ -485,7 +488,7 @@ And if something has come up, tell me now: there's almost always a way to arrang
 ```
 <sub>Da riempire: [NOME] · [MESE] — 320 caratteri</sub>
 
-#### `/enfix` · Guasto o manutenzione
+#### `/enfix` · Guasto o manutenzione ⭐
 
 **Quando:** Prima segnalazione. Le tre domande evitano il ping-pong e ti dicono subito se devi muoverti oggi.
 
@@ -501,7 +504,7 @@ If it's urgent, call me. Don't wait for a reply here.
 ```
 <sub>Pronta così com'è — 365 caratteri</sub>
 
-#### `/enkeys` · Giorno delle chiavi — cosa succede
+#### `/enkeys` · Giorno delle chiavi — cosa succede · 🪑 panchina
 
 **Quando:** Il giorno prima della consegna. Anticipare il verbale evita ogni discussione sul deposito, un anno dopo.
 
@@ -514,7 +517,7 @@ Bring your ID. Anything you want checked before we sign?
 ```
 <sub>Da riempire: [DATA] · [ORA] · [INDIRIZZO] — 420 caratteri</sub>
 
-#### `/enhome` · Manuale della casa (wifi, rifiuti, quartiere)
+#### `/enhome` · Manuale della casa (wifi, rifiuti, quartiere) · 🪑 panchina
 
 **Quando:** Subito dopo le chiavi, e ogni volta che chiedono la password del wifi o il giorno della differenziata.
 
@@ -529,7 +532,7 @@ If something isn't in there, ask me and I'll add it.
 ```
 <sub>Pronta così com'è — 361 caratteri</sub>
 
-#### `/enrev` · Chiedere la recensione Google ⭐
+#### `/enrev` · Chiedere la recensione Google · 🪑 panchina
 
 **Quando:** Da mandare quando è contento e ha già le chiavi: dopo il primo mese, o dopo che gli hai risolto un problema.
 
@@ -544,7 +547,7 @@ It takes a minute. And if something wasn't right, tell me first — I'd much rat
 ```
 <sub>Da riempire: [NOME] — 328 caratteri</sub>
 
-#### `/enrefer` · Referral — €50 a te, €50 a chi arriva
+#### `/enrefer` · Referral — €50 a te, €50 a chi arriva · 🪑 panchina
 
 **Quando:** Nella stessa settimana della recensione, non nello stesso messaggio. Gli inquilini contenti sono il canale che costa zero.
 
@@ -559,7 +562,7 @@ No catch, no expiry — and they get exactly the treatment you got.
 ```
 <sub>Pronta così com'è — 279 caratteri</sub>
 
-#### `/enend` · Fine contratto, uscita e deposito
+#### `/enend` · Fine contratto, uscita e deposito · 🪑 panchina
 
 **Quando:** Da mandare tu, prima che lo chieda lui. Chi sa come uscirà è anche chi rinnova più volentieri.
 
@@ -580,7 +583,7 @@ Or would you rather renew? Tell me now and I'll hold it for you.
 
 *Chi scrive in italiano. Stesse cose, altra lingua.*
 
-#### `/itciao` · Prima risposta in italiano
+#### `/itciao` · Prima risposta in italiano ⭐
 
 **Quando:** Chi scrive in italiano. Stessa struttura dell'inglese: chiudi chiedendo le tre informazioni.
 
@@ -600,7 +603,7 @@ Mi dici le tue tre?
 ```
 <sub>Da riempire: [NOME] — 481 caratteri</sub>
 
-#### `/itcase` · Il catalogo in italiano
+#### `/itcase` · Il catalogo in italiano · 🪑 panchina
 
 **Quando:** "Cosa avete disponibile?" — manda le pagine, non gli screenshot.
 
@@ -619,7 +622,7 @@ Dimmi quali due ti interessano e controllo gli orari.
 ```
 <sub>Pronta così com'è — 438 caratteri</sub>
 
-#### `/itcosti` · I costi, tutti
+#### `/itcosti` · I costi, tutti ⭐
 
 **Quando:** La domanda che decide. Rispondi con ogni voce: quello che nascondi oggi diventa una lite fra due mesi.
 
@@ -637,7 +640,7 @@ Le visite sono gratuite. Nessun costo di pratica, nessun canone di servizio.
 ```
 <sub>Pronta così com'è — 490 caratteri</sub>
 
-#### `/itvisita` · Prenota la visita (italiano)
+#### `/itvisita` · Prenota la visita (italiano) · 🪑 panchina
 
 **Quando:** Appena c'è interesse. Gli orari nel link sono quelli davvero liberi della tua settimana.
 
@@ -651,7 +654,7 @@ Lo slot resta tenuto per te e ti confermo entro poche ore.
 ```
 <sub>Pronta così com'è — 259 caratteri</sub>
 
-#### `/itdoc` · Documenti richiesti (italiano)
+#### `/itdoc` · Documenti richiesti (italiano) · 🪑 panchina
 
 **Quando:** Darla per intero e in anticipo: nessuna richiesta a sorpresa dopo il sì.
 
@@ -686,7 +689,7 @@ Mi dice dov'è l'immobile, quanti metri quadri e se è arredato? Le dico a quant
 ```
 <sub>Da riempire: [NOME] — 469 caratteri</sub>
 
-#### `/prgest` · Cosa facciamo per lui (la gestione)
+#### `/prgest` · Cosa facciamo per lui (la gestione) · 🪑 panchina
 
 **Quando:** Quando chiede "ma voi cosa fate esattamente?". Ogni riga è una cosa che altrimenti farebbe lui.
 
@@ -719,7 +722,7 @@ Mi manda zona, metri quadri e piano e glielo calcolo io in due minuti.
 ```
 <sub>Pronta così com'è — 410 caratteri</sub>
 
-#### `/prpack` · Pacchetto concordato chiavi in mano (€349)
+#### `/prpack` · Pacchetto concordato chiavi in mano (€349) · 🪑 panchina
 
 **Quando:** Dopo il calcolo, quando ha visto il risparmio ma non ha voglia della pratica. Che è sempre.
 
@@ -734,7 +737,7 @@ Di solito il risparmio del primo anno supera il costo: se vuole glielo calcolo s
 ```
 <sub>Pronta così com'è — 446 caratteri</sub>
 
-#### `/prdoc` · Documenti dell'immobile
+#### `/prdoc` · Documenti dell'immobile · 🪑 panchina
 
 **Quando:** Dopo il sì. Chiederli tutti in una volta, spiegando che le foto col telefono bastano, li fa arrivare davvero.
 
@@ -751,7 +754,7 @@ Le foto dei documenti fatte col telefono vanno bene. Li carico io nel fascicolo 
 ```
 <sub>Pronta così com'è — 512 caratteri</sub>
 
-#### `/prfoto` · Sopralluogo, foto e video
+#### `/prfoto` · Sopralluogo, foto e video · 🪑 panchina
 
 **Quando:** Per fissare la visita tecnica. La frase sullo sfitto è quella che convince a preparare la casa come si deve.
 
@@ -764,7 +767,7 @@ Le va bene [DATA] alle [ORA]?
 ```
 <sub>Da riempire: [DATA] · [ORA] — 380 caratteri</sub>
 
-#### `/prconto` · Rendiconto e scadenze fiscali
+#### `/prconto` · Rendiconto e scadenze fiscali · 🪑 panchina
 
 **Quando:** Da mandare al primo mese di gestione: è ciò che trasforma un proprietario diffidente in uno che ti lascia fare.
 
@@ -781,7 +784,7 @@ Se le serve un documento in qualsiasi momento me lo chieda qui: glielo mando in 
 
 *HR, università, centri di ricerca. Voce business: mai "ti va una visita?".*
 
-#### `/azimpresa` · Aziende che spostano personale
+#### `/azimpresa` · Aziende che spostano personale · 🪑 panchina
 
 **Quando:** HR o mobility manager. Voce business: nessun "ti va una visita?", si parla di fattura e di persone che atterrano.
 
@@ -799,7 +802,7 @@ How many people, and when do they land? (Possiamo parlarne in italiano, se prefe
 ```
 <sub>Pronta così com'è — 495 caratteri</sub>
 
-#### `/azuni` · Università e international office
+#### `/azuni` · Università e international office · 🪑 panchina
 
 **Quando:** Il canale che costa zero e porta studenti a ondate. Il valore per loro è non essere quelli che hanno consigliato un truffatore.
 
@@ -867,7 +870,7 @@ Envoyez-moi l'annonce.
 
 *Le risposte che accompagnano un link generato dal portale o dal bot. Il testo è fisso, il link lo incolli.*
 
-#### `/opvisit` · Visita confermata + link personale
+#### `/opvisit` · Visita confermata + link personale · 🪑 panchina
 
 **Quando:** Dopo aver confermato dal portale o da Telegram. Il [LINK] è la pagina della visita del cliente.
 
@@ -881,7 +884,7 @@ If you're running late just write here. Ten minutes is never a problem; silence 
 ```
 <sub>Da riempire: [NOME] · [DATA] · [ORA] · [INDIRIZZO O LINK VIDEO] · [LINK] — 283 caratteri</sub>
 
-#### `/opsched` · Link della Scheda (anagrafica + documento)
+#### `/opsched` · Link della Scheda (anagrafica + documento) · 🪑 panchina
 
 **Quando:** Per raccogliere dati e documento senza rincorrere nessuno. Il link lo generi dal portale (Share Hub).
 
@@ -894,7 +897,7 @@ Nothing is published and nothing is shared: it goes into your file with us, and 
 ```
 <sub>Da riempire: [NOME] · [LINK] — 331 caratteri</sub>
 
-#### `/opsign` · Invito alla firma (English)
+#### `/opsign` · Invito alla firma (English) · 🪑 panchina
 
 **Quando:** Con il link Magic Sign dell'inquilino. La riga finale ti evita le correzioni dopo la registrazione.
 
@@ -909,7 +912,7 @@ If anything in there should change, tell me BEFORE you sign: afterwards it's a r
 ```
 <sub>Da riempire: [NOME] · [LINK] — 378 caratteri</sub>
 
-#### `/opfirma` · Invito alla firma (italiano, proprietario)
+#### `/opfirma` · Invito alla firma (italiano, proprietario) · 🪑 panchina
 
 **Quando:** Con il link di firma del locatore. Lui firma dopo l'inquilino: il link gli arriva quando tocca a lui.
 
@@ -924,7 +927,7 @@ Se c'è qualcosa da correggere me lo dica PRIMA di firmare: dopo è un atto regi
 ```
 <sub>Da riempire: [NOME] · [LINK] — 323 caratteri</sub>
 
-#### `/oppay` · Link di pagamento
+#### `/oppay` · Link di pagamento · 🪑 panchina
 
 **Quando:** Per una rata o una fattura. Il link si genera dal portale (💳 sulla riga) e resta valido nel tempo.
 
