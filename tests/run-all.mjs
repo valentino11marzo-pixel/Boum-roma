@@ -52,6 +52,7 @@ const SUITES = [
   { name: 'verbale',  file: 'tests/verbale/run.mjs',      what: 'verbale consegna chiavi: PDF vero in allegato alle parti, owner solo sui propri immobili, firme mai persistite come dataURI' },
   { name: 'rendiconto', file: 'tests/rendiconto/run.mjs', what: 'rendiconto proprietario: solo il mese giusto nei numeri, PDF in allegato, un rerun non rispedisce, senza email mai perso in silenzio' },
   { name: 'conservazione', file: 'tests/conservazione/run.mjs', what: 'archivio fuori piattaforma: lo ZIP contiene i byte veri, il mancante finisce nell\'INDICE, un rerun non rispedisce' },
+  { name: 'backup',   file: 'tests/backup/run.mjs',       what: 'il backup del database: le collezioni core, il manifest che dice la verità sul troncamento, cron+regola Storage+heartbeat, e i due cron ciechi ora col battito' },
   { name: 'reunion',  file: 'tests/reunion/run.mjs',      what: 'BOOM La Réunion: il lead dice sempre da che parte sta (proprietario o inquilino), e la macchina romana TACE invece di rispondere in inglese su Roma a chi scrive dall\'isola' },
   { name: 'executive', file: 'tests/executive/run.mjs',   what: 'BOOM Executive: il professionista in trasferta è un TENANT (macchina piena), il datore dichiarato non è un honeypot, e la voce B2B tace col tenant e parla con l\'ente — prima della spesa' },
   { name: 'feed',     file: 'tests/feed/run.mjs',         what: 'feed Immobiliare: solo il pubblicabile, identità e date da specifica, la precisione del pin non si spaccia, gzip vero' },

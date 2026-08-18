@@ -644,6 +644,9 @@
     "api/reminder-cron.js": {
       "maxDuration": 60
     },
+    "api/ops/backup.js": {
+      "maxDuration": 60
+    },
     "api/stripe-webhook.js": {
       "maxDuration": 60
     },
@@ -740,6 +743,10 @@
     {
       "path": "/api/reminder-cron",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/ops/backup",
+      "schedule": "50 4 * * *"
     },
     {
       "path": "/api/telegram/notify-pending",

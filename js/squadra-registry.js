@@ -392,6 +392,26 @@
       health: null,
       console: null, run: '/api/ops/conservazione'
     },
+    {
+      key: 'custode', emoji: '🛡️', name: 'Il Custode', reparto: 'Amministrazione',
+      role: 'Il backup del database, ogni giorno',
+      hired: 'Contratti, pagamenti e mandati SEPA vivono dentro Firebase. Un fsPatch sbagliato o una cancellazione per errore e spariscono per sempre: non c\'era alcun backup (audit 2026-08-18, rischio n.1).',
+      mandate: [
+        'Ogni giorno esporta le collezioni critiche in un JSON gzippato',
+        'Copia completa su Storage (backups/) per il recupero da errore',
+        'Copia CORE fuori piattaforma via email quando sta sotto il limite Gmail'
+      ],
+      autonomy: {
+        solo:  ['Esporta e carica il dump ogni giorno', 'Ti manda il manifest con i conteggi'],
+        porta: ['Il dump stesso'],
+        mai:   ['Non tocca né cancella i dati', 'Non copre il DR totale del progetto: quello è PITR (azione operatore)']
+      },
+      reach: ['archivio', 'operatore', 'file'],
+      approval: 'mai',
+      crons: ['/api/ops/backup'],
+      health: 'teamHealth/backup',
+      console: null, run: '/api/ops/backup'
+    },
 
     /* ── VETRINA — quello che vede il pubblico ────────────────────────── */
     {

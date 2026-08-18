@@ -263,6 +263,14 @@ export default async function handler(req, res) {
     }
   }
 
+  // Heartbeat (audit P1.2): notify-pending gira ogni minuto ed è il canale con
+  // cui l'operatore riceve TUTTO (azioni, lead, visite) sul telefono — era
+  // cieco. Best-effort, mai fatale.
+  try {
+    const { reportEmployeeHealth } = await import('../employees/_lib.js');
+    await reportEmployeeHealth('notify-pending', { ok: true, stats: { pending: pending.length, leads: leads.length, viewings: viewings.length } });
+  } catch { /* non-fatal */ }
+
   return res.status(200).json({
     ok: true,
     scanned: pending.length,
