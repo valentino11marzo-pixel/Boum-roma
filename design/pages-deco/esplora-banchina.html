@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Banchina Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+<style>
+:root {
+  --gold:#FFD700; --gold-light:#FFE55C; --gold-dark:#E5C200;
+  --green:#00FF88; --black:#030303; --void:#060607; --surface:#0B0B0C;
+  --elevated:#121214; --card:#0E0E10; --text:#FAFAFA;
+  --text-2:rgba(250,250,250,.72); --text-3:rgba(250,250,250,.5);
+  --text-4:rgba(250,250,250,.48); --line-0:rgba(255,255,255,.04);
+  --line:rgba(255,255,255,.08); --line-gold:rgba(255,215,0,.14);
+  --line-gold-2:rgba(255,215,0,.3); --oro-flap:#FFE55C;
+  --ease:cubic-bezier(.16,1,.3,1);
+  --molla:cubic-bezier(.3,1.45,.5,1);
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  --display:'Helvetica Neue',Helvetica,Arial,sans-serif;
+  color-scheme:dark;
+}
+*,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--black); color:var(--text); font-family:var(--sans);
+  font-weight:300; font-size:16px; line-height:1.6;
+  -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+body::before { content:''; position:fixed; inset:0; opacity:.014;
+  pointer-events:none; z-index:9999;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E"); }
+a { color:inherit; text-decoration:none; }
+.container { width:100%; max-width:1360px; margin:0 auto;
+  padding:0 clamp(18px,3vw,40px); }
+
+/* ── il telaio del laboratorio ── */
+.lab-capo { padding:clamp(56px,8vh,96px) 0 clamp(20px,3vw,36px); }
+.lab-capo .eti { font-size:10px; font-weight:600; letter-spacing:.26em;
+  text-transform:uppercase; color:var(--gold); }
+.lab-capo h1 { margin-top:14px; font-family:var(--display); font-weight:200;
+  font-size:clamp(30px,4.4vw,52px); line-height:1.08; letter-spacing:-.02em;
+  max-width:24ch; }
+.lab-capo h1 b { color:var(--gold); font-weight:300; }
+.lab-capo p { margin-top:14px; max-width:64ch; font-size:14px;
+  color:var(--text-3); }
+.palco { padding:clamp(36px,5vw,64px) 0; border-top:1px solid var(--line-0); }
+.palco-testa { display:flex; align-items:baseline; gap:16px; flex-wrap:wrap;
+  margin-bottom:8px; }
+.palco-testa .lettera { font-family:var(--display); font-weight:200;
+  font-size:clamp(34px,4vw,48px); color:var(--gold); line-height:1; }
+.palco-testa h2 { font-family:var(--display); font-weight:250;
+  font-size:clamp(21px,2.6vw,30px); letter-spacing:-.01em; }
+.palco-testa .regola { width:100%; font-size:12.5px; color:var(--text-3);
+  max-width:78ch; line-height:1.65; }
+.palco-testa .regola b { color:var(--text-2); font-weight:500; }
+.verdetto { margin-top:clamp(18px,2.4vw,26px); display:grid; gap:6px 22px;
+  grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); font-size:12px;
+  color:var(--text-3); line-height:1.6; }
+.verdetto b { color:var(--gold); font-weight:600; font-size:10px;
+  letter-spacing:.18em; text-transform:uppercase; display:block;
+  margin-bottom:2px; }
+.demo { margin-top:clamp(20px,2.8vw,32px); }
+
+/* i mattoni comuni: tessere Solari + chip segnale (dal sito) */
+.tess { display:inline-flex; gap:3px; }
+.tess i { font-style:normal; width:16px; height:20px; display:grid;
+  place-items:center; border-radius:4px; background:#040404;
+  color:var(--gold); font-size:11px; font-weight:500;
+  font-variant-numeric:tabular-nums; position:relative;
+  box-shadow:inset 0 0 0 1px rgba(239,235,223,.07),0 1px 3px rgba(0,0,0,.5); }
+.tess i::after { content:''; position:absolute; left:1px; right:1px; top:50%;
+  height:1px; background:rgba(3,3,3,.85); }
+.pflap { display:inline-flex; align-items:center; gap:2.5px; }
+.pflap em { font-style:normal; font-family:var(--display); font-size:13px;
+  font-weight:400; color:var(--gold); opacity:.9; margin-right:2px; }
+.pflap i { font-style:normal; font-family:var(--display); width:22px;
+  height:30px; display:grid; place-items:center; border-radius:5px;
+  background:#040404; color:var(--oro-flap); font-size:18px; font-weight:400;
+  font-variant-numeric:tabular-nums; position:relative;
+  box-shadow:inset 0 0 0 1px rgba(239,235,223,.07),0 2px 5px rgba(0,0,0,.55); }
+.pflap i::after { content:''; position:absolute; left:1px; right:1px;
+  top:50%; height:1px; background:rgba(3,3,3,.85); }
+.chip { display:inline-flex; align-items:center; gap:5px; padding:4px 9px;
+  border-radius:100px; font-size:8.5px; font-weight:700; letter-spacing:.15em;
+  text-transform:uppercase; color:var(--text-3);
+  box-shadow:inset 0 0 0 1px var(--line); white-space:nowrap; flex:none; }
+.chip.viva { color:var(--green); box-shadow:inset 0 0 0 1px rgba(0,255,136,.28); }
+.chip.viva b { width:5px; height:5px; border-radius:50%; background:var(--green);
+  animation:pulse 2.2s ease infinite; }
+@keyframes pulse { 50% { opacity:.35; } }
+.chip.oro { color:#141005; background:var(--gold); box-shadow:none; }
+.sg { width:19px; height:19px; color:var(--gold); fill:none;
+  stroke:currentColor; stroke-width:1.5; stroke-linecap:round;
+  stroke-linejoin:round; }
+.sg .acc { opacity:.55; } .sg .pieno { fill:var(--gold); stroke:none; }
+
+/* ══ A · LA CARTA D'IMBARCO ═══════════════════════════════════════════ */
+.pa-griglia { display:grid; grid-template-columns:1.22fr 1fr;
+  gap:clamp(18px,2.6vw,30px); align-items:stretch; }
+@media (max-width:900px){ .pa-griglia { grid-template-columns:1fr; } }
+.pa-pila { display:grid; gap:clamp(14px,1.8vw,18px); }
+
+.pass { position:relative; display:flex; flex-direction:column;
+  background:linear-gradient(155deg,#141418,#09090B);
+  border-radius:18px; overflow:hidden;
+  box-shadow:inset 0 0 0 1px var(--line-gold),
+    0 34px 70px -32px rgba(0,0,0,.95);
+  transition:transform .5s var(--ease), box-shadow .5s var(--ease); }
+.pass:hover { transform:translateY(-5px);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2),
+    0 44px 80px -30px rgba(0,0,0,.95); }
+.pass-testa { display:flex; align-items:center; justify-content:space-between;
+  gap:10px; padding:14px 18px 12px; }
+.pass-testa .marchio { display:inline-flex; align-items:center; gap:9px;
+  font-family:var(--display); font-size:10.5px; font-weight:400;
+  letter-spacing:.26em; text-indent:.26em; text-transform:uppercase;
+  color:var(--text-3); }
+.pass-testa .marchio .tess { margin-left:2px; }
+.pass-corpo { padding:6px 18px 16px; display:flex; flex-direction:column;
+  gap:0; flex:1; }
+.pass-corpo .caso { font-family:var(--display); font-weight:300;
+  font-size:18px; line-height:1.26; letter-spacing:-.005em; }
+.pass-corpo .fa { margin-top:6px; font-size:11.5px; line-height:1.5;
+  color:var(--text-4); }
+.pass-corpo .serv { margin-top:10px; font-size:10px; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--gold); }
+.pass-corpo .serv i { display:inline-block; font-style:normal;
+  margin-left:6px; transition:transform .35s var(--ease); }
+.pass:hover .pass-corpo .serv i { transform:translateX(4px); }
+.pass-rotta { margin-top:auto; padding-top:18px; display:flex;
+  align-items:flex-end; gap:16px; }
+.pass-rotta .campo { min-width:0; }
+.pass-rotta .campo b { display:block; font-size:8.5px; font-weight:600;
+  letter-spacing:.2em; text-transform:uppercase; color:var(--text-4);
+  margin-bottom:3px; }
+.pass-rotta .campo span { font-family:var(--display); font-weight:300;
+  font-size:16px; line-height:1.2; white-space:nowrap; }
+.pass-rotta .campo:last-child { text-align:right; }
+.pass-rotta .campo:last-child span { color:var(--gold); }
+.pass-rotta .aereo { flex:1; position:relative; height:1px;
+  border-top:1px dashed rgba(255,215,0,.3); margin-bottom:9px; }
+.pass-rotta .aereo i { position:absolute; top:-8px; left:50%;
+  transform:translateX(-50%); font-style:normal; color:var(--gold);
+  font-size:11px; line-height:1; background:inherit; padding:0 6px; }
+/* la perforazione: il pass si strappa qui — e i fori bucano davvero */
+.perfo { position:relative; height:1px; margin:2px 0 0;
+  border-top:1.5px dashed rgba(255,215,0,.22); }
+.perfo::before, .perfo::after { content:''; position:absolute; top:-10px;
+  width:20px; height:20px; border-radius:50%; background:var(--black);
+  box-shadow:inset 0 0 0 1px var(--line-gold); }
+.perfo::before { left:-10px; } .perfo::after { right:-10px; }
+.pass-stub { display:flex; align-items:center; justify-content:space-between;
+  gap:12px; padding:13px 18px 15px; }
+.pass-stub .dice { font-size:10.5px; line-height:1.45; color:var(--text-4);
+  flex:1; min-width:0; }
+.pass-stub .codice { font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:9px; letter-spacing:.22em; color:var(--text-4); opacity:.7; }
+
+/* l'ammiraglia: il pass grande, emesso storto come un biglietto vero */
+.pass.eroe { transform:rotate(-1.4deg);
+  background:linear-gradient(150deg,#17150c 0%,#121214 42%,#09090B 100%);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2),
+    0 50px 100px -36px rgba(0,0,0,.98), 0 0 90px -40px rgba(255,215,0,.28); }
+.pass.eroe:hover { transform:rotate(0deg) translateY(-5px); }
+.pass.eroe .pass-testa { padding:18px 24px 14px; }
+.pass.eroe .pass-corpo { padding:8px 24px 22px; }
+.pass.eroe .pass-stub { padding:16px 24px 18px; }
+.pass.eroe .caso { font-size:clamp(26px,2.9vw,36px); max-width:16ch; }
+.pass-lista { margin-top:18px; display:grid; gap:9px; }
+.pass-lista span { position:relative; padding-left:22px; font-size:12.5px;
+  line-height:1.5; color:var(--text-2); }
+.pass-lista span::before { content:'✓'; position:absolute; left:0; top:0;
+  color:var(--gold); font-size:12px; }
+.pass.eroe .fa { font-size:12.5px; color:var(--text-3); max-width:46ch; }
+.pass.eroe .serv { margin-top:18px; }
+.pass.eroe .pflap i { width:27px; height:37px; font-size:23px; }
+.pass.eroe .pflap em { font-size:16px; }
+.pass .fascia { margin-top:auto; padding:9px 24px; background:var(--gold);
+  color:#141005; font-size:10px; font-weight:700; letter-spacing:.18em;
+  text-transform:uppercase; display:flex; align-items:center; gap:8px; }
+.pass .fascia::before { content:'✓'; font-size:11px; }
+@media (max-width:900px){
+  .pass.eroe { transform:none; }
+  .pass.eroe .caso { font-size:21px; } }
+/* l'emissione: i pass salgono con la molla di Wallet, in sequenza */
+.dentro-a .pass { animation:emesso .8s var(--molla) both; }
+.dentro-a .pass:nth-child(1) { animation-delay:.05s; }
+.pa-pila.dentro-a .pass:nth-child(1) { animation-delay:.18s; }
+.pa-pila.dentro-a .pass:nth-child(2) { animation-delay:.30s; }
+.pa-pila.dentro-a .pass:nth-child(3) { animation-delay:.42s; }
+@keyframes emesso { from { opacity:0; transform:translateY(34px) scale(.97); } }
+.dentro-a .pass.eroe { animation:emessoEroe .9s var(--molla) both .05s; }
+@keyframes emessoEroe {
+  from { opacity:0; transform:translateY(40px) rotate(-4deg) scale(.96); }
+  to { opacity:1; transform:rotate(-1.4deg); } }
+@media (prefers-reduced-motion:reduce){
+  .dentro-a .pass, .dentro-a .pass.eroe { animation:none; } }
+
+/* ══ B · LA VETRINA ═══════════════════════════════════════════════════ */
+.vt-griglia { display:grid; gap:clamp(14px,1.8vw,20px);
+  grid-template-columns:repeat(3,minmax(0,1fr)); }
+.vt-tile.eroe { grid-column:span 3; }
+@media (max-width:900px){
+  .vt-griglia { grid-template-columns:1fr; }
+  .vt-tile.eroe { grid-column:auto; } }
+.vt-tile { position:relative; overflow:hidden; border-radius:24px;
+  background:var(--card); box-shadow:inset 0 0 0 1px var(--line-0);
+  padding:clamp(22px,2.6vw,30px); display:flex; flex-direction:column;
+  transition:transform .45s var(--ease), box-shadow .45s var(--ease); }
+.vt-tile:hover { transform:translateY(-4px);
+  box-shadow:inset 0 0 0 1px var(--line-gold), 0 30px 60px -30px rgba(0,0,0,.9); }
+.vt-tile .alone { position:absolute; inset:-40%; pointer-events:none;
+  background:radial-gradient(46% 42% at 72% 8%, rgba(255,215,0,.10), transparent 68%);
+  opacity:.7; transition:opacity .5s var(--ease); }
+.vt-tile:hover .alone { opacity:1; }
+.vt-disco { position:relative; width:46px; height:46px; border-radius:50%;
+  display:grid; place-items:center; background:rgba(255,215,0,.06);
+  box-shadow:inset 0 0 0 1px var(--line-gold); backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px); }
+.vt-tile h3 { position:relative; margin-top:16px; font-family:var(--display);
+  font-weight:250; font-size:clamp(20px,2.2vw,26px); line-height:1.22;
+  letter-spacing:-.01em; max-width:18ch; }
+.vt-tile p { position:relative; margin-top:8px; font-size:12.5px;
+  line-height:1.6; color:var(--text-3); max-width:44ch; }
+.vt-riga { position:relative; margin-top:auto; padding-top:18px;
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.vt-prezzo { display:inline-flex; align-items:center; gap:8px;
+  min-height:40px; padding:0 18px; border-radius:100px; background:var(--gold);
+  color:#141005; font-size:12.5px; font-weight:600; letter-spacing:.02em;
+  transition:transform .3s var(--ease); }
+.vt-tile:hover .vt-prezzo { transform:scale(1.04); }
+.vt-prezzo small { font-weight:700; opacity:.75; font-size:10px;
+  letter-spacing:.1em; text-transform:uppercase; }
+.vt-nota { font-size:10.5px; color:var(--text-4); flex:1; min-width:0;
+  line-height:1.4; }
+.vt-tile .vt-eti { position:relative; display:flex; align-items:center;
+  justify-content:space-between; gap:10px; margin-bottom:16px; }
+.vt-tile .vt-eti b { font-size:9px; font-weight:600; letter-spacing:.24em;
+  text-transform:uppercase; color:var(--text-4); }
+.vt-tile.eroe { background:linear-gradient(150deg,#16130a, #0E0E10 55%);
+  box-shadow:inset 0 0 0 1px var(--line-gold); }
+.vt-tile.eroe .alone { background:radial-gradient(50% 60% at 82% 20%,
+  rgba(255,215,0,.16), transparent 70%); opacity:1; }
+.vt-tile.eroe h3 { font-size:clamp(26px,3vw,36px); max-width:22ch; }
+.vt-tile.eroe p { font-size:13.5px; color:var(--text-2); max-width:56ch; }
+
+/* ══ C · IL TABELLONE PARTENZE ════════════════════════════════════════ */
+.tb { border:1px solid var(--line-gold); border-radius:16px; overflow:hidden;
+  background:var(--void);
+  box-shadow:0 40px 80px -40px rgba(0,0,0,.9), 0 0 70px -40px rgba(255,215,0,.2); }
+.tb-cima { display:flex; align-items:center; justify-content:space-between;
+  gap:10px; padding:13px 20px; border-bottom:1px solid var(--line-0); }
+.tb-cima b { font-family:var(--display); font-size:11px; font-weight:400;
+  letter-spacing:.3em; text-indent:.3em; text-transform:uppercase;
+  color:var(--text-3); }
+.tb-cima span { display:inline-flex; align-items:center; gap:7px;
+  font-size:10px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--text-4); }
+.tb-cima span i { font-style:normal; width:6px; height:6px; border-radius:50%;
+  background:var(--green); animation:pulse 2.2s ease infinite; }
+.tb-eti { display:grid; grid-template-columns:92px minmax(0,1.5fr) minmax(0,1fr) 150px 120px;
+  gap:14px; padding:10px 20px 8px; font-size:9px; font-weight:600;
+  letter-spacing:.22em; text-transform:uppercase; color:var(--text-4); }
+.tb-eti span:nth-child(4) { text-align:left; }
+.tb-riga { position:relative; display:grid;
+  grid-template-columns:92px minmax(0,1.5fr) minmax(0,1fr) 150px 120px;
+  gap:14px; align-items:center; padding:16px 20px;
+  border-top:1px solid var(--line-0); transition:background .3s var(--ease); }
+.tb-riga:hover { background:rgba(255,215,0,.035); }
+.tb-riga::before { content:''; position:absolute; left:0; top:0; bottom:0;
+  width:2px; background:var(--gold); transform:scaleY(0);
+  transition:transform .35s var(--ease); }
+.tb-riga:hover::before { transform:scaleY(1); }
+.tb-riga .caso { display:block; font-family:var(--display); font-weight:300;
+  font-size:17px; line-height:1.25; }
+.tb-riga .fa { display:block; margin-top:4px; }
+.tb-riga .fa { font-size:11px; color:var(--text-4); line-height:1.45; }
+.tb-riga .serv { font-size:10px; font-weight:600; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--gold); }
+.tb-riga.eroe { background:linear-gradient(90deg, rgba(255,215,0,.06), transparent 60%); }
+.tb-riga.eroe .caso { font-size:20px; }
+@media (max-width:900px){
+  .tb-eti { display:none; }
+  .tb-riga { grid-template-columns:1fr auto; grid-template-areas:
+    'gate stato' 'caso caso' 'serv prezzo'; row-gap:8px; }
+  .tb-riga > :nth-child(1) { grid-area:gate; }
+  .tb-riga > :nth-child(2) { grid-area:caso; }
+  .tb-riga > :nth-child(3) { grid-area:serv; align-self:center; }
+  .tb-riga > :nth-child(4) { grid-area:prezzo; justify-self:end; }
+  .tb-riga > :nth-child(5) { grid-area:stato; justify-self:end; } }
+</style>
+</head>
+<body>
+
+<header class="lab-capo">
+  <div class="container">
+    <span class="eti">— Banchina Lab · tre strade, tutte finite</span>
+    <h1>La sezione servizi, esplorata <b>da capo</b>.</h1>
+    <p>Tre linguaggi diversi per lo stesso contenuto vero (prezzi, condizioni,
+      promesse: nessuna nuova). Ognuna è completa: gerarchia, materiale,
+      motion, mobile. Sotto ogni palco: cosa la regge e cosa la limita.</p>
+  </div>
+</header>
+
+<!-- ══ A ══ -->
+<section class="palco" id="a">
+  <div class="container">
+    <div class="palco-testa">
+      <span class="lettera">A</span>
+      <h2>La Carta d'Imbarco</h2>
+      <p class="regola"><b>La regola Apple: il materiale racconta il
+        prodotto.</b> BOOM emette carte Wallet vere — qui ogni servizio È un
+        boarding pass: perforazione, fori, stub col prezzo su tessere Solari,
+        codice volo. L'ammiraglia è il pass grande, emesso storto come un
+        biglietto appena stampato; al reveal i pass vengono <b>emessi</b> in
+        sequenza con la molla di Wallet (lo stesso gesto del pass in hero).</p>
+    </div>
+    <div class="demo pa-griglia" id="demoA">
+      <a class="pass eroe" href="#">
+        <span class="pass-testa">
+          <span class="marchio">BOOM · Gate <span class="tess"><i>0</i><i>2</i></span></span>
+          <span class="chip oro">Full refund</span>
+        </span>
+        <span class="pass-corpo">
+          <span class="caso">Nothing in the catalogue fits?</span>
+          <span class="fa">Our flagship: we hunt the whole market for you —
+            off-market included — and walk every shortlist in person.</span>
+          <span class="pass-lista">
+            <span>Off-market included — homes that never reach the portals</span>
+            <span>Every shortlist walked in person before you see it</span>
+            <span>Video tours from anywhere — you ask, we walk</span>
+          </span>
+          <span class="serv">Property Finding<i>→</i></span>
+          <span class="pass-rotta">
+            <span class="campo"><b>From</b><span>The whole market</span></span>
+            <span class="aereo"><i>✈</i></span>
+            <span class="campo"><b>To</b><span>Your front door</span></span>
+          </span>
+        </span>
+        <span class="perfo"></span>
+        <span class="pass-stub">
+          <span class="pflap"><em>€</em><i>3</i><i>5</i><i>0</i></span>
+          <span class="dice">deducted on success · refunded in full if we
+            don't deliver</span>
+          <span class="codice">PF·350</span>
+        </span>
+        <span class="fascia">Refunded in full if we don't deliver</span>
+      </a>
+      <div class="pa-pila" id="pilaA">
+        <a class="pass" href="#">
+          <span class="pass-testa">
+            <span class="marchio">Gate <span class="tess"><i>0</i><i>1</i></span></span>
+            <span class="chip viva"><b></b>Live video</span>
+          </span>
+          <span class="pass-corpo">
+            <span class="caso">Can't fly over to see it?</span>
+            <span class="serv">Virtual Viewing<i>→</i></span>
+          </span>
+          <span class="perfo"></span>
+          <span class="pass-stub">
+            <span class="pflap"><em>€</em><i>8</i><i>9</i></span>
+            <span class="dice">other portals' homes · credited if you rent
+              with us — ours: free, always</span>
+            <span class="codice">VV·89</span>
+          </span>
+        </a>
+        <a class="pass" href="#">
+          <span class="pass-testa">
+            <span class="marchio">Gate <span class="tess"><i>0</i><i>3</i></span></span>
+            <span class="chip">Fixed fee</span>
+          </span>
+          <span class="pass-corpo">
+            <span class="caso">Found one yourself?</span>
+            <span class="serv">Deal Assistance<i>→</i></span>
+          </span>
+          <span class="perfo"></span>
+          <span class="pass-stub">
+            <span class="pflap"><em>€</em><i>2</i><i>4</i><i>9</i></span>
+            <span class="dice">fixed · we verify the landlord and the
+              papers, then negotiate</span>
+            <span class="codice">DA·249</span>
+          </span>
+        </a>
+        <a class="pass" href="#">
+          <span class="pass-testa">
+            <span class="marchio">Gate <span class="tess"><i>0</i><i>4</i></span></span>
+            <span class="chip">In 24h</span>
+          </span>
+          <span class="pass-corpo">
+            <span class="caso">About to sign something?</span>
+            <span class="serv">Contract Check Express<i>→</i></span>
+          </span>
+          <span class="perfo"></span>
+          <span class="pass-stub">
+            <span class="pflap"><em>€</em><i>4</i><i>9</i></span>
+            <span class="dice">a traffic-light verdict in 24h · credited on
+              Deal Assistance</span>
+            <span class="codice">CC·49</span>
+          </span>
+        </a>
+      </div>
+    </div>
+    <div class="verdetto">
+      <div><b>Perché vince</b>Il materiale è il prodotto vero (Wallet), la
+        pila è nativa su telefono, nessun competitor ce l'ha. Caldo e tech
+        insieme: carta + tessere.</div>
+      <div><b>Il limite</b>I tre pass piccoli portano meno testo (la
+        risposta lunga vive solo sull'ammiraglia e sulla pagina servizio).</div>
+      <div><b>Motion</b>Emissione in sequenza con molla Wallet ·
+        raddrizzamento al hover — movimento = il gesto del biglietto.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ B ══ -->
+<section class="palco" id="b">
+  <div class="container">
+    <div class="palco-testa">
+      <span class="lettera">B</span>
+      <h2>La Vetrina</h2>
+      <p class="regola"><b>La regola Apple Store: una tile, un messaggio, un
+        gesto.</b> Radius 24, alone di luce dedicato, icona nel disco di
+        vetro, titolo display grande e UN solo bottone — il prezzo È il
+        CTA. L'ammiraglia prende la riga intera con l'alone più caldo. È la
+        strada più «provata» (Blueground/Apple Store): massima chiarezza,
+        minima frizione.</p>
+    </div>
+    <div class="demo vt-griglia" id="demoB">
+      <a class="vt-tile eroe" href="#">
+        <span class="alone"></span>
+        <span class="vt-eti"><b>Gate 02 · flagship</b>
+          <span class="chip oro">Full refund</span></span>
+        <h3>Nothing in the catalogue fits? We hunt the whole market for
+          you.</h3>
+        <p>Off-market included, every shortlist walked in person. Deducted
+          on success — refunded in full if we don't deliver.</p>
+        <span class="vt-riga">
+          <span class="vt-prezzo">€350 <small>· Start the hunt</small></span>
+          <span class="vt-nota">deducted on success · refunded if we don't
+            deliver</span>
+        </span>
+      </a>
+      <a class="vt-tile" href="#">
+        <span class="alone"></span>
+        <span class="vt-eti"><b>Gate 01</b>
+          <span class="chip viva"><b></b>Live video</span></span>
+        <span class="vt-disco"><svg class="sg" viewBox="0 0 24 24"><rect x="3.5" y="6.5" width="12" height="11" rx="2"/><path d="M15.5 11l5-2.6v7.2l-5-2.6z"/><circle cx="7.2" cy="10.2" r="1.1" class="pieno"/></svg></span>
+        <h3>Can't fly over to see it?</h3>
+        <p>A live video tour with you asking the questions — ours free,
+          always.</p>
+        <span class="vt-riga">
+          <span class="vt-prezzo">€89 <small>· Book</small></span>
+          <span class="vt-nota">other portals · credited if you rent with
+            us</span>
+        </span>
+      </a>
+      <a class="vt-tile" href="#">
+        <span class="alone"></span>
+        <span class="vt-eti"><b>Gate 03</b><span class="chip">Fixed fee</span></span>
+        <span class="vt-disco"><svg class="sg" viewBox="0 0 24 24"><path d="M12 3.4l7.2 2.9v5.1c0 4.2-3 7.2-7.2 8.4-4.2-1.2-7.2-4.2-7.2-8.4V6.3z"/><path d="M9.1 11.6l2.2 2.2 4.1-4.7" class="acc"/></svg></span>
+        <h3>Found one yourself?</h3>
+        <p>We verify the landlord, the papers and the price — then
+          negotiate.</p>
+        <span class="vt-riga">
+          <span class="vt-prezzo">€249 <small>· Protect it</small></span>
+          <span class="vt-nota">fixed · deposit and clauses negotiated</span>
+        </span>
+      </a>
+      <a class="vt-tile" href="#">
+        <span class="alone"></span>
+        <span class="vt-eti"><b>Gate 04</b><span class="chip">In 24h</span></span>
+        <span class="vt-disco"><svg class="sg" viewBox="0 0 24 24"><path d="M6 3.2h7.4L18.6 8v12.8H6z"/><path d="M13.2 3.2V8h5.2" class="acc"/><path d="M9 12.6h6.4M9 15.8h4.4" class="acc"/></svg></span>
+        <h3>About to sign something?</h3>
+        <p>A written traffic-light verdict in 24h: fine, unfair, missing.</p>
+        <span class="vt-riga">
+          <span class="vt-prezzo">€49 <small>· Check it</small></span>
+          <span class="vt-nota">credited on Deal Assistance</span>
+        </span>
+      </a>
+    </div>
+    <div class="verdetto">
+      <div><b>Perché vince</b>La più leggibile e la più «convertitrice»:
+        un messaggio, un bottone. Zero curva di lettura.</div>
+      <div><b>Il limite</b>La meno distintiva — è il linguaggio di tutti i
+        SaaS premium. L'eroe a riga intera spinge gli altri tre sotto la
+        piega su schermi bassi.</div>
+      <div><b>Motion</b>Lift + alone che respira al hover. Sobrio,
+        product-page.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ C ══ -->
+<section class="palco" id="c">
+  <div class="container">
+    <div class="palco-testa">
+      <span class="lettera">C</span>
+      <h2>Il Tabellone Partenze</h2>
+      <p class="regola"><b>La regola: il contenuto è l'interfaccia.</b> Il
+        linguaggio del tabellone Solari dell'hero, portato ai servizi 1:1 —
+        la sezione È una scheda partenze: colonne GATE · SITUATION · SERVICE
+        · FARE · STATUS, la riga ammiraglia doppia, il filo d'oro che si
+        accende al hover. La strada più «aeroporto» e più unica.</p>
+    </div>
+    <div class="demo tb" id="demoC">
+      <div class="tb-cima"><b>Departures · Services</b>
+        <span><i></i>All gates open</span></div>
+      <div class="tb-eti"><span>Gate</span><span>Situation</span>
+        <span>Service</span><span>Fare</span><span>Status</span></div>
+      <a class="tb-riga eroe" href="#">
+        <span class="tess"><i>0</i><i>2</i></span>
+        <span><span class="caso">Nothing in the catalogue fits?</span>
+          <span class="fa">We hunt the whole market — off-market included,
+            every shortlist walked in person.</span></span>
+        <span class="serv">Property Finding →</span>
+        <span class="pflap"><em>€</em><i>3</i><i>5</i><i>0</i></span>
+        <span class="chip oro">Full refund</span>
+      </a>
+      <a class="tb-riga" href="#">
+        <span class="tess"><i>0</i><i>1</i></span>
+        <span><span class="caso">Can't fly over to see it?</span></span>
+        <span class="serv">Virtual Viewing →</span>
+        <span class="pflap"><em>€</em><i>8</i><i>9</i></span>
+        <span class="chip viva"><b></b>Live video</span>
+      </a>
+      <a class="tb-riga" href="#">
+        <span class="tess"><i>0</i><i>3</i></span>
+        <span><span class="caso">Found one yourself?</span></span>
+        <span class="serv">Deal Assistance →</span>
+        <span class="pflap"><em>€</em><i>2</i><i>4</i><i>9</i></span>
+        <span class="chip">Fixed fee</span>
+      </a>
+      <a class="tb-riga" href="#">
+        <span class="tess"><i>0</i><i>4</i></span>
+        <span><span class="caso">About to sign something?</span></span>
+        <span class="serv">Contract Check →</span>
+        <span class="pflap"><em>€</em><i>4</i><i>9</i></span>
+        <span class="chip">In 24h</span>
+      </a>
+    </div>
+    <div class="verdetto">
+      <div><b>Perché vince</b>Coerenza di marca totale (l'hero È un
+        tabellone), impatto scenografico massimo, unica al mondo.</div>
+      <div><b>Il limite</b>Le righe leggono come informazione, non come
+        prodotto da comprare: il tasso di click sui servizi rischia di
+        scendere. Le risposte lunghe non hanno casa.</div>
+      <div><b>Motion</b>Filo d'oro che si accende, pallino verde vivo.
+        Da estendere: flap che compongono i prezzi al reveal.</div>
+    </div>
+  </div>
+</section>
+
+<script>
+/* il reveal dell'opzione A: i pass vengono emessi quando entrano in vista */
+(function () {
+  var a = document.getElementById('demoA'), pila = document.getElementById('pilaA');
+  if (!('IntersectionObserver' in window)) {
+    a.classList.add('dentro-a'); pila.classList.add('dentro-a'); return;
+  }
+  var io = new IntersectionObserver(function (e) {
+    e.forEach(function (x) {
+      if (x.isIntersecting) {
+        a.classList.add('dentro-a'); pila.classList.add('dentro-a');
+        io.disconnect();
+      }
+    });
+  }, { threshold: .2 });
+  io.observe(a);
+})();
+</script>
+</body>
+</html>
