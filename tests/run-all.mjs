@@ -66,6 +66,8 @@ const SUITES = [
   { name: 'safari',   file: 'tests/safari/boot.mjs',      what: 'nessuna pagina autenticata resta appesa' },
   { name: 'mobile',   file: 'tests/mobile/run.mjs',       what: 'M2 Portal App: giunzioni su portal-app.js (nomi campo, sezioni, ordine, CSS gated, sw)' },
   { name: 'mobileui', file: 'tests/mobile/ui.mjs',        what: 'M2 Portal App in un browser vero: tab bar, sheet, wizard contratti (validazione LORO), rotazione, kill switch' },
+  { name: 'desktop',  file: 'tests/desktop/run.mjs',      what: 'D1 BOOM OS: giunzioni su portal-app.js (comandi veri, query 920 condivisa, motore di ricerca sollevato mai copiato)' },
+  { name: 'desktopui', file: 'tests/desktop/ui.mjs',      what: 'D1 BOOM OS in un browser vero: ⌘K, chord, peek drawer, il confine dei 920px attraversato nei due sensi' },
 ];
 
 const want = process.argv.slice(2).filter((a) => !a.startsWith('-'));

@@ -1386,6 +1386,24 @@ Un giro solo, otto interventi, 33 suite verdi:
   WIZ pinnati su portal-app.js, CSS gated, sw, -webkit-) + `node
   tests/mobile/ui.mjs` (35 check in Chromium vero a 390px col
   contractWizardNav REALE estratto).
+- **D1 "BOOM OS"** (`css/portal-desktop.css` + `js/portal-desktop.js`,
+  studio in `STUDIO_BOOM_OS.md`): la faccia DESKTOP del protocollo "un
+  motore, due facce" — attiva SOLO sopra i 920px (la STESSA query di M2,
+  negata: mai zone doppie), tutto dietro `body.pd-on`. **Command Palette
+  ⌘K/Ctrl+K**: sezioni+console dalla sidebar VERA (badge compresi), azioni
+  Crea (proxy di openModal, admin-gated) e ricerca entità SOLLEVATA da
+  `handleSearch` (si invoca il motore esistente e si adottano le righe di
+  #searchResults con la loro onclick — mai un secondo indice). **Tastiera**:
+  `g`+lettera naviga, `n`+lettera crea, `/` ricerca, `?` foglio dei tasti —
+  mai attiva dentro un input o sopra un modale. **Peek drawer**: le schede
+  di sola lettura `lg/xl` (fascicolo contratto, notifiche) arrivano come
+  pannello destro; i FORM restano finestre. Rifinitura sobria (header
+  vetro, filo d'oro sulla voce attiva, focus-visible, scrollbar). Kill
+  switch dedicato `?deskclassic=1` / `?deskapp=1`. Test: `node
+  tests/desktop/run.mjs` (48 check: comandi pinnati su portal-app.js,
+  query 920 condivisa, motore mai copiato) + `node tests/desktop/ui.mjs`
+  (18 check in Chromium a 1440px, col confine dei 920 attraversato nei due
+  sensi).
 - **Dieta del boot** (portal-app): tetti su TUTTE le query nude (limit
   larghi, MAI orderBy+limit — un orderBy su campo assente nasconderebbe i
   doc legacy), i 7 step lazy in parallelo, rate scadute flippate SOLO in

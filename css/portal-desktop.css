@@ -1,0 +1,165 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   D1 · BOOM OS — css/portal-desktop.css (gemella di js/portal-desktop.js)
+   ------------------------------------------------------------------------
+   La faccia desktop del protocollo "un motore, due facce": command palette
+   ⌘K, foglio dei tasti, peek drawer per le schede di sola lettura, e una
+   passata di rifinitura sobria (focus, hover, scrollbar) da cockpit.
+
+   DISCIPLINA (specchio esatto di portal-mobile.css):
+   - TUTTO dietro `body.pd-on`, accesa dal JS gemello SOLO sopra i 920px
+     (la stessa query di M2, negata). Senza il JS questa CSS è inerte.
+   - Sotto i 920px comanda M2: le classi di stato (pd-peek) sono gated,
+     quindi ridimensionare la finestra ripristina da solo.
+   - Ogni backdrop-filter ha il gemello -webkit- (regola Safari del repo).
+   - Kill switch: ?deskclassic=1 / localStorage boom_classic_desktop='1'.
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root{
+    --pd-ease:cubic-bezier(.32,.72,0,1);
+}
+
+/* Fuori dal layer i pezzi generati dal JS non devono MAI vedersi */
+body:not(.pd-on) .pd-cmd-backdrop,
+body:not(.pd-on) .pd-help{display:none!important}
+
+/* ═══ COMMAND PALETTE (⌘K) ═════════════════════════════════════════════ */
+.pd-cmd-backdrop{
+    position:fixed;inset:0;z-index:1100;   /* sopra i modali (300) e la search (1000), sotto ask/choose (1200) */
+    background:rgba(0,0,0,0.55);
+    -webkit-backdrop-filter:blur(7px) saturate(120%);
+    backdrop-filter:blur(7px) saturate(120%);
+    display:flex;align-items:flex-start;justify-content:center;
+    padding:12vh 24px 24px;
+    opacity:0;transition:opacity .16s ease;
+}
+.pd-cmd-backdrop.open{opacity:1}
+.pd-cmd{
+    width:min(640px,100%);
+    background:rgba(13,13,15,0.96);
+    -webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);
+    border:1px solid rgba(255,255,255,0.12);
+    border-radius:18px;overflow:hidden;
+    box-shadow:0 24px 90px rgba(0,0,0,.75), 0 0 0 1px rgba(212,175,55,.08);
+    transform:translateY(-8px) scale(.985);transition:transform .18s var(--pd-ease);
+    display:flex;flex-direction:column;max-height:min(560px,76vh);
+}
+.pd-cmd-backdrop.open .pd-cmd{transform:translateY(0) scale(1)}
+.pd-cmd-top{
+    display:flex;align-items:center;gap:12px;
+    padding:16px 18px;border-bottom:1px solid var(--border);flex-shrink:0;
+}
+.pd-cmd-glass{
+    width:30px;height:30px;flex-shrink:0;border-radius:9px;
+    background:var(--gold-light);color:var(--gold);
+    display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;
+}
+.pd-cmd-input{
+    flex:1;background:none;border:none;outline:none;
+    color:var(--text);font-family:inherit;font-size:16px;font-weight:300;letter-spacing:.2px;
+}
+.pd-cmd-input::placeholder{color:var(--text-muted)}
+.pd-cmd-list{overflow-y:auto;padding:8px;overscroll-behavior:contain}
+.pd-cmd-sec{
+    font-size:9.5px;font-weight:700;letter-spacing:1.8px;text-transform:uppercase;
+    color:var(--text-muted);padding:10px 12px 5px;
+}
+.pd-cmd-row{
+    width:100%;display:flex;align-items:center;gap:12px;
+    padding:10px 12px;min-height:42px;
+    background:none;border:none;border-radius:11px;cursor:pointer;
+    color:var(--text);font-family:inherit;font-size:13.5px;text-align:left;letter-spacing:.2px;
+}
+.pd-cmd-row.hot,
+.pd-cmd-row:hover{background:var(--bg-elevated)}
+.pd-cmd-row.hot{box-shadow:inset 0 0 0 1px rgba(212,175,55,.35)}
+.pd-cmd-ico{width:26px;flex-shrink:0;text-align:center;font-size:15px}
+.pd-cmd-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pd-cmd-badge{
+    flex-shrink:0;min-width:18px;height:18px;padding:0 6px;border-radius:9px;
+    background:var(--gold-light);color:var(--gold);
+    font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;
+}
+.pd-cmd-kbd{
+    flex-shrink:0;padding:3px 7px;border-radius:6px;
+    background:var(--bg-elevated);border:1px solid var(--border);
+    color:var(--text-muted);font-size:10px;letter-spacing:.8px;font-family:'SF Mono',ui-monospace,monospace;
+}
+/* le righe adottate dal motore di ricerca (handleSearch) */
+.pd-cmd-entity{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:11px;border-bottom:none!important}
+.pd-cmd-entity:hover,.pd-cmd-entity.hot{background:var(--bg-elevated)!important}
+.pd-cmd-empty{padding:26px 16px;text-align:center;color:var(--text-muted);font-size:13px;letter-spacing:.3px}
+.pd-cmd-foot{
+    display:flex;gap:16px;align-items:center;flex-shrink:0;
+    padding:10px 16px;border-top:1px solid var(--border);
+    color:var(--text-muted);font-size:10.5px;letter-spacing:.6px;
+}
+.pd-cmd-foot-right{margin-left:auto;color:rgba(212,175,55,.55)}
+
+/* ═══ IL FOGLIO DEI TASTI (?) ══════════════════════════════════════════ */
+.pd-help{
+    width:min(440px,92vw);margin-top:6vh;
+    background:rgba(13,13,15,0.97);
+    -webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);
+    border:1px solid rgba(255,255,255,0.12);border-radius:18px;
+    box-shadow:0 24px 90px rgba(0,0,0,.75);
+    padding:22px 22px 18px;
+}
+.pd-help-title{font-size:15px;font-weight:600;letter-spacing:.4px;margin-bottom:14px}
+.pd-help-row{
+    display:flex;align-items:center;gap:14px;
+    padding:9px 0;border-bottom:1px solid var(--border);
+    font-size:12.5px;color:var(--text-secondary);
+}
+.pd-help-row .pd-cmd-kbd{flex-shrink:0;min-width:120px;text-align:center}
+.pd-help-hint{margin-top:14px;font-size:11px;color:var(--text-muted);line-height:1.6;font-style:italic}
+
+/* ═══ PEEK DRAWER — le schede di sola lettura al fianco destro ═════════ */
+body.pd-on .modal-overlay.pd-peek{
+    justify-content:flex-end;align-items:stretch;padding:0;
+    background:rgba(0,0,0,0.45);   /* più leggero: il contesto resta sotto gli occhi */
+}
+body.pd-on .pd-peek .modal{
+    margin:0!important;height:100dvh;max-height:100dvh;
+    width:min(660px,94vw);max-width:min(660px,94vw)!important;
+    border-radius:0!important;border-top:none;border-right:none;border-bottom:none;
+    border-left:1px solid rgba(255,255,255,0.12);
+    box-shadow:-30px 0 80px rgba(0,0,0,.6);
+    display:flex;flex-direction:column;
+    animation:pdPeekIn .26s var(--pd-ease);
+}
+body.pd-on .pd-peek .modal.xl{width:min(760px,94vw);max-width:min(760px,94vw)!important}
+@keyframes pdPeekIn{from{transform:translateX(48px);opacity:0}to{transform:translateX(0);opacity:1}}
+body.pd-on .pd-peek .modal-header{flex-shrink:0}
+body.pd-on .pd-peek .modal-body{flex:1;min-height:0;max-height:none!important;overscroll-behavior:contain}
+body.pd-on .pd-peek .modal-footer{
+    flex-shrink:0;flex-wrap:wrap;gap:8px;justify-content:flex-start;
+    background:rgba(8,8,10,0.92);
+    -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
+}
+body.pd-on .pd-peek .modal-footer .btn{flex:0 1 auto}
+
+/* ═══ RIFINITURA COCKPIT (sobria, mai un re-skin) ══════════════════════ */
+/* L'header respira come vetro sopra il contenuto che scorre */
+body.pd-on .header{
+    background:rgba(10,10,10,0.78);
+    -webkit-backdrop-filter:blur(18px) saturate(150%);
+    backdrop-filter:blur(18px) saturate(150%);
+}
+/* La voce attiva della sidebar ha un filo d'oro, come una rotta segnata */
+body.pd-on .nav-item.active{box-shadow:inset 2px 0 0 var(--gold)}
+/* Il focus da tastiera si VEDE: chi naviga coi tasti non naviga alla cieca */
+body.pd-on .btn:focus-visible,
+body.pd-on .nav-item:focus-visible,
+body.pd-on .form-input:focus-visible,
+body.pd-on .form-select:focus-visible{outline:2px solid rgba(212,175,55,.55);outline-offset:2px}
+/* Scrollbar da strumento, non da browser */
+body.pd-on ::-webkit-scrollbar{width:10px;height:10px}
+body.pd-on ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:5px;border:2px solid transparent;background-clip:content-box}
+body.pd-on ::-webkit-scrollbar-thumb:hover{background:rgba(212,175,55,.4);border:2px solid transparent;background-clip:content-box}
+body.pd-on ::-webkit-scrollbar-track{background:transparent}
+
+/* ═══ QUIETE ═══════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion:reduce){
+    .pd-cmd-backdrop,.pd-cmd{transition:none}
+    body.pd-on .pd-peek .modal{animation:none}
+}

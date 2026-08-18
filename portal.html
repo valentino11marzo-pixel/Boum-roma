@@ -99,6 +99,9 @@
     <!-- M2 · Portal App: il layer mobile (tab bar, sheet, wizard sereno).
          Tutto dietro body.pm-on — senza il JS gemello è CSS inerte. -->
     <link rel="stylesheet" href="/css/portal-mobile.css">
+    <!-- D1 · BOOM OS: il layer desktop (⌘K, tasti, peek drawer).
+         Tutto dietro body.pd-on — senza il JS gemello è CSS inerte. -->
+    <link rel="stylesheet" href="/css/portal-desktop.css">
 </head>
 <body>
     <!-- Early Protocol Check -->
@@ -286,6 +289,10 @@
          globali e osserva #main/#modals/#sidebar). Solo ≤920px; kill switch
          ?classic=1. Vedi STUDIO_PORTAL_MOBILE.md. -->
     <script src="/js/portal-mobile.js"></script>
+    <!-- D1 · BOOM OS: la faccia desktop (⌘K, g/n chord, peek). Solo >920px,
+         stessa query di M2 negata; kill switch ?deskclassic=1.
+         Vedi STUDIO_BOOM_OS.md. -->
+    <script src="/js/portal-desktop.js"></script>
 <!-- ============================================================
      BOOM BRIDGE — Riceve dati da deals_v2_commandcenter.html
      ============================================================ -->
