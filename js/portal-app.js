@@ -15722,8 +15722,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         e.preventDefault();
         const data = Object.fromEntries(new FormData(e.target));
         try {
+            // tenantId/propertyId dal contratto: senza, la rata NON è leggibile
+            // dall'inquilino né dal proprietario (firestore.rules) e non compare
+            // mai in /casa — soldi dovuti, invisibili a chi paga (audit P0.6).
+            const _c = (S.contracts || []).find(x => x.id === data.contractId);
             var docRef = await db.collection('payments').add({
-                contractId: data.contractId, month: data.month || '', amount: parseInt(data.amount) || 0,
+                contractId: data.contractId,
+                tenantId: _c?.tenantId || null, propertyId: _c?.propertyId || null,
+                month: data.month || '', amount: parseInt(data.amount) || 0,
                 dueDate: data.dueDate || null, status: data.status || 'pending',
                 paidDate: data.status === 'paid' ? new Date().toISOString() : null,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -16160,7 +16166,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             .map(p => p.month);
         
         let created = 0, skipped = 0;
-        
+        // tenantId/propertyId dal contratto: altrimenti le rate generate in blocco
+        // sono invisibili all'inquilino in /casa (firestore.rules — audit P0.6).
+        const _bc = (S.contracts || []).find(x => x.id === data.contractId);
+
         try {
             for (let i = 0; i < numMonths; i++) {
                 const payMonth = new Date(startMonth);
@@ -16176,6 +16185,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 
                 await db.collection('payments').add({
                     contractId: data.contractId,
+                    tenantId: _bc?.tenantId || null, propertyId: _bc?.propertyId || null,
                     month: monthStr,
                     amount: amount,
                     dueDate: dueDate.toISOString().split('T')[0],
