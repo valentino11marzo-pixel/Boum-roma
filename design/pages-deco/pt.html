@@ -2398,22 +2398,33 @@ CASE_TRE
       })(organi[organi.length - 1]);
     });
     function accendi() {
-      organi.forEach(function (o, i) {
+      /* i DATI nascono GIA' giusti, all'istante: lo scramble su un prezzo
+         legge come un prezzo sbagliato, non come un tabellone che compone
+         (segnalato due volte dall'operatore — su Safari, che dipinge
+         progressivamente, durava anche di piu'). La vita Solari resta nel
+         FREMITO: un'onda sola di flutter mezzo secondo dopo, e poi i
+         fremiti radi di sempre. Lo scramble teatrale resta solo sulla
+         PAROLA del titolo (DAYS), dove legge come insegna. */
+      organi.forEach(function (o) {
+        o.z.show(o.d.z.toUpperCase().slice(0, LZ));
+        o.p.show(o.d.p); o.t.show(o.d.s);
+      });
+      /* l'onda tocca SOLO lo stato: un fremito su una cifra del prezzo
+         mostrerebbe per un attimo un prezzo diverso — stessa classe di
+         equivoco. Il prezzo freme solo sotto il mouse dell'utente. */
+      if (!ridotto) organi.forEach(function (o, i) {
         setTimeout(function () {
-          if (ridotto) { o.z.show(o.d.z.toUpperCase().slice(0, LZ));
-            o.p.show(o.d.p); o.t.show(o.d.s); return; }
-          o.z.show(o.d.z.toUpperCase().slice(0, LZ), 28, true);
-          o.p.show(o.d.p, 24, true);
-          o.t.show(o.d.s, 30, true);
-        }, ridotto ? 0 : i * 55);
+          if (o.t.flutter) o.t.flutter();
+        }, 500 + i * 90);
       });
     }
-    setTimeout(accendi, 150);
+    accendi();
     /* il fremito: ogni tanto una cella trema, come sui tabelloni veri */
     if (!ridotto) setInterval(function () {
       if (document.hidden) return;
       var o = organi[Math.floor(Math.random() * organi.length)];
-      var quale = ['z', 'p', 't'][Math.floor(Math.random() * 3)];
+      /* mai il prezzo da solo: una cifra che gira e' un prezzo diverso */
+      var quale = ['z', 't'][Math.floor(Math.random() * 2)];
       if (o[quale].flutter) o[quale].flutter();
     }, 14000);
   })();
