@@ -63,6 +63,7 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:Inter,sys
 .count .hint{color:var(--t3);font-weight:300}
 @media(prefers-reduced-motion:reduce){.load .dot{animation:none}.sky-pin{transition:none}}
 .emb .bar{display:none}
+.maplibregl-cooperative-gesture-screen{background:rgba(5,5,7,.72);color:#fff;font-family:var(--disp);font-size:15px;letter-spacing:.04em;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
 /* i tuoi posti: ancore d'oro, sempre accese — sono il TUO motivo */
 .sky-mine{display:flex;align-items:center;gap:6px;font-size:11px;color:#111;background:linear-gradient(135deg,var(--gold),var(--gold2));border-radius:100px;padding:5px 11px;white-space:nowrap;font-weight:600;box-shadow:0 6px 18px rgba(0,0,0,.45)}
 .sky-mine .d{font-weight:700;display:none}
@@ -323,7 +324,7 @@ function makePin(l,co){
   var el=document.createElement('div'); el.className='sky-pin'; el.__price=price||0; el.__rented=rented; el.__id=String(l.id||''); el.__co=co;
   el.innerHTML='<span class="p'+(rented?' rented':'')+'">'+(price?fmt(price):'—')+'</span>';
   var img=l.image||(l.images&&l.images[0])||'';
-  var pop=new maplibregl.Popup({offset:18,closeButton:true,maxWidth:'240px'}).setHTML(
+  var pop=new maplibregl.Popup({offset:18,closeButton:true,maxWidth:'240px',focusAfterOpen:false}).setHTML(
     '<div class="pc-img"'+(img?' style="background-image:url(\''+img.replace(/'/g,'')+'\')"':'')+'></div>'+
     '<div class="pc-body"><div class="pc-zone">'+(l.zone||l.neighborhood||'Rome')+'</div>'+
     '<div class="pc-name">'+(l.name||'Apartment')+'</div>'+
@@ -331,7 +332,10 @@ function makePin(l,co){
     '<a class="pc-go" href="/listing/'+encodeURIComponent(l.id)+'">View this home →</a>'+
     pinChips(l)+'</div>'
   );
-  el.addEventListener('click',function(){showLinks(co);});
+  el.addEventListener('click',function(){
+    showLinks(co);
+    try{map.easeTo({center:co,offset:[0,90],duration:650,zoom:map.getZoom()});}catch(e){}
+  });
   MARKERS.push(new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat(co).setPopup(pop).addTo(map));
 }
 
@@ -358,7 +362,12 @@ async function boot(){
   var listings=[];
   try{ var r=await fetch('/api/listings',{cache:'no-store'}); var j=await r.json(); listings=(j&&Array.isArray(j.listings))?j.listings:(Array.isArray(j)?j:[]); }catch(e){}
   if(!listings.length){ msg('Could not load listings — try the list view.'); return; }
-  map=new maplibregl.Map({container:'map',style:'https://tiles.openfreemap.org/styles/liberty',center:ROME,zoom:11.2,pitch:55,bearing:-12,antialias:true});
+  var EMB=document.documentElement.classList.contains('emb');
+  map=new maplibregl.Map({container:'map',style:'https://tiles.openfreemap.org/styles/liberty',center:ROME,zoom:11.2,pitch:55,bearing:-12,antialias:true,
+    /* in finestra (home/discovery) la rotella scorre la PAGINA: lo zoom
+       vuole Ctrl+scroll (due dita su touch) — mai piu' lo scroll del
+       sito che si impalla dentro la mappa */
+    cooperativeGestures:EMB});
   map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'bottom-right');
   map.addControl(new maplibregl.FullscreenControl(),'bottom-right');
   await new Promise(function(res){ map.on('load',res); });
