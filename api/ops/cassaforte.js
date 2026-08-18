@@ -25,7 +25,7 @@
 import {
   requireCronOrAdmin, fsList, fsCreate, tgNotify, reportEmployeeHealth,
 } from '../employees/_lib.js';
-import { getAdminToken } from '../homie/_lib.js';
+import { getAdminToken, fsDelete } from '../homie/_lib.js';
 import { sendEmail } from '../agent/_lib.js';
 import { buildZip } from '../_zip.js';
 
@@ -38,12 +38,19 @@ const MAX_MAIL = 18 * 1024 * 1024;
 // le collection che SONO il business: perderne una non è un disservizio,
 // è la fine dell'archivio. documents/conversations portano i metadati
 // (i file veri stanno su Storage e hanno già la Conservazione).
+// UNIONE con la lista dell'audit P0.1 (il backup gemello nato in un'altra
+// sessione lo stesso giorno, qui riconciliato in UNA copia): banca, task,
+// lucchetti, rendiconti e condivisioni entrano — qualunque delle due liste
+// avesse ragione, ora la copertura è il massimo delle due.
 export const COLLECTIONS = [
   'listings', 'properties', 'contracts', 'payments', 'invoices',
   'preAgreements', 'leads', 'users', 'landlords', 'pfsClients',
   'savedSearches', 'viewings', 'viewingRequests', 'maintenance',
-  'documents', 'settings',
+  'documents', 'settings', 'deadlines', 'clients', 'bankAccounts',
+  'bankTransactions', 'operatorTasks', 'portalPubs', 'propertyLocks',
+  'rendiconti', 'documentShares', 'contractRegistrations',
 ];
+export const LIMIT_PER = 5000;   // tetto per collection (fsList non pagina)
 
 async function uploadZip(path, bytes) {
   const token = await getAdminToken();
@@ -57,7 +64,8 @@ async function uploadZip(path, bytes) {
   return `https://firebasestorage.googleapis.com/v0/b/${STORAGE_BUCKET}/o/${encodeURIComponent(path)}?alt=media${dt ? ('&token=' + dt) : ''}`;
 }
 
-export async function run({ dry = false, dayOverride = null } = {}) {
+export async function run({ dry = false, dayOverride = null,
+  limitPer = LIMIT_PER } = {}) {
   const day = dayOverride || new Date().toISOString().slice(0, 10);
 
   if (!dry) {
@@ -77,8 +85,14 @@ export async function run({ dry = false, dayOverride = null } = {}) {
   const buchi = [];
   for (const coll of COLLECTIONS) {
     try {
-      const docs = await fsList(coll, { limit: 5000 });
+      const docs = await fsList(coll, { limit: limitPer });
       counts[coll] = (docs || []).length;
+      // la verità sulla troncatura (lezione dell'audit P0.1): count == limit
+      // significa che POTREBBE esserci altro — dirlo, mai lasciarlo intendere
+      if (counts[coll] >= limitPer) {
+        buchi.push(coll + ': raggiunto il tetto di ' + limitPer
+          + ' documenti — la copia potrebbe essere TRONCATA');
+      }
       files.push({
         name: coll + '.json',
         data: Buffer.from(JSON.stringify(docs || [], null, 1), 'utf8'),
@@ -96,8 +110,11 @@ export async function run({ dry = false, dayOverride = null } = {}) {
     `BOOM · Cassaforte — dump del ${day}`,
     'Copia di sicurezza del database (JSON per collection).',
     'I FILE (pdf/foto) vivono su Storage: qui ci sono i loro riferimenti.',
+    'NON copre il disaster recovery totale (perdita del progetto Firebase):',
+    'per quello serve l\'export nativo/PITR di Firestore — da attivare.',
     '',
-    ...COLLECTIONS.map((c) => `  ${c}: ${counts[c] === -1 ? 'ILLEGGIBILE' : counts[c] + ' documenti'}`),
+    ...COLLECTIONS.map((c) => `  ${c}: ${counts[c] === -1 ? 'ILLEGGIBILE'
+      : counts[c] + ' documenti' + (counts[c] >= limitPer ? ' (TETTO — forse troncata)' : '')}`),
     ...(buchi.length ? ['', 'BUCHI (da guardare):', ...buchi.map((b) => '  ' + b)] : []),
   ].join('\n');
   files.unshift({ name: '00_INDICE.txt', data: Buffer.from(indice, 'utf8') });
@@ -106,7 +123,17 @@ export async function run({ dry = false, dayOverride = null } = {}) {
   const tot = Object.values(counts).filter((n) => n > 0).reduce((a, b) => a + b, 0);
   if (dry) return { dry: true, day, counts, zipBytes: zip.length };
 
-  const url = await uploadZip(`backups/cassaforte-${day}.zip`, zip);
+  // le DUE copie sono indipendenti PER COSTRUZIONE: finché le storage.rules
+  // col match backups/ non sono deployate (CI senza FIREBASE_TOKEN),
+  // l'upload può fare 403 — e l'email DEVE partire lo stesso, perché è
+  // l'unica copia fuori piattaforma. Un ramo che spegne l'altro è il modo
+  // in cui un backup muore in silenzio.
+  let url = null;
+  try {
+    url = await uploadZip(`backups/cassaforte-${day}.zip`, zip);
+  } catch (e) {
+    buchi.push('storage: upload fallito — ' + e.message.slice(0, 160));
+  }
 
   let emailed = false;
   if (zip.length <= MAX_MAIL) {
@@ -116,25 +143,37 @@ export async function run({ dry = false, dayOverride = null } = {}) {
         subject: `BOOM · Cassaforte ${day} — ${tot} documenti al sicuro`,
         text: `Backup notturno del database (${(zip.length / 1048576).toFixed(1)}MB, `
           + `${tot} documenti in ${files.length - 1} collection).\n`
-          + `Copia su Storage: ${url}\n\n${indice}`,
+          + (url ? `Copia su Storage: ${url}\n` : 'Storage NON raggiungibile: '
+            + 'la copia è SOLO questo allegato.\n')
+          + `\n${indice}`,
         attachments: [{ filename: `boom-cassaforte-${day}.zip`,
           content: zip, contentType: 'application/zip' }],
       });
       emailed = true;
     } catch (e) {
       // l'email è la copia fuori piattaforma: se salta, NON in silenzio
-      try { await tgNotify('⚠️ <b>Cassaforte</b>: lo ZIP di ' + day
-        + ' è su Storage ma l\'email non è partita (' + e.message.slice(0, 120)
-        + ').'); } catch (e2) {}
+      try { await tgNotify('⚠️ <b>Cassaforte</b>: l\'email di ' + day
+        + ' non è partita (' + e.message.slice(0, 120) + '). '
+        + (url ? 'Resta la copia su Storage.'
+               : 'E Storage è giù: NESSUNA copia stanotte.')); } catch (e2) {}
     }
   } else {
     try { await tgNotify('🗄️ <b>Cassaforte</b>: il dump di ' + day + ' pesa '
       + (zip.length / 1048576).toFixed(1) + 'MB — oltre la soglia email. '
-      + 'La copia è su Storage.'); } catch (e2) {}
+      + (url ? 'La copia è su Storage.'
+             : '⚠️ E Storage è giù: NESSUNA copia stanotte.')); } catch (e2) {}
   }
   if (buchi.length) {
-    try { await tgNotify('⚠️ <b>Cassaforte</b>: collection illeggibili nel dump di '
+    try { await tgNotify('⚠️ <b>Cassaforte</b>: avvisi nel dump di '
       + day + ' — ' + buchi.map((b) => b.split(':')[0]).join(', ')); } catch (e2) {}
+  }
+  // nessuna copia da nessuna parte = run FALLITO: deve contare come errore
+  // (3 di fila → allerta), mai come una notte verde. E il marker del giorno
+  // si toglie, altrimenti il retry direbbe "già in cassaforte" su una
+  // notte in cui NIENTE è stato salvato.
+  if (!url && !emailed) {
+    try { await fsDelete(`heartbeat/cassaforte-${day}`); } catch (e2) {}
+    throw new Error('nessuna copia salvata: storage giù e email non partita');
   }
   return { day, counts, zipBytes: zip.length, url, emailed, buchi };
 }

@@ -162,6 +162,15 @@ service firebase.storage {
       allow read, write: if isAdmin();
     }
 
+    // ─── backups/** ───────────────────────────────────────────────────
+    // La Cassaforte (api/ops/cassaforte.js): lo ZIP notturno del database,
+    // scritto con le credenziali admin — che passano da QUESTE regole
+    // (lezione dell'audit 2026-08-18 P0.1). Admin-only in lettura e
+    // scrittura: un backup leggibile da altri è il database intero esposto.
+    match /backups/{allPaths=**} {
+      allow read, write: if isAdmin();
+    }
+
     // ─── Default deny ─────────────────────────────────────────────────
     match /{allPaths=**} {
       allow read, write: if false;

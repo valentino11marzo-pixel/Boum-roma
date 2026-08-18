@@ -32,7 +32,8 @@ globalThis.__mailFail = true;   // parte col guasto: resta la via Storage
 const DB = new Map();
 const TG = [];
 const STORAGE = new Map();
-let ROTTA = null;   // collection che simula il guasto
+let ROTTA = null;        // collection che simula il guasto
+let STORAGE_GIU = false; // simula le rules non deployate (upload 403)
 
 const toF = (v) => {
   if (v === null || v === undefined) return { nullValue: null };
@@ -50,6 +51,7 @@ globalThis.fetch = async (url, opts = {}) => {
   if (u.includes('accounts:signInWithPassword')) return json({ idToken: 'T' });
   if (u.includes('api.telegram.org')) { TG.push(JSON.parse(opts.body).text); return json({ ok: true }); }
   if (u.includes('firebasestorage.googleapis.com')) {
+    if (STORAGE_GIU) return json({ error: { code: 403 } }, 403);
     const name = decodeURIComponent(u.match(/name=([^&]+)/)[1]);
     STORAGE.set(name, opts.body);
     return json({ downloadTokens: 'tok123' });
@@ -74,6 +76,7 @@ globalThis.fetch = async (url, opts = {}) => {
   }
   if (m === 'GET') return json({ error: { status: 'NOT_FOUND' } }, 404);
   if (m === 'PATCH') { DB.set(after.split('?')[0], {}); return json({ name: after }); }
+  if (m === 'DELETE') { DB.delete(after.split('?')[0]); return json({}); }
   throw new Error('metodo imprevisto ' + m);
 };
 
@@ -111,7 +114,7 @@ console.log('\nIL GIRO VERO');
   check('l\'INDICE dice i conteggi veri', testo.includes('listings: 2 documenti') && testo.includes('contracts: 1 documenti'));
   check('l\'email saltata non e\' silenzio: Telegram avvisa e la via Storage resta',
     r.emailed === false && r.url.includes('backups%2Fcassaforte-2026-08-18.zip')
-    && TG.some(t => /email non .{0,2} partita/.test(t)));
+    && TG.some(t => /non .{0,2} partita/.test(t) && /Resta la copia su Storage/.test(t)));
 }
 
 // ═══ 3. idempotenza ═══
@@ -150,8 +153,48 @@ console.log('\nL\'EMAIL CHE PARTE');
     && mail.text.includes('listings: 2 documenti'));
 }
 
-check('\nle collection critiche ci sono tutte',
-  ['listings', 'contracts', 'payments', 'leads', 'users', 'settings']
+// ═══ 6. il tetto dichiarato ═══
+console.log('\nIL TETTO DICHIARATO');
+{
+  const r = await run({ dayOverride: '2026-08-21', limitPer: 2 });
+  check('count == tetto viene DICHIARATO, mai sottinteso',
+    r.buchi.some(b => /listings: raggiunto il tetto/.test(b)));
+  const testo = Buffer.from(STORAGE.get('backups/cassaforte-2026-08-21.zip')).toString('utf8');
+  check('l\'INDICE marca la possibile troncatura', testo.includes('(TETTO — forse troncata)'));
+}
+
+// ═══ 7. storage giù: l'email parte LO STESSO ═══
+console.log('\nSTORAGE GIU (rules non deployate)');
+{
+  STORAGE_GIU = true; globalThis.__mails.length = 0;
+  const r = await run({ dayOverride: '2026-08-22' });
+  check('l\'email parte anche senza Storage', r.emailed === true && r.url === null);
+  check('l\'allegato porta comunque lo ZIP',
+    Buffer.from(globalThis.__mails[0].attachments[0].content).slice(0, 2).toString() === 'PK');
+  check('il corpo dice che la copia e\' SOLO l\'allegato',
+    /SOLO questo allegato/.test(globalThis.__mails[0].text));
+  check('il buco storage e\' dichiarato', r.buchi.some(b => /^storage:/.test(b)));
+}
+
+// ═══ 8. NESSUNA copia = errore, e il retry non trova un falso "fatto" ═══
+console.log('\nLA NOTTE SENZA COPIE');
+{
+  globalThis.__mailFail = true;  // storage ancora giu' + email giu'
+  let err = null;
+  try { await run({ dayOverride: '2026-08-23' }); } catch (e) { err = e; }
+  check('il run FALLISCE (mai una notte verde senza copie)',
+    !!err && /nessuna copia/.test(err.message));
+  check('il marker del giorno e\' stato tolto: il retry puo\' correre',
+    !DB.has('heartbeat/cassaforte-2026-08-23'));
+  STORAGE_GIU = false; globalThis.__mailFail = false;
+  const r2 = await run({ dayOverride: '2026-08-23' });
+  check('e il retry salva davvero', r2.emailed === true
+    && STORAGE.has('backups/cassaforte-2026-08-23.zip'));
+}
+
+check('\nle collection critiche ci sono tutte (unione con la lista audit)',
+  ['listings', 'contracts', 'payments', 'leads', 'users', 'settings',
+   'bankTransactions', 'propertyLocks', 'operatorTasks', 'rendiconti']
     .every(c => COLLECTIONS.includes(c)));
 
 console.log(`\n${fail ? '\x1b[31m' : '\x1b[32m'}CASSAFORTE: ${pass} ok, ${fail} falliti\x1b[0m`);
