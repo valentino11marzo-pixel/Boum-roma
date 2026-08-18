@@ -400,9 +400,21 @@ export default async function handler(req, res) {
       results.viewings = await runViewingMoments();
     } catch (e) { results.errors.push(`viewings: ${e.message}`); }
 
+    // Heartbeat (audit P1.2): reminder-cron incassa gli affitti (collectSdd),
+    // manda i promemoria e i moments — era il più critico dei cron ciechi. Se
+    // muore, ora /team lo vede. Best-effort: mai far fallire il cron per il battito.
+    try {
+      const { reportEmployeeHealth } = await import('./employees/_lib.js');
+      await reportEmployeeHealth('reminder-cron', { ok: !(results.errors && results.errors.length), stats: { errors: (results.errors || []).length } });
+    } catch { /* non-fatal */ }
+
     return res.status(200).json({ ok: true, timestamp: now.toISOString(), ...results });
   } catch (e) {
     console.error('Cron error:', e);
+    try {
+      const { reportEmployeeHealth } = await import('./employees/_lib.js');
+      await reportEmployeeHealth('reminder-cron', { ok: false, error: e.message });
+    } catch { /* non-fatal */ }
     return res.status(500).json({ error: e.message });
   }
 }

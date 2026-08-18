@@ -544,6 +544,10 @@
         {
           "key": "X-DNS-Prefetch-Control",
           "value": "on"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "object-src 'none'; base-uri 'none'; frame-ancestors 'self'"
         }
       ]
     },
@@ -638,6 +642,18 @@
   ],
   "functions": {
     "api/reminder-cron.js": {
+      "maxDuration": 60
+    },
+    "api/stripe-webhook.js": {
+      "maxDuration": 60
+    },
+    "api/preagreement/submit.js": {
+      "maxDuration": 60
+    },
+    "api/leads/scan-inbox.js": {
+      "maxDuration": 60
+    },
+    "api/pfs/scan-inbox.js": {
       "maxDuration": 60
     },
     "api/homie/miniera.js": {

@@ -109,13 +109,18 @@ service firebase.storage {
     }
 
     // ─── passes/** ────────────────────────────────────────────────────
-    // Generated .pkpass files delivered via tokenized download URL. Public
-    // read (URL carries an unguessable token); any signed-in user may write
-    // (admin generating tenant/landlord/viewing passes; landlord generating
-    // their own Partner pass). 5 MB ceiling.
+    // I .pkpass sono serviti al volo dagli endpoint (api/my-pass, api/viewings/
+    // pass, api/generate-pass) come application/vnd.apple.pkpass — nessuno li
+    // legge da Storage via URL pubblico. Quindi `read: if true` non serve alla
+    // consegna e regalava l'ENUMERAZIONE pubblica dei pass (nome, immobile,
+    // ora della visita = PII). E `write: isSignedIn()` includeva l'anonimo
+    // (magic-link) che poteva caricare qualsiasi file fino a 5MB in una
+    // cartella a lettura pubblica. Stretto a admin/landlord (i soli generatori
+    // legittimi) — audit 2026-08-18 P1.9. `validUpload()` NON si usa qui: la
+    // sua whitelist esclude il content-type dei .pkpass.
     match /passes/{allPaths=**} {
-      allow read:  if true;
-      allow write: if isSignedIn() && request.resource.size < 5 * 1024 * 1024;
+      allow read:   if isAdmin();
+      allow write:  if (isAdmin() || isLandlord()) && request.resource.size < 5 * 1024 * 1024;
       allow delete: if isAdmin();
     }
 
