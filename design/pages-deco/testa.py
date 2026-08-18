@@ -219,6 +219,56 @@ def blocco_listing():
             + '\n' + ROBOTS + '\n' + ICONE + '\n' + GTAG + '\n'
             + _ld(AGENZIA, SITO_WEB, briciole))
 
+COME_FAQ = {
+    '@context': 'https://schema.org', '@type': 'FAQPage',
+    'mainEntity': [
+        {'@type': 'Question',
+         'name': 'Can I rent a Rome apartment before I arrive in Italy?',
+         'acceptedAnswer': {'@type': 'Answer', 'text':
+            'Yes — most BOOM tenants do. Viewings are live on video, the '
+            'contract is signed from your phone, and the refundable €300 '
+            'hold keeps the home off the market while you decide. You can '
+            'land in Rome with keys day already booked.'}},
+        {'@type': 'Question',
+         'name': 'Is the contract legal and registered?',
+         'acceptedAnswer': {'@type': 'Answer', 'text':
+            'Yes. Every BOOM lease is a registered Italian contract under '
+            'law 431/98, filed with the Agenzia delle Entrate. You sign '
+            'from your phone and receive the signed copy by email.'}},
+        {'@type': 'Question', 'name': 'What does BOOM cost?',
+         'acceptedAnswer': {'@type': 'Answer', 'text':
+            'One fee: 10% of the annual rent, charged once at signing. '
+            'First month and deposit are the only other lines — and the '
+            'deposit comes back, filmed at move-in and move-out. Every '
+            'payment goes through Stripe with a receipt.'}},
+        {'@type': 'Question',
+         'name': 'I found a home on another portal — can you still help?',
+         'acceptedAnswer': {'@type': 'Answer', 'text':
+            'Yes. A Virtual Viewing (€89) tours it live for you with the '
+            'red flags said out loud, and Deal Assistance (€249, fixed) '
+            'verifies the landlord and the papers, then negotiates. The '
+            'viewing fee is credited if you end up renting with us.'}}],
+}
+
+def blocco_come(titolo, descr):
+    briciole = {
+        '@context': 'https://schema.org', '@type': 'BreadcrumbList',
+        'itemListElement': [
+            {'@type': 'ListItem', 'position': 1, 'name': 'Home',
+             'item': 'https://www.boomrome.com/'},
+            {'@type': 'ListItem', 'position': 2, 'name': 'How it works',
+             'item': 'https://www.boomrome.com/how-it-works'}],
+    }
+    pagina = {
+        '@context': 'https://schema.org', '@type': 'WebPage',
+        'url': 'https://www.boomrome.com/how-it-works',
+        'name': titolo, 'description': descr,
+        'isPartOf': {'@id': 'https://www.boomrome.com/#website'},
+    }
+    return (_og(titolo, descr, 'https://www.boomrome.com/how-it-works') + '\n'
+            + ROBOTS + '\n' + ICONE + '\n' + GTAG + '\n'
+            + _ld(AGENZIA, SITO_WEB, pagina, briciole, COME_FAQ))
+
 def blocco_money(titolo, descr):
     briciole = {
         '@context': 'https://schema.org', '@type': 'BreadcrumbList',

@@ -392,6 +392,26 @@
       health: null,
       console: null, run: '/api/ops/conservazione'
     },
+    {
+      key: 'cassaforte', emoji: '🧰', name: 'La Cassaforte', reparto: 'Amministrazione',
+      role: 'Il backup notturno del database, fuori dalla piattaforma',
+      hired: 'L\'audit del 18/08 l\'ha detto senza giri: il database non aveva UN backup. Contratti, pagamenti e clienti vivevano in un Firestore senza copia.',
+      mandate: [
+        'Ogni notte legge le collection critiche e le chiude in uno ZIP con INDICE',
+        'Posa la copia su Storage (backups/) e la SPEDISCE alla tua casella: Gmail e\' la copia fuori piattaforma',
+        'Se una collection e\' illeggibile lo scrive nell\'INDICE e lo dice su Telegram — un buco taciuto e\' un backup bugiardo'
+      ],
+      autonomy: {
+        solo:  ['Prepara, posa su Storage e SPEDISCE lo ZIP alla tua casella'],
+        porta: ['Lo ZIP stesso'],
+        mai:   ['Non manda niente a nessun altro che te', 'Non cancella e non riscrive MAI un documento']
+      },
+      reach: ['operatore', 'file'],
+      approval: 'mai',
+      crons: ['/api/ops/cassaforte'],
+      health: null,
+      console: null, run: '/api/ops/cassaforte'
+    },
 
     /* ── VETRINA — quello che vede il pubblico ────────────────────────── */
     {
