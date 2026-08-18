@@ -51,6 +51,21 @@ ok(WA.REPLIES.every((r) => !r.bench || !r.star),
 ok(WA.FAMILIES.every((f) => WA.REPLIES.some((r) => r.fam === f.key)),
   'ogni famiglia dichiarata ha almeno una risposta');
 
+// Le due regole del kit, misurate sull'archivio vero dell'operatore:
+// metà dei suoi messaggi sta sotto 17 caratteri e un link compare nell'1%.
+// Una risposta salvata può permettersi di essere più lunga di così — la
+// scrive una volta e gli fa risparmiare minuti — ma oltre una certa soglia
+// non è più una risposta: è un muro che il cliente non legge, ed è
+// esattamente il motivo per cui la prima versione è stata buttata.
+console.log('\n\x1b[1m1b. Il kit: niente muri, una porta sola\x1b[0m');
+for (const r of WA.installed()) {
+  ok(r.text.length <= 520, `/${r.sc} sta in ${r.text.length} caratteri (max 520)`,
+    'oltre questa soglia su WhatsApp non si legge: si taglia, non si aggiunge');
+  const links = (r.text.match(/https?:\/\//g) || []).length;
+  ok(links <= 1, `/${r.sc} ha al massimo un link (${links})`,
+    'due link nello stesso messaggio sono due porte: il cliente non ne apre nessuna');
+}
+
 // ---------------------------------------------------------------------------
 // Le rotte vere del sito, dedotte dal repo — nessuna lista scritta a mano:
 // una lista a mano si dimentica di aggiornare, e allora il test smette di

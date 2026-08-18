@@ -5,9 +5,9 @@
 > I testi vivono in una copia sola, letta anche dalla pagina `/risposte`
 > (da cui si copiano col pollice) e dai test.
 
-**15 risposte da caricare nell'app** — circa 10 minuti, una volta sola.
+**14 risposte da caricare nell'app** — circa 10 minuti, una volta sola.
 
-Le altre 15 restano nel mazzo: vivono qui e su `/risposte`, si cercano e si
+Le altre 16 restano nel mazzo: vivono qui e su `/risposte`, si cercano e si
 copiano quando capita il caso raro, senza occupare uno slot nel telefono. L'app ne accetta
 50 in tutto, ma installarne 50 significa non trovare più quella giusta:
 meglio poche, sapute a memoria.
@@ -60,23 +60,22 @@ Si sincronizzano poi sul telefono da sole.
 Apri **`/risposte`** sul telefono (o sul computer, è la stessa pagina): ogni risposta ha
 il tasto **Copia**. Copia → incolla nell'app → scorciatoia → avanti.
 
-### Le 15 da caricare
+### Le 14 da caricare
 
-- `/enlead` — Ha scritto da un portale — apri e proponi la chiamata
-- `/engone` — Quella casa è andata — e non perdi la persona
-- `/enlink` — Mando l'annuncio
-- `/enserv` — Vendo un servizio — link col modulo e pagamento
-- `/enblock` — Bloccare la casa — l'ultimo passo prima del sì
-- `/enprice` — Quanto costa, tutto
-- `/endocs` — Documenti
-- `/enwho` — Chi può abitarci: coppia, amici, figli, animali
+- `/enlead` — Contatto dal portale → chiamata
+- `/engone` — Quella casa è andata
+- `/enprice` — Tutti i costi, in chiaro
+- `/endocs` — Documenti per essere approvato
 - `/enbook` — Prenota la visita
-- `/enabroad` — È all'estero — la visita video (€89 se la casa non è nostra)
-- `/encheck` — Ha un contratto di qualcun altro in mano
-- `/enfind` — Non abbiamo niente per lui — cerchiamo noi (€350)
+- `/enwho` — Chi può abitarci: coppia, amici, figli, animali
+- `/enfeat` — Arredato? lavatrice, aria, ascensore
+- `/enabroad` — È fuori Italia → visita video (€89 sulle case altrui)
+- `/encheck` — Ha in mano il contratto di un altro
+- `/enfind` — Non abbiamo niente per lui → cerchiamo noi (€350)
+- `/enconc` — Burocrazia dell'arrivo (da €15 · pacchetto €390)
+- `/enblock` — Bloccare la casa
 - `/itciao` — Apertura in italiano
 - `/prciao` — Primo contatto col proprietario
-- `/enfeat` — Arredato? lavatrice, aria, ascensore
 
 Tutto il resto è nel mazzo qui sotto: si copia dalla pagina quando serve.
 
@@ -88,35 +87,184 @@ Tutto il resto è nel mazzo qui sotto: si copia dalla pagina quando serve.
 
 *Il grosso del lavoro: expat, studenti internazionali, chi scrive da fuori.*
 
-#### `/enlead` · Ha scritto da un portale — apri e proponi la chiamata ⭐
+#### `/enlead` · Contatto dal portale → chiamata ⭐
 
-**Quando:** Il tuo messaggio più ripetuto (11×): "you contacted us for X, let me know when I can call you". Chiamare è ciò che chiude, quindi si propone subito.
+**Quando:** Il tuo messaggio più ripetuto. Chiamare è ciò che chiude: si propone subito, e nel frattempo dici in una riga chi sei.
 
 ```
 Hello [NOME], Valentino from BOOM Rome — you wrote about [CASA].
 
-Fastest way: tell me when I can call you for two minutes, I'll have everything ready (availability, real all-in price, documents).
+We're a licensed agency here in Rome: registered contracts in English, and every flat we list we've walked ourselves.
 
-Or here: zone, budget, move-in date.
+Two minutes on the phone and you'll have it all — availability, the real all-in price, what we need from you. When can I call you?
 ```
-<sub>Da riempire: [NOME] · [CASA] — 234 caratteri</sub>
+<sub>Da riempire: [NOME] · [CASA] — 315 caratteri</sub>
 
-#### `/engone` · Quella casa è andata — e non perdi la persona ⭐
+#### `/engone` · Quella casa è andata ⭐
 
-**Quando:** Il tuo secondo ripetuto (13×). Una casa affittata è il momento in cui la gente sparisce: non si scusa, si chiedono le tre cose e si riparte.
+**Quando:** Il momento in cui la gente sparisce. Non ci si scusa: si dice subito la verità e si riparte con tre domande.
 
 ```
-Hello [NOME] — you contacted us for [CASA]. That one has just been rented.
+Hello [NOME] — you wrote about [CASA]. That one is gone, and I'd rather tell you now than let you wait.
 
-Tell me three things and I'll send what's really free today: zone, budget, move-in date.
+Send me zone, budget and move-in date and I'll come back today with what's really free — every flat walked by us, price all-in, no surprises.
 
-Everything live: https://www.boomrome.com/apartments
+https://www.boomrome.com/apartments
 ```
-<sub>Da riempire: [NOME] · [CASA] — 218 caratteri</sub>
+<sub>Da riempire: [NOME] · [CASA] — 283 caratteri</sub>
 
-#### `/enlink` · Mando l'annuncio ⭐
+#### `/enprice` · Tutti i costi, in chiaro ⭐
 
-**Quando:** Il tuo terzo ripetuto (15×). Aggiunge in una riga il perché quel link vale più di un altro, e chiude con la visita.
+**Quando:** La domanda che decide. Ogni voce, con la garanzia accanto: è la risposta che ti distingue da chi ne nasconde una.
+
+```
+Everything, so you can compare us properly:
+
+• Rent — the figure on the listing, nothing added later
+• Deposit — refundable, and we film the flat in and out so it comes back
+• Our fee — 10% of the annual rent, once, and only if you actually move in
+• €300 to hold a home — refundable, and deducted from what you owe
+
+Euro by euro: https://www.boomrome.com/your-money
+```
+<sub>Pronta così com'è — 366 caratteri</sub>
+
+#### `/endocs` · Documenti per essere approvato ⭐
+
+**Quando:** Data in anticipo e per intero: nessuna richiesta a sorpresa dopo il sì, che è la cosa che fa scappare la gente dalle agenzie.
+
+```
+What we need to approve you — the same list for everyone, and nothing extra appears later:
+
+• Passport
+• Proof of income: contract, payslips, or your enrolment letter
+• A guarantor if your income isn't in Italy yet — ask me, there are ways around it
+• Codice fiscale — if you don't have one, we get it for you
+
+Photos from your phone are fine — send them here, or upload them in the secure form: https://www.boomrome.com/booking
+
+Either way I'll tell you today where you stand.
+```
+<sub>Pronta così com'è — 477 caratteri</sub>
+
+#### `/enbook` · Prenota la visita ⭐
+
+**Quando:** Gli orari nel link sono quelli davvero liberi della tua settimana. E resta aperta la chiamata, che per te funziona meglio.
+
+```
+The viewing is free and takes about 30 minutes — in person, or live on video if you're not in Rome yet: you direct the camera, I answer while we walk through it.
+
+Pick a time that's genuinely free in my week:
+https://www.boomrome.com/book
+
+Or tell me when I can call and we fix it in a minute.
+```
+<sub>Pronta così com'è — 293 caratteri</sub>
+
+#### `/enwho` · Chi può abitarci: coppia, amici, figli, animali ⭐
+
+**Quando:** Una delle domande più frequenti. Non prometti al posto del proprietario e chiudi chiedendo chi arriva, così filtri le case giuste.
+
+```
+It depends on the flat, and I check the one you like before you commit to anything. As a rule:
+
+• Couples and families — fine on most of our homes
+• Friends sharing — where the layout really allows it, and everyone goes on the contract
+• Pets — always the owner's decision, and I ask before you get attached to a place
+
+Tell me who's coming: adults, children, pets. I'll only send you homes that work.
+```
+<sub>Pronta così com'è — 401 caratteri</sub>
+
+#### `/enfeat` · Arredato? lavatrice, aria, ascensore ⭐
+
+**Quando:** 95 conversazioni nella misura. Non elencare a memoria: la pagina è sempre aggiornata, e tu chiedi quali due contano davvero.
+
+```
+Each flat lists exactly what's inside — furniture, appliances, heating, lift, balcony — with photos we took ourselves, not the owner's:
+
+https://www.boomrome.com/apartments
+
+Most of ours come furnished and ready to live in. If something isn't written there, ask me: I check with the owner rather than guess.
+
+Air conditioning, lift, washing machine — which are non-negotiable for you?
+```
+<sub>Pronta così com'è — 384 caratteri</sub>
+
+#### `/enabroad` · È fuori Italia → visita video (€89 sulle case altrui) ⭐
+
+**Quando:** I tuoi clienti sono quasi tutti all'estero e questo servizio l'hai proposto UNA volta in sei mesi. Il gratis apre, il pagato serve per le case degli altri.
+
+```
+You don't need to be in Rome to sort this out — most of our tenants sign before they land.
+
+On our homes the live video viewing is free. On a flat that isn't ours we go in person, film it for you and send a written report with the red flags: €89, within 48 hours, credited to our fee if you then rent with us.
+
+https://www.boomrome.com/virtual-viewing
+
+Which one should I see first?
+```
+<sub>Pronta così com'è — 382 caratteri</sub>
+
+#### `/encheck` · Ha in mano il contratto di un altro ⭐
+
+**Quando:** Proposto 2 volte in sei mesi. La prima lettura gratis è onesta e apre la porta: chi ha paura di firmare torna sempre.
+
+```
+Send me the contract before you sign anything. The first read is free: I'll tell you what's unfair, what's missing, and whether the landlord is who he says he is.
+
+https://www.boomrome.com/contract-check
+
+If you want it in writing: €49 for a traffic-light verdict within 24 hours, or €249 with ownership checks and the negotiation handled by us.
+```
+<sub>Pronta così com'è — 345 caratteri</sub>
+
+#### `/enfind` · Non abbiamo niente per lui → cerchiamo noi (€350) ⭐
+
+**Quando:** Lo vendi già 49 volte in sei mesi: è il modo giusto di non perdere chi non trova casa da te. Da mandare SEMPRE prima di lasciarlo andare.
+
+```
+Straight answer: nothing we have right now fits what you asked.
+
+Two ways forward — I keep you first in line for [ZONA], or we go and find it: the whole Rome market plus what never gets published, every match checked by a person before it reaches you. €350, deducted from our fee when you sign, refunded in full if we don't deliver.
+
+https://www.boomrome.com/property-finding
+
+Which one?
+```
+<sub>Da riempire: [ZONA] — 387 caratteri</sub>
+
+#### `/enconc` · Burocrazia dell'arrivo (da €15 · pacchetto €390) ⭐
+
+**Quando:** Lo nomini già 39 volte: i clienti lo capiscono al volo perché è la parte che li spaventa di più.
+
+```
+Codice fiscale, electricity and gas in your name, internet, SIM, residency, health card — this is the part that eats people's first month here. We do it while you're still packing.
+
+Single tasks from €15, the whole landing handled from €390, with one person on WhatsApp for your first month.
+
+https://www.boomrome.com/concierge
+
+Which one do you need first?
+```
+<sub>Pronta così com'è — 357 caratteri</sub>
+
+#### `/enblock` · Bloccare la casa ⭐
+
+**Quando:** Il momento che vale di più. La riga finale evita le domande DOPO il pagamento, che sono quelle che fanno saltare i contratti.
+
+```
+You have everything you need to decide, [NOME].
+
+To hold it: €300 — refundable, deducted from what you owe, and the flat stops being shown to anyone else. Then the pre-agreement, the registered contract, and the keys on your date.
+
+If anything is still unclear, ask me now: I'd rather answer today than after you've paid.
+```
+<sub>Da riempire: [NOME] — 321 caratteri</sub>
+
+#### `/enlink` · Mando l'annuncio · 🪑 panchina
+
+**Quando:** Quando gli mandi una casa precisa. Una riga sul perché quel link vale, e si chiude con la visita.
 
 ```
 Here it is: [LINK]
@@ -127,9 +275,9 @@ Want to see it? In person, or live on video if you're not in Rome yet.
 ```
 <sub>Da riempire: [LINK] — 178 caratteri</sub>
 
-#### `/enserv` · Vendo un servizio — link col modulo e pagamento ⭐
+#### `/enserv` · Mando il link di un servizio da pagare · 🪑 panchina
 
-**Quando:** Il tuo ripetuto numero uno (18×): "I send you the link of the service with the form, pay with Apple Pay". Qui è già scritto, ti resta da dire cosa ti serve da lui.
+**Quando:** Il tuo messaggio più ripetuto (18×): il link col modulo, pagamento diretto. Qui è già scritto, ti resta da dire cosa ti serve da lui.
 
 ```
 Perfect. I'll send you the link with the form — you fill it in and pay right there (Apple Pay works): [LINK]
@@ -140,189 +288,61 @@ As soon as it's in, we start: [QUANDO].
 ```
 <sub>Da riempire: [LINK] · [COSA TI SERVE] · [QUANDO] — 186 caratteri</sub>
 
-#### `/enblock` · Bloccare la casa — l'ultimo passo prima del sì ⭐
+#### `/entrust` · "Come faccio a fidarmi?" · 🪑 panchina
 
-**Quando:** Il tuo ripetuto (11×) nel momento che vale di più. La riga finale ("chiedi adesso") evita le domande dopo il pagamento, che sono quelle che fanno annullare.
-
-```
-You have everything you need to decide, [NOME].
-
-To block it: €300 hold — refundable, and deducted from what you owe. Then we prepare the agreement and the registered contract.
-
-Anything unclear, ask me now: after the hold I'd rather you had no questions left.
-```
-<sub>Da riempire: [NOME] — 260 caratteri</sub>
-
-#### `/enprice` · Quanto costa, tutto ⭐
-
-**Quando:** La domanda che decide. Tutte le voci in quattro righe: chi ne nasconde una la fa scoprire dopo, e allora è una lite.
+**Quando:** La diffidenza è sana, Roma è piena di truffe. Dagli gli strumenti per verificarti invece di offenderti.
 
 ```
-All in, nothing hidden:
+Fair question — you can check us in two minutes:
 
-• Rent — the figure on the listing
-• Deposit — refundable, we film the flat in and out
-• Agency fee — 10% of the annual rent, once, only if you rent
-• €300 to block a home — refundable, deducted from what you owe
+• Egidi Immobiliare S.r.l., VAT 17322991005 — a licensed agency, not a middleman
+• 4.9★ on Google from real tenants
+• Every contract registered with the Agenzia delle Entrate, every payment through Stripe with a receipt in your name
 
-Euro by euro: https://www.boomrome.com/your-money
+And the rule that protects you: we never ask for cash, or a transfer to a private person.
 ```
-<sub>Pronta così com'è — 288 caratteri</sub>
-
-#### `/endocs` · Documenti ⭐
-
-**Quando:** La stessa lista per tutti, data in anticipo: è ciò che ti distingue dalle agenzie che aggiungono richieste dopo il sì.
-
-```
-Same list for everyone, and nothing extra appears later:
-
-• Passport
-• Proof of income — contract, payslips, or enrolment letter
-• A guarantor if your income isn't in Italy yet (there are alternatives, ask me)
-• Codice fiscale — we get it for you if you don't have one
-
-Phone photos are fine.
-```
-<sub>Pronta così com'è — 292 caratteri</sub>
-
-#### `/enwho` · Chi può abitarci: coppia, amici, figli, animali ⭐
-
-**Quando:** Arriva spesso e non si può rispondere a caso: non prometti al posto del proprietario, e chiedi chi arriva.
-
-```
-Depends on the flat, and I check the one you like before you commit:
-
-• Couples and families — fine almost everywhere
-• Friends sharing — where the layout really allows it
-• Pets — always the owner's call, and I ask before you fall in love with a place
-
-Who's coming? Adults, children, pets.
-```
-<sub>Pronta così com'è — 291 caratteri</sub>
-
-#### `/enbook` · Prenota la visita ⭐
-
-**Quando:** Gli orari nel link sono quelli davvero liberi della tua settimana. E lasci aperta la chiamata, che per te funziona meglio.
-
-```
-Viewing is free, about 30 minutes — in person, or live on video if you're not in Rome yet (I hold the camera, you tell me where to look).
-
-Real free slots here: https://www.boomrome.com/book
-
-Or tell me when I can call you and we fix it in a minute.
-```
-<sub>Pronta così com'è — 249 caratteri</sub>
-
-#### `/enabroad` · È all'estero — la visita video (€89 se la casa non è nostra) ⭐
-
-**Quando:** Il servizio che vendi 1 volta su 180 giorni, e i tuoi clienti sono quasi tutti fuori Italia. Il gratis apre, il pagato serve per le case degli altri.
-
-```
-You don't need to be in Rome to sort this out.
-
-• On our homes: live video viewing, free — you direct the camera
-• On a flat that isn't ours: we go, film it and write you an honest report, red flags included. €89 → https://www.boomrome.com/virtual-viewing
-
-Which one do you want seen first?
-```
-<sub>Pronta così com'è — 290 caratteri</sub>
-
-#### `/encheck` · Ha un contratto di qualcun altro in mano ⭐
-
-**Quando:** Altro servizio quasi mai proposto (2 volte in 6 mesi). La prima lettura gratis apre la porta, ed è onesta: molti tornano per il resto.
-
-```
-Don't sign an Italian lease nobody has read for you.
-
-First read is free — I tell you what's unfair and what's missing: https://www.boomrome.com/contract-check
-
-If you want it done properly: €49 for a written verdict in 24h, or €249 with landlord check and negotiation on your side.
-
-Send me the PDF.
-```
-<sub>Pronta così com'è — 300 caratteri</sub>
-
-#### `/enfind` · Non abbiamo niente per lui — cerchiamo noi (€350) ⭐
-
-**Quando:** Lo vendi già (49 volte), ed è il modo giusto di non perdere chi non trova casa da te. Da mandare SEMPRE prima di lasciarlo andare.
-
-```
-Straight with you: nothing we have fits what you asked.
-
-Two ways forward — I keep you first in line for [ZONA], or we hunt the whole city for you: €350, deducted when you sign, refunded if we don't find it.
-
-https://www.boomrome.com/property-finding
-
-Which one?
-```
-<sub>Da riempire: [ZONA] — 262 caratteri</sub>
-
-#### `/enfeat` · Arredato? lavatrice, aria, ascensore ⭐
-
-**Quando:** 95 conversazioni nella misura. Non elencare a memoria: la pagina è sempre aggiornata, e tu chiedi quali due contano davvero.
-
-```
-Everything inside a flat is on its page — furniture, appliances, heating, lift, balcony — with our own photos: https://www.boomrome.com/apartments
-
-Most of ours come furnished and ready to live in. If something isn't written there, ask me: I check, I don't guess.
-
-Air conditioning, lift, washing machine — which are must-haves for you?
-```
-<sub>Pronta così com'è — 336 caratteri</sub>
+<sub>Pronta così com'è — 373 caratteri</sub>
 
 #### `/enres` · Posso prendere la residenza? · 🪑 panchina
 
-**Quando:** Rara ma decisiva per chi la chiede (tessera sanitaria, permesso). Meglio dirlo prima della firma che scoprirlo dopo.
+**Quando:** Rara ma decisiva per chi la chiede: tessera sanitaria, permesso, vita normale. Meglio dirlo prima della firma.
 
 ```
-Yes — and it's worth it: residency opens the tessera sanitaria and a lot of ordinary life here.
+Yes — and it's worth doing: residency is what opens the tessera sanitaria and most of ordinary life here.
 
-Two things make it smooth: a contract registered with the Agenzia delle Entrate (ours always are), and the owner knowing from the start. We put it on the table before signing.
+Two things make it smooth, and both are normal for us: a contract registered with the Agenzia delle Entrate (ours always are), and the owner knowing from the start.
 
-If it's essential for you, tell me now.
+If it's essential for you, tell me before we sign — on a few flats it's complicated, and I'd rather say so now.
 ```
-<sub>Pronta così com'è — 313 caratteri</sub>
+<sub>Pronta così com'è — 384 caratteri</sub>
 
 #### `/endeal` · Si può trattare sul prezzo · 🪑 panchina
 
-**Quando:** Una risposta netta e uguale per tutti vale più di uno sconto: dice che il prezzo non dipende da quanto insisti.
+**Quando:** Una risposta uguale per tutti vale più di uno sconto: dice che il prezzo non dipende da quanto insisti.
 
 ```
 Straight with you: on our own homes the listed price is what the owner agreed to publish, so there's rarely room on the rent itself — I'd rather be boring than quote you one number and the next person another.
 
-Where there sometimes is room: a longer stay, the move-in date, what's included.
+Where there sometimes is room: a longer stay, the move-in date, or what's included.
 
-Your real budget and dates?
+Tell me your real budget and your dates.
 ```
-<sub>Pronta così com'è — 320 caratteri</sub>
-
-#### `/enconc` · Burocrazia: codice fiscale, utenze, SIM, residenza · 🪑 panchina
-
-**Quando:** Lo nomini già 39 volte: è il servizio che i tuoi clienti capiscono al volo.
-
-```
-The bureaucracy is the part that breaks people. We do it for you: codice fiscale (remotely, before you land), electricity and gas in your name, internet, SIM, residency, health card.
-
-Single tasks from €15, the whole landing from €390: https://www.boomrome.com/concierge
-
-Which one do you need first?
-```
-<sub>Pronta così com'è — 300 caratteri</sub>
+<sub>Pronta così com'è — 336 caratteri</sub>
 
 #### `/endep` · Deposito trattenuto (lettera gratis o €99) · 🪑 panchina
 
-**Quando:** Anche a chi non è mai stato cliente: risolve un torto che nessuno gli risolve, e il passaparola vale più del servizio.
+**Quando:** Anche a chi non è mai stato cliente: risolvi un torto che nessun altro gli risolve, e il passaparola vale più del servizio.
 
 ```
-Italian law is on your side — art. 1590 c.c., 15 days to answer.
+Italian law is on your side — art. 1590 of the Civil Code, and a formal 15-day deadline.
 
-Free: generate the formal demand letter yourself → https://www.boomrome.com/deposit-letter
+Free: generate the demand letter yourself, in correct legal Italian → https://www.boomrome.com/deposit-letter
 
 Or we handle it: €99 to start, then 20% only on what we actually recover → https://www.boomrome.com/deposit-recovery
 
-How much are they holding, and why do they say so?
+How much are they holding, and what's their reason?
 ```
-<sub>Pronta così com'è — 326 caratteri</sub>
+<sub>Pronta così com'è — 370 caratteri</sub>
 
 #### `/enguide` · Le guide gratuite (per chi è ancora freddo) · 🪑 panchina
 
@@ -338,37 +358,22 @@ Read them before you talk to any agency, including us.
 ```
 <sub>Pronta così com'è — 289 caratteri</sub>
 
-#### `/entrust` · "Come faccio a fidarmi?" · 🪑 panchina
-
-**Quando:** La diffidenza è sana, Roma è piena di truffe. Dagli gli strumenti per controllarti invece di offenderti.
-
-```
-Fair question — check us in two minutes:
-
-• Egidi Immobiliare S.r.l., VAT 17322991005 — licensed Rome agency
-• 4.9★ on Google, real tenants
-• Every contract registered with the Agenzia delle Entrate, every payment by Stripe with a receipt in your name
-
-And the rule: we never ask for cash, or a transfer to a private person.
-```
-<sub>Pronta così com'è — 324 caratteri</sub>
-
 ### Inquilino in casa · English — 4
 
 *Dopo le chiavi: canone, guasti, manuale, recensione, uscita.*
 
 #### `/enpay` · Come si paga il canone · 🪑 panchina
 
-**Quando:** Primo mese e ogni volta che lo chiedono. Spingi bonifico o addebito: costano meno e non si dimenticano.
+**Quando:** Primo mese e ogni volta che lo chiedono. Spingi bonifico o addebito: costano meno a entrambi e non si dimenticano.
 
 ```
-Everything about your rent — invoices, receipts, the button to pay: https://www.boomrome.com/casa
+Everything about your rent — invoices, receipts and the button to pay: https://www.boomrome.com/casa
 
-Three ways: card (instant), bank transfer (free, the page shows the details and the reference), or automatic SEPA debit — you authorise once and it collects itself.
+Three ways: card (instant), bank transfer (free, the page shows the details and the reference to copy), or automatic SEPA debit — you authorise once and each instalment collects itself.
 
 Want me to set the automatic one up?
 ```
-<sub>Pronta così com'è — 301 caratteri</sub>
+<sub>Pronta così com'è — 325 caratteri</sub>
 
 #### `/enfix` · Guasto in casa · 🪑 panchina
 
@@ -378,20 +383,20 @@ Want me to set the automatic one up?
 Sorry about that. Send me:
 1. A photo or a short video
 2. Which room
-3. Is it urgent — no water, no heating, no power, a leak = I move today
+3. Is it urgent — no water, no heating, no power or a leak means I move today
 
-You can also file it from https://www.boomrome.com/casa so it gets a ticket.
+You can also file it from https://www.boomrome.com/casa so it gets a ticket and a history.
 
-If it's urgent, call me.
+If it's urgent, call me: don't wait for a reply here.
 ```
-<sub>Pronta così com'è — 244 caratteri</sub>
+<sub>Pronta così com'è — 293 caratteri</sub>
 
 #### `/enrev` · Chiedere la recensione · 🪑 panchina
 
-**Quando:** Da mandare quando è contento e ha già le chiavi. Mai a chi ha un problema aperto.
+**Quando:** Quando è contento e ha già le chiavi. Mai a chi ha un problema aperto.
 
 ```
-[NOME], one small favour — worth more than any advertising for us.
+[NOME], one small favour — worth more to us than any advertising.
 
 If BOOM did right by you, two lines on Google help the next person trust an agency they've never met:
 
@@ -399,7 +404,7 @@ https://g.page/r/CfcpUptbNnvZEBM/review
 
 And if something wasn't right, tell me first: I'd rather fix it than read it.
 ```
-<sub>Da riempire: [NOME] — 289 caratteri</sub>
+<sub>Da riempire: [NOME] — 288 caratteri</sub>
 
 #### `/enrefer` · Referral: €50 a te, €50 a chi arriva · 🪑 panchina
 
@@ -410,9 +415,9 @@ Know anyone else moving to Rome? Send them over and you both get €50 when they
 
 https://www.boomrome.com/refer
 
-No catch, no expiry — and they get the same treatment you got.
+No catch, no expiry — and they get exactly the treatment you got.
 ```
-<sub>Pronta così com'è — 180 caratteri</sub>
+<sub>Pronta così com'è — 183 caratteri</sub>
 
 ### Cliente · Italiano — 2
 
@@ -420,10 +425,10 @@ No catch, no expiry — and they get the same treatment you got.
 
 #### `/itciao` · Apertura in italiano ⭐
 
-**Quando:** Stessa struttura, altra lingua: tre informazioni e la proposta di chiamata.
+**Quando:** Stessa struttura: chi sei in una riga, tre informazioni, e la proposta di chiamata.
 
 ```
-Ciao [NOME], sono Valentino di BOOM Rome.
+Ciao [NOME], sono Valentino di BOOM Rome — agenzia regolare, contratti registrati, e ogni casa che pubblichiamo l'abbiamo vista di persona.
 
 Dimmi zona, budget e da quando ti serve: ti mando quello che è davvero libero.
 
@@ -431,7 +436,7 @@ https://www.boomrome.com/apartments
 
 Oppure dimmi quando posso chiamarti due minuti.
 ```
-<sub>Da riempire: [NOME] — 207 caratteri</sub>
+<sub>Da riempire: [NOME] — 305 caratteri</sub>
 
 #### `/itcosti` · I costi in italiano · 🪑 panchina
 
@@ -440,14 +445,14 @@ Oppure dimmi quando posso chiamarti due minuti.
 ```
 Tutto compreso, senza sorprese:
 
-• Canone — quello scritto sull'annuncio
-• Deposito — restituito alla fine, filmiamo la casa all'ingresso e all'uscita
-• Commissione — 10% del canone annuo, una volta sola e solo se firmi
-• €300 per bloccare — rimborsabili e scalati
+• Canone — quello scritto sull'annuncio, niente aggiunte dopo
+• Deposito — restituito alla fine; filmiamo la casa all'ingresso e all'uscita
+• Commissione — 10% del canone annuo, una volta sola e solo se entri davvero
+• €300 per bloccare — rimborsabili e scalati da quello che devi
 
 Il dettaglio: https://www.boomrome.com/your-money
 ```
-<sub>Pronta così com'è — 315 caratteri</sub>
+<sub>Pronta così com'è — 364 caratteri</sub>
 
 ### Proprietario · Italiano — 2
 
@@ -455,31 +460,31 @@ Il dettaglio: https://www.boomrome.com/your-money
 
 #### `/prciao` · Primo contatto col proprietario ⭐
 
-**Quando:** Dice subito CHI porti in casa sua, e aggancia il concordato — che è il motivo per cui un proprietario ti richiama.
+**Quando:** Dice CHI porti in casa sua e aggancia il concordato: è il motivo per cui un proprietario ti richiama invece di archiviarti.
 
 ```
 Buongiorno [NOME], sono Valentino di BOOM (Egidi Immobiliare).
 
-Affittiamo a stranieri di fascia alta a Roma — professionisti in trasferta, personale ONU e ambasciate — e gestiamo tutto: selezione, contratto registrato, incassi, scadenze.
+Affittiamo a stranieri di fascia alta a Roma — professionisti in trasferta, personale ONU e ambasciate, studenti internazionali — e gestiamo tutto: selezione documentata dell'inquilino, contratto registrato, incassi tracciati, scadenze fiscali.
 
-Mi dice zona, metri quadri e se è arredato? Le dico a quanto si affitta davvero. E col canone concordato la cedolare scende al 10%: https://www.boomrome.com/canone
+Mi dice zona, metri quadri e se è arredato? Le dico a quanto si affitta davvero. Col canone concordato la cedolare scende al 10%: https://www.boomrome.com/canone
 ```
-<sub>Da riempire: [NOME] — 403 caratteri</sub>
+<sub>Da riempire: [NOME] — 471 caratteri</sub>
 
 #### `/prpack` · Pacchetto canone concordato (€349) · 🪑 panchina
 
 **Quando:** Dopo il calcolo, quando ha visto il risparmio ma non ha voglia della pratica. Che è sempre.
 
 ```
-Il concordato conviene, la pratica è noiosa: verifica del canone, contratto conforme, attestazione, registrazione RLI.
+Il concordato conviene, la pratica è noiosa: verifica del canone, contratto conforme, attestazione di rispondenza, registrazione RLI.
 
-La facciamo noi: €349 una volta sola, rimborso integrale se l'immobile non può rientrare in fascia.
+La facciamo noi chiavi in mano: €349 una volta sola per immobile, con rimborso integrale se l'immobile non può rientrare in fascia.
 
 https://www.boomrome.com/pacchetto-concordato
 
 Se vuole glielo calcolo sui suoi numeri.
 ```
-<sub>Pronta così com'è — 308 caratteri</sub>
+<sub>Pronta così com'è — 355 caratteri</sub>
 
 ### Aziende ed enti — 1
 
@@ -487,16 +492,16 @@ Se vuole glielo calcolo sui suoi numeri.
 
 #### `/azimpresa` · Aziende che spostano personale · 🪑 panchina
 
-**Quando:** HR o mobility manager: si parla di fattura e di persone che atterrano, non di visite.
+**Quando:** HR o mobility manager: si parla di fattura e di persone che atterrano, mai di visite.
 
 ```
-For companies moving people to Rome: one contact, verified homes, compliant leases in English, one VAT invoice from an Italian company — the document expense reports ask for.
+For companies moving people to Rome: one contact, verified homes, compliant leases in English, and a single VAT invoice from an Italian company — the document expense reports ask for.
 
 https://www.boomrome.com/corporate
 
 How many people, and when do they land?
 ```
-<sub>Pronta così com'è — 251 caratteri</sub>
+<sub>Pronta così com'è — 260 caratteri</sub>
 
 ### Link personali — 2
 
@@ -509,24 +514,24 @@ How many people, and when do they land?
 ```
 [NOME], the contract is ready to sign — no printer, no appointment: [LINK]
 
-Read it (it's in English, the terms are the ones we agreed) and sign with your finger. You'll get the signed PDF by email the moment both sides are done.
+Read it (it's in English, the terms are the ones we agreed) and sign with your finger. The signed PDF reaches you by email the moment both sides are done.
 
 Anything to change, tell me BEFORE you sign.
 ```
-<sub>Da riempire: [NOME] · [LINK] — 275 caratteri</sub>
+<sub>Da riempire: [NOME] · [LINK] — 276 caratteri</sub>
 
 #### `/oppay` · Link di pagamento · 🪑 panchina
 
-**Quando:** Per una rata o una fattura: il link resta valido nel tempo, si può aprire anche dopo.
+**Quando:** Per una rata o una fattura: il link resta valido, si può aprire anche più tardi o da un altro telefono.
 
 ```
 [NOME], here's the secure link to pay [COSA] — [IMPORTO]: [LINK]
 
-Stripe page in your name, receipt in your inbox in seconds. The link stays valid, so you can also open it later.
+It's a Stripe page in your name: the receipt reaches your inbox in seconds. The link stays valid, so you can open it later too.
 
 Prefer a bank transfer? Tell me and I'll send the details.
 ```
-<sub>Da riempire: [NOME] · [COSA] · [IMPORTO] · [LINK] — 238 caratteri</sub>
+<sub>Da riempire: [NOME] · [COSA] · [IMPORTO] · [LINK] — 253 caratteri</sub>
 
 ---
 
