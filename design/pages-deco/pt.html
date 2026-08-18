@@ -407,6 +407,8 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .hero-fede .hf-stripe { width:38px; height:auto; flex:none; opacity:.85; }
 .hero-fede span { font-size:11.5px; line-height:1.5; color:var(--text-4); }
 .hero-fede span b { color:var(--text-2); font-weight:500; }
+.hero-fede .hf-come { color:var(--gold); text-decoration:none; }
+.hero-fede .hf-come:hover { text-decoration:underline; }
 @media (max-width:640px){
   .hero-fede { border-radius:14px; padding:10px 13px;
     align-items:flex-start; }
@@ -468,7 +470,6 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
    pagamenti — con le parole che il sito usa gia, nessuna promessa nuova. */
 .banchina { margin-top:clamp(20px,2.4vw,30px); border:1px solid var(--line);
   border-radius:16px; overflow:hidden; background:var(--surface); }
-
 
 /* le porte: una situazione per cella, il prezzo come risposta */
 .ba-porte { display:grid; grid-template-columns:repeat(4,1fr); gap:1px;
@@ -1136,7 +1137,6 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 
 /* ══ IL VARCO VERSO LA SKYLINE — un invito, non una finta mappa ════════ */
 
-
 /* ══ IL FONDATORE ══════════════════════════════════════════════════════ */
 .fond-sezione { position:relative; }
 .mosaico-fondo { position:absolute; inset:0; width:100%; height:100%;
@@ -1631,7 +1631,6 @@ html.vivo .sale.dentro { opacity:1; transform:none;
   transform:translateY(-1px); }
 .cielo-pieno svg { width:13px; height:13px; }
 
-
 /* ── bersagli: nessun comando sotto il polpastrello (44×44 su touch) ──── */
 #calPrec, #calSucc { min-width:40px; min-height:40px; display:inline-flex;
   align-items:center; justify-content:center; }
@@ -1645,7 +1644,6 @@ html.vivo .sale.dentro { opacity:1; transform:none;
 /* ── immagini: proporzione dichiarata = nessun salto mentre caricano ──── */
 .s1-casa img, .home-foto img { aspect-ratio:4/3; }
 .fond-foto img { aspect-ratio:4/5; }
-
 
 /* ══ IL GIORNO UNO NEL CHECK-IN ════════════════════════════════════════ */
 .giorno-uno { margin-top:10px; font-size:11.5px; line-height:1.6;
@@ -1735,10 +1733,6 @@ setTimeout(function () {
         IN <span class="hl"><span id="flapDays" class="flap-scale"
           aria-label="days">DAYS</span></span>, NOT WEEKS.</h1>
       <p class="hero-sub">A registered contract you sign from your phone. Every euro through Stripe, receipted. A named person who answers.</p>
-      <div class="hero-azioni">
-        <a class="btn btn-primary" href="/apartments.html">View Apartments</a>
-        <a class="btn btn-secondary" href="COME_URL">How It Works</a>
-      </div>
       <form class="atterro" id="atterro">
         <div class="atterro-campo ac-data">
         <span id="quandoEti">When do you land?</span>
@@ -1786,8 +1780,8 @@ setTimeout(function () {
       <p class="giorno-uno" id="giornoUno" hidden></p>
       <div class="hero-fede">
         <svg class="hf-stripe" aria-label="Stripe" viewBox="0 0 468 222.5" xmlns="http://www.w3.org/2000/svg"> <path fill="#635BFF" d="M414 113.4c0-25.6-12.4-45.8-36.1-45.8-23.8 0-38.2 20.2-38.2 45.6 0 30.1 17 45.3 41.4 45.3 11.9 0 20.9-2.7 27.7-6.5v-20c-6.8 3.4-14.6 5.5-24.5 5.5-9.7 0-18.3-3.4-19.4-15.2h48.9c0-1.3.2-6.5.2-8.9zm-49.4-9.5c0-11.3 6.9-16 13.2-16 6.1 0 12.6 4.7 12.6 16h-25.8zm-63.5-36.3c-9.8 0-16.1 4.6-19.6 7.8l-1.3-6.2h-22v116.6l25-5.3.1-28.3c3.6 2.6 8.9 6.3 17.7 6.3 17.9 0 34.2-14.4 34.2-46.1-.1-29-16.6-44.8-34.1-44.8zm-6 68.9c-5.9 0-9.4-2.1-11.8-4.7l-.1-37.1c2.6-2.9 6.2-4.9 11.9-4.9 9.1 0 15.4 10.2 15.4 23.3 0 13.4-6.2 23.4-15.4 23.4zm-71.3-74.8l25.1-5.4V36l-25.1 5.3zm0 7.6h25.1v87.5h-25.1zm-26.9 7.4l-1.6-7.4h-21.6v87.5h25V97.5c5.9-7.7 15.9-6.3 19-5.2v-23c-3.2-1.2-14.9-3.4-20.8 7.4zm-50-29.8l-24.4 5.2-.1 80.1c0 14.8 11.1 25.7 25.9 25.7 8.2 0 14.2-1.5 17.5-3.3V135c-3.2 1.3-19 5.9-19-8.9V90.6h19V69.3h-19l.1-21.7zM79.3 94.7c0-3.9 3.2-5.4 8.5-5.4 7.6 0 17.2 2.3 24.8 6.4V72.2c-8.3-3.3-16.5-4.6-24.8-4.6C67.5 67.6 54 78.2 54 95.9c0 27.6 38 23.2 38 35.1 0 4.6-4 6.1-9.6 6.1-8.3 0-18.9-3.4-27.3-8v23.8c9.3 4 18.7 5.7 27.3 5.7 20.8 0 35.1-10.3 35.1-28.2-.1-29.8-38.2-24.5-38.2-35.7z"/> </svg>
-        <span><b>Every euro through BOOM</b> — never to a stranger ·
-          every home walked in person</span>
+        <span><b>Never pay a stranger</b> — every home walked in person
+          · <a class="hf-come" href="COME_URL">How it works ↓</a></span>
       </div>
       <a class="porte-eco" href="#banchina">
         <span class="pe-eti"><b></b>Services</span>
@@ -2067,41 +2061,6 @@ CASE_TRE
         <span>· a named human replies within 2h, not a form</span>
       </div>
 
-    </div>
-<div class="rete coro" style="margin-top:clamp(22px,2.6vw,34px)">
-      <div class="rete-pfs">
-        <div class="rete-corpo">
-          <div>
-            <span class="rete-eti"><b></b>Property Finding · the hunt engine</span>
-            <h3 class="rete-titolo">While you read this,<br><span class="hl">it's already looking.</span></h3>
-            <p>You describe the home; we turn it into a standing query. The
-              radar watches Immobiliare, Idealista and the listings that never
-              reach a portal. Every hit is opened, checked and walked by a
-              person before it reaches you — so what arrives is a shortlist,
-              not links.</p>
-            <div class="rete-cifre">
-              <div class="rete-cifra"><b>1:1</b><span>tailored hunt</span></div>
-              <div class="rete-cifra"><b>5+</b><span>curated options</span></div>
-              <div class="rete-cifra"><b>24/7</b><span>market scan</span></div>
-              <div class="rete-cifra"><b>€0</b><span>if we fail</span></div>
-            </div>
-            <a class="btn btn-primary" href="/property-finding.html">Start the hunt</a>
-            <p class="rete-nota">€350 upfront — deducted from the agency fee when
-              we find your home. Full refund if we don't deliver.</p>
-          </div>
-          <div class="radar-colonna" aria-hidden="true">
-            <div class="radar">
-              <i style="left:62%;top:26%;animation-delay:.35s" data-n="Immobiliare"></i>
-              <i style="left:74%;top:58%;animation-delay:1.45s" data-n="Idealista"></i>
-              <i style="left:30%;top:70%;animation-delay:3s" data-n="Casa.it"></i>
-              <i style="left:22%;top:38%;animation-delay:3.9s" data-n="Subito"></i>
-              <i class="oro" style="left:48%;top:14%;animation-delay:4.72s" data-n="Off-market"></i>
-              <span class="radar-io"></span>
-            </div>
-            <p class="radar-dida"><b>96</b> scans · every day</p>
-          </div>
-        </div>
-      </div>
     </div>
 
   </div>
@@ -2630,6 +2589,38 @@ CASE_TRE
     document.addEventListener('click', function (e) {
       if (!forma.contains(e.target)) apri(false);
     });
+    /* il bottone dice QUANTE case rispondono, prima del click: i dati
+       sono gia' in pagina (CONTA = disponibili con prezzo e data), la
+       data testo libero passa dal motore condiviso quando c'e' */
+    var CONTA = 'CONTA_JSON';
+    var bottone = forma.querySelector('.btn');
+    var bottoneEti = bottone ? bottone.textContent : '';
+    function contaCase() {
+      if (!bottone || !Array.isArray(CONTA)) return;
+      var b = +document.getElementById('quantoBudget').value || 0;
+      var dal = scelta ? iso(scelta) : null;
+      if (!b && !dal) { bottone.textContent = bottoneEti; return; }
+      var n = CONTA.filter(function (r) {
+        if (b && r.p > b) return false;
+        if (dal && r.a && window.BOOM_DISPO) {
+          try {
+            var pa = BOOM_DISPO.parseAvailability(r.a, new Date());
+            if (pa && pa.kind === 'date' && pa.iso > dal) return false;
+          } catch (err) {}
+        }
+        return true;
+      }).length;
+      /* zero non e' mai un vicolo cieco: la porta resta aperta */
+      bottone.textContent = n
+        ? 'See ' + n + ' home' + (n === 1 ? '' : 's') + ' \u2192'
+        : 'See all homes \u2192';
+    }
+    forma.addEventListener('change', contaCase);
+    var quandoT = document.getElementById('quandoTesto');
+    if (quandoT && 'MutationObserver' in window)
+      new MutationObserver(contaCase)
+        .observe(quandoT, { childList: true, characterData: true, subtree: true });
+
     forma.addEventListener('submit', function (e) {
       e.preventDefault();
       var base = 'AP_URL', pezzi = [];
@@ -2638,6 +2629,8 @@ CASE_TRE
       var c = document.getElementById('chiAtterra').value;
       if (b) pezzi.push('budget=' + b);
       if (c) pezzi.push('chi=' + c);
+      if (window.boomTrack) boomTrack('find_homes',
+        { budget: b || '', dal: scelta ? iso(scelta) : '', chi: c || '' });
       location.href = pezzi.length ? base + '#' + pezzi.join('&') : base;
     });
   })();
@@ -2852,7 +2845,6 @@ CASE_TRE
       attesa = setTimeout(function () { misura(); if (ridotto) vita(0); }, 180);
     }, { passive: true });
   }
-
 
   function mosaicoRomano() {
     /* IL MOSAICO ROMANO — tessere quiete, e un anello d'oro che si

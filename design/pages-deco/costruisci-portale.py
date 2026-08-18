@@ -109,6 +109,13 @@ TRE = '\n'.join(carta(c) for c in tre)
 h = '\n'.join([leggi('pt.html'), leggi('solari-engine.html'),
                leggi('deco-organi.html')])
 h = h.replace('LOGO_SVG', leggi('logo-live.svg').strip())
+# il contatore del form: SOLO disponibili, prezzo e data grezza — la
+# lettura della data resta al motore condiviso, in pagina
+CONTA = [{'p': int(re.sub(r'[^\d]', '', str(r['price'])) or 0),
+          'a': str(r.get('avail') or '')}
+         for r in tutti if r['status'] == 'available'
+         and re.sub(r'[^\d]', '', str(r['price']))]
+h = h.replace("'CONTA_JSON'", json.dumps(CONTA))
 h = h.replace('PT_BOARD', BOARD_JSON)
 h = h.replace('DISPONIBILI', str(DISPONIBILI))
 # «From €X/mo» viene dal catalogo, non da un numero scritto a mano
@@ -290,6 +297,43 @@ else:
 # HTML completo con lang, canonical e og — come le altre due pagine
 if MODO == 'sito':
     import testa as TESTA
+    # la FAQ del JSON-LD diventa VISIBILE in coda alla pagina: markup che
+    # afferma cio' che la pagina non mostra e' contenuto nascosto (regola
+    # GEO gia' pinnata su Reunion) — una fonte sola, mai due verita'
+    import html as _html
+    _faq = TESTA.FAQ_HOME['mainEntity']
+    _voci = ''.join(
+        '<details class="faq-v"' + (' open' if _i == 0 else '') + '><summary>'
+        + _html.escape(_q['name']) + '</summary><p>'
+        + _html.escape(_q['acceptedAnswer']['text']) + '</p></details>'
+        for _i, _q in enumerate(_faq))
+    FAQ_HTML = ("""
+<section class="sezione" id="faq">
+  <style>
+  .faq-casa { margin-top:22px; display:grid; gap:1px; background:var(--line-0);
+    border:1px solid var(--line-0); border-radius:14px; overflow:hidden; }
+  .faq-v { background:var(--bg-card, #0A0A0A); padding:16px 19px; }
+  .faq-v summary { cursor:pointer; list-style:none; font-size:13.5px;
+    font-weight:500; color:var(--text); line-height:1.4; position:relative;
+    padding-right:26px; }
+  .faq-v summary::-webkit-details-marker { display:none; }
+  .faq-v summary::after { content:'+'; position:absolute; right:2px; top:50%;
+    transform:translateY(-50%); color:var(--gold); font-size:16px;
+    font-weight:300; transition:transform .25s var(--ease); }
+  .faq-v[open] summary::after { transform:translateY(-50%) rotate(45deg); }
+  .faq-v p { margin:8px 0 0; font-size:12.5px; line-height:1.65;
+    color:var(--text-2); max-width:70ch; }
+  </style>
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>Before you ask</span>
+      <h2 class="titolo">Quick <span class="hl">answers</span>.</h2>
+    </div>
+    <div class="faq-casa sale">""" + _voci + """</div>
+  </div>
+</section>
+""")
+    h = h.replace('<footer class="piede">', FAQ_HTML + '<footer class="piede">', 1)
     OG = TESTA.blocco_home(
         'BOOM Rome — Premium Apartment Rentals | 48-Hour Move-In',
         'Verified mid-term apartment rentals in Rome for internationals — '

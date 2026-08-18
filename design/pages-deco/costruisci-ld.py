@@ -126,6 +126,7 @@ for r in piene:
         'lat': (float(r['lat']) if r.get('lat') else None),
         'lng': (float(r['lng']) if r.get('lng') else None),
         'cover': cover, 'foto': foto,
+        'varianti': (r.get('imagesVariants') or None),
         # il video esiste solo per due case su ventisei: la pagina deve
         # saperlo e proporre la visita dal vivo dove manca, non fingere
         'video': (str(r.get('videoUrl') or r.get('youtubeUrl') or '').strip()

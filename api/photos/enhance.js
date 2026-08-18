@@ -299,26 +299,46 @@ async function processListing(token, id, mode, actor, urlsOverride) {
   // its ORIGINAL url in the gallery instead of killing the whole run.
   const stamp = Date.now().toString(36);
   const newUrls = [];
+  const newVarianti = [];   // allineato a newUrls: {src, w480?, w960?}
   for (let k = 0; k < plan.ordered.length; k++) {
     const p = plan.ordered[k];
     try {
       const out = await enhanceBuffer(p.buf, { rotateDeg: p.rotateDeg, preset: presetFor(p.kind, p.quality) });
       const path = `listings/enhanced/${id}/${stamp}_${String(k).padStart(2, '0')}_${p.sha1.slice(0, 8)}.jpg`;
-      newUrls.push(await uploadJpeg(token, path, out));
+      const master = await uploadJpeg(token, path, out);
+      newUrls.push(master);
+      // srcset: due taglie accanto al master — su 4G l'elemento LCP della
+      // scheda arriva a misura, non a 1920px. Best-effort: una variante
+      // fallita non toglie mai la foto (resta il master ovunque).
+      const vv = { src: master };
+      for (const w of [480, 960]) {
+        try {
+          const vb = await sharp(out, { failOn: 'none' })
+            .resize({ width: w, fit: 'inside', withoutEnlargement: true })
+            .jpeg({ quality: 78, mozjpeg: true }).toBuffer();
+          vv['w' + w] = await uploadJpeg(token,
+            path.replace(/\.jpg$/, `_w${w}.jpg`), vb);
+        } catch (e) { /* il master basta */ }
+      }
+      newVarianti.push(vv);
     } catch (e) {
       console.error('[photos/enhance] photo', p.i, 'kept original:', e.message);
       report.skipped.push({ i: p.i, url: p.url, reason: 'enhance-failed-kept-original' });
       newUrls.push(p.url);
+      newVarianti.push({ src: p.url });
     }
     p.buf = null; // release: up to 40×10MB would otherwise sit in memory
   }
   // valid-but-oversized photos stay in the gallery untouched (only truly
   // unfetchable/undecodable ones are excluded — browsers can't show HEIC)
-  for (const p of photos) if (p.action === 'skip-too-large') newUrls.push(p.url);
+  for (const p of photos) if (p.action === 'skip-too-large') {
+    newUrls.push(p.url); newVarianti.push({ src: p.url });
+  }
 
   const patch = {
     image: newUrls[0], images: newUrls,
     imagesOriginal: urls,   // additive union computed by sourceUrls — new raw photos join, enhanced outputs never do
+    imagesVariants: newVarianti,
     photosEnhancedAt: new Date().toISOString(), photosEnhancedBy: actor,
   };
   await fsPatch(`listings/${id}`, patch);

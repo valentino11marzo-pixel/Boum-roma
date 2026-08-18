@@ -80,6 +80,7 @@
           ? BOOM_GEO.pinPrecision(d).level : null; } catch (e) { return null; }
       })(),
       cover: cover,
+      varianti: Array.isArray(d.imagesVariants) ? d.imagesVariants : null,
       foto: img.slice(0, 8).length ? img.slice(0, 8)
         : (cover ? [cover] : []),
       video: String(d.videoUrl || d.youtubeUrl || '').trim() || null,
@@ -102,12 +103,34 @@
   var img = document.createElement('img');
   img.alt = c.nome + ', ' + c.zona + ' — apartment for rent in Rome with BOOM';
   img.decoding = 'async';
+  /* l'elemento LCP della pagina: la rete lo tratta da protagonista */
+  img.setAttribute('fetchpriority', 'high');
   telaio.insertBefore(img, telaio.firstChild);
+  /* le varianti della pipeline enhance (w480/w960): allineate per src,
+     mai per solo indice — se gli array driftano, resta il master */
+  function variante(i) {
+    var v = c.varianti && c.varianti[i];
+    return (v && v.src === immagini[i]) ? v : null;
+  }
   function mostra(i) {
     img.classList.remove('qui');
-    var pre = new Image();
-    pre.onload = function () { img.src = pre.src; img.classList.add('qui'); };
-    pre.src = immagini[i];
+    var v = variante(i);
+    if (v && (v.w480 || v.w960)) {
+      img.onload = function () { img.classList.add('qui'); img.onload = null; };
+      img.sizes = '100vw';
+      img.srcset = [v.w480 ? v.w480 + ' 480w' : '',
+        v.w960 ? v.w960 + ' 960w' : '', immagini[i] + ' 1920w']
+        .filter(Boolean).join(', ');
+      img.src = immagini[i];
+      if (img.complete && img.naturalWidth) {
+        img.classList.add('qui'); img.onload = null;
+      }
+    } else {
+      var pre = new Image();
+      pre.onload = function () { img.removeAttribute('srcset');
+        img.src = pre.src; img.classList.add('qui'); };
+      pre.src = immagini[i];
+    }
     [].slice.call(rullino.children).forEach(function (b, k) {
       b.classList.toggle('qui', k === i); });
   }
@@ -116,7 +139,9 @@
     b.type = 'button';
     b.setAttribute('aria-label', 'Photo ' + (i + 1) + ' of ' + immagini.length);
     var t = document.createElement('img');
-    t.src = u; t.alt = ''; t.loading = 'lazy'; t.decoding = 'async';
+    var vt = variante(i);
+    t.src = (vt && vt.w480) || u;   /* il rullino non scarica mai 1920px */
+    t.alt = ''; t.loading = 'lazy'; t.decoding = 'async';
     b.appendChild(t);
     b.addEventListener('click', function () { mostra(i); });
     rullino.appendChild(b);
@@ -139,12 +164,27 @@
     function vai(d) {
       qui = (qui + d + immagini.length) % immagini.length;
       mostra(qui);
+      try { new Image().src = immagini[(qui + 1) % immagini.length];
+        new Image().src = immagini[(qui - 1 + immagini.length) % immagini.length];
+      } catch (e) {}
       if (conta) conta.textContent = (qui + 1) + ' / ' + immagini.length;
       var b = rullino.children[qui]; if (b && b.scrollIntoView)
         b.scrollIntoView({ block:'nearest', inline:'center', behavior:'smooth' });
     }
     prec.addEventListener('click', function () { vai(-1); });
     succ.addEventListener('click', function () { vai(1); });
+    /* il gesto piu' ripetuto: lo swipe sul telaio (il pattern della
+       lente, riusato) — e la prossima foto si precarica da sola */
+    (function () {
+      var x0 = null;
+      telaio.addEventListener('touchstart', function (e) {
+        x0 = e.touches[0].clientX; }, { passive: true });
+      telaio.addEventListener('touchend', function (e) {
+        if (x0 === null) return;
+        var dx = e.changedTouches[0].clientX - x0; x0 = null;
+        if (Math.abs(dx) > 40) vai(dx < 0 ? 1 : -1);
+      }, { passive: true });
+    })();
     [].slice.call(rullino.children).forEach(function (b, k) {
       b.addEventListener('click', function () {
         qui = k; if (conta) conta.textContent = (k + 1) + ' / ' + immagini.length;
@@ -184,7 +224,32 @@
      il segnaposto sopravvive al replace di navigazione del builder */
   per('#cuoreCasa').dataset.u = 'CHIAVE_CASA' + c.id;
   per('#applicaNome').textContent = c.nome;
+  /* WhatsApp arriva gia' col contesto: mai un «ciao» muto — l'operatore
+     sa di quale casa si parla e la pipeline aggancia il listing */
+  (function () {
+    var wa = document.querySelector('.chiedi-wa');
+    if (!wa) return;
+    var msg = 'Hi! I\u2019m asking about \u201c' + c.nome + '\u201d ('
+      + c.zona + ') \u2014 ' + location.origin + '/listing/'
+      + encodeURIComponent(c.id);
+    wa.href = 'https://wa.me/393313251961?text=' + encodeURIComponent(msg);
+    wa.addEventListener('click', function () {
+      if (window.boomTrack) boomTrack('whatsapp_click', { item_id: c.id || '' });
+    });
+  })();
   /* se la casa non e libera, la CTA non finge: si entra in lista */
+  /* una casa libera DA una data: la data sta nel gesto, non solo nel badge */
+  if (c.libera && c.dal) {
+    var oggiIso = new Date().toISOString().slice(0, 10);
+    if (c.dal > oggiIso) {
+      var bF = document.querySelector('#modApplica button[type="submit"]');
+      if (bF) {
+        var dF = new Date(c.dal + 'T12:00:00');
+        bF.textContent = 'Apply \u00b7 move in '
+          + dF.getDate() + ' ' + dF.toLocaleDateString('en-GB', { month: 'short' });
+      }
+    }
+  }
   if (!c.libera) {
     var bAp = document.querySelector('#modApplica button[type="submit"]');
     if (bAp) bAp.textContent = 'Join the waitlist';
@@ -400,8 +465,11 @@
        + 'tax. Both are paid to the providers and to the State — we never '
        + 'touch them, and we never mark them up.']
     ];
-    lista.innerHTML = D.map(function (q) {
-      return '<div class="chiedi-v"><b>' + q[0] + '</b><p>' + q[1] + '</p></div>';
+    /* domande tutte VISIBILI (regola GEO: il FAQPage afferma solo cio'
+       che la pagina mostra), risposte richiudibili — la prima aperta */
+    lista.innerHTML = D.map(function (q, i2) {
+      return '<details class="chiedi-v"' + (i2 === 0 ? ' open' : '')
+        + '><summary>' + q[0] + '</summary><p>' + q[1] + '</p></details>';
     }).join('');
     /* per i motori: le STESSE dieci risposte — mai due verita */
     try {
@@ -479,6 +547,8 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(corpo) }); } catch (err) {}
       } else console.info('[PREVIEW] POST /api/apply-lead →', corpo);
+      if (window.boomTrack) boomTrack('apply_submit',
+        { item_id: c.id || '', intent: c.libera ? 'apply' : 'waitlist' });
       f.style.display = 'none';
       var sotto = document.getElementById('applicaSotto');
       if (sotto) sotto.style.display = 'none';
@@ -817,6 +887,7 @@
           mail = f.querySelector('#prMail').value.trim(),
           tel = f.querySelector('#prTel').value.trim();
       if (!nome || !mail || !tel) return;
+      if (window.boomTrack) boomTrack('hold_start', { item_id: c.id || '' });
       var corpo = { listingId: c.id, listingName: c.nome, amount: 300,
         name: nome, email: mail, phone: tel, move_in_date: c.dal || '' };
       var b = document.getElementById('prVai'),
@@ -941,6 +1012,73 @@
       + euro(a.prezzo) + ' per month"></span><small>/mo</small></span></div>'
       + '<div class="riga2">' + dati + '</div></div></a>';
   }).join('');
+
+  /* ── Hold e Apply chiedono le stesse tre cose a due form scollegati:
+     compilarne uno riempie l'altro, e il successo dell'apply offre il
+     gesto d'oro (solo se la casa e' libera — mai un hold su una presa) */
+  (function () {
+    var coppie = [['prNome', 'apNome'], ['prMail', 'apMail'], ['prTel', 'apTel']];
+    coppie.forEach(function (cp) {
+      var a = document.getElementById(cp[0]), b = document.getElementById(cp[1]);
+      if (!a || !b) return;
+      function specchia(da, a2) {
+        da.addEventListener('input', function () {
+          if (!a2.value || a2.dataset.eco === '1') {
+            a2.value = da.value; a2.dataset.eco = '1';
+          }
+        });
+      }
+      specchia(a, b); specchia(b, a);
+    });
+    var fh = document.getElementById('fattoHold');
+    if (fh && c.libera && document.getElementById('presaCasa'))
+      fh.style.display = '';
+  })();
+
+  /* ── la barra di decisione (mobile) + la rotaia (desktop) ── */
+  (function () {
+    var bar = document.getElementById('decisione');
+    if (bar) {
+      per('#decPrezzo').textContent = euro(c.prezzo) + '/mo';
+      per('#decStato').textContent = c.stato;
+      var vaiB = document.getElementById('decVai');
+      if (!c.libera && vaiB) vaiB.textContent = 'Waitlist';
+      bar.hidden = false;
+      var applica = document.getElementById('applica');
+      var soglia = 520;
+      var giu = false;
+      function stagione() {
+        var vicino = false;
+        if (applica) {
+          var r2 = applica.getBoundingClientRect();
+          vicino = r2.top < innerHeight && r2.bottom > 0;
+        }
+        var ora = scrollY > soglia && !vicino;
+        if (ora !== giu) { giu = ora; bar.classList.toggle('viva', ora); }
+      }
+      addEventListener('scroll', stagione, { passive: true });
+      stagione();
+    }
+    var rotaia = document.getElementById('rotaia');
+    if (rotaia && 'IntersectionObserver' in window) {
+      var voci = [].slice.call(rotaia.querySelectorAll('a'));
+      var io2 = new IntersectionObserver(function (rr) {
+        rr.forEach(function (x) {
+          if (!x.isIntersecting) return;
+          var id = '#' + x.target.id;
+          voci.forEach(function (v) {
+            v.classList.toggle('qui', v.getAttribute('href') === id); });
+        });
+      }, { rootMargin: '-30% 0px -60% 0px' });
+      ['casa', 'denaro', 'posto', 'chiedi', 'applica'].forEach(function (id) {
+        var el = document.getElementById(id); if (el) io2.observe(el);
+      });
+    }
+    /* se la casa non ha racconto ne' dote, la sezione non finge */
+    var sezCasa = document.getElementById('casa');
+    if (sezCasa && !c.racconto && !(c.dentro || []).length)
+      sezCasa.style.display = 'none';
+  })();
 
   /* cambiando casa dall'indirizzo, la pagina si rifà */
   addEventListener('hashchange', function () {

@@ -590,8 +590,51 @@ a.blkchip:hover { border-color:var(--line-gold); color:var(--gold); }
   font-weight:600; letter-spacing:.05em; color:var(--gold); }
 .porticina i.verde { color:var(--green); }
 
-.stato-grande.dopo { color:#FF6B57;
+/* una casa libera da una data e' PRENOTABILE oggi: il rosso leggeva
+   «persa», la semantica giusta e' il verde dell'imbarco */
+.stato-grande.dopo { color:#7FDFA4;
   box-shadow:inset 0 0 0 1px rgba(255,107,87,.38); }
+
+/* la barra di decisione: solo dove serve (pollice), mai sopra il form */
+.decisione { position:fixed; left:0; right:0; bottom:0; z-index:60;
+  display:none; align-items:center; gap:12px; padding:10px 14px
+  calc(10px + env(safe-area-inset-bottom)); background:rgba(7,7,9,.92);
+  -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px);
+  border-top:1px solid var(--line-gold-2); }
+.decisione[hidden] { display:none !important; }
+.dec-info { flex:1; min-width:0; display:flex; flex-direction:column; }
+.dec-info b { font-family:var(--display); font-weight:300; font-size:19px;
+  color:var(--gold); letter-spacing:.01em; }
+.dec-info span { font-size:10.5px; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--text-3); white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis; }
+.decisione .btn { flex:none; padding:12px 22px; }
+@media (max-width:900px){ .decisione.viva { display:flex; } }
+/* la rotaia: desktop, sotto la testata */
+.rotaia { position:sticky; top:64px; z-index:40; display:none;
+  gap:4px; justify-content:center; padding:8px 12px; margin:0 auto;
+  background:rgba(7,7,9,.78); -webkit-backdrop-filter:blur(12px);
+  backdrop-filter:blur(12px); border-bottom:1px solid var(--line-0); }
+@media (min-width:900px){ .rotaia { display:flex; } }
+.rotaia a { padding:7px 14px; font-size:10.5px; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--text-3); text-decoration:none;
+  border-radius:100px; transition:color .2s, background .2s; }
+.rotaia a:hover { color:var(--text); }
+.rotaia a.qui { color:var(--gold); background:rgba(255,215,0,.08); }
+.rotaia a.oro { color:var(--gold); font-weight:600; }
+.applica-fede { margin-top:10px; font-size:10.5px; line-height:1.6;
+  letter-spacing:.04em; color:var(--text-4); }
+/* le FAQ come apparecchi richiudibili: le domande restano tutte VISIBILI
+   (la regola GEO), le risposte non costano due schermate di scroll */
+details.chiedi-v summary { cursor:pointer; list-style:none;
+  display:block; font-size:13.5px; font-weight:500; letter-spacing:.005em;
+  color:var(--text); line-height:1.4; position:relative;
+  padding-right:26px; }
+details.chiedi-v summary::-webkit-details-marker { display:none; }
+details.chiedi-v summary::after { content:'+'; position:absolute; right:2px;
+  top:50%; transform:translateY(-50%); color:var(--gold); font-size:16px;
+  font-weight:300; transition:transform .25s var(--ease); }
+details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg); }
 </style>
 
 <section class="casa">
@@ -640,6 +683,21 @@ a.blkchip:hover { border-color:var(--line-gold); color:var(--gold); }
      Il numero piu importante del sito gira sui Solari. Accanto, la durata:
      non cambia il giorno uno, cambia l'intero soggiorno — ed e la domanda
      che arriva ogni volta su WhatsApp. -->
+<!-- ══ LA CASA — com'e', prima dei conti: chi scansiona i titoli deve
+     trovare la casa, non solo il denaro ═══════════════════════════════ -->
+<section class="sezione" id="casa">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>The home</span>
+      <h2 class="titolo">What it's <span class="hl">like</span>.</h2>
+    </div>
+    <div class="racconto sale" style="margin-top:20px">
+      <p id="raccontoCasa">—</p>
+      <div class="dote" id="dentroCasa"></div>
+    </div>
+  </div>
+</section>
+
 <section class="sezione" id="denaro">
   <div class="container">
     <div class="sale">
@@ -648,11 +706,6 @@ a.blkchip:hover { border-color:var(--line-gold); color:var(--gold); }
         it</span>.</h2>
       <p class="sotto">No agency surprise on signing day. Every figure below is
         written into your pre-agreement before a single euro moves.</p>
-    </div>
-
-    <div class="racconto sale" style="margin-top:20px">
-      <p id="raccontoCasa">—</p>
-      <div class="dote" id="dentroCasa"></div>
     </div>
 
     <div class="chiavi quadro sale"><span class="tacca"></span>
@@ -984,6 +1037,8 @@ a.blkchip:hover { border-color:var(--line-gold); color:var(--gold); }
           aria-hidden="true" class="ap-esca">
 
         <button class="btn btn-primary" type="submit">Send application</button>
+        <p class="applica-fede">Egidi Immobiliare S.r.l., licensed agency
+          · BOOM® EU trade mark 019317594 · payments via Stripe, receipted</p>
         <p class="applica-nota">PREVIEW — nothing is sent from this page. On
           the live site this reaches a person and becomes your written
           pre-agreement.</p>
@@ -1005,6 +1060,8 @@ a.blkchip:hover { border-color:var(--line-gold); color:var(--gold); }
             after you. We file the registration. Keys, and the pass in your
             Wallet.</span></li>
         </ol>
+        <a class="btn btn-primary" id="fattoHold" href="#presaCasa"
+          style="display:none">Hold this home · €300 →</a>
         <p class="applica-nota">PREVIEW — nothing was sent from this page.</p>
       </div>
     </div>
@@ -1032,3 +1089,19 @@ a.blkchip:hover { border-color:var(--line-gold); color:var(--gold); }
     aria-label="Next photo">›</button>
   <span class="lente-conta" id="lenteConta" aria-hidden="true"></span>
 </div>
+
+<!-- la decisione sempre a portata di pollice: prezzo, stato, il gesto -->
+<div class="decisione" id="decisione" hidden>
+  <div class="dec-info">
+    <b id="decPrezzo">—</b>
+    <span id="decStato">—</span>
+  </div>
+  <a class="btn btn-primary" id="decVai" href="#applica">Apply</a>
+</div>
+
+<!-- la rotaia: la pagina e' lunga, l'orientamento e' un servizio -->
+<nav class="rotaia" id="rotaia" aria-label="Sections">
+  <a href="#casa">The home</a><a href="#denaro">The money</a>
+  <a href="#posto">The place</a><a href="#chiedi">Questions</a>
+  <a href="#applica" class="oro">Apply</a>
+</nav>
