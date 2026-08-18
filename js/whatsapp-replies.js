@@ -157,6 +157,61 @@ The whole process step by step: ${SITE}/how-it-works
 
 Where are you in this right now?`,
     },
+    // ── LE QUATTRO NATE DALLA MISURA (1.004 conversazioni, agosto 2026) ──
+    // Non erano nel catalogo scritto a ragionamento: le ha trovate il
+    // misuratore, contando le domande vere. chi_abita da sola vale 255
+    // conversazioni su 1.004 — una su quattro — ed era la buca più grande.
+    {
+      sc: 'enwho', fam: 'en', star: true,
+      title: 'Chi può abitarci: coppia, amici, figli, animali',
+      when: 'LA domanda più frequente dei tuoi clienti (255 conversazioni su 1.004). Non promette nulla al posto del proprietario: chiede chi arriva e sposta la conversazione sulla casa giusta.',
+      text: `Good question, and the honest answer is: it depends on the flat, so I check the specific one before you commit to anything.
+
+• Couples and families — fine on most of our homes. Everyone living there is named in the contract, as co-tenant or as declared occupant, so nobody ends up in a weak position later
+• Friends sharing — possible where the layout genuinely allows it; I'll tell you which ones do
+• Children — no problem, and I'll point out the flats with a lift and a quiet street
+• Pets — never an automatic no, but always the owner's decision. I ask BEFORE you fall in love with a place, not after
+
+Tell me who's coming — how many adults, children, pets — and I'll send you the homes that actually work for you, instead of a list to filter yourself.
+
+Everything we have live: ${SITE}/apartments`,
+    },
+    {
+      sc: 'enfeat', fam: 'en', star: true,
+      title: 'Arredato? lavatrice, aria condizionata, ascensore',
+      when: '95 conversazioni. Non elencare a memoria: manda la pagina (che è sempre aggiornata) e chiedi quali due o tre contano davvero per lui.',
+      text: `Everything that's inside a flat is on its own page — furniture, appliances, heating, lift, balcony — with photos we took ourselves, so what you see is what you get:
+
+${SITE}/apartments
+
+Most of our homes are furnished and ready to live in, and the listing says exactly what's included. If something isn't written there, ask me: I'd rather check than guess.
+
+The three that vary most from flat to flat are air conditioning, lift and washing machine. Which of them are must-haves for you? I'll filter on those before you spend time on a viewing.`,
+    },
+    {
+      sc: 'endeal', fam: 'en',
+      title: 'Si può trattare sul prezzo',
+      when: '20 conversazioni. Una risposta netta e uguale per tutti vale più di uno sconto: dice che il prezzo non dipende da quanto insisti.',
+      text: `Straight with you: on our own homes the listed price is what the owner agreed to publish, so there is rarely room on the rent itself — and I'd rather be boring than quote you one number and the next person another.
+
+Where there sometimes IS room: a longer stay, a move-in date that suits a flat standing empty, or what's included in the price.
+
+Tell me your real budget and your dates, and I'll tell you honestly whether anything can move — or show you what fits without a discount.
+
+And if the flat is someone else's listing, negotiating it is exactly what we do for you: ${SITE}/deal-assistance`,
+    },
+    {
+      sc: 'enres', fam: 'en',
+      title: 'Posso prendere la residenza?',
+      when: '17 conversazioni, e per chi la chiede è spesso decisiva (tessera sanitaria, permesso, vita normale). Meglio dirlo prima della firma che scoprirlo dopo.',
+      text: `Short answer: yes, and it's worth doing — residency is what opens the tessera sanitaria (public health card) and a lot of ordinary life here.
+
+Two things make it smooth, and both are normal for us: the contract has to be registered with the Agenzia delle Entrate (ours always are), and the owner has to know from the start. We put it on the table before signing, so it never becomes an argument six months in.
+
+If residency is essential for you, tell me now: on a few flats the owner's own situation makes it complicated, and I'd rather say so upfront than let you find out after you've moved in.
+
+The whole bureaucracy, step by step: ${SITE}/welcome-to-rome`,
+    },
     {
       sc: 'enfind', fam: 'en',
       title: 'Property Finding — cerchiamo noi (€350)',
@@ -597,7 +652,7 @@ Everything we do for organisations: ${SITE}/partners
 Happy to send a one-page PDF your students can read, and to be the name you give when someone gets scammed in September.`,
     },
     {
-      sc: 'azric', fam: 'az',
+      sc: 'azric', fam: 'az', bench: true,
       title: 'Ricercatori ERC / Marie-Curie',
       when: 'Dipartimenti e centri di ricerca. Qui la parola che conta è "grant-invoiceable": possono pagarci col progetto.',
       text: `For incoming researchers and ERC / MSCA fellows: verified housing in Rome, support for families, the bureaucracy handled, and fees that are grant-invoiceable. From €690.
@@ -609,7 +664,7 @@ Tell me how many fellows and their arrival window, and I'll come back with what 
 
     // ======================= LA RÉUNION · FRANÇAIS ==========================
     {
-      sc: 'frbonjour', fam: 'fr',
+      sc: 'frbonjour', fam: 'fr', bench: true,
       title: 'Premier contact La Réunion',
       when: 'Chi scrive dall\'isola. Prima cosa: capire da che lato sta — proprietario, inquilino o acquirente.',
       text: `Bonjour [NOM], Valentino de BOOM.
@@ -621,7 +676,7 @@ Tout est expliqué ici : ${SITE}/reunion
 Vous êtes de quel côté — propriétaire, locataire ou acheteur ? Je vous réponds dans la journée.`,
     },
     {
-      sc: 'frachat', fam: 'fr',
+      sc: 'frachat', fam: 'fr', bench: true,
       title: 'Acquirente in metropole (visita + rapporto)',
       when: 'La richiesta più comune sull\'isola. La riga sulla carte T non è un limite da nascondere: è il motivo per cui ti credono.',
       text: `Vous avez trouvé un bien à La Réunion mais vous êtes en métropole.
@@ -812,8 +867,13 @@ Prefer a bank transfer? Say so and I'll send you the account details with the re
     const warnings = [];
     const seen = new Map();
 
-    if (REPLIES.length > LIMITS.total) {
-      errors.push(`${REPLIES.length} risposte: l'app ne accetta ${LIMITS.total}`);
+    // Il tetto dell'app vale per ciò che INSTALLI davvero. Una risposta in
+    // PANCHINA (`bench`) resta nel mazzo — pagina e documento, si copia quando
+    // serve — e non occupa uno slot. Senza questa distinzione ogni risposta
+    // nuova dovrebbe uccidere una vecchia, e il catalogo smette di crescere
+    // proprio quando i dati dicono che manca qualcosa.
+    if (installed().length > LIMITS.total) {
+      errors.push(`${installed().length} risposte da installare: l'app ne accetta ${LIMITS.total}`);
     }
 
     for (const r of REPLIES) {
@@ -853,8 +913,11 @@ Prefer a bank transfer? Say so and I'll send you the account details with the re
     return [...out].sort();
   }
 
+  /** Quelle che occupano davvero uno slot nel telefono (le altre: panchina). */
+  function installed() { return REPLIES.filter(function (r) { return !r.bench; }); }
+
   return {
-    SITE, LIMITS, FAMILIES, REPLIES, GREETING, AWAY, LABELS, LINKS,
+    SITE, LIMITS, FAMILIES, REPLIES, GREETING, AWAY, LABELS, LINKS, installed,
     linksIn, placeholdersIn, badPlaceholders, lint, allLinks,
   };
 });

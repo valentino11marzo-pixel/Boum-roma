@@ -117,11 +117,26 @@ const gapCorpus = [
   { id: 'g2', text: 'posso venire col cane?', at: Date.now() },
   { id: 'u1', text: 'Il portone ha il custode di notte? e il garage è compreso?', at: Date.now() },
 ];
+// Il meccanismo si prova per MUTAZIONE: si scopre un'intenzione e deve
+// comparire fra le buche. Legarlo a quali buche esistono OGGI renderebbe il
+// test una fotografia — verde finché non scriviamo la risposta, rotto il
+// giorno in cui la scriviamo, cioè esattamente al contrario.
+const resIntent = WAD.INTENTS.find(i => i.key === 'residenza');
+const realCovers = resIntent.covers;
+resIntent.covers = [];
 const g = WAD.measure(gapCorpus, { minSample: 1, costOf: () => 1, defaultMinutes: 3 });
+resIntent.covers = realCovers;
 ok(g.gaps.some(x => x.key === 'residenza'),
-  'una domanda vera senza risposta pronta finisce fra le buche');
+  'un\'intenzione scoperta finisce fra le buche (verificato per mutazione)');
 ok(g.gaps.every(x => x.covers.length === 0),
   'nelle buche sta SOLO ciò che nessuna scorciatoia copre');
+// E l'invariante vero, quello che si vuole tenere: le domande che i clienti
+// fanno DAVVERO hanno tutte una risposta. Se domani aggiungiamo un'intenzione
+// senza scriverne il testo, questo test lo dice subito.
+const scoperte = WAD.INTENTS.filter(i => !i.covers.length).map(i => i.key);
+ok(scoperte.length === 0,
+  'nessuna intenzione misurata resta senza una risposta pronta',
+  'scoperte: ' + scoperte.join(', '));
 ok(g.unmatchedSamples.length >= 1 && /custode|garage/i.test(g.unmatchedSamples[0].text),
   'ciò che il motore non sa nominare esce con le parole vere',
   'una classificazione silenziosa è indistinguibile da un difetto');
@@ -196,7 +211,8 @@ console.log('\n\x1b[1m8. Il misuratore locale (quello che lancia Homie)\x1b[0m')
   ok(!/mario\.rossi@gmail\.com/.test(out) && !/333 1234567/.test(out),
     'il rapporto NON contiene email né telefoni dei clienti');
   ok(/\[email\]/.test(out) && /\[telefono\]/.test(out), 'i recapiti sono sostituiti, non tagliati via muti');
-  ok(/DA SCRIVERE/.test(out), 'segnala a colpo d\'occhio le domande senza risposta pronta');
+  ok(/\/enprice|\/enhomes|\/endocs/.test(out),
+    'accanto a ogni domanda stampa la scorciatoia che le risponde');
   const json = out.slice(out.indexOf('{', out.indexOf('--- JSON')));
   let parsed = null;
   try { parsed = JSON.parse(json); } catch (e) { /* resta null */ }

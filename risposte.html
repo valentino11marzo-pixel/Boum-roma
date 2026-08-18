@@ -70,6 +70,8 @@
     cursor:pointer}
   .ttl{font-size:15px;font-weight:400;flex:1;min-width:180px}
   .star{color:var(--gold);font-size:12px}
+  .bench{font-size:10px;letter-spacing:.6px;color:var(--dim);border:1px solid var(--line);
+    border-radius:999px;padding:3px 9px;white-space:nowrap}
   .when{color:var(--dim);font-size:12.5px;margin:9px 0 0}
   pre{background:#0A0A0C;border:1px solid var(--line);border-radius:10px;margin:11px 0 0;
     padding:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;
@@ -255,6 +257,7 @@
       '<div class="top">'
       + '<span class="sc" title="Copia la scorciatoia">/' + esc(r.sc) + '</span>'
       + '<span class="ttl">' + esc(r.title) + (r.star ? ' <span class="star">⭐</span>' : '') + '</span>'
+      + (r.bench ? '<span class="bench">panchina · non occupa uno slot</span>' : '')
       + '</div>'
       + '<p class="when">' + esc(r.when) + '</p>'
       + '<pre' + (long ? '' : ' class="open"') + '>' + paint(r.text)
@@ -283,11 +286,12 @@
   function render(){
     list.innerHTML = '';
     var shown = WA.REPLIES.filter(matches);
-    var installed = WA.REPLIES.filter(function(r){ return done[r.sc]; }).length;
+    var caricate = WA.REPLIES.filter(function(r){ return done[r.sc]; }).length;
+    var daInstallare = WA.installed().length;
     document.getElementById('count').textContent =
       shown.length + ' di ' + WA.REPLIES.length + ' risposte'
-      + (installed ? ' · ' + installed + ' già caricate' : '')
-      + ' · ' + (WA.LIMITS.total - WA.REPLIES.length) + ' slot liberi nell\'app';
+      + (caricate ? ' · ' + caricate + ' già caricate' : '')
+      + ' · ' + (WA.LIMITS.total - daInstallare) + ' slot liberi nell\'app';
     if (!shown.length) { list.innerHTML = '<div class="empty">Nessuna risposta per questa ricerca.</div>'; return; }
 
     WA.FAMILIES.forEach(function(f){

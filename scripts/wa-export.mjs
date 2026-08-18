@@ -30,7 +30,16 @@ export function renderDoc() {
   L.push('> I testi vivono in una copia sola, letta anche dalla pagina `/risposte`');
   L.push('> (da cui si copiano col pollice) e dai test.');
   L.push('');
-  L.push(`**${WA.REPLIES.length} risposte** su un massimo di ${WA.LIMITS.total} — restano ${WA.LIMITS.total - WA.REPLIES.length} slot per i tuoi.`);
+  const inst = WA.installed();
+  const bench = WA.REPLIES.filter((r) => r.bench);
+  L.push(`**${WA.REPLIES.length} risposte**, di cui **${inst.length} da installare** nell'app`
+    + ` (il tetto è ${WA.LIMITS.total}: restano ${WA.LIMITS.total - inst.length} slot liberi).`);
+  if (bench.length) {
+    L.push('');
+    L.push(`Le altre ${bench.length} sono **in panchina**: vivono qui e su \`/risposte\`, si copiano`);
+    L.push('quando servono, e non occupano uno slot — sono i casi rari, che non meritano un posto');
+    L.push('nel telefono ma nemmeno di sparire.');
+  }
   L.push('');
 
   // ---------------------------------------------------------------- il metodo
@@ -100,7 +109,7 @@ export function renderDoc() {
     L.push(`*${f.note}*`);
     for (const r of items) {
       L.push('');
-      L.push(`#### \`/${r.sc}\` · ${r.title}${r.star ? ' ⭐' : ''}`);
+      L.push(`#### \`/${r.sc}\` · ${r.title}${r.star ? ' ⭐' : ''}${r.bench ? ' · 🪑 panchina' : ''}`);
       L.push('');
       L.push(`**Quando:** ${r.when}`);
       L.push('');

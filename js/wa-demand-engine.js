@@ -85,7 +85,7 @@
       re: /\b(contratt|contract|transitorio|cedolare|registrat|registered|durata|lease|minimo (di )?mesi|minimum stay|how many months|rinnovabil|renewable)/i },
 
     { key: 'residenza', side: 'client', label: 'Posso prendere la residenza?',
-      covers: [],
+      covers: ['enres'],
       re: /\b(residenz|residency|residence (registration|permit)|anagrafe|iscrizione anagrafic|register.*(residence|address)|permesso di soggiorno)/i },
 
     { key: 'burocrazia', side: 'client', label: 'Codice fiscale, utenze, SIM, banca',
@@ -97,15 +97,15 @@
       re: /\b(quanto dista|how far|distanza|distance|vicino a|close to|metro|autobus|\bbus\b|minuti da|minutes (from|to)|indirizzo|address|quale zona|which (area|zone)|luiss|sapienza|john cabot|roma tre|lumsa)/i },
 
     { key: 'arredo_servizi', side: 'client', label: 'Arredato? lavatrice, wifi, aria, ascensore',
-      covers: [],
+      covers: ['enfeat'],
       re: /\b(arredat|furnish|unfurnished|\bmobili\b|lavatrice|washing machine|lavastovigl|dishwasher|wi-?fi|internet|aria condizionata|air con|ascensore|\blift\b|elevator|balcon|terrazz|riscaldament|heating)/i },
 
     { key: 'chi_abita', side: 'client', label: 'Coppia, amici, animali: chi può abitarci',
-      covers: [],
+      covers: ['enwho'],
       re: /\b(in due|coppia|couple|my (girlfriend|boyfriend|partner|wife|husband)|due persone|two (people|of us)|amic|friend|coinquilin|flatmate|shar(e|ing)|animal|cane|gatto|\bpet\b|\bdog\b|\bcat\b|bambin|\bkids?\b|children|famiglia|\bfamily\b)/i },
 
     { key: 'trattativa', side: 'client', label: 'Si può trattare sul prezzo',
-      covers: [],
+      covers: ['endeal', 'enprice'],
       re: /\b(trattabil|si può trattare|sconto|discount|negoti|lower (the )?price|fuori budget|troppo car|too expensive|best price)/i },
 
     { key: 'fiducia', side: 'client', label: 'Chi siete, è una truffa?',

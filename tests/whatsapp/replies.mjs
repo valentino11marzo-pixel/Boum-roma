@@ -42,8 +42,12 @@ console.log('\n\x1b[1m1. I limiti dell\'app\x1b[0m');
 const lint = WA.lint();
 ok(lint.ok, 'nessun errore di forma', lint.errors.join('\n      '));
 lint.warnings.forEach((w) => console.log(`    \x1b[33m!\x1b[0m ${w}`));
-ok(WA.REPLIES.length <= WA.LIMITS.total,
-  `${WA.REPLIES.length} risposte su un massimo di ${WA.LIMITS.total} (restano ${WA.LIMITS.total - WA.REPLIES.length} slot liberi)`);
+const inst = WA.installed().length;
+ok(inst <= WA.LIMITS.total,
+  `${inst} da installare su un massimo di ${WA.LIMITS.total} (restano ${WA.LIMITS.total - inst} slot liberi; ${WA.REPLIES.length - inst} in panchina)`);
+ok(WA.REPLIES.every((r) => !r.bench || !r.star),
+  'niente in panchina è marcato ⭐ prima fila',
+  'una risposta "da installare per prima" che poi non si installa è una contraddizione che si paga sul telefono');
 ok(WA.FAMILIES.every((f) => WA.REPLIES.some((r) => r.fam === f.key)),
   'ogni famiglia dichiarata ha almeno una risposta');
 

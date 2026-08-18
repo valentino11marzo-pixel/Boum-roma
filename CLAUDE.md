@@ -1790,7 +1790,7 @@ SUA lingua (`replyLang`), con il link `book?listing=` con gli slot VERI.
 La conversazione resta l'unico pezzo che la macchina non fa: il Commerciale
 propone la PRIMA risposta, il Gestore i solleciti, il journey le email — ma
 tutto quello che viene dopo si scrive a mano, di corsa, dal telefono. Queste
-sono le **48 risposte rapide** di WhatsApp Business (`/scorciatoia` in chat),
+sono le **52 risposte rapide** di WhatsApp Business (49 installate + 3 in panchina) (`/scorciatoia` in chat),
 più i due messaggi automatici e le etichette. Coprono l'intero giro: cliente
 EN e IT, inquilino in casa, proprietario, aziende/enti, La Réunion, e i
 messaggi che accompagnano un link personale.
@@ -1810,6 +1810,19 @@ messaggi che accompagnano un link personale.
   recensione passa la STESSA validazione delle email (`api/reviews/_lib.js`:
   la scatola delle stelle, non la scheda Maps); i segnaposto sono
   `[MAIUSCOLO]` — uno minuscolo si mimetizza in una frase e parte così.
+- **Quattro nate dalla MISURA, non dal ragionamento** (agosto 2026, 1.004
+  conversazioni vere lette dal misuratore): `/enwho` chi può abitarci —
+  coppia, amici, figli, animali — **255 conversazioni su 1.004, una su
+  quattro**, ed era scoperta; `/enfeat` arredo e servizi (95); `/endeal`
+  trattativa (20); `/enres` residenza (17). Il catalogo scritto a
+  ragionamento non le aveva: è il motivo per cui si misura prima di
+  installare.
+- **La panchina** (`bench: true`): il tetto di 50 vale per ciò che INSTALLI,
+  non per il mazzo. Una risposta in panchina vive nella pagina e nel
+  documento e si copia quando serve (oggi: Réunion ×2 e ricercatori — casi
+  rari sul numero di Roma). Senza questa distinzione ogni risposta nuova
+  dovrebbe ucciderne una vecchia, e il catalogo smetterebbe di crescere
+  proprio quando i dati dicono che manca qualcosa.
 - **Cosa NON entra**: i link personali (visita, Scheda, Magic Sign,
   pre-accordo, pagamento) sono per una persona sola e li genera il portale;
   nelle risposte `/op…` stanno come `[LINK]`. E niente che la macchina già
