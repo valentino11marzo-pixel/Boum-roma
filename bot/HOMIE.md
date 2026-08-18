@@ -238,6 +238,74 @@ verso il server, niente arriva ai clienti. Il prompt:
 >    incolla l'errore esatto e fermati.
 > 6. Alla fine: `rm -rf ~/miniera-local` (lo storico non deve restare in giro).
 
+### LA DOMANDA — quali risposte rapide servono davvero
+
+Stessa filosofia del PRIMO SGUARDO, altra domanda: non "che potere costruire"
+ma **quali messaggi scrivi a mano più spesso, e quali ti costano di più**.
+Gira sul Mac perché lì c'è l'archivio, e non manda niente a nessuno: esce solo
+l'aggregato, con email e telefoni già oscurati dallo script (`scrub`, testato).
+
+Nessun modello legge le chat. La grammatica è la stessa del server
+(`js/wa-demand-engine.js`, una copia sola): il risultato è un CONTEGGIO
+ripetibile, non un'impressione — rilanciandolo domani dà lo stesso numero.
+Il prompt:
+
+> Homie, compito LA DOMANDA — tutto locale, niente server, nessun messaggio a
+> nessuno. Non leggere le chat con un modello e non riassumere: esegui e
+> incollami l'output così com'è.
+>
+> 1. `cd ~/Boum-roma && git fetch origin claude/whatsapp-business-quick-replies-46l5v2`
+> 2. `mkdir -p ~/boom-domanda/js ~/boom-domanda/scripts`
+> 3. `git show origin/claude/whatsapp-business-quick-replies-46l5v2:js/wa-demand-engine.js > ~/boom-domanda/js/wa-demand-engine.js`
+> 4. `git show origin/claude/whatsapp-business-quick-replies-46l5v2:js/whatsapp-replies.js > ~/boom-domanda/js/whatsapp-replies.js`
+> 5. `git show origin/claude/whatsapp-business-quick-replies-46l5v2:scripts/wa-domanda-locale.mjs > ~/boom-domanda/scripts/wa-domanda-locale.mjs`
+> 6. `wacli messages list --json --limit 100000 > ~/boom-domanda/storico.json`
+>    (se `--limit` non è supportato: `wacli messages list --json`)
+> 7. `node ~/boom-domanda/scripts/wa-domanda-locale.mjs ~/boom-domanda/storico.json`
+> 8. Incollami l'output INTERO, compreso il blocco JSON in coda.
+> 9. `rm -rf ~/boom-domanda` (lo storico non deve restare in giro).
+>
+> Un comando fallisce → incolla l'errore esatto e fermati. Per allargare la
+> finestra: `GIORNI=365 node ~/boom-domanda/scripts/...`.
+
+### LA VOCE — come scrive l'operatore (per riscrivere le risposte con le SUE parole)
+
+Il primo scanner conta cosa chiedono i clienti; questo legge l'altro lato, i
+messaggi che manda LUI. Serve perché delle risposte scritte "da fuori" sono
+risultate inutili all'operatore: lunghezza sbagliata, tono non suo, e nessuna
+traccia di come vende davvero. Stesse regole: tutto locale, nessun modello,
+recapiti oscurati. Il prompt:
+
+> Homie, compito LA VOCE — locale, nessun server, nessun messaggio a nessuno.
+> Esegui e incolla, non riassumere.
+>
+> 1. `cd ~/Boum-roma && git fetch origin claude/whatsapp-business-quick-replies-46l5v2`
+> 2. `mkdir -p ~/boom-voce/js ~/boom-voce/scripts`
+> 3. `git show origin/claude/whatsapp-business-quick-replies-46l5v2:js/wa-demand-engine.js > ~/boom-voce/js/wa-demand-engine.js`
+> 4. `git show origin/claude/whatsapp-business-quick-replies-46l5v2:js/whatsapp-replies.js > ~/boom-voce/js/whatsapp-replies.js`
+> 5. `git show origin/claude/whatsapp-business-quick-replies-46l5v2:scripts/_wacli.mjs > ~/boom-voce/scripts/_wacli.mjs`
+> 6. `git show origin/claude/whatsapp-business-quick-replies-46l5v2:scripts/wa-voce-locale.mjs > ~/boom-voce/scripts/wa-voce-locale.mjs`
+> 7. `wacli messages list --json --limit 100000 > ~/boom-voce/storico.json`
+> 8. `node ~/boom-voce/scripts/wa-voce-locale.mjs ~/boom-voce/storico.json`
+> 9. Incollami l'output INTERO, compreso il JSON in coda.
+> 10. `rm -rf ~/boom-voce`
+>
+> Se l'output è troppo lungo per essere incollato, rilancia il passo 8 con
+> `CORTO=1` davanti: escono 11 righe, ed è quello che serve davvero.
+>
+> Per riscrivere l'UPSELL serve un terzo modo, `VENDITA=1`: stampa per
+> intero (fino a 600 caratteri, sempre oscurati i recapiti) le frasi con
+> cui l'operatore propone ciascun servizio, e i messaggi ripetuti non
+> troncati. Gli altri due modi tagliano a 130 caratteri: con mezzo
+> messaggio si ricostruisce il modo di dire, non si copia.
+>
+> Un comando fallisce → incolla l'errore esatto e fermati.
+
+Dopo il merge su main il branch diventa `main` in tutti i comandi, e la stessa
+misura gira **da sola** dentro `op:'study'` della Miniera (recap su Telegram):
+questo prompt resta la via per averla PRIMA del deploy, o per una finestra
+diversa senza toccare il server.
+
 Il prompt del ciclo COMPLETO (dopo il merge su main):
 
 > Homie, compito LA MINIERA (una tantum, poi quando ti dico "aggiorna la

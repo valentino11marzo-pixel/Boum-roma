@@ -76,6 +76,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `apartments.html` | Property listings page. |
 | `apartment-detail.html` | Dynamic single-property page (loads from Firestore). |
 | `boom_doc_parser.html` | AI document parser UI (uses Claude API). |
+| `risposte.html` | Le risposte rapide di WhatsApp Business (`/risposte`, admin, noindex): 48 messaggi pronti col tasto Copia, i due messaggi automatici, le etichette e la libreria link. Rende `js/whatsapp-replies.js` — nessun testo duplicato nella pagina. |
 | `watermark-studio.html` | Standalone watermark tool for interns/team. 100% client-side (no Firebase): upload photos, customize the BOOM mark live (6 styles: firma, sigillo, editoriale, pattern, cornice, custom logo), drag to position, batch ZIP export. |
 | `media-studio.html` | Pro media production tool (superset of watermark-studio; photo *processing* is 100% client-side). Layered compositor: auto-enhance (histogram analysis, backlight-aware), shadows/highlights tone recovery, color grading (5 looks + manual + saveable custom looks), unsharp-mask sharpening, horizon straighten + vertical keystone (perspective) correction, live histogram, crop/aspect per channel with focal framing + composition guides, branding system (watermark + badge + listing info bar + scrim), draggable text layers, social templates, thumb reordering (order = publish order, first = cover), multi-format batch export with smart ×2 upscale, one-click **Media Kit** ZIP (all formats + AI copy + README), Ken Burns video reel generator (MediaRecorder, MP4-first, optional music track via WebAudio), AI listing copywriter (via `/api/media/caption`). **Simple/Pro UI modes** (localStorage), session autosave/restore (IndexedDB). **Catalog bridge**: browse `listings` (public read), open a listing's photos (`?listing=<id>` deep-link from portal rows 🎨 + photo-lab), prefill info bar from `zone/price/bedrooms/sqm`, and publish curated photos back — uploads under `listings/enhanced/<id>/` (sweep-safe per `api/photos/enhance.js` `isEnhancedUrl`), additive `imagesOriginal` union, `photosEnhancedAt/By: 'studio:<email>'`, cover = first thumb. **Publish rails**: reel → `videoUrl` (MP4 only, upload `listings/enhanced/<id>/video/` — dedicated storage.rules match, video/* <100MB; apartment-detail renders non-YouTube urls via its `<video>` branch/`exVid()`); AI copy (tipo portale) → `description`/`descriptionIt` with sweep discipline (`descriptionOriginal` preserved, `descriptionSource:'studio:<email>'`); live **pagella** chip mirrors `gradeListing()`; portalPubs status shown to admins (photos/video/description are in the Pubblicista's `coreContent` → updates queue themselves). Publishing requires admin (Firestore/Storage rules enforce). Linked from portal sidebar → Console → Media Studio. |
 | `vercel.json` | Deployment config, rewrites, cron schedule. |
@@ -1851,6 +1852,91 @@ SUA lingua (`replyLang`), con il link `book?listing=` con gli slot VERI.
   (nodemailer mockato via loader), idempotenza, cooldown che protegge dal
   secondo richiamo, comando che non indovina mai.
 
+### Le risposte rapide di WhatsApp (`js/whatsapp-replies.js` + `/risposte`)
+La conversazione resta l'unico pezzo che la macchina non fa: il Commerciale
+propone la PRIMA risposta, il Gestore i solleciti, il journey le email — ma
+tutto quello che viene dopo si scrive a mano, di corsa, dal telefono. Queste
+sono **15 risposte rapide da caricare** in WhatsApp Business, più 15 nel mazzo (`/scorciatoia` in chat),
+più i due messaggi automatici e le etichette. Coprono l'intero giro: cliente
+EN e IT, inquilino in casa, proprietario, aziende/enti, La Réunion, e i
+messaggi che accompagnano un link personale.
+- **Una copia sola**: i testi vivono in `js/whatsapp-replies.js` (UMD →
+  `window.BOOM_WA`, come boom-geo). `risposte.html` (`/risposte`, in sidebar
+  Console, noindex+no-store) li mostra col tasto **Copia**, la ricerca, il
+  filtro ⭐ prima fila e il segno "già caricata" (localStorage avvolto: Safari
+  privato LANCIA). `docs/WHATSAPP_RISPOSTE_RAPIDE.md` si **genera**
+  (`node scripts/wa-export.mjs`) — un documento riscritto a mano divergerebbe
+  al primo cambio di prezzo, e un documento vecchio è peggio di nessuno perché
+  sembra vero.
+- **Le regole dure** (`tests/whatsapp/replies.mjs`, 78 check): un link dentro
+  una risposta salvata deve essere una rotta VERA del sito — dedotta dal repo
+  (file, cartella, rewrite/redirect, sitemap), non da una lista a mano; i
+  prezzi citati sono agganciati a `api/_catalog.js` (se il Virtual Viewing
+  passa a €99 il test si accorge che WhatsApp promette ancora €89); il link
+  recensione passa la STESSA validazione delle email (`api/reviews/_lib.js`:
+  la scatola delle stelle, non la scheda Maps); i segnaposto sono
+  `[MAIUSCOLO]` — uno minuscolo si mimetizza in una frase e parte così.
+- **Quattro nate dalla MISURA, non dal ragionamento** (agosto 2026, 1.004
+  conversazioni vere lette dal misuratore): `/enwho` chi può abitarci —
+  coppia, amici, figli, animali — **255 conversazioni su 1.004, una su
+  quattro**, ed era scoperta; `/enfeat` arredo e servizi (95); `/endeal`
+  trattativa (20); `/enres` residenza (17). Il catalogo scritto a
+  ragionamento non le aveva: è il motivo per cui si misura prima di
+  installare.
+- **LA DOTTRINA DELL'UPSELL** (agosto 2026, riscrittura completa su richiesta
+  dell'operatore: «premium, atipico, diretto»). Sette regole, tutte visibili
+  nel testo di ogni messaggio: (1) non si vende il servizio ma **cosa saprai
+  domani** — nessuno compra una "visita virtuale", compra il non mandare
+  3.000€ a uno sconosciuto fidandosi delle sue foto; (2) **l'ancora è la
+  perdita**, non il prezzo (€49 contro la clausola d'uscita non letta), e ogni
+  risposta DICHIARA contro cosa vende (`sell.anchor`, mostrata in pagina);
+  (3) il prezzo sparisce dentro una transazione già in corso — *scalato dalla
+  commissione, rimborsato se non consegniamo*; (4) la prova è un **meccanismo**
+  ("filmo la casa all'ingresso e all'uscita"), mai un aggettivo; (5) una porta
+  sola, aperta una volta; (6) generosità asimmetrica — il primo passo è gratis
+  e vale davvero; (7) prima persona singolare.
+  **L'invariante che la tiene in piedi**: ogni servizio vendibile in
+  conversazione deve avere la SUA risposta (`sell.service`), che ne dice il
+  prezzo esatto e porta la garanzia accanto — senza, quel numero è solo una
+  richiesta di soldi. Il test l'ha già usato per smascherare una dichiarazione
+  falsa (`/prciao` diceva di vendere il pacchetto €349 mentre apre col calcolo
+  gratuito: la porta è `/prpack`).
+- **RISCRITTE SULLA VOCE VERA** (`scripts/wa-voce-locale.mjs`, agosto 2026 —
+  29.255 messaggi dell'operatore). Le prime versioni erano scritte con la voce
+  di chi le redige, non di chi le manda, e l'operatore le ha bocciate: «sono
+  inutili». I numeri gli hanno dato ragione — **metà dei suoi messaggi sta
+  sotto 17 caratteri**, 3 su 4 sotto 38, e **un link compare nell'1%**: testi
+  da 800 caratteri pieni di link non erano risposte, erano muri. Ora si sta
+  sotto i 400 (mediana 262) e il link è un'eccezione che deve valere il tap.
+  La mossa che chiude è **chiamare** (11 volte fra i messaggi ripetuti), quindi
+  la proposta di chiamata sta nelle risposte d'apertura. I **sei messaggi che
+  già riscriveva a mano** ogni volta sono diventati sei scorciatoie
+  (`enlead` 11× · `engone` 13× · `enlink` 15× · `enserv` 18× · `enblock` 11×),
+  e i servizi quasi mai proposti — Virtual Viewing 1×, Deal Assistance 1×,
+  Contract Check 2× su 180 giorni — hanno la loro occasione naturale
+  (`enabroad`, `encheck`) invece di restare nel listino.
+  **Avvertenza sul campione**: l'archivio wacli è il WhatsApp PERSONALE
+  dell'operatore, quindi i conteggi delle intenzioni sono gonfiati dalle chat
+  private (il `chi_abita 255×` vale meno di quanto sembra); i messaggi
+  RIPETUTI, invece, sono inequivocabilmente lavoro.
+- **Quindici, non cinquanta** (`bench: true` su tutto il resto). L'app ne
+  accetta 50, ed è esattamente la trappola: cinquanta scorciatoie non si
+  ricordano, quindi non si usano, quindi lo strumento muore nel telefono.
+  Si installa ciò che serve QUESTA settimana — le sei che già riscrivevi a
+  mano, più costi, documenti, chi può abitarci, arredo, visita, estero,
+  contratto altrui, ricerca su misura, italiano e proprietario — e le altre
+  restano nel mazzo: la pagina
+  si apre già filtrata sulle 14, le rare si cercano e si copiano al volo.
+  La promozione è un attributo, non una riscrittura: se una del mazzo torna
+  spesso, si toglie `bench` e si carica.
+- **Cosa NON entra**: i link personali (visita, Scheda, Magic Sign,
+  pre-accordo, pagamento) sono per una persona sola e li genera il portale;
+  nelle risposte `/op…` stanno come `[LINK]`. E niente che la macchina già
+  faccia da sola, altrimenti si scrive in due sulla stessa conversazione.
+- Da verificare a mano una volta: il link recensione in `/enrev` (deve essere
+  lo stesso di `REVIEW_URL`) e `settings/payout`, senza cui il bonifico
+  citato in `/enpay` non compare in `/casa`.
+
 ### GET/POST `/api/homie/searches` — gli occhi di Homie sul radar PFS
 Il problema sta scritto in `api/pfs/_fetch.js`: *"both portals run anti-bot
 protection and may 403 datacenter IPs — the email-alert path is the
@@ -1916,6 +2002,32 @@ competitor ha — e il VERDETTO che ne esce decide quale potere costruire.
   `verdict()`: classifica motivata dei poteri candidati (Segugio, visite
   auto, velocità, playbook, dossier; radar-proprietari dichiarato NON
   misurabile dalle chat), `tgSummary` HTML-escapato.
+- **Il misuratore della domanda** (`js/wa-demand-engine.js`, `BOOM_WADEMAND`,
+  dentro lo stesso `op:'study'`): gli STESSI dati, seconda domanda — non
+  "che potere costruire" ma **quali risposte rapide servono davvero**. 22
+  intenzioni a grammatica chiusa (IT/EN, zero token) sui messaggi dei
+  clienti: thread ridotti dal Mac (che portano l'esito) + `leads.message`
+  (che esistono anche a Mac spento). Le nostre uscite (`action_queue`)
+  stanno in un corpus SEPARATO: misurare la domanda con le nostre parole la
+  gonfierebbe. **Si ordina per TEMPO RISPARMIATO, non per frequenza** — una
+  domanda che arriva 40 volte e si liquida in dieci secondi vale meno di una
+  che arriva 12 volte e ogni volta costa quattro minuti; il costo non si
+  inventa, è la lunghezza VERA della risposta che la copre (~200 car/minuto
+  col pollice, e fra due risposte si prende la più lunga, mai la somma).
+  Conta per CONVERSAZIONE (tre "deposito" nella stessa chat = una risposta
+  che avresti mandato una volta). Sotto 30 conversazioni classificate escono
+  i conteggi e NESSUNA percentuale (lezione D4). Due uscite che valgono
+  quanto la classifica: le **buche** (intenzione con volume e nessuna
+  scorciatoia che la copra → una risposta DA SCRIVERE: oggi residenza,
+  arredo/servizi, chi abita, trattativa) e l'**ignoto** (`unmatched`, con le
+  frasi vere — una classificazione silenziosa è indistinguibile da un
+  difetto). Finisce in `teamReports/miniera-<data>.domanda` e in un secondo
+  messaggio Telegram dopo il podio. **La guardia che tiene in piedi tutto**
+  (`tests/whatsapp/demand.mjs`): ogni intenzione deve dimostrare di matchare
+  una frase vera — due difetti reali di questo tipo sono già stati presi
+  così, un `\b` in coda a una radice tronca (`residenz`) e un `\\b` scritto
+  in un pattern: entrambi non matchano MAI e sotto-contano in silenzio,
+  cioè il rapporto esce sano e dice che nessuno chiede quella cosa.
 - **Porta** (auth `X-Homie-Secret`): GET → stato + mappa id→hash (sync
   incrementale); POST `op:'threads'` → upsert idempotente in
   `minieraThreads` (id = sha1(chatId), admin-only in firestore.rules — la
@@ -2351,7 +2463,9 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/wizard/health.mjs` | Il guardiano del bot sul Mac: il wrapper saltato lo dice UNA volta (non 96, non mai), il documento assente tace 24h e poi parla, offline batte tutto, il ritorno si sente sempre |
   | `tests/pfs/health.mjs` | Allarmi del radar: una fonte BLOCCATA all'origine parla una volta sola (200 run → 1 messaggio), un guasto vero si dirada invece di gridare ogni 6h (40 giorni → 8 promemoria), i primi due intoppi non svegliano nessuno, e il ritorno si sente sempre |
   | `tests/pfs/eyes.mjs` | Gli occhi di Homie sul radar PFS: nella lista di lavoro non entrano ricerche spente o con URL rotti, la manopola manuale (`urlOverride`) vince sempre, e — la regola che conta — un radar CIECO (403/captcha su tutte le ricerche) non passa mai per un mercato fermo |
+  | `tests/whatsapp/replies.mjs` | Le risposte rapide di WhatsApp: un messaggio che si manda a occhi chiusi mille volte non può contenere un link morto (le rotte si deducono dal repo, non da una lista), i prezzi non possono divergere da `api/_catalog.js`, il link recensione apre le stelline e non la scheda Maps, e il documento in `docs/` non può restare indietro |
   | `tests/whatsapp/run.mjs` | Da WhatsApp a lead senza AI: il rumore resta fuori (👍, "ok") e la persona vera entra, l'inquilino che scrive per la caldaia non inquina la pipeline, un lead per persona anche col numero archiviato in formato diverso (nazionale vs internazionale), una risposta umana zittisce il Commerciale. Guida il handler VERO su un Firestore finto in memoria |
+  | `tests/whatsapp/demand.mjs` | Il misuratore della domanda: ogni intenzione dimostra di saper riconoscere una frase vera (un pattern inerte sotto-conta in SILENZIO), "business" non diventa una domanda sui bus, la classifica è per tempo risparmiato e non per frequenza, sotto campione niente percentuali, e ciò che il motore non sa nominare esce con le parole vere |
   | `tests/miniera/run.mjs` | La Miniera: il join aggancia la persona in OGNI forma del numero (parità con `_lead.js`, JID senza `+` guarito), i veti del libro dei silenzi (inquilini/firmati/morti/oltre 120gg MAI nel re-ingaggio), sotto campione NIENTE percentuali (per mutazione), il verdetto motivato coi numeri, parità cross-linguaggio con l'estrattore Python, handler vero su Firestore in memoria |
   | `tests/wizard/local_brain.py` | Il cervello gratis del bot wizard (`python3`): cosa capisce senza modello e — più importante — cosa deve rifiutarsi di capire. Una domanda ("Levico è affittato?") non può diventare una scrittura; un annuncio nuovo dettato non può diventare la modifica di uno esistente. Estrae le funzioni pure dal bot via AST: gira senza `.env`, senza Telegram, senza rete |
   | `tests/executive/run.mjs` | BOOM Executive: il professionista in trasferta resta un TENANT nella macchina piena, il datore dichiarato (`employer`) non viene scambiato per l'honeypot (`company`), la voce B2B tace col tenant e parla con l'ente — con la guardia PRIMA della spesa, asserita sull'ordine nel sorgente |
