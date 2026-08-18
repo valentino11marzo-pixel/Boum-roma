@@ -107,8 +107,100 @@
           fn: 'boomAuditAllContracts', args: [], admin: true },
         { id: 'tool:newclient', group: 'Strumenti', icon: '🚀', label: 'Nuovo cliente → contratto firmato',
           keywords: 'wizard nuovo cliente contratto firmato deal completo',
-          fn: 'openNewClientWizard', args: [], admin: true }
+          fn: 'openNewClientWizard', args: [], admin: true },
+
+        // ── Le altre capacità che il censimento (2026-08-18) ha trovato
+        //    sepolte a 2-3 passi dentro una pagina specifica. Qui entrano
+        //    SOLO quelle lanciabili senza un record già scelto: una funzione
+        //    che pretende un contractId non saprebbe su cosa agire da una
+        //    ricerca globale, e resta dove vive (nella riga del record).
+        { id: 'tool:onboardlink', group: 'Strumenti', icon: '🔗', label: 'Copia link onboarding cliente',
+          keywords: 'onboarding link invito registrazione nuovo cliente copia',
+          fn: 'copyOnboardingLink', args: [], admin: true },
+        { id: 'tool:viewhours', group: 'Strumenti', icon: '🕐', label: 'Orari disponibilità visite',
+          keywords: 'orari visite agenda finestre disponibilita appuntamenti slot',
+          fn: 'openAvailabilityModal', args: [], admin: true },
+        { id: 'tool:checkin', group: 'Strumenti', icon: '📷', label: 'Check-in visita (scansiona QR)',
+          keywords: 'checkin check-in qr scan visita pass arrivo',
+          fn: 'openCheckInScan', args: [], admin: true },
+        { id: 'tool:docupload', group: 'Strumenti', icon: '📤', label: 'Carica documento (con OCR)',
+          keywords: 'carica documento upload ocr scansione allega file',
+          fn: 'openDocUploadModal', args: [], admin: true },
+        { id: 'tool:msgportali', group: 'Strumenti', icon: '📣', label: 'Messaggi per i portali (IT)',
+          keywords: 'messaggio portali immobiliare idealista annuncio testo proprietario',
+          fn: 'openMessageGeneratorLandlord', args: [], admin: true },
+        { id: 'tool:msgclienti', group: 'Strumenti', icon: '💬', label: 'Messaggi WhatsApp ai clienti (EN)',
+          keywords: 'messaggio whatsapp cliente follow up testo inglese',
+          fn: 'openMessageGeneratorClient', args: [], admin: true },
+        { id: 'tool:referral', group: 'Strumenti', icon: '🎁', label: 'Genera Referral Pass',
+          keywords: 'referral pass codice invito amico segnalazione',
+          fn: 'openModal', args: ['generateReferral'], admin: true },
+        { id: 'tool:landlorddata', group: 'Strumenti', icon: '📨', label: 'Chiedi i dati a tutti i proprietari',
+          keywords: 'proprietari dati richiesta massivo anagrafica locatori',
+          fn: 'bulkRequestLandlordData', args: [], admin: true },
+        { id: 'tool:newreg', group: 'Strumenti', icon: '📝', label: 'Nuova registrazione RLI',
+          keywords: 'rli registrazione agenzia entrate contratto adempimento',
+          fn: 'openNewRegistration', args: [], admin: true },
+        { id: 'tool:radarnew', group: 'Strumenti', icon: '📡', label: 'Radar: nuova ricerca',
+          keywords: 'radar ricerca annunci nuova portali monitoraggio',
+          fn: 'openRadarEditor', args: [], admin: true },
+        { id: 'tool:radarscan', group: 'Strumenti', icon: '🛰️', label: 'Radar: scansiona adesso',
+          keywords: 'radar scansiona scan adesso annunci aggiorna',
+          fn: 'scanAllRadar', args: [], admin: true },
+        { id: 'tool:newlandlord', group: 'Strumenti', icon: '🏘️', label: 'Nuovo proprietario in rubrica',
+          keywords: 'proprietario landlord rubrica contatto nuovo',
+          fn: 'openAddLandlord', args: [], admin: true },
+        { id: 'tool:newpfs', group: 'Strumenti', icon: '🔎', label: 'Nuovo cliente PFS',
+          keywords: 'pfs cliente ricerca casa property finding nuovo',
+          fn: 'openPFSAddClient', args: [], admin: true },
+        { id: 'tool:newconv', group: 'Strumenti', icon: '📨', label: 'Nuova conversazione (Inbox)',
+          keywords: 'conversazione inbox messaggio nuovo contatto',
+          fn: 'inboxOpenNewModal', args: [], admin: true },
+        { id: 'tool:rules', group: 'Strumenti', icon: '⚡', label: 'Esegui tutte le automazioni',
+          keywords: 'automazioni regole esegui trigger adesso',
+          fn: 'runAllRules', args: [], admin: true },
+        { id: 'tool:newrule', group: 'Strumenti', icon: '⚙️', label: 'Nuova regola automatica',
+          keywords: 'regola automazione trigger nuova crea',
+          fn: 'openRuleModal', args: [], admin: true },
+        { id: 'tool:automations', group: 'Strumenti', icon: '🔁', label: 'Controlla scadenze e avvisi',
+          keywords: 'automazioni scadenze avvisi controlli run boom',
+          fn: 'runBoomAutomations', args: [], admin: true },
+        { id: 'tool:refresh', group: 'Strumenti', icon: '🔄', label: 'Ricarica i dati dal database',
+          keywords: 'ricarica refresh aggiorna dati sincronizza',
+          fn: 'forceRefreshData', args: [], admin: true },
+        { id: 'tool:docparser', group: 'Strumenti', icon: '🤖', label: 'Doc Parser AI (estrai dati da PDF)',
+          keywords: 'parser ai documento estrai pdf lettura automatica',
+          fn: 'open', args: ['/boom_doc_parser.html'], admin: true },
+        // Recuperata: il bottone esiste SOLO nell'empty-state di AdminFlats,
+        // quindi spariva per sempre appena c'era un annuncio in catalogo.
+        { id: 'tool:seedlistings', group: 'Strumenti', icon: '📥', label: 'Importa annunci esistenti',
+          keywords: 'importa annunci seed listing esistenti caricamento massivo',
+          fn: 'open', args: ['/seed-listings.html'], admin: true }
     );
+
+    // ── Esportazioni (erano un bottone per pagina, ora si cercano) ──────
+    [
+        ['exportPropertiesCSV', '📊', 'Esporta immobili in CSV', 'csv export immobili excel elenco scarica'],
+        ['exportPaymentsCSV',   '📊', 'Esporta pagamenti in CSV', 'csv export pagamenti excel rate scarica'],
+        ['exportInvoicesCSV',   '📊', 'Esporta fatture in CSV',   'csv export fatture excel scarica'],
+        ['exportDocumentsCSV',  '📊', 'Esporta documenti in CSV', 'csv export documenti excel elenco scarica']
+    ].forEach(function (e) {
+        ACTIONS.push({
+            id: 'exp:' + e[0], group: 'Esporta', icon: e[1], label: e[2],
+            keywords: e[3], fn: e[0], args: [], admin: true
+        });
+    });
+
+    // ── Fattura rapida di servizio (il tipo è una scelta chiusa) ────────
+    [['DAS', '💼', 'Deal Assistance'], ['VV', '🔑', 'Virtual Viewing'],
+     ['PM', '🏠', 'Property Management'], ['custom', '🧾', 'importo libero']].forEach(function (q) {
+        ACTIONS.push({
+            id: 'inv:' + q[0], group: 'Crea', icon: q[1],
+            label: 'Fattura rapida — ' + q[2],
+            keywords: 'fattura rapida servizio incasso ' + q[0] + ' ' + q[2],
+            fn: 'openQuickInvoiceModal', args: [q[0]], admin: true
+        });
+    });
 
     // ── Le sezioni (per arrivarci scrivendo, e per le azioni contestuali:
     //    "il fascicolo di QUEL contratto" vive nella riga del contratto) ──
