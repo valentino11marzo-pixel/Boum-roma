@@ -159,6 +159,41 @@ const first = WAD.firstRow(m, 5);
 ok(first.length > 0 && first.every(sc => shortcuts.has(sc)),
   'la prima fila suggerita è fatta di scorciatoie vere');
 
+// ---------------------------------------------------------------------------
+// Il giro VERO lato Mac: si guida lo script come lo lancerà Homie, su un
+// export wacli finto. Conta perché il suo output si INCOLLA in chat: se si
+// portasse dietro i recapiti dei clienti, il difetto sarebbe già uscito di
+// casa quando te ne accorgi.
+console.log('\n\x1b[1m8. Il misuratore locale (quello che lancia Homie)\x1b[0m');
+{
+  const os = await import('node:os');
+  const { execFileSync } = await import('node:child_process');
+  const path = await import('node:path');
+  const t = Math.floor(Date.now() / 1000) - 3600;
+  const msgs = [
+    { chatId: '39331@c.us', body: 'È ancora libero? quanto costa tutto incluso?', timestamp: t },
+    { chatId: '39332@c.us', body: 'Posso prendere la residenza? scrivimi a mario.rossi@gmail.com o +39 333 1234567', timestamp: t },
+    { chatId: '120363@g.us', body: 'gruppo: quanto costa il deposito?', timestamp: t },
+    { chatId: '39333@c.us', body: 'te lo dico io quanto costa il deposito', fromMe: true, timestamp: t },
+  ];
+  const f = path.join(os.tmpdir(), 'boom-wa-domanda-test.json');
+  fs.writeFileSync(f, JSON.stringify(msgs));
+  const out = execFileSync(process.execPath,
+    [new URL('../../scripts/wa-domanda-locale.mjs', import.meta.url).pathname, f],
+    { encoding: 'utf8' });
+  ok(/conversazioni lette: 2/.test(out), 'legge 2 conversazioni: gruppo e nostra uscita restano fuori',
+    'un gruppo o una nostra frase dentro la misura la falsano da sole');
+  ok(!/mario\.rossi@gmail\.com/.test(out) && !/333 1234567/.test(out),
+    'il rapporto NON contiene email né telefoni dei clienti');
+  ok(/\[email\]/.test(out) && /\[telefono\]/.test(out), 'i recapiti sono sostituiti, non tagliati via muti');
+  ok(/DA SCRIVERE/.test(out), 'segnala a colpo d\'occhio le domande senza risposta pronta');
+  const json = out.slice(out.indexOf('{', out.indexOf('--- JSON')));
+  let parsed = null;
+  try { parsed = JSON.parse(json); } catch (e) { /* resta null */ }
+  ok(parsed && Array.isArray(parsed.classifica), 'in coda c\'è un JSON valido, incollabile così com\'è');
+  fs.unlinkSync(f);
+}
+
 console.log('\n────────────────────────────────────────────────');
 console.log(`\x1b[1mResult: ${pass} passed, ${fail} failed\x1b[0m`);
 if (fail) process.exit(1);
