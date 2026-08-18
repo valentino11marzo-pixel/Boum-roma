@@ -305,7 +305,50 @@ window.__pmLoaded = true;
         tabbar.hidden = !visible;
     }
 
-    // ═══ MENU (la sidebar, come sheet a schede) ═════════════════════════
+    // ═══ MENU (la sidebar + IL PRONTUARIO, come sheet a schede) ═════════
+    // Su telefono il Menu era solo la sidebar clonata: le capacità sepolte
+    // (i 22 documenti al volo, gli strumenti) restavano irraggiungibili senza
+    // sapere in quale pagina vivono. Ora in cima c'è una riga di ricerca che
+    // pesca dal registro condiviso — lo STESSO che alimenta ⌘K sul desktop.
+    function menuSearchRow(wrap, clone) {
+        var P = window.BOOM_ACTIONS;
+        if (!P || typeof P.search !== 'function') return null;   // registro assente: Menu com'era
+        var box = el('div', 'pm-menu-search');
+        box.innerHTML = '<input type="search" class="pm-menu-input" ' +
+            'placeholder="Cerca: ricevuta, contratto, banca…" ' +
+            'autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">';
+        var res = el('div', 'pm-menu-res');
+        var input = box.querySelector('.pm-menu-input');
+        var deb = null;
+        function render() {
+            var q = txt(input.value);
+            if (!q) { res.innerHTML = ''; res.hidden = true; clone.hidden = false; return; }
+            var hits = P.search(q, { limit: 14 });
+            clone.hidden = true; res.hidden = false;
+            res.innerHTML = '';
+            if (!hits.length) {
+                res.appendChild(el('div', 'pm-menu-empty', 'Niente per “' + esc(q) + '”'));
+                return;
+            }
+            hits.forEach(function (a) {
+                var row = el('button', 'pm-sheet-item');
+                row.type = 'button';
+                row.innerHTML = '<span class="ico">' + esc(a.icon || '·') + '</span>' +
+                    '<span>' + esc(a.label) + '<span class="pm-menu-grp">' + esc(a.group) + '</span></span>';
+                row.addEventListener('click', function () {
+                    closeSheet();
+                    setTimeout(function () { try { P.run(a, window); } catch (e) { console.warn('[pm] azione', e); } }, 30);
+                });
+                res.appendChild(row);
+            });
+        }
+        input.addEventListener('input', function () { clearTimeout(deb); deb = setTimeout(render, 110); });
+        wrap.appendChild(box);
+        wrap.appendChild(res);
+        res.hidden = true;
+        return input;
+    }
+
     function openMenu() {
         var sb = $('#sidebar');
         if (!sb || !sb.children.length) return;
@@ -323,6 +366,7 @@ window.__pmLoaded = true;
         var clone = sb.cloneNode(true);
         clone.removeAttribute('id');
         clone.removeAttribute('class');
+        menuSearchRow(wrap, clone);   // la ricerca sta sopra le sezioni
         wrap.appendChild(clone);
         wrap.addEventListener('click', function (e) {
             if (e.target.closest('.nav-item')) setTimeout(closeSheet, 60);

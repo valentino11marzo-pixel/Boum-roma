@@ -375,3 +375,23 @@ body.pm-on .pm-autowiz .modal-footer{display:none!important}
     .pm-sheet,.pm-sheet-backdrop,.pm-tabbar,.pm-wiz-bar > i{transition:none}
     .pm-wiz-pane.pm-cur,body.pm-on .modal{animation:none}
 }
+
+/* ═══ IL PRONTUARIO nel Menu — la ricerca delle azioni ═════════════════ */
+/* Su telefono le capacità sepolte (i 22 documenti al volo, gli strumenti)
+   si raggiungono scrivendo, non ricordando in quale pagina vivono. */
+.pm-menu-search{padding:2px 12px 10px}
+.pm-menu-input{
+    width:100%;min-height:46px;padding:12px 14px;
+    background:var(--bg-input);border:1px solid var(--border);border-radius:13px;
+    color:var(--text);font-family:inherit;font-size:16px;   /* 16px: niente zoom iOS */
+    -webkit-appearance:none;appearance:none;
+}
+.pm-menu-input:focus{outline:none;border-color:var(--gold)}
+.pm-menu-input::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none}
+.pm-menu-res{padding:0 4px 4px}
+.pm-menu-res[hidden]{display:none}
+.pm-menu-grp{
+    display:block;font-size:10px;letter-spacing:1px;text-transform:uppercase;
+    color:var(--text-muted);margin-top:2px;
+}
+.pm-menu-empty{padding:22px 16px;text-align:center;color:var(--text-muted);font-size:13px}

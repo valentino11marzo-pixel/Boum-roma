@@ -114,6 +114,7 @@ function saveContract(e) { e.preventDefault(); __calls.push(['saveContract']); }
 function updateContract(e, id) { e.preventDefault(); __calls.push(['updateContract', id]); }
 function closeModal() { document.body.classList.remove('modal-open'); document.getElementById('modals').innerHTML = ''; }
 ${realWizardNav}
+function openTemplateModal(t) { __calls.push(['tpl', t]); }
 function renderMain(p) {
   var m = document.getElementById('main');
   if (p !== 'contracts') { m.innerHTML = '<h1>' + p + '</h1>'; return; }
@@ -210,6 +211,7 @@ function openModal(type, data) {
   setTimeout(function () { var o = document.querySelector('.modal-overlay'); if (o) o.classList.add('active'); }, 10);
 }
 </script>
+<script src="/js/portal-actions.js"></script>
 <script src="/js/portal-mobile.js"></script>
 </body></html>`;
 
@@ -319,6 +321,27 @@ await page.evaluate(() => { [...document.querySelectorAll('.pm-menu .nav-item')]
 await page.waitForTimeout(500);
 await check('tap su una voce del Menu → goTo e lo sheet si chiude', () => page.evaluate(() =>
   window.__calls.some(c => c[0] === 'goTo' && c[1] === 'payments') && !document.querySelector('.pm-sheet')
+));
+
+console.log('— il Prontuario nel Menu (le funzioni sepolte, su telefono) —');
+await page.tap('.pm-tab-menu');
+await page.waitForTimeout(400);
+await check('il Menu ha la riga di ricerca del Prontuario', () => page.evaluate(() =>
+  document.querySelector('.pm-menu-input') !== null
+));
+await page.fill('.pm-menu-input', 'ricevuta');
+await page.waitForTimeout(350);
+await check('cercando "ricevuta" compaiono i documenti e le sezioni si nascondono', () => page.evaluate(() => {
+  const rows = [...document.querySelectorAll('.pm-menu-res .pm-sheet-item')].map(r => r.textContent);
+  const clone = document.querySelector('.pm-menu > div[class=""], .pm-menu > div:not([class])');
+  return rows.some(r => r.includes('Ricevuta pigione')) && rows.length >= 2;
+}));
+await page.evaluate(() => {
+  [...document.querySelectorAll('.pm-menu-res .pm-sheet-item')].find(r => r.textContent.includes('Ricevuta pigione')).click();
+});
+await page.waitForTimeout(350);
+await check('due tap dal telefono: la ricevuta si apre e lo sheet si chiude', () => page.evaluate(() =>
+  window.__calls.some(c => c[0] === 'tpl' && c[1] === 'ricevuta_pigione') && !document.querySelector('.pm-sheet')
 ));
 
 console.log('— wizard NATIVO addContract —');

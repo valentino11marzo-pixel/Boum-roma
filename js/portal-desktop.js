@@ -136,6 +136,25 @@ window.__pdLoaded = true;
             };
         });
     }
+    // IL PRONTUARIO — le azioni sepolte (Documenti, Strumenti). La palette
+    // legge il registro condiviso invece di una lista propria: la stessa che
+    // usa il Menu del telefono, così le due facce non possono divergere.
+    // Vai a / Console restano letti dalla sidebar VERA (che porta badge e
+    // ruolo) — qui si prende solo ciò che la sidebar NON sa dare.
+    function prontuarioEntries(qstr) {
+        var P = window.BOOM_ACTIONS;
+        if (!P || typeof P.search !== 'function') return [];   // registro assente: la palette resta quella di prima
+        return P.search(qstr || '', { limit: 24 })
+            .filter(function (a) { return a.group === 'Documenti' || a.group === 'Strumenti'; })
+            .map(function (a) {
+                return {
+                    kind: a.group === 'Documenti' ? 'doc' : 'tool',
+                    icon: a.icon, label: a.label, chord: a.chord || '', badge: '',
+                    run: function () { P.run(a, window); }
+                };
+            });
+    }
+
     // La ricerca entità: si invoca il motore ESISTENTE e si adottano le sue
     // righe (onclick già pronta). handleSearch pretende #globalSearch nel
     // DOM (ci appende il dropdown): senza, niente sezione — mai un throw.
@@ -186,8 +205,10 @@ window.__pdLoaded = true;
         var list = st.palette.list;
         list.innerHTML = '';
         var qn = norm(qstr);
-        function section(title, entries) {
-            var scored = entries.map(function (e) { return { e: e, s: score(e.label, qn) }; })
+        function section(title, entries, preScored) {
+            var scored = preScored
+                ? entries.map(function (e) { return { e: e, s: 1 }; })
+                : entries.map(function (e) { return { e: e, s: score(e.label, qn) }; })
                 .filter(function (x) { return x.s > 0; })
                 .sort(function (a, b) { return b.s - a.s; });
             if (!scored.length) return;
@@ -195,7 +216,12 @@ window.__pdLoaded = true;
             scored.slice(0, qn ? 7 : 6).forEach(function (x) { list.appendChild(entryRow(x.e)); });
         }
         var nav = navEntries();
+        var pront = prontuarioEntries(qstr);
         section('Crea', createEntries());
+        // I documenti al volo per primi quando si sta cercando: sono la cosa
+        // più usata e la più sepolta (Contratti → Template → scorri).
+        section('Documenti', pront.filter(function (e) { return e.kind === 'doc'; }), true);
+        section('Strumenti', pront.filter(function (e) { return e.kind === 'tool'; }), true);
         section('Vai a', nav.filter(function (e) { return e.kind === 'nav'; }));
         section('Console', nav.filter(function (e) { return e.kind === 'console'; }));
         var found = liftSearch(qstr);

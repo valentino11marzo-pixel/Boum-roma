@@ -84,6 +84,8 @@ function toast(t, ti, m) { __calls.push(['toast', t]); }
 function closeModal() { document.getElementById('modals').innerHTML = ''; }
 // replica del CONTRATTO di handleSearch (dropdown #searchResults, righe onclick):
 // il contratto vero è pinnato sul sorgente da tests/desktop/run.mjs
+function openTemplateModal(t) { __calls.push(['tpl', t]); }
+function openMagicSignEditor() { __calls.push(['magicsign']); }
 function handleSearch(q) {
   if (!q || q.length < 2) { document.getElementById('searchResults')?.remove(); return; }
   let dd = document.getElementById('searchResults');
@@ -117,6 +119,7 @@ function openModal(type) {
   document.getElementById('modals').innerHTML = TPL[type] || '';
 }
 </script>
+<script src="/js/portal-actions.js"></script>
 <script src="/js/portal-mobile.js"></script>
 <script src="/js/portal-desktop.js"></script>
 </body></html>`;
@@ -193,7 +196,7 @@ await page.keyboard.press('ArrowDown');
 await page.keyboard.press('Enter');
 await page.waitForTimeout(250);
 await check('↓ + ↵ esegue la voce e chiude la palette', () => page.evaluate(() =>
-  !document.querySelector('.pd-cmd') && window.__calls.some(c => c[0] === 'goTo' || c[0] === 'openModal' || c[0] === 'entity')
+  !document.querySelector('.pd-cmd') && window.__calls.some(c => ['goTo','openModal','entity','tpl'].includes(c[0]))
 ));
 await page.keyboard.press('Control+KeyK');
 await page.waitForTimeout(200);
@@ -208,6 +211,33 @@ await page.waitForTimeout(200);
 await page.keyboard.press('Escape');
 await page.waitForTimeout(200);
 await check('Esc chiude la palette', () => page.evaluate(() => !document.querySelector('.pd-cmd')));
+
+console.log('— il Prontuario nella palette (le funzioni sepolte) —');
+await page.keyboard.press('Control+KeyK');
+await page.waitForTimeout(200);
+await page.type('.pd-cmd-input', 'ricevuta');
+await page.waitForTimeout(350);
+await check('⌘K trova i documenti sepolti: "ricevuta" mostra la sezione Documenti', () => page.evaluate(() => {
+  const secs = [...document.querySelectorAll('.pd-cmd-sec')].map(s => s.textContent);
+  const rows = [...document.querySelectorAll('.pd-cmd-row')].map(r => r.textContent);
+  return secs.includes('Documenti') && rows.some(r => r.includes('Ricevuta pigione'));
+}));
+await page.evaluate(() => { [...document.querySelectorAll('.pd-cmd-row')].find(r => r.textContent.includes('Ricevuta pigione')).click(); });
+await page.waitForTimeout(250);
+await check('due tap: la ricevuta di pigione si apre davvero (era 4 passi)', () => page.evaluate(() =>
+  window.__calls.some(c => c[0] === 'tpl' && c[1] === 'ricevuta_pigione') && !document.querySelector('.pd-cmd')
+));
+await page.keyboard.press('Control+KeyK');
+await page.waitForTimeout(200);
+await page.type('.pd-cmd-input', 'disponibilita');
+await page.waitForTimeout(350);
+await check('gli strumenti sono cercabili senza accenti ("disponibilita")', () => page.evaluate(() => {
+  const secs = [...document.querySelectorAll('.pd-cmd-sec')].map(s => s.textContent);
+  const rows = [...document.querySelectorAll('.pd-cmd-row')].map(r => r.textContent);
+  return secs.includes('Strumenti') && rows.some(r => r.includes('Disponibilità visite'));
+}));
+await page.keyboard.press('Escape');
+await page.waitForTimeout(200);
 
 console.log('— scorciatoie —');
 await page.keyboard.press('g');

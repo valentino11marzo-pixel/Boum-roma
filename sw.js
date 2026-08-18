@@ -70,6 +70,7 @@ self.addEventListener('fetch', (event) => {
             // vecchia sopra un'app nuova
             || url.pathname === '/js/portal-mobile.js'
             || url.pathname === '/css/portal-mobile.css'
+            || url.pathname === '/js/portal-actions.js'
             || url.pathname === '/js/portal-desktop.js'
             || url.pathname === '/css/portal-desktop.css') ? url.pathname : null);
     if (portalAsset) {
