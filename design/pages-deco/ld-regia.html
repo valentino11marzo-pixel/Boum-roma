@@ -42,8 +42,16 @@
     }
     var img = (Array.isArray(d.images) ? d.images : []).filter(Boolean);
     var cover = img[0] || d.coverImage || d.image || '';
-    var dal = (String(d.availableDate || d.availableFrom || '')
-      .match(/^\d{4}-\d{2}-\d{2}/) || [])[0] || null;
+    var rawDal = String(d.availableDate || d.availableFrom || '').trim();
+    var dal = (rawDal.match(/^\d{4}-\d{2}-\d{2}/) || [])[0] || null;
+    /* la data testo libero passa dal motore CONDIVISO: mai "Available
+       now" per un regex che legge solo ISO */
+    if (!dal && rawDal && window.BOOM_DISPO) {
+      try {
+        var paD = BOOM_DISPO.parseAvailability(rawDal, new Date());
+        if (paD && paD.kind === 'date') dal = paD.iso;
+      } catch (e) {}
+    }
     var st = statoDa(String(d.status || 'available').toLowerCase(), dal);
     return {
       id: ideNuovo,

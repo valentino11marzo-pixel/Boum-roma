@@ -45,16 +45,30 @@
               : x.doubleValue != null ? x.doubleValue : null;
           }
           var p = parseFloat(v('price'));
+          /* la data passa dal motore CONDIVISO (dispo-engine): una data
+             testo libero non diventa mai "Available now" per un regex
+             che legge solo ISO — il difetto storico della vetrina */
+          var raw = String(v('availableDate') || '').trim();
+          var dal = (raw.match(/^\d{4}-\d{2}-\d{2}/) || [])[0] || '';
+          if (!dal && raw && window.BOOM_DISPO) {
+            try {
+              var pa = BOOM_DISPO.parseAvailability(raw, new Date());
+              if (pa && pa.kind === 'date') dal = pa.iso;
+            } catch (e) {}
+          }
           per[doc.name.split('/').pop()] = {
             st: String(v('status') || '').toLowerCase(),
-            dal: (String(v('availableDate') || '')
-              .match(/^\d{4}-\d{2}-\d{2}/) || [])[0] || '',
+            dal: dal, cieca: !!(raw && !dal),
             p: isFinite(p) && p > 0 ? Math.round(p) : null
           };
         });
         [].forEach.call(carte, function (card) {
           var d = per[card.dataset.id];
           if (!d || !d.st) return;
+          /* data illeggibile anche per il motore: il badge di BUILD (che
+             ha gia' letto la stessa stringa con le stesse regole) resta —
+             meglio fermo che sbagliato */
+          if (d.cieca) return;
           var s = stato(d.st, d.dal);
           var eti = card.querySelector('.casa-stato');
           if (eti && eti.textContent.trim() !== s.t) {

@@ -198,8 +198,11 @@ else:
     h = h.replace('PREVIEW — nothing was sent from this page.',
         'Sent — a named human replies within 2 hours.')
     h = h.replace('</footer>',
-        '</footer>\n<script src="/js/boom-geo.js"></script>', 1)
+        '</footer>\n<script src="/js/boom-geo.js"></script>\n'
+        '<script src="/js/dispo-engine.js"></script>', 1)
     h = h.replace('CHIAVE_CASA', '/listing/')
+    # cleanUrls: OGNI link interno perde il .html anche nel modo sito
+    h = re.sub(r'href="/([a-z-]+)\.html"', r'href="/\1"', h)
 
 C0 = CASE[0]
 h = h.replace('<h1 id="nomeCasa">—</h1>',

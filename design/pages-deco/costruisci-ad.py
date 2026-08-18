@@ -246,6 +246,8 @@ else:
         '/your-money.html': '/your-money'}.items():
         h = h.replace('href="' + da + '"', 'href="' + a_ + '"')
     h = h.replace('data-href="/apartments.html#zona=', 'data-href="#zona=')
+    # cleanUrls: OGNI link interno perde il .html anche nel modo sito
+    h = re.sub(r'href="/([a-z-]+)\.html"', r'href="/\1"', h)
 
 DESCR = ('Browse ' + str(len(mostrate)) + ' verified apartments for rent in '
          'Rome — every home walked in person by BOOM. Filter by zone, budget '
@@ -265,12 +267,9 @@ if MODO == 'sito':
     h = h[:i] + '\n' + OG + h[i:]
     h = ('<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
          + h.replace('</style>', '</style>\n</head>\n<body>', 1)
+         + '\n<script src="/js/dispo-engine.js"></script>'
          + '\n' + leggi('vetrina-idrante.html')
-<<<<<<< HEAD
          + '\n' + TESTA.CONSENSO + '\n</body>\n</html>')
-=======
-         + '\n</body>\n</html>')
->>>>>>> origin/main
 uscita = 'boom-discovery.html' if MODO == 'artefatto' else 'boom-discovery-sito.html'
 open(uscita, 'w', encoding='utf-8').write(h)
 print(f'{uscita} · {len(h)//1024} KB · {len(mostrate)} case · '

@@ -1760,9 +1760,9 @@ setTimeout(function () {
     <div class="menu">
       <a href="/apartments">Apartments</a>
       <a href="/#banchina">Services</a>
-      <a href="/owners.html">For Owners</a>
-      <a href="/partners.html">Partners</a>
-      <a href="/about.html">About</a>
+      <a href="/owners">For Owners</a>
+      <a href="/partners">Partners</a>
+      <a href="/about">About</a>
       <a class="m-login" href="/login"><svg viewBox="0 0 24 24" fill="none"
         stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.2-3.4 3.8-5 7-5s5.8 1.6 7 5"/></svg>Login</a>
       <a class="btn btn-primary" href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a>
@@ -1774,9 +1774,9 @@ setTimeout(function () {
 <div class="tenda" id="tenda">
   <a href="/apartments">Apartments</a>
   <a href="/#banchina">Services</a>
-  <a href="/owners.html">For Owners</a>
-  <a href="/partners.html">Partners</a>
-  <a href="/about.html">About</a>
+  <a href="/owners">For Owners</a>
+  <a href="/partners">Partners</a>
+  <a href="/about">About</a>
   <a href="/login">Login</a>
   <a class="btn btn-primary" href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a>
 </div>
@@ -2741,7 +2741,7 @@ setTimeout(function () {
         before it goes up. What you're looking for probably exists in Rome
         right now — it just isn't on a portal yet. That's what the hunt
         engine is for.</p>
-      <a class="btn btn-primary" href="/property-finding.html">Put the machine on it</a>
+      <a class="btn btn-primary" href="/property-finding">Put the machine on it</a>
     </div>
     <div class="vista-cielo" id="vistaCielo" hidden>
 <div class="cielo sale" id="cielo">
@@ -2870,7 +2870,7 @@ setTimeout(function () {
               <div class="rete-cifra"><b>24/7</b><span>market scan</span></div>
               <div class="rete-cifra"><b>€0</b><span>if we fail</span></div>
             </div>
-            <a class="btn btn-primary" href="/property-finding.html">Start the hunt</a>
+            <a class="btn btn-primary" href="/property-finding">Start the hunt</a>
             <p class="rete-nota">€350 upfront — deducted from the agency fee when
               we find your home. Full refund if we don't deliver.</p>
           </div>
@@ -2910,32 +2910,32 @@ setTimeout(function () {
         <a href="/apartments">Apartments</a>
         <a href="/your-money">Your Money</a>
         <a href="/board">Live Board</a>
-        <a href="/book.html">Book a Viewing</a>
-        <a href="/welcome-to-rome.html">Welcome to Rome</a>
+        <a href="/book">Book a Viewing</a>
+        <a href="/welcome-to-rome">Welcome to Rome</a>
       </div>
       <div class="piede-col">
         <b>Services</b>
-        <a href="/property-finding.html">Property Finding</a>
-        <a href="/deal-assistance.html">Deal Assistance</a>
-        <a href="/virtual-viewing.html">Virtual Viewing</a>
-        <a href="/contract-check-express.html">Contract Check</a>
-        <a href="/concierge.html">Concierge</a>
+        <a href="/property-finding">Property Finding</a>
+        <a href="/deal-assistance">Deal Assistance</a>
+        <a href="/virtual-viewing">Virtual Viewing</a>
+        <a href="/contract-check-express">Contract Check</a>
+        <a href="/concierge">Concierge</a>
       </div>
       <div class="piede-col">
         <b>Company &amp; Markets</b>
-        <a href="/about.html">About</a>
-        <a href="/how-it-works.html">How It Works</a>
-        <a href="/executive.html">BOOM Executive</a>
-        <a href="/reunion.html">BOOM La Réunion</a>
-        <a href="/corporate.html">For Companies</a>
-        <a href="/universities.html">For Universities</a>
-        <a href="/owners.html">For Owners</a>
-        <a href="/blog.html">Blog</a>
+        <a href="/about">About</a>
+        <a href="/how-it-works">How It Works</a>
+        <a href="/executive">BOOM Executive</a>
+        <a href="/reunion">BOOM La Réunion</a>
+        <a href="/corporate">For Companies</a>
+        <a href="/universities">For Universities</a>
+        <a href="/owners">For Owners</a>
+        <a href="/blog">Blog</a>
       </div>
       <div class="piede-col">
         <b>Legal</b>
-        <a href="/terms.html">Terms</a>
-        <a href="/privacy.html">Privacy</a>
+        <a href="/terms">Terms</a>
+        <a href="/privacy">Privacy</a>
         <a href="/login">Login</a>
       </div>
     </div>
@@ -4604,6 +4604,7 @@ setTimeout(function () {
 })();
 </script>
 
+<script src="/js/dispo-engine.js"></script>
 <script>
 /* L'IDRANTE DELLA VETRINA — home e discovery erano FOTOGRAFIE: il bot
    cambia prezzo o stato su Firestore e le card restavano al giorno della
@@ -4651,16 +4652,30 @@ setTimeout(function () {
               : x.doubleValue != null ? x.doubleValue : null;
           }
           var p = parseFloat(v('price'));
+          /* la data passa dal motore CONDIVISO (dispo-engine): una data
+             testo libero non diventa mai "Available now" per un regex
+             che legge solo ISO — il difetto storico della vetrina */
+          var raw = String(v('availableDate') || '').trim();
+          var dal = (raw.match(/^\d{4}-\d{2}-\d{2}/) || [])[0] || '';
+          if (!dal && raw && window.BOOM_DISPO) {
+            try {
+              var pa = BOOM_DISPO.parseAvailability(raw, new Date());
+              if (pa && pa.kind === 'date') dal = pa.iso;
+            } catch (e) {}
+          }
           per[doc.name.split('/').pop()] = {
             st: String(v('status') || '').toLowerCase(),
-            dal: (String(v('availableDate') || '')
-              .match(/^\d{4}-\d{2}-\d{2}/) || [])[0] || '',
+            dal: dal, cieca: !!(raw && !dal),
             p: isFinite(p) && p > 0 ? Math.round(p) : null
           };
         });
         [].forEach.call(carte, function (card) {
           var d = per[card.dataset.id];
           if (!d || !d.st) return;
+          /* data illeggibile anche per il motore: il badge di BUILD (che
+             ha gia' letto la stessa stringa con le stesse regole) resta —
+             meglio fermo che sbagliato */
+          if (d.cieca) return;
           var s = stato(d.st, d.dal);
           var eti = card.querySelector('.casa-stato');
           if (eti && eti.textContent.trim() !== s.t) {

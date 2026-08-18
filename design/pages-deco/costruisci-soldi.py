@@ -80,6 +80,8 @@ else:
         '/apartments.html': '/apartments',
         '/your-money.html': '#giornouno'}.items():
         h = h.replace('href="' + da + '"', 'href="' + a_ + '"')
+    # cleanUrls: OGNI link interno perde il .html anche nel modo sito
+    h = re.sub(r'href="/([a-z-]+)\.html"', r'href="/\1"', h)
     import testa as TESTA
     OG = TESTA.blocco_money(
         'Your money at BOOM — every euro, in the open | BOOM Rome',
