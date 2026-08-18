@@ -57,336 +57,368 @@
   const REPLIES = [
 
     // ═══════════════════════════════════════════════════════════════════════
-    // IL KIT — versione definitiva.
-    // Tre regole, applicate a ognuna senza eccezioni:
-    //  1. UNA PORTA per messaggio. Un servizio, un prezzo, un link. Chi ne
-    //     propone due non ne vende nessuno, e chi insiste due volte perde
-    //     anche la prima.
-    //  2. Il prezzo si dice SEMPRE, e accanto la garanzia (rimborsato,
-    //     scalato, gratis la prima lettura). Un prezzo senza garanzia è una
-    //     richiesta; con la garanzia è un'offerta.
-    //  3. Il valore si SPIEGA in una riga concreta — "le foto sono nostre",
-    //     "filmiamo la casa all'ingresso e all'uscita", "controllo con il
-    //     proprietario invece di tirare a indovinare" — mai aggettivi.
-    // Lunghezza tarata sulla misura vera (mediana dei suoi messaggi: 17
-    // caratteri, 3 su 4 sotto 38): qui si sta fra 230 e 430, cioè poche righe.
+    // LA DOTTRINA — perché ogni messaggio è costruito così.
+    //
+    //  1. Non si vende il servizio: si vende COSA SAPRAI DOMANI. Nessuno
+    //     compra una "visita virtuale": compra il non mandare tremila euro a
+    //     uno sconosciuto fidandosi delle sue fotografie.
+    //  2. L'ancora è la PERDITA, non il prezzo. €49 non si confronta con
+    //     zero: si confronta con la clausola d'uscita che non hai letto.
+    //  3. Il prezzo sparisce dentro una transazione che il cliente sta già
+    //     facendo — scalato dalla commissione, rimborsato se non consegniamo.
+    //     Non sta spendendo: sta spostando.
+    //  4. La prova è un MECCANISMO, mai un aggettivo. "Filmiamo la casa
+    //     all'ingresso e all'uscita" è una prova; "agenzia affidabile" è
+    //     rumore che chiunque può scrivere.
+    //  5. Una porta sola, aperta una volta. Chi insiste non è premium.
+    //  6. Generosità asimmetrica: il primo passo è gratis e vale davvero
+    //     (la lettura del contratto, la visita video sulle nostre case),
+    //     altrimenti quello a pagamento sa di esca.
+    //  7. Prima persona singolare. "Noi" è un ufficio; "io" è qualcuno che
+    //     risponde del risultato.
+    //
+    // `sell` dichiara che porta apre ogni messaggio e su cosa è ancorata:
+    // serve a te per scegliere in due secondi, e al test per pretendere che
+    // ogni servizio a pagamento abbia la SUA porta, col prezzo e la garanzia.
     // ═══════════════════════════════════════════════════════════════════════
 
     {
       sc: 'enlead', fam: 'en', star: true,
-      title: 'Contatto dal portale → chiamata',
-      when: 'Il tuo messaggio più ripetuto. Chiamare è ciò che chiude: si propone subito, e nel frattempo dici in una riga chi sei.',
-      text: `Hello [NOME], I'm Valentino from BOOM Rome — thank you for writing about [CASA].
+      title: 'Primo contatto — la telefonata',
+      when: 'Chi scrive da un portale. Non elenca, non si presenta: offre in due minuti quello che nessun annuncio può dare, e mette in conto anche il no.',
+      sell: { service: null, anchor: 'un\'altra sera passata a confrontare annunci' },
+      text: `[NOME], I'm Valentino — I run BOOM Rome, and [CASA] is one of ours.
 
-Finding a home from a distance is the part everyone dreads, so let's keep it simple. Give me two minutes on the phone and I'll tell you exactly where that flat stands, what it really costs and what we'd need from you. No forms, no runaround.
+Before you spend another evening comparing listings: I've walked that flat. I know how quiet it is at night, what the street does on a Saturday morning, and which of the photos flatters it.
 
-When would be a good time to call you?`,
+Two minutes on the phone today and you'll know whether it deserves your time — including if the answer is no.
+
+When suits you?`,
     },
     {
       sc: 'engone', fam: 'en', star: true,
       title: 'Quella casa è andata',
-      when: 'Il momento in cui la gente sparisce. Non ci si scusa: si dice subito la verità e si riparte con tre domande.',
-      text: `Hello [NOME], thank you for writing about [CASA] — I'm sorry to tell you that one has just been taken.
+      when: 'Il vicolo cieco che fa sparire la gente. Si dice la verità sul mercato e si offre qualcosa che vale più del link: essere avvisato prima degli altri.',
+      sell: { service: null, anchor: 'restare a sperare su una casa già presa' },
+      text: `[NOME], that one went — and I'd rather tell you now than let you keep hoping.
 
-I'd rather say it straight away than leave you waiting on it. Send me your zone, your budget and when you'd like to move in, and I'll come back to you today with what's genuinely free: every flat walked by us, price all-in.
+Rome moves quickly in this season: a good flat is taken in about a day, often before it's public.
+
+So let me do something more useful than sending you a link. Tell me three things — zone, budget, month — and you'll hear from me before the next one is published.
 
 ${SITE}/apartments`,
     },
     {
       sc: 'enprice', fam: 'en', star: true,
-      title: 'Tutti i costi, in chiaro',
-      when: 'La domanda che decide. Ogni voce, con la garanzia accanto: è la risposta che ti distingue da chi ne nasconde una.',
-      text: `Of course — here's the full picture, so nothing surprises you later.
+      title: 'Ogni euro, compresi quelli che tornano',
+      when: 'La domanda che decide. La trasparenza totale qui è una mossa di posizionamento: l\'ultima riga fa il lavoro competitivo senza nominare nessuno.',
+      sell: { service: null, anchor: 'le voci che le altre agenzie ti dicono dopo' },
+      text: `Here is every euro, including the ones that come back to you.
 
-• Rent: the figure on the listing. Nothing is added afterwards.
-• Deposit: fully refundable. We film the flat when you move in and when you leave, so it comes back to you.
-• Our fee: 10% of the annual rent, once, and only if you actually move in.
-• €300 to hold a home: refundable, and taken off what you owe.
+Rent: exactly what the listing says. Nothing appears later.
+Deposit: yours. I film the flat on the way in and on the way out, so its condition is never a matter of opinion.
+My fee: 10% of the year, once, and only if you actually move in.
+€300 to hold a home: refundable, and deducted from the above.
 
-Euro by euro: ${SITE}/your-money
+The arithmetic in full: ${SITE}/your-money
 
-Happy to walk you through any of it.`,
+If an agency won't put this list in writing, that tells you what you need to know.`,
     },
     {
       sc: 'endocs', fam: 'en', star: true,
-      title: 'Documenti per essere approvato',
-      when: 'Data in anticipo e per intero: nessuna richiesta a sorpresa dopo il sì, che è la cosa che fa scappare la gente dalle agenzie.',
-      text: `Happy to explain. It's the same list for everyone, and nothing else appears later:
+      title: 'Documenti — la stessa lista per tutti',
+      when: 'Qui la paura vera è la discriminazione, non la burocrazia. La prima riga la disinnesca, ed è il motivo per cui questo messaggio si ricorda.',
+      sell: { service: null, anchor: 'la paura di essere trattato diversamente' },
+      text: `The same list for everyone. Nobody is asked for more because of the passport they hold.
 
-• Passport
-• Proof of income: work contract, payslips, or your enrolment letter
-• A guarantor if your income isn't in Italy yet — there are ways around this, so don't worry if you can't
-• Codice fiscale — if you don't have one, we take care of it for you
+Passport. Proof of income — work contract, payslips, or your enrolment letter. A guarantor if your income isn't Italian yet: and if you haven't got one, tell me, because there are other ways and I'll show you them.
 
-Photos from your phone are perfectly fine: send them here, or use the secure form at ${SITE}/booking
+No codice fiscale? I obtain it for you before you land.
 
-I'll come back to you the same day.`,
+Photos from your phone are fine, or use the secure form: ${SITE}/booking`,
     },
     {
       sc: 'enbook', fam: 'en', star: true,
-      title: 'Prenota la visita',
-      when: 'Gli orari nel link sono quelli davvero liberi della tua settimana. E resta aperta la chiamata, che per te funziona meglio.',
-      text: `With pleasure. The viewing is free and takes about half an hour — in person with me, or live on video if you're not in Rome yet: you decide what to look at, I answer while we walk through it.
+      title: 'La visita',
+      when: 'Mezz\'ora, nessun costo, nessun venditore. La promessa di dire "non fa per te" prima che si innamori è ciò che rende credibile tutto il resto.',
+      sell: { service: null, anchor: 'una visita con qualcuno che deve venderti qualcosa' },
+      text: `Half an hour, no cost, and no salesman in the room: you ask, I answer, and if the flat isn't right for you I'll say so before you like it too much.
 
-These are the times genuinely free in my week:
-${SITE}/book
+In person, or live on video with you directing — I hold the phone and go where you point.
 
-If it's easier, tell me when I can call you and we'll fix it in a minute.`,
+These are the times genuinely free in my week: ${SITE}/book
+
+If it's easier, tell me when to call you.`,
     },
     {
       sc: 'enwho', fam: 'en', star: true,
-      title: 'Chi può abitarci: coppia, amici, figli, animali',
-      when: 'Una delle domande più frequenti. Non prometti al posto del proprietario e chiudi chiedendo chi arriva, così filtri le case giuste.',
-      text: `Good question, and an important one — I check it on the specific flat before you commit to anything.
+      title: 'Chi può abitarci',
+      when: 'Non si promette al posto del proprietario. La chiusura — "solo case che possono dire di sì" — vale più di qualunque rassicurazione generica.',
+      sell: { service: null, anchor: 'innamorarsi di una casa che poi dice no' },
+      text: `It depends on the flat, and I check it before you fall for the place — not after.
 
-As a rule: couples and families are welcome in most of our homes; friends sharing works where the layout genuinely allows it, with everyone named on the contract; and pets are always the owner's decision, which I ask about before you get attached to a place.
+Couples and families: welcome in most of mine. Friends sharing: where the layout genuinely allows it, with everyone named on the contract, which protects you as much as the owner. Pets: the owner's decision, always — so I ask before you have to.
 
-Tell me who's coming — adults, children, pets — and I'll only send you homes that truly work for you.`,
+Tell me who's coming, adults and children and animals, and you'll only see homes that can say yes.`,
     },
     {
       sc: 'enfeat', fam: 'en', star: true,
-      title: 'Arredato? lavatrice, aria, ascensore',
-      when: '95 conversazioni nella misura. Non elencare a memoria: la pagina è sempre aggiornata, e tu chiedi quali due contano davvero.',
-      text: `Everything inside a flat is listed on its own page — furniture, appliances, heating, lift, balcony — with photos we took ourselves, not the owner's:
+      title: 'Cosa c\'è dentro casa',
+      when: 'La pagina è sempre aggiornata, tu no. E la riga finale — non tiro a indovinare sulle cose con cui vivrai — è la differenza fra un\'agenzia e un portale.',
+      sell: { service: null, anchor: 'scoprire dopo la firma cosa mancava' },
+      text: `Each flat lists exactly what's inside — furniture, appliances, heating, lift, terrace — and the photographs are mine, taken the day I walked it. You're looking at the flat, not at a render.
 
 ${SITE}/apartments
 
-Most of our homes come furnished and ready to live in. And if something isn't written there, just ask me: I'd rather check with the owner than guess.
-
-Which matter most to you — air conditioning, lift, washing machine?`,
+If something isn't written there, ask me and I'll call the owner. I don't guess about the things you'll be living with.`,
     },
     {
       sc: 'enabroad', fam: 'en', star: true,
-      title: 'È fuori Italia → visita video (€89 sulle case altrui)',
-      when: 'I tuoi clienti sono quasi tutti all\'estero e questo servizio l\'hai proposto UNA volta in sei mesi. Il gratis apre, il pagato serve per le case degli altri.',
-      text: `You don't need to be in Rome to do this properly: most of our tenants sign before they land, and it works.
+      title: 'È lontano → la visita video (€89 sulle case altrui)',
+      when: 'L\'ancora è il deposito che sta per mandare a uno sconosciuto, non il prezzo del servizio. Gratis sulle nostre, a pagamento sulle altrui: la scala è onesta.',
+      sell: { service: 'virtual-viewing', anchor: 'migliaia di euro impegnati sulle fotografie di uno sconosciuto' },
+      text: `You're about to commit thousands of euro to a flat you have only seen in someone else's photographs. That is the real risk here — not the rent.
 
-On our own homes the live video viewing is free — you direct the camera, I answer as we go. If the flat isn't ours, we still go in person, film it for you and send an honest written report, red flags included: €89, within 48 hours, and credited to our fee if you then rent with us.
+On my homes I walk you through it live, free, whenever you're awake.
 
-${SITE}/virtual-viewing
+On a flat that isn't mine I go in person: filmed for you, plus a written report of what the photos hid. €89, within 48 hours, credited back against my fee if you rent through me, refunded if I can't get in.
 
-Which one should I go and see for you first?`,
+${SITE}/virtual-viewing`,
     },
     {
       sc: 'encheck', fam: 'en', star: true,
-      title: 'Ha in mano il contratto di un altro',
-      when: 'Proposto 2 volte in sei mesi. La prima lettura gratis è onesta e apre la porta: chi ha paura di firmare torna sempre.',
-      text: `Please send it to me before you sign anything. The first read is on me: I'll tell you what's unfair, what's missing, and whether the landlord is who he says he is.
+      title: 'Il contratto di un altro → lettura gratis, poi €49 / €249',
+      when: 'Si ancora sulla clausola d\'uscita, non sul prezzo. La lettura gratis è generosità vera: chi ha paura di firmare torna sempre.',
+      sell: { service: 'contract-check-express', anchor: 'un contratto facile da firmare e difficile da lasciare' },
+      text: `Send it to me before you sign. The first read costs you nothing and takes me twenty minutes.
 
-${SITE}/contract-check
+An Italian lease is easy to sign and hard to leave. The clauses that hurt are the ones on exit, deposit and repairs — and they are never where you'd think to look.
 
-If you'd like it in writing, it's €49 for a clear verdict within 24 hours, or €249 if you want the ownership checks and the negotiation handled by us.
+Written verdict within 24 hours: €49. Ownership verified and the negotiation handled by me: €249 — less than a month's rent, and it is the month you would otherwise lose.
 
-Take your time — just don't sign before we've looked at it together.`,
+${SITE}/contract-check`,
     },
     {
       sc: 'enfind', fam: 'en', star: true,
-      title: 'Non abbiamo niente per lui → cerchiamo noi (€350)',
-      when: 'Lo vendi già 49 volte in sei mesi: è il modo giusto di non perdere chi non trova casa da te. Da mandare SEMPRE prima di lasciarlo andare.',
-      text: `I'll be straight with you: nothing we have right now matches what you're looking for.
+      title: 'Niente fa per lui → cerco io (€350)',
+      when: 'Il rifiuto onesto in apertura è ciò che rende credibile l\'offerta che segue. Due porte, una gratis e una a pagamento, e si sceglie lui.',
+      sell: { service: null, anchor: 'continuare a cercare da solo su annunci che spariscono in un giorno' },
+      text: `Nothing I have right now is right for you, and I won't pretend otherwise to keep the conversation going.
 
-Two ways I can help. I can keep you first in line for [ZONA] — our homes often free up months ahead — or we go and find it for you: the whole Rome market plus what never gets published, every match checked by a person before it reaches you. €350, taken off our fee when you sign, refunded in full if we don't deliver.
+Two ways from here. I keep your brief and you hear from me before the next flat is published — no charge, no expiry.
 
-${SITE}/property-finding
+Or I go and find it: the whole market, plus what never reaches the portals, every option checked by a person before it reaches you. €350, deducted from my fee when you sign, refunded in full if I don't deliver.
 
-Which would you prefer?`,
+${SITE}/property-finding`,
     },
     {
       sc: 'enconc', fam: 'en', star: true,
-      title: 'Burocrazia dell\'arrivo (da €15 · pacchetto €390)',
-      when: 'Lo nomini già 39 volte: i clienti lo capiscono al volo perché è la parte che li spaventa di più.',
-      text: `This is usually the part that swallows people's first month here: codice fiscale, electricity and gas in your name, internet, SIM card, residency, the health card.
+      title: 'L\'arrivo (da €15 · tutto da €390)',
+      when: 'Non si vende un servizio: si nomina la settimana che li aspetta. "In italiano, di persona, in uffici che chiudono a mezzogiorno" fa tutto il lavoro.',
+      sell: { service: 'movein-pack', anchor: 'il primo mese consumato negli uffici invece che a Roma' },
+      text: `The flat is the easy part. What ruins people's first month here is the codice fiscale, the utilities in your name, the residency appointment and the health card — in Italian, in person, in offices that close at midday.
 
-We can take it off your hands while you're still packing — single tasks from €15, or the whole landing handled from €390, with one person on WhatsApp for your first month.
+I take that off your hands while you're still packing. Single items from €15; the whole landing handled from €390, with one person on WhatsApp for your first month.
 
 ${SITE}/concierge
 
-Which of them is worrying you most?`,
+Which of them worries you most?`,
     },
     {
       sc: 'enblock', fam: 'en', star: true,
-      title: 'Bloccare la casa',
-      when: 'Il momento che vale di più. La riga finale evita le domande DOPO il pagamento, che sono quelle che fanno saltare i contratti.',
-      text: `You have everything you need to decide, [NOME] — and for what it's worth, I think this one fits you well.
+      title: 'Chiudere',
+      when: 'Il momento che vale di più. L\'ultima riga — meglio perdere un\'ora oggi che farti firmare con un dubbio — è ciò che impedisce i ripensamenti dopo il pagamento.',
+      sell: { service: null, anchor: 'firmare con un dubbio in testa' },
+      text: `[NOME], you have everything you need — and for what my opinion is worth, this is the one.
 
-To hold it: €300, refundable and taken off what you owe. The flat stops being shown to anyone else; then comes the pre-agreement, the registered contract, and the keys on your date.
+€300 holds it: refundable, deducted from what you owe, and the flat comes off the market. Nobody views it after you.
 
-If anything is still unclear, please ask me now: I'd much rather answer today than after you've paid.`,
+Then the agreement, the registered contract, and the keys on your date.
+
+If anything is still unclear, ask me now. I would rather lose an hour today than have you sign with a doubt.`,
     },
     {
       sc: 'itciao', fam: 'it', star: true,
-      title: 'Apertura in italiano',
-      when: 'Stessa struttura: chi sei in una riga, tre informazioni, e la proposta di chiamata.',
-      text: `Ciao [NOME], sono Valentino di BOOM Rome — grazie per avermi scritto.
+      title: 'Primo contatto in italiano',
+      when: 'Niente listino: tre domande e una promessa che si può verificare — il prezzo definitivo, non quello da cui si parte.',
+      sell: { service: null, anchor: 'i prezzi "da" che poi crescono' },
+      text: `[NOME], sono Valentino, BOOM Rome.
 
-Siamo un'agenzia regolare: contratti registrati, e ogni casa che pubblichiamo l'abbiamo vista di persona. Dimmi zona, budget e da quando ti serve, e ti mando quello che è davvero libero.
+Prima di mandarti un listino: dimmi zona, budget e da quando ti serve. Ti mando solo case che ho visto di persona, con il prezzo definitivo — non quello da cui si parte.
 
 ${SITE}/apartments
 
-Se preferisci, dimmi quando posso chiamarti: in due minuti ti chiarisco tutto.`,
+Se preferisci, dimmi quando posso chiamarti: in due minuti capiamo se ha senso.`,
     },
     {
       sc: 'prciao', fam: 'pr', star: true,
       title: 'Primo contatto col proprietario',
-      when: 'Dice CHI porti in casa sua e aggancia il concordato: è il motivo per cui un proprietario ti richiama invece di archiviarti.',
+      when: 'A un proprietario non interessa il servizio: gli interessa CHI entra in casa sua e se paga. La riga sulla ricevuta chiesta dal datore vale l\'intero messaggio.',
+      // La porta del pacchetto è /prpack: qui si apre col calcolo GRATIS, che è
+      // il primo passo della scala. Dichiarare di vendere il pacchetto in un
+      // messaggio che non ne dice il prezzo è la bugia che il test ha preso.
+      sell: { service: null, anchor: 'un inquilino sbagliato e mesi di sfitto' },
       text: `Buongiorno [NOME], sono Valentino di BOOM — Egidi Immobiliare.
 
-Affittiamo a stranieri di fascia alta a Roma: professionisti in trasferta, personale ONU e ambasciate, studenti internazionali. Ci occupiamo di tutto — selezione documentata dell'inquilino, contratto registrato, incassi e scadenze fiscali — così lei non ci deve pensare.
+Affittiamo a chi sceglie Roma per lavoro: professionisti in trasferta, personale ONU e ambasciate, ricercatori. Persone che pagano puntuali anche perché il datore di lavoro chiede la ricevuta.
 
-Se mi dice zona, metri quadri e se è arredato, le dico a quanto si affitta davvero. E con il canone concordato la cedolare scende al 10%: ${SITE}/canone`,
+Selezione documentata, contratto registrato, incassi tracciati e scadenze seguite da noi: lei riceve un rendiconto il primo del mese.
+
+Mi dica zona, metri quadri e se è arredato: le dico a quanto si affitta davvero. ${SITE}/canone`,
     },
 
-    // ── NEL MAZZO: si copiano da /risposte quando serve, senza occupare slot ─
-    {
-      sc: 'enlink', fam: 'en', bench: true,
-      title: 'Mando l\'annuncio',
-      when: 'Quando gli mandi una casa precisa. Una riga sul perché quel link vale, e si chiude con la visita.',
-      text: `Here it is: [LINK]
-
-The price is all-in and the photos are ours — we walked the flat before publishing it.
-
-Want to see it? In person, or live on video if you're not in Rome yet.`,
-    },
-    {
-      sc: 'enserv', fam: 'en', bench: true,
-      title: 'Mando il link di un servizio da pagare',
-      when: 'Il tuo messaggio più ripetuto (18×): il link col modulo, pagamento diretto. Qui è già scritto, ti resta da dire cosa ti serve da lui.',
-      text: `Perfect. I'll send you the link with the form — you fill it in and pay right there (Apple Pay works): [LINK]
-
-Before that I need [COSA TI SERVE].
-
-As soon as it's in, we start: [QUANDO].`,
-    },
+    // ── NEL MAZZO ──────────────────────────────────────────────────────────
     {
       sc: 'entrust', fam: 'en', bench: true,
       title: '"Come faccio a fidarmi?"',
-      when: 'La diffidenza è sana, Roma è piena di truffe. Dagli gli strumenti per verificarti invece di offenderti.',
-      text: `Fair question — you can check us in two minutes:
+      when: 'Domanda sana in una città piena di truffe. Si risponde con verifiche che può fare senza di te, e con la regola che ti costa dire.',
+      sell: { service: null, anchor: 'la truffa che tutti conoscono per sentito dire' },
+      text: `A fair question, and here's how to answer it without taking my word for anything.
 
-• Egidi Immobiliare S.r.l., VAT 17322991005 — a licensed agency, not a middleman
-• 4.9★ on Google from real tenants
-• Every contract registered with the Agenzia delle Entrate, every payment through Stripe with a receipt in your name
+Egidi Immobiliare S.r.l., VAT 17322991005 — look it up. Every contract registered with the Agenzia delle Entrate. Every payment through Stripe, receipt in your name, never to a person.
 
-And the rule that protects you: we never ask for cash, or a transfer to a private person.`,
-    },
-    {
-      sc: 'enres', fam: 'en', bench: true,
-      title: 'Posso prendere la residenza?',
-      when: 'Rara ma decisiva per chi la chiede: tessera sanitaria, permesso, vita normale. Meglio dirlo prima della firma.',
-      text: `Yes — and it's worth doing: residency is what opens the tessera sanitaria and most of ordinary life here.
-
-Two things make it smooth, and both are normal for us: a contract registered with the Agenzia delle Entrate (ours always are), and the owner knowing from the start.
-
-If it's essential for you, tell me before we sign — on a few flats it's complicated, and I'd rather say so now.`,
-    },
-    {
-      sc: 'endeal', fam: 'en', bench: true,
-      title: 'Si può trattare sul prezzo',
-      when: 'Una risposta uguale per tutti vale più di uno sconto: dice che il prezzo non dipende da quanto insisti.',
-      text: `Straight with you: on our own homes the listed price is what the owner agreed to publish, so there's rarely room on the rent itself — I'd rather be boring than quote you one number and the next person another.
-
-Where there sometimes is room: a longer stay, the move-in date, or what's included.
-
-Tell me your real budget and your dates.`,
+And the rule that costs me money and protects you: no cash, ever, and nothing is paid before you have read the terms in writing.`,
     },
     {
       sc: 'endep', fam: 'en', bench: true,
-      title: 'Deposito trattenuto (lettera gratis o €99)',
-      when: 'Anche a chi non è mai stato cliente: risolvi un torto che nessun altro gli risolve, e il passaparola vale più del servizio.',
-      text: `Italian law is on your side — art. 1590 of the Civil Code, and a formal 15-day deadline.
+      title: 'Deposito trattenuto — lettera gratis, poi €99',
+      when: 'Anche a chi non è mai stato cliente. Si regala lo strumento che risolve il 70% dei casi; chi ha bisogno di più torna, e intanto racconta di te.',
+      sell: { service: 'deposit-recovery', anchor: 'un deposito dato per perso' },
+      text: `Italian law is on your side more than people think: article 1590 of the Civil Code, and fifteen days for them to answer.
 
-Free: generate the demand letter yourself, in correct legal Italian → ${SITE}/deposit-letter
+Most landlords pay when the letter arrives written properly. So take it, free, and send it yourself: ${SITE}/deposit-letter
 
-Or we handle it: €99 to start, then 20% only on what we actually recover → ${SITE}/deposit-recovery
+If they don't move, I take it from there — €99 to start, then 20% only of what actually comes back.
 
-How much are they holding, and what's their reason?`,
+How much are they holding, and what reason did they give you?`,
     },
     {
-      sc: 'enguide', fam: 'en', bench: true,
-      title: 'Le guide gratuite (per chi è ancora freddo)',
-      when: 'Chi chiede consigli senza comprare. Regalare valore vero è il modo più economico di restare in testa.',
-      text: `Free, no strings — what we'd tell a friend moving here:
+      sc: 'enres', fam: 'en', bench: true,
+      title: 'Residenza',
+      when: 'Rara, ma per chi la chiede decide tutto. E si dice prima della firma, perché dopo non si sistema.',
+      sell: { service: null, anchor: 'scoprire dopo il trasloco che la residenza non si può prendere' },
+      text: `Yes — and it matters more than people expect: the health card, and half of ordinary life here, hang on it.
 
-• Codice fiscale, residency, health card, SIM, bank: ${SITE}/welcome-to-rome
-• How not to get scammed renting in Rome: ${SITE}/blog-scam-bible
+Two conditions make it straightforward, and both are normal with me: a contract registered with the Agenzia delle Entrate, and an owner who knows from the start.
 
-Read them before you talk to any agency, including us.`,
+If residency is essential for you, say so before we sign. On a few flats it is complicated, and you should hear that from me now rather than in three months.`,
+    },
+    {
+      sc: 'endeal', fam: 'en', bench: true,
+      title: 'Trattativa',
+      when: 'Il prezzo uguale per tutti è una posizione, non una rigidità: dice che non paghi il fatto di non saper insistere.',
+      sell: { service: null, anchor: 'pagare più del vicino per non aver contrattato' },
+      text: `On my own homes the price is the price the owner agreed to publish — and I'd rather be dull than quote one number to you and another to the next person.
+
+Where there is room, sometimes: a longer stay, a move-in date that suits an empty flat, or what's included in it.
+
+Tell me your real budget and your dates and I'll tell you honestly whether anything can move.`,
+    },
+    {
+      sc: 'enlink', fam: 'en', bench: true,
+      title: 'Mando l\'annuncio',
+      when: 'Quando gli mandi una casa precisa. Una riga di prova, e la visita proposta subito.',
+      sell: { service: null, anchor: 'un altro link fra i venti che sta guardando' },
+      text: `Here it is: [LINK]
+
+The price is final and the photographs are mine — I walked it before publishing it.
+
+Shall I show it to you? In person, or live on video if you're not in Rome yet.`,
+    },
+    {
+      sc: 'enserv', fam: 'en', bench: true,
+      title: 'Mando il link di un servizio',
+      when: 'Il tuo messaggio più ripetuto: il modulo e il pagamento. Qui è già scritto, resta da dire cosa ti serve da lui e quando si parte.',
+      sell: { service: null, anchor: null },
+      text: `Here's the link — the form takes two minutes and you can pay straight from it: [LINK]
+
+Before I start I need [COSA TI SERVE].
+
+The moment it's in, we begin: [QUANDO].`,
     },
     {
       sc: 'enpay', fam: 'casa', bench: true,
       title: 'Come si paga il canone',
-      when: 'Primo mese e ogni volta che lo chiedono. Spingi bonifico o addebito: costano meno a entrambi e non si dimenticano.',
-      text: `Everything about your rent — invoices, receipts and the button to pay: ${SITE}/casa
+      when: 'Primo mese e ogni volta che lo chiedono. L\'addebito automatico conviene a entrambi: nessuno se lo dimentica più.',
+      sell: { service: null, anchor: 'il canone dimenticato e il sollecito imbarazzante' },
+      text: `Everything about your rent lives in one place — invoices, receipts, and the button to pay: ${SITE}/casa
 
-Three ways: card (instant), bank transfer (free, the page shows the details and the reference to copy), or automatic SEPA debit — you authorise once and each instalment collects itself.
+Card, if you want it done now. Bank transfer, free, with the reference already written for you. Or automatic debit: you authorise once and it collects itself before each due date.
 
-Want me to set the automatic one up?`,
+Want me to set the automatic one up? Then neither of us thinks about it again.`,
     },
     {
       sc: 'enfix', fam: 'casa', bench: true,
       title: 'Guasto in casa',
-      when: 'Le tre domande evitano il ping-pong e ti dicono subito se devi muoverti oggi.',
-      text: `Sorry about that. Send me:
+      when: 'Tre domande e sai se devi muoverti oggi. La riga finale evita che aspetti una risposta scritta mentre l\'acqua scende.',
+      sell: { service: null, anchor: null },
+      text: `Sorry about that. Three things and I can act today:
+
 1. A photo or a short video
 2. Which room
-3. Is it urgent — no water, no heating, no power or a leak means I move today
+3. Whether it's urgent — no water, no heating, no power or a leak means I move today
 
-You can also file it from ${SITE}/casa so it gets a ticket and a history.
+You can also open it from ${SITE}/casa so it has a ticket and a history.
 
-If it's urgent, call me: don't wait for a reply here.`,
+If it's urgent, call me. Don't wait for a written reply.`,
     },
     {
       sc: 'enrev', fam: 'casa', bench: true,
-      title: 'Chiedere la recensione',
-      when: 'Quando è contento e ha già le chiavi. Mai a chi ha un problema aperto.',
-      text: `[NOME], one small favour — worth more to us than any advertising.
+      title: 'La recensione',
+      when: 'Quando è contento e ha le chiavi da qualche settimana. Mai a chi ha un problema aperto.',
+      sell: { service: null, anchor: null },
+      text: `[NOME], one favour, and it's worth more to me than any advertising.
 
-If BOOM did right by you, two lines on Google help the next person trust an agency they've never met:
+If I did right by you, two lines on Google help the next person trust an agency they have never met — which, in this city, is not a small thing.
 
 https://g.page/r/CfcpUptbNnvZEBM/review
 
-And if something wasn't right, tell me first: I'd rather fix it than read it.`,
+And if anything wasn't right, tell me first. I'd rather fix it than read it.`,
     },
     {
       sc: 'enrefer', fam: 'casa', bench: true,
-      title: 'Referral: €50 a te, €50 a chi arriva',
+      title: 'Referral (€50 + €50)',
       when: 'Nella stessa settimana della recensione, non nello stesso messaggio.',
-      text: `Know anyone else moving to Rome? Send them over and you both get €50 when they rent:
+      sell: { service: null, anchor: null },
+      text: `If someone you know is moving to Rome, send them to me: you both get €50 when they rent.
 
 ${SITE}/refer
 
-No catch, no expiry — and they get exactly the treatment you got.`,
+No catch and no expiry — and they get exactly the treatment you got.`,
     },
     {
       sc: 'itcosti', fam: 'it', bench: true,
       title: 'I costi in italiano',
-      when: 'Quando chiede i numeri e scrive in italiano.',
-      text: `Tutto compreso, senza sorprese:
+      when: 'Stessa trasparenza, altra lingua.',
+      sell: { service: null, anchor: 'le voci che si scoprono alla firma' },
+      text: `Ogni euro, compresi quelli che tornano indietro.
 
-• Canone — quello scritto sull'annuncio, niente aggiunte dopo
-• Deposito — restituito alla fine; filmiamo la casa all'ingresso e all'uscita
-• Commissione — 10% del canone annuo, una volta sola e solo se entri davvero
-• €300 per bloccare — rimborsabili e scalati da quello che devi
+Canone: quello scritto sull'annuncio. Dopo non compare nient'altro.
+Deposito: suo. Filmo la casa il giorno dell'ingresso e il giorno dell'uscita, così non è questione di opinioni.
+Commissione: 10% del canone annuo, una volta sola e solo se entra davvero.
+€300 per bloccarla: rimborsabili e scalati da quanto sopra.
 
-Il dettaglio: ${SITE}/your-money`,
+Il conto completo: ${SITE}/your-money`,
     },
     {
       sc: 'prpack', fam: 'pr', bench: true,
-      title: 'Pacchetto canone concordato (€349)',
-      when: 'Dopo il calcolo, quando ha visto il risparmio ma non ha voglia della pratica. Che è sempre.',
-      text: `Il concordato conviene, la pratica è noiosa: verifica del canone, contratto conforme, attestazione di rispondenza, registrazione RLI.
+      title: 'Pacchetto concordato (€349)',
+      when: 'Dopo il calcolo, quando ha visto il risparmio e non ha voglia della pratica.',
+      sell: { service: 'concordato-pack', anchor: 'il 21% di tasse invece del 10%' },
+      text: `Il vantaggio è la cedolare al 10% invece del 21%. Il fastidio sono verifica del canone, contratto conforme, attestazione e registrazione RLI.
 
-La facciamo noi chiavi in mano: €349 una volta sola per immobile, con rimborso integrale se l'immobile non può rientrare in fascia.
+Ce ne occupiamo noi: €349 una volta sola per immobile, rimborsati per intero se l'immobile non può rientrare in fascia.
 
 ${SITE}/pacchetto-concordato
 
-Se vuole glielo calcolo sui suoi numeri.`,
+Se mi manda i dati glielo calcolo sui suoi numeri, prima di decidere.`,
     },
     {
       sc: 'azimpresa', fam: 'az', bench: true,
-      title: 'Aziende che spostano personale',
-      when: 'HR o mobility manager: si parla di fattura e di persone che atterrano, mai di visite.',
-      text: `For companies moving people to Rome: one contact, verified homes, compliant leases in English, and a single VAT invoice from an Italian company — the document expense reports ask for.
+      title: 'Aziende ed enti',
+      when: 'HR e mobility manager: si parla di persone che atterrano e di fattura, mai di visite.',
+      sell: { service: null, anchor: 'un dipendente che arriva e non ha dove dormire' },
+      text: `For companies moving people to Rome: one contact, homes we have seen ourselves, compliant leases in English, and a single VAT invoice from an Italian company — the document your expense process actually needs.
 
 ${SITE}/corporate
 
@@ -395,22 +427,24 @@ How many people, and when do they land?`,
     {
       sc: 'opsign', fam: 'op', bench: true,
       title: 'Invito alla firma',
-      when: 'Col link Magic Sign. L\'ultima riga ti evita le correzioni dopo la registrazione.',
-      text: `[NOME], the contract is ready to sign — no printer, no appointment: [LINK]
+      when: 'Col link Magic Sign. L\'ultima riga evita le correzioni dopo la registrazione.',
+      sell: { service: null, anchor: null },
+      text: `[NOME], the contract is ready — no printer and no appointment: [LINK]
 
-Read it (it's in English, the terms are the ones we agreed) and sign with your finger. The signed PDF reaches you by email the moment both sides are done.
+Read it (English, and the terms are the ones we agreed), then sign with your finger. The signed PDF reaches you by email the moment both sides are done.
 
-Anything to change, tell me BEFORE you sign.`,
+Anything you want changed, tell me before you sign: after registration it is a different conversation.`,
     },
     {
       sc: 'oppay', fam: 'op', bench: true,
       title: 'Link di pagamento',
-      when: 'Per una rata o una fattura: il link resta valido, si può aprire anche più tardi o da un altro telefono.',
-      text: `[NOME], here's the secure link to pay [COSA] — [IMPORTO]: [LINK]
+      when: 'Per una rata o una fattura. Il link resta valido: si può aprire più tardi o da un altro telefono.',
+      sell: { service: null, anchor: null },
+      text: `[NOME], here is the secure link for [COSA] — [IMPORTO]: [LINK]
 
-It's a Stripe page in your name: the receipt reaches your inbox in seconds. The link stays valid, so you can open it later too.
+It's a Stripe page in your name and the receipt arrives in seconds. The link stays valid, so you can also open it later.
 
-Prefer a bank transfer? Tell me and I'll send the details.`,
+If a bank transfer is easier, say so and I'll send the details.`,
     },
   ];
 
@@ -419,14 +453,14 @@ Prefer a bank transfer? Tell me and I'll send the details.`,
   // ---------------------------------------------------------------------------
   const GREETING = {
     title: 'Messaggio di benvenuto',
-    when: 'Parte da solo a chi ti scrive per la prima volta (o dopo 14 giorni di silenzio). Deve fare UNA cosa: far arrivare le tre informazioni mentre tu dormi.',
-    text: `BOOM Rome 👋 Verified apartments in Rome, contracts in English, move-in in 48h. Tell me zone, budget and move-in date and I'll send real options. Live homes: ${SITE}/apartments`,
+    when: 'Parte da solo a chi ti scrive per la prima volta. Ha un compito: far arrivare le tre informazioni mentre tu dormi, e dire in sei parole perché non sei un portale.',
+    text: `BOOM Rome — I'm Valentino. Tell me the zone, your budget and the month you need, and I'll send only flats I have walked myself: ${SITE}/apartments`,
   };
 
   const AWAY = {
     title: 'Messaggio di assenza',
-    when: 'Fuori orario e nei giorni di chiusura. Chi scrive alle 23 da un altro fuso orario deve trovare qualcosa da fare comunque.',
-    text: `Thanks for writing — I'm away from the phone and will reply as soon as I'm back. Meanwhile: homes ${SITE}/apartments · book a free viewing ${SITE}/book`,
+    when: 'Fuori orario. Chi scrive alle 23 da un altro fuso deve trovare qualcosa di vero da fare, non una scusa.',
+    text: `Out of hours here in Rome — I read everything and reply first thing. Meanwhile, the homes I have walked myself are here: ${SITE}/apartments`,
   };
 
   // Etichette: poche e che seguano il percorso vero, non l'umore.

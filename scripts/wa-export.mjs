@@ -61,16 +61,34 @@ export function renderDoc() {
   L.push('- a una risposta rapida puoi **allegare una foto o un PDF**: utile per il listino,');
   L.push('  la locandina per le università, la planimetria tipo.');
   L.push('');
-  L.push('### Le tre regole che le rendono universali');
+  L.push('### La dottrina (perché sono scritte così)');
+  L.push('');
+  L.push('1. **Non si vende il servizio: si vende cosa saprai domani.** Nessuno compra una');
+  L.push('   "visita virtuale" — compra il non mandare tremila euro a uno sconosciuto');
+  L.push('   fidandosi delle sue fotografie.');
+  L.push('2. **L\'ancora è la perdita, non il prezzo.** €49 non si confronta con zero: si');
+  L.push('   confronta con la clausola d\'uscita che non hai letto. Ogni risposta dichiara');
+  L.push('   contro cosa vende.');
+  L.push('3. **Il prezzo sparisce dentro una transazione già in corso** — scalato dalla');
+  L.push('   commissione, rimborsato se non consegniamo. Il cliente non spende: sposta.');
+  L.push('4. **La prova è un meccanismo, mai un aggettivo.** "Filmo la casa all\'ingresso e');
+  L.push('   all\'uscita" è una prova; "agenzia affidabile" lo scrive chiunque.');
+  L.push('5. **Una porta sola, aperta una volta.** Chi insiste non è premium.');
+  L.push('6. **Generosità asimmetrica:** il primo passo è gratis e vale davvero (la lettura');
+  L.push('   del contratto, la visita video sulle nostre case), o quello a pagamento sa di esca.');
+  L.push('7. **Prima persona singolare.** "Noi" è un ufficio; "io" è qualcuno che risponde.');
+  L.push('');
+  L.push('### Le tre regole di forma');
   L.push('');
   L.push('1. **Ogni messaggio finisce con una domanda o un\'azione.** Una risposta che informa');
   L.push('   e non chiede niente lascia la palla al cliente, e il cliente non la rilancia.');
   L.push('2. **I buchi da riempire sono `[MAIUSCOLO fra quadre]`.** Si vedono da lontano:');
   L.push('   un `[NOME]` partito così è l\'unico modo di far sembrare finto un messaggio scritto a mano.');
   L.push('   *Regola: non mandare mai un messaggio che contiene ancora una parentesi quadra.*');
-  L.push('3. **Si concatenano.** Nessuna risposta prova a dire tutto: due o tre di fila fanno');
-  L.push('   la risposta completa. `/enhi` + `/enprice`, `/enhomes` + `/enbook`,');
-  L.push('   `/prcanone` + `/prpack`. È per questo che sono poche e generiche invece di una per caso.');
+  L.push('3. **Si concatenano.** Nessuna prova a dire tutto: due di fila fanno la risposta');
+  L.push('   completa. `/enlead` + `/enprice` (chi sei, poi i numeri), `/engone` + `/enfind`');
+  L.push('   (la casa è andata, poi cerchiamo noi), `/enbook` + `/enabroad` (la visita, e se');
+  L.push('   è lontano quella video).');
   L.push('');
 
   // ------------------------------------------------------------ installazione
@@ -110,6 +128,11 @@ export function renderDoc() {
       L.push(`#### \`/${r.sc}\` · ${r.title}${r.star ? ' ⭐' : ''}${r.bench ? ' · 🪑 panchina' : ''}`);
       L.push('');
       L.push(`**Quando:** ${r.when}`);
+      if (r.sell && r.sell.anchor) {
+        L.push('');
+        L.push(`**Vende contro:** ${r.sell.anchor}`
+          + (r.sell.service ? ` — porta: \`${r.sell.service}\`` : ''));
+      }
       L.push('');
       L.push(fence(r.text));
       const holes = [...new Set(WA.placeholdersIn(r.text))];

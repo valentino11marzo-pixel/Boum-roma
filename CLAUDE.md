@@ -1817,6 +1817,24 @@ messaggi che accompagnano un link personale.
   trattativa (20); `/enres` residenza (17). Il catalogo scritto a
   ragionamento non le aveva: è il motivo per cui si misura prima di
   installare.
+- **LA DOTTRINA DELL'UPSELL** (agosto 2026, riscrittura completa su richiesta
+  dell'operatore: «premium, atipico, diretto»). Sette regole, tutte visibili
+  nel testo di ogni messaggio: (1) non si vende il servizio ma **cosa saprai
+  domani** — nessuno compra una "visita virtuale", compra il non mandare
+  3.000€ a uno sconosciuto fidandosi delle sue foto; (2) **l'ancora è la
+  perdita**, non il prezzo (€49 contro la clausola d'uscita non letta), e ogni
+  risposta DICHIARA contro cosa vende (`sell.anchor`, mostrata in pagina);
+  (3) il prezzo sparisce dentro una transazione già in corso — *scalato dalla
+  commissione, rimborsato se non consegniamo*; (4) la prova è un **meccanismo**
+  ("filmo la casa all'ingresso e all'uscita"), mai un aggettivo; (5) una porta
+  sola, aperta una volta; (6) generosità asimmetrica — il primo passo è gratis
+  e vale davvero; (7) prima persona singolare.
+  **L'invariante che la tiene in piedi**: ogni servizio vendibile in
+  conversazione deve avere la SUA risposta (`sell.service`), che ne dice il
+  prezzo esatto e porta la garanzia accanto — senza, quel numero è solo una
+  richiesta di soldi. Il test l'ha già usato per smascherare una dichiarazione
+  falsa (`/prciao` diceva di vendere il pacchetto €349 mentre apre col calcolo
+  gratuito: la porta è `/prpack`).
 - **RISCRITTE SULLA VOCE VERA** (`scripts/wa-voce-locale.mjs`, agosto 2026 —
   29.255 messaggi dell'operatore). Le prime versioni erano scritte con la voce
   di chi le redige, non di chi le manda, e l'operatore le ha bocciate: «sono

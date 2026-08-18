@@ -73,6 +73,9 @@
   .bench{font-size:10px;letter-spacing:.6px;color:var(--dim);border:1px solid var(--line);
     border-radius:999px;padding:3px 9px;white-space:nowrap}
   .when{color:var(--dim);font-size:12.5px;margin:9px 0 0}
+  .anchor{color:#C9A227;font-size:12px;margin:7px 0 0;padding-left:9px;
+    border-left:2px solid rgba(212,175,55,.35)}
+  .anchor b{color:var(--gold);font-weight:400}
   pre{background:#0A0A0C;border:1px solid var(--line);border-radius:10px;margin:11px 0 0;
     padding:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;
     line-height:1.65;white-space:pre-wrap;word-break:break-word;color:#E6E6E8;max-height:190px;
@@ -262,6 +265,8 @@
       + (r.bench ? '<span class="bench">panchina · non occupa uno slot</span>' : '')
       + '</div>'
       + '<p class="when">' + esc(r.when) + '</p>'
+      + (r.sell && r.sell.anchor
+          ? '<p class="anchor"><b>Vende contro:</b> ' + esc(r.sell.anchor) + '</p>' : '')
       + '<pre' + (long ? '' : ' class="open"') + '>' + paint(r.text)
       + (long ? '<span class="fade"></span>' : '') + '</pre>'
       + '<div class="acts">'

@@ -67,6 +67,30 @@ for (const r of WA.installed()) {
 }
 
 // ---------------------------------------------------------------------------
+// LA DOTTRINA, resa verificabile. Un servizio a pagamento senza una porta nel
+// kit è un servizio che non venderai: l'archivio dice che è già successo —
+// Virtual Viewing proposto UNA volta in sei mesi, Deal Assistance una,
+// Contract Check due. Quindi ogni servizio vendibile in conversazione deve
+// avere la SUA risposta, che ne dice il prezzo esatto e la garanzia accanto
+// (rimborsato / scalato / gratis): un prezzo senza garanzia è una richiesta,
+// con la garanzia è un'offerta.
+console.log('\n\x1b[1m1c. Ogni servizio ha la sua porta\x1b[0m');
+const GARANZIA = /(refund|credited|deducted|free|no charge|costs you nothing|rimbors|scalat|gratis)/i;
+const VENDIBILI = ['virtual-viewing', 'contract-check-express', 'deposit-recovery', 'concordato-pack'];
+for (const kind of VENDIBILI) {
+  const porta = WA.REPLIES.find((r) => r.sell && r.sell.service === kind);
+  ok(!!porta, `${kind}: ha una risposta che lo propone`,
+    'un servizio senza porta nel kit è un servizio che non venderai');
+  if (!porta) continue;
+  const eur = CATALOG[kind].eur;
+  ok(porta.text.includes(`€${eur}`), `/${porta.sc} dice il prezzo esatto (€${eur})`);
+  ok(GARANZIA.test(porta.text), `/${porta.sc} mette la garanzia accanto al prezzo`,
+    'senza "rimborsato / scalato / gratis" quel numero è solo una richiesta di soldi');
+  ok(!!(porta.sell.anchor), `/${porta.sc} dichiara su cosa è ancorata l'offerta`,
+    'se non sai contro quale perdita stai vendendo, stai solo esponendo un listino');
+}
+
+// ---------------------------------------------------------------------------
 // Le rotte vere del sito, dedotte dal repo — nessuna lista scritta a mano:
 // una lista a mano si dimentica di aggiornare, e allora il test smette di
 // dire la verità proprio mentre continua a passare.
