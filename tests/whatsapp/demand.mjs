@@ -170,11 +170,15 @@ console.log('\n\x1b[1m8. Il misuratore locale (quello che lancia Homie)\x1b[0m')
   const { execFileSync } = await import('node:child_process');
   const path = await import('node:path');
   const t = Math.floor(Date.now() / 1000) - 3600;
+  // I NOMI VERI dei campi di wacli (visti sul Mac, 2026-08): PascalCase, e il
+  // testo a volte solo in DisplayText. Il dizionario camelCase della prima
+  // versione trovava la lista e non riconosceva un solo campo.
   const msgs = [
-    { chatId: '39331@c.us', body: 'È ancora libero? quanto costa tutto incluso?', timestamp: t },
-    { chatId: '39332@c.us', body: 'Posso prendere la residenza? scrivimi a mario.rossi@gmail.com o +39 333 1234567', timestamp: t },
-    { chatId: '120363@g.us', body: 'gruppo: quanto costa il deposito?', timestamp: t },
-    { chatId: '39333@c.us', body: 'te lo dico io quanto costa il deposito', fromMe: true, timestamp: t },
+    { ChatJID: '39331@s.whatsapp.net', Timestamp: t, FromMe: false, Text: 'È ancora libero? quanto costa tutto incluso?' },
+    { ChatJID: '39332@s.whatsapp.net', Timestamp: t, FromMe: false, Text: 'Posso prendere la residenza? scrivimi a mario.rossi@gmail.com o +39 333 1234567' },
+    { ChatJID: '39334@s.whatsapp.net', Timestamp: t, FromMe: false, Text: '', DisplayText: 'Che documenti servono?' },
+    { ChatJID: '120363@g.us', Timestamp: t, FromMe: false, Text: 'gruppo: quanto costa il deposito?' },
+    { ChatJID: '39333@s.whatsapp.net', Timestamp: t, FromMe: true, Text: 'te lo dico io quanto costa il deposito' },
   ];
   // LA FORMA VERA di wacli, vista sul Mac in produzione (2026-08): i messaggi
   // NON stanno al primo livello ma dentro data.messages. La prima versione del
@@ -185,8 +189,10 @@ console.log('\n\x1b[1m8. Il misuratore locale (quello che lancia Homie)\x1b[0m')
   const out = execFileSync(process.execPath,
     [new URL('../../scripts/wa-domanda-locale.mjs', import.meta.url).pathname, f],
     { encoding: 'utf8' });
-  ok(/conversazioni lette: 2/.test(out), 'legge 2 conversazioni: gruppo e nostra uscita restano fuori',
+  ok(/conversazioni lette: 3/.test(out),
+    'legge i campi PascalCase di wacli; gruppo e nostra uscita restano fuori',
     'un gruppo o una nostra frase dentro la misura la falsano da sole');
+  ok(/documenti/i.test(out), 'un messaggio col testo solo in DisplayText non si perde');
   ok(!/mario\.rossi@gmail\.com/.test(out) && !/333 1234567/.test(out),
     'il rapporto NON contiene email né telefoni dei clienti');
   ok(/\[email\]/.test(out) && /\[telefono\]/.test(out), 'i recapiti sono sostituiti, non tagliati via muti');

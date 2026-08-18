@@ -39,8 +39,9 @@ const WA = require(path.join(HERE, '..', 'js', 'whatsapp-replies.js'));
  * sono state trovate, così il passo dopo è ovvio. */
 function looksLikeMessage(x) {
   if (!x || typeof x !== 'object') return false;
-  const hasText = ['body', 'text', 'content', 'message', 'caption'].some(k => x[k] != null);
-  const hasWho = ['chatId', 'chat', 'jid', 'from', 'conversationId', 'key', 'remoteJid'].some(k => x[k] != null);
+  const m = lowerKeys(x);
+  const hasText = ['body', 'text', 'displaytext', 'content', 'message', 'caption', 'snippet'].some(k => m[k] != null);
+  const hasWho = ['chatid', 'chatjid', 'chat', 'jid', 'from', 'conversationid', 'key', 'remotejid'].some(k => m[k] != null);
   return hasText && hasWho;
 }
 function findMessages(node, depth) {
@@ -87,12 +88,32 @@ function readInput() {
 
 /* I nomi dei campi cambiano fra versioni di wacli: si prova in ordine, come
  * fa già miniera_extract.py. Qui si RIDUCE soltanto — nessun giudizio. */
+/* I nomi dei campi cambiano fra versioni E fra convenzioni: wacli esporta in
+ * PascalCase (Text, ChatJID, FromMe), altre build in camelCase, altre ancora
+ * annidano alla Baileys. Aggiungerli uno a uno è una rincorsa che si perde:
+ * il confronto è INSENSIBILE alle maiuscole, così una sola lista di alias
+ * copre tutte e tre le convenzioni. */
+const LOWER = new WeakMap();
+function lowerKeys(o) {
+  let m = LOWER.get(o);
+  if (!m) {
+    m = {};
+    for (const k of Object.keys(o)) m[k.toLowerCase()] = o[k];
+    LOWER.set(o, m);
+  }
+  return m;
+}
 const field = (o, ...ks) => {
-  for (const k of ks) if (o && o[k] != null && o[k] !== '') return o[k];
+  if (!o || typeof o !== 'object') return '';
+  const m = lowerKeys(o);
+  for (const k of ks) {
+    const v = m[k.toLowerCase()];
+    if (v != null && v !== '') return v;
+  }
   return '';
 };
 function bodyOf(m) {
-  let b = field(m, 'body', 'text', 'content', 'message', 'caption');
+  let b = field(m, 'body', 'text', 'displaytext', 'content', 'caption', 'message', 'snippet');
   // stile Baileys: { message: { conversation | extendedTextMessage: { text } } }
   if (b && typeof b === 'object') {
     b = field(b, 'text', 'caption', 'conversation')
@@ -106,10 +127,10 @@ const isOut = (m) => {
   return v === true || v === 'out' || v === 'outgoing' || v === 1 || v === '1';
 };
 const chatOf = (m) => String(
-  field(m, 'chatId', 'chat', 'jid', 'conversationId', 'remoteJid', 'from')
+  field(m, 'chatId', 'chatJID', 'chat', 'jid', 'conversationId', 'remoteJid', 'from')
   || field(m.key || {}, 'remoteJid', 'chatId') || '');
 const tsOf = (m) => {
-  const t = field(m, 'timestamp', 'ts', 'time', 'date', 'createdAt');
+  const t = field(m, 'timestamp', 'ts', 'time', 'date', 'createdAt', 'messageTimestamp');
   const n = typeof t === 'string' ? Date.parse(t) : Number(t);
   if (!n || Number.isNaN(n)) return 0;
   return n < 1e12 ? n * 1000 : n;                 // secondi → millisecondi
