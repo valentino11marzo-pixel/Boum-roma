@@ -251,7 +251,7 @@ h1{font-weight:200;font-size:24px;letter-spacing:-.3px;margin-bottom:3px}
         <div class="g3">
           <label class="fld"><span>Deposito alla firma</span><select id="fDepSplit"><option value="100">100% alla firma</option><option value="50">50% ora · 50% al move-in</option><option value="0">Tutto al move-in</option></select></label>
           <label class="fld"><span>Fee — base di calcolo</span><select id="fFeeMode"><option value="pct">% del canone annuo</option><option value="months">Mensilità di canone</option><option value="flat">€ importo fisso</option></select></label>
-          <label class="fld" id="wrapFeePct"><span>Fee % annuo</span><input id="fFeePct" type="number" value="12" min="0" max="30" step="0.5"></label>
+          <label class="fld" id="wrapFeePct"><span>Fee % annuo</span><input id="fFeePct" type="number" value="10" min="0" max="30" step="0.5"></label>
           <label class="fld" id="wrapFeeMonths" style="display:none"><span>Fee (mensilità)</span><input id="fFeeMonths" type="number" value="1" min="0" max="3" step="0.5"></label>
           <label class="fld" id="wrapFeeFlat" style="display:none"><span>Fee € (fisso)</span><input id="fFeeFlat" type="number" inputmode="numeric" value="" min="0" placeholder="800"></label>
         </div>
@@ -344,7 +344,7 @@ function deriveMoney(k){
   var splitPct=Math.max(0,Math.min(100,k.depositSplitPct!=null?+k.depositSplitPct:100));
   var depS=r2(deposit*splitPct/100), depM=r2(deposit-depS);
   var feeMode=k.feeMode==='months'?'months':(k.feeMode==='flat'||(k.feeFlat!=null&&k.feeFlat!==''))?'flat':'pct';
-  var feePct=Math.max(0,Math.min(100,k.feePct!=null?+k.feePct:12));
+  var feePct=Math.max(0,Math.min(100,k.feePct!=null?+k.feePct:10));
   var feeMonths=Math.max(0,Math.min(3,k.feeMonths!=null?+k.feeMonths:1));
   var feeFlat=feeMode==='flat'?Math.max(0,Math.min(200000,+k.feeFlat||0)):null;
   var fee=feeMode==='flat'?r2(feeFlat):feeMode==='months'?r2(rent*feeMonths):r2(rent*12*feePct/100);

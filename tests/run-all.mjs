@@ -36,6 +36,7 @@ const SUITES = [
   { name: 'availui',  file: 'tests/viewings/availability-ui.mjs', what: 'regola disponibilità: finestre valide, default allineati al server, avviso conflitti' },
   { name: 'regista',  file: 'tests/regista/run.mjs',      what: 'Il Regista: grammatica promemoria, id deterministici, foglio di chiamata' },
   { name: 'recupero', file: 'tests/recovery/run.mjs',     what: 'Il Recupero: checkout abbandonati → lead, mai i test dell\'operatore, lingua dal cliente' },
+  { name: 'hold', file: 'tests/hold/run.mjs',             what: 'L\'hold €300 che blocca davvero: presa 48h, spazzino che libera solo gli scaduti, one-shot catalogo idempotente' },
   { name: 'reverse',  file: 'tests/reverse/run.mjs',      what: 'ricerca rovesciata: chi in archivio cercava questa casa — e chi non va MAI disturbato' },
   { name: 'wizhealth',file: 'tests/wizard/health.mjs',   what: 'guardiano del bot: wrapper saltato lo dice una volta, il documento assente non tace per sempre' },
   { name: 'salute',   file: 'tests/pfs/health.mjs',      what: 'allarmi radar: una fonte bloccata parla UNA volta, un guasto vero si dirada' },

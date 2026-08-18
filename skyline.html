@@ -45,6 +45,9 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:Inter,sys
 .pc-price{font-family:var(--disp);font-weight:200;font-size:22px;color:var(--gold)}
 .pc-price small{font-size:11px;color:var(--t3)}
 .pc-go{display:block;margin-top:11px;text-align:center;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#000;font-size:13px;font-weight:600;text-decoration:none;padding:10px;border-radius:10px}
+.pc-row{display:flex;gap:6px;margin-top:8px}
+.pc-mini{flex:1;text-align:center;font-size:11px;color:var(--t2);text-decoration:none;border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:7px 4px;white-space:nowrap}
+.pc-mini:hover{color:var(--gold);border-color:rgba(255,215,0,.4)}
 .load{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg);transition:opacity .5s,visibility .5s}
 .load.off{opacity:0;visibility:hidden}
 .load .dot{width:10px;height:10px;border-radius:50%;background:var(--gold);animation:p 1.4s ease-in-out infinite}
@@ -59,7 +62,10 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:Inter,sys
 .sky-anchor.lit .d::before{content:'· '}
 .count .hint{color:var(--t3);font-weight:300}
 @media(prefers-reduced-motion:reduce){.load .dot{animation:none}.sky-pin{transition:none}}
+.emb .bar{display:none}
 </style>
+<script src="/js/boom-geo.js"></script>
+<script>if(/[?&]embed=1/.test(location.search)){document.documentElement.classList.add('emb');var _b=document.createElement('base');_b.target='_top';document.head.appendChild(_b);}</script>
 </head>
 <body>
 <div id="map"></div>
@@ -220,6 +226,21 @@ function gradeColor(){
   }catch(e){}
 }
 
+/* I tasti diretti nel popup — stessa onestà boom-geo del detail: Street
+   View solo dove il pin è una strada vera (exact/street); su un centroide
+   aprirebbe una via qualunque. Coordinate VERE del doc, mai quelle del
+   pin (spread() le sposta per non sovrapporre i marker). */
+function pinChips(l){
+  var la=num(l.lat), ln=num(l.lng);
+  if(!la||!ln) return '';
+  var lvl='zone';
+  try{ if(window.BOOM_GEO) lvl=BOOM_GEO.pinPrecision(l).level; }catch(e){}
+  var sv=(lvl==='exact'||lvl==='street')
+    ? '<a class="pc-mini" target="_blank" rel="noopener" href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+la+','+ln+'">⟲ Street View</a>'
+    : '';
+  return '<div class="pc-row">'+sv+
+    '<a class="pc-mini" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination='+la+','+ln+'">➤ Directions</a></div>';
+}
 function makePin(l,co){
   var price=num(l.price);
   var rented=/rented|affittato|off_market/.test(String(l.status||'available').toLowerCase());
@@ -231,7 +252,8 @@ function makePin(l,co){
     '<div class="pc-body"><div class="pc-zone">'+(l.zone||l.neighborhood||'Rome')+'</div>'+
     '<div class="pc-name">'+(l.name||'Apartment')+'</div>'+
     '<span class="pc-price">'+(price?fmt(price):'On request')+(price?'<small> /mo</small>':'')+'</span>'+
-    '<a class="pc-go" href="/listing/'+encodeURIComponent(l.id)+'">View this home →</a></div>'
+    '<a class="pc-go" href="/listing/'+encodeURIComponent(l.id)+'">View this home →</a>'+
+    pinChips(l)+'</div>'
   );
   el.addEventListener('click',function(){showLinks(co);});
   MARKERS.push(new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat(co).setPopup(pop).addTo(map));

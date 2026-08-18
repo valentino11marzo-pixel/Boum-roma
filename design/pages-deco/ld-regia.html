@@ -42,8 +42,16 @@
     }
     var img = (Array.isArray(d.images) ? d.images : []).filter(Boolean);
     var cover = img[0] || d.coverImage || d.image || '';
-    var dal = (String(d.availableDate || d.availableFrom || '')
-      .match(/^\d{4}-\d{2}-\d{2}/) || [])[0] || null;
+    var rawDal = String(d.availableDate || d.availableFrom || '').trim();
+    var dal = (rawDal.match(/^\d{4}-\d{2}-\d{2}/) || [])[0] || null;
+    /* la data testo libero passa dal motore CONDIVISO: mai "Available
+       now" per un regex che legge solo ISO */
+    if (!dal && rawDal && window.BOOM_DISPO) {
+      try {
+        var paD = BOOM_DISPO.parseAvailability(rawDal, new Date());
+        if (paD && paD.kind === 'date') dal = paD.iso;
+      } catch (e) {}
+    }
     var st = statoDa(String(d.status || 'available').toLowerCase(), dal);
     return {
       id: ideNuovo,
@@ -67,6 +75,10 @@
         : d.geo && d.geo.lat ? parseFloat(d.geo.lat) : null,
       lng: d.lng ? parseFloat(d.lng)
         : d.geo && d.geo.lng ? parseFloat(d.geo.lng) : null,
+      prec: (function () {
+        try { return window.BOOM_GEO
+          ? BOOM_GEO.pinPrecision(d).level : null; } catch (e) { return null; }
+      })(),
       cover: cover,
       foto: img.slice(0, 8).length ? img.slice(0, 8)
         : (cover ? [cover] : []),
@@ -536,6 +548,38 @@
     var sez = document.getElementById('posto');
     if (!sez) return;
     if (!c.lat || !c.lng) { sez.style.display = 'none'; return; }
+
+    /* i tasti diretti del blocco. Street View solo dove il pin e una
+       strada vera (regola boom-geo): su un centroide di zona aprirebbe
+       una via qualunque e sembrerebbe casa tua. Directions sempre:
+       portano dove sappiamo portare. */
+    (function () {
+      var az = document.getElementById('bloccoAzioni');
+      if (!az) return;
+      var lvl = c.prec || (function () {
+        try { return window.BOOM_GEO
+          ? BOOM_GEO.pinPrecision(c).level : 'zone'; } catch (e) { return 'zone'; }
+      })();
+      az.hidden = false;
+      var cc = document.getElementById('blkCoords');
+      if (cc) cc.textContent = lvl === 'exact'
+        ? '\u25c8 ' + c.lat.toFixed(4) + '\u00b0 N \u00b7 ' + c.lng.toFixed(4) + '\u00b0 E'
+        : '\u2248 ' + (lvl === 'street'
+            ? 'The right street \u2014 not the number'
+            : 'Approximate position in ' + (c.zona || 'Rome'));
+      var sv = document.getElementById('blkSv');
+      if (sv && (lvl === 'exact' || lvl === 'street')) {
+        sv.hidden = false;
+        sv.textContent = lvl === 'exact'
+          ? '\u27f2 Street View \u00b7 the exact entrance'
+          : '\u27f2 Street View \u00b7 this street';
+        sv.href = 'https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='
+          + c.lat + ',' + c.lng;
+      }
+      var dr = document.getElementById('blkDir');
+      if (dr) dr.href = 'https://www.google.com/maps/dir/?api=1&destination='
+        + c.lat + ',' + c.lng;
+    })();
     var RAD = Math.PI / 180;
     function km(a1, o1, a2, o2) {
       var R = 6371, dy = (a2 - a1) * RAD, dx = (o2 - o1) * RAD;

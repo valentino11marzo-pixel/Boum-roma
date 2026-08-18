@@ -12,7 +12,14 @@ GTAG = (
     '<script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>\n'
     '<script>window.dataLayer=window.dataLayer||[];'
     'function gtag(){dataLayer.push(arguments);}'
-    "gtag('js', new Date());gtag('config','G-EYCD59RDVJ');</script>")
+    "gtag('js', new Date());"
+    "gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',"
+    "ad_personalization:'denied',analytics_storage:'denied',"
+    "wait_for_update:500});"
+    "gtag('config','G-EYCD59RDVJ');</script>")
+
+# il banner che scioglie il consent-mode: va in coda al body, defer
+CONSENSO = '<script defer src="/js/boom-consent.js"></script>'
 
 ICONE = (
     '<link rel="icon" href="/favicon.ico" sizes="any">\n'
@@ -117,8 +124,6 @@ NEGOZIO = {
          'opens': '09:00', 'closes': '19:00'},
         {'@type': 'OpeningHoursSpecification', 'dayOfWeek': ['Saturday'],
          'opens': '10:00', 'closes': '14:00'}],
-    'aggregateRating': {'@type': 'AggregateRating',
-                        'ratingValue': '4.9', 'reviewCount': '127'},
 }
 
 FAQ_HOME = {
@@ -127,9 +132,9 @@ FAQ_HOME = {
         {'@type': 'Question',
          'name': 'How fast can I move into a BOOM apartment in Rome?',
          'acceptedAnswer': {'@type': 'Answer', 'text':
-            'Most BOOM tenants move in within 48 hours of signing. Some '
-            'apartments are available same-day; complex cases (visa, '
-            'multi-document onboarding) average 7 days.'}},
+            'Move-in can be as fast as 48 hours from signing when the home '
+            'is free — some same-day. Complex cases (visa, multi-document '
+            'onboarding) usually take about a week.'}},
         {'@type': 'Question', 'name': 'Does BOOM charge broker fees?',
          'acceptedAnswer': {'@type': 'Answer', 'text':
             'BOOM charges one flat agency fee, written into your '

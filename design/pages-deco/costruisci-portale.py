@@ -234,6 +234,43 @@ if MODO == 'artefatto':
                r'href="https://www.boomrome.com/\1"', h)
     h = h.replace('href="/login"', 'href="https://www.boomrome.com/login"')
 else:
+    # LA FINESTRA SUL VERO SKYLINE — l'embed ricostruiva la mappa e
+    # poteva tradire dove lo standalone funzionava: ora la home APRE
+    # /skyline?embed=1 (stessa origine) dentro la cornice esistente.
+    # Il velo si alza al load dell'iframe; i comandi del modulo (hud,
+    # conta) spariscono: la finestra ha i suoi.
+    h = h.replace(
+        "      if (v[0].isIntersecting) { o.disconnect(); carica(); }",
+        "      if (v[0].isIntersecting) { o.disconnect(); finestra(); }")
+    h = h.replace(
+        "  if ('IntersectionObserver' in window) {\n"
+        "    new IntersectionObserver(function (v, o) {\n"
+        "      if (v[0].isIntersecting) { o.disconnect(); finestra(); }",
+        "  function finestra() {\n"
+        "    var posto = document.getElementById('cieloMappa');\n"
+        "    if (!posto) return;\n"
+        "    var fr = document.createElement('iframe');\n"
+        "    fr.src = '/skyline?embed=1';\n"
+        "    fr.title = 'BOOM Skyline 3D — Rome';\n"
+        "    fr.setAttribute('allow', 'fullscreen');\n"
+        "    fr.style.cssText = 'position:absolute;inset:0;width:100%;"
+        "height:100%;border:0;';\n"
+        "    fr.addEventListener('load', function () {\n"
+        "      if (velo) velo.classList.add('via');\n"
+        "    });\n"
+        "    /* rete: se il load tarda, meglio il loader dello skyline "
+        "che il nostro velo */\n"
+        "    setTimeout(function () {\n"
+        "      if (velo) velo.classList.add('via');\n"
+        "    }, 4000);\n"
+        "    posto.appendChild(fr);\n"
+        "    var hud = telaio.querySelector('.cielo-hud');\n"
+        "    if (hud) hud.remove();\n"
+        "    if (conta) conta.remove();\n"
+        "  }\n"
+        "  if ('IntersectionObserver' in window) {\n"
+        "    new IntersectionObserver(function (v, o) {\n"
+        "      if (v[0].isIntersecting) { o.disconnect(); finestra(); }")
     # CABLATO: la home vive su /, i link vanno alle route canoniche —
     # gli URL non cambiano mai, cambia solo il contenuto (regola SEO)
     h = h.replace('COME_URL', '#apparecchio').replace('AP_URL', '/apartments')
@@ -244,6 +281,10 @@ else:
         h = h.replace('href="' + da + '"', 'href="' + a_ + '"')
         h = h.replace('data-href="' + da, 'data-href="' + a_)
     # href="/listing/<id>" resta: E la route canonica prerender
+    # cleanUrls: OGNI link interno perde il .html anche nel modo sito
+    # (prima /executive.html restava: un 308 in piu', e la home non
+    # 'linkava' /executive per il test di reciprocita')
+    h = re.sub(r'href="/([a-z-]+)\.html"', r'href="/\1"', h)
 
 # la testa della home: description propria, e in modalita sito lo scheletro
 # HTML completo con lang, canonical e og — come le altre due pagine
@@ -258,8 +299,9 @@ if MODO == 'sito':
     h = h[:i] + '\n' + OG + h[i:]
     h = ('<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
          + h.replace('</style>', '</style>\n</head>\n<body>', 1)
+         + '\n<script src="/js/dispo-engine.js"></script>'
          + '\n' + leggi('vetrina-idrante.html')
-         + '\n' + TESTA.SW + '\n</body>\n</html>')
+         + '\n' + TESTA.SW + '\n' + TESTA.CONSENSO + '\n</body>\n</html>')
 uscita = 'boom-portale.html' if MODO == 'artefatto' else 'boom-portale-sito.html' 
 open(uscita, 'w', encoding='utf-8').write(h)
 print(f'{uscita} · {len(h)//1024} KB · board {len(board)} righe · '

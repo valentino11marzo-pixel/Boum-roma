@@ -448,6 +448,16 @@ async function handleReserve(res, session, m) {
     return res.status(200).json({ received: true, duplicate: true, reservationId: 'res_' + docId });
   }
 
+  // La pagina promette «€300 takes it off the market for 48 hours»: la
+  // promessa si mantiene qui — la casa passa a 'reserved' (stato che ogni
+  // vetrina sa già rendere) e lo spazzino orario del reminder-cron la
+  // libera se il deal non avanza. Best-effort: un patch fallito non deve
+  // mai perdere il lead già scritto.
+  try {
+    const { placeHold } = await import('./ops/_lotto12.js');
+    await placeHold(m.listingId, 'res_' + docId);
+  } catch (err) { console.error('reserve hold:', err.message); }
+
   const firstName = (m.name || '').split(' ')[0] || 'there';
 
   // Owner notification (same channel as PFS)

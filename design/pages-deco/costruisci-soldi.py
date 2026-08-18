@@ -80,6 +80,8 @@ else:
         '/apartments.html': '/apartments',
         '/your-money.html': '#giornouno'}.items():
         h = h.replace('href="' + da + '"', 'href="' + a_ + '"')
+    # cleanUrls: OGNI link interno perde il .html anche nel modo sito
+    h = re.sub(r'href="/([a-z-]+)\.html"', r'href="/\1"', h)
     import testa as TESTA
     OG = TESTA.blocco_money(
         'Your money at BOOM — every euro, in the open | BOOM Rome',
@@ -88,7 +90,7 @@ else:
     h = h[:i] + '\n' + OG + h[i:]
     h = ('<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
          + h.replace('</style>', '</style>\n</head>\n<body>', 1)
-         + '\n</body>\n</html>')
+         + '\n' + TESTA.CONSENSO + '\n</body>\n</html>')
 
 uscita = 'boom-soldi.html' if MODO == 'artefatto' else 'boom-soldi-sito.html'
 open(uscita, 'w', encoding='utf-8').write(h)

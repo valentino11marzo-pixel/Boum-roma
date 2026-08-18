@@ -176,7 +176,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   font-weight:300; border-bottom:1px solid var(--line-0); }
 .tenda .btn { margin-top:22px; }
 
-/* ══ HERO — tre zone: la voce, lo scalo, il tabellone ══════════════════ */
+/* ══ HERO — due zone: la voce e il tabellone ══════════════════ */
 .hero { position:relative;
   padding:clamp(104px,12svh,150px) 0 clamp(28px,3vw,40px); }
 .hero-velo { position:absolute; inset:0; overflow:hidden;
@@ -328,49 +328,6 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 @media (max-width:560px){
     .hero-stat +   .hero-stat:nth-child(even){ padding-left:22px;
     border-left:1px solid var(--line-0); } }
-
-/* lo scalo: il cartellino ROM e la rotta che arriva */
-.scalo { position:absolute; z-index:1; pointer-events:none;
-  /* ancorato al CENTRO (offset fisso), non al viewport: su uno schermo
-     largo la percentuale derivava e il quadrato ROM galleggiava nel
-     vuoto tra titolo e tabellone */
-  left:calc(50% - 50px); top:30%; display:none; }
-@media (min-width:1280px){ .scalo { display:block; } }
-.scalo-rotta { position:absolute; right:36px; top:34px; width:340px; height:120px;
-  overflow:visible; }
-.scalo-rotta path { fill:none; stroke:rgba(255,215,0,.22);
-  stroke-width:1.2; stroke-dasharray:2 7; stroke-linecap:round; }
-.scalo-punto { offset-path:path('M330 8 C 240 18, 120 44, 8 108');
-  width:5px; height:5px; border-radius:50%; background:var(--gold-light);
-  box-shadow:0 0 10px rgba(255,215,0,.8);
-  animation:vola 9s var(--ease) infinite; }
-@keyframes vola { 0% { offset-distance:0%; opacity:0; }
-  8% { opacity:1; } 88% { opacity:1; }
-  100% { offset-distance:100%; opacity:0; } }
-.scalo-tag { position:relative; margin-top:104px; display:inline-block;
-  padding:14px 20px 12px; background:var(--void); border-radius:14px;
-  box-shadow:inset 0 0 0 1px var(--line-gold), 0 22px 50px -22px rgba(0,0,0,.9);
-  text-align:center; }
-.scalo-tag::before { content:''; position:absolute; left:50%; top:-7px;
-  width:26px; height:8px; transform:translateX(-50%);
-  background:var(--black); border-radius:0 0 8px 8px;
-  box-shadow:inset 0 -1px 0 var(--line-gold); }
-.scalo-tag b { display:block; font-family:var(--display); font-size:28px;
-  font-weight:300; letter-spacing:.22em; text-indent:.22em; color:var(--gold); }
-/* la destinazione ti chiama: due anelli quieti che nascono dal cartellino */
-.scalo-eco { position:absolute; left:50%; top:50%; width:0; height:0;
-  pointer-events:none; }
-.scalo-eco i { position:absolute; left:50%; top:50%;
-  transform:translate(-50%,-50%); border:1px solid rgba(255,215,0,.4);
-  border-radius:50%; opacity:0; font-style:normal;
-  animation:eco-rom 8s ease-out infinite; }
-.scalo-eco i:nth-child(2){ animation-delay:-2.75s; }
-@keyframes eco-rom {
-  0% { width:26px; height:26px; opacity:.34; border-width:1px; }
-  100% { width:190px; height:190px; opacity:0; border-width:.5px; } }
-@media (prefers-reduced-motion:reduce){ .scalo-eco { display:none; } }
-.scalo-tag span { display:block; margin-top:3px; font-size:10px;
-  letter-spacing:.26em; text-transform:uppercase; color:var(--text-3); }
 
 /* la cornice a tacche: riservata agli apparecchi — e questo LO è */
 .quadro { position:relative; }
@@ -1475,6 +1432,29 @@ html.vivo .sale.dentro .titolo, html.vivo .coro.dentro .titolo {
   clip-path:inset(-8% -8% -12% -8%); transform:none;
   transition:clip-path .9s var(--ease), transform .9s var(--ease); }
 html.vivo .coro > * { opacity:0; transform:translateY(24px); }
+/* il primo quadro entra DA SOLO, in puro CSS: col sipario armato in testa
+   non puo' dipendere dagli organi in coda al documento (Safari li
+   raggiunge tardi). Le animazioni vincono sulle dichiarazioni normali,
+   quindi questi keyframes scavalcano il nascondiglio del sipario. */
+@keyframes vieniSu { from { opacity:0; transform:translateY(24px); }
+  to { opacity:1; transform:none; } }
+@keyframes titoloSu {
+  from { clip-path:inset(-8% -8% 108% -8%); transform:translateY(30px); }
+  to { clip-path:inset(-8% -8% -12% -8%); transform:none; } }
+html.vivo .coro.dentro-subito > * {
+  animation:vieniSu .8s var(--ease) .12s both; }
+html.vivo .coro.dentro-subito > :nth-child(2){ animation-delay:.19s; }
+html.vivo .coro.dentro-subito > :nth-child(3){ animation-delay:.26s; }
+html.vivo .coro.dentro-subito > :nth-child(4){ animation-delay:.33s; }
+html.vivo .coro.dentro-subito > :nth-child(5){ animation-delay:.4s; }
+html.vivo .coro.dentro-subito > :nth-child(6){ animation-delay:.47s; }
+html.vivo .coro.dentro-subito .titolo, html.vivo .coro.dentro-subito .hero-title {
+  animation:titoloSu .9s var(--ease) .12s both; }
+@media (prefers-reduced-motion:reduce){
+  html.vivo .coro.dentro-subito > *,
+  html.vivo .coro.dentro-subito .titolo,
+  html.vivo .coro.dentro-subito .hero-title { animation:none; opacity:1;
+    transform:none; clip-path:none; } }
 html.vivo .coro.dentro > * { opacity:1; transform:none;
   transition:opacity .8s var(--ease), transform .8s var(--ease); }
 html.vivo .coro.dentro > :nth-child(2){ transition-delay:.07s; }
@@ -1501,7 +1481,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
   html.vivo .sale, html.vivo .coro > *, html.vivo .coro .home-foto img,
   html.vivo .sale .titolo, html.vivo .coro .titolo {
     opacity:1; transform:none; clip-path:none; transition:none; }
-  .btn-primary::after, .scalo-punto, .pronto::before { display:none; }
+  .btn-primary::after, .pronto::before { display:none; }
   .tech-orb { animation:none; }
   html { scroll-behavior:auto; } }
 
@@ -1703,6 +1683,18 @@ html.vivo .sale.dentro { opacity:1; transform:none;
 <div class="tech-bg" aria-hidden="true"><span class="tech-orb tech-orb-1"></span><span class="tech-orb tech-orb-2"></span><span class="tech-orb tech-orb-3"></span></div>
 
 <nav class="nav" id="nav">
+<script>
+/* Il sipario si arma PRIMA del primo paint. Aggiunto in coda (deco-organi)
+   arrivava DOPO su Safari, che dipinge progressivamente: pagina intera →
+   nascosta → rientrata animata = «doppio caricamento». Senza JS la classe
+   non nasce e tutto resta visibile; se gli organi in coda non si armano
+   entro 3s il sipario si riapre da solo. */
+document.documentElement.classList.add('vivo');
+setTimeout(function () {
+  if (!window.__decoArmato)
+    document.documentElement.classList.remove('vivo');
+}, 3000);
+</script>
   <div class="container nav-inner">
     <a class="marchio" href="/index.html" aria-label="BOOM, home">LOGO_SVG<span>Boom</span></a>
     <div class="menu">
@@ -1729,18 +1721,11 @@ html.vivo .sale.dentro { opacity:1; transform:none;
   <a class="btn btn-primary" href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a>
 </div>
 
-<!-- ══ HERO — la voce · lo scalo · il tabellone ══════════════════════════ -->
+<!-- ══ HERO — la voce · il tabellone ══════════════════════════ -->
 <header class="hero">
   <div class="hero-velo" aria-hidden="true">
   <div class="hero-glow"></div>
   <canvas id="cartaRoma"></canvas>
-  <div class="scalo">
-    <svg class="scalo-rotta" viewBox="0 0 340 120">
-      <path d="M330 8 C 240 18, 120 44, 8 108"/>
-    </svg>
-    <span class="scalo-punto"></span>
-    <span class="scalo-tag"><span class="scalo-eco"><i></i><i></i></span><b>ROM</b><span>Rome · Italy</span></span>
-  </div>
   </div>
 
   <div class="container hero-int">
@@ -2036,7 +2021,7 @@ CASE_TRE
           <span class="fa">We verify the landlord, the papers and the price
             — then negotiate.</span>
           <span class="ba-serv">Deal Assistance<i>→</i></span>
-          <span class="costo"><b>€249</b><i><span class="lungo">fixed · avg saving €600+</span><span class="breve">fixed · saves €600+ on average</span></i></span>
+          <span class="costo"><b>€249</b><i><span class="lungo">fixed · deposit and clauses negotiated</span><span class="breve">fixed · we negotiate for you</span></i></span>
         </a>
 
         <a class="ba-p" href="/contract-check-express.html">
@@ -2072,7 +2057,7 @@ CASE_TRE
 
       <div class="ba-cifre">
         <div><b>48h</b><span>fastest move-in</span></div>
-        <div><b>98%</b><span>success rate</span></div>
+        <div><b>4.9★</b><span>on Google · 47 reviews</span></div>
         <div><b>100%</b><span>walked in person</span></div>
         <div><b>€0</b><span>hidden fees</span></div>
       </div>
@@ -2231,8 +2216,8 @@ CASE_TRE
     <p class="dolori-capo"><b>Six things this market does to people</b> — and
       what we do instead.</p>
 <div class="dolori coro">
-      <div class="dolore"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="13"/><path d="M20 12v8l6 4"/></svg><b>45+ days average search time</b><span>Move in as fast as 48h</span></div>
-      <div class="dolore"><svg viewBox="0 0 40 40"><rect x="5" y="12" width="30" height="17" rx="1.5"/><circle cx="20" cy="20.5" r="4.5"/><path d="M10 12v-2h20v2"/></svg><b>€8,000+ upfront costs</b><span>Month + deposit + fee, shown before you pay</span></div>
+      <div class="dolore"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="13"/><path d="M20 12v8l6 4"/></svg><b>Weeks of searching, alone</b><span>Move in as fast as 48h</span></div>
+      <div class="dolore"><svg viewBox="0 0 40 40"><rect x="5" y="12" width="30" height="17" rx="1.5"/><circle cx="20" cy="20.5" r="4.5"/><path d="M10 12v-2h20v2"/></svg><b>Months of rent upfront</b><span>Month + deposit + fee, shown before you pay</span></div>
       <div class="dolore"><svg viewBox="0 0 40 40"><rect x="6" y="10" width="28" height="20" rx="1.5"/><path d="M6 26l8-7 6 5 6-6 8 8M6 6l28 28"/></svg><b>Misleading photos</b><span>Every home walked in person before it's listed</span></div>
       <div class="dolore"><svg viewBox="0 0 40 40"><path d="M11 33V16a9 9 0 0118 0v17l-4.5-3-4.5 3-4.5-3z"/><circle cx="16.5" cy="17" r="1"/><circle cx="23.5" cy="17" r="1"/></svg><b>Agents who disappear</b><span>One name, one WhatsApp — always the same person</span></div>
       <div class="dolore"><svg viewBox="0 0 40 40"><path d="M8 8h24v18H20l-8 7v-7H8z"/><path d="M14 15h12M14 20h8"/></svg><b>Language barriers</b><span>English-first — Italian contracts, explained</span></div>
@@ -2368,13 +2353,6 @@ CASE_TRE
     if (ridotto) b.show('DAYS');
     else {
       setTimeout(function () { b.show('DAYS', 110, true); }, 600);
-      var giro = ['HOURS', 'DAYS'], i = 0;
-      setInterval(function () {
-        if (document.hidden) return;
-        b.update(giro[i % 2]);
-        host.setAttribute('aria-label', giro[i % 2].toLowerCase());
-        i++;
-      }, 8000);
     }
   }
 
@@ -2420,22 +2398,33 @@ CASE_TRE
       })(organi[organi.length - 1]);
     });
     function accendi() {
-      organi.forEach(function (o, i) {
+      /* i DATI nascono GIA' giusti, all'istante: lo scramble su un prezzo
+         legge come un prezzo sbagliato, non come un tabellone che compone
+         (segnalato due volte dall'operatore — su Safari, che dipinge
+         progressivamente, durava anche di piu'). La vita Solari resta nel
+         FREMITO: un'onda sola di flutter mezzo secondo dopo, e poi i
+         fremiti radi di sempre. Lo scramble teatrale resta solo sulla
+         PAROLA del titolo (DAYS), dove legge come insegna. */
+      organi.forEach(function (o) {
+        o.z.show(o.d.z.toUpperCase().slice(0, LZ));
+        o.p.show(o.d.p); o.t.show(o.d.s);
+      });
+      /* l'onda tocca SOLO lo stato: un fremito su una cifra del prezzo
+         mostrerebbe per un attimo un prezzo diverso — stessa classe di
+         equivoco. Il prezzo freme solo sotto il mouse dell'utente. */
+      if (!ridotto) organi.forEach(function (o, i) {
         setTimeout(function () {
-          if (ridotto) { o.z.show(o.d.z.toUpperCase().slice(0, LZ));
-            o.p.show(o.d.p); o.t.show(o.d.s); return; }
-          o.z.show(o.d.z.toUpperCase().slice(0, LZ), 55, true);
-          o.p.show(o.d.p, 45, true);
-          o.t.show(o.d.s, 60, true);
-        }, ridotto ? 0 : i * 170);
+          if (o.t.flutter) o.t.flutter();
+        }, 500 + i * 90);
       });
     }
-    setTimeout(accendi, 700);
+    accendi();
     /* il fremito: ogni tanto una cella trema, come sui tabelloni veri */
     if (!ridotto) setInterval(function () {
       if (document.hidden) return;
       var o = organi[Math.floor(Math.random() * organi.length)];
-      var quale = ['z', 'p', 't'][Math.floor(Math.random() * 3)];
+      /* mai il prezzo da solo: una cifra che gira e' un prezzo diverso */
+      var quale = ['z', 't'][Math.floor(Math.random() * 2)];
       if (o[quale].flutter) o[quale].flutter();
     }, 14000);
   })();
@@ -2779,16 +2768,22 @@ CASE_TRE
         for (var oi = 0; oi < onde.length; oi++) {
           var od = onde[oi];
           /* il battito ha il passo del mosaico: lento, maestoso */
-          var eta = (t - od.via) / (od.batte ? 2600 : 900);
+          var eta = (t - od.via) / (od.batte ? 3000 : 900);
           if (eta > 1.4) continue;
           var da = Math.abs(Math.hypot(x - od.x, y - od.y)
-            - eta * MIN * (od.batte ? .72 : .5));
-          var vo = Math.max(0, 1 - da / (MIN * .09));
+            - eta * MIN * (od.batte ? 1.05 : .5));
+          var vo = Math.max(0, 1 - da / (MIN * (od.batte ? .12 : .09)));
           E[i] = Math.max(E[i], vo * (1.2 - eta));
           if (od.batte) {
-            /* la banda piena del mosaico: ogni cella sulla cresta si
-               accende d'oro, e l'anello sfuma mentre si allarga */
-            AU[i] = Math.max(AU[i], vo * vo * (1 - eta * .5) * .85);
+            /* la banda piena del mosaico, alzata: una CRESTA stretta e
+               incandescente guida l'onda, la banda dietro tiene l'oro
+               piu' a lungo, e la corsa attraversa TUTTO il campo invece
+               di morire a meta' — un battito, di quelli che si sentono */
+            var vc = Math.max(0, 1 - da / (MIN * .035));
+            E[i] = Math.max(E[i], vc * 1.15 * (1 - eta * .3));
+            AU[i] = Math.max(AU[i],
+              vo * vo * (1 - eta * .35) * .9,
+              vc * (1 - eta * .25));
           } else if (vo > .9 && Math.random() < .015) AU[i] = .8;
         }
       }
