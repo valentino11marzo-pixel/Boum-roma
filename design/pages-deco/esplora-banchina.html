@@ -9,31 +9,26 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
 <style>
 :root {
-  --gold:#FFD700; --gold-light:#FFE55C; --green:#00FF88;
-  --black:#030303; --void:#060607; --surface:#0B0B0C; --elevated:#121214;
-  --card:#0E0E10; --text:#FAFAFA;
+  --gold:#FFD700; --green:#00FF88; --black:#030303; --void:#060607;
+  --surface:#0B0B0C; --card:#0E0E10; --text:#FAFAFA;
   --text-2:rgba(250,250,250,.72); --text-3:rgba(250,250,250,.5);
   --text-4:rgba(250,250,250,.48); --line-0:rgba(255,255,255,.04);
-  --line:rgba(255,255,255,.08); --line-gold:rgba(255,215,0,.14);
-  --line-gold-2:rgba(255,215,0,.3); --oro-flap:#FFE55C;
+  --line:rgba(255,255,255,.08);
   --ease:cubic-bezier(.16,1,.3,1); --molla:cubic-bezier(.3,1.45,.5,1);
   --sans:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
   --display:'Helvetica Neue',Helvetica,Arial,sans-serif;
   --c-vv:#00FF88; --c-pf:#FFD700; --c-da:#9D8CFF; --c-cc:#3ED3FF;
+  --rosso:#FF5E5E; --ambra:#FFB84D;
   color-scheme:dark;
 }
 *,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }
 body { background:var(--black); color:var(--text); font-family:var(--sans);
   font-weight:300; font-size:16px; line-height:1.6;
   -webkit-font-smoothing:antialiased; overflow-x:hidden; }
-body::before { content:''; position:fixed; inset:0; opacity:.014;
-  pointer-events:none; z-index:9999;
-  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E"); }
 a { color:inherit; text-decoration:none; }
 .container { width:100%; max-width:1360px; margin:0 auto;
   padding:0 clamp(18px,3vw,40px); }
 :focus-visible { outline:2px solid var(--gold); outline-offset:3px; }
-
 .lab-capo { padding:clamp(56px,8vh,96px) 0 clamp(20px,3vw,36px); }
 .lab-capo .eti { font-size:10px; font-weight:600; letter-spacing:.26em;
   text-transform:uppercase; color:var(--gold); }
@@ -41,188 +36,318 @@ a { color:inherit; text-decoration:none; }
   font-size:clamp(30px,4.4vw,52px); line-height:1.08; letter-spacing:-.02em;
   max-width:26ch; }
 .lab-capo h1 b { color:var(--gold); font-weight:300; }
-.lab-capo p { margin-top:14px; max-width:72ch; font-size:14px;
+.lab-capo p { margin-top:14px; max-width:74ch; font-size:14px;
   color:var(--text-3); }
 .palco { padding:clamp(40px,5.5vw,72px) 0; border-top:1px solid var(--line-0); }
+.palco-testa { display:flex; align-items:baseline; gap:16px; flex-wrap:wrap;
+  margin-bottom:8px; }
+.palco-testa .lettera { font-family:var(--display); font-weight:200;
+  font-size:clamp(34px,4vw,48px); color:var(--gold); line-height:1; }
+.palco-testa h2 { font-family:var(--display); font-weight:250;
+  font-size:clamp(21px,2.6vw,30px); letter-spacing:-.01em; }
+.palco-testa .regola { width:100%; font-size:12.5px; color:var(--text-3);
+  max-width:80ch; line-height:1.65; }
+.palco-testa .regola b { color:var(--text-2); font-weight:500; }
 .verdetto { margin-top:clamp(20px,2.6vw,30px); display:grid; gap:6px 22px;
   grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); font-size:12px;
   color:var(--text-3); line-height:1.6; }
 .verdetto b { color:var(--gold); font-weight:600; font-size:10px;
   letter-spacing:.18em; text-transform:uppercase; display:block;
   margin-bottom:2px; }
+.demo { margin-top:clamp(20px,2.8vw,32px); }
 
-/* ══ G · LO SCAFFALE — il servizio come OGGETTO che si compra ═════════ */
-.pr-fila { display:grid; grid-template-columns:1.5fr 1fr 1fr 1fr;
-  gap:clamp(12px,1.6vw,18px); align-items:stretch; }
-@media (max-width:1020px){
-  .pr-fila { grid-template-columns:1fr 1fr; }
-  .pr.eroe { grid-column:1/-1; } }
-@media (max-width:580px){ .pr-fila { grid-template-columns:1fr; } }
-.pr { position:relative; display:flex; flex-direction:column;
+/* ── la CELLA prodotto (la vendita non si tocca: nome, promessa,
+      bottone verbo+prezzo, garanzia con spunta) ── */
+.st { position:relative; display:flex; flex-direction:column;
   border-radius:22px; overflow:hidden;
   background:linear-gradient(180deg,#0F0F12,#080809 70%);
   box-shadow:inset 0 0 0 1px var(--line), 0 30px 60px -36px rgba(0,0,0,.9);
   padding:0 20px 20px; transition:box-shadow .45s var(--ease); }
-.pr:hover { box-shadow:inset 0 0 0 1px
+.st:hover { box-shadow:inset 0 0 0 1px
   color-mix(in srgb, var(--c) 35%, transparent),
   0 40px 80px -36px rgba(0,0,0,.95); }
-/* il retro-palco: la luce del prodotto, dal SUO colore */
-.pr .retro { position:absolute; inset:0 0 auto; height:240px;
-  pointer-events:none; opacity:.75; transition:opacity .5s var(--ease);
-  background:radial-gradient(60% 78% at 50% 8%, var(--ca), transparent 72%); }
-.pr:hover .retro { opacity:1; }
-
-/* IL PALCOSCENICO: l'oggetto fluttua in prospettiva, con l'ombra a terra */
-.palcosc { position:relative; height:206px; display:grid; place-items:center;
-  perspective:900px; }
-.pr .ombra { position:absolute; bottom:16px; left:50%; width:58%;
-  height:22px; transform:translateX(-50%); border-radius:50%;
-  background:radial-gradient(50% 50% at 50% 50%, rgba(0,0,0,.8),
-    transparent 72%); filter:blur(7px);
-  animation:ombraRespira 5.5s ease-in-out infinite; }
-@keyframes ombraRespira { 50% { transform:translateX(-50%) scaleX(.88);
-  opacity:.75; } }
-.oggetto { --rx:0deg; --ry:0deg; position:relative; width:min(196px,72%);
-  aspect-ratio:1.586; border-radius:13px; transform-style:preserve-3d;
-  overflow:hidden;
-  transform:rotateX(calc(13deg + var(--ry))) rotateY(calc(-15deg + var(--rx)));
-  background:linear-gradient(148deg,#1D1D23,#0B0B0E 62%);
-  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--c) 34%, transparent),
-    inset 0 1px 0 rgba(255,255,255,.14),
-    22px 30px 44px -18px rgba(0,0,0,.85);
-  animation:galleggia 5.5s ease-in-out infinite;
-  transition:transform .5s var(--molla), box-shadow .5s var(--ease); }
-.pr:hover .oggetto { animation-play-state:paused; }
-@keyframes galleggia { 50% { translate:0 -7px; } }
-/* la luce speculare che scivola sull'oggetto quando lo inclini */
-.oggetto::before { content:''; position:absolute; inset:0; border-radius:13px;
-  background:linear-gradient(calc(115deg + var(--rx) * 3),
-    transparent 30%, rgba(255,255,255,.13) 47%, transparent 62%);
-  pointer-events:none; }
-/* la faccia del prodotto: marchio, banda colore, icona, prezzo inciso */
-.oggetto .fbrand { position:absolute; top:11px; left:13px; right:13px;
-  display:flex; align-items:center; justify-content:space-between;
-  font-family:var(--display); font-size:9px; font-weight:500;
-  letter-spacing:.28em; text-transform:uppercase; color:var(--text-2); }
-.oggetto .fbrand small { font-family:ui-monospace,Menlo,monospace;
-  font-size:7.5px; letter-spacing:.2em; color:var(--text-4); }
-.oggetto .banda { position:absolute; top:34px; left:0; right:0; height:3px;
-  background:var(--c); box-shadow:0 0 14px var(--ca); }
-.oggetto .ficon { position:absolute; left:13px; bottom:12px; width:30px;
-  height:30px; border-radius:9px; display:grid; place-items:center;
-  color:var(--c); background:color-mix(in srgb, var(--c) 9%, transparent);
-  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--c) 32%, transparent); }
-.oggetto .ficon svg { width:16px; height:16px; fill:none;
-  stroke:currentColor; stroke-width:1.6; stroke-linecap:round;
-  stroke-linejoin:round; }
-.oggetto .fprezzo { position:absolute; right:13px; bottom:11px;
-  font-family:var(--display); font-weight:400; font-size:21px;
-  letter-spacing:-.01em; color:var(--c);
-  font-variant-numeric:tabular-nums; text-shadow:0 0 18px var(--ca); }
-.oggetto .fnome { position:absolute; left:13px; top:46px;
-  font-family:var(--display); font-weight:300; font-size:12.5px;
-  letter-spacing:.02em; color:var(--text); }
-.oggetto .fsotto { position:absolute; left:13px; top:64px; font-size:8.5px;
-  letter-spacing:.14em; text-transform:uppercase; color:var(--text-4); }
-/* sulle card piccole il sottotitolo NON c'e': una faccia respirata vende,
-   una affollata informa */
-.pr:not(.eroe) .oggetto .fsotto { display:none; }
-.pr:not(.eroe) .oggetto .fnome { top:50%; transform:translateY(-70%); }
-/* il nastro-badge sull'angolo: il segnale di prodotto, non decorazione */
-.oggetto .nastro { position:absolute; top:14px; right:-34px;
-  transform:rotate(38deg); width:120px; text-align:center;
-  background:var(--c); color:#0A0903; font-size:7.5px; font-weight:800;
-  letter-spacing:.16em; text-transform:uppercase; padding:4px 0;
-  box-shadow:0 4px 14px rgba(0,0,0,.4); }
-
-/* LA VENDITA: nome prodotto, promessa, bottone che COMPRA, garanzia */
-.pr .vendita { position:relative; display:flex; flex-direction:column;
+.st .retro { position:absolute; inset:0 0 auto; height:230px;
+  pointer-events:none; opacity:.7; transition:opacity .5s var(--ease);
+  background:radial-gradient(60% 78% at 50% 6%, var(--ca), transparent 72%); }
+.st:hover .retro { opacity:1; }
+.st .scena { position:relative; height:198px; display:grid;
+  place-items:center; }
+.st .vendita { position:relative; display:flex; flex-direction:column;
   flex:1; }
-.pr .pnome { display:flex; align-items:baseline; gap:9px; }
-.pr .pnome h3 { font-family:var(--display); font-weight:350;
+.st .pnome { display:flex; align-items:baseline; gap:9px; }
+.st .pnome .pn { font-family:var(--display); font-weight:350;
   font-size:18.5px; letter-spacing:-.005em; }
-.pr .pnome .pkind { font-size:8.5px; font-weight:700; letter-spacing:.18em;
+.st .pnome .pkind { font-size:8.5px; font-weight:700; letter-spacing:.18em;
   text-transform:uppercase; color:var(--c); }
-.pr .promessa { margin-top:7px; font-size:12.5px; line-height:1.55;
+.st .promessa { margin-top:7px; font-size:12.5px; line-height:1.55;
   color:var(--text-3); }
-.pr .promessa b { color:var(--text-2); font-weight:500; }
-.pr .compra { margin-top:14px; display:inline-flex; align-items:center;
+.st .promessa b { color:var(--text-2); font-weight:500; }
+.st .compra { margin-top:14px; display:inline-flex; align-items:center;
   justify-content:center; gap:9px; min-height:44px; padding:0 18px;
   border-radius:100px; background:var(--c); color:#0A0A05;
   font-size:12.5px; font-weight:700; letter-spacing:.02em;
   transition:transform .3s var(--ease), box-shadow .3s var(--ease);
   box-shadow:0 10px 26px -12px var(--cb); }
-.pr .compra i { font-style:normal; transition:transform .3s var(--ease); }
-.pr:hover .compra { transform:translateY(-1px);
+.st .compra i { font-style:normal; transition:transform .3s var(--ease); }
+.st:hover .compra { transform:translateY(-1px);
   box-shadow:0 16px 34px -12px var(--cb); }
-.pr:hover .compra i { transform:translateX(4px); }
-.pr .rassicura { margin-top:11px; display:flex; align-items:flex-start;
+.st:hover .compra i { transform:translateX(4px); }
+.st .rassicura { margin-top:11px; display:flex; align-items:flex-start;
   gap:8px; font-size:10.5px; line-height:1.5; color:var(--text-4); }
-.pr .rassicura::before { content:'✓'; color:var(--c); font-size:11px;
+.st .rassicura::before { content:'✓'; color:var(--c); font-size:11px;
   line-height:1.4; }
-.pr .rassicura b { color:var(--text-3); font-weight:600; }
+.st .rassicura b { color:var(--text-3); font-weight:600; }
 
-/* l'ammiraglia: palco più alto, oggetto più grande, doppia riga vendita */
-.pr.eroe .palcosc { height:250px; }
-.pr.eroe .oggetto { width:min(250px,80%); }
-.pr.eroe .oggetto .fprezzo { font-size:26px; }
-.pr.eroe .oggetto .fnome { font-size:15px; top:50px; }
-.pr.eroe .oggetto .fsotto { top:71px; }
-.pr.eroe .pnome h3 { font-size:23px; }
-.pr.eroe .promessa { font-size:13.5px; max-width:52ch; }
-.pr.eroe .compra { align-self:flex-start; padding:0 24px; }
-@media (max-width:1020px){ .pr.eroe .compra { align-self:stretch; } }
+/* ══ STRUMENTO 1 · IL RADAR (Property Finding, oro) ═══════════════════ */
+.radar { position:relative; width:172px; height:172px; }
+.radar .anello { position:absolute; inset:0; border-radius:50%;
+  box-shadow:inset 0 0 0 1px rgba(255,215,0,.22); }
+.radar .anello.a2 { inset:24px; }
+.radar .anello.a3 { inset:48px; }
+.radar .assi::before, .radar .assi::after { content:''; position:absolute;
+  background:rgba(255,215,0,.1); }
+.radar .assi::before { left:50%; top:4px; bottom:4px; width:1px; }
+.radar .assi::after { top:50%; left:4px; right:4px; height:1px; }
+.radar .spazzata { position:absolute; inset:0; border-radius:50%;
+  background:conic-gradient(from 0deg, rgba(255,215,0,.4), transparent 70deg,
+    transparent);
+  -webkit-mask:radial-gradient(circle, transparent 0, #000 1px);
+  animation:radarGira 4.2s linear infinite; }
+@keyframes radarGira { to { transform:rotate(360deg); } }
+.radar .blip { position:absolute; width:7px; height:7px; border-radius:50%;
+  background:rgba(255,215,0,.65); }
+.radar .blip::after { content:''; position:absolute; inset:-7px;
+  border-radius:50%; border:1px solid rgba(255,215,0,.5);
+  animation:blipPing 4.2s ease-out infinite; }
+@keyframes blipPing { 0%, 12% { transform:scale(.3); opacity:0; }
+  18% { opacity:1; } 45% { transform:scale(2.1); opacity:0; }
+  100% { opacity:0; } }
+.radar .blip.b1 { top:36px; right:46px; }
+.radar .blip.b1::after { animation-delay:.4s; }
+.radar .blip.b2 { bottom:52px; left:38px; }
+.radar .blip.b2::after { animation-delay:2.1s; }
+/* LA CASA TROVATA: il blip che conta si accende pieno */
+.radar .trovata { position:absolute; top:58px; right:64px; width:26px;
+  height:26px; border-radius:50%; display:grid; place-items:center;
+  color:#0A0903; background:var(--gold);
+  box-shadow:0 0 24px rgba(255,215,0,.55);
+  animation:trovataBatte 4.2s ease infinite; }
+@keyframes trovataBatte { 0%, 8% { transform:scale(.92); }
+  14% { transform:scale(1.12); } 22%, 100% { transform:scale(1); } }
+.radar .trovata svg { width:13px; height:13px; fill:none;
+  stroke:currentColor; stroke-width:2; stroke-linecap:round;
+  stroke-linejoin:round; }
+.radar .quota { position:absolute; right:-6px; bottom:8px;
+  font-family:ui-monospace,Menlo,monospace; font-size:8px;
+  letter-spacing:.18em; color:rgba(255,215,0,.55);
+  text-transform:uppercase; }
 
-/* l'ingresso: i prodotti CALANO sullo scaffale, in sequenza */
-.vivo .pr { opacity:0; }
-.vivo.dentro .pr { animation:arriva .75s var(--molla) both; }
-.vivo.dentro .pr:nth-child(1) { animation-delay:.05s; }
-.vivo.dentro .pr:nth-child(2) { animation-delay:.17s; }
-.vivo.dentro .pr:nth-child(3) { animation-delay:.29s; }
-.vivo.dentro .pr:nth-child(4) { animation-delay:.41s; }
-@keyframes arriva { from { opacity:0; transform:translateY(30px); }
-  to { opacity:1; } }
+/* ══ STRUMENTO 2 · LO SCHERMO LIVE (Virtual Viewing, verde) ═══════════ */
+.schermo { position:relative; width:108px; height:172px; border-radius:16px;
+  background:#0A0C0B; overflow:hidden; transform:rotate(-3deg);
+  box-shadow:inset 0 0 0 1.5px rgba(0,255,136,.3),
+    0 22px 40px -18px rgba(0,0,0,.85); }
+.schermo .stanza { position:absolute; inset:0;
+  background:linear-gradient(200deg,#15241d 0%,#0c1512 45%,#101f18 100%);
+  background-size:160% 160%;
+  animation:panMano 6s ease-in-out infinite alternate; }
+@keyframes panMano { from { background-position:0% 30%; }
+  to { background-position:100% 65%; } }
+/* la finestra della stanza: due quinte geometriche che "passano" */
+.schermo .quinta { position:absolute; width:56px; height:82px;
+  border:1px solid rgba(0,255,136,.16); border-radius:3px;
+  animation:quintaScorre 6s ease-in-out infinite alternate; }
+.schermo .quinta.q1 { left:14px; top:36px; }
+.schermo .quinta.q2 { left:64px; top:58px; width:40px; height:60px;
+  opacity:.6; }
+@keyframes quintaScorre { from { translate:0 0; } to { translate:-14px -6px; } }
+.schermo .vivo { position:absolute; top:9px; left:9px; display:inline-flex;
+  align-items:center; gap:5px; padding:3px 8px; border-radius:100px;
+  background:rgba(3,3,3,.55); font-size:7.5px; font-weight:800;
+  letter-spacing:.18em; color:var(--c-vv); }
+.schermo .vivo i { width:5px; height:5px; border-radius:50%;
+  background:var(--c-vv); animation:pulse 1.6s ease infinite; }
+@keyframes pulse { 50% { opacity:.3; } }
+/* la domanda del cliente: appare, resta, riparte */
+.schermo .bolla { position:absolute; left:8px; right:8px; bottom:10px;
+  padding:6px 9px; border-radius:10px 10px 10px 3px;
+  background:rgba(3,3,3,.72); font-size:8.5px; line-height:1.4;
+  color:var(--text-2); opacity:0;
+  animation:bollaSale 6s ease infinite; }
+@keyframes bollaSale { 0%, 18% { opacity:0; transform:translateY(8px); }
+  28%, 82% { opacity:1; transform:none; }
+  92%, 100% { opacity:0; transform:translateY(-4px); } }
+.schermo .bolla b { color:var(--c-vv); font-weight:600; }
+
+/* ══ STRUMENTO 3 · LO SCUDO (Deal Assistance, violetto) ═══════════════ */
+.scudo { position:relative; width:172px; height:172px; display:grid;
+  place-items:center; }
+.scudo svg.sagoma { width:104px; height:120px; fill:none;
+  stroke:var(--c-da); stroke-width:1.6; stroke-linecap:round;
+  stroke-linejoin:round; filter:drop-shadow(0 0 18px rgba(157,140,255,.35)); }
+.scudo svg.sagoma .perimetro { stroke-dasharray:340;
+  animation:scudoChiude 5.4s ease-in-out infinite; }
+@keyframes scudoChiude { 0% { stroke-dashoffset:340; opacity:.4; }
+  38%, 86% { stroke-dashoffset:0; opacity:1; }
+  100% { stroke-dashoffset:0; opacity:.4; } }
+.scudo svg.sagoma .spunta { stroke-dasharray:34; stroke-dashoffset:34;
+  animation:spuntaScrive 5.4s ease-in-out infinite; }
+@keyframes spuntaScrive { 0%, 40% { stroke-dashoffset:34; }
+  55%, 90% { stroke-dashoffset:0; } 100% { stroke-dashoffset:34; } }
+/* le tre verifiche: appaiono in sequenza attorno allo scudo */
+.scudo .passo { position:absolute; padding:4px 9px; border-radius:100px;
+  background:rgba(157,140,255,.09);
+  box-shadow:inset 0 0 0 1px rgba(157,140,255,.3); font-size:8px;
+  font-weight:700; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--c-da); opacity:0; animation:passoSale 5.4s ease infinite; }
+@keyframes passoSale { 0% { opacity:0; transform:translateY(6px); }
+  14%, 88% { opacity:1; transform:none; } 100% { opacity:0; } }
+.scudo .passo.p1 { top:14px; left:-4px; animation-delay:.5s; }
+.scudo .passo.p2 { top:64px; right:-16px; animation-delay:1.3s; }
+.scudo .passo.p3 { bottom:18px; left:2px; animation-delay:2.1s; }
+
+/* ══ STRUMENTO 4 · LA SCANSIONE (Contract Check, ciano) ═══════════════ */
+.foglio { position:relative; width:120px; height:164px; border-radius:10px;
+  background:linear-gradient(180deg,#101317,#0A0D10); overflow:hidden;
+  transform:rotate(2.5deg);
+  box-shadow:inset 0 0 0 1px rgba(62,211,255,.28),
+    0 22px 40px -18px rgba(0,0,0,.85); }
+.foglio .riga { position:absolute; left:14px; height:5px; border-radius:3px;
+  background:rgba(250,250,250,.13); }
+.foglio .riga.r1 { top:20px; width:70px; }
+.foglio .riga.r2 { top:36px; width:88px; }
+.foglio .riga.r3 { top:52px; width:60px; }
+.foglio .riga.r4 { top:68px; width:84px; }
+.foglio .riga.r5 { top:84px; width:74px; }
+.foglio .riga.r6 { top:100px; width:88px; }
+/* i verdetti riga per riga: appaiono al passaggio dello scanner */
+.foglio .esito { position:absolute; right:12px; width:8px; height:8px;
+  border-radius:50%; opacity:0; animation:esitoAppare 5s ease infinite; }
+@keyframes esitoAppare { 0% { opacity:0; transform:scale(.4); }
+  12%, 88% { opacity:1; transform:scale(1); } 100% { opacity:0; } }
+.foglio .esito.ok1 { top:34px; background:var(--green);
+  box-shadow:0 0 8px rgba(0,255,136,.6); animation-delay:.9s; }
+.foglio .esito.warn { top:66px; background:var(--ambra);
+  box-shadow:0 0 8px rgba(255,184,77,.6); animation-delay:1.7s; }
+.foglio .esito.ok2 { top:82px; background:var(--green);
+  box-shadow:0 0 8px rgba(0,255,136,.6); animation-delay:2.2s; }
+.foglio .esito.no { top:98px; background:var(--rosso);
+  box-shadow:0 0 8px rgba(255,94,94,.6); animation-delay:2.8s; }
+/* lo scanner che legge */
+.foglio .scanner { position:absolute; left:0; right:0; height:26px;
+  background:linear-gradient(180deg, transparent,
+    rgba(62,211,255,.22) 45%, rgba(62,211,255,.5) 50%,
+    rgba(62,211,255,.22) 55%, transparent);
+  animation:scanScende 5s ease-in-out infinite; }
+@keyframes scanScende { 0% { top:-30px; } 60% { top:150px; }
+  100% { top:150px; opacity:0; } }
+/* il semaforo del verdetto */
+.foglio .semaforo { position:absolute; left:14px; bottom:12px;
+  display:flex; gap:6px; }
+.foglio .semaforo i { width:9px; height:9px; border-radius:50%;
+  background:rgba(250,250,250,.12); animation:semAccende 5s ease infinite; }
+.foglio .semaforo i:nth-child(1) { --sem:var(--green); animation-delay:3.2s; }
+.foglio .semaforo i:nth-child(2) { --sem:var(--ambra); animation-delay:3.45s; }
+.foglio .semaforo i:nth-child(3) { --sem:var(--rosso); animation-delay:3.7s; }
+@keyframes semAccende { 0%, 62% { background:rgba(250,250,250,.12);
+  box-shadow:none; }
+  70%, 92% { background:var(--sem); box-shadow:0 0 10px var(--sem); }
+  100% { background:rgba(250,250,250,.12); } }
+.foglio .timbro { position:absolute; right:10px; bottom:9px;
+  font-family:ui-monospace,Menlo,monospace; font-size:7.5px;
+  letter-spacing:.16em; color:rgba(62,211,255,.7);
+  text-transform:uppercase; }
+
 @media (prefers-reduced-motion:reduce){
-  .vivo .pr { opacity:1; animation:none !important; }
-  .oggetto, .pr .ombra { animation:none !important; } }
+  .radar .spazzata, .radar .blip::after, .radar .trovata,
+  .schermo .stanza, .schermo .quinta, .schermo .vivo i, .schermo .bolla,
+  .scudo .perimetro, .scudo .spunta, .scudo .passo,
+  .foglio .esito, .foglio .scanner, .foglio .semaforo i {
+    animation:none !important; }
+  .schermo .bolla, .scudo .passo, .foglio .esito { opacity:1; }
+  .foglio .scanner { display:none; }
+  .scudo .perimetro { stroke-dashoffset:0; }
+  .scudo .spunta { stroke-dashoffset:0; } }
+
+/* ── H · la griglia (come lo scaffale in home, oggetti diversi) ── */
+.h-fila { display:grid; grid-template-columns:1.5fr 1fr 1fr 1fr;
+  gap:clamp(12px,1.6vw,18px); align-items:stretch; }
+@media (max-width:1020px){
+  .h-fila { grid-template-columns:1fr 1fr; }
+  .h-fila .st.eroe { grid-column:1/-1; } }
+@media (max-width:580px){ .h-fila { grid-template-columns:1fr; } }
+.h-fila .st.eroe .scena { height:238px; }
+.h-fila .st.eroe .pnome .pn { font-size:23px; }
+.h-fila .st.eroe .promessa { font-size:13.5px; max-width:52ch; }
+.h-fila .st.eroe .compra { align-self:flex-start; padding:0 24px; }
+@media (max-width:1020px){
+  .h-fila .st.eroe .compra { align-self:stretch; } }
+
+/* ── I · il bento (la geometria stessa differenzia) ── */
+.i-bento { display:grid; gap:clamp(12px,1.6vw,18px);
+  grid-template-columns:1.25fr .62fr .62fr;
+  grid-template-rows:auto auto; }
+.i-bento .st.eroe { grid-row:1 / 3; }
+.i-bento .st.largo { grid-column:2 / 4; flex-direction:row;
+  align-items:center; gap:6px; padding:0 20px; }
+.i-bento .st.largo .scena { height:170px; flex:0 0 44%; }
+.i-bento .st.largo .vendita { padding:18px 0; }
+.i-bento .st.eroe .scena { height:290px; }
+.i-bento .st.eroe .pnome .pn { font-size:24px; }
+.i-bento .st.eroe .promessa { font-size:13.5px; }
+.i-bento .st.eroe .compra { align-self:flex-start; padding:0 24px; }
+@media (max-width:1020px){
+  .i-bento { grid-template-columns:1fr; grid-template-rows:none; }
+  .i-bento .st.eroe { grid-row:auto; }
+  .i-bento .st.largo { grid-column:auto; flex-direction:column;
+    align-items:stretch; padding:0 20px 20px; }
+  .i-bento .st.largo .scena { flex:none; }
+  .i-bento .st.eroe .compra { align-self:stretch; } }
 </style>
 </head>
 <body>
 
 <header class="lab-capo">
   <div class="container">
-    <span class="eti">— Banchina Lab · vol. 3 — il prodotto, non l'informazione</span>
-    <h1>Quattro <b>prodotti</b> sullo scaffale. Non quattro schede.</h1>
-    <p>La critica era giusta: le versioni precedenti INFORMAVANO. Un badge di
-      prodotto che converte fa tre cose che quelle non facevano: mostra un
-      OGGETTO che potresti prendere in mano (non un layout), mette un bottone
-      che COMPRA (verbo + prezzo, come ogni commerce globale), e chiude col
-      risk-reversal (✓ la garanzia sotto il bottone). Qui ogni servizio è la
-      sua carta BOOM — resa come oggetto: fluttua, si inclina sotto il mouse,
-      prende la luce. Sotto, la meccanica di vendita, non la descrizione.</p>
+    <span class="eti">— Banchina Lab · vol. 4 — quattro strumenti, non quattro cloni</span>
+    <h1>Ogni servizio ha il suo <b>strumento</b>. La vendita resta.</h1>
+    <p>Il limite dello scaffale: quattro volte la stessa carta = sembra un
+      prodotto solo. Qui ogni servizio è rappresentato dallo strumento che
+      È il servizio — il radar che trova la casa, lo schermo dove la vedi
+      LIVE e fai domande, lo scudo che verifica e si chiude, il documento
+      scansionato riga per riga col verdetto semaforo. Ogni animazione
+      racconta il lavoro, mai decora. La meccanica di conversione non si
+      tocca: nome, promessa, bottone verbo+prezzo, garanzia con la spunta.</p>
   </div>
 </header>
 
-<section class="palco" id="g">
+<!-- ══ H ══ -->
+<section class="palco" id="h">
   <div class="container">
-    <div class="demo pr-fila vivo" id="scaffale">
+    <div class="palco-testa">
+      <span class="lettera">H</span>
+      <h2>Gli Strumenti — in griglia</h2>
+      <p class="regola"><b>Drop-in sullo scaffale attuale:</b> stessa
+        griglia (ammiraglia larga + tre), stessa vendita — cambia
+        l'oggetto: quattro geometrie diverse (cerchio, schermo, scudo,
+        foglio), quattro racconti animati.</p>
+    </div>
+    <div class="demo h-fila">
 
-      <a class="pr eroe" href="#" style="--c:var(--c-pf);--ca:rgba(255,215,0,.16);--cb:rgba(255,215,0,.45)">
+      <a class="st eroe" href="#" style="--c:var(--c-pf);--ca:rgba(255,215,0,.15);--cb:rgba(255,215,0,.45)">
         <span class="retro"></span>
-        <span class="palcosc">
-          <span class="ombra"></span>
-          <span class="oggetto">
-            <span class="fbrand">BOOM<small>PF·0350·ROME</small></span>
-            <span class="banda"></span>
-            <span class="fnome">Property Finding</span>
-            <span class="fsotto">The private hunt</span>
-            <span class="nastro">Full refund</span>
-            <span class="ficon"><svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.6"/><path d="M15.6 15.6L20.5 20.5"/></svg></span>
-            <span class="fprezzo">€350</span>
+        <span class="scena">
+          <span class="radar">
+            <span class="anello"></span><span class="anello a2"></span>
+            <span class="anello a3"></span><span class="assi"></span>
+            <span class="spazzata"></span>
+            <span class="blip b1"></span><span class="blip b2"></span>
+            <span class="trovata"><svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7"/><path d="M6.5 9.5V20h11V9.5"/></svg></span>
+            <span class="quota">Scanning · off-market</span>
           </span>
         </span>
         <span class="vendita">
-          <span class="pnome"><h3>Property Finding</h3>
+          <span class="pnome"><span class="pn">Property Finding</span>
             <span class="pkind">Flagship</span></span>
           <span class="promessa">Your private hunter on the whole Rome
             market — <b>off-market included</b>, every shortlist walked in
@@ -233,45 +358,43 @@ a { color:inherit; text-decoration:none; }
         </span>
       </a>
 
-      <a class="pr" href="#" style="--c:var(--c-vv);--ca:rgba(0,255,136,.14);--cb:rgba(0,255,136,.4)">
+      <a class="st" href="#" style="--c:var(--c-vv);--ca:rgba(0,255,136,.13);--cb:rgba(0,255,136,.4)">
         <span class="retro"></span>
-        <span class="palcosc">
-          <span class="ombra"></span>
-          <span class="oggetto">
-            <span class="fbrand">BOOM<small>VV·0089·ROME</small></span>
-            <span class="banda"></span>
-            <span class="fnome">Virtual Viewing</span>
-            <span class="fsotto">Live · you ask, we walk</span>
-            <span class="ficon"><svg viewBox="0 0 24 24"><rect x="3.5" y="6.5" width="12" height="11" rx="2"/><path d="M15.5 11l5-2.6v7.2l-5-2.6z"/></svg></span>
-            <span class="fprezzo">€89</span>
+        <span class="scena">
+          <span class="schermo">
+            <span class="stanza"></span>
+            <span class="quinta q1"></span><span class="quinta q2"></span>
+            <span class="vivo"><i></i>LIVE</span>
+            <span class="bolla"><b>You:</b> can you open the boiler
+              closet?</span>
           </span>
         </span>
         <span class="vendita">
-          <span class="pnome"><h3>Virtual Viewing</h3>
+          <span class="pnome"><span class="pn">Virtual Viewing</span>
             <span class="pkind">Live</span></span>
           <span class="promessa">See any home <b>live on video</b> before
             you fly — the red flags said out loud.</span>
           <span class="compra">Book a live tour · €89<i>→</i></span>
-          <span class="rassicura"><span><b>Credited</b> if you rent with us
-            · BOOM homes: free, always.</span></span>
+          <span class="rassicura"><span><b>Credited</b> if you rent with
+            us · BOOM homes: free, always.</span></span>
         </span>
       </a>
 
-      <a class="pr" href="#" style="--c:var(--c-da);--ca:rgba(157,140,255,.15);--cb:rgba(157,140,255,.4)">
+      <a class="st" href="#" style="--c:var(--c-da);--ca:rgba(157,140,255,.14);--cb:rgba(157,140,255,.4)">
         <span class="retro"></span>
-        <span class="palcosc">
-          <span class="ombra"></span>
-          <span class="oggetto">
-            <span class="fbrand">BOOM<small>DA·0249·ROME</small></span>
-            <span class="banda"></span>
-            <span class="fnome">Deal Assistance</span>
-            <span class="fsotto">Verified &amp; negotiated</span>
-            <span class="ficon"><svg viewBox="0 0 24 24"><path d="M12 3.4l7.2 2.9v5.1c0 4.2-3 7.2-7.2 8.4-4.2-1.2-7.2-4.2-7.2-8.4V6.3z"/></svg></span>
-            <span class="fprezzo">€249</span>
+        <span class="scena">
+          <span class="scudo">
+            <svg class="sagoma" viewBox="0 0 104 120">
+              <path class="perimetro" d="M52 6l40 16v28c0 24-17 41-40 48C29 91 12 74 12 50V22z"/>
+              <path class="spunta" d="M38 58l10 10 20-24"/>
+            </svg>
+            <span class="passo p1">Landlord ✓</span>
+            <span class="passo p2">Papers ✓</span>
+            <span class="passo p3">Price ✓</span>
           </span>
         </span>
         <span class="vendita">
-          <span class="pnome"><h3>Deal Assistance</h3>
+          <span class="pnome"><span class="pn">Deal Assistance</span>
             <span class="pkind">Protection</span></span>
           <span class="promessa">Found a home yourself? We <b>verify the
             landlord and the papers</b> — then negotiate for you.</span>
@@ -281,21 +404,22 @@ a { color:inherit; text-decoration:none; }
         </span>
       </a>
 
-      <a class="pr" href="#" style="--c:var(--c-cc);--ca:rgba(62,211,255,.13);--cb:rgba(62,211,255,.4)">
+      <a class="st" href="#" style="--c:var(--c-cc);--ca:rgba(62,211,255,.12);--cb:rgba(62,211,255,.4)">
         <span class="retro"></span>
-        <span class="palcosc">
-          <span class="ombra"></span>
-          <span class="oggetto">
-            <span class="fbrand">BOOM<small>CC·0049·ROME</small></span>
-            <span class="banda"></span>
-            <span class="fnome">Contract Check</span>
-            <span class="fsotto">Verdict in 24h</span>
-            <span class="ficon"><svg viewBox="0 0 24 24"><path d="M6 3.2h7.4L18.6 8v12.8H6z"/><path d="M13.2 3.2V8h5.2"/></svg></span>
-            <span class="fprezzo">€49</span>
+        <span class="scena">
+          <span class="foglio">
+            <span class="riga r1"></span><span class="riga r2"></span>
+            <span class="riga r3"></span><span class="riga r4"></span>
+            <span class="riga r5"></span><span class="riga r6"></span>
+            <span class="esito ok1"></span><span class="esito warn"></span>
+            <span class="esito ok2"></span><span class="esito no"></span>
+            <span class="scanner"></span>
+            <span class="semaforo"><i></i><i></i><i></i></span>
+            <span class="timbro">24H</span>
           </span>
         </span>
         <span class="vendita">
-          <span class="pnome"><h3>Contract Check</h3>
+          <span class="pnome"><span class="pn">Contract Check</span>
             <span class="pkind">Express</span></span>
           <span class="promessa">About to sign? A <b>written traffic-light
             verdict in 24h</b>: fine, unfair, missing.</span>
@@ -305,63 +429,135 @@ a { color:inherit; text-decoration:none; }
         </span>
       </a>
     </div>
-
     <div class="verdetto">
-      <div><b>Perché ora converte</b>C'è un oggetto da desiderare (la carta
-        che fluttua e si inclina sotto il mouse), un bottone che COMPRA
-        (verbo + prezzo) e la garanzia subito sotto: desiderio → azione →
-        rischio azzerato. La grammatica dei commerce globali.</div>
-      <div><b>La firma cromatica resta</b>Un materiale solo, quattro luci:
-        oro ammiraglia · verde live · violetto protezione · ciano verdetto.
-        Il colore sta nel bottone e nell'oggetto, dove converte.</div>
-      <div><b>Motion</b>Fluttuazione + tilt 3D verso il cursore + speculare
-        che scivola: il gesto di prendere in mano il prodotto. Ingresso a
-        caduta sullo scaffale. Tutto spento con reduced-motion.</div>
+      <div><b>Perché vince</b>Quattro prodotti DIVERSI (cerchio, schermo,
+        scudo, foglio) — non quattro cloni. Ogni animazione spiega il
+        lavoro in 3 secondi, senza leggere.</div>
+      <div><b>Il limite</b>Più costoso da mantenere: quattro micro-scene
+        invece di un sistema-carta. E chiede disciplina: mai aggiungere una
+        quinta scena "perché carina".</div>
+      <div><b>Motion</b>Radar che spazza e TROVA (il blip pieno) · pan
+        della stanza + domanda che sale · scudo che si chiude + tre
+        verifiche · scanner che scende + verdetti riga per riga + semaforo.
+        Tutto fermo con reduced-motion (stati finali visibili).</div>
     </div>
   </div>
 </section>
 
-<script>
-/* IL TILT: l'oggetto si inclina verso il cursore — il gesto di prenderlo
-   in mano. Solo dove c'è un mouse; molla al rilascio. */
-(function () {
-  if (!matchMedia('(hover:hover) and (pointer:fine)').matches) return;
-  document.querySelectorAll('.pr').forEach(function (pr) {
-    var og = pr.querySelector('.oggetto');
-    pr.addEventListener('pointermove', function (e) {
-      var r = pr.getBoundingClientRect();
-      var x = (e.clientX - r.left) / r.width - .5;
-      var y = (e.clientY - r.top) / r.height - .5;
-      og.style.setProperty('--rx', (x * 16) + 'deg');
-      og.style.setProperty('--ry', (-y * 12) + 'deg');
-    });
-    pr.addEventListener('pointerleave', function () {
-      og.style.setProperty('--rx', '0deg');
-      og.style.setProperty('--ry', '0deg');
-    });
-  });
-  var sc = document.getElementById('scaffale');
-  if ('IntersectionObserver' in window) {
-    var io = new IntersectionObserver(function (es) {
-      es.forEach(function (x) { if (x.isIntersecting) {
-        sc.classList.add('dentro'); io.disconnect(); } });
-    }, { threshold: .18 });
-    io.observe(sc);
-  } else sc.classList.add('dentro');
-})();
-/* senza mouse: lo scaffale si accende comunque */
-(function () {
-  var sc = document.getElementById('scaffale');
-  if (!matchMedia('(hover:hover) and (pointer:fine)').matches) {
-    if ('IntersectionObserver' in window) {
-      var io = new IntersectionObserver(function (es) {
-        es.forEach(function (x) { if (x.isIntersecting) {
-          sc.classList.add('dentro'); io.disconnect(); } });
-      }, { threshold: .18 });
-      io.observe(sc);
-    } else sc.classList.add('dentro');
-  }
-})();
-</script>
+<!-- ══ I ══ -->
+<section class="palco" id="i">
+  <div class="container">
+    <div class="palco-testa">
+      <span class="lettera">I</span>
+      <h2>Gli Strumenti — nel bento</h2>
+      <p class="regola"><b>La geometria differenzia anche il layout:</b>
+        l'ammiraglia è una torre a tutta altezza col radar grande; il live
+        è una cella orizzontale (schermo a sinistra, vendita a destra);
+        scudo e foglio chiudono il quadrato. Nessuna cella ha la stessa
+        forma di un'altra.</p>
+    </div>
+    <div class="demo i-bento">
+      <a class="st eroe" href="#" style="--c:var(--c-pf);--ca:rgba(255,215,0,.15);--cb:rgba(255,215,0,.45)">
+        <span class="retro"></span>
+        <span class="scena">
+          <span class="radar" style="width:210px;height:210px">
+            <span class="anello"></span><span class="anello a2"></span>
+            <span class="anello a3"></span><span class="assi"></span>
+            <span class="spazzata"></span>
+            <span class="blip b1"></span><span class="blip b2"></span>
+            <span class="trovata"><svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7"/><path d="M6.5 9.5V20h11V9.5"/></svg></span>
+            <span class="quota">Scanning · off-market</span>
+          </span>
+        </span>
+        <span class="vendita">
+          <span class="pnome"><span class="pn">Property Finding</span>
+            <span class="pkind">Flagship</span></span>
+          <span class="promessa">Your private hunter on the whole Rome
+            market — <b>off-market included</b>, every shortlist walked in
+            person.</span>
+          <span class="compra">Start the hunt · €350<i>→</i></span>
+          <span class="rassicura"><span><b>Zero risk:</b> deducted on
+            success, refunded in full if we don't deliver.</span></span>
+        </span>
+      </a>
+      <a class="st largo" href="#" style="--c:var(--c-vv);--ca:rgba(0,255,136,.13);--cb:rgba(0,255,136,.4)">
+        <span class="retro"></span>
+        <span class="scena">
+          <span class="schermo">
+            <span class="stanza"></span>
+            <span class="quinta q1"></span><span class="quinta q2"></span>
+            <span class="vivo"><i></i>LIVE</span>
+            <span class="bolla"><b>You:</b> can you open the boiler
+              closet?</span>
+          </span>
+        </span>
+        <span class="vendita">
+          <span class="pnome"><span class="pn">Virtual Viewing</span>
+            <span class="pkind">Live</span></span>
+          <span class="promessa">See any home <b>live on video</b> before
+            you fly.</span>
+          <span class="compra">Book a live tour · €89<i>→</i></span>
+          <span class="rassicura"><span><b>Credited</b> if you rent with
+            us · ours free, always.</span></span>
+        </span>
+      </a>
+      <a class="st" href="#" style="--c:var(--c-da);--ca:rgba(157,140,255,.14);--cb:rgba(157,140,255,.4)">
+        <span class="retro"></span>
+        <span class="scena">
+          <span class="scudo">
+            <svg class="sagoma" viewBox="0 0 104 120">
+              <path class="perimetro" d="M52 6l40 16v28c0 24-17 41-40 48C29 91 12 74 12 50V22z"/>
+              <path class="spunta" d="M38 58l10 10 20-24"/>
+            </svg>
+            <span class="passo p1">Landlord ✓</span>
+            <span class="passo p2">Papers ✓</span>
+            <span class="passo p3">Price ✓</span>
+          </span>
+        </span>
+        <span class="vendita">
+          <span class="pnome"><span class="pn">Deal Assistance</span>
+            <span class="pkind">Protection</span></span>
+          <span class="promessa">We <b>verify landlord and papers</b> —
+            then negotiate.</span>
+          <span class="compra">Protect the deal · €249<i>→</i></span>
+          <span class="rassicura"><span><b>Fixed fee</b>, no
+            percentages.</span></span>
+        </span>
+      </a>
+      <a class="st" href="#" style="--c:var(--c-cc);--ca:rgba(62,211,255,.12);--cb:rgba(62,211,255,.4)">
+        <span class="retro"></span>
+        <span class="scena">
+          <span class="foglio">
+            <span class="riga r1"></span><span class="riga r2"></span>
+            <span class="riga r3"></span><span class="riga r4"></span>
+            <span class="riga r5"></span><span class="riga r6"></span>
+            <span class="esito ok1"></span><span class="esito warn"></span>
+            <span class="esito ok2"></span><span class="esito no"></span>
+            <span class="scanner"></span>
+            <span class="semaforo"><i></i><i></i><i></i></span>
+            <span class="timbro">24H</span>
+          </span>
+        </span>
+        <span class="vendita">
+          <span class="pnome"><span class="pn">Contract Check</span>
+            <span class="pkind">Express</span></span>
+          <span class="promessa">A <b>traffic-light verdict in 24h</b>.</span>
+          <span class="compra">Check my contract · €49<i>→</i></span>
+          <span class="rassicura"><span><b>Credited</b> on Deal
+            Assistance.</span></span>
+        </span>
+      </a>
+    </div>
+    <div class="verdetto">
+      <div><b>Perché vince</b>La differenziazione arriva anche dalla FORMA
+        della cella: torre, orizzontale, quadrati. La pagina respira in
+        modo meno seriale.</div>
+      <div><b>Il limite</b>Su schermi medi il bento va ricomposto (torna
+        colonna): la geometria distintiva vive solo sopra i 1020px.</div>
+      <div><b>Motion</b>Gli stessi quattro strumenti; il radar grande
+        dell'ammiraglia diventa il centro visivo della sezione.</div>
+    </div>
+  </div>
+</section>
 </body>
 </html>
