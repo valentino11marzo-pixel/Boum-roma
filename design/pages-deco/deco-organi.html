@@ -16,6 +16,11 @@
   R.classList.add('vivo');
   /* letto dalla rete di sicurezza del sipario in testa alla pagina */
   window.__decoArmato = true;
+  /* il funnel si misura: eventi GA4 col consenso gia' regolato dal
+     consent-mode — finora c'era solo il config, zero eventi */
+  window.boomTrack = function (n, p) {
+    try { gtag('event', n, p || {}); } catch (e) {}
+  };
 
   /* ── il marchio del piede: clonato dalla testata, una fonte sola ─────── */
   (function () {
