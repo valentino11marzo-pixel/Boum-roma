@@ -7,51 +7,26 @@ import html as H
 SP = '/tmp/claude-0/-home-user-Boum-roma/23da0292-7660-5078-842d-6e153c49b7f8/scratchpad/'
 
 VARIANTI = [
-    ('biglietto', 'Il Biglietto', '★ nuova — la più forte',
-     'Il viaggio dell\'expat, ticketato: quattro boarding pass di prima '
-     'classe in nero-vetro. Banda-lamina laterale nel colore-firma, rotta '
-     'tipografica onesta col punto che viaggia (ABROAD→ROME, YOU→THE '
-     'DOOR, FOUND→PROTECTED, DRAFT→VERDICT), talloncino a strappo con '
-     'prezzo, barcode e bottone. E la metafora e\' un FATTO di prodotto, '
-     'dichiarato nel sottotitolo: la visita confermata arriva davvero '
-     'come Apple Wallet boarding pass geofenced.',
-     'La materia piu\' distintiva del lab, agganciata a una feature VERA '
-     '(i Wallet pass). Compattissima: ~650px oltre il titolo.',
-     'I dettagli d\'imbarco dei tre minori sono l\'elemento piu\' '
-     'convenzionale; su mobile lo strappo puo\' leggere come due card.'),
-    ('caveau', 'Il Caveau', 'nuova',
-     'La garanzia fatta materia: quattro cassette di sicurezza in acciaio '
-     'nero spazzolato, targhetta incisa, il prezzo come numero di '
-     'cassetta (N° 0350). La luce del colore-firma respira dalla '
-     'fessura; l\'ammiraglia oro e\' SOCCHIUSA — lo spiraglio si allarga '
-     'al passaggio, "ZERO RISK · FULL REFUND" inciso nel metallo.',
-     'Il risk reversal materializzato: i tuoi soldi dormono dietro uno '
-     'sportello blindato. Coerente col tono bancario del deposito.',
-     'Il quadrante cifrato dell\'ammiraglia resta un filo piatto; i tre '
-     'sportelli minori si distinguono solo per targhetta e colore.'),
-    ('chiavi', 'Le Chiavi', 'nuova',
-     'L\'oggetto stesso dell\'affitto: quattro chiavi di pregio in '
-     'metallo nero tornito — anello in acciaio, testa in vetro-metallo '
-     'con icona luminosa e prezzo incisi, gambo spazzolato con '
-     'scanalatura laser dove corre la luce del servizio. L\'ammiraglia '
-     'oro porta il fob FULL REFUND appeso all\'anello.',
-     'La metafora piu\' immediata del mestiere: "the keys to your home '
-     'in Rome". Griglia 2×2 pura, quieta.',
-     'La testa larga legge piu\' key-fob d\'hotel che chiave classica; '
-     'l\'ammiraglia emerge per oro e fob ma il von Restorff e\' '
-     'sussurrato.'),
-    ('innesto', "L'Innesto", 'il riferimento del vol. 9',
-     'Gli Stemmi come base — e sull\'ammiraglia il gesto che chiude il '
-     'cerchio: al passaggio la scatola oro del Packaging SALE da dietro '
-     'e la medaglia si posa sul suo fronte, rivelandosi per cio\' che '
-     'e\': il SIGILLO sulla scatola. Su touch e reduced-motion la '
-     'composizione e\' fissa (scatola + sigillo posato): nessun segreto '
-     'nascosto dietro un hover.',
-     'Le due materie approvate — medaglia e packaging — in UNA storia: '
-     'l\'emblema e\' la garanzia, la scatola e\' il prodotto. Il '
-     'quadrato 2×2 resta compatto da home.',
-     'Il dock vive solo sull\'ammiraglia: le tre minori restano medaglie '
-     'pure (giusto cosi\' — un gesto ripetuto quattro volte stanca).'),
+    ('biglietto', 'Il Biglietto II', '★ rifinito a mano',
+     'La scelta portata a gioielleria: perforazione a fori PUNZONATI veri '
+     '(ogni foro buca la carta e ha il labbro di luce sul bordo — su '
+     'mobile lo strappo ora legge come un biglietto solo), stampa di '
+     'sicurezza calcografica a doppia trama incrociata, lamina oro '
+     'godronata, la SCIA che resta accesa dietro il punto in viaggio, '
+     'filigrana a rosone in controluce e il timbro a inchiostro '
+     '"WALKED IN PERSON · BOOM ROME" (un fatto vero, timbrato) '
+     'sull\'ammiraglia. Al passaggio il biglietto si SOLLEVA di 3px '
+     'oltre al tilt.',
+     'Tutti i difetti dichiarati dalla v1 sono chiusi; nessun testo '
+     'di vendita toccato.',
+     'Il timbro vive solo sopra i 1020px — sotto, lo spazio non '
+     'c\'è e si toglie invece di comprimersi.'),
+    ('biglietto-v1', 'Il Biglietto (v1)', 'il punto di partenza',
+     'La consegna originale del designer, per confronto diretto: '
+     'tratteggio piatto al posto della punzonatura, trama singola, '
+     'niente timbro né filigrana né scia.',
+     'Già forte: rotta tipografica, talloncino, aggancio Wallet.',
+     'Su mobile lo strappo leggeva come due card separate.'),
 ]
 
 def leggi(n): return open(SP + n, encoding='utf-8').read()
@@ -151,14 +126,13 @@ body { background:var(--black); color:var(--text); font-family:var(--sans);
 <body>
 <header class="lab-capo">
   <div class="container">
-    <span class="eti">— Banchina Lab · vol. 10 — tre materie nuove</span>
-    <h1>Il biglietto, il caveau, <b>le chiavi</b>.</h1>
-    <p>Tre soluzioni mai viste finora, tutte dentro le regole approvate
-      (nero-vetro, colore-firma, strato vendita verbatim, compattezza da
-      home): il boarding pass del trasferimento — agganciato al Wallet
-      pass VERO che BOOM emette —, la cassetta di sicurezza con lo
-      spiraglio d'oro, e la chiave di casa tua a Roma. In coda,
-      L'Innesto del volume scorso per confronto.</p>
+    <span class="eti">— Banchina Lab · vol. 11 — il Biglietto II</span>
+    <h1>Lo stesso biglietto, <b>rifinito a mano</b>.</h1>
+    <p>Hai scelto il Biglietto: eccolo portato al livello sopra —
+      punzonatura vera, calcografia a doppia trama, lamina godronata,
+      scia sulla rotta, filigrana e il timbro dell\'agenzia (un fatto
+      vero: ogni casa camminata di persona). Sotto, la v1 per vedere
+      la distanza.</p>
   </div>
 </header>
 ''' + '\\n'.join(palchi) + '''
