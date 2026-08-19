@@ -118,7 +118,13 @@ service cloud.firestore {
                           || (isTenant()
                               && propertyData(resource.data.propertyId).currentContractId != null
                               && contractData(propertyData(resource.data.propertyId).currentContractId).tenantId == uid())));
-      allow create: if isSignedIn() && request.resource.data.userId == uid();
+      // `isAdmin()` come in maintenance: il server archivia i documenti legali
+      // PER conto di terzi (contratto firmato → userId dell'inquilino, bozza
+      // RLI, deal-archive). Senza questo ramo ogni scrittura post-firma
+      // tornava PERMISSION_DENIED e l'archiviazione legale non avveniva mai
+      // (portal-app.js:1818/17263/17276/19468 — audit 2026-08-18 P0.3).
+      allow create: if isAdmin()
+                    || (isSignedIn() && request.resource.data.userId == uid());
       allow update, delete: if isAdmin() || resource.data.userId == uid();
     }
 
@@ -174,9 +180,13 @@ service cloud.firestore {
     }
 
     // ─── viewingRequests ──────────────────────────────────────────────
+    // Le prenotazioni pubbliche entrano SOLO da /api/viewings/slots, che
+    // scrive con credenziali admin (verificato: nessun client scrive qui
+    // direttamente). `create: if true` era una porta aperta — un attaccante
+    // scriveva campi arbitrari aggirando slots.js, e quel testo finiva in un
+    // innerHTML del portale (XSS nella sessione admin — audit 2026-08-18 P0.4).
     match /viewingRequests/{x} {
-      allow create: if true;
-      allow read, update, delete: if isAdmin();
+      allow read, create, update, delete: if isAdmin();
     }
 
     // ─── config ───────────────────────────────────────────────────────
@@ -197,10 +207,25 @@ service cloud.firestore {
     }
 
     // ─── registrations (form onboarding pubblico) ─────────────────────
-    // Come viewingRequests: il visitatore compila senza login. Solo create;
-    // lettura e gestione riservate all'admin.
+    // Il visitatore compila senza login (onboarding.html scrive qui diretto,
+    // quindi NON si può chiudere come viewingRequests). Ma `create: if true`
+    // lasciava iniettare campi e payload arbitrari: si vincola la FORMA —
+    // solo le chiavi note del form e tetti di lunghezza — così un campo
+    // estraneo o un payload gigante viene rifiutato alla porta (audit
+    // 2026-08-18 P0.4). Un nuovo campo del form va aggiunto qui: il test
+    // delle rules lo prende prima della produzione.
     match /registrations/{x} {
-      allow create: if true;
+      allow create: if request.resource.data.keys().hasOnly([
+                         'name','firstName','lastName','email','phone','budget',
+                         'duration','durationMonths','checkIn','guests','zones','zone',
+                         'requirements','petFriendly','furnished','parking','terrace',
+                         'workStudyLocation','advancePayment','referralSource','notes',
+                         'service','stage','source','status','createdAt',
+                         'submittedFrom','formDuration'
+                       ])
+                       && request.resource.data.get('notes','').size() < 4000
+                       && request.resource.data.get('name','').size() < 300
+                       && request.resource.data.get('email','').size() < 320;
       allow read, update, delete: if isAdmin();
     }
 

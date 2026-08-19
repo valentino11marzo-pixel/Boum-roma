@@ -9,37 +9,19 @@
 //
 // Richiede playwright-core + il Chromium preinstallato dell'ambiente.
 
+import { loadChromium, launchOptions } from '../_browser.mjs';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 
 const ROOT = new URL('../../', import.meta.url).pathname;
 const PORT = 8912;
-const BROWSER = process.env.BOOM_CHROMIUM
-  || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
                '.json': 'application/json', '.svg': 'image/svg+xml' };
 
 // playwright-core non è una dipendenza del progetto (niente build step qui):
 // lo cerchiamo dove l'ambiente lo tiene. NODE_PATH non vale per gli ESM.
-async function loadChromium() {
-  const tries = [
-    'playwright-core', 'playwright',
-    ...(process.env.BOOM_PLAYWRIGHT ? [process.env.BOOM_PLAYWRIGHT] : []),
-    '/opt/node22/lib/node_modules/playwright/index.js',
-  ];
-  for (const spec of tries) {
-    try {
-      const m = await import(spec);
-      const c = m.chromium || (m.default && m.default.chromium);
-      if (c) return c;
-    } catch { /* next */ }
-  }
-  console.log('SKIP: playwright-core non disponibile — '
-    + 'npm i -D playwright-core, oppure BOOM_PLAYWRIGHT=/percorso/index.js');
-  process.exit(0);
-}
 const chromium = await loadChromium();
 
 const server = createServer(async (req, res) => {
@@ -144,7 +126,7 @@ const CASES = [
   { name: 'portal: lo script muore dopo la riga 1 → via d\'uscita', page: 'portal',   role: 'admin',  mode: 'ok',            wait: 20000, expect: 'recovery', breakApp: true },
 ];
 
-const browser = await chromium.launch({ executablePath: BROWSER, args: ['--no-sandbox'] });
+const browser = await chromium.launch(launchOptions());
 let pass = 0, fail = 0;
 
 for (const c of CASES) {

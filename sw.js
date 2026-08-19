@@ -64,7 +64,15 @@ self.addEventListener('fetch', (event) => {
         : ((url.pathname === '/js/portal-app.js' || url.pathname === '/css/portal.css'
             // la regola della disponibilità è logica del portale, non un asset:
             // una copia stantia mostrerebbe finestre orarie che non sono più quelle
-            || url.pathname === '/js/viewing-availability.js') ? url.pathname : null);
+            || url.pathname === '/js/viewing-availability.js'
+            // M2/D1: i layer mobile e desktop sono logica del portale come
+            // portal-app.js — una copia stantia disegnerebbe una shell
+            // vecchia sopra un'app nuova
+            || url.pathname === '/js/portal-mobile.js'
+            || url.pathname === '/css/portal-mobile.css'
+            || url.pathname === '/js/portal-actions.js'
+            || url.pathname === '/js/portal-desktop.js'
+            || url.pathname === '/css/portal-desktop.css') ? url.pathname : null);
     if (portalAsset) {
         event.respondWith(
             caches.open(STATIC_CACHE).then(async (cache) => {

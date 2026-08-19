@@ -7,6 +7,7 @@
 // playwright-core non c'è, così `npm test` gira ovunque senza setup.
 
 import { spawn } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 
 const SUITES = [
   { name: 'money',    file: 'tests/money/run.mjs',        what: 'percorsi soldi: checkout, webhook, conversione PA' },
@@ -52,6 +53,7 @@ const SUITES = [
   { name: 'verbale',  file: 'tests/verbale/run.mjs',      what: 'verbale consegna chiavi: PDF vero in allegato alle parti, owner solo sui propri immobili, firme mai persistite come dataURI' },
   { name: 'rendiconto', file: 'tests/rendiconto/run.mjs', what: 'rendiconto proprietario: solo il mese giusto nei numeri, PDF in allegato, un rerun non rispedisce, senza email mai perso in silenzio' },
   { name: 'conservazione', file: 'tests/conservazione/run.mjs', what: 'archivio fuori piattaforma: lo ZIP contiene i byte veri, il mancante finisce nell\'INDICE, un rerun non rispedisce' },
+  { name: 'backup',   file: 'tests/backup/run.mjs',       what: 'il backup del database: le collezioni core, il manifest che dice la verità sul troncamento, cron+regola Storage+heartbeat, e i due cron ciechi ora col battito' },
   { name: 'reunion',  file: 'tests/reunion/run.mjs',      what: 'BOOM La Réunion: il lead dice sempre da che parte sta (proprietario o inquilino), e la macchina romana TACE invece di rispondere in inglese su Roma a chi scrive dall\'isola' },
   { name: 'executive', file: 'tests/executive/run.mjs',   what: 'BOOM Executive: il professionista in trasferta è un TENANT (macchina piena), il datore dichiarato non è un honeypot, e la voce B2B tace col tenant e parla con l\'ente — prima della spesa' },
   { name: 'feed',     file: 'tests/feed/run.mjs',         what: 'feed Immobiliare: solo il pubblicabile, identità e date da specifica, la precisione del pin non si spaccia, gzip vero' },
@@ -64,6 +66,11 @@ const SUITES = [
   { name: 'desk',     file: 'tests/squadra/desk.mjs',     what: 'la scrivania si disegna tutta senza Firestore, coi confini di ogni agente in chiaro' },
   { name: 'contractpdf', file: 'tests/contractpdf/run.mjs', what: 'il PDF del contratto in UNA copia: nasce anche dal rail PA (convert/send-sign/lookup), mai sotto una firma viva, jspdf pinnato nei due manifest' },
   { name: 'safari',   file: 'tests/safari/boot.mjs',      what: 'nessuna pagina autenticata resta appesa' },
+  { name: 'mobile',   file: 'tests/mobile/run.mjs',       what: 'M2 Portal App: giunzioni su portal-app.js (nomi campo, sezioni, ordine, CSS gated, sw)' },
+  { name: 'mobileui', file: 'tests/mobile/ui.mjs',        what: 'M2 Portal App in un browser vero: tab bar, sheet, wizard contratti (validazione LORO), rotazione, kill switch' },
+  { name: 'actions',  file: 'tests/actions/run.mjs',      what: 'Il Prontuario: ogni azione dichiarata esiste davvero (22 documenti, sezioni, modali), la ricerca trova per sinonimo e prefisso, e le due facce leggono lo stesso registro' },
+  { name: 'desktop',  file: 'tests/desktop/run.mjs',      what: 'D1 BOOM OS: giunzioni su portal-app.js (comandi veri, query 920 condivisa, motore di ricerca sollevato mai copiato)' },
+  { name: 'desktopui', file: 'tests/desktop/ui.mjs',      what: 'D1 BOOM OS in un browser vero: ⌘K, chord, peek drawer, il confine dei 920px attraversato nei due sensi' },
 ];
 
 const want = process.argv.slice(2).filter((a) => !a.startsWith('-'));
@@ -82,6 +89,31 @@ const run = (file) => new Promise((resolve) => {
 });
 
 const B = '\x1b[1m', G = '\x1b[32m', R = '\x1b[31m', Y = '\x1b[33m', X = '\x1b[0m';
+
+// ── PRE-VOLO: nessuna suite può essere verde su UNA SOLA macchina ───────
+// Il 19 agosto 2026, il giorno in cui la CI ha cominciato a lanciarle tutte
+// davvero, tre suite sono cadute all'istante — non per un difetto del
+// prodotto, ma perché passavano a playwright un `executablePath` cablato
+// alla Chromium di questa macchina. Non trovandolo, playwright non ripiega
+// sul browser che ha installato: muore. Erano verdi su un solo schermo al
+// mondo, e nessuno poteva accorgersene perché nessuno le eseguiva altrove.
+// Ora il percorso vive in tests/_browser.mjs, dove vale come SUGGERIMENTO
+// (si usa se il file esiste). Questo controllo impedisce che ricompaia.
+{
+  const offenders = [];
+  for (const s of SUITES) {
+    let src = '';
+    try { src = readFileSync(new URL('../' + s.file, import.meta.url), 'utf8'); } catch { continue; }
+    const code = src.replace(/^\s*\/\/.*$/gm, '');
+    if (/executablePath[^\n]*\/opt\//.test(code)) offenders.push(s.file);
+  }
+  if (offenders.length) {
+    console.log(`${R}${B}Percorso browser cablato (verde su una macchina sola):${X} ${offenders.join(', ')}`);
+    console.log('  Usa launchOptions() da tests/_browser.mjs.');
+    process.exit(1);
+  }
+}
+
 let failed = [];
 const t0 = Date.now();
 

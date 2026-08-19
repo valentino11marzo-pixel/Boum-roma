@@ -6,6 +6,8 @@
 //   TELEGRAM_WEBHOOK_SECRET  — optional, Telegram echoes this in a header
 //                              on every webhook hit; lets us reject forged calls
 
+import crypto from 'node:crypto';
+
 const TG_API = 'https://api.telegram.org/bot';
 
 export function tgUrl(method) {
@@ -61,9 +63,19 @@ export async function tgAckCallback(callbackQueryId, text = '') {
 // match TELEGRAM_WEBHOOK_SECRET. The chat-id check happens per-message later.
 export function requireWebhookSecret(req, res) {
   const expected = process.env.TELEGRAM_WEBHOOK_SECRET;
-  if (!expected) return true; // Allow unauthed if not configured (dev fallback)
+  // Se il secret NON è configurato, l'header non può essere richiesto senza
+  // rompere il bot (Telegram lo invia solo se lo si è impostato in
+  // setWebhook). La difesa non sparisce: ogni ramo del webhook passa comunque
+  // da isAuthorizedChat(TELEGRAM_CHAT_ID). Per chiudere del tutto questa porta
+  // — audit 2026-08-18 P0.5 — impostare TELEGRAM_WEBHOOK_SECRET su Vercel E
+  // nella setWebhook di Telegram. Confronto timing-safe quando c'è.
+  if (!expected) return true;
   const got = req.headers['x-telegram-bot-api-secret-token'];
-  if (got !== expected) {
+  const a = Buffer.from(String(got || ''), 'utf8');
+  const b = Buffer.from(String(expected), 'utf8');
+  let ok = a.length === b.length;
+  try { ok = ok && crypto.timingSafeEqual(a, b); } catch { ok = false; }
+  if (!ok) {
     res.status(401).json({ ok: false, error: 'invalid_webhook_secret' });
     return false;
   }
