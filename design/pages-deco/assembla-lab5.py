@@ -7,40 +7,33 @@ import html as H
 SP = '/tmp/claude-0/-home-user-Boum-roma/23da0292-7660-5078-842d-6e153c49b7f8/scratchpad/'
 
 VARIANTI = [
-    ('stemmi', 'Gli Stemmi', '★ fatta a mano · la nuova proposta',
-     'Il "badge" preso alla lettera e portato a gioielleria: smalto nero '
-     'sotto vetro con guilloché da quadrante, ghiera di metallo godronata '
-     'nella lega del servizio, il nome INCISO in curva come su un '
-     'orologio, il prezzo sul piatto, il lampo che passa lento. Quadrato '
-     '2×2; ogni stemma si volge verso il cursore. L\'ammiraglia oro porta '
-     'la gemma FULL REFUND e la doppia ghiera.',
-     'L\'oggetto piu\' "di classe" della serie: medaglia coniata, non '
-     'card. Le domande-situazione dello studio psicologico sopravvivono '
-     'come occhielli ("About to sign?"), lo strato vendita e\' intatto.',
-     'La ghiera verde/ciano e\' una lega inventata dal colore-firma: da '
-     'validare che non stoni accanto all\'oro su schermi molto saturi.'),
-    ('unboxing', "L'Unboxing", 'famiglia Packaging',
-     'L\'ammiraglia arriva GIA\' aperta — coperchio 3D sospeso, bocca '
-     'incandescente, la lente che levita nel fascio. Le minori sigillate '
-     'si socchiudono al passaggio con lo spiraglio di luce.',
-     '"The box is a promise. Opening it is the proof."',
-     'A ~768px la lente lambisce il coperchio aperto.'),
-    ('scatole', 'Il Packaging', 'famiglia Packaging · rifinito',
-     'L\'originale approvato: scatole sigillate, serigrafia, barcode, '
-     'nastro oro FULL REFUND. Chip FLAGSHIP ora ancorato al nome.',
-     'Il riferimento della famiglia: sobrio, fotografico.',
+    ('innesto', "L'Innesto", '★ come dici te',
+     'Gli Stemmi come base — e sull\'ammiraglia il gesto che chiude il '
+     'cerchio: al passaggio la scatola oro del Packaging SALE da dietro '
+     'e la medaglia si posa sul suo fronte, rivelandosi per cio\' che '
+     'e\': il SIGILLO sulla scatola. Su touch e reduced-motion la '
+     'composizione e\' fissa (scatola + sigillo posato): nessun segreto '
+     'nascosto dietro un hover.',
+     'Le due materie approvate — medaglia e packaging — in UNA storia: '
+     'l\'emblema e\' la garanzia, la scatola e\' il prodotto. Il '
+     'quadrato 2×2 resta compatto da home.',
+     'Il dock vive solo sull\'ammiraglia: le tre minori restano medaglie '
+     'pure (giusto cosi\' — un gesto ripetuto quattro volte stanca).'),
+    ('stemmi', 'Gli Stemmi', 'la base pura',
+     'Il badge portato a gioielleria: smalto nero sotto vetro con '
+     'guilloche\' da quadrante, ghiera godronata nella lega del '
+     'servizio, nome INCISO in curva, prezzo sul piatto, lampo lento, '
+     'tilt verso il cursore. Ammiraglia con doppia ghiera e gemma FULL '
+     'REFUND.',
+     'La versione senza innesto: piu\' quieta, ogni cella identica nel '
+     'gesto.',
+     'La ghiera verde/ciano e\' una lega derivata dal colore-firma: da '
+     'validare su schermi molto saturi.'),
+    ('scatole', 'Il Packaging', 'il riferimento approvato',
+     'Le scatole sigillate originali: serigrafia, barcode, nastro oro '
+     'FULL REFUND, chip FLAGSHIP ancorato al nome.',
+     'Il punto di partenza di tutta la famiglia.',
      'Serigrafia secondaria = texture, non testo (scelta giusta).'),
-    ('sigillo', 'Il Sigillo', 'famiglia Packaging',
-     'Plichi neri chiusi da ceralacca nel colore del servizio, fascetta, '
-     'riga "Oggetto", doppio nastro oro raso sull\'ammiraglia.',
-     '"The same house that seals real contracts, sealing its word to '
-     'you."',
-     'La cera a gradienti CSS e\' liscia da molto vicino.'),
-    ('retail', 'La Vetrina Retail', 'famiglia Packaging',
-     'Nicchie retroilluminate, mensola di vetro col riflesso, cartellino '
-     'appeso che oscilla, insegna FULL REFUND al neon.',
-     'Il prezzo si legge come in negozio, prima del bottone.',
-     'Il cartellino copre lo spigolo alto della scatola.'),
 ]
 
 def leggi(n): return open(SP + n, encoding='utf-8').read()
@@ -140,14 +133,12 @@ body { background:var(--black); color:var(--text); font-family:var(--sans);
 <body>
 <header class="lab-capo">
   <div class="container">
-    <span class="eti">— Banchina Lab · vol. 8 — gli Stemmi + la famiglia</span>
-    <h1>Il badge, preso alla lettera: <b>gli Stemmi</b>.</h1>
-    <p>La nuova proposta, fatta a mano: il servizio come EMBLEMA coniato —
-      smalto, metallo, incisione — nel quadrato 2×2 chiesto per la home.
-      Sotto, la famiglia Packaging gia' vista, per confronto. Strato
-      vendita intatto ovunque; le domande-situazione dello studio
-      psicologico restano come occhielli. Ogni palco e' vivo: passaci
-      sopra il mouse.</p>
+    <span class="eti">— Banchina Lab · vol. 9 — l'Innesto</span>
+    <h1>La medaglia è il sigillo. La scatola è il <b>prodotto</b>.</h1>
+    <p>L'innesto chiesto: gli Stemmi sposano il Packaging. Passa il mouse
+      sull'ammiraglia del primo palco e guarda la scatola salire mentre
+      la medaglia si posa come sigillo. Sotto, le due basi pure per
+      confronto. Strato vendita e fatti verbatim ovunque.</p>
   </div>
 </header>
 ''' + '\\n'.join(palchi) + '''
