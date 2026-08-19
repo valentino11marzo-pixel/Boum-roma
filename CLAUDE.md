@@ -1392,6 +1392,31 @@ Un giro solo, otto interventi, 33 suite verdi:
   WIZ pinnati su portal-app.js, CSS gated, sw, -webkit-) + `node
   tests/mobile/ui.mjs` (35 check in Chromium vero a 390px col
   contractWizardNav REALE estratto).
+- **OGGI — la coda delle decisioni** (`js/oggi-engine.js` → `window.BOOM_OGGI`
+  + `oggiPage()` nel portal, 2026-08-19): la prima schermata dell'admin. La
+  macchina lavora da sola e all'operatore restano le DECISIONI — che su
+  Telegram scorrono via. Qui persistono: risposte AI da approvare
+  (`action_queue`), visite da confermare, ritardi (quadro + 3 peggiori per
+  nome con sollecito/link carta/segna-pagata), lead nuovi col grade del
+  Brain, manutenzioni urgenti, firme a metà, rinnovi ≤30gg — ordinati per
+  COSTO DEL RITARDO (punteggio per specie + età con tetto), con le azioni
+  DENTRO la riga. Motore puro (niente Firestore/Date.now, si testa in
+  node); le azioni sono `{fn, args}` alla maniera del Prontuario e
+  `oggiRun` invoca per RIFERIMENTO — il test pretende che ogni fn esista.
+  In testa il polso dei soldi (incassato mese / in arrivo / in ritardo /
+  prossimi 7gg). "Nascondi" rinvia a domani (localStorage per-giorno).
+  Landing: admin senza hash atterra su `oggi` (deep link vince); la
+  Dashboard resta come "Studio". Tab mobile: ⚡ Oggi prima. Senza motore
+  caricato la pagina ricade sulla dashboard — mai una schermata vuota.
+  Test: `node tests/oggi/run.mjs` (41 check).
+- **D2 — i form grandi coi capitoli su desktop** (`sectionizeForm` in
+  portal-desktop.js): su telefono i modali piatti diventano wizard (M2);
+  su desktop erano muri da 15-22 campi. Pattern console corporate: header
+  di capitolo (micro-maiuscole oro, `.pd-form-sec`) tra i gruppi, tutto
+  visibile. La mappa è LA STESSA di M2 (`window.BOOM_MOBILE.WIZ` — una
+  copia sola); si INSERISCONO header, mai si spostano campi (FormData
+  intatta per costruzione); sotto i 920px il CSS li spegne. Form <8 gruppi
+  esclusi.
 - **La Rifinitura** (`css/portal-finish.css` + composizioni in portal-app.js,
   2026-08-19): il passo di DESIGN sulle superfici interne. Il sistema
   (portal.css) era sano ma le composizioni urlavano: nella riga contratto
