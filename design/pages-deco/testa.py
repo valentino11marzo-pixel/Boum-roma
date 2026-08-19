@@ -43,7 +43,10 @@ ROBOTS = (
     '<link rel="dns-prefetch" href="https://www.googletagmanager.com">\n'
     '<link rel="dns-prefetch" href="https://www.google-analytics.com">')
 
-IMG_SOCIAL = 'https://www.boomrome.com/BOOMsocialprofile.png'
+# og-home.png e' GENERATA dal repo (scratchpad/genera-og-home.py, card
+# HTML -> screenshot 1200x630): BOOMsocialprofile.png non e' mai stato
+# committato — le condivisioni mostravano un'immagine rotta
+IMG_SOCIAL = 'https://www.boomrome.com/og-home.png'
 
 def _og(titolo, descr, url, immagine=IMG_SOCIAL):
     return (

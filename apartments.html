@@ -44,7 +44,7 @@
 <link rel="manifest" href="/site.webmanifest">
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied',wait_for_update:500});gtag('config','G-EYCD59RDVJ');</script>
-<script type="application/ld+json">{"@context": "https://schema.org", "@type": "RealEstateAgent", "@id": "https://www.boomrome.com/#organization", "name": "BOOM Rome", "legalName": "Egidi Immobiliare S.r.l.", "url": "https://www.boomrome.com", "logo": {"@type": "ImageObject", "url": "https://www.boomrome.com/android-chrome-512x512.png", "width": 512, "height": 512}, "image": "https://www.boomrome.com/BOOMsocialprofile.png", "description": "Premium mid-term apartment rentals in Rome with full property management, legal contracts, and 48-hour move-in.", "sameAs": ["https://www.instagram.com/boomrome", "https://www.linkedin.com/company/boomrome", "https://wa.me/393313251961"], "address": {"@type": "PostalAddress", "addressLocality": "Rome", "addressRegion": "Lazio", "addressCountry": "IT"}, "areaServed": {"@type": "City", "name": "Rome"}, "priceRange": "€€-€€€"}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "RealEstateAgent", "@id": "https://www.boomrome.com/#organization", "name": "BOOM Rome", "legalName": "Egidi Immobiliare S.r.l.", "url": "https://www.boomrome.com", "logo": {"@type": "ImageObject", "url": "https://www.boomrome.com/android-chrome-512x512.png", "width": 512, "height": 512}, "image": "https://www.boomrome.com/og-home.png", "description": "Premium mid-term apartment rentals in Rome with full property management, legal contracts, and 48-hour move-in.", "sameAs": ["https://www.instagram.com/boomrome", "https://www.linkedin.com/company/boomrome", "https://wa.me/393313251961"], "address": {"@type": "PostalAddress", "addressLocality": "Rome", "addressRegion": "Lazio", "addressCountry": "IT"}, "areaServed": {"@type": "City", "name": "Rome"}, "priceRange": "€€-€€€"}</script>
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "WebSite", "@id": "https://www.boomrome.com/#website", "url": "https://www.boomrome.com", "name": "BOOM Rome", "publisher": {"@id": "https://www.boomrome.com/#organization"}, "potentialAction": {"@type": "SearchAction", "target": {"@type": "EntryPoint", "urlTemplate": "https://www.boomrome.com/apartments?q={search_term_string}"}, "query-input": "required name=search_term_string"}, "inLanguage": ["en", "it"]}</script>
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "CollectionPage", "@id": "https://www.boomrome.com/apartments#collection", "url": "https://www.boomrome.com/apartments", "name": "Apartments in Rome — walked in person | BOOM", "description": "Browse 19 verified apartments for rent in Rome — every home walked in person by BOOM. Filter by zone, budget and move-in date; 9 available now.", "isPartOf": {"@id": "https://www.boomrome.com/#website"}, "about": {"@type": "Place", "name": "Rome", "address": {"@type": "PostalAddress", "addressLocality": "Rome", "addressCountry": "IT"}}, "numberOfItems": 19}</script>
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.boomrome.com/"}, {"@type": "ListItem", "position": 2, "name": "Apartments", "item": "https://www.boomrome.com/apartments"}]}</script>
@@ -460,6 +460,8 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .hero-fede .hf-stripe { width:38px; height:auto; flex:none; opacity:.85; }
 .hero-fede span { font-size:11.5px; line-height:1.5; color:var(--text-4); }
 .hero-fede span b { color:var(--text-2); font-weight:500; }
+.hero-fede .hf-come { color:var(--gold); text-decoration:none; }
+.hero-fede .hf-come:hover { text-decoration:underline; }
 @media (max-width:640px){
   .hero-fede { border-radius:14px; padding:10px 13px;
     align-items:flex-start; }
@@ -521,7 +523,6 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
    pagamenti — con le parole che il sito usa gia, nessuna promessa nuova. */
 .banchina { margin-top:clamp(20px,2.4vw,30px); border:1px solid var(--line);
   border-radius:16px; overflow:hidden; background:var(--surface); }
-
 
 /* le porte: una situazione per cella, il prezzo come risposta */
 .ba-porte { display:grid; grid-template-columns:repeat(4,1fr); gap:1px;
@@ -1189,7 +1190,6 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 
 /* ══ IL VARCO VERSO LA SKYLINE — un invito, non una finta mappa ════════ */
 
-
 /* ══ IL FONDATORE ══════════════════════════════════════════════════════ */
 .fond-sezione { position:relative; }
 .mosaico-fondo { position:absolute; inset:0; width:100%; height:100%;
@@ -1684,7 +1684,6 @@ html.vivo .sale.dentro { opacity:1; transform:none;
   transform:translateY(-1px); }
 .cielo-pieno svg { width:13px; height:13px; }
 
-
 /* ── bersagli: nessun comando sotto il polpastrello (44×44 su touch) ──── */
 #calPrec, #calSucc { min-width:40px; min-height:40px; display:inline-flex;
   align-items:center; justify-content:center; }
@@ -1698,7 +1697,6 @@ html.vivo .sale.dentro { opacity:1; transform:none;
 /* ── immagini: proporzione dichiarata = nessun salto mentre caricano ──── */
 .s1-casa img, .home-foto img { aspect-ratio:4/3; }
 .fond-foto img { aspect-ratio:4/5; }
-
 
 /* ══ IL GIORNO UNO NEL CHECK-IN ════════════════════════════════════════ */
 .giorno-uno { margin-top:10px; font-size:11.5px; line-height:1.6;
@@ -1963,6 +1961,15 @@ setTimeout(function () {
   background:var(--card); box-shadow:inset 0 0 0 1px var(--line-gold-2);
   text-align:center; }
 .vuoto.si { display:block; }
+.vuoto-vie { margin:16px auto 4px; display:flex; flex-wrap:wrap; gap:8px;
+  justify-content:center; align-items:center; max-width:560px; }
+.vuoto-vie:empty { display:none; }
+.vuoto-vie b { flex-basis:100%; font-size:11px; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--gold); font-weight:600; }
+.vuoto-vie button { padding:9px 14px; background:none; cursor:pointer;
+  border:1px solid var(--line); border-radius:100px; color:var(--text-2);
+  font-size:12.5px; transition:border-color .2s, color .2s; }
+.vuoto-vie button:hover { border-color:var(--line-gold); color:var(--gold); }
 .vuoto .vuoto-titolo, .vuoto b { display:block; font-family:var(--display); font-weight:300;
   font-size:clamp(19px,2.2vw,26px); }
 .vuoto p { margin:10px auto 0; max-width:52ch; font-size:14px;
@@ -2741,6 +2748,7 @@ setTimeout(function () {
         before it goes up. What you're looking for probably exists in Rome
         right now — it just isn't on a portal yet. That's what the hunt
         engine is for.</p>
+      <div class="vuoto-vie" id="vuotoVie"></div>
       <a class="btn btn-primary" href="/property-finding">Put the machine on it</a>
     </div>
     <div class="vista-cielo" id="vistaCielo" hidden>
@@ -2999,6 +3007,51 @@ setTimeout(function () {
     });
     vive.forEach(function (c) { muro.appendChild(c); });
   }
+  /* lo stato dei filtri vive nell'URL: refresh e back non azzerano la
+     ricerca, e «bilocali a Trastevere sotto 1.500» si condivide su
+     WhatsApp — il giro lista→casa→lista E' il loop della discovery */
+  function scriviHash() {
+    var pz = [];
+    if (stato.dal) pz.push('dal=' + stato.dal);
+    if (stato.budget) pz.push('budget=' + stato.budget);
+    if (stato.chi) pz.push('chi=' + encodeURIComponent(stato.chi));
+    if (stato.zona) pz.push('zona=' + encodeURIComponent(stato.zona));
+    try {
+      history.replaceState(null, '', pz.length ? '#' + pz.join('&')
+        : location.pathname + location.search);
+    } catch (e) {}
+  }
+  /* il badge della stecca vive in un altro closure: il conto dei filtri
+     vivi si espone qui, dove lo stato abita */
+  window.__filtriVivi = function () {
+    return (stato.dal ? 1 : 0) + (stato.budget ? 1 : 0)
+      + (stato.chi ? 1 : 0) + (stato.zona ? 1 : 0);
+  };
+  /* lo zero nasce quasi sempre da UN vincolo: prima la via gratuita
+     (togli quello), poi la macchina a pagamento */
+  function vieUscita() {
+    var box = document.getElementById('vuotoVie');
+    if (!box) return;
+    var VIE = [['dal', 'the move-in date'], ['budget', 'the budget cap'],
+               ['chi', "who's moving"], ['zona', 'the zone']];
+    var righe = [];
+    VIE.forEach(function (v) {
+      var k = v[0];
+      if (!stato[k]) return;
+      var salvo = stato[k];
+      stato[k] = (k === 'budget') ? 0 : (k === 'dal' ? null : '');
+      var n = 0; carte.forEach(function (c) { if (passa(c)) n++; });
+      stato[k] = salvo;
+      if (n > 0) righe.push({ k: k, eti: v[1], n: n });
+    });
+    box.innerHTML = righe.length
+      ? '<b>One filter away:</b>' + righe.map(function (x) {
+          return '<button type="button" data-k="' + x.k + '">Without '
+            + x.eti + ' \u2192 ' + x.n + ' home'
+            + (x.n === 1 ? '' : 's') + '</button>';
+        }).join('')
+      : '';
+  }
   function aggiorna() {
     var n = 0;
     carte.forEach(function (c) {
@@ -3012,9 +3065,12 @@ setTimeout(function () {
       ? ' in ' + stato.zona.replace(/\b\w/g, function (x) { return x.toUpperCase(); })
       : '';
     vuoto.classList.toggle('si', n === 0);
-    /* il muro riappare con la sua cascata quando cambia il taglio */
-    muro.classList.remove('dentro');
-    requestAnimationFrame(function () { muro.classList.add('dentro'); });
+    /* la cascata recita all'INGRESSO; ai filtri la lista risponde
+       secca — il movimento ripetuto non porta informazione nuova */
+    if (!muro.classList.contains('dentro'))
+      requestAnimationFrame(function () { muro.classList.add('dentro'); });
+    scriviHash();
+    if (n === 0) vieUscita();
   }
 
   /* ── IL TABELLONE DELLE ZONE: righe Solari che filtrano ────────────── */
@@ -3336,6 +3392,27 @@ setTimeout(function () {
     });
   }
   leggiHash();
+  /* le vie d'uscita del vuoto: un tap toglie QUEL filtro — i comandi dei
+     controlli vivono qui, nello stesso closure del picker */
+  (function () {
+    var box = document.getElementById('vuotoVie');
+    if (!box) return;
+    box.addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-k]'); if (!b) return;
+      var k = b.dataset.k;
+      if (k === 'budget') { stato.budget = 0; bud.value = '';
+        bud.classList.remove('scelto'); }
+      if (k === 'chi') { stato.chi = ''; chi.value = '';
+        chi.classList.remove('scelto'); }
+      if (k === 'dal') { stato.dal = null; scelta = null;
+        testo.textContent = 'Any date'; btn.classList.remove('scelta'); }
+      if (k === 'zona') { stato.zona = '';
+        document.querySelectorAll('.zona-riga.on').forEach(function (z) {
+          z.classList.remove('on'); z.setAttribute('aria-pressed', 'false');
+        }); }
+      aggiorna();
+    });
+  })();
   /* le zone sulle carte cambiano l'hash della stessa pagina: si riascolta */
   addEventListener('hashchange', function () { leggiHash(); aggiorna(); });
   })();
@@ -3405,8 +3482,12 @@ setTimeout(function () {
       else muro.appendChild(sky);
       sky.style.display = vis.length ? '' : 'none';
     }
+    /* il badge conta TUTTO cio' che filtra — anche zona, data, budget e
+       chi: una stecca che dichiara «nessun filtro» su una lista filtrata
+       insegna a non fidarsi della stecca */
     var acc = tutti('#foglioVelo .gruppo button.on').filter(function (b) {
-      return b.dataset.v !== ''; }).length;
+      return b.dataset.v !== ''; }).length
+      + (window.__filtriVivi ? window.__filtriVivi() : 0);
     var fc = per('#filtriConta');
     if (fc) { fc.hidden = !acc; fc.textContent = acc; }
     var fg = per('#foglioConto'), ct = per('#conto');
@@ -3436,6 +3517,7 @@ setTimeout(function () {
   var contoRiga = per('.muro-conto'), vuoto = per('#vuoto');
   function vista(mappa) {
     if (!cieloBox) return;
+    if (mappa && window.BoomCielo && BoomCielo.apri) BoomCielo.apri();
     cieloBox.hidden = !mappa;
     muro.style.display = mappa ? 'none' : '';
     if (contoRiga) contoRiga.style.display = mappa ? 'none' : '';
@@ -3474,6 +3556,11 @@ setTimeout(function () {
     dice.textContent = PARA.length < 2 ? 'Pick another home to compare'
       : PARA.length + ' homes side by side';
   }
+  muro.addEventListener('click', function (e) {
+    var carta = e.target.closest('a.casa-p');
+    if (carta && window.boomTrack)
+      boomTrack('card_open', { item_id: carta.dataset.id || '' });
+  });
   muro.addEventListener('click', function (e) {
     var b = e.target.closest('.home-para'); if (!b) return;
     e.preventDefault(); e.stopPropagation();
@@ -3756,7 +3843,6 @@ setTimeout(function () {
     }, { passive: true });
   }
 
-
   function mosaicoRomano() {
     /* IL MOSAICO ROMANO — tessere quiete, e un anello d'oro che si
        allarga dal cuore della sezione, come un sasso nell'arte. */
@@ -3858,325 +3944,41 @@ setTimeout(function () {
 })();
 </script>
 <script>
-/* ── LA SKYLINE, dentro ────────────────────────────────────────────────
-   Lo stesso motore di /skyline: MapLibre, stile liberty, edifici in
-   estrusione, terreno vero, satellite a interruttore, archi verso le
-   ancore della citta con la camminata misurata.
-   Tre regole che una mappa dentro una pagina deve rispettare:
-     · non parte al caricamento — solo quando la sezione entra davvero;
-     · non ruba lo scroll — un dito scorre la pagina, due muovono la mappa;
-     · se il motore non arriva lo dice. Mai una mappa finta al suo posto. */
 (function () {
   'use strict';
-  var CASE = [{"id": "hwnkDcXvs7Q0EW99xV7O", "nome": "Trilocale Pigneto", "zona": "Pigneto", "lat": 41.8925477, "lng": 12.5272269, "da": "€2,000", "si": false, "foto": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FhwnkDcXvs7Q0EW99xV7O%2Fms18dq0y_00_8cd440e9.jpg?alt=media", "stato": "reserved"}, {"id": "ttvrjazww9oe4tA0wHTf", "nome": "Bilocale Ponte Milvio", "zona": "Ponte Milvio", "lat": 41.9494622, "lng": 12.4840019, "da": "€1,250", "si": true, "foto": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fttvrjazww9oe4tA0wHTf%2Fmrz6vxb9_00_18252691.jpg?alt=media", "stato": "rented"}, {"id": "cezFMXTWnHUDgb1H2WWm", "nome": "Bilocale Trastevere", "zona": "Trastevere", "lat": 41.8886622, "lng": 12.4769693, "da": "€1,200", "si": true, "foto": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FcezFMXTWnHUDgb1H2WWm%2Fmrzsxcyw_00_4d6b85f3.jpg?alt=media", "stato": "rented"}, {"id": "levico", "nome": "Levico", "zona": "Trieste", "lat": 41.9278853, "lng": 12.5157767, "da": "€1,200", "si": true, "foto": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Flevico%2Fms438q5f_00_a4e03314.jpg?alt=media", "stato": "rented"}, {"id": "FHeEHIFbil6QG8Jcccxc", "nome": "Bilocale Trieste", "zona": "Trieste", "lat": 41.9181441, "lng": 12.5099, "da": "€2,000", "si": true, "foto": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FFHeEHIFbil6QG8Jcccxc%2Fmrwy1a3g_00_d2ee0ce1.jpg?alt=media", "stato": "rented"}, {"id": "Kz9bXztv5QXmQrNhAcoU", "nome": "Ponte Milvio Duplex", "zona": "Ponte Milvio", "lat": 41.9494622, "lng": 12.4840019, "da": "€1,200", "si": true, "foto": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FKz9bXztv5QXmQrNhAcoU%2Fmrwy1jgh_00_3edcb767.jpg?alt=media", "stato": "rented"}, {"id": "angelico", "nome": "Angelico Loft", "zona": "Prati", "lat": 41.9081381, "lng": 12.4644964, "da": "€2,000", "si": false, "foto": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fangelico%2Fmrzsx85w_00_e5bf052c.jpg?alt=media", "stato": "reserved"}, {"id": "qRRRV7BjXDPqgTpVchnz", "nome": "Parioli Double Room with Garden", "zona": "Parioli", "lat": 41.9306798, "lng": 12.4950028, "da": "€1,000", "si": false, "foto": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FqRRRV7BjXDPqgTpVchnz%2Fms8dk1ui_00_6b014a15.jpg?alt=media", "stato": "reserved"}, {"id": "ilW5lAxnNn5M2TjsSHx2", "nome": "Africano Premium Room", "zona": "Africano", "lat": 41.9300498, "lng": 12.5249351, "da": "€900", "si": true, "foto": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FilW5lAxnNn5M2TjsSHx2%2Fms438muu_00_25bd2cd0.jpg?alt=media", "stato": "rented"}, {"id": "pigneto", "nome": "Pigneto Terrace", "zona": "Pigneto", "lat": 41.8898545, "lng": 12.5257962, "da": "€1,700", "si": false, "foto": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fpigneto%2Fms8dkk6z_00_9f8dcbd0.jpg?alt=media", "stato": "reserved"}, {"id": "piemonte", "nome": "Piemonte Attic", "zona": "Vittorio Veneto", "lat": 41.907, "lng": 12.49, "da": "€1,300", "si": false, "foto": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fpiemonte%2Fms5ioi4l_00_cd31173f.jpg?alt=media", "stato": "reserved"}, {"id": "esFhjFMVfZtkIrhkx0PR", "nome": "Prati cozy", "zona": "Prati", "lat": 41.9081381, "lng": 12.4644964, "da": "€1,500", "si": true, "foto": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FesFhjFMVfZtkIrhkx0PR%2Fms18d3o8_00_27bce535.jpg?alt=media", "stato": "rented"}, {"id": "wvX0h0lBoNKOMuTuHkVI", "nome": "Capri 2 Bed", "zona": "Conca d'Oro", "lat": 41.9436264, "lng": 12.528937, "da": "€1,750", "si": false, "foto": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FwvX0h0lBoNKOMuTuHkVI%2Fms9szt8z_00_7f38f3a7.jpg?alt=media", "stato": "reserved"}, {"id": "navona", "nome": "Coronari Classic", "zona": "Centro Storico", "lat": 41.8986, "lng": 12.4735, "da": "€1,800", "si": false, "foto": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fnavona%2Fms5ioeyr_00_d08009e6.jpg?alt=media", "stato": "reserved"}, {"id": "ripetta", "nome": "Ripetta Terrace", "zona": "Centro Storico", "lat": 41.8986, "lng": 12.4735, "da": "€2,300", "si": false, "foto": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fripetta%2Fms9sznst_00_7fc18043.jpg?alt=media", "stato": "reserved"}];
-  var telaio = document.getElementById('cielo');
-  if (!telaio || !CASE.length) return;
-
-  var velo  = document.getElementById('cieloVelo'),
-      dice  = document.getElementById('cieloDice'),
-      conta = document.getElementById('cieloConta'),
-      sat   = document.getElementById('cieloSat');
-  var ROMA = [12.4924, 41.8902], mappa = null, PIN = [], TETTO = 0, morto = false;
-  var carico = false, satellite = false;
-  /* il piano B non scarica niente: lo stile e scritto qui dentro */
-  function stileSatellite() {
-    return { version: 8, sources: { sat: { type: 'raster', tileSize: 256,
-      maxzoom: 19, attribution: 'Imagery © Esri, Maxar, Earthstar Geographics',
-      tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'] } },
-      layers: [{ id: 'sat', type: 'raster', source: 'sat' }] };
-  }
-  function ripiego() {
-    /* il vettoriale non e arrivato: si passa al satellite puro. Se entro
-       8s non arriva neanche lui, la carta onesta. */
-    if (carico || morto || satellite || !mappa) return;
-    satellite = true;
-    dico('Switching to satellite…');
-    try { mappa.setStyle(stileSatellite()); } catch (e) { spengo(
-      'The map engine could not start here. The full Skyline still works.'); return; }
-    setTimeout(function () { if (!carico) spengo(
-      'The map engine is not reachable from here. The full Skyline still works.'); },
-      8000);
-  }
-
-  function dico(t, muto) {
-    if (dice) dice.textContent = t;
-    if (muto && velo) velo.classList.add('muta');
-  }
-  function spengo(t) { if (!morto) { morto = true; dico(t, true); } }
-
-  /* ── le ancore della citta ── stessa lista dello strumento intero ── */
-  var ANCORE = [
-    [12.5018, 41.9009, 'Termini'],    [12.4924, 41.8902, 'Colosseo'],
-    [12.4534, 41.9022, 'Vaticano'],   [12.4690, 41.8870, 'Trastevere'],
-    [12.5135, 41.9038, 'Sapienza'],   [12.4917, 41.9269, 'LUISS'],
-    [12.4790, 41.8564, 'Roma Tre'],   [12.4664, 41.8937, 'John Cabot']
-  ];
-  var ANC = [];
-
-  function haversine(a, b) {
-    var R = 6371, r = Math.PI / 180, dy = (b[1] - a[1]) * r, dx = (b[0] - a[0]) * r;
-    var q = Math.pow(Math.sin(dy / 2), 2) + Math.cos(a[1] * r) * Math.cos(b[1] * r)
-          * Math.pow(Math.sin(dx / 2), 2);
-    return 2 * R * Math.asin(Math.min(1, Math.sqrt(q)));
-  }
-  /* onesto: distanza in linea d'aria + stima a 4.8 km/h, non un percorso */
-  function passo(km) {
-    return km < 2.6 ? Math.round(km / 4.8 * 60) + "′ walk"
-                    : (km < 10 ? km.toFixed(1) : Math.round(km)) + ' km';
-  }
-  function arco(a, b, curva, n) {
-    n = n || 44;
-    var p = [], mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2,
-        dx = b[0] - a[0], dy = b[1] - a[1],
-        cx = mx - dy * curva, cy = my + dx * curva;
-    for (var i = 0; i <= n; i++) {
-      var t = i / n, u = 1 - t;
-      p.push([u * u * a[0] + 2 * u * t * cx + t * t * b[0],
-              u * u * a[1] + 2 * u * t * cy + t * t * b[1]]);
-    }
-    return p;
-  }
-  function tendi(co) {
-    if (!mappa.getSource('fili')) return;
-    /* sei ancore, non otto: otto righe sono rumore, sei sono un racconto */
-    var vicine = ANCORE.map(function (A, i) {
-      return { A: A, i: i, d: haversine(co, [A[0], A[1]]) };
-    }).sort(function (x, y) { return x.d - y.d; }).slice(0, 6);
-    var set = {}; vicine.forEach(function (v) { set[v.i] = v.d; });
-    ANCORE.forEach(function (A, i) {
-      var m = ANC[i]; if (!m) return;
-      if (i in set) { m.el.classList.add('accesa'); m.el.style.opacity = '';
-                      m.d.textContent = passo(set[i]); }
-      else { m.el.classList.remove('accesa'); m.el.style.opacity = '.18';
-             m.d.textContent = ''; }
-    });
-    mappa.getSource('fili').setData({ type: 'FeatureCollection',
-      features: vicine.map(function (v) {
-        return { type: 'Feature', geometry: { type: 'LineString',
-          coordinates: arco(co, [v.A[0], v.A[1]], .12, 44) } };
-      }) });
-  }
-  function sciogli() {
-    if (mappa.getSource('fili'))
-      mappa.getSource('fili').setData({ type: 'FeatureCollection', features: [] });
-    ANC.forEach(function (m) { m.el.classList.remove('accesa');
-      m.el.style.opacity = ''; });
-  }
-
-  /* ── la grana della citta: edifici, terreno, satellite ── */
-  function grana() {
-    try {
-      mappa.getStyle().layers.forEach(function (L) {
-        try { if (L.type === 'symbol' && /poi|housenumber|aeroway|airport/.test(L.id))
-          mappa.setLayoutProperty(L.id, 'visibility', 'none'); } catch (e) {}
-      });
-      try {
-        mappa.addSource('cielo-sat', { type: 'raster', tileSize: 256, maxzoom: 19,
-          tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
-          attribution: 'Imagery © Esri, Maxar, Earthstar Geographics' });
-        var primo = (mappa.getStyle().layers.find(function (L) {
-          return L.type === 'symbol'; }) || {}).id;
-        mappa.addLayer({ id: 'cielo-sat-l', type: 'raster', source: 'cielo-sat',
-          layout: { visibility: 'none' },
-          paint: { 'raster-opacity': 1, 'raster-fade-duration': 300 } }, primo);
-      } catch (e) {}
-      try {
-        mappa.addSource('cielo-dem', { type: 'raster-dem', encoding: 'terrarium',
-          tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
-          tileSize: 256, maxzoom: 13 });
-        mappa.setTerrain({ source: 'cielo-dem', exaggeration: 1.15 });
-      } catch (e) {}
-      var fonti = Object.keys(mappa.getStyle().sources || {});
-      var f = fonti.find(function (x) { return /openmaptiles|vector|planet/i.test(x); })
-              || fonti[0];
-      /* travertino: il colore vero di Roma dal basso verso l'alto */
-      if (f) mappa.addLayer({ id: 'cielo-3d', type: 'fill-extrusion', source: f,
-        'source-layer': 'building', minzoom: 13, paint: {
-          'fill-extrusion-color': ['interpolate', ['linear'],
-            ['coalesce', ['get', 'render_height'], 10],
-            0, '#B8AD97', 14, '#C8BDA5', 32, '#D6CBB2', 60, '#E2D8C0',
-            110, '#EFE6CF'],
-          'fill-extrusion-height': ['coalesce', ['get', 'render_height'], 12],
-          'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], 0],
-          'fill-extrusion-opacity': .92 } });
-    } catch (e) {}
-    try { if (mappa.setSky) mappa.setSky({ 'sky-color': '#8FB8E8',
-      'horizon-color': '#F2DEB6', 'fog-color': '#E8E0CE',
-      'sky-horizon-blend': .55, 'horizon-fog-blend': .5,
-      'fog-ground-blend': .35 }); } catch (e) {}
-  }
-
-  function segnaposto(c) {
-    var el = document.createElement('div');
-    el.className = 'cielo-pin';
-    el.__p = parseInt(String(c.da).replace(/[^\d]/g, ''), 10) || 0;
-    el.__presa = !c.si;
-    el.__id = c.id;
-    el.innerHTML = '<span class="p' + (c.si ? '' : ' presa') + '">' + c.da + '</span>';
-    var foto = c.foto || '';
-    var scheda = new maplibregl.Popup({ offset: 17, closeButton: true,
-      maxWidth: '234px' }).setHTML(
-      '<div class="pk-foto"' + (foto ? ' style="background-image:url(\'' +
-        foto.replace(/'/g, '') + '\')"' : '') + '></div>' +
-      '<div class="pk-corpo"><div class="pk-zona">' + c.zona + '</div>' +
-      '<div class="pk-nome">' + c.nome + '</div>' +
-      '<span class="pk-canone">' + c.da + '<small> /mo</small></span>' +
-      '<a class="pk-vai" href="/listing/' + encodeURIComponent(c.id) +
-      '">View this home →</a></div>');
-    el.addEventListener('click', function () { tendi([c.lng, c.lat]); });
-    PIN.push(new maplibregl.Marker({ element: el, anchor: 'bottom' })
-      .setLngLat([c.lng, c.lat]).setPopup(scheda).addTo(mappa));
-  }
-
-  function filtra() {
-    var viste = 0;
-    PIN.forEach(function (m) {
-      var el = m.getElement();
-      var ok = (el.__presa || el.__fuori) ? false : (TETTO === 0 || (el.__p > 0 && el.__p <= TETTO));
-      el.classList.toggle('spenta', !ok); if (ok) viste++;
-    });
-    if (conta) {
-      conta.classList.add('viva');
-      conta.innerHTML = '<b>' + viste + '</b> home' + (viste === 1 ? '' : 's') +
-        (TETTO ? ' under €' + TETTO.toLocaleString('en-US') : ' standing in Rome') +
-        '<i> · tap one to measure its walks</i>';
+  var fr = null, pronta = false, ultimi = null;
+  function manda() {
+    if (fr && pronta && ultimi) {
+      try { fr.contentWindow.postMessage({ t: 'boomTieni', ids: ultimi },
+        location.origin); } catch (e) {}
     }
   }
-
-  /* il gancio per la discovery: la mappa tiene solo le case che il
-     setaccio della pagina tiene — nessun secondo stato, una verita sola */
-  window.BoomCielo = { tieni: function (ids) {
-    PIN.forEach(function (m) { var el = m.getElement();
-      el.__fuori = !!(ids && ids.indexOf(el.__id) < 0); });
-    if (mappa) filtra();
-  } };
-
-  /* ── l'accensione ── */
-  function accendi() {
-    mappa = new maplibregl.Map({
-      container: 'cieloMappa',
-      style: 'https://tiles.openfreemap.org/styles/liberty',
-      center: ROMA, zoom: 11.1, pitch: 55, bearing: -12, antialias: true,
-      attributionControl: { compact: true },
-      /* un dito scorre la pagina, due muovono la mappa — mai rubare lo scroll */
-      cooperativeGestures: {
-        windowsHelpText: 'Use Ctrl + scroll to zoom the map',
-        macHelpText: 'Use ⌘ + scroll to zoom the map',
-        mobileHelpText: 'Use two fingers to move the map'
-      }
-    });
-    mappa.addControl(new maplibregl.NavigationControl({ visualizePitch: true }),
-      'bottom-right');
-    mappa.addControl(new maplibregl.FullscreenControl(), 'bottom-right');
-    mappa.on('error', function (e) {
-      /* un tile che manca NON e un fallimento (l'errore porta e.tile, e
-         lo standalone li ignora da sempre): si degrada solo se l'errore
-         non riguarda un tile E lo stile non e ancora in piedi */
-      if (e && e.error && !e.tile
-          && !(mappa.isStyleLoaded && mappa.isStyleLoaded())
-          && /style|Failed to fetch/i.test(String(e.error.message || '')))
-        ripiego();
-    });
-    var attrezzata = false;
-    function attrezza() {
-      /* tutto cio che uno setStyle spazza via: fili, ancore, pin */
-      if (!satellite) grana();
-      try {
-        mappa.addSource('fili', { type: 'geojson',
-          data: { type: 'FeatureCollection', features: [] } });
-        mappa.addLayer({ id: 'fili-alone', type: 'line', source: 'fili',
-          layout: { 'line-cap': 'round', 'line-join': 'round' },
-          paint: { 'line-color': '#FFD700', 'line-width': 6, 'line-blur': 6,
-            'line-opacity': .22 } });
-        mappa.addLayer({ id: 'fili-filo', type: 'line', source: 'fili',
-          layout: { 'line-cap': 'round' },
-          paint: { 'line-color': '#FFE680', 'line-width': 1.6,
-            'line-opacity': .9, 'line-dasharray': [1, 1.6] } });
-      } catch (e) {}
-      if (attrezzata) return;
-      attrezzata = true;
-      ANCORE.forEach(function (A) {
-        var el = document.createElement('div'); el.className = 'cielo-anc';
-        var nm = document.createElement('span'); nm.textContent = A[2];
-        var d = document.createElement('span'); d.className = 'd';
-        el.appendChild(nm); el.appendChild(d);
-        ANC.push({ el: el, d: d, mk: new maplibregl.Marker({ element: el,
-          anchor: 'center' }).setLngLat([A[0], A[1]]).addTo(mappa) });
-      });
-      mappa.on('click', sciogli);
-      var box = new maplibregl.LngLatBounds();
-      CASE.forEach(function (c) { segnaposto(c); box.extend([c.lng, c.lat]); });
-      try { mappa.fitBounds(box, { padding: 84, maxZoom: 14.2,
-        duration: 1600, pitch: 55 }); } catch (e) {}
-      filtra();
-    }
-    function eccola() {
-      carico = true;
-      attrezza();
+  function finestra() {
+    if (fr) return;
+    var posto = document.getElementById('cieloMappa');
+    if (!posto) return;
+    fr = document.createElement('iframe');
+    fr.src = '/skyline?embed=1';
+    fr.title = 'BOOM Skyline 3D — Rome';
+    fr.setAttribute('allow', 'fullscreen');
+    fr.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;';
+    var velo = document.getElementById('cieloVelo');
+    fr.addEventListener('load', function () {
+      pronta = true;
       if (velo) velo.classList.add('via');
-    }
-    mappa.on('load', eccola);
-    /* 'idle' = primo quadro COMPLETO: se 'load' tarda ma il render
-       arriva, il velo si alza comunque — mai il nero su una mappa viva */
-    mappa.once('idle', eccola);
-    /* il cane da guardia ha due orecchie: a 9s, se lo STILE e in piedi
-       e i tile stanno solo scendendo, si aspetta ('idle' arrivera) —
-       si degrada un quadro MORTO, mai uno vivo e lento */
-    function guardia(giri) {
-      if (carico || morto || satellite || !mappa) return;
-      if (mappa.isStyleLoaded && mappa.isStyleLoaded() && giri < 3)
-        return void setTimeout(function () { guardia(giri + 1); }, 5000);
-      ripiego();
-    }
-    setTimeout(function () { guardia(0); }, 9000);
-  }
-
-  /* i filtri di prezzo */
-  [].forEach.call(telaio.querySelectorAll('.cielo-c[data-max]'), function (c) {
-    c.addEventListener('click', function () {
-      [].forEach.call(telaio.querySelectorAll('.cielo-c[data-max]'), function (x) {
-        x.classList.toggle('on', x === c); });
-      TETTO = Number(c.getAttribute('data-max')) || 0;
-      if (mappa) filtra();
+      manda();
     });
-  });
-  /* mappa ⇄ satellite */
-  if (sat) sat.addEventListener('click', function () {
-    if (!mappa || !mappa.getLayer('cielo-sat-l')) return;
-    var on = sat.classList.toggle('on');
-    sat.setAttribute('aria-pressed', on ? 'true' : 'false');
-    try { mappa.setLayoutProperty('cielo-sat-l', 'visibility', on ? 'visible' : 'none'); } catch (e) {}
-    try { mappa.setPaintProperty('cielo-3d', 'fill-extrusion-opacity', on ? .45 : .92); } catch (e) {}
-  });
-
-  /* ── il motore arriva solo quando la sezione entra davvero ── */
-  var partito = false;
-  function carica() {
-    if (partito) return; partito = true;
-    if (window.maplibregl) return accendi();
-    var css = document.createElement('link'); css.rel = 'stylesheet';
-    css.href = 'https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css';
-    document.head.appendChild(css);
-    var js = document.createElement('script');
-    js.src = 'https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.min.js';
-    js.onload = function () {
-      try { accendi(); }
-      catch (e) { spengo('The map could not start here. The full Skyline still works.'); }
-    };
-    js.onerror = function () {
-      spengo('The map engine is not reachable from this preview. The full Skyline still works.');
-    };
-    document.head.appendChild(js);
-    /* se in dodici secondi il motore non e neanche arrivato, lo diciamo */
-    setTimeout(function () { if (!mappa) spengo(
-      'The map engine is not reachable from here. The full Skyline still works.'); },
-      12000);
+    setTimeout(function () { if (velo) velo.classList.add('via'); }, 4000);
+    posto.appendChild(fr);
+    var hud = document.querySelector('#vistaCielo .cielo-hud');
+    if (hud) hud.remove();
+    var conta = document.getElementById('cieloConta');
+    if (conta) conta.remove();
   }
-  if ('IntersectionObserver' in window) {
-    new IntersectionObserver(function (v, o) {
-      if (v[0].isIntersecting) { o.disconnect(); carica(); }
-    }, { rootMargin: '260px 0px' }).observe(telaio);
-  } else { addEventListener('load', carica); }
+  window.BoomCielo = {
+    tieni: function (ids) { ultimi = (ids || []).map(String); manda(); },
+    apri: finestra
+  };
 })();
 </script>
 <style>
@@ -4380,6 +4182,11 @@ setTimeout(function () {
   R.classList.add('vivo');
   /* letto dalla rete di sicurezza del sipario in testa alla pagina */
   window.__decoArmato = true;
+  /* il funnel si misura: eventi GA4 col consenso gia' regolato dal
+     consent-mode — finora c'era solo il config, zero eventi */
+  window.boomTrack = function (n, p) {
+    try { gtag('event', n, p || {}); } catch (e) {}
+  };
 
   /* ── il marchio del piede: clonato dalla testata, una fonte sola ─────── */
   (function () {
