@@ -109,6 +109,13 @@ TRE = '\n'.join(carta(c) for c in tre)
 h = '\n'.join([leggi('pt.html'), leggi('solari-engine.html'),
                leggi('deco-organi.html')])
 h = h.replace('LOGO_SVG', leggi('logo-live.svg').strip())
+# il contatore del form: SOLO disponibili, prezzo e data grezza — la
+# lettura della data resta al motore condiviso, in pagina
+CONTA = [{'p': int(re.sub(r'[^\d]', '', str(r['price'])) or 0),
+          'a': str(r.get('avail') or '')}
+         for r in tutti if r['status'] == 'available'
+         and re.sub(r'[^\d]', '', str(r['price']))]
+h = h.replace("'CONTA_JSON'", json.dumps(CONTA))
 h = h.replace('PT_BOARD', BOARD_JSON)
 h = h.replace('DISPONIBILI', str(DISPONIBILI))
 # «From €X/mo» viene dal catalogo, non da un numero scritto a mano
@@ -163,7 +170,7 @@ h = h.replace("'GIORNO_JSON'", json.dumps(GIORNO))
 h = h.replace("'SKY_JSON'", json.dumps(SKYCASE, ensure_ascii=False))
 CASA_ART = 'https://claude.ai/code/artifact/db7c3240-a12d-4734-9eb7-06a780584231'
 h = h.replace('CASA_BASE', (CASA_ART + '#id=') if MODO == 'artefatto'
-    else '/v2-listing.html#id=')
+    else '/listing/')
 h = h.replace('SKYLINE_URL', 'https://www.boomrome.com/skyline'
     if MODO == 'artefatto' else '/skyline')
 h = h.replace('<span class="varco-conta" id="varcoConta"></span>',
@@ -212,8 +219,10 @@ else:
     h = h.replace('FONT_INLINE',
         '<link rel="preconnect" href="https://fonts.googleapis.com">\n'
         '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n'
-        '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700'
-        '&display=swap" rel="stylesheet">')
+        '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700'
+        '&display=swap" media="print" onload="this.media=\'all\'">\n'
+        '<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700'
+        '&display=swap"></noscript>')
 
 if MODO == 'artefatto':
     HOME = 'https://claude.ai/code/artifact/3c0dae67-a0e6-47d4-964f-832b824ffe0f'
@@ -232,33 +241,111 @@ if MODO == 'artefatto':
                r'href="https://www.boomrome.com/\1"', h)
     h = h.replace('href="/login"', 'href="https://www.boomrome.com/login"')
 else:
-    h = h.replace('COME_URL', '#apparecchio').replace('AP_URL', '/v2-apartments.html')
-    for da, a_ in {'/index.html': '/v2-home.html',
-        '/apartments.html': '/v2-apartments.html',
-        '/your-money.html': '/v2-money.html',
-        '/property-finding.html': '/v2-property-finding.html',
-        '/board.html': '/v2-board.html'}.items():
+    # LA FINESTRA SUL VERO SKYLINE — l'embed ricostruiva la mappa e
+    # poteva tradire dove lo standalone funzionava: ora la home APRE
+    # /skyline?embed=1 (stessa origine) dentro la cornice esistente.
+    # Il velo si alza al load dell'iframe; i comandi del modulo (hud,
+    # conta) spariscono: la finestra ha i suoi.
+    h = h.replace(
+        "      if (v[0].isIntersecting) { o.disconnect(); carica(); }",
+        "      if (v[0].isIntersecting) { o.disconnect(); finestra(); }")
+    h = h.replace(
+        "  if ('IntersectionObserver' in window) {\n"
+        "    new IntersectionObserver(function (v, o) {\n"
+        "      if (v[0].isIntersecting) { o.disconnect(); finestra(); }",
+        "  function finestra() {\n"
+        "    var posto = document.getElementById('cieloMappa');\n"
+        "    if (!posto) return;\n"
+        "    var fr = document.createElement('iframe');\n"
+        "    fr.src = '/skyline?embed=1';\n"
+        "    fr.title = 'BOOM Skyline 3D — Rome';\n"
+        "    fr.setAttribute('allow', 'fullscreen');\n"
+        "    fr.style.cssText = 'position:absolute;inset:0;width:100%;"
+        "height:100%;border:0;';\n"
+        "    fr.addEventListener('load', function () {\n"
+        "      if (velo) velo.classList.add('via');\n"
+        "    });\n"
+        "    /* rete: se il load tarda, meglio il loader dello skyline "
+        "che il nostro velo */\n"
+        "    setTimeout(function () {\n"
+        "      if (velo) velo.classList.add('via');\n"
+        "    }, 4000);\n"
+        "    posto.appendChild(fr);\n"
+        "    var hud = telaio.querySelector('.cielo-hud');\n"
+        "    if (hud) hud.remove();\n"
+        "    if (conta) conta.remove();\n"
+        "  }\n"
+        "  if ('IntersectionObserver' in window) {\n"
+        "    new IntersectionObserver(function (v, o) {\n"
+        "      if (v[0].isIntersecting) { o.disconnect(); finestra(); }")
+    # CABLATO: la home vive su /, i link vanno alle route canoniche —
+    # gli URL non cambiano mai, cambia solo il contenuto (regola SEO)
+    h = h.replace('COME_URL', '#apparecchio').replace('AP_URL', '/apartments')
+    for da, a_ in {'/index.html': '/',
+        '/apartments.html': '/apartments',
+        '/your-money.html': '/your-money',
+                }.items():
         h = h.replace('href="' + da + '"', 'href="' + a_ + '"')
         h = h.replace('data-href="' + da, 'data-href="' + a_)
-    h = h.replace('href="/listing/', 'href="/v2-listing.html#id=')
+    # href="/listing/<id>" resta: E la route canonica prerender
+    # cleanUrls: OGNI link interno perde il .html anche nel modo sito
+    # (prima /executive.html restava: un 308 in piu', e la home non
+    # 'linkava' /executive per il test di reciprocita')
+    h = re.sub(r'href="/([a-z-]+)\.html"', r'href="/\1"', h)
 
 # la testa della home: description propria, e in modalita sito lo scheletro
 # HTML completo con lang, canonical e og — come le altre due pagine
 if MODO == 'sito':
-    OG = ('<link rel="canonical" href="https://www.boomrome.com/v2-home.html">\n'
-          '<meta property="og:title" content="BOOM Rome — Premium Apartment '
-          'Rentals | 48-Hour Move-In">\n'
-          '<meta property="og:description" content="Verified mid-term '
-          'apartment rentals in Rome for internationals — English-first, '
-          'legal contracts, 48-hour move-in. Your landing in Rome, '
-          'handled.">\n'
-          '<meta property="og:type" content="website">\n'
-          '<meta property="og:url" content="https://www.boomrome.com/v2-home.html">\n')
+    import testa as TESTA
+    # la FAQ del JSON-LD diventa VISIBILE in coda alla pagina: markup che
+    # afferma cio' che la pagina non mostra e' contenuto nascosto (regola
+    # GEO gia' pinnata su Reunion) — una fonte sola, mai due verita'
+    import html as _html
+    _faq = TESTA.FAQ_HOME['mainEntity']
+    _voci = ''.join(
+        '<details class="faq-v"' + (' open' if _i == 0 else '') + '><summary>'
+        + _html.escape(_q['name']) + '</summary><p>'
+        + _html.escape(_q['acceptedAnswer']['text']) + '</p></details>'
+        for _i, _q in enumerate(_faq))
+    FAQ_HTML = ("""
+<section class="sezione" id="faq">
+  <style>
+  .faq-casa { margin-top:22px; display:grid; gap:1px; background:var(--line-0);
+    border:1px solid var(--line-0); border-radius:14px; overflow:hidden; }
+  .faq-v { background:var(--bg-card, #0A0A0A); padding:16px 19px; }
+  .faq-v summary { cursor:pointer; list-style:none; font-size:13.5px;
+    font-weight:500; color:var(--text); line-height:1.4; position:relative;
+    padding-right:26px; }
+  .faq-v summary::-webkit-details-marker { display:none; }
+  .faq-v summary::after { content:'+'; position:absolute; right:2px; top:50%;
+    transform:translateY(-50%); color:var(--gold); font-size:16px;
+    font-weight:300; transition:transform .25s var(--ease); }
+  .faq-v[open] summary::after { transform:translateY(-50%) rotate(45deg); }
+  .faq-v p { margin:8px 0 0; font-size:12.5px; line-height:1.65;
+    color:var(--text-2); max-width:70ch; }
+  </style>
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>Before you ask</span>
+      <h2 class="titolo">Quick <span class="hl">answers</span>.</h2>
+    </div>
+    <div class="faq-casa sale">""" + _voci + """</div>
+  </div>
+</section>
+""")
+    h = h.replace('<footer class="piede">', FAQ_HTML + '<footer class="piede">', 1)
+    OG = TESTA.blocco_home(
+        'BOOM Rome — Premium Apartment Rentals | 48-Hour Move-In',
+        'Verified mid-term apartment rentals in Rome for internationals — '
+        'English-first, legal contracts, 48-hour move-in. Your landing in '
+        'Rome, handled.') + '\n'
     i = h.index('</title>') + len('</title>')
     h = h[:i] + '\n' + OG + h[i:]
     h = ('<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
          + h.replace('</style>', '</style>\n</head>\n<body>', 1)
-         + '\n</body>\n</html>')
+         + '\n<script src="/js/dispo-engine.js"></script>'
+         + '\n' + leggi('vetrina-idrante.html')
+         + '\n' + TESTA.SW + '\n' + TESTA.CONSENSO + '\n</body>\n</html>')
 uscita = 'boom-portale.html' if MODO == 'artefatto' else 'boom-portale-sito.html' 
 open(uscita, 'w', encoding='utf-8').write(h)
 print(f'{uscita} · {len(h)//1024} KB · board {len(board)} righe · '

@@ -988,6 +988,31 @@ annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
 - `POST /api/preagreement/notify` — console "✉ Reinvia copia". Admin auth.
   Re-sends the accepted/paid document email to the client (recovery path
   for failed sends / "non l'ho ricevuta").
+- **Lo stato è il FATTO, non l'etichetta** (`_state.js` + `resolve.js`).
+  LA LEZIONE DEL 16 AGOSTO 2026: `submit.js` trattava come terminale il solo
+  stato `accepted`, quindi un **secondo invio del modulo su una proposta già
+  PAGATA** — pagina rimasta aperta con la bozza in localStorage, tasto
+  indietro da Stripe, tap ripetuto su rete lenta — la riscriveva ad
+  `accepted` con un protocollo nuovo e **apriva una seconda Checkout**; e se
+  nel frattempo il lucchetto dell'immobile era passato a un'altra proposta,
+  la ributtava in **`reserve`**, stato da cui → Contratto, Magic Sign e
+  ✉ Reinvia copia rispondono tutti 409 `not_accepted_yet`. In console il
+  deal risultava da pagare e il passo successivo spariva: due sintomi, una
+  causa. `paidOnRecord()` (esportata, condivisa da submit · pay · resolve ·
+  console) guarda la PROVA — `paidAt`/`paidSessionId`/`paidEur` — non lo
+  status, così anche un documento già degradato viene riconosciuto pagato.
+  `POST /api/preagreement/resolve` (admin) è la via d'uscita: cerca la prova
+  sul documento e, se manca, **su Stripe per il token di QUELLA proposta**
+  (metadata `token`, non l'id sessione che il giro rotto sovrascriveva);
+  con la prova riporta a `paid`, rende definitivo il lucchetto e converte;
+  senza prova **non dichiara mai pagato** e lo dice. Sblocca anche una
+  riserva quando l'immobile si è liberato (il lucchetto è l'unica autorità:
+  ancora tenuto → nessuna scrittura e il nome di chi lo tiene).
+  In console: chip oro **✓ incassato** su qualunque etichetta, riga che
+  spiega riserva e disallineamento, bottoni **⚠ Sistema lo stato** /
+  **✅ Sblocca la riserva** / **🔎 Ha pagato?**, filtro Riserve, e la KPI
+  incassato conta i soldi VERI (prima sommava solo `status==='paid'`).
+  Test: `node tests/preagreement/state.mjs`.
 - **Email transport warning**: `nodemailer` and `pdf-lib` MUST be imported
   statically (top-level `import`). Lazy `await import('pkg')` is not traced
   by Vercel's bundler → "Cannot find package" at runtime in production
@@ -1344,6 +1369,47 @@ Un giro solo, otto interventi, 33 suite verdi:
   a destra, sidebar `100dvh`, scroll-lock modali (`body.modal-open`),
   bottone 🔍 che apre la ricerca globale come overlay (su mobile non
   esisteva affatto), `#boomBridge` largo `min(360px, 100vw-32px)`.
+- **M2 "Portal App"** (`css/portal-mobile.css` + `js/portal-mobile.js`,
+  studio in `STUDIO_PORTAL_MOBILE.md`): M1 toglieva il dolore, M2 cambia il
+  MODELLO — su telefono (≤920px) il portale si usa come un'app. Tab bar in
+  basso (4 sezioni del ruolo + Menu, badge specchiati dalla sidebar VERA —
+  mai una seconda lista che diverge), bottom sheet per il menu/le azioni
+  riga/i footer-modale da 15 bottoni (righe 52px con l'etichetta vera),
+  liste `.list-item`→card con primaria etichettata + ⋯, le 6 `<table>` vere
+  →card con data-label, modali lunghe full-screen con tastiere giuste
+  (inputmode), e **il wizard sereno dei contratti**: addContract (che è GIÀ
+  un wizard, #cPage0..3) ristrutturato con progress+barra fissa che proxy-a
+  i bottoni originali (validazione LORO), i modali piatti (editContract 15
+  campi, property 22, user 16-19) spezzati in capitoli semantici con
+  riepilogo finale e campo ignoto MAI perso ("Altro"). Regole dure: ogni
+  azione è un `.click()` sull'originale (zero fork di logica), i nodi si
+  SPOSTANO dentro `#mForm` (FormData integra), lo stato visivo vive SOLO in
+  classi gated `body.pm-on` (ruotare un iPad oltre i 920px = il modale
+  torna desktop da solo), desktop a zero pixel. Kill switch `?classic=1` /
+  `?app=1`. Aggancio: MutationObserver su `#main`/`#modals`/`#sidebar` (~60
+  modali bypassano openModal — la classe body.modal-open NON è affidabile).
+  Test: `node tests/mobile/run.mjs` (151 check sulla sorgente: nomi campo
+  WIZ pinnati su portal-app.js, CSS gated, sw, -webkit-) + `node
+  tests/mobile/ui.mjs` (35 check in Chromium vero a 390px col
+  contractWizardNav REALE estratto).
+- **D1 "BOOM OS"** (`css/portal-desktop.css` + `js/portal-desktop.js`,
+  studio in `STUDIO_BOOM_OS.md`): la faccia DESKTOP del protocollo "un
+  motore, due facce" — attiva SOLO sopra i 920px (la STESSA query di M2,
+  negata: mai zone doppie), tutto dietro `body.pd-on`. **Command Palette
+  ⌘K/Ctrl+K**: sezioni+console dalla sidebar VERA (badge compresi), azioni
+  Crea (proxy di openModal, admin-gated) e ricerca entità SOLLEVATA da
+  `handleSearch` (si invoca il motore esistente e si adottano le righe di
+  #searchResults con la loro onclick — mai un secondo indice). **Tastiera**:
+  `g`+lettera naviga, `n`+lettera crea, `/` ricerca, `?` foglio dei tasti —
+  mai attiva dentro un input o sopra un modale. **Peek drawer**: le schede
+  di sola lettura `lg/xl` (fascicolo contratto, notifiche) arrivano come
+  pannello destro; i FORM restano finestre. Rifinitura sobria (header
+  vetro, filo d'oro sulla voce attiva, focus-visible, scrollbar). Kill
+  switch dedicato `?deskclassic=1` / `?deskapp=1`. Test: `node
+  tests/desktop/run.mjs` (48 check: comandi pinnati su portal-app.js,
+  query 920 condivisa, motore mai copiato) + `node tests/desktop/ui.mjs`
+  (18 check in Chromium a 1440px, col confine dei 920 attraversato nei due
+  sensi).
 - **Dieta del boot** (portal-app): tetti su TUTTE le query nude (limit
   larghi, MAI orderBy+limit — un orderBy su campo assente nasconderebbe i
   doc legacy), i 7 step lazy in parallelo, rate scadute flippate SOLO in
@@ -2391,6 +2457,7 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/journey/steps.mjs` | **le regole commerciali dell'operatore**: quando parte ogni email e cosa NON deve contenere (T-90 e uscita non vendono, le chiavi non si vendono mai, un prodotto già comprato non si ripropone, il rinnovo non arriva prima del move-in su un transitorio breve) |
   | `tests/journey/review-url.mjs` | solo un vero link "scrivi recensione" (`g.page/r/<id>/review`) entra nelle email; un link Maps "Condividi" viene rifiutato con warning |
   | `tests/dossier/run.mjs` | fascicolo ARPE: un landlord non può scrivere nel fascicolo di un immobile altrui, path sotto `property-docs/<id>/`, slot già pieni non sovrascritti |
+  | `tests/preagreement/state.mjs` | stato della proposta: un deal PAGATO non torna mai indietro (né ad `accepted` né a `reserve`) e non apre una seconda Checkout, il link "completa il pagamento" non incassa due volte, la riparazione dalla console non dichiara MAI pagato senza prova (checkout abbandonata ≠ pagamento, sessione di un'altra proposta ≠ pagamento) e la riserva si sblocca solo se il lucchetto è davvero libero. Verificato per mutazione: rimessa la vecchia guardia, 7 check cadono |
   | `tests/photos/sweep.mjs` | photo-lab: chi è candidato allo sweep, quali foto contano come sorgente (i nostri output enhanced mai), e l'ordine con cui le 3 notti si spendono — le gallerie vere prima degli annunci da una foto. Si auto-skippa senza `sharp` |
   | `tests/copy/run.mjs` | descrizioni: lo sweep riscrive i template del bot e le schede mute, ma **mai** le parole di un umano — verificato sulle stringhe vere del catalogo, dove il testo scritto a mano è più CORTO del template |
   | `tests/dispo/run.mjs` | date di disponibilità: una data illeggibile non diventa MAI "libera ora" (il difetto che metteva "Available now" su case libere a settembre), un messaggio aggiorna tutte le case, una data sola non si spalma su chi non è stato nominato, e la porta rifiuta ciò che le pagine non saprebbero rileggere |

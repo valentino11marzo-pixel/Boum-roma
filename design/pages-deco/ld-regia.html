@@ -12,9 +12,88 @@
   function euro(n) { return '€' + Math.round(n).toLocaleString('en-US'); }
   function per(sel) { return document.querySelector(sel); }
 
-  /* quale casa: quella dell'indirizzo, o la prima disponibile */
-  var ide = (location.hash.match(/id=([^&]+)/) || [])[1];
-  var c = CASE.filter(function (x) { return x.id === ide; })[0] || CASE[0];
+  /* quale casa: quella del server (/listing/:id), dell'indirizzo (#id=)
+     o del percorso — e se il catalogo fotografato non la conosce ma il
+     server ha mandato il documento (casa pubblicata dal bot DOPO la
+     build), si costruisce da quello. Mai un annuncio nuovo orfano. */
+  function statoDa(s2, d2) {
+    var oggi = new Date().toISOString().slice(0, 10), eti, lib;
+    if (s2 === 'available') {
+      if (d2 && d2 > oggi) {
+        var dt = new Date(d2 + 'T12:00:00');
+        eti = 'Free from ' + dt.getDate() + ' '
+          + dt.toLocaleDateString('en-GB', { month: 'short' });
+        if (dt.getFullYear() !== new Date().getFullYear())
+          eti += ' ' + dt.getFullYear();
+      } else eti = 'Available now';
+      lib = true;
+    } else if (s2 === 'waitlist') { eti = 'Waitlist open'; lib = false; }
+    else if (s2 === 'reserved') { eti = 'Reserved'; lib = false; }
+    else { eti = 'Rented'; lib = false; }
+    return { eti: eti, lib: lib };
+  }
+  function casaDaListing(d, ideNuovo) {
+    function n(v) {
+      var x = parseFloat(String(v == null ? '' : v).replace(',', '.'));
+      return isFinite(x) && x > 0 ? x : null;
+    }
+    function t(v) {
+      return String(v == null ? '' : v).replace(/\s+/g, ' ').trim();
+    }
+    var img = (Array.isArray(d.images) ? d.images : []).filter(Boolean);
+    var cover = img[0] || d.coverImage || d.image || '';
+    var rawDal = String(d.availableDate || d.availableFrom || '').trim();
+    var dal = (rawDal.match(/^\d{4}-\d{2}-\d{2}/) || [])[0] || null;
+    /* la data testo libero passa dal motore CONDIVISO: mai "Available
+       now" per un regex che legge solo ISO */
+    if (!dal && rawDal && window.BOOM_DISPO) {
+      try {
+        var paD = BOOM_DISPO.parseAvailability(rawDal, new Date());
+        if (paD && paD.kind === 'date') dal = paD.iso;
+      } catch (e) {}
+    }
+    var st = statoDa(String(d.status || 'available').toLowerCase(), dal);
+    return {
+      id: ideNuovo,
+      nome: t(d.name) || 'Apartment',
+      zona: (t(d.zone || d.neighborhood) || 'Roma').split('/')[0],
+      indirizzo: t(d.address),
+      prezzo: n(d.price) || 0,
+      mq: n(d.sqm != null ? d.sqm : d.size),
+      letti: n(d.bedrooms != null ? d.bedrooms : d.beds),
+      bagni: n(d.bathrooms),
+      piano: d.floor != null && t(d.floor) !== '' ? t(d.floor) : null,
+      tipo: d.type ? t(d.type) : null,
+      arredata: ['yes', 'true', 'si', 'sì']
+        .indexOf(String(d.furnished || '').toLowerCase()) >= 0,
+      stato: st.eti, libera: st.lib, dal: dal,
+      racconto: t(d.description),
+      dentro: (Array.isArray(d.features) ? d.features
+        : Array.isArray(d.tags) ? d.tags : []).filter(Boolean).map(t),
+      cauzioneMesi: n(d.depositMonths) || 1,
+      lat: d.lat ? parseFloat(d.lat)
+        : d.geo && d.geo.lat ? parseFloat(d.geo.lat) : null,
+      lng: d.lng ? parseFloat(d.lng)
+        : d.geo && d.geo.lng ? parseFloat(d.geo.lng) : null,
+      prec: (function () {
+        try { return window.BOOM_GEO
+          ? BOOM_GEO.pinPrecision(d).level : null; } catch (e) { return null; }
+      })(),
+      cover: cover,
+      varianti: Array.isArray(d.imagesVariants) ? d.imagesVariants : null,
+      foto: img.slice(0, 8).length ? img.slice(0, 8)
+        : (cover ? [cover] : []),
+      video: String(d.videoUrl || d.youtubeUrl || '').trim() || null,
+      fotoCurate: !!d.photosEnhancedAt
+    };
+  }
+  var ide = window.__LISTING_ID
+    || (location.hash.match(/id=([^&]+)/) || [])[1]
+    || (location.search.match(/[?&]id=([^&]+)/) || [])[1]
+    || (location.pathname.match(/\/listing\/([^\/?#]+)/) || [])[1];
+  var c = CASE.filter(function (x) { return x.id === ide; })[0];
+  if (!c && ide && window.__LISTING) c = casaDaListing(window.__LISTING, ide);
+  c = c || CASE[0];
 
   /* ── la scena: la foto grande e il rullino ──────────────────────────── */
   var telaio = document.getElementById('telaio');
@@ -24,12 +103,34 @@
   var img = document.createElement('img');
   img.alt = c.nome + ', ' + c.zona + ' — apartment for rent in Rome with BOOM';
   img.decoding = 'async';
+  /* l'elemento LCP della pagina: la rete lo tratta da protagonista */
+  img.setAttribute('fetchpriority', 'high');
   telaio.insertBefore(img, telaio.firstChild);
+  /* le varianti della pipeline enhance (w480/w960): allineate per src,
+     mai per solo indice — se gli array driftano, resta il master */
+  function variante(i) {
+    var v = c.varianti && c.varianti[i];
+    return (v && v.src === immagini[i]) ? v : null;
+  }
   function mostra(i) {
     img.classList.remove('qui');
-    var pre = new Image();
-    pre.onload = function () { img.src = pre.src; img.classList.add('qui'); };
-    pre.src = immagini[i];
+    var v = variante(i);
+    if (v && (v.w480 || v.w960)) {
+      img.onload = function () { img.classList.add('qui'); img.onload = null; };
+      img.sizes = '100vw';
+      img.srcset = [v.w480 ? v.w480 + ' 480w' : '',
+        v.w960 ? v.w960 + ' 960w' : '', immagini[i] + ' 1920w']
+        .filter(Boolean).join(', ');
+      img.src = immagini[i];
+      if (img.complete && img.naturalWidth) {
+        img.classList.add('qui'); img.onload = null;
+      }
+    } else {
+      var pre = new Image();
+      pre.onload = function () { img.removeAttribute('srcset');
+        img.src = pre.src; img.classList.add('qui'); };
+      pre.src = immagini[i];
+    }
     [].slice.call(rullino.children).forEach(function (b, k) {
       b.classList.toggle('qui', k === i); });
   }
@@ -38,7 +139,9 @@
     b.type = 'button';
     b.setAttribute('aria-label', 'Photo ' + (i + 1) + ' of ' + immagini.length);
     var t = document.createElement('img');
-    t.src = u; t.alt = ''; t.loading = 'lazy'; t.decoding = 'async';
+    var vt = variante(i);
+    t.src = (vt && vt.w480) || u;   /* il rullino non scarica mai 1920px */
+    t.alt = ''; t.loading = 'lazy'; t.decoding = 'async';
     b.appendChild(t);
     b.addEventListener('click', function () { mostra(i); });
     rullino.appendChild(b);
@@ -61,12 +164,27 @@
     function vai(d) {
       qui = (qui + d + immagini.length) % immagini.length;
       mostra(qui);
+      try { new Image().src = immagini[(qui + 1) % immagini.length];
+        new Image().src = immagini[(qui - 1 + immagini.length) % immagini.length];
+      } catch (e) {}
       if (conta) conta.textContent = (qui + 1) + ' / ' + immagini.length;
       var b = rullino.children[qui]; if (b && b.scrollIntoView)
         b.scrollIntoView({ block:'nearest', inline:'center', behavior:'smooth' });
     }
     prec.addEventListener('click', function () { vai(-1); });
     succ.addEventListener('click', function () { vai(1); });
+    /* il gesto piu' ripetuto: lo swipe sul telaio (il pattern della
+       lente, riusato) — e la prossima foto si precarica da sola */
+    (function () {
+      var x0 = null;
+      telaio.addEventListener('touchstart', function (e) {
+        x0 = e.touches[0].clientX; }, { passive: true });
+      telaio.addEventListener('touchend', function (e) {
+        if (x0 === null) return;
+        var dx = e.changedTouches[0].clientX - x0; x0 = null;
+        if (Math.abs(dx) > 40) vai(dx < 0 ? 1 : -1);
+      }, { passive: true });
+    })();
     [].slice.call(rullino.children).forEach(function (b, k) {
       b.addEventListener('click', function () {
         qui = k; if (conta) conta.textContent = (k + 1) + ' / ' + immagini.length;
@@ -106,7 +224,32 @@
      il segnaposto sopravvive al replace di navigazione del builder */
   per('#cuoreCasa').dataset.u = 'CHIAVE_CASA' + c.id;
   per('#applicaNome').textContent = c.nome;
+  /* WhatsApp arriva gia' col contesto: mai un «ciao» muto — l'operatore
+     sa di quale casa si parla e la pipeline aggancia il listing */
+  (function () {
+    var wa = document.querySelector('.chiedi-wa');
+    if (!wa) return;
+    var msg = 'Hi! I\u2019m asking about \u201c' + c.nome + '\u201d ('
+      + c.zona + ') \u2014 ' + location.origin + '/listing/'
+      + encodeURIComponent(c.id);
+    wa.href = 'https://wa.me/393313251961?text=' + encodeURIComponent(msg);
+    wa.addEventListener('click', function () {
+      if (window.boomTrack) boomTrack('whatsapp_click', { item_id: c.id || '' });
+    });
+  })();
   /* se la casa non e libera, la CTA non finge: si entra in lista */
+  /* una casa libera DA una data: la data sta nel gesto, non solo nel badge */
+  if (c.libera && c.dal) {
+    var oggiIso = new Date().toISOString().slice(0, 10);
+    if (c.dal > oggiIso) {
+      var bF = document.querySelector('#modApplica button[type="submit"]');
+      if (bF) {
+        var dF = new Date(c.dal + 'T12:00:00');
+        bF.textContent = 'Apply \u00b7 move in '
+          + dF.getDate() + ' ' + dF.toLocaleDateString('en-GB', { month: 'short' });
+      }
+    }
+  }
   if (!c.libera) {
     var bAp = document.querySelector('#modApplica button[type="submit"]');
     if (bAp) bAp.textContent = 'Join the waitlist';
@@ -322,8 +465,11 @@
        + 'tax. Both are paid to the providers and to the State — we never '
        + 'touch them, and we never mark them up.']
     ];
-    lista.innerHTML = D.map(function (q) {
-      return '<div class="chiedi-v"><b>' + q[0] + '</b><p>' + q[1] + '</p></div>';
+    /* domande tutte VISIBILI (regola GEO: il FAQPage afferma solo cio'
+       che la pagina mostra), risposte richiudibili — la prima aperta */
+    lista.innerHTML = D.map(function (q, i2) {
+      return '<details class="chiedi-v"' + (i2 === 0 ? ' open' : '')
+        + '><summary>' + q[0] + '</summary><p>' + q[1] + '</p></details>';
     }).join('');
     /* per i motori: le STESSE dieci risposte — mai due verita */
     try {
@@ -401,6 +547,8 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(corpo) }); } catch (err) {}
       } else console.info('[PREVIEW] POST /api/apply-lead →', corpo);
+      if (window.boomTrack) boomTrack('apply_submit',
+        { item_id: c.id || '', intent: c.libera ? 'apply' : 'waitlist' });
       f.style.display = 'none';
       var sotto = document.getElementById('applicaSotto');
       if (sotto) sotto.style.display = 'none';
@@ -470,6 +618,38 @@
     var sez = document.getElementById('posto');
     if (!sez) return;
     if (!c.lat || !c.lng) { sez.style.display = 'none'; return; }
+
+    /* i tasti diretti del blocco. Street View solo dove il pin e una
+       strada vera (regola boom-geo): su un centroide di zona aprirebbe
+       una via qualunque e sembrerebbe casa tua. Directions sempre:
+       portano dove sappiamo portare. */
+    (function () {
+      var az = document.getElementById('bloccoAzioni');
+      if (!az) return;
+      var lvl = c.prec || (function () {
+        try { return window.BOOM_GEO
+          ? BOOM_GEO.pinPrecision(c).level : 'zone'; } catch (e) { return 'zone'; }
+      })();
+      az.hidden = false;
+      var cc = document.getElementById('blkCoords');
+      if (cc) cc.textContent = lvl === 'exact'
+        ? '\u25c8 ' + c.lat.toFixed(4) + '\u00b0 N \u00b7 ' + c.lng.toFixed(4) + '\u00b0 E'
+        : '\u2248 ' + (lvl === 'street'
+            ? 'The right street \u2014 not the number'
+            : 'Approximate position in ' + (c.zona || 'Rome'));
+      var sv = document.getElementById('blkSv');
+      if (sv && (lvl === 'exact' || lvl === 'street')) {
+        sv.hidden = false;
+        sv.textContent = lvl === 'exact'
+          ? '\u27f2 Street View \u00b7 the exact entrance'
+          : '\u27f2 Street View \u00b7 this street';
+        sv.href = 'https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='
+          + c.lat + ',' + c.lng;
+      }
+      var dr = document.getElementById('blkDir');
+      if (dr) dr.href = 'https://www.google.com/maps/dir/?api=1&destination='
+        + c.lat + ',' + c.lng;
+    })();
     var RAD = Math.PI / 180;
     function km(a1, o1, a2, o2) {
       var R = 6371, dy = (a2 - a1) * RAD, dx = (o2 - o1) * RAD;
@@ -542,11 +722,18 @@
       mappaB.addControl(new maplibregl.NavigationControl(
         { visualizePitch: true }), 'bottom-right');
       mappaB.on('error', function (e) {
-        if (e && e.error
+        if (e && e.error && !e.tile
+            && !(mappaB.isStyleLoaded && mappaB.isStyleLoaded())
             && /style|Failed to fetch/i.test(String(e.error.message || '')))
           ripiegoB();
       });
-      setTimeout(ripiegoB, 9000);
+      function guardiaB(giri) {
+        if (carico || spenta || satellite || !mappaB) return;
+        if (mappaB.isStyleLoaded && mappaB.isStyleLoaded() && giri < 3)
+          return void setTimeout(function () { guardiaB(giri + 1); }, 5000);
+        ripiegoB();
+      }
+      setTimeout(function () { guardiaB(0); }, 9000);
       mappaB.on('load', function () {
         carico = true;
         try {
@@ -700,6 +887,7 @@
           mail = f.querySelector('#prMail').value.trim(),
           tel = f.querySelector('#prTel').value.trim();
       if (!nome || !mail || !tel) return;
+      if (window.boomTrack) boomTrack('hold_start', { item_id: c.id || '' });
       var corpo = { listingId: c.id, listingName: c.nome, amount: 300,
         name: nome, email: mail, phone: tel, move_in_date: c.dal || '' };
       var b = document.getElementById('prVai'),
@@ -750,6 +938,36 @@
      riscrive stato, denaro, durata, FAQ, presa e porticine da sola.
      Una verita sola: quella vera. Se la rete manca, restano i numeri
      del builder — mai una pagina rotta. */
+  function digest(nume, testo) {
+    var cambia = false;
+    var p2 = nume('price');
+    if (p2 && p2 !== c.prezzo) { c.prezzo = p2; cambia = true; }
+    var m2 = nume('depositMonths');
+    if (m2 && m2 !== c.cauzioneMesi) {
+      c.cauzioneMesi = m2; cambia = true;
+    }
+    var s2 = testo('status').toLowerCase();
+    if (s2) {
+      var d2 = (testo('availableDate')
+        .match(/^\d{4}-\d{2}-\d{2}/) || [])[0] || c.dal;
+      var st2 = statoDa(s2, d2);
+      if (st2.eti !== c.stato || st2.lib !== c.libera || d2 !== c.dal) {
+        c.stato = st2.eti; c.libera = st2.lib; c.dal = d2; cambia = true;
+      }
+    }
+    if (!cambia) return;
+    scriviStato(); contiSoldi(); mostraTotale(true); mostraCanone(true);
+    rifaiDurata(); scriviChiedi(); rifaiPresa(); rifaiPorte();
+  }
+  /* prima sorsata: il documento gia iniettato dal server — zero rete */
+  if (VERO && window.__LISTING && window.__LISTING_ID === c.id)
+    (function (d) {
+      digest(function (k) {
+        var n = parseFloat(d[k]);
+        return isFinite(n) && n > 0 ? n : null;
+      }, function (k) { return d[k] == null ? '' : String(d[k]); });
+    })(window.__LISTING);
+  /* seconda: la rilettura viva, come sempre */
   if (VERO) setTimeout(function () {
     fetch('https://firestore.googleapis.com/v1/projects/'
         + 'boom-property-dashboards/databases/(default)/documents/listings/'
@@ -758,47 +976,14 @@
       .then(function (j) {
         if (!j || !j.fields) return;
         var f = j.fields;
-        function nume(k) {
+        digest(function (k) {
           var v = f[k]; if (!v) return null;
           var n = parseFloat(v.integerValue || v.doubleValue
             || v.stringValue);
           return isFinite(n) && n > 0 ? n : null;
-        }
-        function testo(k) {
+        }, function (k) {
           var v = f[k]; return v ? String(v.stringValue || '') : '';
-        }
-        var cambia = false;
-        var p2 = nume('price');
-        if (p2 && p2 !== c.prezzo) { c.prezzo = p2; cambia = true; }
-        var m2 = nume('depositMonths');
-        if (m2 && m2 !== c.cauzioneMesi) {
-          c.cauzioneMesi = m2; cambia = true;
-        }
-        var s2 = testo('status').toLowerCase();
-        if (s2) {
-          var d2 = (testo('availableDate')
-            .match(/^\d{4}-\d{2}-\d{2}/) || [])[0] || c.dal;
-          var oggi2 = new Date().toISOString().slice(0, 10);
-          var eti, lib;
-          if (s2 === 'available') {
-            if (d2 && d2 > oggi2) {
-              var dt = new Date(d2 + 'T12:00:00');
-              eti = 'Free from ' + dt.getDate() + ' '
-                + dt.toLocaleDateString('en-GB', { month: 'short' });
-              if (dt.getFullYear() !== new Date().getFullYear())
-                eti += ' ' + dt.getFullYear();
-            } else eti = 'Available now';
-            lib = true;
-          } else if (s2 === 'waitlist') { eti = 'Waitlist open'; lib = false; }
-          else if (s2 === 'reserved') { eti = 'Reserved'; lib = false; }
-          else { eti = 'Rented'; lib = false; }
-          if (eti !== c.stato || lib !== c.libera || d2 !== c.dal) {
-            c.stato = eti; c.libera = lib; c.dal = d2; cambia = true;
-          }
-        }
-        if (!cambia) return;
-        scriviStato(); contiSoldi(); mostraTotale(true); mostraCanone(true);
-        rifaiDurata(); scriviChiedi(); rifaiPresa(); rifaiPorte();
+        });
       })
       .catch(function () { /* niente rete: restano i numeri del builder */ });
   }, 600);
@@ -827,6 +1012,73 @@
       + euro(a.prezzo) + ' per month"></span><small>/mo</small></span></div>'
       + '<div class="riga2">' + dati + '</div></div></a>';
   }).join('');
+
+  /* ── Hold e Apply chiedono le stesse tre cose a due form scollegati:
+     compilarne uno riempie l'altro, e il successo dell'apply offre il
+     gesto d'oro (solo se la casa e' libera — mai un hold su una presa) */
+  (function () {
+    var coppie = [['prNome', 'apNome'], ['prMail', 'apMail'], ['prTel', 'apTel']];
+    coppie.forEach(function (cp) {
+      var a = document.getElementById(cp[0]), b = document.getElementById(cp[1]);
+      if (!a || !b) return;
+      function specchia(da, a2) {
+        da.addEventListener('input', function () {
+          if (!a2.value || a2.dataset.eco === '1') {
+            a2.value = da.value; a2.dataset.eco = '1';
+          }
+        });
+      }
+      specchia(a, b); specchia(b, a);
+    });
+    var fh = document.getElementById('fattoHold');
+    if (fh && c.libera && document.getElementById('presaCasa'))
+      fh.style.display = '';
+  })();
+
+  /* ── la barra di decisione (mobile) + la rotaia (desktop) ── */
+  (function () {
+    var bar = document.getElementById('decisione');
+    if (bar) {
+      per('#decPrezzo').textContent = euro(c.prezzo) + '/mo';
+      per('#decStato').textContent = c.stato;
+      var vaiB = document.getElementById('decVai');
+      if (!c.libera && vaiB) vaiB.textContent = 'Waitlist';
+      bar.hidden = false;
+      var applica = document.getElementById('applica');
+      var soglia = 520;
+      var giu = false;
+      function stagione() {
+        var vicino = false;
+        if (applica) {
+          var r2 = applica.getBoundingClientRect();
+          vicino = r2.top < innerHeight && r2.bottom > 0;
+        }
+        var ora = scrollY > soglia && !vicino;
+        if (ora !== giu) { giu = ora; bar.classList.toggle('viva', ora); }
+      }
+      addEventListener('scroll', stagione, { passive: true });
+      stagione();
+    }
+    var rotaia = document.getElementById('rotaia');
+    if (rotaia && 'IntersectionObserver' in window) {
+      var voci = [].slice.call(rotaia.querySelectorAll('a'));
+      var io2 = new IntersectionObserver(function (rr) {
+        rr.forEach(function (x) {
+          if (!x.isIntersecting) return;
+          var id = '#' + x.target.id;
+          voci.forEach(function (v) {
+            v.classList.toggle('qui', v.getAttribute('href') === id); });
+        });
+      }, { rootMargin: '-30% 0px -60% 0px' });
+      ['casa', 'denaro', 'posto', 'chiedi', 'applica'].forEach(function (id) {
+        var el = document.getElementById(id); if (el) io2.observe(el);
+      });
+    }
+    /* se la casa non ha racconto ne' dote, la sezione non finge */
+    var sezCasa = document.getElementById('casa');
+    if (sezCasa && !c.racconto && !(c.dentro || []).length)
+      sezCasa.style.display = 'none';
+  })();
 
   /* cambiando casa dall'indirizzo, la pagina si rifà */
   addEventListener('hashchange', function () {

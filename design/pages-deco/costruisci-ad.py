@@ -170,17 +170,54 @@ onda = ('<script>\n(function () {\n  \'use strict\';\n' + pt[a:b]
         + "  else addEventListener('load', function () { setTimeout(cartaRoma, 0); });\n"
         + '})();\n</script>')
 
-# la Skyline della home, per intero: il blocco e la sua macchina.
-# Nessuna copia a mano — se la home migliora, la discovery la segue.
+# la Skyline della home: STESSA cornice (facciata + velo), ma dentro c'è
+# il VERO /skyline in finestra — la cura già data alla home (il modulo
+# estratto era una copia che divergeva, ed è quello che si è rotto in
+# discovery). I filtri della griglia parlano alla finestra via
+# postMessage (BoomCielo.tieni → boomTieni): un solo Skyline, per sempre.
 ci_a = pt.index('<div class="cielo sale" id="cielo">')
 ci_b = pt.index('</section>', ci_a)
 cielo_blocco = pt[ci_a:ci_b].rstrip()
 assert cielo_blocco.endswith('</div>'), 'blocco cielo'
 cielo_blocco = cielo_blocco[:-6].rstrip()  # cade il </div> del container
-sc_a = pt.index("var CASE = 'SKY_JSON';")
-sc_a = pt.rindex('<script>', 0, sc_a)
-sc_b = pt.index('</script>', sc_a) + len('</script>')
-cielo_js = pt[sc_a:sc_b]
+cielo_js = '''<script>
+(function () {
+  'use strict';
+  var fr = null, pronta = false, ultimi = null;
+  function manda() {
+    if (fr && pronta && ultimi) {
+      try { fr.contentWindow.postMessage({ t: 'boomTieni', ids: ultimi },
+        location.origin); } catch (e) {}
+    }
+  }
+  function finestra() {
+    if (fr) return;
+    var posto = document.getElementById('cieloMappa');
+    if (!posto) return;
+    fr = document.createElement('iframe');
+    fr.src = 'SKY_SRC';
+    fr.title = 'BOOM Skyline 3D — Rome';
+    fr.setAttribute('allow', 'fullscreen');
+    fr.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;';
+    var velo = document.getElementById('cieloVelo');
+    fr.addEventListener('load', function () {
+      pronta = true;
+      if (velo) velo.classList.add('via');
+      manda();
+    });
+    setTimeout(function () { if (velo) velo.classList.add('via'); }, 4000);
+    posto.appendChild(fr);
+    var hud = document.querySelector('#vistaCielo .cielo-hud');
+    if (hud) hud.remove();
+    var conta = document.getElementById('cieloConta');
+    if (conta) conta.remove();
+  }
+  window.BoomCielo = {
+    tieni: function (ids) { ultimi = (ids || []).map(String); manda(); },
+    apri: finestra
+  };
+})();
+</script>'''
 
 h = '\n'.join([testa, nav, leggi('ad-corpo.html'), piede,
                leggi('ad-regia.html'), onda, cielo_js,
@@ -188,7 +225,7 @@ h = '\n'.join([testa, nav, leggi('ad-corpo.html'), piede,
 h = h.replace('<title>BOOM Rome — Premium Apartment Rentals | 48-Hour Move-In</title>',
     '<title>Apartments in Rome — walked in person, ready to move in | BOOM</title>')
 h = h.replace('LOGO_SVG', leggi('logo-live.svg').strip())
-h = h.replace('href="#banchina"', 'href="' + ('https://claude.ai/code/artifact/5e7c6222-9a91-4052-a4d7-f31255ed4478' if MODO == 'artefatto' else '/v2-home.html') + '#banchina"')
+h = h.replace('href="#banchina"', 'href="' + ('https://claude.ai/code/artifact/5e7c6222-9a91-4052-a4d7-f31255ed4478' if MODO == 'artefatto' else '/') + '#banchina"')
 h = h.replace('CASE_MURO', MURO)
 h = h.replace('VISTA_CIELO', cielo_blocco)
 SKYD = []
@@ -202,11 +239,13 @@ for r in mostrate:
         'foto': (rem.get(r['id'], '') if MODO == 'sito' else ''),
         'stato': 'reserved' if r['status'] in ('reserved', 'waitlist') else 'rented'})
 h = h.replace("'SKY_JSON'", json.dumps(SKYD, ensure_ascii=False))
+h = h.replace('SKY_SRC', '/skyline?embed=1' if MODO == 'sito'
+    else 'https://www.boomrome.com/skyline?embed=1')
 h = h.replace('SKYLINE_URL', 'https://www.boomrome.com/skyline'
     if MODO == 'artefatto' else '/skyline')
 h = h.replace('CASA_BASE',
     ('https://claude.ai/code/artifact/db7c3240-a12d-4734-9eb7-06a780584231#id=')
-    if MODO == 'artefatto' else '/v2-listing.html#id=')
+    if MODO == 'artefatto' else '/listing/')
 conta_dote = {}
 for r in mostrate:
     for d in dote_di(r['id']): conta_dote[d] = conta_dote.get(d, 0) + 1
@@ -225,8 +264,10 @@ else:
     h = h.replace('FONT_INLINE',
         '<link rel="preconnect" href="https://fonts.googleapis.com">\n'
         '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n'
-        '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700'
-        '&display=swap" rel="stylesheet">')
+        '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700'
+        '&display=swap" media="print" onload="this.media=\'all\'">\n'
+        '<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700'
+        '&display=swap"></noscript>')
 
 if MODO == 'artefatto':
     HOME = 'https://claude.ai/code/artifact/5e7c6222-9a91-4052-a4d7-f31255ed4478'
@@ -238,13 +279,14 @@ if MODO == 'artefatto':
     h = h.replace('href="/login"', 'href="https://www.boomrome.com/login"')
     h = h.replace('data-href="/apartments.html#zona=', 'data-href="#zona=')
 else:
-    for da, a_ in {'/index.html': '/v2-home.html',
-        '/apartments.html': '/v2-apartments.html',
-        '/your-money.html': '/v2-money.html',
-        '/property-finding.html': '/v2-property-finding.html'}.items():
+    # CABLATO: la discovery vive su /apartments, le card su /listing/<id>
+    for da, a_ in {'/index.html': '/',
+        '/apartments.html': '/apartments',
+        '/your-money.html': '/your-money'}.items():
         h = h.replace('href="' + da + '"', 'href="' + a_ + '"')
-    h = h.replace('href="/listing/', 'href="/v2-listing.html#id=')
     h = h.replace('data-href="/apartments.html#zona=', 'data-href="#zona=')
+    # cleanUrls: OGNI link interno perde il .html anche nel modo sito
+    h = re.sub(r'href="/([a-z-]+)\.html"', r'href="/\1"', h)
 
 DESCR = ('Browse ' + str(len(mostrate)) + ' verified apartments for rent in '
          'Rome — every home walked in person by BOOM. Filter by zone, budget '
@@ -255,19 +297,18 @@ h = h.replace(
     'move-in. Your landing in Rome, handled.">',
     '<meta name="description" content="' + DESCR + '">')
 if MODO == 'sito':
-    OG = ('<link rel="canonical" href="https://www.boomrome.com/v2-apartments.html">\n'
-          '<meta property="og:title" content="Apartments in Rome — walked in person | BOOM">\n'
-          '<meta property="og:description" content="' + DESCR + '">\n'
-          '<meta property="og:type" content="website">\n'
-          '<meta property="og:url" content="https://www.boomrome.com/v2-apartments.html">\n'
-          + (('<meta property="og:image" content="' + rem.get(mostrate[0]['id'], '') + '">\n'
-              '<meta name="twitter:card" content="summary_large_image">\n')
-             if rem.get(mostrate[0]['id']) else ''))
+    import testa as TESTA
+    OG = TESTA.blocco_discovery(
+        'Apartments in Rome — walked in person | BOOM', DESCR,
+        len(mostrate),
+        immagine=rem.get(mostrate[0]['id']) or TESTA.IMG_SOCIAL) + '\n'
     i = h.index('</title>') + len('</title>')
     h = h[:i] + '\n' + OG + h[i:]
     h = ('<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
          + h.replace('</style>', '</style>\n</head>\n<body>', 1)
-         + '\n</body>\n</html>')
+         + '\n<script src="/js/dispo-engine.js"></script>'
+         + '\n' + leggi('vetrina-idrante.html')
+         + '\n' + TESTA.CONSENSO + '\n</body>\n</html>')
 uscita = 'boom-discovery.html' if MODO == 'artefatto' else 'boom-discovery-sito.html'
 open(uscita, 'w', encoding='utf-8').write(h)
 print(f'{uscita} · {len(h)//1024} KB · {len(mostrate)} case · '

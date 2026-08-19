@@ -45,6 +45,36 @@
   },
   "redirects": [
     {
+      "source": "/(v2-property-finding|v2-property-finding.html)",
+      "destination": "/property-finding",
+      "permanent": true
+    },
+    {
+      "source": "/(v2-board|v2-board.html)",
+      "destination": "/board",
+      "permanent": true
+    },
+    {
+      "source": "/(v2-home|v2-home.html|v2-portal|v2-portal.html)",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/(v2-apartments|v2-apartments.html)",
+      "destination": "/apartments",
+      "permanent": true
+    },
+    {
+      "source": "/(v2-money|v2-money.html)",
+      "destination": "/your-money",
+      "permanent": true
+    },
+    {
+      "source": "/(v2-listing|v2-listing.html)",
+      "destination": "/apartments",
+      "permanent": true
+    },
+    {
       "source": "/index.html",
       "destination": "/",
       "permanent": true
@@ -514,6 +544,10 @@
         {
           "key": "X-DNS-Prefetch-Control",
           "value": "on"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "object-src 'none'; base-uri 'none'; frame-ancestors 'self'"
         }
       ]
     },
@@ -613,6 +647,21 @@
     "api/radar/digest.js": {
       "maxDuration": 60
     },
+    "api/ops/backup.js": {
+      "maxDuration": 60
+    },
+    "api/stripe-webhook.js": {
+      "maxDuration": 60
+    },
+    "api/preagreement/submit.js": {
+      "maxDuration": 60
+    },
+    "api/leads/scan-inbox.js": {
+      "maxDuration": 60
+    },
+    "api/pfs/scan-inbox.js": {
+      "maxDuration": 60
+    },
     "api/homie/miniera.js": {
       "maxDuration": 60
     },
@@ -697,6 +746,10 @@
     {
       "path": "/api/reminder-cron",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/ops/backup",
+      "schedule": "50 4 * * *"
     },
     {
       "path": "/api/telegram/notify-pending",
@@ -786,13 +839,13 @@
       "path": "/api/ops/conservazione",
       "schedule": "40 5 2 * *"
     },
-      {
-        "path": "/api/market/pulse",
-        "schedule": "50 5 * * *"
-      },
-      {
-        "path": "/api/radar/digest",
-        "schedule": "10 6,12,17 * * *"
-      }
+    {
+      "path": "/api/market/pulse",
+      "schedule": "50 5 * * *"
+    },
+    {
+      "path": "/api/radar/digest",
+      "schedule": "10 6,12,17 * * *"
+    }
   ]
 }

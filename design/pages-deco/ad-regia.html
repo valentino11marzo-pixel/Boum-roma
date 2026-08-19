@@ -52,6 +52,51 @@
     });
     vive.forEach(function (c) { muro.appendChild(c); });
   }
+  /* lo stato dei filtri vive nell'URL: refresh e back non azzerano la
+     ricerca, e «bilocali a Trastevere sotto 1.500» si condivide su
+     WhatsApp — il giro lista→casa→lista E' il loop della discovery */
+  function scriviHash() {
+    var pz = [];
+    if (stato.dal) pz.push('dal=' + stato.dal);
+    if (stato.budget) pz.push('budget=' + stato.budget);
+    if (stato.chi) pz.push('chi=' + encodeURIComponent(stato.chi));
+    if (stato.zona) pz.push('zona=' + encodeURIComponent(stato.zona));
+    try {
+      history.replaceState(null, '', pz.length ? '#' + pz.join('&')
+        : location.pathname + location.search);
+    } catch (e) {}
+  }
+  /* il badge della stecca vive in un altro closure: il conto dei filtri
+     vivi si espone qui, dove lo stato abita */
+  window.__filtriVivi = function () {
+    return (stato.dal ? 1 : 0) + (stato.budget ? 1 : 0)
+      + (stato.chi ? 1 : 0) + (stato.zona ? 1 : 0);
+  };
+  /* lo zero nasce quasi sempre da UN vincolo: prima la via gratuita
+     (togli quello), poi la macchina a pagamento */
+  function vieUscita() {
+    var box = document.getElementById('vuotoVie');
+    if (!box) return;
+    var VIE = [['dal', 'the move-in date'], ['budget', 'the budget cap'],
+               ['chi', "who's moving"], ['zona', 'the zone']];
+    var righe = [];
+    VIE.forEach(function (v) {
+      var k = v[0];
+      if (!stato[k]) return;
+      var salvo = stato[k];
+      stato[k] = (k === 'budget') ? 0 : (k === 'dal' ? null : '');
+      var n = 0; carte.forEach(function (c) { if (passa(c)) n++; });
+      stato[k] = salvo;
+      if (n > 0) righe.push({ k: k, eti: v[1], n: n });
+    });
+    box.innerHTML = righe.length
+      ? '<b>One filter away:</b>' + righe.map(function (x) {
+          return '<button type="button" data-k="' + x.k + '">Without '
+            + x.eti + ' \u2192 ' + x.n + ' home'
+            + (x.n === 1 ? '' : 's') + '</button>';
+        }).join('')
+      : '';
+  }
   function aggiorna() {
     var n = 0;
     carte.forEach(function (c) {
@@ -65,9 +110,12 @@
       ? ' in ' + stato.zona.replace(/\b\w/g, function (x) { return x.toUpperCase(); })
       : '';
     vuoto.classList.toggle('si', n === 0);
-    /* il muro riappare con la sua cascata quando cambia il taglio */
-    muro.classList.remove('dentro');
-    requestAnimationFrame(function () { muro.classList.add('dentro'); });
+    /* la cascata recita all'INGRESSO; ai filtri la lista risponde
+       secca — il movimento ripetuto non porta informazione nuova */
+    if (!muro.classList.contains('dentro'))
+      requestAnimationFrame(function () { muro.classList.add('dentro'); });
+    scriviHash();
+    if (n === 0) vieUscita();
   }
 
   /* ── IL TABELLONE DELLE ZONE: righe Solari che filtrano ────────────── */
@@ -389,6 +437,27 @@
     });
   }
   leggiHash();
+  /* le vie d'uscita del vuoto: un tap toglie QUEL filtro — i comandi dei
+     controlli vivono qui, nello stesso closure del picker */
+  (function () {
+    var box = document.getElementById('vuotoVie');
+    if (!box) return;
+    box.addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-k]'); if (!b) return;
+      var k = b.dataset.k;
+      if (k === 'budget') { stato.budget = 0; bud.value = '';
+        bud.classList.remove('scelto'); }
+      if (k === 'chi') { stato.chi = ''; chi.value = '';
+        chi.classList.remove('scelto'); }
+      if (k === 'dal') { stato.dal = null; scelta = null;
+        testo.textContent = 'Any date'; btn.classList.remove('scelta'); }
+      if (k === 'zona') { stato.zona = '';
+        document.querySelectorAll('.zona-riga.on').forEach(function (z) {
+          z.classList.remove('on'); z.setAttribute('aria-pressed', 'false');
+        }); }
+      aggiorna();
+    });
+  })();
   /* le zone sulle carte cambiano l'hash della stessa pagina: si riascolta */
   addEventListener('hashchange', function () { leggiHash(); aggiorna(); });
   })();
@@ -458,8 +527,12 @@
       else muro.appendChild(sky);
       sky.style.display = vis.length ? '' : 'none';
     }
+    /* il badge conta TUTTO cio' che filtra — anche zona, data, budget e
+       chi: una stecca che dichiara «nessun filtro» su una lista filtrata
+       insegna a non fidarsi della stecca */
     var acc = tutti('#foglioVelo .gruppo button.on').filter(function (b) {
-      return b.dataset.v !== ''; }).length;
+      return b.dataset.v !== ''; }).length
+      + (window.__filtriVivi ? window.__filtriVivi() : 0);
     var fc = per('#filtriConta');
     if (fc) { fc.hidden = !acc; fc.textContent = acc; }
     var fg = per('#foglioConto'), ct = per('#conto');
@@ -489,6 +562,7 @@
   var contoRiga = per('.muro-conto'), vuoto = per('#vuoto');
   function vista(mappa) {
     if (!cieloBox) return;
+    if (mappa && window.BoomCielo && BoomCielo.apri) BoomCielo.apri();
     cieloBox.hidden = !mappa;
     muro.style.display = mappa ? 'none' : '';
     if (contoRiga) contoRiga.style.display = mappa ? 'none' : '';
@@ -527,6 +601,11 @@
     dice.textContent = PARA.length < 2 ? 'Pick another home to compare'
       : PARA.length + ' homes side by side';
   }
+  muro.addEventListener('click', function (e) {
+    var carta = e.target.closest('a.casa-p');
+    if (carta && window.boomTrack)
+      boomTrack('card_open', { item_id: carta.dataset.id || '' });
+  });
   muro.addEventListener('click', function (e) {
     var b = e.target.closest('.home-para'); if (!b) return;
     e.preventDefault(); e.stopPropagation();

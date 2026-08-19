@@ -1,0 +1,96 @@
+<script>
+/* L'IDRANTE DELLA VETRINA — home e discovery erano FOTOGRAFIE: il bot
+   cambia prezzo o stato su Firestore e le card restavano al giorno della
+   build. Ora ogni card con data-id rilegge il SUO documento vero (una
+   sola list REST, lettura pubblica) e riscrive stato, data e prezzo dove
+   sono cambiati — la stessa disciplina dell'idrante del detail. Se la
+   rete manca o la CSP blocca (anteprima artefatto), restano i numeri
+   della build: mai una pagina rotta. */
+(function () {
+  'use strict';
+  var carte = document.querySelectorAll('.casa-p[data-id]');
+  if (!carte.length) return;
+  function euro(n) { return '€' + Math.round(n).toLocaleString('en-US'); }
+  function stato(st, dal) {
+    var oggi = new Date().toISOString().slice(0, 10);
+    if (st === 'available') {
+      if (dal && dal > oggi) {
+        var d = new Date(dal + 'T12:00:00');
+        var eti = 'Free from ' + d.getDate() + ' '
+          + d.toLocaleDateString('en-GB', { month: 'short' });
+        if (d.getFullYear() !== new Date().getFullYear())
+          eti += ' ' + d.getFullYear();
+        return { t: eti, c: 'poi' };
+      }
+      return { t: 'Available now', c: 'si' };
+    }
+    if (st === 'waitlist') return { t: 'Waitlist open', c: 'fila' };
+    if (st === 'reserved') return { t: 'Reserved', c: '' };
+    return { t: 'Rented', c: '' };
+  }
+  setTimeout(function () {
+    fetch('https://firestore.googleapis.com/v1/projects/'
+        + 'boom-property-dashboards/databases/(default)/documents/'
+        + 'listings?pageSize=300')
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j || !j.documents) return;
+        var per = {};
+        j.documents.forEach(function (doc) {
+          var f = doc.fields || {};
+          function v(k) {
+            var x = f[k]; if (!x) return null;
+            return x.stringValue != null ? x.stringValue
+              : x.integerValue != null ? x.integerValue
+              : x.doubleValue != null ? x.doubleValue : null;
+          }
+          var p = parseFloat(v('price'));
+          /* la data passa dal motore CONDIVISO (dispo-engine): una data
+             testo libero non diventa mai "Available now" per un regex
+             che legge solo ISO — il difetto storico della vetrina */
+          var raw = String(v('availableDate') || '').trim();
+          var dal = (raw.match(/^\d{4}-\d{2}-\d{2}/) || [])[0] || '';
+          if (!dal && raw && window.BOOM_DISPO) {
+            try {
+              var pa = BOOM_DISPO.parseAvailability(raw, new Date());
+              if (pa && pa.kind === 'date') dal = pa.iso;
+            } catch (e) {}
+          }
+          per[doc.name.split('/').pop()] = {
+            st: String(v('status') || '').toLowerCase(),
+            dal: dal, cieca: !!(raw && !dal),
+            p: isFinite(p) && p > 0 ? Math.round(p) : null
+          };
+        });
+        [].forEach.call(carte, function (card) {
+          var d = per[card.dataset.id];
+          if (!d || !d.st) return;
+          /* data illeggibile anche per il motore: il badge di BUILD (che
+             ha gia' letto la stessa stringa con le stesse regole) resta —
+             meglio fermo che sbagliato */
+          if (d.cieca) return;
+          var s = stato(d.st, d.dal);
+          var eti = card.querySelector('.casa-stato');
+          if (eti && eti.textContent.trim() !== s.t) {
+            eti.textContent = s.t;
+            eti.className = 'casa-stato' + (s.c ? ' ' + s.c : '');
+          }
+          /* gli attributi che i filtri leggono: la griglia non deve
+             setacciare su numeri vecchi */
+          if (card.dataset.dal !== undefined) card.dataset.dal = d.dal;
+          if (d.p) {
+            if (card.dataset.prezzo !== undefined
+                && card.dataset.prezzo !== String(d.p))
+              card.dataset.prezzo = String(d.p);
+            var fp = card.querySelector('.flap-prezzo');
+            if (fp && fp.dataset.p !== euro(d.p)) {
+              fp.dataset.p = euro(d.p);
+              fp.textContent = euro(d.p);
+            }
+          }
+        });
+      })
+      .catch(function () { /* niente rete: restano i numeri della build */ });
+  }, 900);
+})();
+</script>

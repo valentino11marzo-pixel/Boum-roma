@@ -10,6 +10,7 @@
 
 import Stripe from 'stripe';
 import { fsList, fsPatch, readJson } from '../homie/_lib.js';
+import { paidOnRecord } from './_state.js';
 
 const clip = (v, n = 200) => (v == null ? null : String(v).trim().slice(0, n) || null);
 
@@ -31,7 +32,11 @@ export default async function handler(req, res) {
     const { id, ...pa } = hit;   // fsList returns flat rows: {id, ...fields}
 
     if (pa.status === 'revoked') return res.status(410).json({ ok: false, error: 'revoked' });
-    if (pa.status === 'paid') return res.status(409).json({ ok: false, error: 'already_paid' });
+    // Stessa regola di submit: conta il FATTO. Un documento incassato ma con
+    // lo status rimasto indietro (webhook in ritardo, o degradato da un
+    // secondo invio) non deve mai riaprire un pagamento già ricevuto — sono
+    // soldi presi due volte e un rimborso da fare.
+    if (paidOnRecord(pa)) return res.status(409).json({ ok: false, error: 'already_paid' });
     if (pa.status !== 'accepted') return res.status(409).json({ ok: false, error: 'not_accepted' });
 
     const due = Math.round(Number((pa.money || {}).dueAtSigning) || 0);

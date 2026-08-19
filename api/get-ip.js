@@ -22,7 +22,10 @@ function setCors(req, res) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 }
 
-module.exports = async (req, res) => {
+// ESM (api/package.json dichiara "type":"module"): con module.exports questo
+// file lanciava "module is not defined" a runtime → l'IP nel trail di firma
+// era sempre vuoto (audit 2026-08-18 P1.10). Unico file CJS rimasto in api/.
+export default async (req, res) => {
   setCors(req, res);
   if (req.method === "OPTIONS") { res.status(204).end(); return; }
   if (req.method !== "GET")      { res.status(405).json({ error: "Method not allowed" }); return; }

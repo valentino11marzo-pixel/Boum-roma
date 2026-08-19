@@ -6,22 +6,14 @@
 // non blocca più il flusso e i link WhatsApp presenti dove serve.
 // Si auto-skippa senza playwright, come la suite safari.
 // Uso: node tests/sign/lang.mjs
+import { loadChromium, launchOptions } from '../_browser.mjs';
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
-import { createRequire } from 'node:module';
 
-const require = createRequire(import.meta.url);
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../..');
 
-let chromium = null;
-for (const cand of [
-  'playwright-core', 'playwright',
-  ...(process.env.BOOM_PLAYWRIGHT ? [process.env.BOOM_PLAYWRIGHT] : []),
-  '/opt/node22/lib/node_modules/playwright/index.js',
-]) {
-  try { ({ chromium } = require(cand)); if (chromium) break; } catch (_) {}
-}
+const chromium = await loadChromium();
 if (!chromium) {
   console.log('SKIP: playwright non disponibile — npm i -D playwright-core, oppure BOOM_PLAYWRIGHT=/percorso/index.js');
   process.exit(0);
@@ -41,7 +33,9 @@ const srv = http.createServer((req, res) => {
 const PORT = srv.address().port;
 const URL_ = (q) => `http://127.0.0.1:${PORT}/sign.html?${q}`;
 
-const browser = await chromium.launch();
+// --no-sandbox: sui runner CI (container, utente senza user-namespace)
+// Chromium non parte senza. In locale è innocuo.
+const browser = await chromium.launch(launchOptions());
 const errs = [];
 const newPage = async () => {
   const pg = await browser.newPage({ viewport: { width: 390, height: 844 } });

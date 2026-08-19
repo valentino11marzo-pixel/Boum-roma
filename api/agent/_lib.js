@@ -139,7 +139,12 @@ export async function guardPost(req, res) {
   if (req.method !== 'POST')    { res.status(405).json({ ok: false, error: 'method_not_allowed' }); return null; }
 
   const lib = await import('../homie/_lib.js');
-  const hasSecret = req.headers['x-homie-secret'] === process.env.HOMIE_SECRET;
+  // secretEqual (timing-safe) ritorna false se HOMIE_SECRET non è stringa:
+  // il confronto diretto `header === env` dava `undefined === undefined` →
+  // true, cioè fail-OPEN su tutti gli endpoint agent quando l'env manca, e
+  // qui NON c'è un secondo gate a valle come nel webhook Telegram (audit
+  // 2026-08-18 P0.5). Stessa funzione già usata da pfs/_guard.
+  const hasSecret = lib.secretEqual(req.headers['x-homie-secret'], process.env.HOMIE_SECRET);
   let actor = hasSecret ? 'homie' : null;
   if (!actor) {
     const u = await verifyBrowserAdmin(req);

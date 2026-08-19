@@ -79,7 +79,7 @@ function organizationJsonLd() {
     sameAs: [
       'https://www.instagram.com/boomrome',
       'https://www.linkedin.com/company/boomrome',
-      'https://wa.me/393331234567',
+      'https://wa.me/393313251961',
     ],
     address: {
       '@type': 'PostalAddress',
@@ -159,11 +159,6 @@ function localBusinessJsonLd() {
         closes: '14:00',
       },
     ],
-    aggregateRating: {
-      '@type': 'AggregateRating',
-      ratingValue: '4.9',
-      reviewCount: '127',
-    },
   };
 }
 

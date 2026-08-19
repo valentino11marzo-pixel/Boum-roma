@@ -70,25 +70,27 @@ else:
     h = h.replace('FONT_INLINE',
         '<link rel="preconnect" href="https://fonts.googleapis.com">\n'
         '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n'
-        '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700'
-        '&display=swap" rel="stylesheet">')
-    h = h.replace('href="#banchina"', 'href="/v2-home.html#banchina"')
-    h = h.replace('href="/index.html#banchina"', 'href="/v2-home.html#banchina"')
-    for da, a_ in {'/index.html': '/v2-home.html',
-        '/apartments.html': '/v2-apartments.html',
-        '/your-money.html': '#giornouno',
-        '/property-finding.html': '/v2-property-finding.html'}.items():
+        '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700'
+        '&display=swap" media="print" onload="this.media=\'all\'">\n'
+        '<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700'
+        '&display=swap"></noscript>')
+    h = h.replace('href="#banchina"', 'href="/#banchina"')
+    h = h.replace('href="/index.html#banchina"', 'href="/#banchina"')
+    for da, a_ in {'/index.html': '/',
+        '/apartments.html': '/apartments',
+        '/your-money.html': '#giornouno'}.items():
         h = h.replace('href="' + da + '"', 'href="' + a_ + '"')
-    OG = ('<link rel="canonical" href="https://www.boomrome.com/v2-money.html">\n'
-          '<meta property="og:title" content="Your money at BOOM — every euro, in the open">\n'
-          '<meta property="og:description" content="' + DESCR + '">\n'
-          '<meta property="og:type" content="website">\n'
-          '<meta property="og:url" content="https://www.boomrome.com/v2-money.html">\n')
+    # cleanUrls: OGNI link interno perde il .html anche nel modo sito
+    h = re.sub(r'href="/([a-z-]+)\.html"', r'href="/\1"', h)
+    import testa as TESTA
+    OG = TESTA.blocco_money(
+        'Your money at BOOM — every euro, in the open | BOOM Rome',
+        DESCR) + '\n'
     i = h.index('</title>') + len('</title>')
     h = h[:i] + '\n' + OG + h[i:]
     h = ('<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
          + h.replace('</style>', '</style>\n</head>\n<body>', 1)
-         + '\n</body>\n</html>')
+         + '\n' + TESTA.CONSENSO + '\n</body>\n</html>')
 
 uscita = 'boom-soldi.html' if MODO == 'artefatto' else 'boom-soldi-sito.html'
 open(uscita, 'w', encoding='utf-8').write(h)

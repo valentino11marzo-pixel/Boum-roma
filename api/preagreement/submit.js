@@ -20,6 +20,7 @@ import { sendPaEmails } from './_notify.js';
 import { maybeAutoConvert } from './_auto.js';
 import { paExpired } from './lookup.js';
 import { acquireLock, confirmLock, HOLD_HOURS } from './_lock.js';
+import { paidOnRecord } from './_state.js';
 import { normalizeAddons, addonsTotal } from './_addons.js';
 import { tgSend } from '../telegram/_lib.js';
 
@@ -69,6 +70,16 @@ export default async function handler(req, res) {
     if (!hit) return res.status(404).json({ ok: false, error: 'not_found' });
     const { id, ...data } = hit;   // fsList returns flat rows: {id, ...fields}
     if (data.status === 'revoked') return res.status(410).json({ ok: false, error: 'revoked' });
+    // IL PAGAMENTO È TERMINALE, E SI GUARDA IL FATTO NON L'ETICHETTA.
+    // Un secondo invio del modulo su una proposta GIÀ PAGATA (pagina rimasta
+    // aperta, tasto indietro da Stripe, tap ripetuto su rete lenta) tornava
+    // qui dentro: riscriveva lo status ad `accepted` — o a `reserve` se nel
+    // frattempo l'immobile era passato a un'altra proposta — e apriva una
+    // SECONDA Checkout sullo stesso dovuto. Da lì il deal si pianta: la
+    // console lo mostra da pagare e ogni passo successivo risponde 409.
+    if (paidOnRecord(data)) {
+      return res.status(200).json({ ok: true, ref: data.ref || null, checkoutUrl: null, already: true, paid: true });
+    }
     if (data.status === 'accepted') return res.status(200).json({ ok: true, ref: data.ref || null, checkoutUrl: null, already: true });
     // Expired offer: acceptance refused (the console's Edit extends the same
     // link — status never changes here, so reviving is one field away).

@@ -33,9 +33,12 @@
   "file": "apartment-detail.html?id=2SwJ8yD3ITXylrEtYIlL",
   "price": "1500",
   "status": "available",
-  "image": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1784734611400_IMG_3504.HEIC?alt=media&token=fade94e8-317b-4c0f-a496-984de0d0c630",
+  "image": "/foto-catalogo/pigneto-palace.jpg",
   "size": "mq",
-  "_id": "2SwJ8yD3ITXylrEtYIlL"
+  "_id": "2SwJ8yD3ITXylrEtYIlL",
+  "images": [
+   "/foto-catalogo/pigneto-palace.jpg"
+  ]
  },
  {
   "ingestedBy": "wizard",
@@ -240,7 +243,7 @@
    "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1784745290648_photo_15.jpg?alt=media",
    "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2F1784745292498_photo_16.jpg?alt=media"
   ],
-  "bedrooms": "3",
+  "bedrooms": 1,
   "descriptionOriginal": "Beautiful bilocale in Centro, 60sqm on floor 1, fully furnished. 3 beds, 1 bathroom. Features include ac, balcony, dishwasher, washing_machine, double_glazing, doorman, wifi. €1,500/month.",
   "sqm": "60",
   "tags": [

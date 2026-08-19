@@ -1,0 +1,405 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   M2 · PORTAL APP — css/portal-mobile.css (gemella di js/portal-mobile.js)
+   ------------------------------------------------------------------------
+   Il layer che trasforma portal.html su telefono: tab bar in basso,
+   bottom sheet al posto delle liste di bottoni, liste→card, modali
+   full-screen e il wizard "sereno" per i form lunghi (Contratti in testa).
+
+   DISCIPLINA (stessa di M1, un gradino oltre):
+   - TUTTO ciò che cambia l'aspetto del portale sta dietro `body.pm-on`,
+     che solo js/portal-mobile.js accende e SOLO ≤920px: se il JS non
+     parte questa CSS è inerte e il portale resta identico. ANCHE lo
+     stato dei wizard (pagina corrente, righe nav nascoste, footer
+     nascosto) è espresso qui con classi gated: ruotando un iPad oltre i
+     920px il layer si spegne e il modale torna il desktop originale da
+     solo, senza ripristini da orchestrare nel JS.
+   - Gli `!important` ci sono SOLO dove serve battere uno stile inline
+     dei template (max-height:72vh, max-width:700px) o un !important del
+     blocco responsive storico di portal.css (riga 399).
+   - Ogni backdrop-filter ha il gemello -webkit- (regola Safari del repo).
+   - Kill switch: ?classic=1 / localStorage boom_classic_mobile='1'.
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root{
+    --pm-tab-h:60px;                       /* altezza tab bar (senza safe-area) */
+    --pm-ease:cubic-bezier(.32,.72,0,1);   /* curva "iOS sheet" */
+    --pm-radius:18px;
+    --pm-hairline:rgba(255,255,255,0.10);
+}
+
+/* Fuori dal layer: i pezzi generati dal JS non devono MAI vedersi
+   (rotazione tablet a metà lavoro, kill switch, resize) */
+body:not(.pm-on) .pm-tabbar,
+body:not(.pm-on) .pm-card-actions,
+body:not(.pm-on) .pm-wiz-progress,
+body:not(.pm-on) .pm-wiz-footer,
+body:not(.pm-on) .pm-wiz-recappane,
+body:not(.pm-on) .pm-more-btn{display:none!important}
+
+/* ── Fondamenta quando il layer è acceso ──────────────────────────────── */
+body.pm-on{
+    -webkit-tap-highlight-color:transparent;
+}
+body.pm-on .main{
+    /* il contenuto non finisce mai sotto la tab bar */
+    padding-bottom:calc(var(--pm-tab-h) + var(--safe-b) + 28px)!important;
+}
+body.pm-on .toast-container{
+    bottom:calc(var(--pm-tab-h) + var(--safe-b) + 14px);
+}
+/* Il Menu della tab bar sostituisce l'hamburger: un ingresso solo. */
+body.pm-on .menu-btn{display:none}
+/* Con la tab bar, la vecchia sidebar off-canvas (se mai aperta da codice)
+   non deve finirci sotto. */
+body.pm-on .sidebar{padding-bottom:calc(20px + var(--pm-tab-h) + var(--safe-b))}
+/* La riga bottoni di testa pagina: una corsia orizzontale, mai a pacchi
+   (batte il blocco ≤600px di portal.css che li impila a tutta larghezza). */
+body.pm-on .page-actions,
+body.pm-on .page-header > div:last-child{
+    flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;
+    scrollbar-width:none;max-width:100%;width:100%;padding-bottom:2px;
+}
+body.pm-on .page-actions::-webkit-scrollbar,
+body.pm-on .page-header > div:last-child::-webkit-scrollbar{display:none}
+body.pm-on .page-actions .btn,
+body.pm-on .page-header .btn{white-space:nowrap;flex:0 0 auto}
+/* Feedback tattile: ogni bottone "risponde" sotto il dito. */
+body.pm-on .btn:active,
+body.pm-on .pm-tab:active,
+body.pm-on .pm-sheet-item:active,
+body.pm-on .dash-act:active{transform:scale(.97);transition:transform .08s}
+body.pm-on .dash-act{min-height:44px}
+/* La search overlay di M1: più respiro, sopra il contenuto. */
+body.pm-on .header.search-open .header-center{padding:12px;z-index:120}
+/* Il pannello BOOM Bridge non deve coprire la tab bar. */
+body.pm-on #boomBridge{bottom:calc(var(--pm-tab-h) + var(--safe-b) + 16px)}
+
+/* ═══ TAB BAR ═════════════════════════════════════════════════════════ */
+.pm-tabbar{
+    position:fixed;left:0;right:0;bottom:0;z-index:290;   /* sotto le modali (300) */
+    height:calc(var(--pm-tab-h) + var(--safe-b));
+    padding:0 6px var(--safe-b);
+    display:flex;align-items:stretch;justify-content:space-around;
+    background:rgba(8,8,10,0.86);
+    -webkit-backdrop-filter:saturate(160%) blur(22px);
+    backdrop-filter:saturate(160%) blur(22px);
+    border-top:1px solid var(--pm-hairline);
+    transition:transform .25s var(--pm-ease);
+}
+.pm-tabbar[hidden]{display:none!important}
+body.pm-kb .pm-tabbar{transform:translateY(110%)}  /* tastiera aperta: via */
+.pm-tab{
+    position:relative;flex:1;max-width:110px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+    background:none;border:none;cursor:pointer;padding:6px 2px 7px;
+    color:var(--text-muted);font-family:inherit;
+    -webkit-touch-callout:none;user-select:none;-webkit-user-select:none;
+}
+.pm-tab-ico{font-size:21px;line-height:1;filter:grayscale(1) opacity(.72);transition:filter .18s,transform .18s}
+.pm-tab-lab{font-size:9.5px;font-weight:600;letter-spacing:.8px;text-transform:uppercase}
+.pm-tab.active{color:var(--gold)}
+.pm-tab.active .pm-tab-ico{filter:none;transform:translateY(-1px)}
+.pm-tab.active::after{
+    content:'';position:absolute;top:1px;left:50%;transform:translateX(-50%);
+    width:22px;height:3px;border-radius:0 0 3px 3px;background:var(--gold);
+    box-shadow:0 2px 10px rgba(212,175,55,.6);
+}
+.pm-tab-badge{
+    position:absolute;top:3px;left:calc(50% + 7px);
+    min-width:17px;height:17px;padding:0 4px;border-radius:9px;
+    background:var(--red);color:#fff;font-size:10px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 0 0 2px rgba(8,8,10,.9);
+}
+.pm-tab-badge.gold{background:var(--gold);color:#000}
+.pm-tab-badge[hidden]{display:none}
+
+/* ═══ BOTTOM SHEET (generico: menu, azioni riga, azioni modale) ═══════ */
+.pm-sheet-backdrop{
+    position:fixed;inset:0;z-index:400;    /* sopra i modali (300), sotto ask/choose (1200) */
+    background:rgba(0,0,0,0.55);
+    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+    opacity:0;transition:opacity .22s ease;
+}
+.pm-sheet-backdrop.open{opacity:1}
+.pm-sheet{
+    position:fixed;left:0;right:0;bottom:0;z-index:401;
+    max-height:calc(100dvh - 40px - var(--safe-t));
+    display:flex;flex-direction:column;
+    background:#0C0C0E;
+    border:1px solid var(--pm-hairline);border-bottom:none;
+    border-radius:22px 22px 0 0;
+    box-shadow:0 -18px 60px rgba(0,0,0,.65);
+    transform:translateY(102%);transition:transform .3s var(--pm-ease);
+    padding-bottom:calc(var(--safe-b) + 10px);
+}
+.pm-sheet.open{transform:translateY(0)}
+.pm-sheet-grab{
+    width:38px;height:4px;border-radius:2px;background:rgba(255,255,255,.18);
+    margin:9px auto 4px;flex-shrink:0;
+}
+.pm-sheet-head{
+    padding:8px 20px 12px;flex-shrink:0;
+    display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+}
+.pm-sheet-title{font-size:16px;font-weight:600;letter-spacing:.3px}
+.pm-sheet-sub{font-size:11px;color:var(--text-muted);letter-spacing:.4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:55%}
+.pm-sheet-body{overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:0 12px 8px}
+
+/* Righe azione dentro lo sheet: target 52px, etichetta VERA, mai icone nude */
+.pm-sheet-item{
+    width:100%;display:flex;align-items:center;gap:14px;
+    padding:14px 12px;min-height:52px;
+    background:none;border:none;border-radius:12px;cursor:pointer;
+    color:var(--text);font-size:14.5px;font-weight:400;font-family:inherit;
+    text-align:left;letter-spacing:.2px;
+}
+.pm-sheet-item:active{background:var(--bg-elevated)}
+.pm-sheet-item .ico{width:34px;height:34px;flex-shrink:0;border-radius:10px;background:var(--bg-elevated);display:flex;align-items:center;justify-content:center;font-size:16px}
+.pm-sheet-item.primary{color:var(--gold);font-weight:600}
+.pm-sheet-item.primary .ico{background:var(--gold-light)}
+.pm-sheet-item.danger{color:var(--red)}
+.pm-sheet-item.danger .ico{background:var(--red-light)}
+.pm-sheet-sep{height:1px;background:var(--border);margin:6px 12px}
+
+/* ═══ MENU (lo sheet della quinta tab: la sidebar VERA, a schede) ══════ */
+.pm-menu-user{
+    display:flex;align-items:center;gap:13px;
+    padding:6px 20px 14px;border-bottom:1px solid var(--border);margin-bottom:6px;
+}
+.pm-menu-user .user-avatar{width:44px;height:44px;font-size:15px}
+.pm-menu-user-name{font-size:15px;font-weight:600}
+.pm-menu-user-role{font-size:11px;color:var(--text-muted);letter-spacing:.6px;text-transform:uppercase;margin-top:1px}
+/* il clone della sidebar: ogni .nav-section diventa una griglia di schede */
+.pm-menu .nav-section{
+    display:grid;grid-template-columns:1fr 1fr;gap:7px;
+    margin:2px 4px 12px;
+}
+.pm-menu .nav-label{grid-column:1/-1;padding:10px 10px 4px}
+.pm-menu .nav-item{
+    margin:0;padding:13px 12px;min-height:52px;border-radius:13px;
+    background:var(--bg-card);border:1px solid var(--border);
+    font-size:12.5px;display:flex;align-items:center;
+}
+.pm-menu .nav-item.active{background:var(--gold-light);border-color:rgba(212,175,55,.4);color:var(--gold)}
+.pm-menu .nav-item .nav-badge{margin-left:auto}
+.pm-menu .sidebar-footer{
+    display:grid;grid-template-columns:1fr 1fr;gap:7px;
+    margin:4px 4px 0;padding-top:12px;border-top:1px solid var(--border);
+}
+.pm-menu .sidebar-footer .nav-item{margin:0}
+/* portal.css definisce .nav-badge rossa/gold/orange ma NON .green (usata
+   dal JS per i lead): qui, nel solo layer mobile, la si disegna davvero */
+body.pm-on .nav-badge.green{background:var(--green);color:#fff}
+
+/* ═══ LISTE .list-item → CARD (sezioni operative, stampate dal JS) ═════ */
+body.pm-on .pm-li{
+    flex-wrap:wrap;
+    padding:14px 16px!important;      /* batte il 10px 12px !important di portal.css:405 */
+    row-gap:10px;
+    position:relative;
+}
+body.pm-on .pm-li .list-title{font-size:14.5px;line-height:1.35}
+body.pm-on .pm-li .list-subtitle{font-size:12px;line-height:1.45}
+body.pm-on .pm-li .pm-src-btn{display:none!important}   /* le originali vivono, nascoste */
+body.pm-on .pm-li .pm-card-actions{flex-basis:100%;min-width:0}
+
+/* corsia azioni condivisa da liste e card-tabella */
+.pm-card-actions{display:flex;gap:8px}
+.pm-card-actions .pm-act-primary{
+    flex:1;min-height:44px;padding:0 14px;
+    background:var(--gold-light);border:1px solid rgba(212,175,55,.35);border-radius:12px;
+    color:var(--gold);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    white-space:nowrap;overflow:hidden;
+}
+.pm-card-actions .pm-act-primary span{overflow:hidden;text-overflow:ellipsis}
+.pm-card-actions .pm-act-more{
+    flex:0 0 48px;min-height:44px;
+    background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;
+    color:var(--text);font-size:18px;letter-spacing:1px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+}
+
+/* ═══ TABELLE VERE → CARD (il JS stampa .pm-cards e data-label) ════════ */
+body.pm-on table.pm-cards{display:block;white-space:normal;overflow:visible;border-collapse:separate}
+body.pm-on .pm-cards thead{display:none}
+body.pm-on .pm-cards tbody{display:flex;flex-direction:column;gap:10px}
+body.pm-on .pm-cards tr{
+    display:grid;grid-template-columns:1fr 1fr;gap:9px 16px;
+    background:var(--bg-card);border:1px solid var(--border);
+    border-radius:var(--pm-radius);padding:14px 16px 12px;
+}
+body.pm-on .pm-cards td{
+    display:block;border:none!important;padding:0!important;white-space:normal;
+    font-size:13px;min-width:0;overflow-wrap:anywhere;
+    /* neutralizza la colonna Azioni sticky di M1 (portal.css:1274) */
+    position:static!important;box-shadow:none!important;background:transparent!important;
+}
+body.pm-on .pm-cards td::before{
+    content:attr(data-label);display:block;
+    font-size:9px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;
+    color:var(--text-muted);margin-bottom:3px;
+}
+body.pm-on .pm-cards td[data-label='']::before,
+body.pm-on .pm-cards td:not([data-label])::before{display:none}
+body.pm-on .pm-cards td.pm-td-main{grid-column:1/-1;font-size:15px;font-weight:500;line-height:1.35}
+body.pm-on .pm-cards td.pm-td-actions{grid-column:1/-1;margin-top:4px}
+body.pm-on .pm-cards td.pm-td-actions::before{display:none}
+body.pm-on .pm-cards td.pm-td-actions .pm-src-btn{display:none!important}
+body.pm-on .pm-cards tr.pm-row-plain{display:block}
+
+/* ═══ MODALI: sheet dal basso; full-screen quando il JS stampa .pm-full ═ */
+body.pm-on .modal-overlay{padding:0;align-items:flex-end}
+body.pm-on .modal{
+    max-width:100%!important;width:100%;margin:0!important;
+    border-radius:20px 20px 0 0!important;   /* batte il 16px!important di portal.css:399 */
+    border-left:none;border-right:none;border-bottom:none;
+    animation:pmModalUp .3s var(--pm-ease);
+}
+@keyframes pmModalUp{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
+body.pm-on .modal-overlay.pm-full{align-items:stretch}
+body.pm-on .pm-full .modal{
+    height:100dvh;max-height:100dvh;
+    border-radius:0!important;border:none;
+    display:flex;flex-direction:column;
+}
+body.pm-on .pm-full .modal-header{
+    flex-shrink:0;padding:calc(14px + var(--safe-t)) 18px 14px;
+    position:relative;z-index:2;background:var(--bg-card);
+}
+body.pm-on .pm-full .modal-title{font-size:17px}
+body.pm-on .pm-full .modal-body{
+    flex:1;min-height:0;
+    max-height:none!important;         /* batte gli inline style="max-height:72vh" */
+    padding:18px 18px 28px;overflow-y:auto;
+    overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+}
+body.pm-on .pm-full .modal-footer{
+    flex-shrink:0;padding:12px 16px calc(12px + var(--safe-b));
+    background:rgba(8,8,10,0.92);
+    -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+}
+/* respiro nei form dentro le modali full: un campo alla volta, aria attorno */
+body.pm-on .pm-full .form-label{font-size:12px;letter-spacing:1.2px;margin-bottom:8px;color:var(--text-secondary)}
+body.pm-on .pm-full .form-input,
+body.pm-on .pm-full .form-select,
+body.pm-on .pm-full .form-textarea{min-height:52px;padding:15px 16px;border-radius:14px}
+body.pm-on .pm-full .form-group{margin-bottom:18px}
+body.pm-on .pm-full .form-input.error,
+body.pm-on .pm-full .form-select.error,
+body.pm-on .pm-full .form-textarea.error{border-color:var(--red)}
+
+/* ═══ FOOTER COMPRESSO (≥4 bottoni → primaria [+ Chiudi] + ⋯) ═════════ */
+body.pm-on .modal-footer.pm-collapsed{flex-wrap:nowrap;gap:8px;justify-content:stretch}
+body.pm-on .modal-footer.pm-collapsed .btn{display:none}
+body.pm-on .modal-footer.pm-collapsed .btn.pm-keep{
+    display:inline-flex;flex:1 1 auto;min-height:48px;justify-content:center;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:12px;padding-right:12px;
+}
+body.pm-on .modal-footer.pm-collapsed .btn.pm-keep.btn-secondary{flex:0 0 auto}
+.pm-more-btn{
+    flex:0 0 48px;min-height:48px;
+    background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;
+    color:var(--text);font-size:19px;cursor:pointer;font-family:inherit;
+    display:inline-flex;align-items:center;justify-content:center;
+}
+
+/* ═══ WIZARD SERENO (chrome condiviso: nativo addContract + auto) ═════ */
+body.pm-on .pm-wiz-progress{
+    flex-shrink:0;padding:10px 18px 12px;
+    background:var(--bg-card);border-bottom:1px solid var(--border);
+}
+.pm-wiz-bar{height:3px;border-radius:2px;background:var(--bg-elevated);overflow:hidden;margin-bottom:9px}
+.pm-wiz-bar > i{display:block;height:100%;background:linear-gradient(90deg,var(--gold-dark),var(--gold));border-radius:2px;transition:width .3s var(--pm-ease)}
+.pm-wiz-count{font-size:10px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--gold)}
+.pm-wiz-step-title{font-size:16px;font-weight:600;margin-top:2px;letter-spacing:.2px}
+.pm-wiz-dots{display:flex;gap:6px;margin-top:10px}
+.pm-wiz-dot{
+    flex:1;height:26px;border:none;border-radius:8px;cursor:pointer;font-family:inherit;
+    background:var(--bg-elevated);color:var(--text-muted);font-size:10px;font-weight:700;
+}
+.pm-wiz-dot.done{background:var(--gold-light);color:var(--gold)}
+.pm-wiz-dot.active{background:var(--gold);color:#000}
+/* la barra Avanti/Indietro: ancorata in fondo alla colonna flex del modale */
+body.pm-on .pm-wiz-footer{
+    flex-shrink:0;padding:12px 16px calc(12px + var(--safe-b));
+    background:rgba(8,8,10,0.92);border-top:1px solid var(--border);
+    -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+}
+.pm-wiz-nav{display:flex;gap:10px;align-items:stretch;width:100%}
+.pm-wiz-nav .pm-wiz-back{
+    flex:0 0 auto;min-width:96px;min-height:50px;
+    background:var(--bg-elevated);border:1px solid var(--border);border-radius:13px;
+    color:var(--text);font-size:14px;font-family:inherit;cursor:pointer;
+}
+.pm-wiz-nav .pm-wiz-next{
+    flex:1;min-height:50px;
+    background:var(--gold);border:none;border-radius:13px;
+    color:#000;font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.pm-wiz-nav .pm-wiz-next:active{transform:scale(.98)}
+
+/* — wizard NATIVO addContract: si nasconde il loro chrome, MAI i dati — */
+body.pm-on .pm-natwiz .pm-natpill{display:none!important}
+body.pm-on .pm-natwiz [data-pm-nav="1"]{display:none!important}
+/* le card del tipo contratto diventano target degni di un pollice */
+body.pm-on .pm-natwiz #cTypeTransitorio,
+body.pm-on .pm-natwiz #cTypeStudenti{min-height:54px;flex:1;font-size:14px}
+
+/* — AUTO-wizard (modali piatti): pagina corrente via classe gated — */
+body.pm-on .pm-autowiz .pm-wiz-pane:not(.pm-cur){display:none}
+body.pm-on .pm-autowiz .modal-footer{display:none!important}
+.pm-wiz-pane.pm-cur{animation:pmPaneIn .22s ease}
+@keyframes pmPaneIn{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:translateX(0)}}
+
+/* — riepilogo finale: rileggere tutto, con calma, prima di salvare — */
+.pm-wiz-recap{display:flex;flex-direction:column;gap:2px}
+.pm-wiz-recap-sec{font-size:10px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--gold);margin:16px 0 4px}
+.pm-wiz-recap-sec:first-child{margin-top:0}
+.pm-wiz-recap-row{
+    display:flex;justify-content:space-between;gap:14px;align-items:baseline;
+    padding:9px 0;border-bottom:1px solid var(--border);
+}
+.pm-wiz-recap-row .k{font-size:11.5px;color:var(--text-muted);letter-spacing:.3px;flex-shrink:0}
+.pm-wiz-recap-row .v{font-size:13.5px;text-align:right;overflow-wrap:anywhere}
+.pm-wiz-recap-row .v.empty{color:var(--text-muted);font-style:italic}
+.pm-wiz-recap-edit{
+    margin-left:8px;background:none;border:none;color:var(--gold);cursor:pointer;
+    font-size:11px;font-family:inherit;letter-spacing:.5px;padding:2px 4px;flex-shrink:0;
+}
+
+/* ═══ QUIETE ═══════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion:reduce){
+    .pm-sheet,.pm-sheet-backdrop,.pm-tabbar,.pm-wiz-bar > i{transition:none}
+    .pm-wiz-pane.pm-cur,body.pm-on .modal{animation:none}
+}
+
+/* ═══ IL PRONTUARIO nel Menu — la ricerca delle azioni ═════════════════ */
+/* Su telefono le capacità sepolte (i 22 documenti al volo, gli strumenti)
+   si raggiungono scrivendo, non ricordando in quale pagina vivono. */
+.pm-menu-search{padding:2px 12px 10px}
+.pm-menu-input{
+    width:100%;min-height:46px;padding:12px 14px;
+    background:var(--bg-input);border:1px solid var(--border);border-radius:13px;
+    color:var(--text);font-family:inherit;font-size:16px;   /* 16px: niente zoom iOS */
+    -webkit-appearance:none;appearance:none;
+}
+.pm-menu-input:focus{outline:none;border-color:var(--gold)}
+.pm-menu-input::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none}
+.pm-menu-res{padding:0 4px 4px}
+.pm-menu-res[hidden]{display:none}
+.pm-menu-grp{
+    display:block;font-size:10px;letter-spacing:1px;text-transform:uppercase;
+    color:var(--text-muted);margin-top:2px;
+}
+.pm-menu-empty{padding:22px 16px;text-align:center;color:var(--text-muted);font-size:13px}
+
+/* Il selettore del record dentro il Menu: la riga di ritorno all'azione.
+   Bordo d'oro perché è l'unica riga che NON esegue: torna indietro. */
+.pm-menu-back{
+    background:var(--gold-light)!important;
+    border:1px solid rgba(212,175,55,.35)!important;
+}
+.pm-menu-back .ico{color:var(--gold)}
