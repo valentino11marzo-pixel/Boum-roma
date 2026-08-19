@@ -67,7 +67,18 @@ l'operatore incolla e conferma l'esito).
 - **Niente dati personali del cliente** nel testo (il motore lo rifiuta
   alla porta se contiene un telefono).
 
-## Setup completo (Mac, una volta)
+## Setup — UN comando (Mac, una volta)
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/valentino11marzo-pixel/Boum-roma/main/bot/install_scatto_contatto.sh)"
+```
+`install_scatto_contatto.sh` fa tutto da solo: trova Python, installa
+playwright+chromium, **ritrova HOMIE_SECRET dai bracci già installati**
+(publisher/wizard — lo chiede solo se non c'è), copia gli script, scrive i
+`.env` senza mai sovrascrivere i tuoi valori, installa i LaunchAgent (10′/5′)
+e ti guida nei due `--login`. Rilanciarlo è sicuro: aggiorna gli script e
+basta. Funziona anche da un checkout: `bash bot/install_scatto_contatto.sh`.
+
+## Setup manuale (equivalente, passo per passo)
 ```bash
 PY=/Library/Frameworks/Python.framework/Versions/3.13/bin/python3
 $PY -m pip install playwright requests python-dotenv

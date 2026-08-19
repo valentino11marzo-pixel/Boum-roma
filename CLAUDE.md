@@ -2076,7 +2076,10 @@ riusa `normalizeZone` di market-engine — UNA copia); l'I/O nelle porte.
 ## Lo Scatto + Il Contatto (bot/boom_scout.py · bot/boom_contatto.py · api/outreach/*)
 
 Il ciclo PFS chiuso per intero, coi due bracci sul Mac che mancavano
-(mandato completo: `bot/SCATTO_CONTATTO.md`). La scoperta che li ha fatti
+(mandato completo: `bot/SCATTO_CONTATTO.md`; installazione in UN comando:
+`bot/install_scatto_contatto.sh` — ritrova HOMIE_SECRET dai bracci già
+installati, .env mai clobberati, rilanciarlo aggiorna gli script e basta).
+La scoperta che li ha fatti
 nascere: il ciclo "apri le ricerche → estrai → manda al server" esisteva
 solo come PROMPT in `bot/HOMIE.md` — nessuno script deterministico lo
 eseguiva, e il radar viveva dei soli alert email. Regola invariata: il
