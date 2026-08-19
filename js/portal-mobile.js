@@ -50,6 +50,26 @@ window.__pmLoaded = true;
         if (q.get('app') === '1') localStorage.removeItem('boom_classic_mobile');
         if (localStorage.getItem('boom_classic_mobile') === '1') {
             window.BOOM_MOBILE = { off: true };
+            // LA LEZIONE DEL 19/08: il kill switch appiccicoso ha spento la
+            // modalità app sul telefono del FONDATORE, in silenzio, per un
+            // link di test aperto giorni prima — e "la doppia modalità è
+            // sparita". Un declassamento permanente non può essere muto:
+            // chi è in classica lo VEDE e la riaccende con un tap. Il tap
+            // toglie il flag e ricarica su un URL PULITO (ricaricare con
+            // ?classic=1 ancora nell'indirizzo rimetterebbe il flag).
+            document.addEventListener('DOMContentLoaded', function () {
+                if (!window.matchMedia('(max-width:920px)').matches) return;
+                var pill = document.createElement('button');
+                pill.id = 'pmClassicPill';
+                pill.type = 'button';
+                pill.textContent = '⚡ Modalità app disattivata su questo dispositivo — tocca per riattivarla';
+                pill.style.cssText = 'position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:12000;max-width:92vw;background:#141414;border:1px solid rgba(212,175,55,.55);color:#D4AF37;padding:10px 16px;border-radius:100px;font-size:12px;font-family:inherit;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.5)';
+                pill.addEventListener('click', function () {
+                    try { localStorage.removeItem('boom_classic_mobile'); } catch (e) { }
+                    location.href = location.pathname + location.hash;
+                });
+                document.body.appendChild(pill);
+            });
             return;
         }
     } catch (e) { /* Safari privato: localStorage può lanciare — si prosegue */ }

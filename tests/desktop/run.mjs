@@ -114,6 +114,12 @@ const deskCss2 = read('css/portal-desktop.css');
 ok(/body\.pd-on \.pd-form-sec/.test(deskCss2) && /body:not\(\.pd-on\) \.pd-form-sec\{display:none\}/.test(deskCss2),
   'gli header vivono SOLO sulla faccia desktop (gated nei due sensi)');
 
+// ── Il kill switch desktop non è più muto (stessa lezione del mobile) ──
+ok(/pdClassicPill/.test(pdSrc) && /clicca per riattivarlo/.test(pdSrc),
+  'in classica desktop compare la pillola che lo dice e riattiva al click');
+ok(/location\.href = location\.pathname \+ location\.hash/.test(pdSrc),
+  'la riattivazione desktop ricarica su URL pulito');
+
 console.log('');
 console.log(fail ? `${pass} passed, ${fail} failed` : `Il cockpit tiene — ${pass} passed, 0 failed`);
 process.exit(fail ? 1 : 0);

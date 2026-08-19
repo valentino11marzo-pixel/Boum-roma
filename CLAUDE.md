@@ -2704,7 +2704,7 @@ pages on their loader with no signal at all):
   visible error with a recovery button instead of an empty page.
 - `BoomPortal.registerServiceWorker()` calls `reg.update()` — Safari does
   not re-check `sw.js` as eagerly as Chrome, so a stale worker could serve
-  an old shell for days. Cache version is `boom-v16`. portal.html's inline
+  an old shell for days. Cache version is `boom-v17`. portal.html's inline
   registration does the same.
 - `vercel.json` now sends `private, no-store` + `noindex` on every
   logged-in surface (`casa`, `tenant`, `manuale`, `pre-agreement-admin`,
