@@ -94,7 +94,12 @@ export default async function handler(req, res) {
         source: portal,
         price: listing.price,
         title: listing.title,
-        zone: search.label || null,
+        // La zona della RICERCA (testo pulito da sync-searches), mai la
+        // label di display: passarla come zona creava slug spazzatura
+        // ("immobiliare-roma-prati-privati-1500") che frammentava
+        // marketStats. Senza zoneName si lascia null: ci pensa
+        // l'inferenza dal titolo dentro _ingest.
+        zone: search.zoneName || null,
         bedrooms: listing.bedrooms,
         sqm: listing.sqm,
         images: listing.images,

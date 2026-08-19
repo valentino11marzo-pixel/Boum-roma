@@ -95,10 +95,12 @@ check('chi passa SEMPRE da approvazione non può agire da solo sui clienti', () 
   }
 });
 
-// La verità del codice, pinnata: sono i DUE che passano da action_queue.
-check('esattamente Gestore e Commerciale passano da approvazione umana', () => {
+// La verità del codice, pinnata: Gestore e Commerciale passano da
+// action_queue; il Contatto passa dal tap in plancia (ogni messaggio al
+// proprietario è approvato UNO PER UNO prima di entrare in outreachQueue).
+check('esattamente Gestore, Commerciale e Contatto passano da approvazione umana', () => {
   const approved = S.TEAM.filter(a => a.approval === 'sempre').map(a => a.key).sort();
-  assert.deepEqual(approved, ['commerciale', 'gestore'],
+  assert.deepEqual(approved, ['commerciale', 'contatto', 'gestore'],
     'se cambia chi propone invece di agire, questo test deve cambiare CON il codice');
 });
 

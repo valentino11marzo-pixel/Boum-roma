@@ -15,6 +15,7 @@ import { fsGet, fsPatch, fsList, logActivity } from '../homie/_lib.js';
 import { requireCronOrAdmin } from './_guard.js';
 import { listActiveClients } from './_ingest.js';
 import { buildSearchUrls } from './_searchurls.js';
+import { reportHealth } from './_health.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET' && req.method !== 'POST') {
@@ -45,6 +46,9 @@ export default async function handler(req, res) {
           portal: s.portal,
           searchUrl: s.url,
           label: s.label,
+          // La zona PULITA della ricerca (mai la label): scan-market la
+          // passa all'ingestione quando l'annuncio non dichiara la sua.
+          zoneName: s.zone || null,
           clientId: client.id,
           clientName: client.name || null,
           auto: true,
@@ -83,6 +87,15 @@ export default async function handler(req, res) {
     disabled: disabled.length,
     errors: errors.length,
   }, actor);
+
+  // Il battito che mancava: pfs-command e /api/pfs/health leggevano
+  // pfsRadarHealth/sync ma NESSUNO lo scriveva — la fonte sembrava
+  // eternamente stantia (o assente) qualunque cosa facesse davvero.
+  await reportHealth('sync', {
+    ok: errors.length === 0,
+    error: errors.length ? `${errors.length} errori (primo: ${JSON.stringify(errors[0]).slice(0, 160)})` : null,
+    stats: { activeClients: clients.length, created: created.length, updated: updated.length, disabled: disabled.length },
+  });
 
   return res.status(200).json({
     ok: errors.length === 0,

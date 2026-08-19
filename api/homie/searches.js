@@ -52,6 +52,9 @@ export function activeSearches(rows, clientsById = new Map()) {
       portal: s.portal || null,
       url: s.urlOverride || s.searchUrl || null,
       label: s.label || s.name || null,
+      // La zona PULITA della ricerca (scritta da sync-searches): lo Scatto
+      // la passa all'ingestione quando l'annuncio non dichiara la sua.
+      zone: s.zoneName || null,
       clientId: s.clientId || null,
       clientName: (clientsById.get(s.clientId) || {}).name || null,
     }))

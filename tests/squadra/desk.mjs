@@ -127,7 +127,7 @@ await check('ogni fascicolo porta le tre liste — la lettera di assunzione', ()
 
 await check('il badge dice la verità sull\'autonomia', () => {
   const n = (re) => (txt.match(re) || []).length;
-  assert.equal(n(/Passa sempre da te/g), 2, 'solo Gestore e Commerciale passano da approvazione');
+  assert.equal(n(/Passa sempre da te/g), 3, 'Gestore, Commerciale e Contatto passano da approvazione (il Contatto: un tap per ogni messaggio al proprietario)');
   assert.ok(n(/Agisce da solo/g) >= 15, 'quasi tutti agiscono senza chiedere: deve vedersi');
 });
 

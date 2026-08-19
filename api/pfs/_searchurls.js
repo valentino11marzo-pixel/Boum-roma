@@ -46,7 +46,12 @@ function firstZone(client) {
   return first || null;
 }
 
-// → [{ portal, url, label }]
+// → [{ portal, url, label, zone }]
+//   `zone` è la zona RICHIESTA dal cliente (testo pulito tipo 'prati'), non
+//   l'etichetta di display: scan-market la passa all'ingestione come zona
+//   dell'annuncio quando l'annuncio stesso non la dichiara. Prima passava
+//   la label ("Immobiliare · Roma · prati · privati · ≤€1500") → slug
+//   spazzatura che frammentava marketStats.
 export function buildSearchUrls(client) {
   const range = clientBudgetRange(client) || {};
   const max = isFinite(range.max) && range.max !== Infinity ? Math.round(range.max) : null;
@@ -64,6 +69,7 @@ export function buildSearchUrls(client) {
       portal: 'immobiliare',
       url: `https://www.immobiliare.it/affitto-case/roma/${zoneSlug}da-privati/?${p.toString()}`,
       label: `Immobiliare · Roma${zoneSlug ? ' · ' + zone : ''} · privati${max ? ' · ≤€' + max : ''}`,
+      zone: zoneSlug ? zone : null,
     });
   }
 
@@ -78,6 +84,7 @@ export function buildSearchUrls(client) {
       portal: 'idealista',
       url: `https://www.idealista.it/affitto-case/${scope}/${segPath}?ordine=da-privati-asc`,
       label: `Idealista · Roma${scope !== 'roma-roma' ? ' · ' + zone : ''} · privati prima${max ? ' · ≤€' + max : ''}`,
+      zone: scope !== 'roma-roma' ? zone : null,
     });
   }
 
