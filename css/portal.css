@@ -1262,7 +1262,14 @@
             [style*="grid-template-columns:repeat(7"]{grid-template-columns:1fr!important}
         }
         /* Lo stile inline .stats-grid batteva la media query senza !important. */
-        @media(max-width:600px){.stats-grid{grid-template-columns:1fr!important}}
+        @media(max-width:600px){
+            /* 2 colonne, non 1: sei stat-card impilate a tutta larghezza
+               spingevano le righe sotto la piega — su telefono i numeri si
+               scorrono a coppie, compatti (Rifinitura II, 2026-08-19) */
+            .stats-grid{grid-template-columns:repeat(2,1fr)!important}
+            .stat-card{padding:12px 14px}
+            .stat-card .stat-value{font-size:22px}
+        }
         /* Lo zoom iOS al focus scatta con font <16px: la soglia valeva solo
            ≤500px — iPhone in landscape e iPad mini restavano fuori. */
         @media(max-width:900px){input,select,textarea{font-size:16px!important}}

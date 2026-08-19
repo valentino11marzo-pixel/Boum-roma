@@ -7724,11 +7724,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         <span style="color:var(--text-secondary)">·</span>
                         <span>${r.name}</span>
                         ${recipientBadge(r.kind)}
-                        ${reminders > 0 ? `<span class="badge orange" style="font-size:9px" title="${reminders} solleciti">📧 ×${reminders}</span>` : ''}
+                        ${reminders > 0 ? `<span class="li-flag orange" title="${reminders} solleciti">${reminders} sollecit${reminders == 1 ? 'o' : 'i'}</span>` : ''}
                     </div>
-                    <div class="list-subtitle" style="margin-top:4px">${inv.service || ''} · ${fmtDate(inv.date || inv.createdAt)}</div>
+                    <div class="list-subtitle li-meta" style="margin-top:4px">${inv.service || ''}<span class="sep">·</span>${fmtDate(inv.date || inv.createdAt)}</div>
                 </div>
-                <div class="list-meta"><div class="list-value ${inv.status === 'paid' ? 'text-green' : 'text-gold'}">€${(inv.amount || 0).toLocaleString('it-IT')}</div><span class="badge ${inv.status === 'paid' ? 'green' : 'orange'}">${inv.status === 'paid' ? 'Pagata' : 'In Attesa'}</span></div>
+                <div class="list-meta"><div class="li-money-val ${inv.status === 'paid' ? 'green' : ''}" style="font-size:16px">€${(inv.amount || 0).toLocaleString('it-IT')}</div><span class="badge ${inv.status === 'paid' ? 'green' : 'orange'}">${inv.status === 'paid' ? 'Pagata' : 'In attesa'}</span></div>
                 <div style="display:flex;gap:4px">
                     ${inv.status === 'pending' ? `<button class="btn btn-xs" onclick="event.stopPropagation();showPaymentLink('inv','${inv.id}')" title="Link di pagamento con carta (non scade)">💳</button>` : ''}
                     ${inv.status === 'pending' && r.email ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();sendInvoiceReminder('${inv.id}')" title="Invia sollecito email">📧</button>` : ''}
@@ -8187,28 +8187,31 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const lc = u.role === 'landlord' ? landlordCompleteness(u) : null;
             const lRev = u.role === 'landlord' ? monthlyRevenue(u.id) : 0;
 
+            // Rifinitura II: la casa/il portafoglio scendono nel metadato (sono
+            // contesto, non un segnale), i segnali diventano flag quieti, il
+            // punteggio affidabilità è un flag tinto per fascia.
             let extraInfo = '';
             if (u.role === 'tenant' && property) {
-                extraInfo = `<span style="background:var(--bg);padding:2px 8px;border-radius:4px;font-size:11px;margin-left:8px">🏠 ${property.name} · €${contract.rent}/m</span>`;
+                extraInfo = `<span class="sep">·</span>${property.name} · €${contract.rent}/m`;
             } else if (u.role === 'landlord' && ownedProps.length > 0) {
-                extraInfo = `<span style="background:var(--bg);padding:2px 8px;border-radius:4px;font-size:11px;margin-left:8px">🏢 ${ownedProps.length} immobili${lRev > 0 ? ' · €' + lRev.toLocaleString('it-IT') + '/m' : ''}</span>`;
+                extraInfo = `<span class="sep">·</span>${ownedProps.length} immobili${lRev > 0 ? ' · €' + lRev.toLocaleString('it-IT') + '/m' : ''}`;
             }
 
-            return `<div class="list-item clickable user-item" data-role="${u.role}" data-overdue="${overduePayments.length > 0}" data-incomplete="${lc && !lc.complete}" onclick="viewUser('${u.id}')" style="padding:14px 16px">
+            return `<div class="list-item clickable user-item" data-role="${u.role}" data-overdue="${overduePayments.length > 0}" data-incomplete="${lc && !lc.complete}" onclick="viewUser('${u.id}')">
                 <div class="avatar ${r.color}" style="width:44px;height:44px">${initials(u.name)}</div>
                 <div class="list-content" style="min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:6px">
                         ${u.name}
-                        ${u.id === S.profile.id ? '<span class="badge gray" style="font-size:9px">Tu</span>' : ''}
-                        ${overduePayments.length > 0 ? '<span class="badge red" style="font-size:9px">⚠️ RITARDO</span>' : ''}
-                        ${lc && !lc.complete ? `<span class="badge orange" style="font-size:9px" title="Mancano: ${esc(lc.missing.join(', '))}">⚠️ Dati ${lc.pct}%</span>` : ''}
-                        ${lc && lc.complete ? '<span class="badge green" style="font-size:9px">✓ Completo</span>' : ''}
-                        ${extraInfo}
+                        <span class="li-flags">
+                        ${u.id === S.profile.id ? '<span class="li-flag">Tu</span>' : ''}
+                        ${overduePayments.length > 0 ? '<span class="li-flag red">In ritardo</span>' : ''}
+                        ${lc && !lc.complete ? `<span class="li-flag orange" title="Mancano: ${esc(lc.missing.join(', '))}">Dati ${lc.pct}%</span>` : ''}
+                        ${lc && lc.complete ? '<span class="li-flag green">Dati completi</span>' : ''}
+                        ${score !== null ? `<span class="li-flag ${score >= 80 ? 'green' : score >= 50 ? 'orange' : 'red'}">Affidabilità ${score}%</span>` : ''}
+                        </span>
                     </div>
-                    <div class="list-subtitle" style="display:flex;align-items:center;gap:8px;margin-top:4px">
-                        <span>${u.email || 'No email'}</span>
-                        ${u.phone ? `<span>· ${u.phone}</span>` : ''}
-                        ${score !== null ? `<span style="margin-left:auto;font-size:11px;padding:2px 8px;border-radius:4px;background:${score >= 80 ? 'var(--green-light)' : score >= 50 ? 'var(--orange-light)' : 'var(--red-light)'};color:${score >= 80 ? 'var(--green)' : score >= 50 ? 'var(--orange)' : 'var(--red)'}">Affidabilità ${score}%</span>` : ''}
+                    <div class="list-subtitle li-meta" style="margin-top:4px">
+                        ${u.email || 'No email'}${u.phone ? `<span class="sep">·</span>${u.phone}` : ''}${extraInfo}
                     </div>
                 </div>
                 <div style="display:flex;align-items:center;gap:8px">
@@ -8647,15 +8650,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             let reminderLevel = 0;
             let reminderText = '';
             if (isOverdueNow) {
-                if (daysLate >= 30) { reminderLevel = 4; reminderText = '🚨 Diffida'; }
-                else if (daysLate >= 15) { reminderLevel = 3; reminderText = '⚠️ 2° Sollecito'; }
-                else if (daysLate >= 5) { reminderLevel = 2; reminderText = '📧 1° Sollecito'; }
-                else { reminderLevel = 1; reminderText = '⏰ In Ritardo'; }
+                if (daysLate >= 30) { reminderLevel = 4; reminderText = 'Diffida'; }
+                else if (daysLate >= 15) { reminderLevel = 3; reminderText = '2° sollecito'; }
+                else if (daysLate >= 5) { reminderLevel = 2; reminderText = '1° sollecito'; }
+                else { reminderLevel = 1; reminderText = 'In ritardo'; }
             } else if (isDueSoon) {
-                reminderLevel = 0; reminderText = `⏳ ${daysToDue}gg`;
+                reminderLevel = 0; reminderText = `Tra ${daysToDue}gg`;
             }
 
-            const payMethod = p.stripeSessionId ? '<span class="badge blue" style="font-size:9px;padding:2px 6px">💳 Stripe</span>' : (p.status === 'paid' ? '<span class="badge" style="font-size:9px;padding:2px 6px;background:var(--bg-elevated)">Manuale</span>' : '');
+            const payMethod = p.stripeSessionId ? '<span class="li-flag blue">Stripe</span>' : (p.status === 'paid' ? '<span class="li-flag">Manuale</span>' : '');
 
             let statusConfig = { color: 'green', bg: 'green-light', icon: '✔' };
             if (isOverdueNow) statusConfig = { color: 'red', bg: 'red-light', icon: '⚠️' };
@@ -8663,27 +8666,31 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             else if (p.status === 'pending') statusConfig = { color: 'gold', bg: 'gold-light', icon: '⏳' };
 
             const _searchPay = [prop?.name, t?.name, p.month, p.amount, p.stripeSessionId ? 'stripe' : 'manuale'].filter(Boolean).join(' ').toLowerCase();
-            return `<div class="list-item clickable payment-item" data-status="${p.status}" data-overdue="${isOverdueNow}" data-duesoon="${isDueSoon}" data-stripe="${!!p.stripeSessionId}" data-search="${esc(_searchPay)}" onclick="openModal('editPayment',S.payments.find(x=>x.id==='${p.id}'))" style="padding:14px 16px">
+            // Rifinitura II: stessa disciplina della riga contratto — un badge
+            // di stato (il mese resta il badge neutro: è l'identificativo),
+            // i segnali nel grappolo, metadati senza emoji, importo tabellare
+            // col colore dello stato. Handler e data-attribute IDENTICI.
+            return `<div class="list-item clickable payment-item" data-status="${p.status}" data-overdue="${isOverdueNow}" data-duesoon="${isDueSoon}" data-stripe="${!!p.stripeSessionId}" data-search="${esc(_searchPay)}" onclick="openModal('editPayment',S.payments.find(x=>x.id==='${p.id}'))">
                 <div class="list-icon" style="background:var(--${statusConfig.bg});font-size:16px">${statusConfig.icon}</div>
                 <div class="list-content" style="flex:1;min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                         <span style="font-weight:600">${prop?.name || 'Pagamento'}</span>
                         <span class="badge gray" style="font-size:10px">${p.month || ''}</span>
+                        <span class="li-flags">
+                        ${isOverdueNow ? `<span class="li-flag red">${reminderText} · ${daysLate}gg</span>` : ''}
+                        ${isDueSoon ? `<span class="li-flag orange">${reminderText}</span>` : ''}
+                        ${p.tenantReported ? `<span class="li-flag green">Segnalato${p.proofUrl ? ' + ricevuta' : ''}</span>` : ''}
                         ${payMethod}
-                        ${isOverdueNow ? `<span class="badge red" style="font-size:9px">${reminderText} (${daysLate}gg)</span>` : ''}
-                        ${isDueSoon ? `<span class="badge orange" style="font-size:9px">${reminderText}</span>` : ''}
-                        ${p.remindersSent ? `<span style="font-size:10px;color:var(--text-muted)">📧${p.remindersSent}</span>` : ''}
-                        ${p.tenantReported ? `<span class="badge green" style="font-size:9px">💳 Segnalato${p.proofUrl ? ' + Ricevuta' : ''}</span>` : ''}
+                        ${p.remindersSent ? `<span class="li-flag">${p.remindersSent} sollecit${p.remindersSent == 1 ? 'o' : 'i'}</span>` : ''}
+                        </span>
                     </div>
-                    <div class="list-subtitle" style="margin-top:4px;display:flex;align-items:center;gap:8px">
-                        <span>👤 ${t?.name || 'N/A'}</span>
-                        ${t?.phone ? `<a href="https://wa.me/${t.phone.replace(/[^0-9]/g,'')}" target="_blank" onclick="event.stopPropagation()" style="font-size:11px;color:var(--green)">💬 WhatsApp</a>` : ''}
-                        <span>· ${p.status === 'paid' ? '✓ Pagato ' + fmtDate(p.paidDate) : 'Scadenza ' + fmtDate(p.dueDate)}</span>
+                    <div class="list-subtitle li-meta" style="margin-top:4px">
+                        <b>${t?.name || 'N/A'}</b>${t?.phone ? `<span class="sep">·</span><a href="https://wa.me/${t.phone.replace(/[^0-9]/g,'')}" target="_blank" onclick="event.stopPropagation()" style="color:var(--green)">WhatsApp</a>` : ''}<span class="sep">·</span>${p.status === 'paid' ? 'Pagato ' + fmtDate(p.paidDate) : 'Scadenza ' + fmtDate(p.dueDate)}
                     </div>
                 </div>
                 <div style="display:flex;align-items:center;gap:8px">
-                    <div style="text-align:right">
-                        <div class="${p.status === 'paid' ? 'text-green' : isOverdueNow ? 'text-red' : 'text-gold'}" style="font-size:18px;font-weight:600">€${p.amount || 0}</div>
+                    <div class="li-money">
+                        <div class="li-money-val ${p.status === 'paid' ? 'green' : isOverdueNow ? 'red' : ''}">€${(p.amount || 0).toLocaleString('it-IT')}</div>
                     </div>
                     ${p.status === 'pending' ? `
                         <div style="display:flex;flex-direction:column;gap:4px">
@@ -9066,19 +9073,19 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const s = statusConfig[m.status] || statusConfig.open;
             const pr = priorityConfig[m.priority] || priorityConfig.normal;
 
-            return `<div class="list-item clickable maintenance-item" data-status="${m.status}" data-priority="${m.priority}" onclick="viewMaintenance('${m.id}')" style="padding:14px 16px;${m.priority === 'urgent' && m.status !== 'resolved' ? 'border-left:3px solid var(--red)' : ''}">
+            return `<div class="list-item clickable maintenance-item" data-status="${m.status}" data-priority="${m.priority}" onclick="viewMaintenance('${m.id}')" style="${m.priority === 'urgent' && m.status !== 'resolved' ? 'border-left:3px solid var(--red)' : ''}">
                 <div class="list-icon" style="background:var(--${s.bg});font-size:16px">${m.priority === 'urgent' && m.status !== 'resolved' ? '🚨' : s.icon}</div>
                 <div class="list-content" style="flex:1;min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                         <span style="font-weight:600">${esc(m.title)}</span>
-                        <span class="badge ${pr.color}" style="font-size:9px">${pr.icon} ${pr.text}</span>
                         <span class="badge ${s.color}">${s.text}</span>
-                        ${isOld ? `<span class="badge red" style="font-size:9px">⏰ ${ageInDays}gg</span>` : ''}
+                        <span class="li-flags">
+                        <span class="li-flag ${pr.color === 'blue' ? 'blue' : pr.color === 'red' ? 'red' : pr.color === 'orange' ? 'orange' : ''}">${pr.text}</span>
+                        ${isOld ? `<span class="li-flag red">${ageInDays}gg aperti</span>` : ''}
+                        </span>
                     </div>
-                    <div class="list-subtitle" style="margin-top:4px">
-                        <span>🏠 ${p?.name || 'N/A'}</span>
-                        <span style="margin-left:8px">👤 ${u?.name || 'N/A'}</span>
-                        <span style="margin-left:8px">📅 ${fmtDate(m.createdAt)}</span>
+                    <div class="list-subtitle li-meta" style="margin-top:4px">
+                        <b>${p?.name || 'N/A'}</b><span class="sep">·</span>${u?.name || 'N/A'}<span class="sep">·</span>${fmtDate(m.createdAt)}
                     </div>
                     ${m.description ? `<div style="font-size:12px;color:var(--text-muted);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:400px">${esc(m.description)}</div>` : ''}
                 </div>
@@ -12525,14 +12532,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                         <span style="font-weight:600">${d.pinned ? '📌 ' : ''}${esc(d.name)}</span>
                         ${sourceBadge(d)}
-                        ${d.lang ? `<span class="badge gray" style="font-size:9px">${esc(d.lang)}</span>` : ''}
-                        ${d.shared ? '<span class="badge blue" style="font-size:9px">🔗 Condiviso</span>' : ''}
+                        <span class="li-flags">
+                        ${d.lang ? `<span class="li-flag">${esc(d.lang)}</span>` : ''}
+                        ${d.shared ? '<span class="li-flag blue">Condiviso</span>' : ''}
+                        </span>
                     </div>
-                    <div class="list-subtitle" style="margin-top:4px">
-                        ${u ? `<span style="background:${u.role==='landlord'?'var(--gold-light)':'var(--blue-light)'};padding:2px 8px;border-radius:4px;font-size:11px">${u.role === 'landlord' ? '🏠' : '👤'} ${esc(u.name)}</span>` : ''}
-                        ${prop ? `<span style="margin-left:8px">🏠 ${esc(prop.name)}</span>` : ''}
-                        ${d.refCode ? `<span style="margin-left:8px;color:var(--text-muted)">#${esc(d.refCode)}</span>` : ''}
-                        <span style="margin-left:8px">📅 ${fmtDate(d.createdAt)}</span>
+                    <div class="list-subtitle li-meta" style="margin-top:4px">
+                        ${u ? `<b>${esc(u.name)}</b>` : ''}${prop ? `${u ? '<span class="sep">·</span>' : ''}${esc(prop.name)}` : ''}${d.refCode ? `<span class="sep">·</span>#${esc(d.refCode)}` : ''}<span class="sep">·</span>${fmtDate(d.createdAt)}
                     </div>
                 </div>
                 <div style="display:flex;gap:4px" onclick="event.stopPropagation()">

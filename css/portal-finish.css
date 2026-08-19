@@ -91,6 +91,7 @@
 .li-flag.red::before    { background: var(--red); }
 .li-flag.orange { color: var(--orange); }
 .li-flag.orange::before { background: var(--orange); }
+.li-flag.blue::before   { background: var(--blue); }
 .li-flag[onclick] { cursor: pointer; }
 .li-flag[onclick]:hover { box-shadow: inset 0 0 0 1px rgba(255,255,255,0.22); color: var(--text); }
 
@@ -136,3 +137,7 @@
     font-feature-settings: "tnum" 1, "lnum" 1;
 }
 .li-money-sub { font-size: 10.5px; color: var(--text-muted); margin-top: 1px; }
+/* L'importo parla il colore dello STATO quando lo stato è la notizia:
+   verde = incassato, rosso = in ritardo. L'oro resta il default (dovuto). */
+.li-money-val.green { color: var(--green); }
+.li-money-val.red   { color: var(--red); }
