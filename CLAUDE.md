@@ -1392,6 +1392,23 @@ Un giro solo, otto interventi, 33 suite verdi:
   WIZ pinnati su portal-app.js, CSS gated, sw, -webkit-) + `node
   tests/mobile/ui.mjs` (35 check in Chromium vero a 390px col
   contractWizardNav REALE estratto).
+- **La Rifinitura** (`css/portal-finish.css` + composizioni in portal-app.js,
+  2026-08-19): il passo di DESIGN sulle superfici interne. Il sistema
+  (portal.css) era sano ma le composizioni urlavano: nella riga contratto
+  fino a 7 badge a tinta piena + 3 chip con 3 sfondi + emoji nei dati. Ora:
+  UNO stato a tinta piena, i segnali secondari nel grappolo quieto
+  `.li-flags` (puntino semantico + micro-maiuscole in anello), metadati
+  senza emoji (`.li-meta`), le rate in UN metro (`.li-meter`, rosso solo
+  col ritardo), canone in cifre tabellari (`.li-money`). Le 5 strisce
+  statistiche ad-hoc (contratti/utenti/pagamenti/manutenzione/documenti
+  tenant) sono diventate `.stat-card` del sistema; i bottoni-filtro delle
+  5 famiglie (`contract/payment/user/maintenance/rules-filter`) sono chip
+  (velo oro da attivi — prima il filtro attivo era vestito da azione
+  primaria). Regole dure: SOLO token esistenti (mai un colore nuovo), SOLO
+  selettori emessi davvero, niente !important, condizioni/handler/data-attr
+  della riga IDENTICI (filterContracts e M2 la leggono). Carica dopo
+  portal.css e PRIMA dei layer (strutturale batte visivo). Kill switch
+  `?nofinish=1`. Test: `node tests/finish/run.mjs` (59 check).
 - **D1 "BOOM OS"** (`css/portal-desktop.css` + `js/portal-desktop.js`,
   studio in `STUDIO_BOOM_OS.md`): la faccia DESKTOP del protocollo "un
   motore, due facce" — attiva SOLO sopra i 920px (la STESSA query di M2,
