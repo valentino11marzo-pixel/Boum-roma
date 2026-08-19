@@ -7,46 +7,40 @@ import html as H
 SP = '/tmp/claude-0/-home-user-Boum-roma/23da0292-7660-5078-842d-6e153c49b7f8/scratchpad/'
 
 VARIANTI = [
-    ('unboxing', "L'Unboxing", '★ l\'evoluzione consigliata',
-     'Le scatole del Packaging, ma il momento venduto è l\'APERTURA: '
-     'l\'ammiraglia arriva già aperta — coperchio 3D parcheggiato sopra, '
-     'bocca incandescente, la lente che levita nel fascio di luce. Le tre '
-     'minori sono sigillate: al passaggio il coperchio si solleva e lo '
-     'spiraglio di luce del loro colore esce dalla giuntura.',
-     '"The box is a promise. Opening it is the proof." Tiene tutto ciò '
-     'che era piaciuto del Packaging e aggiunge il momento del desiderio '
-     '— l\'unboxing — più il gesto hover che invita ad aprire le altre.',
-     'A ~768px la lente levitante lambisce il coperchio aperto: un giro '
-     'di rifinitura sul breakpoint tablet e ci siamo.'),
-    ('scatole', 'Il Packaging', 'l\'originale approvato · rifinito',
-     'La versione che hai approvato, con la rifinitura: il chip FLAGSHIP '
-     'ora resta ancorato al nome a ogni larghezza. Scatole sigillate, '
-     'serigrafia, barcode, nastro oro FULL REFUND sull\'ammiraglia.',
-     'Il riferimento della famiglia: sobrio, fotografico, il servizio '
-     'sigillato con dentro la sua garanzia.',
-     'La serigrafia secondaria resta texture, non testo leggibile '
-     '(scelta giusta per un packaging).'),
-    ('sigillo', 'Il Sigillo', 'la più BOOM',
-     'Plichi neri da scrivania chiusi da un sigillo di CERALACCA nel '
-     'colore del servizio — iniziali impresse, glint che passa sulla '
-     'cera — fascetta di carta col nome, riga "Oggetto" tipo lettera. '
-     'L\'ammiraglia col doppio nastro oro raso. Hover = il plico si '
-     'stacca dalla scrivania.',
-     'La garanzia resa FISICA dalla stessa casa che sigilla contratti '
-     'veri (Magic Sign, FES): "Every service arrives sealed. The same '
-     'house that seals real contracts, sealing its word to you."',
-     'La cera è resa a gradienti CSS: da molto vicino manca la '
-     'micro-irregolarità di colata di una texture dedicata.'),
-    ('retail', 'La Vetrina Retail', 'la più negozio',
-     'Le scatole esposte in un duty-free premium a mezzanotte: nicchie '
-     'retroilluminate nel colore, mensola di vetro col riflesso '
-     'capovolto, CARTELLINO di carta appeso che oscilla col prezzo '
-     'grande, insegna FULL REFUND al neon sopra l\'ammiraglia.',
-     'Il prezzo si legge come in negozio, prima ancora del bottone — '
-     'la lettura commerce più immediata della famiglia.',
-     'Il cartellino appeso copre lo spigolo alto della scatola '
-     '(plausibile come tag vero, ma un occhio severo vorrebbe il '
-     'cordino ancorato alla scatola).'),
+    ('stemmi', 'Gli Stemmi', '★ fatta a mano · la nuova proposta',
+     'Il "badge" preso alla lettera e portato a gioielleria: smalto nero '
+     'sotto vetro con guilloché da quadrante, ghiera di metallo godronata '
+     'nella lega del servizio, il nome INCISO in curva come su un '
+     'orologio, il prezzo sul piatto, il lampo che passa lento. Quadrato '
+     '2×2; ogni stemma si volge verso il cursore. L\'ammiraglia oro porta '
+     'la gemma FULL REFUND e la doppia ghiera.',
+     'L\'oggetto piu\' "di classe" della serie: medaglia coniata, non '
+     'card. Le domande-situazione dello studio psicologico sopravvivono '
+     'come occhielli ("About to sign?"), lo strato vendita e\' intatto.',
+     'La ghiera verde/ciano e\' una lega inventata dal colore-firma: da '
+     'validare che non stoni accanto all\'oro su schermi molto saturi.'),
+    ('unboxing', "L'Unboxing", 'famiglia Packaging',
+     'L\'ammiraglia arriva GIA\' aperta — coperchio 3D sospeso, bocca '
+     'incandescente, la lente che levita nel fascio. Le minori sigillate '
+     'si socchiudono al passaggio con lo spiraglio di luce.',
+     '"The box is a promise. Opening it is the proof."',
+     'A ~768px la lente lambisce il coperchio aperto.'),
+    ('scatole', 'Il Packaging', 'famiglia Packaging · rifinito',
+     'L\'originale approvato: scatole sigillate, serigrafia, barcode, '
+     'nastro oro FULL REFUND. Chip FLAGSHIP ora ancorato al nome.',
+     'Il riferimento della famiglia: sobrio, fotografico.',
+     'Serigrafia secondaria = texture, non testo (scelta giusta).'),
+    ('sigillo', 'Il Sigillo', 'famiglia Packaging',
+     'Plichi neri chiusi da ceralacca nel colore del servizio, fascetta, '
+     'riga "Oggetto", doppio nastro oro raso sull\'ammiraglia.',
+     '"The same house that seals real contracts, sealing its word to '
+     'you."',
+     'La cera a gradienti CSS e\' liscia da molto vicino.'),
+    ('retail', 'La Vetrina Retail', 'famiglia Packaging',
+     'Nicchie retroilluminate, mensola di vetro col riflesso, cartellino '
+     'appeso che oscilla, insegna FULL REFUND al neon.',
+     'Il prezzo si legge come in negozio, prima del bottone.',
+     'Il cartellino copre lo spigolo alto della scatola.'),
 ]
 
 def leggi(n): return open(SP + n, encoding='utf-8').read()
@@ -122,6 +116,16 @@ body { background:var(--black); color:var(--text); font-family:var(--sans);
   box-shadow:none; }
 .palco-testa .regola { width:100%; font-size:12.5px; color:var(--text-3);
   max-width:80ch; line-height:1.65; }
+.studio { margin-top:22px; border:1px solid var(--line-0);
+  border-radius:16px; padding:clamp(16px,2vw,24px); }
+.studio .st-eti { display:block; font-size:10px; font-weight:600;
+  letter-spacing:.22em; text-transform:uppercase; color:var(--gold);
+  margin-bottom:12px; }
+.st-griglia { display:grid; gap:12px 22px;
+  grid-template-columns:repeat(auto-fit,minmax(290px,1fr));
+  font-size:12px; color:var(--text-3); line-height:1.6; }
+.st-griglia b { display:block; color:var(--text-2); font-weight:600;
+  font-size:11.5px; margin-bottom:2px; }
 .palco-vetro { width:100%; height:1400px; border:0; border-radius:18px;
   background:#060607; box-shadow:inset 0 0 0 1px var(--line-0);
   display:block; }
@@ -136,14 +140,14 @@ body { background:var(--black); color:var(--text); font-family:var(--sans);
 <body>
 <header class="lab-capo">
   <div class="container">
-    <span class="eti">— Banchina Lab · vol. 6 — la famiglia Packaging</span>
-    <h1>Il Packaging, sviluppato in <b>famiglia</b>.</h1>
-    <p>La direzione approvata era il Packaging: eccola sviluppata in quattro
-      esecuzioni della stessa materia — l'apertura, l'originale rifinito,
-      la ceralacca, il negozio. Stesso contratto di sempre: firma
-      cromatica fissa, strato vendita INTATTO (bottone verbo+prezzo,
-      garanzia ✓), fatti verbatim. Ogni palco è il documento vero, vivo
-      — passaci sopra il mouse.</p>
+    <span class="eti">— Banchina Lab · vol. 8 — gli Stemmi + la famiglia</span>
+    <h1>Il badge, preso alla lettera: <b>gli Stemmi</b>.</h1>
+    <p>La nuova proposta, fatta a mano: il servizio come EMBLEMA coniato —
+      smalto, metallo, incisione — nel quadrato 2×2 chiesto per la home.
+      Sotto, la famiglia Packaging gia' vista, per confronto. Strato
+      vendita intatto ovunque; le domande-situazione dello studio
+      psicologico restano come occhielli. Ogni palco e' vivo: passaci
+      sopra il mouse.</p>
   </div>
 </header>
 ''' + '\\n'.join(palchi) + '''

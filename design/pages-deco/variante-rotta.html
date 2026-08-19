@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Variante LA ROTTA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --gold:#FFD700; --green:#00FF88; --black:#030303; --void:#060607;
+  --surface:#0B0B0C; --card:#0E0E10; --text:#FAFAFA;
+  --text-2:rgba(250,250,250,.72); --text-3:rgba(250,250,250,.5);
+  --text-4:rgba(250,250,250,.48); --line-0:rgba(255,255,255,.04);
+  --line:rgba(255,255,255,.08);
+  --ease:cubic-bezier(.16,1,.3,1); --molla:cubic-bezier(.3,1.45,.5,1);
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  --display:'Helvetica Neue',Helvetica,Arial,sans-serif;
+  --c-vv:#00FF88; --c-pf:#FFD700; --c-da:#9D8CFF; --c-cc:#3ED3FF;
+  --mono:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;
+}
+body{background:var(--black);color:var(--text);font-family:var(--sans);
+  font-weight:300;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;background:
+  radial-gradient(55% 38% at 50% 0%,rgba(255,215,0,.045),transparent 70%),
+  radial-gradient(45% 32% at 90% 96%,rgba(62,211,255,.03),transparent 70%),
+  radial-gradient(45% 32% at 6% 80%,rgba(157,140,255,.028),transparent 70%)}
+
+/* ————— header ————— */
+.testa{max-width:1180px;margin:0 auto;
+  padding:clamp(40px,6vh,60px) clamp(20px,4vw,48px) 6px;
+  display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:18px 40px}
+.eyebrow{display:inline-flex;align-items:center;gap:14px;font-family:var(--mono);
+  font-size:11px;letter-spacing:.38em;text-transform:uppercase;color:var(--gold)}
+.eyebrow::before{content:'';width:28px;height:1px;
+  background:linear-gradient(90deg,var(--gold),transparent)}
+.testa h2{margin-top:20px;font-family:var(--display);font-weight:200;
+  font-size:clamp(32px,4.4vw,50px);line-height:1.07;letter-spacing:-.01em}
+.testa h2 em{font-style:normal;color:var(--gold);font-weight:300}
+.sotto{margin-top:14px;color:var(--text-3);font-size:15px;line-height:1.65;max-width:52ch}
+.prova{display:flex;flex-direction:column;gap:7px;align-items:flex-start;
+  font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--text-4);
+  padding-bottom:6px;white-space:nowrap}
+.prova b{font-weight:400;color:var(--text-3)}
+.prova .stella{color:var(--gold)}
+
+/* ————— the map (route layer + grid) ————— */
+.mappa{position:relative;max-width:1180px;margin:0 auto;
+  padding:60px clamp(20px,4vw,48px) 56px}
+.filo{position:absolute;inset:0;z-index:0;pointer-events:none;display:block}
+#rpGlow{fill:none;stroke:rgba(255,215,0,.07);stroke-width:6;stroke-linecap:round}
+#rp{fill:none;stroke:rgba(255,215,0,.5);stroke-width:1.5;
+  stroke-dasharray:2.5 8;stroke-linecap:round;
+  animation:scorri 9s linear infinite}
+@keyframes scorri{to{stroke-dashoffset:-105}}
+
+/* the plane */
+.aereo{position:absolute;left:0;top:0;width:26px;height:26px;z-index:3;
+  pointer-events:none;opacity:0;offset-rotate:auto;offset-distance:0%;
+  animation:vola 44s linear infinite;animation-delay:-6s;
+  filter:drop-shadow(0 0 9px rgba(255,215,0,.55));transition:opacity .8s var(--ease)}
+.aereo svg{display:block;width:100%;height:100%}
+.aereo.on{opacity:1}
+@keyframes vola{from{offset-distance:0%}to{offset-distance:100%}}
+
+/* waypoint nodes hooked to the wire */
+.nodo{position:absolute;z-index:2;width:26px;height:26px;margin:-13px 0 0 -13px;
+  border-radius:50%;background:#0A0A0B;border:1px solid rgba(var(--cr),.55);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:8px;letter-spacing:.06em;color:var(--c);
+  box-shadow:0 0 16px rgba(var(--cr),.28),inset 0 0 8px rgba(var(--cr),.12)}
+.nodo::after{content:'';position:absolute;top:100%;left:50%;width:1px;height:var(--stem,17px);
+  background:linear-gradient(180deg,rgba(var(--cr),.55),rgba(var(--cr),.12))}
+.nodo.lato::after{top:50%;left:100%;height:1px;width:var(--stem,17px);
+  background:linear-gradient(90deg,rgba(var(--cr),.55),rgba(var(--cr),.12))}
+
+/* route endpoints */
+.capo{position:absolute;z-index:2;font-family:var(--mono);font-size:9px;
+  letter-spacing:.3em;color:var(--text-4);white-space:nowrap}
+.capo b{color:var(--gold);font-weight:400}
+.capo.fine-dx{transform:translateX(-100%)}
+
+/* ————— the 2×2 grid of stops ————— */
+.griglia{position:relative;z-index:1;display:grid;
+  grid-template-columns:1.18fr 1fr;gap:90px 26px}
+.tappa{display:flex;flex-direction:column;
+  background:linear-gradient(180deg,rgba(255,255,255,.022),rgba(255,255,255,0) 55%),var(--card);
+  border:1px solid var(--line-0);border-radius:22px;
+  padding:24px 28px 28px;
+  transition:border-color .6s var(--ease),transform .6s var(--ease)}
+.tappa:hover{border-color:rgba(var(--cr),.2);transform:translateY(-3px)}
+.tappa:hover~.nodo{box-shadow:0 0 22px rgba(var(--cr),.4)}
+.ammiraglia{border-color:rgba(255,215,0,.14);
+  background:radial-gradient(80% 90% at 18% 0%,rgba(255,215,0,.05),transparent 60%),
+    linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,0) 55%),var(--card)}
+.ammiraglia:hover{border-color:rgba(255,215,0,.3)}
+
+.stopn{font-family:var(--mono);font-size:9px;letter-spacing:.3em;
+  color:var(--text-4);display:flex;align-items:center;gap:9px}
+.stopn::before{content:'';width:5px;height:5px;border-radius:50%;
+  background:var(--c);box-shadow:0 0 8px rgba(var(--cr),.7)}
+.situazione{margin-top:13px;font-family:var(--display);font-weight:250;
+  font-size:clamp(21px,1.8vw,25px);line-height:1.14;letter-spacing:-.005em}
+.situazione em{font-style:normal;color:var(--c)}
+.ammiraglia .situazione{font-size:clamp(26px,2.5vw,34px);font-weight:200}
+
+.corpo{display:flex;gap:20px;margin-top:18px;flex:1;align-items:stretch}
+
+/* the small parcel — the packaging, in miniature */
+.pacco{position:relative;flex:none;align-self:flex-start;width:58px;height:70px;
+  border-radius:8px;overflow:hidden;
+  background:radial-gradient(130% 85% at 18% 0%,rgba(var(--cr),.11),transparent 55%),
+    linear-gradient(163deg,#161619 0%,#0B0B0D 60%,#08080A 100%);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.06),
+    0 12px 26px -12px rgba(0,0,0,.85),0 0 24px -8px rgba(var(--cr),.3);
+  display:flex;align-items:center;justify-content:center}
+.pacco::before{content:'';position:absolute;left:0;right:0;top:0;height:15px;
+  background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.012))}
+.pacco::after{content:'';position:absolute;left:0;right:0;top:15px;height:1px;
+  background:linear-gradient(90deg,rgba(var(--cr),0),rgba(var(--cr),.7) 30%,rgba(var(--cr),.7) 70%,rgba(var(--cr),0));
+  box-shadow:0 0 10px 1px rgba(var(--cr),.3)}
+.pacco svg{width:24px;height:24px;margin-top:9px;
+  filter:drop-shadow(0 0 8px rgba(var(--cr),.45))}
+.pacco .nastrino{position:absolute;top:0;bottom:0;left:66%;width:9px;
+  background:linear-gradient(180deg,#FFE45C,#DCAF00);opacity:.95;
+  box-shadow:inset 1px 0 0 rgba(255,255,255,.35),0 0 12px rgba(255,215,0,.3)}
+.ammiraglia .pacco{width:72px;height:86px}
+.ammiraglia .pacco svg{width:30px;height:30px;margin-top:11px}
+.pacco .pcod{position:absolute;bottom:6px;left:0;right:0;text-align:center;
+  font-family:var(--mono);font-size:7px;letter-spacing:.14em;color:rgba(255,255,255,.34)}
+
+/* ————— sales layer (identico al riferimento) ————— */
+.vendita{flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:12px;min-width:0}
+.pnome{display:flex;align-items:center;gap:11px;flex-wrap:wrap}
+.pnome strong{font-family:var(--display);font-weight:400;font-size:17px;letter-spacing:.015em}
+.ammiraglia .pnome strong{font-size:19px}
+.kind{font-family:var(--mono);font-size:9px;letter-spacing:.26em;text-transform:uppercase;
+  color:var(--c);background:rgba(var(--cr),.07);border:1px solid rgba(var(--cr),.35);
+  padding:4px 11px 3px;border-radius:100px;white-space:nowrap;flex:none}
+.promessa{font-size:14px;line-height:1.62;color:var(--text-2);margin-bottom:auto}
+.ammiraglia .promessa{font-size:15.5px;max-width:46ch}
+.compra{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;
+  border-radius:100px;min-height:44px;padding:0 24px;background:var(--c);
+  color:#0A0A05;font-weight:700;font-size:14.5px;text-decoration:none;
+  letter-spacing:.005em;margin-top:4px;
+  box-shadow:0 12px 30px -8px rgba(var(--cr),.45),0 2px 8px rgba(0,0,0,.4);
+  transition:transform .4s var(--molla),box-shadow .4s var(--ease)}
+.compra:hover{transform:translateY(-2px);
+  box-shadow:0 18px 40px -8px rgba(var(--cr),.6),0 2px 8px rgba(0,0,0,.4)}
+.compra:focus-visible{outline:2px solid var(--text);outline-offset:3px}
+.ammiraglia .compra{font-size:15.5px}
+.rassicura{font-size:12px;line-height:1.55;color:var(--text-3);display:flex;gap:9px}
+.rassicura .check{color:var(--c);flex:none;font-weight:600}
+
+/* ————— tablet / vertical route ————— */
+@media (max-width:840px){
+  .testa{display:block}
+  .prova{margin-top:16px;flex-direction:row;flex-wrap:wrap;gap:6px 18px}
+  .mappa{padding-left:60px;padding-top:72px;padding-bottom:76px}
+  .griglia{grid-template-columns:1fr;gap:44px}
+  .ammiraglia .situazione{font-size:27px}
+}
+
+/* ————— mobile ————— */
+@media (max-width:580px){
+  .mappa{padding-left:52px;padding-right:18px}
+  .tappa{padding:22px 20px 24px}
+  /* il pacco affianca solo il nome: promessa, bottone e garanzia
+     riprendono tutta la larghezza della card */
+  .corpo{display:grid;grid-template-columns:52px 1fr;gap:12px 16px;align-items:center}
+  .vendita{display:contents}
+  .pnome{grid-column:2}
+  .promessa,.compra,.rassicura{grid-column:1/-1}
+  .compra{margin-top:0;font-size:14px;padding:0 16px}
+  .pacco{width:52px;height:62px}
+  .pacco svg{width:21px;height:21px;margin-top:8px}
+  .pacco .pcod{display:none}
+  .ammiraglia .pacco{width:52px;height:62px}
+  .ammiraglia .pacco svg{width:21px;height:21px;margin-top:8px}
+  .situazione{font-size:22px}
+  .ammiraglia .situazione{font-size:25px}
+  .promessa,.ammiraglia .promessa{font-size:13.5px}
+  .ammiraglia .pnome strong{font-size:17px}
+  .aereo{width:18px;height:18px}
+}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  /* l'aereo resta fermo sulla rotta, tra PF e VV (solo se la rotta esiste) */
+  .aereo.on{offset-distance:22%;opacity:1}
+}
+</style>
+</head>
+<body>
+
+<header class="testa">
+  <div>
+    <div class="eyebrow">BOOM — Services · The route</div>
+    <h2>Four stops between<br>you and <em>Rome</em>.</h2>
+    <p class="sotto">You don't pick a product — you find the moment you're in. Board at your stop: price and guarantee are printed on the badge.</p>
+  </div>
+  <div class="prova">
+    <span><span class="stella">★</span> <b>4.9 on Google</b> · 47 reviews</span>
+    <span>Licensed agency — Egidi Immobiliare S.r.l.</span>
+    <span>Every home walked in person</span>
+  </div>
+</header>
+
+<section class="mappa" id="mappa">
+  <svg class="filo" id="filo" aria-hidden="true" preserveAspectRatio="none">
+    <path id="rpGlow" d=""/>
+    <path id="rp" d=""/>
+  </svg>
+
+  <div class="aereo" id="aereo" aria-hidden="true">
+    <svg viewBox="0 0 24 24" width="26" height="26">
+      <path d="M2.6 4.2 21.4 12 2.6 19.8 6.4 12z" fill="#FFD700"/>
+      <path d="M6.4 12 21.4 12" stroke="#FFD700" stroke-width=".8" opacity=".5"/>
+    </svg>
+  </div>
+
+  <div class="nodo" id="n-pf" style="--c:var(--c-pf);--cr:255,215,0" aria-hidden="true"><span>PF</span></div>
+  <div class="nodo" id="n-vv" style="--c:var(--c-vv);--cr:0,255,136" aria-hidden="true"><span>VV</span></div>
+  <div class="nodo" id="n-da" style="--c:var(--c-da);--cr:157,140,255" aria-hidden="true"><span>DA</span></div>
+  <div class="nodo" id="n-cc" style="--c:var(--c-cc);--cr:62,211,255" aria-hidden="true"><span>CC</span></div>
+
+  <div class="capo" id="dep" aria-hidden="true">DEP · ABROAD</div>
+  <div class="capo" id="arr" aria-hidden="true">ARR · <b>ROME ✦</b></div>
+
+  <div class="griglia">
+
+    <!-- ══════════ STOP 01 · PROPERTY FINDING (ammiraglia) ══════════ -->
+    <article class="tappa ammiraglia" id="t-pf" style="--c:var(--c-pf);--cr:255,215,0">
+      <span class="stopn">STOP 01 · PF·0350·ROME</span>
+      <h3 class="situazione">Still searching <em>from abroad?</em></h3>
+      <div class="corpo">
+        <div class="pacco">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--c)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/>
+          </svg>
+          <i class="nastrino"></i>
+          <span class="pcod">BOOM</span>
+        </div>
+        <div class="vendita">
+          <div class="pnome"><strong>Property Finding</strong><span class="kind">Flagship</span></div>
+          <p class="promessa">Your private hunter on the whole Rome market — off-market included, every shortlist walked in person before you see it.</p>
+          <a class="compra" href="/property-finding.html">Start the hunt · €350 →</a>
+          <p class="rassicura"><span class="check">✓</span>Zero risk: deducted on success, refunded in full if we don't deliver.</p>
+        </div>
+      </div>
+    </article>
+
+    <!-- ══════════ STOP 02 · VIRTUAL VIEWING ══════════ -->
+    <article class="tappa" id="t-vv" style="--c:var(--c-vv);--cr:0,255,136">
+      <span class="stopn">STOP 02 · VV·0089·ROME</span>
+      <h3 class="situazione">Found it, <em>can't fly?</em></h3>
+      <div class="corpo">
+        <div class="pacco">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--c)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2.5" y="6.5" width="13" height="11" rx="2.5"/>
+            <path d="M15.5 11.5 21.5 8v8l-6-3.5z"/>
+          </svg>
+          <span class="pcod">BOOM</span>
+        </div>
+        <div class="vendita">
+          <div class="pnome"><strong>Virtual Viewing</strong><span class="kind">Live</span></div>
+          <p class="promessa">See any home live on video before you fly — the red flags said out loud.</p>
+          <a class="compra" href="/virtual-viewing.html">Book a live tour · €89 →</a>
+          <p class="rassicura"><span class="check">✓</span>Credited if you rent with us · BOOM homes: free, always.</p>
+        </div>
+      </div>
+    </article>
+
+    <!-- ══════════ STOP 03 · DEAL ASSISTANCE ══════════ -->
+    <article class="tappa" id="t-da" style="--c:var(--c-da);--cr:157,140,255">
+      <span class="stopn">STOP 03 · DA·0249·ROME</span>
+      <h3 class="situazione">Found it <em>elsewhere?</em></h3>
+      <div class="corpo">
+        <div class="pacco">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--c)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3l7.5 3v5.2c0 4.6-3.2 7.6-7.5 9.3-4.3-1.7-7.5-4.7-7.5-9.3V6z"/>
+            <path d="M9 11.5l2.2 2.2 4-4.2"/>
+          </svg>
+          <span class="pcod">BOOM</span>
+        </div>
+        <div class="vendita">
+          <div class="pnome"><strong>Deal Assistance</strong><span class="kind">Protection</span></div>
+          <p class="promessa">Found a home yourself? We verify the landlord and the papers — then negotiate for you.</p>
+          <a class="compra" href="/deal-assistance.html">Protect the deal · €249 →</a>
+          <p class="rassicura"><span class="check">✓</span>Fixed fee — deposit and clauses negotiated, no percentages.</p>
+        </div>
+      </div>
+    </article>
+
+    <!-- ══════════ STOP 04 · CONTRACT CHECK ══════════ -->
+    <article class="tappa" id="t-cc" style="--c:var(--c-cc);--cr:62,211,255">
+      <span class="stopn">STOP 04 · CC·0049·ROME</span>
+      <h3 class="situazione">About <em>to sign?</em></h3>
+      <div class="corpo">
+        <div class="pacco">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--c)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 3.5h7L17.5 8v12a1.5 1.5 0 0 1-1.5 1.5H7.5A1.5 1.5 0 0 1 6 20V5a1.5 1.5 0 0 1 1.5-1.5z"/>
+            <path d="M12.5 3.5V8H17"/>
+            <path d="M8.8 13h6.4M8.8 16.4h4.4"/>
+          </svg>
+          <span class="pcod">BOOM</span>
+        </div>
+        <div class="vendita">
+          <div class="pnome"><strong>Contract Check</strong><span class="kind">Express</span></div>
+          <p class="promessa">About to sign? A written traffic-light verdict in 24h: fine, unfair, missing.</p>
+          <a class="compra" href="/contract-check-express.html">Check my contract · €49 →</a>
+          <p class="rassicura"><span class="check">✓</span>Credited in full on Deal Assistance.</p>
+        </div>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+<script>
+(function(){
+  var M=document.getElementById('mappa'),
+      SVG=document.getElementById('filo'),
+      P=document.getElementById('rp'),
+      PG=document.getElementById('rpGlow'),
+      plane=document.getElementById('aereo'),
+      dep=document.getElementById('dep'),
+      arr=document.getElementById('arr');
+  var cards=['t-pf','t-vv','t-da','t-cc'].map(function(id){return document.getElementById(id)});
+  var nodes=['n-pf','n-vv','n-da','n-cc'].map(function(id){return document.getElementById(id)});
+
+  function build(){
+    var mr=M.getBoundingClientRect(), w=M.clientWidth, h=M.clientHeight;
+    SVG.setAttribute('viewBox','0 0 '+w+' '+h);
+    SVG.setAttribute('width',w); SVG.setAttribute('height',h);
+    var r=cards.map(function(c){var b=c.getBoundingClientRect();
+      return{l:b.left-mr.left,t:b.top-mr.top,w:b.width,h:b.height}});
+    var vertical=Math.abs(r[0].l-r[1].l)<4, d;
+
+    if(!vertical){
+      var y1=r[0].t-30, y2=r[2].t-30, ym=y2-36,
+          xl=10, xr=w-10, R=18;
+      var xs=[r[0].l+r[0].w/2, r[1].l+r[1].w/2, r[2].l+r[2].w/2, r[3].l+r[3].w/2];
+      d='M '+xl+' '+y1+' H '+(xr-R)+
+        ' A '+R+' '+R+' 0 0 1 '+xr+' '+(y1+R)+
+        ' V '+(ym-R)+
+        ' A '+R+' '+R+' 0 0 1 '+(xr-R)+' '+ym+
+        ' H '+(xl+R)+
+        ' A '+R+' '+R+' 0 0 0 '+xl+' '+(ym+R)+
+        ' V '+(y2-R)+
+        ' A '+R+' '+R+' 0 0 0 '+(xl+R)+' '+y2+
+        ' H '+(xr-6);
+      var pts=[[xs[0],y1],[xs[1],y1],[xs[2],y2],[xs[3],y2]];
+      nodes.forEach(function(n,i){
+        n.classList.remove('lato');
+        n.style.left=pts[i][0]+'px'; n.style.top=pts[i][1]+'px';
+        n.style.setProperty('--stem',((i<2?r[0].t-y1:r[2].t-y2)-13)+'px');
+      });
+      dep.style.left=(xl+8)+'px'; dep.style.top=(y1-26)+'px';
+      arr.style.left=(xr-10)+'px'; arr.style.top=(y2-26)+'px';
+      arr.classList.add('fine-dx');
+    } else {
+      var x=r[0].l-26, top=r[0].t-46, bot=r[3].t+r[3].h-6;
+      d='M '+x+' '+top+' V '+bot;
+      nodes.forEach(function(n,i){
+        n.classList.add('lato');
+        n.style.left=x+'px'; n.style.top=(r[i].t+36)+'px';
+        n.style.setProperty('--stem',(r[i].l-x-13)+'px');
+      });
+      dep.style.left=(x+12)+'px'; dep.style.top=(top-5)+'px';
+      arr.style.left=(x+12)+'px'; arr.style.top=(bot-4)+'px';
+      arr.classList.remove('fine-dx');
+    }
+    P.setAttribute('d',d); PG.setAttribute('d',d);
+    plane.style.offsetPath='path("'+d+'")';
+    plane.classList.add('on');
+  }
+
+  var t;
+  function lazy(){clearTimeout(t);t=setTimeout(build,120)}
+  window.addEventListener('resize',lazy);
+  window.addEventListener('load',build);
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(build);
+  build();
+})();
+</script>
+
+</body>
+</html>

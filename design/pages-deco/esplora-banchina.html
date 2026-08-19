@@ -42,6 +42,16 @@ body { background:var(--black); color:var(--text); font-family:var(--sans);
   box-shadow:none; }
 .palco-testa .regola { width:100%; font-size:12.5px; color:var(--text-3);
   max-width:80ch; line-height:1.65; }
+.studio { margin-top:22px; border:1px solid var(--line-0);
+  border-radius:16px; padding:clamp(16px,2vw,24px); }
+.studio .st-eti { display:block; font-size:10px; font-weight:600;
+  letter-spacing:.22em; text-transform:uppercase; color:var(--gold);
+  margin-bottom:12px; }
+.st-griglia { display:grid; gap:12px 22px;
+  grid-template-columns:repeat(auto-fit,minmax(290px,1fr));
+  font-size:12px; color:var(--text-3); line-height:1.6; }
+.st-griglia b { display:block; color:var(--text-2); font-weight:600;
+  font-size:11.5px; margin-bottom:2px; }
 .palco-vetro { width:100%; height:1400px; border:0; border-radius:18px;
   background:#060607; box-shadow:inset 0 0 0 1px var(--line-0);
   display:block; }
@@ -56,24 +66,411 @@ body { background:var(--black); color:var(--text); font-family:var(--sans);
 <body>
 <header class="lab-capo">
   <div class="container">
-    <span class="eti">— Banchina Lab · vol. 6 — la famiglia Packaging</span>
-    <h1>Il Packaging, sviluppato in <b>famiglia</b>.</h1>
-    <p>La direzione approvata era il Packaging: eccola sviluppata in quattro
-      esecuzioni della stessa materia — l'apertura, l'originale rifinito,
-      la ceralacca, il negozio. Stesso contratto di sempre: firma
-      cromatica fissa, strato vendita INTATTO (bottone verbo+prezzo,
-      garanzia ✓), fatti verbatim. Ogni palco è il documento vero, vivo
-      — passaci sopra il mouse.</p>
+    <span class="eti">— Banchina Lab · vol. 8 — gli Stemmi + la famiglia</span>
+    <h1>Il badge, preso alla lettera: <b>gli Stemmi</b>.</h1>
+    <p>La nuova proposta, fatta a mano: il servizio come EMBLEMA coniato —
+      smalto, metallo, incisione — nel quadrato 2×2 chiesto per la home.
+      Sotto, la famiglia Packaging gia' vista, per confronto. Strato
+      vendita intatto ovunque; le domande-situazione dello studio
+      psicologico restano come occhielli. Ogni palco e' vivo: passaci
+      sopra il mouse.</p>
   </div>
 </header>
 
-<section class="palco" id="unboxing">
+<section class="palco" id="stemmi">
   <div class="container">
     <div class="palco-testa">
       <span class="lettera">1</span>
+      <h2>Gli Stemmi</h2>
+      <span class="tag oro">★ fatta a mano · la nuova proposta</span>
+      <p class="regola">Il &quot;badge&quot; preso alla lettera e portato a gioielleria: smalto nero sotto vetro con guilloché da quadrante, ghiera di metallo godronata nella lega del servizio, il nome INCISO in curva come su un orologio, il prezzo sul piatto, il lampo che passa lento. Quadrato 2×2; ogni stemma si volge verso il cursore. L&#x27;ammiraglia oro porta la gemma FULL REFUND e la doppia ghiera.</p>
+    </div>
+    <iframe class="palco-vetro" title="Gli Stemmi"
+      data-v="stemmi" srcdoc="&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;title&gt;Variante GLI STEMMI&lt;/title&gt;
+&lt;link rel=&quot;preconnect&quot; href=&quot;https://fonts.googleapis.com&quot;&gt;
+&lt;link rel=&quot;preconnect&quot; href=&quot;https://fonts.gstatic.com&quot; crossorigin&gt;
+&lt;link rel=&quot;stylesheet&quot; href=&quot;https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap&quot;&gt;
+&lt;style&gt;
+:root {
+  --gold:#FFD700; --green:#00FF88; --black:#030303; --void:#060607;
+  --surface:#0B0B0C; --card:#0E0E10; --text:#FAFAFA;
+  --text-2:rgba(250,250,250,.72); --text-3:rgba(250,250,250,.5);
+  --text-4:rgba(250,250,250,.48); --line-0:rgba(255,255,255,.04);
+  --line:rgba(255,255,255,.08);
+  --ease:cubic-bezier(.16,1,.3,1); --molla:cubic-bezier(.3,1.45,.5,1);
+  --sans:&#x27;Inter&#x27;,-apple-system,BlinkMacSystemFont,sans-serif;
+  --display:&#x27;Helvetica Neue&#x27;,Helvetica,Arial,sans-serif;
+  --c-vv:#00FF88; --c-pf:#FFD700; --c-da:#9D8CFF; --c-cc:#3ED3FF;
+  color-scheme:dark;
+}
+*,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--black); color:var(--text); font-family:var(--sans);
+  font-weight:300; font-size:16px; line-height:1.6;
+  -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+a { color:inherit; text-decoration:none; }
+.container { width:100%; max-width:1240px; margin:0 auto;
+  padding:0 clamp(18px,3vw,40px); }
+:focus-visible { outline:2px solid var(--gold); outline-offset:3px; }
+
+.capo { padding:clamp(48px,7vh,84px) 0 clamp(14px,2vw,24px); }
+.capo .eyebrow { display:inline-flex; align-items:center; gap:9px;
+  font-size:10px; font-weight:600; letter-spacing:.26em;
+  text-transform:uppercase; color:var(--gold); }
+.capo .eyebrow i { width:22px; height:1px; background:var(--gold); }
+.capo h2 { margin-top:14px; font-family:var(--display); font-weight:200;
+  font-size:clamp(30px,4.2vw,50px); line-height:1.08; letter-spacing:-.02em;
+  max-width:24ch; }
+.capo h2 b { color:var(--gold); font-weight:300; }
+.capo p { margin-top:12px; max-width:60ch; font-size:13.5px;
+  color:var(--text-3); }
+
+/* ══ IL QUADRATO DEGLI STEMMI ═════════════════════════════════════════ */
+.stemmi { display:grid; grid-template-columns:1fr 1fr;
+  gap:clamp(12px,1.6vw,18px); margin:clamp(20px,2.6vw,32px) 0
+  clamp(40px,5vw,70px); }
+@media (max-width:900px){ .stemmi { grid-template-columns:1fr; } }
+.sm { position:relative; display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  gap:clamp(16px,2vw,26px); align-items:center;
+  border-radius:22px; overflow:hidden; padding:clamp(18px,2.2vw,26px);
+  background:linear-gradient(165deg,#101014,#080809 70%);
+  box-shadow:inset 0 0 0 1px var(--line), 0 30px 60px -36px rgba(0,0,0,.9);
+  transition:box-shadow .45s var(--ease); }
+.sm:hover { box-shadow:inset 0 0 0 1px
+  color-mix(in srgb, var(--c) 32%, transparent),
+  0 40px 80px -36px rgba(0,0,0,.95); }
+.sm .alone { position:absolute; inset:-30% auto -30% -20%; width:70%;
+  pointer-events:none; opacity:.55; transition:opacity .5s var(--ease);
+  background:radial-gradient(48% 42% at 32% 50%, var(--ca), transparent 70%); }
+.sm:hover .alone { opacity:1; }
+@media (max-width:560px){
+  .sm { grid-template-columns:1fr; justify-items:center; }
+  .sm .vendita { text-align:center; }
+  .sm .compra { align-self:stretch; }
+  .sm .rassicura { justify-content:center; } }
+
+/* ── LO STEMMA: smalto nero, ghiera d&#x27;oro, incisione curva ── */
+.palco3d { display:grid; place-items:center; perspective:700px; }
+.stemma { --rx:0deg; --ry:0deg; position:relative; display:block;
+  width:var(--dia,158px); height:var(--dia,158px); border-radius:50%;
+  transform:rotateX(var(--ry)) rotateY(var(--rx));
+  transition:transform .5s var(--molla);
+  animation:levita 6s ease-in-out infinite;
+  filter:drop-shadow(0 26px 22px rgba(0,0,0,.55))
+    drop-shadow(0 0 34px var(--ca)); }
+@keyframes levita { 50% { translate:0 -6px; } }
+.sm:hover .stemma { animation-play-state:paused; }
+/* la ghiera: metallo conico + bordo zigrinato */
+.stemma .ghiera { position:absolute; inset:0; border-radius:50%;
+  background:
+    conic-gradient(from 210deg,
+      #6b5716, #f4de7e 12%, #8a6d1f 26%, #fdf0a8 38%, #b8942b 52%,
+      #f6e27a 64%, #7a5f1a 78%, #e8cd62 90%, #6b5716);
+  box-shadow:0 1px 0 rgba(255,255,255,.25) inset,
+    0 -2px 6px rgba(0,0,0,.6) inset; }
+/* smalti freddi per i non-oro: la ghiera prende una lega al colore */
+.sm.vv .stemma .ghiera { background:
+    conic-gradient(from 210deg,
+      #0d4f34, #7df2c0 12%, #14684a 26%, #b6ffe0 38%, #1d8a63 52%,
+      #6ee9b4 64%, #0c422c 78%, #52d9a0 90%, #0d4f34); }
+.sm.da .stemma .ghiera { background:
+    conic-gradient(from 210deg,
+      #2c2566, #c3baff 12%, #4a3f96 26%, #ddd6ff 38%, #5d51b5 52%,
+      #b0a4ff 64%, #251f54 78%, #8d7fe8 90%, #2c2566); }
+.sm.cc .stemma .ghiera { background:
+    conic-gradient(from 210deg,
+      #0e4a5e, #8fe8ff 12%, #17657f 26%, #c9f3ff 38%, #2088a8 52%,
+      #7adcf6 64%, #0b3b4b 78%, #55c8e8 90%, #0e4a5e); }
+/* la godronatura: solo sull&#x27;orlo esterno, fine come una moneta */
+.stemma .zigrino { position:absolute; inset:0; border-radius:50%;
+  background:repeating-conic-gradient(from 8deg,
+    rgba(0,0,0,.4) 0deg 1.1deg, transparent 1.1deg 3.2deg);
+  -webkit-mask:radial-gradient(farthest-side, transparent 0 91.5%, #000 92%);
+  mask:radial-gradient(farthest-side, transparent 0 91.5%, #000 92%); }
+/* il filo lucido tornito tra ghiera e smalto */
+.stemma .filo { position:absolute; inset:7.5px; border-radius:50%;
+  box-shadow:0 0 0 1px rgba(255,255,255,.32),
+    0 0 0 2.5px rgba(0,0,0,.65); pointer-events:none; }
+/* il piatto di smalto nero */
+.stemma .smalto { position:absolute; inset:10px; border-radius:50%;
+  background:
+    radial-gradient(58% 42% at 32% 26%, rgba(255,255,255,.15), transparent 55%),
+    radial-gradient(80% 80% at 50% 118%, var(--ca), transparent 60%),
+    repeating-radial-gradient(circle at 50% 50%,
+      rgba(255,255,255,.03) 0 1px, transparent 1px 4px),
+    radial-gradient(circle at 50% 50%, #101013 0%, #08080A 68%, #040405 100%);
+  box-shadow:inset 0 3px 9px rgba(0,0,0,.85),
+    inset 0 -1px 2px rgba(255,255,255,.06),
+    0 0 0 1px rgba(0,0,0,.6); }
+/* la scritta da QUADRANTE: curva, dentro lo smalto, come un orologio */
+.stemma svg.incisione { position:absolute; inset:0; width:100%;
+  height:100%; pointer-events:none; }
+.stemma svg.incisione text { font-family:var(--sans); font-weight:600;
+  font-size:6.4px; letter-spacing:.32em; fill:rgba(250,250,250,.44); }
+/* l&#x27;icona al centro, nella luce del servizio */
+.stemma .cuore { position:absolute; inset:0; display:grid;
+  place-items:center; }
+.stemma .cuore svg { width:34%; height:34%; fill:none; stroke:var(--c);
+  stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round;
+  filter:drop-shadow(0 0 10px var(--cb)) drop-shadow(0 0 26px var(--ca)); }
+/* il prezzo inciso nel piatto, sotto l&#x27;icona */
+.stemma .quota { position:absolute; left:0; right:0; bottom:19%;
+  text-align:center; font-family:var(--display); font-weight:400;
+  font-size:calc(var(--dia,158px) * .105); letter-spacing:.04em;
+  color:var(--c); text-shadow:0 0 14px var(--ca);
+  font-variant-numeric:tabular-nums; }
+/* il vetro: la calotta lucida + il lampo che passa */
+.stemma .vetro { position:absolute; inset:10px; border-radius:50%;
+  overflow:hidden; pointer-events:none; }
+.stemma .vetro::before { content:&#x27;&#x27;; position:absolute; inset:-4% 8% 55% 8%;
+  border-radius:50%; transform:rotate(-14deg);
+  background:linear-gradient(178deg, rgba(255,255,255,.13),
+    rgba(255,255,255,.02) 62%, transparent); }
+.stemma .vetro::after { content:&#x27;&#x27;; position:absolute; top:-30%;
+  bottom:-30%; left:-70%; width:44%; transform:skewX(-18deg);
+  background:linear-gradient(100deg, transparent,
+    rgba(255,255,255,.16) 50%, transparent);
+  animation:lampo 6s var(--ease) infinite; }
+@keyframes lampo { 0%, 58% { left:-70%; } 78%, 100% { left:130%; } }
+/* i punti cardinali della ghiera: 4 viti/gemme */
+.stemma .vite { position:absolute; width:5.5px; height:5.5px;
+  border-radius:50%; left:50%; top:50%;
+  background:radial-gradient(circle at 35% 30%, #fff8, #3a3218 70%);
+  box-shadow:0 0 3px rgba(0,0,0,.8); }
+.stemma .vite.v1 { transform:translate(-50%,-50%)
+  translateY(calc(var(--dia,158px) * -.472)); }
+.stemma .vite.v2 { transform:translate(-50%,-50%)
+  translateY(calc(var(--dia,158px) * .472)); }
+.stemma .vite.v3 { transform:translate(-50%,-50%)
+  translateX(calc(var(--dia,158px) * -.472)); }
+.stemma .vite.v4 { transform:translate(-50%,-50%)
+  translateX(calc(var(--dia,158px) * .472)); }
+
+/* l&#x27;ammiraglia: stemma maggiore, doppia ghiera, gemma FULL REFUND */
+.sm.eroe { background:linear-gradient(165deg,#16130a,#0A0908 70%); }
+.sm.eroe .stemma { --dia:206px; }
+.sm.eroe .stemma .smalto { inset:13px; }
+.sm.eroe .stemma .filo { inset:10px; }
+.sm.eroe .stemma .vetro { inset:13px; }
+.sm.eroe .stemma::after { content:&#x27;&#x27;; position:absolute; inset:6.5px;
+  border-radius:50%; box-shadow:0 0 0 1.5px rgba(255,215,0,.55),
+    0 0 18px rgba(255,215,0,.25); pointer-events:none; }
+.sm.eroe .gemma { position:absolute; left:50%; bottom:-13px;
+  transform:translateX(-50%); padding:5px 13px; border-radius:100px;
+  background:linear-gradient(160deg,#f6e27a,#c29a1a);
+  color:#141005; font-size:8px; font-weight:800; letter-spacing:.18em;
+  text-transform:uppercase; white-space:nowrap;
+  box-shadow:0 6px 18px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.5); }
+
+/* ── LA VENDITA (lo strato provato, intatto) ── */
+.sm .vendita { position:relative; display:flex; flex-direction:column;
+  min-width:0; }
+.sm .situa { font-size:9.5px; font-weight:700; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--c); margin-bottom:6px; }
+.sm .pnome { display:flex; align-items:baseline; gap:9px; flex-wrap:wrap; }
+.sm .pnome .pn { font-family:var(--display); font-weight:350;
+  font-size:clamp(19px,1.9vw,23px); letter-spacing:-.005em; }
+.sm .pnome .pkind { font-size:8.5px; font-weight:700; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--text-4); }
+.sm .promessa { margin-top:6px; font-size:12.5px; line-height:1.55;
+  color:var(--text-3); max-width:46ch; }
+.sm .promessa b { color:var(--text-2); font-weight:500; }
+.sm .compra { margin-top:13px; display:inline-flex; align-items:center;
+  justify-content:center; gap:9px; min-height:44px; padding:0 20px;
+  border-radius:100px; background:var(--c); color:#0A0A05;
+  font-size:12.5px; font-weight:700; letter-spacing:.02em;
+  align-self:flex-start;
+  transition:transform .3s var(--ease), box-shadow .3s var(--ease);
+  box-shadow:0 10px 26px -12px var(--cb); }
+.sm .compra i { font-style:normal; transition:transform .3s var(--ease); }
+.sm:hover .compra { transform:translateY(-1px);
+  box-shadow:0 16px 34px -12px var(--cb); }
+.sm:hover .compra i { transform:translateX(4px); }
+.sm .rassicura { margin-top:10px; display:flex; align-items:flex-start;
+  gap:8px; font-size:10.5px; line-height:1.5; color:var(--text-4); }
+.sm .rassicura::before { content:&#x27;✓&#x27;; color:var(--c); font-size:11px;
+  line-height:1.4; }
+.sm .rassicura b { color:var(--text-3); font-weight:600; }
+
+@media (prefers-reduced-motion:reduce){
+  .stemma { animation:none !important; }
+  .stemma .vetro::after { animation:none; display:none; } }
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+
+&lt;section class=&quot;capo&quot;&gt;
+  &lt;div class=&quot;container&quot;&gt;
+    &lt;span class=&quot;eyebrow&quot;&gt;&lt;i&gt;&lt;/i&gt;BOOM — Services · The emblems&lt;/span&gt;
+    &lt;h2&gt;Four services, &lt;b&gt;struck like emblems&lt;/b&gt;.&lt;/h2&gt;
+    &lt;p&gt;Black enamel under glass, a milled metal bezel, the name engraved
+      around the rim. Pick the one that matches your moment.&lt;/p&gt;
+  &lt;/div&gt;
+&lt;/section&gt;
+
+&lt;section class=&quot;container&quot;&gt;
+  &lt;div class=&quot;stemmi&quot; id=&quot;quadrato&quot;&gt;
+
+    &lt;a class=&quot;sm eroe&quot; href=&quot;/property-finding.html&quot;
+       style=&quot;--c:var(--c-pf);--ca:rgba(255,215,0,.17);--cb:rgba(255,215,0,.45)&quot;&gt;
+      &lt;span class=&quot;alone&quot;&gt;&lt;/span&gt;
+      &lt;span class=&quot;palco3d&quot;&gt;&lt;span class=&quot;stemma&quot;&gt;
+        &lt;span class=&quot;ghiera&quot;&gt;&lt;/span&gt;&lt;span class=&quot;zigrino&quot;&gt;&lt;/span&gt;&lt;span class=&quot;filo&quot;&gt;&lt;/span&gt;
+        &lt;span class=&quot;vite v1&quot;&gt;&lt;/span&gt;&lt;span class=&quot;vite v2&quot;&gt;&lt;/span&gt;
+        &lt;span class=&quot;vite v3&quot;&gt;&lt;/span&gt;&lt;span class=&quot;vite v4&quot;&gt;&lt;/span&gt;
+        &lt;span class=&quot;smalto&quot;&gt;&lt;/span&gt;
+        &lt;svg class=&quot;incisione&quot; viewBox=&quot;0 0 100 100&quot; aria-hidden=&quot;true&quot;&gt;
+          &lt;defs&gt;&lt;path id=&quot;arcopf&quot; d=&quot;M 50,50 m -34.5,0 a 34.5,34.5 0 1,1 69,0 a 34.5,34.5 0 1,1 -69,0&quot;/&gt;&lt;/defs&gt;
+          &lt;text&gt;&lt;textPath href=&quot;#arcopf&quot; textLength=&quot;216.5&quot; lengthAdjust=&quot;spacingAndGlyphs&quot;&gt;BOOM · ROME — PROPERTY FINDING — FLAGSHIP · EST. MMXXV — &lt;/textPath&gt;&lt;/text&gt;
+        &lt;/svg&gt;
+        &lt;span class=&quot;cuore&quot;&gt;&lt;svg viewBox=&quot;0 0 24 24&quot;&gt;&lt;circle cx=&quot;10.8&quot; cy=&quot;10.8&quot; r=&quot;6.6&quot;/&gt;&lt;path d=&quot;M15.6 15.6L20.5 20.5&quot;/&gt;&lt;path d=&quot;M8 10.8h5.6M10.8 8v5.6&quot; opacity=&quot;.5&quot;/&gt;&lt;/svg&gt;&lt;/span&gt;
+        &lt;span class=&quot;quota&quot;&gt;€350&lt;/span&gt;
+        &lt;span class=&quot;vetro&quot;&gt;&lt;/span&gt;
+        &lt;span class=&quot;gemma&quot;&gt;Full refund&lt;/span&gt;
+      &lt;/span&gt;&lt;/span&gt;
+      &lt;span class=&quot;vendita&quot;&gt;
+        &lt;span class=&quot;situa&quot;&gt;Still searching from abroad?&lt;/span&gt;
+        &lt;span class=&quot;pnome&quot;&gt;&lt;span class=&quot;pn&quot;&gt;Property Finding&lt;/span&gt;
+          &lt;span class=&quot;pkind&quot;&gt;Flagship&lt;/span&gt;&lt;/span&gt;
+        &lt;span class=&quot;promessa&quot;&gt;Your private hunter on the whole Rome
+          market — &lt;b&gt;off-market included&lt;/b&gt;, every shortlist walked in
+          person before you see it.&lt;/span&gt;
+        &lt;span class=&quot;compra&quot;&gt;Start the hunt · €350&lt;i&gt;→&lt;/i&gt;&lt;/span&gt;
+        &lt;span class=&quot;rassicura&quot;&gt;&lt;span&gt;&lt;b&gt;Zero risk:&lt;/b&gt; deducted on
+          success, refunded in full if we don&#x27;t deliver.&lt;/span&gt;&lt;/span&gt;
+      &lt;/span&gt;
+    &lt;/a&gt;
+
+    &lt;a class=&quot;sm vv&quot; href=&quot;/virtual-viewing.html&quot;
+       style=&quot;--c:var(--c-vv);--ca:rgba(0,255,136,.15);--cb:rgba(0,255,136,.4)&quot;&gt;
+      &lt;span class=&quot;alone&quot;&gt;&lt;/span&gt;
+      &lt;span class=&quot;palco3d&quot;&gt;&lt;span class=&quot;stemma&quot;&gt;
+        &lt;span class=&quot;ghiera&quot;&gt;&lt;/span&gt;&lt;span class=&quot;zigrino&quot;&gt;&lt;/span&gt;&lt;span class=&quot;filo&quot;&gt;&lt;/span&gt;
+        &lt;span class=&quot;vite v1&quot;&gt;&lt;/span&gt;&lt;span class=&quot;vite v2&quot;&gt;&lt;/span&gt;
+        &lt;span class=&quot;vite v3&quot;&gt;&lt;/span&gt;&lt;span class=&quot;vite v4&quot;&gt;&lt;/span&gt;
+        &lt;span class=&quot;smalto&quot;&gt;&lt;/span&gt;
+        &lt;svg class=&quot;incisione&quot; viewBox=&quot;0 0 100 100&quot; aria-hidden=&quot;true&quot;&gt;
+          &lt;defs&gt;&lt;path id=&quot;arcovv&quot; d=&quot;M 50,50 m -34.5,0 a 34.5,34.5 0 1,1 69,0 a 34.5,34.5 0 1,1 -69,0&quot;/&gt;&lt;/defs&gt;
+          &lt;text&gt;&lt;textPath href=&quot;#arcovv&quot; textLength=&quot;216.5&quot; lengthAdjust=&quot;spacingAndGlyphs&quot;&gt;BOOM · ROME — VIRTUAL VIEWING — LIVE · YOU ASK, WE WALK — &lt;/textPath&gt;&lt;/text&gt;
+        &lt;/svg&gt;
+        &lt;span class=&quot;cuore&quot;&gt;&lt;svg viewBox=&quot;0 0 24 24&quot;&gt;&lt;rect x=&quot;3.5&quot; y=&quot;6.5&quot; width=&quot;12&quot; height=&quot;11&quot; rx=&quot;2&quot;/&gt;&lt;path d=&quot;M15.5 11l5-2.6v7.2l-5-2.6z&quot;/&gt;&lt;/svg&gt;&lt;/span&gt;
+        &lt;span class=&quot;quota&quot;&gt;€89&lt;/span&gt;
+        &lt;span class=&quot;vetro&quot;&gt;&lt;/span&gt;
+      &lt;/span&gt;&lt;/span&gt;
+      &lt;span class=&quot;vendita&quot;&gt;
+        &lt;span class=&quot;situa&quot;&gt;Found it, can&#x27;t fly?&lt;/span&gt;
+        &lt;span class=&quot;pnome&quot;&gt;&lt;span class=&quot;pn&quot;&gt;Virtual Viewing&lt;/span&gt;
+          &lt;span class=&quot;pkind&quot;&gt;Live&lt;/span&gt;&lt;/span&gt;
+        &lt;span class=&quot;promessa&quot;&gt;See any home &lt;b&gt;live on video&lt;/b&gt; before
+          you fly — the red flags said out loud.&lt;/span&gt;
+        &lt;span class=&quot;compra&quot;&gt;Book a live tour · €89&lt;i&gt;→&lt;/i&gt;&lt;/span&gt;
+        &lt;span class=&quot;rassicura&quot;&gt;&lt;span&gt;&lt;b&gt;Credited&lt;/b&gt; if you rent with
+          us · BOOM homes: free, always.&lt;/span&gt;&lt;/span&gt;
+      &lt;/span&gt;
+    &lt;/a&gt;
+
+    &lt;a class=&quot;sm da&quot; href=&quot;/deal-assistance.html&quot;
+       style=&quot;--c:var(--c-da);--ca:rgba(157,140,255,.16);--cb:rgba(157,140,255,.4)&quot;&gt;
+      &lt;span class=&quot;alone&quot;&gt;&lt;/span&gt;
+      &lt;span class=&quot;palco3d&quot;&gt;&lt;span class=&quot;stemma&quot;&gt;
+        &lt;span class=&quot;ghiera&quot;&gt;&lt;/span&gt;&lt;span class=&quot;zigrino&quot;&gt;&lt;/span&gt;&lt;span class=&quot;filo&quot;&gt;&lt;/span&gt;
+        &lt;span class=&quot;vite v1&quot;&gt;&lt;/span&gt;&lt;span class=&quot;vite v2&quot;&gt;&lt;/span&gt;
+        &lt;span class=&quot;vite v3&quot;&gt;&lt;/span&gt;&lt;span class=&quot;vite v4&quot;&gt;&lt;/span&gt;
+        &lt;span class=&quot;smalto&quot;&gt;&lt;/span&gt;
+        &lt;svg class=&quot;incisione&quot; viewBox=&quot;0 0 100 100&quot; aria-hidden=&quot;true&quot;&gt;
+          &lt;defs&gt;&lt;path id=&quot;arcoda&quot; d=&quot;M 50,50 m -34.5,0 a 34.5,34.5 0 1,1 69,0 a 34.5,34.5 0 1,1 -69,0&quot;/&gt;&lt;/defs&gt;
+          &lt;text&gt;&lt;textPath href=&quot;#arcoda&quot; textLength=&quot;216.5&quot; lengthAdjust=&quot;spacingAndGlyphs&quot;&gt;BOOM · ROME — DEAL ASSISTANCE — PROTECTION · FIXED FEE — &lt;/textPath&gt;&lt;/text&gt;
+        &lt;/svg&gt;
+        &lt;span class=&quot;cuore&quot;&gt;&lt;svg viewBox=&quot;0 0 24 24&quot;&gt;&lt;path d=&quot;M12 3.4l7.2 2.9v5.1c0 4.2-3 7.2-7.2 8.4-4.2-1.2-7.2-4.2-7.2-8.4V6.3z&quot;/&gt;&lt;path d=&quot;M9.1 11.6l2.2 2.2 4.1-4.7&quot; opacity=&quot;.5&quot;/&gt;&lt;/svg&gt;&lt;/span&gt;
+        &lt;span class=&quot;quota&quot;&gt;€249&lt;/span&gt;
+        &lt;span class=&quot;vetro&quot;&gt;&lt;/span&gt;
+      &lt;/span&gt;&lt;/span&gt;
+      &lt;span class=&quot;vendita&quot;&gt;
+        &lt;span class=&quot;situa&quot;&gt;Found it elsewhere?&lt;/span&gt;
+        &lt;span class=&quot;pnome&quot;&gt;&lt;span class=&quot;pn&quot;&gt;Deal Assistance&lt;/span&gt;
+          &lt;span class=&quot;pkind&quot;&gt;Protection&lt;/span&gt;&lt;/span&gt;
+        &lt;span class=&quot;promessa&quot;&gt;We &lt;b&gt;verify the landlord and the
+          papers&lt;/b&gt; — then negotiate for you.&lt;/span&gt;
+        &lt;span class=&quot;compra&quot;&gt;Protect the deal · €249&lt;i&gt;→&lt;/i&gt;&lt;/span&gt;
+        &lt;span class=&quot;rassicura&quot;&gt;&lt;span&gt;&lt;b&gt;Fixed fee&lt;/b&gt; — deposit and
+          clauses negotiated, no percentages.&lt;/span&gt;&lt;/span&gt;
+      &lt;/span&gt;
+    &lt;/a&gt;
+
+    &lt;a class=&quot;sm cc&quot; href=&quot;/contract-check-express.html&quot;
+       style=&quot;--c:var(--c-cc);--ca:rgba(62,211,255,.14);--cb:rgba(62,211,255,.4)&quot;&gt;
+      &lt;span class=&quot;alone&quot;&gt;&lt;/span&gt;
+      &lt;span class=&quot;palco3d&quot;&gt;&lt;span class=&quot;stemma&quot;&gt;
+        &lt;span class=&quot;ghiera&quot;&gt;&lt;/span&gt;&lt;span class=&quot;zigrino&quot;&gt;&lt;/span&gt;&lt;span class=&quot;filo&quot;&gt;&lt;/span&gt;
+        &lt;span class=&quot;vite v1&quot;&gt;&lt;/span&gt;&lt;span class=&quot;vite v2&quot;&gt;&lt;/span&gt;
+        &lt;span class=&quot;vite v3&quot;&gt;&lt;/span&gt;&lt;span class=&quot;vite v4&quot;&gt;&lt;/span&gt;
+        &lt;span class=&quot;smalto&quot;&gt;&lt;/span&gt;
+        &lt;svg class=&quot;incisione&quot; viewBox=&quot;0 0 100 100&quot; aria-hidden=&quot;true&quot;&gt;
+          &lt;defs&gt;&lt;path id=&quot;arcocc&quot; d=&quot;M 50,50 m -34.5,0 a 34.5,34.5 0 1,1 69,0 a 34.5,34.5 0 1,1 -69,0&quot;/&gt;&lt;/defs&gt;
+          &lt;text&gt;&lt;textPath href=&quot;#arcocc&quot; textLength=&quot;216.5&quot; lengthAdjust=&quot;spacingAndGlyphs&quot;&gt;BOOM · ROME — CONTRACT CHECK — EXPRESS · VERDICT IN 24H — &lt;/textPath&gt;&lt;/text&gt;
+        &lt;/svg&gt;
+        &lt;span class=&quot;cuore&quot;&gt;&lt;svg viewBox=&quot;0 0 24 24&quot;&gt;&lt;path d=&quot;M6 3.2h7.4L18.6 8v12.8H6z&quot;/&gt;&lt;path d=&quot;M13.2 3.2V8h5.2&quot; opacity=&quot;.5&quot;/&gt;&lt;path d=&quot;M9 12.6h6.4M9 15.8h4.4&quot; opacity=&quot;.5&quot;/&gt;&lt;/svg&gt;&lt;/span&gt;
+        &lt;span class=&quot;quota&quot;&gt;€49&lt;/span&gt;
+        &lt;span class=&quot;vetro&quot;&gt;&lt;/span&gt;
+      &lt;/span&gt;&lt;/span&gt;
+      &lt;span class=&quot;vendita&quot;&gt;
+        &lt;span class=&quot;situa&quot;&gt;About to sign?&lt;/span&gt;
+        &lt;span class=&quot;pnome&quot;&gt;&lt;span class=&quot;pn&quot;&gt;Contract Check&lt;/span&gt;
+          &lt;span class=&quot;pkind&quot;&gt;Express&lt;/span&gt;&lt;/span&gt;
+        &lt;span class=&quot;promessa&quot;&gt;A &lt;b&gt;written traffic-light verdict in
+          24h&lt;/b&gt;: fine, unfair, missing.&lt;/span&gt;
+        &lt;span class=&quot;compra&quot;&gt;Check my contract · €49&lt;i&gt;→&lt;/i&gt;&lt;/span&gt;
+        &lt;span class=&quot;rassicura&quot;&gt;&lt;span&gt;&lt;b&gt;Credited&lt;/b&gt; in full on Deal
+          Assistance.&lt;/span&gt;&lt;/span&gt;
+      &lt;/span&gt;
+    &lt;/a&gt;
+  &lt;/div&gt;
+&lt;/section&gt;
+
+&lt;script&gt;
+/* il tilt: lo stemma si volge verso il cursore — il gesto di prendere
+   in mano la medaglia. Solo con un mouse vero; molla al rilascio. */
+(function () {
+  if (!(window.matchMedia
+    &amp;&amp; matchMedia(&#x27;(hover:hover) and (pointer:fine)&#x27;).matches)) return;
+  document.querySelectorAll(&#x27;.sm&#x27;).forEach(function (sm) {
+    var st = sm.querySelector(&#x27;.stemma&#x27;);
+    if (!st) return;
+    sm.addEventListener(&#x27;pointermove&#x27;, function (e) {
+      var r = sm.getBoundingClientRect();
+      var x = (e.clientX - r.left) / r.width - .5;
+      var y = (e.clientY - r.top) / r.height - .5;
+      st.style.setProperty(&#x27;--rx&#x27;, (x * 18) + &#x27;deg&#x27;);
+      st.style.setProperty(&#x27;--ry&#x27;, (-y * 14) + &#x27;deg&#x27;);
+    });
+    sm.addEventListener(&#x27;pointerleave&#x27;, function () {
+      st.style.setProperty(&#x27;--rx&#x27;, &#x27;0deg&#x27;);
+      st.style.setProperty(&#x27;--ry&#x27;, &#x27;0deg&#x27;);
+    });
+  });
+})();
+&lt;/script&gt;
+&lt;script&gt;(function(){function m(){parent.postMessage({t:&quot;vh&quot;,id:&quot;stemmi&quot;,h:document.documentElement.scrollHeight},&quot;*&quot;)}setInterval(m,700);addEventListener(&quot;load&quot;,m)})()&lt;/script&gt;&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+    <div class="verdetto">
+      <div><b>Perché</b>L&#x27;oggetto piu&#x27; &quot;di classe&quot; della serie: medaglia coniata, non card. Le domande-situazione dello studio psicologico sopravvivono come occhielli (&quot;About to sign?&quot;), lo strato vendita e&#x27; intatto.</div>
+      <div><b>Il limite</b>La ghiera verde/ciano e&#x27; una lega inventata dal colore-firma: da validare che non stoni accanto all&#x27;oro su schermi molto saturi.</div>
+    </div>
+  </div>
+</section>\n
+<section class="palco" id="unboxing">
+  <div class="container">
+    <div class="palco-testa">
+      <span class="lettera">2</span>
       <h2>L&#x27;Unboxing</h2>
-      <span class="tag oro">★ l&#x27;evoluzione consigliata</span>
-      <p class="regola">Le scatole del Packaging, ma il momento venduto è l&#x27;APERTURA: l&#x27;ammiraglia arriva già aperta — coperchio 3D parcheggiato sopra, bocca incandescente, la lente che levita nel fascio di luce. Le tre minori sono sigillate: al passaggio il coperchio si solleva e lo spiraglio di luce del loro colore esce dalla giuntura.</p>
+      <span class="tag">famiglia Packaging</span>
+      <p class="regola">L&#x27;ammiraglia arriva GIA&#x27; aperta — coperchio 3D sospeso, bocca incandescente, la lente che levita nel fascio. Le minori sigillate si socchiudono al passaggio con lo spiraglio di luce.</p>
     </div>
     <iframe class="palco-vetro" title="L&#x27;Unboxing"
       data-v="unboxing" srcdoc="&lt;!DOCTYPE html&gt;
@@ -603,18 +1000,18 @@ body::before{content:&#x27;&#x27;;position:fixed;inset:0;z-index:-1;pointer-even
 &lt;/html&gt;
 "></iframe>
     <div class="verdetto">
-      <div><b>Perché</b>&quot;The box is a promise. Opening it is the proof.&quot; Tiene tutto ciò che era piaciuto del Packaging e aggiunge il momento del desiderio — l&#x27;unboxing — più il gesto hover che invita ad aprire le altre.</div>
-      <div><b>Il limite</b>A ~768px la lente levitante lambisce il coperchio aperto: un giro di rifinitura sul breakpoint tablet e ci siamo.</div>
+      <div><b>Perché</b>&quot;The box is a promise. Opening it is the proof.&quot;</div>
+      <div><b>Il limite</b>A ~768px la lente lambisce il coperchio aperto.</div>
     </div>
   </div>
 </section>\n
 <section class="palco" id="scatole">
   <div class="container">
     <div class="palco-testa">
-      <span class="lettera">2</span>
+      <span class="lettera">3</span>
       <h2>Il Packaging</h2>
-      <span class="tag">l&#x27;originale approvato · rifinito</span>
-      <p class="regola">La versione che hai approvato, con la rifinitura: il chip FLAGSHIP ora resta ancorato al nome a ogni larghezza. Scatole sigillate, serigrafia, barcode, nastro oro FULL REFUND sull&#x27;ammiraglia.</p>
+      <span class="tag">famiglia Packaging · rifinito</span>
+      <p class="regola">L&#x27;originale approvato: scatole sigillate, serigrafia, barcode, nastro oro FULL REFUND. Chip FLAGSHIP ora ancorato al nome.</p>
     </div>
     <iframe class="palco-vetro" title="Il Packaging"
       data-v="scatole" srcdoc="&lt;!DOCTYPE html&gt;
@@ -1023,18 +1420,18 @@ body::before{content:&#x27;&#x27;;position:fixed;inset:0;z-index:-1;pointer-even
 &lt;/html&gt;
 "></iframe>
     <div class="verdetto">
-      <div><b>Perché</b>Il riferimento della famiglia: sobrio, fotografico, il servizio sigillato con dentro la sua garanzia.</div>
-      <div><b>Il limite</b>La serigrafia secondaria resta texture, non testo leggibile (scelta giusta per un packaging).</div>
+      <div><b>Perché</b>Il riferimento della famiglia: sobrio, fotografico.</div>
+      <div><b>Il limite</b>Serigrafia secondaria = texture, non testo (scelta giusta).</div>
     </div>
   </div>
 </section>\n
 <section class="palco" id="sigillo">
   <div class="container">
     <div class="palco-testa">
-      <span class="lettera">3</span>
+      <span class="lettera">4</span>
       <h2>Il Sigillo</h2>
-      <span class="tag">la più BOOM</span>
-      <p class="regola">Plichi neri da scrivania chiusi da un sigillo di CERALACCA nel colore del servizio — iniziali impresse, glint che passa sulla cera — fascetta di carta col nome, riga &quot;Oggetto&quot; tipo lettera. L&#x27;ammiraglia col doppio nastro oro raso. Hover = il plico si stacca dalla scrivania.</p>
+      <span class="tag">famiglia Packaging</span>
+      <p class="regola">Plichi neri chiusi da ceralacca nel colore del servizio, fascetta, riga &quot;Oggetto&quot;, doppio nastro oro raso sull&#x27;ammiraglia.</p>
     </div>
     <iframe class="palco-vetro" title="Il Sigillo"
       data-v="sigillo" srcdoc="&lt;!DOCTYPE html&gt;
@@ -1448,18 +1845,18 @@ body::before{content:&#x27;&#x27;;position:fixed;inset:0;z-index:-1;pointer-even
 &lt;/html&gt;
 "></iframe>
     <div class="verdetto">
-      <div><b>Perché</b>La garanzia resa FISICA dalla stessa casa che sigilla contratti veri (Magic Sign, FES): &quot;Every service arrives sealed. The same house that seals real contracts, sealing its word to you.&quot;</div>
-      <div><b>Il limite</b>La cera è resa a gradienti CSS: da molto vicino manca la micro-irregolarità di colata di una texture dedicata.</div>
+      <div><b>Perché</b>&quot;The same house that seals real contracts, sealing its word to you.&quot;</div>
+      <div><b>Il limite</b>La cera a gradienti CSS e&#x27; liscia da molto vicino.</div>
     </div>
   </div>
 </section>\n
 <section class="palco" id="retail">
   <div class="container">
     <div class="palco-testa">
-      <span class="lettera">4</span>
+      <span class="lettera">5</span>
       <h2>La Vetrina Retail</h2>
-      <span class="tag">la più negozio</span>
-      <p class="regola">Le scatole esposte in un duty-free premium a mezzanotte: nicchie retroilluminate nel colore, mensola di vetro col riflesso capovolto, CARTELLINO di carta appeso che oscilla col prezzo grande, insegna FULL REFUND al neon sopra l&#x27;ammiraglia.</p>
+      <span class="tag">famiglia Packaging</span>
+      <p class="regola">Nicchie retroilluminate, mensola di vetro col riflesso, cartellino appeso che oscilla, insegna FULL REFUND al neon.</p>
     </div>
     <iframe class="palco-vetro" title="La Vetrina Retail"
       data-v="retail" srcdoc="&lt;!DOCTYPE html&gt;
@@ -1983,8 +2380,8 @@ body::before{content:&#x27;&#x27;;position:fixed;inset:0;z-index:-1;pointer-even
 &lt;/html&gt;
 "></iframe>
     <div class="verdetto">
-      <div><b>Perché</b>Il prezzo si legge come in negozio, prima ancora del bottone — la lettura commerce più immediata della famiglia.</div>
-      <div><b>Il limite</b>Il cartellino appeso copre lo spigolo alto della scatola (plausibile come tag vero, ma un occhio severo vorrebbe il cordino ancorato alla scatola).</div>
+      <div><b>Perché</b>Il prezzo si legge come in negozio, prima del bottone.</div>
+      <div><b>Il limite</b>Il cartellino copre lo spigolo alto della scatola.</div>
     </div>
   </div>
 </section>
