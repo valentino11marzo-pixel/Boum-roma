@@ -99,6 +99,56 @@ for (const fam of ['contract-filter', 'payment-filter', 'user-filter', 'maintena
   ok(app.includes(fam), `famiglia .${fam} emessa davvero dal portale`);
 }
 
+// ── 8b. RIFINITURA II — le altre cinque righe (payments/maintenance/
+//        users/invoices/docs): la conversione non perde MAI un handler,
+//        un data-attribute o una condizione. Sono i selettori che i
+//        filtri di sezione e il layer mobile leggono davvero. ───────────
+function rowOf(marker) {
+  const i = app.indexOf(marker);
+  return i < 0 ? '' : app.slice(i, i + 3200);
+}
+const payR = rowOf('class="list-item clickable payment-item"');
+ok(/data-status="\$\{p\.status\}"/.test(payR) && /data-overdue=/.test(payR) && /data-duesoon=/.test(payR) && /data-stripe=/.test(payR) && /data-search=/.test(payR),
+  'payments: i 5 data-attribute dei filtri/ricerca sono intatti');
+ok(/openModal\('editPayment'/.test(payR), 'payments: il tap apre ancora il modale di modifica');
+ok(/showPaymentLink\('pay'/.test(payR) && /markPaymentPaid\(/.test(payR) && /sendPaymentReminder\(/.test(payR),
+  'payments: link carta, segna-pagato e sollecito sopravvivono');
+ok(/wa\.me\//.test(payR) && payR.includes("onclick=\"event.stopPropagation()\""),
+  'payments: il WhatsApp del tenant resta un link vivo che non apre la riga');
+ok(/li-money-val \$\{p\.status === 'paid' \? 'green' : isOverdueNow \? 'red' : ''\}/.test(payR),
+  'payments: l\'importo parla il colore dello stato (verde incassato, rosso ritardo)');
+ok(!/🚨 Diffida|⚠️ 2° Sollecito/.test(app), 'payments: i livelli di sollecito hanno perso le emoji');
+
+const maintR = rowOf('class="list-item clickable maintenance-item"');
+ok(/data-status="\$\{m\.status\}"/.test(maintR) && /data-priority="\$\{m\.priority\}"/.test(maintR),
+  'maintenance: data-status e data-priority intatti');
+ok(/updateMaintenanceStatus\('\$\{m\.id\}','in_progress'\)/.test(maintR) && /'resolved'\)/.test(maintR),
+  'maintenance: avvia/completa lavorano ancora');
+ok(/border-left:3px solid var\(--red\)/.test(maintR), 'maintenance: il filo rosso delle urgenti resta');
+
+const userR = rowOf('class="list-item clickable user-item"');
+ok(/data-role=/.test(userR) && /data-overdue=/.test(userR) && /data-incomplete=/.test(userR),
+  'users: i 3 data-attribute dei filtri intatti');
+ok(/viewUser\('\$\{u\.id\}'\)/.test(userR) && /sendLandlordDataRequest\(/.test(userR) && /openPerson\('\$\{u\.id\}'/.test(userR),
+  'users: apri, richiesta-dati e scheda 360° sopravvivono');
+ok(/li-flag \$\{score >= 80 \? 'green' : score >= 50 \? 'orange' : 'red'\}/.test(userR),
+  'users: l\'affidabilità è un flag tinto per fascia (stesse soglie di prima)');
+
+const invR = rowOf('class="list-item clickable invoice-item"');
+ok(/viewInvoice\(/.test(invR) && /showPaymentLink\('inv'/.test(invR) && /downloadInvoicePDF\(/.test(invR),
+  'invoices: apri, link carta e PDF sopravvivono');
+
+const docR = rowOf('class="list-item clickable doc-item"');
+ok(/data-type=/.test(docR) && /data-source=/.test(docR) && /data-shared=/.test(docR) && /data-search=/.test(docR),
+  'docs: i 4 data-attribute intatti');
+ok(/editDocModal\(/.test(docR) && /confirmDelete\('document'/.test(docR),
+  'docs: modifica ed elimina sopravvivono');
+
+// niente più zoo: nessun badge 9px ad-hoc nelle righe convertite
+for (const [nm, r] of [['payments', payR], ['maintenance', maintR], ['users', userR], ['docs', docR]]) {
+  ok(!/badge[^"]*" style="font-size:9px/.test(r), `${nm}: nessun badge 9px ad-hoc rimasto nella riga`);
+}
+
 // ── 8. Le due lezioni dello screenshot (2026-08-19) ─────────────────────
 // La prima fotografia del ridisegno ha mostrato due difetti che nessun
 // check sul sorgente aveva preso: un'etichetta mangiata dal pulitore di
