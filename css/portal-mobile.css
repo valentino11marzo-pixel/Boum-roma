@@ -395,3 +395,11 @@ body.pm-on .pm-autowiz .modal-footer{display:none!important}
     color:var(--text-muted);margin-top:2px;
 }
 .pm-menu-empty{padding:22px 16px;text-align:center;color:var(--text-muted);font-size:13px}
+
+/* Il selettore del record dentro il Menu: la riga di ritorno all'azione.
+   Bordo d'oro perché è l'unica riga che NON esegue: torna indietro. */
+.pm-menu-back{
+    background:var(--gold-light)!important;
+    border:1px solid rgba(212,175,55,.35)!important;
+}
+.pm-menu-back .ico{color:var(--gold)}

@@ -86,6 +86,9 @@ function closeModal() { document.getElementById('modals').innerHTML = ''; }
 // il contratto vero è pinnato sul sorgente da tests/desktop/run.mjs
 function openTemplateModal(t) { __calls.push(['tpl', t]); }
 function openMagicSignEditor() { __calls.push(['magicsign']); }
+function viewContract(id) { __calls.push(['viewContract', id]); }
+function viewUserProfile(id) { __calls.push(['viewUserProfile', id]); }
+function openFascicolo(id) { __calls.push(['openFascicolo', id]); }
 function handleSearch(q) {
   if (!q || q.length < 2) { document.getElementById('searchResults')?.remove(); return; }
   let dd = document.getElementById('searchResults');
@@ -94,7 +97,13 @@ function handleSearch(q) {
     document.getElementById('globalSearch').parentElement.appendChild(dd);
   }
   dd.innerHTML = '<div style="padding:10px 14px;cursor:pointer" onclick="__calls.push([\\'entity\\',\\'' + q + '\\'])">' +
-    '<span style="font-size:16px">📋</span><div><div>Contratto Via Cavour</div><div>Ugo Rossi</div></div></div>';
+    '<span style="font-size:16px">📋</span><div><div>Contratto Via Cavour</div><div>Ugo Rossi</div></div></div>' +
+    // le righe TIPIZZATE, nella forma vera del motore: è da queste che il
+    // selettore del record riconosce il tipo (viewContract / viewUserProfile)
+    '<div style="padding:10px 14px" onclick="viewContract(\\'ct1\\')">' +
+    '<span>📋</span><div><div>Contratto Via Cavour</div><div>Ugo Rossi · €900/mese</div></div></div>' +
+    '<div style="padding:10px 14px" onclick="viewUserProfile(\\'u9\\')">' +
+    '<span>👤</span><div><div>Ugo Rossi</div><div>tenant · u@r.it</div></div></div>';
 }
 var TPL = {
   peekview:
@@ -238,6 +247,56 @@ await check('gli strumenti sono cercabili senza accenti ("disponibilita")', () =
 }));
 await page.keyboard.press('Escape');
 await page.waitForTimeout(200);
+
+console.log('— il selettore del record (le azioni contestuali) —');
+await page.keyboard.press('Control+KeyK');
+await page.waitForTimeout(200);
+await page.type('.pd-cmd-input', 'fascicolo');
+await page.waitForTimeout(350);
+await check('⌘K trova il Fascicolo ARPE e DICE che serve un contratto', () => page.evaluate(() => {
+  const secs = [...document.querySelectorAll('.pd-cmd-sec')].map(s => s.textContent);
+  const row = [...document.querySelectorAll('.pd-cmd-row')].find(r => r.textContent.includes('Fascicolo ARPE'));
+  return secs.includes('Su un record') && !!row && row.textContent.includes('contratto');
+}));
+await page.evaluate(() => { [...document.querySelectorAll('.pd-cmd-row')].find(r => r.textContent.includes('Fascicolo ARPE')).click(); });
+await page.waitForTimeout(200);
+await check('la palette NON si chiude: cambia domanda ("Per quale contratto?")', () => page.evaluate(() =>
+  !!document.querySelector('.pd-cmd') && !!document.querySelector('.pd-cmd-crumb') &&
+  document.querySelector('.pd-cmd-crumb').textContent.includes('Fascicolo') &&
+  /quale contratto/i.test(document.querySelector('.pd-cmd-input').placeholder)
+));
+await check('senza aver scritto niente non promette record che non ha', () => page.evaluate(() =>
+  !!document.querySelector('.pd-cmd-empty')
+));
+await page.type('.pd-cmd-input', 'rossi');
+await page.waitForTimeout(350);
+await check('cercando si vedono SOLO i contratti (non le persone dello stesso risultato)', () => page.evaluate(() => {
+  const rows = [...document.querySelectorAll('.pd-cmd-row')].map(r => r.textContent);
+  return rows.some(r => r.includes('Contratto Via Cavour')) && !rows.some(r => r.includes('tenant · u@r.it'));
+}));
+await check('la tendina della ricerca non resta appesa in pagina', () => page.evaluate(() =>
+  !document.getElementById('searchResults')
+));
+await page.evaluate(() => { [...document.querySelectorAll('.pd-cmd-row')].find(r => r.textContent.includes('Contratto Via Cavour')).click(); });
+await page.waitForTimeout(250);
+await check('TRE tap: il fascicolo di QUEL contratto si apre con l\'id vero', () => page.evaluate(() =>
+  window.__calls.some(c => c[0] === 'openFascicolo' && c[1] === 'ct1') && !document.querySelector('.pd-cmd')
+));
+// Esc torna indietro di UN passo, non chiude tutto
+await page.keyboard.press('Control+KeyK');
+await page.waitForTimeout(200);
+await page.type('.pd-cmd-input', 'fascicolo');
+await page.waitForTimeout(350);
+await page.evaluate(() => { [...document.querySelectorAll('.pd-cmd-row')].find(r => r.textContent.includes('Fascicolo ARPE')).click(); });
+await page.waitForTimeout(200);
+await page.keyboard.press('Escape');
+await page.waitForTimeout(220);
+await check('Esc torna alle azioni (la palette resta aperta, il filo si toglie)', () => page.evaluate(() =>
+  !!document.querySelector('.pd-cmd') && !document.querySelector('.pd-cmd-crumb')
+));
+await page.keyboard.press('Escape');
+await page.waitForTimeout(200);
+await check('un secondo Esc chiude davvero', () => page.evaluate(() => !document.querySelector('.pd-cmd')));
 
 console.log('— scorciatoie —');
 await page.keyboard.press('g');

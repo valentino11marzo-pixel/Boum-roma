@@ -101,6 +101,100 @@ ok(mob.includes('window.BOOM_ACTIONS'), 'il Menu mobile legge il registro');
 ok(/if \(!P \|\| typeof P\.search !== 'function'\) return/.test(desk), 'desktop: se il registro manca, la palette resta quella di prima');
 ok(/if \(!P \|\| typeof P\.search !== 'function'\) return null/.test(mob), 'mobile: se il registro manca, il Menu resta quello di prima');
 
+// ── 9. LE AZIONI CONTESTUALI (fascicolo/pack/scheda di UN record) ───────
+// Qui la promessa è doppia: la funzione esiste (già coperto sopra) E il
+// record giusto si può trovare. La seconda metà si rompe in silenzio se
+// qualcuno rinomina la funzione che handleSearch mette nella riga.
+const ctx = P.ACTIONS.filter((a) => a.need);
+ok(ctx.length >= 20, `il registro porta le azioni contestuali (${ctx.length})`);
+ok(ctx.every((a) => P.KINDS[a.need]), 'ogni azione contestuale punta a un tipo di record dichiarato');
+ok(Object.values(P.KINDS).every((k) => k.ask && k.icon && k.label && k.via.length),
+  'ogni tipo di record sa come si chiama, come si chiede e come si riconosce');
+
+// La riga di handleSearch che apre un contratto DEVE essere `viewContract('id')`:
+// è così che il selettore riconosce il tipo. Se cambia, il selettore smette
+// di trovare quel tipo — silenziosamente. Questo è il test che lo impedisce.
+const hs = app.slice(app.indexOf('function handleSearch'), app.indexOf('function handleSearch') + 4200);
+for (const [kind, k] of Object.entries(P.KINDS)) {
+  const found = k.via.some((fn) => new RegExp(`action: \`${fn}\\('`).test(hs));
+  ok(found, `tipo "${kind}": handleSearch produce davvero una riga ${k.via.join('/')}(...)`);
+}
+
+// I segnaposto diventano valori, e restano dati per tutto il percorso
+ok(JSON.stringify(P.fillArgs(['$id'], { id: 'abc' })) === '["abc"]', 'fillArgs: $id diventa l\'id del record');
+ok(P.fillArgs(['$id', '$year'], { id: 'x' })[1] === new Date().getFullYear(), 'fillArgs: $year è l\'anno corrente (numero, non stringa)');
+ok(P.fillArgs(['/verbale?c=$id'], { id: 'k9' })[0] === '/verbale?c=k9', 'fillArgs: $id dentro una stringa (il link del verbale)');
+ok(JSON.stringify(P.fillArgs(['$id', 'tenant'], { id: 'c1' })) === '["c1","tenant"]', 'fillArgs: gli argomenti fissi restano intatti');
+
+// LA GUARDIA: contestuale senza record NON parte. Lanciare openFascicolo()
+// su undefined aprirebbe un modale vuoto e l'operatore penserebbe di aver
+// sbagliato lui.
+let fasc = null;
+const ctxWin = { openFascicolo: (id) => { fasc = id === undefined ? 'UNDEFINED' : id; } };
+const aFasc = P.ACTIONS.find((a) => a.fn === 'openFascicolo');
+ok(P.run(aFasc, ctxWin) === false && fasc === null, 'un\'azione contestuale SENZA record non parte (mai una chiamata su undefined)');
+ok(P.run(aFasc, ctxWin, { id: '' }) === false && fasc === null, 'un record senza id non conta come record');
+ok(P.run(aFasc, ctxWin, { id: 'ct7' }) === true && fasc === 'ct7', 'col record scelto parte con l\'id VERO');
+
+// ── 10. Il selettore guida la ricerca VERA (nessun secondo indice) ──────
+// Si costruisce la tendina ESATTAMENTE come la disegna portal-app.js e si
+// pretende che findRecords tenga solo le righe del tipo chiesto.
+function fakeWinWithSearch() {
+  const rows = [];
+  const mk = (onclick, label, sub) => ({
+    getAttribute: (n) => (n === 'onclick' ? onclick : null),
+    querySelector: () => ({ children: [{ textContent: label }, { textContent: sub }] })
+  });
+  const dd = {
+    children: rows,
+    parentNode: { removeChild() { dd.removed = true; } },
+    removed: false
+  };
+  return {
+    _dd: dd,
+    handleSearch(q) {
+      rows.length = 0;
+      if (q === 'rossi') {
+        rows.push(mk("viewContract('ct1');document.getElementById('searchResults')?.remove()", 'Contratto Via Cavour', 'Mario Rossi · €900/mese'));
+        rows.push(mk("viewUserProfile('u9');document.getElementById('searchResults')?.remove()", 'Mario Rossi', 'tenant · m@r.it'));
+        rows.push(mk("goTo('payments')", '€900 - 2026-08', 'Via Cavour · pending'));
+      }
+    },
+    document: { getElementById: (id) => (id === 'searchResults' ? dd : (id === 'globalSearch' ? {} : null)) }
+  };
+}
+let fw = fakeWinWithSearch();
+const gotC = P.findRecords('rossi', 'contract', fw);
+ok(gotC.length === 1 && gotC[0].id === 'ct1', 'findRecords: dal risultato globale tiene SOLO i contratti');
+ok(gotC[0].label === 'Contratto Via Cavour' && gotC[0].sub.includes('Mario Rossi'), 'findRecords: la riga porta etichetta e sottotitolo veri');
+ok(fw._dd.removed === true, 'findRecords: la tendina della ricerca viene rimossa (non resta appesa in pagina)');
+fw = fakeWinWithSearch();
+const gotP = P.findRecords('rossi', 'person', fw);
+ok(gotP.length === 1 && gotP[0].id === 'u9', 'findRecords: lo stesso risultato dà la PERSONA quando serve una persona');
+ok(P.findRecords('rossi', 'contract', { handleSearch: null }).length === 0, 'findRecords: senza motore di ricerca torna vuoto, non esplode');
+ok(P.findRecords('r', 'contract', fakeWinWithSearch()).length === 0, 'findRecords: una lettera sola non cerca (la ricerca del portale parte da 2)');
+ok(P.findRecords('rossi', 'contract', { handleSearch() {}, document: { getElementById: () => null } }).length === 0,
+  'findRecords: senza #globalSearch nel DOM non chiama handleSearch (che lancerebbe)');
+
+// ── 11. Le due funzioni RECUPERATE ──────────────────────────────────────
+// Erano scritte, complete, e non le lanciava nessuno. La prova che erano
+// orfane sta nel conteggio dei chiamanti: definizione e basta.
+for (const [fn, why] of [['openTemplateForClient', 'contratto di servizio precompilato col cliente dentro'],
+                         ['preOpenBoomCardGenerator', 'BOOM Card Generator']]) {
+  const uses = (app.match(new RegExp(`\\b${fn}\\b`, 'g')) || []).length;
+  ok(uses === 1, `"${fn}" era orfana in portal-app.js (1 sola occorrenza = la definizione, trovate ${uses})`);
+  ok(P.ACTIONS.some((a) => a.fn === fn), `"${fn}" è ora raggiungibile dal Prontuario — ${why}`);
+}
+
+// ── 12. Le due facce sanno chiedere il record ───────────────────────────
+ok(/openPicker\(/.test(desk) && /function renderPicker/.test(desk), 'desktop: la palette ha il selettore del record');
+ok(/if \(e\.keep\)/.test(desk), 'desktop: un\'azione che deve ancora chiedere NON chiude la palette');
+ok(/if \(!closePicker\(\)\) closePalette\(\)/.test(desk), 'desktop: Esc torna al passo prima invece di chiudere tutto');
+ok(/P\.run\(a, window, r\)/.test(desk), 'desktop: il record scelto arriva a run() come terzo argomento');
+ok(/function pick\(a, k\)/.test(mob) && /function unpick/.test(mob), 'mobile: il Menu ha il selettore e la via di ritorno');
+ok(/P\.run\(a, window, r\)/.test(mob), 'mobile: il record scelto arriva a run() come terzo argomento');
+ok(/picking \? renderPick\(\) : render\(\)/.test(mob), 'mobile: si scrive nello STESSO campo, cambia solo cosa si cerca');
+
 console.log('');
 console.log(fail ? `${pass} passed, ${fail} failed` : `Niente più funzioni sepolte — ${pass} passed, 0 failed`);
 process.exit(fail ? 1 : 0);

@@ -331,18 +331,73 @@ window.__pmLoaded = true;
                 return;
             }
             hits.forEach(function (a) {
+                var k = a.need ? (P.KINDS || {})[a.need] : null;
                 var row = el('button', 'pm-sheet-item');
                 row.type = 'button';
                 row.innerHTML = '<span class="ico">' + esc(a.icon || '·') + '</span>' +
-                    '<span>' + esc(a.label) + '<span class="pm-menu-grp">' + esc(a.group) + '</span></span>';
+                    '<span>' + esc(a.label) +
+                    '<span class="pm-menu-grp">' + esc(k ? 'scegli il ' + k.label : a.group) + '</span></span>';
                 row.addEventListener('click', function () {
+                    // Contestuale: il foglio resta aperto e chiede il record.
+                    if (k) { pick(a, k); return; }
                     closeSheet();
                     setTimeout(function () { try { P.run(a, window); } catch (e) { console.warn('[pm] azione', e); } }, 30);
                 });
                 res.appendChild(row);
             });
         }
-        input.addEventListener('input', function () { clearTimeout(deb); deb = setTimeout(render, 110); });
+        // ── Il selettore del record, dentro lo stesso foglio ─────────────
+        // Non si apre una seconda schermata: cambia la domanda sopra la
+        // tastiera. Il tasto "← Indietro" torna alle azioni, non chiude il
+        // Menu — su un telefono ricominciare da capo costa cinque tap.
+        var picking = null;
+        function pick(a, k) {
+            picking = { a: a, k: k };
+            input.value = '';
+            input.placeholder = k.ask;
+            input.focus();
+            renderPick();
+        }
+        function unpick() {
+            picking = null;
+            input.value = '';
+            input.placeholder = 'Cerca: ricevuta, contratto, banca…';
+            res.innerHTML = ''; res.hidden = true; clone.hidden = false;
+            input.focus();
+        }
+        function renderPick() {
+            var a = picking.a, k = picking.k, q = txt(input.value);
+            clone.hidden = true; res.hidden = false;
+            res.innerHTML = '';
+            var back = el('button', 'pm-sheet-item pm-menu-back');
+            back.type = 'button';
+            back.innerHTML = '<span class="ico">←</span><span>' + esc(a.icon + ' ' + a.label) +
+                '<span class="pm-menu-grp">tocca per cambiare azione</span></span>';
+            back.addEventListener('click', unpick);
+            res.appendChild(back);
+            var recs = P.findRecords(q, a.need, window);
+            if (!recs.length) {
+                res.appendChild(el('div', 'pm-menu-empty', q.length < 2
+                    ? 'Scrivi il nome, la via o il mese per trovare il ' + esc(k.label) + '.'
+                    : 'Nessun ' + esc(k.label) + ' per “' + esc(q) + '”'));
+                return;
+            }
+            recs.forEach(function (r) {
+                var row = el('button', 'pm-sheet-item');
+                row.type = 'button';
+                row.innerHTML = '<span class="ico">' + esc(k.icon) + '</span>' +
+                    '<span>' + esc(r.label) + '<span class="pm-menu-grp">' + esc(r.sub || '') + '</span></span>';
+                row.addEventListener('click', function () {
+                    closeSheet();
+                    setTimeout(function () { try { P.run(a, window, r); } catch (e) { console.warn('[pm] azione', e); } }, 30);
+                });
+                res.appendChild(row);
+            });
+        }
+        input.addEventListener('input', function () {
+            clearTimeout(deb);
+            deb = setTimeout(function () { picking ? renderPick() : render(); }, 110);
+        });
         wrap.appendChild(box);
         wrap.appendChild(res);
         res.hidden = true;

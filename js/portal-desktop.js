@@ -141,18 +141,78 @@ window.__pdLoaded = true;
     // usa il Menu del telefono, così le due facce non possono divergere.
     // Vai a / Console restano letti dalla sidebar VERA (che porta badge e
     // ruolo) — qui si prende solo ciò che la sidebar NON sa dare.
+    var GROUP_KIND = { 'Documenti': 'doc', 'Strumenti': 'tool', 'Su un record': 'ctx' };
     function prontuarioEntries(qstr) {
         var P = window.BOOM_ACTIONS;
         if (!P || typeof P.search !== 'function') return [];   // registro assente: la palette resta quella di prima
-        return P.search(qstr || '', { limit: 24 })
-            .filter(function (a) { return a.group === 'Documenti' || a.group === 'Strumenti'; })
+        return P.search(qstr || '', { limit: 30 })
+            .filter(function (a) { return GROUP_KIND[a.group]; })
             .map(function (a) {
+                var kinds = (P.KINDS || {});
                 return {
-                    kind: a.group === 'Documenti' ? 'doc' : 'tool',
-                    icon: a.icon, label: a.label, chord: a.chord || '', badge: '',
-                    run: function () { P.run(a, window); }
+                    kind: GROUP_KIND[a.group],
+                    icon: a.icon, label: a.label, chord: a.chord || '',
+                    // Un'azione contestuale DICE che serve un record, prima di
+                    // essere premuta: "Fascicolo ARPE · contratto" è la
+                    // differenza fra una scorciatoia e una sorpresa.
+                    badge: a.need && kinds[a.need] ? kinds[a.need].label : '',
+                    keep: !!a.need,
+                    run: a.need ? function () { openPicker(a); } : function () { P.run(a, window); }
                 };
             });
+    }
+
+    // ═══ IL SELETTORE DEL RECORD ════════════════════════════════════════
+    // La palette non si chiude: cambia domanda. "Fascicolo ARPE" → "Per
+    // quale contratto?" e l'input torna vuoto. Esc torna indietro di un
+    // passo (non chiude tutto): chi ha sbagliato azione non ricomincia.
+    function openPicker(action) {
+        var P = window.BOOM_ACTIONS, p = st.palette;
+        if (!P || !p) return;
+        var k = (P.KINDS || {})[action.need];
+        if (!k) return;
+        p.picker = action;
+        p.input.value = '';
+        p.input.placeholder = k.icon + ' ' + k.ask + ' — scrivi un nome, una via, un mese…';
+        var top = p.input.parentNode;
+        if (top && !$('.pd-cmd-crumb', top)) {
+            var crumb = el('span', 'pd-cmd-crumb', esc(action.icon + ' ' + action.label));
+            top.insertBefore(crumb, p.input);
+        }
+        renderPalette('');
+        p.input.focus();
+    }
+    function closePicker() {
+        var p = st.palette;
+        if (!p || !p.picker) return false;
+        p.picker = null;
+        p.input.value = '';
+        p.input.placeholder = 'Cerca o comanda — sezioni, clienti, contratti, azioni…';
+        var crumb = $('.pd-cmd-crumb', p.input.parentNode);
+        if (crumb) crumb.remove();
+        renderPalette('');
+        p.input.focus();
+        return true;
+    }
+    function renderPicker(qstr) {
+        var P = window.BOOM_ACTIONS, p = st.palette, list = p.list, a = p.picker;
+        var k = (P.KINDS || {})[a.need] || {};
+        list.innerHTML = '';
+        list.appendChild(el('div', 'pd-cmd-sec', a.label + ' — ' + (k.ask || '')));
+        var recs = P.findRecords(qstr, a.need, window);
+        if (!recs.length) {
+            list.appendChild(el('div', 'pd-cmd-empty',
+                qstr.length < 2 ? 'Scrivi almeno due lettere per cercare il ' + (k.label || 'record') + '.'
+                                : 'Nessun ' + (k.label || 'record') + ' per “' + esc(qstr) + '”.'));
+        }
+        recs.forEach(function (r) {
+            list.appendChild(entryRow({
+                icon: k.icon, label: r.label, badge: r.sub || '', chord: '',
+                run: function () { P.run(a, window, r); }
+            }));
+        });
+        st.palette.rows = $$('.pd-cmd-row', list);
+        highlight(0);
     }
 
     // La ricerca entità: si invoca il motore ESISTENTE e si adottano le sue
@@ -188,6 +248,10 @@ window.__pdLoaded = true;
             (e.badge ? '<span class="pd-cmd-badge">' + esc(e.badge) + '</span>' : '') +
             (e.chord ? '<span class="pd-cmd-kbd">' + esc(e.chord) + '</span>' : '');
         row.addEventListener('click', function () {
+            // Un'azione che deve ancora CHIEDERE qualcosa (il selettore del
+            // record) tiene la palette aperta: chiuderla e riaprirla farebbe
+            // perdere il filo — e la domanda successiva.
+            if (e.keep) { try { e.run(); } catch (err) { console.warn('[pd] comando', err); } return; }
             closePalette();
             setTimeout(function () { try { e.run(); } catch (err) { console.warn('[pd] comando', err); } }, 20);
         });
@@ -202,6 +266,7 @@ window.__pdLoaded = true;
         return 0;
     }
     function renderPalette(qstr) {
+        if (st.palette.picker) return renderPicker(qstr || '');
         var list = st.palette.list;
         list.innerHTML = '';
         var qn = norm(qstr);
@@ -222,6 +287,7 @@ window.__pdLoaded = true;
         // più usata e la più sepolta (Contratti → Template → scorri).
         section('Documenti', pront.filter(function (e) { return e.kind === 'doc'; }), true);
         section('Strumenti', pront.filter(function (e) { return e.kind === 'tool'; }), true);
+        section('Su un record', pront.filter(function (e) { return e.kind === 'ctx'; }), true);
         section('Vai a', nav.filter(function (e) { return e.kind === 'nav'; }));
         section('Console', nav.filter(function (e) { return e.kind === 'console'; }));
         var found = liftSearch(qstr);
@@ -262,7 +328,7 @@ window.__pdLoaded = true;
         backdrop.addEventListener('mousedown', function (ev) { if (ev.target === backdrop) closePalette(); });
         D.body.appendChild(backdrop);
         var input = $('.pd-cmd-input', panel);
-        st.palette = { backdrop: backdrop, input: input, list: $('.pd-cmd-list', panel), rows: [], idx: -1 };
+        st.palette = { backdrop: backdrop, input: input, list: $('.pd-cmd-list', panel), rows: [], idx: -1, picker: null };
         var deb = null;
         input.addEventListener('input', function () {
             clearTimeout(deb);
@@ -275,7 +341,13 @@ window.__pdLoaded = true;
                 ev.preventDefault();
                 var hot = st.palette.rows[st.palette.idx];
                 if (hot) hot.click();
-            } else if (ev.key === 'Escape') { ev.preventDefault(); closePalette(); }
+            } else if (ev.key === 'Escape') {
+                // stopPropagation, non solo preventDefault: senza, l'Esc
+                // risale alla tastiera globale che lo gestisce UN'ALTRA
+                // volta — e i due gradini della scala si scendono insieme.
+                ev.preventDefault(); ev.stopPropagation();
+                if (!closePicker()) closePalette();
+            }
         });
         renderPalette('');
         requestAnimationFrame(function () { backdrop.classList.add('open'); input.focus(); });
@@ -353,7 +425,11 @@ window.__pdLoaded = true;
             return;
         }
         if (e.key === 'Escape') {
-            if (st.palette) { e.preventDefault(); closePalette(); return; }
+            // Esc scende UN gradino per volta: prima esce dal selettore del
+            // record, poi chiude la palette. (Il fuoco è sull'input, quindi
+            // il suo handler ha già gestito il caso: qui si arriva solo se
+            // il fuoco è altrove — la scala dev'essere la stessa.)
+            if (st.palette) { e.preventDefault(); if (!closePicker()) closePalette(); return; }
             if (st.help) { e.preventDefault(); closeHelp(); return; }
             return;
         }

@@ -75,7 +75,7 @@ const HARNESS = `<!DOCTYPE html><html lang="it"><head>
 <div class="app active" id="app">
   <header class="header">
     <div class="header-left"><button class="menu-btn" onclick="toggleSidebar()">☰</button><a class="logo"><span class="logo-text">BOOM</span></a></div>
-    <div class="header-center" id="searchContainer"></div>
+    <div class="header-center" id="searchContainer"><div class="search-box"><input id="globalSearch" placeholder="Cerca..."></div></div>
     <div class="header-right">
       <div class="user-menu"><div class="user-avatar" id="headerAvatar">VE</div>
       <div class="user-info"><div class="user-name" id="headerName">Valentino</div><div class="user-role" id="headerRole">Admin</div></div></div>
@@ -115,6 +115,24 @@ function updateContract(e, id) { e.preventDefault(); __calls.push(['updateContra
 function closeModal() { document.body.classList.remove('modal-open'); document.getElementById('modals').innerHTML = ''; }
 ${realWizardNav}
 function openTemplateModal(t) { __calls.push(['tpl', t]); }
+function viewContract(id) { __calls.push(['viewContract', id]); }
+function viewUserProfile(id) { __calls.push(['viewUserProfile', id]); }
+function openFascicolo(id) { __calls.push(['openFascicolo', id]); }
+// replica del CONTRATTO di handleSearch (dropdown #searchResults, righe
+// tipizzate dalla funzione che lanciano): è da qui che il selettore del
+// record riconosce cos'è ogni riga. Il contratto vero è pinnato sul
+// sorgente da tests/actions/run.mjs.
+function handleSearch(q) {
+  if (!q || q.length < 2) { document.getElementById('searchResults')?.remove(); return; }
+  let dd = document.getElementById('searchResults');
+  if (!dd) {
+    dd = document.createElement('div'); dd.id = 'searchResults';
+    document.getElementById('globalSearch').parentElement.appendChild(dd);
+  }
+  dd.innerHTML =
+    '<div onclick="viewContract(\\'ct1\\')"><span>📋</span><div><div>Contratto Via Cavour</div><div>Ugo Rossi · €900/mese</div></div></div>' +
+    '<div onclick="viewUserProfile(\\'u9\\')"><span>👤</span><div><div>Ugo Rossi</div><div>tenant · u@r.it</div></div></div>';
+}
 function renderMain(p) {
   var m = document.getElementById('main');
   if (p !== 'contracts') { m.innerHTML = '<h1>' + p + '</h1>'; return; }
@@ -343,6 +361,55 @@ await page.waitForTimeout(350);
 await check('due tap dal telefono: la ricevuta si apre e lo sheet si chiude', () => page.evaluate(() =>
   window.__calls.some(c => c[0] === 'tpl' && c[1] === 'ricevuta_pigione') && !document.querySelector('.pm-sheet')
 ));
+
+console.log('— il selettore del record nel Menu (le azioni contestuali) —');
+await page.tap('.pm-tab-menu');
+await page.waitForTimeout(400);
+await page.fill('.pm-menu-input', 'fascicolo');
+await page.waitForTimeout(350);
+await check('il Menu trova il Fascicolo ARPE e DICE che serve un contratto', () => page.evaluate(() => {
+  const row = [...document.querySelectorAll('.pm-menu-res .pm-sheet-item')].find(r => r.textContent.includes('Fascicolo ARPE'));
+  return !!row && /scegli il contratto/i.test(row.textContent);
+}));
+await page.evaluate(() => {
+  [...document.querySelectorAll('.pm-menu-res .pm-sheet-item')].find(r => r.textContent.includes('Fascicolo ARPE')).click();
+});
+await page.waitForTimeout(250);
+await check('il foglio NON si chiude: chiede il contratto e offre il ritorno', () => page.evaluate(() =>
+  !!document.querySelector('.pm-sheet') && !!document.querySelector('.pm-menu-back') &&
+  /quale contratto/i.test(document.querySelector('.pm-menu-input').placeholder)
+));
+await page.fill('.pm-menu-input', 'rossi');
+await page.waitForTimeout(350);
+await check('si vedono SOLO i contratti (la persona dello stesso risultato resta fuori)', () => page.evaluate(() => {
+  const rows = [...document.querySelectorAll('.pm-menu-res .pm-sheet-item')].map(r => r.textContent);
+  return rows.some(r => r.includes('Contratto Via Cavour')) && !rows.some(r => r.includes('tenant · u@r.it'));
+}));
+await page.evaluate(() => {
+  [...document.querySelectorAll('.pm-menu-res .pm-sheet-item')].find(r => r.textContent.includes('Contratto Via Cavour')).click();
+});
+await page.waitForTimeout(350);
+await check('tre tap dal telefono: il fascicolo di QUEL contratto, con l\'id vero', () => page.evaluate(() =>
+  window.__calls.some(c => c[0] === 'openFascicolo' && c[1] === 'ct1') && !document.querySelector('.pm-sheet')
+));
+// il ritorno all'azione: non chiude il Menu
+await page.tap('.pm-tab-menu');
+await page.waitForTimeout(400);
+await page.fill('.pm-menu-input', 'fascicolo');
+await page.waitForTimeout(350);
+await page.evaluate(() => {
+  [...document.querySelectorAll('.pm-menu-res .pm-sheet-item')].find(r => r.textContent.includes('Fascicolo ARPE')).click();
+});
+await page.waitForTimeout(200);
+await page.evaluate(() => document.querySelector('.pm-menu-back').click());
+await page.waitForTimeout(250);
+await check('“← Indietro” torna alle azioni senza chiudere il Menu', () => page.evaluate(() =>
+  !!document.querySelector('.pm-sheet') && !document.querySelector('.pm-menu-back') &&
+  document.querySelector('.pm-menu-input').value === ''
+));
+await page.evaluate(() => document.querySelector('.pm-sheet-backdrop, .pm-sheet-back, .pm-sheet')?.remove());
+await page.evaluate(() => { document.body.classList.remove('modal-open'); document.querySelectorAll('.pm-sheet-wrap, .pm-sheet').forEach(n => n.remove()); });
+await page.waitForTimeout(150);
 
 console.log('— wizard NATIVO addContract —');
 await page.evaluate(() => openModal('addContract'));

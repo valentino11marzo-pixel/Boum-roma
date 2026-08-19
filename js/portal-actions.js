@@ -175,7 +175,15 @@
         // quindi spariva per sempre appena c'era un annuncio in catalogo.
         { id: 'tool:seedlistings', group: 'Strumenti', icon: '📥', label: 'Importa annunci esistenti',
           keywords: 'importa annunci seed listing esistenti caricamento massivo',
-          fn: 'open', args: ['/seed-listings.html'], admin: true }
+          fn: 'open', args: ['/seed-listings.html'], admin: true },
+        // RECUPERATA: il BOOM Card Generator è un tool COMPLETO (scrape del
+        // link annuncio → dati → card social esportabile, tre passi, 600
+        // righe) di cui nessuno ha mai cablato l'ingresso — definito a
+        // portal-app.js:25468 con ZERO chiamanti dal giorno in cui è nato.
+        // Cancellarlo sarebbe stato lo spreco; qui torna raggiungibile.
+        { id: 'tool:boomcard', group: 'Strumenti', icon: '✨', label: 'BOOM Card Generator',
+          keywords: 'card generator annuncio social immagine grafica instagram export link',
+          fn: 'preOpenBoomCardGenerator', args: [], admin: true }
     );
 
     // ── Esportazioni (erano un bottone per pagina, ora si cercano) ──────
@@ -250,6 +258,70 @@
         });
     });
 
+    // ── LE AZIONI CONTESTUALI (hanno bisogno di UN record) ──────────────
+    //
+    // Fascicolo, Pack, Share Hub, link della Scheda, invito alla firma: le
+    // capacità più preziose del portale sono TUTTE contestuali, e finora
+    // erano raggiungibili solo trovando prima la riga giusta in una tabella
+    // — cioè non erano raggiungibili affatto da chi non sapeva dov'era.
+    //
+    // Il modo sbagliato di risolverlo sarebbe stato un secondo indice dei
+    // record dentro il Prontuario. Il modo giusto è che il portale ha GIÀ
+    // il suo motore di ricerca (`handleSearch`, letto anche da ⌘K): qui si
+    // dichiara solo COME riconoscere, in quel risultato, una riga del tipo
+    // che serve — dalla funzione che la riga stessa lancia. Una copia sola.
+    var KINDS = {
+        contract: { icon: '📋', label: 'contratto', ask: 'Per quale contratto?', via: ['viewContract'] },
+        property: { icon: '🏠', label: 'immobile',  ask: 'Per quale immobile?',  via: ['viewProperty'] },
+        person:   { icon: '👤', label: 'persona',   ask: 'Per quale persona?',   via: ['viewUserProfile', 'viewUser'] },
+        client:   { icon: '💼', label: 'cliente',   ask: 'Per quale cliente?',   via: ['viewClient'] }
+    };
+
+    // `$id` e `$year` sono SEGNAPOSTO, non codice: `fillArgs` li sostituisce.
+    // Restano dati — un test può leggerli, e non esiste nessun punto in cui
+    // una stringa del registro venga valutata.
+    var CTX = [
+        // Il contratto: il fascicolo di lavoro quotidiano dell'operatore
+        ['contract', 'openFascicolo',            ['$id'],             '📑', 'Fascicolo ARPE',              'fascicolo arpe asseverazione registrazione checklist zip'],
+        ['contract', 'openPack',                 ['$id'],             '📦', 'Pack registrazione',          'pack registrazione rli zip caf ade documenti'],
+        ['contract', 'openShareHub',             ['$id'],             '🔗', 'Share Hub — link del deal',   'share hub link condividi scheda firma whatsapp'],
+        ['contract', 'viewContract',             ['$id'],             '📋', 'Apri il contratto',           'apri vedi contratto dettaglio scheda'],
+        ['contract', 'previewContractPDF',       ['$id'],             '👁', 'Anteprima PDF contratto',     'anteprima preview pdf contratto vedi'],
+        ['contract', 'downloadContractPDF',      ['$id'],             '⬇️', 'Scarica PDF contratto',       'scarica download pdf contratto'],
+        ['contract', 'downloadSignedContractPDF',['$id'],             '✍️', 'Scarica contratto firmato',   'scarica firmato signed pdf controfirma'],
+        ['contract', 'regenerateContractPDF',    ['$id'],             '🔄', 'Rigenera PDF contratto',      'rigenera aggiorna pdf contratto ricrea'],
+        ['contract', 'viewContractSignatures',   ['$id'],             '🖊', 'Stato delle firme',           'firme stato signature certificato fes chi ha firmato'],
+        ['contract', 'openSignContractModal',    ['$id', 'tenant'],   '📨', 'Invita a firmare — conduttore', 'invito firma magic sign conduttore inquilino link'],
+        ['contract', 'openSignContractModal',    ['$id', 'landlord'], '📨', 'Invita a firmare — proprietario', 'invito firma magic sign proprietario locatore link'],
+        ['contract', 'sendMissingInfoLink',      ['$id', 'tenant'],   '🪪', 'Link Scheda — conduttore',    'scheda anagrafica dati mancanti conduttore inquilino link'],
+        ['contract', 'sendMissingInfoLink',      ['$id', 'landlord'], '🪪', 'Link Scheda — proprietario',  'scheda anagrafica dati mancanti proprietario locatore link'],
+        ['contract', 'markRliRegistered',        ['$id'],             '✓',  'Segna RLI registrato',        'rli registrato agenzia entrate registrazione fatta'],
+        ['contract', 'open',                     ['/verbale?c=$id'],  '🔑', 'Verbale di consegna chiavi',  'verbale consegna chiavi contatori letture stato'],
+        // L'immobile
+        ['property', 'viewProperty',             ['$id'],             '🏠', "Apri l'immobile",             'apri vedi immobile scheda dettaglio'],
+        ['property', 'openDocUploadForProperty', ['$id', '$year'],    '📤', 'Carica documento immobile',   'carica upload documento immobile allega file'],
+        ['property', 'downloadTaxPackZip',       ['$id', '$year'],    '🧾', 'Pacchetto commercialista',    'taxpack pacchetto commercialista zip fiscale dichiarazione'],
+        ['property', 'openCommercialistaShare',  ['$id', '$year'],    '🤝', 'Condividi col commercialista','condividi commercialista share link documenti'],
+        ['property', 'openIstatLetter',          ['$id', '$year'],    '📈', 'Lettera ISTAT',               'istat adeguamento aggiornamento canone lettera'],
+        // La persona (inquilino o proprietario)
+        ['person',   'openPerson',               ['$id'],             '👤', 'Apri la scheda persona',      'apri persona scheda anagrafica fascicolo'],
+        ['person',   'openUserDocUpload',        ['$id'],             '📤', 'Carica documento persona',    'carica upload documento persona identita allega'],
+        // Il cliente CRM — LA FUNZIONE RECUPERATA: `openTemplateForClient`
+        // esisteva completa dal primo giorno e non l'ha mai lanciata nessuno
+        // (definita a portal-app.js:7686, zero chiamanti). Compila il
+        // contratto di servizio col nome del cliente già dentro.
+        ['client',   'openTemplateForClient',    ['$id'],             '📄', 'Contratto servizio precompilato', 'contratto servizio precompilato cliente pfs das vv template'],
+        ['client',   'viewClient',               ['$id'],             '💼', 'Apri il cliente',             'apri cliente crm scheda deal']
+    ];
+
+    CTX.forEach(function (c, i) {
+        ACTIONS.push({
+            id: 'ctx:' + c[1] + ':' + i, group: 'Su un record', need: c[0],
+            icon: c[3], label: c[4], keywords: c[5] + ' ' + KINDS[c[0]].label,
+            fn: c[1], args: c[2], admin: true
+        });
+    });
+
     // ── Ricerca: normalizzazione + punteggio ────────────────────────────
     // Accento-insensibile e parola-per-parola: "ricev pig" trova la ricevuta
     // di pigione. L'operatore non scrive mai il nome esatto.
@@ -293,22 +365,81 @@
             .slice(0, opts.limit || 12)
             .map(function (x) { return x.a; });
     }
+    // I segnaposto diventano valori QUI, in un posto solo. `$id` è il record
+    // scelto, `$year` l'anno fiscale corrente: entrambi dati, mai codice.
+    function fillArgs(args, rec) {
+        var id = rec ? (rec.id || '') : '';
+        var year = new Date().getFullYear();
+        return (args || []).map(function (a) {
+            if (a === '$id') return id;
+            if (a === '$year') return year;
+            if (typeof a === 'string' && a.indexOf('$id') !== -1) return a.split('$id').join(id);
+            return a;
+        });
+    }
+
     // L'esecuzione sta QUI in un posto solo: chi chiama non compone mai codice.
-    function run(action, win) {
+    // Un'azione contestuale SENZA record non parte: meglio niente che una
+    // funzione lanciata su `undefined` (che nel portale significa un modale
+    // vuoto e l'operatore che non capisce se ha sbagliato lui).
+    function run(action, win, rec) {
         var w = win || (typeof window !== 'undefined' ? window : null);
         if (!w || !action) return false;
+        if (action.need && !(rec && rec.id)) return false;
         var f = w[action.fn];
         if (typeof f !== 'function') return false;
-        f.apply(w, action.args || []);
+        f.apply(w, fillArgs(action.args, rec));
         return true;
     }
 
+    // ── Trovare il record: si guida la ricerca VERA del portale ─────────
+    // `handleSearch` disegna il suo menu a tendina in `#searchResults`; qui
+    // lo si invoca, si leggono le righe, si tiene solo ciò che è del tipo
+    // richiesto (riconosciuto dalla funzione che la riga lancia) e si
+    // rimuove la tendina. Nessun secondo indice, nessuna lettura Firestore:
+    // se un giorno la ricerca impara a trovare qualcosa in più, il selettore
+    // lo eredita senza che nessuno tocchi questo file.
+    function findRecords(query, kind, win) {
+        var w = win || (typeof window !== 'undefined' ? window : null);
+        var k = KINDS[kind];
+        if (!w || !k || !query || query.length < 2) return [];
+        if (typeof w.handleSearch !== 'function') return [];
+        var doc = w.document, out = [];
+        // handleSearch appende la tendina al genitore di #globalSearch: senza
+        // quel nodo lancia. Si controlla prima invece di affidarsi al catch.
+        if (!doc || !doc.getElementById('globalSearch')) return [];
+        try {
+            w.handleSearch(query);
+            var dd = doc && doc.getElementById('searchResults');
+            if (!dd) return [];
+            var rows = dd.children || [];
+            for (var i = 0; i < rows.length; i++) {
+                var oc = rows[i].getAttribute && rows[i].getAttribute('onclick');
+                if (!oc) continue;
+                var m = /^\s*([A-Za-z_$][\w$]*)\(\s*'([^']+)'\s*\)/.exec(oc);
+                if (!m || k.via.indexOf(m[1]) === -1) continue;
+                var inner = rows[i].querySelector ? rows[i].querySelector('div') : null;
+                var kids = inner ? inner.children : [];
+                out.push({
+                    id: m[2], kind: kind,
+                    label: (kids[0] && kids[0].textContent || '').trim() || m[2],
+                    sub: (kids[1] && kids[1].textContent || '').trim()
+                });
+            }
+            dd.parentNode && dd.parentNode.removeChild(dd);
+        } catch (e) { /* il selettore non deve mai rompere la pagina */ }
+        return out.slice(0, 12);
+    }
+
     return {
-        version: 'P1',
+        version: 'P2',
         ACTIONS: ACTIONS,
         DOC_TYPES: DOCS.map(function (d) { return d[0]; }),
+        KINDS: KINDS,
         search: search,
         run: run,
+        fillArgs: fillArgs,
+        findRecords: findRecords,
         norm: norm
     };
 }));
