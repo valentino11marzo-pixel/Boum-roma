@@ -10,6 +10,7 @@
 //
 // Si auto-skippa senza playwright, come le altre suite del repo.
 
+import { loadChromium, launchOptions } from '../_browser.mjs';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, dirname } from 'node:path';
@@ -18,20 +19,6 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(here, '..', '..');
 
-async function loadChromium() {
-  for (const p of [
-    ...(process.env.BOOM_PLAYWRIGHT ? [process.env.BOOM_PLAYWRIGHT] : []),
-    'playwright-core', 'playwright',
-    '/opt/node22/lib/node_modules/playwright/node_modules/playwright-core/index.js'
-  ]) {
-    try {
-      const m = await import(p);
-      const c = m.chromium || (m.default && m.default.chromium);
-      if (c) return c;
-    } catch { /* prova il prossimo */ }
-  }
-  return null;
-}
 const chromium = await loadChromium();
 if (!chromium) {
   console.log('SKIP: playwright non disponibile (npm i -D playwright-core, oppure BOOM_PLAYWRIGHT=/percorso/index.js)');
@@ -164,7 +151,7 @@ async function check(name, fn) {
 
 // --no-sandbox: sui runner CI (container, utente senza user-namespace)
 // Chromium non parte senza. In locale è innocuo.
-const browser = await chromium.launch({ executablePath: process.env.BOOM_CHROME || undefined, args: ['--no-sandbox'] });
+const browser = await chromium.launch(launchOptions());
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 const page = await ctx.newPage();
 page.on('pageerror', (e) => console.log('  [pageerror]', String(e).split('\n')[0]));

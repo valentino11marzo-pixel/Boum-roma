@@ -7,6 +7,7 @@
 // playwright-core non c'è, così `npm test` gira ovunque senza setup.
 
 import { spawn } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 
 const SUITES = [
   { name: 'money',    file: 'tests/money/run.mjs',        what: 'percorsi soldi: checkout, webhook, conversione PA' },
@@ -88,6 +89,31 @@ const run = (file) => new Promise((resolve) => {
 });
 
 const B = '\x1b[1m', G = '\x1b[32m', R = '\x1b[31m', Y = '\x1b[33m', X = '\x1b[0m';
+
+// ── PRE-VOLO: nessuna suite può essere verde su UNA SOLA macchina ───────
+// Il 19 agosto 2026, il giorno in cui la CI ha cominciato a lanciarle tutte
+// davvero, tre suite sono cadute all'istante — non per un difetto del
+// prodotto, ma perché passavano a playwright un `executablePath` cablato
+// alla Chromium di questa macchina. Non trovandolo, playwright non ripiega
+// sul browser che ha installato: muore. Erano verdi su un solo schermo al
+// mondo, e nessuno poteva accorgersene perché nessuno le eseguiva altrove.
+// Ora il percorso vive in tests/_browser.mjs, dove vale come SUGGERIMENTO
+// (si usa se il file esiste). Questo controllo impedisce che ricompaia.
+{
+  const offenders = [];
+  for (const s of SUITES) {
+    let src = '';
+    try { src = readFileSync(new URL('../' + s.file, import.meta.url), 'utf8'); } catch { continue; }
+    const code = src.replace(/^\s*\/\/.*$/gm, '');
+    if (/executablePath[^\n]*\/opt\//.test(code)) offenders.push(s.file);
+  }
+  if (offenders.length) {
+    console.log(`${R}${B}Percorso browser cablato (verde su una macchina sola):${X} ${offenders.join(', ')}`);
+    console.log('  Usa launchOptions() da tests/_browser.mjs.');
+    process.exit(1);
+  }
+}
+
 let failed = [];
 const t0 = Date.now();
 

@@ -14,20 +14,10 @@
 //   node tests/bonifico/parity.mjs
 
 import { payRef } from '../../api/payments/_ref.js';
-import { existsSync } from 'node:fs';
+import { loadChromium, launchOptions } from '../_browser.mjs';
 import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 
-async function loadChromium() {
-  for (const spec of ['playwright-core', 'playwright',
-    ...(process.env.BOOM_PLAYWRIGHT ? [process.env.BOOM_PLAYWRIGHT] : []),
-    '/opt/node22/lib/node_modules/playwright/index.js']) {
-    try { const m = await import(spec); const c = m.chromium || (m.default && m.default.chromium); if (c) return c; }
-    catch { /* next */ }
-  }
-  console.log('SKIP: playwright-core non disponibile');
-  process.exit(0);
-}
 const chromium = await loadChromium();
 
 // Estrae dal file vero la funzione del browser: se qualcuno la modifica in
@@ -47,12 +37,7 @@ const IDS = [
   'pay_ctr1_2026-01', 'pay_ctr1_2026-02', 'pay_ctr1_2026-03',
 ];
 
-const browser = await chromium.launch({
-  // Il percorso cablato è quello dell'ambiente di sviluppo; su un runner
-  // CI il browser lo risolve playwright da sé (undefined = default).
-  executablePath: process.env.BOOM_CHROMIUM || (existsSync('/opt/pw-browsers/chromium-1194/chrome-linux/chrome') ? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' : undefined),
-  args: ['--no-sandbox'],
-});
+const browser = await chromium.launch(launchOptions());
 const page = await browser.newPage();
 // crypto.subtle esige un CONTESTO SICURO: su about:blank non esiste. http su
 // 127.0.0.1 è considerato sicuro dai browser, quindi basta servire una pagina
