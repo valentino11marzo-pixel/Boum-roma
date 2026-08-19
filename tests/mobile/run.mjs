@@ -130,6 +130,15 @@ const pmCode = pmSrc.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '')
 ok(/b\.click\(\)/.test(pmCode) && !/\bdb\.collection|\bfirebase\.|\bfirestore\./i.test(pmCode),
   'ogni azione è un .click() sul bottone originale: il layer non tocca mai i dati');
 
+// ── Il kill switch non è più MUTO (lezione 19/08: la classica appiccicosa
+//    ha spento la modalità app sul telefono del fondatore, in silenzio) ──
+ok(/pmClassicPill/.test(pmSrc) && /tocca per riattivarla/.test(pmSrc),
+  'in modalità classica compare la pillola che lo DICE e riattiva al tap');
+ok(/location\.href = location\.pathname \+ location\.hash/.test(pmSrc),
+  'la riattivazione ricarica su URL PULITO (con ?classic=1 ancora in barra il flag tornerebbe)');
+ok(/_bq\.get\('boom'\)==='app'/.test(htmlSrc) && /boom_classic_mobile/.test(htmlSrc) && /boom_classic_desktop/.test(htmlSrc) && /boom_no_finish/.test(htmlSrc),
+  'portal.html: ?boom=app è il reset universale di TUTTI i kill switch appiccicosi');
+
 console.log('');
 console.log(fail ? `${pass} passed, ${fail} failed` : `Tutte le giunzioni tengono — ${pass} passed, 0 failed`);
 process.exit(fail ? 1 : 0);

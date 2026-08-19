@@ -40,6 +40,21 @@ window.__pdLoaded = true;
         if (q.get('deskapp') === '1') localStorage.removeItem('boom_classic_desktop');
         if (localStorage.getItem('boom_classic_desktop') === '1') {
             window.BOOM_DESKTOP = { off: true };
+            // Stessa lezione del layer mobile: la classica si annuncia e si
+            // riaccende con un click su URL pulito, mai un declassamento muto.
+            document.addEventListener('DOMContentLoaded', function () {
+                if (window.matchMedia('(max-width:920px)').matches) return;
+                var pill = document.createElement('button');
+                pill.id = 'pdClassicPill';
+                pill.type = 'button';
+                pill.textContent = '⚡ BOOM OS disattivato su questo browser — clicca per riattivarlo';
+                pill.style.cssText = 'position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:12000;background:#141414;border:1px solid rgba(212,175,55,.55);color:#D4AF37;padding:10px 18px;border-radius:100px;font-size:12.5px;font-family:inherit;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.5)';
+                pill.addEventListener('click', function () {
+                    try { localStorage.removeItem('boom_classic_desktop'); } catch (e) { }
+                    location.href = location.pathname + location.hash;
+                });
+                document.body.appendChild(pill);
+            });
             return;
         }
     } catch (e) { /* Safari privato: si prosegue */ }
