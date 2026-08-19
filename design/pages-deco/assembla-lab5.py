@@ -7,7 +7,40 @@ import html as H
 SP = '/tmp/claude-0/-home-user-Boum-roma/23da0292-7660-5078-842d-6e153c49b7f8/scratchpad/'
 
 VARIANTI = [
-    ('innesto', "L'Innesto", '★ come dici te',
+    ('biglietto', 'Il Biglietto', '★ nuova — la più forte',
+     'Il viaggio dell\'expat, ticketato: quattro boarding pass di prima '
+     'classe in nero-vetro. Banda-lamina laterale nel colore-firma, rotta '
+     'tipografica onesta col punto che viaggia (ABROAD→ROME, YOU→THE '
+     'DOOR, FOUND→PROTECTED, DRAFT→VERDICT), talloncino a strappo con '
+     'prezzo, barcode e bottone. E la metafora e\' un FATTO di prodotto, '
+     'dichiarato nel sottotitolo: la visita confermata arriva davvero '
+     'come Apple Wallet boarding pass geofenced.',
+     'La materia piu\' distintiva del lab, agganciata a una feature VERA '
+     '(i Wallet pass). Compattissima: ~650px oltre il titolo.',
+     'I dettagli d\'imbarco dei tre minori sono l\'elemento piu\' '
+     'convenzionale; su mobile lo strappo puo\' leggere come due card.'),
+    ('caveau', 'Il Caveau', 'nuova',
+     'La garanzia fatta materia: quattro cassette di sicurezza in acciaio '
+     'nero spazzolato, targhetta incisa, il prezzo come numero di '
+     'cassetta (N° 0350). La luce del colore-firma respira dalla '
+     'fessura; l\'ammiraglia oro e\' SOCCHIUSA — lo spiraglio si allarga '
+     'al passaggio, "ZERO RISK · FULL REFUND" inciso nel metallo.',
+     'Il risk reversal materializzato: i tuoi soldi dormono dietro uno '
+     'sportello blindato. Coerente col tono bancario del deposito.',
+     'Il quadrante cifrato dell\'ammiraglia resta un filo piatto; i tre '
+     'sportelli minori si distinguono solo per targhetta e colore.'),
+    ('chiavi', 'Le Chiavi', 'nuova',
+     'L\'oggetto stesso dell\'affitto: quattro chiavi di pregio in '
+     'metallo nero tornito — anello in acciaio, testa in vetro-metallo '
+     'con icona luminosa e prezzo incisi, gambo spazzolato con '
+     'scanalatura laser dove corre la luce del servizio. L\'ammiraglia '
+     'oro porta il fob FULL REFUND appeso all\'anello.',
+     'La metafora piu\' immediata del mestiere: "the keys to your home '
+     'in Rome". Griglia 2×2 pura, quieta.',
+     'La testa larga legge piu\' key-fob d\'hotel che chiave classica; '
+     'l\'ammiraglia emerge per oro e fob ma il von Restorff e\' '
+     'sussurrato.'),
+    ('innesto', "L'Innesto", 'il riferimento del vol. 9',
      'Gli Stemmi come base — e sull\'ammiraglia il gesto che chiude il '
      'cerchio: al passaggio la scatola oro del Packaging SALE da dietro '
      'e la medaglia si posa sul suo fronte, rivelandosi per cio\' che '
@@ -19,21 +52,6 @@ VARIANTI = [
      'quadrato 2×2 resta compatto da home.',
      'Il dock vive solo sull\'ammiraglia: le tre minori restano medaglie '
      'pure (giusto cosi\' — un gesto ripetuto quattro volte stanca).'),
-    ('stemmi', 'Gli Stemmi', 'la base pura',
-     'Il badge portato a gioielleria: smalto nero sotto vetro con '
-     'guilloche\' da quadrante, ghiera godronata nella lega del '
-     'servizio, nome INCISO in curva, prezzo sul piatto, lampo lento, '
-     'tilt verso il cursore. Ammiraglia con doppia ghiera e gemma FULL '
-     'REFUND.',
-     'La versione senza innesto: piu\' quieta, ogni cella identica nel '
-     'gesto.',
-     'La ghiera verde/ciano e\' una lega derivata dal colore-firma: da '
-     'validare su schermi molto saturi.'),
-    ('scatole', 'Il Packaging', 'il riferimento approvato',
-     'Le scatole sigillate originali: serigrafia, barcode, nastro oro '
-     'FULL REFUND, chip FLAGSHIP ancorato al nome.',
-     'Il punto di partenza di tutta la famiglia.',
-     'Serigrafia secondaria = texture, non testo (scelta giusta).'),
 ]
 
 def leggi(n): return open(SP + n, encoding='utf-8').read()
@@ -133,12 +151,14 @@ body { background:var(--black); color:var(--text); font-family:var(--sans);
 <body>
 <header class="lab-capo">
   <div class="container">
-    <span class="eti">— Banchina Lab · vol. 9 — l'Innesto</span>
-    <h1>La medaglia è il sigillo. La scatola è il <b>prodotto</b>.</h1>
-    <p>L'innesto chiesto: gli Stemmi sposano il Packaging. Passa il mouse
-      sull'ammiraglia del primo palco e guarda la scatola salire mentre
-      la medaglia si posa come sigillo. Sotto, le due basi pure per
-      confronto. Strato vendita e fatti verbatim ovunque.</p>
+    <span class="eti">— Banchina Lab · vol. 10 — tre materie nuove</span>
+    <h1>Il biglietto, il caveau, <b>le chiavi</b>.</h1>
+    <p>Tre soluzioni mai viste finora, tutte dentro le regole approvate
+      (nero-vetro, colore-firma, strato vendita verbatim, compattezza da
+      home): il boarding pass del trasferimento — agganciato al Wallet
+      pass VERO che BOOM emette —, la cassetta di sicurezza con lo
+      spiraglio d'oro, e la chiave di casa tua a Roma. In coda,
+      L'Innesto del volume scorso per confronto.</p>
   </div>
 </header>
 ''' + '\\n'.join(palchi) + '''
