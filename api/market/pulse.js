@@ -14,6 +14,7 @@
 // `?dry=1` calcola senza scrivere. Heartbeat `teamHealth/perito`.
 
 import ME from '../../js/market-engine.js';
+import RADAR from '../../js/radar-engine.js';
 import { knobs, rejectedLine } from '../_squadra.js';
 import {
   requireCronOrAdmin, fsList, fsPatch,
@@ -68,9 +69,11 @@ async function run({ dry }) {
 
   // ── Le statistiche, una zona alla volta ───────────────────────────────
   const zones = [...new Set(ledger.map(l => l.zoneSlug).filter(Boolean))];
+  const statsBySlug = {};
   let written = 0, published = 0;
   for (const zone of zones) {
     const stats = ME.zoneStats(ledger, { zone, minSample: k.minSample, nowMs });
+    statsBySlug[zone] = stats;
     if (stats.asked.ok || stats.absorption.ok) published++;
     if (!dry) {
       await fsPatch('marketStats/' + zone, { ...stats, at: new Date(), minSample: k.minSample });
@@ -78,13 +81,40 @@ async function run({ dry }) {
     }
   }
 
+  // ── IL RADAR MANDATI (card per l'operatore, MAI messaggi) ─────────────
+  // Un PRIVATO fermo ben oltre l'assorbimento della sua zona è un
+  // proprietario che sta scoprendo da solo quanto è faticoso affittare:
+  // il candidato naturale per proporre la gestione BOOM. Lo studio Homie
+  // lo sancisce così: CARD nella console, mai contatto automatico (la D5
+  // del Perito — niente rubrica dei privati — non si tocca: qui viaggiano
+  // solo i fatti dell'annuncio e il suo URL pubblico).
+  const mandati = ledger
+    .map(l => {
+      const m = RADAR.mandatoCheck(l, l.zoneSlug ? statsBySlug[l.zoneSlug] : null, { nowMs });
+      return m ? {
+        id: l.id, title: l.title || null, zone: l.zone || null, zoneSlug: l.zoneSlug || null,
+        price: l.price != null ? l.price : null, sqm: l.sqm != null ? l.sqm : null,
+        url: l.sourceUrl, source: l.source || null,
+        staleDays: m.staleDays, threshold: m.threshold, basis: m.basis,
+        priceDropAt: l.priceDropAt || null, firstSeenAt: l.firstSeenAt || null,
+      } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.staleDays - a.staleDays)
+    .slice(0, 40);
+  if (!dry) {
+    await fsPatch('radarState/mandati', { items: mandati, updatedAt: new Date() }).catch(() => {});
+  }
+
   const counts = {
     ledger: ledger.length, actives: actives.length, gone: gone.length,
     zones: zones.length, zonesPublished: published, checkBacklog: backlog,
+    mandati: mandati.length,
   };
   const summary = [
     `${ledger.length} annunci a libro (${actives.length} vivi · ${gone.length} morti provate) · `
       + `${zones.length} zone, ${published} con campione sufficiente`,
+    mandati.length ? `🎯 ${mandati.length} candidati mandato (privati fermi oltre l'assorbimento) → /radar` : '',
     backlog > 50 ? `⚠️ ${backlog} verifiche di vita arretrate — gli occhi di Homie girano?` : '',
     rejectedLine(rejected),
   ].filter(Boolean).join(' — ');

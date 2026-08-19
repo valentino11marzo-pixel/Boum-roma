@@ -14,6 +14,7 @@
 //
 // Si auto-skippa senza playwright, come le altre suite del repo.
 
+import { loadChromium, launchOptions } from '../_browser.mjs';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
@@ -23,22 +24,7 @@ import assert from 'node:assert/strict';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(here, '..', '..');
-const BROWSER = process.env.BOOM_CHROME || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 
-async function loadChromium() {
-  for (const p of [
-    ...(process.env.BOOM_PLAYWRIGHT ? [process.env.BOOM_PLAYWRIGHT] : []),
-    'playwright-core', 'playwright',
-    '/opt/node22/lib/node_modules/playwright/node_modules/playwright-core/index.js'
-  ]) {
-    try {
-      const m = await import(p);
-      const c = m.chromium || (m.default && m.default.chromium);
-      if (c) return c;
-    } catch { /* prova il prossimo */ }
-  }
-  return null;
-}
 
 const chromium = await loadChromium();
 if (!chromium) {
@@ -85,7 +71,7 @@ const check = async (name, fn) => {
 
 console.log('\nLA SCRIVANIA — montata in un browser, senza Firestore\n');
 
-const browser = await chromium.launch({ executablePath: BROWSER, args: ['--no-sandbox'] });
+const browser = await chromium.launch(launchOptions());
 const page = await browser.newPage();
 const errors = [];
 page.on('pageerror', e => errors.push(String(e.message || e)));
@@ -141,7 +127,7 @@ await check('ogni fascicolo porta le tre liste — la lettera di assunzione', ()
 
 await check('il badge dice la verità sull\'autonomia', () => {
   const n = (re) => (txt.match(re) || []).length;
-  assert.equal(n(/Passa sempre da te/g), 2, 'solo Gestore e Commerciale passano da approvazione');
+  assert.equal(n(/Passa sempre da te/g), 3, 'Gestore, Commerciale e Contatto passano da approvazione (il Contatto: un tap per ogni messaggio al proprietario)');
   assert.ok(n(/Agisce da solo/g) >= 15, 'quasi tutti agiscono senza chiedere: deve vedersi');
 });
 

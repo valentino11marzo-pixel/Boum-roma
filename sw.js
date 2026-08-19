@@ -70,8 +70,11 @@ self.addEventListener('fetch', (event) => {
             // vecchia sopra un'app nuova
             || url.pathname === '/js/portal-mobile.js'
             || url.pathname === '/css/portal-mobile.css'
+            || url.pathname === '/js/portal-actions.js'
+            || url.pathname === '/js/oggi-engine.js'
             || url.pathname === '/js/portal-desktop.js'
-            || url.pathname === '/css/portal-desktop.css') ? url.pathname : null);
+            || url.pathname === '/css/portal-desktop.css'
+            || url.pathname === '/css/portal-finish.css') ? url.pathname : null);
     if (portalAsset) {
         event.respondWith(
             caches.open(STATIC_CACHE).then(async (cache) => {

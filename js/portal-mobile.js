@@ -62,10 +62,14 @@ window.__pmLoaded = true;
     // Tab preferite in ordine: si pinnano le prime 4 PRESENTI nella sidebar
     // del ruolo corrente — così admin, landlord e tenant hanno ciascuno le
     // proprie senza una riga di codice per ruolo.
-    var PREF_TABS = ['dashboard', 'contracts', 'payments', 'viewings', 'leads', 'clienti',
+    // 'oggi' in testa: la coda delle decisioni è la prima schermata
+    // dell'operatore — la tab bar la offre come primo tap quando la
+    // sidebar del ruolo la porta (admin); per gli altri ruoli non esiste
+    // in sidebar e la lista scala da sola sul dashboard.
+    var PREF_TABS = ['oggi', 'dashboard', 'contracts', 'payments', 'viewings', 'leads', 'clienti',
         'my-contract', 'my-contracts', 'my-payments', 'my-maintenance', 'my-properties', 'my-documents'];
     var TAB_LABELS = {
-        dashboard: 'Oggi', contracts: 'Contratti', payments: 'Incassi', viewings: 'Visite',
+        oggi: 'Oggi', dashboard: 'Studio', contracts: 'Contratti', payments: 'Incassi', viewings: 'Visite',
         leads: 'Lead', clienti: 'Clienti', properties: 'Immobili',
         'my-contract': 'Contratto', 'my-contracts': 'Contratti', 'my-payments': 'Pagamenti',
         'my-maintenance': 'Guasti', 'my-properties': 'Immobili', 'my-documents': 'Documenti'
@@ -305,7 +309,105 @@ window.__pmLoaded = true;
         tabbar.hidden = !visible;
     }
 
-    // ═══ MENU (la sidebar, come sheet a schede) ═════════════════════════
+    // ═══ MENU (la sidebar + IL PRONTUARIO, come sheet a schede) ═════════
+    // Su telefono il Menu era solo la sidebar clonata: le capacità sepolte
+    // (i 22 documenti al volo, gli strumenti) restavano irraggiungibili senza
+    // sapere in quale pagina vivono. Ora in cima c'è una riga di ricerca che
+    // pesca dal registro condiviso — lo STESSO che alimenta ⌘K sul desktop.
+    function menuSearchRow(wrap, clone) {
+        var P = window.BOOM_ACTIONS;
+        if (!P || typeof P.search !== 'function') return null;   // registro assente: Menu com'era
+        var box = el('div', 'pm-menu-search');
+        box.innerHTML = '<input type="search" class="pm-menu-input" ' +
+            'placeholder="Cerca: ricevuta, contratto, banca…" ' +
+            'autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">';
+        var res = el('div', 'pm-menu-res');
+        var input = box.querySelector('.pm-menu-input');
+        var deb = null;
+        function render() {
+            var q = txt(input.value);
+            if (!q) { res.innerHTML = ''; res.hidden = true; clone.hidden = false; return; }
+            var hits = P.search(q, { limit: 14 });
+            clone.hidden = true; res.hidden = false;
+            res.innerHTML = '';
+            if (!hits.length) {
+                res.appendChild(el('div', 'pm-menu-empty', 'Niente per “' + esc(q) + '”'));
+                return;
+            }
+            hits.forEach(function (a) {
+                var k = a.need ? (P.KINDS || {})[a.need] : null;
+                var row = el('button', 'pm-sheet-item');
+                row.type = 'button';
+                row.innerHTML = '<span class="ico">' + esc(a.icon || '·') + '</span>' +
+                    '<span>' + esc(a.label) +
+                    '<span class="pm-menu-grp">' + esc(k ? 'scegli il ' + k.label : a.group) + '</span></span>';
+                row.addEventListener('click', function () {
+                    // Contestuale: il foglio resta aperto e chiede il record.
+                    if (k) { pick(a, k); return; }
+                    closeSheet();
+                    setTimeout(function () { try { P.run(a, window); } catch (e) { console.warn('[pm] azione', e); } }, 30);
+                });
+                res.appendChild(row);
+            });
+        }
+        // ── Il selettore del record, dentro lo stesso foglio ─────────────
+        // Non si apre una seconda schermata: cambia la domanda sopra la
+        // tastiera. Il tasto "← Indietro" torna alle azioni, non chiude il
+        // Menu — su un telefono ricominciare da capo costa cinque tap.
+        var picking = null;
+        function pick(a, k) {
+            picking = { a: a, k: k };
+            input.value = '';
+            input.placeholder = k.ask;
+            input.focus();
+            renderPick();
+        }
+        function unpick() {
+            picking = null;
+            input.value = '';
+            input.placeholder = 'Cerca: ricevuta, contratto, banca…';
+            res.innerHTML = ''; res.hidden = true; clone.hidden = false;
+            input.focus();
+        }
+        function renderPick() {
+            var a = picking.a, k = picking.k, q = txt(input.value);
+            clone.hidden = true; res.hidden = false;
+            res.innerHTML = '';
+            var back = el('button', 'pm-sheet-item pm-menu-back');
+            back.type = 'button';
+            back.innerHTML = '<span class="ico">←</span><span>' + esc(a.icon + ' ' + a.label) +
+                '<span class="pm-menu-grp">tocca per cambiare azione</span></span>';
+            back.addEventListener('click', unpick);
+            res.appendChild(back);
+            var recs = P.findRecords(q, a.need, window);
+            if (!recs.length) {
+                res.appendChild(el('div', 'pm-menu-empty', q.length < 2
+                    ? 'Scrivi il nome, la via o il mese per trovare il ' + esc(k.label) + '.'
+                    : 'Nessun ' + esc(k.label) + ' per “' + esc(q) + '”'));
+                return;
+            }
+            recs.forEach(function (r) {
+                var row = el('button', 'pm-sheet-item');
+                row.type = 'button';
+                row.innerHTML = '<span class="ico">' + esc(k.icon) + '</span>' +
+                    '<span>' + esc(r.label) + '<span class="pm-menu-grp">' + esc(r.sub || '') + '</span></span>';
+                row.addEventListener('click', function () {
+                    closeSheet();
+                    setTimeout(function () { try { P.run(a, window, r); } catch (e) { console.warn('[pm] azione', e); } }, 30);
+                });
+                res.appendChild(row);
+            });
+        }
+        input.addEventListener('input', function () {
+            clearTimeout(deb);
+            deb = setTimeout(function () { picking ? renderPick() : render(); }, 110);
+        });
+        wrap.appendChild(box);
+        wrap.appendChild(res);
+        res.hidden = true;
+        return input;
+    }
+
     function openMenu() {
         var sb = $('#sidebar');
         if (!sb || !sb.children.length) return;
@@ -323,6 +425,7 @@ window.__pmLoaded = true;
         var clone = sb.cloneNode(true);
         clone.removeAttribute('id');
         clone.removeAttribute('class');
+        menuSearchRow(wrap, clone);   // la ricerca sta sopra le sezioni
         wrap.appendChild(clone);
         wrap.addEventListener('click', function (e) {
             if (e.target.closest('.nav-item')) setTimeout(closeSheet, 60);

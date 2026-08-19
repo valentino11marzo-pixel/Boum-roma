@@ -14,8 +14,10 @@
 //      can render per-client scores without re-scoring client-side
 
 import crypto from 'node:crypto';
+import RADAR from '../../js/radar-engine.js';
 import { fsPatch, fsGet, fsList, logActivity } from '../homie/_lib.js';
 import { recordObservation } from '../market/_ledger.js';
+import { radarTap } from '../radar/_tap.js';
 import { scoreMatch, DEFAULT_THRESHOLD } from '../homie/_match.js';
 import { tgNotify } from './_health.js';
 
@@ -76,22 +78,37 @@ export async function ingestProperty(raw, opts = {}) {
       const existing = await fsGet('pfsProperties/' + stableId);
       const seen = existing && (existing.lastSeenAt || existing.scrapedAt);
       if (seen && (now - new Date(seen)) < skipFreshHours * 3600 * 1000) {
-        await fsPatch('pfsProperties/' + stableId, { lastSeenAt: now });
+        // Un prezzo cambiato dentro la finestra di freschezza non è "niente
+        // di nuovo": si aggiorna il doc (prima restava stantio) e, se è un
+        // RIBASSO, il radar lo tratta come notizia (fiuto + vedette).
+        const priceChanged = existing.price != null && price !== existing.price;
+        await fsPatch('pfsProperties/' + stableId, { lastSeenAt: now, ...(priceChanged ? { price } : {}) });
         // Anche il corto-circuito è un RI-AVVISTAMENTO: per il libro mastro
         // di mercato vale (l'annuncio è vivo → la verifica di morte slitta).
         try { await recordObservation(stableId, { sourceUrl, source: raw.source, price: raw.price, zone: raw.zone }); } catch { /* mai bloccante */ }
+        if (priceChanged && price < existing.price) {
+          try { await radarTap(stableId, { ...existing, price, sourceUrl }, { priceJustDropped: true }); } catch { /* mai bloccante */ }
+        }
         return { ok: true, propertyId: stableId, skippedFresh: true, pushedTo: [], skipped: [], belowThreshold: [], errors: [] };
       }
     } catch { /* fall through to full ingest */ }
   }
 
   // ── 1. Master record ──────────────────────────────────────
+  // La zona: dichiarata dalla fonte, oppure DEDOTTA dal titolo/indirizzo
+  // dell'annuncio stesso (radar-engine.inferZone — parole intere, ambiguo →
+  // null, mai un indovinello). Era il difetto che affamava le statistiche:
+  // la fonte portante (scan-inbox) non passa nessuna zona.
+  const inferredZone = !raw.zone && (raw.title || raw.address)
+    ? RADAR.inferZone(String(raw.title || '') + ' ' + String(raw.address || ''))
+    : null;
   const property = {
     sourceUrl,
     source: String(raw.source || 'manual').toLowerCase(),
     title: raw.title || null,
     address: raw.address || null,
-    zone: raw.zone || null,
+    zone: raw.zone || (inferredZone ? inferredZone.zone : null),
+    zoneInferred: !raw.zone && !!inferredZone,
     price,
     bedrooms: typeof raw.bedrooms === 'number' ? raw.bedrooms : (parseInt(raw.bedrooms, 10) || null),
     sqm: typeof raw.sqm === 'number' ? raw.sqm : (parseInt(raw.sqm, 10) || null),
@@ -118,6 +135,14 @@ export async function ingestProperty(raw, opts = {}) {
   // (il motore li scarta per costruzione). Best-effort: il radar di mercato
   // non deve mai rompere l'ingestione PFS, che serve clienti paganti.
   try { await recordObservation(stableId, property); } catch { /* mai bloccante */ }
+
+  // IL RADAR 2.0 (identità cross-portale, fiuto, vedette) — DOPO il libro
+  // mastro, best-effort come lui. radar.clusterIds serve al passo 3: la
+  // stessa casa vista da due portali non entra due volte nel mazzo.
+  // Gira anche sugli annunci di agenzia: il cluster deve sapere che la
+  // stessa casa è pubblicata da privato E da agenzia.
+  let radar = null;
+  try { radar = await radarTap(stableId, property); } catch { /* mai bloccante */ }
 
   // ── 2. Agency policy ──────────────────────────────────────
   if (advertiser === 'agency') {
@@ -146,7 +171,12 @@ export async function ingestProperty(raw, opts = {}) {
     }
 
     const existing = Array.isArray(client.portalProperties) ? client.portalProperties : [];
-    if (existing.some(p => p && p.id === stableId)) {
+    // De-dup di cluster: se il cliente ha già in mazzo un GEMELLO di questa
+    // casa (stesso immobile su un altro portale), non la riceve due volte —
+    // due card per la stessa casa fanno sembrare il servizio un aggregatore.
+    const clusterMates = radar && Array.isArray(radar.clusterIds) && radar.clusterIds.length > 1
+      ? radar.clusterIds : null;
+    if (existing.some(p => p && (p.id === stableId || (clusterMates && clusterMates.includes(p.id))))) {
       skippedExisting.push({ clientId: client.id, name: client.name || null, score });
       continue;
     }
@@ -158,6 +188,7 @@ export async function ingestProperty(raw, opts = {}) {
       price: Math.round(property.price),
       rooms: property.bedrooms,
       sqm: property.sqm,
+      zone: property.zone,
       match: score,
       images: property.images || [],
       description: property.description || '',
@@ -217,8 +248,10 @@ export async function ingestProperty(raw, opts = {}) {
     ].filter(Boolean).join(' · ');
     const who = pushedTo.map(p => `${esc(p.name || p.clientId)} (${p.score})`).join(', ');
     const flag = advertiser === 'unknown' ? '\n⚠️ Inserzionista da verificare' : '';
+    const fiutoLine = radar && radar.fiuto && radar.fiuto.verdict === 'occasione'
+      ? `\n💎 Occasione ${radar.fiuto.score}/100 (${radar.fiuto.eurSqm} €/mq, ${radar.fiuto.vsMedianPct}% vs mediana di zona)` : '';
     await tgNotify(
-      `🏠 <b>Match pronto!</b>\n${what}\n${specs}\n→ <b>${who}</b>${flag}\n\n` +
+      `🏠 <b>Match pronto!</b>\n${what}\n${specs}${fiutoLine}\n→ <b>${who}</b>${flag}\n\n` +
       `<a href="${esc(sourceUrl)}">Apri annuncio</a> · ` +
       `<a href="https://boomrome.com/pfs-command">Command Center</a>`
     );

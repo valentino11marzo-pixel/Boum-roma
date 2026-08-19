@@ -103,6 +103,11 @@ export default async function handler(req, res) {
     threshold: Number.isFinite(body.threshold) ? body.threshold : DEFAULT_THRESHOLD,
     ingestedBy: 'homie-property',
     addedBy: 'homie',
+    // Lo Scatto ripassa ogni ~10' sulle stesse ricerche: coi ri-avvistamenti
+    // dentro la finestra si aggiorna solo lastSeenAt (e il libro mastro),
+    // senza ripunteggiare tutti i clienti a ogni giro. Opt-in del chiamante:
+    // chi non lo manda (Homie storico) mantiene il comportamento di sempre.
+    skipFreshHours: Number.isFinite(body.skipFreshHours) ? body.skipFreshHours : 0,
   });
 
   if (!result.ok) {

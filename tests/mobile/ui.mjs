@@ -22,6 +22,7 @@
 //
 // Si auto-skippa senza playwright, come le altre suite del repo.
 
+import { loadChromium, launchOptions } from '../_browser.mjs';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
@@ -31,20 +32,6 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(here, '..', '..');
 
-async function loadChromium() {
-  for (const p of [
-    ...(process.env.BOOM_PLAYWRIGHT ? [process.env.BOOM_PLAYWRIGHT] : []),
-    'playwright-core', 'playwright',
-    '/opt/node22/lib/node_modules/playwright/node_modules/playwright-core/index.js'
-  ]) {
-    try {
-      const m = await import(p);
-      const c = m.chromium || (m.default && m.default.chromium);
-      if (c) return c;
-    } catch { /* prova il prossimo */ }
-  }
-  return null;
-}
 const chromium = await loadChromium();
 if (!chromium) {
   console.log('SKIP: playwright non disponibile (npm i -D playwright-core, oppure BOOM_PLAYWRIGHT=/percorso/index.js)');
@@ -70,12 +57,13 @@ const HARNESS = `<!DOCTYPE html><html lang="it"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <link rel="stylesheet" href="/css/portal.css">
+<link rel="stylesheet" href="/css/portal-finish.css">
 <link rel="stylesheet" href="/css/portal-mobile.css">
 </head><body>
 <div class="app active" id="app">
   <header class="header">
     <div class="header-left"><button class="menu-btn" onclick="toggleSidebar()">☰</button><a class="logo"><span class="logo-text">BOOM</span></a></div>
-    <div class="header-center" id="searchContainer"></div>
+    <div class="header-center" id="searchContainer"><div class="search-box"><input id="globalSearch" placeholder="Cerca..."></div></div>
     <div class="header-right">
       <div class="user-menu"><div class="user-avatar" id="headerAvatar">VE</div>
       <div class="user-info"><div class="user-name" id="headerName">Valentino</div><div class="user-role" id="headerRole">Admin</div></div></div>
@@ -114,6 +102,25 @@ function saveContract(e) { e.preventDefault(); __calls.push(['saveContract']); }
 function updateContract(e, id) { e.preventDefault(); __calls.push(['updateContract', id]); }
 function closeModal() { document.body.classList.remove('modal-open'); document.getElementById('modals').innerHTML = ''; }
 ${realWizardNav}
+function openTemplateModal(t) { __calls.push(['tpl', t]); }
+function viewContract(id) { __calls.push(['viewContract', id]); }
+function viewUserProfile(id) { __calls.push(['viewUserProfile', id]); }
+function openFascicolo(id) { __calls.push(['openFascicolo', id]); }
+// replica del CONTRATTO di handleSearch (dropdown #searchResults, righe
+// tipizzate dalla funzione che lanciano): è da qui che il selettore del
+// record riconosce cos'è ogni riga. Il contratto vero è pinnato sul
+// sorgente da tests/actions/run.mjs.
+function handleSearch(q) {
+  if (!q || q.length < 2) { document.getElementById('searchResults')?.remove(); return; }
+  let dd = document.getElementById('searchResults');
+  if (!dd) {
+    dd = document.createElement('div'); dd.id = 'searchResults';
+    document.getElementById('globalSearch').parentElement.appendChild(dd);
+  }
+  dd.innerHTML =
+    '<div onclick="viewContract(\\'ct1\\')"><span>📋</span><div><div>Contratto Via Cavour</div><div>Ugo Rossi · €900/mese</div></div></div>' +
+    '<div onclick="viewUserProfile(\\'u9\\')"><span>👤</span><div><div>Ugo Rossi</div><div>tenant · u@r.it</div></div></div>';
+}
 function renderMain(p) {
   var m = document.getElementById('main');
   if (p !== 'contracts') { m.innerHTML = '<h1>' + p + '</h1>'; return; }
@@ -210,6 +217,7 @@ function openModal(type, data) {
   setTimeout(function () { var o = document.querySelector('.modal-overlay'); if (o) o.classList.add('active'); }, 10);
 }
 </script>
+<script src="/js/portal-actions.js"></script>
 <script src="/js/portal-mobile.js"></script>
 </body></html>`;
 
@@ -244,9 +252,9 @@ async function check(name, fn) {
   }
 }
 
-const browser = await chromium.launch({
-  executablePath: process.env.BOOM_CHROME || undefined
-});
+// --no-sandbox: sui runner CI (container, utente senza user-namespace)
+// Chromium non parte senza. In locale è innocuo.
+const browser = await chromium.launch(launchOptions());
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 const page = await ctx.newPage();
 page.on('pageerror', (e) => console.log('  [pageerror]', String(e).split('\n')[0]));
@@ -320,6 +328,76 @@ await page.waitForTimeout(500);
 await check('tap su una voce del Menu → goTo e lo sheet si chiude', () => page.evaluate(() =>
   window.__calls.some(c => c[0] === 'goTo' && c[1] === 'payments') && !document.querySelector('.pm-sheet')
 ));
+
+console.log('— il Prontuario nel Menu (le funzioni sepolte, su telefono) —');
+await page.tap('.pm-tab-menu');
+await page.waitForTimeout(400);
+await check('il Menu ha la riga di ricerca del Prontuario', () => page.evaluate(() =>
+  document.querySelector('.pm-menu-input') !== null
+));
+await page.fill('.pm-menu-input', 'ricevuta');
+await page.waitForTimeout(350);
+await check('cercando "ricevuta" compaiono i documenti e le sezioni si nascondono', () => page.evaluate(() => {
+  const rows = [...document.querySelectorAll('.pm-menu-res .pm-sheet-item')].map(r => r.textContent);
+  const clone = document.querySelector('.pm-menu > div[class=""], .pm-menu > div:not([class])');
+  return rows.some(r => r.includes('Ricevuta pigione')) && rows.length >= 2;
+}));
+await page.evaluate(() => {
+  [...document.querySelectorAll('.pm-menu-res .pm-sheet-item')].find(r => r.textContent.includes('Ricevuta pigione')).click();
+});
+await page.waitForTimeout(350);
+await check('due tap dal telefono: la ricevuta si apre e lo sheet si chiude', () => page.evaluate(() =>
+  window.__calls.some(c => c[0] === 'tpl' && c[1] === 'ricevuta_pigione') && !document.querySelector('.pm-sheet')
+));
+
+console.log('— il selettore del record nel Menu (le azioni contestuali) —');
+await page.tap('.pm-tab-menu');
+await page.waitForTimeout(400);
+await page.fill('.pm-menu-input', 'fascicolo');
+await page.waitForTimeout(350);
+await check('il Menu trova il Fascicolo ARPE e DICE che serve un contratto', () => page.evaluate(() => {
+  const row = [...document.querySelectorAll('.pm-menu-res .pm-sheet-item')].find(r => r.textContent.includes('Fascicolo ARPE'));
+  return !!row && /scegli il contratto/i.test(row.textContent);
+}));
+await page.evaluate(() => {
+  [...document.querySelectorAll('.pm-menu-res .pm-sheet-item')].find(r => r.textContent.includes('Fascicolo ARPE')).click();
+});
+await page.waitForTimeout(250);
+await check('il foglio NON si chiude: chiede il contratto e offre il ritorno', () => page.evaluate(() =>
+  !!document.querySelector('.pm-sheet') && !!document.querySelector('.pm-menu-back') &&
+  /quale contratto/i.test(document.querySelector('.pm-menu-input').placeholder)
+));
+await page.fill('.pm-menu-input', 'rossi');
+await page.waitForTimeout(350);
+await check('si vedono SOLO i contratti (la persona dello stesso risultato resta fuori)', () => page.evaluate(() => {
+  const rows = [...document.querySelectorAll('.pm-menu-res .pm-sheet-item')].map(r => r.textContent);
+  return rows.some(r => r.includes('Contratto Via Cavour')) && !rows.some(r => r.includes('tenant · u@r.it'));
+}));
+await page.evaluate(() => {
+  [...document.querySelectorAll('.pm-menu-res .pm-sheet-item')].find(r => r.textContent.includes('Contratto Via Cavour')).click();
+});
+await page.waitForTimeout(350);
+await check('tre tap dal telefono: il fascicolo di QUEL contratto, con l\'id vero', () => page.evaluate(() =>
+  window.__calls.some(c => c[0] === 'openFascicolo' && c[1] === 'ct1') && !document.querySelector('.pm-sheet')
+));
+// il ritorno all'azione: non chiude il Menu
+await page.tap('.pm-tab-menu');
+await page.waitForTimeout(400);
+await page.fill('.pm-menu-input', 'fascicolo');
+await page.waitForTimeout(350);
+await page.evaluate(() => {
+  [...document.querySelectorAll('.pm-menu-res .pm-sheet-item')].find(r => r.textContent.includes('Fascicolo ARPE')).click();
+});
+await page.waitForTimeout(200);
+await page.evaluate(() => document.querySelector('.pm-menu-back').click());
+await page.waitForTimeout(250);
+await check('“← Indietro” torna alle azioni senza chiudere il Menu', () => page.evaluate(() =>
+  !!document.querySelector('.pm-sheet') && !document.querySelector('.pm-menu-back') &&
+  document.querySelector('.pm-menu-input').value === ''
+));
+await page.evaluate(() => document.querySelector('.pm-sheet-backdrop, .pm-sheet-back, .pm-sheet')?.remove());
+await page.evaluate(() => { document.body.classList.remove('modal-open'); document.querySelectorAll('.pm-sheet-wrap, .pm-sheet').forEach(n => n.remove()); });
+await page.waitForTimeout(150);
 
 console.log('— wizard NATIVO addContract —');
 await page.evaluate(() => openModal('addContract'));

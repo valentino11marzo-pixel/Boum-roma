@@ -101,6 +101,19 @@ ok(pdSrc.includes("localStorage.getItem('boom_classic_desktop')"), 'kill switch:
 ok(pdSrc.includes("q.get('deskclassic')") && pdSrc.includes("q.get('deskapp')"), 'kill switch: ?deskclassic=1 persiste, ?deskapp=1 riattiva');
 ok(!pdSrc.includes('boom_classic_mobile'), 'il kill switch desktop non tocca quello mobile');
 
+// ── D2: i form grandi prendono i capitoli (2026-08-19) ─────────────────
+// La mappa è LA STESSA di M2 (window.BOOM_MOBILE.WIZ — una copia sola);
+// gli header si INSERISCONO, mai si spostano campi (FormData intatta);
+// sotto i 920px il CSS li spegne (M2 riorganizza i campi a modo suo).
+ok(/BOOM_MOBILE && window\.BOOM_MOBILE\.WIZ/.test(pdSrc), 'D2 legge la mappa capitoli di M2 — mai una seconda copia');
+ok(/insertBefore\(h, block\)/.test(pdSrc) && !/appendChild\(block|\.append\(block/.test(pdSrc),
+  'D2 INSERISCE header, non sposta mai un campo (FormData salva per costruzione)');
+ok(/groups\.length < 8/.test(pdSrc), 'un form corto non prende capitoli');
+ok(/window\.openModal\.__pdWrap/.test(pdSrc), 'il wrap di openModal ha la guardia anti-doppio');
+const deskCss2 = read('css/portal-desktop.css');
+ok(/body\.pd-on \.pd-form-sec/.test(deskCss2) && /body:not\(\.pd-on\) \.pd-form-sec\{display:none\}/.test(deskCss2),
+  'gli header vivono SOLO sulla faccia desktop (gated nei due sensi)');
+
 console.log('');
 console.log(fail ? `${pass} passed, ${fail} failed` : `Il cockpit tiene — ${pass} passed, 0 failed`);
 process.exit(fail ? 1 : 0);

@@ -10,6 +10,7 @@
 //
 // Si auto-skippa senza playwright, come le altre suite del repo.
 
+import { loadChromium, launchOptions } from '../_browser.mjs';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, dirname } from 'node:path';
@@ -18,20 +19,6 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(here, '..', '..');
 
-async function loadChromium() {
-  for (const p of [
-    ...(process.env.BOOM_PLAYWRIGHT ? [process.env.BOOM_PLAYWRIGHT] : []),
-    'playwright-core', 'playwright',
-    '/opt/node22/lib/node_modules/playwright/node_modules/playwright-core/index.js'
-  ]) {
-    try {
-      const m = await import(p);
-      const c = m.chromium || (m.default && m.default.chromium);
-      if (c) return c;
-    } catch { /* prova il prossimo */ }
-  }
-  return null;
-}
 const chromium = await loadChromium();
 if (!chromium) {
   console.log('SKIP: playwright non disponibile (npm i -D playwright-core, oppure BOOM_PLAYWRIGHT=/percorso/index.js)');
@@ -42,6 +29,7 @@ const HARNESS = `<!DOCTYPE html><html lang="it"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <link rel="stylesheet" href="/css/portal.css">
+<link rel="stylesheet" href="/css/portal-finish.css">
 <link rel="stylesheet" href="/css/portal-mobile.css">
 <link rel="stylesheet" href="/css/portal-desktop.css">
 </head><body>
@@ -84,6 +72,11 @@ function toast(t, ti, m) { __calls.push(['toast', t]); }
 function closeModal() { document.getElementById('modals').innerHTML = ''; }
 // replica del CONTRATTO di handleSearch (dropdown #searchResults, righe onclick):
 // il contratto vero è pinnato sul sorgente da tests/desktop/run.mjs
+function openTemplateModal(t) { __calls.push(['tpl', t]); }
+function openMagicSignEditor() { __calls.push(['magicsign']); }
+function viewContract(id) { __calls.push(['viewContract', id]); }
+function viewUserProfile(id) { __calls.push(['viewUserProfile', id]); }
+function openFascicolo(id) { __calls.push(['openFascicolo', id]); }
 function handleSearch(q) {
   if (!q || q.length < 2) { document.getElementById('searchResults')?.remove(); return; }
   let dd = document.getElementById('searchResults');
@@ -92,7 +85,13 @@ function handleSearch(q) {
     document.getElementById('globalSearch').parentElement.appendChild(dd);
   }
   dd.innerHTML = '<div style="padding:10px 14px;cursor:pointer" onclick="__calls.push([\\'entity\\',\\'' + q + '\\'])">' +
-    '<span style="font-size:16px">📋</span><div><div>Contratto Via Cavour</div><div>Ugo Rossi</div></div></div>';
+    '<span style="font-size:16px">📋</span><div><div>Contratto Via Cavour</div><div>Ugo Rossi</div></div></div>' +
+    // le righe TIPIZZATE, nella forma vera del motore: è da queste che il
+    // selettore del record riconosce il tipo (viewContract / viewUserProfile)
+    '<div style="padding:10px 14px" onclick="viewContract(\\'ct1\\')">' +
+    '<span>📋</span><div><div>Contratto Via Cavour</div><div>Ugo Rossi · €900/mese</div></div></div>' +
+    '<div style="padding:10px 14px" onclick="viewUserProfile(\\'u9\\')">' +
+    '<span>👤</span><div><div>Ugo Rossi</div><div>tenant · u@r.it</div></div></div>';
 }
 var TPL = {
   peekview:
@@ -117,6 +116,7 @@ function openModal(type) {
   document.getElementById('modals').innerHTML = TPL[type] || '';
 }
 </script>
+<script src="/js/portal-actions.js"></script>
 <script src="/js/portal-mobile.js"></script>
 <script src="/js/portal-desktop.js"></script>
 </body></html>`;
@@ -150,7 +150,9 @@ async function check(name, fn) {
   }
 }
 
-const browser = await chromium.launch({ executablePath: process.env.BOOM_CHROME || undefined });
+// --no-sandbox: sui runner CI (container, utente senza user-namespace)
+// Chromium non parte senza. In locale è innocuo.
+const browser = await chromium.launch(launchOptions());
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 const page = await ctx.newPage();
 page.on('pageerror', (e) => console.log('  [pageerror]', String(e).split('\n')[0]));
@@ -193,7 +195,7 @@ await page.keyboard.press('ArrowDown');
 await page.keyboard.press('Enter');
 await page.waitForTimeout(250);
 await check('↓ + ↵ esegue la voce e chiude la palette', () => page.evaluate(() =>
-  !document.querySelector('.pd-cmd') && window.__calls.some(c => c[0] === 'goTo' || c[0] === 'openModal' || c[0] === 'entity')
+  !document.querySelector('.pd-cmd') && window.__calls.some(c => ['goTo','openModal','entity','tpl'].includes(c[0]))
 ));
 await page.keyboard.press('Control+KeyK');
 await page.waitForTimeout(200);
@@ -208,6 +210,83 @@ await page.waitForTimeout(200);
 await page.keyboard.press('Escape');
 await page.waitForTimeout(200);
 await check('Esc chiude la palette', () => page.evaluate(() => !document.querySelector('.pd-cmd')));
+
+console.log('— il Prontuario nella palette (le funzioni sepolte) —');
+await page.keyboard.press('Control+KeyK');
+await page.waitForTimeout(200);
+await page.type('.pd-cmd-input', 'ricevuta');
+await page.waitForTimeout(350);
+await check('⌘K trova i documenti sepolti: "ricevuta" mostra la sezione Documenti', () => page.evaluate(() => {
+  const secs = [...document.querySelectorAll('.pd-cmd-sec')].map(s => s.textContent);
+  const rows = [...document.querySelectorAll('.pd-cmd-row')].map(r => r.textContent);
+  return secs.includes('Documenti') && rows.some(r => r.includes('Ricevuta pigione'));
+}));
+await page.evaluate(() => { [...document.querySelectorAll('.pd-cmd-row')].find(r => r.textContent.includes('Ricevuta pigione')).click(); });
+await page.waitForTimeout(250);
+await check('due tap: la ricevuta di pigione si apre davvero (era 4 passi)', () => page.evaluate(() =>
+  window.__calls.some(c => c[0] === 'tpl' && c[1] === 'ricevuta_pigione') && !document.querySelector('.pd-cmd')
+));
+await page.keyboard.press('Control+KeyK');
+await page.waitForTimeout(200);
+await page.type('.pd-cmd-input', 'disponibilita');
+await page.waitForTimeout(350);
+await check('gli strumenti sono cercabili senza accenti ("disponibilita")', () => page.evaluate(() => {
+  const secs = [...document.querySelectorAll('.pd-cmd-sec')].map(s => s.textContent);
+  const rows = [...document.querySelectorAll('.pd-cmd-row')].map(r => r.textContent);
+  return secs.includes('Strumenti') && rows.some(r => r.includes('Disponibilità visite'));
+}));
+await page.keyboard.press('Escape');
+await page.waitForTimeout(200);
+
+console.log('— il selettore del record (le azioni contestuali) —');
+await page.keyboard.press('Control+KeyK');
+await page.waitForTimeout(200);
+await page.type('.pd-cmd-input', 'fascicolo');
+await page.waitForTimeout(350);
+await check('⌘K trova il Fascicolo ARPE e DICE che serve un contratto', () => page.evaluate(() => {
+  const secs = [...document.querySelectorAll('.pd-cmd-sec')].map(s => s.textContent);
+  const row = [...document.querySelectorAll('.pd-cmd-row')].find(r => r.textContent.includes('Fascicolo ARPE'));
+  return secs.includes('Su un record') && !!row && row.textContent.includes('contratto');
+}));
+await page.evaluate(() => { [...document.querySelectorAll('.pd-cmd-row')].find(r => r.textContent.includes('Fascicolo ARPE')).click(); });
+await page.waitForTimeout(200);
+await check('la palette NON si chiude: cambia domanda ("Per quale contratto?")', () => page.evaluate(() =>
+  !!document.querySelector('.pd-cmd') && !!document.querySelector('.pd-cmd-crumb') &&
+  document.querySelector('.pd-cmd-crumb').textContent.includes('Fascicolo') &&
+  /quale contratto/i.test(document.querySelector('.pd-cmd-input').placeholder)
+));
+await check('senza aver scritto niente non promette record che non ha', () => page.evaluate(() =>
+  !!document.querySelector('.pd-cmd-empty')
+));
+await page.type('.pd-cmd-input', 'rossi');
+await page.waitForTimeout(350);
+await check('cercando si vedono SOLO i contratti (non le persone dello stesso risultato)', () => page.evaluate(() => {
+  const rows = [...document.querySelectorAll('.pd-cmd-row')].map(r => r.textContent);
+  return rows.some(r => r.includes('Contratto Via Cavour')) && !rows.some(r => r.includes('tenant · u@r.it'));
+}));
+await check('la tendina della ricerca non resta appesa in pagina', () => page.evaluate(() =>
+  !document.getElementById('searchResults')
+));
+await page.evaluate(() => { [...document.querySelectorAll('.pd-cmd-row')].find(r => r.textContent.includes('Contratto Via Cavour')).click(); });
+await page.waitForTimeout(250);
+await check('TRE tap: il fascicolo di QUEL contratto si apre con l\'id vero', () => page.evaluate(() =>
+  window.__calls.some(c => c[0] === 'openFascicolo' && c[1] === 'ct1') && !document.querySelector('.pd-cmd')
+));
+// Esc torna indietro di UN passo, non chiude tutto
+await page.keyboard.press('Control+KeyK');
+await page.waitForTimeout(200);
+await page.type('.pd-cmd-input', 'fascicolo');
+await page.waitForTimeout(350);
+await page.evaluate(() => { [...document.querySelectorAll('.pd-cmd-row')].find(r => r.textContent.includes('Fascicolo ARPE')).click(); });
+await page.waitForTimeout(200);
+await page.keyboard.press('Escape');
+await page.waitForTimeout(220);
+await check('Esc torna alle azioni (la palette resta aperta, il filo si toglie)', () => page.evaluate(() =>
+  !!document.querySelector('.pd-cmd') && !document.querySelector('.pd-cmd-crumb')
+));
+await page.keyboard.press('Escape');
+await page.waitForTimeout(200);
+await check('un secondo Esc chiude davvero', () => page.evaluate(() => !document.querySelector('.pd-cmd')));
 
 console.log('— scorciatoie —');
 await page.keyboard.press('g');

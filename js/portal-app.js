@@ -3786,7 +3786,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
         
         buildNav();
-        goTo(window.location.hash.slice(1) || localStorage.getItem('boom_lastPage') || 'dashboard');
+        // La prima schermata dell'admin è la coda delle decisioni: il posto
+        // dove si COMANDA, non dove si guarda. Un hash esplicito (deep link,
+        // reload a metà lavoro) vince sempre; gli altri ruoli non cambiano.
+        goTo(window.location.hash.slice(1) || (isAdmin() ? 'oggi' : (localStorage.getItem('boom_lastPage') || 'dashboard')));
 
         // Check expiring contracts for review requests (admin, once per session)
         if (isAdmin() && !window._expiryChecked) {
@@ -3814,7 +3817,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             
             sb.innerHTML = `
                 <div class="nav-section"><div class="nav-label">Operativo</div>
-                    <div class="nav-item ${S.page==='dashboard'?'active':''}" onclick="goTo('dashboard')"><span class="nav-icon">📊</span> Dashboard ${urgentDeadlines?`<span class="nav-badge orange">${urgentDeadlines}</span>`:''}</div>
+                    <div class="nav-item ${S.page==='oggi'?'active':''}" onclick="goTo('oggi')"><span class="nav-icon">⚡</span> Oggi ${(S.actionQueue||[]).filter(a=>(a.status||'')==='pending'||(a.status||'')==='pending_approval').length + (S.viewingRequests||[]).filter(v=>v.status==='pending'||v.status==='rescheduled').length ? `<span class="nav-badge">${(S.actionQueue||[]).filter(a=>(a.status||'')==='pending'||(a.status||'')==='pending_approval').length + (S.viewingRequests||[]).filter(v=>v.status==='pending'||v.status==='rescheduled').length}</span>` : ''}</div>
+                    <div class="nav-item ${S.page==='dashboard'?'active':''}" onclick="goTo('dashboard')"><span class="nav-icon">📊</span> Studio ${urgentDeadlines?`<span class="nav-badge orange">${urgentDeadlines}</span>`:''}</div>
                     <div class="nav-item ${S.page==='command-center'?'active':''}" onclick="goTo('command-center')"><span class="nav-icon">⚡</span> Command Center ${pendingActions?`<span class="nav-badge gold">${pendingActions}</span>`:''}</div>
                     <div class="nav-item ${S.page==='leads'?'active':''}" onclick="goTo('leads')"><span class="nav-icon">📬</span> Lead ${newLeads?`<span class="nav-badge green">${newLeads}</span>`:''}</div>
                     <div class="nav-item ${S.page==='clienti'?'active':''}" onclick="goTo('clienti')"><span class="nav-icon">👥</span> Clienti ${(activeClients+urgentPFS)?`<span class="nav-badge gold">${activeClients+urgentPFS}</span>`:''}</div>
@@ -3853,10 +3857,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="nav-item ${S.page==='squadra'?'active':''}" onclick="goTo('squadra')"><span class="nav-icon">🤖</span> La Squadra</div>
                     <div class="nav-item" onclick="window.open('/banca','_blank')"><span class="nav-icon">🏦</span> Banca &amp; Fisco</div>
                     <div class="nav-item" onclick="window.open('/pfs-command','_blank')"><span class="nav-icon">🛰️</span> PFS Command</div>
+                    <div class="nav-item" onclick="window.open('/radar','_blank')"><span class="nav-icon">📡</span> La Centrale del Radar</div>
                     <div class="nav-item" onclick="window.open('/photo-lab','_blank')"><span class="nav-icon">🎞️</span> Photo Lab</div>
                     <div class="nav-item" onclick="window.open('/media-studio','_blank')"><span class="nav-icon">🎨</span> Media Studio</div>
                     <div class="nav-item" onclick="window.open('/manuale','_blank')"><span class="nav-icon">🏠</span> Manuale Casa</div>
-                    <div class="nav-item" onclick="window.open('/risposte','_blank')"><span class="nav-icon">💬</span> Risposte WhatsApp</div>
                     <div class="nav-item" onclick="window.open('/salute','_blank')"><span class="nav-icon">🩺</span> Salute Sistema</div>
                 </div>
                 <div class="nav-section"><div class="nav-label">Sistema</div>
@@ -3934,6 +3938,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             // === Legacy redirects ===
             case 'crm': S.page = 'clienti'; m.innerHTML = isAdmin() ? clientiPage() : accessDenied(); buildNav(); break;
             case 'pfs-pipeline': S.page = 'clienti'; m.innerHTML = isAdmin() ? clientiPage() : accessDenied(); buildNav(); break;
+            case 'oggi': m.innerHTML = isAdmin() ? oggiPage() : accessDenied(); break;
             case 'command': S.page = 'dashboard'; m.innerHTML = isAdmin() ? adminDashboard() : accessDenied(); buildNav(); break;
             case 'listings': S.page = 'adminflats'; m.innerHTML = isAdmin() ? adminflatsPage() : accessDenied(); buildNav(); break;
             case 'property-engine': S.page = 'boom-tools'; m.innerHTML = isAdmin() ? boomToolsPage() : accessDenied(); buildNav(); break;
@@ -4290,6 +4295,90 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // ═══════════════════════════════════════════════════════════════════════════
     // DASHBOARDS
     // ═══════════════════════════════════════════════════════════════════════════
+    // ═══ OGGI — la coda delle decisioni (motore: js/oggi-engine.js) ═════
+    // La prima schermata dell'operatore: cosa aspetta la TUA firma, ordinato
+    // per costo del ritardo, con l'azione dentro la riga. Il giudizio sta
+    // tutto nel motore puro (BOOM_OGGI, testato in node); qui solo il
+    // disegno. Le azioni sono {fn, args} — la disciplina del Prontuario:
+    // si invoca una funzione globale ESISTENTE, mai una stringa di codice.
+    function oggiDismissKey() { return 'boom_oggi_hide_' + new Date().toISOString().slice(0, 10); }
+    function oggiDismiss(id) {
+        try {
+            const k = oggiDismissKey();
+            const cur = JSON.parse(localStorage.getItem(k) || '[]');
+            if (!cur.includes(id)) cur.push(id);
+            localStorage.setItem(k, JSON.stringify(cur));
+        } catch (e) { /* Safari privato: il nascondi non vale la pagina */ }
+        renderPage();
+    }
+    function oggiRun(id) {
+        // Un solo ponte per tutti i bottoni della coda: ritrova la decisione
+        // dal motore e invoca la sua funzione per RIFERIMENTO. Niente codice
+        // composto negli onclick, niente id sfuggiti a mano.
+        const d = (window.__oggiLast || []).find((x) => x.id === id.slice(0, id.lastIndexOf('#')));
+        const idx = parseInt(id.slice(id.lastIndexOf('#') + 1), 10);
+        const a = d && d.actions && d.actions[idx];
+        const f = a && window[a.fn];
+        if (typeof f === 'function') f.apply(window, a.args || []);
+    }
+    function oggiPage() {
+        const E = window.BOOM_OGGI;
+        if (!E || typeof E.build !== 'function') return adminDashboard();   // motore assente: mai una pagina vuota
+        const { decisions, cash } = E.build(S, new Date().toISOString());
+        window.__oggiLast = decisions;
+        let hidden = [];
+        try { hidden = JSON.parse(localStorage.getItem(oggiDismissKey()) || '[]'); } catch (e) { }
+        const live = decisions.filter((d) => !hidden.includes(d.id));
+        const shown = live.slice(0, 12);
+
+        const card = (d, i) => `<div class="list-item og-item" data-kind="${d.kind}">
+                <div class="list-icon" style="background:var(--${d.tint === 'red' ? 'red-light' : d.tint === 'orange' ? 'orange-light' : 'gold-light'});font-size:17px">${d.icon}</div>
+                <div class="list-content" style="flex:1;min-width:0">
+                    <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <span style="font-weight:600">${esc(d.title)}</span>
+                        <span class="li-flag ${d.tint === 'red' ? 'red' : d.tint === 'orange' ? 'orange' : 'gold'}">${esc(d.kind)}</span>
+                    </div>
+                    ${d.sub ? `<div class="list-subtitle li-meta" style="margin-top:3px">${esc(d.sub)}</div>` : ''}
+                </div>
+                <div class="og-actions">
+                    ${(d.actions || []).map((a, j) => `<button class="btn btn-sm ${a.primary ? '' : 'btn-secondary'}" onclick="event.stopPropagation();oggiRun('${d.id}#${j}')">${esc(a.label)}</button>`).join('')}
+                    <button class="btn btn-sm btn-secondary og-hide" title="Nascondi per oggi" onclick="event.stopPropagation();oggiDismiss('${d.id}')">✕</button>
+                </div>
+            </div>`;
+
+        return `<div class="page-header">
+                <div><h1 class="page-title">⚡ Oggi</h1><p class="page-subtitle">${live.length === 0 ? 'Zero decisioni in coda — la macchina lavora.' : `${live.length} decision${live.length === 1 ? 'e' : 'i'} in coda, ordinate per costo del ritardo`}</p></div>
+                <div class="page-actions">
+                    <button class="btn btn-secondary" onclick="goTo('dashboard')">📊 Studio</button>
+                    <button class="btn btn-secondary" onclick="forceRefreshData()" title="Ricarica i dati">↻</button>
+                </div>
+            </div>
+
+            <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+                <div class="stat-card green" onclick="goTo('payments')">
+                    <div class="stat-value">€${cash.paidMonth.toLocaleString('it-IT')}</div>
+                    <div class="stat-label">Incassato questo mese</div>
+                </div>
+                <div class="stat-card gold" onclick="goTo('payments')">
+                    <div class="stat-value">€${cash.dueMonth.toLocaleString('it-IT')}</div>
+                    <div class="stat-label">In arrivo nel mese</div>
+                </div>
+                <div class="stat-card red" onclick="goTo('payments')">
+                    <div class="stat-value">€${cash.overdueTotal.toLocaleString('it-IT')}</div>
+                    <div class="stat-label">${cash.overdueCount} in ritardo</div>
+                </div>
+                <div class="stat-card" onclick="goTo('payments')">
+                    <div class="stat-value">€${cash.next7.toLocaleString('it-IT')}</div>
+                    <div class="stat-label">Prossimi 7 giorni</div>
+                </div>
+            </div>
+
+            <div class="card"><div class="card-body flush">
+                ${shown.length ? shown.map(card).join('') : `<div class="empty-state"><div class="empty-icon">🌅</div><div class="empty-title">Niente da decidere</div><div class="empty-subtitle">Le code sono vuote: risposte approvate, visite confermate, incassi in pari.</div></div>`}
+            </div></div>
+            ${live.length > shown.length ? `<div style="text-align:center;margin-top:10px;font-size:12px;color:var(--text-muted)">e altre ${live.length - shown.length} più in basso nella scala — le trovi nelle loro sezioni</div>` : ''}`;
+    }
+
     function adminDashboard() {
         // === COMPREHENSIVE DATA CALCULATIONS ===
         const activeClients = (S.clients || []).filter(c => !['completed', 'lost'].includes(c.stage));
@@ -6394,14 +6483,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         <div class="list-content" style="flex:1;min-width:0">
                             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                                 <div class="list-title">${lang} ${esc(l.name || l.leadName || 'Sconosciuto')}</div>
-                                <span class="badge ${isNew ? 'gold' : isConverted ? 'green' : isResponded ? 'blue' : 'gray'}" style="font-size:10px">${isNew ? 'NUOVO' : isConverted ? 'CONVERTITO' : isResponded ? 'RISPOSTO' : 'SCARTATO'}</span>
-                                <span style="font-size:11px;color:var(--text-muted)">${esc(l.source || 'web')}</span>
+                                <span class="badge ${isNew ? 'gold' : isConverted ? 'green' : isResponded ? 'blue' : 'gray'}" style="font-size:10px">${isNew ? 'Nuovo' : isConverted ? 'Convertito' : isResponded ? 'Risposto' : 'Scartato'}</span>
+                                <span class="li-flags">
+                                ${l.grade && l.grade !== 'dead' ? `<span class="li-flag ${l.grade === 'A' ? 'red' : l.grade === 'B' ? 'green' : ''}" title="${esc(l.gradeReason || 'Voto del Lead Brain')}">Grade ${esc(l.grade)}</span>` : ''}
+                                <span class="li-flag">${esc(l.source || 'web')}</span>
+                                </span>
                             </div>
-                            <div class="list-subtitle" style="margin-top:4px">
-                                ${l.intakeForm ? `💰 €${l.budget || '?'}/mo${l.zone ? ' · 📍 ' + esc(l.zone) : ''}${l.situation ? ' · ' + (l.situation === 'worker' ? '💼' : l.situation === 'student' ? '🎓' : '✈️') + ' ' + l.situation : ''}` : ''}
-                                ${!l.intakeForm && l.propertyTitle ? `🏠 ${esc(l.propertyTitle)}` : ''}
-                                ${l.propertyPrice ? ` · €${l.propertyPrice.toLocaleString('it-IT')}` : ''}
-                                ${l.propertyAddress ? ` · ${esc(l.propertyAddress)}` : ''}
+                            <div class="list-subtitle li-meta" style="margin-top:4px">
+                                ${l.intakeForm ? `<b>€${l.budget || '?'}/m</b>${l.zone ? `<span class="sep">·</span>${esc(l.zone)}` : ''}${l.situation ? `<span class="sep">·</span>${esc(l.situation)}` : ''}` : ''}
+                                ${!l.intakeForm && l.propertyTitle ? `<b>${esc(l.propertyTitle)}</b>` : ''}
+                                ${l.propertyPrice ? `<span class="sep">·</span>€${l.propertyPrice.toLocaleString('it-IT')}` : ''}
+                                ${l.propertyAddress ? `<span class="sep">·</span>${esc(l.propertyAddress)}` : ''}
                             </div>
                             ${l.intakeForm && l.notes ? `<div style="margin-top:6px;font-size:12px;color:var(--text-secondary);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:500px">"${esc(l.notes.substring(0, 120))}"</div>` : ''}
                             ${!l.intakeForm && (l.message || l.leadMessage) ? `<div style="margin-top:6px;font-size:12px;color:var(--text-secondary);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:500px">"${esc((l.message || l.leadMessage).substring(0, 120))}"</div>` : ''}
@@ -7724,11 +7816,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         <span style="color:var(--text-secondary)">·</span>
                         <span>${r.name}</span>
                         ${recipientBadge(r.kind)}
-                        ${reminders > 0 ? `<span class="badge orange" style="font-size:9px" title="${reminders} solleciti">📧 ×${reminders}</span>` : ''}
+                        ${reminders > 0 ? `<span class="li-flag orange" title="${reminders} solleciti">${reminders} sollecit${reminders == 1 ? 'o' : 'i'}</span>` : ''}
                     </div>
-                    <div class="list-subtitle" style="margin-top:4px">${inv.service || ''} · ${fmtDate(inv.date || inv.createdAt)}</div>
+                    <div class="list-subtitle li-meta" style="margin-top:4px">${inv.service || ''}<span class="sep">·</span>${fmtDate(inv.date || inv.createdAt)}</div>
                 </div>
-                <div class="list-meta"><div class="list-value ${inv.status === 'paid' ? 'text-green' : 'text-gold'}">€${(inv.amount || 0).toLocaleString('it-IT')}</div><span class="badge ${inv.status === 'paid' ? 'green' : 'orange'}">${inv.status === 'paid' ? 'Pagata' : 'In Attesa'}</span></div>
+                <div class="list-meta"><div class="li-money-val ${inv.status === 'paid' ? 'green' : ''}" style="font-size:16px">€${(inv.amount || 0).toLocaleString('it-IT')}</div><span class="badge ${inv.status === 'paid' ? 'green' : 'orange'}">${inv.status === 'paid' ? 'Pagata' : 'In attesa'}</span></div>
                 <div style="display:flex;gap:4px">
                     ${inv.status === 'pending' ? `<button class="btn btn-xs" onclick="event.stopPropagation();showPaymentLink('inv','${inv.id}')" title="Link di pagamento con carta (non scade)">💳</button>` : ''}
                     ${inv.status === 'pending' && r.email ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();sendInvoiceReminder('${inv.id}')" title="Invia sollecito email">📧</button>` : ''}
@@ -8187,28 +8279,31 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const lc = u.role === 'landlord' ? landlordCompleteness(u) : null;
             const lRev = u.role === 'landlord' ? monthlyRevenue(u.id) : 0;
 
+            // Rifinitura II: la casa/il portafoglio scendono nel metadato (sono
+            // contesto, non un segnale), i segnali diventano flag quieti, il
+            // punteggio affidabilità è un flag tinto per fascia.
             let extraInfo = '';
             if (u.role === 'tenant' && property) {
-                extraInfo = `<span style="background:var(--bg);padding:2px 8px;border-radius:4px;font-size:11px;margin-left:8px">🏠 ${property.name} · €${contract.rent}/m</span>`;
+                extraInfo = `<span class="sep">·</span>${property.name} · €${contract.rent}/m`;
             } else if (u.role === 'landlord' && ownedProps.length > 0) {
-                extraInfo = `<span style="background:var(--bg);padding:2px 8px;border-radius:4px;font-size:11px;margin-left:8px">🏢 ${ownedProps.length} immobili${lRev > 0 ? ' · €' + lRev.toLocaleString('it-IT') + '/m' : ''}</span>`;
+                extraInfo = `<span class="sep">·</span>${ownedProps.length} immobili${lRev > 0 ? ' · €' + lRev.toLocaleString('it-IT') + '/m' : ''}`;
             }
 
-            return `<div class="list-item clickable user-item" data-role="${u.role}" data-overdue="${overduePayments.length > 0}" data-incomplete="${lc && !lc.complete}" onclick="viewUser('${u.id}')" style="padding:14px 16px">
+            return `<div class="list-item clickable user-item" data-role="${u.role}" data-overdue="${overduePayments.length > 0}" data-incomplete="${lc && !lc.complete}" onclick="viewUser('${u.id}')">
                 <div class="avatar ${r.color}" style="width:44px;height:44px">${initials(u.name)}</div>
                 <div class="list-content" style="min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:6px">
                         ${u.name}
-                        ${u.id === S.profile.id ? '<span class="badge gray" style="font-size:9px">Tu</span>' : ''}
-                        ${overduePayments.length > 0 ? '<span class="badge red" style="font-size:9px">⚠️ RITARDO</span>' : ''}
-                        ${lc && !lc.complete ? `<span class="badge orange" style="font-size:9px" title="Mancano: ${esc(lc.missing.join(', '))}">⚠️ Dati ${lc.pct}%</span>` : ''}
-                        ${lc && lc.complete ? '<span class="badge green" style="font-size:9px">✓ Completo</span>' : ''}
-                        ${extraInfo}
+                        <span class="li-flags">
+                        ${u.id === S.profile.id ? '<span class="li-flag">Tu</span>' : ''}
+                        ${overduePayments.length > 0 ? '<span class="li-flag red">In ritardo</span>' : ''}
+                        ${lc && !lc.complete ? `<span class="li-flag orange" title="Mancano: ${esc(lc.missing.join(', '))}">Dati ${lc.pct}%</span>` : ''}
+                        ${lc && lc.complete ? '<span class="li-flag green">Dati completi</span>' : ''}
+                        ${score !== null ? `<span class="li-flag ${score >= 80 ? 'green' : score >= 50 ? 'orange' : 'red'}">Affidabilità ${score}%</span>` : ''}
+                        </span>
                     </div>
-                    <div class="list-subtitle" style="display:flex;align-items:center;gap:8px;margin-top:4px">
-                        <span>${u.email || 'No email'}</span>
-                        ${u.phone ? `<span>· ${u.phone}</span>` : ''}
-                        ${score !== null ? `<span style="margin-left:auto;font-size:11px;padding:2px 8px;border-radius:4px;background:${score >= 80 ? 'var(--green-light)' : score >= 50 ? 'var(--orange-light)' : 'var(--red-light)'};color:${score >= 80 ? 'var(--green)' : score >= 50 ? 'var(--orange)' : 'var(--red)'}">Affidabilità ${score}%</span>` : ''}
+                    <div class="list-subtitle li-meta" style="margin-top:4px">
+                        ${u.email || 'No email'}${u.phone ? `<span class="sep">·</span>${u.phone}` : ''}${extraInfo}
                     </div>
                 </div>
                 <div style="display:flex;align-items:center;gap:8px">
@@ -8237,12 +8332,27 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
 
             <!-- Stats -->
-            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px">
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer" onclick="filterUsers('all')"><div style="font-size:22px;font-weight:700;color:var(--gold)">${S.users.length}</div><div style="font-size:10px;color:var(--text-muted)">Totale</div></div>
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer" onclick="filterUsers('tenant')"><div style="font-size:22px;font-weight:700;color:var(--blue)">${tenants.length}</div><div style="font-size:10px;color:var(--text-muted)">👤 Inquilini</div></div>
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer" onclick="filterUsers('landlord')"><div style="font-size:22px;font-weight:700;color:var(--gold)">${landlords.length}</div><div style="font-size:10px;color:var(--text-muted)">🏠 Proprietari</div></div>
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer" onclick="filterUsers('admin')"><div style="font-size:22px;font-weight:700;color:var(--purple)">${admins.length}</div><div style="font-size:10px;color:var(--text-muted)">👁 Admin</div></div>
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer;${tenantsWithOverdue.length > 0 ? 'background:var(--red-light)' : ''}" onclick="filterUsers('overdue')"><div style="font-size:22px;font-weight:700;color:var(--red)">${tenantsWithOverdue.length}</div><div style="font-size:10px;color:var(--text-muted)">⚠️ Ritardo</div></div>
+            <div class="stats-grid" style="grid-template-columns:repeat(5,1fr)">
+                <div class="stat-card gold" onclick="filterUsers('all')">
+                    <div class="stat-value">${S.users.length}</div>
+                    <div class="stat-label">Totale</div>
+                </div>
+                <div class="stat-card blue" onclick="filterUsers('tenant')">
+                    <div class="stat-value">${tenants.length}</div>
+                    <div class="stat-label">Inquilini</div>
+                </div>
+                <div class="stat-card gold" onclick="filterUsers('landlord')">
+                    <div class="stat-value">${landlords.length}</div>
+                    <div class="stat-label">Proprietari</div>
+                </div>
+                <div class="stat-card purple" onclick="filterUsers('admin')">
+                    <div class="stat-value">${admins.length}</div>
+                    <div class="stat-label">Admin</div>
+                </div>
+                <div class="stat-card red" onclick="filterUsers('overdue')">
+                    <div class="stat-value">${tenantsWithOverdue.length}</div>
+                    <div class="stat-label">In ritardo</div>
+                </div>
             </div>
 
             ${landlords.length > 0 ? `<div class="card" style="margin-bottom:16px;padding:14px 16px;border:1px solid ${avgLandlordCompleteness < 70 ? 'var(--orange)' : 'var(--border)'};background:linear-gradient(180deg,rgba(212,175,55,0.04),transparent)">
@@ -8492,32 +8602,39 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             else if (isExpiring30) statusConfig = { color: 'red', bg: 'red-light', icon: '⚠️', text: `${days}gg rimasti` };
             else if (isExpiring60) statusConfig = { color: 'orange', bg: 'orange-light', icon: '⏰', text: `${days}gg rimasti` };
 
-            return `<div class="list-item clickable contract-item" data-status="${c.status}" data-expiring30="${isExpiring30}" data-expiring60="${isExpiring60}" onclick="viewContract('${c.id}')" style="padding:14px 16px">
+            // LA RIFINITURA (2026-08-19): stessa informazione, tre voci invece
+            // di una sola che urla. Lo STATO resta l'unico badge a tinta piena;
+            // i segnali secondari (ritardi, firma, deposito, pass, rifiniture)
+            // scendono nel grappolo quieto .li-flags; i metadati perdono le
+            // emoji; i tre riquadri colorati dei pagamenti diventano UN metro.
+            // Condizioni, handler e data-attribute sono IDENTICI a prima —
+            // filterContracts e il layer mobile (M2) leggono questa riga.
+            const totalInst = paidCount + pendingCount;
+            return `<div class="list-item clickable contract-item" data-status="${c.status}" data-expiring30="${isExpiring30}" data-expiring60="${isExpiring60}" onclick="viewContract('${c.id}')">
                 <div class="list-icon" style="background:var(--${statusConfig.bg});font-size:18px">${statusConfig.icon}</div>
                 <div class="list-content" style="flex:1;min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                         <span style="font-weight:600">${p?.name || 'Immobile'}</span>
                         <span class="badge ${statusConfig.color}">${statusConfig.text}</span>
-                        ${overdueCount > 0 ? `<span class="badge red" style="font-size:9px">⚠️ ${overdueCount} pagamenti in ritardo</span>` : ''}
-                        ${c.tenantPassGenerated && c.landlordPassGenerated ? `<span class="badge gold" style="font-size:9px"> Passes sent</span>` : ''}
-                        ${c.signatureStatus === 'none' ? `<span class="badge orange" style="font-size:9px">○ Da firmare</span>` : (c.signatureStatus === 'partial' ? `<span class="badge gold" style="font-size:9px">◐ Firma parziale</span>` : '')}
-                        ${c.signatureStatus === 'complete' && !c.finalizedAt ? `<span class="badge red" style="font-size:9px;cursor:pointer" onclick="event.stopPropagation();refinalizeContract('${c.id}')" title="Il post-firma (adempimenti/certificato/email) non è completo — clicca per rieseguirlo">⚠ Da rifinire · Rigenera</span>` : ''}
-                        ${Number(c.deposit) > 0 && (c.tenantSignature || c.signatureStatus === 'complete') ? (c.depositPaid ? `<span class="badge green" style="font-size:9px">💰 Deposito ✓</span>` : `<span class="badge orange" style="font-size:9px">💰 Deposito in attesa</span>`) : ''}
+                        <span class="li-flags">
+                        ${overdueCount > 0 ? `<span class="li-flag red">${overdueCount} in ritardo</span>` : ''}
+                        ${c.signatureStatus === 'none' ? `<span class="li-flag orange">Da firmare</span>` : (c.signatureStatus === 'partial' ? `<span class="li-flag gold">Firma parziale</span>` : '')}
+                        ${c.signatureStatus === 'complete' && !c.finalizedAt ? `<span class="li-flag red" onclick="event.stopPropagation();refinalizeContract('${c.id}')" title="Il post-firma (adempimenti/certificato/email) non è completo — clicca per rieseguirlo">Da rifinire · Rigenera</span>` : ''}
+                        ${Number(c.deposit) > 0 && (c.tenantSignature || c.signatureStatus === 'complete') ? (c.depositPaid ? `<span class="li-flag green">Deposito ✓</span>` : `<span class="li-flag orange">Deposito in attesa</span>`) : ''}
+                        ${c.tenantPassGenerated && c.landlordPassGenerated ? `<span class="li-flag">Pass inviati</span>` : ''}
+                        </span>
                     </div>
-                    <div class="list-subtitle" style="margin-top:4px">
-                        <span>👤 ${t?.name || 'N/A'}</span>
-                        <span style="margin-left:8px">🏠 ${l?.name || ''}</span>
-                        <span style="margin-left:8px">📅 ${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}</span>
+                    <div class="list-subtitle li-meta" style="margin-top:4px">
+                        <b>${t?.name || 'N/A'}</b>${l?.name ? `<span class="sep">·</span>${l.name}` : ''}<span class="sep">·</span>${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}
                     </div>
-                    <div style="display:flex;gap:12px;margin-top:8px;font-size:11px">
-                        <span style="padding:4px 8px;background:var(--bg);border-radius:4px">💳 ${paidCount} pagati</span>
-                        ${pendingCount > 0 ? `<span style="padding:4px 8px;background:var(--orange-light);border-radius:4px;color:var(--orange)">${pendingCount} in attesa</span>` : ''}
-                        ${c.deposit ? `<span style="padding:4px 8px;background:var(--blue-light);border-radius:4px;color:var(--blue)">Deposito €${c.deposit}</span>` : ''}
-                    </div>
+                    ${totalInst > 0 || c.deposit ? `<div class="li-meter${overdueCount > 0 ? ' late' : ''}">
+                        ${totalInst > 0 ? `<span class="li-meter-track"><span class="li-meter-fill" style="width:${Math.round((paidCount / totalInst) * 100)}%"></span></span>
+                        <span class="li-meter-txt"><b>${paidCount}/${totalInst}</b> rate${overdueCount > 0 ? ` · <b>${overdueCount} in ritardo</b>` : (pendingCount > 0 ? ` · ${pendingCount} in attesa` : '')}${c.deposit ? ` · dep. €${c.deposit}` : ''}</span>` : `<span class="li-meter-txt">dep. €${c.deposit}</span>`}
+                    </div>` : ''}
                 </div>
-                <div style="text-align:right">
-                    <div class="text-gold" style="font-size:18px;font-weight:600">€${c.rent || 0}</div>
-                    <div style="font-size:11px;color:var(--text-muted)">/mese</div>
+                <div class="li-money">
+                    <div class="li-money-val">€${(c.rent || 0).toLocaleString('it-IT')}</div>
+                    <div class="li-money-sub">/mese</div>
                 </div>
             </div>`;
         };
@@ -8537,26 +8654,26 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             ${renderSignRequestsSection()}
 
             <!-- Stats -->
-            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px">
-                <div class="card" style="padding:14px;text-align:center;cursor:pointer" onclick="filterContracts('all')">
-                    <div style="font-size:22px;font-weight:700;color:var(--gold)">${S.contracts.length}</div>
-                    <div style="font-size:10px;color:var(--text-muted)">Totale</div>
+            <div class="stats-grid" style="grid-template-columns:repeat(5,1fr)">
+                <div class="stat-card gold" onclick="filterContracts('all')">
+                    <div class="stat-value">${S.contracts.length}</div>
+                    <div class="stat-label">Totale</div>
                 </div>
-                <div class="card" style="padding:14px;text-align:center;cursor:pointer" onclick="filterContracts('active')">
-                    <div style="font-size:22px;font-weight:700;color:var(--green)">${active.length}</div>
-                    <div style="font-size:10px;color:var(--text-muted)">✓ Attivi</div>
+                <div class="stat-card green" onclick="filterContracts('active')">
+                    <div class="stat-value">${active.length}</div>
+                    <div class="stat-label">Attivi</div>
                 </div>
-                <div class="card" style="padding:14px;text-align:center;cursor:pointer;${expiring30.length > 0 ? 'background:var(--red-light)' : ''}" onclick="filterContracts('expiring30')">
-                    <div style="font-size:22px;font-weight:700;color:var(--red)">${expiring30.length}</div>
-                    <div style="font-size:10px;color:var(--text-muted)">⚠️ <30gg</div>
+                <div class="stat-card red" onclick="filterContracts('expiring30')">
+                    <div class="stat-value">${expiring30.length}</div>
+                    <div class="stat-label">Entro 30 giorni</div>
                 </div>
-                <div class="card" style="padding:14px;text-align:center;cursor:pointer;${expiring60.length > 0 ? 'background:var(--orange-light)' : ''}" onclick="filterContracts('expiring60')">
-                    <div style="font-size:22px;font-weight:700;color:var(--orange)">${expiring60.length}</div>
-                    <div style="font-size:10px;color:var(--text-muted)">⏰ 30-60gg</div>
+                <div class="stat-card orange" onclick="filterContracts('expiring60')">
+                    <div class="stat-value">${expiring60.length}</div>
+                    <div class="stat-label">31–60 giorni</div>
                 </div>
-                <div class="card" style="padding:14px;text-align:center;cursor:pointer" onclick="filterContracts('expired')">
-                    <div style="font-size:22px;font-weight:700;color:var(--text-muted)">${expired.length}</div>
-                    <div style="font-size:10px;color:var(--text-muted)">Scaduti</div>
+                <div class="stat-card" onclick="filterContracts('expired')">
+                    <div class="stat-value">${expired.length}</div>
+                    <div class="stat-label">Scaduti</div>
                 </div>
             </div>
 
@@ -8625,15 +8742,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             let reminderLevel = 0;
             let reminderText = '';
             if (isOverdueNow) {
-                if (daysLate >= 30) { reminderLevel = 4; reminderText = '🚨 Diffida'; }
-                else if (daysLate >= 15) { reminderLevel = 3; reminderText = '⚠️ 2° Sollecito'; }
-                else if (daysLate >= 5) { reminderLevel = 2; reminderText = '📧 1° Sollecito'; }
-                else { reminderLevel = 1; reminderText = '⏰ In Ritardo'; }
+                if (daysLate >= 30) { reminderLevel = 4; reminderText = 'Diffida'; }
+                else if (daysLate >= 15) { reminderLevel = 3; reminderText = '2° sollecito'; }
+                else if (daysLate >= 5) { reminderLevel = 2; reminderText = '1° sollecito'; }
+                else { reminderLevel = 1; reminderText = 'In ritardo'; }
             } else if (isDueSoon) {
-                reminderLevel = 0; reminderText = `⏳ ${daysToDue}gg`;
+                reminderLevel = 0; reminderText = `Tra ${daysToDue}gg`;
             }
 
-            const payMethod = p.stripeSessionId ? '<span class="badge blue" style="font-size:9px;padding:2px 6px">💳 Stripe</span>' : (p.status === 'paid' ? '<span class="badge" style="font-size:9px;padding:2px 6px;background:var(--bg-elevated)">Manuale</span>' : '');
+            const payMethod = p.stripeSessionId ? '<span class="li-flag blue">Stripe</span>' : (p.status === 'paid' ? '<span class="li-flag">Manuale</span>' : '');
 
             let statusConfig = { color: 'green', bg: 'green-light', icon: '✔' };
             if (isOverdueNow) statusConfig = { color: 'red', bg: 'red-light', icon: '⚠️' };
@@ -8641,27 +8758,31 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             else if (p.status === 'pending') statusConfig = { color: 'gold', bg: 'gold-light', icon: '⏳' };
 
             const _searchPay = [prop?.name, t?.name, p.month, p.amount, p.stripeSessionId ? 'stripe' : 'manuale'].filter(Boolean).join(' ').toLowerCase();
-            return `<div class="list-item clickable payment-item" data-status="${p.status}" data-overdue="${isOverdueNow}" data-duesoon="${isDueSoon}" data-stripe="${!!p.stripeSessionId}" data-search="${esc(_searchPay)}" onclick="openModal('editPayment',S.payments.find(x=>x.id==='${p.id}'))" style="padding:14px 16px">
+            // Rifinitura II: stessa disciplina della riga contratto — un badge
+            // di stato (il mese resta il badge neutro: è l'identificativo),
+            // i segnali nel grappolo, metadati senza emoji, importo tabellare
+            // col colore dello stato. Handler e data-attribute IDENTICI.
+            return `<div class="list-item clickable payment-item" data-status="${p.status}" data-overdue="${isOverdueNow}" data-duesoon="${isDueSoon}" data-stripe="${!!p.stripeSessionId}" data-search="${esc(_searchPay)}" onclick="openModal('editPayment',S.payments.find(x=>x.id==='${p.id}'))">
                 <div class="list-icon" style="background:var(--${statusConfig.bg});font-size:16px">${statusConfig.icon}</div>
                 <div class="list-content" style="flex:1;min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                         <span style="font-weight:600">${prop?.name || 'Pagamento'}</span>
                         <span class="badge gray" style="font-size:10px">${p.month || ''}</span>
+                        <span class="li-flags">
+                        ${isOverdueNow ? `<span class="li-flag red">${reminderText} · ${daysLate}gg</span>` : ''}
+                        ${isDueSoon ? `<span class="li-flag orange">${reminderText}</span>` : ''}
+                        ${p.tenantReported ? `<span class="li-flag green">Segnalato${p.proofUrl ? ' + ricevuta' : ''}</span>` : ''}
                         ${payMethod}
-                        ${isOverdueNow ? `<span class="badge red" style="font-size:9px">${reminderText} (${daysLate}gg)</span>` : ''}
-                        ${isDueSoon ? `<span class="badge orange" style="font-size:9px">${reminderText}</span>` : ''}
-                        ${p.remindersSent ? `<span style="font-size:10px;color:var(--text-muted)">📧${p.remindersSent}</span>` : ''}
-                        ${p.tenantReported ? `<span class="badge green" style="font-size:9px">💳 Segnalato${p.proofUrl ? ' + Ricevuta' : ''}</span>` : ''}
+                        ${p.remindersSent ? `<span class="li-flag">${p.remindersSent} sollecit${p.remindersSent == 1 ? 'o' : 'i'}</span>` : ''}
+                        </span>
                     </div>
-                    <div class="list-subtitle" style="margin-top:4px;display:flex;align-items:center;gap:8px">
-                        <span>👤 ${t?.name || 'N/A'}</span>
-                        ${t?.phone ? `<a href="https://wa.me/${t.phone.replace(/[^0-9]/g,'')}" target="_blank" onclick="event.stopPropagation()" style="font-size:11px;color:var(--green)">💬 WhatsApp</a>` : ''}
-                        <span>· ${p.status === 'paid' ? '✓ Pagato ' + fmtDate(p.paidDate) : 'Scadenza ' + fmtDate(p.dueDate)}</span>
+                    <div class="list-subtitle li-meta" style="margin-top:4px">
+                        <b>${t?.name || 'N/A'}</b>${t?.phone ? `<span class="sep">·</span><a href="https://wa.me/${t.phone.replace(/[^0-9]/g,'')}" target="_blank" onclick="event.stopPropagation()" style="color:var(--green)">WhatsApp</a>` : ''}<span class="sep">·</span>${p.status === 'paid' ? 'Pagato ' + fmtDate(p.paidDate) : 'Scadenza ' + fmtDate(p.dueDate)}
                     </div>
                 </div>
                 <div style="display:flex;align-items:center;gap:8px">
-                    <div style="text-align:right">
-                        <div class="${p.status === 'paid' ? 'text-green' : isOverdueNow ? 'text-red' : 'text-gold'}" style="font-size:18px;font-weight:600">€${p.amount || 0}</div>
+                    <div class="li-money">
+                        <div class="li-money-val ${p.status === 'paid' ? 'green' : isOverdueNow ? 'red' : ''}">€${(p.amount || 0).toLocaleString('it-IT')}</div>
                     </div>
                     ${p.status === 'pending' ? `
                         <div style="display:flex;flex-direction:column;gap:4px">
@@ -8690,30 +8811,30 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             ${overdue.length > 0 ? renderRecoveryPanel(overdue, overdueTotal) : ''}
 
             <!-- Stats Grid -->
-            <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px">
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer" onclick="filterPayments('all')">
-                    <div style="font-size:20px;font-weight:700;color:var(--gold)">${S.payments.length}</div>
-                    <div style="font-size:10px;color:var(--text-muted)">Totale</div>
+            <div class="stats-grid" style="grid-template-columns:repeat(6,1fr)">
+                <div class="stat-card gold" onclick="filterPayments('all')">
+                    <div class="stat-value">${S.payments.length}</div>
+                    <div class="stat-label">Totale</div>
                 </div>
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer;background:var(--green-light)" onclick="filterPayments('paid')">
-                    <div style="font-size:20px;font-weight:700;color:var(--green)">€${(paidTotal/1000).toFixed(1)}k</div>
-                    <div style="font-size:10px;color:var(--green)">${paid.length} Incassati</div>
+                <div class="stat-card green" onclick="filterPayments('paid')">
+                    <div class="stat-value">€${(paidTotal/1000).toFixed(1)}k</div>
+                    <div class="stat-label">${paid.length} Incassati</div>
                 </div>
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer;background:var(--blue-light)" onclick="filterPayments('stripe')">
-                    <div style="font-size:20px;font-weight:700;color:var(--blue)">${stripePaid.length}</div>
-                    <div style="font-size:10px;color:var(--blue)">💳 Stripe</div>
+                <div class="stat-card blue" onclick="filterPayments('stripe')">
+                    <div class="stat-value">${stripePaid.length}</div>
+                    <div class="stat-label">Stripe</div>
                 </div>
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer" onclick="filterPayments('pending')">
-                    <div style="font-size:20px;font-weight:700;color:var(--orange)">${pending.length}</div>
-                    <div style="font-size:10px;color:var(--text-muted)">⏳ In Attesa</div>
+                <div class="stat-card orange" onclick="filterPayments('pending')">
+                    <div class="stat-value">${pending.length}</div>
+                    <div class="stat-label">In attesa</div>
                 </div>
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer;${dueSoon.length > 0 ? 'background:var(--orange-light)' : ''}" onclick="filterPayments('duesoon')">
-                    <div style="font-size:20px;font-weight:700;color:var(--orange)">${dueSoon.length}</div>
-                    <div style="font-size:10px;color:var(--text-muted)">⏰ Prossimi 5gg</div>
+                <div class="stat-card orange" onclick="filterPayments('duesoon')">
+                    <div class="stat-value">${dueSoon.length}</div>
+                    <div class="stat-label">Prossimi 5 giorni</div>
                 </div>
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer;${overdue.length > 0 ? 'background:var(--red-light)' : ''}" onclick="filterPayments('overdue')">
-                    <div style="font-size:20px;font-weight:700;color:var(--red)">${overdue.length}</div>
-                    <div style="font-size:10px;color:var(--text-muted)">⚠️ Ritardo</div>
+                <div class="stat-card red" onclick="filterPayments('overdue')">
+                    <div class="stat-value">${overdue.length}</div>
+                    <div class="stat-label">In ritardo</div>
                 </div>
             </div>
 
@@ -9044,19 +9165,19 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const s = statusConfig[m.status] || statusConfig.open;
             const pr = priorityConfig[m.priority] || priorityConfig.normal;
 
-            return `<div class="list-item clickable maintenance-item" data-status="${m.status}" data-priority="${m.priority}" onclick="viewMaintenance('${m.id}')" style="padding:14px 16px;${m.priority === 'urgent' && m.status !== 'resolved' ? 'border-left:3px solid var(--red)' : ''}">
+            return `<div class="list-item clickable maintenance-item" data-status="${m.status}" data-priority="${m.priority}" onclick="viewMaintenance('${m.id}')" style="${m.priority === 'urgent' && m.status !== 'resolved' ? 'border-left:3px solid var(--red)' : ''}">
                 <div class="list-icon" style="background:var(--${s.bg});font-size:16px">${m.priority === 'urgent' && m.status !== 'resolved' ? '🚨' : s.icon}</div>
                 <div class="list-content" style="flex:1;min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                         <span style="font-weight:600">${esc(m.title)}</span>
-                        <span class="badge ${pr.color}" style="font-size:9px">${pr.icon} ${pr.text}</span>
                         <span class="badge ${s.color}">${s.text}</span>
-                        ${isOld ? `<span class="badge red" style="font-size:9px">⏰ ${ageInDays}gg</span>` : ''}
+                        <span class="li-flags">
+                        <span class="li-flag ${pr.color === 'blue' ? 'blue' : pr.color === 'red' ? 'red' : pr.color === 'orange' ? 'orange' : ''}">${pr.text}</span>
+                        ${isOld ? `<span class="li-flag red">${ageInDays}gg aperti</span>` : ''}
+                        </span>
                     </div>
-                    <div class="list-subtitle" style="margin-top:4px">
-                        <span>🏠 ${p?.name || 'N/A'}</span>
-                        <span style="margin-left:8px">👤 ${u?.name || 'N/A'}</span>
-                        <span style="margin-left:8px">📅 ${fmtDate(m.createdAt)}</span>
+                    <div class="list-subtitle li-meta" style="margin-top:4px">
+                        <b>${p?.name || 'N/A'}</b><span class="sep">·</span>${u?.name || 'N/A'}<span class="sep">·</span>${fmtDate(m.createdAt)}
                     </div>
                     ${m.description ? `<div style="font-size:12px;color:var(--text-muted);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:400px">${esc(m.description)}</div>` : ''}
                 </div>
@@ -9085,26 +9206,26 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>` : ''}
 
             <!-- Stats Grid -->
-            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px">
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer" onclick="filterMaintenance('all')">
-                    <div style="font-size:22px;font-weight:700;color:var(--gold)">${S.maintenance.length}</div>
-                    <div style="font-size:10px;color:var(--text-muted)">Totale</div>
+            <div class="stats-grid" style="grid-template-columns:repeat(5,1fr)">
+                <div class="stat-card gold" onclick="filterMaintenance('all')">
+                    <div class="stat-value">${S.maintenance.length}</div>
+                    <div class="stat-label">Totale</div>
                 </div>
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer" onclick="filterMaintenance('open')">
-                    <div style="font-size:22px;font-weight:700;color:var(--orange)">${open.length}</div>
-                    <div style="font-size:10px;color:var(--text-muted)">📋 Aperte</div>
+                <div class="stat-card orange" onclick="filterMaintenance('open')">
+                    <div class="stat-value">${open.length}</div>
+                    <div class="stat-label">Aperte</div>
                 </div>
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer" onclick="filterMaintenance('in_progress')">
-                    <div style="font-size:22px;font-weight:700;color:var(--blue)">${inProgress.length}</div>
-                    <div style="font-size:10px;color:var(--text-muted)">🔧 In Corso</div>
+                <div class="stat-card blue" onclick="filterMaintenance('in_progress')">
+                    <div class="stat-value">${inProgress.length}</div>
+                    <div class="stat-label">In corso</div>
                 </div>
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer;${urgent.length > 0 ? 'background:var(--red-light)' : ''}" onclick="filterMaintenance('urgent')">
-                    <div style="font-size:22px;font-weight:700;color:var(--red)">${urgent.length}</div>
-                    <div style="font-size:10px;color:var(--text-muted)">🚨 Urgenti</div>
+                <div class="stat-card red" onclick="filterMaintenance('urgent')">
+                    <div class="stat-value">${urgent.length}</div>
+                    <div class="stat-label">Urgenti</div>
                 </div>
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer" onclick="filterMaintenance('resolved')">
-                    <div style="font-size:22px;font-weight:700;color:var(--green)">${resolved.length}</div>
-                    <div style="font-size:10px;color:var(--text-muted)">✔ Risolte</div>
+                <div class="stat-card green" onclick="filterMaintenance('resolved')">
+                    <div class="stat-value">${resolved.length}</div>
+                    <div class="stat-label">Risolte</div>
                 </div>
             </div>
 
@@ -12503,14 +12624,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                         <span style="font-weight:600">${d.pinned ? '📌 ' : ''}${esc(d.name)}</span>
                         ${sourceBadge(d)}
-                        ${d.lang ? `<span class="badge gray" style="font-size:9px">${esc(d.lang)}</span>` : ''}
-                        ${d.shared ? '<span class="badge blue" style="font-size:9px">🔗 Condiviso</span>' : ''}
+                        <span class="li-flags">
+                        ${d.lang ? `<span class="li-flag">${esc(d.lang)}</span>` : ''}
+                        ${d.shared ? '<span class="li-flag blue">Condiviso</span>' : ''}
+                        </span>
                     </div>
-                    <div class="list-subtitle" style="margin-top:4px">
-                        ${u ? `<span style="background:${u.role==='landlord'?'var(--gold-light)':'var(--blue-light)'};padding:2px 8px;border-radius:4px;font-size:11px">${u.role === 'landlord' ? '🏠' : '👤'} ${esc(u.name)}</span>` : ''}
-                        ${prop ? `<span style="margin-left:8px">🏠 ${esc(prop.name)}</span>` : ''}
-                        ${d.refCode ? `<span style="margin-left:8px;color:var(--text-muted)">#${esc(d.refCode)}</span>` : ''}
-                        <span style="margin-left:8px">📅 ${fmtDate(d.createdAt)}</span>
+                    <div class="list-subtitle li-meta" style="margin-top:4px">
+                        ${u ? `<b>${esc(u.name)}</b>` : ''}${prop ? `${u ? '<span class="sep">·</span>' : ''}${esc(prop.name)}` : ''}${d.refCode ? `<span class="sep">·</span>#${esc(d.refCode)}` : ''}<span class="sep">·</span>${fmtDate(d.createdAt)}
                     </div>
                 </div>
                 <div style="display:flex;gap:4px" onclick="event.stopPropagation()">
@@ -13296,26 +13416,22 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <div class="page-actions"><button class="btn" onclick="openMyDocUploadModal()">+ ${isEN ? 'Upload' : 'Carica'}</button></div>
             </div>
 
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
-                <div class="card" style="padding:14px;text-align:center;cursor:pointer;${docFilter==='all'?'border-color:var(--gold)':''}" onclick="S.myDocFilter='all';renderPage()">
-                    <div style="font-size:20px;margin-bottom:4px">📊</div>
-                    <div style="font-size:20px;font-weight:700">${docs.length}</div>
-                    <div style="font-size:11px;color:var(--text-muted)">${isEN ? 'All' : 'Tutti'}</div>
+            <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+                <div class="stat-card gold" style="${docFilter==='all'?'border-color:rgba(212,175,55,0.45)':''}" onclick="S.myDocFilter='all';renderPage()">
+                    <div class="stat-value">${docs.length}</div>
+                    <div class="stat-label">${isEN ? 'All' : 'Tutti'}</div>
                 </div>
-                <div class="card" style="padding:14px;text-align:center;cursor:pointer;${docFilter==='contract'?'border-color:var(--gold)':''}" onclick="S.myDocFilter='contract';renderPage()">
-                    <div style="font-size:20px;margin-bottom:4px">📋</div>
-                    <div style="font-size:20px;font-weight:700">${docs.filter(d => d.type === 'contract').length}</div>
-                    <div style="font-size:11px;color:var(--text-muted)">${isEN ? 'Contracts' : 'Contratti'}</div>
+                <div class="stat-card" style="${docFilter==='contract'?'border-color:rgba(212,175,55,0.45)':''}" onclick="S.myDocFilter='contract';renderPage()">
+                    <div class="stat-value">${docs.filter(d => d.type === 'contract').length}</div>
+                    <div class="stat-label">${isEN ? 'Contracts' : 'Contratti'}</div>
                 </div>
-                <div class="card" style="padding:14px;text-align:center;cursor:pointer;${docFilter==='id'?'border-color:var(--gold)':''}" onclick="S.myDocFilter='id';renderPage()">
-                    <div style="font-size:20px;margin-bottom:4px">🪪</div>
-                    <div style="font-size:20px;font-weight:700">${docs.filter(d => d.type === 'id').length}</div>
-                    <div style="font-size:11px;color:var(--text-muted)">ID</div>
+                <div class="stat-card" style="${docFilter==='id'?'border-color:rgba(212,175,55,0.45)':''}" onclick="S.myDocFilter='id';renderPage()">
+                    <div class="stat-value">${docs.filter(d => d.type === 'id').length}</div>
+                    <div class="stat-label">ID</div>
                 </div>
-                <div class="card" style="padding:14px;text-align:center;cursor:pointer;${docFilter==='receipt'?'border-color:var(--gold)':''}" onclick="S.myDocFilter='receipt';renderPage()">
-                    <div style="font-size:20px;margin-bottom:4px">🧾</div>
-                    <div style="font-size:20px;font-weight:700">${docs.filter(d => d.type === 'receipt').length}</div>
-                    <div style="font-size:11px;color:var(--text-muted)">${isEN ? 'Receipts' : 'Ricevute'}</div>
+                <div class="stat-card" style="${docFilter==='receipt'?'border-color:rgba(212,175,55,0.45)':''}" onclick="S.myDocFilter='receipt';renderPage()">
+                    <div class="stat-value">${docs.filter(d => d.type === 'receipt').length}</div>
+                    <div class="stat-label">${isEN ? 'Receipts' : 'Ricevute'}</div>
                 </div>
             </div>
 
@@ -26556,298 +26672,22 @@ IBAN: ${l.iban || '-'}`;
     // END ADE DOCUMENT CONVERTER
     // ========================================
 
-    // ========================================
-    // MULTI-PORTAL LISTINGS PUBLISHER
-    // ========================================
-    const listingState = {
-        drafts: JSON.parse(localStorage.getItem('boom_listing_drafts') || '[]'),
-        current: null,
-        editMode: false
-    };
-
-    const LISTING_DEFAULTS = {
-        operationType: 'affitto',
-        propertyType: 'appartamento',
-        furnished: 'arredato',
-        energyClass: 'G',
-        contractType: '4+4'
-    };
-
-    const ZONE_ROMA = [
-        'Centro Storico', 'Trastevere', 'San Lorenzo', 'Pigneto', 'Testaccio', 
-        'Prati', 'Flaminio', 'Monteverde', 'EUR', 'Ostiense', 'Garbatella',
-        'San Giovanni', 'Re di Roma', 'Tuscolano', 'Appio Latino', 'Nomentano',
-        'Parioli', 'Trieste', 'Salario', 'Bologna', 'Tiburtino', 'Prenestino',
-        'Centocelle', 'Alessandrino', 'Tor Vergata', 'Casilino', 'Quadraro'
-    ];
-
-
-
-    function openNewListing() {
-        listingState.current = { ...LISTING_DEFAULTS, id: null, createdAt: new Date().toISOString() };
-        listingState.editMode = true;
-        goTo('listings');
-    }
-
-    function editDraft(index) {
-        listingState.current = { ...listingState.drafts[index], _index: index };
-        listingState.editMode = true;
-        goTo('listings');
-    }
-
-    function cancelListingEdit() {
-        listingState.editMode = false;
-        listingState.current = null;
-        goTo('listings');
-    }
-
-    function getListingFormData() {
-        const features = [];
-        ['Balcone','Terrazzo','Ascensore','Aria Condizionata','Riscaldamento Autonomo','Posto Auto','Cantina','Giardino','Portiere','Fibra Ottica'].forEach(f => {
-            const el = document.getElementById('lst_feat_' + f.replace(/\s/g,''));
-            if (el && el.checked) features.push(f);
-        });
-
-        return {
-            operationType: document.getElementById('lst_opType')?.value || 'affitto',
-            propertyType: document.getElementById('lst_propType')?.value || 'appartamento',
-            address: document.getElementById('lst_address')?.value || '',
-            zone: document.getElementById('lst_zone')?.value || '',
-            cap: document.getElementById('lst_cap')?.value || '',
-            floor: document.getElementById('lst_floor')?.value || '',
-            price: document.getElementById('lst_price')?.value || '',
-            expenses: document.getElementById('lst_expenses')?.value || '',
-            sqm: document.getElementById('lst_sqm')?.value || '',
-            rooms: document.getElementById('lst_rooms')?.value || '2',
-            bedrooms: document.getElementById('lst_bedrooms')?.value || '1',
-            bathrooms: document.getElementById('lst_bathrooms')?.value || '1',
-            furnished: document.getElementById('lst_furnished')?.value || 'arredato',
-            energyClass: document.getElementById('lst_energy')?.value || 'G',
-            contractType: document.getElementById('lst_contract')?.value || '4+4',
-            availableFrom: document.getElementById('lst_availFrom')?.value || '',
-            deposit: document.getElementById('lst_deposit')?.value || '2',
-            features: features,
-            title: document.getElementById('lst_title')?.value || '',
-            description: document.getElementById('lst_description')?.value || ''
-        };
-    }
-
-    function saveDraft() {
-        const data = getListingFormData();
-        if (!data.address || !data.price) {
-            toast('warning', 'Inserisci almeno indirizzo e prezzo');
-            return;
-        }
-        
-        data.createdAt = listingState.current?.createdAt || new Date().toISOString();
-        data.updatedAt = new Date().toISOString();
-        data.id = listingState.current?.id || 'lst_' + Date.now();
-
-        const index = listingState.current?._index;
-        if (index !== undefined && index !== null) {
-            listingState.drafts[index] = data;
-        } else {
-            listingState.drafts.unshift(data);
-        }
-
-        localStorage.setItem('boom_listing_drafts', JSON.stringify(listingState.drafts));
-        toast('success', 'Bozza salvata!');
-        listingState.editMode = false;
-        listingState.current = null;
-        goTo('listings');
-    }
-
-    function deleteDraft(index) {
-        if (!confirm('Eliminare questa bozza?')) return;
-        listingState.drafts.splice(index, 1);
-        localStorage.setItem('boom_listing_drafts', JSON.stringify(listingState.drafts));
-        toast('success', 'Bozza eliminata');
-        goTo('listings');
-    }
-
-    function clearAllDrafts() {
-        if (!confirm('Eliminare TUTTE le bozze?')) return;
-        listingState.drafts = [];
-        localStorage.setItem('boom_listing_drafts', '[]');
-        toast('success', 'Tutte le bozze eliminate');
-        goTo('listings');
-    }
-
-    function generateTitle() {
-        const data = getListingFormData();
-        const typeMap = { appartamento: 'Appartamento', stanza: 'Stanza', monolocale: 'Monolocale', loft: 'Loft', attico: 'Attico' };
-        const furnMap = { arredato: 'arredato', parziale: 'parzialmente arredato', non_arredato: '' };
-        
-        let title = '';
-        if (data.propertyType === 'stanza') {
-            title = `Stanza ${data.furnished === 'arredato' ? 'arredata' : ''} in ${data.zone || 'Roma'}`;
-        } else {
-            const adj = ['Luminoso', 'Ampio', 'Accogliente', 'Elegante', 'Moderno'][Math.floor(Math.random() * 5)];
-            title = `${adj} ${typeMap[data.propertyType] || 'appartamento'} ${data.rooms ? data.rooms + ' locali' : ''} ${data.zone ? 'in zona ' + data.zone : 'a Roma'}`;
-        }
-        
-        document.getElementById('lst_title').value = title.trim();
-    }
-
-    function generateDescription() {
-        const d = getListingFormData();
-        const typeMap = { appartamento: 'appartamento', stanza: 'stanza', monolocale: 'monolocale', loft: 'loft', attico: 'attico' };
-        const furnMap = { arredato: 'completamente arredato', parziale: 'parzialmente arredato', non_arredato: 'non arredato' };
-        
-        let desc = '';
-        if (d.propertyType === 'stanza') {
-            desc = `Affittiamo stanza ${d.furnished === 'arredato' ? 'arredata' : ''} in appartamento condiviso in zona ${d.zone || 'Roma'}.
-
-La stanza è di ${d.sqm || '?'} mq, luminosa e silenziosa.${d.features.length > 0 ? ' L\'appartamento dispone di: ' + d.features.join(', ').toLowerCase() + '.' : ''}
-
-Canone mensile: €${d.price}${d.expenses ? ' + €' + d.expenses + ' spese' : ' spese incluse'}.
-Contratto: ${d.contractType || 'transitorio'}.
-Cauzione: ${d.deposit || 2} mensilità.
-${d.availableFrom ? 'Disponibile dal: ' + new Date(d.availableFrom).toLocaleDateString('it-IT') + '.' : 'Disponibile subito.'}
-
-Per info e visite contattare.`;
-        } else {
-            desc = `Proponiamo in affitto ${typeMap[d.propertyType] || 'appartamento'} di ${d.sqm || '?'} mq in zona ${d.zone || 'Roma'}.
-
-L'immobile, situato al ${d.floor ? (d.floor === 'T' ? 'piano terra' : d.floor === 'R' ? 'piano rialzato' : d.floor + '° piano') : 'piano'}, è composto da ${d.rooms || '?'} locali con ${d.bedrooms || '?'} ${d.bedrooms == 1 ? 'camera' : 'camere'} da letto e ${d.bathrooms || '?'} ${d.bathrooms == 1 ? 'bagno' : 'bagni'}.
-
-${d.furnished ? 'L\'appartamento è ' + furnMap[d.furnished] + '.' : ''} Classe energetica ${d.energyClass || 'G'}.
-${d.features.length > 0 ? 'Dotato di: ' + d.features.join(', ').toLowerCase() + '.' : ''}
-
-Canone mensile: €${d.price}${d.expenses ? ' + €' + d.expenses + ' spese condominiali' : ''}.
-Contratto: ${d.contractType || '4+4'}.
-Cauzione: ${d.deposit || 2} mensilità.
-${d.availableFrom ? 'Disponibile dal: ' + new Date(d.availableFrom).toLocaleDateString('it-IT') + '.' : 'Disponibile subito.'}
-
-Per informazioni e appuntamenti contattare.
-Riferimento: BOOM-${Date.now().toString(36).toUpperCase()}`;
-        }
-        
-        document.getElementById('lst_description').value = desc.trim();
-    }
-
-    function generateDescriptionEN() {
-        const d = getListingFormData();
-        const typeMap = { appartamento: 'apartment', stanza: 'room', monolocale: 'studio', loft: 'loft', attico: 'penthouse' };
-        const furnMap = { arredato: 'fully furnished', parziale: 'partially furnished', non_arredato: 'unfurnished' };
-        const featuresEN = {
-            'Balcone': 'balcony', 'Terrazzo': 'terrace', 'Ascensore': 'elevator', 'Aria Condizionata': 'A/C',
-            'Riscaldamento Autonomo': 'independent heating', 'Posto Auto': 'parking', 'Cantina': 'cellar',
-            'Giardino': 'garden', 'Portiere': 'doorman', 'Fibra Ottica': 'fiber optic'
-        };
-        
-        let desc = '';
-        if (d.propertyType === 'stanza') {
-            desc = `Room for rent in shared apartment in ${d.zone || 'Rome'}.
-
-The room is ${d.sqm || '?'} sqm, bright and quiet.${d.features.length > 0 ? ' The apartment has: ' + d.features.map(f => featuresEN[f] || f.toLowerCase()).join(', ') + '.' : ''}
-
-Monthly rent: €${d.price}${d.expenses ? ' + €' + d.expenses + ' utilities' : ' utilities included'}.
-Contract: ${d.contractType || 'transitional'}.
-Deposit: ${d.deposit || 2} months.
-${d.availableFrom ? 'Available from: ' + new Date(d.availableFrom).toLocaleDateString('en-GB') + '.' : 'Available immediately.'}
-
-Contact for info and viewings.`;
-        } else {
-            desc = `${typeMap[d.propertyType] || 'Apartment'} for rent, ${d.sqm || '?'} sqm in ${d.zone || 'Rome'}.
-
-Located on the ${d.floor ? (d.floor === 'T' ? 'ground' : d.floor === 'R' ? 'raised ground' : d.floor + (d.floor == 1 ? 'st' : d.floor == 2 ? 'nd' : d.floor == 3 ? 'rd' : 'th')) + ' floor' : ''}, the property features ${d.rooms || '?'} rooms with ${d.bedrooms || '?'} bedroom${d.bedrooms != 1 ? 's' : ''} and ${d.bathrooms || '?'} bathroom${d.bathrooms != 1 ? 's' : ''}.
-
-${d.furnished ? 'The apartment is ' + furnMap[d.furnished] + '.' : ''} Energy class ${d.energyClass || 'G'}.
-${d.features.length > 0 ? 'Features: ' + d.features.map(f => featuresEN[f] || f.toLowerCase()).join(', ') + '.' : ''}
-
-Monthly rent: €${d.price}${d.expenses ? ' + €' + d.expenses + ' condo fees' : ''}.
-Contract type: ${d.contractType || '4+4'}.
-Deposit: ${d.deposit || 2} months.
-${d.availableFrom ? 'Available from: ' + new Date(d.availableFrom).toLocaleDateString('en-GB') + '.' : 'Available immediately.'}
-
-Contact for information and appointments.
-Reference: BOOM-${Date.now().toString(36).toUpperCase()}`;
-        }
-        
-        document.getElementById('lst_description').value = desc.trim();
-    }
-
-    function loadTemplate(type) {
-        const templates = {
-            monolocale: {
-                propertyType: 'monolocale', rooms: '1', bedrooms: '0', bathrooms: '1',
-                sqm: '30', price: '750', expenses: '50', furnished: 'arredato',
-                features: ['Aria Condizionata', 'Riscaldamento Autonomo']
-            },
-            bilocale: {
-                propertyType: 'appartamento', rooms: '2', bedrooms: '1', bathrooms: '1',
-                sqm: '55', price: '950', expenses: '80', furnished: 'arredato',
-                features: ['Balcone', 'Ascensore', 'Riscaldamento Autonomo']
-            },
-            stanza: {
-                propertyType: 'stanza', rooms: '1', bedrooms: '1', bathrooms: '1',
-                sqm: '14', price: '550', expenses: '0', furnished: 'arredato',
-                contractType: 'studenti', features: ['Fibra Ottica']
-            }
-        };
-        
-        listingState.current = { ...LISTING_DEFAULTS, ...templates[type], id: null, createdAt: new Date().toISOString() };
-        listingState.editMode = true;
-        goTo('listings');
-        toast('success', 'Template caricato');
-    }
-
-    function copyListingData(index) {
-        const d = index !== undefined ? listingState.drafts[index] : getListingFormData();
-        const text = `TITOLO: ${d.title || '-'}
-
-CARATTERISTICHE:
-• Tipo: ${d.propertyType || '-'}
-• Zona: ${d.zone || '-'}
-• Indirizzo: ${d.address || '-'}
-• Piano: ${d.floor || '-'}
-• Superficie: ${d.sqm || '-'} mq
-• Locali: ${d.rooms || '-'}
-• Camere: ${d.bedrooms || '-'}
-• Bagni: ${d.bathrooms || '-'}
-• Arredato: ${d.furnished || '-'}
-• Classe Energetica: ${d.energyClass || '-'}
-
-PREZZO:
-• Canone: €${d.price || '-'}/mese
-• Spese: €${d.expenses || '0'}
-• Cauzione: ${d.deposit || '2'} mesi
-• Contratto: ${d.contractType || '-'}
-
-DESCRIZIONE:
-${d.description || '-'}`;
-        
-        navigator.clipboard.writeText(text);
-        toast('success', 'Dati copiati!');
-    }
-
-    function publishToImmobiliare(index) {
-        const d = index !== undefined ? listingState.drafts[index] : getListingFormData();
-        
-        // Copy data to clipboard for easy paste
-        copyListingData(index);
-        
-        // Open Immobiliare in new tab
-        window.open('https://www.immobiliare.it/pubblica-annuncio/', '_blank');
-        
-        toast('success', 'Dati copiati! Immobiliare.it aperto in nuova tab');
-    }
-
-    function publishToIdealista(index) {
-        const d = index !== undefined ? listingState.drafts[index] : getListingFormData();
-        
-        // Copy data to clipboard for easy paste
-        copyListingData(index);
-        
-        // Open Idealista in new tab
-        window.open('https://www.idealista.it/info/pubblica-annuncio', '_blank');
-        
-        toast('success', 'Dati copiati! Idealista aperto in nuova tab');
-    }
-    // ========================================
-    // END MULTI-PORTAL LISTINGS PUBLISHER
-    // ========================================
+    // ════════════════════════════════════════════════════════════════════
+    // MULTI-PORTAL LISTINGS PUBLISHER — RIMOSSO (2026-08-19)
+    //
+    // 292 righe, 14 funzioni, un'ISOLA CHIUSA: `listingState` e
+    // `LISTING_DEFAULTS` non erano letti da nessuno fuori di qui, e
+    // l'unico ingresso (`openNewListing`) non lo chiamava nessuno. Un
+    // editor annunci con le bozze in localStorage, che "pubblicava"
+    // copiando i dati negli appunti e aprendo il portale in una scheda.
+    //
+    // Superato per intero e da tempo: gli annunci nascono dal bot Telegram
+    // (/api/wizard/publish), le foto dal Photo Lab, il testo dal Copywriter
+    // e la pubblicazione sui portali è il mestiere del Pubblicista
+    // (api/publisher/*), che tiene stato, diff e rapporti.
+    //
+    // Il codice resta in git (git log -S openNewListing).
+    // ════════════════════════════════════════════════════════════════════
 
     // ========================================
     // ASSEVERAZIONI - Checklist & Workflow

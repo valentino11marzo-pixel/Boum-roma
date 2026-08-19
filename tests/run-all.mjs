@@ -7,6 +7,7 @@
 // playwright-core non c'è, così `npm test` gira ovunque senza setup.
 
 import { spawn } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 
 const SUITES = [
   { name: 'money',    file: 'tests/money/run.mjs',        what: 'percorsi soldi: checkout, webhook, conversione PA' },
@@ -63,12 +64,17 @@ const SUITES = [
   { name: 'signlang', file: 'tests/sign/lang.mjs',        what: 'la pagina di firma parla la lingua di chi firma' },
   { name: 'market',   file: 'tests/market/engine.mjs',   what: 'il libro mastro del Perito: un blocco non e una morte, i contatti non entrano, sotto campione niente numeri' },
   { name: 'marketwiring', file: 'tests/market/wiring.mjs', what: 'le giunzioni del Perito: tap best-effort dopo il master, verdetto solo lato server, rules e cron presenti' },
+  { name: 'radar',    file: 'tests/radar/run.mjs',        what: 'Il Radar 2.0: due portali = UNA casa (mai falsi merge), il fiuto tace senza campione, le vedette vedono solo il futuro, il Valutatore corregge sui canoni FIRMATI, e con il radar rotto il servizio pagato non si ferma' },
+  { name: 'outreach', file: 'tests/outreach/run.mjs',     what: 'Il Contatto: solo il messaggio APPROVATO e intatto, mai un telefono nel testo, lease anti doppio-invio, esito incerto = parcheggio immediato, il battito anche a coda vuota' },
   { name: 'squadra',  file: 'tests/squadra/registry.mjs', what: 'organigramma: nessun cron gira senza comparire, e chi agisce da solo lo dichiara' },
   { name: 'desk',     file: 'tests/squadra/desk.mjs',     what: 'la scrivania si disegna tutta senza Firestore, coi confini di ogni agente in chiaro' },
   { name: 'contractpdf', file: 'tests/contractpdf/run.mjs', what: 'il PDF del contratto in UNA copia: nasce anche dal rail PA (convert/send-sign/lookup), mai sotto una firma viva, jspdf pinnato nei due manifest' },
   { name: 'safari',   file: 'tests/safari/boot.mjs',      what: 'nessuna pagina autenticata resta appesa' },
   { name: 'mobile',   file: 'tests/mobile/run.mjs',       what: 'M2 Portal App: giunzioni su portal-app.js (nomi campo, sezioni, ordine, CSS gated, sw)' },
   { name: 'mobileui', file: 'tests/mobile/ui.mjs',        what: 'M2 Portal App in un browser vero: tab bar, sheet, wizard contratti (validazione LORO), rotazione, kill switch' },
+  { name: 'oggi',     file: 'tests/oggi/run.mjs',         what: 'Oggi: la coda delle decisioni ordina per costo del ritardo, ogni azione dichiarata esiste, il polso dei soldi fa i conti giusti' },
+  { name: 'finish',   file: 'tests/finish/run.mjs',       what: 'La Rifinitura: nessun colore inventato, nessun selettore morto, la riga contratto ridisegnata non perde handler né condizioni' },
+  { name: 'actions',  file: 'tests/actions/run.mjs',      what: 'Il Prontuario: ogni azione dichiarata esiste davvero (22 documenti, sezioni, modali), la ricerca trova per sinonimo e prefisso, e le due facce leggono lo stesso registro' },
   { name: 'desktop',  file: 'tests/desktop/run.mjs',      what: 'D1 BOOM OS: giunzioni su portal-app.js (comandi veri, query 920 condivisa, motore di ricerca sollevato mai copiato)' },
   { name: 'desktopui', file: 'tests/desktop/ui.mjs',      what: 'D1 BOOM OS in un browser vero: ⌘K, chord, peek drawer, il confine dei 920px attraversato nei due sensi' },
 ];
@@ -89,6 +95,31 @@ const run = (file) => new Promise((resolve) => {
 });
 
 const B = '\x1b[1m', G = '\x1b[32m', R = '\x1b[31m', Y = '\x1b[33m', X = '\x1b[0m';
+
+// ── PRE-VOLO: nessuna suite può essere verde su UNA SOLA macchina ───────
+// Il 19 agosto 2026, il giorno in cui la CI ha cominciato a lanciarle tutte
+// davvero, tre suite sono cadute all'istante — non per un difetto del
+// prodotto, ma perché passavano a playwright un `executablePath` cablato
+// alla Chromium di questa macchina. Non trovandolo, playwright non ripiega
+// sul browser che ha installato: muore. Erano verdi su un solo schermo al
+// mondo, e nessuno poteva accorgersene perché nessuno le eseguiva altrove.
+// Ora il percorso vive in tests/_browser.mjs, dove vale come SUGGERIMENTO
+// (si usa se il file esiste). Questo controllo impedisce che ricompaia.
+{
+  const offenders = [];
+  for (const s of SUITES) {
+    let src = '';
+    try { src = readFileSync(new URL('../' + s.file, import.meta.url), 'utf8'); } catch { continue; }
+    const code = src.replace(/^\s*\/\/.*$/gm, '');
+    if (/executablePath[^\n]*\/opt\//.test(code)) offenders.push(s.file);
+  }
+  if (offenders.length) {
+    console.log(`${R}${B}Percorso browser cablato (verde su una macchina sola):${X} ${offenders.join(', ')}`);
+    console.log('  Usa launchOptions() da tests/_browser.mjs.');
+    process.exit(1);
+  }
+}
+
 let failed = [];
 const t0 = Date.now();
 
