@@ -1,0 +1,138 @@
+/* ════════════════════════════════════════════════════════════════════════
+   LA RIFINITURA — il passo di design sulle superfici interne (2026-08-19)
+
+   Perché esiste, in tre righe: il design system del portale (portal.css)
+   è sano, ma le COMPOSIZIONI sono rumorose — nella riga contratto
+   convivevano fino a sette badge a tinta piena, tre chip con tre sfondi
+   diversi e emoji dentro i dati. La calma non si ottiene spegnendo i
+   colori del sistema (il badge di stato DEVE avere la sua tinta): si
+   ottiene dando a ogni livello di informazione la sua voce — uno stato
+   pieno, un grappolo di segnali quieti, una riga di metadati muta.
+
+   Le regole della casa valgono anche qui:
+   · SOLO token esistenti (var(--…)) o veli bianco/nero/oro — mai un
+     colore nuovo: un file che inventa tinte è un secondo brand.
+   · SOLO selettori che il portale emette davvero — una regola che non
+     matcha niente è una bugia che nessuno vede (test: dead selectors).
+   · Niente transform sui chip-filtro: la molla del bottone (.btn:hover
+     del blocco polish) sta bene sulle azioni, non sui filtri.
+   Kill switch: ?nofinish=1 · localStorage boom_no_finish='1'.
+   Test: node tests/finish/run.mjs
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── I FILTRI DIVENTANO CHIP — tutte e 5 le famiglie insieme ─────────────
+   contract/payment/user/maintenance/rules-filter erano bottoni normali:
+   il filtro attivo si riconosceva solo perché PERDEVA btn-secondary e
+   ricadeva sul bottone oro pieno — un filtro vestito da azione primaria.
+   Ora sono chip: quieti da spenti, velo oro da attivi. La specificità
+   .btn.x-filter batte .btn-secondary senza !important. */
+.btn.contract-filter, .btn.payment-filter, .btn.user-filter,
+.btn.maintenance-filter, .btn.rules-filter {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    border-radius: 100px;
+    padding: 6px 14px;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: .3px;
+    box-shadow: none;
+}
+.btn.contract-filter:hover:not(:disabled), .btn.payment-filter:hover:not(:disabled),
+.btn.user-filter:hover:not(:disabled), .btn.maintenance-filter:hover:not(:disabled),
+.btn.rules-filter:hover:not(:disabled) {
+    background: rgba(255,255,255,0.04);
+    border-color: rgba(255,255,255,0.18);
+    color: var(--text);
+    transform: none;
+    box-shadow: none;
+}
+.btn.contract-filter.active, .btn.payment-filter.active, .btn.user-filter.active,
+.btn.maintenance-filter.active, .btn.rules-filter.active {
+    background: var(--gold-light);
+    border-color: rgba(212,175,55,0.45);
+    color: var(--gold);
+    font-weight: 600;
+}
+/* i filtri d'allarme (Urgenti/In scadenza) restano chip, ma parlano col
+   colore del testo — non con un fondo pieno che urla quanto lo stato vero */
+.btn.btn-danger.contract-filter, .btn.btn-danger.payment-filter {
+    color: var(--red); border-color: var(--red-light); background: transparent;
+}
+.btn.btn-warning.contract-filter, .btn.btn-warning.payment-filter {
+    color: var(--orange); border-color: var(--orange-light); background: transparent;
+}
+
+/* ── IL GRAPPOLO DEI SEGNALI (.li-flags) ─────────────────────────────────
+   Il posto dove finiscono i badge secondari della riga: firma, deposito,
+   pass, rifiniture. Ogni segnale è un puntino colorato + testo in
+   micro-maiuscole dentro un anello sottile — la semantica resta nel
+   colore del puntino, la riga smette di essere un arcobaleno.
+   Un segnale d'allarme (rosso/arancio) tinge anche il testo: l'occhio
+   lo trova comunque per primo. */
+.li-flags { display: inline-flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+.li-flag {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 8px;
+    border-radius: 100px;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.09);
+    font-size: 9.5px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .4px;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+}
+.li-flag::before {
+    content: ''; width: 5px; height: 5px; border-radius: 50%;
+    background: var(--text-muted); flex-shrink: 0;
+}
+.li-flag.green::before  { background: var(--green); }
+.li-flag.gold::before   { background: var(--gold); }
+.li-flag.red    { color: var(--red); }
+.li-flag.red::before    { background: var(--red); }
+.li-flag.orange { color: var(--orange); }
+.li-flag.orange::before { background: var(--orange); }
+.li-flag[onclick] { cursor: pointer; }
+.li-flag[onclick]:hover { box-shadow: inset 0 0 0 1px rgba(255,255,255,0.22); color: var(--text); }
+
+/* ── LA RIGA DEI METADATI (.li-meta) — dati senza emoji ──────────────────
+   "👤 Ugo · 🏠 Bianchi · 📅 date" diventa testo con separatori a punto:
+   l'inquilino è l'informazione che si cerca → un filo più chiaro. */
+.li-meta { font-size: 12px; color: var(--text-secondary); }
+.li-meta b { font-weight: 500; color: var(--text); }
+.li-meta .sep { margin: 0 7px; color: var(--text-muted); opacity: .6; }
+
+/* ── IL METRO DELLE RATE (.li-meter) ─────────────────────────────────────
+   Tre riquadri colorati diventano UN dispositivo: barra pagato/totale +
+   una riga di testo. Il rosso compare solo quando c'è un ritardo. */
+.li-meter { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.li-meter-track {
+    width: 64px; height: 4px; border-radius: 2px;
+    background: rgba(255,255,255,0.08);
+    overflow: hidden; flex-shrink: 0;
+}
+.li-meter-fill {
+    /* display:block È la barra: il track è un flex item (blockificato dal
+       genitore flex), ma il fill è un normale figlio inline — e su un
+       inline la width in % viene IGNORATA. Senza questa riga il metro
+       restava una scanalatura vuota a qualsiasi percentuale. */
+    display: block; height: 100%; border-radius: 2px; background: var(--green);
+}
+.li-meter.late .li-meter-fill { background: var(--red); }
+.li-meter-txt {
+    font-size: 11px; color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+.li-meter-txt b { font-weight: 600; color: var(--text-secondary); }
+.li-meter.late .li-meter-txt b { color: var(--red); }
+
+/* ── LA COLONNA DEL CANONE (.li-money) ───────────────────────────────────
+   Cifre tabellari così la colonna si allinea riga su riga; il peso cala
+   da 600 a 500 — l'oro basta da solo a dire "questi sono i soldi". */
+.li-money { text-align: right; flex-shrink: 0; }
+.li-money-val {
+    font-size: 18px; font-weight: 500; color: var(--gold);
+    letter-spacing: -0.2px;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1, "lnum" 1;
+}
+.li-money-sub { font-size: 10.5px; color: var(--text-muted); margin-top: 1px; }

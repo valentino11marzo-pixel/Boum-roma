@@ -8236,12 +8236,27 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
 
             <!-- Stats -->
-            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px">
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer" onclick="filterUsers('all')"><div style="font-size:22px;font-weight:700;color:var(--gold)">${S.users.length}</div><div style="font-size:10px;color:var(--text-muted)">Totale</div></div>
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer" onclick="filterUsers('tenant')"><div style="font-size:22px;font-weight:700;color:var(--blue)">${tenants.length}</div><div style="font-size:10px;color:var(--text-muted)">👤 Inquilini</div></div>
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer" onclick="filterUsers('landlord')"><div style="font-size:22px;font-weight:700;color:var(--gold)">${landlords.length}</div><div style="font-size:10px;color:var(--text-muted)">🏠 Proprietari</div></div>
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer" onclick="filterUsers('admin')"><div style="font-size:22px;font-weight:700;color:var(--purple)">${admins.length}</div><div style="font-size:10px;color:var(--text-muted)">👁 Admin</div></div>
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer;${tenantsWithOverdue.length > 0 ? 'background:var(--red-light)' : ''}" onclick="filterUsers('overdue')"><div style="font-size:22px;font-weight:700;color:var(--red)">${tenantsWithOverdue.length}</div><div style="font-size:10px;color:var(--text-muted)">⚠️ Ritardo</div></div>
+            <div class="stats-grid" style="grid-template-columns:repeat(5,1fr)">
+                <div class="stat-card gold" onclick="filterUsers('all')">
+                    <div class="stat-value">${S.users.length}</div>
+                    <div class="stat-label">Totale</div>
+                </div>
+                <div class="stat-card blue" onclick="filterUsers('tenant')">
+                    <div class="stat-value">${tenants.length}</div>
+                    <div class="stat-label">Inquilini</div>
+                </div>
+                <div class="stat-card gold" onclick="filterUsers('landlord')">
+                    <div class="stat-value">${landlords.length}</div>
+                    <div class="stat-label">Proprietari</div>
+                </div>
+                <div class="stat-card purple" onclick="filterUsers('admin')">
+                    <div class="stat-value">${admins.length}</div>
+                    <div class="stat-label">Admin</div>
+                </div>
+                <div class="stat-card red" onclick="filterUsers('overdue')">
+                    <div class="stat-value">${tenantsWithOverdue.length}</div>
+                    <div class="stat-label">In ritardo</div>
+                </div>
             </div>
 
             ${landlords.length > 0 ? `<div class="card" style="margin-bottom:16px;padding:14px 16px;border:1px solid ${avgLandlordCompleteness < 70 ? 'var(--orange)' : 'var(--border)'};background:linear-gradient(180deg,rgba(212,175,55,0.04),transparent)">
@@ -8491,32 +8506,39 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             else if (isExpiring30) statusConfig = { color: 'red', bg: 'red-light', icon: '⚠️', text: `${days}gg rimasti` };
             else if (isExpiring60) statusConfig = { color: 'orange', bg: 'orange-light', icon: '⏰', text: `${days}gg rimasti` };
 
-            return `<div class="list-item clickable contract-item" data-status="${c.status}" data-expiring30="${isExpiring30}" data-expiring60="${isExpiring60}" onclick="viewContract('${c.id}')" style="padding:14px 16px">
+            // LA RIFINITURA (2026-08-19): stessa informazione, tre voci invece
+            // di una sola che urla. Lo STATO resta l'unico badge a tinta piena;
+            // i segnali secondari (ritardi, firma, deposito, pass, rifiniture)
+            // scendono nel grappolo quieto .li-flags; i metadati perdono le
+            // emoji; i tre riquadri colorati dei pagamenti diventano UN metro.
+            // Condizioni, handler e data-attribute sono IDENTICI a prima —
+            // filterContracts e il layer mobile (M2) leggono questa riga.
+            const totalInst = paidCount + pendingCount;
+            return `<div class="list-item clickable contract-item" data-status="${c.status}" data-expiring30="${isExpiring30}" data-expiring60="${isExpiring60}" onclick="viewContract('${c.id}')">
                 <div class="list-icon" style="background:var(--${statusConfig.bg});font-size:18px">${statusConfig.icon}</div>
                 <div class="list-content" style="flex:1;min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                         <span style="font-weight:600">${p?.name || 'Immobile'}</span>
                         <span class="badge ${statusConfig.color}">${statusConfig.text}</span>
-                        ${overdueCount > 0 ? `<span class="badge red" style="font-size:9px">⚠️ ${overdueCount} pagamenti in ritardo</span>` : ''}
-                        ${c.tenantPassGenerated && c.landlordPassGenerated ? `<span class="badge gold" style="font-size:9px"> Passes sent</span>` : ''}
-                        ${c.signatureStatus === 'none' ? `<span class="badge orange" style="font-size:9px">○ Da firmare</span>` : (c.signatureStatus === 'partial' ? `<span class="badge gold" style="font-size:9px">◐ Firma parziale</span>` : '')}
-                        ${c.signatureStatus === 'complete' && !c.finalizedAt ? `<span class="badge red" style="font-size:9px;cursor:pointer" onclick="event.stopPropagation();refinalizeContract('${c.id}')" title="Il post-firma (adempimenti/certificato/email) non è completo — clicca per rieseguirlo">⚠ Da rifinire · Rigenera</span>` : ''}
-                        ${Number(c.deposit) > 0 && (c.tenantSignature || c.signatureStatus === 'complete') ? (c.depositPaid ? `<span class="badge green" style="font-size:9px">💰 Deposito ✓</span>` : `<span class="badge orange" style="font-size:9px">💰 Deposito in attesa</span>`) : ''}
+                        <span class="li-flags">
+                        ${overdueCount > 0 ? `<span class="li-flag red">${overdueCount} in ritardo</span>` : ''}
+                        ${c.signatureStatus === 'none' ? `<span class="li-flag orange">Da firmare</span>` : (c.signatureStatus === 'partial' ? `<span class="li-flag gold">Firma parziale</span>` : '')}
+                        ${c.signatureStatus === 'complete' && !c.finalizedAt ? `<span class="li-flag red" onclick="event.stopPropagation();refinalizeContract('${c.id}')" title="Il post-firma (adempimenti/certificato/email) non è completo — clicca per rieseguirlo">Da rifinire · Rigenera</span>` : ''}
+                        ${Number(c.deposit) > 0 && (c.tenantSignature || c.signatureStatus === 'complete') ? (c.depositPaid ? `<span class="li-flag green">Deposito ✓</span>` : `<span class="li-flag orange">Deposito in attesa</span>`) : ''}
+                        ${c.tenantPassGenerated && c.landlordPassGenerated ? `<span class="li-flag">Pass inviati</span>` : ''}
+                        </span>
                     </div>
-                    <div class="list-subtitle" style="margin-top:4px">
-                        <span>👤 ${t?.name || 'N/A'}</span>
-                        <span style="margin-left:8px">🏠 ${l?.name || ''}</span>
-                        <span style="margin-left:8px">📅 ${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}</span>
+                    <div class="list-subtitle li-meta" style="margin-top:4px">
+                        <b>${t?.name || 'N/A'}</b>${l?.name ? `<span class="sep">·</span>${l.name}` : ''}<span class="sep">·</span>${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}
                     </div>
-                    <div style="display:flex;gap:12px;margin-top:8px;font-size:11px">
-                        <span style="padding:4px 8px;background:var(--bg);border-radius:4px">💳 ${paidCount} pagati</span>
-                        ${pendingCount > 0 ? `<span style="padding:4px 8px;background:var(--orange-light);border-radius:4px;color:var(--orange)">${pendingCount} in attesa</span>` : ''}
-                        ${c.deposit ? `<span style="padding:4px 8px;background:var(--blue-light);border-radius:4px;color:var(--blue)">Deposito €${c.deposit}</span>` : ''}
-                    </div>
+                    ${totalInst > 0 || c.deposit ? `<div class="li-meter${overdueCount > 0 ? ' late' : ''}">
+                        ${totalInst > 0 ? `<span class="li-meter-track"><span class="li-meter-fill" style="width:${Math.round((paidCount / totalInst) * 100)}%"></span></span>
+                        <span class="li-meter-txt"><b>${paidCount}/${totalInst}</b> rate${overdueCount > 0 ? ` · <b>${overdueCount} in ritardo</b>` : (pendingCount > 0 ? ` · ${pendingCount} in attesa` : '')}${c.deposit ? ` · dep. €${c.deposit}` : ''}</span>` : `<span class="li-meter-txt">dep. €${c.deposit}</span>`}
+                    </div>` : ''}
                 </div>
-                <div style="text-align:right">
-                    <div class="text-gold" style="font-size:18px;font-weight:600">€${c.rent || 0}</div>
-                    <div style="font-size:11px;color:var(--text-muted)">/mese</div>
+                <div class="li-money">
+                    <div class="li-money-val">€${(c.rent || 0).toLocaleString('it-IT')}</div>
+                    <div class="li-money-sub">/mese</div>
                 </div>
             </div>`;
         };
@@ -8536,26 +8558,26 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             ${renderSignRequestsSection()}
 
             <!-- Stats -->
-            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px">
-                <div class="card" style="padding:14px;text-align:center;cursor:pointer" onclick="filterContracts('all')">
-                    <div style="font-size:22px;font-weight:700;color:var(--gold)">${S.contracts.length}</div>
-                    <div style="font-size:10px;color:var(--text-muted)">Totale</div>
+            <div class="stats-grid" style="grid-template-columns:repeat(5,1fr)">
+                <div class="stat-card gold" onclick="filterContracts('all')">
+                    <div class="stat-value">${S.contracts.length}</div>
+                    <div class="stat-label">Totale</div>
                 </div>
-                <div class="card" style="padding:14px;text-align:center;cursor:pointer" onclick="filterContracts('active')">
-                    <div style="font-size:22px;font-weight:700;color:var(--green)">${active.length}</div>
-                    <div style="font-size:10px;color:var(--text-muted)">✓ Attivi</div>
+                <div class="stat-card green" onclick="filterContracts('active')">
+                    <div class="stat-value">${active.length}</div>
+                    <div class="stat-label">Attivi</div>
                 </div>
-                <div class="card" style="padding:14px;text-align:center;cursor:pointer;${expiring30.length > 0 ? 'background:var(--red-light)' : ''}" onclick="filterContracts('expiring30')">
-                    <div style="font-size:22px;font-weight:700;color:var(--red)">${expiring30.length}</div>
-                    <div style="font-size:10px;color:var(--text-muted)">⚠️ <30gg</div>
+                <div class="stat-card red" onclick="filterContracts('expiring30')">
+                    <div class="stat-value">${expiring30.length}</div>
+                    <div class="stat-label">Entro 30 giorni</div>
                 </div>
-                <div class="card" style="padding:14px;text-align:center;cursor:pointer;${expiring60.length > 0 ? 'background:var(--orange-light)' : ''}" onclick="filterContracts('expiring60')">
-                    <div style="font-size:22px;font-weight:700;color:var(--orange)">${expiring60.length}</div>
-                    <div style="font-size:10px;color:var(--text-muted)">⏰ 30-60gg</div>
+                <div class="stat-card orange" onclick="filterContracts('expiring60')">
+                    <div class="stat-value">${expiring60.length}</div>
+                    <div class="stat-label">31–60 giorni</div>
                 </div>
-                <div class="card" style="padding:14px;text-align:center;cursor:pointer" onclick="filterContracts('expired')">
-                    <div style="font-size:22px;font-weight:700;color:var(--text-muted)">${expired.length}</div>
-                    <div style="font-size:10px;color:var(--text-muted)">Scaduti</div>
+                <div class="stat-card" onclick="filterContracts('expired')">
+                    <div class="stat-value">${expired.length}</div>
+                    <div class="stat-label">Scaduti</div>
                 </div>
             </div>
 
@@ -8689,30 +8711,30 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             ${overdue.length > 0 ? renderRecoveryPanel(overdue, overdueTotal) : ''}
 
             <!-- Stats Grid -->
-            <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px">
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer" onclick="filterPayments('all')">
-                    <div style="font-size:20px;font-weight:700;color:var(--gold)">${S.payments.length}</div>
-                    <div style="font-size:10px;color:var(--text-muted)">Totale</div>
+            <div class="stats-grid" style="grid-template-columns:repeat(6,1fr)">
+                <div class="stat-card gold" onclick="filterPayments('all')">
+                    <div class="stat-value">${S.payments.length}</div>
+                    <div class="stat-label">Totale</div>
                 </div>
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer;background:var(--green-light)" onclick="filterPayments('paid')">
-                    <div style="font-size:20px;font-weight:700;color:var(--green)">€${(paidTotal/1000).toFixed(1)}k</div>
-                    <div style="font-size:10px;color:var(--green)">${paid.length} Incassati</div>
+                <div class="stat-card green" onclick="filterPayments('paid')">
+                    <div class="stat-value">€${(paidTotal/1000).toFixed(1)}k</div>
+                    <div class="stat-label">${paid.length} Incassati</div>
                 </div>
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer;background:var(--blue-light)" onclick="filterPayments('stripe')">
-                    <div style="font-size:20px;font-weight:700;color:var(--blue)">${stripePaid.length}</div>
-                    <div style="font-size:10px;color:var(--blue)">💳 Stripe</div>
+                <div class="stat-card blue" onclick="filterPayments('stripe')">
+                    <div class="stat-value">${stripePaid.length}</div>
+                    <div class="stat-label">Stripe</div>
                 </div>
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer" onclick="filterPayments('pending')">
-                    <div style="font-size:20px;font-weight:700;color:var(--orange)">${pending.length}</div>
-                    <div style="font-size:10px;color:var(--text-muted)">⏳ In Attesa</div>
+                <div class="stat-card orange" onclick="filterPayments('pending')">
+                    <div class="stat-value">${pending.length}</div>
+                    <div class="stat-label">In attesa</div>
                 </div>
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer;${dueSoon.length > 0 ? 'background:var(--orange-light)' : ''}" onclick="filterPayments('duesoon')">
-                    <div style="font-size:20px;font-weight:700;color:var(--orange)">${dueSoon.length}</div>
-                    <div style="font-size:10px;color:var(--text-muted)">⏰ Prossimi 5gg</div>
+                <div class="stat-card orange" onclick="filterPayments('duesoon')">
+                    <div class="stat-value">${dueSoon.length}</div>
+                    <div class="stat-label">Prossimi 5 giorni</div>
                 </div>
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer;${overdue.length > 0 ? 'background:var(--red-light)' : ''}" onclick="filterPayments('overdue')">
-                    <div style="font-size:20px;font-weight:700;color:var(--red)">${overdue.length}</div>
-                    <div style="font-size:10px;color:var(--text-muted)">⚠️ Ritardo</div>
+                <div class="stat-card red" onclick="filterPayments('overdue')">
+                    <div class="stat-value">${overdue.length}</div>
+                    <div class="stat-label">In ritardo</div>
                 </div>
             </div>
 
@@ -9084,26 +9106,26 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>` : ''}
 
             <!-- Stats Grid -->
-            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px">
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer" onclick="filterMaintenance('all')">
-                    <div style="font-size:22px;font-weight:700;color:var(--gold)">${S.maintenance.length}</div>
-                    <div style="font-size:10px;color:var(--text-muted)">Totale</div>
+            <div class="stats-grid" style="grid-template-columns:repeat(5,1fr)">
+                <div class="stat-card gold" onclick="filterMaintenance('all')">
+                    <div class="stat-value">${S.maintenance.length}</div>
+                    <div class="stat-label">Totale</div>
                 </div>
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer" onclick="filterMaintenance('open')">
-                    <div style="font-size:22px;font-weight:700;color:var(--orange)">${open.length}</div>
-                    <div style="font-size:10px;color:var(--text-muted)">📋 Aperte</div>
+                <div class="stat-card orange" onclick="filterMaintenance('open')">
+                    <div class="stat-value">${open.length}</div>
+                    <div class="stat-label">Aperte</div>
                 </div>
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer" onclick="filterMaintenance('in_progress')">
-                    <div style="font-size:22px;font-weight:700;color:var(--blue)">${inProgress.length}</div>
-                    <div style="font-size:10px;color:var(--text-muted)">🔧 In Corso</div>
+                <div class="stat-card blue" onclick="filterMaintenance('in_progress')">
+                    <div class="stat-value">${inProgress.length}</div>
+                    <div class="stat-label">In corso</div>
                 </div>
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer;${urgent.length > 0 ? 'background:var(--red-light)' : ''}" onclick="filterMaintenance('urgent')">
-                    <div style="font-size:22px;font-weight:700;color:var(--red)">${urgent.length}</div>
-                    <div style="font-size:10px;color:var(--text-muted)">🚨 Urgenti</div>
+                <div class="stat-card red" onclick="filterMaintenance('urgent')">
+                    <div class="stat-value">${urgent.length}</div>
+                    <div class="stat-label">Urgenti</div>
                 </div>
-                <div class="card" style="padding:12px;text-align:center;cursor:pointer" onclick="filterMaintenance('resolved')">
-                    <div style="font-size:22px;font-weight:700;color:var(--green)">${resolved.length}</div>
-                    <div style="font-size:10px;color:var(--text-muted)">✔ Risolte</div>
+                <div class="stat-card green" onclick="filterMaintenance('resolved')">
+                    <div class="stat-value">${resolved.length}</div>
+                    <div class="stat-label">Risolte</div>
                 </div>
             </div>
 
@@ -13295,26 +13317,22 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <div class="page-actions"><button class="btn" onclick="openMyDocUploadModal()">+ ${isEN ? 'Upload' : 'Carica'}</button></div>
             </div>
 
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
-                <div class="card" style="padding:14px;text-align:center;cursor:pointer;${docFilter==='all'?'border-color:var(--gold)':''}" onclick="S.myDocFilter='all';renderPage()">
-                    <div style="font-size:20px;margin-bottom:4px">📊</div>
-                    <div style="font-size:20px;font-weight:700">${docs.length}</div>
-                    <div style="font-size:11px;color:var(--text-muted)">${isEN ? 'All' : 'Tutti'}</div>
+            <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+                <div class="stat-card gold" style="${docFilter==='all'?'border-color:rgba(212,175,55,0.45)':''}" onclick="S.myDocFilter='all';renderPage()">
+                    <div class="stat-value">${docs.length}</div>
+                    <div class="stat-label">${isEN ? 'All' : 'Tutti'}</div>
                 </div>
-                <div class="card" style="padding:14px;text-align:center;cursor:pointer;${docFilter==='contract'?'border-color:var(--gold)':''}" onclick="S.myDocFilter='contract';renderPage()">
-                    <div style="font-size:20px;margin-bottom:4px">📋</div>
-                    <div style="font-size:20px;font-weight:700">${docs.filter(d => d.type === 'contract').length}</div>
-                    <div style="font-size:11px;color:var(--text-muted)">${isEN ? 'Contracts' : 'Contratti'}</div>
+                <div class="stat-card" style="${docFilter==='contract'?'border-color:rgba(212,175,55,0.45)':''}" onclick="S.myDocFilter='contract';renderPage()">
+                    <div class="stat-value">${docs.filter(d => d.type === 'contract').length}</div>
+                    <div class="stat-label">${isEN ? 'Contracts' : 'Contratti'}</div>
                 </div>
-                <div class="card" style="padding:14px;text-align:center;cursor:pointer;${docFilter==='id'?'border-color:var(--gold)':''}" onclick="S.myDocFilter='id';renderPage()">
-                    <div style="font-size:20px;margin-bottom:4px">🪪</div>
-                    <div style="font-size:20px;font-weight:700">${docs.filter(d => d.type === 'id').length}</div>
-                    <div style="font-size:11px;color:var(--text-muted)">ID</div>
+                <div class="stat-card" style="${docFilter==='id'?'border-color:rgba(212,175,55,0.45)':''}" onclick="S.myDocFilter='id';renderPage()">
+                    <div class="stat-value">${docs.filter(d => d.type === 'id').length}</div>
+                    <div class="stat-label">ID</div>
                 </div>
-                <div class="card" style="padding:14px;text-align:center;cursor:pointer;${docFilter==='receipt'?'border-color:var(--gold)':''}" onclick="S.myDocFilter='receipt';renderPage()">
-                    <div style="font-size:20px;margin-bottom:4px">🧾</div>
-                    <div style="font-size:20px;font-weight:700">${docs.filter(d => d.type === 'receipt').length}</div>
-                    <div style="font-size:11px;color:var(--text-muted)">${isEN ? 'Receipts' : 'Ricevute'}</div>
+                <div class="stat-card" style="${docFilter==='receipt'?'border-color:rgba(212,175,55,0.45)':''}" onclick="S.myDocFilter='receipt';renderPage()">
+                    <div class="stat-value">${docs.filter(d => d.type === 'receipt').length}</div>
+                    <div class="stat-label">${isEN ? 'Receipts' : 'Ricevute'}</div>
                 </div>
             </div>
 
