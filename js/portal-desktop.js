@@ -406,16 +406,60 @@ window.__pdLoaded = true;
         if (fields > 0) return;
         overlay.classList.add('pd-peek');
     }
+    // ═══ D2 — I FORM GRANDI PRENDONO I CAPITOLI (2026-08-19) ═══════════
+    // Su telefono i modali piatti diventano wizard (M2); su desktop erano
+    // rimasti muri da 15-22 campi. Il pattern delle console corporate non è
+    // il wizard (su desktop i passi nascondono il contesto): è il form
+    // SEZIONATO — header di capitolo tra i gruppi, tutto visibile, l'occhio
+    // salta di titolo in titolo. La mappa dei capitoli è LA STESSA di M2
+    // (window.BOOM_MOBILE.WIZ — una copia sola, la disciplina _avail.js);
+    // qui si INSERISCONO solo header, mai si spostano campi: FormData
+    // intatta per costruzione. Gated: gli header sono .pd-form-sec e sotto
+    // i 920px il CSS li spegne (se ruoti un iPad col modale aperto, M2
+    // riorganizza i campi e gli header non devono restare in mezzo).
+    function sectionizeForm(overlay) {
+        if (overlay.dataset.pdSec) return;
+        var WIZ = (window.BOOM_MOBILE && window.BOOM_MOBILE.WIZ) || null;
+        var type = st.lastModalType;
+        if (!WIZ || !type || !WIZ[type]) return;
+        var form = overlay.querySelector('.modal-body form') || overlay.querySelector('form');
+        if (!form) return;
+        var groups = form.querySelectorAll('.form-group, .form-row');
+        if (groups.length < 8) return;               // un form corto non ha bisogno di capitoli
+        overlay.dataset.pdSec = '1';
+        WIZ[type].forEach(function (ch) {
+            for (var i = 0; i < ch.f.length; i++) {
+                var name = ch.f[i], el = null;
+                if (name.slice(-1) === '*') el = form.querySelector('[name^="' + name.slice(0, -1) + '"]');
+                else el = form.querySelector('[name="' + name + '"]');
+                if (!el) continue;
+                var block = el.closest('.form-group, .form-row') || el;
+                if (block.previousElementSibling && block.previousElementSibling.classList.contains('pd-form-sec')) return;
+                var h = D.createElement('div');
+                h.className = 'pd-form-sec';
+                h.textContent = ch.t;
+                block.parentNode.insertBefore(h, block);
+                return;                              // un header per capitolo, sul PRIMO campo trovato
+            }
+        });
+    }
     function onModalsChange() {
         if (!st.active) return;
         var overlay = $('#modals .modal-overlay');
-        if (overlay) enhanceModal(overlay);
+        if (overlay) { enhanceModal(overlay); sectionizeForm(overlay); }
     }
 
     // ═══ TASTIERA GLOBALE ═══════════════════════════════════════════════
     function inEditor(t) {
         return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
     }
+    function hookOpenModal() {
+        if (typeof window.openModal !== 'function' || window.openModal.__pdWrap) return;
+        var om = window.openModal;
+        window.openModal = function (t, d) { st.lastModalType = t; return om.apply(this, arguments); };
+        window.openModal.__pdWrap = true;
+    }
+
     function onKeydown(e) {
         if (!st.active) return;
         var mod = e.metaKey || e.ctrlKey;
@@ -487,6 +531,7 @@ window.__pdLoaded = true;
     function onViewportChange() { if (mqMobile.matches) deactivate(); else activate(); }
 
     function boot() {
+        hookOpenModal();
         D.addEventListener('keydown', onKeydown);
         var modals = $('#modals');
         if (modals) new MutationObserver(onModalsChange).observe(modals, { childList: true });

@@ -70,6 +70,7 @@ const SUITES = [
   { name: 'safari',   file: 'tests/safari/boot.mjs',      what: 'nessuna pagina autenticata resta appesa' },
   { name: 'mobile',   file: 'tests/mobile/run.mjs',       what: 'M2 Portal App: giunzioni su portal-app.js (nomi campo, sezioni, ordine, CSS gated, sw)' },
   { name: 'mobileui', file: 'tests/mobile/ui.mjs',        what: 'M2 Portal App in un browser vero: tab bar, sheet, wizard contratti (validazione LORO), rotazione, kill switch' },
+  { name: 'oggi',     file: 'tests/oggi/run.mjs',         what: 'Oggi: la coda delle decisioni ordina per costo del ritardo, ogni azione dichiarata esiste, il polso dei soldi fa i conti giusti' },
   { name: 'finish',   file: 'tests/finish/run.mjs',       what: 'La Rifinitura: nessun colore inventato, nessun selettore morto, la riga contratto ridisegnata non perde handler né condizioni' },
   { name: 'actions',  file: 'tests/actions/run.mjs',      what: 'Il Prontuario: ogni azione dichiarata esiste davvero (22 documenti, sezioni, modali), la ricerca trova per sinonimo e prefisso, e le due facce leggono lo stesso registro' },
   { name: 'desktop',  file: 'tests/desktop/run.mjs',      what: 'D1 BOOM OS: giunzioni su portal-app.js (comandi veri, query 920 condivisa, motore di ricerca sollevato mai copiato)' },

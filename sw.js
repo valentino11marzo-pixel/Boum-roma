@@ -71,6 +71,7 @@ self.addEventListener('fetch', (event) => {
             || url.pathname === '/js/portal-mobile.js'
             || url.pathname === '/css/portal-mobile.css'
             || url.pathname === '/js/portal-actions.js'
+            || url.pathname === '/js/oggi-engine.js'
             || url.pathname === '/js/portal-desktop.js'
             || url.pathname === '/css/portal-desktop.css'
             || url.pathname === '/css/portal-finish.css') ? url.pathname : null);

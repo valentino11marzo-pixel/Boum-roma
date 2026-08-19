@@ -141,3 +141,17 @@
    verde = incassato, rosso = in ritardo. L'oro resta il default (dovuto). */
 .li-money-val.green { color: var(--green); }
 .li-money-val.red   { color: var(--red); }
+
+/* ── OGGI — la coda delle decisioni ──────────────────────────────────────
+   Le righe usano il linguaggio della Rifinitura (list-item + flag + meta);
+   qui solo la corsia delle azioni: i bottoni della decisione stanno a
+   destra e vanno a capo con grazia su schermi stretti. La ✕ è quieta:
+   nascondere non è un'azione, è un rinvio. */
+.og-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; align-items: center; flex-shrink: 0; }
+.og-actions .btn { font-size: 11.5px; padding: 6px 12px; }
+.og-actions .og-hide { opacity: .45; padding: 6px 9px; }
+.og-actions .og-hide:hover { opacity: 1; }
+@media (max-width: 700px) {
+    .og-item { flex-wrap: wrap; }
+    .og-actions { width: 100%; justify-content: flex-start; margin-top: 8px; }
+}

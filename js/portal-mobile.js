@@ -62,10 +62,14 @@ window.__pmLoaded = true;
     // Tab preferite in ordine: si pinnano le prime 4 PRESENTI nella sidebar
     // del ruolo corrente — così admin, landlord e tenant hanno ciascuno le
     // proprie senza una riga di codice per ruolo.
-    var PREF_TABS = ['dashboard', 'contracts', 'payments', 'viewings', 'leads', 'clienti',
+    // 'oggi' in testa: la coda delle decisioni è la prima schermata
+    // dell'operatore — la tab bar la offre come primo tap quando la
+    // sidebar del ruolo la porta (admin); per gli altri ruoli non esiste
+    // in sidebar e la lista scala da sola sul dashboard.
+    var PREF_TABS = ['oggi', 'dashboard', 'contracts', 'payments', 'viewings', 'leads', 'clienti',
         'my-contract', 'my-contracts', 'my-payments', 'my-maintenance', 'my-properties', 'my-documents'];
     var TAB_LABELS = {
-        dashboard: 'Oggi', contracts: 'Contratti', payments: 'Incassi', viewings: 'Visite',
+        oggi: 'Oggi', dashboard: 'Studio', contracts: 'Contratti', payments: 'Incassi', viewings: 'Visite',
         leads: 'Lead', clienti: 'Clienti', properties: 'Immobili',
         'my-contract': 'Contratto', 'my-contracts': 'Contratti', 'my-payments': 'Pagamenti',
         'my-maintenance': 'Guasti', 'my-properties': 'Immobili', 'my-documents': 'Documenti'

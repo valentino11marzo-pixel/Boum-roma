@@ -173,3 +173,16 @@ body.pd-on ::-webkit-scrollbar-track{background:transparent}
     .pd-cmd-backdrop,.pd-cmd{transition:none}
     body.pd-on .pd-peek .modal{animation:none}
 }
+
+/* ═══ D2 — gli header di capitolo nei form grandi ═══════════════════════
+   Micro-maiuscole col filo d'oro: l'occhio salta di titolo in titolo in un
+   form da 20 campi. Vivono SOLO sulla faccia desktop: sotto i 920px M2
+   riorganizza i campi in capitoli propri e questi header si spengono. */
+body.pd-on .pd-form-sec{
+    margin:22px 0 10px;padding-top:14px;
+    border-top:1px solid var(--border);
+    font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--gold);
+}
+body.pd-on .pd-form-sec:first-of-type{margin-top:4px;padding-top:0;border-top:none}
+body:not(.pd-on) .pd-form-sec{display:none}

@@ -3786,7 +3786,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
         
         buildNav();
-        goTo(window.location.hash.slice(1) || localStorage.getItem('boom_lastPage') || 'dashboard');
+        // La prima schermata dell'admin è la coda delle decisioni: il posto
+        // dove si COMANDA, non dove si guarda. Un hash esplicito (deep link,
+        // reload a metà lavoro) vince sempre; gli altri ruoli non cambiano.
+        goTo(window.location.hash.slice(1) || (isAdmin() ? 'oggi' : (localStorage.getItem('boom_lastPage') || 'dashboard')));
 
         // Check expiring contracts for review requests (admin, once per session)
         if (isAdmin() && !window._expiryChecked) {
@@ -3814,7 +3817,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             
             sb.innerHTML = `
                 <div class="nav-section"><div class="nav-label">Operativo</div>
-                    <div class="nav-item ${S.page==='dashboard'?'active':''}" onclick="goTo('dashboard')"><span class="nav-icon">📊</span> Dashboard ${urgentDeadlines?`<span class="nav-badge orange">${urgentDeadlines}</span>`:''}</div>
+                    <div class="nav-item ${S.page==='oggi'?'active':''}" onclick="goTo('oggi')"><span class="nav-icon">⚡</span> Oggi ${(S.actionQueue||[]).filter(a=>(a.status||'')==='pending'||(a.status||'')==='pending_approval').length + (S.viewingRequests||[]).filter(v=>v.status==='pending'||v.status==='rescheduled').length ? `<span class="nav-badge">${(S.actionQueue||[]).filter(a=>(a.status||'')==='pending'||(a.status||'')==='pending_approval').length + (S.viewingRequests||[]).filter(v=>v.status==='pending'||v.status==='rescheduled').length}</span>` : ''}</div>
+                    <div class="nav-item ${S.page==='dashboard'?'active':''}" onclick="goTo('dashboard')"><span class="nav-icon">📊</span> Studio ${urgentDeadlines?`<span class="nav-badge orange">${urgentDeadlines}</span>`:''}</div>
                     <div class="nav-item ${S.page==='command-center'?'active':''}" onclick="goTo('command-center')"><span class="nav-icon">⚡</span> Command Center ${pendingActions?`<span class="nav-badge gold">${pendingActions}</span>`:''}</div>
                     <div class="nav-item ${S.page==='leads'?'active':''}" onclick="goTo('leads')"><span class="nav-icon">📬</span> Lead ${newLeads?`<span class="nav-badge green">${newLeads}</span>`:''}</div>
                     <div class="nav-item ${S.page==='clienti'?'active':''}" onclick="goTo('clienti')"><span class="nav-icon">👥</span> Clienti ${(activeClients+urgentPFS)?`<span class="nav-badge gold">${activeClients+urgentPFS}</span>`:''}</div>
@@ -3934,6 +3938,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             // === Legacy redirects ===
             case 'crm': S.page = 'clienti'; m.innerHTML = isAdmin() ? clientiPage() : accessDenied(); buildNav(); break;
             case 'pfs-pipeline': S.page = 'clienti'; m.innerHTML = isAdmin() ? clientiPage() : accessDenied(); buildNav(); break;
+            case 'oggi': m.innerHTML = isAdmin() ? oggiPage() : accessDenied(); break;
             case 'command': S.page = 'dashboard'; m.innerHTML = isAdmin() ? adminDashboard() : accessDenied(); buildNav(); break;
             case 'listings': S.page = 'adminflats'; m.innerHTML = isAdmin() ? adminflatsPage() : accessDenied(); buildNav(); break;
             case 'property-engine': S.page = 'boom-tools'; m.innerHTML = isAdmin() ? boomToolsPage() : accessDenied(); buildNav(); break;
@@ -4290,6 +4295,90 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // ═══════════════════════════════════════════════════════════════════════════
     // DASHBOARDS
     // ═══════════════════════════════════════════════════════════════════════════
+    // ═══ OGGI — la coda delle decisioni (motore: js/oggi-engine.js) ═════
+    // La prima schermata dell'operatore: cosa aspetta la TUA firma, ordinato
+    // per costo del ritardo, con l'azione dentro la riga. Il giudizio sta
+    // tutto nel motore puro (BOOM_OGGI, testato in node); qui solo il
+    // disegno. Le azioni sono {fn, args} — la disciplina del Prontuario:
+    // si invoca una funzione globale ESISTENTE, mai una stringa di codice.
+    function oggiDismissKey() { return 'boom_oggi_hide_' + new Date().toISOString().slice(0, 10); }
+    function oggiDismiss(id) {
+        try {
+            const k = oggiDismissKey();
+            const cur = JSON.parse(localStorage.getItem(k) || '[]');
+            if (!cur.includes(id)) cur.push(id);
+            localStorage.setItem(k, JSON.stringify(cur));
+        } catch (e) { /* Safari privato: il nascondi non vale la pagina */ }
+        renderPage();
+    }
+    function oggiRun(id) {
+        // Un solo ponte per tutti i bottoni della coda: ritrova la decisione
+        // dal motore e invoca la sua funzione per RIFERIMENTO. Niente codice
+        // composto negli onclick, niente id sfuggiti a mano.
+        const d = (window.__oggiLast || []).find((x) => x.id === id.slice(0, id.lastIndexOf('#')));
+        const idx = parseInt(id.slice(id.lastIndexOf('#') + 1), 10);
+        const a = d && d.actions && d.actions[idx];
+        const f = a && window[a.fn];
+        if (typeof f === 'function') f.apply(window, a.args || []);
+    }
+    function oggiPage() {
+        const E = window.BOOM_OGGI;
+        if (!E || typeof E.build !== 'function') return adminDashboard();   // motore assente: mai una pagina vuota
+        const { decisions, cash } = E.build(S, new Date().toISOString());
+        window.__oggiLast = decisions;
+        let hidden = [];
+        try { hidden = JSON.parse(localStorage.getItem(oggiDismissKey()) || '[]'); } catch (e) { }
+        const live = decisions.filter((d) => !hidden.includes(d.id));
+        const shown = live.slice(0, 12);
+
+        const card = (d, i) => `<div class="list-item og-item" data-kind="${d.kind}">
+                <div class="list-icon" style="background:var(--${d.tint === 'red' ? 'red-light' : d.tint === 'orange' ? 'orange-light' : 'gold-light'});font-size:17px">${d.icon}</div>
+                <div class="list-content" style="flex:1;min-width:0">
+                    <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <span style="font-weight:600">${esc(d.title)}</span>
+                        <span class="li-flag ${d.tint === 'red' ? 'red' : d.tint === 'orange' ? 'orange' : 'gold'}">${esc(d.kind)}</span>
+                    </div>
+                    ${d.sub ? `<div class="list-subtitle li-meta" style="margin-top:3px">${esc(d.sub)}</div>` : ''}
+                </div>
+                <div class="og-actions">
+                    ${(d.actions || []).map((a, j) => `<button class="btn btn-sm ${a.primary ? '' : 'btn-secondary'}" onclick="event.stopPropagation();oggiRun('${d.id}#${j}')">${esc(a.label)}</button>`).join('')}
+                    <button class="btn btn-sm btn-secondary og-hide" title="Nascondi per oggi" onclick="event.stopPropagation();oggiDismiss('${d.id}')">✕</button>
+                </div>
+            </div>`;
+
+        return `<div class="page-header">
+                <div><h1 class="page-title">⚡ Oggi</h1><p class="page-subtitle">${live.length === 0 ? 'Zero decisioni in coda — la macchina lavora.' : `${live.length} decision${live.length === 1 ? 'e' : 'i'} in coda, ordinate per costo del ritardo`}</p></div>
+                <div class="page-actions">
+                    <button class="btn btn-secondary" onclick="goTo('dashboard')">📊 Studio</button>
+                    <button class="btn btn-secondary" onclick="forceRefreshData()" title="Ricarica i dati">↻</button>
+                </div>
+            </div>
+
+            <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+                <div class="stat-card green" onclick="goTo('payments')">
+                    <div class="stat-value">€${cash.paidMonth.toLocaleString('it-IT')}</div>
+                    <div class="stat-label">Incassato questo mese</div>
+                </div>
+                <div class="stat-card gold" onclick="goTo('payments')">
+                    <div class="stat-value">€${cash.dueMonth.toLocaleString('it-IT')}</div>
+                    <div class="stat-label">In arrivo nel mese</div>
+                </div>
+                <div class="stat-card red" onclick="goTo('payments')">
+                    <div class="stat-value">€${cash.overdueTotal.toLocaleString('it-IT')}</div>
+                    <div class="stat-label">${cash.overdueCount} in ritardo</div>
+                </div>
+                <div class="stat-card" onclick="goTo('payments')">
+                    <div class="stat-value">€${cash.next7.toLocaleString('it-IT')}</div>
+                    <div class="stat-label">Prossimi 7 giorni</div>
+                </div>
+            </div>
+
+            <div class="card"><div class="card-body flush">
+                ${shown.length ? shown.map(card).join('') : `<div class="empty-state"><div class="empty-icon">🌅</div><div class="empty-title">Niente da decidere</div><div class="empty-subtitle">Le code sono vuote: risposte approvate, visite confermate, incassi in pari.</div></div>`}
+            </div></div>
+            ${live.length > shown.length ? `<div style="text-align:center;margin-top:10px;font-size:12px;color:var(--text-muted)">e altre ${live.length - shown.length} più in basso nella scala — le trovi nelle loro sezioni</div>` : ''}`;
+    }
+
     function adminDashboard() {
         // === COMPREHENSIVE DATA CALCULATIONS ===
         const activeClients = (S.clients || []).filter(c => !['completed', 'lost'].includes(c.stage));
@@ -6394,14 +6483,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         <div class="list-content" style="flex:1;min-width:0">
                             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                                 <div class="list-title">${lang} ${esc(l.name || l.leadName || 'Sconosciuto')}</div>
-                                <span class="badge ${isNew ? 'gold' : isConverted ? 'green' : isResponded ? 'blue' : 'gray'}" style="font-size:10px">${isNew ? 'NUOVO' : isConverted ? 'CONVERTITO' : isResponded ? 'RISPOSTO' : 'SCARTATO'}</span>
-                                <span style="font-size:11px;color:var(--text-muted)">${esc(l.source || 'web')}</span>
+                                <span class="badge ${isNew ? 'gold' : isConverted ? 'green' : isResponded ? 'blue' : 'gray'}" style="font-size:10px">${isNew ? 'Nuovo' : isConverted ? 'Convertito' : isResponded ? 'Risposto' : 'Scartato'}</span>
+                                <span class="li-flags">
+                                ${l.grade && l.grade !== 'dead' ? `<span class="li-flag ${l.grade === 'A' ? 'red' : l.grade === 'B' ? 'green' : ''}" title="${esc(l.gradeReason || 'Voto del Lead Brain')}">Grade ${esc(l.grade)}</span>` : ''}
+                                <span class="li-flag">${esc(l.source || 'web')}</span>
+                                </span>
                             </div>
-                            <div class="list-subtitle" style="margin-top:4px">
-                                ${l.intakeForm ? `💰 €${l.budget || '?'}/mo${l.zone ? ' · 📍 ' + esc(l.zone) : ''}${l.situation ? ' · ' + (l.situation === 'worker' ? '💼' : l.situation === 'student' ? '🎓' : '✈️') + ' ' + l.situation : ''}` : ''}
-                                ${!l.intakeForm && l.propertyTitle ? `🏠 ${esc(l.propertyTitle)}` : ''}
-                                ${l.propertyPrice ? ` · €${l.propertyPrice.toLocaleString('it-IT')}` : ''}
-                                ${l.propertyAddress ? ` · ${esc(l.propertyAddress)}` : ''}
+                            <div class="list-subtitle li-meta" style="margin-top:4px">
+                                ${l.intakeForm ? `<b>€${l.budget || '?'}/m</b>${l.zone ? `<span class="sep">·</span>${esc(l.zone)}` : ''}${l.situation ? `<span class="sep">·</span>${esc(l.situation)}` : ''}` : ''}
+                                ${!l.intakeForm && l.propertyTitle ? `<b>${esc(l.propertyTitle)}</b>` : ''}
+                                ${l.propertyPrice ? `<span class="sep">·</span>€${l.propertyPrice.toLocaleString('it-IT')}` : ''}
+                                ${l.propertyAddress ? `<span class="sep">·</span>${esc(l.propertyAddress)}` : ''}
                             </div>
                             ${l.intakeForm && l.notes ? `<div style="margin-top:6px;font-size:12px;color:var(--text-secondary);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:500px">"${esc(l.notes.substring(0, 120))}"</div>` : ''}
                             ${!l.intakeForm && (l.message || l.leadMessage) ? `<div style="margin-top:6px;font-size:12px;color:var(--text-secondary);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:500px">"${esc((l.message || l.leadMessage).substring(0, 120))}"</div>` : ''}
