@@ -1799,16 +1799,24 @@ html.vivo .sale.dentro { opacity:1; transform:none;
 .cielo { position:relative; margin-top:clamp(26px,3vw,40px);
   border:1px solid var(--line); border-radius:16px; overflow:hidden;
   background:var(--void); height:min(76vh,700px);
-  box-shadow:0 30px 90px rgba(0,0,0,.5); isolation:isolate; }
+  box-shadow:0 30px 90px rgba(0,0,0,.5); isolation:isolate;
+  /* WebKit/iOS: i figli COMPOSITATI della mappa (canvas GL, controlli
+     con blur) scappano da overflow:hidden e vengono dipinti all'origine
+     del viewport, sopra la status bar. clip-path + contain:paint +
+     translateZ(0) creano il clip e il containing block che overflow
+     da solo non garantisce sui layer compositati. */
+  clip-path:inset(0 round 16px); -webkit-clip-path:inset(0 round 16px);
+  contain:layout paint; transform:translateZ(0); }
 @media (max-width:760px){ .cielo { height:min(72vh,560px); border-radius:14px; } }
 .cielo-mappa { position:absolute; inset:0; }
 .cielo-mappa canvas { outline:none; }
 .cielo .maplibregl-ctrl-attrib { font-size:9px!important; opacity:.4;
   background:rgba(6,6,7,.7)!important; }
 .cielo .maplibregl-ctrl-attrib a { color:var(--text-3)!important; }
-.cielo .maplibregl-ctrl-group { background:rgba(14,14,16,.82)!important;
-  border:1px solid var(--line)!important; box-shadow:none!important;
-  backdrop-filter:blur(10px); }
+.cielo .maplibregl-ctrl-group { background:rgba(14,14,16,.92)!important;
+  border:1px solid var(--line)!important; box-shadow:none!important; }
+  /* niente backdrop-filter sui controlli mappa: e' il trigger classico
+     del layer che WebKit dipinge fuori dal clip (fondo piu' pieno in cambio) */
 .cielo .maplibregl-ctrl-group button+button { border-top-color:var(--line)!important; }
 .cielo .maplibregl-ctrl-icon { filter:invert(1) brightness(1.6) contrast(.85); }
 .cielo .maplibregl-cooperative-gesture-screen { background:rgba(3,3,3,.72);
