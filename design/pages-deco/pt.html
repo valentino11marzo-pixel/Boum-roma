@@ -471,125 +471,303 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .banchina { margin-top:clamp(20px,2.4vw,30px); border:1px solid var(--line);
   border-radius:16px; overflow:hidden; background:var(--surface); }
 
-/* LO SCAFFALE — il servizio come PRODOTTO, non come scheda: un oggetto
-   da desiderare (la carta BOOM in 3D che fluttua e si inclina verso il
-   cursore), un bottone che COMPRA (verbo + prezzo) e la garanzia con la
-   spunta subito sotto — desiderio, azione, rischio azzerato.
-   La firma cromatica: UN materiale nero-vetro, quattro luci — oro
-   ammiraglia · verde live · violetto protezione · ciano verdetto. */
-.pr-fila { --c-vv:#00FF88; --c-pf:#FFD700; --c-da:#9D8CFF; --c-cc:#3ED3FF;
-  display:grid; grid-template-columns:1.5fr 1fr 1fr 1fr;
-  gap:clamp(12px,1.6vw,18px); align-items:stretch; }
-@media (max-width:1020px){
-  .pr-fila { grid-template-columns:1fr 1fr; }
-  .pr.eroe { grid-column:1/-1; } }
-@media (max-width:580px){ .pr-fila { grid-template-columns:1fr; } }
-.pr { position:relative; display:flex; flex-direction:column;
-  border-radius:22px; overflow:hidden;
-  background:linear-gradient(180deg,#0F0F12,#080809 70%);
-  box-shadow:inset 0 0 0 1px var(--line), 0 30px 60px -36px rgba(0,0,0,.9);
-  padding:0 20px 20px; transition:box-shadow .45s var(--ease); }
-.pr:hover { box-shadow:inset 0 0 0 1px
-  color-mix(in srgb, var(--c) 35%, transparent),
-  0 40px 80px -36px rgba(0,0,0,.95); }
-.pr .retro { position:absolute; inset:0 0 auto; height:240px;
-  pointer-events:none; opacity:.75; transition:opacity .5s var(--ease);
-  background:radial-gradient(60% 78% at 50% 8%, var(--ca), transparent 72%); }
-.pr:hover .retro { opacity:1; }
-/* il palcoscenico: l'oggetto fluttua in prospettiva, l'ombra respira */
-.palcosc { position:relative; height:200px; display:grid;
-  place-items:center; perspective:900px; }
-.pr .ombra { position:absolute; bottom:14px; left:50%; width:58%;
-  height:22px; transform:translateX(-50%); border-radius:50%;
-  background:radial-gradient(50% 50% at 50% 50%, rgba(0,0,0,.8),
-    transparent 72%); filter:blur(7px);
-  animation:ombraRespira 5.5s ease-in-out infinite; }
-@keyframes ombraRespira { 50% { transform:translateX(-50%) scaleX(.88);
-  opacity:.75; } }
-.oggetto { --rx:0deg; --ry:0deg; position:relative; width:min(196px,72%);
-  aspect-ratio:1.586; border-radius:13px; overflow:hidden;
-  transform:rotateX(calc(13deg + var(--ry))) rotateY(calc(-15deg + var(--rx)));
-  background:linear-gradient(148deg,#1D1D23,#0B0B0E 62%);
-  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--c) 34%, transparent),
-    inset 0 1px 0 rgba(255,255,255,.14),
-    22px 30px 44px -18px rgba(0,0,0,.85);
-  animation:galleggia 5.5s ease-in-out infinite;
-  transition:transform .5s cubic-bezier(.3,1.45,.5,1); }
-.pr:hover .oggetto { animation-play-state:paused; }
-@keyframes galleggia { 50% { translate:0 -7px; } }
-.oggetto::before { content:''; position:absolute; inset:0;
-  border-radius:13px; pointer-events:none;
-  background:linear-gradient(calc(115deg + var(--rx) * 3),
-    transparent 30%, rgba(255,255,255,.13) 47%, transparent 62%); }
-.oggetto .fbrand { position:absolute; top:11px; left:13px; right:13px;
-  display:flex; align-items:center; justify-content:space-between;
-  font-family:var(--display); font-size:9px; font-weight:500;
-  letter-spacing:.28em; text-transform:uppercase; color:var(--text-2); }
-.oggetto .fbrand small { font-family:ui-monospace,Menlo,monospace;
-  font-size:7.5px; letter-spacing:.2em; color:var(--text-4); }
-.oggetto .banda { position:absolute; top:34px; left:0; right:0; height:3px;
-  background:var(--c); box-shadow:0 0 14px var(--ca); }
-.oggetto .ficon { position:absolute; left:13px; bottom:12px; width:30px;
-  height:30px; border-radius:9px; display:grid; place-items:center;
-  color:var(--c); background:color-mix(in srgb, var(--c) 9%, transparent);
-  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--c) 32%, transparent); }
-.oggetto .ficon svg { width:16px; height:16px; fill:none;
-  stroke:currentColor; stroke-width:1.6; stroke-linecap:round;
-  stroke-linejoin:round; }
-.oggetto .fprezzo { position:absolute; right:13px; bottom:11px;
-  font-family:var(--display); font-weight:400; font-size:21px;
-  letter-spacing:-.01em; color:var(--c);
-  font-variant-numeric:tabular-nums; text-shadow:0 0 18px var(--ca); }
-.oggetto .fnome { position:absolute; left:13px; top:46px;
-  font-family:var(--display); font-weight:300; font-size:12.5px;
-  letter-spacing:.02em; color:var(--text); }
-.oggetto .fsotto { position:absolute; left:13px; top:64px; font-size:8.5px;
-  letter-spacing:.14em; text-transform:uppercase; color:var(--text-4); }
-/* sulle card piccole la faccia respira: niente sottotitolo */
-.pr:not(.eroe) .oggetto .fsotto { display:none; }
-.pr:not(.eroe) .oggetto .fnome { top:50%; transform:translateY(-70%); }
-/* il nastro sull'angolo: segnale di prodotto (full refund), intagliato */
-.oggetto .nastro { position:absolute; top:14px; right:-34px;
-  transform:rotate(38deg); width:120px; text-align:center;
-  background:var(--c); color:#0A0903; font-size:7.5px; font-weight:800;
-  letter-spacing:.16em; text-transform:uppercase; padding:4px 0;
-  box-shadow:0 4px 14px rgba(0,0,0,.4); }
-/* la vendita: nome, promessa, il bottone che compra, la garanzia */
-.pr .vendita { position:relative; display:flex; flex-direction:column;
-  flex:1; }
-.pr .pnome { display:flex; align-items:baseline; gap:9px; }
-.pr .pnome .pn { font-family:var(--display); font-weight:350;
-  font-size:18.5px; letter-spacing:-.005em; color:var(--text); }
-.pr .pnome .pkind { font-size:8.5px; font-weight:700; letter-spacing:.18em;
+/* IL BIGLIETTO — il servizio come boarding pass: la rotta del trasferimento,
+   il talloncino col prezzo, la perforazione punzonata. La metafora è un fatto
+   di prodotto: la visita confermata arriva come Apple Wallet boarding pass. */
+/* ══ LA BIGLIETTERIA ═════════════════════════════════════════════════ */
+.biglietteria { --c-vv:#00FF88; --c-pf:#FFD700; --c-da:#9D8CFF; --c-cc:#3ED3FF;
+  --molla:cubic-bezier(.3,1.45,.5,1); display:grid; grid-template-columns:repeat(3,1fr);
+  gap:clamp(12px,1.6vw,18px);
+  margin:clamp(20px,2.6vw,32px) 0 clamp(14px,1.8vw,22px); }
+.bp.eroe { grid-column:1 / -1; }
+
+/* ── IL BIGLIETTO: nero-vetro, banda-firma, perforazione, talloncino ── */
+.bp { --rx:0deg; --ry:0deg;
+  position:relative; display:grid; border-radius:20px; overflow:hidden;
+  background:linear-gradient(168deg,#101014,#080809 72%);
+  box-shadow:inset 0 0 0 1px var(--line),
+    inset 0 1px 0 rgba(255,255,255,.05),
+    0 30px 60px -36px rgba(0,0,0,.9);
+  transform:perspective(1100px) rotateY(var(--rx)) rotateX(var(--ry));
+  transition:box-shadow .5s var(--ease), transform .5s var(--molla); }
+.bp:hover { box-shadow:inset 0 0 0 1px
+    color-mix(in srgb, var(--c) 30%, transparent),
+    inset 0 1px 0 rgba(255,255,255,.07),
+    0 46px 80px -34px rgba(0,0,0,.95), 0 0 60px -20px var(--ca);
+  transform:perspective(1100px) rotateY(var(--rx)) rotateX(var(--ry))
+    translateY(-3px); }
+/* stampa di sicurezza CALCOGRAFICA: due trame di righe che si
+   incrociano (come la stampa di una banconota), nella luce del servizio */
+.bp::before { content:''; position:absolute; inset:0; pointer-events:none;
+  opacity:.55; background:
+    repeating-linear-gradient(115deg, var(--ca) 0 1px, transparent 1px 9px),
+    repeating-linear-gradient(63deg, var(--ca) 0 1px, transparent 1px 14px);
+  -webkit-mask:radial-gradient(120% 130% at 0% 0%, #000 20%, transparent 62%);
+  mask:radial-gradient(120% 130% at 0% 0%, #000 20%, transparent 62%); }
+/* la FILIGRANA a rosone dell'ammiraglia: anelli concentrici appena
+   percepibili, come guardare la carta in controluce */
+.bp .filigrana { position:absolute; top:50%; right:clamp(200px,26vw,320px);
+  width:300px; height:300px; transform:translateY(-50%);
+  pointer-events:none; opacity:.35; border-radius:50%;
+  background:repeating-radial-gradient(circle,
+    rgba(255,215,0,.09) 0 1px, transparent 1px 7px);
+  -webkit-mask:radial-gradient(circle, #000 30%, transparent 70%);
+  mask:radial-gradient(circle, #000 30%, transparent 70%); }
+/* l'alone ambientale */
+.bp .alone { position:absolute; inset:-40% auto -40% -12%; width:60%;
+  pointer-events:none; opacity:.5; transition:opacity .5s var(--ease);
+  background:radial-gradient(46% 40% at 30% 50%, var(--ca), transparent 70%); }
+.bp:hover .alone { opacity:1; }
+
+/* ── la banda-firma laterale (lamina) ── */
+.bp .banda { position:relative; display:grid; place-items:center;
+  width:30px; overflow:hidden;
+  background:linear-gradient(180deg,
+    color-mix(in srgb, var(--c) 72%, #000),
+    color-mix(in srgb, var(--c) 34%, #000) 55%,
+    color-mix(in srgb, var(--c) 62%, #000));
+  box-shadow:inset -1px 0 0 rgba(0,0,0,.55),
+    inset 1px 0 0 rgba(255,255,255,.18); }
+.bp .banda em { font-style:normal; writing-mode:vertical-rl;
+  transform:rotate(180deg); font-size:8.5px; font-weight:800;
+  letter-spacing:.34em; text-transform:uppercase; color:#050503;
+  white-space:nowrap; opacity:.85; }
+/* il lampo che percorre la lamina */
+.bp .banda::after { content:''; position:absolute; left:-40%; right:-40%;
+  top:-30%; height:34%; transform:skewY(-18deg);
+  background:linear-gradient(175deg, transparent,
+    rgba(255,255,255,.34) 50%, transparent);
+  animation:lamina 7s var(--ease) infinite; }
+@keyframes lamina { 0%,55% { top:-34%; } 80%,100% { top:134%; } }
+/* lamina ORO dell'ammiraglia: metallo battuto E godronato (la
+   micro-rigatura orizzontale sopra il gradiente = foil vera, non tinta) */
+.bp.eroe .banda { width:36px; background:
+    repeating-linear-gradient(0deg, rgba(0,0,0,.16) 0 1px,
+      transparent 1px 3px),
+    linear-gradient(180deg,#7a5f16,#f6e27a 14%,#8a6d1f 32%,#fdf0a8 48%,
+      #b8942b 63%,#f6e27a 78%,#6b5716 100%); }
+.bp.eroe .banda em { color:#141005; opacity:.9;
+  text-shadow:0 1px 0 rgba(255,244,180,.5); }
+
+/* ── il corpo del biglietto ── */
+.bp .corpo { position:relative; display:flex; flex-direction:column;
+  min-width:0; padding:clamp(16px,2vw,24px) clamp(16px,2.1vw,26px)
+  clamp(14px,1.8vw,20px); }
+.bp .testata { display:flex; align-items:baseline; gap:10px; }
+.bp .situa { font-size:9.5px; font-weight:700; letter-spacing:.2em;
   text-transform:uppercase; color:var(--c); }
-.pr .promessa { margin-top:7px; font-size:12.5px; line-height:1.55;
-  color:var(--text-3); }
-.pr .promessa b { color:var(--text-2); font-weight:500; }
-.pr .compra { margin-top:14px; display:inline-flex; align-items:center;
-  justify-content:center; gap:9px; min-height:44px; padding:0 18px;
+.bp .numero { margin-left:auto; font-size:8.5px; font-weight:600;
+  letter-spacing:.22em; color:var(--text-4);
+  font-variant-numeric:tabular-nums; white-space:nowrap; }
+
+/* la ROTTA: la tipografia di viaggio, con il punto che percorre la tratta */
+.bp .rotta { display:flex; align-items:center; gap:12px;
+  margin-top:9px; font-family:var(--display); font-weight:200;
+  font-size:clamp(20px,2vw,26px); letter-spacing:.06em; line-height:1;
+  white-space:nowrap; }
+.bp .rotta b { font-weight:250; }
+.bp .rotta b:last-child { color:var(--c);
+  text-shadow:0 0 22px var(--ca); }
+.bp .tratta { position:relative; display:block; flex:1 1 34px;
+  min-width:30px; height:12px; }
+.bp .tratta::before { content:''; position:absolute; left:0; right:0;
+  top:5.5px; height:1px; background:repeating-linear-gradient(90deg,
+    rgba(250,250,250,.34) 0 5px, transparent 5px 10px); }
+.bp .tratta .punto { position:absolute; top:3px; left:0; width:6px;
+  height:6px; border-radius:50%; background:var(--c);
+  box-shadow:0 0 8px var(--c), 0 0 18px var(--ca);
+  animation:tratta 4.6s var(--ease) infinite; }
+/* la SCIA: la tratta già percorsa resta accesa dietro il punto */
+.bp .tratta::after { content:''; position:absolute; left:0; top:5.5px;
+  height:1px; width:0; opacity:0;
+  background:linear-gradient(90deg, transparent, var(--c));
+  animation:scia 4.6s var(--ease) infinite; }
+@keyframes tratta { 0% { left:0; opacity:0; } 12% { opacity:1; }
+  88% { opacity:1; } 100% { left:calc(100% - 6px); opacity:0; } }
+@keyframes scia { 0% { width:0; opacity:0; } 12% { opacity:.5; }
+  88% { opacity:.5; } 100% { width:100%; opacity:0; } }
+
+/* lo strato vendita (il contratto, intatto) */
+.bp .vendita { display:flex; flex-direction:column; min-width:0;
+  margin-top:10px; }
+.bp .pnome { display:flex; align-items:baseline; gap:9px; flex-wrap:wrap; }
+.bp .pnome .pn { font-family:var(--display); font-weight:350;
+  font-size:clamp(19px,1.9vw,23px); letter-spacing:-.005em; }
+.bp .pnome .pkind { font-size:8.5px; font-weight:700; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--c); }
+.bp .promessa { margin-top:6px; font-size:12.5px; line-height:1.55;
+  color:var(--text-3); max-width:52ch; }
+.bp .promessa b { color:var(--text-2); font-weight:500; }
+.bp .compra { display:inline-flex; align-items:center;
+  justify-content:center; gap:9px; min-height:44px; padding:0 20px;
   border-radius:100px; background:var(--c); color:#0A0A05;
   font-size:12.5px; font-weight:700; letter-spacing:.02em;
+  align-self:flex-start; white-space:nowrap;
   transition:transform .3s var(--ease), box-shadow .3s var(--ease);
   box-shadow:0 10px 26px -12px var(--cb); }
-.pr .compra i { font-style:normal; transition:transform .3s var(--ease); }
-.pr:hover .compra { transform:translateY(-1px);
+.bp .compra i { font-style:normal; transition:transform .3s var(--ease); }
+.bp:hover .compra { transform:translateY(-1px);
   box-shadow:0 16px 34px -12px var(--cb); }
-.pr:hover .compra i { transform:translateX(4px); }
-.pr .rassicura { margin-top:11px; display:flex; align-items:flex-start;
-  gap:8px; font-size:10.5px; line-height:1.5; color:var(--text-4); }
-.pr .rassicura::before { content:'✓'; color:var(--c); font-size:11px;
+.bp:hover .compra i { transform:translateX(4px); }
+.bp .rassicura { margin-top:10px; display:flex; align-items:flex-start;
+  gap:8px; font-size:10.5px; line-height:1.5; color:var(--text-4);
+  text-align:left; }
+.bp .rassicura::before { content:'✓'; color:var(--c); font-size:11px;
   line-height:1.4; }
-.pr .rassicura b { color:var(--text-3); font-weight:600; }
-/* l'ammiraglia */
-.pr.eroe .palcosc { height:244px; }
-.pr.eroe .oggetto { width:min(250px,80%); }
-.pr.eroe .oggetto .fprezzo { font-size:26px; }
-.pr.eroe .oggetto .fnome { font-size:15px; top:50px; }
-.pr.eroe .oggetto .fsotto { top:71px; }
-.pr.eroe .pnome .pn { font-size:23px; }
-.pr.eroe .promessa { font-size:13.5px; max-width:52ch; }
-.pr.eroe .compra { align-self:flex-start; padding:0 24px; }
-@media (max-width:1020px){ .pr.eroe .compra { align-self:stretch; } }
+.bp .rassicura b { color:var(--text-3); font-weight:600; }
+
+/* i dettagli d'imbarco — riletti come un pass privato, mai kitsch */
+.bp .dettagli { display:flex; gap:clamp(14px,1.8vw,26px);
+  margin-top:auto; padding-top:12px; flex-wrap:wrap; }
+.bp .dettagli span { display:flex; flex-direction:column; gap:2px;
+  min-width:0; }
+.bp .dettagli em { font-style:normal; font-size:7.5px; font-weight:700;
+  letter-spacing:.24em; text-transform:uppercase; color:var(--text-4); }
+.bp .dettagli strong { font-size:10.5px; font-weight:600;
+  letter-spacing:.08em; text-transform:uppercase; color:var(--text-2);
+  white-space:nowrap; }
+.bp .dettagli span.acceso strong { color:var(--c); }
+
+/* ── LA PERFORAZIONE a strappo + i due semifori die-cut ── */
+.bp .perf { position:relative; display:block; }
+.bp .perf::before, .bp .perf::after { content:''; position:absolute;
+  width:20px; height:20px; border-radius:50%; background:var(--black);
+  box-shadow:inset 0 0 0 1px var(--line),
+    inset 0 2px 4px rgba(0,0,0,.8); z-index:2; }
+/* fori PUNZONATI veri: ogni foro buca la carta (si vede il nero della
+   pagina) e ha il labbro di luce sul bordo d'uscita — non un tratteggio */
+.perf-h { height:10px; width:auto; background:
+    radial-gradient(circle 3px at 50% 50%, var(--black) 97%, transparent),
+    radial-gradient(circle 3.4px at 50% calc(50% + 1px),
+      rgba(255,255,255,.13) 97%, transparent);
+  background-size:14px 10px; background-repeat:repeat-x;
+  background-position:center; }
+.perf-h::before { left:-11px; top:calc(50% - 10px); }
+.perf-h::after  { right:-11px; top:calc(50% - 10px); }
+.perf-v { width:10px; height:auto; background:
+    radial-gradient(circle 3px at 50% 50%, var(--black) 97%, transparent),
+    radial-gradient(circle 3.4px at calc(50% + 1px) 50%,
+      rgba(255,255,255,.13) 97%, transparent);
+  background-size:10px 14px; background-repeat:repeat-y;
+  background-position:center; }
+.perf-v::before { top:-11px; left:calc(50% - 10px); }
+.perf-v::after  { bottom:-11px; left:calc(50% - 10px); }
+
+/* ── IL TIMBRO a inchiostro dell'ammiraglia: un fatto vero, timbrato ── */
+.bp .timbro { position:absolute;
+  right:calc(clamp(240px,24vw,300px) + clamp(34px,3.4vw,58px));
+  top:61%; width:88px; height:88px;
+  transform:translateY(-50%) rotate(-9deg); opacity:.55;
+  pointer-events:none; mix-blend-mode:screen; display:block; }
+.bp .timbro circle { fill:none; stroke:rgba(255,215,0,.42); }
+.bp .timbro .t-est { stroke-width:1.6; }
+.bp .timbro .t-int { stroke-width:.7; stroke-dasharray:2 3; }
+.bp .timbro text { fill:rgba(255,215,0,.5); font-family:var(--sans);
+  font-weight:700; letter-spacing:.3em; }
+.bp .timbro .t-curvo { font-size:7.2px; }
+.bp .timbro .t-stella { font-size:13px; letter-spacing:0;
+  text-anchor:middle; }
+
+/* ── IL TALLONCINO (stub): porta il prezzo, si inclina appena ── */
+.bp .stub { position:relative; display:flex; flex-direction:column;
+  padding:clamp(14px,1.8vw,20px) clamp(16px,2.1vw,26px);
+  background:linear-gradient(180deg,#0C0C0F,#070708);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
+  transition:transform .5s var(--molla); }
+.bp .stub::before { content:'ADMIT ONE'; position:absolute; top:50%;
+  right:7px; transform:translateY(-50%) rotate(180deg);
+  writing-mode:vertical-rl; font-size:7px; font-weight:700;
+  letter-spacing:.4em; text-transform:uppercase;
+  color:rgba(250,250,250,.22); white-space:nowrap; }
+.bp .stub-riga { display:flex; align-items:center; gap:14px;
+  margin-bottom:11px; }
+.bp .quota { font-family:var(--display); font-weight:250;
+  font-size:clamp(26px,2.4vw,32px); letter-spacing:.01em; line-height:1;
+  color:var(--c); text-shadow:0 0 18px var(--ca);
+  font-variant-numeric:tabular-nums; }
+/* il codice a barre decorativo (due trame sovrapposte = irregolare) */
+.bp .barcode { display:block; flex:1; height:30px; min-width:52px;
+  opacity:.6; background:
+    repeating-linear-gradient(90deg, rgba(250,250,250,.75) 0 2px,
+      transparent 2px 4px),
+    repeating-linear-gradient(90deg, rgba(250,250,250,.5) 0 1px,
+      transparent 1px 7px, rgba(250,250,250,.5) 7px 10px,
+      transparent 10px 13px); }
+.bp .barcode-sotto { font-size:7px; font-weight:600; letter-spacing:.3em;
+  color:var(--text-4); text-transform:uppercase; margin:-7px 0 11px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* hover: strappare appena il talloncino */
+@media (hover:hover) {
+  .bp:hover .stub { transform:rotate(.8deg) translateX(2px); }
+  .bp.eroe:hover .stub { transform:rotate(-.7deg) translateY(2px); }
+}
+
+/* ── geometrie: 3 biglietti verticali + l'ammiraglia orizzontale ── */
+.bp:not(.eroe) { grid-template-columns:auto minmax(0,1fr);
+  grid-template-rows:1fr auto auto; }
+.bp:not(.eroe) .banda { grid-row:1; grid-column:1; }
+.bp:not(.eroe) .corpo { grid-row:1; grid-column:2; }
+/* lo strappo attraversa TUTTO il biglietto, banda compresa */
+.bp:not(.eroe) .perf { grid-row:2; grid-column:1 / -1; }
+.bp:not(.eroe) .stub { grid-row:3; grid-column:1 / -1; }
+.bp:not(.eroe) .stub .compra { align-self:stretch; }
+.bp:not(.eroe) .stub::before { right:5px; }
+.bp:not(.eroe) .rotta { font-size:clamp(17px,1.5vw,21px);
+  letter-spacing:.05em; }
+
+/* l'ammiraglia: FIRST CLASS orizzontale, doppia lamina, quota maggiore */
+.bp.eroe { grid-template-columns:auto minmax(0,1fr) auto
+  clamp(240px,24vw,300px);
+  background:linear-gradient(168deg,#16130a,#0A0908 72%); }
+.bp.eroe .corpo { padding-right:clamp(18px,2.4vw,30px); }
+.bp.eroe .rotta { font-size:clamp(26px,3vw,40px); margin-top:11px; }
+.bp.eroe .quota { font-size:clamp(32px,3vw,42px); }
+.bp.eroe .stub { justify-content:center;
+  background:linear-gradient(200deg,#121009,#080807 70%); }
+.bp.eroe .stub .compra { align-self:stretch; }
+/* il filo d'oro interno dell'ammiraglia */
+.bp.eroe::after { content:''; position:absolute; inset:6px;
+  border-radius:15px; pointer-events:none;
+  box-shadow:0 0 0 1px rgba(255,215,0,.16); }
+
+/* ── breakpoint intermedio ── */
+@media (max-width:1020px) {
+  .biglietteria { grid-template-columns:1fr; }
+  .bp.eroe { grid-template-columns:auto minmax(0,1fr);
+    grid-template-rows:1fr auto auto; }
+  .bp.eroe .banda { grid-row:1; grid-column:1; }
+  .bp.eroe .corpo { grid-row:1; grid-column:2; }
+  .bp.eroe .perf { grid-row:2; grid-column:1 / -1; width:auto; height:10px;
+    background:
+      radial-gradient(circle 3px at 50% 50%, var(--black) 97%, transparent),
+      radial-gradient(circle 3.4px at 50% calc(50% + 1px),
+        rgba(255,255,255,.13) 97%, transparent);
+    background-size:14px 10px; background-repeat:repeat-x;
+    background-position:center; }
+  .bp.eroe .perf::before { left:-11px; top:calc(50% - 10px); bottom:auto; }
+  .bp.eroe .perf::after { left:auto; right:-11px; top:calc(50% - 10px);
+    bottom:auto; }
+  .bp .filigrana { display:none; }
+  .bp.eroe .stub { grid-row:3; grid-column:1 / -1; }
+  .bp .rotta { white-space:normal; }
+}
+/* ── mobile ── */
+@media (max-width:580px) {
+  .bp .compra { align-self:stretch; width:100%; }
+  .bp .dettagli { gap:12px 18px; }
+  .bp .stub-riga .barcode { min-width:36px; }
+  .bp .rotta { font-size:19px; }
+  .bp.eroe .rotta { font-size:23px; }
+}
+
+@media (max-width:1020px) { .bp .timbro { display:none; } }
+@media (prefers-reduced-motion:reduce) {
+  .bp, .bp .stub, .bp .compra, .bp .compra i { transition:none !important; }
+  .bp { transform:none !important; }
+  .bp .banda::after { animation:none; display:none; }
+  .bp .tratta .punto { animation:none; left:calc(100% - 6px); opacity:1; }
+  .bp .tratta::after { animation:none; width:100%; opacity:.4; }
+}
 
 /* le garanzie: badge piccoli, tutti veri — i fatti istituzionali vivono
    qui e nel footer, una volta sola */
@@ -1281,17 +1459,17 @@ html.vivo .sale.dentro .pass-carta { opacity:1; transform:rotate(-2deg);
 @keyframes pr-arriva {
   from { opacity:0; transform:translateY(30px); }
   to { opacity:1; } }
-html.vivo .pr-fila .pr { opacity:0; }
-html.vivo .pr-fila.dentro .pr {
+html.vivo .biglietteria .bp { opacity:0; }
+html.vivo .biglietteria.dentro .bp {
   animation:pr-arriva .75s cubic-bezier(.3,1.45,.5,1) both; }
-html.vivo .pr-fila.dentro .pr:nth-child(1) { animation-delay:.05s; }
-html.vivo .pr-fila.dentro .pr:nth-child(2) { animation-delay:.17s; }
-html.vivo .pr-fila.dentro .pr:nth-child(3) { animation-delay:.29s; }
-html.vivo .pr-fila.dentro .pr:nth-child(4) { animation-delay:.41s; }
+html.vivo .biglietteria.dentro .bp:nth-child(1) { animation-delay:.05s; }
+html.vivo .biglietteria.dentro .bp:nth-child(2) { animation-delay:.17s; }
+html.vivo .biglietteria.dentro .bp:nth-child(3) { animation-delay:.29s; }
+html.vivo .biglietteria.dentro .bp:nth-child(4) { animation-delay:.41s; }
 @media (prefers-reduced-motion:reduce){
   html.vivo .sale .pass-carta { opacity:1;
     transform:rotate(-2deg); transition:none; }
-  html.vivo .pr-fila .pr { opacity:1; animation:none; }
+  html.vivo .biglietteria .bp { opacity:1; animation:none; }
   .oggetto, .pr .ombra { animation:none !important; } }
 .pass-cima { display:flex; align-items:center; justify-content:space-between;
   gap:10px; padding:15px 18px; border-bottom:1px dashed rgba(255,215,0,.2); }
@@ -2032,130 +2210,189 @@ CASE_TRE
           moves →</a></p>
     </div>
 
-    <div class="pr-fila coro" id="prScaffale" style="margin-top:clamp(22px,2.6vw,34px)">
+    <div class="biglietteria coro" id="prBiglietti" style="margin-top:clamp(22px,2.6vw,34px)">
 
-      <a class="pr eroe" href="/property-finding.html" style="--c:var(--c-pf);--ca:rgba(255,215,0,.16);--cb:rgba(255,215,0,.45)">
-        <span class="retro"></span>
-        <span class="palcosc">
-          <span class="ombra"></span>
-          <span class="oggetto">
-            <span class="fbrand">BOOM<small>PF·0350·ROME</small></span>
-            <span class="banda"></span>
-            <span class="fnome">Property Finding</span>
-            <span class="fsotto">The private hunt</span>
-            <span class="nastro">Full refund</span>
-            <span class="ficon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.6"/><path d="M15.6 15.6L20.5 20.5"/></svg></span>
-            <span class="fprezzo">€350</span>
-          </span>
+    <!-- ══ L'AMMIRAGLIA · FIRST CLASS ══ -->
+    <a class="bp eroe" href="/property-finding.html"
+       style="--c:var(--c-pf);--ca:rgba(255,215,0,.16);--cb:rgba(255,215,0,.45)">
+      <span class="alone"></span>
+      <span class="filigrana"></span>
+      <svg class="timbro" viewBox="0 0 80 80" aria-hidden="true">
+        <circle class="t-est" cx="40" cy="40" r="32"/>
+        <circle class="t-int" cx="40" cy="40" r="19"/>
+        <defs><path id="tCurva" d="M 40 14 a 26 26 0 1 1 -0.01 0"/></defs>
+        <text class="t-curvo"><textPath href="#tCurva" textLength="163"
+          lengthAdjust="spacingAndGlyphs">WALKED IN PERSON · BOOM ROME · </textPath></text>
+        <text class="t-stella" x="40" y="44.5">★</text>
+      </svg>
+      <span class="banda"><em>First class · Property Finding</em></span>
+      <span class="corpo">
+        <span class="testata">
+          <span class="situa">Still searching from abroad?</span>
+          <span class="numero">N° PF-0350 · EST. MMXXV</span>
         </span>
+        <span class="rotta"><b>ABROAD</b>
+          <span class="tratta"><i class="punto"></i></span>
+          <b>ROME</b></span>
         <span class="vendita">
           <span class="pnome"><span class="pn">Property Finding</span>
             <span class="pkind">Flagship</span></span>
           <span class="promessa">Your private hunter on the whole Rome
             market — <b>off-market included</b>, every shortlist walked
             in person before you see it.</span>
-          <span class="compra">Start the hunt · €350<i>→</i></span>
-          <span class="rassicura"><span><b>Zero risk:</b> deducted on
-            success, refunded in full if we don't deliver.</span></span>
         </span>
-      </a>
+        <span class="dettagli">
+          <span><em>Passenger</em><strong>You</strong></span>
+          <span><em>Issuer</em><strong>BOOM Roma</strong></span>
+          <span class="acceso"><em>Class</em><strong>First</strong></span>
+          <span><em>Coverage</em><strong>Whole market</strong></span>
+          <span class="acceso"><em>Refund</em><strong>Full</strong></span>
+        </span>
+      </span>
+      <span class="perf perf-v"></span>
+      <span class="stub">
+        <span class="stub-riga"><span class="quota">€350</span>
+          <span class="barcode"></span></span>
+        <span class="barcode-sotto">BOOM·ROME · FIRST · PF-0350</span>
+        <span class="compra">Start the hunt · €350<i>→</i></span>
+        <span class="rassicura"><span><b>Zero risk:</b> deducted on
+          success, refunded in full if we don't deliver.</span></span>
+      </span>
+    </a>
 
-      <a class="pr" href="/virtual-viewing.html" style="--c:var(--c-vv);--ca:rgba(0,255,136,.14);--cb:rgba(0,255,136,.4)">
-        <span class="retro"></span>
-        <span class="palcosc">
-          <span class="ombra"></span>
-          <span class="oggetto">
-            <span class="fbrand">BOOM<small>VV·0089·ROME</small></span>
-            <span class="banda"></span>
-            <span class="fnome">Virtual Viewing</span>
-            <span class="ficon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="6.5" width="12" height="11" rx="2"/><path d="M15.5 11l5-2.6v7.2l-5-2.6z"/></svg></span>
-            <span class="fprezzo">€89</span>
-          </span>
+    <!-- ══ VIRTUAL VIEWING · LIVE ══ -->
+    <a class="bp vv" href="/virtual-viewing.html"
+       style="--c:var(--c-vv);--ca:rgba(0,255,136,.14);--cb:rgba(0,255,136,.4)">
+      <span class="alone"></span>
+      <span class="banda"><em>Virtual Viewing</em></span>
+      <span class="corpo">
+        <span class="testata">
+          <span class="situa">Found it, can't fly?</span>
+          <span class="numero">N° VV-0089</span>
         </span>
+        <span class="rotta"><b>YOU</b>
+          <span class="tratta"><i class="punto"></i></span>
+          <b>THE DOOR</b></span>
         <span class="vendita">
           <span class="pnome"><span class="pn">Virtual Viewing</span>
             <span class="pkind">Live</span></span>
-          <span class="promessa">See any home <b>live on video</b> before
-            you fly — the red flags said out loud.</span>
-          <span class="compra">Book a live tour · €89<i>→</i></span>
-          <span class="rassicura"><span><b>Credited</b> if you rent with
-            us · BOOM homes: free, always.</span></span>
+          <span class="promessa">See any home <b>live on video</b>
+            before you fly — the red flags said out loud.</span>
         </span>
-      </a>
+        <span class="dettagli">
+          <span class="acceso"><em>Boarding</em><strong>Live video</strong></span>
+          <span><em>Delivery</em><strong>Apple Wallet</strong></span>
+          <span><em>Seat</em><strong>Front row</strong></span>
+        </span>
+      </span>
+      <span class="perf perf-h"></span>
+      <span class="stub">
+        <span class="stub-riga"><span class="quota">€89</span>
+          <span class="barcode"></span></span>
+        <span class="barcode-sotto">BOOM·ROME · LIVE · VV-0089</span>
+        <span class="compra">Book a live tour · €89<i>→</i></span>
+        <span class="rassicura"><span><b>Credited</b> if you rent with
+          us · BOOM homes: free, always.</span></span>
+      </span>
+    </a>
 
-      <a class="pr" href="/deal-assistance.html" style="--c:var(--c-da);--ca:rgba(157,140,255,.15);--cb:rgba(157,140,255,.4)">
-        <span class="retro"></span>
-        <span class="palcosc">
-          <span class="ombra"></span>
-          <span class="oggetto">
-            <span class="fbrand">BOOM<small>DA·0249·ROME</small></span>
-            <span class="banda"></span>
-            <span class="fnome">Deal Assistance</span>
-            <span class="ficon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.4l7.2 2.9v5.1c0 4.2-3 7.2-7.2 8.4-4.2-1.2-7.2-4.2-7.2-8.4V6.3z"/></svg></span>
-            <span class="fprezzo">€249</span>
-          </span>
+    <!-- ══ DEAL ASSISTANCE · PROTECTION ══ -->
+    <a class="bp da" href="/deal-assistance.html"
+       style="--c:var(--c-da);--ca:rgba(157,140,255,.15);--cb:rgba(157,140,255,.4)">
+      <span class="alone"></span>
+      <span class="banda"><em>Deal Assistance</em></span>
+      <span class="corpo">
+        <span class="testata">
+          <span class="situa">Found it elsewhere?</span>
+          <span class="numero">N° DA-0249</span>
         </span>
+        <span class="rotta"><b>FOUND</b>
+          <span class="tratta"><i class="punto"></i></span>
+          <b>PROTECTED</b></span>
         <span class="vendita">
           <span class="pnome"><span class="pn">Deal Assistance</span>
             <span class="pkind">Protection</span></span>
-          <span class="promessa">Found a home yourself? We <b>verify the
-            landlord and the papers</b> — then negotiate for you.</span>
-          <span class="compra">Protect the deal · €249<i>→</i></span>
-          <span class="rassicura"><span><b>Fixed fee</b> — deposit and
-            clauses negotiated, no percentages.</span></span>
+          <span class="promessa">We <b>verify the landlord and the
+            papers</b> — then negotiate for you.</span>
         </span>
-      </a>
+        <span class="dettagli">
+          <span class="acceso"><em>Class</em><strong>Protection</strong></span>
+          <span><em>Fee</em><strong>Fixed</strong></span>
+          <span><em>Escort</em><strong>To signature</strong></span>
+        </span>
+      </span>
+      <span class="perf perf-h"></span>
+      <span class="stub">
+        <span class="stub-riga"><span class="quota">€249</span>
+          <span class="barcode"></span></span>
+        <span class="barcode-sotto">BOOM·ROME · PROTECTION · DA-0249</span>
+        <span class="compra">Protect the deal · €249<i>→</i></span>
+        <span class="rassicura"><span><b>Fixed fee</b> — deposit and
+          clauses negotiated, no percentages.</span></span>
+      </span>
+    </a>
 
-      <a class="pr" href="/contract-check-express.html" style="--c:var(--c-cc);--ca:rgba(62,211,255,.13);--cb:rgba(62,211,255,.4)">
-        <span class="retro"></span>
-        <span class="palcosc">
-          <span class="ombra"></span>
-          <span class="oggetto">
-            <span class="fbrand">BOOM<small>CC·0049·ROME</small></span>
-            <span class="banda"></span>
-            <span class="fnome">Contract Check</span>
-            <span class="ficon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.2h7.4L18.6 8v12.8H6z"/><path d="M13.2 3.2V8h5.2"/></svg></span>
-            <span class="fprezzo">€49</span>
-          </span>
+    <!-- ══ CONTRACT CHECK · EXPRESS ══ -->
+    <a class="bp cc" href="/contract-check-express.html"
+       style="--c:var(--c-cc);--ca:rgba(62,211,255,.14);--cb:rgba(62,211,255,.4)">
+      <span class="alone"></span>
+      <span class="banda"><em>Contract Check</em></span>
+      <span class="corpo">
+        <span class="testata">
+          <span class="situa">About to sign?</span>
+          <span class="numero">N° CC-0049</span>
         </span>
+        <span class="rotta"><b>DRAFT</b>
+          <span class="tratta"><i class="punto"></i></span>
+          <b>VERDICT</b></span>
         <span class="vendita">
           <span class="pnome"><span class="pn">Contract Check</span>
             <span class="pkind">Express</span></span>
-          <span class="promessa">About to sign? A <b>written traffic-light
-            verdict in 24h</b>: fine, unfair, missing.</span>
-          <span class="compra">Check my contract · €49<i>→</i></span>
-          <span class="rassicura"><span><b>Credited</b> in full on Deal
-            Assistance.</span></span>
+          <span class="promessa">A <b>written traffic-light verdict in
+            24h</b>: fine, unfair, missing.</span>
         </span>
-      </a>
-    </div>
+        <span class="dettagli">
+          <span class="acceso"><em>Class</em><strong>Express</strong></span>
+          <span><em>Verdict</em><strong>In 24h</strong></span>
+          <span><em>Format</em><strong>Written</strong></span>
+        </span>
+      </span>
+      <span class="perf perf-h"></span>
+      <span class="stub">
+        <span class="stub-riga"><span class="quota">€49</span>
+          <span class="barcode"></span></span>
+        <span class="barcode-sotto">BOOM·ROME · EXPRESS · CC-0049</span>
+        <span class="compra">Check my contract · €49<i>→</i></span>
+        <span class="rassicura"><span><b>Credited</b> in full on Deal
+          Assistance.</span></span>
+      </span>
+    </a>
+  </div>
 
     <script>
-    /* IL TILT dello scaffale: l'oggetto si inclina verso il cursore — il
-       gesto di prenderlo in mano. Solo con un mouse vero; molla al
-       rilascio. Best-effort: senza elementi non fa nulla. */
+    /* prendere in mano il biglietto: tilt lieve verso il cursore, solo
+       con un mouse vero; la molla lo riporta a piatto al rilascio. */
     (function () {
       if (!(window.matchMedia
         && matchMedia('(hover:hover) and (pointer:fine)').matches)) return;
-      document.querySelectorAll('#prScaffale .pr').forEach(function (pr) {
-        var og = pr.querySelector('.oggetto');
-        if (!og) return;
-        pr.addEventListener('pointermove', function (e) {
-          var r = pr.getBoundingClientRect();
+      if (matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+      document.querySelectorAll('#prBiglietti .bp').forEach(function (bp) {
+        bp.addEventListener('pointermove', function (e) {
+          var r = bp.getBoundingClientRect();
           var x = (e.clientX - r.left) / r.width - .5;
           var y = (e.clientY - r.top) / r.height - .5;
-          og.style.setProperty('--rx', (x * 16) + 'deg');
-          og.style.setProperty('--ry', (-y * 12) + 'deg');
+          bp.style.setProperty('--rx', (x * 3.5) + 'deg');
+          bp.style.setProperty('--ry', (-y * 2.5) + 'deg');
         });
-        pr.addEventListener('pointerleave', function () {
-          og.style.setProperty('--rx', '0deg');
-          og.style.setProperty('--ry', '0deg');
+        bp.addEventListener('pointerleave', function () {
+          bp.style.setProperty('--rx', '0deg');
+          bp.style.setProperty('--ry', '0deg');
         });
       });
     })();
     </script>
 
-    <div class="banchina sale" style="margin-top:clamp(16px,2vw,24px)"><div class="banchina sale" style="margin-top:clamp(16px,2vw,24px)">
+    <div class="banchina sale" style="margin-top:clamp(16px,2vw,24px)">
 
       <div class="ba-garanzie" aria-label="Guarantees">
         <span class="ba-g">Stripe — a receipt for every line</span>
