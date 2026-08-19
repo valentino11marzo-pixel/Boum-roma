@@ -56,24 +56,565 @@ body { background:var(--black); color:var(--text); font-family:var(--sans);
 <body>
 <header class="lab-capo">
   <div class="container">
-    <span class="eti">— Banchina Lab · vol. 5 — cinque designer, una gara</span>
-    <h1>La stessa vendita, cinque <b>oggetti</b> diversi.</h1>
-    <p>Cinque varianti nate in parallelo sotto lo stesso contratto: firma
-      cromatica fissa (oro ammiraglia · verde live · violetto protezione ·
-      ciano verdetto), strato vendita INTATTO (nome, promessa, bottone
-      verbo+prezzo, garanzia ✓), fatti verbatim — cambia solo l'oggetto
-      del desiderio. Ordinate dalla scelta del direttore in giù; ogni
-      palco è il documento vero, vivo (passaci sopra il mouse).</p>
+    <span class="eti">— Banchina Lab · vol. 6 — la famiglia Packaging</span>
+    <h1>Il Packaging, sviluppato in <b>famiglia</b>.</h1>
+    <p>La direzione approvata era il Packaging: eccola sviluppata in quattro
+      esecuzioni della stessa materia — l'apertura, l'originale rifinito,
+      la ceralacca, il negozio. Stesso contratto di sempre: firma
+      cromatica fissa, strato vendita INTATTO (bottone verbo+prezzo,
+      garanzia ✓), fatti verbatim. Ogni palco è il documento vero, vivo
+      — passaci sopra il mouse.</p>
   </div>
 </header>
 
-<section class="palco" id="scatole">
+<section class="palco" id="unboxing">
   <div class="container">
     <div class="palco-testa">
       <span class="lettera">1</span>
+      <h2>L&#x27;Unboxing</h2>
+      <span class="tag oro">★ l&#x27;evoluzione consigliata</span>
+      <p class="regola">Le scatole del Packaging, ma il momento venduto è l&#x27;APERTURA: l&#x27;ammiraglia arriva già aperta — coperchio 3D parcheggiato sopra, bocca incandescente, la lente che levita nel fascio di luce. Le tre minori sono sigillate: al passaggio il coperchio si solleva e lo spiraglio di luce del loro colore esce dalla giuntura.</p>
+    </div>
+    <iframe class="palco-vetro" title="L&#x27;Unboxing"
+      data-v="unboxing" srcdoc="&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;title&gt;Variante L&#x27;UNBOXING&lt;/title&gt;
+&lt;link rel=&quot;preconnect&quot; href=&quot;https://fonts.googleapis.com&quot;&gt;
+&lt;link rel=&quot;preconnect&quot; href=&quot;https://fonts.gstatic.com&quot; crossorigin&gt;
+&lt;link href=&quot;https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap&quot; rel=&quot;stylesheet&quot;&gt;
+&lt;style&gt;
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --gold:#FFD700; --green:#00FF88; --black:#030303; --void:#060607;
+  --surface:#0B0B0C; --card:#0E0E10; --text:#FAFAFA;
+  --text-2:rgba(250,250,250,.72); --text-3:rgba(250,250,250,.5);
+  --text-4:rgba(250,250,250,.48); --line-0:rgba(255,255,255,.04);
+  --line:rgba(255,255,255,.08);
+  --ease:cubic-bezier(.16,1,.3,1); --molla:cubic-bezier(.3,1.45,.5,1);
+  --sans:&#x27;Inter&#x27;,-apple-system,BlinkMacSystemFont,sans-serif;
+  --display:&#x27;Helvetica Neue&#x27;,Helvetica,Arial,sans-serif;
+  --c-vv:#00FF88; --c-pf:#FFD700; --c-da:#9D8CFF; --c-cc:#3ED3FF;
+  --mono:ui-monospace,&#x27;SF Mono&#x27;,SFMono-Regular,Menlo,Consolas,monospace;
+}
+body{background:var(--black);color:var(--text);font-family:var(--sans);
+  font-weight:300;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body::before{content:&#x27;&#x27;;position:fixed;inset:0;z-index:-1;pointer-events:none;background:
+  radial-gradient(55% 38% at 50% 0%,rgba(255,215,0,.05),transparent 70%),
+  radial-gradient(45% 32% at 88% 100%,rgba(62,211,255,.035),transparent 70%),
+  radial-gradient(45% 32% at 8% 82%,rgba(157,140,255,.03),transparent 70%)}
+
+/* ————— header ————— */
+.testa{max-width:1180px;margin:0 auto;
+  padding:clamp(56px,9vh,92px) clamp(20px,4vw,48px) clamp(34px,5vh,52px)}
+.eyebrow{display:inline-flex;align-items:center;gap:14px;font-family:var(--mono);
+  font-size:11px;letter-spacing:.38em;text-transform:uppercase;color:var(--gold)}
+.eyebrow::before{content:&#x27;&#x27;;width:28px;height:1px;
+  background:linear-gradient(90deg,var(--gold),transparent)}
+.testa h2{margin-top:22px;font-family:var(--display);font-weight:200;
+  font-size:clamp(34px,4.8vw,56px);line-height:1.06;letter-spacing:-.01em}
+.testa h2 em{font-style:normal;color:var(--gold);font-weight:300}
+.sotto{margin-top:16px;color:var(--text-3);font-size:15px;line-height:1.65;max-width:56ch}
+
+/* ————— shelf ————— */
+.scaffale{max-width:1180px;margin:0 auto;
+  padding:0 clamp(20px,4vw,48px) clamp(76px,10vh,120px)}
+.fila{display:grid;grid-template-columns:repeat(3,1fr);gap:26px}
+
+.prodotto{position:relative;--lid:24px;--w:206px;--h:238px;--d:124px;
+  display:flex;flex-direction:column;
+  background:linear-gradient(180deg,rgba(255,255,255,.022),rgba(255,255,255,0) 55%),var(--card);
+  border:1px solid var(--line-0);border-radius:24px;padding:24px 26px 30px;
+  transition:border-color .6s var(--ease)}
+.prodotto:hover{border-color:rgba(var(--cr),.18)}
+
+.ammiraglia{--lid:30px;--w:284px;--h:298px;--d:164px;
+  display:grid;grid-template-columns:1.06fr 1fr;align-items:center;
+  gap:16px 40px;padding:30px 52px 38px;margin-bottom:26px;
+  border-color:rgba(255,215,0,.15);
+  background:radial-gradient(70% 95% at 24% 50%,rgba(255,215,0,.05),transparent 65%),
+    linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,0) 55%),var(--card)}
+.ammiraglia:hover{border-color:rgba(255,215,0,.28)}
+
+/* ————— stage, halo, ground ————— */
+.palco{position:relative;height:390px}
+.ammiraglia .palco{height:590px}
+.palco::after{content:&#x27;&#x27;;position:absolute;left:9%;right:9%;bottom:26px;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.09),transparent)}
+.alone{position:absolute;inset:-6% -12%;pointer-events:none;opacity:.85;
+  background:radial-gradient(48% 42% at 50% 55%,rgba(var(--cr),.12),transparent 70%);
+  transition:opacity .7s var(--ease)}
+.prodotto:hover .alone{opacity:1}
+.ombra{position:absolute;left:50%;bottom:14px;width:calc(var(--w)*1.3);height:40px;
+  transform:translateX(-50%);pointer-events:none}
+.ombra::after{content:&#x27;&#x27;;position:absolute;inset:-40% -16%;border-radius:50%;
+  background:radial-gradient(50% 50% at 50% 50%,rgba(var(--cr),.15),transparent 70%);
+  filter:blur(10px)}
+.ombra i{position:absolute;inset:0;border-radius:50%;
+  background:radial-gradient(50% 50% at 50% 50%,rgba(0,0,0,.82),rgba(0,0,0,0) 70%);
+  filter:blur(8px);animation:respiro 6.5s ease-in-out infinite;
+  animation-delay:var(--del,0s)}
+
+/* ————— the box ————— */
+.float{position:absolute;inset:0 0 26px 0;display:flex;align-items:center;justify-content:center;
+  animation:leva 6.5s ease-in-out infinite;animation-delay:var(--del,0s)}
+.ammiraglia .float{align-items:flex-end;padding-bottom:16px}
+.scene{position:relative;width:calc(var(--w)*1.4);height:calc(var(--h)*1.2);perspective:1600px}
+.box{position:absolute;left:50%;top:50%;width:var(--w);height:var(--h);
+  transform:translate(-50%,-50%) rotateX(-18deg) rotateY(-31deg);
+  transform-style:preserve-3d;transition:transform .9s var(--molla)}
+@media (hover:hover){
+  .prodotto:hover .box{transform:translate(-50%,-50%) translate3d(0,-8px,20px)
+    rotateX(-18deg) rotateY(-31deg)}
+}
+.face{position:absolute;backface-visibility:hidden}
+.corpo,.lid{position:absolute;inset:0;transform-style:preserve-3d}
+
+/* body faces */
+.f-front{inset:0;transform:translateZ(calc(var(--d)/2));border-radius:4px;
+  background:radial-gradient(130% 85% at 18% 0%,rgba(var(--cr),.10),transparent 55%),
+    linear-gradient(163deg,#151518 0%,#0C0C0E 55%,#09090B 100%);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.05),inset 0 1px 0 rgba(255,255,255,.06);
+  display:flex;flex-direction:column;justify-content:space-between;
+  padding:calc(var(--lid) + 18px) 20px 16px}
+.f-front::before{content:&#x27;&#x27;;position:absolute;left:0;right:0;top:calc(var(--lid) + 1px);height:1px;z-index:1;
+  background:linear-gradient(90deg,rgba(var(--cr),0),rgba(var(--cr),.7) 30%,rgba(var(--cr),.7) 70%,rgba(var(--cr),0));
+  box-shadow:0 0 12px 1px rgba(var(--cr),.3)}
+
+.f-side{top:0;left:50%;width:var(--d);height:var(--h);margin-left:calc(var(--d)/-2);
+  transform:rotateY(90deg) translateZ(calc(var(--w)/2));border-radius:4px;
+  background:radial-gradient(130% 70% at 35% 0%,rgba(var(--cr),.06),transparent 55%),
+    linear-gradient(195deg,#0E0E10,#070708 70%);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.035);
+  display:flex;align-items:center;justify-content:center}
+.f-side::before{content:&#x27;&#x27;;position:absolute;left:0;right:0;top:calc(var(--lid) + 1px);height:1px;
+  background:linear-gradient(90deg,rgba(var(--cr),.45),rgba(var(--cr),.1));
+  box-shadow:0 0 8px rgba(var(--cr),.18)}
+.f-side svg{width:52%;height:auto;opacity:.9;
+  filter:drop-shadow(0 0 14px rgba(var(--cr),.35))}
+.f-side .lato-tag{position:absolute;bottom:13px;left:0;right:0;text-align:center;
+  font-family:var(--mono);font-size:8px;letter-spacing:.32em;color:rgba(255,255,255,.32)}
+
+/* the sliver of light at the joint — the unboxing gesture */
+.spiraglio-f{position:absolute;left:2px;right:2px;top:calc(var(--lid) - 4px);height:10px;
+  transform:translateZ(calc(var(--d)/2 + 2px));
+  background:linear-gradient(90deg,transparent,rgba(var(--cr),.85) 25%,rgba(var(--cr),.85) 75%,transparent);
+  filter:blur(3px);opacity:0;transition:opacity .6s var(--ease)}
+.spiraglio-s{position:absolute;left:50%;width:var(--d);height:10px;top:calc(var(--lid) - 4px);
+  margin-left:calc(var(--d)/-2);
+  transform:rotateY(90deg) translateZ(calc(var(--w)/2 + 2px));
+  background:linear-gradient(90deg,rgba(var(--cr),.7),rgba(var(--cr),.12));
+  filter:blur(3px);opacity:0;transition:opacity .6s var(--ease)}
+
+/* the LID — a real 3D group that lifts */
+.lid{transition:transform .8s var(--molla);transform-origin:50% 0}
+.l-front{left:-3px;right:-3px;top:-3px;height:calc(var(--lid) + 3px);border-radius:4px 4px 2px 2px;
+  transform:translateZ(calc(var(--d)/2 + 3px));
+  background:linear-gradient(163deg,#18181B,#0D0D0F);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.06),inset 0 1px 0 rgba(255,255,255,.08),
+    0 2px 6px rgba(0,0,0,.5)}
+.l-side{top:-3px;left:50%;width:calc(var(--d) + 6px);height:calc(var(--lid) + 3px);
+  margin-left:calc((var(--d) + 6px)/-2);border-radius:4px 4px 2px 2px;
+  transform:rotateY(90deg) translateZ(calc(var(--w)/2 + 3px));
+  background:linear-gradient(195deg,#101013,#08080A);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.04)}
+.l-top{left:-3px;top:50%;width:calc(var(--w) + 6px);height:calc(var(--d) + 6px);
+  margin-top:calc((var(--d) + 6px)/-2);border-radius:4px;
+  transform:rotateX(90deg) translateZ(calc(var(--h)/2 + 3px));
+  background:linear-gradient(180deg,#1B1C20,#101013);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.055)}
+.banda{position:absolute;left:0;right:0;top:50%;height:18px;transform:translateY(-50%);
+  background:linear-gradient(90deg,rgba(var(--cr),0),rgba(var(--cr),.8) 28%,rgba(var(--cr),.8) 72%,rgba(var(--cr),0));
+  box-shadow:0 0 18px rgba(var(--cr),.35);opacity:.92}
+.lidmark{position:absolute;left:0;right:0;bottom:9px;text-align:center;
+  font-family:var(--mono);font-size:8px;letter-spacing:.4em;color:rgba(255,255,255,.35)}
+
+/* hover = lifting the lid */
+@media (hover:hover){
+  .prodotto:not(.ammiraglia):hover .lid{transform:translateY(-9px)}
+  .prodotto:hover .spiraglio-f,.prodotto:hover .spiraglio-s{opacity:1}
+}
+
+/* ————— THE OPEN ONE (flagship) ————— */
+.ammiraglia{--lx:calc(var(--w)*-.30);--ly:calc(var(--h)*-.50);--lz:10px;--lrx:-30deg;--lrz:-12deg}
+.ammiraglia .lid{
+  transform:translate3d(var(--lx),var(--ly),var(--lz)) rotateX(var(--lrx)) rotateZ(var(--lrz));
+  animation:lidfloat 6.5s ease-in-out infinite}
+.ammiraglia .f-front::before{top:0;height:2px;
+  background:linear-gradient(90deg,rgba(255,215,0,0),rgba(255,228,92,.95) 30%,rgba(255,228,92,.95) 70%,rgba(255,215,0,0));
+  box-shadow:0 0 16px 2px rgba(255,215,0,.5)}
+.ammiraglia .f-side::before{top:0;height:2px;
+  background:linear-gradient(90deg,rgba(255,228,92,.8),rgba(255,215,0,.15));
+  box-shadow:0 0 12px 1px rgba(255,215,0,.35)}
+.bocca{position:absolute;left:3px;top:50%;width:calc(var(--w) - 6px);height:calc(var(--d) - 6px);
+  margin-top:calc((var(--d) - 6px)/-2);border-radius:3px;
+  transform:rotateX(90deg) translateZ(calc(var(--h)/2 - 2px));
+  background:radial-gradient(62% 62% at 50% 48%,rgba(255,236,140,.95),rgba(255,215,0,.4) 58%,rgba(255,215,0,.1) 84%,rgba(255,215,0,.02));
+  box-shadow:0 0 46px 12px rgba(255,215,0,.35);
+  animation:pulsa 6.5s ease-in-out infinite}
+
+/* light beam over the opening */
+.fascio{position:absolute;left:50%;top:-10%;height:46%;width:calc(var(--w)*.60);
+  transform:translateX(-56%);pointer-events:none;
+  background:linear-gradient(0deg,rgba(255,224,92,.22),rgba(255,215,0,.06) 70%,rgba(255,215,0,0));
+  clip-path:polygon(30% 0,70% 0,90% 100%,10% 100%);filter:blur(5px);opacity:.95}
+
+/* the levitating product */
+.levita{position:absolute;left:50%;top:-10%;transform:translateX(-56%);pointer-events:none;
+  animation:lievita 5.2s ease-in-out infinite}
+.levita svg{width:64px;height:64px;display:block;
+  filter:drop-shadow(0 0 16px rgba(255,215,0,.55)) drop-shadow(0 10px 22px rgba(255,215,0,.2))}
+
+/* sparks rising in the beam */
+.scintille{position:absolute;left:50%;top:26%;width:0;height:0;pointer-events:none}
+.scintille i{position:absolute;width:4px;height:4px;border-radius:50%;left:var(--x);top:0;
+  background:#FFE45C;box-shadow:0 0 10px 3px rgba(255,215,0,.6);opacity:0;
+  animation:sale var(--dur,4s) linear infinite;animation-delay:var(--pd,0s)}
+
+/* silk-screen print on the front face */
+.marchio{font-family:var(--display);font-weight:400;font-size:11px;
+  letter-spacing:.42em;color:rgba(255,255,255,.55)}
+.snome{display:block;font-family:var(--display);font-weight:300;
+  font-size:23px;line-height:1.16;letter-spacing:.015em;max-width:9ch}
+.ammiraglia .snome{font-size:30px;max-width:60%}
+.skind{display:block;margin-top:9px;font-family:var(--mono);font-size:8.5px;
+  letter-spacing:.3em;color:var(--c);opacity:.95}
+.codice{display:flex;flex-direction:column;gap:7px;align-items:flex-start}
+.codice span{font-family:var(--mono);font-size:9px;letter-spacing:.18em;color:var(--text-4)}
+.barcode{width:46px;height:15px;opacity:.5;background:repeating-linear-gradient(90deg,
+  rgba(255,255,255,.6) 0 1px,transparent 1px 3px,
+  rgba(255,255,255,.4) 3px 5px,transparent 5px 6px,
+  rgba(255,255,255,.6) 6px 7px,transparent 7px 10px)}
+
+/* flagship ribbon — cut open at the top */
+.nastro{position:absolute;top:0;bottom:0;left:64%;width:46px;z-index:2;
+  display:flex;align-items:center;justify-content:center;
+  clip-path:polygon(0 7px,50% 0,100% 7px,100% 100%,0 100%);
+  background:linear-gradient(102deg,rgba(255,255,255,.3),rgba(255,255,255,0) 45%),
+    linear-gradient(180deg,#FFDC33,#DCAF00);
+  box-shadow:inset 1px 0 0 rgba(255,255,255,.3),inset -1px 0 0 rgba(0,0,0,.25),
+    0 0 26px rgba(255,215,0,.22)}
+.nastro span{writing-mode:vertical-rl;font-family:var(--mono);font-weight:700;
+  font-size:9.5px;letter-spacing:.44em;color:#171200;text-transform:uppercase}
+.nastro-top{position:absolute;top:0;bottom:0;left:64%;width:46px;z-index:2;
+  background:linear-gradient(180deg,#FFE45C,#E9BC0A);
+  box-shadow:inset 1px 0 0 rgba(255,255,255,.35),inset -1px 0 0 rgba(0,0,0,.2)}
+
+/* ————— sales layer ————— */
+.vendita{display:flex;flex-direction:column;align-items:flex-start;gap:14px;margin-top:8px}
+.ammiraglia .vendita{gap:18px;margin-top:0}
+.pnome{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.pnome h3{font-family:var(--display);font-weight:300;font-size:24px;letter-spacing:.01em}
+.ammiraglia .pnome h3{font-size:clamp(28px,3vw,38px)}
+.kind{font-family:var(--mono);font-size:9.5px;letter-spacing:.26em;text-transform:uppercase;
+  color:var(--c);background:rgba(var(--cr),.07);border:1px solid rgba(var(--cr),.35);
+  padding:5px 12px 4px;border-radius:100px;white-space:nowrap}
+.promessa{font-size:14.5px;line-height:1.65;color:var(--text-2)}
+.ammiraglia .promessa{font-size:16.5px;max-width:44ch}
+.compra{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  border-radius:100px;min-height:44px;padding:0 26px;background:var(--c);
+  color:#0A0A05;font-weight:700;font-size:15px;text-decoration:none;
+  letter-spacing:.005em;
+  box-shadow:0 12px 30px -8px rgba(var(--cr),.45),0 2px 8px rgba(0,0,0,.4);
+  transition:transform .4s var(--molla),box-shadow .4s var(--ease)}
+.compra:hover{transform:translateY(-2px);
+  box-shadow:0 18px 40px -8px rgba(var(--cr),.6),0 2px 8px rgba(0,0,0,.4)}
+.compra:focus-visible{outline:2px solid var(--text);outline-offset:3px}
+.fila .compra{width:100%}
+.ammiraglia .compra{padding:0 34px;font-size:16px}
+.rassicura{font-size:12.5px;line-height:1.55;color:var(--text-3);display:flex;gap:9px}
+.rassicura .check{color:var(--c);flex:none;font-weight:600}
+
+/* ————— 3-col alignment (desktop only) ————— */
+@media (min-width:1021px){
+  .fila .pnome h3{font-size:22px}
+  .fila .kind{font-size:9px;padding:4px 10px 3px}
+  .fila .vendita{flex:1;align-self:stretch}
+  .fila .promessa{margin-bottom:auto}
+  .fila .rassicura{min-height:40px}
+}
+
+/* ————— motion ————— */
+@keyframes leva{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+@keyframes respiro{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(.9);opacity:.6}}
+@keyframes pulsa{0%,100%{opacity:1}50%{opacity:.82}}
+@keyframes lievita{0%,100%{transform:translateX(-56%) translateY(0)}50%{transform:translateX(-56%) translateY(-13px)}}
+@keyframes lidfloat{
+  0%,100%{transform:translate3d(var(--lx),var(--ly),var(--lz)) rotateX(var(--lrx)) rotateZ(var(--lrz))}
+  50%{transform:translate3d(var(--lx),calc(var(--ly) - 11px),var(--lz)) rotateX(calc(var(--lrx) - 4deg)) rotateZ(var(--lrz))}
+}
+@keyframes sale{
+  0%{transform:translateY(0);opacity:0}
+  12%{opacity:.95}
+  70%{opacity:.45}
+  100%{transform:translateY(-108px);opacity:0}
+}
+
+/* ————— tablet ————— */
+@media (max-width:1020px){
+  .fila{grid-template-columns:1fr;gap:22px}
+  .fila .prodotto{display:grid;grid-template-columns:minmax(260px,320px) 1fr;
+    align-items:center;gap:0 34px;padding:20px 34px 24px}
+  .fila .palco{height:340px}
+  .fila .compra{width:auto}
+  .fila .vendita{margin-top:0}
+  .ammiraglia{--w:244px;--h:270px;--d:146px;--lid:26px;
+    --lx:calc(var(--w)*-.13);--ly:calc(var(--h)*-.36);
+    grid-template-columns:minmax(280px,350px) 1fr;gap:0 34px;padding:24px 34px 30px}
+  .ammiraglia .palco{height:500px}
+  .ammiraglia .snome{font-size:25px}
+  .levita svg{width:54px;height:54px}
+}
+
+/* ————— mobile ————— */
+@media (max-width:580px){
+  .fila .prodotto,.prodotto,.ammiraglia{display:flex;flex-direction:column;
+    padding:20px 20px 28px}
+  .prodotto{--w:196px;--h:226px;--d:118px;--lid:22px}
+  .ammiraglia{--w:224px;--h:250px;--d:134px;--lid:24px;gap:12px;
+    --lx:calc(var(--w)*-.10);--ly:calc(var(--h)*-.46);--lrz:-7deg}
+  .palco,.fila .palco{height:330px}
+  .ammiraglia .palco{height:480px}
+  .compra,.fila .compra,.ammiraglia .compra{width:100%}
+  .vendita,.fila .vendita{margin-top:10px}
+  .pnome h3{font-size:22px}
+  .ammiraglia .pnome h3{font-size:27px}
+  .ammiraglia .promessa{font-size:15px}
+  .levita svg{width:48px;height:48px}
+}
+
+/* ————— reduced motion: flagship open &amp; still, no sparks ————— */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  .scintille{display:none}
+}
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+
+&lt;header class=&quot;testa&quot;&gt;
+  &lt;div class=&quot;eyebrow&quot;&gt;BOOM — Services · The unboxing&lt;/div&gt;
+  &lt;h2&gt;The box is a promise.&lt;br&gt;&lt;em&gt;Opening it&lt;/em&gt; is the proof.&lt;/h2&gt;
+  &lt;p class=&quot;sotto&quot;&gt;Four services, sealed in matte black. The flagship arrives already open — light out, product floating. For the others, lift the lid: the light gets out first.&lt;/p&gt;
+&lt;/header&gt;
+
+&lt;section class=&quot;scaffale&quot;&gt;
+
+  &lt;!-- ══════════ AMMIRAGLIA · PROPERTY FINDING — already open ══════════ --&gt;
+  &lt;article class=&quot;prodotto ammiraglia&quot; style=&quot;--c:var(--c-pf);--cr:255,215,0;--del:0s&quot;&gt;
+    &lt;div class=&quot;palco&quot;&gt;
+      &lt;div class=&quot;alone&quot;&gt;&lt;/div&gt;
+      &lt;div class=&quot;ombra&quot;&gt;&lt;i&gt;&lt;/i&gt;&lt;/div&gt;
+      &lt;div class=&quot;float&quot;&gt;
+        &lt;div class=&quot;scene&quot;&gt;
+          &lt;div class=&quot;fascio&quot;&gt;&lt;/div&gt;
+          &lt;div class=&quot;box&quot;&gt;
+            &lt;div class=&quot;corpo&quot;&gt;
+              &lt;div class=&quot;bocca&quot;&gt;&lt;/div&gt;
+              &lt;div class=&quot;face f-side&quot;&gt;
+                &lt;svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;var(--c)&quot; stroke-width=&quot;1.5&quot; stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot;&gt;
+                  &lt;circle cx=&quot;10.5&quot; cy=&quot;10.5&quot; r=&quot;6.5&quot;/&gt;&lt;path d=&quot;M15.5 15.5 21 21&quot;/&gt;
+                &lt;/svg&gt;
+                &lt;span class=&quot;lato-tag&quot;&gt;BOOM·ROMA&lt;/span&gt;
+              &lt;/div&gt;
+              &lt;div class=&quot;face f-front&quot;&gt;
+                &lt;span class=&quot;marchio&quot;&gt;BOOM&lt;/span&gt;
+                &lt;span&gt;
+                  &lt;span class=&quot;snome&quot;&gt;Property Finding&lt;/span&gt;
+                  &lt;span class=&quot;skind&quot;&gt;FLAGSHIP — ROME&lt;/span&gt;
+                &lt;/span&gt;
+                &lt;span class=&quot;codice&quot;&gt;&lt;span&gt;PF·0350·ROME&lt;/span&gt;&lt;i class=&quot;barcode&quot;&gt;&lt;/i&gt;&lt;/span&gt;
+                &lt;span class=&quot;nastro&quot;&gt;&lt;span&gt;Full Refund&lt;/span&gt;&lt;/span&gt;
+              &lt;/div&gt;
+            &lt;/div&gt;
+            &lt;div class=&quot;lid&quot;&gt;
+              &lt;div class=&quot;face l-top&quot;&gt;
+                &lt;span class=&quot;banda&quot;&gt;&lt;/span&gt;
+                &lt;span class=&quot;nastro-top&quot;&gt;&lt;/span&gt;
+                &lt;span class=&quot;lidmark&quot;&gt;BOOM&lt;/span&gt;
+              &lt;/div&gt;
+              &lt;div class=&quot;face l-front&quot;&gt;&lt;/div&gt;
+              &lt;div class=&quot;face l-side&quot;&gt;&lt;/div&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+          &lt;div class=&quot;scintille&quot;&gt;
+            &lt;i style=&quot;--x:-30px;--pd:0s;--dur:3.6s&quot;&gt;&lt;/i&gt;
+            &lt;i style=&quot;--x:6px;--pd:-1.4s;--dur:4.4s&quot;&gt;&lt;/i&gt;
+            &lt;i style=&quot;--x:-58px;--pd:-2.6s;--dur:5s&quot;&gt;&lt;/i&gt;
+            &lt;i style=&quot;--x:28px;--pd:-3.3s;--dur:4s&quot;&gt;&lt;/i&gt;
+          &lt;/div&gt;
+          &lt;div class=&quot;levita&quot;&gt;
+            &lt;svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;var(--gold)&quot; stroke-width=&quot;1.5&quot; stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot;&gt;
+              &lt;circle cx=&quot;10.5&quot; cy=&quot;10.5&quot; r=&quot;6.5&quot;/&gt;&lt;path d=&quot;M15.5 15.5 21 21&quot;/&gt;
+            &lt;/svg&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+    &lt;div class=&quot;vendita&quot;&gt;
+      &lt;div class=&quot;pnome&quot;&gt;&lt;h3&gt;Property Finding&lt;/h3&gt;&lt;span class=&quot;kind&quot;&gt;Flagship&lt;/span&gt;&lt;/div&gt;
+      &lt;p class=&quot;promessa&quot;&gt;Your private hunter on the whole Rome market — off-market included, every shortlist walked in person before you see it.&lt;/p&gt;
+      &lt;a class=&quot;compra&quot; href=&quot;/property-finding.html&quot;&gt;Start the hunt · €350 →&lt;/a&gt;
+      &lt;p class=&quot;rassicura&quot;&gt;&lt;span class=&quot;check&quot;&gt;✓&lt;/span&gt;Zero risk: deducted on success, refunded in full if we don&#x27;t deliver.&lt;/p&gt;
+    &lt;/div&gt;
+  &lt;/article&gt;
+
+  &lt;div class=&quot;fila&quot;&gt;
+
+    &lt;!-- ══════════ VIRTUAL VIEWING ══════════ --&gt;
+    &lt;article class=&quot;prodotto&quot; style=&quot;--c:var(--c-vv);--cr:0,255,136;--del:-2.2s&quot;&gt;
+      &lt;div class=&quot;palco&quot;&gt;
+        &lt;div class=&quot;alone&quot;&gt;&lt;/div&gt;
+        &lt;div class=&quot;ombra&quot;&gt;&lt;i&gt;&lt;/i&gt;&lt;/div&gt;
+        &lt;div class=&quot;float&quot;&gt;
+          &lt;div class=&quot;scene&quot;&gt;
+            &lt;div class=&quot;box&quot;&gt;
+              &lt;div class=&quot;corpo&quot;&gt;
+                &lt;div class=&quot;face f-side&quot;&gt;
+                  &lt;svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;var(--c)&quot; stroke-width=&quot;1.5&quot; stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot;&gt;
+                    &lt;rect x=&quot;2.5&quot; y=&quot;6.5&quot; width=&quot;13&quot; height=&quot;11&quot; rx=&quot;2.5&quot;/&gt;
+                    &lt;path d=&quot;M15.5 11.5 21.5 8v8l-6-3.5z&quot;/&gt;
+                  &lt;/svg&gt;
+                  &lt;span class=&quot;lato-tag&quot;&gt;BOOM·ROMA&lt;/span&gt;
+                &lt;/div&gt;
+                &lt;div class=&quot;face f-front&quot;&gt;
+                  &lt;span class=&quot;marchio&quot;&gt;BOOM&lt;/span&gt;
+                  &lt;span&gt;
+                    &lt;span class=&quot;snome&quot;&gt;Virtual Viewing&lt;/span&gt;
+                    &lt;span class=&quot;skind&quot;&gt;LIVE — ROME&lt;/span&gt;
+                  &lt;/span&gt;
+                  &lt;span class=&quot;codice&quot;&gt;&lt;span&gt;VV·0089·ROME&lt;/span&gt;&lt;i class=&quot;barcode&quot;&gt;&lt;/i&gt;&lt;/span&gt;
+                &lt;/div&gt;
+                &lt;span class=&quot;face spiraglio-f&quot;&gt;&lt;/span&gt;
+                &lt;span class=&quot;face spiraglio-s&quot;&gt;&lt;/span&gt;
+              &lt;/div&gt;
+              &lt;div class=&quot;lid&quot;&gt;
+                &lt;div class=&quot;face l-top&quot;&gt;&lt;span class=&quot;banda&quot;&gt;&lt;/span&gt;&lt;span class=&quot;lidmark&quot;&gt;BOOM&lt;/span&gt;&lt;/div&gt;
+                &lt;div class=&quot;face l-front&quot;&gt;&lt;/div&gt;
+                &lt;div class=&quot;face l-side&quot;&gt;&lt;/div&gt;
+              &lt;/div&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+      &lt;div class=&quot;vendita&quot;&gt;
+        &lt;div class=&quot;pnome&quot;&gt;&lt;h3&gt;Virtual Viewing&lt;/h3&gt;&lt;span class=&quot;kind&quot;&gt;Live&lt;/span&gt;&lt;/div&gt;
+        &lt;p class=&quot;promessa&quot;&gt;See any home live on video before you fly — the red flags said out loud.&lt;/p&gt;
+        &lt;a class=&quot;compra&quot; href=&quot;/virtual-viewing.html&quot;&gt;Book a live tour · €89 →&lt;/a&gt;
+        &lt;p class=&quot;rassicura&quot;&gt;&lt;span class=&quot;check&quot;&gt;✓&lt;/span&gt;Credited if you rent with us · BOOM homes: free, always.&lt;/p&gt;
+      &lt;/div&gt;
+    &lt;/article&gt;
+
+    &lt;!-- ══════════ DEAL ASSISTANCE ══════════ --&gt;
+    &lt;article class=&quot;prodotto&quot; style=&quot;--c:var(--c-da);--cr:157,140,255;--del:-4.1s&quot;&gt;
+      &lt;div class=&quot;palco&quot;&gt;
+        &lt;div class=&quot;alone&quot;&gt;&lt;/div&gt;
+        &lt;div class=&quot;ombra&quot;&gt;&lt;i&gt;&lt;/i&gt;&lt;/div&gt;
+        &lt;div class=&quot;float&quot;&gt;
+          &lt;div class=&quot;scene&quot;&gt;
+            &lt;div class=&quot;box&quot;&gt;
+              &lt;div class=&quot;corpo&quot;&gt;
+                &lt;div class=&quot;face f-side&quot;&gt;
+                  &lt;svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;var(--c)&quot; stroke-width=&quot;1.5&quot; stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot;&gt;
+                    &lt;path d=&quot;M12 3l7.5 3v5.2c0 4.6-3.2 7.6-7.5 9.3-4.3-1.7-7.5-4.7-7.5-9.3V6z&quot;/&gt;
+                    &lt;path d=&quot;M9 11.5l2.2 2.2 4-4.2&quot;/&gt;
+                  &lt;/svg&gt;
+                  &lt;span class=&quot;lato-tag&quot;&gt;BOOM·ROMA&lt;/span&gt;
+                &lt;/div&gt;
+                &lt;div class=&quot;face f-front&quot;&gt;
+                  &lt;span class=&quot;marchio&quot;&gt;BOOM&lt;/span&gt;
+                  &lt;span&gt;
+                    &lt;span class=&quot;snome&quot;&gt;Deal Assistance&lt;/span&gt;
+                    &lt;span class=&quot;skind&quot;&gt;PROTECTION — ROME&lt;/span&gt;
+                  &lt;/span&gt;
+                  &lt;span class=&quot;codice&quot;&gt;&lt;span&gt;DA·0249·ROME&lt;/span&gt;&lt;i class=&quot;barcode&quot;&gt;&lt;/i&gt;&lt;/span&gt;
+                &lt;/div&gt;
+                &lt;span class=&quot;face spiraglio-f&quot;&gt;&lt;/span&gt;
+                &lt;span class=&quot;face spiraglio-s&quot;&gt;&lt;/span&gt;
+              &lt;/div&gt;
+              &lt;div class=&quot;lid&quot;&gt;
+                &lt;div class=&quot;face l-top&quot;&gt;&lt;span class=&quot;banda&quot;&gt;&lt;/span&gt;&lt;span class=&quot;lidmark&quot;&gt;BOOM&lt;/span&gt;&lt;/div&gt;
+                &lt;div class=&quot;face l-front&quot;&gt;&lt;/div&gt;
+                &lt;div class=&quot;face l-side&quot;&gt;&lt;/div&gt;
+              &lt;/div&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+      &lt;div class=&quot;vendita&quot;&gt;
+        &lt;div class=&quot;pnome&quot;&gt;&lt;h3&gt;Deal Assistance&lt;/h3&gt;&lt;span class=&quot;kind&quot;&gt;Protection&lt;/span&gt;&lt;/div&gt;
+        &lt;p class=&quot;promessa&quot;&gt;Found a home yourself? We verify the landlord and the papers — then negotiate for you.&lt;/p&gt;
+        &lt;a class=&quot;compra&quot; href=&quot;/deal-assistance.html&quot;&gt;Protect the deal · €249 →&lt;/a&gt;
+        &lt;p class=&quot;rassicura&quot;&gt;&lt;span class=&quot;check&quot;&gt;✓&lt;/span&gt;Fixed fee — deposit and clauses negotiated, no percentages.&lt;/p&gt;
+      &lt;/div&gt;
+    &lt;/article&gt;
+
+    &lt;!-- ══════════ CONTRACT CHECK ══════════ --&gt;
+    &lt;article class=&quot;prodotto&quot; style=&quot;--c:var(--c-cc);--cr:62,211,255;--del:-1.3s&quot;&gt;
+      &lt;div class=&quot;palco&quot;&gt;
+        &lt;div class=&quot;alone&quot;&gt;&lt;/div&gt;
+        &lt;div class=&quot;ombra&quot;&gt;&lt;i&gt;&lt;/i&gt;&lt;/div&gt;
+        &lt;div class=&quot;float&quot;&gt;
+          &lt;div class=&quot;scene&quot;&gt;
+            &lt;div class=&quot;box&quot;&gt;
+              &lt;div class=&quot;corpo&quot;&gt;
+                &lt;div class=&quot;face f-side&quot;&gt;
+                  &lt;svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;var(--c)&quot; stroke-width=&quot;1.5&quot; stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot;&gt;
+                    &lt;path d=&quot;M6.5 3.5h7L18 8v12a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 20V5a1.5 1.5 0 0 1 1.5-1.5z&quot; transform=&quot;translate(-.5 0)&quot;/&gt;
+                    &lt;path d=&quot;M13 3.5V8h4.5&quot;/&gt;
+                    &lt;path d=&quot;M8.8 13h6.4M8.8 16.4h4.4&quot;/&gt;
+                  &lt;/svg&gt;
+                  &lt;span class=&quot;lato-tag&quot;&gt;BOOM·ROMA&lt;/span&gt;
+                &lt;/div&gt;
+                &lt;div class=&quot;face f-front&quot;&gt;
+                  &lt;span class=&quot;marchio&quot;&gt;BOOM&lt;/span&gt;
+                  &lt;span&gt;
+                    &lt;span class=&quot;snome&quot;&gt;Contract Check&lt;/span&gt;
+                    &lt;span class=&quot;skind&quot;&gt;EXPRESS — ROME&lt;/span&gt;
+                  &lt;/span&gt;
+                  &lt;span class=&quot;codice&quot;&gt;&lt;span&gt;CC·0049·ROME&lt;/span&gt;&lt;i class=&quot;barcode&quot;&gt;&lt;/i&gt;&lt;/span&gt;
+                &lt;/div&gt;
+                &lt;span class=&quot;face spiraglio-f&quot;&gt;&lt;/span&gt;
+                &lt;span class=&quot;face spiraglio-s&quot;&gt;&lt;/span&gt;
+              &lt;/div&gt;
+              &lt;div class=&quot;lid&quot;&gt;
+                &lt;div class=&quot;face l-top&quot;&gt;&lt;span class=&quot;banda&quot;&gt;&lt;/span&gt;&lt;span class=&quot;lidmark&quot;&gt;BOOM&lt;/span&gt;&lt;/div&gt;
+                &lt;div class=&quot;face l-front&quot;&gt;&lt;/div&gt;
+                &lt;div class=&quot;face l-side&quot;&gt;&lt;/div&gt;
+              &lt;/div&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+      &lt;div class=&quot;vendita&quot;&gt;
+        &lt;div class=&quot;pnome&quot;&gt;&lt;h3&gt;Contract Check&lt;/h3&gt;&lt;span class=&quot;kind&quot;&gt;Express&lt;/span&gt;&lt;/div&gt;
+        &lt;p class=&quot;promessa&quot;&gt;About to sign? A written traffic-light verdict in 24h: fine, unfair, missing.&lt;/p&gt;
+        &lt;a class=&quot;compra&quot; href=&quot;/contract-check-express.html&quot;&gt;Check my contract · €49 →&lt;/a&gt;
+        &lt;p class=&quot;rassicura&quot;&gt;&lt;span class=&quot;check&quot;&gt;✓&lt;/span&gt;Credited in full on Deal Assistance.&lt;/p&gt;
+      &lt;/div&gt;
+    &lt;/article&gt;
+
+  &lt;/div&gt;
+&lt;/section&gt;
+
+&lt;script&gt;(function(){function m(){parent.postMessage({t:&quot;vh&quot;,id:&quot;unboxing&quot;,h:document.documentElement.scrollHeight},&quot;*&quot;)}setInterval(m,700);addEventListener(&quot;load&quot;,m)})()&lt;/script&gt;&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+    <div class="verdetto">
+      <div><b>Perché</b>&quot;The box is a promise. Opening it is the proof.&quot; Tiene tutto ciò che era piaciuto del Packaging e aggiunge il momento del desiderio — l&#x27;unboxing — più il gesto hover che invita ad aprire le altre.</div>
+      <div><b>Il limite</b>A ~768px la lente levitante lambisce il coperchio aperto: un giro di rifinitura sul breakpoint tablet e ci siamo.</div>
+    </div>
+  </div>
+</section>\n
+<section class="palco" id="scatole">
+  <div class="container">
+    <div class="palco-testa">
+      <span class="lettera">2</span>
       <h2>Il Packaging</h2>
-      <span class="tag oro">★ la scelta del direttore</span>
-      <p class="regola">Ogni servizio è una scatola-prodotto nera opaca in prospettiva 3D: frontale serigrafato, icona sul lato, coperchio con la banda del colore. L&#x27;ammiraglia porta il nastro oro FULL REFUND.</p>
+      <span class="tag">l&#x27;originale approvato · rifinito</span>
+      <p class="regola">La versione che hai approvato, con la rifinitura: il chip FLAGSHIP ora resta ancorato al nome a ogni larghezza. Scatole sigillate, serigrafia, barcode, nastro oro FULL REFUND sull&#x27;ammiraglia.</p>
     </div>
     <iframe class="palco-vetro" title="Il Packaging"
       data-v="scatole" srcdoc="&lt;!DOCTYPE html&gt;
@@ -305,6 +846,13 @@ body::before{content:&#x27;&#x27;;position:fixed;inset:0;z-index:-1;pointer-even
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none!important;transition:none!important}
 }
+/* il chip FLAGSHIP resta ancorato al nome: sotto gli 860px il titolo
+   dell&#x27;ammiraglia scala invece di spezzare la riga (l&#x27;ordine in coda
+   fa vincere questa regola sulla base a pari specificita&#x27;) */
+.pnome .kind{flex:none}
+@media (max-width:860px){
+  .ammiraglia .pnome{gap:9px}
+  .ammiraglia .pnome h3{font-size:21px} }
 &lt;/style&gt;
 &lt;/head&gt;
 &lt;body&gt;
@@ -475,564 +1023,26 @@ body::before{content:&#x27;&#x27;;position:fixed;inset:0;z-index:-1;pointer-even
 &lt;/html&gt;
 "></iframe>
     <div class="verdetto">
-      <div><b>Perché</b>La metafora più letterale e più vendente: il servizio è un oggetto SIGILLATO con dentro la sua garanzia. Le scatole leggono come foto di prodotto vere.</div>
-      <div><b>Il limite</b>La serigrafia secondaria è texture, non testo leggibile (giusto così); da rifinire il chip FLAGSHIP che va a capo sotto gli 800px.</div>
+      <div><b>Perché</b>Il riferimento della famiglia: sobrio, fotografico, il servizio sigillato con dentro la sua garanzia.</div>
+      <div><b>Il limite</b>La serigrafia secondaria resta texture, non testo leggibile (scelta giusta per un packaging).</div>
     </div>
   </div>
 </section>\n
-<section class="palco" id="teche">
+<section class="palco" id="sigillo">
   <div class="container">
     <div class="palco-testa">
-      <span class="lettera">2</span>
-      <h2>Le Teche</h2>
-      <span class="tag">seconda scelta</span>
-      <p class="regola">Vetrine museali con spotlight nel colore: dentro, i quattro strumenti VIVI (radar che trova, schermo live, scudo che si sigilla, documento scansionato). Targhette da catalogo N.01–04.</p>
+      <span class="lettera">3</span>
+      <h2>Il Sigillo</h2>
+      <span class="tag">la più BOOM</span>
+      <p class="regola">Plichi neri da scrivania chiusi da un sigillo di CERALACCA nel colore del servizio — iniziali impresse, glint che passa sulla cera — fascetta di carta col nome, riga &quot;Oggetto&quot; tipo lettera. L&#x27;ammiraglia col doppio nastro oro raso. Hover = il plico si stacca dalla scrivania.</p>
     </div>
-    <iframe class="palco-vetro" title="Le Teche"
-      data-v="teche" srcdoc="&lt;!doctype html&gt;
+    <iframe class="palco-vetro" title="Il Sigillo"
+      data-v="sigillo" srcdoc="&lt;!DOCTYPE html&gt;
 &lt;html lang=&quot;en&quot;&gt;
 &lt;head&gt;
 &lt;meta charset=&quot;utf-8&quot;&gt;
 &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
-&lt;title&gt;Variante LE TECHE&lt;/title&gt;
-&lt;link rel=&quot;preconnect&quot; href=&quot;https://fonts.googleapis.com&quot;&gt;
-&lt;link rel=&quot;preconnect&quot; href=&quot;https://fonts.gstatic.com&quot; crossorigin&gt;
-&lt;link href=&quot;https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap&quot; rel=&quot;stylesheet&quot;&gt;
-&lt;style&gt;
-:root {
-  --gold:#FFD700; --green:#00FF88; --black:#030303; --void:#060607;
-  --surface:#0B0B0C; --card:#0E0E10; --text:#FAFAFA;
-  --text-2:rgba(250,250,250,.72); --text-3:rgba(250,250,250,.5);
-  --text-4:rgba(250,250,250,.48); --line-0:rgba(255,255,255,.04);
-  --line:rgba(255,255,255,.08);
-  --ease:cubic-bezier(.16,1,.3,1); --molla:cubic-bezier(.3,1.45,.5,1);
-  --sans:&#x27;Inter&#x27;,-apple-system,BlinkMacSystemFont,sans-serif;
-  --display:&#x27;Helvetica Neue&#x27;,Helvetica,Arial,sans-serif;
-  --mono:ui-monospace,&#x27;SF Mono&#x27;,&#x27;Cascadia Mono&#x27;,&#x27;JetBrains Mono&#x27;,Menlo,monospace;
-  --c-vv:#00FF88; --c-pf:#FFD700; --c-da:#9D8CFF; --c-cc:#3ED3FF;
-}
-* { margin:0; padding:0; box-sizing:border-box; }
-body { background:var(--black); color:var(--text); font-family:var(--sans);
-  font-weight:300; -webkit-font-smoothing:antialiased; }
-body::before { content:&#x27;&#x27;; position:fixed; inset:0; pointer-events:none; z-index:0;
-  background:
-    radial-gradient(58% 42% at 50% -4%, rgba(255,215,0,.055), transparent 62%),
-    radial-gradient(70% 55% at 50% 112%, rgba(255,255,255,.02), transparent 60%); }
-
-.wrap { position:relative; z-index:1; max-width:1240px; margin:0 auto;
-  padding:clamp(64px,9vh,108px) clamp(20px,4vw,48px) clamp(90px,12vh,140px); }
-
-/* ---------- header ---------- */
-.head { text-align:center; margin-bottom:clamp(44px,6vw,72px); }
-.eyebrow { display:inline-flex; align-items:center; gap:16px;
-  font-size:11px; letter-spacing:.42em; text-transform:uppercase;
-  color:var(--text-3); font-weight:500; }
-.eyebrow i { width:34px; height:1px; display:block;
-  background:linear-gradient(90deg, transparent, rgba(255,215,0,.7)); }
-.eyebrow i:last-child { transform:scaleX(-1); }
-h2 { font-family:var(--display); font-weight:250; letter-spacing:-.015em;
-  font-size:clamp(34px,4.6vw,58px); line-height:1.06; margin:22px 0 16px; }
-h2 em { font-style:normal; color:var(--gold); font-weight:300; }
-.sotto { color:var(--text-3); font-size:clamp(14px,1.4vw,16px); font-weight:300;
-  letter-spacing:.01em; }
-
-/* ---------- grid ---------- */
-.griglia { display:grid; grid-template-columns:repeat(3,1fr);
-  gap:clamp(18px,2vw,24px); }
-
-/* ---------- la teca ---------- */
-.teca { position:relative; display:flex; flex-direction:column;
-  background:linear-gradient(180deg,#0E0E10 0%,#0A0A0B 100%);
-  border:1px solid var(--line-0); border-radius:24px;
-  padding:14px 14px 30px;
-  box-shadow:0 30px 70px -30px rgba(0,0,0,.85);
-  transition:transform .55s var(--ease), border-color .55s var(--ease),
-             box-shadow .55s var(--ease); }
-.teca:hover { transform:translateY(-5px);
-  border-color:color-mix(in srgb, var(--c) 22%, rgba(255,255,255,.06)); }
-.t-pf { --c:var(--c-pf); grid-column:1/-1;
-  border-color:color-mix(in srgb, var(--c-pf) 16%, rgba(255,255,255,.05));
-  box-shadow:0 40px 90px -35px rgba(0,0,0,.9),
-             0 24px 90px -40px color-mix(in srgb, var(--c-pf) 30%, transparent); }
-.t-pf:hover { box-shadow:0 46px 100px -35px rgba(0,0,0,.9),
-             0 28px 100px -38px color-mix(in srgb, var(--c-pf) 42%, transparent); }
-.t-vv { --c:var(--c-vv); }
-.t-da { --c:var(--c-da); }
-.t-cc { --c:var(--c-cc); }
-
-/* ---------- la vetrina di vetro ---------- */
-.vetrina { position:relative; border-radius:16px; overflow:hidden;
-  background:linear-gradient(180deg, rgba(255,255,255,.025), transparent 34%), #060607;
-  border:1px solid rgba(255,255,255,.07);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.09),
-             inset 1px 0 0 rgba(255,255,255,.045),
-             inset -1px 0 0 rgba(255,255,255,.03),
-             inset 0 -18px 34px -22px rgba(0,0,0,.85);
-  min-height:252px; }
-/* riflesso del vetro — gradiente diagonale sottile, sopra l&#x27;oggetto */
-.vetrina::after { content:&#x27;&#x27;; position:absolute; inset:0; z-index:6;
-  border-radius:inherit; pointer-events:none;
-  background:linear-gradient(118deg, transparent 30%, rgba(255,255,255,.055) 43%,
-             rgba(255,255,255,.015) 51%, transparent 60%),
-             linear-gradient(180deg, rgba(255,255,255,.05), transparent 14%); }
-/* la lampada in cima */
-.lamp { position:absolute; top:0; left:50%; transform:translateX(-50%); z-index:7;
-  width:46px; height:9px; border-radius:0 0 7px 7px;
-  background:linear-gradient(#28282b,#131315);
-  border:1px solid rgba(255,255,255,.08); border-top:0;
-  display:flex; align-items:flex-end; justify-content:center; }
-.lamp::after { content:&#x27;&#x27;; width:20px; height:3px; margin-bottom:1px; border-radius:2px;
-  background:var(--c); box-shadow:0 2px 12px 1px var(--c); }
-/* il cono di luce */
-.cone { position:absolute; top:6px; left:50%; transform:translateX(-50%); z-index:1;
-  width:76%; height:calc(100% - 34px);
-  clip-path:polygon(45% 0, 55% 0, 100% 100%, 0 100%);
-  background:linear-gradient(to bottom,
-    color-mix(in srgb, var(--c) 34%, transparent),
-    color-mix(in srgb, var(--c) 7%, transparent) 68%, transparent);
-  filter:blur(11px); opacity:.62;
-  transition:opacity .6s var(--ease); }
-/* la pozza di luce sul fondo */
-.pool { position:absolute; bottom:8px; left:50%; transform:translateX(-50%); z-index:1;
-  width:72%; height:36px; border-radius:50%;
-  background:radial-gradient(closest-side,
-    color-mix(in srgb, var(--c) 26%, transparent), transparent 72%);
-  filter:blur(7px); opacity:.8; transition:opacity .6s var(--ease); }
-/* hover = lo spotlight si intensifica, l&#x27;oggetto si avvicina al vetro */
-.teca:hover .cone { opacity:1; }
-.teca:hover .pool { opacity:1; }
-.obj { position:absolute; inset:0; z-index:2;
-  display:flex; align-items:center; justify-content:center;
-  padding:26px 18px 30px;
-  transition:transform .65s var(--molla); }
-.teca:hover .obj { transform:translateY(-7px) scale(1.04); }
-
-/* ---------- targhetta da museo ---------- */
-.targhetta { position:relative; align-self:center; text-align:center;
-  margin:20px auto 0; padding:13px 30px 14px; max-width:92%;
-  background:linear-gradient(180deg,#141416,#0C0C0E);
-  border:1px solid var(--line); border-radius:7px;
-  box-shadow:0 10px 26px -12px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.05); }
-.targhetta::before, .targhetta::after { content:&#x27;&#x27;; position:absolute; top:7px;
-  width:4px; height:4px; border-radius:50%;
-  background:rgba(255,255,255,.16); box-shadow:inset 0 1px 1px rgba(0,0,0,.8); }
-.targhetta::before { left:8px; } .targhetta::after { right:8px; }
-.tg-num { display:block; font-family:var(--mono); font-size:8.5px;
-  letter-spacing:.26em; color:var(--text-4); margin-bottom:7px; white-space:nowrap; }
-.pnome { font-family:var(--display); font-size:21px; font-weight:350;
-  letter-spacing:.01em; line-height:1.15; }
-.kind { display:inline-flex; align-items:center; gap:7px; margin-top:8px;
-  font-size:10px; font-weight:600; letter-spacing:.3em; text-transform:uppercase;
-  color:var(--c); }
-.kind::before { content:&#x27;&#x27;; width:4px; height:4px; border-radius:50%;
-  background:var(--c); box-shadow:0 0 8px var(--c); }
-
-/* ---------- strato vendita ---------- */
-.vendita { display:flex; flex-direction:column; align-items:center;
-  text-align:center; padding:0 clamp(14px,3%,30px); flex:1; }
-.promessa { color:var(--text-2); font-size:14.5px; line-height:1.68;
-  max-width:36ch; margin:16px 0 20px; }
-.compra { display:inline-flex; align-items:center; justify-content:center;
-  border-radius:100px; min-height:44px; padding:0 27px;
-  background:var(--c); color:#0A0A05; font-weight:700; font-size:14.5px;
-  letter-spacing:.01em; text-decoration:none; white-space:nowrap;
-  box-shadow:0 10px 30px -6px color-mix(in srgb, var(--c) 42%, transparent),
-             0 2px 8px rgba(0,0,0,.5);
-  transition:transform .45s var(--molla), box-shadow .45s var(--ease),
-             filter .45s var(--ease); margin-top:auto; }
-.compra:hover { transform:translateY(-2px); filter:brightness(1.07);
-  box-shadow:0 16px 40px -6px color-mix(in srgb, var(--c) 55%, transparent),
-             0 3px 10px rgba(0,0,0,.5); }
-.compra:focus-visible { outline:2px solid #fff; outline-offset:3px; }
-.rassicura { display:block; margin-top:14px; min-height:3.1em;
-  color:var(--text-3); font-size:12.5px; line-height:1.55; max-width:40ch; }
-.teca-wide .rassicura { min-height:0; }
-.rassicura b { color:var(--c); font-weight:700; margin-right:5px; }
-
-/* ---------- l&#x27;ammiraglia: teca larga, oggetto grande, vendita a lato ---------- */
-@media (min-width:761px) {
-  .teca-wide { display:grid; grid-template-columns:1.06fr .94fr;
-    grid-template-areas:&quot;vet tar&quot; &quot;vet ven&quot;;
-    grid-template-rows:auto auto; align-content:center; row-gap:20px;
-    column-gap:clamp(26px,4vw,60px);
-    padding:16px clamp(28px,4vw,56px) 16px 16px; }
-  .teca-wide .vetrina { grid-area:vet; align-self:stretch; }
-  .teca-wide .targhetta { grid-area:tar; align-self:end; justify-self:start;
-    text-align:left; margin:0; padding:13px 34px 14px 22px; }
-  .teca-wide .vendita { grid-area:ven; align-self:start; align-items:flex-start;
-    text-align:left; padding:0; }
-  .teca-wide .rassicura { text-align:left; }
-  .t-pf .vetrina { min-height:400px; }
-  .t-pf .promessa { font-size:17px; max-width:44ch; margin:2px 0 22px; }
-  .t-pf .pnome { font-size:26px; }
-  .t-pf .compra { font-size:15.5px; padding:0 32px; min-height:48px; }
-}
-
-/* ================= GLI STRUMENTI ================= */
-
-/* --- PF · radar oro che spazza e trova --- */
-.obj-radar { position:relative; width:min(66%,270px); aspect-ratio:1; }
-.obj-radar svg { position:absolute; inset:0; width:100%; height:100%; }
-.sweep { position:absolute; inset:3%; border-radius:50%;
-  background:conic-gradient(from 0deg, transparent 0deg,
-    rgba(255,215,0,.04) 14deg, rgba(255,215,0,.28) 68deg,
-    rgba(255,215,0,.85) 79deg, transparent 80deg 360deg); }
-.blip { position:absolute; width:8px; height:8px; margin:-4px 0 0 -4px;
-  border-radius:50%; background:var(--gold);
-  box-shadow:0 0 12px 2px rgba(255,215,0,.75); opacity:.8; }
-.blip-match { width:11px; height:11px; margin:-5.5px 0 0 -5.5px; }
-.blip-match::after { content:&#x27;&#x27;; position:absolute; inset:-7px; border-radius:50%;
-  border:1.5px solid rgba(255,215,0,.75); opacity:0; }
-.blip-match span { position:absolute; left:50%; top:-22px; transform:translateX(-50%);
-  font-family:var(--mono); font-size:9px; font-weight:600; letter-spacing:.22em;
-  color:var(--gold); text-shadow:0 0 10px rgba(255,215,0,.7); }
-
-/* --- VV · schermo live verde --- */
-.obj-screen { display:flex; flex-direction:column; align-items:center; }
-.tv { position:relative; width:204px; max-width:100%; aspect-ratio:16/10;
-  border-radius:13px; overflow:hidden;
-  border:1px solid rgba(0,255,136,.4); background:#03130A;
-  box-shadow:0 0 34px -6px rgba(0,255,136,.35),
-             inset 0 0 26px rgba(0,255,136,.07); }
-.tv::after { content:&#x27;&#x27;; position:absolute; inset:0; pointer-events:none;
-  background:repeating-linear-gradient(180deg,
-    rgba(0,255,136,.05) 0 1px, transparent 1px 4px); }
-.room { position:absolute; top:0; left:0; height:100%; width:auto; }
-.live { position:absolute; top:9px; left:9px; z-index:2;
-  display:inline-flex; align-items:center; gap:6px;
-  font-family:var(--mono); font-size:9px; font-weight:600; letter-spacing:.2em;
-  color:var(--green); padding:4px 9px 4px 8px; border-radius:100px;
-  background:rgba(3,20,12,.75); border:1px solid rgba(0,255,136,.5); }
-.live i { width:5px; height:5px; border-radius:50%; background:var(--green);
-  box-shadow:0 0 8px var(--green); }
-.bars { position:absolute; right:10px; bottom:8px; z-index:2;
-  display:flex; align-items:flex-end; gap:2.5px; }
-.bars i { width:3px; border-radius:1px; background:rgba(0,255,136,.85); }
-.bars i:nth-child(1){height:4px} .bars i:nth-child(2){height:7px}
-.bars i:nth-child(3){height:10px} .bars i:nth-child(4){height:13px}
-.tv-neck { width:12px; height:15px; background:linear-gradient(#1b1b1e,#101012); }
-.tv-base { width:74px; height:6px; border-radius:3px;
-  background:linear-gradient(#232326,#121214);
-  box-shadow:0 4px 10px rgba(0,0,0,.6); }
-
-/* --- DA · scudo violetto che si chiude --- */
-.obj-shield { position:relative; display:flex; align-items:center; justify-content:center; }
-.aura { position:absolute; width:150px; height:150px; border-radius:50%;
-  background:radial-gradient(closest-side, rgba(157,140,255,.34), transparent 70%);
-  filter:blur(22px); opacity:.45; }
-.scudo { position:relative; width:min(152px,52%); overflow:visible; }
-.scudo .met { fill:rgba(157,140,255,.09); stroke:#9D8CFF; stroke-width:2;
-  stroke-linejoin:round; }
-.seam { stroke:#CFC6FF; stroke-width:1.5; opacity:0; }
-.check { fill:none; stroke:#CFC6FF; stroke-width:3.4; stroke-linecap:round;
-  stroke-linejoin:round; stroke-dasharray:60; stroke-dashoffset:0; opacity:1;
-  filter:drop-shadow(0 0 6px rgba(157,140,255,.8)); }
-
-/* --- CC · documento ciano scansionato + semaforo --- */
-.obj-doc { display:flex; align-items:center; gap:20px; }
-.foglio { position:relative; }
-.foglio svg { display:block; width:min(118px,30vw); overflow:visible; }
-.scanbar { position:absolute; left:4%; width:92%; height:22px; top:8%;
-  border-radius:4px; opacity:0; pointer-events:none;
-  background:linear-gradient(180deg, transparent,
-    rgba(62,211,255,.28) 42%, rgba(62,211,255,.75) 50%,
-    rgba(62,211,255,.28) 58%, transparent);
-  box-shadow:0 0 18px rgba(62,211,255,.35); }
-.semaforo { display:flex; flex-direction:column; gap:7px;
-  padding:8px 7px; border-radius:14px;
-  background:#0A0A0C; border:1px solid var(--line);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 8px 20px -8px rgba(0,0,0,.8); }
-.semaforo i { width:13px; height:13px; border-radius:50%; }
-.s-r { background:#FF5A5A; opacity:.32; }
-.s-a { background:#FFB020; opacity:.32; }
-.s-g { background:#00E07A; opacity:1; box-shadow:0 0 12px 2px rgba(0,224,122,.55); }
-
-/* ================= animazioni (solo se il motion è gradito) ================= */
-@media (prefers-reduced-motion: no-preference) {
-  .cone { animation:respiro 7s ease-in-out infinite; }
-  @keyframes respiro { 0%,100%{opacity:.58} 50%{opacity:.72} }
-  .teca:hover .cone { animation:none; opacity:1; }
-
-  .sweep { animation:spin 6s linear infinite; }
-  @keyframes spin { to { transform:rotate(360deg); } }
-  .blip { animation:ping 6s linear infinite; }
-  @keyframes ping { 0%{opacity:1} 42%{opacity:.38} 90%{opacity:.3} 100%{opacity:1} }
-  .blip-match::after { animation:ring 6s linear infinite; }
-  @keyframes ring { 0%{opacity:.9; transform:scale(.4)} 26%{opacity:0; transform:scale(1.9)}
-    100%{opacity:0; transform:scale(1.9)} }
-  .blip-match span { animation:tagf 6s linear infinite; }
-  @keyframes tagf { 0%{opacity:1} 55%{opacity:.75} 92%{opacity:.7} 100%{opacity:1} }
-
-  .room { animation:pan 11s ease-in-out infinite alternate; }
-  @keyframes pan { from{transform:translateX(0)} to{transform:translateX(-46px)} }
-  .live i { animation:blink 1.7s ease-in-out infinite; }
-  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
-  .bars i:nth-child(4) { animation:segnale 2.6s ease-in-out infinite; }
-  .bars i:nth-child(3) { animation:segnale 2.6s ease-in-out infinite .4s; }
-  @keyframes segnale { 0%,100%{opacity:1} 55%{opacity:.3} }
-
-  .sh-l { animation:chiudiL 5.6s var(--ease) infinite; }
-  .sh-r { animation:chiudiR 5.6s var(--ease) infinite; }
-  @keyframes chiudiL { 0%,10%{transform:translateX(0)} 24%{transform:translateX(-8px)}
-    36%{transform:translateX(-8px)} 52%,100%{transform:translateX(0)} }
-  @keyframes chiudiR { 0%,10%{transform:translateX(0)} 24%{transform:translateX(8px)}
-    36%{transform:translateX(8px)} 52%,100%{transform:translateX(0)} }
-  .seam { animation:lampo 5.6s linear infinite; }
-  @keyframes lampo { 0%,51%{opacity:0} 55%{opacity:.9} 64%,100%{opacity:0} }
-  .check { animation:sigillo 5.6s linear infinite; }
-  @keyframes sigillo { 0%,10%{opacity:1; stroke-dashoffset:0}
-    14%{opacity:0; stroke-dashoffset:60} 58%{opacity:0; stroke-dashoffset:60}
-    62%{opacity:1} 74%,100%{opacity:1; stroke-dashoffset:0} }
-  .aura { animation:aurap 5.6s ease-in-out infinite; }
-  @keyframes aurap { 0%,10%{opacity:.5} 30%{opacity:.22} 52%{opacity:.3}
-    66%{opacity:.75} 100%{opacity:.5} }
-
-  .scanbar { animation:scan 7s linear infinite; }
-  @keyframes scan { 0%{top:6%; opacity:0} 5%{opacity:1} 46%{top:82%; opacity:1}
-    52%{top:88%; opacity:0} 100%{top:88%; opacity:0} }
-  .s-r { animation:vr 7s linear infinite; }
-  .s-a { animation:va 7s linear infinite; }
-  .s-g { animation:vg 7s linear infinite; }
-  @keyframes vr { 0%,55%{opacity:.32} 58%{opacity:1} 66%,100%{opacity:.32} }
-  @keyframes va { 0%,64%{opacity:.32} 67%{opacity:1} 75%,100%{opacity:.32} }
-  @keyframes vg { 0%{opacity:.35; box-shadow:0 0 0 rgba(0,224,122,0)}
-    74%{opacity:.35; box-shadow:0 0 0 rgba(0,224,122,0)}
-    80%,100%{opacity:1; box-shadow:0 0 12px 2px rgba(0,224,122,.55)} }
-}
-
-/* ================= responsive ================= */
-@media (min-width:761px) and (max-width:1020px) {
-  .griglia { grid-template-columns:repeat(2,1fr); }
-  .t-cc { grid-column:1/-1;
-    display:grid; grid-template-columns:1.06fr .94fr;
-    grid-template-areas:&quot;vet tar&quot; &quot;vet ven&quot;;
-    grid-template-rows:auto auto; align-content:center; row-gap:20px;
-    column-gap:clamp(26px,4vw,60px);
-    padding:16px clamp(28px,4vw,56px) 16px 16px; }
-  .t-cc .vetrina { grid-area:vet; align-self:stretch; min-height:280px; }
-  .t-cc .targhetta { grid-area:tar; align-self:end; justify-self:start;
-    text-align:left; margin:0; padding:13px 34px 14px 22px; }
-  .t-cc .vendita { grid-area:ven; align-self:start; align-items:flex-start;
-    text-align:left; padding:0; }
-  .t-cc .rassicura { min-height:0; }
-}
-@media (max-width:760px) {
-  .griglia { grid-template-columns:1fr; }
-  .t-pf .vetrina { min-height:300px; }
-}
-@media (max-width:580px) {
-  .teca { padding:12px 12px 26px; }
-  .vetrina { min-height:236px; }
-  .t-pf .vetrina { min-height:270px; }
-  .vendita { padding:0 8px; }
-  .compra { width:100%; }
-  .promessa { font-size:14px; }
-}
-&lt;/style&gt;
-&lt;/head&gt;
-&lt;body&gt;
-&lt;main class=&quot;wrap&quot;&gt;
-
-  &lt;header class=&quot;head&quot;&gt;
-    &lt;div class=&quot;eyebrow&quot;&gt;&lt;i&gt;&lt;/i&gt;Boom Services · The Permanent Collection&lt;i&gt;&lt;/i&gt;&lt;/div&gt;
-    &lt;h2&gt;Four instruments &lt;em&gt;for Rome.&lt;/em&gt;&lt;/h2&gt;
-    &lt;p class=&quot;sotto&quot;&gt;On display, in working order. Touching is encouraged.&lt;/p&gt;
-  &lt;/header&gt;
-
-  &lt;div class=&quot;griglia&quot;&gt;
-
-    &lt;!-- ============ PF · L&#x27;AMMIRAGLIA ============ --&gt;
-    &lt;article class=&quot;teca t-pf teca-wide&quot;&gt;
-      &lt;div class=&quot;vetrina&quot;&gt;
-        &lt;i class=&quot;cone&quot;&gt;&lt;/i&gt;&lt;i class=&quot;pool&quot;&gt;&lt;/i&gt;
-        &lt;div class=&quot;obj&quot; aria-hidden=&quot;true&quot;&gt;
-        &lt;div class=&quot;obj-radar&quot;&gt;
-          &lt;svg viewBox=&quot;0 0 200 200&quot; fill=&quot;none&quot;&gt;
-            &lt;g stroke=&quot;rgba(255,215,0,.18)&quot; stroke-width=&quot;1&quot;&gt;
-              &lt;circle cx=&quot;100&quot; cy=&quot;100&quot; r=&quot;94&quot;/&gt;
-              &lt;circle cx=&quot;100&quot; cy=&quot;100&quot; r=&quot;68&quot;/&gt;
-              &lt;circle cx=&quot;100&quot; cy=&quot;100&quot; r=&quot;42&quot;/&gt;
-              &lt;circle cx=&quot;100&quot; cy=&quot;100&quot; r=&quot;18&quot;/&gt;
-              &lt;line x1=&quot;100&quot; y1=&quot;6&quot; x2=&quot;100&quot; y2=&quot;194&quot;/&gt;
-              &lt;line x1=&quot;6&quot; y1=&quot;100&quot; x2=&quot;194&quot; y2=&quot;100&quot;/&gt;
-              &lt;line x1=&quot;33.5&quot; y1=&quot;33.5&quot; x2=&quot;166.5&quot; y2=&quot;166.5&quot; stroke=&quot;rgba(255,215,0,.09)&quot;/&gt;
-              &lt;line x1=&quot;166.5&quot; y1=&quot;33.5&quot; x2=&quot;33.5&quot; y2=&quot;166.5&quot; stroke=&quot;rgba(255,215,0,.09)&quot;/&gt;
-            &lt;/g&gt;
-            &lt;circle cx=&quot;100&quot; cy=&quot;100&quot; r=&quot;94&quot; stroke=&quot;rgba(255,215,0,.45)&quot; stroke-width=&quot;1.5&quot;/&gt;
-            &lt;circle cx=&quot;100&quot; cy=&quot;100&quot; r=&quot;3.2&quot; fill=&quot;#FFD700&quot;/&gt;
-          &lt;/svg&gt;
-          &lt;i class=&quot;sweep&quot;&gt;&lt;/i&gt;
-          &lt;b class=&quot;blip&quot; style=&quot;left:76.8%; top:29.1%; animation-delay:-.47s&quot;&gt;&lt;/b&gt;
-          &lt;b class=&quot;blip&quot; style=&quot;left:61%;  top:69.1%; animation-delay:-4.83s&quot;&gt;&lt;/b&gt;
-          &lt;b class=&quot;blip blip-match&quot; style=&quot;left:22.8%; top:62.7%;&quot;&gt;
-            &lt;span style=&quot;animation-delay:-2.97s&quot;&gt;MATCH&lt;/span&gt;
-          &lt;/b&gt;
-        &lt;/div&gt;
-        &lt;/div&gt;
-        &lt;i class=&quot;lamp&quot;&gt;&lt;/i&gt;
-      &lt;/div&gt;
-      &lt;div class=&quot;targhetta&quot;&gt;
-        &lt;span class=&quot;tg-num&quot;&gt;N.&amp;nbsp;01 · COLLEZIONE BOOM&lt;/span&gt;
-        &lt;h3 class=&quot;pnome&quot;&gt;Property Finding&lt;/h3&gt;
-        &lt;span class=&quot;kind&quot;&gt;Flagship&lt;/span&gt;
-      &lt;/div&gt;
-      &lt;div class=&quot;vendita&quot;&gt;
-        &lt;p class=&quot;promessa&quot;&gt;Your private hunter on the whole Rome market — off-market
-          included, every shortlist walked in person before you see it.&lt;/p&gt;
-        &lt;a class=&quot;compra&quot; href=&quot;/property-finding.html&quot;&gt;Start the hunt&amp;nbsp;·&amp;nbsp;€350&amp;nbsp;→&lt;/a&gt;
-        &lt;p class=&quot;rassicura&quot;&gt;&lt;b&gt;✓&lt;/b&gt; Zero risk: deducted on success, refunded in full
-          if we don&#x27;t deliver.&lt;/p&gt;
-      &lt;/div&gt;
-    &lt;/article&gt;
-
-    &lt;!-- ============ VV ============ --&gt;
-    &lt;article class=&quot;teca t-vv&quot;&gt;
-      &lt;div class=&quot;vetrina&quot;&gt;
-        &lt;i class=&quot;cone&quot;&gt;&lt;/i&gt;&lt;i class=&quot;pool&quot;&gt;&lt;/i&gt;
-        &lt;div class=&quot;obj obj-screen&quot; aria-hidden=&quot;true&quot;&gt;
-          &lt;div&gt;
-            &lt;div class=&quot;tv&quot;&gt;
-              &lt;svg class=&quot;room&quot; viewBox=&quot;0 0 340 170&quot; fill=&quot;none&quot;
-                   stroke=&quot;rgba(0,255,136,.55)&quot; stroke-width=&quot;1.3&quot; stroke-linecap=&quot;round&quot;&gt;
-                &lt;line x1=&quot;0&quot; y1=&quot;130&quot; x2=&quot;340&quot; y2=&quot;130&quot;/&gt;
-                &lt;rect x=&quot;26&quot; y=&quot;26&quot; width=&quot;72&quot; height=&quot;58&quot; rx=&quot;2&quot;/&gt;
-                &lt;line x1=&quot;62&quot; y1=&quot;26&quot; x2=&quot;62&quot; y2=&quot;84&quot;/&gt;
-                &lt;line x1=&quot;26&quot; y1=&quot;55&quot; x2=&quot;98&quot; y2=&quot;55&quot;/&gt;
-                &lt;rect x=&quot;150&quot; y=&quot;32&quot; width=&quot;38&quot; height=&quot;28&quot; rx=&quot;2&quot;/&gt;
-                &lt;path d=&quot;M126 130 v-28 q0 -9 9 -9 h66 q9 0 9 9 v28&quot;/&gt;
-                &lt;line x1=&quot;126&quot; y1=&quot;112&quot; x2=&quot;210&quot; y2=&quot;112&quot;/&gt;
-                &lt;line x1=&quot;168&quot; y1=&quot;93&quot; x2=&quot;168&quot; y2=&quot;112&quot;/&gt;
-                &lt;line x1=&quot;252&quot; y1=&quot;130&quot; x2=&quot;252&quot; y2=&quot;62&quot;/&gt;
-                &lt;path d=&quot;M240 62 h24 l-5 -14 h-14 z&quot;/&gt;
-                &lt;path d=&quot;M296 130 v-12 h18 v12&quot;/&gt;
-                &lt;path d=&quot;M305 118 q-10 -16 2 -26 q10 12 -2 26&quot; /&gt;
-              &lt;/svg&gt;
-              &lt;span class=&quot;live&quot;&gt;&lt;i&gt;&lt;/i&gt;LIVE&lt;/span&gt;
-              &lt;span class=&quot;bars&quot;&gt;&lt;i&gt;&lt;/i&gt;&lt;i&gt;&lt;/i&gt;&lt;i&gt;&lt;/i&gt;&lt;i&gt;&lt;/i&gt;&lt;/span&gt;
-            &lt;/div&gt;
-            &lt;div style=&quot;display:flex;flex-direction:column;align-items:center&quot;&gt;
-              &lt;div class=&quot;tv-neck&quot;&gt;&lt;/div&gt;&lt;div class=&quot;tv-base&quot;&gt;&lt;/div&gt;
-            &lt;/div&gt;
-          &lt;/div&gt;
-        &lt;/div&gt;
-        &lt;i class=&quot;lamp&quot;&gt;&lt;/i&gt;
-      &lt;/div&gt;
-      &lt;div class=&quot;targhetta&quot;&gt;
-        &lt;span class=&quot;tg-num&quot;&gt;N.&amp;nbsp;02 · COLLEZIONE BOOM&lt;/span&gt;
-        &lt;h3 class=&quot;pnome&quot;&gt;Virtual Viewing&lt;/h3&gt;
-        &lt;span class=&quot;kind&quot;&gt;Live&lt;/span&gt;
-      &lt;/div&gt;
-      &lt;div class=&quot;vendita&quot;&gt;
-        &lt;p class=&quot;promessa&quot;&gt;See any home live on video before you fly — the red flags
-          said out loud.&lt;/p&gt;
-        &lt;a class=&quot;compra&quot; href=&quot;/virtual-viewing.html&quot;&gt;Book a live tour&amp;nbsp;·&amp;nbsp;€89&amp;nbsp;→&lt;/a&gt;
-        &lt;p class=&quot;rassicura&quot;&gt;&lt;b&gt;✓&lt;/b&gt; Credited if you rent with us · BOOM homes:
-          free, always.&lt;/p&gt;
-      &lt;/div&gt;
-    &lt;/article&gt;
-
-    &lt;!-- ============ DA ============ --&gt;
-    &lt;article class=&quot;teca t-da&quot;&gt;
-      &lt;div class=&quot;vetrina&quot;&gt;
-        &lt;i class=&quot;cone&quot;&gt;&lt;/i&gt;&lt;i class=&quot;pool&quot;&gt;&lt;/i&gt;
-        &lt;div class=&quot;obj obj-shield&quot; aria-hidden=&quot;true&quot;&gt;
-          &lt;i class=&quot;aura&quot;&gt;&lt;/i&gt;
-          &lt;svg class=&quot;scudo&quot; viewBox=&quot;0 0 120 130&quot; fill=&quot;none&quot;&gt;
-            &lt;g style=&quot;transform-box:fill-box; transform-origin:center;&quot;&gt;
-              &lt;path class=&quot;met sh-l&quot; d=&quot;M60 10 L18 24 V56 C18 86 38 106 60 116 Z&quot;/&gt;
-            &lt;/g&gt;
-            &lt;g style=&quot;transform-box:fill-box; transform-origin:center;&quot;&gt;
-              &lt;path class=&quot;met sh-r&quot; d=&quot;M60 10 L102 24 V56 C102 86 82 106 60 116 Z&quot;/&gt;
-            &lt;/g&gt;
-            &lt;line class=&quot;seam&quot; x1=&quot;60&quot; y1=&quot;14&quot; x2=&quot;60&quot; y2=&quot;112&quot;/&gt;
-            &lt;path class=&quot;check&quot; d=&quot;M44 62 L56 74 L78 50&quot;/&gt;
-          &lt;/svg&gt;
-        &lt;/div&gt;
-        &lt;i class=&quot;lamp&quot;&gt;&lt;/i&gt;
-      &lt;/div&gt;
-      &lt;div class=&quot;targhetta&quot;&gt;
-        &lt;span class=&quot;tg-num&quot;&gt;N.&amp;nbsp;03 · COLLEZIONE BOOM&lt;/span&gt;
-        &lt;h3 class=&quot;pnome&quot;&gt;Deal Assistance&lt;/h3&gt;
-        &lt;span class=&quot;kind&quot;&gt;Protection&lt;/span&gt;
-      &lt;/div&gt;
-      &lt;div class=&quot;vendita&quot;&gt;
-        &lt;p class=&quot;promessa&quot;&gt;Found a home yourself? We verify the landlord and the
-          papers — then negotiate for you.&lt;/p&gt;
-        &lt;a class=&quot;compra&quot; href=&quot;/deal-assistance.html&quot;&gt;Protect the deal&amp;nbsp;·&amp;nbsp;€249&amp;nbsp;→&lt;/a&gt;
-        &lt;p class=&quot;rassicura&quot;&gt;&lt;b&gt;✓&lt;/b&gt; Fixed fee — deposit and clauses negotiated,
-          no percentages.&lt;/p&gt;
-      &lt;/div&gt;
-    &lt;/article&gt;
-
-    &lt;!-- ============ CC ============ --&gt;
-    &lt;article class=&quot;teca t-cc&quot;&gt;
-      &lt;div class=&quot;vetrina&quot;&gt;
-        &lt;i class=&quot;cone&quot;&gt;&lt;/i&gt;&lt;i class=&quot;pool&quot;&gt;&lt;/i&gt;
-        &lt;div class=&quot;obj obj-doc&quot; aria-hidden=&quot;true&quot;&gt;
-          &lt;div class=&quot;foglio&quot;&gt;
-            &lt;svg viewBox=&quot;0 0 130 168&quot; fill=&quot;none&quot;&gt;
-              &lt;path d=&quot;M20 8 h58 l32 32 v112 a8 8 0 0 1 -8 8 H20 a8 8 0 0 1 -8 -8 V16 a8 8 0 0 1 8 -8 Z&quot;
-                    fill=&quot;rgba(62,211,255,.06)&quot; stroke=&quot;#3ED3FF&quot; stroke-width=&quot;2&quot; stroke-linejoin=&quot;round&quot;/&gt;
-              &lt;path d=&quot;M78 8 v24 a8 8 0 0 0 8 8 h24&quot; stroke=&quot;#3ED3FF&quot; stroke-width=&quot;2&quot;
-                    stroke-linejoin=&quot;round&quot; fill=&quot;rgba(62,211,255,.10)&quot;/&gt;
-              &lt;g stroke=&quot;rgba(62,211,255,.55)&quot; stroke-width=&quot;2.4&quot; stroke-linecap=&quot;round&quot;&gt;
-                &lt;line x1=&quot;28&quot; y1=&quot;60&quot; x2=&quot;86&quot; y2=&quot;60&quot;/&gt;
-                &lt;line x1=&quot;28&quot; y1=&quot;74&quot; x2=&quot;100&quot; y2=&quot;74&quot;/&gt;
-                &lt;line x1=&quot;28&quot; y1=&quot;88&quot; x2=&quot;94&quot; y2=&quot;88&quot;/&gt;
-                &lt;line x1=&quot;28&quot; y1=&quot;102&quot; x2=&quot;100&quot; y2=&quot;102&quot;/&gt;
-                &lt;line x1=&quot;28&quot; y1=&quot;116&quot; x2=&quot;72&quot; y2=&quot;116&quot;/&gt;
-              &lt;/g&gt;
-              &lt;circle cx=&quot;94&quot; cy=&quot;136&quot; r=&quot;16&quot; stroke=&quot;rgba(62,211,255,.7)&quot;
-                      stroke-width=&quot;1.6&quot; stroke-dasharray=&quot;3.5 3&quot;/&gt;
-              &lt;text x=&quot;94&quot; y=&quot;140&quot; text-anchor=&quot;middle&quot; fill=&quot;#3ED3FF&quot;
-                    font-family=&quot;ui-monospace,Menlo,monospace&quot; font-size=&quot;10&quot;
-                    font-weight=&quot;600&quot; letter-spacing=&quot;1&quot;&gt;24H&lt;/text&gt;
-            &lt;/svg&gt;
-            &lt;i class=&quot;scanbar&quot;&gt;&lt;/i&gt;
-          &lt;/div&gt;
-          &lt;div class=&quot;semaforo&quot;&gt;&lt;i class=&quot;s-r&quot;&gt;&lt;/i&gt;&lt;i class=&quot;s-a&quot;&gt;&lt;/i&gt;&lt;i class=&quot;s-g&quot;&gt;&lt;/i&gt;&lt;/div&gt;
-        &lt;/div&gt;
-        &lt;i class=&quot;lamp&quot;&gt;&lt;/i&gt;
-      &lt;/div&gt;
-      &lt;div class=&quot;targhetta&quot;&gt;
-        &lt;span class=&quot;tg-num&quot;&gt;N.&amp;nbsp;04 · COLLEZIONE BOOM&lt;/span&gt;
-        &lt;h3 class=&quot;pnome&quot;&gt;Contract Check&lt;/h3&gt;
-        &lt;span class=&quot;kind&quot;&gt;Express&lt;/span&gt;
-      &lt;/div&gt;
-      &lt;div class=&quot;vendita&quot;&gt;
-        &lt;p class=&quot;promessa&quot;&gt;About to sign? A written traffic-light verdict in 24h:
-          fine, unfair, missing.&lt;/p&gt;
-        &lt;a class=&quot;compra&quot; href=&quot;/contract-check-express.html&quot;&gt;Check my contract&amp;nbsp;·&amp;nbsp;€49&amp;nbsp;→&lt;/a&gt;
-        &lt;p class=&quot;rassicura&quot;&gt;&lt;b&gt;✓&lt;/b&gt; Credited in full on Deal Assistance.&lt;/p&gt;
-      &lt;/div&gt;
-    &lt;/article&gt;
-
-  &lt;/div&gt;
-&lt;/main&gt;
-&lt;script&gt;(function(){function m(){parent.postMessage({t:&quot;vh&quot;,id:&quot;teche&quot;,h:document.documentElement.scrollHeight},&quot;*&quot;)}setInterval(m,700);addEventListener(&quot;load&quot;,m)})()&lt;/script&gt;&lt;/body&gt;
-&lt;/html&gt;
-"></iframe>
-    <div class="verdetto">
-      <div><b>Perché</b>Fonde le due linee già approvate (strumenti + oggetto in mostra). &quot;Touching is encouraged&quot; — il museo che ti invita a comprare.</div>
-      <div><b>Il limite</b>Lo screenshot può cogliere uno strumento nel fotogramma debole del suo loop; dal vivo il racconto si completa.</div>
-    </div>
-  </div>
-</section>\n
-<section class="palco" id="hangar">
-  <div class="container">
-    <div class="palco-testa">
-      <span class="lettera">3</span>
-      <h2>L&#x27;Hangar</h2>
-      <span class="tag">la più editoriale</span>
-      <p class="regola">Righe full-width stile drop: numero fantasma gigante nel colore, carta-prodotto che fluttua, vendita grande, righe alternate sinistra/destra. L&#x27;ammiraglia apre con la fascia garanzia oro.</p>
-    </div>
-    <iframe class="palco-vetro" title="L&#x27;Hangar"
-      data-v="hangar" srcdoc="&lt;!DOCTYPE html&gt;
-&lt;html lang=&quot;en&quot;&gt;
-&lt;head&gt;
-&lt;meta charset=&quot;utf-8&quot;&gt;
-&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1&quot;&gt;
-&lt;title&gt;Variante L&#x27;HANGAR&lt;/title&gt;
+&lt;title&gt;Variante IL SIGILLO&lt;/title&gt;
 &lt;link rel=&quot;preconnect&quot; href=&quot;https://fonts.googleapis.com&quot;&gt;
 &lt;link rel=&quot;preconnect&quot; href=&quot;https://fonts.gstatic.com&quot; crossorigin&gt;
 &lt;link href=&quot;https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap&quot; rel=&quot;stylesheet&quot;&gt;
@@ -1048,759 +1058,422 @@ h2 em { font-style:normal; color:var(--gold); font-weight:300; }
   --sans:&#x27;Inter&#x27;,-apple-system,BlinkMacSystemFont,sans-serif;
   --display:&#x27;Helvetica Neue&#x27;,Helvetica,Arial,sans-serif;
   --c-vv:#00FF88; --c-pf:#FFD700; --c-da:#9D8CFF; --c-cc:#3ED3FF;
+  --mono:ui-monospace,&#x27;SF Mono&#x27;,SFMono-Regular,Menlo,Consolas,monospace;
 }
-html,body{overflow-x:hidden}
 body{background:var(--black);color:var(--text);font-family:var(--sans);
-  font-weight:300;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
-a{color:inherit}
+  font-weight:300;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body::before{content:&#x27;&#x27;;position:fixed;inset:0;z-index:-1;pointer-events:none;background:
+  radial-gradient(55% 38% at 50% 0%,rgba(255,215,0,.05),transparent 70%),
+  radial-gradient(45% 32% at 88% 100%,rgba(62,211,255,.035),transparent 70%),
+  radial-gradient(45% 32% at 8% 82%,rgba(157,140,255,.03),transparent 70%)}
 
-/* ---------- header ---------- */
-.testa{max-width:1280px;margin:0 auto;
-  padding:clamp(64px,9vw,112px) clamp(20px,4vw,48px) clamp(36px,5vw,64px);
-  animation:salita 1.1s var(--ease) both}
-@keyframes salita{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
-.eyebrow{display:inline-flex;align-items:center;gap:14px;font-size:11px;font-weight:600;
-  letter-spacing:.48em;text-transform:uppercase;color:var(--gold)}
-.eyebrow::before{content:&#x27;&#x27;;width:34px;height:1px;background:linear-gradient(90deg,transparent,var(--gold))}
-.testa h2{font-family:var(--display);font-weight:200;letter-spacing:-.015em;line-height:1.04;
-  font-size:clamp(38px,4.8vw,66px);margin-top:22px}
-.testa h2 .h2b{color:var(--text-3)}
-.sotto{margin-top:16px;color:var(--text-3);font-size:clamp(14px,1.1vw,16px);
-  line-height:1.6;max-width:52ch}
+/* ————— header ————— */
+.testa{max-width:1180px;margin:0 auto;
+  padding:clamp(56px,9vh,92px) clamp(20px,4vw,48px) clamp(34px,5vh,52px)}
+.eyebrow{display:inline-flex;align-items:center;gap:14px;font-family:var(--mono);
+  font-size:11px;letter-spacing:.38em;text-transform:uppercase;color:var(--gold)}
+.eyebrow::before{content:&#x27;&#x27;;width:28px;height:1px;
+  background:linear-gradient(90deg,var(--gold),transparent)}
+.testa h2{margin-top:22px;font-family:var(--display);font-weight:200;
+  font-size:clamp(34px,4.8vw,56px);line-height:1.06;letter-spacing:-.01em}
+.testa h2 em{font-style:normal;color:var(--gold);font-weight:300}
+.sotto{margin-top:16px;color:var(--text-3);font-size:15px;line-height:1.65;max-width:54ch}
 
-/* ---------- l&#x27;hangar ---------- */
-.hangar{border-top:1px solid var(--line-0)}
-.riga{position:relative;overflow:hidden;border-bottom:1px solid var(--line-0);
-  opacity:0;transition:opacity 1.05s var(--ease),transform 1.05s var(--ease)}
-.da-sx{transform:translateX(-72px)}
-.da-dx{transform:translateX(72px)}
-.riga.in{opacity:1;transform:translateX(0)}
-.r-pf{--c:var(--c-pf);--ry:-14deg}
-.r-vv{--c:var(--c-vv);--ry:14deg}
-.r-da{--c:var(--c-da);--ry:-14deg}
-.r-cc{--c:var(--c-cc);--ry:14deg}
-.ammiraglia{background:radial-gradient(1050px 560px at 72% 40%,rgba(255,215,0,.055),transparent 62%)}
+/* ————— desk ————— */
+.scrivania{max-width:1180px;margin:0 auto;
+  padding:0 clamp(20px,4vw,48px) clamp(76px,10vh,120px)}
+.fila{display:grid;grid-template-columns:repeat(3,1fr);gap:26px}
 
-.dentro{max-width:1280px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;
-  align-items:center;gap:clamp(32px,5vw,84px);
-  padding:clamp(44px,6vw,68px) clamp(20px,4vw,48px)}
-.ammiraglia .dentro{padding-block:clamp(56px,7vw,88px)}
+.prodotto{position:relative;--w:216px;--h:298px;--sig:88px;--flap:34%;--rot:-1.3deg;
+  display:flex;flex-direction:column;
+  background:linear-gradient(180deg,rgba(255,255,255,.022),rgba(255,255,255,0) 55%),var(--card);
+  border:1px solid var(--line-0);border-radius:24px;padding:24px 26px 30px;
+  transition:border-color .6s var(--ease)}
+.prodotto:hover{border-color:rgba(var(--cr),.18)}
 
-/* --- l&#x27;oggetto + il numero fantasma --- */
-.oggetto{position:relative;display:flex;align-items:flex-end;justify-content:center;
-  min-height:300px;padding-bottom:10px}
-.ammiraglia .oggetto{min-height:430px}
-.obj-dx .oggetto{justify-content:flex-start}
-.obj-sx .oggetto{justify-content:flex-end}
-.fantasma{position:absolute;top:-14px;
-  font-family:var(--display);font-weight:200;line-height:.8;letter-spacing:-.05em;
-  font-size:clamp(150px,16.5vw,244px);
-  color:rgba(255,255,255,.04);color:color-mix(in srgb,var(--c) 8%,transparent);
-  -webkit-text-stroke:1px color-mix(in srgb,var(--c) 22%,transparent);
-  user-select:none;pointer-events:none;transition:color .7s ease}
-.ammiraglia .fantasma{font-size:clamp(210px,23.5vw,336px)}
-.obj-dx .fantasma{right:-2%}
-.obj-sx .fantasma{left:-2%}
-.riga:hover .fantasma{color:color-mix(in srgb,var(--c) 12%,transparent)}
+.ammiraglia{--w:300px;--h:404px;--sig:120px;--rot:-1.6deg;
+  display:grid;grid-template-columns:1.06fr 1fr;align-items:center;
+  gap:16px 40px;padding:30px 52px 38px;margin-bottom:26px;
+  border-color:rgba(255,215,0,.15);
+  background:radial-gradient(70% 95% at 24% 50%,rgba(255,215,0,.05),transparent 65%),
+    linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,0) 55%),var(--card)}
+.ammiraglia:hover{border-color:rgba(255,215,0,.28)}
 
-.palco{position:relative;z-index:1;width:min(330px,100%)}
-.ammiraglia .palco{width:min(410px,100%)}
-.palco::after{content:&#x27;&#x27;;position:absolute;left:50%;bottom:-38px;width:66%;height:30px;
-  transform:translateX(-50%);pointer-events:none;filter:blur(7px);
-  background:radial-gradient(50% 50% at 50% 50%,color-mix(in srgb,var(--c) 16%,transparent),transparent 72%)}
-.flotta{width:100%;animation:levita 6.5s ease-in-out infinite alternate;will-change:transform}
-@keyframes levita{from{transform:translateY(5px)}to{transform:translateY(-11px)}}
+/* ————— stage, halo, ground ————— */
+.palco{position:relative;height:404px}
+.ammiraglia .palco{height:512px}
+.palco::after{content:&#x27;&#x27;;position:absolute;left:9%;right:9%;bottom:26px;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.09),transparent)}
+.alone{position:absolute;inset:-6% -12%;pointer-events:none;opacity:.85;
+  background:radial-gradient(48% 42% at 50% 52%,rgba(var(--cr),.11),transparent 70%);
+  transition:opacity .7s var(--ease)}
+.prodotto:hover .alone{opacity:1}
+.ombra{position:absolute;left:50%;bottom:16px;width:calc(var(--w)*1.24);height:34px;
+  transform:translateX(-50%);pointer-events:none}
+.ombra::after{content:&#x27;&#x27;;position:absolute;inset:-42% -16%;border-radius:50%;
+  background:radial-gradient(50% 50% at 50% 50%,rgba(var(--cr),.14),transparent 70%);
+  filter:blur(10px)}
+.ombra i{position:absolute;inset:0;border-radius:50%;
+  background:radial-gradient(50% 50% at 50% 50%,rgba(0,0,0,.85),rgba(0,0,0,0) 70%);
+  filter:blur(8px);transition:transform .8s var(--ease),opacity .8s var(--ease)}
+.prodotto:hover .ombra i{transform:scale(.94);opacity:.72}
 
-/* --- la carta prodotto --- */
-.carta{display:flex;flex-direction:column;width:100%;aspect-ratio:8/5;
-  padding:22px;border-radius:22px;text-decoration:none;position:relative;
-  background:linear-gradient(135deg,#111114 0%,#0A0A0C 52%,#0E0E11 100%);
-  border:1px solid rgba(255,255,255,.09);
-  border-color:color-mix(in srgb,var(--c) 26%,rgba(255,255,255,.06));
-  box-shadow:0 42px 84px -30px color-mix(in srgb,var(--c) 30%,transparent),
-             0 26px 50px -26px rgba(0,0,0,.85),
-             inset 0 1px 0 rgba(255,255,255,.08);
-  transform:perspective(1150px) rotateX(9deg) rotateY(var(--ry));
-  transition:transform .7s var(--molla),box-shadow .7s var(--ease)}
-.ammiraglia .carta{padding:26px}
-.riga:hover .carta{
-  transform:perspective(1150px) rotateX(3deg) rotateY(calc(var(--ry)*.25)) scale(1.04);
-  box-shadow:0 54px 100px -30px color-mix(in srgb,var(--c) 40%,transparent),
-             0 30px 56px -26px rgba(0,0,0,.9),
-             inset 0 1px 0 rgba(255,255,255,.1)}
-.carta::before{content:&#x27;&#x27;;position:absolute;inset:0;border-radius:inherit;pointer-events:none;
-  background:linear-gradient(118deg,transparent 32%,rgba(255,255,255,.055) 46%,transparent 62%)}
-.c-luce{position:absolute;left:9%;right:9%;bottom:-1px;height:2px;pointer-events:none;
-  background:linear-gradient(90deg,transparent,var(--c),transparent);opacity:.85}
-.c-testa{display:flex;justify-content:space-between;align-items:center}
-.c-ico{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;color:var(--c);
-  background:rgba(255,255,255,.04);background:color-mix(in srgb,var(--c) 9%,transparent);
-  border:1px solid rgba(255,255,255,.12);border-color:color-mix(in srgb,var(--c) 30%,transparent)}
-.c-ico svg{width:22px;height:22px;display:block}
-.c-prezzo{font-size:13.5px;font-weight:600;letter-spacing:.02em;color:var(--c);
-  padding:6px 13px;border-radius:100px;
-  background:rgba(255,255,255,.03);background:color-mix(in srgb,var(--c) 7%,transparent);
-  border:1px solid rgba(255,255,255,.12);border-color:color-mix(in srgb,var(--c) 34%,transparent)}
-.c-mezzo{margin-top:auto}
-.c-codice{font-family:var(--display);font-weight:200;line-height:1;color:var(--text);
-  font-size:clamp(40px,3.4vw,54px)}
-.c-nome{display:block;margin-top:7px;font-size:10px;font-weight:500;letter-spacing:.32em;
-  text-transform:uppercase;color:var(--text-3);white-space:nowrap}
-.c-piede{display:flex;justify-content:space-between;align-items:center;gap:14px;
-  margin-top:16px;padding-top:13px;border-top:1px solid var(--line-0)}
-.c-brand{font-size:11px;font-weight:700;letter-spacing:.42em;color:var(--text-2)}
-.c-kind{font-size:9.5px;font-weight:600;letter-spacing:.26em;text-transform:uppercase;color:var(--c)}
+/* ————— the dossier ————— */
+.plico{position:absolute;left:50%;bottom:44px;width:var(--w);height:var(--h);
+  margin-left:calc(var(--w)/-2);border-radius:10px;
+  transform:perspective(1200px) rotateX(5deg) rotate(var(--rot));
+  transform-origin:50% 80%;
+  background:
+    radial-gradient(130% 80% at 22% 0%,rgba(var(--cr),.075),transparent 55%),
+    repeating-linear-gradient(106deg,rgba(255,255,255,.014) 0 2px,rgba(255,255,255,0) 2px 5px),
+    repeating-linear-gradient(-14deg,rgba(0,0,0,.14) 0 1px,rgba(0,0,0,0) 1px 7px),
+    linear-gradient(168deg,#17171A 0%,#0D0D0F 52%,#09090B 100%);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.055),inset 0 1px 0 rgba(255,255,255,.08),
+    0 30px 50px -18px rgba(0,0,0,.85);
+  transition:transform .9s var(--molla),box-shadow .9s var(--ease)}
+@media (hover:hover){
+  .prodotto:hover .plico{transform:perspective(1200px) rotateX(1.5deg) rotate(0deg) translateY(-14px);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.07),inset 0 1px 0 rgba(255,255,255,.1),
+      0 44px 64px -20px rgba(0,0,0,.9)}
+}
 
-/* --- lo strato vendita --- */
-.vendita{max-width:560px}
-.kind{display:inline-flex;align-items:center;gap:9px;font-size:11px;font-weight:600;
-  letter-spacing:.3em;text-transform:uppercase;color:var(--c)}
-.kdot{width:6px;height:6px;border-radius:50%;background:var(--c);flex:none}
-.r-vv .kdot{animation:pulse 2.2s ease-out infinite}
-@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(0,255,136,.45)}70%{box-shadow:0 0 0 10px rgba(0,255,136,0)}100%{box-shadow:0 0 0 0 rgba(0,255,136,0)}}
-.pnome{font-family:var(--display);font-weight:300;letter-spacing:-.015em;line-height:1.06;
-  font-size:clamp(30px,3.1vw,44px);margin:16px 0 14px}
-.ammiraglia .pnome{font-weight:200;font-size:clamp(38px,4.4vw,60px)}
-.promessa{color:var(--text-2);font-size:clamp(15px,1.2vw,17px);line-height:1.65;
-  max-width:46ch;margin-bottom:28px}
-.ammiraglia .promessa{font-size:clamp(16px,1.35vw,19px);color:var(--text-2)}
+/* envelope flap */
+.falda{position:absolute;left:0;right:0;top:0;height:var(--flap);z-index:1;
+  clip-path:polygon(0 0,100% 0,50.5% 100%);border-radius:10px 10px 0 0;
+  background:
+    radial-gradient(120% 90% at 30% 0%,rgba(var(--cr),.06),transparent 60%),
+    repeating-linear-gradient(106deg,rgba(255,255,255,.016) 0 2px,rgba(255,255,255,0) 2px 5px),
+    linear-gradient(180deg,#1F1F24 0%,#131316 78%,#0E0E11 100%);
+  filter:drop-shadow(0 6px 7px rgba(0,0,0,.6))}
+.falda::after{content:&#x27;&#x27;;position:absolute;inset:0;
+  clip-path:polygon(0 0,100% 0,50.5% 100%);
+  background:linear-gradient(180deg,rgba(255,255,255,.05),transparent 30%);
+  border-top:1px solid rgba(255,255,255,.09)}
+.marchio{position:absolute;left:0;right:0;top:15px;z-index:2;text-align:center;
+  font-family:var(--display);font-weight:400;font-size:11px;
+  letter-spacing:.5em;text-indent:.5em;color:rgba(255,255,255,.58)}
+
+/* flagship double gold ribbon */
+.nastri{position:absolute;top:0;bottom:0;left:67%;width:46px;z-index:2;
+  display:flex;gap:7px;pointer-events:none}
+.nastri i{flex:1;
+  background:linear-gradient(102deg,rgba(255,255,255,.32),rgba(255,255,255,0) 45%),
+    linear-gradient(180deg,#FFDC33,#D9AC00);
+  box-shadow:inset 1px 0 0 rgba(255,255,255,.32),inset -1px 0 0 rgba(0,0,0,.28),
+    0 0 22px rgba(255,215,0,.2)}
+.nastri i:last-child{flex:0 0 11px;
+  background:linear-gradient(102deg,rgba(255,255,255,.28),rgba(255,255,255,0) 45%),
+    linear-gradient(180deg,#F4C61B,#B98F00)}
+
+/* ————— the wax seal ————— */
+.cera{position:absolute;left:50%;top:var(--flap);z-index:4;width:var(--sig);height:var(--sig);
+  transform:translate(-50%,-54%);filter:drop-shadow(0 7px 12px rgba(0,0,0,.55))}
+.goccia{position:absolute;display:block;
+  background:
+    radial-gradient(55% 50% at 34% 28%,rgba(255,255,255,.2),rgba(255,255,255,0) 60%),
+    radial-gradient(120% 120% at 50% 38%,rgba(var(--cr),.5),rgba(var(--cr),.16) 70%),#0B0B0C}
+.g1{width:15%;height:13%;left:-4%;bottom:22%;border-radius:60% 40% 55% 45%/55% 60% 40% 45%}
+.g2{width:13%;height:12%;right:-5%;top:30%;border-radius:45% 55% 60% 40%/50% 45% 55% 50%}
+.g3{width:11%;height:15%;left:26%;bottom:-8%;border-radius:48% 52% 62% 38%/42% 46% 58% 54%}
+.wax{position:absolute;inset:0;overflow:hidden;
+  border-radius:46% 54% 51% 49%/53% 47% 56% 44%;
+  display:flex;align-items:center;justify-content:center;
+  background:
+    radial-gradient(58% 50% at 32% 26%,rgba(255,255,255,.34),rgba(255,255,255,0) 55%),
+    radial-gradient(85% 80% at 70% 82%,rgba(0,0,0,.55),rgba(0,0,0,0) 62%),
+    radial-gradient(130% 130% at 50% 40%,rgba(var(--cr),.6),rgba(var(--cr),.22) 58%,rgba(var(--cr),.13) 100%),
+    #0A0A0B;
+  box-shadow:inset 0 2px 3px rgba(255,255,255,.14),inset 0 -4px 8px rgba(0,0,0,.6),
+    0 0 26px rgba(var(--cr),.24);
+  transition:box-shadow .7s var(--ease)}
+.prodotto:hover .wax{box-shadow:inset 0 2px 3px rgba(255,255,255,.2),inset 0 -4px 8px rgba(0,0,0,.6),
+  0 0 40px rgba(var(--cr),.42)}
+/* embossed die ring */
+.wax::before{content:&#x27;&#x27;;position:absolute;inset:11%;
+  border-radius:50% 48% 52% 50%/49% 52% 47% 51%;
+  border:1px solid rgba(255,255,255,.1);
+  box-shadow:inset 0 2px 3px rgba(0,0,0,.5),inset 0 -2px 3px rgba(255,255,255,.13),
+    0 1px 1px rgba(255,255,255,.08)}
+/* hover light */
+.wax::after{content:&#x27;&#x27;;position:absolute;inset:0;opacity:0;
+  background:radial-gradient(45% 38% at 34% 24%,rgba(255,255,255,.32),transparent 62%);
+  transition:opacity .7s var(--ease)}
+.prodotto:hover .wax::after{opacity:1}
+.impronta{position:relative;z-index:1;font-family:var(--display);font-weight:500;
+  font-size:calc(var(--sig)*.3);letter-spacing:.07em;text-indent:.07em;
+  color:rgba(0,0,0,.42);
+  text-shadow:0 -1px 1px rgba(0,0,0,.55),0 1px 1px rgba(255,255,255,.22)}
+/* slow ambient glint over the wax */
+.lume{position:absolute;inset:0;z-index:2;pointer-events:none;
+  background:linear-gradient(115deg,rgba(255,255,255,0) 38%,rgba(255,255,255,.28) 50%,rgba(255,255,255,0) 62%);
+  background-size:300% 300%;background-position:180% 0;
+  animation:luccica 8.5s var(--ease) infinite;animation-delay:var(--del,0s)}
+@keyframes luccica{0%,58%{background-position:180% 0}78%,100%{background-position:-140% 0}}
+
+/* ————— printed matter on the dossier ————— */
+.fascetta{position:absolute;left:-9px;right:-9px;top:53.5%;z-index:3;height:46px;
+  display:flex;align-items:center;justify-content:center;gap:11px;
+  background:linear-gradient(180deg,#1B1B1F,#111114);
+  border-top:1px solid rgba(255,255,255,.09);border-bottom:1px solid rgba(0,0,0,.65);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 9px 16px rgba(0,0,0,.45)}
+.fascetta::before,.fascetta::after{content:&#x27;&#x27;;position:absolute;top:100%;width:9px;height:7px;
+  background:#060607}
+.fascetta::before{left:0;clip-path:polygon(0 0,100% 0,100% 100%)}
+.fascetta::after{right:0;clip-path:polygon(0 0,100% 0,0 100%)}
+.fnome{font-family:var(--display);font-weight:300;font-size:16.5px;letter-spacing:.06em;
+  white-space:nowrap}
+.ammiraglia .fnome{font-size:21px}
+.fkind{font-family:var(--mono);font-size:8px;letter-spacing:.3em;color:var(--c);
+  border:1px solid rgba(var(--cr),.4);border-radius:100px;padding:3px 8px 2px;white-space:nowrap}
+.oggetto{position:absolute;left:9%;right:9%;top:73%;z-index:1;
+  display:flex;align-items:baseline;gap:8px;min-width:0}
+.oggetto b{font-family:var(--mono);font-weight:500;font-size:8px;letter-spacing:.26em;
+  text-transform:uppercase;color:var(--text-4);flex:none}
+.oggetto span{font-size:11.5px;font-weight:400;color:var(--text-2);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;
+  border-bottom:1px dotted rgba(255,255,255,.16);padding-bottom:3px;min-width:0}
+.pie{position:absolute;left:9%;right:9%;bottom:16px;z-index:1;
+  display:flex;justify-content:space-between;align-items:flex-end}
+.codice{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.codice span{font-family:var(--mono);font-size:9px;letter-spacing:.18em;color:var(--text-4)}
+.barcode{width:46px;height:14px;opacity:.5;background:repeating-linear-gradient(90deg,
+  rgba(255,255,255,.6) 0 1px,transparent 1px 3px,
+  rgba(255,255,255,.4) 3px 5px,transparent 5px 6px,
+  rgba(255,255,255,.6) 6px 7px,transparent 7px 10px)}
+.pie .citta{font-family:var(--mono);font-size:8px;letter-spacing:.32em;
+  color:rgba(255,255,255,.3)}
+.ammiraglia .oggetto{right:36%}
+.ammiraglia .pie{right:36%}
+
+/* ————— sales layer ————— */
+.vendita{display:flex;flex-direction:column;align-items:flex-start;gap:14px;margin-top:8px}
+.ammiraglia .vendita{gap:18px;margin-top:0}
+.pnome{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.pnome h3{font-family:var(--display);font-weight:300;font-size:24px;letter-spacing:.01em}
+.ammiraglia .pnome h3{font-size:clamp(28px,3vw,38px)}
+.kind{font-family:var(--mono);font-size:9.5px;letter-spacing:.26em;text-transform:uppercase;
+  color:var(--c);background:rgba(var(--cr),.07);border:1px solid rgba(var(--cr),.35);
+  padding:5px 12px 4px;border-radius:100px;white-space:nowrap}
+.promessa{font-size:14.5px;line-height:1.65;color:var(--text-2)}
+.ammiraglia .promessa{font-size:16.5px;max-width:44ch}
 .compra{display:inline-flex;align-items:center;justify-content:center;gap:8px;
-  border-radius:100px;min-height:44px;padding:13px 30px;background:var(--c);color:#0A0A05;
-  font-family:var(--sans);font-weight:700;font-size:15px;letter-spacing:.01em;text-decoration:none;
-  box-shadow:0 14px 34px -10px color-mix(in srgb,var(--c) 45%,transparent),0 4px 12px rgba(0,0,0,.4);
-  transition:transform .45s var(--molla),box-shadow .45s ease}
-.compra:hover{transform:translateY(-3px);
-  box-shadow:0 22px 46px -12px color-mix(in srgb,var(--c) 58%,transparent),0 6px 16px rgba(0,0,0,.5)}
-.compra:focus-visible{outline:2px solid var(--c);outline-offset:3px}
-.ammiraglia .compra{padding:16px 38px;font-size:16px}
-.rassicura{display:flex;align-items:flex-start;gap:9px;margin-top:18px;
-  color:var(--text-3);font-size:13.5px;line-height:1.55;max-width:56ch}
-.vcheck{color:var(--c);font-weight:700;flex:none}
+  border-radius:100px;min-height:44px;padding:0 26px;background:var(--c);
+  color:#0A0A05;font-weight:700;font-size:15px;text-decoration:none;
+  letter-spacing:.005em;
+  box-shadow:0 12px 30px -8px rgba(var(--cr),.45),0 2px 8px rgba(0,0,0,.4);
+  transition:transform .4s var(--molla),box-shadow .4s var(--ease)}
+.compra:hover{transform:translateY(-2px);
+  box-shadow:0 18px 40px -8px rgba(var(--cr),.6),0 2px 8px rgba(0,0,0,.4)}
+.compra:focus-visible{outline:2px solid var(--text);outline-offset:3px}
+.fila .compra{width:100%}
+.ammiraglia .compra{padding:0 34px;font-size:16px}
+.rassicura{font-size:12.5px;line-height:1.55;color:var(--text-3);display:flex;gap:9px}
+.rassicura .check{color:var(--c);flex:none;font-weight:600}
 
-/* --- la fascia garanzia oro dell&#x27;ammiraglia --- */
-.fascia-oro{border-top:1px solid rgba(255,215,0,.2);
-  background:linear-gradient(90deg,rgba(255,215,0,.09),rgba(255,215,0,.02) 55%,transparent)}
-.dentro-f{max-width:1280px;margin:0 auto;display:flex;align-items:center;gap:13px;
-  padding:17px clamp(20px,4vw,48px);font-size:14px;color:var(--text-2);line-height:1.5}
-.dentro-f .vcheck{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;
-  background:rgba(255,215,0,.12);border:1px solid rgba(255,215,0,.4);
-  color:var(--gold);font-size:11px;font-weight:700}
-.dentro-f strong{font-weight:600;color:var(--text)}
+/* ————— 3-col alignment (desktop only) ————— */
+@media (min-width:1021px){
+  .fila .pnome h3{font-size:22px}
+  .fila .kind{font-size:9px;padding:4px 10px 3px}
+  .fila .vendita{flex:1;align-self:stretch}
+  .fila .promessa{margin-bottom:auto}
+  .fila .rassicura{min-height:40px}
+}
 
-.coda{max-width:1280px;margin:0 auto;padding:clamp(40px,6vw,72px) clamp(20px,4vw,48px)}
-
-/* ---------- ~1020px ---------- */
+/* ————— tablet ————— */
 @media (max-width:1020px){
-  .dentro{gap:34px}
-  .palco{width:min(296px,100%)}
-  .ammiraglia .palco{width:min(350px,100%)}
-  .oggetto{min-height:260px}
-  .ammiraglia .oggetto{min-height:360px}
+  .fila{grid-template-columns:1fr;gap:22px}
+  .fila .prodotto{display:grid;grid-template-columns:minmax(260px,320px) 1fr;
+    align-items:center;gap:0 34px;padding:20px 34px 24px}
+  .fila .palco{height:378px}
+  .fila .compra{width:auto}
+  .fila .vendita{margin-top:0}
+  .ammiraglia{--w:264px;--h:356px;--sig:104px;
+    grid-template-columns:minmax(280px,350px) 1fr;gap:0 34px;padding:24px 34px 30px}
+  .ammiraglia .palco{height:452px}
 }
 
-/* ---------- ≤900px: le righe diventano card impilate ---------- */
-@media (max-width:900px){
-  .hangar{border-top:none;padding:4px 16px 8px}
-  .riga{border:1px solid var(--line);border-radius:24px;background:var(--card);
-    margin-bottom:18px}
-  .ammiraglia{background:var(--card)}
-  .ammiraglia::before{content:&#x27;&#x27;;position:absolute;inset:0;pointer-events:none;
-    background:radial-gradient(420px 300px at 50% 12%,rgba(255,215,0,.07),transparent 70%)}
-  .da-sx,.da-dx{transform:translateY(42px)}
-  .dentro,.ammiraglia .dentro{grid-template-columns:1fr;gap:4px;padding:12px 22px 30px}
-  .riga .oggetto,.obj-dx .oggetto,.obj-sx .oggetto{order:-1;align-items:flex-end;
-    justify-content:center;min-height:284px;padding-bottom:12px}
-  .riga.ammiraglia .oggetto{min-height:300px}
-  .riga .fantasma,.riga.obj-dx .fantasma,.riga.obj-sx .fantasma{
-    top:-6px;left:50%;right:auto;transform:translateX(-50%);font-size:172px;
-    color:color-mix(in srgb,var(--c) 13%,transparent);
-    -webkit-text-stroke:1px color-mix(in srgb,var(--c) 32%,transparent)}
-  .riga.ammiraglia .fantasma{font-size:200px}
-  .palco,.ammiraglia .palco{width:min(324px,94%)}
-  .palco::after{bottom:-22px;height:22px}
-  .vendita{max-width:none}
-  .rassicura{max-width:none}
-  .pnome,.ammiraglia .pnome{margin-top:10px}
-  .dentro-f{padding:15px 22px;font-size:13px}
-}
-
-/* ---------- ≤580px ---------- */
+/* ————— mobile ————— */
 @media (max-width:580px){
-  .hangar{padding:2px 12px 6px}
-  .dentro,.ammiraglia .dentro{padding:10px 18px 26px}
-  .compra,.ammiraglia .compra{width:100%;padding:14px 20px}
-  .riga .fantasma,.riga.obj-dx .fantasma,.riga.obj-sx .fantasma{font-size:44vw}
-  .riga.ammiraglia .fantasma{font-size:50vw}
-  .riga .oggetto,.obj-dx .oggetto,.obj-sx .oggetto{min-height:262px}
-  .riga.ammiraglia .oggetto{min-height:278px}
-  .palco,.ammiraglia .palco{width:min(310px,96%)}
+  .fila .prodotto,.prodotto,.ammiraglia{display:flex;flex-direction:column;
+    padding:20px 20px 28px}
+  .prodotto{--w:204px;--h:282px;--sig:82px}
+  .ammiraglia{--w:238px;--h:322px;--sig:96px;gap:12px}
+  .palco,.fila .palco{height:372px}
+  .ammiraglia .palco{height:418px}
+  .compra,.fila .compra,.ammiraglia .compra{width:100%}
+  .vendita,.fila .vendita{margin-top:10px}
+  .pnome h3{font-size:22px}
+  .ammiraglia .pnome h3{font-size:27px}
+  .ammiraglia .promessa{font-size:15px}
+  .ammiraglia .fnome{font-size:18px}
+  .ammiraglia .oggetto{right:9%}
+  .nastri{left:74%;width:34px;gap:5px}
+  .nastri i:last-child{flex:0 0 9px}
 }
 
-/* ---------- reduced motion ---------- */
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none!important;transition:none!important}
-  .riga{opacity:1!important;transform:none!important}
 }
 &lt;/style&gt;
 &lt;/head&gt;
 &lt;body&gt;
 
 &lt;header class=&quot;testa&quot;&gt;
-  &lt;p class=&quot;eyebrow&quot;&gt;Boom · Services&lt;/p&gt;
-  &lt;h2&gt;Four services.&lt;br&gt;&lt;span class=&quot;h2b&quot;&gt;One standard.&lt;/span&gt;&lt;/h2&gt;
-  &lt;p class=&quot;sotto&quot;&gt;From a 24-hour contract verdict to the full private hunt.&lt;/p&gt;
+  &lt;div class=&quot;eyebrow&quot;&gt;BOOM — Services · The seal&lt;/div&gt;
+  &lt;h2&gt;Every service arrives&lt;br&gt;&lt;em&gt;sealed&lt;/em&gt;.&lt;/h2&gt;
+  &lt;p class=&quot;sotto&quot;&gt;Black paper, a wax seal in each service&#x27;s light. The same house that seals real contracts, sealing its word to you.&lt;/p&gt;
 &lt;/header&gt;
 
-&lt;section class=&quot;hangar&quot; aria-label=&quot;BOOM services&quot;&gt;
+&lt;section class=&quot;scrivania&quot;&gt;
 
-  &lt;!-- 01 · PROPERTY FINDING — l&#x27;ammiraglia --&gt;
-  &lt;article class=&quot;riga r-pf ammiraglia obj-dx da-sx&quot;&gt;
-    &lt;div class=&quot;dentro&quot;&gt;
-      &lt;div class=&quot;lato vendita&quot;&gt;
-        &lt;p class=&quot;kind&quot;&gt;&lt;span class=&quot;kdot&quot;&gt;&lt;/span&gt;Flagship&lt;/p&gt;
-        &lt;h3 class=&quot;pnome&quot;&gt;Property Finding&lt;/h3&gt;
-        &lt;p class=&quot;promessa&quot;&gt;Your private hunter on the whole Rome market — off-market included, every shortlist walked in person before you see it.&lt;/p&gt;
-        &lt;a class=&quot;compra&quot; href=&quot;/property-finding.html&quot;&gt;Start the hunt · €350 →&lt;/a&gt;
+  &lt;!-- ══════════ AMMIRAGLIA · PROPERTY FINDING ══════════ --&gt;
+  &lt;article class=&quot;prodotto ammiraglia&quot; style=&quot;--c:var(--c-pf);--cr:255,215,0;--del:0s&quot;&gt;
+    &lt;div class=&quot;palco&quot;&gt;
+      &lt;div class=&quot;alone&quot;&gt;&lt;/div&gt;
+      &lt;div class=&quot;ombra&quot;&gt;&lt;i&gt;&lt;/i&gt;&lt;/div&gt;
+      &lt;div class=&quot;plico&quot;&gt;
+        &lt;div class=&quot;falda&quot;&gt;&lt;/div&gt;
+        &lt;span class=&quot;marchio&quot;&gt;BOOM&lt;/span&gt;
+        &lt;span class=&quot;nastri&quot;&gt;&lt;i&gt;&lt;/i&gt;&lt;i&gt;&lt;/i&gt;&lt;/span&gt;
+        &lt;div class=&quot;cera&quot;&gt;
+          &lt;i class=&quot;goccia g1&quot;&gt;&lt;/i&gt;&lt;i class=&quot;goccia g2&quot;&gt;&lt;/i&gt;&lt;i class=&quot;goccia g3&quot;&gt;&lt;/i&gt;
+          &lt;div class=&quot;wax&quot;&gt;&lt;span class=&quot;impronta&quot;&gt;PF&lt;/span&gt;&lt;i class=&quot;lume&quot;&gt;&lt;/i&gt;&lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;fascetta&quot;&gt;&lt;span class=&quot;fnome&quot;&gt;Property Finding&lt;/span&gt;&lt;span class=&quot;fkind&quot;&gt;FLAGSHIP&lt;/span&gt;&lt;/div&gt;
+        &lt;div class=&quot;oggetto&quot;&gt;&lt;b&gt;Oggetto&lt;/b&gt;&lt;span&gt;The hunt — Rome&lt;/span&gt;&lt;/div&gt;
+        &lt;div class=&quot;pie&quot;&gt;
+          &lt;span class=&quot;codice&quot;&gt;&lt;span&gt;PF·0350·ROME&lt;/span&gt;&lt;i class=&quot;barcode&quot;&gt;&lt;/i&gt;&lt;/span&gt;
+          &lt;span class=&quot;citta&quot;&gt;BOOM·ROMA&lt;/span&gt;
+        &lt;/div&gt;
       &lt;/div&gt;
-      &lt;div class=&quot;lato oggetto&quot;&gt;
-        &lt;span class=&quot;fantasma&quot; aria-hidden=&quot;true&quot;&gt;01&lt;/span&gt;
-        &lt;div class=&quot;palco&quot;&gt;&lt;div class=&quot;flotta&quot;&gt;
-          &lt;a class=&quot;carta&quot; href=&quot;/property-finding.html&quot; aria-label=&quot;Property Finding — €350&quot;&gt;
-            &lt;div class=&quot;c-testa&quot;&gt;
-              &lt;span class=&quot;c-ico&quot;&gt;&lt;svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.6&quot; stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot;&gt;&lt;circle cx=&quot;10.5&quot; cy=&quot;10.5&quot; r=&quot;6.5&quot;/&gt;&lt;path d=&quot;M15.3 15.3 21 21&quot;/&gt;&lt;/svg&gt;&lt;/span&gt;
-              &lt;span class=&quot;c-prezzo&quot;&gt;€350&lt;/span&gt;
-            &lt;/div&gt;
-            &lt;div class=&quot;c-mezzo&quot;&gt;
-              &lt;span class=&quot;c-codice&quot;&gt;PF&lt;/span&gt;
-              &lt;span class=&quot;c-nome&quot;&gt;Property Finding&lt;/span&gt;
-            &lt;/div&gt;
-            &lt;div class=&quot;c-piede&quot;&gt;
-              &lt;span class=&quot;c-brand&quot;&gt;BOOM&lt;/span&gt;
-              &lt;span class=&quot;c-kind&quot;&gt;Flagship&lt;/span&gt;
-            &lt;/div&gt;
-            &lt;span class=&quot;c-luce&quot; aria-hidden=&quot;true&quot;&gt;&lt;/span&gt;
-          &lt;/a&gt;
-        &lt;/div&gt;&lt;/div&gt;
-      &lt;/div&gt;
-    &lt;/div&gt;
-    &lt;div class=&quot;fascia-oro&quot;&gt;&lt;div class=&quot;dentro-f&quot;&gt;
-      &lt;span class=&quot;vcheck&quot;&gt;✓&lt;/span&gt;
-      &lt;p&gt;&lt;strong&gt;Zero risk:&lt;/strong&gt; deducted on success, refunded in full if we don&#x27;t deliver.&lt;/p&gt;
-    &lt;/div&gt;&lt;/div&gt;
-  &lt;/article&gt;
-
-  &lt;!-- 02 · VIRTUAL VIEWING --&gt;
-  &lt;article class=&quot;riga r-vv obj-sx da-dx&quot;&gt;
-    &lt;div class=&quot;dentro&quot;&gt;
-      &lt;div class=&quot;lato oggetto&quot;&gt;
-        &lt;span class=&quot;fantasma&quot; aria-hidden=&quot;true&quot;&gt;02&lt;/span&gt;
-        &lt;div class=&quot;palco&quot;&gt;&lt;div class=&quot;flotta&quot;&gt;
-          &lt;a class=&quot;carta&quot; href=&quot;/virtual-viewing.html&quot; aria-label=&quot;Virtual Viewing — €89&quot;&gt;
-            &lt;div class=&quot;c-testa&quot;&gt;
-              &lt;span class=&quot;c-ico&quot;&gt;&lt;svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.6&quot; stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot;&gt;&lt;rect x=&quot;2.5&quot; y=&quot;6.5&quot; width=&quot;13&quot; height=&quot;11&quot; rx=&quot;3&quot;/&gt;&lt;path d=&quot;M15.5 10.3 21 7.3v9.4l-5.5-3&quot;/&gt;&lt;/svg&gt;&lt;/span&gt;
-              &lt;span class=&quot;c-prezzo&quot;&gt;€89&lt;/span&gt;
-            &lt;/div&gt;
-            &lt;div class=&quot;c-mezzo&quot;&gt;
-              &lt;span class=&quot;c-codice&quot;&gt;VV&lt;/span&gt;
-              &lt;span class=&quot;c-nome&quot;&gt;Virtual Viewing&lt;/span&gt;
-            &lt;/div&gt;
-            &lt;div class=&quot;c-piede&quot;&gt;
-              &lt;span class=&quot;c-brand&quot;&gt;BOOM&lt;/span&gt;
-              &lt;span class=&quot;c-kind&quot;&gt;Live&lt;/span&gt;
-            &lt;/div&gt;
-            &lt;span class=&quot;c-luce&quot; aria-hidden=&quot;true&quot;&gt;&lt;/span&gt;
-          &lt;/a&gt;
-        &lt;/div&gt;&lt;/div&gt;
-      &lt;/div&gt;
-      &lt;div class=&quot;lato vendita&quot;&gt;
-        &lt;p class=&quot;kind&quot;&gt;&lt;span class=&quot;kdot&quot;&gt;&lt;/span&gt;Live&lt;/p&gt;
-        &lt;h3 class=&quot;pnome&quot;&gt;Virtual Viewing&lt;/h3&gt;
-        &lt;p class=&quot;promessa&quot;&gt;See any home live on video before you fly — the red flags said out loud.&lt;/p&gt;
-        &lt;a class=&quot;compra&quot; href=&quot;/virtual-viewing.html&quot;&gt;Book a live tour · €89 →&lt;/a&gt;
-        &lt;p class=&quot;rassicura&quot;&gt;&lt;span class=&quot;vcheck&quot;&gt;✓&lt;/span&gt;Credited if you rent with us · BOOM homes: free, always.&lt;/p&gt;
-      &lt;/div&gt;
-    &lt;/div&gt;
-  &lt;/article&gt;
-
-  &lt;!-- 03 · DEAL ASSISTANCE --&gt;
-  &lt;article class=&quot;riga r-da obj-dx da-sx&quot;&gt;
-    &lt;div class=&quot;dentro&quot;&gt;
-      &lt;div class=&quot;lato vendita&quot;&gt;
-        &lt;p class=&quot;kind&quot;&gt;&lt;span class=&quot;kdot&quot;&gt;&lt;/span&gt;Protection&lt;/p&gt;
-        &lt;h3 class=&quot;pnome&quot;&gt;Deal Assistance&lt;/h3&gt;
-        &lt;p class=&quot;promessa&quot;&gt;Found a home yourself? We verify the landlord and the papers — then negotiate for you.&lt;/p&gt;
-        &lt;a class=&quot;compra&quot; href=&quot;/deal-assistance.html&quot;&gt;Protect the deal · €249 →&lt;/a&gt;
-        &lt;p class=&quot;rassicura&quot;&gt;&lt;span class=&quot;vcheck&quot;&gt;✓&lt;/span&gt;Fixed fee — deposit and clauses negotiated, no percentages.&lt;/p&gt;
-      &lt;/div&gt;
-      &lt;div class=&quot;lato oggetto&quot;&gt;
-        &lt;span class=&quot;fantasma&quot; aria-hidden=&quot;true&quot;&gt;03&lt;/span&gt;
-        &lt;div class=&quot;palco&quot;&gt;&lt;div class=&quot;flotta&quot;&gt;
-          &lt;a class=&quot;carta&quot; href=&quot;/deal-assistance.html&quot; aria-label=&quot;Deal Assistance — €249&quot;&gt;
-            &lt;div class=&quot;c-testa&quot;&gt;
-              &lt;span class=&quot;c-ico&quot;&gt;&lt;svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.6&quot; stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot;&gt;&lt;path d=&quot;M12 3.2 18.8 6v5.2c0 4.4-2.9 7.4-6.8 8.9-3.9-1.5-6.8-4.5-6.8-8.9V6L12 3.2Z&quot;/&gt;&lt;path d=&quot;m9.4 11.8 1.9 1.9 3.5-3.7&quot;/&gt;&lt;/svg&gt;&lt;/span&gt;
-              &lt;span class=&quot;c-prezzo&quot;&gt;€249&lt;/span&gt;
-            &lt;/div&gt;
-            &lt;div class=&quot;c-mezzo&quot;&gt;
-              &lt;span class=&quot;c-codice&quot;&gt;DA&lt;/span&gt;
-              &lt;span class=&quot;c-nome&quot;&gt;Deal Assistance&lt;/span&gt;
-            &lt;/div&gt;
-            &lt;div class=&quot;c-piede&quot;&gt;
-              &lt;span class=&quot;c-brand&quot;&gt;BOOM&lt;/span&gt;
-              &lt;span class=&quot;c-kind&quot;&gt;Protection&lt;/span&gt;
-            &lt;/div&gt;
-            &lt;span class=&quot;c-luce&quot; aria-hidden=&quot;true&quot;&gt;&lt;/span&gt;
-          &lt;/a&gt;
-        &lt;/div&gt;&lt;/div&gt;
-      &lt;/div&gt;
-    &lt;/div&gt;
-  &lt;/article&gt;
-
-  &lt;!-- 04 · CONTRACT CHECK --&gt;
-  &lt;article class=&quot;riga r-cc obj-sx da-dx&quot;&gt;
-    &lt;div class=&quot;dentro&quot;&gt;
-      &lt;div class=&quot;lato oggetto&quot;&gt;
-        &lt;span class=&quot;fantasma&quot; aria-hidden=&quot;true&quot;&gt;04&lt;/span&gt;
-        &lt;div class=&quot;palco&quot;&gt;&lt;div class=&quot;flotta&quot;&gt;
-          &lt;a class=&quot;carta&quot; href=&quot;/contract-check-express.html&quot; aria-label=&quot;Contract Check — €49&quot;&gt;
-            &lt;div class=&quot;c-testa&quot;&gt;
-              &lt;span class=&quot;c-ico&quot;&gt;&lt;svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.6&quot; stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot;&gt;&lt;path d=&quot;M6.5 5A1.5 1.5 0 0 1 8 3.5h5.7L18.5 8.3V19a1.5 1.5 0 0 1-1.5 1.5H8A1.5 1.5 0 0 1 6.5 19V5Z&quot;/&gt;&lt;path d=&quot;M13.7 3.7v4.6h4.6&quot;/&gt;&lt;path d=&quot;M9.5 12.5h5M9.5 15.5h3.5&quot;/&gt;&lt;/svg&gt;&lt;/span&gt;
-              &lt;span class=&quot;c-prezzo&quot;&gt;€49&lt;/span&gt;
-            &lt;/div&gt;
-            &lt;div class=&quot;c-mezzo&quot;&gt;
-              &lt;span class=&quot;c-codice&quot;&gt;CC&lt;/span&gt;
-              &lt;span class=&quot;c-nome&quot;&gt;Contract Check&lt;/span&gt;
-            &lt;/div&gt;
-            &lt;div class=&quot;c-piede&quot;&gt;
-              &lt;span class=&quot;c-brand&quot;&gt;BOOM&lt;/span&gt;
-              &lt;span class=&quot;c-kind&quot;&gt;Express&lt;/span&gt;
-            &lt;/div&gt;
-            &lt;span class=&quot;c-luce&quot; aria-hidden=&quot;true&quot;&gt;&lt;/span&gt;
-          &lt;/a&gt;
-        &lt;/div&gt;&lt;/div&gt;
-      &lt;/div&gt;
-      &lt;div class=&quot;lato vendita&quot;&gt;
-        &lt;p class=&quot;kind&quot;&gt;&lt;span class=&quot;kdot&quot;&gt;&lt;/span&gt;Express&lt;/p&gt;
-        &lt;h3 class=&quot;pnome&quot;&gt;Contract Check&lt;/h3&gt;
-        &lt;p class=&quot;promessa&quot;&gt;About to sign? A written traffic-light verdict in 24h: fine, unfair, missing.&lt;/p&gt;
-        &lt;a class=&quot;compra&quot; href=&quot;/contract-check-express.html&quot;&gt;Check my contract · €49 →&lt;/a&gt;
-        &lt;p class=&quot;rassicura&quot;&gt;&lt;span class=&quot;vcheck&quot;&gt;✓&lt;/span&gt;Credited in full on Deal Assistance.&lt;/p&gt;
-      &lt;/div&gt;
-    &lt;/div&gt;
-  &lt;/article&gt;
-
-&lt;/section&gt;
-
-&lt;div class=&quot;coda&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
-
-&lt;script&gt;
-(function(){
-  var righe = document.querySelectorAll(&#x27;.riga&#x27;);
-  if (window.matchMedia(&#x27;(prefers-reduced-motion:reduce)&#x27;).matches || !(&#x27;IntersectionObserver&#x27; in window)) {
-    righe.forEach(function(r){ r.classList.add(&#x27;in&#x27;); });
-    return;
-  }
-  var io = new IntersectionObserver(function(es){
-    es.forEach(function(e){
-      if (e.isIntersecting) { e.target.classList.add(&#x27;in&#x27;); io.unobserve(e.target); }
-    });
-  }, { threshold:.16, rootMargin:&#x27;0px 0px -6% 0px&#x27; });
-  righe.forEach(function(r){ io.observe(r); });
-})();
-&lt;/script&gt;
-
-&lt;script&gt;(function(){function m(){parent.postMessage({t:&quot;vh&quot;,id:&quot;hangar&quot;,h:document.documentElement.scrollHeight},&quot;*&quot;)}setInterval(m,700);addEventListener(&quot;load&quot;,m)})()&lt;/script&gt;&lt;/body&gt;
-&lt;/html&gt;
-"></iframe>
-    <div class="verdetto">
-      <div><b>Perché</b>Respiro editoriale da lancio prodotto; la gerarchia per riga dà a ogni servizio un palcoscenico intero.</div>
-      <div><b>Il limite</b>Molto alta per la home (4 righe full-width): perfetta come pagina /services, impegnativa come sezione.</div>
-    </div>
-  </div>
-</section>\n
-<section class="palco" id="pedane">
-  <div class="container">
-    <div class="palco-testa">
-      <span class="lettera">4</span>
-      <h2>L&#x27;Ologramma</h2>
-      <span class="tag">la più tech</span>
-      <p class="regola">Icone-simbolo proiettate sopra pedane circolari luminose, cono di proiezione con scanline, pavimento a griglia prospettica, prezzo in tessere flap. Anello d&#x27;oro orbitante sull&#x27;ammiraglia.</p>
-    </div>
-    <iframe class="palco-vetro" title="L&#x27;Ologramma"
-      data-v="pedane" srcdoc="&lt;!DOCTYPE html&gt;
-&lt;html lang=&quot;en&quot;&gt;
-&lt;head&gt;
-&lt;meta charset=&quot;UTF-8&quot;&gt;
-&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot;&gt;
-&lt;title&gt;Variante L&#x27;OLOGRAMMA&lt;/title&gt;
-&lt;link rel=&quot;preconnect&quot; href=&quot;https://fonts.googleapis.com&quot;&gt;
-&lt;link rel=&quot;preconnect&quot; href=&quot;https://fonts.gstatic.com&quot; crossorigin&gt;
-&lt;link href=&quot;https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;1,300&amp;display=swap&quot; rel=&quot;stylesheet&quot;&gt;
-&lt;style&gt;
-:root {
-  --gold:#FFD700; --green:#00FF88; --black:#030303; --void:#060607;
-  --surface:#0B0B0C; --card:#0E0E10; --text:#FAFAFA;
-  --text-2:rgba(250,250,250,.72); --text-3:rgba(250,250,250,.5);
-  --text-4:rgba(250,250,250,.48); --line-0:rgba(255,255,255,.04);
-  --line:rgba(255,255,255,.08);
-  --ease:cubic-bezier(.16,1,.3,1); --molla:cubic-bezier(.3,1.45,.5,1);
-  --sans:&#x27;Inter&#x27;,-apple-system,BlinkMacSystemFont,sans-serif;
-  --display:&#x27;Helvetica Neue&#x27;,Helvetica,Arial,sans-serif;
-  --c-vv:#00FF88; --c-pf:#FFD700; --c-da:#9D8CFF; --c-cc:#3ED3FF;
-}
-*{margin:0;padding:0;box-sizing:border-box}
-body { background:var(--black); color:var(--text); font-family:var(--sans);
-  font-weight:300; -webkit-font-smoothing:antialiased; overflow-x:hidden; }
-
-/* ————— header ————— */
-.wrap{max-width:1180px;margin:0 auto;padding:0 clamp(20px,4vw,48px)}
-.intro{padding-top:clamp(56px,8vw,92px);padding-bottom:clamp(34px,5vw,52px)}
-.eyebrow{font-size:11px;letter-spacing:.42em;text-transform:uppercase;
-  color:var(--text-3);display:flex;align-items:center;gap:14px;font-weight:400}
-.eyebrow::before{content:&#x27;&#x27;;width:34px;height:1px;background:var(--gold);flex:none}
-.intro h2{font-family:var(--display);font-weight:200;
-  font-size:clamp(34px,5.4vw,58px);line-height:1.06;letter-spacing:-.015em;
-  margin-top:20px}
-.intro h2 em{font-style:italic;font-weight:300;color:var(--gold);display:inline-block}
-
-/* ————— section ————— */
-.servizi{padding-bottom:clamp(72px,9vw,120px)}
-.card{position:relative;--c:var(--gold);
-  background:linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,0) 42%),var(--card);
-  border:1px solid var(--line-0);border-radius:24px;overflow:hidden;
-  box-shadow:0 30px 70px -30px rgba(0,0,0,.85),0 4px 18px rgba(0,0,0,.5);
-  transition:transform .6s var(--ease),border-color .6s var(--ease),box-shadow .6s var(--ease);}
-.card:hover{transform:translateY(-4px);
-  border-color:color-mix(in srgb,var(--c) 26%,rgba(255,255,255,.06));
-  box-shadow:0 40px 90px -30px rgba(0,0,0,.9),
-    0 10px 50px -18px color-mix(in srgb,var(--c) 22%,transparent);}
-.card::before{content:&#x27;&#x27;;position:absolute;inset:0;pointer-events:none;
-  background:radial-gradient(58% 44% at 50% 106%,color-mix(in srgb,var(--c) 8%,transparent),transparent 72%);}
-
-/* ————— the holographic stage ————— */
-.stage{position:relative;height:300px;overflow:hidden;border-radius:24px 24px 0 0}
-.floor{position:absolute;left:-12%;right:-12%;bottom:0;height:170px;
-  background-image:linear-gradient(var(--line-0) 1px,transparent 1px),
-    linear-gradient(90deg,var(--line-0) 1px,transparent 1px);
-  background-size:30px 30px;background-position:center bottom;
-  transform:perspective(340px) rotateX(56deg);transform-origin:50% 100%;
-  -webkit-mask-image:linear-gradient(to top,#000 12%,transparent 82%);
-  mask-image:linear-gradient(to top,#000 12%,transparent 82%);opacity:.9}
-/* projection cone */
-.cone,.scan{position:absolute;left:50%;transform:translateX(-50%);
-  width:236px;top:30px;bottom:78px;
-  clip-path:polygon(0 0,100% 0,72% 100%,28% 100%);pointer-events:none}
-.cone{background:linear-gradient(to top,
-    color-mix(in srgb,var(--c) 30%,transparent),
-    color-mix(in srgb,var(--c) 9%,transparent) 52%,
-    transparent 94%);
-  opacity:.5;transition:opacity .6s var(--ease)}
-.scan{background:repeating-linear-gradient(to top,
-    color-mix(in srgb,var(--c) 38%,transparent) 0 1px,transparent 1px 9px);
-  opacity:.38;mix-blend-mode:screen;transition:opacity .6s var(--ease);
-  -webkit-mask-image:linear-gradient(to top,#000 46%,transparent 96%);
-  mask-image:linear-gradient(to top,#000 46%,transparent 96%);
-  animation:rise 7s linear infinite}
-@keyframes rise{from{background-position:0 0}to{background-position:0 -180px}}
-.card:hover .cone{opacity:.92}
-.card:hover .scan{opacity:.75}
-/* pedestal */
-.pedana{position:absolute;left:50%;transform:translateX(-50%);bottom:64px;
-  width:138px;height:30px;border-radius:50%;
-  background:radial-gradient(50% 50% at 50% 50%,
-    color-mix(in srgb,var(--c) 52%,transparent),
-    color-mix(in srgb,var(--c) 16%,transparent) 58%,transparent 78%);
-  border:1px solid color-mix(in srgb,var(--c) 42%,transparent);
-  box-shadow:0 0 26px color-mix(in srgb,var(--c) 26%,transparent),
-    inset 0 0 20px color-mix(in srgb,var(--c) 28%,transparent);
-  transition:box-shadow .6s var(--ease)}
-.pedana::after{content:&#x27;&#x27;;position:absolute;left:50%;top:50%;
-  transform:translate(-50%,-50%);width:56%;height:46%;border-radius:50%;
-  background:radial-gradient(50% 50% at 50% 50%,
-    color-mix(in srgb,var(--c) 85%,#fff 6%),
-    color-mix(in srgb,var(--c) 35%,transparent) 70%,transparent 100%);
-  filter:blur(1px)}
-.card:hover .pedana{box-shadow:0 0 44px color-mix(in srgb,var(--c) 45%,transparent),
-  inset 0 0 26px color-mix(in srgb,var(--c) 40%,transparent)}
-/* floating icon */
-.holo{position:absolute;left:50%;top:22px;transform:translateX(-50%);
-  color:var(--c);pointer-events:none}
-.holo-f{animation:float 5.4s ease-in-out infinite}
-@keyframes float{0%,100%{transform:translateY(0) rotate(0deg)}
-  50%{transform:translateY(-9px) rotate(-1.6deg)}}
-.holo svg{display:block;width:100px;height:100px;
-  filter:drop-shadow(0 0 16px color-mix(in srgb,var(--c) 55%,transparent))
-    drop-shadow(0 0 2px color-mix(in srgb,var(--c) 85%,transparent));
-  transition:transform .7s var(--molla)}
-.card:hover .holo svg{transform:scale(1.12)}
-/* price flap tiles */
-.flaps{position:absolute;left:50%;transform:translateX(-50%);bottom:14px;
-  display:flex;gap:4px}
-.flap{min-width:27px;height:38px;padding:0 3px;border-radius:6px;
-  background:linear-gradient(180deg,#191A1E 0 49%,#0F1013 51% 100%);
-  border:1px solid var(--line);position:relative;
-  display:grid;place-items:center;font-weight:600;font-size:17px;
-  color:var(--text-2);font-variant-numeric:tabular-nums;
-  box-shadow:0 6px 14px rgba(0,0,0,.55)}
-.flap::after{content:&#x27;&#x27;;position:absolute;left:3px;right:3px;top:50%;height:1px;
-  background:rgba(0,0,0,.6)}
-
-/* ————— sales layer (identico allo studio di conversione) ————— */
-.vendita{padding:24px 28px 30px;display:flex;flex-direction:column;flex:1}
-.prow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.pnome{font-family:var(--display);font-weight:350;font-size:21px;
-  letter-spacing:.01em}
-.kind{font-size:9.5px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;
-  color:var(--c);border:1px solid color-mix(in srgb,var(--c) 45%,transparent);
-  border-radius:100px;padding:4px 10px 3px;
-  background:color-mix(in srgb,var(--c) 8%,transparent)}
-.promessa{margin-top:10px;font-size:14.5px;line-height:1.6;color:var(--text-2);
-  flex:1}
-.compra{display:flex;align-items:center;justify-content:center;gap:8px;
-  margin-top:18px;border-radius:100px;min-height:44px;padding:0 22px;
-  background:var(--c);color:#0A0A05;font-weight:700;font-size:14.5px;
-  text-decoration:none;letter-spacing:.01em;
-  box-shadow:0 10px 28px -6px color-mix(in srgb,var(--c) 45%,transparent);
-  transition:transform .45s var(--molla),box-shadow .45s var(--ease)}
-.compra:hover{transform:translateY(-2px);
-  box-shadow:0 16px 36px -6px color-mix(in srgb,var(--c) 60%,transparent)}
-.rassicura{margin-top:12px;font-size:12.5px;line-height:1.55;color:var(--text-3);
-  display:flex;gap:8px}
-.rassicura b{color:var(--c);font-weight:600;flex:none}
-
-/* ————— flagship (PF) ————— */
-.flag{--c:var(--c-pf);display:grid;grid-template-columns:1.06fr .94fr;
-  min-height:470px;margin-bottom:22px}
-.flag .stage{height:auto;min-height:470px;border-radius:24px 0 0 24px}
-.flag .floor{height:220px}
-.flag .cone,.flag .scan{width:330px;top:44px;bottom:120px}
-.flag .holo{top:30px}
-.flag .holo svg{width:136px;height:136px}
-.flag .pedana{bottom:104px;width:172px;height:38px}
-.pedana2{position:absolute;left:50%;transform:translateX(-50%);bottom:92px;
-  width:224px;height:46px;border-radius:50%;
-  border:1px solid color-mix(in srgb,var(--c-pf) 26%,transparent);
-  background:radial-gradient(50% 50% at 50% 50%,
-    color-mix(in srgb,var(--c-pf) 14%,transparent),
-    color-mix(in srgb,var(--c-pf) 5%,transparent) 62%,transparent 80%);
-  box-shadow:0 0 34px color-mix(in srgb,var(--c-pf) 16%,transparent)}
-/* rotating gold ring around the double pedestal */
-.orbita{position:absolute;left:50%;bottom:-16px;width:270px;height:270px;
-  margin-left:-135px;transform:perspective(700px) rotateX(71deg);
-  pointer-events:none}
-.orbita .ring{width:100%;height:100%;border-radius:50%;
-  background:conic-gradient(from 0deg,
-    transparent 0deg,color-mix(in srgb,var(--c-pf) 90%,#fff 8%) 52deg,
-    transparent 118deg,transparent 196deg,
-    color-mix(in srgb,var(--c-pf) 45%,transparent) 236deg,transparent 288deg);
-  -webkit-mask:radial-gradient(closest-side,transparent calc(100% - 3.5px),#000 calc(100% - 2.5px));
-  mask:radial-gradient(closest-side,transparent calc(100% - 3.5px),#000 calc(100% - 2.5px));
-  animation:orbit 8s linear infinite;
-  filter:drop-shadow(0 0 6px color-mix(in srgb,var(--c-pf) 70%,transparent))}
-@keyframes orbit{from{transform:rotate(0)}to{transform:rotate(360deg)}}
-.flag .flaps{bottom:22px}
-.flag .flap{min-width:32px;height:44px;font-size:20px}
-.flag .vendita{padding:clamp(34px,4.5vw,58px);justify-content:center}
-.flag .pnome{font-size:clamp(26px,2.6vw,32px);font-weight:300}
-.flag .promessa{font-size:clamp(15.5px,1.5vw,17px);flex:0 1 auto;
-  max-width:44ch;margin-top:14px}
-.flag .compra{align-self:flex-start;min-height:52px;padding:0 30px;
-  font-size:15.5px;margin-top:26px}
-.flag .rassicura{font-size:13px;max-width:46ch}
-
-/* ————— the three ————— */
-.row{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
-.row .card{display:flex;flex-direction:column}
-.vv{--c:var(--c-vv)} .da{--c:var(--c-da)} .cc{--c:var(--c-cc)}
-
-/* ————— responsive ————— */
-@media (min-width:1021px){
-  /* i bottoni delle tre card si allineano anche quando la garanzia è di 1 riga */
-  .row .rassicura{min-height:41px}
-}
-@media (max-width:1020px){
-  .flag{grid-template-columns:1fr;min-height:0}
-  .flag .stage{min-height:430px;border-radius:24px 24px 0 0}
-  .flag .compra{align-self:stretch}
-  .flag .promessa,.flag .rassicura{max-width:none}
-  .row{grid-template-columns:1fr;gap:20px}
-  .row .card{display:grid;grid-template-columns:300px 1fr}
-  .row .stage{height:100%;min-height:286px;border-radius:24px 0 0 24px}
-  .row .vendita{padding:26px 30px;justify-content:center}
-  .row .promessa{flex:0 1 auto}
-  .row .compra{align-self:flex-start;padding:0 26px}
-}
-@media (max-width:580px){
-  .row .card{display:flex;flex-direction:column}
-  .row .stage{height:270px;min-height:0;border-radius:24px 24px 0 0}
-  .flag .stage{min-height:360px}
-  .flag .cone,.flag .scan{width:270px;top:30px;bottom:112px}
-  .flag .holo svg{width:112px;height:112px}
-  .flag .holo{top:22px}
-  .orbita{width:230px;margin-left:-115px;bottom:-4px;height:230px}
-  .flag .pedana{width:150px}
-  .pedana2{width:196px}
-  .compra,.flag .compra,.row .compra{align-self:stretch;width:100%}
-  .row .vendita,.vendita{padding:22px 22px 26px}
-  .intro h2{font-size:clamp(30px,9vw,38px)}
-}
-@media (prefers-reduced-motion:reduce){
-  *,*::before,*::after{animation:none!important;transition:none!important}
-  .cone{opacity:.8}.scan{opacity:.5}
-}
-&lt;/style&gt;
-&lt;/head&gt;
-&lt;body&gt;
-
-&lt;header class=&quot;wrap intro&quot;&gt;
-  &lt;p class=&quot;eyebrow&quot;&gt;Boom · Services&lt;/p&gt;
-  &lt;h2&gt;Four services. &lt;em&gt;One standard.&lt;/em&gt;&lt;/h2&gt;
-&lt;/header&gt;
-
-&lt;section class=&quot;wrap servizi&quot;&gt;
-
-  &lt;!-- ————— PROPERTY FINDING · flagship ————— --&gt;
-  &lt;article class=&quot;card flag&quot;&gt;
-    &lt;div class=&quot;stage&quot;&gt;
-      &lt;div class=&quot;floor&quot;&gt;&lt;/div&gt;
-      &lt;div class=&quot;orbita&quot;&gt;&lt;div class=&quot;ring&quot;&gt;&lt;/div&gt;&lt;/div&gt;
-      &lt;div class=&quot;pedana2&quot;&gt;&lt;/div&gt;
-      &lt;div class=&quot;pedana&quot;&gt;&lt;/div&gt;
-      &lt;div class=&quot;cone&quot;&gt;&lt;/div&gt;
-      &lt;div class=&quot;scan&quot;&gt;&lt;/div&gt;
-      &lt;div class=&quot;holo&quot;&gt;&lt;div class=&quot;holo-f&quot;&gt;
-        &lt;svg viewBox=&quot;0 0 48 48&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.6&quot; stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot;&gt;
-          &lt;circle cx=&quot;21&quot; cy=&quot;21&quot; r=&quot;11.5&quot;/&gt;
-          &lt;path d=&quot;M29.5 29.5 L40 40&quot;/&gt;
-          &lt;path d=&quot;M15.5 20.2 C16 16.9 18.4 15 21 14.6&quot; opacity=&quot;.55&quot;/&gt;
-        &lt;/svg&gt;
-      &lt;/div&gt;&lt;/div&gt;
-      &lt;div class=&quot;flaps&quot; aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;flap&quot;&gt;€&lt;/span&gt;&lt;span class=&quot;flap&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;flap&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;flap&quot;&gt;0&lt;/span&gt;&lt;/div&gt;
     &lt;/div&gt;
     &lt;div class=&quot;vendita&quot;&gt;
-      &lt;div class=&quot;prow&quot;&gt;
-        &lt;h3 class=&quot;pnome&quot;&gt;Property Finding&lt;/h3&gt;
-        &lt;span class=&quot;kind&quot;&gt;Flagship&lt;/span&gt;
-      &lt;/div&gt;
+      &lt;div class=&quot;pnome&quot;&gt;&lt;h3&gt;Property Finding&lt;/h3&gt;&lt;span class=&quot;kind&quot;&gt;Flagship&lt;/span&gt;&lt;/div&gt;
       &lt;p class=&quot;promessa&quot;&gt;Your private hunter on the whole Rome market — off-market included, every shortlist walked in person before you see it.&lt;/p&gt;
       &lt;a class=&quot;compra&quot; href=&quot;/property-finding.html&quot;&gt;Start the hunt · €350 →&lt;/a&gt;
-      &lt;p class=&quot;rassicura&quot;&gt;&lt;b&gt;✓&lt;/b&gt; Zero risk: deducted on success, refunded in full if we don&#x27;t deliver.&lt;/p&gt;
+      &lt;p class=&quot;rassicura&quot;&gt;&lt;span class=&quot;check&quot;&gt;✓&lt;/span&gt;Zero risk: deducted on success, refunded in full if we don&#x27;t deliver.&lt;/p&gt;
     &lt;/div&gt;
   &lt;/article&gt;
 
-  &lt;div class=&quot;row&quot;&gt;
+  &lt;div class=&quot;fila&quot;&gt;
 
-    &lt;!-- ————— VIRTUAL VIEWING ————— --&gt;
-    &lt;article class=&quot;card vv&quot;&gt;
-      &lt;div class=&quot;stage&quot;&gt;
-        &lt;div class=&quot;floor&quot;&gt;&lt;/div&gt;
-        &lt;div class=&quot;pedana&quot;&gt;&lt;/div&gt;
-        &lt;div class=&quot;cone&quot;&gt;&lt;/div&gt;
-        &lt;div class=&quot;scan&quot;&gt;&lt;/div&gt;
-        &lt;div class=&quot;holo&quot;&gt;&lt;div class=&quot;holo-f&quot; style=&quot;animation-delay:-1.3s&quot;&gt;
-          &lt;svg viewBox=&quot;0 0 48 48&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.6&quot; stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot;&gt;
-            &lt;rect x=&quot;6&quot; y=&quot;15&quot; width=&quot;23&quot; height=&quot;18&quot; rx=&quot;4.5&quot;/&gt;
-            &lt;path d=&quot;M29 21.5 L41 15.5 V32.5 L29 26.5&quot;/&gt;
-            &lt;circle cx=&quot;12.5&quot; cy=&quot;21.5&quot; r=&quot;1.4&quot;/&gt;
-          &lt;/svg&gt;
-        &lt;/div&gt;&lt;/div&gt;
-        &lt;div class=&quot;flaps&quot; aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;flap&quot;&gt;€&lt;/span&gt;&lt;span class=&quot;flap&quot;&gt;8&lt;/span&gt;&lt;span class=&quot;flap&quot;&gt;9&lt;/span&gt;&lt;/div&gt;
+    &lt;!-- ══════════ VIRTUAL VIEWING ══════════ --&gt;
+    &lt;article class=&quot;prodotto&quot; style=&quot;--c:var(--c-vv);--cr:0,255,136;--del:-2.6s;--rot:1.2deg&quot;&gt;
+      &lt;div class=&quot;palco&quot;&gt;
+        &lt;div class=&quot;alone&quot;&gt;&lt;/div&gt;
+        &lt;div class=&quot;ombra&quot;&gt;&lt;i&gt;&lt;/i&gt;&lt;/div&gt;
+        &lt;div class=&quot;plico&quot;&gt;
+          &lt;div class=&quot;falda&quot;&gt;&lt;/div&gt;
+          &lt;span class=&quot;marchio&quot;&gt;BOOM&lt;/span&gt;
+          &lt;div class=&quot;cera&quot;&gt;
+            &lt;i class=&quot;goccia g1&quot;&gt;&lt;/i&gt;&lt;i class=&quot;goccia g2&quot;&gt;&lt;/i&gt;
+            &lt;div class=&quot;wax&quot;&gt;&lt;span class=&quot;impronta&quot;&gt;VV&lt;/span&gt;&lt;i class=&quot;lume&quot;&gt;&lt;/i&gt;&lt;/div&gt;
+          &lt;/div&gt;
+          &lt;div class=&quot;fascetta&quot;&gt;&lt;span class=&quot;fnome&quot;&gt;Virtual Viewing&lt;/span&gt;&lt;span class=&quot;fkind&quot;&gt;LIVE&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;oggetto&quot;&gt;&lt;b&gt;Oggetto&lt;/b&gt;&lt;span&gt;Live tour — Rome&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;pie&quot;&gt;
+            &lt;span class=&quot;codice&quot;&gt;&lt;span&gt;VV·0089·ROME&lt;/span&gt;&lt;i class=&quot;barcode&quot;&gt;&lt;/i&gt;&lt;/span&gt;
+            &lt;span class=&quot;citta&quot;&gt;BOOM·ROMA&lt;/span&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
       &lt;/div&gt;
       &lt;div class=&quot;vendita&quot;&gt;
-        &lt;div class=&quot;prow&quot;&gt;
-          &lt;h3 class=&quot;pnome&quot;&gt;Virtual Viewing&lt;/h3&gt;
-          &lt;span class=&quot;kind&quot;&gt;Live&lt;/span&gt;
-        &lt;/div&gt;
+        &lt;div class=&quot;pnome&quot;&gt;&lt;h3&gt;Virtual Viewing&lt;/h3&gt;&lt;span class=&quot;kind&quot;&gt;Live&lt;/span&gt;&lt;/div&gt;
         &lt;p class=&quot;promessa&quot;&gt;See any home live on video before you fly — the red flags said out loud.&lt;/p&gt;
         &lt;a class=&quot;compra&quot; href=&quot;/virtual-viewing.html&quot;&gt;Book a live tour · €89 →&lt;/a&gt;
-        &lt;p class=&quot;rassicura&quot;&gt;&lt;b&gt;✓&lt;/b&gt; Credited if you rent with us · BOOM homes: free, always.&lt;/p&gt;
+        &lt;p class=&quot;rassicura&quot;&gt;&lt;span class=&quot;check&quot;&gt;✓&lt;/span&gt;Credited if you rent with us · BOOM homes: free, always.&lt;/p&gt;
       &lt;/div&gt;
     &lt;/article&gt;
 
-    &lt;!-- ————— DEAL ASSISTANCE ————— --&gt;
-    &lt;article class=&quot;card da&quot;&gt;
-      &lt;div class=&quot;stage&quot;&gt;
-        &lt;div class=&quot;floor&quot;&gt;&lt;/div&gt;
-        &lt;div class=&quot;pedana&quot;&gt;&lt;/div&gt;
-        &lt;div class=&quot;cone&quot;&gt;&lt;/div&gt;
-        &lt;div class=&quot;scan&quot;&gt;&lt;/div&gt;
-        &lt;div class=&quot;holo&quot;&gt;&lt;div class=&quot;holo-f&quot; style=&quot;animation-delay:-2.7s&quot;&gt;
-          &lt;svg viewBox=&quot;0 0 48 48&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.6&quot; stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot;&gt;
-            &lt;path d=&quot;M24 6.5 L37.5 11.5 V22 C37.5 31.5 32 37.8 24 41.5 C16 37.8 10.5 31.5 10.5 22 V11.5 Z&quot;/&gt;
-            &lt;path d=&quot;M17.5 23.5 L22 28 L31 18.5&quot;/&gt;
-          &lt;/svg&gt;
-        &lt;/div&gt;&lt;/div&gt;
-        &lt;div class=&quot;flaps&quot; aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;flap&quot;&gt;€&lt;/span&gt;&lt;span class=&quot;flap&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;flap&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;flap&quot;&gt;9&lt;/span&gt;&lt;/div&gt;
+    &lt;!-- ══════════ DEAL ASSISTANCE ══════════ --&gt;
+    &lt;article class=&quot;prodotto&quot; style=&quot;--c:var(--c-da);--cr:157,140,255;--del:-4.9s;--rot:-1.5deg&quot;&gt;
+      &lt;div class=&quot;palco&quot;&gt;
+        &lt;div class=&quot;alone&quot;&gt;&lt;/div&gt;
+        &lt;div class=&quot;ombra&quot;&gt;&lt;i&gt;&lt;/i&gt;&lt;/div&gt;
+        &lt;div class=&quot;plico&quot;&gt;
+          &lt;div class=&quot;falda&quot;&gt;&lt;/div&gt;
+          &lt;span class=&quot;marchio&quot;&gt;BOOM&lt;/span&gt;
+          &lt;div class=&quot;cera&quot;&gt;
+            &lt;i class=&quot;goccia g1&quot;&gt;&lt;/i&gt;&lt;i class=&quot;goccia g3&quot;&gt;&lt;/i&gt;
+            &lt;div class=&quot;wax&quot;&gt;&lt;span class=&quot;impronta&quot;&gt;DA&lt;/span&gt;&lt;i class=&quot;lume&quot;&gt;&lt;/i&gt;&lt;/div&gt;
+          &lt;/div&gt;
+          &lt;div class=&quot;fascetta&quot;&gt;&lt;span class=&quot;fnome&quot;&gt;Deal Assistance&lt;/span&gt;&lt;span class=&quot;fkind&quot;&gt;PROTECTION&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;oggetto&quot;&gt;&lt;b&gt;Oggetto&lt;/b&gt;&lt;span&gt;Protect the deal&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;pie&quot;&gt;
+            &lt;span class=&quot;codice&quot;&gt;&lt;span&gt;DA·0249·ROME&lt;/span&gt;&lt;i class=&quot;barcode&quot;&gt;&lt;/i&gt;&lt;/span&gt;
+            &lt;span class=&quot;citta&quot;&gt;BOOM·ROMA&lt;/span&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
       &lt;/div&gt;
       &lt;div class=&quot;vendita&quot;&gt;
-        &lt;div class=&quot;prow&quot;&gt;
-          &lt;h3 class=&quot;pnome&quot;&gt;Deal Assistance&lt;/h3&gt;
-          &lt;span class=&quot;kind&quot;&gt;Protection&lt;/span&gt;
-        &lt;/div&gt;
+        &lt;div class=&quot;pnome&quot;&gt;&lt;h3&gt;Deal Assistance&lt;/h3&gt;&lt;span class=&quot;kind&quot;&gt;Protection&lt;/span&gt;&lt;/div&gt;
         &lt;p class=&quot;promessa&quot;&gt;Found a home yourself? We verify the landlord and the papers — then negotiate for you.&lt;/p&gt;
         &lt;a class=&quot;compra&quot; href=&quot;/deal-assistance.html&quot;&gt;Protect the deal · €249 →&lt;/a&gt;
-        &lt;p class=&quot;rassicura&quot;&gt;&lt;b&gt;✓&lt;/b&gt; Fixed fee — deposit and clauses negotiated, no percentages.&lt;/p&gt;
+        &lt;p class=&quot;rassicura&quot;&gt;&lt;span class=&quot;check&quot;&gt;✓&lt;/span&gt;Fixed fee — deposit and clauses negotiated, no percentages.&lt;/p&gt;
       &lt;/div&gt;
     &lt;/article&gt;
 
-    &lt;!-- ————— CONTRACT CHECK ————— --&gt;
-    &lt;article class=&quot;card cc&quot;&gt;
-      &lt;div class=&quot;stage&quot;&gt;
-        &lt;div class=&quot;floor&quot;&gt;&lt;/div&gt;
-        &lt;div class=&quot;pedana&quot;&gt;&lt;/div&gt;
-        &lt;div class=&quot;cone&quot;&gt;&lt;/div&gt;
-        &lt;div class=&quot;scan&quot;&gt;&lt;/div&gt;
-        &lt;div class=&quot;holo&quot;&gt;&lt;div class=&quot;holo-f&quot; style=&quot;animation-delay:-4.1s&quot;&gt;
-          &lt;svg viewBox=&quot;0 0 48 48&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.6&quot; stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot;&gt;
-            &lt;path d=&quot;M14 6.5 H28.5 L36 14 V41.5 H14 Z&quot;/&gt;
-            &lt;path d=&quot;M28.5 6.5 V14 H36&quot;/&gt;
-            &lt;path d=&quot;M19.5 23 H30.5 M19.5 29 H30.5 M19.5 35 H26&quot;/&gt;
-          &lt;/svg&gt;
-        &lt;/div&gt;&lt;/div&gt;
-        &lt;div class=&quot;flaps&quot; aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;flap&quot;&gt;€&lt;/span&gt;&lt;span class=&quot;flap&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;flap&quot;&gt;9&lt;/span&gt;&lt;/div&gt;
+    &lt;!-- ══════════ CONTRACT CHECK ══════════ --&gt;
+    &lt;article class=&quot;prodotto&quot; style=&quot;--c:var(--c-cc);--cr:62,211,255;--del:-1.6s;--rot:1.4deg&quot;&gt;
+      &lt;div class=&quot;palco&quot;&gt;
+        &lt;div class=&quot;alone&quot;&gt;&lt;/div&gt;
+        &lt;div class=&quot;ombra&quot;&gt;&lt;i&gt;&lt;/i&gt;&lt;/div&gt;
+        &lt;div class=&quot;plico&quot;&gt;
+          &lt;div class=&quot;falda&quot;&gt;&lt;/div&gt;
+          &lt;span class=&quot;marchio&quot;&gt;BOOM&lt;/span&gt;
+          &lt;div class=&quot;cera&quot;&gt;
+            &lt;i class=&quot;goccia g2&quot;&gt;&lt;/i&gt;&lt;i class=&quot;goccia g3&quot;&gt;&lt;/i&gt;
+            &lt;div class=&quot;wax&quot;&gt;&lt;span class=&quot;impronta&quot;&gt;CC&lt;/span&gt;&lt;i class=&quot;lume&quot;&gt;&lt;/i&gt;&lt;/div&gt;
+          &lt;/div&gt;
+          &lt;div class=&quot;fascetta&quot;&gt;&lt;span class=&quot;fnome&quot;&gt;Contract Check&lt;/span&gt;&lt;span class=&quot;fkind&quot;&gt;EXPRESS&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;oggetto&quot;&gt;&lt;b&gt;Oggetto&lt;/b&gt;&lt;span&gt;Verdict in 24h&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;pie&quot;&gt;
+            &lt;span class=&quot;codice&quot;&gt;&lt;span&gt;CC·0049·ROME&lt;/span&gt;&lt;i class=&quot;barcode&quot;&gt;&lt;/i&gt;&lt;/span&gt;
+            &lt;span class=&quot;citta&quot;&gt;BOOM·ROMA&lt;/span&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
       &lt;/div&gt;
       &lt;div class=&quot;vendita&quot;&gt;
-        &lt;div class=&quot;prow&quot;&gt;
-          &lt;h3 class=&quot;pnome&quot;&gt;Contract Check&lt;/h3&gt;
-          &lt;span class=&quot;kind&quot;&gt;Express&lt;/span&gt;
-        &lt;/div&gt;
+        &lt;div class=&quot;pnome&quot;&gt;&lt;h3&gt;Contract Check&lt;/h3&gt;&lt;span class=&quot;kind&quot;&gt;Express&lt;/span&gt;&lt;/div&gt;
         &lt;p class=&quot;promessa&quot;&gt;About to sign? A written traffic-light verdict in 24h: fine, unfair, missing.&lt;/p&gt;
         &lt;a class=&quot;compra&quot; href=&quot;/contract-check-express.html&quot;&gt;Check my contract · €49 →&lt;/a&gt;
-        &lt;p class=&quot;rassicura&quot;&gt;&lt;b&gt;✓&lt;/b&gt; Credited in full on Deal Assistance.&lt;/p&gt;
+        &lt;p class=&quot;rassicura&quot;&gt;&lt;span class=&quot;check&quot;&gt;✓&lt;/span&gt;Credited in full on Deal Assistance.&lt;/p&gt;
       &lt;/div&gt;
     &lt;/article&gt;
 
   &lt;/div&gt;
 &lt;/section&gt;
 
-&lt;script&gt;(function(){function m(){parent.postMessage({t:&quot;vh&quot;,id:&quot;pedane&quot;,h:document.documentElement.scrollHeight},&quot;*&quot;)}setInterval(m,700);addEventListener(&quot;load&quot;,m)})()&lt;/script&gt;&lt;/body&gt;
+&lt;script&gt;(function(){function m(){parent.postMessage({t:&quot;vh&quot;,id:&quot;sigillo&quot;,h:document.documentElement.scrollHeight},&quot;*&quot;)}setInterval(m,700);addEventListener(&quot;load&quot;,m)})()&lt;/script&gt;&lt;/body&gt;
 &lt;/html&gt;
 "></iframe>
     <div class="verdetto">
-      <div><b>Perché</b>La percezione più futuristica; il cono che si intensifica al passaggio è un bel gesto.</div>
-      <div><b>Il limite</b>Le icone sono simboli, non oggetti-prodotto: desiderabilità sotto il Packaging. Le tessere prezzo duplicano il bottone.</div>
+      <div><b>Perché</b>La garanzia resa FISICA dalla stessa casa che sigilla contratti veri (Magic Sign, FES): &quot;Every service arrives sealed. The same house that seals real contracts, sealing its word to you.&quot;</div>
+      <div><b>Il limite</b>La cera è resa a gradienti CSS: da molto vicino manca la micro-irregolarità di colata di una texture dedicata.</div>
     </div>
   </div>
 </section>\n
-<section class="palco" id="conio">
+<section class="palco" id="retail">
   <div class="container">
     <div class="palco-testa">
-      <span class="lettera">5</span>
-      <h2>Il Conio</h2>
-      <span class="tag">la scommessa</span>
-      <p class="regola">Medaglie coniate nei quattro metalli che ruotano lentamente sul piedistallo; icona in rilievo, prezzo inciso, bordo zigrinato. Hover = la moneta si ferma di faccia.</p>
+      <span class="lettera">4</span>
+      <h2>La Vetrina Retail</h2>
+      <span class="tag">la più negozio</span>
+      <p class="regola">Le scatole esposte in un duty-free premium a mezzanotte: nicchie retroilluminate nel colore, mensola di vetro col riflesso capovolto, CARTELLINO di carta appeso che oscilla col prezzo grande, insegna FULL REFUND al neon sopra l&#x27;ammiraglia.</p>
     </div>
-    <iframe class="palco-vetro" title="Il Conio"
-      data-v="conio" srcdoc="&lt;!DOCTYPE html&gt;
+    <iframe class="palco-vetro" title="La Vetrina Retail"
+      data-v="retail" srcdoc="&lt;!DOCTYPE html&gt;
 &lt;html lang=&quot;en&quot;&gt;
 &lt;head&gt;
-&lt;meta charset=&quot;UTF-8&quot;&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
 &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
-&lt;title&gt;Variante IL CONIO&lt;/title&gt;
+&lt;title&gt;Variante LA VETRINA RETAIL&lt;/title&gt;
 &lt;link rel=&quot;preconnect&quot; href=&quot;https://fonts.googleapis.com&quot;&gt;
 &lt;link rel=&quot;preconnect&quot; href=&quot;https://fonts.gstatic.com&quot; crossorigin&gt;
 &lt;link href=&quot;https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap&quot; rel=&quot;stylesheet&quot;&gt;
 &lt;style&gt;
-:root {
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
   --gold:#FFD700; --green:#00FF88; --black:#030303; --void:#060607;
   --surface:#0B0B0C; --card:#0E0E10; --text:#FAFAFA;
   --text-2:rgba(250,250,250,.72); --text-3:rgba(250,250,250,.5);
@@ -1810,431 +1483,508 @@ body { background:var(--black); color:var(--text); font-family:var(--sans);
   --sans:&#x27;Inter&#x27;,-apple-system,BlinkMacSystemFont,sans-serif;
   --display:&#x27;Helvetica Neue&#x27;,Helvetica,Arial,sans-serif;
   --c-vv:#00FF88; --c-pf:#FFD700; --c-da:#9D8CFF; --c-cc:#3ED3FF;
+  --mono:ui-monospace,&#x27;SF Mono&#x27;,SFMono-Regular,Menlo,Consolas,monospace;
 }
-* { margin:0; padding:0; box-sizing:border-box; }
-body { background:var(--black); color:var(--text); font-family:var(--sans);
-  font-weight:300; -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+body{background:var(--black);color:var(--text);font-family:var(--sans);
+  font-weight:300;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body::before{content:&#x27;&#x27;;position:fixed;inset:0;z-index:-1;pointer-events:none;background:
+  radial-gradient(55% 38% at 50% 0%,rgba(255,215,0,.05),transparent 70%),
+  radial-gradient(45% 32% at 88% 100%,rgba(62,211,255,.035),transparent 70%),
+  radial-gradient(45% 32% at 8% 82%,rgba(157,140,255,.03),transparent 70%)}
 
-/* ————— shell ————— */
-.zecca { max-width:1240px; margin:0 auto;
-  padding:clamp(48px,6vw,72px) clamp(20px,4vw,48px) clamp(56px,7vw,84px); }
-.testata { margin-bottom:clamp(30px,4vw,46px); }
-.eyebrow { display:flex; align-items:center; gap:14px;
-  font-size:11px; letter-spacing:.42em; text-transform:uppercase;
-  color:var(--text-3); font-weight:400; margin-bottom:18px; }
-.eyebrow::before { content:&#x27;&#x27;; width:30px; height:1px; background:var(--gold);
-  box-shadow:0 0 12px rgba(255,215,0,.6); }
-h2 { font-family:var(--display); font-weight:200;
-  font-size:clamp(30px,4.2vw,50px); letter-spacing:-.015em; line-height:1.08; }
-h2 .au { background:linear-gradient(115deg,#FFF2B8 0%,var(--gold) 45%,#B8960C 100%);
-  -webkit-background-clip:text; background-clip:text; color:transparent; }
+/* ————— header ————— */
+.testa{max-width:1180px;margin:0 auto;
+  padding:clamp(56px,9vh,92px) clamp(20px,4vw,48px) clamp(34px,5vh,52px)}
+.eyebrow{display:inline-flex;align-items:center;gap:14px;font-family:var(--mono);
+  font-size:11px;letter-spacing:.38em;text-transform:uppercase;color:var(--gold)}
+.eyebrow::before{content:&#x27;&#x27;;width:28px;height:1px;
+  background:linear-gradient(90deg,var(--gold),transparent)}
+.testa h2{margin-top:22px;font-family:var(--display);font-weight:200;
+  font-size:clamp(34px,4.8vw,56px);line-height:1.06;letter-spacing:-.01em}
+.testa h2 em{font-style:normal;color:var(--gold);font-weight:300}
+.sotto{margin-top:16px;color:var(--text-3);font-size:15px;line-height:1.65;max-width:56ch}
 
-/* ————— banchina ————— */
-.banchina { display:flex; gap:26px; align-items:stretch; }
-.medal.pf { flex:1.06; }
-.others { flex:.94; display:flex; flex-direction:column; gap:26px; }
+/* ————— storefront ————— */
+.negozio{max-width:1180px;margin:0 auto;
+  padding:0 clamp(20px,4vw,48px) clamp(76px,10vh,120px)}
+.fila{display:grid;grid-template-columns:repeat(3,1fr);gap:26px}
 
-/* ————— card = nero-vetro; il colore è la LUCE ————— */
-.medal { position:relative; display:flex; flex-direction:column;
-  border-radius:24px; padding:28px;
-  background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,0) 32%),var(--card);
-  border:1px solid var(--line-0);
-  box-shadow:0 30px 60px -30px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.05);
-  transition:border-color .5s var(--ease), box-shadow .5s var(--ease); }
-.medal:hover { border-color:color-mix(in srgb,var(--c) 22%,rgba(255,255,255,.05));
-  box-shadow:0 40px 80px -32px rgba(0,0,0,.95),
-             0 0 60px -30px color-mix(in srgb,var(--c) 40%,transparent),
-             inset 0 1px 0 rgba(255,255,255,.07); }
-.medal.pf { --c:var(--c-pf); --d:322px; --th:16; }
-.medal.vv { --c:var(--c-vv); }
-.medal.da { --c:var(--c-da); }
-.medal.cc { --c:var(--c-cc); }
-.others .medal { --d:136px; --th:12; flex-direction:row; align-items:center;
-  gap:10px; padding:22px 26px 22px 14px; flex:1; }
+.prodotto{position:relative;--lid:22px;--w:184px;--h:212px;--d:112px;
+  --nh:440px;--shelfY:88px;
+  display:flex;flex-direction:column;
+  background:linear-gradient(180deg,rgba(255,255,255,.022),rgba(255,255,255,0) 55%),var(--card);
+  border:1px solid var(--line-0);border-radius:24px;padding:18px 18px 30px;
+  transition:border-color .6s var(--ease)}
+.prodotto:hover{border-color:rgba(var(--cr),.18)}
 
-/* derived metal tones */
-.medal { --m-base:color-mix(in srgb,var(--c) 40%,#0c0c0d);
-  --m-mid:color-mix(in srgb,var(--c) 55%,#141410);
-  --m-deep:color-mix(in srgb,var(--c) 20%,#060606);
-  --m-hi:color-mix(in srgb,var(--c) 82%,#fff);
-  --m-ic:color-mix(in srgb,var(--c) 72%,#fff); }
+.ammiraglia{--lid:28px;--w:264px;--h:290px;--d:156px;--nh:568px;--shelfY:104px;
+  display:grid;grid-template-columns:1.12fr 1fr;align-items:center;
+  gap:16px 44px;padding:22px 52px 34px 22px;margin-bottom:26px;
+  border-color:rgba(255,215,0,.15);
+  background:radial-gradient(70% 95% at 24% 50%,rgba(255,215,0,.04),transparent 65%),
+    linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,0) 55%),var(--card)}
+.ammiraglia:hover{border-color:rgba(255,215,0,.28)}
 
-/* ————— stage: moneta + piedistallo ————— */
-.stage { display:flex; flex-direction:column; align-items:center;
-  justify-content:center; flex:1; padding:18px 0 30px; }
-.others .stage { flex:0 0 auto; width:calc(var(--d) + 44px); padding:8px 0 24px; }
-.others .plinth { margin-top:12px; }
-.coinWrap { position:relative; width:var(--d); height:var(--d);
-  perspective:1100px; transition:transform .6s var(--ease); z-index:1; }
-.medal:hover .coinWrap { transform:translateY(-9px) scale(1.05); }
-.glow { position:absolute; inset:-16%; border-radius:50%; pointer-events:none;
-  background:radial-gradient(closest-side,color-mix(in srgb,var(--c) 20%,transparent),transparent 72%);
-  animation:breathe 7s ease-in-out infinite alternate; }
-@keyframes breathe { from { opacity:.7; transform:scale(1); }
-  to { opacity:1; transform:scale(1.08); } }
+/* ————— the niche ————— */
+.nicchia{position:relative;height:var(--nh);border-radius:18px;overflow:hidden;
+  background:linear-gradient(180deg,#040405 0%,#08080A 60%,#0B0B0D 100%);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.05),
+    inset 0 22px 44px rgba(0,0,0,.6),
+    inset 14px 0 34px rgba(0,0,0,.45),
+    inset -14px 0 34px rgba(0,0,0,.45),
+    inset 0 -14px 30px rgba(0,0,0,.4)}
+/* backlight: the service colour rising from behind the box */
+.retro{position:absolute;inset:0;pointer-events:none;opacity:.72;
+  transition:opacity .7s var(--ease);background:
+  radial-gradient(46% 52% at 50% calc(100% - var(--shelfY) - var(--h)*.42),rgba(var(--cr),.17),transparent 72%),
+  radial-gradient(72% 34% at 50% calc(100% - var(--shelfY)),rgba(var(--cr),.13),transparent 74%),
+  linear-gradient(0deg,rgba(var(--cr),.05) 0%,transparent 46%)}
+.prodotto:hover .retro{opacity:1}
+/* faint spotlight cone from the niche ceiling */
+.spot{position:absolute;left:50%;top:0;width:74%;height:64%;transform:translateX(-50%);
+  pointer-events:none;opacity:.5;transition:opacity .7s var(--ease);
+  background:linear-gradient(180deg,rgba(255,255,255,.05),transparent 82%);
+  clip-path:polygon(38% 0,62% 0,100% 100%,0 100%)}
+.prodotto:hover .spot{opacity:.8}
 
-.coin { position:absolute; inset:0; transform-style:preserve-3d;
-  animation:spin var(--dur,8s) linear infinite; animation-delay:var(--del,0s);
-  cursor:pointer; }
-@keyframes spin { from { transform:rotateY(0deg); } to { transform:rotateY(360deg); } }
-.coin.held { animation:none; transition:transform .8s var(--ease); }
+/* ————— glass shelf ————— */
+.mensola{position:absolute;left:5%;right:5%;bottom:var(--shelfY);height:7px;z-index:1;
+  pointer-events:none}
+.mensola::before{content:&#x27;&#x27;;position:absolute;left:0;right:0;top:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.4) 18%,rgba(255,255,255,.55) 50%,rgba(255,255,255,.4) 82%,transparent)}
+.mensola::after{content:&#x27;&#x27;;position:absolute;left:1%;right:1%;top:1px;height:6px;
+  background:linear-gradient(180deg,rgba(190,225,255,.12),rgba(190,225,255,.015));
+  border-radius:0 0 3px 3px;
+  box-shadow:0 10px 26px rgba(0,0,0,.55)}
+.mensola i{position:absolute;top:2px;left:12%;right:12%;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(var(--cr),.35),transparent)}
 
-.face, .slice { position:absolute; inset:0; border-radius:50%; }
-.face { backface-visibility:hidden; -webkit-backface-visibility:hidden; }
-.slice { background:repeating-conic-gradient(var(--m-deep) 0deg 2deg,var(--m-base) 2deg 4deg); }
-
-/* bordo zigrinato */
-.ring { position:absolute; inset:0; border-radius:50%;
-  background:repeating-conic-gradient(var(--m-deep) 0deg 2deg,var(--m-mid) 2deg 4deg);
-  box-shadow:inset 0 2px 5px rgba(255,255,255,.18), inset 0 -3px 8px rgba(0,0,0,.65),
-             0 1px 0 rgba(255,255,255,.06); }
-/* faccia metallica */
-.inner { position:absolute; inset:8.5%; border-radius:50%;
-  background:radial-gradient(135% 135% at 32% 26%,
-    var(--m-hi) 0%, var(--m-mid) 30%, var(--m-base) 58%, var(--m-deep) 100%);
-  box-shadow:inset 0 2px 12px rgba(0,0,0,.4), inset 0 -2px 8px rgba(255,255,255,.07),
-             0 0 0 1.5px rgba(0,0,0,.45); }
-.inner::after { content:&#x27;&#x27;; position:absolute; inset:5.5%; border-radius:50%;
-  border:1px solid rgba(0,0,0,.30);
-  box-shadow:0 1px 0 rgba(255,255,255,.10), inset 0 1px 0 rgba(255,255,255,.08); }
-/* incisioni */
-.engrave { position:absolute; inset:0; width:100%; height:100%; }
-.engrave .leg { font-family:var(--sans); font-weight:600; font-size:12px;
-  letter-spacing:3.4px; fill:rgba(0,0,0,.52); }
-.engrave .legB { font-size:10.5px; letter-spacing:3px; fill:rgba(0,0,0,.44); }
-.engrave text { text-anchor:middle; }
-.engrave { filter:drop-shadow(0 1px 0 rgba(255,255,255,.16)); }
-.engrave .pv { font-family:var(--display); font-weight:600; font-size:31px;
-  letter-spacing:1.5px; fill:rgba(0,0,0,.58); }
-.engrave .bmono { font-family:var(--display); font-weight:250; font-size:86px;
-  fill:var(--m-ic); }
-.back .engrave { filter:none; }
-.back .bmono { filter:drop-shadow(0 -1px 0 rgba(255,255,255,.32)) drop-shadow(0 2px 2px rgba(0,0,0,.5)); }
-.engrave .anno { font-family:var(--sans); font-weight:600; font-size:11.5px;
-  letter-spacing:4px; fill:rgba(0,0,0,.5); }
-/* icona coniata in rilievo */
-.icona { position:absolute; left:50%; top:39%; transform:translate(-50%,-50%);
-  width:calc(var(--d) * .265); height:calc(var(--d) * .265);
-  fill:none; stroke:var(--m-ic); stroke-width:1.6;
-  stroke-linecap:round; stroke-linejoin:round;
-  filter:drop-shadow(0 -1px 0 rgba(255,255,255,.32)) drop-shadow(0 2px 2.5px rgba(0,0,0,.55)); }
-.sheen { position:absolute; inset:0; border-radius:50%; pointer-events:none;
-  background:conic-gradient(from 205deg at 50% 50%,
-    transparent 0deg, rgba(255,255,255,.13) 28deg, transparent 62deg,
-    transparent 195deg, rgba(255,255,255,.05) 225deg, transparent 260deg); }
-
-/* piedistallo */
-.plinth { position:relative; margin-top:16px;
-  width:calc(var(--d) * .84); height:clamp(11px,calc(var(--d) * .052),17px);
-  border-radius:999px;
-  background:linear-gradient(180deg,#232328,#0a0a0c);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.14),
-             inset 0 3px 9px -3px color-mix(in srgb,var(--c) 28%,transparent),
-             inset 0 -2px 6px rgba(0,0,0,.65),
-             0 12px 26px -8px rgba(0,0,0,.85); }
-.plinth::after { content:&#x27;&#x27;; position:absolute; left:50%; top:calc(100% + 4px);
-  transform:translateX(-50%); width:128%; height:22px; border-radius:50%;
-  background:radial-gradient(closest-side,color-mix(in srgb,var(--c) 26%,transparent),transparent 74%);
-  filter:blur(6px); }
-
-/* ————— strato vendita ————— */
-.vendita { display:flex; flex-direction:column; gap:13px; }
-.others .vendita { flex:1; gap:10px; }
-.pnome { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-.pnome h3 { font-family:var(--display); font-weight:350; letter-spacing:.01em;
-  font-size:23px; }
-.others .pnome h3 { font-size:18.5px; }
-.kind { font-size:10px; font-weight:600; letter-spacing:.22em; text-transform:uppercase;
-  color:var(--c); padding:4px 11px; border-radius:100px;
-  border:1px solid color-mix(in srgb,var(--c) 38%,transparent);
-  background:color-mix(in srgb,var(--c) 9%,transparent);
-  display:inline-flex; align-items:center; gap:7px; }
-.kind .dot { width:6px; height:6px; border-radius:50%; background:var(--c);
-  box-shadow:0 0 8px var(--c); animation:pulse 1.6s ease-in-out infinite; }
-@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.35; } }
-.promessa { font-size:15px; line-height:1.58; color:var(--text-2); max-width:46ch; }
-.others .promessa { font-size:13.8px; line-height:1.52; }
-.compra { align-self:flex-start; display:inline-flex; align-items:center; gap:9px;
-  border-radius:100px; min-height:44px; padding:11px 26px;
-  background:var(--c); color:#0A0A05; font-weight:700; font-size:15px;
-  font-family:var(--sans); text-decoration:none; letter-spacing:.005em;
-  box-shadow:0 12px 30px -8px color-mix(in srgb,var(--c) 55%,transparent);
-  transition:transform .35s var(--molla), box-shadow .35s var(--ease); }
-.others .compra { font-size:13.5px; padding:9px 21px; min-height:44px; }
-.compra .fr { transition:transform .35s var(--ease); }
-.compra:hover { transform:translateY(-2px);
-  box-shadow:0 18px 40px -8px color-mix(in srgb,var(--c) 70%,transparent); }
-.compra:hover .fr { transform:translateX(3px); }
-.rassicura { display:flex; align-items:baseline; gap:9px;
-  font-size:12.8px; color:var(--text-3); line-height:1.5; }
-.others .rassicura { font-size:12px; }
-.rassicura b { color:var(--c); font-weight:700; font-style:normal; }
-
-/* ————— breakpoints ————— */
-@media (max-width:1020px) {
-  .banchina { flex-direction:column; }
-  .medal.pf { flex-direction:row; align-items:center; gap:14px;
-    padding:30px 30px 30px 16px; --d:250px; }
-  .medal.pf .stage { flex:0 0 auto; width:calc(var(--d) + 56px); padding:12px 0 26px; }
-  .medal.pf .vendita { flex:1; }
+/* ————— the exhibited box + its reflection ————— */
+.espositore{position:absolute;left:50%;bottom:calc(var(--shelfY) + var(--h)*.085 - 8px);z-index:2;
+  transform:translateX(-50%);
+  width:calc(var(--w)*1.5);height:calc(var(--h)*1.18);pointer-events:none}
+.espositore.specchio{transform:translateX(-50%) scaleY(-1);transform-origin:center bottom;
+  bottom:calc(var(--shelfY) - var(--h)*.04 - 8px);opacity:.14;z-index:0;
+  -webkit-mask-image:linear-gradient(0deg,#000 6%,transparent 60%);
+  mask-image:linear-gradient(0deg,#000 6%,transparent 60%)}
+.scene{position:relative;width:100%;height:100%;perspective:1600px}
+.box{position:absolute;left:50%;top:50%;width:var(--w);height:var(--h);
+  transform:translate(-50%,-50%) rotateX(-14deg) rotateY(-31deg);
+  transform-style:preserve-3d;transition:transform .9s var(--molla)}
+@media (hover:hover){
+  .prodotto:hover .box{transform:translate(-50%,-50%) translate3d(0,-8px,34px)
+    rotateX(-9deg) rotateY(-19deg)}
 }
-@media (max-width:580px) {
-  .banchina, .others { gap:20px; }
-  .medal.pf, .others .medal { flex-direction:column; align-items:stretch;
-    padding:26px 22px 28px; }
-  .medal.pf { --d:236px; }
-  .others .medal { --d:158px; --th:13; }
-  .medal .stage, .medal.pf .stage, .others .stage { width:auto; flex:0 0 auto;
-    padding:10px 0 26px; }
-  .pnome { justify-content:center; text-align:center; }
-  .promessa, .rassicura { text-align:center; max-width:none; }
-  .rassicura { justify-content:center; }
-  .compra { align-self:stretch; justify-content:center; }
+.face{position:absolute;backface-visibility:hidden}
+
+.f-front{inset:0;transform:translateZ(calc(var(--d)/2));border-radius:4px;
+  background:radial-gradient(130% 85% at 18% 0%,rgba(var(--cr),.10),transparent 55%),
+    linear-gradient(163deg,#17171A 0%,#0D0D0F 55%,#0A0A0C 100%);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.05),inset 0 1px 0 rgba(255,255,255,.06);
+  display:flex;flex-direction:column;justify-content:space-between;
+  padding:calc(var(--lid) + 16px) 18px 14px}
+.f-front::after{content:&#x27;&#x27;;position:absolute;left:0;right:0;top:0;height:var(--lid);
+  border-radius:4px 4px 0 0;
+  background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.012))}
+.f-front::before{content:&#x27;&#x27;;position:absolute;left:0;right:0;top:var(--lid);height:1px;z-index:1;
+  background:linear-gradient(90deg,rgba(var(--cr),0),rgba(var(--cr),.7) 30%,rgba(var(--cr),.7) 70%,rgba(var(--cr),0));
+  box-shadow:0 0 12px 1px rgba(var(--cr),.3)}
+
+.f-side{top:0;left:50%;width:var(--d);height:var(--h);margin-left:calc(var(--d)/-2);
+  transform:rotateY(90deg) translateZ(calc(var(--w)/2));border-radius:4px;
+  background:radial-gradient(130% 70% at 35% 0%,rgba(var(--cr),.06),transparent 55%),
+    linear-gradient(195deg,#0F0F11,#070708 70%);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.035);
+  display:flex;align-items:center;justify-content:center}
+.f-side::before{content:&#x27;&#x27;;position:absolute;left:0;right:0;top:var(--lid);height:1px;
+  background:linear-gradient(90deg,rgba(var(--cr),.45),rgba(var(--cr),.1));
+  box-shadow:0 0 8px rgba(var(--cr),.18)}
+.f-side svg{width:52%;height:auto;opacity:.9;
+  filter:drop-shadow(0 0 14px rgba(var(--cr),.35))}
+.f-side .lato-tag{position:absolute;bottom:12px;left:0;right:0;text-align:center;
+  font-family:var(--mono);font-size:8px;letter-spacing:.32em;color:rgba(255,255,255,.32)}
+
+.f-top{left:0;top:50%;width:var(--w);height:var(--d);margin-top:calc(var(--d)/-2);
+  transform:rotateX(90deg) translateZ(calc(var(--h)/2));border-radius:4px;
+  background:linear-gradient(180deg,#1D1E22,#111114);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.055)}
+.banda{position:absolute;left:0;right:0;top:50%;height:16px;transform:translateY(-50%);
+  background:linear-gradient(90deg,rgba(var(--cr),0),rgba(var(--cr),.8) 28%,rgba(var(--cr),.8) 72%,rgba(var(--cr),0));
+  box-shadow:0 0 18px rgba(var(--cr),.35);opacity:.92}
+.lidmark{position:absolute;left:0;right:0;bottom:8px;text-align:center;
+  font-family:var(--mono);font-size:8px;letter-spacing:.4em;color:rgba(255,255,255,.35)}
+
+/* silk-screen print on the front face */
+.marchio{font-family:var(--display);font-weight:400;font-size:10.5px;
+  letter-spacing:.42em;color:rgba(255,255,255,.55)}
+.snome{display:block;font-family:var(--display);font-weight:300;
+  font-size:20px;line-height:1.16;letter-spacing:.015em;max-width:9ch}
+.ammiraglia .snome{font-size:28px;max-width:60%}
+.skind{display:block;margin-top:8px;font-family:var(--mono);font-size:8px;
+  letter-spacing:.3em;color:var(--c);opacity:.95}
+.codice{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.codice span{font-family:var(--mono);font-size:8.5px;letter-spacing:.18em;color:var(--text-4)}
+.barcode{width:42px;height:14px;opacity:.5;background:repeating-linear-gradient(90deg,
+  rgba(255,255,255,.6) 0 1px,transparent 1px 3px,
+  rgba(255,255,255,.4) 3px 5px,transparent 5px 6px,
+  rgba(255,255,255,.6) 6px 7px,transparent 7px 10px)}
+
+/* flagship ribbon on the box */
+.nastro{position:absolute;top:0;bottom:0;left:64%;width:42px;z-index:2;
+  display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(102deg,rgba(255,255,255,.3),rgba(255,255,255,0) 45%),
+    linear-gradient(180deg,#FFDC33,#DCAF00);
+  box-shadow:inset 1px 0 0 rgba(255,255,255,.3),inset -1px 0 0 rgba(0,0,0,.25),
+    0 0 26px rgba(255,215,0,.22)}
+.nastro span{writing-mode:vertical-rl;font-family:var(--mono);font-weight:700;
+  font-size:9px;letter-spacing:.44em;color:#171200;text-transform:uppercase}
+.nastro-top{position:absolute;top:0;bottom:0;left:64%;width:42px;z-index:2;
+  background:linear-gradient(180deg,#FFE45C,#E9BC0A);
+  box-shadow:inset 1px 0 0 rgba(255,255,255,.35),inset -1px 0 0 rgba(0,0,0,.2)}
+
+/* ————— the hanging price tag ————— */
+.appeso{position:absolute;top:-4px;right:8%;z-index:4;
+  transform-origin:top center;transform:rotate(5deg);
+  animation:pendolo 8s var(--ease) infinite;animation-delay:var(--tdel,0s);
+  display:flex;flex-direction:column;align-items:center;pointer-events:none}
+.ammiraglia .appeso{right:11%}
+.filo{width:1px;height:64px;
+  background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.4))}
+.ammiraglia .filo{height:92px}
+.cartellino{position:relative;margin-top:-1px;width:86px;padding:15px 10px 11px;
+  border-radius:7px;text-align:center;
+  background:linear-gradient(168deg,#F8F4E8 0%,#EFE9D6 62%,#E4DCC4 100%);
+  color:#191712;
+  box-shadow:0 14px 26px -8px rgba(0,0,0,.65),0 3px 8px rgba(0,0,0,.4),
+    inset 0 1px 0 rgba(255,255,255,.8)}
+.foro{position:absolute;top:5px;left:50%;width:9px;height:9px;margin-left:-4.5px;
+  border-radius:50%;background:#0A0A0C;
+  box-shadow:0 0 0 2.5px #D9D2BC,inset 0 1px 1px rgba(0,0,0,.7)}
+.cartellino b{display:block;margin-top:4px;font-family:var(--display);
+  font-weight:500;font-size:21px;letter-spacing:-.01em}
+.cartellino em{display:block;margin-top:3px;font-style:normal;font-family:var(--mono);
+  font-size:7.5px;letter-spacing:.24em;color:rgba(25,23,18,.55)}
+.ammiraglia .cartellino{width:100px;padding:17px 12px 13px}
+.ammiraglia .cartellino b{font-size:25px}
+
+/* ————— FULL REFUND backlit sign (flagship niche) ————— */
+.insegna{position:absolute;top:30px;left:0;right:0;z-index:3;text-align:center;
+  font-family:var(--mono);font-size:13px;letter-spacing:.54em;text-indent:.54em;
+  color:#FFE45C;
+  text-shadow:0 0 8px rgba(255,220,60,.9),0 0 26px rgba(255,215,0,.45);
+  animation:neon 6s ease-in-out infinite;pointer-events:none}
+.insegna::before{content:&#x27;&#x27;;position:absolute;left:50%;top:50%;width:300px;height:84px;
+  transform:translate(-50%,-50%);z-index:-1;
+  background:radial-gradient(50% 50% at 50% 50%,rgba(255,215,0,.13),transparent 72%)}
+.insegna::after{content:&#x27;&#x27;;position:absolute;left:50%;bottom:-13px;width:118px;height:1px;
+  transform:translateX(-50%);
+  background:linear-gradient(90deg,transparent,rgba(255,215,0,.55),transparent);
+  box-shadow:0 0 12px rgba(255,215,0,.4)}
+
+/* ————— sales layer (identico al riferimento) ————— */
+.vendita{display:flex;flex-direction:column;align-items:flex-start;gap:14px;margin-top:22px;
+  padding:0 8px}
+.ammiraglia .vendita{gap:18px;margin-top:0;padding:0}
+.pnome{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.pnome h3{font-family:var(--display);font-weight:300;font-size:24px;letter-spacing:.01em}
+.ammiraglia .pnome h3{font-size:clamp(28px,3vw,38px)}
+.kind{font-family:var(--mono);font-size:9.5px;letter-spacing:.26em;text-transform:uppercase;
+  color:var(--c);background:rgba(var(--cr),.07);border:1px solid rgba(var(--cr),.35);
+  padding:5px 12px 4px;border-radius:100px;white-space:nowrap}
+.promessa{font-size:14.5px;line-height:1.65;color:var(--text-2)}
+.ammiraglia .promessa{font-size:16.5px;max-width:44ch}
+.compra{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  border-radius:100px;min-height:44px;padding:0 26px;background:var(--c);
+  color:#0A0A05;font-weight:700;font-size:15px;text-decoration:none;
+  letter-spacing:.005em;
+  box-shadow:0 12px 30px -8px rgba(var(--cr),.45),0 2px 8px rgba(0,0,0,.4);
+  transition:transform .4s var(--molla),box-shadow .4s var(--ease)}
+.compra:hover{transform:translateY(-2px);
+  box-shadow:0 18px 40px -8px rgba(var(--cr),.6),0 2px 8px rgba(0,0,0,.4)}
+.compra:focus-visible{outline:2px solid var(--text);outline-offset:3px}
+.fila .compra{width:100%}
+.ammiraglia .compra{padding:0 34px;font-size:16px}
+.rassicura{font-size:12.5px;line-height:1.55;color:var(--text-3);display:flex;gap:9px}
+.rassicura .check{color:var(--c);flex:none;font-weight:600}
+
+/* ————— 3-col alignment (desktop only) ————— */
+@media (min-width:1021px){
+  .fila .pnome h3{font-size:22px}
+  .fila .kind{font-size:9px;padding:4px 10px 3px}
+  .fila .vendita{flex:1;align-self:stretch}
+  .fila .promessa{margin-bottom:auto}
+  .fila .rassicura{min-height:40px}
 }
 
-/* ————— reduced motion: stati finali leggibili ————— */
-@media (prefers-reduced-motion:reduce) {
-  *, *::before, *::after { animation:none !important; transition:none !important; }
-  .coin { transform:rotateY(0deg) !important; }
+/* ————— motion ————— */
+@keyframes pendolo{0%,100%{transform:rotate(3.2deg)}50%{transform:rotate(6.8deg)}}
+@keyframes neon{0%,100%{text-shadow:0 0 8px rgba(255,220,60,.9),0 0 26px rgba(255,215,0,.45)}
+  50%{text-shadow:0 0 10px rgba(255,220,60,1),0 0 38px rgba(255,215,0,.6)}}
+
+/* ————— tablet ————— */
+@media (max-width:1020px){
+  .fila{grid-template-columns:1fr;gap:22px}
+  .fila .prodotto{display:grid;grid-template-columns:minmax(270px,340px) 1fr;
+    align-items:center;gap:0 34px;padding:18px 34px 24px 18px}
+  .fila .nicchia{height:410px}
+  .fila .compra{width:auto}
+  .fila .vendita{margin-top:0;padding:0}
+  .ammiraglia{--w:224px;--h:252px;--d:136px;--lid:26px;--nh:500px;--shelfY:96px;
+    grid-template-columns:minmax(290px,370px) 1fr;gap:0 34px;padding:20px 34px 28px 18px}
+  .ammiraglia .snome{font-size:25px}
+}
+
+/* ————— mobile ————— */
+@media (max-width:580px){
+  .fila .prodotto,.prodotto,.ammiraglia{display:flex;flex-direction:column;
+    align-items:stretch;padding:14px 14px 26px}
+  .nicchia{width:100%}
+  .prodotto{--w:176px;--h:204px;--d:108px;--lid:22px;--nh:400px;--shelfY:80px}
+  .ammiraglia{--w:214px;--h:242px;--d:130px;--lid:25px;--nh:470px;--shelfY:88px;gap:12px}
+  .fila .nicchia{height:400px}
+  .appeso{right:9%}
+  .ammiraglia .appeso{right:10%}
+  .ammiraglia .filo{height:72px}
+  .insegna{font-size:11px;top:24px}
+  .compra,.fila .compra,.ammiraglia .compra{width:100%}
+  .vendita,.fila .vendita{margin-top:18px;padding:0 6px}
+  .pnome h3{font-size:22px}
+  .ammiraglia .pnome h3{font-size:27px}
+  .ammiraglia .promessa{font-size:15px}
+}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
 }
 &lt;/style&gt;
 &lt;/head&gt;
 &lt;body&gt;
 
-&lt;main class=&quot;zecca&quot;&gt;
-  &lt;header class=&quot;testata&quot;&gt;
-    &lt;p class=&quot;eyebrow&quot;&gt;BOOM Rome · Services&lt;/p&gt;
-    &lt;h2&gt;Four services, &lt;span class=&quot;au&quot;&gt;struck to a standard&lt;/span&gt;.&lt;/h2&gt;
-  &lt;/header&gt;
+&lt;header class=&quot;testa&quot;&gt;
+  &lt;div class=&quot;eyebrow&quot;&gt;BOOM — Services · The night window&lt;/div&gt;
+  &lt;h2&gt;Rome&#x27;s finest,&lt;br&gt;on &lt;em&gt;display&lt;/em&gt;.&lt;/h2&gt;
+  &lt;p class=&quot;sotto&quot;&gt;A duty-free after midnight: every service rests in its own backlit niche, on glass — price tag attached, guarantee sealed inside.&lt;/p&gt;
+&lt;/header&gt;
 
-  &lt;div class=&quot;banchina&quot;&gt;
+&lt;section class=&quot;negozio&quot;&gt;
 
-    &lt;!-- ═══ PROPERTY FINDING — l&#x27;ammiraglia ═══ --&gt;
-    &lt;article class=&quot;medal pf&quot;&gt;
-      &lt;div class=&quot;stage&quot;&gt;
-        &lt;div class=&quot;coinWrap&quot;&gt;
-          &lt;div class=&quot;glow&quot;&gt;&lt;/div&gt;
-          &lt;div class=&quot;coin&quot; data-th=&quot;16&quot; style=&quot;--dur:9s;--del:-7s&quot; aria-hidden=&quot;true&quot;&gt;
-            &lt;div class=&quot;face front&quot;&gt;
-              &lt;span class=&quot;ring&quot;&gt;&lt;/span&gt;&lt;span class=&quot;inner&quot;&gt;&lt;/span&gt;
-              &lt;svg class=&quot;engrave&quot; viewBox=&quot;0 0 200 200&quot;&gt;
-                &lt;defs&gt;
-                  &lt;path id=&quot;aT-pf&quot; d=&quot;M 24 100 A 76 76 0 0 1 176 100&quot;/&gt;
-                  &lt;path id=&quot;aB-pf&quot; d=&quot;M 32 100 A 68 68 0 0 0 168 100&quot;/&gt;
-                &lt;/defs&gt;
-                &lt;text class=&quot;leg&quot;&gt;&lt;textPath href=&quot;#aT-pf&quot; startOffset=&quot;50%&quot;&gt;PROPERTY FINDING&lt;/textPath&gt;&lt;/text&gt;
-                &lt;text class=&quot;leg legB&quot;&gt;&lt;textPath href=&quot;#aB-pf&quot; startOffset=&quot;50%&quot;&gt;BOOM · ROMA&lt;/textPath&gt;&lt;/text&gt;
-                &lt;text class=&quot;pv&quot; x=&quot;100&quot; y=&quot;148&quot;&gt;€350&lt;/text&gt;
-              &lt;/svg&gt;
-              &lt;svg class=&quot;icona&quot; viewBox=&quot;0 0 24 24&quot;&gt;
-                &lt;circle cx=&quot;11&quot; cy=&quot;11&quot; r=&quot;6.5&quot;/&gt;
-                &lt;line x1=&quot;15.7&quot; y1=&quot;15.7&quot; x2=&quot;20.5&quot; y2=&quot;20.5&quot;/&gt;
-              &lt;/svg&gt;
-              &lt;span class=&quot;sheen&quot;&gt;&lt;/span&gt;
+  &lt;!-- ══════════ AMMIRAGLIA · PROPERTY FINDING ══════════ --&gt;
+  &lt;article class=&quot;prodotto ammiraglia&quot; style=&quot;--c:var(--c-pf);--cr:255,215,0;--tdel:0s&quot;&gt;
+    &lt;div class=&quot;nicchia&quot;&gt;
+      &lt;div class=&quot;retro&quot;&gt;&lt;/div&gt;
+      &lt;div class=&quot;spot&quot;&gt;&lt;/div&gt;
+      &lt;div class=&quot;insegna&quot;&gt;FULL REFUND&lt;/div&gt;
+      &lt;div class=&quot;espositore specchio&quot; aria-hidden=&quot;true&quot;&gt;
+        &lt;div class=&quot;scene&quot;&gt;
+          &lt;div class=&quot;box&quot;&gt;
+            &lt;div class=&quot;face f-top&quot;&gt;&lt;span class=&quot;banda&quot;&gt;&lt;/span&gt;&lt;span class=&quot;nastro-top&quot;&gt;&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;face f-side&quot;&gt;&lt;/div&gt;
+            &lt;div class=&quot;face f-front&quot;&gt;&lt;span class=&quot;nastro&quot;&gt;&lt;span&gt;Full Refund&lt;/span&gt;&lt;/span&gt;&lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+      &lt;div class=&quot;espositore&quot;&gt;
+        &lt;div class=&quot;scene&quot;&gt;
+          &lt;div class=&quot;box&quot;&gt;
+            &lt;div class=&quot;face f-top&quot;&gt;
+              &lt;span class=&quot;banda&quot;&gt;&lt;/span&gt;
+              &lt;span class=&quot;nastro-top&quot;&gt;&lt;/span&gt;
+              &lt;span class=&quot;lidmark&quot;&gt;BOOM&lt;/span&gt;
             &lt;/div&gt;
-            &lt;div class=&quot;face back&quot;&gt;
-              &lt;span class=&quot;ring&quot;&gt;&lt;/span&gt;&lt;span class=&quot;inner&quot;&gt;&lt;/span&gt;
-              &lt;svg class=&quot;engrave&quot; viewBox=&quot;0 0 200 200&quot;&gt;
-                &lt;text class=&quot;bmono&quot; x=&quot;100&quot; y=&quot;122&quot;&gt;B&lt;/text&gt;
-                &lt;text class=&quot;anno&quot; x=&quot;100&quot; y=&quot;152&quot;&gt;MMXXVI&lt;/text&gt;
+            &lt;div class=&quot;face f-side&quot;&gt;
+              &lt;svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;var(--c)&quot; stroke-width=&quot;1.5&quot; stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot;&gt;
+                &lt;circle cx=&quot;10.5&quot; cy=&quot;10.5&quot; r=&quot;6.5&quot;/&gt;&lt;path d=&quot;M15.5 15.5 21 21&quot;/&gt;
               &lt;/svg&gt;
-              &lt;span class=&quot;sheen&quot;&gt;&lt;/span&gt;
+              &lt;span class=&quot;lato-tag&quot;&gt;BOOM·ROMA&lt;/span&gt;
+            &lt;/div&gt;
+            &lt;div class=&quot;face f-front&quot;&gt;
+              &lt;span class=&quot;marchio&quot;&gt;BOOM&lt;/span&gt;
+              &lt;span&gt;
+                &lt;span class=&quot;snome&quot;&gt;Property Finding&lt;/span&gt;
+                &lt;span class=&quot;skind&quot;&gt;FLAGSHIP — ROME&lt;/span&gt;
+              &lt;/span&gt;
+              &lt;span class=&quot;codice&quot;&gt;&lt;span&gt;PF·0350·ROME&lt;/span&gt;&lt;i class=&quot;barcode&quot;&gt;&lt;/i&gt;&lt;/span&gt;
+              &lt;span class=&quot;nastro&quot;&gt;&lt;span&gt;Full Refund&lt;/span&gt;&lt;/span&gt;
             &lt;/div&gt;
           &lt;/div&gt;
         &lt;/div&gt;
-        &lt;div class=&quot;plinth&quot;&gt;&lt;/div&gt;
+      &lt;/div&gt;
+      &lt;div class=&quot;mensola&quot;&gt;&lt;i&gt;&lt;/i&gt;&lt;/div&gt;
+      &lt;div class=&quot;appeso&quot; aria-hidden=&quot;true&quot;&gt;
+        &lt;i class=&quot;filo&quot;&gt;&lt;/i&gt;
+        &lt;span class=&quot;cartellino&quot;&gt;&lt;i class=&quot;foro&quot;&gt;&lt;/i&gt;&lt;b&gt;€350&lt;/b&gt;&lt;em&gt;PF · ROME&lt;/em&gt;&lt;/span&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+    &lt;div class=&quot;vendita&quot;&gt;
+      &lt;div class=&quot;pnome&quot;&gt;&lt;h3&gt;Property Finding&lt;/h3&gt;&lt;span class=&quot;kind&quot;&gt;Flagship&lt;/span&gt;&lt;/div&gt;
+      &lt;p class=&quot;promessa&quot;&gt;Your private hunter on the whole Rome market — off-market included, every shortlist walked in person before you see it.&lt;/p&gt;
+      &lt;a class=&quot;compra&quot; href=&quot;/property-finding.html&quot;&gt;Start the hunt · €350 →&lt;/a&gt;
+      &lt;p class=&quot;rassicura&quot;&gt;&lt;span class=&quot;check&quot;&gt;✓&lt;/span&gt;Zero risk: deducted on success, refunded in full if we don&#x27;t deliver.&lt;/p&gt;
+    &lt;/div&gt;
+  &lt;/article&gt;
+
+  &lt;div class=&quot;fila&quot;&gt;
+
+    &lt;!-- ══════════ VIRTUAL VIEWING ══════════ --&gt;
+    &lt;article class=&quot;prodotto&quot; style=&quot;--c:var(--c-vv);--cr:0,255,136;--tdel:-2.6s&quot;&gt;
+      &lt;div class=&quot;nicchia&quot;&gt;
+        &lt;div class=&quot;retro&quot;&gt;&lt;/div&gt;
+        &lt;div class=&quot;spot&quot;&gt;&lt;/div&gt;
+        &lt;div class=&quot;espositore specchio&quot; aria-hidden=&quot;true&quot;&gt;
+          &lt;div class=&quot;scene&quot;&gt;
+            &lt;div class=&quot;box&quot;&gt;
+              &lt;div class=&quot;face f-top&quot;&gt;&lt;span class=&quot;banda&quot;&gt;&lt;/span&gt;&lt;/div&gt;
+              &lt;div class=&quot;face f-side&quot;&gt;&lt;/div&gt;
+              &lt;div class=&quot;face f-front&quot;&gt;&lt;/div&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;espositore&quot;&gt;
+          &lt;div class=&quot;scene&quot;&gt;
+            &lt;div class=&quot;box&quot;&gt;
+              &lt;div class=&quot;face f-top&quot;&gt;&lt;span class=&quot;banda&quot;&gt;&lt;/span&gt;&lt;span class=&quot;lidmark&quot;&gt;BOOM&lt;/span&gt;&lt;/div&gt;
+              &lt;div class=&quot;face f-side&quot;&gt;
+                &lt;svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;var(--c)&quot; stroke-width=&quot;1.5&quot; stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot;&gt;
+                  &lt;rect x=&quot;2.5&quot; y=&quot;6.5&quot; width=&quot;13&quot; height=&quot;11&quot; rx=&quot;2.5&quot;/&gt;
+                  &lt;path d=&quot;M15.5 11.5 21.5 8v8l-6-3.5z&quot;/&gt;
+                &lt;/svg&gt;
+                &lt;span class=&quot;lato-tag&quot;&gt;BOOM·ROMA&lt;/span&gt;
+              &lt;/div&gt;
+              &lt;div class=&quot;face f-front&quot;&gt;
+                &lt;span class=&quot;marchio&quot;&gt;BOOM&lt;/span&gt;
+                &lt;span&gt;
+                  &lt;span class=&quot;snome&quot;&gt;Virtual Viewing&lt;/span&gt;
+                  &lt;span class=&quot;skind&quot;&gt;LIVE — ROME&lt;/span&gt;
+                &lt;/span&gt;
+                &lt;span class=&quot;codice&quot;&gt;&lt;span&gt;VV·0089·ROME&lt;/span&gt;&lt;i class=&quot;barcode&quot;&gt;&lt;/i&gt;&lt;/span&gt;
+              &lt;/div&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;mensola&quot;&gt;&lt;i&gt;&lt;/i&gt;&lt;/div&gt;
+        &lt;div class=&quot;appeso&quot; aria-hidden=&quot;true&quot;&gt;
+          &lt;i class=&quot;filo&quot;&gt;&lt;/i&gt;
+          &lt;span class=&quot;cartellino&quot;&gt;&lt;i class=&quot;foro&quot;&gt;&lt;/i&gt;&lt;b&gt;€89&lt;/b&gt;&lt;em&gt;VV · ROME&lt;/em&gt;&lt;/span&gt;
+        &lt;/div&gt;
       &lt;/div&gt;
       &lt;div class=&quot;vendita&quot;&gt;
-        &lt;div class=&quot;pnome&quot;&gt;&lt;h3&gt;Property Finding&lt;/h3&gt;&lt;span class=&quot;kind&quot;&gt;Flagship&lt;/span&gt;&lt;/div&gt;
-        &lt;p class=&quot;promessa&quot;&gt;Your private hunter on the whole Rome market — off-market included, every shortlist walked in person before you see it.&lt;/p&gt;
-        &lt;a class=&quot;compra&quot; href=&quot;/property-finding.html&quot;&gt;Start the hunt · €350 &lt;span class=&quot;fr&quot;&gt;→&lt;/span&gt;&lt;/a&gt;
-        &lt;p class=&quot;rassicura&quot;&gt;&lt;b&gt;✓&lt;/b&gt; Zero risk: deducted on success, refunded in full if we don&#x27;t deliver.&lt;/p&gt;
+        &lt;div class=&quot;pnome&quot;&gt;&lt;h3&gt;Virtual Viewing&lt;/h3&gt;&lt;span class=&quot;kind&quot;&gt;Live&lt;/span&gt;&lt;/div&gt;
+        &lt;p class=&quot;promessa&quot;&gt;See any home live on video before you fly — the red flags said out loud.&lt;/p&gt;
+        &lt;a class=&quot;compra&quot; href=&quot;/virtual-viewing.html&quot;&gt;Book a live tour · €89 →&lt;/a&gt;
+        &lt;p class=&quot;rassicura&quot;&gt;&lt;span class=&quot;check&quot;&gt;✓&lt;/span&gt;Credited if you rent with us · BOOM homes: free, always.&lt;/p&gt;
       &lt;/div&gt;
     &lt;/article&gt;
 
-    &lt;div class=&quot;others&quot;&gt;
-
-      &lt;!-- ═══ VIRTUAL VIEWING ═══ --&gt;
-      &lt;article class=&quot;medal vv&quot;&gt;
-        &lt;div class=&quot;stage&quot;&gt;
-          &lt;div class=&quot;coinWrap&quot;&gt;
-            &lt;div class=&quot;glow&quot; style=&quot;animation-delay:-2s&quot;&gt;&lt;/div&gt;
-            &lt;div class=&quot;coin&quot; data-th=&quot;12&quot; style=&quot;--dur:8s;--del:-5.1s&quot; aria-hidden=&quot;true&quot;&gt;
-              &lt;div class=&quot;face front&quot;&gt;
-                &lt;span class=&quot;ring&quot;&gt;&lt;/span&gt;&lt;span class=&quot;inner&quot;&gt;&lt;/span&gt;
-                &lt;svg class=&quot;engrave&quot; viewBox=&quot;0 0 200 200&quot;&gt;
-                  &lt;defs&gt;
-                    &lt;path id=&quot;aT-vv&quot; d=&quot;M 24 100 A 76 76 0 0 1 176 100&quot;/&gt;
-                    &lt;path id=&quot;aB-vv&quot; d=&quot;M 32 100 A 68 68 0 0 0 168 100&quot;/&gt;
-                  &lt;/defs&gt;
-                  &lt;text class=&quot;leg&quot;&gt;&lt;textPath href=&quot;#aT-vv&quot; startOffset=&quot;50%&quot;&gt;VIRTUAL VIEWING&lt;/textPath&gt;&lt;/text&gt;
-                  &lt;text class=&quot;leg legB&quot;&gt;&lt;textPath href=&quot;#aB-vv&quot; startOffset=&quot;50%&quot;&gt;BOOM · ROMA&lt;/textPath&gt;&lt;/text&gt;
-                  &lt;text class=&quot;pv&quot; x=&quot;100&quot; y=&quot;148&quot;&gt;€89&lt;/text&gt;
+    &lt;!-- ══════════ DEAL ASSISTANCE ══════════ --&gt;
+    &lt;article class=&quot;prodotto&quot; style=&quot;--c:var(--c-da);--cr:157,140,255;--tdel:-5.1s&quot;&gt;
+      &lt;div class=&quot;nicchia&quot;&gt;
+        &lt;div class=&quot;retro&quot;&gt;&lt;/div&gt;
+        &lt;div class=&quot;spot&quot;&gt;&lt;/div&gt;
+        &lt;div class=&quot;espositore specchio&quot; aria-hidden=&quot;true&quot;&gt;
+          &lt;div class=&quot;scene&quot;&gt;
+            &lt;div class=&quot;box&quot;&gt;
+              &lt;div class=&quot;face f-top&quot;&gt;&lt;span class=&quot;banda&quot;&gt;&lt;/span&gt;&lt;/div&gt;
+              &lt;div class=&quot;face f-side&quot;&gt;&lt;/div&gt;
+              &lt;div class=&quot;face f-front&quot;&gt;&lt;/div&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;espositore&quot;&gt;
+          &lt;div class=&quot;scene&quot;&gt;
+            &lt;div class=&quot;box&quot;&gt;
+              &lt;div class=&quot;face f-top&quot;&gt;&lt;span class=&quot;banda&quot;&gt;&lt;/span&gt;&lt;span class=&quot;lidmark&quot;&gt;BOOM&lt;/span&gt;&lt;/div&gt;
+              &lt;div class=&quot;face f-side&quot;&gt;
+                &lt;svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;var(--c)&quot; stroke-width=&quot;1.5&quot; stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot;&gt;
+                  &lt;path d=&quot;M12 3l7.5 3v5.2c0 4.6-3.2 7.6-7.5 9.3-4.3-1.7-7.5-4.7-7.5-9.3V6z&quot;/&gt;
+                  &lt;path d=&quot;M9 11.5l2.2 2.2 4-4.2&quot;/&gt;
                 &lt;/svg&gt;
-                &lt;svg class=&quot;icona&quot; viewBox=&quot;0 0 24 24&quot;&gt;
-                  &lt;rect x=&quot;2.5&quot; y=&quot;7&quot; width=&quot;12.5&quot; height=&quot;10&quot; rx=&quot;2.6&quot;/&gt;
-                  &lt;path d=&quot;M15 11.2 20.7 8v8L15 12.8z&quot;/&gt;
-                &lt;/svg&gt;
-                &lt;span class=&quot;sheen&quot;&gt;&lt;/span&gt;
+                &lt;span class=&quot;lato-tag&quot;&gt;BOOM·ROMA&lt;/span&gt;
               &lt;/div&gt;
-              &lt;div class=&quot;face back&quot;&gt;
-                &lt;span class=&quot;ring&quot;&gt;&lt;/span&gt;&lt;span class=&quot;inner&quot;&gt;&lt;/span&gt;
-                &lt;svg class=&quot;engrave&quot; viewBox=&quot;0 0 200 200&quot;&gt;
-                  &lt;text class=&quot;bmono&quot; x=&quot;100&quot; y=&quot;122&quot;&gt;B&lt;/text&gt;
-                  &lt;text class=&quot;anno&quot; x=&quot;100&quot; y=&quot;152&quot;&gt;MMXXVI&lt;/text&gt;
-                &lt;/svg&gt;
-                &lt;span class=&quot;sheen&quot;&gt;&lt;/span&gt;
+              &lt;div class=&quot;face f-front&quot;&gt;
+                &lt;span class=&quot;marchio&quot;&gt;BOOM&lt;/span&gt;
+                &lt;span&gt;
+                  &lt;span class=&quot;snome&quot;&gt;Deal Assistance&lt;/span&gt;
+                  &lt;span class=&quot;skind&quot;&gt;PROTECTION — ROME&lt;/span&gt;
+                &lt;/span&gt;
+                &lt;span class=&quot;codice&quot;&gt;&lt;span&gt;DA·0249·ROME&lt;/span&gt;&lt;i class=&quot;barcode&quot;&gt;&lt;/i&gt;&lt;/span&gt;
               &lt;/div&gt;
             &lt;/div&gt;
           &lt;/div&gt;
-          &lt;div class=&quot;plinth&quot;&gt;&lt;/div&gt;
         &lt;/div&gt;
-        &lt;div class=&quot;vendita&quot;&gt;
-          &lt;div class=&quot;pnome&quot;&gt;&lt;h3&gt;Virtual Viewing&lt;/h3&gt;&lt;span class=&quot;kind&quot;&gt;&lt;span class=&quot;dot&quot;&gt;&lt;/span&gt;Live&lt;/span&gt;&lt;/div&gt;
-          &lt;p class=&quot;promessa&quot;&gt;See any home live on video before you fly — the red flags said out loud.&lt;/p&gt;
-          &lt;a class=&quot;compra&quot; href=&quot;/virtual-viewing.html&quot;&gt;Book a live tour · €89 &lt;span class=&quot;fr&quot;&gt;→&lt;/span&gt;&lt;/a&gt;
-          &lt;p class=&quot;rassicura&quot;&gt;&lt;b&gt;✓&lt;/b&gt; Credited if you rent with us · BOOM homes: free, always.&lt;/p&gt;
+        &lt;div class=&quot;mensola&quot;&gt;&lt;i&gt;&lt;/i&gt;&lt;/div&gt;
+        &lt;div class=&quot;appeso&quot; aria-hidden=&quot;true&quot;&gt;
+          &lt;i class=&quot;filo&quot;&gt;&lt;/i&gt;
+          &lt;span class=&quot;cartellino&quot;&gt;&lt;i class=&quot;foro&quot;&gt;&lt;/i&gt;&lt;b&gt;€249&lt;/b&gt;&lt;em&gt;DA · ROME&lt;/em&gt;&lt;/span&gt;
         &lt;/div&gt;
-      &lt;/article&gt;
+      &lt;/div&gt;
+      &lt;div class=&quot;vendita&quot;&gt;
+        &lt;div class=&quot;pnome&quot;&gt;&lt;h3&gt;Deal Assistance&lt;/h3&gt;&lt;span class=&quot;kind&quot;&gt;Protection&lt;/span&gt;&lt;/div&gt;
+        &lt;p class=&quot;promessa&quot;&gt;Found a home yourself? We verify the landlord and the papers — then negotiate for you.&lt;/p&gt;
+        &lt;a class=&quot;compra&quot; href=&quot;/deal-assistance.html&quot;&gt;Protect the deal · €249 →&lt;/a&gt;
+        &lt;p class=&quot;rassicura&quot;&gt;&lt;span class=&quot;check&quot;&gt;✓&lt;/span&gt;Fixed fee — deposit and clauses negotiated, no percentages.&lt;/p&gt;
+      &lt;/div&gt;
+    &lt;/article&gt;
 
-      &lt;!-- ═══ DEAL ASSISTANCE ═══ --&gt;
-      &lt;article class=&quot;medal da&quot;&gt;
-        &lt;div class=&quot;stage&quot;&gt;
-          &lt;div class=&quot;coinWrap&quot;&gt;
-            &lt;div class=&quot;glow&quot; style=&quot;animation-delay:-4s&quot;&gt;&lt;/div&gt;
-            &lt;div class=&quot;coin&quot; data-th=&quot;12&quot; style=&quot;--dur:8s;--del:-6.1s&quot; aria-hidden=&quot;true&quot;&gt;
-              &lt;div class=&quot;face front&quot;&gt;
-                &lt;span class=&quot;ring&quot;&gt;&lt;/span&gt;&lt;span class=&quot;inner&quot;&gt;&lt;/span&gt;
-                &lt;svg class=&quot;engrave&quot; viewBox=&quot;0 0 200 200&quot;&gt;
-                  &lt;defs&gt;
-                    &lt;path id=&quot;aT-da&quot; d=&quot;M 24 100 A 76 76 0 0 1 176 100&quot;/&gt;
-                    &lt;path id=&quot;aB-da&quot; d=&quot;M 32 100 A 68 68 0 0 0 168 100&quot;/&gt;
-                  &lt;/defs&gt;
-                  &lt;text class=&quot;leg&quot;&gt;&lt;textPath href=&quot;#aT-da&quot; startOffset=&quot;50%&quot;&gt;DEAL ASSISTANCE&lt;/textPath&gt;&lt;/text&gt;
-                  &lt;text class=&quot;leg legB&quot;&gt;&lt;textPath href=&quot;#aB-da&quot; startOffset=&quot;50%&quot;&gt;BOOM · ROMA&lt;/textPath&gt;&lt;/text&gt;
-                  &lt;text class=&quot;pv&quot; x=&quot;100&quot; y=&quot;148&quot;&gt;€249&lt;/text&gt;
+    &lt;!-- ══════════ CONTRACT CHECK ══════════ --&gt;
+    &lt;article class=&quot;prodotto&quot; style=&quot;--c:var(--c-cc);--cr:62,211,255;--tdel:-1.4s&quot;&gt;
+      &lt;div class=&quot;nicchia&quot;&gt;
+        &lt;div class=&quot;retro&quot;&gt;&lt;/div&gt;
+        &lt;div class=&quot;spot&quot;&gt;&lt;/div&gt;
+        &lt;div class=&quot;espositore specchio&quot; aria-hidden=&quot;true&quot;&gt;
+          &lt;div class=&quot;scene&quot;&gt;
+            &lt;div class=&quot;box&quot;&gt;
+              &lt;div class=&quot;face f-top&quot;&gt;&lt;span class=&quot;banda&quot;&gt;&lt;/span&gt;&lt;/div&gt;
+              &lt;div class=&quot;face f-side&quot;&gt;&lt;/div&gt;
+              &lt;div class=&quot;face f-front&quot;&gt;&lt;/div&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;espositore&quot;&gt;
+          &lt;div class=&quot;scene&quot;&gt;
+            &lt;div class=&quot;box&quot;&gt;
+              &lt;div class=&quot;face f-top&quot;&gt;&lt;span class=&quot;banda&quot;&gt;&lt;/span&gt;&lt;span class=&quot;lidmark&quot;&gt;BOOM&lt;/span&gt;&lt;/div&gt;
+              &lt;div class=&quot;face f-side&quot;&gt;
+                &lt;svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;var(--c)&quot; stroke-width=&quot;1.5&quot; stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot;&gt;
+                  &lt;path d=&quot;M6.5 3.5h7L18 8v12a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 20V5a1.5 1.5 0 0 1 1.5-1.5z&quot; transform=&quot;translate(-.5 0)&quot;/&gt;
+                  &lt;path d=&quot;M13 3.5V8h4.5&quot;/&gt;
+                  &lt;path d=&quot;M8.8 13h6.4M8.8 16.4h4.4&quot;/&gt;
                 &lt;/svg&gt;
-                &lt;svg class=&quot;icona&quot; viewBox=&quot;0 0 24 24&quot;&gt;
-                  &lt;path d=&quot;M12 3l7 2.7v5.5c0 4.4-2.9 8-7 9.8-4.1-1.8-7-5.4-7-9.8V5.7L12 3z&quot;/&gt;
-                  &lt;path d=&quot;M9.2 12.1l2 2 3.6-4.2&quot;/&gt;
-                &lt;/svg&gt;
-                &lt;span class=&quot;sheen&quot;&gt;&lt;/span&gt;
+                &lt;span class=&quot;lato-tag&quot;&gt;BOOM·ROMA&lt;/span&gt;
               &lt;/div&gt;
-              &lt;div class=&quot;face back&quot;&gt;
-                &lt;span class=&quot;ring&quot;&gt;&lt;/span&gt;&lt;span class=&quot;inner&quot;&gt;&lt;/span&gt;
-                &lt;svg class=&quot;engrave&quot; viewBox=&quot;0 0 200 200&quot;&gt;
-                  &lt;text class=&quot;bmono&quot; x=&quot;100&quot; y=&quot;122&quot;&gt;B&lt;/text&gt;
-                  &lt;text class=&quot;anno&quot; x=&quot;100&quot; y=&quot;152&quot;&gt;MMXXVI&lt;/text&gt;
-                &lt;/svg&gt;
-                &lt;span class=&quot;sheen&quot;&gt;&lt;/span&gt;
+              &lt;div class=&quot;face f-front&quot;&gt;
+                &lt;span class=&quot;marchio&quot;&gt;BOOM&lt;/span&gt;
+                &lt;span&gt;
+                  &lt;span class=&quot;snome&quot;&gt;Contract Check&lt;/span&gt;
+                  &lt;span class=&quot;skind&quot;&gt;EXPRESS — ROME&lt;/span&gt;
+                &lt;/span&gt;
+                &lt;span class=&quot;codice&quot;&gt;&lt;span&gt;CC·0049·ROME&lt;/span&gt;&lt;i class=&quot;barcode&quot;&gt;&lt;/i&gt;&lt;/span&gt;
               &lt;/div&gt;
             &lt;/div&gt;
           &lt;/div&gt;
-          &lt;div class=&quot;plinth&quot;&gt;&lt;/div&gt;
         &lt;/div&gt;
-        &lt;div class=&quot;vendita&quot;&gt;
-          &lt;div class=&quot;pnome&quot;&gt;&lt;h3&gt;Deal Assistance&lt;/h3&gt;&lt;span class=&quot;kind&quot;&gt;Protection&lt;/span&gt;&lt;/div&gt;
-          &lt;p class=&quot;promessa&quot;&gt;Found a home yourself? We verify the landlord and the papers — then negotiate for you.&lt;/p&gt;
-          &lt;a class=&quot;compra&quot; href=&quot;/deal-assistance.html&quot;&gt;Protect the deal · €249 &lt;span class=&quot;fr&quot;&gt;→&lt;/span&gt;&lt;/a&gt;
-          &lt;p class=&quot;rassicura&quot;&gt;&lt;b&gt;✓&lt;/b&gt; Fixed fee — deposit and clauses negotiated, no percentages.&lt;/p&gt;
+        &lt;div class=&quot;mensola&quot;&gt;&lt;i&gt;&lt;/i&gt;&lt;/div&gt;
+        &lt;div class=&quot;appeso&quot; aria-hidden=&quot;true&quot;&gt;
+          &lt;i class=&quot;filo&quot;&gt;&lt;/i&gt;
+          &lt;span class=&quot;cartellino&quot;&gt;&lt;i class=&quot;foro&quot;&gt;&lt;/i&gt;&lt;b&gt;€49&lt;/b&gt;&lt;em&gt;CC · ROME&lt;/em&gt;&lt;/span&gt;
         &lt;/div&gt;
-      &lt;/article&gt;
+      &lt;/div&gt;
+      &lt;div class=&quot;vendita&quot;&gt;
+        &lt;div class=&quot;pnome&quot;&gt;&lt;h3&gt;Contract Check&lt;/h3&gt;&lt;span class=&quot;kind&quot;&gt;Express&lt;/span&gt;&lt;/div&gt;
+        &lt;p class=&quot;promessa&quot;&gt;About to sign? A written traffic-light verdict in 24h: fine, unfair, missing.&lt;/p&gt;
+        &lt;a class=&quot;compra&quot; href=&quot;/contract-check-express.html&quot;&gt;Check my contract · €49 →&lt;/a&gt;
+        &lt;p class=&quot;rassicura&quot;&gt;&lt;span class=&quot;check&quot;&gt;✓&lt;/span&gt;Credited in full on Deal Assistance.&lt;/p&gt;
+      &lt;/div&gt;
+    &lt;/article&gt;
 
-      &lt;!-- ═══ CONTRACT CHECK ═══ --&gt;
-      &lt;article class=&quot;medal cc&quot;&gt;
-        &lt;div class=&quot;stage&quot;&gt;
-          &lt;div class=&quot;coinWrap&quot;&gt;
-            &lt;div class=&quot;glow&quot; style=&quot;animation-delay:-6s&quot;&gt;&lt;/div&gt;
-            &lt;div class=&quot;coin&quot; data-th=&quot;12&quot; style=&quot;--dur:8s;--del:-4.9s&quot; aria-hidden=&quot;true&quot;&gt;
-              &lt;div class=&quot;face front&quot;&gt;
-                &lt;span class=&quot;ring&quot;&gt;&lt;/span&gt;&lt;span class=&quot;inner&quot;&gt;&lt;/span&gt;
-                &lt;svg class=&quot;engrave&quot; viewBox=&quot;0 0 200 200&quot;&gt;
-                  &lt;defs&gt;
-                    &lt;path id=&quot;aT-cc&quot; d=&quot;M 24 100 A 76 76 0 0 1 176 100&quot;/&gt;
-                    &lt;path id=&quot;aB-cc&quot; d=&quot;M 32 100 A 68 68 0 0 0 168 100&quot;/&gt;
-                  &lt;/defs&gt;
-                  &lt;text class=&quot;leg&quot;&gt;&lt;textPath href=&quot;#aT-cc&quot; startOffset=&quot;50%&quot;&gt;CONTRACT CHECK&lt;/textPath&gt;&lt;/text&gt;
-                  &lt;text class=&quot;leg legB&quot;&gt;&lt;textPath href=&quot;#aB-cc&quot; startOffset=&quot;50%&quot;&gt;BOOM · ROMA&lt;/textPath&gt;&lt;/text&gt;
-                  &lt;text class=&quot;pv&quot; x=&quot;100&quot; y=&quot;148&quot;&gt;€49&lt;/text&gt;
-                &lt;/svg&gt;
-                &lt;svg class=&quot;icona&quot; viewBox=&quot;0 0 24 24&quot;&gt;
-                  &lt;path d=&quot;M6.5 3.5h7.2l4.3 4.3v12.2a.5.5 0 0 1-.5.5H6.5a.5.5 0 0 1-.5-.5V4a.5.5 0 0 1 .5-.5z&quot;/&gt;
-                  &lt;path d=&quot;M13.7 3.5v4.3H18&quot;/&gt;
-                  &lt;line x1=&quot;9&quot; y1=&quot;12.5&quot; x2=&quot;15&quot; y2=&quot;12.5&quot;/&gt;
-                  &lt;line x1=&quot;9&quot; y1=&quot;16&quot; x2=&quot;13&quot; y2=&quot;16&quot;/&gt;
-                &lt;/svg&gt;
-                &lt;span class=&quot;sheen&quot;&gt;&lt;/span&gt;
-              &lt;/div&gt;
-              &lt;div class=&quot;face back&quot;&gt;
-                &lt;span class=&quot;ring&quot;&gt;&lt;/span&gt;&lt;span class=&quot;inner&quot;&gt;&lt;/span&gt;
-                &lt;svg class=&quot;engrave&quot; viewBox=&quot;0 0 200 200&quot;&gt;
-                  &lt;text class=&quot;bmono&quot; x=&quot;100&quot; y=&quot;122&quot;&gt;B&lt;/text&gt;
-                  &lt;text class=&quot;anno&quot; x=&quot;100&quot; y=&quot;152&quot;&gt;MMXXVI&lt;/text&gt;
-                &lt;/svg&gt;
-                &lt;span class=&quot;sheen&quot;&gt;&lt;/span&gt;
-              &lt;/div&gt;
-            &lt;/div&gt;
-          &lt;/div&gt;
-          &lt;div class=&quot;plinth&quot;&gt;&lt;/div&gt;
-        &lt;/div&gt;
-        &lt;div class=&quot;vendita&quot;&gt;
-          &lt;div class=&quot;pnome&quot;&gt;&lt;h3&gt;Contract Check&lt;/h3&gt;&lt;span class=&quot;kind&quot;&gt;Express&lt;/span&gt;&lt;/div&gt;
-          &lt;p class=&quot;promessa&quot;&gt;About to sign? A written traffic-light verdict in 24h: fine, unfair, missing.&lt;/p&gt;
-          &lt;a class=&quot;compra&quot; href=&quot;/contract-check-express.html&quot;&gt;Check my contract · €49 &lt;span class=&quot;fr&quot;&gt;→&lt;/span&gt;&lt;/a&gt;
-          &lt;p class=&quot;rassicura&quot;&gt;&lt;b&gt;✓&lt;/b&gt; Credited in full on Deal Assistance.&lt;/p&gt;
-        &lt;/div&gt;
-      &lt;/article&gt;
-
-    &lt;/div&gt;
   &lt;/div&gt;
-&lt;/main&gt;
+&lt;/section&gt;
 
-&lt;script&gt;
-/* spessore della moneta: dischi impilati in Z (la zigrinatura fa il taglio) */
-document.querySelectorAll(&#x27;.coin&#x27;).forEach(coin =&gt; {
-  const th = +coin.dataset.th || 12;
-  const fr = coin.querySelector(&#x27;.front&#x27;), bk = coin.querySelector(&#x27;.back&#x27;);
-  fr.style.transform = `translateZ(${th/2}px)`;
-  bk.style.transform = `rotateY(180deg) translateZ(${th/2}px)`;
-  const n = Math.max(7, Math.round(th / 1.5));
-  for (let i = 0; i &lt;= n; i++) {
-    const s = document.createElement(&#x27;span&#x27;);
-    s.className = &#x27;slice&#x27;;
-    s.style.transform = `translateZ(${(-th/2 + th*i/n).toFixed(2)}px)`;
-    coin.insertBefore(s, fr);
-  }
-  coin._dur = getComputedStyle(coin).animationDuration;
-});
-
-/* hover = prendere in mano: la moneta si ferma di faccia */
-const RM = matchMedia(&#x27;(prefers-reduced-motion: reduce)&#x27;).matches;
-if (!RM) {
-  document.querySelectorAll(&#x27;.medal&#x27;).forEach(card =&gt; {
-    const coin = card.querySelector(&#x27;.coin&#x27;);
-    card.addEventListener(&#x27;pointerenter&#x27;, e =&gt; {
-      if (e.pointerType === &#x27;touch&#x27;) return;
-      const m = getComputedStyle(coin).transform;
-      coin.style.animation = &#x27;none&#x27;;
-      coin.style.transform = (m &amp;&amp; m !== &#x27;none&#x27;) ? m : &#x27;rotateY(0deg)&#x27;;
-      void coin.offsetWidth;
-      coin.classList.add(&#x27;held&#x27;);
-      coin.style.transform = &#x27;rotateY(0deg)&#x27;;
-    });
-    card.addEventListener(&#x27;pointerleave&#x27;, () =&gt; {
-      coin.classList.remove(&#x27;held&#x27;);
-      /* i keyframes partono da 0° = faccia: la ripresa è senza scatto */
-      coin.style.transform = &#x27;rotateY(0deg)&#x27;;
-      coin.style.animation = `spin ${coin._dur} linear infinite`;
-    });
-  });
-}
-&lt;/script&gt;
-&lt;script&gt;(function(){function m(){parent.postMessage({t:&quot;vh&quot;,id:&quot;conio&quot;,h:document.documentElement.scrollHeight},&quot;*&quot;)}setInterval(m,700);addEventListener(&quot;load&quot;,m)})()&lt;/script&gt;&lt;/body&gt;
+&lt;script&gt;(function(){function m(){parent.postMessage({t:&quot;vh&quot;,id:&quot;retail&quot;,h:document.documentElement.scrollHeight},&quot;*&quot;)}setInterval(m,700);addEventListener(&quot;load&quot;,m)})()&lt;/script&gt;&lt;/body&gt;
 &lt;/html&gt;
 "></iframe>
     <div class="verdetto">
-      <div><b>Perché</b>La più materica: il conio dice &quot;standard, qualità garantita&quot;.</div>
-      <div><b>Il limite</b>Il rischio percezione-token/crypto sulle monete colorate; il taglio della moneta mostra banding vicino ai 90°.</div>
+      <div><b>Perché</b>Il prezzo si legge come in negozio, prima ancora del bottone — la lettura commerce più immediata della famiglia.</div>
+      <div><b>Il limite</b>Il cartellino appeso copre lo spigolo alto della scatola (plausibile come tag vero, ma un occhio severo vorrebbe il cordino ancorato alla scatola).</div>
     </div>
   </div>
 </section>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Variante IL PACKAGING</title>
+<title>Variante L'UNBOXING</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -38,7 +38,7 @@ body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .testa h2{margin-top:22px;font-family:var(--display);font-weight:200;
   font-size:clamp(34px,4.8vw,56px);line-height:1.06;letter-spacing:-.01em}
 .testa h2 em{font-style:normal;color:var(--gold);font-weight:300}
-.sotto{margin-top:16px;color:var(--text-3);font-size:15px;line-height:1.65;max-width:54ch}
+.sotto{margin-top:16px;color:var(--text-3);font-size:15px;line-height:1.65;max-width:56ch}
 
 /* ————— shelf ————— */
 .scaffale{max-width:1180px;margin:0 auto;
@@ -52,7 +52,7 @@ body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   transition:border-color .6s var(--ease)}
 .prodotto:hover{border-color:rgba(var(--cr),.18)}
 
-.ammiraglia{--lid:30px;--w:312px;--h:338px;--d:180px;
+.ammiraglia{--lid:30px;--w:284px;--h:298px;--d:164px;
   display:grid;grid-template-columns:1.06fr 1fr;align-items:center;
   gap:16px 40px;padding:30px 52px 38px;margin-bottom:26px;
   border-color:rgba(255,215,0,.15);
@@ -62,7 +62,7 @@ body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 
 /* ————— stage, halo, ground ————— */
 .palco{position:relative;height:390px}
-.ammiraglia .palco{height:512px}
+.ammiraglia .palco{height:590px}
 .palco::after{content:'';position:absolute;left:9%;right:9%;bottom:26px;height:1px;
   background:linear-gradient(90deg,transparent,rgba(255,255,255,.09),transparent)}
 .alone{position:absolute;inset:-6% -12%;pointer-events:none;opacity:.85;
@@ -82,26 +82,26 @@ body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 /* ————— the box ————— */
 .float{position:absolute;inset:0 0 26px 0;display:flex;align-items:center;justify-content:center;
   animation:leva 6.5s ease-in-out infinite;animation-delay:var(--del,0s)}
+.ammiraglia .float{align-items:flex-end;padding-bottom:16px}
 .scene{position:relative;width:calc(var(--w)*1.4);height:calc(var(--h)*1.2);perspective:1600px}
 .box{position:absolute;left:50%;top:50%;width:var(--w);height:var(--h);
   transform:translate(-50%,-50%) rotateX(-18deg) rotateY(-31deg);
   transform-style:preserve-3d;transition:transform .9s var(--molla)}
 @media (hover:hover){
-  .prodotto:hover .box{transform:translate(-50%,-50%) translate3d(0,-12px,34px)
-    rotateX(-11deg) rotateY(-17deg)}
+  .prodotto:hover .box{transform:translate(-50%,-50%) translate3d(0,-8px,20px)
+    rotateX(-18deg) rotateY(-31deg)}
 }
 .face{position:absolute;backface-visibility:hidden}
+.corpo,.lid{position:absolute;inset:0;transform-style:preserve-3d}
 
+/* body faces */
 .f-front{inset:0;transform:translateZ(calc(var(--d)/2));border-radius:4px;
   background:radial-gradient(130% 85% at 18% 0%,rgba(var(--cr),.10),transparent 55%),
     linear-gradient(163deg,#151518 0%,#0C0C0E 55%,#09090B 100%);
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.05),inset 0 1px 0 rgba(255,255,255,.06);
   display:flex;flex-direction:column;justify-content:space-between;
   padding:calc(var(--lid) + 18px) 20px 16px}
-.f-front::after{content:'';position:absolute;left:0;right:0;top:0;height:var(--lid);
-  border-radius:4px 4px 0 0;
-  background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.012))}
-.f-front::before{content:'';position:absolute;left:0;right:0;top:var(--lid);height:1px;z-index:1;
+.f-front::before{content:'';position:absolute;left:0;right:0;top:calc(var(--lid) + 1px);height:1px;z-index:1;
   background:linear-gradient(90deg,rgba(var(--cr),0),rgba(var(--cr),.7) 30%,rgba(var(--cr),.7) 70%,rgba(var(--cr),0));
   box-shadow:0 0 12px 1px rgba(var(--cr),.3)}
 
@@ -111,7 +111,7 @@ body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;ba
     linear-gradient(195deg,#0E0E10,#070708 70%);
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.035);
   display:flex;align-items:center;justify-content:center}
-.f-side::before{content:'';position:absolute;left:0;right:0;top:var(--lid);height:1px;
+.f-side::before{content:'';position:absolute;left:0;right:0;top:calc(var(--lid) + 1px);height:1px;
   background:linear-gradient(90deg,rgba(var(--cr),.45),rgba(var(--cr),.1));
   box-shadow:0 0 8px rgba(var(--cr),.18)}
 .f-side svg{width:52%;height:auto;opacity:.9;
@@ -119,8 +119,32 @@ body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .f-side .lato-tag{position:absolute;bottom:13px;left:0;right:0;text-align:center;
   font-family:var(--mono);font-size:8px;letter-spacing:.32em;color:rgba(255,255,255,.32)}
 
-.f-top{left:0;top:50%;width:var(--w);height:var(--d);margin-top:calc(var(--d)/-2);
-  transform:rotateX(90deg) translateZ(calc(var(--h)/2));border-radius:4px;
+/* the sliver of light at the joint — the unboxing gesture */
+.spiraglio-f{position:absolute;left:2px;right:2px;top:calc(var(--lid) - 4px);height:10px;
+  transform:translateZ(calc(var(--d)/2 + 2px));
+  background:linear-gradient(90deg,transparent,rgba(var(--cr),.85) 25%,rgba(var(--cr),.85) 75%,transparent);
+  filter:blur(3px);opacity:0;transition:opacity .6s var(--ease)}
+.spiraglio-s{position:absolute;left:50%;width:var(--d);height:10px;top:calc(var(--lid) - 4px);
+  margin-left:calc(var(--d)/-2);
+  transform:rotateY(90deg) translateZ(calc(var(--w)/2 + 2px));
+  background:linear-gradient(90deg,rgba(var(--cr),.7),rgba(var(--cr),.12));
+  filter:blur(3px);opacity:0;transition:opacity .6s var(--ease)}
+
+/* the LID — a real 3D group that lifts */
+.lid{transition:transform .8s var(--molla);transform-origin:50% 0}
+.l-front{left:-3px;right:-3px;top:-3px;height:calc(var(--lid) + 3px);border-radius:4px 4px 2px 2px;
+  transform:translateZ(calc(var(--d)/2 + 3px));
+  background:linear-gradient(163deg,#18181B,#0D0D0F);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.06),inset 0 1px 0 rgba(255,255,255,.08),
+    0 2px 6px rgba(0,0,0,.5)}
+.l-side{top:-3px;left:50%;width:calc(var(--d) + 6px);height:calc(var(--lid) + 3px);
+  margin-left:calc((var(--d) + 6px)/-2);border-radius:4px 4px 2px 2px;
+  transform:rotateY(90deg) translateZ(calc(var(--w)/2 + 3px));
+  background:linear-gradient(195deg,#101013,#08080A);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.04)}
+.l-top{left:-3px;top:50%;width:calc(var(--w) + 6px);height:calc(var(--d) + 6px);
+  margin-top:calc((var(--d) + 6px)/-2);border-radius:4px;
+  transform:rotateX(90deg) translateZ(calc(var(--h)/2 + 3px));
   background:linear-gradient(180deg,#1B1C20,#101013);
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.055)}
 .banda{position:absolute;left:0;right:0;top:50%;height:18px;transform:translateY(-50%);
@@ -129,12 +153,54 @@ body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .lidmark{position:absolute;left:0;right:0;bottom:9px;text-align:center;
   font-family:var(--mono);font-size:8px;letter-spacing:.4em;color:rgba(255,255,255,.35)}
 
+/* hover = lifting the lid */
+@media (hover:hover){
+  .prodotto:not(.ammiraglia):hover .lid{transform:translateY(-9px)}
+  .prodotto:hover .spiraglio-f,.prodotto:hover .spiraglio-s{opacity:1}
+}
+
+/* ————— THE OPEN ONE (flagship) ————— */
+.ammiraglia{--lx:calc(var(--w)*-.30);--ly:calc(var(--h)*-.50);--lz:10px;--lrx:-30deg;--lrz:-12deg}
+.ammiraglia .lid{
+  transform:translate3d(var(--lx),var(--ly),var(--lz)) rotateX(var(--lrx)) rotateZ(var(--lrz));
+  animation:lidfloat 6.5s ease-in-out infinite}
+.ammiraglia .f-front::before{top:0;height:2px;
+  background:linear-gradient(90deg,rgba(255,215,0,0),rgba(255,228,92,.95) 30%,rgba(255,228,92,.95) 70%,rgba(255,215,0,0));
+  box-shadow:0 0 16px 2px rgba(255,215,0,.5)}
+.ammiraglia .f-side::before{top:0;height:2px;
+  background:linear-gradient(90deg,rgba(255,228,92,.8),rgba(255,215,0,.15));
+  box-shadow:0 0 12px 1px rgba(255,215,0,.35)}
+.bocca{position:absolute;left:3px;top:50%;width:calc(var(--w) - 6px);height:calc(var(--d) - 6px);
+  margin-top:calc((var(--d) - 6px)/-2);border-radius:3px;
+  transform:rotateX(90deg) translateZ(calc(var(--h)/2 - 2px));
+  background:radial-gradient(62% 62% at 50% 48%,rgba(255,236,140,.95),rgba(255,215,0,.4) 58%,rgba(255,215,0,.1) 84%,rgba(255,215,0,.02));
+  box-shadow:0 0 46px 12px rgba(255,215,0,.35);
+  animation:pulsa 6.5s ease-in-out infinite}
+
+/* light beam over the opening */
+.fascio{position:absolute;left:50%;top:-10%;height:46%;width:calc(var(--w)*.60);
+  transform:translateX(-56%);pointer-events:none;
+  background:linear-gradient(0deg,rgba(255,224,92,.22),rgba(255,215,0,.06) 70%,rgba(255,215,0,0));
+  clip-path:polygon(30% 0,70% 0,90% 100%,10% 100%);filter:blur(5px);opacity:.95}
+
+/* the levitating product */
+.levita{position:absolute;left:50%;top:-10%;transform:translateX(-56%);pointer-events:none;
+  animation:lievita 5.2s ease-in-out infinite}
+.levita svg{width:64px;height:64px;display:block;
+  filter:drop-shadow(0 0 16px rgba(255,215,0,.55)) drop-shadow(0 10px 22px rgba(255,215,0,.2))}
+
+/* sparks rising in the beam */
+.scintille{position:absolute;left:50%;top:26%;width:0;height:0;pointer-events:none}
+.scintille i{position:absolute;width:4px;height:4px;border-radius:50%;left:var(--x);top:0;
+  background:#FFE45C;box-shadow:0 0 10px 3px rgba(255,215,0,.6);opacity:0;
+  animation:sale var(--dur,4s) linear infinite;animation-delay:var(--pd,0s)}
+
 /* silk-screen print on the front face */
 .marchio{font-family:var(--display);font-weight:400;font-size:11px;
   letter-spacing:.42em;color:rgba(255,255,255,.55)}
 .snome{display:block;font-family:var(--display);font-weight:300;
   font-size:23px;line-height:1.16;letter-spacing:.015em;max-width:9ch}
-.ammiraglia .snome{font-size:31px;max-width:60%}
+.ammiraglia .snome{font-size:30px;max-width:60%}
 .skind{display:block;margin-top:9px;font-family:var(--mono);font-size:8.5px;
   letter-spacing:.3em;color:var(--c);opacity:.95}
 .codice{display:flex;flex-direction:column;gap:7px;align-items:flex-start}
@@ -144,9 +210,10 @@ body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   rgba(255,255,255,.4) 3px 5px,transparent 5px 6px,
   rgba(255,255,255,.6) 6px 7px,transparent 7px 10px)}
 
-/* flagship ribbon */
+/* flagship ribbon — cut open at the top */
 .nastro{position:absolute;top:0;bottom:0;left:64%;width:46px;z-index:2;
   display:flex;align-items:center;justify-content:center;
+  clip-path:polygon(0 7px,50% 0,100% 7px,100% 100%,0 100%);
   background:linear-gradient(102deg,rgba(255,255,255,.3),rgba(255,255,255,0) 45%),
     linear-gradient(180deg,#FFDC33,#DCAF00);
   box-shadow:inset 1px 0 0 rgba(255,255,255,.3),inset -1px 0 0 rgba(0,0,0,.25),
@@ -194,6 +261,18 @@ body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 /* ————— motion ————— */
 @keyframes leva{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
 @keyframes respiro{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(.9);opacity:.6}}
+@keyframes pulsa{0%,100%{opacity:1}50%{opacity:.82}}
+@keyframes lievita{0%,100%{transform:translateX(-56%) translateY(0)}50%{transform:translateX(-56%) translateY(-13px)}}
+@keyframes lidfloat{
+  0%,100%{transform:translate3d(var(--lx),var(--ly),var(--lz)) rotateX(var(--lrx)) rotateZ(var(--lrz))}
+  50%{transform:translate3d(var(--lx),calc(var(--ly) - 11px),var(--lz)) rotateX(calc(var(--lrx) - 4deg)) rotateZ(var(--lrz))}
+}
+@keyframes sale{
+  0%{transform:translateY(0);opacity:0}
+  12%{opacity:.95}
+  70%{opacity:.45}
+  100%{transform:translateY(-108px);opacity:0}
+}
 
 /* ————— tablet ————— */
 @media (max-width:1020px){
@@ -203,10 +282,12 @@ body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   .fila .palco{height:340px}
   .fila .compra{width:auto}
   .fila .vendita{margin-top:0}
-  .ammiraglia{--w:252px;--h:284px;--d:150px;--lid:26px;
+  .ammiraglia{--w:244px;--h:270px;--d:146px;--lid:26px;
+    --lx:calc(var(--w)*-.13);--ly:calc(var(--h)*-.36);
     grid-template-columns:minmax(280px,350px) 1fr;gap:0 34px;padding:24px 34px 30px}
-  .ammiraglia .palco{height:430px}
-  .ammiraglia .snome{font-size:26px}
+  .ammiraglia .palco{height:500px}
+  .ammiraglia .snome{font-size:25px}
+  .levita svg{width:54px;height:54px}
 }
 
 /* ————— mobile ————— */
@@ -214,66 +295,82 @@ body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   .fila .prodotto,.prodotto,.ammiraglia{display:flex;flex-direction:column;
     padding:20px 20px 28px}
   .prodotto{--w:196px;--h:226px;--d:118px;--lid:22px}
-  .ammiraglia{--w:240px;--h:268px;--d:140px;--lid:26px;gap:12px}
+  .ammiraglia{--w:224px;--h:250px;--d:134px;--lid:24px;gap:12px;
+    --lx:calc(var(--w)*-.10);--ly:calc(var(--h)*-.46);--lrz:-7deg}
   .palco,.fila .palco{height:330px}
-  .ammiraglia .palco{height:410px}
+  .ammiraglia .palco{height:480px}
   .compra,.fila .compra,.ammiraglia .compra{width:100%}
   .vendita,.fila .vendita{margin-top:10px}
   .pnome h3{font-size:22px}
   .ammiraglia .pnome h3{font-size:27px}
   .ammiraglia .promessa{font-size:15px}
+  .levita svg{width:48px;height:48px}
 }
 
+/* ————— reduced motion: flagship open & still, no sparks ————— */
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none!important;transition:none!important}
+  .scintille{display:none}
 }
-/* il chip FLAGSHIP resta ancorato al nome: sotto gli 860px il titolo
-   dell'ammiraglia scala invece di spezzare la riga (l'ordine in coda
-   fa vincere questa regola sulla base a pari specificita') */
-.pnome .kind{flex:none}
-@media (max-width:860px){
-  .ammiraglia .pnome{gap:9px}
-  .ammiraglia .pnome h3{font-size:21px} }
 </style>
 </head>
 <body>
 
 <header class="testa">
-  <div class="eyebrow">BOOM — Services · The shelf</div>
-  <h2>Every service ships<br>in its <em>box</em>.</h2>
-  <p class="sotto">Matte black outside, one light inside. Pick it up, read the label — the whole service is sealed in with its guarantee.</p>
+  <div class="eyebrow">BOOM — Services · The unboxing</div>
+  <h2>The box is a promise.<br><em>Opening it</em> is the proof.</h2>
+  <p class="sotto">Four services, sealed in matte black. The flagship arrives already open — light out, product floating. For the others, lift the lid: the light gets out first.</p>
 </header>
 
 <section class="scaffale">
 
-  <!-- ══════════ AMMIRAGLIA · PROPERTY FINDING ══════════ -->
+  <!-- ══════════ AMMIRAGLIA · PROPERTY FINDING — already open ══════════ -->
   <article class="prodotto ammiraglia" style="--c:var(--c-pf);--cr:255,215,0;--del:0s">
     <div class="palco">
       <div class="alone"></div>
       <div class="ombra"><i></i></div>
       <div class="float">
         <div class="scene">
+          <div class="fascio"></div>
           <div class="box">
-            <div class="face f-top">
-              <span class="banda"></span>
-              <span class="nastro-top"></span>
-              <span class="lidmark">BOOM</span>
+            <div class="corpo">
+              <div class="bocca"></div>
+              <div class="face f-side">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--c)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/>
+                </svg>
+                <span class="lato-tag">BOOM·ROMA</span>
+              </div>
+              <div class="face f-front">
+                <span class="marchio">BOOM</span>
+                <span>
+                  <span class="snome">Property Finding</span>
+                  <span class="skind">FLAGSHIP — ROME</span>
+                </span>
+                <span class="codice"><span>PF·0350·ROME</span><i class="barcode"></i></span>
+                <span class="nastro"><span>Full Refund</span></span>
+              </div>
             </div>
-            <div class="face f-side">
-              <svg viewBox="0 0 24 24" fill="none" stroke="var(--c)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/>
-              </svg>
-              <span class="lato-tag">BOOM·ROMA</span>
+            <div class="lid">
+              <div class="face l-top">
+                <span class="banda"></span>
+                <span class="nastro-top"></span>
+                <span class="lidmark">BOOM</span>
+              </div>
+              <div class="face l-front"></div>
+              <div class="face l-side"></div>
             </div>
-            <div class="face f-front">
-              <span class="marchio">BOOM</span>
-              <span>
-                <span class="snome">Property Finding</span>
-                <span class="skind">FLAGSHIP — ROME</span>
-              </span>
-              <span class="codice"><span>PF·0350·ROME</span><i class="barcode"></i></span>
-              <span class="nastro"><span>Full Refund</span></span>
-            </div>
+          </div>
+          <div class="scintille">
+            <i style="--x:-30px;--pd:0s;--dur:3.6s"></i>
+            <i style="--x:6px;--pd:-1.4s;--dur:4.4s"></i>
+            <i style="--x:-58px;--pd:-2.6s;--dur:5s"></i>
+            <i style="--x:28px;--pd:-3.3s;--dur:4s"></i>
+          </div>
+          <div class="levita">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/>
+            </svg>
           </div>
         </div>
       </div>
@@ -296,21 +393,29 @@ body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;ba
         <div class="float">
           <div class="scene">
             <div class="box">
-              <div class="face f-top"><span class="banda"></span><span class="lidmark">BOOM</span></div>
-              <div class="face f-side">
-                <svg viewBox="0 0 24 24" fill="none" stroke="var(--c)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="2.5" y="6.5" width="13" height="11" rx="2.5"/>
-                  <path d="M15.5 11.5 21.5 8v8l-6-3.5z"/>
-                </svg>
-                <span class="lato-tag">BOOM·ROMA</span>
+              <div class="corpo">
+                <div class="face f-side">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="var(--c)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2.5" y="6.5" width="13" height="11" rx="2.5"/>
+                    <path d="M15.5 11.5 21.5 8v8l-6-3.5z"/>
+                  </svg>
+                  <span class="lato-tag">BOOM·ROMA</span>
+                </div>
+                <div class="face f-front">
+                  <span class="marchio">BOOM</span>
+                  <span>
+                    <span class="snome">Virtual Viewing</span>
+                    <span class="skind">LIVE — ROME</span>
+                  </span>
+                  <span class="codice"><span>VV·0089·ROME</span><i class="barcode"></i></span>
+                </div>
+                <span class="face spiraglio-f"></span>
+                <span class="face spiraglio-s"></span>
               </div>
-              <div class="face f-front">
-                <span class="marchio">BOOM</span>
-                <span>
-                  <span class="snome">Virtual Viewing</span>
-                  <span class="skind">LIVE — ROME</span>
-                </span>
-                <span class="codice"><span>VV·0089·ROME</span><i class="barcode"></i></span>
+              <div class="lid">
+                <div class="face l-top"><span class="banda"></span><span class="lidmark">BOOM</span></div>
+                <div class="face l-front"></div>
+                <div class="face l-side"></div>
               </div>
             </div>
           </div>
@@ -332,21 +437,29 @@ body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;ba
         <div class="float">
           <div class="scene">
             <div class="box">
-              <div class="face f-top"><span class="banda"></span><span class="lidmark">BOOM</span></div>
-              <div class="face f-side">
-                <svg viewBox="0 0 24 24" fill="none" stroke="var(--c)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 3l7.5 3v5.2c0 4.6-3.2 7.6-7.5 9.3-4.3-1.7-7.5-4.7-7.5-9.3V6z"/>
-                  <path d="M9 11.5l2.2 2.2 4-4.2"/>
-                </svg>
-                <span class="lato-tag">BOOM·ROMA</span>
+              <div class="corpo">
+                <div class="face f-side">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="var(--c)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 3l7.5 3v5.2c0 4.6-3.2 7.6-7.5 9.3-4.3-1.7-7.5-4.7-7.5-9.3V6z"/>
+                    <path d="M9 11.5l2.2 2.2 4-4.2"/>
+                  </svg>
+                  <span class="lato-tag">BOOM·ROMA</span>
+                </div>
+                <div class="face f-front">
+                  <span class="marchio">BOOM</span>
+                  <span>
+                    <span class="snome">Deal Assistance</span>
+                    <span class="skind">PROTECTION — ROME</span>
+                  </span>
+                  <span class="codice"><span>DA·0249·ROME</span><i class="barcode"></i></span>
+                </div>
+                <span class="face spiraglio-f"></span>
+                <span class="face spiraglio-s"></span>
               </div>
-              <div class="face f-front">
-                <span class="marchio">BOOM</span>
-                <span>
-                  <span class="snome">Deal Assistance</span>
-                  <span class="skind">PROTECTION — ROME</span>
-                </span>
-                <span class="codice"><span>DA·0249·ROME</span><i class="barcode"></i></span>
+              <div class="lid">
+                <div class="face l-top"><span class="banda"></span><span class="lidmark">BOOM</span></div>
+                <div class="face l-front"></div>
+                <div class="face l-side"></div>
               </div>
             </div>
           </div>
@@ -368,22 +481,30 @@ body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;ba
         <div class="float">
           <div class="scene">
             <div class="box">
-              <div class="face f-top"><span class="banda"></span><span class="lidmark">BOOM</span></div>
-              <div class="face f-side">
-                <svg viewBox="0 0 24 24" fill="none" stroke="var(--c)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M6.5 3.5h7L18 8v12a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 20V5a1.5 1.5 0 0 1 1.5-1.5z" transform="translate(-.5 0)"/>
-                  <path d="M13 3.5V8h4.5"/>
-                  <path d="M8.8 13h6.4M8.8 16.4h4.4"/>
-                </svg>
-                <span class="lato-tag">BOOM·ROMA</span>
+              <div class="corpo">
+                <div class="face f-side">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="var(--c)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M6.5 3.5h7L18 8v12a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 20V5a1.5 1.5 0 0 1 1.5-1.5z" transform="translate(-.5 0)"/>
+                    <path d="M13 3.5V8h4.5"/>
+                    <path d="M8.8 13h6.4M8.8 16.4h4.4"/>
+                  </svg>
+                  <span class="lato-tag">BOOM·ROMA</span>
+                </div>
+                <div class="face f-front">
+                  <span class="marchio">BOOM</span>
+                  <span>
+                    <span class="snome">Contract Check</span>
+                    <span class="skind">EXPRESS — ROME</span>
+                  </span>
+                  <span class="codice"><span>CC·0049·ROME</span><i class="barcode"></i></span>
+                </div>
+                <span class="face spiraglio-f"></span>
+                <span class="face spiraglio-s"></span>
               </div>
-              <div class="face f-front">
-                <span class="marchio">BOOM</span>
-                <span>
-                  <span class="snome">Contract Check</span>
-                  <span class="skind">EXPRESS — ROME</span>
-                </span>
-                <span class="codice"><span>CC·0049·ROME</span><i class="barcode"></i></span>
+              <div class="lid">
+                <div class="face l-top"><span class="banda"></span><span class="lidmark">BOOM</span></div>
+                <div class="face l-front"></div>
+                <div class="face l-side"></div>
               </div>
             </div>
           </div>

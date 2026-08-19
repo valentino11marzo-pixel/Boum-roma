@@ -7,46 +7,46 @@ import html as H
 SP = '/tmp/claude-0/-home-user-Boum-roma/23da0292-7660-5078-842d-6e153c49b7f8/scratchpad/'
 
 VARIANTI = [
-    ('scatole', 'Il Packaging', '★ la scelta del direttore',
-     'Ogni servizio è una scatola-prodotto nera opaca in prospettiva 3D: '
-     'frontale serigrafato, icona sul lato, coperchio con la banda del '
-     'colore. L\'ammiraglia porta il nastro oro FULL REFUND.',
-     'La metafora più letterale e più vendente: il servizio è un oggetto '
-     'SIGILLATO con dentro la sua garanzia. Le scatole leggono come foto '
-     'di prodotto vere.',
-     'La serigrafia secondaria è texture, non testo leggibile (giusto '
-     'così); da rifinire il chip FLAGSHIP che va a capo sotto gli 800px.'),
-    ('teche', 'Le Teche', 'seconda scelta',
-     'Vetrine museali con spotlight nel colore: dentro, i quattro '
-     'strumenti VIVI (radar che trova, schermo live, scudo che si '
-     'sigilla, documento scansionato). Targhette da catalogo N.01–04.',
-     'Fonde le due linee già approvate (strumenti + oggetto in mostra). '
-     '"Touching is encouraged" — il museo che ti invita a comprare.',
-     'Lo screenshot può cogliere uno strumento nel fotogramma debole del '
-     'suo loop; dal vivo il racconto si completa.'),
-    ('hangar', 'L\'Hangar', 'la più editoriale',
-     'Righe full-width stile drop: numero fantasma gigante nel colore, '
-     'carta-prodotto che fluttua, vendita grande, righe alternate '
-     'sinistra/destra. L\'ammiraglia apre con la fascia garanzia oro.',
-     'Respiro editoriale da lancio prodotto; la gerarchia per riga dà a '
-     'ogni servizio un palcoscenico intero.',
-     'Molto alta per la home (4 righe full-width): perfetta come pagina '
-     '/services, impegnativa come sezione.'),
-    ('pedane', 'L\'Ologramma', 'la più tech',
-     'Icone-simbolo proiettate sopra pedane circolari luminose, cono di '
-     'proiezione con scanline, pavimento a griglia prospettica, prezzo '
-     'in tessere flap. Anello d\'oro orbitante sull\'ammiraglia.',
-     'La percezione più futuristica; il cono che si intensifica al '
-     'passaggio è un bel gesto.',
-     'Le icone sono simboli, non oggetti-prodotto: desiderabilità sotto '
-     'il Packaging. Le tessere prezzo duplicano il bottone.'),
-    ('conio', 'Il Conio', 'la scommessa',
-     'Medaglie coniate nei quattro metalli che ruotano lentamente sul '
-     'piedistallo; icona in rilievo, prezzo inciso, bordo zigrinato. '
-     'Hover = la moneta si ferma di faccia.',
-     'La più materica: il conio dice "standard, qualità garantita".',
-     'Il rischio percezione-token/crypto sulle monete colorate; il taglio '
-     'della moneta mostra banding vicino ai 90°.'),
+    ('unboxing', "L'Unboxing", '★ l\'evoluzione consigliata',
+     'Le scatole del Packaging, ma il momento venduto è l\'APERTURA: '
+     'l\'ammiraglia arriva già aperta — coperchio 3D parcheggiato sopra, '
+     'bocca incandescente, la lente che levita nel fascio di luce. Le tre '
+     'minori sono sigillate: al passaggio il coperchio si solleva e lo '
+     'spiraglio di luce del loro colore esce dalla giuntura.',
+     '"The box is a promise. Opening it is the proof." Tiene tutto ciò '
+     'che era piaciuto del Packaging e aggiunge il momento del desiderio '
+     '— l\'unboxing — più il gesto hover che invita ad aprire le altre.',
+     'A ~768px la lente levitante lambisce il coperchio aperto: un giro '
+     'di rifinitura sul breakpoint tablet e ci siamo.'),
+    ('scatole', 'Il Packaging', 'l\'originale approvato · rifinito',
+     'La versione che hai approvato, con la rifinitura: il chip FLAGSHIP '
+     'ora resta ancorato al nome a ogni larghezza. Scatole sigillate, '
+     'serigrafia, barcode, nastro oro FULL REFUND sull\'ammiraglia.',
+     'Il riferimento della famiglia: sobrio, fotografico, il servizio '
+     'sigillato con dentro la sua garanzia.',
+     'La serigrafia secondaria resta texture, non testo leggibile '
+     '(scelta giusta per un packaging).'),
+    ('sigillo', 'Il Sigillo', 'la più BOOM',
+     'Plichi neri da scrivania chiusi da un sigillo di CERALACCA nel '
+     'colore del servizio — iniziali impresse, glint che passa sulla '
+     'cera — fascetta di carta col nome, riga "Oggetto" tipo lettera. '
+     'L\'ammiraglia col doppio nastro oro raso. Hover = il plico si '
+     'stacca dalla scrivania.',
+     'La garanzia resa FISICA dalla stessa casa che sigilla contratti '
+     'veri (Magic Sign, FES): "Every service arrives sealed. The same '
+     'house that seals real contracts, sealing its word to you."',
+     'La cera è resa a gradienti CSS: da molto vicino manca la '
+     'micro-irregolarità di colata di una texture dedicata.'),
+    ('retail', 'La Vetrina Retail', 'la più negozio',
+     'Le scatole esposte in un duty-free premium a mezzanotte: nicchie '
+     'retroilluminate nel colore, mensola di vetro col riflesso '
+     'capovolto, CARTELLINO di carta appeso che oscilla col prezzo '
+     'grande, insegna FULL REFUND al neon sopra l\'ammiraglia.',
+     'Il prezzo si legge come in negozio, prima ancora del bottone — '
+     'la lettura commerce più immediata della famiglia.',
+     'Il cartellino appeso copre lo spigolo alto della scatola '
+     '(plausibile come tag vero, ma un occhio severo vorrebbe il '
+     'cordino ancorato alla scatola).'),
 ]
 
 def leggi(n): return open(SP + n, encoding='utf-8').read()
@@ -136,14 +136,14 @@ body { background:var(--black); color:var(--text); font-family:var(--sans);
 <body>
 <header class="lab-capo">
   <div class="container">
-    <span class="eti">— Banchina Lab · vol. 5 — cinque designer, una gara</span>
-    <h1>La stessa vendita, cinque <b>oggetti</b> diversi.</h1>
-    <p>Cinque varianti nate in parallelo sotto lo stesso contratto: firma
-      cromatica fissa (oro ammiraglia · verde live · violetto protezione ·
-      ciano verdetto), strato vendita INTATTO (nome, promessa, bottone
-      verbo+prezzo, garanzia ✓), fatti verbatim — cambia solo l'oggetto
-      del desiderio. Ordinate dalla scelta del direttore in giù; ogni
-      palco è il documento vero, vivo (passaci sopra il mouse).</p>
+    <span class="eti">— Banchina Lab · vol. 6 — la famiglia Packaging</span>
+    <h1>Il Packaging, sviluppato in <b>famiglia</b>.</h1>
+    <p>La direzione approvata era il Packaging: eccola sviluppata in quattro
+      esecuzioni della stessa materia — l'apertura, l'originale rifinito,
+      la ceralacca, il negozio. Stesso contratto di sempre: firma
+      cromatica fissa, strato vendita INTATTO (bottone verbo+prezzo,
+      garanzia ✓), fatti verbatim. Ogni palco è il documento vero, vivo
+      — passaci sopra il mouse.</p>
   </div>
 </header>
 ''' + '\\n'.join(palchi) + '''

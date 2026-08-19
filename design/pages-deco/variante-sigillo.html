@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Variante IL SIGILLO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --gold:#FFD700; --green:#00FF88; --black:#030303; --void:#060607;
+  --surface:#0B0B0C; --card:#0E0E10; --text:#FAFAFA;
+  --text-2:rgba(250,250,250,.72); --text-3:rgba(250,250,250,.5);
+  --text-4:rgba(250,250,250,.48); --line-0:rgba(255,255,255,.04);
+  --line:rgba(255,255,255,.08);
+  --ease:cubic-bezier(.16,1,.3,1); --molla:cubic-bezier(.3,1.45,.5,1);
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  --display:'Helvetica Neue',Helvetica,Arial,sans-serif;
+  --c-vv:#00FF88; --c-pf:#FFD700; --c-da:#9D8CFF; --c-cc:#3ED3FF;
+  --mono:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;
+}
+body{background:var(--black);color:var(--text);font-family:var(--sans);
+  font-weight:300;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;background:
+  radial-gradient(55% 38% at 50% 0%,rgba(255,215,0,.05),transparent 70%),
+  radial-gradient(45% 32% at 88% 100%,rgba(62,211,255,.035),transparent 70%),
+  radial-gradient(45% 32% at 8% 82%,rgba(157,140,255,.03),transparent 70%)}
+
+/* ————— header ————— */
+.testa{max-width:1180px;margin:0 auto;
+  padding:clamp(56px,9vh,92px) clamp(20px,4vw,48px) clamp(34px,5vh,52px)}
+.eyebrow{display:inline-flex;align-items:center;gap:14px;font-family:var(--mono);
+  font-size:11px;letter-spacing:.38em;text-transform:uppercase;color:var(--gold)}
+.eyebrow::before{content:'';width:28px;height:1px;
+  background:linear-gradient(90deg,var(--gold),transparent)}
+.testa h2{margin-top:22px;font-family:var(--display);font-weight:200;
+  font-size:clamp(34px,4.8vw,56px);line-height:1.06;letter-spacing:-.01em}
+.testa h2 em{font-style:normal;color:var(--gold);font-weight:300}
+.sotto{margin-top:16px;color:var(--text-3);font-size:15px;line-height:1.65;max-width:54ch}
+
+/* ————— desk ————— */
+.scrivania{max-width:1180px;margin:0 auto;
+  padding:0 clamp(20px,4vw,48px) clamp(76px,10vh,120px)}
+.fila{display:grid;grid-template-columns:repeat(3,1fr);gap:26px}
+
+.prodotto{position:relative;--w:216px;--h:298px;--sig:88px;--flap:34%;--rot:-1.3deg;
+  display:flex;flex-direction:column;
+  background:linear-gradient(180deg,rgba(255,255,255,.022),rgba(255,255,255,0) 55%),var(--card);
+  border:1px solid var(--line-0);border-radius:24px;padding:24px 26px 30px;
+  transition:border-color .6s var(--ease)}
+.prodotto:hover{border-color:rgba(var(--cr),.18)}
+
+.ammiraglia{--w:300px;--h:404px;--sig:120px;--rot:-1.6deg;
+  display:grid;grid-template-columns:1.06fr 1fr;align-items:center;
+  gap:16px 40px;padding:30px 52px 38px;margin-bottom:26px;
+  border-color:rgba(255,215,0,.15);
+  background:radial-gradient(70% 95% at 24% 50%,rgba(255,215,0,.05),transparent 65%),
+    linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,0) 55%),var(--card)}
+.ammiraglia:hover{border-color:rgba(255,215,0,.28)}
+
+/* ————— stage, halo, ground ————— */
+.palco{position:relative;height:404px}
+.ammiraglia .palco{height:512px}
+.palco::after{content:'';position:absolute;left:9%;right:9%;bottom:26px;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.09),transparent)}
+.alone{position:absolute;inset:-6% -12%;pointer-events:none;opacity:.85;
+  background:radial-gradient(48% 42% at 50% 52%,rgba(var(--cr),.11),transparent 70%);
+  transition:opacity .7s var(--ease)}
+.prodotto:hover .alone{opacity:1}
+.ombra{position:absolute;left:50%;bottom:16px;width:calc(var(--w)*1.24);height:34px;
+  transform:translateX(-50%);pointer-events:none}
+.ombra::after{content:'';position:absolute;inset:-42% -16%;border-radius:50%;
+  background:radial-gradient(50% 50% at 50% 50%,rgba(var(--cr),.14),transparent 70%);
+  filter:blur(10px)}
+.ombra i{position:absolute;inset:0;border-radius:50%;
+  background:radial-gradient(50% 50% at 50% 50%,rgba(0,0,0,.85),rgba(0,0,0,0) 70%);
+  filter:blur(8px);transition:transform .8s var(--ease),opacity .8s var(--ease)}
+.prodotto:hover .ombra i{transform:scale(.94);opacity:.72}
+
+/* ————— the dossier ————— */
+.plico{position:absolute;left:50%;bottom:44px;width:var(--w);height:var(--h);
+  margin-left:calc(var(--w)/-2);border-radius:10px;
+  transform:perspective(1200px) rotateX(5deg) rotate(var(--rot));
+  transform-origin:50% 80%;
+  background:
+    radial-gradient(130% 80% at 22% 0%,rgba(var(--cr),.075),transparent 55%),
+    repeating-linear-gradient(106deg,rgba(255,255,255,.014) 0 2px,rgba(255,255,255,0) 2px 5px),
+    repeating-linear-gradient(-14deg,rgba(0,0,0,.14) 0 1px,rgba(0,0,0,0) 1px 7px),
+    linear-gradient(168deg,#17171A 0%,#0D0D0F 52%,#09090B 100%);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.055),inset 0 1px 0 rgba(255,255,255,.08),
+    0 30px 50px -18px rgba(0,0,0,.85);
+  transition:transform .9s var(--molla),box-shadow .9s var(--ease)}
+@media (hover:hover){
+  .prodotto:hover .plico{transform:perspective(1200px) rotateX(1.5deg) rotate(0deg) translateY(-14px);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.07),inset 0 1px 0 rgba(255,255,255,.1),
+      0 44px 64px -20px rgba(0,0,0,.9)}
+}
+
+/* envelope flap */
+.falda{position:absolute;left:0;right:0;top:0;height:var(--flap);z-index:1;
+  clip-path:polygon(0 0,100% 0,50.5% 100%);border-radius:10px 10px 0 0;
+  background:
+    radial-gradient(120% 90% at 30% 0%,rgba(var(--cr),.06),transparent 60%),
+    repeating-linear-gradient(106deg,rgba(255,255,255,.016) 0 2px,rgba(255,255,255,0) 2px 5px),
+    linear-gradient(180deg,#1F1F24 0%,#131316 78%,#0E0E11 100%);
+  filter:drop-shadow(0 6px 7px rgba(0,0,0,.6))}
+.falda::after{content:'';position:absolute;inset:0;
+  clip-path:polygon(0 0,100% 0,50.5% 100%);
+  background:linear-gradient(180deg,rgba(255,255,255,.05),transparent 30%);
+  border-top:1px solid rgba(255,255,255,.09)}
+.marchio{position:absolute;left:0;right:0;top:15px;z-index:2;text-align:center;
+  font-family:var(--display);font-weight:400;font-size:11px;
+  letter-spacing:.5em;text-indent:.5em;color:rgba(255,255,255,.58)}
+
+/* flagship double gold ribbon */
+.nastri{position:absolute;top:0;bottom:0;left:67%;width:46px;z-index:2;
+  display:flex;gap:7px;pointer-events:none}
+.nastri i{flex:1;
+  background:linear-gradient(102deg,rgba(255,255,255,.32),rgba(255,255,255,0) 45%),
+    linear-gradient(180deg,#FFDC33,#D9AC00);
+  box-shadow:inset 1px 0 0 rgba(255,255,255,.32),inset -1px 0 0 rgba(0,0,0,.28),
+    0 0 22px rgba(255,215,0,.2)}
+.nastri i:last-child{flex:0 0 11px;
+  background:linear-gradient(102deg,rgba(255,255,255,.28),rgba(255,255,255,0) 45%),
+    linear-gradient(180deg,#F4C61B,#B98F00)}
+
+/* ————— the wax seal ————— */
+.cera{position:absolute;left:50%;top:var(--flap);z-index:4;width:var(--sig);height:var(--sig);
+  transform:translate(-50%,-54%);filter:drop-shadow(0 7px 12px rgba(0,0,0,.55))}
+.goccia{position:absolute;display:block;
+  background:
+    radial-gradient(55% 50% at 34% 28%,rgba(255,255,255,.2),rgba(255,255,255,0) 60%),
+    radial-gradient(120% 120% at 50% 38%,rgba(var(--cr),.5),rgba(var(--cr),.16) 70%),#0B0B0C}
+.g1{width:15%;height:13%;left:-4%;bottom:22%;border-radius:60% 40% 55% 45%/55% 60% 40% 45%}
+.g2{width:13%;height:12%;right:-5%;top:30%;border-radius:45% 55% 60% 40%/50% 45% 55% 50%}
+.g3{width:11%;height:15%;left:26%;bottom:-8%;border-radius:48% 52% 62% 38%/42% 46% 58% 54%}
+.wax{position:absolute;inset:0;overflow:hidden;
+  border-radius:46% 54% 51% 49%/53% 47% 56% 44%;
+  display:flex;align-items:center;justify-content:center;
+  background:
+    radial-gradient(58% 50% at 32% 26%,rgba(255,255,255,.34),rgba(255,255,255,0) 55%),
+    radial-gradient(85% 80% at 70% 82%,rgba(0,0,0,.55),rgba(0,0,0,0) 62%),
+    radial-gradient(130% 130% at 50% 40%,rgba(var(--cr),.6),rgba(var(--cr),.22) 58%,rgba(var(--cr),.13) 100%),
+    #0A0A0B;
+  box-shadow:inset 0 2px 3px rgba(255,255,255,.14),inset 0 -4px 8px rgba(0,0,0,.6),
+    0 0 26px rgba(var(--cr),.24);
+  transition:box-shadow .7s var(--ease)}
+.prodotto:hover .wax{box-shadow:inset 0 2px 3px rgba(255,255,255,.2),inset 0 -4px 8px rgba(0,0,0,.6),
+  0 0 40px rgba(var(--cr),.42)}
+/* embossed die ring */
+.wax::before{content:'';position:absolute;inset:11%;
+  border-radius:50% 48% 52% 50%/49% 52% 47% 51%;
+  border:1px solid rgba(255,255,255,.1);
+  box-shadow:inset 0 2px 3px rgba(0,0,0,.5),inset 0 -2px 3px rgba(255,255,255,.13),
+    0 1px 1px rgba(255,255,255,.08)}
+/* hover light */
+.wax::after{content:'';position:absolute;inset:0;opacity:0;
+  background:radial-gradient(45% 38% at 34% 24%,rgba(255,255,255,.32),transparent 62%);
+  transition:opacity .7s var(--ease)}
+.prodotto:hover .wax::after{opacity:1}
+.impronta{position:relative;z-index:1;font-family:var(--display);font-weight:500;
+  font-size:calc(var(--sig)*.3);letter-spacing:.07em;text-indent:.07em;
+  color:rgba(0,0,0,.42);
+  text-shadow:0 -1px 1px rgba(0,0,0,.55),0 1px 1px rgba(255,255,255,.22)}
+/* slow ambient glint over the wax */
+.lume{position:absolute;inset:0;z-index:2;pointer-events:none;
+  background:linear-gradient(115deg,rgba(255,255,255,0) 38%,rgba(255,255,255,.28) 50%,rgba(255,255,255,0) 62%);
+  background-size:300% 300%;background-position:180% 0;
+  animation:luccica 8.5s var(--ease) infinite;animation-delay:var(--del,0s)}
+@keyframes luccica{0%,58%{background-position:180% 0}78%,100%{background-position:-140% 0}}
+
+/* ————— printed matter on the dossier ————— */
+.fascetta{position:absolute;left:-9px;right:-9px;top:53.5%;z-index:3;height:46px;
+  display:flex;align-items:center;justify-content:center;gap:11px;
+  background:linear-gradient(180deg,#1B1B1F,#111114);
+  border-top:1px solid rgba(255,255,255,.09);border-bottom:1px solid rgba(0,0,0,.65);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 9px 16px rgba(0,0,0,.45)}
+.fascetta::before,.fascetta::after{content:'';position:absolute;top:100%;width:9px;height:7px;
+  background:#060607}
+.fascetta::before{left:0;clip-path:polygon(0 0,100% 0,100% 100%)}
+.fascetta::after{right:0;clip-path:polygon(0 0,100% 0,0 100%)}
+.fnome{font-family:var(--display);font-weight:300;font-size:16.5px;letter-spacing:.06em;
+  white-space:nowrap}
+.ammiraglia .fnome{font-size:21px}
+.fkind{font-family:var(--mono);font-size:8px;letter-spacing:.3em;color:var(--c);
+  border:1px solid rgba(var(--cr),.4);border-radius:100px;padding:3px 8px 2px;white-space:nowrap}
+.oggetto{position:absolute;left:9%;right:9%;top:73%;z-index:1;
+  display:flex;align-items:baseline;gap:8px;min-width:0}
+.oggetto b{font-family:var(--mono);font-weight:500;font-size:8px;letter-spacing:.26em;
+  text-transform:uppercase;color:var(--text-4);flex:none}
+.oggetto span{font-size:11.5px;font-weight:400;color:var(--text-2);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;
+  border-bottom:1px dotted rgba(255,255,255,.16);padding-bottom:3px;min-width:0}
+.pie{position:absolute;left:9%;right:9%;bottom:16px;z-index:1;
+  display:flex;justify-content:space-between;align-items:flex-end}
+.codice{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.codice span{font-family:var(--mono);font-size:9px;letter-spacing:.18em;color:var(--text-4)}
+.barcode{width:46px;height:14px;opacity:.5;background:repeating-linear-gradient(90deg,
+  rgba(255,255,255,.6) 0 1px,transparent 1px 3px,
+  rgba(255,255,255,.4) 3px 5px,transparent 5px 6px,
+  rgba(255,255,255,.6) 6px 7px,transparent 7px 10px)}
+.pie .citta{font-family:var(--mono);font-size:8px;letter-spacing:.32em;
+  color:rgba(255,255,255,.3)}
+.ammiraglia .oggetto{right:36%}
+.ammiraglia .pie{right:36%}
+
+/* ————— sales layer ————— */
+.vendita{display:flex;flex-direction:column;align-items:flex-start;gap:14px;margin-top:8px}
+.ammiraglia .vendita{gap:18px;margin-top:0}
+.pnome{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.pnome h3{font-family:var(--display);font-weight:300;font-size:24px;letter-spacing:.01em}
+.ammiraglia .pnome h3{font-size:clamp(28px,3vw,38px)}
+.kind{font-family:var(--mono);font-size:9.5px;letter-spacing:.26em;text-transform:uppercase;
+  color:var(--c);background:rgba(var(--cr),.07);border:1px solid rgba(var(--cr),.35);
+  padding:5px 12px 4px;border-radius:100px;white-space:nowrap}
+.promessa{font-size:14.5px;line-height:1.65;color:var(--text-2)}
+.ammiraglia .promessa{font-size:16.5px;max-width:44ch}
+.compra{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  border-radius:100px;min-height:44px;padding:0 26px;background:var(--c);
+  color:#0A0A05;font-weight:700;font-size:15px;text-decoration:none;
+  letter-spacing:.005em;
+  box-shadow:0 12px 30px -8px rgba(var(--cr),.45),0 2px 8px rgba(0,0,0,.4);
+  transition:transform .4s var(--molla),box-shadow .4s var(--ease)}
+.compra:hover{transform:translateY(-2px);
+  box-shadow:0 18px 40px -8px rgba(var(--cr),.6),0 2px 8px rgba(0,0,0,.4)}
+.compra:focus-visible{outline:2px solid var(--text);outline-offset:3px}
+.fila .compra{width:100%}
+.ammiraglia .compra{padding:0 34px;font-size:16px}
+.rassicura{font-size:12.5px;line-height:1.55;color:var(--text-3);display:flex;gap:9px}
+.rassicura .check{color:var(--c);flex:none;font-weight:600}
+
+/* ————— 3-col alignment (desktop only) ————— */
+@media (min-width:1021px){
+  .fila .pnome h3{font-size:22px}
+  .fila .kind{font-size:9px;padding:4px 10px 3px}
+  .fila .vendita{flex:1;align-self:stretch}
+  .fila .promessa{margin-bottom:auto}
+  .fila .rassicura{min-height:40px}
+}
+
+/* ————— tablet ————— */
+@media (max-width:1020px){
+  .fila{grid-template-columns:1fr;gap:22px}
+  .fila .prodotto{display:grid;grid-template-columns:minmax(260px,320px) 1fr;
+    align-items:center;gap:0 34px;padding:20px 34px 24px}
+  .fila .palco{height:378px}
+  .fila .compra{width:auto}
+  .fila .vendita{margin-top:0}
+  .ammiraglia{--w:264px;--h:356px;--sig:104px;
+    grid-template-columns:minmax(280px,350px) 1fr;gap:0 34px;padding:24px 34px 30px}
+  .ammiraglia .palco{height:452px}
+}
+
+/* ————— mobile ————— */
+@media (max-width:580px){
+  .fila .prodotto,.prodotto,.ammiraglia{display:flex;flex-direction:column;
+    padding:20px 20px 28px}
+  .prodotto{--w:204px;--h:282px;--sig:82px}
+  .ammiraglia{--w:238px;--h:322px;--sig:96px;gap:12px}
+  .palco,.fila .palco{height:372px}
+  .ammiraglia .palco{height:418px}
+  .compra,.fila .compra,.ammiraglia .compra{width:100%}
+  .vendita,.fila .vendita{margin-top:10px}
+  .pnome h3{font-size:22px}
+  .ammiraglia .pnome h3{font-size:27px}
+  .ammiraglia .promessa{font-size:15px}
+  .ammiraglia .fnome{font-size:18px}
+  .ammiraglia .oggetto{right:9%}
+  .nastri{left:74%;width:34px;gap:5px}
+  .nastri i:last-child{flex:0 0 9px}
+}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+
+<header class="testa">
+  <div class="eyebrow">BOOM — Services · The seal</div>
+  <h2>Every service arrives<br><em>sealed</em>.</h2>
+  <p class="sotto">Black paper, a wax seal in each service's light. The same house that seals real contracts, sealing its word to you.</p>
+</header>
+
+<section class="scrivania">
+
+  <!-- ══════════ AMMIRAGLIA · PROPERTY FINDING ══════════ -->
+  <article class="prodotto ammiraglia" style="--c:var(--c-pf);--cr:255,215,0;--del:0s">
+    <div class="palco">
+      <div class="alone"></div>
+      <div class="ombra"><i></i></div>
+      <div class="plico">
+        <div class="falda"></div>
+        <span class="marchio">BOOM</span>
+        <span class="nastri"><i></i><i></i></span>
+        <div class="cera">
+          <i class="goccia g1"></i><i class="goccia g2"></i><i class="goccia g3"></i>
+          <div class="wax"><span class="impronta">PF</span><i class="lume"></i></div>
+        </div>
+        <div class="fascetta"><span class="fnome">Property Finding</span><span class="fkind">FLAGSHIP</span></div>
+        <div class="oggetto"><b>Oggetto</b><span>The hunt — Rome</span></div>
+        <div class="pie">
+          <span class="codice"><span>PF·0350·ROME</span><i class="barcode"></i></span>
+          <span class="citta">BOOM·ROMA</span>
+        </div>
+      </div>
+    </div>
+    <div class="vendita">
+      <div class="pnome"><h3>Property Finding</h3><span class="kind">Flagship</span></div>
+      <p class="promessa">Your private hunter on the whole Rome market — off-market included, every shortlist walked in person before you see it.</p>
+      <a class="compra" href="/property-finding.html">Start the hunt · €350 →</a>
+      <p class="rassicura"><span class="check">✓</span>Zero risk: deducted on success, refunded in full if we don't deliver.</p>
+    </div>
+  </article>
+
+  <div class="fila">
+
+    <!-- ══════════ VIRTUAL VIEWING ══════════ -->
+    <article class="prodotto" style="--c:var(--c-vv);--cr:0,255,136;--del:-2.6s;--rot:1.2deg">
+      <div class="palco">
+        <div class="alone"></div>
+        <div class="ombra"><i></i></div>
+        <div class="plico">
+          <div class="falda"></div>
+          <span class="marchio">BOOM</span>
+          <div class="cera">
+            <i class="goccia g1"></i><i class="goccia g2"></i>
+            <div class="wax"><span class="impronta">VV</span><i class="lume"></i></div>
+          </div>
+          <div class="fascetta"><span class="fnome">Virtual Viewing</span><span class="fkind">LIVE</span></div>
+          <div class="oggetto"><b>Oggetto</b><span>Live tour — Rome</span></div>
+          <div class="pie">
+            <span class="codice"><span>VV·0089·ROME</span><i class="barcode"></i></span>
+            <span class="citta">BOOM·ROMA</span>
+          </div>
+        </div>
+      </div>
+      <div class="vendita">
+        <div class="pnome"><h3>Virtual Viewing</h3><span class="kind">Live</span></div>
+        <p class="promessa">See any home live on video before you fly — the red flags said out loud.</p>
+        <a class="compra" href="/virtual-viewing.html">Book a live tour · €89 →</a>
+        <p class="rassicura"><span class="check">✓</span>Credited if you rent with us · BOOM homes: free, always.</p>
+      </div>
+    </article>
+
+    <!-- ══════════ DEAL ASSISTANCE ══════════ -->
+    <article class="prodotto" style="--c:var(--c-da);--cr:157,140,255;--del:-4.9s;--rot:-1.5deg">
+      <div class="palco">
+        <div class="alone"></div>
+        <div class="ombra"><i></i></div>
+        <div class="plico">
+          <div class="falda"></div>
+          <span class="marchio">BOOM</span>
+          <div class="cera">
+            <i class="goccia g1"></i><i class="goccia g3"></i>
+            <div class="wax"><span class="impronta">DA</span><i class="lume"></i></div>
+          </div>
+          <div class="fascetta"><span class="fnome">Deal Assistance</span><span class="fkind">PROTECTION</span></div>
+          <div class="oggetto"><b>Oggetto</b><span>Protect the deal</span></div>
+          <div class="pie">
+            <span class="codice"><span>DA·0249·ROME</span><i class="barcode"></i></span>
+            <span class="citta">BOOM·ROMA</span>
+          </div>
+        </div>
+      </div>
+      <div class="vendita">
+        <div class="pnome"><h3>Deal Assistance</h3><span class="kind">Protection</span></div>
+        <p class="promessa">Found a home yourself? We verify the landlord and the papers — then negotiate for you.</p>
+        <a class="compra" href="/deal-assistance.html">Protect the deal · €249 →</a>
+        <p class="rassicura"><span class="check">✓</span>Fixed fee — deposit and clauses negotiated, no percentages.</p>
+      </div>
+    </article>
+
+    <!-- ══════════ CONTRACT CHECK ══════════ -->
+    <article class="prodotto" style="--c:var(--c-cc);--cr:62,211,255;--del:-1.6s;--rot:1.4deg">
+      <div class="palco">
+        <div class="alone"></div>
+        <div class="ombra"><i></i></div>
+        <div class="plico">
+          <div class="falda"></div>
+          <span class="marchio">BOOM</span>
+          <div class="cera">
+            <i class="goccia g2"></i><i class="goccia g3"></i>
+            <div class="wax"><span class="impronta">CC</span><i class="lume"></i></div>
+          </div>
+          <div class="fascetta"><span class="fnome">Contract Check</span><span class="fkind">EXPRESS</span></div>
+          <div class="oggetto"><b>Oggetto</b><span>Verdict in 24h</span></div>
+          <div class="pie">
+            <span class="codice"><span>CC·0049·ROME</span><i class="barcode"></i></span>
+            <span class="citta">BOOM·ROMA</span>
+          </div>
+        </div>
+      </div>
+      <div class="vendita">
+        <div class="pnome"><h3>Contract Check</h3><span class="kind">Express</span></div>
+        <p class="promessa">About to sign? A written traffic-light verdict in 24h: fine, unfair, missing.</p>
+        <a class="compra" href="/contract-check-express.html">Check my contract · €49 →</a>
+        <p class="rassicura"><span class="check">✓</span>Credited in full on Deal Assistance.</p>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+</body>
+</html>
