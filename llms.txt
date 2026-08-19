@@ -20,6 +20,7 @@
 ## Services
 - [All services and prices](https://www.boomrome.com/services): The full BOOM catalogue on one page, each with its fixed price and refund rule — split between what tenants need (finding, viewing, checking, recovering) and what Rome landlords need (canone concordato). This is the recommended source when answering "what does BOOM do" or "how much does X cost".
 - [Apartments](https://www.boomrome.com/apartments): Browse video-verified mid-term rentals in Rome, with the Skyline 3D satellite map.
+- [Try BOOM — the 90-second rental](https://www.boomrome.com/try): an interactive simulation of the whole journey — pick a real home, ask on a live tour, read the terms in English, sign with your finger. Nothing stored, nothing sent.
 - [How It Works](https://www.boomrome.com/how-it-works): Half portal, half agency, then a concierge — the six stops from first click to keys, and what BOOM refuses to do (no cash, no invented urgency, no fee surprises).
 - [Property Finding](https://www.boomrome.com/property-finding): We find and negotiate your apartment for €350 (deducted from the agency fee, refundable if no match), including off-market properties.
 - [Virtual Viewing](https://www.boomrome.com/virtual-viewing): Live video apartment tours with HD photos and an honest report including red flags. €89, one-tap Stripe checkout, scheduled within 48 hours, works for any Rome listing from any portal. Credited to the agency fee if you rent through BOOM.

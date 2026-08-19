@@ -525,125 +525,125 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .banchina { margin-top:clamp(20px,2.4vw,30px); border:1px solid var(--line);
   border-radius:16px; overflow:hidden; background:var(--surface); }
 
-/* le porte: gerarchia vera — l'ammiraglia (Gate 02) comanda la fila,
-   le altre rispondono. Numeri di gate e prezzi su tessere Solari: la
-   stessa lingua del tabellone in alto, mai un colore fuori brand. */
-.ba-porte { display:grid; grid-template-columns:1fr 1.55fr 1fr 1fr;
-  gap:1px; background:var(--line-0); }
-.ba-p { position:relative; display:flex; flex-direction:column;
-  background:var(--surface); padding:17px 18px;
-  transition:background .3s var(--ease); overflow:hidden; }
-/* il numero fantasma: segnaletica di scalo dietro il vetro */
-.ba-p .fantasma { position:absolute; right:2px; bottom:-16px;
-  font-family:var(--display); font-size:88px; font-weight:200;
-  line-height:1; letter-spacing:-.05em; color:transparent;
-  -webkit-text-stroke:1px rgba(255,215,0,.09); pointer-events:none;
-  user-select:none; transition:-webkit-text-stroke-color .4s var(--ease); }
-.ba-p:hover .fantasma { -webkit-text-stroke-color:rgba(255,215,0,.2); }
-.ba-gate { display:flex; align-items:center; justify-content:space-between;
-  gap:8px; position:relative; }
-.ba-gate b { display:inline-flex; align-items:center; gap:7px;
-  font-size:9px; font-weight:600; letter-spacing:.24em;
-  text-transform:uppercase; color:var(--text-4);
-  transition:color .3s var(--ease); }
-.ba-p:hover .ba-gate b { color:var(--gold); }
-/* la tessera: la cella del tabellone Solari, in piccolo */
-.tess { display:inline-flex; gap:3px; }
-.tess i { font-style:normal; width:16px; height:20px; display:grid;
-  place-items:center; border-radius:4px; background:#040404;
-  color:var(--gold); font-size:11px; font-weight:500; letter-spacing:0;
-  font-variant-numeric:tabular-nums; position:relative;
-  box-shadow:inset 0 0 0 1px rgba(239,235,223,.07),
-    0 1px 3px rgba(0,0,0,.5); }
-.tess i::after { content:''; position:absolute; left:1px; right:1px;
-  top:50%; height:1px; background:rgba(3,3,3,.85); }
-/* il chip segnale: un fatto per porta, mai una promessa nuova */
-.ba-chip { display:inline-flex; align-items:center; gap:5px;
-  padding:4px 9px; border-radius:100px; font-size:8.5px; font-weight:700;
-  letter-spacing:.15em; text-transform:uppercase; color:var(--text-3);
-  box-shadow:inset 0 0 0 1px var(--line); white-space:nowrap; flex:none; }
-.ba-chip.viva { color:var(--green);
-  box-shadow:inset 0 0 0 1px rgba(0,255,136,.28); }
-.ba-chip.viva b { width:5px; height:5px; border-radius:50%;
-  background:var(--green); animation:pulse 2.2s ease infinite; }
-.ba-chip.oro { color:#141005; background:var(--gold); box-shadow:none; }
-.ba-p::before { content:''; position:absolute; top:0; left:0; right:0;
-  height:1px; background:var(--gold); transform:scaleX(0); z-index:1;
-  transform-origin:left; transition:transform .42s var(--ease),
-    opacity .3s var(--ease); }
-.ba-p:hover { background:var(--elevated); }
-.ba-p:hover::before { transform:scaleX(1); }
-/* il lampo di cortesia: passa una volta, al passaggio del mouse */
-.ba-p::after { content:''; position:absolute; top:0; bottom:0; left:-70%;
-  width:44%; transform:skewX(-16deg); pointer-events:none;
-  background:linear-gradient(100deg, transparent,
-    rgba(255,215,0,.055), transparent); transition:left .7s var(--ease); }
-.ba-p:hover::after { left:125%; }
-.ba-p svg.sg { width:19px; height:19px; margin-top:13px; color:var(--gold);
-  fill:none; stroke:currentColor; stroke-width:1.5; stroke-linecap:round;
-  stroke-linejoin:round; transition:transform .4s var(--ease); }
-.ba-p svg.sg .acc { opacity:.55; }
-.ba-p svg.sg .pieno { fill:var(--gold); stroke:none; }
-.ba-p:hover svg.sg { transform:translateY(-2px); }
-.ba-p .caso { display:block; margin-top:11px;
-  font-family:var(--display); font-size:17px; font-weight:300;
-  letter-spacing:-.005em; color:var(--text); line-height:1.28; }
-.ba-p .fa { display:block; margin-top:6px; font-size:11.5px; line-height:1.45;
-  color:var(--text-4); }
-.ba-serv { display:block; margin-top:11px;
-  font-size:10.5px; font-weight:600; letter-spacing:.16em;
-  text-transform:uppercase; color:var(--gold); line-height:1.5; }
-.ba-serv i { display:inline-block; margin-left:6px; font-style:normal;
-  transition:transform .35s var(--ease); }
-.ba-p:hover .ba-serv i { transform:translateX(4px); }
-/* il prezzo su tessere: numeri da tabellone, non note a margine */
-.ba-p .costo { display:flex; align-items:center; gap:9px;
-  margin-top:auto; padding-top:12px; flex-wrap:wrap; }
-.pflap { display:inline-flex; align-items:center; gap:2.5px; }
-.pflap em { font-style:normal; font-family:var(--display); font-size:12px;
-  font-weight:400; color:var(--gold); opacity:.9; margin-right:2px; }
-.pflap i { font-style:normal; font-family:var(--display); width:20px;
-  height:27px; display:grid; place-items:center; border-radius:4.5px;
-  background:#040404; color:var(--oro-flap); font-size:16px;
-  font-weight:400; font-variant-numeric:tabular-nums; position:relative;
-  box-shadow:inset 0 0 0 1px rgba(239,235,223,.07),
-    0 2px 5px rgba(0,0,0,.55); }
-.pflap i::after { content:''; position:absolute; left:1px; right:1px;
-  top:50%; height:1px; background:rgba(3,3,3,.85); }
-.ba-p .costo .dice { font-style:normal; font-size:10.5px;
-  color:var(--text-4); line-height:1.3; flex:1; min-width:0; }
-.ba-p .costo .dice .breve { display:none; }
-/* l'ammiraglia: colonna piu' larga, filo d'oro sempre acceso, caso e
-   tessere piu' grandi — la gerarchia si vede prima di leggerla */
-.ba-p.eroe { background:linear-gradient(168deg, rgba(255,215,0,.085),
-  rgba(255,215,0,.015) 62%, transparent); padding:19px 20px; }
-.ba-p.eroe:hover { background:linear-gradient(168deg, rgba(255,215,0,.13),
-  rgba(255,215,0,.03) 62%, transparent); }
-.ba-p.eroe::before { transform:scaleX(1); opacity:.55; height:2px; }
-.ba-p.eroe:hover::before { opacity:1; }
-.ba-p.eroe .caso { font-size:20.5px; }
-.ba-p.eroe .fa { color:var(--text-3); }
-.ba-p.eroe .pflap i { width:24px; height:32px; font-size:20px; }
-.ba-p.eroe .pflap em { font-size:14px; }
-.ba-p.eroe .fantasma { -webkit-text-stroke-color:rgba(255,215,0,.13); }
-
-/* su schermo stretto: l'ammiraglia prende la sua riga intera, le altre
-   tre si dividono sotto — quattro porte, zero scroll orizzontale */
-@media (max-width:860px){
-  .ba-porte { grid-template-columns:1fr 1fr; }
-  .ba-p { padding:14px 15px; }
-  .ba-p.eroe { grid-column:1/-1; padding:16px; }
-  .ba-p .fa { display:none; }
-  .ba-p.eroe .fa { display:block; font-size:11px; }
-  .ba-p .caso { margin-top:9px; font-size:14.5px; }
-  .ba-p.eroe .caso { font-size:17px; }
-  .ba-serv { margin-top:8px; font-size:9.5px; }
-  .ba-p .costo { padding-top:9px; }
-  .pflap i { width:17px; height:23px; font-size:13.5px; }
-  .ba-p.eroe .pflap i { width:20px; height:27px; font-size:16px; }
-  .ba-p .fantasma { font-size:62px; }
-  .ba-p .costo .dice .lungo { display:none; }
-  .ba-p .costo .dice .breve { display:inline; } }
+/* LO SCAFFALE — il servizio come PRODOTTO, non come scheda: un oggetto
+   da desiderare (la carta BOOM in 3D che fluttua e si inclina verso il
+   cursore), un bottone che COMPRA (verbo + prezzo) e la garanzia con la
+   spunta subito sotto — desiderio, azione, rischio azzerato.
+   La firma cromatica: UN materiale nero-vetro, quattro luci — oro
+   ammiraglia · verde live · violetto protezione · ciano verdetto. */
+.pr-fila { --c-vv:#00FF88; --c-pf:#FFD700; --c-da:#9D8CFF; --c-cc:#3ED3FF;
+  display:grid; grid-template-columns:1.5fr 1fr 1fr 1fr;
+  gap:clamp(12px,1.6vw,18px); align-items:stretch; }
+@media (max-width:1020px){
+  .pr-fila { grid-template-columns:1fr 1fr; }
+  .pr.eroe { grid-column:1/-1; } }
+@media (max-width:580px){ .pr-fila { grid-template-columns:1fr; } }
+.pr { position:relative; display:flex; flex-direction:column;
+  border-radius:22px; overflow:hidden;
+  background:linear-gradient(180deg,#0F0F12,#080809 70%);
+  box-shadow:inset 0 0 0 1px var(--line), 0 30px 60px -36px rgba(0,0,0,.9);
+  padding:0 20px 20px; transition:box-shadow .45s var(--ease); }
+.pr:hover { box-shadow:inset 0 0 0 1px
+  color-mix(in srgb, var(--c) 35%, transparent),
+  0 40px 80px -36px rgba(0,0,0,.95); }
+.pr .retro { position:absolute; inset:0 0 auto; height:240px;
+  pointer-events:none; opacity:.75; transition:opacity .5s var(--ease);
+  background:radial-gradient(60% 78% at 50% 8%, var(--ca), transparent 72%); }
+.pr:hover .retro { opacity:1; }
+/* il palcoscenico: l'oggetto fluttua in prospettiva, l'ombra respira */
+.palcosc { position:relative; height:200px; display:grid;
+  place-items:center; perspective:900px; }
+.pr .ombra { position:absolute; bottom:14px; left:50%; width:58%;
+  height:22px; transform:translateX(-50%); border-radius:50%;
+  background:radial-gradient(50% 50% at 50% 50%, rgba(0,0,0,.8),
+    transparent 72%); filter:blur(7px);
+  animation:ombraRespira 5.5s ease-in-out infinite; }
+@keyframes ombraRespira { 50% { transform:translateX(-50%) scaleX(.88);
+  opacity:.75; } }
+.oggetto { --rx:0deg; --ry:0deg; position:relative; width:min(196px,72%);
+  aspect-ratio:1.586; border-radius:13px; overflow:hidden;
+  transform:rotateX(calc(13deg + var(--ry))) rotateY(calc(-15deg + var(--rx)));
+  background:linear-gradient(148deg,#1D1D23,#0B0B0E 62%);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--c) 34%, transparent),
+    inset 0 1px 0 rgba(255,255,255,.14),
+    22px 30px 44px -18px rgba(0,0,0,.85);
+  animation:galleggia 5.5s ease-in-out infinite;
+  transition:transform .5s cubic-bezier(.3,1.45,.5,1); }
+.pr:hover .oggetto { animation-play-state:paused; }
+@keyframes galleggia { 50% { translate:0 -7px; } }
+.oggetto::before { content:''; position:absolute; inset:0;
+  border-radius:13px; pointer-events:none;
+  background:linear-gradient(calc(115deg + var(--rx) * 3),
+    transparent 30%, rgba(255,255,255,.13) 47%, transparent 62%); }
+.oggetto .fbrand { position:absolute; top:11px; left:13px; right:13px;
+  display:flex; align-items:center; justify-content:space-between;
+  font-family:var(--display); font-size:9px; font-weight:500;
+  letter-spacing:.28em; text-transform:uppercase; color:var(--text-2); }
+.oggetto .fbrand small { font-family:ui-monospace,Menlo,monospace;
+  font-size:7.5px; letter-spacing:.2em; color:var(--text-4); }
+.oggetto .banda { position:absolute; top:34px; left:0; right:0; height:3px;
+  background:var(--c); box-shadow:0 0 14px var(--ca); }
+.oggetto .ficon { position:absolute; left:13px; bottom:12px; width:30px;
+  height:30px; border-radius:9px; display:grid; place-items:center;
+  color:var(--c); background:color-mix(in srgb, var(--c) 9%, transparent);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--c) 32%, transparent); }
+.oggetto .ficon svg { width:16px; height:16px; fill:none;
+  stroke:currentColor; stroke-width:1.6; stroke-linecap:round;
+  stroke-linejoin:round; }
+.oggetto .fprezzo { position:absolute; right:13px; bottom:11px;
+  font-family:var(--display); font-weight:400; font-size:21px;
+  letter-spacing:-.01em; color:var(--c);
+  font-variant-numeric:tabular-nums; text-shadow:0 0 18px var(--ca); }
+.oggetto .fnome { position:absolute; left:13px; top:46px;
+  font-family:var(--display); font-weight:300; font-size:12.5px;
+  letter-spacing:.02em; color:var(--text); }
+.oggetto .fsotto { position:absolute; left:13px; top:64px; font-size:8.5px;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--text-4); }
+/* sulle card piccole la faccia respira: niente sottotitolo */
+.pr:not(.eroe) .oggetto .fsotto { display:none; }
+.pr:not(.eroe) .oggetto .fnome { top:50%; transform:translateY(-70%); }
+/* il nastro sull'angolo: segnale di prodotto (full refund), intagliato */
+.oggetto .nastro { position:absolute; top:14px; right:-34px;
+  transform:rotate(38deg); width:120px; text-align:center;
+  background:var(--c); color:#0A0903; font-size:7.5px; font-weight:800;
+  letter-spacing:.16em; text-transform:uppercase; padding:4px 0;
+  box-shadow:0 4px 14px rgba(0,0,0,.4); }
+/* la vendita: nome, promessa, il bottone che compra, la garanzia */
+.pr .vendita { position:relative; display:flex; flex-direction:column;
+  flex:1; }
+.pr .pnome { display:flex; align-items:baseline; gap:9px; }
+.pr .pnome .pn { font-family:var(--display); font-weight:350;
+  font-size:18.5px; letter-spacing:-.005em; color:var(--text); }
+.pr .pnome .pkind { font-size:8.5px; font-weight:700; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--c); }
+.pr .promessa { margin-top:7px; font-size:12.5px; line-height:1.55;
+  color:var(--text-3); }
+.pr .promessa b { color:var(--text-2); font-weight:500; }
+.pr .compra { margin-top:14px; display:inline-flex; align-items:center;
+  justify-content:center; gap:9px; min-height:44px; padding:0 18px;
+  border-radius:100px; background:var(--c); color:#0A0A05;
+  font-size:12.5px; font-weight:700; letter-spacing:.02em;
+  transition:transform .3s var(--ease), box-shadow .3s var(--ease);
+  box-shadow:0 10px 26px -12px var(--cb); }
+.pr .compra i { font-style:normal; transition:transform .3s var(--ease); }
+.pr:hover .compra { transform:translateY(-1px);
+  box-shadow:0 16px 34px -12px var(--cb); }
+.pr:hover .compra i { transform:translateX(4px); }
+.pr .rassicura { margin-top:11px; display:flex; align-items:flex-start;
+  gap:8px; font-size:10.5px; line-height:1.5; color:var(--text-4); }
+.pr .rassicura::before { content:'✓'; color:var(--c); font-size:11px;
+  line-height:1.4; }
+.pr .rassicura b { color:var(--text-3); font-weight:600; }
+/* l'ammiraglia */
+.pr.eroe .palcosc { height:244px; }
+.pr.eroe .oggetto { width:min(250px,80%); }
+.pr.eroe .oggetto .fprezzo { font-size:26px; }
+.pr.eroe .oggetto .fnome { font-size:15px; top:50px; }
+.pr.eroe .oggetto .fsotto { top:71px; }
+.pr.eroe .pnome .pn { font-size:23px; }
+.pr.eroe .promessa { font-size:13.5px; max-width:52ch; }
+.pr.eroe .compra { align-self:flex-start; padding:0 24px; }
+@media (max-width:1020px){ .pr.eroe .compra { align-self:stretch; } }
 
 /* le garanzie: badge piccoli, tutti veri — i fatti istituzionali vivono
    qui e nel footer, una volta sola */
@@ -1331,22 +1331,22 @@ html.vivo .sale .pass-carta { opacity:0;
 html.vivo .sale.dentro .pass-carta { opacity:1; transform:rotate(-2deg);
   transition:opacity .6s var(--ease) .2s,
     transform .85s cubic-bezier(.3,1.45,.5,1) .2s; }
-/* le luci d'imbarco: i Gate si accendono in sequenza al reveal */
-@keyframes gate-tick {
-  0% { color:var(--text-4); } 35% { color:var(--gold); }
-  100% { color:var(--text-4); } }
-html.vivo .banchina.dentro .ba-p:nth-child(1) .ba-gate b {
-  animation:gate-tick .55s ease .25s both; }
-html.vivo .banchina.dentro .ba-p:nth-child(2) .ba-gate b {
-  animation:gate-tick .55s ease .43s both; }
-html.vivo .banchina.dentro .ba-p:nth-child(3) .ba-gate b {
-  animation:gate-tick .55s ease .61s both; }
-html.vivo .banchina.dentro .ba-p:nth-child(4) .ba-gate b {
-  animation:gate-tick .55s ease .79s both; }
+/* l'arrivo: i prodotti CALANO sullo scaffale in sequenza, con la molla */
+@keyframes pr-arriva {
+  from { opacity:0; transform:translateY(30px); }
+  to { opacity:1; } }
+html.vivo .pr-fila .pr { opacity:0; }
+html.vivo .pr-fila.dentro .pr {
+  animation:pr-arriva .75s cubic-bezier(.3,1.45,.5,1) both; }
+html.vivo .pr-fila.dentro .pr:nth-child(1) { animation-delay:.05s; }
+html.vivo .pr-fila.dentro .pr:nth-child(2) { animation-delay:.17s; }
+html.vivo .pr-fila.dentro .pr:nth-child(3) { animation-delay:.29s; }
+html.vivo .pr-fila.dentro .pr:nth-child(4) { animation-delay:.41s; }
 @media (prefers-reduced-motion:reduce){
   html.vivo .sale .pass-carta { opacity:1;
     transform:rotate(-2deg); transition:none; }
-  html.vivo .banchina.dentro .ba-gate b { animation:none; } }
+  html.vivo .pr-fila .pr { opacity:1; animation:none; }
+  .oggetto, .pr .ombra { animation:none !important; } }
 .pass-cima { display:flex; align-items:center; justify-content:space-between;
   gap:10px; padding:15px 18px; border-bottom:1px dashed rgba(255,215,0,.2); }
 .pass-cima .marchietto { display:inline-flex; align-items:center; gap:8px;
@@ -2170,6 +2170,7 @@ setTimeout(function () {
       <details class="faq-v" open><summary>Can I rent a Rome apartment before I arrive in Italy?</summary><p>Yes — most BOOM tenants do. Viewings are live on video, the contract is signed from your phone, and the refundable €300 hold keeps the home off the market while you decide. You can land in Rome with keys day already booked.</p></details><details class="faq-v"><summary>Is the contract legal and registered?</summary><p>Yes. Every BOOM lease is a registered Italian contract under law 431/98, filed with the Agenzia delle Entrate. You sign from your phone and receive the signed copy by email.</p></details><details class="faq-v"><summary>What does BOOM cost?</summary><p>One fee: 10% of the annual rent, charged once at signing. First month and deposit are the only other lines — and the deposit comes back, filmed at move-in and move-out. Every payment goes through Stripe with a receipt.</p></details><details class="faq-v"><summary>I found a home on another portal — can you still help?</summary><p>Yes. A Virtual Viewing (€89) tours it live for you with the red flags said out loud, and Deal Assistance (€249, fixed) verifies the landlord and the papers, then negotiates. The viewing fee is credited if you end up renting with us.</p></details>
     </div>
     <div class="come-coda sale">
+      <a class="btn btn-primary" href="/try">▶ Try it in 90 seconds</a>
       <a class="btn btn-primary" href="/apartments">Browse the homes</a>
       <a class="btn btn-secondary" href="/#banchina">Pick a
         service door</a>

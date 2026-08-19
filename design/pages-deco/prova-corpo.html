@@ -1,0 +1,596 @@
+<style>
+/* ══ LA PROVA — il noleggio in 90 secondi. Non racconta il percorso:
+   lo fa FARE. Cinque atti su dati veri, un solo inganno dichiarato:
+   è una simulazione, niente viene salvato né spedito. ════════════════ */
+.pv-capo { padding:clamp(116px,13svh,160px) 0 clamp(22px,2.8vw,36px); }
+.pv-capo .eyebrow i { background:var(--green); }
+.pv-capo h1 { font-weight:200; font-size:clamp(34px,4.8vw,58px);
+  line-height:1.07; letter-spacing:-.02em; text-wrap:balance;
+  max-width:20ch; }
+.pv-capo h1 .hl { color:var(--gold); }
+.pv-capo .sotto { margin-top:14px; max-width:58ch; }
+.pv-capo .patto { margin-top:14px; display:inline-flex; align-items:center;
+  gap:9px; padding:8px 14px; border-radius:100px;
+  box-shadow:inset 0 0 0 1px var(--line); font-size:11px;
+  color:var(--text-3); }
+.pv-capo .patto b { color:var(--text-2); font-weight:600; }
+@media (max-width:640px){
+  .pv-capo h1 { font-size:clamp(31px,8.8vw,38px); font-weight:250; } }
+
+/* la cabina: il dispositivo dentro cui la prova accade */
+.cabina { position:relative; margin-top:clamp(18px,2.4vw,28px);
+  border-radius:22px; background:var(--void); overflow:hidden;
+  box-shadow:inset 0 0 0 1px var(--line),
+    0 40px 90px -40px rgba(0,0,0,.95); }
+/* la rotta dei cinque atti */
+.pv-rotta { display:flex; align-items:center; gap:0; padding:0 6px;
+  border-bottom:1px solid var(--line-0); overflow-x:auto;
+  -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+.pv-rotta::-webkit-scrollbar { display:none; }
+.pv-tappa { flex:1; min-width:104px; display:flex; align-items:center;
+  gap:9px; padding:14px 12px; position:relative; opacity:.45;
+  transition:opacity .35s var(--ease); }
+.pv-tappa::after { content:''; position:absolute; left:12px; right:12px;
+  bottom:-1px; height:2px; background:var(--gold); transform:scaleX(0);
+  transform-origin:left; transition:transform .45s var(--ease); }
+.pv-tappa.qui { opacity:1; }
+.pv-tappa.qui::after, .pv-tappa.fatta::after { transform:scaleX(1); }
+.pv-tappa.fatta { opacity:.8; }
+.pv-tappa i { font-style:normal; width:22px; height:26px; flex:none;
+  display:grid; place-items:center; border-radius:6px; background:#040404;
+  color:var(--gold); font-family:var(--display); font-size:12px;
+  font-variant-numeric:tabular-nums; position:relative;
+  box-shadow:inset 0 0 0 1px rgba(239,235,223,.07); }
+.pv-tappa i::after { content:''; position:absolute; left:1px; right:1px;
+  top:50%; height:1px; background:rgba(3,3,3,.85); }
+.pv-tappa.fatta i { color:var(--green); }
+.pv-tappa b { font-size:9.5px; font-weight:600; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--text-3); white-space:nowrap; }
+.pv-tappa.qui b { color:var(--text); }
+
+/* gli atti */
+.pv-atto { display:none; padding:clamp(22px,3vw,38px); }
+.pv-atto.qui { display:block; animation:attoSale .5s var(--ease) both; }
+@keyframes attoSale { from { opacity:0; transform:translateY(14px); } }
+@media (prefers-reduced-motion:reduce){ .pv-atto.qui { animation:none; } }
+.pv-atto .at-eti { display:flex; align-items:baseline; gap:12px;
+  flex-wrap:wrap; }
+.pv-atto .at-eti h2 { font-family:var(--display); font-weight:250;
+  font-size:clamp(20px,2.4vw,28px); letter-spacing:-.01em; }
+.pv-atto .at-eti span { font-size:10px; font-weight:600;
+  letter-spacing:.18em; text-transform:uppercase; color:var(--text-4); }
+.pv-atto .at-sotto { margin-top:6px; font-size:12.5px; line-height:1.6;
+  color:var(--text-3); max-width:64ch; }
+
+/* atto 1 · scegli una casa VERA */
+.pv-case { margin-top:18px; display:grid; gap:14px;
+  grid-template-columns:repeat(3,minmax(0,1fr)); }
+@media (max-width:860px){ .pv-case { grid-template-columns:1fr; } }
+.pv-casa { position:relative; text-align:left; border-radius:16px;
+  overflow:hidden; background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--line-0); cursor:pointer;
+  transition:transform .35s var(--ease), box-shadow .35s var(--ease);
+  padding:0; display:flex; flex-direction:column; min-height:44px; }
+.pv-casa:hover { transform:translateY(-3px);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.pv-casa .foto { height:130px; background:linear-gradient(150deg,#191a20,#0c0d10)
+  center/cover no-repeat; }
+.pv-casa .info { padding:12px 14px 14px; }
+.pv-casa .info b { display:block; font-size:13.5px; font-weight:500; }
+.pv-casa .info span { display:block; margin-top:3px; font-size:11px;
+  color:var(--text-4); }
+.pv-casa .info .pcanone { margin-top:8px; font-family:var(--display);
+  font-size:16px; color:var(--gold); font-variant-numeric:tabular-nums; }
+.pv-casa .info .pcanone small { font-size:10px; color:var(--text-4); }
+.pv-casa .scegli { margin:0 14px 14px; display:inline-flex;
+  align-items:center; justify-content:center; min-height:36px;
+  border-radius:100px; box-shadow:inset 0 0 0 1px var(--line-gold-2);
+  color:var(--gold); font-size:10.5px; font-weight:600;
+  letter-spacing:.12em; text-transform:uppercase;
+  transition:.3s var(--ease); }
+.pv-casa:hover .scegli { background:var(--gold); color:#141005; }
+
+/* atto 2 · la visita live */
+.pv-live { margin-top:18px; display:grid; gap:clamp(16px,2.4vw,28px);
+  grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);
+  align-items:center; }
+@media (max-width:860px){ .pv-live { grid-template-columns:1fr; } }
+.pv-schermo { position:relative; width:min(240px,80%); aspect-ratio:9/15.5;
+  margin:0 auto; border-radius:20px; background:#0A0C0B; overflow:hidden;
+  transform:rotate(-2deg);
+  box-shadow:inset 0 0 0 1.5px rgba(0,255,136,.3),
+    0 28px 50px -20px rgba(0,0,0,.9); }
+.pv-schermo .stanza { position:absolute; inset:0;
+  background:linear-gradient(200deg,#15241d,#0c1512 45%,#101f18);
+  background-size:150% 150%;
+  animation:pvPan 7s ease-in-out infinite alternate; }
+.pv-schermo .stanza.confoto { background-size:cover;
+  background-position:0% 40%; filter:saturate(.92) brightness(.92); }
+@keyframes pvPan { from { background-position:0% 30%; }
+  to { background-position:100% 65%; } }
+.pv-schermo .vivo { position:absolute; top:12px; left:12px;
+  display:inline-flex; align-items:center; gap:6px; padding:4px 10px;
+  border-radius:100px; background:rgba(3,3,3,.6); font-size:8.5px;
+  font-weight:800; letter-spacing:.18em; color:var(--green); }
+.pv-schermo .vivo i { width:5px; height:5px; border-radius:50%;
+  background:var(--green); animation:pvPulse 1.6s ease infinite; }
+@keyframes pvPulse { 50% { opacity:.3; } }
+.pv-schermo .demotag { position:absolute; top:12px; right:12px;
+  font-family:ui-monospace,Menlo,monospace; font-size:7.5px;
+  letter-spacing:.2em; color:rgba(250,250,250,.55);
+  border:1px dashed rgba(250,250,250,.35); border-radius:6px;
+  padding:3px 7px; }
+.pv-chat { position:absolute; left:10px; right:10px; bottom:12px;
+  display:flex; flex-direction:column; gap:7px; }
+.pv-msg { max-width:92%; padding:7px 10px; border-radius:11px 11px 11px 3px;
+  background:rgba(3,3,3,.75); font-size:10px; line-height:1.45;
+  color:var(--text-2); animation:pvMsg .4s var(--ease) both; }
+.pv-msg.mia { align-self:flex-end;
+  border-radius:11px 11px 3px 11px;
+  background:rgba(0,255,136,.14); color:#CFFFE9; }
+@keyframes pvMsg { from { opacity:0; transform:translateY(8px); } }
+.pv-domande { display:flex; flex-direction:column; gap:10px; }
+.pv-domande p { font-size:12.5px; color:var(--text-3); }
+.pv-chip { text-align:left; padding:12px 16px; border-radius:13px;
+  background:var(--card); box-shadow:inset 0 0 0 1px var(--line);
+  font-size:13px; color:var(--text-2); cursor:pointer; min-height:44px;
+  transition:.3s var(--ease); }
+.pv-chip:hover:not(:disabled) { box-shadow:inset 0 0 0 1px
+  rgba(0,255,136,.4); transform:translateX(3px); }
+.pv-chip:disabled { opacity:.4; cursor:default; }
+
+/* atto 3 · i termini */
+.pv-conto { margin-top:18px; max-width:520px; border-radius:16px;
+  background:var(--card); box-shadow:inset 0 0 0 1px var(--line-0);
+  padding:18px 20px; }
+.pv-conto .intesta { display:flex; justify-content:space-between;
+  gap:10px; font-size:11px; color:var(--text-4); letter-spacing:.08em;
+  text-transform:uppercase; font-weight:600; }
+.pv-voce { display:flex; justify-content:space-between; gap:14px;
+  align-items:baseline; padding:11px 0; border-bottom:1px solid
+  var(--line-0); font-size:13px; color:var(--text-2); }
+.pv-voce b { font-family:var(--display); font-weight:400; font-size:16px;
+  color:var(--text); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.pv-voce em { display:block; font-style:normal; font-size:10.5px;
+  color:var(--text-4); margin-top:2px; }
+.pv-voce.torna b, .pv-voce.torna em { color:var(--green); }
+.pv-conto .niente4 { margin-top:10px; font-size:11px; color:var(--text-4); }
+.pv-conto .niente4 b { color:var(--text-3); }
+
+/* atto 4 · la firma disegnata */
+.pv-firma { margin-top:18px; max-width:520px; }
+.pv-pad { position:relative; height:150px; border-radius:16px;
+  background:var(--card);
+  box-shadow:inset 0 0 0 1.5px rgba(250,250,250,.14); overflow:hidden; }
+.pv-pad canvas { display:block; width:100%; height:100%;
+  touch-action:none; cursor:crosshair; }
+.pv-pad .guida { position:absolute; left:18px; right:18px; bottom:30px;
+  border-bottom:1px dashed rgba(250,250,250,.22); pointer-events:none; }
+.pv-pad .invito { position:absolute; inset:0; display:grid;
+  place-items:center; font-size:12px; color:var(--text-4);
+  pointer-events:none; transition:opacity .3s; }
+.pv-pad .demotag { position:absolute; top:10px; right:10px;
+  font-family:ui-monospace,Menlo,monospace; font-size:7.5px;
+  letter-spacing:.2em; color:rgba(250,250,250,.5);
+  border:1px dashed rgba(250,250,250,.3); border-radius:6px;
+  padding:3px 7px; pointer-events:none; }
+.pv-firma .nota { margin-top:9px; font-size:10.5px; color:var(--text-4); }
+.pv-firma .nota b { color:var(--text-3); }
+/* il timbro: la cerimonia vera del pre-agreement, in piccolo */
+.pv-timbro { position:absolute; inset:0; display:grid; place-items:center;
+  pointer-events:none; opacity:0; }
+.pv-timbro span { padding:10px 22px; border:2.5px solid var(--gold);
+  border-radius:12px; color:var(--gold); font-family:var(--display);
+  font-size:19px; letter-spacing:.24em; text-transform:uppercase;
+  transform:rotate(-9deg); background:rgba(3,3,3,.55); }
+.pv-pad.timbrata .pv-timbro { animation:timbra .6s
+  cubic-bezier(.2,1.6,.4,1) both; }
+@keyframes timbra { 0% { opacity:0; transform:scale(1.7) rotate(4deg); }
+  100% { opacity:1; transform:none; } }
+
+/* atto 5 · le chiavi */
+.pv-fine { margin-top:18px; display:grid; gap:clamp(16px,2.4vw,28px);
+  grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);
+  align-items:center; }
+@media (max-width:860px){ .pv-fine { grid-template-columns:1fr; } }
+.pv-pass { position:relative; width:min(320px,100%); margin:0 auto;
+  border-radius:18px; overflow:hidden;
+  background:linear-gradient(150deg,#17150c,#121214 45%,#09090B);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2),
+    0 34px 70px -30px rgba(0,0,0,.95);
+  animation:pvGalleggia 6s ease-in-out infinite; }
+@keyframes pvGalleggia { 50% { translate:0 -6px; } }
+@media (prefers-reduced-motion:reduce){ .pv-pass { animation:none; } }
+.pv-pass .cima { display:flex; justify-content:space-between;
+  align-items:center; padding:14px 18px;
+  border-bottom:1px dashed rgba(255,215,0,.25); }
+.pv-pass .cima b { font-family:var(--display); font-size:11px;
+  font-weight:500; letter-spacing:.28em; text-transform:uppercase; }
+.pv-pass .cima span { font-family:ui-monospace,Menlo,monospace;
+  font-size:8px; letter-spacing:.2em; color:var(--text-4);
+  border:1px dashed rgba(250,250,250,.3); border-radius:6px;
+  padding:3px 7px; }
+.pv-pass .corpo { padding:16px 18px; }
+.pv-pass .corpo .dove { font-family:var(--display); font-weight:300;
+  font-size:20px; line-height:1.2; }
+.pv-pass .corpo .zona { margin-top:3px; font-size:10.5px;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--text-4); }
+.pv-pass .rotta2 { display:flex; align-items:flex-end; gap:14px;
+  padding:0 18px 16px; }
+.pv-pass .rotta2 .campo b { display:block; font-size:8px; font-weight:600;
+  letter-spacing:.2em; text-transform:uppercase; color:var(--text-4);
+  margin-bottom:2px; }
+.pv-pass .rotta2 .campo span { font-family:var(--display); font-size:14px; }
+.pv-pass .rotta2 .campo:last-child span { color:var(--gold); }
+.pv-pass .rotta2 .aereo { flex:1; height:1px; border-top:1px dashed
+  rgba(255,215,0,.3); margin-bottom:8px; position:relative; }
+.pv-pass .rotta2 .aereo i { position:absolute; top:-8px; left:50%;
+  transform:translateX(-50%); font-style:normal; color:var(--gold);
+  font-size:11px; }
+.pv-esiti { display:flex; flex-direction:column; gap:12px; }
+.pv-esiti .tempone { font-family:var(--display); font-weight:200;
+  font-size:clamp(30px,3.6vw,44px); line-height:1.1;
+  letter-spacing:-.015em; }
+.pv-esiti .tempone b { color:var(--gold); font-weight:300;
+  font-variant-numeric:tabular-nums; }
+.pv-esiti p { font-size:13px; line-height:1.65; color:var(--text-3);
+  max-width:52ch; }
+.pv-esiti p b { color:var(--text-2); font-weight:500; }
+.pv-esiti .vero { display:grid; gap:7px; margin-top:2px; }
+.pv-esiti .vero span { position:relative; padding-left:20px;
+  font-size:12px; color:var(--text-2); }
+.pv-esiti .vero span::before { content:'✓'; position:absolute; left:0;
+  color:var(--green); font-size:11px; }
+.pv-esiti .porte { display:flex; gap:10px; flex-wrap:wrap; margin-top:8px; }
+
+/* la spinta avanti, unica per tutti gli atti */
+.pv-avanti { margin-top:20px; display:flex; align-items:center; gap:14px;
+  flex-wrap:wrap; }
+.pv-avanti .btn-p { display:inline-flex; align-items:center; gap:9px;
+  min-height:46px; padding:0 24px; border-radius:100px;
+  background:var(--gold); color:#141005; font-size:13px; font-weight:700;
+  cursor:pointer; transition:transform .3s var(--ease); }
+.pv-avanti .btn-p:hover:not(:disabled) { transform:translateY(-1px); }
+.pv-avanti .btn-p:disabled { opacity:.35; cursor:default; }
+.pv-avanti .salta { font-size:11px; color:var(--text-4);
+  text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
+</style>
+
+<section class="pv-capo">
+  <div class="container">
+    <span class="eyebrow dentro-subito"><i></i>A simulation · nothing is
+      stored or sent</span>
+    <h1>Rent it <span class="hl">before</span> you rent it.</h1>
+    <p class="sotto">The scariest part of renting from abroad is signing
+      things you've never seen. So here is the whole BOOM journey —
+      compressed into a demo you can finish before your coffee cools.
+      Real homes, real numbers, the real signing gesture.</p>
+    <span class="patto">🔒 <span><b>The deal:</b> this page saves nothing,
+      sends nothing, asks for nothing.</span></span>
+  </div>
+</section>
+
+<section class="sezione" id="prova" style="padding-top:0">
+  <div class="container">
+    <div class="cabina coro">
+      <div class="pv-rotta" aria-label="The five acts">
+        <div class="pv-tappa qui" data-t="1"><i>1</i><b>Choose</b></div>
+        <div class="pv-tappa" data-t="2"><i>2</i><b>See it live</b></div>
+        <div class="pv-tappa" data-t="3"><i>3</i><b>The terms</b></div>
+        <div class="pv-tappa" data-t="4"><i>4</i><b>Sign</b></div>
+        <div class="pv-tappa" data-t="5"><i>5</i><b>Keys</b></div>
+      </div>
+
+      <!-- ATTO 1 -->
+      <div class="pv-atto qui" data-a="1">
+        <div class="at-eti"><h2>Pick a home. A real one.</h2>
+          <span>Act 1 of 5</span></div>
+        <p class="at-sotto">These three are in the live catalogue right
+          now — real prices, real streets.</p>
+        <div class="pv-case">
+          PV_CASE
+        </div>
+      </div>
+
+      <!-- ATTO 2 -->
+      <div class="pv-atto" data-a="2">
+        <div class="at-eti"><h2>Your live viewing. You ask.</h2>
+          <span>Act 2 of 5</span></div>
+        <p class="at-sotto">In the real tour we walk the flat on camera
+          and you steer. Try it — tap a question.</p>
+        <div class="pv-live">
+          <div class="pv-schermo">
+            <span class="stanza" id="pvStanza"></span>
+            <span class="vivo"><i></i>LIVE</span>
+            <span class="demotag">DEMO</span>
+            <div class="pv-chat" id="pvChat"></div>
+          </div>
+          <div class="pv-domande">
+            <p>What would you ask, standing at the door?</p>
+            <button type="button" class="pv-chip" data-q="Can you open the
+              boiler closet?" data-r="Of course — in the real tour we open
+              every closet, cabinet and window you point at. Nothing is
+              staged.">“Can you open the boiler closet?”</button>
+            <button type="button" class="pv-chip" data-q="Any damp or
+              mould anywhere?" data-r="You'd see for yourself, on camera —
+              we walk the corners and say what we see out loud, red flags
+              included.">“Any damp or mould anywhere?”</button>
+            <button type="button" class="pv-chip" data-q="What's the
+              street like at night?" data-r="Fair question — we've walked
+              this street. In the real call we tell you straight, and you
+              can ask the neighbours' side too.">“What's the street like
+              at night?”</button>
+            <div class="pv-avanti">
+              <button type="button" class="btn-p" id="pvVaiTermini"
+                disabled>The terms, in English →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ATTO 3 -->
+      <div class="pv-atto" data-a="3">
+        <div class="at-eti"><h2>Every euro, before you sign.</h2>
+          <span>Act 3 of 5</span></div>
+        <p class="at-sotto">This is the real arithmetic for the home you
+          picked — the same three lines you'd see in your
+          pre-agreement.</p>
+        <div class="pv-conto">
+          <div class="intesta"><span id="pvContoCasa">—</span>
+            <span>Day one</span></div>
+          <div class="pv-voce"><span>First month's rent</span>
+            <b id="pvCanone">—</b></div>
+          <div class="pv-voce"><span>Agency fee — once
+            <em>10% of the annual rent. It never grows.</em></span>
+            <b id="pvFee">—</b></div>
+          <div class="pv-voce torna"><span>Security deposit
+            <em id="pvDepEm">returned at the end — filmed at move-in and
+              move-out</em></span>
+            <b id="pvDeposito">—</b></div>
+          <p class="niente4"><b>There is no fourth line.</b> Utilities go
+            to the providers, registration tax to the State — we never
+            touch them.</p>
+        </div>
+        <div class="pv-avanti">
+          <button type="button" class="btn-p" id="pvVaiFirma">Looks fair —
+            take me to the signature →</button>
+        </div>
+      </div>
+
+      <!-- ATTO 4 -->
+      <div class="pv-atto" data-a="4">
+        <div class="at-eti"><h2>Sign from your phone. Literally.</h2>
+          <span>Act 4 of 5</span></div>
+        <p class="at-sotto">This is the exact gesture of BOOM's Magic
+          Sign — draw with your finger or mouse. It's a simulation:
+          <b style="color:var(--text-2)">nothing is stored, nothing is
+          sent.</b></p>
+        <div class="pv-firma">
+          <div class="pv-pad" id="pvPad">
+            <canvas id="pvCanvas" aria-label="Demo signature pad"></canvas>
+            <span class="guida"></span>
+            <span class="invito" id="pvInvito">Draw your signature here —
+              any scribble counts</span>
+            <span class="demotag">DEMO</span>
+            <div class="pv-timbro"><span>Signed ✓</span></div>
+          </div>
+          <p class="nota"><b>In the real one:</b> a registered Italian
+            contract (L.431/98), the terms in English first, and the
+            signed copy in your inbox.</p>
+        </div>
+        <div class="pv-avanti">
+          <button type="button" class="btn-p" id="pvTimbra" disabled>
+            Stamp it →</button>
+          <span class="salta" id="pvPulisci">clear and retry</span>
+        </div>
+      </div>
+
+      <!-- ATTO 5 -->
+      <div class="pv-atto" data-a="5">
+        <div class="at-eti"><h2>Landed.</h2><span>Act 5 of 5</span></div>
+        <div class="pv-fine">
+          <div class="pv-pass">
+            <div class="cima"><b>BOOM · Move-in</b><span>DEMO</span></div>
+            <div class="corpo">
+              <div class="dove" id="pvPassCasa">—</div>
+              <div class="zona" id="pvPassZona">—</div>
+            </div>
+            <div class="rotta2">
+              <span class="campo"><b>From</b><span>Anywhere</span></span>
+              <span class="aereo"><i>✈</i></span>
+              <span class="campo"><b>To</b><span>Your front door</span></span>
+            </div>
+          </div>
+          <div class="pv-esiti">
+            <div class="tempone">You just did it in
+              <b id="pvTempo">—</b>.</div>
+            <p>That was the shape of the whole thing. The real journey
+              adds the parts that protect you — and it's still measured
+              in <b>days, not weeks</b>:</p>
+            <div class="vero">
+              <span>A live video viewing where you ask the questions</span>
+              <span>A registered contract (L.431/98) — terms in English
+                first</span>
+              <span>Keys against a written report, deposit filmed in &amp;
+                out</span>
+              <span>Every euro through Stripe, receipted — and a named
+                human on WhatsApp</span>
+            </div>
+            <div class="porte">
+              <a class="btn btn-primary" href="/apartments.html">Browse
+                the real homes</a>
+              <a class="btn btn-secondary"
+                href="https://wa.me/393313251961?text=Just%20did%20the%2090-second%20demo%20%E2%80%94%20I%20want%20the%20real%20one.">
+                WhatsApp a human</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <noscript><p style="margin-top:14px;font-size:12px;color:#8a877e">
+      The demo needs JavaScript — see
+      <a href="/how-it-works.html" style="color:#FFD700">how it works</a>
+      instead.</p></noscript>
+  </div>
+</section>
+
+<script>
+/* LA REGIA DELLA PROVA — stato in memoria e basta: il patto della pagina
+   è che nulla viene salvato né spedito, e la regia lo rispetta alla
+   lettera (niente storage, niente rete). */
+(function () {
+  'use strict';
+  var CASE = 'PV_CASE_JSON';
+  if (typeof CASE === 'string') return;
+  var scelta = null, t0 = null, timbrata = false;
+
+  function traccia(n, p) {
+    try { if (window.boomTrack) boomTrack(n, p || {}); } catch (e) {}
+  }
+  function vai(n) {
+    document.querySelectorAll('.pv-atto').forEach(function (a) {
+      a.classList.toggle('qui', a.dataset.a === String(n));
+    });
+    document.querySelectorAll('.pv-tappa').forEach(function (t) {
+      var k = +t.dataset.t;
+      t.classList.toggle('qui', k === n);
+      t.classList.toggle('fatta', k < n);
+    });
+    var cab = document.querySelector('.cabina');
+    if (cab && cab.getBoundingClientRect().top < 0)
+      cab.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  /* atto 1 → 2: la scelta della casa vera */
+  document.querySelectorAll('.pv-casa').forEach(function (b) {
+    b.addEventListener('click', function () {
+      scelta = { id: b.dataset.id, nome: b.dataset.nome,
+        zona: b.dataset.zona, prezzo: +b.dataset.prezzo,
+        mesi: +b.dataset.mesi || 0, foto: b.dataset.foto };
+      if (!t0) { t0 = performance.now(); traccia('try_start', {}); }
+      traccia('try_home', { item_id: scelta.id });
+      var st = document.getElementById('pvStanza');
+      if (scelta.foto) {
+        st.classList.add('confoto');
+        st.style.backgroundImage = 'url("' + scelta.foto + '")';
+      }
+      vai(2);
+    });
+  });
+
+  /* atto 2: la domanda in diretta */
+  var chatto = 0;
+  document.querySelectorAll('.pv-chip').forEach(function (c) {
+    c.addEventListener('click', function () {
+      if (c.disabled) return;
+      c.disabled = true; chatto++;
+      var chat = document.getElementById('pvChat');
+      var mia = document.createElement('div');
+      mia.className = 'pv-msg mia';
+      mia.textContent = c.dataset.q.replace(/\s+/g, ' ');
+      chat.appendChild(mia);
+      setTimeout(function () {
+        var loro = document.createElement('div');
+        loro.className = 'pv-msg';
+        loro.textContent = c.dataset.r.replace(/\s+/g, ' ');
+        chat.appendChild(loro);
+        while (chat.children.length > 4) chat.removeChild(chat.firstChild);
+      }, 650);
+      traccia('try_question', { n: chatto });
+      document.getElementById('pvVaiTermini').disabled = false;
+    });
+  });
+  document.getElementById('pvVaiTermini').addEventListener('click',
+    function () {
+      /* atto 3: l'aritmetica VERA della casa scelta — la stessa di
+         your-money: cauzione = mesi × canone, onorario = 10% dell'anno */
+      function euro(n) { return '€' + Math.round(n).toLocaleString('en-US'); }
+      document.getElementById('pvContoCasa').textContent =
+        scelta.nome + ' · ' + scelta.zona;
+      document.getElementById('pvCanone').textContent = euro(scelta.prezzo);
+      document.getElementById('pvFee').textContent =
+        euro(scelta.prezzo * 12 * .10);
+      if (scelta.mesi > 0) {
+        document.getElementById('pvDeposito').textContent =
+          euro(scelta.prezzo * scelta.mesi);
+        document.getElementById('pvDepEm').textContent =
+          scelta.mesi + ' month' + (scelta.mesi === 1 ? '' : 's')
+          + ' of rent — returned at the end, filmed in and out';
+      } else {
+        document.getElementById('pvDeposito').textContent = '1–2 months';
+        document.getElementById('pvDepEm').textContent =
+          'each home declares its own on its page — returned at the end, '
+          + 'filmed in and out';
+      }
+      traccia('try_terms', { item_id: scelta.id });
+      vai(3);
+    });
+  document.getElementById('pvVaiFirma').addEventListener('click',
+    function () { vai(4); armaPad(); });
+
+  /* atto 4: il pad — il gesto vero di Magic Sign, in memoria e basta */
+  var padArmato = false;
+  function armaPad() {
+    if (padArmato) return; padArmato = true;
+    var cv = document.getElementById('pvCanvas');
+    var pad = document.getElementById('pvPad');
+    var invito = document.getElementById('pvInvito');
+    var bottone = document.getElementById('pvTimbra');
+    var dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+    function misura() {
+      var r = pad.getBoundingClientRect();
+      cv.width = r.width * dpr; cv.height = r.height * dpr;
+      var ctx = cv.getContext('2d');
+      ctx.scale(dpr, dpr);
+      ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.strokeStyle = '#FAFAFA';
+      return ctx;
+    }
+    var ctx = misura();
+    var giu = false, tracciato = false;
+    function xy(e) {
+      var r = cv.getBoundingClientRect();
+      var p = e.touches ? e.touches[0] : e;
+      return [p.clientX - r.left, p.clientY - r.top];
+    }
+    function inizia(e) { giu = true; var p = xy(e);
+      ctx.beginPath(); ctx.moveTo(p[0], p[1]); e.preventDefault(); }
+    function muove(e) {
+      if (!giu) return;
+      var p = xy(e); ctx.lineTo(p[0], p[1]); ctx.stroke();
+      if (!tracciato) { tracciato = true; invito.style.opacity = '0';
+        bottone.disabled = false; }
+      e.preventDefault();
+    }
+    function finisce() { giu = false; }
+    cv.addEventListener('pointerdown', inizia);
+    cv.addEventListener('pointermove', muove);
+    window.addEventListener('pointerup', finisce);
+    document.getElementById('pvPulisci').addEventListener('click',
+      function () {
+        ctx = misura(); tracciato = false;
+        invito.style.opacity = ''; bottone.disabled = true;
+        pad.classList.remove('timbrata'); timbrata = false;
+      });
+    bottone.addEventListener('click', function () {
+      if (timbrata) return; timbrata = true;
+      pad.classList.add('timbrata');
+      traccia('try_sign', { item_id: scelta.id });
+      setTimeout(function () {
+        /* atto 5: il pass e il tempo VERO, misurato davvero */
+        document.getElementById('pvPassCasa').textContent = scelta.nome;
+        document.getElementById('pvPassZona').textContent =
+          scelta.zona + ' · Rome';
+        var secondi = Math.max(1, Math.round(
+          (performance.now() - t0) / 1000));
+        document.getElementById('pvTempo').textContent =
+          secondi < 120 ? (secondi + ' seconds')
+                        : (Math.round(secondi / 60) + ' minutes');
+        traccia('try_done', { secs: secondi, item_id: scelta.id });
+        vai(5);
+      }, 900);
+    });
+  }
+})();
+</script>

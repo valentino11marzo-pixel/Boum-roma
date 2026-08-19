@@ -269,6 +269,25 @@ def blocco_come(titolo, descr):
             + ROBOTS + '\n' + ICONE + '\n' + GTAG + '\n'
             + _ld(AGENZIA, SITO_WEB, pagina, briciole, COME_FAQ))
 
+def blocco_prova(titolo, descr):
+    briciole = {
+        '@context': 'https://schema.org', '@type': 'BreadcrumbList',
+        'itemListElement': [
+            {'@type': 'ListItem', 'position': 1, 'name': 'Home',
+             'item': 'https://www.boomrome.com/'},
+            {'@type': 'ListItem', 'position': 2, 'name': 'Try BOOM',
+             'item': 'https://www.boomrome.com/try'}],
+    }
+    pagina = {
+        '@context': 'https://schema.org', '@type': 'WebPage',
+        'url': 'https://www.boomrome.com/try',
+        'name': titolo, 'description': descr,
+        'isPartOf': {'@id': 'https://www.boomrome.com/#website'},
+    }
+    return (_og(titolo, descr, 'https://www.boomrome.com/try') + '\n'
+            + ROBOTS + '\n' + ICONE + '\n' + GTAG + '\n'
+            + _ld(AGENZIA, SITO_WEB, pagina, briciole))
+
 def blocco_money(titolo, descr):
     briciole = {
         '@context': 'https://schema.org', '@type': 'BreadcrumbList',
