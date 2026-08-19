@@ -529,7 +529,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
    di prodotto: la visita confermata arriva come Apple Wallet boarding pass. */
 /* ══ LA BIGLIETTERIA ═════════════════════════════════════════════════ */
 .biglietteria { --c-vv:#00FF88; --c-pf:#FFD700; --c-da:#9D8CFF; --c-cc:#3ED3FF;
-  --molla:cubic-bezier(.3,1.45,.5,1); display:grid; grid-template-columns:repeat(3,1fr);
+  --molla:cubic-bezier(.26,1.16,.44,1); display:grid; grid-template-columns:repeat(3,1fr);
   gap:clamp(12px,1.6vw,18px);
   margin:clamp(20px,2.6vw,32px) 0 clamp(14px,1.8vw,22px); }
 .bp.eroe { grid-column:1 / -1; }
@@ -542,7 +542,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
     inset 0 1px 0 rgba(255,255,255,.05),
     0 30px 60px -36px rgba(0,0,0,.9);
   transform:perspective(1100px) rotateY(var(--rx)) rotateX(var(--ry));
-  transition:box-shadow .5s var(--ease), transform .5s var(--molla); }
+  transition:box-shadow .7s var(--ease), transform .7s var(--molla); }
 .bp:hover { box-shadow:inset 0 0 0 1px
     color-mix(in srgb, var(--c) 30%, transparent),
     inset 0 1px 0 rgba(255,255,255,.07),
@@ -566,7 +566,11 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
     rgba(255,215,0,.09) 0 1px, transparent 1px 7px);
   -webkit-mask:radial-gradient(circle, #000 30%, transparent 70%);
   mask:radial-gradient(circle, #000 30%, transparent 70%); }
-/* l'alone ambientale */
+/* l'alone ambientale — sull'ammiraglia RESPIRA (scala, 9s) */
+.bp.eroe .alone { animation:respiro 9s ease-in-out infinite alternate;
+  transform-origin:30% 50%; }
+@keyframes respiro { from { transform:scale(1); }
+  to { transform:scale(1.14); } }
 .bp .alone { position:absolute; inset:-40% auto -40% -12%; width:60%;
   pointer-events:none; opacity:.5; transition:opacity .5s var(--ease);
   background:radial-gradient(46% 40% at 30% 50%, var(--ca), transparent 70%); }
@@ -589,8 +593,8 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .bp .banda::after { content:''; position:absolute; left:-40%; right:-40%;
   top:-30%; height:34%; transform:skewY(-18deg);
   background:linear-gradient(175deg, transparent,
-    rgba(255,255,255,.34) 50%, transparent);
-  animation:lamina 7s var(--ease) infinite; }
+    rgba(255,255,255,.26) 50%, transparent);
+  animation:lamina 10s var(--ease) infinite; }
 @keyframes lamina { 0%,55% { top:-34%; } 80%,100% { top:134%; } }
 /* lamina ORO dell'ammiraglia: metallo battuto E godronato (la
    micro-rigatura orizzontale sopra il gradiente = foil vera, non tinta) */
@@ -628,17 +632,19 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
     rgba(250,250,250,.34) 0 5px, transparent 5px 10px); }
 .bp .tratta .punto { position:absolute; top:3px; left:0; width:6px;
   height:6px; border-radius:50%; background:var(--c);
-  box-shadow:0 0 8px var(--c), 0 0 18px var(--ca);
-  animation:tratta 4.6s var(--ease) infinite; }
+  box-shadow:0 0 7px var(--c), 0 0 14px var(--ca);
+  animation:tratta 8s var(--ease) infinite; }
 /* la SCIA: la tratta già percorsa resta accesa dietro il punto */
 .bp .tratta::after { content:''; position:absolute; left:0; top:5.5px;
   height:1px; width:0; opacity:0;
   background:linear-gradient(90deg, transparent, var(--c));
-  animation:scia 4.6s var(--ease) infinite; }
-@keyframes tratta { 0% { left:0; opacity:0; } 12% { opacity:1; }
-  88% { opacity:1; } 100% { left:calc(100% - 6px); opacity:0; } }
-@keyframes scia { 0% { width:0; opacity:0; } 12% { opacity:.5; }
-  88% { opacity:.5; } 100% { width:100%; opacity:0; } }
+  animation:scia 8s var(--ease) infinite; }
+@keyframes tratta { 0% { left:0; opacity:0; } 7% { opacity:1; }
+  52% { left:calc(100% - 6px); } 84% { left:calc(100% - 6px);
+  opacity:1; } 100% { left:calc(100% - 6px); opacity:0; } }
+@keyframes scia { 0% { width:0; opacity:0; } 7% { opacity:.42; }
+  52% { width:100%; } 84% { width:100%; opacity:.42; }
+  100% { width:100%; opacity:0; } }
 
 /* lo strato vendita (il contratto, intatto) */
 .bp .vendita { display:flex; flex-direction:column; min-width:0;
@@ -662,6 +668,8 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .bp:hover .compra { transform:translateY(-1px);
   box-shadow:0 16px 34px -12px var(--cb); }
 .bp:hover .compra i { transform:translateX(4px); }
+.bp .compra:active { transform:translateY(0) scale(.98);
+  transition-duration:.15s; }
 .bp .rassicura { margin-top:10px; display:flex; align-items:flex-start;
   gap:8px; font-size:10.5px; line-height:1.5; color:var(--text-4);
   text-align:left; }
@@ -726,7 +734,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   padding:clamp(14px,1.8vw,20px) clamp(16px,2.1vw,26px);
   background:linear-gradient(180deg,#0C0C0F,#070708);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
-  transition:transform .5s var(--molla); }
+  transition:transform .7s var(--molla); }
 .bp .stub::before { content:'ADMIT ONE'; position:absolute; top:50%;
   right:7px; transform:translateY(-50%) rotate(180deg);
   writing-mode:vertical-rl; font-size:7px; font-weight:700;
@@ -740,7 +748,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   font-variant-numeric:tabular-nums; }
 /* il codice a barre decorativo (due trame sovrapposte = irregolare) */
 .bp .barcode { display:block; flex:1; height:30px; min-width:52px;
-  opacity:.6; background:
+  opacity:.45; background:
     repeating-linear-gradient(90deg, rgba(250,250,250,.75) 0 2px,
       transparent 2px 4px),
     repeating-linear-gradient(90deg, rgba(250,250,250,.5) 0 1px,
@@ -818,6 +826,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   .bp, .bp .stub, .bp .compra, .bp .compra i { transition:none !important; }
   .bp { transform:none !important; }
   .bp .banda::after { animation:none; display:none; }
+  .bp .alone { animation:none; }
   .bp .tratta .punto { animation:none; left:calc(100% - 6px); opacity:1; }
   .bp .tratta::after { animation:none; width:100%; opacity:.4; }
 }
@@ -1510,15 +1519,15 @@ html.vivo .sale.dentro .pass-carta { opacity:1; transform:rotate(-2deg);
     transform .85s cubic-bezier(.3,1.45,.5,1) .2s; }
 /* l'arrivo: i prodotti CALANO sullo scaffale in sequenza, con la molla */
 @keyframes pr-arriva {
-  from { opacity:0; transform:translateY(30px); }
+  from { opacity:0; transform:translateY(20px); }
   to { opacity:1; } }
 html.vivo .biglietteria .bp { opacity:0; }
 html.vivo .biglietteria.dentro .bp {
-  animation:pr-arriva .75s cubic-bezier(.3,1.45,.5,1) both; }
+  animation:pr-arriva 1.05s cubic-bezier(.22,1,.36,1) both; }
 html.vivo .biglietteria.dentro .bp:nth-child(1) { animation-delay:.05s; }
-html.vivo .biglietteria.dentro .bp:nth-child(2) { animation-delay:.17s; }
-html.vivo .biglietteria.dentro .bp:nth-child(3) { animation-delay:.29s; }
-html.vivo .biglietteria.dentro .bp:nth-child(4) { animation-delay:.41s; }
+html.vivo .biglietteria.dentro .bp:nth-child(2) { animation-delay:.22s; }
+html.vivo .biglietteria.dentro .bp:nth-child(3) { animation-delay:.39s; }
+html.vivo .biglietteria.dentro .bp:nth-child(4) { animation-delay:.56s; }
 @media (prefers-reduced-motion:reduce){
   html.vivo .sale .pass-carta { opacity:1;
     transform:rotate(-2deg); transition:none; }

@@ -33,7 +33,7 @@ seg_b = bg[b0:b1]
 seg_a = seg_a.replace(uno(seg_a, '.biglietteria { display:grid;'),
                       '.biglietteria { --c-vv:#00FF88; --c-pf:#FFD700; '
                       '--c-da:#9D8CFF; --c-cc:#3ED3FF;\n'
-                      '  --molla:cubic-bezier(.3,1.45,.5,1); display:grid;')
+                      '  --molla:cubic-bezier(.26,1.16,.44,1); display:grid;')
 css = ('/* IL BIGLIETTO — il servizio come boarding pass: la rotta del '
        'trasferimento,\n   il talloncino col prezzo, la perforazione '
        'punzonata. La metafora è un fatto\n   di prodotto: la visita '
@@ -103,6 +103,20 @@ for k in (1, 2, 3, 4):
 pt = pt.replace(uno(pt, 'html.vivo .pr-fila .pr { opacity:1; animation:none; }'),
                 'html.vivo .biglietteria .bp { opacity:1; animation:none; }')
 
+# ── 3b. l'ingresso si fa quieto: più lento, meno molla, passo più largo ──
+pt = pt.replace(uno(pt, 'from { opacity:0; transform:translateY(30px); }'),
+                'from { opacity:0; transform:translateY(20px); }')
+pt = pt.replace(
+    uno(pt, 'animation:pr-arriva .75s cubic-bezier(.3,1.45,.5,1) both; }'),
+    'animation:pr-arriva 1.05s cubic-bezier(.22,1,.36,1) both; }')
+for k, d in ((1, '.05'), (2, '.22'), (3, '.39'), (4, '.56')):
+    riga = (f'html.vivo .biglietteria.dentro .bp:nth-child({k})'
+            ' { animation-delay:')
+    v0 = uno(pt, riga)
+    i = pt.index(v0) + len(v0)
+    fine = pt.index('s; }', i)
+    pt = pt[:i] + d + pt[fine:]
+
 # ── 4. il div "banchina sale" duplicato (bug pre-esistente) ───────────
 doppio = ('<div class="banchina sale" style="margin-top:clamp(16px,2vw,24px)">'
           '<div class="banchina sale" style="margin-top:clamp(16px,2vw,24px)">')
@@ -112,7 +126,7 @@ pt = pt.replace(uno(pt, doppio),
 
 # ── verifiche finali ──────────────────────────────────────────────────
 for ago in ('id="prBiglietti"', 'class="bp eroe"',
-            '--molla:cubic-bezier(.3,1.45,.5,1); display:grid;'):
+            '--molla:cubic-bezier(.26,1.16,.44,1); display:grid;'):
     uno(pt, ago)
 for ago in ('timbro', 'filigrana', 'perf perf-v'):
     assert ago in pt, f'manca {ago}'
