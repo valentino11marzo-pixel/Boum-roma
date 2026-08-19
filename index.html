@@ -2532,6 +2532,34 @@ setTimeout(function () {
         });
       });
     })();
+    /* la biglietteria si MISURA: senza numeri non sapremo mai
+       se vende piu' dello scaffale. gate_view una volta sola
+       (sezione davvero guardata), gate_click col servizio e il
+       prezzo; design:'biglietto' rende confrontabile il futuro. */
+    (function () {
+      var fila = document.getElementById('prBiglietti');
+      if (!fila) return;
+      fila.querySelectorAll('.bp').forEach(function (bp) {
+        bp.addEventListener('click', function () {
+          if (!window.boomTrack) return;
+          var s = (bp.getAttribute('href') || '')
+            .replace(/^\//, '').replace(/\.html$/, '');
+          var q = bp.querySelector('.quota');
+          boomTrack('gate_click', { service: s,
+            price: q ? q.textContent.replace(/[^0-9]/g, '') : '',
+            flagship: bp.classList.contains('eroe') ? 1 : 0,
+            design: 'biglietto' });
+        });
+      });
+      if (!('IntersectionObserver' in window)) return;
+      var visto = false;
+      new IntersectionObserver(function (voci, oss) {
+        if (visto) return;
+        if (!voci.some(function (v) { return v.isIntersecting; })) return;
+        visto = true; oss.disconnect();
+        if (window.boomTrack) boomTrack('gate_view', { design: 'biglietto' });
+      }, { threshold: .35 }).observe(fila);
+    })();
     </script>
 
     <div class="banchina sale" style="margin-top:clamp(16px,2vw,24px)">
