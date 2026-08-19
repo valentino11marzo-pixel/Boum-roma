@@ -211,6 +211,24 @@ ok(!/function publishToImmobiliare|function publishToIdealista/.test(app),
   'nessuna seconda via di pubblicazione sui portali accanto al Pubblicista');
 ok(app.includes('MULTI-PORTAL LISTINGS PUBLISHER — RIMOSSO'), 'la rimozione è spiegata sul posto, non silenziosa');
 
+// ── 14. Ogni pagina aperta dal Prontuario ESISTE ED È SERVITA ───────────
+// Un'azione che apre una 404 è peggio di un'azione assente: l'operatore
+// pensa che il sistema sia rotto. `.vercelignore` toglie pagine dal
+// deploy senza toccare il repo, quindi "il file c'è" non basta.
+const ignored = readFileSync(join(ROOT, '.vercelignore'), 'utf8')
+  .split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#'));
+const servedOk = (rel) => {
+  const f = rel.replace(/^\//, '').split('?')[0];
+  const cand = [f, f + '.html'].find((c) => { try { readFileSync(join(ROOT, c)); return true; } catch { return false; } });
+  if (!cand) return 'manca dal repo';
+  const hit = ignored.some((g) => g === cand || (g.endsWith('*.html') && cand.startsWith(g.slice(0, -6))));
+  return hit ? 'escluso dal deploy (.vercelignore)' : null;
+};
+for (const a of P.ACTIONS.filter((x) => x.fn === 'open' && !x.need)) {
+  const why = servedOk(a.args[0]);
+  ok(!why, `"${a.label}" apre una pagina servita in produzione${why ? ' — ' + why : ''}`);
+}
+
 console.log('');
 console.log(fail ? `${pass} passed, ${fail} failed` : `Niente più funzioni sepolte — ${pass} passed, 0 failed`);
 process.exit(fail ? 1 : 0);
