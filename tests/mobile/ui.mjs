@@ -264,8 +264,11 @@ async function check(name, fn) {
   }
 }
 
+// --no-sandbox: sui runner CI (container, utente senza user-namespace)
+// Chromium non parte senza. In locale è innocuo.
 const browser = await chromium.launch({
-  executablePath: process.env.BOOM_CHROME || undefined
+  executablePath: process.env.BOOM_CHROME || undefined,
+  args: ['--no-sandbox']
 });
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 const page = await ctx.newPage();

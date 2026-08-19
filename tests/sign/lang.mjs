@@ -41,7 +41,9 @@ const srv = http.createServer((req, res) => {
 const PORT = srv.address().port;
 const URL_ = (q) => `http://127.0.0.1:${PORT}/sign.html?${q}`;
 
-const browser = await chromium.launch();
+// --no-sandbox: sui runner CI (container, utente senza user-namespace)
+// Chromium non parte senza. In locale è innocuo.
+const browser = await chromium.launch({ args: ['--no-sandbox'] });
 const errs = [];
 const newPage = async () => {
   const pg = await browser.newPage({ viewport: { width: 390, height: 844 } });

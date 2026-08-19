@@ -14,6 +14,7 @@
 //   node tests/bonifico/parity.mjs
 
 import { payRef } from '../../api/payments/_ref.js';
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 
@@ -47,7 +48,9 @@ const IDS = [
 ];
 
 const browser = await chromium.launch({
-  executablePath: process.env.BOOM_CHROMIUM || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  // Il percorso cablato è quello dell'ambiente di sviluppo; su un runner
+  // CI il browser lo risolve playwright da sé (undefined = default).
+  executablePath: process.env.BOOM_CHROMIUM || (existsSync('/opt/pw-browsers/chromium-1194/chrome-linux/chrome') ? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' : undefined),
   args: ['--no-sandbox'],
 });
 const page = await browser.newPage();

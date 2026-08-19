@@ -81,6 +81,32 @@ jobs:
       - name: Smoke test flusso auth
         run: node tests/smoke.mjs
 
+  # LA BATTERIA COMPLETA. Fino al 19 agosto 2026 la CI faceva girare 6 suite
+  # su 61: money, fiscal, taxpack, dataops, rules, smoke. Tutto il resto —
+  # viewings, dispo, geo, scheda, notify, richiamo, miniera, publisher,
+  # mobile, desktop, actions, backup… — esisteva, era verde in locale, e
+  # NON proteggeva niente: nessun automatismo l'ha mai eseguito su un PR.
+  # Una suite che nessuno lancia è documentazione, non una rete.
+  #
+  # Le suite che hanno bisogno di qualcosa di assente (playwright-core) si
+  # auto-dichiarano SKIP e non fanno mai fallire il giro — qui Chromium c'è,
+  # quindi girano davvero anche le due suite browser dei layer mobile/desktop.
+  full-suite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Dipendenze runtime (sharp, pdf-lib, jspdf, nodemailer…)
+        run: npm ci --omit=optional || npm install
+      - name: Playwright + Chromium (per le suite browser)
+        run: |
+          npm install --no-save playwright-core playwright >/dev/null
+          npx playwright install --with-deps chromium
+      - name: npm test — tutte le suite
+        run: npm test
+
   # Le rules di sicurezza si applicano solo quando qualcuno le DEPLOYA:
   # nell'agosto 2026 il repo era avanti di settimane rispetto a Firebase e il
   # lucchetto immobile (propertyLocks) falliva in produzione da giorni, in
