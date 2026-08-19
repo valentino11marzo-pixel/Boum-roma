@@ -552,7 +552,7 @@
       ]
     },
     {
-      "source": "/(portal|admin|admin-flats|setup-firebase|seed-listings|boom-doc-parser|boom_doc_parser|cockpit-preview|team|banca|salute|manuale|photo-lab|pfs-command|radar|watermark-studio|media-studio|pre-agreement-admin|casa|tenant|portal.html|admin.html|admin-flats.html|setup-firebase.html|seed-listings.html|boom_doc_parser.html|cockpit-preview.html|team.html|banca.html|salute.html|manuale.html|photo-lab.html|pfs-command.html|radar.html|watermark-studio.html|media-studio.html|pre-agreement-admin.html|tenant.html|viewing|viewing.html|scheda|scheda.html|sign|sign.html|pre-agreement|pre-agreement.html|verbale|verbale.html)(.*)",
+      "source": "/(portal|admin|admin-flats|setup-firebase|seed-listings|boom-doc-parser|boom_doc_parser|cockpit-preview|team|banca|salute|manuale|risposte|risposte.html|photo-lab|pfs-command|radar|watermark-studio|media-studio|pre-agreement-admin|casa|tenant|portal.html|admin.html|admin-flats.html|setup-firebase.html|seed-listings.html|boom_doc_parser.html|cockpit-preview.html|team.html|banca.html|salute.html|manuale.html|photo-lab.html|pfs-command.html|radar.html|watermark-studio.html|media-studio.html|pre-agreement-admin.html|tenant.html|viewing|viewing.html|scheda|scheda.html|sign|sign.html|pre-agreement|pre-agreement.html|verbale|verbale.html)(.*)",
       "headers": [
         {
           "key": "X-Robots-Tag",
@@ -644,12 +644,9 @@
     "api/reminder-cron.js": {
       "maxDuration": 60
     },
-    "api/radar/digest.js": {
-      "maxDuration": 60
-    },
-    "api/ops/backup.js": {
-      "maxDuration": 60
-    },
+      "api/radar/digest.js": {
+        "maxDuration": 60
+      },
     "api/stripe-webhook.js": {
       "maxDuration": 60
     },
@@ -740,16 +737,15 @@
     },
     "api/ops/conservazione.js": {
       "maxDuration": 60
+    },
+    "api/ops/cassaforte.js": {
+      "maxDuration": 60
     }
   },
   "crons": [
     {
       "path": "/api/reminder-cron",
       "schedule": "*/15 * * * *"
-    },
-    {
-      "path": "/api/ops/backup",
-      "schedule": "50 4 * * *"
     },
     {
       "path": "/api/telegram/notify-pending",
@@ -842,6 +838,10 @@
     {
       "path": "/api/market/pulse",
       "schedule": "50 5 * * *"
+    },
+    {
+      "path": "/api/ops/cassaforte",
+      "schedule": "50 2 * * *"
     },
     {
       "path": "/api/radar/digest",

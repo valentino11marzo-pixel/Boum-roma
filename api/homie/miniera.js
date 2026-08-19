@@ -29,6 +29,8 @@
 import crypto from 'node:crypto';
 import MINIERA from '../../js/miniera-engine.js';
 import { fsList, fsPatch, fsGet, requireSecret, readJson } from './_lib.js';
+import WADEMAND from '../../js/wa-demand-engine.js';
+import WA from '../../js/whatsapp-replies.js';
 import { replyLang } from '../_lang.js';
 import { tgNotify } from '../pfs/_health.js';
 
@@ -137,6 +139,26 @@ async function opStudy(res) {
   const approvals = MINIERA.approvalStats(actions);
   const vd = MINIERA.verdict(st, approvals);
 
+  // ── quali risposte rapide servono DAVVERO ─────────────────────────────
+  // Stessi dati, seconda domanda: non "che potere costruire" ma "quali
+  // messaggi scrivi a mano più spesso, e quali ti costano di più". Il costo
+  // non si inventa: è la lunghezza VERA della risposta che copre quel tema
+  // (~200 caratteri al minuto scritti col pollice, di corsa). Fra due
+  // risposte che coprono lo stesso tema si prende la più lunga, non la
+  // somma: ne mandi una, e una stima gonfiata non è una misura.
+  const REPLY_LEN = new Map(WA.REPLIES.map(r => [r.sc, r.text.length]));
+  const costOf = (covers) => {
+    const lens = covers.map(sc => REPLY_LEN.get(sc) || 0).filter(Boolean);
+    return lens.length ? Math.max(...lens) / 200 : 2;
+  };
+  const joined = MINIERA.joinThreads(rows, index, {});
+  const demand = WADEMAND.measure(
+    // SOLO le parole dei clienti: i thread ridotti dal Mac (che porta anche
+    // l'esito) e i messaggi dei lead, che esistono anche a Mac spento.
+    [...WADEMAND.corpusFromThreads(joined), ...WADEMAND.corpusFromLeads(leads)],
+    { costOf, defaultMinutes: 3, minSample: 30, days: 180 },
+  );
+
   // Il rapporto persistito: liste cappate così il doc resta piccolo — il
   // dettaglio oltre il cap si rigenera quando serve (lo studio è idempotente).
   const day = new Date().toISOString().slice(0, 10);
@@ -153,6 +175,8 @@ async function opStudy(res) {
       },
     },
     verdict: vd,
+    // le liste lunghe già cappate dal motore: il doc resta piccolo
+    domanda: demand,
   };
   await fsPatch('teamReports/miniera-' + day, stored);
   await fsPatch(STATE, { lastStudyAt: new Date(), lastReportId: 'miniera-' + day }).catch(() => {});
@@ -166,6 +190,7 @@ async function opStudy(res) {
 
   // Best-effort: un Telegram fallito non è uno studio fallito.
   try { await tgNotify(MINIERA.tgSummary(st, vd)); } catch { /* niente */ }
+  try { await tgNotify(WADEMAND.tgSummary(demand)); } catch { /* niente */ }
 
-  return res.status(200).json({ ok: true, report: 'teamReports/miniera-' + day, study: stored.study, verdict: vd });
+  return res.status(200).json({ ok: true, report: 'teamReports/miniera-' + day, study: stored.study, verdict: vd, domanda: demand });
 }

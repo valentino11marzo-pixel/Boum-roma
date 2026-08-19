@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Variante L'OLOGRAMMA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;1,300&display=swap" rel="stylesheet">
+<style>
+:root {
+  --gold:#FFD700; --green:#00FF88; --black:#030303; --void:#060607;
+  --surface:#0B0B0C; --card:#0E0E10; --text:#FAFAFA;
+  --text-2:rgba(250,250,250,.72); --text-3:rgba(250,250,250,.5);
+  --text-4:rgba(250,250,250,.48); --line-0:rgba(255,255,255,.04);
+  --line:rgba(255,255,255,.08);
+  --ease:cubic-bezier(.16,1,.3,1); --molla:cubic-bezier(.3,1.45,.5,1);
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  --display:'Helvetica Neue',Helvetica,Arial,sans-serif;
+  --c-vv:#00FF88; --c-pf:#FFD700; --c-da:#9D8CFF; --c-cc:#3ED3FF;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body { background:var(--black); color:var(--text); font-family:var(--sans);
+  font-weight:300; -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+
+/* ————— header ————— */
+.wrap{max-width:1180px;margin:0 auto;padding:0 clamp(20px,4vw,48px)}
+.intro{padding-top:clamp(56px,8vw,92px);padding-bottom:clamp(34px,5vw,52px)}
+.eyebrow{font-size:11px;letter-spacing:.42em;text-transform:uppercase;
+  color:var(--text-3);display:flex;align-items:center;gap:14px;font-weight:400}
+.eyebrow::before{content:'';width:34px;height:1px;background:var(--gold);flex:none}
+.intro h2{font-family:var(--display);font-weight:200;
+  font-size:clamp(34px,5.4vw,58px);line-height:1.06;letter-spacing:-.015em;
+  margin-top:20px}
+.intro h2 em{font-style:italic;font-weight:300;color:var(--gold);display:inline-block}
+
+/* ————— section ————— */
+.servizi{padding-bottom:clamp(72px,9vw,120px)}
+.card{position:relative;--c:var(--gold);
+  background:linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,0) 42%),var(--card);
+  border:1px solid var(--line-0);border-radius:24px;overflow:hidden;
+  box-shadow:0 30px 70px -30px rgba(0,0,0,.85),0 4px 18px rgba(0,0,0,.5);
+  transition:transform .6s var(--ease),border-color .6s var(--ease),box-shadow .6s var(--ease);}
+.card:hover{transform:translateY(-4px);
+  border-color:color-mix(in srgb,var(--c) 26%,rgba(255,255,255,.06));
+  box-shadow:0 40px 90px -30px rgba(0,0,0,.9),
+    0 10px 50px -18px color-mix(in srgb,var(--c) 22%,transparent);}
+.card::before{content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(58% 44% at 50% 106%,color-mix(in srgb,var(--c) 8%,transparent),transparent 72%);}
+
+/* ————— the holographic stage ————— */
+.stage{position:relative;height:300px;overflow:hidden;border-radius:24px 24px 0 0}
+.floor{position:absolute;left:-12%;right:-12%;bottom:0;height:170px;
+  background-image:linear-gradient(var(--line-0) 1px,transparent 1px),
+    linear-gradient(90deg,var(--line-0) 1px,transparent 1px);
+  background-size:30px 30px;background-position:center bottom;
+  transform:perspective(340px) rotateX(56deg);transform-origin:50% 100%;
+  -webkit-mask-image:linear-gradient(to top,#000 12%,transparent 82%);
+  mask-image:linear-gradient(to top,#000 12%,transparent 82%);opacity:.9}
+/* projection cone */
+.cone,.scan{position:absolute;left:50%;transform:translateX(-50%);
+  width:236px;top:30px;bottom:78px;
+  clip-path:polygon(0 0,100% 0,72% 100%,28% 100%);pointer-events:none}
+.cone{background:linear-gradient(to top,
+    color-mix(in srgb,var(--c) 30%,transparent),
+    color-mix(in srgb,var(--c) 9%,transparent) 52%,
+    transparent 94%);
+  opacity:.5;transition:opacity .6s var(--ease)}
+.scan{background:repeating-linear-gradient(to top,
+    color-mix(in srgb,var(--c) 38%,transparent) 0 1px,transparent 1px 9px);
+  opacity:.38;mix-blend-mode:screen;transition:opacity .6s var(--ease);
+  -webkit-mask-image:linear-gradient(to top,#000 46%,transparent 96%);
+  mask-image:linear-gradient(to top,#000 46%,transparent 96%);
+  animation:rise 7s linear infinite}
+@keyframes rise{from{background-position:0 0}to{background-position:0 -180px}}
+.card:hover .cone{opacity:.92}
+.card:hover .scan{opacity:.75}
+/* pedestal */
+.pedana{position:absolute;left:50%;transform:translateX(-50%);bottom:64px;
+  width:138px;height:30px;border-radius:50%;
+  background:radial-gradient(50% 50% at 50% 50%,
+    color-mix(in srgb,var(--c) 52%,transparent),
+    color-mix(in srgb,var(--c) 16%,transparent) 58%,transparent 78%);
+  border:1px solid color-mix(in srgb,var(--c) 42%,transparent);
+  box-shadow:0 0 26px color-mix(in srgb,var(--c) 26%,transparent),
+    inset 0 0 20px color-mix(in srgb,var(--c) 28%,transparent);
+  transition:box-shadow .6s var(--ease)}
+.pedana::after{content:'';position:absolute;left:50%;top:50%;
+  transform:translate(-50%,-50%);width:56%;height:46%;border-radius:50%;
+  background:radial-gradient(50% 50% at 50% 50%,
+    color-mix(in srgb,var(--c) 85%,#fff 6%),
+    color-mix(in srgb,var(--c) 35%,transparent) 70%,transparent 100%);
+  filter:blur(1px)}
+.card:hover .pedana{box-shadow:0 0 44px color-mix(in srgb,var(--c) 45%,transparent),
+  inset 0 0 26px color-mix(in srgb,var(--c) 40%,transparent)}
+/* floating icon */
+.holo{position:absolute;left:50%;top:22px;transform:translateX(-50%);
+  color:var(--c);pointer-events:none}
+.holo-f{animation:float 5.4s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0) rotate(0deg)}
+  50%{transform:translateY(-9px) rotate(-1.6deg)}}
+.holo svg{display:block;width:100px;height:100px;
+  filter:drop-shadow(0 0 16px color-mix(in srgb,var(--c) 55%,transparent))
+    drop-shadow(0 0 2px color-mix(in srgb,var(--c) 85%,transparent));
+  transition:transform .7s var(--molla)}
+.card:hover .holo svg{transform:scale(1.12)}
+/* price flap tiles */
+.flaps{position:absolute;left:50%;transform:translateX(-50%);bottom:14px;
+  display:flex;gap:4px}
+.flap{min-width:27px;height:38px;padding:0 3px;border-radius:6px;
+  background:linear-gradient(180deg,#191A1E 0 49%,#0F1013 51% 100%);
+  border:1px solid var(--line);position:relative;
+  display:grid;place-items:center;font-weight:600;font-size:17px;
+  color:var(--text-2);font-variant-numeric:tabular-nums;
+  box-shadow:0 6px 14px rgba(0,0,0,.55)}
+.flap::after{content:'';position:absolute;left:3px;right:3px;top:50%;height:1px;
+  background:rgba(0,0,0,.6)}
+
+/* ————— sales layer (identico allo studio di conversione) ————— */
+.vendita{padding:24px 28px 30px;display:flex;flex-direction:column;flex:1}
+.prow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pnome{font-family:var(--display);font-weight:350;font-size:21px;
+  letter-spacing:.01em}
+.kind{font-size:9.5px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--c);border:1px solid color-mix(in srgb,var(--c) 45%,transparent);
+  border-radius:100px;padding:4px 10px 3px;
+  background:color-mix(in srgb,var(--c) 8%,transparent)}
+.promessa{margin-top:10px;font-size:14.5px;line-height:1.6;color:var(--text-2);
+  flex:1}
+.compra{display:flex;align-items:center;justify-content:center;gap:8px;
+  margin-top:18px;border-radius:100px;min-height:44px;padding:0 22px;
+  background:var(--c);color:#0A0A05;font-weight:700;font-size:14.5px;
+  text-decoration:none;letter-spacing:.01em;
+  box-shadow:0 10px 28px -6px color-mix(in srgb,var(--c) 45%,transparent);
+  transition:transform .45s var(--molla),box-shadow .45s var(--ease)}
+.compra:hover{transform:translateY(-2px);
+  box-shadow:0 16px 36px -6px color-mix(in srgb,var(--c) 60%,transparent)}
+.rassicura{margin-top:12px;font-size:12.5px;line-height:1.55;color:var(--text-3);
+  display:flex;gap:8px}
+.rassicura b{color:var(--c);font-weight:600;flex:none}
+
+/* ————— flagship (PF) ————— */
+.flag{--c:var(--c-pf);display:grid;grid-template-columns:1.06fr .94fr;
+  min-height:470px;margin-bottom:22px}
+.flag .stage{height:auto;min-height:470px;border-radius:24px 0 0 24px}
+.flag .floor{height:220px}
+.flag .cone,.flag .scan{width:330px;top:44px;bottom:120px}
+.flag .holo{top:30px}
+.flag .holo svg{width:136px;height:136px}
+.flag .pedana{bottom:104px;width:172px;height:38px}
+.pedana2{position:absolute;left:50%;transform:translateX(-50%);bottom:92px;
+  width:224px;height:46px;border-radius:50%;
+  border:1px solid color-mix(in srgb,var(--c-pf) 26%,transparent);
+  background:radial-gradient(50% 50% at 50% 50%,
+    color-mix(in srgb,var(--c-pf) 14%,transparent),
+    color-mix(in srgb,var(--c-pf) 5%,transparent) 62%,transparent 80%);
+  box-shadow:0 0 34px color-mix(in srgb,var(--c-pf) 16%,transparent)}
+/* rotating gold ring around the double pedestal */
+.orbita{position:absolute;left:50%;bottom:-16px;width:270px;height:270px;
+  margin-left:-135px;transform:perspective(700px) rotateX(71deg);
+  pointer-events:none}
+.orbita .ring{width:100%;height:100%;border-radius:50%;
+  background:conic-gradient(from 0deg,
+    transparent 0deg,color-mix(in srgb,var(--c-pf) 90%,#fff 8%) 52deg,
+    transparent 118deg,transparent 196deg,
+    color-mix(in srgb,var(--c-pf) 45%,transparent) 236deg,transparent 288deg);
+  -webkit-mask:radial-gradient(closest-side,transparent calc(100% - 3.5px),#000 calc(100% - 2.5px));
+  mask:radial-gradient(closest-side,transparent calc(100% - 3.5px),#000 calc(100% - 2.5px));
+  animation:orbit 8s linear infinite;
+  filter:drop-shadow(0 0 6px color-mix(in srgb,var(--c-pf) 70%,transparent))}
+@keyframes orbit{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+.flag .flaps{bottom:22px}
+.flag .flap{min-width:32px;height:44px;font-size:20px}
+.flag .vendita{padding:clamp(34px,4.5vw,58px);justify-content:center}
+.flag .pnome{font-size:clamp(26px,2.6vw,32px);font-weight:300}
+.flag .promessa{font-size:clamp(15.5px,1.5vw,17px);flex:0 1 auto;
+  max-width:44ch;margin-top:14px}
+.flag .compra{align-self:flex-start;min-height:52px;padding:0 30px;
+  font-size:15.5px;margin-top:26px}
+.flag .rassicura{font-size:13px;max-width:46ch}
+
+/* ————— the three ————— */
+.row{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+.row .card{display:flex;flex-direction:column}
+.vv{--c:var(--c-vv)} .da{--c:var(--c-da)} .cc{--c:var(--c-cc)}
+
+/* ————— responsive ————— */
+@media (min-width:1021px){
+  /* i bottoni delle tre card si allineano anche quando la garanzia è di 1 riga */
+  .row .rassicura{min-height:41px}
+}
+@media (max-width:1020px){
+  .flag{grid-template-columns:1fr;min-height:0}
+  .flag .stage{min-height:430px;border-radius:24px 24px 0 0}
+  .flag .compra{align-self:stretch}
+  .flag .promessa,.flag .rassicura{max-width:none}
+  .row{grid-template-columns:1fr;gap:20px}
+  .row .card{display:grid;grid-template-columns:300px 1fr}
+  .row .stage{height:100%;min-height:286px;border-radius:24px 0 0 24px}
+  .row .vendita{padding:26px 30px;justify-content:center}
+  .row .promessa{flex:0 1 auto}
+  .row .compra{align-self:flex-start;padding:0 26px}
+}
+@media (max-width:580px){
+  .row .card{display:flex;flex-direction:column}
+  .row .stage{height:270px;min-height:0;border-radius:24px 24px 0 0}
+  .flag .stage{min-height:360px}
+  .flag .cone,.flag .scan{width:270px;top:30px;bottom:112px}
+  .flag .holo svg{width:112px;height:112px}
+  .flag .holo{top:22px}
+  .orbita{width:230px;margin-left:-115px;bottom:-4px;height:230px}
+  .flag .pedana{width:150px}
+  .pedana2{width:196px}
+  .compra,.flag .compra,.row .compra{align-self:stretch;width:100%}
+  .row .vendita,.vendita{padding:22px 22px 26px}
+  .intro h2{font-size:clamp(30px,9vw,38px)}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  .cone{opacity:.8}.scan{opacity:.5}
+}
+</style>
+</head>
+<body>
+
+<header class="wrap intro">
+  <p class="eyebrow">Boom · Services</p>
+  <h2>Four services. <em>One standard.</em></h2>
+</header>
+
+<section class="wrap servizi">
+
+  <!-- ————— PROPERTY FINDING · flagship ————— -->
+  <article class="card flag">
+    <div class="stage">
+      <div class="floor"></div>
+      <div class="orbita"><div class="ring"></div></div>
+      <div class="pedana2"></div>
+      <div class="pedana"></div>
+      <div class="cone"></div>
+      <div class="scan"></div>
+      <div class="holo"><div class="holo-f">
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="21" cy="21" r="11.5"/>
+          <path d="M29.5 29.5 L40 40"/>
+          <path d="M15.5 20.2 C16 16.9 18.4 15 21 14.6" opacity=".55"/>
+        </svg>
+      </div></div>
+      <div class="flaps" aria-hidden="true"><span class="flap">€</span><span class="flap">3</span><span class="flap">5</span><span class="flap">0</span></div>
+    </div>
+    <div class="vendita">
+      <div class="prow">
+        <h3 class="pnome">Property Finding</h3>
+        <span class="kind">Flagship</span>
+      </div>
+      <p class="promessa">Your private hunter on the whole Rome market — off-market included, every shortlist walked in person before you see it.</p>
+      <a class="compra" href="/property-finding.html">Start the hunt · €350 →</a>
+      <p class="rassicura"><b>✓</b> Zero risk: deducted on success, refunded in full if we don't deliver.</p>
+    </div>
+  </article>
+
+  <div class="row">
+
+    <!-- ————— VIRTUAL VIEWING ————— -->
+    <article class="card vv">
+      <div class="stage">
+        <div class="floor"></div>
+        <div class="pedana"></div>
+        <div class="cone"></div>
+        <div class="scan"></div>
+        <div class="holo"><div class="holo-f" style="animation-delay:-1.3s">
+          <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="6" y="15" width="23" height="18" rx="4.5"/>
+            <path d="M29 21.5 L41 15.5 V32.5 L29 26.5"/>
+            <circle cx="12.5" cy="21.5" r="1.4"/>
+          </svg>
+        </div></div>
+        <div class="flaps" aria-hidden="true"><span class="flap">€</span><span class="flap">8</span><span class="flap">9</span></div>
+      </div>
+      <div class="vendita">
+        <div class="prow">
+          <h3 class="pnome">Virtual Viewing</h3>
+          <span class="kind">Live</span>
+        </div>
+        <p class="promessa">See any home live on video before you fly — the red flags said out loud.</p>
+        <a class="compra" href="/virtual-viewing.html">Book a live tour · €89 →</a>
+        <p class="rassicura"><b>✓</b> Credited if you rent with us · BOOM homes: free, always.</p>
+      </div>
+    </article>
+
+    <!-- ————— DEAL ASSISTANCE ————— -->
+    <article class="card da">
+      <div class="stage">
+        <div class="floor"></div>
+        <div class="pedana"></div>
+        <div class="cone"></div>
+        <div class="scan"></div>
+        <div class="holo"><div class="holo-f" style="animation-delay:-2.7s">
+          <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M24 6.5 L37.5 11.5 V22 C37.5 31.5 32 37.8 24 41.5 C16 37.8 10.5 31.5 10.5 22 V11.5 Z"/>
+            <path d="M17.5 23.5 L22 28 L31 18.5"/>
+          </svg>
+        </div></div>
+        <div class="flaps" aria-hidden="true"><span class="flap">€</span><span class="flap">2</span><span class="flap">4</span><span class="flap">9</span></div>
+      </div>
+      <div class="vendita">
+        <div class="prow">
+          <h3 class="pnome">Deal Assistance</h3>
+          <span class="kind">Protection</span>
+        </div>
+        <p class="promessa">Found a home yourself? We verify the landlord and the papers — then negotiate for you.</p>
+        <a class="compra" href="/deal-assistance.html">Protect the deal · €249 →</a>
+        <p class="rassicura"><b>✓</b> Fixed fee — deposit and clauses negotiated, no percentages.</p>
+      </div>
+    </article>
+
+    <!-- ————— CONTRACT CHECK ————— -->
+    <article class="card cc">
+      <div class="stage">
+        <div class="floor"></div>
+        <div class="pedana"></div>
+        <div class="cone"></div>
+        <div class="scan"></div>
+        <div class="holo"><div class="holo-f" style="animation-delay:-4.1s">
+          <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 6.5 H28.5 L36 14 V41.5 H14 Z"/>
+            <path d="M28.5 6.5 V14 H36"/>
+            <path d="M19.5 23 H30.5 M19.5 29 H30.5 M19.5 35 H26"/>
+          </svg>
+        </div></div>
+        <div class="flaps" aria-hidden="true"><span class="flap">€</span><span class="flap">4</span><span class="flap">9</span></div>
+      </div>
+      <div class="vendita">
+        <div class="prow">
+          <h3 class="pnome">Contract Check</h3>
+          <span class="kind">Express</span>
+        </div>
+        <p class="promessa">About to sign? A written traffic-light verdict in 24h: fine, unfair, missing.</p>
+        <a class="compra" href="/contract-check-express.html">Check my contract · €49 →</a>
+        <p class="rassicura"><b>✓</b> Credited in full on Deal Assistance.</p>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+</body>
+</html>
