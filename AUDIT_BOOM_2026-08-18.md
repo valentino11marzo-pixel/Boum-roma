@@ -177,3 +177,60 @@ BOOM non è un prototipo travestito da prodotto. È un prodotto vero, con un nuc
 ---
 
 *Audit del 2026-08-18 su `HEAD`. Prove: log runtime Vercel (7gg) + log CI GitHub + lettura riga-per-riga. I fix di sicurezza citati come "già scritti altrove" sono verificati nel repo. Caveat: `firestore.rules` è un file di repo e le regole attive in produzione sono più vecchie (drift provato) — le sezioni sulle rules vanno rilette dopo il primo deploy pulito.*
+
+---
+
+## 9. Il codice morto — censimento e sentenza (aggiornato 2026-08-19)
+
+Il P2 «~45 funzioni orfane, ~1.500 righe» è stato misurato invece che stimato.
+Su **802 funzioni top-level** di `js/portal-app.js`, quelle con **zero
+chiamanti** (in `portal-app.js` + `portal.html`) erano **53**.
+
+Non sono tutte la stessa cosa, e trattarle allo stesso modo sarebbe stato
+l'errore. Tre destini:
+
+### a) RIMOSSA — 1 isola, 292 righe, 14 funzioni
+`MULTI-PORTAL LISTINGS PUBLISHER` (`listingState`, `LISTING_DEFAULTS`,
+`openNewListing`, `saveDraft/editDraft/deleteDraft/clearAllDrafts`,
+`generateTitle/Description/DescriptionEN`, `loadTemplate`,
+`copyListingData`, `publishToImmobiliare/Idealista`).
+
+Verificata **isola chiusa** prima di toccarla: nessun riferimento a
+`listingState` né a nessuna delle 14 funzioni da fuori del blocco, e
+l'unico ingresso (`openNewListing`) non lo chiamava nessuno. Un editor
+annunci con le bozze in `localStorage` che "pubblicava" copiando i dati
+negli appunti e aprendo il portale in una scheda — superato per intero da
+bot Telegram (`/api/wizard/publish`) → Photo Lab → Copywriter →
+**Pubblicista** (`api/publisher/*`, che tiene stato, diff e rapporti).
+
+Tenerla non era neutro: era una **seconda via di pubblicazione** che poteva
+divergere dalla prima. Tre check in `tests/actions/run.mjs` impediscono che
+torni per sbaglio.
+
+### b) RECUPERATE — 3 funzioni complete che non lanciava nessuno
+| funzione | cos'era | dove vive ora |
+|---|---|---|
+| `openTemplateForClient` | contratto di servizio precompilato col cliente dentro | Prontuario, azione contestuale su un cliente |
+| `preOpenBoomCardGenerator` | BOOM Card Generator (600 righe, 3 passi, link annuncio → card social) | Prontuario → Strumenti |
+| `sendBulkReminders` | solleciti a TUTTE le rate scadute, con conferma | Prontuario → Strumenti |
+
+Il test pretende che fossero orfane (**1 sola occorrenza = la definizione**):
+se un domani vengono cablate anche altrove, si scopre invece di duplicare.
+
+### c) LASCIATE — 41 funzioni sparse, e il perché
+Il sottoalbero **PFS browser** (`pre*`, 31 funzioni) **NON è un'isola
+chiusa**: `preOpenCasafariAlerts`, `preOpenCasafariForClient`,
+`preSaveProperty` e lo stato `preState` sono letti da fuori — e il BOOM
+Card Generator, appena rimesso in servizio, vive lì dentro e legge
+`preState`. Rimuoverlo sarebbe stato un intervento a rischio reale per un
+guadagno invisibile.
+
+Le altre (`quickAddTask`, `searchCRM`/`filterCRM`, `renderTaskItem`,
+`showAuthInfo`, `safeToDate`, `setPFS*`, gli alias `boomExport*`…) sono
+resti di UI smontate: 5–40 righe l'una, nessuna condivisa, nessun rischio
+di divergenza. **Costano parse, non correttezza.** Restano censite qui
+perché il debito tracciato è debito, quello dimenticato è una sorpresa.
+
+**Regola che ne esce**: si cancella ciò che può DIVERGERE (una seconda via
+per fare la stessa cosa), si recupera ciò che è completo e utile, si lascia
+— dichiarandolo — ciò che è solo inerte.

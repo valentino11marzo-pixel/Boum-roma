@@ -180,7 +180,8 @@ ok(P.findRecords('rossi', 'contract', { handleSearch() {}, document: { getElemen
 // Erano scritte, complete, e non le lanciava nessuno. La prova che erano
 // orfane sta nel conteggio dei chiamanti: definizione e basta.
 for (const [fn, why] of [['openTemplateForClient', 'contratto di servizio precompilato col cliente dentro'],
-                         ['preOpenBoomCardGenerator', 'BOOM Card Generator']]) {
+                         ['preOpenBoomCardGenerator', 'BOOM Card Generator'],
+                         ['sendBulkReminders', 'solleciti in blocco a tutte le rate scadute']]) {
   const uses = (app.match(new RegExp(`\\b${fn}\\b`, 'g')) || []).length;
   ok(uses === 1, `"${fn}" era orfana in portal-app.js (1 sola occorrenza = la definizione, trovate ${uses})`);
   ok(P.ACTIONS.some((a) => a.fn === fn), `"${fn}" è ora raggiungibile dal Prontuario — ${why}`);
@@ -194,6 +195,21 @@ ok(/P\.run\(a, window, r\)/.test(desk), 'desktop: il record scelto arriva a run(
 ok(/function pick\(a, k\)/.test(mob) && /function unpick/.test(mob), 'mobile: il Menu ha il selettore e la via di ritorno');
 ok(/P\.run\(a, window, r\)/.test(mob), 'mobile: il record scelto arriva a run() come terzo argomento');
 ok(/picking \? renderPick\(\) : render\(\)/.test(mob), 'mobile: si scrive nello STESSO campo, cambia solo cosa si cerca');
+
+// ── 13. L'isola rimossa non torna ───────────────────────────────────────
+// Il "MULTI-PORTAL LISTINGS PUBLISHER" (editor annunci con bozze in
+// localStorage, "pubblica" = copia negli appunti + apri una scheda) era
+// un'isola chiusa e non raggiungibile, superata da wizard bot + Photo Lab +
+// Pubblicista. Rimosso il 2026-08-19. Se ricompare, o è un ripristino per
+// sbaglio o è una SECONDA via di pubblicazione che diverge dalla prima:
+// entrambe le cose vanno viste, non subite.
+// (si tolgono i commenti: la nota che SPIEGA la rimozione nomina per forza
+//  ciò che è stato rimosso — è testo, non codice)
+const appCode = app.replace(/^\s*\/\/.*$/gm, '');
+ok(!/\blistingState\b/.test(appCode), 'l\'editor annunci legacy resta rimosso (nessun listingState nel codice)');
+ok(!/function publishToImmobiliare|function publishToIdealista/.test(app),
+  'nessuna seconda via di pubblicazione sui portali accanto al Pubblicista');
+ok(app.includes('MULTI-PORTAL LISTINGS PUBLISHER — RIMOSSO'), 'la rimozione è spiegata sul posto, non silenziosa');
 
 console.log('');
 console.log(fail ? `${pass} passed, ${fail} failed` : `Niente più funzioni sepolte — ${pass} passed, 0 failed`);

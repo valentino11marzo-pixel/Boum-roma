@@ -183,7 +183,13 @@
         // Cancellarlo sarebbe stato lo spreco; qui torna raggiungibile.
         { id: 'tool:boomcard', group: 'Strumenti', icon: '✨', label: 'BOOM Card Generator',
           keywords: 'card generator annuncio social immagine grafica instagram export link',
-          fn: 'preOpenBoomCardGenerator', args: [], admin: true }
+          fn: 'preOpenBoomCardGenerator', args: [], admin: true },
+        // RECUPERATA: i solleciti in blocco a TUTTE le rate scadute — scritta,
+        // con la sua conferma prima di partire, e senza nessun bottone che la
+        // lanciasse. È il lavoro di un pomeriggio fatto in un tap.
+        { id: 'tool:bulkreminders', group: 'Strumenti', icon: '📣', label: 'Solleciti in blocco (rate scadute)',
+          keywords: 'solleciti blocco massivo ritardi scadute insoluti reminder tutti',
+          fn: 'sendBulkReminders', args: [], admin: true }
     );
 
     // ── Esportazioni (erano un bottone per pagina, ora si cercano) ──────
