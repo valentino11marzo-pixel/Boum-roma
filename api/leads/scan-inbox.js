@@ -90,7 +90,14 @@ export default async function handler(req, res) {
   // il kill a metà lavoro — memoria e dedupe rendono gratis il giro dopo.
   const softDeadline = Date.now() + 48_000;
   const stats = { scanned: 0, requests: 0, ingested: 0, duplicates: 0, aiCalls: 0, unmatched: 0, timeBoxed: 0 };
-  const client = new ImapFlow({ host: 'imap.gmail.com', port: 993, secure: true, auth: { user, pass }, logger: false });
+  // Timeout ESPLICITI: i default di imapflow (connect 90s, socket idle 5min)
+  // superano il limite piattaforma (60s) — una Gmail lenta uccideva la
+  // funzione SENZA battito: errs=0 e run morti, il silenzio ambiguo. Con i
+  // tetti, lo stallo diventa un errore CONTATO (reportHealth ok:false).
+  const client = new ImapFlow({
+    host: 'imap.gmail.com', port: 993, secure: true, auth: { user, pass }, logger: false,
+    connectionTimeout: 15000, greetingTimeout: 10000, socketTimeout: 25000,
+  });
 
   // processed-message memory: ONE doc under heartbeat/ (a collection the
   // security rules already allow to admin) — no new rules deploy needed,
@@ -110,6 +117,7 @@ export default async function handler(req, res) {
 
       const uids = new Set();
       for (const dom of PORTAL_DOMAINS) {
+        if (Date.now() > softDeadline) break; // socket malato: ogni search può costare 25s
         try { for (const u of await client.search({ since, from: dom }, { uid: true }) || []) uids.add(u); }
         catch (e) { console.warn('[leads/scan-inbox] search', dom, e.message); }
       }

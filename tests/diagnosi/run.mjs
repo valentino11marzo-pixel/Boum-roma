@@ -59,6 +59,21 @@ const mAll = app.slice(app.indexOf('async function markAllNotificationsRead'), a
 ok(/n\.read = true/.test(mAll) && /updateNotifBadge\(\)/.test(mAll),
   '"segna tutte lette" aggiorna il locale senza aspettare il listener');
 
+// ── 4. Il segnale di versione ───────────────────────────────────────────
+// Il 20/08 una correzione è rimasta invisibile 8 ore su un tab vivo: una
+// SPA non ricarica mai il proprio codice e nessuno avvisava l'operatore.
+const vb = app.slice(app.indexOf('function versionBeacon'), app.indexOf('function versionBeacon') + 2600);
+ok(vb.length > 100, 'il segnale di versione esiste (versionBeacon)');
+ok(/method: 'HEAD'/.test(vb) && /cache: 'no-store'/.test(vb),
+  'controlla la versione con un HEAD no-store (solo header, mai il download del file)');
+ok(/etag/.test(vb), "la versione è l'ETag di Vercel (hash del contenuto — nessun numero da ricordarsi di aggiornare)");
+ok((vb.match(/location\.reload\(\)/g) || []).length === 1 && /onclick = \(\) => location\.reload\(\)/.test(vb),
+  'il reload parte SOLO dal tocco sulla pillola — mai automatico (potresti avere un form a metà)');
+ok(/visibilitychange/.test(vb) && /30 \* 60 \* 1000/.test(vb) && /lastCheck < 60000/.test(vb),
+  'controlla ogni 30 minuti e al ritorno sul tab, con freno anti-raffica');
+ok(/__boomVerBeacon/.test(vb) && vb.split('try {').length >= 3,
+  'idempotente e in guardia try/catch: un beacon rotto non tocca il boot');
+
 console.log('');
 console.log(fail ? `${pass} passed, ${fail} failed` : `Nessun fallimento resta muto — ${pass} passed, 0 failed`);
 process.exit(fail ? 1 : 0);

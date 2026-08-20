@@ -202,6 +202,51 @@ window.__portalAppLoaded = true; // sentinella per la via d'uscita anti-spinner-
         }
     }
     
+    // ═══ IL SEGNALE DI VERSIONE ════════════════════════════════════════════
+    // L'operatore tiene il portale aperto tutto il giorno; i deploy escono
+    // anche tre volte al giorno e una SPA non ricarica mai il proprio codice:
+    // il 20/08 una correzione è rimasta invisibile per 8 ore su un tab vivo
+    // (il rapporto 🩺 usciva col formato vecchio e sembrava un bug non
+    // corretto). L'ETag di /js/portal-app.js su Vercel È l'hash del contenuto
+    // — un HEAD (solo header, niente download) ogni mezz'ora e al ritorno sul
+    // tab lo confronta con quello visto al boot. Cambia → pillola "aggiorna".
+    // MAI un reload automatico: potresti avere un form a metà.
+    (function versionBeacon() {
+        try {
+            if (window.__boomVerBeacon) return; window.__boomVerBeacon = true;
+            let base = null, shown = null, lastCheck = 0;
+            const head = () => fetch('/js/portal-app.js', { method: 'HEAD', cache: 'no-store' })
+                .then((r) => (r && r.ok && (r.headers.get('etag') || r.headers.get('last-modified'))) || null)
+                .catch(() => null);
+            const pill = () => {
+                if (document.getElementById('boomUpdatePill')) return;
+                const b = document.createElement('button');
+                b.id = 'boomUpdatePill';
+                b.type = 'button';
+                b.textContent = '↻ Nuova versione — tocca per aggiornare';
+                b.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:9999;background:#141414;color:#D4AF37;border:1px solid rgba(212,175,55,.45);border-radius:999px;padding:9px 16px;font-size:12.5px;letter-spacing:.4px;box-shadow:0 8px 28px rgba(0,0,0,.55);cursor:pointer';
+                b.onclick = () => location.reload();
+                if (document.body) document.body.appendChild(b);
+            };
+            const check = async () => {
+                try {
+                    const now = Date.now();
+                    if (now - lastCheck < 60000) return; // mai una raffica sui cambi tab
+                    lastCheck = now;
+                    const tag = await head();
+                    if (!tag) return;                    // offline/errore: silenzio, si riprova
+                    if (!base) { base = tag; return; }   // la prima lettura è la baseline
+                    if (tag !== base && tag !== shown) { shown = tag; pill(); }
+                } catch (e) { /* un beacon non rompe mai il boot */ }
+            };
+            setTimeout(check, 5000);
+            setInterval(check, 30 * 60 * 1000);
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') check();
+            });
+        } catch (e) { /* nessun beacon è meglio di un boot rotto */ }
+    })();
+
     // Offline persistence — IndexedDB on Safari (especially iOS) is notoriously
     // slow at cold-start and ITP wipes it every 7 days anyway, making the cost
     // higher than the benefit. We:
