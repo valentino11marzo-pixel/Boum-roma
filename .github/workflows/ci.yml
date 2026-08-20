@@ -116,7 +116,10 @@ jobs:
   # Secrets → FIREBASE_TOKEN); finché il secret non c'è, il job si dichiara
   # e salta con un avviso, senza mai rompere la CI.
   deploy-rules:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Anche su avvio manuale (Actions → CI → Run workflow su main): serve la
+    # PRIMA volta che il secret FIREBASE_TOKEN viene impostato — senza, per
+    # far partire il deploy bisognerebbe inventare un commit vuoto su main.
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
