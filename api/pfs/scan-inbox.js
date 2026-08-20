@@ -65,7 +65,10 @@ export default async function handler(req, res) {
     secure: true,
     auth: { user, pass },
     logger: false,
-    socketTimeout: 30000,
+    // connect 90s e socket idle 5min di default superano il limite
+    // piattaforma (60s): lo stallo diventava un kill senza battito
+    connectionTimeout: 15000, greetingTimeout: 10000,
+    socketTimeout: 25000,
   });
 
   try {
@@ -75,6 +78,7 @@ export default async function handler(req, res) {
       // One IMAP search per sender domain, merged + deduped
       const uidSet = new Set();
       for (const from of SENDERS) {
+        if (Date.now() > softDeadline) break; // socket malato: ogni search può costare 25s
         try {
           const uids = await client.search({ since, from }, { uid: true });
           for (const u of uids || []) uidSet.add(u);
