@@ -1471,7 +1471,12 @@ Un giro solo, otto interventi, 33 suite verdi:
 - **CI `deploy-rules`**: push su main → `firebase deploy --only
   firestore:rules,storage` (secret `FIREBASE_TOKEN`; senza secret il job
   avvisa e salta). Nato dal drift che teneva `propertyLocks` spento in
-  produzione.
+  produzione. **Secret configurato il 2026-08-20** (token `login:ci`
+  dell'operatore): da quel giorno le rules del repo VANNO IN PRODUZIONE a
+  ogni push su main — mai più deploy manuali. Il job risponde anche a
+  Run workflow (workflow_dispatch, solo main). Se il token un giorno
+  scade/viene revocato il job torna ad avvisare e saltare: si rigenera con
+  `npx firebase-tools login:ci` e si aggiorna il secret.
 - **Tabella zone canone UNICA**: `scheda-canone.html` ora carica
   `js/canone-engine.js` e semina le zone dal motore (la copia inline che
   poteva divergere dal Fascicolo ARPE è stata rimossa; un edit manuale
