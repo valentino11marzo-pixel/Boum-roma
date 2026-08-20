@@ -133,15 +133,6 @@ service firebase.storage {
       allow read, write: if isAdmin();
     }
 
-    // ─── backups/** ───────────────────────────────────────────────────
-    // Export giornaliero del database (api/ops/backup.js), scritto con le
-    // credenziali admin — che passano da QUESTE regole. Admin-only in lettura
-    // e scrittura: un backup leggibile da altri sarebbe il database intero
-    // esposto (audit 2026-08-18 P0.1).
-    match /backups/{allPaths=**} {
-      allow read, write: if isAdmin();
-    }
-
     // ─── preagreements/{paId}/** ──────────────────────────────────────
     // Tenant ID documents uploaded from the public pre-agreement page via
     // api/preagreement/upload.js (admin credentials server-side). Admin-only
@@ -173,6 +164,15 @@ service firebase.storage {
     // admin ID token. Admin-only; the portal opens them via the tokenized
     // ?alt=media&token= URL stored on the `documents` doc.
     match /smistatore/{fiscalYear}/{allPaths=**} {
+      allow read, write: if isAdmin();
+    }
+
+    // ─── backups/** ───────────────────────────────────────────────────
+    // La Cassaforte (api/ops/cassaforte.js): lo ZIP notturno del database,
+    // scritto con le credenziali admin — che passano da QUESTE regole
+    // (lezione dell'audit 2026-08-18 P0.1). Admin-only in lettura e
+    // scrittura: un backup leggibile da altri è il database intero esposto.
+    match /backups/{allPaths=**} {
       allow read, write: if isAdmin();
     }
 

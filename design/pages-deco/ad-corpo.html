@@ -254,6 +254,14 @@
   scroll-margin-top:calc(var(--stecca-top, 76px) + 62px); }
 .vista-cielo[hidden] { display:none; }
 .vista-cielo .cielo { margin-top:clamp(10px,1.2vw,16px); }
+/* il cambio vista non salta: chi entra (mappa o griglia) sale in dissolvenza.
+   display:none -> visibile fa RIPARTIRE l'animazione da solo, zero JS. */
+@keyframes vieniVista { from { opacity:0; transform:translateY(12px); }
+  to { opacity:1; transform:none; } }
+.vista-cielo:not([hidden]) { animation:vieniVista .45s var(--ease) both; }
+#muro { animation:vieniVista .45s var(--ease) both; }
+@media (prefers-reduced-motion:reduce){
+  .vista-cielo:not([hidden]), #muro { animation:none; } }
 
 /* ══ LA SKYCARTA — la mappa si vende da dentro la griglia ══════════════ */
 .skycarta { position:relative; display:flex; flex-direction:column;

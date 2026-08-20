@@ -1,0 +1,340 @@
+<style>
+/* ══ HOW IT WORKS — il manifesto: mezzo portale, mezza agenzia, poi il
+   concierge. Ogni riga è un fatto già promesso altrove sul sito: questa
+   pagina ORDINA le promesse, non ne aggiunge. ═══════════════════════════ */
+.come-capo { padding:clamp(120px,14svh,168px) 0 clamp(28px,3.4vw,44px); }
+.come-capo h1 { font-weight:200; font-size:clamp(34px,4.8vw,60px);
+  line-height:1.07; letter-spacing:-.02em; text-wrap:balance; max-width:20ch; }
+.come-capo h1 .hl { color:var(--gold); }
+.come-capo .sotto { margin-top:16px; max-width:58ch; }
+@media (max-width:640px){
+  .come-capo h1 { font-size:clamp(32px,9vw,40px); font-weight:250; } }
+
+/* le tre anime: portale · agenzia · concierge — la tesi della pagina */
+.anime { display:grid; gap:1px; background:var(--line-0);
+  border:1px solid var(--line-0); border-radius:16px; overflow:hidden;
+  margin-top:clamp(20px,2.6vw,30px);
+  grid-template-columns:repeat(3,minmax(0,1fr)); }
+@media (max-width:860px){ .anime { grid-template-columns:1fr; } }
+.anima { position:relative; background:var(--surface);
+  padding:clamp(20px,2.4vw,28px); overflow:hidden; }
+.anima .fantasma { position:absolute; right:0; bottom:-22px;
+  font-family:var(--display); font-size:104px; font-weight:200;
+  line-height:1; color:transparent;
+  -webkit-text-stroke:1px rgba(255,215,0,.08); pointer-events:none;
+  user-select:none; }
+.anima .an-eti { display:inline-flex; align-items:center; gap:8px;
+  font-size:9.5px; font-weight:600; letter-spacing:.24em;
+  text-transform:uppercase; color:var(--gold); }
+.anima .an-eti i { font-style:normal; width:6px; height:6px;
+  border-radius:50%; background:var(--gold); opacity:.8; }
+.anima h3 { margin-top:12px; font-family:var(--display); font-weight:300;
+  font-size:clamp(19px,2vw,23px); line-height:1.25; letter-spacing:-.005em; }
+.anima p { margin-top:9px; font-size:12.5px; line-height:1.65;
+  color:var(--text-3); max-width:44ch; }
+.anima ul { margin:13px 0 0; padding:0; list-style:none; display:grid;
+  gap:7px; }
+.anima li { position:relative; padding-left:16px; font-size:12px;
+  line-height:1.55; color:var(--text-2); }
+.anima li::before { content:''; position:absolute; left:0; top:7px;
+  width:7px; height:1.5px; background:var(--gold); }
+.anima li b { font-weight:500; color:var(--text); }
+
+/* la rotta: sei tappe, dalla ricerca a dopo le chiavi */
+.rotta { margin-top:clamp(22px,2.8vw,34px); display:grid; gap:0; }
+.rotta-passo { display:grid; grid-template-columns:44px minmax(0,1fr);
+  gap:0 clamp(14px,2vw,24px); }
+.rotta-passo .filo { position:relative; }
+.rotta-passo .filo::before { content:''; position:absolute; left:21px;
+  top:44px; bottom:-2px; width:1px; background:var(--line-0); }
+.rotta-passo:last-child .filo::before { display:none; }
+.rotta-passo .filo b { position:relative; z-index:2; display:grid;
+  place-items:center; width:34px; height:40px; margin-left:4px;
+  border-radius:7px; background:#040404; color:var(--gold);
+  font-family:var(--display); font-size:17px; font-weight:400;
+  font-variant-numeric:tabular-nums;
+  box-shadow:inset 0 0 0 1px rgba(239,235,223,.07),
+    0 2px 6px rgba(0,0,0,.55); }
+.rotta-passo .filo b::after { content:''; position:absolute; left:1px;
+  right:1px; top:50%; height:1px; background:rgba(3,3,3,.85); }
+.rotta-corpo { padding:2px 0 clamp(22px,2.8vw,30px); }
+.rotta-corpo .rc-cima { display:flex; align-items:baseline; gap:10px;
+  flex-wrap:wrap; }
+.rotta-corpo h3 { font-family:var(--display); font-weight:300;
+  font-size:clamp(17px,1.9vw,21px); letter-spacing:-.005em; }
+.rotta-corpo .rc-quando { font-size:9.5px; font-weight:600;
+  letter-spacing:.18em; text-transform:uppercase; color:var(--text-4); }
+.rotta-corpo p { margin-top:6px; font-size:12.5px; line-height:1.65;
+  color:var(--text-3); max-width:62ch; }
+.rotta-corpo p b { font-weight:500; color:var(--text-2); }
+.rotta-corpo .rc-vai { display:inline-block; margin-top:8px;
+  font-size:11px; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--gold); text-decoration:none; }
+.rotta-corpo .rc-vai:hover { text-decoration:underline; }
+
+/* quello che non facciamo: i limiti dichiarati, la riga piu citabile */
+.niente { margin-top:clamp(20px,2.6vw,30px); border-top:1px solid var(--line-0); }
+.niente-riga { display:grid; grid-template-columns:minmax(0,.85fr) minmax(0,1.5fr);
+  gap:6px 18px; padding:15px 2px; border-bottom:1px solid var(--line-0);
+  align-items:baseline; }
+.niente-riga > b { font-size:14px; font-weight:500; }
+.niente-riga > b::before { content:'✕'; color:var(--gold); margin-right:9px;
+  font-size:11px; }
+.niente-riga > span { font-size:12.5px; line-height:1.6; color:var(--text-3); }
+@media (max-width:760px){ .niente-riga { grid-template-columns:1fr; } }
+
+/* in breve: il blocco citabile (fatti a piatto, GEO) */
+.breve-quadro { padding:clamp(18px,2.2vw,26px); }
+.breve-quadro > b { display:block; font-size:10px; font-weight:600;
+  letter-spacing:.22em; text-transform:uppercase; color:var(--gold); }
+.breve-quadro ul { margin:12px 0 0; padding:0; list-style:none;
+  display:grid; gap:8px; }
+.breve-quadro li { position:relative; padding-left:16px; font-size:12.5px;
+  line-height:1.6; color:var(--text-2); }
+.breve-quadro li::before { content:''; position:absolute; left:0; top:8px;
+  width:7px; height:1.5px; background:var(--gold); }
+
+/* faq — stesse classi della home, CSS locale */
+.faq-casa { margin-top:22px; display:grid; gap:1px; background:var(--line-0);
+  border:1px solid var(--line-0); border-radius:14px; overflow:hidden; }
+.faq-v { background:var(--bg-card, #0A0A0A); padding:16px 19px; }
+.faq-v summary { cursor:pointer; list-style:none; font-size:13.5px;
+  font-weight:500; color:var(--text); line-height:1.4; position:relative;
+  padding-right:26px; }
+.faq-v summary::-webkit-details-marker { display:none; }
+.faq-v summary::after { content:'+'; position:absolute; right:2px; top:50%;
+  transform:translateY(-50%); color:var(--gold); font-size:16px;
+  font-weight:300; transition:transform .25s var(--ease); }
+.faq-v[open] summary::after { transform:translateY(-50%) rotate(45deg); }
+.faq-v p { margin:8px 0 0; font-size:12.5px; line-height:1.65;
+  color:var(--text-2); max-width:70ch; }
+
+.come-coda { display:flex; gap:12px; flex-wrap:wrap;
+  margin-top:clamp(22px,2.8vw,32px); }
+</style>
+
+<section class="come-capo">
+  <div class="container">
+    <span class="eyebrow dentro-subito"><i></i>How BOOM works</span>
+    <h1>Half portal. Half agency. <span class="hl">Then a
+      concierge.</span></h1>
+    <p class="sotto">Most platforms show you listings and leave. Most
+      agencies show you three flats and their own interests. BOOM is built
+      as both halves at once — the software of a portal where software is
+      honest, the accountability of a licensed agency where a person must
+      answer — and after the keys, we stay.</p>
+  </div>
+</section>
+
+<!-- ══ LE TRE ANIME ══════════════════════════════════════════════════════ -->
+<section class="sezione" id="anime">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>One platform · three jobs</span>
+      <h2 class="titolo">What each half <span class="hl">does for
+        you</span>.</h2>
+    </div>
+    <div class="anime coro">
+      <div class="anima">
+        <span class="fantasma" aria-hidden="true">P</span>
+        <span class="an-eti"><i></i>The portal</span>
+        <h3>Browse like software.</h3>
+        <p>Everything a portal should be — with the tricks removed.</p>
+        <ul>
+          <li><b>Real availability dates</b> — and when we don't know, the
+            page says “ask us”, never “available now”.</li>
+          <li><b>Honest map pins</b> — exact only where the address is
+            verified; otherwise the page says it's approximate.</li>
+          <li><b>Skyline</b> — the whole catalogue on Rome from above, with
+            walk-times to the places of <em>your</em> life.</li>
+          <li><b>Hold a home online</b> — €300, refundable, 48 hours off
+            the market while you decide.</li>
+        </ul>
+      </div>
+      <div class="anima">
+        <span class="fantasma" aria-hidden="true">A</span>
+        <span class="an-eti"><i></i>The agency</span>
+        <h3>Signed like a professional.</h3>
+        <p>A licensed Rome agency stands behind every line.</p>
+        <ul>
+          <li><b>Every home walked in person</b> before it reaches the
+            catalogue — never a stranger's photos.</li>
+          <li><b>A registered contract</b> (L.431/98) with the Agenzia
+            delle Entrate — signed from your phone.</li>
+          <li><b>One fee, written first</b> — 10% of the annual rent,
+            once. Every euro through Stripe, receipted.</li>
+          <li><b>Deposit filmed in &amp; out</b> — its state is a
+            recording, not an argument.</li>
+        </ul>
+      </div>
+      <div class="anima">
+        <span class="fantasma" aria-hidden="true">C</span>
+        <span class="an-eti"><i></i>The concierge</span>
+        <h3>Landed like a local.</h3>
+        <p>The part that starts where the others finish.</p>
+        <ul>
+          <li><b>A named human</b> who replies on WhatsApp within 2 hours
+            — not a form, not a queue.</li>
+          <li><b>The home's manual in your pocket</b> — Wi-Fi, heating,
+            waste days, who to call.</li>
+          <li><b>Your landing handled</b> — codice fiscale, utilities,
+            residency: the Welcome to Rome guide walks you through.</li>
+          <li><b>Rent that runs itself</b> — card or SEPA, a receipt for
+            every payment, maintenance from your portal.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ LA ROTTA ══════════════════════════════════════════════════════════ -->
+<section class="sezione" id="rotta">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>The route</span>
+      <h2 class="titolo">From “I need a home” to keys —
+        <span class="hl">and past them</span>.</h2>
+      <p class="sotto">Six stops. Our fastest move-in took 48 hours;
+        your pace is yours.</p>
+    </div>
+    <div class="rotta sale">
+      <div class="rotta-passo">
+        <span class="filo"><b>1</b></span>
+        <div class="rotta-corpo">
+          <div class="rc-cima"><h3>Find it — or brief us</h3>
+            <span class="rc-quando">Day zero</span></div>
+          <p>Browse the catalogue like software — real dates, honest pins,
+            Skyline from above. Nothing fits? <b>Property Finding</b> hunts
+            the whole market for you, off-market included — €350, refunded
+            in full if we don't deliver.</p>
+          <a class="rc-vai" href="/apartments.html">Browse the homes →</a>
+        </div>
+      </div>
+      <div class="rotta-passo">
+        <span class="filo"><b>2</b></span>
+        <div class="rotta-corpo">
+          <div class="rc-cima"><h3>See it live</h3>
+            <span class="rc-quando">From anywhere</span></div>
+          <p>A live video viewing with you asking the questions — free on
+            every BOOM home, always. Your appointment arrives like a
+            flight: calendar invite, Wallet boarding pass, reminders at
+            the right moments.</p>
+        </div>
+      </div>
+      <div class="rotta-passo">
+        <span class="filo"><b>3</b></span>
+        <div class="rotta-corpo">
+          <div class="rc-cima"><h3>Hold it</h3>
+            <span class="rc-quando">Optional · €300</span></div>
+          <p>One tap takes the home off the market for 48 hours while you
+            decide. Deducted from your first month if you move in —
+            refunded if you're not approved.</p>
+        </div>
+      </div>
+      <div class="rotta-passo">
+        <span class="filo"><b>4</b></span>
+        <div class="rotta-corpo">
+          <div class="rc-cima"><h3>Sign from your phone</h3>
+            <span class="rc-quando">No printer · no office</span></div>
+          <p>Terms laid out in English first, with every figure in
+            writing. Then the registered Italian contract (L.431/98),
+            signed from your phone and registered with the Agenzia delle
+            Entrate. <b>Every euro through Stripe, receipted.</b></p>
+          <a class="rc-vai" href="/your-money.html">Where every euro
+            goes →</a>
+        </div>
+      </div>
+      <div class="rotta-passo">
+        <span class="filo"><b>5</b></span>
+        <div class="rotta-corpo">
+          <div class="rc-cima"><h3>Keys day</h3>
+            <span class="rc-quando">Move-in</span></div>
+          <p>Keys handed over against a written report — meter readings,
+            photos, signatures on the spot. The flat is filmed, so the
+            deposit's return is a recording, not a negotiation. The home's
+            manual lands in your pocket.</p>
+        </div>
+      </div>
+      <div class="rotta-passo">
+        <span class="filo"><b>6</b></span>
+        <div class="rotta-corpo">
+          <div class="rc-cima"><h3>Live — with us on call</h3>
+            <span class="rc-quando">The part others skip</span></div>
+          <p>Rent by card or automatic SEPA, a receipt for every payment.
+            Maintenance from your portal, answered by a named person.
+            When your lease ends: final walkthrough against the move-in
+            footage, deposit back.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ QUELLO CHE NON FACCIAMO ═══════════════════════════════════════════ -->
+<section class="sezione" id="niente">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>Drawn lines</span>
+      <h2 class="titolo">What we <span class="hl">don't</span> do.</h2>
+      <p class="sotto">A promise is only worth the limits declared next to
+        it.</p>
+    </div>
+    <div class="niente sale">
+      <div class="niente-riga">
+        <b>No homes we haven't walked</b>
+        <span>If it's in the catalogue, someone from BOOM has stood inside
+          it. No scraped listings, no stranger's photos.</span>
+      </div>
+      <div class="niente-riga">
+        <b>No cash, ever</b>
+        <span>Every euro moves through Stripe or bank transfer and lands
+          with a receipt. Nobody will ever ask you for cash in an
+          office.</span>
+      </div>
+      <div class="niente-riga">
+        <b>No invented urgency</b>
+        <span>Availability dates are real. When we don't know one, the page
+          says “ask us” — it never says “available now” to hurry you.</span>
+      </div>
+      <div class="niente-riga">
+        <b>No fee surprises</b>
+        <span>10% of the annual rent, once, written before you apply.
+          There is no fourth line at the table.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ IN BREVE + FAQ ════════════════════════════════════════════════════ -->
+<section class="sezione" id="faq">
+  <div class="container">
+    <div class="breve-quadro quadro sale"><span class="tacca"></span>
+      <b>BOOM, in brief</b>
+      <ul>
+        <li>Rome rentals for internationals — English-first, run by Egidi
+          Immobiliare S.r.l., a licensed Rome agency (BOOM® · EU trade
+          mark 019317594).</li>
+        <li>Live catalogue with real availability dates and honest map
+          pins; video viewings free on BOOM homes; €300 refundable hold.</li>
+        <li>Registered lease contracts (L.431/98) signed from your phone;
+          one fee — 10% of the annual rent, once; every payment through
+          Stripe, receipted.</li>
+        <li>After move-in: home manual, maintenance portal, rent by card or
+          SEPA, deposit filmed at move-in and move-out.</li>
+      </ul>
+    </div>
+    <div class="sale" style="margin-top:clamp(26px,3.2vw,40px)">
+      <span class="eyebrow"><i></i>Before you ask</span>
+      <h2 class="titolo">Quick <span class="hl">answers</span>.</h2>
+    </div>
+    <div class="faq-casa sale">
+      FAQ_COME_VOCI
+    </div>
+    <div class="come-coda sale">
+      <a class="btn btn-primary" href="/try.html">▶ Try it in 90 seconds</a>
+      <a class="btn btn-primary" href="/apartments.html">Browse the homes</a>
+      <a class="btn btn-secondary" href="/index.html#banchina">Pick a
+        service door</a>
+    </div>
+  </div>
+</section>

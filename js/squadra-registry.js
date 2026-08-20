@@ -441,24 +441,24 @@
       console: null, run: '/api/ops/conservazione'
     },
     {
-      key: 'custode', emoji: '🛡️', name: 'Il Custode', reparto: 'Amministrazione',
-      role: 'Il backup del database, ogni giorno',
-      hired: 'Contratti, pagamenti e mandati SEPA vivono dentro Firebase. Un fsPatch sbagliato o una cancellazione per errore e spariscono per sempre: non c\'era alcun backup (audit 2026-08-18, rischio n.1).',
+      key: 'cassaforte', emoji: '🧰', name: 'La Cassaforte', reparto: 'Amministrazione',
+      role: 'Il backup notturno del database, fuori dalla piattaforma',
+      hired: 'L\'audit del 18/08 l\'ha detto senza giri: il database non aveva UN backup. Contratti, pagamenti e clienti vivevano in un Firestore senza copia.',
       mandate: [
-        'Ogni giorno esporta le collezioni critiche in un JSON gzippato',
-        'Copia completa su Storage (backups/) per il recupero da errore',
-        'Copia CORE fuori piattaforma via email quando sta sotto il limite Gmail'
+        'Ogni notte legge le collection critiche e le chiude in uno ZIP con INDICE',
+        'Posa la copia su Storage (backups/) e la SPEDISCE alla tua casella: Gmail e\' la copia fuori piattaforma',
+        'Se una collection e\' illeggibile lo scrive nell\'INDICE e lo dice su Telegram — un buco taciuto e\' un backup bugiardo'
       ],
       autonomy: {
-        solo:  ['Esporta e carica il dump ogni giorno', 'Ti manda il manifest con i conteggi'],
-        porta: ['Il dump stesso'],
-        mai:   ['Non tocca né cancella i dati', 'Non copre il DR totale del progetto: quello è PITR (azione operatore)']
+        solo:  ['Prepara, posa su Storage e SPEDISCE lo ZIP alla tua casella'],
+        porta: ['Lo ZIP stesso'],
+        mai:   ['Non manda niente a nessun altro che te', 'Non cancella e non riscrive MAI un documento']
       },
-      reach: ['archivio', 'operatore', 'file'],
+      reach: ['operatore', 'file'],
       approval: 'mai',
-      crons: ['/api/ops/backup'],
-      health: 'teamHealth/backup',
-      console: null, run: '/api/ops/backup'
+      crons: ['/api/ops/cassaforte'],
+      health: null,
+      console: null, run: '/api/ops/cassaforte'
     },
 
     /* ── VETRINA — quello che vede il pubblico ────────────────────────── */
