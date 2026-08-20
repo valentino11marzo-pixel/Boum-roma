@@ -42,6 +42,9 @@ ok(/'_diag_' \+ Date\.now\(\)/.test(dg), 'la Diagnosi scrive SOLO su id _diag_* 
 ok(!/\.doc\((?!id\))'?[a-zA-Z]/.test(dg.replace(/\.doc\(id\)/g, '')), 'nessun doc() con id cablato dentro la diagnosi');
 ok(/la pulizia si tenta SEMPRE/.test(dg) && dg.split('ref.delete()').length === 2, 'cleanup tentato incondizionatamente');
 ok(/\['teamHealth', 'pfsRadarHealth'\]/.test(dg), 'i battiti si leggono solo dalle due collection di salute');
+ok(/x\.lastRunAt/.test(dg) && /x\.lastOkAt/.test(dg),
+  'il parser legge i campi VERI dei writer (lastRunAt/lastOkAt) — la lezione del primo rapporto: tutte le età uscivano "?"');
+ok(/okH/.test(dg), 'due età distinte: quando ha girato e quando è andato bene — su un cron malato divergono');
 ok(/_diagTimeout/.test(dg) && /6000|8000/.test(dg), 'ogni prova ha un tetto di tempo (mai una diagnosi appesa)');
 ok(/FIREBASE_TOKEN/.test(dg), 'una riga rossa NOMINA la cura (il secret), non solo il sintomo');
 ok(/isAdmin\(\)/.test(dg.slice(0, 400)) || /if \(!isAdmin\(\)\) return/.test(app.slice(app.indexOf('async function runWriteDiagnosis'), app.indexOf('async function runWriteDiagnosis') + 300)),

@@ -2923,10 +2923,18 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 const snap = await _diagTimeout(db.collection(coll).get(), 8000);
                 snap.docs.forEach((d) => {
                     const x = d.data() || {};
-                    const ts = x.lastRun || x.lastOk || x.last || x.updatedAt || x.at || x.ts || null;
-                    const when = ts && ts.toDate ? ts.toDate() : (ts ? new Date(ts) : null);
-                    const ageH = when && isFinite(when) ? (Date.now() - when.getTime()) / 3600000 : null;
-                    rows.push({ coll, id: d.id, ageH, errs: x.consecutiveErrors || x.consecutiveFailures || 0, blocked: !!x.blocked });
+                    // I writer veri (pfs/_health.js, employees/_lib.js) scrivono
+                    // lastRunAt e lastOkAt — la prima versione cercava lastRun/
+                    // lastOk e ogni età usciva "?" (trovato dal PRIMO rapporto
+                    // del fondatore, 20/08). Due età distinte: quando ha GIRATO
+                    // e quando è andato BENE l'ultima volta — su un cron che
+                    // fallisce da giorni divergono, ed è la notizia.
+                    const toD = (v) => { const w = v && v.toDate ? v.toDate() : (v ? new Date(v) : null); return w && isFinite(w) ? w : null; };
+                    const run = toD(x.lastRunAt || x.lastRun || x.updatedAt || x.at || x.ts);
+                    const okd = toD(x.lastOkAt || x.lastOk);
+                    const ageH = run ? (Date.now() - run.getTime()) / 3600000 : null;
+                    const okH = okd ? (Date.now() - okd.getTime()) / 3600000 : null;
+                    rows.push({ coll, id: d.id, ageH, okH, errs: x.consecutiveErrors || x.consecutiveFailures || 0, blocked: !!x.blocked });
                 });
             } catch (e) { rows.push({ coll, id: '(lettura fallita: ' + (e.code || e.message) + ')', ageH: null, errs: 0, blocked: false }); }
         }
@@ -2941,14 +2949,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const beats = await _diagBeats();
         const denied = res.filter((r) => [r.create, r.update, r.del].some((v) => String(v).includes('permission-denied')));
         const cell = (v) => v === 'ok' ? '<span class="text-green">✓</span>' : (v === '—' ? '<span style="color:var(--text-muted)">—</span>' : `<span class="text-red" style="font-size:11px">${esc(v)}</span>`);
+        const fmtAge = (h) => h == null ? '?' : (h < 1 ? Math.round(h * 60) + "'" : (h < 48 ? Math.round(h) + 'h' : Math.round(h / 24) + 'g'));
         const beatRow = (b) => {
-            const age = b.ageH == null ? '?' : (b.ageH < 1 ? Math.round(b.ageH * 60) + "'" : Math.round(b.ageH) + 'h');
-            const bad = b.blocked ? '🚫' : (b.ageH != null && b.ageH > 26 ? '🔴' : (b.errs >= 3 ? '🟠' : '🟢'));
-            return `<tr><td style="padding:5px 10px">${bad} ${esc(b.id)}</td><td style="padding:5px 10px;color:var(--text-secondary)">${esc(b.coll)}</td><td style="padding:5px 10px;font-variant-numeric:tabular-nums">${age}</td><td style="padding:5px 10px">${b.errs || ''}</td></tr>`;
+            const bad = b.blocked ? '🚫' : ((b.okH != null && b.okH > 26) || (b.okH == null && b.ageH != null && b.ageH > 26) ? '🔴' : (b.errs >= 3 ? '🟠' : '🟢'));
+            return `<tr><td style="padding:5px 10px">${bad} ${esc(b.id)}</td><td style="padding:5px 10px;color:var(--text-secondary)">${esc(b.coll)}</td><td style="padding:5px 10px;font-variant-numeric:tabular-nums">${fmtAge(b.ageH)}</td><td style="padding:5px 10px;font-variant-numeric:tabular-nums">${fmtAge(b.okH)}</td><td style="padding:5px 10px">${b.errs || ''}</td></tr>`;
         };
         const report = ['DIAGNOSI ' + new Date().toISOString(), '', 'SCRITTURE:'].concat(
             res.map((r) => `${r.coll}: create=${r.create} update=${r.update} delete=${r.del}`), ['', 'BATTITI:'],
-            beats.map((b) => `${b.coll}/${b.id}: age=${b.ageH == null ? '?' : b.ageH.toFixed(1) + 'h'} errs=${b.errs}${b.blocked ? ' BLOCKED' : ''}`)).join('\n');
+            beats.map((b) => `${b.coll}/${b.id}: run=${b.ageH == null ? '?' : b.ageH.toFixed(1) + 'h'} ok=${b.okH == null ? '?' : b.okH.toFixed(1) + 'h'} errs=${b.errs}${b.blocked ? ' BLOCKED' : ''}`)).join('\n');
         window._diagReport = report;
         document.getElementById('diagBody').innerHTML = `
             ${denied.length ? `<div class="card" style="border-color:var(--red);margin-bottom:14px"><div class="card-body" style="padding:12px 16px"><b class="text-red">⛔ ${denied.length} collection RIFIUTANO le scritture dal browser.</b><div style="font-size:12px;color:var(--text-secondary);margin-top:4px">È la firma del drift: le regole in produzione sono più vecchie del repo. La cura è UNA: il secret <code>FIREBASE_TOKEN</code> su GitHub (poi ogni push su main deploya le rules da solo). Vedi CI → deploy-rules.</div></div></div>`
@@ -2957,8 +2965,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <thead><tr style="text-align:left;color:var(--text-muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.5px"><th style="padding:5px 10px">Collection</th><th style="padding:5px 10px">crea</th><th style="padding:5px 10px">aggiorna</th><th style="padding:5px 10px">elimina</th></tr></thead>
                 <tbody>${res.map((r) => `<tr style="border-top:1px solid var(--border)"><td style="padding:5px 10px">${esc(r.coll)}</td><td style="padding:5px 10px">${cell(r.create)}</td><td style="padding:5px 10px">${cell(r.update)}</td><td style="padding:5px 10px">${cell(r.del)}</td></tr>`).join('')}</tbody>
             </table></div>
-            <h4 style="margin:18px 0 8px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)">I battiti dei cron (età dell'ultimo giro)</h4>
-            <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px"><tbody>${beats.map(beatRow).join('') || '<tr><td style="padding:8px">nessun battito leggibile</td></tr>'}</tbody></table></div>
+            <h4 style="margin:18px 0 8px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)">I battiti dei cron</h4>
+            <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="text-align:left;color:var(--text-muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.5px"><th style="padding:5px 10px">Cron</th><th style="padding:5px 10px"></th><th style="padding:5px 10px">ultimo giro</th><th style="padding:5px 10px">ultimo OK</th><th style="padding:5px 10px">errori di fila</th></tr></thead><tbody>${beats.map(beatRow).join('') || '<tr><td style="padding:8px">nessun battito leggibile</td></tr>'}</tbody></table></div>
             <div style="font-size:11.5px;color:var(--text-muted);margin-top:10px">🔴 = fermo da oltre 26h · 🚫 = bloccato all'origine (non è un guasto) · per i LEAD guardare: leads-inbox, lead-brain, homie-eyes.</div>
             <div style="margin-top:14px;display:flex;gap:8px"><button class="btn" onclick="copyToClipboard(window._diagReport);toast('success','Rapporto copiato')">📋 Copia rapporto</button><button class="btn btn-secondary" onclick="runWriteDiagnosis()">↻ Riprova</button></div>`;
     }
@@ -9612,7 +9620,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         </button>
                         <button class="btn btn-xs btn-secondary" onclick="editRule('${rule.id}')" title="Modifica">✏️</button>
                         <button class="btn btn-xs btn-secondary" onclick="testRule('${rule.id}')" title="Testa">🧪</button>
-                        <button class="btn btn-xs btn-danger" onclick="confirmDelete('rule','${rule.id}','${rule.name}')" title="Elimina">🗑</button>
+                        <button class="btn btn-xs btn-danger" onclick="confirmDelete('rule','${rule.id}','${jsq(rule.name)}')" title="Elimina">🗑</button>
                     </div>
                 </div>
             </div>`;
@@ -12765,7 +12773,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const search = [d.name, u?.name, prop?.name, d.type, d.category, d.refCode, d.source].filter(Boolean).join(' ').toLowerCase();
             const ro = d._readonly;
             // Nome JS-safe per i parametri inline (apostrofi tipo "d'Incarico").
-            const jsName = (d.name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const jsName = jsq(d.name);
             return `<div class="list-item clickable doc-item" data-type="${d.type || 'other'}" data-source="${d.source || 'upload'}" data-shared="${d.shared}" data-search="${esc(search)}" onclick="viewArchiveDoc('${d.id}')" style="padding:14px 16px">
                 <div class="list-icon" style="background:var(--gold-light)">${docIcon(d.type)}</div>
                 <div class="list-content" style="flex:1;min-width:0">
@@ -12891,7 +12899,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             (d.userId && u) ? `${esc(u.name)} (portale)` : '',
             (d.shared && prop) ? `Tutti gli utenti di ${esc(prop.name)}` : ''
         ].filter(Boolean).join(' · ');
-        const jsName = (d.name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const jsName = jsq(d.name);
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal">
             <div class="modal-header"><h3 class="modal-title" style="font-size:15px">${esc(d.name)}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body">
@@ -13117,7 +13125,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:8px 0"><input type="checkbox" name="shared" value="true" ${d.shared?'checked':''}> 🔗 Condiviso</label>
             </form></div>
             <div class="modal-footer">
-                <button class="btn btn-danger btn-sm" onclick="confirmDelete('document','${id}','${d.name}')">🗑 Elimina</button>
+                <button class="btn btn-danger btn-sm" onclick="confirmDelete('document','${id}','${jsq(d.name)}')">🗑 Elimina</button>
                 <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
                 <button class="btn" onclick="document.getElementById('editDocForm').requestSubmit()">💾 Salva</button>
             </div>
@@ -14370,7 +14378,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                                             <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="window.open('/media-studio?listing=${l.id}','_blank')" title="Apri nel Media Studio (foto, video, testi)">🎨</button>
                                             <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="cycleListing('${l.id}','${l.status}')" title="Cambia status">🔄</button>
                                             <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="duplicateListing('${l.id}')" title="Duplica">📋</button>
-                                            <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="confirmDelete('listing','${l.id}','${l.name}')" title="Elimina">🗑️</button>
+                                            <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="confirmDelete('listing','${l.id}','${jsq(l.name)}')" title="Elimina">🗑️</button>
                                         </div>
                                     </td>
                                 </tr>
@@ -15058,7 +15066,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         if (type === 'addPayment') { const contracts = S.contracts.filter(c => c.status === 'active'); return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">💳 Registra Pagamento</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="savePayment(event)"><div class="form-group"><label class="form-label">Contratto *</label><select class="form-select" name="contractId" required onchange="fillPayAmount(this)"><option value="">Seleziona...</option>${contracts.map(c => { const p = S.properties.find(x => x.id === c.propertyId); const t = S.users.find(x => x.id === c.tenantId); return `<option value="${c.id}" data-rent="${c.rent}">${p?.name} - ${t?.name} €${c.rent}</option>`; }).join('')}</select></div><div class="form-row"><div class="form-group"><label class="form-label">Mese</label><input type="month" class="form-input" name="month" value="${new Date().toISOString().slice(0, 7)}"></div><div class="form-group"><label class="form-label">Importo € *</label><input type="number" class="form-input" name="amount" id="pAmount" required></div></div><div class="form-row"><div class="form-group"><label class="form-label">Scadenza</label><input type="date" class="form-input" name="dueDate" value="${new Date(new Date().getFullYear(), new Date().getMonth() + 1, 5).toISOString().split('T')[0]}"></div><div class="form-group"><label class="form-label">Stato</label><select class="form-select" name="status"><option value="pending">In Attesa</option><option value="paid">Pagato</option></select></div></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Registra</button></div></div></div>`; }
 
-        if (type === 'editPayment') { const pay = data; if (!pay) return ''; const contracts = S.contracts; return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Pagamento</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updatePayment(event,'${pay.id}')"><div class="form-group"><label class="form-label">Contratto</label><select class="form-select" name="contractId">${contracts.map(c => { const p = S.properties.find(x => x.id === c.propertyId); return `<option value="${c.id}" ${pay.contractId === c.id ? 'selected' : ''}>${p?.name}</option>`; }).join('')}</select></div><div class="form-row"><div class="form-group"><label class="form-label">Mese</label><input type="month" class="form-input" name="month" value="${pay.month || ''}"></div><div class="form-group"><label class="form-label">Importo €</label><input type="number" class="form-input" name="amount" value="${pay.amount || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Scadenza</label><input type="date" class="form-input" name="dueDate" value="${pay.dueDate || ''}"></div><div class="form-group"><label class="form-label">Stato</label><select class="form-select" name="status"><option value="pending" ${pay.status === 'pending' ? 'selected' : ''}>In Attesa</option><option value="paid" ${pay.status === 'paid' ? 'selected' : ''}>Pagato</option></select></div></div><div class="form-group"><label class="form-label">Data Pagamento</label><input type="date" class="form-input" name="paidDate" value="${pay.paidDate ? pay.paidDate.split('T')[0] : ''}"></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2">${pay.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-danger btn-sm" onclick="confirmDelete('payment','${pay.id}','Pagamento ${pay.month}')">🗑</button><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Salva</button></div></div></div>`; }
+        if (type === 'editPayment') { const pay = data; if (!pay) return ''; const contracts = S.contracts; return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Pagamento</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updatePayment(event,'${pay.id}')"><div class="form-group"><label class="form-label">Contratto</label><select class="form-select" name="contractId">${contracts.map(c => { const p = S.properties.find(x => x.id === c.propertyId); return `<option value="${c.id}" ${pay.contractId === c.id ? 'selected' : ''}>${p?.name}</option>`; }).join('')}</select></div><div class="form-row"><div class="form-group"><label class="form-label">Mese</label><input type="month" class="form-input" name="month" value="${pay.month || ''}"></div><div class="form-group"><label class="form-label">Importo €</label><input type="number" class="form-input" name="amount" value="${pay.amount || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Scadenza</label><input type="date" class="form-input" name="dueDate" value="${pay.dueDate || ''}"></div><div class="form-group"><label class="form-label">Stato</label><select class="form-select" name="status"><option value="pending" ${pay.status === 'pending' ? 'selected' : ''}>In Attesa</option><option value="paid" ${pay.status === 'paid' ? 'selected' : ''}>Pagato</option></select></div></div><div class="form-group"><label class="form-label">Data Pagamento</label><input type="date" class="form-input" name="paidDate" value="${pay.paidDate ? pay.paidDate.split('T')[0] : ''}"></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2">${pay.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-danger btn-sm" onclick="confirmDelete('payment','${pay.id}','Pagamento ${jsq(pay.month)}')">🗑</button><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Salva</button></div></div></div>`; }
 
         if (type === 'bulkPayments') { const contracts = S.contracts.filter(c => c.status === 'active'); return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">📅 Genera Pagamenti Multipli</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="generateBulkPayments(event)"><div class="form-group"><label class="form-label">Contratto *</label><select class="form-select" name="contractId" required><option value="">Seleziona...</option>${contracts.map(c => { const p = S.properties.find(x => x.id === c.propertyId); const t = S.users.find(x => x.id === c.tenantId); return `<option value="${c.id}" data-rent="${c.rent}">${p?.name} - ${t?.name} €${c.rent}</option>`; }).join('')}</select></div><div class="form-row"><div class="form-group"><label class="form-label">Da Mese *</label><input type="month" class="form-input" name="startMonth" value="${new Date().toISOString().slice(0, 7)}" required></div><div class="form-group"><label class="form-label">Numero Mesi *</label><select class="form-select" name="numMonths"><option value="3">3 mesi</option><option value="6">6 mesi</option><option value="12" selected>12 mesi (1 anno)</option><option value="24">24 mesi (2 anni)</option></select></div></div><div class="form-row"><div class="form-group"><label class="form-label">Giorno Scadenza</label><input type="number" class="form-input" name="dueDay" value="5" min="1" max="28"></div><div class="form-group"><label class="form-label">Importo € (vuoto = da contratto)</label><input type="number" class="form-input" name="amount" placeholder="Auto"></div></div></form><div style="background:var(--surface);padding:12px;border-radius:8px;margin-top:16px;font-size:12px;color:var(--text-muted)">💡 Verranno generati pagamenti mensili con stato "In Attesa". I mesi già esistenti verranno saltati.</div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">📅 Genera</button></div></div></div>`; }
 
@@ -16602,7 +16610,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <div class="mt-16"><div class="detail-label">Cambia Stage</div><div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:8px">${PIPELINE_STAGES.map(s => `<button class="btn btn-xs ${c.stage === s.id ? '' : 'btn-secondary'}" onclick="updateClientStage('${c.id}','${s.id}')">${s.icon} ${s.name}</button>`).join('')}</div></div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-danger btn-sm" onclick="confirmDelete('client','${c.id}','${c.name}')">🗑 Elimina</button>
+                <button class="btn btn-danger btn-sm" onclick="confirmDelete('client','${c.id}','${jsq(c.name)}')">🗑 Elimina</button>
                 <button class="btn btn-secondary" onclick="generateServiceContractPDF('${c.id}')">📜 Contratto PDF</button>
                 <button class="btn btn-secondary" onclick="closeModal();openPerson('${c.id}','crmClient')">📂 Scheda 360°</button>
                 <button class="btn" onclick="closeModal()">Chiudi</button>
@@ -16712,7 +16720,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                             '<div>\uD83D\uDD11 ' + tempPassword + '</div>' +
                         '</div>' +
                     '</div>' +
-                    '<button class="btn btn-block btn-secondary" style="margin-bottom:8px" onclick="copyPortalCredentials(\'' + client.email.replace(/'/g, "\\'") + '\',\'' + tempPassword + '\',\'' + (client.name || '').replace(/'/g, "\\'") + '\')">📋 Copy WhatsApp Message</button>' +
+                    '<button class="btn btn-block btn-secondary" style="margin-bottom:8px" onclick="copyPortalCredentials(\'' + jsq(client.email) + '\',\'' + jsq(tempPassword) + '\',\'' + jsq(client.name) + '\')">📋 Copy WhatsApp Message</button>' +
                     '<button class="btn btn-block" onclick="closeModal()">Done</button>' +
                 '</div>' +
             '</div></div>';
@@ -16768,7 +16776,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 ${inv.description ? `<div class="mt-16"><div class="detail-label">Descrizione</div><p style="background:var(--bg);padding:12px;border-radius:8px;margin-top:6px">${inv.description}</p></div>` : ''}
             </div>
             <div class="modal-footer">
-                <button class="btn btn-danger btn-sm" onclick="confirmDelete('invoice','${inv.id}','${inv.number}')">🗑</button>
+                <button class="btn btn-danger btn-sm" onclick="confirmDelete('invoice','${inv.id}','${jsq(inv.number)}')">🗑</button>
                 <button class="btn btn-secondary" onclick="downloadInvoicePDF('${inv.id}')">📥 PDF</button>
                 ${inv.status === 'pending' ? `<button class="btn btn-success" onclick="markInvoicePaid('${inv.id}')">✔ Segna Pagata</button>` : ''}
                 <button class="btn" onclick="closeModal()">Chiudi</button>
@@ -16827,12 +16835,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         <span style="font-size:20px">${docIcon(d.type)}</span>
                         <div style="flex:1;min-width:0"><div style="font-weight:500;font-size:13px">${d.name}</div><div style="font-size:11px;color:var(--text-muted)">${docTypeLabel(d.type)} · ${fmtDate(d.createdAt)}</div></div>
                         <button class="btn btn-xs btn-secondary" onclick="downloadDocument('${d.id}')" title="Scarica">📥</button>
-                        <button class="btn btn-xs btn-danger" onclick="confirmDelete('document','${d.id}','${d.name}')" title="Elimina">🗑</button>
+                        <button class="btn btn-xs btn-danger" onclick="confirmDelete('document','${d.id}','${jsq(d.name)}')" title="Elimina">🗑</button>
                     </div>`).join('')}</div>` : '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px">Nessun documento caricato</div>'}
                 </div>
             </div>
             <div class="modal-footer">
-                ${u.id !== S.profile.id ? `<button class="btn btn-danger btn-sm" onclick="confirmDelete('user','${u.id}','${u.name}')">🗑 Elimina</button>` : ''}
+                ${u.id !== S.profile.id ? `<button class="btn btn-danger btn-sm" onclick="confirmDelete('user','${u.id}','${jsq(u.name)}')">🗑 Elimina</button>` : ''}
                 <button class="btn btn-secondary" onclick="closeModal()">Chiudi</button>
                 <button class="btn" onclick="const uid='${u.id}';closeModal();setTimeout(()=>openModal('editUser',S.users.find(x=>x.id===uid)),250)">✏️ Modifica</button>
             </div>
@@ -16882,7 +16890,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 ${contracts.length ? `<div class="mt-16"><div class="section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px">📋 Storico Contratti (${contracts.length})</div><div style="background:var(--surface);border-radius:8px;overflow:hidden">${contracts.map(c => { const t = S.users.find(u => u.id === c.tenantId); return `<div style="padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;display:flex;align-items:center;gap:10px">${contractBadge(c)}<span style="flex:1">${t?.name || 'Inquilino'} · ${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}</span><span class="text-gold">€${c.rent}/mese</span></div>`; }).join('')}</div></div>` : ''}
             </div>
             <div class="modal-footer">
-                <button class="btn btn-danger btn-sm" onclick="confirmDelete('propert','${p.id}','${p.name}')">🗑</button>
+                <button class="btn btn-danger btn-sm" onclick="confirmDelete('propert','${p.id}','${jsq(p.name)}')">🗑</button>
                 <button class="btn btn-secondary" onclick="closeModal()">Chiudi</button>
                 <button class="btn" onclick="const pid='${p.id}';closeModal();setTimeout(()=>openModal('editProperty',S.properties.find(x=>x.id===pid)),250)">✏️ Modifica</button>
             </div>
@@ -17035,7 +17043,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
             <div class="modal-footer" style="flex-wrap:wrap;gap:8px">
                 <button class="btn" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('editContract',S.contracts.find(x=>x.id===cid)),250)">✏️ Modifica</button>
-                <button class="btn btn-danger btn-sm" onclick="confirmDelete('contract','${c.id}','Contratto ${p?.name}')">🗑</button>
+                <button class="btn btn-danger btn-sm" onclick="confirmDelete('contract','${c.id}','Contratto ${jsq(p?.name)}')">🗑</button>
                 ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--purple);color:white" onclick="generateDeadlinesForContract('${c.id}')" title="Genera scadenze automatiche">📅 Genera Scadenze</button>` : ''}
                 ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--red);color:white" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('terminateContract',S.contracts.find(x=>x.id===cid)),250)">⛔ Termina</button>` : ''}
                 ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--green);color:white" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('renewContract',S.contracts.find(x=>x.id===cid)),250)">🔄 Rinnova</button>` : ''}
@@ -17078,7 +17086,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 ${isAdmin() ? `<div class="mt-16"><div class="detail-label">Cambia Stato Rapido</div><div style="display:flex;gap:6px;margin-top:8px"><button class="btn btn-xs ${m.status==='pending'||m.status==='open'?'':'btn-secondary'}" onclick="updateMaintStatus('${m.id}','pending')">🟡 In Attesa</button><button class="btn btn-xs ${m.status==='in_progress'?'':'btn-secondary'}" onclick="updateMaintStatus('${m.id}','in_progress')">🔵 In Corso</button><button class="btn btn-xs ${m.status==='resolved'?'btn-success':'btn-secondary'}" onclick="updateMaintStatus('${m.id}','resolved')">🟢 Risolto</button></div></div>` : ''}
             </div>
             <div class="modal-footer">
-                ${isAdmin() ? `<button class="btn btn-danger btn-sm" onclick="confirmDelete('maintenance','${m.id}','${m.title}')">🗑</button>` : ''}
+                ${isAdmin() ? `<button class="btn btn-danger btn-sm" onclick="confirmDelete('maintenance','${m.id}','${jsq(m.title)}')">🗑</button>` : ''}
                 <button class="btn btn-secondary" onclick="closeModal()">Chiudi</button>
                 ${isAdmin() ? `<button class="btn" onclick="const mid='${m.id}';closeModal();setTimeout(()=>openModal('editMaintenance',S.maintenance.find(x=>x.id===mid)),250)">✏️ Modifica</button>` : ''}
             </div>
@@ -21414,6 +21422,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function stageLabel(s) { return PIPELINE_STAGES.find(x => x.id === s)?.name || s; }
     function stageBadgeColor(s) { return { lead: 'gray', contacted: 'blue', qualified: 'green', searching: 'purple', found: 'orange', closing: 'gold', paid: 'green', completed: 'green', lost: 'red' }[s] || 'gray'; }
     function esc(str) { if (!str) return ''; return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+    // JS-string-safe per gli onclick inline (contesto: stringa single-quoted
+    // dentro un attributo HTML double-quoted). Un nome con l'apostrofo —
+    // "Ca' d'Oro", "Perdita d'acqua", "Lettera d'Incarico" — spezzava la
+    // stringa e il browser scartava l'INTERO handler in silenzio: il tap non
+    // faceva nulla (SyntaxError "Unexpected identifier" nei log client).
+    function jsq(v) {
+        return String(v == null ? '' : v)
+            .replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, ' ')
+            .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    }
     function safeToDate(d) {
         if (!d) return null;
         try {
