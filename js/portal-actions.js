@@ -187,6 +187,9 @@
         // RECUPERATA: i solleciti in blocco a TUTTE le rate scadute — scritta,
         // con la sua conferma prima di partire, e senza nessun bottone che la
         // lanciasse. È il lavoro di un pomeriggio fatto in un tap.
+        { id: 'tool:diagnosi', group: 'Strumenti', icon: '🩺', label: 'Diagnosi permessi & battiti',
+          keywords: 'diagnosi permessi scritture regole salva non salva badge battiti heartbeat debug test rifiutata',
+          fn: 'runWriteDiagnosis', args: [], admin: true },
         { id: 'tool:bulkreminders', group: 'Strumenti', icon: '📣', label: 'Solleciti in blocco (rate scadute)',
           keywords: 'solleciti blocco massivo ritardi scadute insoluti reminder tutti',
           fn: 'sendBulkReminders', args: [], admin: true }

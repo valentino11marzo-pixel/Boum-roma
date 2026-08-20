@@ -114,6 +114,69 @@ window.__portalAppLoaded = true; // sentinella per la via d'uscita anti-spinner-
     
     const auth = firebase.auth();
     const db = firebase.firestore();
+
+    // ═══ IL WATCHDOG DELLE SCRITTURE (2026-08-19) ═══════════════════════
+    // LA SEGNALAZIONE DEL FONDATORE: "quando elimino o modifico, o è lento
+    // o non esegue davvero; le modifiche sembrano mai salvate". Due cause
+    // che il portale NON diceva: (a) con la persistenza offline una
+    // scrittura si risolve solo all'ACK del server — su un canale WebKit
+    // incastrato l'await pende per sempre, senza toast né errore; (b) se
+    // le regole in produzione sono più vecchie del repo (il drift
+    // FIREBASE_TOKEN), il server RIFIUTA ma il listener ottimista mostra
+    // la modifica "fatta" finché non ricarichi. Da qui in poi nessuna
+    // scrittura fallisce in silenzio: lenta → lo dice; rifiutata → lo
+    // GRIDA e indica la Diagnosi. Il wrapper restituisce la promise
+    // ORIGINALE: i chiamanti non cambiano di una virgola.
+    let _wdLastSlow = 0, _wdLastDeny = 0;
+    function _wdWatch(promise, label) {
+        try {
+            let done = false;
+            const t = setTimeout(() => {
+                if (done) return;
+                const now = Date.now();
+                if (now - _wdLastSlow > 30000) {
+                    _wdLastSlow = now;
+                    toast('warning', '⏳ Scrittura lenta', (navigator.onLine === false ? 'Sei offline: ' : 'Il server non ha ancora confermato: ') + label + '. Non chiudere la pagina.');
+                }
+            }, 8000);
+            promise.then(() => { done = true; clearTimeout(t); },
+                (err) => {
+                    done = true; clearTimeout(t);
+                    const code = err && (err.code || err.message) || '';
+                    if (String(code).includes('permission-denied')) {
+                        const now = Date.now();
+                        if (now - _wdLastDeny > 30000) {
+                            _wdLastDeny = now;
+                            toast('error', '⛔ Scrittura RIFIUTATA dal server', label + ' — probabile drift delle regole in produzione. Apri 🩺 Diagnosi permessi (⌘K).');
+                        }
+                        try { fetch('/api/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'write-denied', label: label, ua: navigator.userAgent.slice(0, 120) }) }).catch(() => { }); } catch (e) { }
+                    }
+                });
+        } catch (e) { /* il watchdog non deve MAI rompere una scrittura */ }
+        return promise;
+    }
+    (function armWriteWatchdog() {
+        try {
+            if (armWriteWatchdog._armed) return; armWriteWatchdog._armed = true;
+            const F = firebase.firestore;
+            const DR = F.DocumentReference && F.DocumentReference.prototype;
+            const CR = F.CollectionReference && F.CollectionReference.prototype;
+            const WB = F.WriteBatch && F.WriteBatch.prototype;
+            if (DR) ['set', 'update', 'delete'].forEach((m) => {
+                const orig = DR[m];
+                if (typeof orig !== 'function') return;
+                DR[m] = function () { return _wdWatch(orig.apply(this, arguments), m + ' su ' + (this.path || 'documento')); };
+            });
+            if (CR && typeof CR.add === 'function') {
+                const oa = CR.add;
+                CR.add = function () { return _wdWatch(oa.apply(this, arguments), 'nuovo doc in ' + (this.path || this.id || 'collection')); };
+            }
+            if (WB && typeof WB.commit === 'function') {
+                const oc = WB.commit;
+                WB.commit = function () { return _wdWatch(oc.apply(this, arguments), 'batch di scritture'); };
+            }
+        } catch (e) { console.warn('[watchdog] non armato:', e); }
+    })();
     const storage = firebase.storage();
 
     // Create a Firebase Auth account WITHOUT disturbing the current admin
@@ -2822,6 +2885,85 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // NOTIFICATION SYSTEM - Persistent & Real-time
     // ═══════════════════════════════════════════════════════════════════════════
     
+    // ═══ 🩺 DIAGNOSI PERMESSI & BATTITI (2026-08-19) ════════════════════
+    // "Non salva / il badge non si azzera / i lead sono bloccati" sono TRE
+    // facce che possono avere UNA causa (regole di produzione più vecchie
+    // del repo) o cause server-side (cron dei lead fermi). Questo tool
+    // trasforma il mistero in una tabella: per ogni collection prova
+    // crea→aggiorna→elimina su un doc suo (_diag_*, MAI un dato vero) e
+    // dice ✓ o il codice d'errore; poi legge i battiti di teamHealth e
+    // pfsRadarHealth e mostra l'età dell'ultimo giro. Righe rosse su
+    // permission-denied = il deploy delle rules è indietro (FIREBASE_TOKEN).
+    const DIAG_COLLS = ['notifications', 'leads', 'clients', 'contracts', 'payments', 'invoices',
+        'properties', 'users', 'maintenance', 'documents', 'rules', 'deadlines', 'tasks',
+        'viewingRequests', 'landlords', 'listings', 'action_queue', 'agentNotifications'];
+    function _diagTimeout(p, ms) {
+        return Promise.race([p, new Promise((_, rj) => setTimeout(() => rj(new Error('timeout ' + ms + 'ms')), ms))]);
+    }
+    async function _diagColl(c) {
+        const id = '_diag_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+        const ref = db.collection(c).doc(id);
+        const out = { coll: c, create: '—', update: '—', del: '—' };
+        const code = (e) => (e && (e.code || e.message) || 'errore').toString().replace('Missing or insufficient permissions.', 'permission-denied').slice(0, 40);
+        try { await _diagTimeout(ref.set({ _diag: true, at: new Date().toISOString() }), 6000); out.create = 'ok'; }
+        catch (e) { out.create = code(e); }
+        if (out.create === 'ok') {
+            try { await _diagTimeout(ref.update({ _diagTouch: true }), 6000); out.update = 'ok'; }
+            catch (e) { out.update = code(e); }
+        }
+        // la pulizia si tenta SEMPRE: un _diag_ orfano è rumore per la Bonifica
+        try { await _diagTimeout(ref.delete(), 6000); out.del = (out.create === 'ok' ? 'ok' : out.del); }
+        catch (e) { if (out.create === 'ok') out.del = code(e); }
+        return out;
+    }
+    async function _diagBeats() {
+        const rows = [];
+        for (const coll of ['teamHealth', 'pfsRadarHealth']) {
+            try {
+                const snap = await _diagTimeout(db.collection(coll).get(), 8000);
+                snap.docs.forEach((d) => {
+                    const x = d.data() || {};
+                    const ts = x.lastRun || x.lastOk || x.last || x.updatedAt || x.at || x.ts || null;
+                    const when = ts && ts.toDate ? ts.toDate() : (ts ? new Date(ts) : null);
+                    const ageH = when && isFinite(when) ? (Date.now() - when.getTime()) / 3600000 : null;
+                    rows.push({ coll, id: d.id, ageH, errs: x.consecutiveErrors || x.consecutiveFailures || 0, blocked: !!x.blocked });
+                });
+            } catch (e) { rows.push({ coll, id: '(lettura fallita: ' + (e.code || e.message) + ')', ageH: null, errs: 0, blocked: false }); }
+        }
+        return rows.sort((a, b) => (b.ageH || 0) - (a.ageH || 0));
+    }
+    async function runWriteDiagnosis() {
+        if (!isAdmin()) return toast('error', 'Solo admin');
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+            <div class="modal lg"><div class="modal-header"><h3 class="modal-title">🩺 Diagnosi permessi &amp; battiti</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-body" id="diagBody"><div class="empty-state"><div class="empty-icon">🩺</div><div class="empty-title">Sto provando le scritture su ${DIAG_COLLS.length} collection…</div><div class="empty-subtitle">Ogni prova usa un documento _diag_ suo e lo rimuove: nessun dato vero viene toccato.</div></div></div></div></div>`;
+        const res = await Promise.all(DIAG_COLLS.map(_diagColl));
+        const beats = await _diagBeats();
+        const denied = res.filter((r) => [r.create, r.update, r.del].some((v) => String(v).includes('permission-denied')));
+        const cell = (v) => v === 'ok' ? '<span class="text-green">✓</span>' : (v === '—' ? '<span style="color:var(--text-muted)">—</span>' : `<span class="text-red" style="font-size:11px">${esc(v)}</span>`);
+        const beatRow = (b) => {
+            const age = b.ageH == null ? '?' : (b.ageH < 1 ? Math.round(b.ageH * 60) + "'" : Math.round(b.ageH) + 'h');
+            const bad = b.blocked ? '🚫' : (b.ageH != null && b.ageH > 26 ? '🔴' : (b.errs >= 3 ? '🟠' : '🟢'));
+            return `<tr><td style="padding:5px 10px">${bad} ${esc(b.id)}</td><td style="padding:5px 10px;color:var(--text-secondary)">${esc(b.coll)}</td><td style="padding:5px 10px;font-variant-numeric:tabular-nums">${age}</td><td style="padding:5px 10px">${b.errs || ''}</td></tr>`;
+        };
+        const report = ['DIAGNOSI ' + new Date().toISOString(), '', 'SCRITTURE:'].concat(
+            res.map((r) => `${r.coll}: create=${r.create} update=${r.update} delete=${r.del}`), ['', 'BATTITI:'],
+            beats.map((b) => `${b.coll}/${b.id}: age=${b.ageH == null ? '?' : b.ageH.toFixed(1) + 'h'} errs=${b.errs}${b.blocked ? ' BLOCKED' : ''}`)).join('\n');
+        window._diagReport = report;
+        document.getElementById('diagBody').innerHTML = `
+            ${denied.length ? `<div class="card" style="border-color:var(--red);margin-bottom:14px"><div class="card-body" style="padding:12px 16px"><b class="text-red">⛔ ${denied.length} collection RIFIUTANO le scritture dal browser.</b><div style="font-size:12px;color:var(--text-secondary);margin-top:4px">È la firma del drift: le regole in produzione sono più vecchie del repo. La cura è UNA: il secret <code>FIREBASE_TOKEN</code> su GitHub (poi ogni push su main deploya le rules da solo). Vedi CI → deploy-rules.</div></div></div>`
+                : `<div class="card" style="border-color:var(--green);margin-bottom:14px"><div class="card-body" style="padding:12px 16px"><b class="text-green">✓ Tutte le scritture passano.</b> <span style="font-size:12px;color:var(--text-secondary)">Se qualcosa "non si salva" è il canale (rete/WebKit): il watchdog ora lo dice in tempo reale.</span></div></div>`}
+            <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px">
+                <thead><tr style="text-align:left;color:var(--text-muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.5px"><th style="padding:5px 10px">Collection</th><th style="padding:5px 10px">crea</th><th style="padding:5px 10px">aggiorna</th><th style="padding:5px 10px">elimina</th></tr></thead>
+                <tbody>${res.map((r) => `<tr style="border-top:1px solid var(--border)"><td style="padding:5px 10px">${esc(r.coll)}</td><td style="padding:5px 10px">${cell(r.create)}</td><td style="padding:5px 10px">${cell(r.update)}</td><td style="padding:5px 10px">${cell(r.del)}</td></tr>`).join('')}</tbody>
+            </table></div>
+            <h4 style="margin:18px 0 8px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)">I battiti dei cron (età dell'ultimo giro)</h4>
+            <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px"><tbody>${beats.map(beatRow).join('') || '<tr><td style="padding:8px">nessun battito leggibile</td></tr>'}</tbody></table></div>
+            <div style="font-size:11.5px;color:var(--text-muted);margin-top:10px">🔴 = fermo da oltre 26h · 🚫 = bloccato all'origine (non è un guasto) · per i LEAD guardare: leads-inbox, lead-brain, homie-eyes.</div>
+            <div style="margin-top:14px;display:flex;gap:8px"><button class="btn" onclick="copyToClipboard(window._diagReport);toast('success','Rapporto copiato')">📋 Copia rapporto</button><button class="btn btn-secondary" onclick="runWriteDiagnosis()">↻ Riprova</button></div>`;
+    }
+    window.runWriteDiagnosis = runWriteDiagnosis;
+
     function startNotificationListener() {
         if (!S.profile?.id) return;
         
@@ -3294,6 +3436,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 batch.update(db.collection('notifications').doc(n.id), { read: true, readAt: firebase.firestore.FieldValue.serverTimestamp() });
             });
             await batch.commit();
+            (S.userNotifications || []).forEach(n => { n.read = true; });
+            updateNotifBadge();
             toast('success', 'Tutte le notifiche segnate come lette');
         } catch (err) { toast('error', 'Errore', err.message); }
     }
@@ -3301,6 +3445,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     async function deleteNotification(notifId) {
         try {
             await db.collection('notifications').doc(notifId).delete();
+            // il locale segue SUBITO: prima il badge restava finché il
+            // listener non risincronizzava (o per sempre, a canale muto)
+            S.userNotifications = (S.userNotifications || []).filter(n => n.id !== notifId);
+            updateNotifBadge();
         } catch (err) { toast('error', 'Errore', err.message); }
     }
     
