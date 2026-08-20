@@ -1014,6 +1014,12 @@ function fillFromListing(id){
 BoomPortal.requireAuth(['admin','owner','landlord'],{loginUrl:'/login'}).then(function(res){
   USER=res.user;
   $('load').style.display='none';$('app').style.display='';
+  // Deep-link da Oggi (#q=BOOM-XYZ): il protocollo entra nella ricerca e
+  // renderList — che parte all'arrivo dei dati — filtra sul deal giusto.
+  try{
+    var hq=(location.hash.match(/^#q=(.+)$/)||[])[1];
+    if(hq)$('q').value=decodeURIComponent(hq);
+  }catch(e){}
   watchPAs();
   var d=new Date();d.setDate(d.getDate()+14);$('fStart').value=d.toISOString().slice(0,10);
   loadProps().then(function(props){

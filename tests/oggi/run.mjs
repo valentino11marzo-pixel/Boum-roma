@@ -46,6 +46,20 @@ const S = {
   ],
   maintenance: [{ id: 'm1', priority: 'urgent', status: 'open', title: 'Caldaia', propertyId: 'x1', createdAt: '2026-08-17' }],
   actionQueue: [{ id: 'q1', status: 'pending', title: 'Risposta AI a Marco', createdAt: '2026-08-19T08:00:00Z' }],
+  preAgreements: [
+    // pagata (prova sui campi, non sull'etichetta — la lezione paidOnRecord) e senza contratto: LA più cara da rimandare
+    { id: 'pa1', status: 'accepted', paidEur: 2400, paidAt: '2026-08-17T10:00:00Z', ref: 'BOOM-AAA1', tenant: { fullName: 'Julia K' }, property: { address: 'Via Levico 7' } },
+    // accettata, niente incasso, niente contratto
+    { id: 'pa2', status: 'accepted', acceptedAt: '2026-08-18T09:00:00Z', ref: 'BOOM-BBB2', tenant: { fullName: 'Tom H' }, property: { address: 'Via Cavour 3' } },
+    // già convertita: NON è più una decisione
+    { id: 'pa3', status: 'paid', paidAt: '2026-08-10', contractId: 'c9', ref: 'BOOM-CCC3' },
+    // revocata: fuori
+    { id: 'pa4', status: 'revoked', ref: 'BOOM-DDD4' },
+    // riserva: da sciogliere
+    { id: 'pa5', status: 'reserve', acceptedAt: '2026-08-16', ref: 'BOOM-EEE5', tenant: { fullName: 'Ana P' } },
+    // solo inviata: nessuna decisione (sta al cliente)
+    { id: 'pa6', status: 'sent', ref: 'BOOM-FFF6' },
+  ],
 };
 const r = E.build(S, NOW);
 const ids = r.decisions.map((d) => d.id);
@@ -59,12 +73,21 @@ ok(ids.includes('lead_l1') && !ids.includes('lead_l3'), 'lead nuovi sì, già co
 ok(ids.includes('mnt_m1'), 'la manutenzione urgente entra');
 ok(ids.includes('sig_c2'), 'la firma a metà entra');
 ok(ids.includes('exp_c2'), 'il contratto in scadenza ≤30gg entra');
+ok(ids.includes('pa_pa1') && ids.includes('pa_pa2'), 'le proposte accettate/pagate senza contratto entrano');
+ok(!ids.includes('pa_pa3'), 'una proposta già convertita (contractId) NON è più una decisione');
+ok(!ids.includes('pa_pa4') && !ids.includes('pa_pa6'), 'revocate e solo-inviate restano fuori (la palla è del cliente)');
+ok(ids.includes('par_pa5'), 'la riserva da sciogliere entra');
+const pa1 = r.decisions.find((d) => d.id === 'pa_pa1');
+ok(pa1 && /Incassata/.test(pa1.title) && /2\.400|2400/.test(pa1.sub), 'la pagata dice INCASSATA e mostra i soldi veri');
+ok(pa1 && pa1.actions[0].args[0] === 'BOOM-AAA1', "l'azione porta il protocollo: la console si apre già filtrata sul deal");
 
 // ── 2. L'ordine è il costo del ritardo ─────────────────────────────────
 const pos = (id) => ids.indexOf(id);
 ok(pos('aq_q1') < pos('lead_l2'), 'una risposta AI ferma batte un lead C');
 ok(pos('vw_v1') < pos('sig_c2'), 'una visita da confermare batte una firma a metà');
 ok(pos('pay_p2') < pos('pay_p1'), 'tra i ritardi, giorni×importo comanda (45gg×2200 prima di 18gg×900)');
+ok(pos('pa_pa1') < pos('pa_pa2'), 'una proposta INCASSATA batte una solo accettata');
+ok(pos('pa_pa1') < pos('sig_c2'), 'soldi incassati senza contratto battono una firma a metà');
 ok(r.decisions.every((d, i) => i === 0 || r.decisions[i - 1].score >= d.score), 'la lista è davvero ordinata per punteggio');
 
 // ── 3. Il polso dei soldi fa i conti giusti ────────────────────────────
@@ -97,6 +120,14 @@ ok(iEng > -1 && iEng < html.indexOf('<script src="/js/portal-mobile.js">'), 'por
 ok(sw.includes('/js/oggi-engine.js'), 'sw.js: il motore viaggia con gli asset del portale');
 // il ponte oggiRun invoca per RIFERIMENTO (disciplina Prontuario)
 ok(/window\[a\.fn\]/.test(app) && /f\.apply\(window, a\.args/.test(app), 'oggiRun invoca per riferimento, mai per stringa');
+// preAgreements: lazy alla prima apertura (dieta del boot), mai un await sul render
+const opg = app.slice(app.indexOf('function oggiPage'), app.indexOf('function oggiPage') + 1200);
+ok(/preAgreements/.test(opg) && /S\._paLoading/.test(opg) && !/await/.test(opg),
+  'oggiPage carica le proposte fire-and-forget: niente await sul percorso di render');
+// il deep-link è VERO: la console legge #q= e lo mette nella ricerca
+const consoleSrc = readFileSync(join(ROOT, 'pre-agreement-admin.html'), 'utf8');
+ok(/#q=\(\.\+\)|#q=/.test(consoleSrc) && /decodeURIComponent\(hq\)/.test(consoleSrc),
+  "la console legge #q= — l'argomento dell'azione non è un campo che non fa niente");
 
 console.log('');
 console.log(fail ? `${pass} passed, ${fail} failed` : `La coda dice il vero — ${pass} passed, 0 failed`);
