@@ -168,6 +168,37 @@
             });
         });
 
+        // ── 8. Proposte: il deal chiuso che aspetta il contratto ────────
+        // Vivono nella console separata (/pre-agreement-admin) e su Telegram
+        // scorrono via: un'accettazione — peggio, un INCASSO — senza
+        // contratto è il ritardo più caro di tutti. Un PA con contractId è
+        // già a posto (l'auto-convert lo mette da solo); qui restano i
+        // bloccati. S.preAgreements arriva lazy alla prima apertura di Oggi.
+        const PA = S.preAgreements || [];
+        const paPaid = (pa) => pa.status === 'paid' || !!(pa.paidAt || pa.paidSessionId || pa.paidEur);
+        const paName = (pa) => ((pa.tenant || {}).fullName || (pa.property || {}).address || 'proposta');
+        PA.filter((pa) => !pa.contractId && pa.status !== 'revoked' && (pa.status === 'accepted' || paPaid(pa)))
+            .forEach((pa) => {
+                const paid = paPaid(pa);
+                out.push({
+                    id: 'pa_' + pa.id, kind: 'proposte', icon: paid ? '💶' : '🤝', tint: paid ? 'red' : 'gold',
+                    title: (paid ? 'Incassata, manca il contratto — ' : 'Accettata, manca il contratto — ') + paName(pa),
+                    sub: [pa.ref, (pa.property || {}).address, paid && pa.paidEur ? '€' + Math.round(num(pa.paidEur)).toLocaleString('it-IT') + ' incassati' : '']
+                        .filter(Boolean).join(' · ').slice(0, 110),
+                    score: (paid ? 88 : 76) + ageBoost(days(pa.paidAt || pa.acceptedAt, now), 5, 10),
+                    actions: [{ label: 'Apri in console', fn: 'oggiOpenPa', args: [pa.ref || ''], primary: true }]
+                });
+            });
+        // Riserva = un candidato tenuto in coda su un immobile conteso: va
+        // sciolta (sbloccare o dirgli di no), non lasciata a marcire.
+        PA.filter((pa) => pa.status === 'reserve').forEach((pa) => out.push({
+            id: 'par_' + pa.id, kind: 'proposte', icon: '⏳', tint: 'orange',
+            title: 'Riserva da sciogliere — ' + paName(pa),
+            sub: [pa.ref, 'immobile conteso: verifica il lucchetto in console'].filter(Boolean).join(' · '),
+            score: 56 + ageBoost(days(pa.acceptedAt || pa.updatedAt || pa.createdAt, now), 3, 10),
+            actions: [{ label: 'Apri in console', fn: 'oggiOpenPa', args: [pa.ref || ''], primary: true }]
+        }));
+
         out.sort((a, b) => b.score - a.score);
 
         // ── Il polso dei soldi (la striscia in testa) ───────────────────
@@ -194,5 +225,5 @@
         };
     }
 
-    return { version: 'O1', build: build };
+    return { version: 'O2', build: build };
 }));

@@ -4522,9 +4522,27 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const f = a && window[a.fn];
         if (typeof f === 'function') f.apply(window, a.args || []);
     }
+    // Il ref BOOM-… entra nella ricerca della console (#q=), che filtra per
+    // protocollo: la riga di Oggi atterra sul deal giusto, non su una lista.
+    function oggiOpenPa(ref) {
+        window.open('/pre-agreement-admin' + (ref ? '#q=' + encodeURIComponent(ref) : ''), '_blank');
+    }
+    window.oggiOpenPa = oggiOpenPa;
     function oggiPage() {
         const E = window.BOOM_OGGI;
         if (!E || typeof E.build !== 'function') return adminDashboard();   // motore assente: mai una pagina vuota
+        // preAgreements NON sono nel boot (dieta): si caricano alla prima
+        // apertura di Oggi, fire-and-forget, e la pagina si ridisegna
+        // all'arrivo — il percorso di render non aspetta MAI la rete
+        // (regola Safari).
+        if (isAdmin() && !S._paLoaded && !S._paLoading) {
+            S._paLoading = true;
+            db.collection('preAgreements').limit(150).get().then((snap) => {
+                S.preAgreements = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+                S._paLoaded = true;
+                if (S.page === 'oggi') renderPage();
+            }).catch(() => { S._paLoaded = true; });
+        }
         const { decisions, cash } = E.build(S, new Date().toISOString());
         window.__oggiLast = decisions;
         let hidden = [];
