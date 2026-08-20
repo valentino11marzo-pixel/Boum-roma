@@ -1806,9 +1806,13 @@ html.vivo .sale.dentro { opacity:1; transform:none;
      translateZ(0) creano il clip e il containing block che overflow
      da solo non garantisce sui layer compositati. */
   clip-path:inset(0 round 16px); -webkit-clip-path:inset(0 round 16px);
-  contain:layout paint; transform:translateZ(0); }
+  contain:layout paint; transform:translateZ(0);
+  /* il trucco veterano WebKit: un mask sul gruppo forza il clip anche
+     del layer GL del canvas (le tile che scappavano sopra la status bar) */
+  -webkit-mask-image:-webkit-radial-gradient(#fff, #000); }
 @media (max-width:760px){ .cielo { height:min(72vh,560px); border-radius:14px; } }
-.cielo-mappa { position:absolute; inset:0; }
+.cielo-mappa { position:absolute; inset:0; clip-path:inset(0);
+  transform:translateZ(0); contain:paint; }
 .cielo-mappa canvas { outline:none; }
 .cielo .maplibregl-ctrl-attrib { font-size:9px!important; opacity:.4;
   background:rgba(6,6,7,.7)!important; }
@@ -2887,6 +2891,12 @@ setTimeout(function () {
     if (ridotto) b.show('DAYS');
     else {
       setTimeout(function () { b.show('DAYS', 110, true); }, 600);
+      /* l'insegna resta viva: ogni tanto il rullo rifa' il giro intero
+         e riatterra su DAYS — a scheda nascosta tace */
+      setInterval(function () {
+        if (document.hidden) return;
+        b.giro(120);
+      }, 19000);
     }
   }
 
@@ -4098,6 +4108,17 @@ setTimeout(function () {
     this.cells.forEach(function (c, i) {
       var ch = word[i] || ' ';
       if (c.cur !== ch || c.pending !== ch) c.go(ch, self.drum);
+    });
+  };
+  Board.prototype.giro = function (stagger) {
+    /* il giro dell'insegna: ogni cella rifa' TUTTO il tamburo e riatterra
+       sulla SUA lettera — la vita dei tabelloni veri, mai una parola
+       diversa (la parola del titolo e' una promessa: non si cambia) */
+    var self = this;
+    this.cells.forEach(function (c, i) {
+      if (c.cur === ' ') return;
+      setTimeout(function () { c.go(c.cur, self.drum, true); },
+        i * (stagger || 90) + Math.random() * 26);
     });
   };
   Board.prototype.flutter = function () {

@@ -172,6 +172,17 @@
       if (c.cur !== ch || c.pending !== ch) c.go(ch, self.drum);
     });
   };
+  Board.prototype.giro = function (stagger) {
+    /* il giro dell'insegna: ogni cella rifa' TUTTO il tamburo e riatterra
+       sulla SUA lettera — la vita dei tabelloni veri, mai una parola
+       diversa (la parola del titolo e' una promessa: non si cambia) */
+    var self = this;
+    this.cells.forEach(function (c, i) {
+      if (c.cur === ' ') return;
+      setTimeout(function () { c.go(c.cur, self.drum, true); },
+        i * (stagger || 90) + Math.random() * 26);
+    });
+  };
   Board.prototype.flutter = function () {
     var c = this.cells[Math.floor(Math.random() * this.cells.length)];
     if (c && !c.busy && c.cur !== ' ') c.go(c.cur, this.drum, true);
