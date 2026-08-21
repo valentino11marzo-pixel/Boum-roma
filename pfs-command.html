@@ -472,6 +472,15 @@ body.triage-lock { overflow: hidden; }
 .cluster-badge { background: rgba(77,155,255,0.18); border-color: rgba(77,155,255,0.4); color: var(--blue); }
 .push-select { width: 100%; padding: 9px 12px; background: var(--bg-input); border: 1px solid rgba(212,175,55,0.35); border-radius: 10px; font-size: 12px; color: var(--gold); }
 
+/* ── La via del ritorno + topbar tascabile ─────────────────────── */
+.tb-back { color: var(--text-secondary); text-decoration: none; font-size: 18px; line-height: 1;
+           padding: 8px 10px; margin: -8px 2px -8px -10px; border-radius: 9px; flex: none; }
+.tb-back:hover { color: var(--gold); background: var(--bg-elevated); }
+@media (max-width: 640px) {
+    .tb-label { display: none; }                     /* ➕ resta, la parola no */
+    .topbar { padding: 12px 12px 10px; }
+}
+
 /* ── 📊 Mercato (Fonderia): i pannelli della Centrale in plancia ── */
 .mk-h { font-size: 12px; letter-spacing: 2.5px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; margin: 22px 0 10px; }
 .mk-sub { text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 11.5px; color: var(--text-muted); }
@@ -514,6 +523,9 @@ body.triage-lock { overflow: hidden; }
     <header class="topbar">
         <div class="tb-row1">
             <div class="tb-brand">
+                <!-- La via del ritorno: dalla PWA (nessuna chrome del browser)
+                     una console senza questo link è una trappola. -->
+                <a class="tb-back" href="/portal" title="Torna al portale" aria-label="Torna al portale">←</a>
                 <div class="tb-dot"></div>
                 <div class="tb-title">PFS Command<small>Boom Roma · Property Finding</small></div>
                 <span id="live-ind" class="live-ind down" title="Connessione realtime…"><span class="live-dot"></span>Live</span>
@@ -522,7 +534,7 @@ body.triage-lock { overflow: hidden; }
                 <button id="btn-bug" class="btn-ghost" title="Segnala un problema (arriva col contesto tecnico)" aria-label="Segnala un problema" onclick="BoomPortal.reportBug({page:'pfs-command'})">🐞</button>
                 <button id="btn-palette" class="btn-ghost btn-cmd" title="Comandi rapidi (Ctrl+K)" aria-label="Comandi rapidi (Ctrl+K)">⌘</button>
                 <button id="btn-triage" class="btn btn-triage" title="Tutto gestito ✓" disabled>⚡ Triage<span id="triage-badge" class="tbadge" hidden>0</span></button>
-                <button id="btn-add-listing" class="btn">➕ Aggiungi annuncio</button>
+                <button id="btn-add-listing" class="btn">➕<span class="tb-label"> Aggiungi annuncio</span></button>
             </div>
         </div>
         <div class="tb-rows">
@@ -655,6 +667,7 @@ body.triage-lock { overflow: hidden; }
         <a href="#sec-feed" class="nav-item" data-target="sec-feed"><span class="ni-icon">📡</span><span class="ni-label">Feed</span></a>
         <a href="#sec-searches" class="nav-item" data-target="sec-searches"><span class="ni-icon">🔍</span><span class="ni-label">Ricerche</span></a>
         <a href="#sec-vedette" class="nav-item" data-target="sec-vedette"><span class="ni-icon">🗼</span><span class="ni-label">Vedette</span></a>
+        <a href="#mercato" class="nav-item" data-target="mercato"><span class="ni-icon">📊</span><span class="ni-label">Mercato</span></a>
         <a href="#sec-attention" class="nav-item" data-target="sec-attention"><span class="ni-icon">⚠️</span><span class="ni-label">Verifica</span></a>
     </nav>
 </div>
