@@ -297,6 +297,9 @@ service cloud.firestore {
     // senza questa riga cadrebbero nel default-deny e il lucchetto non
     // funzionerebbe affatto.
     match /propertyLocks/{x}               { allow read, write: if isAdmin(); }
+    // 🐞 Segnala (STUDIO_ARSENALE_II): le segnalazioni bug dell'operatore,
+    // scritte dal portale/console col contesto tecnico allegato.
+    match /bugReports/{x}                  { allow read, write: if isAdmin(); }
     // Rendiconto mensile proprietari: memoria idempotenza (ownerId_YYYY-MM),
     // scritta dal cron con credenziali admin. Stessa lezione di propertyLocks.
     match /rendiconti/{x}                  { allow read, write: if isAdmin(); }

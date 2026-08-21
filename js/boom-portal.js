@@ -413,6 +413,55 @@
         };
     };
 
+    // ─── 🐞 Segnala — il canale dei bug (STUDIO_ARSENALE_II) ──────────────
+    // Un tap dell'operatore → doc `bugReports` con pagina, dispositivo e gli
+    // ultimi errori client (l'anello di boom-err.js) allegati DA SOLI: la
+    // segnalazione arriva già col contesto tecnico, mai più un "ha problemi"
+    // senza indirizzo. La collection è admin-only nelle rules.
+    BP.reportBug = function (opts) {
+        opts = opts || {};
+        if (document.getElementById('bp-bug-ov')) return;
+        var errs = [];
+        try { errs = (window.__boomErrs || []).slice(-5); } catch (e) { }
+        var ov = document.createElement('div');
+        ov.id = 'bp-bug-ov';
+        ov.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.72);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);display:grid;place-items:center;padding:18px';
+        ov.innerHTML =
+            '<div style="background:#121214;border:1px solid rgba(255,255,255,.12);border-radius:12px;max-width:440px;width:100%;padding:20px" role="dialog" aria-label="Segnala un problema">' +
+            '<div style="font-size:15px;font-weight:500;color:#F2F0EA;margin-bottom:4px">🐞 Segnala un problema</div>' +
+            '<div style="font-size:12px;color:#9A968C;margin-bottom:12px;line-height:1.5">Cosa stavi facendo e cosa non ha funzionato? Pagina, dispositivo' + (errs.length ? ' e ' + errs.length + ' error' + (errs.length === 1 ? 'e' : 'i') + ' tecnici recenti' : '') + ' si allegano da soli.</div>' +
+            '<textarea id="bp-bug-txt" rows="4" style="width:100%;box-sizing:border-box;background:#1A1A1C;border:1px solid rgba(255,255,255,.14);border-radius:8px;color:#F2F0EA;font:inherit;font-size:14px;padding:10px;resize:vertical" placeholder="Es.: tocco Conferma sulla visita di Sara e non succede niente"></textarea>' +
+            '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">' +
+            '<button id="bp-bug-x" type="button" style="background:none;border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#9A968C;padding:8px 14px;font:inherit;cursor:pointer">Annulla</button>' +
+            '<button id="bp-bug-go" type="button" style="background:#D4AF37;border:none;border-radius:8px;color:#0A0A0C;padding:8px 16px;font:inherit;font-weight:500;cursor:pointer">Invia</button>' +
+            '</div></div>';
+        document.body.appendChild(ov);
+        var close = function () { ov.remove(); };
+        document.getElementById('bp-bug-x').onclick = close;
+        ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
+        document.getElementById('bp-bug-go').onclick = function () {
+            var msg = (document.getElementById('bp-bug-txt').value || '').trim();
+            if (!msg) { document.getElementById('bp-bug-txt').focus(); return; }
+            var user = (window.firebase && firebase.auth && firebase.auth().currentUser) || {};
+            firebase.firestore().collection('bugReports').add({
+                message: msg.slice(0, 1200),
+                page: opts.page || (location.pathname + location.hash),
+                ua: navigator.userAgent.slice(0, 200),
+                screen: (window.innerWidth || 0) + 'x' + (window.innerHeight || 0),
+                errs: errs,
+                by: user.email || user.uid || null,
+                status: 'open',
+                createdAt: new Date().toISOString()
+            }).then(function () {
+                close();
+                BP.toast('Segnalazione inviata 🐞 — grazie, arriva col contesto completo', { type: 'success' });
+            }).catch(function (err) {
+                BP.toast('Invio non riuscito: ' + ((err && err.message) || err), { type: 'error' });
+            });
+        };
+        document.getElementById('bp-bug-txt').focus();
+    };
+
     // ─── Helpers ──────────────────────────────────────────────────────────
     function escapeHtml(str) {
         if (str == null) return '';
