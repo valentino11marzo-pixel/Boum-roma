@@ -482,6 +482,51 @@ body.volo-on .rotta-filo { opacity:1; }
   background:var(--gold); border-radius:100px; text-decoration:none;
   transition:transform .3s ease; }
 .passmint a:active { transform:scale(.97); }
+
+/* ══ PFS 6.0 · il form è l'hero ═══════════════════════════════════════ */
+.hero-quiet { margin-top:14px; font-size:12.5px; color:var(--text-3); }
+.hero-quiet a { color:var(--text-2); text-decoration:underline;
+  text-underline-offset:3px; }
+@media (min-width:1020px){
+  .pf-hero-in { grid-template-columns:minmax(0,1fr) minmax(480px,.98fr); } }
+/* il biglietto in colonna: la geometria mobile, a qualsiasi viewport */
+.ckt.colonna { grid-template-columns:30px minmax(0,1fr); }
+.ckt.colonna .ck-banda { grid-row:1; }
+.ckt.colonna .ck-corpo { grid-column:2;
+  padding:clamp(16px,1.8vw,22px); }
+.ckt.colonna .ck-rotta { font-size:clamp(19px,1.7vw,23px); }
+.ckt.colonna .ck-campi { margin-top:14px; gap:10px 12px; }
+.ckt.colonna .ck-campo input, .ckt.colonna .ck-campo select,
+.ckt.colonna .ck-campo textarea { padding:10px 12px; font-size:13.5px; }
+.ckt.colonna .ck-perf { grid-column:1/-1; height:10px; width:auto;
+  background-image:
+    radial-gradient(circle 3px at 50% 50%, var(--black) 97%, transparent),
+    radial-gradient(circle 3.4px at 50% calc(50% + 1px),
+      rgba(255,255,255,.13) 97%, transparent);
+  background-size:14px 10px; background-repeat:repeat-x;
+  background-position:center; }
+.ckt.colonna .ck-perf::before { top:calc(50% - 10px); left:-11px;
+  bottom:auto; }
+.ckt.colonna .ck-perf::after { top:calc(50% - 10px); left:auto;
+  right:-11px; bottom:auto; }
+.ckt.colonna .ck-stub { grid-column:1/-1;
+  padding:clamp(15px,1.7vw,20px) clamp(16px,1.8vw,22px); }
+.ckt.colonna .ck-quota b { font-size:clamp(26px,2vw,32px); }
+.ckt.colonna .ck-alt { display:none; }
+@media (max-width:900px){ .ckt.colonna .ck-campi {
+  grid-template-columns:1fr; } }
+/* il finder nella macchina: dimostrazione, non fondale */
+#macchina .finder { max-width:780px; margin:0 auto clamp(26px,3vw,40px); }
+/* la strip d'imbarco in fondo: il richiamo, non un secondo form */
+.imbarco-strip { display:flex; align-items:center; gap:18px 26px;
+  flex-wrap:wrap; padding:clamp(22px,3vw,32px);
+  background:var(--black); box-shadow:inset 0 0 0 1px var(--line-gold); }
+.imbarco-strip h3 { font-family:var(--display); font-weight:250;
+  font-size:clamp(19px,2.2vw,26px); letter-spacing:-.01em; flex:1 1 260px; }
+.imbarco-strip .btn-primary { flex:none; }
+.imbarco-garanzia { flex-basis:100%; display:flex; gap:8px;
+  font-size:11px; color:var(--text-3); }
+.imbarco-garanzia::before { content:'✓'; color:var(--gold); }
 </style>
 
 <a class="salta" href="#perche">Skip to content</a>
@@ -531,86 +576,86 @@ body.volo-on .rotta-filo { opacity:1; }
       <div class="hero-eyebrow"><b></b>Your personal Rome realtor</div>
       <h1 class="titolo" style="margin-top:24px">A good flat in Rome goes in a day.<br>
         <span class="hl">Yours needs a hunter.</span></h1>
-      <p class="sotto">Your dedicated expert hunts the whole Rome market —
-        off-market included — negotiates for you and handles everything to
-        move-in. By contract: <b>at least 3 options in your criteria within
-        15 days, or the €350 is refunded in full</b> (Terms §4.2).</p>
-      <div class="hero-actions">
-        <a class="btn btn-primary" href="#checkin">Start the hunt</a>
-        <a class="btn btn-secondary" href="https://wa.me/393313251961" target="_blank" rel="noopener">Message Valentino →</a>
-      </div>
+      <p class="sotto">A dedicated hunt across the whole market —
+        off-market included. By contract: <b>3 options in 15 days, or the
+        €350 back</b> (Terms §4.2).</p>
+      
       <p class="pf-trust"><span class="trust-stars">★★★★★</span>
         <a href="https://www.google.com/maps?q=Egidi+Immobiliare+Via+dei+Coronari+Roma" target="_blank" rel="noopener"><b>4.9 on
         Google</b> · 47 reviews</a> · <a href="/terms.html">Licensed —
         <b>Egidi Immobiliare S.r.l.</b>, P.IVA 17322991005</a> ·
         <a href="https://euipo.europa.eu/eSearch/#details/trademarks/019317594" target="_blank" rel="noopener">EU
         trademark 019317594</a></p>
+      <p class="hero-quiet">Prefer to talk first?
+        <a href="https://wa.me/393313251961" target="_blank" rel="noopener">Message
+        Valentino on WhatsApp →</a></p>
     </div>
 
-    <div class="finder quadro" id="finder" data-fase="0">
-      <span class="tacca"></span>
-      <div class="dev-bar"><i></i><i></i><i></i><span class="dev-url">app.boomrome.com/finder</span></div>
-      <div class="brief-bar">
-        <span class="fase-eti">Your brief</span>
-        <div class="chips">
-          <button type="button" class="chip oro" data-k="area">Parioli · Trieste</button>
-          <button type="button" class="chip" data-k="budget">€1.5–2.2k</button>
-          <button type="button" class="chip" data-k="beds">2 bed</button>
-          <button type="button" class="chip" data-k="balcony">Balcony</button>
-          <button type="button" class="chip" data-k="pets">Pet-friendly</button>
+    <div class="ck-lato" id="checkin">
+      <div class="ck-torno" id="ckTorno" hidden>
+      <h3>Not ready to commit €350 today? Fair.</h3>
+      <p>Two no-cost moves: a 15-minute call with the person who would run
+        your search — or nothing at all: <b>we already have your brief</b>,
+        and Valentino writes to you personally within a few hours.</p>
+      <a href="https://wa.me/393313251961?text=Hi%20Valentino%2C%20I%20was%20on%20the%20Property%20Finding%20page%20—%20can%20we%20do%20a%20quick%2015-min%20call%3F"
+        target="_blank" rel="noopener">Book the 15-minute call →</a>
+    </div>
+    <form class="ckt colonna" id="ckForm" novalidate>
+      <span class="ck-banda" aria-hidden="true"><em>First class · Property Finding</em></span>
+      <div class="ck-corpo">
+        <div class="ck-rotta" aria-hidden="true"><b>ABROAD</b>
+          <span class="ck-tratta"><i class="ck-aereo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 15.5v-2l-8-5V3c0-.83-.67-1.5-1.5-1.5S10.5 2.17 10.5 3v5.5l-8 5v2l8-2.5v5.5l-2 1.5V21l3.5-1 3.5 1v-1.5l-2-1.5v-5.5l8 2.5z"/></svg></i></span>
+          <b>ROME</b></div>
+        <div class="ck-campi">
+          <div class="ck-campo"><label for="ckNome">Passenger · full name</label>
+            <input id="ckNome" name="name" autocomplete="name" required></div>
+          <div class="ck-campo"><label for="ckMail">Email</label>
+            <input id="ckMail" name="email" type="email" autocomplete="email" required></div>
+          <div class="ck-campo"><label for="ckTel">WhatsApp / phone</label>
+            <input id="ckTel" name="phone" type="tel" autocomplete="tel" required></div>
+          <div class="ck-campo"><label for="ckBudget">Monthly budget (€)</label>
+            <input id="ckBudget" name="budget" inputmode="numeric" placeholder="1.500"></div>
+          <div class="ck-campo tutto"><label for="ckQuando">Move-in</label>
+            <input id="ckQuando" name="move_in_date" type="month"></div>
+          <div class="ck-campo ck-extra"><label for="ckBeds">Bedrooms</label>
+            <select id="ckBeds" name="bedrooms"><option value="">—</option>
+              <option>Studio</option><option>1</option><option>2</option>
+              <option>3+</option></select></div>
+          <div class="ck-campo ck-extra"><label for="ckZone">Preferred areas</label>
+            <input id="ckZone" name="preferred_areas" placeholder="Trastevere, Prati…"></div>
+          <div class="ck-campo tutto ck-extra"><label for="ckMust">Must-haves</label>
+            <input id="ckMust" name="must_haves" placeholder="Balcony, elevator, pet-friendly…"></div>
+          <div class="ck-campo tutto ck-extra"><label for="ckNote">Anything else</label>
+            <textarea id="ckNote" name="additional_info"></textarea></div>
         </div>
-        <p class="chip-hint">Tap the brief — loosen the budget and watch Rome open.</p>
+        <button type="button" class="ck-piu" id="ckPiu" aria-expanded="false">+
+          More details (bedrooms, areas, must-haves)</button>
+        <input type="text" name="company" tabindex="-1" autocomplete="off"
+          aria-hidden="true" style="position:absolute;left:-9999px">
       </div>
-      <div class="finder-screen">
-        <div class="fase fase-0">
-          <span class="fase-eti">One brief, told once</span>
-          <p class="scan-riga">Your expert and the scanner work from the same
-            five lines — nothing to repeat, nothing to chase.</p>
-        </div>
-        <div class="fase fase-1">
-          <span class="fase-eti">Scanning</span>
-          <div class="scan">
-            <div class="scan-sweep" aria-hidden="true"></div>
-            <span class="scan-dot" style="left:22%;top:30%"></span>
-            <span class="scan-dot" style="left:64%;top:52%;animation-delay:.5s"></span>
-            <span class="scan-dot" style="left:44%;top:72%;animation-delay:1.1s"></span>
-            <span class="scan-dot" style="left:78%;top:24%;animation-delay:1.6s"></span>
-          </div>
-          <p class="scan-riga"><i>●</i> Scanning off-market network… the public
-            market is watched every fifteen minutes, day and night.</p>
-        </div>
-        <div class="fase fase-2">
-          <span class="fase-eti">Curated for you</span>
-          <div class="esiti">
-            <div class="esito" data-ha="area budget beds balcony pets">
-              <b>Corso Trieste<i>Off-market</i></b>
-              <span class="pr">€1.850</span>
-              <span>2 bed · 78 m² · balcony</span>
-              <span class="pesi3"><i>budget ✓</i><i>beds ✓</i><i>area ✓</i></span>
-            </div>
-            <div class="esito" data-ha="area budget beds balcony pets">
-              <b>Pinciano<i>Off-market</i></b>
-              <span class="pr">€2.050</span>
-              <span>2 bed · 85 m² · elevator</span>
-              <span class="pesi3"><i>budget ✓</i><i>beds ✓</i><i>area ✓</i></span>
-            </div>
-            <div class="esito" data-ha="area budget beds balcony pets">
-              <b>Salario<i>Curated</i></b>
-              <span class="pr">€1.690</span>
-              <span>2 bed · 72 m² · renovated</span>
-              <span class="pesi3"><i>budget ✓</i><i>beds ✓</i><i>area ✓</i></span>
-            </div>
-            <div class="esito" data-ha="area beds balcony pets">
-              <b>Nomentano<i>Off-market</i></b>
-              <span class="pr">€2.400</span>
-              <span>2 bed · 92 m² · terrace</span>
-              <span class="pesi3"><i>beds ✓</i><i>area ✓</i><i class="no">over budget</i></span>
-            </div>
-          </div>
-        </div>
+      <span class="ck-perf" aria-hidden="true"></span>
+      <div class="ck-stub">
+        <div class="ck-quota"><b>€350</b><span class="ck-barcode" aria-hidden="true"></span></div>
+        <div class="ck-sotto">BOOM·ROME · FIRST · PF-0350</div>
+        <p class="ck-tenuta">Held on your file — deducted from the agency
+          fee on success, or refunded. Never just spent.</p>
+        <button class="ck-vai" type="submit" id="ckVai">Start the hunt ·
+          €350&nbsp;<i style="font-style:normal">→</i></button>
+        <p class="ck-garanzia"><span><b>Zero risk:</b> deducted on success,
+          refunded in full if we don't deliver.</span></p>
+        <p class="ck-mecc"><span>By contract: at least <b>3 options in your
+          criteria within 15 days</b>, or the €350 returns to your card —
+          <a href="/terms.html" target="_blank" rel="noopener">Terms
+          §4.2</a>.</span></p>
+        <p class="ck-mecc"><span>Card via <b>Stripe</b> to Egidi Immobiliare
+          S.r.l. — never a bank transfer to an individual. Chargeback
+          protection applies.</span></p>
+        <p class="ck-err" id="ckErr" role="alert"></p>
+        <p class="ck-alt">Prefer to talk first?
+          <a href="https://wa.me/393313251961" target="_blank"
+            rel="noopener">WhatsApp us</a> — a named human replies.</p>
       </div>
-      <div class="finder-piede">Illustrated brief · matches are scored on our
-        production weights — budget 50, bedrooms 30, district 20.</div>
+    </form>
     </div>
   </div>
 </header>
@@ -731,6 +776,72 @@ UNI_ITEMS
       <p class="sotto">Your expert isn't refreshing portals by hand. A scanner
         reads the market on a schedule and scores everything against your brief
         — these are its real numbers, not marketing.</p>
+    </div>
+
+    <div class="finder quadro" id="finder" data-fase="0">
+      <span class="tacca"></span>
+      <div class="dev-bar"><i></i><i></i><i></i><span class="dev-url">app.boomrome.com/finder</span></div>
+      <div class="brief-bar">
+        <span class="fase-eti">Your brief</span>
+        <div class="chips">
+          <button type="button" class="chip oro" data-k="area">Parioli · Trieste</button>
+          <button type="button" class="chip" data-k="budget">€1.5–2.2k</button>
+          <button type="button" class="chip" data-k="beds">2 bed</button>
+          <button type="button" class="chip" data-k="balcony">Balcony</button>
+          <button type="button" class="chip" data-k="pets">Pet-friendly</button>
+        </div>
+        <p class="chip-hint">Tap the brief — loosen the budget and watch Rome open.</p>
+      </div>
+      <div class="finder-screen">
+        <div class="fase fase-0">
+          <span class="fase-eti">One brief, told once</span>
+          <p class="scan-riga">Your expert and the scanner work from the same
+            five lines — nothing to repeat, nothing to chase.</p>
+        </div>
+        <div class="fase fase-1">
+          <span class="fase-eti">Scanning</span>
+          <div class="scan">
+            <div class="scan-sweep" aria-hidden="true"></div>
+            <span class="scan-dot" style="left:22%;top:30%"></span>
+            <span class="scan-dot" style="left:64%;top:52%;animation-delay:.5s"></span>
+            <span class="scan-dot" style="left:44%;top:72%;animation-delay:1.1s"></span>
+            <span class="scan-dot" style="left:78%;top:24%;animation-delay:1.6s"></span>
+          </div>
+          <p class="scan-riga"><i>●</i> Scanning off-market network… the public
+            market is watched every fifteen minutes, day and night.</p>
+        </div>
+        <div class="fase fase-2">
+          <span class="fase-eti">Curated for you</span>
+          <div class="esiti">
+            <div class="esito" data-ha="area budget beds balcony pets">
+              <b>Corso Trieste<i>Off-market</i></b>
+              <span class="pr">€1.850</span>
+              <span>2 bed · 78 m² · balcony</span>
+              <span class="pesi3"><i>budget ✓</i><i>beds ✓</i><i>area ✓</i></span>
+            </div>
+            <div class="esito" data-ha="area budget beds balcony pets">
+              <b>Pinciano<i>Off-market</i></b>
+              <span class="pr">€2.050</span>
+              <span>2 bed · 85 m² · elevator</span>
+              <span class="pesi3"><i>budget ✓</i><i>beds ✓</i><i>area ✓</i></span>
+            </div>
+            <div class="esito" data-ha="area budget beds balcony pets">
+              <b>Salario<i>Curated</i></b>
+              <span class="pr">€1.690</span>
+              <span>2 bed · 72 m² · renovated</span>
+              <span class="pesi3"><i>budget ✓</i><i>beds ✓</i><i>area ✓</i></span>
+            </div>
+            <div class="esito" data-ha="area beds balcony pets">
+              <b>Nomentano<i>Off-market</i></b>
+              <span class="pr">€2.400</span>
+              <span>2 bed · 92 m² · terrace</span>
+              <span class="pesi3"><i>beds ✓</i><i>area ✓</i><i class="no">over budget</i></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="finder-piede">Illustrated brief · matches are scored on our
+        production weights — budget 50, bedrooms 30, district 20.</div>
     </div>
 
     <div class="macchina sale" id="macchinaBox">
@@ -918,81 +1029,15 @@ UNI_ITEMS
   </div>
 </section>
 
-<!-- ══ IL CHECK-IN — la porta: il brief e' un boarding pass ══════════════ -->
-<section class="section" id="checkin">
+<!-- ══ L'IMBARCO — il richiamo alla cassa, che ora vive nell'hero ════════ -->
+<section class="section" id="imbarco">
   <div class="container">
-    <div class="sale">
-      <span class="eyebrow"><i></i>Check-in · First class</span>
-      <h2 class="titolo">Board <span class="hl">the hunt</span>.</h2>
-      <p class="sotto">Five lines and you're on. Your expert reads this exact
-        brief, the search starts within 24 hours — and the €350 comes back
-        the day we deliver.</p>
+    <div class="imbarco-strip sale">
+      <h3>Five lines. Then <span class="hl">we hunt</span>.</h3>
+      <a class="btn btn-primary" href="#checkin">Board the hunt ↑</a>
+      <p class="imbarco-garanzia"><span><b>Zero risk:</b> deducted on
+        success, refunded in full if we don't deliver — Terms §4.2.</span></p>
     </div>
-    <div class="ck-torno" id="ckTorno" hidden
-      style="margin-top:clamp(22px,3vw,34px)">
-      <h3>Not ready to commit €350 today? Fair.</h3>
-      <p>Two no-cost moves: a 15-minute call with the person who would run
-        your search — or nothing at all: <b>we already have your brief</b>,
-        and Valentino writes to you personally within a few hours.</p>
-      <a href="https://wa.me/393313251961?text=Hi%20Valentino%2C%20I%20was%20on%20the%20Property%20Finding%20page%20—%20can%20we%20do%20a%20quick%2015-min%20call%3F"
-        target="_blank" rel="noopener">Book the 15-minute call →</a>
-    </div>
-    <form class="ckt sale" id="ckForm" novalidate>
-      <span class="ck-banda" aria-hidden="true"><em>First class · Property Finding</em></span>
-      <div class="ck-corpo">
-        <div class="ck-rotta" aria-hidden="true"><b>ABROAD</b>
-          <span class="ck-tratta"><i class="ck-aereo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 15.5v-2l-8-5V3c0-.83-.67-1.5-1.5-1.5S10.5 2.17 10.5 3v5.5l-8 5v2l8-2.5v5.5l-2 1.5V21l3.5-1 3.5 1v-1.5l-2-1.5v-5.5l8 2.5z"/></svg></i></span>
-          <b>ROME</b></div>
-        <div class="ck-campi">
-          <div class="ck-campo"><label for="ckNome">Passenger · full name</label>
-            <input id="ckNome" name="name" autocomplete="name" required></div>
-          <div class="ck-campo"><label for="ckMail">Email</label>
-            <input id="ckMail" name="email" type="email" autocomplete="email" required></div>
-          <div class="ck-campo"><label for="ckTel">WhatsApp / phone</label>
-            <input id="ckTel" name="phone" type="tel" autocomplete="tel" required></div>
-          <div class="ck-campo"><label for="ckBudget">Monthly budget (€)</label>
-            <input id="ckBudget" name="budget" inputmode="numeric" placeholder="1.500"></div>
-          <div class="ck-campo tutto"><label for="ckQuando">Move-in</label>
-            <input id="ckQuando" name="move_in_date" type="month"></div>
-          <div class="ck-campo ck-extra"><label for="ckBeds">Bedrooms</label>
-            <select id="ckBeds" name="bedrooms"><option value="">—</option>
-              <option>Studio</option><option>1</option><option>2</option>
-              <option>3+</option></select></div>
-          <div class="ck-campo ck-extra"><label for="ckZone">Preferred areas</label>
-            <input id="ckZone" name="preferred_areas" placeholder="Trastevere, Prati…"></div>
-          <div class="ck-campo tutto ck-extra"><label for="ckMust">Must-haves</label>
-            <input id="ckMust" name="must_haves" placeholder="Balcony, elevator, pet-friendly…"></div>
-          <div class="ck-campo tutto ck-extra"><label for="ckNote">Anything else</label>
-            <textarea id="ckNote" name="additional_info"></textarea></div>
-        </div>
-        <button type="button" class="ck-piu" id="ckPiu" aria-expanded="false">+
-          More details (bedrooms, areas, must-haves)</button>
-        <input type="text" name="company" tabindex="-1" autocomplete="off"
-          aria-hidden="true" style="position:absolute;left:-9999px">
-      </div>
-      <span class="ck-perf" aria-hidden="true"></span>
-      <div class="ck-stub">
-        <div class="ck-quota"><b>€350</b><span class="ck-barcode" aria-hidden="true"></span></div>
-        <div class="ck-sotto">BOOM·ROME · FIRST · PF-0350</div>
-        <p class="ck-tenuta">Held on your file — deducted from the agency
-          fee on success, or refunded. Never just spent.</p>
-        <button class="ck-vai" type="submit" id="ckVai">Start the hunt ·
-          €350&nbsp;<i style="font-style:normal">→</i></button>
-        <p class="ck-garanzia"><span><b>Zero risk:</b> deducted on success,
-          refunded in full if we don't deliver.</span></p>
-        <p class="ck-mecc"><span>By contract: at least <b>3 options in your
-          criteria within 15 days</b>, or the €350 returns to your card —
-          <a href="/terms.html" target="_blank" rel="noopener">Terms
-          §4.2</a>.</span></p>
-        <p class="ck-mecc"><span>Card via <b>Stripe</b> to Egidi Immobiliare
-          S.r.l. — never a bank transfer to an individual. Chargeback
-          protection applies.</span></p>
-        <p class="ck-err" id="ckErr" role="alert"></p>
-        <p class="ck-alt">Prefer to talk first?
-          <a href="https://wa.me/393313251961" target="_blank"
-            rel="noopener">WhatsApp us</a> — a named human replies.</p>
-      </div>
-    </form>
   </div>
 </section>
 
@@ -1190,7 +1235,7 @@ UNI_ITEMS
   var scia = filo.querySelector('.rf-scia');
   var aereo = filo.querySelector('.rf-aereo');
   var TAPPE = ['conto', 'regola', 'macchina', 'tocca', 'verifica',
-    'checkin', 'faq'];
+    'imbarco', 'faq'];
   var punti = [];
   function misura() {
     [].forEach.call(filo.querySelectorAll('.rf-tappa'),
