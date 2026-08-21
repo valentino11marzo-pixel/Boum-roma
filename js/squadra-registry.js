@@ -184,7 +184,7 @@
       approval: 'mai',
       crons: ['/api/market/pulse'],
       health: { col: 'teamHealth', doc: 'perito' },
-      console: '/radar', run: '/api/market/pulse'
+      console: '/pfs-command#mercato', run: '/api/market/pulse'
     },
     {
       key: 'contatto', emoji: '📨', name: 'Il Contatto', reparto: 'Commerciale',
@@ -229,7 +229,7 @@
       approval: 'mai',
       crons: ['/api/radar/digest'],
       health: { col: 'teamHealth', doc: 'vedetta' },
-      console: '/radar', run: '/api/radar/digest'
+      console: '/pfs-command#mercato', run: '/api/radar/digest'
     },
     {
       key: 'segugio', emoji: '🐕', name: 'Il Segugio', reparto: 'Commerciale',

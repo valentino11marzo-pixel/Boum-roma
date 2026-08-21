@@ -238,14 +238,23 @@ console.log('\n── B. Le giunzioni (asserite sulla sorgente) ─────�
 
   const registry = src('js/squadra-registry.js');
   ok('organigramma: La Vedetta dichiara il suo cron', registry.includes("key: 'vedetta'") && registry.includes("'/api/radar/digest'"));
-  ok('organigramma: il Perito ha la sua console (/radar)', /key: 'perito'[\s\S]{0,2200}console: '\/radar'/.test(registry));
+  ok('organigramma: il Perito ha la sua console (il Mercato in plancia)', /key: 'perito'[\s\S]{0,2200}console: '\/pfs-command#mercato'/.test(registry));
 
+  // LA FONDERIA (Arsenale II): la Centrale vive nella plancia come sezione
+  // Mercato — il portal non apre più /radar, e /radar è un redirect.
   const nav = src('js/portal-app.js');
-  ok('portal: la Centrale è nel gruppo Console', nav.includes("window.open('/radar','_blank')"));
+  ok('portal: nessuna voce apre più /radar (la Caccia ha una testa sola)', !nav.includes("window.open('/radar'"));
+  ok('portal: le lapidi puntano al Mercato in plancia', nav.includes('/pfs-command#mercato'));
 
   const page = src('radar.html');
-  ok('radar.html: market-engine caricato PRIMA di radar-engine (dipendenza UMD)',
-    page.indexOf('market-engine.js') > -1 && page.indexOf('market-engine.js') < page.indexOf('radar-engine.js'));
+  ok('radar.html: è un redirect alla plancia (#mercato), coi segnalibri salvi',
+    page.includes("location.replace('/pfs-command#mercato')") && page.includes('noindex'));
+  const cmd0 = src('pfs-command.html');
+  ok('plancia: market-engine caricato PRIMA di radar-engine (dipendenza UMD)',
+    cmd0.indexOf('market-engine.js') > -1 && cmd0.indexOf('market-engine.js') < cmd0.indexOf('radar-engine.js'));
+  ok('plancia: la sezione Mercato porta i 4 pannelli traslocati',
+    cmd0.includes('id="mercato"') && cmd0.includes("collection('marketStats')")
+    && cmd0.includes("doc('mandati')") && cmd0.includes('/api/radar/valuta') && cmd0.includes('clusterInfo'));
 
   const digest = src('api/radar/digest.js');
   const iSend = digest.indexOf('await sendEmail(');

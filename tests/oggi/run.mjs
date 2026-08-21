@@ -129,7 +129,17 @@ ok(/preAgreements/.test(opg) && /S\._paLoading/.test(opg) && !/await/.test(opg),
 ok(/case 'command-center': S\.page = 'oggi'/.test(app) && !/goTo\('command-center'\)/.test(app),
   'Machete: Command Center è un alias di Oggi e nessuna voce lo apre più');
 ok(/case 'zone-intel':[\s\S]{0,400}tombstonePage/.test(app) && !/goTo\('zone-intel'\)/.test(app),
-  'Machete: Zone Intelligence è una lapide gentile verso /radar');
+  'Machete: Zone Intelligence è una lapide gentile');
+// La Fonderia (Arsenale II, #4-6): la Caccia ha UNA testa — la plancia.
+ok(/case 'property-radar':[\s\S]{0,500}tombstonePage/.test(app) && !/goTo\('property-radar'\)/.test(app),
+  'Fonderia: Property Radar è una lapide verso la plancia');
+ok(/case 'property-finder':[\s\S]{0,500}tombstonePage/.test(app) && !/goTo\('property-finder'\)/.test(app),
+  'Fonderia: Property Finder è una lapide verso la plancia');
+const miCase = app.slice(app.indexOf("case 'market-intel':"), app.indexOf("case 'market-intel':") + 900);
+ok(/tombstonePage/.test(miCase) && /isLandlord\(\)[\s\S]{0,120}marketIntelPage\(\)/.test(miCase),
+  'Fonderia: Market Intelligence — lapide per l\'admin, pagina VIVA per il landlord (non ha accesso alle console)');
+ok(!/goTo\('market-intel'\)[\s\S]{0,200}Tools/.test(app.slice(app.indexOf('const activeClients'), app.indexOf('const activeClients') + 4000)),
+  'sidebar admin: Market Intelligence non c\'è più (il landlord tiene la sua)');
 ok(/function tombstonePage/.test(app), 'la lapide gentile esiste (un segnalibro vecchio non trova mai il vuoto)');
 // il deep-link è VERO: la console legge #q= e lo mette nella ricerca
 const consoleSrc = readFileSync(join(ROOT, 'pre-agreement-admin.html'), 'utf8');
