@@ -290,6 +290,138 @@
   .ck-aereo { animation:none; left:calc(100% - 15px); opacity:1; }
   .ck-tratta::after { animation:none; width:100%; opacity:.4; }
 }
+
+/* ── PFS 4.0: i link vivi della fiducia ── */
+.pf-trust a { color:var(--text-3); text-decoration:underline;
+  text-underline-offset:3px; text-decoration-color:rgba(255,215,0,.35); }
+.pf-trust a:hover { color:var(--text); }
+/* il costo di cercare da solo: aritmetica rifacibile, mai numeri tondi */
+.conto { margin-top:clamp(24px,3vw,38px); display:grid; gap:1px;
+  grid-template-columns:1fr; background:var(--line-0);
+  box-shadow:inset 0 0 0 1px var(--line-0); }
+@media (min-width:840px){ .conto { grid-template-columns:repeat(3,1fr); } }
+.conto > div { background:var(--card); padding:20px 22px; }
+.conto b { display:block; font-family:var(--display); font-weight:250;
+  font-size:22px; color:var(--gold); font-variant-numeric:tabular-nums; }
+.conto span { display:block; margin-top:6px; font-size:13px;
+  line-height:1.6; color:var(--text-2); }
+.conto-chiusa { margin-top:16px; font-size:15px; color:var(--text);
+  max-width:66ch; }
+.conto-chiusa b { color:var(--gold); font-weight:600; }
+.conto-bench { margin-top:8px; font-size:12.5px; color:var(--text-3);
+  max-width:66ch; }
+/* l'obiezione nominata: la tabella meccanica scam vs servizio */
+.regola2 { margin-top:clamp(24px,3vw,38px); display:grid; gap:1px;
+  background:var(--line-0); box-shadow:inset 0 0 0 1px var(--line-0);
+  grid-template-columns:minmax(90px,.55fr) 1fr 1fr; }
+.regola2 > div { background:var(--card); padding:13px 16px;
+  font-size:12.5px; line-height:1.55; color:var(--text-2); min-width:0; }
+.regola2 .r2-testa { font-size:10px; font-weight:700; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--text-3); display:flex;
+  align-items:flex-end; }
+.regola2 .r2-testa.male { color:var(--rosso,#FF6B4A); }
+.regola2 .r2-testa.bene { color:var(--gold); }
+.regola2 .r2-eti { font-size:10px; font-weight:700; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--text-3); display:flex;
+  align-items:center; }
+.regola2 .male { color:var(--text-3); }
+.regola2 .bene b { color:var(--text); }
+.regola2 a { color:inherit; }
+@media (max-width:680px){
+  .regola2 { grid-template-columns:1fr; }
+  .regola2 .r2-eti { padding-bottom:4px; }
+  .regola2 .r2-testa { display:none; }
+  .regola2 .male::before { content:'THE SCAM PATTERN — '; font-size:9px;
+    font-weight:700; letter-spacing:.14em; color:var(--rosso,#FF6B4A); }
+  .regola2 .bene::before { content:'THIS SERVICE — '; font-size:9px;
+    font-weight:700; letter-spacing:.14em; color:var(--gold); }
+}
+.regola-fonte { margin-top:12px; font-size:12px; color:var(--text-3); }
+.regola-fonte a { color:var(--text-2); }
+/* la macchina: la chiusura aritmetica */
+.mac-fine { margin-top:16px; padding-top:14px;
+  border-top:1px solid var(--line-0); font-size:13px; color:var(--text-2);
+  max-width:64ch; }
+.mac-fine b { color:var(--gold); font-weight:600; }
+/* cosa è incluso: la striscia compatta al posto delle sei card */
+.inclusi { margin-top:clamp(22px,3vw,34px); display:flex; flex-wrap:wrap;
+  gap:8px; }
+.inclusi span { padding:9px 14px; font-size:12.5px; color:var(--text-2);
+  box-shadow:inset 0 0 0 1px var(--line); border-radius:100px; }
+.inclusi span b { color:var(--gold); font-weight:600; }
+/* il prodotto toccabile */
+.tocca { margin-top:clamp(24px,3vw,38px); display:grid; gap:1px;
+  grid-template-columns:1fr; background:var(--line-0);
+  box-shadow:inset 0 0 0 1px var(--line-0); }
+@media (min-width:900px){ .tocca { grid-template-columns:repeat(3,1fr); } }
+.tocca > div { background:var(--card); padding:22px;
+  display:flex; flex-direction:column; }
+.tocca h3 { font-size:15px; font-weight:600; }
+.tocca p { margin-top:6px; font-size:13px; line-height:1.6;
+  color:var(--text-2); flex:1; }
+.tocca a { margin-top:14px; display:inline-flex; align-items:center;
+  gap:8px; align-self:flex-start; padding:10px 16px; font-size:12px;
+  font-weight:600; color:var(--gold); text-decoration:none;
+  box-shadow:inset 0 0 0 1px var(--line-gold); border-radius:100px;
+  transition:background .3s ease; }
+.tocca a:hover { background:var(--gold-muted); }
+.tocca small { margin-top:8px; font-size:10.5px; color:var(--text-3); }
+/* la prova: verificabile, non dichiarata */
+.verifica { margin-top:clamp(24px,3vw,38px); display:grid; gap:14px;
+  grid-template-columns:1fr; }
+@media (min-width:900px){ .verifica { grid-template-columns:1.1fr .9fr; } }
+.rec-card { display:flex; align-items:center; gap:18px; padding:24px;
+  background:var(--card); box-shadow:inset 0 0 0 1px var(--line-0);
+  text-decoration:none; transition:box-shadow .3s ease; }
+.rec-card:hover { box-shadow:inset 0 0 0 1px var(--line-gold); }
+.rec-card svg { width:34px; height:34px; fill:var(--gold); flex:none; }
+.rec-card b { display:block; font-family:var(--display); font-weight:250;
+  font-size:22px; color:var(--text); }
+.rec-card span { display:block; margin-top:3px; font-size:12.5px;
+  color:var(--text-3); }
+.rec-card i { margin-left:auto; font-style:normal; font-size:12px;
+  font-weight:600; color:var(--gold); white-space:nowrap; }
+.volto { padding:24px; background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--line-gold); }
+.volto .v-chi { display:flex; align-items:center; gap:14px; }
+.volto .v-foto { width:54px; height:54px; border-radius:50%; flex:none;
+  background:var(--gold-muted); display:grid; place-items:center;
+  font-family:var(--display); font-size:20px; color:var(--gold);
+  overflow:hidden; }
+.volto .v-foto img { width:100%; height:100%; object-fit:cover; }
+.volto .v-nome b { display:block; font-size:15px; font-weight:600; }
+.volto .v-nome span { display:block; margin-top:2px; font-size:11.5px;
+  color:var(--text-3); }
+.volto p { margin-top:12px; font-size:13px; line-height:1.65;
+  color:var(--text-2); }
+.volto p b { color:var(--text); }
+.volto a { margin-top:12px; display:inline-flex; padding:10px 16px;
+  font-size:12px; font-weight:600; color:var(--gold);
+  text-decoration:none; box-shadow:inset 0 0 0 1px var(--line-gold);
+  border-radius:100px; }
+/* il check-in: le carte attorno al bottone */
+.ck-tenuta { margin:2px 0 12px; font-size:11px; line-height:1.55;
+  color:var(--text-2); }
+.ck-mecc { margin-top:9px; display:flex; gap:8px; font-size:10.5px;
+  line-height:1.55; color:var(--text-3); }
+.ck-mecc::before { content:'—'; color:var(--gold); flex:none; }
+.ck-mecc b { color:var(--text-2); }
+.ck-mecc a { color:var(--text-2); }
+/* il ritorno dalla cassa: lo vede SOLO chi ha annullato */
+.ck-torno { margin:0 0 18px; padding:18px 20px; background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--line-gold); }
+.ck-torno h3 { font-size:14.5px; font-weight:600; }
+.ck-torno p { margin-top:6px; font-size:13px; line-height:1.6;
+  color:var(--text-2); max-width:64ch; }
+.ck-torno a { display:inline-flex; margin-top:12px; padding:10px 18px;
+  font-size:12.5px; font-weight:700; color:#0A0A05;
+  background:var(--gold); border-radius:100px; text-decoration:none; }
+/* faq: il blocco identità */
+.identita { margin-top:18px; padding:16px 18px; background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--line-0); font-size:12px;
+  line-height:1.7; color:var(--text-3); max-width:860px; }
+.identita b { color:var(--text-2); }
+.identita a { color:var(--text-2); }
 </style>
 
 <a class="salta" href="#perche">Skip to content</a>
@@ -333,19 +465,22 @@
   <div class="container pf-hero-in">
     <div>
       <div class="hero-eyebrow"><b></b>Your personal Rome realtor</div>
-      <h1 class="titolo" style="margin-top:24px">Can't find the right place?<br>
-        <span class="hl">We'll find it for you.</span></h1>
-      <p class="sotto">Your dedicated expert searches off-market properties,
-        negotiates on your behalf, handles viewings and manages everything from
-        contracts to utilities. €350 upfront — deducted from your first month
-        when we succeed.</p>
+      <h1 class="titolo" style="margin-top:24px">A good flat in Rome goes in a day.<br>
+        <span class="hl">Yours needs a hunter.</span></h1>
+      <p class="sotto">Your dedicated expert hunts the whole Rome market —
+        off-market included — negotiates for you and handles everything to
+        move-in. By contract: <b>at least 3 options in your criteria within
+        15 days, or the €350 is refunded in full</b> (Terms §4.2).</p>
       <div class="hero-actions">
-        <a class="btn btn-primary" href="#checkin">Start the hunt · €350</a>
-        <a class="btn btn-secondary" href="#macchina">See the machine →</a>
+        <a class="btn btn-primary" href="#checkin">Start the hunt</a>
+        <a class="btn btn-secondary" href="https://wa.me/393313251961" target="_blank" rel="noopener">Message Valentino →</a>
       </div>
       <p class="pf-trust"><span class="trust-stars">★★★★★</span>
-        <b>4.9 on Google</b> · 47 reviews · licensed agency —
-        <b>Egidi Immobiliare S.r.l.</b></p>
+        <a href="https://www.google.com/maps?q=Egidi+Immobiliare+Via+dei+Coronari+Roma" target="_blank" rel="noopener"><b>4.9 on
+        Google</b> · 47 reviews</a> · <a href="/terms.html">Licensed —
+        <b>Egidi Immobiliare S.r.l.</b>, P.IVA 17322991005</a> ·
+        <a href="https://euipo.europa.eu/eSearch/#details/trademarks/019317594" target="_blank" rel="noopener">EU
+        trademark 019317594</a></p>
     </div>
 
     <div class="finder quadro" id="finder" data-fase="0">
@@ -425,63 +560,70 @@ UNI_ITEMS
   </div>
 </div>
 
-<!-- ══ IL CHECK-IN — la porta: il brief e' un boarding pass ══════════════ -->
-<section class="section" id="checkin">
+<!-- ══ IL CONTO — cercare da solo ha un prezzo, calcolabile ══════════════ -->
+<section class="section section-dark" id="conto">
   <div class="container">
     <div class="sale">
-      <span class="eyebrow"><i></i>Check-in · First class</span>
-      <h2 class="titolo">Board <span class="hl">the hunt</span>.</h2>
-      <p class="sotto">Five lines and you're on. Your expert reads this exact
-        brief, the search starts within 24 hours — and the €350 comes back
-        the day we deliver.</p>
+      <span class="eyebrow"><i></i>The cost of searching alone</span>
+      <h2 class="titolo">Do the math<br><span class="hl">before you do the hunt</span>.</h2>
     </div>
-    <form class="ckt sale" id="ckForm" style="margin-top:clamp(22px,3vw,34px)" novalidate>
-      <span class="ck-banda" aria-hidden="true"><em>First class · Property Finding</em></span>
-      <div class="ck-corpo">
-        <div class="ck-rotta" aria-hidden="true"><b>ABROAD</b>
-          <span class="ck-tratta"><i class="ck-aereo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 15.5v-2l-8-5V3c0-.83-.67-1.5-1.5-1.5S10.5 2.17 10.5 3v5.5l-8 5v2l8-2.5v5.5l-2 1.5V21l3.5-1 3.5 1v-1.5l-2-1.5v-5.5l8 2.5z"/></svg></i></span>
-          <b>ROME</b></div>
-        <div class="ck-campi">
-          <div class="ck-campo"><label for="ckNome">Passenger · full name</label>
-            <input id="ckNome" name="name" autocomplete="name" required></div>
-          <div class="ck-campo"><label for="ckMail">Email</label>
-            <input id="ckMail" name="email" type="email" autocomplete="email" required></div>
-          <div class="ck-campo"><label for="ckTel">WhatsApp / phone</label>
-            <input id="ckTel" name="phone" type="tel" autocomplete="tel" required></div>
-          <div class="ck-campo"><label for="ckBudget">Monthly budget (€)</label>
-            <input id="ckBudget" name="budget" inputmode="numeric" placeholder="1.500"></div>
-          <div class="ck-campo tutto"><label for="ckQuando">Move-in</label>
-            <input id="ckQuando" name="move_in_date" type="month"></div>
-          <div class="ck-campo ck-extra"><label for="ckBeds">Bedrooms</label>
-            <select id="ckBeds" name="bedrooms"><option value="">—</option>
-              <option>Studio</option><option>1</option><option>2</option>
-              <option>3+</option></select></div>
-          <div class="ck-campo ck-extra"><label for="ckZone">Preferred areas</label>
-            <input id="ckZone" name="preferred_areas" placeholder="Trastevere, Prati…"></div>
-          <div class="ck-campo tutto ck-extra"><label for="ckMust">Must-haves</label>
-            <input id="ckMust" name="must_haves" placeholder="Balcony, elevator, pet-friendly…"></div>
-          <div class="ck-campo tutto ck-extra"><label for="ckNote">Anything else</label>
-            <textarea id="ckNote" name="additional_info"></textarea></div>
-        </div>
-        <button type="button" class="ck-piu" id="ckPiu" aria-expanded="false">+
-          More details (bedrooms, areas, must-haves)</button>
-        <input type="text" name="company" tabindex="-1" autocomplete="off"
-          aria-hidden="true" style="position:absolute;left:-9999px">
-      </div>
-      <span class="ck-perf" aria-hidden="true"></span>
-      <div class="ck-stub">
-        <div class="ck-quota"><b>€350</b><span class="ck-barcode" aria-hidden="true"></span></div>
-        <div class="ck-sotto">BOOM·ROME · FIRST · PF-0350</div>
-        <button class="ck-vai" type="submit" id="ckVai">Start the hunt ·
-          €350&nbsp;<i style="font-style:normal">→</i></button>
-        <p class="ck-garanzia"><span><b>Zero risk:</b> deducted on success,
-          refunded in full if we don't deliver.</span></p>
-        <p class="ck-err" id="ckErr" role="alert"></p>
-        <p class="ck-alt">Prefer to talk first?
-          <a href="https://wa.me/393313251961" target="_blank"
-            rel="noopener">WhatsApp us</a> — a named human replies.</p>
-      </div>
-    </form>
+    <div class="conto sale">
+      <div><b>21 nights × €90</b><span>a typical temporary stay in Rome
+        while you search from hotels and short lets — ≈ €1,890 for three
+        weeks, and the clock only stops when you sign.</span></div>
+      <div><b>1–2 months' deposit</b><span>what renters wire to "hold" an
+        unverified flat — the exact money Rome's rental scams are built
+        to take. Our scam guide exists because it keeps happening.</span></div>
+      <div><b>6–8 viewings</b><span>the visits a serious search needs.
+        From another timezone you attend the leftovers — the good ones
+        are gone before your flight lands.</span></div>
+    </div>
+    <p class="conto-chiusa sale">Against that: <b>€350, refundable by
+      contract</b> — and deducted from the agency fee when we deliver.</p>
+    <p class="conto-bench sale">For scale: a dedicated flat hunter runs
+      €1,100–1,800+ in Paris or Amsterdam. Same craft, Rome, with the
+      refund written into the contract: €350.</p>
+  </div>
+</section>
+
+<!-- ══ LA REGOLA — l'obiezione detta da noi, prima che la pensi ══════════ -->
+<section class="section" id="regola">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>The rule you've read everywhere</span>
+      <h2 class="titolo">“Never pay upfront in Rome.”<br>
+        <span class="hl">Correct — keep following it.</span></h2>
+      <p class="sotto">That rule protects you from rental scams. We teach
+        it ourselves, in our own scam guide. Here is why this service sits
+        in a different category — dimension by dimension, mechanically:</p>
+    </div>
+    <div class="regola2 sale">
+      <div class="r2-testa" aria-hidden="true"></div>
+      <div class="r2-testa male">The scam pattern</div>
+      <div class="r2-testa bene">This service</div>
+      <div class="r2-eti">Who you pay</div>
+      <div class="male">A stranger from a listing, unreachable after
+        the transfer</div>
+      <div class="bene"><b>Egidi Immobiliare S.r.l.</b> — registered
+        Italian company, P.IVA 17322991005, REA RM-1710623, office in
+        Via dei Coronari 181</div>
+      <div class="r2-eti">How you pay</div>
+      <div class="male">Bank transfer — irreversible by design</div>
+      <div class="bene"><b>Card via Stripe</b> — receipted, and card
+        payments carry chargeback protection</div>
+      <div class="r2-eti">What you hold</div>
+      <div class="male">A promise in a chat</div>
+      <div class="bene"><b>A written contract term</b>: at least 3 options
+        in your criteria within 15 days — Terms §4.2</div>
+      <div class="r2-eti">If it goes wrong</div>
+      <div class="male">The money is gone</div>
+      <div class="bene"><b>The €350 returns to your card</b>, in full —
+        no admin fee (Terms §7.1-bis)</div>
+    </div>
+    <p class="regola-fonte sale">Never seen a Rome rental scam up close?
+      <a href="/blog-scam-bible.html">Read our scam guide</a> — the
+      patterns, the red flags, the exact phrases they use. Whoever teaches
+      the defence isn't the threat.</p>
   </div>
 </section>
 
@@ -490,7 +632,7 @@ UNI_ITEMS
   <div class="container">
     <div class="sale">
       <span class="eyebrow"><i></i>Why it works</span>
-      <h2 class="titolo">An unfair advantage,<br><span class="hl">on your side.</span></h2>
+      <h2 class="titolo">Three things you can't do<br><span class="hl">from abroad.</span></h2>
     </div>
     <div class="org3 sale coro">
       <div class="org">
@@ -545,6 +687,9 @@ UNI_ITEMS
         </div>
         <div class="soglia-r"><b>60</b><span>the push threshold — anything
           scoring below sixty out of a hundred never reaches your phone.</span></div>
+        <p class="mac-fine">Every 15 minutes = <b>96 scans a day</b>. These
+          schedules are read from our production deploy file — not
+          marketing copy.</p>
       </div>
       <div>
         <div class="regoleP">
@@ -592,49 +737,13 @@ UNI_ITEMS
       <span class="eyebrow"><i></i>What you actually get</span>
       <h2 class="titolo">Experience meets<br><span class="hl">execution.</span></h2>
     </div>
-    <div class="griglia6 sale coro">
-      <div class="mini">
-        <span class="svc-icona"><svg viewBox="0 0 40 40"><circle cx="20" cy="14" r="6"/><path d="M8 33c1.5-7 6-10 12-10s10.5 3 12 10"/></svg></span>
-        <h4>Dedicated expert</h4>
-        <p class="sotto" style="margin-top:6px;font-size:13px">One person. Your
-          contact. They know your needs, budget and timeline. No automated
-          systems.</p>
-      </div>
-      <div class="mini">
-        <span class="svc-icona"><svg viewBox="0 0 40 40"><path d="M8 34V8h14v26M22 14h10v20M4 34h32"/><path d="M12 13h3M12 18h3M12 23h3M26 19h2M26 24h2"/></svg></span>
-        <h4>Off-market properties</h4>
-        <p class="sotto" style="margin-top:6px;font-size:13px">Apartments that
-          aren't publicly listed. Less competition. Better options. Real
-          advantage.</p>
-      </div>
-      <div class="mini">
-        <span class="svc-icona"><svg viewBox="0 0 40 40"><rect x="6" y="12" width="19" height="16" rx="1.5"/><path d="M25 18l9-5v14l-9-5"/></svg></span>
-        <h4>We do the viewings</h4>
-        <p class="sotto" style="margin-top:6px;font-size:13px">Abroad or busy? We
-          visit apartments, shoot videos, ask the right questions. You decide
-          remotely.</p>
-      </div>
-      <div class="mini">
-        <span class="svc-icona"><svg viewBox="0 0 40 40"><path d="M8 8h24v18H20l-8 7v-7H8z"/><path d="M14 15h12M14 20h8"/></svg></span>
-        <h4>Expert negotiation</h4>
-        <p class="sotto" style="margin-top:6px;font-size:13px">We know what's
-          fair. We negotiate rent, deposit terms and contract flexibility. You
-          get better deals.</p>
-      </div>
-      <div class="mini">
-        <span class="svc-icona"><svg viewBox="0 0 40 40"><path d="M12 5h12l6 6v24H12z"/><path d="M24 5v6h6M17 19h8M17 24h8M17 29h5"/></svg></span>
-        <h4>Full setup support</h4>
-        <p class="sotto" style="margin-top:6px;font-size:13px">Contracts.
-          Utilities. Codice fiscale. Residency registration. Everything to live
-          legally in Rome.</p>
-      </div>
-      <div class="mini">
-        <span class="svc-icona"><svg viewBox="0 0 40 40"><rect x="5" y="12" width="30" height="17" rx="1.5"/><circle cx="20" cy="20.5" r="4.5"/><path d="M10 12v-2h20v2"/></svg></span>
-        <h4>Fee deducted on success</h4>
-        <p class="sotto" style="margin-top:6px;font-size:13px">When we secure
-          your apartment, the €350 comes off your first month's rent. You end up
-          saving.</p>
-      </div>
+    <div class="inclusi sale">
+      <span><b>Dedicated expert</b> — one person, your contact</span>
+      <span><b>Off-market access</b> — homes never listed publicly</span>
+      <span><b>Viewings done for you</b> — in person, live on video</span>
+      <span><b>Negotiation</b> — rent, deposit, contract terms</span>
+      <span><b>Full setup</b> — contract, utilities, codice fiscale</span>
+      <span><b>€350 deducted</b> from the agency fee on success</span>
     </div>
 
     <div class="diverso quadro sale" style="margin-top:clamp(26px,3.4vw,42px)"><span class="tacca"></span>
@@ -647,18 +756,86 @@ UNI_ITEMS
   </div>
 </section>
 
+<!-- ══ IL PRODOTTO TOCCABILE — cosa ti arriva sul telefono ═══════════════ -->
+<section class="section section-dark" id="tocca">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>Touch it before you pay</span>
+      <h2 class="titolo">What lands on your phone<br><span class="hl">by day three</span>.</h2>
+    </div>
+    <div class="tocca sale">
+      <div>
+        <h3>The swipe deck</h3>
+        <p>Every match arrives as a card in your private app — photo,
+          price, score, and why it matched your brief. Swipe through them
+          like the place is already yours.</p>
+        <a href="/client-portal.html?code=DEMO">Try the actual client app →</a>
+        <small>Opens the real app with sample data — 10 seconds, no
+          signup.</small>
+      </div>
+      <div>
+        <h3>The Wallet boarding pass</h3>
+        <p>Every confirmed viewing lands in Apple Wallet — address, time,
+          directions, geofenced to the door. Your visit behaves like a
+          flight.</p>
+        <a href="/api/pass-demo?type=viewing">Add a sample pass →</a>
+        <small>On iPhone it opens straight into Wallet.</small>
+      </div>
+      <div>
+        <h3>The 90-second test drive</h3>
+        <p>Feel the whole rail — from brief to signed contract — on three
+          real homes, in your browser, right now.</p>
+        <a href="/try.html">Try it in 90 seconds →</a>
+        <small>No account, nothing saved.</small>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ LA VERIFICA — controllaci, non fidarti ════════════════════════════ -->
+<section class="section" id="verifica">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>Verifiable, not claimed</span>
+      <h2 class="titolo">Don't trust us.<br><span class="hl">Check us.</span></h2>
+    </div>
+    <div class="verifica sale">
+      <a class="rec-card" href="https://www.google.com/maps?q=Egidi+Immobiliare+Via+dei+Coronari+Roma" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 9.8l6.1-.7z"/></svg>
+        <span><b>4.9 on Google</b><span>47 reviews from real tenants —
+          read every one of them</span></span>
+        <i>Google ↗</i>
+      </a>
+      <div class="volto">
+        <div class="v-chi">
+          <span class="v-foto" id="vFoto">V</span>
+          <span class="v-nome"><b>Valentino — Founder</b>
+            <span>Licensed agency · Egidi Immobiliare S.r.l. · Roma</span></span>
+        </div>
+        <p>I run the search. Every home on your shortlist, <b>I've walked
+          in person</b> before you see it. And the guarantee has my
+          company's name on it: 3 options in your criteria within 15 days,
+          or the €350 goes back to your card — it's in the contract, not
+          in the marketing.</p>
+        <a href="https://wa.me/393313251961" target="_blank" rel="noopener">Message me
+          directly on WhatsApp →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ══ IL PREZZO — verbatim ══════════════════════════════════════════════ -->
 <section class="section section-dark" id="prezzo">
   <div class="container">
     <div class="prezzoP quadro sale" id="prezzoBox"><span class="tacca"></span>
       <div>
-        <div class="prezzoP-big"><b>€350</b><span>Upfront fee</span></div>
-        <p class="prezzoP-sub">Deducted from first month when we succeed</p>
+        <div class="prezzoP-big"><b>€350</b><span>Flat fee · refundable</span></div>
+        <p class="prezzoP-sub">Deducted from the agency fee on success — or refunded in full (Terms §4.2)</p>
         <div class="prezzoP-stats">
           <div><b data-fine="24" data-suff="h">0h</b><span>Search starts</span></div>
           <div><b>1:1</b><span>Dedicated expert</span></div>
           <div><b data-fine="6" data-suff="+">0+</b><span>Years network</span></div>
-          <div><b>€0</b><span>Net cost*</span></div>
+          <div><b>€0</b><span>Net on success</span></div>
         </div>
       </div>
       <div class="prezzoP-cta">
@@ -669,6 +846,84 @@ UNI_ITEMS
         <div class="pf-voce vista"><i></i>Complete move-in setup</div>
       </div>
     </div>
+  </div>
+</section>
+
+<!-- ══ IL CHECK-IN — la porta: il brief e' un boarding pass ══════════════ -->
+<section class="section" id="checkin">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>Check-in · First class</span>
+      <h2 class="titolo">Board <span class="hl">the hunt</span>.</h2>
+      <p class="sotto">Five lines and you're on. Your expert reads this exact
+        brief, the search starts within 24 hours — and the €350 comes back
+        the day we deliver.</p>
+    </div>
+    <div class="ck-torno" id="ckTorno" hidden
+      style="margin-top:clamp(22px,3vw,34px)">
+      <h3>Not ready to commit €350 today? Fair.</h3>
+      <p>Two no-cost moves: a 15-minute call with the person who would run
+        your search — or nothing at all: <b>we already have your brief</b>,
+        and Valentino writes to you personally within a few hours.</p>
+      <a href="https://wa.me/393313251961?text=Hi%20Valentino%2C%20I%20was%20on%20the%20Property%20Finding%20page%20—%20can%20we%20do%20a%20quick%2015-min%20call%3F"
+        target="_blank" rel="noopener">Book the 15-minute call →</a>
+    </div>
+    <form class="ckt sale" id="ckForm" novalidate>
+      <span class="ck-banda" aria-hidden="true"><em>First class · Property Finding</em></span>
+      <div class="ck-corpo">
+        <div class="ck-rotta" aria-hidden="true"><b>ABROAD</b>
+          <span class="ck-tratta"><i class="ck-aereo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 15.5v-2l-8-5V3c0-.83-.67-1.5-1.5-1.5S10.5 2.17 10.5 3v5.5l-8 5v2l8-2.5v5.5l-2 1.5V21l3.5-1 3.5 1v-1.5l-2-1.5v-5.5l8 2.5z"/></svg></i></span>
+          <b>ROME</b></div>
+        <div class="ck-campi">
+          <div class="ck-campo"><label for="ckNome">Passenger · full name</label>
+            <input id="ckNome" name="name" autocomplete="name" required></div>
+          <div class="ck-campo"><label for="ckMail">Email</label>
+            <input id="ckMail" name="email" type="email" autocomplete="email" required></div>
+          <div class="ck-campo"><label for="ckTel">WhatsApp / phone</label>
+            <input id="ckTel" name="phone" type="tel" autocomplete="tel" required></div>
+          <div class="ck-campo"><label for="ckBudget">Monthly budget (€)</label>
+            <input id="ckBudget" name="budget" inputmode="numeric" placeholder="1.500"></div>
+          <div class="ck-campo tutto"><label for="ckQuando">Move-in</label>
+            <input id="ckQuando" name="move_in_date" type="month"></div>
+          <div class="ck-campo ck-extra"><label for="ckBeds">Bedrooms</label>
+            <select id="ckBeds" name="bedrooms"><option value="">—</option>
+              <option>Studio</option><option>1</option><option>2</option>
+              <option>3+</option></select></div>
+          <div class="ck-campo ck-extra"><label for="ckZone">Preferred areas</label>
+            <input id="ckZone" name="preferred_areas" placeholder="Trastevere, Prati…"></div>
+          <div class="ck-campo tutto ck-extra"><label for="ckMust">Must-haves</label>
+            <input id="ckMust" name="must_haves" placeholder="Balcony, elevator, pet-friendly…"></div>
+          <div class="ck-campo tutto ck-extra"><label for="ckNote">Anything else</label>
+            <textarea id="ckNote" name="additional_info"></textarea></div>
+        </div>
+        <button type="button" class="ck-piu" id="ckPiu" aria-expanded="false">+
+          More details (bedrooms, areas, must-haves)</button>
+        <input type="text" name="company" tabindex="-1" autocomplete="off"
+          aria-hidden="true" style="position:absolute;left:-9999px">
+      </div>
+      <span class="ck-perf" aria-hidden="true"></span>
+      <div class="ck-stub">
+        <div class="ck-quota"><b>€350</b><span class="ck-barcode" aria-hidden="true"></span></div>
+        <div class="ck-sotto">BOOM·ROME · FIRST · PF-0350</div>
+        <p class="ck-tenuta">Held on your file — deducted from the agency
+          fee on success, or refunded. Never just spent.</p>
+        <button class="ck-vai" type="submit" id="ckVai">Start the hunt ·
+          €350&nbsp;<i style="font-style:normal">→</i></button>
+        <p class="ck-garanzia"><span><b>Zero risk:</b> deducted on success,
+          refunded in full if we don't deliver.</span></p>
+        <p class="ck-mecc"><span>By contract: at least <b>3 options in your
+          criteria within 15 days</b>, or the €350 returns to your card —
+          <a href="/terms.html" target="_blank" rel="noopener">Terms
+          §4.2</a>.</span></p>
+        <p class="ck-mecc"><span>Card via <b>Stripe</b> to Egidi Immobiliare
+          S.r.l. — never a bank transfer to an individual. Chargeback
+          protection applies.</span></p>
+        <p class="ck-err" id="ckErr" role="alert"></p>
+        <p class="ck-alt">Prefer to talk first?
+          <a href="https://wa.me/393313251961" target="_blank"
+            rel="noopener">WhatsApp us</a> — a named human replies.</p>
+      </div>
+    </form>
   </div>
 </section>
 
@@ -684,15 +939,24 @@ UNI_ITEMS
         <p>The €350 is fully refundable if we do not deliver a match. You
           risk nothing.</p></details>
       <details><summary>Is the €350 an extra cost?</summary>
-        <p>No — it is deducted from your first month's rent when we secure
-          your apartment, so it effectively disappears.</p></details>
+        <p>No — it is deducted from the agency fee when we secure your
+          apartment, so it effectively disappears. If we don't deliver,
+          it comes back in full (Terms §4.2).</p></details>
       <details><summary>Can you really access off-market apartments?</summary>
         <p>Yes. After 6+ years in Rome we work directly with landlords and
           building administrators, so you see places that never reach the
           public portals.</p></details>
       <details><summary>I'm not in Italy yet — does it still work?</summary>
-        <p>Perfectly. We handle the viewings on video and manage everything
-          remotely — contract and utilities included.</p></details>
+        <p>Yes — viewings live on video, the contract signed from your
+          phone, utilities handled. One thing genuinely helps: being
+          reachable on WhatsApp for quick decisions, because good flats
+          move in hours, not days.</p></details>
+      <details><summary>How do I know BOOM is legitimate?</summary>
+        <p>Check, don't trust: Egidi Immobiliare S.r.l. — P.IVA 17322991005,
+          REA RM-1710623, Via dei Coronari 181, Roma. EU trademark
+          019317594, verifiable on EUIPO. 47 Google reviews you can read.
+          Every payment runs through Stripe with a receipt — we never ask
+          for a bank transfer to an individual.</p></details>
     </div>
   </div>
 </section>
@@ -759,6 +1023,48 @@ UNI_ITEMS
         'WhatsApp below.';
     });
   });
+})();
+</script>
+<script>
+/* IL RITORNO DALLA CASSA: il banner lo vede SOLO chi ha annullato su
+   Stripe (?canceled=1) — i caldi non lo incontrano mai. E il brief
+   sopravvive al giro: salvato prima del redirect, ripristinato al
+   ritorno. */
+(function () {
+  'use strict';
+  var form = document.getElementById('ckForm');
+  var torno = document.getElementById('ckTorno');
+  if (!form) return;
+  function traccia(n, p) { try { gtag('event', n, p || {}); } catch (e) {} }
+  var CAMPI = ['name', 'email', 'phone', 'budget', 'move_in_date',
+    'bedrooms', 'preferred_areas', 'must_haves', 'additional_info'];
+  form.addEventListener('submit', function () {
+    try {
+      var d = {};
+      CAMPI.forEach(function (k) {
+        var el = form.querySelector('[name="' + k + '"]');
+        if (el && el.value) d[k] = el.value;
+      });
+      sessionStorage.setItem('boom_pfs_brief', JSON.stringify(d));
+    } catch (e) {}
+  });
+  try {
+    var salvato = JSON.parse(sessionStorage.getItem('boom_pfs_brief') || '0');
+    if (salvato) CAMPI.forEach(function (k) {
+      var el = form.querySelector('[name="' + k + '"]');
+      if (el && !el.value && salvato[k]) el.value = salvato[k];
+    });
+  } catch (e) {}
+  var canceled = false;
+  try { canceled = new URLSearchParams(location.search)
+    .get('canceled') === '1'; } catch (e) {}
+  if (canceled && torno) {
+    torno.hidden = false;
+    traccia('pfs_checkout_canceled_return', {});
+    var sez = document.getElementById('checkin');
+    if (sez && sez.scrollIntoView) setTimeout(function () {
+      sez.scrollIntoView({ block: 'start' }); }, 150);
+  }
 })();
 </script>
 
