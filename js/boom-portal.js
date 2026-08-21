@@ -358,15 +358,34 @@
     // ─── Firestore listener with auto-retry + exponential backoff ─────────
     // Returns an unsubscribe function. Use this instead of raw onSnapshot
     // when you need resilience to transient errors (offline, etc).
-    BP.listen = function (queryRef, onData, onError) {
+    BP.listen = function (queryRef, onData, onError, opts) {
         var unsub = null;
         var retries = 0;
         var cancelled = false;
+        var gotFirst = false;
+
+        // Il canale MUTO: su WebKit incastrato onSnapshot può non chiamare
+        // NÉ onData NÉ l'errore — la pagina resta vuota per sempre, zero
+        // segnali. La lezione watchPAs (console proposte), qui portata nella
+        // copia condivisa così guarisce TUTTE le console in un colpo: dopo
+        // 6s senza il primo snapshot si consegna una lettura one-shot; il
+        // canale resta armato e quando finalmente apre prende il comando.
+        var fallbackMs = (opts && opts.fallbackMs) || 6000;
+        var fb = setTimeout(function () {
+            if (cancelled || gotFirst || !queryRef || typeof queryRef.get !== 'function') return;
+            queryRef.get().then(function (snap) {
+                if (cancelled || gotFirst) return;
+                try { onData(snap); }
+                catch (e) { console.error('[BoomPortal] onData (fallback) threw:', e); }
+            }).catch(function () { /* il canale ha ancora la sua occasione */ });
+        }, fallbackMs);
 
         function subscribe() {
             try {
                 unsub = queryRef.onSnapshot(
                     function (snap) {
+                        gotFirst = true;
+                        clearTimeout(fb);
                         retries = 0;
                         try { onData(snap); }
                         catch (e) { console.error('[BoomPortal] onData handler threw:', e); }
@@ -389,6 +408,7 @@
         subscribe();
         return function () {
             cancelled = true;
+            clearTimeout(fb);
             if (unsub) unsub();
         };
     };

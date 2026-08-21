@@ -75,6 +75,7 @@ const SUITES = [
   { name: 'diagnosi', file: 'tests/diagnosi/run.mjs',    what: 'watchdog scritture (lenta lo dice, rifiutata lo grida) + 🩺 Diagnosi permessi/battiti + campanello coerente' },
   { name: 'escape',   file: 'tests/escape/run.mjs',      what: "l'apostrofo che spegneva i bottoni: un nome «d'Oro» in un onclick inline non uccide più l'handler — jsq una copia sola, verificato compilando davvero" },
   { name: 'imap',     file: 'tests/imap/run.mjs',        what: 'il kill senza battito: ogni ImapFlow dichiara i tetti DENTRO il budget della funzione — uno stallo Gmail diventa un errore contato, mai più un run ucciso con errs=0' },
+  { name: 'listen',   file: 'tests/listen/run.mjs',      what: 'il canale muto: BoomPortal.listen consegna una one-shot dopo 6s di silenzio — le console (pfs-command ×7 canali) non restano mai vuote senza un segnale' },
   { name: 'oggi',     file: 'tests/oggi/run.mjs',         what: 'Oggi: la coda delle decisioni ordina per costo del ritardo, ogni azione dichiarata esiste, il polso dei soldi fa i conti giusti' },
   { name: 'finish',   file: 'tests/finish/run.mjs',       what: 'La Rifinitura: nessun colore inventato, nessun selettore morto, la riga contratto ridisegnata non perde handler né condizioni' },
   { name: 'actions',  file: 'tests/actions/run.mjs',      what: 'Il Prontuario: ogni azione dichiarata esiste davvero (22 documenti, sezioni, modali), la ricerca trova per sinonimo e prefisso, e le due facce leggono lo stesso registro' },
